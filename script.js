@@ -1,2 +1,2 @@
 
-console.log("TonPlaygram WebApp Loaded");
+console.log('TonPlaygram WebApp Initialized');
