@@ -1,22 +1,27 @@
 
 body {
-  font-family: Arial, sans-serif;
-  background: #0b0c10;
+  background-color: #121212;
   color: white;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  height: 100vh;
-  margin: 0;
+  font-family: 'Arial', sans-serif;
+  text-align: center;
+  margin-top: 50px;
 }
 .container {
-  text-align: center;
+  padding: 20px;
+}
+.logo {
+  width: 200px;
+  margin-bottom: 20px;
 }
 button {
-  padding: 10px 20px;
-  font-size: 16px;
-  background-color: gold;
+  padding: 12px 24px;
+  background-color: #00aaff;
+  color: white;
   border: none;
-  border-radius: 5px;
+  border-radius: 8px;
+  font-size: 16px;
   cursor: pointer;
+}
+button:hover {
+  background-color: #008fcc;
 }

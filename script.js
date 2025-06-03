@@ -1,1 +1,2 @@
-// JS functionality can go here
+
+console.log("TonPlaygram WebApp Loaded");
