@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route, Link } from 'react-router-dom';
+import { HashRouter, Routes, Route, Link } from 'react-router-dom';
 import Mining from './pages/Mining.jsx';
 import Games from './pages/Games.jsx';
 import Watch from './pages/Watch.jsx';
@@ -8,7 +8,7 @@ import Referral from './pages/Referral.jsx';
 
 export default function App() {
   return (
-    <BrowserRouter>
+    <HashRouter>
       <header className="flex items-center justify-between p-4 bg-gray-800 text-white">
         <h1 className="text-lg font-bold">TonPlaygram</h1>
         <a
@@ -38,6 +38,6 @@ export default function App() {
       <footer className="p-4 text-center text-xs text-gray-500">
         © 2025 TonPlaygram. All rights reserved.
       </footer>
-    </BrowserRouter>
+    </HashRouter>
   );
 }
