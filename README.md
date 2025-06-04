@@ -1,6 +1,6 @@
-# TonPlaygram MiniApp
+# TonPlaygram WebApp
 
-This repository contains the skeleton structure for the TonPlaygram MiniApp.
+This repository contains the skeleton structure for the TonPlaygram WebApp.
 Copy `.env.example` to `.env` and then run:
 
 ```bash
