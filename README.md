@@ -18,6 +18,7 @@ npm run serve
 ```
 
 Always access the app through the dev server or the preview server rather than opening `index.html` directly.
+The React app uses HashRouter to ensure pages load correctly when hosted statically.
 
 To run tests use:
 
