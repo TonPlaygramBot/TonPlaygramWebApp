@@ -15,3 +15,15 @@ To run tests use:
 ```bash
 npm test
 ```
+
+## Bot Development
+
+The server code lives in `server/` and uses Express together with Telegraf. To run the bot locally:
+
+```bash
+cd server
+npm install
+TELEGRAM_BOT_TOKEN=<your token> npm start
+```
+
+During production the bot uses webhooks. Set `RENDER_EXTERNAL_URL` to the deployed base URL and configure your Render service accordingly.
