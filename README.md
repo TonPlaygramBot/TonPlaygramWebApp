@@ -12,21 +12,15 @@ This project contains a Telegram bot and a companion web application.
    MONGODB_URI=<your mongodb connection string>
    PORT=3000
    ```
-2. Install dependencies and start the bot:
+2. Install dependencies and start the bot (this will also build the web app):
    ```bash
    cd bot
    npm install
    npm start
    ```
-3. For the web app:
-   ```bash
-   cd webapp
-   npm install
-   npm run build
-   ```
-   The compiled files will be placed in `webapp/dist`. Start the bot after
-   building so Express can serve these static files. If you skip this step, the
-   site will appear blank when visiting the server.
+   The start script automatically runs `npm --prefix ../webapp run build` so the
+   compiled files are available in `webapp/dist`. If this build step fails,
+   you'll see a blank page when visiting the site.
 
 The bot exposes a simple `/start` command that records users in MongoDB and offers a button to open the web app.
 
