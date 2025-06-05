@@ -18,8 +18,8 @@ bot.start((ctx) => {
       inline_keyboard: [
         [{ text: '🚀 Launch WebApp', url: process.env.WEBAPP_URL || 'https://example.com' }],
         [
-          { text: '🐦 Join Our Community', url: 'https://twitter.com/TonPlaygram' },
-          { text: '💬 Join Our Community', url: 'https://t.me/TonPlaygramChat' }
+          { text: '🐦 Join Twitter', url: 'https://twitter.com/TonPlaygram' },
+          { text: '💬 Join Telegram', url: 'https://t.me/TonPlaygramChat' }
         ]
       ]
     }
