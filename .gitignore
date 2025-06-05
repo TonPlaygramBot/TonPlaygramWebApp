@@ -4,3 +4,4 @@ bot/node_modules
 webapp/node_modules
 webapp/dist
 bot/package-lock.json
+.idea
