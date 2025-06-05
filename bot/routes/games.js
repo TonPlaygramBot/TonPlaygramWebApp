@@ -1,0 +1,1 @@
+/* games route placeholder */
