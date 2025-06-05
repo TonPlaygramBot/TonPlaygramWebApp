@@ -45,12 +45,16 @@ app.get('/', (_req, res) => {
 const port = process.env.PORT || 3000;
 app.listen(port, async () => {
   console.log(`Server listening on port ${port}`);
-  if (process.env.NODE_ENV === 'production') {
-    await bot.telegram.deleteWebhook();
-    const url = process.env.RENDER_EXTERNAL_URL || `https://example.com`;
-    await bot.telegram.setWebhook(`${url}/bot${botToken}`);
-  } else {
-    bot.launch();
+  try {
+    if (process.env.NODE_ENV === 'production') {
+      await bot.telegram.deleteWebhook();
+      const url = process.env.RENDER_EXTERNAL_URL || 'https://example.com';
+      await bot.telegram.setWebhook(`${url}/bot${botToken}`);
+    } else {
+      await bot.launch();
+    }
+  } catch (err) {
+    console.error('Failed to initialize Telegram bot:', err);
   }
 });
 
