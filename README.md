@@ -10,11 +10,11 @@ npm run dev
 
 This will start the Vite development server.
 
-To create a production build run:
+To create a production build and serve it run:
 
 ```bash
-npm run build
-npm run serve
+npm run build   # produces dist/
+npm start       # serves the built files
 ```
 
 Always access the app through the dev server or the preview server rather than opening `index.html` directly.
