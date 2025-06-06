@@ -1,4 +1,6 @@
-export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000';
+// Use the API base URL from the build environment or fallback to the same origin
+// so the webapp works when served by the Express server in production.
+export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
 
 export async function ping() {
   const res = await fetch(API_BASE_URL + '/api/ping');
