@@ -7,6 +7,8 @@ import tasksRoutes from './routes/tasks.js';
 import watchRoutes from './routes/watch.js';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { existsSync } from 'fs';
+import { execSync } from 'child_process';
 
 const app = express();
 app.use(express.json());
@@ -17,6 +19,19 @@ app.use('/api/watch', watchRoutes);
 // Serve the built React app
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const webappPath = path.join(__dirname, '../webapp/dist');
+
+// Build the webapp if the compiled files are missing
+if (!existsSync(path.join(webappPath, 'index.html'))) {
+  try {
+    console.log('Building webapp...');
+    const webappDir = path.join(__dirname, '../webapp');
+    execSync('npm install', { cwd: webappDir, stdio: 'inherit' });
+    execSync('npm run build', { cwd: webappDir, stdio: 'inherit' });
+  } catch (err) {
+    console.error('Failed to build webapp:', err.message);
+  }
+}
+
 app.use(express.static(webappPath));
 
 app.get('/', (req, res) => {
