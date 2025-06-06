@@ -41,6 +41,10 @@ mongoose.connect(process.env.MONGODB_URI)
 
 app.listen(PORT, async () => {
   console.log(`Server running on port ${PORT}`);
+  if (process.env.SKIP_BOT_LAUNCH || !process.env.BOT_TOKEN) {
+    console.log('Skipping Telegram bot launch');
+    return;
+  }
   try {
     await bot.launch();
   } catch (err) {
@@ -48,5 +52,7 @@ app.listen(PORT, async () => {
   }
 });
 
-process.once('SIGINT', () => bot.stop('SIGINT'));
-process.once('SIGTERM', () => bot.stop('SIGTERM'));
+if (!process.env.SKIP_BOT_LAUNCH && process.env.BOT_TOKEN) {
+  process.once('SIGINT', () => bot.stop('SIGINT'));
+  process.once('SIGTERM', () => bot.stop('SIGTERM'));
+}

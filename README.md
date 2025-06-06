@@ -12,12 +12,14 @@ This project contains a Telegram bot and a companion web application.
    MONGODB_URI=<your mongodb connection string>
    PORT=3000
    ```
-2. Install dependencies and start the bot (the start script installs missing dependencies for both the bot and web app and then builds the web app):
+2. Install dependencies and start the bot:
 ```bash
 cd bot
+npm install
+npm --prefix ../webapp install
 npm start
 ```
-   The start script automatically installs this package's dependencies, installs the web app dependencies, and runs `npm --prefix ../webapp run build` so the compiled files are available in `webapp/dist`. If this build step fails, you'll see a blank page when visiting the site. If your environment requires a proxy to access the Telegram API, set `HTTPS_PROXY` (or `https_proxy`) before starting the bot.
+   The start script runs `npm --prefix ../webapp run build` so the compiled files are available in `webapp/dist`. If this build step fails, you'll see a blank page when visiting the site. If your environment requires a proxy to access the Telegram API, set `HTTPS_PROXY` (or `https_proxy`) before starting the bot. Set `SKIP_BOT_LAUNCH=1` to skip launching the Telegram bot if network access is unavailable.
 
    To open the web app without running the server, build it manually and open `webapp/dist/index.html` in your browser:
    ```bash
