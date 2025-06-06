@@ -21,7 +21,8 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const webappPath = path.join(__dirname, '../webapp/dist');
 
 // Build the webapp if the compiled files are missing
-if (!existsSync(path.join(webappPath, 'index.html'))) {
+if (!existsSync(path.join(webappPath, 'index.html')) ||
+    !existsSync(path.join(webappPath, 'assets'))) {
   try {
     console.log('Building webapp...');
     const webappDir = path.join(__dirname, '../webapp');
