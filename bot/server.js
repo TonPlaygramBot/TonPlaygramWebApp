@@ -39,9 +39,13 @@ mongoose.connect(process.env.MONGODB_URI)
   .then(() => console.log('Connected to MongoDB'))
   .catch((err) => console.error('MongoDB connection error', err));
 
-app.listen(PORT, () => {
+app.listen(PORT, async () => {
   console.log(`Server running on port ${PORT}`);
-  bot.launch();
+  try {
+    await bot.launch();
+  } catch (err) {
+    console.error('Failed to launch Telegram bot:', err.message);
+  }
 });
 
 process.once('SIGINT', () => bot.stop('SIGINT'));
