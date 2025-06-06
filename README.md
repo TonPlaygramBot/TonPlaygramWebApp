@@ -19,6 +19,12 @@ npm start
 ```
    The start script automatically installs this package's dependencies, installs the web app dependencies, and runs `npm --prefix ../webapp run build` so the compiled files are available in `webapp/dist`. If this build step fails, you'll see a blank page when visiting the site. If your environment requires a proxy to access the Telegram API, set `HTTPS_PROXY` (or `https_proxy`) before starting the bot.
 
+   To open the web app without running the server, build it manually and open `webapp/dist/index.html` in your browser:
+   ```bash
+   npm --prefix webapp install
+   npm --prefix webapp run build
+   ```
+
 The bot exposes a simple `/start` command that records users in MongoDB and offers a button to open the web app.
 
 ### Mining demo
