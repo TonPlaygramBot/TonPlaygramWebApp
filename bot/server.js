@@ -1,7 +1,8 @@
-import 'dotenv/config';
+import dotenv from 'dotenv';
 import express from 'express';
 import bot from './bot.js';
 import mongoose from 'mongoose';
+import { MongoMemoryServer } from 'mongodb-memory-server';
 import miningRoutes from './routes/mining.js';
 import tasksRoutes from './routes/tasks.js';
 import watchRoutes from './routes/watch.js';
@@ -10,6 +11,9 @@ import { fileURLToPath } from 'url';
 import { existsSync } from 'fs';
 import { execSync } from 'child_process';
 
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+dotenv.config({ path: path.join(__dirname, '.env') });
+
 const app = express();
 app.use(express.json());
 app.use('/api/mining', miningRoutes);
@@ -17,7 +21,6 @@ app.use('/api/tasks', tasksRoutes);
 app.use('/api/watch', watchRoutes);
 
 // Serve the built React app
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const webappPath = path.join(__dirname, '../webapp/dist');
 
 // Build the webapp if the compiled files are missing
@@ -51,9 +54,26 @@ app.get('*', (req, res) => {
 
 const PORT = process.env.PORT || 3000;
 
-mongoose.connect(process.env.MONGODB_URI)
-  .then(() => console.log('Connected to MongoDB'))
-  .catch((err) => console.error('MongoDB connection error', err));
+let mongoUri = process.env.MONGODB_URI;
+
+async function connectMongo(uri) {
+  try {
+    await mongoose.connect(uri);
+    console.log('Connected to MongoDB');
+  } catch (err) {
+    console.error('MongoDB connection error', err);
+  }
+}
+
+if (mongoUri === 'memory') {
+  MongoMemoryServer.create().then((mem) => {
+    mongoUri = mem.getUri();
+    console.log(`Using in-memory MongoDB at ${mongoUri}`);
+    connectMongo(mongoUri);
+  });
+} else {
+  connectMongo(mongoUri);
+}
 
 app.listen(PORT, async () => {
   console.log(`Server running on port ${PORT}`);
