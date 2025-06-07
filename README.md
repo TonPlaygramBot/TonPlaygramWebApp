@@ -23,11 +23,7 @@ This project contains a Telegram bot and a companion web application.
    If `WEBAPP_API_BASE_URL` is not specified, it defaults to
    `http://localhost:$PORT`.
 
-3. Install dependencies for both the server and the webapp. Running
-   `npm install` from the repository root automatically installs each
-   subproject thanks to the `postinstall` script. You can also run
-   `npm run install-all` manually or execute `npm install` inside each
-   subdirectory.
+
 4. Start the bot **from the `bot` directory** so its `.env` file is loaded:
 ```bash
 cd bot
@@ -63,10 +59,6 @@ Use `/watch` to see available videos. Watching a video via the web app awards th
 ### Deployment on Render
 
 
-A typical configuration is:
-
-```
-Build command: npm --prefix webapp run build
 Start command: npm start
 ```
 
