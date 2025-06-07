@@ -62,7 +62,7 @@ Use `/watch` to see available videos. Watching a video via the web app awards th
 
 ### Deployment on Render
 
-Render runs `npm install` followed by `npm start` by default. This repository stores the server inside `bot/` and the React app in `webapp/`. Configure the service so that both subprojects install their dependencies and the webapp builds before the server starts.
+
 A typical configuration is:
 
 ```
@@ -73,5 +73,6 @@ Start command: npm start
 Set `WEBAPP_API_BASE_URL` in the Render environment to the public URL of your
 service (e.g. `https://tonplaygramwebapp.onrender.com/api`). The build step uses
 this variable to configure the frontend API client.
+
 
 Set `MONGODB_URI=memory` in the environment if you do not have a database. Otherwise provide your MongoDB connection string. The server logs should show `Server running on port` and `Connected to MongoDB`. Any connection errors will appear in the logs and usually indicate an incorrect URI or firewall rules.
