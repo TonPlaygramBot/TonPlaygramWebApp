@@ -2,6 +2,7 @@ import 'dotenv/config';
 import express from 'express';
 import bot from './bot.js';
 import mongoose from 'mongoose';
+import { MongoMemoryServer } from 'mongodb-memory-server';
 import miningRoutes from './routes/mining.js';
 import tasksRoutes from './routes/tasks.js';
 import watchRoutes from './routes/watch.js';
@@ -51,9 +52,26 @@ app.get('*', (req, res) => {
 
 const PORT = process.env.PORT || 3000;
 
-mongoose.connect(process.env.MONGODB_URI)
-  .then(() => console.log('Connected to MongoDB'))
-  .catch((err) => console.error('MongoDB connection error', err));
+let mongoUri = process.env.MONGODB_URI;
+
+async function connectMongo(uri) {
+  try {
+    await mongoose.connect(uri);
+    console.log('Connected to MongoDB');
+  } catch (err) {
+    console.error('MongoDB connection error', err);
+  }
+}
+
+if (mongoUri === 'memory') {
+  MongoMemoryServer.create().then((mem) => {
+    mongoUri = mem.getUri();
+    console.log(`Using in-memory MongoDB at ${mongoUri}`);
+    connectMongo(mongoUri);
+  });
+} else {
+  connectMongo(mongoUri);
+}
 
 app.listen(PORT, async () => {
   console.log(`Server running on port ${PORT}`);
