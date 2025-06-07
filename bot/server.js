@@ -1,6 +1,5 @@
 
 
-
 app.use(express.static(webappPath));
 
 app.get('/', (req, res) => {
@@ -18,5 +17,4 @@ app.get('*', (req, res) => {
 });
 
 const PORT = process.env.PORT || 3000;
-
 

@@ -21,3 +21,4 @@ Use `/mine start` to begin mining, `/mine stop` to pause, and `/mine claim` to c
 
 Use `/tasks` to view available tasks. Complete a task with `/tasks complete <id>` to earn additional TPC.
 
+
