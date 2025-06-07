@@ -1,6 +1,5 @@
 import { Telegraf } from 'telegraf';
 
-const bot = new Telegraf(process.env.BOT_TOKEN);
 
 // Commands
 import registerStart from './commands/start.js';

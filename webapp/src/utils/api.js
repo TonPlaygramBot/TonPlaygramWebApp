@@ -1,4 +1,4 @@
-export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000';
+
 
 export async function ping() {
   const res = await fetch(API_BASE_URL + '/api/ping');
@@ -38,3 +38,4 @@ export function listTasks(telegramId) {
 export function completeTask(telegramId, taskId) {
   return post('/api/tasks/complete', { telegramId, taskId });
 }
+<
