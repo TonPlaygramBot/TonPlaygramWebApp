@@ -1,12 +1,5 @@
 import { Telegraf } from 'telegraf';
-import { HttpsProxyAgent } from 'https-proxy-agent';
 
-const options = {};
-const proxy = process.env.https_proxy || process.env.HTTPS_PROXY;
-if (proxy) {
-  options.telegram = { agent: new HttpsProxyAgent(proxy) };
-}
-const bot = new Telegraf(process.env.BOT_TOKEN, options);
 
 // Commands
 import registerStart from './commands/start.js';
