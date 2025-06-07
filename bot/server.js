@@ -1,4 +1,4 @@
-import 'dotenv/config';
+import dotenv from 'dotenv';
 import express from 'express';
 import bot from './bot.js';
 import mongoose from 'mongoose';
@@ -11,6 +11,9 @@ import { fileURLToPath } from 'url';
 import { existsSync } from 'fs';
 import { execSync } from 'child_process';
 
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+dotenv.config({ path: path.join(__dirname, '.env') });
+
 const app = express();
 app.use(express.json());
 app.use('/api/mining', miningRoutes);
@@ -18,7 +21,6 @@ app.use('/api/tasks', tasksRoutes);
 app.use('/api/watch', watchRoutes);
 
 // Serve the built React app
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const webappPath = path.join(__dirname, '../webapp/dist');
 
 // Build the webapp if the compiled files are missing
