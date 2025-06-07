@@ -66,13 +66,7 @@ async function connectMongo(uri) {
 }
 
 if (mongoUri === 'memory') {
-  MongoMemoryServer.create().then((mem) => {
-    mongoUri = mem.getUri();
-    console.log(`Using in-memory MongoDB at ${mongoUri}`);
-    connectMongo(mongoUri);
-  });
-} else {
-  connectMongo(mongoUri);
+
 }
 
 app.listen(PORT, async () => {
