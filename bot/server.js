@@ -1,9 +1,13 @@
 
 
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+dotenv.config({ path: path.join(__dirname, '.env') });
+
 const app = express();
 app.use(express.json());
 app.use('/api/mining', miningRoutes);
 app.use('/api/tasks', tasksRoutes);
+
 
 app.use(express.static(webappPath));
 
@@ -22,5 +26,4 @@ app.get('*', (req, res) => {
 });
 
 const PORT = process.env.PORT || 3000;
-
 
