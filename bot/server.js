@@ -14,7 +14,6 @@ import { execSync } from 'child_process';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 dotenv.config({ path: path.join(__dirname, '.env') });
 
-const PORT = process.env.PORT || 3000;
 
 const app = express();
 app.use(express.json());
@@ -61,6 +60,7 @@ app.get('*', (req, res) => {
 });
 
 let mongoUri = process.env.MONGODB_URI;
+
 
 async function connectMongo(uri) {
   try {

@@ -18,11 +18,6 @@ This project contains a Telegram bot and a companion web application.
    ```
    VITE_API_BASE_URL=http://localhost:3000
    ```
-   When the server builds the frontend automatically, it sets
-   `VITE_API_BASE_URL` using the `WEBAPP_API_BASE_URL` environment variable.
-   If `WEBAPP_API_BASE_URL` is not specified, it defaults to
-   `http://localhost:$PORT`.
-
 
 4. Start the bot **from the `bot` directory** so its `.env` file is loaded:
 ```bash
@@ -57,14 +52,6 @@ Use `/tasks` to view available tasks. Complete a task with `/tasks complete <id>
 Use `/watch` to see available videos. Watching a video via the web app awards the listed TPC once per video.
 
 ### Deployment on Render
-
-
-Start command: npm start
-```
-
-Set `WEBAPP_API_BASE_URL` in the Render environment to the public URL of your
-service (e.g. `https://tonplaygramwebapp.onrender.com/api`). The build step uses
-this variable to configure the frontend API client.
 
 
 Set `MONGODB_URI=memory` in the environment if you do not have a database. Otherwise provide your MongoDB connection string. The server logs should show `Server running on port` and `Connected to MongoDB`. Any connection errors will appear in the logs and usually indicate an incorrect URI or firewall rules.
