@@ -19,9 +19,6 @@ This project contains a Telegram bot and a companion web application.
    VITE_API_BASE_URL=http://localhost:3000
    ```
 
-3. Install dependencies for both the server and the webapp. Run
-   `npm run install-all` from the repository root or execute `npm install`
-   inside each subproject.
 4. Start the bot **from the `bot` directory** so its `.env` file is loaded:
 ```bash
 cd bot
@@ -56,12 +53,5 @@ Use `/watch` to see available videos. Watching a video via the web app awards th
 
 ### Deployment on Render
 
-Render runs `npm install` followed by `npm start` by default. This repository stores the server inside `bot/` and the React app in `webapp/`. Configure the service so that both subprojects install their dependencies and the webapp builds before the server starts.
-A typical configuration is:
-
-```
-Build command: npm run install-all && npm --prefix webapp run build
-Start command: npm start
-```
 
 Set `MONGODB_URI=memory` in the environment if you do not have a database. Otherwise provide your MongoDB connection string. The server logs should show `Server running on port` and `Connected to MongoDB`. Any connection errors will appear in the logs and usually indicate an incorrect URI or firewall rules.
