@@ -13,7 +13,13 @@ This project contains a Telegram bot and a companion web application.
    MONGODB_URI=<your mongodb connection string or 'memory'>
    PORT=3000
    ```
-2. Install dependencies and start the bot:
+2. Copy `webapp/.env.example` to `webapp/.env`. The default value points the
+   front-end at the local bot server:
+   ```
+   VITE_API_BASE_URL=http://localhost:3000
+   ```
+
+3. Install dependencies and start the bot:
 ```bash
 cd bot
 npm install
