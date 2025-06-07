@@ -66,19 +66,7 @@ async function connectMongo(uri) {
 }
 
 if (mongoUri === 'memory') {
-  MongoMemoryServer.create()
-    .then((mem) => {
-      mongoUri = mem.getUri();
-      console.log(`Using in-memory MongoDB at ${mongoUri}`);
-      connectMongo(mongoUri);
-    })
-    .catch((err) => {
-      console.error('Failed to start in-memory MongoDB:', err.message);
-    });
-} else if (mongoUri) {
-  connectMongo(mongoUri);
-} else {
-  console.log('No MongoDB URI configured, continuing without database');
+
 }
 
 app.listen(PORT, async () => {
