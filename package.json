@@ -4,6 +4,7 @@
   "private": true,
   "scripts": {
     "start": "node bot/server.js",
-    "install-all": "npm install --prefix bot && npm install --prefix webapp"
+    "install-all": "npm install --prefix bot && npm install --prefix webapp",
+    "postinstall": "npm run install-all"
   }
 }
