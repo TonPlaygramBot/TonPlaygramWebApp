@@ -1,0 +1,16 @@
+{
+  "name": "tonplaygram-monorepo",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "main": "bot/server.js",
+  "scripts": {
+    "install-all": "npm install --prefix bot && npm install --prefix webapp",
+    "build": "npm --prefix webapp run build",
+    "start": "node bot/server.js",
+    "postinstall": "npm run install-all && npm run build"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
