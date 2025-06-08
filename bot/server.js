@@ -5,7 +5,7 @@ import mongoose from 'mongoose';
 import { MongoMemoryServer } from 'mongodb-memory-server';
 import miningRoutes from './routes/mining.js';
 import tasksRoutes from './routes/tasks.js';
-import watchRoutes from './routes/watch.js';
+// import watchRoutes from './routes/watch.js';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { existsSync } from 'fs';
@@ -14,13 +14,13 @@ import { execSync } from 'child_process';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 dotenv.config({ path: path.join(__dirname, '.env') });
 
-const PORT = process.env.PORT || 3000;
+
 
 const app = express();
 app.use(express.json());
 app.use('/api/mining', miningRoutes);
 app.use('/api/tasks', tasksRoutes);
-app.use('/api/watch', watchRoutes);
+// app.use('/api/watch', watchRoutes);
 
 // Serve the built React app
 const webappPath = path.join(__dirname, '../webapp/dist');
@@ -61,6 +61,7 @@ app.get('*', (req, res) => {
 });
 
 let mongoUri = process.env.MONGODB_URI;
+
 
 async function connectMongo(uri) {
   try {
