@@ -1,16 +1,17 @@
 services:
   - type: web
+    runtime: node
     name: tonplaygram-bot
-    env: node
     branch: main
     rootDir: bot
     buildCommand: npm install
     startCommand: npm start
 
-  - type: static
+  - type: web
+    runtime: static
     name: tonplaygram-webapp
-    env: static
     branch: main
     rootDir: webapp
     buildCommand: npm install && npm run build
-    publishPath: dist
+    staticPublishPath: dist
+
