@@ -28,7 +28,7 @@ npm start
    launches `node bot/server.js`. This helps hosting platforms that expect a
    top-level `package.json`.
    By default `.env` sets `MONGODB_URI=memory`, so the server starts with an in-memory MongoDB instance. Replace it with your own connection string when running in production.
-   The server automatically builds the web app if the compiled files are missing. Prebuilt webapp assets are included in `webapp/dist` so the server can start even if the build step fails. It also checks that the build output contains the `assets` directory. If your environment requires a proxy to access the Telegram API, set `HTTPS_PROXY` (or `https_proxy`) before starting the bot. Set `SKIP_BOT_LAUNCH=1` to skip launching the Telegram bot if network access is unavailable.
+
 
 
    To open the web app without running the server, build it manually and open `webapp/dist/index.html` in your browser:
