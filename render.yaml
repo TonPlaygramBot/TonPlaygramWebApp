@@ -1,7 +1,7 @@
 services:
   - type: web
     runtime: node
-    name: tonplaygram-bot
+    name: tonplaygram-api
     branch: main
     rootDir: bot
     buildCommand: npm install
@@ -9,7 +9,7 @@ services:
 
   - type: web
     runtime: static
-    name: tonplaygram-webapp
+    name: tonplaygram-fe
     branch: main
     rootDir: webapp
     buildCommand: npm install && npm run build
