@@ -1,4 +1,41 @@
+import { useEffect, useState } from 'react';
+import { listVideos, watchVideo } from '../utils/api.js';
 
+const TELEGRAM_ID = 1; // demo value
+
+export default function WatchToEarn() {
+  const [videos, setVideos] = useState(null);
+
+  const load = async () => {
+    const data = await listVideos(TELEGRAM_ID);
+    setVideos(data);
+  };
+
+  useEffect(() => { load(); }, []);
+
+  const handleWatch = async (id, url) => {
+    window.open(url, '_blank');
+    await watchVideo(TELEGRAM_ID, id);
+    load();
+  };
+
+  if (!videos) return <div className="p-4">Loading...</div>;
+
+  return (
+    <div className="p-4 space-y-2">
+      <h2 className="text-xl font-bold">Watch to Earn</h2>
+      <ul className="space-y-2">
+        {videos.map(v => (
+          <li key={v.id} className="border p-2 flex justify-between items-center">
+            <span>{v.title} ({v.reward} TPC)</span>
+            {v.watched ? (
+              <span className="text-green-600">Watched</span>
+            ) : (
+              <button onClick={() => handleWatch(v.id, v.url)} className="px-2 py-1 bg-blue-500 text-white rounded">Watch</button>
+            )}
+          </li>
+        ))}
+      </ul>
     </div>
   );
 }
