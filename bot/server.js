@@ -5,7 +5,7 @@ import mongoose from 'mongoose';
 import { MongoMemoryServer } from 'mongodb-memory-server';
 import miningRoutes from './routes/mining.js';
 import tasksRoutes from './routes/tasks.js';
-// import watchRoutes from './routes/watch.js';
+import watchRoutes from './routes/watch.js';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { existsSync } from 'fs';
@@ -20,7 +20,7 @@ const app = express();
 app.use(express.json());
 app.use('/api/mining', miningRoutes);
 app.use('/api/tasks', tasksRoutes);
-// app.use('/api/watch', watchRoutes);
+app.use('/api/watch', watchRoutes);
 
 // Serve the built React app
 const webappPath = path.join(__dirname, '../webapp/dist');
