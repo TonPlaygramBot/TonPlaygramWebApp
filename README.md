@@ -19,8 +19,9 @@ This project contains a Telegram bot and a companion web application.
    ```
    When the server builds the frontend automatically, it sets
    `VITE_API_BASE_URL` using the `WEBAPP_API_BASE_URL` environment variable.
-   If `WEBAPP_API_BASE_URL` is not specified, it defaults to
-   `http://localhost:$PORT`.
+   If `WEBAPP_API_BASE_URL` is not specified, the webapp will use the same
+   origin for API requests. This works when the Node server also serves the
+   frontend.
 
 3. Install dependencies for both the server and the webapp. Running
    `npm install` from the repository root automatically installs each
@@ -72,7 +73,7 @@ Start command: npm start
 Set `WEBAPP_API_BASE_URL` in the Render environment to the public URL of your
 service (e.g. `https://tonplaygramwebapp.onrender.com`). **Do not include** the
 `/api` suffix – the frontend already prefixes API routes automatically. The
-build step uses this variable to configure the API client.
+
 
 If you accidentally deploy as a Static Site you'll only see `index.html` referencing `/src/main.jsx`. Switch to a Web Service and use the commands above so the compiled files are served.
 

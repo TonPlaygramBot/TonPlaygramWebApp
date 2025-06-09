@@ -32,8 +32,9 @@ if (!existsSync(path.join(webappPath, 'index.html')) ||
     console.log('Building webapp...');
     const webappDir = path.join(__dirname, '../webapp');
     execSync('npm install', { cwd: webappDir, stdio: 'inherit' });
-    const apiBase = process.env.WEBAPP_API_BASE_URL || `http://localhost:${PORT}`;
-    console.log(`Using API base URL ${apiBase} for webapp build`);
+    const apiBase = process.env.WEBAPP_API_BASE_URL || '';
+    const displayBase = apiBase || '(same origin)';
+    console.log(`Using API base URL ${displayBase} for webapp build`);
     execSync('npm run build', {
       cwd: webappDir,
       stdio: 'inherit',
