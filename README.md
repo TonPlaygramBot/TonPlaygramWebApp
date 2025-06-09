@@ -70,8 +70,9 @@ Start command: npm start
 ```
 
 Set `WEBAPP_API_BASE_URL` in the Render environment to the public URL of your
-service (e.g. `https://tonplaygramwebapp.onrender.com/api`). The build step uses
-this variable to configure the frontend API client.
+service (e.g. `https://tonplaygramwebapp.onrender.com`). **Do not include** the
+`/api` suffix – the frontend already prefixes API routes automatically. The
+build step uses this variable to configure the API client.
 
 If you accidentally deploy as a Static Site you'll only see `index.html` referencing `/src/main.jsx`. Switch to a Web Service and use the commands above so the compiled files are served.
 
