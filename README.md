@@ -4,9 +4,8 @@ This project contains a Telegram bot and a companion web application.
 
 ## Setup
 
-1. Copy `bot/.env.example` to `bot/.env` and fill in your credentials. This
-   repository already contains an example token in `bot/.env`, but you should
-   replace it with your own if deploying publicly:
+1. Copy `bot/.env.example` to `bot/.env` and fill in your credentials. The
+   example file shows the required variables:
    ```
    BOT_TOKEN=<your telegram bot token>
    MONGODB_URI=<your mongodb connection string>
