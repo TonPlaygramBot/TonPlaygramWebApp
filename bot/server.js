@@ -61,9 +61,30 @@ app.get('*', (req, res) => {
 });
 
 let mongoUri = process.env.MONGODB_URI;
+async function connectMongo(uri) {
+  try {
+    await mongoose.connect(uri);
+    console.log('Connected to MongoDB');
+  } catch (err) {
+    console.error('MongoDB connection error', err);
+  }
+}
 
-
-
+if (mongoUri === 'memory') {
+  MongoMemoryServer.create()
+    .then((mem) => {
+      mongoUri = mem.getUri();
+      console.log(`Using in-memory MongoDB at ${mongoUri}`);
+      connectMongo(mongoUri);
+    })
+    .catch((err) => {
+      console.error('Failed to start in-memory MongoDB:', err.message);
+    });
+} else if (mongoUri) {
+  connectMongo(mongoUri);
+} else {
+  console.log('No MongoDB URI configured, continuing without database');
+}
 app.listen(PORT, async () => {
   console.log(`Server running on port ${PORT}`);
   if (process.env.SKIP_BOT_LAUNCH || !process.env.BOT_TOKEN) {
