@@ -19,8 +19,9 @@ This project contains a Telegram bot and a companion web application.
    ```
    When the server builds the frontend automatically, it sets
    `VITE_API_BASE_URL` using the `WEBAPP_API_BASE_URL` environment variable.
-   If `WEBAPP_API_BASE_URL` is not specified, it defaults to
-   `http://localhost:$PORT`.
+   If `WEBAPP_API_BASE_URL` is not specified, the webapp will use the same
+   origin for API requests. This works when the Node server also serves the
+   frontend.
 
 3. Install dependencies for both the server and the webapp. Running
    `npm install` from the repository root automatically installs each
@@ -70,9 +71,14 @@ Start command: npm start
 ```
 
 Set `WEBAPP_API_BASE_URL` in the Render environment to the public URL of your
-service (e.g. `https://tonplaygramwebapp.onrender.com/api`). The build step uses
-this variable to configure the frontend API client.
+service (e.g. `https://tonplaygramwebapp.onrender.com`). **Do not include** the
+`/api` suffix – the frontend already prefixes API routes automatically. The
+build step uses this variable to configure the API client. If the webapp is
+served by the same Node service, this variable can be omitted so requests are
+sent to the same origin.
 
 If you accidentally deploy as a Static Site you'll only see `index.html` referencing `/src/main.jsx`. Switch to a Web Service and use the commands above so the compiled files are served.
+
+After deploying, visit the service URL in your browser. You should see the TonPlaygram interface. If Render shows a plain **Not Found** page, the Node service is likely not running. Verify that the service type is **Web Service** and check the logs for any startup errors.
 
 Set `MONGODB_URI=memory` in the environment if you do not have a database. Otherwise provide your MongoDB connection string. The server logs should show `Server running on port` and `Connected to MongoDB`. Any connection errors will appear in the logs and usually indicate an incorrect URI or firewall rules.
