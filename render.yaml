@@ -1,0 +1,17 @@
+services:
+  - type: web
+    runtime: node
+    name: tonplaygram-api
+    branch: main
+    rootDir: bot
+    buildCommand: npm install
+    startCommand: npm start
+
+  - type: web
+    runtime: static
+    name: tonplaygram-fe
+    branch: main
+    rootDir: webapp
+    buildCommand: npm install && npm run build
+    staticPublishPath: dist
+
