@@ -1,20 +1,19 @@
 import { useEffect, useState } from 'react';
 import { listTasks, completeTask } from '../utils/api.js';
-
-const TELEGRAM_ID = 1; // demo value
+import { getTelegramId } from '../utils/telegram.js';
 
 export default function Tasks() {
   const [tasks, setTasks] = useState(null);
 
   const load = async () => {
-    const data = await listTasks(TELEGRAM_ID);
+    const data = await listTasks(getTelegramId());
     setTasks(data);
   };
 
   useEffect(() => { load(); }, []);
 
   const handleComplete = async (id) => {
-    await completeTask(TELEGRAM_ID, id);
+    await completeTask(getTelegramId(), id);
     load();
   };
 

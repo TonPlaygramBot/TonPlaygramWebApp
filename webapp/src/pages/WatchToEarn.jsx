@@ -1,13 +1,12 @@
 import { useEffect, useState } from 'react';
 import { listVideos, watchVideo } from '../utils/api.js';
-
-const TELEGRAM_ID = 1; // demo value
+import { getTelegramId } from '../utils/telegram.js';
 
 export default function WatchToEarn() {
   const [videos, setVideos] = useState(null);
 
   const load = async () => {
-    const data = await listVideos(TELEGRAM_ID);
+    const data = await listVideos(getTelegramId());
     setVideos(data);
   };
 
@@ -15,7 +14,7 @@ export default function WatchToEarn() {
 
   const handleWatch = async (id, url) => {
     window.open(url, '_blank');
-    await watchVideo(TELEGRAM_ID, id);
+    await watchVideo(getTelegramId(), id);
     load();
   };
 
