@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react';
 import { getMiningStatus, startMining, stopMining, claimMining } from '../utils/api.js';
-
-const TELEGRAM_ID = 1; // demo value
+import { TELEGRAM_ID } from '../utils/telegram.js';
 
 export default function Mining() {
   const [status, setStatus] = useState(null);
