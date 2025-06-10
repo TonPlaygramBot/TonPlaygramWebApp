@@ -2,6 +2,7 @@ import dotenv from 'dotenv';
 import express from 'express';
 import bot from './bot.js';
 import mongoose from 'mongoose';
+import { MongoMemoryServer } from 'mongodb-memory-server';
 import miningRoutes from './routes/mining.js';
 import tasksRoutes from './routes/tasks.js';
 import watchRoutes from './routes/watch.js';
@@ -63,11 +64,27 @@ app.get('*', (req, res) => {
 // MongoDB Connection
 const mongoUri = process.env.MONGODB_URI;
 
-if (mongoUri) {
-  mongoose
-      .connect(mongoUri)
-      .then(() => console.log('Connected to MongoDB'))
-      .catch((err) => console.error('MongoDB connection error:', err));
+async function connectMongo(uri) {
+  try {
+    await mongoose.connect(uri);
+    console.log('Connected to MongoDB');
+  } catch (err) {
+    console.error('MongoDB connection error', err);
+  }
+}
+
+if (mongoUri === 'memory') {
+  MongoMemoryServer.create()
+    .then((mem) => {
+      const uri = mem.getUri();
+      console.log(`Using in-memory MongoDB at ${uri}`);
+      connectMongo(uri);
+    })
+    .catch((err) => {
+      console.error('Failed to start in-memory MongoDB:', err.message);
+    });
+} else if (mongoUri) {
+  connectMongo(mongoUri);
 } else {
   console.log('No MongoDB URI configured, continuing without database');
 }
