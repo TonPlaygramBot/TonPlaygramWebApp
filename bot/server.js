@@ -25,27 +25,10 @@ app.use('/api/watch', watchRoutes);
 // Serve the built React app
 const webappPath = path.join(__dirname, '../webapp/dist');
 
-if (
-    !existsSync(path.join(webappPath, 'index.html')) ||
-    !existsSync(path.join(webappPath, 'assets'))
-) {
-  try {
-    console.log('Building webapp...');
-    const webappDir = path.join(__dirname, '../webapp');
-    execSync('npm install', { cwd: webappDir, stdio: 'inherit' });
-
-    const apiBase = process.env.WEBAPP_API_BASE_URL || '';
-    const displayBase = apiBase || '(same origin)';
-    console.log(`Using API base URL ${displayBase} for webapp build`);
-
-    execSync('npm run build', {
-      cwd: webappDir,
-      stdio: 'inherit',
-      env: { ...process.env, VITE_API_BASE_URL: apiBase }
-    });
-  } catch (err) {
-    console.error('Failed to build webapp:', err.message);
-  }
+if (!existsSync(path.join(webappPath, 'index.html'))) {
+  console.warn(
+    'Webapp build missing; run "npm --prefix webapp install && npm --prefix webapp run build".'
+  );
 }
 
 app.use(express.static(webappPath));
