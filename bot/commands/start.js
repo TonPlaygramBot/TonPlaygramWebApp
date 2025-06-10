@@ -10,7 +10,7 @@ export default function registerStart(bot) {
           [
             {
               text: 'Open WebApp',
-              web_app: { url: 'https://tonplaygramwebapp.onrender.com' }
+              web_app: { url: process.env.WEBAPP_URL || 'https://tonplaygramwebapp.onrender.com' }
             }
           ]
         ]
