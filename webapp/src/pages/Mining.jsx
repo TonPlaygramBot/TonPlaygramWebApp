@@ -1,13 +1,13 @@
 import { useEffect, useState } from 'react';
 import { getMiningStatus, startMining, stopMining, claimMining } from '../utils/api.js';
-
-const TELEGRAM_ID = 1; // demo value
+import { getTelegramId } from '../utils/telegram.js';
 
 export default function Mining() {
   const [status, setStatus] = useState(null);
+  const telegramId = getTelegramId();
 
   const refresh = async () => {
-    const data = await getMiningStatus(TELEGRAM_ID);
+    const data = await getMiningStatus(telegramId);
     setStatus(data);
   };
 
@@ -16,18 +16,18 @@ export default function Mining() {
   }, []);
 
   const handleStart = async () => {
-    await startMining(TELEGRAM_ID);
+    await startMining(telegramId);
     refresh();
   };
 
   const handleStop = async () => {
-    await stopMining(TELEGRAM_ID);
+    await stopMining(telegramId);
     refresh();
   };
 
   const handleClaim = async () => {
-    const res = await claimMining(TELEGRAM_ID);
-    alert(`Claimed ${res.amount} TPC`);
+    const res = await claimMining(telegramId);
+    alert(`Claimed ${res.amount} TPC. New balance: ${res.balance}`);
     refresh();
   };
 
@@ -38,6 +38,7 @@ export default function Mining() {
       <h2 className="text-xl font-bold">Mining</h2>
       <p>Status: {status.isMining ? 'Mining' : 'Stopped'}</p>
       <p>Pending rewards: {status.pending}</p>
+      <p>Balance: {status.balance}</p>
       <div className="space-x-2">
         <button className="px-2 py-1 bg-green-500 text-white" onClick={handleStart}>Start</button>
         <button className="px-2 py-1 bg-yellow-500 text-white" onClick={handleStop}>Stop</button>
