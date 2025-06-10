@@ -5,6 +5,8 @@ import mongoose from 'mongoose';
 import miningRoutes from './routes/mining.js';
 import tasksRoutes from './routes/tasks.js';
 import watchRoutes from './routes/watch.js';
+import referralRoutes from './routes/referral.js';
+import walletRoutes from './routes/wallet.js';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { existsSync } from 'fs';
@@ -21,6 +23,8 @@ app.use(express.json());
 app.use('/api/mining', miningRoutes);
 app.use('/api/tasks', tasksRoutes);
 app.use('/api/watch', watchRoutes);
+app.use('/api/referral', referralRoutes);
+app.use('/api/wallet', walletRoutes);
 
 // Serve the built React app
 const webappPath = path.join(__dirname, '../webapp/dist');
