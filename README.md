@@ -55,6 +55,7 @@ Each claim adds the mined amount to your balance. `/mine status`, `/mine stop`, 
 
 
 
+
 ### Tasks demo
 
 Use `/tasks` to view available tasks. Complete a task with `/tasks complete <id>` to earn additional TPC.
