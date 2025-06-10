@@ -26,7 +26,7 @@ export default function Mining() {
   };
 
   const handleClaim = async () => {
-    const res = await claimMining(telegramId);
+
     alert(`Claimed ${res.amount} TPC. New balance: ${res.balance}`);
     refresh();
   };

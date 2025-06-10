@@ -3,7 +3,7 @@ import express from 'express';
 import bot from './bot.js';
 import mongoose from 'mongoose';
 import { MongoMemoryServer } from 'mongodb-memory-server';
-import cors from 'cors';
+
 import miningRoutes from './routes/mining.js';
 import tasksRoutes from './routes/tasks.js';
 import watchRoutes from './routes/watch.js';
@@ -42,26 +42,7 @@ app.get('*', (req, res) => {
 });
 
 // MongoDB Connection
-export async function connectMongo() {
-  let mongoUri = process.env.MONGODB_URI;
-  if (mongoUri === 'memory') {
-    try {
-      const mongod = await MongoMemoryServer.create();
-      mongoUri = mongod.getUri();
-      console.log('Started in-memory MongoDB');
-    } catch (err) {
-      console.error('Failed to start in-memory MongoDB:', err.message);
-      mongoUri = null;
-    }
-  }
-  if (mongoUri) {
-    try {
-      await mongoose.connect(mongoUri);
-      console.log('Connected to MongoDB');
-    } catch (err) {
-      console.error('MongoDB connection error:', err.message);
-    }
-  }
+
   console.log('No MongoDB URI configured, continuing without database');
 }
 export const mongoReady = connectMongo();
