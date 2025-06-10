@@ -26,18 +26,18 @@ router.post('/stop', getUser, async (req, res) => {
     return res.json({ message: 'not mining' });
   }
   await stopMining(req.user);
-  res.json({ message: 'mining stopped', pending: req.user.minedTPC });
+  res.json({ message: 'mining stopped', pending: req.user.minedTPC, balance: req.user.balance });
 });
 
 router.post('/claim', getUser, async (req, res) => {
   const amount = await claimRewards(req.user);
-  res.json({ message: 'claimed', amount });
+  res.json({ message: 'claimed', amount, balance: req.user.balance });
 });
 
 router.post('/status', getUser, async (req, res) => {
   updateMiningRewards(req.user);
   await req.user.save();
-  res.json({ isMining: req.user.isMining, pending: req.user.minedTPC });
+  res.json({ isMining: req.user.isMining, pending: req.user.minedTPC, balance: req.user.balance });
 });
 
 export default router;
