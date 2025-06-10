@@ -51,7 +51,6 @@ The bot exposes a simple `/start` command that records users in MongoDB and offe
 ### Mining demo
 
 Use `/mine start` to begin mining, `/mine stop` to pause, and `/mine claim` to collect pending TPC. `/mine status` shows your current mining state and unclaimed rewards.
-Each claim adds the mined amount to your balance. `/mine status`, `/mine stop`, and `/mine claim` will report your current balance.
 
 
 
