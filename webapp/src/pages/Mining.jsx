@@ -27,7 +27,7 @@ export default function Mining() {
 
   const handleClaim = async () => {
     const res = await claimMining(TELEGRAM_ID);
-    alert(`Claimed ${res.amount} TPC`);
+    alert(`Claimed ${res.amount} TPC. New balance: ${res.balance}`);
     refresh();
   };
 
@@ -38,6 +38,7 @@ export default function Mining() {
       <h2 className="text-xl font-bold">Mining</h2>
       <p>Status: {status.isMining ? 'Mining' : 'Stopped'}</p>
       <p>Pending rewards: {status.pending}</p>
+      <p>Balance: {status.balance}</p>
       <div className="space-x-2">
         <button className="px-2 py-1 bg-green-500 text-white" onClick={handleStart}>Start</button>
         <button className="px-2 py-1 bg-yellow-500 text-white" onClick={handleStop}>Stop</button>
