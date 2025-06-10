@@ -7,7 +7,8 @@
   "scripts": {
     "start": "node bot/server.js",
     "install-all": "npm install --prefix bot && npm install --prefix webapp",
-    "postinstall": "npm run install-all"
+    "postinstall": "npm run install-all",
+    "test": "npm test --prefix bot"
   },
   "engines": {
     "node": ">=18"

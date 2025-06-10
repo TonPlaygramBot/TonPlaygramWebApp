@@ -11,6 +11,8 @@ This project contains a Telegram bot and a companion web application.
    # Set MONGODB_URI=memory to run without a real MongoDB server
    MONGODB_URI=<your mongodb connection string or 'memory'>
    PORT=3000
+   WEBAPP_URL=https://tonplaygramwebapp.onrender.com
+   #CORS_ORIGIN=
    ```
 2. Copy `webapp/.env.example` to `webapp/.env`. The default value points the
    front-end at the local bot server:
@@ -37,7 +39,7 @@ npm start
    launches `node bot/server.js`. This helps hosting platforms that expect a
    top-level `package.json`.
    By default `.env` sets `MONGODB_URI=memory`, so the server starts with an in-memory MongoDB instance. Replace it with your own connection string when running in production.
-  Build the web app manually before starting the server. Prebuilt assets are included in `webapp/dist` so the bot can run without rebuilding. If your environment requires a proxy to access the Telegram API, set `HTTPS_PROXY` (or `https_proxy`) before starting the bot. Set `SKIP_BOT_LAUNCH=1` to skip launching the Telegram bot if network access is unavailable.
+
 
 
    To open the web app without running the server, build it manually and open `webapp/dist/index.html` in your browser:
@@ -81,3 +83,4 @@ If you accidentally deploy as a Static Site you'll only see `index.html` referen
 After deploying, visit the service URL in your browser. You should see the TonPlaygram interface. If Render shows a plain **Not Found** page, the Node service is likely not running. Verify that the service type is **Web Service** and check the logs for any startup errors.
 
 Set `MONGODB_URI=memory` in the environment if you do not have a database. Otherwise provide your MongoDB connection string. The server logs should show `Server running on port` and `Connected to MongoDB`. Any connection errors will appear in the logs and usually indicate an incorrect URI or firewall rules.
+\nThis project is licensed under the MIT License. See LICENSE for details.
