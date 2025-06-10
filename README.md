@@ -54,6 +54,7 @@ Use `/mine start` to begin mining, `/mine stop` to pause, and `/mine claim` to c
 Each claim adds the mined amount to your balance. `/mine status`, `/mine stop`, and `/mine claim` will report your current balance.
 
 
+
 ### Tasks demo
 
 Use `/tasks` to view available tasks. Complete a task with `/tasks complete <id>` to earn additional TPC.
