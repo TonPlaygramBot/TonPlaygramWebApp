@@ -9,5 +9,4 @@ const watchSchema = new mongoose.Schema({
 watchSchema.index({ telegramId: 1, videoId: 1 }, { unique: true });
 
 export default mongoose.model('WatchRecord', watchSchema);
-/* WatchRecord model placeholder */
 

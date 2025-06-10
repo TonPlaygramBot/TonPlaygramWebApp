@@ -1,1 +1,0 @@
-/* Transaction model placeholder */
