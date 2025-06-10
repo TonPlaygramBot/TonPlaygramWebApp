@@ -27,6 +27,7 @@ export async function claimRewards(user) {
   updateMiningRewards(user);
   const amount = user.minedTPC;
   user.minedTPC = 0;
+  user.balance += amount;
   await user.save();
   return amount;
 }
