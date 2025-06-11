@@ -3,10 +3,10 @@ import Navbar from './Navbar.jsx';
 import Footer from './Footer.jsx';
 
 export default function Layout({ children }) {
-  useEffect(() => {
-
-    }
-  }, []);
+    useEffect(() => {
+        // You can put your side effects here
+        console.log('Layout mounted');
+    }, []);
 
   return (
     <div className="flex flex-col min-h-screen bg-gray-900 text-gray-100">
