@@ -1,5 +1,7 @@
 import dotenv from 'dotenv';
 import express from 'express';
+import { createServer } from 'http';
+import { Server as SocketServer } from 'socket.io';
 import bot from './bot.js';
 import mongoose from 'mongoose';
 import miningRoutes from './routes/mining.js';
@@ -17,6 +19,12 @@ dotenv.config({ path: path.join(__dirname, '.env') });
 
 const PORT = process.env.PORT || 3000;
 const app = express();
+const httpServer = createServer(app);
+const io = new SocketServer(httpServer, {
+  cors: { origin: '*' }
+});
+
+const games = new Map();
 
 // Middleware and routes
 app.use(express.json());
@@ -64,6 +72,52 @@ app.get('*', (req, res) => {
   res.sendFile(path.join(webappPath, 'index.html'));
 });
 
+io.on('connection', (socket) => {
+  socket.on('join-game', ({ roomId, name }) => {
+    if (!games.has(roomId)) {
+      games.set(roomId, { players: [], positions: {}, turn: 0 });
+    }
+    const game = games.get(roomId);
+    if (game.players.length >= 4) return socket.emit('error', 'Room full');
+    socket.join(roomId);
+    game.players.push({ id: socket.id, name });
+    game.positions[socket.id] = 0;
+    io.to(roomId).emit('game-state', game);
+  });
+
+  socket.on('roll-dice', ({ roomId }) => {
+    const game = games.get(roomId);
+    if (!game) return;
+    if (game.players[game.turn].id !== socket.id) return;
+    const roll = Math.ceil(Math.random() * 6);
+    game.positions[socket.id] += roll;
+    if (game.positions[socket.id] >= 100) {
+      io.to(roomId).emit('game-over', { winner: socket.id });
+      games.delete(roomId);
+      return;
+    }
+    game.turn = (game.turn + 1) % game.players.length;
+    io.to(roomId).emit('game-state', game);
+  });
+
+  socket.on('disconnect', () => {
+    for (const [roomId, game] of games) {
+      const index = game.players.findIndex(p => p.id === socket.id);
+      if (index !== -1) {
+        game.players.splice(index, 1);
+        delete game.positions[socket.id];
+        if (game.players.length === 0) {
+          games.delete(roomId);
+        } else {
+          game.turn = game.turn % game.players.length;
+          io.to(roomId).emit('game-state', game);
+        }
+        break;
+      }
+    }
+  });
+});
+
 // MongoDB Connection
 const mongoUri = process.env.MONGODB_URI;
 
@@ -77,7 +131,7 @@ if (mongoUri) {
 }
 
 // Start the server
-app.listen(PORT, async () => {
+httpServer.listen(PORT, async () => {
   console.log(`Server running on port ${PORT}`);
   if (process.env.SKIP_BOT_LAUNCH || !process.env.BOT_TOKEN) {
     console.log('Skipping Telegram bot launch');
