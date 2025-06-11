@@ -5,8 +5,7 @@ import {
   updateProfile,
   updateBalance,
   addTransaction,
-  linkSocial,
-  getWalletBalance
+  linkSocial
 } from '../utils/api.js';
 
 export default function MyAccount() {
@@ -15,7 +14,6 @@ export default function MyAccount() {
   const [form, setForm] = useState({ nickname: '', photo: '', bio: '' });
   const [social, setSocial] = useState({ twitter: '', telegram: '', discord: '' });
   const [balanceInput, setBalanceInput] = useState('');
-  const [walletBalance, setWalletBalance] = useState(null);
   const [tx, setTx] = useState({ amount: '', type: '' });
 
   const load = async () => {
@@ -28,8 +26,6 @@ export default function MyAccount() {
       discord: data.social?.discord || ''
     });
     setBalanceInput(data.balance ?? '');
-    const bal = await getWalletBalance(telegramId);
-    setWalletBalance(bal.balance);
   };
 
   useEffect(() => {
@@ -138,9 +134,6 @@ export default function MyAccount() {
       <div className="space-y-2">
         <h3 className="font-bold">Balance</h3>
         <p>Current balance: {profile.balance}</p>
-        {walletBalance !== null && (
-          <p>Wallet balance: {walletBalance} TON</p>
-        )}
         <input
           type="number"
           value={balanceInput}

@@ -84,5 +84,3 @@ export function getWalletAddress(telegramId) {
 export function setWalletAddress(telegramId, address) {
   return post('/api/wallet/address', { telegramId, address });
 }
-export function getWalletBalance(telegramId) {
-  return post('/api/wallet/balance', { telegramId });
