@@ -84,4 +84,3 @@ Set `MONGODB_URI=memory` in the environment if you do not have a database. Other
 
 ## Open Source Games
 
-- [Snakes & Ladders / Chutes & Ladders](https://github.com/yashksaini/snakes-and-ladders-game) – Custom avatars, virtual board, and climb/slide animations. Available inside the app at `/games/snake`.
