@@ -9,7 +9,11 @@ async function getUser(req, res, next) {
   if (!telegramId) {
     return res.status(400).json({ error: 'telegramId required' });
   }
-  req.user = await User.findOneAndUpdate({ telegramId }, {}, { upsert: true, new: true });
+  req.user = await User.findOneAndUpdate(
+    { telegramId },
+    { $setOnInsert: { referralCode: telegramId.toString() } },
+    { upsert: true, new: true }
+  );
   next();
 }
 
