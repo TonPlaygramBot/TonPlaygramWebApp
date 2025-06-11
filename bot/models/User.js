@@ -7,6 +7,24 @@ const userSchema = new mongoose.Schema({
   lastMineAt: { type: Date },
   minedTPC: { type: Number, default: 0 },
   balance: { type: Number, default: 0 },
+
+  nickname: { type: String, default: '' },
+  photo: { type: String, default: '' },
+  bio: { type: String, default: '' },
+  social: {
+    twitter: String,
+    telegram: String,
+    discord: String,
+    googleId: String
+  },
+  transactions: [
+    {
+      amount: Number,
+      type: String,
+      date: { type: Date, default: Date.now }
+    }
+  ],
+
   referralCode: { type: String, unique: true },
   referredBy: { type: String }
 });
