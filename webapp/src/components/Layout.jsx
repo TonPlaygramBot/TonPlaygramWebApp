@@ -4,7 +4,9 @@ import Footer from './Footer.jsx';
 
 export default function Layout({ children }) {
   useEffect(() => {
-
+    const first = document.body.firstElementChild;
+    if (first && first.id !== 'root') {
+      first.remove();
     }
   }, []);
 

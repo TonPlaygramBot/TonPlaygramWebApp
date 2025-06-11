@@ -21,7 +21,16 @@ export default function App() {
           <Route path="/games/dice" element={<DiceGame />} />
           <Route path="/games/ludo" element={<LudoGame />} />
           <Route path="/games/horse" element={<HorseRacing />} />
+ 
           <Route path="/games/snake" element={<SnakeLadders />} />
+
+
+ 
+
+
+          <Route path="/watch" element={<WatchToEarn />} />
+ main
+ 
           <Route path="/tasks" element={<Tasks />} />
           <Route path="/referral" element={<Referral />} />
           <Route path="/wallet" element={<Wallet />} />
