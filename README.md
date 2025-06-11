@@ -86,4 +86,5 @@ After deploying, visit the service URL in your browser. You should see the TonPl
 Set `MONGODB_URI=memory` in the environment if you do not have a database. Otherwise provide your MongoDB connection string. The server logs should show `Server running on port` and `Connected to MongoDB`. Any connection errors will appear in the logs and usually indicate an incorrect URI or firewall rules.
 
 ## Open Source Games
+- [Snakes & Ladders / Chutes & Ladders](https://github.com/yashksaini/snakes-and-ladders-game) – Custom avatars, virtual board, and climb/slide animations.
 
