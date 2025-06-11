@@ -23,12 +23,14 @@ export default function App() {
           <Route path="/games/horse" element={<HorseRacing />} />
  07mnwr-codex/integrate-game-code-into-webapp
           <Route path="/games/snake" element={<SnakeLadders />} />
- cjogt1-codex/integrate-game-code-into-webapp
+
+
+ 
 
 
           <Route path="/watch" element={<WatchToEarn />} />
  main
- main
+ 
           <Route path="/tasks" element={<Tasks />} />
           <Route path="/referral" element={<Referral />} />
           <Route path="/wallet" element={<Wallet />} />
