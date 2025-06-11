@@ -1,47 +1,36 @@
 import { useEffect, useState } from 'react';
+import { TonConnectButton, useTonWallet } from '@tonconnect/ui-react';
+import { getWalletAddress, setWalletAddress, getWalletBalance } from '../utils/api.js';
+import { getTelegramId } from '../utils/telegram.js';
 
 export default function ConnectWallet() {
-  const [address, setAddress] = useState('');
-  const [editing, setEditing] = useState(false);
+  const wallet = useTonWallet();
+  const telegramId = getTelegramId();
+  const [balance, setBalance] = useState(null);
 
   useEffect(() => {
-    const stored = localStorage.getItem('walletAddress');
-    if (stored) setAddress(stored);
-  }, []);
-
-  const handleSave = () => {
-    if (address.trim()) {
-      localStorage.setItem('walletAddress', address.trim());
-    }
-    setEditing(false);
-  };
-
-  if (editing) {
-    return (
-      <div className="flex items-center space-x-2">
-        <input
-          className="border p-1 rounded text-black"
-          value={address}
-          onChange={(e) => setAddress(e.target.value)}
-          placeholder="Wallet address"
-        />
-        <button
-          onClick={handleSave}
-          className="px-2 py-1 bg-green-600 text-white rounded"
-        >
-          Save
-        </button>
-      </div>
-    );
-  }
+    const saveAndFetch = async () => {
+      const res = await getWalletAddress(telegramId);
+      const saved = res.address;
+      const current = wallet?.account?.address;
+      if (current && current !== saved) {
+        await setWalletAddress(telegramId, current);
+      }
+      if (current) {
+        const bal = await getWalletBalance(telegramId);
+        if (bal.balance !== undefined) setBalance(bal.balance);
+      }
+    };
+    saveAndFetch();
+  }, [wallet]);
 
   return (
-    <button
-      onClick={() => setEditing(true)}
-      className="px-2 py-1 bg-gray-700 rounded"
-    >
-      {address ? `Wallet: ${address.slice(0, 4)}...${address.slice(-4)}` : 'Connect Wallet'}
-    </button>
+    <div className="flex items-center space-x-2">
+      <TonConnectButton />
+      {wallet?.account?.address && balance !== null && (
+        <span className="text-xs">{balance} TON</span>
+      )}
+    </div>
   );
 }
 
