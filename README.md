@@ -81,3 +81,7 @@ If you accidentally deploy as a Static Site you'll only see `index.html` referen
 After deploying, visit the service URL in your browser. You should see the TonPlaygram interface. If Render shows a plain **Not Found** page, the Node service is likely not running. Verify that the service type is **Web Service** and check the logs for any startup errors.
 
 Set `MONGODB_URI=memory` in the environment if you do not have a database. Otherwise provide your MongoDB connection string. The server logs should show `Server running on port` and `Connected to MongoDB`. Any connection errors will appear in the logs and usually indicate an incorrect URI or firewall rules.
+
+## Open Source Games
+
+- [Snakes & Ladders / Chutes & Ladders](https://github.com/yashksaini/snakes-and-ladders-game) – Custom avatars, virtual board, and climb/slide animations.
