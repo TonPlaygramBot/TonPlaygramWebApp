@@ -10,7 +10,6 @@ import watchRoutes from './routes/watch.js';
 import referralRoutes from './routes/referral.js';
 import walletRoutes from './routes/wallet.js';
 import profileRoutes from './routes/profile.js';
-import friendsRoutes from './routes/friends.js';
 import User from './models/User.js';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -59,7 +58,6 @@ app.use('/api/mining', miningRoutes);
 app.use('/api/tasks', tasksRoutes);
 app.use('/api/watch', watchRoutes);
 app.use('/api/referral', referralRoutes);
-app.use('/api/friends', friendsRoutes);
 app.use('/api/wallet', walletRoutes);
 app.use('/api/profile', profileRoutes);
 
