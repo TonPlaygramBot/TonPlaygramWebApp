@@ -5,3 +5,4 @@ webapp/node_modules
 bot/package-lock.json
 .idea
 bot/.env
+/webapp/dist/
