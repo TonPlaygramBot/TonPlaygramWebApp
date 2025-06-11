@@ -2,15 +2,11 @@ import dotenv from 'dotenv';
 import express from 'express';
 import bot from './bot.js';
 import mongoose from 'mongoose';
-import passport from 'passport';
-import { Strategy as GoogleStrategy } from 'passport-google-oauth20';
 import miningRoutes from './routes/mining.js';
 import tasksRoutes from './routes/tasks.js';
 import watchRoutes from './routes/watch.js';
 import referralRoutes from './routes/referral.js';
 import walletRoutes from './routes/wallet.js';
-import profileRoutes from './routes/profile.js';
-import User from './models/User.js';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { existsSync } from 'fs';
@@ -24,38 +20,11 @@ const app = express();
 
 // Middleware and routes
 app.use(express.json());
-app.use(passport.initialize());
-
-passport.use(
-  new GoogleStrategy(
-    {
-      clientID: process.env.GOOGLE_CLIENT_ID || '',
-      clientSecret: process.env.GOOGLE_CLIENT_SECRET || '',
-      callbackURL: process.env.GOOGLE_CALLBACK_URL || '/api/profile/google/callback'
-    },
-    async (_accessToken, _refreshToken, profile, done) => {
-      try {
-        const user = await User.findOneAndUpdate(
-          { telegramId: profile.id },
-          {
-            $set: { 'social.googleId': profile.id },
-            $setOnInsert: { referralCode: profile.id.toString() }
-          },
-          { upsert: true, new: true }
-        );
-        done(null, user);
-      } catch (err) {
-        done(err);
-      }
-    }
-  )
-);
 app.use('/api/mining', miningRoutes);
 app.use('/api/tasks', tasksRoutes);
 app.use('/api/watch', watchRoutes);
 app.use('/api/referral', referralRoutes);
 app.use('/api/wallet', walletRoutes);
-app.use('/api/profile', profileRoutes);
 
 // Serve the built React app
 const webappPath = path.join(__dirname, '../webapp/dist');
