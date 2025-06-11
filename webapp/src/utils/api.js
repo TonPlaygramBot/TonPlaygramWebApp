@@ -48,3 +48,23 @@ export function listVideos(telegramId) {
 export function watchVideo(telegramId, videoId) {
   return post('/api/watch/watch', { telegramId, videoId });
 }
+
+export function getProfile(telegramId) {
+  return post('/api/profile/get', { telegramId });
+}
+
+export function updateProfile(data) {
+  return post('/api/profile/update', data);
+}
+
+export function updateBalance(telegramId, balance) {
+  return post('/api/profile/updateBalance', { telegramId, balance });
+}
+
+export function addTransaction(telegramId, amount, type) {
+  return post('/api/profile/addTransaction', { telegramId, amount, type });
+}
+
+export function linkSocial(data) {
+  return post('/api/profile/link-social', data);
+}
