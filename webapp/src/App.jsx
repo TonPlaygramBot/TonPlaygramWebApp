@@ -2,9 +2,8 @@ import React from 'react';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import Home from './pages/Home.jsx';
 import Mining from './pages/Mining.jsx';
-import Wallet from './pages/Wallet.jsx';
 import Tasks from './pages/Tasks.jsx';
-import Referral from './pages/Referral.jsx';
+import Friends from './pages/Friends.jsx';
 import MyAccount from './pages/MyAccount.jsx';
 import DiceGame from './pages/Games/DiceGame.jsx';
 import LudoGame from './pages/Games/LudoGame.jsx';
@@ -23,8 +22,7 @@ export default function App() {
           <Route path="/games/horse" element={<HorseRacing />} />
           <Route path="/games/snake" element={<SnakeLadders />} />
           <Route path="/tasks" element={<Tasks />} />
-          <Route path="/referral" element={<Referral />} />
-          <Route path="/wallet" element={<Wallet />} />
+          <Route path="/friends" element={<Friends />} />
           <Route path="/account" element={<MyAccount />} />
         </Routes>
       </Layout>

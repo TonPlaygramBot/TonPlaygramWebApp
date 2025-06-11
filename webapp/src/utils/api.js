@@ -68,3 +68,11 @@ export function addTransaction(telegramId, amount, type) {
 export function linkSocial(data) {
   return post('/api/profile/link-social', data);
 }
+
+export function getFriendsInfo(telegramId) {
+  return post('/api/friends/info', { telegramId });
+}
+
+export function addFriend(telegramId, friendId) {
+  return post('/api/friends/add', { telegramId, friendId });
+}
