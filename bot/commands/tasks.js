@@ -17,7 +17,11 @@ export default function registerTasks(bot) {
       if (existing) return ctx.reply('Task already completed.');
 
       await Task.create({ telegramId, taskId, completedAt: new Date() });
-      const user = await User.findOneAndUpdate({ telegramId }, {}, { upsert: true, new: true });
+      const user = await User.findOneAndUpdate(
+        { telegramId },
+        { $setOnInsert: { referralCode: telegramId.toString() } },
+        { upsert: true, new: true }
+      );
       user.minedTPC += config.reward;
       await user.save();
       return ctx.reply(`Task completed! You earned ${config.reward} TPC.`);
