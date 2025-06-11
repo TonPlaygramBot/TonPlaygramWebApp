@@ -21,7 +21,7 @@ export default function App() {
           <Route path="/games/dice" element={<DiceGame />} />
           <Route path="/games/ludo" element={<LudoGame />} />
           <Route path="/games/horse" element={<HorseRacing />} />
- 07mnwr-codex/integrate-game-code-into-webapp
+ 
           <Route path="/games/snake" element={<SnakeLadders />} />
 
 
