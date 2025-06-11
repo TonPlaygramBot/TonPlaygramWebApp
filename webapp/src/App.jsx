@@ -6,6 +6,7 @@ import Wallet from './pages/Wallet.jsx';
 import WatchToEarn from './pages/WatchToEarn.jsx';
 import Tasks from './pages/Tasks.jsx';
 import Referral from './pages/Referral.jsx';
+import MyAccount from './pages/MyAccount.jsx';
 import DiceGame from './pages/Games/DiceGame.jsx';
 import LudoGame from './pages/Games/LudoGame.jsx';
 import HorseRacing from './pages/Games/HorseRacing.jsx';
@@ -27,6 +28,7 @@ export default function App() {
           <Route path="/tasks" element={<Tasks />} />
           <Route path="/referral" element={<Referral />} />
           <Route path="/wallet" element={<Wallet />} />
+          <Route path="/account" element={<MyAccount />} />
         </Routes>
       </Layout>
     </BrowserRouter>
