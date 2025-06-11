@@ -20,11 +20,11 @@ export default function Home() {
         <ConnectWallet />
       </div>
       <div className="grid grid-cols-1 gap-4">
-        <GameCard title="Wallet" icon="💰" link="/wallet" />
+        <GameCard title="My Account" icon="👤" link="/account" />
         <GameCard title="Mining" icon="⛏" link="/mining" />
         <GameCard title="Dice Duel" icon="🎲" link="/games/dice" />
         <GameCard title="Tasks" icon="✅" link="/tasks" />
-        <GameCard title="My Account" icon="👤" link="/account" />
+        
       </div>
       <p className="text-center text-xs text-gray-500">Status: {status}</p>
     </div>
