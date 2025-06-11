@@ -68,3 +68,23 @@ export function addTransaction(telegramId, amount, type) {
 export function linkSocial(data) {
   return post('/api/profile/link-social', data);
 }
+
+export function getReferralInfo(telegramId) {
+  return post('/api/referral/code', { telegramId });
+}
+
+export function claimReferral(telegramId, code) {
+  return post('/api/referral/claim', { telegramId, code });
+}
+
+export function getWalletAddress(telegramId) {
+  return post('/api/wallet/address', { telegramId });
+}
+
+export function setWalletAddress(telegramId, address) {
+  return post('/api/wallet/address', { telegramId, address });
+}
+
+export function getWalletBalance(telegramId) {
+  return post('/api/wallet/balance', { telegramId });
+}
