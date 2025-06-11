@@ -6,7 +6,11 @@ export default function registerMine(bot) {
     const parts = ctx.message.text.split(' ');
     const sub = parts[1];
     const telegramId = ctx.from.id;
-    const user = await User.findOneAndUpdate({ telegramId }, {}, { upsert: true, new: true });
+    const user = await User.findOneAndUpdate(
+      { telegramId },
+      { $setOnInsert: { referralCode: telegramId.toString() } },
+      { upsert: true, new: true }
+    );
 
     switch (sub) {
       case 'start':
