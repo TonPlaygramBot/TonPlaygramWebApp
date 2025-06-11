@@ -1,46 +1,43 @@
 import { useEffect, useState } from 'react';
+import { ethers } from 'ethers';
+import { getWalletAddress, setWalletAddress } from '../utils/api.js';
+import { getTelegramId } from '../utils/telegram.js';
 
 export default function ConnectWallet() {
   const [address, setAddress] = useState('');
-  const [editing, setEditing] = useState(false);
+  const telegramId = getTelegramId();
 
   useEffect(() => {
-    const stored = localStorage.getItem('walletAddress');
-    if (stored) setAddress(stored);
+    const fetchAddress = async () => {
+      const res = await getWalletAddress(telegramId);
+      if (res.address) setAddress(res.address);
+    };
+    fetchAddress();
   }, []);
 
-  const handleSave = () => {
-    if (address.trim()) {
-      localStorage.setItem('walletAddress', address.trim());
+  const handleConnect = async () => {
+    if (!window.ethereum) {
+      alert('MetaMask not found');
+      return;
     }
-    setEditing(false);
+    const provider = new ethers.BrowserProvider(window.ethereum);
+    const accounts = await provider.send('eth_requestAccounts', []);
+    const addr = accounts[0];
+    setAddress(addr);
+    await setWalletAddress(telegramId, addr);
   };
 
-  if (editing) {
+  if (!address) {
     return (
-      <div className="flex items-center space-x-2">
-        <input
-          className="border p-1 rounded text-black"
-          value={address}
-          onChange={(e) => setAddress(e.target.value)}
-          placeholder="Wallet address"
-        />
-        <button
-          onClick={handleSave}
-          className="px-2 py-1 bg-green-600 text-white rounded"
-        >
-          Save
-        </button>
-      </div>
+      <button onClick={handleConnect} className="px-2 py-1 bg-gray-700 rounded">
+        Connect Wallet
+      </button>
     );
   }
 
   return (
-    <button
-      onClick={() => setEditing(true)}
-      className="px-2 py-1 bg-gray-700 rounded"
-    >
-      {address ? `Wallet: ${address.slice(0, 4)}...${address.slice(-4)}` : 'Connect Wallet'}
+    <button className="px-2 py-1 bg-gray-700 rounded" disabled>
+      Wallet: {address.slice(0, 4)}...{address.slice(-4)}
     </button>
   );
 }
