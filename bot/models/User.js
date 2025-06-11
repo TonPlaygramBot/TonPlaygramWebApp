@@ -65,4 +65,3 @@ userSchema.pre('save', function(next) {
 });
 
 export default mongoose.model('User', userSchema);
- 
