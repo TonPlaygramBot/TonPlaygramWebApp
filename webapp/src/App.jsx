@@ -8,7 +8,6 @@ import MyAccount from './pages/MyAccount.jsx';
 import DiceGame from './pages/Games/DiceGame.jsx';
 import LudoGame from './pages/Games/LudoGame.jsx';
 import HorseRacing from './pages/Games/HorseRacing.jsx';
-import SnakeLadders from './pages/Games/SnakeLadders.jsx';
 import Layout from './components/Layout.jsx';
 
 export default function App() {
