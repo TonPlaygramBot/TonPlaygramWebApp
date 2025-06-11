@@ -8,9 +8,12 @@ export default function Navbar() {
           <Link className="hover:text-yellow-400" to="/">Home</Link>
           <Link className="hover:text-yellow-400" to="/mining">Mining</Link>
           <Link className="hover:text-yellow-400" to="/games/dice">Games</Link>
+ cjogt1-codex/integrate-game-code-into-webapp
+
  07mnwr-codex/integrate-game-code-into-webapp
 
           <Link className="hover:text-yellow-400" to="/watch">Watch</Link>
+ main
  main
           <Link className="hover:text-yellow-400" to="/tasks">Tasks</Link>
           <Link className="hover:text-yellow-400" to="/referral">Referral</Link>

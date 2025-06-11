@@ -1,4 +1,5 @@
 import React from 'react';
+import ConnectWallet from './ConnectWallet.jsx';
 
 export default function Branding() {
   return (
@@ -8,6 +9,9 @@ export default function Branding() {
       </div>
       <h1 className="text-2xl font-bold text-white">TONPLAYGRAM</h1>
       <p className="text-blue-400 text-xs tracking-widest">PLAY. EARN. DOMINATE.</p>
+      <div className="flex justify-center">
+        <ConnectWallet />
+      </div>
     </div>
   );
 }
