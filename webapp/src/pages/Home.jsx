@@ -22,7 +22,6 @@ export default function Home() {
         <GameCard title="Watch to Earn" icon="▶️" link="/watch" />
         <GameCard title="Tasks" icon="✅" link="/tasks" />
         <GameCard title="Wallet" icon="💰" link="/wallet" />
-        <GameCard title="Profile" icon="👤" link="/profile" />
       </div>
       <p className="text-center text-xs text-gray-500">Status: {status}</p>
     </div>
