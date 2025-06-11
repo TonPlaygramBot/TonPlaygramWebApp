@@ -28,7 +28,11 @@ router.post('/watch', async (req, res) => {
   if (existing) return res.json({ message: 'already watched' });
 
   await WatchRecord.create({ telegramId, videoId });
-  const user = await User.findOneAndUpdate({ telegramId }, {}, { upsert: true, new: true });
+  const user = await User.findOneAndUpdate(
+    { telegramId },
+    { $setOnInsert: { referralCode: telegramId.toString() } },
+    { upsert: true, new: true }
+  );
   user.minedTPC += video.reward;
   await user.save();
 

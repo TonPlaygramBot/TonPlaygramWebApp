@@ -11,6 +11,9 @@ This project contains a Telegram bot and a companion web application.
    # Set MONGODB_URI=memory to run without a real MongoDB server
    MONGODB_URI=<your mongodb connection string or 'memory'>
    PORT=3000
+   # Optional Google OAuth credentials
+   GOOGLE_CLIENT_ID=
+   GOOGLE_CLIENT_SECRET=
    ```
 2. Copy `webapp/.env.example` to `webapp/.env`. The default value points the
    front-end at the local bot server:
@@ -59,7 +62,7 @@ Use `/tasks` to view available tasks. Complete a task with `/tasks complete <id>
 
 ### Watch-to-earn demo
 
-Use `/watch` to see available videos. Watching a video via the web app awards the listed TPC once per video.
+Watching short videos also awards TPC. These "watch to earn" videos now live on the Tasks page rather than a separate section. Use `/watch` in Telegram or open the Tasks page in the web app to see available videos.
 
 ### Deployment on Render
 
