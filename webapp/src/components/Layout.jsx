@@ -3,26 +3,20 @@ import Navbar from './Navbar.jsx';
 import Footer from './Footer.jsx';
 
 export default function Layout({ children }) {
-  useEffect(() => {
-    const root = document.getElementById('root');
-    if (!root) return;
+    useEffect(() => {
+        const first = document.body.firstElementChild;
+        if (first && first.id !== 'root') {
+            first.remove();
+        }
+    }, []);
 
-    // Remove any stray nodes that appear before the React root.
-    let prev = root.previousSibling;
-    while (prev) {
-      const node = prev;
-      prev = prev.previousSibling;
-      node.parentNode?.removeChild(node);
-    }
-  }, []);
-
-  return (
-    <div className="flex flex-col min-h-screen bg-gray-900 text-gray-100">
-      <Navbar />
-      <main className="flex-grow container mx-auto p-4">
-        {children}
-      </main>
-      <Footer />
-    </div>
-  );
+    return (
+        <div className="flex flex-col min-h-screen bg-gray-900 text-gray-100">
+            <Navbar />
+            <main className="flex-grow container mx-auto p-4">
+                {children}
+            </main>
+            <Footer />
+        </div>
+    );
 }
