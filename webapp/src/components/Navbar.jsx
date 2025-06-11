@@ -9,10 +9,10 @@ export default function Navbar() {
           <Link className="hover:text-yellow-400" to="/">Home</Link>
           <Link className="hover:text-yellow-400" to="/mining">Mining</Link>
           <Link className="hover:text-yellow-400" to="/games/snake">Games</Link>
-          <Link className="hover:text-yellow-400" to="/watch">Watch</Link>
           <Link className="hover:text-yellow-400" to="/tasks">Tasks</Link>
           <Link className="hover:text-yellow-400" to="/referral">Referral</Link>
           <Link className="hover:text-yellow-400" to="/wallet">Wallet</Link>
+          <Link className="hover:text-yellow-400" to="/account">My Account</Link>
         </div>
         <ConnectWallet />
       </div>
