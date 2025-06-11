@@ -3,6 +3,7 @@ import { TELEGRAM_ID } from '../utils/telegram.js';
 import {
   getProfile,
   updateProfile,
+  updateBalance,
   addTransaction,
   linkSocial
 } from '../utils/api.js';
@@ -11,6 +12,7 @@ export default function MyAccount() {
   const [profile, setProfile] = useState(null);
   const [form, setForm] = useState({ nickname: '', photo: '', bio: '' });
   const [social, setSocial] = useState({ twitter: '', telegram: '', discord: '' });
+  const [balanceInput, setBalanceInput] = useState('');
   const [tx, setTx] = useState({ amount: '', type: '' });
 
   const load = async () => {
@@ -22,6 +24,7 @@ export default function MyAccount() {
       telegram: data.social?.telegram || '',
       discord: data.social?.discord || ''
     });
+    setBalanceInput(data.balance ?? '');
   };
 
   useEffect(() => {
@@ -47,6 +50,10 @@ export default function MyAccount() {
     alert('Social accounts updated');
   };
 
+  const handleSetBalance = async () => {
+    const res = await updateBalance(TELEGRAM_ID, Number(balanceInput));
+    setProfile({ ...profile, balance: res.balance });
+  };
 
   const handleAddTx = async () => {
     await addTransaction(TELEGRAM_ID, Number(tx.amount), tx.type);
@@ -126,6 +133,15 @@ export default function MyAccount() {
       <div className="space-y-2">
         <h3 className="font-bold">Balance</h3>
         <p>Current balance: {profile.balance}</p>
+        <input
+          type="number"
+          value={balanceInput}
+          onChange={(e) => setBalanceInput(e.target.value)}
+          className="w-full p-1 border"
+        />
+        <button className="px-3 py-1 bg-blue-500 text-white" onClick={handleSetBalance}>
+          Set Balance
+        </button>
       </div>
 
       <div className="space-y-2">
