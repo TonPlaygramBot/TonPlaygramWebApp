@@ -11,6 +11,9 @@ This project contains a Telegram bot and a companion web application.
    # Set MONGODB_URI=memory to run without a real MongoDB server
    MONGODB_URI=<your mongodb connection string or 'memory'>
    PORT=3000
+   # Optional Google OAuth credentials
+   GOOGLE_CLIENT_ID=
+   GOOGLE_CLIENT_SECRET=
    ```
 2. Copy `webapp/.env.example` to `webapp/.env`. The default value points the
    front-end at the local bot server:
