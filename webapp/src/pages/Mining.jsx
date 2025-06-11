@@ -1,12 +1,12 @@
 import { useEffect, useState } from 'react';
 import { getMiningStatus, startMining, stopMining, claimMining } from '../utils/api.js';
-import { TELEGRAM_ID } from '../utils/telegram.js';
+import { getTelegramId } from '../utils/telegram.js';
 
 export default function Mining() {
   const [status, setStatus] = useState(null);
 
   const refresh = async () => {
-    const data = await getMiningStatus(TELEGRAM_ID);
+    const data = await getMiningStatus(getTelegramId());
     setStatus(data);
   };
 
@@ -15,17 +15,17 @@ export default function Mining() {
   }, []);
 
   const handleStart = async () => {
-    await startMining(TELEGRAM_ID);
+    await startMining(getTelegramId());
     refresh();
   };
 
   const handleStop = async () => {
-    await stopMining(TELEGRAM_ID);
+    await stopMining(getTelegramId());
     refresh();
   };
 
   const handleClaim = async () => {
-    const res = await claimMining(TELEGRAM_ID);
+    const res = await claimMining(getTelegramId());
     alert(`Claimed ${res.amount} TPC. New balance: ${res.balance}`);
     refresh();
   };
