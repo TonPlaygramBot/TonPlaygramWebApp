@@ -10,7 +10,34 @@ const userSchema = new mongoose.Schema({
 
   isWatched: { type: Boolean, default: false },
 
-  minedTPC: { type: Number, default: 0 },
+  minedTPC: { type: Number, default: 0  
+  nijpdr-codex/create-accounts-automatically-from-telegram-id
+  balance: { type: Number, default: 0 },
+  nickname: { type: String, default: '' },
+  photo: { type: String, default: '' },
+  bio: { type: String, default: '' },
+  social: {
+    twitter: String,
+    telegram: String,
+    discord: String,
+    googleId: String
+  },
+  transactions: [
+    {
+      amount: Number,
+      type: String,
+      date: { type: Date, default: Date.now }
+    }
+  ],
+  referralCode: { type: String, unique: true },
+  referredBy: { type: String }
+});
+
+userSchema.pre('save', function(next) {
+  if (!this.referralCode) {
+    this.referralCode = this.telegramId.toString();
+  }
+  next();
 
   balance: { type: Number, default: 0 },
 
@@ -60,8 +87,9 @@ userSchema.pre('save', function(next) {
 
   }
 
-  next();
-
+  next()
+  
+main
 });
 
 export default mongoose.model('User', userSchema);
