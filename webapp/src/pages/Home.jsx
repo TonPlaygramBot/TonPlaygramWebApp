@@ -17,7 +17,6 @@ export default function Home() {
       <Branding />
       <div className="grid grid-cols-1 gap-4">
         <GameCard title="Mining" icon="⛏" link="/mining" />
-        <GameCard title="Snakes & Ladders" icon="🐍" link="/games/snake" />
         <GameCard title="Dice Duel" icon="🎲" link="/games/dice" />
         <GameCard title="Watch to Earn" icon="▶️" link="/watch" />
         <GameCard title="Tasks" icon="✅" link="/tasks" />
