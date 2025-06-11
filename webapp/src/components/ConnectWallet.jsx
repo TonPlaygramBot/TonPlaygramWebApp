@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+ imw5g8-codex/suggest-next-steps-for-the-project
 import { TonConnectButton, useTonWallet } from '@tonconnect/ui-react';
 import { getWalletAddress, setWalletAddress, getWalletBalance } from '../utils/api.js';
 import { getTelegramId } from '../utils/telegram.js';
