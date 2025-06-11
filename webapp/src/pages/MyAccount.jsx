@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { TELEGRAM_ID } from '../utils/telegram.js';
+import { getTelegramId } from '../utils/telegram.js';
 import {
   getProfile,
   updateProfile,
@@ -10,13 +10,14 @@ import {
 
 export default function MyAccount() {
   const [profile, setProfile] = useState(null);
+  const telegramId = getTelegramId();
   const [form, setForm] = useState({ nickname: '', photo: '', bio: '' });
   const [social, setSocial] = useState({ twitter: '', telegram: '', discord: '' });
   const [balanceInput, setBalanceInput] = useState('');
   const [tx, setTx] = useState({ amount: '', type: '' });
 
   const load = async () => {
-    const data = await getProfile(TELEGRAM_ID);
+    const data = await getProfile(telegramId);
     setProfile(data);
     setForm({ nickname: data.nickname || '', photo: data.photo || '', bio: data.bio || '' });
     setSocial({
@@ -40,24 +41,24 @@ export default function MyAccount() {
   };
 
   const handleSave = async () => {
-    const res = await updateProfile({ telegramId: TELEGRAM_ID, ...form });
+    const res = await updateProfile({ telegramId, ...form });
     setProfile(res);
     alert('Profile updated');
   };
 
   const handleSaveSocial = async () => {
-    await linkSocial({ telegramId: TELEGRAM_ID, ...social });
+    await linkSocial({ telegramId, ...social });
     alert('Social accounts updated');
   };
 
   const handleSetBalance = async () => {
-    const res = await updateBalance(TELEGRAM_ID, Number(balanceInput));
+    const res = await updateBalance(telegramId, Number(balanceInput));
     setProfile({ ...profile, balance: res.balance });
   };
 
   const handleAddTx = async () => {
-    await addTransaction(TELEGRAM_ID, Number(tx.amount), tx.type);
-    const refreshed = await getProfile(TELEGRAM_ID);
+    await addTransaction(telegramId, Number(tx.amount), tx.type);
+    const refreshed = await getProfile(telegramId);
     setProfile(refreshed);
     setTx({ amount: '', type: '' });
   };

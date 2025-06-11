@@ -13,6 +13,7 @@ const userSchema = new mongoose.Schema({
   minedTPC: { type: Number, default: 0 },
 
   balance: { type: Number, default: 0 },
+  walletAddress: { type: String, default: '' },
 
   nickname: { type: String, default: '' },
 

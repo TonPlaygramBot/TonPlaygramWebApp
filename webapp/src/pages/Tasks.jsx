@@ -1,15 +1,16 @@
 import { useEffect, useState } from 'react';
 import { listTasks, completeTask, listVideos, watchVideo } from '../utils/api.js';
-import { TELEGRAM_ID } from '../utils/telegram.js';
+import { getTelegramId } from '../utils/telegram.js';
 
 export default function Tasks() {
   const [tasks, setTasks] = useState(null);
   const [videos, setVideos] = useState(null);
+  const telegramId = getTelegramId();
 
   const load = async () => {
     const [taskData, videoData] = await Promise.all([
-      listTasks(TELEGRAM_ID),
-      listVideos(TELEGRAM_ID)
+      listTasks(telegramId),
+      listVideos(telegramId)
     ]);
     setTasks(taskData);
     setVideos(videoData);
@@ -18,13 +19,13 @@ export default function Tasks() {
   useEffect(() => { load(); }, []);
 
   const handleComplete = async (id) => {
-    await completeTask(TELEGRAM_ID, id);
+    await completeTask(telegramId, id);
     load();
   };
 
   const handleWatch = async (id, url) => {
     window.open(url, '_blank');
-    await watchVideo(TELEGRAM_ID, id);
+    await watchVideo(telegramId, id);
     load();
   };
 
