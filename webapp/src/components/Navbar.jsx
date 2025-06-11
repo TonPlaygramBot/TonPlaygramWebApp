@@ -8,7 +8,7 @@ export default function Navbar() {
         <div className="flex-1 space-x-4 text-sm">
           <Link className="hover:text-yellow-400" to="/">Home</Link>
           <Link className="hover:text-yellow-400" to="/mining">Mining</Link>
-          <Link className="hover:text-yellow-400" to="/games/snake">Games</Link>
+          <Link className="hover:text-yellow-400" to="/games/dice">Games</Link>
           <Link className="hover:text-yellow-400" to="/watch">Watch</Link>
           <Link className="hover:text-yellow-400" to="/tasks">Tasks</Link>
           <Link className="hover:text-yellow-400" to="/referral">Referral</Link>
