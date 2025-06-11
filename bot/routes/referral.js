@@ -1,36 +1,49 @@
 import { Router } from 'express';
-import crypto from 'crypto';
+import User from '../models/User.js';
 
 const router = Router();
 
-const codes = new Map(); // telegramId -> code
-const referrals = new Map(); // code -> array of telegramIds
-
-router.post('/code', (req, res) => {
+router.post('/code', async (req, res) => {
   const { telegramId } = req.body;
   if (!telegramId) return res.status(400).json({ error: 'telegramId required' });
 
-  let code = codes.get(telegramId);
-  if (!code) {
-    code = crypto.randomBytes(4).toString('hex');
-    codes.set(telegramId, code);
-    referrals.set(code, []);
-  }
-  res.json({ code, referrals: referrals.get(code).length });
+  const user = await User.findOneAndUpdate(
+    { telegramId },
+    { $setOnInsert: { referralCode: telegramId.toString() } },
+    { upsert: true, new: true }
+  );
+
+  const count = await User.countDocuments({ referredBy: user.referralCode });
+  res.json({ code: user.referralCode, referrals: count });
 });
 
-router.post('/claim', (req, res) => {
+router.post('/claim', async (req, res) => {
   const { telegramId, code } = req.body;
   if (!telegramId || !code) {
     return res.status(400).json({ error: 'telegramId and code required' });
   }
-  const users = referrals.get(code);
-  if (!users) return res.status(400).json({ error: 'invalid code' });
-  if (users.includes(telegramId)) {
+
+  const inviter = await User.findOne({ referralCode: code });
+  if (!inviter) return res.status(400).json({ error: 'invalid code' });
+
+  const user = await User.findOneAndUpdate(
+    { telegramId },
+    { $setOnInsert: { referralCode: telegramId.toString() } },
+    { upsert: true, new: true }
+  );
+
+  if (user.referredBy) {
     return res.json({ message: 'already claimed' });
   }
-  users.push(telegramId);
-  res.json({ message: 'claimed', total: users.length });
+  if (user.referralCode === code) {
+    return res.json({ message: 'cannot claim own code' });
+  }
+
+  user.referredBy = code;
+  await user.save();
+
+  const count = await User.countDocuments({ referredBy: code });
+  res.json({ message: 'claimed', total: count });
 });
 
 export default router;
