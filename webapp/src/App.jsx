@@ -9,7 +9,6 @@ import MyAccount from './pages/MyAccount.jsx';
 import DiceGame from './pages/Games/DiceGame.jsx';
 import LudoGame from './pages/Games/LudoGame.jsx';
 import HorseRacing from './pages/Games/HorseRacing.jsx';
-import SnakeLadders from './pages/Games/SnakeLadders.jsx';
 import Layout from './components/Layout.jsx';
 
 export default function App() {
@@ -22,7 +21,11 @@ export default function App() {
           <Route path="/games/dice" element={<DiceGame />} />
           <Route path="/games/ludo" element={<LudoGame />} />
           <Route path="/games/horse" element={<HorseRacing />} />
+ 07mnwr-codex/integrate-game-code-into-webapp
           <Route path="/games/snake" element={<SnakeLadders />} />
+
+          <Route path="/watch" element={<WatchToEarn />} />
+ main
           <Route path="/tasks" element={<Tasks />} />
           <Route path="/referral" element={<Referral />} />
           <Route path="/wallet" element={<Wallet />} />

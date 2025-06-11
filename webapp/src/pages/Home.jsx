@@ -23,7 +23,10 @@ export default function Home() {
         <GameCard title="Wallet" icon="💰" link="/wallet" />
         <GameCard title="Mining" icon="⛏" link="/mining" />
         <GameCard title="Dice Duel" icon="🎲" link="/games/dice" />
+    07mnwr-codex/integrate-game-code-into-webapp
         <GameCard title="Snakes & Ladders" icon="🐍" link="/games/snake" />
+
+ main
         <GameCard title="Tasks" icon="✅" link="/tasks" />
         <GameCard title="My Account" icon="👤" link="/account" />
       </div>
