@@ -19,6 +19,7 @@ export default function Home() {
         <GameCard title="Mining" icon="⛏" link="/mining" />
         <GameCard title="Snakes & Ladders" icon="🐍" link="/games/snake" />
         <GameCard title="Dice Duel" icon="🎲" link="/games/dice" />
+        <GameCard title="Watch to Earn" icon="▶️" link="/watch" />
         <GameCard title="Tasks" icon="✅" link="/tasks" />
         <GameCard title="Wallet" icon="💰" link="/wallet" />
         <GameCard title="My Account" icon="👤" link="/account" />

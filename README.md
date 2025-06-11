@@ -62,7 +62,7 @@ Use `/tasks` to view available tasks. Complete a task with `/tasks complete <id>
 
 ### Watch-to-earn demo
 
-Watching short videos also awards TPC. These "watch to earn" videos now live on the Tasks page rather than a separate section. Use `/watch` in Telegram or open the Tasks page in the web app to see available videos.
+Use `/watch` to see available videos. Watching a video via the web app awards the listed TPC once per video.
 
 ### Deployment on Render
 
