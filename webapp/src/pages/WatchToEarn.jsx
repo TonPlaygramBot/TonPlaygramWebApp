@@ -28,7 +28,7 @@ export default function WatchToEarn() {
           <li key={v.id} className="border p-2 flex justify-between items-center">
             <span>{v.title} ({v.reward} TPC)</span>
             {v.watched ? (
-              <span className="text-green-600">Watched</span>
+              <span className="text-accent">Watched</span>
             ) : (
               <button onClick={() => handleWatch(v.id, v.url)} className="px-2 py-1 bg-primary text-text rounded">Watch</button>
             )}
