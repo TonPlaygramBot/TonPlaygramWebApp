@@ -18,7 +18,11 @@ export default function MyAccount() {
   const load = async () => {
     const data = await getProfile(getTelegramId());
     setProfile(data);
-    setForm({ nickname: data.nickname || '', photo: data.photo || '', bio: data.bio || '' });
+    setForm({
+      nickname: data.nickname || '',
+      photo: data.photo || '',
+      bio: data.bio || ''
+    });
     setSocial({
       twitter: data.social?.twitter || '',
       telegram: data.social?.telegram || '',
@@ -95,7 +99,10 @@ export default function MyAccount() {
           placeholder="Bio"
           className="w-full p-1 border rounded bg-surface text-text"
         />
-        <button className="px-3 py-1 bg-primary hover:bg-primary-hover text-text rounded" onClick={handleSave}>
+        <button
+          className="px-3 py-1 bg-primary hover:bg-primary-hover text-text rounded"
+          onClick={handleSave}
+        >
           Save Profile
         </button>
       </div>
@@ -124,10 +131,16 @@ export default function MyAccount() {
           placeholder="Discord"
           className="w-full p-1 border rounded bg-surface text-text"
         />
-        <button className="px-3 py-1 bg-primary hover:bg-primary-hover text-text rounded" onClick={handleSaveSocial}>
+        <button
+          className="px-3 py-1 bg-primary hover:bg-primary-hover text-text rounded"
+          onClick={handleSaveSocial}
+        >
           Save Social
         </button>
-        <button className="px-3 py-1 bg-red-500 hover:bg-red-600 text-text rounded" onClick={handleLinkGoogle}>
+        <button
+          className="px-3 py-1 bg-red-500 hover:bg-red-600 text-text rounded"
+          onClick={handleLinkGoogle}
+        >
           Link Google
         </button>
       </div>
@@ -144,7 +157,10 @@ export default function MyAccount() {
           onChange={(e) => setBalanceInput(e.target.value)}
           className="w-full p-1 border rounded bg-surface text-text"
         />
-        <button className="px-3 py-1 bg-primary hover:bg-primary-hover text-text rounded" onClick={handleSetBalance}>
+        <button
+          className="px-3 py-1 bg-primary hover:bg-primary-hover text-text rounded"
+          onClick={handleSetBalance}
+        >
           Set Balance
         </button>
       </div>
@@ -174,7 +190,10 @@ export default function MyAccount() {
           placeholder="Type"
           className="w-full p-1 border rounded bg-surface text-text"
         />
-        <button className="px-3 py-1 bg-primary hover:bg-primary-hover text-text rounded" onClick={handleAddTx}>
+        <button
+          className="px-3 py-1 bg-primary hover:bg-primary-hover text-text rounded"
+          onClick={handleAddTx}
+        >
           Add Transaction
         </button>
       </div>
