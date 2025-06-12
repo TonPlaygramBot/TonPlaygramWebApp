@@ -1,13 +1,26 @@
 import { Link } from 'react-router-dom';
 
 export default function GameCard({ title, description, link, icon }) {
+  let iconNode = null;
+  if (icon) {
+    iconNode =
+      typeof icon === 'string' ? (
+        <img src={icon} alt="" className="h-8 w-8 mx-auto" />
+      ) : (
+        <span className="text-3xl text-accent">{icon}</span>
+      );
+  }
+
   return (
-    <div className="bg-gray-800/60 p-4 rounded-xl shadow-lg space-y-2 text-white">
-      {icon && <div className="text-3xl">{icon}</div>}
-      <h3 className="text-lg font-bold">{title}</h3>
-      {description && <p className="text-blue-200 text-sm">{description}</p>}
+    <div className="bg-surface p-4 rounded-xl shadow-lg space-y-2 text-center">
+      {iconNode}
+      <h3 className="text-lg font-bold text-text">{title}</h3>
+      {description && <p className="text-subtext text-sm">{description}</p>}
       {link && (
-        <Link to={link} className="inline-block mt-1 px-3 py-1 bg-blue-600 rounded hover:bg-blue-500">
+        <Link
+          to={link}
+          className="inline-block mt-1 px-3 py-1 bg-primary text-text rounded hover:bg-primary-hover"
+        >
           Open
         </Link>
       )}

@@ -1,11 +1,13 @@
 import React from 'react';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
+
 import Home from './pages/Home.jsx';
 import Mining from './pages/Mining.jsx';
 import Wallet from './pages/Wallet.jsx';
 import Tasks from './pages/Tasks.jsx';
 import Referral from './pages/Referral.jsx';
 import MyAccount from './pages/MyAccount.jsx';
+
 import DiceGame from './pages/Games/DiceGame.jsx';
 import LudoGame from './pages/Games/LudoGame.jsx';
 import HorseRacing from './pages/Games/HorseRacing.jsx';
@@ -13,6 +15,7 @@ import SnakeLadders from './pages/Games/SnakeLadders.jsx';
 import ChessGame from './pages/Games/Chess.jsx';
 import Games from './pages/Games.jsx';
 import SpinPage from './pages/spin.tsx';
+
 import Layout from './components/Layout.jsx';
 import useTelegramAuth from './hooks/useTelegramAuth.js';
 

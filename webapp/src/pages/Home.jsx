@@ -21,10 +21,12 @@ export default function Home() {
         <GameCard title="Spin & Win" icon="🎡" link="/spin" />
         <WalletCard />
         <MiningCard />
+        <GameCard title="Dice Duel" icon="/assets/icons/dice.svg" link="/games/dice" />
+        <GameCard title="Snakes & Ladders" icon="/assets/icons/snake.svg" link="/games/snake" />
         <GameCard title="Tasks" icon="✅" link="/tasks" />
         <GameCard title="Profile" icon="👤" link="/account" />
       </div>
-      <p className="text-center text-xs text-gray-500">Status: {status}</p>
+      <p className="text-center text-xs text-subtext">Status: {status}</p>
     </div>
   );
 }
