@@ -68,3 +68,11 @@ export function addTransaction(telegramId, amount, type) {
 export function linkSocial(data) {
   return post('/api/profile/link-social', data);
 }
+
+export function getWalletBalance(telegramId) {
+  return post('/api/wallet/balance', { telegramId });
+}
+
+export function getTonBalance(address) {
+  return post('/api/wallet/ton-balance', { address });
+}
