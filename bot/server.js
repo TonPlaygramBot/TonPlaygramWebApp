@@ -88,6 +88,13 @@ if (
 }
 
 app.use(express.static(webappPath));
+// Expose TonConnect manifest directly at the root path so wallet extensions
+// can fetch it. Render will serve static files from `webapp/dist`, but some
+// deployments hit this Express server before the static middleware. Providing
+// an explicit route avoids 404 errors.
+app.get('/tonconnect-manifest.json', (req, res) => {
+  res.sendFile(path.join(webappPath, 'tonconnect-manifest.json'));
+});
 app.get('/', (req, res) => {
   res.sendFile(path.join(webappPath, 'index.html'));
 });
