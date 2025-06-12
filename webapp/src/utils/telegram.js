@@ -7,13 +7,3 @@ export function getTelegramId() {
   }
   return 1; // demo fallback
 }
-
-export function getTelegramUsername() {
-  if (typeof window !== 'undefined') {
-    const name = window?.Telegram?.WebApp?.initDataUnsafe?.user?.username;
-    if (name) return name;
-    const stored = localStorage.getItem('telegramUsername');
-    if (stored) return stored;
-  }
-  return '';
-}
