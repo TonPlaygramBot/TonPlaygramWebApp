@@ -32,7 +32,6 @@ export default function Tasks() {
             className="bg-surface border border-border rounded p-2 flex justify-between items-center"
           >
             <span>{t.description}</span>
-
             {t.completed ? (
               <span className="text-accent font-semibold">Completed</span>
             ) : (

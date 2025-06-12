@@ -36,10 +36,7 @@ export default function Mining() {
     <div className="p-4 space-y-2 text-text">
       <h2 className="text-xl font-bold">Mining</h2>
       <p>
-        Status:{' '}
-        <span className="font-semibold">
-          {status.isMining ? 'Mining' : 'Stopped'}
-        </span>
+        Status: <span className="font-semibold">{status.isMining ? 'Mining' : 'Stopped'}</span>
       </p>
       <p>
         Pending rewards: <span className="text-accent">{status.pending}</span>
@@ -48,13 +45,22 @@ export default function Mining() {
         Balance: <span className="text-accent">{status.balance}</span>
       </p>
       <div className="space-x-2">
-        <button className="px-2 py-1 rounded bg-primary text-text hover:bg-primary-hover" onClick={handleStart}>
+        <button
+          className="px-2 py-1 rounded bg-primary text-text hover:bg-primary-hover"
+          onClick={handleStart}
+        >
           Start
         </button>
-        <button className="px-2 py-1 rounded bg-accent text-background" onClick={handleStop}>
+        <button
+          className="px-2 py-1 rounded bg-accent text-background"
+          onClick={handleStop}
+        >
           Stop
         </button>
-        <button className="px-2 py-1 rounded bg-primary text-text hover:bg-primary-hover" onClick={handleClaim}>
+        <button
+          className="px-2 py-1 rounded bg-primary text-text hover:bg-primary-hover"
+          onClick={handleClaim}
+        >
           Claim
         </button>
       </div>
