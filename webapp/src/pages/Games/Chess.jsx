@@ -75,27 +75,3 @@ export default function ChessGame() {
           onPieceDrop={onDrop}
 
           boardWidth={350}
-
-          boardOrientation="white"
-
-        />
-
-        <button
-
-          onClick={resetGame}
-
-          className="px-2 py-1 border rounded bg-primary hover:bg-primary-hover text-text"
-
-        >
-
-          Reset
-
-        </button>
-
-      </div>
-
-    </div>
-
-  );
-
-}
