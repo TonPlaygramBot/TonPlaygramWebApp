@@ -1,47 +1,27 @@
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
+import { TonConnectButton, useTonWallet } from '@tonconnect/ui-react';
 
+// Simple wrapper around TonConnectButton that remembers the last connected
+// address in localStorage.
 export default function ConnectWallet() {
-  const [address, setAddress] = useState('');
-  const [editing, setEditing] = useState(false);
+  const wallet = useTonWallet();
 
+  // Persist address when wallet changes
   useEffect(() => {
-    const stored = localStorage.getItem('walletAddress');
-    if (stored) setAddress(stored);
-  }, []);
-
-  const handleSave = () => {
-    if (address.trim()) {
-      localStorage.setItem('walletAddress', address.trim());
+    if (wallet?.account?.address) {
+      localStorage.setItem('walletAddress', wallet.account.address);
     }
-    setEditing(false);
-  };
-
-  if (editing) {
-    return (
-      <div className="flex items-center space-x-2">
-        <input
-          className="border p-1 rounded text-black"
-          value={address}
-          onChange={(e) => setAddress(e.target.value)}
-          placeholder="Wallet address"
-        />
-        <button
-          onClick={handleSave}
-          className="px-2 py-1 bg-green-600 text-white rounded"
-        >
-          Save
-        </button>
-      </div>
-    );
-  }
+  }, [wallet]);
 
   return (
-    <button
-      onClick={() => setEditing(true)}
-      className="px-2 py-1 bg-gray-700 rounded"
-    >
-      {address ? `Wallet: ${address.slice(0, 4)}...${address.slice(-4)}` : 'Connect Wallet'}
-    </button>
+    <div className="flex items-center space-x-2">
+      <TonConnectButton className="ton-connect-button" />
+      {wallet?.account?.address && (
+        <span className="text-sm">
+          {wallet.account.address.slice(0, 4)}...
+          {wallet.account.address.slice(-4)}
+        </span>
+      )}
+    </div>
   );
 }
-
