@@ -1,3 +1,4 @@
+
 import { useState } from 'react';
 import { Chess } from 'chess.js';
 import { Chessboard } from 'react-chessboard';
@@ -42,7 +43,9 @@ export default function ChessGame() {
           boardWidth={350}
           boardOrientation="white"
         />
-        <button onClick={resetGame} className="px-2 py-1 border rounded bg-gray-700">Reset</button>
+        <button onClick={resetGame} className="px-2 py-1 border rounded bg-gray-700">
+          Reset
+        </button>
       </div>
     </div>
   );
