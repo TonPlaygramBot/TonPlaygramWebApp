@@ -28,9 +28,7 @@ export default function ChessGame() {
             key={amt}
             onClick={() => setStake(amt)}
             className={`px-2 py-1 border rounded ${
-              stake === amt
-                ? 'bg-accent text-background'
-                : 'bg-surface text-text'
+              stake === amt ? 'bg-accent text-background' : 'bg-surface text-text'
             }`}
           >
             {amt} TPC

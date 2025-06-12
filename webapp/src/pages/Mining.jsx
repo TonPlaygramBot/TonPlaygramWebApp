@@ -37,8 +37,8 @@ export default function Mining() {
       <h2 className="text-xl font-bold">Mining</h2>
       <p>
         Status:{' '}
-        <span className="font-semibold">
-          {status.isMining ? 'Mining' : 'Stopped'}
+        <span className={status.isMining ? 'text-green-500' : 'text-red-500'}>
+          {status.isMining ? 'Mining' : 'Not Mining'}
         </span>
       </p>
       <p>
@@ -47,6 +47,7 @@ export default function Mining() {
       <p>
         Balance: <span className="text-accent">{status.balance}</span>
       </p>
+
       <div className="space-x-2">
         <button
           className="px-2 py-1 rounded bg-primary text-text hover:bg-primary-hover"
