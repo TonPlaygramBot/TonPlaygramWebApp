@@ -10,9 +10,12 @@ import DiceGame from './pages/Games/DiceGame.jsx';
 import LudoGame from './pages/Games/LudoGame.jsx';
 import HorseRacing from './pages/Games/HorseRacing.jsx';
 import SnakeLadders from './pages/Games/SnakeLadders.jsx';
+import ChessGame from './pages/Games/Chess.jsx';
 import Layout from './components/Layout.jsx';
+import useTelegramAuth from './hooks/useTelegramAuth.js';
 
 export default function App() {
+  useTelegramAuth();
   return (
     <BrowserRouter>
       <Layout>
@@ -23,6 +26,7 @@ export default function App() {
           <Route path="/games/ludo" element={<LudoGame />} />
           <Route path="/games/horse" element={<HorseRacing />} />
           <Route path="/games/snake" element={<SnakeLadders />} />
+          <Route path="/games/chess" element={<ChessGame />} />
           <Route path="/tasks" element={<Tasks />} />
           <Route path="/referral" element={<Referral />} />
           <Route path="/wallet" element={<Wallet />} />

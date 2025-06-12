@@ -4,9 +4,15 @@ import Footer from './Footer.jsx';
 
 export default function Layout({ children }) {
     useEffect(() => {
-        const first = document.body.firstElementChild;
-        if (first && first.id !== 'root') {
-            first.remove();
+        const root = document.getElementById('root');
+        if (!root) return;
+
+        // Remove any stray elements that appear before the React root.
+        let prev = root.previousSibling;
+        while (prev) {
+            const node = prev;
+            prev = prev.previousSibling;
+            node.parentNode?.removeChild(node);
         }
     }, []);
 
