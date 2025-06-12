@@ -1,14 +1,21 @@
 @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700&display=swap');
 
 @tailwind base;
+
 @tailwind components;
+
 @tailwind utilities;
 
 body {
+
   font-family: 'Montserrat', sans-serif;
-  @apply bg-black text-yellow-400;
+
+  @apply bg-[#0c1020] text-white;
+
 }
 
 .hexagon {
+
   clip-path: polygon(25% 0%, 75% 0%, 100% 50%, 75% 100%, 25% 100%, 0% 50%);
+
 }
