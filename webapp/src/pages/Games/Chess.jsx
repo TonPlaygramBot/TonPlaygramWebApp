@@ -36,15 +36,15 @@ export default function ChessGame() {
     <div className="p-4 space-y-4 text-text">
       <RoomSelector selected={selection} onSelect={setSelection} />
 
-      {/* Top Bar */}
+      {/* Top Player Bar */}
       <div className="flex items-center justify-between">
         <div className="text-center">
-          <img src="https://placehold.co/64" alt="Player" className="player-avatar" />
+          <img src="https://placehold.co/64" alt="Player" className="rounded-full mx-auto" />
           <p className="text-xs mt-1">0.5 {selection.token}</p>
         </div>
         <div className="text-xl font-bold">{formatTime(seconds)}</div>
         <div className="text-center">
-          <img src="https://placehold.co/64" alt="Opponent" className="player-avatar" />
+          <img src="https://placehold.co/64" alt="Opponent" className="rounded-full mx-auto" />
           <p className="text-xs mt-1">0.5 {selection.token}</p>
         </div>
       </div>
@@ -80,9 +80,8 @@ export default function ChessGame() {
         </button>
       </div>
 
+      {/* Wallet and Reset */}
       <ConnectWallet />
-
-      {/* Reset Option */}
       <div className="text-center">
         <button
           onClick={resetGame}
