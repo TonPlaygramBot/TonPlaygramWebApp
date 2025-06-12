@@ -5,13 +5,20 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="telegram:web_app:bot_username" content="TonPlaygramBot" />
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700&display=swap" rel="stylesheet">
+
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700&display=swap"
+      rel="stylesheet"
+    />
+
     <title>TonPlaygram</title>
   </head>
   <body>
     <script>
+      // Clean up any stray DOM before mounting React
       document.addEventListener('DOMContentLoaded', () => {
         const root = document.getElementById('root');
         if (root) {
@@ -22,6 +29,7 @@
         }
       });
     </script>
+
     <div id="root"></div>
     <script type="module" src="./src/main.jsx"></script>
   </body>
