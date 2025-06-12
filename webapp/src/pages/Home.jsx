@@ -20,8 +20,8 @@ export default function Home() {
       <div className="grid grid-cols-1 gap-4">
         <WalletCard />
         <MiningCard />
-        <GameCard title="Dice Duel" icon="🎲" link="/games/dice" />
-        <GameCard title="Snakes & Ladders" icon="🐍" link="/games/snake" />
+        <GameCard title="Dice Duel" icon="/assets/icons/dice.svg" link="/games/dice" />
+        <GameCard title="Snakes & Ladders" icon="/assets/icons/snake.svg" link="/games/snake" />
         <GameCard title="Tasks" icon="✅" link="/tasks" />
         <GameCard title="Profile" icon="👤" link="/account" />
       </div>
