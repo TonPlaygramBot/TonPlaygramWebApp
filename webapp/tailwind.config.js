@@ -4,7 +4,7 @@ export default {
 
     './index.html',
 
-    './src/**/*.{js,jsx}'
+    './src/**/*.{js,jsx}',
 
   ],
 
@@ -14,25 +14,25 @@ export default {
 
       colors: {
 
-        background: '#0c1020',
+        background: '#0c0e1a',        // Darker base
 
-        surface: '#11172a',
+        surface: '#15182b',           // Card or panel background
 
-        border: '#1e293b',
+        border: '#20243a',            // Border lines
 
-        primary: '#2563eb',
+        primary: '#3b82f6',           // Action buttons (blue)
 
-        'primary-hover': '#1d4ed8',
+        'primary-hover': '#2563eb',   // Hover state
 
-        text: '#f8fafc',
+        text: '#f1f5f9',              // Main text color
 
-        subtext: '#94a3b8',
+        subtext: '#94a3b8',           // Dimmed/inactive text
 
-        accent: '#fde047',
+        accent: '#facc15',            // Yellow accents (buttons, highlights)
 
         brand: {
 
-          gold: '#f1c40f',
+          gold: '#f1c40f',            // Optional branding gold
 
           black: '#000000'
 

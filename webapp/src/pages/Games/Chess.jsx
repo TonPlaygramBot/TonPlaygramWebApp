@@ -6,8 +6,6 @@ import { Chessboard } from 'react-chessboard';
 
 import ConnectWallet from '../../components/ConnectWallet.jsx';
 
-// Minimal chess game using chess.js and react-chessboard.
-
 export default function ChessGame() {
 
   const [stake, setStake] = useState(100);
@@ -34,9 +32,9 @@ export default function ChessGame() {
 
     <div className="p-4">
 
-      <h2 className="text-2xl font-bold mb-4 text-white">Chessu</h2>
+      <h2 className="text-2xl font-bold mb-4 text-text">Chessu</h2>
 
-      <p className="mb-4 text-[#94a3b8]">Stake TPC and challenge another player.</p>
+      <p className="mb-4 text-subtext">Stake TPC and challenge another player.</p>
 
       <div className="space-x-2 mb-4">
 
@@ -50,7 +48,7 @@ export default function ChessGame() {
 
             className={`px-2 py-1 border rounded ${
 
-              stake === amt ? 'bg-yellow-600 text-white' : 'bg-[#11172a] text-white'
+              stake === amt ? 'bg-accent text-background' : 'bg-surface text-text'
 
             }`}
 
@@ -86,7 +84,7 @@ export default function ChessGame() {
 
           onClick={resetGame}
 
-          className="px-2 py-1 border rounded bg-[#2563eb] hover:bg-[#1d4ed8] text-white"
+          className="px-2 py-1 border rounded bg-primary hover:bg-primary-hover text-text"
 
         >
 
