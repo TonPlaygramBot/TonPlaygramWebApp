@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { getMiningStatus, startMining, stopMining, claimMining } from '../utils/api.js';
 import { getTelegramId } from '../utils/telegram.js';
 
-export default function Mining() {
+export default function MiningCard() {
   const [status, setStatus] = useState(null);
 
   const refresh = async () => {
@@ -25,16 +25,24 @@ export default function Mining() {
   };
 
   const handleClaim = async () => {
-    const res = await claimMining(getTelegramId());
-    alert(`Claimed ${res.amount} TPC. New balance: ${res.balance}`);
+    await claimMining(getTelegramId());
     refresh();
   };
 
-  if (!status) return <div className="p-4">Loading...</div>;
+  if (!status) {
+    return (
+      <div className="bg-gray-800/60 p-4 rounded-xl shadow-lg text-white">
+        Loading...
+      </div>
+    );
+  }
 
   return (
-    <div className="p-4 space-y-2">
-      <h2 className="text-xl font-bold">Mining</h2>
+    <div className="bg-gray-800/60 p-4 rounded-xl shadow-lg text-white space-y-2">
+      <h3 className="text-lg font-bold flex items-center space-x-2">
+        <span>⛏</span>
+        <span>Mining</span>
+      </h3>
       <p>
         Status:{' '}
         <span className={status.isMining ? 'text-green-500' : 'text-red-500'}>
