@@ -3,7 +3,6 @@ import { Chess } from 'chess.js';
 import { Chessboard } from 'react-chessboard';
 import ConnectWallet from '../../components/ConnectWallet.jsx';
 
-// Minimal chess game using chess.js and react-chessboard.
 export default function ChessGame() {
   const [stake, setStake] = useState(100);
   const [game, setGame] = useState(new Chess());
@@ -20,14 +19,16 @@ export default function ChessGame() {
 
   return (
     <div className="p-4">
-      <h2 className="text-2xl font-bold mb-4">Chessu</h2>
-      <p className="mb-4">Stake TPC and challenge another player.</p>
+      <h2 className="text-2xl font-bold mb-4 text-text">Chessu</h2>
+      <p className="mb-4 text-subtext">Stake TPC and challenge another player.</p>
       <div className="space-x-2 mb-4">
         {[100, 500, 1000, 5000, 10000].map((amt) => (
           <button
             key={amt}
             onClick={() => setStake(amt)}
-            className={`px-2 py-1 border rounded ${stake === amt ? 'bg-accent text-background' : 'bg-surface'}`}
+            className={`px-2 py-1 border rounded ${
+              stake === amt ? 'bg-accent text-background' : 'bg-surface text-text'
+            }`}
           >
             {amt} TPC
           </button>
@@ -42,7 +43,12 @@ export default function ChessGame() {
           boardWidth={350}
           boardOrientation="white"
         />
-        <button onClick={resetGame} className="px-2 py-1 border rounded bg-primary text-text">Reset</button>
+        <button
+          onClick={resetGame}
+          className="px-2 py-1 border rounded bg-primary hover:bg-primary-hover text-text"
+        >
+          Reset
+        </button>
       </div>
     </div>
   );
