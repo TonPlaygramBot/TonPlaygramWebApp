@@ -21,6 +21,7 @@ import useTelegramAuth from './hooks/useTelegramAuth.js';
 
 export default function App() {
   useTelegramAuth();
+
   return (
     <BrowserRouter>
       <Layout>

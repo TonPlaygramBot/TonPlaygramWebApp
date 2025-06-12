@@ -35,13 +35,8 @@ export default function MyAccount() {
     load();
   }, []);
 
-  const handleChange = (e) => {
-    setForm({ ...form, [e.target.name]: e.target.value });
-  };
-
-  const handleSocialChange = (e) => {
-    setSocial({ ...social, [e.target.name]: e.target.value });
-  };
+  const handleChange = (e) => setForm({ ...form, [e.target.name]: e.target.value });
+  const handleSocialChange = (e) => setSocial({ ...social, [e.target.name]: e.target.value });
 
   const handleSave = async () => {
     const res = await updateProfile({ telegramId: getTelegramId(), ...form });

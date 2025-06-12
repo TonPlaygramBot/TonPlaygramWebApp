@@ -28,7 +28,7 @@ export default function SpinWheel({ onFinish, spinning, setSpinning, disabled }:
   };
 
   return (
-    <div className="relative w-64 h-64">
+    <div className="relative w-64 h-64 mx-auto">
       <div
         className="w-full h-full rounded-full border-4 border-yellow-500 flex items-center justify-center transition-transform duration-[4000ms]"
         style={{
@@ -42,20 +42,22 @@ export default function SpinWheel({ onFinish, spinning, setSpinning, disabled }:
             key={i}
             className="absolute text-yellow-400 text-sm"
             style={{
-              transform: `rotate(${i * segmentAngle}deg) translateY(-110px)`
+              transform: `rotate(${i * segmentAngle}deg) translateY(-110px) rotate(${-i * segmentAngle}deg)`
             }}
           >
             {s}
           </span>
         ))}
+
+        {/* Centered Red Spin Button */}
+        <button
+          onClick={spin}
+          className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-16 h-16 rounded-full bg-red-600 text-white text-sm font-bold flex items-center justify-center disabled:bg-gray-500"
+          disabled={spinning || disabled}
+        >
+          Spin
+        </button>
       </div>
-      <button
-        onClick={spin}
-        className="absolute -bottom-12 left-1/2 -translate-x-1/2 px-4 py-2 rounded bg-yellow-500 text-black disabled:bg-gray-500"
-        disabled={spinning || disabled}
-      >
-        Spin
-      </button>
     </div>
   );
 }

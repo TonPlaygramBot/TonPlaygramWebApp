@@ -65,7 +65,7 @@ export default function ChessGame() {
         />
       </div>
 
-      {/* Info Footer */}
+      {/* Footer Info */}
       <div className="flex items-center justify-between bg-gray-800 rounded-lg p-3 text-sm">
         <div className="flex items-center space-x-1">
           <span className="text-lg">♟</span>
@@ -80,12 +80,12 @@ export default function ChessGame() {
         </button>
       </div>
 
-      {/* Wallet and Reset */}
+      {/* Wallet & Reset */}
       <ConnectWallet />
       <div className="text-center">
         <button
           onClick={resetGame}
-          className="mt-2 px-4 py-1 border border-primary rounded text-primary hover:bg-primary hover:text-white"
+          className="mt-2 px-4 py-1 border border-yellow-500 rounded text-yellow-500 hover:bg-yellow-500 hover:text-black"
         >
           Reset Game
         </button>
