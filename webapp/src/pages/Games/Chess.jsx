@@ -8,6 +8,7 @@ export default function ChessGame() {
   const [selection, setSelection] = useState({ token: 'TPC', amount: 100 });
   const [game, setGame] = useState(new Chess());
   const [orientation, setOrientation] = useState('white');
+  const [boardWidth, setBoardWidth] = useState(350);
 
   const onDrop = (sourceSquare, targetSquare) => {
     const newGame = new Chess(game.fen());
@@ -37,8 +38,11 @@ export default function ChessGame() {
           id="chess-board"
           position={game.fen()}
           onPieceDrop={onDrop}
-          boardWidth={350}
+          boardWidth={boardWidth}
           boardOrientation={orientation}
+          customBoardStyle={{ border: '1px solid #27272a' }}
+          customLightSquareStyle={{ backgroundColor: '#11172a' }}
+          customDarkSquareStyle={{ backgroundColor: '#27272a' }}
         />
         <button
           onClick={resetGame}
@@ -54,6 +58,21 @@ export default function ChessGame() {
         >
           Flip Board
         </button>
+        <div className="flex items-center space-x-2">
+          <label htmlFor="board-size" className="text-sm">
+            Size: {boardWidth}px
+          </label>
+          <input
+            id="board-size"
+            type="range"
+            min="250"
+            max="600"
+            step="50"
+            value={boardWidth}
+            onChange={(e) => setBoardWidth(parseInt(e.target.value))}
+            className="cursor-pointer"
+          />
+        </div>
       </div>
 
       <div className="mt-4">
