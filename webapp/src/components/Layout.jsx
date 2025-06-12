@@ -1,21 +1,8 @@
-import React, { useEffect } from 'react';
+import React from 'react';
 import Navbar from './Navbar.jsx';
 import Footer from './Footer.jsx';
 
 export default function Layout({ children }) {
-  // Optional: double safety cleanup if index.html doesn't handle it
-  useEffect(() => {
-    const root = document.getElementById('root');
-    if (!root) return;
-
-    let prev = root.previousSibling;
-    while (prev) {
-      const node = prev;
-      prev = prev.previousSibling;
-      node.parentNode?.removeChild(node);
-    }
-  }, []);
-
   return (
     <div className="flex flex-col min-h-screen bg-background text-text">
       <Navbar />

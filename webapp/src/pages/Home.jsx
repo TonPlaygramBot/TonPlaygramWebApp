@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import GameCard from '../components/GameCard.jsx';
+import WalletCard from '../components/WalletCard.jsx';
 import MiningCard from '../components/MiningCard.jsx';
 import Branding from '../components/Branding.jsx';
 import { ping } from '../utils/api.js';
@@ -17,7 +18,7 @@ export default function Home() {
     <div className="space-y-4">
       <Branding />
       <div className="grid grid-cols-1 gap-4">
-        <GameCard title="Wallet" icon="💰" link="/wallet" />
+        <WalletCard />
         <MiningCard />
         <GameCard title="Dice Duel" icon="🎲" link="/games/dice" />
         <GameCard title="Snakes & Ladders" icon="🐍" link="/games/snake" />
