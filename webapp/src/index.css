@@ -6,6 +6,7 @@
 
 body {
   font-family: 'Montserrat', sans-serif;
+  @apply bg-background text-text;
 }
 
 .hexagon {
