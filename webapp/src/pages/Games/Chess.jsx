@@ -1,35 +1,52 @@
-import { Link } from 'react-router-dom';
 
-export default function Navbar() {
+import { useState } from 'react';
+import { Chess } from 'chess.js';
+import { Chessboard } from 'react-chessboard';
+import ConnectWallet from '../../components/ConnectWallet.jsx';
+
+// Minimal chess game using chess.js and react-chessboard.
+export default function ChessGame() {
+  const [stake, setStake] = useState(100);
+  const [game, setGame] = useState(new Chess());
+
+  const onDrop = (sourceSquare, targetSquare) => {
+    const newGame = new Chess(game.fen());
+    const move = newGame.move({ from: sourceSquare, to: targetSquare, promotion: 'q' });
+    if (move === null) return false;
+    setGame(newGame);
+    return true;
+  };
+
+  const resetGame = () => setGame(new Chess());
 
   return (
-
-    <nav className="bg-black text-yellow-400 shadow border-b border-yellow-600">
-
-      <div className="container mx-auto px-4 py-3 flex items-center">
-
-        <div className="flex-1 space-x-4 text-sm">
-
-          <Link className="hover:text-yellow-400" to="/">Home</Link>
-
-          <Link className="hover:text-yellow-400" to="/mining">Mining</Link>
-
-          <Link className="hover:text-yellow-400" to="/games/chess">Chess</Link>
-
-          <Link className="hover:text-yellow-400" to="/tasks">Tasks</Link>
-
-          <Link className="hover:text-yellow-400" to="/referral">Referral</Link>
-
-          <Link className="hover:text-yellow-400" to="/wallet">Wallet</Link>
-
-          <Link className="hover:text-yellow-400" to="/account">My Account</Link>
-
-        </div>
-
+    <div className="p-4">
+      <h2 className="text-2xl font-bold mb-4">Chessu</h2>
+      <p className="mb-4">Stake TPC and challenge another player.</p>
+      <div className="space-x-2 mb-4">
+        {[100, 500, 1000, 5000, 10000].map((amt) => (
+          <button
+            key={amt}
+            onClick={() => setStake(amt)}
+            className={`px-2 py-1 border rounded ${stake === amt ? 'bg-yellow-600' : 'bg-gray-700'}`}
+          >
+            {amt} TPC
+          </button>
+        ))}
       </div>
-
-    </nav>
-
+      <ConnectWallet />
+      <div className="mt-8 flex flex-col items-center space-y-2">
+        <Chessboard
+          id="chess-board"
+          position={game.fen()}
+          onPieceDrop={onDrop}
+          boardWidth={350}
+          boardOrientation="white"
+        />
+        <button onClick={resetGame} className="px-2 py-1 border rounded bg-gray-700">
+          Reset
+        </button>
+      </div>
+    </div>
   );
-
 }
