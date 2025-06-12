@@ -12,10 +12,8 @@ import HorseRacing from './pages/Games/HorseRacing.jsx';
 import SnakeLadders from './pages/Games/SnakeLadders.jsx';
 import ChessGame from './pages/Games/Chess.jsx';
 import Layout from './components/Layout.jsx';
-import useTelegramAuth from './hooks/useTelegramAuth.js';
 
 export default function App() {
-  useTelegramAuth();
   return (
     <BrowserRouter>
       <Layout>
