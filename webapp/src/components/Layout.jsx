@@ -11,7 +11,7 @@ export default function Layout({ children }) {
     }, []);
 
     return (
-        <div className="flex flex-col min-h-screen bg-background text-text">
+        <div className="flex flex-col min-h-screen bg-[#0c1020] text-white">
             <Navbar />
             <main className="flex-grow container mx-auto p-4">
                 {children}
