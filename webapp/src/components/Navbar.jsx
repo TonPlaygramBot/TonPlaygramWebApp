@@ -20,8 +20,6 @@ export default function Navbar() {
 
           <Link className="hover:text-[#fde047]" to="/referral">Referral</Link>
 
-          <Link className="hover:text-[#fde047]" to="/wallet">Wallet</Link>
-
           <Link className="hover:text-[#fde047]" to="/account">My Account</Link>
 
         </div>
