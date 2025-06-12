@@ -23,7 +23,7 @@ export default function Home() {
         <GameCard title="Tasks" icon="✅" link="/tasks" />
         <GameCard title="Profile" icon="👤" link="/account" />
       </div>
-      <p className="text-center text-xs text-gray-500">Status: {status}</p>
+      <p className="text-center text-xs text-subtext">Status: {status}</p>
     </div>
   );
 }
