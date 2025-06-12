@@ -24,12 +24,12 @@ export default function Tasks() {
       <h2 className="text-xl font-bold">Tasks</h2>
       <ul className="space-y-2">
         {tasks.map(t => (
-          <li key={t.id} className="bg-dark border border-gray-700 rounded p-2 flex justify-between items-center">
+          <li key={t.id} className="border p-2 flex justify-between items-center">
             <span>{t.description}</span>
             {t.completed ? (
               <span className="text-green-600">Completed</span>
             ) : (
-              <button onClick={() => handleComplete(t.id)} className="px-2 py-1 bg-blue-600 text-white rounded">Complete</button>
+              <button onClick={() => handleComplete(t.id)} className="px-2 py-1 bg-blue-500 text-white rounded">Complete</button>
             )}
           </li>
         ))}

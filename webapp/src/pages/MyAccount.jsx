@@ -94,7 +94,7 @@ export default function MyAccount() {
           placeholder="Bio"
           className="w-full p-1 border"
         />
-        <button className="px-3 py-1 bg-blue-600 text-white" onClick={handleSave}>
+        <button className="px-3 py-1 bg-blue-500 text-white" onClick={handleSave}>
           Save Profile
         </button>
       </div>
@@ -122,7 +122,7 @@ export default function MyAccount() {
           placeholder="Discord"
           className="w-full p-1 border"
         />
-        <button className="px-3 py-1 bg-blue-600 text-white" onClick={handleSaveSocial}>
+        <button className="px-3 py-1 bg-blue-500 text-white" onClick={handleSaveSocial}>
           Save Social
         </button>
         <button className="px-3 py-1 bg-red-500 text-white" onClick={handleLinkGoogle}>
@@ -139,7 +139,7 @@ export default function MyAccount() {
           onChange={(e) => setBalanceInput(e.target.value)}
           className="w-full p-1 border"
         />
-        <button className="px-3 py-1 bg-blue-600 text-white" onClick={handleSetBalance}>
+        <button className="px-3 py-1 bg-blue-500 text-white" onClick={handleSetBalance}>
           Set Balance
         </button>
       </div>
@@ -166,7 +166,7 @@ export default function MyAccount() {
           placeholder="Type"
           className="w-full p-1 border"
         />
-        <button className="px-3 py-1 bg-blue-600 text-white" onClick={handleAddTx}>
+        <button className="px-3 py-1 bg-blue-500 text-white" onClick={handleAddTx}>
           Add Transaction
         </button>
       </div>
