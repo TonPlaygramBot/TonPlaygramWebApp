@@ -5,12 +5,13 @@ export default function Navbar() {
     <nav className="bg-surface text-text shadow border-b border-yellow-600">
       <div className="container mx-auto px-4 py-3 flex items-center">
         <div className="flex-1 space-x-4 text-sm">
-          <Link className="hover:text-accent" to="/">Home</Link>
-          <Link className="hover:text-accent" to="/mining">Mining</Link>
-          <Link className="hover:text-accent" to="/games/chess">Chess</Link>
-          <Link className="hover:text-accent" to="/tasks">Tasks</Link>
-          <Link className="hover:text-accent" to="/referral">Referral</Link>
-          <Link className="hover:text-accent" to="/account">My Account</Link>
+ zk5lin-codex/integrate-telegram-auth-and-tonkeeper-wallet
+          <Link className="hover:text-yellow-400" to="/">Home</Link>
+          <Link className="hover:text-yellow-400" to="/mining">Mining</Link>
+          <Link className="hover:text-yellow-400" to="/games/chess">Chess</Link>
+          <Link className="hover:text-yellow-400" to="/tasks">Tasks</Link>
+          <Link className="hover:text-yellow-400" to="/referral">Referral</Link>
+          <Link className="hover:text-yellow-400" to="/account">Profile</Link>
         </div>
       </div>
     </nav>
