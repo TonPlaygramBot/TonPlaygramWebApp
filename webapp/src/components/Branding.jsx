@@ -8,7 +8,7 @@ export default function Branding() {
         <span className="text-3xl font-extrabold text-gray-900">P</span>
       </div>
       <h1 className="text-2xl font-bold text-white">TONPLAYGRAM</h1>
-      <p className="text-blue-400 text-xs tracking-widest">PLAY. EARN. DOMINATE.</p>
+      <p className="text-yellow-400 text-xs tracking-widest">PLAY. EARN. DOMINATE.</p>
       <div className="flex justify-center">
         <ConnectWallet />
       </div>
