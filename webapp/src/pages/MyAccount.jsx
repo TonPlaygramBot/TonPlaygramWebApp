@@ -138,7 +138,7 @@ export default function MyAccount() {
           Save Social
         </button>
         <button
-          className="px-3 py-1 bg-red-500 hover:bg-red-600 text-text rounded"
+          className="px-3 py-1 bg-red-500 hover:bg-red-600 text-white rounded"
           onClick={handleLinkGoogle}
         >
           Link Google

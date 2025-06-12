@@ -3,11 +3,11 @@ import Navbar from './Navbar.jsx';
 import Footer from './Footer.jsx';
 
 export default function Layout({ children }) {
+  // Optional cleanup (in case index.html didn’t already handle it)
   useEffect(() => {
     const root = document.getElementById('root');
     if (!root) return;
 
-    // Remove any stray elements that appear before the React root.
     let prev = root.previousSibling;
     while (prev) {
       const node = prev;

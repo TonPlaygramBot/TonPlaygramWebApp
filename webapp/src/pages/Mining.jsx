@@ -36,7 +36,10 @@ export default function Mining() {
     <div className="p-4 space-y-2 text-text">
       <h2 className="text-xl font-bold">Mining</h2>
       <p>
-        Status: <span className="font-semibold">{status.isMining ? 'Mining' : 'Stopped'}</span>
+        Status:{' '}
+        <span className="font-semibold">
+          {status.isMining ? 'Mining' : 'Stopped'}
+        </span>
       </p>
       <p>
         Pending rewards: <span className="text-accent">{status.pending}</span>
@@ -52,7 +55,7 @@ export default function Mining() {
           Start
         </button>
         <button
-          className="px-2 py-1 rounded bg-accent text-background"
+          className="px-2 py-1 rounded bg-surface text-text hover:bg-surface-hover"
           onClick={handleStop}
         >
           Stop
