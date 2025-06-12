@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Chess } from 'chess.js';
 import { Chessboard } from 'react-chessboard';
 import ConnectWallet from '../../components/ConnectWallet.jsx';
@@ -7,8 +7,14 @@ import RoomSelector from '../../components/RoomSelector.jsx';
 export default function ChessGame() {
   const [selection, setSelection] = useState({ token: 'TPC', amount: 100 });
   const [game, setGame] = useState(new Chess());
-  const [orientation, setOrientation] = useState('white');
-  const [boardWidth, setBoardWidth] = useState(350);
+  const [seconds, setSeconds] = useState(5 * 60); // 5-minute timer
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setSeconds((s) => (s > 0 ? s - 1 : 0));
+    }, 1000);
+    return () => clearInterval(timer);
+  }, []);
 
   const onDrop = (sourceSquare, targetSquare) => {
     const newGame = new Chess(game.fen());
@@ -18,70 +24,70 @@ export default function ChessGame() {
     return true;
   };
 
+  const formatTime = (t) => {
+    const m = String(Math.floor(t / 60)).padStart(2, '0');
+    const s = String(t % 60).padStart(2, '0');
+    return `${m}:${s}`;
+  };
+
   const resetGame = () => setGame(new Chess());
 
-  const moves = game.history();
-
   return (
-    <div className="p-4 text-text">
-      <h2 className="text-2xl font-bold mb-4">Chessu</h2>
-      <p className="mb-4 text-subtext">Select a room and challenge another player.</p>
-
+    <div className="p-4 space-y-4 text-text">
       <RoomSelector selected={selection} onSelect={setSelection} />
 
-      <div className="mt-4">
-        <ConnectWallet />
-      </div>
-
-      <div className="mt-8 flex flex-col items-center space-y-2">
-        <Chessboard
-          id="chess-board"
-          position={game.fen()}
-          onPieceDrop={onDrop}
-          boardWidth={boardWidth}
-          boardOrientation={orientation}
-          customBoardStyle={{ border: '1px solid #27272a' }}
-          customLightSquareStyle={{ backgroundColor: '#11172a' }}
-          customDarkSquareStyle={{ backgroundColor: '#27272a' }}
-        />
-        <button
-          onClick={resetGame}
-          className="px-2 py-1 border rounded bg-primary hover:bg-primary-hover text-text"
-        >
-          Reset
-        </button>
-        <button
-          onClick={() =>
-            setOrientation((prev) => (prev === 'white' ? 'black' : 'white'))
-          }
-          className="px-2 py-1 border rounded bg-primary hover:bg-primary-hover text-text"
-        >
-          Flip Board
-        </button>
-        <div className="flex items-center space-x-2">
-          <label htmlFor="board-size" className="text-sm">
-            Size: {boardWidth}px
-          </label>
-          <input
-            id="board-size"
-            type="range"
-            min="250"
-            max="600"
-            step="50"
-            value={boardWidth}
-            onChange={(e) => setBoardWidth(parseInt(e.target.value))}
-            className="cursor-pointer"
-          />
+      {/* Top Player Bar */}
+      <div className="flex items-center justify-between">
+        <div className="text-center">
+          <img src="https://placehold.co/64" alt="Player" className="rounded-full mx-auto" />
+          <p className="text-xs mt-1">0.5 {selection.token}</p>
+        </div>
+        <div className="text-xl font-bold">{formatTime(seconds)}</div>
+        <div className="text-center">
+          <img src="https://placehold.co/64" alt="Opponent" className="rounded-full mx-auto" />
+          <p className="text-xs mt-1">0.5 {selection.token}</p>
         </div>
       </div>
 
-      <div className="mt-4">
-        <h3 className="font-bold mb-2">Moves</h3>
-        <ol className="list-decimal list-inside space-y-1">
-          {moves.map((move, idx) => (
-            <li key={idx}>{move}</li>
-          ))}
-        </ol>
+      {/* Chessboard */}
+      <div className="mx-auto" style={{ maxWidth: '360px' }}>
+        <Chessboard
+          id="tonplay-chess"
+          position={game.fen()}
+          onPieceDrop={onDrop}
+          boardWidth={360}
+          customBoardStyle={{ boxShadow: '0 10px 20px rgba(0,0,0,0.5)', borderRadius: '8px' }}
+          customDarkSquareStyle={{ backgroundColor: '#2b2b2b' }}
+          customLightSquareStyle={{ backgroundColor: '#3b3b3b' }}
+        />
+      </div>
+
+      {/* Info Footer */}
+      <div className="flex items-center justify-between bg-gray-800 rounded-lg p-3 text-sm">
+        <div className="flex items-center space-x-1">
+          <span className="text-lg">♟</span>
+          <span>Opponent</span>
+        </div>
+        <div className="flex items-center space-x-1">
+          <span className="text-yellow-400">🪙</span>
+          <span>{selection.amount * 2} {selection.token}</span>
+        </div>
+        <button className="px-3 py-1 border border-yellow-500 rounded text-yellow-500 hover:bg-yellow-500 hover:text-black transition">
+          LEAVE
+        </button>
+      </div>
+
+      {/* Wallet Connect */}
+      <ConnectWallet />
+
+      {/* Reset Option */}
+      <div className="text-center">
+        <button
+          onClick={resetGame}
+          className="mt-2 px-4 py-1 border border-primary rounded text-primary hover:bg-primary hover:text-white"
+        >
+          Reset Game
+        </button>
       </div>
     </div>
   );
