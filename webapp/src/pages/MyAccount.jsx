@@ -70,7 +70,7 @@ export default function MyAccount() {
 
   return (
     <div className="p-4 space-y-4">
-      <h2 className="text-xl font-bold">My Account</h2>
+      <h2 className="text-xl font-bold">Profile</h2>
 
       <div className="space-y-2">
         <input
@@ -125,7 +125,7 @@ export default function MyAccount() {
         <button className="px-3 py-1 bg-blue-500 text-white" onClick={handleSaveSocial}>
           Save Social
         </button>
-        <button className="px-3 py-1 bg-red-500 text-white" onClick={handleLinkGoogle}>
+        <button className="px-3 py-1 bg-blue-600 text-white" onClick={handleLinkGoogle}>
           Link Google
         </button>
       </div>
