@@ -6,7 +6,7 @@ import {
   addTransaction,
   linkSocial
 } from '../utils/api.js';
-import {getTelegramId} from "../utils/telegram.js";
+import { getTelegramId } from '../utils/telegram.js';
 
 export default function MyAccount() {
   const [profile, setProfile] = useState(null);
@@ -18,7 +18,11 @@ export default function MyAccount() {
   const load = async () => {
     const data = await getProfile(getTelegramId());
     setProfile(data);
-    setForm({ nickname: data.nickname || '', photo: data.photo || '', bio: data.bio || '' });
+    setForm({
+      nickname: data.nickname || '',
+      photo: data.photo || '',
+      bio: data.bio || ''
+    });
     setSocial({
       twitter: data.social?.twitter || '',
       telegram: data.social?.telegram || '',
@@ -31,13 +35,8 @@ export default function MyAccount() {
     load();
   }, []);
 
-  const handleChange = (e) => {
-    setForm({ ...form, [e.target.name]: e.target.value });
-  };
-
-  const handleSocialChange = (e) => {
-    setSocial({ ...social, [e.target.name]: e.target.value });
-  };
+  const handleChange = (e) => setForm({ ...form, [e.target.name]: e.target.value });
+  const handleSocialChange = (e) => setSocial({ ...social, [e.target.name]: e.target.value });
 
   const handleSave = async () => {
     const res = await updateProfile({ telegramId: getTelegramId(), ...form });
@@ -66,39 +65,44 @@ export default function MyAccount() {
     window.open('/api/profile/google', '_blank');
   };
 
-  if (!profile) return <div className="p-4">Loading...</div>;
+  if (!profile) return <div className="p-4 text-subtext">Loading...</div>;
 
   return (
-    <div className="p-4 space-y-4">
-      <h2 className="text-xl font-bold">Profile</h2>
+    <div className="p-4 space-y-4 text-text">
+      <h2 className="text-xl font-bold">My Account</h2>
 
+      {/* Profile Info */}
       <div className="space-y-2">
         <input
           name="nickname"
           value={form.nickname}
           onChange={handleChange}
           placeholder="Nickname"
-          className="w-full p-1 border"
+          className="w-full p-1 border rounded bg-surface text-text"
         />
         <input
           name="photo"
           value={form.photo}
           onChange={handleChange}
           placeholder="Photo URL"
-          className="w-full p-1 border"
+          className="w-full p-1 border rounded bg-surface text-text"
         />
         <textarea
           name="bio"
           value={form.bio}
           onChange={handleChange}
           placeholder="Bio"
-          className="w-full p-1 border"
+          className="w-full p-1 border rounded bg-surface text-text"
         />
-        <button className="px-3 py-1 bg-blue-500 text-white" onClick={handleSave}>
+        <button
+          className="px-3 py-1 bg-primary hover:bg-primary-hover text-text rounded"
+          onClick={handleSave}
+        >
           Save Profile
         </button>
       </div>
 
+      {/* Social Links */}
       <div className="space-y-2">
         <h3 className="font-bold">Social Links</h3>
         <input
@@ -106,49 +110,64 @@ export default function MyAccount() {
           value={social.twitter}
           onChange={handleSocialChange}
           placeholder="Twitter"
-          className="w-full p-1 border"
+          className="w-full p-1 border rounded bg-surface text-text"
         />
         <input
           name="telegram"
           value={social.telegram}
           onChange={handleSocialChange}
           placeholder="Telegram"
-          className="w-full p-1 border"
+          className="w-full p-1 border rounded bg-surface text-text"
         />
         <input
           name="discord"
           value={social.discord}
           onChange={handleSocialChange}
           placeholder="Discord"
-          className="w-full p-1 border"
+          className="w-full p-1 border rounded bg-surface text-text"
         />
-        <button className="px-3 py-1 bg-blue-500 text-white" onClick={handleSaveSocial}>
+        <button
+          className="px-3 py-1 bg-primary hover:bg-primary-hover text-text rounded"
+          onClick={handleSaveSocial}
+        >
           Save Social
         </button>
-        <button className="px-3 py-1 bg-blue-600 text-white" onClick={handleLinkGoogle}>
+        <button
+          className="px-3 py-1 bg-red-500 hover:bg-red-600 text-white rounded"
+          onClick={handleLinkGoogle}
+        >
           Link Google
         </button>
       </div>
 
+      {/* Balance */}
       <div className="space-y-2">
         <h3 className="font-bold">Balance</h3>
-        <p>Current balance: {profile.balance}</p>
+        <p>
+          Current balance: <span className="text-accent">{profile.balance}</span>
+        </p>
         <input
           type="number"
           value={balanceInput}
           onChange={(e) => setBalanceInput(e.target.value)}
-          className="w-full p-1 border"
+          className="w-full p-1 border rounded bg-surface text-text"
         />
-        <button className="px-3 py-1 bg-blue-500 text-white" onClick={handleSetBalance}>
+        <button
+          className="px-3 py-1 bg-primary hover:bg-primary-hover text-text rounded"
+          onClick={handleSetBalance}
+        >
           Set Balance
         </button>
       </div>
 
+      {/* Transactions */}
       <div className="space-y-2">
         <h3 className="font-bold">Transactions</h3>
-        <ul className="space-y-1 text-sm">
+        <ul className="space-y-1 text-sm text-subtext">
           {profile.transactions?.map((t, i) => (
-            <li key={i}>{t.date?.substring(0, 10)} - {t.type}: {t.amount}</li>
+            <li key={i}>
+              {t.date?.substring(0, 10)} - {t.type}: {t.amount}
+            </li>
           ))}
         </ul>
         <input
@@ -157,16 +176,19 @@ export default function MyAccount() {
           value={tx.amount}
           onChange={(e) => setTx({ ...tx, amount: e.target.value })}
           placeholder="Amount"
-          className="w-full p-1 border"
+          className="w-full p-1 border rounded bg-surface text-text"
         />
         <input
           name="type"
           value={tx.type}
           onChange={(e) => setTx({ ...tx, type: e.target.value })}
           placeholder="Type"
-          className="w-full p-1 border"
+          className="w-full p-1 border rounded bg-surface text-text"
         />
-        <button className="px-3 py-1 bg-blue-500 text-white" onClick={handleAddTx}>
+        <button
+          className="px-3 py-1 bg-primary hover:bg-primary-hover text-text rounded"
+          onClick={handleAddTx}
+        >
           Add Transaction
         </button>
       </div>

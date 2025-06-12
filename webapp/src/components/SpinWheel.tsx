@@ -28,7 +28,7 @@ export default function SpinWheel({ onFinish, spinning, setSpinning, disabled }:
   };
 
   return (
-    <div className="relative w-64 h-64">
+    <div className="relative w-64 h-64 mx-auto">
       <div
         className="w-full h-full rounded-full border-4 border-yellow-500 flex items-center justify-center transition-transform duration-[4000ms]"
         style={{
@@ -48,9 +48,11 @@ export default function SpinWheel({ onFinish, spinning, setSpinning, disabled }:
             {s}
           </span>
         ))}
+
+        {/* Centered Red Spin Button */}
         <button
           onClick={spin}
-          className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-16 h-16 rounded-full bg-red-600 text-white flex items-center justify-center disabled:bg-gray-500"
+          className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-16 h-16 rounded-full bg-red-600 text-white text-sm font-bold flex items-center justify-center disabled:bg-gray-500"
           disabled={spinning || disabled}
         >
           Spin

@@ -6,8 +6,8 @@ import RoomSelector from '../../components/RoomSelector.jsx';
 
 export default function ChessGame() {
   const [selection, setSelection] = useState({ token: 'TPC', amount: 100 });
-  const [game, setGame] = useState(new Chess('8/8/8/3N4/8/8/8/8 w - - 0 1'));
-  const [seconds, setSeconds] = useState(4 * 60 + 32);
+  const [game, setGame] = useState(new Chess());
+  const [seconds, setSeconds] = useState(5 * 60); // 5-minute timer
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -24,56 +24,72 @@ export default function ChessGame() {
     return true;
   };
 
+  const resetGame = () => setGame(new Chess());
+
   const formatTime = (t) => {
     const m = String(Math.floor(t / 60)).padStart(2, '0');
     const s = String(t % 60).padStart(2, '0');
     return `${m}:${s}`;
   };
 
-  const highlight = {
-    c3: { backgroundColor: 'rgba(161, 110, 40, 0.4)' },
-    e3: { backgroundColor: 'rgba(161, 110, 40, 0.4)' },
-    c5: { backgroundColor: 'rgba(161, 110, 40, 0.4)' },
-  };
-
   return (
-    <div className="p-4 space-y-4 text-white">
+    <div className="p-4 space-y-4 text-text">
       <RoomSelector selected={selection} onSelect={setSelection} />
+
+      {/* Top Player Bar */}
       <div className="flex items-center justify-between">
         <div className="text-center">
-          <img src="https://placehold.co/64" alt="Player" className="player-avatar" />
-          <p className="text-xs mt-1">0,5 TON</p>
+          <img src="https://placehold.co/64" alt="Player" className="rounded-full mx-auto" />
+          <p className="text-xs mt-1">0.5 {selection.token}</p>
         </div>
         <div className="text-xl font-bold">{formatTime(seconds)}</div>
         <div className="text-center">
-          <img src="https://placehold.co/64" alt="Opponent" className="player-avatar" />
-          <p className="text-xs mt-1">0,5 TON</p>
+          <img src="https://placehold.co/64" alt="Opponent" className="rounded-full mx-auto" />
+          <p className="text-xs mt-1">0.5 {selection.token}</p>
         </div>
       </div>
+
+      {/* Chessboard */}
       <div className="mx-auto" style={{ maxWidth: '360px' }}>
         <Chessboard
-          id="board"
+          id="tonplay-chess"
           position={game.fen()}
           onPieceDrop={onDrop}
           boardWidth={360}
-          customBoardStyle={{ boxShadow: '0 10px 20px rgba(0,0,0,0.5)', borderRadius: '8px' }}
+          customBoardStyle={{
+            boxShadow: '0 10px 20px rgba(0,0,0,0.5)',
+            borderRadius: '8px',
+          }}
           customDarkSquareStyle={{ backgroundColor: '#2b2b2b' }}
           customLightSquareStyle={{ backgroundColor: '#3b3b3b' }}
-          customSquareStyles={highlight}
         />
       </div>
+
+      {/* Footer Info */}
       <div className="flex items-center justify-between bg-gray-800 rounded-lg p-3 text-sm">
         <div className="flex items-center space-x-1">
           <span className="text-lg">♟</span>
           <span>Opponent</span>
         </div>
         <div className="flex items-center space-x-1">
-          <span className="text-blue-500">🪙</span>
-          <span>1,2 TON</span>
+          <span className="text-yellow-400">🪙</span>
+          <span>{selection.amount * 2} {selection.token}</span>
         </div>
-        <button className="px-3 py-1 border border-yellow-500 rounded">LEAVE</button>
+        <button className="px-3 py-1 border border-yellow-500 rounded text-yellow-500 hover:bg-yellow-500 hover:text-black transition">
+          LEAVE
+        </button>
       </div>
+
+      {/* Wallet & Reset */}
       <ConnectWallet />
+      <div className="text-center">
+        <button
+          onClick={resetGame}
+          className="mt-2 px-4 py-1 border border-yellow-500 rounded text-yellow-500 hover:bg-yellow-500 hover:text-black"
+        >
+          Reset Game
+        </button>
+      </div>
     </div>
   );
 }
