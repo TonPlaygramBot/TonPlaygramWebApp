@@ -73,8 +73,9 @@ export default function MyAccount() {
   if (!profile) return <div className="p-4 text-subtext">Loading...</div>;
 
   return (
-    <div className="p-4 space-y-4 text-text">
-      <h2 className="text-xl font-bold">My Account</h2>
+x0lcjc-codex/integrate-telegram-auth-and-tonkeeper-wallet
+    <div className="p-4 space-y-4">
+      <h2 className="text-xl font-bold">Profile</h2>
 
       {/* Profile Info */}
       <div className="space-y-2">
@@ -137,10 +138,8 @@ export default function MyAccount() {
         >
           Save Social
         </button>
-        <button
-          className="px-3 py-1 bg-red-500 hover:bg-red-600 text-white rounded"
-          onClick={handleLinkGoogle}
-        >
+x0lcjc-codex/integrate-telegram-auth-and-tonkeeper-wallet
+        <button className="px-3 py-1 bg-blue-600 text-white" onClick={handleLinkGoogle}>
           Link Google
         </button>
       </div>
