@@ -35,15 +35,18 @@ export default function Mining() {
   return (
     <div className="p-4 space-y-2 text-text">
       <h2 className="text-xl font-bold">Mining</h2>
+
       <p>
         Status:{' '}
         <span className={status.isMining ? 'text-green-500' : 'text-red-500'}>
           {status.isMining ? 'Mining' : 'Not Mining'}
         </span>
       </p>
+
       <p>
         Pending rewards: <span className="text-accent">{status.pending}</span>
       </p>
+
       <p>
         Balance: <span className="text-accent">{status.balance}</span>
       </p>

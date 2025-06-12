@@ -3,7 +3,7 @@ import Navbar from './Navbar.jsx';
 import Footer from './Footer.jsx';
 
 export default function Layout({ children }) {
-  // Clean up any stray DOM elements before React mounts
+  // Optional: double safety cleanup if index.html doesn't handle it
   useEffect(() => {
     const root = document.getElementById('root');
     if (!root) return;

@@ -18,8 +18,8 @@ export default function ChessGame() {
   const resetGame = () => setGame(new Chess());
 
   return (
-    <div className="p-4">
-      <h2 className="text-2xl font-bold mb-4 text-text">Chessu</h2>
+    <div className="p-4 text-text">
+      <h2 className="text-2xl font-bold mb-4">Chessu</h2>
       <p className="mb-4 text-subtext">Stake TPC and challenge another player.</p>
 
       <div className="space-x-2 mb-4">
@@ -28,7 +28,9 @@ export default function ChessGame() {
             key={amt}
             onClick={() => setStake(amt)}
             className={`px-2 py-1 border rounded ${
-              stake === amt ? 'bg-accent text-background' : 'bg-surface text-text'
+              stake === amt
+                ? 'bg-accent text-background'
+                : 'bg-surface text-text'
             }`}
           >
             {amt} TPC
