@@ -12,6 +12,7 @@ import HorseRacing from './pages/Games/HorseRacing.jsx';
 import SnakeLadders from './pages/Games/SnakeLadders.jsx';
 import ChessGame from './pages/Games/Chess.jsx';
 import Games from './pages/Games.jsx';
+import SpinPage from './pages/spin.tsx'; // ✅ Included Spin & Win page
 import Layout from './components/Layout.jsx';
 import useTelegramAuth from './hooks/useTelegramAuth.js';
 
@@ -29,6 +30,7 @@ export default function App() {
           <Route path="/games/horse" element={<HorseRacing />} />
           <Route path="/games/snake" element={<SnakeLadders />} />
           <Route path="/games/chess" element={<ChessGame />} />
+          <Route path="/spin" element={<SpinPage />} />
           <Route path="/tasks" element={<Tasks />} />
           <Route path="/referral" element={<Referral />} />
           <Route path="/wallet" element={<Wallet />} />

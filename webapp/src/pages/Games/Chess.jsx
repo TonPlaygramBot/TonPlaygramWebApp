@@ -24,27 +24,27 @@ export default function ChessGame() {
     return true;
   };
 
+  const resetGame = () => setGame(new Chess());
+
   const formatTime = (t) => {
     const m = String(Math.floor(t / 60)).padStart(2, '0');
     const s = String(t % 60).padStart(2, '0');
     return `${m}:${s}`;
   };
 
-  const resetGame = () => setGame(new Chess());
-
   return (
     <div className="p-4 space-y-4 text-text">
       <RoomSelector selected={selection} onSelect={setSelection} />
 
-      {/* Top Player Bar */}
+      {/* Top Bar */}
       <div className="flex items-center justify-between">
         <div className="text-center">
-          <img src="https://placehold.co/64" alt="Player" className="rounded-full mx-auto" />
+          <img src="https://placehold.co/64" alt="Player" className="player-avatar" />
           <p className="text-xs mt-1">0.5 {selection.token}</p>
         </div>
         <div className="text-xl font-bold">{formatTime(seconds)}</div>
         <div className="text-center">
-          <img src="https://placehold.co/64" alt="Opponent" className="rounded-full mx-auto" />
+          <img src="https://placehold.co/64" alt="Opponent" className="player-avatar" />
           <p className="text-xs mt-1">0.5 {selection.token}</p>
         </div>
       </div>
@@ -56,7 +56,10 @@ export default function ChessGame() {
           position={game.fen()}
           onPieceDrop={onDrop}
           boardWidth={360}
-          customBoardStyle={{ boxShadow: '0 10px 20px rgba(0,0,0,0.5)', borderRadius: '8px' }}
+          customBoardStyle={{
+            boxShadow: '0 10px 20px rgba(0,0,0,0.5)',
+            borderRadius: '8px',
+          }}
           customDarkSquareStyle={{ backgroundColor: '#2b2b2b' }}
           customLightSquareStyle={{ backgroundColor: '#3b3b3b' }}
         />
@@ -77,7 +80,6 @@ export default function ChessGame() {
         </button>
       </div>
 
-      {/* Wallet Connect */}
       <ConnectWallet />
 
       {/* Reset Option */}

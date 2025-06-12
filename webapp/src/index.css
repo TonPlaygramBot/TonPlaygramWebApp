@@ -27,3 +27,12 @@ body {
 .player-avatar {
   @apply w-12 h-12 rounded-full border border-yellow-400;
 }
+
+.starry-bg {
+  background-color: #000;
+  background-image:
+    radial-gradient(#ffffff 1px, transparent 1px),
+    radial-gradient(#ffffff 1px, transparent 1px);
+  background-position: 0 0, 25px 25px;
+  background-size: 50px 50px;
+}

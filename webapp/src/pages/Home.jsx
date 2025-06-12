@@ -18,6 +18,7 @@ export default function Home() {
     <div className="space-y-4">
       <Branding />
       <div className="grid grid-cols-1 gap-4">
+        <GameCard title="Spin & Win" icon="🎡" link="/spin" />
         <WalletCard />
         <MiningCard />
         <GameCard title="Dice Duel" icon="/assets/icons/dice.svg" link="/games/dice" />
