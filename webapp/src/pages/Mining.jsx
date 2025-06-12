@@ -30,18 +30,39 @@ export default function Mining() {
     refresh();
   };
 
-  if (!status) return <div className="p-4">Loading...</div>;
+  if (!status) return <div className="p-4 text-subtext">Loading...</div>;
 
   return (
-    <div className="p-4 space-y-2">
+    <div className="p-4 space-y-2 text-text">
       <h2 className="text-xl font-bold">Mining</h2>
-      <p>Status: {status.isMining ? 'Mining' : 'Stopped'}</p>
-      <p>Pending rewards: {status.pending}</p>
-      <p>Balance: {status.balance}</p>
+      <p>
+        Status: <span className="font-semibold">{status.isMining ? 'Mining' : 'Stopped'}</span>
+      </p>
+      <p>
+        Pending rewards: <span className="text-accent">{status.pending}</span>
+      </p>
+      <p>
+        Balance: <span className="text-accent">{status.balance}</span>
+      </p>
       <div className="space-x-2">
-        <button className="px-2 py-1 bg-primary text-text" onClick={handleStart}>Start</button>
-        <button className="px-2 py-1 bg-accent text-background" onClick={handleStop}>Stop</button>
-        <button className="px-2 py-1 bg-primary text-text" onClick={handleClaim}>Claim</button>
+        <button
+          className="px-2 py-1 rounded bg-primary text-text hover:bg-primary-hover"
+          onClick={handleStart}
+        >
+          Start
+        </button>
+        <button
+          className="px-2 py-1 rounded bg-accent text-background"
+          onClick={handleStop}
+        >
+          Stop
+        </button>
+        <button
+          className="px-2 py-1 rounded bg-primary text-text hover:bg-primary-hover"
+          onClick={handleClaim}
+        >
+          Claim
+        </button>
       </div>
     </div>
   );

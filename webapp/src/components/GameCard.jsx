@@ -7,7 +7,10 @@ export default function GameCard({ title, description, link, icon }) {
       <h3 className="text-lg font-bold text-text">{title}</h3>
       {description && <p className="text-subtext text-sm">{description}</p>}
       {link && (
-        <Link to={link} className="inline-block mt-1 px-3 py-1 bg-primary text-text rounded hover:bg-primary-hover">
+        <Link
+          to={link}
+          className="inline-block mt-1 px-3 py-1 bg-primary text-text rounded hover:bg-primary-hover"
+        >
           Open
         </Link>
       )}
