@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useTonWallet } from '@tonconnect/ui-react';
-import { startMining, claimMining, getWalletBalance, getTonBalance } from '../utils/api.js';
+import { startMining, claimMining, getWalletBalance, getTonBalance, getMiningStatus } from '../utils/api.js';
 import { getTelegramId } from '../utils/telegram.js';
 import Token from '../components/Token.jsx';
 
@@ -9,6 +9,17 @@ export default function Mining() {
   const [startTime, setStartTime] = useState(null);
   const [balances, setBalances] = useState({ ton: null, tpc: null, usdt: 0 });
   const wallet = useTonWallet();
+
+  // Get mining status and server mining start time
+  const refreshStatus = async () => {
+    try {
+      const data = await getMiningStatus(getTelegramId());
+      setStatus(data.isMining ? 'Mining' : 'Not Mining');
+      setStartTime(data.lastMineAt ? new Date(data.lastMineAt).getTime() : null);
+    } catch (err) {
+      console.warn('Failed to refresh mining status', err);
+    }
+  };
 
   const loadBalances = async () => {
     try {
@@ -23,11 +34,17 @@ export default function Mining() {
   };
 
   useEffect(() => {
+    refreshStatus();
+    // eslint-disable-next-line
+  }, []);
+
+  useEffect(() => {
     loadBalances();
+    // eslint-disable-next-line
   }, [wallet]);
 
   useEffect(() => {
-    if (status === 'Mining') {
+    if (status === 'Mining' && startTime) {
       const interval = setInterval(() => {
         const now = Date.now();
         const elapsed = now - startTime;
@@ -39,13 +56,14 @@ export default function Mining() {
       }, 1000);
       return () => clearInterval(interval);
     }
+    // eslint-disable-next-line
   }, [status, startTime]);
 
   const handleStart = async () => {
-    setStartTime(Date.now());
-    setStatus('Mining');
     try {
-      await startMining(getTelegramId());
+      const data = await startMining(getTelegramId());
+      setStartTime(data.lastMineAt ? new Date(data.lastMineAt).getTime() : null);
+      setStatus('Mining');
     } catch (err) {
       console.warn('Failed to start mining', err);
     }
@@ -55,6 +73,7 @@ export default function Mining() {
     try {
       await claimMining(getTelegramId());
       loadBalances();
+      refreshStatus();
     } catch (err) {
       console.warn('Failed to distribute rewards', err);
     }
@@ -89,4 +108,3 @@ export default function Mining() {
     </div>
   );
 }
-
