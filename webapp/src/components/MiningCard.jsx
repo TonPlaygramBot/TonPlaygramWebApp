@@ -33,15 +33,17 @@ export default function SpinWheel({ onFinish, spinning, setSpinning, disabled }:
 
   return (
     <div className="relative w-64 h-64 mx-auto">
-      {/* Top arrow pointer (flipped, pointing down) */}
-      <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 w-0 h-0 
-                      border-l-8 border-r-8 border-b-[16px] border-l-transparent 
-                      border-r-transparent border-b-yellow-500 z-10" />
+      {/* Pointer at the top of the wheel */}
+      <div
+        className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 w-0 h-0
+                      border-l-8 border-r-8 border-b-[16px] border-l-transparent
+                      border-r-transparent border-b-yellow-500 z-10"
+      />
 
       {/* Spinning wheel */}
       <div
-        className="w-full h-full rounded-full border-4 border-yellow-500 
-                   flex items-center justify-center transition-transform duration-[4000ms]"
+        className="w-full h-full rounded-full border-4 border-yellow-500
+                   flex items-center justify-center transition-transform duration-[4000ms] ease-in-out"
         style={{
           transform: `rotate(${angle}deg)`,
           backgroundImage:
@@ -51,12 +53,12 @@ export default function SpinWheel({ onFinish, spinning, setSpinning, disabled }:
         {segments.map((s, i) => (
           <div
             key={i}
-            className="absolute flex items-center justify-center text-yellow-400 text-sm"
+            className="absolute flex flex-col items-center justify-center text-yellow-400 text-sm text-center"
             style={{
               transform: `rotate(${i * segmentAngle}deg) translateY(-90px) rotate(${-i * segmentAngle}deg)`
             }}
           >
-            <img src="/icons/tpc.svg" alt="TPC" className="w-4 h-4 mr-1" />
+            <img src="/icons/tpc.svg" alt="TPC" className="w-4 h-4 mb-1" />
             <span>{s}</span>
           </div>
         ))}
