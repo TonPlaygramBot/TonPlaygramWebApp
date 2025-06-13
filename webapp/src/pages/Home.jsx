@@ -23,8 +23,6 @@ export default function Home() {
 
       <div className="grid grid-cols-1 gap-4">
         <MiningCard />
-        <GameCard title="Dice Duel" icon="/assets/icons/dice.svg" link="/games/dice" />
-        <GameCard title="Snakes & Ladders" icon="/assets/icons/snake.svg" link="/games/snake" />
         <GameCard title="Tasks" icon="/assets/icons/tasks.svg" link="/tasks" />
         <GameCard title="Profile" icon="/assets/icons/profile.svg" link="/account" />
       </div>
