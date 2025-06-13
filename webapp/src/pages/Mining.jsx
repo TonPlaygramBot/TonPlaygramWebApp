@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useTonWallet } from '@tonconnect/ui-react';
 import { startMining, claimMining, getWalletBalance, getTonBalance, getMiningStatus } from '../utils/api.js';
 import { getTelegramId } from '../utils/telegram.js';
+import Token from '../components/Token.jsx';
 
 export default function Mining() {
   const [status, setStatus] = useState('Not Mining');
@@ -9,30 +10,41 @@ export default function Mining() {
   const [balances, setBalances] = useState({ ton: null, tpc: null, usdt: 0 });
   const wallet = useTonWallet();
 
+  // Get mining status and server mining start time
   const refreshStatus = async () => {
-    const data = await getMiningStatus(getTelegramId());
-    setStatus(data.isMining ? 'Mining' : 'Not Mining');
-    setStartTime(data.lastMineAt ? new Date(data.lastMineAt).getTime() : null);
+    try {
+      const data = await getMiningStatus(getTelegramId());
+      setStatus(data.isMining ? 'Mining' : 'Not Mining');
+      setStartTime(data.lastMineAt ? new Date(data.lastMineAt).getTime() : null);
+    } catch (err) {
+      console.warn('Failed to refresh mining status', err);
+    }
   };
 
   const loadBalances = async () => {
-    const prof = await getWalletBalance(getTelegramId());
-    const ton = wallet?.account?.address
-      ? (await getTonBalance(wallet.account.address)).balance
-      : null;
-    setBalances({ ton, tpc: prof.balance, usdt: 0 });
+    try {
+      const prof = await getWalletBalance(getTelegramId());
+      const ton = wallet?.account?.address
+        ? (await getTonBalance(wallet.account.address)).balance
+        : null;
+      setBalances({ ton, tpc: prof.balance, usdt: 0 });
+    } catch (err) {
+      console.warn('Failed to load balances', err);
+    }
   };
 
   useEffect(() => {
     refreshStatus();
+    // eslint-disable-next-line
   }, []);
 
   useEffect(() => {
     loadBalances();
+    // eslint-disable-next-line
   }, [wallet]);
 
   useEffect(() => {
-    if (status === 'Mining') {
+    if (status === 'Mining' && startTime) {
       const interval = setInterval(() => {
         const now = Date.now();
         const elapsed = now - startTime;
@@ -44,17 +56,27 @@ export default function Mining() {
       }, 1000);
       return () => clearInterval(interval);
     }
+    // eslint-disable-next-line
   }, [status, startTime]);
 
   const handleStart = async () => {
-    const data = await startMining(getTelegramId());
-    setStartTime(data.lastMineAt ? new Date(data.lastMineAt).getTime() : Date.now());
-    setStatus('Mining');
+    try {
+      const data = await startMining(getTelegramId());
+      setStartTime(data.lastMineAt ? new Date(data.lastMineAt).getTime() : null);
+      setStatus('Mining');
+    } catch (err) {
+      console.warn('Failed to start mining', err);
+    }
   };
 
   const autoDistributeRewards = async () => {
-    await claimMining(getTelegramId());
-    loadBalances();
+    try {
+      await claimMining(getTelegramId());
+      loadBalances();
+      refreshStatus();
+    } catch (err) {
+      console.warn('Failed to distribute rewards', err);
+    }
   };
 
   return (
@@ -83,15 +105,6 @@ export default function Mining() {
           Start
         </button>
       </div>
-    </div>
-  );
-}
-
-function Token({ icon, value }) {
-  return (
-    <div className="flex items-center space-x-1">
-      <img src={icon} alt="token" className="w-5 h-5" />
-      <span>{value}</span>
     </div>
   );
 }

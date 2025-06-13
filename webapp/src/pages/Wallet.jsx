@@ -13,11 +13,15 @@ export default function Wallet() {
   const wallet = useTonWallet();
 
   const loadBalances = async () => {
-    const prof = await getWalletBalance(getTelegramId());
-    setTpcBalance(prof.balance);
-    if (wallet?.account?.address) {
-      const bal = await getTonBalance(wallet.account.address);
-      setTonBalance(bal.balance);
+    try {
+      const prof = await getWalletBalance(getTelegramId());
+      setTpcBalance(prof.balance);
+      if (wallet?.account?.address) {
+        const bal = await getTonBalance(wallet.account.address);
+        setTonBalance(bal.balance);
+      }
+    } catch (err) {
+      console.warn('Failed to load balances', err);
     }
   };
 
