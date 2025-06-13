@@ -17,11 +17,15 @@ export default function MiningCard() {
   const wallet = useTonWallet();
 
   const loadBalances = async () => {
-    const prof = await getWalletBalance(getTelegramId());
-    const ton = wallet?.account?.address
-      ? (await getTonBalance(wallet.account.address)).balance
-      : null;
-    setBalances({ ton, tpc: prof.balance, usdt: 0 });
+    try {
+      const prof = await getWalletBalance(getTelegramId());
+      const ton = wallet?.account?.address
+        ? (await getTonBalance(wallet.account.address)).balance
+        : null;
+      setBalances({ ton, tpc: prof.balance, usdt: 0 }); // tweak USDT to 0
+    } catch (err) {
+      console.error('Failed to load balances:', err);
+    }
   };
 
   const refresh = async () => {
@@ -29,7 +33,7 @@ export default function MiningCard() {
       const data = await getMiningStatus(getTelegramId());
       setStatus(data.isMining ? 'Mining' : 'Not Mining');
     } catch (err) {
-      console.error(err);
+      console.warn('Mining status check failed, loading balances anyway.');
     }
     loadBalances();
   };
@@ -74,7 +78,11 @@ export default function MiningCard() {
   }, [status, startTime]);
 
   const autoDistributeRewards = async () => {
-    await claimMining(getTelegramId());
+    try {
+      await claimMining(getTelegramId());
+    } catch (err) {
+      console.error('Auto-claim failed:', err);
+    }
     localStorage.removeItem('miningStart');
     setTimeLeft(0);
     refresh();
@@ -94,14 +102,20 @@ export default function MiningCard() {
         <span>⛏</span>
         <span>Mining</span>
       </h3>
+
       <p className="text-xs text-gray-300">Total Balance</p>
       <div className="flex justify-around text-xs mb-2">
-        <Token icon="/icons/ton.svg" value={balances.ton ?? '...'} />
-        <Token icon="/icons/tpc.svg" value={balances.tpc ?? '...'} />
-        <Token icon="/icons/usdt.svg" value={balances.usdt ?? '0'} />
+        <Token icon="/icons/ton.svg" label="TON" value={balances.ton ?? '...'} />
+        <Token icon="/icons/tpc.svg" label="TPC" value={balances.tpc ?? '...'} />
+        <Token icon="/icons/usdt.svg" label="USDT" value={balances.usdt ?? '0'} />
       </div>
+
       <div className="flex items-center justify-between">
-        <button className="px-2 py-1 bg-green-500 text-white disabled:opacity-50" onClick={handleStart} disabled={status === 'Mining'}>
+        <button
+          className="px-2 py-1 bg-green-500 text-white rounded disabled:opacity-50"
+          onClick={handleStart}
+          disabled={status === 'Mining'}
+        >
           Start
         </button>
         <p className="text-sm">
@@ -116,10 +130,10 @@ export default function MiningCard() {
   );
 }
 
-function Token({ icon, value }) {
+function Token({ icon, value, label }) {
   return (
     <div className="flex items-center space-x-1">
-      <img src={icon} alt="token" className="w-4 h-4" />
+      <img src={icon} alt={label} className="w-4 h-4" />
       <span>{value}</span>
     </div>
   );
@@ -135,6 +149,4 @@ function formatTimeLeft(ms) {
     ':' +
     minutes.toString().padStart(2, '0') +
     ':' +
-    seconds.toString().padStart(2, '0')
-  );
-}
+    seconds.toStrin

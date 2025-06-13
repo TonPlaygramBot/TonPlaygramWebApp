@@ -1,6 +1,11 @@
 import { useEffect, useState } from 'react';
 import { useTonWallet } from '@tonconnect/ui-react';
-import { startMining, claimMining, getWalletBalance, getTonBalance } from '../utils/api.js';
+import {
+  startMining,
+  claimMining,
+  getWalletBalance,
+  getTonBalance
+} from '../utils/api.js';
 import { getTelegramId } from '../utils/telegram.js';
 
 export default function Mining() {
@@ -11,11 +16,15 @@ export default function Mining() {
   const wallet = useTonWallet();
 
   const loadBalances = async () => {
-    const prof = await getWalletBalance(getTelegramId());
-    const ton = wallet?.account?.address
-      ? (await getTonBalance(wallet.account.address)).balance
-      : null;
-    setBalances({ ton, tpc: prof.balance, usdt: 0 });
+    try {
+      const prof = await getWalletBalance(getTelegramId());
+      const ton = wallet?.account?.address
+        ? (await getTonBalance(wallet.account.address)).balance
+        : null;
+      setBalances({ ton, tpc: prof.balance, usdt: 0 });
+    } catch (err) {
+      console.error('Failed to load balances:', err);
+    }
   };
 
   useEffect(() => {
@@ -57,7 +66,11 @@ export default function Mining() {
   };
 
   const autoDistributeRewards = async () => {
-    await claimMining(getTelegramId());
+    try {
+      await claimMining(getTelegramId());
+    } catch (err) {
+      console.error('Auto-claim failed:', err);
+    }
     localStorage.removeItem('miningStart');
     setTimeLeft(0);
     loadBalances();
