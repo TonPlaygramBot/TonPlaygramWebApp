@@ -13,7 +13,7 @@ export default function RewardPopup({ reward, onClose }: RewardPopupProps) {
   }, []);
   return (
     <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-70 z-50">
-      <div className="bg-gray-800 p-6 rounded text-center space-y-4">
+      <div className="bg-surface border border-border p-6 rounded text-center space-y-4 text-text">
         <div className="text-yellow-400 text-3xl">+{reward} TPC</div>
         <button
           onClick={onClose}

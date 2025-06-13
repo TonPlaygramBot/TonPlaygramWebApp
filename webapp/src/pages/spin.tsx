@@ -36,21 +36,23 @@ export default function SpinPage() {
   const ready = canSpin(lastSpin);
 
   return (
-    <div className="starry-bg min-h-screen flex flex-col items-center pt-8 text-white space-y-6">
-      <SpinWheel
-        onFinish={handleFinish}
-        spinning={spinning}
-        setSpinning={setSpinning}
-        disabled={!ready}
-      />
-      {!ready && (
-        <>
-          <p className="text-sm text-yellow-400">Next spin at {new Date(nextSpinTime(lastSpin)).toLocaleTimeString()}</p>
-          <button className="text-yellow-400 underline text-sm" onClick={() => setShowAd(true)}>
-            Watch an ad every hour to get a free spin.
-          </button>
-        </>
-      )}
+    <div className="p-4 space-y-6 flex flex-col items-center text-text">
+      <div className="bg-surface border border-border rounded p-4 flex flex-col items-center space-y-2">
+        <SpinWheel
+          onFinish={handleFinish}
+          spinning={spinning}
+          setSpinning={setSpinning}
+          disabled={!ready}
+        />
+        {!ready && (
+          <>
+            <p className="text-sm text-yellow-400">Next spin at {new Date(nextSpinTime(lastSpin)).toLocaleTimeString()}</p>
+            <button className="text-yellow-400 underline text-sm" onClick={() => setShowAd(true)}>
+              Watch an ad every hour to get a free spin.
+            </button>
+          </>
+        )}
+      </div>
       <RewardPopup reward={reward} onClose={() => setReward(null)} />
       <AdModal open={showAd} onClose={() => setShowAd(false)} />
     </div>
