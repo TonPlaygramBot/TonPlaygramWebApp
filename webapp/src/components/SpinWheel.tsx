@@ -17,10 +17,17 @@ export default function SpinWheel({ onFinish, spinning, setSpinning, disabled }:
     if (spinning || disabled) return;
     const reward = getRandomReward();
     const index = segments.indexOf(reward);
-    const rotations = 4;
-    const final = rotations * 360 + index * segmentAngle + segmentAngle / 2 + 90;
-    setAngle(final);
+    const rotations = 5;
+
+    // Stop in the center of the slice
+    const finalAngle =
+      rotations * 360 +
+      (segments.length - index) * segmentAngle -
+      segmentAngle / 2;
+
+    setAngle(finalAngle);
     setSpinning(true);
+
     setTimeout(() => {
       setSpinning(false);
       onFinish(reward);
@@ -29,7 +36,10 @@ export default function SpinWheel({ onFinish, spinning, setSpinning, disabled }:
 
   return (
     <div className="relative w-64 h-64 mx-auto">
-      <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 w-0 h-0 border-l-8 border-r-8 border-b-[16px] border-l-transparent border-r-transparent border-b-yellow-500 z-10" />
+      {/* Reward Pointer (FLIPPED to bottom) */}
+      <div className="absolute bottom-0 left-1/2 -translate-x-1/2 translate-y-1/2 w-0 h-0 border-l-8 border-r-8 border-t-[16px] border-l-transparent border-r-transparent border-t-yellow-500 z-10" />
+
+      {/* Wheel */}
       <div
         className="w-full h-full rounded-full border-4 border-yellow-500 flex items-center justify-center transition-transform duration-[4000ms]"
         style={{
@@ -41,25 +51,25 @@ export default function SpinWheel({ onFinish, spinning, setSpinning, disabled }:
         {segments.map((s, i) => (
           <div
             key={i}
-            className="absolute flex items-center text-yellow-400 text-sm"
+            className="absolute flex items-center justify-center text-yellow-400 text-sm"
             style={{
-              transform: `rotate(${i * segmentAngle}deg) translateY(-110px) rotate(${-i * segmentAngle}deg)`
+              transform: `rotate(${i * segmentAngle}deg) translateY(-90px) rotate(${-i * segmentAngle}deg)`
             }}
           >
             <img src="/icons/tpc.svg" alt="TPC" className="w-4 h-4 mr-1" />
             <span>{s}</span>
           </div>
         ))}
-
-        {/* Centered Red Spin Button */}
-        <button
-          onClick={spin}
-          className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-16 h-16 rounded-full bg-red-600 text-white text-sm font-bold flex items-center justify-center disabled:bg-gray-500"
-          disabled={spinning || disabled}
-        >
-          Spin
-        </button>
       </div>
+
+      {/* Static Spin Button */}
+      <button
+        onClick={spin}
+        className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-16 h-16 rounded-full bg-green-600 text-white text-sm font-bold flex items-center justify-center disabled:bg-gray-500"
+        disabled={spinning || disabled}
+      >
+        Spin
+      </button>
     </div>
   );
 }
