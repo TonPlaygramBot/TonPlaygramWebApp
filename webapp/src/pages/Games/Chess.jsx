@@ -2,10 +2,11 @@ import { useEffect, useState } from 'react';
 import { Chess } from 'chess.js';
 import { Chessboard } from 'react-chessboard';
 import ConnectWallet from '../../components/ConnectWallet.jsx';
-import RoomSelector from '../../components/RoomSelector.jsx';
+import RoomPopup from '../../components/RoomPopup.jsx';
 
 export default function ChessGame() {
-  const [selection, setSelection] = useState({ token: 'TPC', amount: 100 });
+  const [selection, setSelection] = useState(null);
+  const [showRoom, setShowRoom] = useState(true);
   const [game, setGame] = useState(new Chess());
   const [seconds, setSeconds] = useState(5 * 60); // 5-minute timer
 
@@ -34,18 +35,23 @@ export default function ChessGame() {
 
   return (
     <div className="p-4 space-y-4 text-text">
-      <RoomSelector selected={selection} onSelect={setSelection} />
+      <RoomPopup
+        open={showRoom}
+        selection={selection}
+        setSelection={setSelection}
+        onConfirm={() => setShowRoom(false)}
+      />
 
       {/* Top Player Bar */}
       <div className="flex items-center justify-between">
         <div className="text-center">
           <img src="https://placehold.co/64" alt="Player" className="rounded-full mx-auto" />
-          <p className="text-xs mt-1">0.5 {selection.token}</p>
+          <p className="text-xs mt-1">0.5 {selection?.token}</p>
         </div>
         <div className="text-xl font-bold">{formatTime(seconds)}</div>
         <div className="text-center">
           <img src="https://placehold.co/64" alt="Opponent" className="rounded-full mx-auto" />
-          <p className="text-xs mt-1">0.5 {selection.token}</p>
+          <p className="text-xs mt-1">0.5 {selection?.token}</p>
         </div>
       </div>
 
@@ -73,7 +79,7 @@ export default function ChessGame() {
         </div>
         <div className="flex items-center space-x-1">
           <span className="text-yellow-400">🪙</span>
-          <span>{selection.amount * 2} {selection.token}</span>
+          <span>{(selection?.amount ?? 0) * 2} {selection?.token}</span>
         </div>
         <button className="px-3 py-1 border border-yellow-500 rounded text-yellow-500 hover:bg-yellow-500 hover:text-black transition">
           LEAVE
