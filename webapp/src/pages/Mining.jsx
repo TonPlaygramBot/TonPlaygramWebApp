@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useTonWallet } from '@tonconnect/ui-react';
 import { startMining, claimMining, getWalletBalance, getTonBalance } from '../utils/api.js';
 import { getTelegramId } from '../utils/telegram.js';
+import Token from '../components/Token.jsx';
 
 export default function Mining() {
   const [status, setStatus] = useState('Not Mining');
@@ -77,11 +78,3 @@ export default function Mining() {
   );
 }
 
-function Token({ icon, value }) {
-  return (
-    <div className="flex items-center space-x-1">
-      <img src={icon} alt="token" className="w-5 h-5" />
-      <span>{value}</span>
-    </div>
-  );
-}
