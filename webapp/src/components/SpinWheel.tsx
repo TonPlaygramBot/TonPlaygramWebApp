@@ -8,8 +8,9 @@ interface SpinWheelProps {
   disabled?: boolean;
 }
 
-const itemHeight = 60; // Height in pixels per prize row
+const itemHeight = 60; // Height per row in pixels
 const visibleRows = 7;
+const loops = 6;
 
 export default function SpinWheel({
   onFinish,
@@ -18,40 +19,43 @@ export default function SpinWheel({
   disabled
 }: SpinWheelProps) {
   const [offset, setOffset] = useState(0);
+  const [winnerIndex, setWinnerIndex] = useState<number | null>(null);
 
   const spin = () => {
     if (spinning || disabled) return;
 
     const reward = getRandomReward();
     const index = segments.indexOf(reward);
-    const rotations = 5;
-
-    const finalOffset = -(rotations * segments.length + index) * itemHeight;
+    const finalIndex = loops * segments.length + index;
+    const finalOffset = -(finalIndex - Math.floor(visibleRows / 2)) * itemHeight;
 
     setOffset(finalOffset);
     setSpinning(true);
+    setWinnerIndex(null); // reset winner before spin
 
     setTimeout(() => {
       setSpinning(false);
+      setWinnerIndex(finalIndex);
       onFinish(reward);
     }, 4000);
   };
 
-  const items = Array.from({ length: segments.length * 6 }, (_, i) =>
-    segments[i % segments.length]
+  const items = Array.from(
+    { length: segments.length * loops + visibleRows },
+    (_, i) => segments[i % segments.length]
   );
 
   return (
     <div className="relative w-32 mx-auto flex flex-col items-center">
       {/* Top pointer */}
       <div className="absolute -top-2 left-1/2 -translate-x-1/2 w-0 h-0 
-                      border-l-8 border-r-8 border-b-8 border-l-transparent 
-                      border-r-transparent border-b-yellow-500 z-10" />
+                      border-l-8 border-r-8 border-b-8 
+                      border-l-transparent border-r-transparent border-b-yellow-500 z-10" />
 
       {/* Bottom pointer */}
       <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 w-0 h-0 
-                      border-l-8 border-r-8 border-t-8 border-l-transparent 
-                      border-r-transparent border-t-yellow-500 z-10" />
+                      border-l-8 border-r-8 border-t-8 
+                      border-l-transparent border-r-transparent border-t-yellow-500 z-10" />
 
       {/* Slot container */}
       <div
@@ -68,7 +72,9 @@ export default function SpinWheel({
           {items.map((val, idx) => (
             <div
               key={idx}
-              className="h-[60px] flex items-center justify-center text-yellow-400 text-sm w-full"
+              className={`h-[60px] flex items-center justify-center text-sm w-full ${
+                idx === winnerIndex ? 'bg-yellow-600 text-white' : 'text-yellow-400'
+              }`}
             >
               <img src="/icons/tpc.svg" alt="TPC" className="w-4 h-4 mr-1" />
               <span>{val}</span>
@@ -77,7 +83,6 @@ export default function SpinWheel({
         </div>
       </div>
 
-      {/* Spin Button */}
       <button
         onClick={spin}
         className="mt-4 px-4 py-1 bg-green-600 text-white text-sm font-bold rounded disabled:bg-gray-500"
