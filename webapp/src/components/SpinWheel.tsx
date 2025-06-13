@@ -8,7 +8,8 @@ interface SpinWheelProps {
   disabled?: boolean;
 }
 
-const itemHeight = 60; // height of each prize row in pixels
+const itemHeight = 60; // Height in pixels per prize row
+const visibleRows = 7;
 
 export default function SpinWheel({
   onFinish,
@@ -24,6 +25,7 @@ export default function SpinWheel({
     const reward = getRandomReward();
     const index = segments.indexOf(reward);
     const rotations = 5;
+
     const finalOffset = -(rotations * segments.length + index) * itemHeight;
 
     setOffset(finalOffset);
@@ -35,18 +37,27 @@ export default function SpinWheel({
     }, 4000);
   };
 
-  const items = Array.from({ length: segments.length * 6 }, (_, i) => segments[i % segments.length]);
+  const items = Array.from({ length: segments.length * 6 }, (_, i) =>
+    segments[i % segments.length]
+  );
 
   return (
     <div className="relative w-32 mx-auto flex flex-col items-center">
       {/* Top pointer */}
-      <div className="absolute -top-2 left-1/2 -translate-x-1/2 w-0 h-0 border-l-8 border-r-8 border-b-8 border-l-transparent border-r-transparent border-b-yellow-500" />
-      
+      <div className="absolute -top-2 left-1/2 -translate-x-1/2 w-0 h-0 
+                      border-l-8 border-r-8 border-b-8 border-l-transparent 
+                      border-r-transparent border-b-yellow-500 z-10" />
+
       {/* Bottom pointer */}
-      <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 w-0 h-0 border-l-8 border-r-8 border-t-8 border-l-transparent border-r-transparent border-t-yellow-500" />
+      <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 w-0 h-0 
+                      border-l-8 border-r-8 border-t-8 border-l-transparent 
+                      border-r-transparent border-t-yellow-500 z-10" />
 
       {/* Slot container */}
-      <div className="overflow-hidden h-20 w-full border-4 border-yellow-500 rounded bg-gray-900 flex items-center justify-center">
+      <div
+        className="overflow-hidden w-full border-4 border-yellow-500 rounded bg-gray-900"
+        style={{ height: itemHeight * visibleRows }}
+      >
         <div
           className="flex flex-col items-center w-full"
           style={{
@@ -55,8 +66,11 @@ export default function SpinWheel({
           }}
         >
           {items.map((val, idx) => (
-            <div key={idx} className="h-[60px] flex flex-col items-center justify-center text-yellow-400 text-sm w-full">
-              <img src="/icons/tpc.svg" alt="TPC" className="w-4 h-4 mb-1 mx-auto" />
+            <div
+              key={idx}
+              className="h-[60px] flex items-center justify-center text-yellow-400 text-sm w-full"
+            >
+              <img src="/icons/tpc.svg" alt="TPC" className="w-4 h-4 mr-1" />
               <span>{val}</span>
             </div>
           ))}
