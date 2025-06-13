@@ -45,11 +45,11 @@ export default function SpinGame() {
       />
       {!ready && (
         <>
-          <p className="text-sm text-yellow-400">
+          <p className="text-sm text-white font-semibold">
             Next spin at {new Date(nextSpinTime(lastSpin)).toLocaleTimeString()}
           </p>
           <button
-            className="text-yellow-400 underline text-sm"
+            className="text-white underline text-sm"
             onClick={() => setShowAd(true)}
           >
             Watch an ad every hour to get a free spin.

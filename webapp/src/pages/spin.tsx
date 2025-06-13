@@ -46,8 +46,8 @@ export default function SpinPage() {
         />
         {!ready && (
           <>
-            <p className="text-sm text-yellow-400">Next spin at {new Date(nextSpinTime(lastSpin)).toLocaleTimeString()}</p>
-            <button className="text-yellow-400 underline text-sm" onClick={() => setShowAd(true)}>
+            <p className="text-sm text-white font-semibold">Next spin at {new Date(nextSpinTime(lastSpin)).toLocaleTimeString()}</p>
+            <button className="text-white underline text-sm" onClick={() => setShowAd(true)}>
               Watch an ad every hour to get a free spin.
             </button>
           </>
