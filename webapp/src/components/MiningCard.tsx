@@ -20,6 +20,7 @@ export default function SpinWheel({
 
   const spin = () => {
     if (spinning || disabled) return;
+
     const reward = getRandomReward();
     const index = segments.indexOf(reward);
     const rotations = 5;
