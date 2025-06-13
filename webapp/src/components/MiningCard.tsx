@@ -88,7 +88,7 @@ export default function MiningCard() {
   };
 
   return (
-    <div className="bg-gray-800/60 p-4 rounded-xl shadow-lg text-white space-y-2">
+    <div className="bg-surface border border-border p-4 rounded-xl shadow-lg text-text space-y-2">
       <h3 className="text-lg font-bold flex items-center space-x-2">
         <span>⛏</span>
         <span>Mining</span>
