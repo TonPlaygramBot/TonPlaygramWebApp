@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import GameCard from '../components/GameCard.jsx';
-import MiningCard from '../components/MiningCard.jsx';
+import MiningCard from '../components/MiningCard.tsx';
 import Branding from '../components/Branding.jsx';
 import SpinGame from '../components/SpinGame.jsx';
 import { FaTasks, FaUser } from 'react-icons/fa';
