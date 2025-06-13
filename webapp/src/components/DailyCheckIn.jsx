@@ -36,16 +36,17 @@ export default function DailyCheckIn() {
     setShowPopup(false);
   };
 
-const progress = [];
-for (
-  let i = streak - 1;
-  i < Math.min(streak - 1 + 5, REWARDS.length);
-  i++
-) {
+  // Show only 5 days from current streak
+  const progress = [];
+  for (
+    let i = streak - 1;
+    i < Math.min(streak - 1 + 5, REWARDS.length);
+    i++
+  ) {
     progress.push(
       <div
         key={i}
-        className={`flex flex-col items-center p-2 rounded border border-border w-20 text-xs ${
+        className={`flex flex-col items-center justify-center p-2 rounded border border-border w-20 text-xs ${
           i === streak - 1 ? 'bg-accent text-white' : 'bg-surface text-text'
         }`}
       >
@@ -64,13 +65,17 @@ for (
         <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-70 z-50">
           <div className="bg-surface border border-border p-6 rounded text-center space-y-4 text-text">
             <p className="font-semibold">Daily Check-In</p>
-            <button onClick={handleCheckIn} className="px-4 py-2 bg-blue-600 text-white rounded">
+            <button
+              onClick={handleCheckIn}
+              className="px-4 py-2 bg-blue-600 text-white rounded"
+            >
               Check in
             </button>
           </div>
         </div>
       )}
       {reward !== null && <RewardPopup reward={reward} onClose={() => setReward(null)} />}
+      {/* Place below your spin-game ad message */}
       <div className="flex space-x-2 overflow-x-auto">{progress}</div>
     </div>
   );
