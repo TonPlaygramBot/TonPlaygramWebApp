@@ -18,7 +18,11 @@ export default function MiningCard() {
   const handleStart = async () => {
     setStartTime(Date.now());
     setStatus('Mining');
-    await startMining(getTelegramId());
+    try {
+      await startMining(getTelegramId());
+    } catch (err) {
+      console.warn('Failed to start mining', err);
+    }
   };
 
   useEffect(() => {
@@ -37,8 +41,12 @@ export default function MiningCard() {
   }, [status, startTime]);
 
   const autoDistributeRewards = async () => {
-    await claimMining(getTelegramId());
-    refresh();
+    try {
+      await claimMining(getTelegramId());
+      refresh();
+    } catch (err) {
+      console.warn('Failed to distribute rewards', err);
+    }
   };
 
   if (!status) {

@@ -10,11 +10,15 @@ export default function Mining() {
   const wallet = useTonWallet();
 
   const loadBalances = async () => {
-    const prof = await getWalletBalance(getTelegramId());
-    const ton = wallet?.account?.address
-      ? (await getTonBalance(wallet.account.address)).balance
-      : null;
-    setBalances({ ton, tpc: prof.balance, usdt: 0 });
+    try {
+      const prof = await getWalletBalance(getTelegramId());
+      const ton = wallet?.account?.address
+        ? (await getTonBalance(wallet.account.address)).balance
+        : null;
+      setBalances({ ton, tpc: prof.balance, usdt: 0 });
+    } catch (err) {
+      console.warn('Failed to load balances', err);
+    }
   };
 
   useEffect(() => {
@@ -39,12 +43,20 @@ export default function Mining() {
   const handleStart = async () => {
     setStartTime(Date.now());
     setStatus('Mining');
-    await startMining(getTelegramId());
+    try {
+      await startMining(getTelegramId());
+    } catch (err) {
+      console.warn('Failed to start mining', err);
+    }
   };
 
   const autoDistributeRewards = async () => {
-    await claimMining(getTelegramId());
-    loadBalances();
+    try {
+      await claimMining(getTelegramId());
+      loadBalances();
+    } catch (err) {
+      console.warn('Failed to distribute rewards', err);
+    }
   };
 
   return (
