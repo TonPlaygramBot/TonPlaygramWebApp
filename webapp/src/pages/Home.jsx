@@ -3,6 +3,7 @@ import GameCard from '../components/GameCard.jsx';
 import MiningCard from '../components/MiningCard.jsx';
 import Branding from '../components/Branding.jsx';
 import SpinGame from '../components/SpinGame.jsx';
+import { FaTasks, FaUser } from 'react-icons/fa';
 import { ping } from '../utils/api.js';
 
 export default function Home() {
@@ -23,8 +24,16 @@ export default function Home() {
 
       <div className="grid grid-cols-1 gap-4">
         <MiningCard />
-        <GameCard title="Tasks" icon="/assets/icons/tasks.svg" link="/tasks" />
-        <GameCard title="Profile" icon="/assets/icons/profile.svg" link="/account" />
+        <GameCard
+          title="Tasks"
+          icon={<FaTasks className="text-primary" />}
+          link="/tasks"
+        />
+        <GameCard
+          title="Profile"
+          icon={<FaUser className="text-accent" />}
+          link="/account"
+        />
       </div>
 
       <p className="text-center text-xs text-subtext">Status: {status}</p>
