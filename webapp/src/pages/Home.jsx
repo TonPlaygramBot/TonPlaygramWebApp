@@ -25,8 +25,8 @@ export default function Home() {
         <MiningCard />
         <GameCard title="Dice Duel" icon="/assets/icons/dice.svg" link="/games/dice" />
         <GameCard title="Snakes & Ladders" icon="/assets/icons/snake.svg" link="/games/snake" />
-        <GameCard title="Tasks" icon="✅" link="/tasks" />
-        <GameCard title="Profile" icon="👤" link="/account" />
+        <GameCard title="Tasks" icon="/assets/icons/tasks.svg" link="/tasks" />
+        <GameCard title="Profile" icon="/assets/icons/profile.svg" link="/account" />
       </div>
 
       <p className="text-center text-xs text-subtext">Status: {status}</p>

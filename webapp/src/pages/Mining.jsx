@@ -19,6 +19,11 @@ export default function Mining() {
 
   useEffect(() => {
     loadBalances();
+    const saved = localStorage.getItem('miningStart');
+    if (saved) {
+      setStartTime(parseInt(saved, 10));
+      setStatus('Mining');
+    }
   }, [wallet]);
 
   useEffect(() => {
@@ -37,13 +42,16 @@ export default function Mining() {
   }, [status, startTime]);
 
   const handleStart = async () => {
-    setStartTime(Date.now());
+    const now = Date.now();
+    setStartTime(now);
+    localStorage.setItem('miningStart', String(now));
     setStatus('Mining');
     await startMining(getTelegramId());
   };
 
   const autoDistributeRewards = async () => {
     await claimMining(getTelegramId());
+    localStorage.removeItem('miningStart');
     loadBalances();
   };
 
