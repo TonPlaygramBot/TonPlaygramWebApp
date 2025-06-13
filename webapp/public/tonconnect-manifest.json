@@ -1,6 +1,6 @@
 {
   "name": "TonPlaygram Chess",
   "description": "Play chess with TPC staking via Tonkeeper",
-  "url": "http://localhost:3000",
-  "icons": ["/icons/tpc.svg"]
+  "url": "https://tonplaygram.example.com",
+  "icons": ["https://tonplaygram.example.com/icon.png"]
 }
