@@ -100,7 +100,11 @@ export default function MiningCard() {
         </p>
       )}
       <p className="text-sm font-bold text-gray-300">Total Balance</p>
+<<<<<<< codex/remove-dice-duel-and-snake-and-ladder-from-home-page
       <div className="flex justify-around text-sm mb-2">
+=======
+      <div className="flex justify-around text-xs mb-2">
+>>>>>>> main
         <Token icon="/icons/ton.svg" label="TON" value={balances.ton ?? '...'} />
         <Token icon="/icons/tpc.svg" label="TPC" value={balances.tpc ?? '...'} />
         <Token icon="/icons/usdt.svg" label="USDT" value={balances.usdt ?? '0'} />
