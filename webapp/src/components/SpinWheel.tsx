@@ -61,10 +61,10 @@ export default function SpinWheel({
             key={i}
             className="absolute flex items-center justify-center text-yellow-400 text-sm"
             style={{
-              transform: `rotate(${i * segmentAngle}deg) translateY(-90px) rotate(${-i * segmentAngle}deg)`
+              transform: `rotate(${i * segmentAngle}deg) translateY(-72px) rotate(${-i * segmentAngle - 90}deg)`
             }}
           >
-            <img src="/icons/tpc.svg" alt="TPC" className="w-4 h-4 mr-1" />
+            <img src="/icons/tpc.svg" alt="TPC" className="w-4 h-4 mb-1" />
             <span>{s}</span>
           </div>
         ))}
