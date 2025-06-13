@@ -81,14 +81,7 @@ service (e.g. `https://tonplaygramwebapp.onrender.com`). **Do not include** the
 
 If you accidentally deploy as a Static Site you'll only see `index.html` referencing `/src/main.jsx`. Switch to a Web Service and use the commands above so the compiled files are served.
 
-After deploying, visit the service URL in your browser. You should see the TonPlaygram interface.
-
-### Troubleshooting "Not Found" pages
-
-If your browser displays a plain **Not Found** page, the Node service probably isn't running.
-Confirm that the service type is **Web Service** and inspect the logs for startup errors.
-Locally you can run `npm start` inside the `bot` directory (or from the repository root) and look for `Server running on port` in the output.
-
+After deploying, visit the service URL in your browser. You should see the TonPlaygram interface. If Render shows a plain **Not Found** page, the Node service is likely not running. Verify that the service type is **Web Service** and check the logs for any startup errors.
 
 Set `MONGODB_URI=memory` in the environment if you do not have a database. Otherwise provide your MongoDB connection string. The server logs should show `Server running on port` and `Connected to MongoDB`. Any connection errors will appear in the logs and usually indicate an incorrect URI or firewall rules.
 
@@ -97,10 +90,6 @@ Set `MONGODB_URI=memory` in the environment if you do not have a database. Other
 The webapp now uses **TonConnect** to link a Tonkeeper wallet. Configure
 `VITE_TONCONNECT_MANIFEST` in `webapp/.env` and expose the same manifest URL on
 the server via `TONCONNECT_MANIFEST_URL`.
-
-## Testing
-Currently there is no automated test suite. The `npm test` script simply prints "No tests" for each package.
-
 
 ## Open Source Games
 - [Chessu](https://github.com/dotnize/chessu) – Competitive chess with socket rooms.
