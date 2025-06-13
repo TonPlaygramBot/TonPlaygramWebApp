@@ -8,7 +8,7 @@ interface SpinWheelProps {
   disabled?: boolean;
 }
 
-const itemHeight = 50; // px height of each prize row
+const itemHeight = 60;
 const visibleRows = 7;
 const loops = 6;
 
@@ -46,9 +46,20 @@ export default function SpinWheel({
   );
 
   return (
-    <div className="flex flex-col items-center w-full">
+    <div className="relative flex flex-col items-center w-full bg-gradient-to-b from-gray-900 to-black py-6 rounded-lg shadow-lg border border-yellow-600">
+      {/* Top Pointer */}
+      <div className="absolute -top-2 left-1/2 -translate-x-1/2 w-0 h-0 
+                      border-l-8 border-r-8 border-b-8 
+                      border-l-transparent border-r-transparent border-b-yellow-500 z-10" />
+
+      {/* Bottom Pointer */}
+      <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 w-0 h-0 
+                      border-l-8 border-r-8 border-t-8 
+                      border-l-transparent border-r-transparent border-t-yellow-500 z-10" />
+
+      {/* Slot Container */}
       <div
-        className="overflow-hidden border-2 border-accent rounded-lg bg-surface mx-auto w-48"
+        className="overflow-hidden w-48 border-4 border-yellow-500 rounded bg-gray-900"
         style={{ height: itemHeight * visibleRows }}
       >
         <div
@@ -61,23 +72,24 @@ export default function SpinWheel({
           {items.map((val, idx) => (
             <div
               key={idx}
-              className={`flex items-center justify-center text-white font-semibold text-sm w-full ${
-                idx === winnerIndex ? 'text-accent' : ''
+              className={`flex items-center justify-center text-sm font-semibold w-full ${
+                idx === winnerIndex ? 'bg-yellow-600 text-white' : 'text-yellow-300'
               }`}
               style={{ height: itemHeight }}
             >
-              <div className="hexagon w-5 h-5 bg-accent text-surface flex items-center justify-center mr-2 text-xs font-bold">
-                P
+              <div className="w-6 h-6 mr-2 flex items-center justify-center bg-yellow-400 rounded-full text-black text-xs font-bold shadow-inner">
+                ⬢
               </div>
-              <span>P {val}</span>
+              <span>{val}</span>
             </div>
           ))}
         </div>
       </div>
 
+      {/* Spin Button */}
       <button
         onClick={spin}
-        className="mt-6 px-8 py-3 bg-gray-700 text-white rounded-full border border-accent font-bold disabled:opacity-50"
+        className="mt-6 px-6 py-2 bg-yellow-500 text-black rounded-full font-bold hover:bg-yellow-400 disabled:opacity-50"
         disabled={spinning || disabled}
       >
         Spin
