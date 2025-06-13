@@ -10,7 +10,12 @@ interface SpinWheelProps {
 
 const segmentAngle = 360 / segments.length;
 
-export default function SpinWheel({ onFinish, spinning, setSpinning, disabled }: SpinWheelProps) {
+export default function SpinWheel({
+  onFinish,
+  spinning,
+  setSpinning,
+  disabled
+}: SpinWheelProps) {
   const [angle, setAngle] = useState(0);
 
   const spin = () => {
@@ -19,8 +24,11 @@ export default function SpinWheel({ onFinish, spinning, setSpinning, disabled }:
     const index = segments.indexOf(reward);
     const rotations = 5;
 
-    // Stop wheel with reward centered under top pointer
-    const finalAngle = rotations * 360 - (index * segmentAngle + segmentAngle / 2);
+    // Final angle adjustment to center the segment under the pointer at the top (0deg)
+    const finalAngle =
+      rotations * 360 +
+      (index * segmentAngle * -1) +
+      segmentAngle / 2;
 
     setAngle(finalAngle);
     setSpinning(true);
@@ -33,15 +41,16 @@ export default function SpinWheel({ onFinish, spinning, setSpinning, disabled }:
 
   return (
     <div className="relative w-64 h-64 mx-auto">
-      {/* Top arrow pointer (flipped, pointing down) */}
-      <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 w-0 h-0 
-                      border-l-8 border-r-8 border-b-[16px] border-l-transparent 
-                      border-r-transparent border-b-yellow-500 z-10" />
+      {/* Pointer arrow above wheel, pointing down */}
+      <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 
+                      w-0 h-0 border-l-8 border-r-8 border-b-[16px] 
+                      border-l-transparent border-r-transparent border-b-yellow-500 z-10" />
 
-      {/* Spinning wheel */}
+      {/* Wheel */}
       <div
         className="w-full h-full rounded-full border-4 border-yellow-500 
-                   flex items-center justify-center transition-transform duration-[4000ms]"
+                   flex items-center justify-center transition-transform 
+                   duration-[4000ms]"
         style={{
           transform: `rotate(${angle}deg)`,
           backgroundImage:
@@ -62,7 +71,7 @@ export default function SpinWheel({ onFinish, spinning, setSpinning, disabled }:
         ))}
       </div>
 
-      {/* Static center spin button */}
+      {/* Spin Button */}
       <button
         onClick={spin}
         className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 
