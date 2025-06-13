@@ -1,19 +1,36 @@
 import { useEffect, useState } from 'react';
+import { useTonWallet } from '@tonconnect/ui-react';
 import SpinWheel from './SpinWheel.tsx';
 import RewardPopup from './RewardPopup.tsx';
 import AdModal from './AdModal.tsx';
 import { canSpin, nextSpinTime } from '../utils/rewardLogic';
+import { getWalletBalance, getTonBalance } from '../utils/api.js';
+import { getTelegramId } from '../utils/telegram.js';
 
 export default function SpinGame() {
   const [lastSpin, setLastSpin] = useState(null);
   const [reward, setReward] = useState(null);
   const [spinning, setSpinning] = useState(false);
   const [showAd, setShowAd] = useState(false);
+  const [tpcBalance, setTpcBalance] = useState(null);
+  const wallet = useTonWallet();
+
+  function loadBalance() {
+    getWalletBalance(getTelegramId()).then((prof) => setTpcBalance(prof.balance));
+    if (wallet?.account?.address) {
+      getTonBalance(wallet.account.address).then(() => {});
+    }
+  }
 
   useEffect(() => {
     const ts = localStorage.getItem('lastSpin');
     if (ts) setLastSpin(parseInt(ts, 10));
+    loadBalance();
   }, []);
+
+  useEffect(() => {
+    loadBalance();
+  }, [wallet]);
 
   const handleFinish = (r) => {
     const now = Date.now();
@@ -25,8 +42,10 @@ export default function SpinGame() {
   const ready = canSpin(lastSpin);
 
   return (
-    <div className="bg-gray-800 rounded p-4 flex flex-col items-center space-y-2">
-      <div className="text-yellow-400 text-lg">Balance 9.87 M TPC</div>
+    <div className="bg-surface p-4 rounded-xl shadow-lg flex flex-col items-center space-y-2 text-text">
+      <div className="text-yellow-400 text-lg">
+        Balance {tpcBalance === null ? '...' : tpcBalance} TPC
+      </div>
       <SpinWheel
         onFinish={handleFinish}
         spinning={spinning}
