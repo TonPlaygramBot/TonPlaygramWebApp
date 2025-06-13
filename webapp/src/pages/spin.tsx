@@ -36,7 +36,7 @@ export default function SpinPage() {
   const ready = canSpin(lastSpin);
 
   return (
-    <div className="starry-bg min-h-screen flex flex-col items-center pt-8 text-white space-y-6">
+    <div className="min-h-screen flex flex-col items-center justify-center bg-background text-white space-y-6 pb-8">
       <SpinWheel
         onFinish={handleFinish}
         spinning={spinning}
@@ -45,8 +45,8 @@ export default function SpinPage() {
       />
       {!ready && (
         <>
-          <p className="text-sm text-yellow-400">Next spin at {new Date(nextSpinTime(lastSpin)).toLocaleTimeString()}</p>
-          <button className="text-yellow-400 underline text-sm" onClick={() => setShowAd(true)}>
+          <p className="text-sm text-accent">Next spin at {new Date(nextSpinTime(lastSpin)).toLocaleTimeString()}</p>
+          <button className="text-accent underline text-sm" onClick={() => setShowAd(true)}>
             Watch an ad every hour to get a free spin.
           </button>
         </>

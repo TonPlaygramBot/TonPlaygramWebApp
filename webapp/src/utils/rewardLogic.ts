@@ -1,4 +1,4 @@
-export const segments = [300, 800, 1000, 1200, 1400, 1500, 1600, 1800];
+export const segments = [300, 800, 1000, 1200, 1400, 1500, 1600];
 const ONE_HOUR = 3600_000;
 
 export function canSpin(lastSpin: number | null): boolean {
