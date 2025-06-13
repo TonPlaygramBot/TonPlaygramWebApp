@@ -88,12 +88,22 @@ if (
 }
 
 app.use(express.static(webappPath));
-// Expose TonConnect manifest directly at the root path so wallet extensions
-// can fetch it. Render will serve static files from `webapp/dist`, but some
-// deployments hit this Express server before the static middleware. Providing
-// an explicit route avoids 404 errors.
-app.get('/tonconnect-manifest.json', (req, res) => {
-  res.sendFile(path.join(webappPath, 'tonconnect-manifest.json'));
+// Expose TonConnect manifest dynamically so the base URL always matches the
+// current request host. The manifest path is taken from the
+// TONCONNECT_MANIFEST_URL environment variable if provided, otherwise the
+// default `/tonconnect-manifest.json` is used. This avoids 404s when the
+// Express server handles requests before the static middleware.
+const manifestUrl = process.env.TONCONNECT_MANIFEST_URL || '/tonconnect-manifest.json';
+const manifestPath = new URL(manifestUrl, 'http://placeholder').pathname;
+app.get(manifestPath, (req, res) => {
+  const proto = req.get('x-forwarded-proto') || req.protocol;
+  const baseUrl = `${proto}://${req.get('host')}`;
+  res.json({
+    name: 'TonPlaygram Chess',
+    description: 'Play chess with TPC staking via Tonkeeper',
+    url: baseUrl,
+    icons: [`${baseUrl}/icons/tpc.svg`]
+  });
 });
 app.get('/', (req, res) => {
   res.sendFile(path.join(webappPath, 'index.html'));
