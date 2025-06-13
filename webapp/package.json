@@ -5,8 +5,7 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "preview": "vite preview",
-    "test": "echo \"No tests\""
+    "preview": "vite preview"
   },
   "type": "module",
   "dependencies": {

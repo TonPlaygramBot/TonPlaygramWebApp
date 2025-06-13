@@ -12,9 +12,6 @@ const userSchema = new mongoose.Schema({
 
   minedTPC: { type: Number, default: 0 },
 
-  // Timestamp of the last mining start or reward update
-  lastMineAt: { type: Date },
-
   balance: { type: Number, default: 0 },
 
   nickname: { type: String, default: '' },

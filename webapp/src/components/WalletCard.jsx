@@ -12,18 +12,14 @@ export default function WalletCard() {
   const wallet = useTonWallet();
 
   const loadBalances = async () => {
-    try {
-      const prof = await getWalletBalance(getTelegramId());
-      setTpcBalance(prof.balance);
-      if (wallet?.account?.address) {
-        const bal = await getTonBalance(wallet.account.address);
-        setTonBalance(bal.balance);
-      }
-      // USDT balance not implemented yet
-      setUsdtBalance(0);
-    } catch (err) {
-      console.warn('Failed to load balances', err);
+    const prof = await getWalletBalance(getTelegramId());
+    setTpcBalance(prof.balance);
+    if (wallet?.account?.address) {
+      const bal = await getTonBalance(wallet.account.address);
+      setTonBalance(bal.balance);
     }
+    // USDT balance not implemented yet
+    setUsdtBalance(0);
   };
 
   useEffect(() => {
