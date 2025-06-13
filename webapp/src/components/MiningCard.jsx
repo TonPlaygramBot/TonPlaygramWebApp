@@ -9,6 +9,7 @@ export default function MiningCard() {
   const refresh = async () => {
     const data = await getMiningStatus(getTelegramId());
     setStatus(data.isMining ? 'Mining' : 'Not Mining');
+    setStartTime(data.lastMineAt ? new Date(data.lastMineAt).getTime() : null);
   };
 
   useEffect(() => {
@@ -16,9 +17,9 @@ export default function MiningCard() {
   }, []);
 
   const handleStart = async () => {
-    setStartTime(Date.now());
+    const data = await startMining(getTelegramId());
+    setStartTime(data.lastMineAt ? new Date(data.lastMineAt).getTime() : Date.now());
     setStatus('Mining');
-    await startMining(getTelegramId());
   };
 
   useEffect(() => {

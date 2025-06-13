@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useTonWallet } from '@tonconnect/ui-react';
-import { startMining, claimMining, getWalletBalance, getTonBalance } from '../utils/api.js';
+import { startMining, claimMining, getWalletBalance, getTonBalance, getMiningStatus } from '../utils/api.js';
 import { getTelegramId } from '../utils/telegram.js';
 
 export default function Mining() {
@@ -9,6 +9,12 @@ export default function Mining() {
   const [balances, setBalances] = useState({ ton: null, tpc: null, usdt: 0 });
   const wallet = useTonWallet();
 
+  const refreshStatus = async () => {
+    const data = await getMiningStatus(getTelegramId());
+    setStatus(data.isMining ? 'Mining' : 'Not Mining');
+    setStartTime(data.lastMineAt ? new Date(data.lastMineAt).getTime() : null);
+  };
+
   const loadBalances = async () => {
     const prof = await getWalletBalance(getTelegramId());
     const ton = wallet?.account?.address
@@ -16,6 +22,10 @@ export default function Mining() {
       : null;
     setBalances({ ton, tpc: prof.balance, usdt: 0 });
   };
+
+  useEffect(() => {
+    refreshStatus();
+  }, []);
 
   useEffect(() => {
     loadBalances();
@@ -37,9 +47,9 @@ export default function Mining() {
   }, [status, startTime]);
 
   const handleStart = async () => {
-    setStartTime(Date.now());
+    const data = await startMining(getTelegramId());
+    setStartTime(data.lastMineAt ? new Date(data.lastMineAt).getTime() : Date.now());
     setStatus('Mining');
-    await startMining(getTelegramId());
   };
 
   const autoDistributeRewards = async () => {
