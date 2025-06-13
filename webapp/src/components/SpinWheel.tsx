@@ -8,11 +8,10 @@ interface SpinWheelProps {
   disabled?: boolean;
 }
 
-// Visual settings for the wheel
-const itemHeight = 50; // Height per row in pixels
-const visibleRows = 7; // Show seven prices with the third row as the winner
-const winningRow = 2; // Index of the winning row (0-based)
-const loops = 8; // How many times the list repeats while spinning
+const itemHeight = 50; // Each row is 50px high
+const visibleRows = 7; // Display 7 rows
+const winningRow = 2;  // Third row (index 2) is the winner
+const loops = 8;       // Spin loops before stopping
 
 export default function SpinWheel({
   onFinish,
@@ -33,7 +32,7 @@ export default function SpinWheel({
 
     setOffset(finalOffset);
     setSpinning(true);
-    setWinnerIndex(null); // reset winner before spin
+    setWinnerIndex(null);
 
     setTimeout(() => {
       setSpinning(false);
@@ -49,13 +48,13 @@ export default function SpinWheel({
 
   return (
     <div className="relative w-40 mx-auto flex flex-col items-center">
-      {/* Highlight for winning row */}
+      {/* Highlight the 3rd (winning) row */}
       <div
-        className="absolute inset-x-0 border-4 border-yellow-500 pointer-events-none"
+        className="absolute inset-x-0 border-4 border-yellow-500 pointer-events-none z-10"
         style={{ top: itemHeight * winningRow, height: itemHeight }}
       />
 
-      {/* Slot container */}
+      {/* Scrollable prize list */}
       <div
         className="overflow-hidden w-full"
         style={{ height: itemHeight * visibleRows }}
@@ -64,31 +63,4 @@ export default function SpinWheel({
           className="flex flex-col items-center w-full"
           style={{
             transform: `translateY(${offset}px)`,
-            transition: 'transform 4s cubic-bezier(0.33,1,0.68,1)'
-          }}
-        >
-          {items.map((val, idx) => (
-            <div
-              key={idx}
-              className={`flex items-center justify-center text-lg w-full ${
-                idx === winnerIndex ? 'bg-yellow-500 text-black font-bold' : 'text-yellow-400'
-              }`}
-              style={{ height: itemHeight }}
-            >
-              <img src="/icons/tpc.svg" alt="TPC" className="w-5 h-5 mr-1" />
-              <span>{val}</span>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      <button
-        onClick={spin}
-        className="mt-4 px-4 py-1 bg-green-600 text-white text-sm font-bold rounded disabled:bg-gray-500"
-        disabled={spinning || disabled}
-      >
-        Spin
-      </button>
-    </div>
-  );
-}
+            transition: 'transform 4s cubic-bezier(0.33,1,0.
