@@ -1,152 +1,77 @@
-import { useEffect, useState } from 'react';
-import { FaWallet } from 'react-icons/fa';
-import {
-  getMiningStatus,
-  startMining,
-  claimMining,
-  getWalletBalance,
-  getTonBalance
-} from '../utils/api.js';
-import { useTonWallet } from '@tonconnect/ui-react';
-import { getTelegramId } from '../utils/telegram.js';
+import { useState } from 'react';
+import { segments, getRandomReward } from '../utils/rewardLogic';
 
-export default function MiningCard() {
-  const [status, setStatus] = useState('Not Mining');
-  const [startTime, setStartTime] = useState(null);
-  const [timeLeft, setTimeLeft] = useState(0);
-  const [balances, setBalances] = useState({ ton: null, tpc: null, usdt: 0 });
-  const wallet = useTonWallet();
-
-  const loadBalances = async () => {
-    try {
-      const prof = await getWalletBalance(getTelegramId());
-      const ton = wallet?.account?.address
-        ? (await getTonBalance(wallet.account.address)).balance
-        : null;
-      setBalances({ ton, tpc: prof.balance, usdt: 0 }); // USDT label corrected
-    } catch (err) {
-      console.error('Failed to load balances:', err);
-    }
-  };
-
-  const refresh = async () => {
-    try {
-      const data = await getMiningStatus(getTelegramId());
-      setStatus(data.isMining ? 'Mining' : 'Not Mining');
-    } catch (err) {
-      console.warn('Mining status check failed, loading balances anyway.');
-    }
-    loadBalances();
-  };
-
-  useEffect(() => {
-    refresh();
-    const saved = localStorage.getItem('miningStart');
-    if (saved) {
-      const start = parseInt(saved, 10);
-      setStartTime(start);
-      setStatus('Mining');
-      const elapsed = Date.now() - start;
-      const twelveHours = 12 * 60 * 60 * 1000;
-      setTimeLeft(Math.max(0, twelveHours - elapsed));
-    }
-  }, [wallet]);
-
-  const handleStart = async () => {
-    const now = Date.now();
-    setStartTime(now);
-    setTimeLeft(12 * 60 * 60 * 1000);
-    localStorage.setItem('miningStart', String(now));
-    setStatus('Mining');
-    await startMining(getTelegramId());
-    loadBalances();
-  };
-
-  useEffect(() => {
-    if (status === 'Mining') {
-      const interval = setInterval(() => {
-        const now = Date.now();
-        const elapsed = now - startTime;
-        const twelveHours = 12 * 60 * 60 * 1000;
-        setTimeLeft(Math.max(0, twelveHours - elapsed));
-        if (elapsed >= twelveHours) {
-          setStatus('Not Mining');
-          autoDistributeRewards();
-        }
-      }, 1000);
-      return () => clearInterval(interval);
-    }
-  }, [status, startTime]);
-
-  const autoDistributeRewards = async () => {
-    try {
-      await claimMining(getTelegramId());
-    } catch (err) {
-      console.error('Auto-claim failed:', err);
-    }
-    localStorage.removeItem('miningStart');
-    setTimeLeft(0);
-    refresh();
-  };
-
-  return (
-    <div className="bg-gray-800/60 p-4 rounded-xl shadow-lg text-white space-y-2">
-      <h3 className="text-lg font-bold flex items-center space-x-2">
-        <span>⛏</span>
-        <span>Mining</span>
-      </h3>
-
-      <div className="flex items-center justify-between text-sm">
-        <button
-          className="px-2 py-1 bg-green-500 text-white rounded disabled:opacity-50"
-          onClick={handleStart}
-          disabled={status === 'Mining'}
-        >
-          Start
-        </button>
-        <p className="text-accent font-medium">
-          {status === 'Mining' ? formatTimeLeft(timeLeft) : '00:00:00'}
-        </p>
-        <p>
-          Status{' '}
-          <span className={status === 'Mining' ? 'text-green-500' : 'text-red-500'}>
-            {status}
-          </span>
-        </p>
-      </div>
-
-      <p className="text-lg font-bold text-gray-300 flex items-center space-x-1">
-        <FaWallet />
-        <span>Total Balance</span>
-      </p>
-      <div className="flex justify-around text-sm mb-2">
-        <Token icon="/icons/ton.svg" label="TON" value={balances.ton ?? '...'} />
-        <Token icon="/icons/tpc.svg" label="TPC" value={balances.tpc ?? '...'} />
-        <Token icon="/icons/usdt.svg" label="USDT" value={balances.usdt ?? '0'} />
-      </div>
-    </div>
-  );
+interface SpinWheelProps {
+  onFinish: (reward: number) => void;
+  spinning: boolean;
+  setSpinning: (b: boolean) => void;
+  disabled?: boolean;
 }
 
-function Token({ icon, value, label }) {
-  return (
-    <div className="flex items-center space-x-1">
-      <img src={icon} alt={label} className="w-4 h-4" />
-      <span className="text-base">{value}</span>
-    </div>
-  );
-}
+const segmentAngle = 360 / segments.length;
 
-function formatTimeLeft(ms) {
-  const totalSeconds = Math.floor(ms / 1000);
-  const hours = Math.floor(totalSeconds / 3600);
-  const minutes = Math.floor((totalSeconds % 3600) / 60);
-  const seconds = totalSeconds % 60;
+export default function SpinWheel({ onFinish, spinning, setSpinning, disabled }: SpinWheelProps) {
+  const [angle, setAngle] = useState(0);
+
+  const spin = () => {
+    if (spinning || disabled) return;
+    const reward = getRandomReward();
+    const index = segments.indexOf(reward);
+    const rotations = 5;
+
+    // Stop wheel with reward centered under top pointer
+    const finalAngle = rotations * 360 - (index * segmentAngle + segmentAngle / 2);
+
+    setAngle(finalAngle);
+    setSpinning(true);
+
+    setTimeout(() => {
+      setSpinning(false);
+      onFinish(reward);
+    }, 4000);
+  };
+
   return (
-    hours.toString().padStart(2, '0') +
-    ':' +
-    minutes.toString().padStart(2, '0') +
-    ':' +
-    seconds.toString().padStart(2, '0')
+    <div className="relative w-64 h-64 mx-auto">
+      {/* Top arrow pointer (flipped, pointing down) */}
+      <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 w-0 h-0 
+                      border-l-8 border-r-8 border-b-[16px] border-l-transparent 
+                      border-r-transparent border-b-yellow-500 z-10" />
+
+      {/* Spinning wheel */}
+      <div
+        className="w-full h-full rounded-full border-4 border-yellow-500 
+                   flex items-center justify-center transition-transform duration-[4000ms]"
+        style={{
+          transform: `rotate(${angle}deg)`,
+          backgroundImage:
+            'conic-gradient(from 0deg, #333 0deg 45deg, #111 45deg 90deg, #333 90deg 135deg, #111 135deg 180deg, #333 180deg 225deg, #111 225deg 270deg, #333 270deg 315deg, #111 315deg 360deg)'
+        }}
+      >
+        {segments.map((s, i) => (
+          <div
+            key={i}
+            className="absolute flex items-center justify-center text-yellow-400 text-sm"
+            style={{
+              transform: `rotate(${i * segmentAngle}deg) translateY(-90px) rotate(${-i * segmentAngle}deg)`
+            }}
+          >
+            <img src="/icons/tpc.svg" alt="TPC" className="w-4 h-4 mr-1" />
+            <span>{s}</span>
+          </div>
+        ))}
+      </div>
+
+      {/* Static center spin button */}
+      <button
+        onClick={spin}
+        className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 
+                   w-16 h-16 rounded-full bg-green-600 text-white text-sm font-bold 
+                   flex items-center justify-center disabled:bg-gray-500"
+        disabled={spinning || disabled}
+      >
+        Spin
+      </button>
+    </div>
   );
 }
