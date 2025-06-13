@@ -10,7 +10,12 @@ interface SpinWheelProps {
 
 const segmentAngle = 360 / segments.length;
 
-export default function SpinWheel({ onFinish, spinning, setSpinning, disabled }: SpinWheelProps) {
+export default function SpinWheel({
+  onFinish,
+  spinning,
+  setSpinning,
+  disabled
+}: SpinWheelProps) {
   const [angle, setAngle] = useState(0);
 
   const spin = () => {
