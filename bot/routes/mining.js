@@ -22,7 +22,7 @@ router.post('/start', getUser, async (req, res) => {
     return res.json({ message: 'already mining' });
   }
   await startMining(req.user);
-  res.json({ message: 'mining started', lastMineAt: req.user.lastMineAt });
+  res.json({ message: 'mining started' });
 });
 
 router.post('/stop', getUser, async (req, res) => {
@@ -41,12 +41,7 @@ router.post('/claim', getUser, async (req, res) => {
 router.post('/status', getUser, async (req, res) => {
   updateMiningRewards(req.user);
   await req.user.save();
-  res.json({
-    isMining: req.user.isMining,
-    pending: req.user.minedTPC,
-    balance: req.user.balance,
-    lastMineAt: req.user.lastMineAt
-  });
+  res.json({ isMining: req.user.isMining, pending: req.user.minedTPC, balance: req.user.balance });
 });
 
 export default router;
