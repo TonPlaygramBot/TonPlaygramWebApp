@@ -3,6 +3,12 @@ import SpinWheel from '../components/SpinWheel.tsx';
 import RewardPopup from '../components/RewardPopup.tsx';
 import AdModal from '../components/AdModal.tsx';
 import { canSpin, nextSpinTime } from '../utils/rewardLogic';
+import {
+  getWalletBalance,
+  updateBalance,
+  addTransaction
+} from '../utils/api.js';
+import { getTelegramId } from '../utils/telegram.js';
 
 export default function SpinPage() {
   const [lastSpin, setLastSpin] = useState<number | null>(null);
@@ -15,18 +21,22 @@ export default function SpinPage() {
     if (ts) setLastSpin(parseInt(ts, 10));
   }, []);
 
-  const handleFinish = (r: number) => {
+  const handleFinish = async (r: number) => {
     const now = Date.now();
     localStorage.setItem('lastSpin', String(now));
     setLastSpin(now);
     setReward(r);
+    const id = getTelegramId();
+    const balRes = await getWalletBalance(id);
+    const newBalance = (balRes.balance || 0) + r;
+    await updateBalance(id, newBalance);
+    await addTransaction(id, r, 'spin');
   };
 
   const ready = canSpin(lastSpin);
 
   return (
     <div className="starry-bg min-h-screen flex flex-col items-center pt-8 text-white space-y-6">
-      <div className="text-yellow-400 text-lg">Balance 9.87 M TPC</div>
       <SpinWheel
         onFinish={handleFinish}
         spinning={spinning}

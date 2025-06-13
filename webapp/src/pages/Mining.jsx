@@ -6,6 +6,7 @@ import { getTelegramId } from '../utils/telegram.js';
 export default function Mining() {
   const [status, setStatus] = useState('Not Mining');
   const [startTime, setStartTime] = useState(null);
+  const [timeLeft, setTimeLeft] = useState(0);
   const [balances, setBalances] = useState({ ton: null, tpc: null, usdt: 0 });
   const wallet = useTonWallet();
 
@@ -19,6 +20,15 @@ export default function Mining() {
 
   useEffect(() => {
     loadBalances();
+    const saved = localStorage.getItem('miningStart');
+    if (saved) {
+      const start = parseInt(saved, 10);
+      setStartTime(start);
+      setStatus('Mining');
+      const elapsed = Date.now() - start;
+      const twelveHours = 12 * 60 * 60 * 1000;
+      setTimeLeft(Math.max(0, twelveHours - elapsed));
+    }
   }, [wallet]);
 
   useEffect(() => {
@@ -26,8 +36,9 @@ export default function Mining() {
       const interval = setInterval(() => {
         const now = Date.now();
         const elapsed = now - startTime;
-        const twentyFourHours = 24 * 60 * 60 * 1000;
-        if (elapsed >= twentyFourHours) {
+        const twelveHours = 12 * 60 * 60 * 1000;
+        setTimeLeft(Math.max(0, twelveHours - elapsed));
+        if (elapsed >= twelveHours) {
           setStatus('Not Mining');
           autoDistributeRewards();
         }
@@ -37,13 +48,18 @@ export default function Mining() {
   }, [status, startTime]);
 
   const handleStart = async () => {
-    setStartTime(Date.now());
+    const now = Date.now();
+    setStartTime(now);
+    setTimeLeft(12 * 60 * 60 * 1000);
+    localStorage.setItem('miningStart', String(now));
     setStatus('Mining');
     await startMining(getTelegramId());
   };
 
   const autoDistributeRewards = async () => {
     await claimMining(getTelegramId());
+    localStorage.removeItem('miningStart');
+    setTimeLeft(0);
     loadBalances();
   };
 
@@ -58,20 +74,21 @@ export default function Mining() {
         </div>
       </div>
 
-      <div className="text-center mt-4">
+      <div className="flex items-center justify-between mt-4">
+        <button
+          onClick={handleStart}
+          disabled={status === 'Mining'}
+          className="bg-green-500 hover:bg-green-600 text-white px-4 py-1 rounded-full font-semibold disabled:opacity-50"
+        >
+          Start
+        </button>
         <p>
           Status:{' '}
           <span className={status === 'Mining' ? 'text-green-400' : 'text-red-400'}>
             {status}
+            {status === 'Mining' && ` - ${formatTimeLeft(timeLeft)}`}
           </span>
         </p>
-        <button
-          onClick={handleStart}
-          disabled={status === 'Mining'}
-          className="mt-2 bg-green-500 hover:bg-green-600 text-white px-4 py-1 rounded-full font-semibold"
-        >
-          Start
-        </button>
       </div>
     </div>
   );
@@ -83,5 +100,19 @@ function Token({ icon, value }) {
       <img src={icon} alt="token" className="w-5 h-5" />
       <span>{value}</span>
     </div>
+  );
+}
+
+function formatTimeLeft(ms) {
+  const totalSeconds = Math.floor(ms / 1000);
+  const hours = Math.floor(totalSeconds / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const seconds = totalSeconds % 60;
+  return (
+    hours.toString().padStart(2, '0') +
+    ':' +
+    minutes.toString().padStart(2, '0') +
+    ':' +
+    seconds.toString().padStart(2, '0')
   );
 }
