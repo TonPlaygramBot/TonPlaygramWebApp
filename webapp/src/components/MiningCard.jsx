@@ -24,17 +24,8 @@ export default function MiningCard() {
   };
 
   const refresh = async () => {
-<<<<<<< codex/automate-reward-distribution-and-update-logo
-    try {
-      const data = await getMiningStatus(getTelegramId());
-      setStatus(data.isMining ? 'Mining' : 'Not Mining');
-    } catch (err) {
-      console.error(err);
-    }
-=======
     const data = await getMiningStatus(getTelegramId());
     setStatus(data.isMining ? 'Mining' : 'Not Mining');
->>>>>>> main
     loadBalances();
   };
 
