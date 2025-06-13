@@ -8,7 +8,8 @@ interface SpinWheelProps {
   disabled?: boolean;
 }
 
-const itemHeight = 60; // px height of each prize row
+const itemHeight = 60; // Height in pixels per prize row
+const visibleRows = 7;
 
 export default function SpinWheel({
   onFinish,
@@ -43,12 +44,19 @@ export default function SpinWheel({
   return (
     <div className="relative w-32 mx-auto flex flex-col items-center">
       {/* Top pointer */}
-      <div className="absolute -top-2 left-1/2 -translate-x-1/2 w-0 h-0 border-l-8 border-r-8 border-b-8 border-l-transparent border-r-transparent border-b-yellow-500" />
+      <div className="absolute -top-2 left-1/2 -translate-x-1/2 w-0 h-0 
+                      border-l-8 border-r-8 border-b-8 border-l-transparent 
+                      border-r-transparent border-b-yellow-500 z-10" />
+
+      {/* Bottom pointer */}
+      <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 w-0 h-0 
+                      border-l-8 border-r-8 border-t-8 border-l-transparent 
+                      border-r-transparent border-t-yellow-500 z-10" />
 
       {/* Slot container */}
       <div
-        className="overflow-hidden w-full border-4 border-yellow-500 rounded bg-gray-900 flex items-center justify-center"
-        style={{ height: itemHeight * 7 }}
+        className="overflow-hidden w-full border-4 border-yellow-500 rounded bg-gray-900"
+        style={{ height: itemHeight * visibleRows }}
       >
         <div
           className="flex flex-col items-center w-full"
@@ -69,6 +77,7 @@ export default function SpinWheel({
         </div>
       </div>
 
+      {/* Spin Button */}
       <button
         onClick={spin}
         className="mt-4 px-4 py-1 bg-green-600 text-white text-sm font-bold rounded disabled:bg-gray-500"
