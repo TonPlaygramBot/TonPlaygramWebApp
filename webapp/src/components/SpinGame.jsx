@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import SpinWheel from './SpinWheel.tsx';
 import RewardPopup from './RewardPopup.tsx';
 import AdModal from './AdModal.tsx';
+import DailyCheckIn from './DailyCheckIn.jsx';
 import { canSpin, nextSpinTime } from '../utils/rewardLogic';
 import {
   getWalletBalance,
@@ -56,6 +57,7 @@ export default function SpinGame() {
           </button>
         </>
       )}
+      <DailyCheckIn />
       <RewardPopup reward={reward} onClose={() => setReward(null)} />
       <AdModal open={showAd} onClose={() => setShowAd(false)} />
     </div>
