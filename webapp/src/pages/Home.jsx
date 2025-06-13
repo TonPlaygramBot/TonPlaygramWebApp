@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react';
 import GameCard from '../components/GameCard.jsx';
 import MiningCard from '../components/MiningCard.tsx';
-import Branding from '../components/Branding.jsx';
 import SpinGame from '../components/SpinGame.jsx';
 import TasksCard from '../components/TasksCard.jsx';
 import { FaUser } from 'react-icons/fa';
@@ -19,11 +18,9 @@ export default function Home() {
 
   return (
     <div className="space-y-4">
-      <Branding />
         <div className="flex justify-center">
             <ConnectWallet />
         </div>
-      {/* Embedded Spin & Win */}
       <SpinGame />
 
       <div className="grid grid-cols-1 gap-4">
