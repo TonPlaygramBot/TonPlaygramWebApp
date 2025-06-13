@@ -102,7 +102,7 @@ export default function MiningCard() {
         >
           Start
         </button>
-        <p className="text-accent font-medium">
+        <p className="text-white font-medium">
           {status === 'Mining' ? formatTimeLeft(timeLeft) : '00:00:00'}
         </p>
         <p>
