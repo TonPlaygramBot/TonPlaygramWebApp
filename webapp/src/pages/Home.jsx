@@ -6,6 +6,7 @@ import SpinGame from '../components/SpinGame.jsx';
 import TasksCard from '../components/TasksCard.jsx';
 import { FaUser } from 'react-icons/fa';
 import { ping } from '../utils/api.js';
+import ConnectWallet from "../components/ConnectWallet.jsx";
 
 export default function Home() {
   const [status, setStatus] = useState('checking');
@@ -19,7 +20,9 @@ export default function Home() {
   return (
     <div className="space-y-4">
       <Branding />
-
+        <div className="flex justify-center">
+            <ConnectWallet />
+        </div>
       {/* Embedded Spin & Win */}
       <SpinGame />
 
