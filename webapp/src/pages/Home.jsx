@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react';
 import GameCard from '../components/GameCard.jsx';
-import WalletCard from '../components/WalletCard.jsx';
 import MiningCard from '../components/MiningCard.jsx';
 import Branding from '../components/Branding.jsx';
 import SpinGame from '../components/SpinGame.jsx';
@@ -23,7 +22,6 @@ export default function Home() {
       <SpinGame />
 
       <div className="grid grid-cols-1 gap-4">
-        <WalletCard />
         <MiningCard />
         <GameCard title="Dice Duel" icon="/assets/icons/dice.svg" link="/games/dice" />
         <GameCard title="Snakes & Ladders" icon="/assets/icons/snake.svg" link="/games/snake" />

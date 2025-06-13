@@ -1,76 +1,87 @@
 import { useEffect, useState } from 'react';
-import { getMiningStatus, startMining, stopMining, claimMining } from '../utils/api.js';
+import { useTonWallet } from '@tonconnect/ui-react';
+import { startMining, claimMining, getWalletBalance, getTonBalance } from '../utils/api.js';
 import { getTelegramId } from '../utils/telegram.js';
 
 export default function Mining() {
-  const [status, setStatus] = useState(null);
+  const [status, setStatus] = useState('Not Mining');
+  const [startTime, setStartTime] = useState(null);
+  const [balances, setBalances] = useState({ ton: null, tpc: null, usdt: 0 });
+  const wallet = useTonWallet();
 
-  const refresh = async () => {
-    const data = await getMiningStatus(getTelegramId());
-    setStatus(data);
+  const loadBalances = async () => {
+    const prof = await getWalletBalance(getTelegramId());
+    const ton = wallet?.account?.address
+      ? (await getTonBalance(wallet.account.address)).balance
+      : null;
+    setBalances({ ton, tpc: prof.balance, usdt: 0 });
   };
 
   useEffect(() => {
-    refresh();
-  }, []);
+    loadBalances();
+  }, [wallet]);
+
+  useEffect(() => {
+    if (status === 'Mining') {
+      const interval = setInterval(() => {
+        const now = Date.now();
+        const elapsed = now - startTime;
+        const twentyFourHours = 24 * 60 * 60 * 1000;
+        if (elapsed >= twentyFourHours) {
+          setStatus('Not Mining');
+          autoDistributeRewards();
+        }
+      }, 1000);
+      return () => clearInterval(interval);
+    }
+  }, [status, startTime]);
 
   const handleStart = async () => {
+    setStartTime(Date.now());
+    setStatus('Mining');
     await startMining(getTelegramId());
-    refresh();
   };
 
-  const handleStop = async () => {
-    await stopMining(getTelegramId());
-    refresh();
+  const autoDistributeRewards = async () => {
+    await claimMining(getTelegramId());
+    loadBalances();
   };
-
-  const handleClaim = async () => {
-    const res = await claimMining(getTelegramId());
-    alert(`Claimed ${res.amount} TPC. New balance: ${res.balance}`);
-    refresh();
-  };
-
-  if (!status) return <div className="p-4 text-subtext">Loading...</div>;
 
   return (
-    <div className="p-4 space-y-2 text-text">
-      <h2 className="text-xl font-bold">Mining</h2>
+    <div className="bg-[#11172a] text-white p-4 rounded-lg shadow-lg">
+      <div className="text-center mb-4">
+        <p className="text-gray-300 mb-2">Total Balance</p>
+        <div className="flex justify-around items-center text-sm">
+          <Token icon="/icons/ton.svg" value={balances.ton ?? '...'} />
+          <Token icon="/icons/tpc.svg" value={balances.tpc ?? '...'} />
+          <Token icon="/icons/usdt.svg" value={balances.usdt ?? '0'} />
+        </div>
+      </div>
 
-      <p>
-        Status:{' '}
-        <span className={status.isMining ? 'text-green-500' : 'text-red-500'}>
-          {status.isMining ? 'Mining' : 'Not Mining'}
-        </span>
-      </p>
-
-      <p>
-        Pending rewards: <span className="text-accent">{status.pending}</span>
-      </p>
-
-      <p>
-        Balance: <span className="text-accent">{status.balance}</span>
-      </p>
-
-      <div className="space-x-2">
+      <div className="text-center mt-4">
+        <p>
+          Status:{' '}
+          <span className={status === 'Mining' ? 'text-green-400' : 'text-red-400'}>
+            {status}
+          </span>
+        </p>
         <button
-          className="px-2 py-1 rounded bg-primary text-text hover:bg-primary-hover"
           onClick={handleStart}
+          disabled={status === 'Mining'}
+          className="mt-2 bg-green-500 hover:bg-green-600 text-white px-4 py-1 rounded-full font-semibold"
         >
           Start
         </button>
-        <button
-          className="px-2 py-1 rounded bg-surface text-text hover:bg-surface-hover"
-          onClick={handleStop}
-        >
-          Stop
-        </button>
-        <button
-          className="px-2 py-1 rounded bg-primary text-text hover:bg-primary-hover"
-          onClick={handleClaim}
-        >
-          Claim
-        </button>
       </div>
+    </div>
+  );
+}
+
+function Token({ icon, value }) {
+  return (
+    <div className="flex items-center space-x-1">
+      <img src={icon} alt="token" className="w-5 h-5" />
+      <span>{value}</span>
     </div>
   );
 }
