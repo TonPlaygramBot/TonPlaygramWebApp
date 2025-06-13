@@ -7,6 +7,7 @@ import { getTelegramId } from '../utils/telegram.js';
 import { IoLogoTwitter, IoLogoTiktok } from 'react-icons/io5';
 
 import { RiTelegramFill } from 'react-icons/ri';
+import { AiOutlineCheckSquare } from 'react-icons/ai';
 
 const ICONS = {
 
@@ -64,7 +65,7 @@ export default function TasksCard() {
 
     <div className="bg-surface border border-border rounded-xl p-4 space-y-2">
 
-      <h3 className="text-lg font-bold text-text text-center">Tasks</h3>
+      <h3 className="text-lg font-bold text-text flex items-center justify-center space-x-1"><AiOutlineCheckSquare className="text-accent" /><span>Tasks</span></h3>
 
       <ul className="space-y-2">
 
