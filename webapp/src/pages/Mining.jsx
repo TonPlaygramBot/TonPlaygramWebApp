@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import Branding from '../components/Branding.jsx';
 import { useTonWallet } from '@tonconnect/ui-react';
 import {
   startMining,
@@ -77,7 +78,9 @@ export default function Mining() {
   };
 
   return (
-    <div className="bg-surface border border-border text-text p-4 rounded-lg shadow-lg">
+    <div className="space-y-4">
+      <Branding />
+      <div className="bg-surface border border-border text-text p-4 rounded-lg shadow-lg">
       <div className="text-center mb-4">
         <p className="text-gray-300 mb-2">Total Balance</p>
         <div className="flex justify-around items-center text-sm">
@@ -104,6 +107,7 @@ export default function Mining() {
         </p>
       </div>
     </div>
+  </div>
   );
 }
 

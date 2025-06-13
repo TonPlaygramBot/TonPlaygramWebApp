@@ -7,6 +7,7 @@ import { getTelegramId } from '../utils/telegram.js';
 import { IoLogoTwitter, IoLogoTiktok } from 'react-icons/io5';
 
 import { RiTelegramFill } from 'react-icons/ri';
+import Branding from '../components/Branding.jsx';
 
 export default function Tasks() {
 
@@ -52,6 +53,7 @@ export default function Tasks() {
 
     <div className="p-4 space-y-2 text-text">
 
+      <Branding />
       <h2 className="text-xl font-bold">Tasks</h2>
 
       <ul className="space-y-2">

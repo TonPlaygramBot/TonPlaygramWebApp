@@ -7,6 +7,7 @@ import {
   linkSocial
 } from '../utils/api.js';
 import { getTelegramId } from '../utils/telegram.js';
+import Branding from '../components/Branding.jsx';
 
 export default function MyAccount() {
   const [profile, setProfile] = useState(null);
@@ -69,6 +70,7 @@ export default function MyAccount() {
 
   return (
     <div className="p-4 space-y-4 text-text">
+      <Branding />
       <h2 className="text-xl font-bold">My Account</h2>
 
       {/* Profile Info */}
