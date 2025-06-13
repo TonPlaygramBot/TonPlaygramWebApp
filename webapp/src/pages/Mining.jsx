@@ -66,11 +66,15 @@ export default function Mining() {
   };
 
   const autoDistributeRewards = async () => {
+<<<<<<< codex/automate-reward-distribution-and-update-logo
+    await claimMining(getTelegramId());
+=======
     try {
       await claimMining(getTelegramId());
     } catch (err) {
       console.error('Auto-claim failed:', err);
     }
+>>>>>>> main
     localStorage.removeItem('miningStart');
     setTimeLeft(0);
     loadBalances();

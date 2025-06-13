@@ -17,6 +17,13 @@ export default function MiningCard() {
   const wallet = useTonWallet();
 
   const loadBalances = async () => {
+<<<<<<< codex/automate-reward-distribution-and-update-logo
+    const prof = await getWalletBalance(getTelegramId());
+    const ton = wallet?.account?.address
+      ? (await getTonBalance(wallet.account.address)).balance
+      : null;
+    setBalances({ ton, tpc: prof.balance, usdt: 0 });
+=======
     try {
       const prof = await getWalletBalance(getTelegramId());
       const ton = wallet?.account?.address
@@ -26,6 +33,7 @@ export default function MiningCard() {
     } catch (err) {
       console.error('Failed to load balances:', err);
     }
+>>>>>>> main
   };
 
   const refresh = async () => {
@@ -33,7 +41,11 @@ export default function MiningCard() {
       const data = await getMiningStatus(getTelegramId());
       setStatus(data.isMining ? 'Mining' : 'Not Mining');
     } catch (err) {
+<<<<<<< codex/automate-reward-distribution-and-update-logo
+      console.error(err);
+=======
       console.warn('Mining status check failed, loading balances anyway.');
+>>>>>>> main
     }
     loadBalances();
   };
@@ -78,11 +90,15 @@ export default function MiningCard() {
   }, [status, startTime]);
 
   const autoDistributeRewards = async () => {
+<<<<<<< codex/automate-reward-distribution-and-update-logo
+    await claimMining(getTelegramId());
+=======
     try {
       await claimMining(getTelegramId());
     } catch (err) {
       console.error('Auto-claim failed:', err);
     }
+>>>>>>> main
     localStorage.removeItem('miningStart');
     setTimeLeft(0);
     refresh();
@@ -102,6 +118,13 @@ export default function MiningCard() {
         <span>⛏</span>
         <span>Mining</span>
       </h3>
+<<<<<<< codex/automate-reward-distribution-and-update-logo
+      <p className="text-xs text-gray-300">Total Balance</p>
+      <div className="flex justify-around text-xs mb-2">
+        <Token icon="/icons/ton.svg" value={balances.ton ?? '...'} />
+        <Token icon="/icons/tpc.svg" value={balances.tpc ?? '...'} />
+        <Token icon="/icons/usdt.svg" value={balances.usdt ?? '0'} />
+=======
 
       <p className="text-xs text-gray-300">Total Balance</p>
       <div className="flex justify-around text-xs mb-2">
@@ -125,11 +148,35 @@ export default function MiningCard() {
             {status === 'Mining' && ` - ${formatTimeLeft(timeLeft)}`}
           </span>
         </p>
+>>>>>>> main
+      </div>
+      <div className="flex items-center justify-between">
+        <button className="px-2 py-1 bg-green-500 text-white disabled:opacity-50" onClick={handleStart} disabled={status === 'Mining'}>
+          Start
+        </button>
+        <p className="text-sm">
+          Status{' '}
+          <span className={status === 'Mining' ? 'text-green-500' : 'text-red-500'}>
+            {status}
+            {status === 'Mining' && ` - ${formatTimeLeft(timeLeft)}`}
+          </span>
+        </p>
       </div>
     </div>
   );
 }
 
+function Token({ icon, value }) {
+  return (
+    <div className="flex items-center space-x-1">
+      <img src={icon} alt="token" className="w-4 h-4" />
+      <span>{value}</span>
+    </div>
+  );
+}
+
+<<<<<<< codex/automate-reward-distribution-and-update-logo
+=======
 function Token({ icon, value, label }) {
   return (
     <div className="flex items-center space-x-1">
@@ -139,6 +186,7 @@ function Token({ icon, value, label }) {
   );
 }
 
+>>>>>>> main
 function formatTimeLeft(ms) {
   const totalSeconds = Math.floor(ms / 1000);
   const hours = Math.floor(totalSeconds / 3600);
@@ -149,4 +197,10 @@ function formatTimeLeft(ms) {
     ':' +
     minutes.toString().padStart(2, '0') +
     ':' +
+<<<<<<< codex/automate-reward-distribution-and-update-logo
+    seconds.toString().padStart(2, '0')
+  );
+}
+=======
     seconds.toStrin
+>>>>>>> main
