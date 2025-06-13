@@ -8,9 +8,10 @@ interface SpinWheelProps {
   disabled?: boolean;
 }
 
-const itemHeight = 60; // Height per row in pixels
-const visibleRows = 7;
-const loops = 6;
+// Visual settings for the wheel
+const itemHeight = 50; // Height per row in pixels (slightly tighter spacing)
+const visibleRows = 3; // Show only three prices with the middle as the winner
+const loops = 8; // How many times the list repeats while spinning
 
 export default function SpinWheel({
   onFinish,
@@ -46,20 +47,22 @@ export default function SpinWheel({
   );
 
   return (
-    <div className="relative w-32 mx-auto flex flex-col items-center">
-      {/* Top pointer */}
-      <div className="absolute -top-2 left-1/2 -translate-x-1/2 w-0 h-0 
-                      border-l-8 border-r-8 border-b-8 
-                      border-l-transparent border-r-transparent border-b-yellow-500 z-10" />
+    <div className="relative w-40 mx-auto flex flex-col items-center">
+      {/* Left pointer */}
+      <div
+        className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-full w-0 h-0
+                   border-t-8 border-b-8 border-r-8
+                   border-t-transparent border-b-transparent border-r-yellow-500 z-10" />
 
-      {/* Bottom pointer */}
-      <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 w-0 h-0 
-                      border-l-8 border-r-8 border-t-8 
-                      border-l-transparent border-r-transparent border-t-yellow-500 z-10" />
+      {/* Right pointer */}
+      <div
+        className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-full w-0 h-0
+                   border-t-8 border-b-8 border-l-8
+                   border-t-transparent border-b-transparent border-l-yellow-500 z-10" />
 
       {/* Slot container */}
       <div
-        className="overflow-hidden w-full border-4 border-yellow-500 rounded bg-gray-900"
+        className="overflow-hidden w-full"
         style={{ height: itemHeight * visibleRows }}
       >
         <div
@@ -72,11 +75,12 @@ export default function SpinWheel({
           {items.map((val, idx) => (
             <div
               key={idx}
-              className={`h-[60px] flex items-center justify-center text-sm w-full ${
-                idx === winnerIndex ? 'bg-yellow-600 text-white' : 'text-yellow-400'
+              className={`flex items-center justify-center text-lg w-full ${
+                idx === winnerIndex ? 'bg-yellow-500 text-black font-bold' : 'text-yellow-400'
               }`}
+              style={{ height: itemHeight }}
             >
-              <img src="/icons/tpc.svg" alt="TPC" className="w-4 h-4 mr-1" />
+              <img src="/icons/tpc.svg" alt="TPC" className="w-5 h-5 mr-1" />
               <span>{val}</span>
             </div>
           ))}
