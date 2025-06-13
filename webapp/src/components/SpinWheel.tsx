@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { segments, getRandomReward } from '../utils/rewardLogic';
 
 interface SpinWheelProps {
@@ -12,9 +12,14 @@ const segmentAngle = 360 / segments.length;
 
 export default function SpinWheel({ onFinish, spinning, setSpinning, disabled }: SpinWheelProps) {
   const [angle, setAngle] = useState(0);
+  const soundRef = useRef<HTMLAudioElement | null>(null);
 
   const spin = () => {
     if (spinning || disabled) return;
+    if (soundRef.current) {
+      soundRef.current.currentTime = 0;
+      soundRef.current.play().catch(() => {});
+    }
     const reward = getRandomReward();
     const index = segments.indexOf(reward);
     const rotations = 5;
@@ -38,7 +43,7 @@ export default function SpinWheel({ onFinish, spinning, setSpinning, disabled }:
 
       {/* Spinning Wheel */}
       <div
-        className="w-full h-full rounded-full border-4 border-yellow-500 flex items-center justify-center transition-transform duration-[4000ms]"
+        className="w-full h-full rounded-full border-4 border-yellow-500 flex items-center justify-center transition-transform duration-[4000ms] ease-in-out"
         style={{
           transform: `rotate(${angle}deg)`,
           backgroundImage:
@@ -48,12 +53,14 @@ export default function SpinWheel({ onFinish, spinning, setSpinning, disabled }:
         {segments.map((s, i) => (
           <div
             key={i}
-            className="absolute flex items-center justify-center text-yellow-400 text-sm"
+            className="absolute flex flex-col items-center justify-center text-yellow-400 text-sm"
             style={{
-              transform: `rotate(${i * segmentAngle}deg) translateY(-90px) rotate(${-i * segmentAngle}deg)`
+              transform: `rotate(${i * segmentAngle + segmentAngle / 2}deg) translateY(-70px) rotate(${-i * segmentAngle - segmentAngle / 2}deg)`,
+              writingMode: 'vertical-rl',
+              textOrientation: 'upright'
             }}
           >
-            <img src="/icons/tpc.svg" alt="TPC" className="w-4 h-4 mr-1" />
+            <img src="/icons/tpc.svg" alt="TPC" className="w-4 h-4 mb-1" />
             <span>{s}</span>
           </div>
         ))}
@@ -67,6 +74,7 @@ export default function SpinWheel({ onFinish, spinning, setSpinning, disabled }:
       >
         Spin
       </button>
+      <audio ref={soundRef} src="/spin.ogg" className="hidden" />
     </div>
   );
 }
