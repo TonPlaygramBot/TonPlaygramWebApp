@@ -15,6 +15,7 @@ export default function MiningCard() {
   const [balances, setBalances] = useState({ ton: null, tpc: null, usdt: 0 });
   const wallet = useTonWallet();
 
+  // Loads balances from both TON wallet and project wallet
   const loadBalances = async () => {
     const prof = await getWalletBalance(getTelegramId());
     const ton = wallet?.account?.address
@@ -23,24 +24,32 @@ export default function MiningCard() {
     setBalances({ ton, tpc: prof.balance, usdt: 0 });
   };
 
+  // Loads mining status from backend
   const refresh = async () => {
     const data = await getMiningStatus(getTelegramId());
     setStatus(data.isMining ? 'Mining' : 'Not Mining');
+    if (data.isMining && data.startTime) {
+      setStartTime(data.startTime);
+    }
   };
 
   useEffect(() => {
     refresh();
     loadBalances();
+    // eslint-disable-next-line
   }, [wallet]);
 
+  // Start mining action
   const handleStart = async () => {
     setStartTime(Date.now());
     setStatus('Mining');
     await startMining(getTelegramId());
+    refresh();
   };
 
+  // Handles mining session end and auto claim
   useEffect(() => {
-    if (status === 'Mining') {
+    if (status === 'Mining' && startTime) {
       const interval = setInterval(() => {
         const now = Date.now();
         const elapsed = now - startTime;
@@ -52,6 +61,7 @@ export default function MiningCard() {
       }, 1000);
       return () => clearInterval(interval);
     }
+    // eslint-disable-next-line
   }, [status, startTime]);
 
   const autoDistributeRewards = async () => {
@@ -62,50 +72,4 @@ export default function MiningCard() {
 
   if (!status) {
     return (
-      <div className="bg-gray-800/60 p-4 rounded-xl shadow-lg text-white">
-        Loading...
-      </div>
-    );
-  }
-
-  return (
-    <div className="bg-gray-800/60 p-4 rounded-xl shadow-lg text-white flex justify-between">
-      <div className="space-y-2">
-        <h3 className="text-lg font-bold flex items-center space-x-2">
-          <span>⛏</span>
-          <span>Mining</span>
-        </h3>
-        <p>
-          Status:{' '}
-          <span className={status === 'Mining' ? 'text-green-500' : 'text-red-500'}>
-            {status}
-          </span>
-        </p>
-        <button
-          className="px-2 py-1 bg-green-500 text-white"
-          onClick={handleStart}
-          disabled={status === 'Mining'}
-        >
-          Start
-        </button>
-      </div>
-      <div className="text-right space-y-2">
-        <p className="text-gray-300">Total Balance</p>
-        <div className="flex justify-end items-center space-x-2 text-sm">
-          <Token icon="/icons/ton.svg" value={balances.ton ?? '...'} />
-          <Token icon="/icons/tpc.svg" value={balances.tpc ?? '...'} />
-          <Token icon="/icons/usdt.svg" value={balances.usdt ?? '0'} />
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function Token({ icon, value }) {
-  return (
-    <div className="flex items-center space-x-1">
-      <img src={icon} alt="token" className="w-5 h-5" />
-      <span>{value}</span>
-    </div>
-  );
-}
+      <div className="bg-gray-800/60 p-4 rounded-xl s

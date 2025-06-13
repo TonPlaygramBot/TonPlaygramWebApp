@@ -18,6 +18,7 @@ export default function Mining() {
   const refreshStatus = async () => {
     const data = await getMiningStatus(getTelegramId());
     setStatus(data.isMining ? 'Mining' : 'Not Mining');
+    if (data.isMining && data.startTime) setStartTime(data.startTime);
   };
 
   const loadBalances = async () => {
@@ -31,10 +32,11 @@ export default function Mining() {
   useEffect(() => {
     loadBalances();
     refreshStatus();
+    // eslint-disable-next-line
   }, [wallet]);
 
   useEffect(() => {
-    if (status === 'Mining') {
+    if (status === 'Mining' && startTime) {
       const interval = setInterval(() => {
         const now = Date.now();
         const elapsed = now - startTime;
@@ -46,6 +48,7 @@ export default function Mining() {
       }, 1000);
       return () => clearInterval(interval);
     }
+    // eslint-disable-next-line
   }, [status, startTime]);
 
   const handleStart = async () => {
@@ -65,37 +68,4 @@ export default function Mining() {
     <div className="bg-[#11172a] text-white p-4 rounded-lg shadow-lg">
       <div className="text-center mb-4">
         <p className="text-gray-300 mb-2">Total Balance</p>
-        <div className="flex justify-around items-center text-sm">
-          <Token icon="/icons/ton.svg" value={balances.ton ?? '...'} />
-          <Token icon="/icons/tpc.svg" value={balances.tpc ?? '...'} />
-          <Token icon="/icons/usdt.svg" value={balances.usdt ?? '0'} />
-        </div>
-      </div>
-
-      <div className="text-center mt-4">
-        <p>
-          Status:{' '}
-          <span className={status === 'Mining' ? 'text-green-400' : 'text-red-400'}>
-            {status}
-          </span>
-        </p>
-        <button
-          onClick={handleStart}
-          disabled={status === 'Mining'}
-          className="mt-2 bg-green-500 hover:bg-green-600 text-white px-4 py-1 rounded-full font-semibold"
-        >
-          Start
-        </button>
-      </div>
-    </div>
-  );
-}
-
-function Token({ icon, value }) {
-  return (
-    <div className="flex items-center space-x-1">
-      <img src={icon} alt="token" className="w-5 h-5" />
-      <span>{value}</span>
-    </div>
-  );
-}
+        <div className="flex justify-around items-center text
