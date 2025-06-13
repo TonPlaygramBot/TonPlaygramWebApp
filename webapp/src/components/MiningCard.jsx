@@ -26,8 +26,8 @@ export default function MiningCard() {
       const interval = setInterval(() => {
         const now = Date.now();
         const elapsed = now - startTime;
-        const twentyFourHours = 24 * 60 * 60 * 1000;
-        if (elapsed >= twentyFourHours) {
+        const twelveHours = 12 * 60 * 60 * 1000;
+        if (elapsed >= twelveHours) {
           setStatus('Not Mining');
           autoDistributeRewards();
         }
