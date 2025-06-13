@@ -98,6 +98,10 @@ The webapp now uses **TonConnect** to link a Tonkeeper wallet. Configure
 `VITE_TONCONNECT_MANIFEST` in `webapp/.env` and expose the same manifest URL on
 the server via `TONCONNECT_MANIFEST_URL`.
 
+## Testing
+Currently there is no automated test suite. The `npm test` script simply prints "No tests" for each package.
+
+
 ## Open Source Games
 - [Chessu](https://github.com/dotnize/chessu) – Competitive chess with socket rooms.
 - [Snakes & Ladders / Chutes & Ladders](https://github.com/yashksaini/snakes-and-ladders-game) – Custom avatars, virtual board, and climb/slide animations.
