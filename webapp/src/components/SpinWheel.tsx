@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { segments, getRandomReward } from '../utils/rewardLogic';
+import { segments } from '../utils/rewardLogic';
 
 interface SpinWheelProps {
   onFinish: (reward: number) => void;
@@ -8,11 +8,9 @@ interface SpinWheelProps {
   disabled?: boolean;
 }
 
-// Visual settings
-const itemHeight = 56; // Each prize row is 56px tall
-const visibleRows = 7; // Show 7 prize rows at all times
-const winningRow = 2;  // 3rd row is the winner
-const loops = 12;      // Spin depth for drama
+const visibleCount = 6;          // Show 6 prize amounts
+const wheelSize = 240;           // Diameter of the wheel in pixels
+const loops = 6;                 // Full rotations during a spin for drama
 
 export default function SpinWheel({
   onFinish,
@@ -20,36 +18,61 @@ export default function SpinWheel({
   setSpinning,
   disabled
 }: SpinWheelProps) {
-  const [offset, setOffset] = useState(0);
-  const [winnerIndex, setWinnerIndex] = useState<number | null>(null);
+  const prizes = segments.slice(0, visibleCount);
+  const wedge = 360 / prizes.length;
+  const [rotation, setRotation] = useState(-90); // start with first prize on top
 
   const spin = () => {
     if (spinning || disabled) return;
 
-    const reward = getRandomReward();
-    const index = segments.indexOf(reward);
-    const finalIndex = loops * segments.length + index;
-    const finalOffset = -(finalIndex - winningRow) * itemHeight;
+    const index = Math.floor(Math.random() * prizes.length);
+    const reward = prizes[index];
 
-    setOffset(finalOffset);
+    const finalRotation = rotation - loops * 360 - index * wedge;
+
+    setRotation(finalRotation);
     setSpinning(true);
-    setWinnerIndex(null);
 
     setTimeout(() => {
       setSpinning(false);
-      setWinnerIndex(finalIndex);
       onFinish(reward);
     }, 4000);
   };
 
-  const items = Array.from(
-    { length: segments.length * loops + visibleRows + segments.length },
-    (_, i) => segments[i % segments.length]
-  );
-
   return (
-    <div className="relative w-40 mx-auto flex flex-col items-center">
-      {/* Highlight the 3rd visible row as the winner */}
-      <div
-        className="absolute inset-x-0 border-4 border-yellow-500 pointer-events-none z-10"
-        style={{ top: itemHeight * w*
+    <div className="mx-auto flex flex-col items-center" style={{ width: wheelSize }}>
+      <div className="relative" style={{ width: wheelSize, height: wheelSize }}>
+        <div
+          className="absolute inset-0 rounded-full border-4 border-yellow-500"
+          style={{
+            transform: `rotate(${rotation}deg)`,
+            transition: 'transform 4s cubic-bezier(0.33,1,0.68,1)'
+          }}
+        >
+          {prizes.map((val, idx) => {
+            const angle = idx * wedge;
+            const r = wheelSize / 2 - 20;
+            return (
+              <div
+                key={idx}
+                className="absolute left-1/2 top-1/2 text-yellow-400 text-xs font-semibold"
+                style={{
+                  transform: `rotate(${angle}deg) translate(${r}px) rotate(-${angle}deg)`
+                }}
+              >
+                {val}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+      <button
+        onClick={spin}
+        className="mt-4 px-4 py-1 bg-green-600 text-white text-sm font-bold rounded disabled:bg-gray-500"
+        disabled={spinning || disabled}
+      >
+        Spin
+      </button>
+    </div>
+  );
+}
