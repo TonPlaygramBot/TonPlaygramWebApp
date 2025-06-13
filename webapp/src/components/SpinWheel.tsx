@@ -8,7 +8,7 @@ interface SpinWheelProps {
   disabled?: boolean;
 }
 
-const itemHeight = 60; // Height per row in pixels
+const itemHeight = 60;
 const visibleRows = 7;
 const loops = 6;
 
@@ -30,8 +30,8 @@ export default function SpinWheel({
     const finalOffset = -(finalIndex - Math.floor(visibleRows / 2)) * itemHeight;
 
     setOffset(finalOffset);
+    setWinnerIndex(null);
     setSpinning(true);
-    setWinnerIndex(null); // reset winner before spin
 
     setTimeout(() => {
       setSpinning(false);
@@ -46,20 +46,20 @@ export default function SpinWheel({
   );
 
   return (
-    <div className="relative w-32 mx-auto flex flex-col items-center">
-      {/* Top pointer */}
+    <div className="relative flex flex-col items-center w-full bg-gradient-to-b from-gray-900 to-black py-6 rounded-lg shadow-lg border border-yellow-600">
+      {/* Top Pointer */}
       <div className="absolute -top-2 left-1/2 -translate-x-1/2 w-0 h-0 
                       border-l-8 border-r-8 border-b-8 
                       border-l-transparent border-r-transparent border-b-yellow-500 z-10" />
 
-      {/* Bottom pointer */}
+      {/* Bottom Pointer */}
       <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 w-0 h-0 
                       border-l-8 border-r-8 border-t-8 
                       border-l-transparent border-r-transparent border-t-yellow-500 z-10" />
 
-      {/* Slot container */}
+      {/* Slot Container */}
       <div
-        className="overflow-hidden w-full border-4 border-yellow-500 rounded bg-gray-900"
+        className="overflow-hidden w-48 border-4 border-yellow-500 rounded bg-gray-900"
         style={{ height: itemHeight * visibleRows }}
       >
         <div
@@ -72,20 +72,24 @@ export default function SpinWheel({
           {items.map((val, idx) => (
             <div
               key={idx}
-              className={`h-[60px] flex items-center justify-center text-sm w-full ${
-                idx === winnerIndex ? 'bg-yellow-600 text-white' : 'text-yellow-400'
+              className={`flex items-center justify-center text-sm font-semibold w-full ${
+                idx === winnerIndex ? 'bg-yellow-600 text-white' : 'text-yellow-300'
               }`}
+              style={{ height: itemHeight }}
             >
-              <img src="/icons/tpc.svg" alt="TPC" className="w-4 h-4 mr-1" />
+              <div className="w-6 h-6 mr-2 flex items-center justify-center bg-yellow-400 rounded-full text-black text-xs font-bold shadow-inner">
+                ⬢
+              </div>
               <span>{val}</span>
             </div>
           ))}
         </div>
       </div>
 
+      {/* Spin Button */}
       <button
         onClick={spin}
-        className="mt-4 px-4 py-1 bg-green-600 text-white text-sm font-bold rounded disabled:bg-gray-500"
+        className="mt-6 px-6 py-2 bg-yellow-500 text-black rounded-full font-bold hover:bg-yellow-400 disabled:opacity-50"
         disabled={spinning || disabled}
       >
         Spin

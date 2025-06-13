@@ -7,7 +7,7 @@ export default {
     extend: {
       colors: {
         // TonPlaygram premium theme
-        background: '#0b0f19',        // Page background
+        background: '#0c1020',        // Page background navy
         surface: '#11172a',           // Cards, panels
         border: '#27272a',            // Dividers/borders
         primary: '#2563eb',           // Button base (TON blue)
