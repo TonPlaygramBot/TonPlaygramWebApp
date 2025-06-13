@@ -36,35 +36,14 @@ export default function DailyCheckIn() {
     setShowPopup(false);
   };
 
+  // Show only current streak day and the next 4 days (total 5)
   const progress = [];
-  for (let i = streak - 1; i < Math.min(streak + 5, REWARDS.length); i++) {
+  for (
+    let i = streak - 1;
+    i < Math.min(streak - 1 + 5, REWARDS.length);
+    i++
+  ) {
     progress.push(
       <div
         key={i}
         className={`flex flex-col items-center p-2 rounded border border-border w-20 text-xs ${
-          i === streak - 1 ? 'bg-accent text-white' : 'bg-surface text-text'
-        }`}
-      >
-        <span>Day {i + 1}</span>
-        <span>{REWARDS[i]} TPC</span>
-      </div>
-    );
-  }
-
-  return (
-    <div className="w-full space-y-2">
-      {showPopup && (
-        <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-70 z-50">
-          <div className="bg-surface border border-border p-6 rounded text-center space-y-4 text-text">
-            <p className="font-semibold">Daily Check-In</p>
-            <button onClick={handleCheckIn} className="px-4 py-2 bg-blue-600 text-white rounded">
-              Check in
-            </button>
-          </div>
-        </div>
-      )}
-      {reward !== null && <RewardPopup reward={reward} onClose={() => setReward(null)} />}
-      <div className="flex space-x-2 overflow-x-auto">{progress}</div>
-    </div>
-  );
-}
