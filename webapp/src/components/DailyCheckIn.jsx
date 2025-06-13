@@ -36,6 +36,7 @@ export default function DailyCheckIn() {
     setShowPopup(false);
   };
 
+  // Show only 5 days from current streak
   const progress = [];
   for (
     let i = streak - 1;
@@ -49,7 +50,7 @@ export default function DailyCheckIn() {
           i === streak - 1 ? 'bg-accent text-white' : 'bg-surface text-text'
         }`}
       >
-        <span className="text-lg font-bold">{i + 1}</span>
+        <span>Day {i + 1}</span>
         <span className="flex items-center">
           {REWARDS[i]}
           <img src="/icons/tpc.svg" alt="TPC" className="w-4 h-4 ml-1" />
@@ -64,13 +65,17 @@ export default function DailyCheckIn() {
         <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-70 z-50">
           <div className="bg-surface border border-border p-6 rounded text-center space-y-4 text-text">
             <p className="font-semibold">Daily Check-In</p>
-            <button onClick={handleCheckIn} className="px-4 py-2 bg-blue-600 text-white rounded">
+            <button
+              onClick={handleCheckIn}
+              className="px-4 py-2 bg-blue-600 text-white rounded"
+            >
               Check in
             </button>
           </div>
         </div>
       )}
       {reward !== null && <RewardPopup reward={reward} onClose={() => setReward(null)} />}
+      {/* Place below your spin-game ad message */}
       <div className="flex space-x-2 overflow-x-auto">{progress}</div>
     </div>
   );
