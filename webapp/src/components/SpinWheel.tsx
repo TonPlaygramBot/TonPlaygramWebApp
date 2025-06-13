@@ -19,11 +19,8 @@ export default function SpinWheel({ onFinish, spinning, setSpinning, disabled }:
     const index = segments.indexOf(reward);
     const rotations = 5;
 
-    // Stop in the center of the slice
-    const finalAngle =
-      rotations * 360 +
-      (segments.length - index) * segmentAngle -
-      segmentAngle / 2;
+    // Make sure the reward lands exactly at the top (centered under the arrow)
+    const finalAngle = rotations * 360 - (index * segmentAngle + segmentAngle / 2);
 
     setAngle(finalAngle);
     setSpinning(true);
@@ -36,10 +33,10 @@ export default function SpinWheel({ onFinish, spinning, setSpinning, disabled }:
 
   return (
     <div className="relative w-64 h-64 mx-auto">
-      {/* Reward Pointer (FLIPPED to bottom) */}
-      <div className="absolute bottom-0 left-1/2 -translate-x-1/2 translate-y-1/2 w-0 h-0 border-l-8 border-r-8 border-t-[16px] border-l-transparent border-r-transparent border-t-yellow-500 z-10" />
+      {/* Arrow (top center, pointing down) */}
+      <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 w-0 h-0 border-l-8 border-r-8 border-b-[16px] border-l-transparent border-r-transparent border-b-yellow-500 z-10" />
 
-      {/* Wheel */}
+      {/* Spinning Wheel */}
       <div
         className="w-full h-full rounded-full border-4 border-yellow-500 flex items-center justify-center transition-transform duration-[4000ms]"
         style={{
