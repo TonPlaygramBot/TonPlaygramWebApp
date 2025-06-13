@@ -89,7 +89,8 @@ Set `MONGODB_URI=memory` in the environment if you do not have a database. Other
 
 The webapp now uses **TonConnect** to link a Tonkeeper wallet. Configure
 `VITE_TONCONNECT_MANIFEST` in `webapp/.env` and expose the same manifest URL on
-the server via `TONCONNECT_MANIFEST_URL`.
+the server via `TONCONNECT_MANIFEST_URL`. The server serves a dynamic
+`/tonconnect-manifest.json` response that always reflects the current hostname.
 
 ## Open Source Games
 - [Chessu](https://github.com/dotnize/chessu) – Competitive chess with socket rooms.
