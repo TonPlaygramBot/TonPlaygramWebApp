@@ -77,7 +77,7 @@ export default function Mining() {
   };
 
   return (
-    <div className="bg-[#11172a] text-white p-4 rounded-lg shadow-lg">
+    <div className="bg-surface border border-border text-text p-4 rounded-lg shadow-lg">
       <div className="text-center mb-4">
         <p className="text-gray-300 mb-2">Total Balance</p>
         <div className="flex justify-around items-center text-sm">

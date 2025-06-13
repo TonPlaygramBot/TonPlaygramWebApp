@@ -36,7 +36,7 @@ export default function SpinGame() {
   const ready = canSpin(lastSpin);
 
   return (
-    <div className="bg-gray-800 rounded p-4 flex flex-col items-center space-y-2">
+    <div className="bg-surface border border-border rounded p-4 flex flex-col items-center space-y-2">
       <SpinWheel
         onFinish={handleFinish}
         spinning={spinning}
