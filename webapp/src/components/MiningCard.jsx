@@ -15,11 +15,12 @@ export default function SpinWheel({ onFinish, spinning, setSpinning, disabled }:
 
   const spin = () => {
     if (spinning || disabled) return;
+
     const reward = getRandomReward();
     const index = segments.indexOf(reward);
     const rotations = 5;
 
-    // Stop wheel with reward centered under top pointer
+    // Stop the wheel so reward lands centered under the top pointer
     const finalAngle = rotations * 360 - (index * segmentAngle + segmentAngle / 2);
 
     setAngle(finalAngle);
@@ -33,17 +34,18 @@ export default function SpinWheel({ onFinish, spinning, setSpinning, disabled }:
 
   return (
     <div className="relative w-64 h-64 mx-auto">
-      {/* Pointer at the top of the wheel */}
+      {/* Pointer arrow (top center) */}
       <div
-        className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 w-0 h-0
-                      border-l-8 border-r-8 border-b-[16px] border-l-transparent
-                      border-r-transparent border-b-yellow-500 z-10"
+        className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 w-0 h-0 
+                   border-l-8 border-r-8 border-b-[16px] border-l-transparent 
+                   border-r-transparent border-b-yellow-500 z-10"
       />
 
       {/* Spinning wheel */}
       <div
-        className="w-full h-full rounded-full border-4 border-yellow-500
-                   flex items-center justify-center transition-transform duration-[4000ms] ease-in-out"
+        className="w-full h-full rounded-full border-4 border-yellow-500 
+                   flex items-center justify-center transition-transform 
+                   duration-[4000ms] ease-in-out"
         style={{
           transform: `rotate(${angle}deg)`,
           backgroundImage:
