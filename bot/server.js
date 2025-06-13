@@ -93,7 +93,13 @@ app.use(express.static(webappPath));
 // deployments hit this Express server before the static middleware. Providing
 // an explicit route avoids 404 errors.
 app.get('/tonconnect-manifest.json', (req, res) => {
-  res.sendFile(path.join(webappPath, 'tonconnect-manifest.json'));
+  const baseUrl = `${req.protocol}://${req.get('host')}`;
+  res.json({
+    name: 'TonPlaygram Chess',
+    description: 'Play chess with TPC staking via Tonkeeper',
+    url: baseUrl,
+    icons: [`${baseUrl}/icons/tpc.svg`]
+  });
 });
 app.get('/', (req, res) => {
   res.sendFile(path.join(webappPath, 'index.html'));
