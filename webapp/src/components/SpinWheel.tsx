@@ -25,7 +25,7 @@ export default function SpinWheel({
     const index = segments.indexOf(reward);
     const rotations = 5;
 
-    // Make sure the reward lands exactly at the top (centered under the arrow)
+    // Final angle adjustment to center the segment under the pointer at the top (0deg)
     const finalAngle =
       rotations * 360 + (index * segmentAngle * -1) + segmentAngle / 2;
 
