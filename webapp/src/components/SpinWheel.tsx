@@ -15,11 +15,12 @@ export default function SpinWheel({ onFinish, spinning, setSpinning, disabled }:
 
   const spin = () => {
     if (spinning || disabled) return;
+
     const reward = getRandomReward();
     const index = segments.indexOf(reward);
     const rotations = 5;
 
-    // Make sure the reward lands exactly at the top (centered under the arrow)
+    // Final angle to center reward under the top pointer
     const finalAngle = rotations * 360 - (index * segmentAngle + segmentAngle / 2);
 
     setAngle(finalAngle);
@@ -33,12 +34,15 @@ export default function SpinWheel({ onFinish, spinning, setSpinning, disabled }:
 
   return (
     <div className="relative w-64 h-64 mx-auto">
-      {/* Arrow (top center, pointing down) */}
-      <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 w-0 h-0 border-l-8 border-r-8 border-b-[16px] border-l-transparent border-r-transparent border-b-yellow-500 z-10" />
+      {/* Pointer at top, pointing down */}
+      <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 
+                      w-0 h-0 border-l-8 border-r-8 border-b-[16px] 
+                      border-l-transparent border-r-transparent border-b-yellow-500 z-10" />
 
-      {/* Spinning Wheel */}
+      {/* Wheel */}
       <div
-        className="w-full h-full rounded-full border-4 border-yellow-500 flex items-center justify-center transition-transform duration-[4000ms]"
+        className="w-full h-full rounded-full border-4 border-yellow-500 
+                   flex items-center justify-center transition-transform duration-[4000ms]"
         style={{
           transform: `rotate(${angle}deg)`,
           backgroundImage:
@@ -62,7 +66,9 @@ export default function SpinWheel({ onFinish, spinning, setSpinning, disabled }:
       {/* Static Spin Button */}
       <button
         onClick={spin}
-        className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-16 h-16 rounded-full bg-green-600 text-white text-sm font-bold flex items-center justify-center disabled:bg-gray-500"
+        className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 
+                   w-16 h-16 rounded-full bg-green-600 text-white text-sm font-bold 
+                   flex items-center justify-center disabled:bg-gray-500"
         disabled={spinning || disabled}
       >
         Spin
