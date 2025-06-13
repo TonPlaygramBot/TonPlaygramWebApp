@@ -1,3 +1,6 @@
+import { useEffect } from 'react';
+import confetti from 'canvas-confetti';
+
 interface RewardPopupProps {
   reward: number | null;
   onClose: () => void;
@@ -5,6 +8,9 @@ interface RewardPopupProps {
 
 export default function RewardPopup({ reward, onClose }: RewardPopupProps) {
   if (reward === null) return null;
+  useEffect(() => {
+    confetti({ particleCount: 150, spread: 70, origin: { y: 0.6 } });
+  }, []);
   return (
     <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-70 z-50">
       <div className="bg-gray-800 p-6 rounded text-center space-y-4">
