@@ -1,4 +1,5 @@
-export const segments = [300, 800, 1000, 1200, 1400, 1500, 1600, 1800];
+// Prize amounts available on the wheel. Added a 5000 TPC jackpot.
+export const segments = [300, 800, 1000, 1200, 1400, 1500, 1600, 1800, 5000];
 const ONE_HOUR = 3600_000;
 
 export function canSpin(lastSpin: number | null): boolean {
