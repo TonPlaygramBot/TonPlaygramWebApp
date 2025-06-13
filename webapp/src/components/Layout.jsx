@@ -5,13 +5,7 @@ import Footer from './Footer.jsx';
 export default function Layout({ children }) {
   return (
     <div className="flex flex-col min-h-screen bg-background text-text relative">
-      <header className="flex justify-center p-4">
-        <img
-          src="https://i.imgur.com/fvscsfn.png"
-          alt="TonPlaygram Logo"
-          className="max-w-[200px] w-full h-auto drop-shadow"
-        />
-      </header>
+      {/* Removed header logo per design change */}
       <main className="flex-grow container mx-auto p-4 pb-24">
         {children}
       </main>
