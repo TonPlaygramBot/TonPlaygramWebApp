@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { segments, getRandomReward } from '../utils/rewardLogic';
+import { segments } from '../utils/rewardLogic';
 
 interface SpinWheelProps {
   onFinish: (reward: number) => void;
@@ -8,11 +8,11 @@ interface SpinWheelProps {
   disabled?: boolean;
 }
 
-// Visual settings
-const itemHeight = 56; // Each prize row is 56px tall
-const visibleRows = 7; // Show 7 prize rows at all times
-const winningRow = 2;  // 3rd row is the winner
-const loops = 12;      // Spin depth for drama
+// Slot machine style settings
+const itemHeight = 40; // Height per prize row in pixels
+const visibleRows = 7; // Always display 7 rows
+const winningRow = 2;  // Index of the row that marks the winner (3rd row)
+const loops = 8;       // How many times the list repeats while spinning
 
 export default function SpinWheel({
   onFinish,
@@ -23,11 +23,17 @@ export default function SpinWheel({
   const [offset, setOffset] = useState(0);
   const [winnerIndex, setWinnerIndex] = useState<number | null>(null);
 
+  const items = Array.from(
+    { length: segments.length * loops + visibleRows },
+    (_, i) => segments[i % segments.length]
+  );
+
   const spin = () => {
     if (spinning || disabled) return;
 
-    const reward = getRandomReward();
-    const index = segments.indexOf(reward);
+    const index = Math.floor(Math.random() * segments.length);
+    const reward = segments[index];
+
     const finalIndex = loops * segments.length + index;
     const finalOffset = -(finalIndex - winningRow) * itemHeight;
 
@@ -42,14 +48,45 @@ export default function SpinWheel({
     }, 4000);
   };
 
-  const items = Array.from(
-    { length: segments.length * loops + visibleRows + segments.length },
-    (_, i) => segments[i % segments.length]
-  );
-
   return (
-    <div className="relative w-40 mx-auto flex flex-col items-center">
-      {/* Highlight the 3rd visible row as the winner */}
+    <div className="w-40 mx-auto flex flex-col items-center">
       <div
-        className="absolute inset-x-0 border-4 border-yellow-500 pointer-events-none z-10"
-        style={{ top: itemHeight * w*
+        className="relative overflow-hidden w-full"
+        style={{ height: itemHeight * visibleRows }}
+      >
+        {/* Highlight the winning row */}
+        <div
+          className="absolute inset-x-0 border-2 border-yellow-500 pointer-events-none"
+          style={{ top: itemHeight * winningRow, height: itemHeight }}
+        />
+        <div
+          className="flex flex-col items-center w-full"
+          style={{
+            transform: `translateY(${offset}px)`,
+            transition: 'transform 4s cubic-bezier(0.33,1,0.68,1)'
+          }}
+        >
+          {items.map((val, idx) => (
+            <div
+              key={idx}
+              className={`flex items-center justify-center text-sm w-full ${
+                idx === winnerIndex ? 'bg-yellow-500 text-black font-bold' : 'text-yellow-400'
+              }`}
+              style={{ height: itemHeight }}
+            >
+              <img src="/icons/tpc.svg" alt="TPC" className="w-5 h-5 mr-1" />
+              <span>{val}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+      <button
+        onClick={spin}
+        className="mt-4 px-4 py-1 bg-green-600 text-white text-sm font-bold rounded disabled:bg-gray-500"
+        disabled={spinning || disabled}
+      >
+        Spin
+      </button>
+    </div>
+  );
+}
