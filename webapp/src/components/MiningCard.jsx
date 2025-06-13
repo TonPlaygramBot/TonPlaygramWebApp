@@ -23,7 +23,7 @@ export default function MiningCard() {
       const ton = wallet?.account?.address
         ? (await getTonBalance(wallet.account.address)).balance
         : null;
-      setBalances({ ton, tpc: prof.balance, usdt: 0 }); // USDT label corrected
+      setBalances({ ton, tpc: prof.balance, usdt: 0 });
     } catch (err) {
       console.error('Failed to load balances:', err);
     }
@@ -96,6 +96,7 @@ export default function MiningCard() {
         <span>Mining</span>
       </h3>
 
+      {/* Mining Status Row */}
       <div className="flex items-center justify-between text-sm">
         <button
           className="px-2 py-1 bg-green-500 text-white rounded disabled:opacity-50"
@@ -115,10 +116,13 @@ export default function MiningCard() {
         </p>
       </div>
 
+      {/* Balance Header with Wallet Icon */}
       <p className="text-lg font-bold text-gray-300 flex items-center space-x-1">
         <FaWallet />
         <span>Total Balance</span>
       </p>
+
+      {/* Balance Values */}
       <div className="flex justify-around text-sm mb-2">
         <Token icon="/icons/ton.svg" label="TON" value={balances.ton ?? '...'} />
         <Token icon="/icons/tpc.svg" label="TPC" value={balances.tpc ?? '...'} />
@@ -131,8 +135,8 @@ export default function MiningCard() {
 function Token({ icon, value, label }) {
   return (
     <div className="flex items-center space-x-1">
-      <img src={icon} alt={label} className="w-4 h-4" />
-      <span className="text-base">{value}</span>
+      <img src={icon} alt={label} className="w-5 h-5" />
+      <span className="text-lg font-semibold">{value}</span>
     </div>
   );
 }
