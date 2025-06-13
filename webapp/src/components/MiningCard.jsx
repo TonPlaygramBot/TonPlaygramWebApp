@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { FaWallet } from 'react-icons/fa';
 import {
   getMiningStatus,
   startMining,
@@ -95,14 +96,7 @@ export default function MiningCard() {
         <span>Mining</span>
       </h3>
 
-      <p className="text-xs text-gray-300">Total Balance</p>
-      <div className="flex justify-around text-xs mb-2">
-        <Token icon="/icons/ton.svg" label="TON" value={balances.ton ?? '...'} />
-        <Token icon="/icons/tpc.svg" label="TPC" value={balances.tpc ?? '...'} />
-        <Token icon="/icons/usdt.svg" label="USDT" value={balances.usdt ?? '0'} />
-      </div>
-
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between text-sm">
         <button
           className="px-2 py-1 bg-green-500 text-white rounded disabled:opacity-50"
           onClick={handleStart}
@@ -110,13 +104,25 @@ export default function MiningCard() {
         >
           Start
         </button>
-        <p className="text-sm">
+        <p className="text-accent font-medium">
+          {status === 'Mining' ? formatTimeLeft(timeLeft) : '00:00:00'}
+        </p>
+        <p>
           Status{' '}
           <span className={status === 'Mining' ? 'text-green-500' : 'text-red-500'}>
             {status}
-            {status === 'Mining' && ` - ${formatTimeLeft(timeLeft)}`}
           </span>
         </p>
+      </div>
+
+      <p className="text-lg font-bold text-gray-300 flex items-center space-x-1">
+        <FaWallet />
+        <span>Total Balance</span>
+      </p>
+      <div className="flex justify-around text-sm mb-2">
+        <Token icon="/icons/ton.svg" label="TON" value={balances.ton ?? '...'} />
+        <Token icon="/icons/tpc.svg" label="TPC" value={balances.tpc ?? '...'} />
+        <Token icon="/icons/usdt.svg" label="USDT" value={balances.usdt ?? '0'} />
       </div>
     </div>
   );
@@ -126,7 +132,7 @@ function Token({ icon, value, label }) {
   return (
     <div className="flex items-center space-x-1">
       <img src={icon} alt={label} className="w-4 h-4" />
-      <span>{value}</span>
+      <span className="text-base">{value}</span>
     </div>
   );
 }
