@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { segments, getRandomReward } from '../utils/rewardLogic';
+import { segments } from '../utils/rewardLogic';
 
 interface SpinWheelProps {
   onFinish: (reward: number) => void;
@@ -8,11 +8,11 @@ interface SpinWheelProps {
   disabled?: boolean;
 }
 
-// Visual settings
-const itemHeight = 50; // Each row is 50px high
-const visibleRows = 7; // Show 7 prize rows
-const winningRow = 2;  // Highlight the 3rd row (index 2)
-const loops = 8;       // Spin loops for visual effect
+// Visual settings for the wheel
+const itemHeight = 50; // Height per prize row
+const visibleRows = 7; // Always display 7 rows
+const winningRow = 2;  // 3rd visible row is the winner
+const loops = 8;       // How many times the list repeats while spinning
 
 export default function SpinWheel({
   onFinish,
@@ -23,11 +23,17 @@ export default function SpinWheel({
   const [offset, setOffset] = useState(0);
   const [winnerIndex, setWinnerIndex] = useState<number | null>(null);
 
+  const items = Array.from(
+    { length: segments.length * loops + visibleRows },
+    (_, i) => segments[i % segments.length]
+  );
+
   const spin = () => {
     if (spinning || disabled) return;
 
-    const reward = getRandomReward();
-    const index = segments.indexOf(reward);
+    const index = Math.floor(Math.random() * segments.length);
+    const reward = segments[index];
+
     const finalIndex = loops * segments.length + index;
     const finalOffset = -(finalIndex - winningRow) * itemHeight;
 
@@ -42,5 +48,12 @@ export default function SpinWheel({
     }, 4000);
   };
 
-  const items = Array.from(
-    { length: segments.lengt
+  return (
+    <div className="w-40 mx-auto flex flex-col items-center">
+      <div
+        className="relative overflow-hidden w-full"
+        style={{ height: itemHeight * visibleRows }}
+      >
+        {/* Highlight the winning (3rd) row */}
+        <div
+          className="absolute inset-x-0 border-2 border-yellow-500 pointer-ev
