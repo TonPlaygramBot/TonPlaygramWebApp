@@ -8,7 +8,7 @@ export default function NavItem({ to, icon: Icon, label }) {
         `flex flex-col items-center text-sm ${isActive ? 'text-accent' : 'text-text hover:text-accent'}`
       }
     >
-      <Icon className="w-8 h-8 mb-1" />
+      <Icon className="w-8 h-8 mb-1 text-accent" />
       <span>{label}</span>
     </NavLink>
   );

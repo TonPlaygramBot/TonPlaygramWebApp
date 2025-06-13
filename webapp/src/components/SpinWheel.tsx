@@ -120,9 +120,9 @@ export default function SpinWheel({
 
               key={idx}
 
-              className={`flex items-center justify-center text-sm w-full ${
+              className={`flex items-center justify-center text-sm w-full font-bold ${
 
-                idx === winnerIndex ? 'bg-yellow-500 text-black font-bold' : 'text-yellow-400'
+                idx === winnerIndex ? 'bg-yellow-500 text-white' : 'text-white'
 
               }`}
 
