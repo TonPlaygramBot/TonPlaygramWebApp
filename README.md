@@ -30,3 +30,6 @@ if (!data.nickname || !data.photo || !data.firstName || !data.lastName) {
     setAutoUpdating(false);
   }
 }
+
+When the profile is updated from Telegram, the UI briefly displays a
+notification that says `Info retrieved from Telegram`.
