@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { FaWallet } from 'react-icons/fa';
+import { Link } from 'react-router-dom';
 import { useTonWallet } from '@tonconnect/ui-react';
 import { getWalletBalance, getTonBalance } from '../utils/api.js';
 import { getTelegramId } from '../utils/telegram.js';
@@ -35,8 +36,10 @@ export default function BalanceSummary() {
   return (
     <div className="text-center mt-2">
       <p className="text-lg font-bold text-gray-300 flex items-center justify-center space-x-1">
-        <FaWallet />
-        <span>Total Balance</span>
+        <Link to="/wallet" className="flex items-center">
+          <FaWallet className="text-primary" />
+        </Link>
+        <span>Wallet</span>
       </p>
       <div className="flex justify-around text-sm mt-1">
         <Token icon="/icons/ton.svg" label="TON" value={balances.ton ?? '...'} />

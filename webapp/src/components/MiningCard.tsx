@@ -95,31 +95,18 @@ export default function MiningCard() {
 
   return (
     <div className="bg-surface border border-border p-4 rounded-xl shadow-lg text-text space-y-2">
-      <h3 className="text-lg font-bold flex items-center space-x-2">
+      <h3 className="text-lg font-bold text-text flex items-center justify-center space-x-1">
         <span>⛏</span>
         <span>Mining</span>
       </h3>
 
-      <div className="flex items-center justify-between text-sm">
-        <button
-          className="px-2 py-1 bg-green-500 text-white rounded disabled:opacity-50"
-          onClick={handleStart}
-          disabled={status === 'Mining'}
-        >
-          Start
-        </button>
-        <p className="text-white font-medium">
-          {status === 'Mining' ? formatTimeLeft(timeLeft) : '00:00:00'}
-        </p>
-        <p>
-          Status{' '}
-          <span className={status === 'Mining' ? 'text-green-500' : 'text-red-500'}>
-            {status}
-          </span>
-        </p>
-      </div>
-
-      <p className="text-lg font-bold text-gray-300">Total Balance</p>
+      <button
+        className={`w-full py-4 rounded text-white font-semibold ${status === 'Mining' ? 'bg-green-600' : 'bg-red-600'}`}
+        onClick={handleStart}
+        disabled={status === 'Mining'}
+      >
+        {status === 'Mining' ? formatTimeLeft(timeLeft) : 'Start Mining'}
+      </button>
     </div>
   );
 }
