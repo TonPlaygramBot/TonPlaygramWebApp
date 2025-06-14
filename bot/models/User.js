@@ -37,17 +37,12 @@ const userSchema = new mongoose.Schema({
   },
 
   transactions: [
-
     {
-
       amount: Number,
-
       type: String,
-
+      status: { type: String, default: 'delivered' },
       date: { type: Date, default: Date.now }
-
     }
-
   ],
 
   referralCode: { type: String, unique: true },

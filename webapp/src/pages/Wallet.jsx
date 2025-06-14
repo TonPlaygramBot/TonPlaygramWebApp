@@ -1,5 +1,10 @@
 import { useEffect, useState } from 'react';
-import { getWalletBalance, getTonBalance, sendTpc } from '../utils/api.js';
+import {
+  getWalletBalance,
+  getTonBalance,
+  sendTpc,
+  getTransactions
+} from '../utils/api.js';
 import { getTelegramId } from '../utils/telegram.js';
 import OpenInTelegram from '../components/OpenInTelegram.jsx';
 import ConnectWallet from '../components/ConnectWallet.jsx';
@@ -18,6 +23,7 @@ export default function Wallet() {
   const [tpcBalance, setTpcBalance] = useState(null);
   const [receiver, setReceiver] = useState('');
   const [amount, setAmount] = useState('');
+  const [transactions, setTransactions] = useState([]);
   const wallet = useTonWallet();
 
   const loadBalances = async () => {
@@ -32,15 +38,19 @@ export default function Wallet() {
 
   useEffect(() => {
     loadBalances();
+    getTransactions(telegramId).then((res) => setTransactions(res.transactions));
   }, [wallet]);
 
   const handleSend = async () => {
     const amt = Number(amount);
     if (!receiver || !amt) return;
+    if (!window.confirm(`Send ${amt} TPC to ${receiver}?`)) return;
     await sendTpc(telegramId, Number(receiver), amt);
     setReceiver('');
     setAmount('');
     loadBalances();
+    const txRes = await getTransactions(telegramId);
+    setTransactions(txRes.transactions);
   };
 
   return (
@@ -85,6 +95,23 @@ export default function Wallet() {
         >
           Copy Account Number
         </button>
+      </div>
+
+      <div className="mt-4">
+        <h3 className="font-semibold">Transactions</h3>
+        <div className="space-y-1 text-sm">
+          {transactions.map((tx, i) => (
+            <div
+              key={i}
+              className="flex justify-between border-b border-border pb-1"
+            >
+              <span>{tx.type}</span>
+              <span>{tx.amount}</span>
+              <span>{new Date(tx.date).toLocaleString()}</span>
+              <span className="text-xs">{tx.status}</span>
+            </div>
+          ))}
+        </div>
       </div>
     </div>
   );

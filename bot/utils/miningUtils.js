@@ -1,12 +1,20 @@
-export const MINING_RATE_PER_MINUTE = 1;
+export const MINING_SESSION_MS = 12 * 60 * 60 * 1000; // 12 hours
+export const MINING_REWARD = 1000;
 
 export function updateMiningRewards(user) {
   if (user.isMining && user.lastMineAt) {
     const diffMs = Date.now() - user.lastMineAt.getTime();
-    const minutes = Math.floor(diffMs / 60000);
-    if (minutes > 0) {
-      user.minedTPC += minutes * MINING_RATE_PER_MINUTE;
-      user.lastMineAt = new Date();
+    if (diffMs >= MINING_SESSION_MS) {
+      user.isMining = false;
+      user.lastMineAt = null;
+      user.minedTPC = 0;
+      user.balance += MINING_REWARD;
+      user.transactions.push({
+        amount: MINING_REWARD,
+        type: 'mining',
+        status: 'delivered',
+        date: new Date()
+      });
     }
   }
 }
