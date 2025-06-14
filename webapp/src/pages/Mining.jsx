@@ -9,7 +9,9 @@
         {u.photo && (
           <img src={u.photo} alt="" className="w-6 h-6 rounded-full" />
         )}
-        <span>{u.nickname || `${u.firstName ?? ''} ${u.lastName ?? ''}`.trim() || 'User'}</span>
+        <span>
+          {u.nickname || `${u.firstName ?? ''} ${u.lastName ?? ''}`.trim() || 'User'}
+        </span>
       </td>
       <td className="p-2 text-right">{u.balance}</td>
     </tr>

@@ -4,7 +4,7 @@ import bot from './bot.js';
 import mongoose from 'mongoose';
 import passport from 'passport';
 import { Strategy as GoogleStrategy } from 'passport-google-oauth20';
-import miningRoutes from './routes/mining.js';
+import { miningRouter } from './routes/mining.js';
 import tasksRoutes from './routes/tasks.js';
 import watchRoutes from './routes/watch.js';
 import referralRoutes from './routes/referral.js';
@@ -54,7 +54,7 @@ if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
 } else {
   console.log('Google OAuth credentials not provided, skipping Google auth setup');
 }
-app.use('/api/mining', miningRoutes);
+app.use('/api/mining', miningRouter);
 app.use('/api/tasks', tasksRoutes);
 app.use('/api/watch', watchRoutes);
 app.use('/api/referral', referralRoutes);
