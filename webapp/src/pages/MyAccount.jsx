@@ -13,6 +13,7 @@ export default function MyAccount() {
 
   const [profile, setProfile] = useState(null);
   const [autoUpdating, setAutoUpdating] = useState(false);
+  const [wasUpdatedFromTelegram, setWasUpdatedFromTelegram] = useState(false);
 
   useEffect(() => {
     async function load() {
@@ -30,6 +31,8 @@ export default function MyAccount() {
               lastName: data.lastName || tg.lastName
             });
             setProfile(updated);
+            setWasUpdatedFromTelegram(true);
+            setTimeout(() => setWasUpdatedFromTelegram(false), 4000);
           }
         } finally {
           setAutoUpdating(false);
@@ -46,7 +49,12 @@ export default function MyAccount() {
       {autoUpdating && (
         <div className="p-2 text-sm text-subtext">Updating with Telegram info...</div>
       )}
-      <h2 className="text-xl font-bold">My Account</h2>
+      <div className="flex items-center space-x-2">
+        <h2 className="text-xl font-bold">My Account</h2>
+        {wasUpdatedFromTelegram && (
+          <span className="text-sm text-accent">Info retrieved from Telegram.</span>
+        )}
+      </div>
       <div className="flex items-center space-x-4">
         {profile.photo && (
           <img src={profile.photo} alt="avatar" className="w-16 h-16 rounded-full" />
