@@ -33,7 +33,13 @@ router.post('/watch', async (req, res) => {
     { $setOnInsert: { referralCode: telegramId.toString() } },
     { upsert: true, new: true }
   );
-  user.minedTPC += video.reward;
+  user.balance += video.reward;
+  user.transactions.push({
+    amount: video.reward,
+    type: 'watch',
+    status: 'delivered',
+    date: new Date()
+  });
   await user.save();
 
   res.json({ message: 'watched', reward: video.reward });
