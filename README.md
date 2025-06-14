@@ -27,7 +27,7 @@ The server listens on the port configured in `bot/.env` (`PORT` by default is `3
 
 ## Features
 
-- **Mining** – start and stop mining sessions to accumulate TPC rewards.
+- **Mining** – start and stop mining sessions to accumulate TPC rewards. Press the mining button again to stop a running session early.
 - **Wallet transfers** – send TPC to other users and view transaction history.
 - **Tasks** – complete tasks for extra rewards and bonuses.
 - **Watch content** – watch videos or streams to earn additional TPC.

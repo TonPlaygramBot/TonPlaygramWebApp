@@ -7,6 +7,7 @@ const userSchema = new mongoose.Schema({
   createdAt: { type: Date, default: Date.now },
 
   isMining: { type: Boolean, default: false },
+  lastMineAt: { type: Date, default: null },
 
   isWatched: { type: Boolean, default: false },
 
