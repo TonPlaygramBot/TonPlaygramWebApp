@@ -7,17 +7,14 @@ import {
   getTonBalance
 } from '../utils/api.js';
 import { getTelegramId } from '../utils/telegram.js';
+import OpenInTelegram from '../components/OpenInTelegram.jsx';
 
 export default function Mining() {
   let telegramId;
   try {
     telegramId = getTelegramId();
   } catch (err) {
-    return (
-      <div className="p-4 text-text">
-        Please open this application via the Telegram bot.
-      </div>
-    );
+    return <OpenInTelegram />;
   }
   const [status, setStatus] = useState('Not Mining');
   const [startTime, setStartTime] = useState(null);

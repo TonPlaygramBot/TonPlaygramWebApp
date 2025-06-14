@@ -4,6 +4,7 @@ import { useTonWallet } from '@tonconnect/ui-react';
 import ConnectWallet from './ConnectWallet.jsx';
 import { getWalletBalance, getTonBalance } from '../utils/api.js';
 import { getTelegramId } from '../utils/telegram.js';
+import OpenInTelegram from './OpenInTelegram.jsx';
 
 export default function WalletCard() {
   let telegramId;
@@ -11,8 +12,8 @@ export default function WalletCard() {
     telegramId = getTelegramId();
   } catch (err) {
     return (
-      <div className="bg-gray-800/60 p-4 rounded-xl text-white">
-        Please open this application via the Telegram bot.
+      <div className="bg-gray-800/60 rounded-xl">
+        <OpenInTelegram />
       </div>
     );
   }

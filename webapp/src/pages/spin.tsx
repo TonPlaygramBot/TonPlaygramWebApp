@@ -9,17 +9,14 @@ import {
   addTransaction
 } from '../utils/api.js';
 import { getTelegramId } from '../utils/telegram.js';
+import OpenInTelegram from '../components/OpenInTelegram.jsx';
 
 export default function SpinPage() {
   let telegramId: number;
   try {
     telegramId = getTelegramId();
   } catch (err) {
-    return (
-      <div className="p-4 text-text">
-        Please open this application via the Telegram bot.
-      </div>
-    );
+    return <OpenInTelegram />;
   }
   const [lastSpin, setLastSpin] = useState<number | null>(null);
   const [reward, setReward] = useState<number | null>(null);

@@ -8,17 +8,14 @@ import {
   fetchTelegramInfo
 } from '../utils/api.js';
 import { getTelegramId } from '../utils/telegram.js';
+import OpenInTelegram from '../components/OpenInTelegram.jsx';
 
 export default function MyAccount() {
   let telegramId;
   try {
     telegramId = getTelegramId();
   } catch (err) {
-    return (
-      <div className="p-4 text-text">
-        Please open this application via the Telegram bot.
-      </div>
-    );
+    return <OpenInTelegram />;
   }
   const [profile, setProfile] = useState(null);
   const [form, setForm] = useState({ nickname: '', photo: '', bio: '' });

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { tonToTpc, tpcToTon } from '../utils/tokenomics.js';
 import { getWalletBalance, getTonBalance } from '../utils/api.js';
 import { getTelegramId } from '../utils/telegram.js';
+import OpenInTelegram from '../components/OpenInTelegram.jsx';
 import ConnectWallet from '../components/ConnectWallet.jsx';
 import { useTonWallet } from '@tonconnect/ui-react';
 
@@ -10,11 +11,7 @@ export default function Wallet() {
   try {
     telegramId = getTelegramId();
   } catch (err) {
-    return (
-      <div className="p-4 text-text">
-        Please open this application via the Telegram bot.
-      </div>
-    );
+    return <OpenInTelegram />;
   }
   const [ton, setTon] = useState('');
   const [tpc, setTpc] = useState('');

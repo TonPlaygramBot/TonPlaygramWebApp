@@ -9,17 +9,14 @@ import {
 } from '../utils/api.js';
 import { useTonWallet } from '@tonconnect/ui-react';
 import { getTelegramId } from '../utils/telegram.js';
+import OpenInTelegram from './OpenInTelegram.jsx';
 
 export default function MiningCard() {
   let telegramId: number;
   try {
     telegramId = getTelegramId();
   } catch (err) {
-    return (
-      <div className="p-4 text-text">
-        Please open this application via the Telegram bot.
-      </div>
-    );
+    return <OpenInTelegram />;
   }
   const [status, setStatus] = useState<string>('Not Mining');
   const [startTime, setStartTime] = useState<number | null>(null);
