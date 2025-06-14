@@ -37,7 +37,7 @@ export default function BalanceSummary() {
     <div className="text-center mt-2">
       <p className="text-lg font-bold text-gray-300 flex items-center justify-center space-x-1">
         <Link to="/wallet" className="flex items-center">
-          <FaWallet className="text-primary" />
+          <FaWallet className="text-primary" /> {/* ✅ Blue icon */}
         </Link>
         <span>Total Balance</span>
       </p>

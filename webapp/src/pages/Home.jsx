@@ -18,6 +18,7 @@ export default function Home() {
     ping()
       .then(() => setStatus('online'))
       .catch(() => setStatus('offline'));
+
     setPhotoUrl(getTelegramPhotoUrl());
   }, []);
 
@@ -32,6 +33,8 @@ export default function Home() {
             className="w-36 h-36 hexagon border-4 border-brand-gold mt-2 object-cover"
           />
         )}
+
+        {/* ✅ Clean flanking of BalanceSummary with Send/Receive */}
         <div className="flex items-center justify-between w-full max-w-xs mt-2">
           <Link to="/wallet?mode=send" className="flex items-center space-x-1">
             <FaArrowCircleUp className="text-accent w-8 h-8" />
