@@ -69,6 +69,10 @@ export function linkSocial(data) {
   return post('/api/profile/link-social', data);
 }
 
+export function fetchTelegramInfo(telegramId) {
+  return post('/api/profile/telegram-info', { telegramId });
+}
+
 export function getWalletBalance(telegramId) {
   return post('/api/wallet/balance', { telegramId });
 }
