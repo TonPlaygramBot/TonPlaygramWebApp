@@ -4,7 +4,8 @@ import {
   startMining,
   claimMining,
   getWalletBalance,
-  getTonBalance
+  getTonBalance,
+  getLeaderboard
 } from '../utils/api.js';
 import { getTelegramId } from '../utils/telegram.js';
 import OpenInTelegram from '../components/OpenInTelegram.jsx';
@@ -20,6 +21,8 @@ export default function Mining() {
   const [startTime, setStartTime] = useState(null);
   const [timeLeft, setTimeLeft] = useState(0);
   const [balances, setBalances] = useState({ ton: null, tpc: null, usdt: 0 });
+  const [leaderboard, setLeaderboard] = useState([]);
+  const [myRank, setMyRank] = useState(null);
   const wallet = useTonWallet();
 
   const loadBalances = async () => {
@@ -36,6 +39,10 @@ export default function Mining() {
 
   useEffect(() => {
     loadBalances();
+    getLeaderboard(telegramId).then((data) => {
+      setLeaderboard(data.leaderboard);
+      setMyRank(data.myRank);
+    });
     const saved = localStorage.getItem('miningStart');
     if (saved) {
       const start = parseInt(saved, 10);
@@ -109,6 +116,38 @@ export default function Mining() {
             {status === 'Mining' && ` - ${formatTimeLeft(timeLeft)}`}
           </span>
         </p>
+      </div>
+
+      <h3 className="text-lg font-bold mt-6 mb-2">Leaderboard</h3>
+      <div className="overflow-x-auto">
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="text-left text-subtext">
+              <th className="px-2 py-1">Rank</th>
+              <th className="px-2 py-1">User</th>
+              <th className="px-2 py-1 text-right">TPC</th>
+            </tr>
+          </thead>
+          <tbody>
+            {leaderboard.map((u) => (
+              <tr
+                key={u.telegramId}
+                className={`border-b border-border ${
+                  u.telegramId === telegramId ? 'bg-primary/20' : ''
+                }`}
+              >
+                <td className="px-2 py-1">{u.rank}</td>
+                <td className="px-2 py-1">
+                  {u.nickname || `${u.firstName || ''} ${u.lastName || ''}`.trim() || u.telegramId}
+                </td>
+                <td className="px-2 py-1 text-right">{u.balance}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        {myRank && !leaderboard.some((u) => u.telegramId === telegramId) && (
+          <p className="text-center text-sm mt-2">Your rank: {myRank}</p>
+        )}
       </div>
     </div>
   );

@@ -44,4 +44,31 @@ router.post('/status', getUser, async (req, res) => {
   res.json({ isMining: req.user.isMining, pending: req.user.minedTPC, balance: req.user.balance });
 });
 
+router.get('/leaderboard', async (req, res) => {
+  const telegramId = req.query.telegramId;
+  const top = await User.find()
+    .sort({ balance: -1 })
+    .limit(100)
+    .lean();
+  const leaderboard = top.map((u, i) => ({
+    telegramId: u.telegramId,
+    nickname: u.nickname,
+    firstName: u.firstName,
+    lastName: u.lastName,
+    photo: u.photo,
+    balance: u.balance,
+    rank: i + 1
+  }));
+
+  let myRank = null;
+  if (telegramId) {
+    const me = await User.findOne({ telegramId }).lean();
+    if (me) {
+      myRank = (await User.countDocuments({ balance: { $gt: me.balance } })) + 1;
+    }
+  }
+
+  res.json({ leaderboard, myRank });
+});
+
 export default router;
