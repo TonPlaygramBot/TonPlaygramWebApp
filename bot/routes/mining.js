@@ -2,7 +2,7 @@ import { Router } from 'express';
 import User from '../models/User.js';
 import { startMining, stopMining, claimRewards, updateMiningRewards } from '../utils/miningUtils.js';
 
-const router = Router();
+const miningRouter = Router();
 
 async function getUser(req, res, next) {
   const { telegramId } = req.body;
@@ -17,7 +17,7 @@ async function getUser(req, res, next) {
   next();
 }
 
-router.post('/start', getUser, async (req, res) => {
+miningRouter.post('/start', getUser, async (req, res) => {
   if (req.user.isMining) {
     return res.json({ message: 'already mining' });
   }
@@ -25,7 +25,7 @@ router.post('/start', getUser, async (req, res) => {
   res.json({ message: 'mining started' });
 });
 
-router.post('/stop', getUser, async (req, res) => {
+miningRouter.post('/stop', getUser, async (req, res) => {
   if (!req.user.isMining) {
     return res.json({ message: 'not mining' });
   }
@@ -33,23 +33,26 @@ router.post('/stop', getUser, async (req, res) => {
   res.json({ message: 'mining stopped', pending: req.user.minedTPC, balance: req.user.balance });
 });
 
-router.post('/claim', getUser, async (req, res) => {
+miningRouter.post('/claim', getUser, async (req, res) => {
   const amount = await claimRewards(req.user);
   res.json({ message: 'claimed', amount, balance: req.user.balance });
 });
 
-router.post('/status', getUser, async (req, res) => {
+miningRouter.post('/status', getUser, async (req, res) => {
   updateMiningRewards(req.user);
   await req.user.save();
   res.json({ isMining: req.user.isMining, pending: req.user.minedTPC, balance: req.user.balance });
 });
 
-router.get('/leaderboard', async (req, res) => {
+// ✅ GET leaderboard route with basic user info and rank
+miningRouter.get('/leaderboard', async (req, res) => {
   const telegramId = req.query.telegramId;
+
   const top = await User.find()
     .sort({ balance: -1 })
     .limit(100)
     .lean();
+
   const leaderboard = top.map((u, i) => ({
     telegramId: u.telegramId,
     nickname: u.nickname,
@@ -71,4 +74,4 @@ router.get('/leaderboard', async (req, res) => {
   res.json({ leaderboard, myRank });
 });
 
-export default router;
+export { miningRouter };
