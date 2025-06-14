@@ -1,7 +1,6 @@
 import { Router } from 'express';
 import User from '../models/User.js';
 import { startMining, stopMining, claimRewards, updateMiningRewards } from '../utils/miningUtils.js';
-import { fetchTelegramInfo } from '../utils/telegram.js';
 
 const miningRouter = Router();
 
@@ -45,46 +44,34 @@ miningRouter.post('/status', getUser, async (req, res) => {
   res.json({ isMining: req.user.isMining, pending: req.user.minedTPC, balance: req.user.balance });
 });
 
-miningRouter.post('/leaderboard', async (req, res) => {
-  const { telegramId } = req.body;
+// ✅ GET leaderboard route with basic user info and rank
+miningRouter.get('/leaderboard', async (req, res) => {
+  const telegramId = req.query.telegramId;
 
-  let users = await User.find()
+  const top = await User.find()
     .sort({ balance: -1 })
     .limit(100)
-    .select('telegramId balance nickname firstName lastName photo')
     .lean();
 
-  await Promise.all(
-    users.map(async (u) => {
-      if (!u.firstName || !u.lastName || !u.photo) {
-        const info = await fetchTelegramInfo(u.telegramId);
-        await User.updateOne(
-          { telegramId: u.telegramId },
-          {
-            $set: {
-              firstName: info.firstName,
-              lastName: info.lastName,
-              photo: info.photoUrl,
-            },
-          }
-        );
-        u.firstName = info.firstName;
-        u.lastName = info.lastName;
-        u.photo = info.photoUrl;
-      }
-    })
-  );
+  const leaderboard = top.map((u, i) => ({
+    telegramId: u.telegramId,
+    nickname: u.nickname,
+    firstName: u.firstName,
+    lastName: u.lastName,
+    photo: u.photo,
+    balance: u.balance,
+    rank: i + 1
+  }));
 
-  let rank = null;
+  let myRank = null;
   if (telegramId) {
-    const user = await User.findOne({ telegramId });
-    if (user) {
-      rank = (await User.countDocuments({ balance: { $gt: user.balance } })) + 1;
+    const me = await User.findOne({ telegramId }).lean();
+    if (me) {
+      myRank = (await User.countDocuments({ balance: { $gt: me.balance } })) + 1;
     }
   }
 
-  res.json({ users, rank });
+  res.json({ leaderboard, myRank });
 });
 
-// ✅ Only export named version
 export { miningRouter };

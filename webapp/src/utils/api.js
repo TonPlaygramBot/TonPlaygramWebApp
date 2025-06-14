@@ -84,3 +84,9 @@ export function getWalletBalance(telegramId) {
 export function getTonBalance(address) {
   return post('/api/wallet/ton-balance', { address });
 }
+
+export async function getLeaderboard(telegramId) {
+  const qs = telegramId ? `?telegramId=${telegramId}` : '';
+  const res = await fetch(API_BASE_URL + '/api/mining/leaderboard' + qs);
+  return res.json();
+}
