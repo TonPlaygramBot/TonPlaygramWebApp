@@ -27,7 +27,7 @@ The server listens on the port configured in `bot/.env` (`PORT` by default is `3
 
 ## Features
 
-- **Mining** – start and stop mining sessions to accumulate TPC rewards.
+- **Mining** – start a 12-hour mining session that finishes automatically and awards 2000 TPC. Press the button again only after the countdown ends to begin a new session.
 - **Wallet transfers** – send TPC to other users and view transaction history.
 - **Tasks** – complete tasks for extra rewards and bonuses.
 - **Watch content** – watch videos or streams to earn additional TPC.

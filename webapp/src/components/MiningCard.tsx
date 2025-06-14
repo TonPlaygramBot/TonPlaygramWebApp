@@ -135,31 +135,14 @@ export default function MiningCard() {
   }, [isMining]);
 
   const toggleMining = async () => {
-
     if (isMining) {
-
-      await stopMining(telegramId);
-
-      setIsMining(false);
-
-      setElapsed(0);
-
-      localStorage.removeItem('miningStartTime');
-
-    } else {
-
-      await startMining(telegramId);
-
-      const now = Date.now();
-
-      localStorage.setItem('miningStartTime', String(now));
-
-      setElapsed(0);
-
-      setIsMining(true);
-
+      return;
     }
-
+    await startMining(telegramId);
+    const now = Date.now();
+    localStorage.setItem('miningStartTime', String(now));
+    setElapsed(0);
+    setIsMining(true);
   };
 
   const formatTime = (seconds: number) => {
@@ -201,16 +184,17 @@ export default function MiningCard() {
       <button
 
         onClick={toggleMining}
+        disabled={isMining}
 
         className={`w-full py-4 rounded text-white text-xl font-semibold ${
 
-          isMining ? 'bg-green-600' : 'bg-red-600'
+          isMining ? 'bg-green-600 cursor-not-allowed' : 'bg-red-600'
 
         }`}
 
       >
 
-        <div>{isMining ? 'Mining' : 'Not Mining'}</div>
+        <div>{isMining ? 'Mining' : 'Start Mining'}</div>
 
           <div className="text-sm">{formatTime(isMining ? Math.max(MINING_DURATION - elapsed, 0) : MINING_DURATION)}</div>
 
