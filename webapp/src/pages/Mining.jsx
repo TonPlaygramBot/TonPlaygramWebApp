@@ -134,7 +134,7 @@ export default function Mining() {
             <thead className="sticky top-0 bg-surface">
               <tr className="border-b border-border text-left">
                 <th className="p-2">#</th>
-                <th className="p-2"></th>
+                <th className="p-2 w-16"></th>
                 <th className="p-2">User</th>
                 <th className="p-2 text-right">TPC</th>
               </tr>
@@ -143,13 +143,15 @@ export default function Mining() {
               {leaderboard.map((u, idx) => (
                 <tr
                   key={u.telegramId}
-                  className={`border-b border-border ${u.telegramId === telegramId ? 'bg-accent text-black' : ''}`}
+                  className={`border-b border-border h-16 ${u.telegramId === telegramId ? 'bg-accent text-black' : ''}`}
                 >
                   <td className="p-2">{idx + 1}</td>
-                  <td className="p-2">
-                    {u.photo && (
-                      <img src={u.photo} alt="" className="w-16 h-16 hexagon border-2 border-brand-gold object-cover" />
-                    )}
+                  <td className="p-2 w-16">
+                    <img
+                      src={u.photo || u.photoUrl}
+                      alt="avatar"
+                      className="w-16 h-16 hexagon border-2 border-brand-gold object-cover"
+                    />
                   </td>
                   <td className="p-2">
                     {u.nickname || `${u.firstName} ${u.lastName}`.trim() || 'User'}
@@ -158,16 +160,14 @@ export default function Mining() {
                 </tr>
               ))}
                 {rank && rank > 100 && (
-                  <tr className="bg-accent text-black">
+                  <tr className="bg-accent text-black h-16">
                     <td className="p-2">{rank}</td>
-                    <td className="p-2">
-                      {getTelegramPhotoUrl() && (
-                        <img
-                          src={getTelegramPhotoUrl()}
-                          alt=""
-                          className="w-16 h-16 hexagon border-2 border-brand-gold object-cover"
-                        />
-                      )}
+                    <td className="p-2 w-16">
+                      <img
+                        src={getTelegramPhotoUrl()}
+                        alt="avatar"
+                        className="w-16 h-16 hexagon border-2 border-brand-gold object-cover"
+                      />
                     </td>
                     <td className="p-2">You</td>
                     <td className="p-2 text-right">{balances.tpc ?? '...'}</td>
