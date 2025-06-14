@@ -50,54 +50,76 @@ router.post('/send', async (req, res) => {
     return res.status(400).json({ error: 'insufficient balance' });
   }
 
-  sender.balance -= amount;
-  await sender.save();
-
   const txDate = new Date();
 
-  await User.findOneAndUpdate(
-    { telegramId: toId },
-    { $inc: { balance: amount }, $setOnInsert: { referralCode: toId.toString() } },
-    { upsert: true }
-  );
-
-  const senderTx = {
-    amount: -amount,
-    type: 'send',
-    status: 'delivered',
-    date: txDate
-  };
-
-  const receiverTx = {
-    amount,
-    type: 'receive',
-    status: 'delivered',
-    date: txDate
-  };
-
-  await User.updateOne(
-    { telegramId: fromId },
-    {
-      $push: { transactions: senderTx }
-    }
-  );
-  await User.updateOne(
-    { telegramId: toId },
-    {
-      $push: { transactions: receiverTx }
-    }
-  );
-
   try {
-    await bot.telegram.sendMessage(
-      String(toId),
-      `You received ${amount} TPC from ${fromId}`
+    await User.findOneAndUpdate(
+      { telegramId: toId },
+      { $inc: { balance: amount }, $setOnInsert: { referralCode: toId.toString() } },
+      { upsert: true }
     );
-  } catch (err) {
-    console.error('Failed to send Telegram notification:', err.message);
-  }
 
-  res.json({ balance: sender.balance, transaction: senderTx });
+    sender.balance -= amount;
+    await sender.save();
+
+    const senderTx = {
+      amount: -amount,
+      type: 'send',
+      status: 'delivered',
+      date: txDate
+    };
+
+    const receiverTx = {
+      amount,
+      type: 'receive',
+      status: 'delivered',
+      date: txDate
+    };
+
+    await User.updateOne(
+      { telegramId: fromId },
+      {
+        $push: { transactions: senderTx }
+      }
+    );
+    await User.updateOne(
+      { telegramId: toId },
+      {
+        $push: { transactions: receiverTx }
+      }
+    );
+
+    try {
+      await bot.telegram.sendMessage(
+        String(toId),
+        `You received ${amount} TPC from ${fromId}`
+      );
+    } catch (err) {
+      console.error('Failed to send Telegram notification:', err.message);
+    }
+
+    return res.json({ balance: sender.balance, transaction: senderTx });
+  } catch (err) {
+    console.error('Failed to complete TPC transfer:', err.message);
+    const failedTx = {
+      amount: -amount,
+      type: 'send',
+      status: 'failed',
+      date: txDate
+    };
+    await User.updateOne(
+      { telegramId: fromId },
+      { $push: { transactions: failedTx } }
+    ).catch((e) => console.error('Failed to log failed transaction:', e.message));
+
+    // Attempt to revert receiver balance in case it was credited
+    await User.updateOne(
+      { telegramId: toId },
+      { $inc: { balance: -amount } }
+    ).catch(() => {});
+
+    res.status(500).json({ error: 'Failed to send TPC' });
+  }
 });
 
 router.post('/transactions', async (req, res) => {
