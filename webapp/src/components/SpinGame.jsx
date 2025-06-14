@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react';
 import SpinWheel from './SpinWheel.tsx';
 import RewardPopup from './RewardPopup.tsx';
-import { canSpin, nextSpinTime } from '../utils/rewardLogic';
 import AdModal from './AdModal.tsx';
 import DailyCheckIn from './DailyCheckIn.jsx';
+import { canSpin, nextSpinTime } from '../utils/rewardLogic';
 import {
   getWalletBalance,
   updateBalance,
@@ -21,7 +21,6 @@ export default function SpinGame() {
   }
   const [lastSpin, setLastSpin] = useState(null);
   const [reward, setReward] = useState(null);
-  const [extraSpins, setExtraSpins] = useState(0);
   const [spinning, setSpinning] = useState(false);
   const [showAd, setShowAd] = useState(false);
 
@@ -31,24 +30,18 @@ export default function SpinGame() {
   }, []);
 
   const handleFinish = async (r) => {
-    if (r.spins) {
-      setExtraSpins(s => s + r.spins);
-      setReward(r);
-      return;
-    }
     const now = Date.now();
     localStorage.setItem('lastSpin', String(now));
     setLastSpin(now);
-    const base = r.tpc || 0;
-    setReward({ tpc: base });
+    setReward(r);
     const id = telegramId;
     const balRes = await getWalletBalance(id);
-    const newBalance = (balRes.balance || 0) + base;
+    const newBalance = (balRes.balance || 0) + r;
     await updateBalance(id, newBalance);
-    await addTransaction(id, base, 'spin');
+    await addTransaction(id, r, 'spin');
   };
 
-  const ready = canSpin(lastSpin, extraSpins);
+  const ready = canSpin(lastSpin);
 
   return (
     <div className="bg-surface border border-border rounded p-4 flex flex-col items-center space-y-2">
@@ -60,9 +53,6 @@ export default function SpinGame() {
         setSpinning={setSpinning}
         disabled={!ready}
       />
-      {extraSpins > 0 && (
-        <p className="text-sm text-white font-semibold">Free spins left: {extraSpins}</p>
-      )}
       {!ready && (
         <>
           <p className="text-sm text-white font-semibold">
