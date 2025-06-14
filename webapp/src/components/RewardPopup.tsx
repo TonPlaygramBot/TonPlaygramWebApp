@@ -1,8 +1,9 @@
 import { useEffect } from 'react';
 import confetti from 'canvas-confetti';
+import { RewardSegment } from '../utils/rewardLogic';
 
 interface RewardPopupProps {
-  reward: number | null;
+  reward: RewardSegment | null;
   onClose: () => void;
   message?: string;
 }
@@ -21,7 +22,9 @@ export default function RewardPopup({ reward, onClose, message }: RewardPopupPro
           className="w-10 h-10 mx-auto"
         />
         <h3 className="text-lg font-bold">Reward Earned</h3>
-        <div className="text-accent text-3xl">+{reward} TPC</div>
+        <div className="text-accent text-3xl">
+          {reward.tpc !== undefined ? `+${reward.tpc} TPC` : `${reward.spins} Free Spins`}
+        </div>
         {message && <p className="text-sm text-subtext">{message}</p>}
         <button
           onClick={onClose}
