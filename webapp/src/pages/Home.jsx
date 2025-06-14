@@ -21,16 +21,17 @@ export default function Home() {
 
   return (
     <div className="space-y-4">
-        <div className="flex flex-col items-center">
-            <ConnectWallet />
-            {photoUrl && (
-              <img
-                src={photoUrl}
-                alt="profile"
-                className="w-36 h-36 hexagon border-4 border-brand-gold mt-2 object-cover"
-              />
-            )}
-        </div>
+      <div className="flex flex-col items-center">
+        <ConnectWallet />
+        {photoUrl && (
+          <img
+            src={photoUrl}
+            alt="profile"
+            className="w-36 h-36 hexagon border-4 border-brand-gold mt-2 object-cover"
+          />
+        )}
+      </div>
+
       <SpinGame />
 
       <div className="grid grid-cols-1 gap-4">
