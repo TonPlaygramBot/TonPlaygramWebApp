@@ -4,7 +4,8 @@ import {
   startMining,
   claimMining,
   getWalletBalance,
-  getTonBalance
+  getTonBalance,
+  getLeaderboard
 } from '../utils/api.js';
 import { getTelegramId } from '../utils/telegram.js';
 import OpenInTelegram from '../components/OpenInTelegram.jsx';
@@ -20,6 +21,8 @@ export default function Mining() {
   const [startTime, setStartTime] = useState(null);
   const [timeLeft, setTimeLeft] = useState(0);
   const [balances, setBalances] = useState({ ton: null, tpc: null, usdt: 0 });
+  const [leaderboard, setLeaderboard] = useState([]);
+  const [rank, setRank] = useState(null);
   const wallet = useTonWallet();
 
   const loadBalances = async () => {
@@ -62,6 +65,19 @@ export default function Mining() {
       return () => clearInterval(interval);
     }
   }, [status, startTime]);
+
+  useEffect(() => {
+    async function loadLeaderboard() {
+      try {
+        const data = await getLeaderboard(telegramId);
+        setLeaderboard(data.users);
+        setRank(data.rank);
+      } catch (err) {
+        console.error('Failed to load leaderboard:', err);
+      }
+    }
+    loadLeaderboard();
+  }, [telegramId, status]);
 
   const handleStart = async () => {
     const now = Date.now();
@@ -109,6 +125,45 @@ export default function Mining() {
             {status === 'Mining' && ` - ${formatTimeLeft(timeLeft)}`}
           </span>
         </p>
+      </div>
+
+      <div className="mt-6">
+        <h3 className="text-lg font-semibold mb-2">Leaderboard</h3>
+        <div className="max-h-96 overflow-y-auto border border-border rounded">
+          <table className="w-full text-sm">
+            <thead className="sticky top-0 bg-surface">
+              <tr className="border-b border-border text-left">
+                <th className="p-2">#</th>
+                <th className="p-2">User</th>
+                <th className="p-2 text-right">TPC</th>
+              </tr>
+            </thead>
+            <tbody>
+              {leaderboard.map((u, idx) => (
+                <tr
+                  key={u.telegramId}
+                  className={`border-b border-border ${u.telegramId === telegramId ? 'bg-accent text-black' : ''}`}
+                >
+                  <td className="p-2">{idx + 1}</td>
+                  <td className="p-2 flex items-center space-x-2">
+                    {u.photo && (
+                      <img src={u.photo} alt="" className="w-6 h-6 rounded-full" />
+                    )}
+                    <span>{u.nickname || `${u.firstName} ${u.lastName}`.trim() || 'User'}</span>
+                  </td>
+                  <td className="p-2 text-right">{u.balance}</td>
+                </tr>
+              ))}
+              {rank && rank > 100 && (
+                <tr className="bg-accent text-black">
+                  <td className="p-2">{rank}</td>
+                  <td className="p-2">You</td>
+                  <td className="p-2 text-right">{balances.tpc ?? '...'}</td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
   );
