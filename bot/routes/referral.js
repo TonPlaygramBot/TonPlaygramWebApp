@@ -1,6 +1,8 @@
 import { Router } from 'express';
 import User from '../models/User.js';
 
+const REFERRAL_REWARD = 5000;
+
 const router = Router();
 
 router.post('/code', async (req, res) => {
@@ -40,10 +42,27 @@ router.post('/claim', async (req, res) => {
   }
 
   user.referredBy = code;
+
+  inviter.balance += REFERRAL_REWARD;
+  inviter.transactions.push({
+    amount: REFERRAL_REWARD,
+    type: 'referral',
+    status: 'delivered',
+    date: new Date()
+  });
+  await inviter.save();
+
+  user.balance += REFERRAL_REWARD;
+  user.transactions.push({
+    amount: REFERRAL_REWARD,
+    type: 'referral',
+    status: 'delivered',
+    date: new Date()
+  });
   await user.save();
 
   const count = await User.countDocuments({ referredBy: code });
-  res.json({ message: 'claimed', total: count });
+  res.json({ message: 'claimed', total: count, reward: REFERRAL_REWARD });
 });
 
 export default router;
