@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import User from '../models/User.js';
+import bot from '../bot.js';
 
 const router = Router();
 
@@ -52,40 +53,51 @@ router.post('/send', async (req, res) => {
   sender.balance -= amount;
   await sender.save();
 
+  const txDate = new Date();
+
   await User.findOneAndUpdate(
     { telegramId: toId },
     { $inc: { balance: amount }, $setOnInsert: { referralCode: toId.toString() } },
     { upsert: true }
   );
 
+  const senderTx = {
+    amount: -amount,
+    type: 'send',
+    status: 'delivered',
+    date: txDate
+  };
+
+  const receiverTx = {
+    amount,
+    type: 'receive',
+    status: 'delivered',
+    date: txDate
+  };
+
   await User.updateOne(
     { telegramId: fromId },
     {
-      $push: {
-        transactions: {
-          amount: -amount,
-          type: 'send',
-          status: 'delivered',
-          date: new Date()
-        }
-      }
+      $push: { transactions: senderTx }
     }
   );
   await User.updateOne(
     { telegramId: toId },
     {
-      $push: {
-        transactions: {
-          amount,
-          type: 'receive',
-          status: 'delivered',
-          date: new Date()
-        }
-      }
+      $push: { transactions: receiverTx }
     }
   );
 
-  res.json({ balance: sender.balance });
+  try {
+    await bot.telegram.sendMessage(
+      String(toId),
+      `You received ${amount} TPC from ${fromId}`
+    );
+  } catch (err) {
+    console.error('Failed to send Telegram notification:', err.message);
+  }
+
+  res.json({ balance: sender.balance, transaction: senderTx });
 });
 
 router.post('/transactions', async (req, res) => {

@@ -24,6 +24,8 @@ export default function Wallet() {
   const [receiver, setReceiver] = useState('');
   const [amount, setAmount] = useState('');
   const [transactions, setTransactions] = useState([]);
+  const [sending, setSending] = useState(false);
+  const [receipt, setReceipt] = useState(null);
   const wallet = useTonWallet();
 
   const loadBalances = async () => {
@@ -45,7 +47,20 @@ export default function Wallet() {
     const amt = Number(amount);
     if (!receiver || !amt) return;
     if (!window.confirm(`Send ${amt} TPC to ${receiver}?`)) return;
-    await sendTpc(telegramId, Number(receiver), amt);
+    setSending(true);
+    const res = await sendTpc(telegramId, Number(receiver), amt);
+    setSending(false);
+    if (res?.error) {
+      alert(res.error);
+      return;
+    }
+    setReceipt({
+      to: receiver,
+      amount: amt,
+      date: res.transaction?.date
+        ? new Date(res.transaction.date).toLocaleString()
+        : new Date().toLocaleString()
+    });
     setReceiver('');
     setAmount('');
     loadBalances();
@@ -70,14 +85,14 @@ export default function Wallet() {
           placeholder="Receiver Telegram ID"
           value={receiver}
           onChange={(e) => setReceiver(e.target.value)}
-          className="border p-1 rounded w-full"
+          className="border p-1 rounded w-full text-black"
         />
         <input
           type="number"
           placeholder="Amount"
           value={amount}
           onChange={(e) => setAmount(e.target.value)}
-          className="border p-1 rounded w-full mt-1"
+          className="border p-1 rounded w-full mt-1 text-black"
         />
         <button
           onClick={handleSend}
@@ -85,6 +100,21 @@ export default function Wallet() {
         >
           Send
         </button>
+        {sending && (
+          <div className="mt-1">
+            <div className="h-1 bg-primary animate-pulse" />
+            <div className="text-sm text-subtext">Sending...</div>
+          </div>
+        )}
+        {receipt && (
+          <div className="border border-border p-2 rounded mt-2 text-sm flex justify-between items-center">
+            <div>
+              <div>Sent {receipt.amount} TPC to {receipt.to}</div>
+              <div className="text-xs">{receipt.date}</div>
+            </div>
+            <button className="text-xs" onClick={() => setReceipt(null)}>x</button>
+          </div>
+        )}
       </div>
 
       <div className="space-y-1">
