@@ -4,7 +4,7 @@ import bot from './bot.js';
 import mongoose from 'mongoose';
 import passport from 'passport';
 import { Strategy as GoogleStrategy } from 'passport-google-oauth20';
-import { miningRouter } from './routes/mining.js';
+import miningRoutes from './routes/mining.js';
 import tasksRoutes from './routes/tasks.js';
 import watchRoutes from './routes/watch.js';
 import referralRoutes from './routes/referral.js';
@@ -54,7 +54,7 @@ if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
 } else {
   console.log('Google OAuth credentials not provided, skipping Google auth setup');
 }
-app.use('/api/mining', miningRouter);
+app.use('/api/mining', miningRoutes);
 app.use('/api/tasks', tasksRoutes);
 app.use('/api/watch', watchRoutes);
 app.use('/api/referral', referralRoutes);
@@ -63,35 +63,31 @@ app.use('/api/profile', profileRoutes);
 
 // Serve the built React app
 const webappPath = path.join(__dirname, '../webapp/dist');
-const indexFile = path.join(webappPath, 'index.html');
 
-function ensureWebapp() {
-  if (!existsSync(indexFile) || !existsSync(path.join(webappPath, 'assets'))) {
-    try {
-      console.log('Building webapp...');
-      const webappDir = path.join(__dirname, '../webapp');
-      execSync('npm install', { cwd: webappDir, stdio: 'inherit' });
+if (
+    !existsSync(path.join(webappPath, 'index.html')) ||
+    !existsSync(path.join(webappPath, 'assets'))
+) {
+  try {
+    console.log('Building webapp...');
+    const webappDir = path.join(__dirname, '../webapp');
+    execSync('npm install', { cwd: webappDir, stdio: 'inherit' });
 
-      const apiBase = process.env.WEBAPP_API_BASE_URL || '';
-      const displayBase = apiBase || '(same origin)';
-      console.log(`Using API base URL ${displayBase} for webapp build`);
+    const apiBase = process.env.WEBAPP_API_BASE_URL || '';
+    const displayBase = apiBase || '(same origin)';
+    console.log(`Using API base URL ${displayBase} for webapp build`);
 
-      execSync('npm run build', {
-        cwd: webappDir,
-        stdio: 'inherit',
-        env: { ...process.env, VITE_API_BASE_URL: apiBase }
-      });
-    } catch (err) {
-      console.error('Failed to build webapp:', err.message);
-    }
+    execSync('npm run build', {
+      cwd: webappDir,
+      stdio: 'inherit',
+      env: { ...process.env, VITE_API_BASE_URL: apiBase }
+    });
+  } catch (err) {
+    console.error('Failed to build webapp:', err.message);
   }
-  return existsSync(indexFile);
 }
 
-const hasWebapp = ensureWebapp();
-if (hasWebapp) {
-  app.use(express.static(webappPath));
-}
+app.use(express.static(webappPath));
 // Expose TonConnect manifest dynamically so the base URL always matches the
 // current request host. The manifest path is taken from the
 // TONCONNECT_MANIFEST_URL environment variable if provided, otherwise the
@@ -110,20 +106,14 @@ app.get(manifestPath, (req, res) => {
   });
 });
 app.get('/', (req, res) => {
-  if (!hasWebapp) {
-    return res.status(500).send('Webapp build missing. Run "npm --prefix webapp run build"');
-  }
-  res.sendFile(indexFile);
+  res.sendFile(path.join(webappPath, 'index.html'));
 });
 app.get('/api/ping', (req, res) => {
   res.json({ message: 'pong' });
 });
 app.get('*', (req, res) => {
   if (req.path.startsWith('/api/')) return res.status(404).end();
-  if (!hasWebapp) {
-    return res.status(500).send('Webapp build missing. Run "npm --prefix webapp run build"');
-  }
-  res.sendFile(indexFile);
+  res.sendFile(path.join(webappPath, 'index.html'));
 });
 
 // MongoDB Connection
