@@ -7,7 +7,11 @@ import {
   linkSocial,
   fetchTelegramInfo
 } from '../utils/api.js';
-import { getTelegramId } from '../utils/telegram.js';
+import {
+  getTelegramId,
+  getTelegramFirstName,
+  getTelegramLastName,
+} from '../utils/telegram.js';
 import OpenInTelegram from '../components/OpenInTelegram.jsx';
 
 export default function MyAccount() {
@@ -39,20 +43,32 @@ export default function MyAccount() {
     });
     setBalanceInput(data.balance ?? '');
 
-    if (!data.nickname || !data.photo) {
+    if (!data.nickname || !data.photo || !data.firstName || !data.lastName) {
       setAutoUpdating(true);
       try {
-        const tg = await fetchTelegramInfo(getTelegramId());
+        let tg;
+        try {
+          tg = await fetchTelegramInfo(getTelegramId());
+        } catch (err) {
+          console.error('fetchTelegramInfo failed', err);
+        }
+        const firstName =
+          data.firstName || tg?.firstName || getTelegramFirstName();
+        const lastName =
+          data.lastName || tg?.lastName || getTelegramLastName();
+        const photo = data.photo || tg?.photoUrl || '';
         const updated = await updateProfile({
           telegramId: getTelegramId(),
-          nickname: data.nickname || tg.nickname,
-          photo: data.photo || tg.photo
+          nickname: data.nickname || firstName,
+          photo,
+          firstName,
+          lastName,
         });
         setProfile(updated);
         setForm({
           nickname: updated.nickname || '',
           photo: updated.photo || '',
-          bio: updated.bio || ''
+          bio: updated.bio || '',
         });
       } finally {
         setAutoUpdating(false);
