@@ -53,3 +53,16 @@ export function getTelegramUserData() {
   }
   return null;
 }
+
+export function getTelegramPhotoUrl() {
+  if (typeof window !== 'undefined') {
+    const photo = window?.Telegram?.WebApp?.initDataUnsafe?.user?.photo_url;
+    if (photo) {
+      localStorage.setItem('telegramPhotoUrl', photo);
+      return photo;
+    }
+    const stored = localStorage.getItem('telegramPhotoUrl');
+    if (stored) return stored;
+  }
+  return '';
+}
