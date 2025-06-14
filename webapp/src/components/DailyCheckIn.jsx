@@ -63,12 +63,17 @@ export default function DailyCheckIn() {
     <div className="w-full space-y-2">
       {showPopup && (
         <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-70 z-50">
-          <div className="bg-surface border border-border p-6 rounded text-center space-y-4 text-text">
-            <p className="font-semibold">Daily Check-In</p>
+          <div className="bg-surface border border-border p-6 rounded text-center space-y-4 text-text w-80">
+            <img
+              src="/assets/TonPlayGramLogo.jpg"
+              alt="TonPlaygram Logo"
+              className="w-12 h-12 mx-auto transform scale-110"
+            />
+            <h3 className="text-lg font-bold">Daily Check-In</h3>
             <p className="text-sm text-subtext">Come back daily to keep your streak!</p>
             <button
               onClick={handleCheckIn}
-              className="px-4 py-2 bg-blue-600 text-white rounded"
+              className="px-4 py-2 bg-primary hover:bg-primary-hover text-white rounded w-full"
             >
               Check in
             </button>
