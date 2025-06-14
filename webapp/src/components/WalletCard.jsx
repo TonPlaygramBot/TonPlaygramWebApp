@@ -6,13 +6,23 @@ import { getWalletBalance, getTonBalance } from '../utils/api.js';
 import { getTelegramId } from '../utils/telegram.js';
 
 export default function WalletCard() {
+  let telegramId;
+  try {
+    telegramId = getTelegramId();
+  } catch (err) {
+    return (
+      <div className="bg-gray-800/60 p-4 rounded-xl text-white">
+        Please open this application via the Telegram bot.
+      </div>
+    );
+  }
   const [tonBalance, setTonBalance] = useState(null);
   const [tpcBalance, setTpcBalance] = useState(null);
   const [usdtBalance, setUsdtBalance] = useState(null);
   const wallet = useTonWallet();
 
   const loadBalances = async () => {
-    const prof = await getWalletBalance(getTelegramId());
+    const prof = await getWalletBalance(telegramId);
     setTpcBalance(prof.balance);
     if (wallet?.account?.address) {
       const bal = await getTonBalance(wallet.account.address);

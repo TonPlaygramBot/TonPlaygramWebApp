@@ -20,12 +20,22 @@ const ICONS = {
 };
 
 export default function TasksCard() {
+  let telegramId;
+  try {
+    telegramId = getTelegramId();
+  } catch (err) {
+    return (
+      <div className="bg-surface border border-border rounded-xl p-4 text-text">
+        Please open this application via the Telegram bot.
+      </div>
+    );
+  }
 
   const [tasks, setTasks] = useState(null);
 
   const load = async () => {
 
-    const data = await listTasks(getTelegramId());
+    const data = await listTasks(telegramId);
 
     setTasks(data);
 
@@ -41,7 +51,7 @@ export default function TasksCard() {
 
     window.open(task.link, '_blank');
 
-    await completeTask(getTelegramId(), task.id);
+    await completeTask(telegramId, task.id);
 
     load();
 

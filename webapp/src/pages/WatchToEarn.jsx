@@ -3,10 +3,20 @@ import { listVideos, watchVideo } from '../utils/api.js';
 import { getTelegramId } from '../utils/telegram.js';
 
 export default function WatchToEarn() {
+  let telegramId;
+  try {
+    telegramId = getTelegramId();
+  } catch (err) {
+    return (
+      <div className="p-4 text-text">
+        Please open this application via the Telegram bot.
+      </div>
+    );
+  }
   const [videos, setVideos] = useState(null);
 
   const load = async () => {
-    const data = await listVideos(getTelegramId());
+    const data = await listVideos(telegramId);
     setVideos(data);
   };
 
@@ -14,7 +24,7 @@ export default function WatchToEarn() {
 
   const handleWatch = async (id, url) => {
     window.open(url, '_blank');
-    await watchVideo(getTelegramId(), id);
+    await watchVideo(telegramId, id);
     load();
   };
 

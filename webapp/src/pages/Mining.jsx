@@ -9,6 +9,16 @@ import {
 import { getTelegramId } from '../utils/telegram.js';
 
 export default function Mining() {
+  let telegramId;
+  try {
+    telegramId = getTelegramId();
+  } catch (err) {
+    return (
+      <div className="p-4 text-text">
+        Please open this application via the Telegram bot.
+      </div>
+    );
+  }
   const [status, setStatus] = useState('Not Mining');
   const [startTime, setStartTime] = useState(null);
   const [timeLeft, setTimeLeft] = useState(0);
@@ -17,7 +27,7 @@ export default function Mining() {
 
   const loadBalances = async () => {
     try {
-      const prof = await getWalletBalance(getTelegramId());
+      const prof = await getWalletBalance(telegramId);
       const ton = wallet?.account?.address
         ? (await getTonBalance(wallet.account.address)).balance
         : null;
@@ -62,12 +72,12 @@ export default function Mining() {
     setTimeLeft(12 * 60 * 60 * 1000);
     localStorage.setItem('miningStart', String(now));
     setStatus('Mining');
-    await startMining(getTelegramId());
+    await startMining(telegramId);
   };
 
   const autoDistributeRewards = async () => {
     try {
-      await claimMining(getTelegramId());
+      await claimMining(telegramId);
     } catch (err) {
       console.error('Auto-claim failed:', err);
     }
