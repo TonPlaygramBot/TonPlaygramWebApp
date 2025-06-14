@@ -1,11 +1,5 @@
 export async function fetchTelegramInfo(telegramId) {
-  const placeholder = 'https://placehold.co/100x100';
-  const token = process.env.BOT_TOKEN;
-  if (!token) {
-    console.error('BOT_TOKEN not set');
-    return { firstName: '', lastName: '', photoUrl: placeholder };
-  }
-  const base = `https://api.telegram.org/bot${token}`;
+  const base = `https://api.telegram.org/bot${process.env.BOT_TOKEN}`;
   try {
     const infoResp = await fetch(`${base}/getChat?chat_id=${telegramId}`);
     const infoData = await infoResp.json();
@@ -27,10 +21,10 @@ export async function fetchTelegramInfo(telegramId) {
     return {
       firstName: infoData.result?.first_name || '',
       lastName: infoData.result?.last_name || '',
-      photoUrl: photoUrl || placeholder,
+      photoUrl,
     };
   } catch (err) {
     console.error('fetchTelegramInfo failed', err);
-    return { firstName: '', lastName: '', photoUrl: placeholder };
+    return null;
   }
 }
