@@ -25,22 +25,27 @@ router.post('/telegram-info', async (req, res) => {
 router.post('/get', async (req, res) => {
   const { telegramId } = req.body;
   if (!telegramId) return res.status(400).json({ error: 'telegramId required' });
-  const info = await fetchTelegramInfo(telegramId);
 
-  const update = { $setOnInsert: { referralCode: telegramId.toString() } };
-  if (info) {
-    update.$set = {
-      firstName: info.firstName,
-      lastName: info.lastName,
-      photo: info.photoUrl
-    };
+  let user = await User.findOne({ telegramId });
+  if (!user || !user.firstName || !user.lastName || !user.photo) {
+    const info = await fetchTelegramInfo(telegramId);
+
+    const update = { $setOnInsert: { referralCode: telegramId.toString() } };
+    if (info) {
+      update.$set = {
+        firstName: info.firstName,
+        lastName: info.lastName,
+        photo: info.photoUrl
+      };
+    }
+
+    user = await User.findOneAndUpdate(
+      { telegramId },
+      update,
+      { upsert: true, new: true }
+    );
   }
 
-  const user = await User.findOneAndUpdate(
-    { telegramId },
-    update,
-    { upsert: true, new: true }
-  );
   res.json(user);
 });
 
