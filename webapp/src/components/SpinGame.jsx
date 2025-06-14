@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react';
-import SpinWheel from './SpinWheel.tsx';
+import { useEffect, useState, useRef } from 'react';
+import SpinWheel, { SpinWheelHandle } from './SpinWheel.tsx';
 import RewardPopup from './RewardPopup.tsx';
 import AdModal from './AdModal.tsx';
 import DailyCheckIn from './DailyCheckIn.jsx';
@@ -21,8 +21,15 @@ export default function SpinGame() {
   }
   const [lastSpin, setLastSpin] = useState(null);
   const [reward, setReward] = useState(null);
-  const [spinning, setSpinning] = useState(false);
+  const [spinningMain, setSpinningMain] = useState(false);
+  const [spinningLeft, setSpinningLeft] = useState(false);
+  const [spinningMiddle, setSpinningMiddle] = useState(false);
+  const spinning = spinningMain || spinningLeft || spinningMiddle;
   const [showAd, setShowAd] = useState(false);
+
+  const mainRef = useRef<SpinWheelHandle>(null);
+  const leftRef = useRef<SpinWheelHandle>(null);
+  const middleRef = useRef<SpinWheelHandle>(null);
 
   useEffect(() => {
     const ts = localStorage.getItem('lastSpin');
@@ -41,18 +48,52 @@ export default function SpinGame() {
     await addTransaction(id, r, 'spin');
   };
 
+  const triggerSpin = () => {
+    if (spinning || !ready) return;
+    leftRef.current?.spin();
+    mainRef.current?.spin();
+    middleRef.current?.spin();
+  };
+
   const ready = canSpin(lastSpin);
 
   return (
     <div className="bg-surface border border-border rounded p-4 flex flex-col items-center space-y-2">
       <h3 className="text-lg font-bold text-text">Spin &amp; Win</h3>
       <p className="text-sm text-subtext">Try your luck and win rewards!</p>
-      <SpinWheel
-        onFinish={handleFinish}
-        spinning={spinning}
-        setSpinning={setSpinning}
-        disabled={!ready}
-      />
+      <div className="flex space-x-4">
+        <SpinWheel
+          ref={leftRef}
+          onFinish={() => {}}
+          spinning={spinningLeft}
+          setSpinning={setSpinningLeft}
+          disabled={!ready}
+          showButton={false}
+        />
+        <SpinWheel
+          ref={mainRef}
+          onFinish={handleFinish}
+          spinning={spinningMain}
+          setSpinning={setSpinningMain}
+          disabled={!ready}
+          showButton={false}
+        />
+        <SpinWheel
+          ref={middleRef}
+          onFinish={() => {}}
+          spinning={spinningMiddle}
+          setSpinning={setSpinningMiddle}
+          disabled={!ready}
+          showButton={false}
+        />
+      </div>
+      <button
+        onClick={triggerSpin}
+        className="mt-4 px-4 py-1 bg-green-600 text-white text-sm font-bold rounded disabled:bg-gray-500"
+        disabled={spinning || !ready}
+      >
+        Spin
+      </button>
       {!ready && (
         <>
           <p className="text-sm text-white font-semibold">
