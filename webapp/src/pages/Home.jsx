@@ -94,7 +94,6 @@ export default function Home() {
 
         <MiningCard />
 
-        <TasksCard />
 
         <GameCard
 
@@ -105,6 +104,8 @@ export default function Home() {
           link="/account"
 
         />
+
+        <TasksCard />
 
       </div>
 
