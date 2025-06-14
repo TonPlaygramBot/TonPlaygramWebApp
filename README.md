@@ -92,6 +92,19 @@ The webapp now uses **TonConnect** to link a Tonkeeper wallet. Configure
 the server via `TONCONNECT_MANIFEST_URL`. The server serves a dynamic
 `/tonconnect-manifest.json` response that always reflects the current hostname.
 
+## Telegram Profile Data
+
+The **My Account** page displays several fields pulled directly from Telegram:
+
+- **Telegram ID**
+- **First name** and **last name**
+- **Profile photo**
+
+These details are fetched using `getTelegramId()` and `fetchTelegramInfo()` and
+are shown in the "Telegram Info" section of the page. Additional properties such
+as `username` are available through `window.Telegram.WebApp.initDataUnsafe.user`
+and can be displayed if needed.
+
 ## Open Source Games
 - [Chessu](https://github.com/dotnize/chessu) – Competitive chess with socket rooms.
 - [Snakes & Ladders / Chutes & Ladders](https://github.com/yashksaini/snakes-and-ladders-game) – Custom avatars, virtual board, and climb/slide animations.
