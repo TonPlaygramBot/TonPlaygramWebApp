@@ -33,6 +33,10 @@ export function claimMining(telegramId) {
   return post('/api/mining/claim', { telegramId });
 }
 
+export function getLeaderboard(telegramId) {
+  return post('/api/mining/leaderboard', { telegramId });
+}
+
 export function listTasks(telegramId) {
   return post('/api/tasks/list', { telegramId });
 }
