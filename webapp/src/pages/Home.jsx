@@ -27,7 +27,7 @@ export default function Home() {
               <img
                 src={photoUrl}
                 alt="profile"
-                className="w-36 h-10 rounded-full mt-2 object-cover"
+                className="w-36 h-36 hexagon border-4 border-brand-gold mt-2 object-cover"
               />
             )}
         </div>
