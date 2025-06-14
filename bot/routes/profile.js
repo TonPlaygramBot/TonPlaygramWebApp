@@ -27,6 +27,7 @@ router.post('/get', async (req, res) => {
   if (!telegramId) return res.status(400).json({ error: 'telegramId required' });
 
   let user = await User.findOne({ telegramId });
+  let filledFromTelegram = false;
   if (!user || !user.firstName || !user.lastName || !user.photo) {
     const info = await fetchTelegramInfo(telegramId);
 
@@ -37,6 +38,7 @@ router.post('/get', async (req, res) => {
         lastName: info.lastName,
         photo: info.photoUrl
       };
+      filledFromTelegram = true;
     }
 
     user = await User.findOneAndUpdate(
@@ -46,7 +48,7 @@ router.post('/get', async (req, res) => {
     );
   }
 
-  res.json(user);
+  res.json({ ...user.toObject(), filledFromTelegram });
 });
 
 router.post('/update', async (req, res) => {
