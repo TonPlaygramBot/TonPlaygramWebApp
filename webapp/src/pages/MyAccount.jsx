@@ -39,21 +39,25 @@ export default function MyAccount() {
     });
     setBalanceInput(data.balance ?? '');
 
-    if (!data.nickname || !data.photo) {
+    if (!data.nickname || !data.photo || !data.firstName || !data.lastName) {
       setAutoUpdating(true);
       try {
         const tg = await fetchTelegramInfo(getTelegramId());
-        const updated = await updateProfile({
-          telegramId: getTelegramId(),
-          nickname: data.nickname || tg.nickname,
-          photo: data.photo || tg.photo
-        });
-        setProfile(updated);
-        setForm({
-          nickname: updated.nickname || '',
-          photo: updated.photo || '',
-          bio: updated.bio || ''
-        });
+        if (tg && !tg.error) {
+          const updated = await updateProfile({
+            telegramId: getTelegramId(),
+            nickname: data.nickname || tg.firstName,
+            photo: data.photo || tg.photoUrl,
+            firstName: data.firstName || tg.firstName,
+            lastName: data.lastName || tg.lastName
+          });
+          setProfile(updated);
+          setForm({
+            nickname: updated.nickname || '',
+            photo: updated.photo || '',
+            bio: updated.bio || ''
+          });
+        }
       } finally {
         setAutoUpdating(false);
       }

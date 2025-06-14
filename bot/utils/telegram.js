@@ -25,6 +25,6 @@ export async function fetchTelegramInfo(telegramId) {
     };
   } catch (err) {
     console.error('fetchTelegramInfo failed', err);
-    return { firstName: '', lastName: '', photoUrl: '' };
+    return null;
   }
 }
