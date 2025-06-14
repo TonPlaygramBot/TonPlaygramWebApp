@@ -45,10 +45,11 @@ miningRouter.post('/status', getUser, async (req, res) => {
   res.json({ isMining: req.user.isMining, pending: req.user.minedTPC, balance: req.user.balance });
 });
 
-miningRouter.post('/leaderboard', async (req, res) => {
-  const { telegramId } = req.body;
+// ✅ Unified handler for GET and POST leaderboard requests
+async function handleLeaderboard(req, res) {
+  const telegramId = req.body?.telegramId || req.query?.telegramId;
 
-  let users = await User.find()
+  const users = await User.find()
     .sort({ balance: -1 })
     .limit(100)
     .select('telegramId balance nickname firstName lastName photo')
@@ -84,7 +85,9 @@ miningRouter.post('/leaderboard', async (req, res) => {
   }
 
   res.json({ users, rank });
-});
+}
 
-// ✅ Only export named version
+miningRouter.get('/leaderboard', handleLeaderboard);
+miningRouter.post('/leaderboard', handleLeaderboard); // optional legacy support
+
 export { miningRouter };
