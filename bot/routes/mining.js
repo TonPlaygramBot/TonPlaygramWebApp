@@ -3,7 +3,7 @@ import User from '../models/User.js';
 import { startMining, stopMining, claimRewards, updateMiningRewards } from '../utils/miningUtils.js';
 import { fetchTelegramInfo } from '../utils/telegram.js';
 
-const router = Router();
+const miningRouter = Router();
 
 async function getUser(req, res, next) {
   const { telegramId } = req.body;
@@ -18,7 +18,7 @@ async function getUser(req, res, next) {
   next();
 }
 
-router.post('/start', getUser, async (req, res) => {
+miningRouter.post('/start', getUser, async (req, res) => {
   if (req.user.isMining) {
     return res.json({ message: 'already mining' });
   }
@@ -26,7 +26,7 @@ router.post('/start', getUser, async (req, res) => {
   res.json({ message: 'mining started' });
 });
 
-router.post('/stop', getUser, async (req, res) => {
+miningRouter.post('/stop', getUser, async (req, res) => {
   if (!req.user.isMining) {
     return res.json({ message: 'not mining' });
   }
@@ -34,19 +34,21 @@ router.post('/stop', getUser, async (req, res) => {
   res.json({ message: 'mining stopped', pending: req.user.minedTPC, balance: req.user.balance });
 });
 
-router.post('/claim', getUser, async (req, res) => {
+miningRouter.post('/claim', getUser, async (req, res) => {
   const amount = await claimRewards(req.user);
   res.json({ message: 'claimed', amount, balance: req.user.balance });
 });
 
-router.post('/status', getUser, async (req, res) => {
+miningRouter.post('/status', getUser, async (req, res) => {
   updateMiningRewards(req.user);
   await req.user.save();
   res.json({ isMining: req.user.isMining, pending: req.user.minedTPC, balance: req.user.balance });
 });
 
+// ✅ Unified handler for GET and POST leaderboard requests
 async function handleLeaderboard(req, res) {
-  const telegramId = req.body.telegramId || req.query.telegramId;
+  const telegramId = req.body?.telegramId || req.query?.telegramId;
+
   const users = await User.find()
     .sort({ balance: -1 })
     .limit(100)
@@ -83,11 +85,9 @@ async function handleLeaderboard(req, res) {
   }
 
   res.json({ users, rank });
-
 }
 
-router.post('/leaderboard', handleLeaderboard);
-router.get('/leaderboard', handleLeaderboard);
+miningRouter.get('/leaderboard', handleLeaderboard);
+miningRouter.post('/leaderboard', handleLeaderboard); // optional legacy support
 
-export { router as miningRouter };
-export default router;
+export { miningRouter };
