@@ -134,6 +134,7 @@ export default function Mining() {
             <thead className="sticky top-0 bg-surface">
               <tr className="border-b border-border text-left">
                 <th className="p-2">#</th>
+                <th className="p-2"></th>
                 <th className="p-2">User</th>
                 <th className="p-2 text-right">TPC</th>
               </tr>
@@ -145,31 +146,33 @@ export default function Mining() {
                   className={`border-b border-border ${u.telegramId === telegramId ? 'bg-accent text-black' : ''}`}
                 >
                   <td className="p-2">{idx + 1}</td>
-                  <td className="p-2 flex items-center space-x-2">
+                  <td className="p-2">
                     {u.photo && (
-                      <img src={u.photo} alt="" className="w-6 h-6 rounded-full" />
+                      <img src={u.photo} alt="" className="w-16 h-16 hexagon border-2 border-brand-gold object-cover" />
                     )}
-                    <span>{u.nickname || `${u.firstName} ${u.lastName}`.trim() || 'User'}</span>
+                  </td>
+                  <td className="p-2">
+                    {u.nickname || `${u.firstName} ${u.lastName}`.trim() || 'User'}
                   </td>
                   <td className="p-2 text-right">{u.balance}</td>
                 </tr>
               ))}
-              {rank && rank > 100 && (
-                <tr className="bg-accent text-black">
-                  <td className="p-2">{rank}</td>
-                  <td className="p-2 flex items-center space-x-2">
-                    {getTelegramPhotoUrl() && (
-                      <img
-                        src={getTelegramPhotoUrl()}
-                        alt=""
-                        className="w-6 h-6 rounded-full"
-                      />
-                    )}
-                    <span>You</span>
-                  </td>
-                  <td className="p-2 text-right">{balances.tpc ?? '...'}</td>
-                </tr>
-              )}
+                {rank && rank > 100 && (
+                  <tr className="bg-accent text-black">
+                    <td className="p-2">{rank}</td>
+                    <td className="p-2">
+                      {getTelegramPhotoUrl() && (
+                        <img
+                          src={getTelegramPhotoUrl()}
+                          alt=""
+                          className="w-16 h-16 hexagon border-2 border-brand-gold object-cover"
+                        />
+                      )}
+                    </td>
+                    <td className="p-2">You</td>
+                    <td className="p-2 text-right">{balances.tpc ?? '...'}</td>
+                  </tr>
+                )}
             </tbody>
           </table>
         </div>
