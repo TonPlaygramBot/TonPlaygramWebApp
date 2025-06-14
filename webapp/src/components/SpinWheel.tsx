@@ -1,6 +1,10 @@
-import { useState } from 'react';
+import { useState, forwardRef, useImperativeHandle } from 'react';
 
 import { segments } from '../utils/rewardLogic';
+
+export interface SpinWheelHandle {
+  spin: () => void;
+}
 
 interface SpinWheelProps {
 
@@ -11,7 +15,7 @@ interface SpinWheelProps {
   setSpinning: (b: boolean) => void;
 
   disabled?: boolean;
-
+  showButton?: boolean;
 }
 
 // Slot machine style settings
@@ -24,17 +28,16 @@ const winningRow = 2;  // Index of the row that marks the winner (3rd row)
 
 const loops = 8;       // How many times the list repeats while spinning
 
-export default function SpinWheel({
-
-  onFinish,
-
-  spinning,
-
-  setSpinning,
-
-  disabled
-
-}: SpinWheelProps) {
+export default forwardRef<SpinWheelHandle, SpinWheelProps>(function SpinWheel(
+  {
+    onFinish,
+    spinning,
+    setSpinning,
+    disabled,
+    showButton = true,
+  }: SpinWheelProps,
+  ref
+) {
 
   const [offset, setOffset] = useState(0);
 
@@ -67,16 +70,13 @@ export default function SpinWheel({
     setWinnerIndex(null);
 
     setTimeout(() => {
-
       setSpinning(false);
-
       setWinnerIndex(finalIndex);
-
       onFinish(reward);
-
     }, 4000);
-
   };
+
+  useImperativeHandle(ref, () => ({ spin }));
 
   return (
 
@@ -141,23 +141,18 @@ export default function SpinWheel({
         </div>
 
       </div>
-
-      <button
-
-        onClick={spin}
-
-        className="mt-4 px-4 py-1 bg-green-600 text-white text-sm font-bold rounded disabled:bg-gray-500"
-
-        disabled={spinning || disabled}
-
-      >
-
-        Spin
-
-      </button>
+      {showButton && (
+        <button
+          onClick={spin}
+          className="mt-4 px-4 py-1 bg-green-600 text-white text-sm font-bold rounded disabled:bg-gray-500"
+          disabled={spinning || disabled}
+        >
+          Spin
+        </button>
+      )}
 
     </div>
 
   );
 
-}
+});

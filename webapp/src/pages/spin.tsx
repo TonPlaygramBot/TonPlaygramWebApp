@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react';
-import SpinWheel from '../components/SpinWheel.tsx';
+import { useEffect, useState, useRef } from 'react';
+import SpinWheel, { SpinWheelHandle } from '../components/SpinWheel.tsx';
 import RewardPopup from '../components/RewardPopup.tsx';
 import AdModal from '../components/AdModal.tsx';
 import { canSpin, nextSpinTime } from '../utils/rewardLogic';
@@ -20,8 +20,16 @@ export default function SpinPage() {
   }
   const [lastSpin, setLastSpin] = useState<number | null>(null);
   const [reward, setReward] = useState<number | null>(null);
-  const [spinning, setSpinning] = useState(false);
+  const [spinningMain, setSpinningMain] = useState(false);
+  const [spinningLeft, setSpinningLeft] = useState(false);
+  const [spinningMiddle, setSpinningMiddle] = useState(false);
+  const spinning = spinningMain || spinningLeft || spinningMiddle;
+  const [multiplier, setMultiplier] = useState(false);
   const [showAd, setShowAd] = useState(false);
+
+  const mainRef = useRef<SpinWheelHandle>(null);
+  const leftRef = useRef<SpinWheelHandle>(null);
+  const middleRef = useRef<SpinWheelHandle>(null);
 
   useEffect(() => {
     const ts = localStorage.getItem('lastSpin');
@@ -32,12 +40,22 @@ export default function SpinPage() {
     const now = Date.now();
     localStorage.setItem('lastSpin', String(now));
     setLastSpin(now);
-    setReward(r);
+    const finalReward = multiplier ? r * 3 : r;
+    setReward(finalReward);
     const id = telegramId;
     const balRes = await getWalletBalance(id);
-    const newBalance = (balRes.balance || 0) + r;
+    const newBalance = (balRes.balance || 0) + finalReward;
     await updateBalance(id, newBalance);
-    await addTransaction(id, r, 'spin');
+    await addTransaction(id, finalReward, 'spin');
+  };
+
+  const triggerSpin = () => {
+    if (spinning || !ready) return;
+    if (multiplier) {
+      leftRef.current?.spin();
+      middleRef.current?.spin();
+    }
+    mainRef.current?.spin();
   };
 
   const ready = canSpin(lastSpin);
@@ -47,12 +65,48 @@ export default function SpinPage() {
       <h1 className="text-xl font-bold">Spin &amp; Win</h1>
       <p className="text-sm text-subtext">Try your luck and win rewards!</p>
       <div className="bg-surface border border-border rounded p-4 flex flex-col items-center space-y-2">
-        <SpinWheel
-          onFinish={handleFinish}
-          spinning={spinning}
-          setSpinning={setSpinning}
-          disabled={!ready}
-        />
+        <div className="flex space-x-4">
+          <SpinWheel
+            ref={leftRef}
+            onFinish={() => {}}
+            spinning={spinningLeft}
+            setSpinning={setSpinningLeft}
+            disabled={!ready}
+            showButton={false}
+          />
+          <SpinWheel
+            ref={mainRef}
+            onFinish={handleFinish}
+            spinning={spinningMain}
+            setSpinning={setSpinningMain}
+            disabled={!ready}
+            showButton={false}
+          />
+          <SpinWheel
+            ref={middleRef}
+            onFinish={() => {}}
+            spinning={spinningMiddle}
+            setSpinning={setSpinningMiddle}
+            disabled={!ready}
+            showButton={false}
+          />
+        </div>
+        <div className="flex space-x-2 mt-4">
+          <button
+            onClick={triggerSpin}
+            className="px-4 py-1 bg-green-600 text-white text-sm font-bold rounded disabled:bg-gray-500"
+            disabled={spinning || !ready}
+          >
+            Spin
+          </button>
+          <button
+            onClick={() => setMultiplier(m => !m)}
+            className={`px-4 py-1 text-white text-sm font-bold rounded ${multiplier ? 'bg-red-700' : 'bg-red-500'}`}
+            disabled={spinning || !ready}
+          >
+            x3
+          </button>
+        </div>
         {!ready && (
           <>
             <p className="text-sm text-white font-semibold">Next spin at {new Date(nextSpinTime(lastSpin)).toLocaleTimeString()}</p>
