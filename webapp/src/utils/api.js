@@ -84,3 +84,11 @@ export function getWalletBalance(telegramId) {
 export function getTonBalance(address) {
   return post('/api/wallet/ton-balance', { address });
 }
+
+export function getReferralInfo(telegramId) {
+  return post('/api/referral/code', { telegramId });
+}
+
+export function claimReferral(telegramId, code) {
+  return post('/api/referral/claim', { telegramId, code });
+}
