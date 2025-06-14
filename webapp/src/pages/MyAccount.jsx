@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { getProfile, updateProfile, fetchTelegramInfo } from '../utils/api.js';
 import { getTelegramId } from '../utils/telegram.js';
 import OpenInTelegram from '../components/OpenInTelegram.jsx';
@@ -14,10 +14,16 @@ export default function MyAccount() {
   const [profile, setProfile] = useState(null);
   const [autoUpdating, setAutoUpdating] = useState(false);
   const [wasUpdatedFromTelegram, setWasUpdatedFromTelegram] = useState(false);
+  const timerRef = useRef(null);
 
   useEffect(() => {
     async function load() {
       const data = await getProfile(telegramId);
+      if (data.filledFromTelegram) {
+        setWasUpdatedFromTelegram(true);
+        if (timerRef.current) clearTimeout(timerRef.current);
+        timerRef.current = setTimeout(() => setWasUpdatedFromTelegram(false), 4000);
+      }
       setProfile(data);
       if (!data.photo || !data.firstName || !data.lastName) {
         setAutoUpdating(true);
@@ -32,7 +38,13 @@ export default function MyAccount() {
             });
             setProfile(updated);
             setWasUpdatedFromTelegram(true);
-            setTimeout(() => setWasUpdatedFromTelegram(false), 4000);
+            if (timerRef.current) {
+              clearTimeout(timerRef.current);
+            }
+            timerRef.current = setTimeout(
+              () => setWasUpdatedFromTelegram(false),
+              4000
+            );
           }
         } finally {
           setAutoUpdating(false);
@@ -40,6 +52,11 @@ export default function MyAccount() {
       }
     }
     load();
+    return () => {
+      if (timerRef.current) {
+        clearTimeout(timerRef.current);
+      }
+    };
   }, [telegramId]);
 
   if (!profile) return <div className="p-4 text-subtext">Loading...</div>;
