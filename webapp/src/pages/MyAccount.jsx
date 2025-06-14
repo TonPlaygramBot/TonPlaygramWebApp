@@ -4,7 +4,8 @@ import {
   updateProfile,
   updateBalance,
   addTransaction,
-  linkSocial
+  linkSocial,
+  fetchTelegramInfo
 } from '../utils/api.js';
 import { getTelegramId } from '../utils/telegram.js';
 
@@ -14,6 +15,7 @@ export default function MyAccount() {
   const [social, setSocial] = useState({ twitter: '', telegram: '', discord: '' });
   const [balanceInput, setBalanceInput] = useState('');
   const [tx, setTx] = useState({ amount: '', type: '' });
+  const [autoUpdating, setAutoUpdating] = useState(false);
 
   const load = async () => {
     const data = await getProfile(getTelegramId());
@@ -29,6 +31,26 @@ export default function MyAccount() {
       discord: data.social?.discord || ''
     });
     setBalanceInput(data.balance ?? '');
+
+    if (!data.nickname || !data.photo) {
+      setAutoUpdating(true);
+      try {
+        const tg = await fetchTelegramInfo(getTelegramId());
+        const updated = await updateProfile({
+          telegramId: getTelegramId(),
+          nickname: data.nickname || tg.nickname,
+          photo: data.photo || tg.photo
+        });
+        setProfile(updated);
+        setForm({
+          nickname: updated.nickname || '',
+          photo: updated.photo || '',
+          bio: updated.bio || ''
+        });
+      } finally {
+        setAutoUpdating(false);
+      }
+    }
   };
 
   useEffect(() => {
@@ -69,6 +91,9 @@ export default function MyAccount() {
 
   return (
     <div className="p-4 space-y-4 text-text">
+      {autoUpdating && (
+        <div className="p-2 text-sm text-subtext">Updating with Telegram info...</div>
+      )}
       <h2 className="text-xl font-bold">My Account</h2>
 
       {/* Profile Info */}
