@@ -17,6 +17,7 @@ export default function Mining() {
   } catch (err) {
     return <OpenInTelegram />;
   }
+
   const [status, setStatus] = useState('Not Mining');
   const [startTime, setStartTime] = useState(null);
   const [timeLeft, setTimeLeft] = useState(0);
@@ -143,7 +144,9 @@ export default function Mining() {
               {leaderboard.map((u, idx) => (
                 <tr
                   key={u.telegramId}
-                  className={`border-b border-border h-16 ${u.telegramId === telegramId ? 'bg-accent text-black' : ''}`}
+                  className={`border-b border-border h-16 ${
+                    u.telegramId === telegramId ? 'bg-accent text-black' : ''
+                  }`}
                 >
                   <td className="p-2">{idx + 1}</td>
                   <td className="p-2 w-16">
@@ -159,20 +162,20 @@ export default function Mining() {
                   <td className="p-2 text-right">{u.balance}</td>
                 </tr>
               ))}
-                {rank && rank > 100 && (
-                  <tr className="bg-accent text-black h-16">
-                    <td className="p-2">{rank}</td>
-                    <td className="p-2 w-16">
-                      <img
-                        src={getTelegramPhotoUrl()}
-                        alt="avatar"
-                        className="w-16 h-16 hexagon border-2 border-brand-gold object-cover"
-                      />
-                    </td>
-                    <td className="p-2">You</td>
-                    <td className="p-2 text-right">{balances.tpc ?? '...'}</td>
-                  </tr>
-                )}
+              {rank && rank > 100 && (
+                <tr className="bg-accent text-black h-16">
+                  <td className="p-2">{rank}</td>
+                  <td className="p-2 w-16">
+                    <img
+                      src={getTelegramPhotoUrl()}
+                      alt="avatar"
+                      className="w-16 h-16 hexagon border-2 border-brand-gold object-cover"
+                    />
+                  </td>
+                  <td className="p-2">You</td>
+                  <td className="p-2 text-right">{balances.tpc ?? '...'}</td>
+                </tr>
+              )}
             </tbody>
           </table>
         </div>
