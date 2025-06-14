@@ -5,12 +5,14 @@ import {
   claimMining,
   getWalletBalance,
   getTonBalance,
-  getLeaderboard
+  getLeaderboard,
+  getReferralInfo
 } from '../utils/api.js';
 import { getTelegramId, getTelegramPhotoUrl } from '../utils/telegram.js';
+import { BOT_USERNAME } from '../utils/constants.js';
 import OpenInTelegram from '../components/OpenInTelegram.jsx';
 
-export default function Mining() {
+export default function Friends() {
   let telegramId;
   try {
     telegramId = getTelegramId();
@@ -24,6 +26,7 @@ export default function Mining() {
   const [balances, setBalances] = useState({ ton: null, tpc: null, usdt: 0 });
   const [leaderboard, setLeaderboard] = useState([]);
   const [rank, setRank] = useState(null);
+  const [referral, setReferral] = useState(null);
   const wallet = useTonWallet();
   const myPhotoUrl = getTelegramPhotoUrl(); // ✅ Cached photo for current user
 
@@ -80,6 +83,10 @@ export default function Mining() {
     }
     loadLeaderboard();
   }, [telegramId, status]);
+
+  useEffect(() => {
+    getReferralInfo(telegramId).then(setReferral);
+  }, [telegramId]);
 
   const handleStart = async () => {
     const now = Date.now();
@@ -181,6 +188,31 @@ export default function Mining() {
           </table>
         </div>
       </div>
+      {referral && (
+        <div className="mt-4 space-y-1">
+          <p className="font-semibold">Your referral link</p>
+          <div className="flex items-center space-x-2">
+            <input
+              type="text"
+              readOnly
+              value={`https://t.me/${BOT_USERNAME}?start=${referral.code}`}
+              onClick={(e) => e.target.select()}
+              className="flex-1 bg-surface border border-border rounded px-2 py-1 text-sm"
+            />
+            <button
+              onClick={() =>
+                navigator.clipboard.writeText(
+                  `https://t.me/${BOT_USERNAME}?start=${referral.code}`
+                )
+              }
+              className="px-2 py-1 bg-primary hover:bg-primary-hover text-text rounded text-sm"
+            >
+              Copy
+            </button>
+          </div>
+          <p className="text-sm text-subtext">{referral.referrals} referrals</p>
+        </div>
+      )}
     </div>
   );
 }
