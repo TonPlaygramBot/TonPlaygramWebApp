@@ -6,6 +6,16 @@ import ConnectWallet from '../components/ConnectWallet.jsx';
 import { useTonWallet } from '@tonconnect/ui-react';
 
 export default function Wallet() {
+  let telegramId;
+  try {
+    telegramId = getTelegramId();
+  } catch (err) {
+    return (
+      <div className="p-4 text-text">
+        Please open this application via the Telegram bot.
+      </div>
+    );
+  }
   const [ton, setTon] = useState('');
   const [tpc, setTpc] = useState('');
   const [tonBalance, setTonBalance] = useState(null);
@@ -13,7 +23,7 @@ export default function Wallet() {
   const wallet = useTonWallet();
 
   const loadBalances = async () => {
-    const prof = await getWalletBalance(getTelegramId());
+    const prof = await getWalletBalance(telegramId);
     setTpcBalance(prof.balance);
     if (wallet?.account?.address) {
       const bal = await getTonBalance(wallet.account.address);

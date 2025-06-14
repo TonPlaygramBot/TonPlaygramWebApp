@@ -9,12 +9,22 @@ import { IoLogoTwitter, IoLogoTiktok } from 'react-icons/io5';
 import { RiTelegramFill } from 'react-icons/ri';
 
 export default function Tasks() {
+  let telegramId;
+  try {
+    telegramId = getTelegramId();
+  } catch (err) {
+    return (
+      <div className="p-4 text-text">
+        Please open this application via the Telegram bot.
+      </div>
+    );
+  }
 
   const [tasks, setTasks] = useState(null);
 
   const load = async () => {
 
-    const data = await listTasks(getTelegramId());
+    const data = await listTasks(telegramId);
 
     setTasks(data);
 
@@ -30,7 +40,7 @@ export default function Tasks() {
 
     window.open(task.link, '_blank');
 
-    await completeTask(getTelegramId(), task.id);
+    await completeTask(telegramId, task.id);
 
     load();
 

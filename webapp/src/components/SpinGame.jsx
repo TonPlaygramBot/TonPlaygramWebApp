@@ -12,6 +12,16 @@ import {
 import { getTelegramId } from '../utils/telegram.js';
 
 export default function SpinGame() {
+  let telegramId;
+  try {
+    telegramId = getTelegramId();
+  } catch (err) {
+    return (
+      <div className="p-4 text-text">
+        Please open this application via the Telegram bot.
+      </div>
+    );
+  }
   const [lastSpin, setLastSpin] = useState(null);
   const [reward, setReward] = useState(null);
   const [spinning, setSpinning] = useState(false);
@@ -27,7 +37,7 @@ export default function SpinGame() {
     localStorage.setItem('lastSpin', String(now));
     setLastSpin(now);
     setReward(r);
-    const id = getTelegramId();
+    const id = telegramId;
     const balRes = await getWalletBalance(id);
     const newBalance = (balRes.balance || 0) + r;
     await updateBalance(id, newBalance);

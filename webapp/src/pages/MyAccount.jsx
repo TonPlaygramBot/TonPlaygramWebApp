@@ -9,6 +9,16 @@ import {
 import { getTelegramId } from '../utils/telegram.js';
 
 export default function MyAccount() {
+  let telegramId;
+  try {
+    telegramId = getTelegramId();
+  } catch (err) {
+    return (
+      <div className="p-4 text-text">
+        Please open this application via the Telegram bot.
+      </div>
+    );
+  }
   const [profile, setProfile] = useState(null);
   const [form, setForm] = useState({ nickname: '', photo: '', bio: '' });
   const [social, setSocial] = useState({ twitter: '', telegram: '', discord: '' });
@@ -16,7 +26,7 @@ export default function MyAccount() {
   const [tx, setTx] = useState({ amount: '', type: '' });
 
   const load = async () => {
-    const data = await getProfile(getTelegramId());
+    const data = await getProfile(telegramId);
     setProfile(data);
     setForm({
       nickname: data.nickname || '',
@@ -39,24 +49,24 @@ export default function MyAccount() {
   const handleSocialChange = (e) => setSocial({ ...social, [e.target.name]: e.target.value });
 
   const handleSave = async () => {
-    const res = await updateProfile({ telegramId: getTelegramId(), ...form });
+    const res = await updateProfile({ telegramId, ...form });
     setProfile(res);
     alert('Profile updated');
   };
 
   const handleSaveSocial = async () => {
-    await linkSocial({ telegramId: getTelegramId(), ...social });
+    await linkSocial({ telegramId, ...social });
     alert('Social accounts updated');
   };
 
   const handleSetBalance = async () => {
-    const res = await updateBalance(getTelegramId(), Number(balanceInput));
+    const res = await updateBalance(telegramId, Number(balanceInput));
     setProfile({ ...profile, balance: res.balance });
   };
 
   const handleAddTx = async () => {
-    await addTransaction(getTelegramId(), Number(tx.amount), tx.type);
-    const refreshed = await getProfile(getTelegramId());
+    await addTransaction(telegramId, Number(tx.amount), tx.type);
+    const refreshed = await getProfile(telegramId);
     setProfile(refreshed);
     setTx({ amount: '', type: '' });
   };

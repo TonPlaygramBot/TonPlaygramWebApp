@@ -11,6 +11,16 @@ import { useTonWallet } from '@tonconnect/ui-react';
 import { getTelegramId } from '../utils/telegram.js';
 
 export default function MiningCard() {
+  let telegramId: number;
+  try {
+    telegramId = getTelegramId();
+  } catch (err) {
+    return (
+      <div className="p-4 text-text">
+        Please open this application via the Telegram bot.
+      </div>
+    );
+  }
   const [status, setStatus] = useState<string>('Not Mining');
   const [startTime, setStartTime] = useState<number | null>(null);
   const [timeLeft, setTimeLeft] = useState<number>(0);
@@ -19,7 +29,7 @@ export default function MiningCard() {
 
   const loadBalances = async () => {
     try {
-      const prof = await getWalletBalance(getTelegramId());
+      const prof = await getWalletBalance(telegramId);
       const ton = wallet?.account?.address ? (await getTonBalance(wallet.account.address)).balance : null;
       setBalances({ ton, tpc: prof.balance, usdt: 0 });
     } catch (err) {
@@ -29,7 +39,7 @@ export default function MiningCard() {
 
   const refresh = async () => {
     try {
-      const data = await getMiningStatus(getTelegramId());
+      const data = await getMiningStatus(telegramId);
       setStatus(data.isMining ? 'Mining' : 'Not Mining');
     } catch (err) {
       console.warn('Mining status check failed, loading balances anyway.');
@@ -56,7 +66,7 @@ export default function MiningCard() {
     setTimeLeft(12 * 60 * 60 * 1000);
     localStorage.setItem('miningStart', String(now));
     setStatus('Mining');
-    await startMining(getTelegramId());
+    await startMining(telegramId);
     loadBalances();
   };
 
@@ -78,7 +88,7 @@ export default function MiningCard() {
 
   const autoDistributeRewards = async () => {
     try {
-      await claimMining(getTelegramId());
+      await claimMining(telegramId);
     } catch (err) {
       console.error('Auto-claim failed:', err);
     }
