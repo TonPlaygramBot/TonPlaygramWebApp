@@ -50,27 +50,26 @@ router.post('/leaderboard', async (req, res) => {
   const users = await User.find()
     .sort({ balance: -1 })
     .limit(100)
-    .select('telegramId balance nickname firstName lastName')
+    .select('telegramId balance nickname firstName lastName photo')
     .lean();
 
   await Promise.all(
     users.map(async (u) => {
-      const info = await fetchTelegramInfo(u.telegramId);
-      if (info) {
-        u.photoUrl = info.photoUrl;
-        if (!u.firstName || !u.lastName) {
-          await User.updateOne(
-            { telegramId: u.telegramId },
-            {
-              $set: {
-                firstName: info.firstName,
-                lastName: info.lastName,
-              },
-            }
-          );
-          u.firstName = info.firstName;
-          u.lastName = info.lastName;
-        }
+      if (!u.firstName || !u.lastName || !u.photo) {
+        const info = await fetchTelegramInfo(u.telegramId);
+        await User.updateOne(
+          { telegramId: u.telegramId },
+          {
+            $set: {
+              firstName: info.firstName,
+              lastName: info.lastName,
+              photo: info.photoUrl,
+            },
+          }
+        );
+        u.firstName = info.firstName;
+        u.lastName = info.lastName;
+        u.photo = info.photoUrl;
       }
     })
   );
