@@ -60,14 +60,41 @@ router.post('/send', async (req, res) => {
 
   await User.updateOne(
     { telegramId: fromId },
-    { $push: { transactions: { amount: -amount, type: 'send', date: new Date() } } }
+    {
+      $push: {
+        transactions: {
+          amount: -amount,
+          type: 'send',
+          status: 'delivered',
+          date: new Date()
+        }
+      }
+    }
   );
   await User.updateOne(
     { telegramId: toId },
-    { $push: { transactions: { amount, type: 'receive', date: new Date() } } }
+    {
+      $push: {
+        transactions: {
+          amount,
+          type: 'receive',
+          status: 'delivered',
+          date: new Date()
+        }
+      }
+    }
   );
 
   res.json({ balance: sender.balance });
+});
+
+router.post('/transactions', async (req, res) => {
+  const { telegramId } = req.body;
+  if (!telegramId) {
+    return res.status(400).json({ error: 'telegramId required' });
+  }
+  const user = await User.findOne({ telegramId });
+  res.json({ transactions: user ? user.transactions : [] });
 });
 
 export default router;

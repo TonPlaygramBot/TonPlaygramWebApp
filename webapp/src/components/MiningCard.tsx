@@ -1,60 +1,114 @@
 import { useEffect, useState } from 'react';
-import { FaWallet } from 'react-icons/fa';
-import { Link } from 'react-router-dom';
-import { useTonWallet } from '@tonconnect/ui-react';
-import { getWalletBalance, getTonBalance } from '../utils/api.js';
+import { GiMining } from 'react-icons/gi';
+import {
+  getMiningStatus,
+  startMining,
+  stopMining
+} from '../utils/api.js';
 import { getTelegramId } from '../utils/telegram.js';
 import OpenInTelegram from './OpenInTelegram.jsx';
 
-export default function BalanceSummary() {
-  let telegramId;
+export default function MiningCard() {
+  let telegramId: string;
   try {
     telegramId = getTelegramId();
   } catch (err) {
     return <OpenInTelegram />;
   }
 
-  const [balances, setBalances] = useState({ ton: null, tpc: null, usdt: 0 });
-  const wallet = useTonWallet();
+  const [isMining, setIsMining] = useState(false);
+  const [elapsed, setElapsed] = useState(0);
 
-  const loadBalances = async () => {
-    try {
-      const prof = await getWalletBalance(telegramId);
-      const ton = wallet?.account?.address
-        ? (await getTonBalance(wallet.account.address)).balance
-        : null;
-      setBalances({ ton, tpc: prof.balance, usdt: 0 });
-    } catch (err) {
-      console.error('Failed to load balances:', err);
+  // Load initial status
+  useEffect(() => {
+    let ignore = false;
+    getMiningStatus(telegramId).then((res) => {
+      if (ignore) return;
+      if (res.isMining) {
+        const saved = localStorage.getItem('miningStartTime');
+        const start = saved ? parseInt(saved, 10) : Date.now();
+        if (!saved) localStorage.setItem('miningStartTime', String(start));
+        const diff = Math.floor((Date.now() - start) / 1000);
+        if (diff >= 43200) {
+          stopMining(telegramId);
+          localStorage.removeItem('miningStartTime');
+          setIsMining(false);
+          setElapsed(0);
+        } else {
+          setIsMining(true);
+          setElapsed(diff);
+        }
+      } else {
+        setIsMining(false);
+        localStorage.removeItem('miningStartTime');
+      }
+    });
+    return () => {
+      ignore = true;
+    };
+  }, [telegramId]);
+
+  // Update timer every second when mining
+  useEffect(() => {
+    if (!isMining) return;
+    const interval = setInterval(async () => {
+      const start = parseInt(
+        localStorage.getItem('miningStartTime') || String(Date.now()),
+        10
+      );
+      const diff = Math.floor((Date.now() - start) / 1000);
+      if (diff >= 43200) {
+        await stopMining(telegramId);
+        localStorage.removeItem('miningStartTime');
+        setIsMining(false);
+        setElapsed(0);
+        return;
+      }
+      setElapsed(diff);
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [isMining]);
+
+  const toggleMining = async () => {
+    if (isMining) {
+      await stopMining(telegramId);
+      setIsMining(false);
+      setElapsed(0);
+      localStorage.removeItem('miningStartTime');
+    } else {
+      await startMining(telegramId);
+      const now = Date.now();
+      localStorage.setItem('miningStartTime', String(now));
+      setElapsed(0);
+      setIsMining(true);
     }
   };
 
-  useEffect(() => {
-    loadBalances();
-  }, [wallet]);
+  const formatTime = (seconds: number) => {
+    const m = Math.floor(seconds / 60)
+      .toString()
+      .padStart(2, '0');
+    const s = Math.floor(seconds % 60)
+      .toString()
+      .padStart(2, '0');
+    return `${m}:${s}`;
+  };
 
   return (
-    <div className="text-center mt-2">
-      <p className="text-lg font-bold text-gray-300 flex items-center justify-center space-x-1">
-        <Link to="/wallet" className="flex items-center">
-          <FaWallet className="text-primary" />
-        </Link>
-        <span>Wallet</span>
-      </p>
-      <div className="flex justify-around text-sm mt-1">
-        <Token icon="/icons/ton.svg" label="TON" value={balances.ton ?? '...'} />
-        <Token icon="/icons/tpc.svg" label="TPC" value={balances.tpc ?? '...'} />
-        <Token icon="/icons/usdt.svg" label="USDT" value={balances.usdt ?? '0'} />
+    <div className="bg-surface border border-border rounded-xl p-4 space-y-4 text-center">
+      <div className="flex justify-center items-center space-x-1">
+        <GiMining className="w-5 h-5 text-accent" />
+        <span className="text-lg font-bold text-text">Mining</span>
       </div>
-    </div>
-  );
-}
-
-function Token({ icon, value, label }) {
-  return (
-    <div className="flex items-center space-x-1">
-      <img src={icon} alt={label} className="w-4 h-4" />
-      <span>{value}</span>
+      <button
+        onClick={toggleMining}
+        className={`w-full py-4 rounded text-white text-xl font-semibold ${
+          isMining ? 'bg-green-600' : 'bg-red-600'
+        }`}
+      >
+        <div>{isMining ? 'Mining' : 'Not Mining'}</div>
+        <div className="text-sm">{formatTime(elapsed)}</div>
+      </button>
     </div>
   );
 }
