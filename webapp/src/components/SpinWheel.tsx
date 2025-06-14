@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 
 import { segments } from '../utils/rewardLogic';
 
@@ -40,6 +40,20 @@ export default function SpinWheel({
 
   const [winnerIndex, setWinnerIndex] = useState<number | null>(null);
 
+  const spinSoundRef = useRef<HTMLAudioElement | null>(null);
+  const successSoundRef = useRef<HTMLAudioElement | null>(null);
+
+  useEffect(() => {
+    spinSoundRef.current = new Audio('/assets/sounds/spinning.mp3');
+    spinSoundRef.current.preload = 'auto';
+    successSoundRef.current = new Audio('/assets/sounds/successful.mp3');
+    successSoundRef.current.preload = 'auto';
+    return () => {
+      spinSoundRef.current?.pause();
+      successSoundRef.current?.pause();
+    };
+  }, []);
+
   const items = Array.from(
 
     { length: segments.length * loops + visibleRows },
@@ -51,6 +65,10 @@ export default function SpinWheel({
   const spin = () => {
 
     if (spinning || disabled) return;
+    if (spinSoundRef.current) {
+      spinSoundRef.current.currentTime = 0;
+      spinSoundRef.current.play().catch(() => {});
+    }
 
     const index = Math.floor(Math.random() * segments.length);
 
@@ -67,11 +85,17 @@ export default function SpinWheel({
     setWinnerIndex(null);
 
     setTimeout(() => {
+      spinSoundRef.current?.pause();
+      if (spinSoundRef.current) spinSoundRef.current.currentTime = 0;
 
       setSpinning(false);
 
       setWinnerIndex(finalIndex);
 
+      if (successSoundRef.current) {
+        successSoundRef.current.currentTime = 0;
+        successSoundRef.current.play().catch(() => {});
+      }
       onFinish(reward);
 
     }, 4000);
