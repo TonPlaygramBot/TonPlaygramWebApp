@@ -17,10 +17,16 @@ export default function MiningCard() {
   } catch (err) {
     return <OpenInTelegram />;
   }
+
   const [status, setStatus] = useState<string>('Not Mining');
   const [startTime, setStartTime] = useState<number | null>(null);
   const [timeLeft, setTimeLeft] = useState<number>(0);
-  const [balances, setBalances] = useState<{ ton: number | null; tpc: number | null; usdt: number }>({ ton: null, tpc: null, usdt: 0 });
+  const [balances, setBalances] = useState<{ ton: number | null; tpc: number | null; usdt: number }>({
+    ton: null,
+    tpc: null,
+    usdt: 0
+  });
+
   const wallet = useTonWallet();
 
   const loadBalances = async () => {
@@ -101,7 +107,9 @@ export default function MiningCard() {
       </h3>
 
       <button
-        className={`w-full py-4 rounded text-white font-semibold ${status === 'Mining' ? 'bg-green-600' : 'bg-red-600'}`}
+        className={`w-full py-4 rounded text-white font-semibold ${
+          status === 'Mining' ? 'bg-green-600' : 'bg-red-600'
+        }`}
         onClick={handleStart}
         disabled={status === 'Mining'}
       >
@@ -111,17 +119,12 @@ export default function MiningCard() {
   );
 }
 
-
 function formatTimeLeft(ms: number) {
   const totalSeconds = Math.floor(ms / 1000);
   const hours = Math.floor(totalSeconds / 3600);
   const minutes = Math.floor((totalSeconds % 3600) / 60);
   const seconds = totalSeconds % 60;
-  return (
-    hours.toString().padStart(2, '0') +
-    ':' +
-    minutes.toString().padStart(2, '0') +
-    ':' +
-    seconds.toString().padStart(2, '0')
-  );
+  return `${hours.toString().padStart(2, '0')}:${minutes
+    .toString()
+    .padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
 }

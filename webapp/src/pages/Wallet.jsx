@@ -12,6 +12,7 @@ export default function Wallet() {
   } catch (err) {
     return <OpenInTelegram />;
   }
+
   const [tonBalance, setTonBalance] = useState(null);
   const [tpcBalance, setTpcBalance] = useState(null);
   const [receiver, setReceiver] = useState('');
@@ -19,18 +20,21 @@ export default function Wallet() {
   const wallet = useTonWallet();
 
   const loadBalances = async () => {
-    const prof = await getWalletBalance(telegramId);
-    setTpcBalance(prof.balance);
-    if (wallet?.account?.address) {
-      const bal = await getTonBalance(wallet.account.address);
-      setTonBalance(bal.balance);
+    try {
+      const prof = await getWalletBalance(telegramId);
+      setTpcBalance(prof.balance);
+      if (wallet?.account?.address) {
+        const bal = await getTonBalance(wallet.account.address);
+        setTonBalance(bal.balance);
+      }
+    } catch (err) {
+      console.error('Error loading balances:', err);
     }
   };
 
   useEffect(() => {
     loadBalances();
   }, [wallet]);
-
 
   const handleSend = async () => {
     const amt = Number(amount);
@@ -42,12 +46,15 @@ export default function Wallet() {
   };
 
   return (
-    <div className="p-4 space-y-2">
+    <div className="p-4 space-y-4 text-text">
       <h2 className="text-xl font-bold">Wallet</h2>
       <p className="text-sm">Account #{telegramId}</p>
+
       <ConnectWallet />
+
       <p>TON Balance: {tonBalance === null ? '...' : tonBalance}</p>
       <p>TPC Balance: {tpcBalance === null ? '...' : tpcBalance}</p>
+
       <div className="space-y-1">
         <label className="block">Send TPC</label>
         <input
@@ -71,6 +78,7 @@ export default function Wallet() {
           Send
         </button>
       </div>
+
       <div className="space-y-1">
         <label className="block">Receive TPC</label>
         <button

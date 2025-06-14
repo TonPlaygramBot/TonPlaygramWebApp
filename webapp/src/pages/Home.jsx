@@ -1,13 +1,15 @@
 import { useEffect, useState } from 'react';
+import { FaUser, FaArrowCircleUp, FaArrowCircleDown } from 'react-icons/fa';
+import { Link } from 'react-router-dom';
+
 import GameCard from '../components/GameCard.jsx';
 import MiningCard from '../components/MiningCard.tsx';
 import SpinGame from '../components/SpinGame.jsx';
 import TasksCard from '../components/TasksCard.jsx';
-import { FaUser, FaArrowCircleUp, FaArrowCircleDown } from 'react-icons/fa';
-import { Link } from 'react-router-dom';
-import { ping } from '../utils/api.js';
 import ConnectWallet from "../components/ConnectWallet.jsx";
 import BalanceSummary from '../components/BalanceSummary.jsx';
+
+import { ping } from '../utils/api.js';
 import { getTelegramPhotoUrl } from '../utils/telegram.js';
 
 export default function Home() {
@@ -18,6 +20,7 @@ export default function Home() {
     ping()
       .then(() => setStatus('online'))
       .catch(() => setStatus('offline'));
+
     setPhotoUrl(getTelegramPhotoUrl());
   }, []);
 
@@ -25,6 +28,7 @@ export default function Home() {
     <div className="space-y-4">
       <div className="flex flex-col items-center">
         <ConnectWallet />
+
         {photoUrl && (
           <img
             src={photoUrl}
@@ -32,12 +36,15 @@ export default function Home() {
             className="w-36 h-36 hexagon border-4 border-brand-gold mt-2 object-cover"
           />
         )}
+
         <div className="flex items-center justify-between w-full max-w-xs mt-2">
           <Link to="/wallet?mode=send" className="flex items-center space-x-1">
             <FaArrowCircleUp className="text-accent w-8 h-8" />
             <span className="text-xs text-accent">Send</span>
           </Link>
+
           <BalanceSummary />
+
           <Link to="/wallet?mode=receive" className="flex items-center space-x-1">
             <FaArrowCircleDown className="text-accent w-8 h-8" />
             <span className="text-xs text-accent">Receive</span>
