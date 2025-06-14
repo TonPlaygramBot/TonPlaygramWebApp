@@ -17,13 +17,12 @@ export default function Mining() {
   } catch (err) {
     return <OpenInTelegram />;
   }
-
   const [status, setStatus] = useState('Not Mining');
   const [startTime, setStartTime] = useState(null);
   const [timeLeft, setTimeLeft] = useState(0);
   const [balances, setBalances] = useState({ ton: null, tpc: null, usdt: 0 });
   const [leaderboard, setLeaderboard] = useState([]);
-  const [myRank, setMyRank] = useState(null);
+  const [rank, setRank] = useState(null);
   const wallet = useTonWallet();
 
   const loadBalances = async () => {
@@ -38,24 +37,8 @@ export default function Mining() {
     }
   };
 
-  const autoDistributeRewards = async () => {
-    try {
-      await claimMining(telegramId);
-    } catch (err) {
-      console.error('Auto-claim failed:', err);
-    }
-    localStorage.removeItem('miningStart');
-    setTimeLeft(0);
-    loadBalances();
-  };
-
   useEffect(() => {
     loadBalances();
-    getLeaderboard(telegramId).then((data) => {
-      setLeaderboard(data.leaderboard);
-      setMyRank(data.myRank);
-    });
-
     const saved = localStorage.getItem('miningStart');
     if (saved) {
       const start = parseInt(saved, 10);
@@ -83,6 +66,19 @@ export default function Mining() {
     }
   }, [status, startTime]);
 
+  useEffect(() => {
+    async function loadLeaderboard() {
+      try {
+        const data = await getLeaderboard(telegramId);
+        setLeaderboard(data.users);
+        setRank(data.rank);
+      } catch (err) {
+        console.error('Failed to load leaderboard:', err);
+      }
+    }
+    loadLeaderboard();
+  }, [telegramId, status]);
+
   const handleStart = async () => {
     const now = Date.now();
     setStartTime(now);
@@ -90,6 +86,17 @@ export default function Mining() {
     localStorage.setItem('miningStart', String(now));
     setStatus('Mining');
     await startMining(telegramId);
+  };
+
+  const autoDistributeRewards = async () => {
+    try {
+      await claimMining(telegramId);
+    } catch (err) {
+      console.error('Auto-claim failed:', err);
+    }
+    localStorage.removeItem('miningStart');
+    setTimeLeft(0);
+    loadBalances();
   };
 
   return (
@@ -120,36 +127,43 @@ export default function Mining() {
         </p>
       </div>
 
-      <h3 className="text-lg font-bold mt-6 mb-2">Leaderboard</h3>
-      <div className="overflow-x-auto">
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="text-left text-subtext">
-              <th className="px-2 py-1">Rank</th>
-              <th className="px-2 py-1">User</th>
-              <th className="px-2 py-1 text-right">TPC</th>
-            </tr>
-          </thead>
-          <tbody>
-            {leaderboard.map((u) => (
-              <tr
-                key={u.telegramId}
-                className={`border-b border-border ${
-                  u.telegramId === telegramId ? 'bg-primary/20' : ''
-                }`}
-              >
-                <td className="px-2 py-1">{u.rank}</td>
-                <td className="px-2 py-1">
-                  {u.nickname || `${u.firstName || ''} ${u.lastName || ''}`.trim() || u.telegramId}
-                </td>
-                <td className="px-2 py-1 text-right">{u.balance}</td>
+      <div className="mt-6">
+        <h3 className="text-lg font-semibold mb-2">Leaderboard</h3>
+        <div className="max-h-96 overflow-y-auto border border-border rounded">
+          <table className="w-full text-sm">
+            <thead className="sticky top-0 bg-surface">
+              <tr className="border-b border-border text-left">
+                <th className="p-2">#</th>
+                <th className="p-2">User</th>
+                <th className="p-2 text-right">TPC</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
-        {myRank && !leaderboard.some((u) => u.telegramId === telegramId) && (
-          <p className="text-center text-sm mt-2">Your rank: {myRank}</p>
-        )}
+            </thead>
+            <tbody>
+              {leaderboard.map((u, idx) => (
+                <tr
+                  key={u.telegramId}
+                  className={`border-b border-border ${u.telegramId === telegramId ? 'bg-accent text-black' : ''}`}
+                >
+                  <td className="p-2">{idx + 1}</td>
+                  <td className="p-2 flex items-center space-x-2">
+                    {u.photo && (
+                      <img src={u.photo} alt="" className="w-6 h-6 rounded-full" />
+                    )}
+                    <span>{u.nickname || `${u.firstName} ${u.lastName}`.trim() || 'User'}</span>
+                  </td>
+                  <td className="p-2 text-right">{u.balance}</td>
+                </tr>
+              ))}
+              {rank && rank > 100 && (
+                <tr className="bg-accent text-black">
+                  <td className="p-2">{rank}</td>
+                  <td className="p-2">You</td>
+                  <td className="p-2 text-right">{balances.tpc ?? '...'}</td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
   );
