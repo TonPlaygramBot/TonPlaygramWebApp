@@ -2,6 +2,7 @@ import { Router } from 'express';
 import passport from 'passport';
 import User from '../models/User.js';
 import { fetchTelegramInfo } from '../utils/telegram.js';
+import { ensureTransactionArray } from '../utils/userUtils.js';
 
 const router = Router();
 
@@ -88,14 +89,13 @@ router.post('/addTransaction', async (req, res) => {
   if (!telegramId || amount === undefined || !type) {
     return res.status(400).json({ error: 'telegramId, amount and type required' });
   }
-  const user = await User.findOneAndUpdate(
-    { telegramId },
-    {
-      $push: { transactions: { amount, type, date: new Date() } },
-      $setOnInsert: { referralCode: telegramId.toString() }
-    },
-    { upsert: true, new: true }
-  );
+  let user = await User.findOne({ telegramId });
+  if (!user) {
+    user = new User({ telegramId, referralCode: telegramId.toString() });
+  }
+  ensureTransactionArray(user);
+  user.transactions.push({ amount, type, date: new Date() });
+  await user.save();
   res.json({ transactions: user.transactions });
 });
 

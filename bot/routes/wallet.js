@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import User from '../models/User.js';
 import bot from '../bot.js';
+import { ensureTransactionArray } from '../utils/userUtils.js';
 
 const router = Router();
 
@@ -50,14 +51,22 @@ router.post('/send', async (req, res) => {
     return res.status(400).json({ error: 'insufficient balance' });
   }
 
+  ensureTransactionArray(sender);
+
+  let receiver = await User.findOne({ telegramId: toId });
+  if (receiver) {
+    ensureTransactionArray(receiver);
+  }
+
   const txDate = new Date();
 
   try {
-    await User.findOneAndUpdate(
+    receiver = await User.findOneAndUpdate(
       { telegramId: toId },
       { $inc: { balance: amount }, $setOnInsert: { referralCode: toId.toString() } },
-      { upsert: true }
+      { upsert: true, new: true }
     );
+    ensureTransactionArray(receiver);
 
     sender.balance -= amount;
     await sender.save();
@@ -76,18 +85,10 @@ router.post('/send', async (req, res) => {
       date: txDate
     };
 
-    await User.updateOne(
-      { telegramId: fromId },
-      {
-        $push: { transactions: senderTx }
-      }
-    );
-    await User.updateOne(
-      { telegramId: toId },
-      {
-        $push: { transactions: receiverTx }
-      }
-    );
+    sender.transactions.push(senderTx);
+    receiver.transactions.push(receiverTx);
+    await sender.save();
+    await receiver.save();
 
     try {
       await bot.telegram.sendMessage(
@@ -107,10 +108,10 @@ router.post('/send', async (req, res) => {
       status: 'failed',
       date: txDate
     };
-    await User.updateOne(
-      { telegramId: fromId },
-      { $push: { transactions: failedTx } }
-    ).catch((e) => console.error('Failed to log failed transaction:', e.message));
+    sender.transactions.push(failedTx);
+    await sender.save().catch((e) =>
+      console.error('Failed to log failed transaction:', e.message)
+    );
 
     // Attempt to revert receiver balance in case it was credited
     await User.updateOne(
