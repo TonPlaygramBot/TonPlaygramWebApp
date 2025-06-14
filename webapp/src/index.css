@@ -36,18 +36,3 @@ body {
   background-position: 0 0, 25px 25px;
   background-size: 50px 50px;
 }
-
-@keyframes gradient-shift {
-  0%, 100% {
-    background-position: 0% 50%;
-  }
-  50% {
-    background-position: 100% 50%;
-  }
-}
-
-.animated-gradient {
-  background: linear-gradient(120deg, #2563eb, #facc15, #1d4ed8);
-  background-size: 200% 200%;
-  animation: gradient-shift 15s ease infinite;
-}
