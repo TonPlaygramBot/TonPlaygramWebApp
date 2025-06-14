@@ -3,7 +3,8 @@ import { getProfile, updateProfile, fetchTelegramInfo } from '../utils/api.js';
 import {
   getTelegramId,
   getTelegramFirstName,
-  getTelegramLastName
+  getTelegramLastName,
+  getTelegramPhotoUrl
 } from '../utils/telegram.js';
 import OpenInTelegram from '../components/OpenInTelegram.jsx';
 
@@ -38,7 +39,7 @@ export default function MyAccount() {
 
           const firstName = data.firstName || tg?.firstName || getTelegramFirstName();
           const lastName = data.lastName || tg?.lastName || getTelegramLastName();
-          const photo = data.photo || tg?.photoUrl || '';
+          const photo = data.photo || tg?.photoUrl || getTelegramPhotoUrl();
 
           const updated = await updateProfile({
             telegramId,
@@ -50,7 +51,7 @@ export default function MyAccount() {
 
           const mergedProfile = {
             ...updated,
-            photo: updated.photo || tg?.photoUrl || ''
+            photo: updated.photo || tg?.photoUrl || getTelegramPhotoUrl()
           };
 
           setProfile(mergedProfile);
@@ -69,6 +70,8 @@ export default function MyAccount() {
 
   if (!profile) return <div className="p-4 text-subtext">Loading...</div>;
 
+  const photoUrl = profile.photo || getTelegramPhotoUrl();
+
   return (
     <div className="p-4 space-y-4 text-text">
       {autoUpdating && (
@@ -80,8 +83,8 @@ export default function MyAccount() {
       </div>
 
       <div className="flex items-center space-x-4">
-        {profile.photo && (
-          <img src={profile.photo} alt="avatar" className="w-16 h-16 rounded-full" />
+        {photoUrl && (
+          <img src={photoUrl} alt="avatar" className="w-16 h-16 rounded-full" />
         )}
         <div>
           <p className="font-semibold">
