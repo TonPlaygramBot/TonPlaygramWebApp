@@ -18,19 +18,11 @@ export default function MyAccount() {
 
   const [profile, setProfile] = useState(null);
   const [autoUpdating, setAutoUpdating] = useState(false);
-  const [wasUpdatedFromTelegram, setWasUpdatedFromTelegram] = useState(false);
   const timerRef = useRef(null);
 
   useEffect(() => {
     async function load() {
       const data = await getProfile(telegramId);
-
-      if (data.filledFromTelegram) {
-        setWasUpdatedFromTelegram(true);
-        if (timerRef.current) clearTimeout(timerRef.current);
-        timerRef.current = setTimeout(() => setWasUpdatedFromTelegram(false), 4000);
-      }
-
       setProfile(data);
 
       if (!data.photo || !data.firstName || !data.lastName) {
@@ -58,17 +50,10 @@ export default function MyAccount() {
 
           const mergedProfile = {
             ...updated,
-            photo: updated.photo || tg?.photoUrl || '',
-            filledFromTelegram: true
+            photo: updated.photo || tg?.photoUrl || ''
           };
 
           setProfile(mergedProfile);
-
-          if (mergedProfile.photo) {
-            setWasUpdatedFromTelegram(true);
-            if (timerRef.current) clearTimeout(timerRef.current);
-            timerRef.current = setTimeout(() => setWasUpdatedFromTelegram(false), 4000);
-          }
         } finally {
           setAutoUpdating(false);
         }
@@ -92,16 +77,12 @@ export default function MyAccount() {
 
       <div className="flex items-center space-x-2">
         <h2 className="text-xl font-bold">My Account</h2>
-        {wasUpdatedFromTelegram && (
-          <span className="text-sm text-accent">Info retrieved from Telegram.</span>
-        )}
       </div>
 
       <div className="flex items-center space-x-4">
         {profile.photo && (
           <img src={profile.photo} alt="avatar" className="w-16 h-16 rounded-full" />
         )}
-
         <div>
           <p className="font-semibold">
             {profile.firstName} {profile.lastName}
