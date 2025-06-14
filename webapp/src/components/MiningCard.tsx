@@ -210,7 +210,7 @@ export default function MiningCard() {
 
       >
 
-        <div>{isMining ? 'Mining' : 'Not Mining'}</div>
+        <div>{isMining ? 'Stop Mining' : 'Start Mining'}</div>
 
           <div className="text-sm">{formatTime(isMining ? Math.max(MINING_DURATION - elapsed, 0) : MINING_DURATION)}</div>
 
