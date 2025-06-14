@@ -8,7 +8,6 @@ import {
 } from '../utils/telegram.js';
 import OpenInTelegram from '../components/OpenInTelegram.jsx';
 import { BOT_USERNAME } from '../utils/constants.js';
-import BalanceSummary from '../components/BalanceSummary.jsx';
 
 export default function MyAccount() {
   let telegramId;
@@ -98,8 +97,6 @@ export default function MyAccount() {
           <p className="text-sm text-subtext">ID: {profile.telegramId}</p>
         </div>
       </div>
-
-      <BalanceSummary />
 
       {referral && (
         <div className="space-y-1">
