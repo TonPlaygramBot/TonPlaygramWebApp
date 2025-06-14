@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { getProfile, updateProfile, fetchTelegramInfo } from '../utils/api.js';
-import { getTelegramId } from '../utils/telegram.js';
+import { getTelegramId, getTelegramPhotoUrl } from '../utils/telegram.js';
 import OpenInTelegram from '../components/OpenInTelegram.jsx';
 
 export default function MyAccount() {
@@ -25,11 +25,15 @@ export default function MyAccount() {
           if (tg && !tg.error) {
             const updated = await updateProfile({
               telegramId,
-              photo: data.photo || tg.photoUrl,
+              photo: data.photo || tg.photoUrl || getTelegramPhotoUrl(),
               firstName: data.firstName || tg.firstName,
               lastName: data.lastName || tg.lastName
             });
-            setProfile(updated);
+            const withPhoto = {
+              ...updated,
+              photo: updated.photo || tg.photoUrl || getTelegramPhotoUrl()
+            };
+            setProfile(withPhoto);
           }
         } finally {
           setAutoUpdating(false);
@@ -41,6 +45,8 @@ export default function MyAccount() {
 
   if (!profile) return <div className="p-4 text-subtext">Loading...</div>;
 
+  const photoUrl = profile.photo || getTelegramPhotoUrl();
+
   return (
     <div className="p-4 space-y-4 text-text">
       {autoUpdating && (
@@ -48,8 +54,12 @@ export default function MyAccount() {
       )}
       <h2 className="text-xl font-bold">My Account</h2>
       <div className="flex items-center space-x-4">
-        {profile.photo && (
-          <img src={profile.photo} alt="avatar" className="w-16 h-16 rounded-full" />
+        {photoUrl && (
+          <img
+            src={photoUrl}
+            alt="avatar"
+            className="w-16 h-16 object-cover hexagon hexagon-gold"
+          />
         )}
         <div>
           <p className="font-semibold">

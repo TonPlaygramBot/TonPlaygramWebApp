@@ -6,20 +6,30 @@ import TasksCard from '../components/TasksCard.jsx';
 import { FaUser } from 'react-icons/fa';
 import { ping } from '../utils/api.js';
 import ConnectWallet from "../components/ConnectWallet.jsx";
+import { getTelegramPhotoUrl } from '../utils/telegram.js';
 
 export default function Home() {
   const [status, setStatus] = useState('checking');
+  const [photoUrl, setPhotoUrl] = useState('');
 
   useEffect(() => {
     ping()
       .then(() => setStatus('online'))
       .catch(() => setStatus('offline'));
+    setPhotoUrl(getTelegramPhotoUrl());
   }, []);
 
   return (
     <div className="space-y-4">
-        <div className="flex justify-center">
+        <div className="flex flex-col items-center">
             <ConnectWallet />
+            {photoUrl && (
+              <img
+                src={photoUrl}
+                alt="profile"
+                className="w-20 h-20 mt-2 object-cover hexagon hexagon-gold"
+              />
+            )}
         </div>
       <SpinGame />
 

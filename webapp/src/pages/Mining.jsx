@@ -7,7 +7,7 @@ import {
   getTonBalance,
   getLeaderboard
 } from '../utils/api.js';
-import { getTelegramId } from '../utils/telegram.js';
+import { getTelegramId, getTelegramPhotoUrl } from '../utils/telegram.js';
 import OpenInTelegram from '../components/OpenInTelegram.jsx';
 
 export default function Mining() {
@@ -147,7 +147,11 @@ export default function Mining() {
                   <td className="p-2">{idx + 1}</td>
                   <td className="p-2 flex items-center space-x-2">
                     {u.photo && (
-                      <img src={u.photo} alt="" className="w-6 h-6 rounded-full" />
+                      <img
+                        src={u.photo}
+                        alt=""
+                        className="w-6 h-6 object-cover hexagon hexagon-gold"
+                      />
                     )}
                     <span>{u.nickname || `${u.firstName} ${u.lastName}`.trim() || 'User'}</span>
                   </td>
@@ -157,7 +161,16 @@ export default function Mining() {
               {rank && rank > 100 && (
                 <tr className="bg-accent text-black">
                   <td className="p-2">{rank}</td>
-                  <td className="p-2">You</td>
+                  <td className="p-2 flex items-center space-x-2">
+                    {getTelegramPhotoUrl() && (
+                      <img
+                        src={getTelegramPhotoUrl()}
+                        alt=""
+                        className="w-6 h-6 object-cover hexagon hexagon-gold"
+                      />
+                    )}
+                    <span>You</span>
+                  </td>
                   <td className="p-2 text-right">{balances.tpc ?? '...'}</td>
                 </tr>
               )}
