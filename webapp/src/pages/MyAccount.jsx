@@ -1,5 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
-import { getProfile, updateProfile, fetchTelegramInfo, getReferralInfo } from '../utils/api.js';
+import {
+  getProfile,
+  updateProfile,
+  fetchTelegramInfo,
+  getReferralInfo,
+  getTransactions
+} from '../utils/api.js';
 import {
   getTelegramId,
   getTelegramFirstName,
@@ -22,6 +28,7 @@ export default function MyAccount() {
   const [profile, setProfile] = useState(null);
   const [referral, setReferral] = useState(null);
   const [autoUpdating, setAutoUpdating] = useState(false);
+  const [transactions, setTransactions] = useState([]);
   const timerRef = useRef(null);
 
   useEffect(() => {
@@ -30,6 +37,8 @@ export default function MyAccount() {
       setProfile(data);
       const ref = await getReferralInfo(telegramId);
       setReferral(ref);
+      const tx = await getTransactions(telegramId);
+      setTransactions(tx.transactions || []);
 
       if (!data.photo || !data.firstName || !data.lastName) {
         setAutoUpdating(true);
@@ -122,6 +131,27 @@ export default function MyAccount() {
           <p className="text-sm text-subtext">{referral.referrals} referrals</p>
         </div>
       )}
+
+      <div>
+        <p className="font-semibold">Transaction History</p>
+        {transactions.length === 0 ? (
+          <p className="text-sm text-subtext">No transactions</p>
+        ) : (
+          <div className="space-y-1 text-sm">
+            {transactions.map((tx, i) => (
+              <div
+                key={i}
+                className="flex justify-between border-b border-border pb-1"
+              >
+                <span>{tx.type}</span>
+                <span>{tx.amount}</span>
+                <span>{new Date(tx.date).toLocaleString()}</span>
+                <span className="text-xs">{tx.status}</span>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   );
 }
