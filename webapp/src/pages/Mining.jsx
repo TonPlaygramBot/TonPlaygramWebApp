@@ -17,6 +17,7 @@ export default function Mining() {
   } catch (err) {
     return <OpenInTelegram />;
   }
+
   const [status, setStatus] = useState('Not Mining');
   const [startTime, setStartTime] = useState(null);
   const [timeLeft, setTimeLeft] = useState(0);
@@ -37,12 +38,24 @@ export default function Mining() {
     }
   };
 
+  const autoDistributeRewards = async () => {
+    try {
+      await claimMining(telegramId);
+    } catch (err) {
+      console.error('Auto-claim failed:', err);
+    }
+    localStorage.removeItem('miningStart');
+    setTimeLeft(0);
+    loadBalances();
+  };
+
   useEffect(() => {
     loadBalances();
     getLeaderboard(telegramId).then((data) => {
       setLeaderboard(data.leaderboard);
       setMyRank(data.myRank);
     });
+
     const saved = localStorage.getItem('miningStart');
     if (saved) {
       const start = parseInt(saved, 10);
@@ -77,17 +90,6 @@ export default function Mining() {
     localStorage.setItem('miningStart', String(now));
     setStatus('Mining');
     await startMining(telegramId);
-  };
-
-  const autoDistributeRewards = async () => {
-    try {
-      await claimMining(telegramId);
-    } catch (err) {
-      console.error('Auto-claim failed:', err);
-    }
-    localStorage.removeItem('miningStart');
-    setTimeLeft(0);
-    loadBalances();
   };
 
   return (

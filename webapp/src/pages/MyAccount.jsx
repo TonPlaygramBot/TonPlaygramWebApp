@@ -103,6 +103,19 @@ export default function MyAccount() {
       )}
       <h2 className="text-xl font-bold">My Account</h2>
 
+      {/* Telegram Info */}
+      <div className="flex items-center space-x-4">
+        {profile.photo && (
+          <img src={profile.photo} alt="avatar" className="w-16 h-16 rounded-full" />
+        )}
+        <div>
+          <p className="font-semibold">
+            {profile.firstName} {profile.lastName}
+          </p>
+          <p className="text-sm text-subtext">ID: {profile.telegramId}</p>
+        </div>
+      </div>
+
       {/* Profile Info */}
       <div className="space-y-2">
         <input
