@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import { listTasks, completeTask } from '../utils/api.js';
 
 import { getTelegramId } from '../utils/telegram.js';
+import OpenInTelegram from '../components/OpenInTelegram.jsx';
 
 import { IoLogoTwitter, IoLogoTiktok } from 'react-icons/io5';
 
@@ -13,11 +14,7 @@ export default function Tasks() {
   try {
     telegramId = getTelegramId();
   } catch (err) {
-    return (
-      <div className="p-4 text-text">
-        Please open this application via the Telegram bot.
-      </div>
-    );
+    return <OpenInTelegram />;
   }
 
   const [tasks, setTasks] = useState(null);

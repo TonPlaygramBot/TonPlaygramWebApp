@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import { listTasks, completeTask } from '../utils/api.js';
 
 import { getTelegramId } from '../utils/telegram.js';
+import OpenInTelegram from './OpenInTelegram.jsx';
 
 import { IoLogoTwitter, IoLogoTiktok } from 'react-icons/io5';
 
@@ -25,8 +26,8 @@ export default function TasksCard() {
     telegramId = getTelegramId();
   } catch (err) {
     return (
-      <div className="bg-surface border border-border rounded-xl p-4 text-text">
-        Please open this application via the Telegram bot.
+      <div className="bg-surface border border-border rounded-xl">
+        <OpenInTelegram />
       </div>
     );
   }
