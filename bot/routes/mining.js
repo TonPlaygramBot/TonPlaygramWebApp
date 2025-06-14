@@ -44,4 +44,23 @@ router.post('/status', getUser, async (req, res) => {
   res.json({ isMining: req.user.isMining, pending: req.user.minedTPC, balance: req.user.balance });
 });
 
+router.post('/leaderboard', async (req, res) => {
+  const { telegramId } = req.body;
+  const users = await User.find()
+    .sort({ balance: -1 })
+    .limit(100)
+    .select('telegramId balance nickname firstName lastName photo')
+    .lean();
+
+  let rank = null;
+  if (telegramId) {
+    const user = await User.findOne({ telegramId });
+    if (user) {
+      rank = (await User.countDocuments({ balance: { $gt: user.balance } })) + 1;
+    }
+  }
+
+  res.json({ users, rank });
+});
+
 export default router;
