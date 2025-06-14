@@ -1,5 +1,5 @@
 export const MINING_SESSION_MS = 12 * 60 * 60 * 1000; // 12 hours
-export const MINING_REWARD = 1000;
+export const MINING_REWARD = 2000;
 
 export function updateMiningRewards(user) {
   if (user.isMining && user.lastMineAt) {

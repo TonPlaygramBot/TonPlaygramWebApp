@@ -21,16 +21,3 @@ Start the Express server (which also serves the compiled web app) with:
 
 ```bash
 npm start
-```
-
-The server listens on the port configured in `bot/.env` (`PORT` by default is `3000`).
-
-## Features
-
-- **Mining** – start and stop mining sessions to accumulate TPC rewards. Press the mining button again to stop a running session early.
-- **Wallet transfers** – send TPC to other users and view transaction history.
-- **Tasks** – complete tasks for extra rewards and bonuses.
-- **Watch content** – watch videos or streams to earn additional TPC.
-- **Referrals** – invite friends and share your referral code to earn more.
-
-Both the bot and the web app rely on the same Express API, so once the server is running you can interact with the bot in Telegram or open the web interface in a browser.
