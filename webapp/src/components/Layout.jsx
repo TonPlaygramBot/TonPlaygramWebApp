@@ -5,7 +5,8 @@ import Branding from "./Branding.jsx";
 
 export default function Layout({ children }) {
   return (
-    <div className="flex flex-col min-h-screen bg-background text-text relative">
+    <div className="flex flex-col min-h-screen bg-background text-text relative overflow-hidden">
+      <div className="animated-gradient absolute inset-0 -z-10" />
       {/* Removed header logo per design change */}
       <main className="flex-grow container mx-auto p-4 pb-24">
         <Branding/>
