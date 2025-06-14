@@ -29,7 +29,11 @@ export default function MyAccount() {
               firstName: data.firstName || tg.firstName,
               lastName: data.lastName || tg.lastName
             });
-            setProfile(updated);
+            const withPhoto = {
+              ...updated,
+              photo: updated.photo || tg.photoUrl
+            };
+            setProfile(withPhoto);
           }
         } finally {
           setAutoUpdating(false);
