@@ -57,3 +57,13 @@ if (!data.nickname || !data.photo || !data.firstName || !data.lastName) {
   }
 
 }
+
+// When the profile is updated from Telegram, the UI briefly displays a
+
+// notification that says `Info retrieved from Telegram`.
+
+// The `/api/profile/get` endpoint now returns a `filledFromTelegram` flag
+
+// whenever missing fields were populated from Telegram so the client can
+
+// show this notice even on the first load.

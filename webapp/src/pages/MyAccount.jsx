@@ -2,7 +2,15 @@ import { useEffect, useRef, useState } from 'react';
 
 import { getProfile, updateProfile, fetchTelegramInfo } from '../utils/api.js';
 
-import { getTelegramId } from '../utils/telegram.js';
+import {
+
+  getTelegramId,
+
+  getTelegramFirstName,
+
+  getTelegramLastName
+
+} from '../utils/telegram.js';
 
 import OpenInTelegram from '../components/OpenInTelegram.jsx';
 
@@ -52,35 +60,45 @@ export default function MyAccount() {
 
         try {
 
-          const tg = await fetchTelegramInfo(telegramId);
+          let tg;
 
-          if (tg && !tg.error) {
+          try {
 
-            const updated = await updateProfile({
+            tg = await fetchTelegramInfo(telegramId);
 
-              telegramId,
+          } catch (err) {
 
-              photo: data.photo || tg.photoUrl,
-
-              firstName: data.firstName || tg.firstName,
-
-              lastName: data.lastName || tg.lastName
-
-            });
-
-            setProfile(updated);
-
-            setWasUpdatedFromTelegram(true);
-
-            if (timerRef.current) {
-
-              clearTimeout(timerRef.current);
-
-            }
-
-            timerRef.current = setTimeout(() => setWasUpdatedFromTelegram(false), 4000);
+            console.error('fetchTelegramInfo failed', err);
 
           }
+
+          const firstName = data.firstName || tg?.firstName || getTelegramFirstName();
+
+          const lastName = data.lastName || tg?.lastName || getTelegramLastName();
+
+          const photo = data.photo || tg?.photoUrl || '';
+
+          const updated = await updateProfile({
+
+            telegramId,
+
+            nickname: data.nickname || firstName,
+
+            photo,
+
+            firstName,
+
+            lastName
+
+          });
+
+          setProfile({ ...updated, filledFromTelegram: true });
+
+          setWasUpdatedFromTelegram(true);
+
+          if (timerRef.current) clearTimeout(timerRef.current);
+
+          timerRef.current = setTimeout(() => setWasUpdatedFromTelegram(false), 4000);
 
         } finally {
 
