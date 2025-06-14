@@ -1,69 +1,36 @@
-if (!data.nickname || !data.photo || !data.firstName || !data.lastName) {
+# TonPlaygram Bot and Web App
 
-  setAutoUpdating(true);
+TonPlaygram combines a Telegram bot with a web interface built using React and Vite. The bot handles game logic and wallet operations while the web app provides a richer UI for playing chess and managing your TPC balance.
 
-  try {
+## Installation
 
-    let tg;
+1. Install **Node.js 18** or later.
+2. Run `npm run install-all` at the repository root to install dependencies for both the bot and webapp.
+3. Copy `bot/.env.example` to `bot/.env` and update the values. At minimum set `BOT_TOKEN` for your Telegram bot and `MONGODB_URI` for the database (use `memory` for a temporary in‑memory store).
 
-    try {
+## Running
 
-      tg = await fetchTelegramInfo(getTelegramId());
+### Web Application
 
-    } catch (err) {
+- Development server: `npm --prefix webapp run dev`
+- Production build: `npm run build`
 
-      console.error('fetchTelegramInfo failed', err);
+### Bot and API Server
 
-    }
+Start the Express server (which also serves the compiled web app) with:
 
-    const firstName = data.firstName || tg?.firstName || getTelegramFirstName();
+```bash
+npm start
+```
 
-    const lastName = data.lastName || tg?.lastName || getTelegramLastName();
+The server listens on the port configured in `bot/.env` (`PORT` by default is `3000`).
 
-    const photo = data.photo || tg?.photoUrl || '';
+## Features
 
-    const updated = await updateProfile({
+- **Mining** – start and stop mining sessions to accumulate TPC rewards.
+- **Wallet transfers** – send TPC to other users and view transaction history.
+- **Tasks** – complete tasks for extra rewards and bonuses.
+- **Watch content** – watch videos or streams to earn additional TPC.
+- **Referrals** – invite friends and share your referral code to earn more.
 
-      telegramId: getTelegramId(),
-
-      nickname: data.nickname || firstName,
-
-      photo,
-
-      firstName,
-
-      lastName,
-
-    });
-
-    // Set profile and show Telegram info notice if any field was filled
-
-    setProfile({ ...updated, filledFromTelegram: true });
-
-    setForm({
-
-      nickname: updated.nickname || '',
-
-      photo: updated.photo || '',
-
-      bio: updated.bio || '',
-
-    });
-
-  } finally {
-
-    setAutoUpdating(false);
-
-  }
-
-}
-
-// When the profile is updated from Telegram, the UI briefly displays a
-
-// notification that says `Info retrieved from Telegram`.
-
-// The `/api/profile/get` endpoint now returns a `filledFromTelegram` flag
-
-// whenever missing fields were populated from Telegram so the client can
-
-// show this notice even on the first load.
+Both the bot and the web app rely on the same Express API, so once the server is running you can interact with the bot in Telegram or open the web interface in a browser.
