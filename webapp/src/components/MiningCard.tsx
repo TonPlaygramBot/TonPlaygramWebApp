@@ -1,5 +1,4 @@
 import { useEffect, useState } from 'react';
-import { FaWallet } from 'react-icons/fa';
 import {
   getMiningStatus,
   startMining,
@@ -120,33 +119,11 @@ export default function MiningCard() {
         </p>
       </div>
 
-      <p className="text-lg font-bold text-gray-300 flex items-center space-x-1">
-        <FaWallet />
-        <span>Total Balance</span>
-      </p>
-      <div className="flex justify-around text-sm mb-2">
-        <Token icon="/icons/ton.svg" label="TON" value={balances.ton ?? '...'} />
-        <Token icon="/icons/tpc.svg" label="TPC" value={balances.tpc ?? '...'} />
-        <Token icon="/icons/usdt.svg" label="USDT" value={balances.usdt ?? '0'} />
-      </div>
+      <p className="text-lg font-bold text-gray-300">Total Balance</p>
     </div>
   );
 }
 
-interface TokenProps {
-  icon: string;
-  value: string | number | null;
-  label: string;
-}
-
-function Token({ icon, value, label }: TokenProps) {
-  return (
-    <div className="flex items-center space-x-1">
-      <img src={icon} alt={label} className="w-4 h-4" />
-      <span className="text-base">{value}</span>
-    </div>
-  );
-}
 
 function formatTimeLeft(ms: number) {
   const totalSeconds = Math.floor(ms / 1000);
