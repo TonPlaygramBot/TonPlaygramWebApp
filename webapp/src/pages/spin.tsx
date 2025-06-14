@@ -1,6 +1,5 @@
 import { useEffect, useState, useRef } from 'react';
 import SpinWheel, { SpinWheelHandle } from '../components/SpinWheel.tsx';
-import { RewardSegment } from '../utils/rewardLogic';
 import RewardPopup from '../components/RewardPopup.tsx';
 import AdModal from '../components/AdModal.tsx';
 import { canSpin, nextSpinTime } from '../utils/rewardLogic';
@@ -20,8 +19,7 @@ export default function SpinPage() {
     return <OpenInTelegram />;
   }
   const [lastSpin, setLastSpin] = useState<number | null>(null);
-  const [reward, setReward] = useState<RewardSegment | null>(null);
-  const [extraSpins, setExtraSpins] = useState(0);
+  const [reward, setReward] = useState<number | null>(null);
   const [spinningMain, setSpinningMain] = useState(false);
   const [spinningLeft, setSpinningLeft] = useState(false);
   const [spinningMiddle, setSpinningMiddle] = useState(false);
@@ -38,18 +36,12 @@ export default function SpinPage() {
     if (ts) setLastSpin(parseInt(ts, 10));
   }, []);
 
-  const handleFinish = async (r: RewardSegment) => {
-    if (r.spins) {
-      setExtraSpins(s => s + r.spins!);
-      setReward(r);
-      return;
-    }
+  const handleFinish = async (r: number) => {
     const now = Date.now();
     localStorage.setItem('lastSpin', String(now));
     setLastSpin(now);
-    const base = r.tpc || 0;
-    const finalReward = multiplier ? base * 3 : base;
-    setReward({ tpc: finalReward });
+    const finalReward = multiplier ? r * 3 : r;
+    setReward(finalReward);
     const id = telegramId;
     const balRes = await getWalletBalance(id);
     const newBalance = (balRes.balance || 0) + finalReward;
@@ -59,9 +51,6 @@ export default function SpinPage() {
 
   const triggerSpin = () => {
     if (spinning || !ready) return;
-    if (extraSpins > 0) {
-      setExtraSpins(s => s - 1);
-    }
     if (multiplier) {
       leftRef.current?.spin();
       middleRef.current?.spin();
@@ -69,7 +58,7 @@ export default function SpinPage() {
     mainRef.current?.spin();
   };
 
-  const ready = canSpin(lastSpin, extraSpins);
+  const ready = canSpin(lastSpin);
 
   return (
     <div className="p-4 space-y-6 flex flex-col items-center text-text">
@@ -117,9 +106,6 @@ export default function SpinPage() {
           >
             x3
           </button>
-          {extraSpins > 0 && (
-            <span className="text-white text-sm self-center">Free spins left: {extraSpins}</span>
-          )}
         </div>
         {!ready && (
           <>

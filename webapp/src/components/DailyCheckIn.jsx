@@ -82,7 +82,7 @@ export default function DailyCheckIn() {
       )}
       {reward !== null && (
         <RewardPopup
-          reward={{ tpc: reward }}
+          reward={reward}
           onClose={() => setReward(null)}
           message="Keep the streak alive for bigger rewards!"
         />

@@ -1,7 +1,7 @@
 import {  forwardRef, useImperativeHandle } from 'react';
 import { useState, useEffect, useRef } from 'react';
 
-import { segments, RewardSegment } from '../utils/rewardLogic';
+import { segments } from '../utils/rewardLogic';
 
 export interface SpinWheelHandle {
   spin: () => void;
@@ -9,7 +9,7 @@ export interface SpinWheelHandle {
 
 interface SpinWheelProps {
 
-  onFinish: (reward: RewardSegment) => void;
+  onFinish: (reward: number) => void;
 
   spinning: boolean;
 
@@ -158,14 +158,9 @@ export default forwardRef<SpinWheelHandle, SpinWheelProps>(function SpinWheel(
 
             >
 
-              {val.tpc !== undefined ? (
-                <>
-                  <img src="/icons/tpc.svg" alt="TPC" className="w-5 h-5 mr-1" />
-                  <span>{val.tpc}</span>
-                </>
-              ) : (
-                <span>{val.spins} Spins</span>
-              )}
+              <img src="/icons/tpc.svg" alt="TPC" className="w-5 h-5 mr-1" />
+
+              <span>{val}</span>
 
             </div>
 
