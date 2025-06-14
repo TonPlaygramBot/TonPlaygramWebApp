@@ -94,16 +94,16 @@ the server via `TONCONNECT_MANIFEST_URL`. The server serves a dynamic
 
 ## Telegram Profile Data
 
-The **My Account** page displays several fields pulled directly from Telegram:
+The **My Account** page now only shows three fields pulled directly from Telegram:
 
 - **Telegram ID**
 - **First name** and **last name**
 - **Profile photo**
 
-These details are fetched using `getTelegramId()` and `fetchTelegramInfo()` and
-are shown in the "Telegram Info" section of the page. Additional properties such
-as `username` are available through `window.Telegram.WebApp.initDataUnsafe.user`
-and can be displayed if needed.
+These details are loaded from the database. Missing values are fetched with
+`fetchTelegramInfo()` and stored for next time.
+Additional properties such as `username` are available through
+`window.Telegram.WebApp.initDataUnsafe.user` and can be displayed if needed.
 
 ## Open Source Games
 - [Chessu](https://github.com/dotnize/chessu) – Competitive chess with socket rooms.
