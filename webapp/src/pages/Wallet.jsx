@@ -48,24 +48,30 @@ export default function Wallet() {
     if (!receiver || !amt) return;
     if (!window.confirm(`Send ${amt} TPC to ${receiver}?`)) return;
     setSending(true);
-    const res = await sendTpc(telegramId, Number(receiver), amt);
-    setSending(false);
-    if (res?.error) {
-      alert(res.error);
-      return;
+    try {
+      const res = await sendTpc(telegramId, Number(receiver), amt);
+      if (res?.error) {
+        alert(res.error);
+        return;
+      }
+      setReceipt({
+        to: receiver,
+        amount: amt,
+        date: res.transaction?.date
+          ? new Date(res.transaction.date).toLocaleString()
+          : new Date().toLocaleString()
+      });
+      setReceiver('');
+      setAmount('');
+      await loadBalances();
+      const txRes = await getTransactions(telegramId);
+      setTransactions(txRes.transactions);
+    } catch (err) {
+      console.error('Send failed', err);
+      alert('Failed to send TPC');
+    } finally {
+      setSending(false);
     }
-    setReceipt({
-      to: receiver,
-      amount: amt,
-      date: res.transaction?.date
-        ? new Date(res.transaction.date).toLocaleString()
-        : new Date().toLocaleString()
-    });
-    setReceiver('');
-    setAmount('');
-    loadBalances();
-    const txRes = await getTransactions(telegramId);
-    setTransactions(txRes.transactions);
   };
 
   return (
@@ -111,6 +117,7 @@ export default function Wallet() {
             <div>
               <div>Sent {receipt.amount} TPC to {receipt.to}</div>
               <div className="text-xs">{receipt.date}</div>
+              <div className="text-xs text-green-600">Delivered</div>
             </div>
             <button className="text-xs" onClick={() => setReceipt(null)}>x</button>
           </div>
