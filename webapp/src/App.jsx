@@ -2,11 +2,12 @@ import React from 'react';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 
 import Home from './pages/Home.jsx';
-import Mining from './pages/Mining.jsx';
+import Friends from './pages/Friends.jsx';
 import Wallet from './pages/Wallet.jsx';
 import Tasks from './pages/Tasks.jsx';
 import Referral from './pages/Referral.jsx';
 import MyAccount from './pages/MyAccount.jsx';
+import Store from './pages/Store.jsx';
 
 import DiceGame from './pages/Games/DiceGame.jsx';
 import LudoGame from './pages/Games/LudoGame.jsx';
@@ -27,7 +28,7 @@ export default function App() {
       <Layout>
         <Routes>
           <Route path="/" element={<Home />} />
-          <Route path="/mining" element={<Mining />} />
+          <Route path="/friends" element={<Friends />} />
           <Route path="/games" element={<Games />} />
           <Route path="/games/dice" element={<DiceGame />} />
           <Route path="/games/ludo" element={<LudoGame />} />
@@ -36,6 +37,7 @@ export default function App() {
           <Route path="/games/chess" element={<ChessGame />} />
           <Route path="/spin" element={<SpinPage />} />
           <Route path="/tasks" element={<Tasks />} />
+          <Route path="/store" element={<Store />} />
           <Route path="/referral" element={<Referral />} />
           <Route path="/wallet" element={<Wallet />} />
           <Route path="/account" element={<MyAccount />} />
