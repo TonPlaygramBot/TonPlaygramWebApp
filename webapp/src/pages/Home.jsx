@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 
 import GameCard from '../components/GameCard.jsx';
+import ProfileCard from '../components/ProfileCard.jsx';
 
 import MiningCard from '../components/MiningCard.tsx';
 
@@ -91,22 +92,9 @@ export default function Home() {
       <SpinGame />
 
       <div className="grid grid-cols-1 gap-4">
-
         <MiningCard />
-
-
-        <GameCard
-
-          title="Profile"
-
-          icon={<FaUser className="text-accent" />}
-
-          link="/account"
-
-        />
-
         <TasksCard />
-
+        <ProfileCard />
       </div>
 
       <p className="text-center text-xs text-subtext">Status: {status}</p>
