@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { getProfile, updateProfile, fetchTelegramInfo } from '../utils/api.js';
+import { getProfile, updateProfile, fetchTelegramInfo, getReferralInfo } from '../utils/api.js';
 import {
   getTelegramId,
   getTelegramFirstName,
@@ -7,6 +7,7 @@ import {
   getTelegramPhotoUrl
 } from '../utils/telegram.js';
 import OpenInTelegram from '../components/OpenInTelegram.jsx';
+import { BOT_USERNAME } from '../utils/constants.js';
 
 export default function MyAccount() {
   let telegramId;
@@ -18,6 +19,7 @@ export default function MyAccount() {
   }
 
   const [profile, setProfile] = useState(null);
+  const [referral, setReferral] = useState(null);
   const [autoUpdating, setAutoUpdating] = useState(false);
   const timerRef = useRef(null);
 
@@ -25,6 +27,8 @@ export default function MyAccount() {
     async function load() {
       const data = await getProfile(telegramId);
       setProfile(data);
+      const ref = await getReferralInfo(telegramId);
+      setReferral(ref);
 
       if (!data.photo || !data.firstName || !data.lastName) {
         setAutoUpdating(true);
@@ -93,6 +97,28 @@ export default function MyAccount() {
           <p className="text-sm text-subtext">ID: {profile.telegramId}</p>
         </div>
       </div>
+
+      {referral && (
+        <div className="space-y-1">
+          <p className="font-semibold">Referral Link</p>
+          <div className="flex items-center space-x-2">
+            <input
+              type="text"
+              readOnly
+              value={`https://t.me/${BOT_USERNAME}?start=${referral.code}`}
+              onClick={(e) => e.target.select()}
+              className="flex-1 bg-surface border border-border rounded px-2 py-1 text-sm"
+            />
+            <button
+              onClick={() => navigator.clipboard.writeText(`https://t.me/${BOT_USERNAME}?start=${referral.code}`)}
+              className="px-2 py-1 bg-primary hover:bg-primary-hover text-text rounded text-sm"
+            >
+              Copy
+            </button>
+          </div>
+          <p className="text-sm text-subtext">{referral.referrals} referrals</p>
+        </div>
+      )}
     </div>
   );
 }

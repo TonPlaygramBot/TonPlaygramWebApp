@@ -1,8 +1,7 @@
 import React from 'react';
 
 import { RiTelegramFill } from 'react-icons/ri';
-
-const BOT_USERNAME = 'TonPlaygramBot';
+import { BOT_USERNAME } from '../utils/constants.js';
 
 const TG_LINK = `https://t.me/${BOT_USERNAME}`;
 
