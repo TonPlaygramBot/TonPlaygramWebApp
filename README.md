@@ -21,3 +21,13 @@ Start the Express server (which also serves the compiled web app) with:
 
 ```bash
 npm start
+```
+
+### TonConnect manifest
+
+Tonkeeper and other wallets load the manifest from the URL specified in
+`VITE_TONCONNECT_MANIFEST` during the web app build. When the frontend is
+hosted on a different domain than the API, set this variable to the absolute
+URL of your backend, e.g. `https://your-api.example.com/tonconnect-manifest.json`.
+Otherwise the wallet may receive a **404 Not Found** when trying to fetch the
+manifest.
