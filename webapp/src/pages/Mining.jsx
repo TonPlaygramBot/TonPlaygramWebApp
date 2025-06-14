@@ -25,6 +25,7 @@ export default function Mining() {
   const [leaderboard, setLeaderboard] = useState([]);
   const [rank, setRank] = useState(null);
   const wallet = useTonWallet();
+  const myPhotoUrl = getTelegramPhotoUrl(); // ✅ Cached photo for current user
 
   const loadBalances = async () => {
     try {
@@ -151,7 +152,7 @@ export default function Mining() {
                   <td className="p-2">{idx + 1}</td>
                   <td className="p-2 w-16">
                     <img
-                      src={u.photo || u.photoUrl}
+                      src={u.telegramId === telegramId ? myPhotoUrl : u.photo || u.photoUrl}
                       alt="avatar"
                       className="w-16 h-16 hexagon border-2 border-brand-gold object-cover"
                     />
@@ -167,7 +168,7 @@ export default function Mining() {
                   <td className="p-2">{rank}</td>
                   <td className="p-2 w-16">
                     <img
-                      src={getTelegramPhotoUrl()}
+                      src={myPhotoUrl}
                       alt="avatar"
                       className="w-16 h-16 hexagon border-2 border-brand-gold object-cover"
                     />
