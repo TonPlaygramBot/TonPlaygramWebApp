@@ -37,9 +37,9 @@ export default function BalanceSummary() {
     <div className="text-center mt-2">
       <p className="text-lg font-bold text-gray-300 flex items-center justify-center space-x-1">
         <Link to="/wallet" className="flex items-center">
-          <FaWallet className="text-primary" /> {/* ✅ Blue icon */}
+          <FaWallet className="text-primary" />
         </Link>
-        <span>Total Balance</span>
+        <span>Wallet</span>
       </p>
       <div className="flex justify-around text-sm mt-1">
         <Token icon="/icons/ton.svg" label="TON" value={balances.ton ?? '...'} />

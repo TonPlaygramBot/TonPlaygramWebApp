@@ -34,13 +34,14 @@ export default function Home() {
           />
         )}
 
-        {/* ✅ Clean flanking of BalanceSummary with Send/Receive */}
         <div className="flex items-center justify-between w-full max-w-xs mt-2">
           <Link to="/wallet?mode=send" className="flex items-center space-x-1">
             <FaArrowCircleUp className="text-accent w-8 h-8" />
             <span className="text-xs text-accent">Send</span>
           </Link>
+
           <BalanceSummary />
+
           <Link to="/wallet?mode=receive" className="flex items-center space-x-1">
             <FaArrowCircleDown className="text-accent w-8 h-8" />
             <span className="text-xs text-accent">Receive</span>
