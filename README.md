@@ -67,3 +67,37 @@ if (!data.nickname || !data.photo || !data.firstName || !data.lastName) {
 // whenever missing fields were populated from Telegram so the client can
 
 // show this notice even on the first load.
+
+## Setup
+
+1. Copy the example environment file and adjust the values:
+
+```bash
+cp bot/.env.example bot/.env
+```
+
+The following variables are required:
+
+- `BOT_TOKEN` &ndash; your Telegram bot token.
+- `MONGODB_URI` &ndash; valid MongoDB connection string, e.g. `mongodb://localhost:27017/tonplaygram`.
+
+Google OAuth variables (`GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GOOGLE_CALLBACK_URL`) are optional and only needed if you enable Google login.
+
+2. Install dependencies:
+
+```bash
+npm install
+```
+
+3. Start the bot server:
+
+```bash
+npm start
+```
+
+4. In a separate terminal, start the React app for development:
+
+```bash
+cd webapp
+npm run dev
+```
