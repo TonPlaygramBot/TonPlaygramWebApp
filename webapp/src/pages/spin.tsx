@@ -44,6 +44,8 @@ export default function SpinPage() {
 
   return (
     <div className="p-4 space-y-6 flex flex-col items-center text-text">
+      <h1 className="text-xl font-bold">Spin &amp; Win</h1>
+      <p className="text-sm text-subtext">Try your luck and win rewards!</p>
       <div className="bg-surface border border-border rounded p-4 flex flex-col items-center space-y-2">
         <SpinWheel
           onFinish={handleFinish}
@@ -60,7 +62,11 @@ export default function SpinPage() {
           </>
         )}
       </div>
-      <RewardPopup reward={reward} onClose={() => setReward(null)} />
+      <RewardPopup
+        reward={reward}
+        onClose={() => setReward(null)}
+        message="Keep spinning every day to earn more!"
+      />
       <AdModal open={showAd} onClose={() => setShowAd(false)} />
     </div>
   );

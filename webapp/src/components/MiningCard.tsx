@@ -16,6 +16,8 @@ import { getTelegramId } from '../utils/telegram.js';
 
 import OpenInTelegram from './OpenInTelegram.jsx';
 
+const MINING_DURATION = 12 * 60 * 60; // 12 hours in seconds
+
 export default function MiningCard() {
 
   let telegramId: string;
@@ -56,7 +58,7 @@ export default function MiningCard() {
 
         const diff = Math.floor((Date.now() - start) / 1000);
 
-        if (diff >= 43200) {
+        if (diff >= MINING_DURATION) {
 
           stopMining(telegramId);
 
@@ -110,7 +112,7 @@ export default function MiningCard() {
 
       const diff = Math.floor((Date.now() - start) / 1000);
 
-      if (diff >= 43200) {
+      if (diff >= MINING_DURATION) {
 
         await stopMining(telegramId);
 
@@ -210,7 +212,7 @@ export default function MiningCard() {
 
         <div>{isMining ? 'Mining' : 'Not Mining'}</div>
 
-        <div className="text-sm">{formatTime(elapsed)}</div>
+          <div className="text-sm">{formatTime(isMining ? Math.max(MINING_DURATION - elapsed, 0) : MINING_DURATION)}</div>
 
       </button>
 

@@ -65,6 +65,7 @@ export default function DailyCheckIn() {
         <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-70 z-50">
           <div className="bg-surface border border-border p-6 rounded text-center space-y-4 text-text">
             <p className="font-semibold">Daily Check-In</p>
+            <p className="text-sm text-subtext">Come back daily to keep your streak!</p>
             <button
               onClick={handleCheckIn}
               className="px-4 py-2 bg-blue-600 text-white rounded"
@@ -74,8 +75,16 @@ export default function DailyCheckIn() {
           </div>
         </div>
       )}
-      {reward !== null && <RewardPopup reward={reward} onClose={() => setReward(null)} />}
+      {reward !== null && (
+        <RewardPopup
+          reward={reward}
+          onClose={() => setReward(null)}
+          message="Keep the streak alive for bigger rewards!"
+        />
+      )}
       {/* Place below your spin-game ad message */}
+      <h3 className="text-lg font-bold text-text text-center">Daily Streaks</h3>
+      <p className="text-sm text-subtext text-center">Check in each day for increasing rewards.</p>
       <div className="flex space-x-2 overflow-x-auto">{progress}</div>
     </div>
   );
