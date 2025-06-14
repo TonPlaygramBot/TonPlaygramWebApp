@@ -10,7 +10,11 @@ body {
 }
 
 .hexagon {
-  clip-path: polygon(25% 0%, 75% 0%, 100% 50%, 75% 100%, 25% 100%, 0% 50%);
+  clip-path: polygon(25% 6.7%, 75% 6.7%, 100% 50%, 75% 93.3%, 25% 93.3%, 0% 50%);
+}
+
+.hexagon-gold {
+  @apply border-2 border-brand-gold;
 }
 
 /* Chess piece color adjustments */
@@ -25,7 +29,7 @@ body {
 }
 
 .player-avatar {
-  @apply w-12 h-12 rounded-full border border-yellow-400;
+  @apply w-12 h-12 hexagon hexagon-gold object-cover;
 }
 
 .starry-bg {
