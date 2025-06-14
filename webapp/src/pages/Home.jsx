@@ -6,6 +6,7 @@ import TasksCard from '../components/TasksCard.jsx';
 import { FaUser } from 'react-icons/fa';
 import { ping } from '../utils/api.js';
 import ConnectWallet from "../components/ConnectWallet.jsx";
+import BalanceSummary from '../components/BalanceSummary.jsx';
 import { getTelegramPhotoUrl } from '../utils/telegram.js';
 
 export default function Home() {
@@ -30,6 +31,7 @@ export default function Home() {
             className="w-36 h-36 hexagon border-4 border-brand-gold mt-2 object-cover"
           />
         )}
+        <BalanceSummary />
       </div>
 
       <SpinGame />
