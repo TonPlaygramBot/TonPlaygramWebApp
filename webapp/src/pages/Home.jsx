@@ -25,14 +25,16 @@ export default function Home() {
   return (
     <div className="space-y-4">
       <div className="flex flex-col items-center">
-        <ConnectWallet />
         {photoUrl && (
           <img
             src={photoUrl}
             alt="profile"
-            className="w-36 h-36 hexagon border-4 border-brand-gold mt-2 object-cover"
+            className="w-36 h-36 hexagon border-4 border-brand-gold mt-6 object-cover"
           />
         )}
+        <div className="mt-2">
+          <ConnectWallet />
+        </div>
 
         <div className="flex items-center justify-between w-full max-w-xs mt-2">
           <Link to="/wallet?mode=send" className="flex items-center space-x-1">
