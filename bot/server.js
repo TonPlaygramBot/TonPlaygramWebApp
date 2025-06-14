@@ -64,10 +64,13 @@ app.use('/api/profile', profileRoutes);
 // Serve the built React app
 const webappPath = path.join(__dirname, '../webapp/dist');
 
-if (
-    !existsSync(path.join(webappPath, 'index.html')) ||
-    !existsSync(path.join(webappPath, 'assets'))
-) {
+function ensureWebappBuilt() {
+  if (
+    existsSync(path.join(webappPath, 'index.html')) &&
+    existsSync(path.join(webappPath, 'assets'))
+  ) {
+    return true;
+  }
   try {
     console.log('Building webapp...');
     const webappDir = path.join(__dirname, '../webapp');
@@ -82,10 +85,14 @@ if (
       stdio: 'inherit',
       env: { ...process.env, VITE_API_BASE_URL: apiBase }
     });
+    return existsSync(path.join(webappPath, 'index.html'));
   } catch (err) {
     console.error('Failed to build webapp:', err.message);
+    return false;
   }
 }
+
+ensureWebappBuilt();
 
 app.use(express.static(webappPath));
 // Expose TonConnect manifest dynamically so the base URL always matches the
@@ -105,15 +112,24 @@ app.get(manifestPath, (req, res) => {
     icons: [`${baseUrl}/icons/tpc.svg`]
   });
 });
+
+function sendIndex(res) {
+  if (ensureWebappBuilt()) {
+    res.sendFile(path.join(webappPath, 'index.html'));
+  } else {
+    res.status(503).send('Webapp build not available');
+  }
+}
+
 app.get('/', (req, res) => {
-  res.sendFile(path.join(webappPath, 'index.html'));
+  sendIndex(res);
 });
 app.get('/api/ping', (req, res) => {
   res.json({ message: 'pong' });
 });
 app.get('*', (req, res) => {
   if (req.path.startsWith('/api/')) return res.status(404).end();
-  res.sendFile(path.join(webappPath, 'index.html'));
+  sendIndex(res);
 });
 
 // MongoDB Connection
