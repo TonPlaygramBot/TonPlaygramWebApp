@@ -36,14 +36,6 @@ export async function claimRewards(user) {
   const amount = user.minedTPC;
   user.minedTPC = 0;
   user.balance += amount;
-  if (amount > 0) {
-    user.transactions.push({
-      amount,
-      type: 'mining',
-      status: 'delivered',
-      date: new Date()
-    });
-  }
   await user.save();
   return amount;
 }

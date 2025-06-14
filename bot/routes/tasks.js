@@ -32,13 +32,7 @@ router.post('/complete', async (req, res) => {
     { $setOnInsert: { referralCode: telegramId.toString() } },
     { upsert: true, new: true }
   );
-  user.balance += config.reward;
-  user.transactions.push({
-    amount: config.reward,
-    type: 'task',
-    status: 'delivered',
-    date: new Date()
-  });
+  user.minedTPC += config.reward;
   await user.save();
 
   res.json({ message: 'completed', reward: config.reward });
