@@ -175,3 +175,7 @@ export function grantAirdrop(token, telegramId, amount, reason = '') {
   return post('/api/airdrop/grant', { telegramId, amount, reason }, token);
 
 }
+
+export function grantAirdropAll(token, amount, reason = '') {
+  return post('/api/airdrop/grant-all', { amount, reason }, token);
+}

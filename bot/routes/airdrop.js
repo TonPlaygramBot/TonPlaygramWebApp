@@ -98,4 +98,36 @@ router.post('/grant', adminOnly, async (req, res) => {
 
 });
 
+// ✅ Admin-only airdrop to all users
+router.post('/grant-all', adminOnly, async (req, res) => {
+  const { amount, reason } = req.body;
+  if (typeof amount !== 'number') {
+    return res.status(400).json({ error: 'amount required' });
+  }
+  if (amount <= 0) {
+    return res.status(400).json({ error: 'amount must be positive' });
+  }
+  try {
+    const users = await User.find();
+    let count = 0;
+    for (const user of users) {
+      ensureTransactionArray(user);
+      user.balance += amount;
+      user.transactions.push({
+        amount,
+        type: 'airdrop',
+        status: 'delivered',
+        date: new Date()
+      });
+      await user.save();
+      await Airdrop.create({ telegramId: user.telegramId, amount, reason });
+      count++;
+    }
+    res.json({ count });
+  } catch (err) {
+    console.error('Failed to grant airdrop to all:', err.message);
+    res.status(500).json({ error: 'Failed to grant airdrop to all users' });
+  }
+});
+
 export default router;

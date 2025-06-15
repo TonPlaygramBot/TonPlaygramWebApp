@@ -139,11 +139,19 @@ app.get('*', (req, res) => {
 // MongoDB Connection
 const mongoUri = process.env.MONGODB_URI;
 
-if (mongoUri) {
-  mongoose
-      .connect(mongoUri)
-      .then(() => console.log('Connected to MongoDB'))
+if (mongoUri === 'memory') {
+  import('mongodb-memory-server').then(async ({ MongoMemoryServer }) => {
+    const mem = await MongoMemoryServer.create();
+    mongoose
+      .connect(mem.getUri())
+      .then(() => console.log('Using in-memory MongoDB'))
       .catch((err) => console.error('MongoDB connection error:', err));
+  });
+} else if (mongoUri) {
+  mongoose
+    .connect(mongoUri)
+    .then(() => console.log('Connected to MongoDB'))
+    .catch((err) => console.error('MongoDB connection error:', err));
 } else {
   console.log('No MongoDB URI configured, continuing without database');
 }

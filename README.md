@@ -29,3 +29,7 @@ TonPlaygram combines a Telegram bot with a web interface built using React and V
   ```bash
 
   npm --prefix webapp run dev
+### Admin API
+
+- `POST /api/airdrop/grant-all` — grant an airdrop to all users (requires bearer token from `AIRDROP_ADMIN_TOKENS`)
+
