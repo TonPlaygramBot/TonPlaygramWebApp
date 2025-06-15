@@ -2,6 +2,7 @@ import { Router } from 'express';
 import Task from '../models/Task.js';
 import User from '../models/User.js';
 import { TASKS } from '../utils/tasksData.js';
+import { ensureTransactionArray } from '../utils/userUtils.js';
 
 const router = Router();
 
@@ -32,7 +33,14 @@ router.post('/complete', async (req, res) => {
     { $setOnInsert: { referralCode: telegramId.toString() } },
     { upsert: true, new: true }
   );
+  ensureTransactionArray(user);
   user.minedTPC += config.reward;
+  user.transactions.push({
+    amount: config.reward,
+    type: 'task',
+    status: 'pending',
+    date: new Date()
+  });
   await user.save();
 
   res.json({ message: 'completed', reward: config.reward });
