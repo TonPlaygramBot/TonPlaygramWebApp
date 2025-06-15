@@ -35,22 +35,15 @@ const diceFaces = {
 
 const baseTilt = 'rotateX(-25deg) rotateY(25deg)';
 
-const valueToSide = {
-  1: 'bottom',
-  2: 'right',
-  3: 'top',
-  4: 'left',
-  5: 'front',
-  6: 'back',
-};
-
-const sideTransforms = {
-  front: 'rotateX(0deg) rotateY(0deg)',
-  back: 'rotateY(180deg)',
-  right: 'rotateY(90deg)',
-  left: 'rotateY(-90deg)',
-  top: 'rotateX(-90deg)',
-  bottom: 'rotateX(90deg)',
+// Rotation needed to bring each numbered face to the top while keeping
+// the overall isometric camera tilt the same.
+const valueToRotation = {
+  1: 'rotateX(180deg)', // bottom -> top
+  2: 'rotateY(-90deg)', // right -> top
+  3: 'rotateX(0deg)', // already top
+  4: 'rotateY(90deg)', // left -> top
+  5: 'rotateX(-90deg)', // front -> top
+  6: 'rotateX(90deg)', // back -> top
 };
 
 function Face({ value, className }) {
@@ -69,8 +62,7 @@ function Face({ value, className }) {
 }
 
 export default function Dice({ value = 1, rolling = false }) {
-  const side = valueToSide[value] || 'front';
-  const transform = sideTransforms[side] || 'rotateX(0deg) rotateY(0deg)';
+  const transform = valueToRotation[value] || 'rotateX(0deg)';
   const orientation = `${transform} ${baseTilt}`;
 
   return (
