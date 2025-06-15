@@ -76,6 +76,11 @@ def ensure_board_template() -> Image.Image:
     draw = ImageDraw.Draw(img)
     base_size = CELL * 6
 
+    # subtle gradient background for depth
+    for i in range(BOARD_SIZE):
+        shade = 20 + int(10 * i / BOARD_SIZE)
+        draw.line([(0, i), (BOARD_SIZE, i)], fill=(shade, shade, shade + 10))
+
     # bases
     draw.rectangle([0,0,base_size,base_size], fill=COLORS["red"])
     draw.rectangle([BOARD_SIZE-base_size,0,BOARD_SIZE,base_size], fill=COLORS["blue"])
@@ -85,9 +90,13 @@ def ensure_board_template() -> Image.Image:
     for (r,c) in PATH:
         x=c*CELL
         y=r*CELL
+        # shadow
+        draw.rectangle([x+2,y+2,x+CELL+2,y+CELL+2], fill=(0,0,0,80))
         draw.rectangle([x,y,x+CELL,y+CELL], fill=(60,60,80))
-        draw.line([x,y,x+CELL,y], fill=(90,90,120), width=1)
-        draw.line([x,y,x,y+CELL], fill=(90,90,120), width=1)
+        draw.line([x,y,x+CELL,y], fill=(110,110,140), width=1)
+        draw.line([x,y,x,y+CELL], fill=(110,110,140), width=1)
+        draw.line([x+CELL,y,x+CELL,y+CELL], fill=(40,40,60), width=1)
+        draw.line([x,y+CELL,x+CELL,y+CELL], fill=(40,40,60), width=1)
 
     img.save(BOARD_TEMPLATE)
     return img
@@ -123,10 +132,13 @@ def render_board(session:GameSession) -> Path:
     draw=ImageDraw.Draw(base)
     try:
         font=ImageFont.truetype("DejaVuSans-Bold.ttf", CELL)
+        small_font=ImageFont.truetype("DejaVuSans-Bold.ttf", CELL//2)
     except Exception:
         font=ImageFont.load_default()
+        small_font=ImageFont.load_default()
     base_size = CELL*6
 
+    positions: Dict[tuple[int,int], List[str]] = {}
     for p in session.players:
         uid=p["id"]
         color=p["color"]
@@ -137,17 +149,13 @@ def render_board(session:GameSession) -> Path:
                 by=1 if color in ("red","blue") else BOARD_SIZE-base_size+CELL
                 ox=(i%2)*CELL*2
                 oy=(i//2)*CELL*2
+                draw.text((bx+ox+2,by+oy+2),token,font=font,fill=(0,0,0))
                 draw.text((bx+ox,by+oy),token,font=font)
             else:
                 if steps>=PATH_LENGTH+HOME_STEPS:
-                    cx=BOARD_SIZE//2
-                    cy=BOARD_SIZE//2
-                    draw.text((cx,cy),token,font=font,anchor="mm")
+                    pos=(7,7)
                 elif steps<PATH_LENGTH:
                     pos=PATH[(START_INDICES[color]+steps)%PATH_LENGTH]
-                    x=pos[1]*CELL
-                    y=pos[0]*CELL
-                    draw.text((x+CELL/2,y+CELL/2),token,font=font,anchor="mm")
                 else:
                     home_idx=steps-PATH_LENGTH
                     if color=="red":
@@ -158,9 +166,17 @@ def render_board(session:GameSession) -> Path:
                         pos=(14-home_idx,7)
                     else:
                         pos=(7,home_idx)
-                    x=pos[1]*CELL
-                    y=pos[0]*CELL
-                    draw.text((x+CELL/2,y+CELL/2),token,font=font,anchor="mm")
+                positions.setdefault(pos,[]).append(token)
+
+    for pos,tokens in positions.items():
+        x=pos[1]*CELL+CELL/2
+        y=pos[0]*CELL+CELL/2
+        draw.text((x+2,y+2),tokens[0],font=font,anchor="mm",fill=(0,0,0))
+        draw.text((x,y),tokens[0],font=font,anchor="mm")
+        if len(tokens)>1:
+            r=CELL//3
+            draw.ellipse((x+r*0.7,y-r*1.6,x+r*1.6,y-r*0.7),fill=(0,0,0,200))
+            draw.text((x+r*1.15,y-r*1.15),str(len(tokens)),font=small_font,anchor="mm",fill="white")
 
     out=Path("ludo_board_render.png")
     base.save(out)
