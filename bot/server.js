@@ -17,6 +17,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { existsSync } from 'fs';
 import { execSync } from 'child_process';
+import compression from 'compression';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 dotenv.config({ path: path.join(__dirname, '.env') });
@@ -30,6 +31,7 @@ const PORT = process.env.PORT || 3000;
 const app = express();
 
 // Middleware and routes
+app.use(compression());
 app.use(express.json());
 app.use(passport.initialize());
 
@@ -103,7 +105,9 @@ function ensureWebappBuilt() {
 
 ensureWebappBuilt();
 
-app.use(express.static(webappPath));
+app.use(
+  express.static(webappPath, { maxAge: '1y', immutable: true })
+);
 // Expose TonConnect manifest dynamically so the base URL always matches the
 // current request host. The manifest path is taken from the
 // TONCONNECT_MANIFEST_URL environment variable if provided, otherwise the
