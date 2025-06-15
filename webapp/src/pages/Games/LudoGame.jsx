@@ -1,8 +1,10 @@
 import { useState } from 'react';
 import ConnectWallet from '../../components/ConnectWallet.jsx';
 import RoomPopup from '../../components/RoomPopup.jsx';
+import useTelegramBackButton from '../../hooks/useTelegramBackButton.js';
 
 export default function LudoGame() {
+  useTelegramBackButton();
   const [selection, setSelection] = useState(null);
   const [showRoom, setShowRoom] = useState(true);
 

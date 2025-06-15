@@ -12,8 +12,10 @@ import { getTelegramId } from '../utils/telegram.js';
 import OpenInTelegram from '../components/OpenInTelegram.jsx';
 import ConnectWallet from '../components/ConnectWallet.jsx';
 import { useTonWallet, useTonConnectUI } from '@tonconnect/ui-react';
+import useTelegramBackButton from '../hooks/useTelegramBackButton.js';
 
 export default function Wallet() {
+  useTelegramBackButton();
   let telegramId;
 
   try {

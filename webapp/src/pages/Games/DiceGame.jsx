@@ -7,6 +7,7 @@ import RoomPopup from '../../components/RoomPopup.jsx';
 import RollPopup from '../../components/RollPopup.jsx';
 
 import GameResult from '../../components/GameResult.jsx';
+import useTelegramBackButton from '../../hooks/useTelegramBackButton.js';
 
 import Board from '../../components/Board.jsx';
 
@@ -31,6 +32,7 @@ function randomInt(min, max) {
 }
 
 export default function DiceGame() {
+  useTelegramBackButton();
 
   const [selection, setSelection] = useState(null);
 
