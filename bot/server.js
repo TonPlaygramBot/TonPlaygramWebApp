@@ -2,6 +2,9 @@ import dotenv from 'dotenv';
 import express from 'express';
 import bot from './bot.js';
 import mongoose from 'mongoose';
+import http from 'http';
+import { Server as SocketIOServer } from 'socket.io';
+import { GameRoomManager } from './gameEngine.js';
 import miningRoutes from './routes/mining.js';
 import tasksRoutes from './routes/tasks.js';
 import watchRoutes from './routes/watch.js';
@@ -27,6 +30,9 @@ if (!process.env.MONGODB_URI) {
 
 const PORT = process.env.PORT || 3000;
 const app = express();
+const httpServer = http.createServer(app);
+const io = new SocketIOServer(httpServer, { cors: { origin: '*' } });
+const gameManager = new GameRoomManager(io);
 
 // Middleware and routes
 app.use(compression());
@@ -138,8 +144,17 @@ if (mongoUri === 'memory') {
   console.log('No MongoDB URI configured, continuing without database');
 }
 
+io.on('connection', (socket) => {
+  socket.on('joinRoom', ({ roomId, playerId, name }) => {
+    const result = gameManager.joinRoom(roomId, playerId, name, socket);
+    if (result.error) socket.emit('error', result.error);
+  });
+  socket.on('rollDice', () => gameManager.rollDice(socket));
+  socket.on('disconnect', () => gameManager.handleDisconnect(socket));
+});
+
 // Start the server
-app.listen(PORT, async () => {
+httpServer.listen(PORT, async () => {
   console.log(`Server running on port ${PORT}`);
   if (process.env.SKIP_BOT_LAUNCH || !process.env.BOT_TOKEN) {
     console.log('Skipping Telegram bot launch');
