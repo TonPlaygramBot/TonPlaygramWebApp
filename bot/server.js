@@ -59,14 +59,12 @@ function ensureWebappBuilt() {
     const displayBase = apiBase || '(same origin)';
     console.log(`Using API base URL ${displayBase} for webapp build`);
 
-    const manifestBuild = process.env.TONCONNECT_MANIFEST_URL || '';
     execSync('npm run build', {
       cwd: webappDir,
       stdio: 'inherit',
       env: {
         ...process.env,
-        VITE_API_BASE_URL: apiBase,
-        VITE_TONCONNECT_MANIFEST: manifestBuild
+        VITE_API_BASE_URL: apiBase
       }
     });
     return existsSync(path.join(webappPath, 'index.html'));
@@ -81,23 +79,6 @@ ensureWebappBuilt();
 app.use(
   express.static(webappPath, { maxAge: '1y', immutable: true })
 );
-// Expose TonConnect manifest dynamically so the base URL always matches the
-// current request host. The manifest path is taken from the
-// TONCONNECT_MANIFEST_URL environment variable if provided, otherwise the
-// default `/tonconnect-manifest.json` is used. This avoids 404s when the
-// Express server handles requests before the static middleware.
-const manifestUrl = process.env.TONCONNECT_MANIFEST_URL || '/tonconnect-manifest.json';
-const manifestPath = new URL(manifestUrl, 'http://placeholder').pathname;
-app.get(manifestPath, (req, res) => {
-  const proto = req.get('x-forwarded-proto') || req.protocol;
-  const baseUrl = `${proto}://${req.get('host')}`;
-  res.json({
-    name: 'TonPlaygram',
-    description: 'Play games with TPC staking via Tonkeeper',
-    url: baseUrl,
-    icons: [`${baseUrl}/icons/tpc.svg`]
-  });
-});
 
 function sendIndex(res) {
   if (ensureWebappBuilt()) {
