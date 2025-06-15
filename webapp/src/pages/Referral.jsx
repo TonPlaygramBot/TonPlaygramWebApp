@@ -3,8 +3,10 @@ import OpenInTelegram from '../components/OpenInTelegram.jsx';
 import { getTelegramId } from '../utils/telegram.js';
 import { getReferralInfo } from '../utils/api.js';
 import { BOT_USERNAME } from '../utils/constants.js';
+import useTelegramBackButton from '../hooks/useTelegramBackButton.js';
 
 export default function Referral() {
+  useTelegramBackButton();
   let telegramId;
   try {
     telegramId = getTelegramId();

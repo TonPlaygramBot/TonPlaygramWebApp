@@ -8,8 +8,10 @@ import OpenInTelegram from '../components/OpenInTelegram.jsx';
 import { IoLogoTwitter, IoLogoTiktok } from 'react-icons/io5';
 
 import { RiTelegramFill } from 'react-icons/ri';
+import useTelegramBackButton from '../hooks/useTelegramBackButton.js';
 
 export default function Tasks() {
+  useTelegramBackButton();
   let telegramId;
   try {
     telegramId = getTelegramId();

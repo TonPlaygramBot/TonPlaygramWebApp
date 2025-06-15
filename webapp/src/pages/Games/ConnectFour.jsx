@@ -5,6 +5,7 @@ import RewardPopup from '../../components/RewardPopup.tsx';
 import { getWalletBalance, updateBalance, addTransaction } from '../../utils/api.js';
 import { getTelegramId } from '../../utils/telegram.js';
 import OpenInTelegram from '../../components/OpenInTelegram.jsx';
+import useTelegramBackButton from '../../hooks/useTelegramBackButton.js';
 
 const ROWS = 6;
 const COLS = 7;
@@ -38,6 +39,7 @@ function checkWinner(board, row, col, player) {
 }
 
 export default function ConnectFour() {
+  useTelegramBackButton();
   let telegramId;
   try {
     telegramId = getTelegramId();

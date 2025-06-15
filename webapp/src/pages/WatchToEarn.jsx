@@ -2,8 +2,10 @@ import { useEffect, useState } from 'react';
 import { listVideos, watchVideo } from '../utils/api.js';
 import { getTelegramId } from '../utils/telegram.js';
 import OpenInTelegram from '../components/OpenInTelegram.jsx';
+import useTelegramBackButton from '../hooks/useTelegramBackButton.js';
 
 export default function WatchToEarn() {
+  useTelegramBackButton();
   let telegramId;
   try {
     telegramId = getTelegramId();

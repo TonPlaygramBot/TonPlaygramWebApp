@@ -15,8 +15,10 @@ import {
 import OpenInTelegram from '../components/OpenInTelegram.jsx';
 import { BOT_USERNAME } from '../utils/constants.js';
 import BalanceSummary from '../components/BalanceSummary.jsx';
+import useTelegramBackButton from '../hooks/useTelegramBackButton.js';
 
 export default function MyAccount() {
+  useTelegramBackButton();
   let telegramId;
 
   try {

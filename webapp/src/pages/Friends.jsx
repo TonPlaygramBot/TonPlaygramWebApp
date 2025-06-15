@@ -1,10 +1,12 @@
 import { useEffect, useState } from 'react';
+import useTelegramBackButton from '../hooks/useTelegramBackButton.js';
 import OpenInTelegram from '../components/OpenInTelegram.jsx';
 import { getTelegramId, getTelegramPhotoUrl } from '../utils/telegram.js';
 import { getLeaderboard, getReferralInfo } from '../utils/api.js';
 import { BOT_USERNAME } from '../utils/constants.js';
 
 export default function Friends() {
+  useTelegramBackButton();
   let telegramId;
   try {
     telegramId = getTelegramId();
