@@ -4,30 +4,19 @@
   position: relative;
   transform-style: preserve-3d;
   transform: rotateX(-30deg) rotateY(30deg);
-  transition: transform 1s cubic-bezier(0.25, 0.1, 0.25, 1);
-  box-shadow: 0 0 10px rgba(0, 0, 0, 0.3);
+  transition: transform 0.8s ease-in-out;
 }
 
 .dice3d.rolling {
-  animation: dice-spin 0.8s ease-in-out;
-}
-
-@keyframes dice-spin {
-  from {
-    transform: rotateX(-30deg) rotateY(30deg);
-  }
-  to {
-    transform: rotateX(720deg) rotateY(720deg);
-  }
+  transform: rotateX(720deg) rotateY(720deg);
 }
 
 .dice3d .face {
   position: absolute;
   width: 100%;
   height: 100%;
-  background: radial-gradient(circle at 30% 30%, #ffffff, #cccccc);
-  border: 2px solid #333;
-  border-radius: 0.3rem;
+  background: #000;
+  border: 2px solid #f1c40f;
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   grid-template-rows: repeat(3, 1fr);
@@ -35,11 +24,10 @@
 }
 
 .dice3d .pip {
-  width: 0.6rem;
-  height: 0.6rem;
-  background: #000;
+  width: 0.5rem;
+  height: 0.5rem;
+  background: #f1c40f;
   border-radius: 50%;
-  box-shadow: inset 0 0 4px rgba(0, 0, 0, 0.6);
 }
 
 .face.front  { transform: rotateY(0deg) translateZ(2rem); }

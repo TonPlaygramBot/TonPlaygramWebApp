@@ -1,5 +1,4 @@
 import { useEffect, useState, useMemo, useRef } from 'react';
-import diceSoundBase64 from '../../assets/diceSound.js';
 
 import ConnectWallet from '../../components/ConnectWallet.jsx';
 
@@ -74,7 +73,7 @@ export default function DiceGame() {
   }, [phase, rolling, result]);
 
   useEffect(() => {
-    diceSoundRef.current = new Audio(diceSoundBase64);
+    diceSoundRef.current = new Audio('/assets/sounds/dice.mp3');
     diceSoundRef.current.preload = "auto";
     return () => {
       diceSoundRef.current?.pause();
