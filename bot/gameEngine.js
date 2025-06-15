@@ -5,8 +5,31 @@ export class GameRoom {
     this.players = [];
     this.currentTurn = 0;
     this.status = 'waiting';
-    this.snakes = { 99: 41, 85: 58, 70: 55 };
-    this.ladders = { 2: 38, 15: 26, 22: 58 };
+    this.snakes = {
+      17: 4,
+      19: 7,
+      21: 9,
+      27: 1,
+      54: 34,
+      62: 18,
+      64: 60,
+      87: 24,
+      93: 73,
+      95: 75,
+      98: 79,
+      99: 7,
+    };
+    this.ladders = {
+      3: 22,
+      5: 8,
+      11: 26,
+      20: 29,
+      27: 56,
+      36: 44,
+      51: 67,
+      71: 91,
+      80: 100,
+    };
   }
 
   addPlayer(playerId, name, socket) {
@@ -19,7 +42,8 @@ export class GameRoom {
       position: 0,
       isActive: false,
       socketId: socket.id,
-      disconnected: false
+      disconnected: false,
+      consecutiveSixes: 0
     };
     this.players.push(player);
     socket.join(this.id);
@@ -35,12 +59,13 @@ export class GameRoom {
     this.status = 'playing';
     this.currentTurn = 0;
     this.io.to(this.id).emit('gameStarted');
-    this.emitNextTurn();
+    this.emitNextTurn(true);
   }
 
-  emitNextTurn() {
+  emitNextTurn(resetStreak = true) {
     const current = this.players[this.currentTurn];
     if (current) {
+      if (resetStreak) current.consecutiveSixes = 0;
       this.io.to(this.id).emit('nextTurn', { playerId: current.playerId });
     }
   }
@@ -64,10 +89,25 @@ export class GameRoom {
     let from = player.position;
     let to = player.position;
 
+    if (dice === 6) {
+      player.consecutiveSixes += 1;
+    } else {
+      player.consecutiveSixes = 0;
+    }
+
+    if (player.consecutiveSixes === 3) {
+      player.consecutiveSixes = 0;
+      do {
+        this.currentTurn = (this.currentTurn + 1) % this.players.length;
+      } while (this.players[this.currentTurn].disconnected);
+      this.emitNextTurn(true);
+      return;
+    }
+
     if (!player.isActive) {
       if (dice === 6) {
         player.isActive = true;
-        to = from + dice;
+        to = 1;
       }
     } else {
       if (from + dice <= 100) {
@@ -91,12 +131,15 @@ export class GameRoom {
       return;
     }
 
-    if (dice !== 6) {
+    const extraTurn = dice === 6 && to !== from;
+    if (!extraTurn) {
       do {
         this.currentTurn = (this.currentTurn + 1) % this.players.length;
       } while (this.players[this.currentTurn].disconnected);
+      this.emitNextTurn(true);
+    } else {
+      this.emitNextTurn(false);
     }
-    this.emitNextTurn();
   }
 
   handleDisconnect(socket) {
