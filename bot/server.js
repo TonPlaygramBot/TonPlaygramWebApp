@@ -21,6 +21,11 @@ import { execSync } from 'child_process';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 dotenv.config({ path: path.join(__dirname, '.env') });
 
+if (!process.env.MONGODB_URI) {
+  process.env.MONGODB_URI = 'memory';
+  console.log('MONGODB_URI not set, defaulting to in-memory MongoDB');
+}
+
 const PORT = process.env.PORT || 3000;
 const app = express();
 
