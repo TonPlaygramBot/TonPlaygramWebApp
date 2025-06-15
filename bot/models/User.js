@@ -44,9 +44,7 @@ const userSchema = new mongoose.Schema({
 
     telegram: String,
 
-    discord: String,
-
-    googleId: String
+    discord: String
 
   },
 
