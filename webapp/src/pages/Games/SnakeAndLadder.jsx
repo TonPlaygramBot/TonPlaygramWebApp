@@ -5,18 +5,29 @@ import useTelegramBackButton from "../../hooks/useTelegramBackButton.js";
 
 // Simple snake and ladder layout for a 10x10 board
 const snakes = {
-  16: 6,
-  48: 30,
-  62: 19,
-  88: 24,
-  95: 56,
+  17: 4,
+  19: 7,
+  21: 9,
+  27: 1,
+  54: 34,
+  62: 18,
+  64: 60,
+  87: 24,
+  93: 73,
+  95: 75,
+  98: 79,
+  99: 7,
 };
 const ladders = {
   3: 22,
-  25: 44,
-  40: 60,
+  5: 8,
+  11: 26,
+  20: 29,
+  27: 56,
+  36: 44,
   51: 67,
-  71: 90,
+  71: 91,
+  80: 100,
 };
 
 function Board({ position, highlight }) {
@@ -60,7 +71,7 @@ function Board({ position, highlight }) {
 
 export default function SnakeAndLadder() {
   useTelegramBackButton();
-  const [pos, setPos] = useState(1);
+  const [pos, setPos] = useState(0);
   const [selection, setSelection] = useState(null);
   const [showRoom, setShowRoom] = useState(true);
   const [highlight, setHighlight] = useState(null);
@@ -72,8 +83,17 @@ export default function SnakeAndLadder() {
       : values;
     setMessage("");
     let current = pos;
-    let target = current + value;
-    if (target > 100) target = 100;
+    let target = current;
+    if (current === 0) {
+      if (value === 6) target = 1; else {
+        setMessage("Need a 6 to start!");
+        return;
+      }
+    } else if (current + value <= 100) {
+      target = current + value;
+    } else {
+      setMessage("Need exact roll!");
+    }
     const steps = [];
     for (let i = current + 1; i <= target; i++) steps.push(i);
 
