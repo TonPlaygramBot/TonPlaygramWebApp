@@ -109,6 +109,7 @@ router.post('/send', async (req, res) => {
     };
     sender.balance += amount;
     sender.transactions.push(failedTx);
+    sender.balance += amount;
     await sender.save().catch((e) =>
       console.error('Failed to log failed transaction:', e.message)
     );
