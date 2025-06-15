@@ -37,3 +37,4 @@ manifest.
 - Chess with staking
 - Connect Four with staking
 - Spin & Win mini game
+- Dice Duel (PvP)
