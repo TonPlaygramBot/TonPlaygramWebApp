@@ -49,7 +49,8 @@ export default function SnakeAndLadder() {
 
   const calcRotation = (p) => ((Math.floor((p - 1) / 10) % 4) * 90);
 
-  const handleRoll = (value) => {
+  const handleRoll = (values) => {
+    const value = Array.isArray(values) ? values.reduce((a, b) => a + b, 0) : values;
     setMessage('');
     let current = pos;
     let target = current + value;
