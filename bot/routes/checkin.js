@@ -21,6 +21,11 @@ router.post('/check-in', async (req, res) => {
     ensureTransactionArray(user);
 
     const now = Date.now();
+
+    if (user.lastCheckIn && now - user.lastCheckIn.getTime() < ONE_DAY_MS) {
+      return res.status(400).json({ error: 'already checked in' });
+    }
+
     let streak = 1;
     if (user.lastCheckIn && now - user.lastCheckIn.getTime() < ONE_DAY_MS * 2) {
       streak = user.dailyStreak + 1;
@@ -30,16 +35,16 @@ router.post('/check-in', async (req, res) => {
 
     user.lastCheckIn = new Date(now);
     user.dailyStreak = streak;
-    user.minedTPC += reward;
+    user.balance += reward;
     user.transactions.push({
       amount: reward,
       type: 'daily',
-      status: 'pending',
+      status: 'delivered',
       date: new Date(now)
     });
     await user.save();
 
-    res.json({ streak, reward });
+    res.json({ streak, reward, balance: user.balance });
   } catch (err) {
     console.error('Daily check-in failed:', err.message);
     res.status(500).json({ error: 'Failed to check in' });
