@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useTonWallet } from '@tonconnect/ui-react';
-import ConnectWallet from './ConnectWallet.jsx';
 import { getWalletBalance, getTonBalance } from '../utils/api.js';
 import { getTelegramId } from '../utils/telegram.js';
 import OpenInTelegram from './OpenInTelegram.jsx';
@@ -43,7 +42,6 @@ export default function WalletCard() {
         <span>💰</span>
         <span>Wallet</span>
       </h3>
-      <ConnectWallet />
       <p>TON Balance: {tonBalance === null ? '...' : tonBalance}</p>
       <p>TPC Balance: {tpcBalance === null ? '...' : tpcBalance}</p>
       <p>USDT Balance: {usdtBalance === null ? '...' : usdtBalance}</p>

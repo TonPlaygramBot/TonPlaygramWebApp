@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import ConnectWallet from '../../components/ConnectWallet.jsx';
 import RoomPopup from '../../components/RoomPopup.jsx';
 import useTelegramBackButton from '../../hooks/useTelegramBackButton.js';
 
@@ -17,7 +16,6 @@ export default function HorseRacing() {
         setSelection={setSelection}
         onConfirm={() => setShowRoom(false)}
       />
-      <ConnectWallet />
       <p>Horse racing game coming soon.</p>
     </div>
   );

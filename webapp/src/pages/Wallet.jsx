@@ -10,7 +10,6 @@ import {
 } from '../utils/api.js';
 import { getTelegramId } from '../utils/telegram.js';
 import OpenInTelegram from '../components/OpenInTelegram.jsx';
-import ConnectWallet from '../components/ConnectWallet.jsx';
 import { useTonWallet, useTonConnectUI } from '@tonconnect/ui-react';
 import useTelegramBackButton from '../hooks/useTelegramBackButton.js';
 
@@ -194,7 +193,6 @@ export default function Wallet() {
       <div className="space-y-2 pt-4">
         <h3 className="text-lg font-semibold">Tonkeeper Wallet</h3>
 
-        <ConnectWallet />
         <p>TON Balance: {tonBalance === null ? '...' : tonBalance}</p>
         <p>USDT Balance: 0</p>
 
