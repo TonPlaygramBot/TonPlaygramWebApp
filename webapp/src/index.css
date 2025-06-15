@@ -27,10 +27,12 @@ body {
 .board-3d {
   perspective: 800px;
 }
+
 .board-3d-grid {
-  transform: rotateX(55deg) rotateZ(45deg);
+  transform: rotateX(30deg) rotateZ(45deg);
   transform-style: preserve-3d;
 }
+
 .board-frame {
   @apply border-4 border-accent rounded-lg p-1 bg-surface;
   transform-style: preserve-3d;
@@ -82,10 +84,20 @@ body {
 .dice-face--bottom  { transform: rotateX(-90deg) translateZ(3rem); }
 
 .board-cell {
-  @apply relative flex items-center justify-center rounded-xl shadow-inner text-white;
+  @apply relative flex items-center justify-center rounded-xl text-white shadow-inner;
   background-color: #000; /* match dice face */
   border: 2px solid #FFD700; /* metallic gold edges */
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.5); /* subtle outer depth */
   transform: translateZ(5px);
+}
+
+.board-cell::after {
+  content: '';
+  position: absolute;
+  inset: 2px;
+  border-radius: inherit;
+  box-shadow: 0 0 8px rgba(255, 255, 200, 0.5);
+  transform: translateZ(-1px);
 }
 
 .token {
