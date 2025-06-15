@@ -1,10 +1,11 @@
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState, useMemo, useRef } from 'react';
 
 import ConnectWallet from '../../components/ConnectWallet.jsx';
 
 import RoomPopup from '../../components/RoomPopup.jsx';
 
 import Dice from '../../components/Dice.jsx';
+import RollPopup from '../../components/RollPopup.jsx';
 
 import GameResult from '../../components/GameResult.jsx';
 
@@ -55,6 +56,8 @@ export default function DiceGame() {
   const [lobbyCount, setLobbyCount] = useState(1);
 
   const [ready, setReady] = useState(false);
+  const [showRoll, setShowRoll] = useState(false);
+  const diceSoundRef = useRef(null);
 
   const opponent = useMemo(() => {
 
@@ -63,6 +66,20 @@ export default function DiceGame() {
     return { name, avatar: '/assets/icons/profile.svg', balance: randomInt(50, 500) };
 
   }, [phase]);
+
+  useEffect(() => {
+    if (phase === 'playing' && !rolling && !result) {
+      setShowRoll(true);
+    }
+  }, [phase, rolling, result]);
+
+  useEffect(() => {
+    diceSoundRef.current = new Audio('/assets/sounds/dice.mp3');
+    diceSoundRef.current.preload = "auto";
+    return () => {
+      diceSoundRef.current?.pause();
+    };
+  }, []);
 
   // Simulate lobby filling
 
@@ -149,58 +166,54 @@ export default function DiceGame() {
   };
 
   const roll = () => {
-
     if (rolling) return;
-
     setRolling(true);
+    setShowRoll(false);
+    if (diceSoundRef.current) {
+      diceSoundRef.current.currentTime = 0;
+      diceSoundRef.current.play().catch(() => {});
+    }
+
+    const pd1 = randomInt(1, 6);
+    const pd2 = randomInt(1, 6);
+    const od1 = randomInt(1, 6);
+    const od2 = randomInt(1, 6);
+    setPlayerDice([pd1, pd2]);
+    setOppDice([od1, od2]);
+
+    const movePiece = (start, steps, setter) => {
+      let current = start;
+      const target = Math.min(start + steps, 100);
+      const id = setInterval(() => {
+        current += 1;
+        setter(current);
+        if (current >= target) clearInterval(id);
+      }, 200);
+    };
+
+    movePiece(playerPos, pd1 + pd2, setPlayerPos);
+    movePiece(oppPos, od1 + od2, setOppPos);
+
+    const newPlayer = Math.min(playerPos + pd1 + pd2, 100);
+    const newOpp = Math.min(oppPos + od1 + od2, 100);
 
     setTimeout(() => {
-
-      const pd1 = randomInt(1, 6);
-
-      const pd2 = randomInt(1, 6);
-
-      const od1 = randomInt(1, 6);
-
-      const od2 = randomInt(1, 6);
-
-      setPlayerDice([pd1, pd2]);
-
-      setOppDice([od1, od2]);
-
-      const newPlayer = Math.min(playerPos + pd1 + pd2, 100);
-
-      const newOpp = Math.min(oppPos + od1 + od2, 100);
-
-      setPlayerPos(newPlayer);
-
-      setOppPos(newOpp);
-
       setRolling(false);
-
       if (newPlayer >= 100 && newOpp >= 100) {
-
         setResult({ outcome: 'draw', pot: selection.amount * 2 });
-
         setPhase('result');
-
       } else if (newPlayer >= 100) {
-
         setResult({ outcome: 'win', pot: selection.amount * 2 });
-
         setPhase('result');
-
       } else if (newOpp >= 100) {
-
         setResult({ outcome: 'lose', pot: selection.amount * 2 });
-
         setPhase('result');
-
+      } else {
+        setShowRoll(true);
       }
-
-    }, 700);
-
+    }, Math.max(pd1 + pd2, od1 + od2) * 200 + 500);
   };
+
 
   const rematch = () => {
 
@@ -259,68 +272,26 @@ export default function DiceGame() {
       )}
 
       {phase === 'playing' && (
-
         <div className="space-y-4">
-
-          <div className="flex justify-around items-center">
-
-            <div className="space-y-2 text-center">
-
-              <p className="font-semibold">You</p>
-
-              <div className="flex space-x-2">
-
-                <Dice value={playerDice[0]} rolling={rolling} />
-
-                <Dice value={playerDice[1]} rolling={rolling} />
-
-              </div>
-
-            </div>
-
-            <div className="space-y-2 text-center">
-
-              <p className="font-semibold">{opponent.name}</p>
-
-              <div className="flex space-x-2">
-
-                <Dice value={oppDice[0]} rolling={rolling} />
-
-                <Dice value={oppDice[1]} rolling={rolling} />
-
-              </div>
-
-            </div>
-
+          <div className="flex justify-between text-sm font-semibold">
+            <span>You: tile {playerPos}</span>
+            <span>{opponent.name}: tile {oppPos}</span>
           </div>
-
           <Board
-
             playerPos={playerPos}
-
             opponentPos={oppPos}
-
             opponentAvatar={opponent.avatar}
-
           />
-
-          <button
-
-            onClick={roll}
-
-            disabled={rolling}
-
-            className="w-full px-4 py-2 bg-primary hover:bg-primary-hover rounded text-white"
-
-          >
-
-            Roll Dice
-
-          </button>
-
         </div>
-
       )}
+      <RollPopup
+        open={showRoll}
+        avatar={'/assets/icons/profile.svg'}
+        onRoll={roll}
+        rolling={rolling}
+        diceValues={playerDice}
+      />
+
 
       <GameResult result={result} onRematch={rematch} />
 
