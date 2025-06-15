@@ -5,8 +5,22 @@ import { ensureTransactionArray } from '../utils/userUtils.js';
 
 const router = Router();
 
-// Grant an airdrop to a user
-router.post('/grant', async (req, res) => {
+function adminOnly(req, res, next) {
+  const auth = req.get('authorization') || '';
+  const token = auth.replace(/^Bearer\s+/i, '');
+  const list = process.env.AIRDROP_ADMIN_TOKENS;
+  if (!list) {
+    return res.status(403).json({ error: 'Airdrop admin tokens not configured' });
+  }
+  const allowed = list.split(',').map(t => t.trim()).filter(Boolean);
+  if (!token || !allowed.includes(token)) {
+    return res.status(401).json({ error: 'unauthorized' });
+  }
+  next();
+}
+
+// Grant an airdrop to a user (admin only)
+router.post('/grant', adminOnly, async (req, res) => {
   const { telegramId, amount, reason } = req.body;
   if (!telegramId || typeof amount !== 'number') {
     return res.status(400).json({ error: 'telegramId and amount required' });
