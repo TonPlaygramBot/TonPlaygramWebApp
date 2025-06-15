@@ -15,3 +15,22 @@ TonPlaygram combines a Telegram bot with a web interface built using React and V
 4. Install the Python requirements for the dice roller:
    ```bash
    pip install -r requirements.txt
+```
+
+5. Start the development server:
+   ```bash
+   npm start
+   ```
+
+The bot reads configuration from `bot/.env`.
+Set at least the following variables:
+
+* `BOT_TOKEN` - Telegram bot token
+* `MONGODB_URI` - MongoDB connection string or `memory`
+* `PORT` - port for the API server (defaults to `3000`)
+* `AIRDROP_ADMIN_TOKENS` - (optional) tokens allowed to trigger airdrops
+* `TONCONNECT_MANIFEST_URL` - URL of the TonConnect manifest
+
+Once running, open [http://localhost:3000](http://localhost:3000)
+ to access the web interface.
+

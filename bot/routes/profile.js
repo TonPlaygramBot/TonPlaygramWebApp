@@ -1,5 +1,4 @@
 import { Router } from 'express';
-import passport from 'passport';
 import User from '../models/User.js';
 import { fetchTelegramInfo } from '../utils/telegram.js';
 import { ensureTransactionArray } from '../utils/userUtils.js';
@@ -100,14 +99,13 @@ router.post('/addTransaction', async (req, res) => {
 });
 
 router.post('/link-social', async (req, res) => {
-  const { telegramId, twitter, telegramHandle, discord, googleId } = req.body;
+  const { telegramId, twitter, telegramHandle, discord } = req.body;
   if (!telegramId) return res.status(400).json({ error: 'telegramId required' });
 
   const update = {};
   if (twitter !== undefined) update['social.twitter'] = twitter;
   if (telegramHandle !== undefined) update['social.telegram'] = telegramHandle;
   if (discord !== undefined) update['social.discord'] = discord;
-  if (googleId !== undefined) update['social.googleId'] = googleId;
 
   const user = await User.findOneAndUpdate(
     { telegramId },
@@ -116,17 +114,5 @@ router.post('/link-social', async (req, res) => {
   );
   res.json({ social: user.social });
 });
-
-if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
-  router.get('/google', passport.authenticate('google', { scope: ['profile'] }));
-
-  router.get(
-    '/google/callback',
-    passport.authenticate('google', { session: false }),
-    (req, res) => {
-      res.json({ message: 'google linked', user: req.user });
-    }
-  );
-}
 
 export default router;
