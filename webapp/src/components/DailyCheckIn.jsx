@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react';
 import RewardPopup from './RewardPopup.tsx';
+import { dailyCheckIn, getProfile } from '../utils/api.js';
+import { getTelegramId } from '../utils/telegram.js';
 
 const REWARDS = Array.from({ length: 30 }, (_, i) => 1000 * (i + 1));
 const ONE_DAY = 24 * 60 * 60 * 1000;
@@ -11,28 +13,37 @@ export default function DailyCheckIn() {
   const [reward, setReward] = useState(null);
 
   useEffect(() => {
-    const savedStreak = parseInt(localStorage.getItem('dailyStreak') || '1', 10);
-    const savedLast = localStorage.getItem('lastCheckIn');
-    setStreak(savedStreak);
-    setLastCheck(savedLast ? parseInt(savedLast, 10) : null);
-
-    const now = Date.now();
-    if (!savedLast || now - parseInt(savedLast, 10) >= ONE_DAY) {
-      setShowPopup(true);
+    async function fetchData() {
+      try {
+        const id = getTelegramId();
+        const profile = await getProfile(id);
+        if (profile.dailyStreak) setStreak(profile.dailyStreak);
+        if (profile.lastCheckIn) {
+          const ts = new Date(profile.lastCheckIn).getTime();
+          setLastCheck(ts);
+          if (Date.now() - ts >= ONE_DAY) {
+            setShowPopup(true);
+          }
+        } else {
+          setShowPopup(true);
+        }
+      } catch (err) {
+        console.error('Failed to load profile', err);
+      }
     }
+    fetchData();
   }, []);
 
-  const handleCheckIn = () => {
-    const now = Date.now();
-    let newStreak = 1;
-    if (lastCheck && now - lastCheck < ONE_DAY * 2) {
-      newStreak = Math.min(streak + 1, 30);
+  const handleCheckIn = async () => {
+    try {
+      const id = getTelegramId();
+      const res = await dailyCheckIn(id);
+      setStreak(res.streak);
+      setReward(res.reward);
+      setLastCheck(Date.now());
+    } catch (err) {
+      console.error('Daily check-in failed', err);
     }
-    setStreak(newStreak);
-    setLastCheck(now);
-    localStorage.setItem('dailyStreak', String(newStreak));
-    localStorage.setItem('lastCheckIn', String(now));
-    setReward(REWARDS[newStreak - 1]);
     setShowPopup(false);
   };
 

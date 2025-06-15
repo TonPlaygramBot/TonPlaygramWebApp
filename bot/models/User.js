@@ -13,6 +13,9 @@ const userSchema = new mongoose.Schema({
 
   minedTPC: { type: Number, default: 0 },
 
+  dailyStreak: { type: Number, default: 0 },
+  lastCheckIn: { type: Date, default: null },
+
   balance: { type: Number, default: 0 },
 
   nickname: { type: String, default: '' },
