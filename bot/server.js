@@ -2,6 +2,9 @@ import dotenv from 'dotenv';
 import express from 'express';
 import bot from './bot.js';
 import mongoose from 'mongoose';
+import { createServer } from 'http';
+import { Server as SocketServer } from 'socket.io';
+import { GameRoom } from './gameEngine.js';
 import miningRoutes from './routes/mining.js';
 import tasksRoutes from './routes/tasks.js';
 import watchRoutes from './routes/watch.js';
@@ -27,6 +30,10 @@ if (!process.env.MONGODB_URI) {
 
 const PORT = process.env.PORT || 3000;
 const app = express();
+const httpServer = createServer(app);
+const io = new SocketServer(httpServer, { cors: { origin: '*' } });
+
+const rooms = new Map();
 
 // Middleware and routes
 app.use(compression());
@@ -118,6 +125,55 @@ app.get('*', (req, res) => {
   sendIndex(res);
 });
 
+// Socket.IO game logic
+io.on('connection', (socket) => {
+  socket.on('joinRoom', ({ roomId, playerId, name }) => {
+    if (!roomId || !playerId) return;
+    let room = rooms.get(roomId);
+    if (!room) {
+      room = new GameRoom(roomId);
+      rooms.set(roomId, room);
+    }
+    try {
+      room.addPlayer({ id: playerId, name });
+    } catch (err) {
+      socket.emit('error', err.message);
+      return;
+    }
+    socket.join(roomId);
+    socket.data.roomId = roomId;
+    socket.data.playerId = playerId;
+
+    const forward = (event, payload) => io.to(roomId).emit(event, payload);
+    const events = [
+      'playerJoined',
+      'playerLeft',
+      'diceRolled',
+      'movePlayer',
+      'snakeOrLadder',
+      'gameWon',
+      'nextTurn',
+      'gameStart',
+    ];
+    const handlers = events.map((ev) => {
+      const fn = (p) => forward(ev, p);
+      room.on(ev, fn);
+      return [ev, fn];
+    });
+
+    socket.emit('state', room.getState());
+
+    socket.on('rollDice', () => {
+      room.rollDice(playerId);
+    });
+
+    socket.on('disconnect', () => {
+      room.removePlayer(playerId);
+      handlers.forEach(([ev, fn]) => room.off(ev, fn));
+    });
+  });
+});
+
 // MongoDB Connection
 const mongoUri = process.env.MONGODB_URI;
 
@@ -139,7 +195,7 @@ if (mongoUri === 'memory') {
 }
 
 // Start the server
-app.listen(PORT, async () => {
+httpServer.listen(PORT, async () => {
   console.log(`Server running on port ${PORT}`);
   if (process.env.SKIP_BOT_LAUNCH || !process.env.BOT_TOKEN) {
     console.log('Skipping Telegram bot launch');
