@@ -2,39 +2,46 @@ import { useRef, useState } from 'react';
 import DiceRoller from '../../components/DiceRoller.jsx';
 import useTelegramBackButton from '../../hooks/useTelegramBackButton.js';
 
-const snakes = { 22: 10, 17: 5, 24: 16 };
-const ladders = { 3: 11, 6: 14, 12: 21 };
+// Simple snake and ladder layout for a 10x10 board
+const snakes = {
+  16: 6,
+  48: 30,
+  62: 19,
+  88: 24,
+  95: 56
+};
+const ladders = {
+  3: 22,
+  25: 44,
+  40: 60,
+  51: 67,
+  71: 90
+};
 
 function Board({ position }) {
-  const path = [
-    [4,0],[4,1],[4,2],[4,3],[4,4],
-    [3,4],[3,3],[3,2],[3,1],[3,0],
-    [2,0],[2,1],[2,2],[2,3],[2,4],
-    [1,4],[1,3],[1,2],[1,1],[1,0],
-    [0,0],[0,1],[0,2],[0,3],[0,4]
-  ];
-
-  const tiles = path.map(([r,c], i) => (
-    <div
-      key={i+1}
-      className="board-cell"
-      style={{ gridRowStart: 5 - r, gridColumnStart: c + 1 }}
-    >
-      {i + 1}
-      {position === i + 1 && <div className="token" />}
-    </div>
-  ));
-
-  const style = { transform: 'rotateX(30deg) rotateZ(45deg)' };
+  const tiles = [];
+  for (let r = 9; r >= 0; r--) {
+    const reversed = (9 - r) % 2 === 1;
+    for (let c = 0; c < 10; c++) {
+      const col = reversed ? 9 - c : c;
+      const num = r * 10 + col + 1;
+      tiles.push(
+        <div
+          key={num}
+          className="board-cell"
+          style={{ gridRowStart: 10 - r, gridColumnStart: col + 1 }}
+        >
+          {num}
+          {position === num && <div className="token" />}
+        </div>
+      );
+    }
+  }
 
   return (
-    <div className="board-3d flex justify-center">
-      <div className="board-frame">
-        <div className="board-3d-grid" style={style}>
-          <div className="grid grid-rows-5 grid-cols-5 gap-1 w-80 h-80 relative">
-            {tiles}
-          </div>
-        </div>
+    <div className="flex justify-center">
+      <div className="grid grid-rows-10 grid-cols-10 gap-1 w-[512px] h-[512px] relative">
+        {tiles}
       </div>
     </div>
   );
@@ -52,7 +59,7 @@ export default function SnakeAndLadder() {
     setMessage('');
     let current = pos;
     let target = current + value;
-    if (target > 25) target = 25;
+    if (target > 100) target = 100;
     const steps = [];
     for (let i = current + 1; i <= target; i++) steps.push(i);
 
@@ -63,7 +70,7 @@ export default function SnakeAndLadder() {
         if (snakes[finalPos]) finalPos = snakes[finalPos];
         setTimeout(() => {
           setPos(finalPos);
-          if (finalPos === 25) setMessage('You win!');
+          if (finalPos === 100) setMessage('You win!');
         }, 300);
         return;
       }
