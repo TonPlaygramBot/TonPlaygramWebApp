@@ -28,72 +28,60 @@ export default function DailyCheckIn() {
 
   const [streak, setStreak] = useState(1);
 
-  const [lastCheck, setLastCheck] = useState(null);
+  const [lastCheck, setLastCheck] = useState(() => {
+    const ts = localStorage.getItem('lastCheckIn');
+    return ts ? parseInt(ts, 10) : null;
+  });
 
-  const [showPopup, setShowPopup] = useState(false);
+  const [showPopup, setShowPopup] = useState(() => {
+    const ts = localStorage.getItem('lastCheckIn');
+    if (!ts) return true;
+    return Date.now() - parseInt(ts, 10) >= ONE_DAY;
+  });
 
   const [reward, setReward] = useState(null);
 
   useEffect(() => {
-
     async function fetchData() {
-
       try {
-
         const profile = await getProfile(telegramId);
-
         if (profile.dailyStreak) setStreak(profile.dailyStreak);
-
-        if (profile.lastCheckIn) {
-
-          const ts = new Date(profile.lastCheckIn).getTime();
-
+        const serverTs = profile.lastCheckIn
+          ? new Date(profile.lastCheckIn).getTime()
+          : null;
+        const localRaw = localStorage.getItem('lastCheckIn');
+        const localTs = localRaw ? parseInt(localRaw, 10) : null;
+        const ts = Math.max(serverTs || 0, localTs || 0);
+        if (ts) {
           setLastCheck(ts);
-
-          if (Date.now() - ts >= ONE_DAY) {
-
-            setShowPopup(true);
-
-          }
-
+          localStorage.setItem('lastCheckIn', String(ts));
+          setShowPopup(Date.now() - ts >= ONE_DAY);
         } else {
-
           setShowPopup(true);
-
         }
-
       } catch (err) {
-
         console.error('Failed to load profile', err);
-
       }
-
     }
-
     fetchData();
-
   }, [telegramId]);
 
   const handleCheckIn = async () => {
-
     try {
-
       const res = await dailyCheckIn(telegramId);
-
+      if (res.error) {
+        alert(res.error);
+        return;
+      }
       setStreak(res.streak);
-
       setReward(res.reward);
-
-      setLastCheck(Date.now());
-
+      const now = Date.now();
+      setLastCheck(now);
+      localStorage.setItem('lastCheckIn', String(now));
     } catch (err) {
-
       console.error('Daily check-in failed', err);
-
     }
-
     setShowPopup(false);
-
   };
 
   // Show 5-day streak preview
