@@ -1,0 +1,38 @@
+.dice3d {
+  width: 4rem;
+  height: 4rem;
+  position: relative;
+  transform-style: preserve-3d;
+  transform: rotateX(-30deg) rotateY(30deg);
+  transition: transform 0.8s ease-in-out;
+}
+
+.dice3d.rolling {
+  transform: rotateX(720deg) rotateY(720deg);
+}
+
+.dice3d .face {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  background: #000;
+  border: 2px solid #f1c40f;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  grid-template-rows: repeat(3, 1fr);
+  place-items: center;
+}
+
+.dice3d .pip {
+  width: 0.5rem;
+  height: 0.5rem;
+  background: #f1c40f;
+  border-radius: 50%;
+}
+
+.face.front  { transform: rotateY(0deg) translateZ(2rem); }
+.face.back   { transform: rotateY(180deg) translateZ(2rem); }
+.face.right  { transform: rotateY(90deg) translateZ(2rem); }
+.face.left   { transform: rotateY(-90deg) translateZ(2rem); }
+.face.top    { transform: rotateX(90deg) translateZ(2rem); }
+.face.bottom { transform: rotateX(-90deg) translateZ(2rem); }
