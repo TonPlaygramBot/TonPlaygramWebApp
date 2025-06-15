@@ -16,9 +16,16 @@ export default function ConnectWallet() {
 
   const handleClick = () => {
     if (!wallet?.account?.address) {
-      tonConnectUI.openModal().catch(() => {});
+      tonConnectUI.connectWallet().catch(() => {});
     }
   };
+
+  // Attempt to reconnect using previously saved address
+  useEffect(() => {
+    if (!wallet?.account && localStorage.getItem('walletAddress')) {
+      tonConnectUI.connectWallet().catch(() => {});
+    }
+  }, []);
 
   return (
     <div className="flex items-center space-x-2">
