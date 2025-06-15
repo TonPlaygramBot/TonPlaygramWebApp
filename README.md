@@ -31,3 +31,9 @@ hosted on a different domain than the API, set this variable to the absolute
 URL of your backend, e.g. `https://your-api.example.com/tonconnect-manifest.json`.
 Otherwise the wallet may receive a **404 Not Found** when trying to fetch the
 manifest.
+
+### Available Games
+
+- Chess with staking
+- Connect Four with staking
+- Spin & Win mini game

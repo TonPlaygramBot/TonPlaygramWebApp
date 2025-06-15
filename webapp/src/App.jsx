@@ -14,6 +14,7 @@ import LudoGame from './pages/Games/LudoGame.jsx';
 import HorseRacing from './pages/Games/HorseRacing.jsx';
 import SnakeLadders from './pages/Games/SnakeLadders.jsx';
 import ChessGame from './pages/Games/Chess.jsx';
+import ConnectFour from './pages/Games/ConnectFour.jsx';
 import Games from './pages/Games.jsx';
 import SpinPage from './pages/spin.tsx';
 
@@ -34,6 +35,7 @@ export default function App() {
           <Route path="/games/ludo" element={<LudoGame />} />
           <Route path="/games/horse" element={<HorseRacing />} />
           <Route path="/games/snake" element={<SnakeLadders />} />
+          <Route path="/games/connectfour" element={<ConnectFour />} />
           <Route path="/games/chess" element={<ChessGame />} />
           <Route path="/spin" element={<SpinPage />} />
           <Route path="/tasks" element={<Tasks />} />
