@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react';
 import { Ludo } from '@ayshrj/ludo.js';
-import ConnectWallet from '../../components/ConnectWallet.jsx';
 import RoomPopup from '../../components/RoomPopup.jsx';
 import useTelegramBackButton from '../../hooks/useTelegramBackButton.js';
 
@@ -202,7 +201,6 @@ export default function LudoGame() {
         onConfirm={() => setShowRoom(false)}
       />
 
-      <ConnectWallet />
 
       <LudoBoard game={ludo} state={gameState} />
     </div>
