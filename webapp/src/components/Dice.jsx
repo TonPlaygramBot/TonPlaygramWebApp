@@ -46,10 +46,10 @@ function Face({ value, className }) {
   const face = diceFaces[value];
   return (
     <div className={`dice-face ${className}`}>
-      <div className="grid grid-cols-3 grid-rows-3 gap-1">
+      <div className="grid grid-cols-3 grid-rows-3 gap-1 w-full h-full">
         {face.flat().map((dot, i) => (
           <div key={i} className="flex items-center justify-center">
-            {dot ? <div className="dot" /> : null}
+            {dot ? <div className="w-2 h-2 bg-black rounded-full" /> : null}
           </div>
         ))}
       </div>
@@ -59,10 +59,13 @@ function Face({ value, className }) {
 
 export default function Dice({ value = 1, rolling = false }) {
   const orientation = faceTransforms[value] || faceTransforms[1];
+
   return (
-    <div className="dice-container">
+    <div className="relative w-24 h-24 perspective">
       <div
-        className={`dice-cube ${rolling ? 'animate-roll' : ''}`}
+        className={`w-full h-full relative transition-transform duration-700 transform-style-preserve-3d ${
+          rolling ? 'animate-roll' : ''
+        }`}
         style={!rolling ? { transform: orientation } : undefined}
       >
         <Face value={1} className="dice-face--front" />
