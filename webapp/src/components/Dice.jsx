@@ -33,17 +33,18 @@ const diceFaces = {
   ],
 };
 
-const baseTilt = 'rotateX(-25deg) rotateY(25deg)';
+// Fixed isometric tilt so three faces are always visible
+const baseTilt = 'rotateX(-35deg) rotateY(45deg)';
 
 // Rotation needed to bring each numbered face to the top while keeping
 // the overall isometric camera tilt the same.
 const valueToRotation = {
-  1: 'rotateX(180deg)', // bottom -> top
-  2: 'rotateY(-90deg)', // right -> top
-  3: 'rotateX(0deg)', // already top
-  4: 'rotateY(90deg)', // left -> top
-  5: 'rotateX(-90deg)', // front -> top
-  6: 'rotateX(90deg)', // back -> top
+  1: 'rotateX(180deg)',  // bottom -> top
+  2: 'rotateZ(-90deg)',  // right -> top
+  3: 'rotateX(0deg)',    // already top
+  4: 'rotateZ(90deg)',   // left -> top
+  5: 'rotateX(-90deg)',  // front -> top
+  6: 'rotateX(90deg)',   // back -> top
 };
 
 function Face({ value, className }) {
@@ -63,7 +64,8 @@ function Face({ value, className }) {
 
 export default function Dice({ value = 1, rolling = false }) {
   const transform = valueToRotation[value] || 'rotateX(0deg)';
-  const orientation = `${transform} ${baseTilt}`;
+  // Apply value rotation first, then the common isometric tilt
+  const orientation = `${baseTilt} ${transform}`;
 
   return (
     <div className="dice-container perspective-1000 w-24 h-24">
