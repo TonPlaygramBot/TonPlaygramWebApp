@@ -15,10 +15,10 @@ export async function ping() {
 }
 
 async function post(path, body, token) {
-
   const headers = { 'Content-Type': 'application/json' };
-
   if (token) headers['Authorization'] = `Bearer ${token}`;
+  const initData = window?.Telegram?.WebApp?.initData;
+  if (initData) headers['X-Telegram-Init-Data'] = initData;
 
   const res = await fetch(API_BASE_URL + path, {
 
