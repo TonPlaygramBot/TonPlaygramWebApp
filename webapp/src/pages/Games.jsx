@@ -1,6 +1,8 @@
 import GameCard from '../components/GameCard.jsx';
+import useTelegramBackButton from '../hooks/useTelegramBackButton.js';
 
 export default function Games() {
+  useTelegramBackButton();
   return (
     <div className="space-y-4">
       <h2 className="text-2xl font-bold text-center">Games</h2>

@@ -10,8 +10,10 @@ import {
 } from '../utils/api.js';
 import { getTelegramId } from '../utils/telegram.js';
 import OpenInTelegram from '../components/OpenInTelegram.jsx';
+import useTelegramBackButton from '../hooks/useTelegramBackButton.js';
 
 export default function SpinPage() {
+  useTelegramBackButton();
   let telegramId: number;
   try {
     telegramId = getTelegramId();

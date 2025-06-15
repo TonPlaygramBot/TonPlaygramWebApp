@@ -3,8 +3,10 @@ import { Chess } from 'chess.js';
 import { Chessboard } from 'react-chessboard';
 import ConnectWallet from '../../components/ConnectWallet.jsx';
 import RoomPopup from '../../components/RoomPopup.jsx';
+import useTelegramBackButton from '../../hooks/useTelegramBackButton.js';
 
 export default function ChessGame() {
+  useTelegramBackButton();
   const [selection, setSelection] = useState(null);
   const [showRoom, setShowRoom] = useState(true);
   const [game, setGame] = useState(new Chess());
