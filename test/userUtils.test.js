@@ -1,5 +1,5 @@
-import { test } from 'node:test';
-import assert from 'assert/strict';
+import test from 'node:test';
+import assert from 'node:assert/strict';
 import { ensureTransactionArray } from '../bot/utils/userUtils.js';
 
 function makeUser(transactions) {
@@ -25,5 +25,19 @@ test('initializes non-array values to empty array', () => {
 test('does nothing for arrays', () => {
   const user = makeUser([]);
   assert.equal(ensureTransactionArray(user), false);
+  assert.deepEqual(user.transactions, []);
+});
+
+test('ensureTransactionArray parses valid JSON', () => {
+  const user = { transactions: JSON.stringify([{ amount: 10 }]) };
+  const modified = ensureTransactionArray(user);
+  assert.equal(modified, true);
+  assert.deepEqual(user.transactions, [{ amount: 10 }]);
+});
+
+test('ensureTransactionArray handles invalid JSON', () => {
+  const user = { transactions: 'invalid' };
+  const modified = ensureTransactionArray(user);
+  assert.equal(modified, true);
   assert.deepEqual(user.transactions, []);
 });
