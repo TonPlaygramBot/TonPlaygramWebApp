@@ -42,3 +42,4 @@ MONGODB_URI=mongodb://localhost:27017/tonplaygram
 ```
 
 If `MONGODB_URI` is set to `memory`, the server launches an in-memory MongoDB for testing only.
+If no `MONGODB_URI` is provided, the server will also default to an in-memory instance so development can continue without configuring a database.
