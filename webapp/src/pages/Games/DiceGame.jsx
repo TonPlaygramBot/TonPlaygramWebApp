@@ -4,7 +4,6 @@ import ConnectWallet from '../../components/ConnectWallet.jsx';
 
 import RoomPopup from '../../components/RoomPopup.jsx';
 
-import Dice from '../../components/Dice.jsx';
 import RollPopup from '../../components/RollPopup.jsx';
 
 import GameResult from '../../components/GameResult.jsx';
