@@ -21,3 +21,16 @@
 
    ```bash
    pip install -r requirements.txt
+   ```
+
+6. Build the webapp assets:
+
+   ```bash
+   npm --prefix webapp run build
+   ```
+
+7. Run the test suite to verify the setup:
+
+   ```bash
+   npm test
+   ```
