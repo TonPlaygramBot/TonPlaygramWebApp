@@ -15,3 +15,8 @@ TonPlaygram combines a Telegram bot with a web interface built using React and V
 4. Install the Python requirements for the dice roller:
    ```bash
    pip install -r requirements.txt
+5. Copy `webapp/.env.example` to `webapp/.env`.
+   Set `VITE_API_BASE_URL` to the URL where the bot API is hosted.
+   Set `VITE_TONCONNECT_MANIFEST` to `${VITE_API_BASE_URL}/tonconnect-manifest.json` as an absolute URL.
+   Misconfiguring these values causes the wallet page to render blank.
+
