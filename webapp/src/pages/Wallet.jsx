@@ -1,17 +1,13 @@
 import { useEffect, useState } from 'react';
 import {
   getWalletBalance,
-  getTonBalance,
   sendTpc,
   getTransactions,
-  getDepositAddress,
-  deposit,
   withdraw
 } from '../utils/api.js';
 import { getTelegramId } from '../utils/telegram.js';
 import OpenInTelegram from '../components/OpenInTelegram.jsx';
 import ConnectWallet from '../components/ConnectWallet.jsx';
-import { useTonWallet, useTonConnectUI } from '@tonconnect/ui-react';
 import useTelegramBackButton from '../hooks/useTelegramBackButton.js';
 
 export default function Wallet() {
@@ -24,35 +20,26 @@ export default function Wallet() {
     return <OpenInTelegram />;
   }
 
-  const [tonBalance, setTonBalance] = useState(null);
   const [tpcBalance, setTpcBalance] = useState(null);
   const [receiver, setReceiver] = useState('');
   const [amount, setAmount] = useState('');
   const [transactions, setTransactions] = useState([]);
   const [sending, setSending] = useState(false);
   const [receipt, setReceipt] = useState(null);
-  const [depositAmt, setDepositAmt] = useState('');
   const [withdrawAmt, setWithdrawAmt] = useState('');
   const [withdrawAddr, setWithdrawAddr] = useState('');
-  const [depositAddress, setDepositAddress] = useState('');
-  const wallet = useTonWallet();
-  const [tonConnectUI] = useTonConnectUI();
 
   const loadBalances = async () => {
     const prof = await getWalletBalance(telegramId);
     setTpcBalance(prof.balance);
 
-    if (wallet?.account?.address) {
-      const bal = await getTonBalance(wallet.account.address);
-      setTonBalance(bal.balance);
-    }
+    // TonConnect removed - TON balance unavailable
   };
 
   useEffect(() => {
     loadBalances();
     getTransactions(telegramId).then((res) => setTransactions(res.transactions));
-    getDepositAddress().then((res) => setDepositAddress(res.address));
-  }, [wallet]);
+  }, []);
 
   const handleSend = async () => {
     const amt = Number(amount);
@@ -85,29 +72,6 @@ export default function Wallet() {
     }
   };
 
-  const handleDeposit = async () => {
-    const amt = Number(depositAmt);
-    if (!amt || !wallet?.account?.address) return;
-    try {
-      await tonConnectUI.sendTransaction({
-        validUntil: Math.floor(Date.now() / 1000) + 60,
-        messages: [
-          {
-            address: depositAddress,
-            amount: String(Math.floor(amt * 1e9))
-          }
-        ]
-      });
-      await deposit(telegramId, amt);
-      setDepositAmt('');
-      await loadBalances();
-      const txRes = await getTransactions(telegramId);
-      setTransactions(txRes.transactions);
-    } catch (err) {
-      console.error('Deposit failed', err);
-      alert('Failed to deposit');
-    }
-  };
 
   const handleWithdraw = async () => {
     const amt = Number(withdrawAmt);
@@ -136,7 +100,6 @@ export default function Wallet() {
 
       <ConnectWallet />
 
-      <p>TON Balance: {tonBalance === null ? '...' : tonBalance}</p>
       <p>TPC Balance: {tpcBalance === null ? '...' : tpcBalance}</p>
 
       <div className="space-y-1">
@@ -189,22 +152,6 @@ export default function Wallet() {
         </button>
       </div>
 
-      <div className="space-y-1">
-        <label className="block">Deposit TON</label>
-        <input
-          type="number"
-          placeholder="Amount"
-          value={depositAmt}
-          onChange={(e) => setDepositAmt(e.target.value)}
-          className="border p-1 rounded w-full text-black"
-        />
-        <button
-          onClick={handleDeposit}
-          className="mt-1 px-3 py-1 bg-purple-600 text-white rounded"
-        >
-          Send to {depositAddress.slice(0, 4)}...{depositAddress.slice(-4)}
-        </button>
-      </div>
 
       <div className="space-y-1">
         <label className="block">Withdraw TON</label>

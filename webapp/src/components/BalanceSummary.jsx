@@ -1,8 +1,7 @@
 import { useEffect, useState } from 'react';
 import { FaWallet } from 'react-icons/fa';
 import { Link } from 'react-router-dom';
-import { useTonWallet } from '@tonconnect/ui-react';
-import { getWalletBalance, getTonBalance } from '../utils/api.js';
+import { getWalletBalance } from '../utils/api.js';
 import { getTelegramId } from '../utils/telegram.js';
 import OpenInTelegram from './OpenInTelegram.jsx';
 
@@ -14,16 +13,12 @@ export default function BalanceSummary() {
     return <OpenInTelegram />;
   }
 
-  const [balances, setBalances] = useState({ ton: null, tpc: null, usdt: 0 });
-  const wallet = useTonWallet();
+  const [balances, setBalances] = useState({ tpc: null, usdt: 0 });
 
   const loadBalances = async () => {
     try {
       const prof = await getWalletBalance(telegramId);
-      const ton = wallet?.account?.address
-        ? (await getTonBalance(wallet.account.address)).balance
-        : null;
-      setBalances({ ton, tpc: prof.balance, usdt: 0 });
+      setBalances({ tpc: prof.balance, usdt: 0 });
     } catch (err) {
       console.error('Failed to load balances:', err);
     }
@@ -31,7 +26,7 @@ export default function BalanceSummary() {
 
   useEffect(() => {
     loadBalances();
-  }, [wallet]);
+  }, []);
 
   return (
     <div className="text-center mt-2">
@@ -42,7 +37,6 @@ export default function BalanceSummary() {
         </Link>
       </p>
       <div className="flex justify-around text-sm mt-1">
-        <Token icon="/icons/ton.svg" label="TON" value={balances.ton ?? '...'} />
         <Token icon="/icons/tpc.svg" label="TPC" value={balances.tpc ?? '...'} />
         <Token icon="/icons/usdt.svg" label="USDT" value={balances.usdt ?? '0'} />
       </div>
