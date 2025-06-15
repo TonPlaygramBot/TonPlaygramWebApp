@@ -3,6 +3,7 @@ import ConnectWallet from '../../components/ConnectWallet.jsx';
 import RoomPopup from '../../components/RoomPopup.jsx';
 import Dice from '../../components/Dice.jsx';
 import GameResult from '../../components/GameResult.jsx';
+import Board from '../../components/Board.jsx';
 
 const opponents = [
   'CryptoKing',
@@ -25,6 +26,8 @@ export default function DiceGame() {
   const [oppDice, setOppDice] = useState([1, 1]);
   const [rolling, setRolling] = useState(false);
   const [result, setResult] = useState(null);
+  const [playerPos, setPlayerPos] = useState(1);
+  const [oppPos, setOppPos] = useState(1);
 
   const opponent = useMemo(() => {
     const name = opponents[randomInt(0, opponents.length - 1)];
@@ -50,6 +53,8 @@ export default function DiceGame() {
 
   const startGame = () => {
     setShowRoom(false);
+    setPlayerPos(1);
+    setOppPos(1);
     setPhase('waiting');
   };
 
@@ -61,21 +66,33 @@ export default function DiceGame() {
       const pd2 = randomInt(1, 6);
       const od1 = randomInt(1, 6);
       const od2 = randomInt(1, 6);
+
       setPlayerDice([pd1, pd2]);
       setOppDice([od1, od2]);
+
+      const newPlayer = Math.min(playerPos + pd1 + pd2, 100);
+      const newOpp = Math.min(oppPos + od1 + od2, 100);
+      setPlayerPos(newPlayer);
+      setOppPos(newOpp);
       setRolling(false);
-      const playerTotal = pd1 + pd2;
-      const oppTotal = od1 + od2;
-      let outcome = 'draw';
-      if (playerTotal > oppTotal) outcome = 'win';
-      else if (playerTotal < oppTotal) outcome = 'lose';
-      setResult({ outcome, pot: selection.amount * 2 });
-      setPhase('result');
+
+      if (newPlayer >= 100 && newOpp >= 100) {
+        setResult({ outcome: 'draw', pot: selection.amount * 2 });
+        setPhase('result');
+      } else if (newPlayer >= 100) {
+        setResult({ outcome: 'win', pot: selection.amount * 2 });
+        setPhase('result');
+      } else if (newOpp >= 100) {
+        setResult({ outcome: 'lose', pot: selection.amount * 2 });
+        setPhase('result');
+      }
     }, 700);
   };
 
   const rematch = () => {
     setResult(null);
+    setPlayerPos(1);
+    setOppPos(1);
     setPhase('waiting');
   };
 
@@ -110,6 +127,11 @@ export default function DiceGame() {
               </div>
             </div>
           </div>
+          <Board
+            playerPos={playerPos}
+            opponentPos={oppPos}
+            opponentAvatar={opponent.avatar}
+          />
           <button
             onClick={roll}
             disabled={rolling}
