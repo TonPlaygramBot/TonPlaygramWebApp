@@ -9,7 +9,8 @@ export default function DiceDuel() {
   const [turn, setTurn] = useState(0); // 0 -> player1, 1 -> player2
   const [winner, setWinner] = useState(null);
 
-  const handleRoll = (value) => {
+  const handleRoll = (values) => {
+    const value = Array.isArray(values) ? values.reduce((a, b) => a + b, 0) : values;
     setScores((prev) => {
       const next = [...prev];
       next[turn] += value;
