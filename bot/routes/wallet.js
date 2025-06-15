@@ -69,7 +69,6 @@ router.post('/send', async (req, res) => {
     ensureTransactionArray(receiver);
 
     sender.balance -= amount;
-    await sender.save();
 
     const senderTx = {
       amount: -amount,
@@ -109,6 +108,7 @@ router.post('/send', async (req, res) => {
       date: txDate
     };
     sender.transactions.push(failedTx);
+    sender.balance += amount;
     await sender.save().catch((e) =>
       console.error('Failed to log failed transaction:', e.message)
     );
