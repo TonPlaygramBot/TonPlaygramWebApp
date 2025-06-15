@@ -148,6 +148,18 @@ export function getTransactions(telegramId) {
 
 }
 
+export function getDepositAddress() {
+  return fetch(API_BASE_URL + '/api/wallet/deposit-address').then((r) => r.json());
+}
+
+export function deposit(telegramId, amount) {
+  return post('/api/wallet/deposit', { telegramId, amount });
+}
+
+export function withdraw(telegramId, address, amount) {
+  return post('/api/wallet/withdraw', { telegramId, address, amount });
+}
+
 export function getReferralInfo(telegramId) {
 
   return post('/api/referral/code', { telegramId });

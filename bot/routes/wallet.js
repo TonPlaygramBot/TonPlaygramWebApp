@@ -14,6 +14,12 @@ router.post('/balance', async (req, res) => {
   res.json({ balance: user ? user.balance : 0 });
 });
 
+// Provide the server deposit address for TON transfers
+router.get('/deposit-address', (_req, res) => {
+  const address = process.env.DEPOSIT_WALLET_ADDRESS || '';
+  res.json({ address });
+});
+
 // Fetch TON balance from the blockchain using a public API
 router.post('/ton-balance', async (req, res) => {
   const { address } = req.body;
@@ -122,6 +128,50 @@ router.post('/send', async (req, res) => {
 
     res.status(500).json({ error: 'Failed to send TPC' });
   }
+});
+
+// Credit user balance after a TON deposit
+router.post('/deposit', async (req, res) => {
+  const { telegramId, amount } = req.body;
+  if (!telegramId || typeof amount !== 'number' || amount <= 0) {
+    return res.status(400).json({ error: 'telegramId and positive amount required' });
+  }
+
+  const user = await User.findOneAndUpdate(
+    { telegramId },
+    { $inc: { balance: amount }, $setOnInsert: { referralCode: telegramId.toString() } },
+    { upsert: true, new: true }
+  );
+  ensureTransactionArray(user);
+  const tx = { amount, type: 'deposit', status: 'delivered', date: new Date() };
+  user.transactions.push(tx);
+  await user.save();
+  res.json({ balance: user.balance, transaction: tx });
+});
+
+// Request withdrawal to a TON wallet address
+router.post('/withdraw', async (req, res) => {
+  const { telegramId, address, amount } = req.body;
+  if (!telegramId || !address || typeof amount !== 'number' || amount <= 0) {
+    return res
+      .status(400)
+      .json({ error: 'telegramId, address and positive amount required' });
+  }
+
+  const user = await User.findOne({ telegramId });
+  if (!user || user.balance < amount) {
+    return res.status(400).json({ error: 'insufficient balance' });
+  }
+
+  ensureTransactionArray(user);
+  user.balance -= amount;
+  const tx = { amount: -amount, type: 'withdraw', status: 'pending', date: new Date() };
+  user.transactions.push(tx);
+  await user.save();
+
+  // In a real implementation the server would send TON to `address` here
+
+  res.json({ balance: user.balance, transaction: tx });
 });
 
 router.post('/transactions', async (req, res) => {
