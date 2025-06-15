@@ -8,10 +8,12 @@ export async function ping() {
   return data.message;
 }
 
-async function post(path, body) {
+async function post(path, body, token) {
+  const headers = { 'Content-Type': 'application/json' };
+  if (token) headers['Authorization'] = `Bearer ${token}`;
   const res = await fetch(API_BASE_URL + path, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers,
     body: JSON.stringify(body)
   });
   return res.json();
@@ -99,4 +101,8 @@ export function getReferralInfo(telegramId) {
 
 export function claimReferral(telegramId, code) {
   return post('/api/referral/claim', { telegramId, code });
+}
+
+export function grantAirdrop(token, telegramId, amount, reason = '') {
+  return post('/api/airdrop/grant', { telegramId, amount, reason }, token);
 }
