@@ -30,3 +30,61 @@ body {
   transform: rotateX(55deg) rotateZ(45deg);
   transform-style: preserve-3d;
 }
+
+@keyframes roll {
+  0% {
+    transform: rotateX(0deg) rotateY(0deg) rotateZ(0deg) translateY(0);
+  }
+  50% {
+    transform: rotateX(360deg) rotateY(360deg) rotateZ(360deg) translateY(-1rem);
+  }
+  100% {
+    transform: rotateX(720deg) rotateY(720deg) rotateZ(720deg) translateY(0);
+  }
+}
+
+.animate-roll {
+  animation: roll 1s ease-in-out;
+}
+
+.dice-container {
+  perspective: 600px;
+}
+
+.dice-cube {
+  @apply relative w-24 h-24;
+  transform-style: preserve-3d;
+  transition: transform 0.5s;
+}
+
+.dice-face {
+  @apply absolute w-full h-full flex items-center justify-center bg-white rounded-xl shadow-lg;
+}
+
+.dice-face .dot {
+  @apply w-3 h-3 bg-black rounded-full;
+}
+
+.dice-face--front {
+  transform: rotateY(0deg) translateZ(3rem);
+}
+
+.dice-face--back {
+  transform: rotateY(180deg) translateZ(3rem);
+}
+
+.dice-face--right {
+  transform: rotateY(90deg) translateZ(3rem);
+}
+
+.dice-face--left {
+  transform: rotateY(-90deg) translateZ(3rem);
+}
+
+.dice-face--top {
+  transform: rotateX(90deg) translateZ(3rem);
+}
+
+.dice-face--bottom {
+  transform: rotateX(-90deg) translateZ(3rem);
+}

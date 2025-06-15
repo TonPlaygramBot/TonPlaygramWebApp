@@ -11,6 +11,7 @@ import Store from './pages/Store.jsx';
 
 import LudoGame from './pages/Games/LudoGame.jsx';
 import HorseRacing from './pages/Games/HorseRacing.jsx';
+import DiceDuel from './pages/Games/DiceDuel.jsx';
 import Games from './pages/Games.jsx';
 import SpinPage from './pages/spin.tsx';
 
@@ -29,6 +30,7 @@ export default function App() {
           <Route path="/games" element={<Games />} />
           <Route path="/games/ludo" element={<LudoGame />} />
           <Route path="/games/horse" element={<HorseRacing />} />
+          <Route path="/games/dice" element={<DiceDuel />} />
           <Route path="/spin" element={<SpinPage />} />
           <Route path="/tasks" element={<Tasks />} />
           <Route path="/store" element={<Store />} />
