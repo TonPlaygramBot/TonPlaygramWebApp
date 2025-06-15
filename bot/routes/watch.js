@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { VIDEOS } from '../utils/watchData.js';
 import WatchRecord from '../models/WatchRecord.js';
 import User from '../models/User.js';
+import { ensureTransactionArray } from '../utils/userUtils.js';
 
 const router = Router();
 
@@ -33,7 +34,14 @@ router.post('/watch', async (req, res) => {
     { $setOnInsert: { referralCode: telegramId.toString() } },
     { upsert: true, new: true }
   );
+  ensureTransactionArray(user);
   user.minedTPC += video.reward;
+  user.transactions.push({
+    amount: video.reward,
+    type: 'watch',
+    status: 'pending',
+    date: new Date()
+  });
   await user.save();
 
   res.json({ message: 'watched', reward: video.reward });
