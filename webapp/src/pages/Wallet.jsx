@@ -130,104 +130,114 @@ export default function Wallet() {
   };
 
   return (
-    <div className="p-4 space-y-2">
+    <div className="p-4 space-y-4">
       <h2 className="text-xl font-bold">Wallet</h2>
       <p className="text-sm">Account #{telegramId}</p>
 
-      <ConnectWallet />
+      {/* TPC account section */}
+      <div className="space-y-2 border-b border-border pb-4">
+        <h3 className="text-lg font-semibold">TPC Account Wallet</h3>
+        <p>TPC Balance: {tpcBalance === null ? '...' : tpcBalance}</p>
 
-      <p>TON Balance: {tonBalance === null ? '...' : tonBalance}</p>
-      <p>TPC Balance: {tpcBalance === null ? '...' : tpcBalance}</p>
-
-      <div className="space-y-1">
-        <label className="block">Send TPC</label>
-        <input
-          type="number"
-          placeholder="Receiver Telegram ID"
-          value={receiver}
-          onChange={(e) => setReceiver(e.target.value)}
-          className="border p-1 rounded w-full text-black"
-        />
-        <input
-          type="number"
-          placeholder="Amount"
-          value={amount}
-          onChange={(e) => setAmount(e.target.value)}
-          className="border p-1 rounded w-full mt-1 text-black"
-        />
-        <button
-          onClick={handleSend}
-          className="mt-1 px-3 py-1 bg-blue-600 text-white rounded"
-        >
-          Send
-        </button>
-        {sending && (
-          <div className="mt-1">
-            <div className="h-1 bg-primary animate-pulse" />
-            <div className="text-sm text-subtext">Sending...</div>
-          </div>
-        )}
-        {receipt && (
-          <div className="border border-border p-2 rounded mt-2 text-sm flex justify-between items-center">
-            <div>
-              <div>Sent {receipt.amount} TPC to {receipt.to}</div>
-              <div className="text-xs">{receipt.date}</div>
-              <div className="text-xs text-green-600">Delivered</div>
+        <div className="space-y-1">
+          <label className="block">Send TPC</label>
+          <input
+            type="number"
+            placeholder="Receiver Telegram ID"
+            value={receiver}
+            onChange={(e) => setReceiver(e.target.value)}
+            className="border p-1 rounded w-full text-black"
+          />
+          <input
+            type="number"
+            placeholder="Amount"
+            value={amount}
+            onChange={(e) => setAmount(e.target.value)}
+            className="border p-1 rounded w-full mt-1 text-black"
+          />
+          <button
+            onClick={handleSend}
+            className="mt-1 px-3 py-1 bg-blue-600 text-white rounded"
+          >
+            Send
+          </button>
+          {sending && (
+            <div className="mt-1">
+              <div className="h-1 bg-primary animate-pulse" />
+              <div className="text-sm text-subtext">Sending...</div>
             </div>
-            <button className="text-xs" onClick={() => setReceipt(null)}>x</button>
-          </div>
-        )}
+          )}
+          {receipt && (
+            <div className="border border-border p-2 rounded mt-2 text-sm flex justify-between items-center">
+              <div>
+                <div>Sent {receipt.amount} TPC to {receipt.to}</div>
+                <div className="text-xs">{receipt.date}</div>
+                <div className="text-xs text-green-600">Delivered</div>
+              </div>
+              <button className="text-xs" onClick={() => setReceipt(null)}>x</button>
+            </div>
+          )}
+        </div>
+
+        <div className="space-y-1">
+          <label className="block">Receive TPC</label>
+          <button
+            onClick={() => navigator.clipboard.writeText(String(telegramId))}
+            className="px-3 py-1 bg-green-600 text-white rounded"
+          >
+            Copy Account Number
+          </button>
+        </div>
       </div>
 
-      <div className="space-y-1">
-        <label className="block">Receive TPC</label>
-        <button
-          onClick={() => navigator.clipboard.writeText(String(telegramId))}
-          className="px-3 py-1 bg-green-600 text-white rounded"
-        >
-          Copy Account Number
-        </button>
-      </div>
+      {/* Tonkeeper wallet section */}
+      <div className="space-y-2 pt-4">
+        <h3 className="text-lg font-semibold">Tonkeeper Wallet</h3>
 
-      <div className="space-y-1">
-        <label className="block">Deposit TON</label>
-        <input
-          type="number"
-          placeholder="Amount"
-          value={depositAmt}
-          onChange={(e) => setDepositAmt(e.target.value)}
-          className="border p-1 rounded w-full text-black"
-        />
-        <button
-          onClick={handleDeposit}
-          className="mt-1 px-3 py-1 bg-purple-600 text-white rounded"
-        >
-          Send to {depositAddress.slice(0, 4)}...{depositAddress.slice(-4)}
-        </button>
-      </div>
+        <ConnectWallet />
+        <p>TON Balance: {tonBalance === null ? '...' : tonBalance}</p>
+        <p>USDT Balance: 0</p>
 
-      <div className="space-y-1">
-        <label className="block">Withdraw TON</label>
-        <input
-          type="text"
-          placeholder="Your TON Address"
-          value={withdrawAddr}
-          onChange={(e) => setWithdrawAddr(e.target.value)}
-          className="border p-1 rounded w-full text-black"
-        />
-        <input
-          type="number"
-          placeholder="Amount"
-          value={withdrawAmt}
-          onChange={(e) => setWithdrawAmt(e.target.value)}
-          className="border p-1 rounded w-full mt-1 text-black"
-        />
-        <button
-          onClick={handleWithdraw}
-          className="mt-1 px-3 py-1 bg-yellow-600 text-white rounded"
-        >
-          Withdraw
-        </button>
+        <div className="space-y-1">
+          <label className="block">Deposit TON</label>
+          <input
+            type="number"
+            placeholder="Amount"
+            value={depositAmt}
+            onChange={(e) => setDepositAmt(e.target.value)}
+            className="border p-1 rounded w-full text-black"
+          />
+          <button
+            onClick={handleDeposit}
+            className="mt-1 px-3 py-1 bg-purple-600 text-white rounded"
+          >
+            Send to {depositAddress.slice(0, 4)}...{depositAddress.slice(-4)}
+          </button>
+        </div>
+
+        <div className="space-y-1">
+          <label className="block">Withdraw TON</label>
+          <input
+            type="text"
+            placeholder="Your TON Address"
+            value={withdrawAddr}
+            onChange={(e) => setWithdrawAddr(e.target.value)}
+            className="border p-1 rounded w-full text-black"
+          />
+          <input
+            type="number"
+            placeholder="Amount"
+            value={withdrawAmt}
+            onChange={(e) => setWithdrawAmt(e.target.value)}
+            className="border p-1 rounded w-full mt-1 text-black"
+          />
+          <button
+            onClick={handleWithdraw}
+            className="mt-1 px-3 py-1 bg-yellow-600 text-white rounded"
+          >
+            Withdraw
+          </button>
+        </div>
       </div>
 
       <div className="mt-4">
