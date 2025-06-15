@@ -20,7 +20,9 @@ body {
   background-image:
     radial-gradient(#ffffff 1px, transparent 1px),
     radial-gradient(#ffffff 1px, transparent 1px);
-  background-position: 0 0, 25px 25px;
+  background-position:
+    0 0,
+    25px 25px;
   background-size: 50px 50px;
 }
 
@@ -59,41 +61,50 @@ body {
 }
 
 .dice-cube {
-  @apply relative w-24 h-24;
+  /* smaller cube so a board cell can match its size */
+  @apply relative w-16 h-16;
   transform-style: preserve-3d;
   transition: transform 0.5s;
 }
 
 .dice-face {
-  @apply absolute w-full h-full flex items-center justify-center rounded-xl shadow-lg;
-  background-color: #000; /* ultra-matte black */
-  border: 2px solid #FFD700; /* metallic gold edges */
+  @apply absolute w-full h-full flex items-center justify-center bg-white rounded-xl shadow-lg;
 }
 
 .dice-face .dot {
-  @apply w-4 h-4 rounded-full;
-  background-color: #000; /* recessed center */
-  border: 2px solid #FFD700; /* embossed gold ring */
-  box-shadow: inset 0 0 4px rgba(0, 0, 0, 0.6); /* soft shadow inside */
+  /* classic black pips */
+  @apply w-4 h-4 bg-black rounded-full;
 }
 
-.dice-face--front   { transform: rotateY(0deg) translateZ(3rem); }
-.dice-face--back    { transform: rotateY(180deg) translateZ(3rem); }
-.dice-face--right   { transform: rotateY(90deg) translateZ(3rem); }
-.dice-face--left    { transform: rotateY(-90deg) translateZ(3rem); }
-.dice-face--top     { transform: rotateX(90deg) translateZ(3rem); }
-.dice-face--bottom  { transform: rotateX(-90deg) translateZ(3rem); }
+.dice-face--front {
+  transform: rotateY(0deg) translateZ(2rem);
+}
+.dice-face--back {
+  transform: rotateY(180deg) translateZ(2rem);
+}
+.dice-face--right {
+  transform: rotateY(90deg) translateZ(2rem);
+}
+.dice-face--left {
+  transform: rotateY(-90deg) translateZ(2rem);
+}
+.dice-face--top {
+  transform: rotateX(90deg) translateZ(2rem);
+}
+.dice-face--bottom {
+  transform: rotateX(-90deg) translateZ(2rem);
+}
 
 .board-cell {
   @apply relative flex items-center justify-center rounded-xl text-white shadow-inner;
   background-color: #000; /* match dice face */
-  border: 2px solid #FFD700; /* metallic gold edges */
+  border: 2px solid #ffd700; /* metallic gold edges */
   box-shadow: 0 4px 6px rgba(0, 0, 0, 0.5); /* subtle outer depth */
   transform: translateZ(5px);
 }
 
 .board-cell::after {
-  content: '';
+  content: "";
   position: absolute;
   inset: 2px;
   border-radius: inherit;
@@ -104,4 +115,9 @@ body {
 .token {
   @apply absolute w-4 h-4 bg-blue-600 rounded-full shadow-lg;
   transform: translateZ(10px);
+}
+
+/* cell glows briefly as a piece moves over it */
+.board-cell.highlight {
+  box-shadow: 0 0 10px 4px rgba(255, 255, 100, 0.8);
 }
