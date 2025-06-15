@@ -103,6 +103,12 @@ export function claimReferral(telegramId, code) {
   return post('/api/referral/claim', { telegramId, code });
 }
 
+// ✅ Admin-only airdrop grant call
 export function grantAirdrop(token, telegramId, amount, reason = '') {
   return post('/api/airdrop/grant', { telegramId, amount, reason }, token);
+}
+
+// ✅ Daily check-in
+export function checkIn(telegramId) {
+  return post('/api/checkin/check-in', { telegramId });
 }
