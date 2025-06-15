@@ -15,7 +15,7 @@
    - `VITE_API_BASE_URL` – the base URL where the bot API is hosted (e.g. `http://localhost:3000`)
    - `VITE_TONCONNECT_MANIFEST` – must be `${VITE_API_BASE_URL}/tonconnect-manifest.json` (absolute URL)
 
-   ⚠️ Misconfiguring these will result in a blank wallet page.
+  ⚠️ Misconfiguring these may prevent the wallet from loading correctly.
 
 5. Install the Python requirements for the dice roller:
 
