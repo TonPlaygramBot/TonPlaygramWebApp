@@ -65,16 +65,12 @@ body {
 }
 
 .dice-face {
-  @apply absolute w-full h-full flex items-center justify-center rounded-xl shadow-lg;
-  background-color: #000; /* ultra-matte black */
-  border: 2px solid #FFD700; /* metallic gold edges */
+  @apply absolute w-full h-full flex items-center justify-center bg-white rounded-xl shadow-lg;
 }
 
 .dice-face .dot {
-  @apply w-4 h-4 rounded-full;
-  background-color: #000; /* recessed center */
-  border: 2px solid #FFD700; /* embossed gold ring */
-  box-shadow: inset 0 0 4px rgba(0, 0, 0, 0.6); /* soft shadow inside */
+  /* classic black pips */
+  @apply w-4 h-4 bg-black rounded-full;
 }
 
 .dice-face--front   { transform: rotateY(0deg) translateZ(3rem); }

@@ -34,17 +34,17 @@ const diceFaces = {
   ],
 };
 
-// Enhanced isometric tilt: Z → X → Y
-const baseTilt = 'rotateY(-15deg) rotateX(-35deg) rotateZ(45deg)';
+// Gentle tilt so three faces are visible
+const baseTilt = 'rotateX(-25deg) rotateY(25deg)';
 
-// Face orientation to bring correct number on top
-const valueToRotation = {
-  1: 'rotateX(180deg)',
-  2: 'rotateZ(-90deg)',
-  3: 'rotateX(0deg)',
-  4: 'rotateZ(90deg)',
-  5: 'rotateX(-90deg)',
-  6: 'rotateX(90deg)',
+// Orientation for each numbered face relative to the viewer
+const faceTransforms = {
+  1: `rotateX(0deg) rotateY(0deg) ${baseTilt}`,
+  2: `rotateX(-90deg) rotateY(0deg) ${baseTilt}`,
+  3: `rotateY(90deg) ${baseTilt}`,
+  4: `rotateY(-90deg) ${baseTilt}`,
+  5: `rotateX(90deg) rotateY(0deg) ${baseTilt}`,
+  6: `rotateY(180deg) ${baseTilt}`,
 };
 
 // 🎲 Single dice face component
@@ -55,9 +55,7 @@ function Face({ value, className }) {
       <div className="grid grid-cols-3 grid-rows-3 gap-1">
         {face.flat().map((dot, i) => (
           <div key={i} className="flex items-center justify-center">
-            {dot ? (
-              <div className="dot shadow-md shadow-yellow-300" />
-            ) : null}
+            {dot ? <div className="dot" /> : null}
           </div>
         ))}
       </div>
@@ -67,8 +65,7 @@ function Face({ value, className }) {
 
 // 🎲 Single cube component
 function DiceCube({ value = 1, rolling = false, playSound = false }) {
-  const transform = valueToRotation[value] || 'rotateX(0deg)';
-  const orientation = `${transform} ${baseTilt}`;
+  const orientation = faceTransforms[value] || faceTransforms[1];
 
   useEffect(() => {
     if (rolling && playSound) {
@@ -85,12 +82,12 @@ function DiceCube({ value = 1, rolling = false, playSound = false }) {
         }`}
         style={!rolling ? { transform: orientation } : undefined}
       >
-        <Face value={5} className="dice-face--front absolute" />
+        <Face value={1} className="dice-face--front absolute" />
         <Face value={6} className="dice-face--back absolute" />
-        <Face value={2} className="dice-face--right absolute" />
+        <Face value={3} className="dice-face--right absolute" />
         <Face value={4} className="dice-face--left absolute" />
-        <Face value={3} className="dice-face--top absolute" />
-        <Face value={1} className="dice-face--bottom absolute" />
+        <Face value={2} className="dice-face--top absolute" />
+        <Face value={5} className="dice-face--bottom absolute" />
       </div>
     </div>
   );
