@@ -1,5 +1,6 @@
-import { useRef, useState } from "react";
+import { useState } from "react";
 import DiceRoller from "../../components/DiceRoller.jsx";
+import RoomPopup from "../../components/RoomPopup.jsx";
 import useTelegramBackButton from "../../hooks/useTelegramBackButton.js";
 
 // Simple snake and ladder layout for a 10x10 board
@@ -60,9 +61,10 @@ function Board({ position, highlight }) {
 export default function SnakeAndLadder() {
   useTelegramBackButton();
   const [pos, setPos] = useState(1);
+  const [selection, setSelection] = useState(null);
+  const [showRoom, setShowRoom] = useState(true);
   const [highlight, setHighlight] = useState(null);
   const [message, setMessage] = useState("");
-  const containerRef = useRef(null);
 
   const handleRoll = (values) => {
     const value = Array.isArray(values)
@@ -95,28 +97,23 @@ export default function SnakeAndLadder() {
     move(0);
   };
 
-  const toggleFull = () => {
-    const el = containerRef.current;
-    if (!el) return;
-    if (document.fullscreenElement) {
-      document.exitFullscreen?.();
-    } else {
-      el.requestFullscreen?.();
-    }
-  };
 
   return (
-    <div className="p-4 space-y-4 text-text" ref={containerRef}>
+    <div className="p-4 space-y-4 text-text">
       <h2 className="text-xl font-bold">Snake &amp; Ladder</h2>
+      <p className="text-sm text-subtext">
+        Roll the dice to move across the board. Ladders move you up, snakes bring
+        you down. Reach tile 100 first to win.
+      </p>
+      <RoomPopup
+        open={showRoom}
+        selection={selection}
+        setSelection={setSelection}
+        onConfirm={() => setShowRoom(false)}
+      />
       <Board position={pos} highlight={highlight} />
       {message && <div className="text-center font-semibold">{message}</div>}
       <DiceRoller onRollEnd={handleRoll} />
-      <button
-        onClick={toggleFull}
-        className="px-3 py-1 bg-primary text-white rounded"
-      >
-        Toggle Full Screen
-      </button>
     </div>
   );
 }
