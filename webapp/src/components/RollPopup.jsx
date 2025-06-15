@@ -1,7 +1,17 @@
-import React from 'react';
-import ThreeDice from './ThreeDice.jsx';
+import React, { useRef, useEffect } from 'react';
+import RollingDice from './RollingDice.jsx';
 
 export default function RollPopup({ open, avatar, onRoll, rolling, diceValues }) {
+  const dice1Ref = useRef(null);
+  const dice2Ref = useRef(null);
+
+  useEffect(() => {
+    if (rolling) {
+      dice1Ref.current?.rollDice(diceValues[0]);
+      dice2Ref.current?.rollDice(diceValues[1]);
+    }
+  }, [rolling, diceValues]);
+
   if (!open) return null;
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-70">
@@ -9,8 +19,8 @@ export default function RollPopup({ open, avatar, onRoll, rolling, diceValues })
         <img src={avatar} alt="Player" className="w-12 h-12 rounded-full mx-auto border-2 border-brand-gold" />
         <h3 className="text-lg font-bold text-brand-gold drop-shadow">Your Turn</h3>
         <div className="flex justify-center space-x-2">
-          <ThreeDice value={diceValues[0]} rolling={rolling} />
-          <ThreeDice value={diceValues[1]} rolling={rolling} />
+          <RollingDice ref={dice1Ref} />
+          <RollingDice ref={dice2Ref} />
         </div>
         <button
           onClick={onRoll}
