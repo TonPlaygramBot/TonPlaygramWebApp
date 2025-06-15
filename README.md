@@ -34,3 +34,37 @@
    ```bash
    npm test
    ```
+
+## Telegram game bots
+
+Several small Telegram game bots are included in this repository. They use
+`python-telegram-bot` and Pillow to render board graphics. To try them out run:
+
+```bash
+pip install -r requirements.txt
+
+# Set BOT_TOKEN for your own Telegram bot token
+export BOT_TOKEN=<your token>
+
+# Launch the Mars grid roller game
+python mars_grid_roller.py
+
+# Launch the TonPlaygram dice roller clone
+python tonplaygram_grid_roller.py
+
+# Launch the Ludo prototype
+python tonplaygram_ludo.py
+```
+
+Each script will start a bot that responds to commands such as `/roll` or `/start`.
+
+### Installing Ludo web assets
+
+The `scripts/install_ludo_game.sh` helper fetches and builds an external React
+implementation of Ludo used by the webapp. It requires `git` and `npm`:
+
+```bash
+bash scripts/install_ludo_game.sh
+```
+
+The compiled assets are copied into `webapp/public/games/ludo`.

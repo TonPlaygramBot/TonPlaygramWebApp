@@ -33,10 +33,9 @@ const diceFaces = {
   ],
 };
 
-// Base tilt so the cube appears three dimensional even when static
+// Base tilt so the cube appears 3D when static
 const baseTilt = 'rotateX(-25deg) rotateY(25deg)';
 
-// Orientations for each face relative to the viewer
 const faceTransforms = {
   1: `rotateX(0deg) rotateY(0deg) ${baseTilt}`,
   2: `rotateX(-90deg) rotateY(0deg) ${baseTilt}`,
@@ -63,6 +62,7 @@ function Face({ value, className }) {
 
 export default function Dice({ value = 1, rolling = false }) {
   const orientation = faceTransforms[value] || faceTransforms[1];
+
   return (
     <div className="dice-container">
       <div
