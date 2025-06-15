@@ -29,7 +29,18 @@ TonPlaygram combines a Telegram bot with a web interface built using React and V
   ```bash
 
   npm --prefix webapp run dev
+  ```
+
 ### Admin API
 
-- `POST /api/airdrop/grant-all` — grant an airdrop to all users (requires bearer token from `AIRDROP_ADMIN_TOKENS`)
+Use a bearer token from `AIRDROP_ADMIN_TOKENS` in the `Authorization` header.
+
+- `POST /api/airdrop/grant-all` — grant an airdrop to all users.
+
+  Example:
+
+  ```bash
+  curl -X POST http://localhost:3000/api/airdrop/grant-all \
+    -H "Authorization: Bearer <YOUR_TOKEN>"
+  ```
 
