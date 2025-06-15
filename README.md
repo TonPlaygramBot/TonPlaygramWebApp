@@ -42,3 +42,18 @@ MONGODB_URI=mongodb://localhost:27017/tonplaygram
 ```
 
 If `MONGODB_URI` is set to `memory`, the server launches an in-memory MongoDB for testing only.
+
+---
+
+## Troubleshooting
+
+Common issues when connecting via TonConnect:
+
+| Issue | Solution |
+|-------|---------|
+| ✅ **TonConnect not initialized** | Make sure TonConnect is initialized with your manifest URL. |
+| ❌ **Wallet not listed (Tonkeeper/TonSpace)** | Your manifest must be public and valid JSON hosted online. |
+| 🚫 **Wrong bridge settings** | Use the official TonConnect bridge https://bridge.tonapi.io/bridge |
+| ⚠️ **Wallet not responding** | Check if the web app is served over HTTPS and opened in a compatible browser. |
+| 🔒 **Wallet connection fails silently** | Make sure Tonkeeper/Ton Space is installed and allowed for dApp connections. |
+
