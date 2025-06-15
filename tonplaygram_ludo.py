@@ -12,7 +12,7 @@ from telegram.ext import Application, CommandHandler, ContextTypes
 
 DATA_FILE = Path("ludo_sessions.json")
 BOARD_TEMPLATE = Path("ludo_board.png")
-BOARD_SIZE = 512
+BOARD_SIZE = 600  # increased so each cell matches dice size
 GRID = 15
 CELL = BOARD_SIZE // GRID
 PATH_LENGTH = 64
@@ -25,11 +25,14 @@ COLORS = {
     "green": (50, 170, 80),
 }
 TOKENS = {
-    "red": "🟥",
-    "blue": "🟦",
-    "yellow": "🟨",
-    "green": "🟩",
+    # placeholder, actual images generated at runtime
+    "red": None,
+    "blue": None,
+    "yellow": None,
+    "green": None,
 }
+
+DICE_SPRITE = None
 COLOR_ORDER = ["red", "blue", "yellow", "green"]
 START_INDICES = {
     "red": 0,
@@ -37,6 +40,24 @@ START_INDICES = {
     "yellow": 32,
     "green": 48,
 }
+
+def _create_dice_sprite(size:int) -> Image.Image:
+    img = Image.new("RGBA", (size, size), (0, 0, 0, 0))
+    draw = ImageDraw.Draw(img)
+    draw.rectangle([0, 0, size-1, size-1], fill="white", outline="black", width=2)
+    r = size // 6
+    draw.ellipse((size/2 - r, size/2 - r, size/2 + r, size/2 + r), fill="black")
+    return img
+
+def init_token_images():
+    sz = CELL - 4
+    for name, color in COLORS.items():
+        token = _create_dice_sprite(sz)
+        border = Image.new("RGBA", token.size, (*color, 0))
+        draw = ImageDraw.Draw(border)
+        draw.rectangle([0,0,sz-1,sz-1], outline=color, width=3)
+        token = Image.alpha_composite(token, border)
+        TOKENS[name] = token
 
 # 64-step loop approximating a Ludo board
 PATH: List[tuple[int, int]] = [
@@ -72,6 +93,9 @@ def ensure_board_template() -> Image.Image:
     if BOARD_TEMPLATE.exists():
         return Image.open(BOARD_TEMPLATE).convert("RGBA")
 
+    global DICE_SPRITE
+    DICE_SPRITE = _create_dice_sprite(CELL - 8)
+
     img = Image.new("RGBA", (BOARD_SIZE, BOARD_SIZE), (20, 20, 30))
     draw = ImageDraw.Draw(img)
     base_size = CELL * 6
@@ -97,6 +121,8 @@ def ensure_board_template() -> Image.Image:
         draw.line([x,y,x,y+CELL], fill=(110,110,140), width=1)
         draw.line([x+CELL,y,x+CELL,y+CELL], fill=(40,40,60), width=1)
         draw.line([x,y+CELL,x+CELL,y+CELL], fill=(40,40,60), width=1)
+        img.paste(DICE_SPRITE,(x+(CELL-DICE_SPRITE.width)//2,
+                               y+(CELL-DICE_SPRITE.height)//2),DICE_SPRITE)
 
     img.save(BOARD_TEMPLATE)
     return img
@@ -128,6 +154,8 @@ class GameSession:
 
 
 def render_board(session:GameSession) -> Path:
+    if TOKENS["red"] is None:
+        init_token_images()
     base=ensure_board_template().copy()
     draw=ImageDraw.Draw(base)
     try:
@@ -138,7 +166,7 @@ def render_board(session:GameSession) -> Path:
         small_font=ImageFont.load_default()
     base_size = CELL*6
 
-    positions: Dict[tuple[int,int], List[str]] = {}
+    positions: Dict[tuple[int,int], List[Image.Image]] = {}
     for p in session.players:
         uid=p["id"]
         color=p["color"]
@@ -149,8 +177,8 @@ def render_board(session:GameSession) -> Path:
                 by=1 if color in ("red","blue") else BOARD_SIZE-base_size+CELL
                 ox=(i%2)*CELL*2
                 oy=(i//2)*CELL*2
-                draw.text((bx+ox+2,by+oy+2),token,font=font,fill=(0,0,0))
-                draw.text((bx+ox,by+oy),token,font=font)
+                base.paste(token,(bx+ox+(CELL-token.width)//2,
+                                 by+oy+(CELL-token.height)//2),token)
             else:
                 if steps>=PATH_LENGTH+HOME_STEPS:
                     pos=(7,7)
@@ -169,10 +197,9 @@ def render_board(session:GameSession) -> Path:
                 positions.setdefault(pos,[]).append(token)
 
     for pos,tokens in positions.items():
-        x=pos[1]*CELL+CELL/2
-        y=pos[0]*CELL+CELL/2
-        draw.text((x+2,y+2),tokens[0],font=font,anchor="mm",fill=(0,0,0))
-        draw.text((x,y),tokens[0],font=font,anchor="mm")
+        x = pos[1] * CELL + (CELL - tokens[0].width) // 2
+        y = pos[0] * CELL + (CELL - tokens[0].height) // 2
+        base.paste(tokens[0], (int(x), int(y)), tokens[0])
         if len(tokens)>1:
             r=CELL//3
             draw.ellipse((x+r*0.7,y-r*1.6,x+r*1.6,y-r*0.7),fill=(0,0,0,200))
