@@ -21,10 +21,19 @@ export default function DiceRoller({ onRollEnd }) {
       soundRef.current.play().catch(() => {});
     }
     setRolling(true);
+    const rand = () => {
+      if (window.crypto && window.crypto.getRandomValues) {
+        const arr = new Uint32Array(1);
+        window.crypto.getRandomValues(arr);
+        return (arr[0] % 6) + 1;
+      }
+      return Math.floor(Math.random() * 6) + 1;
+    };
+
     let count = 0;
     const id = setInterval(() => {
-      const v1 = Math.floor(Math.random() * 6) + 1;
-      const v2 = Math.floor(Math.random() * 6) + 1;
+      const v1 = rand();
+      const v2 = rand();
       setValues([v1, v2]);
       count += 1;
       if (count >= 20) {
