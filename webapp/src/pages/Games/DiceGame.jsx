@@ -66,13 +66,16 @@ export default function DiceGame() {
       const pd2 = randomInt(1, 6);
       const od1 = randomInt(1, 6);
       const od2 = randomInt(1, 6);
+
       setPlayerDice([pd1, pd2]);
       setOppDice([od1, od2]);
+
       const newPlayer = Math.min(playerPos + pd1 + pd2, 100);
       const newOpp = Math.min(oppPos + od1 + od2, 100);
       setPlayerPos(newPlayer);
       setOppPos(newOpp);
       setRolling(false);
+
       if (newPlayer >= 100 && newOpp >= 100) {
         setResult({ outcome: 'draw', pot: selection.amount * 2 });
         setPhase('result');
