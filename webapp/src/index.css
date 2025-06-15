@@ -72,6 +72,7 @@ body {
   @apply w-4 h-4 rounded-full;
   background-color: #000; /* recessed center */
   border: 2px solid #FFD700; /* embossed gold ring */
+  box-shadow: inset 0 0 4px rgba(0, 0, 0, 0.6);
 }
 
 .dice-face--front   { transform: rotateY(0deg) translateZ(3rem); }
@@ -86,7 +87,6 @@ body {
   background-color: #000; /* match dice face */
   border: 2px solid #FFD700; /* metallic gold edges */
   box-shadow: 0 4px 6px rgba(0,0,0,0.5);
-  transform: translateZ(5px);
 }
 
 .board-cell::after {
@@ -95,7 +95,6 @@ body {
   inset: 2px;
   border-radius: inherit;
   box-shadow: 0 0 8px rgba(255,255,200,0.5);
-  transform: translateZ(-1px);
 }
 
 .token {

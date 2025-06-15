@@ -1,12 +1,25 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import Dice from './Dice.jsx';
 
 export default function DiceRoller({ onRollEnd }) {
   const [values, setValues] = useState([1, 1]);
   const [rolling, setRolling] = useState(false);
+  const soundRef = useRef(null);
+
+  useEffect(() => {
+    soundRef.current = new Audio('/assets/sounds/dice.mp3');
+    soundRef.current.preload = 'auto';
+    return () => {
+      soundRef.current?.pause();
+    };
+  }, []);
 
   const rollDice = () => {
     if (rolling) return;
+    if (soundRef.current) {
+      soundRef.current.currentTime = 0;
+      soundRef.current.play().catch(() => {});
+    }
     setRolling(true);
     let count = 0;
     const id = setInterval(() => {
