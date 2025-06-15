@@ -26,6 +26,7 @@ export default function BalanceSummary() {
       setBalances({ ton, tpc: prof.balance, usdt: 0 });
     } catch (err) {
       console.error('Failed to load balances:', err);
+      setBalances({ ton: null, tpc: 0, usdt: 0 });
     }
   };
 
