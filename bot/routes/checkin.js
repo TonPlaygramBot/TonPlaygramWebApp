@@ -23,7 +23,8 @@ router.post('/check-in', async (req, res) => {
     const now = Date.now();
     let streak = 1;
     if (user.lastCheckIn && now - user.lastCheckIn.getTime() < ONE_DAY_MS * 2) {
-      streak = Math.min(user.dailyStreak + 1, REWARDS.length);
+      streak = user.dailyStreak + 1;
+      if (streak > REWARDS.length) streak = 1;
     }
     const reward = REWARDS[streak - 1];
 

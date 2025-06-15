@@ -142,7 +142,7 @@ export default function DailyCheckIn() {
 
   return (
 
-    <div className="w-full space-y-2">
+    <div className="bg-surface border border-border rounded p-4 space-y-2">
 
       {showPopup && (
 
