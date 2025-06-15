@@ -100,3 +100,7 @@ export function getReferralInfo(telegramId) {
 export function claimReferral(telegramId, code) {
   return post('/api/referral/claim', { telegramId, code });
 }
+
+export function checkIn(telegramId) {
+  return post('/api/checkin/check-in', { telegramId });
+}
