@@ -62,7 +62,7 @@ function Board({ position, highlight }) {
 
   return (
     <div className="flex justify-center">
-      <div className="grid grid-rows-10 grid-cols-10 gap-1 w-[640px] h-[640px] relative">
+      <div className="grid grid-rows-10 grid-cols-10 gap-1 w-[1280px] h-[1280px] relative">
         {tiles}
       </div>
     </div>
@@ -133,7 +133,7 @@ export default function SnakeAndLadder() {
       />
       <Board position={pos} highlight={highlight} />
       {message && <div className="text-center font-semibold">{message}</div>}
-      <DiceRoller onRollEnd={handleRoll} />
+      <DiceRoller onRollEnd={handleRoll} clickable />
     </div>
   );
 }

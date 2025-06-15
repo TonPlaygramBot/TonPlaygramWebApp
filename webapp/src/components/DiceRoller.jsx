@@ -1,13 +1,13 @@
 import React, { useState, useEffect, useRef } from 'react';
 import Dice from './Dice.jsx';
 
-export default function DiceRoller({ onRollEnd }) {
+export default function DiceRoller({ onRollEnd, clickable = false }) {
   const [values, setValues] = useState([1, 1]);
   const [rolling, setRolling] = useState(false);
   const soundRef = useRef(null);
 
   useEffect(() => {
-    soundRef.current = new Audio('/assets/sounds/dice.mp3');
+    soundRef.current = new Audio('/assets/sounds/spinning.mp3');
     soundRef.current.preload = 'auto';
     return () => {
       soundRef.current?.pause();
@@ -37,17 +37,22 @@ export default function DiceRoller({ onRollEnd }) {
 
   return (
     <div className="flex flex-col items-center space-y-4">
-      <div className="flex space-x-4">
+      <div
+        className={`flex space-x-4 ${clickable ? 'cursor-pointer' : ''}`}
+        onClick={clickable ? rollDice : undefined}
+      >
         <Dice value={values[0]} rolling={rolling} />
         <Dice value={values[1]} rolling={rolling} />
       </div>
-      <button
-        onClick={rollDice}
-        disabled={rolling}
-        className="px-4 py-2 bg-primary hover:bg-primary-hover text-white rounded disabled:opacity-50"
-      >
-        Roll Dice
-      </button>
+      {!clickable && (
+        <button
+          onClick={rollDice}
+          disabled={rolling}
+          className="px-4 py-2 bg-primary hover:bg-primary-hover text-white rounded disabled:opacity-50"
+        >
+          Roll Dice
+        </button>
+      )}
     </div>
   );
 }
