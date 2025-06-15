@@ -13,14 +13,17 @@ const router = Router();
 router.post('/balance', authenticate, async (req, res) => {
 
   const { telegramId } = req.body;
+  const authId = req.auth?.telegramId;
 
-  if (!telegramId) {
-
-    return res.status(400).json({ error: 'telegramId required' });
-
+  const id = telegramId || authId;
+  if (!id) {
+    return res.status(400).json({ error: "telegramId required" });
+  }
+  if (telegramId && authId && telegramId !== authId) {
+    return res.status(403).json({ error: "forbidden" });
   }
 
-  const user = await User.findOne({ telegramId });
+  const user = await User.findOne({ telegramId: id });
 
   res.json({ balance: user ? user.balance : 0 });
 
@@ -84,6 +87,7 @@ router.post('/send', authenticate, async (req, res) => {
 
   const { fromId, toId, amount } = req.body;
 
+  const authId = req.auth?.telegramId;
   if (!fromId || !toId || typeof amount !== 'number') {
 
     return res.status(400).json({ error: 'fromId, toId and amount required' });
@@ -94,6 +98,9 @@ router.post('/send', authenticate, async (req, res) => {
 
     return res.status(400).json({ error: 'amount must be positive' });
 
+  }
+  if (!authId || fromId !== authId) {
+    return res.status(403).json({ error: "forbidden" });
   }
 
   const sender = await User.findOne({ telegramId: fromId });
@@ -226,14 +233,18 @@ router.post('/send', authenticate, async (req, res) => {
 
 // ✅ Credit user balance after a TON deposit
 
-router.post('/deposit', async (req, res) => {
+router.post('/deposit', authenticate, async (req, res) => {
 
   const { telegramId, amount } = req.body;
+  const authId = req.auth?.telegramId;
 
   if (!telegramId || typeof amount !== 'number' || amount <= 0) {
 
     return res.status(400).json({ error: 'telegramId and positive amount required' });
 
+  }
+  if (!authId || telegramId !== authId) {
+    return res.status(403).json({ error: "forbidden" });
   }
 
   const user = await User.findOneAndUpdate(
@@ -260,9 +271,10 @@ router.post('/deposit', async (req, res) => {
 
 // ✅ Request withdrawal to a TON wallet address
 
-router.post('/withdraw', async (req, res) => {
+router.post('/withdraw', authenticate, async (req, res) => {
 
   const { telegramId, address, amount } = req.body;
+  const authId = req.auth?.telegramId;
 
   if (!telegramId || !address || typeof amount !== 'number' || amount <= 0) {
 
@@ -272,6 +284,9 @@ router.post('/withdraw', async (req, res) => {
 
       .json({ error: 'telegramId, address and positive amount required' });
 
+  }
+  if (!authId || telegramId !== authId) {
+    return res.status(403).json({ error: "forbidden" });
   }
 
   const user = await User.findOne({ telegramId });
@@ -308,6 +323,9 @@ router.post('/transactions', authenticate, async (req, res) => {
 
     return res.status(400).json({ error: 'telegramId required' });
 
+  }
+  if (req.auth?.telegramId && telegramId !== req.auth.telegramId) {
+    return res.status(403).json({ error: "forbidden" });
   }
 
   const user = await User.findOne({ telegramId });
