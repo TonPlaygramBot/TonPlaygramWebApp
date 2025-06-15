@@ -16,6 +16,8 @@
    - `VITE_TONCONNECT_MANIFEST` – must be `${VITE_API_BASE_URL}/tonconnect-manifest.json` (absolute URL)
 
   ⚠️ Misconfiguring these may prevent the wallet from loading correctly.
+  If the wallet page appears blank, ensure these variables are set. A working
+  configuration is included in `webapp/.env` which points to the live demo API.
 
 5. Install the Python requirements for the dice roller:
 
