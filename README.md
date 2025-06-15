@@ -1,6 +1,6 @@
 # TonPlaygram Bot and Web App
 
-TonPlaygram combines a Telegram bot with a web interface built using React and Vite. The bot handles game logic and wallet operations while the web app provides a richer UI for playing chess and managing your TPC balance.
+TonPlaygram combines a Telegram bot with a web interface built using React and Vite. The bot handles game logic and wallet operations while the web app provides a richer UI for playing games and managing your TPC balance.
 
 ---
 
