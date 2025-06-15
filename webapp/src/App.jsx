@@ -1,22 +1,22 @@
-import React from 'react';
+import React, { Suspense, lazy } from 'react';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 
-import Home from './pages/Home.jsx';
-import Friends from './pages/Friends.jsx';
-import Wallet from './pages/Wallet.jsx';
-import Tasks from './pages/Tasks.jsx';
-import Referral from './pages/Referral.jsx';
-import MyAccount from './pages/MyAccount.jsx';
-import Store from './pages/Store.jsx';
+const Home = lazy(() => import('./pages/Home.jsx'));
+const Friends = lazy(() => import('./pages/Friends.jsx'));
+const Wallet = lazy(() => import('./pages/Wallet.jsx'));
+const Tasks = lazy(() => import('./pages/Tasks.jsx'));
+const Referral = lazy(() => import('./pages/Referral.jsx'));
+const MyAccount = lazy(() => import('./pages/MyAccount.jsx'));
+const Store = lazy(() => import('./pages/Store.jsx'));
 
-import DiceGame from './pages/Games/DiceGame.jsx';
-import LudoGame from './pages/Games/LudoGame.jsx';
-import HorseRacing from './pages/Games/HorseRacing.jsx';
-import SnakeLadders from './pages/Games/SnakeLadders.jsx';
-import ChessGame from './pages/Games/Chess.jsx';
-import ConnectFour from './pages/Games/ConnectFour.jsx';
-import Games from './pages/Games.jsx';
-import SpinPage from './pages/spin.tsx';
+const DiceGame = lazy(() => import('./pages/Games/DiceGame.jsx'));
+const LudoGame = lazy(() => import('./pages/Games/LudoGame.jsx'));
+const HorseRacing = lazy(() => import('./pages/Games/HorseRacing.jsx'));
+const SnakeLadders = lazy(() => import('./pages/Games/SnakeLadders.jsx'));
+const ChessGame = lazy(() => import('./pages/Games/Chess.jsx'));
+const ConnectFour = lazy(() => import('./pages/Games/ConnectFour.jsx'));
+const Games = lazy(() => import('./pages/Games.jsx'));
+const SpinPage = lazy(() => import('./pages/spin.tsx'));
 
 import Layout from './components/Layout.jsx';
 import useTelegramAuth from './hooks/useTelegramAuth.js';
@@ -27,6 +27,7 @@ export default function App() {
   return (
     <BrowserRouter>
       <Layout>
+        <Suspense fallback={<div>Loading...</div>}>
         <Routes>
           <Route path="/" element={<Home />} />
           <Route path="/friends" element={<Friends />} />
@@ -44,6 +45,7 @@ export default function App() {
           <Route path="/wallet" element={<Wallet />} />
           <Route path="/account" element={<MyAccount />} />
         </Routes>
+        </Suspense>
       </Layout>
     </BrowserRouter>
   );
