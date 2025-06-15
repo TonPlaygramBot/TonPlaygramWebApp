@@ -33,18 +33,17 @@ const diceFaces = {
   ],
 };
 
-// Fixed isometric tilt so three faces are always visible
+// Global fixed isometric tilt
 const baseTilt = 'rotateX(-35deg) rotateY(45deg)';
 
-// Rotation needed to bring each numbered face to the top while keeping
-// the overall isometric camera tilt the same.
+// Value-specific rotation to bring the correct face to the top
 const valueToRotation = {
-  1: 'rotateX(180deg)',  // bottom -> top
-  2: 'rotateZ(-90deg)',  // right -> top
-  3: 'rotateX(0deg)',    // already top
-  4: 'rotateZ(90deg)',   // left -> top
-  5: 'rotateX(-90deg)',  // front -> top
-  6: 'rotateX(90deg)',   // back -> top
+  1: 'rotateX(180deg)',   // bottom to top
+  2: 'rotateY(-90deg)',   // right to top
+  3: 'rotateX(0deg)',     // top stays top
+  4: 'rotateY(90deg)',    // left to top
+  5: 'rotateX(-90deg)',   // front to top
+  6: 'rotateX(90deg)',    // back to top
 };
 
 function Face({ value, className }) {
@@ -62,10 +61,9 @@ function Face({ value, className }) {
   );
 }
 
-export default function Dice({ value = 1, rolling = false }) {
+function DiceCube({ value = 1, rolling = false }) {
   const transform = valueToRotation[value] || 'rotateX(0deg)';
-  // Apply value rotation first, then the common isometric tilt
-  const orientation = `${baseTilt} ${transform}`;
+  const orientation = `${transform} ${baseTilt}`;
 
   return (
     <div className="dice-container perspective-1000 w-24 h-24">
@@ -82,6 +80,15 @@ export default function Dice({ value = 1, rolling = false }) {
         <Face value={3} className="dice-face--top absolute" />
         <Face value={1} className="dice-face--bottom absolute" />
       </div>
+    </div>
+  );
+}
+
+export default function DicePair({ values = [1, 1], rolling = false }) {
+  return (
+    <div className="flex gap-4 justify-center items-center">
+      <DiceCube value={values[0]} rolling={rolling} />
+      <DiceCube value={values[1]} rolling={rolling} />
     </div>
   );
 }
