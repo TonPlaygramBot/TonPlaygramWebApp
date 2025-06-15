@@ -22,8 +22,7 @@
     "vite": "^4.4.9",
     "react-icons": "^4.10.1",
     "canvas-confetti": "^1.9.2",
-    "@ayshrj/ludo.js": "^1.0.10",
-    "socket.io-client": "^4.7.2"
+    "@ayshrj/ludo.js": "^1.0.10"
   },
   "devDependencies": {
     "@types/react": "^18.2.0",
