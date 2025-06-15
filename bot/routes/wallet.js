@@ -2,10 +2,11 @@ import { Router } from 'express';
 import User from '../models/User.js';
 import bot from '../bot.js';
 import { ensureTransactionArray } from '../utils/userUtils.js';
+import authenticate from '../middleware/auth.js';
 
 const router = Router();
 
-router.post('/balance', async (req, res) => {
+router.post('/balance', authenticate, async (req, res) => {
   const { telegramId } = req.body;
   if (!telegramId) {
     return res.status(400).json({ error: 'telegramId required' });
@@ -15,7 +16,7 @@ router.post('/balance', async (req, res) => {
 });
 
 // Fetch TON balance from the blockchain using a public API
-router.post('/ton-balance', async (req, res) => {
+router.post('/ton-balance', authenticate, async (req, res) => {
   const { address } = req.body;
   if (!address) {
     return res.status(400).json({ error: 'address required' });
@@ -37,7 +38,7 @@ router.post('/ton-balance', async (req, res) => {
 });
 
 // Transfer TPC from one Telegram user to another
-router.post('/send', async (req, res) => {
+router.post('/send', authenticate, async (req, res) => {
   const { fromId, toId, amount } = req.body;
   if (!fromId || !toId || typeof amount !== 'number') {
     return res.status(400).json({ error: 'fromId, toId and amount required' });
@@ -124,7 +125,7 @@ router.post('/send', async (req, res) => {
   }
 });
 
-router.post('/transactions', async (req, res) => {
+router.post('/transactions', authenticate, async (req, res) => {
   const { telegramId } = req.body;
   if (!telegramId) {
     return res.status(400).json({ error: 'telegramId required' });
