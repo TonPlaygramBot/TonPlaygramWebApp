@@ -1,38 +1,47 @@
 import { useEffect, useState } from 'react';
 import RewardPopup from './RewardPopup.tsx';
+import { checkIn, getProfile } from '../utils/api.js';
+import { getTelegramId } from '../utils/telegram.js';
+import OpenInTelegram from './OpenInTelegram.jsx';
 
 const REWARDS = Array.from({ length: 30 }, (_, i) => 1000 * (i + 1));
 const ONE_DAY = 24 * 60 * 60 * 1000;
 
 export default function DailyCheckIn() {
+  let telegramId;
+  try {
+    telegramId = getTelegramId();
+  } catch (err) {
+    return <OpenInTelegram />;
+  }
+
   const [streak, setStreak] = useState(1);
   const [lastCheck, setLastCheck] = useState(null);
   const [showPopup, setShowPopup] = useState(false);
   const [reward, setReward] = useState(null);
 
   useEffect(() => {
-    const savedStreak = parseInt(localStorage.getItem('dailyStreak') || '1', 10);
-    const savedLast = localStorage.getItem('lastCheckIn');
-    setStreak(savedStreak);
-    setLastCheck(savedLast ? parseInt(savedLast, 10) : null);
+    let ignore = false;
+    getProfile(telegramId).then((data) => {
+      if (ignore) return;
+      const last = data.lastCheckIn ? new Date(data.lastCheckIn).getTime() : null;
+      setLastCheck(last);
+      setStreak(data.dailyStreak ? Math.max(data.dailyStreak, 1) : 1);
+      const now = Date.now();
+      if (!last || now - last >= ONE_DAY) {
+        setShowPopup(true);
+      }
+    });
+    return () => {
+      ignore = true;
+    };
+  }, [telegramId]);
 
-    const now = Date.now();
-    if (!savedLast || now - parseInt(savedLast, 10) >= ONE_DAY) {
-      setShowPopup(true);
-    }
-  }, []);
-
-  const handleCheckIn = () => {
-    const now = Date.now();
-    let newStreak = 1;
-    if (lastCheck && now - lastCheck < ONE_DAY * 2) {
-      newStreak = Math.min(streak + 1, 30);
-    }
-    setStreak(newStreak);
-    setLastCheck(now);
-    localStorage.setItem('dailyStreak', String(newStreak));
-    localStorage.setItem('lastCheckIn', String(now));
-    setReward(REWARDS[newStreak - 1]);
+  const handleCheckIn = async () => {
+    const res = await checkIn(telegramId);
+    setStreak(res.streak);
+    setReward(res.reward);
+    setLastCheck(Date.now());
     setShowPopup(false);
   };
 
