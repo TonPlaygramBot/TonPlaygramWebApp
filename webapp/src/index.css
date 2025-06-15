@@ -31,6 +31,10 @@ body {
   transform: rotateX(55deg) rotateZ(45deg);
   transform-style: preserve-3d;
 }
+.board-frame {
+  @apply border-4 border-accent rounded-lg p-1 bg-surface;
+  transform-style: preserve-3d;
+}
 
 @keyframes roll {
   0% {
