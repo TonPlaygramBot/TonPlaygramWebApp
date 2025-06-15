@@ -41,9 +41,15 @@ TonPlaygram combines a Telegram bot with a web interface built using React and V
 
 - Launch the TonPlaygram Roller (requires `BOT_TOKEN`):
 
-  ```bash
-  BOT_TOKEN=your_token python3 tonplaygram_grid_roller.py
-  ```
+```bash
+BOT_TOKEN=your_token python3 tonplaygram_grid_roller.py
+```
+
+- Launch the TonPlaygram Ludo bot (requires `BOT_TOKEN`):
+
+```bash
+BOT_TOKEN=your_token python3 tonplaygram_ludo.py
+```
 
 ### Database Configuration
 
