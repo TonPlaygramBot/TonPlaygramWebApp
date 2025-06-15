@@ -63,7 +63,8 @@ body {
 }
 
 .dice-face .dot {
-  @apply w-3 h-3 bg-black rounded-full;
+  /* Enlarged dots for better visibility */
+  @apply w-4 h-4 bg-black rounded-full;
 }
 
 .dice-face--front   { transform: rotateY(0deg) translateZ(3rem); }
