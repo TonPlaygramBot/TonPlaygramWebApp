@@ -15,3 +15,21 @@ TonPlaygram combines a Telegram bot with a web interface built using React and V
 4. Install the Python requirements for the dice roller:
    ```bash
    pip install -r requirements.txt
+   ```
+
+## Building the Ludo game
+
+The Ludo game embedded in the web app is built separately. To generate the static files:
+
+1. Clone the source repository:
+   ```bash
+   git clone https://github.com/eze4acme/Ludo-Built-With-React.git
+   ```
+2. Inside that project, run:
+   ```bash
+   npm install
+   npm run build
+   ```
+3. Copy the contents of the generated `dist` folder into `webapp/public/games/ludo`.
+
+The `webapp/public/games/ludo` directory is ignored in Git, so the built files won't be committed.
