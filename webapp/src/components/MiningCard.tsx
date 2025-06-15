@@ -110,7 +110,7 @@ export default function MiningCard() {
         onClick={toggleMining}
         disabled={isMining}
         className={`w-full py-4 rounded text-white text-xl font-semibold ${
-          isMining ? 'bg-green-600 cursor-not-allowed' : 'bg-red-600'
+          isMining ? 'bg-red-600 cursor-not-allowed' : 'bg-green-600'
         }`}
       >
         <div>{isMining ? 'Mining' : 'Start Mining'}</div>
