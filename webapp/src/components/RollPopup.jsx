@@ -1,5 +1,5 @@
 import React from 'react';
-import AnimatedDice from './AnimatedDice.jsx';
+import ThreeDice from './ThreeDice.jsx';
 
 export default function RollPopup({ open, avatar, onRoll, rolling, diceValues }) {
   if (!open) return null;
@@ -9,8 +9,8 @@ export default function RollPopup({ open, avatar, onRoll, rolling, diceValues })
         <img src={avatar} alt="Player" className="w-12 h-12 rounded-full mx-auto border-2 border-brand-gold" />
         <h3 className="text-lg font-bold text-brand-gold drop-shadow">Your Turn</h3>
         <div className="flex justify-center space-x-2">
-          <AnimatedDice value={diceValues[0]} rolling={rolling} />
-          <AnimatedDice value={diceValues[1]} rolling={rolling} />
+          <ThreeDice value={diceValues[0]} rolling={rolling} />
+          <ThreeDice value={diceValues[1]} rolling={rolling} />
         </div>
         <button
           onClick={onRoll}
