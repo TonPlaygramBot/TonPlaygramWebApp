@@ -1,5 +1,15 @@
 import mongoose from 'mongoose';
 
+const transactionSchema = new mongoose.Schema(
+  {
+    amount: Number,
+    type: { type: String },
+    status: { type: String, default: 'delivered' },
+    date: { type: Date, default: Date.now }
+  },
+  { _id: false }
+);
+
 const userSchema = new mongoose.Schema({
 
   telegramId: { type: Number, required: true, unique: true },
@@ -40,14 +50,7 @@ const userSchema = new mongoose.Schema({
 
   },
 
-  transactions: [
-    {
-      amount: Number,
-      type: String,
-      status: { type: String, default: 'delivered' },
-      date: { type: Date, default: Date.now }
-    }
-  ],
+  transactions: [transactionSchema],
 
   referralCode: { type: String, unique: true },
 
