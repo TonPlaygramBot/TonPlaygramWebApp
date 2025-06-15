@@ -3,12 +3,15 @@ import {
   getWalletBalance,
   getTonBalance,
   sendTpc,
-  getTransactions
+  getTransactions,
+  getDepositAddress,
+  deposit,
+  withdraw
 } from '../utils/api.js';
 import { getTelegramId } from '../utils/telegram.js';
 import OpenInTelegram from '../components/OpenInTelegram.jsx';
 import ConnectWallet from '../components/ConnectWallet.jsx';
-import { useTonWallet } from '@tonconnect/ui-react';
+import { useTonWallet, useTonConnectUI } from '@tonconnect/ui-react';
 
 export default function Wallet() {
   let telegramId;
@@ -26,7 +29,12 @@ export default function Wallet() {
   const [transactions, setTransactions] = useState([]);
   const [sending, setSending] = useState(false);
   const [receipt, setReceipt] = useState(null);
+  const [depositAmt, setDepositAmt] = useState('');
+  const [withdrawAmt, setWithdrawAmt] = useState('');
+  const [withdrawAddr, setWithdrawAddr] = useState('');
+  const [depositAddress, setDepositAddress] = useState('');
   const wallet = useTonWallet();
+  const [tonConnectUI] = useTonConnectUI();
 
   const loadBalances = async () => {
     const prof = await getWalletBalance(telegramId);
@@ -41,6 +49,7 @@ export default function Wallet() {
   useEffect(() => {
     loadBalances();
     getTransactions(telegramId).then((res) => setTransactions(res.transactions));
+    getDepositAddress().then((res) => setDepositAddress(res.address));
   }, [wallet]);
 
   const handleSend = async () => {
@@ -71,6 +80,50 @@ export default function Wallet() {
       alert('Failed to send TPC');
     } finally {
       setSending(false);
+    }
+  };
+
+  const handleDeposit = async () => {
+    const amt = Number(depositAmt);
+    if (!amt || !wallet?.account?.address) return;
+    try {
+      await tonConnectUI.sendTransaction({
+        validUntil: Math.floor(Date.now() / 1000) + 60,
+        messages: [
+          {
+            address: depositAddress,
+            amount: String(Math.floor(amt * 1e9))
+          }
+        ]
+      });
+      await deposit(telegramId, amt);
+      setDepositAmt('');
+      await loadBalances();
+      const txRes = await getTransactions(telegramId);
+      setTransactions(txRes.transactions);
+    } catch (err) {
+      console.error('Deposit failed', err);
+      alert('Failed to deposit');
+    }
+  };
+
+  const handleWithdraw = async () => {
+    const amt = Number(withdrawAmt);
+    if (!withdrawAddr || !amt) return;
+    try {
+      const res = await withdraw(telegramId, withdrawAddr, amt);
+      if (res?.error) {
+        alert(res.error);
+        return;
+      }
+      setWithdrawAmt('');
+      setWithdrawAddr('');
+      await loadBalances();
+      const txRes = await getTransactions(telegramId);
+      setTransactions(txRes.transactions);
+    } catch (err) {
+      console.error('Withdraw failed', err);
+      alert('Failed to withdraw');
     }
   };
 
@@ -131,6 +184,47 @@ export default function Wallet() {
           className="px-3 py-1 bg-green-600 text-white rounded"
         >
           Copy Account Number
+        </button>
+      </div>
+
+      <div className="space-y-1">
+        <label className="block">Deposit TON</label>
+        <input
+          type="number"
+          placeholder="Amount"
+          value={depositAmt}
+          onChange={(e) => setDepositAmt(e.target.value)}
+          className="border p-1 rounded w-full text-black"
+        />
+        <button
+          onClick={handleDeposit}
+          className="mt-1 px-3 py-1 bg-purple-600 text-white rounded"
+        >
+          Send to {depositAddress.slice(0, 4)}...{depositAddress.slice(-4)}
+        </button>
+      </div>
+
+      <div className="space-y-1">
+        <label className="block">Withdraw TON</label>
+        <input
+          type="text"
+          placeholder="Your TON Address"
+          value={withdrawAddr}
+          onChange={(e) => setWithdrawAddr(e.target.value)}
+          className="border p-1 rounded w-full text-black"
+        />
+        <input
+          type="number"
+          placeholder="Amount"
+          value={withdrawAmt}
+          onChange={(e) => setWithdrawAmt(e.target.value)}
+          className="border p-1 rounded w-full mt-1 text-black"
+        />
+        <button
+          onClick={handleWithdraw}
+          className="mt-1 px-3 py-1 bg-yellow-600 text-white rounded"
+        >
+          Withdraw
         </button>
       </div>
 
