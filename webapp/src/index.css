@@ -63,7 +63,6 @@ body {
 }
 
 .dice-face .dot {
-  /* Enlarged dots for better visibility */
   @apply w-4 h-4 bg-black rounded-full;
 }
 
@@ -73,3 +72,13 @@ body {
 .dice-face--left    { transform: rotateY(-90deg) translateZ(3rem); }
 .dice-face--top     { transform: rotateX(90deg) translateZ(3rem); }
 .dice-face--bottom  { transform: rotateX(-90deg) translateZ(3rem); }
+
+.board-cell {
+  @apply relative flex items-center justify-center bg-green-200 border border-gray-400 shadow-inner;
+  transform: translateZ(5px);
+}
+
+.token {
+  @apply absolute w-4 h-4 bg-blue-600 rounded-full shadow-lg;
+  transform: translateZ(10px);
+}

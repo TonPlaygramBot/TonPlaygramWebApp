@@ -33,7 +33,6 @@ const diceFaces = {
   ],
 };
 
-// Base tilt so the cube appears 3D when static
 const baseTilt = 'rotateX(-25deg) rotateY(25deg)';
 
 const faceTransforms = {
@@ -52,7 +51,7 @@ function Face({ value, className }) {
       <div className="grid grid-cols-3 grid-rows-3 gap-1">
         {face.flat().map((dot, i) => (
           <div key={i} className="flex items-center justify-center">
-            {dot ? <div className="dot" /> : null}
+            {dot ? <div className="dot w-2 h-2 bg-white rounded-full" /> : null}
           </div>
         ))}
       </div>
@@ -64,17 +63,19 @@ export default function Dice({ value = 1, rolling = false }) {
   const orientation = faceTransforms[value] || faceTransforms[1];
 
   return (
-    <div className="dice-container">
+    <div className="dice-container perspective-1000 w-24 h-24">
       <div
-        className={`dice-cube ${rolling ? 'animate-roll' : ''}`}
+        className={`dice-cube relative w-full h-full transition-transform duration-500 transform-style-preserve-3d ${
+          rolling ? 'animate-roll' : ''
+        }`}
         style={!rolling ? { transform: orientation } : undefined}
       >
-        <Face value={1} className="dice-face--front" />
-        <Face value={6} className="dice-face--back" />
-        <Face value={3} className="dice-face--right" />
-        <Face value={4} className="dice-face--left" />
-        <Face value={2} className="dice-face--top" />
-        <Face value={5} className="dice-face--bottom" />
+        <Face value={1} className="dice-face--front absolute" />
+        <Face value={6} className="dice-face--back absolute" />
+        <Face value={3} className="dice-face--right absolute" />
+        <Face value={4} className="dice-face--left absolute" />
+        <Face value={2} className="dice-face--top absolute" />
+        <Face value={5} className="dice-face--bottom absolute" />
       </div>
     </div>
   );
