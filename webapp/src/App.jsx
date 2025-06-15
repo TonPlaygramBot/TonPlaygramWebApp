@@ -9,12 +9,8 @@ const Referral = lazy(() => import('./pages/Referral.jsx'));
 const MyAccount = lazy(() => import('./pages/MyAccount.jsx'));
 const Store = lazy(() => import('./pages/Store.jsx'));
 
-const DiceGame = lazy(() => import('./pages/Games/DiceGame.jsx'));
 const LudoGame = lazy(() => import('./pages/Games/LudoGame.jsx'));
 const HorseRacing = lazy(() => import('./pages/Games/HorseRacing.jsx'));
-const SnakeLadders = lazy(() => import('./pages/Games/SnakeLadders.jsx'));
-const ChessGame = lazy(() => import('./pages/Games/Chess.jsx'));
-const ConnectFour = lazy(() => import('./pages/Games/ConnectFour.jsx'));
 const Games = lazy(() => import('./pages/Games.jsx'));
 const SpinPage = lazy(() => import('./pages/spin.tsx'));
 
@@ -32,12 +28,8 @@ export default function App() {
           <Route path="/" element={<Home />} />
           <Route path="/friends" element={<Friends />} />
           <Route path="/games" element={<Games />} />
-          <Route path="/games/dice" element={<DiceGame />} />
           <Route path="/games/ludo" element={<LudoGame />} />
           <Route path="/games/horse" element={<HorseRacing />} />
-          <Route path="/games/snake" element={<SnakeLadders />} />
-          <Route path="/games/connectfour" element={<ConnectFour />} />
-          <Route path="/games/chess" element={<ChessGame />} />
           <Route path="/spin" element={<SpinPage />} />
           <Route path="/tasks" element={<Tasks />} />
           <Route path="/store" element={<Store />} />

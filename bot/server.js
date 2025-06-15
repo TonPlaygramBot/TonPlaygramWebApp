@@ -119,8 +119,8 @@ app.get(manifestPath, (req, res) => {
   const proto = req.get('x-forwarded-proto') || req.protocol;
   const baseUrl = `${proto}://${req.get('host')}`;
   res.json({
-    name: 'TonPlaygram Chess',
-    description: 'Play chess with TPC staking via Tonkeeper',
+    name: 'TonPlaygram',
+    description: 'Play games with TPC staking via Tonkeeper',
     url: baseUrl,
     icons: [`${baseUrl}/icons/tpc.svg`]
   });

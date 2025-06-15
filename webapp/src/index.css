@@ -11,17 +11,6 @@ body {
   clip-path: polygon(25% 5%, 75% 5%, 100% 50%, 75% 95%, 25% 95%, 0% 50%);
 }
 
-/* Chess piece color adjustments */
-[data-piece^="w"] svg {
-  /* metallic gold */
-  filter: sepia(1) saturate(5) hue-rotate(15deg) brightness(1.1);
-}
-
-[data-piece^="b"] svg {
-  /* matte black */
-  filter: brightness(0.2);
-}
-
 .player-avatar {
   @apply w-12 h-12 rounded-full border border-yellow-400;
 }
