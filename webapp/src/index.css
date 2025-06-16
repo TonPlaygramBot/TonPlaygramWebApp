@@ -119,7 +119,7 @@ body {
 }
 
 .token {
-  @apply absolute w-4 h-4 bg-blue-600 rounded-full shadow-lg;
+  @apply absolute w-16 h-16 rounded-full shadow-lg object-cover;
   transform: translateZ(10px);
 }
 
