@@ -1,5 +1,6 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 
+// Dice face dot matrix
 const diceFaces = {
   1: [
     [0, 0, 0],
@@ -33,26 +34,20 @@ const diceFaces = {
   ],
 };
 
+// Gentle tilt so three faces are visible
 const baseTilt = 'rotateX(-25deg) rotateY(25deg)';
 
-const valueToSide = {
-  1: 'bottom',
-  2: 'right',
-  3: 'top',
-  4: 'left',
-  5: 'front',
-  6: 'back',
+// Orientation for each numbered face relative to the viewer
+const faceTransforms = {
+  1: `rotateX(0deg) rotateY(0deg) ${baseTilt}`,
+  2: `rotateX(-90deg) rotateY(0deg) ${baseTilt}`,
+  3: `rotateY(90deg) ${baseTilt}`,
+  4: `rotateY(-90deg) ${baseTilt}`,
+  5: `rotateX(90deg) rotateY(0deg) ${baseTilt}`,
+  6: `rotateY(180deg) ${baseTilt}`,
 };
 
-const sideTransforms = {
-  front: 'rotateX(0deg) rotateY(0deg)',
-  back: 'rotateY(180deg)',
-  right: 'rotateY(90deg)',
-  left: 'rotateY(-90deg)',
-  top: 'rotateX(-90deg)',
-  bottom: 'rotateX(90deg)',
-};
-
+// 🎲 Single dice face component
 function Face({ value, className }) {
   const face = diceFaces[value];
   return (
@@ -68,10 +63,16 @@ function Face({ value, className }) {
   );
 }
 
-export default function Dice({ value = 1, rolling = false }) {
-  const side = valueToSide[value] || 'front';
-  const transform = sideTransforms[side] || 'rotateX(0deg) rotateY(0deg)';
-  const orientation = `${transform} ${baseTilt}`;
+// 🎲 Single cube component
+function DiceCube({ value = 1, rolling = false, playSound = false }) {
+  const orientation = faceTransforms[value] || faceTransforms[1];
+
+  useEffect(() => {
+    if (rolling && playSound) {
+      const audio = new Audio('/sounds/dice-roll.mp3');
+      audio.play().catch(() => {}); // Handle autoplay restrictions gracefully
+    }
+  }, [rolling, playSound]);
 
   return (
     <div className="dice-container perspective-1000 w-24 h-24">
@@ -81,13 +82,23 @@ export default function Dice({ value = 1, rolling = false }) {
         }`}
         style={!rolling ? { transform: orientation } : undefined}
       >
-        <Face value={5} className="dice-face--front absolute" />
+        <Face value={1} className="dice-face--front absolute" />
         <Face value={6} className="dice-face--back absolute" />
-        <Face value={2} className="dice-face--right absolute" />
+        <Face value={3} className="dice-face--right absolute" />
         <Face value={4} className="dice-face--left absolute" />
-        <Face value={3} className="dice-face--top absolute" />
-        <Face value={1} className="dice-face--bottom absolute" />
+        <Face value={2} className="dice-face--top absolute" />
+        <Face value={5} className="dice-face--bottom absolute" />
       </div>
+    </div>
+  );
+}
+
+// 🎲 Pair of dice — default setup
+export default function DicePair({ values = [1, 1], rolling = false, playSound = false }) {
+  return (
+    <div className="flex gap-4 justify-center items-center">
+      <DiceCube value={values[0]} rolling={rolling} playSound={playSound} />
+      <DiceCube value={values[1]} rolling={rolling} playSound={playSound} />
     </div>
   );
 }

@@ -1,36 +1,67 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import Dice from './Dice.jsx';
 
-export default function DiceRoller({ onRollEnd }) {
-  const [value, setValue] = useState(1);
+export default function DiceRoller({ onRollEnd, clickable = false }) {
+  const [values, setValues] = useState([1, 1]);
   const [rolling, setRolling] = useState(false);
+  const soundRef = useRef(null);
+
+  useEffect(() => {
+    soundRef.current = new Audio('/assets/sounds/spinning.mp3');
+    soundRef.current.preload = 'auto';
+    return () => {
+      soundRef.current?.pause();
+    };
+  }, []);
 
   const rollDice = () => {
     if (rolling) return;
+    if (soundRef.current) {
+      soundRef.current.currentTime = 0;
+      soundRef.current.play().catch(() => {});
+    }
     setRolling(true);
+    const rand = () => {
+      if (window.crypto && window.crypto.getRandomValues) {
+        const arr = new Uint32Array(1);
+        window.crypto.getRandomValues(arr);
+        return (arr[0] % 6) + 1;
+      }
+      return Math.floor(Math.random() * 6) + 1;
+    };
+
     let count = 0;
     const id = setInterval(() => {
-      const v = Math.floor(Math.random() * 6) + 1;
-      setValue(v);
+      const v1 = rand();
+      const v2 = rand();
+      setValues([v1, v2]);
       count += 1;
       if (count >= 20) {
         clearInterval(id);
         setRolling(false);
-        onRollEnd && onRollEnd(v);
+        onRollEnd && onRollEnd([v1, v2]);
       }
     }, 100);
   };
 
   return (
     <div className="flex flex-col items-center space-y-4">
-      <Dice value={value} rolling={rolling} />
-      <button
-        onClick={rollDice}
-        disabled={rolling}
-        className="px-4 py-2 bg-primary hover:bg-primary-hover text-white rounded disabled:opacity-50"
+      <div
+        className={`flex space-x-4 ${clickable ? 'cursor-pointer' : ''}`}
+        onClick={clickable ? rollDice : undefined}
       >
-        Roll Dice
-      </button>
+        <Dice value={values[0]} rolling={rolling} />
+        <Dice value={values[1]} rolling={rolling} />
+      </div>
+      {!clickable && (
+        <button
+          onClick={rollDice}
+          disabled={rolling}
+          className="px-4 py-2 bg-primary hover:bg-primary-hover text-white rounded disabled:opacity-50"
+        >
+          Roll Dice
+        </button>
+      )}
     </div>
   );
 }
