@@ -57,6 +57,7 @@ function Board({ position, highlight, photoUrl, pot }) {
 
   const cellWidth = 100;
   const cellHeight = 50;
+  const topPadding = cellHeight * 5.5; // space for logo and pot
   // Slightly closer camera that zooms in more as the player climbs
   const zoom = 1.1 + (position / FINAL_TILE) * 0.5;
 
@@ -89,7 +90,11 @@ function Board({ position, highlight, photoUrl, pot }) {
       <div
         ref={containerRef}
         className="overflow-y-auto"
-        style={{ height: '80vh' }}
+        style={{
+          height: '80vh',
+          overscrollBehaviorY: 'none',
+          paddingTop: topPadding,
+        }}
       >
         <div className="snake-board-tilt">
           <div
