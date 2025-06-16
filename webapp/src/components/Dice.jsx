@@ -52,7 +52,6 @@ function Face({ value, className }) {
 }
 
 export default function Dice({ value = 1, rolling = false }) {
-  // Always render from a static camera view
   const orientation = baseTilt;
 
   return (
@@ -63,13 +62,10 @@ export default function Dice({ value = 1, rolling = false }) {
         }`}
         style={!rolling ? { transform: orientation } : undefined}
       >
-        {/* Static side faces */}
         <Face value={5} className="dice-face--front absolute" />
         <Face value={6} className="dice-face--back absolute" />
         <Face value={2} className="dice-face--right absolute" />
         <Face value={4} className="dice-face--left absolute" />
-        
-        {/* Only top face changes dynamically */}
         <Face value={value} className="dice-face--top absolute" />
         <Face value={7 - value} className="dice-face--bottom absolute" />
       </div>
