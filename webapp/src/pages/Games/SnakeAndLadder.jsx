@@ -21,8 +21,6 @@ const PLAYERS = 4;
 const ROWS = 25;
 const COLS = 4;
 const FINAL_TILE = ROWS * COLS + 1; // 101
-// Portion of the viewport to keep below the player's token when scrolling
-const CAMERA_OFFSET = 0.7;
 
 function Board({ position, highlight, photoUrl, pot }) {
   const containerRef = useRef(null);
@@ -57,38 +55,14 @@ function Board({ position, highlight, photoUrl, pot }) {
 
   const cellWidth = 100;
   const cellHeight = 50;
-  // Slightly closer camera that zooms in more as the player climbs
-  const zoom = 1.1 + (position / FINAL_TILE) * 0.5;
-
-  useEffect(() => {
-    const container = containerRef.current;
-    if (container) container.scrollTop = container.scrollHeight;
-  }, []);
-
-  useEffect(() => {
-    const container = containerRef.current;
-    if (!container || position === 0) return;
-    const cell = container.querySelector(`[data-cell='${position}']`);
-    if (cell) {
-      const cRect = container.getBoundingClientRect();
-      const cellRect = cell.getBoundingClientRect();
-      // Keep the player's token slightly lower on screen so the camera
-      // follows from behind rather than centering exactly
-      const offset =
-        cellRect.top - cRect.top - cRect.height * CAMERA_OFFSET + cellRect.height / 2;
-      const target = Math.min(
-        container.scrollHeight - cRect.height,
-        Math.max(0, container.scrollTop + offset)
-      );
-      container.scrollTo({ top: target, behavior: 'smooth' });
-    }
-  }, [position]);
+  // Fixed board scaling for a locked view
+  const zoom = 1.1;
 
   return (
     <div className="flex justify-center items-center w-screen overflow-hidden">
       <div
         ref={containerRef}
-        className="overflow-y-auto overflow-x-hidden"
+        className="overflow-hidden"
         style={{ height: '80vh', overscrollBehaviorY: 'contain', paddingTop: '0.5rem' }}
       >
         <div className="snake-board-tilt">
