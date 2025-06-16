@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import DiceRoller from "../../components/DiceRoller.jsx";
 import RoomPopup from "../../components/RoomPopup.jsx";
 import useTelegramBackButton from "../../hooks/useTelegramBackButton.js";
@@ -76,6 +76,15 @@ export default function SnakeAndLadder() {
   const [showRoom, setShowRoom] = useState(true);
   const [highlight, setHighlight] = useState(null);
   const [message, setMessage] = useState("");
+  const moveSoundRef = useRef(null);
+
+  useEffect(() => {
+    moveSoundRef.current = new Audio('https://snakes-and-ladders-game.netlify.app/audio/drop.mp3');
+    moveSoundRef.current.preload = 'auto';
+    return () => {
+      moveSoundRef.current?.pause();
+    };
+  }, []);
 
   const handleRoll = (values) => {
     const value = Array.isArray(values)
@@ -111,6 +120,10 @@ export default function SnakeAndLadder() {
       }
       const next = steps[index];
       setPos(next);
+      if (moveSoundRef.current) {
+        moveSoundRef.current.currentTime = 0;
+        moveSoundRef.current.play().catch(() => {});
+      }
       setHighlight(next);
       setTimeout(() => move(index + 1), 300);
     };

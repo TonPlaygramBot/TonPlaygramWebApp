@@ -7,7 +7,7 @@ export default function DiceRoller({ onRollEnd, clickable = false }) {
   const soundRef = useRef(null);
 
   useEffect(() => {
-    soundRef.current = new Audio('/assets/sounds/spinning.mp3');
+    soundRef.current = new Audio('https://snakes-and-ladders-game.netlify.app/audio/dice.mp3');
     soundRef.current.preload = 'auto';
     return () => {
       soundRef.current?.pause();
