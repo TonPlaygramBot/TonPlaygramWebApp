@@ -50,6 +50,10 @@ app.use('/api/checkin', checkinRoutes);
 const webappPath = path.join(__dirname, '../webapp/dist');
 
 function ensureWebappBuilt() {
+  if (process.env.SKIP_WEBAPP_BUILD) {
+    console.log('Skipping webapp build');
+    return true;
+  }
   if (
     existsSync(path.join(webappPath, 'index.html')) &&
     existsSync(path.join(webappPath, 'assets'))
