@@ -63,10 +63,8 @@ export default function Lobby() {
     navigate(`/games/${game}?${params.toString()}`);
   };
 
-  const disabled =
-    !stake.token ||
-    !stake.amount ||
-    (game === 'snake' && (!table || players.length < table.capacity));
+  // Allow starting the game without fulfilling lobby requirements while testing
+  const disabled = false; // TODO: restore lobby checks when done testing
 
   return (
     <div className="p-4 space-y-4 text-text">
