@@ -53,13 +53,11 @@ function Board({ position, highlight, photoUrl, pot }) {
 
   const cellWidth = 100;
   const cellHeight = 50;
-  const zoom = 0.85 + (position / FINAL_TILE) * 0.4;
+  const zoom = 1 + (position / FINAL_TILE) * 0.4;
 
   useEffect(() => {
     const container = containerRef.current;
-    if (container) {
-      container.scrollTop = container.scrollHeight; // Scroll to bottom on mount
-    }
+    if (container) container.scrollTop = container.scrollHeight;
   }, []);
 
   useEffect(() => {
@@ -117,7 +115,7 @@ export default function SnakeAndLadder() {
   const [highlight, setHighlight] = useState(null);
   const [message, setMessage] = useState("");
   const [photoUrl, setPhotoUrl] = useState("");
-  const [pot, setPot] = useState(100); // Placeholder: real pot should come from context
+  const [pot, setPot] = useState(100);
 
   const moveSoundRef = useRef(null);
   const snakeSoundRef = useRef(null);
