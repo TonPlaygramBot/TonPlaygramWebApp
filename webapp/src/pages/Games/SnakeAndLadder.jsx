@@ -5,6 +5,7 @@ import useTelegramBackButton from "../../hooks/useTelegramBackButton.js";
 import { getTelegramPhotoUrl } from "../../utils/telegram.js";
 
 // Simple snake and ladder layout for a 10x10 board
+// The final tile 101 is the "Pot" where the winner collects all stakes
 const snakes = {
   17: 4,
   19: 7,
@@ -28,10 +29,12 @@ const ladders = {
   36: 44,
   51: 67,
   71: 91,
-  80: 100,
+  80: 101, // ladder to the Pot
 };
 
-function Board({ position, highlight, photoUrl }) {
+const PLAYERS = 4; // temporary number of players
+
+function Board({ position, highlight, photoUrl, pot }) {
   const tiles = [];
   for (let r = 0; r < 10; r++) {
     const reversed = r % 2 === 1;
@@ -80,6 +83,15 @@ function Board({ position, highlight, photoUrl }) {
         }}
       >
         {tiles}
+        <div
+          className={`pot-cell ${highlight === 101 ? 'highlight' : ''}`}
+        >
+          <span className="font-bold">Pot</span>
+          <span className="text-sm">{pot}</span>
+          {position === 101 && (
+            <img src={photoUrl} alt="player" className="token" />
+          )}
+        </div>
       </div>
     </div>
   );
@@ -94,10 +106,18 @@ export default function SnakeAndLadder() {
   const [highlight, setHighlight] = useState(null);
   const [message, setMessage] = useState("");
   const [photoUrl, setPhotoUrl] = useState("");
+  const [pot, setPot] = useState(0);
   const moveSoundRef = useRef(null);
   const snakeSoundRef = useRef(null);
   const ladderSoundRef = useRef(null);
   const winSoundRef = useRef(null);
+
+  const handleConfirm = () => {
+    if (selection) {
+      setPot(selection.amount * PLAYERS);
+    }
+    setShowRoom(false);
+  };
 
   useEffect(() => {
     setPhotoUrl(getTelegramPhotoUrl());
@@ -137,7 +157,7 @@ export default function SnakeAndLadder() {
         setMessage("Need a 6 to start!");
         return;
       }
-    } else if (current + value <= 100) {
+    } else if (current + value <= 101) {
       target = current + value;
     } else {
       setMessage("Need exact roll!");
@@ -161,8 +181,8 @@ export default function SnakeAndLadder() {
         setTimeout(() => {
           setPos(finalPos);
           setHighlight(null);
-          if (finalPos === 100) {
-            setMessage("You win!");
+          if (finalPos === 101) {
+            setMessage(`You win ${pot} ${selection?.token || ''}!`);
             winSoundRef.current?.play().catch(() => {});
           } else if (ladder) {
             ladderSoundRef.current?.play().catch(() => {});
@@ -190,15 +210,16 @@ export default function SnakeAndLadder() {
       <h2 className="text-xl font-bold">Snake &amp; Ladder</h2>
       <p className="text-sm text-subtext">
         Roll the dice to move across the board. Ladders move you up, snakes bring
-        you down. Reach tile 100 first to win.
+        you down. The Pot at the top collects everyone's stake – reach it first
+        to claim the total amount.
       </p>
       <RoomPopup
         open={showRoom}
         selection={selection}
         setSelection={setSelection}
-        onConfirm={() => setShowRoom(false)}
+        onConfirm={handleConfirm}
       />
-      <Board position={pos} highlight={highlight} photoUrl={photoUrl} />
+      <Board position={pos} highlight={highlight} photoUrl={photoUrl} pot={pot} />
       {message && <div className="text-center font-semibold">{message}</div>}
       <DiceRoller onRollEnd={handleRoll} clickable numDice={1} />
     </div>

@@ -132,3 +132,18 @@ body {
 .board-cell.highlight {
   box-shadow: 0 0 10px 4px rgba(250, 204, 21, 0.8);
 }
+
+.pot-cell {
+  @apply absolute flex flex-col items-center justify-center hexagon bg-primary text-background border-2 border-accent;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.5);
+  width: calc(var(--cell-width) * 1.5);
+  height: calc(var(--cell-height) * 1.5);
+  top: calc(var(--cell-height) * -0.75);
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 10;
+}
+
+.pot-cell.highlight {
+  box-shadow: 0 0 10px 4px rgba(250, 204, 21, 0.8);
+}
