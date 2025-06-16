@@ -65,7 +65,10 @@ function Board({ position, highlight, photoUrl }) {
 
   return (
     <div className="flex justify-center">
-      <div className="grid grid-rows-10 grid-cols-10 gap-1 w-[640px] h-[640px] relative">
+      <div
+        className="grid grid-rows-10 grid-cols-10 gap-1 relative"
+        style={{ width: '90vmin', height: '90vmin' }}
+      >
         {tiles}
       </div>
     </div>

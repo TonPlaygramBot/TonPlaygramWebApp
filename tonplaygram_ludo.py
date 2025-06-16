@@ -10,8 +10,9 @@ from PIL import Image, ImageDraw, ImageFont
 from telegram import Update
 from telegram.ext import Application, CommandHandler, ContextTypes
 
-DATA_FILE = Path("ludo_sessions.json")
-BOARD_TEMPLATE = Path("ludo_board.png")
+BASE_DIR = Path(__file__).resolve().parent
+DATA_FILE = BASE_DIR / "ludo_sessions.json"
+BOARD_TEMPLATE = BASE_DIR / "ludo_board.png"
 BOARD_SIZE = 600  # increased so each cell matches dice size
 GRID = 15
 CELL = BOARD_SIZE // GRID
