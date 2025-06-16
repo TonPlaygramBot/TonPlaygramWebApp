@@ -20,6 +20,7 @@ test('server exposes manifest endpoint from TONCONNECT_MANIFEST_URL', async () =
     PORT: '3100',
     MONGODB_URI: 'memory',
     SKIP_BOT_LAUNCH: '1',
+    SKIP_WEBAPP_BUILD: '1',
     TONCONNECT_MANIFEST_URL: '/test-manifest.json'
   };
   const server = await startServer(env);

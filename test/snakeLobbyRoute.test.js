@@ -18,7 +18,8 @@ test('snake lobby route lists players', async () => {
     ...process.env,
     PORT: '3200',
     MONGODB_URI: 'memory',
-    SKIP_BOT_LAUNCH: '1'
+    SKIP_BOT_LAUNCH: '1',
+    SKIP_WEBAPP_BUILD: '1'
   };
   const server = await startServer(env);
   try {
