@@ -1,4 +1,4 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 
 const diceFaces = {
   1: [
@@ -64,6 +64,31 @@ function DiceCube({
   // Keep a fixed isometric orientation and simply swap the top face.
   const orientation = baseTilt;
 
+  const rand = () => {
+    if (window.crypto && window.crypto.getRandomValues) {
+      const arr = new Uint32Array(1);
+      window.crypto.getRandomValues(arr);
+      return (arr[0] % 6) + 1;
+    }
+    return Math.floor(Math.random() * 6) + 1;
+  };
+
+  const [sides, setSides] = useState([2, 4]);
+
+  useEffect(() => {
+    const used = new Set([value]);
+    let front = rand();
+    while (used.has(front)) {
+      front = rand();
+    }
+    used.add(front);
+    let right = rand();
+    while (used.has(right)) {
+      right = rand();
+    }
+    setSides([front, right]);
+  }, [value]);
+
   useEffect(() => {
     if (rolling && playSound) {
       const audio = new Audio(
@@ -81,11 +106,11 @@ function DiceCube({
         }`}
         style={{ transform: orientation }}
       >
-        {/* Static side faces */}
-        <Face value={5} className="dice-face--front absolute" />
-        <Face value={6} className="dice-face--back absolute" />
-        <Face value={2} className="dice-face--right absolute" />
-        <Face value={4} className="dice-face--left absolute" />
+        {/* Dynamic side faces */}
+        <Face value={sides[0]} className="dice-face--front absolute" />
+        <Face value={7 - sides[0]} className="dice-face--back absolute" />
+        <Face value={sides[1]} className="dice-face--right absolute" />
+        <Face value={7 - sides[1]} className="dice-face--left absolute" />
 
         {/* Top and bottom change dynamically */}
         <Face value={value} className="dice-face--top absolute" />
