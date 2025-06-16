@@ -29,6 +29,7 @@ export default function DiceRoller({ onRollEnd, clickable = false, numDice = 2 }
     }
     startValuesRef.current = values;
     setRolling(true);
+
     const rand = () => {
       if (window.crypto && window.crypto.getRandomValues) {
         const arr = new Uint32Array(1);
@@ -38,18 +39,24 @@ export default function DiceRoller({ onRollEnd, clickable = false, numDice = 2 }
       return Math.floor(Math.random() * 6) + 1;
     };
 
+    const tick = 50; // ms between face changes
+    const iterations = 19; // show final value just before animation ends
     let count = 0;
+
     const id = setInterval(() => {
       const results = Array.from({ length: numDice }, rand);
       setValues(results);
       count += 1;
-      if (count >= 20) {
+      if (count >= iterations) {
         clearInterval(id);
-        setRolling(false);
-        startValuesRef.current = results;
-        onRollEnd && onRollEnd(results);
+        // allow the final face to be visible before stopping
+        setTimeout(() => {
+          setRolling(false);
+          startValuesRef.current = results;
+          onRollEnd && onRollEnd(results);
+        }, tick);
       }
-    }, 100);
+    }, tick);
   };
 
   return (
