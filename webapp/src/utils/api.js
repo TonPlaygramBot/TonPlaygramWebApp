@@ -191,3 +191,7 @@ export function grantAirdrop(token, telegramId, amount, reason = '') {
 export function grantAirdropAll(token, amount, reason = '') {
   return post('/api/airdrop/grant-all', { amount, reason }, token);
 }
+
+export function getSnakeLobbies() {
+  return fetch(API_BASE_URL + '/api/snake/lobbies').then((r) => r.json());
+}
