@@ -21,6 +21,7 @@ const COLS = 4;
 const FINAL_TILE = ROWS * COLS + 1; // 101
 
 function Board({ position, highlight, photoUrl, pot }) {
+  const containerRef = useRef(null);
   const tiles = [];
   for (let r = 0; r < ROWS; r++) {
     const reversed = r % 2 === 1;
@@ -30,6 +31,7 @@ function Board({ position, highlight, photoUrl, pot }) {
       tiles.push(
         <div
           key={num}
+          data-cell={num}
           className={`board-cell ${highlight === num ? "highlight" : ""}`}
           style={{ gridRowStart: ROWS - r, gridColumnStart: col + 1 }}
         >
@@ -56,14 +58,38 @@ function Board({ position, highlight, photoUrl, pot }) {
   const cellWidth = 100;
   const cellHeight = 50;
 
+  useEffect(() => {
+    const container = containerRef.current;
+    if (container) {
+      container.scrollTop = container.scrollHeight;
+    }
+  }, []);
+
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container || position === 0) return;
+    const cell = container.querySelector(`[data-cell='${position}']`);
+    if (cell) {
+      const cRect = container.getBoundingClientRect();
+      const cellRect = cell.getBoundingClientRect();
+      const offset = cellRect.top - cRect.top - cRect.height / 2 + cellRect.height / 2;
+      container.scrollBy({ top: offset, behavior: 'smooth' });
+    }
+  }, [position]);
+
   return (
     <div className="flex justify-center">
-      <div className="snake-board-tilt"> {/* 👈 Apply rotation in CSS */}
-        <div
-          className="snake-board-grid grid gap-1 relative"
-          style={{
-            width: `${cellWidth * COLS}px`,
-            height: `${cellHeight * ROWS}px`,
+      <div
+        ref={containerRef}
+        className="overflow-y-auto"
+        style={{ height: '70vh' }}
+      >
+        <div className="snake-board-tilt"> {/* 👈 Apply rotation in CSS */}
+          <div
+            className="snake-board-grid grid gap-1 relative"
+            style={{
+              width: `${cellWidth * COLS}px`,
+              height: `${cellHeight * ROWS}px`,
             gridTemplateColumns: `repeat(${COLS}, ${cellWidth}px)`,
             gridTemplateRows: `repeat(${ROWS}, ${cellHeight}px)`,
             '--cell-width': `${cellWidth}px`,
@@ -71,13 +97,14 @@ function Board({ position, highlight, photoUrl, pot }) {
           }}
         >
           {tiles}
-          <div className={`pot-cell ${highlight === FINAL_TILE ? 'highlight' : ''}`}>
+          <div className={`pot-cell ${highlight === FINAL_TILE ? 'highlight' : ''}`}> 
             <span className="font-bold">Pot</span>
             <span className="text-sm">{pot}</span>
             {position === FINAL_TILE && (
               <img src={photoUrl} alt="player" className="token" />
             )}
           </div>
+        </div>
         </div>
       </div>
     </div>
@@ -187,14 +214,16 @@ export default function SnakeAndLadder() {
   };
 
   return (
-    <div className="p-4 space-y-4 text-text">
+    <div className="p-4 pb-32 space-y-4 text-text flex flex-col items-center">
       <h2 className="text-xl font-bold">Snake &amp; Ladder</h2>
-      <p className="text-sm text-subtext">
+      <p className="text-sm text-subtext text-center">
         Roll the dice to move across the board. Ladders move you up, snakes bring you down. The Pot at the top collects everyone's stake – reach it first to claim the total amount.
       </p>
       <Board position={pos} highlight={highlight} photoUrl={photoUrl} pot={pot} />
-      {message && <div className="text-center font-semibold">{message}</div>}
-      <DiceRoller onRollEnd={handleRoll} clickable numDice={1} />
+      {message && <div className="text-center font-semibold w-full">{message}</div>}
+      <div className="fixed bottom-24 inset-x-0 flex justify-center z-20">
+        <DiceRoller onRollEnd={handleRoll} clickable numDice={1} />
+      </div>
     </div>
   );
 }
