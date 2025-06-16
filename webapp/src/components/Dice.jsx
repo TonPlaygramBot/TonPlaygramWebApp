@@ -66,9 +66,9 @@ function Face({ value, className }) {
 // 🎲 Single cube component
 function DiceCube({ value = 1, rolling = false, playSound = false, prevValue }) {
   const displayVal = rolling ? prevValue ?? value : value;
-  // Keep the cube orientation fixed so the dice appears in the same position
-  // every roll. Only the dots change to reflect the rolled number.
-  const orientation = baseTilt;
+  // Rotate the cube so the rolled face appears on top while keeping
+  // the overall tilt consistent.
+  const orientation = faceTransforms[displayVal];
   const opposite = { 1: 6, 2: 5, 3: 4, 4: 3, 5: 2, 6: 1 };
 
   useEffect(() => {
