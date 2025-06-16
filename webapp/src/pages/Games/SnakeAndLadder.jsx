@@ -1,8 +1,10 @@
 import { useState, useEffect, useRef } from "react";
 import DiceRoller from "../../components/DiceRoller.jsx";
 import RoomPopup from "../../components/RoomPopup.jsx";
+import TablePopup from "../../components/TablePopup.jsx";
 import useTelegramBackButton from "../../hooks/useTelegramBackButton.js";
 import { getTelegramPhotoUrl } from "../../utils/telegram.js";
+import { getSnakeLobbies } from "../../utils/api.js";
 
 // Simple snake and ladder layout for a 10x10 board
 const snakes = {
@@ -89,7 +91,10 @@ export default function SnakeAndLadder() {
   useTelegramBackButton();
   const [pos, setPos] = useState(0);
   const [selection, setSelection] = useState(null);
-  const [showRoom, setShowRoom] = useState(true);
+  const [showTable, setShowTable] = useState(true);
+  const [showRoom, setShowRoom] = useState(false);
+  const [tables, setTables] = useState([]);
+  const [selectedTable, setSelectedTable] = useState(null);
   const [streak, setStreak] = useState(0);
   const [highlight, setHighlight] = useState(null);
   const [message, setMessage] = useState("");
@@ -114,6 +119,23 @@ export default function SnakeAndLadder() {
       snakeSoundRef.current?.pause();
       ladderSoundRef.current?.pause();
       winSoundRef.current?.pause();
+    };
+  }, []);
+
+  useEffect(() => {
+    let active = true;
+    function load() {
+      getSnakeLobbies()
+        .then((data) => {
+          if (active) setTables(data);
+        })
+        .catch(() => {});
+    }
+    load();
+    const id = setInterval(load, 5000);
+    return () => {
+      active = false;
+      clearInterval(id);
     };
   }, []);
 
@@ -192,6 +214,15 @@ export default function SnakeAndLadder() {
         Roll the dice to move across the board. Ladders move you up, snakes bring
         you down. Reach tile 100 first to win.
       </p>
+      <TablePopup
+        open={showTable}
+        tables={tables}
+        onSelect={(t) => {
+          setSelectedTable(t);
+          setShowTable(false);
+          setShowRoom(true);
+        }}
+      />
       <RoomPopup
         open={showRoom}
         selection={selection}

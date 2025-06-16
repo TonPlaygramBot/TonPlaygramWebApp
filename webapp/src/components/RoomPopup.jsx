@@ -1,6 +1,11 @@
 import RoomSelector from './RoomSelector.jsx';
 
-export default function RoomPopup({ open, selection, setSelection, onConfirm }) {
+export default function RoomPopup({
+  open,
+  selection,
+  setSelection,
+  onConfirm,
+}) {
   if (!open) return null;
   const disabled = !selection || !selection.token || !selection.amount;
   return (
