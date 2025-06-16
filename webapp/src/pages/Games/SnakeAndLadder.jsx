@@ -39,7 +39,10 @@ const ROWS = 25;
 const COLS = 4;
 const FINAL_TILE = ROWS * COLS + 1; // 101
 // Portion of the viewport to keep below the player's token when scrolling
-const CAMERA_OFFSET = 0.7;
+// Portion of the viewport to keep below the player's token when scrolling.
+// Larger values track the player from a lower angle giving more focus on the
+// logo placed at the top of the board.
+const CAMERA_OFFSET = 0.85;
 
 function Board({ position, highlight, photoUrl, pot, snakes, ladders }) {
   const containerRef = useRef(null);
@@ -114,8 +117,12 @@ function Board({ position, highlight, photoUrl, pot, snakes, ladders }) {
   for (const [s, e] of Object.entries(snakes)) {
     connectors.push(renderConnector(Number(s), Number(e), 'snake'));
   }
-  // Slightly closer camera that zooms in more as the player climbs
-  const zoom = 1.1 + (position / FINAL_TILE) * 0.5;
+  // Zoom in progressively as the player moves upward so that the logo at the
+  // top of the board stays roughly the same size in the viewport. The closer
+  // the user is to the pot, the more we scale the board.
+  const MIN_ZOOM = 1.1;
+  const MAX_ZOOM = 1.8;
+  const zoom = MIN_ZOOM + (position / FINAL_TILE) * (MAX_ZOOM - MIN_ZOOM);
 
   useEffect(() => {
     const container = containerRef.current;
@@ -129,8 +136,8 @@ function Board({ position, highlight, photoUrl, pot, snakes, ladders }) {
     if (cell) {
       const cRect = container.getBoundingClientRect();
       const cellRect = cell.getBoundingClientRect();
-      // Keep the player's token slightly lower on screen so the camera
-      // follows from behind rather than centering exactly
+      // Keep the token near the bottom of the viewport so the camera follows
+      // from a lower angle and focuses attention on the logo at the top
       const offset =
         cellRect.top - cRect.top - cRect.height * CAMERA_OFFSET + cellRect.height / 2;
       const target = Math.min(
@@ -158,8 +165,8 @@ function Board({ position, highlight, photoUrl, pot, snakes, ladders }) {
               gridTemplateRows: `repeat(${ROWS}, ${cellHeight}px)`,
               '--cell-width': `${cellWidth}px`,
               '--cell-height': `${cellHeight}px`,
-              // Lower the viewing angle for a more immersive feel
-              transform: `rotateX(70deg) scale(${zoom})`,
+              // Lower camera angle focused on the logo wall
+              transform: `rotateX(80deg) scale(${zoom})`,
             }}
           >
             {tiles}
