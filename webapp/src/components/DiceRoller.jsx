@@ -1,32 +1,13 @@
 import React, { useState, useEffect, useRef } from 'react';
 import Dice from './Dice.jsx';
 
-export default function DiceRoller({ onRollEnd, clickable = false, numDice = 2 }) {
-  const rand = () => {
-    if (window.crypto && window.crypto.getRandomValues) {
-      const arr = new Uint32Array(1);
-      window.crypto.getRandomValues(arr);
-      return (arr[0] % 6) + 1;
-    }
-    return Math.floor(Math.random() * 6) + 1;
-  };
-
-  const initial = Array.from({ length: numDice }, rand);
-  const [values, setValues] = useState(initial); // result for next roll
-  const [rollingVals, setRollingVals] = useState(initial); // temp roll visuals
+export default function DiceRoller({ onRollEnd, clickable = false }) {
+  const [values, setValues] = useState([1, 1]);
   const [rolling, setRolling] = useState(false);
   const soundRef = useRef(null);
-  const startValuesRef = useRef(initial); // stores values for this roll
 
   useEffect(() => {
-    const init = Array.from({ length: numDice }, rand);
-    setValues(init);
-    setRollingVals(init);
-    startValuesRef.current = init;
-  }, [numDice]);
-
-  useEffect(() => {
-    soundRef.current = new Audio('https://snakes-and-ladders-game.netlify.app/audio/dice.mp3');
+    soundRef.current = new Audio('/assets/sounds/spinning.mp3');
     soundRef.current.preload = 'auto';
     return () => {
       soundRef.current?.pause();
@@ -35,31 +16,30 @@ export default function DiceRoller({ onRollEnd, clickable = false, numDice = 2 }
 
   const rollDice = () => {
     if (rolling) return;
-
     if (soundRef.current) {
       soundRef.current.currentTime = 0;
       soundRef.current.play().catch(() => {});
     }
-
-    // Use current values as fixed starting orientation for the animation
-    startValuesRef.current = values.slice();
     setRolling(true);
+    const rand = () => {
+      if (window.crypto && window.crypto.getRandomValues) {
+        const arr = new Uint32Array(1);
+        window.crypto.getRandomValues(arr);
+        return (arr[0] % 6) + 1;
+      }
+      return Math.floor(Math.random() * 6) + 1;
+    };
 
     let count = 0;
     const id = setInterval(() => {
-      // Random temp display values during spin
-      setRollingVals(Array.from({ length: numDice }, rand));
+      const v1 = rand();
+      const v2 = rand();
+      setValues([v1, v2]);
       count += 1;
       if (count >= 20) {
         clearInterval(id);
         setRolling(false);
-        // Restore the original value for consistent final position
-        setRollingVals(startValuesRef.current);
-        onRollEnd && onRollEnd(startValuesRef.current);
-        // Prepare next values for next roll
-        const next = Array.from({ length: numDice }, rand);
-        setValues(next);
-        startValuesRef.current = next.slice();
+        onRollEnd && onRollEnd([v1, v2]);
       }
     }, 100);
   };
@@ -70,14 +50,8 @@ export default function DiceRoller({ onRollEnd, clickable = false, numDice = 2 }
         className={`flex space-x-4 ${clickable ? 'cursor-pointer' : ''}`}
         onClick={clickable ? rollDice : undefined}
       >
-        {rollingVals.map((val, i) => (
-          <Dice
-            key={i}
-            value={val}
-            rolling={rolling}
-            prevValue={startValuesRef.current[i]}
-          />
-        ))}
+        <Dice value={values[0]} rolling={rolling} />
+        <Dice value={values[1]} rolling={rolling} />
       </div>
       {!clickable && (
         <button

@@ -64,15 +64,12 @@ function Face({ value, className }) {
 }
 
 // 🎲 Single cube component
-function DiceCube({ value = 1, rolling = false, playSound = false, prevValue }) {
-  const displayVal = rolling ? prevValue ?? value : value;
-  // Rotate the cube so the rolled face appears on top while keeping
-  // the overall tilt consistent.
-  const orientation = faceTransforms[displayVal];
+function DiceCube({ value = 1, rolling = false, playSound = false }) {
+  const orientation = faceTransforms[value] || faceTransforms[1];
 
   useEffect(() => {
     if (rolling && playSound) {
-      const audio = new Audio('https://snakes-and-ladders-game.netlify.app/audio/dice.mp3');
+      const audio = new Audio('/sounds/dice-roll.mp3');
       audio.play().catch(() => {}); // Handle autoplay restrictions gracefully
     }
   }, [rolling, playSound]);
@@ -83,7 +80,7 @@ function DiceCube({ value = 1, rolling = false, playSound = false, prevValue }) 
         className={`dice-cube relative w-full h-full transition-transform duration-500 transform-style-preserve-3d ${
           rolling ? 'animate-roll' : ''
         }`}
-        style={{ transform: orientation }}
+        style={!rolling ? { transform: orientation } : undefined}
       >
         <Face value={1} className="dice-face--front absolute" />
         <Face value={6} className="dice-face--back absolute" />
@@ -97,11 +94,11 @@ function DiceCube({ value = 1, rolling = false, playSound = false, prevValue }) 
 }
 
 // 🎲 Pair of dice — default setup
-export default function DicePair({ values = [1, 1], rolling = false, playSound = false, startValues }) {
+export default function DicePair({ values = [1, 1], rolling = false, playSound = false }) {
   return (
     <div className="flex gap-4 justify-center items-center">
-      <DiceCube value={values[0]} rolling={rolling} playSound={playSound} prevValue={startValues?.[0]} />
-      <DiceCube value={values[1]} rolling={rolling} playSound={playSound} prevValue={startValues?.[1]} />
+      <DiceCube value={values[0]} rolling={rolling} playSound={playSound} />
+      <DiceCube value={values[1]} rolling={rolling} playSound={playSound} />
     </div>
   );
 }
