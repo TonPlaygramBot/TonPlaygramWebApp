@@ -127,8 +127,3 @@ body {
 .board-cell.highlight {
   box-shadow: 0 0 10px 4px rgba(255, 255, 100, 0.8);
 }
-
-.board-wrapper {
-  width: 100%;
-  height: 100vh;
-}
