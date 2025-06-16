@@ -3,36 +3,21 @@ import DiceRoller from "../../components/DiceRoller.jsx";
 import RoomPopup from "../../components/RoomPopup.jsx";
 import useTelegramBackButton from "../../hooks/useTelegramBackButton.js";
 import { getTelegramPhotoUrl } from "../../utils/telegram.js";
+import { getSnakeLobbies } from "../../utils/api.js";
 
-// Simple snake and ladder layout for a 4x25 board
-// The final tile 101 is the "Pot" where the winner collects all stakes
+// Snake and ladder layout
 const snakes = {
-  17: 4,
-  19: 7,
-  21: 9,
-  27: 1,
-  54: 34,
-  62: 18,
-  64: 60,
-  87: 24,
-  93: 73,
-  95: 75,
-  98: 79,
-  99: 7,
+  17: 4, 19: 7, 21: 9, 27: 1, 54: 34,
+  62: 18, 64: 60, 87: 24, 93: 73,
+  95: 75, 98: 79, 99: 7,
 };
 const ladders = {
-  3: 22,
-  5: 8,
-  11: 26,
-  20: 29,
-  27: 56,
-  36: 44,
-  51: 67,
-  71: 91,
-  80: 101, // ladder to the Pot
+  3: 22, 5: 8, 11: 26, 20: 29,
+  27: 56, 36: 44, 51: 67,
+  71: 91, 80: 101,
 };
 
-const PLAYERS = 4; // temporary number of players
+const PLAYERS = 4;
 const ROWS = 4;
 const COLS = 25;
 const FINAL_TILE = ROWS * COLS + 1; // 101
@@ -64,13 +49,13 @@ function Board({ position, highlight, photoUrl, pot }) {
           {position === num && (
             <img src={photoUrl} alt="player" className="token" />
           )}
-        </div>,
+        </div>
       );
     }
   }
 
-  const cellWidth = 135; // px
-  const cellHeight = 68; // px
+  const cellWidth = 135;
+  const cellHeight = 68;
 
   return (
     <div className="flex justify-center">
@@ -86,9 +71,7 @@ function Board({ position, highlight, photoUrl, pot }) {
         }}
       >
         {tiles}
-        <div
-          className={`pot-cell ${highlight === FINAL_TILE ? 'highlight' : ''}`}
-        >
+        <div className={`pot-cell ${highlight === FINAL_TILE ? 'highlight' : ''}`}>
           <span className="font-bold">Pot</span>
           <span className="text-sm">{pot}</span>
           {position === FINAL_TILE && (
@@ -125,13 +108,9 @@ export default function SnakeAndLadder() {
   useEffect(() => {
     setPhotoUrl(getTelegramPhotoUrl());
     moveSoundRef.current = new Audio('https://snakes-and-ladders-game.netlify.app/audio/drop.mp3');
-    moveSoundRef.current.preload = 'auto';
     snakeSoundRef.current = new Audio('https://snakes-and-ladders-game.netlify.app/audio/snake.mp3');
-    snakeSoundRef.current.preload = 'auto';
     ladderSoundRef.current = new Audio('https://snakes-and-ladders-game.netlify.app/audio/ladder.mp3');
-    ladderSoundRef.current.preload = 'auto';
     winSoundRef.current = new Audio('/assets/sounds/successful.mp3');
-    winSoundRef.current.preload = 'auto';
     return () => {
       moveSoundRef.current?.pause();
       snakeSoundRef.current?.pause();
@@ -144,19 +123,23 @@ export default function SnakeAndLadder() {
     const value = Array.isArray(values)
       ? values.reduce((a, b) => a + b, 0)
       : values;
+
     setMessage("");
-    let newStreak = streak;
-    if (value === 6) newStreak += 1; else newStreak = 0;
+    let newStreak = value === 6 ? streak + 1 : 0;
+
     if (newStreak === 3) {
       setStreak(0);
       setMessage("Third 6 rolled, turn skipped!");
       return;
     }
+
     setStreak(newStreak);
     let current = pos;
     let target = current;
+
     if (current === 0) {
-      if (value === 6) target = 1; else {
+      if (value === 6) target = 1;
+      else {
         setMessage("Need a 6 to start!");
         return;
       }
@@ -165,6 +148,7 @@ export default function SnakeAndLadder() {
     } else {
       setMessage("Need exact roll!");
     }
+
     const steps = [];
     for (let i = current + 1; i <= target; i++) steps.push(i);
 
@@ -173,6 +157,7 @@ export default function SnakeAndLadder() {
         let finalPos = steps[steps.length - 1] || current;
         let snake = false;
         let ladder = false;
+
         if (ladders[finalPos]) {
           finalPos = ladders[finalPos];
           ladder = true;
@@ -181,6 +166,7 @@ export default function SnakeAndLadder() {
           finalPos = snakes[finalPos];
           snake = true;
         }
+
         setTimeout(() => {
           setPos(finalPos);
           setHighlight(null);
@@ -195,18 +181,17 @@ export default function SnakeAndLadder() {
         }, 300);
         return;
       }
+
       const next = steps[index];
       setPos(next);
-      if (moveSoundRef.current) {
-        moveSoundRef.current.currentTime = 0;
-        moveSoundRef.current.play().catch(() => {});
-      }
+      moveSoundRef.current.currentTime = 0;
+      moveSoundRef.current.play().catch(() => {});
       setHighlight(next);
       setTimeout(() => move(index + 1), 300);
     };
+
     move(0);
   };
-
 
   return (
     <div className="p-4 space-y-4 text-text">

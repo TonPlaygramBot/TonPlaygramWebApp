@@ -39,3 +39,16 @@ test('start requires 6 and triple six skips turn', () => {
   assert.equal(room.players[0].position, 7); // third six should skip move
 });
 
+test('room starts when reaching custom capacity', () => {
+  const io = new DummyIO();
+  const room = new GameRoom('r2', io, 2);
+  const s1 = { id: 's1', join: () => {} };
+  const s2 = { id: 's2', join: () => {} };
+  room.addPlayer('p1', 'A', s1);
+  assert.equal(room.status, 'waiting');
+  room.addPlayer('p2', 'B', s2);
+  assert.equal(room.status, 'playing');
+  const res = room.addPlayer('p3', 'C', { id: 's3', join: () => {} });
+  assert.ok(res.error, 'should not allow extra players');
+});
+

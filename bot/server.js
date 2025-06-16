@@ -119,6 +119,16 @@ app.get('/', (req, res) => {
 app.get('/api/ping', (req, res) => {
   res.json({ message: 'pong' });
 });
+app.get('/api/snake/lobbies', (req, res) => {
+  const capacities = [2, 3, 4];
+  const lobbies = capacities.map((cap) => {
+    const id = `snake-${cap}`;
+    const room = gameManager.getRoom(id, cap);
+    const players = room.players.filter((p) => !p.disconnected).length;
+    return { id, capacity: cap, players };
+  });
+  res.json(lobbies);
+});
 app.get('*', (req, res) => {
   if (req.path.startsWith('/api/')) return res.status(404).end();
   sendIndex(res);
