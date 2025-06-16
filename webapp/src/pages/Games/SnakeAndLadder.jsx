@@ -55,12 +55,27 @@ function Board({ position, highlight, photoUrl, pot }) {
 
   const cellWidth = 100;
   const cellHeight = 50;
-  // Slightly closer camera that zooms in more as the player climbs
-  const zoom = 1.1 + (position / FINAL_TILE) * 0.5;
+
+  const [zoom, setZoom] = useState(1.1);
 
   useEffect(() => {
     const container = containerRef.current;
-    if (container) container.scrollTop = container.scrollHeight;
+    if (container) {
+      container.scrollTop = container.scrollHeight;
+    }
+  }, []);
+
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+    const handleScroll = () => {
+      const max = container.scrollHeight - container.clientHeight;
+      const progress = max > 0 ? container.scrollTop / max : 0;
+      setZoom(1.1 + progress * 0.5);
+    };
+    handleScroll();
+    container.addEventListener('scroll', handleScroll);
+    return () => container.removeEventListener('scroll', handleScroll);
   }, []);
 
   useEffect(() => {
@@ -72,6 +87,13 @@ function Board({ position, highlight, photoUrl, pot }) {
       const cellRect = cell.getBoundingClientRect();
       // Keep the player's token slightly lower on screen so the camera
       // follows from behind rather than centering exactly
+<<<<<<< codex/implement-camera-follow-with-zoom
+      const offset = cellRect.top - cRect.top - cRect.height * 0.7 + cellRect.height / 2;
+      container.scrollBy({ top: offset, behavior: 'smooth' });
+      const max = container.scrollHeight - container.clientHeight;
+      const progress = max > 0 ? (container.scrollTop + offset) / max : 0;
+      setZoom(1.1 + progress * 0.5);
+=======
       const offset =
         cellRect.top - cRect.top - cRect.height * CAMERA_OFFSET + cellRect.height / 2;
       const target = Math.min(
@@ -79,6 +101,7 @@ function Board({ position, highlight, photoUrl, pot }) {
         Math.max(0, container.scrollTop + offset)
       );
       container.scrollTo({ top: target, behavior: 'smooth' });
+>>>>>>> main
     }
   }, [position]);
 
@@ -87,7 +110,7 @@ function Board({ position, highlight, photoUrl, pot }) {
       <div
         ref={containerRef}
         className="overflow-y-auto"
-        style={{ height: '80vh' }}
+        style={{ height: '80vh', paddingTop: `${cellHeight * 5}px` }}
       >
         <div className="snake-board-tilt">
           <div
