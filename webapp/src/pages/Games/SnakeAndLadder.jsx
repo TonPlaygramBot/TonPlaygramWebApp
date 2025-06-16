@@ -16,8 +16,9 @@ const ladders = {
 };
 
 const PLAYERS = 4;
-const ROWS = 4;
-const COLS = 25;
+// Board dimensions. Using more rows than columns gives a vertical layout
+const ROWS = 25;
+const COLS = 4;
 const FINAL_TILE = ROWS * COLS + 1; // 101
 
 function Board({ position, highlight, photoUrl, pot }) {
