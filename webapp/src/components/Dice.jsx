@@ -69,7 +69,7 @@ function DiceCube({ value = 1, rolling = false, playSound = false }) {
 
   useEffect(() => {
     if (rolling && playSound) {
-      const audio = new Audio('/sounds/dice-roll.mp3');
+      const audio = new Audio('https://snakes-and-ladders-game.netlify.app/audio/dice.mp3');
       audio.play().catch(() => {}); // Handle autoplay restrictions gracefully
     }
   }, [rolling, playSound]);
