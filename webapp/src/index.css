@@ -53,12 +53,13 @@ body {
 
 /* Tilted view specifically for the Snake & Ladder board */
 .snake-board-tilt {
-  perspective: 800px;
+  perspective: 1200px; /* Zoomed-out view */
 }
 
 .snake-board-grid {
-  transform: rotateX(45deg);
+  transform: rotateX(60deg) scale(0.85);
   transform-style: preserve-3d;
+  transform-origin: bottom center;
 }
 
 @keyframes roll {
