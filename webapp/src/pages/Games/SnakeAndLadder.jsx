@@ -1,6 +1,5 @@
 import { useState, useEffect, useRef } from "react";
 import DiceRoller from "../../components/DiceRoller.jsx";
-import RoomPopup from "../../components/RoomPopup.jsx";
 import useTelegramBackButton from "../../hooks/useTelegramBackButton.js";
 import { getTelegramPhotoUrl } from "../../utils/telegram.js";
 
@@ -88,8 +87,6 @@ function Board({ position, highlight, photoUrl }) {
 export default function SnakeAndLadder() {
   useTelegramBackButton();
   const [pos, setPos] = useState(0);
-  const [selection, setSelection] = useState(null);
-  const [showRoom, setShowRoom] = useState(true);
   const [streak, setStreak] = useState(0);
   const [highlight, setHighlight] = useState(null);
   const [message, setMessage] = useState("");
@@ -116,6 +113,7 @@ export default function SnakeAndLadder() {
       winSoundRef.current?.pause();
     };
   }, []);
+
 
   const handleRoll = (values) => {
     const value = Array.isArray(values)
@@ -192,12 +190,7 @@ export default function SnakeAndLadder() {
         Roll the dice to move across the board. Ladders move you up, snakes bring
         you down. Reach tile 100 first to win.
       </p>
-      <RoomPopup
-        open={showRoom}
-        selection={selection}
-        setSelection={setSelection}
-        onConfirm={() => setShowRoom(false)}
-      />
+
       <Board position={pos} highlight={highlight} photoUrl={photoUrl} />
       {message && <div className="text-center font-semibold">{message}</div>}
       <DiceRoller onRollEnd={handleRoll} clickable numDice={1} />

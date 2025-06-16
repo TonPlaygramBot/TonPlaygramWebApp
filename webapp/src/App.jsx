@@ -12,6 +12,7 @@ import Store from './pages/Store.jsx';
 import LudoGame from './pages/Games/LudoGame.jsx';
 import HorseRacing from './pages/Games/HorseRacing.jsx';
 import SnakeAndLadder from './pages/Games/SnakeAndLadder.jsx';
+import Lobby from './pages/Games/Lobby.jsx';
 import Games from './pages/Games.jsx';
 import SpinPage from './pages/spin.tsx';
 
@@ -28,6 +29,7 @@ export default function App() {
           <Route path="/" element={<Home />} />
           <Route path="/friends" element={<Friends />} />
           <Route path="/games" element={<Games />} />
+          <Route path="/games/:game/lobby" element={<Lobby />} />
           <Route path="/games/ludo" element={<LudoGame />} />
           <Route path="/games/horse" element={<HorseRacing />} />
           <Route path="/games/snake" element={<SnakeAndLadder />} />
