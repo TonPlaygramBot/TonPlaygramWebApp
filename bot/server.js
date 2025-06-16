@@ -102,7 +102,7 @@ const manifestPath = new URL(manifestUrl, 'http://placeholder').pathname;
 console.log("TONCONNECT_MANIFEST_URL", manifestUrl);
 console.log("manifestpath", manifestPath);
 
-app.get(manifestPath, (req, res) => {
+app.get(manifestUrl, (req, res) => {
   const proto = req.get('x-forwarded-proto') || req.protocol;
   const baseUrl = `${proto}://${req.get('host')}`;
   res.json({
