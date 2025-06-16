@@ -79,7 +79,7 @@ function Board({ position, highlight, photoUrl, pot }) {
     <div className="flex justify-center">
       <div
         ref={containerRef}
-        className="overflow-y-auto"
+        className="overflow-y-auto overscroll-none"
         style={{ height: '80vh' }}
       >
         <div className="snake-board-tilt">
@@ -125,6 +125,12 @@ export default function SnakeAndLadder() {
   const snakeSoundRef = useRef(null);
   const ladderSoundRef = useRef(null);
   const winSoundRef = useRef(null);
+
+  useEffect(() => {
+    if (!document.fullscreenElement && document.documentElement.requestFullscreen) {
+      document.documentElement.requestFullscreen().catch(() => {});
+    }
+  }, []);
 
   useEffect(() => {
     setPhotoUrl(getTelegramPhotoUrl());
