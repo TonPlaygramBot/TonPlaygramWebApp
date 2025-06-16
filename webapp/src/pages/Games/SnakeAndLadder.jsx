@@ -32,6 +32,7 @@ const ladders = {
 };
 
 function Board({ position, highlight, photoUrl }) {
+  const containerRef = useRef(null);
   const tiles = [];
   for (let r = 0; r < 10; r++) {
     const reversed = r % 2 === 1;
@@ -41,6 +42,7 @@ function Board({ position, highlight, photoUrl }) {
       tiles.push(
         <div
           key={num}
+          id={`tile-${num}`}
           className={`board-cell ${highlight === num ? "highlight" : ""}`}
           style={{ gridRowStart: 10 - r, gridColumnStart: col + 1 }}
         >
@@ -63,11 +65,32 @@ function Board({ position, highlight, photoUrl }) {
     }
   }
 
+  const cellWidth = 135; // px
+  const cellHeight = 68; // px
+
+  useEffect(() => {
+    if (!containerRef.current) return;
+    const el = containerRef.current.querySelector(`#tile-${position}`);
+    if (el) {
+      el.scrollIntoView({ behavior: "smooth", block: "center", inline: "center" });
+    }
+  }, [position]);
+
   return (
-    <div className="flex justify-center">
+    <div
+      ref={containerRef}
+      className="board-wrapper overflow-auto flex justify-center items-center"
+    >
       <div
         className="grid grid-rows-10 grid-cols-10 gap-1 relative"
-        style={{ width: '90vmin', height: '90vmin' }}
+        style={{
+          width: `${cellWidth * 10}px`,
+          height: `${cellHeight * 10}px`,
+          gridTemplateColumns: `repeat(10, ${cellWidth}px)`,
+          gridTemplateRows: `repeat(10, ${cellHeight}px)`,
+          '--cell-width': `${cellWidth}px`,
+          '--cell-height': `${cellHeight}px`,
+        }}
       >
         {tiles}
       </div>

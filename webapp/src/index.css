@@ -2,6 +2,11 @@
 @tailwind components;
 @tailwind utilities;
 
+:root {
+  --cell-width: 135px;
+  --cell-height: 68px;
+}
+
 body {
   font-family: Arial, Helvetica, sans-serif;
   @apply bg-background text-text;
@@ -107,6 +112,8 @@ body {
   border: 2px solid #ffd700; /* metallic gold edges */
   box-shadow: 0 4px 6px rgba(0, 0, 0, 0.5); /* subtle outer depth */
   transform: translateZ(5px);
+  width: var(--cell-width);
+  height: var(--cell-height);
 }
 
 .board-cell::after {
@@ -126,4 +133,15 @@ body {
 /* cell glows briefly as a piece moves over it */
 .board-cell.highlight {
   box-shadow: 0 0 10px 4px rgba(255, 255, 100, 0.8);
+}
+
+.board-wrapper {
+  width: 100%;
+  height: 100vh;
+  overscroll-behavior: contain;
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.board-wrapper::-webkit-scrollbar {
+  display: none;
 }
