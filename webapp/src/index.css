@@ -53,13 +53,13 @@ body {
 
 /* Tilted view specifically for the Snake & Ladder board */
 .snake-board-tilt {
-  perspective: 1200px; /* Zoomed-out view */
+  perspective: 1200px;
 }
 
 .snake-board-grid {
   transform-style: preserve-3d;
   transform-origin: bottom center;
-  transition: transform 0.3s ease;
+  transition: transform 0.3s ease; /* ✅ scaling transition */
 }
 
 @keyframes roll {
@@ -149,7 +149,7 @@ body {
   top: calc(var(--cell-height) * -0.75);
   left: 50%;
   transform: translateX(-50%);
-  z-index: 10; /* ✅ Resolved */
+  z-index: 10;
 }
 
 .pot-cell.highlight {
@@ -158,11 +158,11 @@ body {
 
 .logo-wall {
   @apply absolute flex items-center justify-center;
-  width: calc(var(--cell-width) * 4);
-  height: calc(var(--cell-height) * 4);
-  top: calc(var(--cell-height) * -4.5);
+  width: calc(var(--cell-width) * 4); /* ✅ 4 columns */
+  height: calc(var(--cell-height) * 4); /* ✅ 4 rows */
+  top: calc(var(--cell-height) * -4.5); /* ✅ push above pot */
   left: 50%;
-  transform: translateX(-50%) rotateX(-60deg) translateZ(-20px);
+  transform: translateX(-50%) rotateX(-60deg) translateZ(-20px); /* ✅ behind the pot */
   transform-origin: bottom center;
   background-image: url('/assets/TonPlayGramLogo.jpg');
   background-size: contain;
