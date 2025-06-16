@@ -69,7 +69,6 @@ function DiceCube({ value = 1, rolling = false, playSound = false, prevValue }) 
   // Rotate the cube so the rolled face appears on top while keeping
   // the overall tilt consistent.
   const orientation = faceTransforms[displayVal];
-  const opposite = { 1: 6, 2: 5, 3: 4, 4: 3, 5: 2, 6: 1 };
 
   useEffect(() => {
     if (rolling && playSound) {
@@ -86,8 +85,8 @@ function DiceCube({ value = 1, rolling = false, playSound = false, prevValue }) 
         }`}
         style={{ transform: orientation }}
       >
-        <Face value={displayVal} className="dice-face--front absolute" />
-        <Face value={opposite[displayVal]} className="dice-face--back absolute" />
+        <Face value={1} className="dice-face--front absolute" />
+        <Face value={6} className="dice-face--back absolute" />
         <Face value={3} className="dice-face--right absolute" />
         <Face value={4} className="dice-face--left absolute" />
         <Face value={2} className="dice-face--top absolute" />
