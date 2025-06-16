@@ -17,12 +17,11 @@ export default function DiceRoller({ onRollEnd, clickable = false, numDice = 2 }
   const soundRef = useRef(null);
 
   useEffect(() => {
-    const init = Array.from({ length: numDice }, rand);
-    setValues(init);
+    setValues(Array.from({ length: numDice }, rand));
   }, [numDice]);
 
   useEffect(() => {
-    soundRef.current = new Audio('https://snakes-and-ladders-game.netlify.app/audio/dice.mp3');
+    soundRef.current = new Audio('/assets/sounds/spinning.mp3');
     soundRef.current.preload = 'auto';
     return () => {
       soundRef.current?.pause();
@@ -31,25 +30,24 @@ export default function DiceRoller({ onRollEnd, clickable = false, numDice = 2 }
 
   const rollDice = () => {
     if (rolling) return;
-
     if (soundRef.current) {
       soundRef.current.currentTime = 0;
       soundRef.current.play().catch(() => {});
     }
 
-    const result = Array.from({ length: numDice }, rand);
+    const finalResult = Array.from({ length: numDice }, rand);
     setRolling(true);
 
     let count = 0;
     const id = setInterval(() => {
-      // show random values during the roll
       setValues(Array.from({ length: numDice }, rand));
       count += 1;
+
       if (count >= 20) {
         clearInterval(id);
         setRolling(false);
-        setValues(result);
-        onRollEnd && onRollEnd(result);
+        setValues(finalResult);
+        onRollEnd && onRollEnd(finalResult);
       }
     }, 100);
   };
@@ -64,6 +62,7 @@ export default function DiceRoller({ onRollEnd, clickable = false, numDice = 2 }
           <Dice key={i} value={val} rolling={rolling} />
         ))}
       </div>
+
       {!clickable && (
         <button
           onClick={rollDice}
