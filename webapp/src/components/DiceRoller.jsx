@@ -5,9 +5,12 @@ export default function DiceRoller({ onRollEnd, clickable = false, numDice = 2 }
   const [values, setValues] = useState(Array(numDice).fill(1));
   const [rolling, setRolling] = useState(false);
   const soundRef = useRef(null);
+  const startValuesRef = useRef(values);
 
   useEffect(() => {
-    setValues(Array(numDice).fill(1));
+    const initial = Array(numDice).fill(1);
+    setValues(initial);
+    startValuesRef.current = initial;
   }, [numDice]);
 
   useEffect(() => {
@@ -24,6 +27,7 @@ export default function DiceRoller({ onRollEnd, clickable = false, numDice = 2 }
       soundRef.current.currentTime = 0;
       soundRef.current.play().catch(() => {});
     }
+    startValuesRef.current = values;
     setRolling(true);
     const rand = () => {
       if (window.crypto && window.crypto.getRandomValues) {
@@ -42,6 +46,7 @@ export default function DiceRoller({ onRollEnd, clickable = false, numDice = 2 }
       if (count >= 20) {
         clearInterval(id);
         setRolling(false);
+        startValuesRef.current = results;
         onRollEnd && onRollEnd(results);
       }
     }, 100);
@@ -53,7 +58,7 @@ export default function DiceRoller({ onRollEnd, clickable = false, numDice = 2 }
         className={`flex space-x-4 ${clickable ? 'cursor-pointer' : ''}`}
         onClick={clickable ? rollDice : undefined}
       >
-        <Dice values={values} rolling={rolling} />
+        <Dice values={values} rolling={rolling} startValues={startValuesRef.current} />
       </div>
       {!clickable && (
         <button
