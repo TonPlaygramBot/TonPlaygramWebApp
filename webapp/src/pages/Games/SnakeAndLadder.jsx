@@ -3,6 +3,7 @@ import DiceRoller from "../../components/DiceRoller.jsx";
 import RoomPopup from "../../components/RoomPopup.jsx";
 import useTelegramBackButton from "../../hooks/useTelegramBackButton.js";
 import { getTelegramPhotoUrl } from "../../utils/telegram.js";
+import { getSnakeLobbies } from "../../utils/api.js";
 
 // Simple snake and ladder layout for a 10x10 board
 const snakes = {
@@ -90,6 +91,8 @@ export default function SnakeAndLadder() {
   const [pos, setPos] = useState(0);
   const [selection, setSelection] = useState(null);
   const [showRoom, setShowRoom] = useState(true);
+  const [tables, setTables] = useState([]);
+  const [selectedTable, setSelectedTable] = useState(null);
   const [streak, setStreak] = useState(0);
   const [highlight, setHighlight] = useState(null);
   const [message, setMessage] = useState("");
@@ -114,6 +117,23 @@ export default function SnakeAndLadder() {
       snakeSoundRef.current?.pause();
       ladderSoundRef.current?.pause();
       winSoundRef.current?.pause();
+    };
+  }, []);
+
+  useEffect(() => {
+    let active = true;
+    function load() {
+      getSnakeLobbies()
+        .then((data) => {
+          if (active) setTables(data);
+        })
+        .catch(() => {});
+    }
+    load();
+    const id = setInterval(load, 5000);
+    return () => {
+      active = false;
+      clearInterval(id);
     };
   }, []);
 
@@ -197,6 +217,9 @@ export default function SnakeAndLadder() {
         selection={selection}
         setSelection={setSelection}
         onConfirm={() => setShowRoom(false)}
+        tables={tables}
+        selectedTable={selectedTable}
+        setSelectedTable={setSelectedTable}
       />
       <Board position={pos} highlight={highlight} photoUrl={photoUrl} />
       {message && <div className="text-center font-semibold">{message}</div>}
