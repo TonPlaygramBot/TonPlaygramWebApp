@@ -75,7 +75,7 @@ export default function DiceRoller({ onRollEnd, clickable = false, numDice = 2 }
             key={i}
             value={val}
             rolling={rolling}
-            startValue={startValuesRef.current[i]}
+            prevValue={startValuesRef.current[i]}
           />
         ))}
       </div>
