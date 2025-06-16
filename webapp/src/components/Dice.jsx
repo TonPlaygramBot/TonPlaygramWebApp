@@ -95,27 +95,24 @@ function DiceCube({
   );
 }
 
-// 🎲 Pair of dice — default setup
-export default function DicePair({
-  values = [1, 1],
+// 🎲 Render a dynamic set of dice based on provided values
+export default function DiceSet({
+  values = [1],
   rolling = false,
   playSound = false,
   startValues,
 }) {
   return (
     <div className="flex gap-4 justify-center items-center">
-      <DiceCube
-        value={values[0]}
-        rolling={rolling}
-        playSound={playSound}
-        prevValue={startValues?.[0]}
-      />
-      <DiceCube
-        value={values[1]}
-        rolling={rolling}
-        playSound={playSound}
-        prevValue={startValues?.[1]}
-      />
+      {values.map((v, i) => (
+        <DiceCube
+          key={i}
+          value={v}
+          rolling={rolling}
+          playSound={playSound}
+          prevValue={startValues?.[i]}
+        />
+      ))}
     </div>
   );
 }
