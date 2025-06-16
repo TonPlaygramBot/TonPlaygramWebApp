@@ -38,11 +38,10 @@ const PLAYERS = 4;
 const ROWS = 25;
 const COLS = 4;
 const FINAL_TILE = ROWS * COLS + 1; // 101
-// Portion of the viewport to keep below the player's token when scrolling
 // Portion of the viewport to keep below the player's token when scrolling.
-// Larger values track the player from a lower angle giving more focus on the
-// logo placed at the top of the board.
-const CAMERA_OFFSET = 0.85;
+// Larger values keep the token closer to the bottom so the board follows
+// the user row by row from a fixed camera position.
+const CAMERA_OFFSET = 0.9;
 
 function Board({ position, highlight, photoUrl, pot, snakes, ladders }) {
   const containerRef = useRef(null);
@@ -117,12 +116,12 @@ function Board({ position, highlight, photoUrl, pot, snakes, ladders }) {
   for (const [s, e] of Object.entries(snakes)) {
     connectors.push(renderConnector(Number(s), Number(e), 'snake'));
   }
-  // Zoom in progressively as the player moves upward so that the logo at the
-  // top of the board stays roughly the same size in the viewport. The closer
-  // the user is to the pot, the more we scale the board.
+  // Gradually zoom out as the player climbs so the board remains in frame
+  // while the camera angle stays fixed.
   const MIN_ZOOM = 1.1;
   const MAX_ZOOM = 1.8;
-  const zoom = MIN_ZOOM + (position / FINAL_TILE) * (MAX_ZOOM - MIN_ZOOM);
+  const zoom =
+    MAX_ZOOM - (position / FINAL_TILE) * (MAX_ZOOM - MIN_ZOOM);
 
   useEffect(() => {
     const container = containerRef.current;
@@ -165,8 +164,8 @@ function Board({ position, highlight, photoUrl, pot, snakes, ladders }) {
               gridTemplateRows: `repeat(${ROWS}, ${cellHeight}px)`,
               '--cell-width': `${cellWidth}px`,
               '--cell-height': `${cellHeight}px`,
-              // Lower camera angle focused on the logo wall
-              transform: `rotateX(80deg) scale(${zoom})`,
+              // Lower camera angle and lock it to follow the player
+              transform: `rotateX(60deg) scale(${zoom})`,
             }}
           >
             {tiles}
