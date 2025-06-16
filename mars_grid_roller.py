@@ -5,8 +5,9 @@ from PIL import Image, ImageDraw, ImageFont, ImageFilter
 from telegram import Update
 from telegram.ext import Application, CommandHandler, ContextTypes
 
-DATA_FILE = Path("marsgrid_data.json")
-BOARD_TEMPLATE = Path("board_template.png")
+BASE_DIR = Path(__file__).resolve().parent
+DATA_FILE = BASE_DIR / "marsgrid_data.json"
+BOARD_TEMPLATE = BASE_DIR / "board_template.png"
 BOARD_SIZE = 512
 TILE_SIZE = BOARD_SIZE // 10
 
