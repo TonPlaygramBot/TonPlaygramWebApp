@@ -19,6 +19,8 @@ const PLAYERS = 4;
 const ROWS = 25;
 const COLS = 4;
 const FINAL_TILE = ROWS * COLS + 1; // 101
+// Portion of the viewport to keep below the player's token when scrolling
+const CAMERA_OFFSET = 0.7;
 
 function Board({ position, highlight, photoUrl, pot }) {
   const containerRef = useRef(null);
@@ -70,8 +72,13 @@ function Board({ position, highlight, photoUrl, pot }) {
       const cellRect = cell.getBoundingClientRect();
       // Keep the player's token slightly lower on screen so the camera
       // follows from behind rather than centering exactly
-      const offset = cellRect.top - cRect.top - cRect.height * 0.7 + cellRect.height / 2;
-      container.scrollBy({ top: offset, behavior: 'smooth' });
+      const offset =
+        cellRect.top - cRect.top - cRect.height * CAMERA_OFFSET + cellRect.height / 2;
+      const target = Math.min(
+        container.scrollHeight - cRect.height,
+        Math.max(0, container.scrollTop + offset)
+      );
+      container.scrollTo({ top: target, behavior: 'smooth' });
     }
   }, [position]);
 
