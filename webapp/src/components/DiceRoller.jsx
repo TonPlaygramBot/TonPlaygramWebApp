@@ -1,24 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
 import Dice from './Dice.jsx';
 
-export default function DiceRoller({ onRollEnd, clickable = false, numDice = 2 }) {
-  const rand = () => {
-    if (window.crypto && window.crypto.getRandomValues) {
-      const arr = new Uint32Array(1);
-      window.crypto.getRandomValues(arr);
-      return (arr[0] % 6) + 1;
-    }
-    return Math.floor(Math.random() * 6) + 1;
-  };
-
-  const initial = Array.from({ length: numDice }, rand);
-  const [values, setValues] = useState(initial);
+export default function DiceRoller({ onRollEnd, clickable = false }) {
+  const [values, setValues] = useState([1, 1]);
   const [rolling, setRolling] = useState(false);
   const soundRef = useRef(null);
-
-  useEffect(() => {
-    setValues(Array.from({ length: numDice }, rand));
-  }, [numDice]);
 
   useEffect(() => {
     soundRef.current = new Audio('/assets/sounds/spinning.mp3');
@@ -34,20 +20,26 @@ export default function DiceRoller({ onRollEnd, clickable = false, numDice = 2 }
       soundRef.current.currentTime = 0;
       soundRef.current.play().catch(() => {});
     }
-
-    const finalResult = Array.from({ length: numDice }, rand);
     setRolling(true);
+    const rand = () => {
+      if (window.crypto && window.crypto.getRandomValues) {
+        const arr = new Uint32Array(1);
+        window.crypto.getRandomValues(arr);
+        return (arr[0] % 6) + 1;
+      }
+      return Math.floor(Math.random() * 6) + 1;
+    };
 
     let count = 0;
     const id = setInterval(() => {
-      setValues(Array.from({ length: numDice }, rand));
+      const v1 = rand();
+      const v2 = rand();
+      setValues([v1, v2]);
       count += 1;
-
       if (count >= 20) {
         clearInterval(id);
         setRolling(false);
-        setValues(finalResult);
-        onRollEnd && onRollEnd(finalResult);
+        onRollEnd && onRollEnd([v1, v2]);
       }
     }, 100);
   };
@@ -58,11 +50,9 @@ export default function DiceRoller({ onRollEnd, clickable = false, numDice = 2 }
         className={`flex space-x-4 ${clickable ? 'cursor-pointer' : ''}`}
         onClick={clickable ? rollDice : undefined}
       >
-        {values.map((val, i) => (
-          <Dice key={i} value={val} rolling={rolling} />
-        ))}
+        <Dice value={values[0]} rolling={rolling} />
+        <Dice value={values[1]} rolling={rolling} />
       </div>
-
       {!clickable && (
         <button
           onClick={rollDice}
