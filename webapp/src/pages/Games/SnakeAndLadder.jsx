@@ -14,13 +14,13 @@ const snakes = {
 const ladders = {
   3: 22, 5: 8, 11: 26, 20: 29,
   27: 56, 36: 44, 51: 67,
-  71: 91, 80: 101, 201: 245, // ladder to the new Pot
+  71: 91, 80: 101,
 };
 
 const PLAYERS = 4;
-const ROWS = 61;
-const COLS = 4;
-const FINAL_TILE = ROWS * COLS + 1;
+const ROWS = 4;
+const COLS = 25;
+const FINAL_TILE = ROWS * COLS + 1; // 101
 
 function Board({ position, highlight, photoUrl, pot }) {
   const tiles = [];
@@ -108,13 +108,9 @@ export default function SnakeAndLadder() {
   useEffect(() => {
     setPhotoUrl(getTelegramPhotoUrl());
     moveSoundRef.current = new Audio('https://snakes-and-ladders-game.netlify.app/audio/drop.mp3');
-    moveSoundRef.current.preload = 'auto';
     snakeSoundRef.current = new Audio('https://snakes-and-ladders-game.netlify.app/audio/snake.mp3');
-    snakeSoundRef.current.preload = 'auto';
     ladderSoundRef.current = new Audio('https://snakes-and-ladders-game.netlify.app/audio/ladder.mp3');
-    ladderSoundRef.current.preload = 'auto';
     winSoundRef.current = new Audio('/assets/sounds/successful.mp3');
-    winSoundRef.current.preload = 'auto';
     return () => {
       moveSoundRef.current?.pause();
       snakeSoundRef.current?.pause();
@@ -188,10 +184,8 @@ export default function SnakeAndLadder() {
 
       const next = steps[index];
       setPos(next);
-      if (moveSoundRef.current) {
-        moveSoundRef.current.currentTime = 0;
-        moveSoundRef.current.play().catch(() => {});
-      }
+      moveSoundRef.current.currentTime = 0;
+      moveSoundRef.current.play().catch(() => {});
       setHighlight(next);
       setTimeout(() => move(index + 1), 300);
     };
