@@ -16,8 +16,9 @@ const ladders = {
 };
 
 const PLAYERS = 4;
-const ROWS = 4;
-const COLS = 25;
+// Board dimensions. Using more rows than columns gives a vertical layout
+const ROWS = 25;
+const COLS = 4;
 const FINAL_TILE = ROWS * COLS + 1; // 101
 
 function Board({ position, highlight, photoUrl, pot }) {
@@ -52,29 +53,32 @@ function Board({ position, highlight, photoUrl, pot }) {
     }
   }
 
-  const cellWidth = 135;
-  const cellHeight = 68;
+  // Slightly smaller cells for better fit when tilting the board
+  const cellWidth = 100;
+  const cellHeight = 50;
 
   return (
     <div className="flex justify-center">
-      <div
-        className="grid gap-1 relative"
-        style={{
-          width: `${cellWidth * COLS}px`,
-          height: `${cellHeight * ROWS}px`,
-          gridTemplateColumns: `repeat(${COLS}, ${cellWidth}px)`,
-          gridTemplateRows: `repeat(${ROWS}, ${cellHeight}px)`,
-          '--cell-width': `${cellWidth}px`,
-          '--cell-height': `${cellHeight}px`,
-        }}
-      >
-        {tiles}
-        <div className={`pot-cell ${highlight === FINAL_TILE ? 'highlight' : ''}`}>
-          <span className="font-bold">Pot</span>
-          <span className="text-sm">{pot}</span>
-          {position === FINAL_TILE && (
-            <img src={photoUrl} alt="player" className="token" />
-          )}
+      <div className="snake-board-tilt">
+        <div
+          className="snake-board-grid grid gap-1 relative"
+          style={{
+            width: `${cellWidth * COLS}px`,
+            height: `${cellHeight * ROWS}px`,
+            gridTemplateColumns: `repeat(${COLS}, ${cellWidth}px)`,
+            gridTemplateRows: `repeat(${ROWS}, ${cellHeight}px)`,
+            '--cell-width': `${cellWidth}px`,
+            '--cell-height': `${cellHeight}px`,
+          }}
+        >
+          {tiles}
+          <div className={`pot-cell ${highlight === FINAL_TILE ? 'highlight' : ''}`}>
+            <span className="font-bold">Pot</span>
+            <span className="text-sm">{pot}</span>
+            {position === FINAL_TILE && (
+              <img src={photoUrl} alt="player" className="token" />
+            )}
+          </div>
         </div>
       </div>
     </div>
