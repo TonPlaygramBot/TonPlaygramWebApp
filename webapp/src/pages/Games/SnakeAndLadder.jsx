@@ -57,8 +57,8 @@ function Board({ position, highlight, photoUrl, pot }) {
 
   const cellWidth = 100;
   const cellHeight = 50;
-  // Zoom out gradually as the player climbs so the top logo stays visible
-  const zoom = 1.6 - (position / FINAL_TILE) * 0.5;
+  // Slightly closer camera that zooms in more as the player climbs
+  const zoom = 1.1 + (position / FINAL_TILE) * 0.5;
 
   useEffect(() => {
     const container = containerRef.current;
