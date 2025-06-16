@@ -1,6 +1,6 @@
 {
   "name": "TonPlaygram",
   "description": "Play games with TPC staking via Tonkeeper",
-  "url": "https://tonplaygramwebapp.onrender.com",
-  "icons": ["https://tonplaygramwebapp.onrender.com/icons/tpc.svg"]
+  "url": "https://tonplaygram-bot.onrender.com/",
+  "icons": ["https://tonplaygram-bot.onrender.com/icons/tpc.svg"]
 }
