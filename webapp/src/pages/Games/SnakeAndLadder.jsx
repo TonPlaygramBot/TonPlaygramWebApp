@@ -5,17 +5,34 @@ import { AiOutlineInfoCircle } from "react-icons/ai";
 import useTelegramBackButton from "../../hooks/useTelegramBackButton.js";
 import { getTelegramPhotoUrl } from "../../utils/telegram.js";
 
-// Snake and ladder layout
-const snakes = {
-  17: 4, 19: 7, 21: 9, 27: 1, 54: 34,
-  62: 18, 64: 60, 87: 24, 93: 73,
-  95: 75, 98: 79, 99: 7,
-};
-const ladders = {
-  3: 22, 5: 8, 11: 26, 20: 29,
-  27: 56, 36: 44, 51: 67,
-  71: 91, 80: 101, // ladder to Pot
-};
+// Generate random snakes and ladders each session
+function generateSnakesAndLadders() {
+  const snakes = {};
+  const ladders = {};
+  const used = new Set();
+  const pick = (min, max) =>
+    Math.floor(Math.random() * (max - min + 1)) + min;
+
+  while (Object.keys(ladders).length < 3) {
+    const start = pick(2, 90);
+    const end = start + pick(5, 15);
+    if (end >= 100 || used.has(start) || used.has(end)) continue;
+    ladders[start] = end;
+    used.add(start);
+    used.add(end);
+  }
+
+  while (Object.keys(snakes).length < 3) {
+    const start = pick(10, 99);
+    const end = start - pick(5, 15);
+    if (end <= 1 || used.has(start) || used.has(end)) continue;
+    snakes[start] = end;
+    used.add(start);
+    used.add(end);
+  }
+
+  return { snakes, ladders };
+}
 
 const PLAYERS = 4;
 const ROWS = 25;
@@ -24,7 +41,7 @@ const FINAL_TILE = ROWS * COLS + 1; // 101
 // Portion of the viewport to keep below the player's token when scrolling
 const CAMERA_OFFSET = 0.7;
 
-function Board({ position, highlight, photoUrl, pot }) {
+function Board({ position, highlight, photoUrl, pot, snakes, ladders }) {
   const containerRef = useRef(null);
   const tiles = [];
 
@@ -57,6 +74,46 @@ function Board({ position, highlight, photoUrl, pot }) {
 
   const cellWidth = 100;
   const cellHeight = 50;
+
+  const connectors = [];
+
+  const getCenter = (num) => {
+    const r = Math.floor((num - 1) / COLS);
+    const reversed = r % 2 === 1;
+    const col = reversed ? COLS - 1 - ((num - 1) % COLS) : (num - 1) % COLS;
+    const rowFromBottom = r;
+    const x = col * cellWidth + cellWidth / 2;
+    const y = (ROWS - 1 - rowFromBottom) * cellHeight + cellHeight / 2;
+    return { x, y };
+  };
+
+  const renderConnector = (from, to, type) => {
+    const start = getCenter(from);
+    const end = getCenter(to);
+    const dx = end.x - start.x;
+    const dy = end.y - start.y;
+    const length = Math.sqrt(dx * dx + dy * dy);
+    const angle = Math.atan2(dy, dx) * (180 / Math.PI);
+    return (
+      <div
+        key={`${type}-${from}-${to}`}
+        className={`${type}-connector`}
+        style={{
+          width: `${length}px`,
+          top: `${start.y}px`,
+          left: `${start.x}px`,
+          transform: `rotate(${angle}deg)`,
+        }}
+      />
+    );
+  };
+
+  for (const [s, e] of Object.entries(ladders)) {
+    connectors.push(renderConnector(Number(s), Number(e), 'ladder'));
+  }
+  for (const [s, e] of Object.entries(snakes)) {
+    connectors.push(renderConnector(Number(s), Number(e), 'snake'));
+  }
   // Slightly closer camera that zooms in more as the player climbs
   const zoom = 1.1 + (position / FINAL_TILE) * 0.5;
 
@@ -106,6 +163,7 @@ function Board({ position, highlight, photoUrl, pot }) {
             }}
           >
             {tiles}
+            {connectors}
             <div className={`pot-cell ${highlight === FINAL_TILE ? 'highlight' : ''}`}>
               <span className="font-bold">Pot</span>
               <span className="text-sm">{pot}</span>
@@ -132,6 +190,7 @@ export default function SnakeAndLadder() {
   const [photoUrl, setPhotoUrl] = useState("");
   const [pot, setPot] = useState(100);
   const [showInfo, setShowInfo] = useState(false);
+  const [{ snakes, ladders }] = useState(() => generateSnakesAndLadders());
 
   const moveSoundRef = useRef(null);
   const snakeSoundRef = useRef(null);
@@ -234,7 +293,14 @@ export default function SnakeAndLadder() {
       >
         <AiOutlineInfoCircle className="text-2xl" />
       </button>
-      <Board position={pos} highlight={highlight} photoUrl={photoUrl} pot={pot} />
+      <Board
+        position={pos}
+        highlight={highlight}
+        photoUrl={photoUrl}
+        pot={pot}
+        snakes={snakes}
+        ladders={ladders}
+      />
       {message && <div className="text-center font-semibold w-full">{message}</div>}
       <div className="fixed bottom-24 inset-x-0 flex justify-center z-20">
         <DiceRoller onRollEnd={handleRoll} clickable numDice={1} />
