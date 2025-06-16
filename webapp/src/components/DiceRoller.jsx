@@ -53,9 +53,7 @@ export default function DiceRoller({ onRollEnd, clickable = false, numDice = 2 }
         className={`flex space-x-4 ${clickable ? 'cursor-pointer' : ''}`}
         onClick={clickable ? rollDice : undefined}
       >
-        {values.map((v, i) => (
-          <Dice key={i} value={v} rolling={rolling} />
-        ))}
+        <Dice values={values} rolling={rolling} />
       </div>
       {!clickable && (
         <button
