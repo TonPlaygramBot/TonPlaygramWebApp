@@ -64,7 +64,7 @@ function Face({ value, className }) {
 }
 
 // 🎲 Single cube component
-export function DiceCube({ value = 1, rolling = false, playSound = false, prevValue }) {
+function DiceCube({ value = 1, rolling = false, playSound = false, prevValue }) {
   const displayVal = rolling ? prevValue ?? value : value;
   const orientation = faceTransforms[displayVal] || faceTransforms[1];
 
