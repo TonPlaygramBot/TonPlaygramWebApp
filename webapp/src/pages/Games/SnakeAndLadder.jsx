@@ -216,8 +216,12 @@ export default function SnakeAndLadder() {
       ? values.reduce((a, b) => a + b, 0)
       : values;
 
+    const rolledSix = Array.isArray(values)
+      ? values.includes(6)
+      : value === 6;
+
     setMessage("");
-    let newStreak = value === 6 ? streak + 1 : 0;
+    let newStreak = rolledSix ? streak + 1 : 0;
 
     if (newStreak === 3) {
       setStreak(0);
@@ -230,7 +234,7 @@ export default function SnakeAndLadder() {
     let target = current;
 
     if (current === 0) {
-      if (value === 6) target = 1;
+      if (rolledSix) target = 1;
       else {
         setMessage("Need a 6 to start!");
         return;
@@ -303,7 +307,7 @@ export default function SnakeAndLadder() {
       />
       {message && <div className="text-center font-semibold w-full">{message}</div>}
       <div className="fixed bottom-24 inset-x-0 flex justify-center z-20">
-        <DiceRoller onRollEnd={handleRoll} clickable numDice={1} />
+        <DiceRoller onRollEnd={handleRoll} clickable numDice={2} />
       </div>
       <InfoPopup
         open={showInfo}
