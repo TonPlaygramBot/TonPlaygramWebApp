@@ -1,6 +1,5 @@
-import React, { useEffect } from 'react';
+import React from 'react';
 
-// Dice face dot matrix
 const diceFaces = {
   1: [
     [0, 0, 0],
@@ -34,20 +33,26 @@ const diceFaces = {
   ],
 };
 
-// Gentle tilt so three faces are visible
 const baseTilt = 'rotateX(-25deg) rotateY(25deg)';
 
-// Orientation for each numbered face relative to the viewer
-const faceTransforms = {
-  1: `rotateX(0deg) rotateY(0deg) ${baseTilt}`,
-  2: `rotateX(-90deg) rotateY(0deg) ${baseTilt}`,
-  3: `rotateY(90deg) ${baseTilt}`,
-  4: `rotateY(-90deg) ${baseTilt}`,
-  5: `rotateX(90deg) rotateY(0deg) ${baseTilt}`,
-  6: `rotateY(180deg) ${baseTilt}`,
+const valueToSide = {
+  1: 'bottom',
+  2: 'right',
+  3: 'top',
+  4: 'left',
+  5: 'front',
+  6: 'back',
 };
 
-// 🎲 Single dice face component
+const sideTransforms = {
+  front: 'rotateX(0deg) rotateY(0deg)',
+  back: 'rotateY(180deg)',
+  right: 'rotateY(90deg)',
+  left: 'rotateY(-90deg)',
+  top: 'rotateX(-90deg)',
+  bottom: 'rotateX(90deg)',
+};
+
 function Face({ value, className }) {
   const face = diceFaces[value];
   return (
@@ -63,19 +68,10 @@ function Face({ value, className }) {
   );
 }
 
-// 🎲 Single cube component
-function DiceCube({ value = 1, rolling = false, playSound = false, prevValue }) {
-  const displayVal = rolling ? prevValue ?? value : value;
-  // Rotate the cube so the rolled face appears on top while keeping
-  // the overall tilt consistent.
-  const orientation = faceTransforms[displayVal];
-
-  useEffect(() => {
-    if (rolling && playSound) {
-      const audio = new Audio('https://snakes-and-ladders-game.netlify.app/audio/dice.mp3');
-      audio.play().catch(() => {}); // Handle autoplay restrictions gracefully
-    }
-  }, [rolling, playSound]);
+export default function Dice({ value = 1, rolling = false }) {
+  const side = valueToSide[value] || 'front';
+  const transform = sideTransforms[side] || 'rotateX(0deg) rotateY(0deg)';
+  const orientation = `${transform} ${baseTilt}`;
 
   return (
     <div className="dice-container perspective-1000 w-24 h-24">
@@ -83,25 +79,15 @@ function DiceCube({ value = 1, rolling = false, playSound = false, prevValue }) 
         className={`dice-cube relative w-full h-full transition-transform duration-500 transform-style-preserve-3d ${
           rolling ? 'animate-roll' : ''
         }`}
-        style={{ transform: orientation }}
+        style={!rolling ? { transform: orientation } : undefined}
       >
-        <Face value={1} className="dice-face--front absolute" />
+        <Face value={5} className="dice-face--front absolute" />
         <Face value={6} className="dice-face--back absolute" />
-        <Face value={3} className="dice-face--right absolute" />
+        <Face value={2} className="dice-face--right absolute" />
         <Face value={4} className="dice-face--left absolute" />
-        <Face value={2} className="dice-face--top absolute" />
-        <Face value={5} className="dice-face--bottom absolute" />
+        <Face value={3} className="dice-face--top absolute" />
+        <Face value={1} className="dice-face--bottom absolute" />
       </div>
-    </div>
-  );
-}
-
-// 🎲 Pair of dice — default setup
-export default function DicePair({ values = [1, 1], rolling = false, playSound = false, startValues }) {
-  return (
-    <div className="flex gap-4 justify-center items-center">
-      <DiceCube value={values[0]} rolling={rolling} playSound={playSound} prevValue={startValues?.[0]} />
-      <DiceCube value={values[1]} rolling={rolling} playSound={playSound} prevValue={startValues?.[1]} />
     </div>
   );
 }
