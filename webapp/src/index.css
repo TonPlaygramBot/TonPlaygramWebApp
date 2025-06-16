@@ -72,7 +72,6 @@ body {
 }
 
 .dice-cube {
-  /* smaller cube so a board cell can match its size */
   @apply relative w-16 h-16;
   transform-style: preserve-3d;
   transition: transform 0.5s;
@@ -83,7 +82,6 @@ body {
 }
 
 .dice-face .dot {
-  /* classic black pips */
   @apply w-4 h-4 bg-black rounded-full;
 }
 
@@ -108,7 +106,7 @@ body {
 
 .board-cell {
   @apply relative flex items-center justify-center rounded-xl text-text shadow-inner bg-surface border-2 border-accent;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.5); /* subtle outer depth */
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.5);
   transform: translateZ(5px);
   width: var(--cell-width);
   height: var(--cell-height);
@@ -128,7 +126,6 @@ body {
   transform: translateZ(10px);
 }
 
-/* cell glows briefly as a piece moves over it */
 .board-cell.highlight {
   box-shadow: 0 0 10px 4px rgba(250, 204, 21, 0.8);
 }
@@ -141,7 +138,7 @@ body {
   top: calc(var(--cell-height) * -0.75);
   left: 50%;
   transform: translateX(-50%);
-  z-index: 10;
+  z-index: 10; /* ✅ Resolved */
 }
 
 .pot-cell.highlight {
