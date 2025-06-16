@@ -113,7 +113,9 @@ function Board({ position, highlight, photoUrl, pot }) {
                 <img src={photoUrl} alt="player" className="token" />
               )}
             </div>
-            <div className="logo-wall" />
+            <div className="logo-wall-main" />
+            <div className="logo-wall-side logo-wall-left" />
+            <div className="logo-wall-side logo-wall-right" />
           </div>
         </div>
       </div>
