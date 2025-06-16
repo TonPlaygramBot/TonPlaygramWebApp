@@ -79,6 +79,8 @@ function ensureWebappBuilt() {
         VITE_TONCONNECT_MANIFEST: manifestBuild
       }
     });
+    console.log("VITE_API_BASE_URL", apiBase);
+    console.log("VITE_TONCONNECT_MANIFEST", apiBase);
     return existsSync(path.join(webappPath, 'index.html'));
   } catch (err) {
     console.error('Failed to build webapp:', err.message);
