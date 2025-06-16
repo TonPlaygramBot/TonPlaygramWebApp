@@ -37,20 +37,14 @@ const diceFaces = {
 // Gentle tilt so three faces are visible
 const baseTilt = 'rotateX(-25deg) rotateY(25deg)';
 
-// Orientation for each numbered face so the value appears on the top
+// Orientation for each numbered face relative to the viewer
 const faceTransforms = {
-  // Front face (1) rotated to the top
-  1: `rotateX(-90deg) ${baseTilt}`,
-  // Top face (2) is already on top
-  2: `${baseTilt}`,
-  // Right face (3) rotated to the top
-  3: `rotateZ(-90deg) ${baseTilt}`,
-  // Left face (4) rotated to the top
-  4: `rotateZ(90deg) ${baseTilt}`,
-  // Bottom face (5) rotated to the top
-  5: `rotateX(180deg) ${baseTilt}`,
-  // Back face (6) rotated to the top
-  6: `rotateX(90deg) ${baseTilt}`,
+  1: `rotateX(0deg) rotateY(0deg) ${baseTilt}`,
+  2: `rotateX(-90deg) rotateY(0deg) ${baseTilt}`,
+  3: `rotateY(90deg) ${baseTilt}`,
+  4: `rotateY(-90deg) ${baseTilt}`,
+  5: `rotateX(90deg) rotateY(0deg) ${baseTilt}`,
+  6: `rotateY(180deg) ${baseTilt}`,
 };
 
 // 🎲 Single dice face component
