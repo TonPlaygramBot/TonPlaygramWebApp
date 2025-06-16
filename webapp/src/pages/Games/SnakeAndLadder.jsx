@@ -88,7 +88,7 @@ export default function SnakeAndLadder() {
   const [highlight, setHighlight] = useState(null);
   const [message, setMessage] = useState("");
   const [photoUrl, setPhotoUrl] = useState("");
-  const [pot, setPot] = useState(100); // 📝 Replace with real pot value from context/props if needed
+  const [pot, setPot] = useState(100); // Placeholder: Replace with actual logic or context
 
   const moveSoundRef = useRef(null);
   const snakeSoundRef = useRef(null);
