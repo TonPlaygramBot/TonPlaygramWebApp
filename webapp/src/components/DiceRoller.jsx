@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import Dice from './Dice.jsx';
+import { DiceCube } from './Dice.jsx';
 
 export default function DiceRoller({ onRollEnd, clickable = false, numDice = 2 }) {
   const rand = () => {
@@ -71,11 +71,11 @@ export default function DiceRoller({ onRollEnd, clickable = false, numDice = 2 }
         onClick={clickable ? rollDice : undefined}
       >
         {rollingVals.map((val, i) => (
-          <Dice
+          <DiceCube
             key={i}
             value={val}
             rolling={rolling}
-            startValue={startValuesRef.current[i]}
+            prevValue={startValuesRef.current[i]}
           />
         ))}
       </div>
