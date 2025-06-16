@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import DiceRoller from "../../components/DiceRoller.jsx";
 import RoomPopup from "../../components/RoomPopup.jsx";
 import useTelegramBackButton from "../../hooks/useTelegramBackButton.js";
+import { getTelegramPhotoUrl } from "../../utils/telegram.js";
 
 // Simple snake and ladder layout for a 10x10 board
 const snakes = {
@@ -30,7 +31,7 @@ const ladders = {
   80: 100,
 };
 
-function Board({ position, highlight }) {
+function Board({ position, highlight, photoUrl }) {
   const tiles = [];
   for (let r = 9; r >= 0; r--) {
     const reversed = (9 - r) % 2 === 1;
@@ -54,7 +55,9 @@ function Board({ position, highlight }) {
               🪜
             </div>
           )}
-          {position === num && <div className="token" />}
+          {position === num && (
+            <img src={photoUrl} alt="player" className="token" />
+          )}
         </div>,
       );
     }
@@ -62,7 +65,7 @@ function Board({ position, highlight }) {
 
   return (
     <div className="flex justify-center">
-      <div className="grid grid-rows-10 grid-cols-10 gap-1 w-[1280px] h-[1280px] relative">
+      <div className="grid grid-rows-10 grid-cols-10 gap-1 w-[640px] h-[640px] relative">
         {tiles}
       </div>
     </div>
@@ -76,13 +79,27 @@ export default function SnakeAndLadder() {
   const [showRoom, setShowRoom] = useState(true);
   const [highlight, setHighlight] = useState(null);
   const [message, setMessage] = useState("");
+  const [photoUrl, setPhotoUrl] = useState("");
   const moveSoundRef = useRef(null);
+  const snakeSoundRef = useRef(null);
+  const ladderSoundRef = useRef(null);
+  const winSoundRef = useRef(null);
 
   useEffect(() => {
+    setPhotoUrl(getTelegramPhotoUrl());
     moveSoundRef.current = new Audio('https://snakes-and-ladders-game.netlify.app/audio/drop.mp3');
     moveSoundRef.current.preload = 'auto';
+    snakeSoundRef.current = new Audio('https://snakes-and-ladders-game.netlify.app/audio/snake.mp3');
+    snakeSoundRef.current.preload = 'auto';
+    ladderSoundRef.current = new Audio('https://snakes-and-ladders-game.netlify.app/audio/ladder.mp3');
+    ladderSoundRef.current.preload = 'auto';
+    winSoundRef.current = new Audio('/assets/sounds/successful.mp3');
+    winSoundRef.current.preload = 'auto';
     return () => {
       moveSoundRef.current?.pause();
+      snakeSoundRef.current?.pause();
+      ladderSoundRef.current?.pause();
+      winSoundRef.current?.pause();
     };
   }, []);
 
@@ -109,12 +126,27 @@ export default function SnakeAndLadder() {
     const move = (index) => {
       if (index >= steps.length) {
         let finalPos = steps[steps.length - 1] || current;
-        if (ladders[finalPos]) finalPos = ladders[finalPos];
-        if (snakes[finalPos]) finalPos = snakes[finalPos];
+        let snake = false;
+        let ladder = false;
+        if (ladders[finalPos]) {
+          finalPos = ladders[finalPos];
+          ladder = true;
+        }
+        if (snakes[finalPos]) {
+          finalPos = snakes[finalPos];
+          snake = true;
+        }
         setTimeout(() => {
           setPos(finalPos);
           setHighlight(null);
-          if (finalPos === 100) setMessage("You win!");
+          if (finalPos === 100) {
+            setMessage("You win!");
+            winSoundRef.current?.play().catch(() => {});
+          } else if (ladder) {
+            ladderSoundRef.current?.play().catch(() => {});
+          } else if (snake) {
+            snakeSoundRef.current?.play().catch(() => {});
+          }
         }, 300);
         return;
       }
@@ -144,7 +176,7 @@ export default function SnakeAndLadder() {
         setSelection={setSelection}
         onConfirm={() => setShowRoom(false)}
       />
-      <Board position={pos} highlight={highlight} />
+      <Board position={pos} highlight={highlight} photoUrl={photoUrl} />
       {message && <div className="text-center font-semibold">{message}</div>}
       <DiceRoller onRollEnd={handleRoll} clickable />
     </div>
