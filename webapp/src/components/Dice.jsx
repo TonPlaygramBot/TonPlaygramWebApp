@@ -103,4 +103,3 @@ export default function DicePair({ values = [1, 1], rolling = false, playSound =
     </div>
   );
 }
-

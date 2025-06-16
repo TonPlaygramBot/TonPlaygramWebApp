@@ -53,12 +53,11 @@ function Board({ position, highlight, photoUrl, pot }) {
 
   const cellWidth = 100;
   const cellHeight = 50;
+  const zoom = 1 + (position / FINAL_TILE) * 0.4;
 
   useEffect(() => {
     const container = containerRef.current;
-    if (container) {
-      container.scrollTop = container.scrollHeight; // Scroll to bottom on mount
-    }
+    if (container) container.scrollTop = container.scrollHeight;
   }, []);
 
   useEffect(() => {
@@ -90,6 +89,7 @@ function Board({ position, highlight, photoUrl, pot }) {
               gridTemplateRows: `repeat(${ROWS}, ${cellHeight}px)`,
               '--cell-width': `${cellWidth}px`,
               '--cell-height': `${cellHeight}px`,
+              transform: `rotateX(60deg) scale(${zoom})`,
             }}
           >
             {tiles}
@@ -100,6 +100,7 @@ function Board({ position, highlight, photoUrl, pot }) {
                 <img src={photoUrl} alt="player" className="token" />
               )}
             </div>
+            <div className="logo-wall" />
           </div>
         </div>
       </div>
@@ -114,7 +115,7 @@ export default function SnakeAndLadder() {
   const [highlight, setHighlight] = useState(null);
   const [message, setMessage] = useState("");
   const [photoUrl, setPhotoUrl] = useState("");
-  const [pot, setPot] = useState(100); // Placeholder: real pot should come from context
+  const [pot, setPot] = useState(100);
 
   const moveSoundRef = useRef(null);
   const snakeSoundRef = useRef(null);
