@@ -35,8 +35,10 @@ function generateSnakesAndLadders() {
 }
 
 const PLAYERS = 4;
-const ROWS = 25;
-const COLS = 4;
+// Adjusted board dimensions to show five columns
+// while keeping the total cell count at 100
+const ROWS = 20;
+const COLS = 5;
 const FINAL_TILE = ROWS * COLS + 1; // 101
 // Portion of the viewport to keep below the player's token when scrolling.
 // Larger values keep the token closer to the bottom so the board follows
@@ -74,8 +76,9 @@ function Board({ position, highlight, photoUrl, pot, snakes, ladders }) {
     }
   }
 
-  const cellWidth = 100;
-  const cellHeight = 50;
+  // Enlarge cells so the profile picture fits without cropping
+  const cellWidth = 70;
+  const cellHeight = 70;
 
   const connectors = [];
 
