@@ -193,15 +193,3 @@ body {
   right: -10%;
   transform: rotateY(-40deg) rotateX(-60deg) translateZ(-20px);
 }
-
-/* Dark blue side panel next to the Snake & Ladder board */
-.board-right-panel {
-  @apply absolute bg-blue-900;
-  width: calc(var(--cell-width) * 1.5);
-  height: calc(var(--cell-height) * 5);
-  top: calc(var(--cell-height) * -4.5);
-  right: -20%;
-  transform: rotateY(-40deg) rotateX(-60deg) translateZ(-20px);
-  transform-origin: bottom center;
-  z-index: 3;
-}
