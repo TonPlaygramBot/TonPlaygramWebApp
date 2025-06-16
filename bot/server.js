@@ -79,8 +79,7 @@ function ensureWebappBuilt() {
         VITE_TONCONNECT_MANIFEST: manifestBuild
       }
     });
-    console.log("VITE_API_BASE_URL", apiBase);
-    console.log("VITE_TONCONNECT_MANIFEST", apiBase);
+
     return existsSync(path.join(webappPath, 'index.html'));
   } catch (err) {
     console.error('Failed to build webapp:', err.message);
@@ -100,6 +99,9 @@ app.use(
 // Express server handles requests before the static middleware.
 const manifestUrl = process.env.TONCONNECT_MANIFEST_URL || '/tonconnect-manifest.json';
 const manifestPath = new URL(manifestUrl, 'http://placeholder').pathname;
+console.log("TONCONNECT_MANIFEST_URL", manifestUrl);
+console.log("manifestpath", manifestPath);
+
 app.get(manifestPath, (req, res) => {
   const proto = req.get('x-forwarded-proto') || req.protocol;
   const baseUrl = `${proto}://${req.get('host')}`;
