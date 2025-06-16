@@ -64,8 +64,9 @@ function Face({ value, className }) {
 }
 
 // 🎲 Single cube component
-function DiceCube({ value = 1, rolling = false, playSound = false }) {
-  const orientation = faceTransforms[value] || faceTransforms[1];
+function DiceCube({ value = 1, rolling = false, playSound = false, prevValue }) {
+  const displayVal = rolling ? prevValue ?? value : value;
+  const orientation = faceTransforms[displayVal] || faceTransforms[1];
 
   useEffect(() => {
     if (rolling && playSound) {
@@ -80,7 +81,7 @@ function DiceCube({ value = 1, rolling = false, playSound = false }) {
         className={`dice-cube relative w-full h-full transition-transform duration-500 transform-style-preserve-3d ${
           rolling ? 'animate-roll' : ''
         }`}
-        style={!rolling ? { transform: orientation } : undefined}
+        style={{ transform: orientation }}
       >
         <Face value={1} className="dice-face--front absolute" />
         <Face value={6} className="dice-face--back absolute" />
@@ -94,11 +95,11 @@ function DiceCube({ value = 1, rolling = false, playSound = false }) {
 }
 
 // 🎲 Pair of dice — default setup
-export default function DicePair({ values = [1, 1], rolling = false, playSound = false }) {
+export default function DicePair({ values = [1, 1], rolling = false, playSound = false, startValues }) {
   return (
     <div className="flex gap-4 justify-center items-center">
-      <DiceCube value={values[0]} rolling={rolling} playSound={playSound} />
-      <DiceCube value={values[1]} rolling={rolling} playSound={playSound} />
+      <DiceCube value={values[0]} rolling={rolling} playSound={playSound} prevValue={startValues?.[0]} />
+      <DiceCube value={values[1]} rolling={rolling} playSound={playSound} prevValue={startValues?.[1]} />
     </div>
   );
 }
