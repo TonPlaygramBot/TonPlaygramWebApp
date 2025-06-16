@@ -52,29 +52,32 @@ function Board({ position, highlight, photoUrl, pot }) {
     }
   }
 
-  const cellWidth = 135;
-  const cellHeight = 68;
+  // Smaller cell size for rotated board layout
+  const cellWidth = 100;
+  const cellHeight = 50;
 
   return (
     <div className="flex justify-center">
-      <div
-        className="grid gap-1 relative"
-        style={{
-          width: `${cellWidth * COLS}px`,
-          height: `${cellHeight * ROWS}px`,
-          gridTemplateColumns: `repeat(${COLS}, ${cellWidth}px)`,
-          gridTemplateRows: `repeat(${ROWS}, ${cellHeight}px)`,
-          '--cell-width': `${cellWidth}px`,
-          '--cell-height': `${cellHeight}px`,
-        }}
-      >
-        {tiles}
-        <div className={`pot-cell ${highlight === FINAL_TILE ? 'highlight' : ''}`}>
-          <span className="font-bold">Pot</span>
-          <span className="text-sm">{pot}</span>
-          {position === FINAL_TILE && (
-            <img src={photoUrl} alt="player" className="token" />
-          )}
+      <div className="snake-board-tilt"> {/* 👈 Apply rotation in CSS */}
+        <div
+          className="snake-board-grid grid gap-1 relative"
+          style={{
+            width: `${cellWidth * COLS}px`,
+            height: `${cellHeight * ROWS}px`,
+            gridTemplateColumns: `repeat(${COLS}, ${cellWidth}px)`,
+            gridTemplateRows: `repeat(${ROWS}, ${cellHeight}px)`,
+            '--cell-width': `${cellWidth}px`,
+            '--cell-height': `${cellHeight}px`,
+          }}
+        >
+          {tiles}
+          <div className={`pot-cell ${highlight === FINAL_TILE ? 'highlight' : ''}`}>
+            <span className="font-bold">Pot</span>
+            <span className="text-sm">{pot}</span>
+            {position === FINAL_TILE && (
+              <img src={photoUrl} alt="player" className="token" />
+            )}
+          </div>
         </div>
       </div>
     </div>
@@ -88,7 +91,7 @@ export default function SnakeAndLadder() {
   const [highlight, setHighlight] = useState(null);
   const [message, setMessage] = useState("");
   const [photoUrl, setPhotoUrl] = useState("");
-  const [pot, setPot] = useState(100); // 📝 Replace with actual logic or context if needed
+  const [pot, setPot] = useState(100); // Placeholder: real pot should come from lobby context
 
   const moveSoundRef = useRef(null);
   const snakeSoundRef = useRef(null);
