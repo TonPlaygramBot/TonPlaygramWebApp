@@ -33,8 +33,8 @@ const diceFaces = {
   ],
 };
 
-// Fixed isometric tilt so the winning number is clearly visible
-const baseTilt = 'rotateX(-35deg) rotateY(45deg)';
+// Gentle tilt so three faces are visible
+const baseTilt = 'rotateX(-25deg) rotateY(25deg)';
 
 // Orientation for each numbered face relative to the viewer
 const faceTransforms = {
@@ -102,8 +102,8 @@ function DiceCube({ value = 1, rolling = false, playSound = false, prevValue }) 
 export default function DicePair({ values = [1, 1], rolling = false, playSound = false, startValues }) {
   return (
     <div className="flex gap-4 justify-center items-center">
-      {/* Keep only the left dice for a cleaner layout */}
       <DiceCube value={values[0]} rolling={rolling} playSound={playSound} prevValue={startValues?.[0]} />
+      <DiceCube value={values[1]} rolling={rolling} playSound={playSound} prevValue={startValues?.[1]} />
     </div>
   );
 }
