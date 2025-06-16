@@ -33,8 +33,8 @@ const ladders = {
 
 function Board({ position, highlight, photoUrl }) {
   const tiles = [];
-  for (let r = 9; r >= 0; r--) {
-    const reversed = (9 - r) % 2 === 1;
+  for (let r = 0; r < 10; r++) {
+    const reversed = r % 2 === 1;
     for (let c = 0; c < 10; c++) {
       const col = reversed ? 9 - c : c;
       const num = r * 10 + col + 1;
