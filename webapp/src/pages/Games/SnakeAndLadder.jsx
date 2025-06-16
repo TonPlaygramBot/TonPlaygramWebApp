@@ -90,6 +90,7 @@ export default function SnakeAndLadder() {
   const [pos, setPos] = useState(0);
   const [selection, setSelection] = useState(null);
   const [showRoom, setShowRoom] = useState(true);
+  const [streak, setStreak] = useState(0);
   const [highlight, setHighlight] = useState(null);
   const [message, setMessage] = useState("");
   const [photoUrl, setPhotoUrl] = useState("");
@@ -121,6 +122,14 @@ export default function SnakeAndLadder() {
       ? values.reduce((a, b) => a + b, 0)
       : values;
     setMessage("");
+    let newStreak = streak;
+    if (value === 6) newStreak += 1; else newStreak = 0;
+    if (newStreak === 3) {
+      setStreak(0);
+      setMessage("Third 6 rolled, turn skipped!");
+      return;
+    }
+    setStreak(newStreak);
     let current = pos;
     let target = current;
     if (current === 0) {
@@ -191,7 +200,7 @@ export default function SnakeAndLadder() {
       />
       <Board position={pos} highlight={highlight} photoUrl={photoUrl} />
       {message && <div className="text-center font-semibold">{message}</div>}
-      <DiceRoller onRollEnd={handleRoll} clickable />
+      <DiceRoller onRollEnd={handleRoll} clickable numDice={1} />
     </div>
   );
 }
