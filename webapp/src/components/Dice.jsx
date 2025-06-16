@@ -38,13 +38,16 @@ const diceFaces = {
 const baseTilt = 'rotateX(-25deg) rotateY(25deg)';
 
 // Orientation for each numbered face relative to the viewer
+// Orient the cube so the rolled value ends up on the **top** face while
+// retaining the same final viewing angle for all values. This mirrors the
+// behaviour of an actual dice landing on the table.
 const faceTransforms = {
-  1: `rotateX(0deg) rotateY(0deg) ${baseTilt}`,
-  2: `rotateX(-90deg) rotateY(0deg) ${baseTilt}`,
-  3: `rotateY(90deg) ${baseTilt}`,
-  4: `rotateY(-90deg) ${baseTilt}`,
-  5: `rotateX(90deg) rotateY(0deg) ${baseTilt}`,
-  6: `rotateY(180deg) ${baseTilt}`,
+  1: `rotateX(-90deg) rotateY(0deg) ${baseTilt}`,
+  2: `rotateX(0deg) rotateY(0deg) ${baseTilt}`,
+  3: `rotateX(-90deg) rotateY(-90deg) ${baseTilt}`,
+  4: `rotateX(-90deg) rotateY(90deg) ${baseTilt}`,
+  5: `rotateX(180deg) rotateY(0deg) ${baseTilt}`,
+  6: `rotateX(90deg) rotateY(0deg) ${baseTilt}`,
 };
 
 // 🎲 Single dice face component
