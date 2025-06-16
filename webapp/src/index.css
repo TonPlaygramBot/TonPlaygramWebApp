@@ -137,8 +137,14 @@ body {
   transform: translateZ(10px);
 }
 
-.board-cell.highlight {
+.board-cell.highlight-normal {
   box-shadow: 0 0 10px 4px rgba(250, 204, 21, 0.8);
+}
+.board-cell.highlight-snake {
+  box-shadow: 0 0 10px 4px rgba(239, 68, 68, 0.8);
+}
+.board-cell.highlight-ladder {
+  box-shadow: 0 0 10px 4px rgba(74, 222, 128, 0.8);
 }
 
 .pot-cell {
@@ -152,7 +158,7 @@ body {
   z-index: 10;
 }
 
-.pot-cell.highlight {
+.pot-cell.highlight-normal {
   box-shadow: 0 0 10px 4px rgba(250, 204, 21, 0.8);
 }
 

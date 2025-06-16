@@ -58,7 +58,7 @@ function Board({ position, highlight, photoUrl, pot, snakes, ladders }) {
         <div
           key={num}
           data-cell={num}
-          className={`board-cell ${highlight === num ? "highlight" : ""}`}
+          className={`board-cell ${highlight && highlight.num === num ? `highlight-${highlight.type}` : ""}`}
           style={{ gridRowStart: ROWS - r, gridColumnStart: col + 1 }}
         >
           {num}
@@ -172,7 +172,7 @@ function Board({ position, highlight, photoUrl, pot, snakes, ladders }) {
           >
             {tiles}
             {connectors}
-            <div className={`pot-cell ${highlight === FINAL_TILE ? 'highlight' : ''}`}>
+            <div className={`pot-cell ${highlight && highlight.num === FINAL_TILE ? 'highlight-normal' : ''}`}>
               <span className="font-bold">Pot</span>
               <span className="text-sm">{pot}</span>
               {position === FINAL_TILE && (
@@ -258,28 +258,29 @@ export default function SnakeAndLadder() {
 
     const move = (index) => {
       if (index >= steps.length) {
-        let finalPos = steps[steps.length - 1] || current;
-        let snake = false;
-        let ladder = false;
+        const triggerTile = steps[steps.length - 1] || current;
+        let finalPos = triggerTile;
+        let highlightType = 'normal';
 
-        if (ladders[finalPos]) {
-          finalPos = ladders[finalPos];
-          ladder = true;
+        if (ladders[triggerTile]) {
+          finalPos = ladders[triggerTile];
+          highlightType = 'ladder';
         }
-        if (snakes[finalPos]) {
-          finalPos = snakes[finalPos];
-          snake = true;
+        if (snakes[triggerTile]) {
+          finalPos = snakes[triggerTile];
+          highlightType = 'snake';
         }
 
+        setHighlight({ num: triggerTile, type: highlightType });
         setTimeout(() => {
           setPos(finalPos);
           setHighlight(null);
           if (finalPos === FINAL_TILE) {
             setMessage(`You win ${pot} tokens!`);
             winSoundRef.current?.play().catch(() => {});
-          } else if (ladder) {
+          } else if (highlightType === 'ladder') {
             ladderSoundRef.current?.play().catch(() => {});
-          } else if (snake) {
+          } else if (highlightType === 'snake') {
             snakeSoundRef.current?.play().catch(() => {});
           }
         }, 300);
@@ -290,7 +291,7 @@ export default function SnakeAndLadder() {
       setPos(next);
       moveSoundRef.current.currentTime = 0;
       moveSoundRef.current.play().catch(() => {});
-      setHighlight(next);
+      setHighlight({ num: next, type: 'normal' });
       setTimeout(() => move(index + 1), 300);
     };
 
