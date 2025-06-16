@@ -105,6 +105,8 @@ console.log("manifestpath", manifestPath);
 app.get(manifestUrl, (req, res) => {
   const proto = req.get('x-forwarded-proto') || req.protocol;
   const baseUrl = `${proto}://${req.get('host')}`;
+  console.log("proto: ", proto);
+  console.log("baseUrl: ", baseUrl);
   res.json({
     name: 'TonPlaygram',
     description: 'Play games with TPC staking via Tonkeeper',
