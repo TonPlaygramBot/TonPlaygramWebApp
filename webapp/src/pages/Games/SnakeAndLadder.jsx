@@ -89,7 +89,7 @@ function Board({ position, highlight, photoUrl, pot }) {
               gridTemplateRows: `repeat(${ROWS}, ${cellHeight}px)`,
               '--cell-width': `${cellWidth}px`,
               '--cell-height': `${cellHeight}px`,
-              transform: `rotateX(60deg) scale(${zoom})`,
+              transform: `rotateX(-60deg) scale(${zoom})`,
             }}
           >
             {tiles}

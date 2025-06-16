@@ -58,7 +58,7 @@ body {
 
 .snake-board-grid {
   transform-style: preserve-3d;
-  transform-origin: bottom center;
+  transform-origin: top center; /* tilt from the top so board widens upward */
   transition: transform 0.3s ease; /* ✅ scaling transition */
 }
 
