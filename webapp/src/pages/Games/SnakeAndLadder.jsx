@@ -63,11 +63,21 @@ function Board({ position, highlight, photoUrl }) {
     }
   }
 
+  const cellWidth = 135; // px
+  const cellHeight = 68; // px
+
   return (
     <div className="flex justify-center">
       <div
         className="grid grid-rows-10 grid-cols-10 gap-1 relative"
-        style={{ width: '90vmin', height: '90vmin' }}
+        style={{
+          width: `${cellWidth * 10}px`,
+          height: `${cellHeight * 10}px`,
+          gridTemplateColumns: `repeat(10, ${cellWidth}px)`,
+          gridTemplateRows: `repeat(10, ${cellHeight}px)`,
+          '--cell-width': `${cellWidth}px`,
+          '--cell-height': `${cellHeight}px`,
+        }}
       >
         {tiles}
       </div>
