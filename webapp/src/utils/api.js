@@ -195,3 +195,7 @@ export function grantAirdropAll(token, amount, reason = '') {
 export function getSnakeLobbies() {
   return fetch(API_BASE_URL + '/api/snake/lobbies').then((r) => r.json());
 }
+
+export function getSnakeLobby(id) {
+  return fetch(API_BASE_URL + '/api/snake/lobby/' + id).then((r) => r.json());
+}
