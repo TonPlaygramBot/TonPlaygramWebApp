@@ -133,7 +133,8 @@ body {
 }
 
 .token {
-  @apply absolute w-16 h-16 rounded-full shadow-lg object-cover;
+  /* Match the small profile avatar styling */
+  @apply absolute w-16 h-16 hexagon border-2 border-brand-gold shadow-lg object-cover;
   transform: translateZ(10px);
 }
 
