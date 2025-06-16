@@ -5,6 +5,8 @@
 :root {
   --cell-width: 135px;
   --cell-height: 68px;
+  /* Perspective distance controlling the apparent field of view */
+  --snake-board-perspective: 1000px;
 }
 
 body {
@@ -53,13 +55,26 @@ body {
 
 /* Tilted view specifically for the Snake & Ladder board */
 .snake-board-tilt {
-  perspective: 1200px;
+  perspective: var(--snake-board-perspective);
+  perspective-origin: center top;
 }
 
 .snake-board-grid {
   transform-style: preserve-3d;
   transform-origin: bottom center;
   transition: transform 0.3s ease; /* ✅ scaling transition */
+  position: relative;
+}
+
+.snake-board-grid::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: radial-gradient(circle at center, rgba(255, 255, 255, 0.3), rgba(0, 0, 0, 0) 70%);
+  mix-blend-mode: overlay;
+  opacity: 0.5;
+  transform: translateZ(1px);
 }
 
 @keyframes roll {

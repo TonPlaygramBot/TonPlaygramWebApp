@@ -116,11 +116,18 @@ function Board({ position, highlight, photoUrl, pot, snakes, ladders }) {
   for (const [s, e] of Object.entries(snakes)) {
     connectors.push(renderConnector(Number(s), Number(e), 'snake'));
   }
-  // Use a fixed zoom level so the camera angle stays locked while the board
-  // follows the player every row.
+  // Base camera zoom to keep a consistent angle on the board
   const MIN_ZOOM = 1.3;
-  const MAX_ZOOM = 1.3;
-  const zoom = MIN_ZOOM;
+  const MAX_ZOOM = 1.35;
+  const [zoom, setZoom] = useState(MIN_ZOOM);
+
+  // Briefly zoom in on each movement for a dynamic feel
+  useEffect(() => {
+    if (highlight === null) return;
+    setZoom(MAX_ZOOM);
+    const id = setTimeout(() => setZoom(MIN_ZOOM), 300);
+    return () => clearTimeout(id);
+  }, [highlight]);
 
   useEffect(() => {
     const container = containerRef.current;
@@ -164,7 +171,7 @@ function Board({ position, highlight, photoUrl, pot, snakes, ladders }) {
               '--cell-width': `${cellWidth}px`,
               '--cell-height': `${cellHeight}px`,
               // Lower camera angle and lock it to follow the player
-              transform: `rotateX(60deg) scale(${zoom})`,
+              transform: `translateY(-20px) translateZ(-15px) rotateX(60deg) scale(${zoom})`,
             }}
           >
             {tiles}
