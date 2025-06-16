@@ -1,13 +1,20 @@
 import React, { useState, useEffect, useRef } from 'react';
 import Dice from './Dice.jsx';
 
-export default function DiceRoller({ onRollEnd, clickable = false }) {
-  const [values, setValues] = useState([1, 1]);
+export default function DiceRoller({ onRollEnd, clickable = false, numDice = 2 }) {
+  const [values, setValues] = useState(Array(numDice).fill(1));
   const [rolling, setRolling] = useState(false);
   const soundRef = useRef(null);
+  const startValuesRef = useRef(values);
 
   useEffect(() => {
-    soundRef.current = new Audio('/assets/sounds/spinning.mp3');
+    const initial = Array(numDice).fill(1);
+    setValues(initial);
+    startValuesRef.current = initial;
+  }, [numDice]);
+
+  useEffect(() => {
+    soundRef.current = new Audio('https://snakes-and-ladders-game.netlify.app/audio/dice.mp3');
     soundRef.current.preload = 'auto';
     return () => {
       soundRef.current?.pause();
@@ -20,6 +27,7 @@ export default function DiceRoller({ onRollEnd, clickable = false }) {
       soundRef.current.currentTime = 0;
       soundRef.current.play().catch(() => {});
     }
+    startValuesRef.current = values;
     setRolling(true);
     const rand = () => {
       if (window.crypto && window.crypto.getRandomValues) {
@@ -32,14 +40,14 @@ export default function DiceRoller({ onRollEnd, clickable = false }) {
 
     let count = 0;
     const id = setInterval(() => {
-      const v1 = rand();
-      const v2 = rand();
-      setValues([v1, v2]);
+      const results = Array.from({ length: numDice }, rand);
+      setValues(results);
       count += 1;
       if (count >= 20) {
         clearInterval(id);
         setRolling(false);
-        onRollEnd && onRollEnd([v1, v2]);
+        startValuesRef.current = results;
+        onRollEnd && onRollEnd(results);
       }
     }, 100);
   };
@@ -50,8 +58,7 @@ export default function DiceRoller({ onRollEnd, clickable = false }) {
         className={`flex space-x-4 ${clickable ? 'cursor-pointer' : ''}`}
         onClick={clickable ? rollDice : undefined}
       >
-        <Dice value={values[0]} rolling={rolling} />
-        <Dice value={values[1]} rolling={rolling} />
+        <Dice values={values} rolling={rolling} startValues={startValuesRef.current} />
       </div>
       {!clickable && (
         <button
