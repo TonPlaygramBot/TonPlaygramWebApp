@@ -22,7 +22,7 @@ const ROWS = 25;
 const COLS = 4;
 const FINAL_TILE = ROWS * COLS + 1; // 101
 // Portion of the viewport to keep below the player's token when scrolling
-const CAMERA_OFFSET = 0.9;
+const CAMERA_OFFSET = 0.7;
 
 function Board({ position, highlight, photoUrl, pot }) {
   const containerRef = useRef(null);
@@ -101,8 +101,8 @@ function Board({ position, highlight, photoUrl, pot }) {
               gridTemplateRows: `repeat(${ROWS}, ${cellHeight}px)`,
               '--cell-width': `${cellWidth}px`,
               '--cell-height': `${cellHeight}px`,
-              // Lower viewing angle so the logo wall is more visible
-              transform: `rotateX(60deg) scale(${zoom})`,
+              // Lower the viewing angle for a more immersive feel
+              transform: `rotateX(70deg) scale(${zoom})`,
             }}
           >
             {tiles}
