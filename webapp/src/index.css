@@ -57,9 +57,9 @@ body {
 }
 
 .snake-board-grid {
-  transform: rotateX(60deg) scale(0.85);
   transform-style: preserve-3d;
   transform-origin: bottom center;
+  transition: transform 0.3s ease;
 }
 
 @keyframes roll {
@@ -154,4 +154,18 @@ body {
 
 .pot-cell.highlight {
   box-shadow: 0 0 10px 4px rgba(250, 204, 21, 0.8);
+}
+
+.logo-wall {
+  @apply absolute flex items-center justify-center;
+  width: calc(var(--cell-width) * 2);
+  height: calc(var(--cell-height) * 2);
+  top: calc(var(--cell-height) * -2);
+  left: 50%;
+  transform: translateX(-50%) rotateX(-60deg);
+  transform-origin: bottom center;
+  background-image: url('/assets/TonPlayGramLogo.jpg');
+  background-size: contain;
+  background-repeat: no-repeat;
+  background-position: center;
 }
