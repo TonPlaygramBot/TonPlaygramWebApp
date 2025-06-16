@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import DiceRoller from "../../components/DiceRoller.jsx";
+import DicePopup from "../../components/DicePopup.jsx";
 import RoomPopup from "../../components/RoomPopup.jsx";
 import useTelegramBackButton from "../../hooks/useTelegramBackButton.js";
 import { getTelegramPhotoUrl } from "../../utils/telegram.js";
@@ -32,6 +32,7 @@ const ladders = {
 };
 
 function Board({ position, highlight, photoUrl }) {
+  const containerRef = useRef(null);
   const tiles = [];
   for (let r = 9; r >= 0; r--) {
     const reversed = (9 - r) % 2 === 1;
@@ -41,6 +42,7 @@ function Board({ position, highlight, photoUrl }) {
       tiles.push(
         <div
           key={num}
+          id={`tile-${num}`}
           className={`board-cell ${highlight === num ? "highlight" : ""}`}
           style={{ gridRowStart: 10 - r, gridColumnStart: col + 1 }}
         >
@@ -63,11 +65,22 @@ function Board({ position, highlight, photoUrl }) {
     }
   }
 
+  useEffect(() => {
+    if (!containerRef.current) return;
+    const el = containerRef.current.querySelector(`#tile-${position}`);
+    if (el) {
+      el.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'center' });
+    }
+  }, [position]);
+
   return (
-    <div className="flex justify-center">
+    <div
+      ref={containerRef}
+      className="board-wrapper overflow-auto flex justify-center items-center"
+    >
       <div
         className="grid grid-rows-10 grid-cols-10 gap-1 relative"
-        style={{ width: '90vmin', height: '90vmin' }}
+        style={{ width: '360vmin', height: '360vmin' }}
       >
         {tiles}
       </div>
@@ -83,6 +96,7 @@ export default function SnakeAndLadder() {
   const [highlight, setHighlight] = useState(null);
   const [message, setMessage] = useState("");
   const [photoUrl, setPhotoUrl] = useState("");
+  const [showDice, setShowDice] = useState(false);
   const moveSoundRef = useRef(null);
   const snakeSoundRef = useRef(null);
   const ladderSoundRef = useRef(null);
@@ -110,6 +124,7 @@ export default function SnakeAndLadder() {
     const value = Array.isArray(values)
       ? values.reduce((a, b) => a + b, 0)
       : values;
+    setShowDice(false);
     setMessage("");
     let current = pos;
     let target = current;
@@ -150,6 +165,7 @@ export default function SnakeAndLadder() {
           } else if (snake) {
             snakeSoundRef.current?.play().catch(() => {});
           }
+          setShowDice(true);
         }, 300);
         return;
       }
@@ -177,11 +193,18 @@ export default function SnakeAndLadder() {
         open={showRoom}
         selection={selection}
         setSelection={setSelection}
-        onConfirm={() => setShowRoom(false)}
+        onConfirm={() => {
+          setShowRoom(false);
+          setShowDice(true);
+        }}
       />
       <Board position={pos} highlight={highlight} photoUrl={photoUrl} />
       {message && <div className="text-center font-semibold">{message}</div>}
-      <DiceRoller onRollEnd={handleRoll} clickable />
+      <DicePopup
+        open={showDice}
+        onClose={() => setShowDice(false)}
+        onRollEnd={handleRoll}
+      />
     </div>
   );
 }
