@@ -212,3 +212,12 @@ body {
   border-left: 4px solid #16a34a;
   border-right: 4px solid #16a34a;
 }
+
+.board-marker {
+  transform: translateZ(6px);
+}
+
+.board-icon {
+  width: 2rem; /* 32px */
+  height: 2rem;
+}

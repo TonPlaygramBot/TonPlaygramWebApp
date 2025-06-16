@@ -59,10 +59,18 @@ function Board({ position, highlight, photoUrl, pot, snakes, ladders }) {
         >
           {num}
           {snakes[num] && (
-            <div className="absolute inset-0 flex items-center justify-center text-red-500 text-xl pointer-events-none">🐍</div>
+            <img
+              src="/assets/icons/snake.svg"
+              alt="snake"
+              className="absolute inset-0 m-auto board-marker board-icon pointer-events-none"
+            />
           )}
           {ladders[num] && (
-            <div className="absolute inset-0 flex items-center justify-center text-green-500 text-xl pointer-events-none">🪜</div>
+            <img
+              src="/assets/icons/ladder.svg"
+              alt="ladder"
+              className="absolute inset-0 m-auto board-marker board-icon pointer-events-none"
+            />
           )}
           {position === num && (
             <img src={photoUrl} alt="player" className="token" />
@@ -102,7 +110,7 @@ function Board({ position, highlight, photoUrl, pot, snakes, ladders }) {
           width: `${length}px`,
           top: `${start.y}px`,
           left: `${start.x}px`,
-          transform: `rotate(${angle}deg)`,
+          transform: `rotate(${angle}deg) translateZ(6px)`,
         }}
       />
     );
