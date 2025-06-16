@@ -12,17 +12,13 @@ export default function DiceRoller({ onRollEnd, clickable = false, numDice = 2 }
   };
 
   const initial = Array.from({ length: numDice }, rand);
-  const [values, setValues] = useState(initial); // result for next roll
-  const [rollingVals, setRollingVals] = useState(initial); // temp roll visuals
+  const [values, setValues] = useState(initial);
   const [rolling, setRolling] = useState(false);
   const soundRef = useRef(null);
-  const startValuesRef = useRef(initial); // stores values for this roll
 
   useEffect(() => {
     const init = Array.from({ length: numDice }, rand);
     setValues(init);
-    setRollingVals(init);
-    startValuesRef.current = init;
   }, [numDice]);
 
   useEffect(() => {
@@ -41,25 +37,19 @@ export default function DiceRoller({ onRollEnd, clickable = false, numDice = 2 }
       soundRef.current.play().catch(() => {});
     }
 
-    // Use current values as fixed starting orientation for the animation
-    startValuesRef.current = values.slice();
+    const result = Array.from({ length: numDice }, rand);
     setRolling(true);
 
     let count = 0;
     const id = setInterval(() => {
-      // Random temp display values during spin
-      setRollingVals(Array.from({ length: numDice }, rand));
+      // show random values during the roll
+      setValues(Array.from({ length: numDice }, rand));
       count += 1;
       if (count >= 20) {
         clearInterval(id);
         setRolling(false);
-        // Restore the original value for consistent final position
-        setRollingVals(startValuesRef.current);
-        onRollEnd && onRollEnd(startValuesRef.current);
-        // Prepare next values for next roll
-        const next = Array.from({ length: numDice }, rand);
-        setValues(next);
-        startValuesRef.current = next.slice();
+        setValues(result);
+        onRollEnd && onRollEnd(result);
       }
     }, 100);
   };
@@ -70,13 +60,8 @@ export default function DiceRoller({ onRollEnd, clickable = false, numDice = 2 }
         className={`flex space-x-4 ${clickable ? 'cursor-pointer' : ''}`}
         onClick={clickable ? rollDice : undefined}
       >
-        {rollingVals.map((val, i) => (
-          <Dice
-            key={i}
-            value={val}
-            rolling={rolling}
-            prevValue={startValuesRef.current[i]}
-          />
+        {values.map((val, i) => (
+          <Dice key={i} value={val} rolling={rolling} />
         ))}
       </div>
       {!clickable && (
