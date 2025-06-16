@@ -53,7 +53,8 @@ function Board({ position, highlight, photoUrl, pot }) {
 
   const cellWidth = 100;
   const cellHeight = 50;
-  const zoom = 1 + (position / FINAL_TILE) * 0.4;
+  // Slightly closer camera that zooms in more as the player climbs
+  const zoom = 1.1 + (position / FINAL_TILE) * 0.5;
 
   useEffect(() => {
     const container = containerRef.current;
@@ -67,7 +68,9 @@ function Board({ position, highlight, photoUrl, pot }) {
     if (cell) {
       const cRect = container.getBoundingClientRect();
       const cellRect = cell.getBoundingClientRect();
-      const offset = cellRect.top - cRect.top - cRect.height / 2 + cellRect.height / 2;
+      // Keep the player's token slightly lower on screen so the camera
+      // follows from behind rather than centering exactly
+      const offset = cellRect.top - cRect.top - cRect.height * 0.7 + cellRect.height / 2;
       container.scrollBy({ top: offset, behavior: 'smooth' });
     }
   }, [position]);
@@ -77,7 +80,7 @@ function Board({ position, highlight, photoUrl, pot }) {
       <div
         ref={containerRef}
         className="overflow-y-auto"
-        style={{ height: '70vh' }}
+        style={{ height: '80vh' }}
       >
         <div className="snake-board-tilt">
           <div
@@ -89,7 +92,8 @@ function Board({ position, highlight, photoUrl, pot }) {
               gridTemplateRows: `repeat(${ROWS}, ${cellHeight}px)`,
               '--cell-width': `${cellWidth}px`,
               '--cell-height': `${cellHeight}px`,
-              transform: `rotateX(60deg) scale(${zoom})`,
+              // Lower the viewing angle for a more immersive feel
+              transform: `rotateX(70deg) scale(${zoom})`,
             }}
           >
             {tiles}
