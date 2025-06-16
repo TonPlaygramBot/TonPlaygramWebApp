@@ -12,11 +12,10 @@ const snakes = {
 const ladders = {
   3: 22, 5: 8, 11: 26, 20: 29,
   27: 56, 36: 44, 51: 67,
-  71: 91, 80: 101,
+  71: 91, 80: 101, // ladder to Pot
 };
 
 const PLAYERS = 4;
-// Board dimensions. Using more rows than columns gives a vertical layout
 const ROWS = 25;
 const COLS = 4;
 const FINAL_TILE = ROWS * COLS + 1; // 101
@@ -89,7 +88,7 @@ export default function SnakeAndLadder() {
   const [highlight, setHighlight] = useState(null);
   const [message, setMessage] = useState("");
   const [photoUrl, setPhotoUrl] = useState("");
-  const [pot, setPot] = useState(100); // Placeholder: Replace with actual logic or context
+  const [pot, setPot] = useState(100); // 📝 Replace with actual logic or context if needed
 
   const moveSoundRef = useRef(null);
   const snakeSoundRef = useRef(null);
@@ -188,7 +187,7 @@ export default function SnakeAndLadder() {
     <div className="p-4 space-y-4 text-text">
       <h2 className="text-xl font-bold">Snake &amp; Ladder</h2>
       <p className="text-sm text-subtext">
-        Roll the dice to move across the board. Ladders move you up, snakes bring you down. Reach the Pot first to win.
+        Roll the dice to move across the board. Ladders move you up, snakes bring you down. The Pot at the top collects everyone's stake – reach it first to claim the total amount.
       </p>
       <Board position={pos} highlight={highlight} photoUrl={photoUrl} pot={pot} />
       {message && <div className="text-center font-semibold">{message}</div>}
