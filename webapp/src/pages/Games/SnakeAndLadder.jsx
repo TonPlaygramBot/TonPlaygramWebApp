@@ -85,10 +85,10 @@ function Board({ position, highlight, photoUrl, pot }) {
   }, [position]);
 
   return (
-    <div className="flex justify-center">
+    <div className="flex justify-center items-center w-screen overflow-hidden">
       <div
         ref={containerRef}
-        className="overflow-y-auto"
+        className="overflow-y-auto overflow-x-hidden"
         style={{ height: '80vh', overscrollBehaviorY: 'contain', paddingTop: '0.5rem' }}
       >
         <div className="snake-board-tilt">
