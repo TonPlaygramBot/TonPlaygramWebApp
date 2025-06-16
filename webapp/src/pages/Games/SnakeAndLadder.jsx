@@ -4,7 +4,7 @@ import RoomPopup from "../../components/RoomPopup.jsx";
 import useTelegramBackButton from "../../hooks/useTelegramBackButton.js";
 import { getTelegramPhotoUrl } from "../../utils/telegram.js";
 
-// Simple snake and ladder layout for a 10x10 board
+// Simple snake and ladder layout for a 25x4 board
 // The final tile 101 is the "Pot" where the winner collects all stakes
 const snakes = {
   17: 4,
@@ -33,19 +33,22 @@ const ladders = {
 };
 
 const PLAYERS = 4; // temporary number of players
+const ROWS = 25;
+const COLS = 4;
+const FINAL_TILE = ROWS * COLS + 1; // 101
 
 function Board({ position, highlight, photoUrl, pot }) {
   const tiles = [];
-  for (let r = 0; r < 10; r++) {
+  for (let r = 0; r < ROWS; r++) {
     const reversed = r % 2 === 1;
-    for (let c = 0; c < 10; c++) {
-      const col = reversed ? 9 - c : c;
-      const num = r * 10 + col + 1;
+    for (let c = 0; c < COLS; c++) {
+      const col = reversed ? COLS - 1 - c : c;
+      const num = r * COLS + col + 1;
       tiles.push(
         <div
           key={num}
           className={`board-cell ${highlight === num ? "highlight" : ""}`}
-          style={{ gridRowStart: 10 - r, gridColumnStart: col + 1 }}
+          style={{ gridRowStart: ROWS - r, gridColumnStart: col + 1 }}
         >
           {num}
           {snakes[num] && (
@@ -72,23 +75,23 @@ function Board({ position, highlight, photoUrl, pot }) {
   return (
     <div className="flex justify-center">
       <div
-        className="grid grid-rows-10 grid-cols-10 gap-1 relative"
+        className="grid gap-1 relative"
         style={{
-          width: `${cellWidth * 10}px`,
-          height: `${cellHeight * 10}px`,
-          gridTemplateColumns: `repeat(10, ${cellWidth}px)`,
-          gridTemplateRows: `repeat(10, ${cellHeight}px)`,
+          width: `${cellWidth * COLS}px`,
+          height: `${cellHeight * ROWS}px`,
+          gridTemplateColumns: `repeat(${COLS}, ${cellWidth}px)`,
+          gridTemplateRows: `repeat(${ROWS}, ${cellHeight}px)`,
           '--cell-width': `${cellWidth}px`,
           '--cell-height': `${cellHeight}px`,
         }}
       >
         {tiles}
         <div
-          className={`pot-cell ${highlight === 101 ? 'highlight' : ''}`}
+          className={`pot-cell ${highlight === FINAL_TILE ? 'highlight' : ''}`}
         >
           <span className="font-bold">Pot</span>
           <span className="text-sm">{pot}</span>
-          {position === 101 && (
+          {position === FINAL_TILE && (
             <img src={photoUrl} alt="player" className="token" />
           )}
         </div>
@@ -157,7 +160,7 @@ export default function SnakeAndLadder() {
         setMessage("Need a 6 to start!");
         return;
       }
-    } else if (current + value <= 101) {
+    } else if (current + value <= FINAL_TILE) {
       target = current + value;
     } else {
       setMessage("Need exact roll!");
@@ -181,7 +184,7 @@ export default function SnakeAndLadder() {
         setTimeout(() => {
           setPos(finalPos);
           setHighlight(null);
-          if (finalPos === 101) {
+          if (finalPos === FINAL_TILE) {
             setMessage(`You win ${pot} ${selection?.token || ''}!`);
             winSoundRef.current?.play().catch(() => {});
           } else if (ladder) {
