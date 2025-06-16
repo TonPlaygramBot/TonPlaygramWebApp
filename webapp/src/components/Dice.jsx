@@ -33,19 +33,8 @@ const diceFaces = {
   ],
 };
 
-// Fixed isometric tilt so three faces are always visible
+// Fixed isometric tilt showing 3 faces
 const baseTilt = 'rotateX(-35deg) rotateY(45deg)';
-
-// Rotation needed to bring each numbered face to the top while keeping
-// the overall isometric camera tilt the same.
-const valueToRotation = {
-  1: 'rotateX(180deg)',  // bottom -> top
-  2: 'rotateZ(-90deg)',  // right -> top
-  3: 'rotateX(0deg)',    // already top
-  4: 'rotateZ(90deg)',   // left -> top
-  5: 'rotateX(-90deg)',  // front -> top
-  6: 'rotateX(90deg)',   // back -> top
-};
 
 function Face({ value, className }) {
   const face = diceFaces[value];
@@ -63,9 +52,8 @@ function Face({ value, className }) {
 }
 
 export default function Dice({ value = 1, rolling = false }) {
-  const transform = valueToRotation[value] || 'rotateX(0deg)';
-  // Apply value rotation first, then the common isometric tilt
-  const orientation = `${baseTilt} ${transform}`;
+  // Always render from a static camera view
+  const orientation = baseTilt;
 
   return (
     <div className="dice-container perspective-1000 w-24 h-24">
@@ -75,12 +63,15 @@ export default function Dice({ value = 1, rolling = false }) {
         }`}
         style={!rolling ? { transform: orientation } : undefined}
       >
+        {/* Static side faces */}
         <Face value={5} className="dice-face--front absolute" />
         <Face value={6} className="dice-face--back absolute" />
         <Face value={2} className="dice-face--right absolute" />
         <Face value={4} className="dice-face--left absolute" />
-        <Face value={3} className="dice-face--top absolute" />
-        <Face value={1} className="dice-face--bottom absolute" />
+        
+        {/* Only top face changes dynamically */}
+        <Face value={value} className="dice-face--top absolute" />
+        <Face value={7 - value} className="dice-face--bottom absolute" />
       </div>
     </div>
   );
