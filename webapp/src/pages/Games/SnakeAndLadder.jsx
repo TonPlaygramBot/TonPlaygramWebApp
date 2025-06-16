@@ -89,7 +89,7 @@ function Board({ position, highlight, photoUrl, pot }) {
       <div
         ref={containerRef}
         className="overflow-y-auto"
-        style={{ height: '80vh' }}
+        style={{ height: '80vh', overscrollBehaviorY: 'contain', paddingTop: '0.5rem' }}
       >
         <div className="snake-board-tilt">
           <div
