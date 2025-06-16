@@ -1,7 +1,8 @@
 export class GameRoom {
-  constructor(id, io) {
+  constructor(id, io, maxPlayers = 4) {
     this.id = id;
     this.io = io;
+    this.maxPlayers = maxPlayers;
     this.players = [];
     this.currentTurn = 0;
     this.status = 'waiting';
@@ -33,7 +34,7 @@ export class GameRoom {
   }
 
   addPlayer(playerId, name, socket) {
-    if (this.players.length >= 4 || this.status !== 'waiting') {
+    if (this.players.length >= this.maxPlayers || this.status !== 'waiting') {
       return { error: 'Room full or game already started' };
     }
     const player = {
@@ -48,7 +49,7 @@ export class GameRoom {
     this.players.push(player);
     socket.join(this.id);
     this.io.to(this.id).emit('playerJoined', { playerId, name });
-    if (this.players.length === 4) {
+    if (this.players.length === this.maxPlayers) {
       this.startGame();
     }
     return { success: true };
@@ -157,17 +158,19 @@ export class GameRoomManager {
     this.rooms = new Map();
   }
 
-  getRoom(id) {
+  getRoom(id, maxPlayers = 4) {
     let room = this.rooms.get(id);
     if (!room) {
-      room = new GameRoom(id, this.io);
+      room = new GameRoom(id, this.io, maxPlayers);
       this.rooms.set(id, room);
     }
     return room;
   }
 
   joinRoom(roomId, playerId, name, socket) {
-    const room = this.getRoom(roomId);
+    const match = /-(\d+)$/.exec(roomId);
+    const maxPlayers = match ? Number(match[1]) : 4;
+    const room = this.getRoom(roomId, maxPlayers);
     return room.addPlayer(playerId, name, socket);
   }
 
