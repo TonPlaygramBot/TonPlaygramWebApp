@@ -4,12 +4,6 @@ import TableSelector from '../../components/TableSelector.jsx';
 import RoomSelector from '../../components/RoomSelector.jsx';
 import useTelegramBackButton from '../../hooks/useTelegramBackButton.js';
 import { getSnakeLobbies, getSnakeLobby } from '../../utils/api.js';
-import { socket } from '../../utils/socket.js';
-import {
-  getTelegramId,
-  getTelegramUsername,
-  getTelegramFirstName
-} from '../../utils/telegram.js';
 
 export default function Lobby() {
   const { game } = useParams();
@@ -20,11 +14,6 @@ export default function Lobby() {
   const [table, setTable] = useState(null);
   const [stake, setStake] = useState({ token: '', amount: 0 });
   const [players, setPlayers] = useState([]);
-
-  useEffect(() => {
-    socket.connect();
-    return () => socket.disconnect();
-  }, []);
 
   useEffect(() => {
     if (game === 'snake') {
@@ -47,11 +36,6 @@ export default function Lobby() {
 
   useEffect(() => {
     if (game === 'snake' && table) {
-      try {
-        const id = getTelegramId();
-        const name = getTelegramUsername() || getTelegramFirstName();
-        socket.emit('joinRoom', { roomId: table.id, playerId: String(id), name });
-      } catch {}
       let active = true;
       function loadPlayers() {
         getSnakeLobby(table.id)
@@ -77,10 +61,6 @@ export default function Lobby() {
     if (stake.token) params.set('token', stake.token);
     if (stake.amount) params.set('amount', stake.amount);
     navigate(`/games/${game}?${params.toString()}`);
-  };
-
-  const startTest = () => {
-    navigate(`/games/${game}?test=1`);
   };
 
   const disabled =
@@ -119,12 +99,6 @@ export default function Lobby() {
         className="px-4 py-2 w-full bg-primary hover:bg-primary-hover text-white rounded disabled:opacity-50"
       >
         Start Game
-      </button>
-      <button
-        onClick={startTest}
-        className="px-4 py-2 w-full bg-gray-600 hover:bg-gray-500 text-white rounded"
-      >
-        Start Test
       </button>
     </div>
   );
