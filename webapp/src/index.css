@@ -59,7 +59,7 @@ body {
 .snake-board-grid {
   transform-style: preserve-3d;
   transform-origin: bottom center;
-  transition: transform 0.3s ease; /* ✅ scaling transition */
+  transition: transform 0.3s ease;
 }
 
 @keyframes roll {
@@ -158,11 +158,11 @@ body {
 
 .logo-wall-main {
   @apply absolute flex items-center justify-center;
-  width: calc(var(--cell-width) * 5); /* bigger width */
-  height: calc(var(--cell-height) * 5); /* bigger height */
-  top: calc(var(--cell-height) * -4.5); /* ✅ push above pot */
+  width: calc(var(--cell-width) * 5);
+  height: calc(var(--cell-height) * 5);
+  top: calc(var(--cell-height) * -4.5);
   left: 50%;
-  transform: translateX(-50%) rotateX(-60deg) translateZ(-20px); /* ✅ behind the pot */
+  transform: translateX(-50%) rotateX(-60deg) translateZ(-20px);
   transform-origin: bottom center;
   background-image: url('/assets/TonPlayGramLogo.jpg');
   background-size: contain;
