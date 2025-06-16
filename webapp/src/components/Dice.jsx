@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo } from "react";
 
 const diceFaces = {
   1: [
@@ -73,9 +73,7 @@ function DiceCube({
     return Math.floor(Math.random() * 6) + 1;
   };
 
-  const [sides, setSides] = useState([2, 4]);
-
-  useEffect(() => {
+  const sides = useMemo(() => {
     const used = new Set([value]);
     let front = rand();
     while (used.has(front)) {
@@ -86,7 +84,7 @@ function DiceCube({
     while (used.has(right)) {
       right = rand();
     }
-    setSides([front, right]);
+    return [front, right];
   }, [value]);
 
   useEffect(() => {
