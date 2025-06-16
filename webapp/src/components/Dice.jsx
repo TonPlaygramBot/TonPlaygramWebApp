@@ -67,7 +67,7 @@ export default function Dice({ value = 1, rolling = false }) {
         <Face value={6} className="dice-face--back absolute" />
         <Face value={2} className="dice-face--right absolute" />
         <Face value={4} className="dice-face--left absolute" />
-        
+
         {/* Dynamic top and bottom */}
         <Face value={value} className="dice-face--top absolute" />
         <Face value={7 - value} className="dice-face--bottom absolute" />
