@@ -36,6 +36,16 @@ const diceFaces = {
 // Fixed isometric tilt showing 3 faces
 const baseTilt = 'rotateX(-35deg) rotateY(45deg)';
 
+// Orientation for each value keeping the same viewing angle
+const faceTransforms = {
+  1: `rotateX(-90deg) rotateY(0deg) ${baseTilt}`,
+  2: `rotateX(0deg) rotateY(0deg) ${baseTilt}`,
+  3: `rotateX(-90deg) rotateY(-90deg) ${baseTilt}`,
+  4: `rotateX(-90deg) rotateY(90deg) ${baseTilt}`,
+  5: `rotateX(180deg) rotateY(0deg) ${baseTilt}`,
+  6: `rotateX(90deg) rotateY(0deg) ${baseTilt}`,
+};
+
 // 🎲 Single dice face component
 function Face({ value, className }) {
   const face = diceFaces[value];
@@ -67,7 +77,7 @@ function DiceCube({ value = 1, rolling = false, playSound = false }) {
         className={`dice-cube relative w-full h-full transition-transform duration-500 transform-style-preserve-3d ${
           rolling ? 'animate-roll' : ''
         }`}
-        style={!rolling ? { transform: baseTilt } : undefined}
+        style={!rolling ? { transform: faceTransforms[value] } : undefined}
       >
         {/* Static side faces */}
         <Face value={5} className="dice-face--front absolute" />
