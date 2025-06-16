@@ -107,9 +107,7 @@ body {
 }
 
 .board-cell {
-  @apply relative flex items-center justify-center rounded-xl text-white shadow-inner;
-  background-color: #000; /* match dice face */
-  border: 2px solid #ffd700; /* metallic gold edges */
+  @apply relative flex items-center justify-center rounded-xl text-text shadow-inner bg-surface border-2 border-accent;
   box-shadow: 0 4px 6px rgba(0, 0, 0, 0.5); /* subtle outer depth */
   transform: translateZ(5px);
   width: var(--cell-width);
@@ -121,7 +119,7 @@ body {
   position: absolute;
   inset: 2px;
   border-radius: inherit;
-  box-shadow: 0 0 8px rgba(255, 255, 200, 0.5);
+  box-shadow: 0 0 8px rgba(250, 204, 21, 0.5);
   transform: translateZ(-1px);
 }
 
@@ -132,5 +130,5 @@ body {
 
 /* cell glows briefly as a piece moves over it */
 .board-cell.highlight {
-  box-shadow: 0 0 10px 4px rgba(255, 255, 100, 0.8);
+  box-shadow: 0 0 10px 4px rgba(250, 204, 21, 0.8);
 }
