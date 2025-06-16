@@ -2,9 +2,11 @@ import { useState } from 'react';
 import DiceRoller from '../../components/DiceRoller.jsx';
 import DicePopup from '../../components/DicePopup.jsx';
 import useTelegramBackButton from '../../hooks/useTelegramBackButton.js';
+import useTelegramExpand from '../../hooks/useTelegramExpand.js';
 
 export default function DiceDuel() {
   useTelegramBackButton();
+  useTelegramExpand();
   const TARGET = 20;
   const [scores, setScores] = useState([0, 0]);
   const [turn, setTurn] = useState(0); // 0 -> player1, 1 -> player2

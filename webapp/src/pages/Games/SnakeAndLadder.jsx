@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import DiceRoller from "../../components/DiceRoller.jsx";
 import useTelegramBackButton from "../../hooks/useTelegramBackButton.js";
+import useTelegramExpand from "../../hooks/useTelegramExpand.js";
 import { getTelegramPhotoUrl } from "../../utils/telegram.js";
 
 // Snake and ladder layout
@@ -114,6 +115,7 @@ function Board({ position, highlight, photoUrl, pot }) {
 
 export default function SnakeAndLadder() {
   useTelegramBackButton();
+  useTelegramExpand();
   const [pos, setPos] = useState(0);
   const [streak, setStreak] = useState(0);
   const [highlight, setHighlight] = useState(null);

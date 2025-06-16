@@ -56,6 +56,14 @@ export default function Lobby() {
   }, [game, table]);
 
   const startGame = () => {
+    const tg = window?.Telegram?.WebApp;
+    if (tg && typeof tg.expand === 'function') {
+      try {
+        tg.expand();
+      } catch {
+        /* ignore errors */
+      }
+    }
     const params = new URLSearchParams();
     if (table) params.set('table', table.id);
     if (stake.token) params.set('token', stake.token);

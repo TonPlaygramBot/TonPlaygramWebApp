@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Ludo } from '@ayshrj/ludo.js';
 import useTelegramBackButton from '../../hooks/useTelegramBackButton.js';
+import useTelegramExpand from '../../hooks/useTelegramExpand.js';
 
 const COLOR_MAP = {
   red: '#FF0000',
@@ -176,6 +177,7 @@ function LudoBoard({ game, state }) {
 
 export default function LudoGame() {
   useTelegramBackButton();
+  useTelegramExpand();
   const [ludo] = useState(() => new Ludo(4));
   const [gameState, setGameState] = useState(ludo.getCurrentState());
 
