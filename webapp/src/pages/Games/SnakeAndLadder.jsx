@@ -116,6 +116,7 @@ function Board({ position, highlight, photoUrl, pot }) {
             <div className="logo-wall-main" />
             <div className="logo-wall-side logo-wall-left" />
             <div className="logo-wall-side logo-wall-right" />
+            <div className="board-right-panel" />
           </div>
         </div>
       </div>
