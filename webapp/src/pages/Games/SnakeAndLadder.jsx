@@ -1,5 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import DiceRoller from "../../components/DiceRoller.jsx";
+import InfoPopup from "../../components/InfoPopup.jsx";
+import { AiOutlineInfoCircle } from "react-icons/ai";
 import useTelegramBackButton from "../../hooks/useTelegramBackButton.js";
 import { getTelegramPhotoUrl } from "../../utils/telegram.js";
 
@@ -127,6 +129,7 @@ export default function SnakeAndLadder() {
   const [message, setMessage] = useState("");
   const [photoUrl, setPhotoUrl] = useState("");
   const [pot, setPot] = useState(100);
+  const [showInfo, setShowInfo] = useState(false);
 
   const moveSoundRef = useRef(null);
   const snakeSoundRef = useRef(null);
@@ -222,16 +225,24 @@ export default function SnakeAndLadder() {
   };
 
   return (
-    <div className="p-4 pb-32 space-y-4 text-text flex flex-col items-center">
-      <h2 className="text-xl font-bold">Snake &amp; Ladder</h2>
-      <p className="text-sm text-subtext text-center">
-        Roll the dice to move across the board. Ladders move you up, snakes bring you down. The Pot at the top collects everyone's stake – reach it first to claim the total amount.
-      </p>
+    <div className="p-4 pb-32 space-y-4 text-text flex flex-col items-center relative w-full">
+      <button
+        className="absolute top-0 right-0 p-2"
+        onClick={() => setShowInfo(true)}
+      >
+        <AiOutlineInfoCircle className="text-2xl" />
+      </button>
       <Board position={pos} highlight={highlight} photoUrl={photoUrl} pot={pot} />
       {message && <div className="text-center font-semibold w-full">{message}</div>}
       <div className="fixed bottom-24 inset-x-0 flex justify-center z-20">
         <DiceRoller onRollEnd={handleRoll} clickable numDice={1} />
       </div>
+      <InfoPopup
+        open={showInfo}
+        onClose={() => setShowInfo(false)}
+        title="Snake & Ladder"
+        info="Roll the dice to move across the board. Ladders move you up, snakes bring you down. The Pot at the top collects everyone's stake – reach it first to claim the total amount."
+      />
     </div>
   );
 }
