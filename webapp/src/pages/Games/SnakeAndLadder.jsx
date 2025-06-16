@@ -23,6 +23,7 @@ const FINAL_TILE = ROWS * COLS + 1; // 101
 function Board({ position, highlight, photoUrl, pot }) {
   const containerRef = useRef(null);
   const tiles = [];
+
   for (let r = 0; r < ROWS; r++) {
     const reversed = r % 2 === 1;
     for (let c = 0; c < COLS; c++) {
@@ -37,14 +38,10 @@ function Board({ position, highlight, photoUrl, pot }) {
         >
           {num}
           {snakes[num] && (
-            <div className="absolute inset-0 flex items-center justify-center text-red-500 text-xl pointer-events-none">
-              🐍
-            </div>
+            <div className="absolute inset-0 flex items-center justify-center text-red-500 text-xl pointer-events-none">🐍</div>
           )}
           {ladders[num] && (
-            <div className="absolute inset-0 flex items-center justify-center text-green-500 text-xl pointer-events-none">
-              🪜
-            </div>
+            <div className="absolute inset-0 flex items-center justify-center text-green-500 text-xl pointer-events-none">🪜</div>
           )}
           {position === num && (
             <img src={photoUrl} alt="player" className="token" />
@@ -54,14 +51,13 @@ function Board({ position, highlight, photoUrl, pot }) {
     }
   }
 
-  // Smaller cell size for rotated board layout
   const cellWidth = 100;
   const cellHeight = 50;
 
   useEffect(() => {
     const container = containerRef.current;
     if (container) {
-      container.scrollTop = container.scrollHeight;
+      container.scrollTop = container.scrollHeight; // Scroll to bottom on mount
     }
   }, []);
 
@@ -84,27 +80,27 @@ function Board({ position, highlight, photoUrl, pot }) {
         className="overflow-y-auto"
         style={{ height: '70vh' }}
       >
-        <div className="snake-board-tilt"> {/* 👈 Apply rotation in CSS */}
+        <div className="snake-board-tilt">
           <div
             className="snake-board-grid grid gap-1 relative"
             style={{
               width: `${cellWidth * COLS}px`,
               height: `${cellHeight * ROWS}px`,
-            gridTemplateColumns: `repeat(${COLS}, ${cellWidth}px)`,
-            gridTemplateRows: `repeat(${ROWS}, ${cellHeight}px)`,
-            '--cell-width': `${cellWidth}px`,
-            '--cell-height': `${cellHeight}px`,
-          }}
-        >
-          {tiles}
-          <div className={`pot-cell ${highlight === FINAL_TILE ? 'highlight' : ''}`}> 
-            <span className="font-bold">Pot</span>
-            <span className="text-sm">{pot}</span>
-            {position === FINAL_TILE && (
-              <img src={photoUrl} alt="player" className="token" />
-            )}
+              gridTemplateColumns: `repeat(${COLS}, ${cellWidth}px)`,
+              gridTemplateRows: `repeat(${ROWS}, ${cellHeight}px)`,
+              '--cell-width': `${cellWidth}px`,
+              '--cell-height': `${cellHeight}px`,
+            }}
+          >
+            {tiles}
+            <div className={`pot-cell ${highlight === FINAL_TILE ? 'highlight' : ''}`}>
+              <span className="font-bold">Pot</span>
+              <span className="text-sm">{pot}</span>
+              {position === FINAL_TILE && (
+                <img src={photoUrl} alt="player" className="token" />
+              )}
+            </div>
           </div>
-        </div>
         </div>
       </div>
     </div>
@@ -118,7 +114,7 @@ export default function SnakeAndLadder() {
   const [highlight, setHighlight] = useState(null);
   const [message, setMessage] = useState("");
   const [photoUrl, setPhotoUrl] = useState("");
-  const [pot, setPot] = useState(100); // Placeholder: real pot should come from lobby context
+  const [pot, setPot] = useState(100); // Placeholder: real pot should come from context
 
   const moveSoundRef = useRef(null);
   const snakeSoundRef = useRef(null);
