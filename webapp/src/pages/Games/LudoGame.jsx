@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react';
 import { Ludo } from '@ayshrj/ludo.js';
-import RoomPopup from '../../components/RoomPopup.jsx';
 import useTelegramBackButton from '../../hooks/useTelegramBackButton.js';
 
 const COLOR_MAP = {
@@ -177,9 +176,6 @@ function LudoBoard({ game, state }) {
 
 export default function LudoGame() {
   useTelegramBackButton();
-
-  const [selection, setSelection] = useState(null);
-  const [showRoom, setShowRoom] = useState(true);
   const [ludo] = useState(() => new Ludo(4));
   const [gameState, setGameState] = useState(ludo.getCurrentState());
 
@@ -193,15 +189,6 @@ export default function LudoGame() {
   return (
     <div className="p-4 space-y-4 text-text">
       <h2 className="text-xl font-bold">Ludo Game</h2>
-
-      <RoomPopup
-        open={showRoom}
-        selection={selection}
-        setSelection={setSelection}
-        onConfirm={() => setShowRoom(false)}
-      />
-
-
       <LudoBoard game={ludo} state={gameState} />
     </div>
   );

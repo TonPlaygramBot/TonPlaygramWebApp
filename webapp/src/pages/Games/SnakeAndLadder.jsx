@@ -1,9 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import DiceRoller from "../../components/DiceRoller.jsx";
-import RoomPopup from "../../components/RoomPopup.jsx";
 import useTelegramBackButton from "../../hooks/useTelegramBackButton.js";
 import { getTelegramPhotoUrl } from "../../utils/telegram.js";
-import { getSnakeLobbies } from "../../utils/api.js";
 
 // Snake and ladder layout
 const snakes = {
@@ -86,24 +84,16 @@ function Board({ position, highlight, photoUrl, pot }) {
 export default function SnakeAndLadder() {
   useTelegramBackButton();
   const [pos, setPos] = useState(0);
-  const [selection, setSelection] = useState(null);
-  const [showRoom, setShowRoom] = useState(true);
   const [streak, setStreak] = useState(0);
   const [highlight, setHighlight] = useState(null);
   const [message, setMessage] = useState("");
   const [photoUrl, setPhotoUrl] = useState("");
-  const [pot, setPot] = useState(0);
+  const [pot, setPot] = useState(100); // 📝 Replace with real pot value from context/props if needed
+
   const moveSoundRef = useRef(null);
   const snakeSoundRef = useRef(null);
   const ladderSoundRef = useRef(null);
   const winSoundRef = useRef(null);
-
-  const handleConfirm = () => {
-    if (selection) {
-      setPot(selection.amount * PLAYERS);
-    }
-    setShowRoom(false);
-  };
 
   useEffect(() => {
     setPhotoUrl(getTelegramPhotoUrl());
@@ -171,7 +161,7 @@ export default function SnakeAndLadder() {
           setPos(finalPos);
           setHighlight(null);
           if (finalPos === FINAL_TILE) {
-            setMessage(`You win ${pot} ${selection?.token || ''}!`);
+            setMessage(`You win ${pot} tokens!`);
             winSoundRef.current?.play().catch(() => {});
           } else if (ladder) {
             ladderSoundRef.current?.play().catch(() => {});
@@ -197,15 +187,8 @@ export default function SnakeAndLadder() {
     <div className="p-4 space-y-4 text-text">
       <h2 className="text-xl font-bold">Snake &amp; Ladder</h2>
       <p className="text-sm text-subtext">
-        Roll the dice to move across the board. Ladders move you up, snakes bring
-        you down. Reach the Pot first to win.
+        Roll the dice to move across the board. Ladders move you up, snakes bring you down. Reach the Pot first to win.
       </p>
-      <RoomPopup
-        open={showRoom}
-        selection={selection}
-        setSelection={setSelection}
-        onConfirm={handleConfirm}
-      />
       <Board position={pos} highlight={highlight} photoUrl={photoUrl} pot={pot} />
       {message && <div className="text-center font-semibold">{message}</div>}
       <DiceRoller onRollEnd={handleRoll} clickable numDice={1} />
