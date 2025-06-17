@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react';
 import { Ludo } from '@ayshrj/ludo.js';
+import { useNavigate } from 'react-router-dom';
 import useTelegramBackButton from '../../hooks/useTelegramBackButton.js';
+import GameEndPopup from '../../components/GameEndPopup.jsx';
 
 const COLOR_MAP = {
   red: '#FF0000',
@@ -176,6 +178,7 @@ function LudoBoard({ game, state }) {
 
 export default function LudoGame() {
   useTelegramBackButton();
+  const navigate = useNavigate();
   const [ludo] = useState(() => new Ludo(4));
   const [gameState, setGameState] = useState(ludo.getCurrentState());
 
@@ -186,10 +189,28 @@ export default function LudoGame() {
     return () => ludo.off('stateChange', handler);
   }, [ludo]);
 
+  const gameOver =
+    gameState.ranking.length === gameState.players.length &&
+    gameState.players.length > 0;
+
+  const handlePlayAgain = () => {
+    ludo.reset();
+  };
+
+  const handleReturn = () => {
+    navigate('/games/ludo/lobby');
+  };
+
   return (
     <div className="p-4 space-y-4 text-text">
       <h2 className="text-xl font-bold">Ludo Game</h2>
       <LudoBoard game={ludo} state={gameState} />
+      <GameEndPopup
+        open={gameOver}
+        ranking={gameState.ranking}
+        onPlayAgain={handlePlayAgain}
+        onReturn={handleReturn}
+      />
     </div>
   );
 }
