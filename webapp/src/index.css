@@ -180,6 +180,35 @@ body {
   transform-origin: center bottom;
 }
 
+.token-pillar {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  width: 100%;
+  height: var(--cyl-h);
+  transform-style: preserve-3d;
+  transform-origin: center bottom;
+}
+
+.pillar-face {
+  position: absolute;
+  left: calc(50% - var(--token-radius) / 2);
+  width: var(--token-radius);
+  height: 100%;
+  background-color: var(--side-color, #facc15);
+  border: 1px solid var(--border-color, #d97706);
+}
+
+.pillar-front {
+  transform: rotateY(0deg) translateZ(var(--cyl-apothem));
+}
+.pillar-right {
+  transform: rotateY(-60deg) translateZ(var(--cyl-apothem));
+}
+.pillar-left {
+  transform: rotateY(60deg) translateZ(var(--cyl-apothem));
+}
+
 .hex-side {
   position: absolute;
   left: calc(50% - var(--token-radius) / 2);
