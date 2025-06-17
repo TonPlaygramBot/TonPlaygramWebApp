@@ -249,7 +249,9 @@ body {
 }
 
 .snake-connector {
-  background: repeating-linear-gradient(45deg, #dc2626 0 10px, #f87171 10px 20px);
+  background-image: url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA2NCA2NCI+CiAgPHBhdGggZD0iTTEyIDE2YzgtOCAxNi04IDI0IDBzMTYgOCAyNCAwIiBzdHJva2U9IiMxNmEzNGEiIHN0cm9rZS13aWR0aD0iNCIgZmlsbD0ibm9uZSIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIi8+CiAgPHBhdGggZD0iTTYwIDQ4Yy04IDgtMTYgOC0yNCAwcy0xNi04LTI0IDAiIHN0cm9rZT0iIzE2YTM0YSIgc3Ryb2tlLXdpZHRoPSI0IiBmaWxsPSJub25lIiBzdHJva2UtbGluZWNhcD0icm91bmQiLz4KICA8Y2lyY2xlIGN4PSI1NiIgY3k9IjE2IiByPSI0IiBmaWxsPSIjZGMyNjI2Ii8+Cjwvc3ZnPg==');
+  background-size: 100% 100%;
+  background-repeat: no-repeat;
   border-radius: 4px;
 }
 
