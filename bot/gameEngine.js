@@ -1,8 +1,59 @@
 export const FINAL_TILE = 101;
 export const ROLL_COOLDOWN_MS = 1000;
 
+export const DEFAULT_SNAKES = {
+  17: 4,
+  19: 7,
+  21: 9,
+  54: 34,
+  62: 18,
+  64: 60,
+  87: 24,
+  93: 73,
+  95: 75,
+  98: 79,
+  99: 7,
+};
+
+export const DEFAULT_LADDERS = {
+  3: 22,
+  5: 8,
+  11: 26,
+  20: 29,
+  27: 56,
+  36: 44,
+  51: 67,
+  71: 91,
+  80: 100,
+};
+
+function addWidthsToLadders(ladders) {
+  const obj = {};
+  for (const [s, e] of Object.entries(ladders)) {
+    obj[s] = { end: e, width: 6 + Math.floor(Math.random() * 6) };
+  }
+  return obj;
+}
+
+function generateRandomLadders(snakes, count = 8) {
+  const ladders = {};
+  const used = new Set([...Object.keys(snakes), ...Object.values(snakes)]);
+  while (Object.keys(ladders).length < count) {
+    const start = Math.floor(Math.random() * (FINAL_TILE - 20)) + 2;
+    const maxStep = Math.min(FINAL_TILE - start - 1, 20);
+    if (maxStep < 3) continue;
+    const end = start + 3 + Math.floor(Math.random() * maxStep);
+    if (used.has(String(start)) || used.has(String(end))) continue;
+    if (ladders[start] || Object.values(ladders).some(l => l.end === start || l.end === end)) continue;
+    ladders[start] = { end, width: 6 + Math.floor(Math.random() * 6) };
+    used.add(String(start));
+    used.add(String(end));
+  }
+  return ladders;
+}
+
 export class GameRoom {
-  constructor(id, io, maxPlayers = 4) {
+  constructor(id, io, maxPlayers = 4, options = {}) {
     this.id = id;
     this.io = io;
     this.maxPlayers = maxPlayers;
@@ -10,30 +61,12 @@ export class GameRoom {
     this.currentTurn = 0;
     this.status = 'waiting';
     this.rollCooldown = ROLL_COOLDOWN_MS;
-    this.snakes = {
-      17: 4,
-      19: 7,
-      21: 9,
-      54: 34,
-      62: 18,
-      64: 60,
-      87: 24,
-      93: 73,
-      95: 75,
-      98: 79,
-      99: 7,
-    };
-    this.ladders = {
-      3: 22,
-      5: 8,
-      11: 26,
-      20: 29,
-      27: 56,
-      36: 44,
-      51: 67,
-      71: 91,
-      80: 100,
-    };
+    this.snakes = options.snakes || { ...DEFAULT_SNAKES };
+    if (options.ladders) {
+      this.ladders = addWidthsToLadders(options.ladders);
+    } else {
+      this.ladders = generateRandomLadders(this.snakes);
+    }
   }
 
   addPlayer(playerId, name, socket) {
@@ -77,7 +110,8 @@ export class GameRoom {
 
   applySnakesAndLadders(pos) {
     if (this.snakes[pos]) return this.snakes[pos];
-    if (this.ladders[pos]) return this.ladders[pos];
+    const ladder = this.ladders[pos];
+    if (ladder) return typeof ladder === 'object' ? ladder.end : ladder;
     return pos;
   }
 

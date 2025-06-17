@@ -70,11 +70,7 @@ function Board({
           style={{ gridRowStart: ROWS - r, gridColumnStart: col + 1 }}
         >
           {num}
-          {ladders[num] && (
-            <div className="absolute inset-0 flex items-center justify-center text-green-500 text-3xl pointer-events-none board-marker">
-              🪜
-            </div>
-          )}
+          {/* ladder markers removed */}
           {position === num && (
             <img src={photoUrl} alt="player" className="token" />
           )}
@@ -111,7 +107,7 @@ function Board({
     return { x, y };
   };
 
-  const renderConnector = (from, to, type) => {
+  const renderConnector = (from, to, type, width) => {
     const start = getCenter(from);
     const end = getCenter(to);
     const dx = end.x - start.x;
@@ -127,13 +123,16 @@ function Board({
           top: `${start.y}px`,
           left: `${start.x}px`,
           transform: `rotate(${angle}deg) translateZ(6px)`,
+          "--rail-width": width ? `${width}px` : undefined,
         }}
       />
     );
   };
 
   for (const [s, e] of Object.entries(ladders)) {
-    connectors.push(renderConnector(Number(s), Number(e), "ladder"));
+    const end = typeof e === "object" ? e.end : e;
+    const width = typeof e === "object" ? e.width : undefined;
+    connectors.push(renderConnector(Number(s), Number(end), "ladder", width));
   }
   for (const [s, e] of Object.entries(snakes)) {
     connectors.push(renderConnector(Number(s), Number(e), "snake"));
