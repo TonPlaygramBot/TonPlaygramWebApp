@@ -15,6 +15,7 @@ test('applySnakesAndLadders resolves moves', () => {
   const io = new DummyIO();
   const room = new GameRoom('r', io);
   assert.equal(room.applySnakesAndLadders(3), 22); // ladder
+  assert.equal(room.applySnakesAndLadders(27), 56); // ladder
   assert.equal(room.applySnakesAndLadders(99), 7); // snake
   assert.equal(room.applySnakesAndLadders(8), 8); // none
 });
