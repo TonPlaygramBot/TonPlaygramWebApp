@@ -83,7 +83,7 @@ body {
 }
 
 .dice-cube {
-  @apply relative w-16 h-16;
+  @apply relative w-12 h-12;
   transform-style: preserve-3d;
   transition: transform 0.5s;
 }
@@ -97,22 +97,22 @@ body {
 }
 
 .dice-face--front {
-  transform: rotateY(0deg) translateZ(2rem);
+  transform: rotateY(0deg) translateZ(1.5rem);
 }
 .dice-face--back {
-  transform: rotateY(180deg) translateZ(2rem);
+  transform: rotateY(180deg) translateZ(1.5rem);
 }
 .dice-face--right {
-  transform: rotateY(90deg) translateZ(2rem);
+  transform: rotateY(90deg) translateZ(1.5rem);
 }
 .dice-face--left {
-  transform: rotateY(-90deg) translateZ(2rem);
+  transform: rotateY(-90deg) translateZ(1.5rem);
 }
 .dice-face--top {
-  transform: rotateX(90deg) translateZ(2rem);
+  transform: rotateX(90deg) translateZ(1.5rem);
 }
 .dice-face--bottom {
-  transform: rotateX(-90deg) translateZ(2rem);
+  transform: rotateX(-90deg) translateZ(1.5rem);
 }
 
 .board-cell {
