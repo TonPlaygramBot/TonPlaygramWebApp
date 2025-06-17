@@ -170,11 +170,11 @@ body {
 
 .logo-wall-main {
   @apply absolute flex items-center justify-center;
-  width: calc(var(--cell-width) * 8); /* slightly wider */
-  height: calc(var(--cell-height) * 7); /* slightly taller */
-  top: calc(var(--cell-height) * -7); /* align bottom with board top */
+  width: calc(var(--cell-width) * 7.2); /* 20% wider */
+  height: calc(var(--cell-height) * 6); /* 20% taller */
+  top: calc(var(--cell-height) * -4.5); /* ✅ push above pot */
   left: 50%;
-  transform: translateX(-50%) rotateX(-60deg) translateZ(-20px);
+  transform: translateX(-50%) rotateX(-60deg) translateZ(-20px); /* ✅ behind the pot */
   transform-origin: bottom center;
   background-image: url('/assets/TonPlayGramLogo.jpg');
   background-size: contain;
@@ -185,9 +185,9 @@ body {
 
 .logo-wall-side {
   @apply absolute flex items-center justify-center;
-  width: calc(var(--board-width) * 1.2); /* slightly wider */
-  height: calc(var(--cell-height) * 7); /* slightly taller */
-  top: calc(var(--cell-height) * -7); /* align bottom with board top */
+  width: calc(var(--board-width) * 0.96); /* 20% wider */
+  height: calc(var(--cell-height) * 4.8); /* 20% taller */
+  top: calc(var(--cell-height) * -4.5);
   background-image: url('/assets/TonPlayGramLogo.jpg');
   background-size: contain;
   background-repeat: no-repeat;
