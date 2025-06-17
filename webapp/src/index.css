@@ -12,10 +12,6 @@ body {
   @apply bg-background text-text overflow-x-hidden;
 }
 
-body.transparent-bg {
-  background-color: transparent;
-}
-
 .hexagon {
   clip-path: polygon(25% 5%, 75% 5%, 100% 50%, 75% 95%, 25% 95%, 0% 50%);
 }
