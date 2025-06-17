@@ -6,6 +6,7 @@ import useTelegramBackButton from "../../hooks/useTelegramBackButton.js";
 import { useNavigate } from "react-router-dom";
 import { getTelegramPhotoUrl } from "../../utils/telegram.js";
 import { getSnakeBoard } from "../../utils/api.js";
+import PlayerToken from "../../components/PlayerToken.jsx";
 
 const PLAYERS = 4;
 // Adjusted board dimensions to show five columns
@@ -72,9 +73,7 @@ function Board({
         >
           {num}
           {/* ladder markers removed */}
-          {position === num && (
-            <img src={photoUrl} alt="player" className="token" />
-          )}
+          {position === num && <PlayerToken photoUrl={photoUrl} />}
         </div>,
       );
     }
@@ -211,9 +210,7 @@ function Board({
             >
               <span className="font-bold">Pot</span>
               <span className="text-sm">{pot}</span>
-              {position === FINAL_TILE && (
-                <img src={photoUrl} alt="player" className="token" />
-              )}
+              {position === FINAL_TILE && <PlayerToken photoUrl={photoUrl} />}
               {celebrate && <CoinBurst token={token} />}
             </div>
             <div className="logo-wall-main" />
