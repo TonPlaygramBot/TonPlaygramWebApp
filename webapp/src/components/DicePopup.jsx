@@ -5,7 +5,7 @@ export default function DicePopup({ open, onClose, onRollEnd }) {
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-70">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-transparent">
       <div className="relative">
         <button
           onClick={onClose}
