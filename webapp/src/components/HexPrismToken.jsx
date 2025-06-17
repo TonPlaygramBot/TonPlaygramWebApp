@@ -31,12 +31,14 @@ export default function HexPrismToken({ color = "#008080", photoUrl }) {
     if (photoUrl) {
       const loader = new THREE.TextureLoader();
       loader.load(photoUrl, (tex) => {
+        // ensure the profile photo correctly covers the top face
+        tex.wrapS = THREE.ClampToEdgeWrapping;
+        tex.wrapT = THREE.ClampToEdgeWrapping;
+        tex.center.set(0.5, 0.5);
+        tex.rotation = -Math.PI / 2; // align with board orientation
         tex.needsUpdate = true;
         topMaterial.map = tex;
         topMaterial.needsUpdate = true;
-        // scale height based on image aspect ratio
-        const scale = tex.image.height / tex.image.width;
-        prism.scale.set(1, scale * 2.5, 1);
       });
     }
     scene.add(prism);
