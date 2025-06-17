@@ -95,10 +95,9 @@ function Board({
   useEffect(() => {
     const updateSize = () => {
       const width = window.innerWidth;
-      // Use the exact column width so the board spans the full screen
-      const cw = width / COLS;
+      const cw = Math.floor(width / COLS);
       setCellWidth(cw);
-      setCellHeight(cw / 2);
+      setCellHeight(Math.floor(cw / 2));
     };
     updateSize();
     window.addEventListener("resize", updateSize);
@@ -160,10 +159,9 @@ function Board({
   const zoom = MIN_ZOOM + (MAX_ZOOM - MIN_ZOOM) * progress;
   const angle = MIN_ANGLE - (MIN_ANGLE - MAX_ANGLE) * progress;
 
-  // Center the board initially so the top logo is visible
   useEffect(() => {
     const container = containerRef.current;
-    if (container) container.scrollTop = 0;
+    if (container) container.scrollTop = container.scrollHeight;
   }, []);
 
   useEffect(() => {
@@ -196,7 +194,7 @@ function Board({
         style={{
           height: "80vh",
           overscrollBehaviorY: "contain",
-          paddingTop: 0,
+          paddingTop: "0.5rem",
         }}
       >
         <div className="snake-board-tilt">
