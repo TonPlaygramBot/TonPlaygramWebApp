@@ -240,11 +240,6 @@ function Board({
 export default function SnakeAndLadder() {
   useTelegramBackButton();
   const navigate = useNavigate();
-
-  useEffect(() => {
-    document.body.classList.add('transparent-bg');
-    return () => document.body.classList.remove('transparent-bg');
-  }, []);
   const [pos, setPos] = useState(0);
   const [streak, setStreak] = useState(0);
   const [highlight, setHighlight] = useState(null); // { cell: number, type: string }
