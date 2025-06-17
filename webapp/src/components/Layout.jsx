@@ -11,9 +11,12 @@ export default function Layout({ children }) {
     location.pathname.startsWith('/games/') &&
     !location.pathname.includes('/lobby')
   );
+  const bgClass = location.pathname.startsWith('/games/snake')
+    ? 'bg-transparent'
+    : 'bg-background';
 
   return (
-    <div className="flex flex-col min-h-screen bg-background text-text relative">
+    <div className={`flex flex-col min-h-screen ${bgClass} text-text relative`}>
       <main className={`flex-grow container mx-auto p-4 ${showNavbar ? 'pb-24' : ''}`.trim()}>
         {showBranding && <Branding />}
         {children}
