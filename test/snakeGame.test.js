@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { GameRoom } from '../bot/gameEngine.js';
+import { GameRoom, FINAL_TILE } from '../bot/gameEngine.js';
 
 class DummyIO {
   constructor() {
@@ -51,5 +51,22 @@ test('room starts when reaching custom capacity', () => {
   assert.equal(room.status, 'playing');
   const res = room.addPlayer('p3', 'C', { id: 's3', join: () => {} });
   assert.ok(res.error, 'should not allow extra players');
+});
+
+test('player wins when landing on the final tile', () => {
+  const io = new DummyIO();
+  const room = new GameRoom('r3', io);
+  const socket = { id: 's1', join: () => {} };
+  room.addPlayer('p1', 'Winner', socket);
+  room.startGame();
+
+  room.players[0].position = FINAL_TILE - 3;
+  room.players[0].isActive = true;
+  room.rollDice(socket, 3);
+
+  assert.equal(room.players[0].position, FINAL_TILE);
+  assert.equal(room.status, 'finished');
+  const winEvent = io.emitted.find(e => e.event === 'gameWon');
+  assert.ok(winEvent, 'gameWon should be emitted');
 });
 
