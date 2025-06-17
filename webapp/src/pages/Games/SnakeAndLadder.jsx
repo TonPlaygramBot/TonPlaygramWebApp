@@ -3,6 +3,7 @@ import DiceRoller from "../../components/DiceRoller.jsx";
 import InfoPopup from "../../components/InfoPopup.jsx";
 import { AiOutlineInfoCircle } from "react-icons/ai";
 import useTelegramBackButton from "../../hooks/useTelegramBackButton.js";
+import { useNavigate } from "react-router-dom";
 import { getTelegramPhotoUrl } from "../../utils/telegram.js";
 import { getSnakeBoard } from "../../utils/api.js";
 
@@ -227,6 +228,7 @@ function Board({
 
 export default function SnakeAndLadder() {
   useTelegramBackButton();
+  const navigate = useNavigate();
   const [pos, setPos] = useState(0);
   const [streak, setStreak] = useState(0);
   const [highlight, setHighlight] = useState(null); // { cell: number, type: string }
@@ -367,6 +369,12 @@ export default function SnakeAndLadder() {
         onClick={() => setShowInfo(true)}
       >
         <AiOutlineInfoCircle className="text-2xl" />
+      </button>
+      <button
+        className="absolute top-8 right-0 p-1 text-xs bg-primary text-white rounded"
+        onClick={() => navigate('/games/snake/lobby')}
+      >
+        Leave
       </button>
       <Board
         position={pos}
