@@ -97,9 +97,9 @@ function DiceCube({
   }, [rolling, playSound]);
 
   return (
-    <div className="dice-container perspective-1000 w-20 h-20">
+    <div className="dice-container perspective-1000 w-24 h-24">
       <div
-        className={`dice-cube transition-transform duration-500 ${
+        className={`dice-cube relative w-full h-full transition-transform duration-500 transform-style-preserve-3d ${
           rolling ? "animate-roll" : ""
         }`}
         style={{ transform: orientation }}
