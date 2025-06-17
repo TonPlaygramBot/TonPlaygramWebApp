@@ -176,7 +176,7 @@ body {
   left: 50%;
   transform: translateX(-50%) rotateX(-60deg) translateZ(-20px) scale(1.8); /* Enlarged, base anchored */
   transform-origin: bottom center;
-  background-image: url('/assets/TonPlayGramLogo.jpg');
+  background-image: url("/assets/TonPlayGramLogo.jpg");
   background-size: contain;
   background-repeat: no-repeat;
   background-position: center;
@@ -188,7 +188,7 @@ body {
   width: calc(var(--board-width) * 0.768); /* 20% smaller */
   height: calc(var(--cell-height) * 3.84); /* 20% smaller */
   top: calc(var(--cell-height) * -4.5);
-  background-image: url('/assets/TonPlayGramLogo.jpg');
+  background-image: url("/assets/TonPlayGramLogo.jpg");
   background-size: contain;
   background-repeat: no-repeat;
   background-position: center;
@@ -215,7 +215,7 @@ body {
 }
 
 .snake-connector {
-  background-image: url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA2NCA2NCI+CiAgPHBhdGggZD0iTTEyIDE2YzgtOCAxNi04IDI0IDBzMTYgOCAyNCAwIiBzdHJva2U9IiMxNmEzNGEiIHN0cm9rZS13aWR0aD0iNCIgZmlsbD0ibm9uZSIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIi8+CiAgPHBhdGggZD0iTTYwIDQ4Yy04IDgtMTYgOC0yNCAwcy0xNi04LTI0IDAiIHN0cm9rZT0iIzE2YTM0YSIgc3Ryb2tlLXdpZHRoPSI0IiBmaWxsPSJub25lIiBzdHJva2UtbGluZWNhcD0icm91bmQiLz4KICA8Y2lyY2xlIGN4PSI1NiIgY3k9IjE2IiByPSI0IiBmaWxsPSIjZGMyNjI2Ii8+Cjwvc3ZnPg==');
+  background-image: url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA2NCA2NCI+CiAgPHBhdGggZD0iTTEyIDE2YzgtOCAxNi04IDI0IDBzMTYgOCAyNCAwIiBzdHJva2U9IiMxNmEzNGEiIHN0cm9rZS13aWR0aD0iNCIgZmlsbD0ibm9uZSIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIi8+CiAgPHBhdGggZD0iTTYwIDQ4Yy04IDgtMTYgOC0yNCAwcy0xNi04LTI0IDAiIHN0cm9rZT0iIzE2YTM0YSIgc3Ryb2tlLXdpZHRoPSI0IiBmaWxsPSJub25lIiBzdHJva2UtbGluZWNhcD0icm91bmQiLz4KICA8Y2lyY2xlIGN4PSI1NiIgY3k9IjE2IiByPSI0IiBmaWxsPSIjZGMyNjI2Ii8+Cjwvc3ZnPg==");
   background-size: 100% 100%;
   background-repeat: no-repeat;
   border-radius: 4px;
@@ -229,4 +229,35 @@ body {
 
 .board-marker {
   transform: translateZ(6px);
+}
+
+.coin-burst {
+  position: absolute;
+  left: 50%;
+  bottom: 0;
+  width: 0;
+  height: 0;
+  pointer-events: none;
+  overflow: visible;
+}
+
+.coin-img {
+  position: absolute;
+  left: -10px;
+  bottom: 0;
+  width: 20px;
+  height: 20px;
+  transform: translate(-50%, 0);
+  animation-name: coin-up;
+  animation-duration: var(--dur);
+  animation-delay: var(--delay);
+  animation-timing-function: ease-out;
+  animation-fill-mode: forwards;
+}
+
+@keyframes coin-up {
+  to {
+    transform: translate(calc(-50% + var(--dx)), -120px);
+    opacity: 0;
+  }
 }
