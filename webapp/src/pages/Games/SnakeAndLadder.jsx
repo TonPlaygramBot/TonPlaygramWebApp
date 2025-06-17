@@ -209,8 +209,8 @@ function Board({
               "--cell-height": `${cellHeight}px`,
               "--board-width": `${cellWidth * COLS}px`,
               "--board-angle": `${angle}deg`,
-              // Flip the tilt so the top appears larger than the bottom
-              transform: `rotateX(-${angle}deg) scale(${zoom})`,
+              // Lower camera angle and zoom dynamically as the player moves
+              transform: `rotateX(${angle}deg) scale(${zoom})`,
             }}
           >
             {tiles}
