@@ -137,6 +137,52 @@ body {
   transform: translateZ(10px);
 }
 
+/* Player photo on a hexagonal cylinder */
+.player-token {
+  position: absolute;
+  width: 4rem;
+  height: 4rem;
+  transform-style: preserve-3d;
+  transform: translateZ(10px);
+  --cyl-h: 2rem; /* half of dice size */
+  --token-radius: 2rem;
+}
+
+.token-top {
+  @apply w-full h-full object-cover;
+  clip-path: polygon(25% 5%, 75% 5%, 100% 50%, 75% 95%, 25% 95%, 0% 50%);
+  position: absolute;
+  top: 0;
+  left: 0;
+  transform: translateZ(var(--cyl-h));
+}
+
+.hex-cylinder {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  width: 100%;
+  height: var(--cyl-h);
+  transform-style: preserve-3d;
+  transform-origin: center bottom;
+}
+
+.hex-side {
+  position: absolute;
+  left: calc((4rem - var(--token-radius)) / 2);
+  width: var(--token-radius);
+  height: 100%;
+  background-color: #facc15; /* amber-400 */
+  border: 1px solid #d97706; /* amber-600 */
+}
+
+.side-1 { transform: rotateY(0deg) translateZ(var(--token-radius)); }
+.side-2 { transform: rotateY(60deg) translateZ(var(--token-radius)); }
+.side-3 { transform: rotateY(120deg) translateZ(var(--token-radius)); }
+.side-4 { transform: rotateY(180deg) translateZ(var(--token-radius)); }
+.side-5 { transform: rotateY(240deg) translateZ(var(--token-radius)); }
+.side-6 { transform: rotateY(300deg) translateZ(var(--token-radius)); }
+
 .board-cell.highlight {
   box-shadow: 0 0 10px 4px rgba(250, 204, 21, 0.8);
 }
