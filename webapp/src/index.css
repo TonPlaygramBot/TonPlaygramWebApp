@@ -384,28 +384,6 @@ body {
   z-index: 5;
 }
 
-.logo-wall-side {
-  @apply absolute flex items-center justify-center;
-  width: calc(var(--board-width) * 0.768); /* 20% smaller */
-  height: calc(var(--cell-height) * 3.84); /* 20% smaller */
-  top: calc(var(--cell-height) * -4.5);
-  background-image: url("/assets/TonPlayGramLogo.jpg");
-  background-size: contain;
-  background-repeat: no-repeat;
-  background-position: center;
-  transform-origin: bottom center;
-  z-index: 4;
-}
-
-.logo-wall-left {
-  left: -10%;
-  transform: rotateY(40deg) rotateX(-60deg) translateZ(-20px) scale(1.8);
-}
-
-.logo-wall-right {
-  right: -10%;
-  transform: rotateX(-60deg) translateZ(-20px) scale(1.8);
-}
 
 .snake-connector,
 .ladder-connector {
