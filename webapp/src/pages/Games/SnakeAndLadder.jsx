@@ -75,6 +75,11 @@ function Board({
               🪜
             </div>
           )}
+          {snakes[num] && (
+            <div className="absolute inset-0 flex items-center justify-center text-red-500 text-3xl pointer-events-none board-marker">
+              🐍
+            </div>
+          )}
           {position === num && (
             <img src={photoUrl} alt="player" className="token" />
           )}
