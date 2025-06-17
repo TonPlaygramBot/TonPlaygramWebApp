@@ -34,6 +34,7 @@ export default function HexPrismToken({ color = "#008080", photoUrl }) {
       side: THREE.DoubleSide,
     });
     const prism = new THREE.Mesh(geometry, [sideMaterial, topMaterial, bottomMaterial]);
+    prism.rotation.y = Math.PI / 6; // show a corner toward the viewer
 
     if (photoUrl) {
       const loader = new THREE.TextureLoader();
