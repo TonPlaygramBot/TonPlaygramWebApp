@@ -356,8 +356,8 @@ body {
 
 .logo-wall-main {
   @apply absolute flex items-center justify-center;
-  width: calc(var(--cell-width) * 5.76); /* 20% smaller */
-  height: calc(var(--cell-height) * 4.8); /* 20% smaller */
+  width: calc(var(--cell-width) * 6.5); /* slightly wider */
+  height: calc(var(--cell-height) * 5.2); /* slightly taller */
   top: calc(var(--cell-height) * -4.5); /* ✅ push above pot */
   left: 50%;
   transform: translateX(-50%) rotateX(-60deg) translateZ(-20px) scale(1.8); /* Enlarged, base anchored */
@@ -371,8 +371,8 @@ body {
 
 .logo-wall-side {
   @apply absolute flex items-center justify-center;
-  width: calc(var(--board-width) * 0.768); /* 20% smaller */
-  height: calc(var(--cell-height) * 3.84); /* 20% smaller */
+  width: calc(var(--board-width) * 0.9); /* slightly wider */
+  height: calc(var(--cell-height) * 4.2); /* slightly taller */
   top: calc(var(--cell-height) * -4.5);
   background-image: url("/assets/TonPlayGramLogo.jpg");
   background-size: contain;
