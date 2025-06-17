@@ -1,6 +1,11 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { GameRoom, FINAL_TILE } from '../bot/gameEngine.js';
+import {
+  GameRoom,
+  FINAL_TILE,
+  DEFAULT_SNAKES,
+  DEFAULT_LADDERS,
+} from '../bot/gameEngine.js';
 
 class DummyIO {
   constructor() {
@@ -13,7 +18,10 @@ class DummyIO {
 
 test('applySnakesAndLadders resolves moves', () => {
   const io = new DummyIO();
-  const room = new GameRoom('r', io);
+  const room = new GameRoom('r', io, 4, {
+    snakes: DEFAULT_SNAKES,
+    ladders: DEFAULT_LADDERS,
+  });
   room.rollCooldown = 0;
   assert.equal(room.applySnakesAndLadders(3), 22); // ladder
   assert.equal(room.applySnakesAndLadders(27), 56); // ladder
@@ -23,7 +31,10 @@ test('applySnakesAndLadders resolves moves', () => {
 
 test('start requires 6 and triple six skips turn', () => {
   const io = new DummyIO();
-  const room = new GameRoom('r', io);
+  const room = new GameRoom('r', io, 4, {
+    snakes: DEFAULT_SNAKES,
+    ladders: DEFAULT_LADDERS,
+  });
   room.rollCooldown = 0;
   const socket = { id: 's1', join: () => {} };
   room.addPlayer('p1', 'Player', socket);
@@ -44,7 +55,10 @@ test('start requires 6 and triple six skips turn', () => {
 
 test('room starts when reaching custom capacity', () => {
   const io = new DummyIO();
-  const room = new GameRoom('r2', io, 2);
+  const room = new GameRoom('r2', io, 2, {
+    snakes: DEFAULT_SNAKES,
+    ladders: DEFAULT_LADDERS,
+  });
   room.rollCooldown = 0;
   const s1 = { id: 's1', join: () => {} };
   const s2 = { id: 's2', join: () => {} };
@@ -58,7 +72,10 @@ test('room starts when reaching custom capacity', () => {
 
 test('player wins when landing on the final tile', () => {
   const io = new DummyIO();
-  const room = new GameRoom('r3', io);
+  const room = new GameRoom('r3', io, 4, {
+    snakes: DEFAULT_SNAKES,
+    ladders: DEFAULT_LADDERS,
+  });
   room.rollCooldown = 0;
   const socket = { id: 's1', join: () => {} };
   room.addPlayer('p1', 'Winner', socket);
@@ -78,7 +95,10 @@ test('rolling too quickly triggers anti-cheat', () => {
   const io = new DummyIO();
   const emitted = [];
   const socket = { id: 's1', join: () => {}, emit: (e, d) => emitted.push({ event: e, data: d }) };
-  const room = new GameRoom('r4', io);
+  const room = new GameRoom('r4', io, 4, {
+    snakes: DEFAULT_SNAKES,
+    ladders: DEFAULT_LADDERS,
+  });
   room.addPlayer('p1', 'Cheater', socket);
   room.startGame();
 
