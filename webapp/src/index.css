@@ -59,7 +59,8 @@ body {
 
 .snake-board-grid {
   transform-style: preserve-3d;
-  transform-origin: bottom center;
+  /* Anchor at the top so the board tapers toward the bottom */
+  transform-origin: top center;
   transition: transform 0.3s ease; /* ✅ scaling transition */
 }
 
