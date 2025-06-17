@@ -1,3 +1,5 @@
+export const FINAL_TILE = 101;
+
 export class GameRoom {
   constructor(id, io, maxPlayers = 4) {
     this.id = id;
@@ -111,7 +113,7 @@ export class GameRoom {
         to = 1;
       }
     } else {
-      if (from + dice <= 100) {
+      if (from + dice <= FINAL_TILE) {
         to = from + dice;
       }
     }
@@ -126,7 +128,7 @@ export class GameRoom {
       }
     }
 
-    if (player.position === 100) {
+    if (player.position === FINAL_TILE) {
       this.status = 'finished';
       this.io.to(this.id).emit('gameWon', { playerId: player.playerId });
       return;
