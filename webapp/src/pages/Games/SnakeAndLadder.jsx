@@ -152,7 +152,6 @@ function Board({
   const MAX_ZOOM = 1.5; // and larger when reaching the top
   const MIN_ANGLE = 65;
   const MAX_ANGLE = 40;
-  const BOARD_Y_TILT = -10; // slight rotation so the board top leans left
 
   const rowFromBottom = Math.floor(Math.max(position - 1, 0) / COLS);
   const progress = Math.min(1, rowFromBottom / (ROWS - 1));
@@ -210,7 +209,7 @@ function Board({
               "--cell-height": `${cellHeight}px`,
               "--board-width": `${cellWidth * COLS}px`,
               // Lower camera angle and zoom dynamically as the player moves
-              transform: `rotateX(${angle}deg) rotateY(${BOARD_Y_TILT}deg) scale(${zoom})`,
+              transform: `rotateX(${angle}deg) scale(${zoom})`,
             }}
           >
             {tiles}
