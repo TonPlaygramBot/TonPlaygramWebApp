@@ -170,7 +170,7 @@ body {
   height: 100%;
   transform-style: preserve-3d;
   /* Align token with board surface while showing a slight side angle */
-  transform: rotateY(25deg);
+  transform: rotateX(calc(var(--board-angle, 60deg) * -1 - 25deg)) rotateY(25deg);
 }
 
 .cube-face {
