@@ -365,7 +365,7 @@ export default function SnakeAndLadder() {
 
   return (
     <div className="p-4 pb-32 space-y-4 text-text flex flex-col items-center relative w-full">
-      <div className="absolute top-0 right-0 flex flex-col items-end space-y-2 p-2">
+      <div className="absolute top-0 -right-2 flex flex-col items-end space-y-2 p-2 z-20">
         <button onClick={() => setShowInfo(true)} className="p-2 flex flex-col items-center">
           <AiOutlineInfoCircle className="text-2xl" />
           <span className="text-xs">Info</span>
