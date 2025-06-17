@@ -83,7 +83,7 @@ body {
 }
 
 .dice-cube {
-  @apply relative w-12 h-12;
+  @apply relative w-12 h-12 bg-white rounded-xl;
   transform-style: preserve-3d;
   transition: transform 0.5s;
 }
