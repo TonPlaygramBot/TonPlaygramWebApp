@@ -148,6 +148,8 @@ body {
   --cyl-h: 1.5rem; /* half of dice size */
   --token-radius: 2rem;
   --cyl-apothem: calc(var(--token-radius) * 0.866); /* distance from center */
+  --side-color: #facc15; /* default amber */
+  --border-color: #d97706;
 }
 
 .token-top {
@@ -174,8 +176,8 @@ body {
   left: calc(50% - var(--token-radius) / 2);
   width: var(--token-radius);
   height: 100%;
-  background-color: #facc15; /* amber-400 */
-  border: 1px solid #d97706; /* amber-600 */
+  background-color: var(--side-color, #facc15);
+  border: 1px solid var(--border-color, #d97706);
 }
 
 .side-1 { transform: rotateY(0deg) translateZ(var(--cyl-apothem)); }
@@ -186,19 +188,19 @@ body {
 .side-6 { transform: rotateY(300deg) translateZ(var(--cyl-apothem)); }
 
 /* Token color variations */
-.token-yellow .hex-side {
-  background-color: #fde047; /* yellow-300 */
-  border-color: #d97706; /* amber-600 */
+.token-yellow {
+  --side-color: #fde047; /* yellow-300 */
+  --border-color: #d97706; /* amber-600 */
 }
 
-.token-red .hex-side {
-  background-color: #fca5a5; /* red-300 */
-  border-color: #b91c1c; /* red-700 */
+.token-red {
+  --side-color: #fca5a5; /* red-300 */
+  --border-color: #b91c1c; /* red-700 */
 }
 
-.token-green .hex-side {
-  background-color: #86efac; /* green-300 */
-  border-color: #16a34a; /* green-700 */
+.token-green {
+  --side-color: #86efac; /* green-300 */
+  --border-color: #16a34a; /* green-700 */
 }
 
 .board-cell.highlight {
