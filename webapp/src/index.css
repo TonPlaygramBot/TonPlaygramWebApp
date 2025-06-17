@@ -142,12 +142,12 @@ body {
 /* Deprecated hexagonal token - kept for reference */
 .player-token {
   position: absolute;
-  width: 12rem;
-  height: 12rem;
+  width: 4rem;
+  height: 4rem;
   transform-style: preserve-3d;
   transform: translateZ(10px);
-  --cyl-h: 4.5rem; /* half of dice size */
-  --token-radius: 6rem;
+  --cyl-h: 1.5rem; /* half of dice size */
+  --token-radius: 2rem;
   --cyl-apothem: calc(var(--token-radius) * 0.866); /* distance from center */
   --side-color: #facc15; /* default amber */
   --border-color: #d97706;
@@ -156,8 +156,8 @@ body {
 /* New cube-style token */
 .token-cube {
   position: absolute;
-  width: 12rem;
-  height: 12rem;
+  width: 4rem;
+  height: 4rem;
   transform: translateZ(10px);
   transform-style: preserve-3d;
   --side-color: #fde047; /* yellow-300 */
@@ -167,8 +167,8 @@ body {
 /* Dice-style token replacing player photo */
 .token-dice {
   position: absolute;
-  width: 12rem;
-  height: 12rem;
+  width: 4rem;
+  height: 4rem;
   transform: translateZ(10px);
   transform-style: preserve-3d;
 }
@@ -191,8 +191,8 @@ body {
 /* Three.js token container */
 .token-three {
   position: absolute;
-  width: 12rem;
-  height: 12rem;
+  width: 4rem;
+  height: 4rem;
   transform: translateZ(10px);
   pointer-events: none;
 }
