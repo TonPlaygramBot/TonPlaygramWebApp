@@ -204,7 +204,7 @@ body {
 
 .logo-wall-main {
   @apply absolute flex items-center justify-center;
-  width: var(--board-width); /* match board width */
+  width: calc(var(--cell-width) * 6); /* make logo span six cells */
   height: calc(var(--cell-height) * 5); /* bigger height */
   top: calc(var(--cell-height) * -4.5); /* ✅ push above pot */
   left: 50%;
