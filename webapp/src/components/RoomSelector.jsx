@@ -5,8 +5,6 @@ const tokens = [
   { id: 'TPC', icon: '/icons/tpc.svg' },
   { id: 'TON', icon: '/icons/ton.svg' },
   { id: 'USDT', icon: '/icons/usdt.svg' },
-  // Dice token cloned from the Snake & Ladder game
-  { id: 'DICE', icon: '/icons/dice.svg' },
 ];
 
 export default function RoomSelector({ selected, onSelect }) {
