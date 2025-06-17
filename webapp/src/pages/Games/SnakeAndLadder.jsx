@@ -415,11 +415,9 @@ export default function SnakeAndLadder() {
         token={token}
       />
       {message && (
-        <div className="text-center font-semibold w-full bg-transparent">
-          {message}
-        </div>
+        <div className="text-center font-semibold w-full">{message}</div>
       )}
-      <div className="fixed bottom-24 inset-x-0 flex justify-center z-20 bg-transparent">
+      <div className="fixed bottom-24 inset-x-0 flex justify-center z-20">
         <DiceRoller
           onRollEnd={handleRoll}
           onRollStart={() => setTurnMessage('Rolling...')}
