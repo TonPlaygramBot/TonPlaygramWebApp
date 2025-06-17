@@ -48,6 +48,8 @@ function CoinBurst({ token }) {
   );
 }
 
+import DiceToken from "../../components/DiceToken.jsx";
+
 function Board({
   position,
   highlight,
@@ -57,6 +59,7 @@ function Board({
   ladders,
   celebrate,
   token,
+  tokenType = "photo",
 }) {
   const containerRef = useRef(null);
   const tiles = [];
@@ -78,10 +81,14 @@ function Board({
           {num}
           {/* ladder markers removed */}
           {position === num && (
-            <PlayerToken
-              photoUrl={photoUrl}
-              type={isHighlight ? highlight.type : 'normal'}
-            />
+            tokenType === 'dice' ? (
+              <DiceToken value={1} />
+            ) : (
+              <PlayerToken
+                photoUrl={photoUrl}
+                type={isHighlight ? highlight.type : 'normal'}
+              />
+            )
           )}
         </div>,
       );
@@ -221,10 +228,14 @@ function Board({
               <span className="font-bold">Pot</span>
               <span className="text-sm">{pot}</span>
               {position === FINAL_TILE && (
-                <PlayerToken
-                  photoUrl={photoUrl}
-                  type={highlight && highlight.cell === FINAL_TILE ? highlight.type : 'normal'}
-                />
+                tokenType === 'dice' ? (
+                  <DiceToken value={1} />
+                ) : (
+                  <PlayerToken
+                    photoUrl={photoUrl}
+                    type={highlight && highlight.cell === FINAL_TILE ? highlight.type : 'normal'}
+                  />
+                )
               )}
               {celebrate && <CoinBurst token={token} />}
             </div>
@@ -414,6 +425,7 @@ export default function SnakeAndLadder() {
         ladders={ladders}
         celebrate={celebrate}
         token={token}
+        tokenType="dice"
       />
       {message && (
         <div className="text-center font-semibold w-full">{message}</div>
