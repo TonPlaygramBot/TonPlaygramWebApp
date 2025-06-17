@@ -6,7 +6,6 @@ import useTelegramBackButton from "../../hooks/useTelegramBackButton.js";
 import { getTelegramPhotoUrl } from "../../utils/telegram.js";
 import { getSnakeBoard } from "../../utils/api.js";
 
-
 const PLAYERS = 4;
 // Adjusted board dimensions to show five columns
 // while keeping the total cell count at 100
@@ -19,7 +18,40 @@ const FINAL_TILE = ROWS * COLS + 1; // 101
 // Slightly larger offset so the starting row fits in view
 const CAMERA_OFFSET = 0.95;
 
-function Board({ position, highlight, photoUrl, pot, snakes, ladders }) {
+function CoinBurst({ token }) {
+  const coins = Array.from({ length: 15 }, () => ({
+    dx: (Math.random() - 0.5) * 100,
+    delay: Math.random() * 0.3,
+    dur: 0.8 + Math.random() * 0.4,
+  }));
+  return (
+    <div className="coin-burst">
+      {coins.map((c, i) => (
+        <img
+          key={i}
+          src={`/icons/${token.toLowerCase()}.svg`}
+          className="coin-img"
+          style={{
+            "--dx": `${c.dx}px`,
+            "--delay": `${c.delay}s`,
+            "--dur": `${c.dur}s`,
+          }}
+        />
+      ))}
+    </div>
+  );
+}
+
+function Board({
+  position,
+  highlight,
+  photoUrl,
+  pot,
+  snakes,
+  ladders,
+  celebrate,
+  token,
+}) {
   const containerRef = useRef(null);
   const tiles = [];
 
@@ -39,12 +71,14 @@ function Board({ position, highlight, photoUrl, pot, snakes, ladders }) {
         >
           {num}
           {ladders[num] && (
-            <div className="absolute inset-0 flex items-center justify-center text-green-500 text-3xl pointer-events-none board-marker">🪜</div>
+            <div className="absolute inset-0 flex items-center justify-center text-green-500 text-3xl pointer-events-none board-marker">
+              🪜
+            </div>
           )}
           {position === num && (
             <img src={photoUrl} alt="player" className="token" />
           )}
-        </div>
+        </div>,
       );
     }
   }
@@ -61,8 +95,8 @@ function Board({ position, highlight, photoUrl, pot, snakes, ladders }) {
       setCellHeight(Math.floor(cw / 2));
     };
     updateSize();
-    window.addEventListener('resize', updateSize);
-    return () => window.removeEventListener('resize', updateSize);
+    window.addEventListener("resize", updateSize);
+    return () => window.removeEventListener("resize", updateSize);
   }, []);
 
   const connectors = [];
@@ -99,10 +133,10 @@ function Board({ position, highlight, photoUrl, pot, snakes, ladders }) {
   };
 
   for (const [s, e] of Object.entries(ladders)) {
-    connectors.push(renderConnector(Number(s), Number(e), 'ladder'));
+    connectors.push(renderConnector(Number(s), Number(e), "ladder"));
   }
   for (const [s, e] of Object.entries(snakes)) {
-    connectors.push(renderConnector(Number(s), Number(e), 'snake'));
+    connectors.push(renderConnector(Number(s), Number(e), "snake"));
   }
   // Dynamically adjust zoom and camera tilt based on how far the player
   // has progressed. This keeps the logo in focus while following the token.
@@ -132,12 +166,15 @@ function Board({ position, highlight, photoUrl, pot, snakes, ladders }) {
       // Keep the token near the bottom of the viewport so the camera follows
       // from a lower angle and focuses attention on the logo at the top
       const offset =
-        cellRect.top - cRect.top - cRect.height * CAMERA_OFFSET + cellRect.height / 2;
+        cellRect.top -
+        cRect.top -
+        cRect.height * CAMERA_OFFSET +
+        cellRect.height / 2;
       const target = Math.min(
         container.scrollHeight - cRect.height,
-        Math.max(0, container.scrollTop + offset)
+        Math.max(0, container.scrollTop + offset),
       );
-      container.scrollTo({ top: target, behavior: 'smooth' });
+      container.scrollTo({ top: target, behavior: "smooth" });
     }
   }, [position]);
 
@@ -146,7 +183,11 @@ function Board({ position, highlight, photoUrl, pot, snakes, ladders }) {
       <div
         ref={containerRef}
         className="overflow-y-auto overflow-x-hidden"
-        style={{ height: '80vh', overscrollBehaviorY: 'contain', paddingTop: '0.5rem' }}
+        style={{
+          height: "80vh",
+          overscrollBehaviorY: "contain",
+          paddingTop: "0.5rem",
+        }}
       >
         <div className="snake-board-tilt">
           <div
@@ -156,21 +197,24 @@ function Board({ position, highlight, photoUrl, pot, snakes, ladders }) {
               height: `${cellHeight * ROWS}px`,
               gridTemplateColumns: `repeat(${COLS}, ${cellWidth}px)`,
               gridTemplateRows: `repeat(${ROWS}, ${cellHeight}px)`,
-              '--cell-width': `${cellWidth}px`,
-              '--cell-height': `${cellHeight}px`,
-              '--board-width': `${cellWidth * COLS}px`,
+              "--cell-width": `${cellWidth}px`,
+              "--cell-height": `${cellHeight}px`,
+              "--board-width": `${cellWidth * COLS}px`,
               // Lower camera angle and zoom dynamically as the player moves
               transform: `rotateX(${angle}deg) scale(${zoom})`,
             }}
           >
             {tiles}
             {connectors}
-            <div className={`pot-cell ${highlight && highlight.cell === FINAL_TILE ? 'highlight' : ''}`}>
+            <div
+              className={`pot-cell ${highlight && highlight.cell === FINAL_TILE ? "highlight" : ""}`}
+            >
               <span className="font-bold">Pot</span>
               <span className="text-sm">{pot}</span>
               {position === FINAL_TILE && (
                 <img src={photoUrl} alt="player" className="token" />
               )}
+              {celebrate && <CoinBurst token={token} />}
             </div>
             <div className="logo-wall-main" />
             <div className="logo-wall-side logo-wall-left" />
@@ -190,6 +234,8 @@ export default function SnakeAndLadder() {
   const [message, setMessage] = useState("");
   const [photoUrl, setPhotoUrl] = useState("");
   const [pot, setPot] = useState(100);
+  const [token, setToken] = useState("TPC");
+  const [celebrate, setCelebrate] = useState(false);
   const [showInfo, setShowInfo] = useState(false);
   const [snakes, setSnakes] = useState({});
   const [ladders, setLadders] = useState({});
@@ -201,10 +247,16 @@ export default function SnakeAndLadder() {
 
   useEffect(() => {
     setPhotoUrl(getTelegramPhotoUrl());
-    moveSoundRef.current = new Audio('https://snakes-and-ladders-game.netlify.app/audio/drop.mp3');
-    snakeSoundRef.current = new Audio('https://snakes-and-ladders-game.netlify.app/audio/snake.mp3');
-    ladderSoundRef.current = new Audio('https://snakes-and-ladders-game.netlify.app/audio/ladder.mp3');
-    winSoundRef.current = new Audio('/assets/sounds/successful.mp3');
+    moveSoundRef.current = new Audio(
+      "https://snakes-and-ladders-game.netlify.app/audio/drop.mp3",
+    );
+    snakeSoundRef.current = new Audio(
+      "https://snakes-and-ladders-game.netlify.app/audio/snake.mp3",
+    );
+    ladderSoundRef.current = new Audio(
+      "https://snakes-and-ladders-game.netlify.app/audio/ladder.mp3",
+    );
+    winSoundRef.current = new Audio("/assets/sounds/successful.mp3");
     return () => {
       moveSoundRef.current?.pause();
       snakeSoundRef.current?.pause();
@@ -215,7 +267,11 @@ export default function SnakeAndLadder() {
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
-    const room = params.get('table') || 'snake-4';
+    const room = params.get("table") || "snake-4";
+    const t = params.get("token");
+    const amt = params.get("amount");
+    if (t) setToken(t.toUpperCase());
+    if (amt) setPot(Number(amt));
     getSnakeBoard(room)
       .then((data) => {
         setSnakes(data.snakes || {});
@@ -229,9 +285,7 @@ export default function SnakeAndLadder() {
       ? values.reduce((a, b) => a + b, 0)
       : values;
 
-    const rolledSix = Array.isArray(values)
-      ? values.includes(6)
-      : value === 6;
+    const rolledSix = Array.isArray(values) ? values.includes(6) : value === 6;
 
     setMessage("");
     let newStreak = rolledSix ? streak + 1 : 0;
@@ -280,8 +334,10 @@ export default function SnakeAndLadder() {
           setPos(finalPos);
           setHighlight(null);
           if (finalPos === FINAL_TILE) {
-            setMessage(`You win ${pot} tokens!`);
+            setMessage(`You win ${pot} ${token}!`);
             winSoundRef.current?.play().catch(() => {});
+            setCelebrate(true);
+            setTimeout(() => setCelebrate(false), 1500);
           } else if (ladder) {
             ladderSoundRef.current?.play().catch(() => {});
             setMessage(`Ladder! Climb to tile ${finalPos}`);
@@ -297,7 +353,7 @@ export default function SnakeAndLadder() {
       setPos(next);
       moveSoundRef.current.currentTime = 0;
       moveSoundRef.current.play().catch(() => {});
-      const type = ladders[next] ? 'ladder' : snakes[next] ? 'snake' : 'normal';
+      const type = ladders[next] ? "ladder" : snakes[next] ? "snake" : "normal";
       setHighlight({ cell: next, type });
       setTimeout(() => move(index + 1), 300);
     };
@@ -320,8 +376,12 @@ export default function SnakeAndLadder() {
         pot={pot}
         snakes={snakes}
         ladders={ladders}
+        celebrate={celebrate}
+        token={token}
       />
-      {message && <div className="text-center font-semibold w-full">{message}</div>}
+      {message && (
+        <div className="text-center font-semibold w-full">{message}</div>
+      )}
       <div className="fixed bottom-24 inset-x-0 flex justify-center z-20">
         <DiceRoller onRollEnd={handleRoll} clickable numDice={2} />
       </div>
