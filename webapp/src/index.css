@@ -146,6 +146,7 @@ body {
   transform: translateZ(10px);
   --cyl-h: 2rem; /* half of dice size */
   --token-radius: 2rem;
+  --cyl-apothem: calc(var(--token-radius) * 0.866); /* distance from center */
 }
 
 .token-top {
@@ -169,19 +170,19 @@ body {
 
 .hex-side {
   position: absolute;
-  left: calc((4rem - var(--token-radius)) / 2);
+  left: calc(50% - var(--token-radius) / 2);
   width: var(--token-radius);
   height: 100%;
   background-color: #facc15; /* amber-400 */
   border: 1px solid #d97706; /* amber-600 */
 }
 
-.side-1 { transform: rotateY(0deg) translateZ(var(--token-radius)); }
-.side-2 { transform: rotateY(60deg) translateZ(var(--token-radius)); }
-.side-3 { transform: rotateY(120deg) translateZ(var(--token-radius)); }
-.side-4 { transform: rotateY(180deg) translateZ(var(--token-radius)); }
-.side-5 { transform: rotateY(240deg) translateZ(var(--token-radius)); }
-.side-6 { transform: rotateY(300deg) translateZ(var(--token-radius)); }
+.side-1 { transform: rotateY(0deg) translateZ(var(--cyl-apothem)); }
+.side-2 { transform: rotateY(60deg) translateZ(var(--cyl-apothem)); }
+.side-3 { transform: rotateY(120deg) translateZ(var(--cyl-apothem)); }
+.side-4 { transform: rotateY(180deg) translateZ(var(--cyl-apothem)); }
+.side-5 { transform: rotateY(240deg) translateZ(var(--cyl-apothem)); }
+.side-6 { transform: rotateY(300deg) translateZ(var(--cyl-apothem)); }
 
 .board-cell.highlight {
   box-shadow: 0 0 10px 4px rgba(250, 204, 21, 0.8);
