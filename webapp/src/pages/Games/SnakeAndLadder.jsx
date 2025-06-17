@@ -67,12 +67,11 @@ function Board({
       const col = reversed ? COLS - 1 - c : c;
       const num = r * COLS + col + 1;
       const isHighlight = highlight && highlight.cell === num;
-      const highlightClass = isHighlight ? `${highlight.type}-highlight` : "";
       tiles.push(
         <div
           key={num}
           data-cell={num}
-          className={`board-cell ${highlightClass}`}
+          className="board-cell"
           style={{ gridRowStart: ROWS - r, gridColumnStart: col + 1 }}
         >
           {num}

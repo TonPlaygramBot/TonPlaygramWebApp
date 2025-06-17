@@ -143,11 +143,9 @@ body {
   width: 4rem;
   height: 4rem;
   transform-style: preserve-3d;
-  transform: translateZ(10px);
-  --cyl-h: 1.5rem; /* half of dice size */
-  --token-radius: 2rem;
-  --cyl-apothem: calc(var(--token-radius) * 0.866); /* distance from center */
-  --side-color: #facc15; /* default amber */
+  transform: translateZ(5px);
+  --cyl-h: 0rem;
+  --side-color: #facc15;
   --border-color: #d97706;
 }
 
@@ -170,31 +168,6 @@ body {
   transform: translateZ(0);
 }
 
-.hex-cylinder {
-  position: absolute;
-  top: 100%;
-  left: 0;
-  width: 100%;
-  height: var(--cyl-h);
-  transform-style: preserve-3d;
-  transform-origin: center bottom;
-}
-
-.hex-side {
-  position: absolute;
-  left: calc(50% - var(--token-radius) / 2);
-  width: var(--token-radius);
-  height: 100%;
-  background-color: var(--side-color, #facc15);
-  border: 1px solid var(--border-color, #d97706);
-}
-
-.side-1 { transform: rotateY(0deg) translateZ(var(--cyl-apothem)); }
-.side-2 { transform: rotateY(60deg) translateZ(var(--cyl-apothem)); }
-.side-3 { transform: rotateY(120deg) translateZ(var(--cyl-apothem)); }
-.side-4 { transform: rotateY(180deg) translateZ(var(--cyl-apothem)); }
-.side-5 { transform: rotateY(240deg) translateZ(var(--cyl-apothem)); }
-.side-6 { transform: rotateY(300deg) translateZ(var(--cyl-apothem)); }
 
 /* Token color variations */
 .token-yellow {
