@@ -30,6 +30,7 @@ export default function HexPrismToken({ color = "#008080", photoUrl }) {
 
     if (photoUrl) {
       const loader = new THREE.TextureLoader();
+      loader.crossOrigin = 'anonymous';
       loader.load(photoUrl, (tex) => {
         // ensure the profile photo correctly covers the top face
         tex.wrapS = THREE.ClampToEdgeWrapping;
