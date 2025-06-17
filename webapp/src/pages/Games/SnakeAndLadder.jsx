@@ -4,35 +4,8 @@ import InfoPopup from "../../components/InfoPopup.jsx";
 import { AiOutlineInfoCircle } from "react-icons/ai";
 import useTelegramBackButton from "../../hooks/useTelegramBackButton.js";
 import { getTelegramPhotoUrl } from "../../utils/telegram.js";
+import { getSnakeBoard } from "../../utils/api.js";
 
-// Generate random snakes and ladders each session
-function generateSnakesAndLadders() {
-  const snakes = {};
-  const ladders = {};
-  const used = new Set();
-  const pick = (min, max) =>
-    Math.floor(Math.random() * (max - min + 1)) + min;
-
-  while (Object.keys(ladders).length < 3) {
-    const start = pick(2, 90);
-    const end = start + pick(5, 15);
-    if (end >= 100 || used.has(start) || used.has(end)) continue;
-    ladders[start] = end;
-    used.add(start);
-    used.add(end);
-  }
-
-  while (Object.keys(snakes).length < 3) {
-    const start = pick(10, 99);
-    const end = start - pick(5, 15);
-    if (end <= 1 || used.has(start) || used.has(end)) continue;
-    snakes[start] = end;
-    used.add(start);
-    used.add(end);
-  }
-
-  return { snakes, ladders };
-}
 
 const PLAYERS = 4;
 // Adjusted board dimensions to show five columns
@@ -240,7 +213,8 @@ export default function SnakeAndLadder() {
   const [photoUrl, setPhotoUrl] = useState("");
   const [pot, setPot] = useState(100);
   const [showInfo, setShowInfo] = useState(false);
-  const [{ snakes, ladders }] = useState(() => generateSnakesAndLadders());
+  const [snakes, setSnakes] = useState({});
+  const [ladders, setLadders] = useState({});
 
   const moveSoundRef = useRef(null);
   const snakeSoundRef = useRef(null);
@@ -259,6 +233,17 @@ export default function SnakeAndLadder() {
       ladderSoundRef.current?.pause();
       winSoundRef.current?.pause();
     };
+  }, []);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const room = params.get('table') || 'snake-4';
+    getSnakeBoard(room)
+      .then((data) => {
+        setSnakes(data.snakes || {});
+        setLadders(data.ladders || {});
+      })
+      .catch(() => {});
   }, []);
 
   const handleRoll = (values) => {

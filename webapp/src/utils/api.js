@@ -199,3 +199,7 @@ export function getSnakeLobbies() {
 export function getSnakeLobby(id) {
   return fetch(API_BASE_URL + '/api/snake/lobby/' + id).then((r) => r.json());
 }
+
+export function getSnakeBoard(id) {
+  return fetch(API_BASE_URL + '/api/snake/board/' + id).then((r) => r.json());
+}
