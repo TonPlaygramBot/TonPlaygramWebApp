@@ -77,10 +77,11 @@ function Board({
         >
           {num}
           {/* ladder markers removed */}
-          {position === num && (
+          {(position === num || (position === 0 && num === 1)) && (
             <PlayerToken
               photoUrl={photoUrl}
               type={isHighlight ? highlight.type : 'normal'}
+              baseOnly={position === 0}
             />
           )}
         </div>,
