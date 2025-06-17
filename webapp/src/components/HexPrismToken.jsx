@@ -92,5 +92,15 @@ export default function HexPrismToken({ color = "#008080", photoUrl }) {
     };
   }, [color, photoUrl]);
 
-  return <div className="token-three" ref={mountRef} />;
+  return (
+    <div className="token-three relative" ref={mountRef}>
+      {photoUrl && (
+        <img
+          src={photoUrl}
+          alt="token top"
+          className="token-top pointer-events-none"
+        />
+      )}
+    </div>
+  );
 }
