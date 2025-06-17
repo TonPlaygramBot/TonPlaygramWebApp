@@ -137,39 +137,93 @@ body {
   transform: translateZ(10px);
 }
 
-/* Player photo on a dice-shaped cube */
+/* Player photo on a hexagonal cylinder */
 .player-token {
   position: absolute;
   width: 4rem;
   height: 4rem;
   transform-style: preserve-3d;
-  transform: translateZ(10px) rotateX(-25deg) rotateY(25deg);
+  transform: translateZ(10px);
+  --cyl-h: 1.5rem; /* half of dice size */
+  --token-radius: 2rem;
+  --cyl-apothem: calc(var(--token-radius) * 0.866); /* distance from center */
   --side-color: #facc15; /* default amber */
   --border-color: #d97706;
 }
 
-.dice-token {
+.token-top {
+  @apply w-full h-full object-cover;
+  clip-path: polygon(25% 5%, 75% 5%, 100% 50%, 75% 95%, 25% 95%, 0% 50%);
   position: absolute;
-  inset: 0;
-  transform-style: preserve-3d;
+  top: 0;
+  left: 0;
+  transform: translateZ(var(--cyl-h));
 }
 
-.dice-face {
-  @apply absolute w-full h-full rounded-md;
+.token-base {
+  @apply w-full h-full absolute;
+  clip-path: polygon(25% 5%, 75% 5%, 100% 50%, 75% 95%, 25% 95%, 0% 50%);
+  background-color: var(--side-color, #facc15);
+  border: 1px solid var(--border-color, #d97706);
+  top: calc(100% + var(--cyl-h));
+  left: 0;
+  transform: translateZ(0);
+}
+
+.hex-cylinder {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  width: 100%;
+  height: var(--cyl-h);
+  transform-style: preserve-3d;
+  transform-origin: center bottom;
+}
+
+.token-pillar {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  width: 100%;
+  height: var(--cyl-h);
+  transform-style: preserve-3d;
+  transform-origin: center bottom;
+}
+
+.pillar-face {
+  position: absolute;
+  left: calc(50% - var(--token-radius) / 2);
+  width: var(--token-radius);
+  height: 100%;
   background-color: var(--side-color, #facc15);
   border: 1px solid var(--border-color, #d97706);
 }
 
-.dice-face--front { transform: rotateY(0deg) translateZ(2rem); }
-.dice-face--back { transform: rotateY(180deg) translateZ(2rem); }
-.dice-face--right { transform: rotateY(90deg) translateZ(2rem); }
-.dice-face--left { transform: rotateY(-90deg) translateZ(2rem); }
-.dice-face--top { transform: rotateX(90deg) translateZ(2rem); }
-.dice-face--bottom { transform: rotateX(-90deg) translateZ(2rem); }
-
-.token-photo {
-  @apply object-cover;
+.pillar-front {
+  transform: rotateY(0deg) translateZ(var(--cyl-apothem));
 }
+.pillar-right {
+  transform: rotateY(-60deg) translateZ(var(--cyl-apothem));
+}
+.pillar-left {
+  transform: rotateY(60deg) translateZ(var(--cyl-apothem));
+}
+
+.hex-side {
+  position: absolute;
+  left: calc(50% - var(--token-radius) / 2);
+  width: var(--token-radius);
+  height: 100%;
+  background-color: var(--side-color, #facc15);
+  border: 1px solid var(--border-color, #d97706);
+}
+
+.side-1 { transform: rotateY(0deg) translateZ(var(--cyl-apothem)); }
+.side-2 { transform: rotateY(60deg) translateZ(var(--cyl-apothem)); }
+.side-3 { transform: rotateY(120deg) translateZ(var(--cyl-apothem)); }
+.side-4 { transform: rotateY(180deg) translateZ(var(--cyl-apothem)); }
+.side-5 { transform: rotateY(240deg) translateZ(var(--cyl-apothem)); }
+.side-6 { transform: rotateY(300deg) translateZ(var(--cyl-apothem)); }
 
 /* Token color variations */
 .token-yellow {
