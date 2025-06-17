@@ -1,15 +1,17 @@
 import React from 'react';
 
-// Simple cube used as the player's token on the Snake & Ladder board
-export default function PlayerToken() {
+export default function PlayerToken({ photoUrl }) {
   return (
-    <div className="player-dice">
-      <div className="dice-face dice-front" />
-      <div className="dice-face dice-back" />
-      <div className="dice-face dice-right" />
-      <div className="dice-face dice-left" />
-      <div className="dice-face dice-top" />
-      <div className="dice-face dice-bottom" />
+    <div className="player-token">
+      <img src={photoUrl} alt="player" className="token-top" />
+      <div className="hex-cylinder">
+        <div className="hex-side side-1" />
+        <div className="hex-side side-2" />
+        <div className="hex-side side-3" />
+        <div className="hex-side side-4" />
+        <div className="hex-side side-5" />
+        <div className="hex-side side-6" />
+      </div>
     </div>
   );
 }

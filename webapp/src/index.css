@@ -1,20 +1,310 @@
-/* Minimal dice used as the player's token */
-.player-dice {
-  position: absolute;
-  width: calc(var(--cell-width) * 0.6);
-  height: calc(var(--cell-width) * 0.6);
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --cell-width: 135px;
+  --cell-height: 68px;
+}
+
+body {
+  font-family: Arial, Helvetica, sans-serif;
+  @apply bg-background text-text overflow-x-hidden;
+}
+
+.hexagon {
+  clip-path: polygon(25% 5%, 75% 5%, 100% 50%, 75% 95%, 25% 95%, 0% 50%);
+}
+
+.hex-table {
+  clip-path: polygon(25% 5%, 75% 5%, 100% 50%, 75% 95%, 25% 95%, 0% 50%);
+  background: radial-gradient(circle at center, #8b1a1a 0%, #5a0d0d 80%);
+  border: 4px solid #b22222;
+}
+
+.player-avatar {
+  @apply w-12 h-12 rounded-full border border-yellow-400;
+}
+
+.starry-bg {
+  background-color: #000;
+  background-image:
+    radial-gradient(#ffffff 1px, transparent 1px),
+    radial-gradient(#ffffff 1px, transparent 1px);
+  background-position:
+    0 0,
+    25px 25px;
+  background-size: 50px 50px;
+}
+
+.board-3d {
+  perspective: 800px;
+}
+
+.board-3d-grid {
+  transform: rotateX(30deg) rotateZ(45deg);
   transform-style: preserve-3d;
-  transform: rotateX(-25deg) rotateY(25deg) translateZ(10px);
-  --dice-half: calc(var(--cell-width) * 0.3);
 }
 
-.player-dice .dice-face {
-  @apply absolute w-full h-full bg-white rounded-md border border-gray-400;
+.board-frame {
+  @apply border-4 border-accent rounded-lg p-1 bg-surface;
+  transform-style: preserve-3d;
 }
 
-.player-dice .dice-front  { transform: rotateY(0deg)   translateZ(var(--dice-half)); }
-.player-dice .dice-back   { transform: rotateY(180deg) translateZ(var(--dice-half)); }
-.player-dice .dice-right  { transform: rotateY(90deg)  translateZ(var(--dice-half)); }
-.player-dice .dice-left   { transform: rotateY(-90deg) translateZ(var(--dice-half)); }
-.player-dice .dice-top    { transform: rotateX(90deg)  translateZ(var(--dice-half)); }
-.player-dice .dice-bottom { transform: rotateX(-90deg) translateZ(var(--dice-half)); }
+/* Tilted view specifically for the Snake & Ladder board */
+.snake-board-tilt {
+  perspective: 1200px;
+}
+
+.snake-board-grid {
+  transform-style: preserve-3d;
+  transform-origin: bottom center;
+  transition: transform 0.3s ease; /* ✅ scaling transition */
+}
+
+@keyframes roll {
+  0% {
+    transform: rotateX(0deg) rotateY(0deg) rotateZ(0deg) translateY(0);
+  }
+  50% {
+    transform: rotateX(360deg) rotateY(360deg) rotateZ(360deg) translateY(-1rem);
+  }
+  100% {
+    transform: rotateX(720deg) rotateY(720deg) rotateZ(720deg) translateY(0);
+  }
+}
+
+.animate-roll {
+  animation: roll 1s ease-in-out;
+}
+
+.dice-container {
+  perspective: 600px;
+}
+
+.dice-cube {
+  @apply relative w-12 h-12;
+  transform-style: preserve-3d;
+  transition: transform 0.5s;
+}
+
+.dice-face {
+  @apply absolute w-full h-full flex items-center justify-center bg-white rounded-xl shadow-lg;
+}
+
+.dice-face .dot {
+  @apply w-3 h-3 bg-black rounded-full;
+}
+
+.dice-face--front {
+  transform: rotateY(0deg) translateZ(1.5rem);
+}
+.dice-face--back {
+  transform: rotateY(180deg) translateZ(1.5rem);
+}
+.dice-face--right {
+  transform: rotateY(90deg) translateZ(1.5rem);
+}
+.dice-face--left {
+  transform: rotateY(-90deg) translateZ(1.5rem);
+}
+.dice-face--top {
+  transform: rotateX(90deg) translateZ(1.5rem);
+}
+.dice-face--bottom {
+  transform: rotateX(-90deg) translateZ(1.5rem);
+}
+
+.board-cell {
+  @apply relative flex items-center justify-center rounded-xl text-text shadow-inner bg-surface border-2 border-accent;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.5);
+  transform: translateZ(5px);
+  width: var(--cell-width);
+  height: var(--cell-height);
+}
+
+.board-cell::after {
+  content: "";
+  position: absolute;
+  inset: 2px;
+  border-radius: inherit;
+  box-shadow: 0 0 8px rgba(250, 204, 21, 0.5);
+  transform: translateZ(-1px);
+}
+
+.token {
+  @apply absolute w-16 h-16 rounded-full shadow-lg object-cover;
+  transform: translateZ(10px);
+}
+
+/* Player photo on a hexagonal cylinder */
+.player-token {
+  position: absolute;
+  width: 4rem;
+  height: 4rem;
+  transform-style: preserve-3d;
+  transform: translateZ(10px);
+  --cyl-h: 1.5rem; /* half of dice size */
+  --token-radius: 2rem;
+  --cyl-apothem: calc(var(--token-radius) * 0.866); /* distance from center */
+}
+
+.token-top {
+  @apply w-full h-full object-cover;
+  clip-path: polygon(25% 5%, 75% 5%, 100% 50%, 75% 95%, 25% 95%, 0% 50%);
+  position: absolute;
+  top: 0;
+  left: 0;
+  transform: translateZ(var(--cyl-h));
+}
+
+.hex-cylinder {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  width: 100%;
+  height: var(--cyl-h);
+  transform-style: preserve-3d;
+  transform-origin: center bottom;
+}
+
+.hex-side {
+  position: absolute;
+  left: calc(50% - var(--token-radius) / 2);
+  width: var(--token-radius);
+  height: 100%;
+  background-color: #facc15; /* amber-400 */
+  border: 1px solid #d97706; /* amber-600 */
+}
+
+.side-1 { transform: rotateY(0deg) translateZ(var(--cyl-apothem)); }
+.side-2 { transform: rotateY(60deg) translateZ(var(--cyl-apothem)); }
+.side-3 { transform: rotateY(120deg) translateZ(var(--cyl-apothem)); }
+.side-4 { transform: rotateY(180deg) translateZ(var(--cyl-apothem)); }
+.side-5 { transform: rotateY(240deg) translateZ(var(--cyl-apothem)); }
+.side-6 { transform: rotateY(300deg) translateZ(var(--cyl-apothem)); }
+
+.board-cell.highlight {
+  box-shadow: 0 0 10px 4px rgba(250, 204, 21, 0.8);
+}
+
+.board-cell.normal-highlight {
+  background-color: #fde047; /* yellow-300 */
+}
+
+.board-cell.ladder-highlight {
+  background-color: #86efac; /* green-300 */
+}
+
+.board-cell.snake-highlight {
+  background-color: #fca5a5; /* red-300 */
+}
+
+.pot-cell {
+  @apply absolute flex flex-col items-center justify-center hexagon bg-primary text-background border-2 border-accent;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.5);
+  width: calc(var(--cell-width) * 1.5);
+  height: calc(var(--cell-height) * 1.5);
+  top: calc(var(--cell-height) * -0.75);
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 10;
+}
+
+.pot-cell.highlight {
+  box-shadow: 0 0 10px 4px rgba(250, 204, 21, 0.8);
+}
+
+.logo-wall-main {
+  @apply absolute flex items-center justify-center;
+  width: calc(var(--cell-width) * 5.76); /* 20% smaller */
+  height: calc(var(--cell-height) * 4.8); /* 20% smaller */
+  top: calc(var(--cell-height) * -4.5); /* ✅ push above pot */
+  left: 50%;
+  transform: translateX(-50%) rotateX(-60deg) translateZ(-20px) scale(1.8); /* Enlarged, base anchored */
+  transform-origin: bottom center;
+  background-image: url("/assets/TonPlayGramLogo.jpg");
+  background-size: contain;
+  background-repeat: no-repeat;
+  background-position: center;
+  z-index: 5;
+}
+
+.logo-wall-side {
+  @apply absolute flex items-center justify-center;
+  width: calc(var(--board-width) * 0.768); /* 20% smaller */
+  height: calc(var(--cell-height) * 3.84); /* 20% smaller */
+  top: calc(var(--cell-height) * -4.5);
+  background-image: url("/assets/TonPlayGramLogo.jpg");
+  background-size: contain;
+  background-repeat: no-repeat;
+  background-position: center;
+  transform-origin: bottom center;
+  z-index: 4;
+}
+
+.logo-wall-left {
+  left: -10%;
+  transform: rotateY(40deg) rotateX(-60deg) translateZ(-20px) scale(1.8);
+}
+
+.logo-wall-right {
+  right: -10%;
+  transform: rotateY(-40deg) rotateX(-60deg) translateZ(-20px) scale(1.8);
+}
+
+.snake-connector,
+.ladder-connector {
+  position: absolute;
+  height: 12px;
+  transform-origin: 0 50%;
+  z-index: 2;
+}
+
+.snake-connector {
+  background-image: url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA2NCA2NCI+CiAgPHBhdGggZD0iTTEyIDE2YzgtOCAxNi04IDI0IDBzMTYgOCAyNCAwIiBzdHJva2U9IiMxNmEzNGEiIHN0cm9rZS13aWR0aD0iNCIgZmlsbD0ibm9uZSIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIi8+CiAgPHBhdGggZD0iTTYwIDQ4Yy04IDgtMTYgOC0yNCAwcy0xNi04LTI0IDAiIHN0cm9rZT0iIzE2YTM0YSIgc3Ryb2tlLXdpZHRoPSI0IiBmaWxsPSJub25lIiBzdHJva2UtbGluZWNhcD0icm91bmQiLz4KICA8Y2lyY2xlIGN4PSI1NiIgY3k9IjE2IiByPSI0IiBmaWxsPSIjZGMyNjI2Ii8+Cjwvc3ZnPg==");
+  background-size: 100% 100%;
+  background-repeat: no-repeat;
+  border-radius: 4px;
+}
+
+.ladder-connector {
+  background-color: #4ade80;
+  border-left: var(--rail-width, 6px) solid #16a34a;
+  border-right: var(--rail-width, 6px) solid #16a34a;
+}
+
+.board-marker {
+  transform: translateZ(6px);
+}
+
+.coin-burst {
+  position: absolute;
+  left: 50%;
+  bottom: 0;
+  width: 0;
+  height: 0;
+  pointer-events: none;
+  overflow: visible;
+}
+
+.coin-img {
+  position: absolute;
+  left: -10px;
+  bottom: 0;
+  width: 20px;
+  height: 20px;
+  transform: translate(-50%, 0);
+  animation-name: coin-up;
+  animation-duration: var(--dur);
+  animation-delay: var(--delay);
+  animation-timing-function: ease-out;
+  animation-fill-mode: forwards;
+}
+
+@keyframes coin-up {
+  to {
+    transform: translate(calc(-50% + var(--dx)), -120px);
+    opacity: 0;
+  }
+}
