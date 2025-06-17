@@ -3,6 +3,7 @@ import DiceRoller from "../../components/DiceRoller.jsx";
 import InfoPopup from "../../components/InfoPopup.jsx";
 import { AiOutlineInfoCircle } from "react-icons/ai";
 import useTelegramBackButton from "../../hooks/useTelegramBackButton.js";
+import useTelegramExpand from "../../hooks/useTelegramExpand.js";
 import { getTelegramPhotoUrl } from "../../utils/telegram.js";
 
 // Generate random snakes and ladders each session
@@ -236,6 +237,7 @@ function Board({ position, highlight, photoUrl, pot, snakes, ladders }) {
 
 export default function SnakeAndLadder() {
   useTelegramBackButton();
+  useTelegramExpand();
   const [pos, setPos] = useState(0);
   const [streak, setStreak] = useState(0);
   const [highlight, setHighlight] = useState(null);

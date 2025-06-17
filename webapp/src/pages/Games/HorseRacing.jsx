@@ -1,9 +1,11 @@
 import { useState } from 'react';
 import RoomPopup from '../../components/RoomPopup.jsx';
 import useTelegramBackButton from '../../hooks/useTelegramBackButton.js';
+import useTelegramExpand from '../../hooks/useTelegramExpand.js';
 
 export default function HorseRacing() {
   useTelegramBackButton();
+  useTelegramExpand();
   const [selection, setSelection] = useState(null);
   const [showRoom, setShowRoom] = useState(true);
 
