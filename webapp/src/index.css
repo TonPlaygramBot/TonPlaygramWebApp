@@ -164,6 +164,30 @@ body {
   --border-color: #d97706; /* amber-600 */
 }
 
+/* Dice-style token replacing player photo */
+.token-dice {
+  position: absolute;
+  width: 4rem;
+  height: 4rem;
+  transform: translateZ(10px);
+  transform-style: preserve-3d;
+}
+
+.token-dice .dice-cube {
+  width: 100%;
+  height: 100%;
+}
+
+.token-dice .dice-face {
+  background-color: #dc2626; /* red dice */
+  border: 1px solid #991b1b;
+  border-radius: 0.5rem;
+}
+
+.token-dice .dice-face .dot {
+  background-color: #fff;
+}
+
 .token-cube-inner {
   position: relative;
   width: 100%;
