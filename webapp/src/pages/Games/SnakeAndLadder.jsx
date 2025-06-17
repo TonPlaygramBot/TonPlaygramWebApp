@@ -42,6 +42,18 @@ function CoinBurst({ token }) {
   );
 }
 
+function TokenCylinder({ photoUrl }) {
+  const sides = Array.from({ length: 6 });
+  return (
+    <div className="token-cylinder">
+      {sides.map((_, i) => (
+        <div key={i} className="token-side" style={{ "--i": i }} />
+      ))}
+      <img src={photoUrl} alt="player" className="token-top" />
+    </div>
+  );
+}
+
 function Board({
   position,
   highlight,
@@ -71,9 +83,7 @@ function Board({
         >
           {num}
           {/* ladder markers removed */}
-          {position === num && (
-            <img src={photoUrl} alt="player" className="token" />
-          )}
+          {position === num && <TokenCylinder photoUrl={photoUrl} />}
         </div>,
       );
     }
@@ -199,6 +209,7 @@ function Board({
               "--cell-width": `${cellWidth}px`,
               "--cell-height": `${cellHeight}px`,
               "--board-width": `${cellWidth * COLS}px`,
+              "--board-angle": `${angle}deg`,
               // Lower camera angle and zoom dynamically as the player moves
               transform: `rotateX(${angle}deg) scale(${zoom})`,
             }}
@@ -210,9 +221,7 @@ function Board({
             >
               <span className="font-bold">Pot</span>
               <span className="text-sm">{pot}</span>
-              {position === FINAL_TILE && (
-                <img src={photoUrl} alt="player" className="token" />
-              )}
+              {position === FINAL_TILE && <TokenCylinder photoUrl={photoUrl} />}
               {celebrate && <CoinBurst token={token} />}
             </div>
             <div className="logo-wall-main" />
