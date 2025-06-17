@@ -8,7 +8,6 @@ import {
 } from "react-icons/ai";
 import useTelegramBackButton from "../../hooks/useTelegramBackButton.js";
 import { useNavigate } from "react-router-dom";
-import { getTelegramPhotoUrl } from "../../utils/telegram.js";
 import { getSnakeBoard } from "../../utils/api.js";
 import PlayerToken from "../../components/PlayerToken.jsx";
 
@@ -51,7 +50,6 @@ function CoinBurst({ token }) {
 function Board({
   position,
   highlight,
-  photoUrl,
   pot,
   snakes,
   ladders,
@@ -77,7 +75,7 @@ function Board({
         >
           {num}
           {/* ladder markers removed */}
-          {position === num && <PlayerToken photoUrl={photoUrl} />}
+          {position === num && <PlayerToken />}
         </div>,
       );
     }
@@ -214,7 +212,7 @@ function Board({
             >
               <span className="font-bold">Pot</span>
               <span className="text-sm">{pot}</span>
-              {position === FINAL_TILE && <PlayerToken photoUrl={photoUrl} />}
+              {position === FINAL_TILE && <PlayerToken />}
               {celebrate && <CoinBurst token={token} />}
             </div>
             <div className="logo-wall-main" />
@@ -234,7 +232,6 @@ export default function SnakeAndLadder() {
   const [streak, setStreak] = useState(0);
   const [highlight, setHighlight] = useState(null); // { cell: number, type: string }
   const [message, setMessage] = useState("");
-  const [photoUrl, setPhotoUrl] = useState("");
   const [pot, setPot] = useState(100);
   const [token, setToken] = useState("TPC");
   const [celebrate, setCelebrate] = useState(false);
@@ -248,7 +245,6 @@ export default function SnakeAndLadder() {
   const winSoundRef = useRef(null);
 
   useEffect(() => {
-    setPhotoUrl(getTelegramPhotoUrl());
     moveSoundRef.current = new Audio(
       "https://snakes-and-ladders-game.netlify.app/audio/drop.mp3",
     );
@@ -388,7 +384,6 @@ export default function SnakeAndLadder() {
       <Board
         position={pos}
         highlight={highlight}
-        photoUrl={photoUrl}
         pot={pot}
         snakes={snakes}
         ladders={ladders}
