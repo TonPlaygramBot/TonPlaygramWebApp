@@ -101,9 +101,21 @@ function Board({ position, highlight, photoUrl, pot, snakes, ladders }) {
     }
   }
 
-  // Slightly smaller cells to fit five rows on screen
-  const cellWidth = 80;
-  const cellHeight = 40;
+  // Scale board based on viewport width so it fills the screen.
+  const [cellWidth, setCellWidth] = useState(80);
+  const [cellHeight, setCellHeight] = useState(40);
+
+  useEffect(() => {
+    const updateSize = () => {
+      const width = window.innerWidth;
+      const cw = Math.floor(width / COLS);
+      setCellWidth(cw);
+      setCellHeight(Math.floor(cw / 2));
+    };
+    updateSize();
+    window.addEventListener('resize', updateSize);
+    return () => window.removeEventListener('resize', updateSize);
+  }, []);
 
   const connectors = [];
 
@@ -146,10 +158,10 @@ function Board({ position, highlight, photoUrl, pot, snakes, ladders }) {
   }
   // Dynamically adjust zoom and camera tilt based on how far the player
   // has progressed. This keeps the logo in focus while following the token.
-  const MIN_ZOOM = 1.1;
-  const MAX_ZOOM = 1.4;
-  const MIN_ANGLE = 60;
-  const MAX_ANGLE = 45;
+  const MIN_ZOOM = 0.9; // board slightly smaller at the bottom
+  const MAX_ZOOM = 1.5; // and larger when reaching the top
+  const MIN_ANGLE = 65;
+  const MAX_ANGLE = 40;
 
   const rowFromBottom = Math.floor(Math.max(position - 1, 0) / COLS);
   const progress = Math.min(1, rowFromBottom / (ROWS - 1));
@@ -198,6 +210,7 @@ function Board({ position, highlight, photoUrl, pot, snakes, ladders }) {
               gridTemplateRows: `repeat(${ROWS}, ${cellHeight}px)`,
               '--cell-width': `${cellWidth}px`,
               '--cell-height': `${cellHeight}px`,
+              '--board-width': `${cellWidth * COLS}px`,
               // Lower camera angle and zoom dynamically as the player moves
               transform: `rotateX(${angle}deg) scale(${zoom})`,
             }}
