@@ -1,7 +1,7 @@
 import { useRef, useEffect } from "react";
 import * as THREE from "three";
 
-export default function HexPrismToken({ color = "#008080" }) {
+export default function HexPrismToken({ color = "#008080", photoUrl }) {
   const mountRef = useRef(null);
 
   useEffect(() => {
@@ -22,8 +22,23 @@ export default function HexPrismToken({ color = "#008080" }) {
     mount.appendChild(renderer.domElement);
 
     const geometry = new THREE.CylinderGeometry(1, 1, 2.5, 6);
-    const material = new THREE.MeshStandardMaterial({ color });
-    const prism = new THREE.Mesh(geometry, material);
+    const sideMaterial = new THREE.MeshStandardMaterial({ color });
+    const bottomMaterial = new THREE.MeshStandardMaterial({ color });
+
+    let topMaterial = new THREE.MeshStandardMaterial({ color });
+    const prism = new THREE.Mesh(geometry, [sideMaterial, topMaterial, bottomMaterial]);
+
+    if (photoUrl) {
+      const loader = new THREE.TextureLoader();
+      loader.load(photoUrl, (tex) => {
+        tex.needsUpdate = true;
+        topMaterial.map = tex;
+        topMaterial.needsUpdate = true;
+        // scale height based on image aspect ratio
+        const scale = tex.image.height / tex.image.width;
+        prism.scale.set(1, scale * 2.5, 1);
+      });
+    }
     scene.add(prism);
 
     const ambient = new THREE.AmbientLight(0xffffff, 0.6);
@@ -54,10 +69,12 @@ export default function HexPrismToken({ color = "#008080" }) {
       window.removeEventListener("resize", handleResize);
       mount.removeChild(renderer.domElement);
       geometry.dispose();
-      material.dispose();
+      sideMaterial.dispose();
+      topMaterial.dispose();
+      bottomMaterial.dispose();
       renderer.dispose();
     };
-  }, [color]);
+  }, [color, photoUrl]);
 
   return <div className="token-three" ref={mountRef} />;
 }
