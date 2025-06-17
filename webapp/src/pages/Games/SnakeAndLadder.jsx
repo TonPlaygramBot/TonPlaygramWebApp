@@ -209,7 +209,7 @@ function Board({
               "--cell-height": `${cellHeight}px`,
               "--board-width": `${cellWidth * COLS}px`,
               // Lower camera angle and zoom dynamically as the player moves
-              transform: `translateX(-20px) rotateX(${angle}deg) scale(${zoom})`,
+              transform: `translateX(0) rotateX(${angle}deg) scale(${zoom})`,
             }}
           >
             {tiles}
