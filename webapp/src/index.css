@@ -1,168 +1,10 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
-
-:root {
-  --cell-width: 135px;
-  --cell-height: 68px;
-}
-
-body {
-  font-family: Arial, Helvetica, sans-serif;
-  @apply bg-background text-text overflow-x-hidden;
-}
-
-.hexagon {
-  clip-path: polygon(25% 5%, 75% 5%, 100% 50%, 75% 95%, 25% 95%, 0% 50%);
-}
-
-.hex-table {
-  clip-path: polygon(25% 5%, 75% 5%, 100% 50%, 75% 95%, 25% 95%, 0% 50%);
-  background: radial-gradient(circle at center, #8b1a1a 0%, #5a0d0d 80%);
-  border: 4px solid #b22222;
-}
-
-.player-avatar {
-  @apply w-12 h-12 rounded-full border border-yellow-400;
-}
-
-.starry-bg {
-  background-color: #000;
-  background-image:
-    radial-gradient(#ffffff 1px, transparent 1px),
-    radial-gradient(#ffffff 1px, transparent 1px);
-  background-position:
-    0 0,
-    25px 25px;
-  background-size: 50px 50px;
-}
-
-.board-3d {
-  perspective: 800px;
-}
-
-.board-3d-grid {
-  transform: rotateX(30deg) rotateZ(45deg);
-  transform-style: preserve-3d;
-}
-
-.board-frame {
-  @apply border-4 border-accent rounded-lg p-1 bg-surface;
-  transform-style: preserve-3d;
-}
-
-/* Tilted view specifically for the Snake & Ladder board */
-.snake-board-tilt {
-  perspective: 1200px;
-}
-
-.snake-board-grid {
-  transform-style: preserve-3d;
-  transform-origin: bottom center;
-  transition: transform 0.3s ease; /* ✅ scaling transition */
-}
-
-@keyframes roll {
-  0% {
-    transform: rotateX(0deg) rotateY(0deg) rotateZ(0deg) translateY(0);
-  }
-  50% {
-    transform: rotateX(360deg) rotateY(360deg) rotateZ(360deg) translateY(-1rem);
-  }
-  100% {
-    transform: rotateX(720deg) rotateY(720deg) rotateZ(720deg) translateY(0);
-  }
-}
-
-.animate-roll {
-  animation: roll 1s ease-in-out;
-}
-
-.dice-container {
-  perspective: 600px;
-}
-
-.dice-cube {
-  @apply relative w-16 h-16;
-  transform-style: preserve-3d;
-  transition: transform 0.5s;
-}
-
-.dice-face {
-  @apply absolute w-full h-full flex items-center justify-center bg-white rounded-xl shadow-lg;
-}
-
-.dice-face .dot {
-  @apply w-4 h-4 bg-black rounded-full;
-}
-
-.dice-face--front {
-  transform: rotateY(0deg) translateZ(2rem);
-}
-.dice-face--back {
-  transform: rotateY(180deg) translateZ(2rem);
-}
-.dice-face--right {
-  transform: rotateY(90deg) translateZ(2rem);
-}
-.dice-face--left {
-  transform: rotateY(-90deg) translateZ(2rem);
-}
-.dice-face--top {
-  transform: rotateX(90deg) translateZ(2rem);
-}
-.dice-face--bottom {
-  transform: rotateX(-90deg) translateZ(2rem);
-}
-
-.board-cell {
-  @apply relative flex items-center justify-center rounded-xl text-text shadow-inner bg-surface border-2 border-accent;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.5);
-  transform: translateZ(5px);
-  width: var(--cell-width);
-  height: var(--cell-height);
-}
-
-.board-cell::after {
-  content: "";
-  position: absolute;
-  inset: 2px;
-  border-radius: inherit;
-  box-shadow: 0 0 8px rgba(250, 204, 21, 0.5);
-  transform: translateZ(-1px);
-}
-
-.token {
-  @apply absolute w-16 h-16 rounded-full shadow-lg object-cover;
-  transform: translateZ(10px);
-}
-
-.board-cell.highlight {
-  box-shadow: 0 0 10px 4px rgba(250, 204, 21, 0.8);
-}
-
-.pot-cell {
-  @apply absolute flex flex-col items-center justify-center hexagon bg-primary text-background border-2 border-accent;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.5);
-  width: calc(var(--cell-width) * 1.5);
-  height: calc(var(--cell-height) * 1.5);
-  top: calc(var(--cell-height) * -0.75);
-  left: 50%;
-  transform: translateX(-50%);
-  z-index: 10;
-}
-
-.pot-cell.highlight {
-  box-shadow: 0 0 10px 4px rgba(250, 204, 21, 0.8);
-}
-
 .logo-wall-main {
   @apply absolute flex items-center justify-center;
-  width: calc(var(--cell-width) * 7.2); /* 20% wider */
-  height: calc(var(--cell-height) * 6); /* 20% taller */
-  top: calc(var(--cell-height) * -4.5); /* ✅ push above pot */
+  width: calc(var(--cell-width) * 9); /* ✅ wider */
+  height: calc(var(--cell-height) * 9); /* ✅ taller */
+  top: calc(var(--cell-height) * -9); /* ✅ bottom flush with top row */
   left: 50%;
-  transform: translateX(-50%) rotateX(-60deg) translateZ(-20px); /* ✅ behind the pot */
+  transform: translateX(-50%) rotateX(-60deg) translateZ(-24px); /* ✅ pushed back */
   transform-origin: bottom center;
   background-image: url('/assets/TonPlayGramLogo.jpg');
   background-size: contain;
@@ -173,9 +15,9 @@ body {
 
 .logo-wall-side {
   @apply absolute flex items-center justify-center;
-  width: calc(var(--board-width) * 0.96); /* 20% wider */
-  height: calc(var(--cell-height) * 4.8); /* 20% taller */
-  top: calc(var(--cell-height) * -4.5);
+  width: calc(var(--cell-width) * 6.5); /* ✅ slightly wider than board */
+  height: calc(var(--cell-height) * 7); /* ✅ raised height */
+  top: calc(var(--cell-height) * -7); /* ✅ aligned with top row */
   background-image: url('/assets/TonPlayGramLogo.jpg');
   background-size: contain;
   background-repeat: no-repeat;
@@ -186,35 +28,10 @@ body {
 
 .logo-wall-left {
   left: -10%;
-  transform: rotateY(40deg) rotateX(-60deg) translateZ(-20px);
+  transform: rotateY(40deg) rotateX(-60deg) translateZ(-24px);
 }
 
 .logo-wall-right {
   right: -10%;
-  transform: rotateY(-40deg) rotateX(-60deg) translateZ(-20px);
-}
-
-.snake-connector,
-.ladder-connector {
-  position: absolute;
-  height: 8px;
-  transform-origin: 0 50%;
-  z-index: 2;
-}
-
-.snake-connector {
-  background-image: url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA2NCA2NCI+CiAgPHBhdGggZD0iTTEyIDE2YzgtOCAxNi04IDI0IDBzMTYgOCAyNCAwIiBzdHJva2U9IiMxNmEzNGEiIHN0cm9rZS13aWR0aD0iNCIgZmlsbD0ibm9uZSIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIi8+CiAgPHBhdGggZD0iTTYwIDQ4Yy04IDgtMTYgOC0yNCAwcy0xNi04LTI0IDAiIHN0cm9rZT0iIzE2YTM0YSIgc3Ryb2tlLXdpZHRoPSI0IiBmaWxsPSJub25lIiBzdHJva2UtbGluZWNhcD0icm91bmQiLz4KICA8Y2lyY2xlIGN4PSI1NiIgY3k9IjE2IiByPSI0IiBmaWxsPSIjZGMyNjI2Ii8+Cjwvc3ZnPg==');
-  background-size: 100% 100%;
-  background-repeat: no-repeat;
-  border-radius: 4px;
-}
-
-.ladder-connector {
-  background-color: #4ade80;
-  border-left: 4px solid #16a34a;
-  border-right: 4px solid #16a34a;
-}
-
-.board-marker {
-  transform: translateZ(6px);
+  transform: rotateY(-40deg) rotateX(-60deg) translateZ(-24px);
 }
