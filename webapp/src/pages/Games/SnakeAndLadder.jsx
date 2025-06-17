@@ -55,11 +55,13 @@ function Board({ position, highlight, photoUrl, pot, snakes, ladders }) {
     for (let c = 0; c < COLS; c++) {
       const col = reversed ? COLS - 1 - c : c;
       const num = r * COLS + col + 1;
+      const isHighlight = highlight && highlight.cell === num;
+      const highlightClass = isHighlight ? `${highlight.type}-highlight` : "";
       tiles.push(
         <div
           key={num}
           data-cell={num}
-          className={`board-cell ${highlight === num ? "highlight" : ""}`}
+          className={`board-cell ${highlightClass}`}
           style={{ gridRowStart: ROWS - r, gridColumnStart: col + 1 }}
         >
           {num}
@@ -212,7 +214,7 @@ function Board({ position, highlight, photoUrl, pot, snakes, ladders }) {
           >
             {tiles}
             {connectors}
-            <div className={`pot-cell ${highlight === FINAL_TILE ? 'highlight' : ''}`}>
+            <div className={`pot-cell ${highlight && highlight.cell === FINAL_TILE ? 'highlight' : ''}`}>
               <span className="font-bold">Pot</span>
               <span className="text-sm">{pot}</span>
               {position === FINAL_TILE && (
@@ -233,7 +235,7 @@ export default function SnakeAndLadder() {
   useTelegramBackButton();
   const [pos, setPos] = useState(0);
   const [streak, setStreak] = useState(0);
-  const [highlight, setHighlight] = useState(null);
+  const [highlight, setHighlight] = useState(null); // { cell: number, type: string }
   const [message, setMessage] = useState("");
   const [photoUrl, setPhotoUrl] = useState("");
   const [pot, setPot] = useState(100);
@@ -330,7 +332,8 @@ export default function SnakeAndLadder() {
       setPos(next);
       moveSoundRef.current.currentTime = 0;
       moveSoundRef.current.play().catch(() => {});
-      setHighlight(next);
+      const type = ladders[next] ? 'ladder' : snakes[next] ? 'snake' : 'normal';
+      setHighlight({ cell: next, type });
       setTimeout(() => move(index + 1), 300);
     };
 

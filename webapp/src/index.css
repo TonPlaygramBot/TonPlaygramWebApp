@@ -141,6 +141,18 @@ body {
   box-shadow: 0 0 10px 4px rgba(250, 204, 21, 0.8);
 }
 
+.board-cell.normal-highlight {
+  background-color: #fde047; /* yellow-300 */
+}
+
+.board-cell.ladder-highlight {
+  background-color: #86efac; /* green-300 */
+}
+
+.board-cell.snake-highlight {
+  background-color: #fca5a5; /* red-300 */
+}
+
 .pot-cell {
   @apply absolute flex flex-col items-center justify-center hexagon bg-primary text-background border-2 border-accent;
   box-shadow: 0 4px 6px rgba(0, 0, 0, 0.5);
