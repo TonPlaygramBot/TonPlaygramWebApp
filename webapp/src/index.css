@@ -188,6 +188,21 @@ body {
   background-color: #fff;
 }
 
+/* Three.js token container */
+.token-three {
+  position: absolute;
+  width: 4rem;
+  height: 4rem;
+  transform: translateZ(10px);
+  pointer-events: none;
+}
+
+.token-three canvas {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
 .token-cube-inner {
   position: relative;
   width: 100%;
