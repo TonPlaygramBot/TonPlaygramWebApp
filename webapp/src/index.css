@@ -137,52 +137,6 @@ body {
   transform: translateZ(10px);
 }
 
-.token-cylinder {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  width: calc(var(--cell-width) * 0.8);
-  height: calc(var(--cell-width) * 0.8);
-  transform-style: preserve-3d;
-  transform: translate(-50%, -50%) rotateX(var(--board-angle)) translateZ(10px);
-}
-
-.token-cylinder::after {
-  content: "";
-  position: absolute;
-  top: 100%;
-  left: 0;
-  width: 100%;
-  height: calc(var(--cell-height) * 0.25);
-  background: #d1d5db;
-  clip-path: polygon(25% 0%, 75% 0%, 100% 100%, 0% 100%);
-  transform-origin: top;
-  transform: rotateX(90deg);
-}
-
-.token-top {
-  position: absolute;
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  clip-path: polygon(25% 5%, 75% 5%, 100% 50%, 75% 95%, 25% 95%, 0% 50%);
-  border: 2px solid #facc15;
-  border-radius: 8px;
-}
-
-.token-side {
-  position: absolute;
-  top: 0;
-  left: 50%;
-  width: calc(var(--cell-width) * 0.8);
-  height: calc(var(--cell-height) * 0.25);
-  background: #d1d5db;
-  transform-origin: center top;
-  transform: rotateX(90deg)
-    rotateY(calc(var(--i) * 60deg))
-    translateZ(calc(var(--cell-width) * 0.4));
-}
-
 .board-cell.highlight {
   box-shadow: 0 0 10px 4px rgba(250, 204, 21, 0.8);
 }
