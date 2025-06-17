@@ -6,16 +6,14 @@ export default function PlayerToken({ photoUrl, type = 'normal', color }) {
   const style = color ? { '--side-color': color, '--border-color': color } : undefined;
   return (
     <div className={`player-token ${colorClass}`} style={style}>
-      <img src={photoUrl} alt="player" className="token-top" />
-      <div className="hex-cylinder">
-        <div className="hex-side side-1" />
-        <div className="hex-side side-2" />
-        <div className="hex-side side-3" />
-        <div className="hex-side side-4" />
-        <div className="hex-side side-5" />
-        <div className="hex-side side-6" />
+      <div className="dice-token">
+        <div className="dice-face dice-face--front" />
+        <div className="dice-face dice-face--back" />
+        <div className="dice-face dice-face--right" />
+        <div className="dice-face dice-face--left" />
+        <img src={photoUrl} alt="player" className="dice-face dice-face--top token-photo" />
+        <div className="dice-face dice-face--bottom" />
       </div>
-      <div className="token-base" />
     </div>
   );
 }
