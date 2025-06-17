@@ -369,20 +369,23 @@ export default function SnakeAndLadder() {
   return (
     <div className="p-4 pb-32 space-y-4 text-text flex flex-col items-center relative w-full">
       <div className="absolute top-0 right-0 flex flex-col items-end space-y-2 p-2">
-        <button onClick={() => setShowInfo(true)} className="p-2">
+        <button onClick={() => setShowInfo(true)} className="p-2 flex flex-col items-center">
           <AiOutlineInfoCircle className="text-2xl" />
+          <span className="text-xs">Info</span>
         </button>
         <button
           onClick={() => navigate('/games')}
-          className="p-1 bg-primary text-white rounded"
+          className="p-2 flex flex-col items-center"
         >
           <AiOutlineLogout className="text-xl" />
+          <span className="text-xs">Exit</span>
         </button>
         <button
           onClick={() => navigate('/games/snake/lobby')}
-          className="p-1 bg-primary text-white rounded"
+          className="p-2 flex flex-col items-center"
         >
           <AiOutlineRollback className="text-xl" />
+          <span className="text-xs">Lobby</span>
         </button>
       </div>
       <Board
