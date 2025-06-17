@@ -8,7 +8,10 @@ import { runInNewContext } from 'vm';
 const distDir = new URL('../webapp/dist/', import.meta.url);
 
 async function startServer(env) {
-  return spawn('node', ['bot/server.js'], { env, stdio: 'pipe' });
+  const server = spawn('node', ['bot/server.js'], { env, stdio: 'pipe' });
+  server.stdout.on('data', (chunk) => process.stdout.write(chunk));
+  server.stderr.on('data', (chunk) => process.stderr.write(chunk));
+  return server;
 }
 
 test('server exposes manifest endpoint from TONCONNECT_MANIFEST_URL', async () => {
@@ -25,7 +28,7 @@ test('server exposes manifest endpoint from TONCONNECT_MANIFEST_URL', async () =
   };
   const server = await startServer(env);
   try {
-    for (let i = 0; i < 20; i++) {
+    for (let i = 0; i < 100; i++) {
       try {
         const res = await fetch('http://localhost:3100/test-manifest.json');
         if (res.ok) {
