@@ -142,12 +142,12 @@ body {
 /* Deprecated hexagonal token - kept for reference */
 .player-token {
   position: absolute;
-  width: 4rem;
-  height: 4rem;
+  width: 5rem;
+  height: 5rem;
   transform-style: preserve-3d;
   transform: translateZ(10px);
-  --cyl-h: 1.5rem; /* half of dice size */
-  --token-radius: 2rem;
+  --cyl-h: 2rem; /* half of dice size */
+  --token-radius: 2.5rem;
   --cyl-apothem: calc(var(--token-radius) * 0.866); /* distance from center */
   --side-color: #facc15; /* default amber */
   --border-color: #d97706;
@@ -156,8 +156,8 @@ body {
 /* New cube-style token */
 .token-cube {
   position: absolute;
-  width: 4rem;
-  height: 4rem;
+  width: 5rem;
+  height: 5rem;
   transform: translateZ(10px);
   transform-style: preserve-3d;
   --side-color: #fde047; /* yellow-300 */
@@ -167,8 +167,8 @@ body {
 /* Dice-style token replacing player photo */
 .token-dice {
   position: absolute;
-  width: 4rem;
-  height: 4rem;
+  width: 5rem;
+  height: 5rem;
   transform: translateZ(10px);
   transform-style: preserve-3d;
 }
@@ -191,9 +191,10 @@ body {
 /* Three.js token container */
 .token-three {
   position: absolute;
-  width: 4rem;
-  height: 4rem;
-  transform: translateZ(10px);
+  width: 5rem;
+  height: 5rem;
+  transform-style: preserve-3d;
+  transform: rotateX(var(--board-angle, 60deg)) translateZ(10px);
   pointer-events: none;
 }
 
@@ -208,8 +209,8 @@ body {
   width: 100%;
   height: 100%;
   transform-style: preserve-3d;
-  /* Align token with board surface while showing a slight side angle */
-  transform: rotateX(calc(var(--board-angle, 60deg) * -1 - 25deg)) rotateY(25deg);
+  /* Align token directly with the board surface */
+  transform: rotateX(calc(var(--board-angle, 60deg) * -1));
 }
 
 .cube-face {
