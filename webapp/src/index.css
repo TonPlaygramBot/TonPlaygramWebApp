@@ -204,8 +204,8 @@ body {
 
 .logo-wall-main {
   @apply absolute flex items-center justify-center;
-  width: calc(var(--cell-width) * 6); /* make logo span six cells */
-  height: calc(var(--cell-height) * 5); /* bigger height */
+  width: calc(var(--cell-width) * 7.2); /* 20% wider */
+  height: calc(var(--cell-height) * 6); /* 20% taller */
   top: calc(var(--cell-height) * -4.5); /* ✅ push above pot */
   left: 50%;
   transform: translateX(-50%) rotateX(-60deg) translateZ(-20px); /* ✅ behind the pot */
@@ -219,8 +219,8 @@ body {
 
 .logo-wall-side {
   @apply absolute flex items-center justify-center;
-  width: calc(var(--board-width) * 0.8);
-  height: calc(var(--cell-height) * 4);
+  width: calc(var(--board-width) * 0.96); /* 20% wider */
+  height: calc(var(--cell-height) * 4.8); /* 20% taller */
   top: calc(var(--cell-height) * -4.5);
   background-image: url('/assets/TonPlayGramLogo.jpg');
   background-size: contain;
