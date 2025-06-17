@@ -199,7 +199,7 @@ function Board({
       >
         <div className="snake-board-tilt">
           <div
-            className="snake-board-grid grid gap-1 relative"
+            className="snake-board-grid grid gap-1 relative mx-auto"
             style={{
               width: `${cellWidth * COLS}px`,
               height: `${cellHeight * ROWS}px`,
