@@ -278,7 +278,7 @@ body {
 
 .logo-wall-right {
   right: -10%;
-  transform: rotateY(-40deg) rotateX(-60deg) translateZ(-20px) scale(1.8);
+  transform: rotateX(-60deg) translateZ(-20px) scale(1.8);
 }
 
 .snake-connector,
