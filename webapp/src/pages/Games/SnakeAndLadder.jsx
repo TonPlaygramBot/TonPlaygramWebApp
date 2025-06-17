@@ -244,6 +244,7 @@ export default function SnakeAndLadder() {
   const [streak, setStreak] = useState(0);
   const [highlight, setHighlight] = useState(null); // { cell: number, type: string }
   const [message, setMessage] = useState("");
+  const [turnMessage, setTurnMessage] = useState("Your turn");
   const [photoUrl, setPhotoUrl] = useState("");
   const [pot, setPot] = useState(100);
   const [token, setToken] = useState("TPC");
@@ -293,6 +294,7 @@ export default function SnakeAndLadder() {
   }, []);
 
   const handleRoll = (values) => {
+    setTurnMessage("");
     const value = Array.isArray(values)
       ? values.reduce((a, b) => a + b, 0)
       : values;
@@ -305,6 +307,7 @@ export default function SnakeAndLadder() {
     if (newStreak === 3) {
       setStreak(0);
       setMessage("Third 6 rolled, turn skipped!");
+      setTurnMessage("Your turn");
       return;
     }
 
@@ -316,12 +319,14 @@ export default function SnakeAndLadder() {
       if (rolledSix) target = 1;
       else {
         setMessage("Need a 6 to start!");
+        setTurnMessage("Your turn");
         return;
       }
     } else if (current + value <= FINAL_TILE) {
       target = current + value;
     } else {
       setMessage("Need exact roll!");
+      setTurnMessage("Your turn");
     }
 
     const steps = [];
@@ -357,6 +362,7 @@ export default function SnakeAndLadder() {
             snakeSoundRef.current?.play().catch(() => {});
             setMessage(`Snake! Slide to tile ${finalPos}`);
           }
+          setTurnMessage("Your turn");
         }, 300);
         return;
       }
@@ -394,6 +400,9 @@ export default function SnakeAndLadder() {
           <AiOutlineRollback className="text-xl" />
           <span className="text-xs">Lobby</span>
         </button>
+        {turnMessage && (
+          <div className="text-xs font-semibold text-right w-full">{turnMessage}</div>
+        )}
       </div>
       <Board
         position={pos}
@@ -409,7 +418,12 @@ export default function SnakeAndLadder() {
         <div className="text-center font-semibold w-full">{message}</div>
       )}
       <div className="fixed bottom-24 inset-x-0 flex justify-center z-20">
-        <DiceRoller onRollEnd={handleRoll} clickable numDice={2} />
+        <DiceRoller
+          onRollEnd={handleRoll}
+          onRollStart={() => setTurnMessage('Rolling...')}
+          clickable
+          numDice={2}
+        />
       </div>
       <InfoPopup
         open={showInfo}
