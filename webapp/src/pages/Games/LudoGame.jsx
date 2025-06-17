@@ -183,9 +183,33 @@ export default function LudoGame() {
   const [gameState, setGameState] = useState(ludo.getCurrentState());
 
   useEffect(() => {
-    const handler = (s) => setGameState({ ...s });
+    const stored = localStorage.getItem('ludoGameState');
+    if (stored) {
+      try {
+        const data = JSON.parse(stored);
+        ludo.reset();
+        ludo.players = data.players;
+        ludo.tokenPositions = data.tokenPositions;
+        ludo.currentPiece = data.turn;
+        ludo.ranking = data.ranking;
+        ludo.currentBoardStatus = data.boardStatus;
+        ludo.currentDiceRoll = data.diceRoll;
+        ludo.lastDiceRoll = data.lastDiceRoll;
+        ludo.gameState = data.gameState;
+      } catch (err) {
+        console.error('Failed to load saved game', err);
+        ludo.reset();
+      }
+    } else {
+      ludo.reset();
+    }
+    setGameState(ludo.getCurrentState());
+
+    const handler = (s) => {
+      setGameState({ ...s });
+      localStorage.setItem('ludoGameState', JSON.stringify(s));
+    };
     ludo.on('stateChange', handler);
-    ludo.reset();
     return () => ludo.off('stateChange', handler);
   }, [ludo]);
 
@@ -194,10 +218,12 @@ export default function LudoGame() {
     gameState.players.length > 0;
 
   const handlePlayAgain = () => {
+    localStorage.removeItem('ludoGameState');
     ludo.reset();
   };
 
   const handleReturn = () => {
+    localStorage.removeItem('ludoGameState');
     navigate('/games/ludo/lobby');
   };
 
