@@ -174,7 +174,7 @@ body {
   height: calc(var(--cell-height) * 4.8); /* 20% smaller */
   top: calc(var(--cell-height) * -4.5); /* ✅ push above pot */
   left: 50%;
-  transform: translateX(-50%) rotateX(-60deg) translateZ(-20px); /* ✅ behind the pot */
+  transform: translateX(-50%) rotateX(-60deg) translateZ(-20px) scale(1.8); /* Enlarged, base anchored */
   transform-origin: bottom center;
   background-image: url('/assets/TonPlayGramLogo.jpg');
   background-size: contain;
@@ -198,12 +198,12 @@ body {
 
 .logo-wall-left {
   left: -10%;
-  transform: rotateY(40deg) rotateX(-60deg) translateZ(-20px);
+  transform: rotateY(40deg) rotateX(-60deg) translateZ(-20px) scale(1.8);
 }
 
 .logo-wall-right {
   right: -10%;
-  transform: rotateY(-40deg) rotateX(-60deg) translateZ(-20px);
+  transform: rotateY(-40deg) rotateX(-60deg) translateZ(-20px) scale(1.8);
 }
 
 .snake-connector,
