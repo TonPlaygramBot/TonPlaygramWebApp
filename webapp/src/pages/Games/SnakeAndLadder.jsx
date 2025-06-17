@@ -1,7 +1,11 @@
 import { useState, useEffect, useRef } from "react";
 import DiceRoller from "../../components/DiceRoller.jsx";
 import InfoPopup from "../../components/InfoPopup.jsx";
-import { AiOutlineInfoCircle } from "react-icons/ai";
+import {
+  AiOutlineInfoCircle,
+  AiOutlineLogout,
+  AiOutlineRollback,
+} from "react-icons/ai";
 import useTelegramBackButton from "../../hooks/useTelegramBackButton.js";
 import { useNavigate } from "react-router-dom";
 import { getTelegramPhotoUrl } from "../../utils/telegram.js";
@@ -364,18 +368,23 @@ export default function SnakeAndLadder() {
 
   return (
     <div className="p-4 pb-32 space-y-4 text-text flex flex-col items-center relative w-full">
-      <button
-        className="absolute top-0 right-0 p-2"
-        onClick={() => setShowInfo(true)}
-      >
-        <AiOutlineInfoCircle className="text-2xl" />
-      </button>
-      <button
-        className="absolute top-8 right-0 p-1 text-xs bg-primary text-white rounded"
-        onClick={() => navigate('/games/snake/lobby')}
-      >
-        Leave
-      </button>
+      <div className="absolute top-0 right-0 flex flex-col items-end space-y-2 p-2">
+        <button onClick={() => setShowInfo(true)} className="p-2">
+          <AiOutlineInfoCircle className="text-2xl" />
+        </button>
+        <button
+          onClick={() => navigate('/games')}
+          className="p-1 bg-primary text-white rounded"
+        >
+          <AiOutlineLogout className="text-xl" />
+        </button>
+        <button
+          onClick={() => navigate('/games/snake/lobby')}
+          className="p-1 bg-primary text-white rounded"
+        >
+          <AiOutlineRollback className="text-xl" />
+        </button>
+      </div>
       <Board
         position={pos}
         highlight={highlight}
