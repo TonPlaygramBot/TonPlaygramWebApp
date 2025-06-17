@@ -169,8 +169,7 @@ body {
   width: 100%;
   height: 100%;
   transform-style: preserve-3d;
-  /* Match board tilt so the token sits flush on the surface */
-  transform: rotateY(25deg);
+  transform: rotateX(-25deg) rotateY(25deg);
 }
 
 .cube-face {
