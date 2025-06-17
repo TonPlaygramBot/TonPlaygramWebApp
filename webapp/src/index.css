@@ -149,6 +149,7 @@ body {
   --cyl-apothem: calc(var(--token-radius) * 0.866); /* distance from center */
   --side-color: #facc15; /* default amber */
   --border-color: #d97706;
+  --base-color: var(--side-color);
 }
 
 .token-top {
@@ -163,8 +164,8 @@ body {
 .token-base {
   @apply w-full h-full absolute;
   clip-path: polygon(25% 5%, 75% 5%, 100% 50%, 75% 95%, 25% 95%, 0% 50%);
-  background-color: var(--side-color, #facc15);
-  border: 1px solid var(--border-color, #d97706);
+  background-color: var(--base-color, #facc15);
+  border: 1px solid var(--base-color, #d97706);
   top: calc(100% + var(--cyl-h));
   left: 0;
   transform: translateZ(0);
