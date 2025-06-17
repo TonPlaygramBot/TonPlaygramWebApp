@@ -8,12 +8,15 @@ export default function HexPrismToken({ color = "#008080", photoUrl }) {
     const mount = mountRef.current;
     if (!mount) return;
 
+    // Scale factor to match the enlarged CSS container
+    const SCALE = 3;
+
     const width = mount.clientWidth;
     const height = mount.clientHeight;
 
     const scene = new THREE.Scene();
     const camera = new THREE.PerspectiveCamera(45, width / height, 0.1, 100);
-    camera.position.set(3, 4, 5);
+    camera.position.set(3 * SCALE, 4 * SCALE, 5 * SCALE);
     camera.lookAt(0, 0, 0);
 
     const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
@@ -22,6 +25,7 @@ export default function HexPrismToken({ color = "#008080", photoUrl }) {
     mount.appendChild(renderer.domElement);
 
     const geometry = new THREE.CylinderGeometry(1, 1, 2.5, 6);
+    geometry.scale(SCALE, SCALE, SCALE);
     const sideMaterial = new THREE.MeshStandardMaterial({ color });
     const bottomMaterial = new THREE.MeshStandardMaterial({ color });
 
