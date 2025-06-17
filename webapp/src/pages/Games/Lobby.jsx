@@ -4,6 +4,7 @@ import TableSelector from '../../components/TableSelector.jsx';
 import RoomSelector from '../../components/RoomSelector.jsx';
 import useTelegramBackButton from '../../hooks/useTelegramBackButton.js';
 import { getSnakeLobbies, getSnakeLobby } from '../../utils/api.js';
+import { canStartGame } from '../../utils/lobby.js';
 
 export default function Lobby() {
   const { game } = useParams();
@@ -63,8 +64,7 @@ export default function Lobby() {
     navigate(`/games/${game}?${params.toString()}`);
   };
 
-  // Allow starting the game without fulfilling lobby requirements while testing
-  const disabled = false; // TODO: restore lobby checks when done testing
+  const disabled = !canStartGame(game, table, stake);
 
   return (
     <div className="p-4 space-y-4 text-text">
