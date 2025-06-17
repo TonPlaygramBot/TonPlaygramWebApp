@@ -82,15 +82,14 @@ body {
   perspective: 600px;
 }
 
-
 .dice-cube {
-  @apply relative w-12 h-12 bg-white rounded-xl overflow-hidden;
+  @apply relative w-12 h-12 bg-white rounded-xl;
   transform-style: preserve-3d;
   transition: transform 0.5s;
 }
 
 .dice-face {
-  @apply absolute inset-0 flex items-center justify-center bg-white shadow-lg;
+  @apply absolute w-full h-full flex items-center justify-center bg-white rounded-xl shadow-lg;
 }
 
 .dice-face .dot {
