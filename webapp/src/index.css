@@ -137,7 +137,7 @@ body {
   transform: translateZ(10px);
 }
 
-/* Player photo on a hexagonal cylinder */
+/* Player photo on a triangular prism */
 .player-token {
   position: absolute;
   width: 4rem;
@@ -146,14 +146,14 @@ body {
   transform: translateZ(10px);
   --cyl-h: 1.5rem; /* half of dice size */
   --token-radius: 2rem;
-  --cyl-apothem: calc(var(--token-radius) * 0.866); /* distance from center */
+  --cyl-apothem: calc(var(--token-radius) * 0.289); /* distance from center */
   --side-color: #facc15; /* default amber */
   --border-color: #d97706;
 }
 
 .token-top {
-  @apply w-full h-full object-cover;
-  clip-path: polygon(25% 5%, 75% 5%, 100% 50%, 75% 95%, 25% 95%, 0% 50%);
+  @apply w-full h-full object-cover flex items-center justify-center;
+  clip-path: polygon(50% 0%, 100% 100%, 0% 100%);
   position: absolute;
   top: 0;
   left: 0;
@@ -161,8 +161,8 @@ body {
 }
 
 .token-base {
-  @apply w-full h-full absolute;
-  clip-path: polygon(25% 5%, 75% 5%, 100% 50%, 75% 95%, 25% 95%, 0% 50%);
+  @apply w-full h-full absolute flex items-center justify-center font-bold text-xs;
+  clip-path: polygon(50% 0%, 100% 100%, 0% 100%);
   background-color: var(--side-color, #facc15);
   border: 1px solid var(--border-color, #d97706);
   top: calc(100% + var(--cyl-h));
@@ -170,7 +170,7 @@ body {
   transform: translateZ(0);
 }
 
-.hex-cylinder {
+.tri-cylinder {
   position: absolute;
   top: 100%;
   left: 0;
@@ -180,7 +180,7 @@ body {
   transform-origin: center bottom;
 }
 
-.hex-side {
+.tri-side {
   position: absolute;
   left: calc(50% - var(--token-radius) / 2);
   width: var(--token-radius);
@@ -190,11 +190,8 @@ body {
 }
 
 .side-1 { transform: rotateY(0deg) translateZ(var(--cyl-apothem)); }
-.side-2 { transform: rotateY(60deg) translateZ(var(--cyl-apothem)); }
-.side-3 { transform: rotateY(120deg) translateZ(var(--cyl-apothem)); }
-.side-4 { transform: rotateY(180deg) translateZ(var(--cyl-apothem)); }
-.side-5 { transform: rotateY(240deg) translateZ(var(--cyl-apothem)); }
-.side-6 { transform: rotateY(300deg) translateZ(var(--cyl-apothem)); }
+.side-2 { transform: rotateY(120deg) translateZ(var(--cyl-apothem)); }
+.side-3 { transform: rotateY(240deg) translateZ(var(--cyl-apothem)); }
 
 /* Token color variations */
 .token-yellow {
