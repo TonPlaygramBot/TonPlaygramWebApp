@@ -204,8 +204,8 @@ body {
 
 .logo-wall-main {
   @apply absolute flex items-center justify-center;
-  width: var(--board-width); /* match board width */
-  height: calc(var(--cell-height) * 5); /* bigger height */
+  width: calc(var(--cell-width) * 8); /* even wider logo */
+  height: calc(var(--cell-height) * 6); /* scale up height too */
   top: calc(var(--cell-height) * -4.5); /* ✅ push above pot */
   left: 50%;
   transform: translateX(-50%) rotateX(-60deg) translateZ(-20px); /* ✅ behind the pot */
