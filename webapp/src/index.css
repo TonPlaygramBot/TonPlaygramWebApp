@@ -18,7 +18,8 @@ body {
 
 .hex-table {
   clip-path: polygon(25% 5%, 75% 5%, 100% 50%, 75% 95%, 25% 95%, 0% 50%);
-  background: radial-gradient(circle at center, #8b1a1a 0%, #5a0d0d 80%);
+  /* Transparent background so the board remains visible */
+  background: transparent;
   border: 4px solid #b22222;
 }
 
