@@ -284,8 +284,10 @@ export default function SnakeAndLadder() {
             winSoundRef.current?.play().catch(() => {});
           } else if (ladder) {
             ladderSoundRef.current?.play().catch(() => {});
+            setMessage(`Ladder! Climb to tile ${finalPos}`);
           } else if (snake) {
             snakeSoundRef.current?.play().catch(() => {});
+            setMessage(`Snake! Slide to tile ${finalPos}`);
           }
         }, 300);
         return;
