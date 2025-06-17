@@ -149,7 +149,7 @@ function Board({
   // Dynamically adjust zoom and camera tilt based on how far the player
   // has progressed. This keeps the logo in focus while following the token.
   const MIN_ZOOM = 1; // keep the bottom scale fixed
-  const MAX_ZOOM = 2; // expand the top so it fills the screen
+  const MAX_ZOOM = 2.4; // widen the board and logo toward the top
   const MIN_ANGLE = 65;
   const MAX_ANGLE = 20;
 
