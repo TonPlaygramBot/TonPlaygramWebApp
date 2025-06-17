@@ -150,6 +150,14 @@ app.get('/api/snake/lobby/:id', (req, res) => {
     .map((p) => ({ id: p.playerId, name: p.name }));
   res.json({ id, capacity: cap, players });
 });
+
+app.get('/api/snake/board/:id', (req, res) => {
+  const { id } = req.params;
+  const match = /-(\d+)$/.exec(id);
+  const cap = match ? Number(match[1]) : 4;
+  const room = gameManager.getRoom(id, cap);
+  res.json({ snakes: room.snakes, ladders: room.ladders });
+});
 app.get('*', (req, res) => {
   if (req.path.startsWith('/api/')) return res.status(404).end();
   sendIndex(res);
