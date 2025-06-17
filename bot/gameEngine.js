@@ -1,4 +1,5 @@
 export const FINAL_TILE = 101;
+export const ROLL_COOLDOWN_MS = 1000;
 
 export class GameRoom {
   constructor(id, io, maxPlayers = 4) {
@@ -8,6 +9,7 @@ export class GameRoom {
     this.players = [];
     this.currentTurn = 0;
     this.status = 'waiting';
+    this.rollCooldown = ROLL_COOLDOWN_MS;
     this.snakes = {
       17: 4,
       19: 7,
@@ -45,7 +47,8 @@ export class GameRoom {
       isActive: false,
       socketId: socket.id,
       disconnected: false,
-      consecutiveSixes: 0
+      consecutiveSixes: 0,
+      lastRollTime: 0
     };
     this.players.push(player);
     socket.join(this.id);
@@ -84,6 +87,13 @@ export class GameRoom {
     if (playerIndex === -1) return;
     const player = this.players[playerIndex];
     if (this.players[this.currentTurn].socketId !== socket.id) return;
+
+    const now = Date.now();
+    if (now - player.lastRollTime < this.rollCooldown) {
+      socket.emit('error', 'Rolling too fast');
+      return;
+    }
+    player.lastRollTime = now;
 
     const dice = value ?? Math.floor(Math.random() * 6) + 1;
     this.io.to(this.id).emit('diceRolled', { playerId: player.playerId, value: dice });
