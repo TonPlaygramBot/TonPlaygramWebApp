@@ -81,7 +81,6 @@ function Board({
             <PlayerToken
               photoUrl={photoUrl}
               type={isHighlight ? highlight.type : 'normal'}
-              color={playerColor}
             />
           )}
         </div>,
@@ -224,7 +223,6 @@ function Board({
                 <PlayerToken
                   photoUrl={photoUrl}
                   type={highlight && highlight.cell === FINAL_TILE ? highlight.type : 'normal'}
-                  color={playerColor}
                 />
               )}
               {celebrate && <CoinBurst token={token} />}
@@ -254,7 +252,6 @@ export default function SnakeAndLadder() {
   const [showInfo, setShowInfo] = useState(false);
   const [snakes, setSnakes] = useState({});
   const [ladders, setLadders] = useState({});
-  const [playerColor, setPlayerColor] = useState("#2563eb");
 
   const moveSoundRef = useRef(null);
   const snakeSoundRef = useRef(null);
@@ -286,10 +283,8 @@ export default function SnakeAndLadder() {
     const room = params.get("table") || "snake-4";
     const t = params.get("token");
     const amt = params.get("amount");
-    const col = params.get("color");
     if (t) setToken(t.toUpperCase());
     if (amt) setPot(Number(amt));
-    if (col) setPlayerColor(col.startsWith("#") ? col : `#${col}`);
     getSnakeBoard(room)
       .then((data) => {
         setSnakes(data.snakes || {});
