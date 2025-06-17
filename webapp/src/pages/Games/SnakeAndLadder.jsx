@@ -77,7 +77,12 @@ function Board({
         >
           {num}
           {/* ladder markers removed */}
-          {position === num && <PlayerToken photoUrl={photoUrl} />}
+          {position === num && (
+            <PlayerToken
+              photoUrl={photoUrl}
+              type={isHighlight ? highlight.type : 'normal'}
+            />
+          )}
         </div>,
       );
     }
@@ -214,7 +219,12 @@ function Board({
             >
               <span className="font-bold">Pot</span>
               <span className="text-sm">{pot}</span>
-              {position === FINAL_TILE && <PlayerToken photoUrl={photoUrl} />}
+              {position === FINAL_TILE && (
+                <PlayerToken
+                  photoUrl={photoUrl}
+                  type={highlight && highlight.cell === FINAL_TILE ? highlight.type : 'normal'}
+                />
+              )}
               {celebrate && <CoinBurst token={token} />}
             </div>
             <div className="logo-wall-main" />
