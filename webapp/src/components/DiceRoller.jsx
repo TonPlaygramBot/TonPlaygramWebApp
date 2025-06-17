@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import Dice from './Dice.jsx';
 
-export default function DiceRoller({ onRollEnd, clickable = false, numDice = 2 }) {
+export default function DiceRoller({ onRollEnd, onRollStart, clickable = false, numDice = 2 }) {
   const [values, setValues] = useState(Array(numDice).fill(1));
   const [rolling, setRolling] = useState(false);
   const soundRef = useRef(null);
@@ -29,6 +29,7 @@ export default function DiceRoller({ onRollEnd, clickable = false, numDice = 2 }
     }
     startValuesRef.current = values;
     setRolling(true);
+    onRollStart && onRollStart();
 
     const rand = () => {
       if (window.crypto && window.crypto.getRandomValues) {
