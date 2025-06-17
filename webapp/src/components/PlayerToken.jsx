@@ -15,6 +15,7 @@ export default function PlayerToken({ photoUrl, type = 'normal', color }) {
         <div className="hex-side side-5" />
         <div className="hex-side side-6" />
       </div>
+      <div className="token-base" />
     </div>
   );
 }
