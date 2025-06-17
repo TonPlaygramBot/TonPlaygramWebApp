@@ -38,30 +38,8 @@ function Board({ position, highlight, photoUrl, pot, snakes, ladders }) {
           style={{ gridRowStart: ROWS - r, gridColumnStart: col + 1 }}
         >
           {num}
-          {snakes[num] && (
-            <svg
-              viewBox="0 0 64 64"
-              className="absolute inset-0 pointer-events-none board-marker"
-            >
-              <path
-                d="M12 16c8-8 16-8 24 0s16 8 24 0"
-                stroke="#16a34a"
-                strokeWidth="4"
-                fill="none"
-                strokeLinecap="round"
-              />
-              <path
-                d="M60 48c-8 8-16 8-24 0s-16-8-24 0"
-                stroke="#16a34a"
-                strokeWidth="4"
-                fill="none"
-                strokeLinecap="round"
-              />
-              <circle cx="56" cy="16" r="4" fill="#dc2626" />
-            </svg>
-          )}
           {ladders[num] && (
-            <div className="absolute inset-0 flex items-center justify-center text-green-500 text-xl pointer-events-none board-marker">🪜</div>
+            <div className="absolute inset-0 flex items-center justify-center text-green-500 text-3xl pointer-events-none board-marker">🪜</div>
           )}
           {position === num && (
             <img src={photoUrl} alt="player" className="token" />
