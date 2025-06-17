@@ -184,6 +184,22 @@ body {
 .side-5 { transform: rotateY(240deg) translateZ(var(--cyl-apothem)); }
 .side-6 { transform: rotateY(300deg) translateZ(var(--cyl-apothem)); }
 
+/* Token color variations */
+.token-yellow .hex-side {
+  background-color: #fde047; /* yellow-300 */
+  border-color: #d97706; /* amber-600 */
+}
+
+.token-red .hex-side {
+  background-color: #fca5a5; /* red-300 */
+  border-color: #b91c1c; /* red-700 */
+}
+
+.token-green .hex-side {
+  background-color: #86efac; /* green-300 */
+  border-color: #16a34a; /* green-700 */
+}
+
 .board-cell.highlight {
   box-shadow: 0 0 10px 4px rgba(250, 204, 21, 0.8);
 }
