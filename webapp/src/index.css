@@ -221,6 +221,17 @@ body {
   z-index: 1;
 }
 
+/* Number displayed on the front face while moving */
+.token-step {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%) translateZ(40px) rotateX(10deg);
+  pointer-events: none;
+  text-shadow: 0 0 4px rgba(0, 0, 0, 0.7);
+  z-index: 2;
+}
+
 .token-cube-inner {
   position: relative;
   width: 100%;

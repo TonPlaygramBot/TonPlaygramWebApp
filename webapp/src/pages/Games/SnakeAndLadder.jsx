@@ -61,6 +61,7 @@ function Board({
   celebrate,
   token,
   tokenType,
+  moveStep,
 }) {
   const containerRef = useRef(null);
   const tiles = [];
@@ -104,6 +105,7 @@ function Board({
             <PlayerToken
               photoUrl={photoUrl}
               type={isHighlight ? highlight.type : tokenType}
+              step={moveStep}
             />
           )}
           {offsetPopup && offsetPopup.cell === num && (
@@ -221,6 +223,7 @@ function Board({
                 <PlayerToken
                   photoUrl={photoUrl}
                   type={highlight && highlight.cell === FINAL_TILE ? highlight.type : tokenType}
+                  step={moveStep}
                 />
               )}
               {celebrate && <CoinBurst token={token} />}
@@ -246,6 +249,7 @@ export default function SnakeAndLadder() {
   const [photoUrl, setPhotoUrl] = useState("");
   const [pot, setPot] = useState(100);
   const [token, setToken] = useState("TPC");
+  const [moveStep, setMoveStep] = useState(null);
   const [celebrate, setCelebrate] = useState(false);
   const [showInfo, setShowInfo] = useState(false);
   const [snakes, setSnakes] = useState({});
@@ -326,6 +330,7 @@ export default function SnakeAndLadder() {
   const handleRoll = (values) => {
     setTurnMessage("");
     setOffsetPopup(null);
+    setMoveStep(null);
     const value = Array.isArray(values)
       ? values.reduce((a, b) => a + b, 0)
       : values;
@@ -368,6 +373,7 @@ export default function SnakeAndLadder() {
         if (idx >= seq.length) return done();
         const next = seq[idx];
         setPos(next);
+        setMoveStep(idx + 1);
         moveSoundRef.current.currentTime = 0;
         moveSoundRef.current.play().catch(() => {});
         setHighlight({ cell: next, type });
@@ -377,6 +383,7 @@ export default function SnakeAndLadder() {
     };
 
     const applyEffect = (startPos) => {
+      setMoveStep(null);
       if (Object.keys(snakes).includes(String(startPos))) {
         const offset = snakeOffsets[startPos] || 0;
         setOffsetPopup({ cell: startPos, type: 'snake', amount: offset });
@@ -406,6 +413,7 @@ export default function SnakeAndLadder() {
       setPos(finalPos);
       setHighlight({ cell: finalPos, type });
       setTokenType(type);
+      setMoveStep(null);
       if (finalPos === FINAL_TILE) {
         setMessage(`You win ${pot} ${token}!`);
         setMessageColor('');
@@ -457,6 +465,7 @@ export default function SnakeAndLadder() {
         celebrate={celebrate}
         token={token}
         tokenType={tokenType}
+        moveStep={moveStep}
       />
       {message && (
         <div className={`text-center font-semibold w-full ${messageColor}`}>{message}</div>
