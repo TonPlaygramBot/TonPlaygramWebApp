@@ -18,11 +18,6 @@ const PLAYERS = 4;
 const ROWS = 20;
 const COLS = 5;
 const FINAL_TILE = ROWS * COLS + 1; // 101
-// Portion of the viewport to keep below the player's token when scrolling.
-// Larger values keep the token closer to the bottom so the board follows
-// the user row by row from a fixed camera position.
-// Slightly larger offset so the starting row fits in view
-const CAMERA_OFFSET = 0.95;
 
 function CoinBurst({ token }) {
   const coins = Array.from({ length: 15 }, () => ({
@@ -142,20 +137,9 @@ function Board({
   // were added which resulted in duplicate icons and misalignment when the
   // board scaled. The markers logic has been removed and the icons are now
   // displayed only once within the cell itself.
-  // Dynamically adjust zoom and camera tilt based on how far the player
-  // has progressed. This keeps the logo in focus while following the token.
-  const MIN_ZOOM = 1; // keep the bottom scale fixed
-  // Reduce the zoom range so the board does not enlarge as much
-  // when approaching the top of the screen.
-  const MAX_ZOOM = 1.5;
-  const MIN_ANGLE = 65;
-  const MAX_ANGLE = 20;
-
-  const rowFromBottom = Math.floor(Math.max(position - 1, 0) / COLS);
-  const progress = Math.min(1, rowFromBottom / (ROWS - 1));
-
-  const zoom = MIN_ZOOM + (MAX_ZOOM - MIN_ZOOM) * progress;
-  const angle = MIN_ANGLE - (MIN_ANGLE - MAX_ANGLE) * progress;
+  // Fixed board angle and scale so the camera does not zoom
+  const angle = 60;
+  const zoom = 1;
 
   useEffect(() => {
     const container = containerRef.current;
@@ -165,24 +149,23 @@ function Board({
   useEffect(() => {
     const container = containerRef.current;
     if (!container || position === 0) return;
-    const cell = container.querySelector(`[data-cell='${position}']`);
-    if (cell) {
-      const cRect = container.getBoundingClientRect();
-      const cellRect = cell.getBoundingClientRect();
-      // Keep the token near the bottom of the viewport so the camera follows
-      // from a lower angle and focuses attention on the logo at the top
-      const offset =
-        cellRect.top -
-        cRect.top -
-        cRect.height * CAMERA_OFFSET +
-        cellRect.height / 2;
-      const target = Math.min(
-        container.scrollHeight - cRect.height,
-        Math.max(0, container.scrollTop + offset),
-      );
-      container.scrollTo({ top: target, behavior: "smooth" });
+
+    const cellHeightPx = cellHeight;
+    const boardHeight = cellHeightPx * ROWS;
+    const maxScroll = boardHeight - container.clientHeight;
+    const rowFromBottom = Math.floor((position - 1) / COLS);
+
+    let target;
+    if (rowFromBottom < 4) {
+      // Keep the camera at the bottom for the first four rows
+      target = maxScroll;
+    } else {
+      // Once past the fourth row, show the logo and at least two rows behind
+      target = 0;
     }
-  }, [position]);
+
+    container.scrollTo({ top: target, behavior: "smooth" });
+  }, [position, cellHeight]);
 
   return (
     <div className="flex justify-center items-center w-screen overflow-hidden">
