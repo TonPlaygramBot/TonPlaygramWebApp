@@ -1,7 +1,11 @@
 import { useRef, useEffect } from "react";
 import * as THREE from "three";
 
-export default function HexPrismToken({ color = "#008080", photoUrl }) {
+export default function HexPrismToken({
+  color = "#008080",
+  photoUrl,
+  boardAngle = 60,
+}) {
   const mountRef = useRef(null);
 
   useEffect(() => {
@@ -33,6 +37,8 @@ export default function HexPrismToken({ color = "#008080", photoUrl }) {
     });
     const prism = new THREE.Mesh(geometry, [sideMaterial, topMaterial, bottomMaterial]);
     prism.rotation.y = Math.PI / 6; // show a corner toward the viewer
+    // Tilt token relative to the board so the top face is visible
+    prism.rotation.x = THREE.MathUtils.degToRad(-boardAngle - 25);
 
     if (photoUrl) {
       const loader = new THREE.TextureLoader();
@@ -88,7 +94,7 @@ export default function HexPrismToken({ color = "#008080", photoUrl }) {
       bottomMaterial.dispose();
       renderer.dispose();
     };
-  }, [color, photoUrl]);
+  }, [color, photoUrl, boardAngle]);
 
   return <div className="token-three relative" ref={mountRef} />;
 }
