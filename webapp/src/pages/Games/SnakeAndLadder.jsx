@@ -144,6 +144,9 @@ function Board({
   // displayed only once within the cell itself.
   // Dynamically adjust zoom and camera tilt based on how far the player
   // has progressed. This keeps the logo in focus while following the token.
+  const FRAME_SWITCH_ROW = 4;
+  const VISIBLE_ROWS_BELOW = 2;
+
   const MIN_ZOOM = 1; // keep the bottom scale fixed
   // Reduce the zoom range so the board does not enlarge as much
   // when approaching the top of the screen.
@@ -152,7 +155,7 @@ function Board({
   const MAX_ANGLE = 20;
 
   const rowFromBottom = Math.floor(Math.max(position - 1, 0) / COLS);
-  const progress = Math.min(1, rowFromBottom / (ROWS - 1));
+  const progress = Math.min(1, Math.min(rowFromBottom, FRAME_SWITCH_ROW) / (ROWS - 1));
 
   const zoom = MIN_ZOOM + (MAX_ZOOM - MIN_ZOOM) * progress;
   const angle = MIN_ANGLE - (MIN_ANGLE - MAX_ANGLE) * progress;
@@ -166,11 +169,12 @@ function Board({
     const container = containerRef.current;
     if (!container || position === 0) return;
     const cell = container.querySelector(`[data-cell='${position}']`);
-    if (cell) {
-      const cRect = container.getBoundingClientRect();
-      const cellRect = cell.getBoundingClientRect();
-      // Keep the token near the bottom of the viewport so the camera follows
-      // from a lower angle and focuses attention on the logo at the top
+    if (!cell) return;
+
+    const cRect = container.getBoundingClientRect();
+    const cellRect = cell.getBoundingClientRect();
+
+    if (rowFromBottom < FRAME_SWITCH_ROW) {
       const offset =
         cellRect.top -
         cRect.top -
@@ -181,8 +185,19 @@ function Board({
         Math.max(0, container.scrollTop + offset),
       );
       container.scrollTo({ top: target, behavior: "smooth" });
+    } else {
+      const baseline =
+        container.scrollHeight -
+        cRect.height -
+        cellHeight * (FRAME_SWITCH_ROW - VISIBLE_ROWS_BELOW);
+      const rowDiff = rowFromBottom - FRAME_SWITCH_ROW;
+      const target = Math.min(
+        container.scrollHeight - cRect.height,
+        Math.max(0, baseline + rowDiff * cellHeight),
+      );
+      container.scrollTo({ top: target, behavior: "smooth" });
     }
-  }, [position]);
+  }, [position, cellHeight, rowFromBottom]);
 
   return (
     <div className="flex justify-center items-center w-screen overflow-hidden">
@@ -371,7 +386,7 @@ export default function SnakeAndLadder() {
         moveSoundRef.current.currentTime = 0;
         moveSoundRef.current.play().catch(() => {});
         setHighlight({ cell: next, type });
-        setTimeout(() => stepMove(idx + 1), 500);
+        setTimeout(() => stepMove(idx + 1), 300);
       };
       stepMove(0);
     };
