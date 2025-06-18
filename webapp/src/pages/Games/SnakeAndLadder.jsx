@@ -352,7 +352,7 @@ export default function SnakeAndLadder() {
         moveSoundRef.current.currentTime = 0;
         moveSoundRef.current.play().catch(() => {});
         setHighlight({ cell: next, type });
-        setTimeout(() => stepMove(idx + 1), 300);
+        setTimeout(() => stepMove(idx + 1), 500);
       };
       stepMove(0);
     };
