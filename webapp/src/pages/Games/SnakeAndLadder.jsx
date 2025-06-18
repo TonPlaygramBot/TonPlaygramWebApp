@@ -77,7 +77,6 @@ function Board({
           style={{ gridRowStart: ROWS - r, gridColumnStart: col + 1 }}
         >
           {num}
-          {/* ladder markers removed */}
           {position === num && (
             <PlayerToken
               photoUrl={photoUrl}
@@ -105,7 +104,7 @@ function Board({
     return () => window.removeEventListener("resize", updateSize);
   }, []);
 
-  const connectors = [];
+  const markers = [];
 
   const getCenter = (num) => {
     const r = Math.floor((num - 1) / COLS);
@@ -117,35 +116,36 @@ function Board({
     return { x, y };
   };
 
-  const renderConnector = (from, to, type, width) => {
-    const start = getCenter(from);
-    const end = getCenter(to);
-    const dx = end.x - start.x;
-    const dy = end.y - start.y;
-    const length = Math.sqrt(dx * dx + dy * dy);
-    const angle = Math.atan2(dy, dx) * (180 / Math.PI);
-    return (
+  for (const s of Object.keys(snakes)) {
+    const { x, y } = getCenter(Number(s));
+    markers.push(
       <div
-        key={`${type}-${from}-${to}`}
-        className={`${type}-connector`}
+        key={`snake-${s}`}
+        className="snake-marker board-marker"
         style={{
-          width: `${length}px`,
-          top: `${start.y}px`,
-          left: `${start.x}px`,
-          transform: `rotate(${angle}deg) translateZ(6px)`,
-          "--rail-width": width ? `${width}px` : undefined,
+          top: `${y}px`,
+          left: `${x}px`,
+          width: `${cellWidth * 0.6}px`,
+          height: `${cellHeight * 0.6}px`,
         }}
       />
     );
-  };
-
-  for (const [s, e] of Object.entries(ladders)) {
-    const end = typeof e === "object" ? e.end : e;
-    const width = typeof e === "object" ? e.width : undefined;
-    connectors.push(renderConnector(Number(s), Number(end), "ladder", width));
   }
-  for (const [s, e] of Object.entries(snakes)) {
-    connectors.push(renderConnector(Number(s), Number(e), "snake"));
+
+  for (const l of Object.keys(ladders)) {
+    const { x, y } = getCenter(Number(l));
+    markers.push(
+      <div
+        key={`ladder-${l}`}
+        className="ladder-marker board-marker"
+        style={{
+          top: `${y}px`,
+          left: `${x}px`,
+          width: `${cellWidth * 0.6}px`,
+          height: `${cellHeight * 0.6}px`,
+        }}
+      />
+    );
   }
   // Dynamically adjust zoom and camera tilt based on how far the player
   // has progressed. This keeps the logo in focus while following the token.
@@ -217,7 +217,7 @@ function Board({
             }}
           >
             {tiles}
-            {connectors}
+            {markers}
             <div
               className={`pot-cell ${highlight && highlight.cell === FINAL_TILE ? "highlight" : ""}`}
             >
@@ -247,6 +247,7 @@ export default function SnakeAndLadder() {
   const [highlight, setHighlight] = useState(null); // { cell: number, type: string }
   const [tokenType, setTokenType] = useState('normal');
   const [message, setMessage] = useState("");
+  const [messageColor, setMessageColor] = useState("");
   const [turnMessage, setTurnMessage] = useState("Your turn");
   const [photoUrl, setPhotoUrl] = useState("");
   const [pot, setPot] = useState(100);
@@ -343,55 +344,56 @@ export default function SnakeAndLadder() {
     const steps = [];
     for (let i = current + 1; i <= target; i++) steps.push(i);
 
-    const move = (index) => {
-      if (index >= steps.length) {
-        let finalPos = steps[steps.length - 1] || current;
-        let snake = false;
-        let ladder = false;
-
-        if (ladders[finalPos]) {
-          finalPos = ladders[finalPos];
-          ladder = true;
-        }
-        if (snakes[finalPos]) {
-          finalPos = snakes[finalPos];
-          snake = true;
-        }
-
-        setTimeout(() => {
-          setPos(finalPos);
-          setHighlight({
-            cell: finalPos,
-            type: ladder ? 'ladder' : snake ? 'snake' : 'normal',
-          });
-          setTokenType(ladder ? 'ladder' : snake ? 'snake' : 'normal');
-          if (finalPos === FINAL_TILE) {
-            setMessage(`You win ${pot} ${token}!`);
-            winSoundRef.current?.play().catch(() => {});
-            setCelebrate(true);
-            setTimeout(() => setCelebrate(false), 1500);
-          } else if (ladder) {
-            ladderSoundRef.current?.play().catch(() => {});
-            setMessage(`Ladder! Climb to tile ${finalPos}`);
-          } else if (snake) {
-            snakeSoundRef.current?.play().catch(() => {});
-            setMessage(`Snake! Slide to tile ${finalPos}`);
-          }
-          setTurnMessage("Your turn");
-        }, 300);
-        return;
-      }
-
-      const next = steps[index];
-      setPos(next);
-      moveSoundRef.current.currentTime = 0;
-      moveSoundRef.current.play().catch(() => {});
-      const type = ladders[next] ? "ladder" : snakes[next] ? "snake" : "normal";
-      setHighlight({ cell: next, type });
-      setTimeout(() => move(index + 1), 300);
+    const moveSeq = (seq, type, done) => {
+      const stepMove = (idx) => {
+        if (idx >= seq.length) return done();
+        const next = seq[idx];
+        setPos(next);
+        moveSoundRef.current.currentTime = 0;
+        moveSoundRef.current.play().catch(() => {});
+        setHighlight({ cell: next, type });
+        setTimeout(() => stepMove(idx + 1), 300);
+      };
+      stepMove(0);
     };
 
-    move(0);
+    const applyEffect = (startPos) => {
+      if (Object.keys(snakes).includes(String(startPos))) {
+        const offset = Math.floor(Math.random() * 10) + 1;
+        setMessage(`-${offset}`);
+        setMessageColor('text-red-500');
+        snakeSoundRef.current?.play().catch(() => {});
+        const seq = [];
+        for (let i = 1; i <= offset && startPos - i >= 0; i++) seq.push(startPos - i);
+        moveSeq(seq, 'snake', () => finalizeMove(Math.max(0, startPos - offset), 'snake'));
+      } else if (Object.keys(ladders).includes(String(startPos))) {
+        const offset = Math.floor(Math.random() * 10) + 1;
+        setMessage(`+${offset}`);
+        setMessageColor('text-green-500');
+        ladderSoundRef.current?.play().catch(() => {});
+        const seq = [];
+        for (let i = 1; i <= offset && startPos + i <= FINAL_TILE; i++) seq.push(startPos + i);
+        moveSeq(seq, 'ladder', () => finalizeMove(Math.min(FINAL_TILE, startPos + offset), 'ladder'));
+      } else {
+        finalizeMove(startPos, 'normal');
+      }
+    };
+
+    const finalizeMove = (finalPos, type) => {
+      setPos(finalPos);
+      setHighlight({ cell: finalPos, type });
+      setTokenType(type);
+      if (finalPos === FINAL_TILE) {
+        setMessage(`You win ${pot} ${token}!`);
+        setMessageColor('');
+        winSoundRef.current?.play().catch(() => {});
+        setCelebrate(true);
+        setTimeout(() => setCelebrate(false), 1500);
+      }
+      setTurnMessage('Your turn');
+    };
+
+    moveSeq(steps, 'normal', () => applyEffect(target));
   };
 
   return (
@@ -431,7 +433,7 @@ export default function SnakeAndLadder() {
         tokenType={tokenType}
       />
       {message && (
-        <div className="text-center font-semibold w-full">{message}</div>
+        <div className={`text-center font-semibold w-full ${messageColor}`}>{message}</div>
       )}
       <div className="fixed bottom-24 inset-x-0 flex justify-center z-20">
         <DiceRoller
