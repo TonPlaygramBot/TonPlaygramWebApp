@@ -22,7 +22,9 @@ export default function HexPrismToken({ color = "#008080", photoUrl }) {
     renderer.setPixelRatio(window.devicePixelRatio);
     mount.appendChild(renderer.domElement);
 
-    const geometry = new THREE.CylinderGeometry(1.1, 1.1, 0.6, 6);
+    // Make the prism noticeably taller so tokens stand out on the board
+    // Height is tripled relative to the original design
+    const geometry = new THREE.CylinderGeometry(1.1, 1.1, 1.8, 6);
     geometry.scale(SCALE, SCALE, SCALE);
     const sideMaterial = new THREE.MeshStandardMaterial({ color });
     const bottomMaterial = new THREE.MeshStandardMaterial({ color });
