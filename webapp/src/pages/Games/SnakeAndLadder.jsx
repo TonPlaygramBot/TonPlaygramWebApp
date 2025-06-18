@@ -57,6 +57,7 @@ function Board({
   ladders,
   celebrate,
   token,
+  tokenType,
 }) {
   const containerRef = useRef(null);
   const tiles = [];
@@ -80,7 +81,7 @@ function Board({
           {position === num && (
             <PlayerToken
               photoUrl={photoUrl}
-              type={isHighlight ? highlight.type : 'normal'}
+              type={isHighlight ? highlight.type : tokenType}
             />
           )}
         </div>,
@@ -225,7 +226,7 @@ function Board({
               {position === FINAL_TILE && (
                 <PlayerToken
                   photoUrl={photoUrl}
-                  type={highlight && highlight.cell === FINAL_TILE ? highlight.type : 'normal'}
+                  type={highlight && highlight.cell === FINAL_TILE ? highlight.type : tokenType}
                 />
               )}
               {celebrate && <CoinBurst token={token} />}
@@ -244,6 +245,7 @@ export default function SnakeAndLadder() {
   const [pos, setPos] = useState(0);
   const [streak, setStreak] = useState(0);
   const [highlight, setHighlight] = useState(null); // { cell: number, type: string }
+  const [tokenType, setTokenType] = useState('normal');
   const [message, setMessage] = useState("");
   const [turnMessage, setTurnMessage] = useState("Your turn");
   const [photoUrl, setPhotoUrl] = useState("");
@@ -359,6 +361,7 @@ export default function SnakeAndLadder() {
         setTimeout(() => {
           setPos(finalPos);
           setHighlight(null);
+          setTokenType(ladder ? 'ladder' : snake ? 'snake' : 'normal');
           if (finalPos === FINAL_TILE) {
             setMessage(`You win ${pot} ${token}!`);
             winSoundRef.current?.play().catch(() => {});
@@ -422,6 +425,7 @@ export default function SnakeAndLadder() {
         ladders={ladders}
         celebrate={celebrate}
         token={token}
+        tokenType={tokenType}
       />
       {message && (
         <div className="text-center font-semibold w-full">{message}</div>
