@@ -201,6 +201,11 @@ body {
   pointer-events: none;
 }
 
+.pot-token {
+  width: 14.4rem; /* 20% bigger */
+  height: 14.4rem;
+}
+
 .token-three canvas {
   width: 100%;
   height: 100%;
@@ -422,12 +427,12 @@ body {
 .pot-cell {
   @apply absolute flex flex-col items-center justify-center hexagon bg-primary text-background border-2 border-accent;
   box-shadow: 0 4px 6px rgba(0, 0, 0, 0.5);
-  width: calc(var(--cell-width) * 1.5);
-  height: calc(var(--cell-height) * 1.5);
+  width: calc(var(--cell-width) * 1.8);
+  height: calc(var(--cell-height) * 1.8);
   top: calc(var(--cell-height) * -0.75);
   left: 50%;
   transform: translateX(-50%);
-  z-index: 10;
+  z-index: 15;
 }
 
 .pot-cell.highlight {
