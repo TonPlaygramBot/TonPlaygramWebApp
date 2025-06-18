@@ -125,7 +125,15 @@ function Board({
       const width = window.innerWidth;
       const cw = Math.floor(width / COLS);
       setCellWidth(cw);
-      setCellHeight(Math.floor(cw / 2));
+      const ch = Math.floor(cw / 2);
+      setCellHeight(ch);
+
+      // Scale board so the bottom row and logo fit within the viewport
+      const containerHeight = window.innerHeight * 0.8; // 80vh
+      const totalRows = ROWS + 5; // board rows plus logo height (~5 rows)
+      const needed = ch * totalRows;
+      const z = Math.min(1, containerHeight / needed);
+      setZoom(z);
     };
     updateSize();
     window.addEventListener("resize", updateSize);
@@ -139,7 +147,7 @@ function Board({
   // displayed only once within the cell itself.
   // Fixed board angle and scale so the camera does not zoom
   const angle = 60;
-  const zoom = 1;
+  const [zoom, setZoom] = useState(1);
 
   useEffect(() => {
     const container = containerRef.current;
