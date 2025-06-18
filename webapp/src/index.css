@@ -425,14 +425,16 @@ body {
 }
 
 .pot-cell {
-  @apply absolute flex flex-col items-center justify-center hexagon bg-primary text-background border-2 border-accent;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.5);
+  @apply absolute flex flex-col items-center justify-center;
   width: calc(var(--cell-width) * 1.8);
   height: calc(var(--cell-height) * 1.8);
-  top: calc(var(--cell-height) * -0.75);
+  top: calc(var(--cell-height) * -0.95);
   left: 50%;
   transform: translateX(-50%) translateZ(8px);
   z-index: 15;
+  background-color: transparent;
+  border: none;
+  box-shadow: none;
 }
 
 .pot-cell.highlight {
