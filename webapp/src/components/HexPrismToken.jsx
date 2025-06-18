@@ -8,11 +8,9 @@ export default function HexPrismToken({ color = "#008080", photoUrl }) {
     const mount = mountRef.current;
     if (!mount) return;
 
-    // Scale factor to match the enlarged CSS container
-    const SCALE = 3;
-
     const width = mount.clientWidth;
     const height = mount.clientHeight;
+    const SCALE = 3;
 
     const scene = new THREE.Scene();
     const camera = new THREE.PerspectiveCamera(45, width / height, 0.1, 100);
@@ -24,7 +22,7 @@ export default function HexPrismToken({ color = "#008080", photoUrl }) {
     renderer.setPixelRatio(window.devicePixelRatio);
     mount.appendChild(renderer.domElement);
 
-    const geometry = new THREE.CylinderGeometry(1, 1, 2.5, 6);
+    const geometry = new THREE.CylinderGeometry(1.1, 1.1, 0.6, 6);
     geometry.scale(SCALE, SCALE, SCALE);
     const sideMaterial = new THREE.MeshStandardMaterial({ color });
     const bottomMaterial = new THREE.MeshStandardMaterial({ color });
@@ -92,15 +90,5 @@ export default function HexPrismToken({ color = "#008080", photoUrl }) {
     };
   }, [color, photoUrl]);
 
-  return (
-    <div className="token-three relative" ref={mountRef}>
-      {photoUrl && (
-        <img
-          src={photoUrl}
-          alt="token top"
-          className="token-top pointer-events-none"
-        />
-      )}
-    </div>
-  );
+  return <div className="token-three relative" ref={mountRef} />;
 }
