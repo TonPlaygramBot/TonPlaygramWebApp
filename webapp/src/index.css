@@ -195,7 +195,9 @@ body {
   position: absolute;
   width: 12rem;
   height: 12rem;
-  transform: translateZ(60px);
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%) translateZ(60px);
   pointer-events: none;
 }
 
