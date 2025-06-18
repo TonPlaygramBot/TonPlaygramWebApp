@@ -211,10 +211,11 @@ body {
   position: absolute;
   width: 2.5rem;
   height: 2.5rem;
-  top: 50%;
+  /* Position the photo above the rotating token */
+  bottom: 100%;
   left: 50%;
   /* Nudge the photo slightly forward so it stands out */
-  transform: translate(-50%, -50%) translateZ(20px) rotateX(10deg);
+  transform: translateX(-50%) translateZ(20px) rotateX(10deg);
   object-fit: cover;
   border-radius: 50%;
   pointer-events: none;
