@@ -360,7 +360,10 @@ export default function SnakeAndLadder() {
 
         setTimeout(() => {
           setPos(finalPos);
-          setHighlight(null);
+          setHighlight({
+            cell: finalPos,
+            type: ladder ? 'ladder' : snake ? 'snake' : 'normal',
+          });
           setTokenType(ladder ? 'ladder' : snake ? 'snake' : 'normal');
           if (finalPos === FINAL_TILE) {
             setMessage(`You win ${pot} ${token}!`);
