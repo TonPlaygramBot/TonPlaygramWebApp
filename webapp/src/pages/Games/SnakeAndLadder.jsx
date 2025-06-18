@@ -8,7 +8,11 @@ import {
 } from "react-icons/ai";
 import useTelegramBackButton from "../../hooks/useTelegramBackButton.js";
 import { useNavigate } from "react-router-dom";
-import { getTelegramId, getTelegramPhotoUrl } from "../../utils/telegram.js";
+import {
+  getTelegramId,
+  getTelegramPhotoUrl,
+  getTelegramFirstName,
+} from "../../utils/telegram.js";
 import { getSnakeBoard, fetchTelegramInfo } from "../../utils/api.js";
 import PlayerToken from "../../components/PlayerToken.jsx";
 
@@ -47,6 +51,7 @@ function Board({
   position,
   highlight,
   photoUrl,
+  playerName,
   pot,
   snakes,
   ladders,
@@ -98,6 +103,7 @@ function Board({
           {position === num && (
             <PlayerToken
               photoUrl={photoUrl}
+              name={playerName}
               type={isHighlight ? highlight.type : tokenType}
             />
           )}
@@ -203,6 +209,7 @@ function Board({
               {position === FINAL_TILE && (
                 <PlayerToken
                   photoUrl={photoUrl}
+                  name={playerName}
                   type={highlight && highlight.cell === FINAL_TILE ? highlight.type : tokenType}
                 />
               )}
@@ -227,6 +234,7 @@ export default function SnakeAndLadder() {
   const [messageColor, setMessageColor] = useState("");
   const [turnMessage, setTurnMessage] = useState("Your turn");
   const [photoUrl, setPhotoUrl] = useState("");
+  const [playerName, setPlayerName] = useState("");
   const [pot, setPot] = useState(100);
   const [token, setToken] = useState("TPC");
   const [celebrate, setCelebrate] = useState(false);
@@ -245,11 +253,14 @@ export default function SnakeAndLadder() {
   useEffect(() => {
     const id = getTelegramId();
     const url = getTelegramPhotoUrl();
+    const first = getTelegramFirstName();
+    if (first) setPlayerName(first);
     if (url) {
       setPhotoUrl(url);
     } else if (id) {
       fetchTelegramInfo(id).then((info) => {
         if (info?.photoUrl) setPhotoUrl(info.photoUrl);
+        if (!first && info?.firstName) setPlayerName(info.firstName);
       });
     }
     moveSoundRef.current = new Audio(
@@ -431,6 +442,7 @@ export default function SnakeAndLadder() {
         position={pos}
         highlight={highlight}
         photoUrl={photoUrl}
+        playerName={playerName}
         pot={pot}
         snakes={snakes}
         ladders={ladders}
