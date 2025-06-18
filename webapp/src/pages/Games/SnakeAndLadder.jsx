@@ -151,7 +151,8 @@ function Board({
 
   useEffect(() => {
     const container = containerRef.current;
-    if (container) container.scrollTop = container.scrollHeight;
+    if (container)
+      container.scrollTop = container.scrollHeight - container.clientHeight;
   }, []);
 
   useEffect(() => {
@@ -162,23 +163,24 @@ function Board({
     const boardHeight = cellHeightPx * ROWS;
     const maxScroll = boardHeight - container.clientHeight;
     const rowFromBottom = Math.floor((position - 1) / COLS);
-    const rowFromTop = ROWS - 1 - rowFromBottom;
 
     let target;
-    if (rowFromBottom < 4) {
-      // Keep the camera at the bottom for the first four rows
+    if (rowFromBottom <= 2) {
+      // Keep the camera at the bottom for the first three rows
       target = maxScroll;
     } else {
-      // Once past the fourth row, keep the logo fully visible and
-      // ensure at least two rows behind the player are in view
-      const bottomVisible = (rowFromTop * cellHeightPx) + cellHeightPx * 2;
-      target = bottomVisible - container.clientHeight;
+      // Once past the third row, keep the logo visible and show
+      // two rows behind the player
+      const desiredBottom = boardHeight - (rowFromBottom - 2) * cellHeightPx;
+      target = desiredBottom - container.clientHeight;
       if (target < 0) target = 0;
       if (target > maxScroll) target = maxScroll;
     }
 
     container.scrollTo({ top: target, behavior: "smooth" });
   }, [position, cellHeight]);
+
+  const paddingTop = `${5.5 * cellHeight * zoom}px`;
 
   return (
     <div className="flex justify-center items-center w-screen overflow-hidden">
@@ -188,7 +190,7 @@ function Board({
         style={{
           height: "80vh",
           overscrollBehaviorY: "contain",
-          paddingTop: "2rem",
+          paddingTop,
         }}
       >
         <div className="snake-board-tilt">
