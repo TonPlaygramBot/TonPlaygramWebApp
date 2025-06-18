@@ -122,49 +122,11 @@ function Board({
     return () => window.removeEventListener("resize", updateSize);
   }, []);
 
-  const markers = [];
-
-  const getCenter = (num) => {
-    const r = Math.floor((num - 1) / COLS);
-    const reversed = r % 2 === 1;
-    const col = reversed ? COLS - 1 - ((num - 1) % COLS) : (num - 1) % COLS;
-    const rowFromBottom = r;
-    const x = col * cellWidth + cellWidth / 2;
-    const y = (ROWS - 1 - rowFromBottom) * cellHeight + cellHeight / 2;
-    return { x, y };
-  };
-
-  for (const s of Object.keys(snakes)) {
-    const { x, y } = getCenter(Number(s));
-    markers.push(
-      <div
-        key={`snake-${s}`}
-        className="snake-marker board-marker"
-        style={{
-          top: `${y}px`,
-          left: `${x}px`,
-          width: `${cellWidth * 0.6}px`,
-          height: `${cellHeight * 0.6}px`,
-        }}
-      />
-    );
-  }
-
-  for (const l of Object.keys(ladders)) {
-    const { x, y } = getCenter(Number(l));
-    markers.push(
-      <div
-        key={`ladder-${l}`}
-        className="ladder-marker board-marker"
-        style={{
-          top: `${y}px`,
-          left: `${x}px`,
-          width: `${cellWidth * 0.6}px`,
-          height: `${cellHeight * 0.6}px`,
-        }}
-      />
-    );
-  }
+  // Icons are rendered directly inside each cell so that they stay perfectly
+  // aligned with the grid. Previously additional absolutely positioned markers
+  // were added which resulted in duplicate icons and misalignment when the
+  // board scaled. The markers logic has been removed and the icons are now
+  // displayed only once within the cell itself.
   // Dynamically adjust zoom and camera tilt based on how far the player
   // has progressed. This keeps the logo in focus while following the token.
   const MIN_ZOOM = 1; // keep the bottom scale fixed
@@ -235,7 +197,6 @@ function Board({
             }}
           >
             {tiles}
-            {markers}
             <div
               className={`pot-cell ${highlight && highlight.cell === FINAL_TILE ? "highlight" : ""}`}
             >
@@ -319,14 +280,25 @@ export default function SnakeAndLadder() {
     if (amt) setPot(Number(amt));
     getSnakeBoard(room)
       .then((data) => {
-        setSnakes(data.snakes || {});
-        setLadders(data.ladders || {});
+        const snakeData = data.snakes || {};
+        const ladderData = data.ladders || {};
+
+        // Remove any snake that starts on the same tile as a ladder to avoid
+        // duplicate icons occupying a single cell.
+        const cleanSnakes = {};
+        Object.keys(snakeData).forEach((k) => {
+          if (!ladderData[k]) cleanSnakes[k] = snakeData[k];
+        });
+
+        setSnakes(cleanSnakes);
+        setLadders(ladderData);
+
         const snk = {};
-        Object.keys(data.snakes || {}).forEach((k) => {
+        Object.keys(cleanSnakes).forEach((k) => {
           snk[k] = Math.floor(Math.random() * 10) + 1;
         });
         const lad = {};
-        Object.keys(data.ladders || {}).forEach((k) => {
+        Object.keys(ladderData).forEach((k) => {
           lad[k] = Math.floor(Math.random() * 10) + 1;
         });
         setSnakeOffsets(snk);
