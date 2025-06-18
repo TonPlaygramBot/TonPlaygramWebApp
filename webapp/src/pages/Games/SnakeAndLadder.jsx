@@ -80,6 +80,7 @@ function Board({
           {position === num && (
             <PlayerToken
               photoUrl={photoUrl}
+              boardAngle={angle}
               type={isHighlight ? highlight.type : 'normal'}
             />
           )}
@@ -225,6 +226,7 @@ function Board({
               {position === FINAL_TILE && (
                 <PlayerToken
                   photoUrl={photoUrl}
+                  boardAngle={angle}
                   type={highlight && highlight.cell === FINAL_TILE ? highlight.type : 'normal'}
                 />
               )}
