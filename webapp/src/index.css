@@ -191,9 +191,9 @@ body {
 /* Three.js token container */
 .token-three {
   position: absolute;
-  width: 4rem;
-  height: 4rem;
-  transform: translateZ(10px);
+  width: 12rem;
+  height: 12rem;
+  transform: translateZ(30px);
   pointer-events: none;
 }
 
