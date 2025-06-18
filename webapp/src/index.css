@@ -381,18 +381,23 @@ body {
   background-color: #fca5a5; /* red-300 */
 }
 
-.cell-icon {
+.cell-marker {
   position: absolute;
-  top: 2px;
-  left: 2px;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  pointer-events: none;
+}
+
+.cell-icon {
   font-size: 1.5rem; /* slightly larger for better visibility */
   line-height: 1;
 }
 
 .cell-offset {
-  position: absolute;
-  top: 2px;
-  right: 2px;
   font-size: 1rem;
   line-height: 1;
   color: #ffffff;
@@ -525,6 +530,7 @@ body {
   left: 50%;
   transform: translate(-50%, 0);
   pointer-events: none;
+  font-size: 3rem;
   animation: popup-move 1s ease-out forwards;
 }
 
