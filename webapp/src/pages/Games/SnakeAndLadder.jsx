@@ -88,11 +88,15 @@ function Board({
           className={`board-cell ${cellClass} ${highlightClass}`}
           style={{ gridRowStart: ROWS - r, gridColumnStart: col + 1 }}
         >
-          {icon && <span className="cell-icon">{icon}</span>}
-          {offsetVal != null && (
-            <span className="cell-offset">
-              {cellType === "snake" ? "-" : "+"}
-              {offsetVal}
+          {(icon || offsetVal != null) && (
+            <span className="cell-marker">
+              {icon && <span className="cell-icon">{icon}</span>}
+              {offsetVal != null && (
+                <span className="cell-offset">
+                  {cellType === "snake" ? "-" : "+"}
+                  {offsetVal}
+                </span>
+              )}
             </span>
           )}
           <span className="cell-number">{num}</span>
