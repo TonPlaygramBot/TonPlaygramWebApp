@@ -54,7 +54,7 @@ body {
 
 /* Tilted view specifically for the Snake & Ladder board */
 .snake-board-tilt {
-  perspective: 1600px;
+  perspective: 1200px;
 }
 
 .snake-board-grid {
@@ -124,20 +124,6 @@ body {
   overflow: visible;
   width: var(--cell-width);
   height: var(--cell-height);
-}
-
-.board-cell::before {
-  content: "";
-  position: absolute;
-  left: 0;
-  right: 0;
-  bottom: -8px;
-  height: 8px;
-  background: linear-gradient(to bottom, rgba(0, 0, 0, 0.15), rgba(0, 0, 0, 0.4));
-  border-bottom-left-radius: inherit;
-  border-bottom-right-radius: inherit;
-  transform: translateZ(-4px) skewX(-45deg);
-  transform-origin: top left;
 }
 
 .board-cell::after {
@@ -480,7 +466,7 @@ body {
 }
 
 .snake-connector {
-  background-image: url("/assets/icons/snake.svg");
+  background-image: url("/assets/icons/snake.png");
   background-size: 100% 100%;
   background-repeat: no-repeat;
   border-radius: 4px;
