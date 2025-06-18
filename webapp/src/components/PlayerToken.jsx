@@ -8,9 +8,5 @@ export default function PlayerToken({ type = "normal", color, photoUrl }) {
     else if (type === "snake") tokenColor = "#fca5a5"; // red
     else tokenColor = "#fde047"; // yellow
   }
-  return (
-    <div className="token-wrapper">
-      <HexPrismToken color={tokenColor} photoUrl={photoUrl} />
-    </div>
-  );
+  return <HexPrismToken color={tokenColor} photoUrl={photoUrl} />;
 }
