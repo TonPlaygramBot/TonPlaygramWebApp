@@ -211,7 +211,9 @@ body {
   height: 4rem;
   top: 50%;
   left: 50%;
-  transform: translate(-50%, -50%);
+  /* Match the board tilt so the photo aligns with the token */
+  transform: translate(-50%, -50%)
+    rotateX(calc(var(--board-angle, 60deg) * -1 - 25deg)) rotateY(25deg);
   clip-path: polygon(25% 5%, 75% 5%, 100% 50%, 75% 95%, 25% 95%, 0% 50%);
   object-fit: cover;
   pointer-events: none;
