@@ -6,15 +6,15 @@ export default {
   theme: {
     extend: {
       colors: {
-        // TonPlaygram premium theme
-        background: '#0b0f19',        // Page background
-        surface: '#11172a',           // Cards, panels
-        border: '#27272a',            // Dividers/borders
+        // Light theme makeover
+        background: '#ffffff',        // Page background
+        surface: '#f8f9fa',           // Cards, panels
+        border: '#d1d5db',            // Dividers/borders
         primary: '#2563eb',           // Button base (TON blue)
         'primary-hover': '#1d4ed8',   // Button hover
-        text: '#ffffff',              // Main text
-        subtext: '#94a3b8',           // Dimmed/inactive text
-        accent: '#facc15',            // Highlights (yellow/gold)
+        text: '#000000',              // Main text
+        subtext: '#6b7280',           // Dimmed/inactive text
+        accent: '#1e3a8a',            // Highlights (dark blue frames)
         brand: {
           gold: '#f1c40f',            // Optional brand gold
           black: '#000000'            // Contrast color
