@@ -1,7 +1,7 @@
 import { useRef, useEffect } from "react";
 import * as THREE from "three";
 
-export default function HexPrismToken({ color = "#008080", photoUrl }) {
+export default function HexPrismToken({ color = "#008080", photoUrl, name }) {
   const mountRef = useRef(null);
 
   useEffect(() => {
@@ -61,6 +61,40 @@ export default function HexPrismToken({ color = "#008080", photoUrl }) {
     prism.rotation.y = Math.PI / 6; // show a corner toward the viewer
     scene.add(prism);
 
+    let nameTexture = null;
+    let planes = [];
+    if (name) {
+      const canvas = document.createElement('canvas');
+      canvas.width = 256;
+      canvas.height = 64;
+      const ctx = canvas.getContext('2d');
+      ctx.fillStyle = '#11172a';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.strokeStyle = '#facc15';
+      ctx.lineWidth = 4;
+      ctx.strokeRect(2, 2, canvas.width - 4, canvas.height - 4);
+      ctx.fillStyle = '#ffffff';
+      ctx.font = '32px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(name, canvas.width / 2, canvas.height / 2);
+      nameTexture = new THREE.CanvasTexture(canvas);
+      const textMaterial = new THREE.MeshBasicMaterial({
+        map: nameTexture,
+        transparent: true,
+      });
+      const planeGeom = new THREE.PlaneGeometry(SCALE * 2, SCALE * 0.6);
+      const radius = 1.1 * SCALE + 0.05;
+      for (let i = 0; i < 6; i++) {
+        const plane = new THREE.Mesh(planeGeom, textMaterial);
+        const angle = i * (Math.PI / 3) + Math.PI / 6;
+        plane.position.set(Math.cos(angle) * radius, 0, Math.sin(angle) * radius);
+        plane.rotation.y = angle;
+        prism.add(plane);
+        planes.push(plane);
+      }
+    }
+
     const ambient = new THREE.AmbientLight(0xffffff, 0.6);
     const directional = new THREE.DirectionalLight(0xffffff, 0.8);
     directional.position.set(5, 10, 7.5);
@@ -90,11 +124,15 @@ export default function HexPrismToken({ color = "#008080", photoUrl }) {
       mount.removeChild(renderer.domElement);
       geometry.dispose();
       sideMaterials.forEach((m) => m.dispose());
+      planes.forEach((p) => {
+        p.geometry.dispose();
+      });
+      if (nameTexture) nameTexture.dispose();
       topMaterial.dispose();
       bottomMaterial.dispose();
       renderer.dispose();
     };
-  }, [color]);
+  }, [color, name]);
 
   return (
     <div className="token-three relative" ref={mountRef}>
