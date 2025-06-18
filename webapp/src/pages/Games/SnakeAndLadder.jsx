@@ -23,12 +23,6 @@ const FINAL_TILE = ROWS * COLS + 1; // 101
 // the user row by row from a fixed camera position.
 // Slightly larger offset so the starting row fits in view
 const CAMERA_OFFSET = 0.95;
-// Number of board rows to keep visible behind the player's token while
-// the camera remains fixed on the logo at the top of the board.
-const VISIBLE_ROWS_BACK = 2;
-// Once the player moves beyond this row from the bottom the camera
-// resumes following the token normally.
-const SCROLL_LOCK_ROW = 6;
 
 function CoinBurst({ token }) {
   const coins = Array.from({ length: 15 }, () => ({
@@ -165,34 +159,18 @@ function Board({
 
   useEffect(() => {
     const container = containerRef.current;
-    if (!container) return;
-    const rowIdx = Math.floor(Math.max(position - 1, 0) / COLS);
-    const fromTop = ROWS - 1 - rowIdx;
-    const target = Math.min(
-      container.scrollHeight - container.clientHeight,
-      Math.max(0, (fromTop - VISIBLE_ROWS_BACK) * cellHeight),
-    );
-    container.scrollTop = target;
-  }, [cellHeight]);
+    if (container) container.scrollTop = container.scrollHeight;
+  }, []);
 
   useEffect(() => {
     const container = containerRef.current;
     if (!container || position === 0) return;
     const cell = container.querySelector(`[data-cell='${position}']`);
-    if (!cell) return;
-
-    const rowIdx = Math.floor(Math.max(position - 1, 0) / COLS);
-    const fromTop = ROWS - 1 - rowIdx;
-    const cRect = container.getBoundingClientRect();
-    const cellRect = cell.getBoundingClientRect();
-
-    if (rowIdx < SCROLL_LOCK_ROW) {
-      const target = Math.min(
-        container.scrollHeight - cRect.height,
-        Math.max(0, (fromTop - VISIBLE_ROWS_BACK) * cellRect.height),
-      );
-      container.scrollTo({ top: target, behavior: 'smooth' });
-    } else {
+    if (cell) {
+      const cRect = container.getBoundingClientRect();
+      const cellRect = cell.getBoundingClientRect();
+      // Keep the token near the bottom of the viewport so the camera follows
+      // from a lower angle and focuses attention on the logo at the top
       const offset =
         cellRect.top -
         cRect.top -
@@ -202,9 +180,9 @@ function Board({
         container.scrollHeight - cRect.height,
         Math.max(0, container.scrollTop + offset),
       );
-      container.scrollTo({ top: target, behavior: 'smooth' });
+      container.scrollTo({ top: target, behavior: "smooth" });
     }
-  }, [position, cellHeight]);
+  }, [position]);
 
   return (
     <div className="flex justify-center items-center w-screen overflow-hidden">
