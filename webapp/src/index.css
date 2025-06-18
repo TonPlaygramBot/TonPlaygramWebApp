@@ -193,11 +193,7 @@ body {
   position: absolute;
   width: 12rem;
   height: 12rem;
-  bottom: 0;
-  left: 50%;
-  transform: translateX(-50%) translateZ(30px)
-    rotateX(calc(var(--board-angle, 60deg) * -1));
-  transform-origin: bottom center;
+  transform: translateZ(30px);
   pointer-events: none;
 }
 
