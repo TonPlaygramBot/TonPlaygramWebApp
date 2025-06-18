@@ -372,6 +372,23 @@ body {
   background-color: #fca5a5; /* red-300 */
 }
 
+/* Indicate ladder or snake on the board */
+.board-cell.ladder-cell {
+  background-color: #86efac; /* green-300 */
+}
+
+.board-cell.snake-cell {
+  background-color: #fca5a5; /* red-300 */
+}
+
+.cell-icon {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  font-size: 1.25rem;
+  line-height: 1;
+}
+
 .pot-cell {
   @apply absolute flex flex-col items-center justify-center hexagon bg-primary text-background border-2 border-accent;
   box-shadow: 0 4px 6px rgba(0, 0, 0, 0.5);
@@ -429,16 +446,21 @@ body {
   transform: translate(-50%, -50%) translateZ(6px);
 }
 
-.snake-marker {
-  background-image: url("/assets/icons/snake.png");
-  background-size: contain;
-  background-repeat: no-repeat;
+.snake-marker,
+.ladder-marker {
+  font-size: 1.5rem;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
-.ladder-marker {
-  background-image: url("/assets/icons/ladder.png");
-  background-size: contain;
-  background-repeat: no-repeat;
+.snake-marker::before {
+  content: "🐍";
+}
+
+.ladder-marker::before {
+  content: "🪜";
 }
 
 .coin-burst {

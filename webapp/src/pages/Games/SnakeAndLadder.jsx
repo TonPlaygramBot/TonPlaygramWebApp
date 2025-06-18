@@ -69,13 +69,17 @@ function Board({
       const num = r * COLS + col + 1;
       const isHighlight = highlight && highlight.cell === num;
       const highlightClass = isHighlight ? `${highlight.type}-highlight` : "";
+      const cellType = ladders[num] ? "ladder" : snakes[num] ? "snake" : "";
+      const cellClass = cellType ? `${cellType}-cell` : "";
+      const icon = cellType === "ladder" ? "🪜" : cellType === "snake" ? "🐍" : "";
       tiles.push(
         <div
           key={num}
           data-cell={num}
-          className={`board-cell ${highlightClass}`}
+          className={`board-cell ${cellClass} ${highlightClass}`}
           style={{ gridRowStart: ROWS - r, gridColumnStart: col + 1 }}
         >
+          {icon && <span className="cell-icon">{icon}</span>}
           {num}
           {position === num && (
             <PlayerToken
@@ -360,7 +364,7 @@ export default function SnakeAndLadder() {
     const applyEffect = (startPos) => {
       if (Object.keys(snakes).includes(String(startPos))) {
         const offset = Math.floor(Math.random() * 10) + 1;
-        setMessage(`-${offset}`);
+        setMessage(`🐍 ${startPos} -${offset}`);
         setMessageColor('text-red-500');
         snakeSoundRef.current?.play().catch(() => {});
         const seq = [];
@@ -368,7 +372,7 @@ export default function SnakeAndLadder() {
         moveSeq(seq, 'snake', () => finalizeMove(Math.max(0, startPos - offset), 'snake'));
       } else if (Object.keys(ladders).includes(String(startPos))) {
         const offset = Math.floor(Math.random() * 10) + 1;
-        setMessage(`+${offset}`);
+        setMessage(`🪜 ${startPos} +${offset}`);
         setMessageColor('text-green-500');
         ladderSoundRef.current?.play().catch(() => {});
         const seq = [];
