@@ -154,14 +154,19 @@ function Board({
     const boardHeight = cellHeightPx * ROWS;
     const maxScroll = boardHeight - container.clientHeight;
     const rowFromBottom = Math.floor((position - 1) / COLS);
+    const rowFromTop = ROWS - 1 - rowFromBottom;
 
     let target;
     if (rowFromBottom < 4) {
       // Keep the camera at the bottom for the first four rows
       target = maxScroll;
     } else {
-      // Once past the fourth row, show the logo and at least two rows behind
-      target = 0;
+      // Once past the fourth row, keep the logo fully visible and
+      // ensure at least two rows behind the player are in view
+      const bottomVisible = (rowFromTop * cellHeightPx) + cellHeightPx * 2;
+      target = bottomVisible - container.clientHeight;
+      if (target < 0) target = 0;
+      if (target > maxScroll) target = maxScroll;
     }
 
     container.scrollTo({ top: target, behavior: "smooth" });
