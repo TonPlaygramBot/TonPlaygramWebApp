@@ -180,7 +180,7 @@ function Board({
         style={{
           height: "80vh",
           overscrollBehaviorY: "contain",
-          paddingTop: "0.5rem",
+          paddingTop: "2rem",
         }}
       >
         <div className="snake-board-tilt">
