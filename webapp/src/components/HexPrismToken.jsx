@@ -35,26 +35,6 @@ export default function HexPrismToken({ color = "#008080", photoUrl }) {
     });
     const prism = new THREE.Mesh(geometry, [sideMaterial, topMaterial, bottomMaterial]);
     prism.rotation.y = Math.PI / 6; // show a corner toward the viewer
-
-    if (photoUrl) {
-      const loader = new THREE.TextureLoader();
-      loader.setCrossOrigin('anonymous');
-      loader.load(
-        photoUrl,
-        (tex) => {
-          // ensure the profile photo correctly covers the top face
-          tex.wrapS = THREE.ClampToEdgeWrapping;
-          tex.wrapT = THREE.ClampToEdgeWrapping;
-          tex.center.set(0.5, 0.5);
-          tex.rotation = -Math.PI / 2; // align with board orientation
-          tex.needsUpdate = true;
-          topMaterial.map = tex;
-          topMaterial.needsUpdate = true;
-        },
-        undefined,
-        (err) => console.error('Failed to load token texture', err),
-      );
-    }
     scene.add(prism);
 
     const ambient = new THREE.AmbientLight(0xffffff, 0.6);
@@ -90,7 +70,7 @@ export default function HexPrismToken({ color = "#008080", photoUrl }) {
       bottomMaterial.dispose();
       renderer.dispose();
     };
-  }, [color, photoUrl]);
+  }, [color]);
 
   return (
     <div className="token-three relative" ref={mountRef}>

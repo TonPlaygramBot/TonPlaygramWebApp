@@ -207,13 +207,13 @@ body {
 
 .token-photo {
   position: absolute;
-  width: 4rem;
-  height: 4rem;
+  width: 2.5rem;
+  height: 2.5rem;
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
-  clip-path: polygon(25% 5%, 75% 5%, 100% 50%, 75% 95%, 25% 95%, 0% 50%);
   object-fit: cover;
+  border-radius: 50%;
   pointer-events: none;
   z-index: 1;
 }
