@@ -23,6 +23,9 @@ const FINAL_TILE = ROWS * COLS + 1; // 101
 // the user row by row from a fixed camera position.
 // Slightly larger offset so the starting row fits in view
 const CAMERA_OFFSET = 0.95;
+// Number of rows to keep visible behind the player's token as they move.
+// This helps provide a sense of progress while keeping the logo in view.
+const LOOKBACK_ROWS = 3;
 
 function CoinBurst({ token }) {
   const coins = Array.from({ length: 15 }, () => ({
@@ -172,22 +175,15 @@ function Board({
     if (!container || position === 0) return;
     const cell = container.querySelector(`[data-cell='${position}']`);
     if (cell) {
-      const cRect = container.getBoundingClientRect();
-      const cellRect = cell.getBoundingClientRect();
-      // Keep the token near the bottom of the viewport so the camera follows
-      // from a lower angle and focuses attention on the logo at the top
-      const offset =
-        cellRect.top -
-        cRect.top -
-        cRect.height * CAMERA_OFFSET +
-        cellRect.height / 2;
+      const cellHeightPx = cell.offsetHeight;
+      const desired = cell.offsetTop - cellHeightPx * LOOKBACK_ROWS;
       const target = Math.min(
-        container.scrollHeight - cRect.height,
-        Math.max(0, container.scrollTop + offset),
+        container.scrollHeight - container.clientHeight,
+        Math.max(0, desired),
       );
       container.scrollTo({ top: target, behavior: "smooth" });
     }
-  }, [position]);
+  }, [position, cellHeight]);
 
   return (
     <div className="flex justify-center items-center w-screen overflow-hidden">
