@@ -551,3 +551,37 @@ body {
     transform: translate(-50%, -30px);
   }
 }
+
+/* Bold 2D Cartoon Vector Style for Snake & Ladder board */
+.cartoon-board {
+  transform: none !important;
+}
+
+.cartoon-board .board-cell {
+  border: 4px solid #000;
+  background-color: #fff8dc;
+  box-shadow: none;
+  transform: none;
+}
+
+.cartoon-board .board-cell::after {
+  box-shadow: none;
+}
+
+.cartoon-board .cell-number {
+  font-weight: bold;
+  color: #000;
+}
+
+.cartoon-board .snake-connector,
+.cartoon-board .ladder-connector {
+  filter: drop-shadow(2px 2px 0 #000);
+}
+
+.cartoon-board .board-cell.snake-cell {
+  background-color: #fb7185;
+}
+
+.cartoon-board .board-cell.ladder-cell {
+  background-color: #34d399;
+}

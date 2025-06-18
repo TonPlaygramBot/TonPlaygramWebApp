@@ -137,8 +137,8 @@ function Board({
   // were added which resulted in duplicate icons and misalignment when the
   // board scaled. The markers logic has been removed and the icons are now
   // displayed only once within the cell itself.
-  // Fixed board angle and scale so the camera does not zoom
-  const angle = 60;
+  // Display the board in a straight 2D view for a bold cartoon look
+  const angle = 0;
   const zoom = 1;
 
   useEffect(() => {
@@ -185,7 +185,7 @@ function Board({
       >
         <div className="snake-board-tilt">
           <div
-            className="snake-board-grid grid gap-1 relative mx-auto"
+            className="snake-board-grid cartoon-board grid gap-1 relative mx-auto"
             style={{
               width: `${cellWidth * COLS}px`,
               height: `${cellHeight * ROWS}px`,
