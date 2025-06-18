@@ -429,21 +429,10 @@ body {
   box-shadow: 0 4px 6px rgba(0, 0, 0, 0.5);
   width: calc(var(--cell-width) * 1.8);
   height: calc(var(--cell-height) * 1.8);
-  top: calc(var(--cell-height) * -0.95);
+  top: calc(var(--cell-height) * -0.75);
   left: 50%;
-  transform-style: preserve-3d;
-  transform: translateX(-50%) translateZ(8px) rotateY(0deg);
-  animation: pot-spin 10s linear infinite;
+  transform: translateX(-50%) translateZ(8px);
   z-index: 15;
-}
-
-@keyframes pot-spin {
-  from {
-    transform: translateX(-50%) translateZ(8px) rotateY(0deg);
-  }
-  to {
-    transform: translateX(-50%) translateZ(8px) rotateY(360deg);
-  }
 }
 
 .pot-cell.highlight {
