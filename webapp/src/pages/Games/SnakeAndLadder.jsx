@@ -127,13 +127,6 @@ function Board({
       setCellWidth(cw);
       const ch = Math.floor(cw / 2);
       setCellHeight(ch);
-
-      // Scale board so the bottom row and logo fit within the viewport
-      const containerHeight = window.innerHeight * 0.8; // 80vh
-      const totalRows = ROWS + 5; // board rows plus logo height (~5 rows)
-      const needed = ch * totalRows;
-      const z = Math.min(1, containerHeight / needed);
-      setZoom(z);
     };
     updateSize();
     window.addEventListener("resize", updateSize);
@@ -145,9 +138,8 @@ function Board({
   // were added which resulted in duplicate icons and misalignment when the
   // board scaled. The markers logic has been removed and the icons are now
   // displayed only once within the cell itself.
-  // Fixed board angle and scale so the camera does not zoom
+  // Fixed board angle with no zoom
   const angle = 60;
-  const [zoom, setZoom] = useState(1);
 
   useEffect(() => {
     const container = containerRef.current;
@@ -165,8 +157,8 @@ function Board({
     const rowFromBottom = Math.floor((position - 1) / COLS);
 
     let target;
-    if (rowFromBottom <= 2) {
-      // Keep the camera at the bottom for the first three rows
+    if (rowFromBottom <= 3) {
+      // Keep the camera at the bottom for the first four rows
       target = maxScroll;
     } else {
       // Once past the third row, keep the logo visible and show
@@ -180,7 +172,7 @@ function Board({
     container.scrollTo({ top: target, behavior: "smooth" });
   }, [position, cellHeight]);
 
-  const paddingTop = `${5.5 * cellHeight * zoom}px`;
+  const paddingTop = `${5.5 * cellHeight}px`;
 
   return (
     <div className="flex justify-center items-center w-screen overflow-hidden">
@@ -205,8 +197,8 @@ function Board({
               "--cell-height": `${cellHeight}px`,
               "--board-width": `${cellWidth * COLS}px`,
               "--board-angle": `${angle}deg`,
-              // Lower camera angle and zoom dynamically as the player moves
-              transform: `rotateX(${angle}deg) scale(${zoom})`,
+              // Fixed camera angle with no zooming
+              transform: `rotateX(${angle}deg)`,
             }}
           >
             {tiles}
