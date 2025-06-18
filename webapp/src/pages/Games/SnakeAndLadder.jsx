@@ -57,6 +57,7 @@ function Board({
   ladders,
   snakeOffsets,
   ladderOffsets,
+  offsetPopup,
   celebrate,
   token,
   tokenType,
@@ -100,6 +101,16 @@ function Board({
               photoUrl={photoUrl}
               type={isHighlight ? highlight.type : tokenType}
             />
+          )}
+          {offsetPopup && offsetPopup.cell === num && (
+            <span
+              className={`popup-offset italic font-bold ${
+                offsetPopup.type === 'snake' ? 'text-red-500' : 'text-green-500'
+              }`}
+            >
+              {offsetPopup.type === 'snake' ? '-' : '+'}
+              {offsetPopup.amount}
+            </span>
           )}
         </div>,
       );
@@ -237,6 +248,7 @@ export default function SnakeAndLadder() {
   const [ladders, setLadders] = useState({});
   const [snakeOffsets, setSnakeOffsets] = useState({});
   const [ladderOffsets, setLadderOffsets] = useState({});
+  const [offsetPopup, setOffsetPopup] = useState(null); // { cell, type, amount }
 
   const moveSoundRef = useRef(null);
   const snakeSoundRef = useRef(null);
@@ -309,6 +321,7 @@ export default function SnakeAndLadder() {
 
   const handleRoll = (values) => {
     setTurnMessage("");
+    setOffsetPopup(null);
     const value = Array.isArray(values)
       ? values.reduce((a, b) => a + b, 0)
       : values;
@@ -362,6 +375,8 @@ export default function SnakeAndLadder() {
     const applyEffect = (startPos) => {
       if (Object.keys(snakes).includes(String(startPos))) {
         const offset = snakeOffsets[startPos] || 0;
+        setOffsetPopup({ cell: startPos, type: 'snake', amount: offset });
+        setTimeout(() => setOffsetPopup(null), 1000);
         setMessage(`🐍 ${startPos} -${offset}`);
         setMessageColor('text-red-500');
         snakeSoundRef.current?.play().catch(() => {});
@@ -370,6 +385,8 @@ export default function SnakeAndLadder() {
         moveSeq(seq, 'snake', () => finalizeMove(Math.max(0, startPos - offset), 'snake'));
       } else if (Object.keys(ladders).includes(String(startPos))) {
         const offset = ladderOffsets[startPos] || 0;
+        setOffsetPopup({ cell: startPos, type: 'ladder', amount: offset });
+        setTimeout(() => setOffsetPopup(null), 1000);
         setMessage(`🪜 ${startPos} +${offset}`);
         setMessageColor('text-green-500');
         ladderSoundRef.current?.play().catch(() => {});
@@ -432,6 +449,7 @@ export default function SnakeAndLadder() {
         ladders={ladders}
         snakeOffsets={snakeOffsets}
         ladderOffsets={ladderOffsets}
+        offsetPopup={offsetPopup}
         celebrate={celebrate}
         token={token}
         tokenType={tokenType}
