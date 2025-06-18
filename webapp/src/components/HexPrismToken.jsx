@@ -26,14 +26,38 @@ export default function HexPrismToken({ color = "#008080", photoUrl }) {
     // Height is tripled relative to the original design
     const geometry = new THREE.CylinderGeometry(1.1, 1.1, 1.8, 6);
     geometry.scale(SCALE, SCALE, SCALE);
-    const sideMaterial = new THREE.MeshStandardMaterial({ color });
-    const bottomMaterial = new THREE.MeshStandardMaterial({ color });
 
-    let topMaterial = new THREE.MeshStandardMaterial({
-      color,
+    // Split geometry so each side can have its own shaded material
+    geometry.clearGroups();
+    for (let i = 0; i < 6; i++) {
+      geometry.addGroup(i * 6, 6, i);
+    }
+    geometry.addGroup(36, 18, 6); // top
+    geometry.addGroup(54, 18, 7); // bottom
+
+    const baseColor = new THREE.Color(color);
+    const sideMaterials = [];
+    for (let i = 0; i < 6; i++) {
+      const hsl = {};
+      baseColor.getHSL(hsl);
+      // distribute shades around the prism from darker to lighter
+      const l = Math.min(1, Math.max(0, hsl.l - 0.1 + (i / 5) * 0.2));
+      const shade = new THREE.Color().setHSL(hsl.h, hsl.s, l);
+      sideMaterials.push(new THREE.MeshStandardMaterial({ color: shade }));
+    }
+
+    const topMaterial = new THREE.MeshStandardMaterial({
+      color: baseColor.clone().offsetHSL(0, 0, 0.2),
       side: THREE.DoubleSide,
     });
-    const prism = new THREE.Mesh(geometry, [sideMaterial, topMaterial, bottomMaterial]);
+    const bottomMaterial = new THREE.MeshStandardMaterial({
+      color: baseColor.clone().offsetHSL(0, 0, -0.2),
+    });
+
+    const prism = new THREE.Mesh(
+      geometry,
+      [...sideMaterials, topMaterial, bottomMaterial],
+    );
     prism.rotation.y = Math.PI / 6; // show a corner toward the viewer
     scene.add(prism);
 
@@ -65,7 +89,7 @@ export default function HexPrismToken({ color = "#008080", photoUrl }) {
       window.removeEventListener("resize", handleResize);
       mount.removeChild(renderer.domElement);
       geometry.dispose();
-      sideMaterial.dispose();
+      sideMaterials.forEach((m) => m.dispose());
       topMaterial.dispose();
       bottomMaterial.dispose();
       renderer.dispose();
