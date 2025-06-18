@@ -55,6 +55,8 @@ function Board({
   pot,
   snakes,
   ladders,
+  snakeOffsets,
+  ladderOffsets,
   celebrate,
   token,
   tokenType,
@@ -72,6 +74,12 @@ function Board({
       const cellType = ladders[num] ? "ladder" : snakes[num] ? "snake" : "";
       const cellClass = cellType ? `${cellType}-cell` : "";
       const icon = cellType === "ladder" ? "🪜" : cellType === "snake" ? "🐍" : "";
+      const offsetVal =
+        cellType === "ladder"
+          ? ladderOffsets[num]
+          : cellType === "snake"
+          ? snakeOffsets[num]
+          : null;
       tiles.push(
         <div
           key={num}
@@ -80,7 +88,13 @@ function Board({
           style={{ gridRowStart: ROWS - r, gridColumnStart: col + 1 }}
         >
           {icon && <span className="cell-icon">{icon}</span>}
-          {num}
+          {offsetVal != null && (
+            <span className="cell-offset">
+              {cellType === "snake" ? "-" : "+"}
+              {offsetVal}
+            </span>
+          )}
+          <span className="cell-number">{num}</span>
           {position === num && (
             <PlayerToken
               photoUrl={photoUrl}
@@ -260,6 +274,8 @@ export default function SnakeAndLadder() {
   const [showInfo, setShowInfo] = useState(false);
   const [snakes, setSnakes] = useState({});
   const [ladders, setLadders] = useState({});
+  const [snakeOffsets, setSnakeOffsets] = useState({});
+  const [ladderOffsets, setLadderOffsets] = useState({});
 
   const moveSoundRef = useRef(null);
   const snakeSoundRef = useRef(null);
@@ -305,6 +321,16 @@ export default function SnakeAndLadder() {
       .then((data) => {
         setSnakes(data.snakes || {});
         setLadders(data.ladders || {});
+        const snk = {};
+        Object.keys(data.snakes || {}).forEach((k) => {
+          snk[k] = Math.floor(Math.random() * 10) + 1;
+        });
+        const lad = {};
+        Object.keys(data.ladders || {}).forEach((k) => {
+          lad[k] = Math.floor(Math.random() * 10) + 1;
+        });
+        setSnakeOffsets(snk);
+        setLadderOffsets(lad);
       })
       .catch(() => {});
   }, []);
@@ -363,7 +389,7 @@ export default function SnakeAndLadder() {
 
     const applyEffect = (startPos) => {
       if (Object.keys(snakes).includes(String(startPos))) {
-        const offset = Math.floor(Math.random() * 10) + 1;
+        const offset = snakeOffsets[startPos] || 0;
         setMessage(`🐍 ${startPos} -${offset}`);
         setMessageColor('text-red-500');
         snakeSoundRef.current?.play().catch(() => {});
@@ -371,7 +397,7 @@ export default function SnakeAndLadder() {
         for (let i = 1; i <= offset && startPos - i >= 0; i++) seq.push(startPos - i);
         moveSeq(seq, 'snake', () => finalizeMove(Math.max(0, startPos - offset), 'snake'));
       } else if (Object.keys(ladders).includes(String(startPos))) {
-        const offset = Math.floor(Math.random() * 10) + 1;
+        const offset = ladderOffsets[startPos] || 0;
         setMessage(`🪜 ${startPos} +${offset}`);
         setMessageColor('text-green-500');
         ladderSoundRef.current?.play().catch(() => {});
@@ -432,6 +458,8 @@ export default function SnakeAndLadder() {
         pot={pot}
         snakes={snakes}
         ladders={ladders}
+        snakeOffsets={snakeOffsets}
+        ladderOffsets={ladderOffsets}
         celebrate={celebrate}
         token={token}
         tokenType={tokenType}

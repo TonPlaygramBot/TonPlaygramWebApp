@@ -389,6 +389,30 @@ body {
   line-height: 1;
 }
 
+.cell-offset {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  font-size: 0.9rem;
+  line-height: 1;
+  color: #ffffff;
+}
+
+.cell-number {
+  position: relative;
+  z-index: 1;
+}
+
+.board-cell.snake-cell .cell-number,
+.board-cell.ladder-cell .cell-number {
+  visibility: hidden;
+}
+
+.board-cell.snake-cell,
+.board-cell.ladder-cell {
+  color: #ffffff;
+}
+
 .pot-cell {
   @apply absolute flex flex-col items-center justify-center hexagon bg-primary text-background border-2 border-accent;
   box-shadow: 0 4px 6px rgba(0, 0, 0, 0.5);
