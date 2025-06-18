@@ -36,11 +36,25 @@ export default function HexPrismToken({ color = "#008080", photoUrl }) {
     const prism = new THREE.Mesh(geometry, [sideMaterial, topMaterial, bottomMaterial]);
     prism.rotation.y = Math.PI / 6; // show a corner toward the viewer
 
-    // Previously the user's photo was mapped as a texture on the top face of the
-    // hexagonal prism. That caused the image to fully cover the top surface,
-    // hiding the token's colored edges. The component now keeps the top material
-    // plain so the image can be overlaid separately and remain visible in the
-    // centre of the hexagon without altering the token's geometry or angle.
+    if (photoUrl) {
+      const loader = new THREE.TextureLoader();
+      loader.setCrossOrigin('anonymous');
+      loader.load(
+        photoUrl,
+        (tex) => {
+          // ensure the profile photo correctly covers the top face
+          tex.wrapS = THREE.ClampToEdgeWrapping;
+          tex.wrapT = THREE.ClampToEdgeWrapping;
+          tex.center.set(0.5, 0.5);
+          tex.rotation = -Math.PI / 2; // align with board orientation
+          tex.needsUpdate = true;
+          topMaterial.map = tex;
+          topMaterial.needsUpdate = true;
+        },
+        undefined,
+        (err) => console.error('Failed to load token texture', err),
+      );
+    }
     scene.add(prism);
 
     const ambient = new THREE.AmbientLight(0xffffff, 0.6);
