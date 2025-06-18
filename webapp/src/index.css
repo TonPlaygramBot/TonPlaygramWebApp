@@ -431,7 +431,7 @@ body {
   height: calc(var(--cell-height) * 1.8);
   top: calc(var(--cell-height) * -0.75);
   left: 50%;
-  transform: translateX(-50%);
+  transform: translateX(-50%) translateZ(8px);
   z-index: 15;
 }
 
