@@ -33,11 +33,7 @@ export default function HexPrismToken({ color = "#008080", photoUrl }) {
       color,
       side: THREE.DoubleSide,
     });
-    const prism = new THREE.Mesh(
-      geometry,
-      [sideMaterial, topMaterial, bottomMaterial],
-    );
-    prism.position.y = (1.8 * SCALE) / 2; // align base with board surface
+    const prism = new THREE.Mesh(geometry, [sideMaterial, topMaterial, bottomMaterial]);
     prism.rotation.y = Math.PI / 6; // show a corner toward the viewer
 
     if (photoUrl) {
