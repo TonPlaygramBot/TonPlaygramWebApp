@@ -81,6 +81,7 @@ function Board({
             <PlayerToken
               photoUrl={photoUrl}
               type={isHighlight ? highlight.type : 'normal'}
+              boardAngle={angle}
             />
           )}
         </div>,
@@ -226,6 +227,7 @@ function Board({
                 <PlayerToken
                   photoUrl={photoUrl}
                   type={highlight && highlight.cell === FINAL_TILE ? highlight.type : 'normal'}
+                  boardAngle={angle}
                 />
               )}
               {celebrate && <CoinBurst token={token} />}
