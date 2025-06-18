@@ -198,8 +198,8 @@ function Board({
             <div
               className={`pot-cell ${highlight && highlight.cell === FINAL_TILE ? "highlight" : ""}`}
             >
-              <span className="font-bold">Pot</span>
-              <span className="text-sm">{pot}</span>
+              <PlayerToken color="#0d47a1" className="pot-token" />
+              <span className="text-sm mt-1">{pot}</span>
               {position === FINAL_TILE && (
                 <PlayerToken
                   photoUrl={photoUrl}
