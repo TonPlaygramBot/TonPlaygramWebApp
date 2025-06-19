@@ -71,10 +71,9 @@ function Board({
   const rowOffsets = [0];
   for (let r = 1; r < ROWS; r++) {
     const prevScale = 1 + (r - 1 - 2) * scaleStep;
-    const currScale = 1 + (r - 2) * scaleStep;
-    rowOffsets[r] = rowOffsets[r - 1] + (prevScale - currScale) * 0.5 * cellHeight;
+    rowOffsets[r] = rowOffsets[r - 1] + (prevScale - 1) * cellHeight;
   }
-  const offsetYMax = Math.abs(rowOffsets[ROWS - 1]) - 2 * scaleStep * cellHeight;
+  const offsetYMax = rowOffsets[ROWS - 1];
 
   for (let r = 0; r < ROWS; r++) {
     // Allow negative rowFactor so the bottom rows appear slightly smaller
