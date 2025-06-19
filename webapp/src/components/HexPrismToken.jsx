@@ -22,9 +22,9 @@ export default function HexPrismToken({ color = "#008080", photoUrl, className =
     renderer.setPixelRatio(window.devicePixelRatio);
     mount.appendChild(renderer.domElement);
 
-    // Make the prism noticeably taller so tokens stand out on the board
-    // Height is tripled relative to the original design
-    const geometry = new THREE.CylinderGeometry(1.1, 1.1, 1.8, 6);
+    // Slightly reduce prism height so tokens are less tall
+    // Height is now 20% shorter than before
+    const geometry = new THREE.CylinderGeometry(1.1, 1.1, 1.44, 6);
     geometry.scale(SCALE, SCALE, SCALE);
 
     // Split geometry so each side can have its own shaded material

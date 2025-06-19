@@ -194,10 +194,10 @@ body {
 /* Three.js token container */
 .token-three {
   position: absolute;
-  /* shrink token by 25% */
-  width: 9rem;
-  height: 9rem;
-  transform: translateZ(45px); /* lowered proportionally */
+  /* shrink token by another 20% */
+  width: 7.2rem;
+  height: 7.2rem;
+  transform: translateZ(36px); /* lowered proportionally */
   /* Preserve 3D space so the photo can be positioned in depth */
   transform-style: preserve-3d;
   pointer-events: none;
@@ -205,8 +205,8 @@ body {
 
 .pot-token {
   /* keep pot token scaled relative to player token */
-  width: 10.8rem; /* 20% bigger than the reduced token */
-  height: 10.8rem;
+  width: 8.64rem; /* 20% bigger than the reduced token */
+  height: 8.64rem;
 }
 
 .token-three canvas {
@@ -217,12 +217,13 @@ body {
 
 .token-photo {
   position: absolute;
-  width: 2.5rem;
-  height: 2.5rem;
+  /* enlarge photo by 10% and lower it proportionally */
+  width: 2.75rem;
+  height: 2.75rem;
   top: 50%;
   left: 50%;
   /* Nudge the photo slightly forward so it stands out */
-  transform: translate(-50%, -50%) translateZ(20px) rotateX(10deg);
+  transform: translate(-50%, -50%) translateZ(16px) rotateX(10deg);
   object-fit: cover;
   border-radius: 50%;
   pointer-events: none;
