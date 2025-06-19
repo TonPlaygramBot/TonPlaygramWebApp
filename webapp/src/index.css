@@ -444,12 +444,12 @@ body {
 
 .logo-wall-main {
   @apply absolute flex items-center justify-center;
-  width: calc(var(--cell-width) * 5.76); /* 20% smaller */
-  height: calc(var(--cell-height) * 4.8); /* 20% smaller */
+  width: calc(var(--cell-width) * 5); /* slightly narrower */
+  height: calc(var(--cell-height) * 4.2);
   /* shift the logo up to match the higher pot */
   top: calc(var(--cell-height) * -5.5); /* push above pot */
   left: 50%;
-  transform: translateX(-50%) rotateX(calc(var(--board-angle, 60deg) * -1)) translateZ(-40px) scale(1.8); /* Move back slightly */
+  transform: translateX(-50%) rotateX(calc(var(--board-angle, 60deg) * -1)) translateZ(-40px) scale(1.2); /* smaller logo */
   transform-origin: bottom center;
   background-image: url("/assets/TonPlayGramLogo.jpg");
   background-size: contain;
