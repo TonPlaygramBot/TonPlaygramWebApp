@@ -192,7 +192,7 @@ function Board({
         className="overflow-y-auto"
         style={{
           overflowX: 'visible',
-          height: "calc(100vh - 3rem)",
+          height: "80vh",
           overscrollBehaviorY: "contain",
           paddingTop,
         }}
@@ -438,7 +438,7 @@ export default function SnakeAndLadder() {
   };
 
   return (
-    <div className="p-4 pb-0 space-y-4 text-text flex flex-col justify-end items-center relative w-full flex-grow">
+    <div className="p-4 pb-32 space-y-4 text-text flex flex-col justify-end items-center relative w-full flex-grow">
       <div className="absolute top-0 -right-2 flex flex-col items-end space-y-2 p-2 z-20">
         <button onClick={() => setShowInfo(true)} className="p-2 flex flex-col items-center">
           <AiOutlineInfoCircle className="text-2xl" />
@@ -479,7 +479,7 @@ export default function SnakeAndLadder() {
       {message && (
         <div className={`text-center font-semibold w-full ${messageColor}`}>{message}</div>
       )}
-      <div className="fixed bottom-24 inset-x-0 flex justify-center z-30 bg-transparent">
+      <div className="fixed bottom-24 inset-x-0 flex justify-center z-20">
         <DiceRoller
           onRollEnd={handleRoll}
           onRollStart={() => setTurnMessage('Rolling...')}
