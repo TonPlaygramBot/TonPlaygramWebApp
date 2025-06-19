@@ -82,13 +82,13 @@ function Board({
     const scale = 1 + rowFactor * scaleStep;
     // Include the scaled cell width so horizontal gaps remain consistent
     const offsetX = rowFactor * widenStep * cellWidth + (scale - 1) * cellWidth;
-    // Arrange cell numbers in a classic snake pattern: the bottom row is
-    // right-to-left, the next row left-to-right, and so on. This means
-    // even-indexed rows (from the bottom) are reversed.
-    const reversed = r % 2 === 0;
+    // Arrange cell numbers so the bottom row starts on the left and each
+    // subsequent row alternates direction. Tile 1 is at the bottom-left and
+    // tile 100 ends up at the top-right.
+    const reversed = r % 2 === 1;
     for (let c = 0; c < COLS; c++) {
-      const col = reversed ? COLS - 1 - c : c;
-      const num = r * COLS + col + 1;
+      const col = c;
+      const num = reversed ? (r + 1) * COLS - c : r * COLS + c + 1;
       const translateX = (col - centerCol) * offsetX;
       const translateY = -rowOffsets[r];
       const isHighlight = highlight && highlight.cell === num;
