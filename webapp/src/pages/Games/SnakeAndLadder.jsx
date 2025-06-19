@@ -82,7 +82,10 @@ function Board({
     const scale = 1 + rowFactor * scaleStep;
     // Include the scaled cell width so horizontal gaps remain consistent
     const offsetX = rowFactor * widenStep * cellWidth + (scale - 1) * cellWidth;
-    const reversed = r % 2 === 1;
+    // Use a repeating zigzag pattern that reverses the second and third
+    // rows within each group of three. This results in the sequence:
+    // first row left-to-right, next two rows right-to-left, then repeat.
+    const reversed = r % 3 !== 0;
     for (let c = 0; c < COLS; c++) {
       const col = reversed ? COLS - 1 - c : c;
       const num = r * COLS + col + 1;
