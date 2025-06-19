@@ -204,6 +204,19 @@ body {
   pointer-events: none;
 }
 
+.token-three.jump {
+  animation: token-jump 0.4s ease-out;
+}
+
+@keyframes token-jump {
+  0%, 100% {
+    transform: translateZ(34.2px);
+  }
+  50% {
+    transform: translateY(-20px) translateZ(34.2px);
+  }
+}
+
 .pot-token {
   /* keep pot token scaled relative to player token */
   width: 8.64rem; /* 20% bigger than the reduced token */
