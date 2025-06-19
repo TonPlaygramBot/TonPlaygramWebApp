@@ -187,32 +187,9 @@ function Board({
       container.scrollTop = container.scrollHeight - container.clientHeight;
   }, []);
 
-  // Keep the camera following the player's token while preserving the
-  // initial angle. The board scrolls so that two full rows remain visible
-  // behind the player once they move past the early rows.
-  useEffect(() => {
-    const container = containerRef.current;
-    if (!container || position === 0) return;
-
-    const cellHeightPx = cellHeight;
-    const boardHeight = cellHeightPx * ROWS;
-    const maxScroll = boardHeight - container.clientHeight;
-    const rowFromBottom = Math.floor((position - 1) / COLS);
-
-    // Show two rows behind the player while keeping the logo on screen.
-    let target;
-    if (rowFromBottom <= 2) {
-      // For the first three rows keep the camera at the starting position
-      target = maxScroll;
-    } else {
-      const desiredBottom = boardHeight - (rowFromBottom - 2) * cellHeightPx;
-      target = desiredBottom - container.clientHeight;
-      if (target < 0) target = 0;
-      if (target > maxScroll) target = maxScroll;
-    }
-
-    container.scrollTo({ top: target, behavior: "smooth" });
-  }, [position, cellHeight]);
+  // Previously the board scrolled to follow the player's progress. The
+  // following effect has been removed so the camera remains fixed at the
+  // starting position for the entire game.
 
   const paddingTop = `${5.5 * cellHeight}px`;
 
