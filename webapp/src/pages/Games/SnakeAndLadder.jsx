@@ -46,6 +46,7 @@ function CoinBurst({ token }) {
 function Board({
   position,
   highlight,
+  trail,
   photoUrl,
   pot,
   snakes,
@@ -92,7 +93,12 @@ function Board({
       const translateX = (col - centerCol) * offsetX;
       const translateY = -rowOffsets[r];
       const isHighlight = highlight && highlight.cell === num;
-      const highlightClass = isHighlight ? `${highlight.type}-highlight` : "";
+      const trailHighlight = trail?.find((t) => t.cell === num);
+      const highlightClass = isHighlight
+        ? `${highlight.type}-highlight`
+        : trailHighlight
+        ? `${trailHighlight.type}-highlight`
+        : "";
       const isJump = isHighlight && highlight.type === 'normal';
       const cellType = ladders[num] ? "ladder" : snakes[num] ? "snake" : "";
       const cellClass = cellType ? `${cellType}-cell` : "";
@@ -259,6 +265,7 @@ export default function SnakeAndLadder() {
   const [pos, setPos] = useState(0);
   const [streak, setStreak] = useState(0);
   const [highlight, setHighlight] = useState(null); // { cell: number, type: string }
+  const [trail, setTrail] = useState([]);
   const [tokenType, setTokenType] = useState('normal');
   const [message, setMessage] = useState("");
   const [messageColor, setMessageColor] = useState("");
@@ -346,6 +353,7 @@ export default function SnakeAndLadder() {
   const handleRoll = (values) => {
     setTurnMessage("");
     setOffsetPopup(null);
+    setTrail([]);
     const value = Array.isArray(values)
       ? values.reduce((a, b) => a + b, 0)
       : values;
@@ -390,6 +398,7 @@ export default function SnakeAndLadder() {
         setPos(next);
         moveSoundRef.current.currentTime = 0;
         moveSoundRef.current.play().catch(() => {});
+        setTrail((t) => [...t, { cell: next, type }]);
         setHighlight({ cell: next, type });
         setTimeout(() => stepMove(idx + 1), 700);
       };
@@ -407,6 +416,9 @@ export default function SnakeAndLadder() {
 
     const applyEffect = (startPos) => {
       if (Object.keys(snakes).includes(String(startPos))) {
+        setTrail((t) =>
+          t.map((h) => (h.cell === startPos ? { ...h, type: 'snake' } : h)),
+        );
         const offset = snakeOffsets[startPos] || 0;
         setOffsetPopup({ cell: startPos, type: 'snake', amount: offset });
         setTimeout(() => setOffsetPopup(null), 1000);
@@ -419,6 +431,9 @@ export default function SnakeAndLadder() {
           moveSeq(seq, 'snake', () => finalizeMove(Math.max(0, startPos - offset), 'snake'));
         flashHighlight(startPos, 'snake', 2, move);
       } else if (Object.keys(ladders).includes(String(startPos))) {
+        setTrail((t) =>
+          t.map((h) => (h.cell === startPos ? { ...h, type: 'ladder' } : h)),
+        );
         const offset = ladderOffsets[startPos] || 0;
         setOffsetPopup({ cell: startPos, type: 'ladder', amount: offset });
         setTimeout(() => setOffsetPopup(null), 1000);
@@ -438,7 +453,9 @@ export default function SnakeAndLadder() {
     const finalizeMove = (finalPos, type) => {
       setPos(finalPos);
       setHighlight({ cell: finalPos, type });
+      setTrail([]);
       setTokenType(type);
+      setTimeout(() => setHighlight(null), 300);
       if (finalPos === FINAL_TILE) {
         setMessage(`You win ${pot} ${token}!`);
         setMessageColor('');
@@ -480,6 +497,7 @@ export default function SnakeAndLadder() {
       <Board
         position={pos}
         highlight={highlight}
+        trail={trail}
         photoUrl={photoUrl}
         pot={pot}
         snakes={snakes}
