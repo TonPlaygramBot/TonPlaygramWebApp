@@ -187,31 +187,12 @@ function Board({
       container.scrollTop = container.scrollHeight - container.clientHeight;
   }, []);
 
-  // When the player moves beyond the first two rows, keep the
-  // camera locked to the same relative frame by scrolling the
-  // container instead of changing angle or zoom.
-  useEffect(() => {
-    const container = containerRef.current;
-    if (!container) return;
-    const row = Math.floor((position - 1) / COLS);
-    if (row < 2) {
-      container.scrollTop = container.scrollHeight - container.clientHeight;
-      return;
-    }
-    const cell = container.querySelector(`[data-cell="${position}"]`);
-    if (cell) {
-      const offset = cell.offsetTop - cellHeight * 2;
-      const target = Math.min(
-        Math.max(0, offset),
-        container.scrollHeight - container.clientHeight,
-      );
-      container.scrollTo({ top: target, behavior: 'smooth' });
-    }
-  }, [position, cellHeight]);
+  // Previously the container scrolled to keep the player token in view as they
+  // progressed up the board. To keep the camera fixed, this behaviour has been
+  // removed so the board no longer follows the player's position.
 
-  // The board is initially positioned at the bottom. Once the player
-  // reaches the third row, the container scrolls to keep them in view
-  // without altering the camera angle or zoom.
+  // The board is initially positioned at the bottom. It no longer scrolls as
+  // the player moves so the perspective stays fixed.
 
   const paddingTop = `${5.5 * cellHeight}px`;
 
@@ -273,6 +254,7 @@ function Board({
               )}
               {celebrate && <CoinBurst token={token} />}
             </div>
+            <div className="board-top-line" />
             <div className="logo-wall-main" />
           </div>
         </div>
