@@ -82,11 +82,10 @@ function Board({
     const scale = 1 + rowFactor * scaleStep;
     // Include the scaled cell width so horizontal gaps remain consistent
     const offsetX = rowFactor * widenStep * cellWidth + (scale - 1) * cellWidth;
-    // Custom zigzag pattern provided by game designers. The bottom row
-    // should start right-to-left and the orientation repeats every six
-    // rows as: R, L, L, R, L, R. "reversed" indicates a right-to-left row.
-    const reversedPattern = [true, false, false, true, false, true];
-    const reversed = reversedPattern[r % reversedPattern.length];
+    // Arrange cell numbers in a classic snake pattern: the bottom row is
+    // left‐to‐right, the next row right‐to‐left, and so on.
+    // Odd‐indexed rows (from the bottom) are reversed.
+    const reversed = r % 2 === 1;
     for (let c = 0; c < COLS; c++) {
       const col = reversed ? COLS - 1 - c : c;
       const num = r * COLS + col + 1;
