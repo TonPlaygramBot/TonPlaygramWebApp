@@ -200,6 +200,8 @@ function Board({
             className="board-frame mx-auto"
             style={{
               transform: `rotateX(${angle}deg)`,
+              paddingTop: `${cellHeight * 9.5}px`,
+              "--cell-height": `${cellHeight}px`,
             }}
           >
             <div
