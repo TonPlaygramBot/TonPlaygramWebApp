@@ -20,7 +20,7 @@ const COLS = 5;
 const FINAL_TILE = ROWS * COLS + 1; // 101
 
 function CoinBurst({ token }) {
-  const coins = Array.from({ length: 15 }, () => ({
+  const coins = Array.from({ length: 30 }, () => ({
     dx: (Math.random() - 0.5) * 100,
     delay: Math.random() * 0.3,
     dur: 0.8 + Math.random() * 0.4,
@@ -222,6 +222,16 @@ function Board({
                 alt="pot token"
                 className="pot-icon"
               />
+              <div className={`coin-stack ${celebrate ? 'invisible' : ''}`}>
+                {Array.from({ length: 8 }).map((_, i) => (
+                  <img
+                    key={i}
+                    src={`/icons/${token.toLowerCase()}.svg`}
+                    className="coin-stack-img"
+                    style={{ bottom: `${i * 3}px` }}
+                  />
+                ))}
+              </div>
               <span className="text-sm mt-1">{pot}</span>
               {position === FINAL_TILE && (
                 <PlayerToken

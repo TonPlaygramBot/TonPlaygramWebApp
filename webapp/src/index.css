@@ -450,6 +450,23 @@ body {
   z-index: 1;
 }
 
+.coin-stack {
+  position: absolute;
+  bottom: 0.2rem;
+  left: 50%;
+  transform: translateX(-50%);
+  pointer-events: none;
+}
+
+.coin-stack-img {
+  position: absolute;
+  width: 1.2rem;
+  height: 1.2rem;
+  left: 50%;
+  transform: translateX(-50%);
+  object-fit: contain;
+}
+
 .pot-cell.highlight {
   box-shadow: 0 0 10px 4px rgba(250, 204, 21, 0.8);
 }
