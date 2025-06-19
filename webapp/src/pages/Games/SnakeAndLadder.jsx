@@ -83,9 +83,9 @@ function Board({
     // Include the scaled cell width so horizontal gaps remain consistent
     const offsetX = rowFactor * widenStep * cellWidth + (scale - 1) * cellWidth;
     // Arrange cell numbers in a classic snake pattern: the bottom row is
-    // left‐to‐right, the next row right‐to‐left, and so on.
-    // Odd‐indexed rows (from the bottom) are reversed.
-    const reversed = r % 2 === 1;
+    // right-to-left, the next row left-to-right, and so on. This means
+    // even-indexed rows (from the bottom) are reversed.
+    const reversed = r % 2 === 0;
     for (let c = 0; c < COLS; c++) {
       const col = reversed ? COLS - 1 - c : c;
       const num = r * COLS + col + 1;
