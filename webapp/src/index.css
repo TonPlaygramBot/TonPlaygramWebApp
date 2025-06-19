@@ -428,8 +428,8 @@ body {
   @apply absolute flex flex-col items-center justify-center;
   width: calc(var(--cell-width) * 1.8);
   height: calc(var(--cell-height) * 1.8);
-  /* raise the pot slightly higher */
-  top: calc(var(--cell-height) * -1.8);
+  /* position the pot further above the board */
+  top: calc(var(--cell-height) * -2.5);
   left: 50%;
   transform: translateX(-50%) translateZ(8px);
   z-index: 15;
@@ -446,8 +446,8 @@ body {
   @apply absolute flex items-center justify-center;
   width: calc(var(--cell-width) * 6); /* larger logo width */
   height: calc(var(--cell-height) * 5); /* taller logo */
-  /* shift the logo up to match the higher pot */
-  top: calc(var(--cell-height) * -5.5 - var(--cell-height) * 1.8 * (var(--final-scale, 1) - 1)); /* adjust for scaled top row */
+  /* shift the logo higher to sit above the board */
+  top: calc(var(--cell-height) * -6.5 - var(--cell-height) * 1.8 * (var(--final-scale, 1) - 1)); /* adjust for scaled top row */
   left: 50%;
   transform: translateX(-50%) rotateX(calc(var(--board-angle, 60deg) * -1)) translateZ(-40px) scale(1.8); /* larger logo */
   transform-origin: bottom center;
