@@ -48,9 +48,8 @@ body {
 }
 
 .board-frame {
-  @apply border-8 border-accent rounded-lg p-1 bg-surface inline-block;
+  @apply border-4 border-accent rounded-lg p-1 bg-surface inline-block;
   transform-style: preserve-3d;
-  padding-top: calc(var(--cell-height, 40px) * 9.5);
 }
 
 /* Tilted view specifically for the Snake & Ladder board */
