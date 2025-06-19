@@ -119,6 +119,7 @@ function Board({
   // Scale board based on viewport width so it fills the screen.
   const [cellWidth, setCellWidth] = useState(80);
   const [cellHeight, setCellHeight] = useState(40);
+  const CELL_GAP = 4; // gap-1 => 0.25rem
 
   useEffect(() => {
     const updateSize = () => {
@@ -169,13 +170,14 @@ function Board({
           <div
             className="snake-board-grid grid gap-1 relative mx-auto"
             style={{
-              width: `${cellWidth * COLS}px`,
-              height: `${cellHeight * ROWS}px`,
+              width: `${cellWidth * COLS + CELL_GAP * (COLS - 1)}px`,
+              height: `${cellHeight * ROWS + CELL_GAP * (ROWS - 1)}px`,
               gridTemplateColumns: `repeat(${COLS}, ${cellWidth}px)`,
               gridTemplateRows: `repeat(${ROWS}, ${cellHeight}px)`,
               "--cell-width": `${cellWidth}px`,
               "--cell-height": `${cellHeight}px`,
               "--board-width": `${cellWidth * COLS}px`,
+              "--cell-gap": `${CELL_GAP}px`,
               "--board-angle": `${angle}deg`,
               // Fixed camera angle with no zooming
               transform: `rotateX(${angle}deg)`,
