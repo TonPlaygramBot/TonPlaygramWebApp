@@ -170,6 +170,8 @@ function Board({
   // Fixed board angle with no zoom
   // Lowered camera angle so the logo touches the top of the screen
   const angle = 60;
+  // Small horizontal offset so the board sits perfectly centered
+  const boardXOffset = -10; // pixels
 
   useEffect(() => {
     const container = containerRef.current;
@@ -209,7 +211,7 @@ function Board({
               "--board-angle": `${angle}deg`,
               "--final-scale": finalScale,
               // Fixed camera angle with no zooming
-              transform: `rotateX(${angle}deg)`,
+              transform: `translateX(${boardXOffset}px) rotateX(${angle}deg)`,
             }}
           >
             {tiles}
