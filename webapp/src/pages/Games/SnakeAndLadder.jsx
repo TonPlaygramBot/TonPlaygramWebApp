@@ -58,13 +58,20 @@ function Board({
   tokenType,
 }) {
   const containerRef = useRef(null);
+  const [cellWidth, setCellWidth] = useState(80);
+  const [cellHeight, setCellHeight] = useState(40);
   const tiles = [];
+  const centerCol = (COLS - 1) / 2;
+  const widenStep = 0.02; // how much each row expands
 
   for (let r = 0; r < ROWS; r++) {
+    const rowFactor = Math.max(0, r - 2);
+    const offsetX = rowFactor * widenStep * cellWidth;
     const reversed = r % 2 === 1;
     for (let c = 0; c < COLS; c++) {
       const col = reversed ? COLS - 1 - c : c;
       const num = r * COLS + col + 1;
+      const translateX = (col - centerCol) * offsetX;
       const isHighlight = highlight && highlight.cell === num;
       const highlightClass = isHighlight ? `${highlight.type}-highlight` : "";
       const cellType = ladders[num] ? "ladder" : snakes[num] ? "snake" : "";
@@ -81,7 +88,11 @@ function Board({
           key={num}
           data-cell={num}
           className={`board-cell ${cellClass} ${highlightClass}`}
-          style={{ gridRowStart: ROWS - r, gridColumnStart: col + 1 }}
+          style={{
+            gridRowStart: ROWS - r,
+            gridColumnStart: col + 1,
+            transform: `translateX(${translateX}px) translateZ(5px)`,
+          }}
         >
           {(icon || offsetVal != null) && (
             <span className="cell-marker">
@@ -117,8 +128,6 @@ function Board({
   }
 
   // Scale board based on viewport width so it fills the screen.
-  const [cellWidth, setCellWidth] = useState(80);
-  const [cellHeight, setCellHeight] = useState(40);
 
   useEffect(() => {
     const updateSize = () => {
@@ -155,11 +164,12 @@ function Board({
   const paddingTop = `${5.5 * cellHeight}px`;
 
   return (
-    <div className="flex justify-center items-center w-screen overflow-hidden">
+    <div className="flex justify-center items-center w-screen overflow-visible">
       <div
         ref={containerRef}
-        className="overflow-y-auto overflow-x-hidden"
+        className="overflow-y-auto"
         style={{
+          overflowX: 'visible',
           height: "80vh",
           overscrollBehaviorY: "contain",
           paddingTop,
