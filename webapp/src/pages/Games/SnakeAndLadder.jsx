@@ -67,7 +67,8 @@ function Board({
   const finalScale = 1 + (ROWS - 3) * scaleStep;
 
   for (let r = 0; r < ROWS; r++) {
-    const rowFactor = Math.max(0, r - 2);
+    // Allow negative rowFactor so the bottom rows appear slightly smaller
+    const rowFactor = r - 2;
     const offsetX = rowFactor * widenStep * cellWidth;
     const scale = 1 + rowFactor * scaleStep;
     const reversed = r % 2 === 1;
