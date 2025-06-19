@@ -62,8 +62,9 @@ function Board({
   const [cellHeight, setCellHeight] = useState(40);
   const tiles = [];
   const centerCol = (COLS - 1) / 2;
-  const widenStep = 0.02; // how much each row expands
-  const scaleStep = 0.02; // how much each row's cells widen
+  const widenStep = 0.02; // how much each row expands horizontally
+  const scaleStep = 0.02; // how much each row's cells scale
+  const finalScale = 1 + (ROWS - 3) * scaleStep;
 
   for (let r = 0; r < ROWS; r++) {
     const rowFactor = Math.max(0, r - 2);
@@ -93,8 +94,8 @@ function Board({
           style={{
             gridRowStart: ROWS - r,
             gridColumnStart: col + 1,
-            transform: `translateX(${translateX}px) scaleX(${scale}) translateZ(5px)`,
-            transformOrigin: 'center',
+            transform: `translateX(${translateX}px) scale(${scale}) translateZ(5px)`,
+            transformOrigin: 'bottom center',
           }}
         >
           {(icon || offsetVal != null) && (
@@ -190,6 +191,7 @@ function Board({
               "--cell-height": `${cellHeight}px`,
               "--board-width": `${cellWidth * COLS}px`,
               "--board-angle": `${angle}deg`,
+              "--final-scale": finalScale,
               // Fixed camera angle with no zooming
               transform: `rotateX(${angle}deg)`,
             }}

@@ -447,7 +447,7 @@ body {
   width: calc(var(--cell-width) * 6); /* larger logo width */
   height: calc(var(--cell-height) * 5); /* taller logo */
   /* shift the logo up to match the higher pot */
-  top: calc(var(--cell-height) * -5.5); /* push above pot */
+  top: calc(var(--cell-height) * -5.5 - var(--cell-height) * 1.8 * (var(--final-scale, 1) - 1)); /* adjust for scaled top row */
   left: 50%;
   transform: translateX(-50%) rotateX(calc(var(--board-angle, 60deg) * -1)) translateZ(-40px) scale(1.8); /* larger logo */
   transform-origin: bottom center;
