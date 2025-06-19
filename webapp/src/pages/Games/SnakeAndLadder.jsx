@@ -139,7 +139,8 @@ function Board({
   // board scaled. The markers logic has been removed and the icons are now
   // displayed only once within the cell itself.
   // Fixed board angle with no zoom
-  const angle = 60;
+  // Lowered camera so the logo fits entirely on screen
+  const angle = 75;
 
   useEffect(() => {
     const container = containerRef.current;
