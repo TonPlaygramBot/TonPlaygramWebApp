@@ -63,10 +63,12 @@ function Board({
   const tiles = [];
   const centerCol = (COLS - 1) / 2;
   const widenStep = 0.02; // how much each row expands
+  const scaleStep = 0.02; // how much each row's cells widen
 
   for (let r = 0; r < ROWS; r++) {
     const rowFactor = Math.max(0, r - 2);
     const offsetX = rowFactor * widenStep * cellWidth;
+    const scale = 1 + rowFactor * scaleStep;
     const reversed = r % 2 === 1;
     for (let c = 0; c < COLS; c++) {
       const col = reversed ? COLS - 1 - c : c;
@@ -91,7 +93,8 @@ function Board({
           style={{
             gridRowStart: ROWS - r,
             gridColumnStart: col + 1,
-            transform: `translateX(${translateX}px) translateZ(5px)`,
+            transform: `translateX(${translateX}px) scaleX(${scale}) translateZ(5px)`,
+            transformOrigin: 'center',
           }}
         >
           {(icon || offsetVal != null) && (
