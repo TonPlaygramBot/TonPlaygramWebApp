@@ -62,18 +62,14 @@ function Board({
   const [cellHeight, setCellHeight] = useState(40);
   const tiles = [];
   const centerCol = (COLS - 1) / 2;
-  const widenStep = 0.02; // how much each row expands horizontally
-  const scaleStep = 0.02; // how much each row's cells scale
-  const finalScale = 1 + (ROWS - 3) * scaleStep;
+  // Disable perspective scaling so vertical gaps remain consistent
+  const widenStep = 0; // no horizontal widening per row
+  const scaleStep = 0; // all rows keep the same scale
+  const finalScale = 1;
 
-  // Precompute vertical offsets so that the gap between rows
-  // stays uniform even as cells are scaled differently per row.
-  const rowOffsets = [0];
-  for (let r = 1; r < ROWS; r++) {
-    const prevScale = 1 + (r - 1 - 2) * scaleStep;
-    rowOffsets[r] = rowOffsets[r - 1] + (prevScale - 1) * cellHeight;
-  }
-  const offsetYMax = rowOffsets[ROWS - 1];
+  // With scaling disabled every row has the same offset
+  const rowOffsets = Array(ROWS).fill(0);
+  const offsetYMax = 0;
 
   for (let r = 0; r < ROWS; r++) {
     // Allow negative rowFactor so the bottom rows appear slightly smaller
