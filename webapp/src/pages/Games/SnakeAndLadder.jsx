@@ -68,10 +68,8 @@ function Board({
 
   for (let r = 0; r < ROWS; r++) {
     const rowFactor = Math.max(0, r - 2);
+    const offsetX = rowFactor * widenStep * cellWidth;
     const scale = 1 + rowFactor * scaleStep;
-    // Include the scaled cell width so horizontal gaps remain consistent
-    const offsetX =
-      rowFactor * widenStep * cellWidth + (scale - 1) * cellWidth;
     const reversed = r % 2 === 1;
     for (let c = 0; c < COLS; c++) {
       const col = reversed ? COLS - 1 - c : c;
