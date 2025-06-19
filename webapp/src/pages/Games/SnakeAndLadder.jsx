@@ -62,7 +62,8 @@ function Board({
   const [cellHeight, setCellHeight] = useState(40);
   const tiles = [];
   const centerCol = (COLS - 1) / 2;
-  const widenStep = 0.02; // how much each row expands horizontally
+  // Keep vertical columns evenly spaced rather than widening
+  const widenStep = 0; // how much each row expands horizontally
   const scaleStep = 0.02; // how much each row's cells scale
   const finalScale = 1 + (ROWS - 3) * scaleStep;
 
