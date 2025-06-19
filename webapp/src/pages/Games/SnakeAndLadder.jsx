@@ -217,6 +217,11 @@ function Board({
               className={`pot-cell ${highlight && highlight.cell === FINAL_TILE ? "highlight" : ""}`}
             >
               <PlayerToken color="#0d47a1" className="pot-token" />
+              <img
+                src={`/icons/${token.toLowerCase()}.svg`}
+                alt="pot token"
+                className="pot-icon"
+              />
               <span className="text-sm mt-1">{pot}</span>
               {position === FINAL_TILE && (
                 <PlayerToken
