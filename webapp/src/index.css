@@ -444,7 +444,9 @@ body {
 
 .logo-wall-main {
   @apply absolute flex items-center justify-center;
-  width: calc(var(--cell-width) * 5); /* slightly narrower */
+  width: calc(
+    var(--cell-width) * 5 + var(--cell-gap, 0px) * 4
+  ); /* match board width including gaps */
   height: calc(var(--cell-height) * 4.2);
   /* shift the logo up to match the higher pot */
   top: calc(var(--cell-height) * -5.5); /* push above pot */
