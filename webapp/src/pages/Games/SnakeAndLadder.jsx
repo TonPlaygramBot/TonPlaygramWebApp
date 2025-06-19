@@ -162,8 +162,8 @@ function Board({
       target = maxScroll;
     } else {
       // Once past the third row, keep the logo visible and show
-      // two rows behind the player
-      const desiredBottom = boardHeight - (rowFromBottom - 2) * cellHeightPx;
+      // three rows behind the player
+      const desiredBottom = boardHeight - (rowFromBottom - 3) * cellHeightPx;
       target = desiredBottom - container.clientHeight;
       if (target < 0) target = 0;
       if (target > maxScroll) target = maxScroll;
