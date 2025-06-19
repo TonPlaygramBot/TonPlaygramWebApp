@@ -303,6 +303,7 @@ export default function SnakeAndLadder() {
   const [snakeOffsets, setSnakeOffsets] = useState({});
   const [ladderOffsets, setLadderOffsets] = useState({});
   const [offsetPopup, setOffsetPopup] = useState(null); // { cell, type, amount }
+  const [rollResult, setRollResult] = useState(null);
 
   const moveSoundRef = useRef(null);
   const snakeSoundRef = useRef(null);
@@ -375,12 +376,17 @@ export default function SnakeAndLadder() {
 
   const handleRoll = (values) => {
     setTurnMessage("");
-    setDiceVisible(false);
-    setOffsetPopup(null);
-    setTrail([]);
     const value = Array.isArray(values)
       ? values.reduce((a, b) => a + b, 0)
       : values;
+
+    setRollResult(value);
+    setTimeout(() => setRollResult(null), 2500);
+
+    setTimeout(() => {
+      setDiceVisible(false);
+      setOffsetPopup(null);
+      setTrail([]);
 
     const rolledSix = Array.isArray(values) ? values.includes(6) : value === 6;
 
@@ -495,6 +501,7 @@ export default function SnakeAndLadder() {
     };
 
     moveSeq(steps, 'normal', () => applyEffect(target));
+  }, 2500);
   };
 
   return (
@@ -536,6 +543,11 @@ export default function SnakeAndLadder() {
       />
       {message && (
         <div className={`text-center font-semibold w-full ${messageColor}`}>{message}</div>
+      )}
+      {rollResult !== null && (
+        <div className="fixed bottom-44 inset-x-0 flex justify-center z-30 pointer-events-none">
+          <div className="text-6xl italic font-bold">{rollResult}</div>
+        </div>
       )}
       {diceVisible && (
         <div className="fixed bottom-24 inset-x-0 flex flex-col items-center z-20">
