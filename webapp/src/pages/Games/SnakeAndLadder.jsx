@@ -62,9 +62,8 @@ function Board({
   const [cellHeight, setCellHeight] = useState(40);
   const tiles = [];
   const centerCol = (COLS - 1) / 2;
-  // Slightly widen the board towards the top while keeping the
-  // bottom row the same width
-  const widenStep = 0.03; // how much each row expands horizontally
+  // Keep vertical columns evenly spaced rather than widening
+  const widenStep = 0; // how much each row expands horizontally
   const scaleStep = 0.02; // how much each row's cells scale
   const finalScale = 1 + (ROWS - 3) * scaleStep;
 
@@ -81,9 +80,8 @@ function Board({
     // Allow negative rowFactor so the bottom rows appear slightly smaller
     const rowFactor = r - 2;
     const scale = 1 + rowFactor * scaleStep;
-    // Include the scaled cell width so horizontal gaps remain consistent.
-    // Use the actual row index so the bottom row width remains unchanged.
-    const offsetX = r * widenStep * cellWidth + (scale - 1) * cellWidth;
+    // Include the scaled cell width so horizontal gaps remain consistent
+    const offsetX = rowFactor * widenStep * cellWidth + (scale - 1) * cellWidth;
     const reversed = r % 2 === 1;
     for (let c = 0; c < COLS; c++) {
       const col = reversed ? COLS - 1 - c : c;
