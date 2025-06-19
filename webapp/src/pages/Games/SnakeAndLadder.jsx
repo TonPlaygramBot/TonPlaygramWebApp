@@ -197,21 +197,25 @@ function Board({
       >
         <div className="snake-board-tilt">
           <div
-            className="snake-board-grid grid gap-1 relative mx-auto"
+            className="board-frame mx-auto"
             style={{
-              width: `${cellWidth * COLS}px`,
-              height: `${cellHeight * ROWS + offsetYMax}px`,
-              gridTemplateColumns: `repeat(${COLS}, ${cellWidth}px)`,
-              gridTemplateRows: `repeat(${ROWS}, ${cellHeight}px)`,
-              "--cell-width": `${cellWidth}px`,
-              "--cell-height": `${cellHeight}px`,
-              "--board-width": `${cellWidth * COLS}px`,
-              "--board-angle": `${angle}deg`,
-              "--final-scale": finalScale,
-              // Fixed camera angle with no zooming
               transform: `rotateX(${angle}deg)`,
             }}
           >
+            <div
+              className="snake-board-grid grid gap-1 relative mx-auto"
+              style={{
+                width: `${cellWidth * COLS}px`,
+                height: `${cellHeight * ROWS + offsetYMax}px`,
+                gridTemplateColumns: `repeat(${COLS}, ${cellWidth}px)`,
+                gridTemplateRows: `repeat(${ROWS}, ${cellHeight}px)`,
+                "--cell-width": `${cellWidth}px`,
+                "--cell-height": `${cellHeight}px`,
+                "--board-width": `${cellWidth * COLS}px`,
+                "--board-angle": `${angle}deg`,
+                "--final-scale": finalScale,
+              }}
+            >
             {tiles}
             <div
               className={`pot-cell ${highlight && highlight.cell === FINAL_TILE ? "highlight" : ""}`}
@@ -242,6 +246,7 @@ function Board({
               {celebrate && <CoinBurst token={token} />}
             </div>
             <div className="logo-wall-main" />
+            </div>
           </div>
         </div>
       </div>
