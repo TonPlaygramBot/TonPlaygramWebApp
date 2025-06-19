@@ -148,30 +148,9 @@ function Board({
       container.scrollTop = container.scrollHeight - container.clientHeight;
   }, []);
 
-  useEffect(() => {
-    const container = containerRef.current;
-    if (!container || position === 0) return;
-
-    const cellHeightPx = cellHeight;
-    const boardHeight = cellHeightPx * ROWS;
-    const maxScroll = boardHeight - container.clientHeight;
-    const rowFromBottom = Math.floor((position - 1) / COLS);
-
-    let target;
-    if (rowFromBottom <= 3) {
-      // Keep the camera at the bottom for the first four rows
-      target = maxScroll;
-    } else {
-      // Once past the third row, keep the logo visible and show
-      // three rows behind the player
-      const desiredBottom = boardHeight - (rowFromBottom - 3) * cellHeightPx;
-      target = desiredBottom - container.clientHeight;
-      if (target < 0) target = 0;
-      if (target > maxScroll) target = maxScroll;
-    }
-
-    container.scrollTo({ top: target, behavior: "smooth" });
-  }, [position, cellHeight]);
+  // Previously the board scrolled to follow the player's progress. The
+  // following effect has been removed so the camera remains fixed at the
+  // starting position for the entire game.
 
   const paddingTop = `${5.5 * cellHeight}px`;
 
