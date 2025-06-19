@@ -64,21 +64,17 @@ function Board({
   const centerCol = (COLS - 1) / 2;
   const widenStep = 0.02; // how much each row expands horizontally
   const scaleStep = 0.02; // how much each row's cells scale
-  const bottomScaleStep = 0.02; // shrink early rows slightly
-  const shiftStep = 0.15; // how much bottom rows shift left
   const finalScale = 1 + (ROWS - 3) * scaleStep;
 
   for (let r = 0; r < ROWS; r++) {
     const rowFactor = Math.max(0, r - 2);
-    const bottomFactor = Math.max(0, 2 - r);
-    const scale = 1 + rowFactor * scaleStep - bottomFactor * bottomScaleStep;
-    const offsetX = rowFactor * widenStep * cellWidth * scale;
-    const leftShift = -bottomFactor * shiftStep * cellWidth;
+    const offsetX = rowFactor * widenStep * cellWidth;
+    const scale = 1 + rowFactor * scaleStep;
     const reversed = r % 2 === 1;
     for (let c = 0; c < COLS; c++) {
       const col = reversed ? COLS - 1 - c : c;
       const num = r * COLS + col + 1;
-      const translateX = (col - centerCol) * offsetX + leftShift;
+      const translateX = (col - centerCol) * offsetX;
       const isHighlight = highlight && highlight.cell === num;
       const highlightClass = isHighlight ? `${highlight.type}-highlight` : "";
       const cellType = ladders[num] ? "ladder" : snakes[num] ? "snake" : "";
@@ -142,7 +138,7 @@ function Board({
       const width = window.innerWidth;
       const cw = Math.floor(width / COLS);
       setCellWidth(cw);
-      const ch = Math.floor(cw * 0.6); // taller cells
+      const ch = Math.floor(cw / 2);
       setCellHeight(ch);
     };
     updateSize();
