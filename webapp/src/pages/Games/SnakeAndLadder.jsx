@@ -187,9 +187,31 @@ function Board({
       container.scrollTop = container.scrollHeight - container.clientHeight;
   }, []);
 
-  // Previously the board scrolled to follow the player's progress. The
-  // following effect has been removed so the camera remains fixed at the
-  // starting position for the entire game.
+  // When the player moves beyond the first two rows, keep the
+  // camera locked to the same relative frame by scrolling the
+  // container instead of changing angle or zoom.
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+    const row = Math.floor((position - 1) / COLS);
+    if (row < 2) {
+      container.scrollTop = container.scrollHeight - container.clientHeight;
+      return;
+    }
+    const cell = container.querySelector(`[data-cell="${position}"]`);
+    if (cell) {
+      const offset = cell.offsetTop - cellHeight * 2;
+      const target = Math.min(
+        Math.max(0, offset),
+        container.scrollHeight - container.clientHeight,
+      );
+      container.scrollTo({ top: target, behavior: 'smooth' });
+    }
+  }, [position, cellHeight]);
+
+  // The board is initially positioned at the bottom. Once the player
+  // reaches the third row, the container scrolls to keep them in view
+  // without altering the camera angle or zoom.
 
   const paddingTop = `${5.5 * cellHeight}px`;
 
