@@ -66,6 +66,15 @@ function Board({
   const scaleStep = 0.02; // how much each row's cells scale
   const finalScale = 1 + (ROWS - 3) * scaleStep;
 
+  // Precompute vertical offsets so that the gap between rows
+  // stays uniform even as cells are scaled differently per row.
+  const rowOffsets = [0];
+  for (let r = 1; r < ROWS; r++) {
+    const prevScale = 1 + (r - 1 - 2) * scaleStep;
+    rowOffsets[r] = rowOffsets[r - 1] + (prevScale - 1) * cellHeight;
+  }
+  const offsetYMax = rowOffsets[ROWS - 1];
+
   for (let r = 0; r < ROWS; r++) {
     // Allow negative rowFactor so the bottom rows appear slightly smaller
     const rowFactor = r - 2;
@@ -77,6 +86,7 @@ function Board({
       const col = reversed ? COLS - 1 - c : c;
       const num = r * COLS + col + 1;
       const translateX = (col - centerCol) * offsetX;
+      const translateY = -rowOffsets[r];
       const isHighlight = highlight && highlight.cell === num;
       const highlightClass = isHighlight ? `${highlight.type}-highlight` : "";
       const cellType = ladders[num] ? "ladder" : snakes[num] ? "snake" : "";
@@ -96,7 +106,7 @@ function Board({
           style={{
             gridRowStart: ROWS - r,
             gridColumnStart: col + 1,
-            transform: `translateX(${translateX}px) scale(${scale}) translateZ(5px)`,
+            transform: `translate(${translateX}px, ${translateY}px) scale(${scale}) translateZ(5px)`,
             transformOrigin: 'bottom center',
           }}
         >
@@ -186,7 +196,7 @@ function Board({
             className="snake-board-grid grid gap-1 relative mx-auto"
             style={{
               width: `${cellWidth * COLS}px`,
-              height: `${cellHeight * ROWS}px`,
+              height: `${cellHeight * ROWS + offsetYMax}px`,
               gridTemplateColumns: `repeat(${COLS}, ${cellWidth}px)`,
               gridTemplateRows: `repeat(${ROWS}, ${cellHeight}px)`,
               "--cell-width": `${cellWidth}px`,
