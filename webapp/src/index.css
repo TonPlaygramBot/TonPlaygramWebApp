@@ -48,7 +48,8 @@ body {
 }
 
 .board-frame {
-  @apply border-4 border-accent rounded-lg p-1 bg-surface inline-block;
+  /* Bold accent border matching the app theme */
+  @apply border-8 border-accent rounded-lg p-1 bg-surface inline-block;
   transform-style: preserve-3d;
 }
 
