@@ -13,11 +13,15 @@ import { getSnakeBoard, fetchTelegramInfo } from "../../utils/api.js";
 import PlayerToken from "../../components/PlayerToken.jsx";
 
 const PLAYERS = 4;
-// Adjusted board dimensions to show five columns
-// while keeping the total cell count at 100
+// Board dimensions remain 5 columns by 20 rows (100 tiles).
 const ROWS = 20;
 const COLS = 5;
 const FINAL_TILE = ROWS * COLS + 1; // 101
+
+// Visible portion of the board in the viewport. Five rows keeps row 3 centred
+// on screen while the first row sits at the very bottom.
+const VISIBLE_ROWS = 5;
+const CENTER_ROW = 2; // zero-indexed row from the bottom that stays centred
 
 function CoinBurst({ token }) {
   const coins = Array.from({ length: 15 }, () => ({
@@ -139,12 +143,18 @@ function Board({
   // board scaled. The markers logic has been removed and the icons are now
   // displayed only once within the cell itself.
   // Fixed board angle with no zoom
-  const angle = 60;
+  // Steeper angle to mimic a camera positioned behind the player looking
+  // upwards towards the logo wall.
+  const angle = 75;
 
   useEffect(() => {
     const container = containerRef.current;
-    if (container)
-      container.scrollTop = container.scrollHeight - container.clientHeight;
+    if (container) {
+      const cellHeightPx = cellHeight;
+      const containerHeight = cellHeightPx * VISIBLE_ROWS;
+      const boardHeight = cellHeightPx * ROWS;
+      container.scrollTop = boardHeight - containerHeight;
+    }
   }, []);
 
   useEffect(() => {
@@ -152,27 +162,22 @@ function Board({
     if (!container || position === 0) return;
 
     const cellHeightPx = cellHeight;
+    const containerHeight = cellHeightPx * VISIBLE_ROWS;
     const boardHeight = cellHeightPx * ROWS;
-    const maxScroll = boardHeight - container.clientHeight;
+    const maxScroll = boardHeight - containerHeight;
     const rowFromBottom = Math.floor((position - 1) / COLS);
 
-    let target;
-    if (rowFromBottom <= 3) {
-      // Keep the camera at the bottom for the first four rows
-      target = maxScroll;
-    } else {
-      // Once past the third row, keep the logo visible and show
-      // two rows behind the player
-      const desiredBottom = boardHeight - (rowFromBottom - 2) * cellHeightPx;
-      target = desiredBottom - container.clientHeight;
-      if (target < 0) target = 0;
-      if (target > maxScroll) target = maxScroll;
-    }
+    // Keep the player's row centred while clamping within the board bounds.
+    let target =
+      boardHeight - containerHeight -
+      (rowFromBottom - CENTER_ROW) * cellHeightPx;
+    if (target < 0) target = 0;
+    if (target > maxScroll) target = maxScroll;
 
     container.scrollTo({ top: target, behavior: "smooth" });
   }, [position, cellHeight]);
 
-  const paddingTop = `${5.5 * cellHeight}px`;
+  const paddingTop = `${(VISIBLE_ROWS + 0.5) * cellHeight}px`;
 
   return (
     <div className="flex justify-center items-center w-screen overflow-hidden">
@@ -180,7 +185,7 @@ function Board({
         ref={containerRef}
         className="overflow-y-auto overflow-x-hidden"
         style={{
-          height: "80vh",
+          height: `${cellHeight * VISIBLE_ROWS}px`,
           overscrollBehaviorY: "contain",
           paddingTop,
         }}
