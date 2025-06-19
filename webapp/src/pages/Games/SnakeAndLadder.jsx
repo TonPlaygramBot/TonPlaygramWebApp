@@ -82,10 +82,11 @@ function Board({
     const scale = 1 + rowFactor * scaleStep;
     // Include the scaled cell width so horizontal gaps remain consistent
     const offsetX = rowFactor * widenStep * cellWidth + (scale - 1) * cellWidth;
-    // Use a repeating zigzag pattern that reverses the second and third
-    // rows within each group of three. This results in the sequence:
-    // first row left-to-right, next two rows right-to-left, then repeat.
-    const reversed = r % 3 !== 0;
+    // Custom zigzag pattern provided by game designers. The bottom row
+    // should start right-to-left and the orientation repeats every six
+    // rows as: R, L, L, R, L, R. "reversed" indicates a right-to-left row.
+    const reversedPattern = [true, false, false, true, false, true];
+    const reversed = reversedPattern[r % reversedPattern.length];
     for (let c = 0; c < COLS; c++) {
       const col = reversed ? COLS - 1 - c : c;
       const num = r * COLS + col + 1;
