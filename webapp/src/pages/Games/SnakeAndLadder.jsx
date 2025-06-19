@@ -186,12 +186,12 @@ function Board({
   const paddingTop = `${5.5 * cellHeight}px`;
 
   return (
-    <div className="flex justify-center items-center w-screen overflow-visible">
+    <div className="flex justify-center items-center w-screen overflow-hidden">
       <div
         ref={containerRef}
         className="overflow-y-auto"
         style={{
-          overflowX: 'visible',
+          overflowX: 'hidden',
           height: "80vh",
           overscrollBehaviorY: "contain",
           paddingTop,
