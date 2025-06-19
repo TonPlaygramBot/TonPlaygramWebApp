@@ -505,6 +505,19 @@ body {
   z-index: 5;
 }
 
+.board-top-line {
+  @apply absolute;
+  width: var(--board-width);
+  height: 0.5rem;
+  top: calc(var(--cell-height) * -10 - var(--cell-height) * 1.8 * (var(--final-scale, 1) - 1));
+  left: 50%;
+  transform: translateX(-50%) rotateX(calc(var(--board-angle, 60deg) * -1)) translateZ(-39px);
+  transform-origin: bottom center;
+  background-color: #f1c40f; /* gold */
+  border-radius: 4px;
+  z-index: 6;
+}
+
 
 .snake-connector,
 .ladder-connector {
