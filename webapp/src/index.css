@@ -194,17 +194,19 @@ body {
 /* Three.js token container */
 .token-three {
   position: absolute;
-  width: 12rem;
-  height: 12rem;
-  transform: translateZ(60px);
+  /* shrink token by 25% */
+  width: 9rem;
+  height: 9rem;
+  transform: translateZ(45px); /* lowered proportionally */
   /* Preserve 3D space so the photo can be positioned in depth */
   transform-style: preserve-3d;
   pointer-events: none;
 }
 
 .pot-token {
-  width: 14.4rem; /* 20% bigger */
-  height: 14.4rem;
+  /* keep pot token scaled relative to player token */
+  width: 10.8rem; /* 20% bigger than the reduced token */
+  height: 10.8rem;
 }
 
 .token-three canvas {
