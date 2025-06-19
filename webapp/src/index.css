@@ -197,7 +197,10 @@ body {
   /* shrink token by another 20% */
   width: 7.2rem;
   height: 7.2rem;
-  transform: translateZ(36px); /* lowered proportionally */
+  /* lower the token so the cell number stays visible */
+  top: 30%;
+  left: 50%;
+  transform: translate(-50%, 0) translateZ(25.2px);
   /* Preserve 3D space so the photo can be positioned in depth */
   transform-style: preserve-3d;
   pointer-events: none;
@@ -207,6 +210,9 @@ body {
   /* keep pot token scaled relative to player token */
   width: 8.64rem; /* 20% bigger than the reduced token */
   height: 8.64rem;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%) translateZ(25.2px);
 }
 
 .token-three canvas {
@@ -223,7 +229,8 @@ body {
   top: 50%;
   left: 50%;
   /* Nudge the photo slightly forward so it stands out */
-  transform: translate(-50%, -50%) translateZ(16px) rotateX(10deg);
+  /* moved closer to the board along with the token */
+  transform: translate(-50%, -50%) translateZ(11.2px) rotateX(10deg);
   object-fit: cover;
   border-radius: 50%;
   pointer-events: none;
