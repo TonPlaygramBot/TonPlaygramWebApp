@@ -270,6 +270,7 @@ export default function SnakeAndLadder() {
   const [message, setMessage] = useState("");
   const [messageColor, setMessageColor] = useState("");
   const [turnMessage, setTurnMessage] = useState("Your turn");
+  const [diceVisible, setDiceVisible] = useState(true);
   const [photoUrl, setPhotoUrl] = useState("");
   const [pot, setPot] = useState(100);
   const [token, setToken] = useState("TPC");
@@ -352,6 +353,7 @@ export default function SnakeAndLadder() {
 
   const handleRoll = (values) => {
     setTurnMessage("");
+    setDiceVisible(false);
     setOffsetPopup(null);
     setTrail([]);
     const value = Array.isArray(values)
@@ -367,6 +369,7 @@ export default function SnakeAndLadder() {
       setStreak(0);
       setMessage("Third 6 rolled, turn skipped!");
       setTurnMessage("Your turn");
+      setDiceVisible(true);
       return;
     }
 
@@ -379,6 +382,7 @@ export default function SnakeAndLadder() {
       else {
         setMessage("Need a 6 to start!");
         setTurnMessage("Your turn");
+        setDiceVisible(true);
         return;
       }
     } else if (current + value <= FINAL_TILE) {
@@ -386,6 +390,7 @@ export default function SnakeAndLadder() {
     } else {
       setMessage("Need exact roll!");
       setTurnMessage("Your turn");
+      setDiceVisible(true);
     }
 
     const steps = [];
@@ -464,6 +469,7 @@ export default function SnakeAndLadder() {
         setTimeout(() => setCelebrate(false), 1500);
       }
       setTurnMessage('Your turn');
+      setDiceVisible(true);
     };
 
     moveSeq(steps, 'normal', () => applyEffect(target));
@@ -490,9 +496,6 @@ export default function SnakeAndLadder() {
           <AiOutlineRollback className="text-xl" />
           <span className="text-xs">Lobby</span>
         </button>
-        {turnMessage && (
-          <div className="text-xs font-semibold text-right w-full">{turnMessage}</div>
-        )}
       </div>
       <Board
         position={pos}
@@ -512,14 +515,19 @@ export default function SnakeAndLadder() {
       {message && (
         <div className={`text-center font-semibold w-full ${messageColor}`}>{message}</div>
       )}
-      <div className="fixed bottom-24 inset-x-0 flex justify-center z-20">
-        <DiceRoller
-          onRollEnd={handleRoll}
-          onRollStart={() => setTurnMessage('Rolling...')}
-          clickable
-          numDice={2}
-        />
-      </div>
+      {diceVisible && (
+        <div className="fixed bottom-24 inset-x-0 flex flex-col items-center z-20">
+          <DiceRoller
+            onRollEnd={handleRoll}
+            onRollStart={() => setTurnMessage('Rolling...')}
+            clickable
+            numDice={2}
+          />
+          {turnMessage && (
+            <div className="mt-2 text-sm font-semibold">{turnMessage}</div>
+          )}
+        </div>
+      )}
       <InfoPopup
         open={showInfo}
         onClose={() => setShowInfo(false)}
