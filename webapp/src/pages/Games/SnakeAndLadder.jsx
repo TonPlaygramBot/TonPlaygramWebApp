@@ -82,10 +82,10 @@ function Board({
     const scale = 1 + rowFactor * scaleStep;
     // Include the scaled cell width so horizontal gaps remain consistent
     const offsetX = rowFactor * widenStep * cellWidth + (scale - 1) * cellWidth;
-    const reversed = r % 2 === 1;
+    const reversed = r % 2 === 0;
     for (let c = 0; c < COLS; c++) {
       const col = reversed ? COLS - 1 - c : c;
-      const num = r * COLS + col + 1;
+      const num = r * COLS + c + 1;
       const translateX = (col - centerCol) * offsetX;
       const translateY = -rowOffsets[r];
       const isHighlight = highlight && highlight.cell === num;
