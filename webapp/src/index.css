@@ -117,9 +117,8 @@ body {
 }
 
 .board-cell {
-  @apply relative flex items-center justify-center rounded-xl text-text bg-surface border-2 border-accent;
-  /* Removed dark drop shadow that created a black frame around dice */
-  box-shadow: none;
+  @apply relative flex items-center justify-center rounded-xl text-text shadow-inner bg-surface border-2 border-accent;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.5);
   transform: translateZ(5px);
   transform-style: preserve-3d;
   overflow: visible;
