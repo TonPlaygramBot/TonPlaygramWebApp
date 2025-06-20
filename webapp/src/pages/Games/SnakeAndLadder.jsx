@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import DiceRoller from "../../components/DiceRoller.jsx";
 import InfoPopup from "../../components/InfoPopup.jsx";
+import GameEndPopup from "../../components/GameEndPopup.jsx";
 import {
   AiOutlineInfoCircle,
   AiOutlineLogout,
@@ -335,6 +336,7 @@ export default function SnakeAndLadder() {
   const [rollResult, setRollResult] = useState(null);
   const [diceCells, setDiceCells] = useState({});
   const [bonusDice, setBonusDice] = useState(0);
+  const [gameOver, setGameOver] = useState(false);
 
   const moveSoundRef = useRef(null);
   const snakeSoundRef = useRef(null);
@@ -559,6 +561,7 @@ export default function SnakeAndLadder() {
         winSoundRef.current?.play().catch(() => {});
         setCelebrate(true);
         setTimeout(() => setCelebrate(false), 1500);
+        setGameOver(true);
       }
       if (diceCells[finalPos]) {
         const bonus = diceCells[finalPos];
@@ -647,6 +650,12 @@ export default function SnakeAndLadder() {
         onClose={() => setShowInfo(false)}
         title="Snake & Ladder"
         info="Roll the dice to move across the board. Ladders move you up, snakes bring you down. The Pot at the top collects everyone's stake – reach it first to claim the total amount."
+      />
+      <GameEndPopup
+        open={gameOver}
+        ranking={["You"]}
+        onPlayAgain={() => window.location.reload()}
+        onReturn={() => navigate('/games/snake/lobby')}
       />
     </div>
   );

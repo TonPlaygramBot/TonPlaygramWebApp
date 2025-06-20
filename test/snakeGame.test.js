@@ -112,3 +112,30 @@ test('rolling too quickly triggers anti-cheat', () => {
   assert.ok(err, 'error event should be emitted');
 });
 
+test('landing on another player sends them to start', () => {
+  const io = new DummyIO();
+  const room = new GameRoom('r5', io, 2, {
+    snakes: {},
+    ladders: {},
+  });
+  room.rollCooldown = 0;
+  const s1 = { id: 's1', join: () => {} };
+  const s2 = { id: 's2', join: () => {} };
+  room.addPlayer('p1', 'A', s1);
+  room.addPlayer('p2', 'B', s2);
+  room.startGame();
+
+  room.players[0].isActive = true;
+  room.players[0].position = 1;
+  room.players[1].isActive = true;
+  room.players[1].position = 3;
+  room.currentTurn = 0;
+
+  room.rollDice(s1, 2); // land on player 2
+
+  assert.equal(room.players[0].position, 3);
+  assert.equal(room.players[1].position, 0);
+  const resetEvent = io.emitted.find(e => e.event === 'playerReset');
+  assert.ok(resetEvent && resetEvent.data.playerId === 'p2');
+});
+
