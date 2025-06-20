@@ -8,8 +8,6 @@ export default function HexPrismToken({ color = "#008080", photoUrl, className =
     const mount = mountRef.current;
     if (!mount) return;
 
-    const photo = mount.querySelector('.token-photo');
-
     const width = mount.clientWidth;
     const height = mount.clientHeight;
     const SCALE = 3;
@@ -61,8 +59,6 @@ export default function HexPrismToken({ color = "#008080", photoUrl, className =
       [...sideMaterials, topMaterial, bottomMaterial],
     );
     prism.rotation.y = Math.PI / 6; // show a corner toward the viewer
-    mount.style.setProperty("--token-rotation", `${prism.rotation.y}rad`);
-    if (photo) photo.style.setProperty("--token-rotation", `${prism.rotation.y}rad`);
     scene.add(prism);
 
     const ambient = new THREE.AmbientLight(0xffffff, 0.6);
@@ -74,13 +70,6 @@ export default function HexPrismToken({ color = "#008080", photoUrl, className =
     let frameId;
     const animate = () => {
       prism.rotation.y += 0.01;
-      mount.style.setProperty("--token-rotation", `${prism.rotation.y}rad`);
-      if (photo) {
-        photo.style.setProperty(
-          "--token-rotation",
-          `${prism.rotation.y}rad`,
-        );
-      }
       renderer.render(scene, camera);
       frameId = requestAnimationFrame(animate);
     };
@@ -99,8 +88,6 @@ export default function HexPrismToken({ color = "#008080", photoUrl, className =
       cancelAnimationFrame(frameId);
       window.removeEventListener("resize", handleResize);
       mount.removeChild(renderer.domElement);
-      mount.style.removeProperty("--token-rotation");
-      if (photo) photo.style.removeProperty("--token-rotation");
       geometry.dispose();
       sideMaterials.forEach((m) => m.dispose());
       topMaterial.dispose();
