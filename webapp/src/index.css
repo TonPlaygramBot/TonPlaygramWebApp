@@ -643,8 +643,7 @@ body {
   pointer-events: none;
   /* Lay flat on the board using the same angle */
   transform: translate(-50%, -50%) translateZ(2px)
-    rotateX(calc(var(--board-angle, 60deg) * -1))
-    rotateY(var(--token-rotation, 30deg));
+    rotateX(calc(var(--board-angle, 60deg) * -1));
   z-index: 0;
 }
 
