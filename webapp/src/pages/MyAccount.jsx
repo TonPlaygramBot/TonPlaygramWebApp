@@ -17,6 +17,7 @@ import { BOT_USERNAME } from '../utils/constants.js';
 import BalanceSummary from '../components/BalanceSummary.jsx';
 import useTelegramBackButton from '../hooks/useTelegramBackButton.js';
 import AvatarPickerModal from '../components/AvatarPickerModal.jsx';
+import AvatarPromptModal from '../components/AvatarPromptModal.jsx';
 
 export default function MyAccount() {
   useTelegramBackButton();
@@ -33,13 +34,13 @@ export default function MyAccount() {
   const [autoUpdating, setAutoUpdating] = useState(false);
   const [transactions, setTransactions] = useState([]);
   const [showAvatarPicker, setShowAvatarPicker] = useState(false);
+  const [showAvatarPrompt, setShowAvatarPrompt] = useState(false);
   const timerRef = useRef(null);
 
   useEffect(() => {
     async function load() {
       const data = await getProfile(telegramId);
-      setProfile(data);
-      if (!data.photo) setShowAvatarPicker(true);
+      let finalProfile = data;
       const ref = await getReferralInfo(telegramId);
       setReferral(ref);
       const tx = await getTransactions(telegramId);
@@ -74,11 +75,15 @@ export default function MyAccount() {
             photo: hasRealPhoto || getTelegramPhotoUrl()
           };
 
-          setProfile(mergedProfile);
-          setShowAvatarPicker(!hasRealPhoto);
+          finalProfile = mergedProfile;
         } finally {
           setAutoUpdating(false);
         }
+      }
+
+      setProfile(finalProfile);
+      if (!localStorage.getItem('avatarPromptShown')) {
+        setShowAvatarPrompt(true);
       }
     }
 
@@ -95,6 +100,18 @@ export default function MyAccount() {
 
   return (
     <div className="p-4 space-y-4 text-text">
+      <AvatarPromptModal
+        open={showAvatarPrompt}
+        onPick={() => {
+          localStorage.setItem('avatarPromptShown', 'true');
+          setShowAvatarPrompt(false);
+          setShowAvatarPicker(true);
+        }}
+        onKeep={() => {
+          localStorage.setItem('avatarPromptShown', 'true');
+          setShowAvatarPrompt(false);
+        }}
+      />
       <AvatarPickerModal
         open={showAvatarPicker}
         onClose={() => setShowAvatarPicker(false)}
@@ -121,6 +138,12 @@ export default function MyAccount() {
             {profile.firstName} {profile.lastName}
           </p>
           <p className="text-sm text-subtext">ID: {profile.telegramId}</p>
+          <button
+            onClick={() => setShowAvatarPicker(true)}
+            className="mt-2 px-2 py-1 bg-primary hover:bg-primary-hover rounded text-sm"
+          >
+            Change Avatar
+          </button>
         </div>
       </div>
 
