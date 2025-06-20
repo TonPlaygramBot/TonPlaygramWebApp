@@ -24,8 +24,8 @@ test('applySnakesAndLadders resolves moves', () => {
   });
   room.rollCooldown = 0;
   assert.equal(room.applySnakesAndLadders(3), 22); // ladder
-  assert.equal(room.applySnakesAndLadders(27), 56); // ladder
-  assert.equal(room.applySnakesAndLadders(99), 7); // snake
+  assert.equal(room.applySnakesAndLadders(27), 46); // ladder
+  assert.equal(room.applySnakesAndLadders(99), 80); // snake
   assert.equal(room.applySnakesAndLadders(8), 8); // none
 });
 

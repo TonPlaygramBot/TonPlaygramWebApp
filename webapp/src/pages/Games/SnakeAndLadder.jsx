@@ -421,7 +421,9 @@ export default function SnakeAndLadder() {
     const used = new Set();
     while (Object.keys(snakesObj).length < snakeCount) {
       const start = Math.floor(Math.random() * (boardSize - 10)) + 10;
-      const end = Math.floor(Math.random() * (start - 1)) + 1;
+      const maxDrop = Math.min(start - 1, 20);
+      if (maxDrop <= 0) continue;
+      const end = start - (Math.floor(Math.random() * maxDrop) + 1);
       if (used.has(start) || used.has(end) || snakesObj[start]) continue;
       snakesObj[start] = end;
       used.add(start);
@@ -432,9 +434,9 @@ export default function SnakeAndLadder() {
     const usedL = new Set([...used]);
     while (Object.keys(laddersObj).length < ladderCount) {
       const start = Math.floor(Math.random() * (boardSize - 20)) + 2;
-      const max = boardSize - start - 1;
-      if (max < 3) continue;
-      const end = start + 3 + Math.floor(Math.random() * max);
+      const max = Math.min(boardSize - start - 1, 20);
+      if (max < 1) continue;
+      const end = start + (Math.floor(Math.random() * max) + 1);
       if (
         usedL.has(start) ||
         usedL.has(end) ||
@@ -483,7 +485,7 @@ export default function SnakeAndLadder() {
       : values;
 
     setRollResult(value);
-    setTimeout(() => setRollResult(null), 2500);
+    setTimeout(() => setRollResult(null), 1800);
 
     setTimeout(() => {
       setDiceVisible(false);
@@ -556,9 +558,7 @@ export default function SnakeAndLadder() {
 
       if (snakeEnd != null) {
         const offset = startPos - snakeEnd;
-        setTrail((t) =>
-          t.map((h) => (h.cell === startPos ? { ...h, type: 'snake' } : h)),
-        );
+        setTrail([{ cell: startPos, type: 'snake' }]);
         setOffsetPopup({ cell: startPos, type: 'snake', amount: offset });
         setTimeout(() => setOffsetPopup(null), 1000);
         setMessage(`🐍 ${startPos} -${offset}`);
@@ -623,7 +623,7 @@ export default function SnakeAndLadder() {
     };
 
     moveSeq(steps, 'normal', () => applyEffect(target));
-  }, 2500);
+  }, 1800);
   };
 
   return (

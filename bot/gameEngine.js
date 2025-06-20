@@ -6,13 +6,13 @@ export const DEFAULT_SNAKES = {
   19: 7,
   21: 9,
   54: 34,
-  62: 18,
+  62: 42,
   64: 60,
-  87: 24,
+  87: 67,
   93: 73,
   95: 75,
   98: 79,
-  99: 7,
+  99: 80,
 };
 
 export const DEFAULT_LADDERS = {
@@ -20,7 +20,7 @@ export const DEFAULT_LADDERS = {
   5: 8,
   11: 26,
   20: 29,
-  27: 56,
+  27: 46,
   36: 44,
   51: 67,
   71: 91,
@@ -41,8 +41,8 @@ function generateRandomLadders(snakes, count = 8) {
   while (Object.keys(ladders).length < count) {
     const start = Math.floor(Math.random() * (FINAL_TILE - 20)) + 2;
     const maxStep = Math.min(FINAL_TILE - start - 1, 20);
-    if (maxStep < 3) continue;
-    const end = start + 3 + Math.floor(Math.random() * maxStep);
+    if (maxStep < 1) continue;
+    const end = start + (Math.floor(Math.random() * maxStep) + 1);
     if (used.has(String(start)) || used.has(String(end))) continue;
     if (ladders[start] || Object.values(ladders).some(l => l.end === start || l.end === end)) continue;
     ladders[start] = { end, width: 6 + Math.floor(Math.random() * 6) };
