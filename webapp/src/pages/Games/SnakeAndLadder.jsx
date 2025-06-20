@@ -200,7 +200,10 @@ function Board({
     }
     const cell = container.querySelector(`[data-cell="${position}"]`);
     if (cell) {
-      const offset = cell.offsetTop - cellHeight * 2;
+      const containerRect = container.getBoundingClientRect();
+      const cellRect = cell.getBoundingClientRect();
+      const offset =
+        cellRect.top - containerRect.top + container.scrollTop - cellHeight * 2;
       const target = Math.min(
         Math.max(0, offset),
         container.scrollHeight - container.clientHeight,
