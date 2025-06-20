@@ -105,7 +105,6 @@ function Board({
       const isJump = isHighlight && highlight.type === 'normal';
       const cellType = ladders[num] ? "ladder" : snakes[num] ? "snake" : "";
       const cellClass = cellType ? `${cellType}-cell` : "";
-      const patternClass = (r + c) % 2 === 0 ? "board-dark" : "board-light";
       const icon = cellType === "ladder" ? "🪜" : cellType === "snake" ? "🐍" : "";
       const offsetVal =
         cellType === "ladder"
@@ -117,7 +116,7 @@ function Board({
         <div
           key={num}
           data-cell={num}
-          className={`board-cell ${patternClass} ${cellClass} ${highlightClass}`}
+          className={`board-cell ${cellClass} ${highlightClass}`}
           style={{
             gridRowStart: ROWS - r,
             gridColumnStart: col + 1,
