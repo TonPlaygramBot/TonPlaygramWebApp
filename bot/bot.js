@@ -1,4 +1,5 @@
 import { Telegraf } from 'telegraf';
+import { proxyAgent } from './utils/proxyAgent.js';
 
 
 // Commands
@@ -10,7 +11,9 @@ import registerReferral from './commands/referral.js';
 import registerWallet from './commands/wallet.js';
 import registerLudo from './commands/games/ludo.js';
 import registerHorse from './commands/games/horse.js';
-const bot = new Telegraf(process.env.BOT_TOKEN);
+const bot = new Telegraf(process.env.BOT_TOKEN, {
+  telegram: { agent: proxyAgent }
+});
 registerStart(bot);
 registerMine(bot);
 registerWatch(bot);
