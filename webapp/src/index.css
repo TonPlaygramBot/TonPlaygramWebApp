@@ -220,8 +220,8 @@ body {
 
 .pot-token {
   /* keep pot token scaled relative to player token */
-  width: 8.64rem; /* 20% bigger than the reduced token */
-  height: 8.64rem;
+  width: 9rem; /* 25% bigger than the reduced token */
+  height: 9rem;
 }
 
 .token-three canvas {
@@ -232,15 +232,16 @@ body {
 
 .token-photo {
   position: absolute;
-  /* enlarge photo by 10% and lower it proportionally */
-  width: 2.75rem;
-  height: 2.75rem;
+  /* enlarge photo by 5% and lower it proportionally */
+  width: 2.9rem;
+  height: 2.9rem;
   top: 50%;
   left: 50%;
   /* Nudge the photo slightly forward so it stands out */
   transform: translate(-50%, -50%) translateZ(15.2px) rotateX(10deg);
   object-fit: cover;
   border-radius: 50%;
+  border: 2px solid #ffd700;
   pointer-events: none;
   z-index: 1;
 }
@@ -479,6 +480,16 @@ body {
   transform: translate(-50%, -50%) translateZ(20px) rotateX(10deg);
   object-fit: contain;
   pointer-events: none;
+  z-index: 1;
+}
+
+.pot-number {
+  position: absolute;
+  bottom: -1rem;
+  left: 50%;
+  transform: translateX(-50%);
+  font-weight: bold;
+  color: #ffffff;
   z-index: 1;
 }
 

@@ -283,7 +283,7 @@ function Board({
                   />
                 ))}
               </div>
-              <span className="text-sm mt-1">{pot}</span>
+              <span className="pot-number">{FINAL_TILE}</span>
               {position === FINAL_TILE && (
                 <PlayerToken
                   photoUrl={photoUrl}
@@ -369,22 +369,48 @@ export default function SnakeAndLadder() {
         const snakeData = data.snakes || {};
         const ladderData = data.ladders || {};
 
-        // Remove any snake that starts on the same tile as a ladder to avoid
-        // duplicate icons occupying a single cell.
+        const boardSize = ROWS * COLS;
+
+        // Remove invalid or overlapping snakes
         const cleanSnakes = {};
-        Object.keys(snakeData).forEach((k) => {
-          if (!ladderData[k]) cleanSnakes[k] = snakeData[k];
+        Object.entries(snakeData).forEach(([s, e]) => {
+          const start = Number(s);
+          const end = Number(e);
+          if (
+            start > 0 &&
+            start <= boardSize &&
+            end > 0 &&
+            end < start &&
+            end <= boardSize &&
+            !ladderData[s]
+          )
+            cleanSnakes[start] = end;
+        });
+
+        // Remove invalid ladders
+        const cleanLadders = {};
+        Object.entries(ladderData).forEach(([s, e]) => {
+          const start = Number(s);
+          const endVal = typeof e === 'object' ? e.end : e;
+          if (
+            start > 0 &&
+            start <= boardSize &&
+            endVal > start &&
+            endVal <= boardSize &&
+            !cleanSnakes[start]
+          )
+            cleanLadders[start] = e;
         });
 
         setSnakes(cleanSnakes);
-        setLadders(ladderData);
+        setLadders(cleanLadders);
 
         const snk = {};
         Object.keys(cleanSnakes).forEach((k) => {
           snk[k] = Math.floor(Math.random() * 10) + 1;
         });
         const lad = {};
-        Object.keys(ladderData).forEach((k) => {
+        Object.keys(cleanLadders).forEach((k) => {
           lad[k] = Math.floor(Math.random() * 10) + 1;
         });
         setSnakeOffsets(snk);
