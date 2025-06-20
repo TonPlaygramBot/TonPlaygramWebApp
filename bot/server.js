@@ -42,7 +42,8 @@ const gameManager = new GameRoomManager(io);
 
 // Middleware and routes
 app.use(compression());
-app.use(express.json());
+// Increase JSON body limit to handle large photo uploads
+app.use(express.json({ limit: '10mb' }));
 app.use('/api/mining', miningRoutes);
 app.use('/api/tasks', tasksRoutes);
 app.use('/api/watch', watchRoutes);
