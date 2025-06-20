@@ -451,12 +451,13 @@ export default function SnakeAndLadder() {
     setLadders(laddersObj);
 
     const snk = {};
-    Object.keys(snakesObj).forEach((k) => {
-      snk[k] = Math.floor(Math.random() * 10) + 1;
+    Object.entries(snakesObj).forEach(([s, e]) => {
+      snk[s] = s - e;
     });
     const lad = {};
-    Object.keys(laddersObj).forEach((k) => {
-      lad[k] = Math.floor(Math.random() * 10) + 1;
+    Object.entries(laddersObj).forEach(([s, e]) => {
+      const end = typeof e === 'object' ? e.end : e;
+      lad[s] = end - s;
     });
     setSnakeOffsets(snk);
     setLadderOffsets(lad);
@@ -549,11 +550,15 @@ export default function SnakeAndLadder() {
     };
 
     const applyEffect = (startPos) => {
-      if (Object.keys(snakes).includes(String(startPos))) {
+      const snakeEnd = snakes[startPos];
+      const ladderObj = ladders[startPos];
+      const ladderEnd = typeof ladderObj === 'object' ? ladderObj.end : ladderObj;
+
+      if (snakeEnd != null) {
+        const offset = startPos - snakeEnd;
         setTrail((t) =>
           t.map((h) => (h.cell === startPos ? { ...h, type: 'snake' } : h)),
         );
-        const offset = snakeOffsets[startPos] || 0;
         setOffsetPopup({ cell: startPos, type: 'snake', amount: offset });
         setTimeout(() => setOffsetPopup(null), 1000);
         setMessage(`🐍 ${startPos} -${offset}`);
@@ -562,13 +567,13 @@ export default function SnakeAndLadder() {
         const seq = [];
         for (let i = 1; i <= offset && startPos - i >= 0; i++) seq.push(startPos - i);
         const move = () =>
-          moveSeq(seq, 'snake', () => finalizeMove(Math.max(0, startPos - offset), 'snake'));
+          moveSeq(seq, 'snake', () => finalizeMove(Math.max(0, snakeEnd), 'snake'));
         flashHighlight(startPos, 'snake', 2, move);
-      } else if (Object.keys(ladders).includes(String(startPos))) {
+      } else if (ladderEnd != null) {
+        const offset = ladderEnd - startPos;
         setTrail((t) =>
           t.map((h) => (h.cell === startPos ? { ...h, type: 'ladder' } : h)),
         );
-        const offset = ladderOffsets[startPos] || 0;
         setOffsetPopup({ cell: startPos, type: 'ladder', amount: offset });
         setTimeout(() => setOffsetPopup(null), 1000);
         setMessage(`🪜 ${startPos} +${offset}`);
@@ -577,7 +582,7 @@ export default function SnakeAndLadder() {
         const seq = [];
         for (let i = 1; i <= offset && startPos + i <= FINAL_TILE; i++) seq.push(startPos + i);
         const move = () =>
-          moveSeq(seq, 'ladder', () => finalizeMove(Math.min(FINAL_TILE, startPos + offset), 'ladder'));
+          moveSeq(seq, 'ladder', () => finalizeMove(Math.min(FINAL_TILE, ladderEnd), 'ladder'));
         flashHighlight(startPos, 'ladder', 2, move);
       } else {
         finalizeMove(startPos, 'normal');
