@@ -61,6 +61,7 @@ function Board({
   const containerRef = useRef(null);
   const [cellWidth, setCellWidth] = useState(80);
   const [cellHeight, setCellHeight] = useState(40);
+  const [lockedScroll, setLockedScroll] = useState(null);
   const tiles = [];
   const centerCol = (COLS - 1) / 2;
   // Keep vertical columns evenly spaced rather than widening
@@ -194,10 +195,18 @@ function Board({
     const container = containerRef.current;
     if (!container) return;
     const row = Math.floor((position - 1) / COLS);
+
     if (row < 2) {
+      setLockedScroll(null);
       container.scrollTop = container.scrollHeight - container.clientHeight;
       return;
     }
+
+    if (lockedScroll !== null) {
+      container.scrollTop = lockedScroll;
+      return;
+    }
+
     const cell = container.querySelector(`[data-cell="${position}"]`);
     if (cell) {
       const containerRect = container.getBoundingClientRect();
@@ -209,8 +218,9 @@ function Board({
         container.scrollHeight - container.clientHeight,
       );
       container.scrollTo({ top: target, behavior: 'smooth' });
+      if (row > 2) setLockedScroll(target);
     }
-  }, [position, cellHeight]);
+  }, [position, cellHeight, lockedScroll]);
 
   // The board is initially positioned at the bottom. Once the player
   // reaches the third row, the container scrolls to keep them in view
