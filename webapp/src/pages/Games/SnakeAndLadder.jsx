@@ -392,6 +392,17 @@ export default function SnakeAndLadder() {
   }, []);
 
   useEffect(() => {
+    const updatePhoto = () => {
+      const id = getTelegramId();
+      getProfile(id)
+        .then((p) => setPhotoUrl(p?.photo || getTelegramPhotoUrl()))
+        .catch(() => setPhotoUrl(getTelegramPhotoUrl()));
+    };
+    window.addEventListener('profilePhotoUpdated', updatePhoto);
+    return () => window.removeEventListener('profilePhotoUpdated', updatePhoto);
+  }, []);
+
+  useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const t = params.get("token");
     const amt = params.get("amount");

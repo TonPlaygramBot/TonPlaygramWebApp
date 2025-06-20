@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 
 // Use DiceBear's adventurer-neutral SVG avatars which are gender-neutral
 // and small text-based files instead of binary PNG images.
@@ -10,7 +10,9 @@ const AVATARS = [
   'https://api.dicebear.com/7.x/adventurer-neutral/svg?seed=avatar5'
 ];
 
-export default function AvatarPickerModal({ open, onClose, onSelect }) {
+export default function AvatarPickerModal({ open, onClose, onSave }) {
+  const [selected, setSelected] = useState(null);
+
   if (!open) return null;
 
   return (
@@ -23,14 +25,25 @@ export default function AvatarPickerModal({ open, onClose, onSelect }) {
               key={src}
               src={src}
               alt="avatar"
-              className="w-20 h-20 rounded-full cursor-pointer hover:opacity-80"
-              onClick={() => onSelect(src)}
+              className={`w-20 h-20 rounded-full cursor-pointer hover:opacity-80 ${selected === src ? 'ring-4 ring-accent' : ''}`}
+              onClick={() => setSelected(src)}
             />
           ))}
         </div>
-        <button onClick={onClose} className="mt-4 px-4 py-1 bg-primary hover:bg-primary-hover rounded w-full">
-          Close
-        </button>
+        <div className="flex space-x-2">
+          <button
+            onClick={() => {
+              if (selected) onSave(selected);
+            }}
+            disabled={!selected}
+            className="flex-1 px-4 py-1 bg-primary hover:bg-primary-hover rounded disabled:opacity-50"
+          >
+            Save
+          </button>
+          <button onClick={onClose} className="flex-1 px-4 py-1 border border-border bg-surface rounded">
+            Cancel
+          </button>
+        </div>
       </div>
     </div>
   );
