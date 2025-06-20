@@ -10,6 +10,7 @@ import {
 import useTelegramBackButton from '../hooks/useTelegramBackButton.js';
 import OpenInTelegram from '../components/OpenInTelegram.jsx';
 import { getTelegramId } from '../utils/telegram.js';
+import InboxWidget from '../components/InboxWidget.jsx';
 import {
   listWallFeed,
   listWallPosts,
@@ -126,9 +127,6 @@ export default function Wall() {
         </Link>
         <Link to="/friends#leaderboard" className="hover:underline">
           Leaderboard
-        </Link>
-        <Link to="/messages" className="hover:underline">
-          Inbox
         </Link>
       </div>
       {!idParam && (
@@ -263,6 +261,7 @@ export default function Wall() {
           </div>
         ))}
       </div>
+      <InboxWidget />
     </div>
   );
 }
