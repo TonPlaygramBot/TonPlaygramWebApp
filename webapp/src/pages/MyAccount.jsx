@@ -152,6 +152,9 @@ export default function MyAccount() {
             <a href="/messages" className="underline text-primary">
               Inbox
             </a>
+            <a href="/wall" className="underline text-primary">
+              My Wall
+            </a>
           </div>
         </div>
       </div>

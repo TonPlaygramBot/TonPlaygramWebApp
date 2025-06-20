@@ -2,6 +2,7 @@ import { Router } from 'express';
 import User from '../models/User.js';
 import FriendRequest from '../models/FriendRequest.js';
 import Message from '../models/Message.js';
+import Post from '../models/Post.js';
 
 const router = Router();
 
@@ -82,6 +83,23 @@ router.post('/messages', async (req, res) => {
     .sort({ createdAt: 1 })
     .limit(100);
   res.json(msgs);
+});
+
+router.post('/wall/list', async (req, res) => {
+  const { ownerId } = req.body;
+  if (!ownerId) return res.status(400).json({ error: 'ownerId required' });
+  const posts = await Post.find({ owner: ownerId })
+    .sort({ createdAt: -1 })
+    .limit(100);
+  res.json(posts);
+});
+
+router.post('/wall/post', async (req, res) => {
+  const { ownerId, authorId, text } = req.body;
+  if (!ownerId || !authorId || !text)
+    return res.status(400).json({ error: 'ownerId, authorId and text required' });
+  const post = await Post.create({ owner: ownerId, author: authorId, text });
+  res.json(post);
 });
 
 export default router;
