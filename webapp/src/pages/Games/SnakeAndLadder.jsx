@@ -163,7 +163,8 @@ function Board({
       const width = window.innerWidth;
       const cw = Math.floor(width / COLS);
       setCellWidth(cw);
-      const ch = Math.floor(cw / 2);
+      // Make each cell slightly taller while keeping spacing consistent
+      const ch = Math.floor(cw / 1.7);
       setCellHeight(ch);
     };
     updateSize();

@@ -4,7 +4,8 @@
 
 :root {
   --cell-width: 135px;
-  --cell-height: 68px;
+  /* Slightly taller default height for snake board cells */
+  --cell-height: 80px;
 }
 
 body {
