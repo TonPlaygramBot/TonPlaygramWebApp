@@ -14,6 +14,7 @@ import useTelegramBackButton from '../hooks/useTelegramBackButton.js';
 import OpenInTelegram from '../components/OpenInTelegram.jsx';
 import { getTelegramId } from '../utils/telegram.js';
 import InboxWidget from '../components/InboxWidget.jsx';
+import NotificationBell from '../components/NotificationBell.jsx';
 import {
   listWallFeed,
   listWallPosts,
@@ -23,7 +24,8 @@ import {
   shareWallPost,
   reactWallPost,
   pinWallPost,
-  getProfile
+  getProfile,
+  listTrendingPosts
 } from '../utils/api.js';
 
 export default function Wall() {
@@ -46,6 +48,10 @@ export default function Wall() {
   const [tags, setTags] = useState('');
   const [profile, setProfile] = useState(null);
   const [authorProfiles, setAuthorProfiles] = useState({});
+  const [trendingPosts, setTrendingPosts] = useState([]);
+  const [trendingAuthors, setTrendingAuthors] = useState({});
+  const [trendingComments, setTrendingComments] = useState({});
+  const [menuOpen, setMenuOpen] = useState(null);
 
   useEffect(() => {
     if (id) {
@@ -55,6 +61,23 @@ export default function Wall() {
       listWallFeed(telegramId).then(setPosts);
     }
   }, [telegramId, id]);
+
+  useEffect(() => {
+    listTrendingPosts().then(setTrendingPosts);
+  }, []);
+
+  useEffect(() => {
+    const unique = [...new Set(trendingPosts.map((p) => p.author))].filter(
+      (a) => !trendingAuthors[a]
+    );
+    unique.forEach((aid) => {
+      getProfile(aid)
+        .then((prof) =>
+          setTrendingAuthors((prev) => ({ ...prev, [aid]: prof }))
+        )
+        .catch(() => {});
+    });
+  }, [trendingPosts]);
 
   useEffect(() => {
     const uniqueAuthors = [
@@ -124,6 +147,33 @@ export default function Wall() {
     setPosts(data);
   }
 
+  async function refreshTrending() {
+    const data = await listTrendingPosts();
+    setTrendingPosts(data);
+  }
+
+  async function handleTrendingLike(id) {
+    await likeWallPost(id, telegramId);
+    refreshTrending();
+  }
+
+  async function handleTrendingComment(id) {
+    if (!trendingComments[id]) return;
+    await commentWallPost(id, telegramId, trendingComments[id]);
+    setTrendingComments({ ...trendingComments, [id]: '' });
+    refreshTrending();
+  }
+
+  async function handleTrendingShare(id) {
+    await shareWallPost(id, telegramId);
+    refreshTrending();
+  }
+
+  async function handleTrendingReact(id, emoji) {
+    await reactWallPost(id, telegramId, emoji);
+    refreshTrending();
+  }
+
   function shareOn(platform, post) {
     const url = `${window.location.origin}/wall/${post.owner}?post=${post._id}`;
     const text = post.text || '';
@@ -155,8 +205,11 @@ export default function Wall() {
         <Link to="/friends#leaderboard" className="hover:underline">
           Leaderboard
         </Link>
-        <Link to="/trending" className="hover:underline">
+        <Link to="/wall#trending" className="hover:underline">
           Trending
+        </Link>
+        <Link to="/wall#alerts" className="hover:underline">
+          Alerts
         </Link>
       </div>
       {!idParam && (
@@ -226,18 +279,33 @@ export default function Wall() {
                   </div>
                 </div>
               </div>
-              <div className="flex items-center space-x-2">
+              <div className="flex items-center space-x-2 relative">
                 {p.pinned && <span title="Pinned">📌</span>}
-                {p.owner === telegramId ? (
-                  <button
-                    onClick={() => handlePin(p._id, !p.pinned)}
-                    className="text-subtext hover:text-accent"
-                    title={p.pinned ? 'Unpin post' : 'Pin post'}
-                  >
-                    <AiOutlineMore className="w-5 h-5" />
-                  </button>
-                ) : (
-                  <AiOutlineMore className="w-5 h-5 text-subtext" />
+                {p.owner === telegramId && (
+                  <>
+                    <button
+                      onClick={() =>
+                        setMenuOpen(menuOpen === p._id ? null : p._id)
+                      }
+                      className="text-subtext hover:text-accent"
+                      title="Post options"
+                    >
+                      <AiOutlineMore className="w-5 h-5" />
+                    </button>
+                    {menuOpen === p._id && (
+                      <div className="absolute right-0 mt-1 bg-surface border border-border rounded shadow z-10">
+                        <button
+                          onClick={() => {
+                            handlePin(p._id, !p.pinned);
+                            setMenuOpen(null);
+                          }}
+                          className="block px-2 py-1 hover:bg-accent rounded text-left w-full"
+                        >
+                          {p.pinned ? 'Unpin Post' : 'Pin Post'}
+                        </button>
+                      </div>
+                    )}
+                  </>
                 )}
               </div>
             </div>
@@ -335,6 +403,137 @@ export default function Wall() {
           </div>
         ))}
       </div>
+
+      <section id="alerts" className="space-y-2">
+        <h3 className="text-lg font-semibold flex items-center space-x-2">
+          <NotificationBell />
+          <span>Alerts</span>
+        </h3>
+        <p>Your interactions are sent to you directly via Telegram.</p>
+      </section>
+
+      <section id="trending" className="space-y-2">
+        <h3 className="text-lg font-semibold">Trending Posts</h3>
+        <div className="space-y-2">
+          {trendingPosts.map((p) => (
+            <div key={p._id} className="border border-border rounded p-3 space-y-2 bg-surface">
+              <div className="flex items-center space-x-2">
+                <img
+                  src={trendingAuthors[p.author]?.photo || '/assets/icons/profile.svg'}
+                  alt={`Avatar of ${
+                    trendingAuthors[p.author]?.nickname ||
+                    trendingAuthors[p.author]?.firstName ||
+                    'User'
+                  }`}
+                  className="w-8 h-8 rounded-full border border-accent"
+                />
+                <div>
+                  <div className="text-sm font-semibold">
+                    {trendingAuthors[p.author]?.nickname ||
+                      trendingAuthors[p.author]?.firstName ||
+                      'User'}
+                  </div>
+                  <div className="text-xs text-subtext">
+                    {new Date(p.createdAt).toLocaleString()} · {p.views || 0} views
+                  </div>
+                </div>
+              </div>
+
+              {p.text && (
+                <ReactMarkdown className="prose prose-invert break-words">
+                  {p.text}
+                </ReactMarkdown>
+              )}
+              {p.photo && (
+                <img
+                  src={p.photo}
+                  alt={p.photoAlt || 'post image'}
+                  className="max-w-full rounded"
+                />
+              )}
+              {p.tags?.length > 0 && (
+                <div className="flex flex-wrap gap-1">
+                  {p.tags.map((t, idx) => (
+                    <span key={idx} className="bg-accent text-xs px-1 rounded">#{t}</span>
+                  ))}
+                </div>
+              )}
+
+              <div className="flex items-center space-x-4 text-sm pt-2 border-t border-border">
+                <button
+                  className="flex items-center space-x-1 hover:text-accent"
+                  onClick={() => handleTrendingLike(p._id)}
+                >
+                  <AiFillHeart />
+                  <span>{p.likes?.length || 0}</span>
+                </button>
+                <button
+                  className="flex items-center space-x-1 hover:text-accent"
+                  onClick={() => handleTrendingShare(p._id)}
+                >
+                  <AiOutlineShareAlt />
+                </button>
+                <button
+                  className="flex items-center space-x-1 hover:text-accent"
+                  onClick={() => shareOn('telegram', p)}
+                >
+                  <FaTelegramPlane />
+                </button>
+                <button
+                  className="flex items-center space-x-1 hover:text-accent"
+                  onClick={() => shareOn('twitter', p)}
+                >
+                  <FaTwitter />
+                </button>
+                <button
+                  className="flex items-center space-x-1 hover:text-accent"
+                  onClick={() => shareOn('facebook', p)}
+                >
+                  <FaFacebook />
+                </button>
+              </div>
+
+              <div className="flex space-x-2 pt-1">
+                {EMOJIS.map((e) => (
+                  <button
+                    key={e}
+                    onClick={() => handleTrendingReact(p._id, e)}
+                    className="hover:opacity-80"
+                  >
+                    {e} {p.reactions?.[e]?.length || 0}
+                  </button>
+                ))}
+              </div>
+
+              <div className="space-y-1">
+                {p.comments?.map((c, idx) => (
+                  <div key={idx} className="text-sm">
+                    <span className="font-semibold">{c.author}:</span> {c.text}
+                  </div>
+                ))}
+              </div>
+              <div className="flex space-x-2">
+                <input
+                  type="text"
+                  value={trendingComments[p._id] || ''}
+                  onChange={(e) =>
+                    setTrendingComments({ ...trendingComments, [p._id]: e.target.value })
+                  }
+                  className="flex-1 border border-border rounded px-2 py-1 bg-surface text-sm"
+                  placeholder="Comment..."
+                />
+                <button
+                  onClick={() => handleTrendingComment(p._id)}
+                  className="px-2 py-1 bg-primary hover:bg-primary-hover rounded text-sm"
+                >
+                  <AiOutlineComment className="inline" />
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      </section>
+
       <InboxWidget />
     </div>
   );
