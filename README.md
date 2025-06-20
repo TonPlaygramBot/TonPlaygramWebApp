@@ -37,7 +37,7 @@
 
 ### The Wall
 
-Users can share photos and messages on **The Wall**. Posts support likes, comments and sharing. Friends see your updates and receive Telegram notifications when they interact with them.
+Users can share photos and messages on **The Wall**. Posts support likes, comments and sharing. You can also attach images up to about 10&nbsp;MB and repost to Telegram, Twitter or Facebook. Friends see your updates and receive Telegram notifications when they interact with them.
 
 ### Using an HTTPS proxy
 
