@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import { withProxy } from '../utils/proxyAgent.js';
 
 import User from '../models/User.js';
 
@@ -54,9 +55,8 @@ router.post('/ton-balance', authenticate, async (req, res) => {
   try {
 
     const resp = await fetch(
-
-      `https://toncenter.com/api/v2/getAddressBalance?address=${address}`
-
+      `https://toncenter.com/api/v2/getAddressBalance?address=${address}`,
+      withProxy()
     );
 
     const data = await resp.json();

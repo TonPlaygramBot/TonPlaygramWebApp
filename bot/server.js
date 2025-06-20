@@ -2,6 +2,7 @@ import dotenv from 'dotenv';
 import express from 'express';
 import bot from './bot.js';
 import mongoose from 'mongoose';
+import { proxyUrl, proxyAgent } from './utils/proxyAgent.js';
 import http from 'http';
 import { Server as SocketIOServer } from 'socket.io';
 import { GameRoomManager } from './gameEngine.js';
@@ -22,6 +23,10 @@ import compression from 'compression';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 dotenv.config({ path: path.join(__dirname, '.env') });
+
+if (proxyUrl) {
+  console.log(`Using HTTPS proxy ${proxyUrl}`);
+}
 
 if (!process.env.MONGODB_URI) {
   process.env.MONGODB_URI = 'memory';
