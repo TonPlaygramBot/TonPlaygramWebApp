@@ -42,6 +42,7 @@ export default function App() {
           <Route path="/wallet" element={<Wallet />} />
           <Route path="/messages" element={<Messages />} />
           <Route path="/wall" element={<Wall />} />
+          <Route path="/wall/:id" element={<Wall />} />
           <Route path="/account" element={<MyAccount />} />
         </Routes>
       </Layout>
