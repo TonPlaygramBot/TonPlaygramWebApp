@@ -1,6 +1,12 @@
 import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { FaTelegramPlane, FaTwitter, FaFacebook } from 'react-icons/fa';
+import {
+  AiFillHeart,
+  AiOutlineShareAlt,
+  AiOutlineComment,
+  AiOutlineMore
+} from 'react-icons/ai';
 import useTelegramBackButton from '../hooks/useTelegramBackButton.js';
 import OpenInTelegram from '../components/OpenInTelegram.jsx';
 import { getTelegramId } from '../utils/telegram.js';
@@ -32,6 +38,7 @@ export default function Wall() {
   const [commentText, setCommentText] = useState({});
   const [tags, setTags] = useState('');
   const [profile, setProfile] = useState(null);
+  const [authorProfiles, setAuthorProfiles] = useState({});
 
   useEffect(() => {
     if (id) {
@@ -41,6 +48,19 @@ export default function Wall() {
       listWallFeed(telegramId).then(setPosts);
     }
   }, [telegramId, id]);
+
+  useEffect(() => {
+    const uniqueAuthors = [
+      ...new Set(posts.map((p) => p.author))
+    ].filter((a) => !authorProfiles[a]);
+    uniqueAuthors.forEach((aid) => {
+      getProfile(aid)
+        .then((prof) =>
+          setAuthorProfiles((prev) => ({ ...prev, [aid]: prof }))
+        )
+        .catch(() => {});
+    });
+  }, [posts]);
 
   async function handlePost() {
     if (!text && !photo) return;
@@ -148,11 +168,29 @@ export default function Wall() {
       )}
       <div className="space-y-2">
         {posts.map((p) => (
-          <div key={p._id} className="border border-border rounded p-2 space-y-1">
-            <div className="text-sm text-subtext">
-              {new Date(p.createdAt).toLocaleString()}
+          <div key={p._id} className="border border-border rounded p-3 space-y-2 bg-surface">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-2">
+                <img
+                  src={authorProfiles[p.author]?.photo || '/assets/icons/profile.svg'}
+                  alt="avatar"
+                  className="w-8 h-8 rounded-full border border-accent"
+                />
+                <div>
+                  <div className="text-sm font-semibold">
+                    {authorProfiles[p.author]?.nickname ||
+                      authorProfiles[p.author]?.firstName ||
+                      'User'}
+                  </div>
+                  <div className="text-xs text-subtext">
+                    {new Date(p.createdAt).toLocaleString()}
+                  </div>
+                </div>
+              </div>
+              <AiOutlineMore className="w-5 h-5 text-subtext" />
             </div>
-            {p.text && <div>{p.text}</div>}
+
+            {p.text && <div className="whitespace-pre-wrap">{p.text}</div>}
             {p.photo && (
               <img src={p.photo} alt="post" className="max-w-full rounded" />
             )}
@@ -163,13 +201,41 @@ export default function Wall() {
                 ))}
               </div>
             )}
-            <div className="flex space-x-2 text-sm">
-              <button onClick={() => handleLike(p._id)}>Like ({p.likes?.length || 0})</button>
-              <button onClick={() => handleShare(p._id)}>Repost</button>
-              <FaTelegramPlane className="cursor-pointer" onClick={() => shareOn('telegram', p)} />
-              <FaTwitter className="cursor-pointer" onClick={() => shareOn('twitter', p)} />
-              <FaFacebook className="cursor-pointer" onClick={() => shareOn('facebook', p)} />
+
+            <div className="flex items-center space-x-4 text-sm pt-2 border-t border-border">
+              <button
+                className="flex items-center space-x-1 hover:text-accent"
+                onClick={() => handleLike(p._id)}
+              >
+                <AiFillHeart />
+                <span>{p.likes?.length || 0}</span>
+              </button>
+              <button
+                className="flex items-center space-x-1 hover:text-accent"
+                onClick={() => handleShare(p._id)}
+              >
+                <AiOutlineShareAlt />
+              </button>
+              <button
+                className="flex items-center space-x-1 hover:text-accent"
+                onClick={() => shareOn('telegram', p)}
+              >
+                <FaTelegramPlane />
+              </button>
+              <button
+                className="flex items-center space-x-1 hover:text-accent"
+                onClick={() => shareOn('twitter', p)}
+              >
+                <FaTwitter />
+              </button>
+              <button
+                className="flex items-center space-x-1 hover:text-accent"
+                onClick={() => shareOn('facebook', p)}
+              >
+                <FaFacebook />
+              </button>
             </div>
+
             <div className="space-y-1">
               {p.comments?.map((c, idx) => (
                 <div key={idx} className="text-sm">
@@ -191,7 +257,7 @@ export default function Wall() {
                 onClick={() => handleComment(p._id)}
                 className="px-2 py-1 bg-primary hover:bg-primary-hover rounded text-sm"
               >
-                Send
+                <AiOutlineComment className="inline" />
               </button>
             </div>
           </div>
