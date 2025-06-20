@@ -189,18 +189,13 @@ function Board({
 
   // When the player moves beyond the first two rows, keep the
   // camera locked to the same relative frame by scrolling the
-  // container instead of changing angle or zoom. Stop following
-  // once row nine is reached.
+  // container instead of changing angle or zoom.
   useEffect(() => {
     const container = containerRef.current;
     if (!container) return;
     const row = Math.floor((position - 1) / COLS);
     if (row < 2) {
       container.scrollTop = container.scrollHeight - container.clientHeight;
-      return;
-    }
-    if (row > 8) {
-      // past the ninth row keep the board static
       return;
     }
     const cell = container.querySelector(`[data-cell="${position}"]`);
@@ -389,8 +384,7 @@ export default function SnakeAndLadder() {
       : values;
 
     setRollResult(value);
-    // Show the rolled value for 2 seconds instead of 2.5s
-    setTimeout(() => setRollResult(null), 2000);
+    setTimeout(() => setRollResult(null), 2500);
 
     setTimeout(() => {
       setDiceVisible(false);
@@ -510,8 +504,7 @@ export default function SnakeAndLadder() {
     };
 
     moveSeq(steps, 'normal', () => applyEffect(target));
-  // Start applying the move after the dice result has been shown
-  }, 2000);
+  }, 2500);
   };
 
   return (
