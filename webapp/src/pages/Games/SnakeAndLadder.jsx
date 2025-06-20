@@ -342,6 +342,7 @@ export default function SnakeAndLadder() {
   const snakeSoundRef = useRef(null);
   const ladderSoundRef = useRef(null);
   const winSoundRef = useRef(null);
+  const diceRewardSoundRef = useRef(null);
 
   useEffect(() => {
     const id = getTelegramId();
@@ -363,11 +364,13 @@ export default function SnakeAndLadder() {
       "https://snakes-and-ladders-game.netlify.app/audio/ladder.mp3",
     );
     winSoundRef.current = new Audio("/assets/sounds/successful.mp3");
+    diceRewardSoundRef.current = new Audio("/assets/sounds/successful.mp3");
     return () => {
       moveSoundRef.current?.pause();
       snakeSoundRef.current?.pause();
       ladderSoundRef.current?.pause();
       winSoundRef.current?.pause();
+      diceRewardSoundRef.current?.pause();
     };
   }, []);
 
@@ -560,8 +563,10 @@ export default function SnakeAndLadder() {
         setMessageColor('');
         winSoundRef.current?.play().catch(() => {});
         setCelebrate(true);
-        setTimeout(() => setCelebrate(false), 1500);
-        setGameOver(true);
+        setTimeout(() => {
+          setCelebrate(false);
+          setGameOver(true);
+        }, 1500);
       }
       if (diceCells[finalPos]) {
         const bonus = diceCells[finalPos];
@@ -572,6 +577,7 @@ export default function SnakeAndLadder() {
         });
         setBonusDice(bonus);
         setTurnMessage(`Bonus roll +${bonus}`);
+        diceRewardSoundRef.current?.play().catch(() => {});
       } else {
         setTurnMessage('Your turn');
         setBonusDice(0);

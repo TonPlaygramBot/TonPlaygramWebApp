@@ -236,7 +236,8 @@ body {
   width: 2.9rem;
   height: 2.9rem;
   top: 50%;
-  left: 52%;
+  /* shift photo slightly left so it aligns better */
+  left: 50%;
   /* Nudge the photo slightly forward so it stands out */
   transform: translate(-50%, -50%) translateZ(15.2px) rotateX(20deg);
   object-fit: cover;
@@ -477,7 +478,8 @@ body {
   height: 12rem;
   top: 40%;
   left: 50%;
-  transform: translate(-50%, -50%) translateZ(20px) rotateX(10deg);
+  transform: translate(-50%, -50%) translateZ(20px) rotateX(10deg) rotateY(0deg);
+  animation: pot-spin 6s linear infinite;
   object-fit: contain;
   pointer-events: none;
   z-index: 1;
@@ -647,6 +649,15 @@ body {
   to {
     transform: translate(-50%, -50%)
       rotateX(calc(var(--board-angle, 60deg) * -1)) rotateY(360deg);
+  }
+}
+
+@keyframes pot-spin {
+  from {
+    transform: translate(-50%, -50%) translateZ(20px) rotateX(10deg) rotateY(0deg);
+  }
+  to {
+    transform: translate(-50%, -50%) translateZ(20px) rotateX(10deg) rotateY(360deg);
   }
 }
 
