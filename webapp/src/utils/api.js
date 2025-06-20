@@ -283,3 +283,7 @@ export function reactWallPost(postId, telegramId, emoji) {
 export function pinWallPost(postId, telegramId, pinned) {
   return post('/api/social/wall/pin', { postId, telegramId, pinned });
 }
+
+export function listTrendingPosts(limit = 20) {
+  return post('/api/social/wall/trending', { limit });
+}
