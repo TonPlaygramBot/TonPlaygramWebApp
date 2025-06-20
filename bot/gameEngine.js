@@ -169,6 +169,14 @@ export class GameRoom {
         player.position = final;
         this.io.to(this.id).emit('snakeOrLadder', { playerId: player.playerId, from: to, to: final });
       }
+      // Check if landing on another player
+      for (const other of this.players) {
+        if (other !== player && other.position === player.position && !other.disconnected) {
+          other.position = 0;
+          other.isActive = false;
+          this.io.to(this.id).emit('playerReset', { playerId: other.playerId });
+        }
+      }
     }
 
     if (player.position === FINAL_TILE) {

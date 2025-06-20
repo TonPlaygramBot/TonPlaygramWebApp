@@ -238,7 +238,7 @@ body {
   top: 50%;
   left: 52%;
   /* Nudge the photo slightly forward so it stands out */
-  transform: translate(-50%, -50%) translateZ(15.2px) rotateX(15deg);
+  transform: translate(-50%, -50%) translateZ(15.2px) rotateX(20deg);
   object-fit: cover;
   border-radius: 50%;
   border: 2px solid #ffd700;
@@ -642,11 +642,11 @@ body {
 @keyframes hex-spin {
   from {
     transform: translate(-50%, -50%)
-      rotateX(calc(var(--board-angle, 60deg) * -1)) rotateZ(0deg);
+      rotateX(calc(var(--board-angle, 60deg) * -1)) rotateY(0deg);
   }
   to {
     transform: translate(-50%, -50%)
-      rotateX(calc(var(--board-angle, 60deg) * -1)) rotateZ(360deg);
+      rotateX(calc(var(--board-angle, 60deg) * -1)) rotateY(360deg);
   }
 }
 
