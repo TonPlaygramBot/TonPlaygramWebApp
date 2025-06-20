@@ -5,7 +5,8 @@ import {
   AiOutlineUser,
   AiOutlineShop,
   AiOutlineMail,
-  AiOutlinePicture
+  AiOutlinePicture,
+  AiOutlineBell
 } from 'react-icons/ai';
 import NavItem from './NavItem.jsx';
 
@@ -16,6 +17,7 @@ export default function Navbar() {
         <NavItem to="/" icon={AiOutlineHome} label="Home" />
         <NavItem to="/wall" icon={AiOutlinePicture} label="The Wall" />
         <NavItem to="/messages" icon={AiOutlineMail} label="Inbox" />
+        <NavItem to="/notifications" icon={AiOutlineBell} label="Alerts" />
         <NavItem to="/games" icon={AiOutlinePlayCircle} label="Games" />
         <NavItem to="/tasks" icon={AiOutlineCheckSquare} label="Tasks" />
         <NavItem to="/store" icon={AiOutlineShop} label="Store" />
