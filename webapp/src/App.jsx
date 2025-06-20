@@ -8,6 +8,7 @@ import Tasks from './pages/Tasks.jsx';
 import Referral from './pages/Referral.jsx';
 import MyAccount from './pages/MyAccount.jsx';
 import Store from './pages/Store.jsx';
+import Messages from './pages/Messages.jsx';
 
 import LudoGame from './pages/Games/LudoGame.jsx';
 import HorseRacing from './pages/Games/HorseRacing.jsx';
@@ -38,6 +39,7 @@ export default function App() {
           <Route path="/store" element={<Store />} />
           <Route path="/referral" element={<Referral />} />
           <Route path="/wallet" element={<Wallet />} />
+          <Route path="/messages" element={<Messages />} />
           <Route path="/account" element={<MyAccount />} />
         </Routes>
       </Layout>

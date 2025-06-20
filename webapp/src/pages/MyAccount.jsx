@@ -145,6 +145,14 @@ export default function MyAccount() {
           >
             Change Avatar
           </button>
+          <div className="mt-2 space-x-2">
+            <a href="/friends" className="underline text-primary">
+              Friends
+            </a>
+            <a href="/messages" className="underline text-primary">
+              Inbox
+            </a>
+          </div>
         </div>
       </div>
 

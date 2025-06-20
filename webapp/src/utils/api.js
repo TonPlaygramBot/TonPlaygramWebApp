@@ -207,3 +207,31 @@ export function getSnakeBoard(id) {
 export function registerWallet(walletAddress) {
   return post('/api/profile/register-wallet', { walletAddress });
 }
+
+export function searchUsers(query) {
+  return post('/api/social/search', { query });
+}
+
+export function sendFriendRequest(fromId, toId) {
+  return post('/api/social/request', { fromId, toId });
+}
+
+export function listFriendRequests(telegramId) {
+  return post('/api/social/requests', { telegramId });
+}
+
+export function acceptFriendRequest(requestId) {
+  return post('/api/social/accept', { requestId });
+}
+
+export function listFriends(telegramId) {
+  return post('/api/social/friends', { telegramId });
+}
+
+export function sendMessage(fromId, toId, text) {
+  return post('/api/social/send-message', { fromId, toId, text });
+}
+
+export function getMessages(userId, withId) {
+  return post('/api/social/messages', { userId, withId });
+}

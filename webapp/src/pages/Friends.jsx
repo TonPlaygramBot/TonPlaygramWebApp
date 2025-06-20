@@ -2,7 +2,15 @@ import { useEffect, useState } from 'react';
 import useTelegramBackButton from '../hooks/useTelegramBackButton.js';
 import OpenInTelegram from '../components/OpenInTelegram.jsx';
 import { getTelegramId, getTelegramPhotoUrl } from '../utils/telegram.js';
-import { getLeaderboard, getReferralInfo, fetchTelegramInfo, getProfile } from '../utils/api.js';
+import {
+  getLeaderboard,
+  getReferralInfo,
+  fetchTelegramInfo,
+  getProfile,
+  listFriendRequests,
+  acceptFriendRequest
+} from '../utils/api.js';
+import UserSearchBar from '../components/UserSearchBar.jsx';
 import { BOT_USERNAME } from '../utils/constants.js';
 
 export default function Friends() {
@@ -18,6 +26,7 @@ export default function Friends() {
   const [leaderboard, setLeaderboard] = useState([]);
   const [rank, setRank] = useState(null);
   const [myPhotoUrl, setMyPhotoUrl] = useState(getTelegramPhotoUrl());
+  const [friendRequests, setFriendRequests] = useState([]);
 
   useEffect(() => {
     getReferralInfo(telegramId).then(setReferral);
@@ -25,6 +34,7 @@ export default function Friends() {
       setLeaderboard(data.users);
       setRank(data.rank);
     });
+    listFriendRequests(telegramId).then(setFriendRequests);
 
     getProfile(telegramId)
       .then((p) => {
@@ -62,6 +72,31 @@ export default function Friends() {
   return (
     <div className="p-4 space-y-4 text-text">
       <h2 className="text-xl font-bold">Friends</h2>
+
+      <section className="space-y-1">
+        <h3 className="text-lg font-semibold">Add Friends</h3>
+        <UserSearchBar />
+      </section>
+
+      {friendRequests.length > 0 && (
+        <section className="space-y-1">
+          <h3 className="text-lg font-semibold">Friend Requests</h3>
+          {friendRequests.map((fr) => (
+            <div key={fr._id} className="flex items-center space-x-2">
+              <span>{fr.from}</span>
+              <button
+                onClick={async () => {
+                  await acceptFriendRequest(fr._id);
+                  listFriendRequests(telegramId).then(setFriendRequests);
+                }}
+                className="px-2 py-1 text-sm bg-primary hover:bg-primary-hover rounded"
+              >
+                Accept
+              </button>
+            </div>
+          ))}
+        </section>
+      )}
 
       <section className="space-y-1">
         <h3 className="text-lg font-semibold">Friends</h3>
