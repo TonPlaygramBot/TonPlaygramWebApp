@@ -643,24 +643,13 @@ body {
   pointer-events: none;
   /* Lay flat on the board using the same angle */
   transform: translate(-50%, -50%) translateZ(2px)
-    rotateX(calc(var(--board-angle, 60deg) * -1));
+    rotateX(calc(var(--board-angle, 60deg) * -1))
+    rotateY(var(--token-rotation, 30deg));
   z-index: 0;
-  animation: hex-spin 10s linear infinite;
 }
 
 .token-hexagon.step {
   background-color: #4b5563; /* dark gray */
-}
-
-@keyframes hex-spin {
-  from {
-    transform: translate(-50%, -50%)
-      rotateX(calc(var(--board-angle, 60deg) * -1)) rotateY(0deg);
-  }
-  to {
-    transform: translate(-50%, -50%)
-      rotateX(calc(var(--board-angle, 60deg) * -1)) rotateY(360deg);
-  }
 }
 
 @keyframes pot-spin {
