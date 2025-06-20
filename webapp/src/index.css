@@ -237,13 +237,15 @@ body {
   height: 2.9rem;
   top: 50%;
   left: 50%;
-  /* Align the photo with the top face of the token */
+  transform-origin: bottom center;
+  /* Align the photo with the top face of the token and tilt upward */
   transform: translate(-50%, -50%) translateZ(15.2px)
-    rotateX(calc(var(--board-angle, 60deg) * -1))
+    rotateX(calc(var(--board-angle, 60deg) * -1 - 15deg))
     rotateY(var(--token-rotation, 0rad));
   object-fit: cover;
   border-radius: 50%;
   border: 2px solid #ffd700;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.4);
   pointer-events: none;
   z-index: 1;
 }
