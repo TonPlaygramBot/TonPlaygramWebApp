@@ -643,7 +643,8 @@ body {
   pointer-events: none;
   /* Lay flat on the board using the same angle */
   transform: translate(-50%, -50%) translateZ(2px)
-    rotateX(calc(var(--board-angle, 60deg) * -1));
+    rotateX(calc(var(--board-angle, 60deg) * -1)) rotateY(0deg);
+  animation: hex-spin 6s linear infinite;
   z-index: 0;
 }
 
@@ -659,6 +660,17 @@ body {
   to {
     transform: translate(-50%, -50%) translateZ(20px)
       rotateX(calc(var(--board-angle, 60deg) * -1 - 10deg)) rotateY(360deg);
+  }
+}
+
+@keyframes hex-spin {
+  from {
+    transform: translate(-50%, -50%) translateZ(2px)
+      rotateX(calc(var(--board-angle, 60deg) * -1)) rotateY(0deg);
+  }
+  to {
+    transform: translate(-50%, -50%) translateZ(2px)
+      rotateX(calc(var(--board-angle, 60deg) * -1)) rotateY(360deg);
   }
 }
 
