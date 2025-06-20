@@ -115,10 +115,11 @@ export default function MyAccount() {
       <AvatarPickerModal
         open={showAvatarPicker}
         onClose={() => setShowAvatarPicker(false)}
-        onSelect={async (src) => {
+        onSave={async (src) => {
           const updated = await updateProfile({ telegramId, photo: src });
           setProfile(updated);
           setShowAvatarPicker(false);
+          window.dispatchEvent(new Event('profilePhotoUpdated'));
         }}
       />
       {autoUpdating && (

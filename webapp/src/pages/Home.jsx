@@ -46,6 +46,17 @@ export default function Home() {
       .catch(() => {
         setPhotoUrl(getTelegramPhotoUrl());
       });
+
+    const handleUpdate = () => {
+      const id = getTelegramId();
+      getProfile(id)
+        .then((p) => {
+          setPhotoUrl(p?.photo || getTelegramPhotoUrl());
+        })
+        .catch(() => setPhotoUrl(getTelegramPhotoUrl()));
+    };
+    window.addEventListener('profilePhotoUpdated', handleUpdate);
+    return () => window.removeEventListener('profilePhotoUpdated', handleUpdate);
   }, []);
 
   return (

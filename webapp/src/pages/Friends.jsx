@@ -45,6 +45,16 @@ export default function Friends() {
       });
   }, [telegramId]);
 
+  useEffect(() => {
+    const updatePhoto = () => {
+      getProfile(telegramId)
+        .then((p) => setMyPhotoUrl(p?.photo || getTelegramPhotoUrl()))
+        .catch(() => setMyPhotoUrl(getTelegramPhotoUrl()));
+    };
+    window.addEventListener('profilePhotoUpdated', updatePhoto);
+    return () => window.removeEventListener('profilePhotoUpdated', updatePhoto);
+  }, [telegramId]);
+
   if (!referral) return <div className="p-4">Loading...</div>;
 
   const link = `https://t.me/${BOT_USERNAME}?start=${referral.code}`;
