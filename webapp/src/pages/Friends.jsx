@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import useTelegramBackButton from '../hooks/useTelegramBackButton.js';
 import OpenInTelegram from '../components/OpenInTelegram.jsx';
 import { getTelegramId, getTelegramPhotoUrl } from '../utils/telegram.js';
-import { getLeaderboard, getReferralInfo, fetchTelegramInfo } from '../utils/api.js';
+import { getLeaderboard, getReferralInfo, fetchTelegramInfo, getProfile } from '../utils/api.js';
 import { BOT_USERNAME } from '../utils/constants.js';
 
 export default function Friends() {
@@ -25,11 +25,24 @@ export default function Friends() {
       setLeaderboard(data.users);
       setRank(data.rank);
     });
-    if (!myPhotoUrl) {
-      fetchTelegramInfo(telegramId).then((info) => {
-        if (info?.photoUrl) setMyPhotoUrl(info.photoUrl);
+
+    getProfile(telegramId)
+      .then((p) => {
+        if (p?.photo) {
+          setMyPhotoUrl(p.photo);
+        } else if (!myPhotoUrl) {
+          fetchTelegramInfo(telegramId).then((info) => {
+            if (info?.photoUrl) setMyPhotoUrl(info.photoUrl);
+          });
+        }
+      })
+      .catch(() => {
+        if (!myPhotoUrl) {
+          fetchTelegramInfo(telegramId).then((info) => {
+            if (info?.photoUrl) setMyPhotoUrl(info.photoUrl);
+          });
+        }
       });
-    }
   }, [telegramId]);
 
   if (!referral) return <div className="p-4">Loading...</div>;
