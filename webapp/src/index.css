@@ -634,16 +634,16 @@ body {
 
 .token-hexagon {
   position: absolute;
-  width: 2.5rem;
-  height: 2.5rem;
+  width: 2.9rem;
+  height: 2.9rem;
   background-color: #fde047;
   clip-path: polygon(25% 5%, 75% 5%, 100% 50%, 75% 95%, 25% 95%, 0% 50%);
   left: 50%;
   top: 50%;
   pointer-events: none;
-  /* Match the board angle so the hexagon lays flat */
-  transform: translate(-50%, -50%) translateZ(2px)
-    rotateX(var(--board-angle, 60deg)) rotateY(0deg);
+  /* Align with the token photo but sit just underneath */
+  transform: translate(-50%, -50%) translateZ(14.2px)
+    rotateX(calc(var(--board-angle, 60deg) * -1 - 10deg)) rotateY(0deg);
   animation: hex-spin 6s linear infinite;
   z-index: 0;
 }
@@ -665,12 +665,12 @@ body {
 
 @keyframes hex-spin {
   from {
-    transform: translate(-50%, -50%) translateZ(2px)
-      rotateX(var(--board-angle, 60deg)) rotateY(0deg);
+    transform: translate(-50%, -50%) translateZ(14.2px)
+      rotateX(calc(var(--board-angle, 60deg) * -1 - 10deg)) rotateY(0deg);
   }
   to {
-    transform: translate(-50%, -50%) translateZ(2px)
-      rotateX(var(--board-angle, 60deg)) rotateY(360deg);
+    transform: translate(-50%, -50%) translateZ(14.2px)
+      rotateX(calc(var(--board-angle, 60deg) * -1 - 10deg)) rotateY(360deg);
   }
 }
 
