@@ -118,7 +118,7 @@ body {
 }
 
 .board-cell {
-  @apply relative flex items-center justify-center rounded-xl text-text bg-surface border-2 border-accent;
+  @apply relative flex items-center justify-center rounded-xl text-text border-2 border-accent;
   /* Removed dark drop shadow that created a black frame around dice */
   box-shadow: none;
   transform: translateZ(5px);
@@ -126,6 +126,14 @@ body {
   overflow: visible;
   width: var(--cell-width);
   height: var(--cell-height);
+}
+
+.board-dark {
+  background-color: #0b0f19; /* homepage dark blue */
+}
+
+.board-light {
+  background-color: #11172a; /* lighter dark blue */
 }
 
 .board-cell::after {
@@ -414,12 +422,9 @@ body {
 }
 
 /* Indicate ladder or snake on the board */
-.board-cell.ladder-cell {
-  background-color: #86efac; /* green-300 */
-}
-
+.board-cell.ladder-cell,
 .board-cell.snake-cell {
-  background-color: #fca5a5; /* red-300 */
+  background-color: inherit;
 }
 
 .cell-marker {
@@ -448,6 +453,8 @@ body {
 .cell-number {
   position: relative;
   z-index: 1;
+  color: #ffffff;
+  font-weight: bold;
 }
 
 .board-cell.snake-cell .cell-number,
