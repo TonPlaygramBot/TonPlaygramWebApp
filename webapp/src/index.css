@@ -387,11 +387,24 @@ body {
   background-color: #fde047; /* yellow-300 */
 }
 
+.board-cell.ladder-cell.normal-highlight,
+.board-cell.snake-cell.normal-highlight {
+  background-color: #fde047; /* yellow-300 */
+}
+
 .board-cell.ladder-highlight {
   background-color: #86efac; /* green-300 */
 }
 
 .board-cell.snake-highlight {
+  background-color: #fca5a5; /* red-300 */
+}
+
+.board-cell.ladder-cell.ladder-highlight {
+  background-color: #86efac; /* green-300 */
+}
+
+.board-cell.snake-cell.snake-highlight {
   background-color: #fca5a5; /* red-300 */
 }
 
