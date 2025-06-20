@@ -480,7 +480,9 @@ body {
   height: 12rem;
   top: 40%;
   left: 50%;
-  transform: translate(-50%, -50%) translateZ(20px) rotateX(10deg) rotateY(0deg);
+  transform-origin: bottom center;
+  transform: translate(-50%, -50%) translateZ(20px)
+    rotateX(calc(var(--board-angle, 60deg) * -1 - 10deg)) rotateY(0deg);
   animation: pot-spin 6s linear infinite;
   object-fit: contain;
   pointer-events: none;
@@ -658,10 +660,12 @@ body {
 
 @keyframes pot-spin {
   from {
-    transform: translate(-50%, -50%) translateZ(20px) rotateX(10deg) rotateY(0deg);
+    transform: translate(-50%, -50%) translateZ(20px)
+      rotateX(calc(var(--board-angle, 60deg) * -1 - 10deg)) rotateY(0deg);
   }
   to {
-    transform: translate(-50%, -50%) translateZ(20px) rotateX(10deg) rotateY(360deg);
+    transform: translate(-50%, -50%) translateZ(20px)
+      rotateX(calc(var(--board-angle, 60deg) * -1 - 10deg)) rotateY(360deg);
   }
 }
 
