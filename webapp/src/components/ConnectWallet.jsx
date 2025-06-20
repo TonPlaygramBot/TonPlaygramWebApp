@@ -1,5 +1,7 @@
 import { useEffect } from 'react';
 import { TonConnectButton, useTonWallet, useTonConnectUI } from '@tonconnect/ui-react';
+import { registerWallet } from '../utils/api.js';
+import { getTelegramId } from '../utils/telegram.js';
 
 // Simple wrapper around TonConnectButton that remembers the last connected
 // address in localStorage.
@@ -11,6 +13,11 @@ export default function ConnectWallet() {
   useEffect(() => {
     if (wallet?.account?.address) {
       localStorage.setItem('walletAddress', wallet.account.address);
+      try {
+        getTelegramId();
+      } catch {
+        registerWallet(wallet.account.address).catch(() => {});
+      }
     }
   }, [wallet]);
 
