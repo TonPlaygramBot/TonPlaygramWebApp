@@ -118,7 +118,7 @@ body {
 }
 
 .board-cell {
-  @apply relative flex items-center justify-center rounded-xl text-brand-black bg-white border-2 border-accent;
+  @apply relative flex items-center justify-center rounded-xl text-text bg-surface border-2 border-accent;
   /* Removed dark drop shadow that created a black frame around dice */
   box-shadow: none;
   transform: translateZ(5px);
@@ -388,21 +388,38 @@ body {
   box-shadow: 0 0 10px 4px rgba(250, 204, 21, 0.8);
 }
 
-.board-cell.normal-highlight,
+.board-cell.normal-highlight {
+  background-color: #fde047; /* yellow-300 */
+}
+
 .board-cell.ladder-cell.normal-highlight,
-.board-cell.snake-cell.normal-highlight,
-.board-cell.ladder-highlight,
-.board-cell.snake-highlight,
-.board-cell.ladder-cell.ladder-highlight,
+.board-cell.snake-cell.normal-highlight {
+  background-color: #fde047; /* yellow-300 */
+}
+
+.board-cell.ladder-highlight {
+  background-color: #86efac; /* green-300 */
+}
+
+.board-cell.snake-highlight {
+  background-color: #fca5a5; /* red-300 */
+}
+
+.board-cell.ladder-cell.ladder-highlight {
+  background-color: #86efac; /* green-300 */
+}
+
 .board-cell.snake-cell.snake-highlight {
-  border-color: #facc15; /* accent */
+  background-color: #fca5a5; /* red-300 */
 }
 
 /* Indicate ladder or snake on the board */
-.board-cell.ladder-cell,
+.board-cell.ladder-cell {
+  background-color: #86efac; /* green-300 */
+}
+
 .board-cell.snake-cell {
-  border-color: #facc15;
-  color: #000000;
+  background-color: #fca5a5; /* red-300 */
 }
 
 .cell-marker {
@@ -440,7 +457,7 @@ body {
 
 .board-cell.snake-cell,
 .board-cell.ladder-cell {
-  color: #000000;
+  color: #ffffff;
 }
 
 .pot-cell {
@@ -516,8 +533,6 @@ body {
   background-size: contain;
   background-repeat: no-repeat;
   background-position: center;
-  background-color: transparent;
-  mix-blend-mode: multiply;
   z-index: 5;
 }
 
