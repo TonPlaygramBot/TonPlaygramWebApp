@@ -45,6 +45,8 @@ Images in posts now include optional **alt text** descriptions for better access
 
 Posts support **markdown formatting** and emoji **reactions**. Owners can pin favourite posts so they stay at the top. Each post tracks how many times it has been viewed.
 
+The Wall now includes a **Trending** section showing the most liked posts from the last 24 hours.
+
 ### Using an HTTPS proxy
 
 If your server requires a proxy to reach external services like Tonkeeper,

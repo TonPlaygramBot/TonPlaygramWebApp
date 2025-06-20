@@ -231,6 +231,18 @@ router.post('/wall/react', async (req, res) => {
   res.json(post);
 });
 
+router.post('/wall/trending', async (req, res) => {
+  const limit = Math.max(1, Math.min(Number(req.body.limit) || 20, 50));
+  const since = new Date(Date.now() - 24 * 60 * 60 * 1000);
+  const posts = await Post.aggregate([
+    { $match: { createdAt: { $gte: since } } },
+    { $addFields: { likesCount: { $size: '$likes' } } },
+    { $sort: { likesCount: -1, createdAt: -1 } },
+    { $limit: limit }
+  ]);
+  res.json(posts);
+});
+
 router.post('/wall/pin', async (req, res) => {
   const { postId, telegramId, pinned } = req.body;
   if (!postId || !telegramId)

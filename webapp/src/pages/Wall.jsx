@@ -155,6 +155,9 @@ export default function Wall() {
         <Link to="/friends#leaderboard" className="hover:underline">
           Leaderboard
         </Link>
+        <Link to="/trending" className="hover:underline">
+          Trending
+        </Link>
       </div>
       {!idParam && (
         <div className="space-y-2">
