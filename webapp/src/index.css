@@ -236,10 +236,10 @@ body {
   width: 2.9rem;
   height: 2.9rem;
   top: 50%;
-  /* shift photo slightly left so it aligns better */
   left: 50%;
-  /* Nudge the photo slightly forward so it stands out */
-  transform: translate(-50%, -50%) translateZ(15.2px) rotateX(20deg);
+  /* Align the photo with the top face of the token */
+  transform: translate(-50%, -50%) translateZ(15.2px)
+    rotateX(calc(var(--board-angle, 60deg) * -1));
   object-fit: cover;
   border-radius: 50%;
   border: 2px solid #ffd700;
@@ -636,8 +636,10 @@ body {
   clip-path: polygon(25% 5%, 75% 5%, 100% 50%, 75% 95%, 25% 95%, 0% 50%);
   left: 50%;
   top: 50%;
-  transform-style: preserve-3d;
-  animation: hex-spin 10s linear infinite;
+  pointer-events: none;
+  /* Lay flat on the board using the same angle */
+  transform: translate(-50%, -50%)
+    rotateX(calc(var(--board-angle, 60deg) * -1));
   z-index: 0;
 }
 
