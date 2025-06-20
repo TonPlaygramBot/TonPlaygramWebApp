@@ -36,6 +36,7 @@ export default function Wall() {
   const [posts, setPosts] = useState([]);
   const [text, setText] = useState('');
   const [photo, setPhoto] = useState(null);
+  const [photoAlt, setPhotoAlt] = useState('');
   const [commentText, setCommentText] = useState({});
   const [tags, setTags] = useState('');
   const [profile, setProfile] = useState(null);
@@ -69,9 +70,17 @@ export default function Wall() {
       .split(',')
       .map((t) => t.trim())
       .filter((t) => t);
-    await createWallPost(telegramId, telegramId, text, photo, tagArr);
+    await createWallPost(
+      telegramId,
+      telegramId,
+      text,
+      photo,
+      photoAlt,
+      tagArr
+    );
     setText('');
     setPhoto(null);
+    setPhotoAlt('');
     setTags('');
     const data = await listWallFeed(telegramId);
     setPosts(data);
@@ -156,6 +165,13 @@ export default function Wall() {
               reader.readAsDataURL(file);
             }}
           />
+          <input
+            type="text"
+            value={photoAlt}
+            onChange={(e) => setPhotoAlt(e.target.value)}
+            className="w-full border border-border rounded p-2 bg-surface"
+            placeholder="Image description (alt text)"
+          />
           <button
             onClick={handlePost}
             className="px-2 py-1 bg-primary hover:bg-primary-hover rounded"
@@ -171,7 +187,11 @@ export default function Wall() {
               <div className="flex items-center space-x-2">
                 <img
                   src={authorProfiles[p.author]?.photo || '/assets/icons/profile.svg'}
-                  alt="avatar"
+                  alt={`Avatar of ${
+                    authorProfiles[p.author]?.nickname ||
+                    authorProfiles[p.author]?.firstName ||
+                    'User'
+                  }`}
                   className="w-8 h-8 rounded-full border border-accent"
                 />
                 <div>
@@ -190,7 +210,11 @@ export default function Wall() {
 
             {p.text && <div className="whitespace-pre-wrap">{p.text}</div>}
             {p.photo && (
-              <img src={p.photo} alt="post" className="max-w-full rounded" />
+              <img
+                src={p.photo}
+                alt={p.photoAlt || 'post image'}
+                className="max-w-full rounded"
+              />
             )}
             {p.tags?.length > 0 && (
               <div className="flex flex-wrap gap-1">

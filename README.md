@@ -41,6 +41,8 @@ Users can share photos and messages on **The Wall**. Posts support likes, commen
 
 The latest update adds avatars, stylish icon buttons and a simple notification page. Posts now show the author's profile picture and name for a more social look. Buttons for liking, commenting and sharing use crisp icons that suit the premium color scheme. A bell icon on the navigation bar opens an **Alerts** page which reminds users that real notifications arrive via Telegram.
 
+Images in posts now include optional **alt text** descriptions for better accessibility. When creating a post you can add a brief description so screen readers can convey the image content.
+
 ### Using an HTTPS proxy
 
 If your server requires a proxy to reach external services like Tonkeeper,

@@ -131,7 +131,7 @@ router.post('/wall/feed', async (req, res) => {
 });
 
 router.post('/wall/post', async (req, res) => {
-  const { ownerId, authorId, text, photo, tags, sharedPost } = req.body;
+  const { ownerId, authorId, text, photo, photoAlt, tags, sharedPost } = req.body;
   if (!ownerId || !authorId)
     return res.status(400).json({ error: 'ownerId and authorId required' });
   const post = await Post.create({
@@ -139,6 +139,7 @@ router.post('/wall/post', async (req, res) => {
     author: authorId,
     text,
     photo,
+    photoAlt,
     tags: tags || [],
     sharedPost
   });
@@ -203,6 +204,7 @@ router.post('/wall/share', async (req, res) => {
     author: telegramId,
     text: original.text,
     photo: original.photo,
+    photoAlt: original.photoAlt,
     sharedPost: postId
   });
   res.json(shared);
