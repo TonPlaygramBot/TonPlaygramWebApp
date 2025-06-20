@@ -20,7 +20,8 @@ import ConnectWallet from "../components/ConnectWallet.jsx";
 
 import BalanceSummary from '../components/BalanceSummary.jsx';
 
-import { getTelegramPhotoUrl } from '../utils/telegram.js';
+import { getTelegramId, getTelegramPhotoUrl } from '../utils/telegram.js';
+import { getProfile } from '../utils/api.js';
 
 export default function Home() {
 
@@ -29,15 +30,22 @@ export default function Home() {
   const [photoUrl, setPhotoUrl] = useState('');
 
   useEffect(() => {
-
     ping()
-
       .then(() => setStatus('online'))
-
       .catch(() => setStatus('offline'));
 
-    setPhotoUrl(getTelegramPhotoUrl());
-
+    const id = getTelegramId();
+    getProfile(id)
+      .then((p) => {
+        if (p?.photo) {
+          setPhotoUrl(p.photo);
+        } else {
+          setPhotoUrl(getTelegramPhotoUrl());
+        }
+      })
+      .catch(() => {
+        setPhotoUrl(getTelegramPhotoUrl());
+      });
   }, []);
 
   return (

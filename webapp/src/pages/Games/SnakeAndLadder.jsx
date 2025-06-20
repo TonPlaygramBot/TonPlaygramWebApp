@@ -10,7 +10,7 @@ import {
 import useTelegramBackButton from "../../hooks/useTelegramBackButton.js";
 import { useNavigate } from "react-router-dom";
 import { getTelegramId, getTelegramPhotoUrl } from "../../utils/telegram.js";
-import { fetchTelegramInfo } from "../../utils/api.js";
+import { fetchTelegramInfo, getProfile } from "../../utils/api.js";
 import PlayerToken from "../../components/PlayerToken.jsx";
 
 const PLAYERS = 4;
@@ -346,14 +346,31 @@ export default function SnakeAndLadder() {
 
   useEffect(() => {
     const id = getTelegramId();
-    const url = getTelegramPhotoUrl();
-    if (url) {
-      setPhotoUrl(url);
-    } else if (id) {
-      fetchTelegramInfo(id).then((info) => {
-        if (info?.photoUrl) setPhotoUrl(info.photoUrl);
+    getProfile(id)
+      .then((p) => {
+        if (p?.photo) {
+          setPhotoUrl(p.photo);
+        } else {
+          const url = getTelegramPhotoUrl();
+          if (url) {
+            setPhotoUrl(url);
+          } else {
+            fetchTelegramInfo(id).then((info) => {
+              if (info?.photoUrl) setPhotoUrl(info.photoUrl);
+            });
+          }
+        }
+      })
+      .catch(() => {
+        const url = getTelegramPhotoUrl();
+        if (url) {
+          setPhotoUrl(url);
+        } else {
+          fetchTelegramInfo(id).then((info) => {
+            if (info?.photoUrl) setPhotoUrl(info.photoUrl);
+          });
+        }
       });
-    }
     moveSoundRef.current = new Audio(
       "https://snakes-and-ladders-game.netlify.app/audio/drop.mp3",
     );
