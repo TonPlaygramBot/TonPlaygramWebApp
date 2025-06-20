@@ -144,7 +144,11 @@ function Board({
           )}
           {position === num && (
             <>
-              <div className="token-hexagon" />
+              <div
+                className={`token-hexagon ${
+                  isHighlight ? 'step' : ''
+                }`}
+              />
               <PlayerToken
                 photoUrl={photoUrl}
                 type={isHighlight ? highlight.type : tokenType}
