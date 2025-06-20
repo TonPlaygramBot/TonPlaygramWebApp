@@ -239,7 +239,8 @@ body {
   left: 50%;
   /* Align the photo with the top face of the token */
   transform: translate(-50%, -50%) translateZ(15.2px)
-    rotateX(calc(var(--board-angle, 60deg) * -1));
+    rotateX(calc(var(--board-angle, 60deg) * -1))
+    rotateY(var(--token-rotation, 0rad));
   object-fit: cover;
   border-radius: 50%;
   border: 2px solid #ffd700;
@@ -639,7 +640,8 @@ body {
   pointer-events: none;
   /* Lay flat on the board using the same angle */
   transform: translate(-50%, -50%)
-    rotateX(calc(var(--board-angle, 60deg) * -1));
+    rotateX(calc(var(--board-angle, 60deg) * -1))
+    rotateY(var(--token-rotation, 0rad));
   z-index: 0;
 }
 
