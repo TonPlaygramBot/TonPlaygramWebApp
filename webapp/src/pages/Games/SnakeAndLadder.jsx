@@ -194,14 +194,10 @@ function Board({
     const container = containerRef.current;
     if (!container) return;
     const row = Math.floor((position - 1) / COLS);
-    // Keep the board initially pinned to the bottom for the first two rows
     if (row < 2) {
       container.scrollTop = container.scrollHeight - container.clientHeight;
       return;
     }
-    // Follow the player only between rows 3 and 8 (inclusive). Once the
-    // player reaches the 9th row the camera stops tracking their movement.
-    if (row >= 8) return;
     const cell = container.querySelector(`[data-cell="${position}"]`);
     if (cell) {
       const containerRect = container.getBoundingClientRect();
