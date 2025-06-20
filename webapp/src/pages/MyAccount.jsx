@@ -68,13 +68,14 @@ export default function MyAccount() {
             lastName
           });
 
+          const hasRealPhoto = updated.photo || tg?.photoUrl;
           const mergedProfile = {
             ...updated,
-            photo: updated.photo || tg?.photoUrl || getTelegramPhotoUrl()
+            photo: hasRealPhoto || getTelegramPhotoUrl()
           };
 
           setProfile(mergedProfile);
-          if (mergedProfile.photo) setShowAvatarPicker(false);
+          setShowAvatarPicker(!hasRealPhoto);
         } finally {
           setAutoUpdating(false);
         }

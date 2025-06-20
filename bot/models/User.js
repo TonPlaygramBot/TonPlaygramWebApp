@@ -12,7 +12,9 @@ const transactionSchema = new mongoose.Schema(
 
 const userSchema = new mongoose.Schema({
 
-  telegramId: { type: Number, required: true, unique: true },
+  telegramId: { type: Number, unique: true },
+
+  walletAddress: { type: String, unique: true },
 
   createdAt: { type: Date, default: Date.now },
 
@@ -57,15 +59,11 @@ const userSchema = new mongoose.Schema({
 });
 
 userSchema.pre('save', function(next) {
-
   if (!this.referralCode) {
-
-    this.referralCode = this.telegramId.toString();
-
+    const base = this.telegramId || this.walletAddress || '';
+    this.referralCode = String(base);
   }
-
   next();
-
 });
 
 export default mongoose.model('User', userSchema);

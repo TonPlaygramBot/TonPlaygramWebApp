@@ -5,6 +5,19 @@ import { ensureTransactionArray } from '../utils/userUtils.js';
 
 const router = Router();
 
+router.post('/register-wallet', async (req, res) => {
+  const { walletAddress } = req.body;
+  if (!walletAddress) {
+    return res.status(400).json({ error: 'walletAddress required' });
+  }
+  const user = await User.findOneAndUpdate(
+    { walletAddress },
+    { $setOnInsert: { walletAddress, referralCode: walletAddress } },
+    { upsert: true, new: true }
+  );
+  res.json(user);
+});
+
 router.post('/telegram-info', async (req, res) => {
   const { telegramId } = req.body;
   if (!telegramId) {
