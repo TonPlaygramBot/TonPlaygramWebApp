@@ -16,6 +16,7 @@ import OpenInTelegram from '../components/OpenInTelegram.jsx';
 import { BOT_USERNAME } from '../utils/constants.js';
 import BalanceSummary from '../components/BalanceSummary.jsx';
 import useTelegramBackButton from '../hooks/useTelegramBackButton.js';
+import AvatarPickerModal from '../components/AvatarPickerModal.jsx';
 
 export default function MyAccount() {
   useTelegramBackButton();
@@ -31,12 +32,14 @@ export default function MyAccount() {
   const [referral, setReferral] = useState(null);
   const [autoUpdating, setAutoUpdating] = useState(false);
   const [transactions, setTransactions] = useState([]);
+  const [showAvatarPicker, setShowAvatarPicker] = useState(false);
   const timerRef = useRef(null);
 
   useEffect(() => {
     async function load() {
       const data = await getProfile(telegramId);
       setProfile(data);
+      if (!data.photo) setShowAvatarPicker(true);
       const ref = await getReferralInfo(telegramId);
       setReferral(ref);
       const tx = await getTransactions(telegramId);
@@ -71,6 +74,7 @@ export default function MyAccount() {
           };
 
           setProfile(mergedProfile);
+          if (mergedProfile.photo) setShowAvatarPicker(false);
         } finally {
           setAutoUpdating(false);
         }
@@ -90,6 +94,15 @@ export default function MyAccount() {
 
   return (
     <div className="p-4 space-y-4 text-text">
+      <AvatarPickerModal
+        open={showAvatarPicker}
+        onClose={() => setShowAvatarPicker(false)}
+        onSelect={async (src) => {
+          const updated = await updateProfile({ telegramId, photo: src });
+          setProfile(updated);
+          setShowAvatarPicker(false);
+        }}
+      />
       {autoUpdating && (
         <div className="p-2 text-sm text-subtext">Updating with Telegram info...</div>
       )}
