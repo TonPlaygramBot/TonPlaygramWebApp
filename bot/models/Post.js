@@ -8,6 +8,11 @@ const postSchema = new mongoose.Schema({
   photoAlt: { type: String, default: '' },
   tags: { type: [String], default: [] },
   likes: { type: [Number], default: [] },
+  reactions: {
+    type: Map,
+    of: [Number],
+    default: () => ({})
+  },
   comments: {
     type: [
       {
@@ -19,6 +24,8 @@ const postSchema = new mongoose.Schema({
     default: []
   },
   sharedPost: { type: mongoose.Schema.Types.ObjectId, ref: 'Post' },
+  pinned: { type: Boolean, default: false },
+  views: { type: Number, default: 0 },
   createdAt: { type: Date, default: Date.now }
 });
 
