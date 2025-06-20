@@ -35,6 +35,10 @@
    npm test
    ```
 
+### Profile Wall
+
+Users can now post short messages on their profile wall. Friends can view these posts and leave messages of their own. Visit **My Wall** from the account page to try it out.
+
 ### Using an HTTPS proxy
 
 If your server requires a proxy to reach external services like Tonkeeper,

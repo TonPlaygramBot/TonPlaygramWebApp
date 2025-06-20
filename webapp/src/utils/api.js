@@ -235,3 +235,11 @@ export function sendMessage(fromId, toId, text) {
 export function getMessages(userId, withId) {
   return post('/api/social/messages', { userId, withId });
 }
+
+export function listWallPosts(ownerId) {
+  return post('/api/social/wall/list', { ownerId });
+}
+
+export function createWallPost(ownerId, authorId, text) {
+  return post('/api/social/wall/post', { ownerId, authorId, text });
+}

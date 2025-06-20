@@ -9,6 +9,7 @@ import Referral from './pages/Referral.jsx';
 import MyAccount from './pages/MyAccount.jsx';
 import Store from './pages/Store.jsx';
 import Messages from './pages/Messages.jsx';
+import Wall from './pages/Wall.jsx';
 
 import LudoGame from './pages/Games/LudoGame.jsx';
 import HorseRacing from './pages/Games/HorseRacing.jsx';
@@ -40,6 +41,7 @@ export default function App() {
           <Route path="/referral" element={<Referral />} />
           <Route path="/wallet" element={<Wallet />} />
           <Route path="/messages" element={<Messages />} />
+          <Route path="/wall" element={<Wall />} />
           <Route path="/account" element={<MyAccount />} />
         </Routes>
       </Layout>
