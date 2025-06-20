@@ -3,6 +3,7 @@ import User from '../models/User.js';
 import FriendRequest from '../models/FriendRequest.js';
 import Message from '../models/Message.js';
 import Post from '../models/Post.js';
+import bot from '../bot.js';
 
 const router = Router();
 
@@ -30,6 +31,14 @@ router.post('/request', async (req, res) => {
   const existing = await FriendRequest.findOne({ from: fromId, to: toId });
   if (existing) return res.json(existing);
   const reqDoc = await FriendRequest.create({ from: fromId, to: toId });
+  try {
+    await bot.telegram.sendMessage(
+      String(toId),
+      `You have a new friend request from ${fromId}`
+    );
+  } catch (err) {
+    console.error('Failed to send Telegram notification:', err.message);
+  }
   res.json(reqDoc);
 });
 
@@ -42,6 +51,14 @@ router.post('/accept', async (req, res) => {
   await fr.save();
   await User.updateOne({ telegramId: fr.from }, { $addToSet: { friends: fr.to } });
   await User.updateOne({ telegramId: fr.to }, { $addToSet: { friends: fr.from } });
+  try {
+    await bot.telegram.sendMessage(
+      String(fr.from),
+      `Your friend request to ${fr.to} was accepted`
+    );
+  } catch (err) {
+    console.error('Failed to send Telegram notification:', err.message);
+  }
   res.json(fr);
 });
 
@@ -67,6 +84,14 @@ router.post('/send-message', async (req, res) => {
   if (!fromId || !toId || !text)
     return res.status(400).json({ error: 'fromId, toId and text required' });
   const msg = await Message.create({ from: fromId, to: toId, text });
+  try {
+    await bot.telegram.sendMessage(
+      String(toId),
+      `New message from ${fromId}: ${text}`
+    );
+  } catch (err) {
+    console.error('Failed to send Telegram notification:', err.message);
+  }
   res.json(msg);
 });
 
@@ -94,12 +119,92 @@ router.post('/wall/list', async (req, res) => {
   res.json(posts);
 });
 
+router.post('/wall/feed', async (req, res) => {
+  const { telegramId } = req.body;
+  if (!telegramId) return res.status(400).json({ error: 'telegramId required' });
+  const user = await User.findOne({ telegramId });
+  const owners = [telegramId, ...(user?.friends || [])];
+  const posts = await Post.find({ owner: { $in: owners } })
+    .sort({ createdAt: -1 })
+    .limit(100);
+  res.json(posts);
+});
+
 router.post('/wall/post', async (req, res) => {
-  const { ownerId, authorId, text } = req.body;
-  if (!ownerId || !authorId || !text)
-    return res.status(400).json({ error: 'ownerId, authorId and text required' });
-  const post = await Post.create({ owner: ownerId, author: authorId, text });
+  const { ownerId, authorId, text, photo, sharedPost } = req.body;
+  if (!ownerId || !authorId)
+    return res.status(400).json({ error: 'ownerId and authorId required' });
+  const post = await Post.create({
+    owner: ownerId,
+    author: authorId,
+    text,
+    photo,
+    sharedPost
+  });
   res.json(post);
+});
+
+router.post('/wall/like', async (req, res) => {
+  const { postId, telegramId } = req.body;
+  if (!postId || !telegramId)
+    return res.status(400).json({ error: 'postId and telegramId required' });
+  const post = await Post.findByIdAndUpdate(
+    postId,
+    { $addToSet: { likes: telegramId } },
+    { new: true }
+  );
+  if (post && telegramId !== post.owner) {
+    try {
+      await bot.telegram.sendMessage(
+        String(post.owner),
+        `Your post was liked by ${telegramId}`
+      );
+    } catch (err) {
+      console.error('Failed to send Telegram notification:', err.message);
+    }
+  }
+  res.json(post);
+});
+
+router.post('/wall/comment', async (req, res) => {
+  const { postId, telegramId, text } = req.body;
+  if (!postId || !telegramId || !text)
+    return res
+      .status(400)
+      .json({ error: 'postId, telegramId and text required' });
+  const comment = { author: telegramId, text };
+  const post = await Post.findByIdAndUpdate(
+    postId,
+    { $push: { comments: comment } },
+    { new: true }
+  );
+  if (post && telegramId !== post.owner) {
+    try {
+      await bot.telegram.sendMessage(
+        String(post.owner),
+        `New comment on your post from ${telegramId}: ${text}`
+      );
+    } catch (err) {
+      console.error('Failed to send Telegram notification:', err.message);
+    }
+  }
+  res.json(post);
+});
+
+router.post('/wall/share', async (req, res) => {
+  const { postId, telegramId } = req.body;
+  if (!postId || !telegramId)
+    return res.status(400).json({ error: 'postId and telegramId required' });
+  const original = await Post.findById(postId);
+  if (!original) return res.status(404).json({ error: 'post not found' });
+  const shared = await Post.create({
+    owner: telegramId,
+    author: telegramId,
+    text: original.text,
+    photo: original.photo,
+    sharedPost: postId
+  });
+  res.json(shared);
 });
 
 export default router;

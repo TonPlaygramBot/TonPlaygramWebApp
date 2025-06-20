@@ -240,6 +240,22 @@ export function listWallPosts(ownerId) {
   return post('/api/social/wall/list', { ownerId });
 }
 
-export function createWallPost(ownerId, authorId, text) {
-  return post('/api/social/wall/post', { ownerId, authorId, text });
+export function listWallFeed(telegramId) {
+  return post('/api/social/wall/feed', { telegramId });
+}
+
+export function createWallPost(ownerId, authorId, text, photo, sharedPost) {
+  return post('/api/social/wall/post', { ownerId, authorId, text, photo, sharedPost });
+}
+
+export function likeWallPost(postId, telegramId) {
+  return post('/api/social/wall/like', { postId, telegramId });
+}
+
+export function commentWallPost(postId, telegramId, text) {
+  return post('/api/social/wall/comment', { postId, telegramId, text });
+}
+
+export function shareWallPost(postId, telegramId) {
+  return post('/api/social/wall/share', { postId, telegramId });
 }
