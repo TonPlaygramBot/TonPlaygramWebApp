@@ -244,8 +244,24 @@ export function listWallFeed(telegramId) {
   return post('/api/social/wall/feed', { telegramId });
 }
 
-export function createWallPost(ownerId, authorId, text, photo, tags = [], sharedPost) {
-  return post('/api/social/wall/post', { ownerId, authorId, text, photo, tags, sharedPost });
+export function createWallPost(
+  ownerId,
+  authorId,
+  text,
+  photo,
+  photoAlt,
+  tags = [],
+  sharedPost
+) {
+  return post('/api/social/wall/post', {
+    ownerId,
+    authorId,
+    text,
+    photo,
+    photoAlt,
+    tags,
+    sharedPost
+  });
 }
 
 export function likeWallPost(postId, telegramId) {
