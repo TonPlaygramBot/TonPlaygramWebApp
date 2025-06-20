@@ -114,7 +114,7 @@ router.post('/wall/list', async (req, res) => {
   const { ownerId } = req.body;
   if (!ownerId) return res.status(400).json({ error: 'ownerId required' });
   const posts = await Post.find({ owner: ownerId })
-    .sort({ createdAt: -1 })
+    .sort({ pinned: -1, createdAt: -1 })
     .limit(100);
   res.json(posts);
 });
@@ -125,8 +125,13 @@ router.post('/wall/feed', async (req, res) => {
   const user = await User.findOne({ telegramId });
   const owners = [telegramId, ...(user?.friends || [])];
   const posts = await Post.find({ owner: { $in: owners } })
-    .sort({ createdAt: -1 })
+    .sort({ pinned: -1, createdAt: -1 })
     .limit(100);
+
+  await Post.updateMany(
+    { _id: { $in: posts.map((p) => p._id) }, owner: { $ne: telegramId } },
+    { $inc: { views: 1 } }
+  );
   res.json(posts);
 });
 
@@ -208,6 +213,33 @@ router.post('/wall/share', async (req, res) => {
     sharedPost: postId
   });
   res.json(shared);
+});
+
+router.post('/wall/react', async (req, res) => {
+  const { postId, telegramId, emoji } = req.body;
+  if (!postId || !telegramId || !emoji)
+    return res
+      .status(400)
+      .json({ error: 'postId, telegramId and emoji required' });
+  const update = {};
+  update[`reactions.${emoji}`] = telegramId;
+  const post = await Post.findByIdAndUpdate(
+    postId,
+    { $addToSet: update },
+    { new: true }
+  );
+  res.json(post);
+});
+
+router.post('/wall/pin', async (req, res) => {
+  const { postId, telegramId, pinned } = req.body;
+  if (!postId || !telegramId)
+    return res.status(400).json({ error: 'postId and telegramId required' });
+  const post = await Post.findOne({ _id: postId, owner: telegramId });
+  if (!post) return res.status(404).json({ error: 'post not found' });
+  post.pinned = !!pinned;
+  await post.save();
+  res.json(post);
 });
 
 export default router;

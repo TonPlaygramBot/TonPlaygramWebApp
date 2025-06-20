@@ -275,3 +275,11 @@ export function commentWallPost(postId, telegramId, text) {
 export function shareWallPost(postId, telegramId) {
   return post('/api/social/wall/share', { postId, telegramId });
 }
+
+export function reactWallPost(postId, telegramId, emoji) {
+  return post('/api/social/wall/react', { postId, telegramId, emoji });
+}
+
+export function pinWallPost(postId, telegramId, pinned) {
+  return post('/api/social/wall/pin', { postId, telegramId, pinned });
+}

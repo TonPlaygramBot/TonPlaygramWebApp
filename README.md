@@ -43,6 +43,8 @@ The latest update adds avatars, stylish icon buttons and a simple notification p
 
 Images in posts now include optional **alt text** descriptions for better accessibility. When creating a post you can add a brief description so screen readers can convey the image content.
 
+Posts support **markdown formatting** and emoji **reactions**. Owners can pin favourite posts so they stay at the top. Each post tracks how many times it has been viewed.
+
 ### Using an HTTPS proxy
 
 If your server requires a proxy to reach external services like Tonkeeper,

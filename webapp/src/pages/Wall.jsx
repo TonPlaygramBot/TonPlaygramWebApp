@@ -7,6 +7,9 @@ import {
   AiOutlineComment,
   AiOutlineMore
 } from 'react-icons/ai';
+import ReactMarkdown from 'react-markdown';
+
+const EMOJIS = ['👍', '❤️', '😂', '🎉'];
 import useTelegramBackButton from '../hooks/useTelegramBackButton.js';
 import OpenInTelegram from '../components/OpenInTelegram.jsx';
 import { getTelegramId } from '../utils/telegram.js';
@@ -18,6 +21,8 @@ import {
   likeWallPost,
   commentWallPost,
   shareWallPost,
+  reactWallPost,
+  pinWallPost,
   getProfile
 } from '../utils/api.js';
 
@@ -70,12 +75,13 @@ export default function Wall() {
       .split(',')
       .map((t) => t.trim())
       .filter((t) => t);
+    const altText = photo && !photoAlt ? 'Image' : photoAlt;
     await createWallPost(
       telegramId,
       telegramId,
       text,
       photo,
-      photoAlt,
+      altText,
       tagArr
     );
     setText('');
@@ -102,6 +108,18 @@ export default function Wall() {
 
   async function handleShare(id) {
     await shareWallPost(id, telegramId);
+    const data = idParam ? await listWallPosts(idParam) : await listWallFeed(telegramId);
+    setPosts(data);
+  }
+
+  async function handleReact(id, emoji) {
+    await reactWallPost(id, telegramId, emoji);
+    const data = idParam ? await listWallPosts(idParam) : await listWallFeed(telegramId);
+    setPosts(data);
+  }
+
+  async function handlePin(id, pinned) {
+    await pinWallPost(id, telegramId, pinned);
     const data = idParam ? await listWallPosts(idParam) : await listWallFeed(telegramId);
     setPosts(data);
   }
@@ -201,14 +219,31 @@ export default function Wall() {
                       'User'}
                   </div>
                   <div className="text-xs text-subtext">
-                    {new Date(p.createdAt).toLocaleString()}
+                    {new Date(p.createdAt).toLocaleString()} · {p.views || 0} views
                   </div>
                 </div>
               </div>
-              <AiOutlineMore className="w-5 h-5 text-subtext" />
+              <div className="flex items-center space-x-2">
+                {p.pinned && <span title="Pinned">📌</span>}
+                {p.owner === telegramId ? (
+                  <button
+                    onClick={() => handlePin(p._id, !p.pinned)}
+                    className="text-subtext hover:text-accent"
+                    title={p.pinned ? 'Unpin post' : 'Pin post'}
+                  >
+                    <AiOutlineMore className="w-5 h-5" />
+                  </button>
+                ) : (
+                  <AiOutlineMore className="w-5 h-5 text-subtext" />
+                )}
+              </div>
             </div>
 
-            {p.text && <div className="whitespace-pre-wrap">{p.text}</div>}
+            {p.text && (
+              <ReactMarkdown className="prose prose-invert break-words">
+                {p.text}
+              </ReactMarkdown>
+            )}
             {p.photo && (
               <img
                 src={p.photo}
@@ -256,6 +291,18 @@ export default function Wall() {
               >
                 <FaFacebook />
               </button>
+            </div>
+
+            <div className="flex space-x-2 pt-1">
+              {EMOJIS.map((e) => (
+                <button
+                  key={e}
+                  onClick={() => handleReact(p._id, e)}
+                  className="hover:opacity-80"
+                >
+                  {e} {p.reactions?.[e]?.length || 0}
+                </button>
+              ))}
             </div>
 
             <div className="space-y-1">
