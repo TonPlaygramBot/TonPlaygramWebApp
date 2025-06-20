@@ -35,9 +35,9 @@
    npm test
    ```
 
-### Profile Wall
+### The Wall
 
-Users can now post short messages on their profile wall. Friends can view these posts and leave messages of their own. Visit **My Wall** from the account page to try it out.
+Users can share photos and messages on **The Wall**. Posts support likes, comments and sharing. Friends see your updates and receive Telegram notifications when they interact with them.
 
 ### Using an HTTPS proxy
 
