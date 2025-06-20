@@ -61,12 +61,6 @@ export default function HexPrismToken({ color = "#008080", photoUrl, className =
       [...sideMaterials, topMaterial, bottomMaterial],
     );
     prism.rotation.y = Math.PI / 6; // show a corner toward the viewer
-    if (hexEl) {
-      hexEl.style.setProperty(
-        "--token-rotation",
-        `${THREE.MathUtils.radToDeg(prism.rotation.y)}deg`,
-      );
-    }
     scene.add(prism);
 
     const ambient = new THREE.AmbientLight(0xffffff, 0.6);
@@ -78,12 +72,6 @@ export default function HexPrismToken({ color = "#008080", photoUrl, className =
     let frameId;
     const animate = () => {
       prism.rotation.y += 0.01;
-      if (hexEl) {
-        hexEl.style.setProperty(
-          "--token-rotation",
-          `${THREE.MathUtils.radToDeg(prism.rotation.y)}deg`,
-        );
-      }
       renderer.render(scene, camera);
       frameId = requestAnimationFrame(animate);
     };
