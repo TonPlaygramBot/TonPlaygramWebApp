@@ -641,9 +641,9 @@ body {
   left: 50%;
   top: 50%;
   pointer-events: none;
-  /* Lay flat on the board using the same angle */
+  /* Match the board angle so the hexagon lays flat */
   transform: translate(-50%, -50%) translateZ(2px)
-    rotateX(calc(var(--board-angle, 60deg) * -1)) rotateY(0deg);
+    rotateX(var(--board-angle, 60deg)) rotateY(0deg);
   animation: hex-spin 6s linear infinite;
   z-index: 0;
 }
@@ -666,11 +666,11 @@ body {
 @keyframes hex-spin {
   from {
     transform: translate(-50%, -50%) translateZ(2px)
-      rotateX(calc(var(--board-angle, 60deg) * -1)) rotateY(0deg);
+      rotateX(var(--board-angle, 60deg)) rotateY(0deg);
   }
   to {
     transform: translate(-50%, -50%) translateZ(2px)
-      rotateX(calc(var(--board-angle, 60deg) * -1)) rotateY(360deg);
+      rotateX(var(--board-angle, 60deg)) rotateY(360deg);
   }
 }
 
