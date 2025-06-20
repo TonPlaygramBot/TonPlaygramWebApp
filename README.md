@@ -39,13 +39,13 @@
 
 Users can share photos and messages on **The Wall**. Posts support likes, comments and sharing. You can also attach images up to about 10&nbsp;MB and repost to Telegram, Twitter or Facebook. Friends see your updates and receive Telegram notifications when they interact with them.
 
-The latest update adds avatars, stylish icon buttons and a simple notification page. Posts now show the author's profile picture and name for a more social look. Buttons for liking, commenting and sharing use crisp icons that suit the premium color scheme. A bell icon on the navigation bar opens an **Alerts** page which reminds users that real notifications arrive via Telegram.
+The latest update adds avatars, stylish icon buttons and a simple alerts panel right on **The Wall**. Posts now show the author's profile picture and name for a more social look. Buttons for liking, commenting and sharing use crisp icons that suit the premium color scheme. The bell icon scrolls to the **Alerts** section which reminds users that real notifications arrive via Telegram.
 
 Images in posts now include optional **alt text** descriptions for better accessibility. When creating a post you can add a brief description so screen readers can convey the image content.
 
 Posts support **markdown formatting** and emoji **reactions**. Owners can pin favourite posts so they stay at the top. Each post tracks how many times it has been viewed.
 
-The Wall now includes a **Trending** section showing the most liked posts from the last 24 hours.
+The Wall also features a **Trending** section showing the most liked posts from the last 24 hours.
 
 ### Using an HTTPS proxy
 
