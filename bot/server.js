@@ -14,6 +14,7 @@ import walletRoutes from './routes/wallet.js';
 import profileRoutes from './routes/profile.js';
 import airdropRoutes from './routes/airdrop.js';
 import checkinRoutes from './routes/checkin.js';
+import socialRoutes from './routes/social.js';
 import User from './models/User.js';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -50,6 +51,7 @@ app.use('/api/wallet', walletRoutes);
 app.use('/api/profile', profileRoutes);
 app.use('/api/airdrop', airdropRoutes);
 app.use('/api/checkin', checkinRoutes);
+app.use('/api/social', socialRoutes);
 
 // Serve the built React app
 const webappPath = path.join(__dirname, '../webapp/dist');

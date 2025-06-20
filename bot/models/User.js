@@ -40,6 +40,8 @@ const userSchema = new mongoose.Schema({
 
   bio: { type: String, default: '' },
 
+  friends: { type: [Number], default: [] },
+
   social: {
 
     twitter: String,
