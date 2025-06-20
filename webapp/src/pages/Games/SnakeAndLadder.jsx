@@ -9,7 +9,7 @@ import {
 import useTelegramBackButton from "../../hooks/useTelegramBackButton.js";
 import { useNavigate } from "react-router-dom";
 import { getTelegramId, getTelegramPhotoUrl } from "../../utils/telegram.js";
-import { getSnakeBoard, fetchTelegramInfo } from "../../utils/api.js";
+import { fetchTelegramInfo } from "../../utils/api.js";
 import PlayerToken from "../../components/PlayerToken.jsx";
 
 const PLAYERS = 4;
@@ -57,6 +57,7 @@ function Board({
   celebrate,
   token,
   tokenType,
+  diceCells,
 }) {
   const containerRef = useRef(null);
   const [cellWidth, setCellWidth] = useState(80);
@@ -134,12 +135,21 @@ function Board({
             </span>
           )}
           <span className="cell-number">{num}</span>
+          {diceCells && diceCells[num] && (
+            <span className="dice-marker">
+              <img src="/assets/icons/dice.svg" alt="dice" />
+              <span className="dice-value">+{diceCells[num]}</span>
+            </span>
+          )}
           {position === num && (
-            <PlayerToken
-              photoUrl={photoUrl}
-              type={isHighlight ? highlight.type : tokenType}
-              className={isJump ? 'jump' : ''}
-            />
+            <>
+              <div className="token-hexagon" />
+              <PlayerToken
+                photoUrl={photoUrl}
+                type={isHighlight ? highlight.type : tokenType}
+                className={isJump ? 'jump' : ''}
+              />
+            </>
           )}
           {offsetPopup && offsetPopup.cell === num && (
             <span
@@ -323,6 +333,8 @@ export default function SnakeAndLadder() {
   const [ladderOffsets, setLadderOffsets] = useState({});
   const [offsetPopup, setOffsetPopup] = useState(null); // { cell, type, amount }
   const [rollResult, setRollResult] = useState(null);
+  const [diceCells, setDiceCells] = useState({});
+  const [bonusDice, setBonusDice] = useState(0);
 
   const moveSoundRef = useRef(null);
   const snakeSoundRef = useRef(null);
@@ -359,64 +371,71 @@ export default function SnakeAndLadder() {
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
-    const room = params.get("table") || "snake-4";
     const t = params.get("token");
     const amt = params.get("amount");
     if (t) setToken(t.toUpperCase());
     if (amt) setPot(Number(amt));
-    getSnakeBoard(room)
-      .then((data) => {
-        const snakeData = data.snakes || {};
-        const ladderData = data.ladders || {};
 
-        const boardSize = ROWS * COLS;
+    const boardSize = ROWS * COLS;
+    const snakeCount = 6 + Math.floor(Math.random() * 3);
+    const ladderCount = 6 + Math.floor(Math.random() * 3);
 
-        // Remove invalid or overlapping snakes
-        const cleanSnakes = {};
-        Object.entries(snakeData).forEach(([s, e]) => {
-          const start = Number(s);
-          const end = Number(e);
-          if (
-            start > 0 &&
-            start <= boardSize &&
-            end > 0 &&
-            end < start &&
-            end <= boardSize &&
-            !ladderData[s]
-          )
-            cleanSnakes[start] = end;
-        });
+    const snakesObj = {};
+    const used = new Set();
+    while (Object.keys(snakesObj).length < snakeCount) {
+      const start = Math.floor(Math.random() * (boardSize - 10)) + 10;
+      const end = Math.floor(Math.random() * (start - 1)) + 1;
+      if (used.has(start) || used.has(end) || snakesObj[start]) continue;
+      snakesObj[start] = end;
+      used.add(start);
+      used.add(end);
+    }
 
-        // Remove invalid ladders
-        const cleanLadders = {};
-        Object.entries(ladderData).forEach(([s, e]) => {
-          const start = Number(s);
-          const endVal = typeof e === 'object' ? e.end : e;
-          if (
-            start > 0 &&
-            start <= boardSize &&
-            endVal > start &&
-            endVal <= boardSize &&
-            !cleanSnakes[start]
-          )
-            cleanLadders[start] = e;
-        });
+    const laddersObj = {};
+    const usedL = new Set([...used]);
+    while (Object.keys(laddersObj).length < ladderCount) {
+      const start = Math.floor(Math.random() * (boardSize - 20)) + 2;
+      const max = boardSize - start - 1;
+      if (max < 3) continue;
+      const end = start + 3 + Math.floor(Math.random() * max);
+      if (
+        usedL.has(start) ||
+        usedL.has(end) ||
+        laddersObj[start] ||
+        Object.values(laddersObj).includes(end)
+      )
+        continue;
+      laddersObj[start] = end;
+      usedL.add(start);
+      usedL.add(end);
+    }
 
-        setSnakes(cleanSnakes);
-        setLadders(cleanLadders);
+    setSnakes(snakesObj);
+    setLadders(laddersObj);
 
-        const snk = {};
-        Object.keys(cleanSnakes).forEach((k) => {
-          snk[k] = Math.floor(Math.random() * 10) + 1;
-        });
-        const lad = {};
-        Object.keys(cleanLadders).forEach((k) => {
-          lad[k] = Math.floor(Math.random() * 10) + 1;
-        });
-        setSnakeOffsets(snk);
-        setLadderOffsets(lad);
-      })
-      .catch(() => {});
+    const snk = {};
+    Object.keys(snakesObj).forEach((k) => {
+      snk[k] = Math.floor(Math.random() * 10) + 1;
+    });
+    const lad = {};
+    Object.keys(laddersObj).forEach((k) => {
+      lad[k] = Math.floor(Math.random() * 10) + 1;
+    });
+    setSnakeOffsets(snk);
+    setLadderOffsets(lad);
+
+    const diceMap = {};
+    const diceValues = [1, 2, 1];
+    const usedD = new Set([...usedL]);
+    diceValues.forEach((val) => {
+      let cell;
+      do {
+        cell = Math.floor(Math.random() * boardSize) + 1;
+      } while (usedD.has(cell) || cell === FINAL_TILE);
+      diceMap[cell] = val;
+      usedD.add(cell);
+    });
+    setDiceCells(diceMap);
   }, []);
 
   const handleRoll = (values) => {
@@ -541,7 +560,19 @@ export default function SnakeAndLadder() {
         setCelebrate(true);
         setTimeout(() => setCelebrate(false), 1500);
       }
-      setTurnMessage('Your turn');
+      if (diceCells[finalPos]) {
+        const bonus = diceCells[finalPos];
+        setDiceCells((d) => {
+          const n = { ...d };
+          delete n[finalPos];
+          return n;
+        });
+        setBonusDice(bonus);
+        setTurnMessage(`Bonus roll +${bonus}`);
+      } else {
+        setTurnMessage('Your turn');
+        setBonusDice(0);
+      }
       setDiceVisible(true);
     };
 
@@ -585,6 +616,7 @@ export default function SnakeAndLadder() {
         celebrate={celebrate}
         token={token}
         tokenType={tokenType}
+        diceCells={diceCells}
       />
       {message && (
         <div className={`text-center font-semibold w-full ${messageColor}`}>{message}</div>
@@ -597,10 +629,13 @@ export default function SnakeAndLadder() {
       {diceVisible && (
         <div className="fixed bottom-24 inset-x-0 flex flex-col items-center z-20">
           <DiceRoller
-            onRollEnd={handleRoll}
+            onRollEnd={(vals) => {
+              handleRoll(vals);
+              setBonusDice(0);
+            }}
             onRollStart={() => setTurnMessage('Rolling...')}
             clickable
-            numDice={2}
+            numDice={2 + bonusDice}
           />
           {turnMessage && (
             <div className="mt-2 text-sm font-semibold">{turnMessage}</div>
