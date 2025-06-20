@@ -636,15 +636,14 @@ body {
   position: absolute;
   width: 2.9rem;
   height: 2.9rem;
-  background-color: rgba(0, 0, 0, 0.25);
+  background-color: #fde047;
   clip-path: polygon(25% 5%, 75% 5%, 100% 50%, 75% 95%, 25% 95%, 0% 50%);
   left: 50%;
   top: 50%;
   pointer-events: none;
-  /* Place on the board surface so it appears as a shadow */
-  transform: translate(-50%, -50%) translateZ(5px)
+  /* Align with the token photo but sit just underneath */
+  transform: translate(-50%, -50%) translateZ(14.2px)
     rotateX(calc(var(--board-angle, 60deg) * -1 - 10deg)) rotateY(0deg);
-  filter: blur(2px);
   animation: hex-spin 6s linear infinite;
   z-index: 0;
 }
