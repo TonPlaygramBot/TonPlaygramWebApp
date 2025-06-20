@@ -192,7 +192,7 @@ function Board({
   // When the player moves beyond the first two rows start following
   // their progress by scrolling the container. The camera tracks each
   // row up to the ninth without changing angle or zoom. Once the
-  // ninth row is reached the scroll position is locked and no further
+  // tenth row is reached the scroll position is locked and no further
   // following occurs.
   useEffect(() => {
     const container = containerRef.current;
@@ -200,7 +200,7 @@ function Board({
     const row = Math.floor((position - 1) / COLS);
 
     const startFollow = 2; // third row
-    const stopFollow = 8; // ninth row
+    const stopFollow = 9; // tenth row
 
     if (row < startFollow) {
       setLockedScroll(null);
