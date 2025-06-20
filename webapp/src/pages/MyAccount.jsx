@@ -18,6 +18,7 @@ import BalanceSummary from '../components/BalanceSummary.jsx';
 import useTelegramBackButton from '../hooks/useTelegramBackButton.js';
 import AvatarPickerModal from '../components/AvatarPickerModal.jsx';
 import AvatarPromptModal from '../components/AvatarPromptModal.jsx';
+import InboxWidget from '../components/InboxWidget.jsx';
 
 export default function MyAccount() {
   useTelegramBackButton();
@@ -149,9 +150,6 @@ export default function MyAccount() {
             <a href="/friends" className="underline text-primary">
               Friends
             </a>
-            <a href="/messages" className="underline text-primary">
-              Inbox
-            </a>
             <a href="/wall" className="underline text-primary">
               My Wall
             </a>
@@ -203,6 +201,7 @@ export default function MyAccount() {
           </div>
         )}
       </div>
+      <InboxWidget />
     </div>
   );
 }
