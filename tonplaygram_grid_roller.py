@@ -65,16 +65,14 @@ def ensure_template() -> Image.Image:
             col = c if r % 2 == 0 else 9 - c
             x = col * TILE_SIZE
             y = real_row * TILE_SIZE
-            # Alternate grey and light grey by tile number
-            base_val = 160 if tile_num % 2 == 1 else 220
-            color = (base_val, base_val, base_val)
+            color = (110 + (c % 2) * 10, 60, 40)
             draw.rectangle([x, y, x + TILE_SIZE, y + TILE_SIZE], fill=color)
             # simple 3D effect using highlights and shadows
-            draw.line([x, y, x + TILE_SIZE, y], fill=(min(color[0] + 30, 255), min(color[1] + 30, 255), min(color[2] + 30, 255)), width=2)
-            draw.line([x, y, x, y + TILE_SIZE], fill=(min(color[0] + 30, 255), min(color[1] + 30, 255), min(color[2] + 30, 255)), width=2)
-            draw.line([x + TILE_SIZE, y, x + TILE_SIZE, y + TILE_SIZE], fill=(max(color[0] - 30, 0), max(color[1] - 30, 0), max(color[2] - 30, 0)), width=2)
-            draw.line([x, y + TILE_SIZE, x + TILE_SIZE, y + TILE_SIZE], fill=(max(color[0] - 30, 0), max(color[1] - 30, 0), max(color[2] - 30, 0)), width=2)
-            draw.text((x + TILE_SIZE / 2, y + TILE_SIZE / 2), str(tile_num), fill="black", font=font, anchor="mm")
+            draw.line([x, y, x + TILE_SIZE, y], fill=(color[0] + 30, color[1] + 30, color[2] + 30), width=2)
+            draw.line([x, y, x, y + TILE_SIZE], fill=(color[0] + 30, color[1] + 30, color[2] + 30), width=2)
+            draw.line([x + TILE_SIZE, y, x + TILE_SIZE, y + TILE_SIZE], fill=(color[0] - 30, color[1] - 30, color[2] - 30), width=2)
+            draw.line([x, y + TILE_SIZE, x + TILE_SIZE, y + TILE_SIZE], fill=(color[0] - 30, color[1] - 30, color[2] - 30), width=2)
+            draw.text((x + TILE_SIZE / 2, y + TILE_SIZE / 2), str(tile_num), fill="white", font=font, anchor="mm")
             tile_num += 1
 
     base.save(BOARD_TEMPLATE)
