@@ -65,10 +65,9 @@ function Board({
   const [cellHeight, setCellHeight] = useState(40);
   const tiles = [];
   const centerCol = (COLS - 1) / 2;
-  // Gradually widen the board so each higher row fans out
-  const widenStep = 0.3; // how much each row expands horizontally
-  // Make upper rows slightly larger to create a V shape
-  const scaleStep = 0.03; // how much each row's cells scale
+  // Keep vertical columns evenly spaced rather than widening
+  const widenStep = 0; // how much each row expands horizontally
+  const scaleStep = 0.02; // how much each row's cells scale
   // Perspective with smaller cells at the bottom growing larger towards the pot
   const finalScale = 1 + (ROWS - 3) * scaleStep;
 
