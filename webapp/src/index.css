@@ -91,7 +91,10 @@ body {
   /* widen the top further so the background spans the full screen */
   /* Slightly widen the top so the backdrop fills the screen */
   /* Expand the bottom of the backdrop so it extends beyond the board */
-  clip-path: polygon(0% 0%, 100% 0%, 150% 100%, -50% 100%);
+  /* Make the left edge appear taller than the right by dropping the
+     top-right corner slightly. This creates a background that slopes
+     downward from left to right. */
+  clip-path: polygon(0% 0%, 100% 10%, 150% 100%, -50% 100%);
   pointer-events: none;
   z-index: 0;
   background: linear-gradient(
