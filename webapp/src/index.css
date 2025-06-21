@@ -62,6 +62,8 @@ body {
   transform-style: preserve-3d;
   transform-origin: bottom center;
   transition: transform 0.3s ease; /* ✅ scaling transition */
+  /* Left-to-right gradient matching the TonPlaygram palette */
+  background: linear-gradient(to right, #326d6e, #f3f1e8 50%, #eebd8d);
 }
 
 @keyframes roll {
@@ -118,8 +120,9 @@ body {
 }
 
 .board-cell {
-  @apply relative flex items-center justify-center rounded-xl text-text bg-surface border-2 border-accent;
-  /* Removed dark drop shadow that created a black frame around dice */
+  @apply relative flex items-center justify-center rounded-xl text-text;
+  background-color: #f6f1e6; /* Light tile background */
+  border: 2px solid #d2cabc; /* Soft gray outline */
   box-shadow: none;
   transform: translateZ(5px);
   transform-style: preserve-3d;
@@ -398,28 +401,28 @@ body {
 }
 
 .board-cell.ladder-highlight {
-  background-color: #86efac; /* green-300 */
+  background-color: #83c57d; /* muted green */
 }
 
 .board-cell.snake-highlight {
-  background-color: #fca5a5; /* red-300 */
+  background-color: #e07f63; /* muted red */
 }
 
 .board-cell.ladder-cell.ladder-highlight {
-  background-color: #86efac; /* green-300 */
+  background-color: #83c57d; /* muted green */
 }
 
 .board-cell.snake-cell.snake-highlight {
-  background-color: #fca5a5; /* red-300 */
+  background-color: #e07f63; /* muted red */
 }
 
 /* Indicate ladder or snake on the board */
 .board-cell.ladder-cell {
-  background-color: #86efac; /* green-300 */
+  background-color: #83c57d; /* muted green */
 }
 
 .board-cell.snake-cell {
-  background-color: #fca5a5; /* red-300 */
+  background-color: #e07f63; /* muted red */
 }
 
 .cell-marker {
@@ -453,6 +456,11 @@ body {
 .board-cell.snake-cell .cell-number,
 .board-cell.ladder-cell .cell-number {
   visibility: hidden;
+}
+
+.board-cell.score-cell {
+  background-color: #438d93; /* deep teal */
+  color: #ffffff;
 }
 
 .board-cell.snake-cell,

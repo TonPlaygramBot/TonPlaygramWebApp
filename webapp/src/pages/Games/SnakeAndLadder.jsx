@@ -104,7 +104,13 @@ function Board({
         : "";
       const isJump = isHighlight && highlight.type === 'normal';
       const cellType = ladders[num] ? "ladder" : snakes[num] ? "snake" : "";
-      const cellClass = cellType ? `${cellType}-cell` : "";
+      const scoreClass = num === 1 ? "score-cell" : "";
+      const cellClass = [
+        cellType ? `${cellType}-cell` : "",
+        scoreClass,
+      ]
+        .filter(Boolean)
+        .join(" ");
       const icon = cellType === "ladder" ? "🪜" : cellType === "snake" ? "🐍" : "";
       const offsetVal =
         cellType === "ladder"
