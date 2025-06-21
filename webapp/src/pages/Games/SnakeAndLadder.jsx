@@ -112,21 +112,17 @@ function Board({
           : cellType === "snake"
           ? snakeOffsets[num]
           : null;
-      const baseColor = num % 2 === 1 ? '#0d47a1' : '#6a0dad';
-      const style = {
-        gridRowStart: ROWS - r,
-        gridColumnStart: col + 1,
-        transform: `translate(${translateX}px, ${translateY}px) scale(${scale}) translateZ(5px)`,
-        transformOrigin: 'bottom center',
-      };
-      if (!cellType) style['--cell-bg'] = baseColor;
-
       tiles.push(
         <div
           key={num}
           data-cell={num}
           className={`board-cell ${cellClass} ${highlightClass}`}
-          style={style}
+          style={{
+            gridRowStart: ROWS - r,
+            gridColumnStart: col + 1,
+            transform: `translate(${translateX}px, ${translateY}px) scale(${scale}) translateZ(5px)`,
+            transformOrigin: 'bottom center',
+          }}
         >
           {(icon || offsetVal != null) && (
             <span className="cell-marker">
