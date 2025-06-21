@@ -17,6 +17,19 @@ BOARD_TEMPLATE = BASE_DIR / "board_template.png"
 BOARD_SIZE = 512
 TILE_SIZE = BOARD_SIZE // 10
 
+# Amount each row expands in width relative to the one below it. The top row
+# should end up roughly phone screen width when rendered.
+WIDTH_GROWTH_FACTOR = 0.05  # 5% wider per row
+# Amount each row grows vertically compared to the one below.
+HEIGHT_GROWTH_FACTOR = 0.05
+
+# Pre-compute per-row dimensions starting from the bottom row (index 0).
+ROW_WIDTHS = [BOARD_SIZE * (1 + WIDTH_GROWTH_FACTOR * r) for r in range(10)]
+ROW_HEIGHTS = [TILE_SIZE * (1 + HEIGHT_GROWTH_FACTOR * r) for r in range(10)]
+MAX_WIDTH = int(max(ROW_WIDTHS))
+TOTAL_HEIGHT = int(sum(ROW_HEIGHTS))
+ROW_STARTS = [sum(ROW_HEIGHTS[:r]) for r in range(10)]
+
 
 def load_data():
     if DATA_FILE.exists():
@@ -35,6 +48,7 @@ def user_key(update: Update) -> str:
 
 
 def board_coordinates(position: int):
+    """Return pixel coordinates for the given board position."""
     tile = position - 1
     row = tile // 10  # 0 is bottom row
     col_index = tile % 10
@@ -42,16 +56,20 @@ def board_coordinates(position: int):
         col = col_index
     else:
         col = 9 - col_index
-    x = col * TILE_SIZE
-    y = (9 - row) * TILE_SIZE
-    return x, y
+
+    tile_w = ROW_WIDTHS[row] / 10
+    tile_h = ROW_HEIGHTS[row]
+    x_offset = (MAX_WIDTH - ROW_WIDTHS[row]) / 2
+    x = x_offset + col * tile_w
+    y = TOTAL_HEIGHT - (ROW_STARTS[row] + tile_h)
+    return int(x), int(y)
 
 
 def ensure_template() -> Image.Image:
     if BOARD_TEMPLATE.exists():
         return Image.open(BOARD_TEMPLATE).convert("RGBA")
 
-    base = Image.new("RGBA", (BOARD_SIZE, BOARD_SIZE), (20, 20, 30))
+    base = Image.new("RGBA", (MAX_WIDTH, TOTAL_HEIGHT), (20, 20, 30))
     draw = ImageDraw.Draw(base)
     try:
         font = ImageFont.truetype("DejaVuSans-Bold.ttf", 20)
@@ -59,20 +77,23 @@ def ensure_template() -> Image.Image:
         font = ImageFont.load_default()
 
     tile_num = 1
-    for r in range(10):
-        real_row = 9 - r
+    for row in range(10):  # bottom row = 0
+        tile_w = ROW_WIDTHS[row] / 10
+        tile_h = ROW_HEIGHTS[row]
+        x_offset = (MAX_WIDTH - ROW_WIDTHS[row]) / 2
+        y = TOTAL_HEIGHT - (ROW_STARTS[row] + tile_h)
+
         for c in range(10):
-            col = c if r % 2 == 0 else 9 - c
-            x = col * TILE_SIZE
-            y = real_row * TILE_SIZE
+            col = c if row % 2 == 0 else 9 - c
+            x = x_offset + col * tile_w
             color = (110 + (c % 2) * 10, 60, 40)
-            draw.rectangle([x, y, x + TILE_SIZE, y + TILE_SIZE], fill=color)
+            draw.rectangle([x, y, x + tile_w, y + tile_h], fill=color)
             # simple 3D effect using highlights and shadows
-            draw.line([x, y, x + TILE_SIZE, y], fill=(color[0] + 30, color[1] + 30, color[2] + 30), width=2)
-            draw.line([x, y, x, y + TILE_SIZE], fill=(color[0] + 30, color[1] + 30, color[2] + 30), width=2)
-            draw.line([x + TILE_SIZE, y, x + TILE_SIZE, y + TILE_SIZE], fill=(color[0] - 30, color[1] - 30, color[2] - 30), width=2)
-            draw.line([x, y + TILE_SIZE, x + TILE_SIZE, y + TILE_SIZE], fill=(color[0] - 30, color[1] - 30, color[2] - 30), width=2)
-            draw.text((x + TILE_SIZE / 2, y + TILE_SIZE / 2), str(tile_num), fill="white", font=font, anchor="mm")
+            draw.line([x, y, x + tile_w, y], fill=(color[0] + 30, color[1] + 30, color[2] + 30), width=2)
+            draw.line([x, y, x, y + tile_h], fill=(color[0] + 30, color[1] + 30, color[2] + 30), width=2)
+            draw.line([x + tile_w, y, x + tile_w, y + tile_h], fill=(color[0] - 30, color[1] - 30, color[2] - 30), width=2)
+            draw.line([x, y + tile_h, x + tile_w, y + tile_h], fill=(color[0] - 30, color[1] - 30, color[2] - 30), width=2)
+            draw.text((x + tile_w / 2, y + tile_h / 2), str(tile_num), fill="white", font=font, anchor="mm")
             tile_num += 1
 
     base.save(BOARD_TEMPLATE)
@@ -88,12 +109,15 @@ def generate_board(position: int, token: str) -> Path:
         emoji_font = ImageFont.load_default()
 
     x, y = board_coordinates(position)
-    glow = Image.new("RGBA", (TILE_SIZE, TILE_SIZE), (255, 200, 0, 0))
+    row = (position - 1) // 10
+    tile_w = ROW_WIDTHS[row] / 10
+    tile_h = ROW_HEIGHTS[row]
+    glow = Image.new("RGBA", (int(tile_w), int(tile_h)), (255, 200, 0, 0))
     glow_draw = ImageDraw.Draw(glow)
-    glow_draw.ellipse((10, 10, TILE_SIZE - 10, TILE_SIZE - 10), fill=(255, 200, 0, 180))
+    glow_draw.ellipse((10, 10, tile_w - 10, tile_h - 10), fill=(255, 200, 0, 180))
     glow = glow.filter(ImageFilter.GaussianBlur(8))
-    base.paste(glow, (x, y), glow)
-    draw.text((x + TILE_SIZE / 2, y + TILE_SIZE / 2), token, font=emoji_font, anchor="mm")
+    base.paste(glow, (int(x), int(y)), glow)
+    draw.text((x + tile_w / 2, y + tile_h / 2), token, font=emoji_font, anchor="mm")
 
     out_path = Path(f"board_{position}.png")
     base.save(out_path)
