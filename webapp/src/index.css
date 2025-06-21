@@ -87,7 +87,7 @@ body {
   pointer-events: none;
   z-index: 0;
   background: linear-gradient(
-    to right,
+    to top,
     #123840,
     #1f4d58 20%,
     #d9cec2 40%,
