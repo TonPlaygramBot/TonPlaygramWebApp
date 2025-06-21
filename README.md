@@ -73,9 +73,10 @@ correct `https://` URL.
 ### Common issues
 
 - **Blank wallet screen or Tonkeeper not connecting** – ensure the manifest URL
-  is correct in both `.env` files and rebuild the webapp after any changes.
+  is correct and publicly reachable in both `.env` files, then rebuild the webapp
+  after any changes.
 - **Balance always zero** – verify MongoDB is running and `MONGODB_URI` points
-  to your database. The backend must be able to connect.
+  to a running database instance. The backend must be able to connect.
 - **No Telegram notifications** – confirm `npm start` is running and the bot
   token is valid. Users must interact with the bot in Telegram to receive
   messages.
