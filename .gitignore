@@ -8,5 +8,3 @@ bot/.env
 /webapp/dist/
 
 webapp/public/games/ludo/
-
-webapp/public/assets/snakes_ladders_board.png
