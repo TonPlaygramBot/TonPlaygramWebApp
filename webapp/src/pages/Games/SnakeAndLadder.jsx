@@ -63,7 +63,6 @@ function Board({
   const containerRef = useRef(null);
   const [cellWidth, setCellWidth] = useState(80);
   const [cellHeight, setCellHeight] = useState(40);
-  const [lockedScroll, setLockedScroll] = useState(null);
   const tiles = [];
   const centerCol = (COLS - 1) / 2;
   // Keep vertical columns evenly spaced rather than widening
@@ -218,48 +217,9 @@ function Board({
       container.scrollTop = container.scrollHeight - container.clientHeight;
   }, []);
 
-  // When the player moves beyond the first two rows start following
-  // their progress by scrolling the container. The camera tracks each
-  // row up to the ninth without changing angle or zoom. Once the
-  // ninth row is reached the scroll position is locked and no further
-  // following occurs.
-  useEffect(() => {
-    const container = containerRef.current;
-    if (!container) return;
-    const row = Math.floor((position - 1) / COLS);
-
-    const startFollow = 2; // third row
-    const stopFollow = 8; // ninth row
-
-    if (row < startFollow) {
-      setLockedScroll(null);
-      container.scrollTop = container.scrollHeight - container.clientHeight;
-      return;
-    }
-
-    if (lockedScroll !== null && row >= stopFollow) {
-      container.scrollTop = lockedScroll;
-      return;
-    }
-
-    const cell = container.querySelector(`[data-cell="${position}"]`);
-    if (cell) {
-      const containerRect = container.getBoundingClientRect();
-      const cellRect = cell.getBoundingClientRect();
-      const offset =
-        cellRect.top - containerRect.top + container.scrollTop - cellHeight * 2;
-      const target = Math.min(
-        Math.max(0, offset),
-        container.scrollHeight - container.clientHeight,
-      );
-      container.scrollTo({ top: target, behavior: 'smooth' });
-      if (row >= stopFollow && lockedScroll === null) setLockedScroll(target);
-    }
-  }, [position, cellHeight, lockedScroll]);
-
-  // The board is initially positioned at the bottom. Once the player
-  // reaches the third row, the container scrolls to keep them in view
-  // without altering the camera angle or zoom.
+  // The board position is fixed once rendered so it no longer follows the
+  // player's token as they move up the rows. This locks the board in place and
+  // keeps the bottom rows anchored while still allowing manual scrolling.
 
   const paddingTop = `${5.5 * cellHeight}px`;
 
