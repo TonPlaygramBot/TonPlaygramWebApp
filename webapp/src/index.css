@@ -181,7 +181,8 @@ body {
   /* Darker inner glow to emphasise depth */
   box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.6);
   /* Place the highlight above the tile so the shading is visible */
-  transform: translateZ(9px);
+  transform: translateZ(9px) rotateX(var(--board-angle, 60deg));
+  transform-style: preserve-3d;
 }
 
 .token {
@@ -473,7 +474,8 @@ body {
   position: absolute;
   top: 50%;
   left: 50%;
-  transform: translate(-50%, -50%);
+  transform: translate(-50%, -50%) rotateX(var(--board-angle, 60deg));
+  transform-style: preserve-3d;
   display: flex;
   align-items: center;
   gap: 2px;
@@ -500,7 +502,8 @@ body {
   font-weight: 700;
   text-shadow: 0 1px 0 #000;
   -webkit-text-stroke: 1px #000000;
-  transform: translateZ(10px);
+  transform: translateZ(10px) rotateX(var(--board-angle, 60deg));
+  transform-style: preserve-3d;
 }
 
 .board-cell.snake-cell .cell-number,
@@ -735,7 +738,8 @@ body {
   height: 1.8rem;
   left: 50%;
   top: 50%;
-  transform: translate(-50%, -50%) translateZ(6px);
+  transform: translate(-50%, -50%) translateZ(6px) rotateX(var(--board-angle, 60deg));
+  transform-style: preserve-3d;
   display: flex;
   align-items: center;
   justify-content: center;
