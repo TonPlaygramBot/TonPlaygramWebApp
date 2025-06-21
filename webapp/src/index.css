@@ -90,7 +90,8 @@ body {
   /* widen the top even more so the backdrop fills the screen */
   /* widen the top further so the background spans the full screen */
   /* Slightly widen the top so the backdrop fills the screen */
-  clip-path: polygon(0% 0%, 100% 0%, 100% 50%, 70% 100%, 30% 100%, 0% 50%);
+  /* Expand the bottom of the backdrop so it extends beyond the board */
+  clip-path: polygon(0% 0%, 100% 0%, 150% 100%, -50% 100%);
   pointer-events: none;
   z-index: 0;
   background: linear-gradient(
