@@ -10,17 +10,7 @@
 
 body {
   font-family: Arial, Helvetica, sans-serif;
-  background: linear-gradient(
-    to right,
-    #123840,
-    #1f4d58 20%,
-    #d9cec2 40%,
-    #f3f0e8 50%,
-    #b95741 60%,
-    #e7b382 80%,
-    #f3d3b0
-  );
-  @apply text-text overflow-x-hidden;
+  @apply bg-background text-text overflow-x-hidden;
 }
 
 .hexagon {
