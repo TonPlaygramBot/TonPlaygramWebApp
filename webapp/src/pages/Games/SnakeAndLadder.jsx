@@ -237,7 +237,7 @@ function Board({
       >
         <div className="snake-board-tilt">
           <div
-            className="snake-board-grid grid gap-1 relative mx-auto"
+            className="snake-board-grid grid gap-x-1 gap-y-2 relative mx-auto"
             style={{
               width: `${cellWidth * COLS}px`,
               height: `${cellHeight * ROWS + offsetYMax}px`,
