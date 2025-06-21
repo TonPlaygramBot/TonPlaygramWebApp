@@ -9,7 +9,6 @@ import Referral from './pages/Referral.jsx';
 import MyAccount from './pages/MyAccount.jsx';
 import Store from './pages/Store.jsx';
 import Messages from './pages/Messages.jsx';
-import Wall from './pages/Wall.jsx';
 import Trending from './pages/Trending.jsx';
 import Notifications from './pages/Notifications.jsx';
 
@@ -44,8 +43,6 @@ export default function App() {
           <Route path="/wallet" element={<Wallet />} />
           <Route path="/messages" element={<Messages />} />
           <Route path="/notifications" element={<Notifications />} />
-          <Route path="/wall" element={<Wall />} />
-          <Route path="/wall/:id" element={<Wall />} />
           <Route path="/trending" element={<Trending />} />
           <Route path="/account" element={<MyAccount />} />
         </Routes>
