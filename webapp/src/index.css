@@ -88,7 +88,8 @@ body {
   /* narrow the bottom of the backdrop so it fits the board */
   /* widen the top a bit more so the background fills the screen */
   /* widen the top even more so the backdrop fills the screen */
-  clip-path: polygon(-100% 0, 200% 0, 100% 100%, 0% 100%);
+  /* widen the top further so the background spans the full screen */
+  clip-path: polygon(-150% 0, 250% 0, 100% 100%, 0% 100%);
   pointer-events: none;
   z-index: 0;
   background: linear-gradient(
