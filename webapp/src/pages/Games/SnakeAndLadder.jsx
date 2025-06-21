@@ -74,9 +74,12 @@ function Board({
   // Precompute vertical offsets so that the gap between rows
   // stays uniform even as cells are scaled differently per row.
   const rowOffsets = [0];
+  const baseGap = 8; // pixels between the first two rows
+  const gapStep = 0.5; // additional pixels added each subsequent row
   for (let r = 1; r < ROWS; r++) {
     const prevScale = 1 + (r - 3) * scaleStep;
-    rowOffsets[r] = rowOffsets[r - 1] + (prevScale - 1) * cellHeight;
+    const extraGap = baseGap + gapStep * (r - 1);
+    rowOffsets[r] = rowOffsets[r - 1] + (prevScale - 1) * cellHeight + extraGap;
   }
   const offsetYMax = rowOffsets[ROWS - 1];
 
@@ -237,7 +240,7 @@ function Board({
       >
         <div className="snake-board-tilt">
           <div
-            className="snake-board-grid grid gap-x-1 gap-y-2 relative mx-auto"
+            className="snake-board-grid grid gap-x-0.5 gap-y-2 relative mx-auto"
             style={{
               width: `${cellWidth * COLS}px`,
               height: `${cellHeight * ROWS + offsetYMax}px`,
