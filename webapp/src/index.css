@@ -83,7 +83,8 @@ body {
   transform-origin: bottom center;
   /* slightly expand the backdrop and widen its top edge */
   width: calc(var(--board-width) * 1.2);
-  clip-path: polygon(-10% 0, 110% 0, 100% 100%, 0 100%);
+  /* flip orientation so the base is narrower than the top */
+  clip-path: polygon(0 0, 100% 0, 110% 100%, -10% 100%);
   pointer-events: none;
   z-index: 0;
   background: linear-gradient(
