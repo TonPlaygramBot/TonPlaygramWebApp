@@ -164,8 +164,8 @@ body {
   @apply relative flex items-center justify-center rounded-xl text-text;
   background-color: var(--tile-bg, #0e3b45);
   border: 2px solid #d1a75f;
-  /* Removed dark drop shadow that created a black frame around dice */
-  box-shadow: none;
+  /* Cast a soft shadow so tiles stand out at the board's angle */
+  box-shadow: 0 8px 12px rgba(0, 0, 0, 0.4);
   transform: translateZ(5px);
   transform-style: preserve-3d;
   overflow: visible;
