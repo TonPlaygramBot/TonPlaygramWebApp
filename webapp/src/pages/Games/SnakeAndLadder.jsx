@@ -286,6 +286,7 @@ function Board({
               "--cell-width": `${cellWidth}px`,
               "--cell-height": `${cellHeight}px`,
               "--board-width": `${cellWidth * COLS}px`,
+              "--board-height": `${cellHeight * ROWS + offsetYMax}px`,
               "--board-angle": `${angle}deg`,
               "--final-scale": finalScale,
               // Fixed camera angle with no zooming
