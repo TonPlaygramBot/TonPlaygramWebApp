@@ -79,13 +79,13 @@ body {
   top: 50%;
   left: 50%;
   /* slightly taller backdrop */
-  width: calc(var(--board-height) * 1.2);
-  height: calc(var(--board-width) * 1.5);
+  width: calc(var(--board-height) * 1.3);
+  height: calc(var(--board-width) * 1.7);
   /* keep bottom in place by shifting upward */
-  transform: translate(-50%, -60%) rotate(90deg) translateZ(-1px);
+  transform: translate(-50%, -65%) rotate(90deg) translateZ(-1px);
   transform-origin: center;
   /* widen the top of the backdrop while keeping the bottom unchanged */
-  clip-path: polygon(-30% 0, 130% 0, 110% 100%, -10% 100%);
+  clip-path: polygon(-50% 0, 150% 0, 110% 100%, -10% 100%);
   pointer-events: none;
   z-index: 0;
   background: linear-gradient(
