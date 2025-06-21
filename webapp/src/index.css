@@ -75,16 +75,15 @@ body {
 
 .snake-gradient-bg {
   position: absolute;
-  /* anchor the backdrop near the bottom so it starts narrow */
-  top: calc(var(--cell-height) * -2);
-  bottom: 0;
+  /* rotate the backdrop 90deg so it runs from top to bottom */
+  top: 50%;
   left: 50%;
-  width: calc(var(--board-width) * 1.2);
-  height: calc(var(--board-height) * 1.2);
-  transform: translateX(-50%) translateZ(-1px);
-  transform-origin: bottom center;
-  /* wedge shape with a narrow base that widens toward the top */
-  clip-path: polygon(-10% 0, 110% 0, 100% 100%, 0 100%);
+  width: calc(var(--board-height) * 1.2);
+  height: calc(var(--board-width) * 1.2);
+  transform: translate(-50%, -50%) rotate(90deg) translateZ(-1px);
+  transform-origin: center;
+  /* keep the same wedge shape with the base narrower than the top */
+  clip-path: polygon(0 0, 100% 0, 110% 100%, -10% 100%);
   pointer-events: none;
   z-index: 0;
   background: linear-gradient(
