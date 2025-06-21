@@ -71,12 +71,11 @@ body {
   left: 50%;
   transform: translateX(-50%) translateZ(-1px);
   transform-origin: bottom center;
-  width: 100vw; /* fill entire screen width */
+  width: var(--board-width);
   pointer-events: none;
   z-index: 0;
-  /* vertical gradient running from the bottom of the board to the top pot cell */
   background: linear-gradient(
-    to top,
+    to right,
     #123840,
     #1f4d58 20%,
     #d9cec2 40%,
