@@ -54,6 +54,16 @@ set the `HTTPS_PROXY` (or `https_proxy`) environment variable before running the
 bot. All fetch requests from the Node.js backend will be routed through this
 proxy.
 
+### Troubleshooting wallet connections
+
+If Tonkeeper fails to connect, verify that the TonConnect manifest is reachable
+at the URL configured in `VITE_TONCONNECT_MANIFEST` (frontend) and
+`TONCONNECT_MANIFEST_URL` (backend). The URL must be publicly accessible over
+HTTPS and should match your API's base domain. You can open the manifest in a
+browser to confirm it returns JSON. If your server sits behind a proxy, ensure
+the proxy forwards the `x-forwarded-proto` header so the manifest reports the
+correct `https://` URL.
+
 ## Telegram game bots
 
 Several small Telegram game bots are included in this repository. They use
