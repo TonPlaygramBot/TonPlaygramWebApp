@@ -64,6 +64,28 @@ body {
   transition: transform 0.3s ease; /* ✅ scaling transition */
 }
 
+.snake-gradient-bg {
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%) translateZ(-1px);
+  transform-origin: bottom center;
+  width: var(--board-width);
+  height: 150vh;
+  pointer-events: none;
+  z-index: 0;
+  background: linear-gradient(
+    to right,
+    #123840,
+    #1f4d58 20%,
+    #d9cec2 40%,
+    #f3f0e8 50%,
+    #b95741 60%,
+    #e7b382 80%,
+    #f3d3b0
+  );
+}
+
 @keyframes roll {
   0% {
     transform: rotateX(0deg) rotateY(0deg) rotateZ(0deg) translateY(0);
