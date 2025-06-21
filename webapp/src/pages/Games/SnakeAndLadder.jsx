@@ -65,29 +65,25 @@ function Board({
   const [cellHeight, setCellHeight] = useState(40);
   const tiles = [];
   const centerCol = (COLS - 1) / 2;
-  // Gradually widen and scale rows starting from the third
-  const widenStep = 0.1; // how much each row expands horizontally
+  // Keep vertical columns evenly spaced rather than widening
+  const widenStep = 0; // how much each row expands horizontally
   const scaleStep = 0.02; // how much each row's cells scale
   // Perspective with smaller cells at the bottom growing larger towards the pot
   const finalScale = 1 + (ROWS - 3) * scaleStep;
 
-  // Precompute scale for each row so spacing remains even
-  const rowScales = [];
-  for (let r = 0; r < ROWS; r++) {
-    const rowFactor = Math.max(0, r - 2);
-    rowScales[r] = 1 + rowFactor * scaleStep;
-  }
-  // Calculate vertical offsets to account for scaled heights
+  // Precompute vertical offsets so that the gap between rows
+  // stays uniform even as cells are scaled differently per row.
   const rowOffsets = [0];
   for (let r = 1; r < ROWS; r++) {
-    rowOffsets[r] = rowOffsets[r - 1] + (rowScales[r - 1] - 1) * cellHeight;
+    const prevScale = 1 + (r - 3) * scaleStep;
+    rowOffsets[r] = rowOffsets[r - 1] + (prevScale - 1) * cellHeight;
   }
   const offsetYMax = rowOffsets[ROWS - 1];
 
   for (let r = 0; r < ROWS; r++) {
     // Rows grow larger towards the top of the board
-    const rowFactor = Math.max(0, r - 2);
-    const scale = rowScales[r];
+    const rowFactor = r - 2;
+    const scale = 1 + rowFactor * scaleStep;
     // Include the scaled cell width so horizontal gaps remain consistent
     const offsetX = rowFactor * widenStep * cellWidth + (scale - 1) * cellWidth;
     // Arrange cell numbers so the bottom row starts on the left and each
