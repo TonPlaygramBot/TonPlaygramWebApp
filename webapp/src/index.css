@@ -64,8 +64,7 @@ body {
 
 /* Tilted view specifically for the Snake & Ladder board */
 .snake-board-tilt {
-  /* Move the camera slightly closer */
-  perspective: 1000px;
+  perspective: 1200px;
 }
 
 .snake-board-grid {
