@@ -80,7 +80,7 @@ body {
   left: 50%;
   width: calc(var(--board-height) * 1.2);
   height: calc(var(--board-width) * 1.2);
-  transform: translate(-50%, -50%) rotate(90deg) translateZ(-1px);
+  transform: translate(-50%, -50%) rotate(90deg) rotateX(var(--board-angle, 60deg)) translateZ(-1px);
   transform-origin: center;
   /* keep the same wedge shape with the base narrower than the top */
   clip-path: polygon(0 0, 100% 0, 110% 100%, -10% 100%);
