@@ -290,7 +290,7 @@ function Board({
               "--board-angle": `${angle}deg`,
               "--final-scale": finalScale,
               // Fixed camera angle with no zooming
-              transform: `translateX(${boardXOffset}px) rotateX(${angle}deg)`,
+              transform: `translateX(${boardXOffset}px) rotateX(${angle}deg) scale(1.03)`,
             }}
           >
             <div className="snake-gradient-bg" />
