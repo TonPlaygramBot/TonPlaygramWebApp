@@ -270,7 +270,7 @@ function Board({
         className="overflow-y-auto"
         style={{
           overflowX: 'hidden',
-          height: "80vh",
+          height: "100vh",
           overscrollBehaviorY: "contain",
           paddingTop,
         }}
