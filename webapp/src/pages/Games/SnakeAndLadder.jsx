@@ -68,7 +68,7 @@ function Board({
   const centerCol = (COLS - 1) / 2;
   // Keep vertical columns evenly spaced rather than widening
   const widenStep = 0; // how much each row expands horizontally
-  const scaleStep = 0.02; // how much each row's cells scale
+  const scaleStep = 0; // disable row scaling so top width matches bottom
   const finalScale = 1 + (ROWS - 3) * scaleStep;
 
   // Precompute vertical offsets so that the gap between rows
