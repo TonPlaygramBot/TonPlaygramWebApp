@@ -668,8 +668,7 @@ body {
   top: 50%;
   pointer-events: none;
   /* Align with the token photo but sit just underneath */
-  transform: translate(-50%, -50%) translateZ(14.2px)
-    rotateX(calc(var(--board-angle, 60deg) * -1)) rotateY(0deg);
+  transform: translate(-50%, -50%) translateZ(14.2px);
   animation: hex-spin 6s linear infinite;
   z-index: 0;
 }
@@ -691,12 +690,10 @@ body {
 
 @keyframes hex-spin {
   from {
-    transform: translate(-50%, -50%) translateZ(14.2px)
-      rotateX(calc(var(--board-angle, 60deg) * -1)) rotateY(0deg);
+    transform: translate(-50%, -50%) translateZ(14.2px) rotateY(0deg);
   }
   to {
-    transform: translate(-50%, -50%) translateZ(14.2px)
-      rotateX(calc(var(--board-angle, 60deg) * -1)) rotateY(360deg);
+    transform: translate(-50%, -50%) translateZ(14.2px) rotateY(360deg);
   }
 }
 
