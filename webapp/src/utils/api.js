@@ -21,17 +21,21 @@ async function post(path, body, token) {
   if (initData) headers['X-Telegram-Init-Data'] = initData;
 
   const res = await fetch(API_BASE_URL + path, {
-
     method: 'POST',
-
     headers,
-
     body: JSON.stringify(body)
-
   });
 
-  return res.json();
-
+  let data;
+  try {
+    data = await res.json();
+  } catch (err) {
+    return { error: err.message };
+  }
+  if (!res.ok) {
+    return { error: data.error || res.statusText };
+  }
+  return data;
 }
 
 export function getMiningStatus(telegramId) {
