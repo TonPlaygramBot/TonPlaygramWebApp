@@ -84,8 +84,8 @@ body {
   /* keep bottom in place by shifting upward */
   transform: translate(-50%, -60%) rotate(90deg) translateZ(-1px);
   transform-origin: center;
-  /* widen the top of the backdrop */
-  clip-path: polygon(-10% 0, 110% 0, 110% 100%, -10% 100%);
+  /* widen the top of the backdrop while keeping the bottom unchanged */
+  clip-path: polygon(-30% 0, 130% 0, 110% 100%, -10% 100%);
   pointer-events: none;
   z-index: 0;
   background: linear-gradient(
