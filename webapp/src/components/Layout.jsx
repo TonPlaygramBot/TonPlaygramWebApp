@@ -11,12 +11,9 @@ export default function Layout({ children }) {
     location.pathname.startsWith('/games/') &&
     !location.pathname.includes('/lobby')
   );
-  const isHome = location.pathname === '/';
 
   return (
-    <div
-      className={`flex flex-col min-h-screen text-text relative ${isHome ? 'home-bg' : 'bg-background'}`}
-    >
+    <div className="flex flex-col min-h-screen bg-background text-text relative">
       <main className={`flex-grow container mx-auto p-4 ${showNavbar ? 'pb-24' : ''}`.trim()}>
         {showBranding && <Branding />}
         {children}
