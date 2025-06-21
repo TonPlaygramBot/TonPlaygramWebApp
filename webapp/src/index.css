@@ -66,12 +66,12 @@ body {
 
 .snake-gradient-bg {
   position: absolute;
+  top: calc(var(--cell-height) * -5.5);
   bottom: 0;
   left: 50%;
   transform: translateX(-50%) translateZ(-1px);
   transform-origin: bottom center;
   width: var(--board-width);
-  height: 150vh;
   pointer-events: none;
   z-index: 0;
   background: linear-gradient(
