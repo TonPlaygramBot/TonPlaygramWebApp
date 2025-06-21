@@ -90,6 +90,16 @@ function Board({
     // subsequent row alternates direction. Tile 1 is at the bottom-left and
     // tile 100 ends up at the top-right.
     const reversed = r % 2 === 1;
+    const colorIdx = Math.floor(r / (ROWS / 5));
+    const TILE_COLORS = [
+      "#6db0ad",
+      "#4a828e",
+      "#3d7078",
+      "#2d5c66",
+      "#0e3b45",
+    ];
+    const rowColor = TILE_COLORS[colorIdx] || "#0e3b45";
+
     for (let c = 0; c < COLS; c++) {
       const col = c;
       const num = reversed ? (r + 1) * COLS - c : r * COLS + c + 1;
@@ -112,17 +122,20 @@ function Board({
           : cellType === "snake"
           ? snakeOffsets[num]
           : null;
+      const style = {
+        gridRowStart: ROWS - r,
+        gridColumnStart: col + 1,
+        transform: `translate(${translateX}px, ${translateY}px) scale(${scale}) translateZ(5px)`,
+        transformOrigin: 'bottom center',
+      };
+      if (!highlightClass) style.backgroundColor = rowColor;
+
       tiles.push(
         <div
           key={num}
           data-cell={num}
           className={`board-cell ${cellClass} ${highlightClass}`}
-          style={{
-            gridRowStart: ROWS - r,
-            gridColumnStart: col + 1,
-            transform: `translate(${translateX}px, ${translateY}px) scale(${scale}) translateZ(5px)`,
-            transformOrigin: 'bottom center',
-          }}
+          style={style}
         >
           {(icon || offsetVal != null) && (
             <span className="cell-marker">

@@ -118,7 +118,9 @@ body {
 }
 
 .board-cell {
-  @apply relative flex items-center justify-center rounded-xl text-text bg-surface border-2 border-accent;
+  @apply relative flex items-center justify-center rounded-xl text-text;
+  background-color: var(--tile-bg, #0e3b45);
+  border: 2px solid #d1a75f;
   /* Removed dark drop shadow that created a black frame around dice */
   box-shadow: none;
   transform: translateZ(5px);
@@ -133,7 +135,7 @@ body {
   position: absolute;
   inset: 2px;
   border-radius: inherit;
-  box-shadow: 0 0 8px rgba(250, 204, 21, 0.5);
+  box-shadow: 0 0 8px rgba(209, 167, 95, 0.5);
   transform: translateZ(-1px);
 }
 
@@ -448,6 +450,8 @@ body {
 .cell-number {
   position: relative;
   z-index: 1;
+  color: #ffffff;
+  text-shadow: 0 1px 0 #cdd5d6;
 }
 
 .board-cell.snake-cell .cell-number,
