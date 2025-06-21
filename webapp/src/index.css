@@ -82,8 +82,8 @@ body {
   height: calc(var(--board-width) * 1.2);
   transform: translate(-50%, -50%) rotate(90deg) translateZ(-1px);
   transform-origin: center;
-  /* widen towards the pot and narrow near the first row */
-  clip-path: polygon(-10% 0, 110% 0, 90% 100%, 10% 100%);
+  /* keep the same wedge shape with the base narrower than the top */
+  clip-path: polygon(0 0, 100% 0, 110% 100%, -10% 100%);
   pointer-events: none;
   z-index: 0;
   background: linear-gradient(
