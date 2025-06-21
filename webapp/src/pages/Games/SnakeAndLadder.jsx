@@ -69,21 +69,21 @@ function Board({
   // Keep vertical columns evenly spaced rather than widening
   const widenStep = 0; // how much each row expands horizontally
   const scaleStep = 0.02; // how much each row's cells scale
-  // Reverse perspective so the top rows appear larger
-  const finalScale = 1 + (ROWS - 3) * scaleStep;
+  // Invert the perspective so the bottom rows appear larger
+  const finalScale = 1 - (ROWS - 3) * scaleStep;
 
   // Precompute vertical offsets so that the gap between rows
   // stays uniform even as cells are scaled differently per row.
   const rowOffsets = [0];
   for (let r = 1; r < ROWS; r++) {
-    const prevScale = 1 + ((r - 1) - 2) * scaleStep;
+    const prevScale = 1 + (2 - (r - 1)) * scaleStep;
     rowOffsets[r] = rowOffsets[r - 1] + (prevScale - 1) * cellHeight;
   }
   const offsetYMax = rowOffsets[ROWS - 1];
 
   for (let r = 0; r < ROWS; r++) {
-    // Reverse perspective so later rows are scaled larger
-    const rowFactor = r - 2;
+    // Reversed perspective so earlier rows are scaled larger
+    const rowFactor = 2 - r;
     const scale = 1 + rowFactor * scaleStep;
     // Include the scaled cell width so horizontal gaps remain consistent
     const offsetX = rowFactor * widenStep * cellWidth + (scale - 1) * cellWidth;
