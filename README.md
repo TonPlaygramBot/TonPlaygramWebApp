@@ -9,6 +9,7 @@
    - `MONGODB_URI` – MongoDB connection string or `memory`
    - `AIRDROP_ADMIN_TOKENS` – (optional) tokens allowed to trigger airdrops
    - `TONCONNECT_MANIFEST_URL` – public URL to your TonConnect manifest
+   - `DEPOSIT_WALLET_ADDRESS` – TON address that receives user deposits
    - `PORT` – (optional) port for the bot API server (defaults to 3000)
 
 4. Copy `webapp/.env.example` to `webapp/.env` and configure:
@@ -69,6 +70,17 @@ HTTPS and should match your API's base domain. You can open the manifest in a
 browser to confirm it returns JSON. If your server sits behind a proxy, ensure
 the proxy forwards the `x-forwarded-proto` header so the manifest reports the
 correct `https://` URL.
+
+### Wallet overview
+
+This app exposes two separate wallets:
+
+- **TPC Wallet** – an off-chain balance stored in MongoDB. Commands like
+  `/wallet balance` and `/wallet send` interact with this database record.
+- **Tonkeeper Wallet** – an on-chain TON account connected through TonConnect.
+  Deposits sent to `DEPOSIT_WALLET_ADDRESS` credit the TPC balance after the
+  transfer is detected. Withdrawals deduct TPC and would transfer TON to the
+  provided address in a full implementation.
 
 ### Common issues
 
