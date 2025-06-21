@@ -126,6 +126,7 @@ body {
   overflow: visible;
   width: var(--cell-width);
   height: var(--cell-height);
+  background-color: var(--cell-bg, #11172a);
 }
 
 .board-cell::after {
