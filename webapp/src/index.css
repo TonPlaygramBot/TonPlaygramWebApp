@@ -529,19 +529,17 @@ body {
 }
 
 .logo-wall-main {
-  @apply absolute flex items-center justify-center;
-  width: calc(var(--cell-width) * 6); /* larger logo width */
-  height: calc(var(--cell-height) * 5); /* taller logo */
-  /* move the logo even higher above the board */
-  top: calc(var(--cell-height) * -9.5 - var(--cell-height) * 1.8 * (var(--final-scale, 1) - 1)); /* adjust for scaled top row */
-  left: 50%;
-  transform: translateX(-50%) rotateX(calc(var(--board-angle, 60deg) * -1)) translateZ(-40px) scale(1.8); /* larger logo */
+  @apply absolute inset-0 flex items-center justify-center;
+  width: 100vw;
+  height: 100vh;
+  transform: rotateX(var(--board-angle, 60deg)) translateZ(-40px) scale(1.8);
   transform-origin: bottom center;
   background-image: url("/assets/TonPlayGramLogo.jpg");
-  background-size: contain;
+  background-size: cover;
   background-repeat: no-repeat;
   background-position: center;
-  z-index: 5;
+  pointer-events: none;
+  z-index: -1;
 }
 
 
