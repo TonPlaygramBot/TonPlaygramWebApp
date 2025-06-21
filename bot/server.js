@@ -1,5 +1,6 @@
 import dotenv from 'dotenv';
 import express from 'express';
+import cors from 'cors';
 import bot from './bot.js';
 import mongoose from 'mongoose';
 import { proxyUrl, proxyAgent } from './utils/proxyAgent.js';
@@ -36,6 +37,7 @@ if (!process.env.MONGODB_URI) {
 
 const PORT = process.env.PORT || 3000;
 const app = express();
+app.use(cors());
 const httpServer = http.createServer(app);
 const io = new SocketIOServer(httpServer, { cors: { origin: '*' } });
 const gameManager = new GameRoomManager(io);
