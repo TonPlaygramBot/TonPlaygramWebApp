@@ -268,6 +268,7 @@ function Board({
         }}
       >
         <div className="snake-board-tilt">
+          <div className="logo-wall-main" />
           <div
             className="snake-board-grid grid gap-1 relative mx-auto"
             style={{
@@ -311,9 +312,8 @@ function Board({
                   type={highlight && highlight.cell === FINAL_TILE ? highlight.type : tokenType}
                 />
               )}
-              {celebrate && <CoinBurst token={token} />}
-            </div>
-            <div className="logo-wall-main" />
+            {celebrate && <CoinBurst token={token} />}
+          </div>
           </div>
         </div>
       </div>
