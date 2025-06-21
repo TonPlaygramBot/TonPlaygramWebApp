@@ -66,12 +66,15 @@ body {
 
 .snake-gradient-bg {
   position: absolute;
-  top: calc(var(--cell-height) * -5.5);
+  /* move the gradient lower so it anchors near the bottom */
+  top: calc(var(--cell-height) * -2);
   bottom: 0;
   left: 50%;
   transform: translateX(-50%) translateZ(-1px);
   transform-origin: bottom center;
-  width: var(--board-width);
+  /* slightly expand the backdrop and widen its top edge */
+  width: calc(var(--board-width) * 1.2);
+  clip-path: polygon(-10% 0, 110% 0, 100% 100%, 0 100%);
   pointer-events: none;
   z-index: 0;
   background: linear-gradient(
