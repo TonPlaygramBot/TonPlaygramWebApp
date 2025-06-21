@@ -66,18 +66,17 @@ export default function Home() {
       <div className="flex flex-col items-center">
 
         {photoUrl && (
-          <div className="relative w-36 h-36 -mt-[20%] mb-3">
-            <img
-              src={photoUrl}
-              alt="profile"
-              className="hexagon w-full h-full object-cover"
-            />
-            <img
-              src="/assets/hex_prism_white.svg"
-              alt="hex frame"
-              className="absolute inset-0 w-full h-full pointer-events-none"
-            />
-          </div>
+
+          <img
+
+            src={photoUrl}
+
+            alt="profile"
+
+            className="w-36 h-36 hexagon border-4 border-brand-gold -mt-[20%] mb-3 object-cover"
+
+          />
+
         )}
 
         <div className="mb-2">
