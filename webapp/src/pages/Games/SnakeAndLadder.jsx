@@ -291,6 +291,7 @@ function Board({
               transform: `translateX(${boardXOffset}px) rotateX(${angle}deg)`,
             }}
           >
+            <div className="snake-gradient-bg" />
             {tiles}
             <div
               className={`pot-cell ${highlight && highlight.cell === FINAL_TILE ? "highlight" : ""}`}
