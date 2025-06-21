@@ -164,8 +164,8 @@ body {
   @apply relative flex items-center justify-center rounded-xl text-text;
   background-color: var(--tile-bg, #0e3b45);
   border: 2px solid #d1a75f;
-  /* Cast a soft shadow so tiles stand out at the board's angle */
-  box-shadow: 0 8px 12px rgba(0, 0, 0, 0.4);
+  /* Cast a shadow dark enough for a stronger 3D effect */
+  box-shadow: 0 8px 12px rgba(0, 0, 0, 0.6);
   transform: translateZ(5px);
   transform-style: preserve-3d;
   overflow: visible;
@@ -178,7 +178,8 @@ body {
   position: absolute;
   inset: 2px;
   border-radius: inherit;
-  box-shadow: 0 0 8px rgba(209, 167, 95, 0.5);
+  /* Darker inner glow to emphasise depth */
+  box-shadow: 0 0 8px rgba(209, 167, 95, 0.8);
   /* Place the highlight above the tile so the shading is visible */
   transform: translateZ(6px);
 }
@@ -495,6 +496,8 @@ body {
   position: relative;
   z-index: 1;
   color: #ffffff;
+  font-family: "Comic Sans MS", "Comic Sans", cursive;
+  font-weight: bold;
   text-shadow: 0 1px 0 #cdd5d6;
 }
 
