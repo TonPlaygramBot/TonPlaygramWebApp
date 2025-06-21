@@ -179,7 +179,8 @@ body {
   inset: 2px;
   border-radius: inherit;
   box-shadow: 0 0 8px rgba(209, 167, 95, 0.5);
-  transform: translateZ(-1px);
+  /* Place the highlight above the tile so the shading is visible */
+  transform: translateZ(6px);
 }
 
 .token {
