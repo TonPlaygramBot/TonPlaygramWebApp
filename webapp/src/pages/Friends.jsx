@@ -143,22 +143,18 @@ export default function Friends() {
                 >
                   <td className="p-2">{idx + 1}</td>
                   <td className="p-2 w-16">
-                    <Link to={`/wall/${u.telegramId}`}> 
-                      <img
-                        src={
-                          u.telegramId === telegramId
-                            ? myPhotoUrl || '/assets/icons/profile.svg'
-                            : u.photo || u.photoUrl || '/assets/icons/profile.svg'
-                        }
-                        alt="avatar"
-                        className="w-16 h-16 hexagon border-2 border-brand-gold object-cover"
-                      />
-                    </Link>
+                    <img
+                      src={
+                        u.telegramId === telegramId
+                          ? myPhotoUrl || '/assets/icons/profile.svg'
+                          : u.photo || u.photoUrl || '/assets/icons/profile.svg'
+                      }
+                      alt="avatar"
+                      className="w-16 h-16 hexagon border-2 border-brand-gold object-cover"
+                    />
                   </td>
                   <td className="p-2">
-                    <Link to={`/wall/${u.telegramId}`} className="hover:underline">
-                      {u.nickname || `${u.firstName} ${u.lastName}`.trim() || 'User'}
-                    </Link>
+                    {u.nickname || `${u.firstName} ${u.lastName}`.trim() || 'User'}
                   </td>
                   <td className="p-2 text-right">{u.balance}</td>
                 </tr>
@@ -173,9 +169,7 @@ export default function Friends() {
                       className="w-16 h-16 hexagon border-2 border-brand-gold object-cover"
                     />
                   </td>
-                  <td className="p-2">
-                    <Link to={`/wall/${telegramId}`} className="hover:underline">You</Link>
-                  </td>
+                  <td className="p-2">You</td>
                   <td className="p-2 text-right">{leaderboard.find((u) => u.telegramId === telegramId)?.balance ?? '...'}</td>
                 </tr>
               )}

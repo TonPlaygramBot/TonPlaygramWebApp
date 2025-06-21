@@ -150,8 +150,8 @@ export default function MyAccount() {
             <a href="/friends" className="underline text-primary">
               Friends
             </a>
-            <a href="/wall" className="underline text-primary">
-              My Wall
+            <a href="/messages" className="underline text-primary">
+              Inbox
             </a>
           </div>
         </div>
