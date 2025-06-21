@@ -35,6 +35,12 @@
    npm test
    ```
 
+8. Start the API server and Telegram bot:
+
+   ```bash
+   npm start
+   ```
+
 ### The Wall
 
 Users can share photos and messages on **The Wall**. Posts support likes, comments and sharing. You can also attach images up to about 10&nbsp;MB and repost to Telegram, Twitter or Facebook. Friends see your updates and receive Telegram notifications when they interact with them.
@@ -63,6 +69,16 @@ HTTPS and should match your API's base domain. You can open the manifest in a
 browser to confirm it returns JSON. If your server sits behind a proxy, ensure
 the proxy forwards the `x-forwarded-proto` header so the manifest reports the
 correct `https://` URL.
+
+### Common issues
+
+- **Blank wallet screen or Tonkeeper not connecting** – ensure the manifest URL
+  is correct in both `.env` files and rebuild the webapp after any changes.
+- **Balance always zero** – verify MongoDB is running and `MONGODB_URI` points
+  to your database. The backend must be able to connect.
+- **No Telegram notifications** – confirm `npm start` is running and the bot
+  token is valid. Users must interact with the bot in Telegram to receive
+  messages.
 
 ## Telegram game bots
 

@@ -39,11 +39,21 @@ export default function Wallet() {
 
   const loadBalances = async () => {
     const prof = await getWalletBalance(telegramId);
-    setTpcBalance(prof.balance);
+    if (prof?.error || typeof prof.balance !== 'number') {
+      console.error('Failed to load TPC balance:', prof?.error);
+      setTpcBalance(0);
+    } else {
+      setTpcBalance(prof.balance);
+    }
 
     if (wallet?.account?.address) {
       const bal = await getTonBalance(wallet.account.address);
-      setTonBalance(bal.balance);
+      if (bal?.error || typeof bal.balance !== 'number') {
+        console.error('Failed to load TON balance:', bal?.error);
+        setTonBalance(0);
+      } else {
+        setTonBalance(bal.balance);
+      }
     }
   };
 
