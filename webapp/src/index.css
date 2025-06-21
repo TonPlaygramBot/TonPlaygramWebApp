@@ -743,3 +743,15 @@ body {
   font-weight: bold;
   color: #000;
 }
+
+/*
+  Gradient background for the mobile app. It blends rich navy (#0c1020)
+  and deep midnight (#11172a) blues with a subtle amber accent. A radial
+  highlight centers the screen while darker edges add contrast for dark UIs.
+*/
+.navy-midnight-amber-gradient {
+  background-color: #0c1020;
+  background-image:
+    radial-gradient(circle at center, rgba(249, 179, 45, 0.25), transparent 70%),
+    linear-gradient(to bottom, #0c1020, #11172a 20%, #11172a 80%, #0c1020);
+}
