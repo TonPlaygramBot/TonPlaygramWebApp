@@ -111,30 +111,6 @@ body {
   );
 }
 
-.board-wall-left,
-.board-wall-right {
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  width: 120px;
-  pointer-events: none;
-  z-index: 0;
-}
-
-.board-wall-left {
-  left: 0;
-  background: linear-gradient(to top, #0c1020, #11172a);
-  transform: rotateY(30deg) translateX(-60px);
-  transform-origin: left center;
-}
-
-.board-wall-right {
-  right: 0;
-  background: linear-gradient(to top, #2a0c0c, #401010);
-  transform: rotateY(-30deg) translateX(60px);
-  transform-origin: right center;
-}
-
 @keyframes roll {
   0% {
     transform: rotateX(0deg) rotateY(0deg) rotateZ(0deg) translateY(0);

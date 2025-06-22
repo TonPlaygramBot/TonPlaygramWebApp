@@ -253,7 +253,7 @@ function Board({
           paddingTop,
         }}
       >
-        <div className="snake-board-tilt relative">
+        <div className="snake-board-tilt">
           <div
             className="snake-board-grid grid gap-x-1 gap-y-2 relative mx-auto"
             style={{
@@ -299,8 +299,6 @@ function Board({
             </div>
             <div className="logo-wall-main" />
           </div>
-          <div className="board-wall-left" />
-          <div className="board-wall-right" />
         </div>
       </div>
     </div>
