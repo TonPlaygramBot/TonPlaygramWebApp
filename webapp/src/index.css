@@ -626,6 +626,33 @@ body {
   z-index: 5;
 }
 
+/* Side walls for the Snake & Ladder board */
+.board-wall {
+  position: absolute;
+  top: calc(
+    var(--cell-height) * -9.5 - var(--cell-height) * 1.8 *
+      (var(--final-scale, 1) - 1)
+  );
+  bottom: 0;
+  width: var(--wall-width, 110px);
+  pointer-events: none;
+  z-index: 1;
+}
+
+.board-wall-left {
+  left: calc(var(--wall-width, 110px) * -1);
+  background: linear-gradient(to top, #0c1020, #11172a);
+  transform-origin: left center;
+  transform: rotateY(30deg);
+}
+
+.board-wall-right {
+  right: calc(var(--wall-width, 110px) * -1);
+  background: linear-gradient(to top, #2a0c0c, #401010);
+  transform-origin: right center;
+  transform: rotateY(-30deg);
+}
+
 .snake-connector,
 .ladder-connector {
   position: absolute;
