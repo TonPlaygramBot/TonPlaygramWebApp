@@ -164,9 +164,9 @@ body {
   @apply relative flex items-center justify-center rounded-xl text-text;
   background-color: var(--tile-bg, #0e3b45);
   border: 2px solid #d1a75f;
-  /* Deeper shadow for a stronger 3D button look */
-  box-shadow: 0 8px 12px rgba(0, 0, 0, 0.7);
-  transform: translateZ(8px);
+  /* Cast a shadow dark enough for a stronger 3D effect */
+  box-shadow: 0 8px 12px rgba(0, 0, 0, 0.6);
+  transform: translateZ(5px);
   transform-style: preserve-3d;
   overflow: visible;
   width: var(--cell-width);
@@ -179,9 +179,9 @@ body {
   inset: 2px;
   border-radius: inherit;
   /* Darker inner glow to emphasise depth */
-  box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.6);
+  box-shadow: 0 0 8px rgba(209, 167, 95, 0.8);
   /* Place the highlight above the tile so the shading is visible */
-  transform: translateZ(9px);
+  transform: translateZ(6px);
 }
 
 .token {
@@ -496,11 +496,9 @@ body {
   position: relative;
   z-index: 1;
   color: #ffffff;
-  font-family: "Baloo 2", "Comic Sans MS", "Comic Sans", cursive;
-  font-weight: 700;
-  text-shadow: 0 1px 0 #000;
-  -webkit-text-stroke: 1px #000000;
-  transform: translateZ(10px);
+  font-family: "Comic Sans MS", "Comic Sans", cursive;
+  font-weight: bold;
+  text-shadow: 0 1px 0 #cdd5d6;
 }
 
 .board-cell.snake-cell .cell-number,
