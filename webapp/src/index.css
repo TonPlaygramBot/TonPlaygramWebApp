@@ -587,34 +587,6 @@ body {
   z-index: 5;
 }
 
-/* Side walls extending the top TonPlaygram logo down the board */
-.logo-wall-side {
-  @apply absolute flex items-center justify-center;
-  width: calc(var(--cell-width) * 6);
-  height: calc(var(--board-height) * 1.1);
-  top: calc(var(--cell-height) * -9.5 - var(--cell-height) * 1.8 * (var(--final-scale, 1) - 1));
-  background-image: url("/assets/TonPlayGramLogo.jpg");
-  background-size: contain;
-  background-repeat: no-repeat;
-  background-position: center;
-  transform: rotateX(calc(var(--board-angle, 75deg) * -1)) translateZ(-40px) scale(1.8);
-  z-index: 4;
-}
-
-.logo-wall-left {
-  left: 0;
-  transform-origin: top right;
-  transform: translateX(-100%) rotateY(20deg)
-    rotateX(calc(var(--board-angle, 75deg) * -1)) translateZ(-40px) scale(1.8);
-}
-
-.logo-wall-right {
-  right: 0;
-  transform-origin: top left;
-  transform: translateX(100%) rotateY(-20deg)
-    rotateX(calc(var(--board-angle, 75deg) * -1)) translateZ(-40px) scale(1.8);
-}
-
 
 .snake-connector,
 .ladder-connector {
