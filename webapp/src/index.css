@@ -629,8 +629,9 @@ body {
 /* Side walls for the Snake & Ladder board */
 .board-wall {
   position: absolute;
+  /* Raise the side walls so they meet the logo */
   top: calc(
-    var(--cell-height) * -14.5 - var(--cell-height) * 1.8 *
+    var(--cell-height) * -9.5 - var(--cell-height) * 1.8 *
       (var(--final-scale, 1) - 1)
   );
   bottom: 0;
