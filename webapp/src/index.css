@@ -246,7 +246,7 @@ body {
   width: 7.2rem;
   height: 7.2rem;
   /* lower the token an additional 5% */
-  transform: translateZ(34.2px);
+  transform: translateZ(32px);
   /* Preserve 3D space so the photo can be positioned in depth */
   transform-style: preserve-3d;
   pointer-events: none;
@@ -258,17 +258,18 @@ body {
 
 @keyframes token-jump {
   0%, 100% {
-    transform: translateZ(34.2px);
+    transform: translateZ(32px);
   }
   50% {
-    transform: translateY(-20px) translateZ(34.2px);
+    transform: translateY(-20px) translateZ(32px);
   }
 }
 
 .pot-token {
-  /* keep pot token scaled relative to player token */
-  width: 9rem; /* 25% bigger than the reduced token */
-  height: 9rem;
+  /* enlarge pot token 50% and keep its base aligned */
+  width: 10.8rem;
+  height: 10.8rem;
+  transform: translateY(-3.6rem);
 }
 
 .token-three canvas {
@@ -550,22 +551,6 @@ body {
   z-index: 1;
 }
 
-.coin-stack {
-  position: absolute;
-  bottom: 0.2rem;
-  left: 50%;
-  transform: translateX(-50%);
-  pointer-events: none;
-}
-
-.coin-stack-img {
-  position: absolute;
-  width: 4.8rem;
-  height: 4.8rem;
-  left: 50%;
-  transform: translateX(-50%);
-  object-fit: contain;
-}
 
 .pot-cell.highlight {
   box-shadow: 0 0 10px 4px rgba(250, 204, 21, 0.8);
@@ -683,25 +668,6 @@ body {
   }
 }
 
-.token-hexagon {
-  position: absolute;
-  width: 2.9rem;
-  height: 2.9rem;
-  background-color: #fde047;
-  clip-path: polygon(25% 5%, 75% 5%, 100% 50%, 75% 95%, 25% 95%, 0% 50%);
-  left: 50%;
-  top: 50%;
-  pointer-events: none;
-  /* Align with the token photo but sit just underneath */
-  transform: translate(-50%, -50%) translateZ(14.2px)
-    rotateX(calc(var(--board-angle, 75deg) * -1 - 10deg));
-  animation: hex-spin 10.5s linear infinite;
-  z-index: 1;
-}
-
-.token-hexagon.step {
-  background-color: #4b5563; /* dark gray */
-}
 
 @keyframes pot-spin {
   from {
@@ -714,18 +680,6 @@ body {
   }
 }
 
-@keyframes hex-spin {
-  from {
-    transform: translate(-50%, -50%) translateZ(14.2px)
-      rotateX(calc(var(--board-angle, 75deg) * -1 - 10deg))
-      rotateY(0deg);
-  }
-  to {
-    transform: translate(-50%, -50%) translateZ(14.2px)
-      rotateX(calc(var(--board-angle, 75deg) * -1 - 10deg))
-      rotateY(360deg);
-  }
-}
 
 .dice-marker {
   position: absolute;
