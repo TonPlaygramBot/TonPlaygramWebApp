@@ -273,10 +273,10 @@ body {
 }
 
 .pot-token {
-  /* enlarge pot token 50% and keep its base aligned */
-  width: 10.8rem;
-  height: 10.8rem;
-  transform: translateY(-3.6rem);
+  /* enlarge pot token 50% further */
+  width: 16.2rem;
+  height: 16.2rem;
+  transform: translateY(-9rem);
 }
 
 .token-three canvas {
@@ -580,10 +580,10 @@ body {
 
 .pot-cell {
   @apply absolute flex flex-col items-center justify-center;
-  width: calc(var(--cell-width) * 1.8);
-  height: calc(var(--cell-height) * 1.8);
+  width: calc(var(--cell-width) * 2.7);
+  height: calc(var(--cell-height) * 2.7);
   /* move the pot even higher above the board */
-  top: calc(var(--cell-height) * -5.5);
+  top: calc(var(--cell-height) * -8.25);
   left: 50%;
   transform: translateX(-50%) translateZ(8px);
   z-index: 15;
