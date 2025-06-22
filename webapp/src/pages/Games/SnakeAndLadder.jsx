@@ -212,6 +212,8 @@ function Board({
   const angle = 75;
   // Small horizontal offset so the board sits perfectly centered
   const boardXOffset = -10; // pixels
+  // Lift the board slightly so the bottom row stays visible
+  const boardYOffset = -40; // pixels
 
   // How many board rows to scroll back from the starting position so
   // the bottom row remains in view. Set to 0 to begin at the very first row
@@ -240,6 +242,7 @@ function Board({
 
   // Remove the extra top padding so the first row is immediately visible
   const paddingTop = 0;
+  const paddingBottom = '15vh';
 
   return (
     <div className="flex justify-center items-center w-screen overflow-hidden">
@@ -251,6 +254,7 @@ function Board({
           height: "100vh",
           overscrollBehaviorY: "contain",
           paddingTop,
+          paddingBottom,
         }}
       >
         <div className="snake-board-tilt">
@@ -271,7 +275,7 @@ function Board({
               // Slightly enlarge the board in both directions
               // Pull the board slightly back so more of the lower rows are
               // visible when the game starts
-              transform: `translateX(${boardXOffset}px) rotateX(${angle}deg) scale(0.9)`,
+              transform: `translate(${boardXOffset}px, ${boardYOffset}px) rotateX(${angle}deg) scale(0.85)`,
             }}
           >
             <div className="snake-gradient-bg" />

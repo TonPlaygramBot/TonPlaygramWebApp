@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { Suspense, lazy } from 'react';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 
 import Home from './pages/Home.jsx';
@@ -14,7 +14,7 @@ import Notifications from './pages/Notifications.jsx';
 
 import LudoGame from './pages/Games/LudoGame.jsx';
 import HorseRacing from './pages/Games/HorseRacing.jsx';
-import SnakeAndLadder from './pages/Games/SnakeAndLadder.jsx';
+const SnakeAndLadder = lazy(() => import('./pages/Games/SnakeAndLadder.jsx'));
 import Lobby from './pages/Games/Lobby.jsx';
 import Games from './pages/Games.jsx';
 import SpinPage from './pages/spin.tsx';
@@ -35,7 +35,14 @@ export default function App() {
           <Route path="/games/:game/lobby" element={<Lobby />} />
           <Route path="/games/ludo" element={<LudoGame />} />
           <Route path="/games/horse" element={<HorseRacing />} />
-          <Route path="/games/snake" element={<SnakeAndLadder />} />
+          <Route
+            path="/games/snake"
+            element={
+              <Suspense fallback={<div className="p-4 text-center">Loading...</div>}>
+                <SnakeAndLadder />
+              </Suspense>
+            }
+          />
           <Route path="/spin" element={<SpinPage />} />
           <Route path="/tasks" element={<Tasks />} />
           <Route path="/store" element={<Store />} />
