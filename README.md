@@ -71,6 +71,11 @@ browser to confirm it returns JSON. If your server sits behind a proxy, ensure
 the proxy forwards the `x-forwarded-proto` header so the manifest reports the
 correct `https://` URL.
 
+Wallet features rely on `window.Telegram.WebApp.initData` being set by the
+Telegram client. Make sure you open the WebApp via a Telegram link containing
+`?startapp=<payload>` so `initData` is populated. Otherwise the wallet screens
+may appear blank or fail to connect.
+
 ### Wallet overview
 
 This app exposes two separate wallets:
