@@ -279,8 +279,6 @@ function Board({
             }}
           >
             <div className="snake-gradient-bg" />
-            <div className="board-wall left-wall" />
-            <div className="board-wall right-wall" />
             {tiles}
             <div
               className={`pot-cell ${highlight && highlight.cell === FINAL_TILE ? "highlight" : ""}`}
