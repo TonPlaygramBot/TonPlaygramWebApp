@@ -307,6 +307,7 @@ function Board({
               )}
               {celebrate && <CoinBurst token={token} />}
             </div>
+            <div className="logo-bg-extension" />
             <div className="logo-wall-main" />
           </div>
         </div>
@@ -715,7 +716,7 @@ export default function SnakeAndLadder() {
             numDice={diceCount + bonusDice}
           />
           {turnMessage && (
-            <div className="mt-2 text-sm font-semibold">{turnMessage}</div>
+            <div className="mt-2 turn-message">{turnMessage}</div>
           )}
         </div>
       )}

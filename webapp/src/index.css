@@ -144,7 +144,7 @@ body {
 }
 
 .dice-face .dot {
-  @apply w-3 h-3 bg-black rounded-full;
+  @apply w-2 h-2 bg-black rounded-full;
 }
 
 .dice-face--front {
@@ -242,7 +242,7 @@ body {
 }
 
 .token-dice .dice-face .dot {
-  background-color: #000;
+  @apply w-2 h-2 bg-black;
 }
 
 /* Three.js token container */
@@ -276,7 +276,7 @@ body {
   /* enlarge pot token 50% further */
   width: 16.2rem;
   height: 16.2rem;
-  transform: translateY(-9rem);
+  transform: translateY(-9rem) rotate(-15deg);
 }
 
 .token-three canvas {
@@ -578,6 +578,15 @@ body {
   display: none;
 }
 
+.turn-message {
+  color: #ffffff;
+  font-family: "Comic Sans MS", "Comic Sans", cursive;
+  font-weight: bold;
+  font-size: 1.1rem;
+  line-height: 1;
+  text-shadow: 0 0 2px #000;
+}
+
 .pot-cell {
   @apply absolute flex flex-col items-center justify-center;
   width: calc(var(--cell-width) * 2.7);
@@ -625,6 +634,34 @@ body {
   background-repeat: no-repeat;
   background-position: center;
   z-index: 5;
+}
+
+.logo-bg-extension {
+  @apply absolute;
+  width: calc(var(--board-height) * 1.2);
+  height: calc(var(--board-width) * 1.5);
+  top: calc(
+    var(--cell-height) * -12.5 - var(--cell-height) * 1.8 *
+      (var(--final-scale, 1) - 1)
+  );
+  left: 50%;
+  transform: translate(-50%, -60%)
+    rotateX(calc(var(--board-angle, 70deg) * -1)) rotate(90deg)
+    translateZ(-45px);
+  transform-origin: center;
+  pointer-events: none;
+  z-index: 4;
+  background: linear-gradient(
+    to top,
+    #123840,
+    #1f4d58 20%,
+    #d9cec2 40%,
+    #f3f0e8 50%,
+    #b95741 60%,
+    #e7b382 80%,
+    #4c050d
+  );
+  clip-path: polygon(-60% 0%, 160% 0%, 120% 100%, -50% 100%);
 }
 
 .snake-connector,
@@ -728,7 +765,8 @@ body {
   height: 1.8rem;
   left: 50%;
   top: 50%;
-  transform: translate(-50%, -50%) translateZ(6px);
+  transform: translate(-50%, -50%) translateZ(6px)
+    rotateX(calc(var(--board-angle, 70deg) * -1));
   display: flex;
   align-items: center;
   justify-content: center;
