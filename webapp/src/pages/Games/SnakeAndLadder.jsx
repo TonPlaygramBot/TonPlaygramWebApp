@@ -213,8 +213,8 @@ function Board({
   // displayed only once within the cell itself.
   // Fixed board angle with no zoom
   // Lowered camera angle so the logo touches the top of the screen
-  // Reduce the camera tilt for a clearer view of the top rows
-  const angle = 50;
+  // Increase tilt for a more dynamic view of the board
+  const angle = 65;
   // Small horizontal offset so the board sits perfectly centered
   const boardXOffset = -10; // pixels
   // Lift the board slightly so the bottom row stays visible
