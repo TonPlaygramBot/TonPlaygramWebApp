@@ -3,6 +3,7 @@
 
 import json
 import os
+import random
 from pathlib import Path
 from typing import Dict, List
 
@@ -34,7 +35,6 @@ TOKENS = {
 }
 
 DICE_SPRITE = None
-COLOR_ORDER = ["red", "blue", "yellow", "green"]
 START_INDICES = {
     "red": 0,
     "blue": 16,
@@ -50,14 +50,28 @@ def _create_dice_sprite(size:int) -> Image.Image:
     draw.ellipse((size/2 - r, size/2 - r, size/2 + r, size/2 + r), fill="black")
     return img
 
+def _create_token_sprite(size:int, color:tuple[int,int,int]) -> Image.Image:
+    """Return a pawn-like token slightly taller than the cell."""
+    height = int(size * 1.3)
+    img = Image.new("RGBA", (size, height), (0, 0, 0, 0))
+    draw = ImageDraw.Draw(img)
+
+    base_h = size // 2
+    # base ellipse
+    draw.ellipse((0, height - base_h, size, height), fill=color, outline="black", width=2)
+    body_top = height - base_h - size * 0.6
+    body_w = size * 0.5
+    body_x0 = (size - body_w) / 2
+    body_x1 = body_x0 + body_w
+    draw.rectangle((body_x0, body_top, body_x1, height - base_h), fill=color, outline="black", width=2)
+    r = size * 0.2
+    draw.ellipse((size/2 - r, body_top - 2*r, size/2 + r, body_top), fill=color, outline="black", width=2)
+    return img
+
 def init_token_images():
     sz = CELL - 4
     for name, color in COLORS.items():
-        token = _create_dice_sprite(sz)
-        border = Image.new("RGBA", token.size, (*color, 0))
-        draw = ImageDraw.Draw(border)
-        draw.rectangle([0,0,sz-1,sz-1], outline=color, width=3)
-        token = Image.alpha_composite(token, border)
+        token = _create_token_sprite(sz, color)
         TOKENS[name] = token
 
 # 64-step loop approximating a Ludo board
@@ -95,7 +109,7 @@ def ensure_board_template() -> Image.Image:
         return Image.open(BOARD_TEMPLATE).convert("RGBA")
 
     global DICE_SPRITE
-    DICE_SPRITE = _create_dice_sprite(CELL - 8)
+    DICE_SPRITE = _create_dice_sprite(CELL - 4)
 
     img = Image.new("RGBA", (BOARD_SIZE, BOARD_SIZE), (20, 20, 30))
     draw = ImageDraw.Draw(img)
@@ -123,7 +137,7 @@ def ensure_board_template() -> Image.Image:
         draw.line([x+CELL,y,x+CELL,y+CELL], fill=(40,40,60), width=1)
         draw.line([x,y+CELL,x+CELL,y+CELL], fill=(40,40,60), width=1)
         img.paste(DICE_SPRITE,(x+(CELL-DICE_SPRITE.width)//2,
-                               y+(CELL-DICE_SPRITE.height)//2),DICE_SPRITE)
+                               y+CELL-DICE_SPRITE.height),DICE_SPRITE)
 
     img.save(BOARD_TEMPLATE)
     return img
@@ -141,7 +155,9 @@ class GameSession:
             return "Game is full"
         if any(p["id"]==uid for p in self.players):
             return "You already joined"
-        color = COLOR_ORDER[len(self.players)]
+        taken = {p["color"] for p in self.players}
+        available = [c for c in COLORS.keys() if c not in taken]
+        color = random.choice(available)
         self.players.append({"id":uid,"username":username,"color":color})
         self.tokens[uid]=[-1,-1,-1,-1]
         return f"Joined as {color}"
@@ -179,7 +195,7 @@ def render_board(session:GameSession) -> Path:
                 ox=(i%2)*CELL*2
                 oy=(i//2)*CELL*2
                 base.paste(token,(bx+ox+(CELL-token.width)//2,
-                                 by+oy+(CELL-token.height)//2),token)
+                                 by+oy + CELL - token.height),token)
             else:
                 if steps>=PATH_LENGTH+HOME_STEPS:
                     pos=(7,7)
@@ -199,7 +215,7 @@ def render_board(session:GameSession) -> Path:
 
     for pos,tokens in positions.items():
         x = pos[1] * CELL + (CELL - tokens[0].width) // 2
-        y = pos[0] * CELL + (CELL - tokens[0].height) // 2
+        y = pos[0] * CELL + CELL - tokens[0].height
         base.paste(tokens[0], (int(x), int(y)), tokens[0])
         if len(tokens)>1:
             r=CELL//3
