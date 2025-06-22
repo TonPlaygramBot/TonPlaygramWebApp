@@ -607,8 +607,8 @@ body {
   @apply absolute flex flex-col items-center justify-center;
   width: calc(var(--cell-width) * 2.7);
   height: calc(var(--cell-height) * 2.7);
-  /* move the pot even higher above the board */
-  top: calc(var(--cell-height) * -8.25);
+  /* move the pot slightly lower so it doesn't float as high */
+  top: calc(var(--cell-height) * -7.5);
   left: 50%;
   transform: translateX(-50%) translateZ(8px);
   z-index: 15;
@@ -638,11 +638,11 @@ body {
   /* move the logo even higher above the board */
   /* raise the logo slightly higher to compensate for the even steeper board tilt */
   top: calc(
-    var(--cell-height) * -12.5 - var(--cell-height) * 1.8 *
+    var(--cell-height) * -11.5 - var(--cell-height) * 1.8 *
       (var(--final-scale, 1) - 1)
   ); /* adjust for scaled top row */
-  left: 50%;
-  transform: translateX(-50%) rotateX(calc(var(--board-angle, 70deg) * -1))
+  left: calc(50% + 6%);
+  transform: translate(-50%, 6%) rotateX(calc(var(--board-angle, 70deg) * -1))
     translateZ(-40px) scale(1.98); /* 10% larger logo */
   transform-origin: bottom center;
   background-image: url("/assets/TonPlayGramLogo.jpg");
