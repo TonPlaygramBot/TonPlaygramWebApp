@@ -152,7 +152,6 @@ function Board({
               )}
             </span>
           )}
-          {num === 1 && <span className="start-hexagon" />}
           {cellType === "" && <span className="cell-number">{num}</span>}
           {diceCells && diceCells[num] && (
             <span className="dice-marker">

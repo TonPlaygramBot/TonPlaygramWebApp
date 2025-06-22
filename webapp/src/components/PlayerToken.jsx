@@ -9,11 +9,14 @@ export default function PlayerToken({ type = "normal", color, topColor, photoUrl
     else tokenColor = "#fde047"; // yellow
   }
   return (
-    <HexPrismToken
-      color={tokenColor}
-      topColor={topColor}
-      photoUrl={photoUrl}
-      className={className}
-    />
+    <>
+      {photoUrl && <span className="token-hexagon" />}
+      <HexPrismToken
+        color={tokenColor}
+        topColor={topColor}
+        photoUrl={photoUrl}
+        className={className}
+      />
+    </>
   );
 }
