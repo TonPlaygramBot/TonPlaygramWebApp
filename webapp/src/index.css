@@ -573,7 +573,7 @@ body {
 }
 
 /* Hexagon overlay for the starting cell */
-.start-cell-hexagon {
+.start-cell-circle {
   position: absolute;
   width: 7.2rem;
   height: 7.2rem;
@@ -581,9 +581,9 @@ body {
   left: 50%;
   transform: translate(-50%, -60%) rotateX(var(--board-angle, 70deg))
     translateZ(6px);
-  clip-path: polygon(50% 0%, 93% 25%, 93% 75%, 50% 100%, 7% 75%, 7% 25%);
   border: 2px solid #d1a75f;
   background-color: rgba(255, 255, 255, 0.15);
+  border-radius: 50%;
   pointer-events: none;
   z-index: 2;
 }
@@ -610,7 +610,7 @@ body {
   /* move the pot even higher above the board */
   top: calc(var(--cell-height) * -8.25);
   left: 50%;
-  transform: translateX(-50%) translateZ(8px);
+  transform: translateX(-50%) translateZ(24px);
   z-index: 15;
   background-color: transparent;
   border: none;
@@ -630,7 +630,7 @@ body {
   /* move the logo even higher above the board */
   /* raise the logo slightly higher to compensate for the even steeper board tilt */
   top: calc(
-    var(--cell-height) * -12 - var(--cell-height) * 1.8 *
+    var(--cell-height) * -11 - var(--cell-height) * 1.8 *
       (var(--final-scale, 1) - 1)
   ); /* adjust for scaled top row */
   left: 50%;
