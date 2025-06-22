@@ -132,17 +132,19 @@ body {
 }
 
 .dice-cube {
-  @apply relative w-12 h-12 bg-black rounded-xl border border-white;
+  @apply relative w-12 h-12 bg-white rounded-xl;
+  border: none;
   transform-style: preserve-3d;
   transition: transform 0.5s;
 }
 
 .dice-face {
-  @apply absolute w-full h-full flex items-center justify-center bg-black rounded-xl shadow-lg border border-white;
+  @apply absolute w-full h-full flex items-center justify-center bg-white rounded-xl shadow-lg;
+  border: none;
 }
 
 .dice-face .dot {
-  @apply w-3 h-3 bg-white rounded-full;
+  @apply w-3 h-3 bg-black rounded-full;
 }
 
 .dice-face--front {
@@ -234,13 +236,13 @@ body {
 }
 
 .token-dice .dice-face {
-  background-color: #000; /* black dice */
-  border: 1px solid #fff;
+  background-color: #fff;
+  border: none;
   border-radius: 0.5rem;
 }
 
 .token-dice .dice-face .dot {
-  background-color: #fff;
+  background-color: #000;
 }
 
 /* Three.js token container */
@@ -503,7 +505,7 @@ body {
   position: absolute;
   top: 50%;
   left: 50%;
-  transform: translate(-50%, -50%);
+  transform: translate(-50%, -60%);
   display: flex;
   align-items: center;
   justify-content: center; /* keep icon and offset perfectly centred */
@@ -567,6 +569,7 @@ body {
   font-size: 1.1rem; /* slightly bigger numbers */
   line-height: 1;
   text-shadow: 0 0 2px #000;
+  transform: translateY(-10%);
 }
 
 .board-cell.snake-cell .cell-number,
@@ -761,9 +764,9 @@ body {
 
 .start-hexagon {
   position: absolute;
-  inset: 4px;
+  inset: 6px;
   background-color: #555;
-  clip-path: polygon(25% 5%, 75% 5%, 100% 50%, 75% 95%, 25% 95%, 0% 50%);
+  clip-path: polygon(50% 0%, 93% 25%, 93% 75%, 50% 100%, 7% 75%, 7% 25%);
   animation: hex-spin 4s linear infinite;
   transform: translateZ(6px);
   pointer-events: none;
@@ -772,9 +775,9 @@ body {
 
 .token-hexagon {
   position: absolute;
-  inset: 4px;
+  inset: 6px;
   background-color: #555;
-  clip-path: polygon(25% 5%, 75% 5%, 100% 50%, 75% 95%, 25% 95%, 0% 50%);
+  clip-path: polygon(50% 0%, 93% 25%, 93% 75%, 50% 100%, 7% 75%, 7% 25%);
   animation: hex-spin 10.5s linear infinite;
   transform: translateZ(6px);
   pointer-events: none;
