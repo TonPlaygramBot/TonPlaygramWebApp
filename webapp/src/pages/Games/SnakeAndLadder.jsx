@@ -159,12 +159,7 @@ function Board({
               )}
             </span>
           )}
-          {cellType === "" && (
-            <>
-              <span className="cell-hexagon" />
-              <span className="cell-number">{num}</span>
-            </>
-          )}
+          {cellType === "" && <span className="cell-number">{num}</span>}
           {diceCells && diceCells[num] && (
             <span className="dice-marker">
               <img src="/assets/icons/dice.svg" alt="dice" />
@@ -312,6 +307,7 @@ function Board({
               )}
               {celebrate && <CoinBurst token={token} />}
             </div>
+            <div className="logo-bg-extension" />
             <div className="logo-wall-main" />
           </div>
         </div>
@@ -347,12 +343,6 @@ export default function SnakeAndLadder() {
   const [bonusDice, setBonusDice] = useState(0);
   const [diceCount, setDiceCount] = useState(2);
   const [gameOver, setGameOver] = useState(false);
-  const [leaderboard, setLeaderboard] = useState([
-    { name: 'Alice', score: 0 },
-    { name: 'Bob', score: 0 },
-    { name: 'Carol', score: 0 },
-    { name: 'You', score: 0 },
-  ]);
 
   const moveSoundRef = useRef(null);
   const snakeSoundRef = useRef(null);
@@ -626,11 +616,6 @@ export default function SnakeAndLadder() {
 
       const finalizeMove = (finalPos, type) => {
         setPos(finalPos);
-        setLeaderboard((lb) =>
-          [...lb.map((p) =>
-            p.name === 'You' ? { ...p, score: finalPos } : p
-          )].sort((a, b) => b.score - a.score)
-        );
         setHighlight({ cell: finalPos, type });
         setTrail([]);
         setTokenType(type);
@@ -692,14 +677,6 @@ export default function SnakeAndLadder() {
           <AiOutlineRollback className="text-xl" />
           <span className="text-xs">Lobby</span>
         </button>
-      </div>
-      <div className="absolute top-0 left-1/2 transform -translate-x-1/2 mt-2 z-20 text-xs bg-black bg-opacity-50 rounded px-2 py-1">
-        {leaderboard.map((p, i) => (
-          <div key={i} className="flex justify-between gap-2">
-            <span>{p.name}</span>
-            <span>{p.score}</span>
-          </div>
-        ))}
       </div>
       <Board
         position={pos}
