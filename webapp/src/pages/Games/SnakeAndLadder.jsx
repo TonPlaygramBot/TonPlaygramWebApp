@@ -307,7 +307,6 @@ function Board({
               )}
               {celebrate && <CoinBurst token={token} />}
             </div>
-            <div className="logo-bg-extension" />
             <div className="logo-wall-main" />
           </div>
         </div>
