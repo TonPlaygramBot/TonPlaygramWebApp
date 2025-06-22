@@ -160,6 +160,7 @@ function Board({
             </span>
           )}
           {cellType === "" && <span className="cell-number">{num}</span>}
+          {num === 1 && <div className="start-cell-hexagon" />}
           {diceCells && diceCells[num] && (
             <span className="dice-marker">
               <img src="/assets/icons/dice.svg" alt="dice" />

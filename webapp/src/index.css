@@ -572,6 +572,22 @@ body {
   transform: translateY(-10%);
 }
 
+/* Hexagon overlay for the starting cell */
+.start-cell-hexagon {
+  position: absolute;
+  width: 7.2rem;
+  height: 7.2rem;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -60%) rotateX(var(--board-angle, 70deg))
+    translateZ(6px);
+  clip-path: polygon(50% 0%, 93% 25%, 93% 75%, 50% 100%, 7% 75%, 7% 25%);
+  border: 2px solid #d1a75f;
+  background-color: rgba(255, 255, 255, 0.15);
+  pointer-events: none;
+  z-index: 2;
+}
+
 .board-cell.snake-cell .cell-number,
 .board-cell.ladder-cell .cell-number,
 .board-cell.dice-cell .cell-number {
@@ -627,7 +643,7 @@ body {
   ); /* adjust for scaled top row */
   left: 50%;
   transform: translateX(-50%) rotateX(calc(var(--board-angle, 70deg) * -1))
-    translateZ(-40px) scale(1.8); /* larger logo */
+    translateZ(-40px) scale(1.98); /* 10% larger logo */
   transform-origin: bottom center;
   background-image: url("/assets/TonPlayGramLogo.jpg");
   background-size: contain;
