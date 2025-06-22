@@ -626,34 +626,6 @@ body {
   z-index: 5;
 }
 
-/* Side walls for the Snake & Ladder board */
-.board-wall {
-  position: absolute;
-  /* Raise the side walls so they meet the logo */
-  top: calc(
-    var(--cell-height) * -9.5 - var(--cell-height) * 1.8 *
-      (var(--final-scale, 1) - 1)
-  );
-  bottom: 0;
-  width: var(--wall-width, 110px);
-  pointer-events: none;
-  z-index: 1;
-}
-
-.board-wall-left {
-  left: calc(var(--wall-width, 110px) * -1);
-  background: linear-gradient(to top, #0c1020, #11172a);
-  transform-origin: left center;
-  transform: rotateY(30deg);
-}
-
-.board-wall-right {
-  right: calc(var(--wall-width, 110px) * -1);
-  background: linear-gradient(to top, #2a0c0c, #401010);
-  transform-origin: right center;
-  transform: rotateY(-30deg);
-}
-
 .snake-connector,
 .ladder-connector {
   position: absolute;
@@ -807,8 +779,8 @@ body {
   inset: 10px;
   background-color: #555;
   clip-path: polygon(50% 0%, 93% 25%, 93% 75%, 50% 100%, 7% 75%, 7% 25%);
-  /* lay flat on the board surface */
-  transform: translateZ(0);
+  /* match the board tilt */
+  transform: translateZ(0) rotateX(var(--board-angle, 75deg));
   animation: hex-spin-reverse 10.5s linear infinite;
   pointer-events: none;
   z-index: 0;
@@ -816,10 +788,10 @@ body {
 
 @keyframes hex-spin-reverse {
   from {
-    transform: translateZ(0) rotate(0deg);
+    transform: translateZ(0) rotateX(var(--board-angle, 75deg)) rotate(0deg);
   }
   to {
-    transform: translateZ(0) rotate(-360deg);
+    transform: translateZ(0) rotateX(var(--board-angle, 75deg)) rotate(-360deg);
   }
 }
 
