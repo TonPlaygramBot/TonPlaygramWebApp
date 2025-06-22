@@ -213,27 +213,24 @@ function Board({
   // Small horizontal offset so the board sits perfectly centered
   const boardXOffset = -10; // pixels
 
+  // How many board rows to scroll back from the starting position so
+  // the bottom row remains in view but the camera is slightly further away
+  // from the board. A value of 1 shows one additional row above the start.
+  const CAMERA_OFFSET_ROWS = 1;
+
   useEffect(() => {
     const container = containerRef.current;
-    if (container)
-      container.scrollTop = container.scrollHeight - container.clientHeight;
-  }, []);
+    if (container) {
+      const target =
+        container.scrollHeight -
+        container.clientHeight -
+        CAMERA_OFFSET_ROWS * cellHeight;
+      container.scrollTop = Math.max(0, target);
+    }
+  }, [cellHeight]);
 
-  // Step the camera up one row as the player moves so their token stays
-  // roughly in view. Keeps the same tilt and zoom but adjusts the scroll
-  // position based on the current row.
-  useEffect(() => {
-    const container = containerRef.current;
-    if (!container) return;
-    const row = Math.floor((position - 1) / COLS);
-    const target =
-      container.scrollHeight - container.clientHeight - row * cellHeight;
-    container.scrollTop = Math.max(0, target);
-  }, [position, cellHeight]);
-
-  // The board position is fixed once rendered so it no longer follows the
-  // player's token as they move up the rows. This locks the board in place and
-  // keeps the bottom rows anchored while still allowing manual scrolling.
+  // Once positioned the camera remains fixed so it no longer follows the
+  // player's token. Manual scrolling is still possible to inspect other rows.
 
   const paddingTop = `${5.5 * cellHeight}px`;
 
