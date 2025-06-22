@@ -296,6 +296,8 @@ function Board({
               {celebrate && <CoinBurst token={token} />}
             </div>
             <div className="logo-wall-main" />
+            <div className="logo-wall-side logo-wall-left" />
+            <div className="logo-wall-side logo-wall-right" />
           </div>
         </div>
       </div>
