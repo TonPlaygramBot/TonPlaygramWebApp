@@ -132,17 +132,17 @@ body {
 }
 
 .dice-cube {
-  @apply relative w-12 h-12 bg-white rounded-xl border border-black;
+  @apply relative w-12 h-12 bg-black rounded-xl border border-white;
   transform-style: preserve-3d;
   transition: transform 0.5s;
 }
 
 .dice-face {
-  @apply absolute w-full h-full flex items-center justify-center bg-white rounded-xl shadow-lg border border-black;
+  @apply absolute w-full h-full flex items-center justify-center bg-black rounded-xl shadow-lg border border-white;
 }
 
 .dice-face .dot {
-  @apply w-3 h-3 bg-black rounded-full;
+  @apply w-3 h-3 bg-white rounded-full;
 }
 
 .dice-face--front {
@@ -234,13 +234,13 @@ body {
 }
 
 .token-dice .dice-face {
-  background-color: #dc2626; /* red dice */
-  border: 1px solid #991b1b;
+  background-color: #000; /* black dice */
+  border: 1px solid #fff;
   border-radius: 0.5rem;
 }
 
 .token-dice .dice-face .dot {
-  background-color: #000;
+  background-color: #fff;
 }
 
 /* Three.js token container */
@@ -765,6 +765,17 @@ body {
   background-color: #555;
   clip-path: polygon(25% 5%, 75% 5%, 100% 50%, 75% 95%, 25% 95%, 0% 50%);
   animation: hex-spin 4s linear infinite;
+  transform: translateZ(6px);
+  pointer-events: none;
+  z-index: 0;
+}
+
+.token-hexagon {
+  position: absolute;
+  inset: 4px;
+  background-color: #555;
+  clip-path: polygon(25% 5%, 75% 5%, 100% 50%, 75% 95%, 25% 95%, 0% 50%);
+  animation: hex-spin 10.5s linear infinite;
   transform: translateZ(6px);
   pointer-events: none;
   z-index: 0;
