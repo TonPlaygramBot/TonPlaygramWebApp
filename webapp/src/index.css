@@ -470,6 +470,17 @@ body {
   background-color: #fca5a5; /* red-300 */
 }
 
+.board-cell.snake-cell,
+.board-cell.ladder-cell,
+.board-cell.dice-cell {
+  color: #ffffff;
+}
+
+.board-cell.dice-cell {
+  background-color: inherit;
+  color: #ffffff;
+}
+
 .cell-marker {
   position: absolute;
   top: 50%;
@@ -490,39 +501,47 @@ body {
 .cell-offset {
   font-size: 1rem;
   line-height: 1;
-  color: #ffffff;
   font-weight: bold;
+  display: flex;
+  align-items: center;
+  gap: 1px;
+}
+
+.cell-sign {
+  font-weight: bold;
+}
+
+.cell-sign.snake {
+  color: #dc2626;
+}
+
+.cell-sign.ladder {
+  color: #16a34a;
+}
+
+.cell-sign.dice {
+  color: #3b82f6;
+}
+
+.cell-value {
+  color: #ffffff;
 }
 
 .cell-number {
   position: relative;
   z-index: 1;
-  color: #ffffff;
+  color: #000000;
   font-family: "Comic Sans MS", "Comic Sans", cursive;
   font-weight: bold;
   font-size: 1.1rem; /* slightly bigger numbers */
   line-height: 1;
-  text-shadow: 0 1px 0 #cdd5d6;
+  text-shadow: 0 0 2px #ffffff;
 }
 
 .board-cell.snake-cell .cell-number,
-.board-cell.ladder-cell .cell-number {
-  visibility: visible;
-}
-
-.board-cell.snake-cell .cell-number {
-  color: #ffffff;
-  text-shadow: 0 0 2px #ff0000;
-}
-
-.board-cell.ladder-cell .cell-number {
-  color: #ffffff;
-  text-shadow: 0 0 2px #16a34a;
-}
-
-.board-cell.snake-cell,
-.board-cell.ladder-cell {
-  color: #ffffff;
+.board-cell.ladder-cell .cell-number,
+.board-cell.dice-cell .cell-number {
+  display: none;
 }
 
 .pot-cell {
@@ -697,6 +716,15 @@ body {
   right: -0.4rem;
   font-size: 0.75rem;
   font-weight: bold;
-  color: #dc2626;
-  text-shadow: 0 0 2px #fff;
+  display: flex;
+  align-items: center;
+  gap: 1px;
+}
+
+.dice-sign {
+  color: #3b82f6;
+}
+
+.dice-number {
+  color: #ffffff;
 }

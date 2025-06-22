@@ -118,7 +118,13 @@ function Board({
         ? `${trailHighlight.type}-highlight`
         : "";
       const isJump = isHighlight && highlight.type === 'normal';
-      const cellType = ladders[num] ? "ladder" : snakes[num] ? "snake" : "";
+      const cellType = ladders[num]
+        ? "ladder"
+        : snakes[num]
+        ? "snake"
+        : diceCells && diceCells[num]
+        ? "dice"
+        : "";
       const cellClass = cellType ? `${cellType}-cell` : "";
       const icon = cellType === "ladder" ? "🪜" : cellType === "snake" ? "🐍" : "";
       const offsetVal =
@@ -147,17 +153,22 @@ function Board({
               {icon && <span className="cell-icon">{icon}</span>}
               {offsetVal != null && (
                 <span className="cell-offset">
-                  {cellType === "snake" ? "-" : "+"}
-                  {offsetVal}
+                  <span className={`cell-sign ${cellType}`}>{
+                    cellType === "snake" ? "-" : "+"
+                  }</span>
+                  <span className="cell-value">{offsetVal}</span>
                 </span>
               )}
             </span>
           )}
-          <span className="cell-number">{num}</span>
+          {cellType === "" && <span className="cell-number">{num}</span>}
           {diceCells && diceCells[num] && (
             <span className="dice-marker">
               <img src="/assets/icons/dice.svg" alt="dice" />
-              <span className="dice-value">+{diceCells[num]}</span>
+              <span className="dice-value">
+                <span className="dice-sign">+</span>
+                <span className="dice-number">{diceCells[num]}</span>
+              </span>
             </span>
           )}
           {position === num && (
