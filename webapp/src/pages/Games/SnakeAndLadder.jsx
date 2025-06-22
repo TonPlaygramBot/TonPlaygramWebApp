@@ -260,7 +260,7 @@ function Board({
               "--final-scale": finalScale,
               // Fixed camera angle with no zooming
               // Slightly enlarge the board in both directions
-              transform: `translateX(${boardXOffset}px) rotateX(${angle}deg) scale(1.05)`,
+              transform: `translateX(${boardXOffset}px) rotateX(${angle}deg) scale(0.95)`,
             }}
           >
             <div className="snake-gradient-bg" />
@@ -272,11 +272,6 @@ function Board({
                 color="#16a34a"
                 topColor="#ff0000"
                 className="pot-token"
-              />
-              <img
-                src={`/icons/${token.toLowerCase()}.svg`}
-                alt="pot token"
-                className="pot-icon"
               />
               <span className="pot-number">{FINAL_TILE}</span>
               {position === FINAL_TILE && (
