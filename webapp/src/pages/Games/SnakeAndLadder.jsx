@@ -209,7 +209,7 @@ function Board({
   // Lowered camera angle so the logo touches the top of the screen
   // Increase the camera tilt to give the board a steeper perspective
   // so the entire scene appears lifted by 15 degrees
-  const angle = 75;
+  const angle = 90;
   // Small horizontal offset so the board sits perfectly centered
   const boardXOffset = -10; // pixels
   // Lift the board slightly so the bottom row stays visible
