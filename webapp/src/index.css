@@ -266,10 +266,10 @@ body {
 }
 
 .pot-token {
-  /* enlarge pot token and tilt it slightly */
+  /* enlarge pot token 50% and keep its base aligned */
   width: 10.8rem;
-  height: 12rem;
-  transform: translateY(-4.8rem) rotateX(-10deg);
+  height: 10.8rem;
+  transform: translateY(-3.6rem);
 }
 
 .token-three canvas {
@@ -526,6 +526,20 @@ body {
   box-shadow: none;
 }
 
+.pot-icon {
+  position: absolute;
+  width: 12rem;
+  height: 12rem;
+  top: 40%;
+  left: 50%;
+  transform-origin: bottom center;
+  transform: translate(-50%, -50%) translateZ(20px)
+    rotateX(calc(var(--board-angle, 75deg) * -1 - 10deg)) rotateY(0deg);
+  animation: pot-spin 6s linear infinite;
+  object-fit: contain;
+  pointer-events: none;
+  z-index: 1;
+}
 
 .pot-number {
   position: absolute;
@@ -655,6 +669,16 @@ body {
 }
 
 
+@keyframes pot-spin {
+  from {
+    transform: translate(-50%, -50%) translateZ(20px)
+      rotateX(calc(var(--board-angle, 75deg) * -1 - 10deg)) rotateY(0deg);
+  }
+  to {
+    transform: translate(-50%, -50%) translateZ(20px)
+      rotateX(calc(var(--board-angle, 75deg) * -1 - 10deg)) rotateY(360deg);
+  }
+}
 
 
 .dice-marker {
