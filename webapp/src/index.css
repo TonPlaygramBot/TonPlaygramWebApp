@@ -504,7 +504,17 @@ body {
 
 .board-cell.snake-cell .cell-number,
 .board-cell.ladder-cell .cell-number {
-  visibility: hidden;
+  visibility: visible;
+}
+
+.board-cell.snake-cell .cell-number {
+  color: #ffffff;
+  text-shadow: 0 0 2px #ff0000;
+}
+
+.board-cell.ladder-cell .cell-number {
+  color: #ffffff;
+  text-shadow: 0 0 2px #16a34a;
 }
 
 .board-cell.snake-cell,
@@ -526,20 +536,6 @@ body {
   box-shadow: none;
 }
 
-.pot-icon {
-  position: absolute;
-  width: 12rem;
-  height: 12rem;
-  top: 40%;
-  left: 50%;
-  transform-origin: bottom center;
-  transform: translate(-50%, -50%) translateZ(20px)
-    rotateX(calc(var(--board-angle, 75deg) * -1 - 10deg)) rotateY(0deg);
-  animation: pot-spin 6s linear infinite;
-  object-fit: contain;
-  pointer-events: none;
-  z-index: 1;
-}
 
 .pot-number {
   position: absolute;
@@ -669,16 +665,7 @@ body {
 }
 
 
-@keyframes pot-spin {
-  from {
-    transform: translate(-50%, -50%) translateZ(20px)
-      rotateX(calc(var(--board-angle, 75deg) * -1 - 10deg)) rotateY(0deg);
-  }
-  to {
-    transform: translate(-50%, -50%) translateZ(20px)
-      rotateX(calc(var(--board-angle, 75deg) * -1 - 10deg)) rotateY(360deg);
-  }
-}
+
 
 
 .dice-marker {
@@ -707,5 +694,6 @@ body {
   right: -0.4rem;
   font-size: 0.75rem;
   font-weight: bold;
-  color: #000;
+  color: #dc2626;
+  text-shadow: 0 0 2px #fff;
 }
