@@ -161,18 +161,11 @@ function Board({
             </span>
           )}
           {position === num && (
-            <>
-              <div
-                className={`token-hexagon ${
-                  isHighlight ? 'step' : ''
-                }`}
-              />
-              <PlayerToken
-                photoUrl={photoUrl}
-                type={isHighlight ? highlight.type : tokenType}
-                className={isJump ? 'jump' : ''}
-              />
-            </>
+            <PlayerToken
+              photoUrl={photoUrl}
+              type={isHighlight ? highlight.type : tokenType}
+              className={isJump ? 'jump' : ''}
+            />
           )}
           {offsetPopup && offsetPopup.cell === num && (
             <span
@@ -275,22 +268,16 @@ function Board({
             <div
               className={`pot-cell ${highlight && highlight.cell === FINAL_TILE ? "highlight" : ""}`}
             >
-              <PlayerToken color="#0d47a1" className="pot-token" />
+              <PlayerToken
+                color="#16a34a"
+                topColor="#ff0000"
+                className="pot-token"
+              />
               <img
                 src={`/icons/${token.toLowerCase()}.svg`}
                 alt="pot token"
                 className="pot-icon"
               />
-              <div className={`coin-stack ${celebrate ? 'invisible' : ''}`}>
-                {Array.from({ length: 8 }).map((_, i) => (
-                  <img
-                    key={i}
-                    src={`/icons/${token.toLowerCase()}.svg`}
-                    className="coin-stack-img"
-                    style={{ bottom: `${i * 3}px` }}
-                  />
-                ))}
-              </div>
               <span className="pot-number">{FINAL_TILE}</span>
               {position === FINAL_TILE && (
                 <PlayerToken
