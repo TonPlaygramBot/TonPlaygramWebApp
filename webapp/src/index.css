@@ -630,7 +630,7 @@ body {
 .board-wall {
   position: absolute;
   top: calc(
-    var(--cell-height) * -9.5 - var(--cell-height) * 1.8 *
+    var(--cell-height) * -14.5 - var(--cell-height) * 1.8 *
       (var(--final-scale, 1) - 1)
   );
   bottom: 0;
@@ -806,8 +806,8 @@ body {
   inset: 10px;
   background-color: #555;
   clip-path: polygon(50% 0%, 93% 25%, 93% 75%, 50% 100%, 7% 75%, 7% 25%);
-  /* slightly stretch vertically so the shape appears regular after perspective */
-  transform: translateZ(6px) scaleY(1.6);
+  /* lay flat on the board surface */
+  transform: translateZ(0);
   animation: hex-spin-reverse 10.5s linear infinite;
   pointer-events: none;
   z-index: 0;
@@ -815,10 +815,10 @@ body {
 
 @keyframes hex-spin-reverse {
   from {
-    transform: translateZ(6px) scaleY(1.6) rotate(0deg);
+    transform: translateZ(0) rotate(0deg);
   }
   to {
-    transform: translateZ(6px) scaleY(1.6) rotate(-360deg);
+    transform: translateZ(0) rotate(-360deg);
   }
 }
 

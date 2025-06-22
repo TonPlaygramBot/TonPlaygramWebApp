@@ -38,15 +38,9 @@ export default function HexPrismToken({ color = "#008080", topColor, photoUrl, c
     geometry.addGroup(54, 18, 7); // bottom
 
     const baseColor = new THREE.Color(color);
-    const sideMaterials = [];
-    for (let i = 0; i < 6; i++) {
-      const hsl = {};
-      baseColor.getHSL(hsl);
-      // distribute shades around the prism from darker to lighter
-      const l = Math.min(1, Math.max(0, hsl.l - 0.1 + (i / 5) * 0.2));
-      const shade = new THREE.Color().setHSL(hsl.h, hsl.s, l);
-      sideMaterials.push(new THREE.MeshStandardMaterial({ color: shade }));
-    }
+    const sideMaterials = Array.from({ length: 6 }, () =>
+      new THREE.MeshStandardMaterial({ color: baseColor })
+    );
 
     const topMaterial = new THREE.MeshStandardMaterial({
       color: topColor ? new THREE.Color(topColor) : baseColor.clone().offsetHSL(0, 0, 0.2),
