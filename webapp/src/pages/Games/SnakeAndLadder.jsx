@@ -66,8 +66,10 @@ function Board({
   const [cellHeight, setCellHeight] = useState(40);
   const tiles = [];
   const centerCol = (COLS - 1) / 2;
-  // Keep vertical columns evenly spaced rather than widening
-  const widenStep = 0; // how much each row expands horizontally
+  // Gradual horizontal widening towards the top. Keep the bottom
+  // row the same width and slightly expand each successive row so
+  // the board forms a soft V shape.
+  const widenStep = 0.05; // how much each row expands horizontally
   const scaleStep = 0.02; // how much each row's cells scale
   // Perspective with smaller cells at the bottom growing larger towards the pot
   const finalScale = 1 + (ROWS - 3) * scaleStep;
@@ -85,8 +87,12 @@ function Board({
     // Rows grow larger towards the top of the board
     const rowFactor = r - 2;
     const scale = 1 + rowFactor * scaleStep;
+    // Normalised row position from bottom (0) to top (1)
+    const rowPos = r / (ROWS - 1);
+    // Slightly widen higher rows without affecting the bottom row
+    const scaleX = scale * (1 + rowPos * widenStep);
     // Include the scaled cell width so horizontal gaps remain consistent
-    const offsetX = rowFactor * widenStep * cellWidth + (scale - 1) * cellWidth;
+    const offsetX = (scaleX - 1) * cellWidth;
     // Arrange cell numbers so the bottom row starts on the left and each
     // subsequent row alternates direction. Tile 1 is at the bottom-left and
     // tile 100 ends up at the top-right.
@@ -127,7 +133,7 @@ function Board({
       const style = {
         gridRowStart: ROWS - r,
         gridColumnStart: col + 1,
-        transform: `translate(${translateX}px, ${translateY}px) scale(${scale}) translateZ(5px)`,
+        transform: `translate(${translateX}px, ${translateY}px) scaleX(${scaleX}) scaleY(${scale}) translateZ(5px)`,
         transformOrigin: "bottom center",
       };
       if (!highlightClass) style.backgroundColor = rowColor;
