@@ -572,6 +572,16 @@ body {
   transform: translateY(-10%);
 }
 
+.cell-hexagon {
+  position: absolute;
+  inset: 6px;
+  background-color: #333;
+  clip-path: polygon(50% 0%, 93% 25%, 93% 75%, 50% 100%, 7% 75%, 7% 25%);
+  transform: translateZ(4px) rotateX(var(--board-angle, 70deg));
+  pointer-events: none;
+  z-index: 0;
+}
+
 .board-cell.snake-cell .cell-number,
 .board-cell.ladder-cell .cell-number,
 .board-cell.dice-cell .cell-number {
