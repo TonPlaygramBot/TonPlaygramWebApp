@@ -219,7 +219,10 @@ function Board({
   // Pull the camera back slightly so the first row is visible when the
   // game starts. Using a positive offset scrolls up a couple of rows
   // from the very bottom of the board.
-  const CAMERA_OFFSET_ROWS = 0;
+  // Shift the starting camera up a few rows so players immediately see
+  // more of the board when the game loads. Increasing this value scrolls
+  // up from the very bottom of the board.
+  const CAMERA_OFFSET_ROWS = 3;
 
   useEffect(() => {
     const container = containerRef.current;
