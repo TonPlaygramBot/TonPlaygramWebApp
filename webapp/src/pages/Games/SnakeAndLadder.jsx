@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import confetti from "canvas-confetti";
 import DiceRoller from "../../components/DiceRoller.jsx";
 import { dropSound, snakeSound, ladderSound } from "../../assets/soundData.js";
 import InfoPopup from "../../components/InfoPopup.jsx";
@@ -339,6 +340,7 @@ export default function SnakeAndLadder() {
   const [rollResult, setRollResult] = useState(null);
   const [diceCells, setDiceCells] = useState({});
   const [bonusDice, setBonusDice] = useState(0);
+  const [diceCount, setDiceCount] = useState(2);
   const [gameOver, setGameOver] = useState(false);
 
   const moveSoundRef = useRef(null);
@@ -504,7 +506,26 @@ export default function SnakeAndLadder() {
       let current = pos;
       let target = current;
 
-      if (current === 0) {
+      if (current === 100 && diceCount === 2) {
+        if (rolledSix) {
+          setDiceCount(1);
+          setMessage("Six rolled! One die removed.");
+        } else {
+          setMessage("Need a 6 to remove a die.");
+        }
+        setTurnMessage("Your turn");
+        setDiceVisible(true);
+        return;
+      } else if (current === 100 && diceCount === 1) {
+        if (value === 1) {
+          target = FINAL_TILE;
+        } else {
+          setMessage("Need a 1 to win!");
+          setTurnMessage("Your turn");
+          setDiceVisible(true);
+          return;
+        }
+      } else if (current === 0) {
         if (rolledSix) target = 1;
         else {
           setMessage("Need a 6 to start!");
@@ -518,6 +539,7 @@ export default function SnakeAndLadder() {
         setMessage("Need exact roll!");
         setTurnMessage("Your turn");
         setDiceVisible(true);
+        return;
       }
 
       const steps = [];
@@ -601,9 +623,11 @@ export default function SnakeAndLadder() {
           setMessage(`You win ${pot} ${token}!`);
           setMessageColor("");
           winSoundRef.current?.play().catch(() => {});
+          confetti({ particleCount: 150, spread: 70, origin: { y: 0.6 } });
           setCelebrate(true);
           setTimeout(() => {
             setCelebrate(false);
+            setDiceCount(2);
             setGameOver(true);
           }, 1500);
         }
@@ -688,7 +712,7 @@ export default function SnakeAndLadder() {
             }}
             onRollStart={() => setTurnMessage("Rolling...")}
             clickable
-            numDice={2 + bonusDice}
+            numDice={diceCount + bonusDice}
           />
           {turnMessage && (
             <div className="mt-2 text-sm font-semibold">{turnMessage}</div>
