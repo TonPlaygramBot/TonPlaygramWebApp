@@ -252,65 +252,74 @@ function Board({
   const paddingBottom = '15vh';
 
   return (
-    <div className="flex justify-center items-center w-screen overflow-hidden">
-      <div
-        ref={containerRef}
-        className="overflow-y-auto"
-        style={{
-          overflowX: "hidden",
-          height: "100vh",
-          overscrollBehaviorY: "contain",
-          paddingTop,
-          paddingBottom,
-        }}
-      >
-        <div className="snake-board-tilt">
-          <div
-            className="snake-board-grid grid gap-x-1 gap-y-2 relative mx-auto"
-            style={{
-              width: `${cellWidth * COLS}px`,
-              height: `${cellHeight * ROWS + offsetYMax}px`,
-              gridTemplateColumns: `repeat(${COLS}, ${cellWidth}px)`,
-              gridTemplateRows: `repeat(${ROWS}, ${cellHeight}px)`,
-              "--cell-width": `${cellWidth}px`,
-              "--cell-height": `${cellHeight}px`,
-              "--board-width": `${cellWidth * COLS}px`,
-              "--board-height": `${cellHeight * ROWS + offsetYMax}px`,
-              "--board-angle": `${angle}deg`,
-              "--final-scale": finalScale,
-              // Fixed camera angle with no zooming
-              // Slightly enlarge the board in both directions
-              // Pull the board slightly back so more of the lower rows are
-              // visible when the game starts
-              transform: `translate(${boardXOffset}px, ${boardYOffset}px) rotateX(${angle}deg) scale(0.9455)`,
-            }}
-          >
-            <div className="snake-gradient-bg" />
-            {tiles}
+    <div className="relative w-screen h-screen overflow-hidden">
+      <div className="cosmic-bg">
+        <div className="cosmic-stars" />
+        <div className="planet one" />
+        <div className="planet two" />
+        <div className="comet" />
+      </div>
+      <div className="flex justify-center items-center w-screen overflow-hidden relative z-10">
+        <div
+          ref={containerRef}
+          className="overflow-y-auto"
+          style={{
+            overflowX: "hidden",
+            height: "100vh",
+            overscrollBehaviorY: "contain",
+            paddingTop,
+            paddingBottom,
+          }}
+        >
+          <div className="snake-board-tilt">
             <div
-              className={`pot-cell ${highlight && highlight.cell === FINAL_TILE ? "highlight" : ""}`}
+              className="snake-board-grid grid gap-x-1 gap-y-2 relative mx-auto"
+              style={{
+                width: `${cellWidth * COLS}px`,
+                height: `${cellHeight * ROWS + offsetYMax}px`,
+                gridTemplateColumns: `repeat(${COLS}, ${cellWidth}px)`,
+                gridTemplateRows: `repeat(${ROWS}, ${cellHeight}px)`,
+                "--cell-width": `${cellWidth}px`,
+                "--cell-height": `${cellHeight}px`,
+                "--board-width": `${cellWidth * COLS}px`,
+                "--board-height": `${cellHeight * ROWS + offsetYMax}px`,
+                "--board-angle": `${angle}deg`,
+                "--final-scale": finalScale,
+                // Fixed camera angle with no zooming
+                // Slightly enlarge the board in both directions
+                // Pull the board slightly back so more of the lower rows are
+                // visible when the game starts
+                transform: `translate(${boardXOffset}px, ${boardYOffset}px) rotateX(${angle}deg) scale(0.9455)`,
+              }}
             >
-              <PlayerToken
-                color="#16a34a"
-                topColor="#ff0000"
-                className="pot-token"
-              />
-              {position === FINAL_TILE && (
+              <div className="snake-gradient-bg" />
+              {tiles}
+              <div
+                className={`pot-cell ${highlight && highlight.cell === FINAL_TILE ? "highlight" : ""}`}
+              >
                 <PlayerToken
-                  photoUrl={photoUrl}
-                  type={
-                    highlight && highlight.cell === FINAL_TILE
-                      ? highlight.type
-                      : tokenType
-                  }
+                  color="#16a34a"
+                  topColor="#ff0000"
+                  className="pot-token"
                 />
-              )}
-              {celebrate && <CoinBurst token={token} />}
+                {position === FINAL_TILE && (
+                  <PlayerToken
+                    photoUrl={photoUrl}
+                    type={
+                      highlight && highlight.cell === FINAL_TILE
+                        ? highlight.type
+                        : tokenType
+                    }
+                  />
+                )}
+                {celebrate && <CoinBurst token={token} />}
+              </div>
+              <div className="logo-wall-main" />
             </div>
-            <div className="logo-wall-main" />
           </div>
         </div>
       </div>
+      <div className="cosmic-frame" />
     </div>
   );
 }
