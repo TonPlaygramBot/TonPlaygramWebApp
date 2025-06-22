@@ -287,7 +287,7 @@ body {
   transform-origin: bottom center;
   /* Align the photo with the top face of the token and tilt upward */
   transform: translate(-50%, -50%) translateZ(15.2px)
-    rotateX(calc(var(--board-angle, 60deg) * -1 - 10deg));
+    rotateX(calc(var(--board-angle, 75deg) * -1 - 10deg));
   object-fit: cover;
   border-radius: 50%;
   border: 2px solid #ffd700;
@@ -302,7 +302,7 @@ body {
   height: 100%;
   transform-style: preserve-3d;
   /* Align token with board surface while showing a slight side angle */
-  transform: rotateX(calc(var(--board-angle, 60deg) * -1 - 20deg)) rotateY(25deg);
+  transform: rotateX(calc(var(--board-angle, 75deg) * -1 - 20deg)) rotateY(25deg);
 }
 
 .cube-face {
@@ -535,7 +535,7 @@ body {
   left: 50%;
   transform-origin: bottom center;
   transform: translate(-50%, -50%) translateZ(20px)
-    rotateX(calc(var(--board-angle, 60deg) * -1 - 10deg)) rotateY(0deg);
+    rotateX(calc(var(--board-angle, 75deg) * -1 - 10deg)) rotateY(0deg);
   animation: pot-spin 6s linear infinite;
   object-fit: contain;
   pointer-events: none;
@@ -580,7 +580,7 @@ body {
   /* move the logo even higher above the board */
   top: calc(var(--cell-height) * -9.5 - var(--cell-height) * 1.8 * (var(--final-scale, 1) - 1)); /* adjust for scaled top row */
   left: 50%;
-  transform: translateX(-50%) rotateX(calc(var(--board-angle, 60deg) * -1)) translateZ(-40px) scale(1.8); /* larger logo */
+  transform: translateX(-50%) rotateX(calc(var(--board-angle, 75deg) * -1)) translateZ(-40px) scale(1.8); /* larger logo */
   transform-origin: bottom center;
   background-image: url("/assets/TonPlayGramLogo.jpg");
   background-size: contain;
@@ -696,7 +696,7 @@ body {
   pointer-events: none;
   /* Align with the token photo but sit just underneath */
   transform: translate(-50%, -50%) translateZ(14.2px)
-    rotateX(calc(var(--board-angle, 60deg) * -1 - 10deg));
+    rotateX(calc(var(--board-angle, 75deg) * -1 - 10deg));
   animation: hex-spin 10.5s linear infinite;
   z-index: 1;
 }
@@ -708,23 +708,23 @@ body {
 @keyframes pot-spin {
   from {
     transform: translate(-50%, -50%) translateZ(20px)
-      rotateX(calc(var(--board-angle, 60deg) * -1 - 10deg)) rotateY(0deg);
+      rotateX(calc(var(--board-angle, 75deg) * -1 - 10deg)) rotateY(0deg);
   }
   to {
     transform: translate(-50%, -50%) translateZ(20px)
-      rotateX(calc(var(--board-angle, 60deg) * -1 - 10deg)) rotateY(360deg);
+      rotateX(calc(var(--board-angle, 75deg) * -1 - 10deg)) rotateY(360deg);
   }
 }
 
 @keyframes hex-spin {
   from {
     transform: translate(-50%, -50%) translateZ(14.2px)
-      rotateX(calc(var(--board-angle, 60deg) * -1 - 10deg))
+      rotateX(calc(var(--board-angle, 75deg) * -1 - 10deg))
       rotateY(0deg);
   }
   to {
     transform: translate(-50%, -50%) translateZ(14.2px)
-      rotateX(calc(var(--board-angle, 60deg) * -1 - 10deg))
+      rotateX(calc(var(--board-angle, 75deg) * -1 - 10deg))
       rotateY(360deg);
   }
 }
