@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo } from "react";
+import { diceSound } from "../assets/soundData.js";
 
 const diceFaces = {
   1: [
@@ -89,9 +90,7 @@ function DiceCube({
 
   useEffect(() => {
     if (rolling && playSound) {
-      const audio = new Audio(
-        "https://snakes-and-ladders-game.netlify.app/audio/dice.mp3",
-      );
+      const audio = new Audio(diceSound);
       audio.play().catch(() => {}); // Handle autoplay restrictions gracefully
     }
   }, [rolling, playSound]);

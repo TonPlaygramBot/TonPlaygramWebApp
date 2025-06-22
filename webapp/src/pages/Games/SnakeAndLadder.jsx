@@ -1,5 +1,10 @@
 import { useState, useEffect, useRef } from "react";
 import DiceRoller from "../../components/DiceRoller.jsx";
+import {
+  dropSound,
+  snakeSound,
+  ladderSound,
+} from "../../assets/soundData.js";
 import InfoPopup from "../../components/InfoPopup.jsx";
 import GameEndPopup from "../../components/GameEndPopup.jsx";
 import {
@@ -363,15 +368,9 @@ export default function SnakeAndLadder() {
           });
         }
       });
-    moveSoundRef.current = new Audio(
-      "https://snakes-and-ladders-game.netlify.app/audio/drop.mp3",
-    );
-    snakeSoundRef.current = new Audio(
-      "https://snakes-and-ladders-game.netlify.app/audio/snake.mp3",
-    );
-    ladderSoundRef.current = new Audio(
-      "https://snakes-and-ladders-game.netlify.app/audio/ladder.mp3",
-    );
+    moveSoundRef.current = new Audio(dropSound);
+    snakeSoundRef.current = new Audio(snakeSound);
+    ladderSoundRef.current = new Audio(ladderSound);
     winSoundRef.current = new Audio("/assets/sounds/successful.mp3");
     diceRewardSoundRef.current = new Audio("/assets/sounds/successful.mp3");
     return () => {
