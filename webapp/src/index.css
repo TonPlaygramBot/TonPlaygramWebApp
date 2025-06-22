@@ -775,13 +775,24 @@ body {
 
 .token-hexagon {
   position: absolute;
-  inset: 6px;
+  /* shrink the decorative hexagon so it doesn't overpower the token */
+  inset: 10px;
   background-color: #555;
   clip-path: polygon(50% 0%, 93% 25%, 93% 75%, 50% 100%, 7% 75%, 7% 25%);
-  animation: hex-spin 10.5s linear infinite;
-  transform: translateZ(6px);
+  /* slightly stretch vertically so the shape appears regular after perspective */
+  transform: translateZ(6px) scaleY(1.6);
+  animation: hex-spin-reverse 10.5s linear infinite;
   pointer-events: none;
   z-index: 0;
+}
+
+@keyframes hex-spin-reverse {
+  from {
+    transform: translateZ(6px) scaleY(1.6) rotate(0deg);
+  }
+  to {
+    transform: translateZ(6px) scaleY(1.6) rotate(-360deg);
+  }
 }
 
 @keyframes hex-spin {

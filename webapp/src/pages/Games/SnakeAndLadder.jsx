@@ -235,7 +235,8 @@ function Board({
   // Once positioned the camera remains fixed so it no longer follows the
   // player's token. Manual scrolling is still possible to inspect other rows.
 
-  const paddingTop = `${1 * cellHeight}px`;
+  // Remove the extra top padding so the first row is immediately visible
+  const paddingTop = 0;
 
   return (
     <div className="flex justify-center items-center w-screen overflow-hidden">
