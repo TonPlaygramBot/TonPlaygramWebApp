@@ -273,11 +273,6 @@ function Board({
                 topColor="#ff0000"
                 className="pot-token"
               />
-              <img
-                src={`/icons/${token.toLowerCase()}.svg`}
-                alt="pot token"
-                className="pot-icon"
-              />
               <span className="pot-number">{FINAL_TILE}</span>
               {position === FINAL_TILE && (
                 <PlayerToken
