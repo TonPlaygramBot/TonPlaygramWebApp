@@ -490,44 +490,34 @@ body {
 .cell-offset {
   font-size: 1rem;
   line-height: 1;
-  display: flex;
-  align-items: center;
-  gap: 1px;
-}
-.offset-sign {
-  font-weight: bold;
-}
-.offset-num {
   color: #ffffff;
   font-weight: bold;
-}
-
-.snake-cell .offset-sign {
-  color: #ef4444; /* red */
-}
-
-.ladder-cell .offset-sign {
-  color: #16a34a; /* green */
-}
-
-.board-cell.dice-cell {
-  background-color: #bfdbfe; /* blue-200 */
 }
 
 .cell-number {
   position: relative;
   z-index: 1;
-  color: #000000;
+  color: #ffffff;
   font-family: "Comic Sans MS", "Comic Sans", cursive;
   font-weight: bold;
   font-size: 1.1rem; /* slightly bigger numbers */
   line-height: 1;
+  text-shadow: 0 1px 0 #cdd5d6;
 }
 
 .board-cell.snake-cell .cell-number,
-.board-cell.ladder-cell .cell-number,
-.board-cell.dice-cell .cell-number {
-  display: none;
+.board-cell.ladder-cell .cell-number {
+  visibility: visible;
+}
+
+.board-cell.snake-cell .cell-number {
+  color: #ffffff;
+  text-shadow: 0 0 2px #ff0000;
+}
+
+.board-cell.ladder-cell .cell-number {
+  color: #ffffff;
+  text-shadow: 0 0 2px #16a34a;
 }
 
 .board-cell.snake-cell,
@@ -707,14 +697,6 @@ body {
   right: -0.4rem;
   font-size: 0.75rem;
   font-weight: bold;
-  display: flex;
-  align-items: center;
-  gap: 1px;
-}
-.dice-sign {
-  color: #3b82f6; /* blue */
-}
-.dice-num {
-  color: #ffffff;
+  color: #dc2626;
   text-shadow: 0 0 2px #fff;
 }

@@ -96,8 +96,14 @@ function Board({
     // tile 100 ends up at the top-right.
     const reversed = r % 2 === 1;
     const colorIdx = Math.floor(r / (ROWS / 5));
-    const TILE_COLORS = ["#ffffff", "#ffffff", "#ffffff", "#ffffff", "#ffffff"];
-    const rowColor = TILE_COLORS[colorIdx] || "#ffffff";
+    const TILE_COLORS = [
+      "#6db0ad",
+      "#4a828e",
+      "#3d7078",
+      "#2d5c66",
+      "#0e3b45",
+    ];
+    const rowColor = TILE_COLORS[colorIdx] || "#0e3b45";
 
     for (let c = 0; c < COLS; c++) {
       const col = c;
@@ -114,8 +120,6 @@ function Board({
       const isJump = isHighlight && highlight.type === 'normal';
       const cellType = ladders[num] ? "ladder" : snakes[num] ? "snake" : "";
       const cellClass = cellType ? `${cellType}-cell` : "";
-      const hasDice = diceCells && diceCells[num];
-      const allClasses = `board-cell ${cellClass} ${hasDice ? 'dice-cell' : ''} ${highlightClass}`;
       const icon = cellType === "ladder" ? "🪜" : cellType === "snake" ? "🐍" : "";
       const offsetVal =
         cellType === "ladder"
@@ -135,7 +139,7 @@ function Board({
         <div
           key={num}
           data-cell={num}
-          className={allClasses}
+          className={`board-cell ${cellClass} ${highlightClass}`}
           style={style}
         >
           {(icon || offsetVal != null) && (
@@ -143,22 +147,17 @@ function Board({
               {icon && <span className="cell-icon">{icon}</span>}
               {offsetVal != null && (
                 <span className="cell-offset">
-                  <span className="offset-sign">
-                    {cellType === 'snake' ? '-' : '+'}
-                  </span>
-                  <span className="offset-num">{offsetVal}</span>
+                  {cellType === "snake" ? "-" : "+"}
+                  {offsetVal}
                 </span>
               )}
             </span>
           )}
-          {!(cellType || hasDice) && <span className="cell-number">{num}</span>}
+          <span className="cell-number">{num}</span>
           {diceCells && diceCells[num] && (
             <span className="dice-marker">
               <img src="/assets/icons/dice.svg" alt="dice" />
-              <span className="dice-value">
-                <span className="dice-sign">+</span>
-                <span className="dice-num">{diceCells[num]}</span>
-              </span>
+              <span className="dice-value">+{diceCells[num]}</span>
             </span>
           )}
           {position === num && (
