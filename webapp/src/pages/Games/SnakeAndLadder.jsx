@@ -219,6 +219,18 @@ function Board({
       container.scrollTop = container.scrollHeight - container.clientHeight;
   }, []);
 
+  // Step the camera up one row as the player moves so their token stays
+  // roughly in view. Keeps the same tilt and zoom but adjusts the scroll
+  // position based on the current row.
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+    const row = Math.floor((position - 1) / COLS);
+    const target =
+      container.scrollHeight - container.clientHeight - row * cellHeight;
+    container.scrollTop = Math.max(0, target);
+  }, [position, cellHeight]);
+
   // The board position is fixed once rendered so it no longer follows the
   // player's token as they move up the rows. This locks the board in place and
   // keeps the bottom rows anchored while still allowing manual scrolling.
