@@ -128,13 +128,13 @@ body {
 }
 
 .dice-cube {
-  @apply relative w-12 h-12 bg-white rounded-xl;
+  @apply relative w-12 h-12 bg-red-600 rounded-xl;
   transform-style: preserve-3d;
   transition: transform 0.5s;
 }
 
 .dice-face {
-  @apply absolute w-full h-full flex items-center justify-center bg-white rounded-xl shadow-lg;
+  @apply absolute w-full h-full flex items-center justify-center bg-red-600 rounded-xl shadow-lg;
 }
 
 .dice-face .dot {
@@ -236,7 +236,7 @@ body {
 }
 
 .token-dice .dice-face .dot {
-  background-color: #fff;
+  background-color: #000;
 }
 
 /* Three.js token container */
@@ -513,29 +513,42 @@ body {
 
 .cell-sign.snake {
   color: #dc2626;
+  text-shadow: 0 0 2px #fff;
 }
 
 .cell-sign.ladder {
   color: #16a34a;
+  text-shadow: 0 0 2px #fff;
 }
 
 .cell-sign.dice {
-  color: #3b82f6;
+  color: #dc2626;
+  text-shadow: 0 0 2px #000;
 }
 
 .cell-value {
   color: #ffffff;
 }
 
+.board-cell.snake-cell .cell-value {
+  color: #dc2626;
+  text-shadow: 0 0 2px #fff;
+}
+
+.board-cell.ladder-cell .cell-value {
+  color: #16a34a;
+  text-shadow: 0 0 2px #fff;
+}
+
 .cell-number {
   position: relative;
   z-index: 1;
-  color: #000000;
+  color: #ffffff;
   font-family: "Comic Sans MS", "Comic Sans", cursive;
   font-weight: bold;
   font-size: 1.1rem; /* slightly bigger numbers */
   line-height: 1;
-  text-shadow: 0 0 2px #ffffff;
+  text-shadow: 0 0 2px #000;
 }
 
 .board-cell.snake-cell .cell-number,
@@ -722,9 +735,11 @@ body {
 }
 
 .dice-sign {
-  color: #3b82f6;
+  color: #dc2626;
+  text-shadow: 0 0 2px #000;
 }
 
 .dice-number {
-  color: #ffffff;
+  color: #dc2626;
+  text-shadow: 0 0 2px #000;
 }
