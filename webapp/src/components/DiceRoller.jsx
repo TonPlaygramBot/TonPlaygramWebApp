@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import Dice from './Dice.jsx';
+import { diceSound } from '../assets/soundData.js';
 
 export default function DiceRoller({ onRollEnd, onRollStart, clickable = false, numDice = 2 }) {
   const [values, setValues] = useState(Array(numDice).fill(1));
@@ -14,7 +15,7 @@ export default function DiceRoller({ onRollEnd, onRollStart, clickable = false, 
   }, [numDice]);
 
   useEffect(() => {
-    soundRef.current = new Audio('https://snakes-and-ladders-game.netlify.app/audio/dice.mp3');
+    soundRef.current = new Audio(diceSound);
     soundRef.current.preload = 'auto';
     return () => {
       soundRef.current?.pause();
