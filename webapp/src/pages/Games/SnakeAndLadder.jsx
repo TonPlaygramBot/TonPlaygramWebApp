@@ -211,7 +211,8 @@ function Board({
   // so the entire scene appears lifted by 15 degrees
   const angle = 75;
   // Small horizontal offset so the board sits perfectly centered
-  const boardXOffset = -10; // pixels
+  // Shift a little further left
+  const boardXOffset = -15; // pixels
   // Lift the board slightly so the bottom row stays visible
   const boardYOffset = -40; // pixels
 
@@ -275,7 +276,7 @@ function Board({
               // Slightly enlarge the board in both directions
               // Pull the board slightly back so more of the lower rows are
               // visible when the game starts
-              transform: `translate(${boardXOffset}px, ${boardYOffset}px) rotateX(${angle}deg) scale(0.8755)`,
+              transform: `translate(${boardXOffset}px, ${boardYOffset}px) rotateX(${angle}deg) scale(0.9018)`,
             }}
           >
             <div className="snake-gradient-bg" />
