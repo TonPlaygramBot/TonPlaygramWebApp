@@ -569,7 +569,7 @@ body {
   font-size: 1.1rem; /* slightly bigger numbers */
   line-height: 1;
   text-shadow: 0 0 2px #000;
-  transform: translateY(-10%);
+  transform: translateY(0);
 }
 
 .board-cell.snake-cell .cell-number,
@@ -779,8 +779,8 @@ body {
   inset: 10px;
   background-color: #555;
   clip-path: polygon(50% 0%, 93% 25%, 93% 75%, 50% 100%, 7% 75%, 7% 25%);
-  /* match the board tilt */
-  transform: translateZ(0) rotateX(var(--board-angle, 75deg));
+  /* keep the hexagon flat on the board */
+  transform: translateZ(0);
   animation: hex-spin-reverse 10.5s linear infinite;
   pointer-events: none;
   z-index: 0;
@@ -788,10 +788,10 @@ body {
 
 @keyframes hex-spin-reverse {
   from {
-    transform: translateZ(0) rotateX(var(--board-angle, 75deg)) rotate(0deg);
+    transform: translateZ(0) rotate(0deg);
   }
   to {
-    transform: translateZ(0) rotateX(var(--board-angle, 75deg)) rotate(-360deg);
+    transform: translateZ(0) rotate(-360deg);
   }
 }
 
