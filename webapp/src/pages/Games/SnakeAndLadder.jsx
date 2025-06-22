@@ -214,9 +214,9 @@ function Board({
   const boardXOffset = -10; // pixels
 
   // How many board rows to scroll back from the starting position so
-  // the bottom row remains in view but the camera is slightly further away
-  // from the board. A value of 1 shows one additional row above the start.
-  const CAMERA_OFFSET_ROWS = 1;
+  // the bottom row remains in view. Set to 0 to begin at the very first row
+  // without shifting the camera upward.
+  const CAMERA_OFFSET_ROWS = 0;
 
   useEffect(() => {
     const container = containerRef.current;
