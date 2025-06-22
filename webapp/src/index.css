@@ -636,33 +636,6 @@ body {
   z-index: 5;
 }
 
-.logo-bg-extension {
-  @apply absolute;
-  width: calc(var(--board-height) * 1.2);
-  height: calc(var(--board-width) * 1.5);
-  top: calc(
-    var(--cell-height) * -12.5 - var(--cell-height) * 1.8 *
-      (var(--final-scale, 1) - 1)
-  );
-  left: 50%;
-  transform: translate(-50%, -60%)
-    rotateX(calc(var(--board-angle, 70deg) * -1)) rotate(90deg)
-    translateZ(-45px);
-  transform-origin: center;
-  pointer-events: none;
-  z-index: 4;
-  background: linear-gradient(
-    to top,
-    #123840,
-    #1f4d58 20%,
-    #d9cec2 40%,
-    #f3f0e8 50%,
-    #b95741 60%,
-    #e7b382 80%,
-    #4c050d
-  );
-  clip-path: polygon(-60% 0%, 160% 0%, 120% 100%, -50% 100%);
-}
 
 .snake-connector,
 .ladder-connector {
