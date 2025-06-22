@@ -275,7 +275,7 @@ function Board({
               // Slightly enlarge the board in both directions
               // Pull the board slightly back so more of the lower rows are
               // visible when the game starts
-              transform: `translate(${boardXOffset}px, ${boardYOffset}px) rotateX(${angle}deg) scale(0.8755)`,
+              transform: `translate(${boardXOffset}px, ${boardYOffset}px) rotateX(${angle}deg) scale(0.9455)`,
             }}
           >
             <div className="snake-gradient-bg" />
