@@ -1,7 +1,12 @@
 import { useRef, useEffect } from "react";
 import * as THREE from "three";
 
-export default function HexPrismToken({ color = "#008080", photoUrl, className = "" }) {
+export default function HexPrismToken({
+  color = "#008080",
+  topColor,
+  photoUrl,
+  className = "",
+}) {
   const mountRef = useRef(null);
 
   useEffect(() => {
@@ -49,7 +54,9 @@ export default function HexPrismToken({ color = "#008080", photoUrl, className =
     }
 
     const topMaterial = new THREE.MeshStandardMaterial({
-      color: baseColor.clone().offsetHSL(0, 0, 0.2),
+      color: topColor
+        ? new THREE.Color(topColor)
+        : baseColor.clone().offsetHSL(0, 0, 0.2),
       side: THREE.DoubleSide,
     });
     const bottomMaterial = new THREE.MeshStandardMaterial({
@@ -96,7 +103,7 @@ export default function HexPrismToken({ color = "#008080", photoUrl, className =
       bottomMaterial.dispose();
       renderer.dispose();
     };
-  }, [color]);
+  }, [color, topColor]);
 
   return (
     <div className={`token-three relative ${className}`} ref={mountRef}>
