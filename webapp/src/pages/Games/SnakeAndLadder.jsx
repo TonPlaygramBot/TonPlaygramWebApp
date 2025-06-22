@@ -1,10 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import DiceRoller from "../../components/DiceRoller.jsx";
-import {
-  dropSound,
-  snakeSound,
-  ladderSound,
-} from "../../assets/soundData.js";
+import { dropSound, snakeSound, ladderSound } from "../../assets/soundData.js";
 import InfoPopup from "../../components/InfoPopup.jsx";
 import GameEndPopup from "../../components/GameEndPopup.jsx";
 import {
@@ -96,13 +92,7 @@ function Board({
     // tile 100 ends up at the top-right.
     const reversed = r % 2 === 1;
     const colorIdx = Math.floor(r / (ROWS / 5));
-    const TILE_COLORS = [
-      "#6db0ad",
-      "#4a828e",
-      "#3d7078",
-      "#2d5c66",
-      "#0e3b45",
-    ];
+    const TILE_COLORS = ["#6db0ad", "#4a828e", "#3d7078", "#2d5c66", "#0e3b45"];
     const rowColor = TILE_COLORS[colorIdx] || "#0e3b45";
 
     for (let c = 0; c < COLS; c++) {
@@ -115,29 +105,30 @@ function Board({
       const highlightClass = isHighlight
         ? `${highlight.type}-highlight`
         : trailHighlight
-        ? `${trailHighlight.type}-highlight`
-        : "";
-      const isJump = isHighlight && highlight.type === 'normal';
+          ? `${trailHighlight.type}-highlight`
+          : "";
+      const isJump = isHighlight && highlight.type === "normal";
       const cellType = ladders[num]
         ? "ladder"
         : snakes[num]
-        ? "snake"
-        : diceCells && diceCells[num]
-        ? "dice"
-        : "";
+          ? "snake"
+          : diceCells && diceCells[num]
+            ? "dice"
+            : "";
       const cellClass = cellType ? `${cellType}-cell` : "";
-      const icon = cellType === "ladder" ? "🪜" : cellType === "snake" ? "🐍" : "";
+      const icon =
+        cellType === "ladder" ? "🪜" : cellType === "snake" ? "🐍" : "";
       const offsetVal =
         cellType === "ladder"
           ? ladderOffsets[num]
           : cellType === "snake"
-          ? snakeOffsets[num]
-          : null;
+            ? snakeOffsets[num]
+            : null;
       const style = {
         gridRowStart: ROWS - r,
         gridColumnStart: col + 1,
         transform: `translate(${translateX}px, ${translateY}px) scale(${scale}) translateZ(5px)`,
-        transformOrigin: 'bottom center',
+        transformOrigin: "bottom center",
       };
       if (!highlightClass) style.backgroundColor = rowColor;
 
@@ -153,14 +144,15 @@ function Board({
               {icon && <span className="cell-icon">{icon}</span>}
               {offsetVal != null && (
                 <span className="cell-offset">
-                  <span className={`cell-sign ${cellType}`}>{
-                    cellType === "snake" ? "-" : "+"
-                  }</span>
+                  <span className={`cell-sign ${cellType}`}>
+                    {cellType === "snake" ? "-" : "+"}
+                  </span>
                   <span className="cell-value">{offsetVal}</span>
                 </span>
               )}
             </span>
           )}
+          {num === 1 && <span className="start-hexagon" />}
           {cellType === "" && <span className="cell-number">{num}</span>}
           {diceCells && diceCells[num] && (
             <span className="dice-marker">
@@ -175,16 +167,16 @@ function Board({
             <PlayerToken
               photoUrl={photoUrl}
               type={isHighlight ? highlight.type : tokenType}
-              className={isJump ? 'jump' : ''}
+              className={isJump ? "jump" : ""}
             />
           )}
           {offsetPopup && offsetPopup.cell === num && (
             <span
               className={`popup-offset italic font-bold ${
-                offsetPopup.type === 'snake' ? 'text-red-500' : 'text-green-500'
+                offsetPopup.type === "snake" ? "text-red-500" : "text-green-500"
               }`}
             >
-              {offsetPopup.type === 'snake' ? '-' : '+'}
+              {offsetPopup.type === "snake" ? "-" : "+"}
               {offsetPopup.amount}
             </span>
           )}
@@ -252,7 +244,7 @@ function Board({
         ref={containerRef}
         className="overflow-y-auto"
         style={{
-          overflowX: 'hidden',
+          overflowX: "hidden",
           height: "100vh",
           overscrollBehaviorY: "contain",
           paddingTop,
@@ -293,7 +285,11 @@ function Board({
               {position === FINAL_TILE && (
                 <PlayerToken
                   photoUrl={photoUrl}
-                  type={highlight && highlight.cell === FINAL_TILE ? highlight.type : tokenType}
+                  type={
+                    highlight && highlight.cell === FINAL_TILE
+                      ? highlight.type
+                      : tokenType
+                  }
                 />
               )}
               {celebrate && <CoinBurst token={token} />}
@@ -313,7 +309,7 @@ export default function SnakeAndLadder() {
   const [streak, setStreak] = useState(0);
   const [highlight, setHighlight] = useState(null); // { cell: number, type: string }
   const [trail, setTrail] = useState([]);
-  const [tokenType, setTokenType] = useState('normal');
+  const [tokenType, setTokenType] = useState("normal");
   const [message, setMessage] = useState("");
   const [messageColor, setMessageColor] = useState("");
   const [turnMessage, setTurnMessage] = useState("Your turn");
@@ -387,8 +383,8 @@ export default function SnakeAndLadder() {
         .then((p) => setPhotoUrl(p?.photo || getTelegramPhotoUrl()))
         .catch(() => setPhotoUrl(getTelegramPhotoUrl()));
     };
-    window.addEventListener('profilePhotoUpdated', updatePhoto);
-    return () => window.removeEventListener('profilePhotoUpdated', updatePhoto);
+    window.addEventListener("profilePhotoUpdated", updatePhoto);
+    return () => window.removeEventListener("profilePhotoUpdated", updatePhoto);
   }, []);
 
   useEffect(() => {
@@ -443,7 +439,7 @@ export default function SnakeAndLadder() {
     });
     const lad = {};
     Object.entries(laddersObj).forEach(([s, e]) => {
-      const end = typeof e === 'object' ? e.end : e;
+      const end = typeof e === "object" ? e.end : e;
       lad[s] = end - s;
     });
     setSnakeOffsets(snk);
@@ -477,156 +473,168 @@ export default function SnakeAndLadder() {
       setOffsetPopup(null);
       setTrail([]);
 
-    const rolledSix = Array.isArray(values) ? values.includes(6) : value === 6;
+      const rolledSix = Array.isArray(values)
+        ? values.includes(6)
+        : value === 6;
 
-    setMessage("");
-    let newStreak = rolledSix ? streak + 1 : 0;
+      setMessage("");
+      let newStreak = rolledSix ? streak + 1 : 0;
 
-    if (newStreak === 3) {
-      setStreak(0);
-      setMessage("Third 6 rolled, turn skipped!");
-      setTurnMessage("Your turn");
-      setDiceVisible(true);
-      return;
-    }
-
-    setStreak(newStreak);
-    let current = pos;
-    let target = current;
-
-    if (current === 0) {
-      if (rolledSix) target = 1;
-      else {
-        setMessage("Need a 6 to start!");
+      if (newStreak === 3) {
+        setStreak(0);
+        setMessage("Third 6 rolled, turn skipped!");
         setTurnMessage("Your turn");
         setDiceVisible(true);
         return;
       }
-    } else if (current + value <= FINAL_TILE) {
-      target = current + value;
-    } else {
-      setMessage("Need exact roll!");
-      setTurnMessage("Your turn");
-      setDiceVisible(true);
-    }
 
-    const steps = [];
-    for (let i = current + 1; i <= target; i++) steps.push(i);
+      setStreak(newStreak);
+      let current = pos;
+      let target = current;
 
-    const moveSeq = (seq, type, done) => {
-      const stepMove = (idx) => {
-        if (idx >= seq.length) return done();
-        const next = seq[idx];
-        setPos(next);
-        moveSoundRef.current.currentTime = 0;
-        moveSoundRef.current.play().catch(() => {});
-        setTrail((t) => [...t, { cell: next, type }]);
-        setHighlight({ cell: next, type });
-        setTimeout(() => stepMove(idx + 1), 700);
+      if (current === 0) {
+        if (rolledSix) target = 1;
+        else {
+          setMessage("Need a 6 to start!");
+          setTurnMessage("Your turn");
+          setDiceVisible(true);
+          return;
+        }
+      } else if (current + value <= FINAL_TILE) {
+        target = current + value;
+      } else {
+        setMessage("Need exact roll!");
+        setTurnMessage("Your turn");
+        setDiceVisible(true);
+      }
+
+      const steps = [];
+      for (let i = current + 1; i <= target; i++) steps.push(i);
+
+      const moveSeq = (seq, type, done) => {
+        const stepMove = (idx) => {
+          if (idx >= seq.length) return done();
+          const next = seq[idx];
+          setPos(next);
+          moveSoundRef.current.currentTime = 0;
+          moveSoundRef.current.play().catch(() => {});
+          setTrail((t) => [...t, { cell: next, type }]);
+          setHighlight({ cell: next, type });
+          setTimeout(() => stepMove(idx + 1), 700);
+        };
+        stepMove(0);
       };
-      stepMove(0);
-    };
 
-    const flashHighlight = (cell, type, times, done) => {
-      if (times <= 0) return done();
-      setHighlight({ cell, type });
-      setTimeout(() => {
-        setHighlight(null);
-        setTimeout(() => flashHighlight(cell, type, times - 1, done), 150);
-      }, 150);
-    };
-
-    const applyEffect = (startPos) => {
-      const snakeEnd = snakes[startPos];
-      const ladderObj = ladders[startPos];
-      const ladderEnd = typeof ladderObj === 'object' ? ladderObj.end : ladderObj;
-
-      if (snakeEnd != null) {
-        const offset = startPos - snakeEnd;
-        setTrail([{ cell: startPos, type: 'snake' }]);
-        setOffsetPopup({ cell: startPos, type: 'snake', amount: offset });
-        setTimeout(() => setOffsetPopup(null), 1000);
-        setMessage(`🐍 ${startPos} -${offset}`);
-        setMessageColor('text-red-500');
-        snakeSoundRef.current?.play().catch(() => {});
-        const seq = [];
-        for (let i = 1; i <= offset && startPos - i >= 0; i++) seq.push(startPos - i);
-        const move = () =>
-          moveSeq(seq, 'snake', () => finalizeMove(Math.max(0, snakeEnd), 'snake'));
-        flashHighlight(startPos, 'snake', 2, move);
-      } else if (ladderEnd != null) {
-        const offset = ladderEnd - startPos;
-        setTrail((t) =>
-          t.map((h) => (h.cell === startPos ? { ...h, type: 'ladder' } : h)),
-        );
-        setOffsetPopup({ cell: startPos, type: 'ladder', amount: offset });
-        setTimeout(() => setOffsetPopup(null), 1000);
-        setMessage(`🪜 ${startPos} +${offset}`);
-        setMessageColor('text-green-500');
-        ladderSoundRef.current?.play().catch(() => {});
-        const seq = [];
-        for (let i = 1; i <= offset && startPos + i <= FINAL_TILE; i++) seq.push(startPos + i);
-        const move = () =>
-          moveSeq(seq, 'ladder', () => finalizeMove(Math.min(FINAL_TILE, ladderEnd), 'ladder'));
-        flashHighlight(startPos, 'ladder', 2, move);
-      } else {
-        finalizeMove(startPos, 'normal');
-      }
-    };
-
-    const finalizeMove = (finalPos, type) => {
-      setPos(finalPos);
-      setHighlight({ cell: finalPos, type });
-      setTrail([]);
-      setTokenType(type);
-      setTimeout(() => setHighlight(null), 300);
-      if (finalPos === FINAL_TILE) {
-        setMessage(`You win ${pot} ${token}!`);
-        setMessageColor('');
-        winSoundRef.current?.play().catch(() => {});
-        setCelebrate(true);
+      const flashHighlight = (cell, type, times, done) => {
+        if (times <= 0) return done();
+        setHighlight({ cell, type });
         setTimeout(() => {
-          setCelebrate(false);
-          setGameOver(true);
-        }, 1500);
-      }
-      if (diceCells[finalPos]) {
-        const bonus = diceCells[finalPos];
-        setDiceCells((d) => {
-          const n = { ...d };
-          delete n[finalPos];
-          return n;
-        });
-        setBonusDice(bonus);
-        setTurnMessage(`Bonus roll +${bonus}`);
-        diceRewardSoundRef.current?.play().catch(() => {});
-      } else {
-        setTurnMessage('Your turn');
-        setBonusDice(0);
-      }
-      setDiceVisible(true);
-    };
+          setHighlight(null);
+          setTimeout(() => flashHighlight(cell, type, times - 1, done), 150);
+        }, 150);
+      };
 
-    moveSeq(steps, 'normal', () => applyEffect(target));
-  }, 1800);
+      const applyEffect = (startPos) => {
+        const snakeEnd = snakes[startPos];
+        const ladderObj = ladders[startPos];
+        const ladderEnd =
+          typeof ladderObj === "object" ? ladderObj.end : ladderObj;
+
+        if (snakeEnd != null) {
+          const offset = startPos - snakeEnd;
+          setTrail([{ cell: startPos, type: "snake" }]);
+          setOffsetPopup({ cell: startPos, type: "snake", amount: offset });
+          setTimeout(() => setOffsetPopup(null), 1000);
+          setMessage(`🐍 ${startPos} -${offset}`);
+          setMessageColor("text-red-500");
+          snakeSoundRef.current?.play().catch(() => {});
+          const seq = [];
+          for (let i = 1; i <= offset && startPos - i >= 0; i++)
+            seq.push(startPos - i);
+          const move = () =>
+            moveSeq(seq, "snake", () =>
+              finalizeMove(Math.max(0, snakeEnd), "snake"),
+            );
+          flashHighlight(startPos, "snake", 2, move);
+        } else if (ladderEnd != null) {
+          const offset = ladderEnd - startPos;
+          setTrail((t) =>
+            t.map((h) => (h.cell === startPos ? { ...h, type: "ladder" } : h)),
+          );
+          setOffsetPopup({ cell: startPos, type: "ladder", amount: offset });
+          setTimeout(() => setOffsetPopup(null), 1000);
+          setMessage(`🪜 ${startPos} +${offset}`);
+          setMessageColor("text-green-500");
+          ladderSoundRef.current?.play().catch(() => {});
+          const seq = [];
+          for (let i = 1; i <= offset && startPos + i <= FINAL_TILE; i++)
+            seq.push(startPos + i);
+          const move = () =>
+            moveSeq(seq, "ladder", () =>
+              finalizeMove(Math.min(FINAL_TILE, ladderEnd), "ladder"),
+            );
+          flashHighlight(startPos, "ladder", 2, move);
+        } else {
+          finalizeMove(startPos, "normal");
+        }
+      };
+
+      const finalizeMove = (finalPos, type) => {
+        setPos(finalPos);
+        setHighlight({ cell: finalPos, type });
+        setTrail([]);
+        setTokenType(type);
+        setTimeout(() => setHighlight(null), 300);
+        if (finalPos === FINAL_TILE) {
+          setMessage(`You win ${pot} ${token}!`);
+          setMessageColor("");
+          winSoundRef.current?.play().catch(() => {});
+          setCelebrate(true);
+          setTimeout(() => {
+            setCelebrate(false);
+            setGameOver(true);
+          }, 1500);
+        }
+        if (diceCells[finalPos]) {
+          const bonus = diceCells[finalPos];
+          setDiceCells((d) => {
+            const n = { ...d };
+            delete n[finalPos];
+            return n;
+          });
+          setBonusDice(bonus);
+          setTurnMessage(`Bonus roll +${bonus}`);
+          diceRewardSoundRef.current?.play().catch(() => {});
+        } else {
+          setTurnMessage("Your turn");
+          setBonusDice(0);
+        }
+        setDiceVisible(true);
+      };
+
+      moveSeq(steps, "normal", () => applyEffect(target));
+    }, 1800);
   };
 
   return (
     <div className="p-4 pb-32 space-y-4 text-text flex flex-col justify-end items-center relative w-full flex-grow">
       <div className="absolute top-0 -right-2 flex flex-col items-end space-y-2 p-2 z-20">
-        <button onClick={() => setShowInfo(true)} className="p-2 flex flex-col items-center">
+        <button
+          onClick={() => setShowInfo(true)}
+          className="p-2 flex flex-col items-center"
+        >
           <AiOutlineInfoCircle className="text-2xl" />
           <span className="text-xs">Info</span>
         </button>
         <button
-          onClick={() => navigate('/games')}
+          onClick={() => navigate("/games")}
           className="p-2 flex flex-col items-center"
         >
           <AiOutlineLogout className="text-xl" />
           <span className="text-xs">Exit</span>
         </button>
         <button
-          onClick={() => navigate('/games/snake/lobby')}
+          onClick={() => navigate("/games/snake/lobby")}
           className="p-2 flex flex-col items-center"
         >
           <AiOutlineRollback className="text-xl" />
@@ -650,7 +658,9 @@ export default function SnakeAndLadder() {
         diceCells={diceCells}
       />
       {message && (
-        <div className={`text-center font-semibold w-full ${messageColor}`}>{message}</div>
+        <div className={`text-center font-semibold w-full ${messageColor}`}>
+          {message}
+        </div>
       )}
       {rollResult !== null && (
         <div className="fixed bottom-44 inset-x-0 flex justify-center z-30 pointer-events-none">
@@ -664,7 +674,7 @@ export default function SnakeAndLadder() {
               handleRoll(vals);
               setBonusDice(0);
             }}
-            onRollStart={() => setTurnMessage('Rolling...')}
+            onRollStart={() => setTurnMessage("Rolling...")}
             clickable
             numDice={2 + bonusDice}
           />
@@ -683,7 +693,7 @@ export default function SnakeAndLadder() {
         open={gameOver}
         ranking={["You"]}
         onPlayAgain={() => window.location.reload()}
-        onReturn={() => navigate('/games/snake/lobby')}
+        onReturn={() => navigate("/games/snake/lobby")}
       />
     </div>
   );
