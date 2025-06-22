@@ -214,7 +214,10 @@ function Board({
   // How many board rows to scroll back from the starting position so
   // the bottom row remains in view. Set to 0 to begin at the very first row
   // without shifting the camera upward.
-  const CAMERA_OFFSET_ROWS = 0;
+  // Pull the camera back slightly so the first row is visible when the
+  // game starts. Using a positive offset scrolls up a couple of rows
+  // from the very bottom of the board.
+  const CAMERA_OFFSET_ROWS = 2;
 
   useEffect(() => {
     const container = containerRef.current;
@@ -260,7 +263,9 @@ function Board({
               "--final-scale": finalScale,
               // Fixed camera angle with no zooming
               // Slightly enlarge the board in both directions
-              transform: `translateX(${boardXOffset}px) rotateX(${angle}deg) scale(0.95)`,
+              // Pull the board slightly back so more of the lower rows are
+              // visible when the game starts
+              transform: `translateX(${boardXOffset}px) rotateX(${angle}deg) scale(0.9)`,
             }}
           >
             <div className="snake-gradient-bg" />
