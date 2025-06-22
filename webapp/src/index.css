@@ -42,7 +42,11 @@ body {
 /* Gradient background for the Home page */
 .home-gradient-bg {
   background-image:
-    radial-gradient(circle at center, rgba(249, 179, 45, 0.2) 0%, rgba(249, 179, 45, 0) 60%),
+    radial-gradient(
+      circle at center,
+      rgba(249, 179, 45, 0.2) 0%,
+      rgba(249, 179, 45, 0) 60%
+    ),
     linear-gradient(to bottom, #0c1020 0%, #11172a 80%, #0c1020 100%);
   background-repeat: no-repeat;
   background-size: cover;
@@ -128,13 +132,13 @@ body {
 }
 
 .dice-cube {
-  @apply relative w-12 h-12 bg-red-600 rounded-xl;
+  @apply relative w-12 h-12 bg-white rounded-xl border border-black;
   transform-style: preserve-3d;
   transition: transform 0.5s;
 }
 
 .dice-face {
-  @apply absolute w-full h-full flex items-center justify-center bg-red-600 rounded-xl shadow-lg;
+  @apply absolute w-full h-full flex items-center justify-center bg-white rounded-xl shadow-lg border border-black;
 }
 
 .dice-face .dot {
@@ -257,7 +261,8 @@ body {
 }
 
 @keyframes token-jump {
-  0%, 100% {
+  0%,
+  100% {
     transform: translateZ(32px);
   }
   50% {
@@ -303,7 +308,8 @@ body {
   height: 100%;
   transform-style: preserve-3d;
   /* Align token with board surface while showing a slight side angle */
-  transform: rotateX(calc(var(--board-angle, 75deg) * -1 - 20deg)) rotateY(25deg);
+  transform: rotateX(calc(var(--board-angle, 75deg) * -1 - 20deg))
+    rotateY(25deg);
 }
 
 .cube-face {
@@ -409,12 +415,24 @@ body {
   border: 1px solid var(--border-color, #d97706);
 }
 
-.side-1 { transform: rotateY(0deg) translateZ(var(--cyl-apothem)); }
-.side-2 { transform: rotateY(60deg) translateZ(var(--cyl-apothem)); }
-.side-3 { transform: rotateY(120deg) translateZ(var(--cyl-apothem)); }
-.side-4 { transform: rotateY(180deg) translateZ(var(--cyl-apothem)); }
-.side-5 { transform: rotateY(240deg) translateZ(var(--cyl-apothem)); }
-.side-6 { transform: rotateY(300deg) translateZ(var(--cyl-apothem)); }
+.side-1 {
+  transform: rotateY(0deg) translateZ(var(--cyl-apothem));
+}
+.side-2 {
+  transform: rotateY(60deg) translateZ(var(--cyl-apothem));
+}
+.side-3 {
+  transform: rotateY(120deg) translateZ(var(--cyl-apothem));
+}
+.side-4 {
+  transform: rotateY(180deg) translateZ(var(--cyl-apothem));
+}
+.side-5 {
+  transform: rotateY(240deg) translateZ(var(--cyl-apothem));
+}
+.side-6 {
+  transform: rotateY(300deg) translateZ(var(--cyl-apothem));
+}
 
 /* Token color variations */
 .token-yellow {
@@ -571,7 +589,6 @@ body {
   box-shadow: none;
 }
 
-
 .pot-number {
   position: absolute;
   bottom: -1rem;
@@ -582,7 +599,6 @@ body {
   z-index: 1;
 }
 
-
 .pot-cell.highlight {
   box-shadow: 0 0 10px 4px rgba(250, 204, 21, 0.8);
 }
@@ -592,9 +608,13 @@ body {
   width: calc(var(--cell-width) * 6); /* larger logo width */
   height: calc(var(--cell-height) * 5); /* taller logo */
   /* move the logo even higher above the board */
-  top: calc(var(--cell-height) * -9.5 - var(--cell-height) * 1.8 * (var(--final-scale, 1) - 1)); /* adjust for scaled top row */
+  top: calc(
+    var(--cell-height) * -9.5 - var(--cell-height) * 1.8 *
+      (var(--final-scale, 1) - 1)
+  ); /* adjust for scaled top row */
   left: 50%;
-  transform: translateX(-50%) rotateX(calc(var(--board-angle, 75deg) * -1)) translateZ(-40px) scale(1.8); /* larger logo */
+  transform: translateX(-50%) rotateX(calc(var(--board-angle, 75deg) * -1))
+    translateZ(-40px) scale(1.8); /* larger logo */
   transform-origin: bottom center;
   background-image: url("/assets/TonPlayGramLogo.jpg");
   background-size: contain;
@@ -602,7 +622,6 @@ body {
   background-position: center;
   z-index: 5;
 }
-
 
 .snake-connector,
 .ladder-connector {
@@ -699,10 +718,6 @@ body {
   }
 }
 
-
-
-
-
 .dice-marker {
   position: absolute;
   width: 1.8rem;
@@ -742,4 +757,24 @@ body {
 .dice-number {
   color: #dc2626;
   text-shadow: 0 0 2px #000;
+}
+
+.start-hexagon {
+  position: absolute;
+  inset: 4px;
+  background-color: #555;
+  clip-path: polygon(25% 5%, 75% 5%, 100% 50%, 75% 95%, 25% 95%, 0% 50%);
+  animation: hex-spin 4s linear infinite;
+  transform: translateZ(6px);
+  pointer-events: none;
+  z-index: 0;
+}
+
+@keyframes hex-spin {
+  from {
+    transform: translateZ(6px) rotate(0deg);
+  }
+  to {
+    transform: translateZ(6px) rotate(360deg);
+  }
 }
