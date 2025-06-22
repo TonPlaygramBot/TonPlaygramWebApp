@@ -276,7 +276,7 @@ body {
   /* enlarge pot token 50% further */
   width: 16.2rem;
   height: 16.2rem;
-  transform: translateY(-9rem) rotate(-15deg);
+  transform: translateY(-9rem);
 }
 
 .token-three canvas {
@@ -615,17 +615,9 @@ body {
   background-color: transparent;
   border: none;
   box-shadow: none;
+  pointer-events: none;
 }
 
-.pot-number {
-  position: absolute;
-  bottom: -1rem;
-  left: 50%;
-  transform: translateX(-50%);
-  font-weight: bold;
-  color: #ffffff;
-  z-index: 1;
-}
 
 .pot-cell.highlight {
   box-shadow: 0 0 10px 4px rgba(250, 204, 21, 0.8);
@@ -638,12 +630,12 @@ body {
   /* move the logo even higher above the board */
   /* raise the logo slightly higher to compensate for the even steeper board tilt */
   top: calc(
-    var(--cell-height) * -12.5 - var(--cell-height) * 1.8 *
+    var(--cell-height) * -12 - var(--cell-height) * 1.8 *
       (var(--final-scale, 1) - 1)
   ); /* adjust for scaled top row */
   left: 50%;
   transform: translateX(-50%) rotateX(calc(var(--board-angle, 70deg) * -1))
-    translateZ(-40px) scale(1.98); /* 10% larger logo */
+    translateZ(-40px) scale(2.08); /* slightly larger logo */
   transform-origin: bottom center;
   background-image: url("/assets/TonPlayGramLogo.jpg");
   background-size: contain;
