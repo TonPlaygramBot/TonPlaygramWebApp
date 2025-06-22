@@ -295,7 +295,6 @@ function Board({
                 topColor="#ff0000"
                 className="pot-token"
               />
-              <span className="pot-number">{FINAL_TILE}</span>
               {position === FINAL_TILE && (
                 <PlayerToken
                   photoUrl={photoUrl}
@@ -329,7 +328,7 @@ export default function SnakeAndLadder() {
   const [turnMessage, setTurnMessage] = useState("Your turn");
   const [diceVisible, setDiceVisible] = useState(true);
   const [photoUrl, setPhotoUrl] = useState("");
-  const [pot, setPot] = useState(100);
+  const [pot, setPot] = useState(101);
   const [token, setToken] = useState("TPC");
   const [celebrate, setCelebrate] = useState(false);
   const [showInfo, setShowInfo] = useState(false);
