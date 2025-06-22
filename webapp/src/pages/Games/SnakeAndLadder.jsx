@@ -219,7 +219,7 @@ function Board({
   // Pull the camera back slightly so the first row is visible when the
   // game starts. Using a positive offset scrolls up a couple of rows
   // from the very bottom of the board.
-  const CAMERA_OFFSET_ROWS = 2;
+  const CAMERA_OFFSET_ROWS = 0;
 
   useEffect(() => {
     const container = containerRef.current;
@@ -235,7 +235,7 @@ function Board({
   // Once positioned the camera remains fixed so it no longer follows the
   // player's token. Manual scrolling is still possible to inspect other rows.
 
-  const paddingTop = `${5.5 * cellHeight}px`;
+  const paddingTop = `${1 * cellHeight}px`;
 
   return (
     <div className="flex justify-center items-center w-screen overflow-hidden">
