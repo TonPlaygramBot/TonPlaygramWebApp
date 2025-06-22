@@ -128,13 +128,13 @@ body {
 }
 
 .dice-cube {
-  @apply relative w-12 h-12 bg-red-600 rounded-xl;
+  @apply relative w-12 h-12 bg-white border border-black rounded-xl;
   transform-style: preserve-3d;
   transition: transform 0.5s;
 }
 
 .dice-face {
-  @apply absolute w-full h-full flex items-center justify-center bg-red-600 rounded-xl shadow-lg;
+  @apply absolute w-full h-full flex items-center justify-center bg-white border border-black rounded-xl shadow-lg;
 }
 
 .dice-face .dot {
@@ -182,6 +182,30 @@ body {
   box-shadow: 0 0 8px rgba(209, 167, 95, 0.8);
   /* Place the highlight above the tile so the shading is visible */
   transform: translateZ(6px);
+}
+
+/* Rotating hexagon frame used on the first tile */
+.hex-frame {
+  position: absolute;
+  inset: 15%;
+  border: 3px solid #facc15; /* yellow */
+  box-sizing: border-box;
+  clip-path: polygon(25% 5%, 75% 5%, 100% 50%, 75% 95%, 25% 95%, 0% 50%);
+  transform: translateZ(7px);
+  pointer-events: none;
+}
+
+.hex-rotate {
+  animation: hex-spin 4s linear infinite;
+}
+
+@keyframes hex-spin {
+  from {
+    transform: translateZ(7px) rotate(0deg);
+  }
+  to {
+    transform: translateZ(7px) rotate(360deg);
+  }
 }
 
 .token {
