@@ -205,9 +205,8 @@ function Board({
   // were added which resulted in duplicate icons and misalignment when the
   // board scaled. The markers logic has been removed and the icons are now
   // displayed only once within the cell itself.
-  // Fixed board angle with no zoom
-  // Lowered camera angle so the logo touches the top of the screen
-  const angle = 60;
+  // Slight isometric angle for 3D visibility
+  const angle = 40;
   // Small horizontal offset so the board sits perfectly centered
   const boardXOffset = -10; // pixels
 
@@ -217,10 +216,21 @@ function Board({
       container.scrollTop = container.scrollHeight - container.clientHeight;
   }, []);
 
-  // The board position is fixed once rendered so it no longer follows the
-  // player's token as they move up the rows. This locks the board in place and
-  // keeps the bottom rows anchored while still allowing manual scrolling.
+  // Follow the token vertically keeping it two cells from the bottom
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+    const boardHeight = cellHeight * ROWS + offsetYMax;
+    const row = Math.max(0, Math.floor((position - 1) / COLS));
+    const rowBottom = row * cellHeight - rowOffsets[row];
+    const target =
+      boardHeight - container.clientHeight - rowBottom + 2 * cellHeight;
+    const maxScroll = boardHeight - container.clientHeight;
+    const scroll = Math.max(0, Math.min(target, maxScroll));
+    container.scrollTo({ top: scroll, behavior: 'smooth' });
+  }, [position, cellHeight]);
 
+  // Extra space at the top so the sticky logo has room
   const paddingTop = `${5.5 * cellHeight}px`;
 
   return (

@@ -574,11 +574,11 @@ body {
 }
 
 .logo-wall-main {
-  @apply absolute flex items-center justify-center;
+  @apply sticky flex items-center justify-center;
   width: calc(var(--cell-width) * 6); /* larger logo width */
   height: calc(var(--cell-height) * 5); /* taller logo */
-  /* move the logo even higher above the board */
-  top: calc(var(--cell-height) * -9.5 - var(--cell-height) * 1.8 * (var(--final-scale, 1) - 1)); /* adjust for scaled top row */
+  top: 0;
+  margin-top: calc(var(--cell-height) * -9.5 - var(--cell-height) * 1.8 * (var(--final-scale, 1) - 1));
   left: 50%;
   transform: translateX(-50%) rotateX(calc(var(--board-angle, 60deg) * -1)) translateZ(-40px) scale(1.8); /* larger logo */
   transform-origin: bottom center;
