@@ -626,6 +626,32 @@ body {
   z-index: 5;
 }
 
+/* Triangular side walls for the Snake & Ladder board */
+.board-wall {
+  position: absolute;
+  top: calc(
+    var(--cell-height) * -9.5 - var(--cell-height) * 1.8 *
+      (var(--final-scale, 1) - 1)
+  ); /* align with the top of the logo */
+  bottom: 0;
+  width: 120px;
+  transform-style: preserve-3d;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.left-wall {
+  left: 0;
+  background: linear-gradient(to top, #0c1020, #11172a);
+  clip-path: polygon(0 0, 0 100%, 100% 100%);
+}
+
+.right-wall {
+  right: 0;
+  background: linear-gradient(to top, #2a0c0c, #401010);
+  clip-path: polygon(100% 0, 100% 100%, 0 100%);
+}
+
 .snake-connector,
 .ladder-connector {
   position: absolute;
