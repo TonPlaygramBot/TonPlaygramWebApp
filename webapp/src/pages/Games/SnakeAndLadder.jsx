@@ -312,8 +312,9 @@ function Board({
               {celebrate && <CoinBurst token={token} />}
             </div>
             <div className="logo-wall-main" />
-            <div className="board-line board-line-top" />
+            {/* Swapped the board line order */}
             <div className="board-line board-line-bottom" />
+            <div className="board-line board-line-top" />
           </div>
         </div>
       </div>

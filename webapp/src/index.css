@@ -833,14 +833,16 @@ body {
 }
 
 .board-line-top {
-  bottom: 0.5rem; /* raise above the top row */
-  left: -0.75rem;
-  right: -0.75rem; /* extend slightly wider */
+  /* swapped position with the bottom line */
+  top: 0.25rem; /* move slightly down */
+  left: -0.25rem;
+  right: -0.25rem; /* span width of the bottom row */
 }
 
 
 .board-line-bottom {
-  top: 0.25rem; /* move slightly down */
-  left: -0.25rem;
-  right: -0.25rem; /* span width of the bottom row */
+  /* swapped position with the top line */
+  bottom: 0.5rem; /* raise above the top row */
+  left: -0.75rem;
+  right: -0.75rem; /* extend slightly wider */
 }
