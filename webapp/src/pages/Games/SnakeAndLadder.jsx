@@ -256,7 +256,7 @@ function Board({
   const paddingBottom = '15vh';
 
   return (
-    <div className="flex justify-center items-center w-screen overflow-hidden">
+    <div className="flex justify-center items-center w-screen overflow-visible">
       <div
         ref={containerRef}
         className="overflow-y-auto"
