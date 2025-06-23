@@ -11,10 +11,12 @@ export default function TableSelector({ tables, selected, onSelect }) {
             selected?.id === t.id ? 'bg-yellow-400 text-gray-900' : 'bg-gray-700 text-white'
           }`}
         >
-          <span>Table {t.capacity}p</span>
-          <span>
-            {t.players}/{t.capacity}
-          </span>
+          <span>{t.label || `Table ${t.capacity}p`}</span>
+          {t.capacity && (
+            <span>
+              {t.players}/{t.capacity}
+            </span>
+          )}
         </button>
       ))}
     </div>
