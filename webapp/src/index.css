@@ -59,8 +59,8 @@ body {
   top: 50%;
   left: 50%;
   /* slightly taller backdrop */
-  width: calc(var(--board-height) * 1.4);
-  height: calc(var(--board-width) * 1.8);
+  width: calc(var(--board-height) * 1.3);
+  height: calc(var(--board-width) * 1.7);
   /* keep bottom in place by shifting upward */
   transform: translate(-50%, -55%) rotate(90deg) translateZ(0);
   transform-origin: center;
@@ -73,7 +73,7 @@ body {
   /* Expand the bottom of the backdrop so it extends beyond the board */
   /* Make the top even wider next to the logo and taper the bottom */
   /* Narrow top edge and widen bottom edge for a stronger perspective */
-  clip-path: polygon(-40% 0%, 140% 0%, 190% 100%, -90% 100%);
+  clip-path: polygon(-35% 0%, 135% 0%, 185% 100%, -85% 100%);
   pointer-events: none;
   z-index: 0;
   background: linear-gradient(
@@ -623,7 +623,7 @@ body {
   /* move the logo even higher above the board */
   /* raise the logo slightly higher to compensate for the even steeper board tilt */
   top: calc(
-    var(--cell-height) * -12 - var(--cell-height) * 1.8 *
+    var(--cell-height) * -12 - var(--cell-height) * 1.7 *
       (var(--final-scale, 1) - 1)
   ); /* adjust for scaled top row */
   left: 50%;
