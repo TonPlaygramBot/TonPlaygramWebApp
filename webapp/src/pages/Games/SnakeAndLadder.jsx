@@ -15,12 +15,28 @@ import { getTelegramId, getTelegramPhotoUrl } from "../../utils/telegram.js";
 import { fetchTelegramInfo, getProfile } from "../../utils/api.js";
 import PlayerToken from "../../components/PlayerToken.jsx";
 
+const TOKEN_COLORS = [
+  { name: "blue", color: "#60a5fa" },
+  { name: "red", color: "#ef4444" },
+  { name: "green", color: "#4ade80" },
+  { name: "yellow", color: "#facc15" },
+];
+
 const PLAYERS = 4;
 // Adjusted board dimensions to show five columns
 // while keeping the total cell count at 100
 const ROWS = 20;
 const COLS = 5;
 const FINAL_TILE = ROWS * COLS + 1; // 101
+
+function shuffle(arr) {
+  const copy = [...arr];
+  for (let i = copy.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [copy[i], copy[j]] = [copy[j], copy[i]];
+  }
+  return copy;
+}
 
 function CoinBurst({ token }) {
   const coins = Array.from({ length: 30 }, () => ({
@@ -159,11 +175,6 @@ function Board({
             </span>
           )}
           {cellType === "" && <span className="cell-number">{num}</span>}
-          {num === 1 && (
-            <span className="cell-marker start-rotate">
-              <span className="cell-icon">⬢</span>
-            </span>
-          )}
           {diceCells && diceCells[num] && (
             <span className="dice-marker">
               <img src="/assets/icons/dice.svg" alt="dice" />
@@ -181,6 +192,7 @@ function Board({
                 key={p.index}
                 photoUrl={p.photoUrl}
                 type={p.type || (p.index === 0 ? (isHighlight ? highlight.type : tokenType) : "normal")}
+                color={p.color}
                 className={p.index === 0 && isJump ? "jump" : ""}
               />
             ))}
@@ -310,6 +322,7 @@ function Board({
                     key={`win-${p.index}`}
                     photoUrl={p.photoUrl}
                     type={p.type || 'normal'}
+                    color={p.color}
                   />
                 ))}
               {celebrate && <CoinBurst token={token} />}
@@ -351,12 +364,19 @@ export default function SnakeAndLadder() {
   const [gameOver, setGameOver] = useState(false);
   const [ai, setAi] = useState(0);
   const [aiPositions, setAiPositions] = useState([]);
+  const [playerColors, setPlayerColors] = useState([]);
   const [currentTurn, setCurrentTurn] = useState(0); // 0 = player
   const [turnOrder, setTurnOrder] = useState([]);
   const [initialRolls, setInitialRolls] = useState([]);
   const [setupPhase, setSetupPhase] = useState(true);
   const [aiRollingIndex, setAiRollingIndex] = useState(null);
   const [aiRollTrigger, setAiRollTrigger] = useState(0);
+
+  const playerName = (idx) => (
+    <span style={{ color: playerColors[idx] }}>
+      {idx === 0 ? 'You' : `AI ${idx}`}
+    </span>
+  );
 
   const moveSoundRef = useRef(null);
   const snakeSoundRef = useRef(null);
@@ -423,9 +443,11 @@ export default function SnakeAndLadder() {
     const aiParam = params.get("ai");
     if (t) setToken(t.toUpperCase());
     if (amt) setPot(Number(amt));
-    const aiCount = aiParam ? Math.max(1, Math.min(4, Number(aiParam))) : 0;
+    const aiCount = aiParam ? Math.max(1, Math.min(3, Number(aiParam))) : 0;
     if (aiParam) setAi(aiCount);
     setAiPositions(Array(aiCount).fill(0));
+    const colors = shuffle(TOKEN_COLORS).slice(0, aiCount + 1).map(c => c.color);
+    setPlayerColors(colors);
 
     const boardSize = ROWS * COLS;
     const snakeCount = 6 + Math.floor(Math.random() * 3);
@@ -682,14 +704,14 @@ export default function SnakeAndLadder() {
 
   const triggerAIRoll = (index) => {
     setAiRollingIndex(index);
-    setTurnMessage(`AI ${index} rolling...`);
+    setTurnMessage(<>{playerName(index)} rolling...</>);
     setAiRollTrigger((t) => t + 1);
     setDiceVisible(true);
   };
 
   const handleAIRoll = (index, fixedValue) => {
     const value = fixedValue ?? Math.floor(Math.random() * 6) + 1;
-    setTurnMessage(`AI ${index} rolled ${value}`);
+    setTurnMessage(<>{playerName(index)} rolled {value}</>);
     setRollResult(value);
     setTimeout(() => setRollResult(null), 1500);
     setTimeout(() => {
@@ -747,10 +769,14 @@ export default function SnakeAndLadder() {
         setInitialRolls(results);
         setTurnOrder(sorted.map((r) => r.index));
         setTurnMessage(
-          'Order: ' +
-            sorted
-              .map((r) => `${r.index === 0 ? 'You' : `AI ${r.index}`}(${r.roll})`)
-              .join(', ')
+          <>
+            Order: {sorted.map((r, i) => (
+              <span key={r.index} style={{ color: playerColors[r.index] }}>
+                {i > 0 && ', '} {r.index === 0 ? 'You' : `AI ${r.index}`}
+                ({r.roll})
+              </span>
+            ))}
+          </>
         );
         const first = sorted[0];
         setTimeout(() => {
@@ -765,7 +791,7 @@ export default function SnakeAndLadder() {
       const idxPlayer = rollOrder[idx];
       const roll = Math.floor(Math.random() * 6) + 1;
       results.push({ index: idxPlayer, roll });
-      setTurnMessage(`${idxPlayer === 0 ? 'You' : `AI ${idxPlayer}`} rolled ${roll}`);
+      setTurnMessage(<>{playerName(idxPlayer)} rolled {roll}</>);
       setTimeout(() => rollNext(idx + 1), 1000);
     };
     rollNext(0);
@@ -779,8 +805,8 @@ export default function SnakeAndLadder() {
   }, [currentTurn, gameOver, setupPhase]);
 
   const players = [
-    { position: pos, photoUrl, type: tokenType },
-    ...aiPositions.map((p) => ({ position: p, photoUrl: '/assets/icons/profile.svg', type: 'normal' }))
+    { position: pos, photoUrl, type: tokenType, color: playerColors[0] },
+    ...aiPositions.map((p, i) => ({ position: p, photoUrl: '/assets/icons/profile.svg', type: 'normal', color: playerColors[i + 1] }))
   ];
 
   return (
@@ -842,7 +868,9 @@ export default function SnakeAndLadder() {
               }
             }}
             onRollStart={() =>
-              aiRollingIndex ? setTurnMessage(`AI ${aiRollingIndex} rolling...`) : setTurnMessage("Rolling...")
+              aiRollingIndex
+                ? setTurnMessage(<>{playerName(aiRollingIndex)} rolling...</>)
+                : setTurnMessage("Rolling...")
             }
             clickable={!aiRollingIndex}
             numDice={diceCount + bonusDice}

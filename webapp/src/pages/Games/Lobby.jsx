@@ -104,7 +104,7 @@ export default function Lobby() {
         <div className="space-y-2">
           <h3 className="font-semibold">How many AI opponents?</h3>
           <div className="flex gap-2">
-            {[1, 2, 3, 4].map((n) => (
+            {[1, 2, 3].map((n) => (
               <button
                 key={n}
                 onClick={() => setAiCount(n)}

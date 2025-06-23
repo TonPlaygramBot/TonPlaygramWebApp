@@ -430,6 +430,11 @@ body {
   --border-color: #d97706; /* amber-600 */
 }
 
+.token-blue {
+  --side-color: #93c5fd; /* blue-300 */
+  --border-color: #1d4ed8; /* blue-700 */
+}
+
 .token-red {
   --side-color: #fca5a5; /* red-300 */
   --border-color: #b91c1c; /* red-700 */
