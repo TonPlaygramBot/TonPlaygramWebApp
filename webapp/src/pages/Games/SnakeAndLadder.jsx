@@ -484,7 +484,7 @@ export default function SnakeAndLadder() {
       : values;
 
     setRollResult(value);
-    setTimeout(() => setRollResult(null), 1800);
+    setTimeout(() => setRollResult(null), 1500);
 
     setTimeout(() => {
       setDiceVisible(false);
@@ -653,7 +653,7 @@ export default function SnakeAndLadder() {
       };
 
       moveSeq(steps, "normal", () => applyEffect(target));
-    }, 1800);
+    }, 1500);
   };
 
   return (
@@ -697,14 +697,9 @@ export default function SnakeAndLadder() {
         tokenType={tokenType}
         diceCells={diceCells}
       />
-      {message && (
-        <div className={`text-center font-semibold w-full ${messageColor}`}>
-          {message}
-        </div>
-      )}
       {rollResult !== null && (
         <div className="fixed bottom-44 inset-x-0 flex justify-center z-30 pointer-events-none">
-          <div className="text-6xl italic font-bold">{rollResult}</div>
+          <div className="text-6xl roll-result">{rollResult}</div>
         </div>
       )}
       {diceVisible && (
@@ -721,7 +716,13 @@ export default function SnakeAndLadder() {
           {turnMessage && (
             <div className="mt-2 turn-message">{turnMessage}</div>
           )}
+          {message === 'Need a 6 to start!' && (
+            <div className={`mt-1 turn-message ${messageColor}`}>{message}</div>
+          )}
         </div>
+      )}
+      {message && message !== 'Need a 6 to start!' && (
+        <div className={`text-center font-semibold w-full ${messageColor}`}>{message}</div>
       )}
       <InfoPopup
         open={showInfo}

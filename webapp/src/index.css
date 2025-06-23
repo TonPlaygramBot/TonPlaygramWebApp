@@ -503,7 +503,7 @@ body {
   /* slightly bigger starting hexagon */
   font-size: 4.8rem;
   display: inline-block;
-  transform: rotate(45deg);
+  transform: none;
 }
 
 /* Rotate the start cell icon in place */
@@ -608,12 +608,19 @@ body {
   text-shadow: 0 0 2px #000;
 }
 
+.roll-result {
+  color: #ffffff;
+  font-family: "Comic Sans MS", "Comic Sans", cursive;
+  font-weight: bold;
+  text-shadow: 0 0 2px #000;
+}
+
 .pot-cell {
   @apply absolute flex flex-col items-center justify-center;
   width: calc(var(--cell-width) * 2.7);
   height: calc(var(--cell-height) * 2.7);
   /* move the pot nearer to the board */
-  top: calc(var(--cell-height) * -6);
+  top: calc(var(--cell-height) * -4);
   left: 50%;
   transform: translateX(-50%) translateZ(12px);
   z-index: 50;
