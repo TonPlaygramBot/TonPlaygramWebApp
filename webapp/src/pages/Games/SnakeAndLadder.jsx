@@ -197,7 +197,6 @@ function Board({
                 photoUrl={p.photoUrl}
                 type={p.type || (p.index === 0 ? (isHighlight ? highlight.type : tokenType) : "normal")}
                 color={p.color}
-                rolling={rollingIndex === p.index}
                 className={
                   p.position === 0
                     ? "start"
@@ -382,7 +381,6 @@ export default function SnakeAndLadder() {
   const [setupPhase, setSetupPhase] = useState(true);
   const [aiRollingIndex, setAiRollingIndex] = useState(null);
   const [aiRollTrigger, setAiRollTrigger] = useState(0);
-  const [rollingIndex, setRollingIndex] = useState(null);
 
   const playerName = (idx) => (
     <span style={{ color: playerColors[idx] }}>
@@ -937,7 +935,6 @@ export default function SnakeAndLadder() {
         <div className="fixed bottom-24 inset-x-0 flex flex-col items-center z-20">
           <DiceRoller
             onRollEnd={(vals) => {
-              setRollingIndex(null);
               const total = Array.isArray(vals) ? vals.reduce((a, b) => a + b, 0) : vals;
               if (aiRollingIndex) {
                 handleAIRoll(aiRollingIndex, total);
@@ -947,12 +944,11 @@ export default function SnakeAndLadder() {
                 setBonusDice(0);
               }
             }}
-            onRollStart={() => {
-              setRollingIndex(aiRollingIndex ?? 0);
+            onRollStart={() =>
               aiRollingIndex
                 ? setTurnMessage(<>{playerName(aiRollingIndex)} rolling...</>)
-                : setTurnMessage("Rolling...");
-            }}
+                : setTurnMessage("Rolling...")
+            }
             clickable={!aiRollingIndex}
             numDice={diceCount + bonusDice}
             trigger={aiRollingIndex ? aiRollTrigger : undefined}
