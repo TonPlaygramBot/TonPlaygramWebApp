@@ -8,37 +8,48 @@ export default function CosmicBackground() {
     if (!cnv) return;
     const ctx = cnv.getContext('2d');
 
-    const resize = () => {
+    const stars = [];
+    const planets = [];
+    const comets = [];
+
+    const initScene = () => {
       cnv.width = window.innerWidth;
       cnv.height = window.innerHeight;
-    };
-    window.addEventListener('resize', resize);
-    resize();
 
-    const stars = Array.from({ length: 200 }, () => ({
-      x: Math.random() * cnv.width,
-      y: Math.random() * cnv.height,
-      r: Math.random() * 1.5 + 0.5,
-      hue: Math.random() * 360,
-    }));
-    const planets = [
-      { x: 150, y: 300, r: 30, c: 'rgba(0,200,255,0.15)' },
-      { x: cnv.width - 120, y: 200, r: 40, c: 'rgba(255,200,0,0.12)' },
-    ];
-    const comets = [];
+      stars.length = 0;
+      for (let i = 0; i < 200; i++) {
+        stars.push({
+          x: Math.random() * cnv.width,
+          y: Math.random() * cnv.height,
+          r: Math.random() * 1.5 + 0.5,
+          hue: Math.random() * 360,
+        });
+      }
+
+      planets.length = 0;
+      planets.push(
+        { x: cnv.width * 0.2, y: cnv.height * 0.6, r: 30, c: 'rgba(0,200,255,0.15)' },
+        { x: cnv.width * 0.8, y: cnv.height * 0.3, r: 40, c: 'rgba(255,200,0,0.12)' }
+      );
+    };
+
+    const resize = () => initScene();
+    window.addEventListener('resize', resize);
+    initScene();
 
     let frameId;
     const draw = () => {
-      ctx.clearRect(0, 0, cnv.width, cnv.height);
+      ctx.fillStyle = '#0c1020';
+      ctx.fillRect(0, 0, cnv.width, cnv.height);
 
       stars.forEach((s) => {
-        s.hue = (s.hue + 0.3) % 360;
+        s.hue = (s.hue + 0.2) % 360;
         const color = `hsl(${s.hue} 100% 80%)`;
         ctx.beginPath();
         ctx.arc(s.x, s.y, s.r, 0, 2 * Math.PI);
         ctx.fillStyle = color;
         ctx.shadowColor = color;
-        ctx.shadowBlur = 6;
+        ctx.shadowBlur = 8;
         ctx.fill();
       });
 
@@ -47,17 +58,17 @@ export default function CosmicBackground() {
         ctx.arc(p.x, p.y, p.r, 0, 2 * Math.PI);
         ctx.fillStyle = p.c;
         ctx.shadowColor = p.c;
-        ctx.shadowBlur = 50;
+        ctx.shadowBlur = 60;
         ctx.fill();
       });
 
       if (Math.random() < 0.01) {
         comets.push({
           x: Math.random() * cnv.width,
-          y: -10,
-          vx: Math.random() * 1 + 1,
-          vy: Math.random() * 1 + 2,
-          len: Math.random() * 30 + 20,
+          y: -20,
+          vx: Math.random() * 2 + 2,
+          vy: Math.random() * 2 + 2,
+          len: Math.random() * 40 + 30,
         });
       }
       for (let i = comets.length - 1; i >= 0; i--) {
@@ -70,12 +81,13 @@ export default function CosmicBackground() {
         ctx.stroke();
         c.x += c.vx;
         c.y += c.vy;
-        if (c.y > cnv.height) comets.splice(i, 1);
+        if (c.y > cnv.height || c.x > cnv.width) comets.splice(i, 1);
       }
 
       frameId = requestAnimationFrame(draw);
     };
-    draw();
+
+    frameId = requestAnimationFrame(draw);
 
     return () => {
       cancelAnimationFrame(frameId);
