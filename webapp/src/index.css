@@ -250,6 +250,10 @@ body {
   animation: token-jump 0.4s ease-out;
 }
 
+.token-three.start {
+  transform: translateY(20%) translateZ(32px);
+}
+
 @keyframes token-jump {
   0%,
   100% {
