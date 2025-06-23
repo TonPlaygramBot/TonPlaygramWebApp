@@ -521,7 +521,7 @@ body {
 
 /* Start cell icon tweaks */
 .board-cell[data-cell="1"] .cell-icon {
-  font-size: 2.5rem; /* slightly larger */
+  font-size: 2.8rem; /* slightly larger */
   display: inline-block;
   transform: rotate(45deg); /* keep centred while rotated */
 }
@@ -529,14 +529,15 @@ body {
 /* Rotate the start cell icon in place */
 .board-cell[data-cell="1"] .cell-marker {
   animation: start-rotate 4s linear infinite;
+  transform: translate(-50%, -65%);
 }
 
 @keyframes start-rotate {
   from {
-    transform: translate(-50%, -60%) rotate(0deg);
+    transform: translate(-50%, -65%) rotate(0deg);
   }
   to {
-    transform: translate(-50%, -60%) rotate(360deg);
+    transform: translate(-50%, -65%) rotate(360deg);
   }
 }
 
@@ -836,7 +837,7 @@ body {
 .board-line {
   position: absolute;
   left: 50%;
-  width: 100vw;
+  width: var(--board-width);
   height: 0.75rem;
   background-color: #facc15;
   box-shadow: 0 0 12px rgba(250, 204, 21, 0.7);
@@ -847,12 +848,10 @@ body {
 }
 
 .board-line-top {
-  /* swapped position with the bottom line */
-  top: -0.25rem; /* move a bit further up */
+  top: 0;
 }
 
 
 .board-line-bottom {
-  /* swapped position with the top line */
-  bottom: 0.5rem; /* raise above the top row */
+  bottom: 0;
 }
