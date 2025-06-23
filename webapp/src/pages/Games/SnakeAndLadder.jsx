@@ -174,6 +174,7 @@ function Board({
               )}
             </span>
           )}
+          {num === 1 && <div className="start-hexagon" />}
           {cellType === "" && <span className="cell-number">{num}</span>}
           {diceCells && diceCells[num] && (
             <span className="dice-marker">
@@ -186,14 +187,23 @@ function Board({
           )}
           {players
             .map((p, i) => ({ ...p, index: i }))
-            .filter((p) => p.position === num)
+            .filter(
+              (p) =>
+                p.position === num || (p.position === 0 && num === p.index + 1),
+            )
             .map((p) => (
               <PlayerToken
                 key={p.index}
                 photoUrl={p.photoUrl}
                 type={p.type || (p.index === 0 ? (isHighlight ? highlight.type : tokenType) : "normal")}
                 color={p.color}
-                className={p.index === 0 && isJump ? "jump" : ""}
+                className={
+                  p.position === 0
+                    ? "start"
+                    : p.index === 0 && isJump
+                      ? "jump"
+                      : ""
+                }
               />
             ))}
           {offsetPopup && offsetPopup.cell === num && (
@@ -726,25 +736,86 @@ export default function SnakeAndLadder() {
     } else if (current + value <= FINAL_TILE) {
       target = current + value;
     }
-    const final = snakes[target]
-      ? snakes[target]
-      : ladders[target]
-        ? typeof ladders[target] === 'object'
-          ? ladders[target].end
-          : ladders[target]
-        : target;
-    positions[index - 1] = final;
-    setAiPositions(positions);
-    if (final === FINAL_TILE) {
-      setMessage(`AI ${index} wins!`);
-      setGameOver(true);
-      setDiceVisible(false);
-      return;
-    }
-    const extra = value === 6 && final !== current;
-      const next = extra ? index : (index + 1) % (ai + 1);
+
+    const rolledSix = value === 6;
+    const extraTurn = rolledSix && target !== current;
+
+    const steps = [];
+    for (let i = current + 1; i <= target; i++) steps.push(i);
+
+    const moveSeq = (seq, type, done) => {
+      const stepMove = (idx) => {
+        if (idx >= seq.length) return done();
+        const next = seq[idx];
+        positions[index - 1] = next;
+        setAiPositions([...positions]);
+        moveSoundRef.current.currentTime = 0;
+        moveSoundRef.current.play().catch(() => {});
+        setTrail((t) => [...t, { cell: next, type }]);
+        setHighlight({ cell: next, type });
+        setTimeout(() => stepMove(idx + 1), 700);
+      };
+      stepMove(0);
+    };
+
+    const flashHighlight = (cell, type, times, done) => {
+      if (times <= 0) return done();
+      setHighlight({ cell, type });
+      setTimeout(() => {
+        setHighlight(null);
+        setTimeout(() => flashHighlight(cell, type, times - 1, done), 150);
+      }, 150);
+    };
+
+    const finalizeMove = (finalPos, type) => {
+      positions[index - 1] = finalPos;
+      setAiPositions([...positions]);
+      setHighlight({ cell: finalPos, type });
+      setTrail([]);
+      setTimeout(() => setHighlight(null), 300);
+      if (finalPos === FINAL_TILE) {
+        setMessage(`AI ${index} wins!`);
+        setGameOver(true);
+        setDiceVisible(false);
+        return;
+      }
+      const next = extraTurn ? index : (index + 1) % (ai + 1);
+      if (next === 0) setTurnMessage('Your turn');
       setCurrentTurn(next);
       setDiceVisible(true);
+    };
+
+    const applyEffect = (startPos) => {
+      const snakeEnd = snakes[startPos];
+      const ladderObj = ladders[startPos];
+      const ladderEnd = typeof ladderObj === 'object' ? ladderObj.end : ladderObj;
+
+      if (snakeEnd != null) {
+        const offset = startPos - snakeEnd;
+        setTrail([{ cell: startPos, type: 'snake' }]);
+        setOffsetPopup({ cell: startPos, type: 'snake', amount: offset });
+        setTimeout(() => setOffsetPopup(null), 1000);
+        snakeSoundRef.current?.play().catch(() => {});
+        const seq = [];
+        for (let i = 1; i <= offset && startPos - i >= 0; i++) seq.push(startPos - i);
+        const move = () => moveSeq(seq, 'snake', () => finalizeMove(Math.max(0, snakeEnd), 'snake'));
+        flashHighlight(startPos, 'snake', 2, move);
+      } else if (ladderEnd != null) {
+        const offset = ladderEnd - startPos;
+        setTrail((t) => t.map((h) => (h.cell === startPos ? { ...h, type: 'ladder' } : h)));
+        setOffsetPopup({ cell: startPos, type: 'ladder', amount: offset });
+        setTimeout(() => setOffsetPopup(null), 1000);
+        ladderSoundRef.current?.play().catch(() => {});
+        const seq = [];
+        for (let i = 1; i <= offset && startPos + i <= FINAL_TILE; i++) seq.push(startPos + i);
+        const move = () => moveSeq(seq, 'ladder', () => finalizeMove(Math.min(FINAL_TILE, ladderEnd), 'ladder'));
+        flashHighlight(startPos, 'ladder', 2, move);
+      } else {
+        finalizeMove(startPos, 'normal');
+      }
+    };
+
+    moveSeq(steps, 'normal', () => applyEffect(target));
     }, 1500);
   };
 
@@ -803,6 +874,12 @@ export default function SnakeAndLadder() {
       return () => clearTimeout(id);
     }
   }, [currentTurn, gameOver, setupPhase]);
+
+  useEffect(() => {
+    if (!setupPhase && currentTurn === 0 && !gameOver) {
+      setTurnMessage('Your turn');
+    }
+  }, [currentTurn, setupPhase, gameOver]);
 
   const players = [
     { position: pos, photoUrl, type: tokenType, color: playerColors[0] },
@@ -877,7 +954,16 @@ export default function SnakeAndLadder() {
             trigger={aiRollingIndex ? aiRollTrigger : undefined}
             showButton={!aiRollingIndex}
           />
-          {turnMessage && <div className="mt-2 turn-message">{turnMessage}</div>}
+          {turnMessage && (
+            <div
+              className="mt-2 turn-message"
+              style={
+                turnMessage === 'Your turn' ? { color: playerColors[0] } : {}
+              }
+            >
+              {turnMessage}
+            </div>
+          )}
           {message === 'Need a 6 to start!' && (
             <div className={`mt-1 turn-message ${messageColor}`}>{message}</div>
           )}
