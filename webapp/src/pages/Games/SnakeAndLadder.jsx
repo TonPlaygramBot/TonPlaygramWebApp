@@ -346,6 +346,7 @@ export default function SnakeAndLadder() {
   const [bonusDice, setBonusDice] = useState(0);
   const [diceCount, setDiceCount] = useState(2);
   const [gameOver, setGameOver] = useState(false);
+  const [ai, setAi] = useState(0);
 
   const moveSoundRef = useRef(null);
   const snakeSoundRef = useRef(null);
@@ -409,8 +410,10 @@ export default function SnakeAndLadder() {
     const params = new URLSearchParams(window.location.search);
     const t = params.get("token");
     const amt = params.get("amount");
+    const aiParam = params.get("ai");
     if (t) setToken(t.toUpperCase());
     if (amt) setPot(Number(amt));
+    if (aiParam) setAi(Math.max(1, Math.min(4, Number(aiParam))));
 
     const boardSize = ROWS * COLS;
     const snakeCount = 6 + Math.floor(Math.random() * 3);
