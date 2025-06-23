@@ -62,7 +62,8 @@ body {
   width: calc(var(--board-height) * 1.3);
   height: calc(var(--board-width) * 1.7);
   /* keep bottom in place by shifting upward */
-  transform: translate(-50%, -55%) rotate(90deg) translateZ(0);
+  /* slightly shift down so the backdrop covers the starting rows */
+  transform: translate(-50%, -50%) rotate(90deg) translateZ(0);
   transform-origin: center;
   /* widen the top of the backdrop while keeping the bottom unchanged */
   /* narrow the bottom of the backdrop so it fits the board */
@@ -511,7 +512,8 @@ body {
   /* slightly bigger starting hexagon */
   font-size: 4.8rem;
   display: inline-block;
-  transform: rotate(45deg);
+  /* keep the icon upright so the animation starts at 0 degrees */
+  transform: rotate(0deg);
 }
 
 /* Rotate the start cell icon in place */
