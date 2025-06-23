@@ -823,3 +823,35 @@ body {
     transform: translateZ(6px) rotate(360deg);
   }
 }
+
+/* Neon edge lines for the Snake & Ladder board */
+.neon-edge-line {
+  position: absolute;
+  background-color: #1affff;
+  box-shadow: 0 0 12px rgba(26, 255, 255, 0.7);
+  pointer-events: none;
+  transform: translateZ(4px);
+  z-index: 1;
+}
+
+.neon-left,
+.neon-right {
+  top: 2px;
+  bottom: 2px;
+  width: 0.6rem;
+}
+
+.neon-left {
+  left: 2px;
+}
+
+.neon-right {
+  right: 2px;
+}
+
+.neon-bottom {
+  left: 2px;
+  right: 2px;
+  bottom: 2px;
+  height: 0.6rem;
+}
