@@ -573,20 +573,6 @@ body {
 }
 
 /* Small hexagonal frame for the starting cell number */
-.start-cell-hex {
-  position: absolute;
-  width: 2.5rem;
-  height: 2.5rem;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -60%) rotateX(var(--board-angle, 70deg))
-    translateZ(6px);
-  border: 2px solid #d1a75f;
-  background-color: transparent;
-  clip-path: polygon(25% 0%, 75% 0%, 100% 50%, 75% 100%, 25% 100%, 0% 50%);
-  pointer-events: none;
-  z-index: 2;
-}
 
 .board-cell.snake-cell .cell-number,
 .board-cell.ladder-cell .cell-number,
@@ -607,8 +593,8 @@ body {
   @apply absolute flex flex-col items-center justify-center;
   width: calc(var(--cell-width) * 2.7);
   height: calc(var(--cell-height) * 2.7);
-  /* move the pot even higher above the board */
-  top: calc(var(--cell-height) * -8.25);
+  /* position the pot slightly closer to the board */
+  top: calc(var(--cell-height) * -7.5);
   left: 50%;
   transform: translateX(-50%) translateZ(24px);
   z-index: 50;
@@ -833,14 +819,15 @@ body {
   background-color: #facc15;
   box-shadow: 0 0 12px rgba(250, 204, 21, 0.7);
   pointer-events: none;
-  transform: translateZ(4px) rotateX(var(--board-angle, 70deg));
+  /* Align with the board plane */
+  transform: translateZ(5px);
   z-index: 3;
 }
 
 .board-line-top {
-  top: -0.75rem;
+  top: 0;
 }
 
 .board-line-bottom {
-  bottom: -0.75rem;
+  bottom: 0;
 }
