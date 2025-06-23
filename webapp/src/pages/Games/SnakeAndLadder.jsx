@@ -312,7 +312,6 @@ function Board({
               {celebrate && <CoinBurst token={token} />}
             </div>
             <div className="logo-wall-main" />
-            <div className="board-frame-overlay" />
           </div>
         </div>
       </div>
