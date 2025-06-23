@@ -39,18 +39,6 @@ body {
   background-size: 50px 50px;
 }
 
-/* Gradient background for the Home page */
-.home-gradient-bg {
-  background-image:
-    radial-gradient(
-      circle at center,
-      rgba(249, 179, 45, 0.2) 0%,
-      rgba(249, 179, 45, 0) 60%
-    ),
-    linear-gradient(to bottom, #0c1020 0%, #11172a 80%, #0c1020 100%);
-  background-repeat: no-repeat;
-  background-size: cover;
-}
 
 .board-3d {
   perspective: 800px;
