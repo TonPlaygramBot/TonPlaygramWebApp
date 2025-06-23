@@ -94,9 +94,9 @@ body {
   /* widen the top even more so the backdrop fills the screen */
   /* widen the top further so the background spans the full screen */
   /* Slightly widen the top so the backdrop fills the screen */
-  /* Expand the bottom of the backdrop so it extends beyond the board */
-  /* Make the top span the logo width while keeping the bottom asymmetric */
-  clip-path: polygon(-60% 0%, 160% 0%, 120% 100%, -50% 100%);
+  /* Expand the top of the backdrop so it narrows near the logo */
+  /* Make the bottom wider while the top is asymmetric */
+  clip-path: polygon(-40% 0%, 110% 0%, 170% 100%, -70% 100%);
   pointer-events: none;
   z-index: 0;
   background: linear-gradient(
