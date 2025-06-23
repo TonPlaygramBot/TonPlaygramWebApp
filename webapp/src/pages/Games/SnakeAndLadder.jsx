@@ -202,14 +202,32 @@ function Board({
   // Scale board based on viewport width so it fills the screen.
 
   useEffect(() => {
+    const computeOffset = (ch) => {
+      let off = 0;
+      for (let r = 1; r < ROWS; r++) {
+        const prevScale = 1 + (r - 3) * scaleStep;
+        off += (prevScale - 1) * ch;
+      }
+      return off;
+    };
+
     const updateSize = () => {
       const width = window.innerWidth;
-      const cw = Math.floor(width / COLS);
+      const height = window.innerHeight;
+      let cw = Math.floor(width / COLS);
+      let ch = Math.floor(cw / 1.7);
+      let boardHeight = ch * ROWS + computeOffset(ch);
+
+      if (boardHeight > height) {
+        const scale = height / boardHeight;
+        cw = Math.floor(cw * scale);
+        ch = Math.floor(cw / 1.7);
+      }
+
       setCellWidth(cw);
-      // Make each cell slightly taller while keeping spacing consistent
-      const ch = Math.floor(cw / 1.7);
       setCellHeight(ch);
     };
+
     updateSize();
     window.addEventListener("resize", updateSize);
     return () => window.removeEventListener("resize", updateSize);
@@ -262,7 +280,7 @@ function Board({
     <div className="flex justify-center items-center w-screen overflow-hidden">
       <div
         ref={containerRef}
-        className="overflow-y-auto"
+        className="overflow-hidden"
         style={{
           overflowX: "hidden",
           height: "100vh",
