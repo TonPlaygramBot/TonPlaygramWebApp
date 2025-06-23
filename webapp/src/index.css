@@ -56,7 +56,8 @@ body {
 .snake-gradient-bg {
   position: absolute;
   /* rotate the backdrop 90deg so it runs from top to bottom */
-  top: 50%;
+  /* move down slightly so the multi coloured side aligns */
+  top: 55%;
   left: 50%;
   /* slightly taller backdrop */
   width: calc(var(--board-height) * 1.3);
