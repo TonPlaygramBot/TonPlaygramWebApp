@@ -549,8 +549,10 @@ export default function SnakeAndLadder() {
         if (rolledSix) target = 1;
         else {
           setMessage("Need a 6 to start!");
-          setTurnMessage("Your turn");
-          setDiceVisible(true);
+          setTurnMessage("");
+          setDiceVisible(false);
+          const next = (currentTurn + 1) % (ai + 1);
+          setTimeout(() => setCurrentTurn(next), 1500);
           return;
         }
       } else if (current + value <= FINAL_TILE) {
