@@ -99,6 +99,18 @@ This app exposes two separate wallets:
   token is valid. Users must interact with the bot in Telegram to receive
   messages.
 
+### Resetting TonConnect and TPC wallet
+
+Use these options if you need to completely start over:
+
+1. Open the wallet page in the webapp.
+2. Click **Reset TonConnect** to remove the saved wallet address and disconnect.
+   The page reloads so you can connect again from scratch.
+3. Click **Reset TPC Wallet** to erase your off-chain balance and transaction
+   history stored in MongoDB. Your TPC balance will be set to zero.
+
+After resetting you can reconnect and deposit again as if it were a new account.
+
 ## Telegram game bots
 
 Several small Telegram game bots are included in this repository. They use

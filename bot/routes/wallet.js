@@ -351,4 +351,29 @@ router.post('/transactions', authenticate, async (req, res) => {
 
 });
 
+// Reset TPC wallet balance and history
+router.post('/reset', authenticate, async (req, res) => {
+  const { telegramId } = req.body;
+  const authId = req.auth?.telegramId;
+  if (!telegramId) {
+    return res.status(400).json({ error: 'telegramId required' });
+  }
+  if (!authId || telegramId !== authId) {
+    return res.status(403).json({ error: 'forbidden' });
+  }
+  try {
+    const user = await User.findOne({ telegramId });
+    if (user) {
+      user.balance = 0;
+      user.minedTPC = 0;
+      user.transactions = [];
+      await user.save();
+    }
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('Failed to reset wallet:', err.message);
+    res.status(500).json({ error: 'failed to reset wallet' });
+  }
+});
+
 export default router;
