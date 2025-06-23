@@ -500,15 +500,17 @@ body {
 
 /* Start cell icon tweaks */
 .board-cell[data-cell="1"] .cell-icon {
-  font-size: 4.2rem; /* 50% larger */
+  /* slightly bigger starting hexagon */
+  font-size: 4.8rem;
   display: inline-block;
-  transform: rotate(45deg); /* keep centred while rotated */
+  transform: rotate(45deg);
 }
 
 /* Rotate the start cell icon in place */
 .board-cell[data-cell="1"] .cell-marker {
-  animation: none;
+  animation: start-sway 2.5s ease-in-out infinite;
   transform: translate(-50%, -50%);
+  transform-style: preserve-3d;
 }
 
 /* Center the start cell number inside the enlarged hexagon */
@@ -522,6 +524,16 @@ body {
   }
   to {
     transform: translate(-50%, -50%) rotate(-360deg);
+  }
+}
+
+@keyframes start-sway {
+  0%,
+  100% {
+    transform: translate(-50%, -50%) rotateY(-15deg);
+  }
+  50% {
+    transform: translate(-50%, -50%) rotateY(15deg);
   }
 }
 
@@ -600,10 +612,10 @@ body {
   @apply absolute flex flex-col items-center justify-center;
   width: calc(var(--cell-width) * 2.7);
   height: calc(var(--cell-height) * 2.7);
-  /* position the pot slightly closer to the board */
-  top: calc(var(--cell-height) * -7.5);
+  /* move the pot nearer to the board */
+  top: calc(var(--cell-height) * -6);
   left: 50%;
-  transform: translateX(-50%) translateZ(24px);
+  transform: translateX(-50%) translateZ(12px);
   z-index: 50;
   background-color: transparent;
   border: none;
@@ -620,15 +632,14 @@ body {
   @apply absolute flex items-center justify-center;
   width: calc(var(--cell-width) * 6); /* larger logo width */
   height: calc(var(--cell-height) * 5); /* taller logo */
-  /* move the logo even higher above the board */
-  /* raise the logo slightly higher to compensate for the even steeper board tilt */
+  /* drop the logo closer to the board */
   top: calc(
-    var(--cell-height) * -12 - var(--cell-height) * 1.7 *
+    var(--cell-height) * -11 - var(--cell-height) * 1.7 *
       (var(--final-scale, 1) - 1)
-  ); /* adjust for scaled top row */
+  );
   left: 50%;
   transform: translateX(-50%) rotateX(calc(var(--board-angle, 70deg) * -1))
-    translateZ(-120px) scale(2.08); /* slightly larger logo */
+    translateZ(-90px) scale(2.08);
   transform-origin: bottom center;
   background-image: url("/assets/TonPlayGramLogo.jpg");
   background-size: contain;
