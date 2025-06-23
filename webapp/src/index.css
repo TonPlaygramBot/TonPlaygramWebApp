@@ -526,17 +526,17 @@ body {
   transform: rotate(45deg); /* keep centred while rotated */
 }
 
-/* Spin the start cell icon around the number */
+/* Rotate the start cell icon in place */
 .board-cell[data-cell="1"] .cell-marker {
-  animation: start-spin 4s linear infinite;
+  animation: start-rotate 4s linear infinite;
 }
 
-@keyframes start-spin {
+@keyframes start-rotate {
   from {
-    transform: translate(-50%, -60%) rotate(0deg) translateX(0.6rem) rotate(0deg);
+    transform: translate(-50%, -60%) rotate(0deg);
   }
   to {
-    transform: translate(-50%, -60%) rotate(360deg) translateX(0.6rem) rotate(-360deg);
+    transform: translate(-50%, -60%) rotate(360deg);
   }
 }
 
@@ -835,28 +835,24 @@ body {
 /* Highlight lines for the top and bottom of the Snake & Ladder board */
 .board-line {
   position: absolute;
-  left: 0;
-  right: 0;
+  left: 50%;
+  width: 100vw;
   height: 0.75rem;
   background-color: #facc15;
   box-shadow: 0 0 12px rgba(250, 204, 21, 0.7);
   pointer-events: none;
-  /* Align with the board plane */
-  transform: translateZ(5px);
+  /* Align with the board plane and center horizontally */
+  transform: translateX(-50%) translateZ(5px);
   z-index: 3;
 }
 
 .board-line-top {
   /* swapped position with the bottom line */
   top: -0.25rem; /* move a bit further up */
-  left: -0.5rem; /* shift slightly more to the left */
-  right: -0.25rem; /* span width of the bottom row */
 }
 
 
 .board-line-bottom {
   /* swapped position with the top line */
   bottom: 0.5rem; /* raise above the top row */
-  left: -0.75rem;
-  right: -0.75rem; /* extend slightly wider */
 }
