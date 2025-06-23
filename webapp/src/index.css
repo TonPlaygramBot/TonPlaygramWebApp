@@ -11,7 +11,6 @@
 body {
   font-family: Arial, Helvetica, sans-serif;
   @apply bg-background text-text overflow-x-hidden;
-  overscroll-behavior-y: contain;
 }
 
 .hexagon {
