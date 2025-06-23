@@ -308,10 +308,8 @@ function Board({
               {celebrate && <CoinBurst token={token} />}
             </div>
             <div className="logo-wall-main" />
-            <div className="neon-edge-line neon-left" />
-            <div className="neon-edge-line neon-right" />
-            <div className="neon-edge-line neon-top" />
-            <div className="neon-edge-line neon-bottom" />
+            <div className="board-line board-line-top" />
+            <div className="board-line board-line-bottom" />
           </div>
         </div>
       </div>
