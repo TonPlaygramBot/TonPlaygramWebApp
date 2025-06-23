@@ -150,7 +150,7 @@ class GameSession:
         self.turn = 0
         self.state = "waiting"
 
-    def add_player(self, uid:int, username:str) -> str:
+    def add_player(self, uid:int, username:str, ai:bool=False) -> str:
         if len(self.players) >=4:
             return "Game is full"
         if any(p["id"]==uid for p in self.players):
@@ -158,7 +158,7 @@ class GameSession:
         taken = {p["color"] for p in self.players}
         available = [c for c in COLORS.keys() if c not in taken]
         color = random.choice(available)
-        self.players.append({"id":uid,"username":username,"color":color})
+        self.players.append({"id":uid,"username":username,"color":color,"ai":ai})
         self.tokens[uid]=[-1,-1,-1,-1]
         return f"Joined as {color}"
 
@@ -229,7 +229,7 @@ def render_board(session:GameSession) -> Path:
 
 async def help_command(update:Update,context:ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
-        "/startludo - new game\n/join - join game\n/begin - start game\n/roll - roll dice\n/board - show board\n/status - status\n/resetgame - reset"
+        "/startludo - new game\n/join - join game\n/addai [n] - add AI player(s)\n/begin - start game\n/roll - roll dice\n/board - show board\n/status - status\n/resetgame - reset"
     )
 
 
@@ -254,6 +254,27 @@ async def join(update:Update,context:ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(res)
 
 
+async def add_ai(update:Update,context:ContextTypes.DEFAULT_TYPE):
+    data=load_sessions();chat=str(update.effective_chat.id)
+    if chat not in data:
+        await update.message.reply_text("No session. Use /startludo")
+        return
+    session=GameSession();session.__dict__.update(data[chat])
+    if session.state!="waiting":
+        await update.message.reply_text("Can't add AI after game started")
+        return
+    try:
+        count=int(context.args[0]) if context.args else 1
+    except ValueError:
+        count=1
+    for i in range(count):
+        uid=-1000-len(session.players)
+        name=f"AI{i+1}"
+        res=session.add_player(uid,name,ai=True)
+    data[chat]=session.__dict__;save_sessions(data)
+    await update.message.reply_text(f"Added {count} AI player{'s' if count!=1 else ''}")
+
+
 async def begin(update:Update,context:ContextTypes.DEFAULT_TYPE):
     data=load_sessions();chat=str(update.effective_chat.id)
     if chat not in data:
@@ -266,8 +287,19 @@ async def begin(update:Update,context:ContextTypes.DEFAULT_TYPE):
     if len(session.players)<2:
         await update.message.reply_text("Need 2 players")
         return
-    session.state="in_progress";data[chat]=session.__dict__;save_sessions(data)
+    order=[]
+    for p in session.players:
+        roll=random.randint(1,6)
+        p['order_roll']=roll
+        order.append((roll,p))
+        await update.message.reply_text(f"{p['username']} rolled {roll} for turn order")
+    order.sort(key=lambda x:x[0],reverse=True)
+    session.players=[p for _,p in order]
+    session.turn=0
+    session.state="in_progress"
+    data[chat]=session.__dict__;save_sessions(data)
     await update.message.reply_text(f"Game started! {session.current_player()['username']} goes first")
+    await run_ai_turns(chat,session,context,data)
 
 
 def find_token(session:GameSession,uid:int,dice:int)->int:
@@ -277,6 +309,43 @@ def find_token(session:GameSession,uid:int,dice:int)->int:
         if st>=0 and st+dice<=PATH_LENGTH+HOME_STEPS:
             return i
     return -1
+
+
+def apply_roll(session:GameSession, player:Dict, dice:int):
+    idx=find_token(session,player['id'],dice)
+    messages=[]
+    if idx==-1:
+        messages.append("No valid moves. Turn passes.")
+        session.next_turn(False)
+    else:
+        session.tokens[player['id']][idx]=max(0,session.tokens[player['id']][idx])+dice
+        if session.tokens[player['id']][idx]<PATH_LENGTH:
+            pos=(START_INDICES[player['color']]+session.tokens[player['id']][idx])%PATH_LENGTH
+            for p in session.players:
+                if p['id']==player['id']:
+                    continue
+                for j,st in enumerate(session.tokens[p['id']]):
+                    if 0<=st<PATH_LENGTH and (START_INDICES[p['color']]+st)%PATH_LENGTH==pos:
+                        session.tokens[p['id']][j]=-1
+        session.next_turn(dice==6)
+    return messages
+
+
+async def run_ai_turns(chat:str,session:GameSession,context:ContextTypes.DEFAULT_TYPE,data:Dict):
+    while session.state=="in_progress" and session.players and session.current_player().get("ai"):
+        player=session.current_player()
+        dice=random.randint(1,6)
+        await context.bot.send_message(chat, f"AI {player['username']} rolling...")
+        dice_msg=await context.bot.send_dice(chat,emoji='🎲')
+        dice=dice_msg.dice.value
+        await context.bot.send_message(chat, f"🎲 {player['username']} rolled a {dice}")
+        msgs=apply_roll(session,player,dice)
+        for m in msgs:
+            await context.bot.send_message(chat,m)
+        data[chat]=session.__dict__;save_sessions(data)
+        board=render_board(session)
+        with board.open('rb') as img:
+            await context.bot.send_photo(chat,img)
 
 
 async def roll(update:Update,context:ContextTypes.DEFAULT_TYPE):
@@ -295,24 +364,14 @@ async def roll(update:Update,context:ContextTypes.DEFAULT_TYPE):
     dice_msg=await update.message.reply_dice(emoji='🎲')
     dice=dice_msg.dice.value
     await update.message.reply_text(f"🎲 @{player['username']} rolled a {dice}")
-    idx=find_token(session,player['id'],dice)
-    if idx==-1:
-        await update.message.reply_text("No valid moves. Turn passes.")
-        session.next_turn(False)
-    else:
-        session.tokens[player['id']][idx]=max(0,session.tokens[player['id']][idx])+dice
-        if session.tokens[player['id']][idx]<PATH_LENGTH:
-            pos=(START_INDICES[player['color']]+session.tokens[player['id']][idx])%PATH_LENGTH
-            for p in session.players:
-                if p['id']==player['id']:continue
-                for j,st in enumerate(session.tokens[p['id']]):
-                    if 0<=st<PATH_LENGTH and (START_INDICES[p['color']]+st)%PATH_LENGTH==pos:
-                        session.tokens[p['id']][j]=-1
-        session.next_turn(dice==6)
+    msgs=apply_roll(session,player,dice)
+    for m in msgs:
+        await update.message.reply_text(m)
     data[chat]=session.__dict__;save_sessions(data)
     board=render_board(session)
     with board.open('rb') as img:
         await update.message.reply_photo(img)
+    await run_ai_turns(chat,session,context,data)
 
 
 async def board_cmd(update:Update,context:ContextTypes.DEFAULT_TYPE):
@@ -357,6 +416,7 @@ async def main():
     app.add_handler(CommandHandler('help',help_command))
     app.add_handler(CommandHandler('startludo',start_ludo))
     app.add_handler(CommandHandler('join',join))
+    app.add_handler(CommandHandler('addai',add_ai))
     app.add_handler(CommandHandler('begin',begin))
     app.add_handler(CommandHandler('roll',roll))
     app.add_handler(CommandHandler('board',board_cmd))
