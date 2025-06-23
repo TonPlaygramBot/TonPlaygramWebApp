@@ -34,13 +34,7 @@ export default function Layout({ children }) {
 
       {isHome && <CosmicBackground />}
 
-      <main
-        className={`flex-grow ${
-          showNavbar
-            ? 'container mx-auto p-4 pb-24'
-            : 'w-full p-0'
-        }`.trim()}
-      >
+      <main className={`flex-grow container mx-auto p-4 ${showNavbar ? 'pb-24' : ''}`.trim()}>
 
         {showBranding && <Branding />}
 

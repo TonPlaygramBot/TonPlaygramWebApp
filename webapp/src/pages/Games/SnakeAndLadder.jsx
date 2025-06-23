@@ -253,10 +253,7 @@ function Board({
 
   // Remove the extra top padding so the first row is immediately visible
   const paddingTop = 0;
-  // Remove extra bottom padding so the board sits flush with the bottom
-  // of the viewport. This eliminates the black bar underneath the board
-  // when the dice are displayed.
-  const paddingBottom = 0;
+  const paddingBottom = '15vh';
 
   return (
     <div className="flex justify-center items-center w-screen overflow-visible">
