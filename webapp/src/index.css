@@ -830,7 +830,8 @@ body {
   background-color: var(--side-color, #facc15);
   box-shadow: 0 0 12px rgba(250, 204, 21, 0.7);
   pointer-events: none;
-  transform: translateZ(4px);
+  /* Match the board tilt so the frame hugs the board surface */
+  transform: translateZ(4px) rotateX(var(--board-angle, 70deg));
   z-index: 3;
 }
 
