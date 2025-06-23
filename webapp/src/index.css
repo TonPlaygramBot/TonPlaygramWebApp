@@ -62,7 +62,7 @@ body {
   width: calc(var(--board-height) * 1.4);
   height: calc(var(--board-width) * 1.8);
   /* keep bottom in place by shifting upward */
-  transform: translate(-50%, -60%) rotate(90deg) translateZ(-1px);
+  transform: translate(-50%, -55%) rotate(90deg) translateZ(0);
   transform-origin: center;
   /* widen the top of the backdrop while keeping the bottom unchanged */
   /* narrow the bottom of the backdrop so it fits the board */
@@ -623,12 +623,12 @@ body {
   /* move the logo even higher above the board */
   /* raise the logo slightly higher to compensate for the even steeper board tilt */
   top: calc(
-    var(--cell-height) * -11 - var(--cell-height) * 1.8 *
+    var(--cell-height) * -12 - var(--cell-height) * 1.8 *
       (var(--final-scale, 1) - 1)
   ); /* adjust for scaled top row */
   left: 50%;
   transform: translateX(-50%) rotateX(calc(var(--board-angle, 70deg) * -1))
-    translateZ(-40px) scale(2.08); /* slightly larger logo */
+    translateZ(-120px) scale(2.08); /* slightly larger logo */
   transform-origin: bottom center;
   background-image: url("/assets/TonPlayGramLogo.jpg");
   background-size: contain;
@@ -785,17 +785,6 @@ body {
   z-index: 0;
 }
 
-.token-hexagon {
-  position: absolute;
-  /* shrink the decorative hexagon so it doesn't overpower the token */
-  inset: 10px;
-  background-color: #555;
-  clip-path: polygon(50% 0%, 93% 25%, 93% 75%, 50% 100%, 7% 75%, 7% 25%);
-  /* match the board tilt */
-  transform: translateZ(0) rotateX(var(--board-angle, 70deg));
-  pointer-events: none;
-  z-index: 0;
-}
 
 @keyframes hex-spin-reverse {
   from {
