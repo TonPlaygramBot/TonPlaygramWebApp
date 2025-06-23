@@ -6,7 +6,8 @@ export default function CosmicBackground({ full = false }) {
 
   const stars = useMemo(() => {
     return Array.from({ length: starCount }).map(() => ({
-      top: Math.random() * (full ? 100 : 40),
+      // Bias positions toward the top of the screen
+      top: Math.pow(Math.random(), 2) * (full ? 100 : 40),
       left: Math.random() * 100,
       size: 1 + Math.random() * 2,
       dur: 1.5 + Math.random() * 2,
@@ -17,7 +18,8 @@ export default function CosmicBackground({ full = false }) {
 
   const comets = useMemo(() => {
     return Array.from({ length: cometCount }).map(() => ({
-      top: Math.random() * (full ? 100 : 40),
+      // Bias start positions near the logo area at the top
+      top: Math.pow(Math.random(), 2) * (full ? 100 : 40),
       left: Math.random() * 100,
       dur: 6 + Math.random() * 4,
       delay: Math.random() * 10,
