@@ -42,16 +42,14 @@ body {
 /* Gradient background for the Home page */
 .home-gradient-bg {
   background-image:
-    url("/assets/icons/61e6290f-2996-4105-b4ad-6249d9db60f0.png"),
     radial-gradient(
       circle at center,
       rgba(249, 179, 45, 0.2) 0%,
       rgba(249, 179, 45, 0) 60%
     ),
     linear-gradient(to bottom, #0c1020 0%, #11172a 80%, #0c1020 100%);
-  background-repeat: repeat, no-repeat, no-repeat;
+  background-repeat: no-repeat;
   background-size: cover;
-  background-position: center;
 }
 
 .board-3d {
