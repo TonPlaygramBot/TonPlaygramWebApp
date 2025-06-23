@@ -83,8 +83,8 @@ body {
   /* widen the top further so the background spans the full screen */
   /* Slightly widen the top so the backdrop fills the screen */
   /* Expand the bottom of the backdrop so it extends beyond the board */
-  /* Make the top span the logo width while keeping the bottom asymmetric */
-  clip-path: polygon(-60% 0%, 160% 0%, 120% 100%, -50% 100%);
+  /* Make the top even wider next to the logo and taper the bottom */
+  clip-path: polygon(-70% 0%, 170% 0%, 110% 100%, -40% 100%);
   pointer-events: none;
   z-index: 0;
   background: linear-gradient(
