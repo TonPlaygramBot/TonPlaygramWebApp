@@ -1,7 +1,7 @@
 import { useRef, useEffect } from "react";
 import * as THREE from "three";
 
-export default function HexPrismToken({ color = "#008080", topColor, photoUrl, className = "" }) {
+export default function HexPrismToken({ color = "#008080", topColor, photoUrl, className = "", rolling = false }) {
   const mountRef = useRef(null);
 
   useEffect(() => {
@@ -95,7 +95,11 @@ export default function HexPrismToken({ color = "#008080", topColor, photoUrl, c
   return (
     <div className={`token-three relative ${className}`} ref={mountRef}>
       {photoUrl && (
-        <img src={photoUrl} alt="token" className="token-photo" />
+        <img
+          src={photoUrl}
+          alt="token"
+          className={`token-photo${rolling ? " rolling" : ""}`}
+        />
       )}
     </div>
   );

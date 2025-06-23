@@ -76,6 +76,7 @@ function Board({
   token,
   tokenType,
   diceCells,
+  rollingIndex,
 }) {
   const containerRef = useRef(null);
   const [cellWidth, setCellWidth] = useState(80);
@@ -197,6 +198,7 @@ function Board({
                 photoUrl={p.photoUrl}
                 type={p.type || (p.index === 0 ? (isHighlight ? highlight.type : tokenType) : "normal")}
                 color={p.color}
+                rolling={p.index === rollingIndex}
                 className={
                   p.position === 0
                     ? "start"
@@ -381,6 +383,7 @@ export default function SnakeAndLadder() {
   const [setupPhase, setSetupPhase] = useState(true);
   const [aiRollingIndex, setAiRollingIndex] = useState(null);
   const [aiRollTrigger, setAiRollTrigger] = useState(0);
+  const [rollingIndex, setRollingIndex] = useState(null);
 
   const playerName = (idx) => (
     <span style={{ color: playerColors[idx] }}>
@@ -925,6 +928,7 @@ export default function SnakeAndLadder() {
         token={token}
         tokenType={tokenType}
         diceCells={diceCells}
+        rollingIndex={rollingIndex}
       />
       {rollResult !== null && (
         <div className="fixed bottom-44 inset-x-0 flex justify-center z-30 pointer-events-none">
@@ -943,11 +947,15 @@ export default function SnakeAndLadder() {
                 handleRoll(vals);
                 setBonusDice(0);
               }
+              setRollingIndex(null);
             }}
             onRollStart={() =>
-              aiRollingIndex
-                ? setTurnMessage(<>{playerName(aiRollingIndex)} rolling...</>)
-                : setTurnMessage("Rolling...")
+              {
+                setRollingIndex(aiRollingIndex || 0);
+                return aiRollingIndex
+                  ? setTurnMessage(<>{playerName(aiRollingIndex)} rolling...</>)
+                  : setTurnMessage("Rolling...");
+              }
             }
             clickable={!aiRollingIndex}
             numDice={diceCount + bonusDice}
