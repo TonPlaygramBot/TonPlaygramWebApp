@@ -15,15 +15,24 @@ export default function CosmicBackground() {
     const stars = [];
     const comets = [];
 
+    const dpr = window.devicePixelRatio || 1;
+    let width = window.innerWidth;
+    let height = window.innerHeight;
+
     const initScene = () => {
-      cnv.width = window.innerWidth;
-      cnv.height = window.innerHeight;
+      width = window.innerWidth;
+      height = window.innerHeight;
+      cnv.width = width * dpr;
+      cnv.height = height * dpr;
+      cnv.style.width = `${width}px`;
+      cnv.style.height = `${height}px`;
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
       stars.length = 0;
       for (let i = 0; i < 200; i++) {
         stars.push({
-          x: Math.random() * cnv.width,
-          y: Math.random() * cnv.height,
+          x: Math.random() * width,
+          y: Math.random() * height,
           r: Math.random() * 1.5 + 0.5,
           hue: Math.random() * 360,
           colorChange: i < 2,
@@ -56,7 +65,7 @@ export default function CosmicBackground() {
 
       if (Math.random() < 0.004) {
         comets.push({
-          x: Math.random() * cnv.width,
+          x: Math.random() * width,
           y: -20,
           vx: Math.random() * 2 + 2,
           vy: Math.random() * 2 + 2,
@@ -73,7 +82,7 @@ export default function CosmicBackground() {
         ctx.stroke();
         c.x += c.vx;
         c.y += c.vy;
-        if (c.y > cnv.height || c.x > cnv.width) comets.splice(i, 1);
+        if (c.y > height || c.x > width) comets.splice(i, 1);
       }
 
       frameId = requestAnimationFrame(draw);
