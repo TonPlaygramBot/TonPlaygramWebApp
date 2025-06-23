@@ -544,7 +544,11 @@ body {
 
 /* Center the start cell number inside the enlarged hexagon */
 .board-cell[data-cell="1"] .cell-number {
-  transform: translateY(0);
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 1.3rem;
 }
 
 @keyframes start-rotate {
@@ -659,7 +663,6 @@ body {
   pointer-events: none;
 }
 
-
 .pot-cell.highlight {
   box-shadow: 0 0 10px 4px rgba(250, 204, 21, 0.8);
 }
@@ -683,7 +686,6 @@ body {
   background-position: center;
   z-index: 5;
 }
-
 
 .snake-connector,
 .ladder-connector {
@@ -836,7 +838,6 @@ body {
   z-index: 0;
   animation: hex-spin 6s linear infinite;
 }
-
 
 @keyframes hex-spin-reverse {
   from {
