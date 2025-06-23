@@ -84,10 +84,9 @@ export default function CosmicBackground() {
   }, []);
 
   return (
-    <canvas
-      id="space-bg"
-      ref={canvasRef}
-      className="fixed inset-0 pointer-events-none z-0"
-    />
+    <div className="fixed inset-0 pointer-events-none z-0">
+      <canvas id="space-bg" ref={canvasRef} className="w-full h-full" />
+      <div className="absolute top-10 left-10 text-4xl">🌙 🪐</div>
+    </div>
   );
 }

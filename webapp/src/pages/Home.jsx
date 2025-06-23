@@ -28,6 +28,10 @@ export default function Home() {
   const [status, setStatus] = useState('checking');
 
   const [photoUrl, setPhotoUrl] = useState('');
+  const [globe, setGlobe] = useState(() => {
+    const hour = new Date().getHours();
+    return hour < 12 ? '🌏' : '🌎';
+  });
 
   useEffect(() => {
     ping()
@@ -59,6 +63,16 @@ export default function Home() {
     return () => window.removeEventListener('profilePhotoUpdated', handleUpdate);
   }, []);
 
+  useEffect(() => {
+    const update = () => {
+      const hour = new Date().getHours();
+      setGlobe(hour < 12 ? '🌏' : '🌎');
+    };
+    const id = setInterval(update, 60 * 60 * 1000);
+    update();
+    return () => clearInterval(id);
+  }, []);
+
   return (
 
     <div className="space-y-4">
@@ -72,7 +86,7 @@ export default function Home() {
               alt="profile"
               className="w-36 h-36 hexagon border-4 border-brand-gold -mt-[20%] mb-3 object-cover"
             />
-            <span className="absolute -right-6 top-1/2 -translate-y-1/2 text-5xl">🌎</span>
+            <span className="absolute -right-10 top-1/2 -translate-y-1/2 text-3xl">{globe}</span>
           </div>
         )}
 
