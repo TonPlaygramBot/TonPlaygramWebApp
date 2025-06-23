@@ -836,10 +836,13 @@ body {
 /* Bold frame outlining the Snake & Ladder board */
 .board-frame-overlay {
   position: absolute;
-  top: 0;
+  /* extend the frame a little above the board */
+  top: -10px;
   left: 50%;
-  width: var(--board-width);
-  height: var(--board-height);
+  /* widen the frame beyond the board edges */
+  width: calc(var(--board-width) * 1.25);
+  /* drop the bottom edge further down */
+  height: calc(var(--board-height) + 20px);
   transform: translateX(-50%) translateZ(5px);
   pointer-events: none;
   box-sizing: border-box;
