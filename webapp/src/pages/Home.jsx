@@ -86,7 +86,7 @@ export default function Home() {
               alt="profile"
               className="w-36 h-36 hexagon border-4 border-brand-gold -mt-[20%] mb-3 object-cover"
             />
-            <span className="absolute -right-10 top-1/2 -translate-y-1/2 text-3xl">{globe}</span>
+            <span className="absolute -right-6 top-1/2 -translate-y-1/2 text-xl">{globe}</span>
           </div>
         )}
 
