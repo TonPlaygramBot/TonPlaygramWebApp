@@ -78,13 +78,15 @@ body {
   z-index: 0;
   background: linear-gradient(
     to top,
+    #000a1f,
     #123840,
     #1f4d58 20%,
     #d9cec2 40%,
     #f3f0e8 50%,
     #b95741 60%,
     #e7b382 80%,
-    #4c050d
+    #4c050d,
+    #220003
   );
 }
 
@@ -506,7 +508,7 @@ body {
 /* Rotate the start cell icon in place */
 .board-cell[data-cell="1"] .cell-marker {
   animation: start-rotate 4s linear infinite;
-  transform: translate(-50%, -65%);
+  transform: translate(-50%, -50%);
 }
 
 /* Center the start cell number inside the enlarged hexagon */
@@ -516,10 +518,10 @@ body {
 
 @keyframes start-rotate {
   from {
-    transform: translate(-50%, -65%) rotate(0deg);
+    transform: translate(-50%, -50%) rotate(0deg);
   }
   to {
-    transform: translate(-50%, -65%) rotate(360deg);
+    transform: translate(-50%, -50%) rotate(-360deg);
   }
 }
 
