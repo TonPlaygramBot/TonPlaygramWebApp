@@ -133,10 +133,7 @@ export default function MyAccount() {
 
       <div className="flex items-center space-x-4">
         {photoUrl && (
-          <div className="relative">
-            <img src={photoUrl} alt="avatar" className="w-16 h-16 rounded-full" />
-            <span className="absolute -right-4 top-1/2 -translate-y-1/2 text-3xl">🌎</span>
-          </div>
+          <img src={photoUrl} alt="avatar" className="w-16 h-16 rounded-full" />
         )}
         <div>
           <p className="font-semibold">
