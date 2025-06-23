@@ -352,6 +352,9 @@ export default function SnakeAndLadder() {
   const [ai, setAi] = useState(0);
   const [aiPositions, setAiPositions] = useState([]);
   const [currentTurn, setCurrentTurn] = useState(0); // 0 = player
+  const [turnOrder, setTurnOrder] = useState([]);
+  const [initialRolls, setInitialRolls] = useState([]);
+  const [setupPhase, setSetupPhase] = useState(true);
 
   const moveSoundRef = useRef(null);
   const snakeSoundRef = useRef(null);
@@ -673,8 +676,8 @@ export default function SnakeAndLadder() {
     }, 1500);
   };
 
-  const handleAIRoll = (index) => {
-    const value = Math.floor(Math.random() * 6) + 1;
+  const handleAIRoll = (index, fixedValue) => {
+    const value = fixedValue ?? Math.floor(Math.random() * 6) + 1;
     setTurnMessage(`AI ${index} rolled ${value}`);
     let positions = [...aiPositions];
     let current = positions[index - 1];
@@ -707,11 +710,56 @@ export default function SnakeAndLadder() {
   };
 
   useEffect(() => {
-    if (currentTurn > 0 && !gameOver) {
+    if (!setupPhase || aiPositions.length !== ai) return;
+    const total = ai + 1;
+    if (total === 1) {
+      setSetupPhase(false);
+      setTurnMessage('Your turn');
+      setCurrentTurn(0);
+      return;
+    }
+    const indices = Array.from({ length: total }, (_, i) => i);
+    const start = Math.floor(Math.random() * total);
+    const rollOrder = [];
+    for (let i = 0; i < total; i++) rollOrder.push(indices[(start + i) % total]);
+    setDiceVisible(false);
+    const results = [];
+    const rollNext = (idx) => {
+      if (idx >= rollOrder.length) {
+        const sorted = [...results].sort((a, b) => b.roll - a.roll);
+        setInitialRolls(results);
+        setTurnOrder(sorted.map((r) => r.index));
+        setTurnMessage(
+          'Order: ' +
+            sorted
+              .map((r) => `${r.index === 0 ? 'You' : `AI ${r.index}`}(${r.roll})`)
+              .join(', ')
+        );
+        const first = sorted[0];
+        setTimeout(() => {
+          setSetupPhase(false);
+          setDiceVisible(true);
+          setCurrentTurn(first.index);
+          if (first.index === 0) handleRoll(first.roll);
+          else handleAIRoll(first.index, first.roll);
+        }, 1000);
+        return;
+      }
+      const idxPlayer = rollOrder[idx];
+      const roll = Math.floor(Math.random() * 6) + 1;
+      results.push({ index: idxPlayer, roll });
+      setTurnMessage(`${idxPlayer === 0 ? 'You' : `AI ${idxPlayer}`} rolled ${roll}`);
+      setTimeout(() => rollNext(idx + 1), 1000);
+    };
+    rollNext(0);
+  }, [ai, aiPositions, setupPhase]);
+
+  useEffect(() => {
+    if (!setupPhase && currentTurn > 0 && !gameOver) {
       const id = setTimeout(() => handleAIRoll(currentTurn), 1000);
       return () => clearTimeout(id);
     }
-  }, [currentTurn, gameOver]);
+  }, [currentTurn, gameOver, setupPhase]);
 
   const players = [
     { position: pos, photoUrl, type: tokenType },
