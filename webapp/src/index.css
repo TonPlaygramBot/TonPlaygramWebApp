@@ -246,12 +246,33 @@ body {
   pointer-events: none;
 }
 
+.token-three::after {
+  content: "";
+  position: absolute;
+  width: 3.4rem;
+  height: 3.4rem;
+  top: 50%;
+  left: 50%;
+  transform-origin: bottom center;
+  transform: translate(-50%, -50%) translateZ(15.2px)
+    rotateX(calc(var(--board-angle, 70deg) * -1 - 10deg));
+  border-radius: 50%;
+  border: 3px solid #fde047;
+  box-shadow: 0 0 4px rgba(0, 0, 0, 0.6);
+  pointer-events: none;
+  z-index: 0;
+}
+
+.token-three.rolling::after {
+  border-color: #22c55e;
+}
+
 .token-three.jump {
   animation: token-jump 0.4s ease-out;
 }
 
 .token-three.start {
-  transform: translateY(20%) translateZ(32px);
+  transform: translateY(30%) translateZ(32px);
 }
 
 @keyframes token-jump {
@@ -290,7 +311,6 @@ body {
     rotateX(calc(var(--board-angle, 70deg) * -1 - 10deg));
   object-fit: cover;
   border-radius: 50%;
-  border: 2px solid #ffd700;
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.4);
   pointer-events: none;
   z-index: 1;
@@ -824,6 +844,7 @@ body {
   transform: translateZ(6px);
   pointer-events: none;
   z-index: 0;
+  animation: hex-spin 6s linear infinite;
 }
 
 
