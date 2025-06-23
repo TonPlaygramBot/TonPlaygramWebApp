@@ -875,6 +875,7 @@ export default function SnakeAndLadder() {
             clickable={!aiRollingIndex}
             numDice={diceCount + bonusDice}
             trigger={aiRollingIndex ? aiRollTrigger : undefined}
+            showButton={!aiRollingIndex}
           />
           {turnMessage && <div className="mt-2 turn-message">{turnMessage}</div>}
           {message === 'Need a 6 to start!' && (
