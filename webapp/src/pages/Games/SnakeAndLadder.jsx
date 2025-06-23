@@ -175,14 +175,11 @@ function Board({
             </span>
           )}
           {position === num && (
-            <>
-              {position > 0 && <span className="token-hexagon" />}
-              <PlayerToken
-                photoUrl={photoUrl}
-                type={isHighlight ? highlight.type : tokenType}
-                className={isJump ? "jump" : ""}
-              />
-            </>
+            <PlayerToken
+              photoUrl={photoUrl}
+              type={isHighlight ? highlight.type : tokenType}
+              className={isJump ? "jump" : ""}
+            />
           )}
           {offsetPopup && offsetPopup.cell === num && (
             <span
@@ -303,17 +300,14 @@ function Board({
                 className="pot-token"
               />
               {position === FINAL_TILE && (
-                <>
-                  <span className="token-hexagon" />
-                  <PlayerToken
-                    photoUrl={photoUrl}
-                    type={
-                      highlight && highlight.cell === FINAL_TILE
-                        ? highlight.type
-                        : tokenType
-                    }
-                  />
-                </>
+                <PlayerToken
+                  photoUrl={photoUrl}
+                  type={
+                    highlight && highlight.cell === FINAL_TILE
+                      ? highlight.type
+                      : tokenType
+                  }
+                />
               )}
               {celebrate && <CoinBurst token={token} />}
             </div>
