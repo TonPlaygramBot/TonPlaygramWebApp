@@ -823,14 +823,11 @@ body {
 
 .start-hexagon {
   position: absolute;
-  top: 50%;
-  left: 50%;
-  width: calc(var(--cell-height) - 12px);
-  height: calc(var(--cell-height) - 12px);
+  inset: 6px;
   background-color: #555;
   /* regular hexagon with equal radii */
   clip-path: polygon(25% 0%, 75% 0%, 100% 50%, 75% 100%, 25% 100%, 0% 50%);
-  transform: translate(-50%, -50%) translateZ(6px);
+  transform: translateZ(6px);
   pointer-events: none;
   z-index: 0;
   animation: hex-spin 6s linear infinite;

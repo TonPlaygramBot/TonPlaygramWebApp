@@ -559,6 +559,7 @@ export default function SnakeAndLadder() {
       setStreak(newStreak);
       let current = pos;
       let target = current;
+      let extraTurn = false;
 
       if (current === 100 && diceCount === 2) {
         if (rolledSix) {
@@ -598,7 +599,7 @@ export default function SnakeAndLadder() {
         return;
       }
 
-
+      extraTurn = rolledSix && target !== current;
 
       const steps = [];
       for (let i = current + 1; i <= target; i++) steps.push(i);
@@ -689,8 +690,8 @@ export default function SnakeAndLadder() {
             setGameOver(true);
           }, 1500);
         }
-        const bonus = diceCells[finalPos];
-        if (bonus) {
+        if (diceCells[finalPos]) {
+          const bonus = diceCells[finalPos];
           setDiceCells((d) => {
             const n = { ...d };
             delete n[finalPos];
@@ -705,7 +706,7 @@ export default function SnakeAndLadder() {
         }
         setDiceVisible(true);
         if (!gameOver) {
-          const next = bonus ? currentTurn : (currentTurn + 1) % (ai + 1);
+          const next = extraTurn ? currentTurn : (currentTurn + 1) % (ai + 1);
           setCurrentTurn(next);
         }
       };
@@ -738,6 +739,9 @@ export default function SnakeAndLadder() {
     } else if (current + value <= FINAL_TILE) {
       target = current + value;
     }
+
+    const rolledSix = value === 6;
+    const extraTurn = rolledSix && target !== current;
 
     const steps = [];
     for (let i = current + 1; i <= target; i++) steps.push(i);
@@ -778,26 +782,10 @@ export default function SnakeAndLadder() {
         setDiceVisible(false);
         return;
       }
-      const bonus = diceCells[finalPos];
-      if (bonus) {
-        setDiceCells((d) => {
-          const n = { ...d };
-          delete n[finalPos];
-          return n;
-        });
-        setBonusDice(bonus);
-        setTurnMessage(`Bonus roll +${bonus}`);
-        diceRewardSoundRef.current?.play().catch(() => {});
-        setCurrentTurn(index);
-        setDiceVisible(true);
-        setTimeout(() => triggerAIRoll(index), 1000);
-      } else {
-        setBonusDice(0);
-        const next = (index + 1) % (ai + 1);
-        if (next === 0) setTurnMessage('Your turn');
-        setCurrentTurn(next);
-        setDiceVisible(true);
-      }
+      const next = extraTurn ? index : (index + 1) % (ai + 1);
+      if (next === 0) setTurnMessage('Your turn');
+      setCurrentTurn(next);
+      setDiceVisible(true);
     };
 
     const applyEffect = (startPos) => {
