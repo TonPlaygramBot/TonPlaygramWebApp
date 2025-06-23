@@ -14,6 +14,7 @@ import { useNavigate } from "react-router-dom";
 import { getTelegramId, getTelegramPhotoUrl } from "../../utils/telegram.js";
 import { fetchTelegramInfo, getProfile } from "../../utils/api.js";
 import PlayerToken from "../../components/PlayerToken.jsx";
+import NeonFrame from "../../components/NeonFrame.jsx";
 
 const PLAYERS = 4;
 // Adjusted board dimensions to show five columns
@@ -63,6 +64,7 @@ function Board({
   diceCells,
 }) {
   const containerRef = useRef(null);
+  const boardRef = useRef(null);
   const [cellWidth, setCellWidth] = useState(80);
   const [cellHeight, setCellHeight] = useState(40);
   const tiles = [];
@@ -252,12 +254,14 @@ function Board({
   const paddingBottom = '15vh';
 
   return (
-    <div className="flex justify-center items-center w-screen overflow-hidden">
-      <div
-        ref={containerRef}
-        className="overflow-y-auto"
-        style={{
-          overflowX: "hidden",
+    <>
+      <NeonFrame boardRef={boardRef} containerRef={containerRef} />
+      <div className="flex justify-center items-center w-screen overflow-hidden">
+        <div
+          ref={containerRef}
+          className="overflow-y-auto"
+          style={{
+            overflowX: "hidden",
           height: "100vh",
           overscrollBehaviorY: "contain",
           paddingTop,
@@ -266,6 +270,7 @@ function Board({
       >
         <div className="snake-board-tilt">
           <div
+            ref={boardRef}
             className="snake-board-grid grid gap-x-1 gap-y-2 relative mx-auto"
             style={{
               width: `${cellWidth * COLS}px`,
@@ -312,6 +317,7 @@ function Board({
         </div>
       </div>
     </div>
+    </>
   );
 }
 
