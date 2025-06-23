@@ -7,3 +7,4 @@ bot/package-lock.json
 bot/.env
 /webapp/dist/
 
+webapp/public/games/ludo/
