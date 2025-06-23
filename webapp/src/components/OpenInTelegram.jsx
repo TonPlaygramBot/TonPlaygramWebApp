@@ -11,7 +11,10 @@ export default function OpenInTelegram() {
 
     <div className="p-4 text-text">
 
-      <p>Please open this application via the Telegram bot.</p>
+      <p>
+        This page only works from within Telegram. If you see a blank wallet
+        screen, open the WebApp using the bot link below.
+      </p>
 
       <a
 

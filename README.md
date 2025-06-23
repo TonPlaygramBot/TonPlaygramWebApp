@@ -73,8 +73,9 @@ correct `https://` URL.
 
 Wallet features rely on `window.Telegram.WebApp.initData` being set by the
 Telegram client. Make sure you open the WebApp via a Telegram link containing
-`?startapp=<payload>` so `initData` is populated. Otherwise the wallet screens
-may appear blank or fail to connect.
+`?startapp=<payload>` so `initData` is populated. If you see a blank (black)
+wallet screen it usually means the page wasn't opened from Telegram. Use the
+link provided by the bot or the *Open in Telegram* button to launch the WebApp.
 
 ### Wallet overview
 
