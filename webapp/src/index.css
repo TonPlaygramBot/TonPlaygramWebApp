@@ -55,14 +55,15 @@ body {
 
 .snake-gradient-bg {
   position: absolute;
+  /* rotate the backdrop 90deg so it runs from top to bottom */
   top: 50%;
   left: 50%;
+  /* slightly taller backdrop */
   width: calc(var(--board-height) * 1.3);
   height: calc(var(--board-width) * 1.7);
-  transform-style: preserve-3d;
-  /* Align the backdrop with the board's tilt so the lower rows show it */
-  transform: translate(-50%, -50%) rotateX(var(--board-angle, 70deg)) rotate(90deg)
-    translateZ(-2px);
+  /* keep bottom in place by shifting upward */
+  /* slightly shift down so the backdrop covers the starting rows */
+  transform: translate(-50%, -50%) rotate(90deg) translateZ(0);
   transform-origin: center;
   /* widen the top of the backdrop while keeping the bottom unchanged */
   /* narrow the bottom of the backdrop so it fits the board */

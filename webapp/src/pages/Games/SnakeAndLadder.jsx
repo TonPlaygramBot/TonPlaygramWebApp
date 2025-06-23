@@ -1,7 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import confetti from "canvas-confetti";
 import DiceRoller from "../../components/DiceRoller.jsx";
-import Dice from "../../components/Dice.jsx";
 import { dropSound, snakeSound, ladderSound } from "../../assets/soundData.js";
 import InfoPopup from "../../components/InfoPopup.jsx";
 import GameEndPopup from "../../components/GameEndPopup.jsx";
@@ -356,7 +355,6 @@ export default function SnakeAndLadder() {
   const [turnOrder, setTurnOrder] = useState([]);
   const [initialRolls, setInitialRolls] = useState([]);
   const [setupPhase, setSetupPhase] = useState(true);
-  const [aiRoll, setAiRoll] = useState(null); // { index, value, rolling }
 
   const moveSoundRef = useRef(null);
   const snakeSoundRef = useRef(null);
@@ -680,43 +678,35 @@ export default function SnakeAndLadder() {
 
   const handleAIRoll = (index, fixedValue) => {
     const value = fixedValue ?? Math.floor(Math.random() * 6) + 1;
-    setAiRoll({ index, value, rolling: true });
-    setTurnMessage(`AI ${index} rolling...`);
-    setTimeout(() => {
-      setAiRoll({ index, value, rolling: false });
-      setTurnMessage(`AI ${index} rolled ${value}`);
-
-      let positions = [...aiPositions];
-      let current = positions[index - 1];
-      let target = current;
-      if (current === 0) {
-        if (value === 6) target = 1;
-      } else if (current === 100) {
-        if (value === 1) target = FINAL_TILE;
-      } else if (current + value <= FINAL_TILE) {
-        target = current + value;
-      }
-      const final = snakes[target]
-        ? snakes[target]
-        : ladders[target]
-          ? typeof ladders[target] === 'object'
-            ? ladders[target].end
-            : ladders[target]
-          : target;
-      positions[index - 1] = final;
-      setAiPositions(positions);
-      if (final === FINAL_TILE) {
-        setMessage(`AI ${index} wins!`);
-        setGameOver(true);
-        setDiceVisible(false);
-        setAiRoll(null);
-        return;
-      }
-      const extra = value === 6 && final !== current;
-      const next = extra ? index : (index + 1) % (ai + 1);
-      setAiRoll(null);
-      setCurrentTurn(next);
-    }, 1500);
+    setTurnMessage(`AI ${index} rolled ${value}`);
+    let positions = [...aiPositions];
+    let current = positions[index - 1];
+    let target = current;
+    if (current === 0) {
+      if (value === 6) target = 1;
+    } else if (current === 100) {
+      if (value === 1) target = FINAL_TILE;
+    } else if (current + value <= FINAL_TILE) {
+      target = current + value;
+    }
+    const final = snakes[target]
+      ? snakes[target]
+      : ladders[target]
+        ? typeof ladders[target] === 'object'
+          ? ladders[target].end
+          : ladders[target]
+        : target;
+    positions[index - 1] = final;
+    setAiPositions(positions);
+    if (final === FINAL_TILE) {
+      setMessage(`AI ${index} wins!`);
+      setGameOver(true);
+      setDiceVisible(false);
+      return;
+    }
+    const extra = value === 6 && final !== current;
+    const next = extra ? index : (index + 1) % (ai + 1);
+    setCurrentTurn(next);
   };
 
   useEffect(() => {
@@ -819,12 +809,6 @@ export default function SnakeAndLadder() {
       {rollResult !== null && (
         <div className="fixed bottom-44 inset-x-0 flex justify-center z-30 pointer-events-none">
           <div className="text-6xl roll-result">{rollResult}</div>
-        </div>
-      )}
-      {aiRoll && (
-        <div className="fixed bottom-24 inset-x-0 flex flex-col items-center z-20 pointer-events-none">
-          <Dice values={[aiRoll.value]} rolling={aiRoll.rolling} />
-          <div className="mt-2 turn-message">AI {aiRoll.index} {aiRoll.rolling ? 'rolling...' : `rolled ${aiRoll.value}`}</div>
         </div>
       )}
       {diceVisible && (
