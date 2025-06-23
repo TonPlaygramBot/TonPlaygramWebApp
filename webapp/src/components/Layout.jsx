@@ -26,6 +26,8 @@ export default function Layout({ children }) {
 
   );
 
+  const showFooter = !location.pathname.startsWith('/games/');
+
   return (
 
     <div className="flex flex-col min-h-screen text-text relative overflow-hidden">
@@ -52,7 +54,7 @@ export default function Layout({ children }) {
 
       )}
 
-      <Footer />
+      {showFooter && <Footer />}
 
     </div>
 

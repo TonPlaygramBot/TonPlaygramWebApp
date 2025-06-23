@@ -511,7 +511,7 @@ body {
   /* slightly bigger starting hexagon */
   font-size: 4.8rem;
   display: inline-block;
-  transform: none;
+  transform: rotate(45deg);
 }
 
 /* Rotate the start cell icon in place */
