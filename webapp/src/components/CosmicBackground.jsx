@@ -1,7 +1,11 @@
-import { useRef, useEffect } from 'react';
+import { useRef, useEffect, useState } from 'react';
 
 export default function CosmicBackground() {
   const canvasRef = useRef(null);
+  const [globe, setGlobe] = useState(() => {
+    const hour = new Date().getHours();
+    return hour < 12 ? '🌏' : '🌎';
+  });
 
   useEffect(() => {
     const cnv = canvasRef.current;
@@ -50,7 +54,7 @@ export default function CosmicBackground() {
         ctx.fill();
       });
 
-      if (Math.random() < 0.01) {
+      if (Math.random() < 0.004) {
         comets.push({
           x: Math.random() * cnv.width,
           y: -20,
@@ -83,10 +87,21 @@ export default function CosmicBackground() {
     };
   }, []);
 
+  useEffect(() => {
+    const update = () => {
+      const hour = new Date().getHours();
+      setGlobe(hour < 12 ? '🌏' : '🌎');
+    };
+    const id = setInterval(update, 60 * 60 * 1000);
+    update();
+    return () => clearInterval(id);
+  }, []);
+
   return (
     <div className="fixed inset-0 pointer-events-none -z-10">
       <canvas id="space-bg" ref={canvasRef} className="w-full h-full" />
-      <div className="absolute top-4 right-4 flex space-x-2 text-xl">🌙 🪐</div>
+      <div className="absolute top-4 right-4 flex space-x-4 text-xs">🌙 🪐</div>
+      <div className="absolute bottom-4 left-4 text-xs">{globe}</div>
     </div>
   );
 }
