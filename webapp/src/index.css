@@ -832,8 +832,15 @@ body {
   z-index: 3;
 }
 
+.board-line-top {
+  bottom: 0.5rem; /* raise above the top row */
+  left: -0.75rem;
+  right: -0.75rem; /* extend slightly wider */
+}
+
 
 .board-line-bottom {
   top: 0.25rem; /* move slightly down */
-  right: -0.25rem; /* shift a touch to the right */
+  left: -0.25rem;
+  right: -0.25rem; /* span width of the bottom row */
 }
