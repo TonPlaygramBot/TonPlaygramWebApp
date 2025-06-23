@@ -310,6 +310,7 @@ function Board({
             <div className="logo-wall-main" />
             <div className="neon-edge-line neon-left" />
             <div className="neon-edge-line neon-right" />
+            <div className="neon-edge-line neon-top" />
             <div className="neon-edge-line neon-bottom" />
           </div>
         </div>

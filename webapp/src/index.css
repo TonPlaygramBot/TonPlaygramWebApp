@@ -837,24 +837,33 @@ body {
 
 .neon-left,
 .neon-right {
-  top: 2px;
-  bottom: 2px;
+  top: 0;
+  bottom: 0;
   width: 0.6rem;
 }
 
+
 .neon-left {
-  left: 2px;
-  clip-path: polygon(0 0, 100% 0, 80% 100%, 0 100%);
+  left: 0;
+  clip-path: polygon(0 0, 100% 0, 55% 100%, 0 100%);
 }
 
+
 .neon-right {
-  right: 2px;
-  clip-path: polygon(20% 100%, 100% 100%, 100% 0, 0 0);
+  right: 0;
+  clip-path: polygon(45% 100%, 100% 100%, 100% 0, 0 0);
 }
 
 .neon-bottom {
-  left: 2px;
-  right: 2px;
-  bottom: 2px;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 0.6rem;
+}
+
+.neon-top {
+  left: 0;
+  right: 0;
+  top: 0;
   height: 0.6rem;
 }
