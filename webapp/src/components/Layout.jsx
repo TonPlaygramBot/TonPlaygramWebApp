@@ -28,9 +28,9 @@ export default function Layout({ children }) {
 
   return (
 
-    <div className="flex flex-col min-h-screen text-text relative overflow-hidden">
+    <div className="flex flex-col min-h-screen bg-background text-text relative overflow-hidden">
 
-      <CosmicBackground />
+      {isHome && <CosmicBackground />}
 
       <main className={`flex-grow container mx-auto p-4 ${showNavbar ? 'pb-24' : ''}`.trim()}>
 
