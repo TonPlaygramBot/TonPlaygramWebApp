@@ -6,7 +6,8 @@ import {
   getTransactions,
   getDepositAddress,
   deposit,
-  withdraw
+  withdraw,
+  resetTpcWallet
 } from '../utils/api.js';
 import { getTelegramId } from '../utils/telegram.js';
 import OpenInTelegram from '../components/OpenInTelegram.jsx';
@@ -138,6 +139,23 @@ export default function Wallet() {
     }
   };
 
+  const handleResetTpc = async () => {
+    if (!window.confirm('Reset your TPC wallet? This will delete all balance and transactions.')) return;
+    const res = await resetTpcWallet(telegramId);
+    if (res?.error) {
+      alert(res.error);
+      return;
+    }
+    setTpcBalance(0);
+    setTransactions([]);
+  };
+
+  const handleResetTonConnect = () => {
+    localStorage.removeItem('walletAddress');
+    if (tonConnectUI.disconnect) tonConnectUI.disconnect();
+    window.location.reload();
+  };
+
   return (
     <div className="p-4 space-y-4">
       <h2 className="text-xl font-bold">Wallet</h2>
@@ -196,6 +214,12 @@ export default function Wallet() {
           >
             Copy Account Number
           </button>
+          <button
+            onClick={handleResetTpc}
+            className="mt-1 px-3 py-1 bg-red-600 text-white rounded"
+          >
+            Reset TPC Wallet
+          </button>
         </div>
       </div>
 
@@ -244,6 +268,12 @@ export default function Wallet() {
             className="mt-1 px-3 py-1 bg-yellow-600 text-white rounded"
           >
             Withdraw
+          </button>
+          <button
+            onClick={handleResetTonConnect}
+            className="mt-1 px-3 py-1 bg-red-600 text-white rounded"
+          >
+            Reset TonConnect
           </button>
         </div>
       </div>

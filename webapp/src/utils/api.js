@@ -291,3 +291,7 @@ export function pinWallPost(postId, telegramId, pinned) {
 export function listTrendingPosts(limit = 20) {
   return post('/api/social/wall/trending', { limit });
 }
+
+export function resetTpcWallet(telegramId) {
+  return post('/api/wallet/reset', { telegramId });
+}
