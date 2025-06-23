@@ -350,6 +350,8 @@ function Board({
 export default function SnakeAndLadder() {
   useTelegramBackButton();
   const navigate = useNavigate();
+  const STORAGE_KEY = 'snakeGameState';
+  const loadedRef = useRef(false);
   const [pos, setPos] = useState(0);
   const [streak, setStreak] = useState(0);
   const [highlight, setHighlight] = useState(null); // { cell: number, type: string }
@@ -384,6 +386,34 @@ export default function SnakeAndLadder() {
   const [aiRollingIndex, setAiRollingIndex] = useState(null);
   const [aiRollTrigger, setAiRollTrigger] = useState(0);
   const [rollingIndex, setRollingIndex] = useState(null);
+
+  useEffect(() => {
+    const stored = localStorage.getItem(STORAGE_KEY);
+    if (stored) {
+      try {
+        const data = JSON.parse(stored);
+        if (data.pos != null) setPos(data.pos);
+        if (data.ai != null) setAi(data.ai);
+        if (data.aiPositions) setAiPositions(data.aiPositions);
+        if (data.playerColors) setPlayerColors(data.playerColors);
+        if (data.currentTurn != null) setCurrentTurn(data.currentTurn);
+        if (data.diceCount != null) setDiceCount(data.diceCount);
+        if (data.diceCells) setDiceCells(data.diceCells);
+        if (data.snakes) setSnakes(data.snakes);
+        if (data.ladders) setLadders(data.ladders);
+        if (data.snakeOffsets) setSnakeOffsets(data.snakeOffsets);
+        if (data.ladderOffsets) setLadderOffsets(data.ladderOffsets);
+        if (data.pot != null) setPot(data.pot);
+        if (data.token) setToken(data.token);
+        if (data.gameOver != null) setGameOver(data.gameOver);
+        if (data.setupPhase != null) setSetupPhase(data.setupPhase);
+        if (data.turnOrder) setTurnOrder(data.turnOrder);
+        loadedRef.current = true;
+      } catch (err) {
+        console.error('Failed to load saved game', err);
+      }
+    }
+  }, []);
 
   const playerName = (idx) => (
     <span style={{ color: playerColors[idx] }}>
@@ -450,6 +480,29 @@ export default function SnakeAndLadder() {
   }, []);
 
   useEffect(() => {
+    const data = {
+      pos,
+      ai,
+      aiPositions,
+      playerColors,
+      currentTurn,
+      diceCount,
+      diceCells,
+      snakes,
+      ladders,
+      snakeOffsets,
+      ladderOffsets,
+      pot,
+      token,
+      gameOver,
+      setupPhase,
+      turnOrder,
+    };
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+  }, [pos, ai, aiPositions, playerColors, currentTurn, diceCount, diceCells, snakes, ladders, snakeOffsets, ladderOffsets, pot, token, gameOver, setupPhase, turnOrder]);
+
+  useEffect(() => {
+    if (loadedRef.current) return;
     const params = new URLSearchParams(window.location.search);
     const t = params.get("token");
     const amt = params.get("amount");
@@ -912,14 +965,22 @@ export default function SnakeAndLadder() {
           <span className="text-xs">Info</span>
         </button>
         <button
-          onClick={() => navigate("/games")}
+          onClick={() => {
+            if (window.confirm('Are you sure you want to quit the game?')) {
+              navigate('/games');
+            }
+          }}
           className="p-2 flex flex-col items-center"
         >
           <AiOutlineLogout className="text-xl" />
           <span className="text-xs">Exit</span>
         </button>
         <button
-          onClick={() => navigate("/games/snake/lobby")}
+          onClick={() => {
+            if (window.confirm('Return to lobby? Your current game will be lost.')) {
+              navigate('/games/snake/lobby');
+            }
+          }}
           className="p-2 flex flex-col items-center"
         >
           <AiOutlineRollback className="text-xl" />
