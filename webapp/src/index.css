@@ -833,25 +833,20 @@ body {
   }
 }
 
-/* Highlight lines for the top and bottom of the Snake & Ladder board */
-.board-line {
+/* Bold frame outlining the Snake & Ladder board */
+.board-frame-overlay {
   position: absolute;
+  top: 0;
   left: 50%;
   width: var(--board-width);
-  height: 0.75rem;
-  background-color: #facc15;
-  box-shadow: 0 0 12px rgba(250, 204, 21, 0.7);
-  pointer-events: none;
-  /* Align with the board plane and center horizontally */
+  height: var(--board-height);
   transform: translateX(-50%) translateZ(5px);
+  pointer-events: none;
+  box-sizing: border-box;
+  border-left: 6px solid #facc15;
+  border-right: 6px solid #facc15;
+  border-bottom: 6px solid #facc15;
+  border-top: 10px solid #facc15; /* thicker top edge */
+  border-radius: 0.5rem;
   z-index: 3;
-}
-
-.board-line-top {
-  top: 0;
-}
-
-
-.board-line-bottom {
-  bottom: 0;
 }
