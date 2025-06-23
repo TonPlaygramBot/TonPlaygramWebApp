@@ -161,7 +161,7 @@ function Board({
           )}
           {cellType === "" && <span className="cell-number">{num}</span>}
           {num === 1 && (
-            <span className="cell-marker">
+            <span className="cell-marker start-spin">
               <span className="cell-icon">⬢</span>
             </span>
           )}

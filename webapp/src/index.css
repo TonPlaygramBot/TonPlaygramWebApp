@@ -526,6 +526,20 @@ body {
   transform: rotate(45deg); /* keep centred while rotated */
 }
 
+/* Spin the start cell icon around the number */
+.board-cell[data-cell="1"] .cell-marker {
+  animation: start-spin 4s linear infinite;
+}
+
+@keyframes start-spin {
+  from {
+    transform: translate(-50%, -60%) rotate(0deg) translateX(0.6rem) rotate(0deg);
+  }
+  to {
+    transform: translate(-50%, -60%) rotate(360deg) translateX(0.6rem) rotate(-360deg);
+  }
+}
+
 .cell-offset {
   font-size: 1rem;
   line-height: 1;
@@ -834,8 +848,8 @@ body {
 
 .board-line-top {
   /* swapped position with the bottom line */
-  top: 0.25rem; /* move slightly down */
-  left: -0.25rem;
+  top: -0.25rem; /* move a bit further up */
+  left: -0.5rem; /* shift slightly more to the left */
   right: -0.25rem; /* span width of the bottom row */
 }
 
