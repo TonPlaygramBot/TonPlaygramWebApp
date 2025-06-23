@@ -15,6 +15,7 @@ export default function Lobby() {
   const [table, setTable] = useState(null);
   const [stake, setStake] = useState({ token: '', amount: 0 });
   const [players, setPlayers] = useState([]);
+  const [aiCount, setAiCount] = useState(0);
 
   useEffect(() => {
     if (game === 'snake') {
@@ -32,6 +33,8 @@ export default function Lobby() {
         active = false;
         clearInterval(id);
       };
+    } else if (game === 'ludo') {
+      setTables([{ id: 'single', label: 'Single Player vs AI' }]);
     }
   }, [game]);
 
@@ -59,17 +62,21 @@ export default function Lobby() {
   const startGame = () => {
     const params = new URLSearchParams();
     if (table) params.set('table', table.id);
-    if (stake.token) params.set('token', stake.token);
-    if (stake.amount) params.set('amount', stake.amount);
+    if (table?.id === 'single') {
+      params.set('ai', aiCount);
+    } else {
+      if (stake.token) params.set('token', stake.token);
+      if (stake.amount) params.set('amount', stake.amount);
+    }
     navigate(`/games/${game}?${params.toString()}`);
   };
 
-  const disabled = !canStartGame(game, table, stake);
+  const disabled = !canStartGame(game, table, stake, aiCount);
 
   return (
     <div className="p-4 space-y-4 text-text">
       <h2 className="text-xl font-bold text-center capitalize">{game} Lobby</h2>
-      {game === 'snake' && (
+      {(game === 'snake' || game === 'ludo') && (
         <div className="space-y-2">
           <h3 className="font-semibold">Select Table</h3>
           <TableSelector tables={tables} selected={table} onSelect={setTable} />
@@ -87,10 +94,30 @@ export default function Lobby() {
           </ul>
         </div>
       )}
-      <div className="space-y-2">
-        <h3 className="font-semibold">Select Stake</h3>
-        <RoomSelector selected={stake} onSelect={setStake} />
-      </div>
+      {!(game === 'ludo' && table?.id === 'single') && (
+        <div className="space-y-2">
+          <h3 className="font-semibold">Select Stake</h3>
+          <RoomSelector selected={stake} onSelect={setStake} />
+        </div>
+      )}
+      {game === 'ludo' && table?.id === 'single' && (
+        <div className="space-y-2">
+          <h3 className="font-semibold">How many AI opponents?</h3>
+          <div className="flex gap-2">
+            {[1, 2, 3, 4].map((n) => (
+              <button
+                key={n}
+                onClick={() => setAiCount(n)}
+                className={`px-2 py-1 border rounded ${
+                  aiCount === n ? 'bg-yellow-400 text-gray-900' : 'bg-gray-700 text-white'
+                }`}
+              >
+                {n}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
       <button
         onClick={startGame}
         disabled={disabled}

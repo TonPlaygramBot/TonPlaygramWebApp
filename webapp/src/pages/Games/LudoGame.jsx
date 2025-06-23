@@ -179,11 +179,61 @@ function LudoBoard({ game, state }) {
 export default function LudoGame() {
   useTelegramBackButton();
   const navigate = useNavigate();
-  const [ludo] = useState(() => new Ludo(4));
+  const params = new URLSearchParams(window.location.search);
+  const ai = Math.min(4, Math.max(1, Number(params.get('ai') || '1')));
+  const totalPlayers = Math.min(4, ai + 1);
+  const COLORS = ['blue', 'red', 'green', 'yellow'];
+  const chosenColors = COLORS.slice(0, totalPlayers);
+
+  const [playerTypes] = useState(() => {
+    const obj = {};
+    chosenColors.forEach((c, i) => {
+      obj[c] = i === 0 ? 'human' : 'bot';
+    });
+    return obj;
+  });
+
+  const [ludo] = useState(() => {
+    const g = new Ludo(totalPlayers);
+    g.players = chosenColors;
+    g.reset();
+    return g;
+  });
+
   const [gameState, setGameState] = useState(ludo.getCurrentState());
 
+  const gameOver =
+    gameState.ranking.length === gameState.players.length &&
+    gameState.players.length > 0;
+
   useEffect(() => {
-    const stored = localStorage.getItem('ludoGameState');
+    if (gameOver) return;
+    if (playerTypes[gameState.turn] !== 'bot') return;
+    if (gameState.gameState !== 'playerHasToRollADice') return;
+    const t = setTimeout(() => {
+      ludo.rollDiceForCurrentPiece();
+    }, 800);
+    return () => clearTimeout(t);
+  }, [gameState, ludo, playerTypes, gameOver]);
+
+  useEffect(() => {
+    if (gameOver) return;
+    if (playerTypes[gameState.turn] !== 'bot') return;
+    if (
+      gameState.gameState !== 'playerHasToSelectAPosition' ||
+      gameState.diceRoll === null
+    )
+      return;
+    const t = setTimeout(() => {
+      const best = ludo.bestMove();
+      if (best >= 0) ludo.selectToken(best);
+    }, 600);
+    return () => clearTimeout(t);
+  }, [gameState, ludo, playerTypes, gameOver]);
+
+  useEffect(() => {
+    const STORAGE_KEY = `ludoGameState_${ai}`;
+    const stored = localStorage.getItem(STORAGE_KEY);
     if (stored) {
       try {
         const data = JSON.parse(stored);
@@ -207,23 +257,19 @@ export default function LudoGame() {
 
     const handler = (s) => {
       setGameState({ ...s });
-      localStorage.setItem('ludoGameState', JSON.stringify(s));
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(s));
     };
     ludo.on('stateChange', handler);
     return () => ludo.off('stateChange', handler);
-  }, [ludo]);
-
-  const gameOver =
-    gameState.ranking.length === gameState.players.length &&
-    gameState.players.length > 0;
+  }, [ludo, ai]);
 
   const handlePlayAgain = () => {
-    localStorage.removeItem('ludoGameState');
+    localStorage.removeItem(`ludoGameState_${ai}`);
     ludo.reset();
   };
 
   const handleReturn = () => {
-    localStorage.removeItem('ludoGameState');
+    localStorage.removeItem(`ludoGameState_${ai}`);
     navigate('/games/ludo/lobby');
   };
 
