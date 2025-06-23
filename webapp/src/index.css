@@ -291,9 +291,14 @@ body {
   object-fit: cover;
   border-radius: 50%;
   border: 2px solid #ffd700;
+  transition: border-color 0.3s ease;
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.4);
   pointer-events: none;
   z-index: 1;
+}
+
+.token-photo.rolling {
+  border-color: #16a34a;
 }
 
 .token-cube-inner {
@@ -820,10 +825,12 @@ body {
   position: absolute;
   inset: 6px;
   background-color: #555;
-  clip-path: polygon(50% 0%, 93% 25%, 93% 75%, 50% 100%, 7% 75%, 7% 25%);
+  /* regular hexagon with equal radii */
+  clip-path: polygon(25% 0%, 75% 0%, 100% 50%, 75% 100%, 25% 100%, 0% 50%);
   transform: translateZ(6px);
   pointer-events: none;
   z-index: 0;
+  animation: hex-spin 6s linear infinite;
 }
 
 
