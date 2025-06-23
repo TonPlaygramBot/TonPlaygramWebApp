@@ -23,7 +23,7 @@ export default function Lobby() {
       function load() {
         getSnakeLobbies()
           .then((data) => {
-            if (active) setTables(data);
+            if (active) setTables([{ id: 'single', label: 'Single Player vs AI' }, ...data]);
           })
           .catch(() => {});
       }
@@ -39,7 +39,7 @@ export default function Lobby() {
   }, [game]);
 
   useEffect(() => {
-    if (game === 'snake' && table) {
+    if (game === 'snake' && table && table.id !== 'single') {
       let active = true;
       function loadPlayers() {
         getSnakeLobby(table.id)
@@ -94,13 +94,13 @@ export default function Lobby() {
           </ul>
         </div>
       )}
-      {!(game === 'ludo' && table?.id === 'single') && (
+      {!( (game === 'ludo' || game === 'snake') && table?.id === 'single') && (
         <div className="space-y-2">
           <h3 className="font-semibold">Select Stake</h3>
           <RoomSelector selected={stake} onSelect={setStake} />
         </div>
       )}
-      {game === 'ludo' && table?.id === 'single' && (
+      {(game === 'ludo' || game === 'snake') && table?.id === 'single' && (
         <div className="space-y-2">
           <h3 className="font-semibold">How many AI opponents?</h3>
           <div className="flex gap-2">
