@@ -47,10 +47,9 @@ function CoinBurst({ token }) {
 }
 
 function Board({
-  position,
+  players = [],
   highlight,
   trail,
-  photoUrl,
   pot,
   snakes,
   ladders,
@@ -174,13 +173,17 @@ function Board({
               </span>
             </span>
           )}
-          {position === num && (
-            <PlayerToken
-              photoUrl={photoUrl}
-              type={isHighlight ? highlight.type : tokenType}
-              className={isJump ? "jump" : ""}
-            />
-          )}
+          {players
+            .map((p, i) => ({ ...p, index: i }))
+            .filter((p) => p.position === num)
+            .map((p) => (
+              <PlayerToken
+                key={p.index}
+                photoUrl={p.photoUrl}
+                type={p.type || (p.index === 0 ? (isHighlight ? highlight.type : tokenType) : "normal")}
+                className={p.index === 0 && isJump ? "jump" : ""}
+              />
+            ))}
           {offsetPopup && offsetPopup.cell === num && (
             <span
               className={`popup-offset italic font-bold ${
@@ -299,16 +302,16 @@ function Board({
                 topColor="#ff0000"
                 className="pot-token"
               />
-              {position === FINAL_TILE && (
-                <PlayerToken
-                  photoUrl={photoUrl}
-                  type={
-                    highlight && highlight.cell === FINAL_TILE
-                      ? highlight.type
-                      : tokenType
-                  }
-                />
-              )}
+              {players
+                .map((p, i) => ({ ...p, index: i }))
+                .filter((p) => p.position === FINAL_TILE)
+                .map((p) => (
+                  <PlayerToken
+                    key={`win-${p.index}`}
+                    photoUrl={p.photoUrl}
+                    type={p.type || 'normal'}
+                  />
+                ))}
               {celebrate && <CoinBurst token={token} />}
             </div>
             <div className="logo-wall-main" />
@@ -347,6 +350,8 @@ export default function SnakeAndLadder() {
   const [diceCount, setDiceCount] = useState(2);
   const [gameOver, setGameOver] = useState(false);
   const [ai, setAi] = useState(0);
+  const [aiPositions, setAiPositions] = useState([]);
+  const [currentTurn, setCurrentTurn] = useState(0); // 0 = player
 
   const moveSoundRef = useRef(null);
   const snakeSoundRef = useRef(null);
@@ -413,7 +418,9 @@ export default function SnakeAndLadder() {
     const aiParam = params.get("ai");
     if (t) setToken(t.toUpperCase());
     if (amt) setPot(Number(amt));
-    if (aiParam) setAi(Math.max(1, Math.min(4, Number(aiParam))));
+    const aiCount = aiParam ? Math.max(1, Math.min(4, Number(aiParam))) : 0;
+    if (aiParam) setAi(aiCount);
+    setAiPositions(Array(aiCount).fill(0));
 
     const boardSize = ROWS * COLS;
     const snakeCount = 6 + Math.floor(Math.random() * 3);
@@ -512,6 +519,7 @@ export default function SnakeAndLadder() {
       setStreak(newStreak);
       let current = pos;
       let target = current;
+      let extraTurn = false;
 
       if (current === 100 && diceCount === 2) {
         if (rolledSix) {
@@ -548,6 +556,8 @@ export default function SnakeAndLadder() {
         setDiceVisible(true);
         return;
       }
+
+      extraTurn = rolledSix && target !== current;
 
       const steps = [];
       for (let i = current + 1; i <= target; i++) steps.push(i);
@@ -653,11 +663,60 @@ export default function SnakeAndLadder() {
           setBonusDice(0);
         }
         setDiceVisible(true);
+        if (!gameOver) {
+          const next = extraTurn ? currentTurn : (currentTurn + 1) % (ai + 1);
+          setCurrentTurn(next);
+        }
       };
 
       moveSeq(steps, "normal", () => applyEffect(target));
     }, 1500);
   };
+
+  const handleAIRoll = (index) => {
+    const value = Math.floor(Math.random() * 6) + 1;
+    setTurnMessage(`AI ${index} rolled ${value}`);
+    let positions = [...aiPositions];
+    let current = positions[index - 1];
+    let target = current;
+    if (current === 0) {
+      if (value === 6) target = 1;
+    } else if (current === 100) {
+      if (value === 1) target = FINAL_TILE;
+    } else if (current + value <= FINAL_TILE) {
+      target = current + value;
+    }
+    const final = snakes[target]
+      ? snakes[target]
+      : ladders[target]
+        ? typeof ladders[target] === 'object'
+          ? ladders[target].end
+          : ladders[target]
+        : target;
+    positions[index - 1] = final;
+    setAiPositions(positions);
+    if (final === FINAL_TILE) {
+      setMessage(`AI ${index} wins!`);
+      setGameOver(true);
+      setDiceVisible(false);
+      return;
+    }
+    const extra = value === 6 && final !== current;
+    const next = extra ? index : (index + 1) % (ai + 1);
+    setCurrentTurn(next);
+  };
+
+  useEffect(() => {
+    if (currentTurn > 0 && !gameOver) {
+      const id = setTimeout(() => handleAIRoll(currentTurn), 1000);
+      return () => clearTimeout(id);
+    }
+  }, [currentTurn, gameOver]);
+
+  const players = [
+    { position: pos, photoUrl, type: tokenType },
+    ...aiPositions.map((p) => ({ position: p, photoUrl: '/assets/icons/profile.svg', type: 'normal' }))
+  ];
 
   return (
     <div className="p-4 pb-32 space-y-4 text-text flex flex-col justify-end items-center relative w-full flex-grow">
@@ -685,10 +744,9 @@ export default function SnakeAndLadder() {
         </button>
       </div>
       <Board
-        position={pos}
+        players={players}
         highlight={highlight}
         trail={trail}
-        photoUrl={photoUrl}
         pot={pot}
         snakes={snakes}
         ladders={ladders}
