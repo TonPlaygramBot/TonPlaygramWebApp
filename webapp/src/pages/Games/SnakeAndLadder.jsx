@@ -1,5 +1,4 @@
-import { useState, useEffect, useRef } from "react";
-import confetti from "canvas-confetti";
+import React, { useState, useEffect, useRef } from "react";
 import DiceRoller from "../../components/DiceRoller.jsx";
 import { dropSound, snakeSound, ladderSound } from "../../assets/soundData.js";
 import InfoPopup from "../../components/InfoPopup.jsx";
@@ -44,9 +43,9 @@ function CoinBurst({ token }) {
       ))}
     </div>
   );
-}
+});
 
-function Board({
+const Board = React.memo(function Board({
   position,
   highlight,
   trail,
@@ -484,7 +483,7 @@ export default function SnakeAndLadder() {
       : values;
 
     setRollResult(value);
-    setTimeout(() => setRollResult(null), 1800);
+    setTimeout(() => setRollResult(null), 1500);
 
     setTimeout(() => {
       setDiceVisible(false);
@@ -627,7 +626,9 @@ export default function SnakeAndLadder() {
           setMessage(`You win ${pot} ${token}!`);
           setMessageColor("");
           winSoundRef.current?.play().catch(() => {});
-          confetti({ particleCount: 150, spread: 70, origin: { y: 0.6 } });
+          import("canvas-confetti").then(({ default: confetti }) =>
+            confetti({ particleCount: 150, spread: 70, origin: { y: 0.6 } })
+          );
           setCelebrate(true);
           setTimeout(() => {
             setCelebrate(false);
@@ -653,7 +654,7 @@ export default function SnakeAndLadder() {
       };
 
       moveSeq(steps, "normal", () => applyEffect(target));
-    }, 1800);
+    }, 1500);
   };
 
   return (

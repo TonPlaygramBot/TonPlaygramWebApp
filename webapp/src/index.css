@@ -111,7 +111,7 @@ body {
 }
 
 .dice-cube {
-  @apply relative w-12 h-12 bg-white rounded-xl;
+  @apply relative w-10 h-10 bg-white rounded-xl;
   border: none;
   transform-style: preserve-3d;
   transition: transform 0.5s;
@@ -123,26 +123,26 @@ body {
 }
 
 .dice-face .dot {
-  @apply w-2 h-2 bg-black rounded-full;
+  @apply w-1.5 h-1.5 bg-black rounded-full;
 }
 
 .dice-face--front {
-  transform: rotateY(0deg) translateZ(1.5rem);
+  transform: rotateY(0deg) translateZ(1.25rem);
 }
 .dice-face--back {
-  transform: rotateY(180deg) translateZ(1.5rem);
+  transform: rotateY(180deg) translateZ(1.25rem);
 }
 .dice-face--right {
-  transform: rotateY(90deg) translateZ(1.5rem);
+  transform: rotateY(90deg) translateZ(1.25rem);
 }
 .dice-face--left {
-  transform: rotateY(-90deg) translateZ(1.5rem);
+  transform: rotateY(-90deg) translateZ(1.25rem);
 }
 .dice-face--top {
-  transform: rotateX(90deg) translateZ(1.5rem);
+  transform: rotateX(90deg) translateZ(1.25rem);
 }
 .dice-face--bottom {
-  transform: rotateX(-90deg) translateZ(1.5rem);
+  transform: rotateX(-90deg) translateZ(1.25rem);
 }
 
 .board-cell {
@@ -221,7 +221,7 @@ body {
 }
 
 .token-dice .dice-face .dot {
-  @apply w-2 h-2 bg-black;
+  @apply w-1.5 h-1.5 bg-black;
 }
 
 /* Three.js token container */
@@ -503,7 +503,7 @@ body {
   /* slightly bigger starting hexagon */
   font-size: 4.8rem;
   display: inline-block;
-  transform: rotate(45deg);
+  transform: none;
 }
 
 /* Rotate the start cell icon in place */
