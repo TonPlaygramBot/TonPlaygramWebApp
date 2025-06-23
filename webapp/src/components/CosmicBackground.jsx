@@ -9,7 +9,6 @@ export default function CosmicBackground() {
     const ctx = cnv.getContext('2d');
 
     const stars = [];
-    const planets = [];
     const comets = [];
 
     const initScene = () => {
@@ -23,14 +22,9 @@ export default function CosmicBackground() {
           y: Math.random() * cnv.height,
           r: Math.random() * 1.5 + 0.5,
           hue: Math.random() * 360,
+          colorChange: i < 2,
         });
       }
-
-      planets.length = 0;
-      planets.push(
-        { x: cnv.width * 0.2, y: cnv.height * 0.6, r: 30, c: 'rgba(0,200,255,0.15)' },
-        { x: cnv.width * 0.8, y: cnv.height * 0.3, r: 40, c: 'rgba(255,200,0,0.12)' }
-      );
     };
 
     const resize = () => initScene();
@@ -43,22 +37,16 @@ export default function CosmicBackground() {
       ctx.fillRect(0, 0, cnv.width, cnv.height);
 
       stars.forEach((s) => {
-        s.hue = (s.hue + 0.2) % 360;
-        const color = `hsl(${s.hue} 100% 80%)`;
+        let color = '#fff';
+        if (s.colorChange) {
+          s.hue = (s.hue + 0.2) % 360;
+          color = `hsl(${s.hue} 100% 80%)`;
+        }
         ctx.beginPath();
         ctx.arc(s.x, s.y, s.r, 0, 2 * Math.PI);
         ctx.fillStyle = color;
         ctx.shadowColor = color;
         ctx.shadowBlur = 8;
-        ctx.fill();
-      });
-
-      planets.forEach((p) => {
-        ctx.beginPath();
-        ctx.arc(p.x, p.y, p.r, 0, 2 * Math.PI);
-        ctx.fillStyle = p.c;
-        ctx.shadowColor = p.c;
-        ctx.shadowBlur = 60;
         ctx.fill();
       });
 

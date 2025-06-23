@@ -66,17 +66,14 @@ export default function Home() {
       <div className="flex flex-col items-center">
 
         {photoUrl && (
-
-          <img
-
-            src={photoUrl}
-
-            alt="profile"
-
-            className="w-36 h-36 hexagon border-4 border-brand-gold -mt-[20%] mb-3 object-cover"
-
-          />
-
+          <div className="relative">
+            <img
+              src={photoUrl}
+              alt="profile"
+              className="w-36 h-36 hexagon border-4 border-brand-gold -mt-[20%] mb-3 object-cover"
+            />
+            <span className="absolute -right-6 top-1/2 -translate-y-1/2 text-5xl">🌎</span>
+          </div>
         )}
 
         <div className="mb-2">
