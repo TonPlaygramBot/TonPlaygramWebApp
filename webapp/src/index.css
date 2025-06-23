@@ -824,47 +824,23 @@ body {
   }
 }
 
-/* Neon edge lines for the Snake & Ladder board */
-.neon-edge-line {
+/* Highlight lines for the top and bottom of the Snake & Ladder board */
+.board-line {
   position: absolute;
-  background-color: var(--side-color, #facc15);
+  left: 0;
+  right: 0;
+  height: 0.75rem;
+  background-color: #facc15;
   box-shadow: 0 0 12px rgba(250, 204, 21, 0.7);
   pointer-events: none;
-  /* Match the board tilt so the frame hugs the board surface */
   transform: translateZ(4px) rotateX(var(--board-angle, 70deg));
   z-index: 3;
 }
 
-
-.neon-left,
-.neon-right {
-  top: 0;
-  bottom: 0;
-  width: 0.6rem;
+.board-line-top {
+  top: -0.75rem;
 }
 
-
-.neon-left {
-  left: 0;
-  clip-path: polygon(0 0, 100% 0, 55% 100%, 0 100%);
-}
-
-
-.neon-right {
-  right: 0;
-  clip-path: polygon(45% 100%, 100% 100%, 100% 0, 0 0);
-}
-
-.neon-bottom {
-  left: 0;
-  right: 0;
-  bottom: 0;
-  height: 0.6rem;
-}
-
-.neon-top {
-  left: 0;
-  right: 0;
-  top: 0;
-  height: 0.6rem;
+.board-line-bottom {
+  bottom: -0.75rem;
 }
