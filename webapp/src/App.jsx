@@ -12,7 +12,7 @@ import Messages from './pages/Messages.jsx';
 import Trending from './pages/Trending.jsx';
 import Notifications from './pages/Notifications.jsx';
 
-import LudoGame from './pages/Games/LudoGame.jsx';
+import GridRoller from './pages/Games/GridRoller.jsx';
 import HorseRacing from './pages/Games/HorseRacing.jsx';
 const SnakeAndLadder = lazy(() => import('./pages/Games/SnakeAndLadder.jsx'));
 import Lobby from './pages/Games/Lobby.jsx';
@@ -33,7 +33,7 @@ export default function App() {
           <Route path="/friends" element={<Friends />} />
           <Route path="/games" element={<Games />} />
           <Route path="/games/:game/lobby" element={<Lobby />} />
-          <Route path="/games/ludo" element={<LudoGame />} />
+          <Route path="/games/grid" element={<GridRoller />} />
           <Route path="/games/horse" element={<HorseRacing />} />
           <Route
             path="/games/snake"
