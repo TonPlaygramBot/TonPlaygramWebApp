@@ -355,6 +355,8 @@ export default function SnakeAndLadder() {
   const [turnOrder, setTurnOrder] = useState([]);
   const [initialRolls, setInitialRolls] = useState([]);
   const [setupPhase, setSetupPhase] = useState(true);
+  const [aiRollingIndex, setAiRollingIndex] = useState(null);
+  const [aiRollTrigger, setAiRollTrigger] = useState(0);
 
   const moveSoundRef = useRef(null);
   const snakeSoundRef = useRef(null);
@@ -676,9 +678,20 @@ export default function SnakeAndLadder() {
     }, 1500);
   };
 
+  const triggerAIRoll = (index) => {
+    setAiRollingIndex(index);
+    setTurnMessage(`AI ${index} rolling...`);
+    setAiRollTrigger((t) => t + 1);
+    setDiceVisible(true);
+  };
+
   const handleAIRoll = (index, fixedValue) => {
     const value = fixedValue ?? Math.floor(Math.random() * 6) + 1;
     setTurnMessage(`AI ${index} rolled ${value}`);
+    setRollResult(value);
+    setTimeout(() => setRollResult(null), 1500);
+    setTimeout(() => {
+      setDiceVisible(false);
     let positions = [...aiPositions];
     let current = positions[index - 1];
     let target = current;
@@ -705,8 +718,10 @@ export default function SnakeAndLadder() {
       return;
     }
     const extra = value === 6 && final !== current;
-    const next = extra ? index : (index + 1) % (ai + 1);
-    setCurrentTurn(next);
+      const next = extra ? index : (index + 1) % (ai + 1);
+      setCurrentTurn(next);
+      setDiceVisible(true);
+    }, 1500);
   };
 
   useEffect(() => {
@@ -756,7 +771,7 @@ export default function SnakeAndLadder() {
 
   useEffect(() => {
     if (!setupPhase && currentTurn > 0 && !gameOver) {
-      const id = setTimeout(() => handleAIRoll(currentTurn), 1000);
+      const id = setTimeout(() => triggerAIRoll(currentTurn), 1000);
       return () => clearTimeout(id);
     }
   }, [currentTurn, gameOver, setupPhase]);
@@ -815,16 +830,23 @@ export default function SnakeAndLadder() {
         <div className="fixed bottom-24 inset-x-0 flex flex-col items-center z-20">
           <DiceRoller
             onRollEnd={(vals) => {
-              handleRoll(vals);
-              setBonusDice(0);
+              const total = Array.isArray(vals) ? vals.reduce((a, b) => a + b, 0) : vals;
+              if (aiRollingIndex) {
+                handleAIRoll(aiRollingIndex, total);
+                setAiRollingIndex(null);
+              } else {
+                handleRoll(vals);
+                setBonusDice(0);
+              }
             }}
-            onRollStart={() => setTurnMessage("Rolling...")}
-            clickable
+            onRollStart={() =>
+              aiRollingIndex ? setTurnMessage(`AI ${aiRollingIndex} rolling...`) : setTurnMessage("Rolling...")
+            }
+            clickable={!aiRollingIndex}
             numDice={diceCount + bonusDice}
+            trigger={aiRollingIndex ? aiRollTrigger : undefined}
           />
-          {turnMessage && (
-            <div className="mt-2 turn-message">{turnMessage}</div>
-          )}
+          {turnMessage && <div className="mt-2 turn-message">{turnMessage}</div>}
           {message === 'Need a 6 to start!' && (
             <div className={`mt-1 turn-message ${messageColor}`}>{message}</div>
           )}
