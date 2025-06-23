@@ -845,8 +845,8 @@ body {
   box-sizing: border-box;
   border-left: 6px solid #facc15;
   border-right: 6px solid #facc15;
-  border-bottom: 6px solid #facc15;
-  border-top: 10px solid #facc15; /* thicker top edge */
+  border-top: 6px solid #facc15;
+  border-bottom: 10px solid #facc15; /* thicker bottom edge */
   border-radius: 0.5rem;
   z-index: 3;
 }
