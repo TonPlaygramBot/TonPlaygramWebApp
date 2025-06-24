@@ -976,8 +976,8 @@ export default function SnakeAndLadder() {
 
   return (
     <div className="p-4 pb-32 space-y-4 text-text flex flex-col justify-end items-center relative w-full flex-grow">
-      {/* Action menu fixed to the right */}
-      <div className="fixed right-2 top-1/2 -translate-y-1/2 flex flex-col items-end space-y-2 z-20">
+      {/* Action menu fixed to the top right */}
+      <div className="fixed right-2 top-4 flex flex-col items-end space-y-2 z-20">
         <button
           onClick={() => window.location.reload()}
           className="p-2 flex flex-col items-center"
@@ -1007,8 +1007,8 @@ export default function SnakeAndLadder() {
           <span className="text-xs">Lobby</span>
         </button>
       </div>
-      {/* Inactive tokens fixed to the left */}
-      <div className="fixed left-2 top-1/2 -translate-y-1/2 flex flex-col space-y-2 z-20">
+      {/* Inactive tokens fixed to the top left */}
+      <div className="fixed left-2 top-4 flex flex-col space-y-2 z-20">
         {players
           .map((p, i) => ({ ...p, index: i }))
           .filter((p) => p.position === 0)
@@ -1018,7 +1018,7 @@ export default function SnakeAndLadder() {
               photoUrl={p.photoUrl}
               type={"normal"}
               color={p.color}
-              className="small"
+              className="inactive"
             />
           ))}
       </div>

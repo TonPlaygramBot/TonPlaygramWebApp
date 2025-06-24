@@ -258,6 +258,13 @@ body {
   transform: translateZ(32px) scale(0.25);
 }
 
+/* Larger token variant used for inactive pieces */
+.token-three.inactive {
+  width: 9rem;
+  height: 9rem;
+  transform: translateZ(32px);
+}
+
 @keyframes token-jump {
   0%,
   100% {
