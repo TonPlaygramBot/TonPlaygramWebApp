@@ -1010,6 +1010,7 @@ export default function SnakeAndLadder() {
             clickable={!aiRollingIndex}
             numDice={diceCount + bonusDice}
             trigger={aiRollingIndex ? aiRollTrigger : undefined}
+            showButton={!aiRollingIndex}
           />
           {turnMessage && (
             <div
