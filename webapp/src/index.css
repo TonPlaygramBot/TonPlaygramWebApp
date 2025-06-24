@@ -382,6 +382,16 @@ body {
   font-size: 0.6rem;
   @apply flex items-center justify-center rounded-full bg-slate-800 text-white;
 }
+.rank-name {
+  position: absolute;
+  top: -0.3rem;
+  right: 1rem;
+  font-size: 0.6rem;
+  color: #fff;
+  background-color: #334155;
+  padding: 0 0.25rem;
+  border-radius: 0.25rem;
+}
 
 .token-cube-inner {
   position: relative;
@@ -779,14 +789,14 @@ body {
 }
 
 .snake-connector {
-  background-image: url("/assets/icons/snake.svg");
+  background-image: url("https://raw.githubusercontent.com/twitter/twemoji/master/assets/svg/1f40d.svg");
   background-size: 100% 100%;
   background-repeat: no-repeat;
   border-radius: 4px;
 }
 
 .ladder-connector {
-  background-image: url("/assets/icons/ladder.png");
+  background-image: url("https://raw.githubusercontent.com/twitter/twemoji/master/assets/svg/1fa9c.svg");
   background-size: 100% 100%;
   background-repeat: no-repeat;
 }
@@ -911,8 +921,8 @@ body {
   position: absolute;
   top: 50%;
   left: 50%;
-  width: calc(var(--cell-height) - 12px);
-  height: calc(var(--cell-height) - 12px);
+  width: var(--cell-height);
+  height: var(--cell-height);
   background-color: #555;
   /* true regular hexagon */
   clip-path: polygon(25% 0%, 75% 0%, 100% 50%, 75% 100%, 25% 100%, 0% 50%);
