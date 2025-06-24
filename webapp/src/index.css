@@ -259,6 +259,35 @@ body {
   transform: translateZ(32px) scale(0.25);
 }
 
+.token-three.burning {
+  animation: token-burn 1s forwards;
+}
+
+.token-three.burning::after {
+  content: "\1F525"; /* fire emoji */
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%) translateZ(40px);
+  font-size: 3rem;
+  pointer-events: none;
+  animation: flame-up 1s forwards;
+}
+
+@keyframes token-burn {
+  to {
+    opacity: 0;
+    transform: translateZ(32px) scale(0.3);
+  }
+}
+
+@keyframes flame-up {
+  to {
+    opacity: 0;
+    transform: translate(-50%, -80%) translateZ(40px) scale(1.5);
+  }
+}
+
 /* Larger token variant used for inactive pieces */
 .token-three.inactive {
   width: 7.2rem;
@@ -561,7 +590,7 @@ body {
   top: 50%;
   left: 50%;
   /* tilt icons so they sit flush with the board surface */
-  transform: translate(-50%, -60%)
+  transform: translate(-50%, -50%)
     rotateX(calc(var(--board-angle, 58deg) * -1));
   display: flex;
   align-items: center;
@@ -880,11 +909,14 @@ body {
 
 .start-hexagon {
   position: absolute;
-  inset: 6px;
+  top: 50%;
+  left: 50%;
+  width: calc(var(--cell-height) - 12px);
+  height: calc(var(--cell-height) - 12px);
   background-color: #555;
-  /* regular hexagon with equal side lengths */
-  clip-path: polygon(50% 0%, 93% 25%, 93% 75%, 50% 100%, 7% 75%, 7% 25%);
-  transform: translateZ(6px);
+  /* true regular hexagon */
+  clip-path: polygon(25% 0%, 75% 0%, 100% 50%, 75% 100%, 25% 100%, 0% 50%);
+  transform: translate(-50%, -50%) translateZ(6px);
   pointer-events: none;
   z-index: 0;
   animation: hex-spin 6s linear infinite;
