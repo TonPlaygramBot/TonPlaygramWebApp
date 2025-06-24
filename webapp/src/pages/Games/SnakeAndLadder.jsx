@@ -150,12 +150,8 @@ function Board({
             ? "dice"
             : "";
       const cellClass = cellType ? `${cellType}-cell` : "";
-      const iconPath =
-        cellType === "ladder"
-          ? "/assets/icons/ladder.png"
-          : cellType === "snake"
-            ? "/assets/icons/snake.svg"
-            : null;
+      const iconChar =
+        cellType === "ladder" ? "🪜" : cellType === "snake" ? "🐍" : null;
       const offsetVal =
         cellType === "ladder"
           ? ladderOffsets[num]
@@ -178,10 +174,12 @@ function Board({
           className={`board-cell ${cellClass} ${highlightClass}`}
           style={style}
         >
-          {(iconPath || offsetVal != null) && (
+          {(iconChar || offsetVal != null) && (
             <span className="cell-marker">
-              {iconPath && (
-                <img src={iconPath} className="cell-icon" alt={cellType} />
+              {iconChar && (
+                <span className="cell-emoji" role="img" aria-hidden="true">
+                  {iconChar}
+                </span>
               )}
               {offsetVal != null && (
                 <span className="cell-offset">
@@ -196,7 +194,9 @@ function Board({
           <span className="cell-number">{num}</span>
           {diceCells && diceCells[num] && (
             <span className="dice-marker">
-              <img src="/assets/icons/dice.svg" alt="dice" />
+              <span className="dice-emoji" role="img" aria-hidden="true">
+                🎲
+              </span>
               <span className="dice-value">
                 <span className="dice-sign">+</span>
                 <span className="dice-number">{diceCells[num]}</span>
