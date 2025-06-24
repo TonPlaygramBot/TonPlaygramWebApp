@@ -63,7 +63,7 @@ body {
   height: calc(var(--board-width) * 1.7);
   /* keep bottom in place by shifting upward */
   /* slightly shift down so the backdrop covers the starting rows */
-  transform: translate(-50%, -50%) rotate(-65deg) translateZ(0);
+  transform: translate(-50%, -50%) rotate(90deg) translateZ(0);
   transform-origin: center;
   /* widen the top of the backdrop while keeping the bottom unchanged */
   /* narrow the bottom of the backdrop so it fits the board */
