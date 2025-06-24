@@ -290,9 +290,9 @@ body {
 
 .token-photo {
   position: absolute;
-  /* size reduced by 20% and centered on the token */
-  width: 2.32rem;
-  height: 2.32rem;
+  /* enlarge photo by 5% and lower it proportionally */
+  width: 2.9rem;
+  height: 2.9rem;
   top: 50%;
   left: 50%;
   transform-origin: bottom center;
@@ -716,7 +716,7 @@ body {
   );
   left: 50%;
   transform: translateX(-50%) rotateX(calc(var(--board-angle, 75deg) * -1))
-    translateZ(-90px) scale(1.89);
+    translateZ(-90px) scale(1.8);
   transform-origin: bottom center;
   background-image: url("/assets/TonPlayGramLogo.jpg");
   background-size: contain;
