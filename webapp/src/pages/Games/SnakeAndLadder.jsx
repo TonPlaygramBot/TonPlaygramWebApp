@@ -18,6 +18,7 @@ import { fetchTelegramInfo, getProfile, deposit } from "../../utils/api.js";
 import PlayerToken from "../../components/PlayerToken.jsx";
 import AvatarTimer from "../../components/AvatarTimer.jsx";
 import ConfirmPopup from "../../components/ConfirmPopup.jsx";
+import TileFrame from "../../components/TileFrame.jsx";
 
 const TOKEN_COLORS = [
   { name: "blue", color: "#60a5fa" },
@@ -87,9 +88,11 @@ function Board({
 }) {
   const containerRef = useRef(null);
   const gridRef = useRef(null);
+  const tile1Ref = useRef(null);
   const [connectors, setConnectors] = useState([]);
   const [cellWidth, setCellWidth] = useState(80);
   const [cellHeight, setCellHeight] = useState(40);
+  const [tileRect, setTileRect] = useState(null);
   const tiles = [];
   const centerCol = (COLS - 1) / 2;
   // Gradual horizontal widening towards the top. Keep the bottom
@@ -168,6 +171,7 @@ function Board({
         <div
           key={num}
           data-cell={num}
+          ref={num === 1 ? tile1Ref : null}
           className={`board-cell ${cellClass} ${highlightClass}`}
           style={style}
         >
@@ -242,11 +246,22 @@ function Board({
       // Make each cell slightly taller while keeping spacing consistent
       const ch = Math.floor(cw / 1.7);
       setCellHeight(ch);
+      if (tile1Ref.current) {
+        const { x, y, width: w, height: h } = tile1Ref.current.getBoundingClientRect();
+        setTileRect({ x, y, width: w, height: h });
+      }
     };
     updateSize();
     window.addEventListener("resize", updateSize);
     return () => window.removeEventListener("resize", updateSize);
   }, []);
+
+  useLayoutEffect(() => {
+    if (tile1Ref.current) {
+      const { x, y, width, height } = tile1Ref.current.getBoundingClientRect();
+      setTileRect({ x, y, width, height });
+    }
+  }, [cellWidth, cellHeight]);
 
   useLayoutEffect(() => {
     const grid = gridRef.current;
@@ -414,6 +429,7 @@ function Board({
           </div>
         </div>
       </div>
+      <TileFrame rect={tileRect} />
     </div>
   );
 }
