@@ -93,6 +93,11 @@ function Board({
   const [cellWidth, setCellWidth] = useState(80);
   const [cellHeight, setCellHeight] = useState(40);
   const [tileRect, setTileRect] = useState(null);
+  const adjustX = 0;
+  const adjustY = 0;
+  useEffect(() => {
+    if (tileRect) console.log(tileRect);
+  }, [tileRect]);
   const tiles = [];
   const centerCol = (COLS - 1) / 2;
   // Gradual horizontal widening towards the top. Keep the bottom
@@ -246,9 +251,10 @@ function Board({
       // Make each cell slightly taller while keeping spacing consistent
       const ch = Math.floor(cw / 1.7);
       setCellHeight(ch);
-      if (tile1Ref.current) {
-        const { x, y, width: w, height: h } = tile1Ref.current.getBoundingClientRect();
-        setTileRect({ x, y, width: w, height: h });
+      if (tile1Ref.current && containerRef.current) {
+        const { left, top, width: w, height: h } = tile1Ref.current.getBoundingClientRect();
+        const { left: cl, top: ct } = containerRef.current.getBoundingClientRect();
+        setTileRect({ x: left + w / 2 - cl, y: top + h / 2 - ct, width: w, height: h });
       }
     };
     updateSize();
@@ -257,9 +263,10 @@ function Board({
   }, []);
 
   useLayoutEffect(() => {
-    if (tile1Ref.current) {
-      const { x, y, width, height } = tile1Ref.current.getBoundingClientRect();
-      setTileRect({ x, y, width, height });
+    if (tile1Ref.current && containerRef.current) {
+      const { left, top, width, height } = tile1Ref.current.getBoundingClientRect();
+      const { left: cl, top: ct } = containerRef.current.getBoundingClientRect();
+      setTileRect({ x: left + width / 2 - cl, y: top + height / 2 - ct, width, height });
     }
   }, [cellWidth, cellHeight]);
 
@@ -357,7 +364,7 @@ function Board({
   const paddingBottom = '15vh';
 
   return (
-    <div className="flex justify-center items-center w-screen overflow-visible">
+    <div className="relative flex justify-center items-center w-screen overflow-visible">
       <div
         ref={containerRef}
         className="overflow-y-auto"
@@ -429,7 +436,7 @@ function Board({
           </div>
         </div>
       </div>
-      <TileFrame rect={tileRect} />
+      <TileFrame rect={tileRect} adjustX={adjustX} adjustY={adjustY} />
     </div>
   );
 }

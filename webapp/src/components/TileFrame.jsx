@@ -1,12 +1,16 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 
-export default function TileFrame({ rect }) {
+export default function TileFrame({ rect, adjustX = 0, adjustY = 0 }) {
+  useEffect(() => {
+    if (rect) console.log(rect);
+  }, [rect]);
+
   if (!rect) return null;
   const style = {
-    position: 'fixed',
+    position: 'absolute',
     pointerEvents: 'none',
-    left: rect.x - rect.width / 2,
-    top: rect.y - rect.height / 2,
+    left: rect.x - rect.width / 2 + adjustX,
+    top: rect.y - rect.height / 2 + adjustY,
     width: rect.width,
     height: rect.height,
     zIndex: 4,
