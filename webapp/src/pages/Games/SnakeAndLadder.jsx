@@ -252,7 +252,7 @@ function Board({
   // Fixed board angle with no zoom
   // Lowered camera angle so the logo touches the top of the screen
   // Increase tilt for a more dynamic view of the board
-  const angle = 70;
+  const angle = 75;
   // Small horizontal offset so the board sits perfectly centered
   const boardXOffset = -10; // pixels
   // Lift the board slightly so the bottom row stays visible
@@ -318,7 +318,7 @@ function Board({
               // Slightly enlarge the board in both directions
               // Pull the board slightly back so more of the lower rows are
               // visible when the game starts
-              transform: `translate(${boardXOffset}px, ${boardYOffset}px) rotateX(${angle}deg) scale(0.9455)`,
+              transform: `translate(${boardXOffset}px, ${boardYOffset}px) rotateX(${angle}deg) scale(0.9)`,
             }}
           >
             <div className="snake-gradient-bg" />
