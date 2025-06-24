@@ -983,12 +983,17 @@ export default function SnakeAndLadder() {
     ...aiPositions.map((p, i) => ({ position: p, photoUrl: aiAvatars[i] || '/assets/icons/profile.svg', type: 'normal', color: playerColors[i + 1] }))
   ];
 
+  const handleReload = () => {
+    localStorage.removeItem(`snakeGameState_${ai}`);
+    window.location.reload();
+  };
+
   return (
     <div className="p-4 pb-32 space-y-4 text-text flex flex-col justify-end items-center relative w-full flex-grow">
       {/* Action menu fixed to the top right */}
       <div className="fixed right-2 top-4 flex flex-col items-end space-y-2 z-20">
         <button
-          onClick={() => window.location.reload()}
+          onClick={handleReload}
           className="p-2 flex flex-col items-center"
         >
           <AiOutlineReload className="text-xl" />
