@@ -147,9 +147,9 @@ function Board({
       const cellClass = cellType ? `${cellType}-cell` : "";
       const icon =
         cellType === "ladder"
-          ? "🪜"
+          ? "/assets/icons/ladder.png"
           : cellType === "snake"
-            ? "🐍"
+            ? "/assets/icons/snake.svg"
             : "";
       const offsetVal =
         cellType === "ladder"
@@ -175,7 +175,9 @@ function Board({
           {(icon || offsetVal != null) && (
             <span className="cell-marker">
               {icon && (
-                <span className="cell-icon">{icon}</span>
+                <span className="cell-icon">
+                  <img src={icon} alt={cellType} />
+                </span>
               )}
               {offsetVal != null && (
                 <span className="cell-offset">
@@ -187,6 +189,7 @@ function Board({
               )}
             </span>
           )}
+          {num === 1 && <div className="start-hexagon" />}
           {cellType === "" && <span className="cell-number">{num}</span>}
           {diceCells && diceCells[num] && (
             <span className="dice-marker">
@@ -201,24 +204,22 @@ function Board({
             .map((p, i) => ({ ...p, index: i }))
             .filter((p) => p.position !== 0 && p.position === num)
             .map((p) => (
-              <React.Fragment key={p.index}>
-                <div className="start-hexagon" />
-                <PlayerToken
-                  photoUrl={p.photoUrl}
-                  type={p.type || (p.index === 0 ? (isHighlight ? highlight.type : tokenType) : "normal")}
-                  color={p.color}
-                  rolling={p.index === rollingIndex}
-                  active={p.index === currentTurn}
-                  timerPct={p.index === currentTurn ? timerPct : 1}
-                  className={
-                    p.position === 0
-                      ? "start"
-                      : p.index === 0 && isJump
-                        ? "jump"
-                        : ""
-                  }
-                />
-              </React.Fragment>
+              <PlayerToken
+                key={p.index}
+                photoUrl={p.photoUrl}
+                type={p.type || (p.index === 0 ? (isHighlight ? highlight.type : tokenType) : "normal")}
+                color={p.color}
+                rolling={p.index === rollingIndex}
+                active={p.index === currentTurn}
+                timerPct={p.index === currentTurn ? timerPct : 1}
+                className={
+                  p.position === 0
+                    ? "start"
+                    : p.index === 0 && isJump
+                      ? "jump"
+                      : ""
+                }
+              />
             ))}
           {offsetPopup && offsetPopup.cell === num && (
             <span
@@ -955,8 +956,7 @@ export default function SnakeAndLadder() {
 
   useEffect(() => {
     if (setupPhase || gameOver) return;
-    const limit = currentTurn === 0 ? 15 : 3;
-    setTimeLeft(limit);
+    setTimeLeft(15);
     if (timerRef.current) clearInterval(timerRef.current);
     timerRef.current = setInterval(() => {
       setTimeLeft(t => {
@@ -1026,7 +1026,7 @@ export default function SnakeAndLadder() {
               key={`inactive-${p.index}`}
               photoUrl={p.photoUrl}
               active={p.index === currentTurn}
-              timerPct={p.index === currentTurn ? timeLeft / (currentTurn === 0 ? 15 : 3) : 1}
+              timerPct={p.index === currentTurn ? timeLeft / 15 : 1}
             />
           ))}
       </div>
@@ -1046,7 +1046,7 @@ export default function SnakeAndLadder() {
         diceCells={diceCells}
         rollingIndex={rollingIndex}
         currentTurn={currentTurn}
-        timerPct={timeLeft / (currentTurn === 0 ? 15 : 3)}
+        timerPct={timeLeft / 15}
       />
       {rollResult !== null && (
         <div className="fixed bottom-44 inset-x-0 flex justify-center z-30 pointer-events-none">
