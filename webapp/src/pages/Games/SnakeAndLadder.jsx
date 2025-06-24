@@ -255,8 +255,9 @@ function Board({
   const angle = 70;
   // Small horizontal offset so the board sits perfectly centered
   const boardXOffset = -10; // pixels
-  // Lift the board slightly so the bottom row stays visible
-  const boardYOffset = -40; // pixels
+  // Lift the board slightly so the bottom row stays visible. Lowered by 10%
+  // to place the board a bit further down the screen.
+  const boardYOffset = -36; // pixels
 
   // How many board rows to scroll back from the starting position so
   // the bottom row remains in view. Set to 0 to begin at the very first row
