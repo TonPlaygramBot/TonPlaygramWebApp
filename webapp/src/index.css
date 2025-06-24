@@ -251,7 +251,7 @@ body {
 }
 
 .token-three.start {
-  transform: translateY(80%) translateZ(32px);
+  transform: translateY(20%) translateZ(32px);
 }
 
 @keyframes token-jump {
@@ -857,7 +857,3 @@ body {
 .board-frame-overlay {
   display: none;
 }
-
-.timer-ring { width:4rem; height:4rem; padding:0.2rem; border-radius:9999px; background:conic-gradient(#16a34a 0deg, #facc15 0deg); display:flex; align-items:center; justify-content:center; }
-.timer-avatar{width:100%; height:100%; border-radius:9999px; object-fit:cover;}
-
