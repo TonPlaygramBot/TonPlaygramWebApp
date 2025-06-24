@@ -979,6 +979,15 @@ export default function SnakeAndLadder() {
     ...aiPositions.map((p, i) => ({ position: p, photoUrl: aiAvatars[i] || '/assets/icons/profile.svg', type: 'normal', color: playerColors[i + 1] }))
   ];
 
+  // determine ranking numbers based on board positions
+  const rankMap = {};
+  players
+    .map((p, i) => ({ idx: i, pos: p.position }))
+    .sort((a, b) => b.pos - a.pos)
+    .forEach((p, i) => {
+      rankMap[p.idx] = p.pos === 0 ? 0 : i + 1;
+    });
+
   const handleReload = () => {
     localStorage.removeItem(`snakeGameState_${ai}`);
     window.location.reload();
@@ -1026,6 +1035,7 @@ export default function SnakeAndLadder() {
               key={`player-${p.index}`}
               photoUrl={p.photoUrl}
               active={p.index === currentTurn}
+              rank={rankMap[p.index]}
               timerPct={
                 p.index === currentTurn
                   ? timeLeft / (p.index === 0 ? 15 : 3)
