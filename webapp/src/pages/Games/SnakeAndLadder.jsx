@@ -252,7 +252,7 @@ function Board({
   // Fixed board angle with no zoom
   // Lowered camera angle so the logo touches the top of the screen
   // Tilt angle for the entire board in 3D space
-  const angle = 58; // set board tilt to 58 degrees
+  const angle = 61; // set board tilt to 61 degrees
   // Small horizontal offset so the board sits perfectly centered
   const boardXOffset = -10; // pixels
   // Lift the board slightly so the bottom row stays visible. Lowered slightly
