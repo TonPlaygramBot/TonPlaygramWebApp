@@ -148,3 +148,28 @@ The compiled assets are copied into `webapp/public/games/ludo`.
 ### Customizing Snakes & Ladders icons
 
 All webapp icons are stored in `webapp/public/assets/icons`. The board now uses `snake.png` and `ladder.png` for snake and ladder connectors. Replace these files or add new ones in the same folder and update the paths in `src/index.css` if you want custom graphics.
+
+### Snake & Ladder engine notes
+
+Active games live in memory via `GameRoom` objects in `bot/gameEngine.js`. Each
+player tracks whether their socket has disconnected and the timestamp of their
+most recent roll.
+
+Turns skip over disconnected players:
+
+```js
+while (this.players[this.currentTurn].disconnected) {
+  this.currentTurn = (this.currentTurn + 1) % this.players.length;
+}
+```
+
+Rooms are deleted once everyone disconnects. There is no automatic reconnect
+timeout, but a player can reload the webapp to restore state from `localStorage`
+and continue if the room still exists.
+
+Rolls are subject to a cooldown to prevent spamming. A request is ignored when
+it occurs before `ROLL_COOLDOWN_MS` has elapsed:
+
+```js
+if (Date.now() - player.lastRollTime < this.rollCooldown) return;
+```
