@@ -254,6 +254,10 @@ body {
   transform: translateY(20%) translateZ(32px);
 }
 
+.token-three.small {
+  transform: translateZ(32px) scale(0.25);
+}
+
 @keyframes token-jump {
   0%,
   100% {
