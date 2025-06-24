@@ -49,7 +49,7 @@ body {
 
 .snake-board-grid {
   transform-style: preserve-3d;
-  transform-origin: bottom center;
+  transform-origin: center; /* scale evenly from the center */
   transition: transform 0.3s ease; /* ✅ scaling transition */
 }
 
