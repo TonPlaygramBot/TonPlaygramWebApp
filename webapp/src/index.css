@@ -716,7 +716,7 @@ body {
   );
   left: 50%;
   transform: translateX(-50%) rotateX(calc(var(--board-angle, 58deg) * -1))
-    translateZ(-90px) scale(2);
+    translateZ(-90px) scale(2.1); /* slightly larger logo */
   transform-origin: bottom center;
   background-image: url("/assets/TonPlayGramLogo.jpg");
   background-size: contain;
