@@ -16,6 +16,7 @@ import { useNavigate } from "react-router-dom";
 import { getTelegramId, getTelegramPhotoUrl } from "../../utils/telegram.js";
 import { fetchTelegramInfo, getProfile, deposit } from "../../utils/api.js";
 import PlayerToken from "../../components/PlayerToken.jsx";
+import AvatarTimer from "../../components/AvatarTimer.jsx";
 import ConfirmPopup from "../../components/ConfirmPopup.jsx";
 
 const TOKEN_COLORS = [
@@ -1015,18 +1016,17 @@ export default function SnakeAndLadder() {
           <span className="text-xs">Lobby</span>
         </button>
       </div>
-      {/* Inactive tokens fixed to the top left */}
+      {/* Player photos for tokens not yet active */}
       <div className="fixed left-2 top-4 flex flex-col space-y-2 z-20">
         {players
           .map((p, i) => ({ ...p, index: i }))
           .filter((p) => p.position === 0)
           .map((p) => (
-            <PlayerToken
+            <AvatarTimer
               key={`inactive-${p.index}`}
               photoUrl={p.photoUrl}
-              type={"normal"}
-              color={p.color}
-              className="inactive"
+              active={p.index === currentTurn}
+              timerPct={p.index === currentTurn ? timeLeft / 15 : 1}
             />
           ))}
       </div>
