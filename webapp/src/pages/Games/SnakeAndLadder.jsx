@@ -304,10 +304,11 @@ function Board({
   // Tilt angle for the entire board in 3D space
   const angle = 58; // set board tilt to 58 degrees
   // Small horizontal offset so the board sits perfectly centered
-  const boardXOffset = -10; // pixels
+  const boardXOffset = 0; // pixels - center horizontally
   // Lift the board slightly so the bottom row stays visible. Lowered slightly
-  // so the logo at the top of the board isn't cropped off screen
-  const boardYOffset = -30; // pixels
+  // so the logo at the top of the board isn't cropped off screen. Zeroing this
+  // aligns the board vertically with the frame.
+  const boardYOffset = 0; // pixels
   // Pull the board away from the camera without changing the angle or zoom
   const boardZOffset = -50; // pixels
 
