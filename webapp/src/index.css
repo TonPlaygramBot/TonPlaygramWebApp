@@ -537,12 +537,13 @@ body {
   justify-content: center; /* keep icon and offset perfectly centred */
   gap: 2px;
   pointer-events: none;
+  z-index: 2;
 }
 
 .cell-icon {
   font-size: 1.7rem; /* tiny bit bigger */
   line-height: 1;
-  color: #333; /* dark grey */
+  color: #fff; /* ensure visibility */
 }
 
 /* Start cell icon tweaks */

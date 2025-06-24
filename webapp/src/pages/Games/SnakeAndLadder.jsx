@@ -988,51 +988,51 @@ export default function SnakeAndLadder() {
 
   return (
     <div className="p-4 pb-32 space-y-4 text-text flex flex-col justify-end items-center relative w-full flex-grow">
-      <div className="absolute top-0 right-0 flex flex-col items-end p-2 z-20 space-y-2">
-        <div className="flex space-x-2">
-          <button
-            onClick={() => window.location.reload()}
-            className="p-2 flex flex-col items-center"
-          >
-            <AiOutlineReload className="text-xl" />
-            <span className="text-xs">Reload</span>
-          </button>
-          <button
-            onClick={() => setShowInfo(true)}
-            className="p-2 flex flex-col items-center"
-          >
-            <AiOutlineInfoCircle className="text-2xl" />
-            <span className="text-xs">Info</span>
-          </button>
-          <button
-            onClick={() => setShowExitConfirm(true)}
-            className="p-2 flex flex-col items-center"
-          >
-            <AiOutlineLogout className="text-xl" />
-            <span className="text-xs">Exit</span>
-          </button>
-          <button
-            onClick={() => setShowLobbyConfirm(true)}
-            className="p-2 flex flex-col items-center"
-          >
-            <AiOutlineRollback className="text-xl" />
-            <span className="text-xs">Lobby</span>
-          </button>
-        </div>
-        <div className="flex space-x-2">
-          {players
-            .map((p, i) => ({ ...p, index: i }))
-            .filter((p) => p.position === 0)
-            .map((p) => (
-              <PlayerToken
-                key={`inactive-${p.index}`}
-                photoUrl={p.photoUrl}
-                type={"normal"}
-                color={p.color}
-                className="small"
-              />
-            ))}
-        </div>
+      {/* Action menu fixed to the right */}
+      <div className="fixed right-2 top-1/2 -translate-y-1/2 flex flex-col items-end space-y-2 z-20">
+        <button
+          onClick={() => window.location.reload()}
+          className="p-2 flex flex-col items-center"
+        >
+          <AiOutlineReload className="text-xl" />
+          <span className="text-xs">Reload</span>
+        </button>
+        <button
+          onClick={() => setShowInfo(true)}
+          className="p-2 flex flex-col items-center"
+        >
+          <AiOutlineInfoCircle className="text-2xl" />
+          <span className="text-xs">Info</span>
+        </button>
+        <button
+          onClick={() => setShowExitConfirm(true)}
+          className="p-2 flex flex-col items-center"
+        >
+          <AiOutlineLogout className="text-xl" />
+          <span className="text-xs">Exit</span>
+        </button>
+        <button
+          onClick={() => setShowLobbyConfirm(true)}
+          className="p-2 flex flex-col items-center"
+        >
+          <AiOutlineRollback className="text-xl" />
+          <span className="text-xs">Lobby</span>
+        </button>
+      </div>
+      {/* Inactive tokens fixed to the left */}
+      <div className="fixed left-2 top-1/2 -translate-y-1/2 flex flex-col space-y-2 z-20">
+        {players
+          .map((p, i) => ({ ...p, index: i }))
+          .filter((p) => p.position === 0)
+          .map((p) => (
+            <PlayerToken
+              key={`inactive-${p.index}`}
+              photoUrl={p.photoUrl}
+              type={"normal"}
+              color={p.color}
+              className="small"
+            />
+          ))}
       </div>
       <Board
         players={players}
