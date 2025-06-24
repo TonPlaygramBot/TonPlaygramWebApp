@@ -193,10 +193,7 @@ function Board({
           )}
           {players
             .map((p, i) => ({ ...p, index: i }))
-            .filter(
-              (p) =>
-                p.position === num || (p.position === 0 && num === p.index + 1),
-            )
+            .filter((p) => p.position !== 0 && p.position === num)
             .map((p) => (
               <PlayerToken
                 key={p.index}
@@ -991,35 +988,51 @@ export default function SnakeAndLadder() {
 
   return (
     <div className="p-4 pb-32 space-y-4 text-text flex flex-col justify-end items-center relative w-full flex-grow">
-      <div className="absolute top-0 -right-2 flex flex-col items-end space-y-2 p-2 z-20">
-        <button
-          onClick={() => window.location.reload()}
-          className="p-2 flex flex-col items-center"
-        >
-          <AiOutlineReload className="text-xl" />
-          <span className="text-xs">Reload</span>
-        </button>
-        <button
-          onClick={() => setShowInfo(true)}
-          className="p-2 flex flex-col items-center"
-        >
-          <AiOutlineInfoCircle className="text-2xl" />
-          <span className="text-xs">Info</span>
-        </button>
-        <button
-          onClick={() => setShowExitConfirm(true)}
-          className="p-2 flex flex-col items-center"
-        >
-          <AiOutlineLogout className="text-xl" />
-          <span className="text-xs">Exit</span>
-        </button>
-        <button
-          onClick={() => setShowLobbyConfirm(true)}
-          className="p-2 flex flex-col items-center"
-        >
-          <AiOutlineRollback className="text-xl" />
-          <span className="text-xs">Lobby</span>
-        </button>
+      <div className="absolute top-0 right-0 flex flex-col items-end p-2 z-20 space-y-2">
+        <div className="flex space-x-2">
+          <button
+            onClick={() => window.location.reload()}
+            className="p-2 flex flex-col items-center"
+          >
+            <AiOutlineReload className="text-xl" />
+            <span className="text-xs">Reload</span>
+          </button>
+          <button
+            onClick={() => setShowInfo(true)}
+            className="p-2 flex flex-col items-center"
+          >
+            <AiOutlineInfoCircle className="text-2xl" />
+            <span className="text-xs">Info</span>
+          </button>
+          <button
+            onClick={() => setShowExitConfirm(true)}
+            className="p-2 flex flex-col items-center"
+          >
+            <AiOutlineLogout className="text-xl" />
+            <span className="text-xs">Exit</span>
+          </button>
+          <button
+            onClick={() => setShowLobbyConfirm(true)}
+            className="p-2 flex flex-col items-center"
+          >
+            <AiOutlineRollback className="text-xl" />
+            <span className="text-xs">Lobby</span>
+          </button>
+        </div>
+        <div className="flex space-x-2">
+          {players
+            .map((p, i) => ({ ...p, index: i }))
+            .filter((p) => p.position === 0)
+            .map((p) => (
+              <PlayerToken
+                key={`inactive-${p.index}`}
+                photoUrl={p.photoUrl}
+                type={"normal"}
+                color={p.color}
+                className="small"
+              />
+            ))}
+        </div>
       </div>
       <Board
         players={players}
