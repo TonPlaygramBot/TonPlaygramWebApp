@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 
 // Use DiceBear's adventurer-neutral SVG avatars which are gender-neutral
 // and small text-based files instead of binary PNG images.
-const AVATARS = [
+export const AVATARS = [
   'https://api.dicebear.com/7.x/adventurer-neutral/svg?seed=avatar1',
   'https://api.dicebear.com/7.x/adventurer-neutral/svg?seed=avatar2',
   'https://api.dicebear.com/7.x/adventurer-neutral/svg?seed=avatar3',
