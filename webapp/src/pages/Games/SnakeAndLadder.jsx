@@ -186,7 +186,7 @@ function Board({
           {cellType === "" && <span className="cell-number">{num}</span>}
           {diceCells && diceCells[num] && (
             <span className="dice-marker">
-              <img src="/assets/icons/dice.svg" alt="dice" />
+              <img src="https://raw.githubusercontent.com/twitter/twemoji/master/assets/svg/1f3b2.svg" alt="dice" />
               <span className="dice-value">
                 <span className="dice-sign">+</span>
                 <span className="dice-number">{diceCells[num]}</span>
@@ -1068,6 +1068,7 @@ export default function SnakeAndLadder() {
               photoUrl={p.photoUrl}
               active={p.index === currentTurn}
               rank={rankMap[p.index]}
+              name={p.index === 0 ? 'You' : `AI ${p.index}`}
               timerPct={
                 p.index === currentTurn
                   ? timeLeft / (p.index === 0 ? 15 : 3)

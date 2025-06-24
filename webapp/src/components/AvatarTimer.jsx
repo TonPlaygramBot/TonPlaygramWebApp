@@ -1,6 +1,6 @@
 import React from 'react';
 
-export default function AvatarTimer({ photoUrl, active = false, timerPct = 1, rank }) {
+export default function AvatarTimer({ photoUrl, active = false, timerPct = 1, rank, name }) {
   const angle = (1 - timerPct) * 360;
   const gradient = `conic-gradient(#facc15 ${angle}deg, #16a34a 0deg)`;
   return (
@@ -15,6 +15,9 @@ export default function AvatarTimer({ photoUrl, active = false, timerPct = 1, ra
       />
       {rank != null && (
         <span className="rank-number">{rank}</span>
+      )}
+      {name && (
+        <span className="rank-name">{name}</span>
       )}
     </div>
   );
