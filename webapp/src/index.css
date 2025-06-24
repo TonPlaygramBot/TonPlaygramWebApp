@@ -64,7 +64,7 @@ body {
   height: calc(var(--board-width) * 1.7);
   /* keep bottom in place by shifting upward */
   /* slightly shift down so the backdrop covers the starting rows */
-  transform: translate(-50%, -52%) rotate(90deg) translateZ(0);
+  transform: translate(-50%, -55%) rotate(90deg) translateZ(0);
   transform-origin: center;
   /* widen the top of the backdrop while keeping the bottom unchanged */
   /* narrow the bottom of the backdrop so it fits the board */
@@ -75,7 +75,7 @@ body {
   /* Expand the bottom of the backdrop so it extends beyond the board */
   /* Make the top even wider next to the logo and taper the bottom */
   /* Narrow top edge and widen bottom edge for a stronger perspective */
-  clip-path: polygon(-55% 0%, 155% 0%, 110% 100%, -10% 100%);
+  clip-path: polygon(-45% 0%, 145% 0%, 185% 100%, -85% 100%);
   pointer-events: none;
   z-index: 0;
   background:
@@ -88,7 +88,7 @@ body {
     ),
     linear-gradient(
       to top,
-      #0b0f19,
+      #000a1f,
       #123840,
       #1f4d58 20%,
       #d9cec2 40%,
@@ -96,7 +96,7 @@ body {
       #b95741 60%,
       #e7b382 80%,
       #4c050d,
-      #0b0f19
+      #220003
     );
 }
 
@@ -610,13 +610,14 @@ body {
   z-index: 3; /* ensure icons appear above connectors */
 }
 
-.cell-emoji {
-  font-size: 1.7rem;
-  line-height: 1;
+.cell-icon {
+  width: 1.7rem;
+  height: 1.7rem;
+  object-fit: contain;
 }
 
 /* Start cell icon tweaks */
-.board-cell[data-cell="1"] .cell-emoji {
+.board-cell[data-cell="1"] .cell-icon {
   width: 4.8rem;
   height: 4.8rem;
   animation: hex-spin 6s linear infinite;
@@ -756,15 +757,16 @@ body {
 
 .logo-wall-main {
   @apply absolute flex items-center justify-center;
-  width: calc(var(--cell-width) * 7);
-  height: calc(var(--cell-height) * 5);
+  width: calc(var(--cell-width) * 6); /* larger logo width */
+  height: calc(var(--cell-height) * 5); /* taller logo */
+  /* position the logo slightly lower on the board */
   top: calc(
     var(--cell-height) * -10 - var(--cell-height) * 1.7 *
       (var(--final-scale, 1) - 1)
   );
   left: 50%;
   transform: translateX(-50%) rotateX(calc(var(--board-angle, 58deg) * -1))
-    translateZ(-90px) scale(2.3);
+    translateZ(-90px) scale(2.1); /* slightly larger logo */
   transform-origin: bottom center;
   background-image: url("/assets/TonPlayGramLogo.jpg");
   background-size: contain;
@@ -880,13 +882,14 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 1.8rem;
   pointer-events: none;
   z-index: 2;
 }
 
-.dice-emoji {
-  line-height: 1;
+.dice-marker img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
 }
 
 .dice-value {
