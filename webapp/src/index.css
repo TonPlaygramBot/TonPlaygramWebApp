@@ -307,8 +307,8 @@ body {
 
 .timer-ring {
   position: absolute;
-  width: 3.4rem;
-  height: 3.4rem;
+  width: 3.6rem;
+  height: 3.6rem;
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%) translateZ(15.2px)
