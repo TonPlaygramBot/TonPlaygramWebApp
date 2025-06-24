@@ -599,8 +599,8 @@ body {
   position: absolute;
   top: 50%;
   left: 50%;
-  /* tilt icons so they sit flush with the board surface */
-  transform: translate(-50%, -50%)
+  /* match the number position so icons align perfectly */
+  transform: translate(-50%, -60%) translateZ(6px)
     rotateX(calc(var(--board-angle, 58deg) * -1));
   display: flex;
   align-items: center;
@@ -926,7 +926,7 @@ body {
   background-color: #555;
   /* true regular hexagon */
   clip-path: polygon(25% 0%, 75% 0%, 100% 50%, 75% 100%, 25% 100%, 0% 50%);
-  transform: translate(-50%, -50%) translateZ(6px)
+  transform: translate(-52%, -52%) translateZ(6px)
     rotateX(calc(var(--board-angle, 58deg) * -1));
   pointer-events: none;
   z-index: 0;
