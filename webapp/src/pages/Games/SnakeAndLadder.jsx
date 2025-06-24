@@ -1021,14 +1021,13 @@ export default function SnakeAndLadder() {
           <span className="text-xs">Lobby</span>
         </button>
       </div>
-      {/* Player photos for tokens not yet active */}
+      {/* Player photos stacked vertically */}
       <div className="fixed left-2 top-4 flex flex-col space-y-2 z-20">
         {players
           .map((p, i) => ({ ...p, index: i }))
-          .filter((p) => p.position === 0)
           .map((p) => (
             <AvatarTimer
-              key={`inactive-${p.index}`}
+              key={`player-${p.index}`}
               photoUrl={p.photoUrl}
               active={p.index === currentTurn}
               timerPct={p.index === currentTurn ? timeLeft / 15 : 1}
