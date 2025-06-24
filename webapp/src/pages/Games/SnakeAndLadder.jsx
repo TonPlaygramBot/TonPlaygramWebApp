@@ -319,7 +319,7 @@ function Board({
               // Fixed camera angle with no zooming
               // Pull the board slightly back so more of the lower rows are
               // visible when the game starts without changing zoom or angle
-              transform: `translate(${boardXOffset}px, ${boardYOffset}px) translateZ(${boardZOffset}px) rotateX(${angle}deg) scale(0.95)`,
+              transform: `translate(${boardXOffset}px, ${boardYOffset}px) translateZ(${boardZOffset}px) rotateX(${angle}deg) scale(0.9)`,
             }}
           >
             <div className="snake-gradient-bg" />
