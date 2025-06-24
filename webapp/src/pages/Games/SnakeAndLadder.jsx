@@ -353,17 +353,6 @@ function Board({
 
 export default function SnakeAndLadder() {
   useTelegramBackButton();
-  useEffect(() => {
-    const tg = window?.Telegram?.WebApp;
-    if (!tg) return;
-    const handleSettings = () => window.location.reload();
-    tg.SettingsButton.show();
-    tg.onEvent('settingsButtonClicked', handleSettings);
-    return () => {
-      tg.offEvent('settingsButtonClicked', handleSettings);
-      tg.SettingsButton.hide();
-    };
-  }, []);
   const navigate = useNavigate();
   const [pos, setPos] = useState(0);
   const [streak, setStreak] = useState(0);
@@ -958,8 +947,7 @@ export default function SnakeAndLadder() {
 
   useEffect(() => {
     if (setupPhase || gameOver) return;
-    const maxTime = currentTurn === 0 ? 15 : 3;
-    setTimeLeft(maxTime);
+    setTimeLeft(15);
     if (timerRef.current) clearInterval(timerRef.current);
     timerRef.current = setInterval(() => {
       setTimeLeft(t => {
@@ -1050,7 +1038,7 @@ export default function SnakeAndLadder() {
         diceCells={diceCells}
         rollingIndex={rollingIndex}
         currentTurn={currentTurn}
-        timerPct={timeLeft / (currentTurn === 0 ? 15 : 3)}
+        timerPct={timeLeft / 15}
       />
       {rollResult !== null && (
         <div className="fixed bottom-44 inset-x-0 flex justify-center z-30 pointer-events-none">
