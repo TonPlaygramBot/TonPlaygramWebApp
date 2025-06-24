@@ -961,3 +961,21 @@ body {
 .board-frame-overlay {
   display: none;
 }
+
+.tile-frame {
+  border: 3px solid rgba(255, 230, 0, 0.9);
+  border-radius: 0.5rem;
+  pointer-events: none;
+  animation: tile-pulse 1.5s ease-in-out infinite;
+  box-shadow: 0 0 8px rgba(255, 230, 0, 0.6);
+}
+
+@keyframes tile-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 8px rgba(255, 230, 0, 0.6);
+  }
+  50% {
+    box-shadow: 0 0 16px rgba(255, 230, 0, 1);
+  }
+}
