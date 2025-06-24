@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import confetti from "canvas-confetti";
 import DiceRoller from "../../components/DiceRoller.jsx";
-import { dropSound, snakeSound, ladderSound, timerBeep } from "../../assets/soundData.js";
+import { dropSound, snakeSound, ladderSound, timerBeep, bombSound } from "../../assets/soundData.js";
 import { AVATARS } from "../../components/AvatarPickerModal.jsx";
 import InfoPopup from "../../components/InfoPopup.jsx";
 import GameEndPopup from "../../components/GameEndPopup.jsx";
@@ -83,6 +83,7 @@ function Board({
   rollingIndex,
   currentTurn,
   timerPct,
+  burning = [],
 }) {
   const containerRef = useRef(null);
   const [cellWidth, setCellWidth] = useState(80);
@@ -205,11 +206,12 @@ function Board({
                 active={p.index === currentTurn}
                 timerPct={p.index === currentTurn ? timerPct : 1}
                 className={
-                  p.position === 0
+                  (p.position === 0
                     ? "start"
                     : p.index === 0 && isJump
                       ? "jump"
-                      : ""
+                      : "") +
+                  (burning.includes(p.index) ? " burning" : "")
                 }
               />
             ))}
@@ -398,6 +400,7 @@ export default function SnakeAndLadder() {
   const [playerAutoRolling, setPlayerAutoRolling] = useState(false);
   const [timeLeft, setTimeLeft] = useState(15);
   const [aiAvatars, setAiAvatars] = useState([]);
+  const [burning, setBurning] = useState([]); // indices of tokens burning
 
   const playerName = (idx) => (
     <span style={{ color: playerColors[idx] }}>
@@ -405,11 +408,36 @@ export default function SnakeAndLadder() {
     </span>
   );
 
+  const capturePieces = (cell, mover) => {
+    const victims = [];
+    if (mover !== 0 && pos === cell) victims.push(0);
+    aiPositions.forEach((p, i) => {
+      const idx = i + 1;
+      if (idx !== mover && p === cell) victims.push(idx);
+    });
+    if (victims.length) {
+      bombSoundRef.current?.play().catch(() => {});
+      victims.forEach((idx) => {
+        setBurning((b) => [...b, idx]);
+        setTimeout(() => {
+          setBurning((b) => b.filter((v) => v !== idx));
+          if (idx === 0) setPos(0);
+          else setAiPositions((arr) => {
+            const copy = [...arr];
+            copy[idx - 1] = 0;
+            return copy;
+          });
+        }, 1000);
+      });
+    }
+  };
+
   const moveSoundRef = useRef(null);
   const snakeSoundRef = useRef(null);
   const ladderSoundRef = useRef(null);
   const winSoundRef = useRef(null);
   const diceRewardSoundRef = useRef(null);
+  const bombSoundRef = useRef(null);
   const timerSoundRef = useRef(null);
   const timerRef = useRef(null);
 
@@ -445,6 +473,7 @@ export default function SnakeAndLadder() {
     ladderSoundRef.current = new Audio(ladderSound);
     winSoundRef.current = new Audio("/assets/sounds/successful.mp3");
     diceRewardSoundRef.current = new Audio("/assets/sounds/successful.mp3");
+    bombSoundRef.current = new Audio(bombSound);
     timerSoundRef.current = new Audio(timerBeep);
     return () => {
       moveSoundRef.current?.pause();
@@ -452,6 +481,7 @@ export default function SnakeAndLadder() {
       ladderSoundRef.current?.pause();
       winSoundRef.current?.pause();
       diceRewardSoundRef.current?.pause();
+      bombSoundRef.current?.pause();
       timerSoundRef.current?.pause();
     };
   }, []);
@@ -736,6 +766,7 @@ export default function SnakeAndLadder() {
         setTrail([]);
         setTokenType(type);
         setTimeout(() => setHighlight(null), 300);
+        capturePieces(finalPos, 0);
         if (finalPos === FINAL_TILE && !ranking.includes('You')) {
           if (ranking.length === 0) {
             const id = getTelegramId();
@@ -841,6 +872,7 @@ export default function SnakeAndLadder() {
       setAiPositions([...positions]);
       setHighlight({ cell: finalPos, type });
       setTrail([]);
+      capturePieces(finalPos, index);
       setTimeout(() => setHighlight(null), 300);
       if (finalPos === FINAL_TILE && !ranking.includes(`AI ${index}`)) {
         setRanking(r => {
@@ -1061,6 +1093,7 @@ export default function SnakeAndLadder() {
         rollingIndex={rollingIndex}
         currentTurn={currentTurn}
         timerPct={timeLeft / (currentTurn === 0 ? 15 : 3)}
+        burning={burning}
       />
       {rollResult !== null && (
         <div className="fixed bottom-44 inset-x-0 flex justify-center z-30 pointer-events-none">
