@@ -257,6 +257,8 @@ function Board({
   const boardXOffset = -10; // pixels
   // Lift the board slightly so the bottom row stays visible
   const boardYOffset = -40; // pixels
+  // Pull the board away from the camera without changing the angle or zoom
+  const boardZOffset = -50; // pixels
 
   // How many board rows to scroll back from the starting position so
   // the bottom row remains in view. Set to 0 to begin at the very first row
@@ -315,10 +317,9 @@ function Board({
               "--board-angle": `${angle}deg`,
               "--final-scale": finalScale,
               // Fixed camera angle with no zooming
-              // Slightly enlarge the board in both directions
               // Pull the board slightly back so more of the lower rows are
-              // visible when the game starts
-              transform: `translate(${boardXOffset}px, ${boardYOffset}px) rotateX(${angle}deg) scale(0.9)`,
+              // visible when the game starts without changing zoom or angle
+              transform: `translate(${boardXOffset}px, ${boardYOffset}px) translateZ(${boardZOffset}px) rotateX(${angle}deg) scale(0.9)`,
             }}
           >
             <div className="snake-gradient-bg" />
