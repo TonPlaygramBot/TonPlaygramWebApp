@@ -709,14 +709,14 @@ body {
   @apply absolute flex items-center justify-center;
   width: calc(var(--cell-width) * 6); /* larger logo width */
   height: calc(var(--cell-height) * 5); /* taller logo */
-  /* raise the logo slightly above the board */
+  /* position the logo slightly lower on the board */
   top: calc(
-    var(--cell-height) * -12 - var(--cell-height) * 1.7 *
+    var(--cell-height) * -10 - var(--cell-height) * 1.7 *
       (var(--final-scale, 1) - 1)
   );
   left: 50%;
   transform: translateX(-50%) rotateX(calc(var(--board-angle, 58deg) * -1))
-    translateZ(-90px) scale(1.8);
+    translateZ(-90px) scale(2);
   transform-origin: bottom center;
   background-image: url("/assets/TonPlayGramLogo.jpg");
   background-size: contain;
