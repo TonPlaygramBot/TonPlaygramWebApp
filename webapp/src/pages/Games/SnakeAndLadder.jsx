@@ -145,7 +145,11 @@ function Board({
             : "";
       const cellClass = cellType ? `${cellType}-cell` : "";
       const icon =
-        cellType === "ladder" ? "🪜" : cellType === "snake" ? "🐍" : "";
+        cellType === "ladder"
+          ? "/assets/icons/ladder.png"
+          : cellType === "snake"
+            ? "/assets/icons/snake.svg"
+            : "";
       const offsetVal =
         cellType === "ladder"
           ? ladderOffsets[num]
@@ -169,7 +173,11 @@ function Board({
         >
           {(icon || offsetVal != null) && (
             <span className="cell-marker">
-              {icon && <span className="cell-icon">{icon}</span>}
+              {icon && (
+                <span className="cell-icon">
+                  <img src={icon} alt={cellType} />
+                </span>
+              )}
               {offsetVal != null && (
                 <span className="cell-offset">
                   <span className={`cell-sign ${cellType}`}>

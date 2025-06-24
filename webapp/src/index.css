@@ -260,8 +260,8 @@ body {
 
 /* Larger token variant used for inactive pieces */
 .token-three.inactive {
-  width: 9rem;
-  height: 9rem;
+  width: 7.2rem;
+  height: 7.2rem;
   transform: translateZ(32px);
 }
 
@@ -551,12 +551,25 @@ body {
   font-size: 1.7rem; /* tiny bit bigger */
   line-height: 1;
   color: #fff; /* ensure visibility */
+  width: 1.7rem;
+  height: 1.7rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.cell-icon img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
 }
 
 /* Start cell icon tweaks */
 .board-cell[data-cell="1"] .cell-icon {
   /* slightly bigger starting hexagon */
   font-size: 4.8rem;
+  width: 4.8rem;
+  height: 4.8rem;
   display: inline-block;
   /* keep the icon upright so the animation starts at 0 degrees */
   transform: rotate(0deg);
@@ -725,7 +738,7 @@ body {
 }
 
 .snake-connector {
-  background-image: url("/assets/icons/snake.png");
+  background-image: url("/assets/icons/snake.svg");
   background-size: 100% 100%;
   background-repeat: no-repeat;
   border-radius: 4px;
