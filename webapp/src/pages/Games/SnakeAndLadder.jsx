@@ -9,12 +9,14 @@ import {
   AiOutlineInfoCircle,
   AiOutlineLogout,
   AiOutlineRollback,
+  AiOutlineReload,
 } from "react-icons/ai";
 import useTelegramBackButton from "../../hooks/useTelegramBackButton.js";
 import { useNavigate } from "react-router-dom";
 import { getTelegramId, getTelegramPhotoUrl } from "../../utils/telegram.js";
 import { fetchTelegramInfo, getProfile, deposit } from "../../utils/api.js";
 import PlayerToken from "../../components/PlayerToken.jsx";
+import ConfirmPopup from "../../components/ConfirmPopup.jsx";
 
 const TOKEN_COLORS = [
   { name: "blue", color: "#60a5fa" },
@@ -369,6 +371,8 @@ export default function SnakeAndLadder() {
   const [token, setToken] = useState("TPC");
   const [celebrate, setCelebrate] = useState(false);
   const [showInfo, setShowInfo] = useState(false);
+  const [showExitConfirm, setShowExitConfirm] = useState(false);
+  const [showLobbyConfirm, setShowLobbyConfirm] = useState(false);
   const [snakes, setSnakes] = useState({});
   const [ladders, setLadders] = useState({});
   const [snakeOffsets, setSnakeOffsets] = useState({});
@@ -977,6 +981,13 @@ export default function SnakeAndLadder() {
     <div className="p-4 pb-32 space-y-4 text-text flex flex-col justify-end items-center relative w-full flex-grow">
       <div className="absolute top-0 -right-2 flex flex-col items-end space-y-2 p-2 z-20">
         <button
+          onClick={() => window.location.reload()}
+          className="p-2 flex flex-col items-center"
+        >
+          <AiOutlineReload className="text-xl" />
+          <span className="text-xs">Reload</span>
+        </button>
+        <button
           onClick={() => setShowInfo(true)}
           className="p-2 flex flex-col items-center"
         >
@@ -984,14 +995,14 @@ export default function SnakeAndLadder() {
           <span className="text-xs">Info</span>
         </button>
         <button
-          onClick={() => navigate("/games")}
+          onClick={() => setShowExitConfirm(true)}
           className="p-2 flex flex-col items-center"
         >
           <AiOutlineLogout className="text-xl" />
           <span className="text-xs">Exit</span>
         </button>
         <button
-          onClick={() => navigate("/games/snake/lobby")}
+          onClick={() => setShowLobbyConfirm(true)}
           className="p-2 flex flex-col items-center"
         >
           <AiOutlineRollback className="text-xl" />
@@ -1085,6 +1096,24 @@ export default function SnakeAndLadder() {
           localStorage.removeItem(`snakeGameState_${ai}`);
           navigate("/games/snake/lobby");
         }}
+      />
+      <ConfirmPopup
+        open={showExitConfirm}
+        message="Are you sure you want to quit?"
+        onConfirm={() => {
+          localStorage.removeItem(`snakeGameState_${ai}`);
+          navigate("/games");
+        }}
+        onCancel={() => setShowExitConfirm(false)}
+      />
+      <ConfirmPopup
+        open={showLobbyConfirm}
+        message="Return to lobby and end the game?"
+        onConfirm={() => {
+          localStorage.removeItem(`snakeGameState_${ai}`);
+          navigate("/games/snake/lobby");
+        }}
+        onCancel={() => setShowLobbyConfirm(false)}
       />
     </div>
   );
