@@ -611,18 +611,17 @@ body {
 }
 
 .cell-icon {
-  font-size: 1.7rem; /* tiny bit bigger */
-  line-height: 1;
-  color: #fff; /* ensure visibility */
+  width: 1.7rem;
+  height: 1.7rem;
+  object-fit: contain;
 }
 
 /* Start cell icon tweaks */
 .board-cell[data-cell="1"] .cell-icon {
-  /* slightly bigger starting hexagon */
-  font-size: 4.8rem;
-  display: inline-block;
-  /* keep the icon upright so the animation starts at 0 degrees */
-  transform: rotate(0deg);
+  width: 4.8rem;
+  height: 4.8rem;
+  animation: hex-spin 6s linear infinite;
+  transform-origin: center;
 }
 
 /* Rotate the start cell icon in place */
@@ -925,11 +924,9 @@ body {
   margin: auto;
   width: var(--cell-height);
   height: var(--cell-height);
-  /* show only the outline so the number sits inside */
-  background-color: transparent;
-  border: 3px solid #facc15;
+  background-color: #3f3f46;
+  border: 3px solid #27272a;
   box-sizing: border-box;
-  /* true regular hexagon */
   clip-path: polygon(25% 0%, 75% 0%, 100% 50%, 75% 100%, 25% 100%, 0% 50%);
   transform: translateZ(6px);
   pointer-events: none;
