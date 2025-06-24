@@ -16,7 +16,7 @@ import {
 import useTelegramBackButton from "../../hooks/useTelegramBackButton.js";
 import { useNavigate } from "react-router-dom";
 import { getTelegramId, getTelegramPhotoUrl } from "../../utils/telegram.js";
-import { fetchTelegramInfo, getProfile } from "../../utils/api.js";
+import { fetchTelegramInfo, getProfile, deposit } from "../../utils/api.js";
 import PlayerToken from "../../components/PlayerToken.jsx";
 import TurnTimer from "../../components/TurnTimer.jsx";
 
@@ -389,6 +389,7 @@ export default function SnakeAndLadder() {
   const [aiPositions, setAiPositions] = useState([]);
   const [playerColors, setPlayerColors] = useState([]);
   const [currentTurn, setCurrentTurn] = useState(0); // 0 = player
+  const [ranking, setRanking] = useState([]);
   const [turnOrder, setTurnOrder] = useState([]);
   const [initialRolls, setInitialRolls] = useState([]);
   const [setupPhase, setSetupPhase] = useState(true);
@@ -566,6 +567,43 @@ export default function SnakeAndLadder() {
     setDiceCells(diceMap);
   }, []);
 
+  useEffect(() => {
+    const key = `snakeGameState_${ai}`;
+    const stored = localStorage.getItem(key);
+    if (stored) {
+      try {
+        const data = JSON.parse(stored);
+        setPos(data.pos ?? 0);
+        setAiPositions(data.aiPositions ?? Array(ai).fill(0));
+        setCurrentTurn(data.currentTurn ?? 0);
+        setDiceCells(data.diceCells ?? {});
+        setSnakes(data.snakes ?? {});
+        setLadders(data.ladders ?? {});
+        setSnakeOffsets(data.snakeOffsets ?? {});
+        setLadderOffsets(data.ladderOffsets ?? {});
+        setRanking(data.ranking ?? []);
+        setGameOver(data.gameOver ?? false);
+      } catch {}
+    }
+  }, [ai]);
+
+  useEffect(() => {
+    const key = `snakeGameState_${ai}`;
+    const data = {
+      pos,
+      aiPositions,
+      currentTurn,
+      diceCells,
+      snakes,
+      ladders,
+      snakeOffsets,
+      ladderOffsets,
+      ranking,
+      gameOver,
+    };
+    localStorage.setItem(key, JSON.stringify(data));
+  }, [ai, pos, aiPositions, currentTurn, diceCells, snakes, ladders, snakeOffsets, ladderOffsets, ranking, gameOver]);
+
   const handleRoll = (values) => {
     setTurnMessage("");
     const value = Array.isArray(values)
@@ -717,7 +755,16 @@ export default function SnakeAndLadder() {
         setTrail([]);
         setTokenType(type);
         setTimeout(() => setHighlight(null), 300);
-        if (finalPos === FINAL_TILE) {
+        if (finalPos === FINAL_TILE && !ranking.includes('You')) {
+          if (ranking.length === 0) {
+            const id = getTelegramId();
+            deposit(id, pot).catch(() => {});
+          }
+          setRanking(r => {
+            const next = [...r, 'You'];
+            if (next.length === ai + 1) setGameOver(true);
+            return next;
+          });
           setMessage(`You win ${pot} ${token}!`);
           setMessageColor("");
           winSoundRef.current?.play().catch(() => {});
@@ -726,7 +773,6 @@ export default function SnakeAndLadder() {
           setTimeout(() => {
             setCelebrate(false);
             setDiceCount(2);
-            setGameOver(true);
           }, 1500);
         }
         if (diceCells[finalPos]) {
@@ -815,9 +861,13 @@ export default function SnakeAndLadder() {
       setHighlight({ cell: finalPos, type });
       setTrail([]);
       setTimeout(() => setHighlight(null), 300);
-      if (finalPos === FINAL_TILE) {
+      if (finalPos === FINAL_TILE && !ranking.includes(`AI ${index}`)) {
+        setRanking(r => {
+          const next = [...r, `AI ${index}`];
+          if (next.length === ai + 1) setGameOver(true);
+          return next;
+        });
         setMessage(`AI ${index} wins!`);
-        setGameOver(true);
         setDiceVisible(false);
         return;
       }
@@ -1042,9 +1092,15 @@ export default function SnakeAndLadder() {
       />
       <GameEndPopup
         open={gameOver}
-        ranking={["You"]}
-        onPlayAgain={() => window.location.reload()}
-        onReturn={() => navigate("/games/snake/lobby")}
+        ranking={ranking}
+        onPlayAgain={() => {
+          localStorage.removeItem(`snakeGameState_${ai}`);
+          window.location.reload();
+        }}
+        onReturn={() => {
+          localStorage.removeItem(`snakeGameState_${ai}`);
+          navigate("/games/snake/lobby");
+        }}
       />
     </div>
   );
