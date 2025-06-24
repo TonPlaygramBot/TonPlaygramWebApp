@@ -18,7 +18,6 @@ import { fetchTelegramInfo, getProfile, deposit } from "../../utils/api.js";
 import PlayerToken from "../../components/PlayerToken.jsx";
 import AvatarTimer from "../../components/AvatarTimer.jsx";
 import ConfirmPopup from "../../components/ConfirmPopup.jsx";
-import TileFrame from "../../components/TileFrame.jsx";
 
 const TOKEN_COLORS = [
   { name: "blue", color: "#60a5fa" },
@@ -92,12 +91,7 @@ function Board({
   const [connectors, setConnectors] = useState([]);
   const [cellWidth, setCellWidth] = useState(80);
   const [cellHeight, setCellHeight] = useState(40);
-  const [tileRect, setTileRect] = useState(null);
-  const adjustX = 0;
-  const adjustY = 0;
-  useEffect(() => {
-    if (tileRect) console.log(tileRect);
-  }, [tileRect]);
+  // const tileRect removed - no longer highlighting the first cell
   const tiles = [];
   const centerCol = (COLS - 1) / 2;
   // Gradual horizontal widening towards the top. Keep the bottom
@@ -251,11 +245,6 @@ function Board({
       // Make each cell slightly taller while keeping spacing consistent
       const ch = Math.floor(cw / 1.7);
       setCellHeight(ch);
-      if (tile1Ref.current && containerRef.current) {
-        const { left, top, width: w, height: h } = tile1Ref.current.getBoundingClientRect();
-        const { left: cl, top: ct } = containerRef.current.getBoundingClientRect();
-        setTileRect({ x: left + w / 2 - cl, y: top + h / 2 - ct, width: w, height: h });
-      }
     };
     updateSize();
     window.addEventListener("resize", updateSize);
@@ -263,11 +252,7 @@ function Board({
   }, []);
 
   useLayoutEffect(() => {
-    if (tile1Ref.current && containerRef.current) {
-      const { left, top, width, height } = tile1Ref.current.getBoundingClientRect();
-      const { left: cl, top: ct } = containerRef.current.getBoundingClientRect();
-      setTileRect({ x: left + width / 2 - cl, y: top + height / 2 - ct, width, height });
-    }
+    // board layout recalculations
   }, [cellWidth, cellHeight]);
 
   useLayoutEffect(() => {
@@ -436,7 +421,6 @@ function Board({
           </div>
         </div>
       </div>
-      <TileFrame rect={tileRect} adjustX={adjustX} adjustY={adjustY} />
     </div>
   );
 }
