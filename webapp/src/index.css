@@ -14,11 +14,12 @@ body {
 }
 
 .hexagon {
-  clip-path: polygon(25% 5%, 75% 5%, 100% 50%, 75% 95%, 25% 95%, 0% 50%);
+  /* perfect hexagon with equal inner distances */
+  clip-path: polygon(50% 0%, 93% 25%, 93% 75%, 50% 100%, 7% 75%, 7% 25%);
 }
 
 .hex-table {
-  clip-path: polygon(25% 5%, 75% 5%, 100% 50%, 75% 95%, 25% 95%, 0% 50%);
+  clip-path: polygon(50% 0%, 93% 25%, 93% 75%, 50% 100%, 7% 75%, 7% 25%);
   /* Transparent background so the board remains visible */
   background: transparent;
   border: 4px solid #b22222;
@@ -318,8 +319,9 @@ body {
 
 .timer-ring {
   position: absolute;
-  width: 3.4rem;
-  height: 3.4rem;
+  /* match the player photo size so the ring wraps perfectly */
+  width: 2.9rem;
+  height: 2.9rem;
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%) translateZ(15.2px)
@@ -340,6 +342,16 @@ body {
   background: var(--timer-gradient);
   -webkit-mask: radial-gradient(farthest-side, transparent 65%, black 66%);
           mask: radial-gradient(farthest-side, transparent 65%, black 66%);
+}
+
+.rank-number {
+  position: absolute;
+  top: -0.3rem;
+  right: -0.3rem;
+  width: 1rem;
+  height: 1rem;
+  font-size: 0.6rem;
+  @apply flex items-center justify-center rounded-full bg-slate-800 text-white;
 }
 
 .token-cube-inner {
@@ -548,7 +560,9 @@ body {
   position: absolute;
   top: 50%;
   left: 50%;
-  transform: translate(-50%, -60%);
+  /* tilt icons so they sit flush with the board surface */
+  transform: translate(-50%, -60%)
+    rotateX(calc(var(--board-angle, 58deg) * -1));
   display: flex;
   align-items: center;
   justify-content: center; /* keep icon and offset perfectly centred */
@@ -575,7 +589,8 @@ body {
 /* Rotate the start cell icon in place */
 .board-cell[data-cell="1"] .cell-marker {
   animation: start-sway 2.5s ease-in-out infinite;
-  transform: translate(-50%, -50%);
+  transform: translate(-50%, -50%)
+    rotateX(calc(var(--board-angle, 58deg) * -1));
   transform-style: preserve-3d;
 }
 
@@ -867,8 +882,8 @@ body {
   position: absolute;
   inset: 6px;
   background-color: #555;
-  /* regular hexagon with equal radii */
-  clip-path: polygon(25% 0%, 75% 0%, 100% 50%, 75% 100%, 25% 100%, 0% 50%);
+  /* regular hexagon with equal side lengths */
+  clip-path: polygon(50% 0%, 93% 25%, 93% 75%, 50% 100%, 7% 75%, 7% 25%);
   transform: translateZ(6px);
   pointer-events: none;
   z-index: 0;
