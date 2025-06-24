@@ -607,7 +607,7 @@ body {
   justify-content: center; /* keep icon and offset perfectly centred */
   gap: 2px;
   pointer-events: none;
-  z-index: 2;
+  z-index: 3; /* ensure icons appear above connectors */
 }
 
 .cell-icon {
