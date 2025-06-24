@@ -8,7 +8,6 @@ export default function DiceRoller({
   clickable = false,
   numDice = 2,
   trigger,
-  showButton = true,
 }) {
   const [values, setValues] = useState(Array(numDice).fill(1));
   const [rolling, setRolling] = useState(false);
@@ -84,7 +83,7 @@ export default function DiceRoller({
       >
         <Dice values={values} rolling={rolling} startValues={startValuesRef.current} />
       </div>
-      {!clickable && showButton && (
+      {!clickable && (
         <button
           onClick={rollDice}
           disabled={rolling}
