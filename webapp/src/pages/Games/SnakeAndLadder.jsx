@@ -185,7 +185,7 @@ function Board({
           {cellType === "" && <span className="cell-number">{num}</span>}
           {diceCells && diceCells[num] && (
             <span className="dice-marker">
-              <img src="/assets/icons/dice.svg" alt="dice" />
+              <img src="https://openclipart.org/image/400px/92041" alt="dice" />
               <span className="dice-value">
                 <span className="dice-sign">+</span>
                 <span className="dice-number">{diceCells[num]}</span>
