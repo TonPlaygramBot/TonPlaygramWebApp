@@ -146,11 +146,7 @@ function Board({
             : "";
       const cellClass = cellType ? `${cellType}-cell` : "";
       const icon =
-        cellType === "ladder"
-          ? "/assets/icons/ladder.png"
-          : cellType === "snake"
-            ? "/assets/icons/snake.svg"
-            : "";
+        cellType === "ladder" ? "🪜" : cellType === "snake" ? "🐍" : "";
       const offsetVal =
         cellType === "ladder"
           ? ladderOffsets[num]
@@ -174,11 +170,7 @@ function Board({
         >
           {(icon || offsetVal != null) && (
             <span className="cell-marker">
-              {icon && (
-                <span className="cell-icon">
-                  <img src={icon} alt={cellType} />
-                </span>
-              )}
+              {icon && <span className="cell-icon">{icon}</span>}
               {offsetVal != null && (
                 <span className="cell-offset">
                   <span className={`cell-sign ${cellType}`}>
@@ -956,18 +948,20 @@ export default function SnakeAndLadder() {
 
   useEffect(() => {
     if (setupPhase || gameOver) return;
-    setTimeLeft(15);
+    const limit = currentTurn === 0 ? 15 : 3;
+    const beep = currentTurn === 0 ? 7 : 2;
+    setTimeLeft(limit);
     if (timerRef.current) clearInterval(timerRef.current);
     timerRef.current = setInterval(() => {
-      setTimeLeft(t => {
+      setTimeLeft((t) => {
         const next = t - 1;
-        if (next <= 7 && next >= 0) timerSoundRef.current?.play().catch(() => {});
+        if (next <= beep && next >= 0) timerSoundRef.current?.play().catch(() => {});
         if (next <= 0) {
           clearInterval(timerRef.current);
           if (currentTurn === 0) {
             setPlayerAutoRolling(true);
             setTurnMessage('Rolling...');
-            setPlayerRollTrigger(r => r + 1);
+            setPlayerRollTrigger((r) => r + 1);
           } else {
             triggerAIRoll(currentTurn);
           }
@@ -1030,7 +1024,11 @@ export default function SnakeAndLadder() {
               key={`player-${p.index}`}
               photoUrl={p.photoUrl}
               active={p.index === currentTurn}
-              timerPct={p.index === currentTurn ? timeLeft / 15 : 1}
+              timerPct={
+                p.index === currentTurn
+                  ? timeLeft / (p.index === 0 ? 15 : 3)
+                  : 1
+              }
             />
           ))}
       </div>
@@ -1050,7 +1048,7 @@ export default function SnakeAndLadder() {
         diceCells={diceCells}
         rollingIndex={rollingIndex}
         currentTurn={currentTurn}
-        timerPct={timeLeft / 15}
+        timerPct={timeLeft / (currentTurn === 0 ? 15 : 3)}
       />
       {rollResult !== null && (
         <div className="fixed bottom-44 inset-x-0 flex justify-center z-30 pointer-events-none">
