@@ -638,7 +638,10 @@ body {
 
 /* Center the start cell number inside the enlarged hexagon */
 .board-cell[data-cell="1"] .cell-number {
-  transform: translateY(0);
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
 }
 
 @keyframes start-rotate {
@@ -922,7 +925,10 @@ body {
   left: 50%;
   width: var(--cell-height);
   height: var(--cell-height);
-  background-color: #555;
+  /* show only the outline so the number sits inside */
+  background-color: transparent;
+  border: 3px solid #facc15;
+  box-sizing: border-box;
   /* true regular hexagon */
   clip-path: polygon(25% 0%, 75% 0%, 100% 50%, 75% 100%, 25% 100%, 0% 50%);
   transform: translate(-50%, -50%) translateZ(6px);
