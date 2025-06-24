@@ -1,11 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import confetti from "canvas-confetti";
 import DiceRoller from "../../components/DiceRoller.jsx";
-import {
-  dropSound,
-  snakeSound,
-  ladderSound,
-} from "../../assets/soundData.js";
+import { dropSound, snakeSound, ladderSound } from "../../assets/soundData.js";
 import InfoPopup from "../../components/InfoPopup.jsx";
 import GameEndPopup from "../../components/GameEndPopup.jsx";
 import {
@@ -18,19 +14,12 @@ import { useNavigate } from "react-router-dom";
 import { getTelegramId, getTelegramPhotoUrl } from "../../utils/telegram.js";
 import { fetchTelegramInfo, getProfile, deposit } from "../../utils/api.js";
 import PlayerToken from "../../components/PlayerToken.jsx";
-import TurnTimer from "../../components/TurnTimer.jsx";
 
 const TOKEN_COLORS = [
   { name: "blue", color: "#60a5fa" },
   { name: "red", color: "#ef4444" },
   { name: "green", color: "#4ade80" },
   { name: "yellow", color: "#facc15" },
-];
-
-const AI_AVATARS = [
-  "/assets/icons/ai1.svg",
-  "/assets/icons/ai2.svg",
-  "/assets/icons/ai3.svg",
 ];
 
 const PLAYERS = 4;
@@ -396,40 +385,12 @@ export default function SnakeAndLadder() {
   const [aiRollingIndex, setAiRollingIndex] = useState(null);
   const [aiRollTrigger, setAiRollTrigger] = useState(0);
   const [rollingIndex, setRollingIndex] = useState(null);
-  const [timeLeft, setTimeLeft] = useState(15);
-  const timerRef = useRef(null);
 
   const playerName = (idx) => (
     <span style={{ color: playerColors[idx] }}>
       {idx === 0 ? 'You' : `AI ${idx}`}
     </span>
   );
-
-  const startTimer = () => {
-    clearInterval(timerRef.current);
-    setTimeLeft(15);
-    timerRef.current = setInterval(() => {
-      setTimeLeft((t) => {
-        const next = t - 1;
-        if (next <= 0) {
-          clearInterval(timerRef.current);
-          if (currentTurn === 0) autoRoll(false);
-          else autoRoll(true);
-        }
-        return next;
-      });
-    }, 1000);
-  };
-
-  const autoRoll = (isAI) => {
-    const value = Math.floor(Math.random() * 6) + 1;
-    setRollResult(value);
-    setTimeout(() => setRollResult(null), 1500);
-    setTimeout(() => {
-      if (isAI) handleAIRoll(currentTurn, value);
-      else handleRoll(value);
-    }, 1500);
-  };
 
   const moveSoundRef = useRef(null);
   const snakeSoundRef = useRef(null);
@@ -962,7 +923,8 @@ export default function SnakeAndLadder() {
 
   useEffect(() => {
     if (!setupPhase && currentTurn > 0 && !gameOver) {
-      setTurnMessage(`${playerName(currentTurn)} turn`);
+      const id = setTimeout(() => triggerAIRoll(currentTurn), 1000);
+      return () => clearTimeout(id);
     }
   }, [currentTurn, gameOver, setupPhase]);
 
@@ -972,21 +934,9 @@ export default function SnakeAndLadder() {
     }
   }, [currentTurn, setupPhase, gameOver]);
 
-  useEffect(() => {
-    if (!setupPhase && diceVisible && !gameOver) {
-      startTimer();
-    }
-    return () => clearInterval(timerRef.current);
-  }, [currentTurn, diceVisible, setupPhase, gameOver]);
-
   const players = [
     { position: pos, photoUrl, type: tokenType, color: playerColors[0] },
-    ...aiPositions.map((p, i) => ({
-      position: p,
-      photoUrl: AI_AVATARS[i % AI_AVATARS.length],
-      type: 'normal',
-      color: playerColors[i + 1],
-    }))
+    ...aiPositions.map((p, i) => ({ position: p, photoUrl: '/assets/icons/profile.svg', type: 'normal', color: playerColors[i + 1] }))
   ];
 
   return (
@@ -1036,11 +986,7 @@ export default function SnakeAndLadder() {
         </div>
       )}
       {diceVisible && (
-        <div className="fixed bottom-24 inset-x-0 flex flex-col items-center z-20 space-y-2">
-          <TurnTimer
-            photoUrl={currentTurn === 0 ? photoUrl : AI_AVATARS[currentTurn - 1]}
-            timeLeft={timeLeft}
-          />
+        <div className="fixed bottom-24 inset-x-0 flex flex-col items-center z-20">
           <DiceRoller
             onRollEnd={(vals) => {
               const total = Array.isArray(vals) ? vals.reduce((a, b) => a + b, 0) : vals;
