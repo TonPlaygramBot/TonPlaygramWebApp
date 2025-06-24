@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useLayoutEffect } from "react";
+import { useState, useEffect, useRef, useLayoutEffect, Fragment } from "react";
 import confetti from "canvas-confetti";
 import DiceRoller from "../../components/DiceRoller.jsx";
 import { dropSound, snakeSound, ladderSound, timerBeep, bombSound } from "../../assets/soundData.js";
@@ -193,8 +193,7 @@ function Board({
               )}
             </span>
           )}
-          {num === 1 && <div className="start-hexagon" />}
-          {cellType === "" && <span className="cell-number">{num}</span>}
+          <span className="cell-number">{num}</span>
           {diceCells && diceCells[num] && (
             <span className="dice-marker">
               <img src="/assets/icons/dice.svg" alt="dice" />
@@ -208,23 +207,25 @@ function Board({
             .map((p, i) => ({ ...p, index: i }))
             .filter((p) => p.position !== 0 && p.position === num)
             .map((p) => (
-              <PlayerToken
-                key={p.index}
-                photoUrl={p.photoUrl}
-                type={p.type || (p.index === 0 ? (isHighlight ? highlight.type : tokenType) : "normal")}
-                color={p.color}
-                rolling={p.index === rollingIndex}
-                active={p.index === currentTurn}
-                timerPct={p.index === currentTurn ? timerPct : 1}
-                className={
-                  (p.position === 0
-                    ? "start"
-                    : p.index === 0 && isJump
-                      ? "jump"
-                      : "") +
-                  (burning.includes(p.index) ? " burning" : "")
-                }
-              />
+              <Fragment key={p.index}>
+                <div className="start-hexagon" />
+                <PlayerToken
+                  photoUrl={p.photoUrl}
+                  type={p.type || (p.index === 0 ? (isHighlight ? highlight.type : tokenType) : "normal")}
+                  color={p.color}
+                  rolling={p.index === rollingIndex}
+                  active={p.index === currentTurn}
+                  timerPct={p.index === currentTurn ? timerPct : 1}
+                  className={
+                    (p.position === 0
+                      ? "start"
+                      : p.index === 0 && isJump
+                        ? "jump"
+                        : "") +
+                    (burning.includes(p.index) ? " burning" : "")
+                  }
+                />
+              </Fragment>
             ))}
           {offsetPopup && offsetPopup.cell === num && (
             <span
@@ -414,12 +415,14 @@ function Board({
                 .map((p, i) => ({ ...p, index: i }))
                 .filter((p) => p.position === FINAL_TILE)
                 .map((p) => (
-                  <PlayerToken
-                    key={`win-${p.index}`}
-                    photoUrl={p.photoUrl}
-                    type={p.type || 'normal'}
-                    color={p.color}
-                  />
+                  <Fragment key={`win-${p.index}`}> 
+                    <div className="start-hexagon" />
+                    <PlayerToken
+                      photoUrl={p.photoUrl}
+                      type={p.type || 'normal'}
+                      color={p.color}
+                    />
+                  </Fragment>
                 ))}
               {celebrate && <CoinBurst token={token} />}
             </div>
