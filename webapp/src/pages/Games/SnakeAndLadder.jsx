@@ -1,7 +1,8 @@
 import { useState, useEffect, useRef } from "react";
 import confetti from "canvas-confetti";
 import DiceRoller from "../../components/DiceRoller.jsx";
-import { dropSound, snakeSound, ladderSound } from "../../assets/soundData.js";
+import { dropSound, snakeSound, ladderSound, timerBeep } from "../../assets/soundData.js";
+import { AVATARS } from "../../components/AvatarPickerModal.jsx";
 import InfoPopup from "../../components/InfoPopup.jsx";
 import GameEndPopup from "../../components/GameEndPopup.jsx";
 import {
@@ -77,6 +78,8 @@ function Board({
   tokenType,
   diceCells,
   rollingIndex,
+  currentTurn,
+  timerPct,
 }) {
   const containerRef = useRef(null);
   const [cellWidth, setCellWidth] = useState(80);
@@ -199,6 +202,8 @@ function Board({
                 type={p.type || (p.index === 0 ? (isHighlight ? highlight.type : tokenType) : "normal")}
                 color={p.color}
                 rolling={p.index === rollingIndex}
+                active={p.index === currentTurn}
+                timerPct={p.index === currentTurn ? timerPct : 1}
                 className={
                   p.position === 0
                     ? "start"
@@ -385,6 +390,10 @@ export default function SnakeAndLadder() {
   const [aiRollingIndex, setAiRollingIndex] = useState(null);
   const [aiRollTrigger, setAiRollTrigger] = useState(0);
   const [rollingIndex, setRollingIndex] = useState(null);
+  const [playerRollTrigger, setPlayerRollTrigger] = useState(0);
+  const [playerAutoRolling, setPlayerAutoRolling] = useState(false);
+  const [timeLeft, setTimeLeft] = useState(15);
+  const [aiAvatars, setAiAvatars] = useState([]);
 
   const playerName = (idx) => (
     <span style={{ color: playerColors[idx] }}>
@@ -397,6 +406,8 @@ export default function SnakeAndLadder() {
   const ladderSoundRef = useRef(null);
   const winSoundRef = useRef(null);
   const diceRewardSoundRef = useRef(null);
+  const timerSoundRef = useRef(null);
+  const timerRef = useRef(null);
 
   useEffect(() => {
     const id = getTelegramId();
@@ -430,12 +441,14 @@ export default function SnakeAndLadder() {
     ladderSoundRef.current = new Audio(ladderSound);
     winSoundRef.current = new Audio("/assets/sounds/successful.mp3");
     diceRewardSoundRef.current = new Audio("/assets/sounds/successful.mp3");
+    timerSoundRef.current = new Audio(timerBeep);
     return () => {
       moveSoundRef.current?.pause();
       snakeSoundRef.current?.pause();
       ladderSoundRef.current?.pause();
       winSoundRef.current?.pause();
       diceRewardSoundRef.current?.pause();
+      timerSoundRef.current?.pause();
     };
   }, []);
 
@@ -460,6 +473,9 @@ export default function SnakeAndLadder() {
     const aiCount = aiParam ? Math.max(1, Math.min(3, Number(aiParam))) : 0;
     if (aiParam) setAi(aiCount);
     setAiPositions(Array(aiCount).fill(0));
+    setAiAvatars(
+      Array.from({ length: aiCount }, () => AVATARS[Math.floor(Math.random() * AVATARS.length)])
+    );
     const colors = shuffle(TOKEN_COLORS).slice(0, aiCount + 1).map(c => c.color);
     setPlayerColors(colors);
 
@@ -921,12 +937,6 @@ export default function SnakeAndLadder() {
     rollNext(0);
   }, [ai, aiPositions, setupPhase]);
 
-  useEffect(() => {
-    if (!setupPhase && currentTurn > 0 && !gameOver) {
-      const id = setTimeout(() => triggerAIRoll(currentTurn), 1000);
-      return () => clearTimeout(id);
-    }
-  }, [currentTurn, gameOver, setupPhase]);
 
   useEffect(() => {
     if (!setupPhase && currentTurn === 0 && !gameOver) {
@@ -934,9 +944,33 @@ export default function SnakeAndLadder() {
     }
   }, [currentTurn, setupPhase, gameOver]);
 
+  useEffect(() => {
+    if (setupPhase || gameOver) return;
+    setTimeLeft(15);
+    if (timerRef.current) clearInterval(timerRef.current);
+    timerRef.current = setInterval(() => {
+      setTimeLeft(t => {
+        const next = t - 1;
+        if (next <= 7 && next >= 0) timerSoundRef.current?.play().catch(() => {});
+        if (next <= 0) {
+          clearInterval(timerRef.current);
+          if (currentTurn === 0) {
+            setPlayerAutoRolling(true);
+            setTurnMessage('Rolling...');
+            setPlayerRollTrigger(r => r + 1);
+          } else {
+            triggerAIRoll(currentTurn);
+          }
+        }
+        return next;
+      });
+    }, 1000);
+    return () => clearInterval(timerRef.current);
+  }, [currentTurn, setupPhase, gameOver]);
+
   const players = [
     { position: pos, photoUrl, type: tokenType, color: playerColors[0] },
-    ...aiPositions.map((p, i) => ({ position: p, photoUrl: '/assets/icons/profile.svg', type: 'normal', color: playerColors[i + 1] }))
+    ...aiPositions.map((p, i) => ({ position: p, photoUrl: aiAvatars[i] || '/assets/icons/profile.svg', type: 'normal', color: playerColors[i + 1] }))
   ];
 
   return (
@@ -979,6 +1013,8 @@ export default function SnakeAndLadder() {
         tokenType={tokenType}
         diceCells={diceCells}
         rollingIndex={rollingIndex}
+        currentTurn={currentTurn}
+        timerPct={timeLeft / 15}
       />
       {rollResult !== null && (
         <div className="fixed bottom-44 inset-x-0 flex justify-center z-30 pointer-events-none">
@@ -998,19 +1034,21 @@ export default function SnakeAndLadder() {
                 setBonusDice(0);
               }
               setRollingIndex(null);
+              setPlayerAutoRolling(false);
             }}
             onRollStart={() =>
               {
                 setRollingIndex(aiRollingIndex || 0);
-                return aiRollingIndex
-                  ? setTurnMessage(<>{playerName(aiRollingIndex)} rolling...</>)
-                  : setTurnMessage("Rolling...");
+                if (aiRollingIndex)
+                  return setTurnMessage(<>{playerName(aiRollingIndex)} rolling...</>);
+                if (playerAutoRolling) return setTurnMessage('Rolling...');
+                return setTurnMessage("Rolling...");
               }
             }
-            clickable={!aiRollingIndex}
+            clickable={!aiRollingIndex && !playerAutoRolling}
             numDice={diceCount + bonusDice}
-            trigger={aiRollingIndex ? aiRollTrigger : undefined}
-            showButton={!aiRollingIndex}
+            trigger={aiRollingIndex != null ? aiRollTrigger : playerAutoRolling ? playerRollTrigger : undefined}
+            showButton={!aiRollingIndex && !playerAutoRolling}
           />
           {turnMessage && (
             <div
