@@ -44,7 +44,7 @@ body {
 
 /* Tilted view specifically for the Snake & Ladder board */
 .snake-board-tilt {
-  perspective: 1200px;
+  perspective: 1000px;
 }
 
 .snake-board-grid {
@@ -735,14 +735,14 @@ body {
 }
 
 .snake-connector {
-  background-image: url("/assets/icons/snake.svg");
+  background-image: url("https://openclipart.org/image/400px/137071");
   background-size: 100% 100%;
   background-repeat: no-repeat;
   border-radius: 4px;
 }
 
 .ladder-connector {
-  background-image: url("/assets/icons/ladder.png");
+  background-image: url("https://openclipart.org/image/400px/196261");
   background-size: 100% 100%;
   background-repeat: no-repeat;
 }
