@@ -298,7 +298,7 @@ body {
   transform-origin: bottom center;
   /* Align the photo with the top face of the token and tilt upward */
   transform: translate(-50%, -50%) translateZ(15.2px)
-    rotateX(calc(var(--board-angle, 61deg) * -1 - 10deg));
+    rotateX(calc(var(--board-angle, 58deg) * -1 - 10deg));
   object-fit: cover;
   border-radius: 50%;
   border: 2px solid #ffd700;
@@ -323,7 +323,7 @@ body {
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%) translateZ(15.2px)
-    rotateX(calc(var(--board-angle, 61deg) * -1 - 10deg));
+    rotateX(calc(var(--board-angle, 58deg) * -1 - 10deg));
   border-radius: 50%;
   pointer-events: none;
   z-index: 0;
@@ -348,7 +348,7 @@ body {
   height: 100%;
   transform-style: preserve-3d;
   /* Align token with board surface while showing a slight side angle */
-  transform: rotateX(calc(var(--board-angle, 61deg) * -1 - 20deg))
+  transform: rotateX(calc(var(--board-angle, 58deg) * -1 - 20deg))
     rotateY(25deg);
 }
 
@@ -715,7 +715,7 @@ body {
       (var(--final-scale, 1) - 1)
   );
   left: 50%;
-  transform: translateX(-50%) rotateX(calc(var(--board-angle, 61deg) * -1))
+  transform: translateX(-50%) rotateX(calc(var(--board-angle, 58deg) * -1))
     translateZ(-90px) scale(1.8);
   transform-origin: bottom center;
   background-image: url("/assets/TonPlayGramLogo.jpg");
@@ -828,7 +828,7 @@ body {
   left: 50%;
   top: 50%;
   transform: translate(-50%, -50%) translateZ(6px)
-    rotateX(calc(var(--board-angle, 61deg) * -1));
+    rotateX(calc(var(--board-angle, 58deg) * -1));
   display: flex;
   align-items: center;
   justify-content: center;
@@ -878,10 +878,10 @@ body {
 
 @keyframes hex-spin-reverse {
   from {
-    transform: translateZ(0) rotateX(var(--board-angle, 61deg)) rotate(0deg);
+    transform: translateZ(0) rotateX(var(--board-angle, 58deg)) rotate(0deg);
   }
   to {
-    transform: translateZ(0) rotateX(var(--board-angle, 61deg)) rotate(-360deg);
+    transform: translateZ(0) rotateX(var(--board-angle, 58deg)) rotate(-360deg);
   }
 }
 
