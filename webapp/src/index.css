@@ -75,7 +75,7 @@ body {
   /* Expand the bottom of the backdrop so it extends beyond the board */
   /* Make the top even wider next to the logo and taper the bottom */
   /* Narrow top edge and widen bottom edge for a stronger perspective */
-  clip-path: polygon(-45% 0%, 145% 0%, 185% 100%, -85% 100%);
+  clip-path: polygon(-60% 0%, 160% 0%, 130% 100%, -30% 100%);
   pointer-events: none;
   z-index: 0;
   background:
@@ -757,11 +757,11 @@ body {
 
 .logo-wall-main {
   @apply absolute flex items-center justify-center;
-  width: calc(var(--cell-width) * 6); /* larger logo width */
+  width: calc(var(--cell-width) * 6.4); /* slightly wider logo */
   height: calc(var(--cell-height) * 5); /* taller logo */
   /* position the logo slightly lower on the board */
   top: calc(
-    var(--cell-height) * -10 - var(--cell-height) * 1.7 *
+    var(--cell-height) * -9.5 - var(--cell-height) * 1.7 *
       (var(--final-scale, 1) - 1)
   );
   left: 50%;
