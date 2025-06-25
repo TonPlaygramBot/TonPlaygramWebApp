@@ -75,9 +75,9 @@ body {
   /* Slightly widen the top so the backdrop fills the screen */
   /* Expand the bottom of the backdrop so it extends beyond the board */
   /* Make the top even wider next to the logo and taper the bottom */
-  /* Narrow top edge and widen bottom edge for a stronger perspective */
-  /* Wider at the top near the logo with a tapered bottom */
-  clip-path: polygon(-80% 0%, 180% 0%, 110% 100%, -10% 100%);
+  /* Narrow bottom edge and widen top edge for a stronger perspective */
+  /* Wider at the bottom near the logo with a tapered top */
+  clip-path: polygon(-10% 0%, 110% 0%, 180% 100%, -80% 100%);
   pointer-events: none;
   z-index: 0;
   background:
