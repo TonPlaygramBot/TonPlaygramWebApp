@@ -64,12 +64,12 @@ body {
   /* Vertical colour bands behind the Snake & Ladder board */
   background: linear-gradient(
     to right,
-    #061a2b,
+    #0e2a36,
     #295663,
     #6a7b83,
     #d8d7d4,
     #dca996,
-    #772d18
+    #aa4736
   );
 }
 
@@ -742,13 +742,6 @@ body {
   box-shadow: 0 0 0 6px rgba(0, 0, 0, 0.6);
   background-image:
     linear-gradient(to bottom, rgba(0, 0, 0, 0.45), rgba(0, 0, 0, 0) 70%),
-    linear-gradient(
-      to right,
-      #061a2b,
-      rgba(0, 0, 0, 0) 20%,
-      rgba(0, 0, 0, 0) 80%,
-      #772d18
-    ),
     url("/assets/TonPlayGramLogo.jpg");
   background-size: contain;
   background-repeat: no-repeat;
