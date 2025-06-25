@@ -61,14 +61,11 @@ body {
   inset: 0;
   z-index: -1;
   pointer-events: none;
-  /* Darker blend in the centre so the board merges with the logo */
-  background: linear-gradient(
-    to right,
-    #0b1f39,
-    #1c3158,
-    #facc15,
-    #25384f,
-    #3d2218
+  /* Blue border fading into yellow around the play grid */
+  background: radial-gradient(
+    circle at center,
+    #facc15 60%,
+    #1c3158 100%
   );
 }
 
@@ -569,8 +566,8 @@ body {
   position: absolute;
   top: 50%;
   left: 50%;
-  /* match the number position so icons align perfectly */
-  transform: translate(-50%, -60%) translateZ(6px)
+  /* Center icons exactly within the tile */
+  transform: translate(-50%, -50%) translateZ(6px)
     rotateX(calc(var(--board-angle, 58deg) * -1));
   display: flex;
   align-items: center;
