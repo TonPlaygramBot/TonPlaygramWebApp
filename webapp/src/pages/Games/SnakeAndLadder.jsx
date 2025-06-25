@@ -185,7 +185,7 @@ function Board({
               )}
               {offsetVal != null && (
                 <span className="cell-offset">
-                  <span className={`cell-sign ${cellType}`}>
+                  <span className={`cell-sign ${cellType}`}> 
                     {cellType === "snake" ? "-" : "+"}
                   </span>
                   <span className="cell-value">{offsetVal}</span>
@@ -193,7 +193,7 @@ function Board({
               )}
             </span>
           )}
-          {!cellType && <span className="cell-number">{num}</span>}
+          <span className="cell-number">{num}</span>
           {diceCells && diceCells[num] && (
             <span className="dice-marker">
               <span className="dice-icon">\uD83C\uDFB2</span>
