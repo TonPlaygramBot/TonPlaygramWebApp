@@ -18,7 +18,6 @@ import { fetchTelegramInfo, getProfile, deposit, getSnakeBoard } from "../../uti
 import PlayerToken from "../../components/PlayerToken.jsx";
 import AvatarTimer from "../../components/AvatarTimer.jsx";
 import ConfirmPopup from "../../components/ConfirmPopup.jsx";
-import FuturisticBackground from "../../components/FuturisticBackground.jsx";
 
 const TOKEN_COLORS = [
   { name: "blue", color: "#60a5fa" },
@@ -353,7 +352,7 @@ function Board({
 
   return (
     <div className="relative flex justify-center items-center w-screen overflow-visible">
-      <FuturisticBackground className="background-behind-board" />
+      <img src="/assets/SnakeLaddersbackground.png" className="background-behind-board object-cover" alt="" />
       <div
         ref={containerRef}
         className="overflow-y-auto"
