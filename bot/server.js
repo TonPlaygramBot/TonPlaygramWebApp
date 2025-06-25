@@ -17,6 +17,7 @@ import airdropRoutes from './routes/airdrop.js';
 import checkinRoutes from './routes/checkin.js';
 import socialRoutes from './routes/social.js';
 import User from './models/User.js';
+import GameResult from "./models/GameResult.js";
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { existsSync } from 'fs';
@@ -169,6 +170,23 @@ app.get('/api/snake/board/:id', (req, res) => {
   const cap = match ? Number(match[1]) : 4;
   const room = gameManager.getRoom(id, cap);
   res.json({ snakes: room.snakes, ladders: room.ladders });
+});
+
+app.get('/api/snake/results', async (req, res) => {
+  if (req.query.leaderboard) {
+    const leaderboard = await GameResult.aggregate([
+      { $group: { _id: '$winner', wins: { $sum: 1 } } },
+      { $sort: { wins: -1 } },
+      { $limit: 20 },
+    ]);
+    return res.json({ leaderboard });
+  }
+  const limit = Number(req.query.limit) || 20;
+  const results = await GameResult.find()
+    .sort({ createdAt: -1 })
+    .limit(limit)
+    .lean();
+  res.json({ results });
 });
 app.get('*', (req, res) => {
   if (req.path.startsWith('/api/')) return res.status(404).end();

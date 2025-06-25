@@ -1,3 +1,4 @@
+import GameResult from "./models/GameResult.js";
 export const FINAL_TILE = 101;
 export const DEFAULT_SNAKES = { 99: 80 };
 export const DEFAULT_LADDERS = { 3: 22, 27: 46 };
@@ -168,6 +169,12 @@ export class GameRoom {
 
       if (player.position === FINAL_TILE) {
         this.status = 'finished';
+        GameResult.create({
+          winner: player.name,
+          participants: this.players.map((p) => p.name)
+        }).catch((err) =>
+          console.error('Failed to store game result:', err.message)
+        );
         this.io.to(this.id).emit('gameWon', { playerId: player.playerId });
         return;
       }

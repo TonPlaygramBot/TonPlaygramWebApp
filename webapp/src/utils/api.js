@@ -208,6 +208,10 @@ export function getSnakeBoard(id) {
   return fetch(API_BASE_URL + '/api/snake/board/' + id).then((r) => r.json());
 }
 
+export function getSnakeResults() {
+  return fetch(API_BASE_URL + '/api/snake/results').then((r) => r.json());
+}
+
 export function registerWallet(walletAddress) {
   return post('/api/profile/register-wallet', { walletAddress });
 }

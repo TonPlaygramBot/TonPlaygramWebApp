@@ -15,6 +15,7 @@ import Notifications from './pages/Notifications.jsx';
 import LudoGame from './pages/Games/LudoGame.jsx';
 import HorseRacing from './pages/Games/HorseRacing.jsx';
 const SnakeAndLadder = lazy(() => import('./pages/Games/SnakeAndLadder.jsx'));
+const SnakeResults = lazy(() => import('./pages/Games/SnakeResults.jsx'));
 import Lobby from './pages/Games/Lobby.jsx';
 import Games from './pages/Games.jsx';
 import SpinPage from './pages/spin.tsx';
@@ -40,6 +41,14 @@ export default function App() {
             element={
               <Suspense fallback={<div className="p-4 text-center">Loading...</div>}>
                 <SnakeAndLadder />
+              </Suspense>
+            }
+          />
+          <Route
+            path="/games/snake/results"
+            element={
+              <Suspense fallback={<div className="p-4 text-center">Loading...</div>}>
+                <SnakeResults />
               </Suspense>
             }
           />
