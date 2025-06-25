@@ -67,8 +67,8 @@ body {
   /* slightly shift down so the backdrop covers the starting rows */
   transform: translate(-50%, -50%) rotate(90deg) translateZ(0);
   transform-origin: center;
-  /* widen the top near the logo and taper the bottom a bit */
-  clip-path: polygon(-20% 0%, 120% 0%, 160% 100%, -60% 100%);
+  /* Make the top wider near the logo and taper towards the footer */
+  clip-path: polygon(-80% 0%, 180% 0%, 110% 100%, -10% 100%);
   pointer-events: none;
   z-index: 0;
   background:
