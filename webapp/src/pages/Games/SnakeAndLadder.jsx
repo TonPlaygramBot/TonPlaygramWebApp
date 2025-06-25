@@ -568,7 +568,8 @@ export default function SnakeAndLadder() {
     winSoundRef.current = new Audio("/assets/sounds/successful.mp3");
     diceRewardSoundRef.current = new Audio("/assets/sounds/successful.mp3");
     bombSoundRef.current = new Audio(bombSound);
-    timerSoundRef.current = new Audio('/assets/sounds/successful.mp3');
+    // Use the same wheel spinning sound effect as the Spin & Win page
+    timerSoundRef.current = new Audio('/assets/sounds/spinning.mp3');
     timerSoundRef.current.loop = true;
     return () => {
       moveSoundRef.current?.pause();
