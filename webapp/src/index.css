@@ -61,13 +61,15 @@ body {
   inset: 0;
   z-index: -1;
   pointer-events: none;
-  /* Darker blend in the centre so the board merges with the logo */
+  /* Vertical colour bands behind the Snake & Ladder board */
   background: linear-gradient(
     to right,
-    #0c1020,
-    #11172a,
-    #1e2235,
-    #271e26
+    #0e2a36,
+    #295663,
+    #6a7b83,
+    #d8d7d4,
+    #dca996,
+    #aa4736
   );
 }
 
