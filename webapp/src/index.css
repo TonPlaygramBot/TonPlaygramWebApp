@@ -61,8 +61,7 @@ body {
   inset: 0;
   z-index: -1;
   pointer-events: none;
-  /* Darker blend in the centre so the board merges with the logo */
-  background: linear-gradient(to right, #0f172a, #1e1e1e 50%, #7f1d1d);
+  background: linear-gradient(to right, #0f172a, #7f1d1d);
 }
 
 @keyframes roll {
@@ -733,9 +732,7 @@ body {
   transform: translateX(-50%) rotateX(calc(var(--board-angle, 58deg) * -1))
     translateZ(-90px) scale(2.2); /* a touch bigger */
   transform-origin: bottom center;
-  background-image:
-    linear-gradient(to bottom, rgba(0, 0, 0, 0.45), rgba(0, 0, 0, 0) 70%),
-    url("/assets/TonPlayGramLogo.jpg");
+  background-image: url("/assets/TonPlayGramLogo.jpg");
   background-size: contain;
   background-repeat: no-repeat;
   background-position: center;
