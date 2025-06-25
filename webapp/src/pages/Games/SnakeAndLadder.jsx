@@ -328,7 +328,8 @@ function Board({
   // Lift the board slightly so the bottom row stays visible. Lowered slightly
   // so the logo at the top of the board isn't cropped off screen. Zeroing this
   // aligns the board vertically with the frame.
-  const boardYOffset = 30; // pixels - pull board slightly lower
+  // Move the board a bit further down so the bottom rows sit nearer the footer
+  const boardYOffset = 60; // pixels
   // Pull the board away from the camera without changing the angle or zoom
   const boardZOffset = -50; // pixels
 
@@ -410,6 +411,7 @@ function Board({
               />
             ))}
             {tiles}
+            <div className="board-frame-overlay" />
             <div
               className={`pot-cell ${highlight && highlight.cell === FINAL_TILE ? "highlight" : ""}`}
             >
