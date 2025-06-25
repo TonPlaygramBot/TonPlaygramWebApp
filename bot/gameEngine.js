@@ -1,76 +1,16 @@
-export const FINAL_TILE = 101;
-export const ROLL_COOLDOWN_MS = 1000;
-
-export const DEFAULT_SNAKES = {
-  17: 4,
-  19: 7,
-  21: 9,
-  54: 34,
-  62: 42,
-  64: 60,
-  87: 67,
-  93: 73,
-  95: 75,
-  98: 79,
-  99: 80,
-};
-
-export const DEFAULT_LADDERS = {
-  3: 22,
-  5: 8,
-  11: 26,
-  20: 29,
-  27: 46,
-  36: 44,
-  51: 67,
-  71: 91,
-  80: 100,
-};
-
-function addWidthsToLadders(ladders) {
-  const obj = {};
-  for (const [s, e] of Object.entries(ladders)) {
-    obj[s] = { end: e, width: 6 + Math.floor(Math.random() * 6) };
-  }
-  return obj;
-}
-
-function generateRandomLadders(snakes, count = 8) {
-  const ladders = {};
-  const used = new Set([...Object.keys(snakes), ...Object.values(snakes)]);
-  while (Object.keys(ladders).length < count) {
-    const start = Math.floor(Math.random() * (FINAL_TILE - 20)) + 2;
-    const maxStep = Math.min(FINAL_TILE - start - 1, 20);
-    if (maxStep < 1) continue;
-    const end = start + (Math.floor(Math.random() * maxStep) + 1);
-    if (used.has(String(start)) || used.has(String(end))) continue;
-    if (ladders[start] || Object.values(ladders).some(l => l.end === start || l.end === end)) continue;
-    ladders[start] = { end, width: 6 + Math.floor(Math.random() * 6) };
-    used.add(String(start));
-    used.add(String(end));
-  }
-  return ladders;
-}
-
 export class GameRoom {
-  constructor(id, io, maxPlayers = 4, options = {}) {
+  constructor(id, io) {
     this.id = id;
     this.io = io;
-    this.maxPlayers = maxPlayers;
     this.players = [];
     this.currentTurn = 0;
     this.status = 'waiting';
-    this.rollCooldown = ROLL_COOLDOWN_MS;
-    this.snakes = options.snakes || { ...DEFAULT_SNAKES };
-    if (options.ladders) {
-      this.ladders = addWidthsToLadders(options.ladders);
-    } else {
-      this.ladders = generateRandomLadders(this.snakes);
-    }
+    this.snakes = { 99: 41, 85: 58, 70: 55 };
+    this.ladders = { 2: 38, 15: 26, 22: 58 };
   }
 
   addPlayer(playerId, name, socket) {
-    if (this.players.length >= this.maxPlayers || this.status !== 'waiting') {
+    if (this.players.length >= 4 || this.status !== 'waiting') {
       return { error: 'Room full or game already started' };
     }
     const player = {
@@ -79,14 +19,12 @@ export class GameRoom {
       position: 0,
       isActive: false,
       socketId: socket.id,
-      disconnected: false,
-      consecutiveSixes: 0,
-      lastRollTime: 0
+      disconnected: false
     };
     this.players.push(player);
     socket.join(this.id);
     this.io.to(this.id).emit('playerJoined', { playerId, name });
-    if (this.players.length === this.maxPlayers) {
+    if (this.players.length === 4) {
       this.startGame();
     }
     return { success: true };
@@ -97,21 +35,19 @@ export class GameRoom {
     this.status = 'playing';
     this.currentTurn = 0;
     this.io.to(this.id).emit('gameStarted');
-    this.emitNextTurn(true);
+    this.emitNextTurn();
   }
 
-  emitNextTurn(resetStreak = true) {
+  emitNextTurn() {
     const current = this.players[this.currentTurn];
     if (current) {
-      if (resetStreak) current.consecutiveSixes = 0;
       this.io.to(this.id).emit('nextTurn', { playerId: current.playerId });
     }
   }
 
   applySnakesAndLadders(pos) {
     if (this.snakes[pos]) return this.snakes[pos];
-    const ladder = this.ladders[pos];
-    if (ladder) return typeof ladder === 'object' ? ladder.end : ladder;
+    if (this.ladders[pos]) return this.ladders[pos];
     return pos;
   }
 
@@ -122,41 +58,19 @@ export class GameRoom {
     const player = this.players[playerIndex];
     if (this.players[this.currentTurn].socketId !== socket.id) return;
 
-    const now = Date.now();
-    if (now - player.lastRollTime < this.rollCooldown) {
-      socket.emit('error', 'Rolling too fast');
-      return;
-    }
-    player.lastRollTime = now;
-
     const dice = value ?? Math.floor(Math.random() * 6) + 1;
     this.io.to(this.id).emit('diceRolled', { playerId: player.playerId, value: dice });
 
     let from = player.position;
     let to = player.position;
 
-    if (dice === 6) {
-      player.consecutiveSixes += 1;
-    } else {
-      player.consecutiveSixes = 0;
-    }
-
-    if (player.consecutiveSixes === 3) {
-      player.consecutiveSixes = 0;
-      do {
-        this.currentTurn = (this.currentTurn + 1) % this.players.length;
-      } while (this.players[this.currentTurn].disconnected);
-      this.emitNextTurn(true);
-      return;
-    }
-
     if (!player.isActive) {
       if (dice === 6) {
         player.isActive = true;
-        to = 1;
+        to = from + dice;
       }
     } else {
-      if (from + dice <= FINAL_TILE) {
+      if (from + dice <= 100) {
         to = from + dice;
       }
     }
@@ -169,31 +83,20 @@ export class GameRoom {
         player.position = final;
         this.io.to(this.id).emit('snakeOrLadder', { playerId: player.playerId, from: to, to: final });
       }
-      // Check if landing on another player
-      for (const other of this.players) {
-        if (other !== player && other.position === player.position && !other.disconnected) {
-          other.position = 0;
-          other.isActive = false;
-          this.io.to(this.id).emit('playerReset', { playerId: other.playerId });
-        }
-      }
     }
 
-    if (player.position === FINAL_TILE) {
+    if (player.position === 100) {
       this.status = 'finished';
       this.io.to(this.id).emit('gameWon', { playerId: player.playerId });
       return;
     }
 
-    const extraTurn = dice === 6 && to !== from;
-    if (!extraTurn) {
+    if (dice !== 6) {
       do {
         this.currentTurn = (this.currentTurn + 1) % this.players.length;
       } while (this.players[this.currentTurn].disconnected);
-      this.emitNextTurn(true);
-    } else {
-      this.emitNextTurn(false);
     }
+    this.emitNextTurn();
   }
 
   handleDisconnect(socket) {
@@ -211,19 +114,17 @@ export class GameRoomManager {
     this.rooms = new Map();
   }
 
-  getRoom(id, maxPlayers = 4) {
+  getRoom(id) {
     let room = this.rooms.get(id);
     if (!room) {
-      room = new GameRoom(id, this.io, maxPlayers);
+      room = new GameRoom(id, this.io);
       this.rooms.set(id, room);
     }
     return room;
   }
 
   joinRoom(roomId, playerId, name, socket) {
-    const match = /-(\d+)$/.exec(roomId);
-    const maxPlayers = match ? Number(match[1]) : 4;
-    const room = this.getRoom(roomId, maxPlayers);
+    const room = this.getRoom(roomId);
     return room.addPlayer(playerId, name, socket);
   }
 
