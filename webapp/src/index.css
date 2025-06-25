@@ -64,10 +64,11 @@ body {
   /* Darker blend in the centre so the board merges with the logo */
   background: linear-gradient(
     to right,
-    #14264a,
+    #0b1f39,
     #1c3158,
+    #facc15,
     #25384f,
-    #5a3022
+    #3d2218
   );
 }
 
@@ -720,7 +721,7 @@ body {
   width: calc(var(--cell-width) * 2.7);
   height: calc(var(--cell-height) * 2.7);
   /* move the pot slightly higher */
-  top: calc(var(--cell-height) * -6);
+  top: calc(var(--cell-height) * -7);
   left: 50%;
   transform: translateX(-50%) translateZ(12px);
   z-index: 50;
@@ -807,7 +808,7 @@ body {
 }
 
 .ladder-connector {
-  background-image: url("/assets/icons/ladder.png");
+  background-image: url("/assets/icons/ladder.svg");
   background-size: 100% 100%;
   background-repeat: no-repeat;
 }
