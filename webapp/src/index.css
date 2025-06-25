@@ -738,7 +738,7 @@ body {
 
 .logo-wall-main {
   @apply absolute flex items-center justify-center;
-  width: calc(var(--cell-width) * 7.5); /* wider */
+  width: calc(var(--cell-width) * 8.5); /* slightly wider */
   height: calc(var(--cell-height) * 5);
   /* move the logo slightly up */
   top: calc(

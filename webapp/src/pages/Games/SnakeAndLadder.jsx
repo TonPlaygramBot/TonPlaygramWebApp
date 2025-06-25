@@ -329,7 +329,7 @@ function Board({
   // so the logo at the top of the board isn't cropped off screen. Zeroing this
   // aligns the board vertically with the frame.
   // Move the board slightly higher so the pot and logo sit closer to the top
-  const boardYOffset = 20; // pixels - slightly lower
+  const boardYOffset = 40; // pixels - slightly lower
   // Pull the board away from the camera without changing the angle or zoom
   const boardZOffset = -50; // pixels
 
@@ -442,9 +442,6 @@ function Board({
               {celebrate && <CoinBurst token={token} />}
             </div>
             <div className="logo-wall-main" />
-            <div className="board-emojis" aria-hidden="true">
-              \uD83D\uDC0D \uD83E\uDEAC \uD83C\uDFB2
-            </div>
           </div>
         </div>
       </div>
