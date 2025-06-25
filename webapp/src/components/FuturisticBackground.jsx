@@ -1,41 +1,43 @@
-import { useRef, useEffect } from "react";
+import { useRef, useEffect } from 'react';
 
-export default function FuturisticBackground({ className = "" }) {
+export default function FuturisticBackground({ className = '' }) {
   const canvasRef = useRef(null);
 
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
-    const ctx = canvas.getContext("2d");
+    const ctx = canvas.getContext('2d');
+    const dpr = window.devicePixelRatio || 1;
 
     const draw = () => {
       const width = window.innerWidth;
       const height = window.innerHeight;
-      canvas.width = width;
-      canvas.height = height;
+      canvas.width = width * dpr;
+      canvas.height = height * dpr;
+      canvas.style.width = `${width}px`;
+      canvas.style.height = `${height}px`;
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
-      ctx.fillStyle = "#facc15";
+      const grad = ctx.createLinearGradient(0, 0, 0, height);
+      grad.addColorStop(0, 'rgb(255,200,0)');
+      grad.addColorStop(1, 'rgb(10,15,30)');
+      ctx.fillStyle = grad;
       ctx.fillRect(0, 0, width, height);
 
-      for (let i = 0; i < 200; i++) {
-        const x = Math.floor(Math.random() * width);
-        const y = Math.floor(Math.random() * height);
-        const length = 20 + Math.random() * 80;
-        const directions = [0, Math.PI / 2, Math.PI, (3 * Math.PI) / 2];
-        const direction = directions[Math.floor(Math.random() * directions.length)];
-
-        const t = Math.random() * 0.6 + 0.2;
-        const r = Math.round((1 - t) * 14 + t * 250);
-        const g = Math.round((1 - t) * 165 + t * 204);
-        const b = Math.round((1 - t) * 233 + t * 21);
-        ctx.strokeStyle = `rgb(${r},${g},${b})`;
-        ctx.lineWidth = 1.2;
+      ctx.lineWidth = 1;
+      for (let i = 0; i < 100; i++) {
+        const x = width / 2 + (Math.random() - 0.5) * (2 * width / 3);
+        const y = Math.random() * height;
+        const len = 20 + Math.random() * 80;
+        const dirs = [Math.PI / 2, -Math.PI / 2, 0, Math.PI];
+        const dir = dirs[Math.floor(Math.random() * dirs.length)];
+        ctx.strokeStyle = Math.random() < 0.5 ? 'rgba(50,200,255,0.6)' : 'rgba(255,180,100,0.5)';
         ctx.beginPath();
         ctx.moveTo(x, y);
-        ctx.lineTo(x + Math.cos(direction) * length, y + Math.sin(direction) * length);
+        ctx.lineTo(x + Math.cos(dir) * len, y + Math.sin(dir) * len);
         ctx.stroke();
 
-        ctx.fillStyle = "rgba(255,255,255,0.35)";
+        ctx.fillStyle = 'rgba(255,255,150,0.4)';
         ctx.beginPath();
         ctx.arc(x, y, 1.5, 0, Math.PI * 2);
         ctx.fill();
@@ -43,9 +45,9 @@ export default function FuturisticBackground({ className = "" }) {
     };
 
     draw();
-    window.addEventListener("resize", draw);
-    return () => window.removeEventListener("resize", draw);
+    window.addEventListener('resize', draw);
+    return () => window.removeEventListener('resize', draw);
   }, []);
 
-  return <canvas ref={canvasRef} className={`absolute inset-0 -z-10 w-full h-full pointer-events-none ${className}`} />;
+  return <canvas ref={canvasRef} className={`absolute inset-0 pointer-events-none -z-10 ${className}`} />;
 }
