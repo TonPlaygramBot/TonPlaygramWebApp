@@ -296,7 +296,7 @@ body {
   height: 2.9rem;
   top: 50%;
   left: 50%;
-  transform-origin: bottom center;
+  transform-origin: center;
   /* Align the photo with the top face of the token and tilt upward */
   transform: translate(-50%, -50%) translateZ(15.2px)
     rotateX(calc(var(--board-angle, 58deg) * -1 - 10deg));
@@ -726,7 +726,7 @@ body {
 
 .logo-wall-main {
   @apply absolute flex items-center justify-center;
-  width: calc(var(--cell-width) * 6.7); /* a bit wider */
+  width: calc(var(--cell-width) * 6.9); /* slightly wider */
   height: calc(var(--cell-height) * 5);
   /* move the logo slightly down */
   top: calc(
