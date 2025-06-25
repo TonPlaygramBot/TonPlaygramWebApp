@@ -187,6 +187,14 @@ export class GameRoom {
     const player = this.players[idx];
     player.disconnected = true;
     this.io.to(this.id).emit('playerLeft', { playerId: player.playerId });
+    if (this.status === 'playing' && idx === this.currentTurn) {
+      if (this.players.some((p) => !p.disconnected)) {
+        do {
+          this.currentTurn = (this.currentTurn + 1) % this.players.length;
+        } while (this.players[this.currentTurn].disconnected);
+        this.emitNextTurn();
+      }
+    }
   }
 }
 
