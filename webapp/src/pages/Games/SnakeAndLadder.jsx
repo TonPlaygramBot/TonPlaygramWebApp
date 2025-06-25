@@ -150,11 +150,11 @@ function Board({
             ? "dice"
             : "";
       const cellClass = cellType ? `${cellType}-cell` : "";
-      const iconPath =
+      const iconEmoji =
         cellType === "ladder"
-          ? "/assets/icons/ladder.png"
+          ? "\uD83E\uDEA4" // 🪜
           : cellType === "snake"
-            ? "/assets/icons/snake.svg"
+            ? "\uD83D\uDC0D" // 🐍
             : null;
       const offsetVal =
         cellType === "ladder"
@@ -178,14 +178,14 @@ function Board({
           className={`board-cell ${cellClass} ${highlightClass}`}
           style={style}
         >
-          {(iconPath || offsetVal != null) && (
+          {(iconEmoji || offsetVal != null) && (
             <span className="cell-marker">
-              {iconPath && (
-                <img src={iconPath} className="cell-icon" alt={cellType} />
+              {iconEmoji && (
+                <span className="cell-icon cell-emoji">{iconEmoji}</span>
               )}
               {offsetVal != null && (
                 <span className="cell-offset">
-                  <span className={`cell-sign ${cellType}`}>
+                  <span className={`cell-sign ${cellType}`}> 
                     {cellType === "snake" ? "-" : "+"}
                   </span>
                   <span className="cell-value">{offsetVal}</span>
@@ -196,7 +196,7 @@ function Board({
           <span className="cell-number">{num}</span>
           {diceCells && diceCells[num] && (
             <span className="dice-marker">
-              <img src="/assets/icons/dice.svg" alt="dice" />
+              <span className="dice-icon">\uD83C\uDFB2</span>
               <span className="dice-value">
                 <span className="dice-sign">+</span>
                 <span className="dice-number">{diceCells[num]}</span>
@@ -329,7 +329,7 @@ function Board({
   // so the logo at the top of the board isn't cropped off screen. Zeroing this
   // aligns the board vertically with the frame.
   // Move the board slightly higher so the pot and logo sit closer to the top
-  const boardYOffset = 40; // pixels
+  const boardYOffset = 20; // pixels - slightly lower
   // Pull the board away from the camera without changing the angle or zoom
   const boardZOffset = -50; // pixels
 
@@ -442,6 +442,9 @@ function Board({
               {celebrate && <CoinBurst token={token} />}
             </div>
             <div className="logo-wall-main" />
+            <div className="board-emojis" aria-hidden="true">
+              \uD83D\uDC0D \uD83E\uDEAC \uD83C\uDFB2
+            </div>
           </div>
         </div>
       </div>

@@ -129,8 +129,8 @@ body {
 .board-cell {
   @apply relative flex items-center justify-center rounded-xl text-text;
   background-color: var(--tile-bg, #0e3b45);
-  /* Richer golden border for a shiny prism look */
-  border: 3px solid #ffd700;
+  /* Subtle border to separate tiles */
+  border: 2px solid #334155;
   /* Cast a shadow dark enough for a stronger 3D effect */
   box-shadow: 0 8px 12px rgba(0, 0, 0, 0.6);
   transform: translateZ(5px);
@@ -145,8 +145,8 @@ body {
   position: absolute;
   inset: 2px;
   border-radius: inherit;
-  /* Shiny inner glow emphasising the prism frame */
-  box-shadow: 0 0 10px rgba(255, 215, 0, 0.9);
+  /* Soft inner shadow */
+  box-shadow: 0 0 6px rgba(0, 0, 0, 0.6);
   /* Place the highlight above the tile so the shading is visible */
   transform: translateZ(6px);
 }
@@ -586,10 +586,21 @@ body {
   object-fit: contain;
 }
 
+.cell-emoji {
+  font-size: 1.7rem;
+  line-height: 1;
+}
+
 /* Start cell icon tweaks */
 .board-cell[data-cell="1"] .cell-icon {
   width: 4.8rem;
   height: 4.8rem;
+  animation: hex-spin 10.5s linear infinite;
+  transform-origin: center;
+}
+
+.board-cell[data-cell="1"] .cell-emoji {
+  font-size: 4.8rem;
   animation: hex-spin 10.5s linear infinite;
   transform-origin: center;
 }
@@ -727,7 +738,7 @@ body {
 
 .logo-wall-main {
   @apply absolute flex items-center justify-center;
-  width: calc(var(--cell-width) * 6.9); /* slightly wider */
+  width: calc(var(--cell-width) * 7.5); /* wider */
   height: calc(var(--cell-height) * 5);
   /* move the logo slightly up */
   top: calc(
@@ -744,6 +755,7 @@ body {
   background-size: contain;
   background-repeat: no-repeat;
   background-position: center;
+  filter: brightness(1.2);
   z-index: 5;
 }
 
@@ -756,17 +768,18 @@ body {
   pointer-events: none;
 }
 
+
 .logo-wall-main::before {
-  border-left: 6px solid #ffd700;
-  border-right: 6px solid #ffd700;
+  border-left: 6px solid #334155;
+  border-right: 6px solid #334155;
 }
 
 .logo-wall-main::after {
-  border-top: 6px solid #ffd700;
-  border-bottom: 6px solid #ffd700;
+  border-top: 6px solid #334155;
+  border-bottom: 6px solid #334155;
   box-shadow:
-    0 0 10px rgba(255, 215, 0, 0.9),
-    inset 0 0 10px rgba(255, 215, 0, 0.6);
+    0 0 10px rgba(0, 0, 0, 0.8),
+    inset 0 0 10px rgba(0, 0, 0, 0.5);
 }
 
 
@@ -837,6 +850,15 @@ body {
   animation-fill-mode: forwards;
 }
 
+.board-emojis {
+  position: absolute;
+  bottom: 1rem;
+  right: 1rem;
+  font-size: 2rem;
+  pointer-events: none;
+  z-index: 10;
+}
+
 @keyframes coin-up {
   to {
     transform: translate(calc(-50% + var(--dx)), -120px);
@@ -880,10 +902,9 @@ body {
   z-index: 2;
 }
 
-.dice-marker img {
-  width: 100%;
-  height: 100%;
-  object-fit: contain;
+.dice-marker .dice-icon {
+  font-size: 1.8rem;
+  line-height: 1;
 }
 
 .dice-value {
