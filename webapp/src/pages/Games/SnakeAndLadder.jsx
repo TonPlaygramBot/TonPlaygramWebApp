@@ -411,7 +411,6 @@ function Board({
               />
             ))}
             {tiles}
-            <div className="board-frame-overlay" />
             <div
               className={`pot-cell ${highlight && highlight.cell === FINAL_TILE ? "highlight" : ""}`}
             >

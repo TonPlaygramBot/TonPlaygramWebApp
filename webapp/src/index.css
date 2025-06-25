@@ -747,16 +747,26 @@ body {
   z-index: 5;
 }
 
-.logo-wall-main::before {
+.logo-wall-main::before,
+.logo-wall-main::after {
   content: "";
   position: absolute;
   inset: 0;
-  border: 6px solid #ffd700;
   border-radius: 0.75rem;
+  pointer-events: none;
+}
+
+.logo-wall-main::before {
+  border-left: 6px solid #ffd700;
+  border-right: 6px solid #ffd700;
+}
+
+.logo-wall-main::after {
+  border-top: 6px solid #ffd700;
+  border-bottom: 6px solid #ffd700;
   box-shadow:
     0 0 10px rgba(255, 215, 0, 0.9),
     inset 0 0 10px rgba(255, 215, 0, 0.6);
-  pointer-events: none;
 }
 
 
@@ -930,29 +940,6 @@ body {
   to {
     transform: translateZ(6px) rotate(-360deg);
   }
-}
-
-/* Bold frame outlining the Snake & Ladder board */
-.board-frame-overlay {
-  pointer-events: none;
-  position: absolute;
-  top: 0;
-  left: 50%;
-  transform: translateX(-50%);
-  width: calc(var(--board-width) + 16px);
-  height: calc(var(--board-height) + 16px);
-  transform-style: preserve-3d;
-  z-index: 4;
-}
-
-.board-frame-overlay::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  border: 8px solid #ffd700;
-  border-radius: 1rem;
-  box-shadow: 0 0 15px rgba(255, 215, 0, 0.8);
-  clip-path: none;
 }
 
 /*
