@@ -147,7 +147,7 @@ The compiled assets are copied into `webapp/public/games/ludo`.
 
 ### Customizing Snakes & Ladders icons
 
-All webapp icons are stored in `webapp/public/assets/icons`. The board now uses `snake.svg` and `ladder.png` for snake and ladder connectors. Replace these files or add new ones in the same folder and update the paths in `src/index.css` if you want custom graphics.
+All webapp icons are stored in `webapp/public/assets/icons`. The board now uses `snake.svg`, `ladder.svg` and `dice.svg` for snake, ladder and dice connectors. Replace these files or add new ones in the same folder and update the paths in `src/index.css` if you want custom graphics.
 
 ### Snake & Ladder engine notes
 
