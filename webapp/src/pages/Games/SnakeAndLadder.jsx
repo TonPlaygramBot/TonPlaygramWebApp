@@ -213,7 +213,7 @@ function Board({
                   style={{
                     '--hex-color': p.color,
                     '--hex-border-color': p.color,
-                    '--hex-spin-duration': '10.5s',
+                    '--hex-spin-duration': '7s',
                   }}
                 />
                 <PlayerToken
@@ -328,7 +328,7 @@ function Board({
   // Lift the board slightly so the bottom row stays visible. Lowered slightly
   // so the logo at the top of the board isn't cropped off screen. Zeroing this
   // aligns the board vertically with the frame.
-  const boardYOffset = 20; // pixels - slight downward shift
+  const boardYOffset = 30; // pixels - pull board slightly lower
   // Pull the board away from the camera without changing the angle or zoom
   const boardZOffset = -50; // pixels
 
@@ -428,7 +428,7 @@ function Board({
                       style={{
                         '--hex-color': p.color,
                         '--hex-border-color': p.color,
-                        '--hex-spin-duration': '10.5s',
+                        '--hex-spin-duration': '7s',
                       }}
                     />
                     <PlayerToken
