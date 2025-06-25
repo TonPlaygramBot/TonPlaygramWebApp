@@ -54,7 +54,6 @@ body {
   transition: transform 0.3s ease; /* ✅ scaling transition */
 }
 
-
 /* Full-screen stage behind the Snake & Ladder board */
 .background-behind-board {
   position: absolute;
@@ -323,7 +322,7 @@ body {
   z-index: 0;
   background: var(--timer-gradient);
   -webkit-mask: radial-gradient(farthest-side, transparent 65%, black 66%);
-          mask: radial-gradient(farthest-side, transparent 65%, black 66%);
+  mask: radial-gradient(farthest-side, transparent 65%, black 66%);
 }
 
 .avatar-timer-ring {
@@ -333,7 +332,7 @@ body {
   pointer-events: none;
   background: var(--timer-gradient);
   -webkit-mask: radial-gradient(farthest-side, transparent 65%, black 66%);
-          mask: radial-gradient(farthest-side, transparent 65%, black 66%);
+  mask: radial-gradient(farthest-side, transparent 65%, black 66%);
 }
 
 .rank-number {
@@ -634,7 +633,6 @@ body {
   }
 }
 
-
 .cell-number {
   position: relative;
   z-index: 1;
@@ -648,7 +646,6 @@ body {
 }
 
 /* Small hexagonal frame for the starting cell number */
-
 
 .turn-message {
   color: #ffffff;
@@ -689,7 +686,6 @@ body {
   transform: translate(-50%, -50%) translateZ(32px);
 }
 
-
 .pot-cell.highlight {
   box-shadow: 0 0 10px 4px rgba(250, 204, 21, 0.8);
 }
@@ -727,7 +723,6 @@ body {
   pointer-events: none;
 }
 
-
 .logo-wall-main::before {
   border-left: 6px solid #334155;
   border-right: 6px solid #334155;
@@ -741,7 +736,6 @@ body {
     inset 0 0 10px rgba(0, 0, 0, 0.5);
 }
 
-
 .snake-connector,
 .ladder-connector {
   position: absolute;
@@ -754,14 +748,15 @@ body {
   font-size: 1.2rem;
 }
 
-.snake-connector::before {
-  content: "🐍";
-}
-
+.snake-connector::before,
 .ladder-connector::before {
-  content: "🪜";
+  content: none;
 }
 
+.connector-icon {
+  width: 1.2rem;
+  height: 1.2rem;
+}
 
 .coin-burst {
   position: absolute;
@@ -840,10 +835,9 @@ body {
 }
 
 .dice-marker .dice-icon {
-  font-size: 1.8rem;
-  line-height: 1;
+  width: 1.8rem;
+  height: 1.8rem;
 }
-
 
 .start-hexagon {
   position: absolute;
@@ -860,7 +854,6 @@ body {
   z-index: 0;
   animation: hex-spin var(--hex-spin-duration, 10.5s) linear infinite;
 }
-
 
 @keyframes hex-spin-reverse {
   from {
