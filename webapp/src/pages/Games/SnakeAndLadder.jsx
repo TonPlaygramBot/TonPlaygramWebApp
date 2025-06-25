@@ -14,7 +14,7 @@ import {
 import useTelegramBackButton from "../../hooks/useTelegramBackButton.js";
 import { useNavigate } from "react-router-dom";
 import { getTelegramId, getTelegramPhotoUrl } from "../../utils/telegram.js";
-import { fetchTelegramInfo, getProfile, deposit } from "../../utils/api.js";
+import { fetchTelegramInfo, getProfile, deposit, getSnakeBoard } from "../../utils/api.js";
 import PlayerToken from "../../components/PlayerToken.jsx";
 import AvatarTimer from "../../components/AvatarTimer.jsx";
 import ConfirmPopup from "../../components/ConfirmPopup.jsx";
@@ -495,6 +495,7 @@ export default function SnakeAndLadder() {
   const [aiAvatars, setAiAvatars] = useState([]);
   const [burning, setBurning] = useState([]); // indices of tokens burning
   const [refreshTick, setRefreshTick] = useState(0);
+  const [rollCooldown, setRollCooldown] = useState(0);
 
   // Preload token and avatar images so board icons and AI photos display
   // immediately without waiting for network requests during gameplay.
@@ -508,6 +509,20 @@ export default function SnakeAndLadder() {
       img.src = src;
     });
   }, []);
+
+  useEffect(() => {
+    if (rollCooldown <= 0) return;
+    const id = setInterval(() => {
+      setRollCooldown((c) => {
+        if (c <= 1) {
+          clearInterval(id);
+          return 0;
+        }
+        return c - 1;
+      });
+    }, 1000);
+    return () => clearInterval(id);
+  }, [rollCooldown]);
 
   const playerName = (idx) => (
     <span style={{ color: playerColors[idx] }}>
@@ -620,69 +635,38 @@ export default function SnakeAndLadder() {
     const colors = shuffle(TOKEN_COLORS).slice(0, aiCount + 1).map(c => c.color);
     setPlayerColors(colors);
 
-    const boardSize = ROWS * COLS;
-    const snakeCount = 6 + Math.floor(Math.random() * 3);
-    const ladderCount = 6 + Math.floor(Math.random() * 3);
+    const table = params.get("table") || "snake-4";
+    getSnakeBoard(table)
+      .then(({ snakes: snakesObj = {}, ladders: laddersObj = {} }) => {
+        setSnakes(snakesObj);
+        setLadders(laddersObj);
+        const snk = {};
+        Object.entries(snakesObj).forEach(([s, e]) => {
+          snk[s] = s - e;
+        });
+        const lad = {};
+        Object.entries(laddersObj).forEach(([s, e]) => {
+          const end = typeof e === "object" ? e.end : e;
+          lad[s] = end - s;
+        });
+        setSnakeOffsets(snk);
+        setLadderOffsets(lad);
 
-    const snakesObj = {};
-    const used = new Set();
-    while (Object.keys(snakesObj).length < snakeCount) {
-      const start = Math.floor(Math.random() * (boardSize - 10)) + 10;
-      const maxDrop = Math.min(start - 1, 20);
-      if (maxDrop <= 0) continue;
-      const end = start - (Math.floor(Math.random() * maxDrop) + 1);
-      if (used.has(start) || used.has(end) || snakesObj[start]) continue;
-      snakesObj[start] = end;
-      used.add(start);
-      used.add(end);
-    }
-
-    const laddersObj = {};
-    const usedL = new Set([...used]);
-    while (Object.keys(laddersObj).length < ladderCount) {
-      const start = Math.floor(Math.random() * (boardSize - 20)) + 2;
-      const max = Math.min(boardSize - start - 1, 20);
-      if (max < 1) continue;
-      const end = start + (Math.floor(Math.random() * max) + 1);
-      if (
-        usedL.has(start) ||
-        usedL.has(end) ||
-        laddersObj[start] ||
-        Object.values(laddersObj).includes(end)
-      )
-        continue;
-      laddersObj[start] = end;
-      usedL.add(start);
-      usedL.add(end);
-    }
-
-    setSnakes(snakesObj);
-    setLadders(laddersObj);
-
-    const snk = {};
-    Object.entries(snakesObj).forEach(([s, e]) => {
-      snk[s] = s - e;
-    });
-    const lad = {};
-    Object.entries(laddersObj).forEach(([s, e]) => {
-      const end = typeof e === "object" ? e.end : e;
-      lad[s] = end - s;
-    });
-    setSnakeOffsets(snk);
-    setLadderOffsets(lad);
-
-    const diceMap = {};
-    const diceValues = [1, 2, 1];
-    const usedD = new Set([...usedL]);
-    diceValues.forEach((val) => {
-      let cell;
-      do {
-        cell = Math.floor(Math.random() * boardSize) + 1;
-      } while (usedD.has(cell) || cell === FINAL_TILE);
-      diceMap[cell] = val;
-      usedD.add(cell);
-    });
-    setDiceCells(diceMap);
+        const boardSize = ROWS * COLS;
+        const diceMap = {};
+        const diceValues = [1, 2, 1];
+        const usedD = new Set([...Object.keys(snakesObj), ...Object.keys(laddersObj), ...Object.values(snakesObj), ...Object.values(laddersObj)]);
+        diceValues.forEach((val) => {
+          let cell;
+          do {
+            cell = Math.floor(Math.random() * boardSize) + 1;
+          } while (usedD.has(String(cell)) || usedD.has(cell) || cell === FINAL_TILE);
+          diceMap[cell] = val;
+          usedD.add(cell);
+        });
+        setDiceCells(diceMap);
+      })
+      .catch(() => {});
   }, []);
 
   useEffect(() => {
@@ -724,6 +708,7 @@ export default function SnakeAndLadder() {
 
   const handleRoll = (values) => {
     setTurnMessage("");
+    setRollCooldown(1);
     const value = Array.isArray(values)
       ? values.reduce((a, b) => a + b, 0)
       : values;
@@ -1242,11 +1227,14 @@ export default function SnakeAndLadder() {
                 return setTurnMessage("Rolling...");
               }
             }
-            clickable={!aiRollingIndex && !playerAutoRolling}
+            clickable={!aiRollingIndex && !playerAutoRolling && rollCooldown === 0}
             numDice={diceCount + bonusDice}
             trigger={aiRollingIndex != null ? aiRollTrigger : playerAutoRolling ? playerRollTrigger : undefined}
             showButton={!aiRollingIndex && !playerAutoRolling}
           />
+          {rollCooldown > 0 && (
+            <div className="text-sm mt-1">{rollCooldown}</div>
+          )}
           {turnMessage && (
             <div
               className="mt-2 turn-message"

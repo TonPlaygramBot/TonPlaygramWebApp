@@ -1,16 +1,66 @@
+export const FINAL_TILE = 101;
+export const DEFAULT_SNAKES = { 99: 80 };
+export const DEFAULT_LADDERS = { 3: 22, 27: 46 };
+export const ROLL_COOLDOWN_MS = 1000;
+
+function generateBoard() {
+  const boardSize = FINAL_TILE - 1;
+  const snakeCount = 6 + Math.floor(Math.random() * 3);
+  const ladderCount = 6 + Math.floor(Math.random() * 3);
+  const snakes = {};
+  const used = new Set();
+  while (Object.keys(snakes).length < snakeCount) {
+    const start = Math.floor(Math.random() * (boardSize - 10)) + 10;
+    const maxDrop = Math.min(start - 1, 20);
+    if (maxDrop <= 0) continue;
+    const end = start - (Math.floor(Math.random() * maxDrop) + 1);
+    if (used.has(start) || used.has(end) || snakes[start]) continue;
+    snakes[start] = end;
+    used.add(start);
+    used.add(end);
+  }
+  const ladders = {};
+  const usedL = new Set([...used]);
+  while (Object.keys(ladders).length < ladderCount) {
+    const start = Math.floor(Math.random() * (boardSize - 20)) + 2;
+    const max = Math.min(boardSize - start - 1, 20);
+    if (max < 1) continue;
+    const end = start + (Math.floor(Math.random() * max) + 1);
+    if (
+      usedL.has(start) ||
+      usedL.has(end) ||
+      ladders[start] ||
+      Object.values(ladders).includes(end)
+    )
+      continue;
+    ladders[start] = end;
+    usedL.add(start);
+    usedL.add(end);
+  }
+  return { snakes, ladders };
+}
+
 export class GameRoom {
-  constructor(id, io) {
+  constructor(id, io, capacity = 4, board = {}) {
     this.id = id;
     this.io = io;
+    this.capacity = capacity;
     this.players = [];
     this.currentTurn = 0;
     this.status = 'waiting';
-    this.snakes = { 99: 41, 85: 58, 70: 55 };
-    this.ladders = { 2: 38, 15: 26, 22: 58 };
+    if (board.snakes && board.ladders) {
+      this.snakes = board.snakes;
+      this.ladders = board.ladders;
+    } else {
+      const b = generateBoard();
+      this.snakes = b.snakes;
+      this.ladders = b.ladders;
+    }
+    this.rollCooldown = ROLL_COOLDOWN_MS;
   }
 
   addPlayer(playerId, name, socket) {
-    if (this.players.length >= 4 || this.status !== 'waiting') {
+    if (this.players.length >= this.capacity || this.status !== 'waiting') {
       return { error: 'Room full or game already started' };
     }
     const player = {
@@ -19,12 +69,14 @@ export class GameRoom {
       position: 0,
       isActive: false,
       socketId: socket.id,
-      disconnected: false
+      disconnected: false,
+      lastRollTime: 0,
+      sixStreak: 0
     };
     this.players.push(player);
     socket.join(this.id);
     this.io.to(this.id).emit('playerJoined', { playerId, name });
-    if (this.players.length === 4) {
+    if (this.players.length === this.capacity) {
       this.startGame();
     }
     return { success: true };
@@ -41,7 +93,7 @@ export class GameRoom {
   emitNextTurn() {
     const current = this.players[this.currentTurn];
     if (current) {
-      this.io.to(this.id).emit('nextTurn', { playerId: current.playerId });
+      this.io.to(this.id).emit('turnChanged', { playerId: current.playerId });
     }
   }
 
@@ -58,45 +110,75 @@ export class GameRoom {
     const player = this.players[playerIndex];
     if (this.players[this.currentTurn].socketId !== socket.id) return;
 
+    if (Date.now() - player.lastRollTime < this.rollCooldown) {
+      socket.emit('error', 'roll cooldown');
+      return;
+    }
+    player.lastRollTime = Date.now();
+
     const dice = value ?? Math.floor(Math.random() * 6) + 1;
     this.io.to(this.id).emit('diceRolled', { playerId: player.playerId, value: dice });
 
     let from = player.position;
     let to = player.position;
 
-    if (!player.isActive) {
-      if (dice === 6) {
-        player.isActive = true;
-        to = from + dice;
-      }
+      if (!player.isActive) {
+        if (dice === 6) {
+          player.isActive = true;
+          to = from + 1;
+        }
+      } else {
+        if (from + dice <= FINAL_TILE) {
+          to = from + dice;
+        }
+    }
+
+    if (player.sixStreak === undefined) player.sixStreak = 0;
+    if (dice === 6) {
+      player.sixStreak += 1;
     } else {
-      if (from + dice <= 100) {
-        to = from + dice;
-      }
+      player.sixStreak = 0;
     }
 
-    if (to !== from) {
-      player.position = to;
-      this.io.to(this.id).emit('movePlayer', { playerId: player.playerId, from, to });
-      const final = this.applySnakesAndLadders(to);
-      if (final !== to) {
-        player.position = final;
-        this.io.to(this.id).emit('snakeOrLadder', { playerId: player.playerId, from: to, to: final });
-      }
-    }
-
-    if (player.position === 100) {
-      this.status = 'finished';
-      this.io.to(this.id).emit('gameWon', { playerId: player.playerId });
-      return;
-    }
-
-    if (dice !== 6) {
+    if (player.sixStreak >= 3) {
+      player.sixStreak = 0;
       do {
         this.currentTurn = (this.currentTurn + 1) % this.players.length;
       } while (this.players[this.currentTurn].disconnected);
+      this.emitNextTurn();
+      return;
+    } else {
+      if (to !== from) {
+        player.position = to;
+        this.io.to(this.id).emit('movePlayer', { playerId: player.playerId, from, to });
+        const final = this.applySnakesAndLadders(to);
+        if (final !== to) {
+          player.position = final;
+          this.io.to(this.id).emit('snakeOrLadder', { playerId: player.playerId, from: to, to: final });
+        }
+      }
+
+      for (const p of this.players) {
+        if (p !== player && !p.disconnected && p.position === player.position) {
+          p.position = 0;
+          p.isActive = false;
+          this.io.to(this.id).emit('playerReset', { playerId: p.playerId });
+        }
+      }
+
+      if (player.position === FINAL_TILE) {
+        this.status = 'finished';
+        this.io.to(this.id).emit('gameWon', { playerId: player.playerId });
+        return;
+      }
+
+      if (dice !== 6) {
+        do {
+          this.currentTurn = (this.currentTurn + 1) % this.players.length;
+        } while (this.players[this.currentTurn].disconnected);
+      }
+      this.emitNextTurn();
     }
-    this.emitNextTurn();
   }
 
   handleDisconnect(socket) {
@@ -114,17 +196,19 @@ export class GameRoomManager {
     this.rooms = new Map();
   }
 
-  getRoom(id) {
+  getRoom(id, capacity = 4, board) {
     let room = this.rooms.get(id);
     if (!room) {
-      room = new GameRoom(id, this.io);
+      room = new GameRoom(id, this.io, capacity, board);
       this.rooms.set(id, room);
     }
     return room;
   }
 
   joinRoom(roomId, playerId, name, socket) {
-    const room = this.getRoom(roomId);
+    const match = /-(\d+)$/.exec(roomId);
+    const cap = match ? Number(match[1]) : 4;
+    const room = this.getRoom(roomId, cap);
     return room.addPlayer(playerId, name, socket);
   }
 
