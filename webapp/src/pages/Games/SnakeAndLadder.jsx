@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useLayoutEffect, Fragment } from "react";
 import confetti from "canvas-confetti";
 import DiceRoller from "../../components/DiceRoller.jsx";
-import { dropSound, snakeSound, ladderSound, bombSound } from "../../assets/soundData.js";
+import { dropSound, snakeSound, ladderSound, bombSound, timerBeep } from "../../assets/soundData.js";
 import { AVATARS } from "../../components/AvatarPickerModal.jsx";
 import InfoPopup from "../../components/InfoPopup.jsx";
 import GameEndPopup from "../../components/GameEndPopup.jsx";
@@ -568,9 +568,7 @@ export default function SnakeAndLadder() {
     winSoundRef.current = new Audio("/assets/sounds/successful.mp3");
     diceRewardSoundRef.current = new Audio("/assets/sounds/successful.mp3");
     bombSoundRef.current = new Audio(bombSound);
-    // Use the same wheel spinning sound effect as the Spin & Win page
-    timerSoundRef.current = new Audio('/assets/sounds/spinning.mp3');
-    timerSoundRef.current.loop = true;
+    timerSoundRef.current = new Audio(timerBeep);
     return () => {
       moveSoundRef.current?.pause();
       snakeSoundRef.current?.pause();
@@ -1077,13 +1075,14 @@ export default function SnakeAndLadder() {
     const limit = currentTurn === 0 ? 15 : 3;
     setTimeLeft(limit);
     if (timerRef.current) clearInterval(timerRef.current);
-    if (timerSoundRef.current) {
-      timerSoundRef.current.currentTime = 0;
-      timerSoundRef.current.play().catch(() => {});
-    }
+    if (timerSoundRef.current) timerSoundRef.current.pause();
     timerRef.current = setInterval(() => {
       setTimeLeft((t) => {
         const next = t - 1;
+        if (next <= 5 && next >= 0 && timerSoundRef.current) {
+          timerSoundRef.current.currentTime = 0;
+          timerSoundRef.current.play().catch(() => {});
+        }
         if (next <= 0) {
           timerSoundRef.current?.pause();
           clearInterval(timerRef.current);
