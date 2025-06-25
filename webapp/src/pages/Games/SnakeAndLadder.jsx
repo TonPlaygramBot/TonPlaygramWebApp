@@ -357,6 +357,7 @@ function Board({
 
   return (
     <div className="relative flex justify-center items-center w-screen overflow-visible">
+      <div className="background-behind-board" />
       <div
         ref={containerRef}
         className="overflow-y-auto"
@@ -389,7 +390,7 @@ function Board({
               transform: `translate(${boardXOffset}px, ${boardYOffset}px) translateZ(${boardZOffset}px) rotateX(${angle}deg) scale(0.9)`,
             }}
           >
-            <div className="snake-gradient-bg" />
+            {/* Game background is rendered outside the grid */}
             {connectors.map((c, i) => (
               <div
                 key={i}
