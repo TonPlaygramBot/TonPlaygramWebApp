@@ -150,11 +150,11 @@ function Board({
             ? "dice"
             : "";
       const cellClass = cellType ? `${cellType}-cell` : "";
-      const iconEmoji =
+      const iconImage =
         cellType === "ladder"
-          ? "\uD83E\uDEA4" // 🪜
+          ? "/assets/icons/Ladder.png"
           : cellType === "snake"
-            ? "\uD83D\uDC0D" // 🐍
+            ? "/assets/icons/snake.png"
             : null;
       const offsetVal =
         cellType === "ladder"
@@ -178,17 +178,17 @@ function Board({
           className={`board-cell ${cellClass} ${highlightClass}`}
           style={style}
         >
-          {(iconEmoji || offsetVal != null) && (
+          {(iconImage || offsetVal != null) && (
             <span className="cell-marker">
-              {iconEmoji && (
-                <span className="cell-icon cell-emoji">{iconEmoji}</span>
+              {iconImage && (
+                <img src={iconImage} className="cell-icon" />
               )}
             </span>
           )}
           {!cellType && <span className="cell-number">{num}</span>}
           {diceCells && diceCells[num] && (
             <span className="dice-marker">
-              <span className="dice-icon">\uD83C\uDFB2</span>
+              <img src="/assets/icons/Dice.png" className="dice-icon" />
             </span>
           )}
           {players
@@ -396,7 +396,12 @@ function Board({
                   width: `${c.len}px`,
                   transform: `translateY(-50%) rotate(${c.angle}deg) translateZ(6px)`,
                 }}
-              />
+              >
+                <img
+                  src={c.type === 'snake' ? '/assets/icons/snake.png' : '/assets/icons/Ladder.png'}
+                  className="connector-icon"
+                />
+              </div>
             ))}
             {tiles}
             <div
