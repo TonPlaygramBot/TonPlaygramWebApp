@@ -75,7 +75,8 @@ body {
   /* Expand the bottom of the backdrop so it extends beyond the board */
   /* Make the top even wider next to the logo and taper the bottom */
   /* Narrow top edge and widen bottom edge for a stronger perspective */
-  clip-path: polygon(-60% 0%, 160% 0%, 130% 100%, -30% 100%);
+  /* Wider at the top near the logo with a tapered bottom */
+  clip-path: polygon(-80% 0%, 180% 0%, 110% 100%, -10% 100%);
   pointer-events: none;
   z-index: 0;
   background:
@@ -620,7 +621,7 @@ body {
 .board-cell[data-cell="1"] .cell-icon {
   width: 4.8rem;
   height: 4.8rem;
-  animation: hex-spin 6s linear infinite;
+  animation: hex-spin 10.5s linear infinite;
   transform-origin: center;
 }
 
@@ -757,16 +758,16 @@ body {
 
 .logo-wall-main {
   @apply absolute flex items-center justify-center;
-  width: calc(var(--cell-width) * 6.4); /* slightly wider logo */
-  height: calc(var(--cell-height) * 5); /* taller logo */
-  /* position the logo slightly lower on the board */
+  width: calc(var(--cell-width) * 6.7); /* a bit wider */
+  height: calc(var(--cell-height) * 5);
+  /* move the logo slightly down */
   top: calc(
-    var(--cell-height) * -9.5 - var(--cell-height) * 1.7 *
+    var(--cell-height) * -9 - var(--cell-height) * 1.7 *
       (var(--final-scale, 1) - 1)
   );
   left: 50%;
   transform: translateX(-50%) rotateX(calc(var(--board-angle, 58deg) * -1))
-    translateZ(-90px) scale(2.1); /* slightly larger logo */
+    translateZ(-90px) scale(2.2); /* a touch bigger */
   transform-origin: bottom center;
   background-image: url("/assets/TonPlayGramLogo.jpg");
   background-size: contain;
@@ -926,7 +927,7 @@ body {
   transform: translateZ(6px);
   pointer-events: none;
   z-index: 0;
-  animation: hex-spin 6s linear infinite;
+  animation: hex-spin 10.5s linear infinite;
 }
 
 
@@ -944,7 +945,7 @@ body {
     transform: translateZ(6px) rotate(0deg);
   }
   to {
-    transform: translateZ(6px) rotate(360deg);
+    transform: translateZ(6px) rotate(-360deg);
   }
 }
 
