@@ -1,7 +1,7 @@
 import { useRef, useEffect } from "react";
 import * as THREE from "three";
 
-export default function HexPrismToken({ color = "#008080", topColor, photoUrl, className = "", rolling = false, active = false, timerPct = 1 }) {
+export default function HexPrismToken({ color = "#008080", topColor, photoUrl, className = "", rolling = false, active = false }) {
   const mountRef = useRef(null);
 
   useEffect(() => {
@@ -92,12 +92,9 @@ export default function HexPrismToken({ color = "#008080", topColor, photoUrl, c
     };
   }, [color, topColor]);
 
-  const angle = (1 - timerPct) * 360;
-  const gradient = `conic-gradient(#facc15 ${angle}deg, #16a34a 0deg)`;
 
   return (
     <div className={`token-three relative ${className}`} ref={mountRef}>
-      {active && <div className="timer-ring" style={{ '--timer-gradient': gradient }} />}
       {photoUrl && (
         <img
           src={photoUrl}

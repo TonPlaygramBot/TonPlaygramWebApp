@@ -350,12 +350,10 @@ body {
 .rank-name {
   position: absolute;
   top: -0.3rem;
-  right: 1rem;
+  right: -0.3rem;
+  transform: translateX(100%);
   font-size: 0.6rem;
   color: #fff;
-  background-color: #334155;
-  padding: 0 0.25rem;
-  border-radius: 0.25rem;
 }
 
 .token-cube-inner {
@@ -733,6 +731,7 @@ body {
   transform: translateX(-50%) rotateX(calc(var(--board-angle, 58deg) * -1))
     translateZ(-90px) scale(2.2); /* a touch bigger */
   transform-origin: bottom center;
+  box-shadow: 0 0 0 6px rgba(0, 0, 0, 0.6);
   background-image:
     linear-gradient(to bottom, rgba(0, 0, 0, 0.45), rgba(0, 0, 0, 0) 70%),
     url("/assets/TonPlayGramLogo.jpg");

@@ -1,7 +1,7 @@
 import React from "react";
 import HexPrismToken from "./HexPrismToken.jsx";
 
-export default function PlayerToken({ type = "normal", color, topColor, photoUrl, className = "", rolling = false, active = false, timerPct = 1 }) {
+export default function PlayerToken({ type = "normal", color, topColor, photoUrl, className = "", rolling = false, active = false }) {
   let tokenColor = color;
   if (!tokenColor) {
     if (type === "ladder") tokenColor = "#86efac"; // green
@@ -16,7 +16,6 @@ export default function PlayerToken({ type = "normal", color, topColor, photoUrl
       className={className}
       rolling={rolling}
       active={active}
-      timerPct={timerPct}
     />
   );
 }
