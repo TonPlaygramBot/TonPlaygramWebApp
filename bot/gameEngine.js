@@ -3,6 +3,8 @@ export const DEFAULT_SNAKES = { 99: 80 };
 export const DEFAULT_LADDERS = { 3: 22, 27: 46 };
 export const ROLL_COOLDOWN_MS = 1000;
 
+import GameRoomModel from './models/GameRoom.js';
+
 function generateBoard() {
   const boardSize = FINAL_TILE - 1;
   const snakeCount = 6 + Math.floor(Math.random() * 3);
@@ -204,33 +206,104 @@ export class GameRoomManager {
     this.rooms = new Map();
   }
 
-  getRoom(id, capacity = 4, board) {
+  async loadRooms() {
+    const docs = await GameRoomModel.find({});
+    for (const doc of docs) {
+      const room = new GameRoom(doc.roomId, this.io, doc.capacity, {
+        snakes: Object.fromEntries(doc.snakes),
+        ladders: Object.fromEntries(doc.ladders)
+      });
+      room.players = doc.players.map((p) => ({
+        ...p.toObject(),
+        socketId: null,
+        lastRollTime: 0
+      }));
+      room.currentTurn = doc.currentTurn;
+      room.status = doc.status;
+      this.rooms.set(room.id, room);
+    }
+  }
+
+  async saveRoom(room) {
+    const doc = {
+      roomId: room.id,
+      capacity: room.capacity,
+      status: room.status,
+      currentTurn: room.currentTurn,
+      snakes: room.snakes,
+      ladders: room.ladders,
+      players: room.players.map((p) => ({
+        playerId: p.playerId,
+        name: p.name,
+        position: p.position,
+        isActive: p.isActive,
+        disconnected: p.disconnected,
+        sixStreak: p.sixStreak ?? 0
+      }))
+    };
+    await GameRoomModel.findOneAndUpdate({ roomId: room.id }, doc, {
+      upsert: true
+    });
+  }
+
+  async getRoom(id, capacity = 4, board) {
     let room = this.rooms.get(id);
     if (!room) {
-      room = new GameRoom(id, this.io, capacity, board);
+      const record = await GameRoomModel.findOne({ roomId: id });
+      if (record) {
+        room = new GameRoom(id, this.io, record.capacity, {
+          snakes: Object.fromEntries(record.snakes),
+          ladders: Object.fromEntries(record.ladders)
+        });
+        room.players = record.players.map((p) => ({
+          ...p.toObject(),
+          socketId: null,
+          lastRollTime: 0
+        }));
+        room.currentTurn = record.currentTurn;
+        room.status = record.status;
+      } else {
+        room = new GameRoom(id, this.io, capacity, board);
+        await GameRoomModel.create({
+          roomId: id,
+          capacity: room.capacity,
+          status: room.status,
+          currentTurn: room.currentTurn,
+          snakes: room.snakes,
+          ladders: room.ladders,
+          players: []
+        });
+      }
       this.rooms.set(id, room);
     }
     return room;
   }
 
-  joinRoom(roomId, playerId, name, socket) {
+  async joinRoom(roomId, playerId, name, socket) {
     const match = /-(\d+)$/.exec(roomId);
     const cap = match ? Number(match[1]) : 4;
-    const room = this.getRoom(roomId, cap);
-    return room.addPlayer(playerId, name, socket);
+    const room = await this.getRoom(roomId, cap);
+    const result = room.addPlayer(playerId, name, socket);
+    if (!result.error) await this.saveRoom(room);
+    return result;
   }
 
-  rollDice(socket) {
+  async rollDice(socket) {
     const room = this.findRoomBySocket(socket.id);
-    if (room) room.rollDice(socket);
+    if (room) {
+      room.rollDice(socket);
+      await this.saveRoom(room);
+    }
   }
 
-  handleDisconnect(socket) {
+  async handleDisconnect(socket) {
     const room = this.findRoomBySocket(socket.id);
     if (room) {
       room.handleDisconnect(socket);
+      await this.saveRoom(room);
       if (room.players.every((p) => p.disconnected)) {
         this.rooms.delete(room.id);
+        await GameRoomModel.deleteOne({ roomId: room.id });
       }
     }
   }

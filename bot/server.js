@@ -141,33 +141,35 @@ app.get('/', (req, res) => {
 app.get('/api/ping', (req, res) => {
   res.json({ message: 'pong' });
 });
-app.get('/api/snake/lobbies', (req, res) => {
+app.get('/api/snake/lobbies', async (req, res) => {
   const capacities = [2, 3, 4];
-  const lobbies = capacities.map((cap) => {
-    const id = `snake-${cap}`;
-    const room = gameManager.getRoom(id, cap);
-    const players = room.players.filter((p) => !p.disconnected).length;
-    return { id, capacity: cap, players };
-  });
+  const lobbies = await Promise.all(
+    capacities.map(async (cap) => {
+      const id = `snake-${cap}`;
+      const room = await gameManager.getRoom(id, cap);
+      const players = room.players.filter((p) => !p.disconnected).length;
+      return { id, capacity: cap, players };
+    })
+  );
   res.json(lobbies);
 });
 
-app.get('/api/snake/lobby/:id', (req, res) => {
+app.get('/api/snake/lobby/:id', async (req, res) => {
   const { id } = req.params;
   const match = /-(\d+)$/.exec(id);
   const cap = match ? Number(match[1]) : 4;
-  const room = gameManager.getRoom(id, cap);
+  const room = await gameManager.getRoom(id, cap);
   const players = room.players
     .filter((p) => !p.disconnected)
     .map((p) => ({ id: p.playerId, name: p.name }));
   res.json({ id, capacity: cap, players });
 });
 
-app.get('/api/snake/board/:id', (req, res) => {
+app.get('/api/snake/board/:id', async (req, res) => {
   const { id } = req.params;
   const match = /-(\d+)$/.exec(id);
   const cap = match ? Number(match[1]) : 4;
-  const room = gameManager.getRoom(id, cap);
+  const room = await gameManager.getRoom(id, cap);
   res.json({ snakes: room.snakes, ladders: room.ladders });
 });
 app.get('*', (req, res) => {
@@ -195,13 +197,23 @@ if (mongoUri === 'memory') {
   console.log('No MongoDB URI configured, continuing without database');
 }
 
+mongoose.connection.once('open', () => {
+  gameManager.loadRooms().catch((err) =>
+    console.error('Failed to load game rooms:', err)
+  );
+});
+
 io.on('connection', (socket) => {
-  socket.on('joinRoom', ({ roomId, playerId, name }) => {
-    const result = gameManager.joinRoom(roomId, playerId, name, socket);
+  socket.on('joinRoom', async ({ roomId, playerId, name }) => {
+    const result = await gameManager.joinRoom(roomId, playerId, name, socket);
     if (result.error) socket.emit('error', result.error);
   });
-  socket.on('rollDice', () => gameManager.rollDice(socket));
-  socket.on('disconnect', () => gameManager.handleDisconnect(socket));
+  socket.on('rollDice', async () => {
+    await gameManager.rollDice(socket);
+  });
+  socket.on('disconnect', async () => {
+    await gameManager.handleDisconnect(socket);
+  });
 });
 
 // Start the server
