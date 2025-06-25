@@ -719,8 +719,8 @@ body {
   @apply absolute flex flex-col items-center justify-center;
   width: calc(var(--cell-width) * 2.7);
   height: calc(var(--cell-height) * 2.7);
-  /* move the pot a touch higher */
-  top: calc(var(--cell-height) * -4);
+  /* move the pot a bit higher */
+  top: calc(var(--cell-height) * -4.5);
   left: 50%;
   transform: translateX(-50%) translateZ(12px);
   z-index: 50;

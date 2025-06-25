@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useLayoutEffect, Fragment } from "react";
 import confetti from "canvas-confetti";
 import DiceRoller from "../../components/DiceRoller.jsx";
-import { dropSound, snakeSound, ladderSound, timerBeep, bombSound } from "../../assets/soundData.js";
+import { dropSound, snakeSound, ladderSound, bombSound } from "../../assets/soundData.js";
 import { AVATARS } from "../../components/AvatarPickerModal.jsx";
 import InfoPopup from "../../components/InfoPopup.jsx";
 import GameEndPopup from "../../components/GameEndPopup.jsx";
@@ -328,8 +328,8 @@ function Board({
   // Lift the board slightly so the bottom row stays visible. Lowered slightly
   // so the logo at the top of the board isn't cropped off screen. Zeroing this
   // aligns the board vertically with the frame.
-  // Move the board slightly higher so the pot and logo sit closer to the top
-  const boardYOffset = 40; // pixels - slightly lower
+  // Move the board slightly downward so the top row clears the logo frame
+  const boardYOffset = 60; // pixels - slightly lower
   // Pull the board away from the camera without changing the angle or zoom
   const boardZOffset = -50; // pixels
 
@@ -568,7 +568,8 @@ export default function SnakeAndLadder() {
     winSoundRef.current = new Audio("/assets/sounds/successful.mp3");
     diceRewardSoundRef.current = new Audio("/assets/sounds/successful.mp3");
     bombSoundRef.current = new Audio(bombSound);
-    timerSoundRef.current = new Audio(timerBeep);
+    timerSoundRef.current = new Audio('/assets/sounds/successful.mp3');
+    timerSoundRef.current.loop = true;
     return () => {
       moveSoundRef.current?.pause();
       snakeSoundRef.current?.pause();
@@ -1073,14 +1074,17 @@ export default function SnakeAndLadder() {
   useEffect(() => {
     if (setupPhase || gameOver) return;
     const limit = currentTurn === 0 ? 15 : 3;
-    const beep = currentTurn === 0 ? 7 : 2;
     setTimeLeft(limit);
     if (timerRef.current) clearInterval(timerRef.current);
+    if (timerSoundRef.current) {
+      timerSoundRef.current.currentTime = 0;
+      timerSoundRef.current.play().catch(() => {});
+    }
     timerRef.current = setInterval(() => {
       setTimeLeft((t) => {
         const next = t - 1;
-        if (next <= beep && next >= 0) timerSoundRef.current?.play().catch(() => {});
         if (next <= 0) {
+          timerSoundRef.current?.pause();
           clearInterval(timerRef.current);
           if (currentTurn === 0) {
             setPlayerAutoRolling(true);
@@ -1093,7 +1097,10 @@ export default function SnakeAndLadder() {
         return next;
       });
     }, 1000);
-    return () => clearInterval(timerRef.current);
+    return () => {
+      clearInterval(timerRef.current);
+      timerSoundRef.current?.pause();
+    };
   }, [currentTurn, setupPhase, gameOver]);
 
   // Periodically refresh the component state to avoid freezes
