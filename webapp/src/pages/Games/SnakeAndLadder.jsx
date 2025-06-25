@@ -328,8 +328,8 @@ function Board({
   // Lift the board slightly so the bottom row stays visible. Lowered slightly
   // so the logo at the top of the board isn't cropped off screen. Zeroing this
   // aligns the board vertically with the frame.
-  // Move the board a bit further down so the bottom rows sit nearer the footer
-  const boardYOffset = 60; // pixels
+  // Move the board slightly higher so the pot and logo sit closer to the top
+  const boardYOffset = 40; // pixels
   // Pull the board away from the camera without changing the angle or zoom
   const boardZOffset = -50; // pixels
 
