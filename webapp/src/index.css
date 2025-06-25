@@ -298,7 +298,8 @@ body {
   left: 50%;
   transform-origin: center;
   /* Place the bottom of the photo at the centre of the top face */
-  transform: translate(-50%, -100%) translateZ(15.2px)
+  /* lift the photo so it's fully visible */
+  transform: translate(-50%, -120%) translateZ(15.2px)
     rotateX(calc(var(--board-angle, 58deg) * -1 - 10deg));
   object-fit: cover;
   border-radius: 50%;
@@ -719,8 +720,8 @@ body {
   @apply absolute flex flex-col items-center justify-center;
   width: calc(var(--cell-width) * 2.7);
   height: calc(var(--cell-height) * 2.7);
-  /* move the pot nearer to the board */
-  top: calc(var(--cell-height) * -3.8);
+  /* move the pot a touch higher */
+  top: calc(var(--cell-height) * -4);
   left: 50%;
   transform: translateX(-50%) translateZ(12px);
   z-index: 50;
@@ -737,11 +738,12 @@ body {
 
 .logo-wall-main {
   @apply absolute flex items-center justify-center;
-  width: calc(var(--cell-width) * 8.5); /* slightly wider */
+  /* widen the logo a bit more */
+  width: calc(var(--cell-width) * 9.5);
   height: calc(var(--cell-height) * 5);
   /* move the logo slightly up */
   top: calc(
-    var(--cell-height) * -8.5 - var(--cell-height) * 1.7 *
+    var(--cell-height) * -8.7 - var(--cell-height) * 1.7 *
       (var(--final-scale, 1) - 1)
   );
   left: 50%;
