@@ -496,6 +496,19 @@ export default function SnakeAndLadder() {
   const [burning, setBurning] = useState([]); // indices of tokens burning
   const [refreshTick, setRefreshTick] = useState(0);
 
+  // Preload token and avatar images so board icons and AI photos display
+  // immediately without waiting for network requests during gameplay.
+  useEffect(() => {
+    ['ton', 'tpc', 'usdt'].forEach((t) => {
+      const img = new Image();
+      img.src = `/icons/${t}.svg`;
+    });
+    AVATARS.forEach((src) => {
+      const img = new Image();
+      img.src = src;
+    });
+  }, []);
+
   const playerName = (idx) => (
     <span style={{ color: playerColors[idx] }}>
       {idx === 0 ? 'You' : `AI ${idx}`}
