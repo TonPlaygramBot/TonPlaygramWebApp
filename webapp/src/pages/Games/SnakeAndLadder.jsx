@@ -97,9 +97,8 @@ function Board({
   // Gradual horizontal widening towards the top. Keep the bottom
   // row the same width and slightly expand each successive row so
   // the board forms a soft V shape.
-  // Increase the widening and scaling so the top merges with the logo
-  const widenStep = 0.07; // how much each row expands horizontally
-  const scaleStep = 0.03; // how much each row's cells scale
+  const widenStep = 0.05; // how much each row expands horizontally
+  const scaleStep = 0.02; // how much each row's cells scale
   // Perspective with smaller cells at the bottom growing larger towards the pot
   const finalScale = 1 + (ROWS - 3) * scaleStep;
 
