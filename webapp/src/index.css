@@ -738,11 +738,6 @@ body {
   transform: translateX(-50%) rotateX(calc(var(--board-angle, 58deg) * -1))
     translateZ(-90px) scale(2.2); /* a touch bigger */
   transform-origin: bottom center;
-  /* Gold prism frame around the logo */
-  border: 6px solid #ffd700;
-  box-shadow:
-    0 0 10px rgba(255, 215, 0, 0.9),
-    inset 0 0 10px rgba(255, 215, 0, 0.6);
   background-image:
     linear-gradient(to bottom, rgba(0, 0, 0, 0.45), rgba(0, 0, 0, 0) 70%),
     url("/assets/TonPlayGramLogo.jpg");
@@ -750,6 +745,17 @@ body {
   background-repeat: no-repeat;
   background-position: center;
   z-index: 5;
+}
+
+.logo-wall-main::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border: 6px solid #ffd700;
+  box-shadow:
+    0 0 10px rgba(255, 215, 0, 0.9),
+    inset 0 0 10px rgba(255, 215, 0, 0.6);
+  pointer-events: none;
 }
 
 
@@ -934,11 +940,18 @@ body {
   transform: translateX(-50%);
   width: calc(var(--board-width) + 16px);
   height: calc(var(--board-height) + 16px);
+  transform-style: preserve-3d;
+  z-index: 4;
+}
+
+.board-frame-overlay::before {
+  content: "";
+  position: absolute;
+  inset: 0;
   border: 8px solid #ffd700;
   border-radius: 1rem;
   box-shadow: 0 0 15px rgba(255, 215, 0, 0.8);
-  transform-style: preserve-3d;
-  z-index: 4;
+  clip-path: polygon(10% 100%, 90% 100%, 100% 0, 0 0);
 }
 
 /*
