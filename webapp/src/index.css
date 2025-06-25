@@ -54,44 +54,15 @@ body {
   transition: transform 0.3s ease; /* ✅ scaling transition */
 }
 
-.snake-gradient-bg {
+
+/* Full-screen stage behind the Snake & Ladder board */
+.background-behind-board {
   position: absolute;
-  /* rotate the backdrop 90deg so it runs from top to bottom */
-  top: 50%;
-  left: 50%;
-  /* slightly taller backdrop */
-  width: calc(var(--board-height) * 1.4);
-  /* trim one row from top and bottom */
-  height: calc(var(--board-width) * 1.7 - var(--cell-height) * 2);
-  /* keep bottom in place by shifting upward */
-  /* slightly shift down so the backdrop covers the starting rows */
-  transform: translate(-50%, -50%) rotate(90deg) translateZ(0);
-  transform-origin: center;
-  /* Make the top wider near the logo and taper towards the footer */
-  clip-path: polygon(-80% 0%, 180% 0%, 110% 100%, -10% 100%);
+  inset: 0;
+  z-index: -1;
   pointer-events: none;
-  z-index: 0;
-  background:
-    linear-gradient(
-      to right,
-      rgba(0, 0, 0, 0.6),
-      rgba(0, 0, 0, 0) 30%,
-      rgba(0, 0, 0, 0) 70%,
-      rgba(0, 0, 0, 0.6)
-    ),
-    linear-gradient(
-      to top,
-      #000714,
-      #000a1f,
-      #123840,
-      #1f4d58 20%,
-      #d9cec2 40%,
-      #f3f0e8 50%,
-      #b95741 60%,
-      #e7b382 80%,
-      #4c050d,
-      #110003
-    );
+  /* Darker blend in the centre so the board merges with the logo */
+  background: linear-gradient(to right, #0f172a, #1e1e1e 50%, #7f1d1d);
 }
 
 @keyframes roll {
@@ -751,7 +722,7 @@ body {
 
 .logo-wall-main {
   @apply absolute flex items-center justify-center;
-  width: calc(var(--cell-width) * 7.2); /* widen near the logo */
+  width: calc(var(--cell-width) * 6.7); /* a bit wider */
   height: calc(var(--cell-height) * 5);
   /* move the logo slightly down */
   top: calc(
@@ -762,20 +733,13 @@ body {
   transform: translateX(-50%) rotateX(calc(var(--board-angle, 58deg) * -1))
     translateZ(-90px) scale(2.2); /* a touch bigger */
   transform-origin: bottom center;
-  background-image: url("/assets/TonPlayGramLogo.jpg");
+  background-image:
+    linear-gradient(to bottom, rgba(0, 0, 0, 0.45), rgba(0, 0, 0, 0) 70%),
+    url("/assets/TonPlayGramLogo.jpg");
   background-size: contain;
   background-repeat: no-repeat;
   background-position: center;
   z-index: 5;
-  position: relative;
-}
-
-.logo-wall-main::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  background: radial-gradient(circle, transparent 60%, rgba(0, 0, 0, 0.4));
-  pointer-events: none;
 }
 
 
