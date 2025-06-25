@@ -61,10 +61,11 @@ body {
   left: 50%;
   /* slightly taller backdrop */
   width: calc(var(--board-height) * 1.4);
-  height: calc(var(--board-width) * 1.7);
+  /* trim one row from top and bottom */
+  height: calc(var(--board-width) * 1.7 - var(--cell-height) * 2);
   /* keep bottom in place by shifting upward */
   /* slightly shift down so the backdrop covers the starting rows */
-  transform: translate(-50%, -55%) rotate(90deg) translateZ(0);
+  transform: translate(-50%, -50%) rotate(90deg) translateZ(0);
   transform-origin: center;
   /* widen the top of the backdrop while keeping the bottom unchanged */
   /* narrow the bottom of the backdrop so it fits the board */
@@ -762,7 +763,7 @@ body {
   height: calc(var(--cell-height) * 5);
   /* move the logo slightly down */
   top: calc(
-    var(--cell-height) * -9 - var(--cell-height) * 1.7 *
+    var(--cell-height) * -8 - var(--cell-height) * 1.7 *
       (var(--final-scale, 1) - 1)
   );
   left: 50%;
