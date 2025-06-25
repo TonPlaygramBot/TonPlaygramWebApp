@@ -97,8 +97,9 @@ function Board({
   // Gradual horizontal widening towards the top. Keep the bottom
   // row the same width and slightly expand each successive row so
   // the board forms a soft V shape.
-  const widenStep = 0.05; // how much each row expands horizontally
-  const scaleStep = 0.02; // how much each row's cells scale
+  // Increase the widening and scaling so the top merges with the logo
+  const widenStep = 0.07; // how much each row expands horizontally
+  const scaleStep = 0.03; // how much each row's cells scale
   // Perspective with smaller cells at the bottom growing larger towards the pot
   const finalScale = 1 + (ROWS - 3) * scaleStep;
 
@@ -357,6 +358,7 @@ function Board({
 
   return (
     <div className="relative flex justify-center items-center w-screen overflow-visible">
+      <div className="background-behind-board" />
       <div
         ref={containerRef}
         className="overflow-y-auto"
@@ -389,7 +391,7 @@ function Board({
               transform: `translate(${boardXOffset}px, ${boardYOffset}px) translateZ(${boardZOffset}px) rotateX(${angle}deg) scale(0.9)`,
             }}
           >
-            <div className="snake-gradient-bg" />
+            {/* Game background is rendered outside the grid */}
             {connectors.map((c, i) => (
               <div
                 key={i}
