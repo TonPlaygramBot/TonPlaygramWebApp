@@ -129,7 +129,8 @@ body {
 .board-cell {
   @apply relative flex items-center justify-center rounded-xl text-text;
   background-color: var(--tile-bg, #0e3b45);
-  border: 2px solid #d1a75f;
+  /* Richer golden border for a shiny prism look */
+  border: 3px solid #ffd700;
   /* Cast a shadow dark enough for a stronger 3D effect */
   box-shadow: 0 8px 12px rgba(0, 0, 0, 0.6);
   transform: translateZ(5px);
@@ -144,8 +145,8 @@ body {
   position: absolute;
   inset: 2px;
   border-radius: inherit;
-  /* Darker inner glow to emphasise depth */
-  box-shadow: 0 0 8px rgba(209, 167, 95, 0.8);
+  /* Shiny inner glow emphasising the prism frame */
+  box-shadow: 0 0 10px rgba(255, 215, 0, 0.9);
   /* Place the highlight above the tile so the shading is visible */
   transform: translateZ(6px);
 }
@@ -737,7 +738,11 @@ body {
   transform: translateX(-50%) rotateX(calc(var(--board-angle, 58deg) * -1))
     translateZ(-90px) scale(2.2); /* a touch bigger */
   transform-origin: bottom center;
-  box-shadow: 0 0 0 6px rgba(0, 0, 0, 0.6);
+  /* Gold prism frame around the logo */
+  border: 6px solid #ffd700;
+  box-shadow:
+    0 0 10px rgba(255, 215, 0, 0.9),
+    inset 0 0 10px rgba(255, 215, 0, 0.6);
   background-image:
     linear-gradient(to bottom, rgba(0, 0, 0, 0.45), rgba(0, 0, 0, 0) 70%),
     url("/assets/TonPlayGramLogo.jpg");
@@ -921,9 +926,19 @@ body {
 }
 
 /* Bold frame outlining the Snake & Ladder board */
-/* Deprecated: board frame no longer displayed */
 .board-frame-overlay {
-  display: none;
+  pointer-events: none;
+  position: absolute;
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: calc(var(--board-width) + 16px);
+  height: calc(var(--board-height) + 16px);
+  border: 8px solid #ffd700;
+  border-radius: 1rem;
+  box-shadow: 0 0 15px rgba(255, 215, 0, 0.8);
+  transform-style: preserve-3d;
+  z-index: 4;
 }
 
 /*
