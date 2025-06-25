@@ -862,15 +862,13 @@ export default function SnakeAndLadder() {
         setTimeout(() => setHighlight(null), 300);
         capturePieces(finalPos, 0);
         if (finalPos === FINAL_TILE && !ranking.includes('You')) {
-          if (ranking.length === 0) {
+          const first = ranking.length === 0;
+          if (first) {
             const id = getTelegramId();
             deposit(id, pot).catch(() => {});
           }
-          setRanking(r => {
-            const next = [...r, 'You'];
-            if (next.length === ai + 1) setGameOver(true);
-            return next;
-          });
+          setRanking(r => [...r, 'You']);
+          if (first) setGameOver(true);
           setMessage(`You win ${pot} ${token}!`);
           setMessageColor("");
           winSoundRef.current?.play().catch(() => {});
@@ -969,11 +967,9 @@ export default function SnakeAndLadder() {
       capturePieces(finalPos, index);
       setTimeout(() => setHighlight(null), 300);
       if (finalPos === FINAL_TILE && !ranking.includes(`AI ${index}`)) {
-        setRanking(r => {
-          const next = [...r, `AI ${index}`];
-          if (next.length === ai + 1) setGameOver(true);
-          return next;
-        });
+        const first = ranking.length === 0;
+        setRanking(r => [...r, `AI ${index}`]);
+        if (first) setGameOver(true);
         setMessage(`AI ${index} wins!`);
         setDiceVisible(false);
         return;
