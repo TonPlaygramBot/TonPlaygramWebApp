@@ -82,7 +82,6 @@ function Board({
   diceCells,
   rollingIndex,
   currentTurn,
-  timerPct,
   burning = [],
 }) {
   const containerRef = useRef(null);
@@ -216,7 +215,6 @@ function Board({
                   color={p.color}
                   rolling={p.index === rollingIndex}
                   active={p.index === currentTurn}
-                  timerPct={p.index === currentTurn ? timerPct : 1}
                   className={
                     (p.position === 0
                       ? "start"
@@ -323,7 +321,7 @@ function Board({
   // Lift the board slightly so the bottom row stays visible. Lowered slightly
   // so the logo at the top of the board isn't cropped off screen. Zeroing this
   // aligns the board vertically with the frame.
-  const boardYOffset = 0; // pixels
+  const boardYOffset = 10; // pixels - slight downward shift
   // Pull the board away from the camera without changing the angle or zoom
   const boardZOffset = -50; // pixels
 
@@ -1182,7 +1180,6 @@ export default function SnakeAndLadder() {
         diceCells={diceCells}
         rollingIndex={rollingIndex}
         currentTurn={currentTurn}
-        timerPct={timeLeft / (currentTurn === 0 ? 15 : 3)}
         burning={burning}
       />
       {rollResult !== null && (
