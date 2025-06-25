@@ -297,9 +297,8 @@ body {
   top: 50%;
   left: 50%;
   transform-origin: center;
-  /* Place the bottom of the photo at the centre of the top face */
-  /* lift the photo so it's fully visible */
-  transform: translate(-50%, -120%) translateZ(15.2px)
+  /* Position photo so its bottom aligns with the token top centre */
+  transform: translate(-50%, -100%) translateZ(15.2px)
     rotateX(calc(var(--board-angle, 58deg) * -1 - 10deg));
   object-fit: cover;
   border-radius: 50%;
@@ -731,6 +730,14 @@ body {
   pointer-events: none;
 }
 
+/* Center any tokens and hexagons inside the pot */
+.pot-cell .token-three,
+.pot-cell .start-hexagon {
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%) translateZ(32px);
+}
+
 
 .pot-cell.highlight {
   box-shadow: 0 0 10px 4px rgba(250, 204, 21, 0.8);
@@ -738,9 +745,9 @@ body {
 
 .logo-wall-main {
   @apply absolute flex items-center justify-center;
-  /* widen the logo a bit more */
-  width: calc(var(--cell-width) * 9.5);
-  height: calc(var(--cell-height) * 5);
+  /* make the logo 5% bigger */
+  width: calc(var(--cell-width) * 9.975);
+  height: calc(var(--cell-height) * 5.25);
   /* move the logo slightly up */
   top: calc(
     var(--cell-height) * -8.7 - var(--cell-height) * 1.7 *
@@ -748,7 +755,7 @@ body {
   );
   left: 50%;
   transform: translateX(-50%) rotateX(calc(var(--board-angle, 58deg) * -1))
-    translateZ(-90px) scale(2.2); /* a touch bigger */
+    translateZ(-90px) scale(2.31); /* 5% larger */
   transform-origin: bottom center;
   background-image:
     linear-gradient(to bottom, rgba(0, 0, 0, 0.25), rgba(0, 0, 0, 0) 70%),
@@ -830,7 +837,7 @@ body {
 .coin-burst {
   position: absolute;
   left: 50%;
-  bottom: 0;
+  bottom: 50%;
   width: 0;
   height: 0;
   pointer-events: none;
@@ -862,7 +869,7 @@ body {
 
 @keyframes coin-up {
   to {
-    transform: translate(calc(-50% + var(--dx)), -120px);
+    transform: translate(calc(-50% + var(--dx)), 160px);
     opacity: 0;
   }
 }
