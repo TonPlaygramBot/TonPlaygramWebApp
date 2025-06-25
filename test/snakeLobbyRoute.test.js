@@ -10,6 +10,17 @@ async function startServer(env) {
   const server = spawn('node', ['bot/server.js'], { env, stdio: 'pipe' });
   server.stdout.on('data', (chunk) => process.stdout.write(chunk));
   server.stderr.on('data', (chunk) => process.stderr.write(chunk));
+
+  await new Promise((resolve) => {
+    const onData = (chunk) => {
+      if (chunk.toString().includes('Server running on port')) {
+        server.stdout.off('data', onData);
+        resolve();
+      }
+    };
+    server.stdout.on('data', onData);
+  });
+
   return server;
 }
 
