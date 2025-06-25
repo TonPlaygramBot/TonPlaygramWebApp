@@ -208,7 +208,14 @@ function Board({
             .filter((p) => p.position !== 0 && p.position === num)
             .map((p) => (
               <Fragment key={p.index}>
-                <div className="start-hexagon" />
+                <div
+                  className="start-hexagon"
+                  style={{
+                    '--hex-color': p.color,
+                    '--hex-border-color': p.color,
+                    '--hex-spin-duration': '10.5s',
+                  }}
+                />
                 <PlayerToken
                   photoUrl={p.photoUrl}
                   type={p.type || (p.index === 0 ? (isHighlight ? highlight.type : tokenType) : "normal")}
@@ -321,7 +328,7 @@ function Board({
   // Lift the board slightly so the bottom row stays visible. Lowered slightly
   // so the logo at the top of the board isn't cropped off screen. Zeroing this
   // aligns the board vertically with the frame.
-  const boardYOffset = 10; // pixels - slight downward shift
+  const boardYOffset = 20; // pixels - slight downward shift
   // Pull the board away from the camera without changing the angle or zoom
   const boardZOffset = -50; // pixels
 
@@ -415,8 +422,15 @@ function Board({
                 .map((p, i) => ({ ...p, index: i }))
                 .filter((p) => p.position === FINAL_TILE)
                 .map((p) => (
-                  <Fragment key={`win-${p.index}`}> 
-                    <div className="start-hexagon" />
+                  <Fragment key={`win-${p.index}`}>
+                    <div
+                      className="start-hexagon"
+                      style={{
+                        '--hex-color': p.color,
+                        '--hex-border-color': p.color,
+                        '--hex-spin-duration': '10.5s',
+                      }}
+                    />
                     <PlayerToken
                       photoUrl={p.photoUrl}
                       type={p.type || 'normal'}
