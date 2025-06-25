@@ -479,6 +479,7 @@ export default function SnakeAndLadder() {
   const [timeLeft, setTimeLeft] = useState(15);
   const [aiAvatars, setAiAvatars] = useState([]);
   const [burning, setBurning] = useState([]); // indices of tokens burning
+  const [refreshTick, setRefreshTick] = useState(0);
 
   const playerName = (idx) => (
     <span style={{ color: playerColors[idx] }}>
@@ -1083,6 +1084,14 @@ export default function SnakeAndLadder() {
     }, 1000);
     return () => clearInterval(timerRef.current);
   }, [currentTurn, setupPhase, gameOver]);
+
+  // Periodically refresh the component state to avoid freezes
+  useEffect(() => {
+    const id = setInterval(() => {
+      setRefreshTick((t) => t + 1);
+    }, 5000);
+    return () => clearInterval(id);
+  }, []);
 
   const players = [
     { position: pos, photoUrl, type: tokenType, color: playerColors[0] },
