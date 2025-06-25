@@ -99,7 +99,22 @@ body {
       #e7b382 80%,
       #4c050d,
       #220003
+    ),
+    linear-gradient(
+      to bottom,
+      #000a1f,
+      #123840,
+      #1f4d58 20%,
+      #d9cec2 40%,
+      #f3f0e8 50%,
+      #b95741 60%,
+      #e7b382 80%,
+      #4c050d,
+      #220003
     );
+  background-size: 100% 100%, 100% 50%, 100% 50%;
+  background-position: center, top, bottom;
+  background-repeat: no-repeat;
 }
 
 @keyframes roll {
