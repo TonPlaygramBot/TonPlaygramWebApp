@@ -1,5 +1,7 @@
 import User from '../models/User.js';
 import { fetchTelegramInfo } from '../utils/telegram.js';
+import path from 'path';
+import { fileURLToPath } from 'url';
 
 export default function registerStart(bot) {
   bot.start(async (ctx) => {
@@ -17,6 +19,12 @@ export default function registerStart(bot) {
       },
       { upsert: true }
     );
+    const __dirname = path.dirname(fileURLToPath(import.meta.url));
+    const logoPath = path.join(
+      __dirname,
+      '../../webapp/public/assets/TonPlayGramLogo.jpg'
+    );
+    await ctx.replyWithPhoto({ source: logoPath });
     ctx.reply('Welcome to TonPlaygram!', {
       reply_markup: {
         inline_keyboard: [
