@@ -61,15 +61,6 @@ body {
   inset: 0;
   z-index: -1;
   pointer-events: none;
-  /* Darker blend in the centre so the board merges with the logo */
-  background: linear-gradient(
-    to right,
-    #0b1f39,
-    #1c3158,
-    #facc15,
-    #25384f,
-    #3d2218
-  );
 }
 
 @keyframes roll {
