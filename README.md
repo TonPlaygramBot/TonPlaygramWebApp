@@ -163,6 +163,9 @@ while (this.players[this.currentTurn].disconnected) {
 }
 ```
 
+When a player disconnects during their turn the room immediately advances
+to the next active player so the game never stalls.
+
 Rooms are deleted once everyone disconnects. There is no automatic reconnect
 timeout, but a player can reload the webapp to restore state from `localStorage`
 and continue if the room still exists.
