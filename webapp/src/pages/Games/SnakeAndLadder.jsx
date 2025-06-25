@@ -183,24 +183,12 @@ function Board({
               {iconEmoji && (
                 <span className="cell-icon cell-emoji">{iconEmoji}</span>
               )}
-              {offsetVal != null && (
-                <span className="cell-offset">
-                  <span className={`cell-sign ${cellType}`}> 
-                    {cellType === "snake" ? "-" : "+"}
-                  </span>
-                  <span className="cell-value">{offsetVal}</span>
-                </span>
-              )}
             </span>
           )}
           {!cellType && <span className="cell-number">{num}</span>}
           {diceCells && diceCells[num] && (
             <span className="dice-marker">
               <span className="dice-icon">\uD83C\uDFB2</span>
-              <span className="dice-value">
-                <span className="dice-sign">+</span>
-                <span className="dice-number">{diceCells[num]}</span>
-              </span>
             </span>
           )}
           {players
@@ -818,7 +806,7 @@ export default function SnakeAndLadder() {
           setTrail([{ cell: startPos, type: "snake" }]);
           setOffsetPopup({ cell: startPos, type: "snake", amount: offset });
           setTimeout(() => setOffsetPopup(null), 1000);
-          setMessage(`🐍 ${startPos} -${offset}`);
+          setMessage('🐍');
           setMessageColor("text-red-500");
           snakeSoundRef.current?.play().catch(() => {});
           const seq = [];
@@ -836,7 +824,7 @@ export default function SnakeAndLadder() {
           );
           setOffsetPopup({ cell: startPos, type: "ladder", amount: offset });
           setTimeout(() => setOffsetPopup(null), 1000);
-          setMessage(`🪜 ${startPos} +${offset}`);
+          setMessage('🪜');
           setMessageColor("text-green-500");
           ladderSoundRef.current?.play().catch(() => {});
           const seq = [];
@@ -885,7 +873,7 @@ export default function SnakeAndLadder() {
             return n;
           });
           setBonusDice(bonus);
-          setTurnMessage(`Bonus roll +${bonus}`);
+          setTurnMessage('Bonus roll');
           diceRewardSoundRef.current?.play().catch(() => {});
         } else {
           setTurnMessage("Your turn");

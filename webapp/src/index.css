@@ -643,47 +643,6 @@ body {
   }
 }
 
-.cell-offset {
-  font-size: 1rem;
-  line-height: 1;
-  font-weight: bold;
-  display: flex;
-  align-items: center;
-  gap: 1px;
-}
-
-.cell-sign {
-  font-weight: bold;
-}
-
-.cell-sign.snake {
-  color: #dc2626;
-  text-shadow: 0 0 2px #fff;
-}
-
-.cell-sign.ladder {
-  color: #16a34a;
-  text-shadow: 0 0 2px #fff;
-}
-
-.cell-sign.dice {
-  color: #dc2626;
-  text-shadow: 0 0 2px #000;
-}
-
-.cell-value {
-  color: #ffffff;
-}
-
-.board-cell.snake-cell .cell-value {
-  color: #dc2626;
-  text-shadow: 0 0 2px #fff;
-}
-
-.board-cell.ladder-cell .cell-value {
-  color: #16a34a;
-  text-shadow: 0 0 2px #fff;
-}
 
 .cell-number {
   position: relative;
@@ -894,26 +853,6 @@ body {
   line-height: 1;
 }
 
-.dice-value {
-  position: absolute;
-  bottom: -0.4rem;
-  right: -0.4rem;
-  font-size: 0.75rem;
-  font-weight: bold;
-  display: flex;
-  align-items: center;
-  gap: 1px;
-}
-
-.dice-sign {
-  color: #dc2626;
-  text-shadow: 0 0 2px #000;
-}
-
-.dice-number {
-  color: #dc2626;
-  text-shadow: 0 0 2px #000;
-}
 
 .start-hexagon {
   position: absolute;
