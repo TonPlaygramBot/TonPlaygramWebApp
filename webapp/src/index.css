@@ -62,7 +62,13 @@ body {
   z-index: -1;
   pointer-events: none;
   /* Darker blend in the centre so the board merges with the logo */
-  background: linear-gradient(to right, #0f172a, #1e1e1e 50%, #7f1d1d);
+  background: linear-gradient(
+    to right,
+    #0c1020,
+    #11172a,
+    #1e2235,
+    #271e26
+  );
 }
 
 @keyframes roll {
@@ -885,14 +891,14 @@ body {
   margin: auto;
   width: var(--cell-height);
   height: var(--cell-height);
-  background-color: #3f3f46;
-  border: 3px solid #27272a;
+  background-color: var(--hex-color, #3f3f46);
+  border: 3px solid var(--hex-border-color, #27272a);
   box-sizing: border-box;
   clip-path: polygon(25% 0%, 75% 0%, 100% 50%, 75% 100%, 25% 100%, 0% 50%);
   transform: translateZ(6px);
   pointer-events: none;
   z-index: 0;
-  animation: hex-spin 10.5s linear infinite;
+  animation: hex-spin var(--hex-spin-duration, 10.5s) linear infinite;
 }
 
 
