@@ -1,7 +1,7 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useLayoutEffect, Fragment } from "react";
 import confetti from "canvas-confetti";
 import DiceRoller from "../../components/DiceRoller.jsx";
-import { dropSound, snakeSound, ladderSound, timerBeep } from "../../assets/soundData.js";
+import { dropSound, snakeSound, ladderSound, bombSound } from "../../assets/soundData.js";
 import { AVATARS } from "../../components/AvatarPickerModal.jsx";
 import InfoPopup from "../../components/InfoPopup.jsx";
 import GameEndPopup from "../../components/GameEndPopup.jsx";
@@ -82,18 +82,23 @@ function Board({
   diceCells,
   rollingIndex,
   currentTurn,
-  timerPct,
+  burning = [],
 }) {
   const containerRef = useRef(null);
+  const gridRef = useRef(null);
+  const tile1Ref = useRef(null);
+  const [connectors, setConnectors] = useState([]);
   const [cellWidth, setCellWidth] = useState(80);
   const [cellHeight, setCellHeight] = useState(40);
+  // const tileRect removed - no longer highlighting the first cell
   const tiles = [];
   const centerCol = (COLS - 1) / 2;
   // Gradual horizontal widening towards the top. Keep the bottom
   // row the same width and slightly expand each successive row so
   // the board forms a soft V shape.
-  const widenStep = 0.05; // how much each row expands horizontally
-  const scaleStep = 0.02; // how much each row's cells scale
+  // Increase the widening and scaling so the top merges with the logo
+  const widenStep = 0.07; // how much each row expands horizontally
+  const scaleStep = 0.03; // how much each row's cells scale
   // Perspective with smaller cells at the bottom growing larger towards the pot
   const finalScale = 1 + (ROWS - 3) * scaleStep;
 
@@ -145,12 +150,12 @@ function Board({
             ? "dice"
             : "";
       const cellClass = cellType ? `${cellType}-cell` : "";
-      const icon =
+      const iconEmoji =
         cellType === "ladder"
-          ? "/assets/icons/ladder.png"
+          ? "\uD83E\uDEA4" // 🪜
           : cellType === "snake"
-            ? "/assets/icons/snake.svg"
-            : "";
+            ? "\uD83D\uDC0D" // 🐍
+            : null;
       const offsetVal =
         cellType === "ladder"
           ? ladderOffsets[num]
@@ -169,19 +174,18 @@ function Board({
         <div
           key={num}
           data-cell={num}
+          ref={num === 1 ? tile1Ref : null}
           className={`board-cell ${cellClass} ${highlightClass}`}
           style={style}
         >
-          {(icon || offsetVal != null) && (
+          {(iconEmoji || offsetVal != null) && (
             <span className="cell-marker">
-              {icon && (
-                <span className="cell-icon">
-                  <img src={icon} alt={cellType} />
-                </span>
+              {iconEmoji && (
+                <span className="cell-icon cell-emoji">{iconEmoji}</span>
               )}
               {offsetVal != null && (
                 <span className="cell-offset">
-                  <span className={`cell-sign ${cellType}`}>
+                  <span className={`cell-sign ${cellType}`}> 
                     {cellType === "snake" ? "-" : "+"}
                   </span>
                   <span className="cell-value">{offsetVal}</span>
@@ -189,11 +193,10 @@ function Board({
               )}
             </span>
           )}
-          {num === 1 && <div className="start-hexagon" />}
-          {cellType === "" && <span className="cell-number">{num}</span>}
+          <span className="cell-number">{num}</span>
           {diceCells && diceCells[num] && (
             <span className="dice-marker">
-              <img src="/assets/icons/dice.svg" alt="dice" />
+              <span className="dice-icon">\uD83C\uDFB2</span>
               <span className="dice-value">
                 <span className="dice-sign">+</span>
                 <span className="dice-number">{diceCells[num]}</span>
@@ -204,22 +207,31 @@ function Board({
             .map((p, i) => ({ ...p, index: i }))
             .filter((p) => p.position !== 0 && p.position === num)
             .map((p) => (
-              <PlayerToken
-                key={p.index}
-                photoUrl={p.photoUrl}
-                type={p.type || (p.index === 0 ? (isHighlight ? highlight.type : tokenType) : "normal")}
-                color={p.color}
-                rolling={p.index === rollingIndex}
-                active={p.index === currentTurn}
-                timerPct={p.index === currentTurn ? timerPct : 1}
-                className={
-                  p.position === 0
-                    ? "start"
-                    : p.index === 0 && isJump
-                      ? "jump"
-                      : ""
-                }
-              />
+              <Fragment key={p.index}>
+                <div
+                  className="start-hexagon"
+                  style={{
+                    '--hex-color': p.color,
+                    '--hex-border-color': p.color,
+                    '--hex-spin-duration': '7s',
+                  }}
+                />
+                <PlayerToken
+                  photoUrl={p.photoUrl}
+                  type={p.type || (p.index === 0 ? (isHighlight ? highlight.type : tokenType) : "normal")}
+                  color={p.color}
+                  rolling={p.index === rollingIndex}
+                  active={p.index === currentTurn}
+                  className={
+                    (p.position === 0
+                      ? "start"
+                      : p.index === 0 && isJump
+                        ? "jump"
+                        : "") +
+                    (burning.includes(p.index) ? " burning" : "")
+                  }
+                />
+              </Fragment>
             ))}
           {offsetPopup && offsetPopup.cell === num && (
             <span
@@ -252,6 +264,56 @@ function Board({
     return () => window.removeEventListener("resize", updateSize);
   }, []);
 
+  useLayoutEffect(() => {
+    // board layout recalculations
+  }, [cellWidth, cellHeight]);
+
+  useLayoutEffect(() => {
+    const grid = gridRef.current;
+    if (!grid) return;
+
+    const posFor = (cell) => {
+      const el = grid.querySelector(`[data-cell='${cell}']`);
+      if (!el) return null;
+      return {
+        x: el.offsetLeft + el.offsetWidth / 2,
+        y: el.offsetTop + el.offsetHeight / 2,
+      };
+    };
+
+    const conns = [];
+    Object.entries(snakes || {}).forEach(([s, e]) => {
+      const start = posFor(Number(s));
+      const end = posFor(Number(e));
+      if (!start || !end) return;
+      const dx = end.x - start.x;
+      const dy = end.y - start.y;
+      conns.push({
+        type: 'snake',
+        x: start.x,
+        y: start.y,
+        len: Math.sqrt(dx * dx + dy * dy),
+        angle: (Math.atan2(dy, dx) * 180) / Math.PI,
+      });
+    });
+    Object.entries(ladders || {}).forEach(([s, e]) => {
+      const endCell = typeof e === 'object' ? e.end : e;
+      const start = posFor(Number(s));
+      const end = posFor(Number(endCell));
+      if (!start || !end) return;
+      const dx = end.x - start.x;
+      const dy = end.y - start.y;
+      conns.push({
+        type: 'ladder',
+        x: start.x,
+        y: start.y,
+        len: Math.sqrt(dx * dx + dy * dy),
+        angle: (Math.atan2(dy, dx) * 180) / Math.PI,
+      });
+    });
+    setConnectors(conns);
+  }, [cellWidth, cellHeight, snakes, ladders]);
+
   // Icons are rendered directly inside each cell so that they stay perfectly
   // aligned with the grid. Previously additional absolutely positioned markers
   // were added which resulted in duplicate icons and misalignment when the
@@ -259,12 +321,17 @@ function Board({
   // displayed only once within the cell itself.
   // Fixed board angle with no zoom
   // Lowered camera angle so the logo touches the top of the screen
-  // Increase tilt for a more dynamic view of the board
-  const angle = 70;
+  // Tilt angle for the entire board in 3D space
+  const angle = 58; // set board tilt to 58 degrees
   // Small horizontal offset so the board sits perfectly centered
-  const boardXOffset = -10; // pixels
-  // Lift the board slightly so the bottom row stays visible
-  const boardYOffset = -40; // pixels
+  const boardXOffset = 0; // pixels - center horizontally
+  // Lift the board slightly so the bottom row stays visible. Lowered slightly
+  // so the logo at the top of the board isn't cropped off screen. Zeroing this
+  // aligns the board vertically with the frame.
+  // Move the board slightly downward so the top row clears the logo frame
+  const boardYOffset = 60; // pixels - slightly lower
+  // Pull the board away from the camera without changing the angle or zoom
+  const boardZOffset = -50; // pixels
 
   // How many board rows to scroll back from the starting position so
   // the bottom row remains in view. Set to 0 to begin at the very first row
@@ -296,7 +363,8 @@ function Board({
   const paddingBottom = '15vh';
 
   return (
-    <div className="flex justify-center items-center w-screen overflow-visible">
+    <div className="relative flex justify-center items-center w-screen overflow-visible">
+      <div className="background-behind-board" />
       <div
         ref={containerRef}
         className="overflow-y-auto"
@@ -310,6 +378,7 @@ function Board({
       >
         <div className="snake-board-tilt">
           <div
+            ref={gridRef}
             className="snake-board-grid grid gap-x-1 gap-y-2 relative mx-auto"
             style={{
               width: `${cellWidth * COLS}px`,
@@ -323,13 +392,24 @@ function Board({
               "--board-angle": `${angle}deg`,
               "--final-scale": finalScale,
               // Fixed camera angle with no zooming
-              // Slightly enlarge the board in both directions
               // Pull the board slightly back so more of the lower rows are
-              // visible when the game starts
-              transform: `translate(${boardXOffset}px, ${boardYOffset}px) rotateX(${angle}deg) scale(0.9455)`,
+              // visible when the game starts without changing zoom or angle
+              transform: `translate(${boardXOffset}px, ${boardYOffset}px) translateZ(${boardZOffset}px) rotateX(${angle}deg) scale(0.9)`,
             }}
           >
-            <div className="snake-gradient-bg" />
+            {/* Game background is rendered outside the grid */}
+            {connectors.map((c, i) => (
+              <div
+                key={i}
+                className={`${c.type}-connector`}
+                style={{
+                  left: `${c.x}px`,
+                  top: `${c.y}px`,
+                  width: `${c.len}px`,
+                  transform: `translateY(-50%) rotate(${c.angle}deg) translateZ(6px)`,
+                }}
+              />
+            ))}
             {tiles}
             <div
               className={`pot-cell ${highlight && highlight.cell === FINAL_TILE ? "highlight" : ""}`}
@@ -343,12 +423,21 @@ function Board({
                 .map((p, i) => ({ ...p, index: i }))
                 .filter((p) => p.position === FINAL_TILE)
                 .map((p) => (
-                  <PlayerToken
-                    key={`win-${p.index}`}
-                    photoUrl={p.photoUrl}
-                    type={p.type || 'normal'}
-                    color={p.color}
-                  />
+                  <Fragment key={`win-${p.index}`}>
+                    <div
+                      className="start-hexagon"
+                      style={{
+                        '--hex-color': p.color,
+                        '--hex-border-color': p.color,
+                        '--hex-spin-duration': '7s',
+                      }}
+                    />
+                    <PlayerToken
+                      photoUrl={p.photoUrl}
+                      type={p.type || 'normal'}
+                      color={p.color}
+                    />
+                  </Fragment>
                 ))}
               {celebrate && <CoinBurst token={token} />}
             </div>
@@ -404,6 +493,8 @@ export default function SnakeAndLadder() {
   const [playerAutoRolling, setPlayerAutoRolling] = useState(false);
   const [timeLeft, setTimeLeft] = useState(15);
   const [aiAvatars, setAiAvatars] = useState([]);
+  const [burning, setBurning] = useState([]); // indices of tokens burning
+  const [refreshTick, setRefreshTick] = useState(0);
 
   const playerName = (idx) => (
     <span style={{ color: playerColors[idx] }}>
@@ -411,11 +502,36 @@ export default function SnakeAndLadder() {
     </span>
   );
 
+  const capturePieces = (cell, mover) => {
+    const victims = [];
+    if (mover !== 0 && pos === cell) victims.push(0);
+    aiPositions.forEach((p, i) => {
+      const idx = i + 1;
+      if (idx !== mover && p === cell) victims.push(idx);
+    });
+    if (victims.length) {
+      bombSoundRef.current?.play().catch(() => {});
+      victims.forEach((idx) => {
+        setBurning((b) => [...b, idx]);
+        setTimeout(() => {
+          setBurning((b) => b.filter((v) => v !== idx));
+          if (idx === 0) setPos(0);
+          else setAiPositions((arr) => {
+            const copy = [...arr];
+            copy[idx - 1] = 0;
+            return copy;
+          });
+        }, 1000);
+      });
+    }
+  };
+
   const moveSoundRef = useRef(null);
   const snakeSoundRef = useRef(null);
   const ladderSoundRef = useRef(null);
   const winSoundRef = useRef(null);
   const diceRewardSoundRef = useRef(null);
+  const bombSoundRef = useRef(null);
   const timerSoundRef = useRef(null);
   const timerRef = useRef(null);
 
@@ -451,13 +567,17 @@ export default function SnakeAndLadder() {
     ladderSoundRef.current = new Audio(ladderSound);
     winSoundRef.current = new Audio("/assets/sounds/successful.mp3");
     diceRewardSoundRef.current = new Audio("/assets/sounds/successful.mp3");
-    timerSoundRef.current = new Audio(timerBeep);
+    bombSoundRef.current = new Audio(bombSound);
+    // Use the same wheel spinning sound effect as the Spin & Win page
+    timerSoundRef.current = new Audio('/assets/sounds/spinning.mp3');
+    timerSoundRef.current.loop = true;
     return () => {
       moveSoundRef.current?.pause();
       snakeSoundRef.current?.pause();
       ladderSoundRef.current?.pause();
       winSoundRef.current?.pause();
       diceRewardSoundRef.current?.pause();
+      bombSoundRef.current?.pause();
       timerSoundRef.current?.pause();
     };
   }, []);
@@ -742,16 +862,15 @@ export default function SnakeAndLadder() {
         setTrail([]);
         setTokenType(type);
         setTimeout(() => setHighlight(null), 300);
+        capturePieces(finalPos, 0);
         if (finalPos === FINAL_TILE && !ranking.includes('You')) {
-          if (ranking.length === 0) {
+          const first = ranking.length === 0;
+          if (first) {
             const id = getTelegramId();
             deposit(id, pot).catch(() => {});
           }
-          setRanking(r => {
-            const next = [...r, 'You'];
-            if (next.length === ai + 1) setGameOver(true);
-            return next;
-          });
+          setRanking(r => [...r, 'You']);
+          if (first) setGameOver(true);
           setMessage(`You win ${pot} ${token}!`);
           setMessageColor("");
           winSoundRef.current?.play().catch(() => {});
@@ -847,13 +966,12 @@ export default function SnakeAndLadder() {
       setAiPositions([...positions]);
       setHighlight({ cell: finalPos, type });
       setTrail([]);
+      capturePieces(finalPos, index);
       setTimeout(() => setHighlight(null), 300);
       if (finalPos === FINAL_TILE && !ranking.includes(`AI ${index}`)) {
-        setRanking(r => {
-          const next = [...r, `AI ${index}`];
-          if (next.length === ai + 1) setGameOver(true);
-          return next;
-        });
+        const first = ranking.length === 0;
+        setRanking(r => [...r, `AI ${index}`]);
+        if (first) setGameOver(true);
         setMessage(`AI ${index} wins!`);
         setDiceVisible(false);
         return;
@@ -956,18 +1074,23 @@ export default function SnakeAndLadder() {
 
   useEffect(() => {
     if (setupPhase || gameOver) return;
-    setTimeLeft(15);
+    const limit = currentTurn === 0 ? 15 : 3;
+    setTimeLeft(limit);
     if (timerRef.current) clearInterval(timerRef.current);
+    if (timerSoundRef.current) {
+      timerSoundRef.current.currentTime = 0;
+      timerSoundRef.current.play().catch(() => {});
+    }
     timerRef.current = setInterval(() => {
-      setTimeLeft(t => {
+      setTimeLeft((t) => {
         const next = t - 1;
-        if (next <= 7 && next >= 0) timerSoundRef.current?.play().catch(() => {});
         if (next <= 0) {
+          timerSoundRef.current?.pause();
           clearInterval(timerRef.current);
           if (currentTurn === 0) {
             setPlayerAutoRolling(true);
             setTurnMessage('Rolling...');
-            setPlayerRollTrigger(r => r + 1);
+            setPlayerRollTrigger((r) => r + 1);
           } else {
             triggerAIRoll(currentTurn);
           }
@@ -975,20 +1098,45 @@ export default function SnakeAndLadder() {
         return next;
       });
     }, 1000);
-    return () => clearInterval(timerRef.current);
+    return () => {
+      clearInterval(timerRef.current);
+      timerSoundRef.current?.pause();
+    };
   }, [currentTurn, setupPhase, gameOver]);
+
+  // Periodically refresh the component state to avoid freezes
+  useEffect(() => {
+    const id = setInterval(() => {
+      setRefreshTick((t) => t + 1);
+    }, 5000);
+    return () => clearInterval(id);
+  }, []);
 
   const players = [
     { position: pos, photoUrl, type: tokenType, color: playerColors[0] },
     ...aiPositions.map((p, i) => ({ position: p, photoUrl: aiAvatars[i] || '/assets/icons/profile.svg', type: 'normal', color: playerColors[i + 1] }))
   ];
 
+  // determine ranking numbers based on board positions
+  const rankMap = {};
+  players
+    .map((p, i) => ({ idx: i, pos: p.position }))
+    .sort((a, b) => b.pos - a.pos)
+    .forEach((p, i) => {
+      rankMap[p.idx] = p.pos === 0 ? 0 : i + 1;
+    });
+
+  const handleReload = () => {
+    localStorage.removeItem(`snakeGameState_${ai}`);
+    window.location.reload();
+  };
+
   return (
     <div className="p-4 pb-32 space-y-4 text-text flex flex-col justify-end items-center relative w-full flex-grow">
       {/* Action menu fixed to the top right */}
-      <div className="fixed right-2 top-4 flex flex-col items-end space-y-2 z-20">
+      <div className="fixed right-1 top-4 flex flex-col items-center space-y-2 z-20">
         <button
-          onClick={() => window.location.reload()}
+          onClick={handleReload}
           className="p-2 flex flex-col items-center"
         >
           <AiOutlineReload className="text-xl" />
@@ -1016,17 +1164,22 @@ export default function SnakeAndLadder() {
           <span className="text-xs">Lobby</span>
         </button>
       </div>
-      {/* Player photos for tokens not yet active */}
+      {/* Player photos stacked vertically */}
       <div className="fixed left-2 top-4 flex flex-col space-y-2 z-20">
         {players
           .map((p, i) => ({ ...p, index: i }))
-          .filter((p) => p.position === 0)
           .map((p) => (
             <AvatarTimer
-              key={`inactive-${p.index}`}
+              key={`player-${p.index}`}
               photoUrl={p.photoUrl}
               active={p.index === currentTurn}
-              timerPct={p.index === currentTurn ? timeLeft / 15 : 1}
+              rank={rankMap[p.index]}
+              name={p.index === 0 ? 'You' : `AI ${p.index}`}
+              timerPct={
+                p.index === currentTurn
+                  ? timeLeft / (p.index === 0 ? 15 : 3)
+                  : 1
+              }
             />
           ))}
       </div>
@@ -1046,7 +1199,7 @@ export default function SnakeAndLadder() {
         diceCells={diceCells}
         rollingIndex={rollingIndex}
         currentTurn={currentTurn}
-        timerPct={timeLeft / 15}
+        burning={burning}
       />
       {rollResult !== null && (
         <div className="fixed bottom-44 inset-x-0 flex justify-center z-30 pointer-events-none">
