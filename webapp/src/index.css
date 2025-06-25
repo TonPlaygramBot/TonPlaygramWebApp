@@ -61,14 +61,8 @@ body {
   inset: 0;
   z-index: -1;
   pointer-events: none;
-  /* Radial blend from centre (#0c1020) to dark edges */
-  background: radial-gradient(
-    circle at center,
-    #0c1020 0%,
-    #11172a 40%,
-    #1e2235 70%,
-    #271e26 100%
-  );
+  /* Darker blend in the centre so the board merges with the logo */
+  background: linear-gradient(to right, #0f172a, #1e1e1e 50%, #7f1d1d);
 }
 
 @keyframes roll {
@@ -740,7 +734,7 @@ body {
     translateZ(-90px) scale(2.2); /* a touch bigger */
   transform-origin: bottom center;
   background-image:
-    radial-gradient(circle at center, rgba(0, 0, 0, 0) 60%, rgba(0, 0, 0, 0.6) 100%),
+    linear-gradient(to bottom, rgba(0, 0, 0, 0.45), rgba(0, 0, 0, 0) 70%),
     url("/assets/TonPlayGramLogo.jpg");
   background-size: contain;
   background-repeat: no-repeat;
