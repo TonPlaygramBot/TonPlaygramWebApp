@@ -3,7 +3,14 @@ import { useNavigate, useParams } from 'react-router-dom';
 import TableSelector from '../../components/TableSelector.jsx';
 import RoomSelector from '../../components/RoomSelector.jsx';
 import useTelegramBackButton from '../../hooks/useTelegramBackButton.js';
-import { getSnakeLobbies, getSnakeLobby } from '../../utils/api.js';
+import {
+  getSnakeLobbies,
+  getSnakeLobby,
+  getSnakeBoard,
+  getProfile,
+  fetchTelegramInfo,
+} from '../../utils/api.js';
+import { getTelegramId, getTelegramPhotoUrl } from '../../utils/telegram.js';
 import { canStartGame } from '../../utils/lobby.js';
 
 export default function Lobby() {
@@ -16,6 +23,36 @@ export default function Lobby() {
   const [stake, setStake] = useState({ token: '', amount: 0 });
   const [players, setPlayers] = useState([]);
   const [aiCount, setAiCount] = useState(0);
+
+  // Preload the player's profile photo so the game can display it immediately
+  useEffect(() => {
+    const id = getTelegramId();
+    getProfile(id)
+      .then((p) => {
+        const photo = p?.photo || getTelegramPhotoUrl();
+        if (photo) localStorage.setItem('snakeUserPhoto', photo);
+        else {
+          fetchTelegramInfo(id)
+            .then((info) => {
+              if (info?.photoUrl)
+                localStorage.setItem('snakeUserPhoto', info.photoUrl);
+            })
+            .catch(() => {});
+        }
+      })
+      .catch(() => {
+        const url = getTelegramPhotoUrl();
+        if (url) localStorage.setItem('snakeUserPhoto', url);
+        else {
+          fetchTelegramInfo(id)
+            .then((info) => {
+              if (info?.photoUrl)
+                localStorage.setItem('snakeUserPhoto', info.photoUrl);
+            })
+            .catch(() => {});
+        }
+      });
+  }, []);
 
   useEffect(() => {
     if (game === 'snake') {
@@ -56,6 +93,18 @@ export default function Lobby() {
       };
     } else {
       setPlayers([]);
+    }
+  }, [game, table]);
+
+  // Preload board data for the selected table so the game loads instantly
+  useEffect(() => {
+    if (game === 'snake' && table) {
+      const key = `snakeBoard_${table.id}`;
+      getSnakeBoard(table.id)
+        .then((data) => {
+          localStorage.setItem(key, JSON.stringify(data));
+        })
+        .catch(() => {});
     }
   }, [game, table]);
 
