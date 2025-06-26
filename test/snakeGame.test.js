@@ -137,7 +137,7 @@ test('rolling too quickly triggers anti-cheat', () => {
   assert.ok(err, 'error event should be emitted');
 });
 
-test('landing on another player no longer affects them', () => {
+test('landing on another player sends them to start', () => {
   const io = new DummyIO();
   const room = new GameRoom('r5', io, 2, {
     snakes: {},
@@ -160,8 +160,8 @@ test('landing on another player no longer affects them', () => {
   room.rollDice(s1, 2); // land on player 2
 
   assert.equal(room.players[0].position, 3);
-  assert.equal(room.players[1].position, 3);
+  assert.equal(room.players[1].position, 0);
   const resetEvent = io.emitted.find(e => e.event === 'playerReset');
-  assert.ok(!resetEvent, 'playerReset should not be emitted');
+  assert.ok(resetEvent && resetEvent.data.playerId === 'p2');
 });
 
