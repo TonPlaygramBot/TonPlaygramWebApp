@@ -152,9 +152,9 @@ function Board({
       const cellClass = cellType ? `${cellType}-cell` : "";
       const iconImage =
         cellType === "ladder"
-          ? "/assets/icons/Ladder.png"
+          ? "/assets/icons/ladder.svg"
           : cellType === "snake"
-            ? "/assets/icons/snake.png"
+            ? "/assets/icons/snake.svg"
             : null;
       const offsetVal =
         cellType === "ladder"
@@ -398,7 +398,7 @@ function Board({
                 }}
               >
                 <img
-                  src={c.type === 'snake' ? '/assets/icons/snake.png' : '/assets/icons/Ladder.png'}
+                  src={c.type === 'snake' ? '/assets/icons/snake.svg' : '/assets/icons/ladder.svg'}
                   className="connector-icon"
                 />
               </div>
