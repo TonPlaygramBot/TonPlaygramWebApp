@@ -446,7 +446,6 @@ export default function SnakeAndLadder() {
   const [burning, setBurning] = useState([]); // indices of tokens burning
   const [refreshTick, setRefreshTick] = useState(0);
   const [rollCooldown, setRollCooldown] = useState(0);
-  const [moving, setMoving] = useState(false);
 
   // Preload token and avatar images so board icons and AI photos display
   // immediately without waiting for network requests during gameplay.
@@ -481,14 +480,38 @@ export default function SnakeAndLadder() {
     </span>
   );
 
-  // In the simplified game mode players do not capture each other. These helper
-  // functions previously detected and handled captures, sending a piece back to
-  // the start if another landed on the same tile. They now return false and do
-  // nothing so that dice rolls only affect the player who rolled them.
-  const hasVictims = () => false;
+  const hasVictims = (cell, mover) => {
+    if (mover !== 0 && pos === cell) return true;
+    for (let i = 0; i < aiPositions.length; i++) {
+      const idx = i + 1;
+      if (idx !== mover && aiPositions[i] === cell) return true;
+    }
+    return false;
+  };
 
-  const capturePieces = () => {
-    /* no-op */
+  const capturePieces = (cell, mover) => {
+    const victims = [];
+    if (mover !== 0 && pos === cell) victims.push(0);
+    aiPositions.forEach((p, i) => {
+      const idx = i + 1;
+      if (idx !== mover && p === cell) victims.push(idx);
+    });
+    if (victims.length) {
+      hahaSoundRef.current?.pause();
+      if (!muted) bombSoundRef.current?.play().catch(() => {});
+      victims.forEach((idx) => {
+        setBurning((b) => [...b, idx]);
+        setTimeout(() => {
+          setBurning((b) => b.filter((v) => v !== idx));
+          if (idx === 0) setPos(0);
+          else setAiPositions((arr) => {
+            const copy = [...arr];
+            copy[idx - 1] = 0;
+            return copy;
+          });
+        }, 1000);
+      });
+    }
   };
 
   const moveSoundRef = useRef(null);
@@ -699,7 +722,6 @@ export default function SnakeAndLadder() {
       setDiceVisible(false);
       setOffsetPopup(null);
       setTrail([]);
-      setMoving(true);
 
       const rolledSix = Array.isArray(values)
         ? values.includes(6)
@@ -731,7 +753,7 @@ export default function SnakeAndLadder() {
           return;
         }
       } else if (current === 0) {
-        if (rolledSix) target = value;
+        if (rolledSix) target = 1;
         else {
           setMessage("Need a 6 to start!");
           setTurnMessage("");
@@ -827,8 +849,11 @@ export default function SnakeAndLadder() {
         setTrail([]);
         setTokenType(type);
         setTimeout(() => setHighlight(null), 300);
-        // Removed piece capture behaviour to keep each player's position
-        // independent. Tokens can now share the same tile without resetting.
+        if (hasVictims(finalPos, 0) && hahaSoundRef.current && !muted) {
+          hahaSoundRef.current.currentTime = 0;
+          hahaSoundRef.current.play().catch(() => {});
+        }
+        capturePieces(finalPos, 0);
         if (finalPos === FINAL_TILE && !ranking.includes('You')) {
           const first = ranking.length === 0;
           if (first) {
@@ -871,7 +896,6 @@ export default function SnakeAndLadder() {
             setCurrentTurn(next);
           }
         }
-        setMoving(false);
       };
 
       moveSeq(steps, "normal", () => applyEffect(target));
@@ -881,8 +905,8 @@ export default function SnakeAndLadder() {
   const triggerAIRoll = (index) => {
     setAiRollingIndex(index);
     setTurnMessage(<>{playerName(index)} rolling...</>);
+    setAiRollTrigger((t) => t + 1);
     setDiceVisible(true);
-    setTimeout(() => setAiRollTrigger((t) => t + 1), 1500);
   };
 
   const handleAIRoll = (index, fixedValue) => {
@@ -890,15 +914,14 @@ export default function SnakeAndLadder() {
     setRollColor(playerColors[index] || '#fff');
     setTurnMessage(<>{playerName(index)} rolled {value}</>);
     setRollResult(value);
-    setTimeout(() => setRollResult(null), 1800);
+    setTimeout(() => setRollResult(null), 1500);
     setTimeout(() => {
       setDiceVisible(false);
-      setMoving(true);
     let positions = [...aiPositions];
     let current = positions[index - 1];
     let target = current;
     if (current === 0) {
-      if (value === 6) target = value;
+      if (value === 6) target = 1;
     } else if (current === 100) {
       if (value === 1) target = FINAL_TILE;
     } else if (current + value <= FINAL_TILE) {
@@ -939,8 +962,11 @@ export default function SnakeAndLadder() {
       setAiPositions([...positions]);
       setHighlight({ cell: finalPos, type });
       setTrail([]);
-      // Do not reset other players when tokens overlap. Dice results only
-      // move the rolling player's token in this mode.
+      if (hasVictims(finalPos, index) && hahaSoundRef.current && !muted) {
+        hahaSoundRef.current.currentTime = 0;
+        hahaSoundRef.current.play().catch(() => {});
+      }
+      capturePieces(finalPos, index);
       setTimeout(() => setHighlight(null), 300);
       if (finalPos === FINAL_TILE && !ranking.includes(`AI ${index}`)) {
         const first = ranking.length === 0;
@@ -954,7 +980,6 @@ export default function SnakeAndLadder() {
       if (next === 0) setTurnMessage('Your turn');
       setCurrentTurn(next);
       setDiceVisible(true);
-      setMoving(false);
     };
 
     const applyEffect = (startPos) => {
@@ -988,7 +1013,7 @@ export default function SnakeAndLadder() {
     };
 
     moveSeq(steps, 'normal', () => applyEffect(target));
-    }, 1800);
+    }, 1500);
   };
 
   useEffect(() => {
@@ -1077,7 +1102,6 @@ export default function SnakeAndLadder() {
         if (next <= 0) {
           timerSoundRef.current?.pause();
           clearInterval(timerRef.current);
-          if (moving) return next;
           if (currentTurn === 0) {
             setPlayerAutoRolling(true);
             setTurnMessage('Rolling...');
@@ -1205,7 +1229,7 @@ export default function SnakeAndLadder() {
           <DiceRoller
             onRollEnd={(vals) => {
               const total = Array.isArray(vals) ? vals.reduce((a, b) => a + b, 0) : vals;
-              if (aiRollingIndex != null) {
+              if (aiRollingIndex) {
                 handleAIRoll(aiRollingIndex, total);
                 setAiRollingIndex(null);
               } else {
@@ -1219,23 +1243,23 @@ export default function SnakeAndLadder() {
               {
                 if (timerRef.current) clearInterval(timerRef.current);
                 timerSoundRef.current?.pause();
-                setRollingIndex(aiRollingIndex ?? 0);
-                if (aiRollingIndex != null)
+                setRollingIndex(aiRollingIndex || 0);
+                if (aiRollingIndex)
                   return setTurnMessage(<>{playerName(aiRollingIndex)} rolling...</>);
                 if (playerAutoRolling) return setTurnMessage('Rolling...');
                 return setTurnMessage("Rolling...");
               }
             }
-            clickable={aiRollingIndex == null && !playerAutoRolling && rollCooldown === 0 && !moving}
+            clickable={!aiRollingIndex && !playerAutoRolling && rollCooldown === 0}
             numDice={diceCount + bonusDice}
             trigger={aiRollingIndex != null ? aiRollTrigger : playerRollTrigger}
-            showButton={aiRollingIndex == null && !playerAutoRolling}
+            showButton={!aiRollingIndex && !playerAutoRolling}
           />
-          {currentTurn === 0 && aiRollingIndex == null && !playerAutoRolling && (
+          {currentTurn === 0 && !aiRollingIndex && !playerAutoRolling && (
             <div
               className="mt-4 flex flex-col items-center space-y-1 cursor-pointer"
               onClick={() => {
-                if (rollCooldown > 0 || moving) return;
+                if (rollCooldown > 0) return;
                 setPlayerRollTrigger((r) => r + 1);
               }}
             >

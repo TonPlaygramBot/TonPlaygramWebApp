@@ -3,7 +3,6 @@ export const FINAL_TILE = 101;
 export const DEFAULT_SNAKES = { 99: 80 };
 export const DEFAULT_LADDERS = { 3: 22, 27: 46 };
 export const ROLL_COOLDOWN_MS = 1000;
-export const TURN_DELAY_MS = 2000;
 
 import GameRoomModel from './models/GameRoom.js';
 
@@ -61,8 +60,6 @@ export class GameRoom {
       this.ladders = b.ladders;
     }
     this.rollCooldown = ROLL_COOLDOWN_MS;
-    this.turnDelay = TURN_DELAY_MS;
-    this.turnLock = false;
   }
 
   addPlayer(playerId, name, socket) {
@@ -70,7 +67,6 @@ export class GameRoom {
       return { error: 'Room full or game already started' };
     }
     const player = {
-      index: this.players.length,
       playerId,
       name,
       position: 0,
@@ -81,7 +77,7 @@ export class GameRoom {
     };
     this.players.push(player);
     socket.join(this.id);
-    this.io.to(this.id).emit('playerJoined', { playerId, name, index: player.index });
+    this.io.to(this.id).emit('playerJoined', { playerId, name });
     if (this.players.length === this.capacity) {
       this.startGame();
     }
@@ -92,7 +88,6 @@ export class GameRoom {
     if (this.status !== 'waiting') return;
     this.status = 'playing';
     this.currentTurn = 0;
-    this.turnLock = false;
     this.io.to(this.id).emit('gameStarted');
     this.emitNextTurn();
   }
@@ -100,7 +95,7 @@ export class GameRoom {
   emitNextTurn() {
     const current = this.players[this.currentTurn];
     if (current) {
-      this.io.to(this.id).emit('turnChanged', { playerId: current.playerId, index: current.index });
+      this.io.to(this.id).emit('turnChanged', { playerId: current.playerId });
     }
   }
 
@@ -111,7 +106,7 @@ export class GameRoom {
   }
 
   rollDice(socket, value) {
-    if (this.status !== 'playing' || this.turnLock) return;
+    if (this.status !== 'playing') return;
     const playerIndex = this.players.findIndex((p) => p.socketId === socket.id);
     if (playerIndex === -1) return;
     const player = this.players[playerIndex];
@@ -122,10 +117,9 @@ export class GameRoom {
       return;
     }
     player.lastRollTime = Date.now();
-    this.turnLock = true;
 
     const dice = value ?? Math.floor(Math.random() * 6) + 1;
-    this.io.to(this.id).emit('diceRolled', { playerId: player.playerId, index: player.index, value: dice });
+    this.io.to(this.id).emit('diceRolled', { playerId: player.playerId, value: dice });
 
     let from = player.position;
     let to = player.position;
@@ -143,17 +137,21 @@ export class GameRoom {
 
     if (to !== from) {
         player.position = to;
-        this.io.to(this.id).emit('movePlayer', { playerId: player.playerId, index: player.index, from, to });
+        this.io.to(this.id).emit('movePlayer', { playerId: player.playerId, from, to });
         const final = this.applySnakesAndLadders(to);
         if (final !== to) {
           player.position = final;
-          this.io.to(this.id).emit('snakeOrLadder', { playerId: player.playerId, index: player.index, from: to, to: final });
+          this.io.to(this.id).emit('snakeOrLadder', { playerId: player.playerId, from: to, to: final });
         }
     }
 
-    // Originally pieces landing on an occupied tile would send the other player
-    // back to start. To keep each player's movement isolated this behaviour has
-    // been removed.
+    for (const p of this.players) {
+      if (p !== player && !p.disconnected && p.position === player.position) {
+        p.position = 0;
+        p.isActive = false;
+        this.io.to(this.id).emit('playerReset', { playerId: p.playerId });
+      }
+    }
 
     if (player.position === FINAL_TILE) {
       this.status = 'finished';
@@ -163,24 +161,14 @@ export class GameRoom {
       }).catch((err) =>
         console.error('Failed to store game result:', err.message)
       );
-      this.io.to(this.id).emit('gameWon', { playerId: player.playerId, index: player.index });
-      this.turnLock = false;
+      this.io.to(this.id).emit('gameWon', { playerId: player.playerId });
       return;
     }
 
     do {
       this.currentTurn = (this.currentTurn + 1) % this.players.length;
     } while (this.players[this.currentTurn].disconnected);
-
-    const unlock = () => {
-      this.turnLock = false;
-      this.emitNextTurn();
-    };
-    if (this.turnDelay === 0) {
-      unlock();
-    } else {
-      setTimeout(unlock, this.turnDelay);
-    }
+    this.emitNextTurn();
   }
 
   handleDisconnect(socket) {
@@ -188,13 +176,12 @@ export class GameRoom {
     if (idx === -1) return;
     const player = this.players[idx];
     player.disconnected = true;
-    this.io.to(this.id).emit('playerLeft', { playerId: player.playerId, index: player.index });
+    this.io.to(this.id).emit('playerLeft', { playerId: player.playerId });
     if (this.status === 'playing' && idx === this.currentTurn) {
       if (this.players.some((p) => !p.disconnected)) {
         do {
           this.currentTurn = (this.currentTurn + 1) % this.players.length;
         } while (this.players[this.currentTurn].disconnected);
-        this.turnLock = false;
         this.emitNextTurn();
       }
     }
@@ -236,7 +223,6 @@ export class GameRoomManager {
       players: room.players.map((p) => ({
         playerId: p.playerId,
         name: p.name,
-        index: p.index,
         position: p.position,
         isActive: p.isActive,
         disconnected: p.disconnected
@@ -256,9 +242,8 @@ export class GameRoomManager {
           snakes: Object.fromEntries(record.snakes),
           ladders: Object.fromEntries(record.ladders)
         });
-        room.players = record.players.map((p, idx) => ({
+        room.players = record.players.map((p) => ({
           ...p.toObject(),
-          index: p.index ?? idx,
           socketId: null,
           lastRollTime: 0
         }));
