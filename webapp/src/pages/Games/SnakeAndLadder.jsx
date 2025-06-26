@@ -87,7 +87,6 @@ function Board({
   const containerRef = useRef(null);
   const gridRef = useRef(null);
   const tile1Ref = useRef(null);
-  const [connectors, setConnectors] = useState([]);
   const [cellWidth, setCellWidth] = useState(80);
   const [cellHeight, setCellHeight] = useState(40);
   // const tileRect removed - no longer highlighting the first cell
@@ -256,51 +255,7 @@ function Board({
     // board layout recalculations
   }, [cellWidth, cellHeight]);
 
-  useLayoutEffect(() => {
-    const grid = gridRef.current;
-    if (!grid) return;
 
-    const posFor = (cell) => {
-      const el = grid.querySelector(`[data-cell='${cell}']`);
-      if (!el) return null;
-      return {
-        x: el.offsetLeft + el.offsetWidth / 2,
-        y: el.offsetTop + el.offsetHeight / 2,
-      };
-    };
-
-    const conns = [];
-    Object.entries(snakes || {}).forEach(([s, e]) => {
-      const start = posFor(Number(s));
-      const end = posFor(Number(e));
-      if (!start || !end) return;
-      const dx = end.x - start.x;
-      const dy = end.y - start.y;
-      conns.push({
-        type: 'snake',
-        x: start.x,
-        y: start.y,
-        len: Math.sqrt(dx * dx + dy * dy),
-        angle: (Math.atan2(dy, dx) * 180) / Math.PI,
-      });
-    });
-    Object.entries(ladders || {}).forEach(([s, e]) => {
-      const endCell = typeof e === 'object' ? e.end : e;
-      const start = posFor(Number(s));
-      const end = posFor(Number(endCell));
-      if (!start || !end) return;
-      const dx = end.x - start.x;
-      const dy = end.y - start.y;
-      conns.push({
-        type: 'ladder',
-        x: start.x,
-        y: start.y,
-        len: Math.sqrt(dx * dx + dy * dy),
-        angle: (Math.atan2(dy, dx) * 180) / Math.PI,
-      });
-    });
-    setConnectors(conns);
-  }, [cellWidth, cellHeight, snakes, ladders]);
 
   // Icons are rendered directly inside each cell so that they stay perfectly
   // aligned with the grid. Previously additional absolutely positioned markers
@@ -386,23 +341,6 @@ function Board({
             }}
           >
             {/* Game background is rendered outside the grid */}
-            {connectors.map((c, i) => (
-              <div
-                key={i}
-                className={`${c.type}-connector`}
-                style={{
-                  left: `${c.x}px`,
-                  top: `${c.y}px`,
-                  width: `${c.len}px`,
-                  transform: `translateY(-50%) rotate(${c.angle}deg) translateZ(6px)`,
-                }}
-              >
-                <img
-                  src={c.type === 'snake' ? '/assets/icons/snake.svg' : '/assets/icons/ladder.svg'}
-                  className="connector-icon"
-                />
-              </div>
-            ))}
             {tiles}
             <div
               className={`pot-cell ${highlight && highlight.cell === FINAL_TILE ? "highlight" : ""}`}
