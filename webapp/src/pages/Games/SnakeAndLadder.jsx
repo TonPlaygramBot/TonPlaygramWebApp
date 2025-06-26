@@ -17,6 +17,7 @@ import { fetchTelegramInfo, getProfile, deposit, getSnakeBoard } from "../../uti
 import PlayerToken from "../../components/PlayerToken.jsx";
 import AvatarTimer from "../../components/AvatarTimer.jsx";
 import ConfirmPopup from "../../components/ConfirmPopup.jsx";
+import { socket } from "../../utils/socket.js";
 
 const TOKEN_COLORS = [
   { name: "blue", color: "#60a5fa" },
@@ -390,6 +391,7 @@ function Board({
 
 export default function SnakeAndLadder() {
   const navigate = useNavigate();
+  const myPlayerId = getTelegramId();
   const [pos, setPos] = useState(0);
   const [highlight, setHighlight] = useState(null); // { cell: number, type: string }
   const [trail, setTrail] = useState([]);
@@ -474,6 +476,22 @@ export default function SnakeAndLadder() {
     }, 1000);
     return () => clearInterval(id);
   }, [rollCooldown]);
+
+  useEffect(() => {
+    const handleMove = ({ playerId, index, from, to }) => {
+      if (playerId === myPlayerId) {
+        setPos(to);
+      } else {
+        setAiPositions((arr) => {
+          const copy = [...arr];
+          if (index > 0 && index - 1 < copy.length) copy[index - 1] = to;
+          return copy;
+        });
+      }
+    };
+    socket.on('movePlayer', handleMove);
+    return () => socket.off('movePlayer', handleMove);
+  }, [myPlayerId]);
 
   const playerName = (idx) => (
     <span style={{ color: playerColors[idx] }}>
