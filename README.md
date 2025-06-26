@@ -147,7 +147,9 @@ The compiled assets are copied into `webapp/public/games/ludo`.
 
 ### Customizing Snakes & Ladders icons
 
-All webapp icons are stored in `webapp/public/assets/icons`. The board now uses emoji symbols (🐍, 🪜 and 🎲) for snake, ladder and dice connectors instead of `snake.svg`, `ladder.svg` and `dice.svg`.
+All webapp icons are stored in `webapp/public/assets/icons`. The Snakes & Ladders board uses transparent PNG graphics for snakes (`snake.png`) and ladders (`Ladder.png`). Dice cells still rely on the `Dice.png` image. To replace the artwork simply drop new files with the same names into that directory.
+
+Token icons live in `webapp/public/icons` and are also transparent PNGs. TON, USDT and TPC coins are provided as `TON.png`, `Usdt.png` and `TPCcoin.png`.
 
 ### Snake & Ladder engine notes
 

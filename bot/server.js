@@ -120,7 +120,7 @@ app.get(manifestPath, (req, res) => {
     name: 'TonPlaygram',
     description: 'Play games with TPC staking via Tonkeeper',
     url: baseUrl,
-    icons: [`${baseUrl}/icons/tpc.svg`]
+    icons: [`${baseUrl}/icons/TPCcoin.png`]
   });
 });
 

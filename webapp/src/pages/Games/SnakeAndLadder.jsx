@@ -41,6 +41,12 @@ function shuffle(arr) {
   return copy;
 }
 
+const TOKEN_ICONS = {
+  TPC: '/icons/TPCcoin.png',
+  TON: '/icons/TON.png',
+  USDT: '/icons/Usdt.png'
+};
+
 function CoinBurst({ token }) {
   const coins = Array.from({ length: 30 }, () => ({
     dx: (Math.random() - 0.5) * 100,
@@ -52,7 +58,7 @@ function CoinBurst({ token }) {
       {coins.map((c, i) => (
         <img
           key={i}
-          src={`/icons/${token.toLowerCase()}.svg`}
+          src={TOKEN_ICONS[token]}
           className="coin-img"
           style={{
             "--dx": `${c.dx}px`,
@@ -450,9 +456,9 @@ export default function SnakeAndLadder() {
   // Preload token and avatar images so board icons and AI photos display
   // immediately without waiting for network requests during gameplay.
   useEffect(() => {
-    ['ton', 'tpc', 'usdt'].forEach((t) => {
+    ['TON.png', 'TPCcoin.png', 'Usdt.png'].forEach((name) => {
       const img = new Image();
-      img.src = `/icons/${t}.svg`;
+      img.src = `/icons/${name}`;
     });
     AVATARS.forEach((src) => {
       const img = new Image();

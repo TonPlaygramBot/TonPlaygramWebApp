@@ -118,7 +118,7 @@ export default function DailyCheckIn() {
 
           {REWARDS[i]}
 
-          <img src="/icons/tpc.svg" alt="TPC" className="w-4 h-4 ml-1" />
+          <img src="/icons/TPCcoin.png" alt="TPC" className="w-4 h-4 ml-1" />
 
         </span>
 
