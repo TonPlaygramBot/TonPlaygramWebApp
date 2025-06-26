@@ -440,6 +440,7 @@ export default function SnakeAndLadder() {
   const [aiRollTrigger, setAiRollTrigger] = useState(0);
   const [rollingIndex, setRollingIndex] = useState(null);
   const [playerRollTrigger, setPlayerRollTrigger] = useState(0);
+  const [playerAutoRolling, setPlayerAutoRolling] = useState(false);
   const [timeLeft, setTimeLeft] = useState(15);
   const [aiAvatars, setAiAvatars] = useState([]);
   const [burning, setBurning] = useState([]); // indices of tokens burning
@@ -1077,7 +1078,11 @@ export default function SnakeAndLadder() {
           timerSoundRef.current?.pause();
           clearInterval(timerRef.current);
           if (moving) return next;
-          if (currentTurn !== 0) {
+          if (currentTurn === 0) {
+            setPlayerAutoRolling(true);
+            setTurnMessage('Rolling...');
+            setPlayerRollTrigger((r) => r + 1);
+          } else {
             triggerAIRoll(currentTurn);
           }
         }
@@ -1208,6 +1213,7 @@ export default function SnakeAndLadder() {
                 setBonusDice(0);
               }
               setRollingIndex(null);
+              setPlayerAutoRolling(false);
             }}
             onRollStart={() =>
               {
@@ -1216,15 +1222,16 @@ export default function SnakeAndLadder() {
                 setRollingIndex(aiRollingIndex ?? 0);
                 if (aiRollingIndex != null)
                   return setTurnMessage(<>{playerName(aiRollingIndex)} rolling...</>);
+                if (playerAutoRolling) return setTurnMessage('Rolling...');
                 return setTurnMessage("Rolling...");
               }
             }
-            clickable={aiRollingIndex == null && rollCooldown === 0 && !moving}
+            clickable={aiRollingIndex == null && !playerAutoRolling && rollCooldown === 0 && !moving}
             numDice={diceCount + bonusDice}
             trigger={aiRollingIndex != null ? aiRollTrigger : playerRollTrigger}
-            showButton={aiRollingIndex == null}
+            showButton={aiRollingIndex == null && !playerAutoRolling}
           />
-          {currentTurn === 0 && aiRollingIndex == null && (
+          {currentTurn === 0 && aiRollingIndex == null && !playerAutoRolling && (
             <div
               className="mt-4 flex flex-col items-center space-y-1 cursor-pointer"
               onClick={() => {
