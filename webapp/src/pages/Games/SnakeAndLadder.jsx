@@ -10,6 +10,10 @@ import {
   AiOutlineLogout,
   AiOutlineRollback,
   AiOutlineReload,
+  AiOutlineAudio,
+  AiOutlineAudioMuted,
+  AiOutlineEye,
+  AiOutlineEyeInvisible,
 } from "react-icons/ai";
 import useTelegramBackButton from "../../hooks/useTelegramBackButton.js";
 import { useNavigate } from "react-router-dom";
@@ -251,6 +255,20 @@ function Board({
     return () => window.removeEventListener("resize", updateSize);
   }, []);
 
+  useEffect(() => {
+    [
+      moveSoundRef,
+      snakeSoundRef,
+      ladderSoundRef,
+      winSoundRef,
+      diceRewardSoundRef,
+      bombSoundRef,
+      timerSoundRef,
+    ].forEach((r) => {
+      if (r.current) r.current.muted = muted;
+    });
+  }, [muted]);
+
   useLayoutEffect(() => {
     // board layout recalculations
   }, [cellWidth, cellHeight]);
@@ -421,11 +439,24 @@ export default function SnakeAndLadder() {
   const [rollingIndex, setRollingIndex] = useState(null);
   const [playerRollTrigger, setPlayerRollTrigger] = useState(0);
   const [playerAutoRolling, setPlayerAutoRolling] = useState(false);
+  const [muted, setMuted] = useState(false);
+  const [showMessages, setShowMessages] = useState(true);
   const [timeLeft, setTimeLeft] = useState(15);
   const [aiAvatars, setAiAvatars] = useState([]);
   const [burning, setBurning] = useState([]); // indices of tokens burning
   const [refreshTick, setRefreshTick] = useState(0);
   const [rollCooldown, setRollCooldown] = useState(0);
+
+  const toggleAutoRoll = () => {
+    setPlayerAutoRolling((auto) => {
+      const next = !auto;
+      if (!auto && rollCooldown === 0 && !aiRollingIndex) {
+        setTurnMessage('Rolling...');
+        setPlayerRollTrigger((r) => r + 1);
+      }
+      return next;
+    });
+  };
 
   // Preload token and avatar images so board icons and AI photos display
   // immediately without waiting for network requests during gameplay.
@@ -528,6 +559,17 @@ export default function SnakeAndLadder() {
     diceRewardSoundRef.current = new Audio("/assets/sounds/successful.mp3");
     bombSoundRef.current = new Audio(bombSound);
     timerSoundRef.current = new Audio(timerBeep);
+    [
+      moveSoundRef,
+      snakeSoundRef,
+      ladderSoundRef,
+      winSoundRef,
+      diceRewardSoundRef,
+      bombSoundRef,
+      timerSoundRef,
+    ].forEach((r) => {
+      if (r.current) r.current.muted = muted;
+    });
     return () => {
       moveSoundRef.current?.pause();
       snakeSoundRef.current?.pause();
@@ -1086,6 +1128,28 @@ export default function SnakeAndLadder() {
           <span className="text-xs">Info</span>
         </button>
         <button
+          onClick={() => setMuted((m) => !m)}
+          className="p-2 flex flex-col items-center"
+        >
+          {muted ? (
+            <AiOutlineAudioMuted className="text-xl" />
+          ) : (
+            <AiOutlineAudio className="text-xl" />
+          )}
+          <span className="text-xs">Sound</span>
+        </button>
+        <button
+          onClick={() => setShowMessages((s) => !s)}
+          className="p-2 flex flex-col items-center"
+        >
+          {showMessages ? (
+            <AiOutlineEye className="text-xl" />
+          ) : (
+            <AiOutlineEyeInvisible className="text-xl" />
+          )}
+          <span className="text-xs">Text</span>
+        </button>
+        <button
           onClick={() => setShowExitConfirm(true)}
           className="p-2 flex flex-col items-center"
         >
@@ -1139,12 +1203,16 @@ export default function SnakeAndLadder() {
       />
       {rollResult !== null && (
         <div className="fixed bottom-44 inset-x-0 flex justify-center z-30 pointer-events-none">
-          <div className="text-6xl roll-result">{rollResult}</div>
+          <div className="text-6xl roll-result" style={{ color: playerColors[currentTurn] }}>
+            {rollResult}
+          </div>
         </div>
       )}
       {diceVisible && (
         <div className="fixed bottom-24 inset-x-0 flex flex-col items-center z-20">
-          <DiceRoller
+          <div className="flex items-end">
+            <span className="text-3xl mr-2">🫵</span>
+            <DiceRoller
             onRollEnd={(vals) => {
               const total = Array.isArray(vals) ? vals.reduce((a, b) => a + b, 0) : vals;
               if (aiRollingIndex) {
@@ -1173,25 +1241,34 @@ export default function SnakeAndLadder() {
             trigger={aiRollingIndex != null ? aiRollTrigger : playerAutoRolling ? playerRollTrigger : undefined}
             showButton={!aiRollingIndex && !playerAutoRolling}
           />
-          {rollCooldown > 0 && (
+            <button
+              onClick={toggleAutoRoll}
+              className={`ml-2 px-2 py-1 text-xs rounded ${playerAutoRolling ? 'bg-green-600' : 'bg-gray-500'}`}
+            >
+              {playerAutoRolling ? 'Auto On' : 'Auto Off'}
+            </button>
+          </div>
+          {rollCooldown > 0 && showMessages && (
             <div className="text-sm mt-1">{rollCooldown}</div>
           )}
-          {turnMessage && (
+          {turnMessage && showMessages && (
             <div
               className="mt-2 turn-message"
               style={
-                turnMessage === 'Your turn' ? { color: playerColors[0] } : {}
+                turnMessage === 'Your turn'
+                  ? { color: playerColors[0], fontSize: '1.4rem' }
+                  : {}
               }
             >
               {turnMessage}
             </div>
           )}
-          {message === 'Need a 6 to start!' && (
+          {message === 'Need a 6 to start!' && showMessages && (
             <div className={`mt-1 turn-message ${messageColor}`}>{message}</div>
           )}
         </div>
       )}
-      {message && message !== 'Need a 6 to start!' && (
+      {message && message !== 'Need a 6 to start!' && showMessages && (
         <div className={`text-center font-semibold w-full ${messageColor}`}>{message}</div>
       )}
       <InfoPopup
