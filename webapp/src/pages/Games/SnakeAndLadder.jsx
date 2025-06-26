@@ -1062,10 +1062,6 @@ export default function SnakeAndLadder() {
     setTimeLeft(limit);
     if (timerRef.current) clearInterval(timerRef.current);
     if (timerSoundRef.current) timerSoundRef.current.pause();
-    if (currentTurn === 0 && beepSoundRef.current) {
-      beepSoundRef.current.currentTime = 0;
-      if (!muted) beepSoundRef.current.play().catch(() => {});
-    }
     timerRef.current = setInterval(() => {
       setTimeLeft((t) => {
         const next = t - 1;
