@@ -160,8 +160,9 @@ test('landing on another player sends them to start', () => {
   room.rollDice(s1, 2); // land on player 2
 
   assert.equal(room.players[0].position, 3);
-  assert.equal(room.players[1].position, 3);
+  assert.equal(room.players[1].position, 0);
+  assert.equal(room.players[1].isActive, false);
   const resetEvent = io.emitted.find(e => e.event === 'playerReset');
-  assert.ok(!resetEvent, 'no player should be reset');
+  assert.ok(resetEvent, 'playerReset should be emitted');
 });
 

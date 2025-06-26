@@ -827,8 +827,20 @@ export default function SnakeAndLadder() {
         setTrail([]);
         setTokenType(type);
         setTimeout(() => setHighlight(null), 300);
-        // Removed piece capture behaviour to keep each player's position
-        // independent. Tokens can now share the same tile without resetting.
+        // Capture any AI pieces on the same tile and reset them to start.
+        setAiPositions((positions) => {
+          return positions.map((p, idx) => {
+            if (p === finalPos && finalPos !== 0 && finalPos !== FINAL_TILE) {
+              setBurning((b) => [...b, idx + 1]);
+              setTimeout(
+                () => setBurning((b) => b.filter((i) => i !== idx + 1)),
+                1500
+              );
+              return 0;
+            }
+            return p;
+          });
+        });
         if (finalPos === FINAL_TILE && !ranking.includes('You')) {
           const first = ranking.length === 0;
           if (first) {
@@ -939,8 +951,27 @@ export default function SnakeAndLadder() {
       setAiPositions([...positions]);
       setHighlight({ cell: finalPos, type });
       setTrail([]);
-      // Do not reset other players when tokens overlap. Dice results only
-      // move the rolling player's token in this mode.
+      // Capture the player's token or other AI tokens if landed upon.
+      if (finalPos !== 0 && finalPos !== FINAL_TILE) {
+        if (pos === finalPos) {
+          setBurning((b) => [...b, 0]);
+          setTimeout(() => setBurning((b) => b.filter((i) => i !== 0)), 1500);
+          setPos(0);
+        }
+        setAiPositions((curr) =>
+          curr.map((p, idx) => {
+            if (idx !== index - 1 && p === finalPos) {
+              setBurning((b) => [...b, idx + 1]);
+              setTimeout(
+                () => setBurning((b) => b.filter((i) => i !== idx + 1)),
+                1500
+              );
+              return 0;
+            }
+            return p;
+          })
+        );
+      }
       setTimeout(() => setHighlight(null), 300);
       if (finalPos === FINAL_TILE && !ranking.includes(`AI ${index}`)) {
         const first = ranking.length === 0;
