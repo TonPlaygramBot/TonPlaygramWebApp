@@ -495,25 +495,18 @@ export default function SnakeAndLadder() {
   const timerRef = useRef(null);
 
   useEffect(() => {
-    const cached = localStorage.getItem('snakeUserPhoto');
-    if (cached) setPhotoUrl(cached);
     const id = getTelegramId();
     getProfile(id)
       .then((p) => {
         if (p?.photo) {
           setPhotoUrl(p.photo);
-          localStorage.setItem('snakeUserPhoto', p.photo);
         } else {
           const url = getTelegramPhotoUrl();
           if (url) {
             setPhotoUrl(url);
-            localStorage.setItem('snakeUserPhoto', url);
           } else {
             fetchTelegramInfo(id).then((info) => {
-              if (info?.photoUrl) {
-                setPhotoUrl(info.photoUrl);
-                localStorage.setItem('snakeUserPhoto', info.photoUrl);
-              }
+              if (info?.photoUrl) setPhotoUrl(info.photoUrl);
             });
           }
         }
@@ -522,13 +515,9 @@ export default function SnakeAndLadder() {
         const url = getTelegramPhotoUrl();
         if (url) {
           setPhotoUrl(url);
-          localStorage.setItem('snakeUserPhoto', url);
         } else {
           fetchTelegramInfo(id).then((info) => {
-            if (info?.photoUrl) {
-              setPhotoUrl(info.photoUrl);
-              localStorage.setItem('snakeUserPhoto', info.photoUrl);
-            }
+            if (info?.photoUrl) setPhotoUrl(info.photoUrl);
           });
         }
       });
@@ -578,15 +567,15 @@ export default function SnakeAndLadder() {
     setPlayerColors(colors);
 
     const table = params.get("table") || "snake-4";
-    const boardKey = `snakeBoard_${table}`;
-    const loadBoard = ({ snakes: snakesObj = {}, ladders: laddersObj = {} }) => {
-      const limit = (obj) => {
-        return Object.fromEntries(Object.entries(obj).slice(0, 8));
-      };
-      const snakesLim = limit(snakesObj);
-      const laddersLim = limit(laddersObj);
-      setSnakes(snakesLim);
-      setLadders(laddersLim);
+    getSnakeBoard(table)
+      .then(({ snakes: snakesObj = {}, ladders: laddersObj = {} }) => {
+        const limit = (obj) => {
+          return Object.fromEntries(Object.entries(obj).slice(0, 8));
+        };
+        const snakesLim = limit(snakesObj);
+        const laddersLim = limit(laddersObj);
+        setSnakes(snakesLim);
+        setLadders(laddersLim);
         const snk = {};
         Object.entries(snakesLim).forEach(([s, e]) => {
           snk[s] = s - e;
@@ -614,32 +603,11 @@ export default function SnakeAndLadder() {
             cell = Math.floor(Math.random() * boardSize) + 1;
           } while (usedD.has(String(cell)) || usedD.has(cell) || cell === FINAL_TILE);
           diceMap[cell] = val;
-        usedD.add(cell);
-      });
-      setDiceCells(diceMap);
-    };
-
-    const stored = localStorage.getItem(boardKey);
-    if (stored) {
-      try {
-        const data = JSON.parse(stored);
-        loadBoard(data);
-      } catch {
-        getSnakeBoard(table)
-          .then((data) => {
-            loadBoard(data);
-            localStorage.setItem(boardKey, JSON.stringify(data));
-          })
-          .catch(() => {});
-      }
-    } else {
-      getSnakeBoard(table)
-        .then((data) => {
-          loadBoard(data);
-          localStorage.setItem(boardKey, JSON.stringify(data));
-        })
-        .catch(() => {});
-    }
+          usedD.add(cell);
+        });
+        setDiceCells(diceMap);
+      })
+      .catch(() => {});
   }, []);
 
   useEffect(() => {
@@ -1045,7 +1013,7 @@ export default function SnakeAndLadder() {
 
   useEffect(() => {
     if (setupPhase || gameOver) return;
-    const limit = currentTurn === 0 ? 15 : 5;
+    const limit = currentTurn === 0 ? 15 : 3;
     setTimeLeft(limit);
     if (timerRef.current) clearInterval(timerRef.current);
     if (timerSoundRef.current) timerSoundRef.current.pause();
@@ -1149,7 +1117,7 @@ export default function SnakeAndLadder() {
               name={p.index === 0 ? 'You' : `AI ${p.index}`}
               timerPct={
                 p.index === currentTurn
-                  ? timeLeft / (p.index === 0 ? 15 : 5)
+                  ? timeLeft / (p.index === 0 ? 15 : 3)
                   : 1
               }
             />
