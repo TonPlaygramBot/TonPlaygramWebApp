@@ -961,24 +961,23 @@ export default function SnakeAndLadder() {
         const sorted = [...results].sort((a, b) => b.roll - a.roll);
         setInitialRolls(results);
         setTurnOrder(sorted.map((r) => r.index));
+        const first = sorted[0];
         setTurnMessage(
           <>
-            Order: {sorted.map((r, i) => (
+            Order:{' '}
+            {sorted.map((r, i) => (
               <span key={r.index} style={{ color: playerColors[r.index] }}>
-                {i > 0 && ', '} {r.index === 0 ? 'You' : `AI ${r.index}`}
-                ({r.roll})
+                {i > 0 && ', '} {r.index === 0 ? 'You' : `AI ${r.index}`}({r.roll})
               </span>
             ))}
+            . {first.index === 0 ? 'You' : `AI ${first.index}`} start first.
           </>
         );
-        const first = sorted[0];
         setTimeout(() => {
           setSetupPhase(false);
           setDiceVisible(true);
           setCurrentTurn(first.index);
-          if (first.index === 0) handleRoll(first.roll);
-          else handleAIRoll(first.index, first.roll);
-        }, 1000);
+        }, 1500);
         return;
       }
       const idxPlayer = rollOrder[idx];
