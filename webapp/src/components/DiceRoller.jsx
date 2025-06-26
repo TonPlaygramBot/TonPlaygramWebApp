@@ -24,6 +24,7 @@ export default function DiceRoller({
 
   useEffect(() => {
     soundRef.current = new Audio(diceSound);
+    soundRef.current.volume = 0.7;
     soundRef.current.preload = 'auto';
     return () => {
       soundRef.current?.pause();
