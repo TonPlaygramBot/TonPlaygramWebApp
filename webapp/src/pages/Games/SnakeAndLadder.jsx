@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useLayoutEffect, Fragment } from "react";
 import confetti from "canvas-confetti";
 import DiceRoller from "../../components/DiceRoller.jsx";
-import { dropSound, snakeSound, ladderSound, bombSound, timerBeep } from "../../assets/soundData.js";
+import { dropSound, snakeSound, ladderSound, bombSound, timerBeep, beepSound } from "../../assets/soundData.js";
 import { AVATARS } from "../../components/AvatarPickerModal.jsx";
 import InfoPopup from "../../components/InfoPopup.jsx";
 import GameEndPopup from "../../components/GameEndPopup.jsx";
@@ -380,7 +380,6 @@ function Board({
 }
 
 export default function SnakeAndLadder() {
-  useTelegramBackButton();
   const navigate = useNavigate();
   const [pos, setPos] = useState(0);
   const [highlight, setHighlight] = useState(null); // { cell: number, type: string }
@@ -397,6 +396,18 @@ export default function SnakeAndLadder() {
   const [showInfo, setShowInfo] = useState(false);
   const [showLobbyConfirm, setShowLobbyConfirm] = useState(false);
   const [muted, setMuted] = useState(false);
+  useTelegramBackButton(() => setShowLobbyConfirm(true));
+  useEffect(() => {
+    const pushState = () => window.history.pushState(null, '', window.location.href);
+    pushState();
+    const handlePopState = (e) => {
+      e.preventDefault();
+      pushState();
+      setShowLobbyConfirm(true);
+    };
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
   const [snakes, setSnakes] = useState({});
   const [ladders, setLadders] = useState({});
   const [snakeOffsets, setSnakeOffsets] = useState({});
@@ -491,6 +502,7 @@ export default function SnakeAndLadder() {
   const diceRewardSoundRef = useRef(null);
   const bombSoundRef = useRef(null);
   const timerSoundRef = useRef(null);
+  const beepSoundRef = useRef(null);
   const timerRef = useRef(null);
   const aiRollTimeoutRef = useRef(null);
 
@@ -528,6 +540,7 @@ export default function SnakeAndLadder() {
     diceRewardSoundRef.current = new Audio("/assets/sounds/successful.mp3");
     bombSoundRef.current = new Audio(bombSound);
     timerSoundRef.current = new Audio(timerBeep);
+    beepSoundRef.current = new Audio(beepSound);
     return () => {
       moveSoundRef.current?.pause();
       snakeSoundRef.current?.pause();
@@ -536,6 +549,7 @@ export default function SnakeAndLadder() {
       diceRewardSoundRef.current?.pause();
       bombSoundRef.current?.pause();
       timerSoundRef.current?.pause();
+      beepSoundRef.current?.pause();
     };
   }, []);
 
@@ -548,6 +562,7 @@ export default function SnakeAndLadder() {
       diceRewardSoundRef,
       bombSoundRef,
       timerSoundRef,
+      beepSoundRef,
     ].forEach((r) => {
       if (r.current) r.current.muted = muted;
     });
@@ -1030,10 +1045,14 @@ export default function SnakeAndLadder() {
     setTimeLeft(limit);
     if (timerRef.current) clearInterval(timerRef.current);
     if (timerSoundRef.current) timerSoundRef.current.pause();
+    if (currentTurn === 0 && beepSoundRef.current) {
+      beepSoundRef.current.currentTime = 0;
+      if (!muted) beepSoundRef.current.play().catch(() => {});
+    }
     timerRef.current = setInterval(() => {
       setTimeLeft((t) => {
         const next = t - 1;
-        if (next <= 7 && next >= 0 && timerSoundRef.current) {
+        if (currentTurn === 0 && next <= 7 && next >= 0 && timerSoundRef.current) {
           timerSoundRef.current.currentTime = 0;
           if (!muted) timerSoundRef.current.play().catch(() => {});
         }
@@ -1080,7 +1099,6 @@ export default function SnakeAndLadder() {
     });
 
   const handleReload = () => {
-    localStorage.removeItem(`snakeGameState_${ai}`);
     window.location.reload();
   };
 
@@ -1194,7 +1212,12 @@ export default function SnakeAndLadder() {
             showButton={!aiRollingIndex && !playerAutoRolling}
           />
           {currentTurn === 0 && !aiRollingIndex && !playerAutoRolling && (
-            <div className="mt-2 text-3xl">🫵</div>
+            <div className="mt-4 flex flex-col items-center space-y-1">
+              <div className="text-5xl">🫵</div>
+              <div className="text-sm font-bold" style={{ color: playerColors[0] }}>
+                Your turn
+              </div>
+            </div>
           )}
         </div>
       )}
