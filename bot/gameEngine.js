@@ -3,7 +3,7 @@ export const FINAL_TILE = 101;
 export const DEFAULT_SNAKES = { 99: 80 };
 export const DEFAULT_LADDERS = { 3: 22, 27: 46 };
 export const ROLL_COOLDOWN_MS = 1000;
-export const TURN_DELAY_MS = 2000;
+export const TURN_DELAY_MS = 6000;
 
 import GameRoomModel from './models/GameRoom.js';
 
