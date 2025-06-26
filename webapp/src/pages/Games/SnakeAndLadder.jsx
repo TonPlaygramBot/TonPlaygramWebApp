@@ -1117,6 +1117,21 @@ export default function SnakeAndLadder() {
       rankMap[p.idx] = p.pos === 0 ? 0 : i + 1;
     });
 
+  const handleForfeit = () => {
+    setRanking((r) => {
+      if (r.includes('You')) return r;
+      const updated = [...r];
+      for (let i = 1; i <= 3 && updated.length < PLAYERS - 1; i++) {
+        const name = `AI ${i}`;
+        if (!updated.includes(name)) updated.push(name);
+      }
+      updated.push('You');
+      return updated.slice(0, PLAYERS);
+    });
+    setGameOver(true);
+    setShowLobbyConfirm(false);
+  };
+
   const handleReload = () => {
     window.location.reload();
   };
@@ -1272,10 +1287,7 @@ export default function SnakeAndLadder() {
       <ConfirmPopup
         open={showLobbyConfirm}
         message="Return to lobby and end the game?"
-        onConfirm={() => {
-          localStorage.removeItem(`snakeGameState_${ai}`);
-          navigate("/games/snake/lobby");
-        }}
+        onConfirm={handleForfeit}
         onCancel={() => setShowLobbyConfirm(false)}
       />
     </div>
