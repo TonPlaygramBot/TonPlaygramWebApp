@@ -384,7 +384,6 @@ export default function SnakeAndLadder() {
   useTelegramBackButton();
   const navigate = useNavigate();
   const [pos, setPos] = useState(0);
-  const [streak, setStreak] = useState(0);
   const [highlight, setHighlight] = useState(null); // { cell: number, type: string }
   const [trail, setTrail] = useState([]);
   const [tokenType, setTokenType] = useState("normal");
@@ -670,20 +669,8 @@ export default function SnakeAndLadder() {
         : value === 6;
 
       setMessage("");
-      let newStreak = rolledSix ? streak + 1 : 0;
-
-      if (newStreak === 3) {
-        setStreak(0);
-        setMessage("Third 6 rolled, turn skipped!");
-        setTurnMessage("Your turn");
-        setDiceVisible(true);
-        return;
-      }
-
-      setStreak(newStreak);
       let current = pos;
       let target = current;
-      let extraTurn = false;
 
       if (current === 100 && diceCount === 2) {
         if (rolledSix) {
@@ -723,7 +710,6 @@ export default function SnakeAndLadder() {
         return;
       }
 
-      extraTurn = rolledSix && target !== current;
 
       const steps = [];
       for (let i = current + 1; i <= target; i++) steps.push(i);
@@ -837,7 +823,7 @@ export default function SnakeAndLadder() {
         }
         setDiceVisible(true);
         if (!gameOver) {
-          const next = extraTurn ? currentTurn : (currentTurn + 1) % (ai + 1);
+          const next = (currentTurn + 1) % (ai + 1);
           setCurrentTurn(next);
         }
       };
@@ -872,7 +858,6 @@ export default function SnakeAndLadder() {
     }
 
     const rolledSix = value === 6;
-    const extraTurn = rolledSix && target !== current;
 
     const steps = [];
     for (let i = current + 1; i <= target; i++) steps.push(i);
@@ -916,7 +901,7 @@ export default function SnakeAndLadder() {
         setDiceVisible(false);
         return;
       }
-      const next = extraTurn ? index : (index + 1) % (ai + 1);
+      const next = (index + 1) % (ai + 1);
       if (next === 0) setTurnMessage('Your turn');
       setCurrentTurn(next);
       setDiceVisible(true);
@@ -1032,7 +1017,7 @@ export default function SnakeAndLadder() {
     timerRef.current = setInterval(() => {
       setTimeLeft((t) => {
         const next = t - 1;
-        if (next <= 5 && next >= 0 && timerSoundRef.current) {
+        if (next <= 7 && next >= 0 && timerSoundRef.current) {
           timerSoundRef.current.currentTime = 0;
           timerSoundRef.current.play().catch(() => {});
         }
@@ -1175,6 +1160,8 @@ export default function SnakeAndLadder() {
             }}
             onRollStart={() =>
               {
+                if (timerRef.current) clearInterval(timerRef.current);
+                timerSoundRef.current?.pause();
                 setRollingIndex(aiRollingIndex || 0);
                 if (aiRollingIndex)
                   return setTurnMessage(<>{playerName(aiRollingIndex)} rolling...</>);

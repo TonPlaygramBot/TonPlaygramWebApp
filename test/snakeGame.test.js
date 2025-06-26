@@ -29,9 +29,35 @@ test('applySnakesAndLadders resolves moves', () => {
   assert.equal(room.applySnakesAndLadders(8), 8); // none
 });
 
-test('start requires 6 and triple six skips turn', () => {
+test('start requires 6 and rolling 6 does not grant extra turn', () => {
   const io = new DummyIO();
-  const room = new GameRoom('r', io, 4, {
+  const room = new GameRoom('r', io, 2, {
+    snakes: DEFAULT_SNAKES,
+    ladders: DEFAULT_LADDERS,
+  });
+  room.rollCooldown = 0;
+  const s1 = { id: 's1', join: () => {} };
+  const s2 = { id: 's2', join: () => {} };
+  room.addPlayer('p1', 'Player1', s1);
+  room.addPlayer('p2', 'Player2', s2);
+  room.startGame();
+
+  room.rollDice(s1, 4);
+  assert.equal(room.players[0].position, 0);
+  assert.equal(room.currentTurn, 1);
+
+  room.rollDice(s2, 6);
+  assert.equal(room.players[1].position, 1);
+  assert.equal(room.currentTurn, 0);
+
+  room.rollDice(s1, 6);
+  assert.equal(room.players[0].position, 1);
+  assert.equal(room.currentTurn, 1);
+});
+
+test('rolling multiple sixes does not skip turn', () => {
+  const io = new DummyIO();
+  const room = new GameRoom('r1', io, 1, {
     snakes: DEFAULT_SNAKES,
     ladders: DEFAULT_LADDERS,
   });
@@ -40,17 +66,10 @@ test('start requires 6 and triple six skips turn', () => {
   room.addPlayer('p1', 'Player', socket);
   room.startGame();
 
-  room.rollDice(socket, 4);
-  assert.equal(room.players[0].position, 0);
-
   room.rollDice(socket, 6);
-  assert.equal(room.players[0].position, 1);
-
   room.rollDice(socket, 6);
-  assert.equal(room.players[0].position, 7);
-
   room.rollDice(socket, 6);
-  assert.equal(room.players[0].position, 7); // third six should skip move
+  assert.equal(room.players[0].position, 13);
 });
 
 test('room starts when reaching custom capacity', () => {

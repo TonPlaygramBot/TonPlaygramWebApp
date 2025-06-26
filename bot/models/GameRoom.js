@@ -6,8 +6,7 @@ const playerSchema = new mongoose.Schema(
     name: String,
     position: { type: Number, default: 0 },
     isActive: { type: Boolean, default: false },
-    disconnected: { type: Boolean, default: false },
-    sixStreak: { type: Number, default: 0 }
+    disconnected: { type: Boolean, default: false }
   },
   { _id: false }
 );

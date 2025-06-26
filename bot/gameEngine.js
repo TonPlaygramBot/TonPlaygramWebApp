@@ -73,8 +73,7 @@ export class GameRoom {
       isActive: false,
       socketId: socket.id,
       disconnected: false,
-      lastRollTime: 0,
-      sixStreak: 0
+      lastRollTime: 0
     };
     this.players.push(player);
     socket.join(this.id);
@@ -136,22 +135,7 @@ export class GameRoom {
         }
     }
 
-    if (player.sixStreak === undefined) player.sixStreak = 0;
-    if (dice === 6) {
-      player.sixStreak += 1;
-    } else {
-      player.sixStreak = 0;
-    }
-
-    if (player.sixStreak >= 3) {
-      player.sixStreak = 0;
-      do {
-        this.currentTurn = (this.currentTurn + 1) % this.players.length;
-      } while (this.players[this.currentTurn].disconnected);
-      this.emitNextTurn();
-      return;
-    } else {
-      if (to !== from) {
+    if (to !== from) {
         player.position = to;
         this.io.to(this.id).emit('movePlayer', { playerId: player.playerId, from, to });
         const final = this.applySnakesAndLadders(to);
@@ -159,35 +143,32 @@ export class GameRoom {
           player.position = final;
           this.io.to(this.id).emit('snakeOrLadder', { playerId: player.playerId, from: to, to: final });
         }
-      }
-
-      for (const p of this.players) {
-        if (p !== player && !p.disconnected && p.position === player.position) {
-          p.position = 0;
-          p.isActive = false;
-          this.io.to(this.id).emit('playerReset', { playerId: p.playerId });
-        }
-      }
-
-      if (player.position === FINAL_TILE) {
-        this.status = 'finished';
-        GameResult.create({
-          winner: player.name,
-          participants: this.players.map((p) => p.name)
-        }).catch((err) =>
-          console.error('Failed to store game result:', err.message)
-        );
-        this.io.to(this.id).emit('gameWon', { playerId: player.playerId });
-        return;
-      }
-
-      if (dice !== 6) {
-        do {
-          this.currentTurn = (this.currentTurn + 1) % this.players.length;
-        } while (this.players[this.currentTurn].disconnected);
-      }
-      this.emitNextTurn();
     }
+
+    for (const p of this.players) {
+      if (p !== player && !p.disconnected && p.position === player.position) {
+        p.position = 0;
+        p.isActive = false;
+        this.io.to(this.id).emit('playerReset', { playerId: p.playerId });
+      }
+    }
+
+    if (player.position === FINAL_TILE) {
+      this.status = 'finished';
+      GameResult.create({
+        winner: player.name,
+        participants: this.players.map((p) => p.name)
+      }).catch((err) =>
+        console.error('Failed to store game result:', err.message)
+      );
+      this.io.to(this.id).emit('gameWon', { playerId: player.playerId });
+      return;
+    }
+
+    do {
+      this.currentTurn = (this.currentTurn + 1) % this.players.length;
+    } while (this.players[this.currentTurn].disconnected);
+    this.emitNextTurn();
   }
 
   handleDisconnect(socket) {
@@ -244,8 +225,7 @@ export class GameRoomManager {
         name: p.name,
         position: p.position,
         isActive: p.isActive,
-        disconnected: p.disconnected,
-        sixStreak: p.sixStreak ?? 0
+        disconnected: p.disconnected
       }))
     };
     await GameRoomModel.findOneAndUpdate({ roomId: room.id }, doc, {
