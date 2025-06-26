@@ -59,7 +59,7 @@ body {
 .background-behind-board {
   position: absolute;
   inset: 0;
-  bottom: -20vh;
+  bottom: -30vh;
   z-index: -1;
   pointer-events: none;
   background: url('/assets/SnakeLaddersbackground.png') center/cover no-repeat;
@@ -563,7 +563,7 @@ body {
 
 .cell-marker {
   position: absolute;
-  top: 50%;
+  top: 55%;
   left: 50%;
   /* Center icons exactly within the tile */
   transform: translate(-50%, -50%) translateZ(6px)
@@ -577,9 +577,16 @@ body {
 }
 
 .cell-icon {
-  width: calc(var(--cell-width) * 0.6);
-  height: calc(var(--cell-height) * 0.6);
+  width: calc(var(--cell-width) * 0.7);
+  height: calc(var(--cell-height) * 0.7);
   object-fit: contain;
+}
+
+.cell-value {
+  font-size: 0.9rem;
+  font-weight: bold;
+  text-shadow: 0 0 2px #000;
+  transform: rotateX(calc(var(--board-angle, 58deg) * -1));
 }
 
 .cell-emoji {
@@ -828,10 +835,10 @@ body {
 
 .dice-marker {
   position: absolute;
-  width: 1.8rem;
-  height: 1.8rem;
+  width: 2.2rem;
+  height: 2.2rem;
   left: 50%;
-  top: 50%;
+  top: 55%;
   transform: translate(-50%, -50%) translateZ(6px)
     rotateX(calc(var(--board-angle, 58deg) * -1));
   display: flex;
@@ -842,9 +849,18 @@ body {
 }
 
 .dice-marker .dice-icon {
-  width: 1.8rem;
-  height: 1.8rem;
+  width: 2.2rem;
+  height: 2.2rem;
   object-fit: contain;
+}
+
+.dice-value {
+  margin-left: 2px;
+  font-size: 0.8rem;
+  font-weight: bold;
+  color: #ffffff;
+  text-shadow: 0 0 2px #000;
+  transform: rotateX(calc(var(--board-angle, 58deg) * -1));
 }
 
 
