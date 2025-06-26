@@ -631,14 +631,19 @@ export default function SnakeAndLadder() {
     const table = params.get("table") || "snake-4";
     getSnakeBoard(table)
       .then(({ snakes: snakesObj = {}, ladders: laddersObj = {} }) => {
-        setSnakes(snakesObj);
-        setLadders(laddersObj);
+        const limit = (obj) => {
+          return Object.fromEntries(Object.entries(obj).slice(0, 8));
+        };
+        const snakesLim = limit(snakesObj);
+        const laddersLim = limit(laddersObj);
+        setSnakes(snakesLim);
+        setLadders(laddersLim);
         const snk = {};
-        Object.entries(snakesObj).forEach(([s, e]) => {
+        Object.entries(snakesLim).forEach(([s, e]) => {
           snk[s] = s - e;
         });
         const lad = {};
-        Object.entries(laddersObj).forEach(([s, e]) => {
+        Object.entries(laddersLim).forEach(([s, e]) => {
           const end = typeof e === "object" ? e.end : e;
           lad[s] = end - s;
         });
@@ -648,7 +653,12 @@ export default function SnakeAndLadder() {
         const boardSize = ROWS * COLS;
         const diceMap = {};
         const diceValues = [1, 2, 1];
-        const usedD = new Set([...Object.keys(snakesObj), ...Object.keys(laddersObj), ...Object.values(snakesObj), ...Object.values(laddersObj)]);
+        const usedD = new Set([
+          ...Object.keys(snakesLim),
+          ...Object.keys(laddersLim),
+          ...Object.values(snakesLim),
+          ...Object.values(laddersLim),
+        ]);
         diceValues.forEach((val) => {
           let cell;
           do {
@@ -667,15 +677,17 @@ export default function SnakeAndLadder() {
     const stored = localStorage.getItem(key);
     if (stored) {
       try {
+        const limit = (obj) =>
+          Object.fromEntries(Object.entries(obj).slice(0, 8));
         const data = JSON.parse(stored);
         setPos(data.pos ?? 0);
         setAiPositions(data.aiPositions ?? Array(ai).fill(0));
         setCurrentTurn(data.currentTurn ?? 0);
         setDiceCells(data.diceCells ?? {});
-        setSnakes(data.snakes ?? {});
-        setLadders(data.ladders ?? {});
-        setSnakeOffsets(data.snakeOffsets ?? {});
-        setLadderOffsets(data.ladderOffsets ?? {});
+        setSnakes(limit(data.snakes ?? {}));
+        setLadders(limit(data.ladders ?? {}));
+        setSnakeOffsets(limit(data.snakeOffsets ?? {}));
+        setLadderOffsets(limit(data.ladderOffsets ?? {}));
         setRanking(data.ranking ?? []);
         setGameOver(data.gameOver ?? false);
       } catch {}
