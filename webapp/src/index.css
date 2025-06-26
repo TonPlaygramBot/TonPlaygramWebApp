@@ -59,7 +59,7 @@ body {
 .background-behind-board {
   position: absolute;
   inset: 0;
-  bottom: -30vh;
+  bottom: -20vh;
   z-index: -1;
   pointer-events: none;
   background: url('/assets/SnakeLaddersbackground.png') center/cover no-repeat;
@@ -868,8 +868,8 @@ body {
   position: absolute;
   inset: 0;
   margin: auto;
-  width: var(--cell-height);
-  height: var(--cell-height);
+  width: calc(var(--cell-height) * 0.9);
+  height: calc(var(--cell-height) * 0.9);
   background-color: var(--hex-color, #3f3f46);
   border: 3px solid var(--hex-border-color, #27272a);
   box-sizing: border-box;

@@ -208,7 +208,7 @@ function Board({
                   style={{
                     '--hex-color': p.color,
                     '--hex-border-color': p.color,
-                    '--hex-spin-duration': '7s',
+                    '--hex-spin-duration': '9s',
                   }}
                 />
                 <PlayerToken
@@ -368,7 +368,7 @@ function Board({
                       style={{
                         '--hex-color': p.color,
                         '--hex-border-color': p.color,
-                        '--hex-spin-duration': '7s',
+                        '--hex-spin-duration': '9s',
                       }}
                     />
                     <PlayerToken
@@ -1140,7 +1140,7 @@ export default function SnakeAndLadder() {
           onClick={() => setMuted((m) => !m)}
           className="p-2 flex flex-col items-center"
         >
-          <span className="text-xl">🔇</span>
+          <span className="text-xl">{muted ? '🔇' : '🔊'}</span>
           <span className="text-xs">{muted ? 'Unmute' : 'Mute'}</span>
         </button>
         <button
@@ -1160,6 +1160,7 @@ export default function SnakeAndLadder() {
               key={`player-${p.index}`}
               photoUrl={p.photoUrl}
               active={p.index === currentTurn}
+              color={p.color}
               rank={rankMap[p.index]}
               name={p.index === 0 ? 'You' : `AI ${p.index}`}
               isTurn={p.index === currentTurn}
@@ -1224,13 +1225,22 @@ export default function SnakeAndLadder() {
             }
             clickable={!aiRollingIndex && !playerAutoRolling && rollCooldown === 0}
             numDice={diceCount + bonusDice}
-            trigger={aiRollingIndex != null ? aiRollTrigger : playerAutoRolling ? playerRollTrigger : undefined}
+            trigger={aiRollingIndex != null ? aiRollTrigger : playerRollTrigger}
             showButton={!aiRollingIndex && !playerAutoRolling}
           />
           {currentTurn === 0 && !aiRollingIndex && !playerAutoRolling && (
-            <div className="mt-4 flex flex-col items-center space-y-1">
+            <div
+              className="mt-4 flex flex-col items-center space-y-1 cursor-pointer"
+              onClick={() => {
+                if (rollCooldown > 0) return;
+                setPlayerRollTrigger((r) => r + 1);
+              }}
+            >
               <div className="text-5xl">🫵</div>
-              <div className="text-sm font-bold" style={{ color: playerColors[0] }}>
+              <div
+                className="text-lg font-bold"
+                style={{ color: playerColors[0], textShadow: '0 0 4px #000' }}
+              >
                 {turnMessage}
               </div>
             </div>
