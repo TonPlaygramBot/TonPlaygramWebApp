@@ -3,6 +3,7 @@ export const FINAL_TILE = 101;
 export const DEFAULT_SNAKES = { 99: 80 };
 export const DEFAULT_LADDERS = { 3: 22, 27: 46 };
 export const ROLL_COOLDOWN_MS = 1000;
+export const TURN_DELAY_MS = 2000;
 
 import GameRoomModel from './models/GameRoom.js';
 
@@ -60,6 +61,8 @@ export class GameRoom {
       this.ladders = b.ladders;
     }
     this.rollCooldown = ROLL_COOLDOWN_MS;
+    this.turnDelay = TURN_DELAY_MS;
+    this.turnLock = false;
   }
 
   addPlayer(playerId, name, socket) {
@@ -88,6 +91,7 @@ export class GameRoom {
     if (this.status !== 'waiting') return;
     this.status = 'playing';
     this.currentTurn = 0;
+    this.turnLock = false;
     this.io.to(this.id).emit('gameStarted');
     this.emitNextTurn();
   }
@@ -106,7 +110,7 @@ export class GameRoom {
   }
 
   rollDice(socket, value) {
-    if (this.status !== 'playing') return;
+    if (this.status !== 'playing' || this.turnLock) return;
     const playerIndex = this.players.findIndex((p) => p.socketId === socket.id);
     if (playerIndex === -1) return;
     const player = this.players[playerIndex];
@@ -117,6 +121,7 @@ export class GameRoom {
       return;
     }
     player.lastRollTime = Date.now();
+    this.turnLock = true;
 
     const dice = value ?? Math.floor(Math.random() * 6) + 1;
     this.io.to(this.id).emit('diceRolled', { playerId: player.playerId, value: dice });
@@ -162,13 +167,17 @@ export class GameRoom {
         console.error('Failed to store game result:', err.message)
       );
       this.io.to(this.id).emit('gameWon', { playerId: player.playerId });
+      this.turnLock = false;
       return;
     }
 
     do {
       this.currentTurn = (this.currentTurn + 1) % this.players.length;
     } while (this.players[this.currentTurn].disconnected);
-    this.emitNextTurn();
+    setTimeout(() => {
+      this.turnLock = false;
+      this.emitNextTurn();
+    }, this.turnDelay);
   }
 
   handleDisconnect(socket) {
@@ -182,6 +191,7 @@ export class GameRoom {
         do {
           this.currentTurn = (this.currentTurn + 1) % this.players.length;
         } while (this.players[this.currentTurn].disconnected);
+        this.turnLock = false;
         this.emitNextTurn();
       }
     }
