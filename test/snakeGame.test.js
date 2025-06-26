@@ -23,6 +23,7 @@ test('applySnakesAndLadders resolves moves', () => {
     ladders: DEFAULT_LADDERS,
   });
   room.rollCooldown = 0;
+  room.turnDelay = 0;
   assert.equal(room.applySnakesAndLadders(3), 22); // ladder
   assert.equal(room.applySnakesAndLadders(27), 46); // ladder
   assert.equal(room.applySnakesAndLadders(99), 80); // snake
@@ -36,6 +37,7 @@ test('start requires 6 and rolling 6 does not grant extra turn', () => {
     ladders: DEFAULT_LADDERS,
   });
   room.rollCooldown = 0;
+  room.turnDelay = 0;
   const s1 = { id: 's1', join: () => {} };
   const s2 = { id: 's2', join: () => {} };
   room.addPlayer('p1', 'Player1', s1);
@@ -62,6 +64,7 @@ test('rolling multiple sixes does not skip turn', () => {
     ladders: DEFAULT_LADDERS,
   });
   room.rollCooldown = 0;
+  room.turnDelay = 0;
   const socket = { id: 's1', join: () => {} };
   room.addPlayer('p1', 'Player', socket);
   room.startGame();
@@ -79,6 +82,7 @@ test('room starts when reaching custom capacity', () => {
     ladders: DEFAULT_LADDERS,
   });
   room.rollCooldown = 0;
+  room.turnDelay = 0;
   const s1 = { id: 's1', join: () => {} };
   const s2 = { id: 's2', join: () => {} };
   room.addPlayer('p1', 'A', s1);
@@ -96,6 +100,7 @@ test('player wins when landing on the final tile', () => {
     ladders: DEFAULT_LADDERS,
   });
   room.rollCooldown = 0;
+  room.turnDelay = 0;
   const socket = { id: 's1', join: () => {} };
   room.addPlayer('p1', 'Winner', socket);
   room.startGame();
@@ -118,6 +123,7 @@ test('rolling too quickly triggers anti-cheat', () => {
     snakes: DEFAULT_SNAKES,
     ladders: DEFAULT_LADDERS,
   });
+  room.turnDelay = 0;
   room.addPlayer('p1', 'Cheater', socket);
   room.startGame();
 
@@ -138,6 +144,7 @@ test('landing on another player sends them to start', () => {
     ladders: {},
   });
   room.rollCooldown = 0;
+  room.turnDelay = 0;
   const s1 = { id: 's1', join: () => {} };
   const s2 = { id: 's2', join: () => {} };
   room.addPlayer('p1', 'A', s1);
