@@ -315,7 +315,12 @@ function Board({
 
   return (
     <div className="relative flex justify-center items-center w-screen overflow-visible">
-      <img src="/assets/SnakeLaddersbackground.png" className="background-behind-board object-cover" alt="" />
+      <img
+        src="/assets/SnakeLaddersbackground.png"
+        className="background-behind-board object-cover"
+        style={{ objectPosition: 'center bottom' }}
+        alt=""
+      />
       <div
         ref={containerRef}
         className="overflow-y-auto"
@@ -446,6 +451,7 @@ export default function SnakeAndLadder() {
   const [burning, setBurning] = useState([]); // indices of tokens burning
   const [refreshTick, setRefreshTick] = useState(0);
   const [rollCooldown, setRollCooldown] = useState(0);
+  const [moving, setMoving] = useState(false);
 
   // Preload token and avatar images so board icons and AI photos display
   // immediately without waiting for network requests during gameplay.
@@ -702,6 +708,7 @@ export default function SnakeAndLadder() {
 
     setTimeout(() => {
       setDiceVisible(false);
+      setMoving(true);
       setOffsetPopup(null);
       setTrail([]);
 
@@ -724,6 +731,7 @@ export default function SnakeAndLadder() {
         }
         setTurnMessage("Your turn");
         setDiceVisible(true);
+        setMoving(false);
         return;
       } else if (current === 100 && diceCount === 1) {
         if (value === 1) {
@@ -732,6 +740,7 @@ export default function SnakeAndLadder() {
           setMessage("Need a 1 to win!");
           setTurnMessage("Your turn");
           setDiceVisible(true);
+          setMoving(false);
           return;
         }
       } else if (current === 0) {
@@ -740,6 +749,7 @@ export default function SnakeAndLadder() {
           setMessage("Need a 6 to start!");
           setTurnMessage("");
           setDiceVisible(false);
+          setMoving(false);
           const next = (currentTurn + 1) % (ai + 1);
           setTimeout(() => setCurrentTurn(next), 1500);
           return;
@@ -750,6 +760,7 @@ export default function SnakeAndLadder() {
         setMessage("Need exact roll!");
         setTurnMessage("Your turn");
         setDiceVisible(true);
+        setMoving(false);
         return;
       }
 
@@ -874,6 +885,7 @@ export default function SnakeAndLadder() {
             setCurrentTurn(next);
           }
         }
+        setMoving(false);
       };
 
       moveSeq(steps, "normal", () => applyEffect(target));
@@ -895,7 +907,8 @@ export default function SnakeAndLadder() {
     setTimeout(() => setRollResult(null), 1800);
     setTimeout(() => {
       setDiceVisible(false);
-    let positions = [...aiPositions];
+      setMoving(true);
+      let positions = [...aiPositions];
     let current = positions[index - 1];
     let target = current;
     if (current === 0) {
@@ -948,12 +961,14 @@ export default function SnakeAndLadder() {
         if (first) setGameOver(true);
         setMessage(`AI ${index} wins!`);
         setDiceVisible(false);
+        setMoving(false);
         return;
       }
       const next = (index + 1) % (ai + 1);
       if (next === 0) setTurnMessage('Your turn');
       setCurrentTurn(next);
       setDiceVisible(true);
+      setMoving(false);
     };
 
     const applyEffect = (startPos) => {
@@ -1224,16 +1239,16 @@ export default function SnakeAndLadder() {
                 return setTurnMessage("Rolling...");
               }
             }
-            clickable={!aiRollingIndex && !playerAutoRolling && rollCooldown === 0}
+            clickable={!aiRollingIndex && !playerAutoRolling && rollCooldown === 0 && !moving}
             numDice={diceCount + bonusDice}
             trigger={aiRollingIndex != null ? aiRollTrigger : playerRollTrigger}
             showButton={!aiRollingIndex && !playerAutoRolling}
           />
-          {currentTurn === 0 && !aiRollingIndex && !playerAutoRolling && (
+          {currentTurn === 0 && !aiRollingIndex && !playerAutoRolling && !moving && (
             <div
               className="mt-4 flex flex-col items-center space-y-1 cursor-pointer"
               onClick={() => {
-                if (rollCooldown > 0) return;
+                if (rollCooldown > 0 || moving) return;
                 setPlayerRollTrigger((r) => r + 1);
               }}
             >
