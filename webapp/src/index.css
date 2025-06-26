@@ -226,7 +226,7 @@ body {
 }
 
 .token-three.burning {
-  animation: token-burn 1s forwards;
+  animation: token-burn 1.5s forwards;
 }
 
 .token-three.burning::after {
@@ -237,7 +237,7 @@ body {
   transform: translate(-50%, -50%) translateZ(40px);
   font-size: 3rem;
   pointer-events: none;
-  animation: flame-up 1s forwards;
+  animation: flame-up 1.5s forwards;
 }
 
 @keyframes token-burn {
@@ -250,7 +250,7 @@ body {
 @keyframes flame-up {
   to {
     opacity: 0;
-    transform: translate(-50%, -80%) translateZ(40px) scale(1.5);
+    transform: translate(-50%, -80%) translateZ(40px) scale(2);
   }
 }
 
@@ -296,20 +296,14 @@ body {
     rotateX(calc(var(--board-angle, 58deg) * -1 - 10deg));
   object-fit: cover;
   border-radius: 50%;
-  border: 2px solid #ffd700;
-  transition: border-color 0.3s ease;
+  border: 4px solid var(--token-border-color, #ffd700);
+  transition: border-color 0.3s ease, border-width 0.3s ease;
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.4);
   pointer-events: none;
   z-index: 1;
 }
 
-.token-photo.rolling {
-  border-color: #16a34a;
-}
 
-.token-photo.active {
-  border-color: #16a34a;
-}
 
 .timer-ring {
   position: absolute;
@@ -354,6 +348,14 @@ body {
   transform: translateX(100%);
   font-size: 0.6rem;
   color: #fff;
+}
+
+.turn-indicator {
+  position: absolute;
+  top: 50%;
+  right: -1.2rem;
+  transform: translateY(-50%);
+  pointer-events: none;
 }
 
 .token-cube-inner {

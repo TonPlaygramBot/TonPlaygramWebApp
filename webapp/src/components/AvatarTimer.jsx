@@ -1,6 +1,6 @@
 import React from 'react';
 
-export default function AvatarTimer({ photoUrl, active = false, timerPct = 1, rank, name }) {
+export default function AvatarTimer({ photoUrl, active = false, timerPct = 1, rank, name, isTurn = false }) {
   const angle = (1 - timerPct) * 360;
   const gradient = `conic-gradient(#facc15 ${angle}deg, #16a34a 0deg)`;
   return (
@@ -13,6 +13,9 @@ export default function AvatarTimer({ photoUrl, active = false, timerPct = 1, ra
         alt="player"
         className="w-10 h-10 rounded-full border border-yellow-400 object-cover"
       />
+      {isTurn && (
+        <span className="turn-indicator">👈</span>
+      )}
       {rank != null && (
         <span className="rank-number">{rank}</span>
       )}
