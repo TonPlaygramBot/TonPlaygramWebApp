@@ -226,7 +226,7 @@ body {
 }
 
 .token-three.burning {
-  animation: token-burn 1s forwards;
+  animation: token-burn 1.5s forwards;
 }
 
 .token-three.burning::after {
@@ -237,7 +237,7 @@ body {
   transform: translate(-50%, -50%) translateZ(40px);
   font-size: 3rem;
   pointer-events: none;
-  animation: flame-up 1s forwards;
+  animation: flame-up 1.5s forwards;
 }
 
 @keyframes token-burn {
@@ -250,7 +250,7 @@ body {
 @keyframes flame-up {
   to {
     opacity: 0;
-    transform: translate(-50%, -80%) translateZ(40px) scale(1.5);
+    transform: translate(-50%, -80%) translateZ(40px) scale(2);
   }
 }
 
