@@ -95,7 +95,12 @@ PATH: List[tuple[int, int]] = [
 def load_sessions() -> Dict:
     if DATA_FILE.exists():
         with DATA_FILE.open("r") as f:
-            return json.load(f)
+            data = json.load(f)
+        for sess in data.values():
+            tokens = sess.get("tokens")
+            if tokens:
+                sess["tokens"] = {int(k): v for k, v in tokens.items()}
+        return data
     return {}
 
 
