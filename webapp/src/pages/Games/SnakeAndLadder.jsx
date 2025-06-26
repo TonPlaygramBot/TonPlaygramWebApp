@@ -150,18 +150,7 @@ function Board({
             ? "dice"
             : "";
       const cellClass = cellType ? `${cellType}-cell` : "";
-      const iconImage =
-        cellType === "ladder"
-          ? "/assets/icons/ladder.svg"
-          : cellType === "snake"
-            ? "/assets/icons/snake.svg"
-            : null;
-      const offsetVal =
-        cellType === "ladder"
-          ? ladderOffsets[num]
-          : cellType === "snake"
-            ? snakeOffsets[num]
-            : null;
+      const iconImage = null;
       const style = {
         gridRowStart: ROWS - r,
         gridColumnStart: col + 1,
@@ -178,11 +167,9 @@ function Board({
           className={`board-cell ${cellClass} ${highlightClass}`}
           style={style}
         >
-          {(iconImage || offsetVal != null) && (
+          {iconImage && (
             <span className="cell-marker">
-              {iconImage && (
-                <img src={iconImage} className="cell-icon" />
-              )}
+              <img src={iconImage} className="cell-icon" />
             </span>
           )}
           {!cellType && <span className="cell-number">{num}</span>}
