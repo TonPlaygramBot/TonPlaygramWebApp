@@ -125,7 +125,9 @@ export class GameRoom {
     this.turnLock = true;
 
     const dice = value ?? Math.floor(Math.random() * 6) + 1;
-    this.io.to(this.id).emit('diceRolled', { playerId: player.playerId, index: player.index, value: dice });
+    if (typeof socket.emit === 'function') {
+      socket.emit('diceRolled', { playerId: player.playerId, index: player.index, value: dice });
+    }
 
     let from = player.position;
     let to = player.position;
