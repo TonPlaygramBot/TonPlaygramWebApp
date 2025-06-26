@@ -326,12 +326,8 @@ def apply_roll(session:GameSession, player:Dict, dice:int):
         session.tokens[player['id']][idx]=max(0,session.tokens[player['id']][idx])+dice
         if session.tokens[player['id']][idx]<PATH_LENGTH:
             pos=(START_INDICES[player['color']]+session.tokens[player['id']][idx])%PATH_LENGTH
-            for p in session.players:
-                if p['id']==player['id']:
-                    continue
-                for j,st in enumerate(session.tokens[p['id']]):
-                    if 0<=st<PATH_LENGTH and (START_INDICES[p['color']]+st)%PATH_LENGTH==pos:
-                        session.tokens[p['id']][j]=-1
+            # Capturing disabled: tokens sharing a square no longer send
+            # others back to start.
         session.next_turn(dice==6)
     return messages
 
