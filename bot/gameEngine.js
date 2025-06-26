@@ -153,9 +153,27 @@ export class GameRoom {
         }
     }
 
-    // Originally pieces landing on an occupied tile would send the other player
-    // back to start. To keep each player's movement isolated this behaviour has
-    // been removed.
+    // If a player lands on another, that opponent returns to start and must
+    // roll a six again to become active. This reinstates the classic capture
+    // mechanic removed in the simplified mode.
+    if (player.position !== 0) {
+      for (const opp of this.players) {
+        if (
+          opp !== player &&
+          opp.isActive &&
+          opp.position === player.position &&
+          opp.position !== 0
+        ) {
+          opp.position = 0;
+          opp.isActive = false;
+          this.io.to(this.id).emit('playerReset', {
+            playerId: opp.playerId,
+            index: opp.index
+          });
+        }
+      }
+    }
+
 
     if (player.position === FINAL_TILE) {
       this.status = 'finished';
