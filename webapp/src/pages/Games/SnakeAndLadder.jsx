@@ -446,6 +446,7 @@ export default function SnakeAndLadder() {
   const [burning, setBurning] = useState([]); // indices of tokens burning
   const [refreshTick, setRefreshTick] = useState(0);
   const [rollCooldown, setRollCooldown] = useState(0);
+  const [moving, setMoving] = useState(false);
 
   // Preload token and avatar images so board icons and AI photos display
   // immediately without waiting for network requests during gameplay.
@@ -722,6 +723,7 @@ export default function SnakeAndLadder() {
       setDiceVisible(false);
       setOffsetPopup(null);
       setTrail([]);
+      setMoving(true);
 
       const rolledSix = Array.isArray(values)
         ? values.includes(6)
@@ -896,6 +898,7 @@ export default function SnakeAndLadder() {
             setCurrentTurn(next);
           }
         }
+        setMoving(false);
       };
 
       moveSeq(steps, "normal", () => applyEffect(target));
@@ -917,6 +920,7 @@ export default function SnakeAndLadder() {
     setTimeout(() => setRollResult(null), 1800);
     setTimeout(() => {
       setDiceVisible(false);
+      setMoving(true);
     let positions = [...aiPositions];
     let current = positions[index - 1];
     let target = current;
@@ -980,6 +984,7 @@ export default function SnakeAndLadder() {
       if (next === 0) setTurnMessage('Your turn');
       setCurrentTurn(next);
       setDiceVisible(true);
+      setMoving(false);
     };
 
     const applyEffect = (startPos) => {
@@ -1102,6 +1107,7 @@ export default function SnakeAndLadder() {
         if (next <= 0) {
           timerSoundRef.current?.pause();
           clearInterval(timerRef.current);
+          if (moving) return next;
           if (currentTurn === 0) {
             setPlayerAutoRolling(true);
             setTurnMessage('Rolling...');
@@ -1250,7 +1256,7 @@ export default function SnakeAndLadder() {
                 return setTurnMessage("Rolling...");
               }
             }
-            clickable={aiRollingIndex == null && !playerAutoRolling && rollCooldown === 0}
+            clickable={aiRollingIndex == null && !playerAutoRolling && rollCooldown === 0 && !moving}
             numDice={diceCount + bonusDice}
             trigger={aiRollingIndex != null ? aiRollTrigger : playerRollTrigger}
             showButton={aiRollingIndex == null && !playerAutoRolling}
@@ -1259,7 +1265,7 @@ export default function SnakeAndLadder() {
             <div
               className="mt-4 flex flex-col items-center space-y-1 cursor-pointer"
               onClick={() => {
-                if (rollCooldown > 0) return;
+                if (rollCooldown > 0 || moving) return;
                 setPlayerRollTrigger((r) => r + 1);
               }}
             >
