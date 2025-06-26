@@ -151,11 +151,11 @@ export class GameRoom {
         }
     }
 
-    // Players no longer send others back to start when landing on the same tile
-    // so each token only moves based on its own roll.
     for (const p of this.players) {
       if (p !== player && !p.disconnected && p.position === player.position) {
-        // Capturing disabled
+        p.position = 0;
+        p.isActive = false;
+        this.io.to(this.id).emit('playerReset', { playerId: p.playerId, index: p.index });
       }
     }
 
@@ -175,16 +175,10 @@ export class GameRoom {
     do {
       this.currentTurn = (this.currentTurn + 1) % this.players.length;
     } while (this.players[this.currentTurn].disconnected);
-    if (this.turnDelay === 0) {
-      // Immediately advance when no delay is configured so tests can run
+    setTimeout(() => {
       this.turnLock = false;
       this.emitNextTurn();
-    } else {
-      setTimeout(() => {
-        this.turnLock = false;
-        this.emitNextTurn();
-      }, this.turnDelay);
-    }
+    }, this.turnDelay);
   }
 
   handleDisconnect(socket) {
