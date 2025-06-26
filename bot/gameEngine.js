@@ -65,6 +65,33 @@ export class GameRoom {
     this.turnLock = false;
   }
 
+  hasVictims(cell, mover) {
+    return this.players.some(
+      (p) => p !== mover && p.isActive && p.position === cell && p.position !== 0
+    );
+  }
+
+  capturePieces(cell, mover) {
+    let captured = false;
+    for (const opp of this.players) {
+      if (
+        opp !== mover &&
+        opp.isActive &&
+        opp.position === cell &&
+        opp.position !== 0
+      ) {
+        opp.position = 0;
+        opp.isActive = false;
+        this.io.to(this.id).emit('playerReset', {
+          playerId: opp.playerId,
+          index: opp.index
+        });
+        captured = true;
+      }
+    }
+    return captured;
+  }
+
   addPlayer(playerId, name, socket) {
     if (this.players.length >= this.capacity || this.status !== 'waiting') {
       return { error: 'Room full or game already started' };
@@ -153,25 +180,9 @@ export class GameRoom {
         }
     }
 
-    // If a player lands on another, that opponent returns to start and must
-    // roll a six again to become active. This reinstates the classic capture
-    // mechanic removed in the simplified mode.
+    // Check for opponents on the same tile and send them back to start.
     if (player.position !== 0) {
-      for (const opp of this.players) {
-        if (
-          opp !== player &&
-          opp.isActive &&
-          opp.position === player.position &&
-          opp.position !== 0
-        ) {
-          opp.position = 0;
-          opp.isActive = false;
-          this.io.to(this.id).emit('playerReset', {
-            playerId: opp.playerId,
-            index: opp.index
-          });
-        }
-      }
+      this.capturePieces(player.position, player);
     }
 
 
