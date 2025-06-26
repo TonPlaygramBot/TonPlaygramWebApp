@@ -24,7 +24,8 @@
     "canvas-confetti": "^1.9.2",
     "@ayshrj/ludo.js": "^1.0.10",
     "three": "^0.164.0",
-    "react-markdown": "^9.0.0"
+    "react-markdown": "^9.0.0",
+    "socket.io-client": "^4.7.5"
   },
   "devDependencies": {
     "@types/react": "^18.2.0",
