@@ -1219,6 +1219,7 @@ export default function SnakeAndLadder() {
               {
                 if (timerRef.current) clearInterval(timerRef.current);
                 timerSoundRef.current?.pause();
+                setMoving(true);
                 setRollingIndex(aiRollingIndex ?? 0);
                 if (aiRollingIndex != null)
                   return setTurnMessage(<>{playerName(aiRollingIndex)} rolling...</>);
