@@ -68,11 +68,7 @@ export default function Lobby() {
       if (stake.token) params.set('token', stake.token);
       if (stake.amount) params.set('amount', stake.amount);
     }
-    const path =
-      game === 'snake' && table?.id !== 'single'
-        ? `/games/${game}/online`
-        : `/games/${game}`;
-    navigate(`${path}?${params.toString()}`);
+    navigate(`/games/${game}?${params.toString()}`);
   };
 
   const disabled = !canStartGame(game, table, stake, aiCount);
