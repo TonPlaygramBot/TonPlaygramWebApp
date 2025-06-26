@@ -550,6 +550,7 @@ export default function SnakeAndLadder() {
     bombSoundRef.current = new Audio(bombSound);
     timerSoundRef.current = new Audio(timerBeep);
     beepSoundRef.current = new Audio(beepSound);
+    beepSoundRef.current.volume = 0.5;
     return () => {
       moveSoundRef.current?.pause();
       snakeSoundRef.current?.pause();
@@ -734,7 +735,7 @@ export default function SnakeAndLadder() {
           return;
         }
       } else if (current === 0) {
-        if (rolledSix) target = 1;
+        if (rolledSix) target = value;
         else {
           setMessage("Need a 6 to start!");
           setTurnMessage("");
@@ -882,8 +883,8 @@ export default function SnakeAndLadder() {
   const triggerAIRoll = (index) => {
     setAiRollingIndex(index);
     setTurnMessage(<>{playerName(index)} rolling...</>);
-    setAiRollTrigger((t) => t + 1);
     setDiceVisible(true);
+    setTimeout(() => setAiRollTrigger((t) => t + 1), 1500);
   };
 
   const handleAIRoll = (index, fixedValue) => {
@@ -891,14 +892,14 @@ export default function SnakeAndLadder() {
     setRollColor(playerColors[index] || '#fff');
     setTurnMessage(<>{playerName(index)} rolled {value}</>);
     setRollResult(value);
-    setTimeout(() => setRollResult(null), 1500);
+    setTimeout(() => setRollResult(null), 1800);
     setTimeout(() => {
       setDiceVisible(false);
     let positions = [...aiPositions];
     let current = positions[index - 1];
     let target = current;
     if (current === 0) {
-      if (value === 6) target = 1;
+      if (value === 6) target = value;
     } else if (current === 100) {
       if (value === 1) target = FINAL_TILE;
     } else if (current + value <= FINAL_TILE) {
@@ -986,7 +987,7 @@ export default function SnakeAndLadder() {
     };
 
     moveSeq(steps, 'normal', () => applyEffect(target));
-    }, 1500);
+    }, 1800);
   };
 
   useEffect(() => {
