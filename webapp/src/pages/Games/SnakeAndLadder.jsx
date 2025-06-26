@@ -481,14 +481,38 @@ export default function SnakeAndLadder() {
     </span>
   );
 
-  // In the simplified game mode players do not capture each other. These helper
-  // functions previously detected and handled captures, sending a piece back to
-  // the start if another landed on the same tile. They now return false and do
-  // nothing so that dice rolls only affect the player who rolled them.
-  const hasVictims = () => false;
+  const hasVictims = (cell, mover) => {
+    if (mover !== 0 && pos === cell) return true;
+    for (let i = 0; i < aiPositions.length; i++) {
+      const idx = i + 1;
+      if (idx !== mover && aiPositions[i] === cell) return true;
+    }
+    return false;
+  };
 
-  const capturePieces = () => {
-    /* no-op */
+  const capturePieces = (cell, mover) => {
+    const victims = [];
+    if (mover !== 0 && pos === cell) victims.push(0);
+    aiPositions.forEach((p, i) => {
+      const idx = i + 1;
+      if (idx !== mover && p === cell) victims.push(idx);
+    });
+    if (victims.length) {
+      hahaSoundRef.current?.pause();
+      if (!muted) bombSoundRef.current?.play().catch(() => {});
+      victims.forEach((idx) => {
+        setBurning((b) => [...b, idx]);
+        setTimeout(() => {
+          setBurning((b) => b.filter((v) => v !== idx));
+          if (idx === 0) setPos(0);
+          else setAiPositions((arr) => {
+            const copy = [...arr];
+            copy[idx - 1] = 0;
+            return copy;
+          });
+        }, 1000);
+      });
+    }
   };
 
   const moveSoundRef = useRef(null);
@@ -827,8 +851,11 @@ export default function SnakeAndLadder() {
         setTrail([]);
         setTokenType(type);
         setTimeout(() => setHighlight(null), 300);
-        // Removed piece capture behaviour to keep each player's position
-        // independent. Tokens can now share the same tile without resetting.
+        if (hasVictims(finalPos, 0) && hahaSoundRef.current && !muted) {
+          hahaSoundRef.current.currentTime = 0;
+          hahaSoundRef.current.play().catch(() => {});
+        }
+        capturePieces(finalPos, 0);
         if (finalPos === FINAL_TILE && !ranking.includes('You')) {
           const first = ranking.length === 0;
           if (first) {
@@ -939,8 +966,11 @@ export default function SnakeAndLadder() {
       setAiPositions([...positions]);
       setHighlight({ cell: finalPos, type });
       setTrail([]);
-      // Do not reset other players when tokens overlap. Dice results only
-      // move the rolling player's token in this mode.
+      if (hasVictims(finalPos, index) && hahaSoundRef.current && !muted) {
+        hahaSoundRef.current.currentTime = 0;
+        hahaSoundRef.current.play().catch(() => {});
+      }
+      capturePieces(finalPos, index);
       setTimeout(() => setHighlight(null), 300);
       if (finalPos === FINAL_TILE && !ranking.includes(`AI ${index}`)) {
         const first = ranking.length === 0;

@@ -151,9 +151,13 @@ export class GameRoom {
         }
     }
 
-    // Originally pieces landing on an occupied tile would send the other player
-    // back to start. To keep each player's movement isolated this behaviour has
-    // been removed.
+    for (const p of this.players) {
+      if (p !== player && !p.disconnected && p.position === player.position) {
+        p.position = 0;
+        p.isActive = false;
+        this.io.to(this.id).emit('playerReset', { playerId: p.playerId, index: p.index });
+      }
+    }
 
     if (player.position === FINAL_TILE) {
       this.status = 'finished';
@@ -171,16 +175,10 @@ export class GameRoom {
     do {
       this.currentTurn = (this.currentTurn + 1) % this.players.length;
     } while (this.players[this.currentTurn].disconnected);
-
-    const unlock = () => {
+    setTimeout(() => {
       this.turnLock = false;
       this.emitNextTurn();
-    };
-    if (this.turnDelay === 0) {
-      unlock();
-    } else {
-      setTimeout(unlock, this.turnDelay);
-    }
+    }, this.turnDelay);
   }
 
   handleDisconnect(socket) {
