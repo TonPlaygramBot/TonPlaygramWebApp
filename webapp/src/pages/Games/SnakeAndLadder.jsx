@@ -392,7 +392,7 @@ export default function SnakeAndLadder() {
   const [messageColor, setMessageColor] = useState("");
   const [turnMessage, setTurnMessage] = useState("Your turn");
   const [diceVisible, setDiceVisible] = useState(true);
-  const [photoUrl, setPhotoUrl] = useState("");
+  const [photoUrl, setPhotoUrl] = useState(getTelegramPhotoUrl());
   const [pot, setPot] = useState(101);
   const [token, setToken] = useState("TPC");
   const [celebrate, setCelebrate] = useState(false);
@@ -493,6 +493,7 @@ export default function SnakeAndLadder() {
   const bombSoundRef = useRef(null);
   const timerSoundRef = useRef(null);
   const timerRef = useRef(null);
+  const aiRollTimeoutRef = useRef(null);
 
   useEffect(() => {
     const id = getTelegramId();
@@ -1010,6 +1011,17 @@ export default function SnakeAndLadder() {
       setTurnMessage('Your turn');
     }
   }, [currentTurn, setupPhase, gameOver]);
+
+  // Failsafe: ensure AI roll proceeds even if dice animation doesn't start
+  useEffect(() => {
+    if (aiRollingIndex != null) {
+      if (aiRollTimeoutRef.current) clearTimeout(aiRollTimeoutRef.current);
+      aiRollTimeoutRef.current = setTimeout(() => {
+        setAiRollTrigger((t) => t + 1);
+      }, 3000);
+      return () => clearTimeout(aiRollTimeoutRef.current);
+    }
+  }, [aiRollingIndex]);
 
   useEffect(() => {
     if (setupPhase || gameOver) return;
