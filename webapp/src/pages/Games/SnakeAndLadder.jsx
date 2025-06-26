@@ -181,12 +181,21 @@ function Board({
               {iconImage && (
                 <img src={iconImage} className="cell-icon" />
               )}
+              {offsetVal != null && (
+                <span
+                  className="cell-value"
+                  style={{ color: cellType === 'snake' ? '#ef4444' : '#4ade80' }}
+                >
+                  {offsetVal > 0 ? `+${offsetVal}` : `-${Math.abs(offsetVal)}`}
+                </span>
+              )}
             </span>
           )}
           {!cellType && <span className="cell-number">{num}</span>}
           {diceCells && diceCells[num] && (
             <span className="dice-marker">
               <img src="/assets/icons/Dice.png" className="dice-icon" />
+              <span className="dice-value">+{diceCells[num]}</span>
             </span>
           )}
           {players
@@ -698,6 +707,8 @@ export default function SnakeAndLadder() {
       const rolledSix = Array.isArray(values)
         ? values.includes(6)
         : value === 6;
+      const rolledDoubleSix =
+        Array.isArray(values) && values.filter((v) => v === 6).length >= 2;
 
       setMessage("");
       let current = pos;
@@ -852,10 +863,15 @@ export default function SnakeAndLadder() {
           setTurnMessage("Your turn");
           setBonusDice(0);
         }
-        setDiceVisible(true);
-        if (!gameOver) {
-          const next = (currentTurn + 1) % (ai + 1);
-          setCurrentTurn(next);
+        if (rolledDoubleSix && finalPos !== FINAL_TILE && !gameOver) {
+          setTurnMessage('Roll again');
+          setDiceVisible(true);
+        } else {
+          setDiceVisible(true);
+          if (!gameOver) {
+            const next = (currentTurn + 1) % (ai + 1);
+            setCurrentTurn(next);
+          }
         }
       };
 
@@ -1215,7 +1231,7 @@ export default function SnakeAndLadder() {
             <div className="mt-4 flex flex-col items-center space-y-1">
               <div className="text-5xl">🫵</div>
               <div className="text-sm font-bold" style={{ color: playerColors[0] }}>
-                Your turn
+                {turnMessage}
               </div>
             </div>
           )}
