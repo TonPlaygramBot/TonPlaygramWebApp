@@ -481,28 +481,14 @@ export default function SnakeAndLadder() {
     </span>
   );
 
-  const capturePieces = (cell, mover) => {
-    const victims = [];
-    if (mover !== 0 && pos === cell) victims.push(0);
-    aiPositions.forEach((p, i) => {
-      const idx = i + 1;
-      if (idx !== mover && p === cell) victims.push(idx);
-    });
-    if (victims.length) {
-      if (!muted) bombSoundRef.current?.play().catch(() => {});
-      victims.forEach((idx) => {
-        setBurning((b) => [...b, idx]);
-        setTimeout(() => {
-          setBurning((b) => b.filter((v) => v !== idx));
-          if (idx === 0) setPos(0);
-          else setAiPositions((arr) => {
-            const copy = [...arr];
-            copy[idx - 1] = 0;
-            return copy;
-          });
-        }, 1000);
-      });
-    }
+  // In the simplified game mode players do not capture each other. These helper
+  // functions previously detected and handled captures, sending a piece back to
+  // the start if another landed on the same tile. They now return false and do
+  // nothing so that dice rolls only affect the player who rolled them.
+  const hasVictims = () => false;
+
+  const capturePieces = () => {
+    /* no-op */
   };
 
   const moveSoundRef = useRef(null);
@@ -841,7 +827,10 @@ export default function SnakeAndLadder() {
         setTrail([]);
         setTokenType(type);
         setTimeout(() => setHighlight(null), 300);
-        capturePieces(finalPos, 0);
+        // In the simplified rules tokens do not capture each other.
+        // Simply keep the other pieces in place when the player lands
+        // on an occupied tile so only the roller's position changes.
+        setAiPositions((positions) => positions);
         if (finalPos === FINAL_TILE && !ranking.includes('You')) {
           const first = ranking.length === 0;
           if (first) {
@@ -952,7 +941,8 @@ export default function SnakeAndLadder() {
       setAiPositions([...positions]);
       setHighlight({ cell: finalPos, type });
       setTrail([]);
-      capturePieces(finalPos, index);
+      // In this mode tokens cannot capture each other, so just ignore
+      // any pieces already on the destination cell.
       setTimeout(() => setHighlight(null), 300);
       if (finalPos === FINAL_TILE && !ranking.includes(`AI ${index}`)) {
         const first = ranking.length === 0;
