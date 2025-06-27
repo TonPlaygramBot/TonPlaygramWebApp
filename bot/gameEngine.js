@@ -3,7 +3,7 @@ export const FINAL_TILE = 101;
 export const DEFAULT_SNAKES = { 99: 80 };
 export const DEFAULT_LADDERS = { 3: 22, 27: 46 };
 export const ROLL_COOLDOWN_MS = 1000;
-export const TURN_DELAY_MS = 2000;
+export const TURN_DELAY_MS = 6000;
 
 import GameRoomModel from './models/GameRoom.js';
 
@@ -65,11 +65,39 @@ export class GameRoom {
     this.turnLock = false;
   }
 
+  hasVictims(cell, mover) {
+    return this.players.some(
+      (p) => p !== mover && p.isActive && p.position === cell && p.position !== 0
+    );
+  }
+
+  capturePieces(cell, mover) {
+    let captured = false;
+    for (const opp of this.players) {
+      if (
+        opp !== mover &&
+        opp.isActive &&
+        opp.position === cell &&
+        opp.position !== 0
+      ) {
+        opp.position = 0;
+        opp.isActive = false;
+        this.io.to(this.id).emit('playerReset', {
+          playerId: opp.playerId,
+          index: opp.index
+        });
+        captured = true;
+      }
+    }
+    return captured;
+  }
+
   addPlayer(playerId, name, socket) {
     if (this.players.length >= this.capacity || this.status !== 'waiting') {
       return { error: 'Room full or game already started' };
     }
     const player = {
+      index: this.players.length,
       playerId,
       name,
       position: 0,
@@ -80,7 +108,7 @@ export class GameRoom {
     };
     this.players.push(player);
     socket.join(this.id);
-    this.io.to(this.id).emit('playerJoined', { playerId, name });
+    this.io.to(this.id).emit('playerJoined', { playerId, name, index: player.index });
     if (this.players.length === this.capacity) {
       this.startGame();
     }
@@ -99,7 +127,7 @@ export class GameRoom {
   emitNextTurn() {
     const current = this.players[this.currentTurn];
     if (current) {
-      this.io.to(this.id).emit('turnChanged', { playerId: current.playerId });
+      this.io.to(this.id).emit('turnChanged', { playerId: current.playerId, index: current.index });
     }
   }
 
@@ -124,7 +152,9 @@ export class GameRoom {
     this.turnLock = true;
 
     const dice = value ?? Math.floor(Math.random() * 6) + 1;
-    this.io.to(this.id).emit('diceRolled', { playerId: player.playerId, value: dice });
+    if (typeof socket.emit === 'function') {
+      socket.emit('diceRolled', { playerId: player.playerId, index: player.index, value: dice });
+    }
 
     let from = player.position;
     let to = player.position;
@@ -142,21 +172,19 @@ export class GameRoom {
 
     if (to !== from) {
         player.position = to;
-        this.io.to(this.id).emit('movePlayer', { playerId: player.playerId, from, to });
+        this.io.to(this.id).emit('movePlayer', { playerId: player.playerId, index: player.index, from, to });
         const final = this.applySnakesAndLadders(to);
         if (final !== to) {
           player.position = final;
-          this.io.to(this.id).emit('snakeOrLadder', { playerId: player.playerId, from: to, to: final });
+          this.io.to(this.id).emit('snakeOrLadder', { playerId: player.playerId, index: player.index, from: to, to: final });
         }
     }
 
-    for (const p of this.players) {
-      if (p !== player && !p.disconnected && p.position === player.position) {
-        p.position = 0;
-        p.isActive = false;
-        this.io.to(this.id).emit('playerReset', { playerId: p.playerId });
-      }
+    // Check for opponents on the same tile and send them back to start.
+    if (player.position !== 0) {
+      this.capturePieces(player.position, player);
     }
+
 
     if (player.position === FINAL_TILE) {
       this.status = 'finished';
@@ -166,7 +194,7 @@ export class GameRoom {
       }).catch((err) =>
         console.error('Failed to store game result:', err.message)
       );
-      this.io.to(this.id).emit('gameWon', { playerId: player.playerId });
+      this.io.to(this.id).emit('gameWon', { playerId: player.playerId, index: player.index });
       this.turnLock = false;
       return;
     }
@@ -174,10 +202,16 @@ export class GameRoom {
     do {
       this.currentTurn = (this.currentTurn + 1) % this.players.length;
     } while (this.players[this.currentTurn].disconnected);
-    setTimeout(() => {
+
+    const unlock = () => {
       this.turnLock = false;
       this.emitNextTurn();
-    }, this.turnDelay);
+    };
+    if (this.turnDelay === 0) {
+      unlock();
+    } else {
+      setTimeout(unlock, this.turnDelay);
+    }
   }
 
   handleDisconnect(socket) {
@@ -185,7 +219,7 @@ export class GameRoom {
     if (idx === -1) return;
     const player = this.players[idx];
     player.disconnected = true;
-    this.io.to(this.id).emit('playerLeft', { playerId: player.playerId });
+    this.io.to(this.id).emit('playerLeft', { playerId: player.playerId, index: player.index });
     if (this.status === 'playing' && idx === this.currentTurn) {
       if (this.players.some((p) => !p.disconnected)) {
         do {
@@ -233,6 +267,7 @@ export class GameRoomManager {
       players: room.players.map((p) => ({
         playerId: p.playerId,
         name: p.name,
+        index: p.index,
         position: p.position,
         isActive: p.isActive,
         disconnected: p.disconnected
@@ -252,8 +287,9 @@ export class GameRoomManager {
           snakes: Object.fromEntries(record.snakes),
           ladders: Object.fromEntries(record.ladders)
         });
-        room.players = record.players.map((p) => ({
+        room.players = record.players.map((p, idx) => ({
           ...p.toObject(),
+          index: p.index ?? idx,
           socketId: null,
           lastRollTime: 0
         }));
