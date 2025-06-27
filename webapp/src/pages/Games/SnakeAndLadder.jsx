@@ -907,8 +907,7 @@ export default function SnakeAndLadder() {
     setTimeout(() => {
       setDiceVisible(false);
       setMoving(true);
-    let positions = [...aiPositions];
-    let current = positions[index - 1];
+    let current = aiPositions[index - 1];
     let target = current;
     if (current === 0) {
       if (value === 6) target = value;
@@ -927,8 +926,12 @@ export default function SnakeAndLadder() {
       const stepMove = (idx) => {
         if (idx >= seq.length) return done();
         const next = seq[idx];
-        positions[index - 1] = next;
-        setAiPositions([...positions]);
+        setAiPositions((arr) => {
+          const copy = [...arr];
+          copy[index - 1] = next;
+          return copy;
+        });
+        current = next;
         moveSoundRef.current.currentTime = 0;
         if (!muted) moveSoundRef.current.play().catch(() => {});
         setTrail((t) => [...t, { cell: next, type }]);
@@ -948,8 +951,11 @@ export default function SnakeAndLadder() {
     };
 
     const finalizeMove = (finalPos, type) => {
-      positions[index - 1] = finalPos;
-      setAiPositions([...positions]);
+      setAiPositions((arr) => {
+        const copy = [...arr];
+        copy[index - 1] = finalPos;
+        return copy;
+      });
       setHighlight({ cell: finalPos, type });
       setTrail([]);
       capturePieces(finalPos, index);
