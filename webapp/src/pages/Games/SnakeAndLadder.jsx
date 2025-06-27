@@ -42,10 +42,6 @@ function shuffle(arr) {
   return copy;
 }
 
-function hasSix(values) {
-  return values.some((v) => Number(v) === 6);
-}
-
 function CoinBurst({ token }) {
   const coins = Array.from({ length: 30 }, () => ({
     dx: (Math.random() - 0.5) * 100,
@@ -728,14 +724,13 @@ export default function SnakeAndLadder() {
   const handleRoll = (values) => {
     setTurnMessage("");
     setRollCooldown(1);
-    const vals = Array.isArray(values) ? values.map(Number) : [Number(values)];
-    const value = vals.reduce((a, b) => a + b, 0);
-    const rolledSix = hasSix(vals);
-    const doubleSix = vals.length === 2 && vals[0] === 6 && vals[1] === 6;
-    let displayValue = value;
-    if ((pos === 0 || (pos === 100 && diceCount === 2)) && rolledSix) {
-      displayValue = 6;
-    }
+    const value = Array.isArray(values)
+      ? values.reduce((a, b) => a + b, 0)
+      : values;
+    const rolledSix = Array.isArray(values)
+      ? values.some((v) => Number(v) === 6)
+      : Number(value) === 6;
+    const doubleSix = Array.isArray(values) && values[0] === 6 && values[1] === 6;
 
     setRollColor(playerColors[0] || '#fff');
 
@@ -755,7 +750,7 @@ export default function SnakeAndLadder() {
     }
     const willCapture = aiPositions.some((p) => p === preview);
 
-    setRollResult(displayValue);
+    setRollResult(value);
     if (doubleSix && !muted) {
       yabbaSoundRef.current.currentTime = 0;
       yabbaSoundRef.current.play().catch(() => {});
@@ -956,17 +951,13 @@ export default function SnakeAndLadder() {
   };
 
   const handleAIRoll = (index, vals) => {
-    const arr = Array.isArray(vals)
-      ? vals.map(Number)
-      : [vals ?? Math.floor(Math.random() * 6) + 1];
-    const value = arr.reduce((a, b) => a + b, 0);
-    const rolledSix = hasSix(arr);
-    const doubleSix = arr.length === 2 && arr[0] === 6 && arr[1] === 6;
-    let displayValue = value;
-    const currentPos = aiPositions[index - 1];
-    if ((currentPos === 0 || (currentPos === 100 && diceCount === 2)) && rolledSix) {
-      displayValue = 6;
-    }
+    const value = Array.isArray(vals)
+      ? vals.reduce((a, b) => a + b, 0)
+      : vals ?? Math.floor(Math.random() * 6) + 1;
+    const rolledSix = Array.isArray(vals)
+      ? vals.some((v) => Number(v) === 6)
+      : Number(value) === 6;
+    const doubleSix = Array.isArray(vals) && vals[0] === 6 && vals[1] === 6;
     setRollColor(playerColors[index] || '#fff');
 
     let preview = aiPositions[index - 1];
@@ -986,8 +977,8 @@ export default function SnakeAndLadder() {
       (index !== 0 && pos === preview) ||
       aiPositions.some((p, i) => i !== index - 1 && p === preview);
 
-    setTurnMessage(<>{playerName(index)} rolled {displayValue}</>);
-    setRollResult(displayValue);
+    setTurnMessage(<>{playerName(index)} rolled {value}</>);
+    setRollResult(value);
     if (doubleSix && !muted) {
       yabbaSoundRef.current.currentTime = 0;
       yabbaSoundRef.current.play().catch(() => {});
