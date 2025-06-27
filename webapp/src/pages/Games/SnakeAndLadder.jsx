@@ -1,8 +1,7 @@
 import { useState, useEffect, useRef, useLayoutEffect, Fragment } from "react";
 import confetti from "canvas-confetti";
 import DiceRoller from "../../components/DiceRoller.jsx";
-import { dropSound, ladderSound, bombSound, timerBeep, cheerSound } from "../../assets/soundData.js";
-const SNAKE_SOUND_PATH = "/assets/sounds/no-luck-too-bad-disappointing-sound-effect-112943.mp3";
+import { dropSound, snakeSound, ladderSound, bombSound, timerBeep, cheerSound } from "../../assets/soundData.js";
 import { AVATARS } from "../../components/AvatarPickerModal.jsx";
 import { getAvatarUrl, saveAvatar, loadAvatar } from "../../utils/avatarUtils.js";
 import InfoPopup from "../../components/InfoPopup.jsx";
@@ -560,7 +559,7 @@ export default function SnakeAndLadder() {
         }
       });
     moveSoundRef.current = new Audio(dropSound);
-    snakeSoundRef.current = new Audio(SNAKE_SOUND_PATH);
+    snakeSoundRef.current = new Audio(snakeSound);
     ladderSoundRef.current = new Audio(ladderSound);
     winSoundRef.current = new Audio("/assets/sounds/successful.mp3");
     diceRewardSoundRef.current = new Audio("/assets/sounds/successful.mp3");
