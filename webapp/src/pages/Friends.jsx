@@ -13,6 +13,7 @@ import {
 } from '../utils/api.js';
 import UserSearchBar from '../components/UserSearchBar.jsx';
 import { BOT_USERNAME } from '../utils/constants.js';
+import { getAvatarUrl } from '../utils/avatarUtils.js';
 
 export default function Friends() {
   useTelegramBackButton();
@@ -144,11 +145,11 @@ export default function Friends() {
                   <td className="p-2">{idx + 1}</td>
                   <td className="p-2 w-16">
                     <img
-                      src={
+                      src={getAvatarUrl(
                         u.telegramId === telegramId
                           ? myPhotoUrl || '/assets/icons/profile.svg'
                           : u.photo || u.photoUrl || '/assets/icons/profile.svg'
-                      }
+                      )}
                       alt="avatar"
                       className="w-16 h-16 hexagon border-2 border-brand-gold object-cover shadow-[0_0_12px_rgba(241,196,15,0.8)]"
                     />
@@ -164,7 +165,7 @@ export default function Friends() {
                   <td className="p-2">{rank}</td>
                   <td className="p-2 w-16">
                     <img
-                      src={myPhotoUrl || '/assets/icons/profile.svg'}
+                      src={getAvatarUrl(myPhotoUrl || '/assets/icons/profile.svg')}
                       alt="avatar"
                       className="w-16 h-16 hexagon border-2 border-brand-gold object-cover shadow-[0_0_12px_rgba(241,196,15,0.8)]"
                     />

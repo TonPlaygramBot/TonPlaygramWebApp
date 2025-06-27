@@ -3,6 +3,7 @@ import confetti from "canvas-confetti";
 import DiceRoller from "../../components/DiceRoller.jsx";
 import { dropSound, snakeSound, ladderSound, bombSound, timerBeep } from "../../assets/soundData.js";
 import { AVATARS } from "../../components/AvatarPickerModal.jsx";
+import { getAvatarUrl } from "../../utils/avatarUtils.js";
 import InfoPopup from "../../components/InfoPopup.jsx";
 import GameEndPopup from "../../components/GameEndPopup.jsx";
 import {
@@ -451,7 +452,7 @@ export default function SnakeAndLadder() {
     });
     AVATARS.forEach((src) => {
       const img = new Image();
-      img.src = src;
+      img.src = getAvatarUrl(src);
     });
   }, []);
 
@@ -702,8 +703,8 @@ export default function SnakeAndLadder() {
       ? values.reduce((a, b) => a + b, 0)
       : values;
     const rolledSix = Array.isArray(values)
-      ? values.includes(6)
-      : value === 6;
+      ? values.some((v) => Number(v) === 6)
+      : Number(value) === 6;
     const doubleSix = Array.isArray(values) && values[0] === 6 && values[1] === 6;
 
     setRollColor(playerColors[0] || '#fff');
@@ -929,8 +930,8 @@ export default function SnakeAndLadder() {
       ? vals.reduce((a, b) => a + b, 0)
       : vals ?? Math.floor(Math.random() * 6) + 1;
     const rolledSix = Array.isArray(vals)
-      ? vals.includes(6)
-      : value === 6;
+      ? vals.some((v) => Number(v) === 6)
+      : Number(value) === 6;
     const doubleSix = Array.isArray(vals) && vals[0] === 6 && vals[1] === 6;
     setRollColor(playerColors[index] || '#fff');
 
