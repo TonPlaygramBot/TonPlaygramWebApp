@@ -932,7 +932,7 @@ export default function SnakeAndLadder() {
 
     let preview = aiPositions[index - 1];
     if (preview === 0) {
-      if (rolledSix) preview = Math.min(value, FINAL_TILE);
+      if (rolledSix) preview = 1;
     } else if (preview === 100) {
       if (value === 1) preview = FINAL_TILE;
     } else if (preview + value <= FINAL_TILE) {
@@ -964,7 +964,7 @@ export default function SnakeAndLadder() {
     let current = positions[index - 1];
     let target = current;
     if (current === 0) {
-      if (rolledSix) target = Math.min(value, FINAL_TILE);
+      if (rolledSix) target = 1;
     } else if (current === 100) {
       if (value === 1) target = FINAL_TILE;
     } else if (current + value <= FINAL_TILE) {
