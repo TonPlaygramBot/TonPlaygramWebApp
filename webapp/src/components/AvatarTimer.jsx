@@ -1,4 +1,5 @@
 import React from 'react';
+import { getAvatarUrl } from '../utils/avatarUtils.js';
 
 export default function AvatarTimer({ photoUrl, active = false, timerPct = 1, rank, name, isTurn = false, color }) {
   const angle = (1 - timerPct) * 360;
@@ -9,7 +10,7 @@ export default function AvatarTimer({ photoUrl, active = false, timerPct = 1, ra
         <div className="avatar-timer-ring" style={{ '--timer-gradient': gradient }} />
       )}
       <img
-        src={photoUrl}
+        src={getAvatarUrl(photoUrl)}
         alt="player"
         className="w-10 h-10 rounded-full border-2 object-cover"
         style={{

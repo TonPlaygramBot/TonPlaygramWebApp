@@ -18,6 +18,7 @@ import BalanceSummary from '../components/BalanceSummary.jsx';
 import useTelegramBackButton from '../hooks/useTelegramBackButton.js';
 import AvatarPickerModal from '../components/AvatarPickerModal.jsx';
 import AvatarPromptModal from '../components/AvatarPromptModal.jsx';
+import { getAvatarUrl } from '../utils/avatarUtils.js';
 import InboxWidget from '../components/InboxWidget.jsx';
 
 export default function MyAccount() {
@@ -133,7 +134,7 @@ export default function MyAccount() {
 
       <div className="flex items-center space-x-4">
         {photoUrl && (
-          <img src={photoUrl} alt="avatar" className="w-16 h-16 rounded-full" />
+          <img src={getAvatarUrl(photoUrl)} alt="avatar" className="w-16 h-16 rounded-full object-cover" />
         )}
         <div>
           <p className="font-semibold">

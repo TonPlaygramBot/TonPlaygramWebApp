@@ -17,6 +17,7 @@ import { Link } from 'react-router-dom';
 import { ping } from '../utils/api.js';
 
 import ConnectWallet from "../components/ConnectWallet.jsx";
+import { getAvatarUrl } from '../utils/avatarUtils.js';
 
 import BalanceSummary from '../components/BalanceSummary.jsx';
 
@@ -69,7 +70,7 @@ export default function Home() {
         {photoUrl && (
           <div>
             <img
-              src={photoUrl}
+              src={getAvatarUrl(photoUrl)}
               alt="profile"
               className="w-36 h-36 hexagon border-4 border-brand-gold -mt-[20%] mb-3 object-cover"
             />

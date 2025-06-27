@@ -1,5 +1,6 @@
 import { useRef, useEffect } from "react";
 import * as THREE from "three";
+import { getAvatarUrl } from '../utils/avatarUtils.js';
 
 export default function HexPrismToken({ color = "#008080", topColor, photoUrl, className = "", rolling = false, active = false }) {
   const mountRef = useRef(null);
@@ -97,7 +98,7 @@ export default function HexPrismToken({ color = "#008080", topColor, photoUrl, c
     <div className={`token-three relative ${className}`} ref={mountRef}>
       {photoUrl && (
         <img
-          src={photoUrl}
+          src={getAvatarUrl(photoUrl)}
           alt="token"
           className={`token-photo${rolling ? ' rolling' : ''}${active ? ' active' : ''}`}
           style={{ '--token-border-color': color }}
