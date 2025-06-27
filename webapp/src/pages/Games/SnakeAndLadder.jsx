@@ -3,7 +3,7 @@ import confetti from "canvas-confetti";
 import DiceRoller from "../../components/DiceRoller.jsx";
 import { dropSound, snakeSound, ladderSound, bombSound, timerBeep } from "../../assets/soundData.js";
 import { AVATARS } from "../../components/AvatarPickerModal.jsx";
-import { getAvatarUrl } from "../../utils/avatarUtils.js";
+import { getAvatarUrl, saveAvatar, loadAvatar } from "../../utils/avatarUtils.js";
 import InfoPopup from "../../components/InfoPopup.jsx";
 import GameEndPopup from "../../components/GameEndPopup.jsx";
 import {
@@ -401,7 +401,7 @@ export default function SnakeAndLadder() {
   const [messageColor, setMessageColor] = useState("");
   const [turnMessage, setTurnMessage] = useState("Your turn");
   const [diceVisible, setDiceVisible] = useState(true);
-  const [photoUrl, setPhotoUrl] = useState(getTelegramPhotoUrl());
+  const [photoUrl, setPhotoUrl] = useState(loadAvatar() || getTelegramPhotoUrl());
   const [pot, setPot] = useState(101);
   const [token, setToken] = useState("TPC");
   const [celebrate, setCelebrate] = useState(false);
@@ -483,8 +483,11 @@ export default function SnakeAndLadder() {
       const idx = i + 1;
       if (idx !== mover && p === cell) victims.push(idx);
     });
-    if (victims.length) {
-      if (!muted) bombSoundRef.current?.play().catch(() => {});
+    if (victims.length && cell > 0) {
+      if (!muted) {
+        bombSoundRef.current.currentTime = 0;
+        bombSoundRef.current.play().catch(() => {});
+      }
       if (cell <= 4 && !muted) {
         setTimeout(() => {
           hahaSoundRef.current.currentTime = 0;
@@ -520,6 +523,7 @@ export default function SnakeAndLadder() {
   const timerSoundRef = useRef(null);
   const timerRef = useRef(null);
   const aiRollTimeoutRef = useRef(null);
+  const reloadingRef = useRef(false);
 
   useEffect(() => {
     const id = getTelegramId();
@@ -527,6 +531,7 @@ export default function SnakeAndLadder() {
       .then((p) => {
         if (p?.photo) {
           setPhotoUrl(p.photo);
+          saveAvatar(p.photo);
         } else {
           const url = getTelegramPhotoUrl();
           if (url) {
@@ -590,7 +595,10 @@ export default function SnakeAndLadder() {
     const updatePhoto = () => {
       const id = getTelegramId();
       getProfile(id)
-        .then((p) => setPhotoUrl(p?.photo || getTelegramPhotoUrl()))
+        .then((p) => {
+          setPhotoUrl(p?.photo || getTelegramPhotoUrl());
+          if (p?.photo) saveAvatar(p.photo);
+        })
         .catch(() => setPhotoUrl(getTelegramPhotoUrl()));
     };
     window.addEventListener("profilePhotoUpdated", updatePhoto);
@@ -695,6 +703,23 @@ export default function SnakeAndLadder() {
     };
     localStorage.setItem(key, JSON.stringify(data));
   }, [ai, pos, aiPositions, currentTurn, diceCells, snakes, ladders, snakeOffsets, ladderOffsets, ranking, gameOver]);
+
+  useEffect(() => {
+    const handleUnload = () => {
+      if (reloadingRef.current) return;
+      const key = `snakeGameState_${ai}`;
+      try {
+        const stored = JSON.parse(localStorage.getItem(key) || '{}');
+        if (!stored.ranking || !stored.ranking.includes('You')) {
+          stored.ranking = [...(stored.ranking || []), 'You'];
+        }
+        stored.gameOver = true;
+        localStorage.setItem(key, JSON.stringify(stored));
+      } catch {}
+    };
+    window.addEventListener('beforeunload', handleUnload);
+    return () => window.removeEventListener('beforeunload', handleUnload);
+  }, [ai]);
 
   const handleRoll = (values) => {
     setTurnMessage("");
@@ -1208,7 +1233,7 @@ export default function SnakeAndLadder() {
     });
 
   const handleReload = () => {
-    localStorage.removeItem(`snakeGameState_${ai}`);
+    reloadingRef.current = true;
     window.location.reload();
   };
 

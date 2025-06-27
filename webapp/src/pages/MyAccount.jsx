@@ -18,7 +18,7 @@ import BalanceSummary from '../components/BalanceSummary.jsx';
 import useTelegramBackButton from '../hooks/useTelegramBackButton.js';
 import AvatarPickerModal from '../components/AvatarPickerModal.jsx';
 import AvatarPromptModal from '../components/AvatarPromptModal.jsx';
-import { getAvatarUrl } from '../utils/avatarUtils.js';
+import { getAvatarUrl, saveAvatar, loadAvatar } from '../utils/avatarUtils.js';
 import InboxWidget from '../components/InboxWidget.jsx';
 
 export default function MyAccount() {
@@ -98,7 +98,7 @@ export default function MyAccount() {
 
   if (!profile) return <div className="p-4 text-subtext">Loading...</div>;
 
-  const photoUrl = profile.photo || getTelegramPhotoUrl();
+  const photoUrl = profile.photo || loadAvatar() || getTelegramPhotoUrl();
 
   return (
     <div className="p-4 space-y-4 text-text">
@@ -119,6 +119,7 @@ export default function MyAccount() {
         onClose={() => setShowAvatarPicker(false)}
         onSave={async (src) => {
           const updated = await updateProfile({ telegramId, photo: src });
+          saveAvatar(src);
           setProfile(updated);
           setShowAvatarPicker(false);
           window.dispatchEvent(new Event('profilePhotoUpdated'));
