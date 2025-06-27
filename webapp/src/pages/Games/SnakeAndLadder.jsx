@@ -876,6 +876,9 @@ export default function SnakeAndLadder() {
     const value = Array.isArray(vals)
       ? vals.reduce((a, b) => a + b, 0)
       : vals ?? Math.floor(Math.random() * 6) + 1;
+    const rolledSix = Array.isArray(vals)
+      ? vals.includes(6)
+      : value === 6;
     const doubleSix = Array.isArray(vals) && vals[0] === 6 && vals[1] === 6;
     setRollColor(playerColors[index] || '#fff');
     setTurnMessage(<>{playerName(index)} rolled {value}</>);
@@ -887,14 +890,12 @@ export default function SnakeAndLadder() {
     let current = positions[index - 1];
     let target = current;
     if (current === 0) {
-      if (value === 6) target = 1;
+      if (rolledSix) target = 1;
     } else if (current === 100) {
       if (value === 1) target = FINAL_TILE;
     } else if (current + value <= FINAL_TILE) {
       target = current + value;
     }
-
-    const rolledSix = value === 6;
 
     const steps = [];
     for (let i = current + 1; i <= target; i++) steps.push(i);
