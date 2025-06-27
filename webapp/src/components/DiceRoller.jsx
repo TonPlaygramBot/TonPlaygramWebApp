@@ -56,8 +56,8 @@ export default function DiceRoller({
       return Math.floor(Math.random() * 6) + 1;
     };
 
-    const tick = 50; // ms between face changes
-    const iterations = 19; // show final value just before animation ends
+    const tick = 35; // ms between face changes
+    const iterations = 14; // show final value just before animation ends
     let count = 0;
 
     const id = setInterval(() => {
