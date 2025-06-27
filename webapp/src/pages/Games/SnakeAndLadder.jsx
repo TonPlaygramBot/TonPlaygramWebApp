@@ -693,6 +693,7 @@ export default function SnakeAndLadder() {
       const rolledSix = Array.isArray(values)
         ? values.includes(6)
         : value === 6;
+      const doubleSix = Array.isArray(values) && values[0] === 6 && values[1] === 6;
 
       setMessage("");
       let current = pos;
@@ -833,6 +834,7 @@ export default function SnakeAndLadder() {
             setDiceCount(2);
           }, 1500);
         }
+        let extraTurn = false;
         if (diceCells[finalPos]) {
           const bonus = diceCells[finalPos];
           setDiceCells((d) => {
@@ -842,14 +844,19 @@ export default function SnakeAndLadder() {
           });
           setBonusDice(bonus);
           setTurnMessage('Bonus roll');
+          extraTurn = true;
           if (!muted) diceRewardSoundRef.current?.play().catch(() => {});
+        } else if (doubleSix) {
+          setTurnMessage('Double six! Roll again');
+          setBonusDice(0);
+          extraTurn = true;
         } else {
           setTurnMessage("Your turn");
           setBonusDice(0);
         }
         setDiceVisible(true);
         if (!gameOver) {
-          const next = (currentTurn + 1) % (ai + 1);
+          const next = extraTurn ? currentTurn : (currentTurn + 1) % (ai + 1);
           setCurrentTurn(next);
         }
       };
@@ -865,8 +872,11 @@ export default function SnakeAndLadder() {
     setDiceVisible(true);
   };
 
-  const handleAIRoll = (index, fixedValue) => {
-    const value = fixedValue ?? Math.floor(Math.random() * 6) + 1;
+  const handleAIRoll = (index, vals) => {
+    const value = Array.isArray(vals)
+      ? vals.reduce((a, b) => a + b, 0)
+      : vals ?? Math.floor(Math.random() * 6) + 1;
+    const doubleSix = Array.isArray(vals) && vals[0] === 6 && vals[1] === 6;
     setRollColor(playerColors[index] || '#fff');
     setTurnMessage(<>{playerName(index)} rolled {value}</>);
     setRollResult(value);
@@ -928,7 +938,11 @@ export default function SnakeAndLadder() {
         setDiceVisible(false);
         return;
       }
-      const next = (index + 1) % (ai + 1);
+      let extraTurn = false;
+      if (doubleSix) {
+        extraTurn = true;
+      }
+      const next = extraTurn ? index : (index + 1) % (ai + 1);
       if (next === 0) setTurnMessage('Your turn');
       setCurrentTurn(next);
       setDiceVisible(true);
@@ -1177,9 +1191,8 @@ export default function SnakeAndLadder() {
         <div className="fixed bottom-24 inset-x-0 flex flex-col items-center z-20">
           <DiceRoller
             onRollEnd={(vals) => {
-              const total = Array.isArray(vals) ? vals.reduce((a, b) => a + b, 0) : vals;
               if (aiRollingIndex) {
-                handleAIRoll(aiRollingIndex, total);
+                handleAIRoll(aiRollingIndex, vals);
                 setAiRollingIndex(null);
               } else {
                 handleRoll(vals);

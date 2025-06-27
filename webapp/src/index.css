@@ -61,8 +61,8 @@ body {
   inset: 0;
   z-index: -1;
   pointer-events: none;
-  filter: brightness(1.2);
-  transform: translateY(40px);
+  filter: brightness(1.25);
+  transform: translateY(50px);
 }
 
 @keyframes roll {
