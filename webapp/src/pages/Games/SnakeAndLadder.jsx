@@ -1207,7 +1207,7 @@ export default function SnakeAndLadder() {
   return (
     <div className="p-4 pb-32 space-y-4 text-text flex flex-col justify-end items-center relative w-full flex-grow">
       {/* Action menu fixed to the top right */}
-      <div className="fixed right-1 top-4 flex flex-col items-center space-y-2 z-20">
+      <div className="fixed right-0 top-4 flex flex-col items-center space-y-2 z-20">
         <button
           onClick={handleReload}
           className="p-2 flex flex-col items-center"
@@ -1238,7 +1238,7 @@ export default function SnakeAndLadder() {
         </button>
       </div>
       {/* Player photos stacked vertically */}
-      <div className="fixed left-2 top-4 flex flex-col space-y-2 z-20">
+      <div className="fixed left-1 top-4 flex flex-col space-y-2 z-20">
         {players
           .map((p, i) => ({ ...p, index: i }))
           .map((p) => (
@@ -1278,7 +1278,10 @@ export default function SnakeAndLadder() {
       />
       {rollResult !== null && (
         <div className="fixed bottom-52 inset-x-0 flex justify-center z-30 pointer-events-none">
-          <div className="text-7xl roll-result" style={{ color: rollColor }}>
+          <div
+            className="text-7xl roll-result"
+            style={{ color: rollColor, transform: 'translate(-0.25rem, -0.25rem)' }}
+          >
             {rollResult}
           </div>
         </div>
@@ -1326,7 +1329,10 @@ export default function SnakeAndLadder() {
             showButton={false}
           />
           {currentTurn === 0 && !aiRollingIndex && !playerAutoRolling && (
-            <div className="mt-2 text-3xl">🫵</div>
+            <div className="mt-2 flex flex-col items-center">
+              <div className="text-4xl">🫵</div>
+              <div className="turn-message text-xl mt-1">Your turn</div>
+            </div>
           )}
         </div>
       )}

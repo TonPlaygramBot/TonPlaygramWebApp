@@ -566,7 +566,7 @@ body {
 
 .cell-marker {
   position: absolute;
-  top: 55%;
+  top: 58%;
   left: 50%;
   /* Center icons slightly lower within the tile */
   transform: translate(-50%, -50%) translateZ(6px)
@@ -580,7 +580,7 @@ body {
 }
 
 .offset-text {
-  font-size: 1rem;
+  font-size: 1.1rem;
   font-weight: bold;
   text-shadow: 0 0 2px #000;
   transform: rotateX(calc(var(--board-angle, 58deg) * -1));
@@ -595,8 +595,8 @@ body {
 }
 
 .cell-icon {
-  width: calc(var(--cell-width) * 0.65);
-  height: calc(var(--cell-height) * 0.65);
+  width: calc(var(--cell-width) * 0.7);
+  height: calc(var(--cell-height) * 0.7);
   object-fit: contain;
 }
 
@@ -622,7 +622,7 @@ body {
 /* Rotate the start cell icon in place */
 .board-cell[data-cell="1"] .cell-marker {
   animation: start-sway 2.5s ease-in-out infinite;
-  top: 55%;
+  top: 58%;
   transform: translate(-50%, -50%) translateZ(6px);
   transform-style: preserve-3d;
 }
@@ -665,7 +665,7 @@ body {
   color: #ffffff;
   font-family: "Comic Sans MS", "Comic Sans", cursive;
   font-weight: bold;
-  font-size: 1.2rem; /* slightly bigger numbers */
+  font-size: 1.3rem; /* slightly bigger numbers */
   line-height: 1;
   text-shadow: 0 0 2px #000;
   transform: translateY(-10%);
