@@ -2,9 +2,9 @@ import React from 'react';
 
 const amounts = [100, 500, 1000, 5000, 10000];
 const tokens = [
-  { id: 'TPC', icon: '/icons/tpc.svg' },
-  { id: 'TON', icon: '/icons/ton.svg' },
-  { id: 'USDT', icon: '/icons/usdt.svg' },
+  { id: 'TPC', icon: '/icons/TPCcoin.png' },
+  { id: 'TON', icon: '/icons/TON.png' },
+  { id: 'USDT', icon: '/icons/Usdt.png' },
 ];
 
 export default function RoomSelector({ selected, onSelect }) {

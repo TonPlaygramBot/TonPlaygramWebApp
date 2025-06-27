@@ -441,9 +441,13 @@ export default function SnakeAndLadder() {
   // Preload token and avatar images so board icons and AI photos display
   // immediately without waiting for network requests during gameplay.
   useEffect(() => {
-    ['ton', 'tpc', 'usdt'].forEach((t) => {
+    [
+      'TON.png',
+      'TPCcoin.png',
+      'Usdt.png'
+    ].forEach((file) => {
       const img = new Image();
-      img.src = `/icons/${t}.svg`;
+      img.src = `/icons/${file}`;
     });
     AVATARS.forEach((src) => {
       const img = new Image();
@@ -1038,6 +1042,9 @@ export default function SnakeAndLadder() {
       if (next === 0) setTurnMessage('Your turn');
       setCurrentTurn(next);
       setDiceVisible(true);
+      if (extraTurn && next === index) {
+        setTimeout(() => triggerAIRoll(index), 1800);
+      }
     };
 
     const applyEffect = (startPos) => {
