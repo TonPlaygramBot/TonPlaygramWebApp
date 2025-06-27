@@ -1,7 +1,15 @@
 import { useState, useEffect, useRef, useLayoutEffect, Fragment } from "react";
 import confetti from "canvas-confetti";
 import DiceRoller from "../../components/DiceRoller.jsx";
-import { dropSound, snakeSound, ladderSound, bombSound, timerBeep } from "../../assets/soundData.js";
+import {
+  dropSound,
+  snakeSound,
+  ladderSound,
+  bombSound,
+  timerBeep,
+  badLuckSound,
+  cheerSound,
+} from "../../assets/soundData.js";
 import { AVATARS } from "../../components/AvatarPickerModal.jsx";
 import { getAvatarUrl, saveAvatar, loadAvatar } from "../../utils/avatarUtils.js";
 import InfoPopup from "../../components/InfoPopup.jsx";
@@ -520,6 +528,8 @@ export default function SnakeAndLadder() {
   const yabbaSoundRef = useRef(null);
   const hahaSoundRef = useRef(null);
   const bombSoundRef = useRef(null);
+  const badLuckSoundRef = useRef(null);
+  const cheerSoundRef = useRef(null);
   const timerSoundRef = useRef(null);
   const timerRef = useRef(null);
   const aiRollTimeoutRef = useRef(null);
@@ -561,6 +571,8 @@ export default function SnakeAndLadder() {
     yabbaSoundRef.current = new Audio("/assets/sounds/yabba-dabba-doo.mp3");
     hahaSoundRef.current = new Audio("/assets/sounds/Haha.mp3");
     bombSoundRef.current = new Audio(bombSound);
+    badLuckSoundRef.current = new Audio(badLuckSound);
+    cheerSoundRef.current = new Audio(cheerSound);
     timerSoundRef.current = new Audio(timerBeep);
     return () => {
       moveSoundRef.current?.pause();
@@ -571,6 +583,8 @@ export default function SnakeAndLadder() {
       yabbaSoundRef.current?.pause();
       hahaSoundRef.current?.pause();
       bombSoundRef.current?.pause();
+      badLuckSoundRef.current?.pause();
+      cheerSoundRef.current?.pause();
       timerSoundRef.current?.pause();
     };
   }, []);
@@ -585,6 +599,8 @@ export default function SnakeAndLadder() {
       yabbaSoundRef,
       hahaSoundRef,
       bombSoundRef,
+      badLuckSoundRef,
+      cheerSoundRef,
       timerSoundRef,
     ].forEach((r) => {
       if (r.current) r.current.muted = muted;
@@ -791,7 +807,10 @@ export default function SnakeAndLadder() {
           return;
         }
       } else if (current === 0) {
-        if (rolledSix) target = 1;
+        if (rolledSix) {
+          target = 1;
+          if (!muted) cheerSoundRef.current?.play().catch(() => {});
+        }
         else {
           setMessage("Need a 6 to start!");
           setTurnMessage("");
@@ -850,7 +869,10 @@ export default function SnakeAndLadder() {
           setTimeout(() => setOffsetPopup(null), 1000);
           setMessage('🐍');
           setMessageColor("text-red-500");
-          if (!muted) snakeSoundRef.current?.play().catch(() => {});
+          if (!muted) {
+            snakeSoundRef.current?.play().catch(() => {});
+            badLuckSoundRef.current?.play().catch(() => {});
+          }
           const seq = [];
           for (let i = 1; i <= offset && startPos - i >= 0; i++)
             seq.push(startPos - i);
@@ -994,7 +1016,10 @@ export default function SnakeAndLadder() {
     let current = positions[index - 1];
     let target = current;
     if (current === 0) {
-      if (rolledSix) target = 1;
+      if (rolledSix) {
+        target = 1;
+        if (!muted) cheerSoundRef.current?.play().catch(() => {});
+      }
     } else if (current === 100) {
       if (value === 1) target = FINAL_TILE;
     } else if (current + value <= FINAL_TILE) {
@@ -1083,7 +1108,10 @@ export default function SnakeAndLadder() {
         setTrail([{ cell: startPos, type: 'snake' }]);
         setOffsetPopup({ cell: startPos, type: 'snake', amount: offset });
         setTimeout(() => setOffsetPopup(null), 1000);
-        if (!muted) snakeSoundRef.current?.play().catch(() => {});
+        if (!muted) {
+          snakeSoundRef.current?.play().catch(() => {});
+          badLuckSoundRef.current?.play().catch(() => {});
+        }
         const seq = [];
         for (let i = 1; i <= offset && startPos - i >= 0; i++) seq.push(startPos - i);
         const move = () => moveSeq(seq, 'snake', () => finalizeMove(Math.max(0, snakeEnd), 'snake'));
