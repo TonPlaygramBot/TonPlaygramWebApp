@@ -926,6 +926,9 @@ export default function SnakeAndLadder() {
       const stepMove = (idx) => {
         if (idx >= seq.length) return done();
         const next = seq[idx];
+        // Use functional state update so concurrent moves don't
+        // overwrite each other. Mutating a shared array caused AI
+        // players to control the wrong token.
         setAiPositions((arr) => {
           const copy = [...arr];
           copy[index - 1] = next;
@@ -951,6 +954,8 @@ export default function SnakeAndLadder() {
     };
 
     const finalizeMove = (finalPos, type) => {
+      // Functional update prevents race conditions if multiple
+      // AI turns happen close together.
       setAiPositions((arr) => {
         const copy = [...arr];
         copy[index - 1] = finalPos;
