@@ -1,5 +1,4 @@
 import { useState, useEffect, useRef, useLayoutEffect, Fragment } from "react";
-import { canEnterGame } from "../../utils/diceRules.js";
 import confetti from "canvas-confetti";
 import DiceRoller from "../../components/DiceRoller.jsx";
 import { dropSound, ladderSound, bombSound, timerBeep, cheerSound } from "../../assets/soundData.js";
@@ -44,6 +43,9 @@ function shuffle(arr) {
   return copy;
 }
 
+function hasSix(values) {
+  return values.some((v) => Number(v) === 6);
+}
 
 function CoinBurst({ token }) {
   const coins = Array.from({ length: 30 }, () => ({
@@ -733,7 +735,7 @@ export default function SnakeAndLadder() {
     setRollCooldown(1);
     const vals = Array.isArray(values) ? values.map(Number) : [Number(values)];
     const value = vals.reduce((a, b) => a + b, 0);
-    const rolledSix = canEnterGame(vals);
+    const rolledSix = hasSix(vals);
     const doubleSix = vals.length === 2 && vals[0] === 6 && vals[1] === 6;
     let displayValue = value;
     if ((pos === 0 || (pos === 100 && diceCount === 2)) && rolledSix) {
@@ -973,7 +975,7 @@ export default function SnakeAndLadder() {
       ? vals.map(Number)
       : [vals ?? Math.floor(Math.random() * 6) + 1];
     const value = arr.reduce((a, b) => a + b, 0);
-    const rolledSix = canEnterGame(arr);
+    const rolledSix = hasSix(arr);
     const doubleSix = arr.length === 2 && arr[0] === 6 && arr[1] === 6;
     let displayValue = value;
     const currentPos = aiPositions[index - 1];
