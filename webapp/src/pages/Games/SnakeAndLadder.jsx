@@ -1134,7 +1134,7 @@ export default function SnakeAndLadder() {
     .map((p, i) => ({ idx: i, pos: p.position }))
     .sort((a, b) => b.pos - a.pos)
     .forEach((p, i) => {
-      rankMap[p.idx] = p.pos === 0 ? 0 : i + 1;
+      rankMap[p.idx] = i + 1;
     });
 
   const handleForfeit = () => {
