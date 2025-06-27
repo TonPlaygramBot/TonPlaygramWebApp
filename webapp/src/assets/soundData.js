@@ -6,5 +6,3 @@ export const snakeSound = "data:audio/mpeg;base64,//vQxAAAKam07lWsAA6vwh8XO7AAAB
 // Timer beep sound file path
 export const timerBeep = "/assets/sounds/clock-ticking-60-second-countdown-118231.mp3";
 export const bombSound = "/assets/sounds/a-bomb-139689.mp3";
-// Cheer sound when a player enters the board with a six
-export const cheerSound = "/assets/sounds/man-cheering-in-victory-epic-stock-media-1-00-01.mp3";
