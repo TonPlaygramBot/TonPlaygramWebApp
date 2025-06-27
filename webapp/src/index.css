@@ -61,8 +61,8 @@ body {
   inset: 0;
   z-index: -1;
   pointer-events: none;
-  background: url('/assets/SnakeLaddersbackground.png') center/cover no-repeat;
-  filter: brightness(1.1);
+  filter: brightness(1.2);
+  transform: translateY(40px);
 }
 
 @keyframes roll {
@@ -575,6 +575,21 @@ body {
   z-index: 3; /* ensure icons appear above connectors */
 }
 
+.offset-text {
+  font-size: 0.75rem;
+  font-weight: bold;
+  text-shadow: 0 0 2px #000;
+  transform: rotateX(calc(var(--board-angle, 58deg) * -1));
+}
+
+.snake-text {
+  color: #ef4444;
+}
+
+.ladder-text {
+  color: #22c55e;
+}
+
 .cell-icon {
   width: calc(var(--cell-width) * 0.6);
   height: calc(var(--cell-height) * 0.6);
@@ -844,6 +859,15 @@ body {
   width: 1.8rem;
   height: 1.8rem;
   object-fit: contain;
+}
+
+.dice-value {
+  margin-left: 0.2rem;
+  font-size: 0.75rem;
+  font-weight: bold;
+  color: #3b82f6;
+  text-shadow: 0 0 2px #000;
+  transform: rotateX(calc(var(--board-angle, 58deg) * -1));
 }
 
 

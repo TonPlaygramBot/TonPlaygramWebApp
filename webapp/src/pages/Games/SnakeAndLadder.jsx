@@ -152,7 +152,7 @@ function Board({
         cellType === "ladder"
           ? "/assets/icons/ladder.svg"
           : cellType === "snake"
-            ? "/assets/icons/snake.svg"
+            ? "/assets/icons/snake.png"
             : null;
       const offsetVal =
         cellType === "ladder"
@@ -178,8 +178,17 @@ function Board({
         >
           {(iconImage || offsetVal != null) && (
             <span className="cell-marker">
-              {iconImage && (
-                <img src={iconImage} className="cell-icon" />
+              {iconImage && <img src={iconImage} className="cell-icon" />}
+              {offsetVal != null && (
+                <span
+                  className={`offset-text ${
+                    cellType === 'snake'
+                      ? 'snake-text'
+                      : 'ladder-text'
+                  }`}
+                >
+                  {offsetVal > 0 ? `+${offsetVal}` : offsetVal}
+                </span>
               )}
             </span>
           )}
@@ -187,6 +196,7 @@ function Board({
           {diceCells && diceCells[num] && (
             <span className="dice-marker">
               <img src="/assets/icons/Dice.png" className="dice-icon" />
+              <span className="dice-value">+{diceCells[num]}</span>
             </span>
           )}
           {players
@@ -1134,6 +1144,7 @@ export default function SnakeAndLadder() {
                   ? timeLeft / (p.index === 0 ? 15 : 3)
                   : 1
               }
+              color={p.color}
             />
           ))}
       </div>
