@@ -3,7 +3,7 @@ export const FINAL_TILE = 101;
 export const DEFAULT_SNAKES = { 99: 80 };
 export const DEFAULT_LADDERS = { 3: 22, 27: 46 };
 export const ROLL_COOLDOWN_MS = 1000;
-export const TURN_DELAY_MS = 6000;
+export const TURN_DELAY_MS = 2000;
 
 import GameRoomModel from './models/GameRoom.js';
 
@@ -63,33 +63,6 @@ export class GameRoom {
     this.rollCooldown = ROLL_COOLDOWN_MS;
     this.turnDelay = TURN_DELAY_MS;
     this.turnLock = false;
-  }
-
-  hasVictims(cell, mover) {
-    return this.players.some(
-      (p) => p !== mover && p.isActive && p.position === cell && p.position !== 0
-    );
-  }
-
-  capturePieces(cell, mover) {
-    let captured = false;
-    for (const opp of this.players) {
-      if (
-        opp !== mover &&
-        opp.isActive &&
-        opp.position === cell &&
-        opp.position !== 0
-      ) {
-        opp.position = 0;
-        opp.isActive = false;
-        this.io.to(this.id).emit('playerReset', {
-          playerId: opp.playerId,
-          index: opp.index
-        });
-        captured = true;
-      }
-    }
-    return captured;
   }
 
   addPlayer(playerId, name, socket) {
@@ -152,9 +125,7 @@ export class GameRoom {
     this.turnLock = true;
 
     const dice = value ?? Math.floor(Math.random() * 6) + 1;
-    if (typeof socket.emit === 'function') {
-      socket.emit('diceRolled', { playerId: player.playerId, index: player.index, value: dice });
-    }
+    this.io.to(this.id).emit('diceRolled', { playerId: player.playerId, index: player.index, value: dice });
 
     let from = player.position;
     let to = player.position;
@@ -180,11 +151,13 @@ export class GameRoom {
         }
     }
 
-    // Check for opponents on the same tile and send them back to start.
-    if (player.position !== 0) {
-      this.capturePieces(player.position, player);
+    for (const p of this.players) {
+      if (p !== player && !p.disconnected && p.position === player.position) {
+        p.position = 0;
+        p.isActive = false;
+        this.io.to(this.id).emit('playerReset', { playerId: p.playerId, index: p.index });
+      }
     }
-
 
     if (player.position === FINAL_TILE) {
       this.status = 'finished';
@@ -202,16 +175,10 @@ export class GameRoom {
     do {
       this.currentTurn = (this.currentTurn + 1) % this.players.length;
     } while (this.players[this.currentTurn].disconnected);
-
-    const unlock = () => {
+    setTimeout(() => {
       this.turnLock = false;
       this.emitNextTurn();
-    };
-    if (this.turnDelay === 0) {
-      unlock();
-    } else {
-      setTimeout(unlock, this.turnDelay);
-    }
+    }, this.turnDelay);
   }
 
   handleDisconnect(socket) {
