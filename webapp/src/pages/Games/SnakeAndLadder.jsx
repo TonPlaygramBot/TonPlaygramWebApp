@@ -791,6 +791,7 @@ export default function SnakeAndLadder() {
           if (!muted) moveSoundRef.current.play().catch(() => {});
           setTrail((t) => [...t, { cell: next, type }]);
           setHighlight({ cell: next, type });
+          if (idx === seq.length - 2) hahaSoundRef.current?.pause();
           setTimeout(() => stepMove(idx + 1), 700);
         };
         stepMove(0);
@@ -977,6 +978,7 @@ export default function SnakeAndLadder() {
         if (!muted) moveSoundRef.current.play().catch(() => {});
         setTrail((t) => [...t, { cell: next, type }]);
         setHighlight({ cell: next, type });
+        if (idx === seq.length - 2) hahaSoundRef.current?.pause();
         setTimeout(() => stepMove(idx + 1), 700);
       };
       stepMove(0);

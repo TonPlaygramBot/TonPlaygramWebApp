@@ -58,7 +58,10 @@ body {
 /* Full-screen stage behind the Snake & Ladder board */
 .background-behind-board {
   position: absolute;
-  inset: 0;
+  left: 0;
+  right: 0;
+  top: -20px;
+  bottom: -20px;
   z-index: -1;
   pointer-events: none;
   filter: brightness(2);
