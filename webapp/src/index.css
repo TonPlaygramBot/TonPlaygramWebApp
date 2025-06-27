@@ -61,8 +61,8 @@ body {
   inset: 0;
   z-index: -1;
   pointer-events: none;
-  filter: brightness(1.25);
-  transform: translateY(50px);
+  filter: brightness(1.5);
+  transform: translateY(70px);
 }
 
 @keyframes roll {
@@ -576,7 +576,7 @@ body {
 }
 
 .offset-text {
-  font-size: 0.75rem;
+  font-size: 0.9rem;
   font-weight: bold;
   text-shadow: 0 0 2px #000;
   transform: rotateX(calc(var(--board-angle, 58deg) * -1));
@@ -863,7 +863,7 @@ body {
 
 .dice-value {
   margin-left: 0.2rem;
-  font-size: 0.75rem;
+  font-size: 0.9rem;
   font-weight: bold;
   color: #3b82f6;
   text-shadow: 0 0 2px #000;
