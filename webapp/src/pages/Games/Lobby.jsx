@@ -9,7 +9,16 @@ import { canStartGame } from '../../utils/lobby.js';
 export default function Lobby() {
   const { game } = useParams();
   const navigate = useNavigate();
-  useTelegramBackButton();
+  useTelegramBackButton(() => navigate('/games', { replace: true }));
+
+  useEffect(() => {
+    const handlePop = (e) => {
+      e.preventDefault();
+      navigate('/games', { replace: true });
+    };
+    window.addEventListener('popstate', handlePop);
+    return () => window.removeEventListener('popstate', handlePop);
+  }, [navigate]);
 
   const [tables, setTables] = useState([]);
   const [table, setTable] = useState(null);
