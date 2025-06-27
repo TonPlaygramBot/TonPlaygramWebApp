@@ -479,6 +479,15 @@ export default function SnakeAndLadder() {
     });
     if (victims.length) {
       if (!muted) bombSoundRef.current?.play().catch(() => {});
+      if (cell <= 4 && !muted) {
+        setTimeout(() => {
+          hahaSoundRef.current.currentTime = 0;
+          hahaSoundRef.current.play().catch(() => {});
+          setTimeout(() => {
+            hahaSoundRef.current.pause();
+          }, 6000);
+        }, 1000);
+      }
       victims.forEach((idx) => {
         setBurning((b) => [...b, idx]);
         setTimeout(() => {
@@ -499,6 +508,8 @@ export default function SnakeAndLadder() {
   const ladderSoundRef = useRef(null);
   const winSoundRef = useRef(null);
   const diceRewardSoundRef = useRef(null);
+  const yabbaSoundRef = useRef(null);
+  const hahaSoundRef = useRef(null);
   const bombSoundRef = useRef(null);
   const timerSoundRef = useRef(null);
   const timerRef = useRef(null);
@@ -536,6 +547,8 @@ export default function SnakeAndLadder() {
     ladderSoundRef.current = new Audio(ladderSound);
     winSoundRef.current = new Audio("/assets/sounds/successful.mp3");
     diceRewardSoundRef.current = new Audio("/assets/sounds/successful.mp3");
+    yabbaSoundRef.current = new Audio("/assets/sounds/yabba-dabba-doo.mp3");
+    hahaSoundRef.current = new Audio("/assets/sounds/Haha.mp3");
     bombSoundRef.current = new Audio(bombSound);
     timerSoundRef.current = new Audio(timerBeep);
     return () => {
@@ -544,6 +557,8 @@ export default function SnakeAndLadder() {
       ladderSoundRef.current?.pause();
       winSoundRef.current?.pause();
       diceRewardSoundRef.current?.pause();
+      yabbaSoundRef.current?.pause();
+      hahaSoundRef.current?.pause();
       bombSoundRef.current?.pause();
       timerSoundRef.current?.pause();
     };
@@ -556,6 +571,8 @@ export default function SnakeAndLadder() {
       ladderSoundRef,
       winSoundRef,
       diceRewardSoundRef,
+      yabbaSoundRef,
+      hahaSoundRef,
       bombSoundRef,
       timerSoundRef,
     ].forEach((r) => {
@@ -679,10 +696,38 @@ export default function SnakeAndLadder() {
     const value = Array.isArray(values)
       ? values.reduce((a, b) => a + b, 0)
       : values;
+    const rolledSix = Array.isArray(values)
+      ? values.includes(6)
+      : value === 6;
+    const doubleSix = Array.isArray(values) && values[0] === 6 && values[1] === 6;
 
     setRollColor(playerColors[0] || '#fff');
 
+    // Predict capture for laugh sound
+    let preview = pos;
+    if (preview === 0) {
+      if (rolledSix) preview = 1;
+    } else if (preview === 100 && diceCount === 1) {
+      if (value === 1) preview = FINAL_TILE;
+    } else if (preview !== 100 || diceCount !== 2) {
+      if (preview + value <= FINAL_TILE) preview = preview + value;
+    }
+    if (snakes[preview] != null) preview = Math.max(0, snakes[preview]);
+    else if (ladders[preview] != null) {
+      const ladObj = ladders[preview];
+      preview = typeof ladObj === 'object' ? ladObj.end : ladObj;
+    }
+    const willCapture = aiPositions.some((p) => p === preview);
+
     setRollResult(value);
+    if (doubleSix && !muted) {
+      yabbaSoundRef.current.currentTime = 0;
+      yabbaSoundRef.current.play().catch(() => {});
+    }
+    if (willCapture && preview > 4 && !muted) {
+      hahaSoundRef.current.currentTime = 0;
+      hahaSoundRef.current.play().catch(() => {});
+    }
     setTimeout(() => setRollResult(null), 1500);
 
     setTimeout(() => {
@@ -690,10 +735,6 @@ export default function SnakeAndLadder() {
       setOffsetPopup(null);
       setTrail([]);
 
-      const rolledSix = Array.isArray(values)
-        ? values.includes(6)
-        : value === 6;
-      const doubleSix = Array.isArray(values) && values[0] === 6 && values[1] === 6;
 
       setMessage("");
       let current = pos;
@@ -845,7 +886,7 @@ export default function SnakeAndLadder() {
           setBonusDice(bonus);
           setTurnMessage('Bonus roll');
           extraTurn = true;
-          if (!muted) diceRewardSoundRef.current?.play().catch(() => {});
+          if (!muted) yabbaSoundRef.current?.play().catch(() => {});
         } else if (doubleSix) {
           setTurnMessage('Double six! Roll again');
           setBonusDice(0);
@@ -881,8 +922,34 @@ export default function SnakeAndLadder() {
       : value === 6;
     const doubleSix = Array.isArray(vals) && vals[0] === 6 && vals[1] === 6;
     setRollColor(playerColors[index] || '#fff');
+
+    let preview = aiPositions[index - 1];
+    if (preview === 0) {
+      if (rolledSix) preview = Math.min(value, FINAL_TILE);
+    } else if (preview === 100) {
+      if (value === 1) preview = FINAL_TILE;
+    } else if (preview + value <= FINAL_TILE) {
+      preview = preview + value;
+    }
+    if (snakes[preview] != null) preview = Math.max(0, snakes[preview]);
+    else if (ladders[preview] != null) {
+      const ladObj = ladders[preview];
+      preview = typeof ladObj === 'object' ? ladObj.end : ladObj;
+    }
+    const capture =
+      (index !== 0 && pos === preview) ||
+      aiPositions.some((p, i) => i !== index - 1 && p === preview);
+
     setTurnMessage(<>{playerName(index)} rolled {value}</>);
     setRollResult(value);
+    if (doubleSix && !muted) {
+      yabbaSoundRef.current.currentTime = 0;
+      yabbaSoundRef.current.play().catch(() => {});
+    }
+    if (capture && preview > 4 && !muted) {
+      hahaSoundRef.current.currentTime = 0;
+      hahaSoundRef.current.play().catch(() => {});
+    }
     setTimeout(() => setRollResult(null), 1500);
     setTimeout(() => {
       setDiceVisible(false);
@@ -1182,8 +1249,8 @@ export default function SnakeAndLadder() {
         burning={burning}
       />
       {rollResult !== null && (
-        <div className="fixed bottom-44 inset-x-0 flex justify-center z-30 pointer-events-none">
-          <div className="text-6xl roll-result" style={{ color: rollColor }}>
+        <div className="fixed bottom-52 inset-x-0 flex justify-center z-30 pointer-events-none">
+          <div className="text-7xl roll-result" style={{ color: rollColor }}>
             {rollResult}
           </div>
         </div>
@@ -1216,7 +1283,7 @@ export default function SnakeAndLadder() {
             clickable={!aiRollingIndex && !playerAutoRolling && rollCooldown === 0}
             numDice={diceCount + bonusDice}
             trigger={aiRollingIndex != null ? aiRollTrigger : playerAutoRolling ? playerRollTrigger : undefined}
-            showButton={!aiRollingIndex && !playerAutoRolling}
+            showButton={false}
           />
           {currentTurn === 0 && !aiRollingIndex && !playerAutoRolling && (
             <div className="mt-2 text-3xl">🫵</div>

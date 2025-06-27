@@ -150,7 +150,7 @@ export default function Friends() {
                           : u.photo || u.photoUrl || '/assets/icons/profile.svg'
                       }
                       alt="avatar"
-                      className="w-16 h-16 hexagon border-2 border-brand-gold object-cover"
+                      className="w-16 h-16 hexagon border-2 border-brand-gold object-cover shadow-[0_0_12px_rgba(241,196,15,0.8)]"
                     />
                   </td>
                   <td className="p-2">
@@ -166,7 +166,7 @@ export default function Friends() {
                     <img
                       src={myPhotoUrl || '/assets/icons/profile.svg'}
                       alt="avatar"
-                      className="w-16 h-16 hexagon border-2 border-brand-gold object-cover"
+                      className="w-16 h-16 hexagon border-2 border-brand-gold object-cover shadow-[0_0_12px_rgba(241,196,15,0.8)]"
                     />
                   </td>
                   <td className="p-2">You</td>
