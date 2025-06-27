@@ -13,7 +13,7 @@ import {
 } from '../utils/api.js';
 import UserSearchBar from '../components/UserSearchBar.jsx';
 import { BOT_USERNAME } from '../utils/constants.js';
-import { getAvatarUrl } from '../utils/avatarUtils.js';
+import { getAvatarUrl, saveAvatar, loadAvatar } from '../utils/avatarUtils.js';
 
 export default function Friends() {
   useTelegramBackButton();
@@ -27,7 +27,9 @@ export default function Friends() {
   const [referral, setReferral] = useState(null);
   const [leaderboard, setLeaderboard] = useState([]);
   const [rank, setRank] = useState(null);
-  const [myPhotoUrl, setMyPhotoUrl] = useState(getTelegramPhotoUrl());
+  const [myPhotoUrl, setMyPhotoUrl] = useState(
+    loadAvatar() || getTelegramPhotoUrl()
+  );
   const [friendRequests, setFriendRequests] = useState([]);
 
   useEffect(() => {
@@ -42,6 +44,7 @@ export default function Friends() {
       .then((p) => {
         if (p?.photo) {
           setMyPhotoUrl(p.photo);
+          saveAvatar(p.photo);
         } else if (!myPhotoUrl) {
           fetchTelegramInfo(telegramId).then((info) => {
             if (info?.photoUrl) setMyPhotoUrl(info.photoUrl);
@@ -60,7 +63,10 @@ export default function Friends() {
   useEffect(() => {
     const updatePhoto = () => {
       getProfile(telegramId)
-        .then((p) => setMyPhotoUrl(p?.photo || getTelegramPhotoUrl()))
+        .then((p) => {
+          setMyPhotoUrl(p?.photo || getTelegramPhotoUrl());
+          if (p?.photo) saveAvatar(p.photo);
+        })
         .catch(() => setMyPhotoUrl(getTelegramPhotoUrl()));
     };
     window.addEventListener('profilePhotoUpdated', updatePhoto);

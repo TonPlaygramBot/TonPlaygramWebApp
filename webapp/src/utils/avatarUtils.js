@@ -8,3 +8,22 @@ export function getAvatarUrl(src) {
   if (src.startsWith('/') || src.startsWith('http')) return src;
   return emojiToDataUrl(src);
 }
+
+export function saveAvatar(src) {
+  if (typeof window !== 'undefined' && src) {
+    try {
+      localStorage.setItem('profilePhoto', src);
+    } catch {}
+  }
+}
+
+export function loadAvatar() {
+  if (typeof window !== 'undefined') {
+    try {
+      return localStorage.getItem('profilePhoto') || '';
+    } catch {
+      return '';
+    }
+  }
+  return '';
+}

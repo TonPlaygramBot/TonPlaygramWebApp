@@ -17,7 +17,7 @@ import { Link } from 'react-router-dom';
 import { ping } from '../utils/api.js';
 
 import ConnectWallet from "../components/ConnectWallet.jsx";
-import { getAvatarUrl } from '../utils/avatarUtils.js';
+import { getAvatarUrl, saveAvatar, loadAvatar } from '../utils/avatarUtils.js';
 
 import BalanceSummary from '../components/BalanceSummary.jsx';
 
@@ -28,7 +28,7 @@ export default function Home() {
 
   const [status, setStatus] = useState('checking');
 
-  const [photoUrl, setPhotoUrl] = useState('');
+  const [photoUrl, setPhotoUrl] = useState(loadAvatar() || '');
 
   useEffect(() => {
     ping()
@@ -38,11 +38,9 @@ export default function Home() {
     const id = getTelegramId();
     getProfile(id)
       .then((p) => {
-        if (p?.photo) {
-          setPhotoUrl(p.photo);
-        } else {
-          setPhotoUrl(getTelegramPhotoUrl());
-        }
+        const src = p?.photo || getTelegramPhotoUrl();
+        setPhotoUrl(src);
+        if (p?.photo) saveAvatar(p.photo);
       })
       .catch(() => {
         setPhotoUrl(getTelegramPhotoUrl());
@@ -53,6 +51,7 @@ export default function Home() {
       getProfile(id)
         .then((p) => {
           setPhotoUrl(p?.photo || getTelegramPhotoUrl());
+          if (p?.photo) saveAvatar(p.photo);
         })
         .catch(() => setPhotoUrl(getTelegramPhotoUrl()));
     };
