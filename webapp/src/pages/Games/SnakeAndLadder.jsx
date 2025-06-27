@@ -604,8 +604,8 @@ export default function SnakeAndLadder() {
     const aiParam = params.get("ai");
     if (t) setToken(t.toUpperCase());
     if (amt) setPot(Number(amt));
-    const aiCount = aiParam ? Math.max(1, Math.min(3, Number(aiParam))) : 0;
-    if (aiParam) setAi(aiCount);
+    const aiCount = aiParam ? Math.max(1, Math.min(3, Number(aiParam))) : 1;
+    setAi(aiCount);
     setAiPositions(Array(aiCount).fill(0));
     setAiAvatars(
       Array.from({ length: aiCount }, () => AVATARS[Math.floor(Math.random() * AVATARS.length)])
