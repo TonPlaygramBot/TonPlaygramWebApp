@@ -495,10 +495,11 @@ export default function SnakeAndLadder() {
         setTimeout(() => {
           setBurning((b) => b.filter((v) => v !== idx));
           if (idx === 0) setPos(0);
-          else
-            setAiPositions((arr) =>
-              arr.map((p, i) => (i === idx - 1 ? 0 : p))
-            );
+          else setAiPositions((arr) => {
+            const copy = [...arr];
+            copy[idx - 1] = 0;
+            return copy;
+          });
         }, 1000);
       });
     }
@@ -604,8 +605,8 @@ export default function SnakeAndLadder() {
     const aiParam = params.get("ai");
     if (t) setToken(t.toUpperCase());
     if (amt) setPot(Number(amt));
-    const aiCount = aiParam ? Math.max(1, Math.min(3, Number(aiParam))) : 1;
-    setAi(aiCount);
+    const aiCount = aiParam ? Math.max(1, Math.min(3, Number(aiParam))) : 0;
+    if (aiParam) setAi(aiCount);
     setAiPositions(Array(aiCount).fill(0));
     setAiAvatars(
       Array.from({ length: aiCount }, () => AVATARS[Math.floor(Math.random() * AVATARS.length)])
@@ -906,7 +907,8 @@ export default function SnakeAndLadder() {
     setTimeout(() => {
       setDiceVisible(false);
       setMoving(true);
-    let current = aiPositions[index - 1];
+    let positions = [...aiPositions];
+    let current = positions[index - 1];
     let target = current;
     if (current === 0) {
       if (value === 6) target = value;
@@ -925,15 +927,8 @@ export default function SnakeAndLadder() {
       const stepMove = (idx) => {
         if (idx >= seq.length) return done();
         const next = seq[idx];
-        // Use functional state update so concurrent moves don't
-        // overwrite each other. Mutating a shared array caused AI
-        // players to control the wrong token.
-        // Update only the moving AI's position so other tokens remain
-        // unaffected even if multiple moves occur simultaneously.
-        setAiPositions((arr) =>
-          arr.map((p, i) => (i === index - 1 ? next : p))
-        );
-        current = next;
+        positions[index - 1] = next;
+        setAiPositions([...positions]);
         moveSoundRef.current.currentTime = 0;
         if (!muted) moveSoundRef.current.play().catch(() => {});
         setTrail((t) => [...t, { cell: next, type }]);
@@ -953,11 +948,8 @@ export default function SnakeAndLadder() {
     };
 
     const finalizeMove = (finalPos, type) => {
-      // Functional update prevents race conditions if multiple
-      // AI turns happen close together.
-      setAiPositions((arr) =>
-        arr.map((p, i) => (i === index - 1 ? finalPos : p))
-      );
+      positions[index - 1] = finalPos;
+      setAiPositions([...positions]);
       setHighlight({ cell: finalPos, type });
       setTrail([]);
       capturePieces(finalPos, index);
@@ -1134,7 +1126,7 @@ export default function SnakeAndLadder() {
     .map((p, i) => ({ idx: i, pos: p.position }))
     .sort((a, b) => b.pos - a.pos)
     .forEach((p, i) => {
-      rankMap[p.idx] = i + 1;
+      rankMap[p.idx] = p.pos === 0 ? 0 : i + 1;
     });
 
   const handleForfeit = () => {
@@ -1152,7 +1144,7 @@ export default function SnakeAndLadder() {
     setShowLobbyConfirm(false);
   };
 
-  const handleRefresh = () => {
+  const handleReload = () => {
     window.location.reload();
   };
 
@@ -1161,11 +1153,11 @@ export default function SnakeAndLadder() {
       {/* Action menu fixed to the top right */}
       <div className="fixed right-1 top-4 flex flex-col items-center space-y-2 z-20">
         <button
-          onClick={handleRefresh}
+          onClick={handleReload}
           className="p-2 flex flex-col items-center"
         >
           <AiOutlineReload className="text-xl" />
-          <span className="text-xs">Refresh</span>
+          <span className="text-xs">Reload</span>
         </button>
         <button
           onClick={() => setShowInfo(true)}
