@@ -1246,17 +1246,6 @@ export default function SnakeAndLadder() {
     return () => clearInterval(id);
   }, []);
 
-  // Automatically reload to fetch the latest updates
-  useEffect(() => {
-    const id = setInterval(() => {
-      reloadingRef.current = true;
-      const tg = window?.Telegram?.WebApp;
-      if (tg?.reload) tg.reload();
-      else window.location.reload();
-    }, 3000);
-    return () => clearInterval(id);
-  }, []);
-
   const players = [
     { position: pos, photoUrl, type: tokenType, color: playerColors[0] },
     ...aiPositions.map((p, i) => ({ position: p, photoUrl: aiAvatars[i] || '/assets/icons/profile.svg', type: 'normal', color: playerColors[i + 1] }))
@@ -1273,9 +1262,7 @@ export default function SnakeAndLadder() {
 
   const handleReload = () => {
     reloadingRef.current = true;
-    const tg = window?.Telegram?.WebApp;
-    if (tg?.reload) tg.reload();
-    else window.location.reload();
+    window.location.reload();
   };
 
   return (
