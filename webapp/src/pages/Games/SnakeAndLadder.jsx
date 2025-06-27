@@ -323,7 +323,7 @@ function Board({
         style={{
           overflowX: "hidden",
           height: "100vh",
-          overscrollBehaviorY: "contain",
+          overscrollBehaviorY: "none",
           paddingTop,
           paddingBottom,
         }}
@@ -1111,34 +1111,38 @@ export default function SnakeAndLadder() {
       if (aiRollTimeoutRef.current) clearTimeout(aiRollTimeoutRef.current);
       aiRollTimeoutRef.current = setTimeout(() => {
         setAiRollTrigger((t) => t + 1);
-      }, 3000);
+      }, 1800);
       return () => clearTimeout(aiRollTimeoutRef.current);
     }
   }, [aiRollingIndex]);
 
   useEffect(() => {
     if (setupPhase || gameOver) return;
-    const limit = currentTurn === 0 ? 15 : 3;
+    if (currentTurn !== 0) {
+      setTimeLeft(2);
+      if (timerRef.current) clearTimeout(timerRef.current);
+      timerRef.current = setTimeout(() => {
+        triggerAIRoll(currentTurn);
+      }, 1800);
+      return () => clearTimeout(timerRef.current);
+    }
+    const limit = 15;
     setTimeLeft(limit);
     if (timerRef.current) clearInterval(timerRef.current);
     if (timerSoundRef.current) timerSoundRef.current.pause();
     timerRef.current = setInterval(() => {
       setTimeLeft((t) => {
         const next = t - 1;
-        if (next <= 7 && next >= 0 && timerSoundRef.current) {
+        if (currentTurn === 0 && next <= 7 && next >= 0 && timerSoundRef.current) {
           timerSoundRef.current.currentTime = 0;
           if (!muted) timerSoundRef.current.play().catch(() => {});
         }
         if (next <= 0) {
           timerSoundRef.current?.pause();
           clearInterval(timerRef.current);
-          if (currentTurn === 0) {
-            setPlayerAutoRolling(true);
-            setTurnMessage('Rolling...');
-            setPlayerRollTrigger((r) => r + 1);
-          } else {
-            triggerAIRoll(currentTurn);
-          }
+          setPlayerAutoRolling(true);
+          setTurnMessage('Rolling...');
+          setPlayerRollTrigger((r) => r + 1);
         }
         return next;
       });
@@ -1280,7 +1284,12 @@ export default function SnakeAndLadder() {
                 return setTurnMessage("Rolling...");
               }
             }
-            clickable={!aiRollingIndex && !playerAutoRolling && rollCooldown === 0}
+            clickable={
+              !aiRollingIndex &&
+              !playerAutoRolling &&
+              rollCooldown === 0 &&
+              currentTurn === 0
+            }
             numDice={diceCount + bonusDice}
             trigger={aiRollingIndex != null ? aiRollTrigger : playerAutoRolling ? playerRollTrigger : undefined}
             showButton={false}

@@ -61,7 +61,7 @@ body {
   inset: 0;
   z-index: -1;
   pointer-events: none;
-  filter: brightness(1.8);
+  filter: brightness(2);
   transform: translateY(90px);
 }
 
@@ -78,7 +78,7 @@ body {
 }
 
 .animate-roll {
-  animation: roll 1s ease-in-out;
+  animation: roll 0.5s ease-in-out;
 }
 
 .dice-container {
@@ -235,7 +235,7 @@ body {
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%) translateZ(40px);
-  font-size: 3rem;
+  font-size: 4.5rem;
   pointer-events: none;
   animation: flame-up 1.5s forwards;
 }
@@ -250,7 +250,7 @@ body {
 @keyframes flame-up {
   to {
     opacity: 0;
-    transform: translate(-50%, -80%) translateZ(40px) scale(2);
+    transform: translate(-50%, -80%) translateZ(40px) scale(3);
   }
 }
 
