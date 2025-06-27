@@ -33,9 +33,7 @@ export default function Lobby() {
         active = false;
         clearInterval(id);
       };
-    } else if (game === 'ludo') {
-      setTables([{ id: 'single', label: 'Single Player vs AI' }]);
-    }
+  }
   }, [game]);
 
   useEffect(() => {
@@ -76,7 +74,7 @@ export default function Lobby() {
   return (
     <div className="p-4 space-y-4 text-text">
       <h2 className="text-xl font-bold text-center capitalize">{game} Lobby</h2>
-      {(game === 'snake' || game === 'ludo') && (
+      {game === 'snake' && (
         <div className="space-y-2">
           <h3 className="font-semibold">Select Table</h3>
           <TableSelector tables={tables} selected={table} onSelect={setTable} />
@@ -94,13 +92,13 @@ export default function Lobby() {
           </ul>
         </div>
       )}
-      {!( (game === 'ludo' || game === 'snake') && table?.id === 'single') && (
+        {! (game === 'snake' && table?.id === 'single') && (
         <div className="space-y-2">
           <h3 className="font-semibold">Select Stake</h3>
           <RoomSelector selected={stake} onSelect={setStake} />
         </div>
       )}
-      {(game === 'ludo' || game === 'snake') && table?.id === 'single' && (
+        {game === 'snake' && table?.id === 'single' && (
         <div className="space-y-2">
           <h3 className="font-semibold">How many AI opponents?</h3>
           <div className="flex gap-2">
