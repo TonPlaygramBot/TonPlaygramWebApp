@@ -415,6 +415,7 @@ export default function SnakeAndLadder() {
   const [rollResult, setRollResult] = useState(null);
   const [diceCells, setDiceCells] = useState({});
   const [bonusDice, setBonusDice] = useState(0);
+  const [rewardDice, setRewardDice] = useState(0);
   const [diceCount, setDiceCount] = useState(2);
   const [gameOver, setGameOver] = useState(false);
   const [ai, setAi] = useState(0);
@@ -885,9 +886,14 @@ export default function SnakeAndLadder() {
             return n;
           });
           setBonusDice(bonus);
+          setRewardDice(bonus);
           setTurnMessage('Bonus roll');
           extraTurn = true;
-          if (!muted) yabbaSoundRef.current?.play().catch(() => {});
+          if (!muted) {
+            diceRewardSoundRef.current?.play().catch(() => {});
+            yabbaSoundRef.current?.play().catch(() => {});
+          }
+          setTimeout(() => setRewardDice(0), 1000);
         } else if (doubleSix) {
           setTurnMessage('Double six! Roll again');
           setBonusDice(0);
@@ -1009,7 +1015,23 @@ export default function SnakeAndLadder() {
         return;
       }
       let extraTurn = false;
-      if (doubleSix) {
+      if (diceCells[finalPos]) {
+        const bonus = diceCells[finalPos];
+        setDiceCells((d) => {
+          const n = { ...d };
+          delete n[finalPos];
+          return n;
+        });
+        setBonusDice(bonus);
+        setRewardDice(bonus);
+        setTurnMessage('Bonus roll');
+        extraTurn = true;
+        if (!muted) {
+          diceRewardSoundRef.current?.play().catch(() => {});
+          yabbaSoundRef.current?.play().catch(() => {});
+        }
+        setTimeout(() => setRewardDice(0), 1000);
+      } else if (doubleSix) {
         extraTurn = true;
       }
       const next = extraTurn ? index : (index + 1) % (ai + 1);
@@ -1259,6 +1281,13 @@ export default function SnakeAndLadder() {
           <div className="text-7xl roll-result" style={{ color: rollColor }}>
             {rollResult}
           </div>
+        </div>
+      )}
+      {rewardDice > 0 && (
+        <div className="fixed bottom-40 inset-x-0 flex justify-center z-30 pointer-events-none reward-dice-container">
+          {Array.from({ length: rewardDice }).map((_, i) => (
+            <img key={i} src="/assets/icons/Dice.png" className="reward-dice" />
+          ))}
         </div>
       )}
       {diceVisible && (

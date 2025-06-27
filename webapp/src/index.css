@@ -689,6 +689,17 @@ body {
   text-shadow: 0 0 2px #000;
 }
 
+.reward-dice-container {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.reward-dice {
+  width: 3rem;
+  height: 3rem;
+  animation: popup-move 1s ease-out forwards;
+}
+
 .pot-cell {
   @apply absolute flex flex-col items-center justify-center;
   width: calc(var(--cell-width) * 2.7);
