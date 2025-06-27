@@ -890,7 +890,7 @@ export default function SnakeAndLadder() {
     let current = positions[index - 1];
     let target = current;
     if (current === 0) {
-      if (rolledSix) target = 1;
+      if (rolledSix) target = Math.min(value, FINAL_TILE);
     } else if (current === 100) {
       if (value === 1) target = FINAL_TILE;
     } else if (current + value <= FINAL_TILE) {

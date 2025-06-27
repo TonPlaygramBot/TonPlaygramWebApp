@@ -12,7 +12,10 @@ export default function AvatarTimer({ photoUrl, active = false, timerPct = 1, ra
         src={photoUrl}
         alt="player"
         className="w-10 h-10 rounded-full border-2 object-cover"
-        style={{ borderColor: color || '#fde047' }}
+        style={{
+          borderColor: color || '#fde047',
+          boxShadow: isTurn ? `0 0 6px ${color || '#fde047'}` : undefined,
+        }}
       />
       {isTurn && (
         <span className="turn-indicator">👈</span>
