@@ -133,7 +133,15 @@ Each script will start a bot that responds to commands such as `/roll` or `/star
 
 ### Customizing Snakes & Ladders icons
 
-All webapp icons are stored in `webapp/public/assets/icons`. The board now uses emoji symbols (🐍, 🪜 and 🎲) for snake, ladder and dice connectors instead of `snake.svg`, `ladder.svg` and `dice.svg`.
+All webapp icons are stored in `webapp/public/icons`. The board now uses emoji symbols (🐍, 🪜 and 🎲) for snake, ladder and dice connectors instead of `snake.svg`, `ladder.svg` and `dice.svg`.
+
+Token icons for the lobby and wallet are:
+
+- `TON.png`
+- `TPCcoin.png`
+- `Usdt.png`
+
+Place your own images with those exact names in `webapp/public/icons` to override them.
 
 ### Snake & Ladder engine notes
 
