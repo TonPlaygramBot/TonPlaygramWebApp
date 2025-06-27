@@ -495,11 +495,10 @@ export default function SnakeAndLadder() {
         setTimeout(() => {
           setBurning((b) => b.filter((v) => v !== idx));
           if (idx === 0) setPos(0);
-          else setAiPositions((arr) => {
-            const copy = [...arr];
-            copy[idx - 1] = 0;
-            return copy;
-          });
+          else
+            setAiPositions((arr) =>
+              arr.map((p, i) => (i === idx - 1 ? 0 : p))
+            );
         }, 1000);
       });
     }
@@ -929,11 +928,11 @@ export default function SnakeAndLadder() {
         // Use functional state update so concurrent moves don't
         // overwrite each other. Mutating a shared array caused AI
         // players to control the wrong token.
-        setAiPositions((arr) => {
-          const copy = [...arr];
-          copy[index - 1] = next;
-          return copy;
-        });
+        // Update only the moving AI's position so other tokens remain
+        // unaffected even if multiple moves occur simultaneously.
+        setAiPositions((arr) =>
+          arr.map((p, i) => (i === index - 1 ? next : p))
+        );
         current = next;
         moveSoundRef.current.currentTime = 0;
         if (!muted) moveSoundRef.current.play().catch(() => {});
@@ -956,11 +955,9 @@ export default function SnakeAndLadder() {
     const finalizeMove = (finalPos, type) => {
       // Functional update prevents race conditions if multiple
       // AI turns happen close together.
-      setAiPositions((arr) => {
-        const copy = [...arr];
-        copy[index - 1] = finalPos;
-        return copy;
-      });
+      setAiPositions((arr) =>
+        arr.map((p, i) => (i === index - 1 ? finalPos : p))
+      );
       setHighlight({ cell: finalPos, type });
       setTrail([]);
       capturePieces(finalPos, index);
