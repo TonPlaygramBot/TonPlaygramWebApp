@@ -1152,32 +1152,8 @@ export default function SnakeAndLadder() {
     setShowLobbyConfirm(false);
   };
 
-  const handleReload = async () => {
-    try {
-      const params = new URLSearchParams(window.location.search);
-      const table = params.get('table') || 'snake-4';
-      const { snakes: snakesObj = {}, ladders: laddersObj = {} } =
-        await getSnakeBoard(table);
-      const limit = (obj) =>
-        Object.fromEntries(Object.entries(obj).slice(0, 8));
-      const snakesLim = limit(snakesObj);
-      const laddersLim = limit(laddersObj);
-      setSnakes(snakesLim);
-      setLadders(laddersLim);
-      const snk = {};
-      Object.entries(snakesLim).forEach(([s, e]) => {
-        snk[s] = s - e;
-      });
-      const lad = {};
-      Object.entries(laddersLim).forEach(([s, e]) => {
-        const end = typeof e === 'object' ? e.end : e;
-        lad[s] = end - s;
-      });
-      setSnakeOffsets(snk);
-      setLadderOffsets(lad);
-    } catch {
-      // ignore errors so players stay in the game
-    }
+  const handleRefresh = () => {
+    window.location.reload();
   };
 
   return (
@@ -1185,11 +1161,11 @@ export default function SnakeAndLadder() {
       {/* Action menu fixed to the top right */}
       <div className="fixed right-1 top-4 flex flex-col items-center space-y-2 z-20">
         <button
-          onClick={handleReload}
+          onClick={handleRefresh}
           className="p-2 flex flex-col items-center"
         >
           <AiOutlineReload className="text-xl" />
-          <span className="text-xs">Reload</span>
+          <span className="text-xs">Refresh</span>
         </button>
         <button
           onClick={() => setShowInfo(true)}
