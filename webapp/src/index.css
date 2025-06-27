@@ -64,8 +64,9 @@ body {
   bottom: -20px;
   z-index: -1;
   pointer-events: none;
-  filter: brightness(2);
-  transform: translateY(90px);
+  /* slightly brighter and scaled up */
+  filter: brightness(2.4);
+  transform: translateY(90px) scale(1.2);
 }
 
 @keyframes roll {
