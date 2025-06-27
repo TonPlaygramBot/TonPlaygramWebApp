@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useLayoutEffect, Fragment } from "react";
 import confetti from "canvas-confetti";
 import DiceRoller from "../../components/DiceRoller.jsx";
-import { dropSound, snakeSound, ladderSound, bombSound, timerBeep } from "../../assets/soundData.js";
+import { dropSound, snakeSound, ladderSound, bombSound, timerBeep, cheerSound } from "../../assets/soundData.js";
 import { AVATARS } from "../../components/AvatarPickerModal.jsx";
 import { getAvatarUrl, saveAvatar, loadAvatar } from "../../utils/avatarUtils.js";
 import InfoPopup from "../../components/InfoPopup.jsx";
@@ -524,6 +524,7 @@ export default function SnakeAndLadder() {
   const yabbaSoundRef = useRef(null);
   const hahaSoundRef = useRef(null);
   const bombSoundRef = useRef(null);
+  const cheerSoundRef = useRef(null);
   const timerSoundRef = useRef(null);
   const timerRef = useRef(null);
   const aiRollTimeoutRef = useRef(null);
@@ -566,6 +567,7 @@ export default function SnakeAndLadder() {
     hahaSoundRef.current = new Audio("/assets/sounds/Haha.mp3");
     bombSoundRef.current = new Audio(bombSound);
     timerSoundRef.current = new Audio(timerBeep);
+    cheerSoundRef.current = new Audio(cheerSound);
     return () => {
       moveSoundRef.current?.pause();
       snakeSoundRef.current?.pause();
@@ -575,6 +577,7 @@ export default function SnakeAndLadder() {
       yabbaSoundRef.current?.pause();
       hahaSoundRef.current?.pause();
       bombSoundRef.current?.pause();
+      cheerSoundRef.current?.pause();
       timerSoundRef.current?.pause();
     };
   }, []);
@@ -589,6 +592,7 @@ export default function SnakeAndLadder() {
       yabbaSoundRef,
       hahaSoundRef,
       bombSoundRef,
+      cheerSoundRef,
       timerSoundRef,
     ].forEach((r) => {
       if (r.current) r.current.muted = muted;
@@ -796,7 +800,13 @@ export default function SnakeAndLadder() {
           return;
         }
       } else if (current === 0) {
-        if (rolledSix) target = 1;
+        if (rolledSix) {
+          if (!muted) {
+            cheerSoundRef.current.currentTime = 0;
+            cheerSoundRef.current.play().catch(() => {});
+          }
+          target = 1;
+        }
         else {
           setMessage("Need a 6 to start!");
           setTurnMessage("");
@@ -856,13 +866,17 @@ export default function SnakeAndLadder() {
           setMessage('🐍');
           setMessageColor("text-red-500");
           if (!muted) snakeSoundRef.current?.play().catch(() => {});
+          const exitBoard = offset > 1;
           const seq = [];
-          for (let i = 1; i <= offset && startPos - i >= 0; i++)
-            seq.push(startPos - i);
+          if (exitBoard) {
+            for (let i = startPos - 1; i >= 0; i--) seq.push(i);
+          } else {
+            for (let i = 1; i <= offset && startPos - i >= 0; i++)
+              seq.push(startPos - i);
+          }
+          const finalPos = exitBoard ? 0 : Math.max(0, snakeEnd);
           const move = () =>
-            moveSeq(seq, "snake", () =>
-              finalizeMove(Math.max(0, snakeEnd), "snake"),
-            );
+            moveSeq(seq, "snake", () => finalizeMove(finalPos, "snake"));
           flashHighlight(startPos, "snake", 2, move);
         } else if (ladderEnd != null) {
           const offset = ladderEnd - startPos;
@@ -1093,9 +1107,15 @@ export default function SnakeAndLadder() {
         setOffsetPopup({ cell: startPos, type: 'snake', amount: offset });
         setTimeout(() => setOffsetPopup(null), 1000);
         if (!muted) snakeSoundRef.current?.play().catch(() => {});
+        const exitBoard = offset > 1;
         const seq = [];
-        for (let i = 1; i <= offset && startPos - i >= 0; i++) seq.push(startPos - i);
-        const move = () => moveSeq(seq, 'snake', () => finalizeMove(Math.max(0, snakeEnd), 'snake'));
+        if (exitBoard) {
+          for (let i = startPos - 1; i >= 0; i--) seq.push(i);
+        } else {
+          for (let i = 1; i <= offset && startPos - i >= 0; i++) seq.push(startPos - i);
+        }
+        const finalPos = exitBoard ? 0 : Math.max(0, snakeEnd);
+        const move = () => moveSeq(seq, 'snake', () => finalizeMove(finalPos, 'snake'));
         flashHighlight(startPos, 'snake', 2, move);
       } else if (ladderEnd != null) {
         const offset = ladderEnd - startPos;
