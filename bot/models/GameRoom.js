@@ -4,7 +4,6 @@ const playerSchema = new mongoose.Schema(
   {
     playerId: String,
     name: String,
-    index: Number,
     position: { type: Number, default: 0 },
     isActive: { type: Boolean, default: false },
     disconnected: { type: Boolean, default: false }
