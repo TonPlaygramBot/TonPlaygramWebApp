@@ -6,5 +6,3 @@ bot/package-lock.json
 .idea
 bot/.env
 /webapp/dist/
-
-webapp/public/games/ludo/
