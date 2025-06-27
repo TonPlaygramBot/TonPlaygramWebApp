@@ -176,3 +176,19 @@ if (Date.now() - player.lastRollTime < this.rollCooldown) return;
 Opening the Snake & Ladder game without specifying an `ai` parameter now
 defaults to one computer opponent. You can set `?ai=1`, `?ai=2` or `?ai=3` in
 the URL – or pick the number in the lobby – to change how many AI players join.
+
+### Entering the Snake & Ladder game
+
+To move from the start you must roll at least one six when rolling two dice. Any combination containing a six lets you enter the board, including:
+
+- 6 + 1
+- 6 + 2
+- 6 + 3
+- 6 + 4
+- 6 + 5
+- 6 + 6
+- 1 + 6
+- 2 + 6
+- 3 + 6
+- 4 + 6
+- 5 + 6
