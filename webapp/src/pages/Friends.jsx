@@ -89,7 +89,7 @@ export default function Friends() {
     <div className="relative p-4 space-y-4 text-text">
       <img
         src="/assets/SnakeLaddersbackground.png"
-        className="background-behind-board object-cover"
+        className="background-behind-board friend-background object-cover"
         alt=""
       />
       <h2 className="text-xl font-bold">Friends</h2>

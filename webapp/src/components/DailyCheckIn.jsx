@@ -104,9 +104,9 @@ export default function DailyCheckIn() {
 
         key={i}
 
-        className={`flex flex-col items-center justify-center p-2 rounded border border-border w-20 text-xs ${
+        className={`board-style w-20 p-2 flex flex-col items-center justify-center text-xs ${
 
-          i === streak - 1 ? 'bg-accent text-white' : 'bg-surface text-text'
+          i === streak - 1 ? 'bg-accent text-black' : ''
 
         }`}
 
