@@ -3,7 +3,10 @@ import React from 'react';
 export default function ConfirmPopup({ open, message, onConfirm, onCancel }) {
   if (!open) return null;
   return (
-    <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-70 z-50">
+    <div
+      className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-70"
+      style={{ zIndex: 60 }}
+    >
       <div className="prism-box p-6 space-y-4 text-text w-80">
         <p className="text-sm text-center">{message}</p>
         <div className="flex gap-2">

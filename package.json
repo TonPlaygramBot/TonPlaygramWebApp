@@ -9,7 +9,8 @@
     "install-all": "npm install --prefix bot && npm install --prefix webapp",
     "postinstall": "npm run install-all",
     "build": "npm --prefix webapp run build",
-    "test": "node --test"
+    "test": "node --test",
+    "recalculate-balances": "node bot/scripts/recalculateBalances.js"
   },
   "engines": {
     "node": ">=18"
