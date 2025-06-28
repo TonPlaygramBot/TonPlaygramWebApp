@@ -7,10 +7,10 @@ export default function ConfirmPopup({ open, message, onConfirm, onCancel }) {
       <div className="prism-box p-6 space-y-4 text-text w-80">
         <p className="text-sm text-center">{message}</p>
         <div className="flex gap-2">
-          <button type="button" onClick={onConfirm} className="flex-1 lobby-tile text-sm">
+          <button type="button" onClick={onConfirm} className="flex-1 lobby-tile text-sm cursor-pointer">
             Yes
           </button>
-          <button type="button" onClick={onCancel} className="flex-1 lobby-tile text-sm">
+          <button type="button" onClick={onCancel} className="flex-1 lobby-tile text-sm cursor-pointer">
             No
           </button>
         </div>
