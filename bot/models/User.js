@@ -14,6 +14,8 @@ const userSchema = new mongoose.Schema({
 
   telegramId: { type: Number, unique: true },
 
+  googleId: { type: String, unique: true },
+
   walletAddress: { type: String, unique: true },
 
   createdAt: { type: Date, default: Date.now },
@@ -62,7 +64,7 @@ const userSchema = new mongoose.Schema({
 
 userSchema.pre('save', function(next) {
   if (!this.referralCode) {
-    const base = this.telegramId || this.walletAddress || '';
+    const base = this.telegramId || this.googleId || this.walletAddress || '';
     this.referralCode = String(base);
   }
   next();
