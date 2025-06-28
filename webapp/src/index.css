@@ -976,3 +976,21 @@ body {
   box-shadow: inset 0 0 6px rgba(0, 0, 0, 0.6);
   transform: translateZ(6px);
 }
+
+/* Box style matching the first Snake & Ladder board tile */
+.board-box {
+  @apply relative flex flex-col items-center justify-center rounded-xl text-white;
+  background-color: #6db0ad;
+  border: 2px solid #334155;
+  box-shadow: 0 8px 12px rgba(0, 0, 0, 0.6);
+  transform-style: preserve-3d;
+}
+
+.board-box::after {
+  content: "";
+  position: absolute;
+  inset: 2px;
+  border-radius: inherit;
+  box-shadow: inset 0 0 6px rgba(0, 0, 0, 0.6);
+  transform: translateZ(6px);
+}
