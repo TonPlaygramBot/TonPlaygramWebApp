@@ -38,7 +38,7 @@ export default function UserSearchBar() {
       {results.length > 0 && (
         <ul className="space-y-1">
           {results.map((u) => (
-            <li key={u.telegramId} className="flex items-center justify-between">
+            <li key={u.telegramId} className="lobby-tile flex items-center justify-between">
               <span>
                 {u.nickname || `${u.firstName} ${u.lastName}`.trim() || 'User'}
               </span>

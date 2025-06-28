@@ -43,9 +43,9 @@ export default function BalanceSummary() {
         </Link>
       </p>
       <div className="flex justify-around text-sm mt-1">
-        <Token icon="/icons/TON.png" label="TON" value={balances.ton ?? '...'} />
-        <Token icon="/icons/TPCcoin.png" label="TPC" value={balances.tpc ?? '...'} />
-        <Token icon="/icons/Usdt.png" label="USDT" value={balances.usdt ?? '0'} />
+        <Token icon="/icons/TON.png" label="TON" value={balances.ton ?? 0} />
+        <Token icon="/icons/TPCcoin.png" label="TPC" value={balances.tpc ?? 0} />
+        <Token icon="/icons/Usdt.png" label="USDT" value={balances.usdt ?? 0} />
       </div>
     </div>
   );

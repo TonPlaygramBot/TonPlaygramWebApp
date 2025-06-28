@@ -103,7 +103,7 @@ export default function Friends() {
         <section className="space-y-1">
           <h3 className="text-lg font-semibold">Friend Requests</h3>
           {friendRequests.map((fr) => (
-            <div key={fr._id} className="flex items-center space-x-2">
+            <div key={fr._id} className="lobby-tile flex items-center justify-between">
               <span>{fr.from}</span>
               <button
                 onClick={async () => {
