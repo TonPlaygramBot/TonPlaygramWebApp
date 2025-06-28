@@ -285,7 +285,8 @@ function Board({
   // Tilt angle for the entire board in 3D space
   const angle = 58; // set board tilt to 58 degrees
   // Small horizontal offset so the board sits perfectly centered
-  const boardXOffset = 0; // pixels - center horizontally
+  // Slightly shift the board to the right so it is not perfectly centred
+  const boardXOffset = 10; // pixels
   // Lift the board slightly so the bottom row stays visible. Lowered slightly
   // so the logo at the top of the board isn't cropped off screen. Zeroing this
   // aligns the board vertically with the frame.
@@ -1332,22 +1333,11 @@ export default function SnakeAndLadder() {
       rankMap[p.idx] = p.pos === 0 ? 0 : i + 1;
     });
 
-  const handleReload = () => {
-    reloadingRef.current = true;
-    window.location.reload();
-  };
 
   return (
     <div className="p-4 pb-32 space-y-4 text-text flex flex-col justify-end items-center relative w-full flex-grow">
-      {/* Action menu fixed to the top right */}
-      <div className="fixed right-0 top-4 flex flex-col items-center space-y-2 z-20">
-        <button
-          onClick={handleReload}
-          className="p-2 flex flex-col items-center"
-        >
-          <AiOutlineReload className="text-xl" />
-          <span className="text-xs">Reload</span>
-        </button>
+      {/* Action menu moved to the bottom left with only info and mute */}
+      <div className="fixed left-4 bottom-4 flex flex-col items-center space-y-2 z-20">
         <button
           onClick={() => setShowInfo(true)}
           className="p-2 flex flex-col items-center"
@@ -1361,13 +1351,6 @@ export default function SnakeAndLadder() {
         >
           <span className="text-xl">🔇</span>
           <span className="text-xs">{muted ? 'Unmute' : 'Mute'}</span>
-        </button>
-        <button
-          onClick={() => setShowLobbyConfirm(true)}
-          className="p-2 flex flex-col items-center"
-        >
-          <AiOutlineRollback className="text-xl" />
-          <span className="text-xs">Lobby</span>
         </button>
       </div>
       {/* Player photos stacked vertically */}
