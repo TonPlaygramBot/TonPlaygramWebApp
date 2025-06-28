@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import useTelegramBackButton from '../hooks/useTelegramBackButton.js';
-import OpenInTelegram from '../components/OpenInTelegram.jsx';
+import LoginOptions from '../components/LoginOptions.jsx';
 import { getTelegramId } from '../utils/telegram.js';
 import { getMessages, sendMessage, listFriends } from '../utils/api.js';
 
@@ -10,7 +10,7 @@ export default function Messages() {
   try {
     telegramId = getTelegramId();
   } catch (err) {
-    return <OpenInTelegram />;
+    return <LoginOptions />;
   }
 
   const [friends, setFriends] = useState([]);

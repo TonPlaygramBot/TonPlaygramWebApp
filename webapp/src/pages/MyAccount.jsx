@@ -12,7 +12,7 @@ import {
   getTelegramLastName,
   getTelegramPhotoUrl
 } from '../utils/telegram.js';
-import OpenInTelegram from '../components/OpenInTelegram.jsx';
+import LoginOptions from '../components/LoginOptions.jsx';
 import { BOT_USERNAME } from '../utils/constants.js';
 import BalanceSummary from '../components/BalanceSummary.jsx';
 import useTelegramBackButton from '../hooks/useTelegramBackButton.js';
@@ -28,7 +28,7 @@ export default function MyAccount() {
   try {
     telegramId = getTelegramId();
   } catch (err) {
-    return <OpenInTelegram />;
+    return <LoginOptions />;
   }
 
   const [profile, setProfile] = useState(null);

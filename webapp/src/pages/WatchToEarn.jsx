@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { listVideos, watchVideo } from '../utils/api.js';
 import { getTelegramId } from '../utils/telegram.js';
-import OpenInTelegram from '../components/OpenInTelegram.jsx';
+import LoginOptions from '../components/LoginOptions.jsx';
 import useTelegramBackButton from '../hooks/useTelegramBackButton.js';
 
 export default function WatchToEarn() {
@@ -10,7 +10,7 @@ export default function WatchToEarn() {
   try {
     telegramId = getTelegramId();
   } catch (err) {
-    return <OpenInTelegram />;
+    return <LoginOptions />;
   }
   const [videos, setVideos] = useState(null);
 

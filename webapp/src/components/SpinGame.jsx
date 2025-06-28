@@ -9,14 +9,14 @@ import {
   addTransaction
 } from '../utils/api.js';
 import { getTelegramId } from '../utils/telegram.js';
-import OpenInTelegram from './OpenInTelegram.jsx';
+import LoginOptions from './LoginOptions.jsx';
 
 export default function SpinGame() {
   let telegramId;
   try {
     telegramId = getTelegramId();
   } catch (err) {
-    return <OpenInTelegram />;
+    return <LoginOptions />;
   }
   const [lastSpin, setLastSpin] = useState(null);
   const [reward, setReward] = useState(null);

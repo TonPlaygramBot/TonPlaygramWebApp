@@ -9,7 +9,7 @@ import {
 import ReactMarkdown from 'react-markdown';
 
 import useTelegramBackButton from '../hooks/useTelegramBackButton.js';
-import OpenInTelegram from '../components/OpenInTelegram.jsx';
+import LoginOptions from '../components/LoginOptions.jsx';
 import InboxWidget from '../components/InboxWidget.jsx';
 import { getTelegramId } from '../utils/telegram.js';
 import {
@@ -29,7 +29,7 @@ export default function Trending() {
   try {
     telegramId = getTelegramId();
   } catch (err) {
-    return <OpenInTelegram />;
+    return <LoginOptions />;
   }
 
   const [posts, setPosts] = useState([]);

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import OpenInTelegram from './OpenInTelegram.jsx';
+import LoginOptions from './LoginOptions.jsx';
 import { getTelegramId } from '../utils/telegram.js';
 import { listFriends, getMessages, sendMessage } from '../utils/api.js';
 
@@ -8,7 +8,7 @@ export default function InboxWidget() {
   try {
     telegramId = getTelegramId();
   } catch (err) {
-    return <OpenInTelegram />;
+    return <LoginOptions />;
   }
 
   const [friends, setFriends] = useState([]);

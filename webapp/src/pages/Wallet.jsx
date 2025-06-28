@@ -6,7 +6,7 @@ import {
   resetTpcWallet
 } from '../utils/api.js';
 import { getTelegramId } from '../utils/telegram.js';
-import OpenInTelegram from '../components/OpenInTelegram.jsx';
+import LoginOptions from '../components/LoginOptions.jsx';
 import useTelegramBackButton from '../hooks/useTelegramBackButton.js';
 
 export default function Wallet() {
@@ -16,7 +16,7 @@ export default function Wallet() {
   try {
     telegramId = getTelegramId();
   } catch (err) {
-    return <OpenInTelegram />;
+    return <LoginOptions />;
   }
 
   const [tpcBalance, setTpcBalance] = useState(null);

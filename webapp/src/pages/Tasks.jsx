@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react';
 import { listTasks, completeTask } from '../utils/api.js';
 
 import { getTelegramId } from '../utils/telegram.js';
-import OpenInTelegram from '../components/OpenInTelegram.jsx';
+import LoginOptions from '../components/LoginOptions.jsx';
 
 import { IoLogoTwitter, IoLogoTiktok } from 'react-icons/io5';
 
@@ -16,7 +16,7 @@ export default function Tasks() {
   try {
     telegramId = getTelegramId();
   } catch (err) {
-    return <OpenInTelegram />;
+    return <LoginOptions />;
   }
 
   const [tasks, setTasks] = useState(null);
