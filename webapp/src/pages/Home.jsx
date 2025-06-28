@@ -90,8 +90,8 @@ export default function Home() {
 
 
   return (
-    <>
-      <div className="space-y-4">
+
+    <div className="space-y-4">
 
       <div className="flex flex-col items-center">
 
@@ -136,10 +136,9 @@ export default function Home() {
         <ProfileCard />
       </div>
 
-        <p className="text-center text-xs text-subtext">Status: {status}</p>
+      <p className="text-center text-xs text-subtext">Status: {status}</p>
 
       </div>
       <AirdropPopup open={airdropOpen} onClaim={handleClaimAirdrop} />
-    </>
-  );
+    );
   }
