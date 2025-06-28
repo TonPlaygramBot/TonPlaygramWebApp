@@ -1,12 +1,12 @@
 import React from 'react';
 
-export default function Branding() {
+export default function Branding({ small = false }) {
   return (
     <div className="text-center py-6 space-y-2">
       <img
         src="/assets/TonPlayGramLogo.jpg"
         alt="TonPlaygram Logo"
-        className="mx-auto "
+        className={`mx-auto ${small ? 'scale-95' : ''}`}
       />
     </div>
   );

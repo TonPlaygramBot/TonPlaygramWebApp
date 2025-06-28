@@ -43,7 +43,7 @@ export default function SpinGame() {
   const ready = canSpin(lastSpin);
 
   return (
-    <div className="relative bg-surface border border-border rounded-xl p-4 flex flex-col items-center space-y-2">
+    <div className="relative bg-surface border border-border rounded-xl p-4 flex flex-col items-center space-y-2 overflow-hidden">
       <img
         src="/assets/SnakeLaddersbackground.png"
         className="background-behind-board object-cover"
