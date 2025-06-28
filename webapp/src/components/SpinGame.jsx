@@ -43,7 +43,7 @@ export default function SpinGame() {
   const ready = canSpin(lastSpin);
 
   return (
-    <div className="bg-surface border border-border rounded p-4 flex flex-col items-center space-y-2">
+    <div className="prism-box p-4 flex flex-col items-center space-y-2">
       <h3 className="text-lg font-bold text-text">Spin &amp; Win</h3>
       <p className="text-sm text-subtext">Try your luck and win rewards!</p>
       <SpinWheel

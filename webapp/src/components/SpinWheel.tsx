@@ -158,7 +158,7 @@ export default forwardRef<SpinWheelHandle, SpinWheelProps>(function SpinWheel(
 
             >
 
-              <img src="/icons/TPCcoin.png" alt="TPC" className="w-6 h-6 mr-1" />
+              <img src="/icons/TPCcoin.png" alt="TPC" className="w-8 h-8 mr-1" />
 
               <span>{val}</span>
 

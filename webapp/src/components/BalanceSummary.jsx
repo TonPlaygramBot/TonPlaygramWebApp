@@ -54,7 +54,7 @@ export default function BalanceSummary() {
 function Token({ icon, value, label }) {
   return (
     <div className="flex items-center space-x-1">
-      <img src={icon} alt={label} className="w-6 h-6" />
+      <img src={icon} alt={label} className="w-8 h-8" />
       <span>{value}</span>
     </div>
   );
