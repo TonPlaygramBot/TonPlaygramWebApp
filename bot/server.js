@@ -25,6 +25,10 @@ import { existsSync } from 'fs';
 import { execSync } from 'child_process';
 import compression from 'compression';
 
+const DEV_ACCOUNT_ID = process.env.DEV_ACCOUNT_ID ||
+  '5ffe7c43-c0ae-48f6-ab8c-9e065ca95466';
+const DEV_INITIAL_BALANCE = Number(process.env.DEV_INITIAL_BALANCE) || 500000;
+
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 dotenv.config({ path: path.join(__dirname, '.env') });
 
@@ -43,6 +47,27 @@ app.use(cors());
 const httpServer = http.createServer(app);
 const io = new SocketIOServer(httpServer, { cors: { origin: '*' } });
 const gameManager = new GameRoomManager(io);
+
+async function ensureDevAccount() {
+  try {
+    let dev = await User.findOne({ accountId: DEV_ACCOUNT_ID });
+    if (!dev) {
+      dev = new User({
+        accountId: DEV_ACCOUNT_ID,
+        balance: DEV_INITIAL_BALANCE,
+        referralCode: DEV_ACCOUNT_ID
+      });
+      await dev.save();
+      console.log('Created dev account with balance', DEV_INITIAL_BALANCE);
+    } else if (dev.balance < DEV_INITIAL_BALANCE) {
+      dev.balance = DEV_INITIAL_BALANCE;
+      await dev.save();
+      console.log('Topped up dev account to', DEV_INITIAL_BALANCE);
+    }
+  } catch (err) {
+    console.error('Failed to ensure dev account:', err.message);
+  }
+}
 
 // Middleware and routes
 app.use(compression());
@@ -198,6 +223,7 @@ mongoose.connection.once('open', () => {
   gameManager.loadRooms().catch((err) =>
     console.error('Failed to load game rooms:', err)
   );
+  ensureDevAccount();
 });
 
 io.on('connection', (socket) => {
