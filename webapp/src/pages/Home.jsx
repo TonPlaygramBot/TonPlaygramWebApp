@@ -79,11 +79,7 @@ export default function Home() {
   const handleClaimAirdrop = async () => {
     const id = getTelegramId();
     try {
-      const res = await claimWelcomeAirdrop(id);
-      if (res.error) {
-        alert(res.error);
-        return;
-      }
+      await claimWelcomeAirdrop(id);
       await recalcWalletBalance(id);
     } catch (err) {
       console.error('Airdrop claim failed', err);
