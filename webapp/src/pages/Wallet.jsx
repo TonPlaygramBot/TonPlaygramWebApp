@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import QRCode from 'react-qr-code';
 import {
   createAccount,
   getAccountBalance,
@@ -147,6 +148,11 @@ export default function Wallet() {
           >
             Copy Account Number
           </button>
+          {accountId && (
+            <div className="mt-2 flex justify-center">
+              <QRCode value={String(accountId)} size={100} />
+            </div>
+          )}
         </div>
       </div>
 
@@ -160,7 +166,9 @@ export default function Wallet() {
               className="flex justify-between border-b border-border pb-1"
             >
               <span>{tx.type}</span>
-              <span>{tx.amount}</span>
+              <span className={tx.amount > 0 ? 'text-green-500' : 'text-red-500'}>
+                {tx.amount}
+              </span>
               <span>{new Date(tx.date).toLocaleString()}</span>
               <span className="text-xs">{tx.status}</span>
             </div>

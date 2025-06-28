@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { getWalletBalance } from '../utils/api.js';
+import { getTransactions } from '../utils/api.js';
 import { getTelegramId } from '../utils/telegram.js';
 import LoginOptions from './LoginOptions.jsx';
 
@@ -19,8 +19,12 @@ export default function WalletCard() {
   const [tpcBalance, setTpcBalance] = useState(null);
 
   const loadBalance = async () => {
-    const prof = await getWalletBalance(telegramId);
-    setTpcBalance(prof.balance);
+    const tx = await getTransactions(telegramId);
+    const total = (tx.transactions || []).reduce(
+      (sum, t) => sum + (typeof t.amount === 'number' ? t.amount : 0),
+      0
+    );
+    setTpcBalance(total);
   };
 
   useEffect(() => {

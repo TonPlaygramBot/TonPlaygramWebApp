@@ -234,7 +234,9 @@ export default function MyAccount() {
                 className="flex justify-between border-b border-border pb-1"
               >
                 <span>{tx.type}</span>
-                <span>{tx.amount}</span>
+                <span className={tx.amount > 0 ? 'text-green-500' : 'text-red-500'}>
+                  {tx.amount}
+                </span>
                 <span>{new Date(tx.date).toLocaleString()}</span>
                 <span className="text-xs">{tx.status}</span>
               </div>
