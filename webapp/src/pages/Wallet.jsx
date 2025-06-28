@@ -57,18 +57,19 @@ export default function Wallet() {
   }, []);
 
   const handleSend = async () => {
+    const to = receiver.trim();
     const amt = Number(amount);
-    if (!receiver || !amt) return;
-    if (!window.confirm(`Send ${amt} TPC to ${receiver}?`)) return;
+    if (!to || !amt) return;
+    if (!window.confirm(`Send ${amt} TPC to ${to}?`)) return;
     setSending(true);
     try {
-      const res = await sendAccountTpc(accountId, receiver, amt);
+      const res = await sendAccountTpc(accountId, to, amt);
       if (res?.error) {
         alert(res.error);
         return;
       }
       setReceipt({
-        to: receiver,
+        to,
         amount: amt,
         date: res.transaction?.date
           ? new Date(res.transaction.date).toLocaleString()
@@ -103,8 +104,8 @@ export default function Wallet() {
         <div className="space-y-1">
           <label className="block">Send TPC</label>
           <input
-            type="number"
-            placeholder="Receiver Account ID"
+            type="text"
+            placeholder="Receiver Account Number"
             value={receiver}
             onChange={(e) => setReceiver(e.target.value)}
             className="border p-1 rounded w-full text-black"
