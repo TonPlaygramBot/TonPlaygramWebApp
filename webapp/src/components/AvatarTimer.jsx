@@ -25,7 +25,7 @@ export default function AvatarTimer({ photoUrl, active = false, timerPct = 1, ra
         <span className="rank-number">{rank}</span>
       )}
       {name && (
-        <span className="rank-name" style={{ color: active ? '#4ade80' : undefined }}>
+        <span className="rank-name" style={{ color: color || '#fde047' }}>
           {name}
         </span>
       )}
