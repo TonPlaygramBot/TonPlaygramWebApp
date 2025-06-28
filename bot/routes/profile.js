@@ -18,6 +18,19 @@ router.post('/register-wallet', async (req, res) => {
   res.json(user);
 });
 
+router.post('/register-google', async (req, res) => {
+  const { googleId } = req.body;
+  if (!googleId) {
+    return res.status(400).json({ error: 'googleId required' });
+  }
+  const user = await User.findOneAndUpdate(
+    { googleId },
+    { $setOnInsert: { googleId, referralCode: googleId } },
+    { upsert: true, new: true }
+  );
+  res.json(user);
+});
+
 router.post('/telegram-info', async (req, res) => {
   const { telegramId } = req.body;
   if (!telegramId) {

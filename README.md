@@ -8,13 +8,16 @@
    - `BOT_TOKEN` – your Telegram bot token
    - `MONGODB_URI` – MongoDB connection string or `memory`
    - `AIRDROP_ADMIN_TOKENS` – (optional) tokens allowed to trigger airdrops
-   - `TONCONNECT_MANIFEST_URL` – public URL to your TonConnect manifest
    - `DEPOSIT_WALLET_ADDRESS` – TON address that receives user deposits
    - `PORT` – (optional) port for the bot API server (defaults to 3000)
 
 4. Copy `webapp/.env.example` to `webapp/.env` and configure:
    - `VITE_API_BASE_URL` – the base URL where the bot API is hosted (e.g. `http://localhost:3000`)
-   - `VITE_TONCONNECT_MANIFEST` – must be `${VITE_API_BASE_URL}/tonconnect-manifest.json` (absolute URL)
+   - `VITE_GOOGLE_CLIENT_ID` – OAuth client ID for Google sign-in
+
+   The webapp uses this client ID to let users sign in with Google. Their
+   Google ID is stored alongside any Telegram information when calling
+   `/api/profile/register-google`.
 
   ⚠️ Misconfiguring these may prevent the wallet from loading correctly.
 
@@ -61,52 +64,28 @@ set the `HTTPS_PROXY` (or `https_proxy`) environment variable before running the
 bot. All fetch requests from the Node.js backend will be routed through this
 proxy.
 
-### Troubleshooting wallet connections
-
-If Tonkeeper fails to connect, verify that the TonConnect manifest is reachable
-at the URL configured in `VITE_TONCONNECT_MANIFEST` (frontend) and
-`TONCONNECT_MANIFEST_URL` (backend). The URL must be publicly accessible over
-HTTPS and should match your API's base domain. You can open the manifest in a
-browser to confirm it returns JSON. If your server sits behind a proxy, ensure
-the proxy forwards the `x-forwarded-proto` header so the manifest reports the
-correct `https://` URL.
-
-Wallet features rely on `window.Telegram.WebApp.initData` being set by the
-Telegram client. Make sure you open the WebApp via a Telegram link containing
-`?startapp=<payload>` so `initData` is populated. If you see a blank (black)
-wallet screen it usually means the page wasn't opened from Telegram. Use the
-link provided by the bot or the *Open in Telegram* button to launch the WebApp.
 
 ### Wallet overview
 
-This app exposes two separate wallets:
-
-- **TPC Wallet** – an off-chain balance stored in MongoDB. Commands like
-  `/wallet balance` and `/wallet send` interact with this database record.
-- **Tonkeeper Wallet** – an on-chain TON account connected through TonConnect.
-  Deposits sent to `DEPOSIT_WALLET_ADDRESS` credit the TPC balance after the
-  transfer is detected. Withdrawals deduct TPC and would transfer TON to the
-  provided address in a full implementation.
+This app exposes a single **TPC Wallet** stored in MongoDB. Commands like
+`/wallet balance` and `/wallet send` interact with this database record. TON
+deposits sent to `DEPOSIT_WALLET_ADDRESS` credit the balance after the transfer
+is detected.
 
 ### Common issues
 
-- **Blank wallet screen or Tonkeeper not connecting** – ensure the manifest URL
-  is correct and publicly reachable in both `.env` files, then rebuild the webapp
-  after any changes.
 - **Balance always zero** – verify MongoDB is running and `MONGODB_URI` points
   to a running database instance. The backend must be able to connect.
 - **No Telegram notifications** – confirm `npm start` is running and the bot
   token is valid. Users must interact with the bot in Telegram to receive
   messages.
 
-### Resetting TonConnect and TPC wallet
+### Resetting the TPC wallet
 
 Use these options if you need to completely start over:
 
 1. Open the wallet page in the webapp.
-2. Click **Reset TonConnect** to remove the saved wallet address and disconnect.
-   The page reloads so you can connect again from scratch.
-3. Click **Reset TPC Wallet** to erase your off-chain balance and transaction
+2. Click **Reset TPC Wallet** to erase your off-chain balance and transaction
    history stored in MongoDB. Your TPC balance will be set to zero.
 
 After resetting you can reconnect and deposit again as if it were a new account.
