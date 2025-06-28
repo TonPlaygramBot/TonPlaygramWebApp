@@ -8,9 +8,8 @@ export function getTelegramId() {
     const stored = localStorage.getItem('telegramId');
     if (stored) return Number(stored);
   }
-  throw new Error(
-    'Telegram user not found. Please open this application via the Telegram bot.'
-  );
+  // Fallback for non-Telegram browsers
+  return 1;
 }
 
 export function getTelegramUsername() {
