@@ -1,8 +1,9 @@
 import React from 'react';
+import { createPortal } from 'react-dom';
 
 export default function InfoPopup({ open, onClose, title, info }) {
   if (!open) return null;
-  return (
+  return createPortal(
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-70">
       <div className="prism-box p-6 space-y-4 text-text w-80 relative">
         <button
@@ -14,6 +15,7 @@ export default function InfoPopup({ open, onClose, title, info }) {
         {title && <h3 className="text-lg font-bold text-center">{title}</h3>}
         {info && <p className="text-sm text-subtext text-center">{info}</p>}
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
