@@ -121,7 +121,7 @@ export default function Lobby() {
                 key={n}
                 onClick={() => setAiCount(n)}
                 className={`lobby-tile ${
-                  aiCount === n ? 'bg-accent text-black' : ''
+                  aiCount === n ? 'ring-2 ring-accent text-accent' : ''
                 }`}
               >
                 {n}

@@ -23,7 +23,7 @@ export default function RoomSelector({ selected, onSelect }) {
               onClick={() => onSelect({ token: id, amount: amt })}
               className={`lobby-tile px-2 py-1 flex items-center space-x-1 cursor-pointer ${
                 token === id && amount === amt
-                  ? 'bg-accent text-black'
+                  ? 'ring-2 ring-accent text-accent'
                   : ''
               }`}
             >

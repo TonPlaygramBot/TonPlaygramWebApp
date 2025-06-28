@@ -3,10 +3,6 @@ import { useState, useEffect, useRef } from 'react';
 
 import { segments } from '../utils/rewardLogic';
 
-function formatReward(val: number) {
-  return val >= 1000 ? `${val / 1000}k` : String(val);
-}
-
 export interface SpinWheelHandle {
   spin: () => void;
 }
@@ -152,9 +148,9 @@ export default forwardRef<SpinWheelHandle, SpinWheelProps>(function SpinWheel(
 
               key={idx}
 
-              className={`board-style flex items-center justify-center text-sm w-full font-bold ${
+              className={`flex items-center justify-center text-sm w-full font-bold ${
 
-                idx === winnerIndex ? 'bg-yellow-500 text-black' : ''
+                idx === winnerIndex ? 'bg-yellow-500 text-white' : 'text-white'
 
               }`}
 
@@ -164,7 +160,7 @@ export default forwardRef<SpinWheelHandle, SpinWheelProps>(function SpinWheel(
 
               <img src="/icons/TPCcoin.png" alt="TPC" className="w-8 h-8 mr-1" />
 
-              <span>{formatReward(val)}</span>
+              <span>{val}</span>
 
             </div>
 

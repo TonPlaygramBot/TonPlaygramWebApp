@@ -43,13 +43,7 @@ export default function SpinGame() {
   const ready = canSpin(lastSpin);
 
   return (
-    <div className="relative p-4">
-      <img
-        src="/assets/SnakeLaddersbackground.png"
-        className="background-behind-board object-cover"
-        alt=""
-      />
-      <div className="prism-box board-style p-4 flex flex-col items-center space-y-2">
+    <div className="prism-box board-style p-4 flex flex-col items-center space-y-2">
       <h3 className="text-lg font-bold text-text">Spin &amp; Win</h3>
       <p className="text-sm text-subtext">Try your luck and win rewards!</p>
       <SpinWheel
@@ -77,7 +71,6 @@ export default function SpinGame() {
         message="Keep spinning every day to earn more!"
       />
       <AdModal open={showAd} onClose={() => setShowAd(false)} />
-      </div>
     </div>
   );
 }
