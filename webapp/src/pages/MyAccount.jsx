@@ -104,7 +104,7 @@ export default function MyAccount() {
     <div className="relative p-4 space-y-4 text-text">
       <img
         src="/assets/SnakeLaddersbackground.png"
-        className="background-behind-board object-cover"
+        className="background-behind-board account-background object-cover"
         alt=""
       />
       <AvatarPromptModal

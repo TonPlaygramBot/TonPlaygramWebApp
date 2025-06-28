@@ -1357,7 +1357,7 @@ export default function SnakeAndLadder() {
   return (
     <div className="p-4 pb-32 space-y-4 text-text flex flex-col justify-end items-center relative w-full flex-grow">
       {/* Action menu moved to the bottom left with only info and mute */}
-      <div className="fixed left-2 bottom-4 flex flex-col items-center space-y-2 z-20">
+      <div className="fixed left-1 bottom-4 flex flex-col items-center space-y-2 z-20">
         <button
           onClick={() => setShowInfo(true)}
           className="p-2 flex flex-col items-center"
@@ -1369,12 +1369,12 @@ export default function SnakeAndLadder() {
           onClick={() => setMuted((m) => !m)}
           className="p-2 flex flex-col items-center"
         >
-          <span className="text-xl">🔇</span>
+          <span className="text-xl">{muted ? '🔇' : '🔊'}</span>
           <span className="text-xs">{muted ? 'Unmute' : 'Mute'}</span>
         </button>
       </div>
       {/* Player photos stacked vertically */}
-      <div className="fixed left-1 top-[45%] -translate-y-1/2 flex flex-col space-y-2 z-20">
+      <div className="fixed left-1 top-[50%] -translate-y-1/2 flex flex-col space-y-3 z-20">
         {players
           .map((p, i) => ({ ...p, index: i }))
           .map((p) => (
