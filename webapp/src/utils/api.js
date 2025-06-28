@@ -306,18 +306,6 @@ export function resetTpcWallet(telegramId) {
   return post('/api/wallet/reset', { telegramId });
 }
 
-export function recalcWalletBalance(telegramId) {
-  return post('/api/wallet/recalculate', { telegramId });
-}
-
-export function airdropStatus(telegramId) {
-  return post('/api/airdrop/status', { telegramId });
-}
-
-export function claimWelcomeAirdrop(telegramId) {
-  return post('/api/airdrop/claim-welcome', { telegramId });
-}
-
 // ----- Account based wallet -----
 
 export function createAccount(telegramId) {
