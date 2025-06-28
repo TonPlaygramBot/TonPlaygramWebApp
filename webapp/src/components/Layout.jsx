@@ -6,7 +6,7 @@ import Navbar from './Navbar.jsx';
 
 import Footer from './Footer.jsx';
 
-import Branding from "./Branding.jsx";
+import Branding from './Branding.jsx';
 
 import CosmicBackground from './CosmicBackground.jsx';
 
@@ -16,8 +16,12 @@ export default function Layout({ children }) {
 
   const isHome = location.pathname === '/';
   const isFriends = location.pathname === '/friends';
+  const isTasks = location.pathname === '/tasks';
+  const isStore = location.pathname === '/store';
+  const isAccount = location.pathname === '/account';
+  const isGamesRoot = location.pathname === '/games';
 
-  const showBranding = !location.pathname.startsWith('/games');
+  const showBranding = isGamesRoot || !location.pathname.startsWith('/games');
 
   const showNavbar = !(
 
@@ -37,7 +41,12 @@ export default function Layout({ children }) {
 
       <main className={`flex-grow container mx-auto p-4 ${showNavbar ? 'pb-24' : ''}`.trim()}>
 
-        {showBranding && <Branding small={isFriends} />}
+        {showBranding && (
+          <Branding
+            scale={isFriends || isTasks || isStore || isAccount || isGamesRoot ? 1.2 : 1}
+            offsetY={isFriends ? '0.5rem' : 0}
+          />
+        )}
 
         {children}
 

@@ -1,13 +1,13 @@
 import React from 'react';
 
-export default function Branding({ small = false }) {
-  const classes = small ? 'text-center pt-2 pb-4 space-y-2' : 'text-center py-6 space-y-2';
+export default function Branding({ scale = 1, offsetY = 0 }) {
   return (
-    <div className={classes}>
+    <div className="text-center py-6 space-y-2">
       <img
         src="/assets/TonPlayGramLogo.jpg"
         alt="TonPlaygram Logo"
-        className={`mx-auto ${small ? 'scale-95 -mt-2' : ''}`}
+        className="mx-auto"
+        style={{ transform: `scale(${scale})`, marginTop: offsetY }}
       />
     </div>
   );
