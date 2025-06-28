@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { v4 as uuidv4 } from 'uuid';
 import User from '../models/User.js';
 import authenticate from '../middleware/auth.js';
-import { ensureTransactionArray } from '../utils/userUtils.js';
+import { ensureTransactionArray, calculateBalance } from '../utils/userUtils.js';
 
 const router = Router();
 
@@ -30,8 +30,16 @@ router.post('/balance', async (req, res) => {
 
   const user = await User.findOne({ accountId });
   if (!user) return res.status(404).json({ error: 'account not found' });
-
-  res.json({ balance: user.balance });
+  const balance = calculateBalance(user);
+  if (user.balance !== balance) {
+    user.balance = balance;
+    try {
+      await user.save();
+    } catch (err) {
+      console.error('Failed to update balance:', err.message);
+    }
+  }
+  res.json({ balance });
 });
 
 // Send TPC between accounts
