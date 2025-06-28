@@ -943,3 +943,18 @@ body {
   }
 }
 */
+
+.prism-box {
+  @apply relative flex items-center justify-center rounded-lg bg-surface border border-border;
+  box-shadow: 0 8px 12px rgba(0, 0, 0, 0.6);
+  transform-style: preserve-3d;
+}
+
+.prism-box::after {
+  content: "";
+  position: absolute;
+  inset: 2px;
+  border-radius: inherit;
+  box-shadow: inset 0 0 6px rgba(0, 0, 0, 0.6);
+  transform: translateZ(6px);
+}

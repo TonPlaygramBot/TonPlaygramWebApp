@@ -1,6 +1,10 @@
 import React from 'react';
 
-const amounts = [100, 500, 1000, 5000, 10000];
+const AMOUNTS = {
+  TPC: [100, 500, 1000, 5000, 10000],
+  TON: [0.1, 0.5, 1, 5, 10],
+  USDT: [0.1, 0.5, 1, 5, 10],
+};
 const tokens = [
   { id: 'TPC', icon: '/icons/TPCcoin.png' },
   { id: 'TON', icon: '/icons/TON.png' },
@@ -13,18 +17,18 @@ export default function RoomSelector({ selected, onSelect }) {
     <div className="space-y-2">
       {tokens.map(({ id, icon }) => (
         <div key={id} className="flex items-center space-x-2">
-          {amounts.map((amt) => (
+          {AMOUNTS[id].map((amt) => (
             <button
               key={`${id}-${amt}`}
               onClick={() => onSelect({ token: id, amount: amt })}
-              className={`px-2 py-1 border rounded flex items-center space-x-1 ${
+              className={`prism-box px-2 py-1 flex items-center space-x-1 cursor-pointer ${
                 token === id && amount === amt
-                  ? 'bg-yellow-400 text-gray-900'
-                  : 'bg-gray-700 text-white'
+                  ? 'ring-2 ring-accent text-accent'
+                  : 'text-white'
               }`}
             >
               <span>{amt}</span>
-              <img src={icon} alt={id} className="w-4 h-4" />
+              <img src={icon} alt={id} className="w-6 h-6" />
             </button>
           ))}
         </div>
