@@ -115,7 +115,7 @@ export default function Wallet() {
           />
           <button
             onClick={handleSend}
-            className="mt-1 px-3 py-1 bg-blue-600 text-white rounded"
+            className="mt-1 px-3 py-1 bg-primary hover:bg-primary-hover text-text rounded"
           >
             Send
           </button>
@@ -141,13 +141,13 @@ export default function Wallet() {
           <label className="block">Receive TPC</label>
           <button
             onClick={() => navigator.clipboard.writeText(String(telegramId))}
-            className="px-3 py-1 bg-green-600 text-white rounded"
+            className="px-3 py-1 bg-primary hover:bg-primary-hover text-text rounded"
           >
             Copy Account Number
           </button>
           <button
             onClick={handleResetTpc}
-            className="mt-1 px-3 py-1 bg-red-600 text-white rounded"
+            className="mt-1 px-3 py-1 bg-primary hover:bg-primary-hover text-text rounded"
           >
             Reset TPC Wallet
           </button>

@@ -96,14 +96,14 @@ export default function SpinPage() {
         <div className="flex space-x-2 mt-4">
           <button
             onClick={triggerSpin}
-            className="px-4 py-1 bg-green-600 text-white text-sm font-bold rounded disabled:bg-gray-500"
+            className="px-4 py-1 bg-primary hover:bg-primary-hover text-text text-sm font-bold rounded disabled:bg-gray-500"
             disabled={spinning || !ready}
           >
             Spin
           </button>
           <button
             onClick={() => setMultiplier(m => !m)}
-            className={`px-4 py-1 text-white text-sm font-bold rounded ${multiplier ? 'bg-red-700' : 'bg-red-500'}`}
+            className="px-4 py-1 bg-primary hover:bg-primary-hover text-text text-sm font-bold rounded"
             disabled={spinning || !ready}
           >
             x3
@@ -111,8 +111,8 @@ export default function SpinPage() {
         </div>
         {!ready && (
           <>
-            <p className="text-sm text-white font-semibold">Next spin at {new Date(nextSpinTime(lastSpin)).toLocaleTimeString()}</p>
-            <button className="text-white underline text-sm" onClick={() => setShowAd(true)}>
+            <p className="text-sm text-text font-semibold">Next spin at {new Date(nextSpinTime(lastSpin)).toLocaleTimeString()}</p>
+            <button className="text-text underline text-sm" onClick={() => setShowAd(true)}>
               Watch an ad every hour to get a free spin.
             </button>
           </>
