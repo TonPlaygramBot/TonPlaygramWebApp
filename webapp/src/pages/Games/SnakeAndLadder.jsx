@@ -400,8 +400,19 @@ function Board({
 }
 
 export default function SnakeAndLadder() {
-  useTelegramBackButton();
+  const [showLobbyConfirm, setShowLobbyConfirm] = useState(false);
+  useTelegramBackButton(() => setShowLobbyConfirm(true));
   const navigate = useNavigate();
+
+  useEffect(() => {
+    const handlePop = (e) => {
+      e.preventDefault();
+      setShowLobbyConfirm(true);
+      window.history.pushState(null, '');
+    };
+    window.addEventListener('popstate', handlePop);
+    return () => window.removeEventListener('popstate', handlePop);
+  }, []);
   const [pos, setPos] = useState(0);
   const [highlight, setHighlight] = useState(null); // { cell: number, type: string }
   const [trail, setTrail] = useState([]);
@@ -415,7 +426,6 @@ export default function SnakeAndLadder() {
   const [token, setToken] = useState("TPC");
   const [celebrate, setCelebrate] = useState(false);
   const [showInfo, setShowInfo] = useState(false);
-  const [showLobbyConfirm, setShowLobbyConfirm] = useState(false);
   const [muted, setMuted] = useState(false);
   const [snakes, setSnakes] = useState({});
   const [ladders, setLadders] = useState({});
@@ -1364,7 +1374,7 @@ export default function SnakeAndLadder() {
         </button>
       </div>
       {/* Player photos stacked vertically */}
-      <div className="fixed left-1 top-1/2 -translate-y-1/2 flex flex-col space-y-2 z-20">
+      <div className="fixed left-1 top-[45%] -translate-y-1/2 flex flex-col space-y-2 z-20">
         {players
           .map((p, i) => ({ ...p, index: i }))
           .map((p) => (
@@ -1482,7 +1492,7 @@ export default function SnakeAndLadder() {
       />
       <ConfirmPopup
         open={showLobbyConfirm}
-        message="Return to lobby and end the game?"
+        message="Quit the game?"
         onConfirm={() => {
           localStorage.removeItem(`snakeGameState_${ai}`);
           navigate("/games/snake/lobby");
