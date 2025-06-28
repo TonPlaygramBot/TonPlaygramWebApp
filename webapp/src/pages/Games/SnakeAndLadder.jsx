@@ -683,6 +683,64 @@ export default function SnakeAndLadder() {
       .catch(() => {});
   }, []);
 
+  const fastForward = (elapsed, state) => {
+    let p = state.pos ?? 0;
+    let aiPos = [...(state.aiPositions ?? Array(ai).fill(0))];
+    let turn = state.currentTurn ?? 0;
+    let rank = [...(state.ranking ?? [])];
+    let over = state.gameOver ?? false;
+    while (elapsed > 0 && !over) {
+      const roll = Math.floor(Math.random() * 6) + 1;
+      if (turn === 0) {
+        if (p === 0) {
+          if (roll === 6) p = 1;
+        } else if (p + roll <= FINAL_TILE) {
+          p += roll;
+        }
+        if (state.snakes[p] != null) p = Math.max(0, state.snakes[p]);
+        else if (state.ladders[p] != null) {
+          const lad = state.ladders[p];
+          p = typeof lad === 'object' ? lad.end : lad;
+        }
+        aiPos = aiPos.map((pos) => (pos === p ? 0 : pos));
+        if (p === FINAL_TILE && !rank.includes('You')) {
+          rank.push('You');
+          if (rank.length === 1) over = true;
+        }
+      } else {
+        let idx = turn - 1;
+        let pos = aiPos[idx];
+        if (pos === 0) {
+          if (roll === 6) pos = 1;
+        } else if (pos + roll <= FINAL_TILE) {
+          pos += roll;
+        }
+        if (state.snakes[pos] != null) pos = Math.max(0, state.snakes[pos]);
+        else if (state.ladders[pos] != null) {
+          const lad = state.ladders[pos];
+          pos = typeof lad === 'object' ? lad.end : lad;
+        }
+        if (p === pos) p = 0;
+        aiPos = aiPos.map((v, i) => (i === idx ? pos : v === pos ? 0 : v));
+        if (pos === FINAL_TILE && !rank.includes(`AI ${turn}`)) {
+          rank.push(`AI ${turn}`);
+          if (rank.length === 1) over = true;
+        }
+      }
+      turn = (turn + 1) % (ai + 1);
+      elapsed -= 2000;
+    }
+    setPos(p);
+    setAiPositions(aiPos);
+    setCurrentTurn(turn);
+    setRanking(rank);
+    setGameOver(over);
+    if (over) {
+      localStorage.removeItem(`snakeGameState_${ai}`);
+      window.location.reload();
+    }
+  };
+
   useEffect(() => {
     const key = `snakeGameState_${ai}`;
     const stored = localStorage.getItem(key);
@@ -704,6 +762,10 @@ export default function SnakeAndLadder() {
         if (Array.isArray(data.aiAvatars)) {
           setAiAvatars(data.aiAvatars);
         }
+        if (data.timestamp) {
+          const elapsed = Date.now() - data.timestamp;
+          if (elapsed > 0) fastForward(elapsed, data);
+        }
       } catch {}
     }
   }, [ai]);
@@ -722,6 +784,7 @@ export default function SnakeAndLadder() {
       ranking,
       gameOver,
       aiAvatars,
+      timestamp: Date.now(),
     };
     localStorage.setItem(key, JSON.stringify(data));
   }, [ai, pos, aiPositions, currentTurn, diceCells, snakes, ladders, snakeOffsets, ladderOffsets, ranking, gameOver]);
@@ -736,6 +799,7 @@ export default function SnakeAndLadder() {
           stored.ranking = [...(stored.ranking || []), 'You'];
         }
         stored.gameOver = true;
+        stored.timestamp = Date.now();
         localStorage.setItem(key, JSON.stringify(stored));
       } catch {}
     };
@@ -1252,18 +1316,7 @@ export default function SnakeAndLadder() {
     return () => clearInterval(id);
   }, []);
 
-  useEffect(() => {
-    const handleVisibility = () => {
-      if (document.visibilityState === 'hidden') {
-        if (timerRef.current) clearInterval(timerRef.current);
-        if (aiRollTimeoutRef.current) clearTimeout(aiRollTimeoutRef.current);
-      } else {
-        setRefreshTick((t) => t + 1);
-      }
-    };
-    document.addEventListener('visibilitychange', handleVisibility);
-    return () => document.removeEventListener('visibilitychange', handleVisibility);
-  }, []);
+
 
   const players = [
     { position: pos, photoUrl, type: tokenType, color: playerColors[0] },
