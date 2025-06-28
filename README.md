@@ -27,7 +27,8 @@
    pip install -r requirements.txt
    ```
 
-6. Build the webapp assets:
+6. Build the webapp assets. This step copies `public/tonconnect-manifest.json`
+   into the `dist` folder so wallets can connect:
 
    ```bash
    npm --prefix webapp run build
@@ -79,6 +80,9 @@ is detected.
 - **No Telegram notifications** – confirm `npm start` is running and the bot
   token is valid. Users must interact with the bot in Telegram to receive
   messages.
+- **Cannot send TPC** – this happens when the API cannot verify your Telegram
+  web app data. Ensure the web page was opened from your bot and that the
+  `BOT_TOKEN` in `bot/.env` matches the token used by Telegram.
 
 ### Resetting the TPC wallet
 
