@@ -632,7 +632,9 @@ export default function SnakeAndLadder() {
     if (aiParam) setAi(aiCount);
     setAiPositions(Array(aiCount).fill(0));
     setAiAvatars(
-      Array.from({ length: aiCount }, () => AVATARS[Math.floor(Math.random() * AVATARS.length)])
+      Array.from({ length: aiCount }, () =>
+        AVATARS[Math.floor(Math.random() * AVATARS.length)]
+      )
     );
     const colors = shuffle(TOKEN_COLORS).slice(0, aiCount + 1).map(c => c.color);
     setPlayerColors(colors);
@@ -699,6 +701,9 @@ export default function SnakeAndLadder() {
         setLadderOffsets(limit(data.ladderOffsets ?? {}));
         setRanking(data.ranking ?? []);
         setGameOver(data.gameOver ?? false);
+        if (Array.isArray(data.aiAvatars)) {
+          setAiAvatars(data.aiAvatars);
+        }
       } catch {}
     }
   }, [ai]);
@@ -716,6 +721,7 @@ export default function SnakeAndLadder() {
       ladderOffsets,
       ranking,
       gameOver,
+      aiAvatars,
     };
     localStorage.setItem(key, JSON.stringify(data));
   }, [ai, pos, aiPositions, currentTurn, diceCells, snakes, ladders, snakeOffsets, ladderOffsets, ranking, gameOver]);
@@ -1188,7 +1194,7 @@ export default function SnakeAndLadder() {
     if (!setupPhase && currentTurn === 0 && !gameOver) {
       setTurnMessage('Your turn');
     }
-  }, [currentTurn, setupPhase, gameOver]);
+  }, [currentTurn, setupPhase, gameOver, refreshTick]);
 
   // Failsafe: ensure AI roll proceeds even if dice animation doesn't start
   useEffect(() => {
@@ -1236,7 +1242,7 @@ export default function SnakeAndLadder() {
       clearInterval(timerRef.current);
       timerSoundRef.current?.pause();
     };
-  }, [currentTurn, setupPhase, gameOver]);
+  }, [currentTurn, setupPhase, gameOver, refreshTick]);
 
   // Periodically refresh the component state to avoid freezes
   useEffect(() => {
@@ -1244,6 +1250,19 @@ export default function SnakeAndLadder() {
       setRefreshTick((t) => t + 1);
     }, 5000);
     return () => clearInterval(id);
+  }, []);
+
+  useEffect(() => {
+    const handleVisibility = () => {
+      if (document.visibilityState === 'hidden') {
+        if (timerRef.current) clearInterval(timerRef.current);
+        if (aiRollTimeoutRef.current) clearTimeout(aiRollTimeoutRef.current);
+      } else {
+        setRefreshTick((t) => t + 1);
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibility);
+    return () => document.removeEventListener('visibilitychange', handleVisibility);
   }, []);
 
   const players = [
