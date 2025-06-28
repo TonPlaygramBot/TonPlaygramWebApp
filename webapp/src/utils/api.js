@@ -305,3 +305,21 @@ export function listTrendingPosts(limit = 20) {
 export function resetTpcWallet(telegramId) {
   return post('/api/wallet/reset', { telegramId });
 }
+
+// ----- Account based wallet -----
+
+export function createAccount(telegramId) {
+  return post('/api/account/create', { telegramId });
+}
+
+export function getAccountBalance(accountId) {
+  return post('/api/account/balance', { accountId });
+}
+
+export function sendAccountTpc(fromAccount, toAccount, amount) {
+  return post('/api/account/send', { fromAccount, toAccount, amount });
+}
+
+export function getAccountTransactions(accountId) {
+  return post('/api/account/transactions', { accountId });
+}
