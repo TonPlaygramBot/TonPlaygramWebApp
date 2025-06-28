@@ -5,7 +5,7 @@ import User from '../models/User.js';
 
 import bot from '../bot.js';
 
-import { ensureTransactionArray } from '../utils/userUtils.js';
+import { ensureTransactionArray, calculateBalance } from '../utils/userUtils.js';
 
 import authenticate from '../middleware/auth.js';
 
@@ -28,8 +28,17 @@ router.post('/balance', authenticate, async (req, res) => {
   if (!user) {
     user = await User.create({ telegramId: id, referralCode: String(id) });
   }
+  const balance = calculateBalance(user);
+  if (user.balance !== balance) {
+    user.balance = balance;
+    try {
+      await user.save();
+    } catch (err) {
+      console.error('Failed to update balance:', err.message);
+    }
+  }
 
-  res.json({ balance: user.balance });
+  res.json({ balance });
 
 });
 
