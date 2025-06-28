@@ -19,6 +19,7 @@ import { ping } from '../utils/api.js';
 import { getAvatarUrl, saveAvatar, loadAvatar } from '../utils/avatarUtils.js';
 
 import BalanceSummary from '../components/BalanceSummary.jsx';
+import TonConnectButton from '../components/TonConnectButton.jsx';
 
 import { getTelegramId, getTelegramPhotoUrl } from '../utils/telegram.js';
 import { getProfile } from '../utils/api.js';
@@ -84,6 +85,8 @@ export default function Home() {
             />
           </div>
         )}
+
+        <TonConnectButton />
 
 
         <div className="w-full max-w-xs mt-2">

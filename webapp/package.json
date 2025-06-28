@@ -10,6 +10,8 @@
   "type": "module",
   "dependencies": {
     "@ayshrj/ludo.js": "^1.0.10",
+    "@tonconnect/sdk": "^3.2.0",
+    "@tonconnect/ui-react": "^2.2.0",
     "@vitejs/plugin-react": "^4.0.0",
     "autoprefixer": "^10.4.15",
     "canvas-confetti": "^1.9.2",

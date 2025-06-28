@@ -1,5 +1,6 @@
 import React, { Suspense, lazy } from 'react';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { TonConnectUIProvider } from '@tonconnect/ui-react';
 
 import Home from './pages/Home.jsx';
 import Friends from './pages/Friends.jsx';
@@ -27,8 +28,9 @@ export default function App() {
 
   return (
     <BrowserRouter>
-      <Layout>
-        <Routes>
+      <TonConnectUIProvider manifestUrl="/tonconnect-manifest.json">
+        <Layout>
+          <Routes>
           <Route path="/" element={<Home />} />
           <Route path="/friends" element={<Friends />} />
           <Route path="/games" element={<Games />} />
@@ -60,7 +62,8 @@ export default function App() {
           <Route path="/trending" element={<Trending />} />
           <Route path="/account" element={<MyAccount />} />
         </Routes>
-      </Layout>
+        </Layout>
+      </TonConnectUIProvider>
     </BrowserRouter>
   );
 }
