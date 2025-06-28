@@ -100,29 +100,6 @@ function ensureWebappBuilt() {
 
 ensureWebappBuilt();
 
-// Expose TonConnect manifest dynamically so the base URL always matches the
-// current request host. The manifest path is taken from the
-// TONCONNECT_MANIFEST_URL environment variable if provided, otherwise the
-// default `/tonconnect-manifest.json` is used. Defining this route before the
-// static middleware ensures it overrides any bundled manifest file so the
-// response always reflects the active host.
-const manifestUrl = process.env.TONCONNECT_MANIFEST_URL || '/tonconnect-manifest.json';
-const manifestPath = new URL(manifestUrl, 'http://placeholder').pathname;
-console.log("TONCONNECT_MANIFEST_URL", manifestUrl);
-console.log("manifestpath", manifestPath);
-
-app.get(manifestPath, (req, res) => {
-  const proto = req.get('x-forwarded-proto') || req.protocol;
-  const baseUrl = `${proto}://${req.get('host')}`;
-  console.log("proto: ", proto);
-  console.log("baseUrl: ", baseUrl);
-  res.json({
-    name: 'TonPlaygram',
-    description: 'Play games with TPC staking via Tonkeeper',
-    url: baseUrl,
-    icons: [`${baseUrl}/icons/tpc.svg`]
-  });
-});
 
 app.use(
   express.static(webappPath, { maxAge: '1y', immutable: true })
