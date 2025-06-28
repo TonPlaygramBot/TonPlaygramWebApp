@@ -8,7 +8,7 @@ export default function TableSelector({ tables, selected, onSelect }) {
           key={t.id}
           onClick={() => onSelect(t)}
           className={`lobby-tile w-full flex justify-between ${
-            selected?.id === t.id ? 'ring-2 ring-accent text-accent' : ''
+            selected?.id === t.id ? 'lobby-selected' : ''
           }`}
         >
           <span>{t.label || `Table ${t.capacity}p`}</span>

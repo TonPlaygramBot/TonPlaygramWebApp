@@ -148,9 +148,9 @@ export default forwardRef<SpinWheelHandle, SpinWheelProps>(function SpinWheel(
 
               key={idx}
 
-              className={`flex items-center justify-center text-sm w-full font-bold ${
+              className={`board-style flex items-center justify-center text-sm w-full font-bold ${
 
-                idx === winnerIndex ? 'bg-yellow-500 text-white' : 'text-white'
+                idx === winnerIndex ? 'bg-yellow-500 text-black' : 'text-white'
 
               }`}
 
@@ -160,7 +160,7 @@ export default forwardRef<SpinWheelHandle, SpinWheelProps>(function SpinWheel(
 
               <img src="/icons/TPCcoin.png" alt="TPC" className="w-8 h-8 mr-1" />
 
-              <span>{val}</span>
+              <span>{val >= 1000 ? `${val / 1000}k` : val}</span>
 
             </div>
 
