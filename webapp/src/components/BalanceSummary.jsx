@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { FaWallet } from 'react-icons/fa';
 import { Link } from 'react-router-dom';
-import { getTransactions } from '../utils/api.js';
+import { createAccount, getAccountBalance } from '../utils/api.js';
 import { getTelegramId } from '../utils/telegram.js';
 import LoginOptions from './LoginOptions.jsx';
 
@@ -17,12 +17,11 @@ export default function BalanceSummary() {
 
   const loadBalances = async () => {
     try {
-      const tx = await getTransactions(telegramId);
-      const total = (tx.transactions || []).reduce(
-        (sum, t) => sum + (typeof t.amount === 'number' ? t.amount : 0),
-        0
-      );
-      setBalance(total);
+      const acc = await createAccount(telegramId);
+      if (acc?.error) throw new Error(acc.error);
+      const bal = await getAccountBalance(acc.accountId);
+      if (bal?.error) throw new Error(bal.error);
+      setBalance(bal.balance ?? 0);
     } catch (err) {
       console.error('Failed to load balances:', err);
       setBalance(0);
