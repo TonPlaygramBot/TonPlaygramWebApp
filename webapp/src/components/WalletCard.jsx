@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { useTonWallet } from '@tonconnect/ui-react';
 import { getWalletBalance, getTonBalance, getUsdtBalance } from '../utils/api.js';
 import { getTelegramId } from '../utils/telegram.js';
-import OpenInTelegram from './OpenInTelegram.jsx';
+import LoginOptions from './LoginOptions.jsx';
 
 export default function WalletCard() {
   let telegramId;
@@ -12,7 +12,7 @@ export default function WalletCard() {
   } catch (err) {
     return (
       <div className="bg-gray-800/60 rounded-xl">
-        <OpenInTelegram />
+        <LoginOptions />
       </div>
     );
   }

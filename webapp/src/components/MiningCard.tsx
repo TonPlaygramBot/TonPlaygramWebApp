@@ -6,7 +6,7 @@ import {
   stopMining
 } from '../utils/api.js';
 import { getTelegramId } from '../utils/telegram.js';
-import OpenInTelegram from './OpenInTelegram.jsx';
+import LoginOptions from './LoginOptions.jsx';
 
 const MINING_DURATION = 12 * 60 * 60; // 12 hours in seconds
 
@@ -16,7 +16,7 @@ export default function MiningCard() {
   try {
     telegramId = getTelegramId();
   } catch (err) {
-    return <OpenInTelegram />;
+    return <LoginOptions />;
   }
 
   const [isMining, setIsMining] = useState(false);

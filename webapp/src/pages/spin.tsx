@@ -9,7 +9,7 @@ import {
   addTransaction
 } from '../utils/api.js';
 import { getTelegramId } from '../utils/telegram.js';
-import OpenInTelegram from '../components/OpenInTelegram.jsx';
+import LoginOptions from '../components/LoginOptions.jsx';
 import useTelegramBackButton from '../hooks/useTelegramBackButton.js';
 
 export default function SpinPage() {
@@ -18,7 +18,7 @@ export default function SpinPage() {
   try {
     telegramId = getTelegramId();
   } catch (err) {
-    return <OpenInTelegram />;
+    return <LoginOptions />;
   }
   const [lastSpin, setLastSpin] = useState<number | null>(null);
   const [reward, setReward] = useState<number | null>(null);

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import OpenInTelegram from '../components/OpenInTelegram.jsx';
+import LoginOptions from '../components/LoginOptions.jsx';
 import { getTelegramId } from '../utils/telegram.js';
 import { getReferralInfo } from '../utils/api.js';
 import { BOT_USERNAME } from '../utils/constants.js';
@@ -11,7 +11,7 @@ export default function Referral() {
   try {
     telegramId = getTelegramId();
   } catch (err) {
-    return <OpenInTelegram />;
+    return <LoginOptions />;
   }
 
   const [info, setInfo] = useState(null);

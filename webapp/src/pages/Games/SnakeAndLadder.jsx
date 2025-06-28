@@ -923,6 +923,7 @@ export default function SnakeAndLadder() {
       const steps = [];
       for (let i = current + 1; i <= target; i++) steps.push(i);
 
+        setHighlight(null);
       const moveSeq = (seq, type, done) => {
         const stepMove = (idx) => {
           if (idx >= seq.length) return done();
@@ -930,8 +931,8 @@ export default function SnakeAndLadder() {
           setPos(next);
           moveSoundRef.current.currentTime = 0;
           if (!muted) moveSoundRef.current.play().catch(() => {});
-          setTrail((t) => [...t, { cell: next, type }]);
-          setHighlight({ cell: next, type });
+            const hType = idx === seq.length - 1 ? type : "path";
+            setHighlight({ cell: next, type: hType });
           if (idx === seq.length - 2) hahaSoundRef.current?.pause();
           setTimeout(() => stepMove(idx + 1), 700);
         };
@@ -1120,6 +1121,7 @@ export default function SnakeAndLadder() {
     const steps = [];
     for (let i = current + 1; i <= target; i++) steps.push(i);
 
+      setHighlight(null);
     const moveSeq = (seq, type, done) => {
       const stepMove = (idx) => {
         if (idx >= seq.length) return done();
@@ -1128,8 +1130,8 @@ export default function SnakeAndLadder() {
         setAiPositions([...positions]);
         moveSoundRef.current.currentTime = 0;
         if (!muted) moveSoundRef.current.play().catch(() => {});
-        setTrail((t) => [...t, { cell: next, type }]);
-        setHighlight({ cell: next, type });
+          const hType = idx === seq.length - 1 ? type : "path";
+          setHighlight({ cell: next, type: hType });
         if (idx === seq.length - 2) hahaSoundRef.current?.pause();
         setTimeout(() => stepMove(idx + 1), 700);
       };

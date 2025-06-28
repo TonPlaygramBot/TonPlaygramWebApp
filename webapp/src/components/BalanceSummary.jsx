@@ -3,14 +3,14 @@ import { FaWallet } from 'react-icons/fa';
 import { Link } from 'react-router-dom';
 import { getWalletBalance } from '../utils/api.js';
 import { getTelegramId } from '../utils/telegram.js';
-import OpenInTelegram from './OpenInTelegram.jsx';
+import LoginOptions from './LoginOptions.jsx';
 
 export default function BalanceSummary() {
   let telegramId;
   try {
     telegramId = getTelegramId();
   } catch (err) {
-    return <OpenInTelegram />;
+    return <LoginOptions />;
   }
 
   const [balance, setBalance] = useState(null);

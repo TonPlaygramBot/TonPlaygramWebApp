@@ -6,7 +6,7 @@ import { dailyCheckIn, getProfile } from '../utils/api.js';
 
 import { getTelegramId } from '../utils/telegram.js';
 
-import OpenInTelegram from './OpenInTelegram.jsx';
+import LoginOptions from './LoginOptions.jsx';
 
 const REWARDS = Array.from({ length: 30 }, (_, i) => 1000 * (i + 1));
 
@@ -26,7 +26,7 @@ export default function DailyCheckIn() {
 
   } catch (err) {
 
-    return <OpenInTelegram />;
+    return <LoginOptions />;
 
   }
 

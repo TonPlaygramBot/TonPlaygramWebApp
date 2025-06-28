@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react';
 import { listTasks, completeTask } from '../utils/api.js';
 
 import { getTelegramId } from '../utils/telegram.js';
-import OpenInTelegram from './OpenInTelegram.jsx';
+import LoginOptions from './LoginOptions.jsx';
 
 import { IoLogoTwitter, IoLogoTiktok } from 'react-icons/io5';
 
@@ -27,7 +27,7 @@ export default function TasksCard() {
   } catch (err) {
     return (
       <div className="bg-surface border border-border rounded-xl">
-        <OpenInTelegram />
+        <LoginOptions />
       </div>
     );
   }
