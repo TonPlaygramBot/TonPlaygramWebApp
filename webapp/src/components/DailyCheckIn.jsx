@@ -130,7 +130,7 @@ export default function DailyCheckIn() {
 
   return (
 
-    <div className="board-box p-4 space-y-2">
+    <div className="prism-box p-4 space-y-2">
 
       {showPopup && (
 

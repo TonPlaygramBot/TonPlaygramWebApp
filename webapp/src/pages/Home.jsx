@@ -16,6 +16,7 @@ import { Link } from 'react-router-dom';
 
 import { ping } from '../utils/api.js';
 
+import ConnectWallet from "../components/ConnectWallet.jsx";
 import { getAvatarUrl, saveAvatar, loadAvatar } from '../utils/avatarUtils.js';
 
 import BalanceSummary from '../components/BalanceSummary.jsx';
@@ -85,6 +86,11 @@ export default function Home() {
           </div>
         )}
 
+        <div className="mb-2">
+
+          <ConnectWallet />
+
+        </div>
 
         <div className="flex items-center justify-between w-full max-w-xs mt-2">
 
