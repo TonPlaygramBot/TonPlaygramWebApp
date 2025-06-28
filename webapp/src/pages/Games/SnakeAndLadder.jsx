@@ -1364,7 +1364,7 @@ export default function SnakeAndLadder() {
         </button>
       </div>
       {/* Player photos stacked vertically */}
-      <div className="fixed left-1 top-4 flex flex-col space-y-2 z-20">
+      <div className="fixed left-1 top-1/2 -translate-y-1/2 flex flex-col space-y-2 z-20">
         {players
           .map((p, i) => ({ ...p, index: i }))
           .map((p) => (

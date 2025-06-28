@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useTonWallet } from '@tonconnect/ui-react';
-import { getWalletBalance, getTonBalance } from '../utils/api.js';
+import { getWalletBalance, getTonBalance, getUsdtBalance } from '../utils/api.js';
 import { getTelegramId } from '../utils/telegram.js';
 import OpenInTelegram from './OpenInTelegram.jsx';
 
@@ -27,9 +27,12 @@ export default function WalletCard() {
     if (wallet?.account?.address) {
       const bal = await getTonBalance(wallet.account.address);
       setTonBalance(bal.balance);
+      const usd = await getUsdtBalance(wallet.account.address);
+      setUsdtBalance(usd.balance);
+    } else {
+      setTonBalance(null);
+      setUsdtBalance(null);
     }
-    // USDT balance not implemented yet
-    setUsdtBalance(0);
   };
 
   useEffect(() => {

@@ -24,9 +24,12 @@ router.post('/balance', authenticate, async (req, res) => {
     return res.status(403).json({ error: "forbidden" });
   }
 
-  const user = await User.findOne({ telegramId: id });
+  let user = await User.findOne({ telegramId: id });
+  if (!user) {
+    user = await User.create({ telegramId: id, referralCode: String(id) });
+  }
 
-  res.json({ balance: user ? user.balance : 0 });
+  res.json({ balance: user.balance });
 
 });
 
@@ -79,6 +82,32 @@ router.post('/ton-balance', authenticate, async (req, res) => {
 
   }
 
+});
+
+router.post('/usdt-balance', authenticate, async (req, res) => {
+  const { address } = req.body;
+  if (!address) {
+    return res.status(400).json({ error: 'address required' });
+  }
+  try {
+    const resp = await fetch(
+      `https://tonapi.io/v2/accounts/${address}/jettons`,
+      withProxy()
+    );
+    const data = await resp.json();
+    const jetton = (data.balances || []).find(
+      (j) => j.jetton?.symbol === 'USDT' || j.jetton?.symbol === 'jUSDT'
+    );
+    let balance = 0;
+    if (jetton) {
+      const decimals = jetton.jetton?.decimals || 0;
+      balance = Number(jetton.balance) / 10 ** decimals;
+    }
+    res.json({ balance });
+  } catch (err) {
+    console.error('Error fetching USDT balance:', err);
+    res.status(500).json({ error: 'Failed to fetch USDT balance' });
+  }
 });
 
 // Transfer TPC from one Telegram user to another

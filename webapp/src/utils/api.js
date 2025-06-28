@@ -135,9 +135,11 @@ export function getWalletBalance(telegramId) {
 }
 
 export function getTonBalance(address) {
-
   return post('/api/wallet/ton-balance', { address });
+}
 
+export function getUsdtBalance(address) {
+  return post('/api/wallet/usdt-balance', { address });
 }
 
 export function sendTpc(fromId, toId, amount) {

@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { FaWallet } from 'react-icons/fa';
 import { Link } from 'react-router-dom';
 import { useTonWallet } from '@tonconnect/ui-react';
-import { getWalletBalance, getTonBalance } from '../utils/api.js';
+import { getWalletBalance, getTonBalance, getUsdtBalance } from '../utils/api.js';
 import { getTelegramId } from '../utils/telegram.js';
 import OpenInTelegram from './OpenInTelegram.jsx';
 
@@ -14,19 +14,22 @@ export default function BalanceSummary() {
     return <OpenInTelegram />;
   }
 
-  const [balances, setBalances] = useState({ ton: null, tpc: null, usdt: 0 });
+  const [balances, setBalances] = useState({ ton: null, tpc: null, usdt: null });
   const wallet = useTonWallet();
 
   const loadBalances = async () => {
     try {
       const prof = await getWalletBalance(telegramId);
-      const ton = wallet?.account?.address
-        ? (await getTonBalance(wallet.account.address)).balance
-        : null;
-      setBalances({ ton, tpc: prof.balance, usdt: 0 });
+      let ton = null;
+      let usdt = null;
+      if (wallet?.account?.address) {
+        ton = (await getTonBalance(wallet.account.address)).balance;
+        usdt = (await getUsdtBalance(wallet.account.address)).balance;
+      }
+      setBalances({ ton, tpc: prof.balance, usdt });
     } catch (err) {
       console.error('Failed to load balances:', err);
-      setBalances({ ton: null, tpc: 0, usdt: 0 });
+      setBalances({ ton: null, tpc: 0, usdt: null });
     }
   };
 
