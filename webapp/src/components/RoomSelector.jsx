@@ -28,7 +28,7 @@ export default function RoomSelector({ selected, onSelect }) {
               }`}
             >
               <span>{amt}</span>
-              <img src={icon} alt={id} className="w-6 h-6" />
+              <img src={icon} alt={id} className="w-8 h-8" />
             </button>
           ))}
         </div>

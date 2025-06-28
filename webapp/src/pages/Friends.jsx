@@ -86,7 +86,12 @@ export default function Friends() {
   const link = `https://t.me/${BOT_USERNAME}?start=${referral.code}`;
 
   return (
-    <div className="p-4 space-y-4 text-text">
+    <div className="relative p-4 space-y-4 text-text">
+      <img
+        src="/assets/SnakeLaddersbackground.png"
+        className="background-behind-board object-cover"
+        alt=""
+      />
       <h2 className="text-xl font-bold">Friends</h2>
 
       <section className="space-y-1">

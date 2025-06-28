@@ -118,7 +118,7 @@ export default function DailyCheckIn() {
 
           {REWARDS[i]}
 
-          <img src="/icons/TPCcoin.png" alt="TPC" className="w-6 h-6 ml-1" />
+          <img src="/icons/TPCcoin.png" alt="TPC" className="w-8 h-8 ml-1" />
 
         </span>
 
@@ -130,7 +130,7 @@ export default function DailyCheckIn() {
 
   return (
 
-    <div className="bg-surface border border-border rounded p-4 space-y-2">
+    <div className="prism-box p-4 space-y-2">
 
       {showPopup && (
 
