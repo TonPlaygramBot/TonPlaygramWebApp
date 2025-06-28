@@ -90,7 +90,6 @@ export default function Friends() {
       <img
         src="/assets/SnakeLaddersbackground.png"
         className="background-behind-board object-cover"
-        style={{ transform: 'translateY(90px) scale(1.44)' }}
         alt=""
       />
       <h2 className="text-xl font-bold">Friends</h2>
