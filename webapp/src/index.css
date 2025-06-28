@@ -977,6 +977,12 @@ body {
   transform: translateZ(6px);
 }
 
+.lobby-selected {
+  box-shadow: 0 0 10px 4px rgba(250, 204, 21, 0.8);
+  border-color: #facc15;
+  color: #facc15;
+}
+
 .board-style {
   background-color: #0e3b45;
   border: 2px solid #334155;

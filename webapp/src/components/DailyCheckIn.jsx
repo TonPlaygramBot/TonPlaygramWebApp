@@ -10,6 +10,10 @@ import OpenInTelegram from './OpenInTelegram.jsx';
 
 const REWARDS = Array.from({ length: 30 }, (_, i) => 1000 * (i + 1));
 
+function formatReward(r) {
+  return r >= 1000 ? `${r / 1000}k` : String(r);
+}
+
 const ONE_DAY = 24 * 60 * 60 * 1000;
 
 export default function DailyCheckIn() {
@@ -115,11 +119,8 @@ export default function DailyCheckIn() {
         <span>Day {i + 1}</span>
 
         <span className="flex items-center">
-
-          {REWARDS[i]}
-
+          {formatReward(REWARDS[i])}
           <img src="/icons/TPCcoin.png" alt="TPC" className="w-8 h-8 ml-1" />
-
         </span>
 
       </div>
@@ -130,7 +131,12 @@ export default function DailyCheckIn() {
 
   return (
 
-    <div className="prism-box p-4 space-y-2">
+    <div className="relative bg-surface border border-border rounded-xl p-4 space-y-2 text-center">
+      <img
+        src="/assets/SnakeLaddersbackground.png"
+        className="background-behind-board object-cover"
+        alt=""
+      />
 
       {showPopup && (
 
@@ -184,11 +190,11 @@ export default function DailyCheckIn() {
 
       )}
 
-      <h3 className="text-lg font-bold text-text text-center">Daily Streaks</h3>
+      <h3 className="text-lg font-bold text-text">Daily Streaks</h3>
 
-      <p className="text-sm text-subtext text-center">Check in each day for increasing rewards.</p>
+      <div className="flex space-x-2 overflow-x-auto justify-center">{progress}</div>
 
-      <div className="flex space-x-2 overflow-x-auto">{progress}</div>
+      <p className="text-sm text-subtext">Check in each day for increasing rewards.</p>
 
     </div>
 

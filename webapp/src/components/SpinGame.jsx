@@ -43,7 +43,12 @@ export default function SpinGame() {
   const ready = canSpin(lastSpin);
 
   return (
-    <div className="prism-box board-style p-4 flex flex-col items-center space-y-2">
+    <div className="relative bg-surface border border-border rounded-xl p-4 flex flex-col items-center space-y-2">
+      <img
+        src="/assets/SnakeLaddersbackground.png"
+        className="background-behind-board object-cover"
+        alt=""
+      />
       <h3 className="text-lg font-bold text-text">Spin &amp; Win</h3>
       <p className="text-sm text-subtext">Try your luck and win rewards!</p>
       <SpinWheel
