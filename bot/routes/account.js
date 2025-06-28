@@ -9,16 +9,11 @@ const router = Router();
 // Create or fetch account for a user
 router.post('/create', async (req, res) => {
   const { telegramId } = req.body;
+  if (!telegramId) return res.status(400).json({ error: 'telegramId required' });
 
-  let user = null;
-  if (telegramId) {
-    user = await User.findOne({ telegramId });
-  }
-
+  let user = await User.findOne({ telegramId });
   if (!user) {
-    user = new User({ accountId: uuidv4() });
-    if (telegramId) user.telegramId = telegramId;
-    user.referralCode = String(telegramId || user.accountId);
+    user = new User({ telegramId, accountId: uuidv4(), referralCode: String(telegramId) });
     await user.save();
   } else if (!user.accountId) {
     user.accountId = uuidv4();
