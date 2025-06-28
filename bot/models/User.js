@@ -1,4 +1,5 @@
 import mongoose from 'mongoose';
+import { v4 as uuidv4 } from 'uuid';
 
 const transactionSchema = new mongoose.Schema(
   {
@@ -21,6 +22,8 @@ const userSchema = new mongoose.Schema({
   googleDob: { type: String, default: '' },
 
   walletAddress: { type: String, unique: true },
+
+  accountId: { type: String, unique: true },
 
   createdAt: { type: Date, default: Date.now },
 
@@ -70,6 +73,9 @@ userSchema.pre('save', function(next) {
   if (!this.referralCode) {
     const base = this.telegramId || this.googleId || this.walletAddress || '';
     this.referralCode = String(base);
+  }
+  if (!this.accountId) {
+    this.accountId = uuidv4();
   }
   next();
 });

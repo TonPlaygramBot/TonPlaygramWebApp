@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react';
 import {
-  getWalletBalance,
-  sendTpc,
-  getTransactions,
-  resetTpcWallet
+  createAccount,
+  getAccountBalance,
+  sendAccountTpc,
+  getAccountTransactions
 } from '../utils/api.js';
 import { getTelegramId } from '../utils/telegram.js';
 import LoginOptions from '../components/LoginOptions.jsx';
@@ -19,6 +19,7 @@ export default function Wallet() {
     return <LoginOptions />;
   }
 
+  const [accountId, setAccountId] = useState('');
   const [tpcBalance, setTpcBalance] = useState(null);
   const [receiver, setReceiver] = useState('');
   const [amount, setAmount] = useState('');
@@ -28,19 +29,30 @@ export default function Wallet() {
 
 
   const loadBalances = async () => {
-    const prof = await getWalletBalance(telegramId);
-    if (prof?.error || typeof prof.balance !== 'number') {
-      console.error('Failed to load TPC balance:', prof?.error);
+    const acc = await createAccount(telegramId);
+    if (acc?.error) {
+      console.error('Failed to load account:', acc.error);
+      return null;
+    }
+    setAccountId(acc.accountId);
+
+    const bal = await getAccountBalance(acc.accountId);
+    if (bal?.error || typeof bal.balance !== 'number') {
+      console.error('Failed to load TPC balance:', bal?.error);
       setTpcBalance(0);
     } else {
-      setTpcBalance(prof.balance);
+      setTpcBalance(bal.balance);
     }
-
+    return acc.accountId;
   };
 
   useEffect(() => {
-    loadBalances();
-    getTransactions(telegramId).then((res) => setTransactions(res.transactions));
+    loadBalances().then(async (id) => {
+      if (id) {
+        const txRes = await getAccountTransactions(id);
+        setTransactions(txRes.transactions || []);
+      }
+    });
   }, []);
 
   const handleSend = async () => {
@@ -49,7 +61,7 @@ export default function Wallet() {
     if (!window.confirm(`Send ${amt} TPC to ${receiver}?`)) return;
     setSending(true);
     try {
-      const res = await sendTpc(telegramId, Number(receiver), amt);
+      const res = await sendAccountTpc(accountId, receiver, amt);
       if (res?.error) {
         alert(res.error);
         return;
@@ -63,9 +75,9 @@ export default function Wallet() {
       });
       setReceiver('');
       setAmount('');
-      await loadBalances();
-      const txRes = await getTransactions(telegramId);
-      setTransactions(txRes.transactions);
+      const id = await loadBalances();
+      const txRes = await getAccountTransactions(id || accountId);
+      setTransactions(txRes.transactions || []);
     } catch (err) {
       console.error('Send failed', err);
       alert('Failed to send TPC');
@@ -75,22 +87,12 @@ export default function Wallet() {
   };
 
 
-  const handleResetTpc = async () => {
-    if (!window.confirm('Reset your TPC wallet? This will delete all balance and transactions.')) return;
-    const res = await resetTpcWallet(telegramId);
-    if (res?.error) {
-      alert(res.error);
-      return;
-    }
-    setTpcBalance(0);
-    setTransactions([]);
-  };
 
 
   return (
     <div className="p-4 space-y-4">
       <h2 className="text-xl font-bold">Wallet</h2>
-      <p className="text-sm">Account #{telegramId}</p>
+      <p className="text-sm">Account #{accountId || '...'}</p>
 
       {/* TPC account section */}
       <div className="space-y-2 border-b border-border pb-4">
@@ -140,16 +142,10 @@ export default function Wallet() {
         <div className="space-y-1">
           <label className="block">Receive TPC</label>
           <button
-            onClick={() => navigator.clipboard.writeText(String(telegramId))}
+            onClick={() => navigator.clipboard.writeText(String(accountId))}
             className="px-3 py-1 bg-primary hover:bg-primary-hover text-text rounded"
           >
             Copy Account Number
-          </button>
-          <button
-            onClick={handleResetTpc}
-            className="mt-1 px-3 py-1 bg-primary hover:bg-primary-hover text-text rounded"
-          >
-            Reset TPC Wallet
           </button>
         </div>
       </div>
