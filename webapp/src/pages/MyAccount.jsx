@@ -4,7 +4,8 @@ import {
   updateProfile,
   fetchTelegramInfo,
   getReferralInfo,
-  getTransactions
+  getTransactions,
+  linkGoogleAccount
 } from '../utils/api.js';
 import {
   getTelegramId,
@@ -38,6 +39,38 @@ export default function MyAccount() {
   const [showAvatarPicker, setShowAvatarPicker] = useState(false);
   const [showAvatarPrompt, setShowAvatarPrompt] = useState(false);
   const timerRef = useRef(null);
+
+  useEffect(() => {
+    if (!profile || profile.googleId) return;
+
+    function handleCredential(res) {
+      try {
+        const data = JSON.parse(atob(res.credential.split('.')[1]));
+        linkGoogleAccount({
+          telegramId,
+          googleId: data.sub,
+          email: data.email,
+          dob: data.birthdate,
+          firstName: data.given_name,
+          lastName: data.family_name,
+          photo: data.picture
+        }).then((u) => setProfile(u));
+      } catch (err) {
+        console.error('google link failed', err);
+      }
+    }
+
+    if (window.google && import.meta.env.VITE_GOOGLE_CLIENT_ID) {
+      window.google.accounts.id.initialize({
+        client_id: import.meta.env.VITE_GOOGLE_CLIENT_ID,
+        callback: handleCredential
+      });
+      window.google.accounts.id.renderButton(
+        document.getElementById('g_id_link'),
+        { theme: 'outline', size: 'large' }
+      );
+    }
+  }, [profile, telegramId]);
 
   useEffect(() => {
     async function load() {
@@ -160,6 +193,7 @@ export default function MyAccount() {
             <a href="/messages" className="underline text-primary">
               Inbox
             </a>
+            {!profile.googleId && <div id="g_id_link"></div>}
           </div>
         </div>
       </div>

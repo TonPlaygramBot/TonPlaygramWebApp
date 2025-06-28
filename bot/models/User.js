@@ -16,6 +16,10 @@ const userSchema = new mongoose.Schema({
 
   googleId: { type: String, unique: true },
 
+  googleEmail: { type: String, default: '' },
+
+  googleDob: { type: String, default: '' },
+
   walletAddress: { type: String, unique: true },
 
   createdAt: { type: Date, default: Date.now },
