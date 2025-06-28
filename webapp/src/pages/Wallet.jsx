@@ -104,7 +104,7 @@ export default function Wallet() {
           <label className="block">Send TPC</label>
           <input
             type="number"
-            placeholder="Receiver Telegram ID"
+            placeholder="Receiver Account ID"
             value={receiver}
             onChange={(e) => setReceiver(e.target.value)}
             className="border p-1 rounded w-full text-black"
