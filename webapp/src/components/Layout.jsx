@@ -15,6 +15,7 @@ export default function Layout({ children }) {
   const location = useLocation();
 
   const isHome = location.pathname === '/';
+  const isFriends = location.pathname === '/friends';
 
   const showBranding = !location.pathname.startsWith('/games');
 
@@ -36,7 +37,7 @@ export default function Layout({ children }) {
 
       <main className={`flex-grow container mx-auto p-4 ${showNavbar ? 'pb-24' : ''}`.trim()}>
 
-        {showBranding && <Branding />}
+        {showBranding && <Branding small={isFriends} />}
 
         {children}
 
