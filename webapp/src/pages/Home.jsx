@@ -19,15 +19,17 @@ import { ping } from '../utils/api.js';
 import { getAvatarUrl, saveAvatar, loadAvatar } from '../utils/avatarUtils.js';
 
 import BalanceSummary from '../components/BalanceSummary.jsx';
+import AirdropPopup from '../components/AirdropPopup.jsx';
 
 import { getTelegramId, getTelegramPhotoUrl } from '../utils/telegram.js';
-import { getProfile } from '../utils/api.js';
+import { getProfile, airdropStatus, claimWelcomeAirdrop, recalcWalletBalance } from '../utils/api.js';
 
 export default function Home() {
 
   const [status, setStatus] = useState('checking');
 
   const [photoUrl, setPhotoUrl] = useState(loadAvatar() || '');
+  const [airdropOpen, setAirdropOpen] = useState(false);
 
   useEffect(() => {
     ping()
@@ -65,8 +67,26 @@ export default function Home() {
       }
     };
     window.addEventListener('profilePhotoUpdated', handleUpdate);
+    airdropStatus(id)
+      .then((res) => {
+        if (!res.claimed) setAirdropOpen(true);
+      })
+      .catch(() => {});
+
     return () => window.removeEventListener('profilePhotoUpdated', handleUpdate);
   }, []);
+
+  const handleClaimAirdrop = async () => {
+    const id = getTelegramId();
+    try {
+      await claimWelcomeAirdrop(id);
+      await recalcWalletBalance(id);
+    } catch (err) {
+      console.error('Airdrop claim failed', err);
+    } finally {
+      setAirdropOpen(false);
+    }
+  };
 
 
   return (
@@ -118,8 +138,7 @@ export default function Home() {
 
       <p className="text-center text-xs text-subtext">Status: {status}</p>
 
-    </div>
-
-  );
-
-}
+      </div>
+      <AirdropPopup open={airdropOpen} onClaim={handleClaimAirdrop} />
+    );
+  }

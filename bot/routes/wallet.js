@@ -405,4 +405,31 @@ router.post('/reset', authenticate, async (req, res) => {
   }
 });
 
+// Recalculate balance from transaction history
+router.post('/recalculate', authenticate, async (req, res) => {
+  const { telegramId } = req.body;
+  const authId = req.auth?.telegramId;
+  if (!telegramId) {
+    return res.status(400).json({ error: 'telegramId required' });
+  }
+  if (!authId || telegramId !== authId) {
+    return res.status(403).json({ error: 'forbidden' });
+  }
+  try {
+    const user = await User.findOne({ telegramId });
+    if (!user) return res.status(404).json({ error: 'not found' });
+    ensureTransactionArray(user);
+    const total = user.transactions.reduce((acc, tx) => {
+      const amt = typeof tx.amount === 'number' ? tx.amount : 0;
+      return acc + amt;
+    }, 0);
+    user.balance = total;
+    await user.save();
+    res.json({ balance: total });
+  } catch (err) {
+    console.error('Failed to recalculate balance:', err.message);
+    res.status(500).json({ error: 'failed to recalc' });
+  }
+});
+
 export default router;
