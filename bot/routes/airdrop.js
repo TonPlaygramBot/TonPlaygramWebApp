@@ -8,9 +8,6 @@ import { ensureTransactionArray } from '../utils/userUtils.js';
 
 const router = Router();
 
-const DEV_ACCOUNT_ID = process.env.DEV_ACCOUNT_ID ||
-  '5ffe7c43-c0ae-48f6-ab8c-9e065ca95466';
-
 // ✅ Admin-only middleware
 
 function adminOnly(req, res, next) {
@@ -99,57 +96,6 @@ router.post('/grant', adminOnly, async (req, res) => {
 
   }
 
-});
-
-// Check if a user claimed the welcome airdrop
-router.post('/status', async (req, res) => {
-  const { telegramId } = req.body;
-  if (!telegramId) {
-    return res.status(400).json({ error: 'telegramId required' });
-  }
-  const claimed = await Airdrop.findOne({ telegramId, reason: 'welcome' });
-  res.json({ claimed: !!claimed });
-});
-
-// Claim welcome airdrop funded by the dev account
-router.post('/claim-welcome', async (req, res) => {
-  const { telegramId } = req.body;
-  if (!telegramId) {
-    return res.status(400).json({ error: 'telegramId required' });
-  }
-  const existing = await Airdrop.findOne({ telegramId, reason: 'welcome' });
-  if (existing) {
-    return res.status(400).json({ error: 'already claimed' });
-  }
-  try {
-    let user = await User.findOneAndUpdate(
-      { telegramId },
-      { $setOnInsert: { referralCode: telegramId.toString() } },
-      { upsert: true, new: true }
-    );
-    ensureTransactionArray(user);
-
-    const dev = await User.findOne({ accountId: DEV_ACCOUNT_ID });
-    if (!dev || dev.balance < 10000) {
-      return res.status(400).json({ error: 'airdrop unavailable' });
-    }
-    ensureTransactionArray(dev);
-
-    const txDate = new Date();
-    user.balance += 10000;
-    dev.balance -= 10000;
-    const userTx = { amount: 10000, type: 'airdrop', status: 'delivered', date: txDate };
-    const devTx = { amount: -10000, type: 'airdrop', status: 'delivered', date: txDate };
-    user.transactions.push(userTx);
-    dev.transactions.push(devTx);
-    await user.save();
-    await dev.save();
-    await Airdrop.create({ telegramId, amount: 10000, reason: 'welcome' });
-    res.json({ balance: user.balance });
-  } catch (err) {
-    console.error('Failed to claim airdrop:', err.message);
-    res.status(500).json({ error: 'failed to claim' });
-  }
 });
 
 // ✅ Admin-only airdrop to all users
