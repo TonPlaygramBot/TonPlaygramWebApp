@@ -81,7 +81,12 @@ export default function Lobby() {
   const disabled = !canStartGame(game, table, stake, aiCount);
 
   return (
-    <div className="p-4 space-y-4 text-text">
+    <div className="relative p-4 space-y-4 text-text">
+      <img
+        src="/assets/SnakeLaddersbackground.png"
+        className="background-behind-board object-cover"
+        alt=""
+      />
       <h2 className="text-xl font-bold text-center capitalize">{game} Lobby</h2>
       {game === 'snake' && (
         <div className="space-y-2">
@@ -115,8 +120,8 @@ export default function Lobby() {
               <button
                 key={n}
                 onClick={() => setAiCount(n)}
-                className={`px-2 py-1 border rounded ${
-                  aiCount === n ? 'bg-yellow-400 text-gray-900' : 'bg-gray-700 text-white'
+                className={`lobby-tile ${
+                  aiCount === n ? 'ring-2 ring-accent text-accent' : ''
                 }`}
               >
                 {n}

@@ -538,12 +538,27 @@ export default function SnakeAndLadder() {
 
   useEffect(() => {
     const id = getTelegramId();
-    getProfile(id)
-      .then((p) => {
-        if (p?.photo) {
-          setPhotoUrl(p.photo);
-          saveAvatar(p.photo);
-        } else {
+    const saved = loadAvatar();
+    if (saved) {
+      setPhotoUrl(saved);
+    } else {
+      getProfile(id)
+        .then((p) => {
+          if (p?.photo) {
+            setPhotoUrl(p.photo);
+            saveAvatar(p.photo);
+          } else {
+            const url = getTelegramPhotoUrl();
+            if (url) {
+              setPhotoUrl(url);
+            } else {
+              fetchTelegramInfo(id).then((info) => {
+                if (info?.photoUrl) setPhotoUrl(info.photoUrl);
+              });
+            }
+          }
+        })
+        .catch(() => {
           const url = getTelegramPhotoUrl();
           if (url) {
             setPhotoUrl(url);
@@ -552,18 +567,8 @@ export default function SnakeAndLadder() {
               if (info?.photoUrl) setPhotoUrl(info.photoUrl);
             });
           }
-        }
-      })
-      .catch(() => {
-        const url = getTelegramPhotoUrl();
-        if (url) {
-          setPhotoUrl(url);
-        } else {
-          fetchTelegramInfo(id).then((info) => {
-            if (info?.photoUrl) setPhotoUrl(info.photoUrl);
-          });
-        }
-      });
+        });
+    }
     moveSoundRef.current = new Audio(dropSound);
     snakeSoundRef.current = new Audio(snakeSound);
     ladderSoundRef.current = new Audio(ladderSound);
@@ -611,12 +616,17 @@ export default function SnakeAndLadder() {
   useEffect(() => {
     const updatePhoto = () => {
       const id = getTelegramId();
-      getProfile(id)
-        .then((p) => {
-          setPhotoUrl(p?.photo || getTelegramPhotoUrl());
-          if (p?.photo) saveAvatar(p.photo);
-        })
-        .catch(() => setPhotoUrl(getTelegramPhotoUrl()));
+      const saved = loadAvatar();
+      if (saved) {
+        setPhotoUrl(saved);
+      } else {
+        getProfile(id)
+          .then((p) => {
+            setPhotoUrl(p?.photo || getTelegramPhotoUrl());
+            if (p?.photo) saveAvatar(p.photo);
+          })
+          .catch(() => setPhotoUrl(getTelegramPhotoUrl()));
+      }
     };
     window.addEventListener("profilePhotoUpdated", updatePhoto);
     return () => window.removeEventListener("profilePhotoUpdated", updatePhoto);
@@ -1337,7 +1347,7 @@ export default function SnakeAndLadder() {
   return (
     <div className="p-4 pb-32 space-y-4 text-text flex flex-col justify-end items-center relative w-full flex-grow">
       {/* Action menu moved to the bottom left with only info and mute */}
-      <div className="fixed left-4 bottom-4 flex flex-col items-center space-y-2 z-20">
+      <div className="fixed left-2 bottom-4 flex flex-col items-center space-y-2 z-20">
         <button
           onClick={() => setShowInfo(true)}
           className="p-2 flex flex-col items-center"

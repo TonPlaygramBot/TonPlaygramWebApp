@@ -98,10 +98,15 @@ export default function MyAccount() {
 
   if (!profile) return <div className="p-4 text-subtext">Loading...</div>;
 
-  const photoUrl = profile.photo || loadAvatar() || getTelegramPhotoUrl();
+  const photoUrl = loadAvatar() || profile.photo || getTelegramPhotoUrl();
 
   return (
-    <div className="p-4 space-y-4 text-text">
+    <div className="relative p-4 space-y-4 text-text">
+      <img
+        src="/assets/SnakeLaddersbackground.png"
+        className="background-behind-board object-cover"
+        alt=""
+      />
       <AvatarPromptModal
         open={showAvatarPrompt}
         onPick={() => {

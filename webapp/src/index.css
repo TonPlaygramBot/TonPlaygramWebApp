@@ -732,7 +732,7 @@ body {
 .logo-wall-main {
   @apply absolute flex items-center justify-center;
   /* make the logo 5% bigger */
-  width: calc(var(--cell-width) * 9.975);
+  width: calc(var(--cell-width) * 10.5);
   height: calc(var(--cell-height) * 5.25);
   /* move the logo slightly up */
   top: calc(
@@ -951,6 +951,24 @@ body {
 }
 
 .prism-box::after {
+  content: "";
+  position: absolute;
+  inset: 2px;
+  border-radius: inherit;
+  box-shadow: inset 0 0 6px rgba(0, 0, 0, 0.6);
+  transform: translateZ(6px);
+}
+
+.lobby-tile {
+  @apply relative flex items-center justify-center rounded-xl text-white font-semibold;
+  background-color: #2d5c66;
+  border: 2px solid #334155;
+  box-shadow: 0 8px 12px rgba(0, 0, 0, 0.6);
+  transform-style: preserve-3d;
+  padding: 0.25rem 0.5rem;
+}
+
+.lobby-tile::after {
   content: "";
   position: absolute;
   inset: 2px;

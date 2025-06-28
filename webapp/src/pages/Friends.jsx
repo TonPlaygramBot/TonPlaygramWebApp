@@ -40,34 +40,42 @@ export default function Friends() {
     });
     listFriendRequests(telegramId).then(setFriendRequests);
 
-    getProfile(telegramId)
-      .then((p) => {
-        if (p?.photo) {
-          setMyPhotoUrl(p.photo);
-          saveAvatar(p.photo);
-        } else if (!myPhotoUrl) {
+    const saved = loadAvatar();
+    if (saved) {
+      setMyPhotoUrl(saved);
+    } else {
+      getProfile(telegramId)
+        .then((p) => {
+          if (p?.photo) {
+            setMyPhotoUrl(p.photo);
+            saveAvatar(p.photo);
+          } else {
+            fetchTelegramInfo(telegramId).then((info) => {
+              if (info?.photoUrl) setMyPhotoUrl(info.photoUrl);
+            });
+          }
+        })
+        .catch(() => {
           fetchTelegramInfo(telegramId).then((info) => {
             if (info?.photoUrl) setMyPhotoUrl(info.photoUrl);
           });
-        }
-      })
-      .catch(() => {
-        if (!myPhotoUrl) {
-          fetchTelegramInfo(telegramId).then((info) => {
-            if (info?.photoUrl) setMyPhotoUrl(info.photoUrl);
-          });
-        }
-      });
+        });
+    }
   }, [telegramId]);
 
   useEffect(() => {
     const updatePhoto = () => {
-      getProfile(telegramId)
-        .then((p) => {
-          setMyPhotoUrl(p?.photo || getTelegramPhotoUrl());
-          if (p?.photo) saveAvatar(p.photo);
-        })
-        .catch(() => setMyPhotoUrl(getTelegramPhotoUrl()));
+      const saved = loadAvatar();
+      if (saved) {
+        setMyPhotoUrl(saved);
+      } else {
+        getProfile(telegramId)
+          .then((p) => {
+            setMyPhotoUrl(p?.photo || getTelegramPhotoUrl());
+            if (p?.photo) saveAvatar(p.photo);
+          })
+          .catch(() => setMyPhotoUrl(getTelegramPhotoUrl()));
+      }
     };
     window.addEventListener('profilePhotoUpdated', updatePhoto);
     return () => window.removeEventListener('profilePhotoUpdated', updatePhoto);

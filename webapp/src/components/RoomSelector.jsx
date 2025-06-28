@@ -21,10 +21,10 @@ export default function RoomSelector({ selected, onSelect }) {
             <button
               key={`${id}-${amt}`}
               onClick={() => onSelect({ token: id, amount: amt })}
-              className={`prism-box px-2 py-1 flex items-center space-x-1 cursor-pointer ${
+              className={`lobby-tile px-2 py-1 flex items-center space-x-1 cursor-pointer ${
                 token === id && amount === amt
                   ? 'ring-2 ring-accent text-accent'
-                  : 'text-white'
+                  : ''
               }`}
             >
               <span>{amt}</span>

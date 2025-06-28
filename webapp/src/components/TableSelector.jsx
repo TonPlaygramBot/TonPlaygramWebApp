@@ -7,8 +7,8 @@ export default function TableSelector({ tables, selected, onSelect }) {
         <button
           key={t.id}
           onClick={() => onSelect(t)}
-          className={`w-full px-2 py-1 border rounded flex justify-between ${
-            selected?.id === t.id ? 'bg-yellow-400 text-gray-900' : 'bg-gray-700 text-white'
+          className={`lobby-tile w-full flex justify-between ${
+            selected?.id === t.id ? 'ring-2 ring-accent text-accent' : ''
           }`}
         >
           <span>{t.label || `Table ${t.capacity}p`}</span>

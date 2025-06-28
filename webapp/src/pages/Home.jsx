@@ -36,24 +36,34 @@ export default function Home() {
       .catch(() => setStatus('offline'));
 
     const id = getTelegramId();
-    getProfile(id)
-      .then((p) => {
-        const src = p?.photo || getTelegramPhotoUrl();
-        setPhotoUrl(src);
-        if (p?.photo) saveAvatar(p.photo);
-      })
-      .catch(() => {
-        setPhotoUrl(getTelegramPhotoUrl());
-      });
+    const saved = loadAvatar();
+    if (saved) {
+      setPhotoUrl(saved);
+    } else {
+      getProfile(id)
+        .then((p) => {
+          const src = p?.photo || getTelegramPhotoUrl();
+          setPhotoUrl(src);
+          if (p?.photo) saveAvatar(p.photo);
+        })
+        .catch(() => {
+          setPhotoUrl(getTelegramPhotoUrl());
+        });
+    }
 
     const handleUpdate = () => {
       const id = getTelegramId();
-      getProfile(id)
-        .then((p) => {
-          setPhotoUrl(p?.photo || getTelegramPhotoUrl());
-          if (p?.photo) saveAvatar(p.photo);
-        })
-        .catch(() => setPhotoUrl(getTelegramPhotoUrl()));
+      const saved = loadAvatar();
+      if (saved) {
+        setPhotoUrl(saved);
+      } else {
+        getProfile(id)
+          .then((p) => {
+            setPhotoUrl(p?.photo || getTelegramPhotoUrl());
+            if (p?.photo) saveAvatar(p.photo);
+          })
+          .catch(() => setPhotoUrl(getTelegramPhotoUrl()));
+      }
     };
     window.addEventListener('profilePhotoUpdated', handleUpdate);
     return () => window.removeEventListener('profilePhotoUpdated', handleUpdate);
