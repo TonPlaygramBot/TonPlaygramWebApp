@@ -108,11 +108,11 @@ export default forwardRef<SpinWheelHandle, SpinWheelProps>(function SpinWheel(
 
   return (
 
-    <div className="w-40 mx-auto flex flex-col items-center">
+    <div className="w-36 mx-auto flex flex-col items-center">
 
       <div
 
-        className="relative overflow-hidden w-full"
+        className="relative overflow-hidden w-32"
 
         style={{ height: itemHeight * visibleRows }}
 
@@ -122,7 +122,7 @@ export default forwardRef<SpinWheelHandle, SpinWheelProps>(function SpinWheel(
 
         <div
 
-          className="absolute inset-x-0 border-2 border-yellow-500 pointer-events-none z-10"
+          className="absolute inset-x-0 border-2 border-accent pointer-events-none z-10"
 
           style={{ top: itemHeight * winningRow, height: itemHeight }}
 
@@ -130,7 +130,7 @@ export default forwardRef<SpinWheelHandle, SpinWheelProps>(function SpinWheel(
 
         <div
 
-          className="flex flex-col items-center w-full"
+          className="flex flex-col items-center w-32"
 
           style={{
 
@@ -148,9 +148,9 @@ export default forwardRef<SpinWheelHandle, SpinWheelProps>(function SpinWheel(
 
               key={idx}
 
-              className={`board-style flex items-center justify-center text-sm w-full font-bold ${
+              className={`board-style flex items-center justify-center text-sm w-32 font-bold ${
 
-                idx === winnerIndex ? 'bg-yellow-500 text-black' : 'text-white'
+                idx === winnerIndex ? 'bg-accent text-black' : 'text-white'
 
               }`}
 

@@ -120,7 +120,7 @@ export default function DailyCheckIn() {
 
         <span className="flex items-center">
           {formatReward(REWARDS[i])}
-          <img src="/icons/TPCcoin.png" alt="TPC" className="w-8 h-8 ml-1" />
+          <img src="/icons/TPCcoin.png" alt="TPC" className="w-8 h-8 -ml-1" />
         </span>
 
       </div>
