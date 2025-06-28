@@ -76,8 +76,10 @@ export default function Wallet() {
     try {
       const res = await sendAccountTpc(accountId, to, amt);
       if (res?.error) {
-        if (res.error === 'unauthorized') {
-          setErrorMsg('You must open the web app from Telegram to send TPC.');
+        if (res.error === 'unauthorized' || res.error === 'forbidden') {
+          setErrorMsg(
+            'Authorization failed. Make sure you opened this page from Telegram and that your bot token is correct.'
+          );
         } else {
           setErrorMsg(res.error);
         }
