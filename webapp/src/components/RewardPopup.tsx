@@ -7,10 +7,6 @@ interface RewardPopupProps {
   message?: string;
 }
 
-function formatReward(val: number) {
-  return val >= 1000 ? `${val / 1000}k` : String(val);
-}
-
 export default function RewardPopup({ reward, onClose, message }: RewardPopupProps) {
   if (reward === null) return null;
   useEffect(() => {
@@ -25,7 +21,7 @@ export default function RewardPopup({ reward, onClose, message }: RewardPopupPro
           className="w-10 h-10 mx-auto"
         />
         <h3 className="text-lg font-bold">Reward Earned</h3>
-        <div className="text-accent text-3xl">+{formatReward(reward)} TPC</div>
+        <div className="text-accent text-3xl">+{reward} TPC</div>
         {message && <p className="text-sm text-subtext">{message}</p>}
         <button
           onClick={onClose}

@@ -12,10 +12,6 @@ const REWARDS = Array.from({ length: 30 }, (_, i) => 1000 * (i + 1));
 
 const ONE_DAY = 24 * 60 * 60 * 1000;
 
-function formatReward(val) {
-  return val >= 1000 ? `${val / 1000}k` : String(val);
-}
-
 export default function DailyCheckIn() {
 
   let telegramId;
@@ -120,7 +116,7 @@ export default function DailyCheckIn() {
 
         <span className="flex items-center">
 
-          {formatReward(REWARDS[i])}
+          {REWARDS[i]}
 
           <img src="/icons/TPCcoin.png" alt="TPC" className="w-8 h-8 ml-1" />
 
@@ -133,13 +129,8 @@ export default function DailyCheckIn() {
   }
 
   return (
-    <div className="relative p-4">
-      <img
-        src="/assets/SnakeLaddersbackground.png"
-        className="background-behind-board object-cover"
-        alt=""
-      />
-      <div className="prism-box p-4 space-y-2">
+
+    <div className="prism-box p-4 space-y-2">
 
       {showPopup && (
 
@@ -193,10 +184,12 @@ export default function DailyCheckIn() {
 
       )}
 
-        <h3 className="text-lg font-bold text-text text-center">Daily Streaks</h3>
-        <p className="text-sm text-subtext text-center">Check in each day for increasing rewards.</p>
-        <div className="flex space-x-2 overflow-x-auto">{progress}</div>
-      </div>
+      <h3 className="text-lg font-bold text-text text-center">Daily Streaks</h3>
+
+      <p className="text-sm text-subtext text-center">Check in each day for increasing rewards.</p>
+
+      <div className="flex space-x-2 overflow-x-auto">{progress}</div>
+
     </div>
 
   );
