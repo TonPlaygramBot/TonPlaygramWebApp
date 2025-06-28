@@ -218,6 +218,10 @@ export function registerWallet(walletAddress) {
   return post('/api/profile/register-wallet', { walletAddress });
 }
 
+export function linkGoogleAccount(data) {
+  return post('/api/profile/link-google', data);
+}
+
 export function searchUsers(query) {
   return post('/api/social/search', { query });
 }

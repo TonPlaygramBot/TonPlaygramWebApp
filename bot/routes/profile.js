@@ -124,6 +124,30 @@ router.post('/addTransaction', async (req, res) => {
   res.json({ transactions: user.transactions });
 });
 
+router.post('/link-google', async (req, res) => {
+  const { telegramId, googleId, email, dob, firstName, lastName, photo } = req.body;
+  if (!telegramId || !googleId) {
+    return res.status(400).json({ error: 'telegramId and googleId required' });
+  }
+
+  const update = {
+    googleId,
+    googleEmail: email,
+    googleDob: dob
+  };
+
+  if (firstName !== undefined) update.firstName = firstName;
+  if (lastName !== undefined) update.lastName = lastName;
+  if (photo !== undefined) update.photo = photo;
+
+  const user = await User.findOneAndUpdate(
+    { telegramId },
+    { $set: update, $setOnInsert: { referralCode: telegramId.toString() } },
+    { upsert: true, new: true }
+  );
+  res.json(user);
+});
+
 router.post('/link-social', async (req, res) => {
   const { telegramId, twitter, telegramHandle, discord } = req.body;
   if (!telegramId) return res.status(400).json({ error: 'telegramId required' });
