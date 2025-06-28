@@ -8,6 +8,8 @@ import {
 } from '../utils/api.js';
 import { getTelegramId } from '../utils/telegram.js';
 import LoginOptions from '../components/LoginOptions.jsx';
+import ConfirmPopup from '../components/ConfirmPopup.jsx';
+import InfoPopup from '../components/InfoPopup.jsx';
 import useTelegramBackButton from '../hooks/useTelegramBackButton.js';
 
 export default function Wallet() {
@@ -27,6 +29,8 @@ export default function Wallet() {
   const [transactions, setTransactions] = useState([]);
   const [sending, setSending] = useState(false);
   const [receipt, setReceipt] = useState(null);
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [errorMsg, setErrorMsg] = useState('');
 
 
   const loadBalances = async () => {
@@ -56,16 +60,27 @@ export default function Wallet() {
     });
   }, []);
 
+  const handleSendClick = () => {
+    const to = receiver.trim();
+    const amt = Number(amount);
+    if (!to || !amt) return;
+    setConfirmOpen(true);
+  };
+
   const handleSend = async () => {
     const to = receiver.trim();
     const amt = Number(amount);
     if (!to || !amt) return;
-    if (!window.confirm(`Send ${amt} TPC to ${to}?`)) return;
+    setConfirmOpen(false);
     setSending(true);
     try {
       const res = await sendAccountTpc(accountId, to, amt);
       if (res?.error) {
-        alert(res.error);
+        if (res.error === 'unauthorized') {
+          setErrorMsg('You must open the web app from Telegram to send TPC.');
+        } else {
+          setErrorMsg(res.error);
+        }
         return;
       }
       setReceipt({
@@ -82,7 +97,7 @@ export default function Wallet() {
       setTransactions(txRes.transactions || []);
     } catch (err) {
       console.error('Send failed', err);
-      alert('Failed to send TPC');
+      setErrorMsg('Failed to send TPC');
     } finally {
       setSending(false);
     }
@@ -118,14 +133,14 @@ export default function Wallet() {
             className="border p-1 rounded w-full mt-1 text-black"
           />
           <button
-            onClick={handleSend}
+            onClick={handleSendClick}
             className="mt-1 px-3 py-1 bg-primary hover:bg-primary-hover text-text rounded"
           >
             Send
           </button>
           {sending && (
             <div className="mt-1">
-              <div className="h-1 bg-primary animate-pulse" />
+              <div className="h-1 bg-green-500 animate-pulse" />
               <div className="text-sm text-subtext">Sending...</div>
             </div>
           )}
@@ -176,6 +191,20 @@ export default function Wallet() {
           ))}
         </div>
       </div>
+
+      <ConfirmPopup
+        open={confirmOpen}
+        message={`Send ${Number(amount)} TPC to ${receiver.trim()}?`}
+        onConfirm={handleSend}
+        onCancel={() => setConfirmOpen(false)}
+      />
+
+      <InfoPopup
+        open={Boolean(errorMsg)}
+        onClose={() => setErrorMsg('')}
+        title="Transaction Failed"
+        info={errorMsg}
+      />
     </div>
   );
 }
