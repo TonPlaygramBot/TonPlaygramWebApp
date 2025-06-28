@@ -72,7 +72,7 @@ export default function Tasks() {
 
             key={t.id}
 
-            className="bg-surface border border-border rounded p-2 flex justify-between items-center"
+            className="lobby-tile w-full flex justify-between items-center"
 
           >
 

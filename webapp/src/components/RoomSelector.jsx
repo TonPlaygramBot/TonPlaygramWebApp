@@ -21,14 +21,14 @@ export default function RoomSelector({ selected, onSelect }) {
             <button
               key={`${id}-${amt}`}
               onClick={() => onSelect({ token: id, amount: amt })}
-              className={`lobby-tile px-2 py-1 flex items-center space-x-1 cursor-pointer ${
+              className={`lobby-tile w-20 px-4 py-2 flex flex-col items-center space-y-1 cursor-pointer ${
                 token === id && amount === amt
                   ? 'lobby-selected'
                   : ''
               }`}
             >
-              <span>{amt}</span>
               <img src={icon} alt={id} className="w-8 h-8" />
+              <span>{amt}</span>
             </button>
           ))}
         </div>
