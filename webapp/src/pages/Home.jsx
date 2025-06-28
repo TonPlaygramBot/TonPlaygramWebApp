@@ -87,7 +87,12 @@ export default function Home() {
 
 
         <div className="w-full max-w-xs mt-2">
-          <div className="flex items-center justify-between bg-surface border border-border rounded-xl p-2">
+          <div className="relative flex items-center justify-between bg-surface border border-border rounded-xl p-2 overflow-hidden">
+            <img
+              src="/assets/SnakeLaddersbackground.png"
+              className="background-behind-board object-cover"
+              alt=""
+            />
             <Link to="/wallet?mode=send" className="flex items-center space-x-1">
               <FaArrowCircleUp className="text-accent w-8 h-8" />
               <span className="text-xs text-accent">Send</span>

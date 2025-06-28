@@ -74,7 +74,8 @@ export default function TasksCard() {
 
   return (
 
-    <div className="bg-surface border border-border rounded-xl p-4 space-y-2">
+    <div className="relative bg-surface border border-border rounded-xl p-4 space-y-2 overflow-hidden">
+      <img src="/assets/SnakeLaddersbackground.png" className="background-behind-board object-cover" alt="" />
 
       <h3 className="text-lg font-bold text-text flex items-center justify-center space-x-1"><AiOutlineCheckSquare className="text-accent" /><span>Tasks</span></h3>
 
@@ -82,7 +83,7 @@ export default function TasksCard() {
 
         {tasks.map((t) => (
 
-          <li key={t.id} className="flex justify-between items-center">
+          <li key={t.id} className="lobby-tile w-full flex justify-between items-center">
 
             <div className="flex items-center space-x-2 text-sm">
 
