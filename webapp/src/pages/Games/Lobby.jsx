@@ -122,11 +122,12 @@ export default function Lobby() {
     if (table?.id === 'single') {
       localStorage.removeItem(`snakeGameState_${aiCount}`);
       params.set('ai', aiCount);
+      navigate(`/games/${game}?${params.toString()}`);
     } else {
       if (stake.token) params.set('token', stake.token);
       if (stake.amount) params.set('amount', stake.amount);
+      navigate(`/games/${game}/multiplayer?${params.toString()}`);
     }
-    navigate(`/games/${game}?${params.toString()}`);
   };
 
   let disabled = !canStartGame(game, table, stake, aiCount, players.length);
