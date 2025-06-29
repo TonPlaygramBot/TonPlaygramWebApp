@@ -7,7 +7,6 @@ import {
   getAccountTransactions
 } from '../utils/api.js';
 import { getTelegramId } from '../utils/telegram.js';
-import LoginOptions from '../components/LoginOptions.jsx';
 import ConfirmPopup from '../components/ConfirmPopup.jsx';
 import InfoPopup from '../components/InfoPopup.jsx';
 import useTelegramBackButton from '../hooks/useTelegramBackButton.js';
@@ -15,11 +14,10 @@ import useTelegramBackButton from '../hooks/useTelegramBackButton.js';
 export default function Wallet() {
   useTelegramBackButton();
   let telegramId;
-
   try {
     telegramId = getTelegramId();
   } catch (err) {
-    return <LoginOptions />;
+    telegramId = undefined;
   }
 
   const [accountId, setAccountId] = useState('');
@@ -34,21 +32,29 @@ export default function Wallet() {
 
 
   const loadBalances = async () => {
-    const acc = await createAccount(telegramId);
-    if (acc?.error) {
-      console.error('Failed to load account:', acc.error);
-      return null;
+    let id = localStorage.getItem('accountId');
+    let acc;
+    if (id) {
+      acc = { accountId: id };
+    } else {
+      acc = await createAccount(telegramId);
+      if (acc?.error) {
+        console.error('Failed to load account:', acc.error);
+        return null;
+      }
+      localStorage.setItem('accountId', acc.accountId);
+      id = acc.accountId;
     }
-    setAccountId(acc.accountId);
+    setAccountId(acc.accountId || id);
 
-    const bal = await getAccountBalance(acc.accountId);
+    const bal = await getAccountBalance(acc.accountId || id);
     if (bal?.error || typeof bal.balance !== 'number') {
       console.error('Failed to load TPC balance:', bal?.error);
       setTpcBalance(0);
     } else {
       setTpcBalance(bal.balance);
     }
-    return acc.accountId;
+    return acc.accountId || id;
   };
 
   useEffect(() => {

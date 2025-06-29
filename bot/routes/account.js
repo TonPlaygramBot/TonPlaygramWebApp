@@ -9,14 +9,20 @@ const router = Router();
 // Create or fetch account for a user
 router.post('/create', async (req, res) => {
   const { telegramId } = req.body;
-  if (!telegramId) return res.status(400).json({ error: 'telegramId required' });
 
-  let user = await User.findOne({ telegramId });
-  if (!user) {
-    user = new User({ telegramId, accountId: uuidv4(), referralCode: String(telegramId) });
-    await user.save();
-  } else if (!user.accountId) {
-    user.accountId = uuidv4();
+  let user;
+  if (telegramId) {
+    user = await User.findOne({ telegramId });
+    if (!user) {
+      user = new User({ telegramId, accountId: uuidv4(), referralCode: String(telegramId) });
+      await user.save();
+    } else if (!user.accountId) {
+      user.accountId = uuidv4();
+      await user.save();
+    }
+  } else {
+    const id = uuidv4();
+    user = new User({ accountId: id, referralCode: id });
     await user.save();
   }
 
@@ -43,9 +49,8 @@ router.post('/balance', async (req, res) => {
 });
 
 // Send TPC between accounts
-router.post('/send', authenticate, async (req, res) => {
+router.post('/send', async (req, res) => {
   const { fromAccount, toAccount, amount } = req.body;
-  const authId = req.auth?.telegramId;
   if (!fromAccount || !toAccount || typeof amount !== 'number') {
     return res.status(400).json({ error: 'fromAccount, toAccount and amount required' });
   }
@@ -53,9 +58,6 @@ router.post('/send', authenticate, async (req, res) => {
 
   const sender = await User.findOne({ accountId: fromAccount });
   if (!sender) return res.status(404).json({ error: 'sender not found' });
-  if (authId && sender.telegramId && authId !== sender.telegramId) {
-    return res.status(403).json({ error: 'forbidden' });
-  }
   if (sender.balance < amount) {
     return res.status(400).json({ error: 'insufficient balance' });
   }
