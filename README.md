@@ -177,6 +177,13 @@ Opening the Snake & Ladder game without specifying an `ai` parameter now
 defaults to one computer opponent. You can set `?ai=1`, `?ai=2` or `?ai=3` in
 the URL – or pick the number in the lobby – to change how many AI players join.
 
+### Multiplayer status
+
+The web version currently supports only single-player games versus computer
+opponents. Choosing a shared table in the lobby will not create a real
+multiplayer match yet. Each participant plays their own separate board even if
+they joined the same room. Networked play is planned for a future update.
+
 ### Entering the Snake & Ladder game
 
 To move from the start you must roll at least one six when rolling two dice. Any combination containing a six lets you enter the board, including:
