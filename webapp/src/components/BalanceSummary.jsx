@@ -11,7 +11,7 @@ import { getTelegramId } from '../utils/telegram.js';
 import LoginOptions from './LoginOptions.jsx';
 import { useTonAddress } from '@tonconnect/ui-react';
 
-export default function BalanceSummary({ className = '' }) {
+export default function BalanceSummary() {
   let telegramId;
   try {
     telegramId = getTelegramId();
@@ -71,15 +71,15 @@ export default function BalanceSummary({ className = '' }) {
   }, [walletAddress]);
 
   return (
-    <div className={`text-center ml-1 ${className}`}>
+    <div className="text-center">
       <p className="text-lg font-bold text-gray-300 flex items-center justify-center space-x-1">
         <Link to="/wallet" className="flex items-center space-x-1">
           <FaWallet className="text-primary" />
           <span>Wallet</span>
         </Link>
       </p>
-      <div className="grid grid-cols-3 text-sm mt-3">
-        <Token icon="/icons/TON.png" label="TON" value={tonBalance ?? '...'} className="justify-start ml-2" />
+      <div className="grid grid-cols-3 text-sm mt-2">
+        <Token icon="/icons/TON.png" label="TON" value={tonBalance ?? '...'} />
         <Token icon="/icons/TPCcoin.png" label="TPC" value={balance ?? 0} />
         <Token icon="/icons/Usdt.png" label="USDT" value={usdtBalance ?? '...'} />
       </div>
@@ -87,19 +87,11 @@ export default function BalanceSummary({ className = '' }) {
   );
 }
 
-function formatValue(value) {
-  if (value === null || value === undefined || value === '...') return value;
-  const num = typeof value === 'string' ? Number(value) : value;
-  if (Number.isNaN(num)) return value;
-  const truncated = Math.trunc(num * 10000) / 10000;
-  return truncated.toLocaleString(undefined, { maximumFractionDigits: 4 });
-}
-
-function Token({ icon, value, label, className = '' }) {
+function Token({ icon, value, label }) {
   return (
-    <div className={`flex items-center justify-center space-x-1 w-full ${className}`}>
+    <div className="flex items-center justify-center space-x-1 w-full">
       <img src={icon} alt={label} className="w-8 h-8" />
-      <span>{formatValue(value)}</span>
+      <span>{value}</span>
     </div>
   );
 }
