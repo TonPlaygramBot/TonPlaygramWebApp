@@ -89,7 +89,7 @@ export default function Home() {
         <TonConnectButton />
 
 
-        <div className="w-full max-w-xs mt-2">
+        <div className="w-full mt-2">
           <div className="relative flex items-center justify-between bg-surface border border-border rounded-xl p-2 overflow-hidden">
             <img
               src="/assets/SnakeLaddersbackground.png"
@@ -100,9 +100,7 @@ export default function Home() {
               <FaArrowCircleUp className="text-accent w-8 h-8" />
               <span className="text-xs text-accent">Send</span>
             </Link>
-            <div className="-mt-1">
-              <BalanceSummary />
-            </div>
+            <BalanceSummary />
             <Link to="/wallet?mode=receive" className="flex items-center space-x-1 -mr-1">
               <FaArrowCircleDown className="text-accent w-8 h-8" />
               <span className="text-xs text-accent">Receive</span>
