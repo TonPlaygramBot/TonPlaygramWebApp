@@ -87,24 +87,13 @@ export default function Home() {
           </div>
         )}
 
-        <div className="w-full mt-2">
+        <div className="w-full mt-2 space-y-4">
           <div className="relative bg-surface border border-border rounded-xl p-4 space-y-2 overflow-hidden">
             <img
               src="/assets/SnakeLaddersbackground.png"
               className="background-behind-board object-cover"
               alt=""
             />
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-1">
-                <img src="/icons/TON.png" alt="TON" className="w-6 h-6" />
-                <span className="text-sm">{formatValue(tonBalance ?? '...')}</span>
-              </div>
-              <TonConnectButton small className="mt-0" />
-              <div className="flex items-center space-x-1">
-                <img src="/icons/Usdt.png" alt="USDT" className="w-6 h-6" />
-                <span className="text-sm">{formatValue(usdtBalance ?? '...')}</span>
-              </div>
-            </div>
 
             <p className="flex justify-center mb-1">
               <Link to="/wallet" className="flex items-center space-x-1 font-bold">
@@ -132,6 +121,23 @@ export default function Home() {
                 <FaArrowCircleDown className="text-accent w-8 h-8" />
                 <span className="text-xs text-accent">Receive</span>
               </Link>
+            </div>
+          </div>
+
+          <div className="relative bg-surface border border-border rounded-xl p-4 flex items-center justify-between overflow-hidden">
+            <img
+              src="/assets/SnakeLaddersbackground.png"
+              className="background-behind-board object-cover"
+              alt=""
+            />
+            <div className="flex items-center space-x-1">
+              <img src="/icons/TON.png" alt="TON" className="w-6 h-6" />
+              <span className="text-sm">{formatValue(tonBalance ?? '...')}</span>
+            </div>
+            <TonConnectButton small className="mt-0" />
+            <div className="flex items-center space-x-1">
+              <img src="/icons/Usdt.png" alt="USDT" className="w-6 h-6" />
+              <span className="text-sm">{formatValue(usdtBalance ?? '...')}</span>
             </div>
           </div>
         </div>
