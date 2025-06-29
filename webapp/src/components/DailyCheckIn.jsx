@@ -105,15 +105,10 @@ export default function DailyCheckIn() {
     progress.push(
 
       <div
-
         key={i}
-
         className={`board-style w-20 p-2 flex flex-col items-center justify-center text-xs ${
-
-          i < streak ? 'bg-yellow-300 text-black' : ''
-
+          i === streak - 1 ? 'border-4 border-brand-gold' : ''
         }`}
-
       >
 
         <span>Day {i + 1}</span>

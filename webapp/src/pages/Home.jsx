@@ -121,7 +121,7 @@ export default function Home() {
             </div>
             <div className="flex-1 flex items-center justify-center space-x-1">
               <img src="/icons/Usdt.png" alt="USDT" className="w-8 h-8" />
-              <span className="text-base">{formatValue(usdtBalance ?? '...')}</span>
+              <span className="text-base">{formatValue(usdtBalance ?? '...', 2)}</span>
             </div>
           </div>
 
