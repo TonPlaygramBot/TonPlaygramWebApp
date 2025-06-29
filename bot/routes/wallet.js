@@ -123,9 +123,11 @@ router.post('/usdt-balance', async (req, res) => {
       withProxy()
     );
     const data = await resp.json();
-    const jetton = (data.balances || []).find(
-      (j) => j.jetton?.symbol === 'USDT' || j.jetton?.symbol === 'jUSDT'
-    );
+    const jetton = (data.balances || []).find((j) => {
+      const sym = j.jetton?.symbol || '';
+      const upper = sym.toUpperCase();
+      return upper === 'USDT' || upper === 'JUSDT' || upper === 'USDT.E' || sym === 'USDt';
+    });
     let balance = 0;
     if (jetton) {
       const decimals = jetton.jetton?.decimals || 0;
