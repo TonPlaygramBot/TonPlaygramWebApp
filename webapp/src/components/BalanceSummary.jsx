@@ -80,33 +80,33 @@ export default function BalanceSummary({ className = '' }) {
       </p>
       <div className="grid grid-cols-3 text-sm mt-4">
         <Token icon="/icons/TON.png" label="TON" value={tonBalance ?? '...'} />
-        <Token icon="/icons/TPCcoin.png" label="TPC" value={balance ?? 0} />
-        <Token icon="/icons/Usdt.png" label="USDT" value={usdtBalance ?? '...'} />
+        <Token icon="/icons/TPCcoin.png" label="TPC" value={balance ?? 0} decimals={2} />
+        <Token icon="/icons/Usdt.png" label="USDT" value={usdtBalance ?? '...'} decimals={2} />
       </div>
     </div>
   );
 }
 
-function formatValue(value) {
+function formatValue(value, decimals = 4) {
   if (typeof value !== 'number') {
     const parsed = parseFloat(value);
     if (isNaN(parsed)) return value;
     return parsed.toLocaleString(undefined, {
-      minimumFractionDigits: 4,
-      maximumFractionDigits: 4,
+      minimumFractionDigits: decimals,
+      maximumFractionDigits: decimals,
     });
   }
   return value.toLocaleString(undefined, {
-    minimumFractionDigits: 4,
-    maximumFractionDigits: 4,
+    minimumFractionDigits: decimals,
+    maximumFractionDigits: decimals,
   });
 }
 
-function Token({ icon, value, label }) {
+function Token({ icon, value, label, decimals }) {
   return (
     <div className="flex items-center justify-start space-x-1 w-full">
       <img src={icon} alt={label} className="w-8 h-8" />
-      <span>{formatValue(value)}</span>
+      <span>{formatValue(value, decimals)}</span>
     </div>
   );
 }

@@ -100,12 +100,12 @@ export default function Home() {
               <FaArrowCircleUp className="text-accent w-8 h-8" />
               <span className="text-xs text-accent">Send</span>
             </Link>
-            <BalanceSummary />
             <Link to="/wallet?mode=receive" className="flex items-center space-x-1 -mr-1 pt-1">
               <FaArrowCircleDown className="text-accent w-8 h-8" />
               <span className="text-xs text-accent">Receive</span>
             </Link>
           </div>
+          <BalanceSummary className="mt-2" />
         </div>
 
       </div>
