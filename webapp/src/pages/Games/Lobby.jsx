@@ -37,6 +37,7 @@ export default function Lobby() {
   const [aiCount, setAiCount] = useState(0);
   const [online, setOnline] = useState(0);
   const [playerName, setPlayerName] = useState('');
+  const [waiting, setWaiting] = useState(false);
 
   useEffect(() => {
     const id = getTelegramId();
@@ -112,7 +113,27 @@ export default function Lobby() {
     }
   }, [game, table]);
 
+  useEffect(() => {
+    if (
+      waiting &&
+      game === 'snake' &&
+      table &&
+      table.id !== 'single' &&
+      players.length >= table.capacity
+    ) {
+      const params = new URLSearchParams();
+      params.set('table', table.id);
+      if (stake.token) params.set('token', stake.token);
+      if (stake.amount) params.set('amount', stake.amount);
+      navigate(`/games/${game}?${params.toString()}`);
+    }
+  }, [waiting, players, table, stake, navigate, game]);
+
   const startGame = () => {
+    if (table && table.id !== 'single' && players.length < table.capacity) {
+      setWaiting(true);
+      return;
+    }
     const params = new URLSearchParams();
     if (table) params.set('table', table.id);
     if (table?.id === 'single') {
@@ -125,7 +146,17 @@ export default function Lobby() {
     navigate(`/games/${game}?${params.toString()}`);
   };
 
-  const disabled = !canStartGame(game, table, stake, aiCount, players.length);
+  let disabled = waiting || !canStartGame(game, table, stake, aiCount, players.length);
+  if (
+    !waiting &&
+    game === 'snake' &&
+    table &&
+    table.id !== 'single' &&
+    players.length > 0 &&
+    players.length < table.capacity
+  ) {
+    disabled = false;
+  }
 
   return (
     <div className="relative p-4 space-y-4 text-text">
@@ -187,6 +218,9 @@ export default function Lobby() {
             ))}
           </div>
         </div>
+      )}
+      {waiting && (
+        <p className="text-center text-sm">Waiting for players...</p>
       )}
       <button
         onClick={startGame}
