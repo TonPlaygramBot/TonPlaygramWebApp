@@ -10,7 +10,15 @@ import DailyCheckIn from '../components/DailyCheckIn.jsx';
 
 import TasksCard from '../components/TasksCard.jsx';
 
-import { FaUser, FaArrowCircleUp, FaArrowCircleDown, FaWallet } from 'react-icons/fa';
+import {
+  FaUser,
+  FaArrowCircleUp,
+  FaArrowCircleDown,
+  FaWallet,
+  FaCopy,
+  FaSignOutAlt
+} from 'react-icons/fa';
+import { useTonAddress, useTonConnectUI } from '@tonconnect/ui-react';
 
 import { Link } from 'react-router-dom';
 
@@ -30,6 +38,11 @@ export default function Home() {
 
   const [photoUrl, setPhotoUrl] = useState(loadAvatar() || '');
   const { tpcBalance, tonBalance, usdtBalance } = useTokenBalances();
+  const walletAddress = useTonAddress();
+  const [tonConnectUI] = useTonConnectUI();
+  const shortAddress = walletAddress
+    ? `${walletAddress.slice(0, 4)}...${walletAddress.slice(-4)}`
+    : '';
 
   useEffect(() => {
     ping()
@@ -78,12 +91,23 @@ export default function Home() {
       <div className="flex flex-col items-center">
 
         {photoUrl && (
-          <div>
+          <div className="relative">
             <img
               src={getAvatarUrl(photoUrl)}
               alt="profile"
               className="w-36 h-36 hexagon border-4 border-brand-gold -mt-[20%] mb-3 object-cover"
             />
+            {walletAddress && (
+              <div className="absolute top-1 left-1/2 -translate-x-1/2 bg-surface/80 text-xs px-2 py-1 rounded flex items-center space-x-1">
+                <span>{shortAddress}</span>
+                <button onClick={() => navigator.clipboard.writeText(walletAddress)}>
+                  <FaCopy />
+                </button>
+                <button onClick={() => tonConnectUI.disconnect()}>
+                  <FaSignOutAlt />
+                </button>
+              </div>
+            )}
           </div>
         )}
 
@@ -103,12 +127,7 @@ export default function Home() {
             </p>
             <p className="text-center text-xs text-subtext">Only to send and receive TPC coins</p>
 
-            <div className="relative flex items-start justify-between bg-surface border border-border rounded-xl p-2 overflow-hidden">
-              <img
-                src="/assets/SnakeLaddersbackground.png"
-                className="background-behind-board object-cover"
-                alt=""
-              />
+            <div className="flex items-start justify-between">
               <Link to="/wallet?mode=send" className="flex items-center space-x-1 -ml-1 pt-1">
                 <FaArrowCircleUp className="text-accent w-8 h-8" />
                 <span className="text-xs text-accent">Send</span>
@@ -134,7 +153,7 @@ export default function Home() {
               <img src="/icons/TON.png" alt="TON" className="w-6 h-6" />
               <span className="text-sm">{formatValue(tonBalance ?? '...')}</span>
             </div>
-            <TonConnectButton small className="mt-0" />
+            {!walletAddress && <TonConnectButton small className="mt-0" />}
             <div className="flex items-center space-x-1">
               <img src="/icons/Usdt.png" alt="USDT" className="w-6 h-6" />
               <span className="text-sm">{formatValue(usdtBalance ?? '...')}</span>
