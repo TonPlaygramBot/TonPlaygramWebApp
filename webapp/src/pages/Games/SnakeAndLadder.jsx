@@ -758,7 +758,6 @@ export default function SnakeAndLadder() {
     setGameOver(over);
     if (over) {
       localStorage.removeItem(`snakeGameState_${ai}`);
-      window.location.reload();
     }
   };
 
@@ -812,20 +811,15 @@ export default function SnakeAndLadder() {
 
   useEffect(() => {
     const handleUnload = () => {
-      if (reloadingRef.current) return;
       const key = `snakeGameState_${ai}`;
-      try {
-        const stored = JSON.parse(localStorage.getItem(key) || '{}');
-        if (!stored.ranking || !stored.ranking.includes('You')) {
-          stored.ranking = [...(stored.ranking || []), 'You'];
-        }
-        stored.gameOver = true;
-        stored.timestamp = Date.now();
-        localStorage.setItem(key, JSON.stringify(stored));
-      } catch {}
+      localStorage.removeItem(key);
     };
     window.addEventListener('beforeunload', handleUnload);
-    return () => window.removeEventListener('beforeunload', handleUnload);
+    window.addEventListener('pagehide', handleUnload);
+    return () => {
+      window.removeEventListener('beforeunload', handleUnload);
+      window.removeEventListener('pagehide', handleUnload);
+    };
   }, [ai]);
 
   const handleRoll = (values) => {

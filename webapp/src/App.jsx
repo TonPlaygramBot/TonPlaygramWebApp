@@ -26,9 +26,11 @@ import useTelegramAuth from './hooks/useTelegramAuth.js';
 export default function App() {
   useTelegramAuth();
 
+  const manifestUrl = `${window.location.origin}/tonconnect-manifest.json`;
+
   return (
     <BrowserRouter>
-      <TonConnectUIProvider manifestUrl="/tonconnect-manifest.json">
+      <TonConnectUIProvider manifestUrl={manifestUrl}>
         <Layout>
           <Routes>
           <Route path="/" element={<Home />} />
