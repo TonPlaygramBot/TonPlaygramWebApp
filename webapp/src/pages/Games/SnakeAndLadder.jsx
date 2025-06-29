@@ -769,22 +769,26 @@ export default function SnakeAndLadder() {
         const limit = (obj) =>
           Object.fromEntries(Object.entries(obj).slice(0, 8));
         const data = JSON.parse(stored);
-        setPos(data.pos ?? 0);
-        setAiPositions(data.aiPositions ?? Array(ai).fill(0));
-        setCurrentTurn(data.currentTurn ?? 0);
-        setDiceCells(data.diceCells ?? {});
-        setSnakes(limit(data.snakes ?? {}));
-        setLadders(limit(data.ladders ?? {}));
-        setSnakeOffsets(limit(data.snakeOffsets ?? {}));
-        setLadderOffsets(limit(data.ladderOffsets ?? {}));
-        setRanking(data.ranking ?? []);
-        setGameOver(data.gameOver ?? false);
-        if (Array.isArray(data.aiAvatars)) {
-          setAiAvatars(data.aiAvatars);
-        }
-        if (data.timestamp) {
-          const elapsed = Date.now() - data.timestamp;
-          if (elapsed > 0) fastForward(elapsed, data);
+        if (data.gameOver) {
+          localStorage.removeItem(key);
+        } else {
+          setPos(data.pos ?? 0);
+          setAiPositions(data.aiPositions ?? Array(ai).fill(0));
+          setCurrentTurn(data.currentTurn ?? 0);
+          setDiceCells(data.diceCells ?? {});
+          setSnakes(limit(data.snakes ?? {}));
+          setLadders(limit(data.ladders ?? {}));
+          setSnakeOffsets(limit(data.snakeOffsets ?? {}));
+          setLadderOffsets(limit(data.ladderOffsets ?? {}));
+          setRanking(data.ranking ?? []);
+          setGameOver(false);
+          if (Array.isArray(data.aiAvatars)) {
+            setAiAvatars(data.aiAvatars);
+          }
+          if (data.timestamp) {
+            const elapsed = Date.now() - data.timestamp;
+            if (elapsed > 0) fastForward(elapsed, data);
+          }
         }
       } catch {}
     }
