@@ -14,9 +14,7 @@ import {
   FaUser,
   FaArrowCircleUp,
   FaArrowCircleDown,
-  FaWallet,
-  FaCopy,
-  FaSignOutAlt
+  FaWallet
 } from 'react-icons/fa';
 import { useTonAddress, useTonConnectUI } from '@tonconnect/ui-react';
 
@@ -99,23 +97,13 @@ export default function Home() {
               alt="profile"
               className="w-36 h-36 hexagon border-4 border-brand-gold -mt-[20%] mb-3 object-cover"
             />
-            {walletAddress && (
-              <div className="absolute top-1 left-1/2 -translate-x-1/2 bg-surface/80 text-xs px-2 py-1 rounded flex items-center space-x-1">
-                <span>{shortAddress}</span>
-                <button onClick={() => navigator.clipboard.writeText(walletAddress)}>
-                  <FaCopy />
-                </button>
-                <button onClick={() => tonConnectUI.disconnect()}>
-                  <FaSignOutAlt />
-                </button>
-              </div>
-            )}
+            {/* Removed inline wallet address overlay */}
           </div>
         )}
 
         <TonConnectButton />
         {walletAddress && (
-          <div className="roll-result text-white text-2xl">
+          <div className="roll-result text-white text-4xl">
             {'$' + formatValue(usdValue ?? '...', 2)}
           </div>
         )}
@@ -128,12 +116,12 @@ export default function Home() {
               alt=""
             />
             <div className="flex-1 flex items-center justify-center space-x-1">
-              <img src="/icons/TON.png" alt="TON" className="w-6 h-6" />
-              <span className="text-sm">{formatValue(tonBalance ?? '...')}</span>
+              <img src="/icons/TON.png" alt="TON" className="w-8 h-8" />
+              <span className="text-base">{formatValue(tonBalance ?? '...')}</span>
             </div>
             <div className="flex-1 flex items-center justify-center space-x-1">
-              <img src="/icons/Usdt.png" alt="USDT" className="w-6 h-6" />
-              <span className="text-sm">{formatValue(usdtBalance ?? '...')}</span>
+              <img src="/icons/Usdt.png" alt="USDT" className="w-8 h-8" />
+              <span className="text-base">{formatValue(usdtBalance ?? '...')}</span>
             </div>
           </div>
 
@@ -157,8 +145,8 @@ export default function Home() {
                   <span className="text-xs text-accent">Send</span>
                 </Link>
                 <div className="flex flex-col items-center space-y-1">
-                  <img src="/icons/TPCcoin.png" alt="TPC" className="w-8 h-8" />
-                  <span className="text-xs">{formatValue(tpcBalance ?? '...', 2)}</span>
+                  <img src="/icons/TPCcoin.png" alt="TPC" className="w-10 h-10" />
+                  <span className="text-sm">{formatValue(tpcBalance ?? '...', 2)}</span>
                 </div>
                 <Link to="/wallet?mode=receive" className="flex items-center space-x-1 -mr-1 pt-1">
                   <FaArrowCircleDown className="text-accent w-8 h-8" />
