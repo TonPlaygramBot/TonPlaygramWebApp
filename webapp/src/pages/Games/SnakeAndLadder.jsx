@@ -860,7 +860,7 @@ export default function SnakeAndLadder() {
       hahaSoundRef.current.currentTime = 0;
       hahaSoundRef.current.play().catch(() => {});
     }
-    setTimeout(() => setRollResult(null), 1500);
+    setTimeout(() => setRollResult(null), 1300);
 
     setTimeout(() => {
       setDiceVisible(false);
@@ -1048,7 +1048,7 @@ export default function SnakeAndLadder() {
       };
 
       moveSeq(steps, "normal", () => applyEffect(target));
-    }, 1500);
+    }, 1300);
   };
 
   const triggerAIRoll = (index) => {
@@ -1095,7 +1095,7 @@ export default function SnakeAndLadder() {
       hahaSoundRef.current.currentTime = 0;
       hahaSoundRef.current.play().catch(() => {});
     }
-    setTimeout(() => setRollResult(null), 1500);
+    setTimeout(() => setRollResult(null), 1300);
     setTimeout(() => {
       setDiceVisible(false);
     let positions = [...aiPositions];
@@ -1219,7 +1219,7 @@ export default function SnakeAndLadder() {
     };
 
     moveSeq(steps, 'normal', () => applyEffect(target));
-    }, 1500);
+    }, 1300);
   };
 
   useEffect(() => {
