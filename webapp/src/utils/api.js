@@ -214,6 +214,18 @@ export function getSnakeResults() {
   return fetch(API_BASE_URL + '/api/snake/results').then((r) => r.json());
 }
 
+export function pingOnline(telegramId) {
+  return fetch(API_BASE_URL + '/api/online/ping', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ telegramId }),
+  }).then((r) => r.json());
+}
+
+export function getOnlineCount() {
+  return fetch(API_BASE_URL + '/api/online/count').then((r) => r.json());
+}
+
 export function registerWallet(walletAddress) {
   return post('/api/profile/register-wallet', { walletAddress });
 }

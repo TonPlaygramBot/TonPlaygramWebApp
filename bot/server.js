@@ -121,6 +121,28 @@ app.get('/', (req, res) => {
 app.get('/api/ping', (req, res) => {
   res.json({ message: 'pong' });
 });
+
+const onlineUsers = new Map();
+
+app.post('/api/online/ping', (req, res) => {
+  const { telegramId } = req.body || {};
+  if (telegramId) {
+    onlineUsers.set(Number(telegramId), Date.now());
+  }
+  const now = Date.now();
+  for (const [id, ts] of onlineUsers) {
+    if (now - ts > 60_000) onlineUsers.delete(id);
+  }
+  res.json({ success: true });
+});
+
+app.get('/api/online/count', (req, res) => {
+  const now = Date.now();
+  for (const [id, ts] of onlineUsers) {
+    if (now - ts > 60_000) onlineUsers.delete(id);
+  }
+  res.json({ count: onlineUsers.size });
+});
 app.get('/api/snake/lobbies', async (req, res) => {
   const capacities = [2, 3, 4];
   const lobbies = await Promise.all(

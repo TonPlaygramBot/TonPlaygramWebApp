@@ -4,7 +4,13 @@ import { useNavigate, useParams } from 'react-router-dom';
 import TableSelector from '../../components/TableSelector.jsx';
 import RoomSelector from '../../components/RoomSelector.jsx';
 import useTelegramBackButton from '../../hooks/useTelegramBackButton.js';
-import { getSnakeLobbies, getSnakeLobby } from '../../utils/api.js';
+import {
+  getSnakeLobbies,
+  getSnakeLobby,
+  pingOnline,
+  getOnlineCount,
+} from '../../utils/api.js';
+import { getTelegramId } from '../../utils/telegram.js';
 import { canStartGame } from '../../utils/lobby.js';
 
 export default function Lobby() {
@@ -26,6 +32,7 @@ export default function Lobby() {
   const [stake, setStake] = useState({ token: '', amount: 0 });
   const [players, setPlayers] = useState([]);
   const [aiCount, setAiCount] = useState(0);
+  const [online, setOnline] = useState(0);
 
   useEffect(() => {
     if (game === 'snake') {
@@ -45,6 +52,19 @@ export default function Lobby() {
       };
   }
   }, [game]);
+
+  useEffect(() => {
+    const telegramId = getTelegramId();
+    function ping() {
+      pingOnline(telegramId).catch(() => {});
+      getOnlineCount()
+        .then((d) => setOnline(d.count))
+        .catch(() => {});
+    }
+    ping();
+    const id = setInterval(ping, 30000);
+    return () => clearInterval(id);
+  }, []);
 
   useEffect(() => {
     if (game === 'snake' && table && table.id !== 'single') {
@@ -90,6 +110,7 @@ export default function Lobby() {
         alt=""
       />
       <h2 className="text-xl font-bold text-center capitalize">{game} Lobby</h2>
+      <p className="text-center text-sm">Online users: {online}</p>
       {game === 'snake' && (
         <div className="space-y-2">
           <div className="flex items-center justify-between">
