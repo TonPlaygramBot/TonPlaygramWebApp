@@ -125,7 +125,7 @@ export default function Lobby() {
     navigate(`/games/${game}?${params.toString()}`);
   };
 
-  const disabled = !canStartGame(game, table, stake, aiCount);
+  const disabled = !canStartGame(game, table, stake, aiCount, players.length);
 
   return (
     <div className="relative p-4 space-y-4 text-text">

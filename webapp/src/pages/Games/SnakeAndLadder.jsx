@@ -656,6 +656,7 @@ export default function SnakeAndLadder() {
     if (amt) setPot(Number(amt));
     const aiCount = aiParam ? Math.max(1, Math.min(3, Number(aiParam))) : 0;
     if (aiParam) setAi(aiCount);
+    localStorage.removeItem(`snakeGameState_${aiCount}`);
     setAiPositions(Array(aiCount).fill(0));
     setAiAvatars(
       Array.from({ length: aiCount }, () =>
