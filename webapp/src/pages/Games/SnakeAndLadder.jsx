@@ -457,7 +457,6 @@ export default function SnakeAndLadder() {
   const [burning, setBurning] = useState([]); // indices of tokens burning
   const [refreshTick, setRefreshTick] = useState(0);
   const [rollCooldown, setRollCooldown] = useState(0);
-  const [moving, setMoving] = useState(false);
 
   // Preload token and avatar images so board icons and AI photos display
   // immediately without waiting for network requests during gameplay.
@@ -754,7 +753,7 @@ export default function SnakeAndLadder() {
         }
       }
       turn = (turn + 1) % (ai + 1);
-      elapsed -= 1000;
+      elapsed -= 2000;
     }
     setPos(p);
     setAiPositions(aiPos);
@@ -869,7 +868,7 @@ export default function SnakeAndLadder() {
       hahaSoundRef.current.currentTime = 0;
       hahaSoundRef.current.play().catch(() => {});
     }
-    setTimeout(() => setRollResult(null), 1000);
+    setTimeout(() => setRollResult(null), 1500);
 
     setTimeout(() => {
       setDiceVisible(false);
@@ -927,20 +926,17 @@ export default function SnakeAndLadder() {
       for (let i = current + 1; i <= target; i++) steps.push(i);
 
         setHighlight(null);
-      const moveSeq = (seq, type, done, start) => {
-        let prev = start;
+      const moveSeq = (seq, type, done) => {
         const stepMove = (idx) => {
           if (idx >= seq.length) return done();
           const next = seq[idx];
           setPos(next);
           moveSoundRef.current.currentTime = 0;
           if (!muted) moveSoundRef.current.play().catch(() => {});
-          const dir = next >= prev ? 'forward' : 'backward';
-          const hType = idx === seq.length - 1 ? type : dir;
+          const hType = idx === seq.length - 1 ? type : "path";
           setHighlight({ cell: next, type: hType });
           setTrail((t) => [...t, { cell: next, type: hType }]);
           if (idx === seq.length - 2) hahaSoundRef.current?.pause();
-          prev = next;
           setTimeout(() => stepMove(idx + 1), 700);
         };
         stepMove(0);
@@ -977,11 +973,8 @@ export default function SnakeAndLadder() {
           for (let i = 1; i <= offset && startPos - i >= 0; i++)
             seq.push(startPos - i);
           const move = () =>
-            moveSeq(
-              seq,
-              "snake",
-              () => finalizeMove(Math.max(0, snakeEnd), "snake"),
-              startPos
+            moveSeq(seq, "snake", () =>
+              finalizeMove(Math.max(0, snakeEnd), "snake"),
             );
           flashHighlight(startPos, "snake", 2, move);
         } else if (ladderEnd != null) {
@@ -998,11 +991,8 @@ export default function SnakeAndLadder() {
           for (let i = 1; i <= offset && startPos + i <= FINAL_TILE; i++)
             seq.push(startPos + i);
           const move = () =>
-            moveSeq(
-              seq,
-              "ladder",
-              () => finalizeMove(Math.min(FINAL_TILE, ladderEnd), "ladder"),
-              startPos
+            moveSeq(seq, "ladder", () =>
+              finalizeMove(Math.min(FINAL_TILE, ladderEnd), "ladder"),
             );
           flashHighlight(startPos, "ladder", 2, move);
         } else {
@@ -1065,12 +1055,10 @@ export default function SnakeAndLadder() {
           const next = extraTurn ? currentTurn : (currentTurn + 1) % (ai + 1);
           setCurrentTurn(next);
         }
-        setMoving(false);
       };
 
-      setMoving(true);
-      moveSeq(steps, "normal", () => applyEffect(target), current);
-    }, 1000);
+      moveSeq(steps, "normal", () => applyEffect(target));
+    }, 1500);
   };
 
   const triggerAIRoll = (index) => {
@@ -1117,7 +1105,7 @@ export default function SnakeAndLadder() {
       hahaSoundRef.current.currentTime = 0;
       hahaSoundRef.current.play().catch(() => {});
     }
-    setTimeout(() => setRollResult(null), 1000);
+    setTimeout(() => setRollResult(null), 1500);
     setTimeout(() => {
       setDiceVisible(false);
     let positions = [...aiPositions];
@@ -1138,8 +1126,7 @@ export default function SnakeAndLadder() {
     for (let i = current + 1; i <= target; i++) steps.push(i);
 
       setHighlight(null);
-    const moveSeq = (seq, type, done, start) => {
-      let prev = start;
+    const moveSeq = (seq, type, done) => {
       const stepMove = (idx) => {
         if (idx >= seq.length) return done();
         const next = seq[idx];
@@ -1147,12 +1134,10 @@ export default function SnakeAndLadder() {
         setAiPositions([...positions]);
         moveSoundRef.current.currentTime = 0;
         if (!muted) moveSoundRef.current.play().catch(() => {});
-        const dir = next >= prev ? 'forward' : 'backward';
-        const hType = idx === seq.length - 1 ? type : dir;
+        const hType = idx === seq.length - 1 ? type : "path";
         setHighlight({ cell: next, type: hType });
         setTrail((t) => [...t, { cell: next, type: hType }]);
         if (idx === seq.length - 2) hahaSoundRef.current?.pause();
-        prev = next;
         setTimeout(() => stepMove(idx + 1), 700);
       };
       stepMove(0);
@@ -1207,9 +1192,8 @@ export default function SnakeAndLadder() {
       setCurrentTurn(next);
       setDiceVisible(true);
       if (extraTurn && next === index) {
-        setTimeout(() => triggerAIRoll(index), 0);
+        setTimeout(() => triggerAIRoll(index), 1800);
       }
-      setMoving(false);
     };
 
     const applyEffect = (startPos) => {
@@ -1229,13 +1213,7 @@ export default function SnakeAndLadder() {
         }
         const seq = [];
         for (let i = 1; i <= offset && startPos - i >= 0; i++) seq.push(startPos - i);
-        const move = () =>
-          moveSeq(
-            seq,
-            'snake',
-            () => finalizeMove(Math.max(0, snakeEnd), 'snake'),
-            startPos
-          );
+        const move = () => moveSeq(seq, 'snake', () => finalizeMove(Math.max(0, snakeEnd), 'snake'));
         flashHighlight(startPos, 'snake', 2, move);
       } else if (ladderEnd != null) {
         const offset = ladderEnd - startPos;
@@ -1245,22 +1223,15 @@ export default function SnakeAndLadder() {
         if (!muted) ladderSoundRef.current?.play().catch(() => {});
         const seq = [];
         for (let i = 1; i <= offset && startPos + i <= FINAL_TILE; i++) seq.push(startPos + i);
-        const move = () =>
-          moveSeq(
-            seq,
-            'ladder',
-            () => finalizeMove(Math.min(FINAL_TILE, ladderEnd), 'ladder'),
-            startPos
-          );
+        const move = () => moveSeq(seq, 'ladder', () => finalizeMove(Math.min(FINAL_TILE, ladderEnd), 'ladder'));
         flashHighlight(startPos, 'ladder', 2, move);
       } else {
         finalizeMove(startPos, 'normal');
       }
     };
 
-    setMoving(true);
-    moveSeq(steps, 'normal', () => applyEffect(target), current);
-    }, 1000);
+    moveSeq(steps, 'normal', () => applyEffect(target));
+    }, 1500);
   };
 
   useEffect(() => {
@@ -1324,13 +1295,13 @@ export default function SnakeAndLadder() {
       if (aiRollTimeoutRef.current) clearTimeout(aiRollTimeoutRef.current);
       aiRollTimeoutRef.current = setTimeout(() => {
         setAiRollTrigger((t) => t + 1);
-      }, 1200);
+      }, 1800);
       return () => clearTimeout(aiRollTimeoutRef.current);
     }
   }, [aiRollingIndex]);
 
   useEffect(() => {
-    if (setupPhase || gameOver || moving) return;
+    if (setupPhase || gameOver) return;
     if (currentTurn !== 0) {
       setTimeLeft(15);
       if (timerRef.current) clearInterval(timerRef.current);
@@ -1340,7 +1311,7 @@ export default function SnakeAndLadder() {
       if (aiRollTimeoutRef.current) clearTimeout(aiRollTimeoutRef.current);
       aiRollTimeoutRef.current = setTimeout(() => {
         triggerAIRoll(currentTurn);
-      }, 0);
+      }, 2000);
       return () => {
         clearInterval(timerRef.current);
         clearTimeout(aiRollTimeoutRef.current);
@@ -1502,8 +1473,7 @@ export default function SnakeAndLadder() {
               !aiRollingIndex &&
               !playerAutoRolling &&
               rollCooldown === 0 &&
-              currentTurn === 0 &&
-              !moving
+              currentTurn === 0
             }
             numDice={diceCount + bonusDice}
             trigger={aiRollingIndex != null ? aiRollTrigger : playerAutoRolling ? playerRollTrigger : undefined}

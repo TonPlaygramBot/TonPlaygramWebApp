@@ -532,26 +532,6 @@ body {
 .board-cell.path-highlight .dice-marker {
   transform: translate(-50%, -50%) translateZ(6px) rotateX(calc(var(--board-angle, 58deg) * -1));
 }
-
-.board-cell.forward-highlight {
-  background-color: #fde047; /* yellow */
-}
-
-.board-cell.forward-highlight .cell-marker,
-.board-cell.forward-highlight .dice-marker {
-  transform: translate(-50%, -50%) translateZ(6px)
-    rotateX(calc(var(--board-angle, 58deg) * -1));
-}
-
-.board-cell.backward-highlight {
-  background-color: #fca5a5; /* red */
-}
-
-.board-cell.backward-highlight .cell-marker,
-.board-cell.backward-highlight .dice-marker {
-  transform: translate(-50%, -50%) translateZ(6px)
-    rotateX(calc(var(--board-angle, 58deg) * -1));
-}
 .board-cell.ladder-cell.normal-highlight,
 .board-cell.snake-cell.normal-highlight {
   background-color: #fde047; /* yellow-300 */
