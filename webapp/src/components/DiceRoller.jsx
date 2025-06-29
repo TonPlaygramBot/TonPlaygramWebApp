@@ -33,7 +33,7 @@ export default function DiceRoller({
   useEffect(() => {
     if (trigger !== undefined && trigger !== triggerRef.current) {
       triggerRef.current = trigger;
-      rollDice();
+      setTimeout(() => rollDice(), 1000); // show dice briefly before rolling
     }
   }, [trigger]);
 
@@ -56,8 +56,8 @@ export default function DiceRoller({
       return Math.floor(Math.random() * 6) + 1;
     };
 
-    const tick = 35; // ms between face changes
-    const iterations = 14; // show final value just before animation ends
+    const tick = 50; // ms between face changes
+    const iterations = 20; // ~1 second of rolling
     let count = 0;
 
     const id = setInterval(() => {
