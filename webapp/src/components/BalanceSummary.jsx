@@ -104,7 +104,7 @@ function formatValue(value) {
 
 function Token({ icon, value, label }) {
   return (
-    <div className="flex items-center justify-center space-x-1 w-full">
+    <div className="flex items-center justify-start space-x-1 w-full">
       <img src={icon} alt={label} className="w-8 h-8" />
       <span>{formatValue(value)}</span>
     </div>
