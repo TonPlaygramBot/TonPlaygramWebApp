@@ -123,6 +123,17 @@ app.get('/api/ping', (req, res) => {
 });
 
 const onlineUsers = new Map();
+const tableSeats = new Map();
+
+function cleanupSeats() {
+  const now = Date.now();
+  for (const [tableId, players] of tableSeats) {
+    for (const [pid, info] of players) {
+      if (now - info.ts > 60_000) players.delete(pid);
+    }
+    if (players.size === 0) tableSeats.delete(tableId);
+  }
+}
 
 app.post('/api/online/ping', (req, res) => {
   const { telegramId } = req.body || {};
@@ -143,13 +154,39 @@ app.get('/api/online/count', (req, res) => {
   }
   res.json({ count: onlineUsers.size });
 });
+
+app.post('/api/snake/table/seat', (req, res) => {
+  const { tableId, telegramId, name } = req.body || {};
+  if (!tableId || !telegramId) return res.status(400).json({ error: 'missing data' });
+  cleanupSeats();
+  let map = tableSeats.get(tableId);
+  if (!map) {
+    map = new Map();
+    tableSeats.set(tableId, map);
+  }
+  map.set(String(telegramId), { id: Number(telegramId), name: name || String(telegramId), ts: Date.now() });
+  res.json({ success: true });
+});
+
+app.post('/api/snake/table/unseat', (req, res) => {
+  const { tableId, telegramId } = req.body || {};
+  const map = tableSeats.get(tableId);
+  if (map && telegramId) {
+    map.delete(String(telegramId));
+    if (map.size === 0) tableSeats.delete(tableId);
+  }
+  res.json({ success: true });
+});
 app.get('/api/snake/lobbies', async (req, res) => {
+  cleanupSeats();
   const capacities = [2, 3, 4];
   const lobbies = await Promise.all(
     capacities.map(async (cap) => {
       const id = `snake-${cap}`;
       const room = await gameManager.getRoom(id, cap);
-      const players = room.players.filter((p) => !p.disconnected).length;
+      const roomCount = room.players.filter((p) => !p.disconnected).length;
+      const lobbyCount = tableSeats.get(id)?.size || 0;
+      const players = roomCount + lobbyCount;
       return { id, capacity: cap, players };
     })
   );
@@ -161,10 +198,11 @@ app.get('/api/snake/lobby/:id', async (req, res) => {
   const match = /-(\d+)$/.exec(id);
   const cap = match ? Number(match[1]) : 4;
   const room = await gameManager.getRoom(id, cap);
-  const players = room.players
+  const roomPlayers = room.players
     .filter((p) => !p.disconnected)
     .map((p) => ({ id: p.playerId, name: p.name }));
-  res.json({ id, capacity: cap, players });
+  const lobbyPlayers = Array.from(tableSeats.get(id)?.values() || []).map((p) => ({ id: p.id, name: p.name }));
+  res.json({ id, capacity: cap, players: [...lobbyPlayers, ...roomPlayers] });
 });
 
 app.get('/api/snake/board/:id', async (req, res) => {
@@ -227,6 +265,11 @@ mongoose.connection.once('open', () => {
 
 io.on('connection', (socket) => {
   socket.on('joinRoom', async ({ roomId, playerId, name }) => {
+    const map = tableSeats.get(roomId);
+    if (map) {
+      map.delete(String(playerId));
+      if (map.size === 0) tableSeats.delete(roomId);
+    }
     const result = await gameManager.joinRoom(roomId, playerId, name, socket);
     if (result.error) socket.emit('error', result.error);
   });
