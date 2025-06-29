@@ -122,7 +122,7 @@ export default forwardRef<SpinWheelHandle, SpinWheelProps>(function SpinWheel(
 
         <div
 
-          className="absolute inset-x-0 border-2 border-accent pointer-events-none z-10"
+          className="absolute inset-x-0 border-2 border-yellow-300 pointer-events-none z-10"
 
           style={{ top: itemHeight * winningRow, height: itemHeight }}
 

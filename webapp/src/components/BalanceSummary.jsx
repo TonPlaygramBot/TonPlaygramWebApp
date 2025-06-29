@@ -80,20 +80,33 @@ export default function BalanceSummary({ className = '' }) {
       </p>
       <div className="grid grid-cols-3 text-sm mt-4">
         <Token icon="/icons/TON.png" label="TON" value={tonBalance ?? '...'} />
-        <Token icon="/icons/TPCcoin.png" label="TPC" value={balance ?? 0} isTPC />
+        <Token icon="/icons/TPCcoin.png" label="TPC" value={balance ?? 0} />
         <Token icon="/icons/Usdt.png" label="USDT" value={usdtBalance ?? '...'} />
       </div>
     </div>
   );
 }
 
-function Token({ icon, value, label, isTPC = false }) {
-  const displayValue =
-    typeof value === 'number' && isTPC ? value.toLocaleString() : value;
+function formatValue(value) {
+  if (typeof value !== 'number') {
+    const parsed = parseFloat(value);
+    if (isNaN(parsed)) return value;
+    return parsed.toLocaleString(undefined, {
+      minimumFractionDigits: 4,
+      maximumFractionDigits: 4,
+    });
+  }
+  return value.toLocaleString(undefined, {
+    minimumFractionDigits: 4,
+    maximumFractionDigits: 4,
+  });
+}
+
+function Token({ icon, value, label }) {
   return (
     <div className="flex items-center justify-center space-x-1 w-full">
       <img src={icon} alt={label} className="w-8 h-8" />
-      <span>{displayValue}</span>
+      <span>{formatValue(value)}</span>
     </div>
   );
 }
