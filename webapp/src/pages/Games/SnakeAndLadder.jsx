@@ -661,45 +661,59 @@ export default function SnakeAndLadder() {
     setPlayerColors(colors);
 
     const table = params.get("table") || "snake-4";
-    getSnakeBoard(table)
-      .then(({ snakes: snakesObj = {}, ladders: laddersObj = {} }) => {
-        const limit = (obj) => {
-          return Object.fromEntries(Object.entries(obj).slice(0, 8));
-        };
-        const snakesLim = limit(snakesObj);
-        const laddersLim = limit(laddersObj);
-        setSnakes(snakesLim);
-        setLadders(laddersLim);
-        const snk = {};
-        Object.entries(snakesLim).forEach(([s, e]) => {
-          snk[s] = s - e;
-        });
-        const lad = {};
-        Object.entries(laddersLim).forEach(([s, e]) => {
-          const end = typeof e === "object" ? e.end : e;
-          lad[s] = end - s;
-        });
-        setSnakeOffsets(snk);
-        setLadderOffsets(lad);
+    let cached;
+    try {
+      cached = JSON.parse(localStorage.getItem(`snakeBoard_${table}`) || 'null');
+    } catch {
+      cached = null;
+    }
+    const loadBoard = (data) => {
+      const { snakes: snakesObj = {}, ladders: laddersObj = {} } = data || {};
+      const limit = (obj) => {
+        return Object.fromEntries(Object.entries(obj).slice(0, 8));
+      };
+      const snakesLim = limit(snakesObj);
+      const laddersLim = limit(laddersObj);
+      setSnakes(snakesLim);
+      setLadders(laddersLim);
+      const snk = {};
+      Object.entries(snakesLim).forEach(([s, e]) => {
+        snk[s] = s - e;
+      });
+      const lad = {};
+      Object.entries(laddersLim).forEach(([s, e]) => {
+        const end = typeof e === "object" ? e.end : e;
+        lad[s] = end - s;
+      });
+      setSnakeOffsets(snk);
+      setLadderOffsets(lad);
 
-        const boardSize = ROWS * COLS;
-        const diceMap = {};
-        const diceValues = [1, 2, 1];
-        const usedD = new Set([
-          ...Object.keys(snakesLim),
-          ...Object.keys(laddersLim),
-          ...Object.values(snakesLim),
-          ...Object.values(laddersLim),
-        ]);
-        diceValues.forEach((val) => {
-          let cell;
-          do {
-            cell = Math.floor(Math.random() * boardSize) + 1;
-          } while (usedD.has(String(cell)) || usedD.has(cell) || cell === FINAL_TILE);
-          diceMap[cell] = val;
-          usedD.add(cell);
-        });
-        setDiceCells(diceMap);
+      const boardSize = ROWS * COLS;
+      const diceMap = {};
+      const diceValues = [1, 2, 1];
+      const usedD = new Set([
+        ...Object.keys(snakesLim),
+        ...Object.keys(laddersLim),
+        ...Object.values(snakesLim),
+        ...Object.values(laddersLim),
+      ]);
+      diceValues.forEach((val) => {
+        let cell;
+        do {
+          cell = Math.floor(Math.random() * boardSize) + 1;
+        } while (usedD.has(String(cell)) || usedD.has(cell) || cell === FINAL_TILE);
+        diceMap[cell] = val;
+        usedD.add(cell);
+      });
+      setDiceCells(diceMap);
+    };
+
+    if (cached) {
+      loadBoard(cached);
+    }
+    getSnakeBoard(table)
+      .then((data) => {
+        loadBoard(data);
       })
       .catch(() => {});
   }, []);
@@ -758,71 +772,19 @@ export default function SnakeAndLadder() {
     setGameOver(over);
     if (over) {
       localStorage.removeItem(`snakeGameState_${ai}`);
-      window.location.reload();
     }
   };
 
   useEffect(() => {
     const key = `snakeGameState_${ai}`;
-    const stored = localStorage.getItem(key);
-    if (stored) {
-      try {
-        const limit = (obj) =>
-          Object.fromEntries(Object.entries(obj).slice(0, 8));
-        const data = JSON.parse(stored);
-        setPos(data.pos ?? 0);
-        setAiPositions(data.aiPositions ?? Array(ai).fill(0));
-        setCurrentTurn(data.currentTurn ?? 0);
-        setDiceCells(data.diceCells ?? {});
-        setSnakes(limit(data.snakes ?? {}));
-        setLadders(limit(data.ladders ?? {}));
-        setSnakeOffsets(limit(data.snakeOffsets ?? {}));
-        setLadderOffsets(limit(data.ladderOffsets ?? {}));
-        setRanking(data.ranking ?? []);
-        setGameOver(data.gameOver ?? false);
-        if (Array.isArray(data.aiAvatars)) {
-          setAiAvatars(data.aiAvatars);
-        }
-        if (data.timestamp) {
-          const elapsed = Date.now() - data.timestamp;
-          if (elapsed > 0) fastForward(elapsed, data);
-        }
-      } catch {}
-    }
+    localStorage.removeItem(key);
   }, [ai]);
-
-  useEffect(() => {
-    const key = `snakeGameState_${ai}`;
-    const data = {
-      pos,
-      aiPositions,
-      currentTurn,
-      diceCells,
-      snakes,
-      ladders,
-      snakeOffsets,
-      ladderOffsets,
-      ranking,
-      gameOver,
-      aiAvatars,
-      timestamp: Date.now(),
-    };
-    localStorage.setItem(key, JSON.stringify(data));
-  }, [ai, pos, aiPositions, currentTurn, diceCells, snakes, ladders, snakeOffsets, ladderOffsets, ranking, gameOver]);
 
   useEffect(() => {
     const handleUnload = () => {
       if (reloadingRef.current) return;
       const key = `snakeGameState_${ai}`;
-      try {
-        const stored = JSON.parse(localStorage.getItem(key) || '{}');
-        if (!stored.ranking || !stored.ranking.includes('You')) {
-          stored.ranking = [...(stored.ranking || []), 'You'];
-        }
-        stored.gameOver = true;
-        stored.timestamp = Date.now();
-        localStorage.setItem(key, JSON.stringify(stored));
-      } catch {}
+      localStorage.removeItem(key);
     };
     window.addEventListener('beforeunload', handleUnload);
     return () => window.removeEventListener('beforeunload', handleUnload);
@@ -1480,13 +1442,13 @@ export default function SnakeAndLadder() {
         title="Snake & Ladder"
         info="Roll the dice to move across the board. Ladders move you up, snakes bring you down. The Pot at the top collects everyone's stake – reach it first to claim the total amount."
       />
-      <GameEndPopup
-        open={gameOver}
-        ranking={ranking}
-        onPlayAgain={() => {
+        <GameEndPopup
+          open={gameOver}
+          ranking={ranking}
+          onPlayAgain={() => {
           localStorage.removeItem(`snakeGameState_${ai}`);
-          window.location.reload();
-        }}
+          navigate(`/games/snake?ai=${ai}`);
+          }}
         onReturn={() => {
           localStorage.removeItem(`snakeGameState_${ai}`);
           navigate("/games/snake/lobby");
