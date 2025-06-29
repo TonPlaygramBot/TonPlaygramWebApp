@@ -90,18 +90,18 @@ export default function Home() {
 
 
         <div className="w-full mt-2">
-          <div className="relative flex items-center justify-between bg-surface border border-border rounded-xl p-2 overflow-hidden">
+          <div className="relative flex items-start justify-between bg-surface border border-border rounded-xl p-2 overflow-hidden">
             <img
               src="/assets/SnakeLaddersbackground.png"
               className="background-behind-board object-cover"
               alt=""
             />
-            <Link to="/wallet?mode=send" className="flex items-center space-x-1 -ml-1">
+            <Link to="/wallet?mode=send" className="flex items-center space-x-1 -ml-1 pt-1">
               <FaArrowCircleUp className="text-accent w-8 h-8" />
               <span className="text-xs text-accent">Send</span>
             </Link>
             <BalanceSummary />
-            <Link to="/wallet?mode=receive" className="flex items-center space-x-1 -mr-1">
+            <Link to="/wallet?mode=receive" className="flex items-center space-x-1 -mr-1 pt-1">
               <FaArrowCircleDown className="text-accent w-8 h-8" />
               <span className="text-xs text-accent">Receive</span>
             </Link>
