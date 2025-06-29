@@ -70,6 +70,7 @@ export default function Lobby() {
     const params = new URLSearchParams();
     if (table) params.set('table', table.id);
     if (table?.id === 'single') {
+      localStorage.removeItem(`snakeGameState_${aiCount}`);
       params.set('ai', aiCount);
     } else {
       if (stake.token) params.set('token', stake.token);
