@@ -239,7 +239,7 @@ body {
   top: 50%;
   left: 48%;
   transform: translate(-50%, -50%) translateZ(40px);
-  font-size: 4.5rem;
+  font-size: 6rem;
   pointer-events: none;
   animation: flame-up 1.5s forwards;
 }
@@ -254,7 +254,7 @@ body {
 @keyframes flame-up {
   to {
     opacity: 0;
-    transform: translate(-50%, -80%) translateZ(40px) scale(3);
+    transform: translate(-50%, -80%) translateZ(40px) scale(4);
   }
 }
 

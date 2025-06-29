@@ -533,6 +533,7 @@ export default function SnakeAndLadder() {
 
   const moveSoundRef = useRef(null);
   const snakeSoundRef = useRef(null);
+  const oldSnakeSoundRef = useRef(null);
   const ladderSoundRef = useRef(null);
   const winSoundRef = useRef(null);
   const diceRewardSoundRef = useRef(null);
@@ -581,6 +582,7 @@ export default function SnakeAndLadder() {
     }
     moveSoundRef.current = new Audio(dropSound);
     snakeSoundRef.current = new Audio(snakeSound);
+    oldSnakeSoundRef.current = new Audio(dropSound);
     ladderSoundRef.current = new Audio(ladderSound);
     winSoundRef.current = new Audio("/assets/sounds/successful.mp3");
     diceRewardSoundRef.current = new Audio("/assets/sounds/successful.mp3");
@@ -593,6 +595,7 @@ export default function SnakeAndLadder() {
     return () => {
       moveSoundRef.current?.pause();
       snakeSoundRef.current?.pause();
+      oldSnakeSoundRef.current?.pause();
       ladderSoundRef.current?.pause();
       winSoundRef.current?.pause();
       diceRewardSoundRef.current?.pause();
@@ -614,6 +617,7 @@ export default function SnakeAndLadder() {
       diceRewardSoundRef,
       yabbaSoundRef,
       hahaSoundRef,
+      oldSnakeSoundRef,
       bombSoundRef,
       badLuckSoundRef,
       cheerSoundRef,
@@ -929,8 +933,9 @@ export default function SnakeAndLadder() {
           setPos(next);
           moveSoundRef.current.currentTime = 0;
           if (!muted) moveSoundRef.current.play().catch(() => {});
-            const hType = idx === seq.length - 1 ? type : "path";
-            setHighlight({ cell: next, type: hType });
+          const hType = idx === seq.length - 1 ? type : "path";
+          setHighlight({ cell: next, type: hType });
+          setTrail((t) => [...t, { cell: next, type: hType }]);
           if (idx === seq.length - 2) hahaSoundRef.current?.pause();
           setTimeout(() => stepMove(idx + 1), 700);
         };
@@ -961,6 +966,7 @@ export default function SnakeAndLadder() {
           setMessageColor("text-red-500");
           if (!muted) {
             snakeSoundRef.current?.play().catch(() => {});
+            oldSnakeSoundRef.current?.play().catch(() => {});
             badLuckSoundRef.current?.play().catch(() => {});
           }
           const seq = [];
@@ -1128,8 +1134,9 @@ export default function SnakeAndLadder() {
         setAiPositions([...positions]);
         moveSoundRef.current.currentTime = 0;
         if (!muted) moveSoundRef.current.play().catch(() => {});
-          const hType = idx === seq.length - 1 ? type : "path";
-          setHighlight({ cell: next, type: hType });
+        const hType = idx === seq.length - 1 ? type : "path";
+        setHighlight({ cell: next, type: hType });
+        setTrail((t) => [...t, { cell: next, type: hType }]);
         if (idx === seq.length - 2) hahaSoundRef.current?.pause();
         setTimeout(() => stepMove(idx + 1), 700);
       };
@@ -1201,6 +1208,7 @@ export default function SnakeAndLadder() {
         setTimeout(() => setOffsetPopup(null), 1000);
         if (!muted) {
           snakeSoundRef.current?.play().catch(() => {});
+          oldSnakeSoundRef.current?.play().catch(() => {});
           badLuckSoundRef.current?.play().catch(() => {});
         }
         const seq = [];
@@ -1470,6 +1478,7 @@ export default function SnakeAndLadder() {
             numDice={diceCount + bonusDice}
             trigger={aiRollingIndex != null ? aiRollTrigger : playerAutoRolling ? playerRollTrigger : undefined}
             showButton={false}
+            muted={muted}
           />
           {currentTurn === 0 && !aiRollingIndex && !playerAutoRolling && (
             <div className="mt-2 flex flex-col items-center">

@@ -9,6 +9,7 @@ export default function DiceRoller({
   numDice = 2,
   trigger,
   showButton = true,
+  muted = false,
 }) {
   const [values, setValues] = useState(Array(numDice).fill(1));
   const [rolling, setRolling] = useState(false);
@@ -25,10 +26,11 @@ export default function DiceRoller({
   useEffect(() => {
     soundRef.current = new Audio(diceSound);
     soundRef.current.preload = 'auto';
+    soundRef.current.muted = muted;
     return () => {
       soundRef.current?.pause();
     };
-  }, []);
+  }, [muted]);
 
   useEffect(() => {
     if (trigger !== undefined && trigger !== triggerRef.current) {
@@ -39,7 +41,7 @@ export default function DiceRoller({
 
   const rollDice = () => {
     if (rolling) return;
-    if (soundRef.current) {
+    if (soundRef.current && !muted) {
       soundRef.current.currentTime = 0;
       soundRef.current.play().catch(() => {});
     }
