@@ -1,7 +1,7 @@
 {
   "name": "TonPlaygram",
   "url": "https://tonplaygram.example.com",
-  "iconUrl": "https://tonplaygram.example.com/icons/TPCcoin.png",
+  "iconUrl": "/assets/TonPlayGramLogo.jpg",
   "termsOfUseUrl": "https://tonplaygram.example.com/terms",
   "privacyPolicyUrl": "https://tonplaygram.example.com/privacy"
 }
