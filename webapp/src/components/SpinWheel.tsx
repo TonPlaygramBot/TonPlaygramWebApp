@@ -150,7 +150,7 @@ export default forwardRef<SpinWheelHandle, SpinWheelProps>(function SpinWheel(
 
               className={`board-style flex items-center justify-center text-sm w-32 font-bold ${
 
-                idx === winnerIndex ? 'bg-accent text-black' : 'text-white'
+                idx === winnerIndex ? 'bg-yellow-300 text-black' : 'text-white'
 
               }`}
 

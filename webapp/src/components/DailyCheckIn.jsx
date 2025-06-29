@@ -110,7 +110,7 @@ export default function DailyCheckIn() {
 
         className={`board-style w-20 p-2 flex flex-col items-center justify-center text-xs ${
 
-          i === streak - 1 ? 'bg-accent text-black' : ''
+          i === streak - 1 ? 'bg-yellow-300 text-black' : ''
 
         }`}
 
