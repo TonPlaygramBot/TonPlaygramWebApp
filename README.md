@@ -97,6 +97,20 @@ Use these options if you need to completely start over:
 
 After resetting you can reconnect and deposit again as if it were a new account.
 
+### Broadcasting messages
+
+An admin can send a text message to every registered Telegram user.
+
+```
+POST /api/broadcast/send
+Authorization: Bearer <admin token>
+{ "text": "hello users" }
+```
+
+The request body must include a `text` field. Only tokens listed in
+`AIRDROP_ADMIN_TOKENS` are allowed to call this endpoint.
+
+
 ## Telegram game bots
 
 Several small Telegram game bots are included in this repository. They use
