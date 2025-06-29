@@ -54,20 +54,34 @@ router.get('/deposit-address', (_req, res) => {
 
 // Fetch TON balance from the blockchain using a public API
 
-router.post('/ton-balance', authenticate, async (req, res) => {
+import TonWeb from 'tonweb';
+
+function toRawAddress(addr) {
+  try {
+    const a = new TonWeb.utils.Address(addr);
+    return a.toString(false);
+  } catch {
+    return null;
+  }
+}
+
+router.post('/ton-balance', async (req, res) => {
 
   const { address } = req.body;
 
   if (!address) {
-
     return res.status(400).json({ error: 'address required' });
+  }
 
+  const raw = toRawAddress(address);
+  if (!raw) {
+    return res.status(400).json({ error: 'invalid address' });
   }
 
   try {
 
     const resp = await fetch(
-      `https://toncenter.com/api/v2/getAddressBalance?address=${address}`,
+      `https://toncenter.com/api/v2/getAddressBalance?address=${raw}`,
       withProxy()
     );
 
@@ -93,14 +107,18 @@ router.post('/ton-balance', authenticate, async (req, res) => {
 
 });
 
-router.post('/usdt-balance', authenticate, async (req, res) => {
+router.post('/usdt-balance', async (req, res) => {
   const { address } = req.body;
   if (!address) {
     return res.status(400).json({ error: 'address required' });
   }
+  const raw = toRawAddress(address);
+  if (!raw) {
+    return res.status(400).json({ error: 'invalid address' });
+  }
   try {
     const resp = await fetch(
-      `https://tonapi.io/v2/accounts/${address}/jettons`,
+      `https://tonapi.io/v2/accounts/${raw}/jettons`,
       withProxy()
     );
     const data = await resp.json();
