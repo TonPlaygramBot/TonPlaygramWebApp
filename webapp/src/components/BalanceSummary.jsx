@@ -78,7 +78,7 @@ export default function BalanceSummary() {
           <span>Wallet</span>
         </Link>
       </p>
-      <div className="flex justify-center text-sm mt-2 space-x-4">
+      <div className="grid grid-cols-3 text-sm mt-2">
         <Token icon="/icons/TON.png" label="TON" value={tonBalance ?? '...'} />
         <Token icon="/icons/TPCcoin.png" label="TPC" value={balance ?? 0} />
         <Token icon="/icons/Usdt.png" label="USDT" value={usdtBalance ?? '...'} />
@@ -89,7 +89,7 @@ export default function BalanceSummary() {
 
 function Token({ icon, value, label }) {
   return (
-    <div className="flex items-center space-x-1">
+    <div className="flex items-center justify-center space-x-1 w-full">
       <img src={icon} alt={label} className="w-8 h-8" />
       <span>{value}</span>
     </div>
