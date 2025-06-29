@@ -11,7 +11,7 @@ import { getTelegramId } from '../utils/telegram.js';
 import LoginOptions from './LoginOptions.jsx';
 import { useTonAddress } from '@tonconnect/ui-react';
 
-export default function BalanceSummary() {
+export default function BalanceSummary({ className = '' }) {
   let telegramId;
   try {
     telegramId = getTelegramId();
@@ -71,27 +71,29 @@ export default function BalanceSummary() {
   }, [walletAddress]);
 
   return (
-    <div className="text-center">
+    <div className={`text-center ${className}`}>
       <p className="text-lg font-bold text-gray-300 flex items-center justify-center space-x-1">
         <Link to="/wallet" className="flex items-center space-x-1">
           <FaWallet className="text-primary" />
           <span>Wallet</span>
         </Link>
       </p>
-      <div className="grid grid-cols-3 text-sm mt-2">
+      <div className="grid grid-cols-3 text-sm mt-4">
         <Token icon="/icons/TON.png" label="TON" value={tonBalance ?? '...'} />
-        <Token icon="/icons/TPCcoin.png" label="TPC" value={balance ?? 0} />
+        <Token icon="/icons/TPCcoin.png" label="TPC" value={balance ?? 0} isTPC />
         <Token icon="/icons/Usdt.png" label="USDT" value={usdtBalance ?? '...'} />
       </div>
     </div>
   );
 }
 
-function Token({ icon, value, label }) {
+function Token({ icon, value, label, isTPC = false }) {
+  const displayValue =
+    typeof value === 'number' && isTPC ? value.toLocaleString() : value;
   return (
     <div className="flex items-center justify-center space-x-1 w-full">
       <img src={icon} alt={label} className="w-8 h-8" />
-      <span>{value}</span>
+      <span>{displayValue}</span>
     </div>
   );
 }
