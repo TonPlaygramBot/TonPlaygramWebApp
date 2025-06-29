@@ -528,6 +528,33 @@ body {
   background-color: #fde047;
 }
 
+.board-cell.forward-highlight {
+  background-color: #fde047;
+}
+
+.board-cell.back-highlight {
+  background-color: #fca5a5;
+}
+
+.board-cell.forward-highlight .cell-marker,
+.board-cell.forward-highlight .dice-marker,
+.board-cell.back-highlight .cell-marker,
+.board-cell.back-highlight .dice-marker {
+  transform: translate(-50%, -50%) translateZ(6px) rotateX(calc(var(--board-angle, 58deg) * -1));
+}
+
+.board-cell.ladder-cell.forward-highlight,
+.board-cell.snake-cell.forward-highlight,
+.board-cell.dice-cell.forward-highlight {
+  background-color: #fde047;
+}
+
+.board-cell.ladder-cell.back-highlight,
+.board-cell.snake-cell.back-highlight,
+.board-cell.dice-cell.back-highlight {
+  background-color: #fca5a5;
+}
+
 .board-cell.path-highlight .cell-marker,
 .board-cell.path-highlight .dice-marker {
   transform: translate(-50%, -50%) translateZ(6px) rotateX(calc(var(--board-angle, 58deg) * -1));

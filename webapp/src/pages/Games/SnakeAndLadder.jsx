@@ -457,6 +457,7 @@ export default function SnakeAndLadder() {
   const [burning, setBurning] = useState([]); // indices of tokens burning
   const [refreshTick, setRefreshTick] = useState(0);
   const [rollCooldown, setRollCooldown] = useState(0);
+  const [moving, setMoving] = useState(false);
 
   // Preload token and avatar images so board icons and AI photos display
   // immediately without waiting for network requests during gameplay.
@@ -831,6 +832,7 @@ export default function SnakeAndLadder() {
   }, [ai]);
 
   const handleRoll = (values) => {
+    setMoving(true);
     setTurnMessage("");
     setRollCooldown(1);
     const value = Array.isArray(values)
@@ -889,6 +891,7 @@ export default function SnakeAndLadder() {
         }
         setTurnMessage("Your turn");
         setDiceVisible(true);
+        setMoving(false);
         return;
       } else if (current === 100 && diceCount === 1) {
         if (value === 1) {
@@ -897,6 +900,7 @@ export default function SnakeAndLadder() {
           setMessage("Need a 1 to win!");
           setTurnMessage("Your turn");
           setDiceVisible(true);
+          setMoving(false);
           return;
         }
       } else if (current === 0) {
@@ -910,6 +914,7 @@ export default function SnakeAndLadder() {
           setDiceVisible(false);
           const next = (currentTurn + 1) % (ai + 1);
           setTimeout(() => setCurrentTurn(next), 1500);
+          setTimeout(() => setMoving(false), 1500);
           return;
         }
       } else if (current + value <= FINAL_TILE) {
@@ -918,6 +923,7 @@ export default function SnakeAndLadder() {
         setMessage("Need exact roll!");
         setTurnMessage("Your turn");
         setDiceVisible(true);
+        setMoving(false);
         return;
       }
 
@@ -926,14 +932,14 @@ export default function SnakeAndLadder() {
       for (let i = current + 1; i <= target; i++) steps.push(i);
 
         setHighlight(null);
-      const moveSeq = (seq, type, done) => {
+      const moveSeq = (seq, type, done, dir = 'forward') => {
         const stepMove = (idx) => {
           if (idx >= seq.length) return done();
           const next = seq[idx];
           setPos(next);
           moveSoundRef.current.currentTime = 0;
           if (!muted) moveSoundRef.current.play().catch(() => {});
-          const hType = idx === seq.length - 1 ? type : "path";
+          const hType = idx === seq.length - 1 ? type : dir === 'back' ? 'back' : 'forward';
           setHighlight({ cell: next, type: hType });
           setTrail((t) => [...t, { cell: next, type: hType }]);
           if (idx === seq.length - 2) hahaSoundRef.current?.pause();
@@ -973,8 +979,11 @@ export default function SnakeAndLadder() {
           for (let i = 1; i <= offset && startPos - i >= 0; i++)
             seq.push(startPos - i);
           const move = () =>
-            moveSeq(seq, "snake", () =>
-              finalizeMove(Math.max(0, snakeEnd), "snake"),
+            moveSeq(
+              seq,
+              "snake",
+              () => finalizeMove(Math.max(0, snakeEnd), "snake"),
+              'back'
             );
           flashHighlight(startPos, "snake", 2, move);
         } else if (ladderEnd != null) {
@@ -991,8 +1000,11 @@ export default function SnakeAndLadder() {
           for (let i = 1; i <= offset && startPos + i <= FINAL_TILE; i++)
             seq.push(startPos + i);
           const move = () =>
-            moveSeq(seq, "ladder", () =>
-              finalizeMove(Math.min(FINAL_TILE, ladderEnd), "ladder"),
+            moveSeq(
+              seq,
+              "ladder",
+              () => finalizeMove(Math.min(FINAL_TILE, ladderEnd), "ladder"),
+              'forward'
             );
           flashHighlight(startPos, "ladder", 2, move);
         } else {
@@ -1051,13 +1063,14 @@ export default function SnakeAndLadder() {
           setBonusDice(0);
         }
         setDiceVisible(true);
+        setMoving(false);
         if (!gameOver) {
           const next = extraTurn ? currentTurn : (currentTurn + 1) % (ai + 1);
           setCurrentTurn(next);
         }
       };
 
-      moveSeq(steps, "normal", () => applyEffect(target));
+      moveSeq(steps, "normal", () => applyEffect(target), 'forward');
     }, 1500);
   };
 
@@ -1069,6 +1082,7 @@ export default function SnakeAndLadder() {
   };
 
   const handleAIRoll = (index, vals) => {
+    setMoving(true);
     const value = Array.isArray(vals)
       ? vals.reduce((a, b) => a + b, 0)
       : vals ?? Math.floor(Math.random() * 6) + 1;
@@ -1126,7 +1140,7 @@ export default function SnakeAndLadder() {
     for (let i = current + 1; i <= target; i++) steps.push(i);
 
       setHighlight(null);
-    const moveSeq = (seq, type, done) => {
+    const moveSeq = (seq, type, done, dir = 'forward') => {
       const stepMove = (idx) => {
         if (idx >= seq.length) return done();
         const next = seq[idx];
@@ -1134,7 +1148,7 @@ export default function SnakeAndLadder() {
         setAiPositions([...positions]);
         moveSoundRef.current.currentTime = 0;
         if (!muted) moveSoundRef.current.play().catch(() => {});
-        const hType = idx === seq.length - 1 ? type : "path";
+        const hType = idx === seq.length - 1 ? type : dir === 'back' ? 'back' : 'forward';
         setHighlight({ cell: next, type: hType });
         setTrail((t) => [...t, { cell: next, type: hType }]);
         if (idx === seq.length - 2) hahaSoundRef.current?.pause();
@@ -1165,6 +1179,7 @@ export default function SnakeAndLadder() {
         if (first) setGameOver(true);
         setMessage(`AI ${index} wins!`);
         setDiceVisible(false);
+        setMoving(false);
         return;
       }
       let extraTurn = false;
@@ -1191,6 +1206,7 @@ export default function SnakeAndLadder() {
       if (next === 0) setTurnMessage('Your turn');
       setCurrentTurn(next);
       setDiceVisible(true);
+      setMoving(false);
       if (extraTurn && next === index) {
         setTimeout(() => triggerAIRoll(index), 1800);
       }
@@ -1213,7 +1229,13 @@ export default function SnakeAndLadder() {
         }
         const seq = [];
         for (let i = 1; i <= offset && startPos - i >= 0; i++) seq.push(startPos - i);
-        const move = () => moveSeq(seq, 'snake', () => finalizeMove(Math.max(0, snakeEnd), 'snake'));
+        const move = () =>
+          moveSeq(
+            seq,
+            'snake',
+            () => finalizeMove(Math.max(0, snakeEnd), 'snake'),
+            'back'
+          );
         flashHighlight(startPos, 'snake', 2, move);
       } else if (ladderEnd != null) {
         const offset = ladderEnd - startPos;
@@ -1223,14 +1245,20 @@ export default function SnakeAndLadder() {
         if (!muted) ladderSoundRef.current?.play().catch(() => {});
         const seq = [];
         for (let i = 1; i <= offset && startPos + i <= FINAL_TILE; i++) seq.push(startPos + i);
-        const move = () => moveSeq(seq, 'ladder', () => finalizeMove(Math.min(FINAL_TILE, ladderEnd), 'ladder'));
+        const move = () =>
+          moveSeq(
+            seq,
+            'ladder',
+            () => finalizeMove(Math.min(FINAL_TILE, ladderEnd), 'ladder'),
+            'forward'
+          );
         flashHighlight(startPos, 'ladder', 2, move);
       } else {
         finalizeMove(startPos, 'normal');
       }
     };
 
-    moveSeq(steps, 'normal', () => applyEffect(target));
+    moveSeq(steps, 'normal', () => applyEffect(target), 'forward');
     }, 1500);
   };
 
@@ -1287,7 +1315,7 @@ export default function SnakeAndLadder() {
     if (!setupPhase && currentTurn === 0 && !gameOver) {
       setTurnMessage('Your turn');
     }
-  }, [currentTurn, setupPhase, gameOver, refreshTick]);
+  }, [currentTurn, setupPhase, gameOver, refreshTick, moving]);
 
   // Failsafe: ensure AI roll proceeds even if dice animation doesn't start
   useEffect(() => {
@@ -1301,7 +1329,7 @@ export default function SnakeAndLadder() {
   }, [aiRollingIndex]);
 
   useEffect(() => {
-    if (setupPhase || gameOver) return;
+    if (setupPhase || gameOver || moving) return;
     if (currentTurn !== 0) {
       setTimeLeft(15);
       if (timerRef.current) clearInterval(timerRef.current);
@@ -1342,7 +1370,7 @@ export default function SnakeAndLadder() {
       clearInterval(timerRef.current);
       timerSoundRef.current?.pause();
     };
-  }, [currentTurn, setupPhase, gameOver, refreshTick]);
+  }, [currentTurn, setupPhase, gameOver, refreshTick, moving]);
 
   // Periodically refresh the component state to avoid freezes
   useEffect(() => {
@@ -1473,7 +1501,8 @@ export default function SnakeAndLadder() {
               !aiRollingIndex &&
               !playerAutoRolling &&
               rollCooldown === 0 &&
-              currentTurn === 0
+              currentTurn === 0 &&
+              !moving
             }
             numDice={diceCount + bonusDice}
             trigger={aiRollingIndex != null ? aiRollTrigger : playerAutoRolling ? playerRollTrigger : undefined}
