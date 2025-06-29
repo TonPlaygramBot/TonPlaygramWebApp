@@ -87,43 +87,52 @@ export default function Home() {
           </div>
         )}
 
-        <div className="w-full flex items-center justify-between mt-2">
-          <div className="flex items-center space-x-1">
-            <img src="/icons/TON.png" alt="TON" className="w-6 h-6" />
-            <span className="text-sm">{formatValue(tonBalance ?? '...')}</span>
-          </div>
-          <TonConnectButton small className="mt-0" />
-          <div className="flex items-center space-x-1">
-            <img src="/icons/Usdt.png" alt="USDT" className="w-6 h-6" />
-            <span className="text-sm">{formatValue(usdtBalance ?? '...')}</span>
-          </div>
-        </div>
-
         <div className="w-full mt-2">
-          <p className="flex justify-center mb-1">
-            <Link to="/wallet" className="flex items-center space-x-1">
-              <FaWallet className="text-primary" />
-              <span>Wallet</span>
-            </Link>
-          </p>
-          <div className="relative flex items-start justify-between bg-surface border border-border rounded-xl p-2 overflow-hidden">
+          <div className="relative bg-surface border border-border rounded-xl p-4 space-y-2 overflow-hidden">
             <img
               src="/assets/SnakeLaddersbackground.png"
               className="background-behind-board object-cover"
               alt=""
             />
-            <Link to="/wallet?mode=send" className="flex items-center space-x-1 -ml-1 pt-1">
-              <FaArrowCircleUp className="text-accent w-8 h-8" />
-              <span className="text-xs text-accent">Send</span>
-            </Link>
-            <div className="flex flex-col items-center space-y-1">
-              <img src="/icons/TPCcoin.png" alt="TPC" className="w-8 h-8" />
-              <span className="text-xs">{formatValue(tpcBalance ?? '...', 2)}</span>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-1">
+                <img src="/icons/TON.png" alt="TON" className="w-6 h-6" />
+                <span className="text-sm">{formatValue(tonBalance ?? '...')}</span>
+              </div>
+              <TonConnectButton small className="mt-0" />
+              <div className="flex items-center space-x-1">
+                <img src="/icons/Usdt.png" alt="USDT" className="w-6 h-6" />
+                <span className="text-sm">{formatValue(usdtBalance ?? '...')}</span>
+              </div>
             </div>
-            <Link to="/wallet?mode=receive" className="flex items-center space-x-1 -mr-1 pt-1">
-              <FaArrowCircleDown className="text-accent w-8 h-8" />
-              <span className="text-xs text-accent">Receive</span>
-            </Link>
+
+            <p className="flex justify-center mb-1">
+              <Link to="/wallet" className="flex items-center space-x-1 font-bold">
+                <FaWallet className="text-primary" />
+                <span>Wallet</span>
+              </Link>
+            </p>
+            <p className="text-center text-xs text-subtext">Only to send and receive TPC coins</p>
+
+            <div className="relative flex items-start justify-between bg-surface border border-border rounded-xl p-2 overflow-hidden">
+              <img
+                src="/assets/SnakeLaddersbackground.png"
+                className="background-behind-board object-cover"
+                alt=""
+              />
+              <Link to="/wallet?mode=send" className="flex items-center space-x-1 -ml-1 pt-1">
+                <FaArrowCircleUp className="text-accent w-8 h-8" />
+                <span className="text-xs text-accent">Send</span>
+              </Link>
+              <div className="flex flex-col items-center space-y-1">
+                <img src="/icons/TPCcoin.png" alt="TPC" className="w-8 h-8" />
+                <span className="text-xs">{formatValue(tpcBalance ?? '...', 2)}</span>
+              </div>
+              <Link to="/wallet?mode=receive" className="flex items-center space-x-1 -mr-1 pt-1">
+                <FaArrowCircleDown className="text-accent w-8 h-8" />
+                <span className="text-xs text-accent">Receive</span>
+              </Link>
+            </div>
           </div>
         </div>
 
