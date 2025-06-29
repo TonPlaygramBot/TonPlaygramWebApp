@@ -1,5 +1,4 @@
 import { useState, useEffect } from 'react';
-import { FaUsers } from 'react-icons/fa';
 import { useNavigate, useParams } from 'react-router-dom';
 import TableSelector from '../../components/TableSelector.jsx';
 import RoomSelector from '../../components/RoomSelector.jsx';
@@ -92,17 +91,7 @@ export default function Lobby() {
       <h2 className="text-xl font-bold text-center capitalize">{game} Lobby</h2>
       {game === 'snake' && (
         <div className="space-y-2">
-          <div className="flex items-center justify-between">
-            <h3 className="font-semibold">Select Table</h3>
-            {table && (
-              <span className="flex items-center">
-                <FaUsers
-                  className={`ml-2 ${players.length > 0 ? 'text-green-500' : 'text-red-500'}`}
-                />
-                <span className="ml-1">{players.length}</span>
-              </span>
-            )}
-          </div>
+          <h3 className="font-semibold">Select Table</h3>
           <TableSelector tables={tables} selected={table} onSelect={setTable} />
         </div>
       )}
