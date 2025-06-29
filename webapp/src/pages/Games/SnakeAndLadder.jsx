@@ -21,9 +21,8 @@ import {
 } from "react-icons/ai";
 import useTelegramBackButton from "../../hooks/useTelegramBackButton.js";
 import { useNavigate } from "react-router-dom";
-import { getTelegramId, getTelegramPhotoUrl, getTelegramFirstName } from "../../utils/telegram.js";
+import { getTelegramId, getTelegramPhotoUrl } from "../../utils/telegram.js";
 import { fetchTelegramInfo, getProfile, deposit, getSnakeBoard } from "../../utils/api.js";
-import useSnakeSocket from "../../hooks/useSnakeSocket.js";
 import PlayerToken from "../../components/PlayerToken.jsx";
 import AvatarTimer from "../../components/AvatarTimer.jsx";
 import ConfirmPopup from "../../components/ConfirmPopup.jsx";
@@ -440,7 +439,6 @@ export default function SnakeAndLadder() {
   const [diceCount, setDiceCount] = useState(2);
   const [gameOver, setGameOver] = useState(false);
   const [ai, setAi] = useState(0);
-  const [online, setOnline] = useState(false);
   const [aiPositions, setAiPositions] = useState([]);
   const [playerColors, setPlayerColors] = useState([]);
   const [rollColor, setRollColor] = useState('#fff');
@@ -460,55 +458,6 @@ export default function SnakeAndLadder() {
   const [refreshTick, setRefreshTick] = useState(0);
   const [rollCooldown, setRollCooldown] = useState(0);
   const [moving, setMoving] = useState(false);
-
-  const paramsInit = new URLSearchParams(window.location.search);
-  const roomId = paramsInit.get('table') || 'snake-4';
-  const playerIdVal = getTelegramId();
-  const playerNameVal = getTelegramFirstName();
-  const {
-    players: onlinePlayers,
-    currentTurn: onlineTurn,
-    snakes: onlineSnakes,
-    ladders: onlineLadders,
-    lastRoll: onlineRoll,
-    ranking: onlineRanking,
-    rollDice: onlineRollDice
-  } = useSnakeSocket(online ? roomId : null, online ? String(playerIdVal) : null, playerNameVal);
-
-  useEffect(() => {
-    if (online && onlineSnakes && onlineLadders) {
-      setSnakes(onlineSnakes);
-      setLadders(onlineLadders);
-    }
-  }, [online, onlineSnakes, onlineLadders]);
-
-  useEffect(() => {
-    if (online) {
-      setRanking(onlineRanking.map((id) =>
-        id === String(playerIdVal) ? 'You' : onlinePlayers.find((p) => p.id === id)?.name || id
-      ));
-    }
-  }, [onlineRanking, onlinePlayers, online]);
-
-  useEffect(() => {
-    if (!online) return;
-    const idxMap = new Map();
-    onlinePlayers.forEach((p, i) => idxMap.set(p.id, i));
-    const me = idxMap.get(String(playerIdVal));
-    if (me != null) setPos(onlinePlayers[me].position);
-    const others = onlinePlayers.filter((p) => p.id !== String(playerIdVal));
-    setAi(others.length);
-    setAiPositions(others.map((p) => p.position));
-    setPlayerColors(
-      shuffle(TOKEN_COLORS)
-        .slice(0, onlinePlayers.length)
-        .map((c) => c.color)
-    );
-    if (onlineTurn) {
-      const turnIdx = idxMap.get(onlineTurn);
-      if (turnIdx != null) setCurrentTurn(turnIdx);
-    }
-  }, [onlinePlayers, onlineTurn, online]);
 
   // Preload token and avatar images so board icons and AI photos display
   // immediately without waiting for network requests during gameplay.
@@ -541,15 +490,11 @@ export default function SnakeAndLadder() {
     return () => clearInterval(id);
   }, [rollCooldown]);
 
-  const playerName = (idx) => {
-    const color = playerColors[idx] || '#fff';
-    let label = idx === 0 ? 'You' : `AI ${idx}`;
-    if (online) {
-      const p = onlinePlayers[idx];
-      if (p) label = p.id === String(playerIdVal) ? 'You' : p.name;
-    }
-    return <span style={{ color }}>{label}</span>;
-  };
+  const playerName = (idx) => (
+    <span style={{ color: playerColors[idx] }}>
+      {idx === 0 ? 'You' : `AI ${idx}`}
+    </span>
+  );
 
   const capturePieces = (cell, mover) => {
     const victims = [];
@@ -707,27 +652,22 @@ export default function SnakeAndLadder() {
     const t = params.get("token");
     const amt = params.get("amount");
     const aiParam = params.get("ai");
-    const table = params.get("table") || "snake-4";
     if (t) setToken(t.toUpperCase());
     if (amt) setPot(Number(amt));
     const aiCount = aiParam ? Math.max(1, Math.min(3, Number(aiParam))) : 0;
-    const onlineMode = table && !aiParam;
-    setOnline(onlineMode);
     if (aiParam) setAi(aiCount);
     setAiPositions(Array(aiCount).fill(0));
-    if (!onlineMode) {
-      setAiAvatars(
-        Array.from({ length: aiCount }, () =>
-          AVATARS[Math.floor(Math.random() * AVATARS.length)]
-        )
-      );
-    }
+    setAiAvatars(
+      Array.from({ length: aiCount }, () =>
+        AVATARS[Math.floor(Math.random() * AVATARS.length)]
+      )
+    );
     const colors = shuffle(TOKEN_COLORS).slice(0, aiCount + 1).map(c => c.color);
     setPlayerColors(colors);
 
-    if (!onlineMode) {
-      getSnakeBoard(table)
-        .then(({ snakes: snakesObj = {}, ladders: laddersObj = {} }) => {
+    const table = params.get("table") || "snake-4";
+    getSnakeBoard(table)
+      .then(({ snakes: snakesObj = {}, ladders: laddersObj = {} }) => {
         const limit = (obj) => {
           return Object.fromEntries(Object.entries(obj).slice(0, 8));
         };
@@ -767,7 +707,6 @@ export default function SnakeAndLadder() {
         setDiceCells(diceMap);
       })
       .catch(() => {});
-    }
   }, []);
 
   const fastForward = (elapsed, state) => {
@@ -1390,19 +1329,17 @@ export default function SnakeAndLadder() {
   }, [aiRollingIndex]);
 
   useEffect(() => {
-    if (online || setupPhase || gameOver || moving) return;
+    if (setupPhase || gameOver || moving) return;
     if (currentTurn !== 0) {
       setTimeLeft(15);
       if (timerRef.current) clearInterval(timerRef.current);
       timerRef.current = setInterval(() => {
         setTimeLeft((t) => Math.max(0, t - 1));
       }, 1000);
-      if (!online) {
-        if (aiRollTimeoutRef.current) clearTimeout(aiRollTimeoutRef.current);
-        aiRollTimeoutRef.current = setTimeout(() => {
-          triggerAIRoll(currentTurn);
-        }, 2000);
-      }
+      if (aiRollTimeoutRef.current) clearTimeout(aiRollTimeoutRef.current);
+      aiRollTimeoutRef.current = setTimeout(() => {
+        triggerAIRoll(currentTurn);
+      }, 2000);
       return () => {
         clearInterval(timerRef.current);
         clearTimeout(aiRollTimeoutRef.current);
@@ -1445,22 +1382,10 @@ export default function SnakeAndLadder() {
 
 
 
-  const players = online
-    ? onlinePlayers.map((p, i) => ({
-        position: p.position,
-        photoUrl: p.id === String(playerIdVal) ? photoUrl : '/assets/icons/profile.svg',
-        type: 'normal',
-        color: playerColors[i] || '#fff'
-      }))
-    : [
-        { position: pos, photoUrl, type: tokenType, color: playerColors[0] },
-        ...aiPositions.map((p, i) => ({
-          position: p,
-          photoUrl: aiAvatars[i] || '/assets/icons/profile.svg',
-          type: 'normal',
-          color: playerColors[i + 1]
-        }))
-      ];
+  const players = [
+    { position: pos, photoUrl, type: tokenType, color: playerColors[0] },
+    ...aiPositions.map((p, i) => ({ position: p, photoUrl: aiAvatars[i] || '/assets/icons/profile.svg', type: 'normal', color: playerColors[i + 1] }))
+  ];
 
   // determine ranking numbers based on board positions
   const rankMap = {};
@@ -1551,9 +1476,7 @@ export default function SnakeAndLadder() {
         <div className="fixed bottom-24 inset-x-0 flex flex-col items-center z-20">
           <DiceRoller
             onRollEnd={(vals) => {
-              if (online) {
-                onlineRollDice();
-              } else if (aiRollingIndex) {
+              if (aiRollingIndex) {
                 handleAIRoll(aiRollingIndex, vals);
                 setAiRollingIndex(null);
               } else {
