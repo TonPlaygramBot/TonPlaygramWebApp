@@ -10,7 +10,7 @@ import DailyCheckIn from '../components/DailyCheckIn.jsx';
 
 import TasksCard from '../components/TasksCard.jsx';
 
-import { FaUser, FaArrowCircleUp, FaArrowCircleDown } from 'react-icons/fa';
+import { FaUser, FaArrowCircleUp, FaArrowCircleDown, FaWallet } from 'react-icons/fa';
 
 import { Link } from 'react-router-dom';
 
@@ -18,8 +18,8 @@ import { ping } from '../utils/api.js';
 
 import { getAvatarUrl, saveAvatar, loadAvatar } from '../utils/avatarUtils.js';
 
-import BalanceSummary from '../components/BalanceSummary.jsx';
 import TonConnectButton from '../components/TonConnectButton.jsx';
+import useTokenBalances from '../hooks/useTokenBalances.js';
 
 import { getTelegramId, getTelegramPhotoUrl } from '../utils/telegram.js';
 import { getProfile } from '../utils/api.js';
@@ -29,6 +29,7 @@ export default function Home() {
   const [status, setStatus] = useState('checking');
 
   const [photoUrl, setPhotoUrl] = useState(loadAvatar() || '');
+  const { tpcBalance, tonBalance, usdtBalance } = useTokenBalances();
 
   useEffect(() => {
     ping()
@@ -86,10 +87,25 @@ export default function Home() {
           </div>
         )}
 
-        <TonConnectButton />
-
+        <div className="w-full flex items-center justify-between mt-2">
+          <div className="flex items-center space-x-1">
+            <img src="/icons/TON.png" alt="TON" className="w-6 h-6" />
+            <span className="text-sm">{formatValue(tonBalance ?? '...')}</span>
+          </div>
+          <TonConnectButton small className="mt-0" />
+          <div className="flex items-center space-x-1">
+            <img src="/icons/Usdt.png" alt="USDT" className="w-6 h-6" />
+            <span className="text-sm">{formatValue(usdtBalance ?? '...')}</span>
+          </div>
+        </div>
 
         <div className="w-full mt-2">
+          <p className="flex justify-center mb-1">
+            <Link to="/wallet" className="flex items-center space-x-1">
+              <FaWallet className="text-primary" />
+              <span>Wallet</span>
+            </Link>
+          </p>
           <div className="relative flex items-start justify-between bg-surface border border-border rounded-xl p-2 overflow-hidden">
             <img
               src="/assets/SnakeLaddersbackground.png"
@@ -100,12 +116,15 @@ export default function Home() {
               <FaArrowCircleUp className="text-accent w-8 h-8" />
               <span className="text-xs text-accent">Send</span>
             </Link>
+            <div className="flex flex-col items-center space-y-1">
+              <img src="/icons/TPCcoin.png" alt="TPC" className="w-8 h-8" />
+              <span className="text-xs">{formatValue(tpcBalance ?? '...', 2)}</span>
+            </div>
             <Link to="/wallet?mode=receive" className="flex items-center space-x-1 -mr-1 pt-1">
               <FaArrowCircleDown className="text-accent w-8 h-8" />
               <span className="text-xs text-accent">Receive</span>
             </Link>
           </div>
-          <BalanceSummary className="mt-2" />
         </div>
 
       </div>
@@ -125,4 +144,19 @@ export default function Home() {
 
   );
 
+}
+
+function formatValue(value, decimals = 4) {
+  if (typeof value !== 'number') {
+    const parsed = parseFloat(value);
+    if (isNaN(parsed)) return value;
+    return parsed.toLocaleString(undefined, {
+      minimumFractionDigits: decimals,
+      maximumFractionDigits: decimals,
+    });
+  }
+  return value.toLocaleString(undefined, {
+    minimumFractionDigits: decimals,
+    maximumFractionDigits: decimals,
+  });
 }
