@@ -22,7 +22,7 @@ import {
 import useTelegramBackButton from "../../hooks/useTelegramBackButton.js";
 import { useNavigate } from "react-router-dom";
 import { getTelegramId, getTelegramPhotoUrl } from "../../utils/telegram.js";
-import { fetchTelegramInfo, getProfile, deposit, getSnakeBoard } from "../../utils/api.js";
+import { fetchTelegramInfo, getProfile, deposit, getSnakeBoard, getSnakeLobby } from "../../utils/api.js";
 import PlayerToken from "../../components/PlayerToken.jsx";
 import AvatarTimer from "../../components/AvatarTimer.jsx";
 import ConfirmPopup from "../../components/ConfirmPopup.jsx";
@@ -458,6 +458,9 @@ export default function SnakeAndLadder() {
   const [refreshTick, setRefreshTick] = useState(0);
   const [rollCooldown, setRollCooldown] = useState(0);
   const [moving, setMoving] = useState(false);
+  const [waitingForPlayers, setWaitingForPlayers] = useState(false);
+  const [playersNeeded, setPlayersNeeded] = useState(0);
+  const [tableId, setTableId] = useState('snake-4');
 
   // Preload token and avatar images so board icons and AI photos display
   // immediately without waiting for network requests during gameplay.
@@ -652,6 +655,7 @@ export default function SnakeAndLadder() {
     const t = params.get("token");
     const amt = params.get("amount");
     const aiParam = params.get("ai");
+    const wait = params.get("wait");
     if (t) setToken(t.toUpperCase());
     if (amt) setPot(Number(amt));
     const aiCount = aiParam ? Math.max(1, Math.min(3, Number(aiParam))) : 0;
@@ -667,6 +671,10 @@ export default function SnakeAndLadder() {
     setPlayerColors(colors);
 
     const table = params.get("table") || "snake-4";
+    setTableId(table);
+    if (wait && table !== "single") {
+      setWaitingForPlayers(true);
+    }
     getSnakeBoard(table)
       .then(({ snakes: snakesObj = {}, ladders: laddersObj = {} }) => {
         const limit = (obj) => {
@@ -709,6 +717,29 @@ export default function SnakeAndLadder() {
       })
       .catch(() => {});
   }, []);
+
+  useEffect(() => {
+    if (!waitingForPlayers) return;
+    let active = true;
+    const load = () => {
+      getSnakeLobby(tableId)
+        .then((data) => {
+          if (!active) return;
+          const needed = (data.capacity || 0) - (data.players?.length || 0);
+          setPlayersNeeded(needed);
+          if (needed <= 0) {
+            setWaitingForPlayers(false);
+          }
+        })
+        .catch(() => {});
+    };
+    load();
+    const id = setInterval(load, 3000);
+    return () => {
+      active = false;
+      clearInterval(id);
+    };
+  }, [waitingForPlayers, tableId]);
 
   const fastForward = (elapsed, state) => {
     let p = state.pos ?? 0;
@@ -1264,7 +1295,7 @@ export default function SnakeAndLadder() {
   };
 
   useEffect(() => {
-    if (!setupPhase || aiPositions.length !== ai) return;
+    if (waitingForPlayers || !setupPhase || aiPositions.length !== ai) return;
     const total = ai + 1;
     if (total === 1) {
       setSetupPhase(false);
@@ -1456,6 +1487,13 @@ export default function SnakeAndLadder() {
         currentTurn={currentTurn}
         burning={burning}
       />
+      {waitingForPlayers && (
+        <div className="absolute inset-0 z-40 flex items-center justify-center bg-black/70">
+          <p className="text-white text-lg">
+            Waiting for {playersNeeded} more player{playersNeeded === 1 ? '' : 's'}...
+          </p>
+        </div>
+      )}
       {rollResult !== null && (
         <div className="fixed bottom-52 inset-x-0 flex justify-center z-30 pointer-events-none">
           <div
