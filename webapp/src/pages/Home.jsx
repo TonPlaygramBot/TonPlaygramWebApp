@@ -28,6 +28,7 @@ import { getAvatarUrl, saveAvatar, loadAvatar } from '../utils/avatarUtils.js';
 
 import TonConnectButton from '../components/TonConnectButton.jsx';
 import useTokenBalances from '../hooks/useTokenBalances.js';
+import useWalletUsdValue from '../hooks/useWalletUsdValue.js';
 
 import { getTelegramId, getTelegramPhotoUrl } from '../utils/telegram.js';
 import { getProfile } from '../utils/api.js';
@@ -38,6 +39,7 @@ export default function Home() {
 
   const [photoUrl, setPhotoUrl] = useState(loadAvatar() || '');
   const { tpcBalance, tonBalance, usdtBalance } = useTokenBalances();
+  const usdValue = useWalletUsdValue(tonBalance, usdtBalance);
   const walletAddress = useTonAddress();
   const [tonConnectUI] = useTonConnectUI();
   const shortAddress = walletAddress
@@ -88,12 +90,6 @@ export default function Home() {
 
     <div className="space-y-4">
 
-      {!walletAddress && (
-        <div className="flex justify-center">
-          <TonConnectButton />
-        </div>
-      )}
-
       <div className="flex flex-col items-center">
 
         {photoUrl && (
@@ -117,6 +113,13 @@ export default function Home() {
           </div>
         )}
 
+        <TonConnectButton />
+        {walletAddress && (
+          <div className="roll-result text-white text-2xl">
+            {'$' + formatValue(usdValue ?? '...', 2)}
+          </div>
+        )}
+
         <div className="w-full mt-2 space-y-4">
           <div className="relative bg-surface border border-border rounded-xl p-4 flex items-center justify-around overflow-hidden">
             <img
@@ -135,11 +138,11 @@ export default function Home() {
           </div>
 
           <div className="relative">
-            <div className="absolute -top-5 left-1/2 -translate-x-1/2 flex items-center space-x-1 bg-surface px-2">
-              <FaWallet className="text-primary" />
-              <span className="text-lg font-bold">Wallet</span>
-            </div>
             <div className="relative bg-surface border border-border rounded-xl p-4 pt-6 space-y-2 overflow-hidden">
+              <div className="flex items-center justify-center space-x-1 mb-1">
+                <FaWallet className="text-primary" />
+                <span className="text-lg font-bold">Wallet</span>
+              </div>
               <img
                 src="/assets/SnakeLaddersbackground.png"
                 className="background-behind-board object-cover"
