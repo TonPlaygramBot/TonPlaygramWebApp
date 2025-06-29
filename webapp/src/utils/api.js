@@ -214,6 +214,22 @@ export function getSnakeResults() {
   return fetch(API_BASE_URL + '/api/snake/results').then((r) => r.json());
 }
 
+export function seatTable(telegramId, tableId, name) {
+  return fetch(API_BASE_URL + '/api/snake/table/seat', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ telegramId, tableId, name }),
+  }).then((r) => r.json());
+}
+
+export function unseatTable(telegramId, tableId) {
+  return fetch(API_BASE_URL + '/api/snake/table/unseat', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ telegramId, tableId }),
+  }).then((r) => r.json());
+}
+
 export function pingOnline(telegramId) {
   return fetch(API_BASE_URL + '/api/online/ping', {
     method: 'POST',

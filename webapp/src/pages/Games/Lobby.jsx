@@ -9,6 +9,9 @@ import {
   getSnakeLobby,
   pingOnline,
   getOnlineCount,
+  seatTable,
+  unseatTable,
+  getProfile,
 } from '../../utils/api.js';
 import { getTelegramId } from '../../utils/telegram.js';
 import { canStartGame } from '../../utils/lobby.js';
@@ -33,6 +36,14 @@ export default function Lobby() {
   const [players, setPlayers] = useState([]);
   const [aiCount, setAiCount] = useState(0);
   const [online, setOnline] = useState(0);
+  const [playerName, setPlayerName] = useState('');
+
+  useEffect(() => {
+    const id = getTelegramId();
+    getProfile(id)
+      .then((p) => setPlayerName(p?.nickname || p?.firstName || ''))
+      .catch(() => {});
+  }, []);
 
   useEffect(() => {
     if (game === 'snake') {
@@ -65,6 +76,20 @@ export default function Lobby() {
     const id = setInterval(ping, 30000);
     return () => clearInterval(id);
   }, []);
+
+  useEffect(() => {
+    if (game === 'snake' && table && table.id !== 'single') {
+      const telegramId = getTelegramId();
+      seatTable(telegramId, table.id, playerName).catch(() => {});
+      const id = setInterval(() => {
+        seatTable(telegramId, table.id, playerName).catch(() => {});
+      }, 30000);
+      return () => {
+        clearInterval(id);
+        unseatTable(telegramId, table.id).catch(() => {});
+      };
+    }
+  }, [game, table, playerName]);
 
   useEffect(() => {
     if (game === 'snake' && table && table.id !== 'single') {
