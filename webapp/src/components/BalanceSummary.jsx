@@ -71,7 +71,7 @@ export default function BalanceSummary() {
   }, [walletAddress]);
 
   return (
-    <div className="text-center mt-2">
+    <div className="text-center">
       <p className="text-lg font-bold text-gray-300 flex items-center justify-center space-x-1">
         <Link to="/wallet" className="flex items-center space-x-1">
           <FaWallet className="text-primary" />

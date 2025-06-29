@@ -20,6 +20,7 @@ import useTelegramBackButton from '../hooks/useTelegramBackButton.js';
 import AvatarPickerModal from '../components/AvatarPickerModal.jsx';
 import AvatarPromptModal from '../components/AvatarPromptModal.jsx';
 import { getAvatarUrl, saveAvatar, loadAvatar } from '../utils/avatarUtils.js';
+import InfoPopup from '../components/InfoPopup.jsx';
 import InboxWidget from '../components/InboxWidget.jsx';
 
 export default function MyAccount() {
@@ -38,6 +39,7 @@ export default function MyAccount() {
   const [transactions, setTransactions] = useState([]);
   const [showAvatarPicker, setShowAvatarPicker] = useState(false);
   const [showAvatarPrompt, setShowAvatarPrompt] = useState(false);
+  const [showSaved, setShowSaved] = useState(false);
   const timerRef = useRef(null);
 
   useEffect(() => {
@@ -160,6 +162,8 @@ export default function MyAccount() {
           saveAvatar(src);
           setProfile(updated);
           setShowAvatarPicker(false);
+          setShowSaved(true);
+          setTimeout(() => setShowSaved(false), 1500);
           window.dispatchEvent(new Event('profilePhotoUpdated'));
         }}
       />
@@ -185,6 +189,20 @@ export default function MyAccount() {
             className="mt-2 px-2 py-1 bg-primary hover:bg-primary-hover rounded text-sm"
           >
             Change Avatar
+          </button>
+          <button
+            onClick={async () => {
+              const url = getTelegramPhotoUrl();
+              const updated = await updateProfile({ telegramId, photo: url });
+              localStorage.removeItem('profilePhoto');
+              setProfile(updated);
+              setShowSaved(true);
+              setTimeout(() => setShowSaved(false), 1500);
+              window.dispatchEvent(new Event('profilePhotoUpdated'));
+            }}
+            className="mt-2 ml-2 px-2 py-1 bg-primary hover:bg-primary-hover rounded text-sm"
+          >
+            Use Telegram Photo
           </button>
           <div className="mt-2 space-x-2">
             <a href="/friends" className="underline text-primary">
@@ -245,6 +263,11 @@ export default function MyAccount() {
         )}
       </div>
       <InboxWidget />
+      <InfoPopup
+        open={showSaved}
+        onClose={() => setShowSaved(false)}
+        info="Profile saved"
+      />
     </div>
   );
 }
