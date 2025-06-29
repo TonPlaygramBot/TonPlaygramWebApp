@@ -6,11 +6,18 @@ import RoomSelector from '../../components/RoomSelector.jsx';
 import useTelegramBackButton from '../../hooks/useTelegramBackButton.js';
 import { getSnakeLobbies, getSnakeLobby } from '../../utils/api.js';
 import { canStartGame } from '../../utils/lobby.js';
+import { socket } from '../../utils/socket.js';
+import { getTelegramId, getTelegramFirstName, getTelegramUsername } from '../../utils/telegram.js';
 
 export default function Lobby() {
   const { game } = useParams();
   const navigate = useNavigate();
   useTelegramBackButton(() => navigate('/games', { replace: true }));
+
+  useEffect(() => {
+    socket.connect();
+    return () => socket.disconnect();
+  }, []);
 
   useEffect(() => {
     const handlePop = (e) => {
@@ -48,6 +55,9 @@ export default function Lobby() {
 
   useEffect(() => {
     if (game === 'snake' && table && table.id !== 'single') {
+      const playerId = getTelegramId();
+      const name = getTelegramUsername() || getTelegramFirstName() || 'Player';
+      socket.emit('joinRoom', { roomId: table.id, playerId, name });
       let active = true;
       function loadPlayers() {
         getSnakeLobby(table.id)
@@ -57,8 +67,14 @@ export default function Lobby() {
           .catch(() => {});
       }
       loadPlayers();
+      const onJoin = () => loadPlayers();
+      const onLeave = () => loadPlayers();
+      socket.on('playerJoined', onJoin);
+      socket.on('playerLeft', onLeave);
       const id = setInterval(loadPlayers, 3000);
       return () => {
+        socket.off('playerJoined', onJoin);
+        socket.off('playerLeft', onLeave);
         active = false;
         clearInterval(id);
       };
