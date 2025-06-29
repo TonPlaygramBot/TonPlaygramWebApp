@@ -179,11 +179,14 @@ const mongoUri = process.env.MONGODB_URI;
 
 if (mongoUri === 'memory') {
   import('mongodb-memory-server').then(async ({ MongoMemoryServer }) => {
-    const mem = await MongoMemoryServer.create();
-    mongoose
-      .connect(mem.getUri())
-      .then(() => console.log('Using in-memory MongoDB'))
-      .catch((err) => console.error('MongoDB connection error:', err));
+    try {
+      const mem = await MongoMemoryServer.create();
+      await mongoose.connect(mem.getUri());
+      console.log('Using in-memory MongoDB');
+    } catch (err) {
+      console.error('Failed to start in-memory MongoDB:', err.message);
+      console.log('Continuing without database');
+    }
   });
 } else if (mongoUri) {
   mongoose

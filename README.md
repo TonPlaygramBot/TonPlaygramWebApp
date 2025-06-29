@@ -7,6 +7,7 @@
 3. Copy `bot/.env.example` to `bot/.env` and update the values. At minimum set:
    - `BOT_TOKEN` – your Telegram bot token
    - `MONGODB_URI` – MongoDB connection string or `memory`
+     (falls back to an in-memory database if unset)
    - `AIRDROP_ADMIN_TOKENS` – (optional) tokens allowed to trigger airdrops
    - `DEPOSIT_WALLET_ADDRESS` – TON address that receives user deposits
    - `PORT` – (optional) port for the bot API server (defaults to 3000)
@@ -77,6 +78,8 @@ is detected.
 
 - **Balance always zero** – verify MongoDB is running and `MONGODB_URI` points
   to a running database instance. The backend must be able to connect.
+- **In-memory database fails to launch** – the app will start without MongoDB if
+  the `mongodb-memory-server` download fails.
 - **No Telegram notifications** – confirm `npm start` is running and the bot
   token is valid. Users must interact with the bot in Telegram to receive
   messages.
