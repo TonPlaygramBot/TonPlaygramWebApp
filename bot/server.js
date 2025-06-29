@@ -102,6 +102,13 @@ function ensureWebappBuilt() {
 
 ensureWebappBuilt();
 
+// Serve tonconnect manifest directly to avoid missing file errors
+app.get('/tonconnect-manifest.json', (req, res) => {
+  const built = path.join(webappPath, 'tonconnect-manifest.json');
+  const fallback = path.join(__dirname, '../webapp/public/tonconnect-manifest.json');
+  const manifest = existsSync(built) ? built : fallback;
+  res.sendFile(manifest);
+});
 
 app.use(
   express.static(webappPath, { maxAge: '1y', immutable: true })

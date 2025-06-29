@@ -6,23 +6,14 @@ import {
   sendAccountTpc,
   getAccountTransactions
 } from '../utils/api.js';
-import { getTelegramId } from '../utils/telegram.js';
-import LoginOptions from '../components/LoginOptions.jsx';
 import ConfirmPopup from '../components/ConfirmPopup.jsx';
 import InfoPopup from '../components/InfoPopup.jsx';
 import useTelegramBackButton from '../hooks/useTelegramBackButton.js';
 
 export default function Wallet() {
   useTelegramBackButton();
-  let telegramId;
 
-  try {
-    telegramId = getTelegramId();
-  } catch (err) {
-    return <LoginOptions />;
-  }
-
-  const [accountId, setAccountId] = useState('');
+  const [accountId, setAccountId] = useState(() => localStorage.getItem('accountId') || '');
   const [tpcBalance, setTpcBalance] = useState(null);
   const [receiver, setReceiver] = useState('');
   const [amount, setAmount] = useState('');
@@ -34,21 +25,26 @@ export default function Wallet() {
 
 
   const loadBalances = async () => {
-    const acc = await createAccount(telegramId);
-    if (acc?.error) {
-      console.error('Failed to load account:', acc.error);
-      return null;
+    let id = accountId;
+    if (!id) {
+      const acc = await createAccount();
+      if (acc?.error) {
+        console.error('Failed to load account:', acc.error);
+        return null;
+      }
+      id = acc.accountId;
+      localStorage.setItem('accountId', id);
     }
-    setAccountId(acc.accountId);
+    setAccountId(id);
 
-    const bal = await getAccountBalance(acc.accountId);
+    const bal = await getAccountBalance(id);
     if (bal?.error || typeof bal.balance !== 'number') {
       console.error('Failed to load TPC balance:', bal?.error);
       setTpcBalance(0);
     } else {
       setTpcBalance(bal.balance);
     }
-    return acc.accountId;
+    return id;
   };
 
   useEffect(() => {
@@ -77,9 +73,7 @@ export default function Wallet() {
       const res = await sendAccountTpc(accountId, to, amt);
       if (res?.error) {
         if (res.error === 'unauthorized' || res.error === 'forbidden') {
-          setErrorMsg(
-            'Authorization failed. Make sure you opened this page from Telegram and that your bot token is correct.'
-          );
+          setErrorMsg('Authorization failed.');
         } else {
           setErrorMsg(res.error);
         }
