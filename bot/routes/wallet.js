@@ -56,10 +56,11 @@ router.get('/deposit-address', (_req, res) => {
 
 import TonWeb from 'tonweb';
 
-function toRawAddress(addr) {
+function toFriendlyAddress(addr) {
   try {
     const a = new TonWeb.utils.Address(addr);
-    return a.toString(false);
+    // return standard base64 (not URL-safe) user-friendly address
+    return a.toString(true, false, false);
   } catch {
     return null;
   }
@@ -73,7 +74,7 @@ router.post('/ton-balance', async (req, res) => {
     return res.status(400).json({ error: 'address required' });
   }
 
-  const raw = toRawAddress(address);
+  const raw = toFriendlyAddress(address);
   if (!raw) {
     return res.status(400).json({ error: 'invalid address' });
   }
@@ -81,7 +82,7 @@ router.post('/ton-balance', async (req, res) => {
   try {
 
     const resp = await fetch(
-      `https://toncenter.com/api/v2/getAddressBalance?address=${raw}`,
+      `https://toncenter.com/api/v2/getAddressBalance?address=${encodeURIComponent(raw)}`,
       withProxy()
     );
 
@@ -112,13 +113,13 @@ router.post('/usdt-balance', async (req, res) => {
   if (!address) {
     return res.status(400).json({ error: 'address required' });
   }
-  const raw = toRawAddress(address);
+  const raw = toFriendlyAddress(address);
   if (!raw) {
     return res.status(400).json({ error: 'invalid address' });
   }
   try {
     const resp = await fetch(
-      `https://tonapi.io/v2/accounts/${raw}/jettons`,
+      `https://tonapi.io/v2/accounts/${encodeURIComponent(raw)}/jettons`,
       withProxy()
     );
     const data = await resp.json();
