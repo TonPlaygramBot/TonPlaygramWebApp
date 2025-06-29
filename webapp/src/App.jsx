@@ -22,11 +22,9 @@ import SpinPage from './pages/spin.tsx';
 
 import Layout from './components/Layout.jsx';
 import useTelegramAuth from './hooks/useTelegramAuth.js';
-import useTonConnect from './hooks/useTonConnect.js';
 
 export default function App() {
   useTelegramAuth();
-  useTonConnect();
 
   return (
     <BrowserRouter>

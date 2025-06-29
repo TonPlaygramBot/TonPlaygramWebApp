@@ -3,7 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import TableSelector from '../../components/TableSelector.jsx';
 import RoomSelector from '../../components/RoomSelector.jsx';
 import useTelegramBackButton from '../../hooks/useTelegramBackButton.js';
-import { getSnakeLobbies, getSnakeLobby, getSnakeBoard } from '../../utils/api.js';
+import { getSnakeLobbies, getSnakeLobby } from '../../utils/api.js';
 import { canStartGame } from '../../utils/lobby.js';
 
 export default function Lobby() {
@@ -63,16 +63,6 @@ export default function Lobby() {
       };
     } else {
       setPlayers([]);
-    }
-  }, [game, table]);
-
-  useEffect(() => {
-    if (game === 'snake' && table) {
-      getSnakeBoard(table.id)
-        .then((data) => {
-          localStorage.setItem(`snakeBoard_${table.id}`, JSON.stringify(data));
-        })
-        .catch(() => {});
     }
   }, [game, table]);
 
