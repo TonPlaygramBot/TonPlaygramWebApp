@@ -9,25 +9,18 @@ const router = Router();
 // Create or fetch account for a user
 router.post('/create', async (req, res) => {
   const { telegramId } = req.body;
+  if (!telegramId) return res.status(400).json({ error: 'telegramId required' });
 
-  // When telegramId is provided, fetch or create the account tied to it.
-  if (telegramId) {
-    let user = await User.findOne({ telegramId });
-    if (!user) {
-      user = new User({ telegramId, accountId: uuidv4(), referralCode: String(telegramId) });
-      await user.save();
-    } else if (!user.accountId) {
-      user.accountId = uuidv4();
-      await user.save();
-    }
-
-    return res.json({ accountId: user.accountId, balance: user.balance });
+  let user = await User.findOne({ telegramId });
+  if (!user) {
+    user = new User({ telegramId, accountId: uuidv4(), referralCode: String(telegramId) });
+    await user.save();
+  } else if (!user.accountId) {
+    user.accountId = uuidv4();
+    await user.save();
   }
 
-  // Anonymous users get a new random account with a unique referral code.
-  const anonUser = new User({ accountId: uuidv4(), referralCode: uuidv4() });
-  await anonUser.save();
-  res.json({ accountId: anonUser.accountId, balance: anonUser.balance });
+  res.json({ accountId: user.accountId, balance: user.balance });
 });
 
 // Get balance by account id

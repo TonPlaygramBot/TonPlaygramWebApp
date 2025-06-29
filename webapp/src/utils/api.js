@@ -309,8 +309,7 @@ export function resetTpcWallet(telegramId) {
 // ----- Account based wallet -----
 
 export function createAccount(telegramId) {
-  const body = telegramId ? { telegramId } : {};
-  return post('/api/account/create', body);
+  return post('/api/account/create', { telegramId });
 }
 
 export function getAccountBalance(accountId) {
