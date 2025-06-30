@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { socket } from '../utils/socket.js';
 import { pingOnline } from '../utils/api.js';
-import { getTelegramId } from '../utils/telegram.js';
+import { getPlayerId } from '../utils/telegram.js';
 import InvitePopup from './InvitePopup.jsx';
 
 import Navbar from './Navbar.jsx';
@@ -30,9 +30,9 @@ export default function Layout({ children }) {
   useEffect(() => {
     let id;
     try {
-      const telegramId = getTelegramId();
+      const playerId = getPlayerId();
       function ping() {
-        pingOnline(telegramId).catch(() => {});
+        pingOnline(playerId).catch(() => {});
       }
       ping();
       id = setInterval(ping, 30000);

@@ -4,9 +4,12 @@ import { socket } from '../utils/socket.js';
 export default function useTelegramAuth() {
   useEffect(() => {
     const user = window?.Telegram?.WebApp?.initDataUnsafe?.user;
+    const acc = localStorage.getItem('accountId');
     if (user?.id) {
       localStorage.setItem('telegramId', user.id);
-      socket.emit('register', { telegramId: user.id });
+      socket.emit('register', { telegramId: user.id, playerId: acc || user.id });
+    } else if (acc) {
+      socket.emit('register', { playerId: acc });
     }
     if (user?.username) {
       localStorage.setItem('telegramUsername', user.username);
