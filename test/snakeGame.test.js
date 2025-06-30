@@ -89,7 +89,7 @@ test('room starts when reaching custom capacity', () => {
   assert.ok(res.error, 'should not allow extra players');
 });
 
-test('joining player receives current players list', () => {
+test('joining player receives full player list', () => {
   const io = new DummyIO();
   const events = [];
   const room = new GameRoom('r6', io, 3, {
@@ -97,7 +97,7 @@ test('joining player receives current players list', () => {
     ladders: DEFAULT_LADDERS,
   });
   const s1 = { id: 's1', join: () => {}, emit: () => {} };
-  const s2 = { id: 's2', join: () => {}, emit: (e, d) => events.push({ event: e, data: d }) };
+  const s2 = { id: 's2', join: () => {}, emit: (e,d)=>events.push({event:e,data:d}) };
   room.addPlayer('p1', 'A', s1);
   room.addPlayer('p2', 'B', s2);
   const cur = events.find(e => e.event === 'currentPlayers');
