@@ -60,6 +60,7 @@ export class GameRoom {
       this.ladders = b.ladders;
     }
     this.rollCooldown = ROLL_COOLDOWN_MS;
+    this.turnTimer = null;
   }
 
   addPlayer(playerId, name, socket) {
@@ -103,6 +104,17 @@ export class GameRoom {
     const current = this.players[this.currentTurn];
     if (current) {
       this.io.to(this.id).emit('turnChanged', { playerId: current.playerId });
+      if (this.turnTimer) clearTimeout(this.turnTimer);
+      this.turnTimer = setTimeout(() => {
+        if (
+          this.status === 'playing' &&
+          this.players[this.currentTurn] === current &&
+          !current.disconnected
+        ) {
+          const sock = { id: current.socketId, emit: () => {} };
+          this.rollDice(sock);
+        }
+      }, 15000);
     }
   }
 
@@ -114,6 +126,10 @@ export class GameRoom {
 
   rollDice(socket, value) {
     if (this.status !== 'playing') return;
+    if (this.turnTimer) {
+      clearTimeout(this.turnTimer);
+      this.turnTimer = null;
+    }
     const playerIndex = this.players.findIndex((p) => p.socketId === socket.id);
     if (playerIndex === -1) return;
     const player = this.players[playerIndex];
@@ -162,6 +178,10 @@ export class GameRoom {
 
     if (player.position === FINAL_TILE) {
       this.status = 'finished';
+      if (this.turnTimer) {
+        clearTimeout(this.turnTimer);
+        this.turnTimer = null;
+      }
       GameResult.create({
         winner: player.name,
         participants: this.players.map((p) => p.name)
@@ -185,6 +205,10 @@ export class GameRoom {
     player.disconnected = true;
     this.io.to(this.id).emit('playerLeft', { playerId: player.playerId });
     if (this.status === 'playing' && idx === this.currentTurn) {
+      if (this.turnTimer) {
+        clearTimeout(this.turnTimer);
+        this.turnTimer = null;
+      }
       if (this.players.some((p) => !p.disconnected)) {
         do {
           this.currentTurn = (this.currentTurn + 1) % this.players.length;

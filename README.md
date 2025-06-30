@@ -172,6 +172,9 @@ it occurs before `ROLL_COOLDOWN_MS` has elapsed:
 if (Date.now() - player.lastRollTime < this.rollCooldown) return;
 ```
 
+Players have 15 seconds to roll on their turn. When the countdown hits zero
+the server automatically rolls for them so the game keeps moving.
+
 ### Playing against the AI
 
 Opening the Snake & Ladder game without specifying an `ai` parameter now
