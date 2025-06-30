@@ -179,10 +179,7 @@ the URL – or pick the number in the lobby – to change how many AI players jo
 
 ### Multiplayer status
 
-The web version currently supports only single-player games versus computer
-opponents. Choosing a shared table in the lobby will not create a real
-multiplayer match yet. Each participant plays their own separate board even if
-they joined the same room. Networked play is planned for a future update.
+Online multiplayer has arrived. Join a table in the lobby to create or enter that room. Wait for other players to join you. Once everyone is ready the match starts and you all move on the same board in real time.
 
 ### Entering the Snake & Ladder game
 
