@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useLayoutEffect, Fragment } from "react";
+import { useState, useEffect, useRef, Fragment } from "react";
 import confetti from "canvas-confetti";
 import DiceRoller from "../../components/DiceRoller.jsx";
 import {
@@ -24,7 +24,7 @@ import { useNavigate } from "react-router-dom";
 import { getTelegramId, getTelegramPhotoUrl, getPlayerId, ensureAccountId } from "../../utils/telegram.js";
 import { fetchTelegramInfo, getProfile, deposit, getSnakeBoard, pingOnline } from "../../utils/api.js";
 import { socket } from "../../utils/socket.js";
-import PlayerToken from "../../components/PlayerToken.jsx";
+import SnakeBoard, { FINAL_TILE } from "../../components/SnakeBoard.jsx";
 import AvatarTimer from "../../components/AvatarTimer.jsx";
 import ConfirmPopup from "../../components/ConfirmPopup.jsx";
 
@@ -36,11 +36,6 @@ const TOKEN_COLORS = [
 ];
 
 const PLAYERS = 4;
-// Adjusted board dimensions to show five columns
-// while keeping the total cell count at 100
-const ROWS = 20;
-const COLS = 5;
-const FINAL_TILE = ROWS * COLS + 1; // 101
 
 function shuffle(arr) {
   const copy = [...arr];
@@ -49,357 +44,8 @@ function shuffle(arr) {
     [copy[i], copy[j]] = [copy[j], copy[i]];
   }
   return copy;
+
 }
-
-function CoinBurst({ token }) {
-  const coins = Array.from({ length: 30 }, () => ({
-    dx: (Math.random() - 0.5) * 100,
-    delay: Math.random() * 0.3,
-    dur: 0.8 + Math.random() * 0.4,
-  }));
-  return (
-    <div className="coin-burst">
-      {coins.map((c, i) => (
-        <img
-          key={i}
-          src={`/icons/${token.toLowerCase()}.svg`}
-          className="coin-img"
-          style={{
-            "--dx": `${c.dx}px`,
-            "--delay": `${c.delay}s`,
-            "--dur": `${c.dur}s`,
-          }}
-        />
-      ))}
-    </div>
-  );
-}
-
-function Board({
-  players = [],
-  highlight,
-  trail,
-  pot,
-  snakes,
-  ladders,
-  snakeOffsets,
-  ladderOffsets,
-  offsetPopup,
-  celebrate,
-  token,
-  tokenType,
-  diceCells,
-  rollingIndex,
-  currentTurn,
-  burning = [],
-}) {
-  const containerRef = useRef(null);
-  const gridRef = useRef(null);
-  const tile1Ref = useRef(null);
-  const [cellWidth, setCellWidth] = useState(80);
-  const [cellHeight, setCellHeight] = useState(40);
-  // const tileRect removed - no longer highlighting the first cell
-  const tiles = [];
-  const centerCol = (COLS - 1) / 2;
-  // Gradual horizontal widening towards the top. Keep the bottom
-  // row the same width and slightly expand each successive row so
-  // the board forms a soft V shape.
-  // Increase the widening and scaling so the top merges with the logo
-  const widenStep = 0.07; // how much each row expands horizontally
-  const scaleStep = 0.03; // how much each row's cells scale
-  // Perspective with smaller cells at the bottom growing larger towards the pot
-  const finalScale = 1 + (ROWS - 3) * scaleStep;
-
-  // Precompute vertical offsets so that the gap between rows
-  // stays uniform even as cells are scaled differently per row.
-  const rowOffsets = [0];
-  for (let r = 1; r < ROWS; r++) {
-    const prevScale = 1 + (r - 3) * scaleStep;
-    rowOffsets[r] = rowOffsets[r - 1] + (prevScale - 1) * cellHeight;
-  }
-  const offsetYMax = rowOffsets[ROWS - 1];
-
-  for (let r = 0; r < ROWS; r++) {
-    // Rows grow larger towards the top of the board
-    const rowFactor = r - 2;
-    const scale = 1 + rowFactor * scaleStep;
-    // Normalised row position from bottom (0) to top (1)
-    const rowPos = r / (ROWS - 1);
-    // Slightly widen higher rows without affecting the bottom row
-    const scaleX = scale * (1 + rowPos * widenStep);
-    // Include the scaled cell width so horizontal gaps remain consistent
-    const offsetX = (scaleX - 1) * cellWidth;
-    // Arrange cell numbers so the bottom row starts on the left and each
-    // subsequent row alternates direction. Tile 1 is at the bottom-left and
-    // tile 100 ends up at the top-right.
-    const reversed = r % 2 === 1;
-    const colorIdx = Math.floor(r / (ROWS / 5));
-    const TILE_COLORS = ["#6db0ad", "#4a828e", "#3d7078", "#2d5c66", "#0e3b45"];
-    const rowColor = TILE_COLORS[colorIdx] || "#0e3b45";
-
-    for (let c = 0; c < COLS; c++) {
-      const col = c;
-      const num = reversed ? (r + 1) * COLS - c : r * COLS + c + 1;
-      const translateX = (col - centerCol) * offsetX;
-      const translateY = -rowOffsets[r];
-      const isHighlight = highlight && highlight.cell === num;
-      const trailHighlight = trail?.find((t) => t.cell === num);
-      const highlightClass = isHighlight
-        ? `${highlight.type}-highlight`
-        : trailHighlight
-          ? `${trailHighlight.type}-highlight`
-          : "";
-      const isJump = isHighlight && highlight.type === "normal";
-      const cellType = ladders[num]
-        ? "ladder"
-        : snakes[num]
-          ? "snake"
-          : diceCells && diceCells[num]
-            ? "dice"
-            : "";
-      const cellClass = cellType ? `${cellType}-cell` : "";
-      const iconImage =
-        cellType === "ladder"
-          ? "/assets/icons/ladder.svg"
-          : cellType === "snake"
-            ? "/assets/icons/snake.png"
-            : null;
-      const offsetVal =
-        cellType === "ladder"
-          ? ladderOffsets[num]
-          : cellType === "snake"
-            ? snakeOffsets[num]
-            : null;
-      const style = {
-        gridRowStart: ROWS - r,
-        gridColumnStart: col + 1,
-        transform: `translate(${translateX}px, ${translateY}px) scaleX(${scaleX}) scaleY(${scale}) translateZ(5px)`,
-        transformOrigin: "bottom center",
-      };
-      if (!highlightClass) style.backgroundColor = rowColor;
-
-      tiles.push(
-        <div
-          key={num}
-          data-cell={num}
-          ref={num === 1 ? tile1Ref : null}
-          className={`board-cell ${cellClass} ${highlightClass}`}
-          style={style}
-        >
-          {(iconImage || offsetVal != null) && (
-            <span className="cell-marker">
-              {iconImage && <img src={iconImage} className="cell-icon" />}
-              {offsetVal != null && (
-                <span
-                  className={`offset-text ${
-                    cellType === 'snake'
-                      ? 'snake-text'
-                      : 'ladder-text'
-                  }`}
-                >
-                  {offsetVal > 0 ? `+${offsetVal}` : offsetVal}
-                </span>
-              )}
-            </span>
-          )}
-          {!cellType && <span className="cell-number">{num}</span>}
-          {diceCells && diceCells[num] && (
-            <span className="dice-marker">
-              <img src="/assets/icons/Dice.png" className="dice-icon" />
-              <span className="dice-value">+{diceCells[num]}</span>
-            </span>
-          )}
-          {players
-            .map((p, i) => ({ ...p, index: i }))
-            .filter((p) => p.position !== 0 && p.position === num)
-            .map((p) => (
-              <Fragment key={p.index}>
-                <div
-                  className="start-hexagon"
-                  style={{
-                    '--hex-color': p.color,
-                    '--hex-border-color': p.color,
-                    '--hex-spin-duration': '7s',
-                  }}
-                />
-                <PlayerToken
-                  photoUrl={p.photoUrl}
-                  type={p.type || (p.index === 0 ? (isHighlight ? highlight.type : tokenType) : "normal")}
-                  color={p.color}
-                  rolling={p.index === rollingIndex}
-                  active={p.index === currentTurn}
-                  className={
-                    (p.position === 0
-                      ? "start"
-                      : p.index === 0 && isJump
-                        ? "jump"
-                        : "") +
-                    (burning.includes(p.index) ? " burning" : "")
-                  }
-                />
-              </Fragment>
-            ))}
-          {offsetPopup && offsetPopup.cell === num && (
-            <span
-              className={`popup-offset italic font-bold ${
-                offsetPopup.type === "snake" ? "text-red-500" : "text-green-500"
-              }`}
-            >
-              {offsetPopup.type === "snake" ? "-" : "+"}
-              {offsetPopup.amount}
-            </span>
-          )}
-        </div>,
-      );
-    }
-  }
-
-  // Scale board based on viewport width so it fills the screen.
-
-  useEffect(() => {
-    const updateSize = () => {
-      const width = window.innerWidth;
-      const cw = Math.floor(width / COLS);
-      setCellWidth(cw);
-      // Make each cell slightly taller while keeping spacing consistent
-      const ch = Math.floor(cw / 1.7);
-      setCellHeight(ch);
-    };
-    updateSize();
-    window.addEventListener("resize", updateSize);
-    return () => window.removeEventListener("resize", updateSize);
-  }, []);
-
-  useLayoutEffect(() => {
-    // board layout recalculations
-  }, [cellWidth, cellHeight]);
-
-
-
-  // Icons are rendered directly inside each cell so that they stay perfectly
-  // aligned with the grid. Previously additional absolutely positioned markers
-  // were added which resulted in duplicate icons and misalignment when the
-  // board scaled. The markers logic has been removed and the icons are now
-  // displayed only once within the cell itself.
-  // Fixed board angle with no zoom
-  // Lowered camera angle so the logo touches the top of the screen
-  // Tilt angle for the entire board in 3D space
-  const angle = 58; // set board tilt to 58 degrees
-  // Small horizontal offset so the board sits perfectly centered
-  // Slightly shift the board to the right so it is not perfectly centred
-  const boardXOffset = 10; // pixels
-  // Lift the board slightly so the bottom row stays visible. Lowered slightly
-  // so the logo at the top of the board isn't cropped off screen. Zeroing this
-  // aligns the board vertically with the frame.
-  // Move the board slightly downward so the top row clears the logo frame
-  const boardYOffset = 60; // pixels - slightly lower
-  // Pull the board away from the camera without changing the angle or zoom
-  const boardZOffset = -50; // pixels
-
-  // How many board rows to scroll back from the starting position so
-  // the bottom row remains in view. Set to 0 to begin at the very first row
-  // without shifting the camera upward.
-  // Pull the camera back slightly so the first row is visible when the
-  // game starts. Using a positive offset scrolls up a couple of rows
-  // from the very bottom of the board.
-  // Start the camera at the very bottom of the board so the first row is
-  // visible without any manual scrolling. This keeps two additional rows
-  // in view above it so players immediately see the starting area.
-  const CAMERA_OFFSET_ROWS = 0;
-
-  useEffect(() => {
-    const container = containerRef.current;
-    if (container) {
-      const target =
-        container.scrollHeight -
-        container.clientHeight -
-        CAMERA_OFFSET_ROWS * cellHeight;
-      container.scrollTop = Math.max(0, target);
-    }
-  }, [cellHeight]);
-
-  // Once positioned the camera remains fixed so it no longer follows the
-  // player's token. Manual scrolling is still possible to inspect other rows.
-
-  // Remove the extra top padding so the first row is immediately visible
-  const paddingTop = 0;
-  const paddingBottom = '15vh';
-
-  return (
-    <div className="relative flex justify-center items-center w-screen overflow-visible">
-      <img src="/assets/SnakeLaddersbackground.png" className="background-behind-board object-cover" alt="" />
-      <div
-        ref={containerRef}
-        className="overflow-y-auto"
-        style={{
-          overflowX: "hidden",
-          height: "100vh",
-          overscrollBehaviorY: "none",
-          paddingTop,
-          paddingBottom,
-        }}
-      >
-        <div className="snake-board-tilt">
-          <div
-            ref={gridRef}
-            className="snake-board-grid grid gap-x-1 gap-y-2 relative mx-auto"
-            style={{
-              width: `${cellWidth * COLS}px`,
-              height: `${cellHeight * ROWS + offsetYMax}px`,
-              gridTemplateColumns: `repeat(${COLS}, ${cellWidth}px)`,
-              gridTemplateRows: `repeat(${ROWS}, ${cellHeight}px)`,
-              "--cell-width": `${cellWidth}px`,
-              "--cell-height": `${cellHeight}px`,
-              "--board-width": `${cellWidth * COLS}px`,
-              "--board-height": `${cellHeight * ROWS + offsetYMax}px`,
-              "--board-angle": `${angle}deg`,
-              "--final-scale": finalScale,
-              // Fixed camera angle with no zooming
-              // Pull the board slightly back so more of the lower rows are
-              // visible when the game starts without changing zoom or angle
-              transform: `translate(${boardXOffset}px, ${boardYOffset}px) translateZ(${boardZOffset}px) rotateX(${angle}deg) scale(0.9)`,
-            }}
-          >
-            {/* Game background is rendered outside the grid */}
-            {tiles}
-            <div
-              className={`pot-cell ${highlight && highlight.cell === FINAL_TILE ? "highlight" : ""}`}
-            >
-              <PlayerToken
-                color="#16a34a"
-                topColor="#ff0000"
-                className="pot-token"
-              />
-              {players
-                .map((p, i) => ({ ...p, index: i }))
-                .filter((p) => p.position === FINAL_TILE)
-                .map((p) => (
-                  <Fragment key={`win-${p.index}`}>
-                    <div
-                      className="start-hexagon"
-                      style={{
-                        '--hex-color': p.color,
-                        '--hex-border-color': p.color,
-                        '--hex-spin-duration': '7s',
-                      }}
-                    />
-                    <PlayerToken
-                      photoUrl={p.photoUrl}
-                      type={p.type || 'normal'}
-                      color={p.color}
-                    />
-                  </Fragment>
-                ))}
-              {celebrate && <CoinBurst token={token} />}
-            </div>
-            <div className="logo-wall-main" />
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
 export default function SnakeAndLadder() {
   const [showLobbyConfirm, setShowLobbyConfirm] = useState(false);
   useTelegramBackButton(() => setShowLobbyConfirm(true));
@@ -722,7 +368,7 @@ export default function SnakeAndLadder() {
         setSnakeOffsets(snk);
         setLadderOffsets(lad);
 
-        const boardSize = ROWS * COLS;
+        const boardSize = FINAL_TILE - 1;
         const diceMap = {};
         const diceValues = [1, 2, 1];
         const usedD = new Set([
@@ -1616,7 +1262,7 @@ export default function SnakeAndLadder() {
             />
           ))}
       </div>
-      <Board
+      <SnakeBoard
         players={players}
         highlight={highlight}
         trail={trail}
