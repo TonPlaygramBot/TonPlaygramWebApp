@@ -11,7 +11,7 @@ import {
   cheerSound,
 } from "../../assets/soundData.js";
 import { AVATARS } from "../../components/AvatarPickerModal.jsx";
-import { getAvatarUrl, saveAvatar, loadAvatar } from "../../utils/avatarUtils.js";
+import { getAvatarUrl, saveAvatar, loadAvatar, avatarToName } from "../../utils/avatarUtils.js";
 import InfoPopup from "../../components/InfoPopup.jsx";
 import GameEndPopup from "../../components/GameEndPopup.jsx";
 import {
@@ -511,12 +511,17 @@ export default function SnakeAndLadder() {
     return () => clearInterval(id);
   }, [rollCooldown]);
 
+  const getAiName = (idx) => {
+    const name = avatarToName(aiAvatars[idx - 1]);
+    return name || `AI ${idx}`;
+  };
+
   const getPlayerName = (idx) => {
     if (idx === 0) return 'You';
     if (isMultiplayer) {
       return mpPlayers[idx]?.name || `Player ${idx + 1}`;
     }
-    return `AI ${idx}`;
+    return getAiName(idx);
   };
 
   const playerName = (idx) => (
@@ -953,6 +958,7 @@ export default function SnakeAndLadder() {
 
   useEffect(() => {
     const handleUnload = () => {
+      if (reloadingRef.current) return;
       const key = `snakeGameState_${ai}`;
       localStorage.removeItem(key);
     };
@@ -1485,6 +1491,8 @@ export default function SnakeAndLadder() {
     timerRef.current = setInterval(() => {
       setTimeLeft((t) => {
         const next = t - 1;
+        // Play countdown beeps only for the local player during the last
+        // 7 seconds of their turn so AI turns remain silent.
         if (currentTurn === 0 && next <= 7 && next >= 0 && timerSoundRef.current) {
           timerSoundRef.current.currentTime = 0;
           if (!muted) timerSoundRef.current.play().catch(() => {});
@@ -1552,6 +1560,16 @@ export default function SnakeAndLadder() {
         >
           <AiOutlineInfoCircle className="text-2xl" />
           <span className="text-xs">Info</span>
+        </button>
+        <button
+          onClick={() => {
+            reloadingRef.current = true;
+            window.location.reload();
+          }}
+          className="p-2 flex flex-col items-center"
+        >
+          <AiOutlineReload className="text-2xl" />
+          <span className="text-xs">Reload</span>
         </button>
         <button
           onClick={() => setMuted((m) => !m)}

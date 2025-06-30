@@ -27,3 +27,32 @@ export function loadAvatar() {
   }
   return '';
 }
+
+export function avatarToName(src) {
+  if (!src) return '';
+  if (!src.startsWith('/') && !src.startsWith('http')) {
+    // Flag emojis consist of two regional indicator symbols
+    const chars = Array.from(src);
+    if (chars.length === 2 && chars.every(c => c.codePointAt(0) >= 0x1f1e6 && c.codePointAt(0) <= 0x1f1ff)) {
+      const code = chars
+        .map(c => String.fromCharCode(c.codePointAt(0) - 0x1f1e6 + 65))
+        .join('');
+      try {
+        const names = new Intl.DisplayNames(['en'], { type: 'region' });
+        return names.of(code) || code;
+      } catch {
+        return code;
+      }
+    }
+    const names = {
+      '🐵': 'Monkei',
+      '🐒': 'Monkei',
+      '🐶': 'Doggo',
+      '🐱': 'Catto',
+    };
+    if (names[src]) return names[src];
+    return src;
+  }
+  const parts = src.split('/');
+  return parts[parts.length - 1].split('.')[0];
+}
