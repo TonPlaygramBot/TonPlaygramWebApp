@@ -727,17 +727,32 @@ export default function SnakeAndLadder() {
     if (!isMultiplayer) return;
     const telegramId = getTelegramId();
     const name = telegramId.toString();
+    const capacity = parseInt(tableId.split('-').pop(), 10) || 0;
     setWaitingForPlayers(true);
+    setPlayersNeeded(capacity);
     socket.emit('joinRoom', { roomId: tableId, playerId: telegramId, name });
+
+    const updateNeeded = (players) => {
+      setPlayersNeeded(Math.max(0, capacity - players.length));
+    };
 
     const onJoined = ({ playerId, name }) => {
       setMpPlayers((p) => {
-        if (p.some((pl) => pl.id === playerId)) return p;
-        return [...p, { id: playerId, name, position: 0 }];
+        if (p.some((pl) => pl.id === playerId)) {
+          updateNeeded(p);
+          return p;
+        }
+        const arr = [...p, { id: playerId, name, position: 0 }];
+        updateNeeded(arr);
+        return arr;
       });
     };
     const onLeft = ({ playerId }) => {
-      setMpPlayers((p) => p.filter((pl) => pl.id !== playerId));
+      setMpPlayers((p) => {
+        const arr = p.filter((pl) => pl.id !== playerId);
+        updateNeeded(arr);
+        return arr;
+      });
     };
     const onMove = ({ playerId, to }) => {
       setMpPlayers((p) =>
