@@ -1505,6 +1505,40 @@ export default function SnakeAndLadder() {
     };
   }, [currentTurn, setupPhase, gameOver, refreshTick, moving]);
 
+  useEffect(() => {
+    if (!isMultiplayer || setupPhase || gameOver || moving) return;
+    const myId = getPlayerId();
+    const myIndex = mpPlayers.findIndex((p) => p.id === myId);
+    if (currentTurn !== myIndex) {
+      if (timerRef.current) clearInterval(timerRef.current);
+      timerSoundRef.current?.pause();
+      return;
+    }
+    const limit = 15;
+    setTimeLeft(limit);
+    if (timerRef.current) clearInterval(timerRef.current);
+    if (timerSoundRef.current) timerSoundRef.current.pause();
+    timerRef.current = setInterval(() => {
+      setTimeLeft((t) => {
+        const next = t - 1;
+        if (next <= 7 && next >= 0 && timerSoundRef.current) {
+          timerSoundRef.current.currentTime = 0;
+          if (!muted) timerSoundRef.current.play().catch(() => {});
+        }
+        if (next <= 0) {
+          timerSoundRef.current?.pause();
+          clearInterval(timerRef.current);
+          socket.emit('rollDice');
+        }
+        return next;
+      });
+    }, 1000);
+    return () => {
+      clearInterval(timerRef.current);
+      timerSoundRef.current?.pause();
+    };
+  }, [isMultiplayer, currentTurn, mpPlayers, setupPhase, gameOver, moving, muted]);
+
   // Periodically refresh the component state to avoid freezes
   useEffect(() => {
     const id = setInterval(() => {
@@ -1668,19 +1702,29 @@ export default function SnakeAndLadder() {
           )}
         </div>
       )}
-      {isMultiplayer && (
+      {diceVisible && isMultiplayer && (
         <div className="fixed bottom-24 inset-x-0 flex flex-col items-center z-20">
           {(() => {
             const myId = getPlayerId();
-            const myIndex = mpPlayers.findIndex(p => p.id === myId);
+            const myIndex = mpPlayers.findIndex((p) => p.id === myId);
             if (currentTurn === myIndex && !moving) {
               return (
-                <button
-                  onClick={() => socket.emit('rollDice')}
-                  className="px-4 py-2 bg-primary hover:bg-primary-hover text-white rounded"
-                >
-                  Roll Dice
-                </button>
+                <DiceRoller
+                  onRollEnd={() => {
+                    setRollingIndex(null);
+                  }}
+                  onRollStart={() => {
+                    if (timerRef.current) clearInterval(timerRef.current);
+                    timerSoundRef.current?.pause();
+                    setRollingIndex(myIndex);
+                    setTurnMessage('Rolling...');
+                    socket.emit('rollDice');
+                  }}
+                  clickable={!moving}
+                  numDice={diceCount}
+                  showButton={false}
+                  muted={muted}
+                />
               );
             }
             return null;
