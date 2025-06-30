@@ -478,6 +478,7 @@ export default function SnakeAndLadder() {
   const [isMultiplayer, setIsMultiplayer] = useState(false);
   const [mpPlayers, setMpPlayers] = useState([]);
   const playersRef = useRef([]);
+  const diceDelayRef = useRef(0);
   const [tableId, setTableId] = useState('snake-4');
 
   // Preload token and avatar images so board icons and AI photos display
@@ -778,11 +779,12 @@ export default function SnakeAndLadder() {
         return arr;
       });
     };
-    const onMove = ({ playerId, to }) => {
-      setMpPlayers((p) =>
-        p.map((pl) => (pl.id === playerId ? { ...pl, position: to } : pl))
-      );
-      if (playerId === telegramId) setPos(to);
+    const onMove = ({ playerId, from, to }) => {
+      animateMpMove(playerId, from, to, 'normal');
+    };
+    const onSnakeOrLadder = ({ playerId, from, to }) => {
+      const type = snakes[from] != null ? 'snake' : 'ladder';
+      animateMpMove(playerId, from, to, type);
     };
     const onReset = ({ playerId }) => {
       setMpPlayers((p) =>
@@ -797,7 +799,8 @@ export default function SnakeAndLadder() {
     const onStarted = () => setWaitingForPlayers(false);
     const onRolled = ({ value }) => {
       setRollResult(value);
-      setTimeout(() => setRollResult(null), 1500);
+      diceDelayRef.current = Date.now() + 3000;
+      setTimeout(() => setRollResult(null), 3000);
     };
     const onWon = ({ playerId }) => {
       setGameOver(true);
@@ -817,7 +820,7 @@ export default function SnakeAndLadder() {
     socket.on('playerJoined', onJoined);
     socket.on('playerLeft', onLeft);
     socket.on('movePlayer', onMove);
-    socket.on('snakeOrLadder', onMove);
+    socket.on('snakeOrLadder', onSnakeOrLadder);
     socket.on('playerReset', onReset);
     socket.on('turnChanged', onTurn);
     socket.on('gameStarted', onStarted);
@@ -832,7 +835,7 @@ export default function SnakeAndLadder() {
       socket.off('playerJoined', onJoined);
       socket.off('playerLeft', onLeft);
       socket.off('movePlayer', onMove);
-      socket.off('snakeOrLadder', onMove);
+      socket.off('snakeOrLadder', onSnakeOrLadder);
       socket.off('playerReset', onReset);
       socket.off('turnChanged', onTurn);
       socket.off('gameStarted', onStarted);
@@ -840,7 +843,7 @@ export default function SnakeAndLadder() {
       socket.off('gameWon', onWon);
       socket.off('currentPlayers', onCurrentPlayers);
     };
-  }, [isMultiplayer, tableId]);
+  }, [isMultiplayer, tableId, snakes]);
 
   const fastForward = (elapsed, state) => {
     let p = state.pos ?? 0;
@@ -1003,7 +1006,7 @@ export default function SnakeAndLadder() {
       hahaSoundRef.current.currentTime = 0;
       hahaSoundRef.current.play().catch(() => {});
     }
-    setTimeout(() => setRollResult(null), 1500);
+    setTimeout(() => setRollResult(null), 3000);
 
     setTimeout(() => {
       setDiceVisible(false);
@@ -1252,7 +1255,7 @@ export default function SnakeAndLadder() {
       hahaSoundRef.current.currentTime = 0;
       hahaSoundRef.current.play().catch(() => {});
     }
-    setTimeout(() => setRollResult(null), 1500);
+    setTimeout(() => setRollResult(null), 3000);
     setTimeout(() => {
       setDiceVisible(false);
     let positions = [...aiPositions];
@@ -1393,6 +1396,48 @@ export default function SnakeAndLadder() {
 
     moveSeq(steps, 'normal', () => applyEffect(target), 'forward');
     }, 1500);
+  };
+
+  const animateMpMove = (playerId, from, to, type = 'normal') => {
+    const idx = playersRef.current.findIndex((p) => p.id === playerId);
+    if (idx === -1) return;
+    const step = to > from ? 1 : -1;
+    const seq = [];
+    for (let i = from + step; step > 0 ? i <= to : i >= to; i += step) {
+      seq.push(i);
+    }
+    const startDelay = Math.max(0, diceDelayRef.current - Date.now());
+    const run = () => {
+      setDiceVisible(false);
+      setHighlight(null);
+      setTrail([]);
+      const moveStep = (i) => {
+        if (i >= seq.length) {
+          setHighlight({ cell: to, type });
+          setTrail([]);
+          if (playerId === getPlayerId()) setTokenType(type);
+          capturePieces(to, idx);
+          setTimeout(() => setHighlight(null), 300);
+          setDiceVisible(true);
+          if (playerId === getPlayerId()) setMoving(false);
+          return;
+        }
+        const cell = seq[i];
+        setMpPlayers((p) =>
+          p.map((pl, j) => (j === idx ? { ...pl, position: cell } : pl))
+        );
+        if (playerId === getPlayerId()) setPos(cell);
+        moveSoundRef.current.currentTime = 0;
+        if (!muted) moveSoundRef.current.play().catch(() => {});
+        const hType = i === seq.length - 1 ? type : step === -1 ? 'back' : 'forward';
+        setHighlight({ cell, type: hType });
+        setTrail((t) => [...t, { cell, type: hType }]);
+        setTimeout(() => moveStep(i + 1), 700);
+      };
+      moveStep(0);
+    };
+    if (playerId === getPlayerId()) setMoving(true);
+    setTimeout(run, startDelay);
   };
 
   useEffect(() => {
