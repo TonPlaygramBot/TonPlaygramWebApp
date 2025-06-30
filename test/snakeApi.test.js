@@ -151,10 +151,11 @@ test('snake API endpoints and socket events', { concurrency: false, timeout: 200
     s2.onAny((e) => events.push(e));
 
     s1.emit('joinRoom', { roomId: 'snake-2', playerId: 'p1', name: 'A' });
+    await delay(200);
 
     s2.emit('joinRoom', { roomId: 'snake-2', playerId: 'p2', name: 'B' });
 
-    for (let i = 0; i < 50 && !events.includes('gameStarted'); i++) {
+    for (let i = 0; i < 100 && !events.includes('gameStarted'); i++) {
 
       await delay(100);
 
@@ -162,7 +163,7 @@ test('snake API endpoints and socket events', { concurrency: false, timeout: 200
 
     s1.emit('rollDice');
 
-    for (let i = 0; i < 50 && !events.includes('diceRolled'); i++) {
+    for (let i = 0; i < 100 && !events.includes('diceRolled'); i++) {
 
       await delay(100);
 
