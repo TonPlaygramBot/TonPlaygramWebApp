@@ -116,17 +116,15 @@ export default function Lobby() {
   const startGame = () => {
     const params = new URLSearchParams();
     if (table) params.set('table', table.id);
-    if (table && table.id !== 'single' && players.length < table.capacity) {
-      params.set('wait', '1');
-    }
     if (table?.id === 'single') {
       localStorage.removeItem(`snakeGameState_${aiCount}`);
       params.set('ai', aiCount);
-    } else {
-      if (stake.token) params.set('token', stake.token);
-      if (stake.amount) params.set('amount', stake.amount);
+      navigate(`/games/${game}?${params.toString()}`);
+      return;
     }
-    navigate(`/games/${game}?${params.toString()}`);
+    if (stake.token) params.set('token', stake.token);
+    if (stake.amount) params.set('amount', stake.amount);
+    navigate(`/games/snake-online?${params.toString()}`);
   };
 
   let disabled = !canStartGame(game, table, stake, aiCount, players.length);
