@@ -21,7 +21,7 @@ import {
 } from "react-icons/ai";
 import useTelegramBackButton from "../../hooks/useTelegramBackButton.js";
 import { useNavigate } from "react-router-dom";
-import { getTelegramId, getTelegramPhotoUrl, getPlayerId } from "../../utils/telegram.js";
+import { getTelegramId, getTelegramPhotoUrl, getPlayerId, ensureAccountId } from "../../utils/telegram.js";
 import { fetchTelegramInfo, getProfile, deposit, getSnakeBoard, pingOnline } from "../../utils/api.js";
 import { socket } from "../../utils/socket.js";
 import PlayerToken from "../../components/PlayerToken.jsx";
@@ -404,6 +404,10 @@ export default function SnakeAndLadder() {
   const [showLobbyConfirm, setShowLobbyConfirm] = useState(false);
   useTelegramBackButton(() => setShowLobbyConfirm(true));
   const navigate = useNavigate();
+
+  useEffect(() => {
+    ensureAccountId().catch(() => {});
+  }, []);
 
   useEffect(() => {
     const handlePop = (e) => {

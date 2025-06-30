@@ -4,7 +4,7 @@ import DiceRoller from '../../components/DiceRoller.jsx';
 import useTelegramBackButton from '../../hooks/useTelegramBackButton.js';
 import { socket } from '../../utils/socket.js';
 import { getSnakeBoard, getSnakeLobby, pingOnline } from '../../utils/api.js';
-import { getTelegramId, getTelegramFirstName, getPlayerId } from '../../utils/telegram.js';
+import { getTelegramId, getTelegramFirstName, getPlayerId, ensureAccountId } from '../../utils/telegram.js';
 
 const TOKEN_COLORS = [
   { name: 'blue', color: '#60a5fa' },
@@ -15,6 +15,10 @@ const TOKEN_COLORS = [
 
 export default function SnakeMultiplayer() {
   useTelegramBackButton();
+
+  useEffect(() => {
+    ensureAccountId().catch(() => {});
+  }, []);
 
   const [snakes, setSnakes] = useState({});
   const [ladders, setLadders] = useState({});

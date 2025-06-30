@@ -13,13 +13,17 @@ import {
   unseatTable,
   getProfile,
 } from '../../utils/api.js';
-import { getTelegramId, getPlayerId } from '../../utils/telegram.js';
+import { getTelegramId, getPlayerId, ensureAccountId } from '../../utils/telegram.js';
 import { canStartGame } from '../../utils/lobby.js';
 
 export default function Lobby() {
   const { game } = useParams();
   const navigate = useNavigate();
   useTelegramBackButton(() => navigate('/games', { replace: true }));
+
+  useEffect(() => {
+    ensureAccountId().catch(() => {});
+  }, []);
 
   useEffect(() => {
     const handlePop = (e) => {

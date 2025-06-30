@@ -3,13 +3,16 @@ import { Link } from 'react-router-dom';
 import useTelegramBackButton from '../hooks/useTelegramBackButton.js';
 import LoginOptions from '../components/LoginOptions.jsx';
 import { getTelegramId, getTelegramPhotoUrl } from '../utils/telegram.js';
+import { FaCircle } from 'react-icons/fa';
 import {
   getLeaderboard,
   getReferralInfo,
   fetchTelegramInfo,
   getProfile,
   listFriendRequests,
-  acceptFriendRequest
+  acceptFriendRequest,
+  getOnlineCount,
+  getOnlineUsers
 } from '../utils/api.js';
 import UserSearchBar from '../components/UserSearchBar.jsx';
 import { BOT_USERNAME } from '../utils/constants.js';
@@ -36,6 +39,8 @@ export default function Friends() {
   const [inviteTarget, setInviteTarget] = useState(null);
   const [stake, setStake] = useState({ token: 'TPC', amount: 100 });
   const [myName, setMyName] = useState('');
+  const [onlineUsers, setOnlineUsers] = useState([]);
+  const [onlineCount, setOnlineCount] = useState(0);
 
   useEffect(() => {
     getReferralInfo(telegramId).then(setReferral);
@@ -95,6 +100,16 @@ export default function Friends() {
     window.addEventListener('profilePhotoUpdated', updatePhoto);
     return () => window.removeEventListener('profilePhotoUpdated', updatePhoto);
   }, [telegramId]);
+
+  useEffect(() => {
+    function loadOnline() {
+      getOnlineUsers().then((d) => setOnlineUsers(d.users || []));
+      getOnlineCount().then((d) => setOnlineCount(d.count || 0));
+    }
+    loadOnline();
+    const id = setInterval(loadOnline, 30000);
+    return () => clearInterval(id);
+  }, []);
 
   if (!referral) return <div className="p-4">Loading...</div>;
 
@@ -159,7 +174,13 @@ export default function Friends() {
       </section>
 
       <section id="leaderboard" className="space-y-2">
-        <h3 className="text-lg font-semibold">Leaderboard</h3>
+        <h3 className="text-lg font-semibold flex items-center justify-between">
+          <span>Leaderboard</span>
+          <span className="flex items-center">
+            <FaCircle className={onlineCount > 0 ? 'text-green-500' : 'text-red-500'} size={10} />
+            <span className="ml-1">{onlineCount}</span>
+          </span>
+        </h3>
         <div className="max-h-96 overflow-y-auto border border-border rounded">
           <table className="w-full text-sm">
             <thead className="sticky top-0 bg-surface">
@@ -189,8 +210,11 @@ export default function Friends() {
                       className="w-16 h-16 hexagon border-2 border-brand-gold object-cover shadow-[0_0_12px_rgba(241,196,15,0.8)]"
                     />
                   </td>
-                  <td className="p-2">
+                  <td className="p-2 flex items-center">
                     {u.nickname || `${u.firstName} ${u.lastName}`.trim() || 'User'}
+                    {onlineUsers.includes(u.telegramId) && (
+                      <FaCircle className="ml-1 text-green-500" size={8} />
+                    )}
                   </td>
                   <td className="p-2 text-right">{u.balance}</td>
                 </tr>
@@ -205,7 +229,12 @@ export default function Friends() {
                       className="w-16 h-16 hexagon border-2 border-brand-gold object-cover shadow-[0_0_12px_rgba(241,196,15,0.8)]"
                     />
                   </td>
-                  <td className="p-2">You</td>
+                  <td className="p-2 flex items-center">
+                    You
+                    {onlineUsers.includes(telegramId) && (
+                      <FaCircle className="ml-1 text-green-500" size={8} />
+                    )}
+                  </td>
                   <td className="p-2 text-right">{leaderboard.find((u) => u.telegramId === telegramId)?.balance ?? '...'}</td>
                 </tr>
               )}

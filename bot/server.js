@@ -159,6 +159,14 @@ app.get('/api/online/count', (req, res) => {
   res.json({ count: onlineUsers.size });
 });
 
+app.get('/api/online/list', (req, res) => {
+  const now = Date.now();
+  for (const [id, ts] of onlineUsers) {
+    if (now - ts > 60_000) onlineUsers.delete(id);
+  }
+  res.json({ users: Array.from(onlineUsers.keys()).map(Number) });
+});
+
 app.post('/api/snake/table/seat', (req, res) => {
   const { tableId, playerId, telegramId, name } = req.body || {};
   const pid = playerId || telegramId;
