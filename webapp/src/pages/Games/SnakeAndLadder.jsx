@@ -659,11 +659,16 @@ export default function SnakeAndLadder() {
     const t = params.get("token");
     const amt = params.get("amount");
     const aiParam = params.get("ai");
+    const tableParam = params.get("table");
     if (t) setToken(t.toUpperCase());
     if (amt) setPot(Number(amt));
-    const aiCount = aiParam ? Math.max(1, Math.min(3, Number(aiParam))) : 0;
-    if (aiParam) setAi(aiCount);
-    setIsMultiplayer(!aiParam);
+    const aiCount = aiParam
+      ? Math.max(1, Math.min(3, Number(aiParam)))
+      : tableParam
+        ? 0
+        : 1;
+    setAi(aiCount);
+    setIsMultiplayer(tableParam && !aiParam);
     localStorage.removeItem(`snakeGameState_${aiCount}`);
     setAiPositions(Array(aiCount).fill(0));
     setAiAvatars(
