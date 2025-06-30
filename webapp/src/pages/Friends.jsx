@@ -34,6 +34,8 @@ export default function Friends() {
   );
   const [friendRequests, setFriendRequests] = useState([]);
   const [inviteTarget, setInviteTarget] = useState(null);
+  const [stake, setStake] = useState({ token: 'TPC', amount: 100 });
+  const [myName, setMyName] = useState('');
 
   useEffect(() => {
     getReferralInfo(telegramId).then(setReferral);
@@ -46,6 +48,13 @@ export default function Friends() {
     const saved = loadAvatar();
     if (saved) {
       setMyPhotoUrl(saved);
+      getProfile(telegramId)
+        .then((p) =>
+          setMyName(
+            p?.nickname || `${p?.firstName || ''} ${p?.lastName || ''}`.trim(),
+          ),
+        )
+        .catch(() => {});
     } else {
       getProfile(telegramId)
         .then((p) => {
@@ -57,10 +66,12 @@ export default function Friends() {
               if (info?.photoUrl) setMyPhotoUrl(info.photoUrl);
             });
           }
+          setMyName(p?.nickname || `${p?.firstName || ''} ${p?.lastName || ''}`.trim());
         })
         .catch(() => {
           fetchTelegramInfo(telegramId).then((info) => {
             if (info?.photoUrl) setMyPhotoUrl(info.photoUrl);
+            setMyName(`${info?.firstName || ''} ${info?.lastName || ''}`.trim());
           });
         });
     }
@@ -76,6 +87,7 @@ export default function Friends() {
           .then((p) => {
             setMyPhotoUrl(p?.photo || getTelegramPhotoUrl());
             if (p?.photo) saveAvatar(p.photo);
+            setMyName(p?.nickname || `${p?.firstName || ''} ${p?.lastName || ''}`.trim());
           })
           .catch(() => setMyPhotoUrl(getTelegramPhotoUrl()));
       }
@@ -204,16 +216,29 @@ export default function Friends() {
       <InvitePopup
         open={!!inviteTarget}
         name={inviteTarget?.nickname || `${inviteTarget?.firstName || ''} ${inviteTarget?.lastName || ''}`.trim()}
+        stake={stake}
+        onStakeChange={setStake}
         onAccept={() => {
           if (inviteTarget) {
             const roomId = `invite-${telegramId}-${inviteTarget.telegramId}-${Date.now()}-2`;
-            socket.emit('invite1v1', { fromId: telegramId, toId: inviteTarget.telegramId, roomId }, (res) => {
-              if (res && res.success) {
-                window.location.href = `/games/snake?table=${roomId}`;
-              } else {
-                alert(res?.error || 'Failed to send invite');
-              }
-            });
+            socket.emit(
+              'invite1v1',
+              {
+                fromId: telegramId,
+                fromName: myName,
+                toId: inviteTarget.telegramId,
+                roomId,
+                token: stake.token,
+                amount: stake.amount,
+              },
+              (res) => {
+                if (res && res.success) {
+                  window.location.href = `/games/snake?table=${roomId}&token=${stake.token}&amount=${stake.amount}`;
+                } else {
+                  alert(res?.error || 'Failed to send invite');
+                }
+              },
+            );
           }
           setInviteTarget(null);
         }}

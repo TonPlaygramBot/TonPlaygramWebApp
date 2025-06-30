@@ -293,7 +293,7 @@ io.on('connection', (socket) => {
     await gameManager.rollDice(socket);
   });
 
-  socket.on('invite1v1', ({ fromId, toId, roomId }, cb) => {
+  socket.on('invite1v1', ({ fromId, fromName, toId, roomId, token, amount }, cb) => {
     fromId = Number(fromId);
     toId = Number(toId);
     if (!fromId || !toId) return cb && cb({ success: false, error: 'invalid ids' });
@@ -306,7 +306,7 @@ io.on('connection', (socket) => {
       return cb && cb({ success: false, error: 'User offline' });
     }
     for (const sid of targets) {
-      io.to(sid).emit('gameInvite', { fromId, roomId });
+      io.to(sid).emit('gameInvite', { fromId, fromName, roomId, token, amount });
     }
     cb && cb({ success: true });
   });
