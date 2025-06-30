@@ -183,6 +183,8 @@ The web version currently supports only single-player games versus computer
 opponents. Choosing a shared table in the lobby will not create a real
 multiplayer match yet. Each participant plays their own separate board even if
 they joined the same room. Networked play is planned for a future update.
+The multiplayer page now renders the same 3‑D board via the new `SnakeBoard`
+component, so visuals are consistent with single player.
 
 ### Entering the Snake & Ladder game
 
