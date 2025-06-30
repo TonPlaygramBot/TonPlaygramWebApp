@@ -66,15 +66,22 @@ export class GameRoom {
   }
 
   addPlayer(playerId, name, socket) {
-    if (this.players.length >= this.capacity || this.status !== 'waiting') {
-      return { error: 'Room full or game already started' };
+    const existing = this.players.find((p) => p.playerId === playerId);
+    if (existing) {
+      existing.socketId = socket.id;
+      existing.name = name || existing.name;
+      existing.disconnected = false;
+    } else {
+      if (this.players.length >= this.capacity || this.status !== 'waiting') {
+        return { error: 'Room full or game already started' };
+      }
+      this.game.addPlayer(playerId, name);
+      const player = this.game.players[this.game.players.length - 1];
+      player.playerId = playerId;
+      player.socketId = socket.id;
+      player.disconnected = false;
+      player.lastRollTime = 0;
     }
-    this.game.addPlayer(playerId, name);
-    const player = this.game.players[this.game.players.length - 1];
-    player.playerId = playerId;
-    player.socketId = socket.id;
-    player.disconnected = false;
-    player.lastRollTime = 0;
     socket.join(this.id);
     const list = this.players.filter((p) => !p.disconnected).map((p) => ({
       playerId: p.playerId,
@@ -83,9 +90,14 @@ export class GameRoom {
     }));
     socket.emit('currentPlayers', list);
     this.io.to(this.id).emit('currentPlayers', list);
-    this.io.to(this.id).emit('playerJoined', { playerId, name });
-    if (this.players.length === this.capacity) {
-      this.startGame();
+    if (!existing) {
+      this.io.to(this.id).emit('playerJoined', { playerId, name });
+      if (this.players.length === this.capacity) {
+        this.startGame();
+      }
+    } else if (this.status === 'playing') {
+      socket.emit('gameStarted');
+      this.emitNextTurn();
     }
     return { success: true };
   }
@@ -183,6 +195,7 @@ export class GameRoom {
     if (idx === -1) return;
     const player = this.players[idx];
     player.disconnected = true;
+    player.socketId = null;
     this.io.to(this.id).emit('playerLeft', { playerId: player.playerId });
     if (this.status === 'playing' && idx === this.currentTurn) {
       if (this.turnTimer) {
