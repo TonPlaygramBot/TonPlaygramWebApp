@@ -1,7 +1,6 @@
 import { Router } from 'express';
 import User from '../models/User.js';
 import { startMining, stopMining, claimRewards, updateMiningRewards } from '../utils/miningUtils.js';
-import { fetchTelegramInfo } from '../utils/telegram.js';
 
 const router = Router();
 
@@ -53,26 +52,10 @@ router.post('/leaderboard', async (req, res) => {
     .select('telegramId accountId balance nickname firstName lastName photo')
     .lean();
 
-  await Promise.all(
-    users.map(async (u) => {
-      if (!u.firstName || !u.lastName || !u.photo) {
-        const info = await fetchTelegramInfo(u.telegramId);
-        await User.updateOne(
-          { telegramId: u.telegramId },
-          {
-            $set: {
-              firstName: info.firstName,
-              lastName: info.lastName,
-              photo: info.photoUrl,
-            },
-          }
-        );
-        u.firstName = info.firstName;
-        u.lastName = info.lastName;
-        u.photo = info.photoUrl;
-      }
-    })
-  );
+  // The leaderboard now relies solely on profile data stored in the database.
+  // If a user's name or photo is missing we simply return empty strings rather
+  // than fetching details from Telegram. This avoids any external requests when
+  // generating the leaderboard.
 
   let rank = null;
   if (telegramId) {
