@@ -10,13 +10,11 @@ export default function DiceRoller({
   trigger,
   showButton = true,
   muted = false,
-  finalValues,
 }) {
   const [values, setValues] = useState(Array(numDice).fill(1));
   const [rolling, setRolling] = useState(false);
   const soundRef = useRef(null);
   const startValuesRef = useRef(values);
-  const finalValuesRef = useRef(finalValues);
   const triggerRef = useRef(trigger);
 
   useEffect(() => {
@@ -33,10 +31,6 @@ export default function DiceRoller({
       soundRef.current?.pause();
     };
   }, [muted]);
-
-  useEffect(() => {
-    finalValuesRef.current = finalValues;
-  }, [finalValues]);
 
   useEffect(() => {
     if (trigger !== undefined && trigger !== triggerRef.current) {
@@ -74,16 +68,11 @@ export default function DiceRoller({
       count += 1;
       if (count >= iterations) {
         clearInterval(id);
-        const finalResults =
-          finalValuesRef.current && finalValuesRef.current.length === numDice
-            ? finalValuesRef.current
-            : results;
-        setValues(finalResults);
         // allow the final face to be visible before stopping
         setTimeout(() => {
           setRolling(false);
-          startValuesRef.current = finalResults;
-          onRollEnd && onRollEnd(finalResults);
+          startValuesRef.current = results;
+          onRollEnd && onRollEnd(results);
         }, tick);
       }
     }, tick);
