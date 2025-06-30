@@ -36,8 +36,8 @@ test('start requires 6 and rolling 6 does not grant extra turn', () => {
     ladders: DEFAULT_LADDERS,
   });
   room.rollCooldown = 0;
-  const s1 = { id: 's1', join: () => {} };
-  const s2 = { id: 's2', join: () => {} };
+  const s1 = { id: 's1', join: () => {}, emit: () => {} };
+  const s2 = { id: 's2', join: () => {}, emit: () => {} };
   room.addPlayer('p1', 'Player1', s1);
   room.addPlayer('p2', 'Player2', s2);
   room.startGame();
@@ -62,7 +62,7 @@ test('rolling multiple sixes does not skip turn', () => {
     ladders: DEFAULT_LADDERS,
   });
   room.rollCooldown = 0;
-  const socket = { id: 's1', join: () => {} };
+  const socket = { id: 's1', join: () => {}, emit: () => {} };
   room.addPlayer('p1', 'Player', socket);
   room.startGame();
 
@@ -79,14 +79,30 @@ test('room starts when reaching custom capacity', () => {
     ladders: DEFAULT_LADDERS,
   });
   room.rollCooldown = 0;
-  const s1 = { id: 's1', join: () => {} };
-  const s2 = { id: 's2', join: () => {} };
+  const s1 = { id: 's1', join: () => {}, emit: () => {} };
+  const s2 = { id: 's2', join: () => {}, emit: () => {} };
   room.addPlayer('p1', 'A', s1);
   assert.equal(room.status, 'waiting');
   room.addPlayer('p2', 'B', s2);
   assert.equal(room.status, 'playing');
   const res = room.addPlayer('p3', 'C', { id: 's3', join: () => {} });
   assert.ok(res.error, 'should not allow extra players');
+});
+
+test('joining player receives current players list', () => {
+  const io = new DummyIO();
+  const events = [];
+  const room = new GameRoom('r6', io, 3, {
+    snakes: DEFAULT_SNAKES,
+    ladders: DEFAULT_LADDERS,
+  });
+  const s1 = { id: 's1', join: () => {}, emit: () => {} };
+  const s2 = { id: 's2', join: () => {}, emit: (e, d) => events.push({ event: e, data: d }) };
+  room.addPlayer('p1', 'A', s1);
+  room.addPlayer('p2', 'B', s2);
+  const cur = events.find(e => e.event === 'currentPlayers');
+  assert.ok(cur, 'currentPlayers event should be sent');
+  assert.equal(cur.data.length, 2);
 });
 
 test('player wins when landing on the final tile', () => {
@@ -96,7 +112,7 @@ test('player wins when landing on the final tile', () => {
     ladders: DEFAULT_LADDERS,
   });
   room.rollCooldown = 0;
-  const socket = { id: 's1', join: () => {} };
+  const socket = { id: 's1', join: () => {}, emit: () => {} };
   room.addPlayer('p1', 'Winner', socket);
   room.startGame();
 
@@ -138,8 +154,8 @@ test('landing on another player sends them to start', () => {
     ladders: {},
   });
   room.rollCooldown = 0;
-  const s1 = { id: 's1', join: () => {} };
-  const s2 = { id: 's2', join: () => {} };
+  const s1 = { id: 's1', join: () => {}, emit: () => {} };
+  const s2 = { id: 's2', join: () => {}, emit: () => {} };
   room.addPlayer('p1', 'A', s1);
   room.addPlayer('p2', 'B', s2);
   room.startGame();
