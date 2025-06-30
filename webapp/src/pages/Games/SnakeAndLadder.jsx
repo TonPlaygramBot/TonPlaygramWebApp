@@ -1667,12 +1667,12 @@ export default function SnakeAndLadder() {
             const myIndex = mpPlayers.findIndex(p => p.id === myId);
             if (currentTurn === myIndex && !moving) {
               return (
-                <button
-                  onClick={() => socket.emit('rollDice')}
-                  className="px-4 py-2 bg-primary hover:bg-primary-hover text-white rounded"
-                >
-                  Roll Dice
-                </button>
+                <DiceRoller
+                  clickable
+                  showButton={false}
+                  muted={muted}
+                  emitRollEvent
+                />
               );
             }
             return null;

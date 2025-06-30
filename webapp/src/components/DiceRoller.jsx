@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import Dice from './Dice.jsx';
 import { diceSound } from '../assets/soundData.js';
+import { socket } from '../utils/socket.js';
 
 export default function DiceRoller({
   onRollEnd,
@@ -10,6 +11,7 @@ export default function DiceRoller({
   trigger,
   showButton = true,
   muted = false,
+  emitRollEvent = false,
 }) {
   const [values, setValues] = useState(Array(numDice).fill(1));
   const [rolling, setRolling] = useState(false);
@@ -73,6 +75,9 @@ export default function DiceRoller({
           setRolling(false);
           startValuesRef.current = results;
           onRollEnd && onRollEnd(results);
+          if (emitRollEvent) {
+            socket.emit('rollDice');
+          }
         }, tick);
       }
     }, tick);
