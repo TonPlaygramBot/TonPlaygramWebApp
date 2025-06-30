@@ -22,7 +22,7 @@ import {
 import useTelegramBackButton from "../../hooks/useTelegramBackButton.js";
 import { useNavigate } from "react-router-dom";
 import { getTelegramId, getTelegramPhotoUrl, getPlayerId, ensureAccountId } from "../../utils/telegram.js";
-import { fetchTelegramInfo, getProfile, deposit, getSnakeBoard, pingOnline } from "../../utils/api.js";
+import { getProfile, depositAccount, getSnakeBoard, pingOnline } from "../../utils/api.js";
 import { socket } from "../../utils/socket.js";
 import PlayerToken from "../../components/PlayerToken.jsx";
 import AvatarTimer from "../../components/AvatarTimer.jsx";
@@ -437,6 +437,7 @@ export default function SnakeAndLadder() {
   const [turnMessage, setTurnMessage] = useState("Your turn");
   const [diceVisible, setDiceVisible] = useState(true);
   const [photoUrl, setPhotoUrl] = useState(loadAvatar() || getTelegramPhotoUrl());
+  const [myName, setMyName] = useState('You');
   const [pot, setPot] = useState(101);
   const [token, setToken] = useState("TPC");
   const [celebrate, setCelebrate] = useState(false);
@@ -512,7 +513,7 @@ export default function SnakeAndLadder() {
   }, [rollCooldown]);
 
   const getPlayerName = (idx) => {
-    if (idx === 0) return 'You';
+    if (idx === 0) return myName;
     if (isMultiplayer) {
       return mpPlayers[idx]?.name || `Player ${idx + 1}`;
     }
@@ -588,24 +589,13 @@ export default function SnakeAndLadder() {
             saveAvatar(p.photo);
           } else {
             const url = getTelegramPhotoUrl();
-            if (url) {
-              setPhotoUrl(url);
-            } else {
-              fetchTelegramInfo(id).then((info) => {
-                if (info?.photoUrl) setPhotoUrl(info.photoUrl);
-              });
-            }
+            if (url) setPhotoUrl(url);
           }
+          setMyName(p?.nickname || `${p?.firstName || ''} ${p?.lastName || ''}`.trim());
         })
         .catch(() => {
           const url = getTelegramPhotoUrl();
-          if (url) {
-            setPhotoUrl(url);
-          } else {
-            fetchTelegramInfo(id).then((info) => {
-              if (info?.photoUrl) setPhotoUrl(info.photoUrl);
-            });
-          }
+          if (url) setPhotoUrl(url);
         });
     }
     moveSoundRef.current = new Audio(dropSound);
@@ -666,6 +656,7 @@ export default function SnakeAndLadder() {
           .then((p) => {
             setPhotoUrl(p?.photo || getTelegramPhotoUrl());
             if (p?.photo) saveAvatar(p.photo);
+            setMyName(p?.nickname || `${p?.firstName || ''} ${p?.lastName || ''}`.trim());
           })
           .catch(() => setPhotoUrl(getTelegramPhotoUrl()));
       }
@@ -750,8 +741,8 @@ export default function SnakeAndLadder() {
 
   useEffect(() => {
     if (!isMultiplayer) return;
-    const telegramId = getPlayerId();
-    const name = telegramId.toString();
+    const accountId = getPlayerId();
+    const name = myName;
     const capacity = parseInt(tableId.split('-').pop(), 10) || 0;
     setWaitingForPlayers(true);
     setPlayersNeeded(capacity);
@@ -782,13 +773,13 @@ export default function SnakeAndLadder() {
       setMpPlayers((p) =>
         p.map((pl) => (pl.id === playerId ? { ...pl, position: to } : pl))
       );
-      if (playerId === telegramId) setPos(to);
+      if (playerId === accountId) setPos(to);
     };
     const onReset = ({ playerId }) => {
       setMpPlayers((p) =>
         p.map((pl) => (pl.id === playerId ? { ...pl, position: 0 } : pl))
       );
-      if (playerId === telegramId) setPos(0);
+      if (playerId === accountId) setPos(0);
     };
     const onTurn = ({ playerId }) => {
       const idx = playersRef.current.findIndex((pl) => pl.id === playerId);
@@ -801,7 +792,7 @@ export default function SnakeAndLadder() {
     };
     const onWon = ({ playerId }) => {
       setGameOver(true);
-      setRanking([playerId === telegramId ? 'You' : playerId]);
+      setRanking([playerId === accountId ? myName : playerId]);
     };
 
     const onCurrentPlayers = (players) => {
@@ -825,7 +816,7 @@ export default function SnakeAndLadder() {
     socket.on('gameWon', onWon);
     socket.on('currentPlayers', onCurrentPlayers);
 
-    socket.emit('joinRoom', { roomId: tableId, playerId: telegramId, name });
+    socket.emit('joinRoom', { roomId: tableId, playerId: accountId, name });
 
 
     return () => {
@@ -1155,8 +1146,9 @@ export default function SnakeAndLadder() {
         if (finalPos === FINAL_TILE && !ranking.includes('You')) {
           const first = ranking.length === 0;
           if (first) {
-            const id = getTelegramId();
-            deposit(id, pot).catch(() => {});
+            ensureAccountId()
+              .then((aid) => depositAccount(aid, pot))
+              .catch(() => {});
           }
           setRanking(r => [...r, 'You']);
           if (first) setGameOver(true);
