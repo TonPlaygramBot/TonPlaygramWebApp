@@ -27,6 +27,7 @@ import { socket } from "../../utils/socket.js";
 import PlayerToken from "../../components/PlayerToken.jsx";
 import AvatarTimer from "../../components/AvatarTimer.jsx";
 import ConfirmPopup from "../../components/ConfirmPopup.jsx";
+import { moveSeq, flashHighlight, applyEffect as applyEffectHelper } from "../../utils/moveHelpers.js";
 
 const TOKEN_COLORS = [
   { name: "blue", color: "#60a5fa" },
@@ -769,17 +770,85 @@ export default function SnakeAndLadder() {
         return arr;
       });
     };
-    const onMove = ({ playerId, to }) => {
-      setMpPlayers((p) =>
-        p.map((pl) => (pl.id === playerId ? { ...pl, position: to } : pl))
-      );
-      if (playerId === accountId) setPos(to);
+    const onMove = ({ playerId, from = 0, to }) => {
+      const updatePosition = (pos) => {
+        setMpPlayers((p) => p.map((pl) => (pl.id === playerId ? { ...pl, position: pos } : pl)));
+        if (playerId === accountId) setPos(pos);
+      };
+      const ctx = {
+        updatePosition,
+        setHighlight,
+        setTrail,
+        moveSoundRef,
+        hahaSoundRef,
+        snakes,
+        ladders,
+        setOffsetPopup,
+        snakeSoundRef,
+        oldSnakeSoundRef,
+        ladderSoundRef,
+        badLuckSoundRef,
+        muted,
+        FINAL_TILE,
+      };
+      const finalizeMove = (finalPos, type) => {
+        updatePosition(finalPos);
+        setHighlight({ cell: finalPos, type });
+        setTrail([]);
+        setTimeout(() => setHighlight(null), 300);
+        setMoving(false);
+      };
+      const seq = [];
+      for (let i = from + 1; i <= to; i++) seq.push(i);
+      setMoving(true);
+      moveSeq(seq, 'normal', ctx, () => finalizeMove(to, 'normal'), 'forward');
+    };
+    const onSnakeOrLadder = ({ playerId, from, to }) => {
+      const updatePosition = (pos) => {
+        setMpPlayers((p) => p.map((pl) => (pl.id === playerId ? { ...pl, position: pos } : pl)));
+        if (playerId === accountId) setPos(pos);
+      };
+      const ctx = {
+        updatePosition,
+        setHighlight,
+        setTrail,
+        moveSoundRef,
+        hahaSoundRef,
+        snakes,
+        ladders,
+        setOffsetPopup,
+        snakeSoundRef,
+        oldSnakeSoundRef,
+        ladderSoundRef,
+        badLuckSoundRef,
+        muted,
+        FINAL_TILE,
+      };
+      const finalizeMove = (finalPos, type) => {
+        updatePosition(finalPos);
+        setHighlight({ cell: finalPos, type });
+        setTrail([]);
+        setTimeout(() => setHighlight(null), 300);
+        setMoving(false);
+      };
+      setMoving(true);
+      applyEffectHelper(from, ctx, finalizeMove);
     };
     const onReset = ({ playerId }) => {
-      setMpPlayers((p) =>
-        p.map((pl) => (pl.id === playerId ? { ...pl, position: 0 } : pl))
-      );
-      if (playerId === accountId) setPos(0);
+      const idx = playersRef.current.findIndex((pl) => pl.id === playerId);
+      if (idx === -1) return;
+      setBurning((b) => [...b, idx]);
+      if (!muted) {
+        bombSoundRef.current.currentTime = 0;
+        bombSoundRef.current.play().catch(() => {});
+        hahaSoundRef.current.currentTime = 0;
+        hahaSoundRef.current.play().catch(() => {});
+      }
+      setTimeout(() => {
+        setBurning((b) => b.filter((v) => v !== idx));
+        setMpPlayers((p) => p.map((pl) => (pl.id === playerId ? { ...pl, position: 0 } : pl)));
+        if (playerId === accountId) setPos(0);
+      }, 1000);
     };
     const onTurn = ({ playerId }) => {
       const idx = playersRef.current.findIndex((pl) => pl.id === playerId);
@@ -808,7 +877,7 @@ export default function SnakeAndLadder() {
     socket.on('playerJoined', onJoined);
     socket.on('playerLeft', onLeft);
     socket.on('movePlayer', onMove);
-    socket.on('snakeOrLadder', onMove);
+    socket.on('snakeOrLadder', onSnakeOrLadder);
     socket.on('playerReset', onReset);
     socket.on('turnChanged', onTurn);
     socket.on('gameStarted', onStarted);
@@ -823,7 +892,7 @@ export default function SnakeAndLadder() {
       socket.off('playerJoined', onJoined);
       socket.off('playerLeft', onLeft);
       socket.off('movePlayer', onMove);
-      socket.off('snakeOrLadder', onMove);
+      socket.off('snakeOrLadder', onSnakeOrLadder);
       socket.off('playerReset', onReset);
       socket.off('turnChanged', onTurn);
       socket.off('gameStarted', onStarted);
@@ -1056,85 +1125,25 @@ export default function SnakeAndLadder() {
       for (let i = current + 1; i <= target; i++) steps.push(i);
 
         setHighlight(null);
-      const moveSeq = (seq, type, done, dir = 'forward') => {
-        const stepMove = (idx) => {
-          if (idx >= seq.length) return done();
-          const next = seq[idx];
-          setPos(next);
-          moveSoundRef.current.currentTime = 0;
-          if (!muted) moveSoundRef.current.play().catch(() => {});
-          const hType = idx === seq.length - 1 ? type : dir === 'back' ? 'back' : 'forward';
-          setHighlight({ cell: next, type: hType });
-          setTrail((t) => [...t, { cell: next, type: hType }]);
-          if (idx === seq.length - 2) hahaSoundRef.current?.pause();
-          setTimeout(() => stepMove(idx + 1), 700);
-        };
-        stepMove(0);
+      const ctx = {
+        updatePosition: (p) => setPos(p),
+        setHighlight,
+        setTrail,
+        moveSoundRef,
+        hahaSoundRef,
+        snakes,
+        ladders,
+        setOffsetPopup,
+        snakeSoundRef,
+        oldSnakeSoundRef,
+        ladderSoundRef,
+        badLuckSoundRef,
+        muted,
+        FINAL_TILE,
       };
 
-      const flashHighlight = (cell, type, times, done) => {
-        if (times <= 0) return done();
-        setHighlight({ cell, type });
-        setTimeout(() => {
-          setHighlight(null);
-          setTimeout(() => flashHighlight(cell, type, times - 1, done), 150);
-        }, 150);
-      };
-
-      const applyEffect = (startPos) => {
-        const snakeEnd = snakes[startPos];
-        const ladderObj = ladders[startPos];
-        const ladderEnd =
-          typeof ladderObj === "object" ? ladderObj.end : ladderObj;
-
-        if (snakeEnd != null) {
-          const offset = startPos - snakeEnd;
-          setTrail([{ cell: startPos, type: "snake" }]);
-          setOffsetPopup({ cell: startPos, type: "snake", amount: offset });
-          setTimeout(() => setOffsetPopup(null), 1000);
-          setMessage('🐍');
-          setMessageColor("text-red-500");
-          if (!muted) {
-            snakeSoundRef.current?.play().catch(() => {});
-            oldSnakeSoundRef.current?.play().catch(() => {});
-            badLuckSoundRef.current?.play().catch(() => {});
-          }
-          const seq = [];
-          for (let i = 1; i <= offset && startPos - i >= 0; i++)
-            seq.push(startPos - i);
-          const move = () =>
-            moveSeq(
-              seq,
-              "snake",
-              () => finalizeMove(Math.max(0, snakeEnd), "snake"),
-              'back'
-            );
-          flashHighlight(startPos, "snake", 2, move);
-        } else if (ladderEnd != null) {
-          const offset = ladderEnd - startPos;
-          setTrail((t) =>
-            t.map((h) => (h.cell === startPos ? { ...h, type: "ladder" } : h)),
-          );
-          setOffsetPopup({ cell: startPos, type: "ladder", amount: offset });
-          setTimeout(() => setOffsetPopup(null), 1000);
-          setMessage('🪜');
-          setMessageColor("text-green-500");
-          if (!muted) ladderSoundRef.current?.play().catch(() => {});
-          const seq = [];
-          for (let i = 1; i <= offset && startPos + i <= FINAL_TILE; i++)
-            seq.push(startPos + i);
-          const move = () =>
-            moveSeq(
-              seq,
-              "ladder",
-              () => finalizeMove(Math.min(FINAL_TILE, ladderEnd), "ladder"),
-              'forward'
-            );
-          flashHighlight(startPos, "ladder", 2, move);
-        } else {
-          finalizeMove(startPos, "normal");
-        }
-      };
+      const applyEffect = (startPos) =>
+        applyEffectHelper(startPos, ctx, finalizeMove);
 
       const finalizeMove = (finalPos, type) => {
         setPos(finalPos);
@@ -1195,7 +1204,7 @@ export default function SnakeAndLadder() {
         }
       };
 
-      moveSeq(steps, "normal", () => applyEffect(target), 'forward');
+      moveSeq(steps, 'normal', ctx, () => applyEffect(target), 'forward');
     }, 1500);
   };
 
@@ -1265,30 +1274,24 @@ export default function SnakeAndLadder() {
     for (let i = current + 1; i <= target; i++) steps.push(i);
 
       setHighlight(null);
-    const moveSeq = (seq, type, done, dir = 'forward') => {
-      const stepMove = (idx) => {
-        if (idx >= seq.length) return done();
-        const next = seq[idx];
-        positions[index - 1] = next;
+    const ctx = {
+      updatePosition: (p) => {
+        positions[index - 1] = p;
         setAiPositions([...positions]);
-        moveSoundRef.current.currentTime = 0;
-        if (!muted) moveSoundRef.current.play().catch(() => {});
-        const hType = idx === seq.length - 1 ? type : dir === 'back' ? 'back' : 'forward';
-        setHighlight({ cell: next, type: hType });
-        setTrail((t) => [...t, { cell: next, type: hType }]);
-        if (idx === seq.length - 2) hahaSoundRef.current?.pause();
-        setTimeout(() => stepMove(idx + 1), 700);
-      };
-      stepMove(0);
-    };
-
-    const flashHighlight = (cell, type, times, done) => {
-      if (times <= 0) return done();
-      setHighlight({ cell, type });
-      setTimeout(() => {
-        setHighlight(null);
-        setTimeout(() => flashHighlight(cell, type, times - 1, done), 150);
-      }, 150);
+      },
+      setHighlight,
+      setTrail,
+      moveSoundRef,
+      hahaSoundRef,
+      snakes,
+      ladders,
+      setOffsetPopup,
+      snakeSoundRef,
+      oldSnakeSoundRef,
+      ladderSoundRef,
+      badLuckSoundRef,
+      muted,
+      FINAL_TILE,
     };
 
     const finalizeMove = (finalPos, type) => {
@@ -1337,53 +1340,9 @@ export default function SnakeAndLadder() {
       }
     };
 
-    const applyEffect = (startPos) => {
-      const snakeEnd = snakes[startPos];
-      const ladderObj = ladders[startPos];
-      const ladderEnd = typeof ladderObj === 'object' ? ladderObj.end : ladderObj;
+    const applyEffect = (startPos) => applyEffectHelper(startPos, ctx, finalizeMove);
 
-      if (snakeEnd != null) {
-        const offset = startPos - snakeEnd;
-        setTrail([{ cell: startPos, type: 'snake' }]);
-        setOffsetPopup({ cell: startPos, type: 'snake', amount: offset });
-        setTimeout(() => setOffsetPopup(null), 1000);
-        if (!muted) {
-          snakeSoundRef.current?.play().catch(() => {});
-          oldSnakeSoundRef.current?.play().catch(() => {});
-          badLuckSoundRef.current?.play().catch(() => {});
-        }
-        const seq = [];
-        for (let i = 1; i <= offset && startPos - i >= 0; i++) seq.push(startPos - i);
-        const move = () =>
-          moveSeq(
-            seq,
-            'snake',
-            () => finalizeMove(Math.max(0, snakeEnd), 'snake'),
-            'back'
-          );
-        flashHighlight(startPos, 'snake', 2, move);
-      } else if (ladderEnd != null) {
-        const offset = ladderEnd - startPos;
-        setTrail((t) => t.map((h) => (h.cell === startPos ? { ...h, type: 'ladder' } : h)));
-        setOffsetPopup({ cell: startPos, type: 'ladder', amount: offset });
-        setTimeout(() => setOffsetPopup(null), 1000);
-        if (!muted) ladderSoundRef.current?.play().catch(() => {});
-        const seq = [];
-        for (let i = 1; i <= offset && startPos + i <= FINAL_TILE; i++) seq.push(startPos + i);
-        const move = () =>
-          moveSeq(
-            seq,
-            'ladder',
-            () => finalizeMove(Math.min(FINAL_TILE, ladderEnd), 'ladder'),
-            'forward'
-          );
-        flashHighlight(startPos, 'ladder', 2, move);
-      } else {
-        finalizeMove(startPos, 'normal');
-      }
-    };
-
-    moveSeq(steps, 'normal', () => applyEffect(target), 'forward');
+    moveSeq(steps, 'normal', ctx, () => applyEffect(target), 'forward');
     }, 1500);
   };
 
