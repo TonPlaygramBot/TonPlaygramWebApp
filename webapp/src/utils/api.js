@@ -357,3 +357,7 @@ export function sendAccountTpc(fromAccount, toAccount, amount) {
 export function getAccountTransactions(accountId) {
   return post('/api/account/transactions', { accountId });
 }
+
+export function depositAccount(accountId, amount) {
+  return post('/api/account/deposit', { accountId, amount });
+}

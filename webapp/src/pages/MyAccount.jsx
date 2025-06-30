@@ -183,7 +183,7 @@ export default function MyAccount() {
           <p className="font-semibold">
             {profile.firstName} {profile.lastName}
           </p>
-          <p className="text-sm text-subtext">ID: {profile.telegramId}</p>
+          <p className="text-sm text-subtext">Account: {profile.accountId}</p>
           <button
             onClick={() => setShowAvatarPicker(true)}
             className="mt-2 px-2 py-1 bg-primary hover:bg-primary-hover rounded text-sm"
