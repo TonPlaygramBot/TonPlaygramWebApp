@@ -179,12 +179,10 @@ the URL – or pick the number in the lobby – to change how many AI players jo
 
 ### Multiplayer status
 
-The web version currently supports only single-player games versus computer
-opponents. Choosing a shared table in the lobby will not create a real
-multiplayer match yet. Each participant plays their own separate board even if
-they joined the same room. Networked play is planned for a future update.
-The multiplayer page now renders the same 3‑D board via the new `SnakeBoard`
-component, so visuals are consistent with single player.
+Networked multiplayer is now available using the same 3‑D board seen in
+single player. When you pick a shared table in the lobby all players join the
+same room and take turns rolling dice in real time. The server keeps the game
+state in sync and broadcasts moves to everyone through Socket.IO.
 
 ### Entering the Snake & Ladder game
 
