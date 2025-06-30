@@ -251,15 +251,19 @@ export class GameRoomManager {
         room.status = record.status;
       } else {
         room = new GameRoom(id, this.io, capacity, board);
-        await GameRoomModel.create({
-          roomId: id,
-          capacity: room.capacity,
-          status: room.status,
-          currentTurn: room.currentTurn,
-          snakes: room.snakes,
-          ladders: room.ladders,
-          players: []
-        });
+        await GameRoomModel.updateOne(
+          { roomId: id },
+          {
+            roomId: id,
+            capacity: room.capacity,
+            status: room.status,
+            currentTurn: room.currentTurn,
+            snakes: room.snakes,
+            ladders: room.ladders,
+            players: []
+          },
+          { upsert: true }
+        );
       }
       this.rooms.set(id, room);
     }
