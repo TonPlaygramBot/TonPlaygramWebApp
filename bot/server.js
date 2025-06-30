@@ -126,6 +126,7 @@ app.get('/api/ping', (req, res) => {
 
 const onlineUsers = new Map();
 const tableSeats = new Map();
+const userSockets = new Map();
 
 function cleanupSeats() {
   const now = Date.now();
@@ -266,6 +267,18 @@ mongoose.connection.once('open', () => {
 });
 
 io.on('connection', (socket) => {
+  socket.on('register', ({ telegramId }) => {
+    const id = Number(telegramId);
+    if (!id) return;
+    let set = userSockets.get(id);
+    if (!set) {
+      set = new Set();
+      userSockets.set(id, set);
+    }
+    set.add(socket.id);
+    socket.data.telegramId = id;
+  });
+
   socket.on('joinRoom', async ({ roomId, playerId, name }) => {
     const map = tableSeats.get(roomId);
     if (map) {
@@ -275,11 +288,39 @@ io.on('connection', (socket) => {
     const result = await gameManager.joinRoom(roomId, playerId, name, socket);
     if (result.error) socket.emit('error', result.error);
   });
+
   socket.on('rollDice', async () => {
     await gameManager.rollDice(socket);
   });
+
+  socket.on('invite1v1', ({ fromId, toId, roomId }, cb) => {
+    fromId = Number(fromId);
+    toId = Number(toId);
+    if (!fromId || !toId) return cb && cb({ success: false, error: 'invalid ids' });
+    const ts = onlineUsers.get(toId);
+    if (!ts || Date.now() - ts > 60_000) {
+      return cb && cb({ success: false, error: 'User offline' });
+    }
+    const targets = userSockets.get(toId);
+    if (!targets || targets.size === 0) {
+      return cb && cb({ success: false, error: 'User offline' });
+    }
+    for (const sid of targets) {
+      io.to(sid).emit('gameInvite', { fromId, roomId });
+    }
+    cb && cb({ success: true });
+  });
+
   socket.on('disconnect', async () => {
     await gameManager.handleDisconnect(socket);
+    const tid = socket.data.telegramId;
+    if (tid) {
+      const set = userSockets.get(tid);
+      if (set) {
+        set.delete(socket.id);
+        if (set.size === 0) userSockets.delete(tid);
+      }
+    }
   });
 });
 

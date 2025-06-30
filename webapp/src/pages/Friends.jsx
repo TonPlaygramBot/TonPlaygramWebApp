@@ -14,6 +14,8 @@ import {
 import UserSearchBar from '../components/UserSearchBar.jsx';
 import { BOT_USERNAME } from '../utils/constants.js';
 import { getAvatarUrl, saveAvatar, loadAvatar } from '../utils/avatarUtils.js';
+import { socket } from '../utils/socket.js';
+import InvitePopup from '../components/InvitePopup.jsx';
 
 export default function Friends() {
   useTelegramBackButton();
@@ -31,6 +33,7 @@ export default function Friends() {
     loadAvatar() || getTelegramPhotoUrl()
   );
   const [friendRequests, setFriendRequests] = useState([]);
+  const [inviteTarget, setInviteTarget] = useState(null);
 
   useEffect(() => {
     getReferralInfo(telegramId).then(setReferral);
@@ -159,7 +162,8 @@ export default function Friends() {
               {leaderboard.map((u, idx) => (
                 <tr
                   key={u.telegramId}
-                  className={`border-b border-border h-16 ${u.telegramId === telegramId ? 'bg-accent text-black' : ''}`}
+                  className={`border-b border-border h-16 cursor-pointer ${u.telegramId === telegramId ? 'bg-accent text-black' : ''}`}
+                  onClick={() => u.telegramId !== telegramId && setInviteTarget(u)}
                 >
                   <td className="p-2">{idx + 1}</td>
                   <td className="p-2 w-16">
@@ -197,6 +201,24 @@ export default function Friends() {
           </table>
         </div>
       </section>
+      <InvitePopup
+        open={!!inviteTarget}
+        name={inviteTarget?.nickname || `${inviteTarget?.firstName || ''} ${inviteTarget?.lastName || ''}`.trim()}
+        onAccept={() => {
+          if (inviteTarget) {
+            const roomId = `invite-${telegramId}-${inviteTarget.telegramId}-${Date.now()}-2`;
+            socket.emit('invite1v1', { fromId: telegramId, toId: inviteTarget.telegramId, roomId }, (res) => {
+              if (res && res.success) {
+                window.location.href = `/games/snake?table=${roomId}`;
+              } else {
+                alert(res?.error || 'Failed to send invite');
+              }
+            });
+          }
+          setInviteTarget(null);
+        }}
+        onReject={() => setInviteTarget(null)}
+      />
     </div>
   );
 }

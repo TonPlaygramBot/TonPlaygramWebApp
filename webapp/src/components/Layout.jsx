@@ -1,6 +1,8 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 
-import { useLocation } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
+import { socket } from '../utils/socket.js';
+import InvitePopup from './InvitePopup.jsx';
 
 import Navbar from './Navbar.jsx';
 
@@ -11,8 +13,17 @@ import Branding from './Branding.jsx';
 import CosmicBackground from './CosmicBackground.jsx';
 
 export default function Layout({ children }) {
-
   const location = useLocation();
+  const navigate = useNavigate();
+  const [invite, setInvite] = useState(null);
+
+  useEffect(() => {
+    const onInvite = ({ fromId, roomId }) => {
+      setInvite({ fromId, roomId });
+    };
+    socket.on('gameInvite', onInvite);
+    return () => socket.off('gameInvite', onInvite);
+  }, []);
 
   const isHome = location.pathname === '/';
   const isFriends = location.pathname === '/friends';
@@ -65,6 +76,16 @@ export default function Layout({ children }) {
       )}
 
       {showFooter && <Footer />}
+
+      <InvitePopup
+        open={!!invite}
+        name={invite?.fromId}
+        onAccept={() => {
+          if (invite) navigate(`/games/snake?table=${invite.roomId}`);
+          setInvite(null);
+        }}
+        onReject={() => setInvite(null)}
+      />
 
     </div>
 

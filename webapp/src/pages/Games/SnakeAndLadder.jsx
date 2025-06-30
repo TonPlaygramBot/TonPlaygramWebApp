@@ -22,7 +22,7 @@ import {
 import useTelegramBackButton from "../../hooks/useTelegramBackButton.js";
 import { useNavigate } from "react-router-dom";
 import { getTelegramId, getTelegramPhotoUrl } from "../../utils/telegram.js";
-import { fetchTelegramInfo, getProfile, deposit, getSnakeBoard } from "../../utils/api.js";
+import { fetchTelegramInfo, getProfile, deposit, getSnakeBoard, pingOnline } from "../../utils/api.js";
 import { socket } from "../../utils/socket.js";
 import PlayerToken from "../../components/PlayerToken.jsx";
 import AvatarTimer from "../../components/AvatarTimer.jsx";
@@ -413,6 +413,16 @@ export default function SnakeAndLadder() {
     };
     window.addEventListener('popstate', handlePop);
     return () => window.removeEventListener('popstate', handlePop);
+  }, []);
+
+  useEffect(() => {
+    const id = getTelegramId();
+    function ping() {
+      pingOnline(id).catch(() => {});
+    }
+    ping();
+    const t = setInterval(ping, 30000);
+    return () => clearInterval(t);
   }, []);
   const [pos, setPos] = useState(0);
   const [highlight, setHighlight] = useState(null); // { cell: number, type: string }

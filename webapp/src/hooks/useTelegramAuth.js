@@ -1,10 +1,12 @@
 import { useEffect } from 'react';
+import { socket } from '../utils/socket.js';
 
 export default function useTelegramAuth() {
   useEffect(() => {
     const user = window?.Telegram?.WebApp?.initDataUnsafe?.user;
     if (user?.id) {
       localStorage.setItem('telegramId', user.id);
+      socket.emit('register', { telegramId: user.id });
     }
     if (user?.username) {
       localStorage.setItem('telegramUsername', user.username);
