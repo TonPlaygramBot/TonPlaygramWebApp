@@ -511,10 +511,16 @@ export default function SnakeAndLadder() {
     return () => clearInterval(id);
   }, [rollCooldown]);
 
+  const getPlayerName = (idx) => {
+    if (idx === 0) return 'You';
+    if (isMultiplayer) {
+      return mpPlayers[idx]?.name || `Player ${idx + 1}`;
+    }
+    return `AI ${idx}`;
+  };
+
   const playerName = (idx) => (
-    <span style={{ color: playerColors[idx] }}>
-      {idx === 0 ? 'You' : `AI ${idx}`}
-    </span>
+    <span style={{ color: playerColors[idx] }}>{getPlayerName(idx)}</span>
   );
 
   const capturePieces = (cell, mover) => {
@@ -1300,11 +1306,11 @@ export default function SnakeAndLadder() {
       setTrail([]);
       capturePieces(finalPos, index);
       setTimeout(() => setHighlight(null), 300);
-      if (finalPos === FINAL_TILE && !ranking.includes(`AI ${index}`)) {
+      if (finalPos === FINAL_TILE && !ranking.includes(getPlayerName(index))) {
         const first = ranking.length === 0;
-        setRanking(r => [...r, `AI ${index}`]);
+        setRanking(r => [...r, getPlayerName(index)]);
         if (first) setGameOver(true);
-        setMessage(`AI ${index} wins!`);
+        setMessage(`${getPlayerName(index)} wins!`);
         setDiceVisible(false);
         setMoving(false);
         return;
@@ -1415,10 +1421,10 @@ export default function SnakeAndLadder() {
             Order:{' '}
             {sorted.map((r, i) => (
               <span key={r.index} style={{ color: playerColors[r.index] }}>
-                {i > 0 && ', '} {r.index === 0 ? 'You' : `AI ${r.index}`}({r.roll})
+                {i > 0 && ', '} {getPlayerName(r.index)}({r.roll})
               </span>
             ))}
-            . {first.index === 0 ? 'You' : `AI ${first.index}`} start first.
+            . {getPlayerName(first.index)} start first.
           </>
         );
         setTimeout(() => {
@@ -1565,7 +1571,7 @@ export default function SnakeAndLadder() {
               photoUrl={p.photoUrl}
               active={p.index === currentTurn}
               rank={rankMap[p.index]}
-              name={p.index === 0 ? 'You' : `AI ${p.index}`}
+              name={getPlayerName(p.index)}
               isTurn={p.index === currentTurn}
               timerPct={
                 p.index === currentTurn
