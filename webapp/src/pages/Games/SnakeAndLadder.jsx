@@ -453,7 +453,7 @@ export default function SnakeAndLadder() {
   const [diceCells, setDiceCells] = useState({});
   const [bonusDice, setBonusDice] = useState(0);
   const [rewardDice, setRewardDice] = useState(0);
-  const [diceCount, setDiceCount] = useState(2);
+  const [diceCount, setDiceCount] = useState(1);
   const [gameOver, setGameOver] = useState(false);
   const [ai, setAi] = useState(0);
   const [aiPositions, setAiPositions] = useState([]);
@@ -1034,7 +1034,7 @@ export default function SnakeAndLadder() {
     const rolledSix = Array.isArray(values)
       ? values.some((v) => Number(v) === 6)
       : Number(value) === 6;
-    const doubleSix = Array.isArray(values) && values[0] === 6 && values[1] === 6;
+    const doubleSix = false;
 
     setRollColor(playerColors[0] || '#fff');
 
@@ -1042,10 +1042,10 @@ export default function SnakeAndLadder() {
     let preview = pos;
     if (preview === 0) {
       if (rolledSix) preview = 1;
-    } else if (preview === 100 && diceCount === 1) {
+    } else if (preview === 100) {
       if (value === 1) preview = FINAL_TILE;
-    } else if (preview !== 100 || diceCount !== 2) {
-      if (preview + value <= FINAL_TILE) preview = preview + value;
+    } else if (preview + value <= FINAL_TILE) {
+      preview = preview + value;
     }
     if (snakes[preview] != null) preview = Math.max(0, snakes[preview]);
     else if (ladders[preview] != null) {
@@ -1055,10 +1055,6 @@ export default function SnakeAndLadder() {
     const willCapture = aiPositions.some((p) => p === preview);
 
     setRollResult(value);
-    if (doubleSix && !muted) {
-      yabbaSoundRef.current.currentTime = 0;
-      yabbaSoundRef.current.play().catch(() => {});
-    }
     if (willCapture && preview > 4 && !muted) {
       hahaSoundRef.current.currentTime = 0;
       hahaSoundRef.current.play().catch(() => {});
@@ -1075,18 +1071,7 @@ export default function SnakeAndLadder() {
       let current = pos;
       let target = current;
 
-      if (current === 100 && diceCount === 2) {
-        if (rolledSix) {
-          setDiceCount(1);
-          setMessage("Six rolled! One die removed.");
-        } else {
-          setMessage("Need a 6 to remove a die.");
-        }
-        setTurnMessage("Your turn");
-        setDiceVisible(true);
-        setMoving(false);
-        return;
-      } else if (current === 100 && diceCount === 1) {
+      if (current === 100) {
         if (value === 1) {
           target = FINAL_TILE;
         } else {
@@ -1168,7 +1153,6 @@ export default function SnakeAndLadder() {
           setCelebrate(true);
           setTimeout(() => {
             setCelebrate(false);
-            setDiceCount(2);
           }, 1500);
         }
         let extraTurn = false;
@@ -1188,10 +1172,6 @@ export default function SnakeAndLadder() {
             yabbaSoundRef.current?.play().catch(() => {});
           }
           setTimeout(() => setRewardDice(0), 1000);
-        } else if (doubleSix) {
-          setTurnMessage('Double six! Roll again');
-          setBonusDice(0);
-          extraTurn = true;
         } else {
           setTurnMessage("Your turn");
           setBonusDice(0);
@@ -1223,7 +1203,7 @@ export default function SnakeAndLadder() {
     const rolledSix = Array.isArray(vals)
       ? vals.some((v) => Number(v) === 6)
       : Number(value) === 6;
-    const doubleSix = Array.isArray(vals) && vals[0] === 6 && vals[1] === 6;
+    const doubleSix = false;
     setRollColor(playerColors[index] || '#fff');
 
     let preview = aiPositions[index - 1];
@@ -1245,10 +1225,6 @@ export default function SnakeAndLadder() {
 
     setTurnMessage(<>{playerName(index)} rolled {value}</>);
     setRollResult(value);
-    if (doubleSix && !muted) {
-      yabbaSoundRef.current.currentTime = 0;
-      yabbaSoundRef.current.play().catch(() => {});
-    }
     if (capture && preview > 4 && !muted) {
       hahaSoundRef.current.currentTime = 0;
       hahaSoundRef.current.play().catch(() => {});
@@ -1327,8 +1303,6 @@ export default function SnakeAndLadder() {
           yabbaSoundRef.current?.play().catch(() => {});
         }
         setTimeout(() => setRewardDice(0), 1000);
-      } else if (doubleSix) {
-        extraTurn = true;
       }
       const next = extraTurn ? index : (index + 1) % (ai + 1);
       if (next === 0) setTurnMessage('Your turn');
@@ -1606,7 +1580,7 @@ export default function SnakeAndLadder() {
               currentTurn === 0 &&
               !moving
             }
-            numDice={diceCount + bonusDice}
+            numDice={1 + bonusDice}
             trigger={aiRollingIndex != null ? aiRollTrigger : playerAutoRolling ? playerRollTrigger : undefined}
             showButton={false}
             muted={muted}
