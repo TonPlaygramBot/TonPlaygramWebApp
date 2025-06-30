@@ -22,7 +22,8 @@ import {
 import useTelegramBackButton from "../../hooks/useTelegramBackButton.js";
 import { useNavigate } from "react-router-dom";
 import { getTelegramId, getTelegramPhotoUrl } from "../../utils/telegram.js";
-import { fetchTelegramInfo, getProfile, deposit, getSnakeBoard, getSnakeLobby } from "../../utils/api.js";
+import { fetchTelegramInfo, getProfile, deposit, getSnakeBoard } from "../../utils/api.js";
+import { socket } from "../../utils/socket.js";
 import PlayerToken from "../../components/PlayerToken.jsx";
 import AvatarTimer from "../../components/AvatarTimer.jsx";
 import ConfirmPopup from "../../components/ConfirmPopup.jsx";
@@ -460,6 +461,9 @@ export default function SnakeAndLadder() {
   const [moving, setMoving] = useState(false);
   const [waitingForPlayers, setWaitingForPlayers] = useState(false);
   const [playersNeeded, setPlayersNeeded] = useState(0);
+  const [isMultiplayer, setIsMultiplayer] = useState(false);
+  const [mpPlayers, setMpPlayers] = useState([]);
+  const playersRef = useRef([]);
   const [tableId, setTableId] = useState('snake-4');
 
   // Preload token and avatar images so board icons and AI photos display
@@ -655,11 +659,11 @@ export default function SnakeAndLadder() {
     const t = params.get("token");
     const amt = params.get("amount");
     const aiParam = params.get("ai");
-    const wait = params.get("wait");
     if (t) setToken(t.toUpperCase());
     if (amt) setPot(Number(amt));
     const aiCount = aiParam ? Math.max(1, Math.min(3, Number(aiParam))) : 0;
     if (aiParam) setAi(aiCount);
+    setIsMultiplayer(!aiParam);
     localStorage.removeItem(`snakeGameState_${aiCount}`);
     setAiPositions(Array(aiCount).fill(0));
     setAiAvatars(
@@ -672,9 +676,6 @@ export default function SnakeAndLadder() {
 
     const table = params.get("table") || "snake-4";
     setTableId(table);
-    if (wait && table !== "single") {
-      setWaitingForPlayers(true);
-    }
     getSnakeBoard(table)
       .then(({ snakes: snakesObj = {}, ladders: laddersObj = {} }) => {
         const limit = (obj) => {
@@ -719,27 +720,73 @@ export default function SnakeAndLadder() {
   }, []);
 
   useEffect(() => {
-    if (!waitingForPlayers) return;
-    let active = true;
-    const load = () => {
-      getSnakeLobby(tableId)
-        .then((data) => {
-          if (!active) return;
-          const needed = (data.capacity || 0) - (data.players?.length || 0);
-          setPlayersNeeded(needed);
-          if (needed <= 0) {
-            setWaitingForPlayers(false);
-          }
-        })
-        .catch(() => {});
+    playersRef.current = mpPlayers;
+  }, [mpPlayers]);
+
+  useEffect(() => {
+    if (!isMultiplayer) return;
+    const telegramId = getTelegramId();
+    const name = telegramId.toString();
+    setWaitingForPlayers(true);
+    socket.emit('joinRoom', { roomId: tableId, playerId: telegramId, name });
+
+    const onJoined = ({ playerId, name }) => {
+      setMpPlayers((p) => {
+        if (p.some((pl) => pl.id === playerId)) return p;
+        return [...p, { id: playerId, name, position: 0 }];
+      });
     };
-    load();
-    const id = setInterval(load, 3000);
+    const onLeft = ({ playerId }) => {
+      setMpPlayers((p) => p.filter((pl) => pl.id !== playerId));
+    };
+    const onMove = ({ playerId, to }) => {
+      setMpPlayers((p) =>
+        p.map((pl) => (pl.id === playerId ? { ...pl, position: to } : pl))
+      );
+      if (playerId === telegramId) setPos(to);
+    };
+    const onReset = ({ playerId }) => {
+      setMpPlayers((p) =>
+        p.map((pl) => (pl.id === playerId ? { ...pl, position: 0 } : pl))
+      );
+      if (playerId === telegramId) setPos(0);
+    };
+    const onTurn = ({ playerId }) => {
+      const idx = playersRef.current.findIndex((pl) => pl.id === playerId);
+      if (idx >= 0) setCurrentTurn(idx);
+    };
+    const onStarted = () => setWaitingForPlayers(false);
+    const onRolled = ({ value }) => {
+      setRollResult(value);
+      setTimeout(() => setRollResult(null), 1500);
+    };
+    const onWon = ({ playerId }) => {
+      setGameOver(true);
+      setRanking([playerId === telegramId ? 'You' : playerId]);
+    };
+
+    socket.on('playerJoined', onJoined);
+    socket.on('playerLeft', onLeft);
+    socket.on('movePlayer', onMove);
+    socket.on('snakeOrLadder', onMove);
+    socket.on('playerReset', onReset);
+    socket.on('turnChanged', onTurn);
+    socket.on('gameStarted', onStarted);
+    socket.on('diceRolled', onRolled);
+    socket.on('gameWon', onWon);
+
     return () => {
-      active = false;
-      clearInterval(id);
+      socket.off('playerJoined', onJoined);
+      socket.off('playerLeft', onLeft);
+      socket.off('movePlayer', onMove);
+      socket.off('snakeOrLadder', onMove);
+      socket.off('playerReset', onReset);
+      socket.off('turnChanged', onTurn);
+      socket.off('gameStarted', onStarted);
+      socket.off('diceRolled', onRolled);
+      socket.off('gameWon', onWon);
     };
-  }, [waitingForPlayers, tableId]);
+  }, [isMultiplayer, tableId]);
 
   const fastForward = (elapsed, state) => {
     let p = state.pos ?? 0;
@@ -1414,10 +1461,22 @@ export default function SnakeAndLadder() {
 
 
 
-  const players = [
-    { position: pos, photoUrl, type: tokenType, color: playerColors[0] },
-    ...aiPositions.map((p, i) => ({ position: p, photoUrl: aiAvatars[i] || '/assets/icons/profile.svg', type: 'normal', color: playerColors[i + 1] }))
-  ];
+  const players = isMultiplayer
+    ? mpPlayers.map((p, i) => ({
+        position: p.position,
+        photoUrl: p.photoUrl || '/assets/icons/profile.svg',
+        type: 'normal',
+        color: playerColors[i] || '#fff'
+      }))
+    : [
+        { position: pos, photoUrl, type: tokenType, color: playerColors[0] },
+        ...aiPositions.map((p, i) => ({
+          position: p,
+          photoUrl: aiAvatars[i] || '/assets/icons/profile.svg',
+          type: 'normal',
+          color: playerColors[i + 1]
+        }))
+      ];
 
   // determine ranking numbers based on board positions
   const rankMap = {};
@@ -1511,7 +1570,7 @@ export default function SnakeAndLadder() {
           ))}
         </div>
       )}
-      {diceVisible && (
+      {diceVisible && !isMultiplayer && (
         <div className="fixed bottom-24 inset-x-0 flex flex-col items-center z-20">
           <DiceRoller
             onRollEnd={(vals) => {
@@ -1525,8 +1584,7 @@ export default function SnakeAndLadder() {
               setRollingIndex(null);
               setPlayerAutoRolling(false);
             }}
-            onRollStart={() =>
-              {
+            onRollStart={() => {
                 if (timerRef.current) clearInterval(timerRef.current);
                 timerSoundRef.current?.pause();
                 setRollingIndex(aiRollingIndex || 0);
@@ -1554,6 +1612,25 @@ export default function SnakeAndLadder() {
               <div className="turn-message text-xl mt-1">Your turn</div>
             </div>
           )}
+        </div>
+      )}
+      {isMultiplayer && (
+        <div className="fixed bottom-24 inset-x-0 flex flex-col items-center z-20">
+          {(() => {
+            const myId = getTelegramId();
+            const myIndex = mpPlayers.findIndex(p => p.id === myId);
+            if (currentTurn === myIndex && !moving) {
+              return (
+                <button
+                  onClick={() => socket.emit('rollDice')}
+                  className="px-4 py-2 bg-primary hover:bg-primary-hover text-white rounded"
+                >
+                  Roll Dice
+                </button>
+              );
+            }
+            return null;
+          })()}
         </div>
       )}
       <InfoPopup

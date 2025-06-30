@@ -116,9 +116,6 @@ export default function Lobby() {
   const startGame = () => {
     const params = new URLSearchParams();
     if (table) params.set('table', table.id);
-    if (table && table.id !== 'single' && players.length < table.capacity) {
-      params.set('wait', '1');
-    }
     if (table?.id === 'single') {
       localStorage.removeItem(`snakeGameState_${aiCount}`);
       params.set('ai', aiCount);
