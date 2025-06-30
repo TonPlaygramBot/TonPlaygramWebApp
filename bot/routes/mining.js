@@ -50,7 +50,7 @@ router.post('/leaderboard', async (req, res) => {
   const users = await User.find()
     .sort({ balance: -1 })
     .limit(100)
-    .select('telegramId balance nickname firstName lastName photo')
+    .select('telegramId accountId balance nickname firstName lastName photo')
     .lean();
 
   await Promise.all(

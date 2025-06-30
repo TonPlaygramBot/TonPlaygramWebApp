@@ -164,7 +164,7 @@ app.get('/api/online/list', (req, res) => {
   for (const [id, ts] of onlineUsers) {
     if (now - ts > 60_000) onlineUsers.delete(id);
   }
-  res.json({ users: Array.from(onlineUsers.keys()).map(Number) });
+  res.json({ users: Array.from(onlineUsers.keys()) });
 });
 
 app.post('/api/snake/table/seat', (req, res) => {
@@ -278,16 +278,17 @@ mongoose.connection.once('open', () => {
 });
 
 io.on('connection', (socket) => {
-  socket.on('register', ({ telegramId }) => {
-    const id = Number(telegramId);
+  socket.on('register', ({ playerId, telegramId }) => {
+    const id = playerId || telegramId;
     if (!id) return;
-    let set = userSockets.get(id);
+    let set = userSockets.get(String(id));
     if (!set) {
       set = new Set();
-      userSockets.set(id, set);
+      userSockets.set(String(id), set);
     }
     set.add(socket.id);
-    socket.data.telegramId = id;
+    socket.data.telegramId = telegramId || null;
+    socket.data.playerId = String(id);
   });
 
   socket.on('joinRoom', async ({ roomId, playerId, name }) => {
@@ -305,14 +306,12 @@ io.on('connection', (socket) => {
   });
 
   socket.on('invite1v1', ({ fromId, fromName, toId, roomId, token, amount }, cb) => {
-    fromId = Number(fromId);
-    toId = Number(toId);
     if (!fromId || !toId) return cb && cb({ success: false, error: 'invalid ids' });
-    const ts = onlineUsers.get(toId);
+    const ts = onlineUsers.get(String(toId));
     if (!ts || Date.now() - ts > 60_000) {
       return cb && cb({ success: false, error: 'User offline' });
     }
-    const targets = userSockets.get(toId);
+    const targets = userSockets.get(String(toId));
     if (!targets || targets.size === 0) {
       return cb && cb({ success: false, error: 'User offline' });
     }
@@ -324,12 +323,12 @@ io.on('connection', (socket) => {
 
   socket.on('disconnect', async () => {
     await gameManager.handleDisconnect(socket);
-    const tid = socket.data.telegramId;
-    if (tid) {
-      const set = userSockets.get(tid);
+    const pid = socket.data.playerId;
+    if (pid) {
+      const set = userSockets.get(String(pid));
       if (set) {
         set.delete(socket.id);
-        if (set.size === 0) userSockets.delete(tid);
+        if (set.size === 0) userSockets.delete(String(pid));
       }
     }
   });

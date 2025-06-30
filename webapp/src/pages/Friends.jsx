@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import useTelegramBackButton from '../hooks/useTelegramBackButton.js';
 import LoginOptions from '../components/LoginOptions.jsx';
-import { getTelegramId, getTelegramPhotoUrl } from '../utils/telegram.js';
+import { getTelegramId, getTelegramPhotoUrl, getPlayerId } from '../utils/telegram.js';
 import { FaCircle } from 'react-icons/fa';
 import {
   getLeaderboard,
@@ -28,6 +28,7 @@ export default function Friends() {
   } catch (err) {
     return <LoginOptions />;
   }
+  const accountId = getPlayerId();
 
   const [referral, setReferral] = useState(null);
   const [leaderboard, setLeaderboard] = useState([]);
@@ -194,15 +195,15 @@ export default function Friends() {
             <tbody>
               {leaderboard.map((u, idx) => (
                 <tr
-                  key={u.telegramId}
-                  className={`border-b border-border h-16 cursor-pointer ${u.telegramId === telegramId ? 'bg-accent text-black' : ''}`}
-                  onClick={() => u.telegramId !== telegramId && setInviteTarget(u)}
+                  key={u.accountId || u.telegramId}
+                  className={`border-b border-border h-16 cursor-pointer ${u.accountId === accountId ? 'bg-accent text-black' : ''}`}
+                  onClick={() => u.accountId !== accountId && setInviteTarget(u)}
                 >
                   <td className="p-2">{idx + 1}</td>
                   <td className="p-2 w-16">
                     <img
                       src={getAvatarUrl(
-                        u.telegramId === telegramId
+                        u.accountId === accountId
                           ? myPhotoUrl || '/assets/icons/profile.svg'
                           : u.photo || u.photoUrl || '/assets/icons/profile.svg'
                       )}
@@ -212,7 +213,7 @@ export default function Friends() {
                   </td>
                   <td className="p-2 flex items-center">
                     {u.nickname || `${u.firstName} ${u.lastName}`.trim() || 'User'}
-                    {onlineUsers.includes(u.telegramId) && (
+                    {onlineUsers.includes(String(u.accountId)) && (
                       <FaCircle className="ml-1 text-green-500" size={8} />
                     )}
                   </td>
@@ -231,11 +232,11 @@ export default function Friends() {
                   </td>
                   <td className="p-2 flex items-center">
                     You
-                    {onlineUsers.includes(telegramId) && (
+                    {onlineUsers.includes(String(accountId)) && (
                       <FaCircle className="ml-1 text-green-500" size={8} />
                     )}
                   </td>
-                  <td className="p-2 text-right">{leaderboard.find((u) => u.telegramId === telegramId)?.balance ?? '...'}</td>
+                  <td className="p-2 text-right">{leaderboard.find((u) => u.accountId === accountId)?.balance ?? '...'}</td>
                 </tr>
               )}
             </tbody>
@@ -249,13 +250,13 @@ export default function Friends() {
         onStakeChange={setStake}
         onAccept={() => {
           if (inviteTarget) {
-            const roomId = `invite-${telegramId}-${inviteTarget.telegramId}-${Date.now()}-2`;
+            const roomId = `invite-${accountId}-${inviteTarget.accountId}-${Date.now()}-2`;
             socket.emit(
               'invite1v1',
               {
-                fromId: telegramId,
+                fromId: accountId,
                 fromName: myName,
-                toId: inviteTarget.telegramId,
+                toId: inviteTarget.accountId,
                 roomId,
                 token: stake.token,
                 amount: stake.amount,
