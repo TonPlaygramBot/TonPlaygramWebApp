@@ -214,27 +214,27 @@ export function getSnakeResults() {
   return fetch(API_BASE_URL + '/api/snake/results').then((r) => r.json());
 }
 
-export function seatTable(telegramId, tableId, name) {
+export function seatTable(playerId, tableId, name) {
   return fetch(API_BASE_URL + '/api/snake/table/seat', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ telegramId, tableId, name }),
+    body: JSON.stringify({ playerId, tableId, name }),
   }).then((r) => r.json());
 }
 
-export function unseatTable(telegramId, tableId) {
+export function unseatTable(playerId, tableId) {
   return fetch(API_BASE_URL + '/api/snake/table/unseat', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ telegramId, tableId }),
+    body: JSON.stringify({ playerId, tableId }),
   }).then((r) => r.json());
 }
 
-export function pingOnline(telegramId) {
+export function pingOnline(playerId) {
   return fetch(API_BASE_URL + '/api/online/ping', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ telegramId }),
+    body: JSON.stringify({ playerId }),
   }).then((r) => r.json());
 }
 

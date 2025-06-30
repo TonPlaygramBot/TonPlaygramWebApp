@@ -139,9 +139,10 @@ function cleanupSeats() {
 }
 
 app.post('/api/online/ping', (req, res) => {
-  const { telegramId } = req.body || {};
-  if (telegramId) {
-    onlineUsers.set(Number(telegramId), Date.now());
+  const { playerId, telegramId } = req.body || {};
+  const id = playerId || telegramId;
+  if (id) {
+    onlineUsers.set(String(id), Date.now());
   }
   const now = Date.now();
   for (const [id, ts] of onlineUsers) {
@@ -159,23 +160,25 @@ app.get('/api/online/count', (req, res) => {
 });
 
 app.post('/api/snake/table/seat', (req, res) => {
-  const { tableId, telegramId, name } = req.body || {};
-  if (!tableId || !telegramId) return res.status(400).json({ error: 'missing data' });
+  const { tableId, playerId, telegramId, name } = req.body || {};
+  const pid = playerId || telegramId;
+  if (!tableId || !pid) return res.status(400).json({ error: 'missing data' });
   cleanupSeats();
   let map = tableSeats.get(tableId);
   if (!map) {
     map = new Map();
     tableSeats.set(tableId, map);
   }
-  map.set(String(telegramId), { id: Number(telegramId), name: name || String(telegramId), ts: Date.now() });
+  map.set(String(pid), { id: pid, name: name || String(pid), ts: Date.now() });
   res.json({ success: true });
 });
 
 app.post('/api/snake/table/unseat', (req, res) => {
-  const { tableId, telegramId } = req.body || {};
+  const { tableId, playerId, telegramId } = req.body || {};
+  const pid = playerId || telegramId;
   const map = tableSeats.get(tableId);
-  if (map && telegramId) {
-    map.delete(String(telegramId));
+  if (map && pid) {
+    map.delete(String(pid));
     if (map.size === 0) tableSeats.delete(tableId);
   }
   res.json({ success: true });
