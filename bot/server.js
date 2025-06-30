@@ -289,6 +289,8 @@ io.on('connection', (socket) => {
     set.add(socket.id);
     socket.data.telegramId = telegramId || null;
     socket.data.playerId = String(id);
+    // Mark this user as online immediately
+    onlineUsers.set(String(id), Date.now());
   });
 
   socket.on('joinRoom', async ({ roomId, playerId, name }) => {
@@ -296,6 +298,9 @@ io.on('connection', (socket) => {
     if (map) {
       map.delete(String(playerId));
       if (map.size === 0) tableSeats.delete(roomId);
+    }
+    if (playerId) {
+      onlineUsers.set(String(playerId), Date.now());
     }
     const result = await gameManager.joinRoom(roomId, playerId, name, socket);
     if (result.error) socket.emit('error', result.error);
@@ -330,6 +335,7 @@ io.on('connection', (socket) => {
         set.delete(socket.id);
         if (set.size === 0) userSockets.delete(String(pid));
       }
+      onlineUsers.delete(String(pid));
     }
   });
 });

@@ -13,7 +13,8 @@
    - `PORT` – (optional) port for the bot API server (defaults to 3000)
 
 4. Copy `webapp/.env.example` to `webapp/.env` and configure:
-   - `VITE_API_BASE_URL` – the base URL where the bot API is hosted (e.g. `http://localhost:3000`)
+   - `VITE_API_BASE_URL` – the base URL where the bot API is hosted (e.g. `http://localhost:3000`).
+     If omitted, the webapp will connect to the same origin it was served from.
    - `VITE_GOOGLE_CLIENT_ID` – OAuth client ID for Google sign-in
 
    The webapp uses this client ID to let users sign in with Google. Their
