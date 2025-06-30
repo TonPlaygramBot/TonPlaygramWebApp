@@ -784,6 +784,16 @@ export default function SnakeAndLadder() {
       setRanking([playerId === telegramId ? 'You' : playerId]);
     };
 
+    const onCurrentPlayers = (players) => {
+      const arr = players.map((p) => ({
+        id: p.playerId,
+        name: p.name,
+        position: p.position || 0,
+      }));
+      setMpPlayers(arr);
+      updateNeeded(arr);
+    };
+
     socket.on('playerJoined', onJoined);
     socket.on('playerLeft', onLeft);
     socket.on('movePlayer', onMove);
@@ -793,6 +803,7 @@ export default function SnakeAndLadder() {
     socket.on('gameStarted', onStarted);
     socket.on('diceRolled', onRolled);
     socket.on('gameWon', onWon);
+    socket.on('currentPlayers', onCurrentPlayers);
 
     socket.emit('joinRoom', { roomId: tableId, playerId: telegramId, name });
 
@@ -807,6 +818,7 @@ export default function SnakeAndLadder() {
       socket.off('gameStarted', onStarted);
       socket.off('diceRolled', onRolled);
       socket.off('gameWon', onWon);
+      socket.off('currentPlayers', onCurrentPlayers);
     };
   }, [isMultiplayer, tableId]);
 

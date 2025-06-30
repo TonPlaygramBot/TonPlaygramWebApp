@@ -44,9 +44,9 @@ test('other players receive move and turn events', () => {
 
   room.rollCooldown = 0;
 
-  const s1 = { id: 's1', join: () => {} };
+  const s1 = { id: 's1', join: () => {}, emit: () => {} };
 
-  const s2 = { id: 's2', join: () => {} };
+  const s2 = { id: 's2', join: () => {}, emit: () => {} };
 
   room.addPlayer('p1', 'A', s1);
 

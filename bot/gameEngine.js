@@ -77,6 +77,14 @@ export class GameRoom {
     };
     this.players.push(player);
     socket.join(this.id);
+    socket.emit(
+      'currentPlayers',
+      this.players.filter((p) => !p.disconnected).map((p) => ({
+        playerId: p.playerId,
+        name: p.name,
+        position: p.position,
+      }))
+    );
     this.io.to(this.id).emit('playerJoined', { playerId, name });
     if (this.players.length === this.capacity) {
       this.startGame();
