@@ -3,6 +3,7 @@ export const FINAL_TILE = 101;
 export const DEFAULT_SNAKES = { 99: 80 };
 export const DEFAULT_LADDERS = { 3: 22, 27: 46 };
 export const ROLL_COOLDOWN_MS = 1000;
+import { SnakeGame } from './logic/snakeGame.js';
 
 import GameRoomModel from './models/GameRoom.js';
 
@@ -48,7 +49,6 @@ export class GameRoom {
     this.id = id;
     this.io = io;
     this.capacity = capacity;
-    this.players = [];
     this.currentTurn = 0;
     this.status = 'waiting';
     if (board.snakes && board.ladders) {
@@ -61,22 +61,20 @@ export class GameRoom {
     }
     this.rollCooldown = ROLL_COOLDOWN_MS;
     this.turnTimer = null;
+    this.game = new SnakeGame({ snakes: this.snakes, ladders: this.ladders });
+    this.players = this.game.players;
   }
 
   addPlayer(playerId, name, socket) {
     if (this.players.length >= this.capacity || this.status !== 'waiting') {
       return { error: 'Room full or game already started' };
     }
-    const player = {
-      playerId,
-      name,
-      position: 0,
-      isActive: false,
-      socketId: socket.id,
-      disconnected: false,
-      lastRollTime: 0
-    };
-    this.players.push(player);
+    this.game.addPlayer(playerId, name);
+    const player = this.game.players[this.game.players.length - 1];
+    player.playerId = playerId;
+    player.socketId = socket.id;
+    player.disconnected = false;
+    player.lastRollTime = 0;
     socket.join(this.id);
     const list = this.players.filter((p) => !p.disconnected).map((p) => ({
       playerId: p.playerId,
@@ -141,47 +139,31 @@ export class GameRoom {
     }
     player.lastRollTime = Date.now();
 
-    const dice = value ?? Math.floor(Math.random() * 6) + 1;
-    this.io.to(this.id).emit('diceRolled', { playerId: player.playerId, value: dice });
+    const prevPositions = this.players.map((p) => p.position);
 
-    let from = player.position;
-    let to = player.position;
+    const result = this.game.rollDice(value != null ? [value] : undefined);
+    if (!result) return;
 
-      if (!player.isActive) {
-        if (dice === 6) {
-          player.isActive = true;
-          to = from + 1;
-        }
-      } else {
-        if (from + dice <= FINAL_TILE) {
-          to = from + dice;
-        }
-    }
+    const total = result.dice.reduce((a, b) => a + b, 0);
+    this.io.to(this.id).emit('diceRolled', { playerId: player.playerId, value: total });
+    const from = prevPositions[playerIndex];
+    const to = result.path.length ? result.path[result.path.length - 1] : from;
 
     if (to !== from) {
-        player.position = to;
-        this.io.to(this.id).emit('movePlayer', { playerId: player.playerId, from, to });
-        const final = this.applySnakesAndLadders(to);
-        if (final !== to) {
-          player.position = final;
-          this.io.to(this.id).emit('snakeOrLadder', { playerId: player.playerId, from: to, to: final });
-        }
+      this.io.to(this.id).emit('movePlayer', { playerId: player.playerId, from, to });
+      if (result.position !== to) {
+        this.io.to(this.id).emit('snakeOrLadder', { playerId: player.playerId, from: to, to: result.position });
+      }
     }
 
-    for (const p of this.players) {
-      if (p !== player && !p.disconnected && p.position === player.position) {
-        p.position = 0;
-        p.isActive = false;
+    this.players.forEach((p, idx) => {
+      if (idx !== playerIndex && prevPositions[idx] !== 0 && p.position === 0) {
         this.io.to(this.id).emit('playerReset', { playerId: p.playerId });
       }
-    }
+    });
 
-    if (player.position === FINAL_TILE) {
+    if (result.finished) {
       this.status = 'finished';
-      if (this.turnTimer) {
-        clearTimeout(this.turnTimer);
-        this.turnTimer = null;
-      }
       GameResult.create({
         winner: player.name,
         participants: this.players.map((p) => p.name)
@@ -192,9 +174,7 @@ export class GameRoom {
       return;
     }
 
-    do {
-      this.currentTurn = (this.currentTurn + 1) % this.players.length;
-    } while (this.players[this.currentTurn].disconnected);
+    this.currentTurn = this.game.currentTurn;
     this.emitNextTurn();
   }
 
