@@ -468,6 +468,8 @@ export default function SnakeAndLadder() {
   const [playerRollTrigger, setPlayerRollTrigger] = useState(0);
   const [playerAutoRolling, setPlayerAutoRolling] = useState(false);
   const [timeLeft, setTimeLeft] = useState(15);
+  const [mpRollTrigger, setMpRollTrigger] = useState(0);
+  const [mpFinalValues, setMpFinalValues] = useState(null);
   const [aiAvatars, setAiAvatars] = useState([]);
   const [burning, setBurning] = useState([]); // indices of tokens burning
   const [refreshTick, setRefreshTick] = useState(0);
@@ -751,7 +753,15 @@ export default function SnakeAndLadder() {
   useEffect(() => {
     if (!isMultiplayer) return;
     const telegramId = getPlayerId();
-    const name = telegramId.toString();
+    let playerName = telegramId.toString();
+    getProfile(telegramId)
+      .then((info) => {
+        if (info?.name) playerName = info.name;
+        socket.emit('joinRoom', { roomId: tableId, playerId: telegramId, name: playerName });
+      })
+      .catch(() => {
+        socket.emit('joinRoom', { roomId: tableId, playerId: telegramId, name: playerName });
+      });
     const capacity = parseInt(tableId.split('-').pop(), 10) || 0;
     setWaitingForPlayers(true);
     setPlayersNeeded(capacity);
@@ -760,15 +770,31 @@ export default function SnakeAndLadder() {
       setPlayersNeeded(Math.max(0, capacity - players.length));
     };
 
+    const loadPlayer = async (playerId, name, position = 0) => {
+      try {
+        const info = await getProfile(playerId);
+        return {
+          id: playerId,
+          name: info?.name || name,
+          position,
+          photoUrl: info?.photo || '/assets/icons/profile.svg',
+        };
+      } catch {
+        return { id: playerId, name, position, photoUrl: '/assets/icons/profile.svg' };
+      }
+    };
+
     const onJoined = ({ playerId, name }) => {
-      setMpPlayers((p) => {
-        if (p.some((pl) => pl.id === playerId)) {
-          updateNeeded(p);
-          return p;
-        }
-        const arr = [...p, { id: playerId, name, position: 0 }];
-        updateNeeded(arr);
-        return arr;
+      loadPlayer(playerId, name).then((player) => {
+        setMpPlayers((p) => {
+          if (p.some((pl) => pl.id === player.id)) {
+            updateNeeded(p);
+            return p;
+          }
+          const arr = [...p, player];
+          updateNeeded(arr);
+          return arr;
+        });
       });
     };
     const onLeft = ({ playerId }) => {
@@ -795,8 +821,12 @@ export default function SnakeAndLadder() {
       if (idx >= 0) setCurrentTurn(idx);
     };
     const onStarted = () => setWaitingForPlayers(false);
-    const onRolled = ({ value }) => {
+    const onRolled = ({ playerId, value }) => {
       setRollResult(value);
+      if (playerId === telegramId) {
+        setMpFinalValues([value]);
+        setMpRollTrigger((t) => t + 1);
+      }
       setTimeout(() => setRollResult(null), 1500);
     };
     const onWon = ({ playerId }) => {
@@ -805,13 +835,12 @@ export default function SnakeAndLadder() {
     };
 
     const onCurrentPlayers = (players) => {
-      const arr = players.map((p) => ({
-        id: p.playerId,
-        name: p.name,
-        position: p.position || 0,
-      }));
-      setMpPlayers(arr);
-      updateNeeded(arr);
+      Promise.all(
+        players.map((p) => loadPlayer(p.playerId, p.name, p.position || 0))
+      ).then((arr) => {
+        setMpPlayers(arr);
+        updateNeeded(arr);
+      });
     };
 
     socket.on('playerJoined', onJoined);
@@ -824,8 +853,6 @@ export default function SnakeAndLadder() {
     socket.on('diceRolled', onRolled);
     socket.on('gameWon', onWon);
     socket.on('currentPlayers', onCurrentPlayers);
-
-    socket.emit('joinRoom', { roomId: tableId, playerId: telegramId, name });
 
 
     return () => {
@@ -1675,12 +1702,29 @@ export default function SnakeAndLadder() {
             const myIndex = mpPlayers.findIndex(p => p.id === myId);
             if (currentTurn === myIndex && !moving) {
               return (
-                <button
-                  onClick={() => socket.emit('rollDice')}
-                  className="px-4 py-2 bg-primary hover:bg-primary-hover text-white rounded"
-                >
-                  Roll Dice
-                </button>
+                <>
+                  <button
+                    onClick={() => socket.emit('rollDice')}
+                    className="px-4 py-2 bg-primary hover:bg-primary-hover text-white rounded mb-2"
+                  >
+                    Roll Dice
+                  </button>
+                  <DiceRoller
+                    trigger={mpRollTrigger}
+                    numDice={1}
+                    finalValues={mpFinalValues}
+                    onRollStart={() => {
+                      setRollingIndex(myIndex);
+                      setTurnMessage('Rolling...');
+                    }}
+                    onRollEnd={() => {
+                      setRollingIndex(null);
+                      setMpFinalValues(null);
+                    }}
+                    showButton={false}
+                    muted={muted}
+                  />
+                </>
               );
             }
             return null;
