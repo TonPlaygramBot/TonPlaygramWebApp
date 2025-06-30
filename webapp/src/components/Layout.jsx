@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 
 import { useLocation, useNavigate } from 'react-router-dom';
 import { socket } from '../utils/socket.js';
+import { pingOnline } from '../utils/api.js';
+import { getTelegramId } from '../utils/telegram.js';
 import InvitePopup from './InvitePopup.jsx';
 
 import Navbar from './Navbar.jsx';
@@ -18,11 +20,24 @@ export default function Layout({ children }) {
   const [invite, setInvite] = useState(null);
 
   useEffect(() => {
-    const onInvite = ({ fromId, roomId }) => {
-      setInvite({ fromId, roomId });
+    const onInvite = ({ fromId, fromName, roomId, token, amount }) => {
+      setInvite({ fromId, fromName, roomId, token, amount });
     };
     socket.on('gameInvite', onInvite);
     return () => socket.off('gameInvite', onInvite);
+  }, []);
+
+  useEffect(() => {
+    let id;
+    try {
+      const telegramId = getTelegramId();
+      function ping() {
+        pingOnline(telegramId).catch(() => {});
+      }
+      ping();
+      id = setInterval(ping, 30000);
+    } catch {}
+    return () => clearInterval(id);
   }, []);
 
   const isHome = location.pathname === '/';
@@ -79,9 +94,14 @@ export default function Layout({ children }) {
 
       <InvitePopup
         open={!!invite}
-        name={invite?.fromId}
+        name={invite?.fromName || invite?.fromId}
+        stake={{ token: invite?.token, amount: invite?.amount }}
+        incoming
         onAccept={() => {
-          if (invite) navigate(`/games/snake?table=${invite.roomId}`);
+          if (invite)
+            navigate(
+              `/games/snake?table=${invite.roomId}&token=${invite.token}&amount=${invite.amount}`,
+            );
           setInvite(null);
         }}
         onReject={() => setInvite(null)}
