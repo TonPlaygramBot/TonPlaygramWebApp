@@ -3,7 +3,7 @@
 ## Installation
 
 1. Install **Node.js 18** or later.
-2. Run `npm install` at the repository root. This installs all root packages and automatically runs `npm install --prefix bot` and `npm install --prefix webapp` for the individual projects.
+2. Run `npm run install-all` at the repository root to install dependencies for both the bot and webapp.
 3. Copy `bot/.env.example` to `bot/.env` and update the values. At minimum set:
    - `BOT_TOKEN` – your Telegram bot token
    - `MONGODB_URI` – MongoDB connection string or `memory`
@@ -35,7 +35,7 @@
    npm --prefix webapp run build
    ```
 
-7. Run the test suite to verify the setup (after running `npm install` or `npm install --prefix bot`):
+7. Run the test suite to verify the setup:
 
    ```bash
    npm test

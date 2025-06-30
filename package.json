@@ -8,15 +8,11 @@
     "start": "node bot/server.js",
     "install-all": "npm install --prefix bot && npm install --prefix webapp",
     "postinstall": "npm run install-all",
-    "pretest": "npm run install-all",
     "build": "npm --prefix webapp run build",
     "test": "node --test",
     "recalculate-balances": "node bot/scripts/recalculateBalances.js"
   },
   "engines": {
     "node": ">=18"
-  },
-  "dependencies": {
-    "socket.io-client": "^4.8.1"
   }
 }
