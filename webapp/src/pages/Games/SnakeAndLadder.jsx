@@ -28,54 +28,6 @@ import PlayerToken from "../../components/PlayerToken.jsx";
 import AvatarTimer from "../../components/AvatarTimer.jsx";
 import ConfirmPopup from "../../components/ConfirmPopup.jsx";
 
-// Convert a flag emoji like 🇮🇹 to a country name using Intl
-function flagEmojiToName(emoji) {
-  try {
-    const codePoints = [...emoji.replace(/\uFE0F/g, '')].map((c) =>
-      c.codePointAt(0) - 0x1f1e6 + 65
-    );
-    if (codePoints.length === 2) {
-      const region = String.fromCharCode(codePoints[0]) + String.fromCharCode(codePoints[1]);
-      const dn = new Intl.DisplayNames(['en'], { type: 'region' });
-      return dn.of(region);
-    }
-  } catch {}
-  return '';
-}
-
-// Basic emoji name mapping for AI avatars
-const EMOJI_NAMES = {
-  '🐒': 'Monkei', // 🐒 = 🐒 (monkey)
-  '🔎': 'Spy',
-  '🐶': 'Dog',
-  '🐮': 'Cow',
-  '😈': 'Devil',
-};
-
-function getAINameFromAvatar(avatar) {
-  if (!avatar) return '';
-  if (avatar.startsWith('/')) {
-    const match = avatar.match(/avatar(\d+)/);
-    if (match) return `Bot ${match[1]}`;
-    return 'Bot';
-  }
-  const flagName = flagEmojiToName(avatar);
-  if (flagName) return flagName;
-  if (EMOJI_NAMES[avatar]) return EMOJI_NAMES[avatar];
-  return 'Bot';
-}
-
-async function fetchProfileData(id) {
-  try {
-    const p = await getProfile(id);
-    if (p) {
-      const name = p.nickname || p.firstName || p.username || id.toString();
-      return { name, photo: p.photo || '' };
-    }
-  } catch {}
-  return { name: id.toString(), photo: '' };
-}
-
 const TOKEN_COLORS = [
   { name: "blue", color: "#60a5fa" },
   { name: "red", color: "#ef4444" },
@@ -318,10 +270,6 @@ function Board({
     return () => window.removeEventListener("resize", updateSize);
   }, []);
 
-  useEffect(() => {
-    setAiNames(aiAvatars.map(getAINameFromAvatar));
-  }, [aiAvatars]);
-
   useLayoutEffect(() => {
     // board layout recalculations
   }, [cellWidth, cellHeight]);
@@ -521,7 +469,6 @@ export default function SnakeAndLadder() {
   const [playerAutoRolling, setPlayerAutoRolling] = useState(false);
   const [timeLeft, setTimeLeft] = useState(15);
   const [aiAvatars, setAiAvatars] = useState([]);
-  const [aiNames, setAiNames] = useState([]);
   const [burning, setBurning] = useState([]); // indices of tokens burning
   const [refreshTick, setRefreshTick] = useState(0);
   const [rollCooldown, setRollCooldown] = useState(0);
@@ -532,7 +479,6 @@ export default function SnakeAndLadder() {
   const [mpPlayers, setMpPlayers] = useState([]);
   const playersRef = useRef([]);
   const [tableId, setTableId] = useState('snake-4');
-  const [playerDisplayName, setPlayerDisplayName] = useState('You');
 
   // Preload token and avatar images so board icons and AI photos display
   // immediately without waiting for network requests during gameplay.
@@ -566,11 +512,11 @@ export default function SnakeAndLadder() {
   }, [rollCooldown]);
 
   const getPlayerName = (idx) => {
-    if (idx === 0) return playerDisplayName;
+    if (idx === 0) return 'You';
     if (isMultiplayer) {
       return mpPlayers[idx]?.name || `Player ${idx + 1}`;
     }
-    return aiNames[idx - 1] || `AI ${idx}`;
+    return `AI ${idx}`;
   };
 
   const playerName = (idx) => (
@@ -745,11 +691,11 @@ export default function SnakeAndLadder() {
     setIsMultiplayer(tableParam && !aiParam);
     localStorage.removeItem(`snakeGameState_${aiCount}`);
     setAiPositions(Array(aiCount).fill(0));
-    const avatars = Array.from({ length: aiCount }, () =>
-      AVATARS[Math.floor(Math.random() * AVATARS.length)]
+    setAiAvatars(
+      Array.from({ length: aiCount }, () =>
+        AVATARS[Math.floor(Math.random() * AVATARS.length)]
+      )
     );
-    setAiAvatars(avatars);
-    setAiNames(avatars.map(getAINameFromAvatar));
     const colors = shuffle(TOKEN_COLORS).slice(0, aiCount + 1).map(c => c.color);
     setPlayerColors(colors);
 
@@ -805,15 +751,7 @@ export default function SnakeAndLadder() {
   useEffect(() => {
     if (!isMultiplayer) return;
     const telegramId = getPlayerId();
-    fetchProfileData(telegramId)
-      .then((d) => {
-        setPlayerDisplayName(d.name);
-        if (d.photo) setPhotoUrl((p) => p || d.photo);
-        socket.emit('joinRoom', { roomId: tableId, playerId: telegramId, name: d.name });
-      })
-      .catch(() => {
-        socket.emit('joinRoom', { roomId: tableId, playerId: telegramId, name: telegramId.toString() });
-      });
+    const name = telegramId.toString();
     const capacity = parseInt(tableId.split('-').pop(), 10) || 0;
     setWaitingForPlayers(true);
     setPlayersNeeded(capacity);
@@ -823,16 +761,14 @@ export default function SnakeAndLadder() {
     };
 
     const onJoined = ({ playerId, name }) => {
-      fetchProfileData(Number(name)).then((d) => {
-        setMpPlayers((p) => {
-          if (p.some((pl) => pl.id === playerId)) {
-            updateNeeded(p);
-            return p;
-          }
-          const arr = [...p, { id: playerId, name: d.name, photoUrl: d.photo, position: 0 }];
-          updateNeeded(arr);
-          return arr;
-        });
+      setMpPlayers((p) => {
+        if (p.some((pl) => pl.id === playerId)) {
+          updateNeeded(p);
+          return p;
+        }
+        const arr = [...p, { id: playerId, name, position: 0 }];
+        updateNeeded(arr);
+        return arr;
       });
     };
     const onLeft = ({ playerId }) => {
@@ -869,20 +805,13 @@ export default function SnakeAndLadder() {
     };
 
     const onCurrentPlayers = (players) => {
-      Promise.all(
-        players.map(async (p) => {
-          const d = await fetchProfileData(Number(p.name));
-          return {
-            id: p.playerId,
-            name: d.name,
-            photoUrl: d.photo,
-            position: p.position || 0,
-          };
-        })
-      ).then((arr) => {
-        setMpPlayers(arr);
-        updateNeeded(arr);
-      });
+      const arr = players.map((p) => ({
+        id: p.playerId,
+        name: p.name,
+        position: p.position || 0,
+      }));
+      setMpPlayers(arr);
+      updateNeeded(arr);
     };
 
     socket.on('playerJoined', onJoined);
@@ -896,7 +825,7 @@ export default function SnakeAndLadder() {
     socket.on('gameWon', onWon);
     socket.on('currentPlayers', onCurrentPlayers);
 
-
+    socket.emit('joinRoom', { roomId: tableId, playerId: telegramId, name });
 
 
     return () => {
@@ -993,7 +922,6 @@ export default function SnakeAndLadder() {
           setGameOver(false);
           if (Array.isArray(data.aiAvatars)) {
             setAiAvatars(data.aiAvatars);
-            setAiNames(data.aiNames || data.aiAvatars.map(getAINameFromAvatar));
           }
           if (data.timestamp) {
             const elapsed = Date.now() - data.timestamp;
@@ -1018,11 +946,10 @@ export default function SnakeAndLadder() {
       ranking,
       gameOver,
       aiAvatars,
-      aiNames,
       timestamp: Date.now(),
     };
     localStorage.setItem(key, JSON.stringify(data));
-  }, [ai, pos, aiPositions, currentTurn, diceCells, snakes, ladders, snakeOffsets, ladderOffsets, ranking, gameOver, aiNames]);
+  }, [ai, pos, aiPositions, currentTurn, diceCells, snakes, ladders, snakeOffsets, ladderOffsets, ranking, gameOver]);
 
   useEffect(() => {
     const handleUnload = () => {
