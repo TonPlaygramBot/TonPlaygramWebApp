@@ -10,7 +10,6 @@ export default function DiceRoller({
   trigger,
   showButton = true,
   muted = false,
-  finalValues,
 }) {
   const [values, setValues] = useState(Array(numDice).fill(1));
   const [rolling, setRolling] = useState(false);
@@ -69,16 +68,11 @@ export default function DiceRoller({
       count += 1;
       if (count >= iterations) {
         clearInterval(id);
-        const final = finalValues
-          ? Array.isArray(finalValues)
-            ? finalValues
-            : [finalValues]
-          : results;
+        // allow the final face to be visible before stopping
         setTimeout(() => {
-          setValues(final);
           setRolling(false);
-          startValuesRef.current = final;
-          onRollEnd && onRollEnd(final);
+          startValuesRef.current = results;
+          onRollEnd && onRollEnd(results);
         }, tick);
       }
     }, tick);
