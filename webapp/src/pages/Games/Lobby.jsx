@@ -125,6 +125,8 @@ export default function Lobby() {
     } else {
       if (stake.token) params.set('token', stake.token);
       if (stake.amount) params.set('amount', stake.amount);
+      navigate(`/games/snake-online?${params.toString()}`);
+      return;
     }
     navigate(`/games/${game}?${params.toString()}`);
   };
