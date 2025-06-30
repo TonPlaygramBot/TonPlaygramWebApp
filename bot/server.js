@@ -178,6 +178,8 @@ app.post('/api/snake/table/seat', (req, res) => {
     tableSeats.set(tableId, map);
   }
   map.set(String(pid), { id: pid, name: name || String(pid), ts: Date.now() });
+  // Track the user's current table by account id
+  User.updateOne({ accountId: pid }, { currentTableId: tableId }).catch(() => {});
   res.json({ success: true });
 });
 
@@ -188,6 +190,10 @@ app.post('/api/snake/table/unseat', (req, res) => {
   if (map && pid) {
     map.delete(String(pid));
     if (map.size === 0) tableSeats.delete(tableId);
+  }
+  // Clear the table tracking field
+  if (pid) {
+    User.updateOne({ accountId: pid }, { currentTableId: null }).catch(() => {});
   }
   res.json({ success: true });
 });

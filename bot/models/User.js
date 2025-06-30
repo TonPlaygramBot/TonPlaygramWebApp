@@ -65,7 +65,10 @@ const userSchema = new mongoose.Schema({
 
   referralCode: { type: String, unique: true },
 
-  referredBy: { type: String }
+  referredBy: { type: String },
+
+  // Track which game table the user is currently seated at
+  currentTableId: { type: String, default: null }
 
 });
 

@@ -691,8 +691,10 @@ export default function SnakeAndLadder() {
     const colors = shuffle(TOKEN_COLORS).slice(0, aiCount + 1).map(c => c.color);
     setPlayerColors(colors);
 
-    const table = params.get("table") || "snake-4";
+    const storedTable = localStorage.getItem('snakeCurrentTable');
+    const table = params.get("table") || storedTable || "snake-4";
     setTableId(table);
+    localStorage.setItem('snakeCurrentTable', table);
     getSnakeBoard(table)
       .then(({ snakes: snakesObj = {}, ladders: laddersObj = {} }) => {
         const limit = (obj) => {
@@ -739,6 +741,14 @@ export default function SnakeAndLadder() {
   useEffect(() => {
     playersRef.current = mpPlayers;
   }, [mpPlayers]);
+
+  useEffect(() => {
+    if (isMultiplayer) {
+      localStorage.setItem('snakeCurrentTable', tableId);
+    } else {
+      localStorage.removeItem('snakeCurrentTable');
+    }
+  }, [isMultiplayer, tableId]);
 
   useEffect(() => {
     if (!isMultiplayer) return;
@@ -1011,18 +1021,7 @@ export default function SnakeAndLadder() {
     localStorage.setItem(key, JSON.stringify(data));
   }, [ai, pos, aiPositions, currentTurn, diceCells, snakes, ladders, snakeOffsets, ladderOffsets, ranking, gameOver]);
 
-  useEffect(() => {
-    const handleUnload = () => {
-      const key = `snakeGameState_${ai}`;
-      localStorage.removeItem(key);
-    };
-    window.addEventListener('beforeunload', handleUnload);
-    window.addEventListener('pagehide', handleUnload);
-    return () => {
-      window.removeEventListener('beforeunload', handleUnload);
-      window.removeEventListener('pagehide', handleUnload);
-    };
-  }, [ai]);
+
 
   const handleRoll = (values) => {
     setMoving(true);
