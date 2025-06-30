@@ -12,6 +12,14 @@ export function getTelegramId() {
   return 1;
 }
 
+export function getPlayerId() {
+  if (typeof window !== 'undefined') {
+    const aid = localStorage.getItem('accountId');
+    if (aid) return aid;
+  }
+  return getTelegramId();
+}
+
 export function getTelegramUsername() {
   if (typeof window !== 'undefined') {
     const name = window?.Telegram?.WebApp?.initDataUnsafe?.user?.username;

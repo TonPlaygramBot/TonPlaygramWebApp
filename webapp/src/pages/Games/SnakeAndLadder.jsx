@@ -21,7 +21,7 @@ import {
 } from "react-icons/ai";
 import useTelegramBackButton from "../../hooks/useTelegramBackButton.js";
 import { useNavigate } from "react-router-dom";
-import { getTelegramId, getTelegramPhotoUrl } from "../../utils/telegram.js";
+import { getTelegramId, getTelegramPhotoUrl, getPlayerId } from "../../utils/telegram.js";
 import { fetchTelegramInfo, getProfile, deposit, getSnakeBoard, pingOnline } from "../../utils/api.js";
 import { socket } from "../../utils/socket.js";
 import PlayerToken from "../../components/PlayerToken.jsx";
@@ -416,7 +416,7 @@ export default function SnakeAndLadder() {
   }, []);
 
   useEffect(() => {
-    const id = getTelegramId();
+    const id = getPlayerId();
     function ping() {
       pingOnline(id).catch(() => {});
     }
@@ -740,7 +740,7 @@ export default function SnakeAndLadder() {
 
   useEffect(() => {
     if (!isMultiplayer) return;
-    const telegramId = getTelegramId();
+    const telegramId = getPlayerId();
     const name = telegramId.toString();
     const capacity = parseInt(tableId.split('-').pop(), 10) || 0;
     setWaitingForPlayers(true);
@@ -1661,7 +1661,7 @@ export default function SnakeAndLadder() {
       {isMultiplayer && (
         <div className="fixed bottom-24 inset-x-0 flex flex-col items-center z-20">
           {(() => {
-            const myId = getTelegramId();
+            const myId = getPlayerId();
             const myIndex = mpPlayers.findIndex(p => p.id === myId);
             if (currentTurn === myIndex && !moving) {
               return (

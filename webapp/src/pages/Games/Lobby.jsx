@@ -13,7 +13,7 @@ import {
   unseatTable,
   getProfile,
 } from '../../utils/api.js';
-import { getTelegramId } from '../../utils/telegram.js';
+import { getTelegramId, getPlayerId } from '../../utils/telegram.js';
 import { canStartGame } from '../../utils/lobby.js';
 
 export default function Lobby() {
@@ -65,7 +65,7 @@ export default function Lobby() {
   }, [game]);
 
   useEffect(() => {
-    const telegramId = getTelegramId();
+    const telegramId = getPlayerId();
     function ping() {
       pingOnline(telegramId).catch(() => {});
       getOnlineCount()
@@ -79,14 +79,14 @@ export default function Lobby() {
 
   useEffect(() => {
     if (game === 'snake' && table && table.id !== 'single') {
-      const telegramId = getTelegramId();
-      seatTable(telegramId, table.id, playerName).catch(() => {});
+      const playerId = getPlayerId();
+      seatTable(playerId, table.id, playerName).catch(() => {});
       const id = setInterval(() => {
-        seatTable(telegramId, table.id, playerName).catch(() => {});
+        seatTable(playerId, table.id, playerName).catch(() => {});
       }, 30000);
       return () => {
         clearInterval(id);
-        unseatTable(telegramId, table.id).catch(() => {});
+        unseatTable(playerId, table.id).catch(() => {});
       };
     }
   }, [game, table, playerName]);

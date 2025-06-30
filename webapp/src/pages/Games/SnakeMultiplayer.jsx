@@ -4,7 +4,7 @@ import DiceRoller from '../../components/DiceRoller.jsx';
 import useTelegramBackButton from '../../hooks/useTelegramBackButton.js';
 import { socket } from '../../utils/socket.js';
 import { getSnakeBoard, getSnakeLobby, pingOnline } from '../../utils/api.js';
-import { getTelegramId, getTelegramFirstName } from '../../utils/telegram.js';
+import { getTelegramId, getTelegramFirstName, getPlayerId } from '../../utils/telegram.js';
 
 const TOKEN_COLORS = [
   { name: 'blue', color: '#60a5fa' },
@@ -70,7 +70,7 @@ export default function SnakeMultiplayer() {
       })
       .catch(() => {});
 
-    const pid = getTelegramId();
+    const pid = getPlayerId();
     const name = getTelegramFirstName() || String(pid);
     socket.emit('joinRoom', { roomId: room, playerId: pid, name });
 
@@ -84,7 +84,7 @@ export default function SnakeMultiplayer() {
   }, []);
 
   useEffect(() => {
-    const id = getTelegramId();
+    const id = getPlayerId();
     function ping() {
       pingOnline(id).catch(() => {});
     }
