@@ -242,6 +242,10 @@ export function getOnlineCount() {
   return fetch(API_BASE_URL + '/api/online/count').then((r) => r.json());
 }
 
+export function getOnlineUsers() {
+  return fetch(API_BASE_URL + '/api/online/list').then((r) => r.json());
+}
+
 export function registerWallet(walletAddress) {
   return post('/api/profile/register-wallet', { walletAddress });
 }
