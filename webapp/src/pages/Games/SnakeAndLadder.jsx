@@ -524,13 +524,20 @@ export default function SnakeAndLadder() {
     <span style={{ color: playerColors[idx] }}>{getPlayerName(idx)}</span>
   );
 
-  const capturePieces = (cell, mover) => {
+  const capturePieces = (cell, mover, playersList) => {
     const victims = [];
-    if (mover !== 0 && pos === cell) victims.push(0);
-    aiPositions.forEach((p, i) => {
-      const idx = i + 1;
-      if (idx !== mover && p === cell) victims.push(idx);
-    });
+    if (isMultiplayer) {
+      const list = playersList || mpPlayers;
+      list.forEach((pl, i) => {
+        if (i !== mover && pl.position === cell) victims.push({ idx: i, id: pl.id });
+      });
+    } else {
+      if (mover !== 0 && pos === cell) victims.push({ idx: 0 });
+      aiPositions.forEach((p, i) => {
+        const idx = i + 1;
+        if (idx !== mover && p === cell) victims.push({ idx });
+      });
+    }
     if (victims.length && cell > 0) {
       if (!muted) {
         bombSoundRef.current.currentTime = 0;
@@ -545,16 +552,26 @@ export default function SnakeAndLadder() {
           }, 6000);
         }, 1000);
       }
-      victims.forEach((idx) => {
-        setBurning((b) => [...b, idx]);
+      victims.forEach(({ idx, id }) => {
+        setBurning((b) => (b.includes(idx) ? b : [...b, idx]));
         setTimeout(() => {
           setBurning((b) => b.filter((v) => v !== idx));
-          if (idx === 0) setPos(0);
-          else setAiPositions((arr) => {
-            const copy = [...arr];
-            copy[idx - 1] = 0;
-            return copy;
-          });
+          if (isMultiplayer) {
+            setMpPlayers((arr) => {
+              const copy = [...arr];
+              if (copy[idx]) copy[idx].position = 0;
+              return copy;
+            });
+            if (id === getPlayerId()) setPos(0);
+          } else if (idx === 0) {
+            setPos(0);
+          } else {
+            setAiPositions((arr) => {
+              const copy = [...arr];
+              copy[idx - 1] = 0;
+              return copy;
+            });
+          }
         }, 1000);
       });
     }
@@ -770,12 +787,23 @@ export default function SnakeAndLadder() {
       });
     };
     const onMove = ({ playerId, to }) => {
-      setMpPlayers((p) =>
-        p.map((pl) => (pl.id === playerId ? { ...pl, position: to } : pl))
+      const prev = playersRef.current;
+      const updated = prev.map((pl) =>
+        pl.id === playerId ? { ...pl, position: to } : pl
       );
+      setMpPlayers(updated);
+      const moverIdx = updated.findIndex((pl) => pl.id === playerId);
+      capturePieces(to, moverIdx, updated);
       if (playerId === accountId) setPos(to);
     };
     const onReset = ({ playerId }) => {
+      const prev = playersRef.current;
+      const idx = prev.findIndex((pl) => pl.id === playerId);
+      const cell = prev[idx]?.position || 0;
+      if (!burning.includes(idx)) {
+        const captor = prev.findIndex((p, i) => i !== idx && p.position === cell);
+        capturePieces(cell, captor, prev);
+      }
       setMpPlayers((p) =>
         p.map((pl) => (pl.id === playerId ? { ...pl, position: 0 } : pl))
       );
