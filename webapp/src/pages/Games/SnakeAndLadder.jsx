@@ -730,7 +730,6 @@ export default function SnakeAndLadder() {
     const capacity = parseInt(tableId.split('-').pop(), 10) || 0;
     setWaitingForPlayers(true);
     setPlayersNeeded(capacity);
-    socket.emit('joinRoom', { roomId: tableId, playerId: telegramId, name });
 
     const updateNeeded = (players) => {
       setPlayersNeeded(Math.max(0, capacity - players.length));
@@ -789,6 +788,9 @@ export default function SnakeAndLadder() {
     socket.on('gameStarted', onStarted);
     socket.on('diceRolled', onRolled);
     socket.on('gameWon', onWon);
+
+    socket.emit('joinRoom', { roomId: tableId, playerId: telegramId, name });
+
 
     return () => {
       socket.off('playerJoined', onJoined);
