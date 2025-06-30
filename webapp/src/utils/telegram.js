@@ -3,15 +3,10 @@ export function getTelegramId() {
     const tgId = window?.Telegram?.WebApp?.initDataUnsafe?.user?.id;
     if (tgId) {
       localStorage.setItem('telegramId', tgId);
-      sessionStorage.setItem('telegramId', tgId);
       return tgId;
     }
-    const session = sessionStorage.getItem('telegramId');
-    if (session) return Number(session);
-    const id = Math.floor(Math.random() * 1e9);
-    localStorage.setItem('telegramId', id);
-    sessionStorage.setItem('telegramId', id);
-    return id;
+    const stored = localStorage.getItem('telegramId');
+    if (stored) return Number(stored);
   }
   // Fallback for non-Telegram browsers
   return 1;
