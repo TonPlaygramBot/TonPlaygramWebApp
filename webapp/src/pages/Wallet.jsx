@@ -172,7 +172,7 @@ export default function Wallet() {
           TPC Balance:&nbsp;
           {tpcBalance === null ? '...' : formatValue(tpcBalance, 2)}
         </p>
-        <div className="space-y-1 mb-6 text-center">
+        <div className="space-y-1 mb-8 text-center">
           <label className="block">Send TPC</label>
           <input
             type="text"
