@@ -61,7 +61,7 @@ body {
   left: 0;
   right: 0;
   top: -20px;
-  bottom: -20px;
+  bottom: -160px;
   z-index: -1;
   pointer-events: none;
   /* slightly brighter and scaled up */
