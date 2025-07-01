@@ -82,8 +82,8 @@ router.post('/by-account', async (req, res) => {
   if (!accountId) return res.status(400).json({ error: 'accountId required' });
   const user = await User.findOne({ accountId });
   if (!user) return res.status(404).json({ error: 'account not found' });
-  const { nickname, firstName, lastName } = user;
-  res.json({ nickname, firstName, lastName });
+  const { nickname, firstName, lastName, photo } = user;
+  res.json({ nickname, firstName, lastName, photo });
 });
 
 router.post('/update', async (req, res) => {
