@@ -209,12 +209,12 @@ export default function Wallet() {
           <label className="block">Receive TPC</label>
           <button
             onClick={() => navigator.clipboard.writeText(String(accountId))}
-            className="px-3 py-1 mb-6 bg-primary hover:bg-primary-hover text-text rounded"
+            className="mt-2 px-3 py-1 mb-6 bg-primary hover:bg-primary-hover text-text rounded"
           >
             Copy Account Number
           </button>
           {accountId && (
-            <div className="mt-6 flex justify-center">
+            <div className="mt-8 flex justify-center">
               <QRCode value={String(accountId)} size={100} />
             </div>
           )}
