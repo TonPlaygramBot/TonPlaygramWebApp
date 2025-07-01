@@ -110,10 +110,17 @@ export function updateBalance(telegramId, balance) {
 
 }
 
-export function addTransaction(telegramId, amount, type) {
+export function addTransaction(telegramId, amount, type, extra = {}) {
+  return post('/api/profile/addTransaction', {
+    telegramId,
+    amount,
+    type,
+    ...extra,
+  });
+}
 
-  return post('/api/profile/addTransaction', { telegramId, amount, type });
-
+export function getProfileByAccount(accountId) {
+  return post('/api/profile/by-account', { accountId });
 }
 
 export function linkSocial(data) {

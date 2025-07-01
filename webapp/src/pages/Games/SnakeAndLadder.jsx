@@ -22,7 +22,13 @@ import {
 import useTelegramBackButton from "../../hooks/useTelegramBackButton.js";
 import { useNavigate } from "react-router-dom";
 import { getTelegramId, getTelegramPhotoUrl, getPlayerId, ensureAccountId } from "../../utils/telegram.js";
-import { getProfile, depositAccount, getSnakeBoard, pingOnline } from "../../utils/api.js";
+import {
+  getProfile,
+  depositAccount,
+  getSnakeBoard,
+  pingOnline,
+  addTransaction
+} from "../../utils/api.js";
 import { socket } from "../../utils/socket.js";
 import PlayerToken from "../../components/PlayerToken.jsx";
 import AvatarTimer from "../../components/AvatarTimer.jsx";
@@ -872,6 +878,15 @@ export default function SnakeAndLadder() {
     const onWon = ({ playerId }) => {
       setGameOver(true);
       setRanking([playerId === accountId ? myName : playerId]);
+      if (playerId === accountId) {
+        const totalPlayers = isMultiplayer ? mpPlayers.length : ai + 1;
+        const tgId = getTelegramId();
+        addTransaction(tgId, 0, 'win', {
+          game: 'snake',
+          players: totalPlayers,
+          accountId
+        });
+      }
     };
 
     const onCurrentPlayers = (players) => {
