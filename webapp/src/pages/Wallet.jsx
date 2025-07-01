@@ -162,37 +162,36 @@ export default function Wallet() {
         className="background-behind-board object-cover"
         alt=""
       />
-      <h2 className="text-xl font-bold">Wallet</h2>
-      <p className="text-sm">Account #{accountId || '...'}</p>
+      <h2 className="text-xl font-bold text-center">TPC Account Wallet</h2>
+      <p className="text-sm text-center">Account #{accountId || '...'}</p>
 
       {/* TPC account section */}
       <div className="space-y-2 border-b border-border pb-4">
         <h3 className="text-lg font-semibold">TPC Account Wallet</h3>
-        <p className="flex items-center text-lg font-medium mb-3">
+        <p className="flex items-center justify-center text-lg font-medium mb-4">
           <img src="/icons/TPCcoin.png" alt="TPC" className="w-5 h-5 mr-1" />
           TPC Balance:&nbsp;
           {tpcBalance === null ? '...' : formatValue(tpcBalance, 2)}
         </p>
-
-        <div className="space-y-1 mb-4">
+        <div className="space-y-1 mb-4 text-center">
           <label className="block">Send TPC</label>
           <input
             type="text"
             placeholder="Receiver Account Number"
             value={receiver}
             onChange={(e) => setReceiver(e.target.value)}
-            className="border p-1 rounded w-full text-black"
+            className="border p-1 rounded w-full max-w-xs mx-auto text-black"
           />
           <input
             type="number"
             placeholder="Amount"
             value={amount}
             onChange={(e) => setAmount(e.target.value)}
-            className="border p-1 rounded w-full mt-1 text-black"
+            className="border p-1 rounded w-full max-w-xs mx-auto mt-1 text-black"
           />
           <button
             onClick={handleSendClick}
-            className="mt-1 px-3 py-1 bg-primary hover:bg-primary-hover text-text rounded"
+            className="mt-1 mb-4 px-3 py-1 bg-primary hover:bg-primary-hover text-text rounded"
           >
             Send
           </button>
@@ -207,11 +206,11 @@ export default function Wallet() {
           )}
         </div>
 
-        <div className="space-y-1">
+        <div className="space-y-1 text-center">
           <label className="block">Receive TPC</label>
           <button
             onClick={() => navigator.clipboard.writeText(String(accountId))}
-            className="px-3 py-1 bg-primary hover:bg-primary-hover text-text rounded"
+            className="px-3 py-1 mb-4 bg-primary hover:bg-primary-hover text-text rounded"
           >
             Copy Account Number
           </button>
