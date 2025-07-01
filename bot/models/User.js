@@ -6,7 +6,11 @@ const transactionSchema = new mongoose.Schema(
     amount: Number,
     type: { type: String },
     status: { type: String, default: 'delivered' },
-    date: { type: Date, default: Date.now }
+    date: { type: Date, default: Date.now },
+    fromAccount: String,
+    fromName: String,
+    toAccount: String,
+    toName: String
   },
   { _id: false }
 );

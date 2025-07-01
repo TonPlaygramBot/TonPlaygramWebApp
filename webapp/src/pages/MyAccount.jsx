@@ -22,6 +22,8 @@ import AvatarPromptModal from '../components/AvatarPromptModal.jsx';
 import { getAvatarUrl, saveAvatar, loadAvatar } from '../utils/avatarUtils.js';
 import InfoPopup from '../components/InfoPopup.jsx';
 import InboxWidget from '../components/InboxWidget.jsx';
+import TransactionDetailsPopup from '../components/TransactionDetailsPopup.jsx';
+import { AiOutlineCalendar } from 'react-icons/ai';
 
 export default function MyAccount() {
   useTelegramBackButton();
@@ -41,6 +43,9 @@ export default function MyAccount() {
   const [showAvatarPrompt, setShowAvatarPrompt] = useState(false);
   const [showSaved, setShowSaved] = useState(false);
   const timerRef = useRef(null);
+  const [filterDate, setFilterDate] = useState('');
+  const [selectedTx, setSelectedTx] = useState(null);
+  const dateInputRef = useRef(null);
 
   useEffect(() => {
     if (!profile || profile.googleId) return;
@@ -134,6 +139,12 @@ export default function MyAccount() {
   if (!profile) return <div className="p-4 text-subtext">Loading...</div>;
 
   const photoUrl = loadAvatar() || profile.photo || getTelegramPhotoUrl();
+
+  const filteredTransactions = transactions.filter((tx) => {
+    if (!filterDate) return true;
+    const d = new Date(tx.date).toISOString().slice(0, 10);
+    return d === filterDate;
+  });
 
   return (
     <div className="relative p-4 space-y-4 text-text">
@@ -241,17 +252,41 @@ export default function MyAccount() {
       )}
 
       <div>
-        <p className="font-semibold">Transaction History</p>
-        {transactions.length === 0 ? (
+        <div className="flex items-center justify-between mb-1">
+          <p className="font-semibold">Transaction History</p>
+          <div className="flex items-center space-x-1">
+            <input
+              type="date"
+              ref={dateInputRef}
+              value={filterDate}
+              onChange={(e) => setFilterDate(e.target.value)}
+              className="border border-border rounded text-black text-xs px-1"
+            />
+            <AiOutlineCalendar
+              className="w-5 h-5 cursor-pointer"
+              onClick={() => dateInputRef.current?.showPicker && dateInputRef.current.showPicker()}
+            />
+            {filterDate && (
+              <button
+                onClick={() => setFilterDate('')}
+                className="text-xs text-subtext"
+              >
+                Clear
+              </button>
+            )}
+          </div>
+        </div>
+        {filteredTransactions.length === 0 ? (
           <p className="text-sm text-subtext">No transactions</p>
         ) : (
           <div className="space-y-1 text-sm">
-            {transactions.map((tx, i) => (
+            {filteredTransactions.map((tx, i) => (
               <div
                 key={i}
-                className="flex justify-between border-b border-border pb-1"
+                className="flex justify-between border-b border-border pb-1 cursor-pointer hover:bg-white/10"
+                onClick={() => setSelectedTx(tx)}
               >
-                <span>{tx.type}</span>
+                <span className="capitalize">{tx.type}</span>
                 <span className={tx.amount > 0 ? 'text-green-500' : 'text-red-500'}>
                   {tx.amount}
                 </span>
@@ -268,6 +303,7 @@ export default function MyAccount() {
         onClose={() => setShowSaved(false)}
         info="Profile saved"
       />
+      <TransactionDetailsPopup tx={selectedTx} onClose={() => setSelectedTx(null)} />
     </div>
   );
 }
