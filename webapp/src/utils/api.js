@@ -62,10 +62,12 @@ export function claimMining(telegramId) {
 
 }
 
-export function getLeaderboard(telegramId) {
-
-  return post('/api/mining/leaderboard', { telegramId });
-
+export function getLeaderboard(id) {
+  let body;
+  if (typeof id === 'object') body = id;
+  else if (typeof id === 'string' && id.includes('-')) body = { accountId: id };
+  else body = { telegramId: id };
+  return post("/api/mining/leaderboard", body);
 }
 
 export function listTasks(telegramId) {

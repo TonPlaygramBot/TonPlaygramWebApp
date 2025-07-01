@@ -21,9 +21,9 @@ import {
 } from "react-icons/ai";
 import useTelegramBackButton from "../../hooks/useTelegramBackButton.js";
 import { useNavigate } from "react-router-dom";
-import { getTelegramId, getTelegramPhotoUrl, getPlayerId, ensureAccountId } from "../../utils/telegram.js";
+import { getPlayerId, getTelegramId, ensureAccountId } from "../../utils/telegram.js";
 import {
-  getProfile,
+  getProfileByAccount,
   depositAccount,
   getSnakeBoard,
   pingOnline,
@@ -443,7 +443,7 @@ export default function SnakeAndLadder() {
   const [messageColor, setMessageColor] = useState("");
   const [turnMessage, setTurnMessage] = useState("Your turn");
   const [diceVisible, setDiceVisible] = useState(true);
-  const [photoUrl, setPhotoUrl] = useState(loadAvatar() || getTelegramPhotoUrl());
+  const [photoUrl, setPhotoUrl] = useState(loadAvatar() || '');
   const [myName, setMyName] = useState('You');
   const [pot, setPot] = useState(101);
   const [token, setToken] = useState("TPC");
@@ -584,27 +584,20 @@ export default function SnakeAndLadder() {
   const reloadingRef = useRef(false);
 
   useEffect(() => {
-    const id = getTelegramId();
+    const id = getPlayerId();
     const saved = loadAvatar();
     if (saved) {
       setPhotoUrl(saved);
-    } else {
-      getProfile(id)
-        .then((p) => {
-          if (p?.photo) {
-            setPhotoUrl(p.photo);
-            saveAvatar(p.photo);
-          } else {
-            const url = getTelegramPhotoUrl();
-            if (url) setPhotoUrl(url);
-          }
-          setMyName(p?.nickname || `${p?.firstName || ''} ${p?.lastName || ''}`.trim());
-        })
-        .catch(() => {
-          const url = getTelegramPhotoUrl();
-          if (url) setPhotoUrl(url);
-        });
     }
+    getProfileByAccount(id)
+      .then((p) => {
+        if (p?.photo) {
+          setPhotoUrl((prev) => prev || p.photo);
+          saveAvatar(p.photo);
+        }
+        setMyName(p?.nickname || `${p?.firstName || ''} ${p?.lastName || ''}`.trim());
+      })
+      .catch(() => {});
     moveSoundRef.current = new Audio(dropSound);
     snakeSoundRef.current = new Audio(snakeSound);
     oldSnakeSoundRef.current = new Audio(dropSound);
@@ -654,19 +647,18 @@ export default function SnakeAndLadder() {
 
   useEffect(() => {
     const updatePhoto = () => {
-      const id = getTelegramId();
+      const id = getPlayerId();
       const saved = loadAvatar();
       if (saved) {
         setPhotoUrl(saved);
-      } else {
-        getProfile(id)
-          .then((p) => {
-            setPhotoUrl(p?.photo || getTelegramPhotoUrl());
-            if (p?.photo) saveAvatar(p.photo);
-            setMyName(p?.nickname || `${p?.firstName || ''} ${p?.lastName || ''}`.trim());
-          })
-          .catch(() => setPhotoUrl(getTelegramPhotoUrl()));
       }
+      getProfileByAccount(id)
+        .then((p) => {
+          setPhotoUrl((prev) => prev || p?.photo || '');
+          if (p?.photo) saveAvatar(p.photo);
+          setMyName(p?.nickname || `${p?.firstName || ''} ${p?.lastName || ''}`.trim());
+        })
+        .catch(() => {});
     };
     window.addEventListener("profilePhotoUpdated", updatePhoto);
     return () => window.removeEventListener("profilePhotoUpdated", updatePhoto);
@@ -768,15 +760,19 @@ export default function SnakeAndLadder() {
       setPlayersNeeded(Math.max(0, capacity - players.length));
     };
 
-    const onJoined = ({ playerId, name }) => {
-      setMpPlayers((p) => {
-        if (p.some((pl) => pl.id === playerId)) {
-          updateNeeded(p);
-          return p;
-        }
-        const arr = [...p, { id: playerId, name, position: 0 }];
-        updateNeeded(arr);
-        return arr;
+    const onJoined = ({ playerId }) => {
+      getProfileByAccount(playerId).then((prof) => {
+        const name = prof?.nickname || `${prof?.firstName || ''} ${prof?.lastName || ''}`.trim() || `Player`;
+        const photoUrl = prof?.photo || '/assets/icons/profile.svg';
+        setMpPlayers((p) => {
+          if (p.some((pl) => pl.id === playerId)) {
+            updateNeeded(p);
+            return p;
+          }
+          const arr = [...p, { id: playerId, name, photoUrl, position: 0 }];
+          updateNeeded(arr);
+          return arr;
+        });
       });
     };
     const onLeft = ({ playerId }) => {
@@ -890,13 +886,17 @@ export default function SnakeAndLadder() {
     };
 
     const onCurrentPlayers = (players) => {
-      const arr = players.map((p) => ({
-        id: p.playerId,
-        name: p.name,
-        position: p.position || 0,
-      }));
-      setMpPlayers(arr);
-      updateNeeded(arr);
+      Promise.all(
+        players.map(async (p) => {
+          const prof = await getProfileByAccount(p.playerId).catch(() => ({}));
+          const name = prof?.nickname || `${prof?.firstName || ''} ${prof?.lastName || ''}`.trim() || p.name;
+          const photoUrl = prof?.photo || '/assets/icons/profile.svg';
+          return { id: p.playerId, name, photoUrl, position: p.position || 0 };
+        })
+      ).then((arr) => {
+        setMpPlayers(arr);
+        updateNeeded(arr);
+      });
     };
 
     socket.on('playerJoined', onJoined);

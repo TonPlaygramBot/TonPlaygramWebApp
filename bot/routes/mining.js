@@ -46,7 +46,7 @@ router.post('/status', getUser, async (req, res) => {
 });
 
 router.post('/leaderboard', async (req, res) => {
-  const { telegramId } = req.body;
+  const { telegramId, accountId } = req.body || {};
   const users = await User.find()
     .sort({ balance: -1 })
     .limit(100)
@@ -75,8 +75,9 @@ router.post('/leaderboard', async (req, res) => {
   );
 
   let rank = null;
-  if (telegramId) {
-    const user = await User.findOne({ telegramId });
+  const queryId = telegramId ? { telegramId } : accountId ? { accountId } : null;
+  if (queryId) {
+    const user = await User.findOne(queryId);
     if (user) {
       rank = (await User.countDocuments({ balance: { $gt: user.balance } })) + 1;
     }
