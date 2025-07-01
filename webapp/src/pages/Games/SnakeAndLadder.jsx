@@ -1428,21 +1428,29 @@ export default function SnakeAndLadder() {
 
   useEffect(() => {
     if (setupPhase || gameOver || moving) return;
-    if (currentTurn !== 0) {
+
+    const myIndex = isMultiplayer
+      ? mpPlayers.findIndex((p) => p.id === getPlayerId())
+      : 0;
+
+    if (currentTurn !== myIndex) {
       setTimeLeft(15);
       if (timerRef.current) clearInterval(timerRef.current);
       timerRef.current = setInterval(() => {
         setTimeLeft((t) => Math.max(0, t - 1));
       }, 1000);
-      if (aiRollTimeoutRef.current) clearTimeout(aiRollTimeoutRef.current);
-      aiRollTimeoutRef.current = setTimeout(() => {
-        triggerAIRoll(currentTurn);
-      }, 2000);
+      if (!isMultiplayer) {
+        if (aiRollTimeoutRef.current) clearTimeout(aiRollTimeoutRef.current);
+        aiRollTimeoutRef.current = setTimeout(() => {
+          triggerAIRoll(currentTurn);
+        }, 2000);
+      }
       return () => {
         clearInterval(timerRef.current);
         clearTimeout(aiRollTimeoutRef.current);
       };
     }
+
     const limit = 15;
     setTimeLeft(limit);
     if (timerRef.current) clearInterval(timerRef.current);
@@ -1450,7 +1458,7 @@ export default function SnakeAndLadder() {
     timerRef.current = setInterval(() => {
       setTimeLeft((t) => {
         const next = t - 1;
-        if (currentTurn === 0 && next <= 7 && next >= 0 && timerSoundRef.current) {
+        if (next <= 7 && next >= 0 && timerSoundRef.current) {
           timerSoundRef.current.currentTime = 0;
           if (!muted) timerSoundRef.current.play().catch(() => {});
         }
@@ -1468,7 +1476,7 @@ export default function SnakeAndLadder() {
       clearInterval(timerRef.current);
       timerSoundRef.current?.pause();
     };
-  }, [currentTurn, setupPhase, gameOver, refreshTick, moving]);
+  }, [currentTurn, setupPhase, gameOver, refreshTick, moving, isMultiplayer, mpPlayers]);
 
   // Periodically refresh the component state to avoid freezes
   useEffect(() => {
@@ -1543,6 +1551,7 @@ export default function SnakeAndLadder() {
                   ? timeLeft / 15
                   : 1
               }
+              secondsLeft={p.index === currentTurn ? timeLeft : undefined}
               color={p.color}
             />
           ))}
