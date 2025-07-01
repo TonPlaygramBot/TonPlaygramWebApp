@@ -78,6 +78,7 @@ router.post('/send', async (req, res) => {
   const senderTx = {
     amount: -amount,
     type: 'send',
+    token: 'TPC',
     status: 'delivered',
     date: txDate,
     toAccount: toAccount,
@@ -86,6 +87,7 @@ router.post('/send', async (req, res) => {
   const receiverTx = {
     amount,
     type: 'receive',
+    token: 'TPC',
     status: 'delivered',
     date: txDate,
     fromAccount: fromAccount,
@@ -135,7 +137,13 @@ router.post('/deposit', authenticate, async (req, res) => {
   }
   ensureTransactionArray(user);
   user.balance += amount;
-  const tx = { amount, type: 'deposit', status: 'delivered', date: new Date() };
+  const tx = {
+    amount,
+    type: 'deposit',
+    token: 'TPC',
+    status: 'delivered',
+    date: new Date()
+  };
   user.transactions.push(tx);
   await user.save();
 

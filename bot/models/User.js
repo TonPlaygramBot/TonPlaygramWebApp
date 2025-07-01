@@ -5,6 +5,7 @@ const transactionSchema = new mongoose.Schema(
   {
     amount: Number,
     type: { type: String },
+    token: { type: String, default: 'TPC' },
     status: { type: String, default: 'delivered' },
     date: { type: Date, default: Date.now },
     fromAccount: String,
