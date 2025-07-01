@@ -11,6 +11,7 @@ import ConfirmPopup from '../components/ConfirmPopup.jsx';
 import InfoPopup from '../components/InfoPopup.jsx';
 import TransactionDetailsPopup from '../components/TransactionDetailsPopup.jsx';
 import { AiOutlineCalendar } from 'react-icons/ai';
+import { FiCopy } from 'react-icons/fi';
 import useTelegramBackButton from '../hooks/useTelegramBackButton.js';
 
 export default function Wallet() {
@@ -254,20 +255,42 @@ export default function Wallet() {
           </div>
         </div>
         <div className="space-y-1 text-sm">
-          {sortedTransactions.map((tx, i) => (
-            <div
-              key={i}
-              className="flex justify-between border-b border-border pb-1 cursor-pointer hover:bg-white/10"
-              onClick={() => setSelectedTx(tx)}
-            >
-              <span className="capitalize">{tx.type}</span>
-              <span className={tx.amount > 0 ? 'text-green-500' : 'text-red-500'}>
-                {tx.amount} {(tx.token || 'TPC').toUpperCase()}
-              </span>
-              <span>{new Date(tx.date).toLocaleString()}</span>
-              <span className="text-xs">{tx.status}</span>
-            </div>
-          ))}
+          {sortedTransactions.map((tx, i) => {
+            const isSend = tx.type === 'send';
+            const account = isSend ? tx.toAccount : tx.fromAccount;
+            const name = isSend ? tx.toName : tx.fromName;
+            return (
+              <div
+                key={i}
+                className="flex justify-between border-b border-border pb-1 cursor-pointer hover:bg-white/10"
+                onClick={() => setSelectedTx(tx)}
+              >
+                <span className="capitalize flex items-center space-x-1">
+                  <span>
+                    {isSend ? 'To' : tx.type === 'receive' ? 'From' : tx.type}
+                    {account && (isSend || tx.type === 'receive') ? ':' : ''}
+                  </span>
+                  {(isSend || tx.type === 'receive') && account && (
+                    <>
+                      <span>{name || account}</span>
+                      <FiCopy
+                        className="w-3 h-3 cursor-pointer"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          navigator.clipboard.writeText(String(account));
+                        }}
+                      />
+                    </>
+                  )}
+                </span>
+                <span className={tx.amount > 0 ? 'text-green-500' : 'text-red-500'}>
+                  {tx.amount} {(tx.token || 'TPC').toUpperCase()}
+                </span>
+                <span>{new Date(tx.date).toLocaleString()}</span>
+                <span className="text-xs">{tx.status}</span>
+              </div>
+            );
+          })}
         </div>
       </div>
 
