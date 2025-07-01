@@ -51,6 +51,7 @@ export default function Wallet() {
   const [filterUser, setFilterUser] = useState('');
   const [sortOrder, setSortOrder] = useState('desc');
   const [selectedTx, setSelectedTx] = useState(null);
+  const [page, setPage] = useState(1);
   const dateInputRef = useRef(null);
 
   const txTypes = Array.from(new Set(transactions.map((t) => t.type))).filter(
@@ -152,6 +153,17 @@ export default function Wallet() {
       : new Date(a.date) - new Date(b.date)
   );
 
+  const txPerPage = 20;
+  const totalPages = Math.max(1, Math.ceil(sortedTransactions.length / txPerPage));
+  const paginatedTransactions = sortedTransactions.slice(
+    (page - 1) * txPerPage,
+    page * txPerPage
+  );
+
+  useEffect(() => {
+    setPage(1);
+  }, [filterDate, filterType, filterUser, sortOrder, transactions.length]);
+
 
 
 
@@ -159,7 +171,7 @@ export default function Wallet() {
     <div className="relative p-4 space-y-4 text-text">
       <img
         src="/assets/SnakeLaddersbackground.png"
-        className="background-behind-board object-cover"
+        className="background-behind-board friend-background object-cover"
         alt=""
       />
       <h2 className="text-xl font-bold text-center">TPC Account Wallet</h2>
@@ -168,7 +180,7 @@ export default function Wallet() {
       {/* TPC account section */}
       <div className="space-y-2 border-b border-border pb-4">
         <p className="flex items-center justify-center text-lg font-medium mb-4">
-          <img src="/icons/TPCcoin.png" alt="TPC" className="w-5 h-5 mr-1" />
+          <img src="/icons/TPCcoin.png" alt="TPC" className="w-6 h-6 mr-1" />
           TPC Balance:&nbsp;
           {tpcBalance === null ? '...' : formatValue(tpcBalance, 2)}
         </p>
@@ -276,7 +288,7 @@ export default function Wallet() {
           </div>
         </div>
         <div className="space-y-1 text-sm">
-          {sortedTransactions.map((tx, i) => (
+          {paginatedTransactions.map((tx, i) => (
             <div
               key={i}
               className="lobby-tile w-full flex justify-between items-center cursor-pointer"
@@ -291,6 +303,21 @@ export default function Wallet() {
             </div>
           ))}
         </div>
+        {totalPages > 1 && (
+          <div className="flex justify-center space-x-1 mt-2">
+            {Array.from({ length: totalPages }, (_, idx) => (
+              <button
+                key={idx}
+                onClick={() => setPage(idx + 1)}
+                className={`px-2 py-1 border border-border rounded text-xs ${
+                  page === idx + 1 ? 'bg-primary text-text' : 'bg-surface'
+                }`}
+              >
+                {idx + 1}
+              </button>
+            ))}
+          </div>
+        )}
       </div>
 
       <ConfirmPopup
