@@ -5,6 +5,7 @@ import User from '../models/User.js';
 import Airdrop from '../models/Airdrop.js';
 
 import { ensureTransactionArray } from '../utils/userUtils.js';
+import bot from '../bot.js';
 
 const router = Router();
 
@@ -86,6 +87,15 @@ router.post('/grant', adminOnly, async (req, res) => {
 
     await Airdrop.create({ telegramId, amount, reason });
 
+    try {
+      await bot.telegram.sendMessage(
+        String(telegramId),
+        `You received an airdrop of ${amount} TPC`
+      );
+    } catch (err) {
+      console.error('Failed to send Telegram notification:', err.message);
+    }
+
     res.json({ balance: user.balance });
 
   } catch (err) {
@@ -121,6 +131,16 @@ router.post('/grant-all', adminOnly, async (req, res) => {
       });
       await user.save();
       await Airdrop.create({ telegramId: user.telegramId, amount, reason });
+      if (user.telegramId) {
+        try {
+          await bot.telegram.sendMessage(
+            String(user.telegramId),
+            `You received an airdrop of ${amount} TPC`
+          );
+        } catch (err) {
+          console.error('Failed to send Telegram notification:', err.message);
+        }
+      }
       count++;
     }
     res.json({ count });

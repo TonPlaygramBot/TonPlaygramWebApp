@@ -316,50 +316,55 @@ io.on('connection', (socket) => {
     await gameManager.rollDice(socket);
   });
 
-  socket.on('invite1v1', ({ fromId, fromName, toId, roomId, token, amount }, cb) => {
+  socket.on('invite1v1', async ({ fromId, fromName, toId, roomId, token, amount }, cb) => {
     if (!fromId || !toId) return cb && cb({ success: false, error: 'invalid ids' });
-    const ts = onlineUsers.get(String(toId));
-    if (!ts || Date.now() - ts > 60_000) {
-      return cb && cb({ success: false, error: 'User offline' });
-    }
+
     const targets = userSockets.get(String(toId));
-    if (!targets || targets.size === 0) {
-      return cb && cb({ success: false, error: 'User offline' });
+    if (targets && targets.size > 0) {
+      for (const sid of targets) {
+        io.to(sid).emit('gameInvite', { fromId, fromName, roomId, token, amount });
+      }
     }
-    for (const sid of targets) {
-      io.to(sid).emit('gameInvite', { fromId, fromName, roomId, token, amount });
+    try {
+      await bot.telegram.sendMessage(
+        String(toId),
+        `${fromName || fromId} invited you to a game`
+      );
+    } catch (err) {
+      console.error('Failed to send Telegram notification:', err.message);
     }
     cb && cb({ success: true });
   });
 
   socket.on(
     'inviteGroup',
-    ({ fromId, fromName, toIds, opponentNames = [], roomId, token, amount }, cb) => {
+    async ({ fromId, fromName, toIds, opponentNames = [], roomId, token, amount }, cb) => {
       if (!fromId || !Array.isArray(toIds) || toIds.length === 0) {
         return cb && cb({ success: false, error: 'invalid ids' });
       }
-      const offline = [];
       for (const toId of toIds) {
-        const ts = onlineUsers.get(String(toId));
         const targets = userSockets.get(String(toId));
-        if (!ts || Date.now() - ts > 60_000 || !targets || targets.size === 0) {
-          offline.push(toId);
-          continue;
+        if (targets && targets.size > 0) {
+          for (const sid of targets) {
+            io.to(sid).emit('gameInvite', {
+              fromId,
+              fromName,
+              roomId,
+              token,
+              amount,
+              group: toIds,
+              opponentNames,
+            });
+          }
         }
-        for (const sid of targets) {
-          io.to(sid).emit('gameInvite', {
-            fromId,
-            fromName,
-            roomId,
-            token,
-            amount,
-            group: toIds,
-            opponentNames,
-          });
+        try {
+          await bot.telegram.sendMessage(
+            String(toId),
+            `${fromName || fromId} invited you to a group game`
+          );
+        } catch (err) {
+          console.error('Failed to send Telegram notification:', err.message);
         }
-      }
-      if (offline.length > 0) {
-        return cb && cb({ success: false, error: 'Some users offline' });
       }
       cb && cb({ success: true });
     },
