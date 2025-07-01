@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { FiCopy } from 'react-icons/fi';
-import { getProfileByAccount } from '../utils/api.js';
+import { getLeaderboard } from '../utils/api.js';
 import { getAvatarUrl } from '../utils/avatarUtils.js';
 
 export default function TransactionDetailsPopup({ tx, onClose }) {
@@ -9,17 +9,11 @@ export default function TransactionDetailsPopup({ tx, onClose }) {
 
   useEffect(() => {
     if (!tx) return;
-    const account = tx.type === 'send' ? tx.toAccount : tx.fromAccount;
-    if (!account) {
-      setCounterparty(null);
-      return;
-    }
-    getProfileByAccount(account).then((data) => {
-      if (data && !data.error) {
-        setCounterparty(data);
-      } else {
-        setCounterparty(null);
-      }
+    getLeaderboard().then((data) => {
+      const users = data?.users || [];
+      const account = tx.type === 'send' ? tx.toAccount : tx.fromAccount;
+      const profile = users.find((u) => u.accountId === account);
+      setCounterparty(profile || null);
     });
   }, [tx]);
 
