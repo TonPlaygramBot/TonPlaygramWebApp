@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { getProfileByAccount } from '../utils/api.js';
+import { getLeaderboard } from '../utils/api.js';
 import { getAvatarUrl } from '../utils/avatarUtils.js';
 
 export default function TransactionDetailsPopup({ tx, onClose }) {
@@ -9,23 +9,26 @@ export default function TransactionDetailsPopup({ tx, onClose }) {
   const [otherName, setOtherName] = useState('');
   useEffect(() => {
     if (!tx) return;
-    if (tx.fromAccount) {
-      getProfileByAccount(tx.fromAccount).then((p) => {
+    getLeaderboard().then((data) => {
+      const users = data?.users || [];
+      if (tx.fromAccount) {
+        const p = users.find((u) => u.accountId === tx.fromAccount);
         setFromProfile(p || null);
         if (!tx.fromName && p && (p.nickname || p.firstName || p.lastName)) {
           setOtherName(
             p.nickname || `${p.firstName || ''} ${p.lastName || ''}`.trim()
           );
         }
-      });
-    } else {
-      setFromProfile(null);
-    }
-    if (tx.toAccount) {
-      getProfileByAccount(tx.toAccount).then((p) => setToProfile(p || null));
-    } else {
-      setToProfile(null);
-    }
+      } else {
+        setFromProfile(null);
+      }
+      if (tx.toAccount) {
+        const p = users.find((u) => u.accountId === tx.toAccount);
+        setToProfile(p || null);
+      } else {
+        setToProfile(null);
+      }
+    });
   }, [tx]);
   if (!tx) return null;
   return createPortal(
@@ -38,6 +41,22 @@ export default function TransactionDetailsPopup({ tx, onClose }) {
           &times;
         </button>
         <h3 className="text-lg font-bold text-center capitalize">{tx.type} details</h3>
+        {(tx.type === 'send' || tx.type === 'receive') && (
+          <p className="text-sm text-center">
+            {tx.type === 'send' ? 'Sent' : 'Received'}{' '}
+            {Math.abs(tx.amount)} TPC{' '}
+            <img src="/icons/tpc.svg" alt="tpc" className="inline w-4 h-4" /> on{' '}
+            {new Date(tx.date).toLocaleDateString()} {' '}
+            {tx.type === 'send' ? 'to' : 'from'} account {tx.type === 'send' ? tx.toAccount : tx.fromAccount}{' '}
+            {(tx.type === 'send' ? toProfile : fromProfile) && (
+              <>
+                {' '}belonging to{' '}
+                {(tx.type === 'send' ? toProfile : fromProfile).nickname ||
+                  `${(tx.type === 'send' ? toProfile : fromProfile).firstName || ''} ${(tx.type === 'send' ? toProfile : fromProfile).lastName || ''}`.trim()}
+              </>
+            )}
+          </p>
+        )}
         <div className="text-sm space-y-2">
           <div className="flex justify-between"><span>Amount:</span><span className={tx.amount >= 0 ? 'text-green-500' : 'text-red-500'}>{tx.amount}</span></div>
           {tx.fromAccount && (
