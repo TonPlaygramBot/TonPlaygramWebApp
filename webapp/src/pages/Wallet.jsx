@@ -174,7 +174,7 @@ export default function Wallet() {
           TPC Balance:&nbsp;
           {tpcBalance === null ? '...' : formatValue(tpcBalance, 2)}
         </p>
-        <div className="prism-box p-4 space-y-2 text-center mb-4">
+        <div className="prism-box p-6 space-y-3 text-center mb-4 flex flex-col items-center w-80 mx-auto">
           <label className="block font-semibold">Send TPC</label>
           <input
             type="text"
@@ -207,7 +207,7 @@ export default function Wallet() {
           )}
         </div>
 
-        <div className="prism-box p-4 space-y-2 text-center mt-4 mb-4">
+        <div className="prism-box p-6 space-y-3 text-center mt-4 mb-4 flex flex-col items-center w-80 mx-auto">
           <label className="block font-semibold">Receive TPC</label>
           <button
             onClick={() => navigator.clipboard.writeText(String(accountId))}
