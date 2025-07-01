@@ -159,18 +159,8 @@ export default function Wallet() {
 
   return (
     <div className="relative p-4 space-y-4 text-text">
-      <img
-        src="/assets/SnakeLaddersbackground.png"
-        className="background-behind-board friend-background object-cover"
-        alt=""
-      />
-      <img
-        src="/assets/SnakeLaddersbackground.png"
-        className="background-behind-board friend-background flip-vertical object-cover"
-        alt=""
-      />
       <h2 className="text-xl font-bold text-center">TPC Account Wallet</h2>
-      <div className="prism-box p-4 space-y-2 text-center w-80 mx-auto">
+      <div className="prism-box p-4 space-y-2 text-center w-96 mx-auto bg-[#2d5c66] border-[#334155]">
         <p className="text-sm break-all">Account #{accountId || '...'}</p>
         <p className="flex items-center justify-center text-lg font-medium">
           <img src="/icons/TPCcoin.png" alt="TPC" className="w-8 h-8 mr-1" />
@@ -181,7 +171,7 @@ export default function Wallet() {
 
       {/* TPC account section */}
       <div className="space-y-2 border-b border-border pb-4">
-        <div className="prism-box p-6 space-y-3 text-center mb-4 flex flex-col items-center w-80 mx-auto">
+        <div className="prism-box p-6 space-y-3 text-center mb-4 flex flex-col items-center w-80 mx-auto bg-[#2d5c66] border-[#334155]">
           <label className="block font-semibold">Send TPC</label>
           <input
             type="text"
@@ -214,7 +204,7 @@ export default function Wallet() {
           )}
         </div>
 
-        <div className="prism-box p-6 space-y-3 text-center mt-4 mb-4 flex flex-col items-center w-80 mx-auto">
+        <div className="prism-box p-6 space-y-3 text-center mt-4 mb-4 flex flex-col items-center w-80 mx-auto bg-[#2d5c66] border-[#334155]">
           <label className="block font-semibold">Receive TPC</label>
           <button
             onClick={() => navigator.clipboard.writeText(String(accountId))}
@@ -231,7 +221,7 @@ export default function Wallet() {
       </div>
 
 
-      <div className="prism-box p-4 space-y-2 text-center mt-4 flex flex-col items-center w-80 mx-auto">
+      <div className="prism-box p-4 space-y-2 text-center mt-4 flex flex-col items-center w-80 mx-auto bg-[#2d5c66] border-[#334155]">
         <h3 className="font-semibold text-center">Transactions</h3>
         <div className="flex items-center justify-center">
           <div className="flex items-center space-x-1 flex-wrap justify-center">
