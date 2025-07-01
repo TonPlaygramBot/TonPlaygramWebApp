@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { FiCopy } from 'react-icons/fi';
-import { getLeaderboard } from '../utils/api.js';
+import { getProfile, getProfileByAccount } from '../utils/api.js';
 import { getAvatarUrl } from '../utils/avatarUtils.js';
 
 export default function TransactionDetailsPopup({ tx, onClose }) {
@@ -9,12 +9,25 @@ export default function TransactionDetailsPopup({ tx, onClose }) {
 
   useEffect(() => {
     if (!tx) return;
-    getLeaderboard().then((data) => {
-      const users = data?.users || [];
-      const account = tx.type === 'send' ? tx.toAccount : tx.fromAccount;
-      const profile = users.find((u) => u.accountId === account);
-      setCounterparty(profile || null);
-    });
+    const account = tx.type === 'send' ? tx.toAccount : tx.fromAccount;
+    if (!account) {
+      setCounterparty(null);
+      return;
+    }
+    const fetchProfile = async () => {
+      try {
+        let prof;
+        if (String(account).includes('-')) {
+          prof = await getProfileByAccount(account);
+        } else {
+          prof = await getProfile(account);
+        }
+        setCounterparty(prof?.error ? null : prof);
+      } catch {
+        setCounterparty(null);
+      }
+    };
+    fetchProfile();
   }, [tx]);
 
   if (!tx) return null;
