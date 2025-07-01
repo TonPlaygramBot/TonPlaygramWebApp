@@ -4,12 +4,14 @@ import {
   createAccount,
   getAccountBalance,
   sendAccountTpc,
-  getAccountTransactions
+  getAccountTransactions,
+  getLeaderboard
 } from '../utils/api.js';
 import { getTelegramId } from '../utils/telegram.js';
 import ConfirmPopup from '../components/ConfirmPopup.jsx';
 import InfoPopup from '../components/InfoPopup.jsx';
 import TransactionDetailsPopup from '../components/TransactionDetailsPopup.jsx';
+import TransactionCard from '../components/TransactionCard.jsx';
 import { AiOutlineCalendar } from 'react-icons/ai';
 import useTelegramBackButton from '../hooks/useTelegramBackButton.js';
 
@@ -36,6 +38,7 @@ export default function Wallet() {
   const [filterUser, setFilterUser] = useState('');
   const [sortOrder, setSortOrder] = useState('desc');
   const [selectedTx, setSelectedTx] = useState(null);
+  const [users, setUsers] = useState([]);
   const dateInputRef = useRef(null);
 
   const txTypes = Array.from(new Set(transactions.map((t) => t.type))).filter(
@@ -74,6 +77,8 @@ export default function Wallet() {
       if (id) {
         const txRes = await getAccountTransactions(id);
         setTransactions(txRes.transactions || []);
+        const lb = await getLeaderboard();
+        setUsers(lb?.users || []);
       }
     });
   }, []);
@@ -125,9 +130,19 @@ export default function Wallet() {
     if (filterType && tx.type !== filterType) return false;
     if (filterUser) {
       const q = filterUser.toLowerCase();
-      const name = (tx.fromName || tx.toName || '').toLowerCase();
       const account = tx.fromAccount || tx.toAccount || '';
-      if (!name.includes(q) && !String(account).includes(q)) return false;
+      const name = (tx.fromName || tx.toName || '').toLowerCase();
+      const prof = users.find((u) => u.accountId === account);
+      const lbName = prof
+        ? (prof.nickname || `${prof.firstName || ''} ${prof.lastName || ''}`)
+            .toLowerCase()
+        : '';
+      if (
+        !name.includes(q) &&
+        !lbName.includes(q) &&
+        !String(account).includes(q)
+      )
+        return false;
     }
     return true;
   });
@@ -254,20 +269,18 @@ export default function Wallet() {
           </div>
         </div>
         <div className="space-y-1 text-sm">
-          {sortedTransactions.map((tx, i) => (
-            <div
-              key={i}
-              className="flex justify-between border-b border-border pb-1 cursor-pointer hover:bg-white/10"
-              onClick={() => setSelectedTx(tx)}
-            >
-              <span className="capitalize">{tx.type}</span>
-              <span className={tx.amount > 0 ? 'text-green-500' : 'text-red-500'}>
-                {tx.amount}
-              </span>
-              <span>{new Date(tx.date).toLocaleString()}</span>
-              <span className="text-xs">{tx.status}</span>
-            </div>
-          ))}
+          {sortedTransactions.map((tx, i) => {
+            const acc = tx.type === 'send' ? tx.toAccount : tx.fromAccount;
+            const prof = users.find((u) => u.accountId === acc);
+            return (
+              <TransactionCard
+                key={i}
+                tx={tx}
+                profile={prof}
+                onClick={() => setSelectedTx(tx)}
+              />
+            );
+          })}
         </div>
       </div>
 

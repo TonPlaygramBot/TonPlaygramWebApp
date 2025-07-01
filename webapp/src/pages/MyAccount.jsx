@@ -5,7 +5,8 @@ import {
   fetchTelegramInfo,
   getReferralInfo,
   getTransactions,
-  linkGoogleAccount
+  linkGoogleAccount,
+  getLeaderboard
 } from '../utils/api.js';
 import {
   getTelegramId,
@@ -23,6 +24,7 @@ import { getAvatarUrl, saveAvatar, loadAvatar } from '../utils/avatarUtils.js';
 import InfoPopup from '../components/InfoPopup.jsx';
 import InboxWidget from '../components/InboxWidget.jsx';
 import TransactionDetailsPopup from '../components/TransactionDetailsPopup.jsx';
+import TransactionCard from '../components/TransactionCard.jsx';
 import { AiOutlineCalendar } from 'react-icons/ai';
 
 export default function MyAccount() {
@@ -46,6 +48,7 @@ export default function MyAccount() {
   const [filterDate, setFilterDate] = useState('');
   const [sortOrder, setSortOrder] = useState('desc');
   const [selectedTx, setSelectedTx] = useState(null);
+  const [users, setUsers] = useState([]);
   const dateInputRef = useRef(null);
 
   useEffect(() => {
@@ -88,6 +91,8 @@ export default function MyAccount() {
       setReferral(ref);
       const tx = await getTransactions(telegramId);
       setTransactions(tx.transactions || []);
+      const lb = await getLeaderboard();
+      setUsers(lb?.users || []);
 
       if (!data.photo || !data.firstName || !data.lastName) {
         setAutoUpdating(true);
@@ -294,20 +299,18 @@ export default function MyAccount() {
           <p className="text-sm text-subtext">No transactions</p>
         ) : (
           <div className="space-y-1 text-sm">
-            {sortedTransactions.map((tx, i) => (
-              <div
-                key={i}
-                className="flex justify-between border-b border-border pb-1 cursor-pointer hover:bg-white/10"
-                onClick={() => setSelectedTx(tx)}
-              >
-                <span className="capitalize">{tx.type}</span>
-                <span className={tx.amount > 0 ? 'text-green-500' : 'text-red-500'}>
-                  {tx.amount}
-                </span>
-                <span>{new Date(tx.date).toLocaleString()}</span>
-                <span className="text-xs">{tx.status}</span>
-              </div>
-            ))}
+            {sortedTransactions.map((tx, i) => {
+              const acc = tx.type === 'send' ? tx.toAccount : tx.fromAccount;
+              const prof = users.find((u) => u.accountId === acc);
+              return (
+                <TransactionCard
+                  key={i}
+                  tx={tx}
+                  profile={prof}
+                  onClick={() => setSelectedTx(tx)}
+                />
+              );
+            })}
           </div>
         )}
       </div>
