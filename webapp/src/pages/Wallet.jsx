@@ -13,6 +13,21 @@ import TransactionDetailsPopup from '../components/TransactionDetailsPopup.jsx';
 import { AiOutlineCalendar } from 'react-icons/ai';
 import useTelegramBackButton from '../hooks/useTelegramBackButton.js';
 
+function formatValue(value, decimals = 2) {
+  if (typeof value !== 'number') {
+    const parsed = parseFloat(value);
+    if (isNaN(parsed)) return value;
+    return parsed.toLocaleString(undefined, {
+      minimumFractionDigits: decimals,
+      maximumFractionDigits: decimals,
+    });
+  }
+  return value.toLocaleString(undefined, {
+    minimumFractionDigits: decimals,
+    maximumFractionDigits: decimals,
+  });
+}
+
 export default function Wallet() {
   useTelegramBackButton();
   let telegramId;
@@ -153,9 +168,13 @@ export default function Wallet() {
       {/* TPC account section */}
       <div className="space-y-2 border-b border-border pb-4">
         <h3 className="text-lg font-semibold">TPC Account Wallet</h3>
-        <p>TPC Balance: {tpcBalance === null ? '...' : tpcBalance}</p>
+        <p className="flex items-center text-lg font-medium mb-3">
+          <img src="/icons/TPCcoin.png" alt="TPC" className="w-5 h-5 mr-1" />
+          TPC Balance:&nbsp;
+          {tpcBalance === null ? '...' : formatValue(tpcBalance, 2)}
+        </p>
 
-        <div className="space-y-1">
+        <div className="space-y-1 mb-4">
           <label className="block">Send TPC</label>
           <input
             type="text"
@@ -197,7 +216,7 @@ export default function Wallet() {
             Copy Account Number
           </button>
           {accountId && (
-            <div className="mt-2 flex justify-center">
+            <div className="mt-4 flex justify-center">
               <QRCode value={String(accountId)} size={100} />
             </div>
           )}
@@ -206,9 +225,9 @@ export default function Wallet() {
 
 
       <div className="mt-4">
-        <div className="flex items-center justify-between mb-1">
-          <h3 className="font-semibold">Transactions</h3>
-          <div className="flex items-center space-x-1 flex-wrap">
+        <h3 className="font-semibold text-center mb-2">Transactions</h3>
+        <div className="flex items-center justify-center mb-1">
+          <div className="flex items-center space-x-1 flex-wrap justify-center">
             <input
               type="date"
               ref={dateInputRef}
