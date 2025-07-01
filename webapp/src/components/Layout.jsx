@@ -45,6 +45,7 @@ export default function Layout({ children }) {
   const isTasks = location.pathname === '/tasks';
   const isStore = location.pathname === '/store';
   const isAccount = location.pathname === '/account';
+  const isWallet = location.pathname === '/wallet';
   const isGamesRoot = location.pathname === '/games';
 
   const showBranding = isGamesRoot || !location.pathname.startsWith('/games');
@@ -68,8 +69,8 @@ export default function Layout({ children }) {
       <main className={`flex-grow container mx-auto p-4 ${showNavbar ? 'pb-24' : ''}`.trim()}>
 
         {showBranding && (
-          <Branding
-            scale={isFriends || isTasks || isStore || isAccount || isGamesRoot ? 1.2 : 1}
+        <Branding
+            scale={isFriends || isTasks || isStore || isAccount || isGamesRoot || isWallet ? 1.2 : 1}
             offsetY={isFriends ? '0.5rem' : 0}
           />
         )}
