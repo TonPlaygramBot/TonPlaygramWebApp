@@ -77,6 +77,15 @@ router.post('/get', async (req, res) => {
   res.json({ ...user.toObject(), filledFromTelegram });
 });
 
+router.post('/by-account', async (req, res) => {
+  const { accountId } = req.body;
+  if (!accountId) return res.status(400).json({ error: 'accountId required' });
+  const user = await User.findOne({ accountId });
+  if (!user) return res.status(404).json({ error: 'account not found' });
+  const { nickname, firstName, lastName } = user;
+  res.json({ nickname, firstName, lastName });
+});
+
 router.post('/update', async (req, res) => {
   const { telegramId, nickname, photo, bio, firstName, lastName } = req.body;
   if (!telegramId) return res.status(400).json({ error: 'telegramId required' });
@@ -110,16 +119,27 @@ router.post('/updateBalance', async (req, res) => {
 });
 
 router.post('/addTransaction', async (req, res) => {
-  const { telegramId, amount, type } = req.body;
-  if (!telegramId || amount === undefined || !type) {
-    return res.status(400).json({ error: 'telegramId, amount and type required' });
+  const { telegramId, accountId, amount, type, game, players } = req.body;
+  if ((!telegramId && !accountId) || amount === undefined || !type) {
+    return res
+      .status(400)
+      .json({ error: 'telegramId or accountId, amount and type required' });
   }
-  let user = await User.findOne({ telegramId });
+  let user = null;
+  if (telegramId) user = await User.findOne({ telegramId });
+  if (!user && accountId) user = await User.findOne({ accountId });
   if (!user) {
-    user = new User({ telegramId, referralCode: telegramId.toString() });
+    user = new User({
+      telegramId,
+      accountId,
+      referralCode: String(telegramId || accountId)
+    });
   }
   ensureTransactionArray(user);
-  user.transactions.push({ amount, type, date: new Date() });
+  const tx = { amount, type, date: new Date() };
+  if (game) tx.game = game;
+  if (players) tx.players = players;
+  user.transactions.push(tx);
   await user.save();
   res.json({ transactions: user.transactions });
 });

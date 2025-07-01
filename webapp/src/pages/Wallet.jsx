@@ -32,8 +32,14 @@ export default function Wallet() {
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
   const [filterDate, setFilterDate] = useState('');
+  const [filterType, setFilterType] = useState('');
+  const [filterUser, setFilterUser] = useState('');
   const [selectedTx, setSelectedTx] = useState(null);
   const dateInputRef = useRef(null);
+
+  const txTypes = Array.from(new Set(transactions.map((t) => t.type))).filter(
+    Boolean
+  );
 
 
   const loadBalances = async () => {
@@ -117,9 +123,18 @@ export default function Wallet() {
   };
 
   const filteredTransactions = transactions.filter((tx) => {
-    if (!filterDate) return true;
-    const d = new Date(tx.date).toISOString().slice(0, 10);
-    return d === filterDate;
+    if (filterDate) {
+      const d = new Date(tx.date).toISOString().slice(0, 10);
+      if (d !== filterDate) return false;
+    }
+    if (filterType && tx.type !== filterType) return false;
+    if (filterUser) {
+      const q = filterUser.toLowerCase();
+      const name = (tx.fromName || tx.toName || '').toLowerCase();
+      const account = tx.fromAccount || tx.toAccount || '';
+      if (!name.includes(q) && !String(account).includes(q)) return false;
+    }
+    return true;
   });
 
 
@@ -195,7 +210,7 @@ export default function Wallet() {
       <div className="mt-4">
         <div className="flex items-center justify-between mb-1">
           <h3 className="font-semibold">Transactions</h3>
-          <div className="flex items-center space-x-1">
+          <div className="flex items-center space-x-1 flex-wrap">
             <input
               type="date"
               ref={dateInputRef}
@@ -208,12 +223,32 @@ export default function Wallet() {
               onClick={() => dateInputRef.current?.showPicker && dateInputRef.current.showPicker()}
             />
             {filterDate && (
-              <button
-                onClick={() => setFilterDate('')}
-                className="text-xs text-subtext"
-              >
-                Clear
-              </button>
+              <button onClick={() => setFilterDate('')} className="text-xs text-subtext">Clear</button>
+            )}
+            <select
+              value={filterType}
+              onChange={(e) => setFilterType(e.target.value)}
+              className="border border-border rounded text-black text-xs px-1"
+            >
+              <option value="">All</option>
+              {txTypes.map((t) => (
+                <option key={t} value={t} className="capitalize">
+                  {t}
+                </option>
+              ))}
+            </select>
+            {filterType && (
+              <button onClick={() => setFilterType('')} className="text-xs text-subtext">Clear</button>
+            )}
+            <input
+              type="text"
+              placeholder="User or account"
+              value={filterUser}
+              onChange={(e) => setFilterUser(e.target.value)}
+              className="border border-border rounded text-black text-xs px-1"
+            />
+            {filterUser && (
+              <button onClick={() => setFilterUser('')} className="text-xs text-subtext">Clear</button>
             )}
           </div>
         </div>

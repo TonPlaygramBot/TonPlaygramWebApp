@@ -10,7 +10,9 @@ const transactionSchema = new mongoose.Schema(
     fromAccount: String,
     fromName: String,
     toAccount: String,
-    toName: String
+    toName: String,
+    game: String,
+    players: Number
   },
   { _id: false }
 );
