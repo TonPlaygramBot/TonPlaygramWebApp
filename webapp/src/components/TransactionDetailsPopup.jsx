@@ -33,7 +33,7 @@ export default function TransactionDetailsPopup({ tx, onClose }) {
   if (!tx) return null;
   return createPortal(
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-70">
-      <div className="bg-surface border border-border p-4 rounded space-y-2 text-text w-96 relative">
+      <div className="bg-surface border border-border p-4 rounded space-y-2 text-text w-80 relative">
         <button
           onClick={onClose}
           className="absolute -top-3 -right-3 bg-black bg-opacity-70 text-white rounded-full w-6 h-6 flex items-center justify-center"
