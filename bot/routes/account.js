@@ -50,7 +50,8 @@ router.post('/balance', async (req, res) => {
 });
 
 // Send TPC between accounts
-router.post('/send', async (req, res) => {
+router.post('/send', authenticate, async (req, res) => {
+  const authId = req.auth?.telegramId;
   const { fromAccount, toAccount, amount } = req.body;
   if (!fromAccount || !toAccount || typeof amount !== 'number') {
     return res.status(400).json({ error: 'fromAccount, toAccount and amount required' });
@@ -59,6 +60,9 @@ router.post('/send', async (req, res) => {
 
   const sender = await User.findOne({ accountId: fromAccount });
   if (!sender) return res.status(404).json({ error: 'sender not found' });
+  if (authId && sender.telegramId && authId !== sender.telegramId) {
+    return res.status(403).json({ error: 'forbidden' });
+  }
   if (sender.balance < amount) {
     return res.status(400).json({ error: 'insufficient balance' });
   }
