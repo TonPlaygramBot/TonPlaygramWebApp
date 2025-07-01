@@ -1,7 +1,16 @@
 import React from 'react';
 import { getAvatarUrl } from '../utils/avatarUtils.js';
 
-export default function AvatarTimer({ photoUrl, active = false, timerPct = 1, rank, name, isTurn = false, color }) {
+export default function AvatarTimer({
+  photoUrl,
+  active = false,
+  timerPct = 1,
+  rank,
+  name,
+  isTurn = false,
+  color,
+  secondsLeft,
+}) {
   const angle = (1 - timerPct) * 360;
   const gradient = `conic-gradient(#facc15 ${angle}deg, #16a34a 0deg)`;
   return (
@@ -18,8 +27,9 @@ export default function AvatarTimer({ photoUrl, active = false, timerPct = 1, ra
           boxShadow: isTurn ? `0 0 6px ${color || '#fde047'}` : undefined,
         }}
       />
-      {isTurn && (
-        <span className="turn-indicator">👈</span>
+      {isTurn && <span className="turn-indicator">👈</span>}
+      {isTurn && secondsLeft != null && (
+        <span className="timer-count">{secondsLeft}</span>
       )}
       {rank != null && (
         <span className="rank-number">{rank}</span>
