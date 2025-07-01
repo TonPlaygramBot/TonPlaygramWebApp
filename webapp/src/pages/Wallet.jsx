@@ -172,7 +172,7 @@ export default function Wallet() {
           TPC Balance:&nbsp;
           {tpcBalance === null ? '...' : formatValue(tpcBalance, 2)}
         </p>
-        <div className="space-y-1 mb-4 text-center">
+        <div className="space-y-1 mb-6 text-center">
           <label className="block">Send TPC</label>
           <input
             type="text"
@@ -209,12 +209,12 @@ export default function Wallet() {
           <label className="block">Receive TPC</label>
           <button
             onClick={() => navigator.clipboard.writeText(String(accountId))}
-            className="px-3 py-1 mb-4 bg-primary hover:bg-primary-hover text-text rounded"
+            className="px-3 py-1 mb-6 bg-primary hover:bg-primary-hover text-text rounded"
           >
             Copy Account Number
           </button>
           {accountId && (
-            <div className="mt-4 flex justify-center">
+            <div className="mt-6 flex justify-center">
               <QRCode value={String(accountId)} size={100} />
             </div>
           )}
