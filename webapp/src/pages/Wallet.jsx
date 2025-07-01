@@ -141,7 +141,12 @@ export default function Wallet() {
 
 
   return (
-    <div className="p-4 space-y-4">
+    <div className="relative p-4 space-y-4 text-text">
+      <img
+        src="/assets/SnakeLaddersbackground.png"
+        className="background-behind-board object-cover"
+        alt=""
+      />
       <h2 className="text-xl font-bold">Wallet</h2>
       <p className="text-sm">Account #{accountId || '...'}</p>
 
@@ -257,14 +262,14 @@ export default function Wallet() {
           {sortedTransactions.map((tx, i) => (
             <div
               key={i}
-              className="flex justify-between border-b border-border pb-1 cursor-pointer hover:bg-white/10"
+              className="lobby-tile w-full flex justify-between items-center cursor-pointer"
               onClick={() => setSelectedTx(tx)}
             >
               <span className="capitalize">{tx.type}</span>
               <span className={tx.amount > 0 ? 'text-green-500' : 'text-red-500'}>
                 {tx.amount} {(tx.token || 'TPC').toUpperCase()}
               </span>
-              <span>{new Date(tx.date).toLocaleString()}</span>
+              <span className="text-xs">{new Date(tx.date).toLocaleString()}</span>
               <span className="text-xs">{tx.status}</span>
             </div>
           ))}

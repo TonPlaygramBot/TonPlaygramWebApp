@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { FiCopy } from 'react-icons/fi';
-import { getLeaderboard } from '../utils/api.js';
+import { getProfileByAccount } from '../utils/api.js';
 import { getAvatarUrl } from '../utils/avatarUtils.js';
 
 export default function TransactionDetailsPopup({ tx, onClose }) {
@@ -9,12 +9,14 @@ export default function TransactionDetailsPopup({ tx, onClose }) {
 
   useEffect(() => {
     if (!tx) return;
-    getLeaderboard().then((data) => {
-      const users = data?.users || [];
-      const account = tx.type === 'send' ? tx.toAccount : tx.fromAccount;
-      const profile = users.find((u) => u.accountId === account);
-      setCounterparty(profile || null);
-    });
+    const account = tx.type === 'send' ? tx.toAccount : tx.fromAccount;
+    if (!account) {
+      setCounterparty(null);
+      return;
+    }
+    getProfileByAccount(account)
+      .then((profile) => setCounterparty(profile || null))
+      .catch(() => setCounterparty(null));
   }, [tx]);
 
   if (!tx) return null;
@@ -34,7 +36,7 @@ export default function TransactionDetailsPopup({ tx, onClose }) {
 
   return createPortal(
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-70">
-      <div className="bg-surface border border-border p-4 rounded space-y-4 text-text w-80 relative">
+      <div className="p-4 space-y-4 w-80 relative rounded-xl border-2 border-[#334155] bg-[#2d5c66] text-white">
         <button
           onClick={onClose}
           className="absolute -top-3 -right-3 bg-black bg-opacity-70 text-white rounded-full w-6 h-6 flex items-center justify-center"
