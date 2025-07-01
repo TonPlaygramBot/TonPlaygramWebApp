@@ -197,27 +197,21 @@ router.post('/send', authenticate, async (req, res) => {
     sender.balance -= amount;
 
     const senderTx = {
-
       amount: -amount,
-
       type: 'send',
-
       status: 'delivered',
-
-      date: txDate
-
+      date: txDate,
+      toAccount: String(toId),
+      toName: receiver.nickname || receiver.firstName || ''
     };
 
     const receiverTx = {
-
       amount,
-
       type: 'receive',
-
       status: 'delivered',
-
-      date: txDate
-
+      date: txDate,
+      fromAccount: String(fromId),
+      fromName: sender.nickname || sender.firstName || ''
     };
 
     sender.transactions.push(senderTx);

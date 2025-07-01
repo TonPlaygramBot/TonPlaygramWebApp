@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import QRCode from 'react-qr-code';
 import {
   createAccount,
@@ -9,6 +9,8 @@ import {
 import { getTelegramId } from '../utils/telegram.js';
 import ConfirmPopup from '../components/ConfirmPopup.jsx';
 import InfoPopup from '../components/InfoPopup.jsx';
+import TransactionDetailsPopup from '../components/TransactionDetailsPopup.jsx';
+import { AiOutlineCalendar } from 'react-icons/ai';
 import useTelegramBackButton from '../hooks/useTelegramBackButton.js';
 
 export default function Wallet() {
@@ -29,6 +31,9 @@ export default function Wallet() {
   const [receipt, setReceipt] = useState(null);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
+  const [filterDate, setFilterDate] = useState('');
+  const [selectedTx, setSelectedTx] = useState(null);
+  const dateInputRef = useRef(null);
 
 
   const loadBalances = async () => {
@@ -111,6 +116,12 @@ export default function Wallet() {
     }
   };
 
+  const filteredTransactions = transactions.filter((tx) => {
+    if (!filterDate) return true;
+    const d = new Date(tx.date).toISOString().slice(0, 10);
+    return d === filterDate;
+  });
+
 
 
 
@@ -182,14 +193,38 @@ export default function Wallet() {
 
 
       <div className="mt-4">
-        <h3 className="font-semibold">Transactions</h3>
+        <div className="flex items-center justify-between mb-1">
+          <h3 className="font-semibold">Transactions</h3>
+          <div className="flex items-center space-x-1">
+            <input
+              type="date"
+              ref={dateInputRef}
+              value={filterDate}
+              onChange={(e) => setFilterDate(e.target.value)}
+              className="border border-border rounded text-black text-xs px-1"
+            />
+            <AiOutlineCalendar
+              className="w-5 h-5 cursor-pointer"
+              onClick={() => dateInputRef.current?.showPicker && dateInputRef.current.showPicker()}
+            />
+            {filterDate && (
+              <button
+                onClick={() => setFilterDate('')}
+                className="text-xs text-subtext"
+              >
+                Clear
+              </button>
+            )}
+          </div>
+        </div>
         <div className="space-y-1 text-sm">
-          {transactions.map((tx, i) => (
+          {filteredTransactions.map((tx, i) => (
             <div
               key={i}
-              className="flex justify-between border-b border-border pb-1"
+              className="flex justify-between border-b border-border pb-1 cursor-pointer hover:bg-white/10"
+              onClick={() => setSelectedTx(tx)}
             >
-              <span>{tx.type}</span>
+              <span className="capitalize">{tx.type}</span>
               <span className={tx.amount > 0 ? 'text-green-500' : 'text-red-500'}>
                 {tx.amount}
               </span>
@@ -213,6 +248,7 @@ export default function Wallet() {
         title="Transaction Failed"
         info={errorMsg}
       />
+      <TransactionDetailsPopup tx={selectedTx} onClose={() => setSelectedTx(null)} />
     </div>
   );
 }
