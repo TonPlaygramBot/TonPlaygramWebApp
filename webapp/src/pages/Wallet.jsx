@@ -160,7 +160,7 @@ export default function Wallet() {
   return (
     <div className="relative p-4 space-y-4 text-text">
       <h2 className="text-xl font-bold text-center">TPC Account Wallet</h2>
-      <div className="prism-box p-4 space-y-2 text-center w-96 mx-auto bg-[#2d5c66] border-[#334155]">
+      <div className="prism-box p-4 space-y-2 text-center w-80 mx-auto bg-[#2d5c66] border-[#334155]">
         <p className="text-sm break-all">Account #{accountId || '...'}</p>
         <p className="flex items-center justify-center text-lg font-medium">
           <img src="/icons/TPCcoin.png" alt="TPC" className="w-8 h-8 mr-1" />
@@ -274,7 +274,7 @@ export default function Wallet() {
             )}
           </div>
         </div>
-        <div className="space-y-1 text-sm max-h-[30rem] overflow-y-auto border border-border rounded">
+        <div className="space-y-1 text-sm max-h-60 overflow-y-auto border border-border rounded">
           {sortedTransactions.slice(0, 20).map((tx, i) => (
             <div
               key={i}

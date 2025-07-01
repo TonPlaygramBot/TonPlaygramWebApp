@@ -14,6 +14,10 @@ export default function CosmicBackground() {
 
     const stars = [];
     const comets = [];
+    const storms = [
+      { x: 0.35, y: 0.4, r: 160, angle: 0, color: 'rgba(20,40,80,0.5)' },
+      { x: 0.75, y: 0.6, r: 120, angle: 0, color: 'rgba(180,60,20,0.4)' },
+    ];
 
     const dpr = window.devicePixelRatio || 1;
     let width = window.innerWidth;
@@ -38,6 +42,10 @@ export default function CosmicBackground() {
           colorChange: i < 2,
         });
       }
+      storms[0].x = width * 0.35;
+      storms[0].y = height * 0.4;
+      storms[1].x = width * 0.75;
+      storms[1].y = height * 0.6;
     };
 
     const resize = () => initScene();
@@ -84,6 +92,21 @@ export default function CosmicBackground() {
         c.y += c.vy;
         if (c.y > height || c.x > width) comets.splice(i, 1);
       }
+
+      storms.forEach((s) => {
+        ctx.save();
+        ctx.translate(s.x, s.y);
+        ctx.rotate(s.angle);
+        const grad = ctx.createRadialGradient(0, 0, 0, 0, 0, s.r);
+        grad.addColorStop(0, s.color);
+        grad.addColorStop(1, 'rgba(0,0,0,0)');
+        ctx.fillStyle = grad;
+        ctx.beginPath();
+        ctx.arc(0, 0, s.r, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+        s.angle += 0.0015;
+      });
 
       frameId = requestAnimationFrame(draw);
     };
