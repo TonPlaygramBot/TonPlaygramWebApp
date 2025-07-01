@@ -322,6 +322,15 @@ router.post('/deposit', authenticate, async (req, res) => {
 
   await user.save();
 
+  try {
+    await bot.telegram.sendMessage(
+      String(telegramId),
+      `Your deposit of ${amount} TPC was credited`
+    );
+  } catch (err) {
+    console.error('Failed to send Telegram notification:', err.message);
+  }
+
   res.json({ balance: user.balance, transaction: tx });
 
 });

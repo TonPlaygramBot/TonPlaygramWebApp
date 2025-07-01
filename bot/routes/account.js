@@ -3,6 +3,7 @@ import { v4 as uuidv4 } from 'uuid';
 import User from '../models/User.js';
 import authenticate from '../middleware/auth.js';
 import { ensureTransactionArray, calculateBalance } from '../utils/userUtils.js';
+import bot from '../bot.js';
 
 const router = Router();
 
@@ -82,6 +83,17 @@ router.post('/send', async (req, res) => {
   await sender.save();
   await receiver.save();
 
+  if (receiver.telegramId) {
+    try {
+      await bot.telegram.sendMessage(
+        String(receiver.telegramId),
+        `You received ${amount} TPC from ${fromAccount}`
+      );
+    } catch (err) {
+      console.error('Failed to send Telegram notification:', err.message);
+    }
+  }
+
   res.json({ balance: sender.balance, transaction: senderTx });
 });
 
@@ -112,6 +124,17 @@ router.post('/deposit', authenticate, async (req, res) => {
   const tx = { amount, type: 'deposit', status: 'delivered', date: new Date() };
   user.transactions.push(tx);
   await user.save();
+
+  if (user.telegramId) {
+    try {
+      await bot.telegram.sendMessage(
+        String(user.telegramId),
+        `Your deposit of ${amount} TPC was credited`
+      );
+    } catch (err) {
+      console.error('Failed to send Telegram notification:', err.message);
+    }
+  }
   res.json({ balance: user.balance, transaction: tx });
 });
 
