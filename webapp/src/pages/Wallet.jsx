@@ -162,7 +162,8 @@ export default function Wallet() {
         className="background-behind-board object-cover"
         alt=""
       />
-      <h2 className="text-xl font-bold text-center mb-4">TPC Account Wallet</h2>
+      <h2 className="text-xl font-bold text-center">TPC Account Wallet</h2>
+      <p className="text-sm text-center">Account #{accountId || '...'}</p>
 
       {/* TPC account section */}
       <div className="space-y-2 border-b border-border pb-4">
@@ -172,7 +173,7 @@ export default function Wallet() {
           TPC Balance:&nbsp;
           {tpcBalance === null ? '...' : formatValue(tpcBalance, 2)}
         </p>
-        <div className="space-y-1 mb-8 text-center">
+        <div className="space-y-1 mb-4 text-center">
           <label className="block">Send TPC</label>
           <input
             type="text"
@@ -214,7 +215,7 @@ export default function Wallet() {
             Copy Account Number
           </button>
           {accountId && (
-            <div className="mt-8 flex justify-center">
+            <div className="mt-4 flex justify-center">
               <QRCode value={String(accountId)} size={100} />
             </div>
           )}
