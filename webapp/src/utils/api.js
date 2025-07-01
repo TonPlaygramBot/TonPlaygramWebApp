@@ -63,9 +63,11 @@ export function claimMining(telegramId) {
 }
 
 export function getLeaderboard(telegramId) {
-
-  return post('/api/mining/leaderboard', { telegramId });
-
+  const body = {};
+  if (telegramId !== undefined && telegramId !== null) {
+    body.telegramId = telegramId;
+  }
+  return post('/api/mining/leaderboard', body);
 }
 
 export function listTasks(telegramId) {
