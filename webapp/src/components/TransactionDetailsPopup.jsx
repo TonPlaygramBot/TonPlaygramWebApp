@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { getLeaderboard } from '../utils/api.js';
+import { getProfileByAccount } from '../utils/api.js';
+import { AiOutlineCopy } from 'react-icons/ai';
 import { getAvatarUrl } from '../utils/avatarUtils.js';
 
 export default function TransactionDetailsPopup({ tx, onClose }) {
@@ -8,11 +9,14 @@ export default function TransactionDetailsPopup({ tx, onClose }) {
 
   useEffect(() => {
     if (!tx) return;
-    getLeaderboard().then((data) => {
-      const users = data?.users || [];
-      const account = tx.type === 'send' ? tx.toAccount : tx.fromAccount;
-      const profile = users.find((u) => u.accountId === account);
-      setCounterparty(profile || null);
+    const account = tx.type === 'send' ? tx.toAccount : tx.fromAccount;
+    if (!account) {
+      setCounterparty(null);
+      return;
+    }
+    getProfileByAccount(account).then((profile) => {
+      if (!profile || profile.error) setCounterparty(null);
+      else setCounterparty(profile);
     });
   }, [tx]);
 
@@ -54,13 +58,23 @@ export default function TransactionDetailsPopup({ tx, onClose }) {
               )}
               <div className="text-left">
                 <div>{isSend ? 'To:' : 'From:'} {displayName}</div>
-                <div className="text-xs text-subtext">TPC Account #{account}</div>
+                <div className="flex items-center space-x-1 text-xs text-subtext">
+                  <span>Account #{account}</span>
+                  <AiOutlineCopy
+                    className="w-4 h-4 cursor-pointer"
+                    onClick={() => navigator.clipboard.writeText(String(account))}
+                  />
+                </div>
               </div>
             </div>
           )}
           {!counterparty && account && (
-            <div className="text-sm">
-              {isSend ? 'To' : 'From'} account #{account}
+            <div className="flex items-center space-x-1 text-sm">
+              <span>{isSend ? 'To' : 'From'} account #{account}</span>
+              <AiOutlineCopy
+                className="w-4 h-4 cursor-pointer"
+                onClick={() => navigator.clipboard.writeText(String(account))}
+              />
             </div>
           )}
           <div className="text-xs text-subtext">
