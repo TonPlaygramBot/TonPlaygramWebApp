@@ -1,24 +1,30 @@
 import React, { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { getProfileByAccount } from '../utils/api.js';
+import { getAvatarUrl } from '../utils/avatarUtils.js';
 
 export default function TransactionDetailsPopup({ tx, onClose }) {
+  const [fromProfile, setFromProfile] = useState(null);
+  const [toProfile, setToProfile] = useState(null);
   const [otherName, setOtherName] = useState('');
   useEffect(() => {
     if (!tx) return;
-    let id = null;
-    if (tx.fromAccount && !tx.fromName) id = tx.fromAccount;
-    else if (tx.toAccount && !tx.toName) id = tx.toAccount;
-    if (id) {
-      getProfileByAccount(id).then((p) => {
-        if (p && (p.nickname || p.firstName || p.lastName)) {
+    if (tx.fromAccount) {
+      getProfileByAccount(tx.fromAccount).then((p) => {
+        setFromProfile(p || null);
+        if (!tx.fromName && p && (p.nickname || p.firstName || p.lastName)) {
           setOtherName(
             p.nickname || `${p.firstName || ''} ${p.lastName || ''}`.trim()
           );
         }
       });
     } else {
-      setOtherName('');
+      setFromProfile(null);
+    }
+    if (tx.toAccount) {
+      getProfileByAccount(tx.toAccount).then((p) => setToProfile(p || null));
+    } else {
+      setToProfile(null);
     }
   }, [tx]);
   if (!tx) return null;
@@ -32,28 +38,32 @@ export default function TransactionDetailsPopup({ tx, onClose }) {
           &times;
         </button>
         <h3 className="text-lg font-bold text-center capitalize">{tx.type} details</h3>
-        <div className="text-sm space-y-1">
+        <div className="text-sm space-y-2">
           <div className="flex justify-between"><span>Amount:</span><span className={tx.amount >= 0 ? 'text-green-500' : 'text-red-500'}>{tx.amount}</span></div>
           {tx.fromAccount && (
-            <div className="flex justify-between">
+            <div className="flex items-center space-x-2">
               <span>From:</span>
-              <span>
-                {tx.fromName || otherName ? (
-                  <>
-                    {tx.fromName || otherName} ({tx.fromAccount})
-                  </>
-                ) : (
-                  tx.fromAccount
-                )}
-              </span>
+              <img src="/icons/tpc.svg" alt="tpc" className="w-4 h-4" />
+              {fromProfile?.photo && (
+                <img src={getAvatarUrl(fromProfile.photo)} alt="" className="w-6 h-6 rounded-full" />
+              )}
+              <div>
+                <div>{tx.fromName || fromProfile?.nickname || `${fromProfile?.firstName || ''} ${fromProfile?.lastName || ''}`.trim() || otherName}</div>
+                <div className="text-xs text-subtext">{tx.fromAccount}</div>
+              </div>
             </div>
           )}
           {tx.toAccount && (
-            <div className="flex justify-between">
+            <div className="flex items-center space-x-2">
               <span>To:</span>
-              <span>
-                {tx.toName ? `${tx.toName} (${tx.toAccount})` : tx.toAccount}
-              </span>
+              <img src="/icons/tpc.svg" alt="tpc" className="w-4 h-4" />
+              {toProfile?.photo && (
+                <img src={getAvatarUrl(toProfile.photo)} alt="" className="w-6 h-6 rounded-full" />
+              )}
+              <div>
+                <div>{tx.toName || toProfile?.nickname || `${toProfile?.firstName || ''} ${toProfile?.lastName || ''}`.trim()}</div>
+                <div className="text-xs text-subtext">{tx.toAccount}</div>
+              </div>
             </div>
           )}
           {tx.game && (

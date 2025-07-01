@@ -34,6 +34,7 @@ export default function Wallet() {
   const [filterDate, setFilterDate] = useState('');
   const [filterType, setFilterType] = useState('');
   const [filterUser, setFilterUser] = useState('');
+  const [sortOrder, setSortOrder] = useState('desc');
   const [selectedTx, setSelectedTx] = useState(null);
   const dateInputRef = useRef(null);
 
@@ -102,13 +103,7 @@ export default function Wallet() {
         }
         return;
       }
-      setReceipt({
-        to,
-        amount: amt,
-        date: res.transaction?.date
-          ? new Date(res.transaction.date).toLocaleString()
-          : new Date().toLocaleString()
-      });
+      setReceipt(res.transaction);
       setReceiver('');
       setAmount('');
       const id = await loadBalances();
@@ -136,6 +131,11 @@ export default function Wallet() {
     }
     return true;
   });
+  const sortedTransactions = [...filteredTransactions].sort((a, b) =>
+    sortOrder === 'desc'
+      ? new Date(b.date) - new Date(a.date)
+      : new Date(a.date) - new Date(b.date)
+  );
 
 
 
@@ -179,14 +179,7 @@ export default function Wallet() {
             </div>
           )}
           {receipt && (
-            <div className="border border-border p-2 rounded mt-2 text-sm flex justify-between items-center">
-              <div>
-                <div>Sent {receipt.amount} TPC to {receipt.to}</div>
-                <div className="text-xs">{receipt.date}</div>
-                <div className="text-xs text-green-600">Delivered</div>
-              </div>
-              <button className="text-xs" onClick={() => setReceipt(null)}>x</button>
-            </div>
+            <TransactionDetailsPopup tx={receipt} onClose={() => setReceipt(null)} />
           )}
         </div>
 
@@ -216,7 +209,7 @@ export default function Wallet() {
               ref={dateInputRef}
               value={filterDate}
               onChange={(e) => setFilterDate(e.target.value)}
-              className="border border-border rounded text-black text-xs px-1"
+              className="hidden"
             />
             <AiOutlineCalendar
               className="w-5 h-5 cursor-pointer"
@@ -240,6 +233,14 @@ export default function Wallet() {
             {filterType && (
               <button onClick={() => setFilterType('')} className="text-xs text-subtext">Clear</button>
             )}
+            <select
+              value={sortOrder}
+              onChange={(e) => setSortOrder(e.target.value)}
+              className="border border-border rounded text-black text-xs px-1"
+            >
+              <option value="desc">Newest</option>
+              <option value="asc">Oldest</option>
+            </select>
             <input
               type="text"
               placeholder="User or account"
@@ -253,7 +254,7 @@ export default function Wallet() {
           </div>
         </div>
         <div className="space-y-1 text-sm">
-          {filteredTransactions.map((tx, i) => (
+          {sortedTransactions.map((tx, i) => (
             <div
               key={i}
               className="flex justify-between border-b border-border pb-1 cursor-pointer hover:bg-white/10"

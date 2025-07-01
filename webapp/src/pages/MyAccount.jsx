@@ -44,6 +44,7 @@ export default function MyAccount() {
   const [showSaved, setShowSaved] = useState(false);
   const timerRef = useRef(null);
   const [filterDate, setFilterDate] = useState('');
+  const [sortOrder, setSortOrder] = useState('desc');
   const [selectedTx, setSelectedTx] = useState(null);
   const dateInputRef = useRef(null);
 
@@ -145,6 +146,11 @@ export default function MyAccount() {
     const d = new Date(tx.date).toISOString().slice(0, 10);
     return d === filterDate;
   });
+  const sortedTransactions = [...filteredTransactions].sort((a, b) =>
+    sortOrder === 'desc'
+      ? new Date(b.date) - new Date(a.date)
+      : new Date(a.date) - new Date(b.date)
+  );
 
   return (
     <div className="relative p-4 space-y-4 text-text">
@@ -260,7 +266,7 @@ export default function MyAccount() {
               ref={dateInputRef}
               value={filterDate}
               onChange={(e) => setFilterDate(e.target.value)}
-              className="border border-border rounded text-black text-xs px-1"
+              className="hidden"
             />
             <AiOutlineCalendar
               className="w-5 h-5 cursor-pointer"
@@ -274,13 +280,21 @@ export default function MyAccount() {
                 Clear
               </button>
             )}
+            <select
+              value={sortOrder}
+              onChange={(e) => setSortOrder(e.target.value)}
+              className="border border-border rounded text-black text-xs px-1"
+            >
+              <option value="desc">Newest</option>
+              <option value="asc">Oldest</option>
+            </select>
           </div>
         </div>
-        {filteredTransactions.length === 0 ? (
+        {sortedTransactions.length === 0 ? (
           <p className="text-sm text-subtext">No transactions</p>
         ) : (
           <div className="space-y-1 text-sm">
-            {filteredTransactions.map((tx, i) => (
+            {sortedTransactions.map((tx, i) => (
               <div
                 key={i}
                 className="flex justify-between border-b border-border pb-1 cursor-pointer hover:bg-white/10"
