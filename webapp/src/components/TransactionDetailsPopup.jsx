@@ -4,15 +4,19 @@ import { getLeaderboard } from '../utils/api.js';
 import { getAvatarUrl } from '../utils/avatarUtils.js';
 
 export default function TransactionDetailsPopup({ tx, onClose }) {
-  const [counterparty, setCounterparty] = useState(null);
+  const [user, setUser] = useState(null);
 
   useEffect(() => {
-    if (!tx) return;
+    if (!tx) {
+      setUser(null);
+      return;
+    }
     getLeaderboard().then((data) => {
-      const users = data?.users || [];
-      const account = tx.type === 'send' ? tx.toAccount : tx.fromAccount;
-      const profile = users.find((u) => u.accountId === account);
-      setCounterparty(profile || null);
+      const leaderboard = data?.users || [];
+      const profile = leaderboard.find(
+        (u) => u.accountNumber === tx.tpcAccountNumber
+      );
+      setUser(profile || null);
     });
   }, [tx]);
 
@@ -21,9 +25,9 @@ export default function TransactionDetailsPopup({ tx, onClose }) {
   const token = (tx.token || 'TPC').toUpperCase();
   const icon = `/icons/${token.toLowerCase()}.svg`;
   const isSend = tx.type === 'send';
-  const account = isSend ? tx.toAccount : tx.fromAccount;
+  const account = tx.tpcAccountNumber || (isSend ? tx.toAccount : tx.fromAccount);
   const nameOverride = isSend ? tx.toName : tx.fromName;
-  const nameFromProfile = counterparty?.nickname || `${counterparty?.firstName || ''} ${counterparty?.lastName || ''}`.trim();
+  const nameFromProfile = user?.name || user?.nickname || `${user?.firstName || ''} ${user?.lastName || ''}`.trim();
   const displayName = nameOverride || nameFromProfile || '';
 
   return createPortal(
@@ -43,14 +47,18 @@ export default function TransactionDetailsPopup({ tx, onClose }) {
               {isSend ? 'Sent' : 'Received'} {Math.abs(tx.amount)} {token}
             </span>
           </div>
-          {counterparty && (
+          {user && (
             <div className="flex items-center space-x-2">
-              {counterparty.photo && (
+              {user.profileImage || user.photo ? (
                 <img
-                  src={getAvatarUrl(counterparty.photo)}
+                  src={getAvatarUrl(user.profileImage || user.photo)}
                   alt=""
                   className="w-8 h-8 rounded-full"
                 />
+              ) : (
+                <div className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center uppercase">
+                  {displayName.slice(0, 2)}
+                </div>
               )}
               <div className="text-left">
                 <div>{isSend ? 'To:' : 'From:'} {displayName}</div>
@@ -58,13 +66,13 @@ export default function TransactionDetailsPopup({ tx, onClose }) {
               </div>
             </div>
           )}
-          {!counterparty && account && (
+          {!user && account && (
             <div className="text-sm">
               {isSend ? 'To' : 'From'} account #{account}
             </div>
           )}
           <div className="text-xs text-subtext">
-            {new Date(tx.date).toLocaleString()}
+            {new Date(tx.timestamp || tx.date).toLocaleString()}
           </div>
         </div>
       </div>
