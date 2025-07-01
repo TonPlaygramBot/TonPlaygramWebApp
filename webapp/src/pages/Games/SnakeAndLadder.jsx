@@ -1551,7 +1551,6 @@ export default function SnakeAndLadder() {
                   ? timeLeft / 15
                   : 1
               }
-              secondsLeft={p.index === currentTurn ? timeLeft : undefined}
               color={p.color}
             />
           ))}
