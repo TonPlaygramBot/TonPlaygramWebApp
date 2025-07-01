@@ -170,15 +170,17 @@ export default function Wallet() {
         alt=""
       />
       <h2 className="text-xl font-bold text-center">TPC Account Wallet</h2>
-      <p className="text-sm text-center">Account #{accountId || '...'}</p>
-
-      {/* TPC account section */}
-      <div className="space-y-2 border-b border-border pb-4">
-        <p className="flex items-center justify-center text-lg font-medium mb-4">
-          <img src="/icons/TPCcoin.png" alt="TPC" className="w-6 h-6 mr-1" />
+      <div className="prism-box p-4 space-y-2 text-center w-80 mx-auto">
+        <p className="text-sm break-all">Account #{accountId || '...'}</p>
+        <p className="flex items-center justify-center text-lg font-medium">
+          <img src="/icons/TPCcoin.png" alt="TPC" className="w-8 h-8 mr-1" />
           TPC Balance:&nbsp;
           {tpcBalance === null ? '...' : formatValue(tpcBalance, 2)}
         </p>
+      </div>
+
+      {/* TPC account section */}
+      <div className="space-y-2 border-b border-border pb-4">
         <div className="prism-box p-6 space-y-3 text-center mb-4 flex flex-col items-center w-80 mx-auto">
           <label className="block font-semibold">Send TPC</label>
           <input
@@ -229,9 +231,9 @@ export default function Wallet() {
       </div>
 
 
-      <div className="mt-4 border border-border rounded p-2">
-        <h3 className="font-semibold text-center mb-2">Transactions</h3>
-        <div className="flex items-center justify-center mb-1">
+      <div className="prism-box p-4 space-y-2 text-center mt-4 flex flex-col items-center w-80 mx-auto">
+        <h3 className="font-semibold text-center">Transactions</h3>
+        <div className="flex items-center justify-center">
           <div className="flex items-center space-x-1 flex-wrap justify-center">
             <input
               type="date"
@@ -282,7 +284,7 @@ export default function Wallet() {
             )}
           </div>
         </div>
-        <div className="space-y-1 text-sm max-h-96 overflow-y-auto border border-border rounded">
+        <div className="space-y-1 text-sm max-h-[30rem] overflow-y-auto border border-border rounded">
           {sortedTransactions.slice(0, 20).map((tx, i) => (
             <div
               key={i}
