@@ -258,7 +258,7 @@ export default function Wallet() {
             <div
               key={i}
               className="flex justify-between border-b border-border pb-1 cursor-pointer hover:bg-white/10"
-              onClick={() => setSelectedTx({ ...tx })}
+              onClick={() => setSelectedTx(tx)}
             >
               <span className="capitalize">{tx.type}</span>
               <span className={tx.amount > 0 ? 'text-green-500' : 'text-red-500'}>
