@@ -51,7 +51,6 @@ export default function Wallet() {
   const [filterUser, setFilterUser] = useState('');
   const [sortOrder, setSortOrder] = useState('desc');
   const [selectedTx, setSelectedTx] = useState(null);
-  const [page, setPage] = useState(1);
   const dateInputRef = useRef(null);
 
   const txTypes = Array.from(new Set(transactions.map((t) => t.type))).filter(
@@ -153,16 +152,7 @@ export default function Wallet() {
       : new Date(a.date) - new Date(b.date)
   );
 
-  const txPerPage = 20;
-  const totalPages = Math.max(1, Math.ceil(sortedTransactions.length / txPerPage));
-  const paginatedTransactions = sortedTransactions.slice(
-    (page - 1) * txPerPage,
-    page * txPerPage
-  );
 
-  useEffect(() => {
-    setPage(1);
-  }, [filterDate, filterType, filterUser, sortOrder, transactions.length]);
 
 
 
@@ -184,8 +174,8 @@ export default function Wallet() {
           TPC Balance:&nbsp;
           {tpcBalance === null ? '...' : formatValue(tpcBalance, 2)}
         </p>
-        <div className="space-y-1 mb-8 text-center">
-          <label className="block">Send TPC</label>
+        <div className="prism-box p-4 space-y-2 text-center mb-4">
+          <label className="block font-semibold">Send TPC</label>
           <input
             type="text"
             placeholder="Receiver Account Number"
@@ -202,7 +192,7 @@ export default function Wallet() {
           />
           <button
             onClick={handleSendClick}
-            className="mt-1 mb-4 px-3 py-1 bg-primary hover:bg-primary-hover text-text rounded"
+            className="mt-1 px-3 py-1 bg-primary hover:bg-primary-hover text-text rounded"
           >
             Send
           </button>
@@ -217,16 +207,16 @@ export default function Wallet() {
           )}
         </div>
 
-        <div className="space-y-1 text-center">
-          <label className="block">Receive TPC</label>
+        <div className="prism-box p-4 space-y-2 text-center mt-4 mb-4">
+          <label className="block font-semibold">Receive TPC</label>
           <button
             onClick={() => navigator.clipboard.writeText(String(accountId))}
-            className="mt-2 px-3 py-1 mb-6 bg-primary hover:bg-primary-hover text-text rounded"
+            className="mt-2 px-3 py-1 bg-primary hover:bg-primary-hover text-text rounded"
           >
             Copy Account Number
           </button>
           {accountId && (
-            <div className="mt-8 flex justify-center">
+            <div className="mt-4 flex justify-center">
               <QRCode value={String(accountId)} size={100} />
             </div>
           )}
@@ -287,8 +277,8 @@ export default function Wallet() {
             )}
           </div>
         </div>
-        <div className="space-y-1 text-sm">
-          {paginatedTransactions.map((tx, i) => (
+        <div className="space-y-1 text-sm max-h-60 overflow-y-auto border border-border rounded">
+          {sortedTransactions.map((tx, i) => (
             <div
               key={i}
               className="lobby-tile w-full flex justify-between items-center cursor-pointer"
@@ -303,21 +293,7 @@ export default function Wallet() {
             </div>
           ))}
         </div>
-        {totalPages > 1 && (
-          <div className="flex justify-center space-x-1 mt-2">
-            {Array.from({ length: totalPages }, (_, idx) => (
-              <button
-                key={idx}
-                onClick={() => setPage(idx + 1)}
-                className={`px-2 py-1 border border-border rounded text-xs ${
-                  page === idx + 1 ? 'bg-primary text-text' : 'bg-surface'
-                }`}
-              >
-                {idx + 1}
-              </button>
-            ))}
-          </div>
-        )}
+        {/* pagination removed: transactions displayed in scrollable list */}
       </div>
 
       <ConfirmPopup
