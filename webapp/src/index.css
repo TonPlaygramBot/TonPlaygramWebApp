@@ -1036,10 +1036,6 @@ body {
   transform: translateY(70px) scale(1.98);
 }
 
-.friend-background.flip-vertical{
-  transform: translateY(70px) scale(1.98) scaleY(-1);
-}
-
 /* Slightly larger background for the profile page */
 .account-background{
   transform: translateY(90px) scale(1.35);

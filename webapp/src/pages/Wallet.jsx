@@ -164,11 +164,6 @@ export default function Wallet() {
         className="background-behind-board friend-background object-cover"
         alt=""
       />
-      <img
-        src="/assets/SnakeLaddersbackground.png"
-        className="background-behind-board friend-background flip-vertical object-cover"
-        alt=""
-      />
       <h2 className="text-xl font-bold text-center">TPC Account Wallet</h2>
       <p className="text-sm text-center">Account #{accountId || '...'}</p>
 
@@ -229,7 +224,7 @@ export default function Wallet() {
       </div>
 
 
-      <div className="mt-4 border border-border rounded p-2">
+      <div className="mt-4">
         <h3 className="font-semibold text-center mb-2">Transactions</h3>
         <div className="flex items-center justify-center mb-1">
           <div className="flex items-center space-x-1 flex-wrap justify-center">
@@ -282,8 +277,8 @@ export default function Wallet() {
             )}
           </div>
         </div>
-        <div className="space-y-1 text-sm max-h-96 overflow-y-auto border border-border rounded">
-          {sortedTransactions.slice(0, 20).map((tx, i) => (
+        <div className="space-y-1 text-sm max-h-60 overflow-y-auto border border-border rounded">
+          {sortedTransactions.map((tx, i) => (
             <div
               key={i}
               className="lobby-tile w-full flex justify-between items-center cursor-pointer"
