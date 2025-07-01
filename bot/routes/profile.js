@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import { v4 as uuidv4 } from 'uuid';
 import User from '../models/User.js';
 import { fetchTelegramInfo } from '../utils/telegram.js';
 import { ensureTransactionArray } from '../utils/userUtils.js';
@@ -72,6 +73,11 @@ router.post('/get', async (req, res) => {
       update,
       { upsert: true, new: true }
     );
+  }
+
+  if (!user.accountId) {
+    user.accountId = uuidv4();
+    await user.save();
   }
 
   res.json({ ...user.toObject(), filledFromTelegram });

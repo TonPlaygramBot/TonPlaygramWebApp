@@ -24,6 +24,7 @@ import InfoPopup from '../components/InfoPopup.jsx';
 import InboxWidget from '../components/InboxWidget.jsx';
 import TransactionDetailsPopup from '../components/TransactionDetailsPopup.jsx';
 import { AiOutlineCalendar } from 'react-icons/ai';
+import { FiCopy } from 'react-icons/fi';
 
 export default function MyAccount() {
   useTelegramBackButton();
@@ -200,7 +201,13 @@ export default function MyAccount() {
           <p className="font-semibold">
             {profile.firstName} {profile.lastName}
           </p>
-          <p className="text-sm text-subtext">Account: {profile.accountId}</p>
+          <div className="text-sm text-subtext flex items-center space-x-1">
+            <span>Account: {profile.accountId}</span>
+            <FiCopy
+              className="w-4 h-4 cursor-pointer"
+              onClick={() => navigator.clipboard.writeText(String(profile.accountId))}
+            />
+          </div>
           <button
             onClick={() => setShowAvatarPicker(true)}
             className="mt-2 px-2 py-1 bg-primary hover:bg-primary-hover rounded text-sm"

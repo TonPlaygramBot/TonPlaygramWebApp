@@ -44,9 +44,9 @@ export default function TransactionDetailsPopup({ tx, onClose }) {
         <h3 className="text-lg font-bold text-center">Transaction Details</h3>
         <div className="flex flex-col items-center space-y-2">
           <div className="flex items-center space-x-2">
-            <img src={icon} alt={token} className="w-5 h-5" />
-            <span className="font-semibold">
-              {isSend ? 'Sent' : 'Received'} {Math.abs(tx.amount)} {token}
+            <span className="font-semibold flex items-center space-x-1">
+              {isSend ? 'Sent' : 'Received'} {Math.abs(tx.amount)}
+              <img src={icon} alt={token} className="w-5 h-5 inline" />
             </span>
           </div>
           {counterparty && (
