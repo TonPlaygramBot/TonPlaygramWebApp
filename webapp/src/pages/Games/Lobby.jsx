@@ -13,7 +13,7 @@ import {
   unseatTable,
   getProfile,
 } from '../../utils/api.js';
-import { getTelegramId, getPlayerId, ensureAccountId } from '../../utils/telegram.js';
+import { getPlayerId, ensureAccountId } from '../../utils/telegram.js';
 import { canStartGame } from '../../utils/lobby.js';
 
 export default function Lobby() {
@@ -43,10 +43,10 @@ export default function Lobby() {
   const [playerName, setPlayerName] = useState('');
 
   useEffect(() => {
-    const id = getTelegramId();
-    getProfile(id)
-      .then((p) => setPlayerName(p?.nickname || p?.firstName || ''))
-      .catch(() => {});
+    try {
+      const aid = getPlayerId();
+      setPlayerName(String(aid));
+    } catch {}
   }, []);
 
   useEffect(() => {
@@ -69,9 +69,9 @@ export default function Lobby() {
   }, [game]);
 
   useEffect(() => {
-    const telegramId = getPlayerId();
+    const playerId = getPlayerId();
     function ping() {
-      pingOnline(telegramId).catch(() => {});
+      pingOnline(playerId).catch(() => {});
       getOnlineCount()
         .then((d) => setOnline(d.count))
         .catch(() => {});

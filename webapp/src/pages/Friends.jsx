@@ -42,6 +42,9 @@ export default function Friends() {
   const [myName, setMyName] = useState('');
   const [onlineUsers, setOnlineUsers] = useState([]);
   const [onlineCount, setOnlineCount] = useState(0);
+  const [mode, setMode] = useState('1v1');
+  const [selected, setSelected] = useState([]);
+  const [groupPopup, setGroupPopup] = useState(false);
 
   useEffect(() => {
     getReferralInfo(telegramId).then(setReferral);
@@ -177,7 +180,18 @@ export default function Friends() {
       <section id="leaderboard" className="space-y-2">
         <h3 className="text-lg font-semibold flex items-center justify-between">
           <span>Leaderboard</span>
-          <span className="flex items-center">
+          <span className="flex items-center space-x-2">
+            <select
+              value={mode}
+              onChange={(e) => {
+                setMode(e.target.value);
+                setSelected([]);
+              }}
+              className="bg-surface border border-border rounded text-sm"
+            >
+              <option value="1v1">1v1</option>
+              <option value="group">Group</option>
+            </select>
             <FaCircle className={onlineCount > 0 ? 'text-green-500' : 'text-red-500'} size={10} />
             <span className="ml-1">{onlineCount}</span>
           </span>
@@ -196,8 +210,20 @@ export default function Friends() {
               {leaderboard.map((u, idx) => (
                 <tr
                   key={u.accountId || u.telegramId}
-                  className={`border-b border-border h-16 cursor-pointer ${u.accountId === accountId ? 'bg-accent text-black' : ''}`}
-                  onClick={() => u.accountId !== accountId && setInviteTarget(u)}
+                  className={`border-b border-border h-16 ${u.accountId === accountId ? 'bg-accent text-black' : 'cursor-pointer'}`}
+                  onClick={() => {
+                    if (u.accountId === accountId) return;
+                    if (mode === 'group') {
+                      setSelected((prev) => {
+                        const exists = prev.find((p) => p.accountId === u.accountId);
+                        if (exists) return prev.filter((p) => p.accountId !== u.accountId);
+                        if (prev.length >= 3) return prev;
+                        return [...prev, u];
+                      });
+                    } else {
+                      setInviteTarget(u);
+                    }
+                  }}
                 >
                   <td className="p-2">{idx + 1}</td>
                   <td className="p-2 w-16">
@@ -212,6 +238,14 @@ export default function Friends() {
                     />
                   </td>
                   <td className="p-2 flex items-center">
+                    {mode === 'group' && u.accountId !== accountId && (
+                      <input
+                        type="checkbox"
+                        checked={selected.some((p) => p.accountId === u.accountId)}
+                        onChange={() => {}}
+                        className="mr-1"
+                      />
+                    )}
                     {u.nickname || `${u.firstName} ${u.lastName}`.trim() || 'User'}
                     {onlineUsers.includes(String(u.accountId)) && (
                       <FaCircle className="ml-1 text-green-500" size={8} />
@@ -243,6 +277,18 @@ export default function Friends() {
           </table>
         </div>
       </section>
+      {mode === 'group' && (
+        <div className="space-y-2">
+          <p className="text-sm">Selected {selected.length}/3</p>
+          <button
+            onClick={() => setGroupPopup(true)}
+            disabled={selected.length === 0}
+            className="px-2 py-1 bg-primary hover:bg-primary-hover rounded disabled:opacity-50"
+          >
+            Invite Group
+          </button>
+        </div>
+      )}
       <InvitePopup
         open={!!inviteTarget}
         name={inviteTarget?.nickname || `${inviteTarget?.firstName || ''} ${inviteTarget?.lastName || ''}`.trim()}
@@ -273,6 +319,44 @@ export default function Friends() {
           setInviteTarget(null);
         }}
         onReject={() => setInviteTarget(null)}
+      />
+      <InvitePopup
+        open={groupPopup}
+        name={selected.map((u) => u.nickname || `${u.firstName || ''} ${u.lastName || ''}`.trim())}
+        stake={stake}
+        onStakeChange={setStake}
+        group
+        opponents={selected.map((u) => u.nickname || `${u.firstName || ''} ${u.lastName || ''}`.trim())}
+        onAccept={() => {
+          if (selected.length > 0) {
+            const roomId = `invite-${accountId}-${Date.now()}-${selected.length + 1}`;
+            socket.emit(
+              'inviteGroup',
+              {
+                fromId: accountId,
+                fromName: myName,
+                toIds: selected.map((u) => u.accountId),
+                opponentNames: selected.map((u) => u.nickname || `${u.firstName || ''} ${u.lastName || ''}`.trim()),
+                roomId,
+                token: stake.token,
+                amount: stake.amount,
+              },
+              (res) => {
+                if (res && res.success) {
+                  window.location.href = `/games/snake?table=${roomId}&token=${stake.token}&amount=${stake.amount}`;
+                } else {
+                  alert(res?.error || 'Failed to send invite');
+                }
+              },
+            );
+          }
+          setGroupPopup(false);
+          setSelected([]);
+        }}
+        onReject={() => {
+          setGroupPopup(false);
+          setSelected([]);
+        }}
       />
     </div>
   );
