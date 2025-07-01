@@ -20,8 +20,8 @@ export default function Layout({ children }) {
   const [invite, setInvite] = useState(null);
 
   useEffect(() => {
-    const onInvite = ({ fromId, fromName, roomId, token, amount }) => {
-      setInvite({ fromId, fromName, roomId, token, amount });
+    const onInvite = ({ fromId, fromName, roomId, token, amount, group, opponentNames }) => {
+      setInvite({ fromId, fromName, roomId, token, amount, group, opponentNames });
     };
     socket.on('gameInvite', onInvite);
     return () => socket.off('gameInvite', onInvite);
@@ -95,8 +95,10 @@ export default function Layout({ children }) {
       <InvitePopup
         open={!!invite}
         name={invite?.fromName || invite?.fromId}
+        opponents={invite?.opponentNames || []}
         stake={{ token: invite?.token, amount: invite?.amount }}
         incoming
+        group={Array.isArray(invite?.group)}
         onAccept={() => {
           if (invite)
             navigate(

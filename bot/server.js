@@ -332,6 +332,39 @@ io.on('connection', (socket) => {
     cb && cb({ success: true });
   });
 
+  socket.on(
+    'inviteGroup',
+    ({ fromId, fromName, toIds, opponentNames = [], roomId, token, amount }, cb) => {
+      if (!fromId || !Array.isArray(toIds) || toIds.length === 0) {
+        return cb && cb({ success: false, error: 'invalid ids' });
+      }
+      const offline = [];
+      for (const toId of toIds) {
+        const ts = onlineUsers.get(String(toId));
+        const targets = userSockets.get(String(toId));
+        if (!ts || Date.now() - ts > 60_000 || !targets || targets.size === 0) {
+          offline.push(toId);
+          continue;
+        }
+        for (const sid of targets) {
+          io.to(sid).emit('gameInvite', {
+            fromId,
+            fromName,
+            roomId,
+            token,
+            amount,
+            group: toIds,
+            opponentNames,
+          });
+        }
+      }
+      if (offline.length > 0) {
+        return cb && cb({ success: false, error: 'Some users offline' });
+      }
+      cb && cb({ success: true });
+    },
+  );
+
   socket.on('disconnect', async () => {
     await gameManager.handleDisconnect(socket);
     const pid = socket.data.playerId;
