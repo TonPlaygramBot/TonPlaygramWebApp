@@ -199,6 +199,7 @@ router.post('/send', authenticate, async (req, res) => {
     const senderTx = {
       amount: -amount,
       type: 'send',
+      token: 'TPC',
       status: 'delivered',
       date: txDate,
       toAccount: String(toId),
@@ -208,6 +209,7 @@ router.post('/send', authenticate, async (req, res) => {
     const receiverTx = {
       amount,
       type: 'receive',
+      token: 'TPC',
       status: 'delivered',
       date: txDate,
       fromAccount: String(fromId),
@@ -310,7 +312,13 @@ router.post('/deposit', authenticate, async (req, res) => {
 
   ensureTransactionArray(user);
 
-  const tx = { amount, type: 'deposit', status: 'delivered', date: new Date() };
+  const tx = {
+    amount,
+    type: 'deposit',
+    token: 'TPC',
+    status: 'delivered',
+    date: new Date()
+  };
 
   user.transactions.push(tx);
 
@@ -361,7 +369,13 @@ router.post('/withdraw', authenticate, async (req, res) => {
 
   user.balance -= amount;
 
-  const tx = { amount: -amount, type: 'withdraw', status: 'pending', date: new Date() };
+  const tx = {
+    amount: -amount,
+    type: 'withdraw',
+    token: 'TPC',
+    status: 'pending',
+    date: new Date()
+  };
 
   user.transactions.push(tx);
 

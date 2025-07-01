@@ -4,95 +4,68 @@ import { getLeaderboard } from '../utils/api.js';
 import { getAvatarUrl } from '../utils/avatarUtils.js';
 
 export default function TransactionDetailsPopup({ tx, onClose }) {
-  const [fromProfile, setFromProfile] = useState(null);
-  const [toProfile, setToProfile] = useState(null);
-  const [otherName, setOtherName] = useState('');
+  const [counterparty, setCounterparty] = useState(null);
+
   useEffect(() => {
     if (!tx) return;
     getLeaderboard().then((data) => {
       const users = data?.users || [];
-      if (tx.fromAccount) {
-        const p = users.find((u) => u.accountId === tx.fromAccount);
-        setFromProfile(p || null);
-        if (!tx.fromName && p && (p.nickname || p.firstName || p.lastName)) {
-          setOtherName(
-            p.nickname || `${p.firstName || ''} ${p.lastName || ''}`.trim()
-          );
-        }
-      } else {
-        setFromProfile(null);
-      }
-      if (tx.toAccount) {
-        const p = users.find((u) => u.accountId === tx.toAccount);
-        setToProfile(p || null);
-      } else {
-        setToProfile(null);
-      }
+      const account = tx.type === 'send' ? tx.toAccount : tx.fromAccount;
+      const profile = users.find((u) => u.accountId === account);
+      setCounterparty(profile || null);
     });
   }, [tx]);
+
   if (!tx) return null;
+
+  const token = (tx.token || 'TPC').toUpperCase();
+  const icon = `/icons/${token.toLowerCase()}.svg`;
+  const isSend = tx.type === 'send';
+  const account = isSend ? tx.toAccount : tx.fromAccount;
+  const nameOverride = isSend ? tx.toName : tx.fromName;
+  const nameFromProfile = counterparty?.nickname || `${counterparty?.firstName || ''} ${counterparty?.lastName || ''}`.trim();
+  const displayName = nameOverride || nameFromProfile || '';
+
   return createPortal(
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-70">
-      <div className="bg-surface border border-border p-4 rounded space-y-2 text-text w-80 relative">
+      <div className="bg-surface border border-border p-4 rounded space-y-4 text-text w-80 relative">
         <button
           onClick={onClose}
           className="absolute -top-3 -right-3 bg-black bg-opacity-70 text-white rounded-full w-6 h-6 flex items-center justify-center"
         >
           &times;
         </button>
-        <h3 className="text-lg font-bold text-center capitalize">{tx.type} details</h3>
-        {(tx.type === 'send' || tx.type === 'receive') && (
-          <p className="text-sm text-center">
-            {tx.type === 'send' ? 'Sent' : 'Received'}{' '}
-            {Math.abs(tx.amount)} TPC{' '}
-            <img src="/icons/tpc.svg" alt="tpc" className="inline w-4 h-4" /> on{' '}
-            {new Date(tx.date).toLocaleDateString()} {' '}
-            {tx.type === 'send' ? 'to' : 'from'} account {tx.type === 'send' ? tx.toAccount : tx.fromAccount}{' '}
-            {(tx.type === 'send' ? toProfile : fromProfile) && (
-              <>
-                {' '}belonging to{' '}
-                {(tx.type === 'send' ? toProfile : fromProfile).nickname ||
-                  `${(tx.type === 'send' ? toProfile : fromProfile).firstName || ''} ${(tx.type === 'send' ? toProfile : fromProfile).lastName || ''}`.trim()}
-              </>
-            )}
-          </p>
-        )}
-        <div className="text-sm space-y-2">
-          <div className="flex justify-between"><span>Amount:</span><span className={tx.amount >= 0 ? 'text-green-500' : 'text-red-500'}>{tx.amount}</span></div>
-          {tx.fromAccount && (
+        <h3 className="text-lg font-bold text-center">Transaction Details</h3>
+        <div className="flex flex-col items-center space-y-2">
+          <div className="flex items-center space-x-2">
+            <img src={icon} alt={token} className="w-5 h-5" />
+            <span className="font-semibold">
+              {isSend ? 'Sent' : 'Received'} {Math.abs(tx.amount)} {token}
+            </span>
+          </div>
+          {counterparty && (
             <div className="flex items-center space-x-2">
-              <span>From:</span>
-              <img src="/icons/tpc.svg" alt="tpc" className="w-4 h-4" />
-              {fromProfile?.photo && (
-                <img src={getAvatarUrl(fromProfile.photo)} alt="" className="w-6 h-6 rounded-full" />
+              {counterparty.photo && (
+                <img
+                  src={getAvatarUrl(counterparty.photo)}
+                  alt=""
+                  className="w-8 h-8 rounded-full"
+                />
               )}
-              <div>
-                <div>{tx.fromName || fromProfile?.nickname || `${fromProfile?.firstName || ''} ${fromProfile?.lastName || ''}`.trim() || otherName}</div>
-                <div className="text-xs text-subtext">{tx.fromAccount}</div>
+              <div className="text-left">
+                <div>{isSend ? 'To:' : 'From:'} {displayName}</div>
+                <div className="text-xs text-subtext">TPC Account #{account}</div>
               </div>
             </div>
           )}
-          {tx.toAccount && (
-            <div className="flex items-center space-x-2">
-              <span>To:</span>
-              <img src="/icons/tpc.svg" alt="tpc" className="w-4 h-4" />
-              {toProfile?.photo && (
-                <img src={getAvatarUrl(toProfile.photo)} alt="" className="w-6 h-6 rounded-full" />
-              )}
-              <div>
-                <div>{tx.toName || toProfile?.nickname || `${toProfile?.firstName || ''} ${toProfile?.lastName || ''}`.trim()}</div>
-                <div className="text-xs text-subtext">{tx.toAccount}</div>
-              </div>
+          {!counterparty && account && (
+            <div className="text-sm">
+              {isSend ? 'To' : 'From'} account #{account}
             </div>
           )}
-          {tx.game && (
-            <div className="flex justify-between"><span>Game:</span><span>{tx.game}</span></div>
-          )}
-          {tx.players && (
-            <div className="flex justify-between"><span>Players:</span><span>{tx.players}</span></div>
-          )}
-          <div className="flex justify-between"><span>Date:</span><span>{new Date(tx.date).toLocaleString()}</span></div>
-          <div className="flex justify-between"><span>Status:</span><span>{tx.status}</span></div>
+          <div className="text-xs text-subtext">
+            {new Date(tx.date).toLocaleString()}
+          </div>
         </div>
       </div>
     </div>,

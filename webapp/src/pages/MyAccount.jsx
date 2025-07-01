@@ -302,7 +302,7 @@ export default function MyAccount() {
               >
                 <span className="capitalize">{tx.type}</span>
                 <span className={tx.amount > 0 ? 'text-green-500' : 'text-red-500'}>
-                  {tx.amount}
+                  {tx.amount} {(tx.token || 'TPC').toUpperCase()}
                 </span>
                 <span>{new Date(tx.date).toLocaleString()}</span>
                 <span className="text-xs">{tx.status}</span>
