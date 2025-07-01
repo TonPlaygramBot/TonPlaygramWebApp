@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
+import { FiCopy } from 'react-icons/fi';
 import { getLeaderboard } from '../utils/api.js';
 import { getAvatarUrl } from '../utils/avatarUtils.js';
 
@@ -19,7 +20,12 @@ export default function TransactionDetailsPopup({ tx, onClose }) {
   if (!tx) return null;
 
   const token = (tx.token || 'TPC').toUpperCase();
-  const icon = `/icons/${token.toLowerCase()}.svg`;
+  const iconMap = {
+    TPC: '/icons/TPCcoin.png',
+    TON: '/icons/TON.png',
+    USDT: '/icons/Usdt.png'
+  };
+  const icon = iconMap[token] || `/icons/${token.toLowerCase()}.png`;
   const isSend = tx.type === 'send';
   const account = isSend ? tx.toAccount : tx.fromAccount;
   const nameOverride = isSend ? tx.toName : tx.fromName;
@@ -54,13 +60,23 @@ export default function TransactionDetailsPopup({ tx, onClose }) {
               )}
               <div className="text-left">
                 <div>{isSend ? 'To:' : 'From:'} {displayName}</div>
-                <div className="text-xs text-subtext">TPC Account #{account}</div>
+                <div className="text-xs text-subtext flex items-center space-x-1">
+                  <span>TPC Account #{account}</span>
+                  <FiCopy
+                    className="w-4 h-4 cursor-pointer"
+                    onClick={() => navigator.clipboard.writeText(String(account))}
+                  />
+                </div>
               </div>
             </div>
           )}
           {!counterparty && account && (
-            <div className="text-sm">
-              {isSend ? 'To' : 'From'} account #{account}
+            <div className="text-sm flex items-center space-x-1">
+              <span>{isSend ? 'To' : 'From'} account #{account}</span>
+              <FiCopy
+                className="w-4 h-4 cursor-pointer"
+                onClick={() => navigator.clipboard.writeText(String(account))}
+              />
             </div>
           )}
           <div className="text-xs text-subtext">
