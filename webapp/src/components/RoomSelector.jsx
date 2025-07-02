@@ -11,11 +11,14 @@ const tokens = [
   { id: 'USDT', icon: '/icons/Usdt.png' },
 ];
 
-export default function RoomSelector({ selected, onSelect }) {
+export default function RoomSelector({ selected, onSelect, tokens: allowed }) {
   const { token, amount } = selected;
+  const list = Array.isArray(allowed)
+    ? tokens.filter((t) => allowed.includes(t.id))
+    : tokens;
   return (
     <div className="space-y-2">
-      {tokens.map(({ id, icon }) => (
+      {list.map(({ id, icon }) => (
         <div key={id} className="flex items-center space-x-2">
           {AMOUNTS[id].map((amt) => (
             <button
