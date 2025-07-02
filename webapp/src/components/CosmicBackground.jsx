@@ -15,8 +15,11 @@ export default function CosmicBackground() {
     const stars = [];
     const comets = [];
     const storms = [
-      { x: 0.35, y: 0.4, r: 160, angle: 0, color: 'rgba(20,40,80,0.5)' },
-      { x: 0.75, y: 0.6, r: 120, angle: 0, color: 'rgba(180,60,20,0.4)' },
+      { rx: 0.35, ry: 0.4, r: 160, angle: 0, color: 'rgba(20,40,80,0.5)', x: 0, y: 0 },
+      { rx: 0.75, ry: 0.6, r: 120, angle: 0, color: 'rgba(180,60,20,0.4)', x: 0, y: 0 },
+      { rx: Math.random(), ry: Math.random(), r: 140, angle: 0, color: 'rgba(80,20,120,0.4)', x: 0, y: 0 },
+      { rx: Math.random(), ry: Math.random(), r: 130, angle: 0, color: 'rgba(30,120,200,0.35)', x: 0, y: 0 },
+      { rx: Math.random(), ry: Math.random(), r: 150, angle: 0, color: 'rgba(200,200,50,0.3)', x: 0, y: 0 },
     ];
 
     const dpr = window.devicePixelRatio || 1;
@@ -42,10 +45,10 @@ export default function CosmicBackground() {
           colorChange: i < 2,
         });
       }
-      storms[0].x = width * 0.35;
-      storms[0].y = height * 0.4;
-      storms[1].x = width * 0.75;
-      storms[1].y = height * 0.6;
+      storms.forEach((s) => {
+        s.x = width * s.rx;
+        s.y = height * s.ry;
+      });
     };
 
     const resize = () => initScene();
