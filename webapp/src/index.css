@@ -1072,3 +1072,71 @@ body {
 .weather-bg.mist {
   background: linear-gradient(#e2e8f0, #94a3b8);
 }
+
+/* Sky background with animated planes */
+.sky-background {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(to bottom, #99caff 0%, #eaf6ff 80%);
+}
+.sky-background::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image:
+    radial-gradient(circle at 15% 20%, rgba(255, 255, 255, 0.8) 0%, rgba(255, 255, 255, 0) 60%),
+    radial-gradient(circle at 70% 30%, rgba(255, 255, 255, 0.7) 0%, rgba(255, 255, 255, 0) 60%),
+    radial-gradient(circle at 50% 80%, rgba(255, 255, 255, 0.6) 0%, rgba(255, 255, 255, 0) 60%);
+  background-size: 200% 100%;
+  animation: clouds-move 60s linear infinite;
+}
+.plane {
+  transform: translateX(-50px);
+}
+.plane .trail {
+  position: absolute;
+  top: 45%;
+  width: 2px;
+  height: 60px;
+  background: rgba(255, 255, 255, 0.7);
+  animation: trail-fade 20s linear infinite;
+}
+.plane .trail.left {
+  left: -4px;
+}
+.plane .trail.right {
+  right: -4px;
+}
+@keyframes trail-fade {
+  0% {
+    opacity: 0.7;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+@keyframes fly-0 {
+  from {
+    transform: translateX(-50px);
+  }
+  to {
+    transform: translateX(110vw);
+  }
+}
+@keyframes fly-1 {
+  from {
+    transform: translateX(-50px);
+  }
+  to {
+    transform: translateX(110vw);
+  }
+}
+
+@keyframes clouds-move {
+  from {
+    background-position: 0 0, 0 0, 0 0;
+  }
+  to {
+    background-position: -400px 0, 400px 0, -200px 0;
+  }
+}
