@@ -235,7 +235,12 @@ export default function MyAccount() {
             <a href="/messages" className="underline text-primary">
               Inbox
             </a>
-            {!profile.googleId && <div id="g_id_link"></div>}
+            {!profile.googleId && (
+              <div className="mt-2 space-y-1">
+                <p className="text-sm">Link your Google account:</p>
+                <div id="g_id_link"></div>
+              </div>
+            )}
           </div>
         </div>
       </div>

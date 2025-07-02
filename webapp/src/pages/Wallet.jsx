@@ -4,7 +4,8 @@ import {
   createAccount,
   getAccountBalance,
   sendAccountTpc,
-  getAccountTransactions
+  getAccountTransactions,
+  setWalletPassword
 } from '../utils/api.js';
 import { getTelegramId } from '../utils/telegram.js';
 import ConfirmPopup from '../components/ConfirmPopup.jsx';
@@ -51,6 +52,9 @@ export default function Wallet() {
   const [filterUser, setFilterUser] = useState('');
   const [sortOrder, setSortOrder] = useState('desc');
   const [selectedTx, setSelectedTx] = useState(null);
+  const [walletPassword, setWalletPasswordInput] = useState('');
+  const [backupMethod, setBackupMethod] = useState('PIN');
+  const [savingPwd, setSavingPwd] = useState(false);
   const dateInputRef = useRef(null);
 
   const txTypes = Array.from(new Set(transactions.map((t) => t.type))).filter(
@@ -152,6 +156,19 @@ export default function Wallet() {
       : new Date(a.date) - new Date(b.date)
   );
 
+  const handleSavePassword = async () => {
+    if (!walletPassword) return;
+    setSavingPwd(true);
+    try {
+      await setWalletPassword(telegramId, walletPassword, backupMethod);
+      setWalletPasswordInput('');
+    } catch (err) {
+      console.error('Failed to set password', err);
+    } finally {
+      setSavingPwd(false);
+    }
+  };
+
 
 
 
@@ -214,16 +231,44 @@ export default function Wallet() {
           >
             Copy Account Number
           </button>
-          {accountId && (
-            <div className="mt-4 flex justify-center">
-              <QRCode value={String(accountId)} size={100} />
-            </div>
-          )}
-        </div>
+        {accountId && (
+          <div className="mt-4 flex justify-center">
+            <QRCode value={String(accountId)} size={100} />
+          </div>
+        )}
       </div>
+      <div className="prism-box p-6 space-y-3 text-center mt-4 mb-4 flex flex-col items-center w-80 mx-auto border-[#334155]">
+        <label className="block font-semibold">Set Wallet Password</label>
+        <input
+          type="password"
+          placeholder="Password"
+          value={walletPassword}
+          onChange={(e) => setWalletPasswordInput(e.target.value)}
+          className="border p-1 rounded w-full max-w-xs mx-auto text-black"
+        />
+        <select
+          value={backupMethod}
+          onChange={(e) => setBackupMethod(e.target.value)}
+          className="border border-border rounded text-black text-xs px-1"
+        >
+          <option value="Pattern">Phone pattern</option>
+          <option value="PIN">PIN</option>
+          <option value="Fingerprint">Fingerprint</option>
+          <option value="Email">Email</option>
+          <option value="Offline">Offline password</option>
+        </select>
+        <button
+          onClick={handleSavePassword}
+          className="mt-1 px-3 py-1 bg-primary hover:bg-primary-hover text-background rounded"
+          disabled={savingPwd}
+        >
+          {savingPwd ? 'Saving...' : 'Save Password'}
+        </button>
+      </div>
+    </div>
 
 
-      <div className="prism-box p-4 space-y-2 text-center mt-4 flex flex-col items-center w-80 mx-auto border-[#334155]">
+    <div className="prism-box p-4 space-y-2 text-center mt-4 flex flex-col items-center w-80 mx-auto border-[#334155]">
         <h3 className="font-semibold text-center">Transactions</h3>
         <div className="flex items-center justify-center">
           <div className="flex items-center space-x-1 flex-wrap justify-center">
