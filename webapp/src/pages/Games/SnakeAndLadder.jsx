@@ -415,6 +415,11 @@ function Board({
                 topColor="#ff0000"
                 className="pot-token"
               />
+              <img
+                src={`/icons/${token === 'TON' ? 'TON.png' : token === 'USDT' ? 'Usdt.png' : 'TPCcoin.png'}`}
+                alt={token}
+                className="pot-icon"
+              />
               {players
                 .map((p, i) => ({ ...p, index: i }))
                 .filter((p) => p.position === FINAL_TILE)
@@ -487,6 +492,7 @@ export default function SnakeAndLadder() {
   const [pot, setPot] = useState(101);
   const [token, setToken] = useState("TPC");
   const [celebrate, setCelebrate] = useState(false);
+  const [leftWinner, setLeftWinner] = useState(null);
   const [showInfo, setShowInfo] = useState(false);
   const [muted, setMuted] = useState(false);
   const [snakes, setSnakes] = useState({});
@@ -830,6 +836,9 @@ export default function SnakeAndLadder() {
         if (leaving && !ranking.includes(leaving.name)) {
           setRanking((r) => [...r, leaving.name]);
         }
+        if (leaving && arr.length === 1 && capacity === 2) {
+          setLeftWinner(leaving.name);
+        }
         return arr;
       });
     };
@@ -924,7 +933,11 @@ export default function SnakeAndLadder() {
     };
     const onWon = ({ playerId }) => {
       setGameOver(true);
-      setRanking([playerId === accountId ? myName : playerId]);
+      const winnerName = playerId === accountId ? myName : playerId;
+      setRanking((r) => {
+        const others = r.filter((n) => n !== winnerName);
+        return [winnerName, ...others];
+      });
       if (playerId === accountId) {
         const totalPlayers = isMultiplayer ? mpPlayers.length : ai + 1;
         const tgId = getTelegramId();
@@ -1744,6 +1757,23 @@ export default function SnakeAndLadder() {
         onClose={() => setShowInfo(false)}
         title="Snake & Ladder"
         info="Roll the dice to move across the board. Ladders move you up, snakes bring you down. The Pot at the top collects everyone's stake – reach it first to claim the total amount."
+      />
+      <InfoPopup
+        open={!!leftWinner}
+        onClose={() => setLeftWinner(null)}
+        title="Opponent Left"
+        info={
+          leftWinner && (
+            <span>
+              {leftWinner} left the game. You win {Math.round(pot * 2 * 0.91)}{' '}
+              <img
+                src={`/icons/${token === 'TON' ? 'TON.png' : token === 'USDT' ? 'Usdt.png' : 'TPCcoin.png'}`}
+                alt={token}
+                className="inline w-4 h-4 align-middle"
+              />
+            </span>
+          )
+        }
       />
       <GameEndPopup
         open={gameOver}
