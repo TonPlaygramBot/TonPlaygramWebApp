@@ -26,6 +26,21 @@ import TransactionDetailsPopup from '../components/TransactionDetailsPopup.jsx';
 import { AiOutlineCalendar } from 'react-icons/ai';
 import { FiCopy } from 'react-icons/fi';
 
+function formatValue(value, decimals = 2) {
+  if (typeof value !== 'number') {
+    const parsed = parseFloat(value);
+    if (isNaN(parsed)) return value;
+    return parsed.toLocaleString(undefined, {
+      minimumFractionDigits: decimals,
+      maximumFractionDigits: decimals,
+    });
+  }
+  return value.toLocaleString(undefined, {
+    minimumFractionDigits: decimals,
+    maximumFractionDigits: decimals,
+  });
+}
+
 export default function MyAccount() {
   useTelegramBackButton();
   let telegramId;
@@ -334,6 +349,8 @@ export default function MyAccount() {
           <div className="space-y-1 text-sm">
             {sortedTransactions.map((tx, i) => {
               const typeLabel = tx.game ? 'game' : tx.type;
+              const sign = tx.amount > 0 ? '+' : '-';
+              const amt = formatValue(Math.abs(tx.amount), 2);
               return (
                 <div
                   key={i}
@@ -342,7 +359,8 @@ export default function MyAccount() {
                 >
                   <span className="capitalize">{typeLabel}</span>
                   <span className={tx.amount > 0 ? 'text-green-500' : 'text-red-500'}>
-                    {tx.amount} {(tx.token || 'TPC').toUpperCase()}
+                    {sign}
+                    {amt} {(tx.token || 'TPC').toUpperCase()}
                   </span>
                   <span>{new Date(tx.date).toLocaleString()}</span>
                   <span className="text-xs">{tx.status}</span>

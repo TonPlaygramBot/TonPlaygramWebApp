@@ -35,6 +35,12 @@ export default function TransactionDetailsPopup({ tx, onClose }) {
   const nameFromProfile = counterparty?.nickname || `${counterparty?.firstName || ''} ${counterparty?.lastName || ''}`.trim();
   const displayName = nameOverride || nameFromProfile || '';
 
+  const sign = tx.amount > 0 ? '+' : '-';
+  const formattedAmount = Math.abs(tx.amount).toLocaleString(undefined, {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+
   return createPortal(
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-70">
       <div className="p-4 space-y-4 w-80 relative rounded-xl border-2 border-[#334155] bg-[#2d5c66] text-white">
@@ -57,7 +63,7 @@ export default function TransactionDetailsPopup({ tx, onClose }) {
                 if (isSend) return 'Sent';
                 if (isReceive) return 'Received';
                 return tx.type;
-              })()} {tx.game ? `${tx.amount > 0 ? '+' : '-'}${Math.abs(tx.amount)}` : Math.abs(tx.amount)}
+              })()} {sign}{formattedAmount}
               <img src={icon} alt={token} className="w-5 h-5 inline" />
             </span>
             {tx.game && (
