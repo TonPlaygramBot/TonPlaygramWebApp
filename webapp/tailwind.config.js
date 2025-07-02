@@ -6,18 +6,18 @@ export default {
   theme: {
     extend: {
       colors: {
-        // TonPlaygram premium theme
-        background: '#1a082c',        // Page background (dark purple)
-        surface: '#14213d',           // Cards, panels (dark blue)
-        border: '#334155',            // Dividers/borders (dark blue)
-        primary: '#2563eb',           // Button base (TON blue)
-        'primary-hover': '#1d4ed8',   // Button hover
-        text: '#ffffff',              // Main text
-        subtext: '#94a3b8',           // Dimmed/inactive text
-        accent: '#facc15',            // Highlights (yellow/gold)
+        // Futuristic neon theme
+        background: '#050f1a',        // Dark navy background
+        surface: '#050f1a',           // Panels use same dark tone
+        border: '#00f7ff',            // Glowing cyan borders
+        primary: '#00f7ff',           // Button base in electric blue
+        'primary-hover': '#66fcff',   // Lighter hover effect
+        text: '#00f7ff',              // Electric blue text
+        subtext: '#66fcff',           // Slightly dimmed blue
+        accent: '#00f7ff',            // Accent color
         brand: {
-          gold: '#f1c40f',            // Optional brand gold
-          black: '#000000'            // Contrast color
+          gold: '#00f7ff',            // Not used but keep scheme consistent
+          black: '#000000'
         }
       }
     }
