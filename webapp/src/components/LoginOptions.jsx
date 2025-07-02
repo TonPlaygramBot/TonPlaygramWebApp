@@ -12,15 +12,27 @@ export default function LoginOptions() {
         if (data.sub) localStorage.setItem('googleId', data.sub);
       } catch {}
     }
-    if (window.google && import.meta.env.VITE_GOOGLE_CLIENT_ID) {
-      window.google.accounts.id.initialize({
-        client_id: import.meta.env.VITE_GOOGLE_CLIENT_ID,
-        callback: handleCredential
-      });
-      window.google.accounts.id.renderButton(
-        document.getElementById('g_id_button'),
-        { theme: 'outline', size: 'large' }
-      );
+
+    function renderButton() {
+      if (window.google && import.meta.env.VITE_GOOGLE_CLIENT_ID) {
+        window.google.accounts.id.initialize({
+          client_id: import.meta.env.VITE_GOOGLE_CLIENT_ID,
+          callback: handleCredential
+        });
+        window.google.accounts.id.renderButton(
+          document.getElementById('g_id_button'),
+          { theme: 'outline', size: 'large' }
+        );
+        return true;
+      }
+      return false;
+    }
+
+    if (!renderButton()) {
+      const id = setInterval(() => {
+        if (renderButton()) clearInterval(id);
+      }, 500);
+      return () => clearInterval(id);
     }
   }, []);
 

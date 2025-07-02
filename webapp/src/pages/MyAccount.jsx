@@ -83,15 +83,26 @@ export default function MyAccount() {
       }
     }
 
-    if (window.google && import.meta.env.VITE_GOOGLE_CLIENT_ID) {
-      window.google.accounts.id.initialize({
-        client_id: import.meta.env.VITE_GOOGLE_CLIENT_ID,
-        callback: handleCredential
-      });
-      window.google.accounts.id.renderButton(
-        document.getElementById('g_id_link'),
-        { theme: 'outline', size: 'large' }
-      );
+    function renderButton() {
+      if (window.google && import.meta.env.VITE_GOOGLE_CLIENT_ID) {
+        window.google.accounts.id.initialize({
+          client_id: import.meta.env.VITE_GOOGLE_CLIENT_ID,
+          callback: handleCredential
+        });
+        window.google.accounts.id.renderButton(
+          document.getElementById('g_id_link'),
+          { theme: 'outline', size: 'large' }
+        );
+        return true;
+      }
+      return false;
+    }
+
+    if (!renderButton()) {
+      const id = setInterval(() => {
+        if (renderButton()) clearInterval(id);
+      }, 500);
+      return () => clearInterval(id);
     }
   }, [profile, telegramId]);
 
