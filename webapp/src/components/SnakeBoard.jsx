@@ -258,6 +258,11 @@ export default function SnakeBoard({
             {tiles}
             <div className={`pot-cell ${highlight && highlight.cell === FINAL_TILE ? 'highlight' : ''}`}>
               <PlayerToken color="#16a34a" topColor="#ff0000" className="pot-token" />
+              <img
+                src={`/icons/${token === 'TON' ? 'TON.png' : token === 'USDT' ? 'Usdt.png' : 'TPCcoin.png'}`}
+                alt={token}
+                className="pot-icon"
+              />
               {players
                 .map((p, i) => ({ ...p, index: i }))
                 .filter((p) => p.position === FINAL_TILE)
