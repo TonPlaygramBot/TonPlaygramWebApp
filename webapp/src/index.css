@@ -1044,3 +1044,31 @@ body {
 .account-background{
   transform: translateY(90px) scale(1.35);
 }
+
+.weather-bg {
+  transition: background 1s ease;
+}
+.weather-bg.clear.day {
+  background: linear-gradient(#87ceeb, #fefefe);
+}
+.weather-bg.clear.night {
+  background: linear-gradient(#001d3d, #111);
+}
+.weather-bg.clouds.day {
+  background: linear-gradient(#cbd5e1, #94a3b8);
+}
+.weather-bg.clouds.night {
+  background: linear-gradient(#4b5563, #1e293b);
+}
+.weather-bg.rain {
+  background: linear-gradient(#64748b, #1e3a8a);
+}
+.weather-bg.thunderstorm {
+  background: linear-gradient(#475569, #0f172a);
+}
+.weather-bg.snow {
+  background: linear-gradient(#f8fafc, #e2e8f0);
+}
+.weather-bg.mist {
+  background: linear-gradient(#e2e8f0, #94a3b8);
+}
