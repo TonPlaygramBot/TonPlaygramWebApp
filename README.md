@@ -17,6 +17,7 @@
    - `VITE_API_BASE_URL` – the base URL where the bot API is hosted (e.g. `http://localhost:3000`).
      If omitted, the webapp will connect to the same origin it was served from.
    - `VITE_GOOGLE_CLIENT_ID` – OAuth client ID for Google sign-in.
+   - `VITE_DEV_ACCOUNT_ID` – account ID that receives the 9% developer share.
 
    This value is required for the Google button to appear on the login and
    profile pages. When provided, the webapp lets users sign in with Google and
