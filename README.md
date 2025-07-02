@@ -16,10 +16,11 @@
 4. Copy `webapp/.env.example` to `webapp/.env` and configure:
    - `VITE_API_BASE_URL` – the base URL where the bot API is hosted (e.g. `http://localhost:3000`).
      If omitted, the webapp will connect to the same origin it was served from.
-   - `VITE_GOOGLE_CLIENT_ID` – OAuth client ID for Google sign-in
+   - `VITE_GOOGLE_CLIENT_ID` – OAuth client ID for Google sign-in.
 
-   The webapp uses this client ID to let users sign in with Google. Their
-   Google ID is stored alongside any Telegram information when calling
+   This value is required for the Google button to appear on the login and
+   profile pages. When provided, the webapp lets users sign in with Google and
+   stores their Google ID alongside any Telegram information when calling
    `/api/profile/register-google`.
 
   ⚠️ Misconfiguring these may prevent the wallet from loading correctly.

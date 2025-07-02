@@ -104,9 +104,8 @@ export class GameRoom {
 
   startGame() {
     if (this.status !== 'waiting') return;
-    const board = generateBoard();
-    this.snakes = board.snakes;
-    this.ladders = board.ladders;
+    // The board is generated when the room is created and should remain
+    // consistent for all players. Do not regenerate it here.
     this.game.snakes = this.snakes;
     this.game.ladders = this.ladders;
     this.game.currentTurn = 0;
@@ -210,16 +209,31 @@ export class GameRoom {
     player.socketId = null;
     player.position = 0;
     this.io.to(this.id).emit('playerLeft', { playerId: player.playerId });
-    if (this.status === 'playing' && idx === this.currentTurn) {
-      if (this.turnTimer) {
-        clearTimeout(this.turnTimer);
-        this.turnTimer = null;
+    if (this.status === 'playing') {
+      const active = this.players.filter((p) => !p.disconnected);
+      if (active.length === 1) {
+        const winner = active[0];
+        this.status = 'finished';
+        GameResult.create({
+          winner: winner.name,
+          participants: this.players.map((p) => p.name),
+        }).catch((err) =>
+          console.error('Failed to store game result:', err.message)
+        );
+        this.io.to(this.id).emit('gameWon', { playerId: winner.playerId });
+        return;
       }
-      if (this.players.some((p) => !p.disconnected)) {
-        do {
-          this.currentTurn = (this.currentTurn + 1) % this.players.length;
-        } while (this.players[this.currentTurn].disconnected);
-        this.emitNextTurn();
+      if (idx === this.currentTurn) {
+        if (this.turnTimer) {
+          clearTimeout(this.turnTimer);
+          this.turnTimer = null;
+        }
+        if (this.players.some((p) => !p.disconnected)) {
+          do {
+            this.currentTurn = (this.currentTurn + 1) % this.players.length;
+          } while (this.players[this.currentTurn].disconnected);
+          this.emitNextTurn();
+        }
       }
     }
   }
