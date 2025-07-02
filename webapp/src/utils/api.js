@@ -347,8 +347,15 @@ export function resetTpcWallet(telegramId) {
   return post('/api/wallet/reset', { telegramId });
 }
 
-export function setWalletPassword(telegramId, password, method) {
-  return post('/api/wallet/password', { telegramId, password, method });
+export function setWalletPassword(telegramId, password, method, passkeyId, publicKey) {
+  const body = { telegramId, password, method };
+  if (passkeyId) body.passkeyId = passkeyId;
+  if (publicKey) body.publicKey = publicKey;
+  return post('/api/wallet/password', body);
+}
+
+export function registerWalletPasskey(telegramId, passkeyId, publicKey) {
+  return post('/api/wallet/passkey', { telegramId, passkeyId, publicKey });
 }
 
 // ----- Account based wallet -----
