@@ -279,18 +279,19 @@ export default function MyAccount() {
             <input
               type="text"
               readOnly
-              value={`https://t.me/${BOT_USERNAME}?start=${referral.code}`}
+              value={`https://t.me/${BOT_USERNAME}?start=${referral.referralCode}`}
               onClick={(e) => e.target.select()}
               className="flex-1 bg-surface border border-border rounded px-2 py-1 text-sm"
             />
             <button
-              onClick={() => navigator.clipboard.writeText(`https://t.me/${BOT_USERNAME}?start=${referral.code}`)}
+              onClick={() => navigator.clipboard.writeText(`https://t.me/${BOT_USERNAME}?start=${referral.referralCode}`)}
               className="px-2 py-1 bg-primary hover:bg-primary-hover rounded text-sm text-white-shadow"
             >
               Copy
             </button>
           </div>
-          <p className="text-sm text-subtext">{referral.referrals} referrals</p>
+          <p className="text-sm text-subtext">Invited friends: {referral.referralCount}</p>
+          <p className="text-sm text-subtext">Mining boost: +{referral.bonusMiningRate * 100}%</p>
         </div>
       )}
 

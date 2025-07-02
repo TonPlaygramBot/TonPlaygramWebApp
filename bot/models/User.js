@@ -74,6 +74,8 @@ const userSchema = new mongoose.Schema({
 
   referredBy: { type: String },
 
+  bonusMiningRate: { type: Number, default: 0 },
+
 
   // Track which game table the user is currently seated at
   currentTableId: { type: String, default: null }

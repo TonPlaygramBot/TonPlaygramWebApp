@@ -14,7 +14,11 @@ router.post('/code', async (req, res) => {
   );
 
   const count = await User.countDocuments({ referredBy: user.referralCode });
-  res.json({ code: user.referralCode, referrals: count });
+  res.json({
+    referralCode: user.referralCode,
+    referralCount: count,
+    bonusMiningRate: user.bonusMiningRate || 0,
+  });
 });
 
 router.post('/claim', async (req, res) => {
@@ -41,6 +45,9 @@ router.post('/claim', async (req, res) => {
 
   user.referredBy = code;
   await user.save();
+
+  inviter.bonusMiningRate = Math.min((inviter.bonusMiningRate || 0) + 0.1, 2.0);
+  await inviter.save();
 
   const count = await User.countDocuments({ referredBy: code });
   res.json({ message: 'claimed', total: count });

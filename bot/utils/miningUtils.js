@@ -1,5 +1,5 @@
 export const MINING_SESSION_MS = 12 * 60 * 60 * 1000; // 12 hours
-export const MINING_REWARD = 2000;
+export const MINING_REWARD = 2000; // base mining multiplier
 
 import { ensureTransactionArray } from './userUtils.js';
 
@@ -11,9 +11,13 @@ export function updateMiningRewards(user) {
       user.isMining = false;
       user.lastMineAt = null;
       user.minedTPC = 0;
-      user.balance += MINING_REWARD;
+      const baseRate = 1;
+      const miningMultiplier = MINING_REWARD;
+      const totalRate = baseRate + (user.bonusMiningRate || 0);
+      const reward = totalRate * miningMultiplier;
+      user.balance += reward;
       user.transactions.push({
-        amount: MINING_REWARD,
+        amount: reward,
         type: 'mining',
         status: 'delivered',
         date: new Date()
