@@ -30,12 +30,15 @@ import useWalletUsdValue from '../hooks/useWalletUsdValue.js';
 
 import { getTelegramId, getTelegramPhotoUrl } from '../utils/telegram.js';
 import { getProfile } from '../utils/api.js';
+import { Headphones } from 'lucide-react';
+import RadioPopup from '../components/RadioPopup.jsx';
 
 export default function Home() {
 
   const [status, setStatus] = useState('checking');
 
   const [photoUrl, setPhotoUrl] = useState(loadAvatar() || '');
+  const [showRadio, setShowRadio] = useState(false);
   const { tpcBalance, tonBalance, usdtBalance } = useTokenBalances();
   const usdValue = useWalletUsdValue(tonBalance, usdtBalance);
   const walletAddress = useTonAddress();
@@ -87,6 +90,11 @@ export default function Home() {
   return (
 
     <div className="space-y-4">
+      <div className="fixed top-2 left-2 z-20 flex items-center">
+        <button onClick={() => setShowRadio(true)}>
+          <Headphones className="w-5 h-5" />
+        </button>
+      </div>
 
       <div className="flex flex-col items-center">
 
@@ -169,6 +177,8 @@ export default function Home() {
       </div>
 
       <p className="text-center text-xs text-subtext">Status: {status}</p>
+
+      <RadioPopup open={showRadio} onClose={() => setShowRadio(false)} />
 
     </div>
 
