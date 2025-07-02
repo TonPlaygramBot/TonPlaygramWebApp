@@ -1251,9 +1251,11 @@ export default function SnakeAndLadder() {
               .then(async (aid) => {
                 const total = pot * (ai + 1);
                 const winAmt = Math.round(total * 0.91);
-                await depositAccount(aid, winAmt);
+                await depositAccount(aid, winAmt, { game: 'snake-win' });
                 if (DEV_ACCOUNT) {
-                  await depositAccount(DEV_ACCOUNT, Math.round(total * 0.09));
+                  await depositAccount(DEV_ACCOUNT, Math.round(total * 0.09), {
+                    game: 'snake-dev'
+                  });
                 }
               })
               .catch(() => {});

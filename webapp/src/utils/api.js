@@ -372,6 +372,6 @@ export function getAccountTransactions(accountId) {
   return post('/api/account/transactions', { accountId });
 }
 
-export function depositAccount(accountId, amount) {
-  return post('/api/account/deposit', { accountId, amount });
+export function depositAccount(accountId, amount, extra = {}) {
+  return post('/api/account/deposit', { accountId, amount, ...extra });
 }

@@ -125,7 +125,7 @@ router.post('/transactions', async (req, res) => {
 
 // Deposit rewards into account
 router.post('/deposit', authenticate, async (req, res) => {
-  const { accountId, amount } = req.body;
+  const { accountId, amount, game } = req.body;
   const authId = req.auth?.telegramId;
   if (!accountId || typeof amount !== 'number' || amount <= 0) {
     return res.status(400).json({ error: 'accountId and positive amount required' });
@@ -144,6 +144,7 @@ router.post('/deposit', authenticate, async (req, res) => {
     status: 'delivered',
     date: new Date()
   };
+  if (game) tx.game = game;
   user.transactions.push(tx);
   await user.save();
 
