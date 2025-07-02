@@ -1052,7 +1052,8 @@ body {
   background: linear-gradient(#87ceeb, #fefefe);
 }
 .weather-bg.clear.night {
-  background: linear-gradient(#001d3d, #111);
+  /* Dark purple night sky */
+  background: linear-gradient(#001d3d, #1a082c);
 }
 .weather-bg.clouds.day {
   background: linear-gradient(#cbd5e1, #94a3b8);
