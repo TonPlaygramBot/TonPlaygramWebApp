@@ -213,7 +213,7 @@ export default function Friends() {
                   key={u.accountId || u.telegramId}
                   className={`border-b border-border h-16 ${u.accountId === accountId ? 'bg-accent text-black' : 'cursor-pointer'}`}
                   onClick={() => {
-                    if (u.accountId === accountId) return;
+                    if (u.accountId === accountId || u.currentTableId) return;
                     if (mode === 'group') {
                       setSelected((prev) => {
                         const exists = prev.find((p) => p.accountId === u.accountId);
@@ -242,12 +242,16 @@ export default function Friends() {
                     {mode === 'group' && u.accountId !== accountId && (
                       <input
                         type="checkbox"
+                        disabled={!!u.currentTableId}
                         checked={selected.some((p) => p.accountId === u.accountId)}
                         onChange={() => {}}
                         className="mr-1"
                       />
                     )}
                     {u.nickname || `${u.firstName} ${u.lastName}`.trim() || 'User'}
+                    {u.currentTableId && (
+                      <span className="ml-1 text-xs text-red-500">playing not available</span>
+                    )}
                     {onlineUsers.includes(String(u.accountId)) && (
                       <FaCircle className="ml-1 text-green-500" size={8} />
                     )}

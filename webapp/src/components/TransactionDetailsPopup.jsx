@@ -43,13 +43,18 @@ export default function TransactionDetailsPopup({ tx, onClose }) {
         >
           &times;
         </button>
-        <h3 className="text-lg font-bold text-center">Transaction Details</h3>
+        <h3 className="text-lg font-bold text-center">TPC Statement Details</h3>
         <div className="flex flex-col items-center space-y-2">
           <div className="flex items-center space-x-2">
-            <span className="font-semibold flex items-center space-x-1">
+            <span
+              className={`font-semibold flex items-center space-x-1 ${tx.amount > 0 ? 'text-green-500' : 'text-red-500'}`}
+            >
               {isSend ? 'Sent' : 'Received'} {Math.abs(tx.amount)}
               <img src={icon} alt={token} className="w-5 h-5 inline" />
             </span>
+            {tx.game && (
+              <span className="text-xs capitalize">{tx.type}</span>
+            )}
           </div>
           {counterparty && (
             <div className="flex items-center space-x-2">

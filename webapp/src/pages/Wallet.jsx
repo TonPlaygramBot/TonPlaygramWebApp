@@ -225,7 +225,7 @@ export default function Wallet() {
 
 
     <div className="prism-box p-4 space-y-2 text-center mt-4 flex flex-col items-center w-80 mx-auto border-[#334155]">
-        <h3 className="font-semibold text-center">Transactions</h3>
+        <h3 className="font-semibold text-center">TPC Statements</h3>
         <div className="flex items-center justify-center">
           <div className="flex items-center space-x-1 flex-wrap justify-center">
             <input
@@ -278,20 +278,23 @@ export default function Wallet() {
           </div>
         </div>
         <div className="space-y-1 text-sm max-h-[40rem] overflow-y-auto border border-border rounded">
-          {sortedTransactions.map((tx, i) => (
-            <div
-              key={i}
-              className="lobby-tile w-full flex justify-between items-center cursor-pointer"
-              onClick={() => setSelectedTx(tx)}
-            >
-              <span className="capitalize">{tx.type}</span>
-              <span className={tx.amount > 0 ? 'text-green-500' : 'text-red-500'}>
-                {tx.amount} {(tx.token || 'TPC').toUpperCase()}
-              </span>
-              <span className="text-xs">{new Date(tx.date).toLocaleString()}</span>
-              <span className="text-xs">{tx.status}</span>
-            </div>
-          ))}
+          {sortedTransactions.map((tx, i) => {
+            const typeLabel = tx.game ? 'game' : tx.type;
+            return (
+              <div
+                key={i}
+                className="lobby-tile w-full flex justify-between items-center cursor-pointer"
+                onClick={() => setSelectedTx(tx)}
+              >
+                <span className="capitalize">{typeLabel}</span>
+                <span className={tx.amount > 0 ? 'text-green-500' : 'text-red-500'}>
+                  {tx.amount} {(tx.token || 'TPC').toUpperCase()}
+                </span>
+                <span className="text-xs">{new Date(tx.date).toLocaleString()}</span>
+                <span className="text-xs">{tx.status}</span>
+              </div>
+            );
+          })}
         </div>
         {/* pagination removed: transactions displayed in scrollable list */}
       </div>
