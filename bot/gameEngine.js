@@ -104,6 +104,18 @@ export class GameRoom {
 
   startGame() {
     if (this.status !== 'waiting') return;
+    const board = generateBoard();
+    this.snakes = board.snakes;
+    this.ladders = board.ladders;
+    this.game.snakes = this.snakes;
+    this.game.ladders = this.ladders;
+    this.game.currentTurn = 0;
+    this.game.finished = false;
+    this.players.forEach((p) => {
+      p.position = 0;
+      p.diceCount = 2;
+      p.isActive = false;
+    });
     this.status = 'playing';
     this.currentTurn = 0;
     this.io.to(this.id).emit('gameStarted');

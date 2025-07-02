@@ -426,40 +426,6 @@ router.post('/transactions', authenticate, async (req, res) => {
 
 });
 
-// Set or update wallet password
-router.post('/password', authenticate, async (req, res) => {
-  const { telegramId, password, method, passkeyId, publicKey, backups } = req.body;
-  const authId = req.auth?.telegramId;
-  if (!telegramId || !password || !method) {
-    return res.status(400).json({ error: 'Missing required fields' });
-  }
-  if (!authId || telegramId !== authId) {
-    return res.status(403).json({ error: 'forbidden' });
-  }
-
-  try {
-    const user = await User.findOne({ telegramId });
-    if (!user) return res.status(404).json({ error: 'User not found' });
-
-    const salt = crypto.randomBytes(16).toString('hex');
-    const hash = crypto.pbkdf2Sync(password, salt, 100000, 64, 'sha512').toString('hex');
-
-    user.walletPassword = {
-      hash,
-      salt,
-      method,
-      passkeyId,
-      publicKey,
-      backups: backups?.slice(0, 2) || []
-    };
-
-    await user.save();
-    res.json({ ok: true, walletPassword: user.walletPassword });
-  } catch (err) {
-    console.error('Failed to set wallet password:', err.message);
-    res.status(500).json({ error: 'failed to set password' });
-  }
-});
 
 // Reset TPC wallet balance and history
 router.post('/reset', authenticate, async (req, res) => {

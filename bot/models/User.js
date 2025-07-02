@@ -74,22 +74,6 @@ const userSchema = new mongoose.Schema({
 
   referredBy: { type: String },
 
-  // Optional wallet password settings with recovery options
-  walletPassword: {
-    hash: String,
-    salt: String,
-    method: String,
-    passkeyId: String,
-    publicKey: String,
-    backups: [
-      {
-        method: String,
-        passkeyId: String,
-        publicKey: String,
-        hint: String
-      }
-    ]
-  },
 
   // Track which game table the user is currently seated at
   currentTableId: { type: String, default: null }
