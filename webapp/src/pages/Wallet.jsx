@@ -164,9 +164,7 @@ export default function Wallet() {
         <p className="text-sm break-all">Account {accountId || '...'}</p>
         <p className="flex items-center justify-center text-lg font-medium">
           <img src="/icons/TPCcoin.png" alt="TPC" className="w-8 h-8 mr-1" />
-          TPC Balance:
-        </p>
-        <p className="text-lg font-medium">
+          TPC Balance:&nbsp;
           {tpcBalance === null ? '...' : formatValue(tpcBalance, 2)}
         </p>
       </div>
