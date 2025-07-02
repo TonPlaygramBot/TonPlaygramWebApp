@@ -117,7 +117,7 @@ export default function Friends() {
 
   if (!referral) return <div className="p-4">Loading...</div>;
 
-  const link = `https://t.me/${BOT_USERNAME}?start=${referral.code}`;
+  const link = `https://t.me/${BOT_USERNAME}?start=${referral.referralCode}`;
 
   return (
     <div className="relative p-4 space-y-4 text-text">
@@ -155,7 +155,8 @@ export default function Friends() {
 
       <section className="space-y-1">
         <h3 className="text-lg font-semibold">Friends</h3>
-        <p>You have {referral.referrals} referrals</p>
+        <p>Invited friends: {referral.referralCount}</p>
+        <p>Mining boost: +{referral.bonusMiningRate * 100}%</p>
       </section>
 
       <section className="space-y-1">

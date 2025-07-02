@@ -22,7 +22,7 @@ export default function Referral() {
 
   if (!info) return <div className="p-4">Loading...</div>;
 
-  const link = `https://t.me/${BOT_USERNAME}?start=${info.code}`;
+  const link = `https://t.me/${BOT_USERNAME}?start=${info.referralCode}`;
 
   return (
     <div className="p-4 space-y-2 text-text">
@@ -44,7 +44,8 @@ export default function Referral() {
             Copy
           </button>
         </div>
-        <p className="text-sm text-subtext mt-1">{info.referrals} referrals</p>
+        <p className="text-sm text-subtext mt-1">Invited friends: {info.referralCount}</p>
+        <p className="text-sm text-subtext">Mining boost: +{info.bonusMiningRate * 100}%</p>
       </div>
     </div>
   );
