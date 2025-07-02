@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { getGameVolume } from '../utils/sound.js';
 import Dice from './Dice.jsx';
 import { diceSound } from '../assets/soundData.js';
 import { socket } from '../utils/socket.js';
@@ -29,10 +30,19 @@ export default function DiceRoller({
     soundRef.current = new Audio(diceSound);
     soundRef.current.preload = 'auto';
     soundRef.current.muted = muted;
+    soundRef.current.volume = getGameVolume();
     return () => {
       soundRef.current?.pause();
     };
   }, [muted]);
+
+  useEffect(() => {
+    const handler = () => {
+      if (soundRef.current) soundRef.current.volume = getGameVolume();
+    };
+    window.addEventListener('gameVolumeChanged', handler);
+    return () => window.removeEventListener('gameVolumeChanged', handler);
+  }, []);
 
   useEffect(() => {
     if (trigger !== undefined && trigger !== triggerRef.current) {

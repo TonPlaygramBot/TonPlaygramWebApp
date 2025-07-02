@@ -4,10 +4,10 @@ player.loop = true;
 
 export const stations = [
   { name: 'Capital FM (London)', url: 'https://media-ssl.musicradio.com/CapitalMP3' },
-  { name: 'Paris Jazz Café', url: 'https://radiospinner.com/radio/paris-jazz-cafe/stream' },
-  { name: '103.5 KTU (New York)', url: 'https://n12a-e2.revma.ihrhls.com/zc2743' },
-  { name: 'J1 Radio (Tokyo)', url: 'https://j1.stream/hi.mp3' },
-  { name: 'Top Albania Radio', url: 'https://live.topalbaniaradio.com:8000/live.mp3' },
+  { name: 'FIP Radio (Paris)', url: 'https://icecast.radiofrance.fr/fip-hifi.aac' },
+  { name: 'WNYC-FM (New York)', url: 'https://fm939.wnyc.org/wnycfm.aac' },
+  { name: 'LISTEN.moe KPOP', url: 'https://listen.moe/kpop/stream' },
+  { name: 'NPO Radio 1 (Netherlands)', url: 'http://icecast.omroep.nl/radio1-bb-mp3' },
 ];
 
 let current = '';
