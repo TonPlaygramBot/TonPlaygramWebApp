@@ -29,6 +29,7 @@ import {
   pingOnline,
   addTransaction
 } from "../../utils/api.js";
+const DEV_ACCOUNT = import.meta.env.VITE_DEV_ACCOUNT_ID || "";
 import { socket } from "../../utils/socket.js";
 import PlayerToken from "../../components/PlayerToken.jsx";
 import AvatarTimer from "../../components/AvatarTimer.jsx";
@@ -1232,12 +1233,21 @@ export default function SnakeAndLadder() {
           const first = ranking.length === 0;
           if (first) {
             ensureAccountId()
-              .then((aid) => depositAccount(aid, pot))
+              .then(async (aid) => {
+                const total = pot * (ai + 1);
+                const winAmt = Math.round(total * 0.91);
+                await depositAccount(aid, winAmt);
+                if (DEV_ACCOUNT) {
+                  await depositAccount(DEV_ACCOUNT, Math.round(total * 0.09));
+                }
+              })
               .catch(() => {});
           }
-          setRanking(r => [...r, 'You']);
+          setRanking((r) => [...r, 'You']);
           if (first) setGameOver(true);
-          setMessage(`You win ${pot} ${token}!`);
+          const total = pot * (ai + 1);
+          const winAmt = Math.round(total * 0.91);
+          setMessage(`You win ${winAmt} ${token}!`);
           setMessageColor("");
           if (!muted) winSoundRef.current?.play().catch(() => {});
           confetti({ particleCount: 150, spread: 70, origin: { y: 0.6 } });

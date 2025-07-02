@@ -12,8 +12,10 @@ import {
   seatTable,
   unseatTable,
   getProfile,
+  getAccountBalance,
+  addTransaction,
 } from '../../utils/api.js';
-import { getPlayerId, ensureAccountId } from '../../utils/telegram.js';
+import { getPlayerId, ensureAccountId, getTelegramId } from '../../utils/telegram.js';
 import { canStartGame } from '../../utils/lobby.js';
 
 export default function Lobby() {
@@ -117,12 +119,27 @@ export default function Lobby() {
   }, [game, table]);
 
 
-  const startGame = () => {
+  const startGame = async () => {
     const params = new URLSearchParams();
     if (table) params.set('table', table.id);
     if (table?.id === 'single') {
       localStorage.removeItem(`snakeGameState_${aiCount}`);
       params.set('ai', aiCount);
+      params.set('token', 'TPC');
+      if (stake.amount) params.set('amount', stake.amount);
+      try {
+        const accountId = await ensureAccountId();
+        const balRes = await getAccountBalance(accountId);
+        if ((balRes.balance || 0) < stake.amount) {
+          alert('Insufficient balance');
+          return;
+        }
+        const tgId = getTelegramId();
+        await addTransaction(tgId, -stake.amount, 'stake', {
+          game: 'snake-ai',
+          players: aiCount + 1,
+        });
+      } catch {}
     } else {
       if (stake.token) params.set('token', stake.token);
       if (stake.amount) params.set('amount', stake.amount);
@@ -178,13 +195,15 @@ export default function Lobby() {
           </ul>
         </div>
       )}
-        {! (game === 'snake' && table?.id === 'single') && (
-        <div className="space-y-2">
-          <h3 className="font-semibold">Select Stake</h3>
-          <RoomSelector selected={stake} onSelect={setStake} />
-        </div>
-      )}
-        {game === 'snake' && table?.id === 'single' && (
+      <div className="space-y-2">
+        <h3 className="font-semibold">Select Stake</h3>
+        <RoomSelector
+          selected={stake}
+          onSelect={setStake}
+          tokens={table?.id === 'single' ? ['TPC'] : undefined}
+        />
+      </div>
+      {game === 'snake' && table?.id === 'single' && (
         <div className="space-y-2">
           <h3 className="font-semibold">How many AI opponents?</h3>
           <div className="flex gap-2">

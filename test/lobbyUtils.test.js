@@ -4,13 +4,17 @@ import { canStartGame } from '../webapp/src/utils/lobby.js';
 
 const dummyTable = { id: 't1', capacity: 2 };
 
-test('single player snake requires ai count', () => {
+test('single player snake requires ai count and stake', () => {
   assert.equal(
     canStartGame('snake', { id: 'single' }, { token: '', amount: 0 }, 0, 0),
     false,
   );
   assert.equal(
     canStartGame('snake', { id: 'single' }, { token: '', amount: 0 }, 2, 0),
+    false,
+  );
+  assert.equal(
+    canStartGame('snake', { id: 'single' }, { token: 'TPC', amount: 100 }, 2, 0),
     true,
   );
 });
