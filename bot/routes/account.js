@@ -123,7 +123,13 @@ router.post('/send', async (req, res) => {
   await receiver.save();
   if (dev) await dev.save();
 
-  if (receiver.telegramId) {
+  const devIds = [
+    process.env.DEV_ACCOUNT_ID,
+    process.env.DEV_ACCOUNT_ID_1,
+    process.env.DEV_ACCOUNT_ID_2,
+  ].filter(Boolean);
+
+  if (receiver.telegramId && !devIds.includes(toAccount)) {
     try {
       await bot.telegram.sendMessage(
         String(receiver.telegramId),
@@ -172,7 +178,12 @@ router.post('/deposit', authenticate, async (req, res) => {
   user.transactions.push(tx);
   await user.save();
 
-  if (user.telegramId) {
+  const devIds = [
+    process.env.DEV_ACCOUNT_ID,
+    process.env.DEV_ACCOUNT_ID_1,
+    process.env.DEV_ACCOUNT_ID_2,
+  ].filter(Boolean);
+  if (user.telegramId && !devIds.includes(accountId)) {
     try {
       await bot.telegram.sendMessage(
         String(user.telegramId),

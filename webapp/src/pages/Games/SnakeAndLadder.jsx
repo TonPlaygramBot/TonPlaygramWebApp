@@ -30,8 +30,10 @@ import {
   pingOnline,
   addTransaction
 } from "../../utils/api.js";
-// Developer account that receives 9% of each pot
+// Developer accounts that receive shares of each pot
 const DEV_ACCOUNT = import.meta.env.VITE_DEV_ACCOUNT_ID;
+const DEV_ACCOUNT_1 = import.meta.env.VITE_DEV_ACCOUNT_ID_1;
+const DEV_ACCOUNT_2 = import.meta.env.VITE_DEV_ACCOUNT_ID_2;
 import { socket } from "../../utils/socket.js";
 import PlayerToken from "../../components/PlayerToken.jsx";
 import AvatarTimer from "../../components/AvatarTimer.jsx";
@@ -1301,6 +1303,16 @@ export default function SnakeAndLadder() {
                 if (DEV_ACCOUNT) {
                   await depositAccount(DEV_ACCOUNT, Math.round(total * 0.09), {
                     game: 'snake-dev'
+                  });
+                }
+                if (DEV_ACCOUNT_1) {
+                  await depositAccount(DEV_ACCOUNT_1, Math.round(total * 0.01), {
+                    game: 'snake-dev1'
+                  });
+                }
+                if (DEV_ACCOUNT_2) {
+                  await depositAccount(DEV_ACCOUNT_2, Math.round(total * 0.02), {
+                    game: 'snake-dev2'
                   });
                 }
               })
