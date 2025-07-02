@@ -19,6 +19,7 @@ import {
   AiOutlineReload,
 } from "react-icons/ai";
 import BottomLeftIcons from "../../components/BottomLeftIcons.jsx";
+import { isGameMuted } from "../../utils/sound.js";
 import useTelegramBackButton from "../../hooks/useTelegramBackButton.js";
 import { useNavigate } from "react-router-dom";
 import { getPlayerId, getTelegramId, ensureAccountId } from "../../utils/telegram.js";
@@ -472,6 +473,12 @@ export default function SnakeAndLadder() {
   }, []);
 
   useEffect(() => {
+    const handler = () => setMuted(isGameMuted());
+    window.addEventListener('gameMuteChanged', handler);
+    return () => window.removeEventListener('gameMuteChanged', handler);
+  }, []);
+
+  useEffect(() => {
     const id = getPlayerId();
     function ping() {
       pingOnline(id).catch(() => {});
@@ -495,7 +502,7 @@ export default function SnakeAndLadder() {
   const [celebrate, setCelebrate] = useState(false);
   const [leftWinner, setLeftWinner] = useState(null);
   const [showInfo, setShowInfo] = useState(false);
-  const [muted, setMuted] = useState(false);
+  const [muted, setMuted] = useState(isGameMuted());
   const [snakes, setSnakes] = useState({});
   const [ladders, setLadders] = useState({});
   const [snakeOffsets, setSnakeOffsets] = useState({});
@@ -1607,11 +1614,7 @@ export default function SnakeAndLadder() {
   return (
     <div className="p-4 pb-32 space-y-4 text-text flex flex-col justify-end items-center relative w-full flex-grow">
       {/* Bottom left controls */}
-      <BottomLeftIcons
-        onInfo={() => setShowInfo(true)}
-        muted={muted}
-        toggleMute={() => setMuted((m) => !m)}
-      />
+      <BottomLeftIcons onInfo={() => setShowInfo(true)} />
       {/* Player photos stacked vertically */}
       <div className="fixed left-1 top-[50%] -translate-y-1/2 flex flex-col space-y-3 z-20">
         {players
