@@ -29,7 +29,8 @@ import {
   pingOnline,
   addTransaction
 } from "../../utils/api.js";
-const DEV_ACCOUNT = import.meta.env.VITE_DEV_ACCOUNT_ID || "";
+const DEV_ACCOUNT =
+  import.meta.env.VITE_DEV_ACCOUNT_ID || "5ffe7c43-c0ae-48f6-ab8c-9e065ca95466";
 import { socket } from "../../utils/socket.js";
 import PlayerToken from "../../components/PlayerToken.jsx";
 import AvatarTimer from "../../components/AvatarTimer.jsx";

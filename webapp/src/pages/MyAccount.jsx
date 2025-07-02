@@ -297,7 +297,7 @@ export default function MyAccount() {
 
       <div>
         <div className="flex items-center justify-between mb-1">
-          <p className="font-semibold">Transaction History</p>
+          <p className="font-semibold">TPC Statements</p>
           <div className="flex items-center space-x-1">
             <input
               type="date"
@@ -332,20 +332,23 @@ export default function MyAccount() {
           <p className="text-sm text-subtext">No transactions</p>
         ) : (
           <div className="space-y-1 text-sm">
-            {sortedTransactions.map((tx, i) => (
-              <div
-                key={i}
-                className="flex justify-between border-b border-border pb-1 cursor-pointer hover:bg-white/10"
-                onClick={() => setSelectedTx(tx)}
-              >
-                <span className="capitalize">{tx.type}</span>
-                <span className={tx.amount > 0 ? 'text-green-500' : 'text-red-500'}>
-                  {tx.amount} {(tx.token || 'TPC').toUpperCase()}
-                </span>
-                <span>{new Date(tx.date).toLocaleString()}</span>
-                <span className="text-xs">{tx.status}</span>
-              </div>
-            ))}
+            {sortedTransactions.map((tx, i) => {
+              const typeLabel = tx.game ? 'game' : tx.type;
+              return (
+                <div
+                  key={i}
+                  className="flex justify-between border-b border-border pb-1 cursor-pointer hover:bg-white/10"
+                  onClick={() => setSelectedTx(tx)}
+                >
+                  <span className="capitalize">{typeLabel}</span>
+                  <span className={tx.amount > 0 ? 'text-green-500' : 'text-red-500'}>
+                    {tx.amount} {(tx.token || 'TPC').toUpperCase()}
+                  </span>
+                  <span>{new Date(tx.date).toLocaleString()}</span>
+                  <span className="text-xs">{tx.status}</span>
+                </div>
+              );
+            })}
           </div>
         )}
       </div>
