@@ -78,7 +78,9 @@ const userSchema = new mongoose.Schema({
   walletPassword: {
     hash: String,
     salt: String,
-    method: String
+    method: String,
+    passkeyId: String,
+    publicKey: String
   },
 
   // Track which game table the user is currently seated at

@@ -428,7 +428,7 @@ router.post('/transactions', authenticate, async (req, res) => {
 
 // Set or update wallet password
 router.post('/password', authenticate, async (req, res) => {
-  const { telegramId, password, method } = req.body;
+  const { telegramId, password, method, passkeyId, publicKey } = req.body;
   const authId = req.auth?.telegramId;
   if (!telegramId || !password || !method) {
     return res
@@ -452,7 +452,9 @@ router.post('/password', authenticate, async (req, res) => {
           walletPassword: {
             hash,
             salt,
-            method
+            method,
+            passkeyId,
+            publicKey
           }
         },
         $setOnInsert: { referralCode: telegramId.toString() }

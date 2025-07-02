@@ -1,4 +1,8 @@
 import { useEffect, useState, useRef } from 'react';
+import {
+  create as createCredential,
+  supported
+} from '@github/webauthn-json';
 import QRCode from 'react-qr-code';
 import {
   createAccount,
@@ -160,7 +164,36 @@ export default function Wallet() {
     if (!walletPassword) return;
     setSavingPwd(true);
     try {
-      await setWalletPassword(telegramId, walletPassword, backupMethod);
+      let passkeyId;
+      let publicKey;
+      if (backupMethod === 'Fingerprint' && supported()) {
+        try {
+          const cred = await createCredential({
+            publicKey: {
+              challenge: new Uint8Array(16),
+              rp: { name: 'TonPlaygram' },
+              user: {
+                id: new TextEncoder().encode(String(telegramId)),
+                name: String(telegramId),
+                displayName: String(telegramId)
+              },
+              pubKeyCredParams: [{ type: 'public-key', alg: -7 }]
+            }
+          });
+          passkeyId = cred.id;
+          const buf = new Uint8Array(cred.response.attestationObject);
+          publicKey = btoa(String.fromCharCode(...buf));
+        } catch (err) {
+          console.error('Passkey registration failed', err);
+        }
+      }
+      await setWalletPassword(
+        telegramId,
+        walletPassword,
+        backupMethod,
+        passkeyId,
+        publicKey
+      );
       setWalletPasswordInput('');
     } catch (err) {
       console.error('Failed to set password', err);
