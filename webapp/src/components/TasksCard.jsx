@@ -105,7 +105,7 @@ export default function TasksCard() {
 
                 onClick={() => handleClaim(t)}
 
-                className="px-2 py-0.5 bg-primary hover:bg-primary-hover text-text text-sm rounded"
+                  className="px-2 py-0.5 bg-primary hover:bg-primary-hover text-background text-sm rounded"
 
               >
 

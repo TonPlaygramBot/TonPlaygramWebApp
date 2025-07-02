@@ -31,7 +31,7 @@ export default function LoginOptions() {
         <div id="g_id_button"></div>
         <a
           href={TG_LINK}
-          className="inline-flex items-center space-x-1 px-3 py-1 bg-primary hover:bg-primary-hover text-text rounded"
+          className="inline-flex items-center space-x-1 px-3 py-1 bg-primary hover:bg-primary-hover text-background rounded"
         >
           <RiTelegramFill className="w-4 h-4" />
           <span>Open in Telegram</span>

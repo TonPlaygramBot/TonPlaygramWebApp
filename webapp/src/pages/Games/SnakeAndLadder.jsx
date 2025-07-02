@@ -782,8 +782,12 @@ export default function SnakeAndLadder() {
     };
     const onLeft = ({ playerId }) => {
       setMpPlayers((p) => {
+        const leaving = p.find((pl) => pl.id === playerId);
         const arr = p.filter((pl) => pl.id !== playerId);
         updateNeeded(arr);
+        if (leaving && !ranking.includes(leaving.name)) {
+          setRanking((r) => [...r, leaving.name]);
+        }
         return arr;
       });
     };

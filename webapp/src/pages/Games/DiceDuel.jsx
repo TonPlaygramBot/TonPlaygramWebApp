@@ -43,7 +43,7 @@ export default function DiceDuel() {
       {winner === null && (
         <button
           onClick={() => setShowDice(true)}
-          className="mx-auto px-4 py-2 bg-primary hover:bg-primary-hover text-text rounded"
+          className="mx-auto px-4 py-2 bg-primary hover:bg-primary-hover text-background rounded"
         >
           Roll Dice
         </button>
