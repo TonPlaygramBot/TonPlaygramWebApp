@@ -13,6 +13,7 @@
    - `DEPOSIT_WALLET_ADDRESS` – TON address that receives user deposits
    - `PORT` – (optional) port for the bot API server (defaults to 3000)
    - `DEV_ACCOUNT_ID` – account ID that collects transfer fees
+   - `API_AUTH_TOKEN` – (optional) token for trusted server-to-server calls
 
 4. Copy `webapp/.env.example` to `webapp/.env` and configure:
    - `VITE_API_BASE_URL` – the base URL where the bot API is hosted (e.g. `http://localhost:3000`).
@@ -78,6 +79,15 @@ This app exposes a single **TPC Wallet** stored in MongoDB. Commands like
 `/wallet balance` and `/wallet send` interact with this database record. TON
 deposits sent to `DEPOSIT_WALLET_ADDRESS` credit the balance after the transfer
 is detected.
+
+### Depositing via API
+
+Call `POST /api/account/deposit` to credit TPC to any account. Normally the
+request must include Telegram web app data in the `X-Telegram-Init-Data` header
+so the server can verify the user. When the `API_AUTH_TOKEN` environment
+variable is set, you may instead supply `Authorization: Bearer <token>` to
+bypass Telegram checks. This is useful for server‑side actions such as
+awarding the developer share after a game ends.
 
 ### Common issues
 
