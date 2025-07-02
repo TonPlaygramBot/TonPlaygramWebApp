@@ -115,6 +115,25 @@ function sendIndex(res) {
   } else {
     res.status(503).send('Webapp build not available');
   }
+  launchBotWithDelay();
+}
+
+let botLaunchTriggered = false;
+function launchBotWithDelay() {
+  if (botLaunchTriggered) return;
+  if (process.env.SKIP_BOT_LAUNCH || !process.env.BOT_TOKEN) {
+    console.log('Skipping Telegram bot launch');
+    botLaunchTriggered = true;
+    return;
+  }
+  botLaunchTriggered = true;
+  setTimeout(async () => {
+    try {
+      await bot.launch();
+    } catch (err) {
+      console.error('Failed to launch Telegram bot:', err.message);
+    }
+  }, 5000);
 }
 
 app.get('/', (req, res) => {
@@ -389,13 +408,6 @@ httpServer.listen(PORT, async () => {
   console.log(`Server running on port ${PORT}`);
   if (process.env.SKIP_BOT_LAUNCH || !process.env.BOT_TOKEN) {
     console.log('Skipping Telegram bot launch');
-    return;
-  }
-
-  try {
-    await bot.launch();
-  } catch (err) {
-    console.error('Failed to launch Telegram bot:', err.message);
   }
 });
 
