@@ -11,6 +11,33 @@
 body {
   font-family: Arial, Helvetica, sans-serif;
   @apply bg-background text-text overflow-x-hidden;
+  text-shadow: 0 0 4px #00f7ff;
+}
+
+/* Neon theme elements */
+.border-border {
+  box-shadow: 0 0 8px #00f7ff;
+}
+
+.bg-surface {
+  box-shadow: inset 0 0 10px rgba(0, 247, 255, 0.4);
+}
+
+.text-text {
+  text-shadow: 0 0 4px #00f7ff;
+}
+
+button,
+input {
+  border-color: #00f7ff;
+  color: #00f7ff;
+  box-shadow: 0 0 6px rgba(0, 247, 255, 0.6);
+}
+
+button:focus,
+input:focus {
+  outline: none;
+  box-shadow: 0 0 10px #00f7ff;
 }
 
 .hexagon {
