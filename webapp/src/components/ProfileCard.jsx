@@ -13,7 +13,7 @@ export default function ProfileCard() {
       <h3 className="text-lg font-bold text-text">Profile</h3>
       <Link
         to="/account"
-        className="inline-block mt-1 px-3 py-1 bg-primary text-text rounded hover:bg-primary-hover"
+        className="inline-block mt-1 px-3 py-1 bg-primary rounded hover:bg-primary-hover text-white-shadow"
       >
         Open
       </Link>

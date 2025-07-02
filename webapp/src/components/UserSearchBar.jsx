@@ -30,7 +30,7 @@ export default function UserSearchBar() {
         />
         <button
           onClick={handleSearch}
-          className="px-2 py-1 bg-primary hover:bg-primary-hover rounded text-text"
+          className="px-2 py-1 bg-primary hover:bg-primary-hover rounded text-white-shadow"
         >
           Search
         </button>
