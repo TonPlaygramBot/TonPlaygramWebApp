@@ -10,12 +10,14 @@
   "type": "module",
   "dependencies": {
     "@ayshrj/ludo.js": "^1.0.10",
+    "@github/webauthn-json": "^2.0.2",
     "@tonconnect/sdk": "^3.2.0",
     "@tonconnect/ui-react": "^2.2.0",
     "@vitejs/plugin-react": "^4.0.0",
     "autoprefixer": "^10.4.15",
     "canvas-confetti": "^1.9.2",
     "framer-motion": "^10.18.0",
+    "lucide-react": "^0.525.0",
     "postcss": "^8.4.31",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
@@ -25,7 +27,6 @@
     "react-router-dom": "^6.22.3",
     "socket.io-client": "^4.8.1",
     "tailwindcss": "^3.4.1",
-    "@github/webauthn-json": "^2.0.2",
     "three": "^0.164.0",
     "vite": "^4.4.9"
   },
