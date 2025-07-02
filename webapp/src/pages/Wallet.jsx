@@ -13,6 +13,8 @@ import TransactionDetailsPopup from '../components/TransactionDetailsPopup.jsx';
 import { AiOutlineCalendar } from 'react-icons/ai';
 import useTelegramBackButton from '../hooks/useTelegramBackButton.js';
 
+const DEV_ACCOUNT_ID = import.meta.env.VITE_DEV_ACCOUNT_ID;
+
 function formatValue(value, decimals = 2) {
   if (typeof value !== 'number') {
     const parsed = parseFloat(value);
@@ -42,6 +44,7 @@ export default function Wallet() {
   const [receiver, setReceiver] = useState('');
   const [amount, setAmount] = useState('');
   const [transactions, setTransactions] = useState([]);
+  const [devShare, setDevShare] = useState(0);
   const [sending, setSending] = useState(false);
   const [receipt, setReceipt] = useState(null);
   const [confirmOpen, setConfirmOpen] = useState(false);
@@ -88,10 +91,26 @@ export default function Wallet() {
     loadBalances().then(async (id) => {
       if (id) {
         const txRes = await getAccountTransactions(id);
-        setTransactions(txRes.transactions || []);
+        const list = txRes.transactions || [];
+        setTransactions(list);
+        if (id === DEV_ACCOUNT_ID) {
+          const sum = list
+            .filter((t) => t.type === 'deposit' && t.game)
+            .reduce((s, t) => s + (t.amount || 0), 0);
+          setDevShare(sum);
+        }
       }
     });
   }, []);
+
+  useEffect(() => {
+    if (accountId === DEV_ACCOUNT_ID) {
+      const sum = transactions
+        .filter((t) => t.type === 'deposit' && t.game)
+        .reduce((s, t) => s + (t.amount || 0), 0);
+      setDevShare(sum);
+    }
+  }, [transactions, accountId]);
 
   const handleSendClick = () => {
     const to = receiver.trim();
@@ -123,7 +142,14 @@ export default function Wallet() {
       setAmount('');
       const id = await loadBalances();
       const txRes = await getAccountTransactions(id || accountId);
-      setTransactions(txRes.transactions || []);
+      const list = txRes.transactions || [];
+      setTransactions(list);
+      if ((id || accountId) === DEV_ACCOUNT_ID) {
+        const sum = list
+          .filter((t) => t.type === 'deposit' && t.game)
+          .reduce((s, t) => s + (t.amount || 0), 0);
+        setDevShare(sum);
+      }
     } catch (err) {
       console.error('Send failed', err);
       setErrorMsg('Failed to send TPC');
@@ -170,6 +196,9 @@ export default function Wallet() {
         <p className="text-xl font-medium">
           {tpcBalance === null ? '...' : formatValue(tpcBalance, 2)}
         </p>
+        {accountId === DEV_ACCOUNT_ID && (
+          <p className="text-sm">9% games: {formatValue(devShare, 2)}</p>
+        )}
       </div>
 
       {/* TPC account section */}

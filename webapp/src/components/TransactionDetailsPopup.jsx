@@ -29,6 +29,7 @@ export default function TransactionDetailsPopup({ tx, onClose }) {
   };
   const icon = iconMap[token] || `/icons/${token.toLowerCase()}.png`;
   const isSend = tx.type === 'send';
+  const isReceive = tx.type === 'receive';
   const account = isSend ? tx.toAccount : tx.fromAccount;
   const nameOverride = isSend ? tx.toName : tx.fromName;
   const nameFromProfile = counterparty?.nickname || `${counterparty?.firstName || ''} ${counterparty?.lastName || ''}`.trim();
@@ -49,7 +50,14 @@ export default function TransactionDetailsPopup({ tx, onClose }) {
             <span
               className={`font-semibold flex items-center space-x-1 ${tx.amount > 0 ? 'text-green-500' : 'text-red-500'}`}
             >
-              {isSend ? 'Sent' : 'Received'} {Math.abs(tx.amount)}
+              {(() => {
+                if (tx.game) {
+                  return tx.amount > 0 ? 'Win' : 'Lost';
+                }
+                if (isSend) return 'Sent';
+                if (isReceive) return 'Received';
+                return tx.type;
+              })()} {tx.game ? `${tx.amount > 0 ? '+' : '-'}${Math.abs(tx.amount)}` : Math.abs(tx.amount)}
               <img src={icon} alt={token} className="w-5 h-5 inline" />
             </span>
             {tx.game && (
