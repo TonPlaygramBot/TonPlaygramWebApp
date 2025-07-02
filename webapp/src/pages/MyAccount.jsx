@@ -49,6 +49,20 @@ export default function MyAccount() {
   const [selectedTx, setSelectedTx] = useState(null);
   const dateInputRef = useRef(null);
 
+  // Automatically link Google account if a Google ID was stored earlier
+  useEffect(() => {
+    if (!profile || profile.googleId) return;
+    const storedId = localStorage.getItem('googleId');
+    if (!storedId) return;
+
+    linkGoogleAccount({ telegramId, googleId: storedId })
+      .then((u) => {
+        setProfile(u);
+        localStorage.removeItem('googleId');
+      })
+      .catch((err) => console.error('auto google link failed', err));
+  }, [profile, telegramId]);
+
   useEffect(() => {
     if (!profile || profile.googleId) return;
 
