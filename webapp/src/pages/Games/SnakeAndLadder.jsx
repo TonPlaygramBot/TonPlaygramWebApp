@@ -1085,6 +1085,19 @@ export default function SnakeAndLadder() {
     localStorage.setItem(key, JSON.stringify(data));
   }, [ai, pos, aiPositions, currentTurn, diceCells, snakes, ladders, snakeOffsets, ladderOffsets, ranking, gameOver]);
 
+  // Ensure stored state is cleared when leaving the page
+  useEffect(() => {
+    const key = `snakeGameState_${ai}`;
+    const handleUnload = () => {
+      localStorage.removeItem(key);
+    };
+    window.addEventListener('beforeunload', handleUnload);
+    return () => {
+      window.removeEventListener('beforeunload', handleUnload);
+      localStorage.removeItem(key);
+    };
+  }, [ai]);
+
 
 
   const handleRoll = (values) => {
