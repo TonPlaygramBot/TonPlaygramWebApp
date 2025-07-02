@@ -18,7 +18,7 @@ function generateBoard() {
     const maxDrop = Math.min(start - 1, 20);
     if (maxDrop <= 0) continue;
     const end = start - (Math.floor(Math.random() * maxDrop) + 1);
-    if (used.has(start) || used.has(end) || snakes[start]) continue;
+    if (used.has(start) || used.has(end) || snakes[start] || end === 1) continue;
     snakes[start] = end;
     used.add(start);
     used.add(end);
@@ -196,6 +196,7 @@ export class GameRoom {
     const player = this.players[idx];
     player.disconnected = true;
     player.socketId = null;
+    player.position = 0;
     this.io.to(this.id).emit('playerLeft', { playerId: player.playerId });
     if (this.status === 'playing' && idx === this.currentTurn) {
       if (this.turnTimer) {
