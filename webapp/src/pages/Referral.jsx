@@ -39,7 +39,7 @@ export default function Referral() {
           />
           <button
             onClick={() => navigator.clipboard.writeText(link)}
-            className="px-2 py-1 bg-primary hover:bg-primary-hover text-text rounded text-sm"
+            className="px-2 py-1 bg-primary hover:bg-primary-hover text-background rounded text-sm"
           >
             Copy
           </button>

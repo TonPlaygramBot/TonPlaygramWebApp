@@ -96,14 +96,14 @@ export default function SpinPage() {
         <div className="flex space-x-2 mt-4">
           <button
             onClick={triggerSpin}
-            className="px-4 py-1 bg-primary hover:bg-primary-hover text-text text-sm font-bold rounded disabled:bg-gray-500"
+            className="px-4 py-1 bg-primary hover:bg-primary-hover text-background text-sm font-bold rounded disabled:bg-gray-500"
             disabled={spinning || !ready}
           >
             Spin
           </button>
           <button
             onClick={() => setMultiplier(m => !m)}
-            className="px-4 py-1 bg-primary hover:bg-primary-hover text-text text-sm font-bold rounded"
+            className="px-4 py-1 bg-primary hover:bg-primary-hover text-background text-sm font-bold rounded"
             disabled={spinning || !ready}
           >
             x3

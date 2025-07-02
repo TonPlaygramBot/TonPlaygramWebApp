@@ -39,7 +39,7 @@ export default function WatchToEarn() {
             {v.watched ? (
               <span className="text-accent">Watched</span>
             ) : (
-              <button onClick={() => handleWatch(v.id, v.url)} className="px-2 py-1 bg-primary text-text rounded">Watch</button>
+                <button onClick={() => handleWatch(v.id, v.url)} className="px-2 py-1 bg-primary text-background rounded">Watch</button>
             )}
           </li>
         ))}

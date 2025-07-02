@@ -191,7 +191,7 @@ export default function Wallet() {
           />
           <button
             onClick={handleSendClick}
-            className="mt-1 px-3 py-1 bg-primary hover:bg-primary-hover text-text rounded"
+            className="mt-1 px-3 py-1 bg-primary hover:bg-primary-hover text-background rounded"
           >
             Send
           </button>
@@ -210,7 +210,7 @@ export default function Wallet() {
           <label className="block font-semibold">Receive TPC</label>
           <button
             onClick={() => navigator.clipboard.writeText(String(accountId))}
-            className="mt-2 px-3 py-1 bg-primary hover:bg-primary-hover text-text rounded"
+            className="mt-2 px-3 py-1 bg-primary hover:bg-primary-hover text-background rounded"
           >
             Copy Account Number
           </button>
