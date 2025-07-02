@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { withProxy } from '../utils/proxyAgent.js';
+import crypto from 'crypto';
 
 import User from '../models/User.js';
 
@@ -423,6 +424,47 @@ router.post('/transactions', authenticate, async (req, res) => {
 
   res.json({ transactions: user ? user.transactions : [] });
 
+});
+
+// Set or update wallet password
+router.post('/password', authenticate, async (req, res) => {
+  const { telegramId, password, method } = req.body;
+  const authId = req.auth?.telegramId;
+  if (!telegramId || !password || !method) {
+    return res
+      .status(400)
+      .json({ error: 'telegramId, password and method required' });
+  }
+  if (!authId || telegramId !== authId) {
+    return res.status(403).json({ error: 'forbidden' });
+  }
+
+  try {
+    const salt = crypto.randomBytes(16).toString('hex');
+    const hash = crypto
+      .pbkdf2Sync(password, salt, 100000, 64, 'sha512')
+      .toString('hex');
+
+    const user = await User.findOneAndUpdate(
+      { telegramId },
+      {
+        $set: {
+          walletPassword: {
+            hash,
+            salt,
+            method
+          }
+        },
+        $setOnInsert: { referralCode: telegramId.toString() }
+      },
+      { upsert: true, new: true }
+    );
+
+    res.json({ ok: true, walletPassword: user.walletPassword });
+  } catch (err) {
+    console.error('Failed to set wallet password:', err.message);
+    res.status(500).json({ error: 'failed to set password' });
+  }
 });
 
 // Reset TPC wallet balance and history
