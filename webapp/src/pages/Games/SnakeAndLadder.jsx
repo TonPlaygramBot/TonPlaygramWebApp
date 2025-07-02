@@ -447,6 +447,7 @@ function Board({
 
 export default function SnakeAndLadder() {
   const [showLobbyConfirm, setShowLobbyConfirm] = useState(false);
+  const [showQuitInfo, setShowQuitInfo] = useState(true);
   useTelegramBackButton(() => setShowLobbyConfirm(true));
   const navigate = useNavigate();
 
@@ -1733,6 +1734,12 @@ export default function SnakeAndLadder() {
         </div>
       )}
       <InfoPopup
+        open={showQuitInfo}
+        onClose={() => setShowQuitInfo(false)}
+        title="Warning"
+        info="If you quit the game your funds will be lost and you will be placed last."
+      />
+      <InfoPopup
         open={showInfo}
         onClose={() => setShowInfo(false)}
         title="Snake & Ladder"
@@ -1752,7 +1759,7 @@ export default function SnakeAndLadder() {
       />
       <ConfirmPopup
         open={showLobbyConfirm}
-        message="Quit the game?"
+        message="Quit the game? If you leave, your funds will be lost and you'll be placed last."
         onConfirm={() => {
           localStorage.removeItem(`snakeGameState_${ai}`);
           navigate("/games/snake/lobby");
