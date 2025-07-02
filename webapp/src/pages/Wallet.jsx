@@ -3,6 +3,30 @@ import {
   create as createCredential,
   supported
 } from '@github/webauthn-json';
+
+const maybeRegisterPasskey = async (method, telegramId) => {
+  if (method === 'Fingerprint' && supported()) {
+    const cred = await createCredential({
+      publicKey: {
+        challenge: new Uint8Array(16),
+        rp: { name: 'TonPlaygram' },
+        user: {
+          id: new TextEncoder().encode(String(telegramId)),
+          name: String(telegramId),
+          displayName: String(telegramId)
+        },
+        pubKeyCredParams: [{ type: 'public-key', alg: -7 }]
+      }
+    });
+
+    const buf = new Uint8Array(cred.response.attestationObject);
+    return {
+      passkeyId: cred.id,
+      publicKey: btoa(String.fromCharCode(...buf))
+    };
+  }
+  return {};
+};
 import QRCode from 'react-qr-code';
 import {
   createAccount,
@@ -58,6 +82,8 @@ export default function Wallet() {
   const [selectedTx, setSelectedTx] = useState(null);
   const [walletPassword, setWalletPasswordInput] = useState('');
   const [backupMethod, setBackupMethod] = useState('PIN');
+  const [backupMethod1, setBackupMethod1] = useState('PIN');
+  const [backupMethod2, setBackupMethod2] = useState('Email');
   const [savingPwd, setSavingPwd] = useState(false);
   const dateInputRef = useRef(null);
 
@@ -164,39 +190,36 @@ export default function Wallet() {
     if (!walletPassword) return;
     setSavingPwd(true);
     try {
-      let passkeyId;
-      let publicKey;
-      if (backupMethod === 'Fingerprint' && supported()) {
-        try {
-          const cred = await createCredential({
-            publicKey: {
-              challenge: new Uint8Array(16),
-              rp: { name: 'TonPlaygram' },
-              user: {
-                id: new TextEncoder().encode(String(telegramId)),
-                name: String(telegramId),
-                displayName: String(telegramId)
-              },
-              pubKeyCredParams: [{ type: 'public-key', alg: -7 }]
-            }
-          });
-          passkeyId = cred.id;
-          const buf = new Uint8Array(cred.response.attestationObject);
-          publicKey = btoa(String.fromCharCode(...buf));
-        } catch (err) {
-          console.error('Passkey registration failed', err);
-        }
-      }
+      const primary = await maybeRegisterPasskey(backupMethod, telegramId);
+
+      const backup1 = await maybeRegisterPasskey(backupMethod1, telegramId);
+      const backup2 = await maybeRegisterPasskey(backupMethod2, telegramId);
+
       await setWalletPassword(
         telegramId,
         walletPassword,
         backupMethod,
-        passkeyId,
-        publicKey
+        primary.passkeyId,
+        primary.publicKey,
+        [
+          {
+            method: backupMethod1,
+            passkeyId: backup1.passkeyId,
+            publicKey: backup1.publicKey,
+            hint: 'Backup #1'
+          },
+          {
+            method: backupMethod2,
+            passkeyId: backup2.passkeyId,
+            publicKey: backup2.publicKey,
+            hint: 'Backup #2'
+          }
+        ]
       );
+
       setWalletPasswordInput('');
     } catch (err) {
-      console.error('Failed to set password', err);
+      console.error('Failed to save password', err);
     } finally {
       setSavingPwd(false);
     }
@@ -284,11 +307,33 @@ export default function Wallet() {
           onChange={(e) => setBackupMethod(e.target.value)}
           className="border border-border rounded text-black text-xs px-1"
         >
-          <option value="Pattern">Phone pattern</option>
           <option value="PIN">PIN</option>
-          <option value="Fingerprint">Fingerprint</option>
+          <option value="Pattern">Pattern</option>
           <option value="Email">Email</option>
-          <option value="Offline">Offline password</option>
+          <option value="Offline">Offline</option>
+          <option value="Fingerprint">Fingerprint</option>
+        </select>
+        <select
+          value={backupMethod1}
+          onChange={(e) => setBackupMethod1(e.target.value)}
+          className="border border-border rounded text-black text-xs px-1"
+        >
+          <option value="PIN">PIN</option>
+          <option value="Pattern">Pattern</option>
+          <option value="Email">Email</option>
+          <option value="Offline">Offline</option>
+          <option value="Fingerprint">Fingerprint</option>
+        </select>
+        <select
+          value={backupMethod2}
+          onChange={(e) => setBackupMethod2(e.target.value)}
+          className="border border-border rounded text-black text-xs px-1"
+        >
+          <option value="PIN">PIN</option>
+          <option value="Pattern">Pattern</option>
+          <option value="Email">Email</option>
+          <option value="Offline">Offline</option>
+          <option value="Fingerprint">Fingerprint</option>
         </select>
         <button
           onClick={handleSavePassword}
