@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { GiMining } from 'react-icons/gi';
+import MiningAnimation from './MiningAnimation.jsx';
 import {
   getMiningStatus,
   startMining,
@@ -123,6 +124,7 @@ export default function MiningCard() {
           {formatTime(isMining ? Math.max(MINING_DURATION - elapsed, 0) : MINING_DURATION)}
         </div>
       </button>
+      {isMining && <MiningAnimation />}
     </div>
   );
 }
