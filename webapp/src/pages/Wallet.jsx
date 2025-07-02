@@ -161,12 +161,12 @@ export default function Wallet() {
     <div className="relative p-4 space-y-4 text-text">
       <h2 className="text-xl font-bold text-center">TPC Account Wallet</h2>
       <div className="prism-box p-6 space-y-2 w-80 mx-auto border-[#334155] min-h-40 flex flex-col items-start">
-        <p className="text-sm break-all w-full text-left">Account {accountId || '...'}</p>
+        <p className="text-xs break-all w-full text-left">Account: {accountId || '...'}</p>
         <div className="flex items-center space-x-1">
           <img src="/icons/TPCcoin.png" alt="TPC" className="w-8 h-8" />
-          <span className="text-lg font-medium">TPC Balance:</span>
+          <span className="text-lg font-medium">TPC Balance</span>
         </div>
-        <p className="text-lg font-medium">
+        <p className="text-xl font-medium">
           {tpcBalance === null ? '...' : formatValue(tpcBalance, 2)}
         </p>
       </div>
