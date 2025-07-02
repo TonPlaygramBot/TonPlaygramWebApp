@@ -19,7 +19,7 @@ export default function GameCard({ title, description, link, icon }) {
       {link && (
         <Link
           to={link}
-          className="inline-block mt-1 px-3 py-1 bg-primary text-text rounded hover:bg-primary-hover"
+          className="inline-block mt-1 px-3 py-1 bg-primary rounded hover:bg-primary-hover text-white-shadow"
         >
           Open
         </Link>

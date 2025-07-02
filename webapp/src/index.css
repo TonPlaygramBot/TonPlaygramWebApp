@@ -40,6 +40,12 @@ input:focus {
   box-shadow: 0 0 10px #00f7ff;
 }
 
+/* Utility class for white text with a subtle black shadow */
+.text-white-shadow {
+  color: #ffffff;
+  text-shadow: 0 0 2px #000;
+}
+
 .hexagon {
   /* perfect hexagon with equal inner distances */
   clip-path: polygon(50% 0%, 93% 25%, 93% 75%, 50% 100%, 7% 75%, 7% 25%);

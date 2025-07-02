@@ -210,7 +210,7 @@ export default function MyAccount() {
           </div>
           <button
             onClick={() => setShowAvatarPicker(true)}
-            className="mt-2 px-2 py-1 bg-primary hover:bg-primary-hover rounded text-sm"
+            className="mt-2 px-2 py-1 bg-primary hover:bg-primary-hover rounded text-sm text-white-shadow"
           >
             Change Avatar
           </button>
@@ -224,7 +224,7 @@ export default function MyAccount() {
               setTimeout(() => setShowSaved(false), 1500);
               window.dispatchEvent(new Event('profilePhotoUpdated'));
             }}
-            className="mt-2 ml-2 px-2 py-1 bg-primary hover:bg-primary-hover rounded text-sm"
+            className="mt-2 ml-2 px-2 py-1 bg-primary hover:bg-primary-hover rounded text-sm text-white-shadow"
           >
             Use Telegram Photo
           </button>
@@ -255,7 +255,7 @@ export default function MyAccount() {
             />
             <button
               onClick={() => navigator.clipboard.writeText(`https://t.me/${BOT_USERNAME}?start=${referral.code}`)}
-              className="px-2 py-1 bg-primary hover:bg-primary-hover text-text rounded text-sm"
+              className="px-2 py-1 bg-primary hover:bg-primary-hover rounded text-sm text-white-shadow"
             >
               Copy
             </button>
