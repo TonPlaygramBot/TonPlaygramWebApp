@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react';
 import { GiMining } from 'react-icons/gi';
-import MiningAnimation from './MiningAnimation.jsx';
 import {
   getMiningStatus,
   startMining,
@@ -136,10 +135,14 @@ export default function MiningCard() {
         <div className="text-sm">
           {formatTime(isMining ? Math.max(MINING_DURATION - elapsed, 0) : MINING_DURATION)}
         </div>
-      </butto
-        e1djo5-codex/create-mining-animation-with-html,-css,-and-js
-      {isMining && <MiningAnimation />}
-
+      </button>
+      {isMining && (
+        <div className="flex items-center justify-center space-x-1 text-sm">
+          <img src="/icons/TPCcoin.png" alt="TPC" className="w-5 h-5" />
+          <span>{minted}</span>
+        </div>
+      )}
+      <p className="text-xs text-subtext">Speed boost: +{(bonusRate * 100).toFixed(0)}%</p>
     </div>
   );
 }
