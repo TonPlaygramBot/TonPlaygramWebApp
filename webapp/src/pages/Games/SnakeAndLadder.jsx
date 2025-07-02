@@ -727,7 +727,12 @@ export default function SnakeAndLadder() {
           let cell;
           do {
             cell = Math.floor(Math.random() * boardSize) + 1;
-          } while (usedD.has(String(cell)) || usedD.has(cell) || cell === FINAL_TILE);
+          } while (
+            usedD.has(String(cell)) ||
+            usedD.has(cell) ||
+            cell === FINAL_TILE ||
+            cell === 1
+          );
           diceMap[cell] = val;
           usedD.add(cell);
         });
@@ -972,7 +977,7 @@ export default function SnakeAndLadder() {
         }
       }
       turn = (turn + 1) % (ai + 1);
-      elapsed -= 2000;
+      elapsed -= 2500;
     }
     setPos(p);
     setAiPositions(aiPos);
@@ -1443,7 +1448,7 @@ export default function SnakeAndLadder() {
         if (aiRollTimeoutRef.current) clearTimeout(aiRollTimeoutRef.current);
         aiRollTimeoutRef.current = setTimeout(() => {
           triggerAIRoll(currentTurn);
-        }, 2000);
+        }, 2500);
       }
       return () => {
         clearInterval(timerRef.current);

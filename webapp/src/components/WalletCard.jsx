@@ -38,7 +38,7 @@ export default function WalletCard() {
         <span>Wallet</span>
       </h3>
       <p>TPC Balance: {tpcBalance === null ? '...' : tpcBalance}</p>
-      <Link to="/wallet" className="inline-block mt-1 px-3 py-1 bg-blue-600 rounded hover:bg-blue-500">
+      <Link to="/wallet" className="inline-block mt-1 px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-500">
         Open
       </Link>
     </div>
