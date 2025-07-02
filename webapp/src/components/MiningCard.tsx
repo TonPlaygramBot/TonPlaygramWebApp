@@ -3,12 +3,14 @@ import { GiMining } from 'react-icons/gi';
 import {
   getMiningStatus,
   startMining,
-  stopMining
+  stopMining,
+  getReferralInfo
 } from '../utils/api.js';
 import { getTelegramId } from '../utils/telegram.js';
 import LoginOptions from './LoginOptions.jsx';
 
 const MINING_DURATION = 12 * 60 * 60; // 12 hours in seconds
+const REWARD_AMOUNT = 2000; // must mirror backend reward
 
 export default function MiningCard() {
   let telegramId: string;
@@ -21,6 +23,7 @@ export default function MiningCard() {
 
   const [isMining, setIsMining] = useState(false);
   const [elapsed, setElapsed] = useState(0);
+  const [bonusRate, setBonusRate] = useState(0);
 
   // Load initial mining status
   useEffect(() => {
@@ -51,6 +54,13 @@ export default function MiningCard() {
         setElapsed(0);
       }
     });
+
+    getReferralInfo(telegramId)
+      .then((info) => {
+        if (ignore) return;
+        setBonusRate(info.bonusMiningRate || 0);
+      })
+      .catch(() => {});
 
     return () => {
       ignore = true;
@@ -99,6 +109,9 @@ export default function MiningCard() {
     return `${h}:${m}:${s}`;
   };
 
+  const totalReward = REWARD_AMOUNT * (1 + bonusRate);
+  const minted = isMining ? Math.floor((elapsed / MINING_DURATION) * totalReward) : 0;
+
   return (
     <div className="relative bg-surface border border-border rounded-xl p-4 space-y-4 text-center overflow-hidden">
       <img
@@ -123,6 +136,13 @@ export default function MiningCard() {
           {formatTime(isMining ? Math.max(MINING_DURATION - elapsed, 0) : MINING_DURATION)}
         </div>
       </button>
+      {isMining && (
+        <div className="flex items-center justify-center space-x-1 text-sm">
+          <img src="/icons/TPCcoin.png" alt="TPC" className="w-5 h-5" />
+          <span>{minted}</span>
+        </div>
+      )}
+      <p className="text-xs text-subtext">Speed boost: +{(bonusRate * 100).toFixed(0)}%</p>
     </div>
   );
 }
