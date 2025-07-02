@@ -59,7 +59,9 @@ router.post('/send', async (req, res) => {
 
   const sender = await User.findOne({ accountId: fromAccount });
   if (!sender) return res.status(404).json({ error: 'sender not found' });
-  if (sender.balance < amount) {
+  const feeSender = Math.round(amount * 0.02);
+  const feeReceiver = Math.round(amount * 0.01);
+  if (sender.balance < amount + feeSender) {
     return res.status(400).json({ error: 'insufficient balance' });
   }
 
@@ -68,15 +70,24 @@ router.post('/send', async (req, res) => {
     receiver = new User({ accountId: toAccount });
   }
 
+  let dev;
+  const devId = process.env.DEV_ACCOUNT_ID;
+  if (devId) {
+    dev = await User.findOne({ accountId: devId });
+    if (!dev) dev = new User({ accountId: devId });
+  }
+
   ensureTransactionArray(sender);
   ensureTransactionArray(receiver);
+  if (dev) ensureTransactionArray(dev);
 
   const txDate = new Date();
-  sender.balance -= amount;
-  receiver.balance = (receiver.balance || 0) + amount;
+  sender.balance -= amount + feeSender;
+  receiver.balance = (receiver.balance || 0) + amount - feeReceiver;
+  if (dev) dev.balance = (dev.balance || 0) + feeSender + feeReceiver;
 
   const senderTx = {
-    amount: -amount,
+    amount: -(amount + feeSender),
     type: 'send',
     token: 'TPC',
     status: 'delivered',
@@ -85,7 +96,7 @@ router.post('/send', async (req, res) => {
     toName: receiver.nickname || receiver.firstName || ''
   };
   const receiverTx = {
-    amount,
+    amount: amount - feeReceiver,
     type: 'receive',
     token: 'TPC',
     status: 'delivered',
@@ -93,11 +104,24 @@ router.post('/send', async (req, res) => {
     fromAccount: fromAccount,
     fromName: sender.nickname || sender.firstName || ''
   };
+  const devTx = dev
+    ? {
+        amount: feeSender + feeReceiver,
+        type: 'fee',
+        token: 'TPC',
+        status: 'delivered',
+        date: txDate,
+        fromAccount: fromAccount,
+        toAccount: devId,
+      }
+    : null;
   sender.transactions.push(senderTx);
   receiver.transactions.push(receiverTx);
+  if (dev && devTx) dev.transactions.push(devTx);
 
   await sender.save();
   await receiver.save();
+  if (dev) await dev.save();
 
   if (receiver.telegramId) {
     try {

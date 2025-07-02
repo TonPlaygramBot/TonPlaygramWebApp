@@ -12,6 +12,7 @@
    - `AIRDROP_ADMIN_TOKENS` – (optional) tokens allowed to trigger airdrops
    - `DEPOSIT_WALLET_ADDRESS` – TON address that receives user deposits
    - `PORT` – (optional) port for the bot API server (defaults to 3000)
+   - `DEV_ACCOUNT_ID` – account ID that collects transfer fees
 
 4. Copy `webapp/.env.example` to `webapp/.env` and configure:
    - `VITE_API_BASE_URL` – the base URL where the bot API is hosted (e.g. `http://localhost:3000`).

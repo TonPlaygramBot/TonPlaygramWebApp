@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo } from "react";
 import { diceSound } from "../assets/soundData.js";
+import { getGameVolume } from "../utils/sound.js";
 
 const diceFaces = {
   1: [
@@ -91,6 +92,7 @@ function DiceCube({
   useEffect(() => {
     if (rolling && playSound) {
       const audio = new Audio(diceSound);
+      audio.volume = getGameVolume();
       audio.play().catch(() => {}); // Handle autoplay restrictions gracefully
     }
   }, [rolling, playSound]);

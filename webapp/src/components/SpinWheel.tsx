@@ -1,5 +1,6 @@
 import {  forwardRef, useImperativeHandle } from 'react';
 import { useState, useEffect, useRef } from 'react';
+import { getGameVolume } from '../utils/sound.js';
 
 import { segments } from '../utils/rewardLogic';
 
@@ -53,12 +54,23 @@ export default forwardRef<SpinWheelHandle, SpinWheelProps>(function SpinWheel(
   useEffect(() => {
     spinSoundRef.current = new Audio('/assets/sounds/spinning.mp3');
     spinSoundRef.current.preload = 'auto';
+    spinSoundRef.current.volume = getGameVolume();
     successSoundRef.current = new Audio('/assets/sounds/successful.mp3');
     successSoundRef.current.preload = 'auto';
+    successSoundRef.current.volume = getGameVolume();
     return () => {
       spinSoundRef.current?.pause();
       successSoundRef.current?.pause();
     };
+  }, []);
+
+  useEffect(() => {
+    const handler = () => {
+      if (spinSoundRef.current) spinSoundRef.current.volume = getGameVolume();
+      if (successSoundRef.current) successSoundRef.current.volume = getGameVolume();
+    };
+    window.addEventListener('gameVolumeChanged', handler);
+    return () => window.removeEventListener('gameVolumeChanged', handler);
   }, []);
 
   const items = Array.from(

@@ -7,18 +7,25 @@ import {
   pause,
   stop,
   getCurrent,
+  getVolume,
   setVolume,
 } from '../utils/radio.js';
-import { isGameMuted, toggleGameMuted } from '../utils/sound.js';
+import { isGameMuted, toggleGameMuted, getGameVolume, setGameVolume } from '../utils/sound.js';
 
 export default function RadioPopup({ open, onClose }) {
   const [selected, setSelected] = useState(getCurrent() || stations[0].url);
   const [playing, setPlaying] = useState(false);
-  const [radioMuted, setRadioMuted] = useState(false);
+  const [radioVolume, setRadioVolume] = useState(getVolume());
+  const [gameVolume, setGameVolumeState] = useState(getGameVolume());
+  const [radioMuted, setRadioMuted] = useState(getVolume() === 0);
   const [gameMuted, setGameMutedState] = useState(isGameMuted());
 
   useEffect(() => {
     setGameMutedState(isGameMuted());
+    setGameVolumeState(getGameVolume());
+    const v = getVolume();
+    setRadioVolume(v);
+    setRadioMuted(v === 0);
   }, [open]);
 
   if (!open) return null;
@@ -35,15 +42,17 @@ export default function RadioPopup({ open, onClose }) {
     stop();
     setPlaying(false);
   };
-  const toggleRadioMute = () => {
-    const newVal = !radioMuted;
-    setRadioMuted(newVal);
-    // volume 0 or 1
-    setVolume(newVal ? 0 : 1);
+  const handleRadioVolume = (e) => {
+    const v = parseFloat(e.target.value);
+    setRadioVolume(v);
+    setVolume(v);
+    setRadioMuted(v === 0);
   };
-  const toggleGameMute = () => {
-    toggleGameMuted();
-    setGameMutedState(isGameMuted());
+  const handleGameVolume = (e) => {
+    const v = parseFloat(e.target.value);
+    setGameVolumeState(v);
+    setGameVolume(v);
+    if (v === 0) toggleGameMuted();
   };
 
   return createPortal(
@@ -76,14 +85,30 @@ export default function RadioPopup({ open, onClose }) {
           <button onClick={handleStop}>⏹️</button>
         </div>
         <div className="flex justify-around pt-2 text-xs">
-          <button onClick={toggleRadioMute} className="flex flex-col items-center">
-            <span>{radioMuted ? '🔇' : '🔊'}</span>
-            <span>Radio</span>
-          </button>
-          <button onClick={toggleGameMute} className="flex flex-col items-center">
-            <span>{gameMuted ? '🔇' : '🔊'}</span>
-            <span>Game</span>
-          </button>
+          <div className="flex flex-col items-center">
+            <input
+              type="range"
+              min="0"
+              max="1"
+              step="0.01"
+              value={radioVolume}
+              onChange={handleRadioVolume}
+              className="h-24 rotate-[-90deg]"
+            />
+            <span>{radioMuted ? '🔇' : '🔊'} Radio</span>
+          </div>
+          <div className="flex flex-col items-center">
+            <input
+              type="range"
+              min="0"
+              max="1"
+              step="0.01"
+              value={gameVolume}
+              onChange={handleGameVolume}
+              className="h-24 rotate-[-90deg]"
+            />
+            <span>{gameMuted ? '🔇' : '🔊'} Game</span>
+          </div>
         </div>
       </div>
     </div>,

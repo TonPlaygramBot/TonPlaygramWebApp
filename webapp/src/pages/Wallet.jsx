@@ -225,6 +225,9 @@ export default function Wallet() {
           >
             Send
           </button>
+          <p className="text-xs text-subtext mt-1">
+            Transfers charge a 2% fee to the developer wallet and deduct 1% from the receiver.
+          </p>
           {sending && (
             <div className="mt-1">
               <div className="h-1 bg-green-500 animate-pulse" />

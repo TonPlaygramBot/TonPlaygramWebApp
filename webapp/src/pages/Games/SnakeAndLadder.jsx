@@ -19,7 +19,7 @@ import {
   AiOutlineReload,
 } from "react-icons/ai";
 import BottomLeftIcons from "../../components/BottomLeftIcons.jsx";
-import { isGameMuted } from "../../utils/sound.js";
+import { isGameMuted, getGameVolume } from "../../utils/sound.js";
 import useTelegramBackButton from "../../hooks/useTelegramBackButton.js";
 import { useNavigate } from "react-router-dom";
 import { getPlayerId, getTelegramId, ensureAccountId } from "../../utils/telegram.js";
@@ -479,6 +479,30 @@ export default function SnakeAndLadder() {
   }, []);
 
   useEffect(() => {
+    const handler = () => {
+      const vol = getGameVolume();
+      [
+        moveSoundRef,
+        snakeSoundRef,
+        ladderSoundRef,
+        winSoundRef,
+        diceRewardSoundRef,
+        yabbaSoundRef,
+        hahaSoundRef,
+        oldSnakeSoundRef,
+        bombSoundRef,
+        badLuckSoundRef,
+        cheerSoundRef,
+        timerSoundRef,
+      ].forEach((r) => {
+        if (r.current) r.current.volume = vol;
+      });
+    };
+    window.addEventListener('gameVolumeChanged', handler);
+    return () => window.removeEventListener('gameVolumeChanged', handler);
+  }, []);
+
+  useEffect(() => {
     const id = getPlayerId();
     function ping() {
       pingOnline(id).catch(() => {});
@@ -651,18 +675,31 @@ export default function SnakeAndLadder() {
         setMyName(p?.nickname || `${p?.firstName || ''} ${p?.lastName || ''}`.trim());
       })
       .catch(() => {});
+    const vol = getGameVolume();
     moveSoundRef.current = new Audio(dropSound);
+    moveSoundRef.current.volume = vol;
     snakeSoundRef.current = new Audio(snakeSound);
+    snakeSoundRef.current.volume = vol;
     oldSnakeSoundRef.current = new Audio(dropSound);
+    oldSnakeSoundRef.current.volume = vol;
     ladderSoundRef.current = new Audio(ladderSound);
+    ladderSoundRef.current.volume = vol;
     winSoundRef.current = new Audio("/assets/sounds/successful.mp3");
+    winSoundRef.current.volume = vol;
     diceRewardSoundRef.current = new Audio("/assets/sounds/successful.mp3");
+    diceRewardSoundRef.current.volume = vol;
     yabbaSoundRef.current = new Audio("/assets/sounds/yabba-dabba-doo.mp3");
+    yabbaSoundRef.current.volume = vol;
     hahaSoundRef.current = new Audio("/assets/sounds/Haha.mp3");
+    hahaSoundRef.current.volume = vol;
     bombSoundRef.current = new Audio(bombSound);
+    bombSoundRef.current.volume = vol;
     badLuckSoundRef.current = new Audio(badLuckSound);
+    badLuckSoundRef.current.volume = vol;
     cheerSoundRef.current = new Audio(cheerSound);
+    cheerSoundRef.current.volume = vol;
     timerSoundRef.current = new Audio(timerBeep);
+    timerSoundRef.current.volume = vol;
     return () => {
       moveSoundRef.current?.pause();
       snakeSoundRef.current?.pause();
