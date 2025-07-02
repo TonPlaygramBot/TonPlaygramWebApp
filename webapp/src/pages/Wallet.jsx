@@ -13,7 +13,14 @@ import TransactionDetailsPopup from '../components/TransactionDetailsPopup.jsx';
 import { AiOutlineCalendar } from 'react-icons/ai';
 import useTelegramBackButton from '../hooks/useTelegramBackButton.js';
 
-const DEV_ACCOUNT_ID = import.meta.env.VITE_DEV_ACCOUNT_ID;
+const urlParams = new URLSearchParams(window.location.search);
+const DEV_ACCOUNT_ID =
+  urlParams.get('dev') ||
+  localStorage.getItem('devAccountId') ||
+  import.meta.env.VITE_DEV_ACCOUNT_ID;
+if (urlParams.get('dev')) {
+  localStorage.setItem('devAccountId', urlParams.get('dev'));
+}
 
 function formatValue(value, decimals = 2) {
   if (typeof value !== 'number') {
@@ -226,7 +233,7 @@ export default function Wallet() {
             Send
           </button>
           <p className="text-xs text-subtext mt-1">
-            Transfers charge a 2% fee to the developer wallet and deduct 1% from the receiver.
+            Sending TPC 2% charge will be applied.
           </p>
           {sending && (
             <div className="mt-1">
@@ -247,6 +254,7 @@ export default function Wallet() {
           >
             Copy Account Number
           </button>
+          <p className="text-xs text-subtext mt-1">Receive TPC 1% charge will be applied.</p>
         {accountId && (
           <div className="mt-4 flex justify-center">
             <QRCode value={String(accountId)} size={100} />
@@ -312,6 +320,8 @@ export default function Wallet() {
         <div className="space-y-1 text-sm max-h-[40rem] overflow-y-auto border border-border rounded">
           {sortedTransactions.map((tx, i) => {
             const typeLabel = tx.game ? 'game' : tx.type;
+            const sign = tx.amount > 0 ? '+' : '-';
+            const amt = formatValue(Math.abs(tx.amount), 2);
             return (
               <div
                 key={i}
@@ -320,7 +330,8 @@ export default function Wallet() {
               >
                 <span className="capitalize">{typeLabel}</span>
                 <span className={tx.amount > 0 ? 'text-green-500' : 'text-red-500'}>
-                  {tx.amount} {(tx.token || 'TPC').toUpperCase()}
+                  {sign}
+                  {amt} {(tx.token || 'TPC').toUpperCase()}
                 </span>
                 <span className="text-xs">{new Date(tx.date).toLocaleString()}</span>
                 <span className="text-xs">{tx.status}</span>
