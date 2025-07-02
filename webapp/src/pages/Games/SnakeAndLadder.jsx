@@ -11,7 +11,7 @@ import {
   cheerSound,
 } from "../../assets/soundData.js";
 import { AVATARS } from "../../components/AvatarPickerModal.jsx";
-import { getAvatarUrl, saveAvatar, loadAvatar } from "../../utils/avatarUtils.js";
+import { getAvatarUrl, saveAvatar, loadAvatar, avatarToName } from "../../utils/avatarUtils.js";
 import InfoPopup from "../../components/InfoPopup.jsx";
 import GameEndPopup from "../../components/GameEndPopup.jsx";
 import {
@@ -601,7 +601,9 @@ export default function SnakeAndLadder() {
     if (isMultiplayer) {
       return mpPlayers[idx]?.name || `Player ${idx + 1}`;
     }
-    return `AI ${idx}`;
+    const avatar = aiAvatars[idx - 1];
+    const name = avatarToName(avatar);
+    return name || `AI ${idx}`;
   };
 
   const playerName = (idx) => (
@@ -1075,8 +1077,8 @@ export default function SnakeAndLadder() {
         }
         if (p === pos) p = 0;
         aiPos = aiPos.map((v, i) => (i === idx ? pos : v === pos ? 0 : v));
-        if (pos === FINAL_TILE && !rank.includes(`AI ${turn}`)) {
-          rank.push(`AI ${turn}`);
+        if (pos === FINAL_TILE && !rank.includes(getPlayerName(turn))) {
+          rank.push(getPlayerName(turn));
           if (rank.length === 1) over = true;
         }
       }

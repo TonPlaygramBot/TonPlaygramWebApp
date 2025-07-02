@@ -27,3 +27,40 @@ export function loadAvatar() {
   }
   return '';
 }
+
+import { emoji } from 'emoji-name-map';
+
+const emojiToNameMap = Object.fromEntries(
+  Object.entries(emoji).map(([name, char]) => [char, name])
+);
+const regionNames =
+  typeof Intl !== 'undefined'
+    ? new Intl.DisplayNames(['en'], { type: 'region' })
+    : null;
+
+export function avatarToName(src) {
+  if (!src) return '';
+  if (!src.startsWith('/') && !src.startsWith('http')) {
+    const key = emojiToNameMap[src];
+    if (key) {
+      if (/^[a-z]{2}$/i.test(key)) {
+        const code = key.toUpperCase();
+        try {
+          const name = regionNames?.of(code);
+          if (name) return name;
+        } catch {}
+        return code;
+      }
+      return key
+        .replace(/_/g, ' ')
+        .replace(/\b\w/g, (c) => c.toUpperCase());
+    }
+    return '';
+  }
+  const match = src.match(/avatar(\d+)\.svg$/);
+  if (match) return `Avatar ${match[1]}`;
+  const file = src.split('/').pop().split('.')[0];
+  return file
+    .replace(/[_-]/g, ' ')
+    .replace(/\b\w/g, (c) => c.toUpperCase());
+}
