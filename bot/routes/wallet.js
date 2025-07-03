@@ -6,6 +6,7 @@ import User from '../models/User.js';
 
 import bot from '../bot.js';
 import Message from '../models/Message.js';
+import { sendTransferNotification } from '../utils/notifications.js';
 
 import { ensureTransactionArray, calculateBalance } from '../utils/userUtils.js';
 
@@ -235,6 +236,7 @@ router.post('/send', authenticate, async (req, res) => {
       `New balance: ${receiverBalance} TPC.`;
 
     try {
+      await sendTransferNotification(bot, toId, fromId, amount);
       await bot.telegram.sendMessage(String(toId), detailText);
     } catch (err) {
       console.error('Failed to send Telegram notification:', err.message);
