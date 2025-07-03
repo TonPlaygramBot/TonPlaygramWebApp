@@ -43,7 +43,7 @@ export default function DailyCheckIn() {
     return Date.now() - parseInt(ts, 10) >= ONE_DAY;
   });
 
-  const [reward, setReward] = useState<{ type: 'tpc'; value: number } | null>(null);
+  const [reward, setReward] = useState(null);
 
   useEffect(() => {
     async function fetchData() {
@@ -78,7 +78,7 @@ export default function DailyCheckIn() {
         return;
       }
       setStreak(res.streak);
-      setReward({ type: 'tpc', value: res.reward });
+      setReward(res.reward);
       const now = Date.now();
       setLastCheck(now);
       localStorage.setItem('lastCheckIn', String(now));

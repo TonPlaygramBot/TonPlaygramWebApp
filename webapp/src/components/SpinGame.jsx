@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import SpinWheel from './SpinWheel.tsx';
 import RewardPopup from './RewardPopup.tsx';
 import AdModal from './AdModal.tsx';
-import { canSpin, nextSpinTime, Segment } from '../utils/rewardLogic';
+import { canSpin, nextSpinTime } from '../utils/rewardLogic';
 import {
   getWalletBalance,
   updateBalance,
@@ -20,7 +20,6 @@ export default function SpinGame() {
   }
   const [lastSpin, setLastSpin] = useState(null);
   const [reward, setReward] = useState(null);
-  const [freeSpins, setFreeSpins] = useState(0);
   const [spinning, setSpinning] = useState(false);
   const [showAd, setShowAd] = useState(false);
   const [timeLeft, setTimeLeft] = useState(0);
@@ -41,20 +40,15 @@ export default function SpinGame() {
   }, [lastSpin]);
 
   const handleFinish = async (r) => {
-    if (r.type === 'tpc') {
-      const now = Date.now();
-      localStorage.setItem('lastSpin', String(now));
-      setLastSpin(now);
-      setReward(r);
-      const id = telegramId;
-      const balRes = await getWalletBalance(id);
-      const newBalance = (balRes.balance || 0) + r.value;
-      await updateBalance(id, newBalance);
-      await addTransaction(id, r.value, 'spin');
-    } else {
-      setReward(r);
-      setFreeSpins(fs => fs + r.value);
-    }
+    const now = Date.now();
+    localStorage.setItem('lastSpin', String(now));
+    setLastSpin(now);
+    setReward(r);
+    const id = telegramId;
+    const balRes = await getWalletBalance(id);
+    const newBalance = (balRes.balance || 0) + r;
+    await updateBalance(id, newBalance);
+    await addTransaction(id, r, 'spin');
   };
 
   const formatTime = (ms) => {
