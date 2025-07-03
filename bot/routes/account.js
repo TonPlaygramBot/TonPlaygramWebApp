@@ -196,15 +196,20 @@ router.post('/transactions', async (req, res) => {
 router.post('/deposit', authenticate, async (req, res) => {
   const { accountId, amount, game } = req.body;
   const authId = req.auth?.telegramId;
+  const devIds = [
+    process.env.DEV_ACCOUNT_ID,
+    process.env.DEV_ACCOUNT_ID_1,
+    process.env.DEV_ACCOUNT_ID_2,
+  ].filter(Boolean);
   if (!accountId || typeof amount !== 'number' || amount <= 0) {
     return res.status(400).json({ error: 'accountId and positive amount required' });
   }
   let user = await User.findOne({ accountId });
   if (!user) {
     user = new User({ accountId });
-    if (authId) user.telegramId = authId;
+    if (authId && !devIds.includes(accountId)) user.telegramId = authId;
   }
-  if (authId && user.telegramId && authId !== user.telegramId) {
+  if (!devIds.includes(accountId) && authId && user.telegramId && authId !== user.telegramId) {
     return res.status(403).json({ error: 'forbidden' });
   }
   ensureTransactionArray(user);
@@ -220,11 +225,6 @@ router.post('/deposit', authenticate, async (req, res) => {
   user.transactions.push(tx);
   await user.save();
 
-  const devIds = [
-    process.env.DEV_ACCOUNT_ID,
-    process.env.DEV_ACCOUNT_ID_1,
-    process.env.DEV_ACCOUNT_ID_2,
-  ].filter(Boolean);
   if (user.telegramId && !devIds.includes(accountId)) {
     try {
       await bot.telegram.sendMessage(
