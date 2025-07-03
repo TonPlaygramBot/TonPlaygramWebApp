@@ -111,8 +111,7 @@ test('snake API endpoints and socket events', { concurrency: false, timeout: 200
     PORT: '3201',
 
     MONGODB_URI: 'memory',
-
-    SKIP_BOT_LAUNCH: '1',
+    BOT_TOKEN: "dummy",
 
     SKIP_WEBAPP_BUILD: '1'
 
