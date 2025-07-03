@@ -12,6 +12,10 @@ import { ensureTransactionArray, calculateBalance } from '../utils/userUtils.js'
 
 import authenticate from '../middleware/auth.js';
 
+// Track USDT using the official jetton master address on TON
+const USDT_JETTON_HEX =
+  '0:b113a994b5024a16719f69139328eb759596c38a25f59028b146fecdc3621dfe';
+
 const router = Router();
 
 router.post('/balance', authenticate, async (req, res) => {
@@ -127,7 +131,10 @@ router.post('/usdt-balance', async (req, res) => {
     );
     const data = await resp.json();
     const jetton = (data.balances || []).find(
-      (j) => j.jetton?.symbol === 'USDT' || j.jetton?.symbol === 'jUSDT'
+      (j) =>
+        j.jetton?.address === USDT_JETTON_HEX ||
+        j.jetton?.symbol === 'USDT' ||
+        j.jetton?.symbol === 'jUSDT'
     );
     let balance = 0;
     if (jetton) {
