@@ -5,6 +5,7 @@ import crypto from 'crypto';
 import User from '../models/User.js';
 
 import bot from '../bot.js';
+import Message from '../models/Message.js';
 
 import { ensureTransactionArray, calculateBalance } from '../utils/userUtils.js';
 
@@ -225,20 +226,28 @@ router.post('/send', authenticate, async (req, res) => {
 
     await receiver.save();
 
+    const senderName =
+      sender.nickname || sender.firstName || String(fromId);
+    const receiverBalance = receiver.balance;
+    const detailText =
+      `You received ${amount} TPC from ${senderName} ` +
+      `(id ${fromId}) on ${txDate.toLocaleString()}. ` +
+      `New balance: ${receiverBalance} TPC.`;
+
     try {
-
-      await bot.telegram.sendMessage(
-
-        String(toId),
-
-        `You received ${amount} TPC from ${fromId}`
-
-      );
-
+      await bot.telegram.sendMessage(String(toId), detailText);
     } catch (err) {
-
       console.error('Failed to send Telegram notification:', err.message);
+    }
 
+    try {
+      await Message.create({
+        from: 0,
+        to: Number(toId),
+        text: detailText,
+      });
+    } catch (err) {
+      console.error('Failed to create inbox message:', err.message);
     }
 
     return res.json({ balance: sender.balance, transaction: senderTx });
