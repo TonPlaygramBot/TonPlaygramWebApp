@@ -53,7 +53,8 @@ export function avatarToName(src) {
       }
       return key
         .replace(/_/g, ' ')
-        .replace(/\b\w/g, (c) => c.toUpperCase());
+        .replace(/\b\w/g, (c) => c.toUpperCase())
+        .replace(/^Flag\s+/i, '');
     }
     return '';
   }
