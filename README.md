@@ -250,6 +250,14 @@ To move from the start you must roll at least one six when rolling two dice. Any
 - 4 + 6
 - 5 + 6
 
+### Game Rules
+
+- **Getting started** – You cannot move from the start until one of your dice shows a six. Any combination with a six moves you onto tile 1.
+- **Movement and cells** – Move forward by the sum of both dice. Ladders lift you up, snakes drop you down and landing on a bonus dice cell awards another roll.
+- **Capturing** – Finish your move on a tile already occupied by another player to send that token back to start.
+- **Winning and extra turns** – You must land exactly on the final pot tile. From tile 100 you need to roll a single one. Rolling double six gives an extra turn.
+- **In‑app help** – A help button in game opens an info popup implemented in [`SnakeAndLadder.jsx`](webapp/src/pages/Games/SnakeAndLadder.jsx).
+
 ## License
 
 This project is licensed under the [MIT License](LICENSE).
