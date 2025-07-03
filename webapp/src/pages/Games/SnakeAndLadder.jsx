@@ -34,6 +34,38 @@ import {
 const DEV_ACCOUNT = import.meta.env.VITE_DEV_ACCOUNT_ID;
 const DEV_ACCOUNT_1 = import.meta.env.VITE_DEV_ACCOUNT_ID_1;
 const DEV_ACCOUNT_2 = import.meta.env.VITE_DEV_ACCOUNT_ID_2;
+
+async function awardDevShare(total) {
+  const promises = [];
+  if (DEV_ACCOUNT) {
+    promises.push(
+      depositAccount(DEV_ACCOUNT, Math.round(total * 0.09), {
+        game: 'snake-dev',
+      })
+    );
+  }
+  if (DEV_ACCOUNT_1) {
+    promises.push(
+      depositAccount(DEV_ACCOUNT_1, Math.round(total * 0.01), {
+        game: 'snake-dev1',
+      })
+    );
+  }
+  if (DEV_ACCOUNT_2) {
+    promises.push(
+      depositAccount(DEV_ACCOUNT_2, Math.round(total * 0.02), {
+        game: 'snake-dev2',
+      })
+    );
+  }
+  if (promises.length) {
+    try {
+      await Promise.all(promises);
+    } catch {
+      // ignore errors when depositing developer shares
+    }
+  }
+}
 import { socket } from "../../utils/socket.js";
 import PlayerToken from "../../components/PlayerToken.jsx";
 import AvatarTimer from "../../components/AvatarTimer.jsx";
@@ -1294,33 +1326,18 @@ export default function SnakeAndLadder() {
         capturePieces(finalPos, 0);
         if (finalPos === FINAL_TILE && !ranking.includes('You')) {
           const first = ranking.length === 0;
+          const total = pot * (ai + 1);
           if (first) {
             ensureAccountId()
               .then(async (aid) => {
-                const total = pot * (ai + 1);
                 const winAmt = Math.round(total * 0.91);
                 await depositAccount(aid, winAmt, { game: 'snake-win' });
-                if (DEV_ACCOUNT) {
-                  await depositAccount(DEV_ACCOUNT, Math.round(total * 0.09), {
-                    game: 'snake-dev'
-                  });
-                }
-                if (DEV_ACCOUNT_1) {
-                  await depositAccount(DEV_ACCOUNT_1, Math.round(total * 0.01), {
-                    game: 'snake-dev1'
-                  });
-                }
-                if (DEV_ACCOUNT_2) {
-                  await depositAccount(DEV_ACCOUNT_2, Math.round(total * 0.02), {
-                    game: 'snake-dev2'
-                  });
-                }
+                await awardDevShare(total);
               })
               .catch(() => {});
           }
           setRanking((r) => [...r, 'You']);
           if (first) setGameOver(true);
-          const total = pot * (ai + 1);
           const winAmt = Math.round(total * 0.91);
           setMessage(`You win ${winAmt} ${token}!`);
           setMessageColor("");
@@ -1455,7 +1472,7 @@ export default function SnakeAndLadder() {
       FINAL_TILE,
     };
 
-    const finalizeMove = (finalPos, type) => {
+    const finalizeMove = async (finalPos, type) => {
       positions[index - 1] = finalPos;
       setAiPositions([...positions]);
       setHighlight({ cell: finalPos, type });
@@ -1465,7 +1482,10 @@ export default function SnakeAndLadder() {
       if (finalPos === FINAL_TILE && !ranking.includes(getPlayerName(index))) {
         const first = ranking.length === 0;
         setRanking(r => [...r, getPlayerName(index)]);
-        if (first) setGameOver(true);
+        if (first) {
+          await awardDevShare(pot * (ai + 1));
+          setGameOver(true);
+        }
         setMessage(`${getPlayerName(index)} wins!`);
         setDiceVisible(false);
         setMoving(false);
