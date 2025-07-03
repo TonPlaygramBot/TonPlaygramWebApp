@@ -7,6 +7,7 @@ import InfoPopup from '../components/InfoPopup.jsx';
 
 const STORE_ADDRESS = 'UQDqDBiNU132j15Qka5EmSf37jCTLF-RdOlaQOXLHIJ5t-XT';
 const BUNDLES = [
+  { id: '20k', tpc: 20000, ton: 0.02 },
   { id: '100k', tpc: 100000, ton: 0.05 },
   { id: '250k', tpc: 250000, ton: 0.1 }
 ];
@@ -50,8 +51,15 @@ export default function Store() {
       <h2 className="text-xl font-bold">Store</h2>
       {BUNDLES.map((b) => (
         <div key={b.id} className="prism-box p-4 space-y-2 w-72 mx-auto">
-          <div className="text-center font-semibold">{b.tpc.toLocaleString()} TPC</div>
-          <div className="text-center text-sm">Price: {b.ton} TON</div>
+          <div className="text-center font-semibold flex items-center justify-center space-x-1">
+            <img src="/icons/TPCcoin.png" alt="TPC" className="w-5 h-5" />
+            <span>{b.tpc.toLocaleString()} TPC</span>
+          </div>
+          <div className="text-center text-sm flex items-center justify-center space-x-1">
+            <span>Price:</span>
+            <img src="/icons/TON.png" alt="TON" className="w-4 h-4" />
+            <span>{b.ton} TON</span>
+          </div>
           <button
             onClick={() => handleBuy(b)}
             className="lobby-tile w-full cursor-pointer"
