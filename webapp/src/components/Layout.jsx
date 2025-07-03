@@ -66,7 +66,7 @@ export default function Layout({ children }) {
 
     <div className="flex flex-col min-h-screen text-text relative overflow-hidden">
 
-      {(isHome || isWallet) && <CosmicBackground />}
+      {(isHome || isWallet || isAccount) && <CosmicBackground />}
 
       <main className={`flex-grow container mx-auto p-4 ${showNavbar ? 'pb-24' : ''}`.trim()}>
 
