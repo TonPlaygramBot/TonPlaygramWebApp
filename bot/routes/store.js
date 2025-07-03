@@ -21,6 +21,7 @@ function normalize(addr) {
 const STORE_ADDRESS_NORM = normalize(STORE_ADDRESS);
 
 const BUNDLES = {
+  '10k': { tpc: 10000, ton: 0.012, label: '10k TPC' },
   '100k': { tpc: 100000, ton: 0.05, label: '100k TPC' },
   '250k': { tpc: 250000, ton: 0.1, label: '250k TPC' }
 };
