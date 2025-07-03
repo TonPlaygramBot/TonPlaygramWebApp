@@ -100,6 +100,9 @@ export default function TransactionDetailsPopup({ tx, onClose }) {
               />
             </div>
           )}
+          {tx.detail && (
+            <div className="text-sm text-subtext">{tx.detail}</div>
+          )}
           <div className="text-xs text-subtext">
             {new Date(tx.date).toLocaleString()}
           </div>

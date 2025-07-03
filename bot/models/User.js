@@ -13,7 +13,8 @@ const transactionSchema = new mongoose.Schema(
     toAccount: String,
     toName: String,
     game: String,
-    players: Number
+    players: Number,
+    detail: String
   },
   { _id: false }
 );
