@@ -3,8 +3,7 @@ import {
   getProfile,
   updateProfile,
   fetchTelegramInfo,
-  depositAccount,
-  getAccountTransactions
+  depositAccount
 } from '../utils/api.js';
 import {
   getTelegramId,
@@ -57,11 +56,6 @@ export default function MyAccount() {
   const DEV_ACCOUNT_ID = DEV_INFO.account;
   const [devTopup, setDevTopup] = useState('');
   const [devTopupSending, setDevTopupSending] = useState(false);
-  const DEV_ACCOUNT_ID_1 = import.meta.env.VITE_DEV_ACCOUNT_ID_1;
-  const DEV_ACCOUNT_ID_2 = import.meta.env.VITE_DEV_ACCOUNT_ID_2;
-  const DEV_ACCOUNTS = [DEV_ACCOUNT_ID, DEV_ACCOUNT_ID_1, DEV_ACCOUNT_ID_2].filter(Boolean);
-  const [devGameEarnings, setDevGameEarnings] = useState(0);
-  const [devFeeEarnings, setDevFeeEarnings] = useState(0);
 
   useEffect(() => {
     async function load() {
@@ -137,28 +131,6 @@ export default function MyAccount() {
       setDevTopupSending(false);
     }
   };
-
-  useEffect(() => {
-    async function loadEarnings() {
-      if (profile && profile.accountId === DEV_ACCOUNT_ID) {
-        let gameSum = 0;
-        let feeSum = 0;
-        for (const id of DEV_ACCOUNTS) {
-          const txRes = await getAccountTransactions(id);
-          const list = txRes.transactions || [];
-          gameSum += list
-            .filter((t) => t.type === 'deposit' && t.game)
-            .reduce((s, t) => s + (t.amount || 0), 0);
-          feeSum += list
-            .filter((t) => t.type === 'fee')
-            .reduce((s, t) => s + (t.amount || 0), 0);
-        }
-        setDevGameEarnings(gameSum);
-        setDevFeeEarnings(feeSum);
-      }
-    }
-    loadEarnings();
-  }, [profile]);
 
   return (
     <div className="relative p-4 space-y-4 text-text">
@@ -258,16 +230,8 @@ export default function MyAccount() {
             disabled={devTopupSending}
             className="mt-1 px-3 py-1 bg-primary hover:bg-primary-hover rounded text-background"
           >
-        {devTopupSending ? 'Processing...' : 'Top Up'}
+            {devTopupSending ? 'Processing...' : 'Top Up'}
           </button>
-        </div>
-      )}
-
-      {profile && profile.accountId === DEV_ACCOUNT_ID && (
-        <div className="prism-box p-4 mt-2 space-y-1 w-80 mx-auto border-[#334155]">
-          <h3 className="font-semibold text-center">Developer Earnings</h3>
-          <p className="text-sm">Earnings from games: {formatValue(devGameEarnings, 2)}</p>
-          <p className="text-sm">Earnings from transfers: {formatValue(devFeeEarnings, 2)}</p>
         </div>
       )}
 
