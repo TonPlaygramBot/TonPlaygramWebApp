@@ -225,3 +225,8 @@ To move from the start you must roll at least one six when rolling two dice. Any
 - 3 + 6
 - 4 + 6
 - 5 + 6
+
+## License
+
+This project is licensed under the [MIT License](LICENSE).
+
