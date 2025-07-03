@@ -77,9 +77,12 @@ router.post('/send', async (req, res) => {
     return u;
   }
 
-  const devMainId = process.env.DEV_ACCOUNT_ID;
-  const dev1Id = process.env.DEV_ACCOUNT_ID_1;
-  const dev2Id = process.env.DEV_ACCOUNT_ID_2;
+  const devMainId =
+    process.env.DEV_ACCOUNT_ID || process.env.VITE_DEV_ACCOUNT_ID;
+  const dev1Id =
+    process.env.DEV_ACCOUNT_ID_1 || process.env.VITE_DEV_ACCOUNT_ID_1;
+  const dev2Id =
+    process.env.DEV_ACCOUNT_ID_2 || process.env.VITE_DEV_ACCOUNT_ID_2;
 
   const devMain = await getDev(devMainId);
   const dev1 = await getDev(dev1Id);
@@ -163,9 +166,9 @@ router.post('/send', async (req, res) => {
   if (dev2) await dev2.save();
 
   const devIds = [
-    process.env.DEV_ACCOUNT_ID,
-    process.env.DEV_ACCOUNT_ID_1,
-    process.env.DEV_ACCOUNT_ID_2,
+    process.env.DEV_ACCOUNT_ID || process.env.VITE_DEV_ACCOUNT_ID,
+    process.env.DEV_ACCOUNT_ID_1 || process.env.VITE_DEV_ACCOUNT_ID_1,
+    process.env.DEV_ACCOUNT_ID_2 || process.env.VITE_DEV_ACCOUNT_ID_2,
   ].filter(Boolean);
 
   if (receiver.telegramId && !devIds.includes(toAccount)) {
@@ -197,9 +200,9 @@ router.post('/deposit', authenticate, async (req, res) => {
   const { accountId, amount, game } = req.body;
   const authId = req.auth?.telegramId;
   const devIds = [
-    process.env.DEV_ACCOUNT_ID,
-    process.env.DEV_ACCOUNT_ID_1,
-    process.env.DEV_ACCOUNT_ID_2,
+    process.env.DEV_ACCOUNT_ID || process.env.VITE_DEV_ACCOUNT_ID,
+    process.env.DEV_ACCOUNT_ID_1 || process.env.VITE_DEV_ACCOUNT_ID_1,
+    process.env.DEV_ACCOUNT_ID_2 || process.env.VITE_DEV_ACCOUNT_ID_2,
   ].filter(Boolean);
   if (!accountId || typeof amount !== 'number' || amount <= 0) {
     return res.status(400).json({ error: 'accountId and positive amount required' });
