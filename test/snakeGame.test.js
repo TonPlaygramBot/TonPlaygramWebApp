@@ -147,6 +147,26 @@ test('rolling too quickly triggers anti-cheat', () => {
   assert.ok(err, 'error event should be emitted');
 });
 
+test('repeated cheating results in removal', () => {
+  const io = new DummyIO();
+  const emitted = [];
+  const socket = { id: 'sKick', join: () => {}, emit: (e, d) => emitted.push({ event: e, data: d }) };
+  const room = new GameRoom('rKick', io, 1, { snakes: DEFAULT_SNAKES, ladders: DEFAULT_LADDERS });
+  room.addPlayer('p1', 'Cheater', socket);
+  room.startGame();
+
+  room.rollCooldown = 1000;
+  room.rollDice(socket, 6); // valid roll
+  // Three rapid rolls to trigger warnings
+  room.rollDice(socket, 2);
+  room.rollDice(socket, 2);
+  room.rollDice(socket, 2);
+
+  const warnings = emitted.filter(e => e.event === 'cheatWarning');
+  assert.ok(warnings.length >= 3, 'should emit cheat warnings');
+  assert.ok(room.players[0].disconnected, 'player should be removed after cheating');
+});
+
 test('landing on another player sends them to start', () => {
   const io = new DummyIO();
   const room = new GameRoom('r5', io, 2, {

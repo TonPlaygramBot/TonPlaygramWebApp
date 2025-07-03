@@ -61,6 +61,7 @@ export class GameRoom {
     }
     this.rollCooldown = ROLL_COOLDOWN_MS;
     this.turnTimer = null;
+    this.cheatWarnings = {};
     this.game = new SnakeGame({ snakes: this.snakes, ladders: this.ladders });
     this.players = this.game.players;
   }
@@ -145,6 +146,19 @@ export class GameRoom {
     return pos;
   }
 
+  warnCheat(player, socket, reason) {
+    const id = player.playerId;
+    this.cheatWarnings[id] = (this.cheatWarnings[id] || 0) + 1;
+    socket.emit('cheatWarning', {
+      playerId: id,
+      reason,
+      count: this.cheatWarnings[id]
+    });
+    if (this.cheatWarnings[id] >= 3) {
+      this.handleDisconnect(socket);
+    }
+  }
+
   rollDice(socket, value) {
     if (this.status !== 'playing') return;
     if (this.turnTimer) {
@@ -154,10 +168,14 @@ export class GameRoom {
     const playerIndex = this.players.findIndex((p) => p.socketId === socket.id);
     if (playerIndex === -1) return;
     const player = this.players[playerIndex];
-    if (this.players[this.currentTurn].socketId !== socket.id) return;
+    if (this.players[this.currentTurn].socketId !== socket.id) {
+      this.warnCheat(player, socket, 'not your turn');
+      return;
+    }
 
     if (Date.now() - player.lastRollTime < this.rollCooldown) {
       socket.emit('error', 'roll cooldown');
+      this.warnCheat(player, socket, 'roll cooldown');
       return;
     }
     player.lastRollTime = Date.now();
