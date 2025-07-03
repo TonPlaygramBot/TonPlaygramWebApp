@@ -1842,7 +1842,16 @@ export default function SnakeAndLadder() {
             </span>
           )
         }
-      />
+      >
+        <div className="flex justify-center mt-2">
+          <button
+            onClick={() => navigate('/games/snake/lobby')}
+            className="lobby-tile px-4 py-1"
+          >
+            Return to Lobby
+          </button>
+        </div>
+      </InfoPopup>
       <GameEndPopup
         open={gameOver}
         ranking={ranking}
