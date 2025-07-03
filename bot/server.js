@@ -122,12 +122,10 @@ function sendIndex(res) {
 let botLaunchTriggered = false;
 function launchBotWithDelay() {
   if (botLaunchTriggered) return;
-  if (!process.env.BOT_TOKEN || process.env.BOT_TOKEN === 'dummy') {
-    console.log('Skipping Telegram bot launch');
-    botLaunchTriggered = true;
-    return;
-  }
   botLaunchTriggered = true;
+  if (!process.env.BOT_TOKEN || process.env.BOT_TOKEN === 'dummy') {
+    console.log('BOT_TOKEN not configured. Attempting to launch bot anyway');
+  }
   setTimeout(async () => {
     try {
       await bot.launch();
@@ -410,7 +408,7 @@ io.on('connection', (socket) => {
 httpServer.listen(PORT, async () => {
   console.log(`Server running on port ${PORT}`);
   if (!process.env.BOT_TOKEN || process.env.BOT_TOKEN === 'dummy') {
-    console.log('Skipping Telegram bot launch');
+    console.log('BOT_TOKEN not configured. Bot may fail to connect.');
   }
 });
 
