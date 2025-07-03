@@ -41,12 +41,7 @@ export default function SpinGame() {
     return () => clearInterval(id);
   }, [lastSpin]);
 
-  useEffect(() => {
-    const r = canSpin(lastSpin);
-    if (r && !adWatched) {
-      setShowAd(true);
-    }
-  }, [lastSpin, adWatched]);
+  // Do not auto show the ad. The user must click the button to trigger it.
 
   const handleFinish = async (r) => {
     const now = Date.now();
@@ -67,11 +62,12 @@ export default function SpinGame() {
   };
 
   const triggerSpin = () => {
+    if (!ready) return;
     if (!adWatched) {
       setShowAd(true);
       return;
     }
-    if (spinning || !ready) return;
+    if (spinning) return;
     wheelRef.current?.spin();
   };
 
@@ -83,7 +79,7 @@ export default function SpinGame() {
   };
 
   const ready = canSpin(lastSpin);
-  const spinBtnClass = `mt-4 px-4 py-1 ${ready && adWatched ? 'bg-green-600 hover:bg-green-500' : 'bg-primary hover:bg-primary-hover'} text-background text-sm font-bold rounded disabled:bg-gray-500`;
+  const spinBtnClass = `mt-4 px-6 py-2 text-lg font-bold rounded text-background ${ready ? 'bg-green-600 hover:bg-green-500' : 'bg-gray-500'}`;
 
   return (
     <div className="relative bg-surface border border-border rounded-xl p-4 flex flex-col items-center space-y-2 overflow-hidden">
@@ -105,21 +101,15 @@ export default function SpinGame() {
       <button
         onClick={triggerSpin}
         className={spinBtnClass}
-        disabled={spinning || !ready || !adWatched}
+        disabled={spinning || !ready}
       >
-        Spin
+        {adWatched ? 'Spin' : 'Watch Ad to Spin'}
       </button>
       {!ready && (
         <>
           <p className="text-sm text-white font-semibold">
             Next spin in {formatTime(timeLeft)}
           </p>
-          <button
-            className="text-white underline text-sm"
-            onClick={() => setShowAd(true)}
-          >
-            Watch an ad every 15 minutes to get a free spin.
-          </button>
         </>
       )}
       <RewardPopup
