@@ -199,8 +199,11 @@ router.post('/deposit', authenticate, async (req, res) => {
   if (!accountId || typeof amount !== 'number' || amount <= 0) {
     return res.status(400).json({ error: 'accountId and positive amount required' });
   }
-  const user = await User.findOne({ accountId });
-  if (!user) return res.status(404).json({ error: 'account not found' });
+  let user = await User.findOne({ accountId });
+  if (!user) {
+    user = new User({ accountId });
+    if (authId) user.telegramId = authId;
+  }
   if (authId && user.telegramId && authId !== user.telegramId) {
     return res.status(403).json({ error: 'forbidden' });
   }
