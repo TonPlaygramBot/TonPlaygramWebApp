@@ -75,12 +75,6 @@ export default function Store() {
       ))}
       <div className="prism-box p-4 space-y-2 w-80 mx-auto">
         <h3 className="text-center font-semibold">Claim Purchase</h3>
-        <div className="border-t border-b border-border py-2">
-          <p className="text-xs text-center">
-            We are truly sorry if your TPC wasn't delivered. Please enter your
-            transaction hash below to claim it.
-          </p>
-        </div>
         <input
           type="text"
           placeholder="Transaction hash"
