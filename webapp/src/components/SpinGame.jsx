@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import SpinWheel from './SpinWheel.tsx';
 import RewardPopup from './RewardPopup.tsx';
 import AdModal from './AdModal.tsx';
@@ -22,7 +22,9 @@ export default function SpinGame() {
   const [reward, setReward] = useState(null);
   const [spinning, setSpinning] = useState(false);
   const [showAd, setShowAd] = useState(false);
+  const [adWatched, setAdWatched] = useState(false);
   const [timeLeft, setTimeLeft] = useState(0);
+  const wheelRef = useRef(null);
 
   useEffect(() => {
     const ts = localStorage.getItem('lastSpin');
@@ -49,6 +51,22 @@ export default function SpinGame() {
     const newBalance = (balRes.balance || 0) + r;
     await updateBalance(id, newBalance);
     await addTransaction(id, r, 'spin');
+    setAdWatched(false);
+  };
+
+  const triggerSpin = () => {
+    if (!adWatched) {
+      setShowAd(true);
+      return;
+    }
+    if (spinning || !ready) return;
+    wheelRef.current?.spin();
+  };
+
+  const handleAdComplete = () => {
+    setAdWatched(true);
+    setShowAd(false);
+    triggerSpin();
   };
 
   const formatTime = (ms) => {
@@ -70,22 +88,28 @@ export default function SpinGame() {
       <h3 className="text-lg font-bold text-text">Spin &amp; Win</h3>
       <p className="text-sm text-subtext">Try your luck and win rewards!</p>
       <SpinWheel
+        ref={wheelRef}
         onFinish={handleFinish}
         spinning={spinning}
         setSpinning={setSpinning}
         disabled={!ready}
+        showButton={false}
       />
+      <button
+        onClick={triggerSpin}
+        className="mt-2 px-4 py-1 bg-green-600 text-white text-sm font-bold rounded disabled:bg-gray-500"
+        disabled={spinning || !ready}
+      >
+        Spin
+      </button>
       {!ready && (
         <>
           <p className="text-sm text-white font-semibold">
             Next spin in {formatTime(timeLeft)}
           </p>
-          <button
-            className="text-white underline text-sm"
-            onClick={() => setShowAd(true)}
-          >
+          <p className="text-sm text-white">
             Watch an ad every 15 minutes to get a free spin.
-          </button>
+          </p>
         </>
       )}
       <RewardPopup
@@ -93,7 +117,7 @@ export default function SpinGame() {
         onClose={() => setReward(null)}
         message="Keep spinning every day to earn more!"
       />
-      <AdModal open={showAd} onClose={() => setShowAd(false)} />
+      <AdModal open={showAd} onClose={() => setShowAd(false)} onComplete={handleAdComplete} />
     </div>
   );
 }
