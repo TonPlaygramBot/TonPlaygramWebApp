@@ -52,11 +52,6 @@ export default function SpinPage() {
     return () => clearInterval(id);
   }, [lastSpin]);
 
-  useEffect(() => {
-    if (ready && !adWatched) {
-      setShowAd(true);
-    }
-  }, [ready, adWatched]);
 
   const handleFinish = async (r: number) => {
     const now = Date.now();
@@ -69,6 +64,7 @@ export default function SpinPage() {
     const newBalance = (balRes.balance || 0) + finalReward;
     await updateBalance(id, newBalance);
     await addTransaction(id, finalReward, 'spin');
+    setAdWatched(false);
   };
 
   const triggerSpin = () => {
@@ -87,9 +83,10 @@ export default function SpinPage() {
   const handleAdComplete = () => {
     setAdWatched(true);
     setShowAd(false);
+    triggerSpin();
   };
 
-  const spinBtnClass = `px-4 py-1 ${ready && adWatched ? 'bg-green-600 hover:bg-green-500' : 'bg-primary hover:bg-primary-hover'} text-background text-sm font-bold rounded disabled:bg-gray-500`;
+  const spinBtnClass = `px-4 py-1 ${ready ? 'bg-green-600 hover:bg-green-500' : 'bg-primary hover:bg-primary-hover'} text-background text-sm font-bold rounded disabled:bg-gray-500`;
 
   const formatTime = (ms: number) => {
     const total = Math.ceil(ms / 1000);
@@ -133,14 +130,14 @@ export default function SpinPage() {
           <button
             onClick={triggerSpin}
             className={spinBtnClass}
-            disabled={spinning || !ready || !adWatched}
+            disabled={spinning || !ready}
           >
             Spin
           </button>
           <button
             onClick={() => setMultiplier(m => !m)}
             className="px-4 py-1 bg-primary hover:bg-primary-hover text-background text-sm font-bold rounded"
-            disabled={spinning || !ready || !adWatched}
+            disabled={spinning || !ready}
           >
             x3
           </button>
@@ -150,9 +147,7 @@ export default function SpinPage() {
             <p className="text-sm text-text font-semibold">
               Next spin in {formatTime(timeLeft)}
             </p>
-            <button className="text-text underline text-sm" onClick={() => setShowAd(true)}>
-              Watch an ad every 15 minutes to get a free spin.
-            </button>
+            <p className="text-sm text-text">Watch an ad every 15 minutes to get a free spin.</p>
           </>
         )}
       </div>
