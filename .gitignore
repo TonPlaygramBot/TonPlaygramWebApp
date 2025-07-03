@@ -7,3 +7,8 @@ bot/package-lock.json
 bot/.env
 webapp/.env
 /webapp/dist/
+# Hardhat build artifacts
+artifacts/
+cache/
+*.abi
+*.bin
