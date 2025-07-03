@@ -50,22 +50,27 @@ export default function Store() {
     <div className="relative p-4 space-y-4 text-text">
       <h2 className="text-xl font-bold">Store</h2>
       {BUNDLES.map((b) => (
-        <div key={b.id} className="prism-box p-4 space-y-2 w-80 mx-auto">
-          <div className="text-center font-semibold flex items-center justify-center space-x-1">
-            <img src="/icons/TPCcoin.png" alt="TPC" className="w-5 h-5" />
-            <span>{b.tpc.toLocaleString()} TPC</span>
-          </div>
-          <div className="text-center text-sm flex items-center justify-center space-x-1">
-            <span>Price:</span>
-            <img src="/icons/TON.png" alt="TON" className="w-4 h-4" />
-            <span>{b.ton} TON</span>
-          </div>
+        <div
+          key={b.id}
+          className="prism-box p-4 space-y-2 w-80 mx-auto flex flex-col items-center"
+        >
           <button
             onClick={() => handleBuy(b)}
             className="lobby-tile px-4 cursor-pointer"
           >
             Buy
           </button>
+          <div className="mt-auto flex flex-col space-y-1 w-full">
+            <div className="text-center font-semibold flex items-center justify-center space-x-1">
+              <img src="/icons/TPCcoin.png" alt="TPC" className="w-5 h-5" />
+              <span>{b.tpc.toLocaleString()}</span>
+            </div>
+            <div className="text-center text-sm flex items-center justify-center space-x-1">
+              <span>Price:</span>
+              <img src="/icons/TON.png" alt="TON" className="w-5 h-5" />
+              <span>{b.ton}</span>
+            </div>
+          </div>
         </div>
       ))}
       <div className="prism-box p-4 space-y-2 w-80 mx-auto">
