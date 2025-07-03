@@ -376,6 +376,10 @@ export function depositAccount(accountId, amount, extra = {}) {
   return post('/api/account/deposit', { accountId, amount, ...extra });
 }
 
-export function buyBundle(accountId, txHash, bundle) {
-  return post('/api/store/purchase', { accountId, txHash, bundle });
+export function buyBundle(accountId, bundle) {
+  return post('/api/store/purchase', { accountId, bundle });
+}
+
+export function claimPurchase(accountId, txHash) {
+  return post('/api/store/purchase', { accountId, txHash });
 }
