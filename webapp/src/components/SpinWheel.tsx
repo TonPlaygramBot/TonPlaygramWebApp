@@ -1,8 +1,8 @@
-import {  forwardRef, useImperativeHandle } from 'react';
+import { forwardRef, useImperativeHandle } from 'react';
 import { useState, useEffect, useRef } from 'react';
 import { getGameVolume } from '../utils/sound.js';
 
-import { segments } from '../utils/rewardLogic';
+import { segments, Segment } from '../utils/rewardLogic';
 
 export interface SpinWheelHandle {
   spin: () => void;
@@ -10,7 +10,7 @@ export interface SpinWheelHandle {
 
 interface SpinWheelProps {
 
-  onFinish: (reward: number) => void;
+  onFinish: (reward: Segment) => void;
 
   spinning: boolean;
 
@@ -73,7 +73,7 @@ export default forwardRef<SpinWheelHandle, SpinWheelProps>(function SpinWheel(
     return () => window.removeEventListener('gameVolumeChanged', handler);
   }, []);
 
-  const items = Array.from(
+  const items: Segment[] = Array.from(
     { length: segments.length * loops * maxSpins + visibleRows },
     (_, i) => segments[i % segments.length]
   );
@@ -155,27 +155,25 @@ export default forwardRef<SpinWheelHandle, SpinWheelProps>(function SpinWheel(
         >
 
           {items.map((val, idx) => (
-
             <div
-
               key={idx}
-
               className={`board-style flex items-center justify-center text-sm w-32 font-bold ${
-
                 idx === winnerIndex ? 'bg-yellow-300 text-black' : 'text-white'
-
               }`}
-
               style={{ height: itemHeight }}
-
             >
-
-              <img src="/icons/TPCcoin.png" alt="TPC" className="w-8 h-8 mr-1" />
-
-              <span>{val >= 1000 ? `${val / 1000}k` : val}</span>
-
+              {val.type === 'tpc' ? (
+                <>
+                  <img src="/icons/TPCcoin.png" alt="TPC" className="w-8 h-8 mr-1" />
+                  <span>{val.value >= 1000 ? `${val.value / 1000}k` : val.value}</span>
+                </>
+              ) : (
+                <>
+                  <img src="/assets/icons/FreeSpin.png" alt="Free Spin" className="w-8 h-8 mr-1" />
+                  <span className="text-red-500 font-bold">{val.value}</span>
+                </>
+              )}
             </div>
-
           ))}
 
         </div>

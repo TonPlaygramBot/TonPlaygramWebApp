@@ -2,7 +2,7 @@ import { useEffect, useState, useRef } from 'react';
 import SpinWheel, { SpinWheelHandle } from '../components/SpinWheel.tsx';
 import RewardPopup from '../components/RewardPopup.tsx';
 import AdModal from '../components/AdModal.tsx';
-import { canSpin, nextSpinTime } from '../utils/rewardLogic';
+import { canSpin, nextSpinTime, Segment } from '../utils/rewardLogic';
 import {
   getWalletBalance,
   updateBalance,
@@ -21,7 +21,7 @@ export default function SpinPage() {
     return <LoginOptions />;
   }
   const [lastSpin, setLastSpin] = useState<number | null>(null);
-  const [reward, setReward] = useState<number | null>(null);
+  const [reward, setReward] = useState<Segment | null>(null);
   const [spinningMain, setSpinningMain] = useState(false);
   const [spinningLeft, setSpinningLeft] = useState(false);
   const [spinningMiddle, setSpinningMiddle] = useState(false);
@@ -29,6 +29,7 @@ export default function SpinPage() {
   const [multiplier, setMultiplier] = useState(false);
   const [showAd, setShowAd] = useState(false);
   const [adWatched, setAdWatched] = useState(false);
+  const [freeSpins, setFreeSpins] = useState(0);
   const [timeLeft, setTimeLeft] = useState(0);
 
   const mainRef = useRef<SpinWheelHandle>(null);
@@ -52,32 +53,47 @@ export default function SpinPage() {
     return () => clearInterval(id);
   }, [lastSpin]);
 
-  useEffect(() => {
-    if (ready && !adWatched) {
-      setShowAd(true);
-    }
-  }, [ready, adWatched]);
 
-  const handleFinish = async (r: number) => {
-    const now = Date.now();
-    localStorage.setItem('lastSpin', String(now));
-    setLastSpin(now);
-    const finalReward = multiplier ? r * 3 : r;
-    setReward(finalReward);
-    const id = telegramId;
-    const balRes = await getWalletBalance(id);
-    const newBalance = (balRes.balance || 0) + finalReward;
-    await updateBalance(id, newBalance);
-    await addTransaction(id, finalReward, 'spin');
+  const usingFreeSpinRef = useRef(false);
+
+  const handleFinish = async (r: Segment) => {
+    if (!usingFreeSpinRef.current) {
+      const now = Date.now();
+      localStorage.setItem('lastSpin', String(now));
+      setLastSpin(now);
+      setAdWatched(false);
+    }
+
+    if (r.type === 'tpc') {
+      const finalReward = multiplier ? r.value * 3 : r.value;
+      setReward({ type: 'tpc', value: finalReward });
+      const id = telegramId;
+      const balRes = await getWalletBalance(id);
+      const newBalance = (balRes.balance || 0) + finalReward;
+      await updateBalance(id, newBalance);
+      await addTransaction(id, finalReward, 'spin');
+    } else {
+      setReward({ type: 'spin', value: r.value });
+      setFreeSpins(fs => fs + r.value);
+    }
+    usingFreeSpinRef.current = false;
   };
 
   const triggerSpin = () => {
-    if (!adWatched) {
-      setShowAd(true);
-      return;
+    if (spinning) return;
+
+    if (freeSpins === 0) {
+      if (!ready) return;
+      if (!adWatched) {
+        setShowAd(true);
+        return;
+      }
+    } else {
+      usingFreeSpinRef.current = true;
+      setFreeSpins(fs => fs - 1);
     }
-    if (spinning || !ready) return;
-    if (multiplier) {
+
+    if (multiplier && freeSpins === 0) {
       leftRef.current?.spin();
       middleRef.current?.spin();
     }
@@ -89,7 +105,11 @@ export default function SpinPage() {
     setShowAd(false);
   };
 
-  const spinBtnClass = `px-4 py-1 ${ready && adWatched ? 'bg-green-600 hover:bg-green-500' : 'bg-primary hover:bg-primary-hover'} text-background text-sm font-bold rounded disabled:bg-gray-500`;
+  const spinBtnClass = `px-4 py-1 ${
+    (freeSpins > 0 || (ready && adWatched))
+      ? 'bg-green-600 hover:bg-green-500'
+      : 'bg-primary hover:bg-primary-hover'
+  } text-background text-sm font-bold rounded disabled:bg-gray-500`;
 
   const formatTime = (ms: number) => {
     const total = Math.ceil(ms / 1000);
@@ -133,18 +153,21 @@ export default function SpinPage() {
           <button
             onClick={triggerSpin}
             className={spinBtnClass}
-            disabled={spinning || !ready || !adWatched}
+            disabled={spinning || (freeSpins === 0 && (!ready || !adWatched))}
           >
             Spin
           </button>
           <button
             onClick={() => setMultiplier(m => !m)}
             className="px-4 py-1 bg-primary hover:bg-primary-hover text-background text-sm font-bold rounded"
-            disabled={spinning || !ready || !adWatched}
+            disabled={spinning || (freeSpins === 0 && (!ready || !adWatched))}
           >
             x3
           </button>
         </div>
+        {freeSpins > 0 && (
+          <p className="text-sm text-text font-semibold">Free spins left: {freeSpins}</p>
+        )}
         {!ready && (
           <>
             <p className="text-sm text-text font-semibold">
