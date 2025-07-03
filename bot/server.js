@@ -139,6 +139,8 @@ function launchBotWithDelay() {
   }, 5000);
 }
 
+launchBotWithDelay();
+
 app.get('/', (req, res) => {
   sendIndex(res);
 });

@@ -69,7 +69,8 @@ export default function Wallet() {
 
 
   const loadBalances = async () => {
-    let id = localStorage.getItem('accountId');
+    const devMode = urlParams.get('dev') || localStorage.getItem('devAccountId');
+    let id = devMode ? DEV_ACCOUNT_ID : localStorage.getItem('accountId');
     let acc;
     if (id) {
       acc = { accountId: id };
