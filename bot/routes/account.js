@@ -70,21 +70,40 @@ router.post('/send', async (req, res) => {
     receiver = new User({ accountId: toAccount });
   }
 
-  let dev;
-  const devId = process.env.DEV_ACCOUNT_ID;
-  if (devId) {
-    dev = await User.findOne({ accountId: devId });
-    if (!dev) dev = new User({ accountId: devId });
+  async function getDev(id) {
+    if (!id) return null;
+    let u = await User.findOne({ accountId: id });
+    if (!u) u = new User({ accountId: id });
+    return u;
   }
+
+  const devMainId = process.env.DEV_ACCOUNT_ID;
+  const dev1Id = process.env.DEV_ACCOUNT_ID_1;
+  const dev2Id = process.env.DEV_ACCOUNT_ID_2;
+
+  const devMain = await getDev(devMainId);
+  const dev1 = await getDev(dev1Id);
+  const dev2 = await getDev(dev2Id);
 
   ensureTransactionArray(sender);
   ensureTransactionArray(receiver);
-  if (dev) ensureTransactionArray(dev);
+  if (devMain) ensureTransactionArray(devMain);
+  if (dev1) ensureTransactionArray(dev1);
+  if (dev2) ensureTransactionArray(dev2);
 
   const txDate = new Date();
   sender.balance -= amount + feeSender;
   receiver.balance = (receiver.balance || 0) + amount - feeReceiver;
-  if (dev) dev.balance = (dev.balance || 0) + feeSender + feeReceiver;
+  if (dev1) {
+    dev1.balance = (dev1.balance || 0) + feeReceiver;
+  } else if (devMain) {
+    devMain.balance = (devMain.balance || 0) + feeReceiver;
+  }
+  if (dev2) {
+    dev2.balance = (dev2.balance || 0) + feeSender;
+  } else if (devMain) {
+    devMain.balance = (devMain.balance || 0) + feeSender;
+  }
 
   const senderTx = {
     amount: -(amount + feeSender),
@@ -104,24 +123,44 @@ router.post('/send', async (req, res) => {
     fromAccount: fromAccount,
     fromName: sender.nickname || sender.firstName || ''
   };
-  const devTx = dev
-    ? {
-        amount: feeSender + feeReceiver,
-        type: 'fee',
-        token: 'TPC',
-        status: 'delivered',
-        date: txDate,
-        fromAccount: fromAccount,
-        toAccount: devId,
-      }
-    : null;
+  const devTxs = [];
+  if (dev1 || devMain) {
+    const target = dev1 ? dev1Id : devMainId;
+    devTxs.push({
+      amount: feeReceiver,
+      type: 'fee',
+      token: 'TPC',
+      status: 'delivered',
+      date: txDate,
+      fromAccount: fromAccount,
+      toAccount: target,
+    });
+  }
+  if (dev2 || devMain) {
+    const target = dev2 ? dev2Id : devMainId;
+    devTxs.push({
+      amount: feeSender,
+      type: 'fee',
+      token: 'TPC',
+      status: 'delivered',
+      date: txDate,
+      fromAccount: fromAccount,
+      toAccount: target,
+    });
+  }
   sender.transactions.push(senderTx);
   receiver.transactions.push(receiverTx);
-  if (dev && devTx) dev.transactions.push(devTx);
+  for (const tx of devTxs) {
+    if (dev1 && tx.toAccount === dev1Id) dev1.transactions.push(tx);
+    else if (dev2 && tx.toAccount === dev2Id) dev2.transactions.push(tx);
+    else if (devMain && tx.toAccount === devMainId) devMain.transactions.push(tx);
+  }
 
   await sender.save();
   await receiver.save();
-  if (dev) await dev.save();
+  if (devMain) await devMain.save();
+  if (dev1) await dev1.save();
+  if (dev2) await dev2.save();
 
   const devIds = [
     process.env.DEV_ACCOUNT_ID,

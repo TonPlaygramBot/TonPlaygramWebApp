@@ -1331,8 +1331,10 @@ export default function SnakeAndLadder() {
             ensureAccountId()
               .then(async (aid) => {
                 const winAmt = Math.round(total * 0.91);
-                await depositAccount(aid, winAmt, { game: 'snake-win' });
-                await awardDevShare(total);
+                await Promise.all([
+                  depositAccount(aid, winAmt, { game: 'snake-win' }),
+                  awardDevShare(total),
+                ]);
               })
               .catch(() => {});
           }
