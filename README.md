@@ -30,7 +30,9 @@
    stores their Google ID alongside any Telegram information when calling
    `/api/profile/register-google`.
 
-  ⚠️ Misconfiguring these may prevent the wallet from loading correctly.
+⚠️ Misconfiguring these may prevent the wallet from loading correctly.
+
+Both `.env` files are excluded from version control via `.gitignore` so your credentials remain private.
 
 5. Install the Python requirements for the dice roller:
 
