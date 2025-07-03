@@ -62,7 +62,7 @@ export default function Store() {
           </div>
           <button
             onClick={() => handleBuy(b)}
-            className="lobby-tile w-full cursor-pointer"
+            className="lobby-tile px-4 cursor-pointer"
           >
             Buy
           </button>
@@ -70,6 +70,10 @@ export default function Store() {
       ))}
       <div className="prism-box p-4 space-y-2 w-80 mx-auto">
         <h3 className="text-center font-semibold">Claim Purchase</h3>
+        <p className="text-sm text-center">
+          We are truly sorry if your TPC wasn't delivered. Please enter your
+          transaction hash below to claim it.
+        </p>
         <input
           type="text"
           placeholder="Transaction hash"
@@ -82,7 +86,12 @@ export default function Store() {
             if (!claimHash) return;
             const res = await claimPurchase(accountId, claimHash);
             if (res.error) setMsg(res.error);
-            else setMsg('Claim successful');
+            else if (res.alreadyClaimed) {
+              const when = new Date(res.date).toLocaleString();
+              setMsg(`Claim already sent on ${when}`);
+            } else {
+              setMsg('Claim successful. Sorry for the inconvenience and thank you!');
+            }
             setClaimHash('');
           }}
           className="lobby-tile w-full cursor-pointer"

@@ -40,6 +40,10 @@ router.post('/purchase', authenticate, async (req, res) => {
   }
 
   if (txHash) {
+    const existing = user.transactions.find(t => t.txHash === txHash);
+    if (existing) {
+      return res.json({ alreadyClaimed: true, date: existing.date });
+    }
     try {
       const resp = await fetch(
         `https://tonapi.io/v2/blockchain/transactions/${txHash}`,
@@ -71,17 +75,19 @@ router.post('/purchase', authenticate, async (req, res) => {
   }
 
   ensureTransactionArray(user);
+  const txDate = new Date();
   user.balance += pack.tpc;
   user.transactions.push({
     amount: pack.tpc,
     type: 'store',
     token: 'TPC',
     status: 'delivered',
-    date: new Date(),
-    detail: pack.label
+    date: txDate,
+    detail: pack.label,
+    txHash
   });
   await user.save();
-  res.json({ balance: user.balance });
+  res.json({ balance: user.balance, date: txDate });
 });
 
 export default router;
