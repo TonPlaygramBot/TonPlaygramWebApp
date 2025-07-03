@@ -128,7 +128,13 @@ function launchBotWithDelay() {
   }
   setTimeout(async () => {
     try {
-      await bot.launch();
+      // Ensure no lingering webhook is configured when using polling
+      try {
+        await bot.telegram.deleteWebhook({ drop_pending_updates: true });
+      } catch (err) {
+        console.error('Failed to delete existing webhook:', err.message);
+      }
+      await bot.launch({ dropPendingUpdates: true });
     } catch (err) {
       console.error('Failed to launch Telegram bot:', err.message);
     }
