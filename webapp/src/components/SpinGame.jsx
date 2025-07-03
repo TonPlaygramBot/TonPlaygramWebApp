@@ -22,11 +22,22 @@ export default function SpinGame() {
   const [reward, setReward] = useState(null);
   const [spinning, setSpinning] = useState(false);
   const [showAd, setShowAd] = useState(false);
+  const [timeLeft, setTimeLeft] = useState(0);
 
   useEffect(() => {
     const ts = localStorage.getItem('lastSpin');
     if (ts) setLastSpin(parseInt(ts, 10));
   }, []);
+
+  useEffect(() => {
+    const update = () => {
+      const t = nextSpinTime(lastSpin) - Date.now();
+      setTimeLeft(t > 0 ? t : 0);
+    };
+    update();
+    const id = setInterval(update, 1000);
+    return () => clearInterval(id);
+  }, [lastSpin]);
 
   const handleFinish = async (r) => {
     const now = Date.now();
@@ -38,6 +49,13 @@ export default function SpinGame() {
     const newBalance = (balRes.balance || 0) + r;
     await updateBalance(id, newBalance);
     await addTransaction(id, r, 'spin');
+  };
+
+  const formatTime = (ms) => {
+    const total = Math.ceil(ms / 1000);
+    const m = Math.floor(total / 60);
+    const s = total % 60;
+    return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
   };
 
   const ready = canSpin(lastSpin);
@@ -60,13 +78,13 @@ export default function SpinGame() {
       {!ready && (
         <>
           <p className="text-sm text-white font-semibold">
-            Next spin at {new Date(nextSpinTime(lastSpin)).toLocaleTimeString()}
+            Next spin in {formatTime(timeLeft)}
           </p>
           <button
             className="text-white underline text-sm"
             onClick={() => setShowAd(true)}
           >
-            Watch an ad every hour to get a free spin.
+            Watch an ad every 15 minutes to get a free spin.
           </button>
         </>
       )}

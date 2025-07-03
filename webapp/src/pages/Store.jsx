@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useTonAddress, useTonConnectUI } from '@tonconnect/ui-react';
 import useTelegramBackButton from '../hooks/useTelegramBackButton.js';
-import { createAccount, buyBundle } from '../utils/api.js';
+import { createAccount, buyBundle, claimPurchase } from '../utils/api.js';
 import { getTelegramId } from '../utils/telegram.js';
 import InfoPopup from '../components/InfoPopup.jsx';
 
@@ -19,6 +19,7 @@ export default function Store() {
   const walletAddress = useTonAddress();
   const [accountId, setAccountId] = useState('');
   const [msg, setMsg] = useState('');
+  const [claimHash, setClaimHash] = useState('');
 
   useEffect(() => {
     let id;
@@ -37,9 +38,7 @@ export default function Store() {
     };
     try {
       await tonConnectUI.sendTransaction(tx);
-      const hash = prompt('Enter transaction hash');
-      if (!hash) return;
-      const res = await buyBundle(accountId, hash, bundle.id);
+      const res = await buyBundle(accountId, bundle.id);
       if (res.error) setMsg(res.error);
       else setMsg('Purchase successful');
     } catch (e) {
@@ -69,6 +68,28 @@ export default function Store() {
           </button>
         </div>
       ))}
+      <div className="prism-box p-4 space-y-2 w-80 mx-auto">
+        <h3 className="text-center font-semibold">Claim Purchase</h3>
+        <input
+          type="text"
+          placeholder="Transaction hash"
+          value={claimHash}
+          onChange={e => setClaimHash(e.target.value)}
+          className="w-full p-1 text-black rounded"
+        />
+        <button
+          onClick={async () => {
+            if (!claimHash) return;
+            const res = await claimPurchase(accountId, claimHash);
+            if (res.error) setMsg(res.error);
+            else setMsg('Claim successful');
+            setClaimHash('');
+          }}
+          className="lobby-tile w-full cursor-pointer"
+        >
+          Claim
+        </button>
+      </div>
       <InfoPopup open={!!msg} onClose={() => setMsg('')} title="Store" info={msg} />
     </div>
   );

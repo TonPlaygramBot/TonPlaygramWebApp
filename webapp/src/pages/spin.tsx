@@ -29,6 +29,7 @@ export default function SpinPage() {
   const [multiplier, setMultiplier] = useState(false);
   const [showAd, setShowAd] = useState(false);
   const [adWatched, setAdWatched] = useState(false);
+  const [timeLeft, setTimeLeft] = useState(0);
 
   const mainRef = useRef<SpinWheelHandle>(null);
   const leftRef = useRef<SpinWheelHandle>(null);
@@ -40,6 +41,16 @@ export default function SpinPage() {
     const ts = localStorage.getItem('lastSpin');
     if (ts) setLastSpin(parseInt(ts, 10));
   }, []);
+
+  useEffect(() => {
+    const update = () => {
+      const t = nextSpinTime(lastSpin) - Date.now();
+      setTimeLeft(t > 0 ? t : 0);
+    };
+    update();
+    const id = setInterval(update, 1000);
+    return () => clearInterval(id);
+  }, [lastSpin]);
 
   useEffect(() => {
     if (ready && !adWatched) {
@@ -78,6 +89,15 @@ export default function SpinPage() {
     setShowAd(false);
   };
 
+  const spinBtnClass = `px-4 py-1 ${ready && adWatched ? 'bg-green-600 hover:bg-green-500' : 'bg-primary hover:bg-primary-hover'} text-background text-sm font-bold rounded disabled:bg-gray-500`;
+
+  const formatTime = (ms: number) => {
+    const total = Math.ceil(ms / 1000);
+    const m = Math.floor(total / 60);
+    const s = total % 60;
+    return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+  };
+
   return (
     <div className="p-4 space-y-6 flex flex-col items-center text-text">
       <h1 className="text-xl font-bold">Spin &amp; Win</h1>
@@ -112,7 +132,7 @@ export default function SpinPage() {
         <div className="flex space-x-2 mt-4">
           <button
             onClick={triggerSpin}
-            className="px-4 py-1 bg-primary hover:bg-primary-hover text-background text-sm font-bold rounded disabled:bg-gray-500"
+            className={spinBtnClass}
             disabled={spinning || !ready || !adWatched}
           >
             Spin
@@ -127,9 +147,11 @@ export default function SpinPage() {
         </div>
         {!ready && (
           <>
-            <p className="text-sm text-text font-semibold">Next spin at {new Date(nextSpinTime(lastSpin)).toLocaleTimeString()}</p>
+            <p className="text-sm text-text font-semibold">
+              Next spin in {formatTime(timeLeft)}
+            </p>
             <button className="text-text underline text-sm" onClick={() => setShowAd(true)}>
-              Watch an ad every hour to get a free spin.
+              Watch an ad every 15 minutes to get a free spin.
             </button>
           </>
         )}

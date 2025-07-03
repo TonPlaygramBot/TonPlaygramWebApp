@@ -29,39 +29,45 @@ const BUNDLES = {
 router.post('/purchase', authenticate, async (req, res) => {
   const { accountId, txHash, bundle } = req.body;
   const authId = req.auth?.telegramId;
-  if (!accountId || !txHash || !bundle) {
-    return res.status(400).json({ error: 'accountId, txHash and bundle required' });
+  if (!accountId) {
+    return res.status(400).json({ error: 'accountId required' });
   }
-  const pack = BUNDLES[bundle];
-  if (!pack) return res.status(400).json({ error: 'invalid bundle' });
+  let pack = BUNDLES[bundle];
   const user = await User.findOne({ accountId });
   if (!user) return res.status(404).json({ error: 'account not found' });
   if (authId && user.telegramId && authId !== user.telegramId) {
     return res.status(403).json({ error: 'forbidden' });
   }
 
-  try {
-    const resp = await fetch(
-      `https://tonapi.io/v2/blockchain/transactions/${txHash}`,
-      withProxy()
-    );
-    if (!resp.ok) {
-      return res.status(400).json({ error: 'transaction not found' });
+  if (txHash) {
+    try {
+      const resp = await fetch(
+        `https://tonapi.io/v2/blockchain/transactions/${txHash}`,
+        withProxy()
+      );
+      if (!resp.ok) {
+        return res.status(400).json({ error: 'transaction not found' });
+      }
+      const data = await resp.json();
+      const out = (data.out_msgs || []).find(m => normalize(m.destination?.address) === STORE_ADDRESS_NORM);
+      if (!out) return res.status(400).json({ error: 'destination mismatch' });
+      const tonVal = Number(out.value) / 1e9;
+      if (!pack) {
+        pack = Object.values(BUNDLES).find(b => Math.abs(b.ton - tonVal) < 1e-6);
+        if (!pack) return res.status(400).json({ error: 'amount mismatch' });
+      } else if (Math.abs(tonVal - pack.ton) > 1e-6) {
+        return res.status(400).json({ error: 'amount mismatch' });
+      }
+      const sender = normalize(data.in_msg?.source?.address || '');
+      if (user.walletAddress && sender && normalize(user.walletAddress) !== sender) {
+        return res.status(400).json({ error: 'sender mismatch' });
+      }
+    } catch (err) {
+      console.error('Failed to verify tx:', err.message);
+      return res.status(500).json({ error: 'verification failed' });
     }
-    const data = await resp.json();
-    const out = (data.out_msgs || []).find(m => normalize(m.destination?.address) === STORE_ADDRESS_NORM);
-    if (!out) return res.status(400).json({ error: 'destination mismatch' });
-    const tonVal = Number(out.value) / 1e9;
-    if (Math.abs(tonVal - pack.ton) > 1e-6) {
-      return res.status(400).json({ error: 'amount mismatch' });
-    }
-    const sender = normalize(data.in_msg?.source?.address || '');
-    if (user.walletAddress && sender && normalize(user.walletAddress) !== sender) {
-      return res.status(400).json({ error: 'sender mismatch' });
-    }
-  } catch (err) {
-    console.error('Failed to verify tx:', err.message);
-    return res.status(500).json({ error: 'verification failed' });
+  } else if (!pack) {
+    return res.status(400).json({ error: 'bundle required' });
   }
 
   ensureTransactionArray(user);
