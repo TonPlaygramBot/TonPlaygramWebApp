@@ -52,7 +52,11 @@ export default function SpinPage() {
     return () => clearInterval(id);
   }, [lastSpin]);
 
-  // The ad should only appear when the user explicitly clicks the button.
+  useEffect(() => {
+    if (ready && !adWatched) {
+      setShowAd(true);
+    }
+  }, [ready, adWatched]);
 
   const handleFinish = async (r: number) => {
     const now = Date.now();
@@ -69,12 +73,11 @@ export default function SpinPage() {
   };
 
   const triggerSpin = () => {
-    if (!ready) return;
     if (!adWatched) {
       setShowAd(true);
       return;
     }
-    if (spinning) return;
+    if (spinning || !ready) return;
     if (multiplier) {
       leftRef.current?.spin();
       middleRef.current?.spin();
@@ -87,7 +90,7 @@ export default function SpinPage() {
     setShowAd(false);
   };
 
-  const spinBtnClass = `px-6 py-2 text-lg font-bold rounded text-background ${ready ? 'bg-green-600 hover:bg-green-500' : 'bg-gray-500'}`;
+  const spinBtnClass = `px-4 py-1 ${ready && adWatched ? 'bg-green-600 hover:bg-green-500' : 'bg-primary hover:bg-primary-hover'} text-background text-sm font-bold rounded disabled:bg-gray-500`;
 
   const formatTime = (ms: number) => {
     const total = Math.ceil(ms / 1000);
@@ -131,14 +134,14 @@ export default function SpinPage() {
           <button
             onClick={triggerSpin}
             className={spinBtnClass}
-            disabled={spinning || !ready}
+            disabled={spinning || !ready || !adWatched}
           >
-            {adWatched ? 'Spin' : 'Watch Ad to Spin'}
+            Spin
           </button>
           <button
             onClick={() => setMultiplier(m => !m)}
             className="px-4 py-1 bg-primary hover:bg-primary-hover text-background text-sm font-bold rounded"
-            disabled={spinning || !ready}
+            disabled={spinning || !ready || !adWatched}
           >
             x3
           </button>
@@ -148,6 +151,9 @@ export default function SpinPage() {
             <p className="text-sm text-text font-semibold">
               Next spin in {formatTime(timeLeft)}
             </p>
+            <button className="text-text underline text-sm" onClick={() => setShowAd(true)}>
+              Watch an ad every 15 minutes to get a free spin.
+            </button>
           </>
         )}
       </div>
