@@ -2,6 +2,7 @@ import dotenv from 'dotenv';
 import express from 'express';
 import cors from 'cors';
 import bot from './bot.js';
+import { sendInviteNotification } from './utils/notifications.js';
 import mongoose from 'mongoose';
 import { proxyUrl, proxyAgent } from './utils/proxyAgent.js';
 import http from 'http';
@@ -352,10 +353,7 @@ io.on('connection', (socket) => {
       }
     }
     try {
-      await bot.telegram.sendMessage(
-        String(toId),
-        `${fromName || fromId} invited you to a game`
-      );
+      await sendInviteNotification(bot, toId, fromId, fromName, '1v1');
     } catch (err) {
       console.error('Failed to send Telegram notification:', err.message);
     }
@@ -384,10 +382,7 @@ io.on('connection', (socket) => {
           }
         }
         try {
-          await bot.telegram.sendMessage(
-            String(toId),
-            `${fromName || fromId} invited you to a group game`
-          );
+          await sendInviteNotification(bot, toId, fromId, fromName, 'group');
         } catch (err) {
           console.error('Failed to send Telegram notification:', err.message);
         }
