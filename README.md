@@ -68,6 +68,17 @@ The server honors a few extra environment variables when building or serving the
    npm start
    ```
 
+### Local development
+
+Run both the API server and the webapp together while developing:
+
+```bash
+npm run dev
+```
+
+This command launches the backend and the Vite dev server simultaneously so you
+can test changes right away.
+
 ### The Wall
 
 Users can share photos and messages on **The Wall**. Posts support likes, comments and sharing. You can also attach images up to about 10&nbsp;MB and repost to Telegram, Twitter or Facebook. Friends see your updates and receive Telegram notifications when they interact with them.
