@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useTonAddress, useTonConnectUI } from '@tonconnect/ui-react';
 import { FaUsers } from 'react-icons/fa';
 import { useNavigate, useParams } from 'react-router-dom';
 import TableSelector from '../../components/TableSelector.jsx';
@@ -17,10 +18,13 @@ import {
 } from '../../utils/api.js';
 import { getPlayerId, ensureAccountId, getTelegramId } from '../../utils/telegram.js';
 import { canStartGame } from '../../utils/lobby.js';
+import { SNAKE_CONTRACT_ADDRESS } from '../../utils/constants.js';
 
 export default function Lobby() {
   const { game } = useParams();
   const navigate = useNavigate();
+  const walletAddress = useTonAddress();
+  const [tonConnectUI] = useTonConnectUI();
   useTelegramBackButton(() => navigate('/games', { replace: true }));
 
   useEffect(() => {
@@ -122,6 +126,28 @@ export default function Lobby() {
   const startGame = async () => {
     const params = new URLSearchParams();
     if (table) params.set('table', table.id);
+    if (stake.token === 'TON' && stake.amount > 0) {
+      if (!walletAddress) {
+        tonConnectUI.openModal();
+        return;
+      }
+      const tx = {
+        validUntil: Math.floor(Date.now() / 1000) + 60,
+        messages: [
+          {
+            address: SNAKE_CONTRACT_ADDRESS,
+            amount: String(stake.amount * 1e9),
+          },
+        ],
+      };
+      try {
+        await tonConnectUI.sendTransaction(tx);
+      } catch {
+        alert('Transaction failed');
+        return;
+      }
+    }
+
     if (table?.id === 'single') {
       localStorage.removeItem(`snakeGameState_${aiCount}`);
       params.set('ai', aiCount);
