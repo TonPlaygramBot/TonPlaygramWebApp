@@ -69,7 +69,6 @@ export default function SpinPage() {
     const newBalance = (balRes.balance || 0) + finalReward;
     await updateBalance(id, newBalance);
     await addTransaction(id, finalReward, 'spin');
-    setAdWatched(false);
   };
 
   const triggerSpin = () => {
