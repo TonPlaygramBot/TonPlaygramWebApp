@@ -18,6 +18,13 @@ const DEV_ACCOUNT_ID =
   urlParams.get('dev') ||
   localStorage.getItem('devAccountId') ||
   import.meta.env.VITE_DEV_ACCOUNT_ID;
+const DEV_ACCOUNT_ID_1 = import.meta.env.VITE_DEV_ACCOUNT_ID_1;
+const DEV_ACCOUNT_ID_2 = import.meta.env.VITE_DEV_ACCOUNT_ID_2;
+const DEV_ACCOUNTS = [
+  DEV_ACCOUNT_ID,
+  DEV_ACCOUNT_ID_1,
+  DEV_ACCOUNT_ID_2,
+].filter(Boolean);
 if (urlParams.get('dev')) {
   localStorage.setItem('devAccountId', urlParams.get('dev'));
 }
@@ -101,7 +108,7 @@ export default function Wallet() {
         const txRes = await getAccountTransactions(id);
         const list = txRes.transactions || [];
         setTransactions(list);
-        if (id === DEV_ACCOUNT_ID) {
+        if (DEV_ACCOUNTS.includes(id)) {
           const sum = list
             .filter((t) => t.type === 'deposit' && t.game)
             .reduce((s, t) => s + (t.amount || 0), 0);
@@ -112,7 +119,7 @@ export default function Wallet() {
   }, []);
 
   useEffect(() => {
-    if (accountId === DEV_ACCOUNT_ID) {
+    if (DEV_ACCOUNTS.includes(accountId)) {
       const sum = transactions
         .filter((t) => t.type === 'deposit' && t.game)
         .reduce((s, t) => s + (t.amount || 0), 0);
@@ -152,7 +159,7 @@ export default function Wallet() {
       const txRes = await getAccountTransactions(id || accountId);
       const list = txRes.transactions || [];
       setTransactions(list);
-      if ((id || accountId) === DEV_ACCOUNT_ID) {
+      if (DEV_ACCOUNTS.includes(id || accountId)) {
         const sum = list
           .filter((t) => t.type === 'deposit' && t.game)
           .reduce((s, t) => s + (t.amount || 0), 0);
@@ -204,7 +211,7 @@ export default function Wallet() {
         <p className="text-xl font-medium">
           {tpcBalance === null ? '...' : formatValue(tpcBalance, 2)}
         </p>
-        {accountId === DEV_ACCOUNT_ID && (
+        {DEV_ACCOUNTS.includes(accountId) && (
           <p className="text-sm">9% games: {formatValue(devShare, 2)}</p>
         )}
       </div>
