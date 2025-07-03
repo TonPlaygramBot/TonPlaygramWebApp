@@ -3,9 +3,6 @@ import {
   getProfile,
   updateProfile,
   fetchTelegramInfo,
-  getReferralInfo,
-  getTransactions,
-  linkGoogleAccount,
   depositAccount
 } from '../utils/api.js';
 import {
@@ -15,16 +12,15 @@ import {
   getTelegramPhotoUrl
 } from '../utils/telegram.js';
 import LoginOptions from '../components/LoginOptions.jsx';
-import { BOT_USERNAME, DEV_INFO } from '../utils/constants.js';
+import { DEV_INFO } from '../utils/constants.js';
 import BalanceSummary from '../components/BalanceSummary.jsx';
-import useTelegramBackButton from '../hooks/useTelegramBackButton.js';
 import AvatarPickerModal from '../components/AvatarPickerModal.jsx';
 import AvatarPromptModal from '../components/AvatarPromptModal.jsx';
 import { getAvatarUrl, saveAvatar, loadAvatar } from '../utils/avatarUtils.js';
 import InfoPopup from '../components/InfoPopup.jsx';
 import InboxWidget from '../components/InboxWidget.jsx';
-import TransactionDetailsPopup from '../components/TransactionDetailsPopup.jsx';
-import { AiOutlineCalendar } from 'react-icons/ai';
+import Wallet from './Wallet.jsx';
+
 import { FiCopy } from 'react-icons/fi';
 
 function formatValue(value, decimals = 2) {
@@ -43,7 +39,6 @@ function formatValue(value, decimals = 2) {
 }
 
 export default function MyAccount() {
-  useTelegramBackButton();
   let telegramId;
 
   try {
@@ -53,86 +48,19 @@ export default function MyAccount() {
   }
 
   const [profile, setProfile] = useState(null);
-  const [referral, setReferral] = useState(null);
   const [autoUpdating, setAutoUpdating] = useState(false);
-  const [transactions, setTransactions] = useState([]);
   const [showAvatarPicker, setShowAvatarPicker] = useState(false);
   const [showAvatarPrompt, setShowAvatarPrompt] = useState(false);
   const [showSaved, setShowSaved] = useState(false);
   const timerRef = useRef(null);
-  const [filterDate, setFilterDate] = useState('');
-  const [sortOrder, setSortOrder] = useState('desc');
-  const [selectedTx, setSelectedTx] = useState(null);
-  const dateInputRef = useRef(null);
   const DEV_ACCOUNT_ID = DEV_INFO.account;
   const [devTopup, setDevTopup] = useState('');
   const [devTopupSending, setDevTopupSending] = useState(false);
-
-  // Automatically link Google account if a Google ID was stored earlier
-  useEffect(() => {
-    if (!profile || profile.googleId) return;
-    const storedId = localStorage.getItem('googleId');
-    if (!storedId) return;
-
-    linkGoogleAccount({ telegramId, googleId: storedId })
-      .then((u) => {
-        setProfile(u);
-        localStorage.removeItem('googleId');
-      })
-      .catch((err) => console.error('auto google link failed', err));
-  }, [profile, telegramId]);
-
-  useEffect(() => {
-    if (!profile || profile.googleId) return;
-
-    function handleCredential(res) {
-      try {
-        const data = JSON.parse(atob(res.credential.split('.')[1]));
-        linkGoogleAccount({
-          telegramId,
-          googleId: data.sub,
-          email: data.email,
-          dob: data.birthdate,
-          firstName: data.given_name,
-          lastName: data.family_name,
-          photo: data.picture
-        }).then((u) => setProfile(u));
-      } catch (err) {
-        console.error('google link failed', err);
-      }
-    }
-
-    function renderButton() {
-      if (window.google && import.meta.env.VITE_GOOGLE_CLIENT_ID) {
-        window.google.accounts.id.initialize({
-          client_id: import.meta.env.VITE_GOOGLE_CLIENT_ID,
-          callback: handleCredential
-        });
-        window.google.accounts.id.renderButton(
-          document.getElementById('g_id_link'),
-          { theme: 'outline', size: 'large' }
-        );
-        return true;
-      }
-      return false;
-    }
-
-    if (!renderButton()) {
-      const id = setInterval(() => {
-        if (renderButton()) clearInterval(id);
-      }, 500);
-      return () => clearInterval(id);
-    }
-  }, [profile, telegramId]);
 
   useEffect(() => {
     async function load() {
       const data = await getProfile(telegramId);
       let finalProfile = data;
-      const ref = await getReferralInfo(telegramId);
-      setReferral(ref);
-      const tx = await getTransactions(telegramId);
-      setTransactions(tx.transactions || []);
 
       if (!data.photo || !data.firstName || !data.lastName) {
         setAutoUpdating(true);
@@ -186,16 +114,6 @@ export default function MyAccount() {
 
   const photoUrl = loadAvatar() || profile.photo || getTelegramPhotoUrl();
 
-  const filteredTransactions = transactions.filter((tx) => {
-    if (!filterDate) return true;
-    const d = new Date(tx.date).toISOString().slice(0, 10);
-    return d === filterDate;
-  });
-  const sortedTransactions = [...filteredTransactions].sort((a, b) =>
-    sortOrder === 'desc'
-      ? new Date(b.date) - new Date(a.date)
-      : new Date(a.date) - new Date(b.date)
-  );
 
   const handleDevTopup = async () => {
     const amt = Number(devTopup);
@@ -204,8 +122,7 @@ export default function MyAccount() {
     try {
       const res = await depositAccount(DEV_ACCOUNT_ID, amt);
       if (!res?.error) {
-        const tx = await getTransactions(telegramId);
-        setTransactions(tx.transactions || []);
+        // top up successful
       }
     } catch (err) {
       console.error('top up failed', err);
@@ -217,11 +134,6 @@ export default function MyAccount() {
 
   return (
     <div className="relative p-4 space-y-4 text-text">
-      <img
-        src="/assets/SnakeLaddersbackground.png"
-        className="background-behind-board account-background object-cover"
-        alt=""
-      />
       <AvatarPromptModal
         open={showAvatarPrompt}
         onPick={() => {
@@ -297,12 +209,6 @@ export default function MyAccount() {
             <a href="/messages" className="underline text-primary">
               Inbox
             </a>
-            {!profile.googleId && (
-              <div className="mt-2 space-y-1">
-                <p className="text-sm">Link your Google account:</p>
-                <div id="g_id_link"></div>
-              </div>
-            )}
           </div>
         </div>
       </div>
@@ -329,96 +235,14 @@ export default function MyAccount() {
         </div>
       )}
 
-      {referral && (
-        <div className="space-y-1">
-          <p className="font-semibold">Referral Link</p>
-          <div className="flex items-center space-x-2">
-            <input
-              type="text"
-              readOnly
-              value={`https://t.me/${BOT_USERNAME}?start=${referral.referralCode}`}
-              onClick={(e) => e.target.select()}
-              className="flex-1 bg-surface border border-border rounded px-2 py-1 text-sm"
-            />
-            <button
-              onClick={() => navigator.clipboard.writeText(`https://t.me/${BOT_USERNAME}?start=${referral.referralCode}`)}
-              className="px-2 py-1 bg-primary hover:bg-primary-hover rounded text-sm text-white-shadow"
-            >
-              Copy
-            </button>
-          </div>
-          <p className="text-sm text-subtext">Invited friends: {referral.referralCount}</p>
-          <p className="text-sm text-subtext">Mining boost: +{referral.bonusMiningRate * 100}%</p>
-        </div>
-      )}
-
-      <div>
-        <div className="flex items-center justify-between mb-1">
-          <p className="font-semibold">TPC Statements</p>
-          <div className="flex items-center space-x-1">
-            <input
-              type="date"
-              ref={dateInputRef}
-              value={filterDate}
-              onChange={(e) => setFilterDate(e.target.value)}
-              className="hidden"
-            />
-            <AiOutlineCalendar
-              className="w-5 h-5 cursor-pointer"
-              onClick={() => dateInputRef.current?.showPicker && dateInputRef.current.showPicker()}
-            />
-            {filterDate && (
-              <button
-                onClick={() => setFilterDate('')}
-                className="text-xs text-subtext"
-              >
-                Clear
-              </button>
-            )}
-            <select
-              value={sortOrder}
-              onChange={(e) => setSortOrder(e.target.value)}
-              className="border border-border rounded text-black text-xs px-1"
-            >
-              <option value="desc">Newest</option>
-              <option value="asc">Oldest</option>
-            </select>
-          </div>
-        </div>
-        {sortedTransactions.length === 0 ? (
-          <p className="text-sm text-subtext">No transactions</p>
-        ) : (
-          <div className="space-y-1 text-sm">
-            {sortedTransactions.map((tx, i) => {
-              const typeLabel = tx.game ? 'game' : tx.type;
-              const sign = tx.amount > 0 ? '+' : '-';
-              const amt = formatValue(Math.abs(tx.amount), 2);
-              return (
-                <div
-                  key={i}
-                  className="flex justify-between border-b border-border pb-1 cursor-pointer hover:bg-white/10"
-                  onClick={() => setSelectedTx(tx)}
-                >
-                  <span className="capitalize">{typeLabel}</span>
-                  <span className={tx.amount > 0 ? 'text-green-500' : 'text-red-500'}>
-                    {sign}
-                    {amt} {(tx.token || 'TPC').toUpperCase()}
-                  </span>
-                  <span>{new Date(tx.date).toLocaleString()}</span>
-                  <span className="text-xs">{tx.status}</span>
-                </div>
-              );
-            })}
-          </div>
-        )}
-      </div>
+      {/* Wallet section */}
+      <Wallet />
       <InboxWidget />
       <InfoPopup
         open={showSaved}
         onClose={() => setShowSaved(false)}
         info="Profile saved"
       />
-      <TransactionDetailsPopup tx={selectedTx} onClose={() => setSelectedTx(null)} />
     </div>
   );
 }
