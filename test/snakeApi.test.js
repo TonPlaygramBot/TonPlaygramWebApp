@@ -168,6 +168,16 @@ test('snake API endpoints and socket events', { concurrency: false, timeout: 200
 
     }
 
+    const resRes = await fetch('http://localhost:3201/api/snake/results?limit=1');
+    assert.equal(resRes.status, 200);
+    const resData = await resRes.json();
+    assert.ok(Array.isArray(resData.results));
+
+    const lbRes = await fetch('http://localhost:3201/api/snake/results?leaderboard=true');
+    assert.equal(lbRes.status, 200);
+    const lbData = await lbRes.json();
+    assert.ok(Array.isArray(lbData.leaderboard));
+
     s1.disconnect();
 
     s2.disconnect();
