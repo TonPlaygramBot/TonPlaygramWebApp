@@ -47,6 +47,35 @@ const httpServer = http.createServer(app);
 const io = new SocketIOServer(httpServer, { cors: { origin: '*' } });
 const gameManager = new GameRoomManager(io);
 
+bot.action(/^reject_invite:(.+)/, async (ctx) => {
+  const [roomId, userId] = ctx.match[1].split(':');
+  await ctx.answerCbQuery('Invite rejected');
+  try {
+    await ctx.deleteMessage();
+  } catch {}
+  const invite = pendingInvites.get(roomId);
+  if (invite) {
+    invite.toIds = invite.toIds.filter((id) => String(id) !== userId);
+    pendingInvites.set(roomId, invite);
+    const { fromId, toIds } = invite;
+    try {
+      await bot.telegram.sendMessage(
+        String(fromId),
+        `${userId} rejected your game invite`,
+      );
+    } catch {}
+    for (const other of toIds) {
+      if (String(other) === userId) continue;
+      try {
+        await bot.telegram.sendMessage(
+          String(other),
+          `${userId} rejected the group invite`,
+        );
+      } catch {}
+    }
+  }
+});
+
 // Middleware and routes
 app.use(compression());
 // Increase JSON body limit to handle large photo uploads
@@ -154,6 +183,7 @@ app.get('/api/ping', (req, res) => {
 const onlineUsers = new Map();
 const tableSeats = new Map();
 const userSockets = new Map();
+const pendingInvites = new Map();
 
 function cleanupSeats() {
   const now = Date.now();
@@ -352,8 +382,9 @@ io.on('connection', (socket) => {
         io.to(sid).emit('gameInvite', { fromId, fromName, roomId, token, amount });
       }
     }
+    pendingInvites.set(roomId, { fromId, toIds: [toId], token, amount });
     try {
-      await sendInviteNotification(bot, toId, fromId, fromName, '1v1');
+      await sendInviteNotification(bot, toId, fromId, fromName, '1v1', roomId, token, amount);
     } catch (err) {
       console.error('Failed to send Telegram notification:', err.message);
     }
@@ -366,6 +397,7 @@ io.on('connection', (socket) => {
       if (!fromId || !Array.isArray(toIds) || toIds.length === 0) {
         return cb && cb({ success: false, error: 'invalid ids' });
       }
+      pendingInvites.set(roomId, { fromId, toIds: [...toIds], token, amount });
       for (const toId of toIds) {
         const targets = userSockets.get(String(toId));
         if (targets && targets.size > 0) {
@@ -382,7 +414,7 @@ io.on('connection', (socket) => {
           }
         }
         try {
-          await sendInviteNotification(bot, toId, fromId, fromName, 'group');
+          await sendInviteNotification(bot, toId, fromId, fromName, 'group', roomId, token, amount);
         } catch (err) {
           console.error('Failed to send Telegram notification:', err.message);
         }

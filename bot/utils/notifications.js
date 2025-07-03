@@ -24,7 +24,16 @@ export async function sendTransferNotification(bot, toId, fromId, amount) {
   });
 }
 
-export async function sendInviteNotification(bot, toId, fromId, name, type) {
+export async function sendInviteNotification(
+  bot,
+  toId,
+  fromId,
+  name,
+  type,
+  roomId,
+  token,
+  amount,
+) {
   let info;
   try {
     info = await fetchTelegramInfo(fromId);
@@ -36,9 +45,31 @@ export async function sendInviteNotification(bot, toId, fromId, name, type) {
     (info?.firstName || '') + (info?.lastName ? ` ${info.lastName}` : '') ||
     String(fromId);
   const caption = `${display} invited you to a ${type} game`;
+
+  const baseUrl =
+    process.env.WEBAPP_BASE_URL ||
+    'https://tonplaygramwebapp.onrender.com';
+  const url = `${baseUrl}/games/snake?table=${roomId}&token=${token}&amount=${amount}`;
+  const replyMarkup = {
+    inline_keyboard: [
+      [{ text: 'Open Game', url }],
+      [
+        {
+          text: 'Reject',
+          callback_data: `reject_invite:${roomId}:${toId}`,
+        },
+      ],
+    ],
+  };
+
   if (info?.photoUrl) {
-    await bot.telegram.sendPhoto(String(toId), { url: info.photoUrl }, { caption });
+    await bot.telegram.sendPhoto(String(toId), { url: info.photoUrl }, {
+      caption,
+      reply_markup: replyMarkup,
+    });
   } else {
-    await bot.telegram.sendMessage(String(toId), caption);
+    await bot.telegram.sendMessage(String(toId), caption, {
+      reply_markup: replyMarkup,
+    });
   }
 }
