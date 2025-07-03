@@ -107,7 +107,8 @@ awarding the developer share after a game ends.
   the `mongodb-memory-server` download fails.
 - **No Telegram notifications** – confirm `npm start` is running and the bot
   token is valid. Users must interact with the bot in Telegram to receive
-  messages.
+  messages. If delivery fails, the invite API returns a URL that can be shared
+  directly with the recipient.
 - **Cannot send TPC** – this happens when the API cannot verify your Telegram
   web app data. Ensure the web page was opened from your bot and that the
   `BOT_TOKEN` in `bot/.env` matches the token used by Telegram.

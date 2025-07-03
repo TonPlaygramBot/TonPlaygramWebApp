@@ -385,12 +385,22 @@ io.on('connection', (socket) => {
       }
     }
     pendingInvites.set(roomId, { fromId, toIds: [toId], token, amount });
+    let url;
     try {
-      await sendInviteNotification(bot, toId, fromId, fromName, '1v1', roomId, token, amount);
+      url = await sendInviteNotification(
+        bot,
+        toId,
+        fromId,
+        fromName,
+        '1v1',
+        roomId,
+        token,
+        amount,
+      );
     } catch (err) {
       console.error('Failed to send Telegram notification:', err.message);
     }
-    cb && cb({ success: true });
+    cb && cb({ success: true, url });
   });
 
   socket.on(
@@ -400,6 +410,7 @@ io.on('connection', (socket) => {
         return cb && cb({ success: false, error: 'invalid ids' });
       }
       pendingInvites.set(roomId, { fromId, toIds: [...toIds], token, amount });
+      let url;
       for (const toId of toIds) {
         const targets = userSockets.get(String(toId));
         if (targets && targets.size > 0) {
@@ -416,12 +427,21 @@ io.on('connection', (socket) => {
           }
         }
         try {
-          await sendInviteNotification(bot, toId, fromId, fromName, 'group', roomId, token, amount);
+          url = await sendInviteNotification(
+            bot,
+            toId,
+            fromId,
+            fromName,
+            'group',
+            roomId,
+            token,
+            amount,
+          );
         } catch (err) {
           console.error('Failed to send Telegram notification:', err.message);
         }
       }
-      cb && cb({ success: true });
+      cb && cb({ success: true, url });
     },
   );
 

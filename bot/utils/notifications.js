@@ -5,6 +5,13 @@ import { fetchTelegramInfo } from './telegram.js';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const coinPath = path.join(__dirname, '../../webapp/public/icons/TPCcoin.png');
 
+export function getInviteUrl(roomId, token, amount) {
+  const baseUrl =
+    process.env.WEBAPP_BASE_URL ||
+    'https://tonplaygramwebapp.onrender.com';
+  return `${baseUrl}/games/snake?table=${roomId}&token=${token}&amount=${amount}`;
+}
+
 export async function sendTransferNotification(bot, toId, fromId, amount) {
   let info;
   try {
@@ -46,10 +53,7 @@ export async function sendInviteNotification(
     String(fromId);
   const caption = `${display} invited you to a ${type} game`;
 
-  const baseUrl =
-    process.env.WEBAPP_BASE_URL ||
-    'https://tonplaygramwebapp.onrender.com';
-  const url = `${baseUrl}/games/snake?table=${roomId}&token=${token}&amount=${amount}`;
+  const url = getInviteUrl(roomId, token, amount);
   const replyMarkup = {
     inline_keyboard: [
       [{ text: 'Open Game', url }],
@@ -72,4 +76,6 @@ export async function sendInviteNotification(
       reply_markup: replyMarkup,
     });
   }
+
+  return url;
 }
