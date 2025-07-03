@@ -38,6 +38,9 @@ if (!process.env.MONGODB_URI) {
   console.log('MONGODB_URI not set, defaulting to in-memory MongoDB');
 }
 
+const skipBot = String(process.env.SKIP_BOT_LAUNCH || '').toLowerCase();
+const SKIP_BOT_LAUNCH = skipBot === '1' || skipBot === 'true';
+
 const PORT = process.env.PORT || 3000;
 const app = express();
 app.use(cors());
@@ -121,7 +124,7 @@ function sendIndex(res) {
 let botLaunchTriggered = false;
 function launchBotWithDelay() {
   if (botLaunchTriggered) return;
-  if (process.env.SKIP_BOT_LAUNCH || !process.env.BOT_TOKEN) {
+  if (SKIP_BOT_LAUNCH || !process.env.BOT_TOKEN) {
     console.log('Skipping Telegram bot launch');
     botLaunchTriggered = true;
     return;
@@ -406,12 +409,12 @@ io.on('connection', (socket) => {
 // Start the server
 httpServer.listen(PORT, async () => {
   console.log(`Server running on port ${PORT}`);
-  if (process.env.SKIP_BOT_LAUNCH || !process.env.BOT_TOKEN) {
+  if (SKIP_BOT_LAUNCH || !process.env.BOT_TOKEN) {
     console.log('Skipping Telegram bot launch');
   }
 });
 
-if (!process.env.SKIP_BOT_LAUNCH && process.env.BOT_TOKEN) {
+if (!SKIP_BOT_LAUNCH && process.env.BOT_TOKEN) {
   process.once('SIGINT', () => bot.stop('SIGINT'));
   process.once('SIGTERM', () => bot.stop('SIGTERM'));
 }
