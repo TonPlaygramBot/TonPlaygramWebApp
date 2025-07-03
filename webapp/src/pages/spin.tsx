@@ -28,15 +28,24 @@ export default function SpinPage() {
   const spinning = spinningMain || spinningLeft || spinningMiddle;
   const [multiplier, setMultiplier] = useState(false);
   const [showAd, setShowAd] = useState(false);
+  const [adWatched, setAdWatched] = useState(false);
 
   const mainRef = useRef<SpinWheelHandle>(null);
   const leftRef = useRef<SpinWheelHandle>(null);
   const middleRef = useRef<SpinWheelHandle>(null);
 
+  const ready = canSpin(lastSpin);
+
   useEffect(() => {
     const ts = localStorage.getItem('lastSpin');
     if (ts) setLastSpin(parseInt(ts, 10));
   }, []);
+
+  useEffect(() => {
+    if (ready && !adWatched) {
+      setShowAd(true);
+    }
+  }, [ready, adWatched]);
 
   const handleFinish = async (r: number) => {
     const now = Date.now();
@@ -52,6 +61,10 @@ export default function SpinPage() {
   };
 
   const triggerSpin = () => {
+    if (!adWatched) {
+      setShowAd(true);
+      return;
+    }
     if (spinning || !ready) return;
     if (multiplier) {
       leftRef.current?.spin();
@@ -60,7 +73,10 @@ export default function SpinPage() {
     mainRef.current?.spin();
   };
 
-  const ready = canSpin(lastSpin);
+  const handleAdComplete = () => {
+    setAdWatched(true);
+    setShowAd(false);
+  };
 
   return (
     <div className="p-4 space-y-6 flex flex-col items-center text-text">
@@ -97,14 +113,14 @@ export default function SpinPage() {
           <button
             onClick={triggerSpin}
             className="px-4 py-1 bg-primary hover:bg-primary-hover text-background text-sm font-bold rounded disabled:bg-gray-500"
-            disabled={spinning || !ready}
+            disabled={spinning || !ready || !adWatched}
           >
             Spin
           </button>
           <button
             onClick={() => setMultiplier(m => !m)}
             className="px-4 py-1 bg-primary hover:bg-primary-hover text-background text-sm font-bold rounded"
-            disabled={spinning || !ready}
+            disabled={spinning || !ready || !adWatched}
           >
             x3
           </button>
@@ -123,7 +139,7 @@ export default function SpinPage() {
         onClose={() => setReward(null)}
         message="Keep spinning every day to earn more!"
       />
-      <AdModal open={showAd} onClose={() => setShowAd(false)} />
+      <AdModal open={showAd} onClose={() => setShowAd(false)} onComplete={handleAdComplete} />
     </div>
   );
 }
