@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import SpinWheel from './SpinWheel.tsx';
 import RewardPopup from './RewardPopup.tsx';
 import AdModal from './AdModal.tsx';
@@ -21,7 +21,9 @@ export default function SpinGame() {
   const [lastSpin, setLastSpin] = useState(null);
   const [reward, setReward] = useState(null);
   const [spinning, setSpinning] = useState(false);
+  const wheelRef = useRef(null);
   const [showAd, setShowAd] = useState(false);
+  const [adWatched, setAdWatched] = useState(false);
   const [timeLeft, setTimeLeft] = useState(0);
 
   useEffect(() => {
@@ -39,6 +41,13 @@ export default function SpinGame() {
     return () => clearInterval(id);
   }, [lastSpin]);
 
+  useEffect(() => {
+    const r = canSpin(lastSpin);
+    if (r && !adWatched) {
+      setShowAd(true);
+    }
+  }, [lastSpin, adWatched]);
+
   const handleFinish = async (r) => {
     const now = Date.now();
     localStorage.setItem('lastSpin', String(now));
@@ -49,6 +58,21 @@ export default function SpinGame() {
     const newBalance = (balRes.balance || 0) + r;
     await updateBalance(id, newBalance);
     await addTransaction(id, r, 'spin');
+    setAdWatched(false);
+  };
+
+  const handleAdComplete = () => {
+    setAdWatched(true);
+    setShowAd(false);
+  };
+
+  const triggerSpin = () => {
+    if (!adWatched) {
+      setShowAd(true);
+      return;
+    }
+    if (spinning || !ready) return;
+    wheelRef.current?.spin();
   };
 
   const formatTime = (ms) => {
@@ -59,6 +83,7 @@ export default function SpinGame() {
   };
 
   const ready = canSpin(lastSpin);
+  const spinBtnClass = `mt-4 px-4 py-1 ${ready && adWatched ? 'bg-green-600 hover:bg-green-500' : 'bg-primary hover:bg-primary-hover'} text-background text-sm font-bold rounded disabled:bg-gray-500`;
 
   return (
     <div className="relative bg-surface border border-border rounded-xl p-4 flex flex-col items-center space-y-2 overflow-hidden">
@@ -70,11 +95,20 @@ export default function SpinGame() {
       <h3 className="text-lg font-bold text-text">Spin &amp; Win</h3>
       <p className="text-sm text-subtext">Try your luck and win rewards!</p>
       <SpinWheel
+        ref={wheelRef}
         onFinish={handleFinish}
         spinning={spinning}
         setSpinning={setSpinning}
         disabled={!ready}
+        showButton={false}
       />
+      <button
+        onClick={triggerSpin}
+        className={spinBtnClass}
+        disabled={spinning || !ready || !adWatched}
+      >
+        Spin
+      </button>
       {!ready && (
         <>
           <p className="text-sm text-white font-semibold">
@@ -93,7 +127,7 @@ export default function SpinGame() {
         onClose={() => setReward(null)}
         message="Keep spinning every day to earn more!"
       />
-      <AdModal open={showAd} onClose={() => setShowAd(false)} />
+      <AdModal open={showAd} onClose={() => setShowAd(false)} onComplete={handleAdComplete} />
     </div>
   );
 }
