@@ -226,6 +226,14 @@ the URL – or pick the number in the lobby – to change how many AI players jo
 
 Online multiplayer has arrived. Join a table in the lobby to create or enter that room. Wait for other players to join you. Once everyone is ready the match starts and you all move on the same board in real time.
 
+### Smart contract tables
+
+For TON and USDT games the backend uses the `SnakeLadderTokens` contract
+located in `contracts/`. The contract handles payouts for any ERC‑20
+token and distributes a 9&nbsp;% developer fee from the winner’s share.
+Deploy it with the developer wallet address and call `settleGame` with the
+token used for the match.
+
 ### Entering the Snake & Ladder game
 
 To move from the start you must roll at least one six when rolling two dice. Any combination containing a six lets you enter the board, including:
