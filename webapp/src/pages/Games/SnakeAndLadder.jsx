@@ -1824,7 +1824,7 @@ export default function SnakeAndLadder() {
         open={showInfo}
         onClose={() => setShowInfo(false)}
         title="Snake & Ladder"
-        info="Roll the dice to move across the board. Ladders move you up, snakes bring you down. The Pot at the top collects everyone's stake – reach it first to claim the total amount."
+        info="Roll a six to leave the start. Ladders lift you up and snakes pull you down. Landing on an opponent sends them back. Bonus cells give an extra roll. Reach tile 100 exactly to win the pot."
       />
       <InfoPopup
         open={!!leftWinner}
