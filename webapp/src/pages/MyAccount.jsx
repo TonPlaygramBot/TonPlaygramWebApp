@@ -5,7 +5,8 @@ import {
   fetchTelegramInfo,
   getReferralInfo,
   getTransactions,
-  linkGoogleAccount
+  linkGoogleAccount,
+  depositAccount
 } from '../utils/api.js';
 import {
   getTelegramId,
@@ -14,7 +15,7 @@ import {
   getTelegramPhotoUrl
 } from '../utils/telegram.js';
 import LoginOptions from '../components/LoginOptions.jsx';
-import { BOT_USERNAME } from '../utils/constants.js';
+import { BOT_USERNAME, DEV_INFO } from '../utils/constants.js';
 import BalanceSummary from '../components/BalanceSummary.jsx';
 import useTelegramBackButton from '../hooks/useTelegramBackButton.js';
 import AvatarPickerModal from '../components/AvatarPickerModal.jsx';
@@ -63,6 +64,9 @@ export default function MyAccount() {
   const [sortOrder, setSortOrder] = useState('desc');
   const [selectedTx, setSelectedTx] = useState(null);
   const dateInputRef = useRef(null);
+  const DEV_ACCOUNT_ID = DEV_INFO.account;
+  const [devTopup, setDevTopup] = useState('');
+  const [devTopupSending, setDevTopupSending] = useState(false);
 
   // Automatically link Google account if a Google ID was stored earlier
   useEffect(() => {
@@ -193,6 +197,24 @@ export default function MyAccount() {
       : new Date(a.date) - new Date(b.date)
   );
 
+  const handleDevTopup = async () => {
+    const amt = Number(devTopup);
+    if (!amt) return;
+    setDevTopupSending(true);
+    try {
+      const res = await depositAccount(DEV_ACCOUNT_ID, amt);
+      if (!res?.error) {
+        const tx = await getTransactions(telegramId);
+        setTransactions(tx.transactions || []);
+      }
+    } catch (err) {
+      console.error('top up failed', err);
+    } finally {
+      setDevTopup('');
+      setDevTopupSending(false);
+    }
+  };
+
   return (
     <div className="relative p-4 space-y-4 text-text">
       <img
@@ -286,6 +308,26 @@ export default function MyAccount() {
       </div>
 
       <BalanceSummary />
+
+      {profile && profile.accountId === DEV_ACCOUNT_ID && (
+        <div className="prism-box p-4 mt-4 space-y-2 w-80 mx-auto border-[#334155]">
+          <label className="block font-semibold text-center">Top Up Developer Account</label>
+          <input
+            type="number"
+            placeholder="Amount"
+            value={devTopup}
+            onChange={(e) => setDevTopup(e.target.value)}
+            className="border p-1 rounded w-full max-w-xs mx-auto text-black"
+          />
+          <button
+            onClick={handleDevTopup}
+            disabled={devTopupSending}
+            className="mt-1 px-3 py-1 bg-primary hover:bg-primary-hover rounded text-background"
+          >
+            {devTopupSending ? 'Processing...' : 'Top Up'}
+          </button>
+        </div>
+      )}
 
       {referral && (
         <div className="space-y-1">

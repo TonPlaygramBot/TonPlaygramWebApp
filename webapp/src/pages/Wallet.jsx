@@ -4,7 +4,8 @@ import {
   createAccount,
   getAccountBalance,
   sendAccountTpc,
-  getAccountTransactions
+  getAccountTransactions,
+  depositAccount
 } from '../utils/api.js';
 import { getTelegramId } from '../utils/telegram.js';
 import ConfirmPopup from '../components/ConfirmPopup.jsx';
@@ -59,6 +60,9 @@ export default function Wallet() {
   const [amount, setAmount] = useState('');
   const [transactions, setTransactions] = useState([]);
   const [devShare, setDevShare] = useState(0);
+  const [feeShare, setFeeShare] = useState(0);
+  const [topupAmount, setTopupAmount] = useState('');
+  const [topupSending, setTopupSending] = useState(false);
   const [sending, setSending] = useState(false);
   const [receipt, setReceipt] = useState(null);
   const [confirmOpen, setConfirmOpen] = useState(false);
@@ -109,10 +113,14 @@ export default function Wallet() {
         const list = txRes.transactions || [];
         setTransactions(list);
         if (DEV_ACCOUNTS.includes(id)) {
-          const sum = list
+          const gameSum = list
             .filter((t) => t.type === 'deposit' && t.game)
             .reduce((s, t) => s + (t.amount || 0), 0);
-          setDevShare(sum);
+          const feeSum = list
+            .filter((t) => t.type === 'fee')
+            .reduce((s, t) => s + (t.amount || 0), 0);
+          setDevShare(gameSum);
+          setFeeShare(feeSum);
         }
       }
     });
@@ -120,10 +128,14 @@ export default function Wallet() {
 
   useEffect(() => {
     if (DEV_ACCOUNTS.includes(accountId)) {
-      const sum = transactions
+      const gameSum = transactions
         .filter((t) => t.type === 'deposit' && t.game)
         .reduce((s, t) => s + (t.amount || 0), 0);
-      setDevShare(sum);
+      const feeSum = transactions
+        .filter((t) => t.type === 'fee')
+        .reduce((s, t) => s + (t.amount || 0), 0);
+      setDevShare(gameSum);
+      setFeeShare(feeSum);
     }
   }, [transactions, accountId]);
 
@@ -160,16 +172,53 @@ export default function Wallet() {
       const list = txRes.transactions || [];
       setTransactions(list);
       if (DEV_ACCOUNTS.includes(id || accountId)) {
-        const sum = list
+        const gameSum = list
           .filter((t) => t.type === 'deposit' && t.game)
           .reduce((s, t) => s + (t.amount || 0), 0);
-        setDevShare(sum);
+        const feeSum = list
+          .filter((t) => t.type === 'fee')
+          .reduce((s, t) => s + (t.amount || 0), 0);
+        setDevShare(gameSum);
+        setFeeShare(feeSum);
       }
     } catch (err) {
       console.error('Send failed', err);
       setErrorMsg('Failed to send TPC');
     } finally {
       setSending(false);
+    }
+  };
+
+  const handleTopup = async () => {
+    const amt = Number(topupAmount);
+    if (!amt) return;
+    setTopupSending(true);
+    try {
+      const res = await depositAccount(accountId, amt);
+      if (res?.error) {
+        setErrorMsg(res.error);
+        return;
+      }
+      setTopupAmount('');
+      const id = await loadBalances();
+      const txRes = await getAccountTransactions(id || accountId);
+      const list = txRes.transactions || [];
+      setTransactions(list);
+      if (DEV_ACCOUNTS.includes(id || accountId)) {
+        const gameSum = list
+          .filter((t) => t.type === 'deposit' && t.game)
+          .reduce((s, t) => s + (t.amount || 0), 0);
+        const feeSum = list
+          .filter((t) => t.type === 'fee')
+          .reduce((s, t) => s + (t.amount || 0), 0);
+        setDevShare(gameSum);
+        setFeeShare(feeSum);
+      }
+    } catch (err) {
+      console.error('Top up failed', err);
+      setErrorMsg('Failed to top up');
+    } finally {
+      setTopupSending(false);
     }
   };
 
@@ -212,7 +261,10 @@ export default function Wallet() {
           {tpcBalance === null ? '...' : formatValue(tpcBalance, 2)}
         </p>
         {DEV_ACCOUNTS.includes(accountId) && (
-          <p className="text-sm">9% games: {formatValue(devShare, 2)}</p>
+          <>
+            <p className="text-sm">Earnings from games: {formatValue(devShare, 2)}</p>
+            <p className="text-sm">Earnings from transfers: {formatValue(feeShare, 2)}</p>
+          </>
         )}
       </div>
 
@@ -254,8 +306,8 @@ export default function Wallet() {
           )}
         </div>
 
-        <div className="prism-box p-6 space-y-3 text-center mt-4 mb-4 flex flex-col items-center w-80 mx-auto border-[#334155]">
-          <label className="block font-semibold">Receive TPC</label>
+      <div className="prism-box p-6 space-y-3 text-center mt-4 mb-4 flex flex-col items-center w-80 mx-auto border-[#334155]">
+        <label className="block font-semibold">Receive TPC</label>
           <button
             onClick={() => navigator.clipboard.writeText(String(accountId))}
             className="mt-2 px-3 py-1 bg-primary hover:bg-primary-hover text-background rounded"
@@ -269,6 +321,26 @@ export default function Wallet() {
           </div>
         )}
       </div>
+
+      {DEV_ACCOUNTS.includes(accountId) && (
+        <div className="prism-box p-6 space-y-3 text-center mt-4 mb-4 flex flex-col items-center w-80 mx-auto border-[#334155]">
+          <label className="block font-semibold">Top Up Developer Account</label>
+          <input
+            type="number"
+            placeholder="Amount"
+            value={topupAmount}
+            onChange={(e) => setTopupAmount(e.target.value)}
+            className="border p-1 rounded w-full max-w-xs mx-auto text-black"
+          />
+          <button
+            onClick={handleTopup}
+            className="mt-1 px-3 py-1 bg-primary hover:bg-primary-hover text-background rounded"
+            disabled={topupSending}
+          >
+            {topupSending ? 'Processing...' : 'Top Up'}
+          </button>
+        </div>
+      )}
     </div>
 
 

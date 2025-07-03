@@ -23,11 +23,15 @@
    - `VITE_GOOGLE_CLIENT_ID` – OAuth client ID for Google sign-in.
    - `VITE_DEV_ACCOUNT_ID` – account ID that receives the 9% developer share.
    - `VITE_DEV_ACCOUNT_ID_1` – (optional) account that receives a 1% share.
-   - `VITE_DEV_ACCOUNT_ID_2` – (optional) account that receives a 2% share.
+  - `VITE_DEV_ACCOUNT_ID_2` – (optional) account that receives a 2% share.
 
    This value is required for the Google button to appear on the login and
    profile pages. When provided, the webapp lets users sign in with Google and
    stores their Google ID alongside any Telegram information when calling
+
+The main developer wallet belongs to **Tur.Alimadhi** and has account ID
+`5ffe7c43-c0ae-48f6-ab8c-9e065ca95466`. All developer earnings are deposited to
+this account.
    `/api/profile/register-google`.
 
 ⚠️ Misconfiguring these may prevent the wallet from loading correctly.
