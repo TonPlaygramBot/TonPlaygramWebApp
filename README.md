@@ -37,34 +37,39 @@ this account.
 
 ⚠️ Misconfiguring these may prevent the wallet from loading correctly.
 
-Both `.env` files are excluded from version control via `.gitignore` so your credentials remain private.
+All `.env` files are excluded from version control via `.gitignore` so your credentials remain private.
 
 The server honors a few extra environment variables when building or serving the webapp:
 
 - `WEBAPP_API_BASE_URL` – overrides the API base used during the webapp build. Set this when the bot API is hosted on another domain or port. If left empty the webapp assumes it is served from the same origin.
-- `TONCONNECT_MANIFEST_URL` – full URL for a custom `tonconnect-manifest.json`. Defaults to the manifest bundled with the build when unset.
-- `SKIP_WEBAPP_BUILD` – set to any value to skip the automatic webapp build that normally runs when `npm start` is executed. Useful if you built the assets manually.
+ - `TONCONNECT_MANIFEST_URL` – full URL for a custom `tonconnect-manifest.json`. Defaults to the manifest bundled with the build when unset.
+ - `SKIP_WEBAPP_BUILD` – set to any value to skip the automatic webapp build that normally runs when `npm start` is executed. Useful if you built the assets manually.
 
-5. Install the Python requirements for the dice roller:
+5. Copy `scripts/.env.example` to `scripts/.env` and set:
+   - `MNEMONIC` – wallet seed phrase used to deploy the Jetton
+   - `RPC_URL` – TON RPC endpoint (e.g. testnet)
+   - `ADMIN_ADDRESS` – address that receives the minted supply
+
+6. Install the Python requirements for the dice roller:
 
    ```bash
    pip install -r requirements.txt
    ```
 
-6. Build the webapp assets. This step copies `public/tonconnect-manifest.json`
+7. Build the webapp assets. This step copies `public/tonconnect-manifest.json`
    into the `dist` folder so wallets can connect:
 
    ```bash
    npm --prefix webapp run build
    ```
 
-7. Run the test suite to verify the setup:
+8. Run the test suite to verify the setup:
 
    ```bash
    npm test
    ```
 
-8. Start the API server and Telegram bot:
+9. Start the API server and Telegram bot:
 
    ```bash
    npm start
