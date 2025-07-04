@@ -135,10 +135,14 @@ export async function sendInviteNotification(
   };
 
   const photo = info?.photoUrl ? { url: info.photoUrl } : { source: coinPath };
+
   await bot.telegram.sendPhoto(String(toId), photo, {
     caption,
     reply_markup: replyMarkup,
   });
+
+  // Also send a plain text notification like TPC receipts
+  await sendTPCNotification(bot, toId, caption);
 
   return url;
 }
