@@ -6,6 +6,7 @@ bot/package-lock.json
 .idea
 bot/.env
 webapp/.env
+scripts/.env
 /webapp/dist/
 # Hardhat build artifacts
 artifacts/
