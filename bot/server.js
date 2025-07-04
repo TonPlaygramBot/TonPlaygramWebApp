@@ -330,7 +330,10 @@ app.post('/api/snake/invite', async (req, res) => {
     }
   }
 
-  const targets = userSockets.get(String(toAccount));
+  let targets = userSockets.get(String(toAccount));
+  if ((!targets || targets.size === 0) && toTelegramId) {
+    targets = userSockets.get(String(toTelegramId));
+  }
   if (targets && targets.size > 0) {
     for (const sid of targets) {
       io.to(sid).emit('gameInvite', {
@@ -341,6 +344,10 @@ app.post('/api/snake/invite', async (req, res) => {
         amount,
       });
     }
+  } else {
+    console.warn(
+      `No socket found for account ID ${toAccount} or Telegram ID ${toTelegramId}`,
+    );
   }
 
   pendingInvites.set(roomId, {
@@ -370,7 +377,7 @@ app.post('/api/snake/invite', async (req, res) => {
     }
   } else {
     console.warn(
-      `Could not find Telegram ID using account or Telegram ID ${toAccount}`,
+      `Could not find Telegram ID using account ID or Telegram ID ${toAccount}`,
     );
   }
 
@@ -481,11 +488,18 @@ io.on('connection', (socket) => {
       if (user) toTelegramId = user.telegramId;
     }
 
-    const targets = userSockets.get(String(toId));
+    let targets = userSockets.get(String(toId));
+    if ((!targets || targets.size === 0) && toTelegramId) {
+      targets = userSockets.get(String(toTelegramId));
+    }
     if (targets && targets.size > 0) {
       for (const sid of targets) {
         io.to(sid).emit('gameInvite', { fromId, fromName, roomId, token, amount });
       }
+    } else {
+      console.warn(
+        `No socket found for account ID ${toId} or Telegram ID ${toTelegramId}`,
+      );
     }
     pendingInvites.set(roomId, {
       fromId,
@@ -512,7 +526,9 @@ io.on('connection', (socket) => {
         console.error('Failed to send Telegram notification:', err.message);
       }
     } else {
-      console.warn(`Could not find Telegram ID for account ${toId}`);
+      console.warn(
+        `Could not find Telegram ID for account ID or Telegram ID ${toId}`,
+      );
     }
     cb && cb({ success: true, url });
   });
@@ -558,7 +574,10 @@ io.on('connection', (socket) => {
             telegramIds[i] = tgId;
           }
         }
-        const targets = userSockets.get(String(toId));
+        let targets = userSockets.get(String(toId));
+        if ((!targets || targets.size === 0) && tgId) {
+          targets = userSockets.get(String(tgId));
+        }
         if (targets && targets.size > 0) {
           for (const sid of targets) {
             io.to(sid).emit('gameInvite', {
@@ -571,6 +590,10 @@ io.on('connection', (socket) => {
               opponentNames,
             });
           }
+        } else {
+          console.warn(
+            `No socket found for account ID ${toId} or Telegram ID ${tgId}`,
+          );
         }
         if (tgId) {
           try {
@@ -588,7 +611,9 @@ io.on('connection', (socket) => {
             console.error('Failed to send Telegram notification:', err.message);
           }
         } else {
-          console.warn(`Could not find Telegram ID for account ${toId}`);
+          console.warn(
+            `Could not find Telegram ID for account ID or Telegram ID ${toId}`,
+          );
         }
       }
       cb && cb({ success: true, url });
