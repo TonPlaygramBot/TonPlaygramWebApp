@@ -4,6 +4,7 @@ import User from '../models/User.js';
 import authenticate from '../middleware/auth.js';
 import { ensureTransactionArray, calculateBalance } from '../utils/userUtils.js';
 import bot from '../bot.js';
+import { sendTransferNotification, sendTPCNotification } from '../utils/notifications.js';
 
 const router = Router();
 
@@ -173,10 +174,7 @@ router.post('/send', async (req, res) => {
 
   if (receiver.telegramId && !devIds.includes(toAccount)) {
     try {
-      await bot.telegram.sendMessage(
-        String(receiver.telegramId),
-        `You received ${amount} TPC from ${fromAccount}`
-      );
+      await sendTransferNotification(bot, receiver.telegramId, fromAccount, amount);
     } catch (err) {
       console.error('Failed to send Telegram notification:', err.message);
     }
@@ -230,9 +228,10 @@ router.post('/deposit', authenticate, async (req, res) => {
 
   if (user.telegramId && !devIds.includes(accountId)) {
     try {
-      await bot.telegram.sendMessage(
-        String(user.telegramId),
-        `Your deposit of ${amount} TPC was credited`
+      await sendTPCNotification(
+        bot,
+        user.telegramId,
+        `\u{1FA99} Your deposit of ${amount} TPC was credited`
       );
     } catch (err) {
       console.error('Failed to send Telegram notification:', err.message);
