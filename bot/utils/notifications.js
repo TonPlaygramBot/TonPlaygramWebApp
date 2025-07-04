@@ -74,3 +74,7 @@ export async function sendInviteNotification(
 
   return url;
 }
+
+export async function sendTPCNotification(bot, toId, caption) {
+  await bot.telegram.sendPhoto(String(toId), { source: coinPath }, { caption });
+}
