@@ -75,12 +75,28 @@ export async function sendTransferNotification(bot, toId, fromId, amount) {
   } catch {
     info = null;
   }
+
   const name =
     (info?.firstName || '') + (info?.lastName ? ` ${info.lastName}` : '') ||
     String(fromId);
 
-  const buffer = await renderTransferImage(name, amount, new Date(), info?.photoUrl);
-  await bot.telegram.sendPhoto(String(toId), { source: buffer });
+  const sign = amount > 0 ? '+' : '-';
+  const formatted = Math.abs(amount).toLocaleString(undefined, {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+  const coinIcon = '\u{1FA99}';
+  const profileIcon = '\u{1F464}';
+
+  const lines = [
+    'TPC Statement Details',
+    `You received ${sign}${formatted} TPC ${coinIcon}`,
+    `From: ${name} ${profileIcon}`,
+    `TPC Account #${fromId}`,
+    new Date().toLocaleString(),
+  ];
+
+  await bot.telegram.sendMessage(String(toId), lines.join('\n'));
 }
 
 export async function sendInviteNotification(
@@ -128,5 +144,5 @@ export async function sendInviteNotification(
 }
 
 export async function sendTPCNotification(bot, toId, caption) {
-  await bot.telegram.sendPhoto(String(toId), { source: coinPath }, { caption });
+  await bot.telegram.sendMessage(String(toId), caption);
 }
