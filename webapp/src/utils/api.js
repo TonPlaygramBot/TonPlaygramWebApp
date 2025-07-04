@@ -94,14 +94,6 @@ export function watchVideo(telegramId, videoId) {
 
 }
 
-export function watchAd(telegramId) {
-  return post('/api/ads/watch', { telegramId });
-}
-
-export function getAdStatus(telegramId) {
-  return post('/api/ads/status', { telegramId });
-}
-
 export function getProfile(telegramId) {
 
   return post('/api/profile/get', { telegramId });

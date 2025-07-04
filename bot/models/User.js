@@ -41,11 +41,6 @@ const userSchema = new mongoose.Schema({
 
   isWatched: { type: Boolean, default: false },
 
-  // Number of ads watched today
-  adsWatchedToday: { type: Number, default: 0 },
-  // Date when the ad counter was last reset
-  lastAdReset: { type: Date, default: null },
-
   minedTPC: { type: Number, default: 0 },
 
   dailyStreak: { type: Number, default: 0 },
