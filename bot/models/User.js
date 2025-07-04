@@ -78,6 +78,10 @@ const userSchema = new mongoose.Schema({
 
   bonusMiningRate: { type: Number, default: 0 },
 
+  // Temporary mining bonus from store bundles
+  storeMiningRate: { type: Number, default: 0 },
+  storeMiningExpiresAt: { type: Date, default: null },
+
 
   // Track which game table the user is currently seated at
   currentTableId: { type: String, default: null }

@@ -13,7 +13,16 @@ export function updateMiningRewards(user) {
       user.minedTPC = 0;
       const baseRate = 1;
       const miningMultiplier = MINING_REWARD;
-      const totalRate = baseRate + (user.bonusMiningRate || 0);
+      let storeRate = 0;
+      if (user.storeMiningRate && user.storeMiningExpiresAt) {
+        if (user.storeMiningExpiresAt > new Date()) {
+          storeRate = user.storeMiningRate;
+        } else {
+          user.storeMiningRate = 0;
+          user.storeMiningExpiresAt = null;
+        }
+      }
+      const totalRate = baseRate + (user.bonusMiningRate || 0) + storeRate;
       const reward = totalRate * miningMultiplier;
       user.balance += reward;
       user.transactions.push({

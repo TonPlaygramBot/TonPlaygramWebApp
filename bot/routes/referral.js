@@ -14,10 +14,17 @@ router.post('/code', async (req, res) => {
   );
 
   const count = await User.countDocuments({ referredBy: user.referralCode });
+  const storeRate =
+    user.storeMiningRate && user.storeMiningExpiresAt &&
+    user.storeMiningExpiresAt > new Date()
+      ? user.storeMiningRate
+      : 0;
   res.json({
     referralCode: user.referralCode,
     referralCount: count,
-    bonusMiningRate: user.bonusMiningRate || 0,
+    bonusMiningRate: (user.bonusMiningRate || 0) + storeRate,
+    storeMiningRate: storeRate,
+    storeMiningExpiresAt: storeRate ? user.storeMiningExpiresAt : null,
   });
 });
 
