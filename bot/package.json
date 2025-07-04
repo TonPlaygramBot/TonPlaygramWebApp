@@ -7,16 +7,17 @@
     "start": "node server.js"
   },
   "dependencies": {
+    "canvas": "^2.11.2",
+    "compression": "^1.7.4",
+    "cors": "^2.8.5",
     "dotenv": "^16.3.1",
     "express": "^4.18.2",
     "https-proxy-agent": "^7.0.2",
-    "mongoose": "^7.6.0",
-    "telegraf": "^4.12.2",
     "mongodb-memory-server": "^10.1.4",
-    "compression": "^1.7.4",
+    "mongoose": "^7.6.0",
     "socket.io": "^4.7.5",
-    "cors": "^2.8.5",
-    "uuid": "^9.0.1",
-    "tonweb": "^0.0.66"
+    "telegraf": "^4.12.2",
+    "tonweb": "^0.0.66",
+    "uuid": "^9.0.1"
   }
 }
