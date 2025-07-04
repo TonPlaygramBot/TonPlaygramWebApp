@@ -30,16 +30,19 @@ export default function SpinPage() {
   const [showAd, setShowAd] = useState(false);
   const [adWatched, setAdWatched] = useState(false);
   const [timeLeft, setTimeLeft] = useState(0);
+  const [freeSpins, setFreeSpins] = useState(0);
 
   const mainRef = useRef<SpinWheelHandle>(null);
   const leftRef = useRef<SpinWheelHandle>(null);
   const middleRef = useRef<SpinWheelHandle>(null);
 
-  const ready = canSpin(lastSpin);
+  const ready = freeSpins > 0 || canSpin(lastSpin);
 
   useEffect(() => {
     const ts = localStorage.getItem('lastSpin');
     if (ts) setLastSpin(parseInt(ts, 10));
+    const fs = localStorage.getItem('freeSpins');
+    if (fs) setFreeSpins(parseInt(fs, 10));
   }, []);
 
   useEffect(() => {
@@ -54,25 +57,51 @@ export default function SpinPage() {
 
 
   const handleFinish = async (r: number) => {
-    const now = Date.now();
-    localStorage.setItem('lastSpin', String(now));
-    setLastSpin(now);
-    const finalReward = multiplier ? r * 3 : r;
-    setReward(finalReward);
-    const id = telegramId;
-    const balRes = await getWalletBalance(id);
-    const newBalance = (balRes.balance || 0) + finalReward;
-    await updateBalance(id, newBalance);
-    await addTransaction(id, finalReward, 'spin');
+    let extraSpins = 0;
+    if (r === 1600) extraSpins = 1;
+    else if (r === 1800) extraSpins = 2;
+    else if (r === 5000) extraSpins = 3;
+
+    if (extraSpins > 0) {
+      const total = freeSpins + extraSpins;
+      setFreeSpins(total);
+      localStorage.setItem('freeSpins', String(total));
+    } else {
+      const finalReward = multiplier ? r * 3 : r;
+      setReward(finalReward);
+      const id = telegramId;
+      const balRes = await getWalletBalance(id);
+      const newBalance = (balRes.balance || 0) + finalReward;
+      await updateBalance(id, newBalance);
+      await addTransaction(id, finalReward, 'spin');
+    }
+
+    const finalCount = freeSpins + extraSpins;
+    if (finalCount === 0) {
+      const now = Date.now();
+      localStorage.setItem('lastSpin', String(now));
+      setLastSpin(now);
+    }
+    if (extraSpins > 0) setReward(r);
     setAdWatched(false);
   };
 
   const triggerSpin = () => {
-    if (!adWatched) {
-      setShowAd(true);
-      return;
+    if (spinning) return;
+    if (freeSpins === 0) {
+      if (!adWatched) {
+        setShowAd(true);
+        return;
+      }
+      if (!ready) return;
     }
-    if (spinning || !ready) return;
+
+    if (freeSpins > 0) {
+      const remaining = freeSpins - 1;
+      setFreeSpins(remaining);
+      localStorage.setItem('freeSpins', String(remaining));
+    }
+
     if (multiplier) {
       leftRef.current?.spin();
       middleRef.current?.spin();
@@ -100,7 +129,7 @@ export default function SpinPage() {
       <h1 className="text-xl font-bold">Spin &amp; Win</h1>
       <p className="text-sm text-subtext">Try your luck and win rewards!</p>
       <div className="bg-surface border border-border rounded p-4 flex flex-col items-center space-y-2">
-        <div className="flex space-x-4">
+        <div className="flex space-x-2">
           <SpinWheel
             ref={leftRef}
             onFinish={() => {}}
