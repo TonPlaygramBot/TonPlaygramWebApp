@@ -296,6 +296,65 @@ app.get('/api/snake/board/:id', async (req, res) => {
   res.json({ snakes: room.snakes, ladders: room.ladders });
 });
 
+app.post('/api/snake/invite', async (req, res) => {
+  const {
+    fromAccount,
+    fromTelegramId,
+    fromName,
+    toAccount,
+    toTelegramId,
+    roomId,
+    token,
+    amount,
+    type,
+  } = req.body || {};
+  if (!fromAccount || !toAccount || !roomId) {
+    return res.status(400).json({ error: 'missing data' });
+  }
+
+  const targets = userSockets.get(String(toAccount));
+  if (targets && targets.size > 0) {
+    for (const sid of targets) {
+      io.to(sid).emit('gameInvite', {
+        fromId: fromAccount,
+        fromName,
+        roomId,
+        token,
+        amount,
+      });
+    }
+  }
+
+  pendingInvites.set(roomId, {
+    fromId: fromAccount,
+    fromTelegramId,
+    toIds: [toAccount],
+    telegramIds: [toTelegramId],
+    token,
+    amount,
+  });
+
+  let url;
+  if (toTelegramId) {
+    try {
+      url = await sendInviteNotification(
+        bot,
+        toTelegramId,
+        fromTelegramId,
+        fromName,
+        type || '1v1',
+        roomId,
+        token,
+        amount,
+      );
+    } catch (err) {
+      console.error('Failed to send Telegram notification:', err.message);
+    }
+  }
+
+  res.json({ success: true, url });
+});
+
 app.get('/api/snake/results', async (req, res) => {
   if (req.query.leaderboard) {
     const leaderboard = await GameResult.aggregate([
