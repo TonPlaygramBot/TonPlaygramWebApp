@@ -296,8 +296,8 @@ export function sendMessage(fromId, toId, text) {
   return post('/api/social/send-message', { fromId, toId, text });
 }
 
-export function getMessages(userId, withId) {
-  return post('/api/social/messages', { userId, withId });
+export function getMessages(telegramId, withId) {
+  return post('/api/social/messages', { telegramId, withId });
 }
 
 export function listWallPosts(ownerId) {
