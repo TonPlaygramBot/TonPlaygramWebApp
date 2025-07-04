@@ -124,10 +124,10 @@ awarding the developer share after a game ends.
 - **In-memory database fails to launch** – the app will start without MongoDB if
   the `mongodb-memory-server` download fails.
 - **No Telegram notifications** – confirm `npm start` is running and the bot
-  token is valid. If a Telegram ID isn't supplied when sending an invite the
-  backend now looks it up from the account record and uses it if found. Users
-  must interact with the bot in Telegram to receive messages. If delivery fails
-  the invite API still returns a URL that can be shared with the recipient.
+  token is valid. The invite endpoints now attempt to resolve the recipient via
+  account ID or Telegram ID. The recipient must have interacted with the bot in
+  Telegram for notifications to succeed. If delivery fails the invite API still
+  returns a URL that can be shared with the recipient.
 - **Cannot send TPC** – this happens when the API cannot verify your Telegram
   web app data. Ensure the web page was opened from your bot and that the
   `BOT_TOKEN` in `bot/.env` matches the token used by Telegram.
