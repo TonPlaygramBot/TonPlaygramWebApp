@@ -1186,3 +1186,15 @@ input:focus {
     background-position: -400px 0, 400px 0, -200px 0;
   }
 }
+
+/* Store page styles */
+.store-card {
+  @apply prism-box flex-col space-y-2 rounded-xl p-4 items-center;
+  box-shadow: 0 0 12px rgba(0, 247, 255, 0.5);
+}
+
+.buy-button {
+  @apply lobby-tile w-full rounded-full cursor-pointer text-black bg-primary;
+  box-shadow: 0 0 8px #00f7ff, 0 0 16px #00f7ff;
+}
+
