@@ -297,7 +297,7 @@ app.get('/api/snake/board/:id', async (req, res) => {
 });
 
 app.post('/api/snake/invite', async (req, res) => {
-  const {
+  let {
     fromAccount,
     fromTelegramId,
     fromName,
@@ -445,16 +445,17 @@ io.on('connection', (socket) => {
     await gameManager.rollDice(socket);
   });
 
-  socket.on('invite1v1', async ({
-    fromId,
-    fromTelegramId,
-    fromName,
-    toId,
-    toTelegramId,
-    roomId,
-    token,
-    amount,
-  }, cb) => {
+  socket.on('invite1v1', async (payload, cb) => {
+    let {
+      fromId,
+      fromTelegramId,
+      fromName,
+      toId,
+      toTelegramId,
+      roomId,
+      token,
+      amount,
+    } = payload || {};
     if (!fromId || !toId) return cb && cb({ success: false, error: 'invalid ids' });
 
     if (!toTelegramId) {
