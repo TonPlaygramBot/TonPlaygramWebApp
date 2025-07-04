@@ -23,7 +23,7 @@ export default function TransactionDetailsPopup({ tx, onClose }) {
 
   const token = (tx.token || 'TPC').toUpperCase();
   const iconMap = {
-    TPC: '/assets/icons/coin_embedded.svg',
+    TPC: '/assets/icons/TPCcoin.png',
     TON: '/icons/TON.png',
     USDT: '/icons/Usdt.png'
   };
