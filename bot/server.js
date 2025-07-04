@@ -313,8 +313,21 @@ app.post('/api/snake/invite', async (req, res) => {
   }
 
   if (!toTelegramId) {
-    const user = await User.findOne({ accountId: toAccount });
-    if (user) toTelegramId = user.telegramId;
+    let user = await User.findOne({ accountId: toAccount });
+    if (user) {
+      toTelegramId = user.telegramId;
+      console.log(
+        `Found Telegram ID ${toTelegramId} using account ID ${toAccount}`,
+      );
+    } else if (/^\d+$/.test(String(toAccount))) {
+      user = await User.findOne({ telegramId: Number(toAccount) });
+      if (user) {
+        toTelegramId = user.telegramId;
+        console.log(
+          `Found Telegram ID ${toTelegramId} using Telegram ID ${toAccount}`,
+        );
+      }
+    }
   }
 
   const targets = userSockets.get(String(toAccount));
@@ -356,7 +369,9 @@ app.post('/api/snake/invite', async (req, res) => {
       console.error('Failed to send Telegram notification:', err.message);
     }
   } else {
-    console.warn(`Could not find Telegram ID for account ${toAccount}`);
+    console.warn(
+      `Could not find Telegram ID using account or Telegram ID ${toAccount}`,
+    );
   }
 
   res.json({ success: true, url });
