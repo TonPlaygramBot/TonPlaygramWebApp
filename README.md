@@ -23,6 +23,8 @@
    - `VITE_DEV_ACCOUNT_ID` – account ID that receives the 9% developer share.
    - `VITE_DEV_ACCOUNT_ID_1` – (optional) account that receives a 1% share.
   - `VITE_DEV_ACCOUNT_ID_2` – (optional) account that receives a 2% share.
+  - `VITE_API_AUTH_TOKEN` – (optional) token used when calling privileged API
+    endpoints outside Telegram.
 
    This value is required for the Google button to appear on the login and
    profile pages. When provided, the webapp lets users sign in with Google and
