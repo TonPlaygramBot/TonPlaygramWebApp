@@ -13,7 +13,7 @@ export function getInviteUrl(roomId, token, amount) {
   return `${baseUrl}/games/snake?table=${roomId}&token=${token}&amount=${amount}`;
 }
 
-async function renderTransferImage(name, amount, date) {
+async function renderTransferImage(name, amount, date, photoUrl) {
   const width = 320;
   const height = 180;
   const canvas = createCanvas(width, height);
@@ -35,12 +35,26 @@ async function renderTransferImage(name, amount, date) {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   });
-  const text = `Received ${sign}${formatted} TPC`;
+  const text = `You received ${sign}${formatted} TPC`;
   ctx.font = 'bold 16px sans-serif';
-  ctx.fillText(text, width / 2, 70);
+  ctx.fillText(text, width / 2, 60);
 
   ctx.font = '14px sans-serif';
-  ctx.fillText(`From: ${name}`, width / 2, 100);
+  ctx.textAlign = 'left';
+  const fromText = `from ${name}`;
+  const photoSize = photoUrl ? 32 : 0;
+  const spacing = photoUrl ? 6 : 0;
+  const textWidth = ctx.measureText(fromText).width;
+  const totalWidth = photoSize + spacing + textWidth;
+  const startX = (width - totalWidth) / 2;
+  if (photoUrl) {
+    try {
+      const avatar = await loadImage(photoUrl);
+      ctx.drawImage(avatar, startX, 78, photoSize, photoSize);
+    } catch {}
+  }
+  ctx.fillText(fromText, startX + photoSize + spacing, 100);
+  ctx.textAlign = 'center';
 
   ctx.font = '12px sans-serif';
   ctx.fillText(date.toLocaleString(), width / 2, height - 20);
@@ -65,7 +79,7 @@ export async function sendTransferNotification(bot, toId, fromId, amount) {
     (info?.firstName || '') + (info?.lastName ? ` ${info.lastName}` : '') ||
     String(fromId);
 
-  const buffer = await renderTransferImage(name, amount, new Date());
+  const buffer = await renderTransferImage(name, amount, new Date(), info?.photoUrl);
   await bot.telegram.sendPhoto(String(toId), { source: buffer });
 }
 
