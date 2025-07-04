@@ -36,13 +36,22 @@ export default function Tasks() {
   }, []);
 
   const handleClaim = async (task) => {
+    if (task.id === "watch_ad") {
+      setShowAd(true);
+      return;
+    }
 
-    window.open(task.link, '_blank');
+    window.open(task.link, "_blank");
 
     await completeTask(telegramId, task.id);
 
     load();
+  };
 
+  const handleAdComplete = async () => {
+    await watchAd(telegramId);
+    setShowAd(false);
+    load();
   };
 
   if (!tasks) return <div className="p-4 text-subtext">Loading...</div>;
@@ -53,7 +62,8 @@ export default function Tasks() {
 
     join_telegram: <RiTelegramFill className="text-sky-400 w-5 h-5" />,
 
-    follow_tiktok: <IoLogoTiktok className="text-pink-500 w-5 h-5" />
+    follow_tiktok: <IoLogoTiktok className="text-pink-500 w-5 h-5" />,
+    watch_ad: <IoLogoTiktok className="text-yellow-500 w-5 h-5" />
 
   };
 
@@ -86,31 +96,35 @@ export default function Tasks() {
 
             </div>
 
-            {t.completed ? (
-
-              <span className="text-accent font-semibold text-sm">Completed</span>
-
+            {t.id === 'watch_ad' ? (
+              t.count >= (t.dailyLimit || 0) ? (
+                <span className="text-accent font-semibold text-sm">Done</span>
+              ) : (
+                <button
+                  onClick={() => handleClaim(t)}
+                  className="px-2 py-1 bg-primary hover:bg-primary-hover text-background text-sm rounded"
+                >
+                  Watch ({t.count}/{t.dailyLimit})
+                </button>
+              )
             ) : (
-
-              <button
-
-                onClick={() => handleClaim(t)}
-
-                className="px-2 py-1 bg-primary hover:bg-primary-hover text-background text-sm rounded"
-
-              >
-
-                Claim
-
-              </button>
-
+              t.completed ? (
+                <span className="text-accent font-semibold text-sm">Completed</span>
+              ) : (
+                <button
+                  onClick={() => handleClaim(t)}
+                  className="px-2 py-1 bg-primary hover:bg-primary-hover text-background text-sm rounded"
+                >
+                  Claim
+                </button>
+              )
             )}
-
           </li>
 
         ))}
 
       </ul>
+      <AdModal open={showAd} onClose={() => setShowAd(false)} onComplete={handleAdComplete} />
 
     </div>
 
