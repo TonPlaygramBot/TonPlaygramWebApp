@@ -459,7 +459,10 @@ io.on('connection', (socket) => {
     if (!fromId || !toId) return cb && cb({ success: false, error: 'invalid ids' });
 
     if (!toTelegramId) {
-      const user = await User.findOne({ accountId: toId });
+      let user = await User.findOne({ accountId: toId });
+      if (!user) {
+        user = await User.findOne({ telegramId: Number(toId) });
+      }
       if (user) toTelegramId = user.telegramId;
     }
 
@@ -531,7 +534,10 @@ io.on('connection', (socket) => {
         const toId = toIds[i];
         let tgId = telegramIds[i];
         if (!tgId) {
-          const user = await User.findOne({ accountId: toId });
+          let user = await User.findOne({ accountId: toId });
+          if (!user) {
+            user = await User.findOne({ telegramId: Number(toId) });
+          }
           if (user) {
             tgId = user.telegramId;
             telegramIds[i] = tgId;
