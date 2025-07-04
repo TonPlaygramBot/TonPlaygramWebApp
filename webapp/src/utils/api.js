@@ -393,3 +393,7 @@ export function buyBundle(accountId, bundle) {
 export function claimPurchase(accountId, txHash) {
   return post('/api/store/purchase', { accountId, txHash });
 }
+
+export function sendBroadcast(data) {
+  return post('/api/broadcast/send', data);
+}

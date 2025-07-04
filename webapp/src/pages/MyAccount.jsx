@@ -3,7 +3,8 @@ import {
   getProfile,
   updateProfile,
   fetchTelegramInfo,
-  depositAccount
+  depositAccount,
+  sendBroadcast
 } from '../utils/api.js';
 import {
   getTelegramId,
@@ -56,6 +57,9 @@ export default function MyAccount() {
   const DEV_ACCOUNT_ID = DEV_INFO.account;
   const [devTopup, setDevTopup] = useState('');
   const [devTopupSending, setDevTopupSending] = useState(false);
+  const [notifyText, setNotifyText] = useState('');
+  const [notifyPhoto, setNotifyPhoto] = useState('');
+  const [notifySending, setNotifySending] = useState(false);
 
   useEffect(() => {
     async function load() {
@@ -129,6 +133,23 @@ export default function MyAccount() {
     } finally {
       setDevTopup('');
       setDevTopupSending(false);
+    }
+  };
+
+  const handleDevNotify = async () => {
+    if (!notifyText && !notifyPhoto) return;
+    setNotifySending(true);
+    try {
+      const res = await sendBroadcast({ text: notifyText, photo: notifyPhoto });
+      if (!res?.error) {
+        // notification sent
+      }
+    } catch (err) {
+      console.error('notify failed', err);
+    } finally {
+      setNotifyText('');
+      setNotifyPhoto('');
+      setNotifySending(false);
     }
   };
 
@@ -216,23 +237,57 @@ export default function MyAccount() {
       <BalanceSummary />
 
       {profile && profile.accountId === DEV_ACCOUNT_ID && (
-        <div className="prism-box p-4 mt-4 space-y-2 w-80 mx-auto border-[#334155]">
-          <label className="block font-semibold text-center">Top Up Developer Account</label>
-          <input
-            type="number"
-            placeholder="Amount"
-            value={devTopup}
-            onChange={(e) => setDevTopup(e.target.value)}
-            className="border p-1 rounded w-full max-w-xs mx-auto text-black"
-          />
-          <button
-            onClick={handleDevTopup}
-            disabled={devTopupSending}
-            className="mt-1 px-3 py-1 bg-primary hover:bg-primary-hover rounded text-background"
-          >
-            {devTopupSending ? 'Processing...' : 'Top Up'}
-          </button>
-        </div>
+        <>
+          <div className="prism-box p-4 mt-4 space-y-2 w-80 mx-auto border-[#334155]">
+            <label className="block font-semibold text-center">Top Up Developer Account</label>
+            <input
+              type="number"
+              placeholder="Amount"
+              value={devTopup}
+              onChange={(e) => setDevTopup(e.target.value)}
+              className="border p-1 rounded w-full max-w-xs mx-auto text-black"
+            />
+            <button
+              onClick={handleDevTopup}
+              disabled={devTopupSending}
+              className="mt-1 px-3 py-1 bg-primary hover:bg-primary-hover rounded text-background"
+            >
+              {devTopupSending ? 'Processing...' : 'Top Up'}
+            </button>
+          </div>
+
+          <div className="prism-box p-4 mt-4 space-y-2 w-80 mx-auto border-[#334155]">
+            <label className="block font-semibold text-center">Send Notification</label>
+            <input
+              type="file"
+              accept="image/*"
+              onChange={(e) => {
+                const file = e.target.files[0];
+                if (!file) return;
+                const reader = new FileReader();
+                reader.onload = () => setNotifyPhoto(reader.result);
+                reader.readAsDataURL(file);
+              }}
+              className="border p-1 rounded w-full max-w-xs mx-auto text-black"
+            />
+            {notifyPhoto && (
+              <img src={notifyPhoto} alt="preview" className="max-h-40 mx-auto" />
+            )}
+            <textarea
+              placeholder="Message"
+              value={notifyText}
+              onChange={(e) => setNotifyText(e.target.value)}
+              className="border p-1 rounded w-full text-black"
+            />
+            <button
+              onClick={handleDevNotify}
+              disabled={notifySending}
+              className="mt-1 px-3 py-1 bg-primary hover:bg-primary-hover rounded text-background"
+            >
+              {notifySending ? 'Sending...' : 'Notify'}
+            </button>
+          </div>
+        </>
       )}
 
       {/* Wallet section */}

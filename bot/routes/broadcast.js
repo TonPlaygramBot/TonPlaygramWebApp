@@ -1,33 +1,62 @@
 import { Router } from 'express';
 import bot from '../bot.js';
 import User from '../models/User.js';
+import authenticate from '../middleware/auth.js';
 
 const router = Router();
 
-function adminOnly(req, res, next) {
+async function adminOnly(req, res, next) {
   const auth = req.get('authorization') || '';
   const token = auth.replace(/^Bearer\s+/i, '');
   const list = process.env.AIRDROP_ADMIN_TOKENS;
-  if (!list) {
+  const allowed = list ? list.split(',').map(t => t.trim()).filter(Boolean) : [];
+
+  const devAccounts = [
+    process.env.DEV_ACCOUNT_ID || process.env.VITE_DEV_ACCOUNT_ID,
+    process.env.DEV_ACCOUNT_ID_1 || process.env.VITE_DEV_ACCOUNT_ID_1,
+    process.env.DEV_ACCOUNT_ID_2 || process.env.VITE_DEV_ACCOUNT_ID_2,
+  ].filter(Boolean);
+
+  let isDev = false;
+  if (req.auth?.telegramId) {
+    const u = await User.findOne({ telegramId: req.auth.telegramId });
+    if (u && devAccounts.includes(u.accountId)) isDev = true;
+  }
+
+  if (token && allowed.includes(token)) return next();
+  if (isDev) return next();
+
+  if (!list && !isDev) {
     return res.status(403).json({ error: 'Airdrop admin tokens not configured' });
   }
-  const allowed = list.split(',').map(t => t.trim()).filter(Boolean);
-  if (!token || !allowed.includes(token)) {
-    return res.status(401).json({ error: 'unauthorized' });
-  }
-  next();
+  res.status(401).json({ error: 'unauthorized' });
 }
 
-router.post('/send', adminOnly, async (req, res) => {
-  const { text } = req.body || {};
-  if (!text) return res.status(400).json({ error: 'text required' });
+router.post('/send', authenticate, adminOnly, async (req, res) => {
+  const { text, photo } = req.body || {};
+  if (!text && !photo) {
+    return res.status(400).json({ error: 'text or photo required' });
+  }
   try {
     const users = await User.find().select('telegramId');
     let count = 0;
+    let image;
+    if (photo) {
+      const base = photo.replace(/^data:image\/\w+;base64,/, '');
+      image = Buffer.from(base, 'base64');
+    }
     for (const user of users) {
       if (!user.telegramId) continue;
       try {
-        await bot.telegram.sendMessage(String(user.telegramId), text);
+        if (image) {
+          await bot.telegram.sendPhoto(
+            String(user.telegramId),
+            { source: image },
+            text ? { caption: text } : undefined
+          );
+        } else {
+          await bot.telegram.sendMessage(String(user.telegramId), text);
+        }
         count++;
       } catch (err) {
         console.error('Failed to send message to', user.telegramId, err.message);
