@@ -100,12 +100,9 @@ export default forwardRef<SpinWheelHandle, SpinWheelProps>(function SpinWheel(
       spinSoundRef.current.play().catch(() => {});
     }
 
-    const segments = shuffleSegments(baseSegments);
-    setWheelSegments(segments);
+    const index = Math.floor(Math.random() * wheelSegments.length);
 
-    const index = Math.floor(Math.random() * segments.length);
-
-    const reward = segments[index];
+    const reward = wheelSegments[index];
 
     spinCountRef.current += 1;
     const finalIndex = spinCountRef.current * loops * wheelSegments.length + index;
@@ -130,6 +127,8 @@ export default forwardRef<SpinWheelHandle, SpinWheelProps>(function SpinWheel(
         successSoundRef.current.play().catch(() => {});
       }
       onFinish(reward);
+      setWheelSegments(shuffleSegments(baseSegments));
+      setOffset(0);
     }, 4000);
   };
 
@@ -137,11 +136,11 @@ export default forwardRef<SpinWheelHandle, SpinWheelProps>(function SpinWheel(
 
   return (
 
-    <div className="w-28 mx-auto flex flex-col items-center">
+    <div className="w-36 mx-auto flex flex-col items-center">
 
       <div
 
-        className="relative overflow-hidden w-24"
+        className="relative overflow-hidden w-32"
 
         style={{ height: itemHeight * visibleRows }}
 
@@ -159,15 +158,13 @@ export default forwardRef<SpinWheelHandle, SpinWheelProps>(function SpinWheel(
 
         <div
 
-          className="flex flex-col items-center w-24"
+          className="flex flex-col items-center w-32"
 
           style={{
 
             transform: `translateY(${offset}px)`,
 
-            transition: spinning
-              ? 'transform 4s cubic-bezier(0.33,1,0.68,1)'
-              : 'none'
+            transition: 'transform 4s cubic-bezier(0.33,1,0.68,1)'
 
           }}
 
@@ -179,7 +176,7 @@ export default forwardRef<SpinWheelHandle, SpinWheelProps>(function SpinWheel(
 
               key={idx}
 
-              className={`board-style flex items-center justify-center text-sm w-24 font-bold ${
+              className={`board-style flex items-center justify-center text-sm w-32 font-bold ${
 
                 idx === winnerIndex ? 'bg-yellow-300 text-black' : 'text-white'
 
@@ -200,7 +197,7 @@ export default forwardRef<SpinWheelHandle, SpinWheelProps>(function SpinWheel(
                     alt="Free Spin"
                     className="w-8 h-8 mr-1"
                   />
-                  <span class="text-xs">
+                  <span>
                     {val === 1600 && '1 Free Spin'}
                     {val === 1800 && '2 Free Spins'}
                     {val === 5000 && '3 Free Spins'}

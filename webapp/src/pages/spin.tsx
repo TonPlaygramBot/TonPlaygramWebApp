@@ -22,14 +22,11 @@ export default function SpinPage() {
   }
   const [lastSpin, setLastSpin] = useState<number | null>(null);
   const [reward, setReward] = useState<number | null>(null);
-  const [leftResult, setLeftResult] = useState<number | null>(null);
-  const [middleResult, setMiddleResult] = useState<number | null>(null);
   const [spinningMain, setSpinningMain] = useState(false);
   const [spinningLeft, setSpinningLeft] = useState(false);
   const [spinningMiddle, setSpinningMiddle] = useState(false);
   const spinning = spinningMain || spinningLeft || spinningMiddle;
   const [multiplier, setMultiplier] = useState(false);
-  const [bonusMode, setBonusMode] = useState(false);
   const [showAd, setShowAd] = useState(false);
   const [adWatched, setAdWatched] = useState(false);
   const [timeLeft, setTimeLeft] = useState(0);
@@ -59,17 +56,7 @@ export default function SpinPage() {
   }, [lastSpin]);
 
 
-  const handleFinish = async (r: number | 'BONUS_X3') => {
-    if (r === 'BONUS_X3') {
-      setBonusMode(true);
-      setLeftResult(null);
-      setMiddleResult(null);
-      leftRef.current?.spin();
-      middleRef.current?.spin();
-      mainRef.current?.spin();
-      return;
-    }
-
+  const handleFinish = async (r: number) => {
     let extraSpins = 0;
     if (r === 1600) extraSpins = 1;
     else if (r === 1800) extraSpins = 2;
@@ -80,10 +67,7 @@ export default function SpinPage() {
       setFreeSpins(total);
       localStorage.setItem('freeSpins', String(total));
     } else {
-      let finalReward = r;
-      if (multiplier || bonusMode) {
-        finalReward = (leftResult || 0) + (middleResult || 0) + r;
-      }
+      const finalReward = multiplier ? r * 3 : r;
       setReward(finalReward);
       const id = telegramId;
       const balRes = await getWalletBalance(id);
@@ -99,9 +83,6 @@ export default function SpinPage() {
       setLastSpin(now);
     }
     if (extraSpins > 0) setReward(r);
-    setLeftResult(null);
-    setMiddleResult(null);
-    setBonusMode(false);
     setAdWatched(false);
   };
 
@@ -120,9 +101,6 @@ export default function SpinPage() {
       setFreeSpins(remaining);
       localStorage.setItem('freeSpins', String(remaining));
     }
-
-    setLeftResult(null);
-    setMiddleResult(null);
 
     if (multiplier) {
       leftRef.current?.spin();
@@ -154,9 +132,7 @@ export default function SpinPage() {
         <div className="flex space-x-2">
           <SpinWheel
             ref={leftRef}
-            onFinish={(val) => {
-              if (typeof val === 'number') setLeftResult(val);
-            }}
+            onFinish={() => {}}
             spinning={spinningLeft}
             setSpinning={setSpinningLeft}
             disabled={!ready}
@@ -172,9 +148,7 @@ export default function SpinPage() {
           />
           <SpinWheel
             ref={middleRef}
-            onFinish={(val) => {
-              if (typeof val === 'number') setMiddleResult(val);
-            }}
+            onFinish={() => {}}
             spinning={spinningMiddle}
             setSpinning={setSpinningMiddle}
             disabled={!ready}
