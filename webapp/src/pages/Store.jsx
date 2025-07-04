@@ -64,7 +64,7 @@ export default function Store() {
           </div>
           <div className="text-lg font-bold flex items-center space-x-1">
             <span>{b.tpc.toLocaleString()}</span>
-            <img src="/icons/TPCcoin.png" alt="TPC" className="w-6 h-6" />
+            <img src="/assets/icons/coin_embedded.svg" alt="TPC" className="w-6 h-6" />
           </div>
           <div className="text-primary text-lg flex items-center space-x-1">
             <span>{b.ton}</span>

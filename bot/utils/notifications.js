@@ -4,7 +4,10 @@ import { createCanvas, loadImage } from 'canvas';
 import { fetchTelegramInfo } from './telegram.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const coinPath = path.join(__dirname, '../../webapp/public/icons/TPCcoin.png');
+const coinPath = path.join(
+  __dirname,
+  '../../webapp/public/assets/icons/coin_embedded.svg'
+);
 
 export function getInviteUrl(roomId, token, amount) {
   const baseUrl =

@@ -256,7 +256,7 @@ export default function Wallet() {
       <div className="prism-box p-6 space-y-2 w-80 mx-auto border-[#334155] min-h-40 flex flex-col items-start">
         <p className="text-xs break-all w-full text-left">Account: {accountId || '...'}</p>
         <div className="flex items-center space-x-1">
-          <img src="/icons/TPCcoin.png" alt="TPC" className="w-8 h-8" />
+          <img src="/assets/icons/coin_embedded.svg" alt="TPC" className="w-8 h-8" />
           <span className="text-lg font-medium">TPC Balance</span>
         </div>
         <p className="text-xl font-medium">

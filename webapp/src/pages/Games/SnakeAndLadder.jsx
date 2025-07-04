@@ -452,7 +452,13 @@ function Board({
                 className="pot-token"
               />
               <img
-                src={`/icons/${token === 'TON' ? 'TON.png' : token === 'USDT' ? 'Usdt.png' : 'TPCcoin.png'}`}
+                src={
+                  token === 'TON'
+                    ? '/icons/TON.png'
+                    : token === 'USDT'
+                    ? '/icons/Usdt.png'
+                    : '/assets/icons/coin_embedded.svg'
+                }
                 alt={token}
                 className="pot-icon"
               />
@@ -619,12 +625,15 @@ export default function SnakeAndLadder() {
   useEffect(() => {
     [
       'TON.png',
-      'TPCcoin.png',
       'Usdt.png'
     ].forEach((file) => {
       const img = new Image();
       img.src = `/icons/${file}`;
     });
+    {
+      const img = new Image();
+      img.src = '/assets/icons/coin_embedded.svg';
+    }
     AVATARS.forEach((src) => {
       const img = new Image();
       img.src = getAvatarUrl(src);
@@ -1909,7 +1918,13 @@ export default function SnakeAndLadder() {
             <span>
               {leftWinner} left the game. You win {Math.round(pot * 2 * 0.91)}{' '}
               <img
-                src={`/icons/${token === 'TON' ? 'TON.png' : token === 'USDT' ? 'Usdt.png' : 'TPCcoin.png'}`}
+                src={
+                  token === 'TON'
+                    ? '/icons/TON.png'
+                    : token === 'USDT'
+                    ? '/icons/Usdt.png'
+                    : '/assets/icons/coin_embedded.svg'
+                }
                 alt={token}
                 className="inline w-4 h-4 align-middle"
               />

@@ -259,7 +259,13 @@ export default function SnakeBoard({
             <div className={`pot-cell ${highlight && highlight.cell === FINAL_TILE ? 'highlight' : ''}`}>
               <PlayerToken color="#16a34a" topColor="#ff0000" className="pot-token" />
               <img
-                src={`/icons/${token === 'TON' ? 'TON.png' : token === 'USDT' ? 'Usdt.png' : 'TPCcoin.png'}`}
+                src={
+                  token === 'TON'
+                    ? '/icons/TON.png'
+                    : token === 'USDT'
+                    ? '/icons/Usdt.png'
+                    : '/assets/icons/coin_embedded.svg'
+                }
                 alt={token}
                 className="pot-icon"
               />
