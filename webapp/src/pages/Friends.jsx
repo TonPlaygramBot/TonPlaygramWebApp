@@ -157,6 +157,11 @@ export default function Friends() {
         <h3 className="text-lg font-semibold">Friends</h3>
         <p>Invited friends: {referral.referralCount}</p>
         <p>Mining boost: +{referral.bonusMiningRate * 100}%</p>
+        {referral.storeMiningRate && referral.storeMiningExpiresAt && (
+          <p className="text-sm text-subtext">
+            Boost ends in {Math.max(0, Math.floor((new Date(referral.storeMiningExpiresAt).getTime() - Date.now()) / 86400000))}d
+          </p>
+        )}
       </section>
 
       <section className="space-y-1">

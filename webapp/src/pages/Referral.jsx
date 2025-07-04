@@ -46,6 +46,11 @@ export default function Referral() {
         </div>
         <p className="text-sm text-subtext mt-1">Invited friends: {info.referralCount}</p>
         <p className="text-sm text-subtext">Mining boost: +{info.bonusMiningRate * 100}%</p>
+        {info.storeMiningRate && info.storeMiningExpiresAt && (
+          <p className="text-sm text-subtext">
+            Boost ends in {Math.max(0, Math.floor((new Date(info.storeMiningExpiresAt).getTime() - Date.now()) / 86400000))}d
+          </p>
+        )}
       </div>
     </div>
   );

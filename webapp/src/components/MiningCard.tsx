@@ -24,6 +24,7 @@ export default function MiningCard() {
   const [isMining, setIsMining] = useState(false);
   const [elapsed, setElapsed] = useState(0);
   const [bonusRate, setBonusRate] = useState(0);
+  const [boostExpiry, setBoostExpiry] = useState<Date | null>(null);
 
   // Load initial mining status
   useEffect(() => {
@@ -58,7 +59,15 @@ export default function MiningCard() {
     getReferralInfo(telegramId)
       .then((info) => {
         if (ignore) return;
-        setBonusRate(info.bonusMiningRate || 0);
+        const expires = info.storeMiningExpiresAt
+          ? new Date(info.storeMiningExpiresAt)
+          : null;
+        const active =
+          info.storeMiningRate && expires && expires > new Date()
+            ? info.storeMiningRate
+            : 0;
+        setBonusRate((info.bonusMiningRate || 0) + active);
+        setBoostExpiry(active ? expires : null);
       })
       .catch(() => {});
 
@@ -143,6 +152,11 @@ export default function MiningCard() {
         </div>
       )}
       <p className="text-xs text-subtext">Speed boost: +{(bonusRate * 100).toFixed(0)}%</p>
+      {boostExpiry && (
+        <p className="text-xs text-subtext">
+          Boost ends in {Math.max(0, Math.floor((boostExpiry.getTime() - Date.now()) / 86400000))}d
+        </p>
+      )}
     </div>
   );
 }
