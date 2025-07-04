@@ -2,7 +2,7 @@ import dotenv from 'dotenv';
 import express from 'express';
 import cors from 'cors';
 import bot from './bot.js';
-import { sendInviteNotification } from './utils/notifications.js';
+import { sendInviteNotification, getInviteUrl } from './utils/notifications.js';
 import mongoose from 'mongoose';
 import { proxyUrl, proxyAgent } from './utils/proxyAgent.js';
 import http from 'http';
@@ -312,6 +312,11 @@ app.post('/api/snake/invite', async (req, res) => {
     return res.status(400).json({ error: 'missing data' });
   }
 
+  if (!toTelegramId) {
+    const user = await User.findOne({ accountId: toAccount });
+    if (user) toTelegramId = user.telegramId;
+  }
+
   const targets = userSockets.get(String(toAccount));
   if (targets && targets.size > 0) {
     for (const sid of targets) {
@@ -334,7 +339,7 @@ app.post('/api/snake/invite', async (req, res) => {
     amount,
   });
 
-  let url;
+  let url = getInviteUrl(roomId, token, amount);
   if (toTelegramId) {
     try {
       url = await sendInviteNotification(
@@ -350,6 +355,8 @@ app.post('/api/snake/invite', async (req, res) => {
     } catch (err) {
       console.error('Failed to send Telegram notification:', err.message);
     }
+  } else {
+    console.warn(`Could not find Telegram ID for account ${toAccount}`);
   }
 
   res.json({ success: true, url });
@@ -450,6 +457,11 @@ io.on('connection', (socket) => {
   }, cb) => {
     if (!fromId || !toId) return cb && cb({ success: false, error: 'invalid ids' });
 
+    if (!toTelegramId) {
+      const user = await User.findOne({ accountId: toId });
+      if (user) toTelegramId = user.telegramId;
+    }
+
     const targets = userSockets.get(String(toId));
     if (targets && targets.size > 0) {
       for (const sid of targets) {
@@ -464,20 +476,24 @@ io.on('connection', (socket) => {
       token,
       amount,
     });
-    let url;
-    try {
-      url = await sendInviteNotification(
-        bot,
-        toTelegramId,
-        fromTelegramId,
-        fromName,
-        '1v1',
-        roomId,
-        token,
-        amount,
-      );
-    } catch (err) {
-      console.error('Failed to send Telegram notification:', err.message);
+    let url = getInviteUrl(roomId, token, amount);
+    if (toTelegramId) {
+      try {
+        url = await sendInviteNotification(
+          bot,
+          toTelegramId,
+          fromTelegramId,
+          fromName,
+          '1v1',
+          roomId,
+          token,
+          amount,
+        );
+      } catch (err) {
+        console.error('Failed to send Telegram notification:', err.message);
+      }
+    } else {
+      console.warn(`Could not find Telegram ID for account ${toId}`);
     }
     cb && cb({ success: true, url });
   });
@@ -509,10 +525,17 @@ io.on('connection', (socket) => {
         token,
         amount,
       });
-      let url;
+      let url = getInviteUrl(roomId, token, amount);
       for (let i = 0; i < toIds.length; i++) {
         const toId = toIds[i];
-        const tgId = telegramIds[i];
+        let tgId = telegramIds[i];
+        if (!tgId) {
+          const user = await User.findOne({ accountId: toId });
+          if (user) {
+            tgId = user.telegramId;
+            telegramIds[i] = tgId;
+          }
+        }
         const targets = userSockets.get(String(toId));
         if (targets && targets.size > 0) {
           for (const sid of targets) {
@@ -527,19 +550,23 @@ io.on('connection', (socket) => {
             });
           }
         }
-        try {
-          url = await sendInviteNotification(
-            bot,
-            tgId,
-            fromTelegramId,
-            fromName,
-            'group',
-            roomId,
-            token,
-            amount,
-          );
-        } catch (err) {
-          console.error('Failed to send Telegram notification:', err.message);
+        if (tgId) {
+          try {
+            url = await sendInviteNotification(
+              bot,
+              tgId,
+              fromTelegramId,
+              fromName,
+              'group',
+              roomId,
+              token,
+              amount,
+            );
+          } catch (err) {
+            console.error('Failed to send Telegram notification:', err.message);
+          }
+        } else {
+          console.warn(`Could not find Telegram ID for account ${toId}`);
         }
       }
       cb && cb({ success: true, url });
