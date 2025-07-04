@@ -14,21 +14,22 @@ export function getInviteUrl(roomId, token, amount) {
 }
 
 async function renderTransferImage(name, amount, date, photoUrl) {
-  const width = 320;
-  const height = 180;
+  const scale = 2;
+  const width = 320 * scale;
+  const height = 180 * scale;
   const canvas = createCanvas(width, height);
   const ctx = canvas.getContext('2d');
 
   ctx.fillStyle = '#2d5c66';
   ctx.fillRect(0, 0, width, height);
   ctx.strokeStyle = '#334155';
-  ctx.lineWidth = 4;
+  ctx.lineWidth = 4 * scale;
   ctx.strokeRect(0, 0, width, height);
 
   ctx.fillStyle = '#ffffff';
-  ctx.font = 'bold 18px sans-serif';
+  ctx.font = `bold ${18 * scale}px sans-serif`;
   ctx.textAlign = 'center';
-  ctx.fillText('TPC Statement Details', width / 2, 32);
+  ctx.fillText('TPC Statement Details', width / 2, 32 * scale);
 
   const sign = amount > 0 ? '+' : '-';
   const formatted = Math.abs(amount).toLocaleString(undefined, {
@@ -36,39 +37,39 @@ async function renderTransferImage(name, amount, date, photoUrl) {
     maximumFractionDigits: 2,
   });
   const text = `You received ${sign}${formatted} TPC`;
-  ctx.font = 'bold 16px sans-serif';
-  ctx.fillText(text, width / 2, 60);
+  ctx.font = `bold ${16 * scale}px sans-serif`;
+  ctx.fillText(text, width / 2, 60 * scale);
 
-  ctx.font = '14px sans-serif';
+  ctx.font = `${14 * scale}px sans-serif`;
   ctx.textAlign = 'left';
   const fromText = `from ${name}`;
-  const photoSize = photoUrl ? 32 : 0;
-  const spacing = photoUrl ? 6 : 0;
+  const photoSize = photoUrl ? 32 * scale : 0;
+  const spacing = photoUrl ? 6 * scale : 0;
   const textWidth = ctx.measureText(fromText).width;
   const totalWidth = photoSize + spacing + textWidth;
   const startX = (width - totalWidth) / 2;
   if (photoUrl) {
     try {
       const avatar = await loadImage(photoUrl);
-      ctx.drawImage(avatar, startX, 78, photoSize, photoSize);
+      ctx.drawImage(avatar, startX, 78 * scale, photoSize, photoSize);
     } catch {}
   }
-  ctx.fillText(fromText, startX + photoSize + spacing, 100);
+  ctx.fillText(fromText, startX + photoSize + spacing, 100 * scale);
   ctx.textAlign = 'center';
 
-  ctx.font = '12px sans-serif';
-  ctx.fillText(date.toLocaleString(), width / 2, height - 20);
+  ctx.font = `${12 * scale}px sans-serif`;
+  ctx.fillText(date.toLocaleString(), width / 2, height - 20 * scale);
 
   try {
     const coin = await loadImage(coinPath);
     const tw = ctx.measureText(text).width;
-    ctx.drawImage(coin, width / 2 + tw / 2 + 6, 54, 24, 24);
+    ctx.drawImage(coin, width / 2 + tw / 2 + 6 * scale, 54 * scale, 24 * scale, 24 * scale);
   } catch {}
 
   return canvas.toBuffer();
 }
 
-export async function sendTransferNotification(bot, toId, fromId, amount) {
+export async function sendTransferNotification(bot, toId, fromId, amount, note) {
   let info;
   try {
     info = await fetchTelegramInfo(fromId);
@@ -85,18 +86,19 @@ export async function sendTransferNotification(bot, toId, fromId, amount) {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   });
-  const coinIcon = '\u{1FA99}';
+  const image = await renderTransferImage(
+    name,
+    amount,
+    new Date(),
+    info?.photoUrl
+  );
+  await bot.telegram.sendPhoto(String(toId), { source: image });
+
   const profileIcon = '\u{1F464}';
+  const noteText = note ? `\nNote: ${note}` : '';
+  const caption = `You received ${sign}${formatted} TPC from ${name} ${profileIcon}${noteText}`;
 
-  const lines = [
-    'TPC Statement Details',
-    `You received ${sign}${formatted} TPC ${coinIcon}`,
-    `From: ${name} ${profileIcon}`,
-    `TPC Account #${fromId}`,
-    new Date().toLocaleString(),
-  ];
-
-  await bot.telegram.sendMessage(String(toId), lines.join('\n'));
+  await bot.telegram.sendMessage(String(toId), caption);
 }
 
 export async function sendInviteNotification(

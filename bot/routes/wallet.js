@@ -152,7 +152,7 @@ router.post('/usdt-balance', async (req, res) => {
 
 router.post('/send', authenticate, async (req, res) => {
 
-  const { fromId, toId, amount } = req.body;
+  const { fromId, toId, amount, note } = req.body;
 
   const authId = req.auth?.telegramId;
   if (!fromId || !toId || typeof amount !== 'number') {
@@ -206,6 +206,8 @@ router.post('/send', authenticate, async (req, res) => {
 
     sender.balance -= amount;
 
+    const safeNote = typeof note === 'string' ? note.slice(0, 150) : undefined;
+
     const senderTx = {
       amount: -amount,
       type: 'send',
@@ -213,7 +215,8 @@ router.post('/send', authenticate, async (req, res) => {
       status: 'delivered',
       date: txDate,
       toAccount: String(toId),
-      toName: receiver.nickname || receiver.firstName || ''
+      toName: receiver.nickname || receiver.firstName || '',
+      ...(safeNote ? { detail: safeNote } : {})
     };
 
     const receiverTx = {
@@ -223,7 +226,8 @@ router.post('/send', authenticate, async (req, res) => {
       status: 'delivered',
       date: txDate,
       fromAccount: String(fromId),
-      fromName: sender.nickname || sender.firstName || ''
+      fromName: sender.nickname || sender.firstName || '',
+      ...(safeNote ? { detail: safeNote } : {})
     };
 
     sender.transactions.push(senderTx);
@@ -237,13 +241,14 @@ router.post('/send', authenticate, async (req, res) => {
     const senderName =
       sender.nickname || sender.firstName || String(fromId);
     const receiverBalance = receiver.balance;
+    const noteText = safeNote ? ` Note: ${safeNote}` : '';
     const detailText =
       `You received ${amount} TPC from ${senderName} ` +
       `(id ${fromId}) on ${txDate.toLocaleString()}. ` +
-      `New balance: ${receiverBalance} TPC.`;
+      `New balance: ${receiverBalance} TPC.` + noteText;
 
     try {
-      await sendTransferNotification(bot, toId, fromId, amount);
+      await sendTransferNotification(bot, toId, fromId, amount, safeNote);
       await bot.telegram.sendMessage(String(toId), detailText);
     } catch (err) {
       console.error('Failed to send Telegram notification:', err.message);

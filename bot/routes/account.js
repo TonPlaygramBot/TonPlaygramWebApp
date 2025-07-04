@@ -52,7 +52,7 @@ router.post('/balance', async (req, res) => {
 
 // Send TPC between accounts
 router.post('/send', async (req, res) => {
-  const { fromAccount, toAccount, amount } = req.body;
+  const { fromAccount, toAccount, amount, note } = req.body;
   if (!fromAccount || !toAccount || typeof amount !== 'number') {
     return res.status(400).json({ error: 'fromAccount, toAccount and amount required' });
   }
@@ -109,6 +109,7 @@ router.post('/send', async (req, res) => {
     devMain.balance = (devMain.balance || 0) + feeSender;
   }
 
+  const safeNote = typeof note === 'string' ? note.slice(0, 150) : undefined;
   const senderTx = {
     amount: -(amount + feeSender),
     type: 'send',
@@ -116,7 +117,8 @@ router.post('/send', async (req, res) => {
     status: 'delivered',
     date: txDate,
     toAccount: toAccount,
-    toName: receiver.nickname || receiver.firstName || ''
+    toName: receiver.nickname || receiver.firstName || '',
+    ...(safeNote ? { detail: safeNote } : {})
   };
   const receiverTx = {
     amount: amount - feeReceiver,
@@ -125,7 +127,8 @@ router.post('/send', async (req, res) => {
     status: 'delivered',
     date: txDate,
     fromAccount: fromAccount,
-    fromName: sender.nickname || sender.firstName || ''
+    fromName: sender.nickname || sender.firstName || '',
+    ...(safeNote ? { detail: safeNote } : {})
   };
   const devTxs = [];
   if (dev1 || devMain) {
@@ -174,7 +177,7 @@ router.post('/send', async (req, res) => {
 
   if (receiver.telegramId && !devIds.includes(toAccount)) {
     try {
-      await sendTransferNotification(bot, receiver.telegramId, fromAccount, amount);
+      await sendTransferNotification(bot, receiver.telegramId, fromAccount, amount, safeNote);
     } catch (err) {
       console.error('Failed to send Telegram notification:', err.message);
     }

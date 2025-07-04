@@ -158,11 +158,11 @@ export function getTonBalance(address) {
 export function getUsdtBalance(address) {
   return post('/api/wallet/usdt-balance', { address });
 }
+export function sendTpc(fromId, toId, amount, note) {
 
-export function sendTpc(fromId, toId, amount) {
-
-  return post('/api/wallet/send', { fromId, toId, amount });
-
+  const body = { fromId, toId, amount };
+  if (note) body.note = note;
+  return post("/api/wallet/send", body);
 }
 
 export function getTransactions(telegramId) {
@@ -372,8 +372,10 @@ export function getAccountBalance(accountId) {
   return post('/api/account/balance', { accountId });
 }
 
-export function sendAccountTpc(fromAccount, toAccount, amount) {
-  return post('/api/account/send', { fromAccount, toAccount, amount });
+export function sendAccountTpc(fromAccount, toAccount, amount, note) {
+  const body = { fromAccount, toAccount, amount };
+  if (note) body.note = note;
+  return post('/api/account/send', body);
 }
 
 export function getAccountTransactions(accountId) {
