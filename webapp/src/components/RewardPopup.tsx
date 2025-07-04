@@ -21,7 +21,12 @@ export default function RewardPopup({ reward, onClose, message }: RewardPopupPro
           className="w-10 h-10 mx-auto"
         />
         <h3 className="text-lg font-bold">Reward Earned</h3>
-        <div className="text-accent text-3xl">+{reward} TPC</div>
+        <div className="text-accent text-3xl">
+          {reward === 1600 && '+1 Free Spin'}
+          {reward === 1800 && '+2 Free Spins'}
+          {reward === 5000 && '+3 Free Spins'}
+          {reward !== 1600 && reward !== 1800 && reward !== 5000 && `+${reward} TPC`}
+        </div>
         {message && <p className="text-sm text-subtext">{message}</p>}
         <button
           onClick={onClose}
