@@ -29,21 +29,24 @@ async function renderTransferImage(name, amount, date, photoUrl) {
   ctx.fillStyle = '#ffffff';
   ctx.font = `bold ${18 * scale}px sans-serif`;
   ctx.textAlign = 'center';
-  ctx.fillText('TPC Statement Details', width / 2, 32 * scale);
+  // Removed explicit "TPC" label in the header
+  ctx.fillText('Statement Details', width / 2, 32 * scale);
 
   const sign = amount > 0 ? '+' : '-';
   const formatted = Math.abs(amount).toLocaleString(undefined, {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   });
-  const text = `You received ${sign}${formatted} TPC`;
+  // Do not render the token name, keep only the icon beside the amount
+  const text = `You received ${sign}${formatted}`;
   ctx.font = `bold ${16 * scale}px sans-serif`;
   ctx.fillText(text, width / 2, 60 * scale);
 
+  // Draw sender information near the bottom instead of under the amount
   ctx.font = `${14 * scale}px sans-serif`;
   ctx.textAlign = 'left';
-  const fromText = `from ${name}`;
-  const photoSize = photoUrl ? 32 * scale : 0;
+  const fromText = name;
+  const photoSize = photoUrl ? 48 * scale : 0; // profile photo 2x coin size
   const spacing = photoUrl ? 6 * scale : 0;
   const textWidth = ctx.measureText(fromText).width;
   const totalWidth = photoSize + spacing + textWidth;
@@ -51,10 +54,10 @@ async function renderTransferImage(name, amount, date, photoUrl) {
   if (photoUrl) {
     try {
       const avatar = await loadImage(photoUrl);
-      ctx.drawImage(avatar, startX, 78 * scale, photoSize, photoSize);
+      ctx.drawImage(avatar, startX, height / 2, photoSize, photoSize);
     } catch {}
   }
-  ctx.fillText(fromText, startX + photoSize + spacing, 100 * scale);
+  ctx.fillText(fromText, startX + photoSize + spacing, height / 2 + photoSize / 2);
   ctx.textAlign = 'center';
 
   ctx.font = `${12 * scale}px sans-serif`;

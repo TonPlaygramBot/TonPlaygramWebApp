@@ -243,8 +243,7 @@ router.post('/send', authenticate, async (req, res) => {
     const receiverBalance = receiver.balance;
     const noteText = safeNote ? ` Note: ${safeNote}` : '';
     const detailText =
-      `You received ${amount} TPC from ${senderName} ` +
-      `(id ${fromId}) on ${txDate.toLocaleString()}. ` +
+      `You received ${amount} TPC from ${senderName} on ${txDate.toLocaleString()}. ` +
       `New balance: ${receiverBalance} TPC.` + noteText;
 
     try {
