@@ -58,6 +58,7 @@ export default function Wallet() {
   const [tpcBalance, setTpcBalance] = useState(null);
   const [receiver, setReceiver] = useState('');
   const [amount, setAmount] = useState('');
+  const [note, setNote] = useState('');
   const [transactions, setTransactions] = useState([]);
   const [devShare, setDevShare] = useState(0);
   const [feeShare, setFeeShare] = useState(0);
@@ -153,7 +154,7 @@ export default function Wallet() {
     setConfirmOpen(false);
     setSending(true);
     try {
-      const res = await sendAccountTpc(accountId, to, amt);
+    const res = await sendAccountTpc(accountId, to, amt, note.trim());
       if (res?.error) {
         if (res.error === 'unauthorized' || res.error === 'forbidden') {
           setErrorMsg(
@@ -167,6 +168,7 @@ export default function Wallet() {
       setReceipt(res.transaction);
       setReceiver('');
       setAmount('');
+      setNote('');
       const id = await loadBalances();
       const txRes = await getAccountTransactions(id || accountId);
       const list = txRes.transactions || [];
@@ -284,6 +286,14 @@ export default function Wallet() {
             placeholder="Amount"
             value={amount}
             onChange={(e) => setAmount(e.target.value)}
+            className="border p-1 rounded w-full max-w-xs mx-auto mt-1 text-black"
+          />
+          <input
+            type="text"
+            placeholder="Note (optional)"
+            value={note}
+            maxLength={150}
+            onChange={(e) => setNote(e.target.value.slice(0, 150))}
             className="border p-1 rounded w-full max-w-xs mx-auto mt-1 text-black"
           />
           <button
