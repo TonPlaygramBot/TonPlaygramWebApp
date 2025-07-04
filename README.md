@@ -191,7 +191,7 @@ Token icons for the lobby and wallet are now:
 
 - `TON.png`
 - `Usdt.png`
-- `icons/tpc.png`
+- `assets/icons/coin_embedded.svg`
 
 Place your own images with those exact names in the same directories to
 override them.

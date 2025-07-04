@@ -264,7 +264,7 @@ export default function SnakeBoard({
                     ? '/icons/TON.png'
                     : token === 'USDT'
                     ? '/icons/Usdt.png'
-                    : '/icons/tpc.png'
+                    : '/assets/icons/coin_embedded.svg'
                 }
                 alt={token}
                 className="pot-icon"

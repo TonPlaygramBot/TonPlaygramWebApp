@@ -457,7 +457,7 @@ function Board({
                     ? '/icons/TON.png'
                     : token === 'USDT'
                     ? '/icons/Usdt.png'
-                    : '/icons/tpc.png'
+                    : '/assets/icons/coin_embedded.svg'
                 }
                 alt={token}
                 className="pot-icon"
@@ -632,7 +632,7 @@ export default function SnakeAndLadder() {
     });
     {
       const img = new Image();
-      img.src = '/icons/tpc.png';
+      img.src = '/assets/icons/coin_embedded.svg';
     }
     AVATARS.forEach((src) => {
       const img = new Image();
@@ -1923,7 +1923,7 @@ export default function SnakeAndLadder() {
                     ? '/icons/TON.png'
                     : token === 'USDT'
                     ? '/icons/Usdt.png'
-                    : '/icons/tpc.png'
+                    : '/assets/icons/coin_embedded.svg'
                 }
                 alt={token}
                 className="inline w-4 h-4 align-middle"
