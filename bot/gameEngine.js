@@ -3,6 +3,7 @@ export const FINAL_TILE = 101;
 export const DEFAULT_SNAKES = { 99: 80 };
 export const DEFAULT_LADDERS = { 3: 22, 27: 46 };
 export const ROLL_COOLDOWN_MS = 1000;
+export const RECONNECT_GRACE_MS = 60000;
 import { SnakeGame } from './logic/snakeGame.js';
 
 import GameRoomModel from './models/GameRoom.js';
@@ -60,6 +61,7 @@ export class GameRoom {
       this.ladders = b.ladders;
     }
     this.rollCooldown = ROLL_COOLDOWN_MS;
+    this.reconnectGrace = RECONNECT_GRACE_MS;
     this.turnTimer = null;
     this.cheatWarnings = {};
     this.game = new SnakeGame({ snakes: this.snakes, ladders: this.ladders });
@@ -72,6 +74,11 @@ export class GameRoom {
       existing.socketId = socket.id;
       existing.name = name || existing.name;
       existing.disconnected = false;
+      if (existing.disconnectTimer) {
+        clearTimeout(existing.disconnectTimer);
+        existing.disconnectTimer = null;
+        this.io.to(this.id).emit('playerRejoined', { playerId });
+      }
     } else {
       if (this.players.length >= this.capacity || this.status !== 'waiting') {
         return { error: 'Room full or game already started' };
@@ -82,6 +89,7 @@ export class GameRoom {
       player.socketId = socket.id;
       player.disconnected = false;
       player.lastRollTime = 0;
+      player.disconnectTimer = null;
     }
     socket.join(this.id);
     const list = this.players.filter((p) => !p.disconnected).map((p) => ({
@@ -225,7 +233,26 @@ export class GameRoom {
     const player = this.players[idx];
     player.disconnected = true;
     player.socketId = null;
+    this.io.to(this.id).emit('playerDisconnected', { playerId: player.playerId });
+    if (idx === this.currentTurn) {
+      if (this.turnTimer) {
+        clearTimeout(this.turnTimer);
+        this.turnTimer = null;
+      }
+      do {
+        this.currentTurn = (this.currentTurn + 1) % this.players.length;
+      } while (this.players[this.currentTurn].disconnected && this.players.some((p) => !p.disconnected));
+      if (this.players.some((p) => !p.disconnected)) this.emitNextTurn();
+    }
+    player.disconnectTimer = setTimeout(() => {
+      this.finalizeDisconnect(player);
+    }, this.reconnectGrace);
+  }
+
+  finalizeDisconnect(player) {
+    if (!player.disconnected) return;
     player.position = 0;
+    player.disconnectTimer = null;
     this.io.to(this.id).emit('playerLeft', { playerId: player.playerId });
     if (this.status === 'playing') {
       const active = this.players.filter((p) => !p.disconnected);
@@ -241,19 +268,22 @@ export class GameRoom {
         this.io.to(this.id).emit('gameWon', { playerId: winner.playerId });
         return;
       }
-      if (idx === this.currentTurn) {
-        if (this.turnTimer) {
-          clearTimeout(this.turnTimer);
-          this.turnTimer = null;
-        }
-        if (this.players.some((p) => !p.disconnected)) {
-          do {
-            this.currentTurn = (this.currentTurn + 1) % this.players.length;
-          } while (this.players[this.currentTurn].disconnected);
-          this.emitNextTurn();
-        }
-      }
     }
+    GameRoomModel.findOneAndUpdate(
+      { roomId: this.id },
+      {
+        players: this.players.map((p) => ({
+          playerId: p.playerId,
+          name: p.name,
+          position: p.position,
+          isActive: p.isActive,
+          disconnected: p.disconnected,
+        })),
+        status: this.status,
+        currentTurn: this.currentTurn,
+      },
+      { upsert: true }
+    ).catch(() => {});
   }
 }
 
