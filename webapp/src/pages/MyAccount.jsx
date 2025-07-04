@@ -258,6 +258,12 @@ export default function MyAccount() {
 
           <div className="prism-box p-4 mt-4 space-y-2 w-80 mx-auto border-[#334155]">
             <label className="block font-semibold text-center">Send Notification</label>
+            <textarea
+              placeholder="Message"
+              value={notifyText}
+              onChange={(e) => setNotifyText(e.target.value)}
+              className="border p-1 rounded w-full aspect-square text-black"
+            />
             <input
               type="file"
               accept="image/*"
@@ -273,12 +279,6 @@ export default function MyAccount() {
             {notifyPhoto && (
               <img src={notifyPhoto} alt="preview" className="max-h-40 mx-auto" />
             )}
-            <textarea
-              placeholder="Message"
-              value={notifyText}
-              onChange={(e) => setNotifyText(e.target.value)}
-              className="border p-1 rounded w-full text-black"
-            />
             <button
               onClick={handleDevNotify}
               disabled={notifySending}
