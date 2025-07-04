@@ -60,6 +60,7 @@ export default function MyAccount() {
   const [notifyText, setNotifyText] = useState('');
   const [notifyPhoto, setNotifyPhoto] = useState('');
   const [notifySending, setNotifySending] = useState(false);
+  const [notifyStatus, setNotifyStatus] = useState('');
 
   useEffect(() => {
     async function load() {
@@ -141,15 +142,20 @@ export default function MyAccount() {
     setNotifySending(true);
     try {
       const res = await sendBroadcast({ text: notifyText, photo: notifyPhoto });
-      if (!res?.error) {
-        // notification sent
+      if (res?.error) {
+        setNotifyStatus(res.error);
+      } else {
+        setNotifyStatus('Notification sent');
       }
     } catch (err) {
       console.error('notify failed', err);
+      setNotifyStatus('Failed to send');
     } finally {
       setNotifyText('');
       setNotifyPhoto('');
       setNotifySending(false);
+      if (timerRef.current) clearTimeout(timerRef.current);
+      timerRef.current = setTimeout(() => setNotifyStatus(''), 1500);
     }
   };
 
@@ -256,13 +262,13 @@ export default function MyAccount() {
             </button>
           </div>
 
-          <div className="prism-box p-4 mt-4 space-y-2 w-80 mx-auto border-[#334155]">
+          <div className="prism-box p-6 mt-4 space-y-2 w-96 mx-auto border-[#334155]">
             <label className="block font-semibold text-center">Send Notification</label>
             <textarea
               placeholder="Message"
               value={notifyText}
               onChange={(e) => setNotifyText(e.target.value)}
-              className="border p-1 rounded w-full aspect-square text-black"
+              className="border p-1 rounded w-full h-40 text-black"
             />
             <input
               type="file"
@@ -297,6 +303,11 @@ export default function MyAccount() {
         open={showSaved}
         onClose={() => setShowSaved(false)}
         info="Profile saved"
+      />
+      <InfoPopup
+        open={!!notifyStatus}
+        onClose={() => setNotifyStatus('')}
+        info={notifyStatus}
       />
     </div>
   );
