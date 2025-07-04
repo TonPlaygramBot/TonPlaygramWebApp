@@ -147,11 +147,13 @@ export async function sendInviteNotification(
   });
 
   // Also send a plain text notification like TPC receipts
-  await sendTPCNotification(bot, toId, caption);
+  await sendTPCNotification(bot, toId, caption, replyMarkup);
 
   return url;
 }
 
-export async function sendTPCNotification(bot, toId, caption) {
-  await bot.telegram.sendMessage(String(toId), caption);
+export async function sendTPCNotification(bot, toId, caption, replyMarkup) {
+  await bot.telegram.sendMessage(String(toId), caption, {
+    ...(replyMarkup ? { reply_markup: replyMarkup } : {}),
+  });
 }
