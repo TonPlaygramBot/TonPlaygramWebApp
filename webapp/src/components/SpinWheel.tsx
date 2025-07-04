@@ -170,9 +170,25 @@ export default forwardRef<SpinWheelHandle, SpinWheelProps>(function SpinWheel(
 
             >
 
-              <img src="/icons/TPCcoin.png" alt="TPC" className="w-8 h-8 mr-1" />
-
-              <span>{val >= 1000 ? `${val / 1000}k` : val}</span>
+              {val === 1600 || val === 1800 || val === 5000 ? (
+                <>
+                  <img
+                    src="/assets/icons/FreeSpin.png"
+                    alt="Free Spin"
+                    className="w-8 h-8 mr-1"
+                  />
+                  <span>
+                    {val === 1600 && '1 Free Spin'}
+                    {val === 1800 && '2 Free Spins'}
+                    {val === 5000 && '3 Free Spins'}
+                  </span>
+                </>
+              ) : (
+                <>
+                  <img src="/icons/TPCcoin.png" alt="TPC" className="w-8 h-8 mr-1" />
+                  <span>{val >= 1000 ? `${val / 1000}k` : val}</span>
+                </>
+              )}
 
             </div>
 
