@@ -23,19 +23,14 @@ const STORE_ADDRESS_NORM = normalize(STORE_ADDRESS);
 const BOOST_EXPIRY = new Date('2025-08-21T00:00:00Z');
 
 const BUNDLES = {
-  '10k': { tpc: 10000, ton: 0.012, label: '10k TPC' },
-  '25k': { tpc: 25000, ton: 0.02, label: '25k TPC' },
-  '50k': { tpc: 50000, ton: 0.03, label: '50k TPC' },
-  '100k': { tpc: 100000, ton: 0.06, label: '100k TPC' },
-  '250k': { tpc: 250000, ton: 0.12, label: '250k TPC' },
-  '500k': { tpc: 500000, ton: 0.2, label: '500k TPC' },
-
-  '1m': { tpc: 1000000, ton: 0.35, label: '1M TPC', boost: 0.05 },
-  '2m5': { tpc: 2500000, ton: 0.80, label: '2.5M TPC', boost: 0.07 },
-  '5m': { tpc: 5000000, ton: 1.40, label: '5M TPC', boost: 0.10 },
-  '10m': { tpc: 10000000, ton: 2.40, label: '10M TPC', boost: 0.12 },
-  '25m': { tpc: 25000000, ton: 5.50, label: '25M TPC', boost: 0.15 },
-  '50m': { tpc: 50000000, ton: 9.50, label: '50M TPC', boost: 0.20 },
+  newbie: { tpc: 25000, ton: 0.25, label: 'Newbie Pack', supply: 500000 },
+  rookie: { tpc: 50000, ton: 0.4, label: 'Rookie', supply: 1000000 },
+  starter: { tpc: 100000, ton: 0.75, label: 'Starter', supply: 2000000 },
+  miner: { tpc: 250000, ton: 1.6, label: 'Miner Pack', boost: 0.03, supply: 5000000 },
+  grinder: { tpc: 500000, ton: 3.0, label: 'Grinder', boost: 0.05, supply: 7500000 },
+  pro: { tpc: 1000000, ton: 5.5, label: 'Pro Bundle', boost: 0.08, supply: 10000000 },
+  whale: { tpc: 2500000, ton: 10.5, label: 'Whale Bundle', boost: 0.12, supply: 12500000 },
+  max: { tpc: 5000000, ton: 20, label: 'Max Presale', boost: 0.15, supply: 15000000 },
 };
 
 router.post('/purchase', authenticate, async (req, res) => {

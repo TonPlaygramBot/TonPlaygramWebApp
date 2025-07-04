@@ -7,19 +7,14 @@ import InfoPopup from '../components/InfoPopup.jsx';
 
 const STORE_ADDRESS = 'UQDqDBiNU132j15Qka5EmSf37jCTLF-RdOlaQOXLHIJ5t-XT';
 const BUNDLES = [
-  { id: '10k', tpc: 10000, ton: 0.012 },
-  { id: '25k', tpc: 25000, ton: 0.02 },
-  { id: '50k', tpc: 50000, ton: 0.03 },
-  { id: '100k', tpc: 100000, ton: 0.06 },
-  { id: '250k', tpc: 250000, ton: 0.12 },
-  { id: '500k', tpc: 500000, ton: 0.2 },
-
-  { id: '1m', tpc: 1000000, ton: 0.35, boost: 0.05, presale: true },
-  { id: '2m5', tpc: 2500000, ton: 0.80, boost: 0.07, presale: true },
-  { id: '5m', tpc: 5000000, ton: 1.40, boost: 0.10, presale: true },
-  { id: '10m', tpc: 10000000, ton: 2.40, boost: 0.12, presale: true },
-  { id: '25m', tpc: 25000000, ton: 5.50, boost: 0.15, presale: true },
-  { id: '50m', tpc: 50000000, ton: 9.50, boost: 0.20, presale: true }
+  { id: 'newbie', name: 'Newbie Pack', icon: '🌱', tpc: 25000, ton: 0.25, supply: '0.5M', boost: 0, presale: true },
+  { id: 'rookie', name: 'Rookie', icon: '🎯', tpc: 50000, ton: 0.4, supply: '1M', boost: 0, presale: true },
+  { id: 'starter', name: 'Starter', icon: '🚀', tpc: 100000, ton: 0.75, supply: '2M', boost: 0, presale: true },
+  { id: 'miner', name: 'Miner Pack', icon: '⛏️', tpc: 250000, ton: 1.6, supply: '5M', boost: 0.03, presale: true },
+  { id: 'grinder', name: 'Grinder', icon: '⚙️', tpc: 500000, ton: 3.0, supply: '7.5M', boost: 0.05, presale: true },
+  { id: 'pro', name: 'Pro Bundle', icon: '🏆', tpc: 1000000, ton: 5.5, supply: '10M', boost: 0.08, presale: true },
+  { id: 'whale', name: 'Whale Bundle', icon: '🐋', tpc: 2500000, ton: 10.5, supply: '12.5M', boost: 0.12, presale: true },
+  { id: 'max', name: 'Max Presale', icon: '👑', tpc: 5000000, ton: 20, supply: '15M', boost: 0.15, presale: true }
 ];
 
 export default function Store() {
@@ -58,34 +53,30 @@ export default function Store() {
   return (
     <div className="relative p-4 space-y-4 text-text">
       <h2 className="text-xl font-bold">Store</h2>
-      {BUNDLES.sort((a, b) => a.tpc - b.tpc).map((b) => (
+      {BUNDLES.map((b) => (
         <div
           key={b.id}
-          className="prism-box p-4 space-y-2 w-80 mx-auto flex flex-col items-center"
+          className="store-card w-80 mx-auto"
         >
+          <div className="flex items-center space-x-2">
+            <span className="text-xl">{b.icon}</span>
+            <h3 className="font-semibold">{b.name}</h3>
+          </div>
+          <div className="text-lg font-bold">{b.tpc.toLocaleString()} TPC</div>
+          <div className="text-primary text-lg">{b.ton} TON</div>
+          <div className="text-xs text-accent">Presale Bundle</div>
+          <div className="text-sm">
+            {b.boost ? `Mining Boost: +${b.boost * 100}%` : 'No Mining Boost'}
+          </div>
+          {b.supply && (
+            <div className="text-xs text-subtext">Supply Cap: {b.supply}</div>
+          )}
           <button
             onClick={() => handleBuy(b)}
-            className="lobby-tile px-4 cursor-pointer"
+            className="buy-button mt-2"
           >
             Buy
           </button>
-          <div className="mt-auto flex flex-col space-y-1 w-full">
-            <div className="text-center font-semibold flex items-center justify-center space-x-1">
-              <img src="/icons/TPCcoin.png" alt="TPC" className="w-5 h-5" />
-              <span>{b.tpc.toLocaleString()}</span>
-            </div>
-            <div className="text-center text-sm flex items-center justify-center space-x-1">
-              <span>Price:</span>
-              <img src="/icons/TON.png" alt="TON" className="w-5 h-5" />
-              <span>{b.ton}</span>
-            </div>
-            {b.presale && (
-              <div className="text-center text-xs text-accent">Presale Bundle</div>
-            )}
-            {b.boost && (
-              <div className="text-center text-xs">Mining Boost: +{b.boost * 100}%</div>
-            )}
-          </div>
         </div>
       ))}
       <div className="prism-box p-4 space-y-2 w-80 mx-auto">
