@@ -17,7 +17,11 @@ function CoinBurst({ token }) {
       {coins.map((c, i) => (
         <img
           key={i}
-          src={`/icons/${token.toLowerCase()}.svg`}
+          src={
+            token.toUpperCase() === 'TPC'
+              ? '/assets/icons/TPCcoin.png'
+              : `/icons/${token.toLowerCase()}.svg`
+          }
           className="coin-img"
           style={{
             "--dx": `${c.dx}px`,
@@ -264,7 +268,7 @@ export default function SnakeBoard({
                     ? '/icons/TON.png'
                     : token === 'USDT'
                     ? '/icons/Usdt.png'
-                    : '/assets/icons/coin_embedded.svg'
+                    : '/assets/icons/TPCcoin.png'
                 }
                 alt={token}
                 className="pot-icon"

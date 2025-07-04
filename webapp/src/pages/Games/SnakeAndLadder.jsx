@@ -143,7 +143,11 @@ function CoinBurst({ token }) {
       {coins.map((c, i) => (
         <img
           key={i}
-          src={`/icons/${token.toLowerCase()}.svg`}
+          src={
+            token.toUpperCase() === 'TPC'
+              ? '/assets/icons/TPCcoin.png'
+              : `/icons/${token.toLowerCase()}.svg`
+          }
           className="coin-img"
           style={{
             "--dx": `${c.dx}px`,
@@ -457,7 +461,7 @@ function Board({
                     ? '/icons/TON.png'
                     : token === 'USDT'
                     ? '/icons/Usdt.png'
-                    : '/assets/icons/coin_embedded.svg'
+                    : '/assets/icons/TPCcoin.png'
                 }
                 alt={token}
                 className="pot-icon"
@@ -632,7 +636,7 @@ export default function SnakeAndLadder() {
     });
     {
       const img = new Image();
-      img.src = '/assets/icons/coin_embedded.svg';
+      img.src = '/assets/icons/TPCcoin.png';
     }
     AVATARS.forEach((src) => {
       const img = new Image();
@@ -1923,7 +1927,7 @@ export default function SnakeAndLadder() {
                     ? '/icons/TON.png'
                     : token === 'USDT'
                     ? '/icons/Usdt.png'
-                    : '/assets/icons/coin_embedded.svg'
+                    : '/assets/icons/TPCcoin.png'
                 }
                 alt={token}
                 className="inline w-4 h-4 align-middle"
