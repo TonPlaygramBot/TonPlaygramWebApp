@@ -96,13 +96,13 @@ router.post('/send-message', async (req, res) => {
 });
 
 router.post('/messages', async (req, res) => {
-  const { userId, withId } = req.body;
-  if (!userId || !withId)
-    return res.status(400).json({ error: 'userId and withId required' });
+  const { telegramId, withId } = req.body;
+  if (!telegramId || !withId)
+    return res.status(400).json({ error: 'telegramId and withId required' });
   const msgs = await Message.find({
     $or: [
-      { from: userId, to: withId },
-      { from: withId, to: userId }
+      { from: telegramId, to: withId },
+      { from: withId, to: telegramId }
     ]
   })
     .sort({ createdAt: 1 })

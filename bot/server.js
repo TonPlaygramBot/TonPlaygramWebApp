@@ -50,7 +50,7 @@ const io = new SocketIOServer(httpServer, { cors: { origin: '*' } });
 const gameManager = new GameRoomManager(io);
 
 bot.action(/^reject_invite:(.+)/, async (ctx) => {
-  const [roomId, userId] = ctx.match[1].split(':');
+  const [roomId, telegramId] = ctx.match[1].split(':');
   await ctx.answerCbQuery('Invite rejected');
   try {
     await ctx.deleteMessage();
@@ -58,22 +58,22 @@ bot.action(/^reject_invite:(.+)/, async (ctx) => {
   const invite = pendingInvites.get(roomId);
   if (invite) {
     invite.telegramIds = (invite.telegramIds || []).filter(
-      (id) => String(id) !== userId,
+      (id) => String(id) !== telegramId,
     );
     pendingInvites.set(roomId, invite);
     const { fromTelegramId, telegramIds } = invite;
     try {
       await bot.telegram.sendMessage(
         String(fromTelegramId),
-        `${userId} rejected your game invite`,
+        `${telegramId} rejected your game invite`,
       );
     } catch {}
     for (const other of telegramIds || []) {
-      if (String(other) === userId) continue;
+      if (String(other) === telegramId) continue;
       try {
         await bot.telegram.sendMessage(
           String(other),
-          `${userId} rejected the group invite`,
+          `${telegramId} rejected the group invite`,
         );
       } catch {}
     }
