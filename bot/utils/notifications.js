@@ -66,16 +66,11 @@ export async function sendInviteNotification(
     ],
   };
 
-  if (info?.photoUrl) {
-    await bot.telegram.sendPhoto(String(toId), { url: info.photoUrl }, {
-      caption,
-      reply_markup: replyMarkup,
-    });
-  } else {
-    await bot.telegram.sendMessage(String(toId), caption, {
-      reply_markup: replyMarkup,
-    });
-  }
+  const photo = info?.photoUrl ? { url: info.photoUrl } : { source: coinPath };
+  await bot.telegram.sendPhoto(String(toId), photo, {
+    caption,
+    reply_markup: replyMarkup,
+  });
 
   return url;
 }
