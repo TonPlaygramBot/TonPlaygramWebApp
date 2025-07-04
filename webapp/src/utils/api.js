@@ -3,6 +3,7 @@
 // so the webapp works when served by the Express server in production.
 
 export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
+export const API_AUTH_TOKEN = import.meta.env.VITE_API_AUTH_TOKEN || '';
 
 export async function ping() {
 
@@ -395,5 +396,5 @@ export function claimPurchase(accountId, txHash) {
 }
 
 export function sendBroadcast(data) {
-  return post('/api/broadcast/send', data);
+  return post('/api/broadcast/send', data, API_AUTH_TOKEN || undefined);
 }
