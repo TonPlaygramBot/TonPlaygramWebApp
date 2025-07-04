@@ -10,13 +10,9 @@ import { Address, toNano, beginCell } from '@ton/core';
 import { JettonMinter, jettonContentToCell, jettonMinterConfigToCell } from '../wrappers/JettonMinter';
 import { JettonWallet } from '../wrappers/JettonWallet';
 
-const mnemonic = process.env.DEPLOY_MNEMONIC;
-if (!mnemonic) {
-  console.error('DEPLOY_MNEMONIC env variable not set');
-  process.exit(1);
-}
+const mnemonic = 'credit resist ship monster act grocery satoshi orphan apart flee inform dry ozone work devote job entry shock special boring hawk bench unlock cluster';
 
-const ENDPOINT = process.env.TON_ENDPOINT || 'https://testnet.toncenter.com/api/v2/jsonRPC';
+const ENDPOINT = 'https://testnet.toncenter.com/api/v2/jsonRPC';
 const ADMIN = Address.parse('UQDqDBiNU132j15Qka5EmSf37jCTLF-RdOlaQOXLHIJ5t-XT');
 
 async function main() {
