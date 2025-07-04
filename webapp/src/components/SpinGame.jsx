@@ -25,6 +25,7 @@ export default function SpinGame() {
   const [rightSpinning, setRightSpinning] = useState(false);
   const [showAd, setShowAd] = useState(false);
   const [adWatched, setAdWatched] = useState(false);
+  const [freeSpins, setFreeSpins] = useState(0);
   const [timeLeft, setTimeLeft] = useState(0);
   const wheelRef = useRef(null);
   const leftWheelRef = useRef(null);
@@ -34,6 +35,8 @@ export default function SpinGame() {
   useEffect(() => {
     const ts = localStorage.getItem('lastSpin');
     if (ts) setLastSpin(parseInt(ts, 10));
+    const fs = localStorage.getItem('freeSpins');
+    if (fs) setFreeSpins(parseInt(fs, 10));
   }, []);
 
   useEffect(() => {
@@ -47,39 +50,80 @@ export default function SpinGame() {
   }, [lastSpin]);
 
   const handleFinish = async (r) => {
-    const now = Date.now();
-    localStorage.setItem('lastSpin', String(now));
-    setLastSpin(now);
     if (r === 'BONUS_X3') {
       setBonusActive(true);
       setAdWatched(false);
       return;
     }
+    let extraSpins = 0;
+    if (r === 1600) extraSpins = 1;
+    else if (r === 1800) extraSpins = 2;
+    else if (r === 5000) extraSpins = 3;
+
+    if (extraSpins > 0) {
+      const total = freeSpins + extraSpins;
+      setFreeSpins(total);
+      localStorage.setItem('freeSpins', String(total));
+    } else if (typeof r === 'number') {
+      const id = telegramId;
+      const balRes = await getWalletBalance(id);
+      const newBalance = (balRes.balance || 0) + r;
+      await updateBalance(id, newBalance);
+      await addTransaction(id, r, 'spin');
+    }
+    const finalCount = freeSpins + extraSpins;
+    if (finalCount === 0) {
+      const now = Date.now();
+      localStorage.setItem('lastSpin', String(now));
+      setLastSpin(now);
+    }
     setReward(r);
-    const id = telegramId;
-    const balRes = await getWalletBalance(id);
-    const newBalance = (balRes.balance || 0) + r;
-    await updateBalance(id, newBalance);
-    await addTransaction(id, r, 'spin');
     setAdWatched(false);
   };
 
   const handleBonusFinish = async (r) => {
     if (typeof r !== 'number') return;
+    let extraSpins = 0;
+    if (r === 1600) extraSpins = 1;
+    else if (r === 1800) extraSpins = 2;
+    else if (r === 5000) extraSpins = 3;
+
+    if (extraSpins > 0) {
+      const total = freeSpins + extraSpins;
+      setFreeSpins(total);
+      localStorage.setItem('freeSpins', String(total));
+    } else {
+      const id = telegramId;
+      const balRes = await getWalletBalance(id);
+      const newBalance = (balRes.balance || 0) + r;
+      await updateBalance(id, newBalance);
+      await addTransaction(id, r, 'spin');
+    }
+    const finalCount = freeSpins + extraSpins;
+    if (finalCount === 0) {
+      const now = Date.now();
+      localStorage.setItem('lastSpin', String(now));
+      setLastSpin(now);
+    }
     setReward(r);
-    const id = telegramId;
-    const balRes = await getWalletBalance(id);
-    const newBalance = (balRes.balance || 0) + r;
-    await updateBalance(id, newBalance);
-    await addTransaction(id, r, 'spin');
   };
 
   const triggerSpin = () => {
-    if (!adWatched) {
-      setShowAd(true);
-      return;
+    if (spinning || leftSpinning || rightSpinning) return;
+    if (freeSpins === 0) {
+      if (!adWatched) {
+        setShowAd(true);
+        return;
+      }
+      if (!ready) return;
     }
-    if (spinning || leftSpinning || rightSpinning || !ready) return;
+
+    if (freeSpins > 0) {
+      const remaining = freeSpins - 1;
+      setFreeSpins(remaining);
+      localStorage.setItem('freeSpins', String(remaining));
+    }
+
     if (bonusActive) {
       wheelRef.current?.spin();
       leftWheelRef.current?.spin();
@@ -103,7 +147,7 @@ export default function SpinGame() {
     return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
   };
 
-  const ready = canSpin(lastSpin);
+  const ready = freeSpins > 0 || canSpin(lastSpin);
 
   return (
     <div className="relative bg-surface border border-border rounded-xl p-4 flex flex-col items-center space-y-2 overflow-hidden">
@@ -114,8 +158,8 @@ export default function SpinGame() {
       />
       <h3 className="text-lg font-bold text-text">Spin &amp; Win</h3>
       <p className="text-sm text-subtext">Try your luck and win rewards!</p>
-      <div className="flex items-start space-x-2">
-        <div className={`relative ${bonusActive ? 'opacity-100' : 'opacity-50'}`}>
+      <div className="flex items-start space-x-1">
+        {bonusActive && (
           <SpinWheel
             ref={leftWheelRef}
             onFinish={handleBonusFinish}
@@ -124,12 +168,7 @@ export default function SpinGame() {
             disabled={!bonusActive}
             showButton={false}
           />
-          {!bonusActive && (
-            <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-              <span className="text-red-600 font-bold drop-shadow-[0_0_2px_black]">BONUS X3</span>
-            </div>
-          )}
-        </div>
+        )}
         <SpinWheel
           ref={wheelRef}
           onFinish={handleFinish}
@@ -138,7 +177,7 @@ export default function SpinGame() {
           disabled={!ready}
           showButton={false}
         />
-        <div className={`relative ${bonusActive ? 'opacity-100' : 'opacity-50'}`}>
+        {bonusActive && (
           <SpinWheel
             ref={rightWheelRef}
             onFinish={handleBonusFinish}
@@ -147,12 +186,7 @@ export default function SpinGame() {
             disabled={!bonusActive}
             showButton={false}
           />
-          {!bonusActive && (
-            <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-              <span className="text-red-600 font-bold drop-shadow-[0_0_2px_black]">BONUS X3</span>
-            </div>
-          )}
-        </div>
+        )}
       </div>
       <button
         onClick={triggerSpin}
