@@ -40,14 +40,6 @@ export const TASKS = [
 
     link: 'https://tiktok.com/@TonPlaygram'
 
-  },
-
-  {
-    id: 'watch_ad',
-    description: 'Watch an ad',
-    reward: 100,
-    icon: 'ad',
-    dailyLimit: 10
   }
 
 ];

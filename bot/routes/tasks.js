@@ -10,32 +10,10 @@ router.post('/list', async (req, res) => {
   const { telegramId } = req.body;
   if (!telegramId) return res.status(400).json({ error: 'telegramId required' });
 
-  const user = await User.findOne({ telegramId });
-  let adCount = 0;
-  if (user) {
-    const now = new Date();
-    if (
-      !user.lastAdReset ||
-      now.getUTCFullYear() !== user.lastAdReset.getUTCFullYear() ||
-      now.getUTCMonth() !== user.lastAdReset.getUTCMonth() ||
-      now.getUTCDate() !== user.lastAdReset.getUTCDate()
-    ) {
-      user.adsWatchedToday = 0;
-      user.lastAdReset = now;
-      await user.save();
-    }
-    adCount = user.adsWatchedToday || 0;
-  }
-
-  const tasks = await Promise.all(
-    TASKS.map(async (t) => {
-      if (t.id === 'watch_ad') {
-        return { ...t, completed: adCount >= (t.dailyLimit || 0), count: adCount };
-      }
-      const rec = await Task.findOne({ telegramId, taskId: t.id });
-      return { ...t, completed: !!rec };
-    })
-  );
+  const tasks = await Promise.all(TASKS.map(async t => {
+    const rec = await Task.findOne({ telegramId, taskId: t.id });
+    return { ...t, completed: !!rec };
+  }));
   res.json(tasks);
 });
 
@@ -45,10 +23,6 @@ router.post('/complete', async (req, res) => {
 
   const config = TASKS.find(t => t.id === taskId);
   if (!config) return res.status(400).json({ error: 'unknown task' });
-
-  if (taskId === 'watch_ad') {
-    return res.status(400).json({ error: 'use /api/ads/watch' });
-  }
 
   const existing = await Task.findOne({ telegramId, taskId });
   if (existing) return res.json({ message: 'already completed' });
