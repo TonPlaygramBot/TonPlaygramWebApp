@@ -545,6 +545,17 @@ export default function SnakeAndLadder() {
     const t = setInterval(ping, 30000);
     return () => clearInterval(t);
   }, []);
+
+  useEffect(() => {
+    const onDisc = () => setConnectionLost(true);
+    const onRec = () => setConnectionLost(false);
+    socket.on('disconnect', onDisc);
+    socket.io.on('reconnect', onRec);
+    return () => {
+      socket.off('disconnect', onDisc);
+      socket.io.off('reconnect', onRec);
+    };
+  }, []);
   const [pos, setPos] = useState(0);
   const [highlight, setHighlight] = useState(null); // { cell: number, type: string }
   const [trail, setTrail] = useState([]);
@@ -559,6 +570,10 @@ export default function SnakeAndLadder() {
   const [token, setToken] = useState("TPC");
   const [celebrate, setCelebrate] = useState(false);
   const [leftWinner, setLeftWinner] = useState(null);
+  const [disconnectMsg, setDisconnectMsg] = useState(null);
+  const [connectionLost, setConnectionLost] = useState(false);
+  const [forfeitMsg, setForfeitMsg] = useState(false);
+  const [cheatMsg, setCheatMsg] = useState(null);
   const [showInfo, setShowInfo] = useState(false);
   const [muted, setMuted] = useState(isGameMuted());
   const [snakes, setSnakes] = useState({});
@@ -917,8 +932,15 @@ export default function SnakeAndLadder() {
         if (leaving && !ranking.includes(leaving.name)) {
           setRanking((r) => [...r, leaving.name]);
         }
-        if (leaving && arr.length === 1 && capacity === 2) {
-          setLeftWinner(leaving.name);
+        if (leaving) {
+          if (playerId === accountId) {
+            setForfeitMsg(true);
+          } else if (arr.length === 1 && capacity === 2) {
+            setLeftWinner(leaving.name);
+          } else if (capacity > 2) {
+            setDisconnectMsg(`${leaving.name} forfeited`);
+            setTimeout(() => setDisconnectMsg(null), 3000);
+          }
         }
         return arr;
       });
@@ -1046,6 +1068,27 @@ export default function SnakeAndLadder() {
 
     socket.on('playerJoined', onJoined);
     socket.on('playerLeft', onLeft);
+    socket.on('playerDisconnected', ({ playerId }) => {
+      if (playerId === accountId) {
+        setConnectionLost(true);
+      } else if (capacity > 2) {
+        const name = playersRef.current.find((p) => p.id === playerId)?.name || playerId;
+        setDisconnectMsg(`${name} disconnected`);
+        setTimeout(() => setDisconnectMsg(null), 3000);
+      }
+    });
+    socket.on('playerRejoined', ({ playerId }) => {
+      if (playerId === accountId) {
+        setConnectionLost(false);
+      } else if (capacity > 2) {
+        const name = playersRef.current.find((p) => p.id === playerId)?.name || playerId;
+        setDisconnectMsg(`${name} rejoined`);
+        setTimeout(() => setDisconnectMsg(null), 3000);
+      }
+    });
+    socket.on('cheatWarning', ({ reason, count }) => {
+      setCheatMsg(`Cheating detected: ${reason} (${count}/3)`);
+    });
     socket.on('movePlayer', onMove);
     socket.on('snakeOrLadder', onSnakeOrLadder);
     socket.on('playerReset', onReset);
@@ -1061,6 +1104,9 @@ export default function SnakeAndLadder() {
     return () => {
       socket.off('playerJoined', onJoined);
       socket.off('playerLeft', onLeft);
+      socket.off('playerDisconnected');
+      socket.off('playerRejoined');
+      socket.off('cheatWarning');
       socket.off('movePlayer', onMove);
       socket.off('snakeOrLadder', onSnakeOrLadder);
       socket.off('playerReset', onReset);
@@ -1184,15 +1230,19 @@ export default function SnakeAndLadder() {
   // Ensure stored state is cleared when leaving the page
   useEffect(() => {
     const key = `snakeGameState_${ai}`;
-    const handleUnload = () => {
+    const handleUnload = (e) => {
       localStorage.removeItem(key);
+      if (!gameOver) {
+        e.preventDefault();
+        e.returnValue = '';
+      }
     };
     window.addEventListener('beforeunload', handleUnload);
     return () => {
       window.removeEventListener('beforeunload', handleUnload);
       localStorage.removeItem(key);
     };
-  }, [ai]);
+  }, [ai, gameOver]);
 
 
 
@@ -1825,6 +1875,30 @@ export default function SnakeAndLadder() {
         onClose={() => setShowInfo(false)}
         title="Snake & Ladder"
         info="Roll the dice to move across the board. Ladders move you up, snakes bring you down. The Pot at the top collects everyone's stake – reach it first to claim the total amount."
+      />
+      <InfoPopup
+        open={connectionLost}
+        onClose={() => setConnectionLost(false)}
+        title="Connection Lost"
+        info="Attempting to reconnect..."
+      />
+      <InfoPopup
+        open={forfeitMsg}
+        onClose={() => setForfeitMsg(false)}
+        title="Disconnected"
+        info="You were disconnected too long and forfeited the match."
+      />
+      <InfoPopup
+        open={!!disconnectMsg}
+        onClose={() => setDisconnectMsg(null)}
+        title="Player Update"
+        info={disconnectMsg}
+      />
+      <InfoPopup
+        open={!!cheatMsg}
+        onClose={() => setCheatMsg(null)}
+        title="Warning"
+        info={cheatMsg}
       />
       <InfoPopup
         open={!!leftWinner}
