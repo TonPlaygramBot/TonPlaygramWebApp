@@ -20,6 +20,7 @@ import AvatarPromptModal from '../components/AvatarPromptModal.jsx';
 import { getAvatarUrl, saveAvatar, loadAvatar } from '../utils/avatarUtils.js';
 import InfoPopup from '../components/InfoPopup.jsx';
 import InboxWidget from '../components/InboxWidget.jsx';
+import DevNotifyModal from '../components/DevNotifyModal.jsx';
 import Wallet from './Wallet.jsx';
 
 import { FiCopy } from 'react-icons/fi';
@@ -61,6 +62,7 @@ export default function MyAccount() {
   const [notifyPhoto, setNotifyPhoto] = useState('');
   const [notifySending, setNotifySending] = useState(false);
   const [notifyStatus, setNotifyStatus] = useState('');
+  const [showNotifyModal, setShowNotifyModal] = useState(false);
 
   useEffect(() => {
     async function load() {
@@ -262,35 +264,12 @@ export default function MyAccount() {
             </button>
           </div>
 
-          <div className="prism-box p-6 mt-4 space-y-2 w-96 mx-auto border-[#334155]">
-            <label className="block font-semibold text-center">Send Notification</label>
-            <textarea
-              placeholder="Message"
-              value={notifyText}
-              onChange={(e) => setNotifyText(e.target.value)}
-              className="border p-1 rounded w-full h-40 text-black"
-            />
-            <input
-              type="file"
-              accept="image/*"
-              onChange={(e) => {
-                const file = e.target.files[0];
-                if (!file) return;
-                const reader = new FileReader();
-                reader.onload = () => setNotifyPhoto(reader.result);
-                reader.readAsDataURL(file);
-              }}
-              className="border p-1 rounded w-full max-w-xs mx-auto text-black"
-            />
-            {notifyPhoto && (
-              <img src={notifyPhoto} alt="preview" className="max-h-40 mx-auto" />
-            )}
+          <div className="prism-box p-4 mt-4 space-y-2 w-80 mx-auto border-[#334155]">
             <button
-              onClick={handleDevNotify}
-              disabled={notifySending}
-              className="mt-1 px-3 py-1 bg-primary hover:bg-primary-hover rounded text-background"
+              onClick={() => setShowNotifyModal(true)}
+              className="px-3 py-1 bg-primary hover:bg-primary-hover rounded text-background w-full"
             >
-              {notifySending ? 'Sending...' : 'Notify'}
+              Notify
             </button>
           </div>
         </>
@@ -299,6 +278,16 @@ export default function MyAccount() {
       {/* Wallet section */}
       <Wallet />
       <InboxWidget />
+      <DevNotifyModal
+        open={showNotifyModal}
+        onClose={() => setShowNotifyModal(false)}
+        notifyText={notifyText}
+        setNotifyText={setNotifyText}
+        notifyPhoto={notifyPhoto}
+        setNotifyPhoto={setNotifyPhoto}
+        notifySending={notifySending}
+        onSend={handleDevNotify}
+      />
       <InfoPopup
         open={showSaved}
         onClose={() => setShowSaved(false)}
