@@ -153,7 +153,7 @@ export default function Home() {
                   <span className="text-xs text-accent">Send</span>
                 </Link>
                 <div className="flex flex-col items-center space-y-1">
-                  <img src="/icons/tpc.png" alt="TPC" className="w-10 h-10" />
+                  <img src="/assets/icons/coin_embedded.svg" alt="TPC" className="w-10 h-10" />
                   <span className="text-sm">{formatValue(tpcBalance ?? '...', 2)}</span>
                 </div>
                 <Link to="/wallet?mode=receive" className="flex items-center space-x-1 -mr-1 pt-1">

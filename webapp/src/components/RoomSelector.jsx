@@ -6,7 +6,7 @@ const AMOUNTS = {
   USDT: [0.1, 0.5, 1, 5, 10],
 };
 const tokens = [
-  { id: 'TPC', icon: '/icons/tpc.png' },
+  { id: 'TPC', icon: '/assets/icons/coin_embedded.svg' },
   { id: 'TON', icon: '/icons/TON.png' },
   { id: 'USDT', icon: '/icons/Usdt.png' },
 ];

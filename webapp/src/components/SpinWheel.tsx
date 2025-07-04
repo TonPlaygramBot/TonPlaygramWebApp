@@ -205,7 +205,7 @@ export default forwardRef<SpinWheelHandle, SpinWheelProps>(function SpinWheel(
                 </>
               ) : (
                 <>
-                  <img src="/icons/tpc.png" alt="TPC" className="w-8 h-8 mr-1" />
+                  <img src="/assets/icons/coin_embedded.svg" alt="TPC" className="w-8 h-8 mr-1" />
                   <span>{val >= 1000 ? `${val / 1000}k` : val}</span>
                 </>
               )}
