@@ -62,14 +62,20 @@ export default function Store() {
             <span className="text-xl">{b.icon}</span>
             <h3 className="font-semibold">{b.name}</h3>
           </div>
-          <div className="text-lg font-bold">{b.tpc.toLocaleString()} TPC</div>
-          <div className="text-primary text-lg">{b.ton} TON</div>
+          <div className="text-lg font-bold flex items-center space-x-1">
+            <span>{b.tpc.toLocaleString()}</span>
+            <img src="/icons/TPCcoin.png" alt="TPC" className="w-5 h-5" />
+          </div>
+          <div className="text-primary text-lg flex items-center space-x-1">
+            <span>{b.ton}</span>
+            <img src="/icons/TON.png" alt="TON" className="w-5 h-5" />
+          </div>
           <div className="text-xs text-accent">Presale Bundle</div>
           <div className="text-sm">
             {b.boost ? `Mining Boost: +${b.boost * 100}%` : 'No Mining Boost'}
           </div>
           {b.supply && (
-            <div className="text-xs text-subtext">Supply Cap: {b.supply}</div>
+            <div className="text-xs text-subtext">{b.supply}</div>
           )}
           <button
             onClick={() => handleBuy(b)}
