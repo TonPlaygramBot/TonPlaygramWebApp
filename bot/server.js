@@ -56,16 +56,16 @@ bot.action(/^reject_invite:(.+)/, async (ctx) => {
   } catch {}
   const invite = pendingInvites.get(roomId);
   if (invite) {
-    invite.toIds = invite.toIds.filter((id) => String(id) !== userId);
+    invite.toTelegramIds = (invite.toTelegramIds || []).filter((id) => String(id) !== userId);
     pendingInvites.set(roomId, invite);
-    const { fromId, toIds } = invite;
+    const { fromTelegramId, toTelegramIds = [] } = invite;
     try {
       await bot.telegram.sendMessage(
-        String(fromId),
+        String(fromTelegramId),
         `${userId} rejected your game invite`,
       );
     } catch {}
-    for (const other of toIds) {
+    for (const other of toTelegramIds) {
       if (String(other) === userId) continue;
       try {
         await bot.telegram.sendMessage(
@@ -375,7 +375,7 @@ io.on('connection', (socket) => {
     await gameManager.rollDice(socket);
   });
 
-  socket.on('invite1v1', async ({ fromId, fromName, toId, roomId, token, amount }, cb) => {
+  socket.on('invite1v1', async ({ fromId, fromTelegramId, fromName, toId, toTelegramId, roomId, token, amount }, cb) => {
     if (!fromId || !toId) return cb && cb({ success: false, error: 'invalid ids' });
 
     const targets = userSockets.get(String(toId));
@@ -384,13 +384,13 @@ io.on('connection', (socket) => {
         io.to(sid).emit('gameInvite', { fromId, fromName, roomId, token, amount });
       }
     }
-    pendingInvites.set(roomId, { fromId, toIds: [toId], token, amount });
+    pendingInvites.set(roomId, { fromId, fromTelegramId, toIds: [toId], toTelegramIds: [toTelegramId], token, amount });
     let url;
     try {
       url = await sendInviteNotification(
         bot,
-        toId,
-        fromId,
+        toTelegramId,
+        fromTelegramId,
         fromName,
         '1v1',
         roomId,
@@ -405,13 +405,13 @@ io.on('connection', (socket) => {
 
   socket.on(
     'inviteGroup',
-    async ({ fromId, fromName, toIds, opponentNames = [], roomId, token, amount }, cb) => {
+    async ({ fromId, fromTelegramId, fromName, toIds, toTelegramIds = [], opponentNames = [], roomId, token, amount }, cb) => {
       if (!fromId || !Array.isArray(toIds) || toIds.length === 0) {
         return cb && cb({ success: false, error: 'invalid ids' });
       }
-      pendingInvites.set(roomId, { fromId, toIds: [...toIds], token, amount });
+      pendingInvites.set(roomId, { fromId, fromTelegramId, toIds: [...toIds], toTelegramIds: [...toTelegramIds], token, amount });
       let url;
-      for (const toId of toIds) {
+      for (const [idx, toId] of toIds.entries()) {
         const targets = userSockets.get(String(toId));
         if (targets && targets.size > 0) {
           for (const sid of targets) {
@@ -426,11 +426,12 @@ io.on('connection', (socket) => {
             });
           }
         }
+        const toTelegramId = toTelegramIds[idx];
         try {
           url = await sendInviteNotification(
             bot,
-            toId,
-            fromId,
+            toTelegramId,
+            fromTelegramId,
             fromName,
             'group',
             roomId,
