@@ -1,8 +1,8 @@
-import {  forwardRef, useImperativeHandle } from 'react';
-import { useState, useEffect, useRef } from 'react';
+import { forwardRef, useImperativeHandle } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { getGameVolume } from '../utils/sound.js';
 
-import { segments } from '../utils/rewardLogic';
+import { segments as baseSegments, Segment } from '../utils/rewardLogic';
 
 export interface SpinWheelHandle {
   spin: () => void;
@@ -10,7 +10,7 @@ export interface SpinWheelHandle {
 
 interface SpinWheelProps {
 
-  onFinish: (reward: number) => void;
+  onFinish: (reward: Segment) => void;
 
   spinning: boolean;
 
@@ -48,6 +48,16 @@ export default forwardRef<SpinWheelHandle, SpinWheelProps>(function SpinWheel(
 
   const spinCountRef = useRef(0);
 
+  const shuffleSegments = (arr: Segment[]) =>
+    arr
+      .map((a) => [Math.random(), a] as [number, Segment])
+      .sort((a, b) => a[0] - b[0])
+      .map((x) => x[1]);
+
+  const [wheelSegments, setWheelSegments] = useState<Segment[]>(() =>
+    shuffleSegments(baseSegments)
+  );
+
   const spinSoundRef = useRef<HTMLAudioElement | null>(null);
   const successSoundRef = useRef<HTMLAudioElement | null>(null);
 
@@ -73,9 +83,13 @@ export default forwardRef<SpinWheelHandle, SpinWheelProps>(function SpinWheel(
     return () => window.removeEventListener('gameVolumeChanged', handler);
   }, []);
 
-  const items = Array.from(
-    { length: segments.length * loops * maxSpins + visibleRows },
-    (_, i) => segments[i % segments.length]
+  const items = useMemo(
+    () =>
+      Array.from(
+        { length: wheelSegments.length * loops * maxSpins + visibleRows },
+        (_, i) => wheelSegments[i % wheelSegments.length]
+      ),
+    [wheelSegments]
   );
 
   const spin = () => {
@@ -86,12 +100,12 @@ export default forwardRef<SpinWheelHandle, SpinWheelProps>(function SpinWheel(
       spinSoundRef.current.play().catch(() => {});
     }
 
-    const index = Math.floor(Math.random() * segments.length);
+    const index = Math.floor(Math.random() * wheelSegments.length);
 
-    const reward = segments[index];
+    const reward = wheelSegments[index];
 
     spinCountRef.current += 1;
-    const finalIndex = spinCountRef.current * loops * segments.length + index;
+    const finalIndex = spinCountRef.current * loops * wheelSegments.length + index;
 
     const finalOffset = -(finalIndex - winningRow) * itemHeight;
 
@@ -113,6 +127,8 @@ export default forwardRef<SpinWheelHandle, SpinWheelProps>(function SpinWheel(
         successSoundRef.current.play().catch(() => {});
       }
       onFinish(reward);
+      setWheelSegments(shuffleSegments(baseSegments));
+      setOffset(0);
     }, 4000);
   };
 
@@ -170,7 +186,11 @@ export default forwardRef<SpinWheelHandle, SpinWheelProps>(function SpinWheel(
 
             >
 
-              {val === 1600 || val === 1800 || val === 5000 ? (
+              {val === 'BONUS_X3' ? (
+                <span className="text-red-600 font-bold drop-shadow-[0_0_2px_black]">
+                  BONUS X3
+                </span>
+              ) : val === 1600 || val === 1800 || val === 5000 ? (
                 <>
                   <img
                     src="/assets/icons/FreeSpin.png"

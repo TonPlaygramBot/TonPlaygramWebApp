@@ -21,10 +21,15 @@ export default function SpinGame() {
   const [lastSpin, setLastSpin] = useState(null);
   const [reward, setReward] = useState(null);
   const [spinning, setSpinning] = useState(false);
+  const [leftSpinning, setLeftSpinning] = useState(false);
+  const [rightSpinning, setRightSpinning] = useState(false);
   const [showAd, setShowAd] = useState(false);
   const [adWatched, setAdWatched] = useState(false);
   const [timeLeft, setTimeLeft] = useState(0);
   const wheelRef = useRef(null);
+  const leftWheelRef = useRef(null);
+  const rightWheelRef = useRef(null);
+  const [bonusActive, setBonusActive] = useState(false);
 
   useEffect(() => {
     const ts = localStorage.getItem('lastSpin');
@@ -45,6 +50,11 @@ export default function SpinGame() {
     const now = Date.now();
     localStorage.setItem('lastSpin', String(now));
     setLastSpin(now);
+    if (r === 'BONUS_X3') {
+      setBonusActive(true);
+      setAdWatched(false);
+      return;
+    }
     setReward(r);
     const id = telegramId;
     const balRes = await getWalletBalance(id);
@@ -54,13 +64,30 @@ export default function SpinGame() {
     setAdWatched(false);
   };
 
+  const handleBonusFinish = async (r) => {
+    if (typeof r !== 'number') return;
+    setReward(r);
+    const id = telegramId;
+    const balRes = await getWalletBalance(id);
+    const newBalance = (balRes.balance || 0) + r;
+    await updateBalance(id, newBalance);
+    await addTransaction(id, r, 'spin');
+  };
+
   const triggerSpin = () => {
     if (!adWatched) {
       setShowAd(true);
       return;
     }
-    if (spinning || !ready) return;
-    wheelRef.current?.spin();
+    if (spinning || leftSpinning || rightSpinning || !ready) return;
+    if (bonusActive) {
+      wheelRef.current?.spin();
+      leftWheelRef.current?.spin();
+      rightWheelRef.current?.spin();
+      setBonusActive(false);
+    } else {
+      wheelRef.current?.spin();
+    }
   };
 
   const handleAdComplete = () => {
@@ -87,14 +114,46 @@ export default function SpinGame() {
       />
       <h3 className="text-lg font-bold text-text">Spin &amp; Win</h3>
       <p className="text-sm text-subtext">Try your luck and win rewards!</p>
-      <SpinWheel
-        ref={wheelRef}
-        onFinish={handleFinish}
-        spinning={spinning}
-        setSpinning={setSpinning}
-        disabled={!ready}
-        showButton={false}
-      />
+      <div className="flex items-start space-x-2">
+        <div className={`relative ${bonusActive ? 'opacity-100' : 'opacity-50'}`}>
+          <SpinWheel
+            ref={leftWheelRef}
+            onFinish={handleBonusFinish}
+            spinning={leftSpinning}
+            setSpinning={setLeftSpinning}
+            disabled={!bonusActive}
+            showButton={false}
+          />
+          {!bonusActive && (
+            <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+              <span className="text-red-600 font-bold drop-shadow-[0_0_2px_black]">BONUS X3</span>
+            </div>
+          )}
+        </div>
+        <SpinWheel
+          ref={wheelRef}
+          onFinish={handleFinish}
+          spinning={spinning}
+          setSpinning={setSpinning}
+          disabled={!ready}
+          showButton={false}
+        />
+        <div className={`relative ${bonusActive ? 'opacity-100' : 'opacity-50'}`}>
+          <SpinWheel
+            ref={rightWheelRef}
+            onFinish={handleBonusFinish}
+            spinning={rightSpinning}
+            setSpinning={setRightSpinning}
+            disabled={!bonusActive}
+            showButton={false}
+          />
+          {!bonusActive && (
+            <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+              <span className="text-red-600 font-bold drop-shadow-[0_0_2px_black]">BONUS X3</span>
+            </div>
+          )}
+        </div>
+      </div>
       <button
         onClick={triggerSpin}
         className="mt-2 px-4 py-1 bg-green-600 text-white text-sm font-bold rounded disabled:bg-gray-500"
