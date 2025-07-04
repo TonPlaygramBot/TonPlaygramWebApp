@@ -134,11 +134,8 @@ export async function sendInviteNotification(
   const url = getInviteUrl(roomId, token, amount);
   const replyMarkup = {
     inline_keyboard: [
+      [{ text: 'Open Game', url }],
       [
-        {
-          text: sendToken ? 'Accept' : 'Open Game',
-          url,
-        },
         {
           text: 'Reject',
           callback_data: `reject_invite:${roomId}:${toId}`,
@@ -153,19 +150,17 @@ export async function sendInviteNotification(
     } catch (err) {
       console.error('Failed to send invite TPC:', err.message);
     }
-    // For token transfers send only a text notification
-    await sendTPCNotification(bot, toId, caption, replyMarkup);
-  } else {
-    const photo = info?.photoUrl ? { url: info.photoUrl } : { source: coinPath };
-
-    await bot.telegram.sendPhoto(String(toId), photo, {
-      caption,
-      reply_markup: replyMarkup,
-    });
-
-    // Also send a plain text notification like TPC receipts
-    await sendTPCNotification(bot, toId, caption, replyMarkup);
   }
+
+  const photo = info?.photoUrl ? { url: info.photoUrl } : { source: coinPath };
+
+  await bot.telegram.sendPhoto(String(toId), photo, {
+    caption,
+    reply_markup: replyMarkup,
+  });
+
+  // Also send a plain text notification like TPC receipts
+  await sendTPCNotification(bot, toId, caption, replyMarkup);
 
   return url;
 }
