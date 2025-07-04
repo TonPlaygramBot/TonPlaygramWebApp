@@ -92,12 +92,11 @@ export async function sendTransferNotification(bot, toId, fromId, amount) {
     'TPC Statement Details',
     `You received ${sign}${formatted} TPC ${coinIcon}`,
     `From: ${name} ${profileIcon}`,
+    `TPC Account #${fromId}`,
     new Date().toLocaleString(),
   ];
 
-  const caption = lines.join('\n');
-  const photo = info?.photoUrl ? { url: info.photoUrl } : { source: coinPath };
-  await bot.telegram.sendPhoto(String(toId), photo, { caption });
+  await bot.telegram.sendMessage(String(toId), lines.join('\n'));
 }
 
 export async function sendInviteNotification(
