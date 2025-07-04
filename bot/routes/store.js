@@ -23,14 +23,14 @@ const STORE_ADDRESS_NORM = normalize(STORE_ADDRESS);
 const BOOST_EXPIRY = new Date('2025-08-21T00:00:00Z');
 
 const BUNDLES = {
-  newbie: { tpc: 25000, ton: 0.25, label: 'Newbie Pack', supply: 500000 },
-  rookie: { tpc: 50000, ton: 0.4, label: 'Rookie', supply: 1000000 },
-  starter: { tpc: 100000, ton: 0.75, label: 'Starter', supply: 2000000 },
-  miner: { tpc: 250000, ton: 1.6, label: 'Miner Pack', boost: 0.03, supply: 5000000 },
-  grinder: { tpc: 500000, ton: 3.0, label: 'Grinder', boost: 0.05, supply: 7500000 },
-  pro: { tpc: 1000000, ton: 5.5, label: 'Pro Bundle', boost: 0.08, supply: 10000000 },
-  whale: { tpc: 2500000, ton: 10.5, label: 'Whale Bundle', boost: 0.12, supply: 12500000 },
-  max: { tpc: 5000000, ton: 20, label: 'Max Presale', boost: 0.15, supply: 15000000 },
+  newbie: { tpc: 25000, ton: 0.25, label: 'Newbie Pack' },
+  rookie: { tpc: 50000, ton: 0.4, label: 'Rookie' },
+  starter: { tpc: 100000, ton: 0.75, label: 'Starter' },
+  miner: { tpc: 250000, ton: 1.6, label: 'Miner Pack', boost: 0.03 },
+  grinder: { tpc: 500000, ton: 3.0, label: 'Grinder', boost: 0.05 },
+  pro: { tpc: 1000000, ton: 5.5, label: 'Pro Bundle', boost: 0.08 },
+  whale: { tpc: 2500000, ton: 10.5, label: 'Whale Bundle', boost: 0.12 },
+  max: { tpc: 5000000, ton: 20, label: 'Max Presale', boost: 0.15 },
 };
 
 router.post('/purchase', authenticate, async (req, res) => {
