@@ -148,7 +148,11 @@ export default function TasksCard() {
         </li>
 
       </ul>
-      <AdModal open={showAd} onComplete={handleAdComplete} />
+      <AdModal
+        open={showAd}
+        onComplete={handleAdComplete}
+        onClose={() => setShowAd(false)}
+      />
 
     </div>
 
