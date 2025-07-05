@@ -124,6 +124,7 @@ export default function MiningCard() {
   return (
     <div className="relative bg-surface border border-border rounded-xl p-4 space-y-4 text-center overflow-hidden">
       <img
+        loading="lazy"
         src="/assets/SnakeLaddersbackground.png"
         className="background-behind-board object-cover"
         alt=""
@@ -147,7 +148,7 @@ export default function MiningCard() {
       </button>
       {isMining && (
         <div className="flex items-center justify-center space-x-1 text-sm">
-          <img src="/assets/icons/TPCcoin.png" alt="TPC" className="w-5 h-5" />
+          <img loading="lazy" src="/assets/icons/TPCcoin.png" alt="TPC" className="w-5 h-5" />
           <span>{minted}</span>
         </div>
       )}

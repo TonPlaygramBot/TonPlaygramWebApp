@@ -86,7 +86,7 @@ export default function TasksCard() {
   return (
 
     <div className="relative bg-surface border border-border rounded-xl p-4 space-y-2 overflow-hidden">
-      <img src="/assets/SnakeLaddersbackground.png" className="background-behind-board object-cover" alt="" />
+      <img loading="lazy" src="/assets/SnakeLaddersbackground.png" className="background-behind-board object-cover" alt="" />
 
       <h3 className="text-lg font-bold text-text flex items-center justify-center space-x-1"><AiOutlineCheckSquare className="text-accent" /><span>Tasks</span></h3>
 

@@ -16,6 +16,7 @@ function CoinBurst({ token }) {
     <div className="coin-burst">
       {coins.map((c, i) => (
         <img
+          loading="lazy"
           key={i}
           src={
             token.toUpperCase() === 'TPC'
@@ -132,7 +133,7 @@ export default function SnakeBoard({
         >
           {(iconImage || offsetVal != null) && (
             <span className="cell-marker">
-              {iconImage && <img src={iconImage} className="cell-icon" />}
+              {iconImage && <img loading="lazy" src={iconImage} className="cell-icon" />}
               {offsetVal != null && (
                 <span
                   className={`offset-text ${cellType === 'snake' ? 'snake-text' : 'ladder-text'}`}
@@ -145,7 +146,7 @@ export default function SnakeBoard({
           {!cellType && <span className="cell-number">{num}</span>}
           {diceCells && diceCells[num] && (
             <span className="dice-marker">
-              <img src="/assets/icons/Dice.png" className="dice-icon" />
+              <img loading="lazy" src="/assets/icons/Dice.png" className="dice-icon" />
               <span className="dice-value">+{diceCells[num]}</span>
             </span>
           )}
@@ -229,7 +230,7 @@ export default function SnakeBoard({
 
   return (
     <div className="relative flex justify-center items-center w-screen overflow-visible">
-      <img src="/assets/SnakeLaddersbackground.png" className="background-behind-board object-cover" alt="" />
+      <img loading="lazy" src="/assets/SnakeLaddersbackground.png" className="background-behind-board object-cover" alt="" />
       <div
         ref={containerRef}
         className="overflow-y-auto"
@@ -270,9 +271,10 @@ export default function SnakeBoard({
                     ? '/icons/Usdt.png'
                     : '/assets/icons/TPCcoin.png'
                 }
+                loading="lazy"
                 alt={token}
                 className="pot-icon"
-              />
+                />
               {players
                 .map((p, i) => ({ ...p, index: i }))
                 .filter((p) => p.position === FINAL_TILE)

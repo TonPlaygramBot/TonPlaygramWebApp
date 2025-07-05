@@ -290,7 +290,7 @@ function Board({
           {!cellType && <span className="cell-number">{num}</span>}
           {diceCells && diceCells[num] && (
             <span className="dice-marker">
-              <img src="/assets/icons/Dice.png" className="dice-icon" />
+              <img loading="lazy" src="/assets/icons/Dice.png" className="dice-icon" />
               <span className="dice-value">+{diceCells[num]}</span>
             </span>
           )}
@@ -412,7 +412,7 @@ function Board({
 
   return (
     <div className="relative flex justify-center items-center w-screen overflow-visible">
-      <img src="/assets/SnakeLaddersbackground.png" className="background-behind-board object-cover" alt="" />
+      <img loading="lazy" src="/assets/SnakeLaddersbackground.png" className="background-behind-board object-cover" alt="" />
       <div
         ref={containerRef}
         className="overflow-y-auto"
@@ -1810,7 +1810,7 @@ export default function SnakeAndLadder() {
       {rewardDice > 0 && (
         <div className="fixed bottom-40 inset-x-0 flex justify-center z-30 pointer-events-none reward-dice-container">
           {Array.from({ length: rewardDice }).map((_, i) => (
-            <img key={i} src="/assets/icons/Dice.png" className="reward-dice" />
+            <img key={i} loading="lazy" src="/assets/icons/Dice.png" className="reward-dice" />
           ))}
         </div>
       )}
