@@ -1235,18 +1235,19 @@ input:focus {
   font-size: 1rem;
   z-index: 1;
 }
-.ludo-board {
-  display: grid;
-  grid-template-columns: repeat(15, 1fr);
-  grid-template-rows: repeat(15, 1fr);
-  gap: 2px;
-  width: 300px;
-  height: 300px;
-  position: relative;
+.ludo-board-tilt {
+  perspective: 1200px;
 }
+
+.ludo-board-grid {
+  display: grid;
+  gap: 2px;
+  position: relative;
+  transform-style: preserve-3d;
+  transform-origin: bottom center;
+}
+
 .ludo-cell {
-  width: 100%;
-  height: 100%;
   background: #eee;
 }
 .ludo-red { background:#fecaca; }
@@ -1254,12 +1255,14 @@ input:focus {
 .ludo-yellow { background:#fef08a; }
 .ludo-blue { background:#bfdbfe; }
 .ludo-token {
-  width: 18px;
-  height: 18px;
+  width: calc(var(--cell-width) * 0.6);
+  height: calc(var(--cell-height) * 0.6);
   border-radius: 50%;
   border: 2px solid #000;
   transition: transform 0.3s;
+  transform: translateZ(10px);
 }
 .token-wrapper {
   position: absolute;
+  transform-style: preserve-3d;
 }
