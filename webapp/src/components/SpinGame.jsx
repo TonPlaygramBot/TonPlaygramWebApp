@@ -230,7 +230,6 @@ export default function SpinGame() {
       <RewardPopup
         reward={reward}
         onClose={() => setReward(null)}
-        message="Keep spinning every day to earn more!"
       />
       <AdModal
         open={showAd}
