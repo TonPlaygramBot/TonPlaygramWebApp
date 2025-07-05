@@ -71,7 +71,10 @@ export default function Lobby() {
         active = false;
         clearInterval(id);
       };
-  }
+    } else if (game === 'domino') {
+      setTables([{ id: 'single', label: 'Single Player vs AI' }]);
+      setTable({ id: 'single', label: 'Single Player vs AI' });
+    }
   }, [game]);
 
   useEffect(() => {
@@ -126,7 +129,7 @@ export default function Lobby() {
   const startGame = async () => {
     const params = new URLSearchParams();
     if (table) params.set('table', table.id);
-    if (stake.token === 'TON' && stake.amount > 0) {
+    if (game === 'snake' && stake.token === 'TON' && stake.amount > 0) {
       if (!walletAddress) {
         tonConnectUI.openModal();
         return;
@@ -148,7 +151,7 @@ export default function Lobby() {
       }
     }
 
-    if (table?.id === 'single') {
+    if (game === 'snake' && table?.id === 'single') {
       localStorage.removeItem(`snakeGameState_${aiCount}`);
       params.set('ai', aiCount);
       params.set('token', 'TPC');
@@ -170,6 +173,7 @@ export default function Lobby() {
       if (stake.token) params.set('token', stake.token);
       if (stake.amount) params.set('amount', stake.amount);
     }
+
     navigate(`/games/${game}?${params.toString()}`);
   };
 
