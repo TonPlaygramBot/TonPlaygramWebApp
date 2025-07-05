@@ -250,6 +250,7 @@ export default function Lobby() {
   return (
     <div className="relative p-4 space-y-4 text-text">
       <img
+        loading="lazy"
         src="/assets/SnakeLaddersbackground.png"
         className="background-behind-board object-cover"
         alt=""

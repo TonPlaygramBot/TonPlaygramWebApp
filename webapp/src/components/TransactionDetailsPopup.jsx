@@ -64,7 +64,7 @@ export default function TransactionDetailsPopup({ tx, onClose }) {
                 if (isReceive) return 'Received';
                 return tx.type;
               })()} {sign}{formattedAmount}
-              <img src={icon} alt={token} className="w-5 h-5 inline" />
+              <img loading="lazy" src={icon} alt={token} className="w-5 h-5 inline" />
             </span>
             {tx.game && (
               <span className="text-xs capitalize">{tx.type}</span>

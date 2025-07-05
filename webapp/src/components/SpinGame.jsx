@@ -156,6 +156,7 @@ export default function SpinGame() {
   return (
     <div className="relative bg-surface border border-border rounded-xl p-4 flex flex-col items-center space-y-2 overflow-hidden">
       <img
+        loading="lazy"
         src="/assets/SnakeLaddersbackground.png"
         className="background-behind-board object-cover"
         alt=""

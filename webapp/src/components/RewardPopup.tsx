@@ -24,6 +24,7 @@ export default function RewardPopup({ reward, onClose, message }: RewardPopupPro
     <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-70 z-50">
       <div className="bg-surface border border-border p-6 rounded text-center space-y-4 text-text w-80">
         <img
+          loading="lazy"
           src="/assets/TonPlayGramLogo.jpg"
           alt="TonPlaygram Logo"
           className="w-10 h-10 mx-auto"
