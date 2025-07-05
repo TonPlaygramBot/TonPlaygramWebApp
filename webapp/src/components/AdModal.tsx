@@ -15,10 +15,22 @@ export default function AdModal({ open, onComplete }: AdModalProps) {
         containerId: 'adsgram-player',
         walletAddress: ADSGRAM_WALLET,
       });
-      ad.on('finish', () => {
+
+      const handleFinish = () => {
         onComplete();
-      });
-      return () => ad.destroy?.();
+      };
+
+      ad.on?.('finish', handleFinish);
+      // Some versions emit 'close' or 'complete' when the ad ends
+      ad.on?.('close', handleFinish);
+      ad.on?.('complete', handleFinish);
+
+      return () => {
+        ad.off?.('finish', handleFinish);
+        ad.off?.('close', handleFinish);
+        ad.off?.('complete', handleFinish);
+        ad.destroy?.();
+      };
     }
   }, [open, onComplete]);
 
