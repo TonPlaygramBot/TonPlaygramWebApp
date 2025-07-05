@@ -67,6 +67,7 @@ export default forwardRef<SpinWheelHandle, SpinWheelProps>(function SpinWheel(
   useEffect(() => {
     spinSoundRef.current = new Audio('/assets/sounds/spinning.mp3');
     spinSoundRef.current.preload = 'auto';
+    spinSoundRef.current.loop = true;
     spinSoundRef.current.volume = getGameVolume();
     successSoundRef.current = new Audio('/assets/sounds/successful.mp3');
     successSoundRef.current.preload = 'auto';
@@ -170,7 +171,7 @@ export default forwardRef<SpinWheelHandle, SpinWheelProps>(function SpinWheel(
 
   return (
 
-    <div className="w-32 mx-auto flex flex-col items-center">
+    <div className="w-28 flex flex-col items-center">
 
       <div
 
@@ -184,7 +185,7 @@ export default forwardRef<SpinWheelHandle, SpinWheelProps>(function SpinWheel(
 
         <div
 
-          className="absolute inset-x-0 border-2 border-yellow-300 pointer-events-none z-10"
+          className="absolute inset-x-0 border-4 border-brand-gold pointer-events-none z-10 shadow-[0_0_12px_rgba(241,196,15,0.8)]"
 
           style={{ top: itemHeight * winningRow, height: itemHeight }}
 
@@ -212,7 +213,7 @@ export default forwardRef<SpinWheelHandle, SpinWheelProps>(function SpinWheel(
 
               className={`board-style border-2 border-border flex items-center justify-center text-sm w-28 font-bold ${
 
-                idx === winnerIndex ? 'bg-yellow-300 text-black' : 'text-white'
+                idx === winnerIndex ? 'bg-yellow-300 text-black border-4 border-brand-gold shadow-[0_0_12px_rgba(241,196,15,0.8)]' : 'text-white'
 
               }`}
 
