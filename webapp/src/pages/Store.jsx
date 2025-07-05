@@ -4,7 +4,7 @@ import useTelegramBackButton from '../hooks/useTelegramBackButton.js';
 import { createAccount, buyBundle, claimPurchase } from '../utils/api.js';
 import { getTelegramId } from '../utils/telegram.js';
 import InfoPopup from '../components/InfoPopup.jsx';
-import { STORE_ADDRESS, STORE_BUNDLES } from '../utils/storeData.js';
+import { STORE_ADDRESS, STORE_BUNDLES, STORE_CATEGORIES } from '../utils/storeData.js';
 
 export default function Store() {
   useTelegramBackButton();
@@ -13,6 +13,7 @@ export default function Store() {
   const [accountId, setAccountId] = useState('');
   const [msg, setMsg] = useState('');
   const [claimHash, setClaimHash] = useState('');
+  const [category, setCategory] = useState('Presale');
 
   useEffect(() => {
     let id;
@@ -42,7 +43,18 @@ export default function Store() {
   return (
     <div className="relative p-4 space-y-4 text-text">
       <h2 className="text-xl font-bold">Store</h2>
-      {STORE_BUNDLES.map((b) => (
+      <div className="flex justify-center space-x-2">
+        {STORE_CATEGORIES.map((c) => (
+          <button
+            key={c}
+            onClick={() => setCategory(c)}
+            className={`lobby-tile px-3 py-1 ${category === c ? 'lobby-selected' : ''}`}
+          >
+            {c}
+          </button>
+        ))}
+      </div>
+      {STORE_BUNDLES.filter(b => b.category === category).map((b) => (
         <div
           key={b.id}
           className="store-card w-80 mx-auto"
@@ -59,7 +71,7 @@ export default function Store() {
             <span>{b.ton}</span>
             <img src="/icons/TON.png" alt="TON" className="w-6 h-6" />
           </div>
-          <div className="text-xs text-accent">Presale Bundle</div>
+          <div className="text-xs text-accent">{b.category} Bundle</div>
           <div className="text-sm">
             {b.boost ? `Mining Boost: +${b.boost * 100}%` : 'No Mining Boost'}
           </div>
