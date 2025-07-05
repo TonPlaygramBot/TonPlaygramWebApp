@@ -33,23 +33,11 @@ export default function LudoBoard({ players = [] }) {
   const cells = [];
 
   for (let r = 0; r < SIZE; r++) {
-
     for (let c = 0; c < SIZE; c++) {
-
-      let cls = 'ludo-cell board-cell';
-
-      if (r < 6 && c < 6) cls += ' ludo-red';
-
-      else if (r < 6 && c >= 9) cls += ' ludo-green';
-
-      else if (r >= 9 && c < 6) cls += ' ludo-yellow';
-
-      else if (r >= 9 && c >= 9) cls += ' ludo-blue';
-
-      cells.push(<div key={`${r}-${c}`} className={cls}></div>);
-
+      cells.push(
+        <div key={`${r}-${c}`} className="ludo-cell board-cell"></div>
+      );
     }
-
   }
 
   return (
@@ -83,6 +71,14 @@ export default function LudoBoard({ players = [] }) {
       >
 
         {cells}
+        {[{ color: "ludo-red", r: 0, c: 0 }, { color: "ludo-green", r: 0, c: 9 }, { color: "ludo-yellow", r: 9, c: 0 }, { color: "ludo-blue", r: 9, c: 9 }].map(({ color, r, c }) => (
+          <div key={color} className={`ludo-base ${color}`} style={{ gridRowStart: r + 1, gridColumnStart: c + 1 }}>
+            <div className={`board-cell ${color}`}></div>
+            <div className={`board-cell ${color}`}></div>
+            <div className={`board-cell ${color}`}></div>
+            <div className={`board-cell ${color}`}></div>
+          </div>
+        ))}
 
         {players.map((p) =>
 
