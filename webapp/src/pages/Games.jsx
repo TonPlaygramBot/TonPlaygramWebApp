@@ -14,6 +14,7 @@ export default function Games() {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         <GameCard title="Snake & Ladder" icon="🎲" link="/games/snake/lobby" />
         <GameCard title="DominoPlay" icon="🁫" link="/games/domino/lobby" />
+        <GameCard title="Ludo" icon="🎯" link="/games/ludo" />
       </div>
     </div>
   );
