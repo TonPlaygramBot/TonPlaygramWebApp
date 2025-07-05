@@ -47,13 +47,13 @@ export default function InvitePopup({
         <div className="flex justify-center gap-2">
           <button
             onClick={onAccept}
-            className="px-3 py-1 bg-primary hover:bg-primary-hover rounded"
+            className="px-3 py-1 bg-primary hover:bg-primary-hover rounded text-black"
           >
             Yes
           </button>
           <button
             onClick={onReject}
-            className="px-3 py-1 bg-primary hover:bg-primary-hover rounded"
+            className="px-3 py-1 bg-primary hover:bg-primary-hover rounded text-black"
           >
             No
           </button>
