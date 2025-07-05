@@ -6,6 +6,41 @@ const SIZE = 15;
 
 const ANGLE = 58;
 
+const START_POSITIONS = {
+  red: [
+    { r: 1, c: 1 },
+    { r: 1, c: 3 },
+    { r: 3, c: 1 },
+    { r: 3, c: 3 },
+  ],
+  green: [
+    { r: 1, c: 11 },
+    { r: 1, c: 13 },
+    { r: 3, c: 11 },
+    { r: 3, c: 13 },
+  ],
+  yellow: [
+    { r: 11, c: 1 },
+    { r: 11, c: 3 },
+    { r: 13, c: 1 },
+    { r: 13, c: 3 },
+  ],
+  blue: [
+    { r: 11, c: 11 },
+    { r: 11, c: 13 },
+    { r: 13, c: 11 },
+    { r: 13, c: 13 },
+  ],
+};
+
+function getColorName(color = '') {
+  const c = color.toLowerCase();
+  if (c.includes('ef4444')) return 'red';
+  if (c.includes('22c55e') || c.includes('4ade80')) return 'green';
+  if (c.includes('60a5fa') || c.includes('3b82f6') || c.includes('bfdbfe')) return 'blue';
+  return 'yellow';
+}
+
 export default function LudoBoard({ players = [] }) {
 
   const [cell, setCell] = useState(40);
@@ -83,35 +118,40 @@ export default function LudoBoard({ players = [] }) {
       >
 
         {cells}
+        <div
+          className="ludo-start-frame ludo-red-frame"
+          style={{ gridRow: '1 / 7', gridColumn: '1 / 7' }}
+        />
+        <div
+          className="ludo-start-frame ludo-green-frame"
+          style={{ gridRow: '1 / 7', gridColumn: '10 / 16' }}
+        />
+        <div
+          className="ludo-start-frame ludo-yellow-frame"
+          style={{ gridRow: '10 / 16', gridColumn: '1 / 7' }}
+        />
+        <div
+          className="ludo-start-frame ludo-blue-frame"
+          style={{ gridRow: '10 / 16', gridColumn: '10 / 16' }}
+        />
 
         {players.map((p) =>
-
           p.tokens.map((t, i) => {
-
-            if (t < 0) return null;
-
-            const pos = PATH[t] || { r: 7, c: 7 };
-
+            const colorName = getColorName(p.color);
+            const pos =
+              t < 0
+                ? START_POSITIONS[colorName][i] || { r: 7, c: 7 }
+                : PATH[t] || { r: 7, c: 7 };
             return (
-
               <div
-
                 key={`${p.id}-${i}`}
-
                 className="token-wrapper"
-
                 style={{ gridRowStart: pos.r + 1, gridColumnStart: pos.c + 1 }}
-
               >
-
                 <LudoToken color={p.color} photoUrl={p.photoUrl} />
-
               </div>
-
             );
-
           })
-
         )}
 
       </div>
