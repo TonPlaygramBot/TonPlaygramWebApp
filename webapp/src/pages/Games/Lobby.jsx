@@ -16,6 +16,7 @@ import {
   getAccountBalance,
   addTransaction,
 } from '../../utils/api.js';
+import { getLudoLobbies, getLudoLobby } from '../../utils/ludoApi.js';
 import { getPlayerId, ensureAccountId, getTelegramId } from '../../utils/telegram.js';
 import { canStartGame } from '../../utils/lobby.js';
 import { SNAKE_CONTRACT_ADDRESS } from '../../utils/constants.js';
@@ -81,13 +82,20 @@ export default function Lobby() {
       setTables(dominoTables);
       setTable(dominoTables[0]);
     } else if (game === 'ludo') {
-      const ludoTables = [
-        { id: 'ludo-2', capacity: 2, players: 0 },
-        { id: 'ludo-3', capacity: 3, players: 0 },
-        { id: 'ludo-4', capacity: 4, players: 0 }
-      ];
-      setTables(ludoTables);
-      setTable(ludoTables[0]);
+      let active = true;
+      function load() {
+        getLudoLobbies()
+          .then((data) => {
+            if (active) setTables([{ id: 'single', label: 'Single Player vs AI' }, ...data]);
+          })
+          .catch(() => {});
+      }
+      load();
+      const id = setInterval(load, 5000);
+      return () => {
+        active = false;
+        clearInterval(id);
+      };
     }
   }, [game]);
 
@@ -116,6 +124,10 @@ export default function Lobby() {
         unseatTable(playerId, table.id).catch(() => {});
       };
     }
+    if (game === 'ludo' && table && table.id !== 'single') {
+      // No seat tracking for ludo yet
+      return undefined;
+    }
   }, [game, table, playerName]);
 
   useEffect(() => {
@@ -123,6 +135,21 @@ export default function Lobby() {
       let active = true;
       function loadPlayers() {
         getSnakeLobby(table.id)
+          .then((data) => {
+            if (active) setPlayers(data.players);
+          })
+          .catch(() => {});
+      }
+      loadPlayers();
+      const id = setInterval(loadPlayers, 3000);
+      return () => {
+        active = false;
+        clearInterval(id);
+      };
+    } else if (game === 'ludo' && table && table.id !== 'single') {
+      let active = true;
+      function loadPlayers() {
+        getLudoLobby(table.id)
           .then((data) => {
             if (active) setPlayers(data.players);
           })
@@ -180,6 +207,24 @@ export default function Lobby() {
         const tgId = getTelegramId();
         await addTransaction(tgId, -stake.amount, 'stake', {
           game: 'snake-ai',
+          players: aiCount + 1,
+        });
+      } catch {}
+    } else if (game === 'ludo' && table?.id === 'single') {
+      localStorage.removeItem(`ludoGameState_${aiCount}`);
+      params.set('ai', aiCount);
+      params.set('token', 'TPC');
+      if (stake.amount) params.set('amount', stake.amount);
+      try {
+        const accountId = await ensureAccountId();
+        const balRes = await getAccountBalance(accountId);
+        if ((balRes.balance || 0) < stake.amount) {
+          alert('Insufficient balance');
+          return;
+        }
+        const tgId = getTelegramId();
+        await addTransaction(tgId, -stake.amount, 'stake', {
+          game: 'ludo-ai',
           players: aiCount + 1,
         });
       } catch {}
@@ -247,7 +292,7 @@ export default function Lobby() {
           tokens={table?.id === 'single' ? ['TPC'] : undefined}
         />
       </div>
-      {game === 'snake' && table?.id === 'single' && (
+      {['snake', 'ludo'].includes(game) && table?.id === 'single' && (
         <div className="space-y-2">
           <h3 className="font-semibold">How many AI opponents?</h3>
           <div className="flex gap-2">

@@ -18,6 +18,7 @@ import HorseRacing from './pages/Games/HorseRacing.jsx';
 const SnakeAndLadder = lazy(() => import('./pages/Games/SnakeAndLadder.jsx'));
 const SnakeMultiplayer = lazy(() => import('./pages/Games/SnakeMultiplayer.jsx'));
 const SnakeResults = lazy(() => import('./pages/Games/SnakeResults.jsx'));
+const Ludo = lazy(() => import('./pages/Games/Ludo.jsx'));
 import Lobby from './pages/Games/Lobby.jsx';
 import Games from './pages/Games.jsx';
 import SpinPage from './pages/spin.tsx';
@@ -41,6 +42,14 @@ export default function App() {
           <Route path="/games/:game/lobby" element={<Lobby />} />
             <Route path="/games/horse" element={<HorseRacing />} />
           <Route path="/games/domino" element={<DominoPlay />} />
+          <Route
+            path="/games/ludo"
+            element={
+              <Suspense fallback={<div className="p-4 text-center">Loading...</div>}>
+                <Ludo />
+              </Suspense>
+            }
+          />
           <Route
             path="/games/snake"
             element={

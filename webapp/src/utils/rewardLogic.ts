@@ -1,4 +1,4 @@
-// Prize amounts available on the wheel. Added a 5000 TPC jackpot.
+// Prize amounts available on the wheel.
 export type Segment = number | 'BONUS_X3';
 
 export const segments: Segment[] = [
@@ -10,7 +10,6 @@ export const segments: Segment[] = [
   1500,
   1600,
   1800,
-  5000,
   'BONUS_X3',
 ];
 const COOLDOWN = 15 * 60_000; // 15 minutes

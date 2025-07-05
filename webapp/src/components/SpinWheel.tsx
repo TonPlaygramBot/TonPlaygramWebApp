@@ -147,7 +147,7 @@ export default forwardRef<SpinWheelHandle, SpinWheelProps>(function SpinWheel(
           successSoundRef.current.currentTime = 0;
           successSoundRef.current.play().catch(() => {});
         }
-      } else if (reward === 1600 || reward === 1800 || reward === 5000) {
+      } else if (reward === 1600 || reward === 1800) {
         if (freeSpinSoundRef.current) {
           freeSpinSoundRef.current.currentTime = 0;
           freeSpinSoundRef.current.play().catch(() => {});
@@ -224,7 +224,7 @@ export default forwardRef<SpinWheelHandle, SpinWheelProps>(function SpinWheel(
                 <span className="text-red-600 font-bold drop-shadow-[0_0_2px_black]">
                   BONUS X3
                 </span>
-              ) : val === 1600 || val === 1800 || val === 5000 ? (
+              ) : val === 1600 || val === 1800 ? (
                 <>
                   <img
                     src="/assets/icons/FreeSpin.png"
@@ -234,7 +234,6 @@ export default forwardRef<SpinWheelHandle, SpinWheelProps>(function SpinWheel(
                   <span>
                     {val === 1600 && '1'}
                     {val === 1800 && '2'}
-                    {val === 5000 && '3'}
                   </span>
                 </>
               ) : (
