@@ -43,13 +43,13 @@ function getColorName(color = '') {
 
 export default function LudoBoard({ players = [] }) {
 
-  const [cell, setCell] = useState(40);
+  const [cell, setCell] = useState(60);
 
   useEffect(() => {
 
     const update = () => {
 
-      const width = Math.min(window.innerWidth, 600);
+      const width = Math.min(window.innerWidth, 900);
 
       const cw = Math.floor(width / SIZE);
 
@@ -111,7 +111,7 @@ export default function LudoBoard({ players = [] }) {
 
           '--board-angle': `${ANGLE}deg`,
 
-          transform: `translateZ(-50px) rotateX(${ANGLE}deg)`
+          transform: `translateZ(-50px) rotateX(${ANGLE}deg) scale(1.3)`
 
         }}
 
