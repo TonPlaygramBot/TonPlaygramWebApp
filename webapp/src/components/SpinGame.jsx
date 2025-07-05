@@ -159,7 +159,7 @@ export default function SpinGame() {
       <h3 className="text-lg font-bold text-text">Spin &amp; Win</h3>
       <p className="text-sm text-subtext">Try your luck and win rewards!</p>
       <div className="flex items-start space-x-1">
-        {bonusActive && (
+        <div className="relative" style={{ opacity: bonusActive ? 1 : 0.15 }}>
           <SpinWheel
             ref={leftWheelRef}
             onFinish={handleBonusFinish}
@@ -168,7 +168,12 @@ export default function SpinGame() {
             disabled={!bonusActive}
             showButton={false}
           />
-        )}
+          {!bonusActive && (
+            <span className="absolute inset-0 flex items-center justify-center text-xs text-white text-center pointer-events-none">
+              Bonus to Activate
+            </span>
+          )}
+        </div>
         <SpinWheel
           ref={wheelRef}
           onFinish={handleFinish}
@@ -177,7 +182,7 @@ export default function SpinGame() {
           disabled={!ready}
           showButton={false}
         />
-        {bonusActive && (
+        <div className="relative" style={{ opacity: bonusActive ? 1 : 0.15 }}>
           <SpinWheel
             ref={rightWheelRef}
             onFinish={handleBonusFinish}
@@ -186,7 +191,12 @@ export default function SpinGame() {
             disabled={!bonusActive}
             showButton={false}
           />
-        )}
+          {!bonusActive && (
+            <span className="absolute inset-0 flex items-center justify-center text-xs text-white text-center pointer-events-none">
+              Bonus to Activate
+            </span>
+          )}
+        </div>
       </div>
       <button
         onClick={triggerSpin}

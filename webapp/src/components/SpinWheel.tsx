@@ -136,11 +136,11 @@ export default forwardRef<SpinWheelHandle, SpinWheelProps>(function SpinWheel(
 
   return (
 
-    <div className="w-36 mx-auto flex flex-col items-center">
+    <div className="w-32 mx-auto flex flex-col items-center">
 
       <div
 
-        className="relative overflow-hidden w-32"
+        className="relative overflow-hidden w-28"
 
         style={{ height: itemHeight * visibleRows }}
 
@@ -158,7 +158,7 @@ export default forwardRef<SpinWheelHandle, SpinWheelProps>(function SpinWheel(
 
         <div
 
-          className="flex flex-col items-center w-32"
+          className="flex flex-col items-center w-28"
 
           style={{
 
@@ -176,7 +176,7 @@ export default forwardRef<SpinWheelHandle, SpinWheelProps>(function SpinWheel(
 
               key={idx}
 
-              className={`board-style flex items-center justify-center text-sm w-32 font-bold ${
+              className={`board-style flex items-center justify-center text-sm w-28 font-bold ${
 
                 idx === winnerIndex ? 'bg-yellow-300 text-black' : 'text-white'
 
@@ -198,9 +198,9 @@ export default forwardRef<SpinWheelHandle, SpinWheelProps>(function SpinWheel(
                     className="w-8 h-8 mr-1"
                   />
                   <span>
-                    {val === 1600 && '1 Free Spin'}
-                    {val === 1800 && '2 Free Spins'}
-                    {val === 5000 && '3 Free Spins'}
+                    {val === 1600 && '1'}
+                    {val === 1800 && '2'}
+                    {val === 5000 && '3'}
                   </span>
                 </>
               ) : (
