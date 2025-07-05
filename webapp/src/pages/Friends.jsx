@@ -204,7 +204,7 @@ export default function Friends() {
             <span className="ml-1">{onlineCount}</span>
           </span>
         </h3>
-        <div className="max-h-96 overflow-y-auto border border-border rounded">
+        <div className="max-h-[80rem] overflow-y-auto border border-border rounded">
           <table className="w-full text-sm">
             <thead className="sticky top-0 bg-surface">
               <tr className="border-b border-border text-left">

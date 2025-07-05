@@ -12,7 +12,13 @@ export default function GameCard({ title, description, link, icon }) {
   }
 
   return (
-    <div className="bg-surface p-4 rounded-xl shadow-lg space-y-2 text-center">
+    <div className="relative bg-surface border border-border rounded-xl p-4 shadow-lg space-y-2 text-center overflow-hidden">
+      <img
+        loading="lazy"
+        src="/assets/SnakeLaddersbackground.png"
+        className="background-behind-board object-cover"
+        alt=""
+      />
       {iconNode}
       <h3 className="text-lg font-bold text-text">{title}</h3>
       {description && <p className="text-subtext text-sm">{description}</p>}

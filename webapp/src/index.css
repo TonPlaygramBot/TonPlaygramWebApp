@@ -921,16 +921,17 @@ input:focus {
 
 .coin-img {
   position: absolute;
-  left: -10px;
+  left: -16px;
   bottom: 0;
-  width: 20px;
-  height: 20px;
+  width: 32px;
+  height: 32px;
   transform: translate(-50%, 0);
   animation-name: coin-up;
   animation-duration: var(--dur);
   animation-delay: var(--delay);
   animation-timing-function: ease-out;
   animation-fill-mode: forwards;
+  filter: brightness(1.5) drop-shadow(0 0 4px gold);
 }
 
 .board-emojis {
