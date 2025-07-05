@@ -71,17 +71,10 @@ export default function LudoBoard({ players = [] }) {
 
     for (let c = 0; c < SIZE; c++) {
 
-      let cls = 'ludo-cell board-cell';
-
-      if (r < 6 && c < 6) cls += ' ludo-red';
-
-      else if (r < 6 && c >= 9) cls += ' ludo-green';
-
-      else if (r >= 9 && c < 6) cls += ' ludo-yellow';
-
-      else if (r >= 9 && c >= 9) cls += ' ludo-blue';
-
-      cells.push(<div key={`${r}-${c}`} className={cls}></div>);
+      // Use a single white cell style for all squares
+      cells.push(
+        <div key={`${r}-${c}`} className="ludo-cell board-cell"></div>
+      );
 
     }
 
@@ -118,22 +111,6 @@ export default function LudoBoard({ players = [] }) {
       >
 
         {cells}
-        <div
-          className="ludo-start-frame ludo-red-frame"
-          style={{ gridRow: '1 / 7', gridColumn: '1 / 7' }}
-        />
-        <div
-          className="ludo-start-frame ludo-green-frame"
-          style={{ gridRow: '1 / 7', gridColumn: '10 / 16' }}
-        />
-        <div
-          className="ludo-start-frame ludo-yellow-frame"
-          style={{ gridRow: '10 / 16', gridColumn: '1 / 7' }}
-        />
-        <div
-          className="ludo-start-frame ludo-blue-frame"
-          style={{ gridRow: '10 / 16', gridColumn: '10 / 16' }}
-        />
 
         {players.map((p) =>
           p.tokens.map((t, i) => {
