@@ -8,11 +8,24 @@ export default function DominoPlay() {
   useTelegramBackButton();
   const [mode, setMode] = useState('ai-easy');
   const [started, setStarted] = useState(false);
+  const [token, setToken] = useState('TPC');
+  const [amount, setAmount] = useState(0);
   const [hands, setHands] = useState([]);
   const [deck, setDeck] = useState([]);
   const [board, setBoard] = useState([]);
   const [turn, setTurn] = useState(0);
   const [winner, setWinner] = useState(null);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const tok = params.get('token');
+    const amt = params.get('amount');
+    if (tok) setToken(tok.toUpperCase());
+    if (amt) setAmount(Number(amt));
+    if (tok || amt) {
+      startGame();
+    }
+  }, []);
 
   useEffect(() => {
     if (started && mode.startsWith('ai') && turn === 1 && !winner) {
@@ -121,6 +134,7 @@ export default function DominoPlay() {
   return (
     <div className="p-4 space-y-4 text-text">
       <h2 className="text-xl font-bold text-center">DominoPlay</h2>
+      <p className="text-center">Stake: {amount} {token}</p>
       {winner !== null && <div className="text-center">Player {winner + 1} wins!</div>}
       <DominoBoard pieces={board} />
       <div className="flex space-x-2 overflow-x-auto">
