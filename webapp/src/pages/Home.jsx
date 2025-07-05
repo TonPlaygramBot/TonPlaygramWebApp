@@ -9,6 +9,7 @@ import SpinGame from '../components/SpinGame.jsx';
 import DailyCheckIn from '../components/DailyCheckIn.jsx';
 
 import TasksCard from '../components/TasksCard.jsx';
+import StoreAd from '../components/StoreAd.jsx';
 
 import {
   FaUser,
@@ -167,6 +168,7 @@ export default function Home() {
       <div className="grid grid-cols-1 gap-4">
         <MiningCard />
         <TasksCard />
+        <StoreAd />
         <ProfileCard />
       </div>
 
