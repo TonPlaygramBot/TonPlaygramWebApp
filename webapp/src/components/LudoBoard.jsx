@@ -110,6 +110,7 @@ export default function LudoBoard({ players = [] }) {
           '--cell-height': `${cell}px`,
 
           '--board-angle': `${ANGLE}deg`,
+          '--wall-height': `${cell * SIZE}px`,
 
           transform: `translateZ(-50px) rotateX(${ANGLE}deg)`
 
@@ -153,6 +154,10 @@ export default function LudoBoard({ players = [] }) {
             );
           })
         )}
+        <div className="ludo-wall back-wall" />
+        <div className="ludo-wall left-wall" />
+        <div className="ludo-wall right-wall" />
+        <div className="ludo-wall front-wall" />
 
       </div>
 
