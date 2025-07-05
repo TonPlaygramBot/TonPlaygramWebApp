@@ -9,7 +9,6 @@ import Wallet from './pages/Wallet.jsx';
 import Tasks from './pages/Tasks.jsx';
 import Referral from './pages/Referral.jsx';
 import MyAccount from './pages/MyAccount.jsx';
-import ProtectedRoute from './components/ProtectedRoute.jsx';
 import Store from './pages/Store.jsx';
 import Messages from './pages/Messages.jsx';
 import Trending from './pages/Trending.jsx';
@@ -79,11 +78,11 @@ export default function App() {
           <Route path="/tasks" element={<Tasks />} />
           <Route path="/store" element={<Store />} />
           <Route path="/referral" element={<Referral />} />
-          <Route path="/wallet" element={<ProtectedRoute><Wallet /></ProtectedRoute>} />
+          <Route path="/wallet" element={<Wallet />} />
           <Route path="/messages" element={<Messages />} />
           <Route path="/notifications" element={<Notifications />} />
           <Route path="/trending" element={<Trending />} />
-          <Route path="/account" element={<ProtectedRoute><MyAccount /></ProtectedRoute>} />
+          <Route path="/account" element={<MyAccount />} />
         </Routes>
         </Layout>
       </TonConnectUIProvider>
