@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useLayoutEffect, Fragment } from "react";
-import confetti from "canvas-confetti";
+import coinConfetti from "../../utils/coinConfetti";
 import DiceRoller from "../../components/DiceRoller.jsx";
 import {
   dropSound,
@@ -1407,7 +1407,7 @@ export default function SnakeAndLadder() {
           setMessage(`You win ${winAmt} ${token}!`);
           setMessageColor("");
           if (!muted) winSoundRef.current?.play().catch(() => {});
-          confetti({ particleCount: 150, spread: 70, origin: { y: 0.6 } });
+          coinConfetti(50);
           setCelebrate(true);
           setTimeout(() => {
             setCelebrate(false);

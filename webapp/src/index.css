@@ -1332,3 +1332,23 @@ input:focus {
 .ludo-green-frame { border-color: #22c55e; }
 .ludo-yellow-frame { border-color: #eab308; }
 .ludo-blue-frame { border-color: #3b82f6; }
+
+.coin-confetti {
+  position: fixed;
+  top: -40px;
+  width: 32px;
+  height: 32px;
+  pointer-events: none;
+  animation: coin-fall var(--duration, 3s) linear forwards;
+}
+
+@keyframes coin-fall {
+  from {
+    transform: translateY(-10vh) rotate(0deg);
+    opacity: 1;
+  }
+  to {
+    transform: translateY(100vh) rotate(360deg);
+    opacity: 0;
+  }
+}
