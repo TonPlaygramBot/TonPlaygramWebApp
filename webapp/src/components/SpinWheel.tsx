@@ -163,8 +163,6 @@ export default forwardRef<SpinWheelHandle, SpinWheelProps>(function SpinWheel(
         }
       }
       onFinish(reward);
-      setWheelSegments(shuffleSegments(baseSegments));
-      setOffset(0);
     }, 4000);
   };
 
