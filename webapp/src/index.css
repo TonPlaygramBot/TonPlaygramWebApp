@@ -1297,29 +1297,13 @@ input:focus {
 
   height: calc(var(--cell-height) * 0.6);
 
-  border-radius: 0;
+  border-radius: 50%;
 
   border: 2px solid #000;
 
   transition: transform 0.3s;
 
   transform: translateZ(10px);
-
-}
-
-.ludo-base {
-
-  position: absolute;
-
-  display: grid;
-
-  grid-template-columns: 1fr 1fr;
-
-  grid-template-rows: 1fr 1fr;
-
-  gap: 2px;
-
-  transform-style: preserve-3d;
 
 }
 
@@ -1330,4 +1314,3 @@ input:focus {
   transform-style: preserve-3d;
 
 }
-
