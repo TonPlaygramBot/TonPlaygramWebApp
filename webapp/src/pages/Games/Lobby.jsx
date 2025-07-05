@@ -80,6 +80,14 @@ export default function Lobby() {
       ];
       setTables(dominoTables);
       setTable(dominoTables[0]);
+    } else if (game === 'ludo') {
+      const ludoTables = [
+        { id: 'ludo-2', capacity: 2, players: 0 },
+        { id: 'ludo-3', capacity: 3, players: 0 },
+        { id: 'ludo-4', capacity: 4, players: 0 }
+      ];
+      setTables(ludoTables);
+      setTable(ludoTables[0]);
     }
   }, [game]);
 
@@ -203,7 +211,7 @@ export default function Lobby() {
       />
       <h2 className="text-xl font-bold text-center capitalize">{game} Lobby</h2>
       <p className="text-center text-sm">Online users: {online}</p>
-      {['snake', 'domino'].includes(game) && (
+      {['snake', 'domino', 'ludo'].includes(game) && (
         <div className="space-y-2">
           <div className="flex items-center justify-between">
             <h3 className="font-semibold">Select Table</h3>
