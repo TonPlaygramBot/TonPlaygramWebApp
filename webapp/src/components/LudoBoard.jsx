@@ -1,13 +1,27 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import LudoToken from './LudoToken.jsx';
 
 const SIZE = 15;
+const ANGLE = 58;
 
 export default function LudoBoard({ players = [] }) {
+  const [cell, setCell] = useState(40);
+
+  useEffect(() => {
+    const update = () => {
+      const width = Math.min(window.innerWidth, 600);
+      const cw = Math.floor(width / SIZE);
+      setCell(cw);
+    };
+    update();
+    window.addEventListener('resize', update);
+    return () => window.removeEventListener('resize', update);
+  }, []);
+
   const cells = [];
   for (let r = 0; r < SIZE; r++) {
     for (let c = 0; c < SIZE; c++) {
-      let cls = 'ludo-cell';
+      let cls = 'board-cell';
       if (r < 6 && c < 6) cls += ' ludo-red';
       else if (r < 6 && c >= 9) cls += ' ludo-green';
       else if (r >= 9 && c < 6) cls += ' ludo-yellow';
@@ -17,23 +31,37 @@ export default function LudoBoard({ players = [] }) {
   }
 
   return (
-    <div className="ludo-board">
-      {cells}
-      {players.map((p) =>
-        p.tokens.map((t, i) => {
-          if (t < 0) return null;
-          const pos = PATH[t] || { r: 7, c: 7 };
-          return (
-            <div
-              key={`${p.id}-${i}`}
-              className="token-wrapper"
-              style={{ gridRowStart: pos.r + 1, gridColumnStart: pos.c + 1 }}
-            >
-              <LudoToken color={p.color} />
-            </div>
-          );
-        })
-      )}
+    <div className="ludo-board-tilt">
+      <div
+        className="ludo-board-grid"
+        style={{
+          width: `${cell * SIZE}px`,
+          height: `${cell * SIZE}px`,
+          gridTemplateColumns: `repeat(${SIZE}, ${cell}px)`,
+          gridTemplateRows: `repeat(${SIZE}, ${cell}px)`,
+          '--cell-width': `${cell}px`,
+          '--cell-height': `${cell}px`,
+          '--board-angle': `${ANGLE}deg`,
+          transform: `translateZ(-50px) rotateX(${ANGLE}deg)`
+        }}
+      >
+        {cells}
+        {players.map((p) =>
+          p.tokens.map((t, i) => {
+            if (t < 0) return null;
+            const pos = PATH[t] || { r: 7, c: 7 };
+            return (
+              <div
+                key={`${p.id}-${i}`}
+                className="token-wrapper"
+                style={{ gridRowStart: pos.r + 1, gridColumnStart: pos.c + 1 }}
+              >
+                <LudoToken color={p.color} />
+              </div>
+            );
+          })
+        )}
+      </div>
     </div>
   );
 }
