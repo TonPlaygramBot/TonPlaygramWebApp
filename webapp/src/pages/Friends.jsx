@@ -120,19 +120,14 @@ export default function Friends() {
   const link = `https://t.me/${BOT_USERNAME}?start=${referral.referralCode}`;
 
   return (
-    <div className="relative p-4 space-y-4 text-text">
+    <div className="relative bg-surface border border-border rounded-xl p-4 space-y-4 text-text overflow-hidden">
       <img
         loading="lazy"
         src="/assets/SnakeLaddersbackground.png"
-        className="background-behind-board friend-background object-cover"
+        className="background-behind-board object-cover"
         alt=""
       />
       <h2 className="text-xl font-bold">Friends</h2>
-
-      <section className="space-y-1">
-        <h3 className="text-lg font-semibold">Add Friends</h3>
-        <UserSearchBar />
-      </section>
 
       {friendRequests.length > 0 && (
         <section className="space-y-1">
@@ -184,7 +179,13 @@ export default function Friends() {
         </div>
       </section>
 
-      <section id="leaderboard" className="space-y-2">
+      <section id="leaderboard" className="relative bg-surface border border-border rounded-xl p-4 space-y-2 overflow-hidden">
+        <img
+          loading="lazy"
+          src="/assets/SnakeLaddersbackground.png"
+          className="background-behind-board object-cover"
+          alt=""
+        />
         <h3 className="text-lg font-semibold flex items-center justify-between">
           <span>Leaderboard</span>
           <span className="flex items-center space-x-2">
@@ -287,6 +288,10 @@ export default function Friends() {
             </tbody>
           </table>
         </div>
+      </section>
+      <section className="space-y-1">
+        <h3 className="text-lg font-semibold">Add Friends</h3>
+        <UserSearchBar />
       </section>
       {mode === 'group' && (
         <div className="space-y-2">
