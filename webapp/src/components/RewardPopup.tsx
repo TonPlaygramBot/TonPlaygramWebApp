@@ -6,21 +6,23 @@ import { Segment } from '../utils/rewardLogic';
 interface RewardPopupProps {
   reward: Segment | null;
   onClose: () => void;
+  duration?: number;
+  showCloseButton?: boolean;
 }
 
-export default function RewardPopup({ reward, onClose }: RewardPopupProps) {
+export default function RewardPopup({ reward, onClose, duration = 2500, showCloseButton = true }: RewardPopupProps) {
   if (reward === null) return null;
   useEffect(() => {
     coinConfetti(50);
     const audio = new Audio('/assets/sounds/man-cheering-in-victory-epic-stock-media-1-00-01.mp3');
     audio.volume = getGameVolume();
     audio.play().catch(() => {});
-    const timer = setTimeout(onClose, 2500);
+    const timer = setTimeout(onClose, duration);
     return () => {
       audio.pause();
       clearTimeout(timer);
     };
-  }, [onClose]);
+  }, [onClose, duration]);
   return (
     <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-70 z-50">
       <div className="text-center space-y-4 text-text">
@@ -71,12 +73,14 @@ export default function RewardPopup({ reward, onClose }: RewardPopupProps) {
             </>
           )}
         </div>
-        <button
-          onClick={onClose}
-          className="px-4 py-1 bg-primary hover:bg-primary-hover text-white rounded w-full"
-        >
-          Close
-        </button>
+        {showCloseButton && (
+          <button
+            onClick={onClose}
+            className="px-4 py-1 bg-primary hover:bg-primary-hover text-white rounded w-full"
+          >
+            Close
+          </button>
+        )}
       </div>
     </div>
   );

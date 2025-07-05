@@ -16,7 +16,7 @@ export default {
         subtext: '#66fcff',           // Slightly dimmed blue
         accent: '#00f7ff',            // Accent color
         brand: {
-          gold: '#00f7ff',            // Not used but keep scheme consistent
+          gold: '#facc15',            // Yellow highlight
           black: '#000000'
         }
       }

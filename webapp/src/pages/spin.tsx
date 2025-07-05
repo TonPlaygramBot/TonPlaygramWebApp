@@ -128,15 +128,17 @@ export default function SpinPage() {
       <h1 className="text-xl font-bold">Spin &amp; Win</h1>
       <p className="text-sm text-subtext">Try your luck and win rewards!</p>
       <div className="bg-surface border border-border rounded p-4 flex flex-col items-center space-y-2">
-        <div className="flex space-x-2">
-          <SpinWheel
-            ref={leftRef}
-            onFinish={() => {}}
-            spinning={spinningLeft}
-            setSpinning={setSpinningLeft}
-            disabled={!ready}
-            showButton={false}
-          />
+        <div className="flex justify-center">
+          <div className="mr-[-8px]">
+            <SpinWheel
+              ref={leftRef}
+              onFinish={() => {}}
+              spinning={spinningLeft}
+              setSpinning={setSpinningLeft}
+              disabled={!ready}
+              showButton={false}
+            />
+          </div>
           <SpinWheel
             ref={mainRef}
             onFinish={handleFinish}
@@ -145,14 +147,16 @@ export default function SpinPage() {
             disabled={!ready}
             showButton={false}
           />
-          <SpinWheel
-            ref={middleRef}
-            onFinish={() => {}}
-            spinning={spinningMiddle}
-            setSpinning={setSpinningMiddle}
-            disabled={!ready}
-            showButton={false}
-          />
+          <div className="ml-[-8px]">
+            <SpinWheel
+              ref={middleRef}
+              onFinish={() => {}}
+              spinning={spinningMiddle}
+              setSpinning={setSpinningMiddle}
+              disabled={!ready}
+              showButton={false}
+            />
+          </div>
         </div>
         <div className="flex space-x-2 mt-4">
           <button
@@ -182,6 +186,8 @@ export default function SpinPage() {
       <RewardPopup
         reward={reward}
         onClose={() => setReward(null)}
+        duration={1500}
+        showCloseButton={false}
       />
       <AdModal
         open={showAd}

@@ -200,6 +200,15 @@ export default function Friends() {
               <option value="1v1">1v1</option>
               <option value="group">Group</option>
             </select>
+            {mode === 'group' && (
+              <button
+                onClick={() => setGroupPopup(true)}
+                disabled={selected.length === 0}
+                className="px-2 py-1 bg-primary hover:bg-primary-hover rounded text-sm disabled:opacity-50"
+              >
+                Invite {selected.length}/3
+              </button>
+            )}
             <FaCircle className={onlineCount > 0 ? 'text-green-500' : 'text-red-500'} size={10} />
             <span className="ml-1">{onlineCount}</span>
           </span>
@@ -293,18 +302,6 @@ export default function Friends() {
         <h3 className="text-lg font-semibold">Add Friends</h3>
         <UserSearchBar />
       </section>
-      {mode === 'group' && (
-        <div className="space-y-2">
-          <p className="text-sm">Selected {selected.length}/3</p>
-          <button
-            onClick={() => setGroupPopup(true)}
-            disabled={selected.length === 0}
-            className="px-2 py-1 bg-primary hover:bg-primary-hover rounded disabled:opacity-50"
-          >
-            Invite Group
-          </button>
-        </div>
-      )}
       <InvitePopup
         open={!!inviteTarget}
         name={inviteTarget?.nickname || `${inviteTarget?.firstName || ''} ${inviteTarget?.lastName || ''}`.trim()}

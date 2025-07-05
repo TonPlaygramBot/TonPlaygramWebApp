@@ -210,7 +210,7 @@ export default forwardRef<SpinWheelHandle, SpinWheelProps>(function SpinWheel(
 
               key={idx}
 
-              className={`board-style flex items-center justify-center text-sm w-28 font-bold ${
+              className={`board-style border-2 border-border flex items-center justify-center text-sm w-28 font-bold ${
 
                 idx === winnerIndex ? 'bg-yellow-300 text-black' : 'text-white'
 
