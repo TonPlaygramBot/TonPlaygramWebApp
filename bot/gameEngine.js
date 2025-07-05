@@ -5,6 +5,7 @@ export const DEFAULT_LADDERS = { 3: 22, 27: 46 };
 export const ROLL_COOLDOWN_MS = 1000;
 export const RECONNECT_GRACE_MS = 60000;
 import { SnakeGame } from './logic/snakeGame.js';
+import { LudoGame } from './logic/ludoGame.js';
 
 import GameRoomModel from './models/GameRoom.js';
 
@@ -46,25 +47,32 @@ function generateBoard() {
 }
 
 export class GameRoom {
-  constructor(id, io, capacity = 4, board = {}) {
+  constructor(id, io, capacity = 4, board = {}, gameType = 'snake') {
     this.id = id;
     this.io = io;
     this.capacity = capacity;
+    this.gameType = gameType;
     this.currentTurn = 0;
     this.status = 'waiting';
-    if (board.snakes && board.ladders) {
-      this.snakes = board.snakes;
-      this.ladders = board.ladders;
-    } else {
-      const b = generateBoard();
-      this.snakes = b.snakes;
-      this.ladders = b.ladders;
+    if (this.gameType === 'snake') {
+      if (board.snakes && board.ladders) {
+        this.snakes = board.snakes;
+        this.ladders = board.ladders;
+      } else {
+        const b = generateBoard();
+        this.snakes = b.snakes;
+        this.ladders = b.ladders;
+      }
     }
     this.rollCooldown = ROLL_COOLDOWN_MS;
     this.reconnectGrace = RECONNECT_GRACE_MS;
     this.turnTimer = null;
     this.cheatWarnings = {};
-    this.game = new SnakeGame({ snakes: this.snakes, ladders: this.ladders });
+    if (this.gameType === 'snake') {
+      this.game = new SnakeGame({ snakes: this.snakes, ladders: this.ladders });
+    } else {
+      this.game = new LudoGame(this.capacity);
+    }
     this.players = this.game.players;
   }
 
@@ -115,15 +123,24 @@ export class GameRoom {
     if (this.status !== 'waiting') return;
     // The board is generated when the room is created and should remain
     // consistent for all players. Do not regenerate it here.
-    this.game.snakes = this.snakes;
-    this.game.ladders = this.ladders;
+    if (this.gameType === 'snake') {
+      this.game.snakes = this.snakes;
+      this.game.ladders = this.ladders;
+    }
     this.game.currentTurn = 0;
     this.game.finished = false;
-    this.players.forEach((p) => {
-      p.position = 0;
-      p.diceCount = 2;
-      p.isActive = false;
-    });
+    if (this.gameType === 'snake') {
+      this.players.forEach((p) => {
+        p.position = 0;
+        p.diceCount = 2;
+        p.isActive = false;
+      });
+    } else {
+      this.players.forEach((p) => {
+        p.tokens = Array(4).fill(-1);
+        p.finished = 0;
+      });
+    }
     this.status = 'playing';
     this.currentTurn = 0;
     this.io.to(this.id).emit('gameStarted');
@@ -190,40 +207,59 @@ export class GameRoom {
 
     const prevPositions = this.players.map((p) => p.position);
 
-    const result = this.game.rollDice(value != null ? [value] : undefined);
-    if (!result) return;
+    if (this.gameType === 'snake') {
+      const result = this.game.rollDice(value != null ? [value] : undefined);
+      if (!result) return;
 
-    const total = result.dice.reduce((a, b) => a + b, 0);
-    this.io.to(this.id).emit('diceRolled', { playerId: player.playerId, value: total });
-    const from = prevPositions[playerIndex];
-    const to = result.path.length ? result.path[result.path.length - 1] : from;
+      const total = result.dice.reduce((a, b) => a + b, 0);
+      this.io.to(this.id).emit('diceRolled', { playerId: player.playerId, value: total });
+      const from = prevPositions[playerIndex];
+      const to = result.path.length ? result.path[result.path.length - 1] : from;
 
-    if (to !== from) {
-      this.io.to(this.id).emit('movePlayer', { playerId: player.playerId, from, to });
-      if (result.position !== to) {
-        this.io.to(this.id).emit('snakeOrLadder', { playerId: player.playerId, from: to, to: result.position });
+      if (to !== from) {
+        this.io.to(this.id).emit('movePlayer', { playerId: player.playerId, from, to });
+        if (result.position !== to) {
+          this.io.to(this.id).emit('snakeOrLadder', { playerId: player.playerId, from: to, to: result.position });
+        }
       }
-    }
 
-    this.players.forEach((p, idx) => {
-      if (idx !== playerIndex && prevPositions[idx] !== 0 && p.position === 0) {
-        this.io.to(this.id).emit('playerReset', { playerId: p.playerId });
+      this.players.forEach((p, idx) => {
+        if (idx !== playerIndex && prevPositions[idx] !== 0 && p.position === 0) {
+          this.io.to(this.id).emit('playerReset', { playerId: p.playerId });
+        }
+      });
+
+      if (result.finished) {
+        this.status = 'finished';
+        GameResult.create({
+          winner: player.name,
+          participants: this.players.map((p) => p.name)
+        }).catch((err) =>
+          console.error('Failed to store game result:', err.message)
+        );
+        this.io.to(this.id).emit('gameWon', { playerId: player.playerId });
+        return;
       }
-    });
 
-    if (result.finished) {
-      this.status = 'finished';
-      GameResult.create({
-        winner: player.name,
-        participants: this.players.map((p) => p.name)
-      }).catch((err) =>
-        console.error('Failed to store game result:', err.message)
-      );
-      this.io.to(this.id).emit('gameWon', { playerId: player.playerId });
-      return;
+      this.currentTurn = this.game.currentTurn;
+    } else {
+      const result = this.game.rollDice(value);
+      if (!result) return;
+      this.io.to(this.id).emit('diceRolled', { playerId: player.playerId, value: result.dice });
+      if (result.token !== -1) {
+        this.io.to(this.id).emit('moveToken', {
+          playerId: player.playerId,
+          token: result.token,
+          position: result.position
+        });
+      }
+      if (result.finished) {
+        this.status = 'finished';
+        this.io.to(this.id).emit('gameWon', { playerId: player.playerId });
+        return;
+      }
+      this.currentTurn = this.game.currentTurn;
     }
-
-    this.currentTurn = this.game.currentTurn;
     this.emitNextTurn();
   }
 
@@ -251,7 +287,12 @@ export class GameRoom {
 
   finalizeDisconnect(player) {
     if (!player.disconnected) return;
-    player.position = 0;
+    if (this.gameType === 'snake') {
+      player.position = 0;
+    } else {
+      player.tokens = Array(4).fill(-1);
+      player.finished = 0;
+    }
     player.disconnectTimer = null;
     this.io.to(this.id).emit('playerLeft', { playerId: player.playerId });
     if (this.status === 'playing') {
@@ -277,6 +318,8 @@ export class GameRoom {
           name: p.name,
           position: p.position,
           isActive: p.isActive,
+          tokens: p.tokens,
+          finished: p.finished,
           disconnected: p.disconnected,
         })),
         status: this.status,
@@ -299,7 +342,7 @@ export class GameRoomManager {
       const room = new GameRoom(doc.roomId, this.io, doc.capacity, {
         snakes: Object.fromEntries(doc.snakes),
         ladders: Object.fromEntries(doc.ladders)
-      });
+      }, doc.gameType || 'snake');
       room.players = doc.players.map((p) => ({
         ...p.toObject(),
         socketId: null,
@@ -315,6 +358,7 @@ export class GameRoomManager {
     const doc = {
       roomId: room.id,
       capacity: room.capacity,
+      gameType: room.gameType,
       status: room.status,
       currentTurn: room.currentTurn,
       snakes: room.snakes,
@@ -324,6 +368,8 @@ export class GameRoomManager {
         name: p.name,
         position: p.position,
         isActive: p.isActive,
+        tokens: p.tokens,
+        finished: p.finished,
         disconnected: p.disconnected
       }))
     };
@@ -340,7 +386,7 @@ export class GameRoomManager {
         room = new GameRoom(id, this.io, record.capacity, {
           snakes: Object.fromEntries(record.snakes),
           ladders: Object.fromEntries(record.ladders)
-        });
+        }, record.gameType || 'snake');
         room.players = record.players.map((p) => ({
           ...p.toObject(),
           socketId: null,
@@ -349,12 +395,14 @@ export class GameRoomManager {
         room.currentTurn = record.currentTurn;
         room.status = record.status;
       } else {
-        room = new GameRoom(id, this.io, capacity, board);
+        const type = id.startsWith('ludo') ? 'ludo' : 'snake';
+        room = new GameRoom(id, this.io, capacity, board, type);
         await GameRoomModel.updateOne(
           { roomId: id },
           {
             roomId: id,
             capacity: room.capacity,
+            gameType: room.gameType,
             status: room.status,
             currentTurn: room.currentTurn,
             snakes: room.snakes,

@@ -13,6 +13,7 @@ const playerSchema = new mongoose.Schema(
 
 const gameRoomSchema = new mongoose.Schema({
   roomId: { type: String, unique: true },
+  gameType: { type: String, default: 'snake' },
   capacity: { type: Number, default: 4 },
   status: { type: String, default: 'waiting' },
   currentTurn: { type: Number, default: 0 },

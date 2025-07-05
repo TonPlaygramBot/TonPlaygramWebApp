@@ -1235,3 +1235,31 @@ input:focus {
   font-size: 1rem;
   z-index: 1;
 }
+.ludo-board {
+  display: grid;
+  grid-template-columns: repeat(15, 1fr);
+  grid-template-rows: repeat(15, 1fr);
+  gap: 2px;
+  width: 300px;
+  height: 300px;
+  position: relative;
+}
+.ludo-cell {
+  width: 100%;
+  height: 100%;
+  background: #eee;
+}
+.ludo-red { background:#fecaca; }
+.ludo-green { background:#bbf7d0; }
+.ludo-yellow { background:#fef08a; }
+.ludo-blue { background:#bfdbfe; }
+.ludo-token {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: 2px solid #000;
+  transition: transform 0.3s;
+}
+.token-wrapper {
+  position: absolute;
+}
