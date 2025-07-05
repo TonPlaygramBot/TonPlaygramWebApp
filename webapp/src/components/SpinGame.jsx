@@ -163,7 +163,7 @@ export default function SpinGame() {
       />
       <h3 className="text-lg font-bold text-text">Spin &amp; Win</h3>
       <p className="text-sm text-subtext">Try your luck and win rewards!</p>
-      <div className="flex items-start space-x-0">
+      <div className="flex items-start space-x-1">
         <div className="relative">
           <div style={{ opacity: bonusActive ? 1 : 0.15 }}>
             <SpinWheel
