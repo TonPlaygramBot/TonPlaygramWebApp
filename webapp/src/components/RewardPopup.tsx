@@ -22,7 +22,7 @@ export default function RewardPopup({ reward, onClose, message }: RewardPopupPro
   }, []);
   return (
     <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-70 z-50">
-      <div className="bg-surface border border-border p-6 rounded text-center space-y-4 text-text w-80">
+      <div className="text-center space-y-4 text-text">
         <img
           loading="lazy"
           src="/assets/TonPlayGramLogo.jpg"
@@ -30,11 +30,51 @@ export default function RewardPopup({ reward, onClose, message }: RewardPopupPro
           className="w-10 h-10 mx-auto"
         />
         <h3 className="text-lg font-bold">Reward Earned</h3>
-        <div className="text-accent text-3xl">
-          {reward === 'BONUS_X3' && 'BONUS X3'}
-          {typeof reward === 'number' && reward === 1600 && '+1 Free Spin'}
-          {typeof reward === 'number' && reward === 1800 && '+2 Free Spins'}
-          {typeof reward === 'number' && reward !== 1600 && reward !== 1800 && `+${reward} TPC`}
+        <div className="text-accent text-3xl flex items-center justify-center space-x-2">
+          {reward === 'BONUS_X3' && (
+            <>
+              <img
+                loading="lazy"
+                src="/assets/icons/Dice.png"
+                alt="Bonus"
+                className="w-8 h-8"
+              />
+              <span>BONUS X3</span>
+            </>
+          )}
+          {typeof reward === 'number' && reward === 1600 && (
+            <>
+              <img
+                loading="lazy"
+                src="/assets/icons/FreeSpin.png"
+                alt="Free Spin"
+                className="w-8 h-8"
+              />
+              <span>+1</span>
+            </>
+          )}
+          {typeof reward === 'number' && reward === 1800 && (
+            <>
+              <img
+                loading="lazy"
+                src="/assets/icons/FreeSpin.png"
+                alt="Free Spin"
+                className="w-8 h-8"
+              />
+              <span>+2</span>
+            </>
+          )}
+          {typeof reward === 'number' && reward !== 1600 && reward !== 1800 && (
+            <>
+              <img
+                loading="lazy"
+                src="/assets/icons/TPCcoin.png"
+                alt="TPC"
+                className="w-8 h-8"
+              />
+              <span>+{reward}</span>
+            </>
+          )}
         </div>
         {message && <p className="text-sm text-subtext">{message}</p>}
         <button
