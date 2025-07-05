@@ -72,9 +72,15 @@ export default function Store() {
             <img src="/icons/TON.png" alt="TON" className="w-6 h-6" />
           </div>
           <div className="text-xs text-accent">{b.category} Bundle</div>
-          <div className="text-sm">
-            {b.boost ? `Mining Boost: +${b.boost * 100}%` : 'No Mining Boost'}
-          </div>
+          {b.boost ? (
+            <div className="text-sm">Mining Boost: +{b.boost * 100}%</div>
+          ) : null}
+          {b.spins ? (
+            <div className="text-sm">Spins: {b.spins}</div>
+          ) : null}
+          {b.duration ? (
+            <div className="text-xs text-subtext">Duration: {b.duration}d</div>
+          ) : null}
           <button
             onClick={() => handleBuy(b)}
             className="buy-button mt-2"

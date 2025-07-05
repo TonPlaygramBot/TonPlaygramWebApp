@@ -22,6 +22,12 @@ const STORE_ADDRESS_NORM = normalize(STORE_ADDRESS);
 
 const BOOST_EXPIRY = new Date('2025-08-21T00:00:00Z');
 
+function daysFromNow(days) {
+  const d = new Date();
+  d.setUTCDate(d.getUTCDate() + days);
+  return d;
+}
+
 const BUNDLES = {
   newbie: { tpc: 25000, ton: 0.25, label: 'Newbie Pack' },
   rookie: { tpc: 50000, ton: 0.4, label: 'Rookie' },
@@ -31,6 +37,21 @@ const BUNDLES = {
   pro: { tpc: 1000000, ton: 5.5, label: 'Pro Bundle', boost: 0.08 },
   whale: { tpc: 2500000, ton: 10.5, label: 'Whale Bundle', boost: 0.12 },
   max: { tpc: 5000000, ton: 20, label: 'Max Presale', boost: 0.15 },
+
+  // Spin & Win Bundles
+  luckyStarter: { tpc: 5000, ton: 0.25, label: 'Lucky Starter' },
+  spinx3: { tpc: 10000, ton: 0.4, label: 'Spin x3 Pack' },
+  megaSpin: { tpc: 25000, ton: 1.0, label: 'Mega Spin Pack' },
+
+  // Virtual Friends
+  lazyLarry: { tpc: 0, ton: 0.15, label: 'Lazy Larry', boost: 0.25, duration: 7 },
+  smartSia: { tpc: 0, ton: 0.3, label: 'Smart Sia', boost: 0.5, duration: 7 },
+  grindBot: { tpc: 0, ton: 0.7, label: 'GrindBot3000', boost: 1.25, duration: 14 },
+
+  // Bonus Bundles
+  powerPack: { tpc: 20000, ton: 0.35, label: 'Power Pack', boost: 0.5, duration: 3 },
+  proPack: { tpc: 40000, ton: 0.6, label: 'Pro Pack', boost: 0.5, duration: 7 },
+  galaxyPack: { tpc: 100000, ton: 1.2, label: 'Galaxy Pack', boost: 1.25, duration: 7 },
 };
 
 router.post('/purchase', authenticate, async (req, res) => {
@@ -85,8 +106,9 @@ router.post('/purchase', authenticate, async (req, res) => {
   const txDate = new Date();
   user.balance += pack.tpc;
   if (pack.boost) {
-    if (!user.storeMiningExpiresAt || user.storeMiningExpiresAt < BOOST_EXPIRY) {
-      user.storeMiningExpiresAt = BOOST_EXPIRY;
+    const expiry = pack.duration ? daysFromNow(pack.duration) : BOOST_EXPIRY;
+    if (!user.storeMiningExpiresAt || user.storeMiningExpiresAt < expiry) {
+      user.storeMiningExpiresAt = expiry;
     }
     if ((user.storeMiningRate || 0) < pack.boost) {
       user.storeMiningRate = pack.boost;
