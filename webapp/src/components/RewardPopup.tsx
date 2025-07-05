@@ -1,4 +1,5 @@
 import { useEffect } from 'react';
+import { getGameVolume } from '../utils/sound.js';
 import confetti from 'canvas-confetti';
 import { Segment } from '../utils/rewardLogic';
 
@@ -12,6 +13,12 @@ export default function RewardPopup({ reward, onClose, message }: RewardPopupPro
   if (reward === null) return null;
   useEffect(() => {
     confetti({ particleCount: 150, spread: 70, origin: { y: 0.6 } });
+    const audio = new Audio('/assets/sounds/man-cheering-in-victory-epic-stock-media-1-00-01.mp3');
+    audio.volume = getGameVolume();
+    audio.play().catch(() => {});
+    return () => {
+      audio.pause();
+    };
   }, []);
   return (
     <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-70 z-50">
