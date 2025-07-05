@@ -10,7 +10,7 @@ export default function WalletCard() {
     telegramId = getTelegramId();
   } catch (err) {
     return (
-      <div className="bg-gray-800/60 rounded-xl">
+      <div className="bg-surface border border-border rounded-xl">
         <LoginOptions />
       </div>
     );
@@ -32,13 +32,19 @@ export default function WalletCard() {
   }, []);
 
   return (
-    <div className="bg-gray-800/60 p-4 rounded-xl shadow-lg text-white space-y-2">
+    <div className="relative bg-surface border border-border p-4 rounded-xl shadow-lg text-text space-y-2 overflow-hidden">
+      <img
+        loading="lazy"
+        src="/assets/SnakeLaddersbackground.png"
+        className="background-behind-board object-cover"
+        alt=""
+      />
       <h3 className="text-lg font-bold flex items-center space-x-2">
         <span>💰</span>
         <span>Wallet</span>
       </h3>
       <p>TPC Balance: {tpcBalance === null ? '...' : tpcBalance}</p>
-      <Link to="/wallet" className="inline-block mt-1 px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-500">
+      <Link to="/wallet" className="inline-block mt-1 px-3 py-1 bg-primary hover:bg-primary-hover text-background rounded">
         Open
       </Link>
     </div>

@@ -246,7 +246,7 @@ export default function MyAccount() {
 
       {profile && profile.accountId === DEV_ACCOUNT_ID && (
         <>
-          <div className="prism-box p-4 mt-4 space-y-2 w-80 mx-auto border-[#334155]">
+          <div className="prism-box p-4 mt-4 space-y-2 w-80 mx-auto">
             <label className="block font-semibold text-center">Top Up Developer Account</label>
             <input
               type="number"
@@ -264,7 +264,7 @@ export default function MyAccount() {
             </button>
           </div>
 
-          <div className="prism-box p-4 mt-4 space-y-2 w-80 mx-auto border-[#334155]">
+          <div className="prism-box p-4 mt-4 space-y-2 w-80 mx-auto">
             <button
               onClick={() => setShowNotifyModal(true)}
               className="px-3 py-1 bg-primary hover:bg-primary-hover rounded text-background w-full"
