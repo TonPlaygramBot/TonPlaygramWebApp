@@ -31,6 +31,7 @@ export default function SpinGame() {
   const leftWheelRef = useRef(null);
   const rightWheelRef = useRef(null);
   const [bonusActive, setBonusActive] = useState(false);
+  const [bonusSpinDone, setBonusSpinDone] = useState(0);
 
   useEffect(() => {
     const ts = localStorage.getItem('lastSpin');
@@ -106,6 +107,11 @@ export default function SpinGame() {
       setLastSpin(now);
     }
     setReward(r);
+    setBonusSpinDone((c) => {
+      const next = c + 1;
+      if (next >= 2) setBonusActive(false);
+      return next;
+    });
   };
 
   const triggerSpin = () => {
@@ -128,7 +134,7 @@ export default function SpinGame() {
       wheelRef.current?.spin();
       leftWheelRef.current?.spin();
       rightWheelRef.current?.spin();
-      setBonusActive(false);
+      setBonusSpinDone(0);
     } else {
       wheelRef.current?.spin();
     }
@@ -158,16 +164,18 @@ export default function SpinGame() {
       />
       <h3 className="text-lg font-bold text-text">Spin &amp; Win</h3>
       <p className="text-sm text-subtext">Try your luck and win rewards!</p>
-      <div className="flex items-start space-x-0.5">
-        <div className="relative" style={{ opacity: bonusActive ? 1 : 0.15 }}>
-          <SpinWheel
-            ref={leftWheelRef}
-            onFinish={handleBonusFinish}
-            spinning={leftSpinning}
-            setSpinning={setLeftSpinning}
-            disabled={!bonusActive}
-            showButton={false}
-          />
+      <div className="flex items-start space-x-0">
+        <div className="relative">
+          <div style={{ opacity: bonusActive ? 1 : 0.15 }}>
+            <SpinWheel
+              ref={leftWheelRef}
+              onFinish={handleBonusFinish}
+              spinning={leftSpinning}
+              setSpinning={setLeftSpinning}
+              disabled={!bonusActive}
+              showButton={false}
+            />
+          </div>
           {!bonusActive && (
             <span className="absolute inset-0 flex items-center justify-center text-xs font-bold text-red-600 text-center pointer-events-none drop-shadow-[0_0_2px_white]">
               Bonus to Activate
@@ -182,15 +190,17 @@ export default function SpinGame() {
           disabled={!ready}
           showButton={false}
         />
-        <div className="relative" style={{ opacity: bonusActive ? 1 : 0.15 }}>
-          <SpinWheel
-            ref={rightWheelRef}
-            onFinish={handleBonusFinish}
-            spinning={rightSpinning}
-            setSpinning={setRightSpinning}
-            disabled={!bonusActive}
-            showButton={false}
-          />
+        <div className="relative">
+          <div style={{ opacity: bonusActive ? 1 : 0.15 }}>
+            <SpinWheel
+              ref={rightWheelRef}
+              onFinish={handleBonusFinish}
+              spinning={rightSpinning}
+              setSpinning={setRightSpinning}
+              disabled={!bonusActive}
+              showButton={false}
+            />
+          </div>
           {!bonusActive && (
             <span className="absolute inset-0 flex items-center justify-center text-xs font-bold text-red-600 text-center pointer-events-none drop-shadow-[0_0_2px_white]">
               Bonus to Activate
@@ -198,6 +208,9 @@ export default function SpinGame() {
           )}
         </div>
       </div>
+      {freeSpins > 0 && (
+        <p className="text-xs text-accent font-bold">Free Spins: {freeSpins}</p>
+      )}
       <button
         onClick={triggerSpin}
         className="mt-2 px-4 py-1 bg-green-600 text-white text-sm font-bold rounded disabled:bg-gray-500"
@@ -220,7 +233,7 @@ export default function SpinGame() {
         onClose={() => setReward(null)}
         message="Keep spinning every day to earn more!"
       />
-      <AdModal open={showAd} onClose={() => setShowAd(false)} onComplete={handleAdComplete} />
+      <AdModal open={showAd} onComplete={handleAdComplete} />
     </div>
   );
 }

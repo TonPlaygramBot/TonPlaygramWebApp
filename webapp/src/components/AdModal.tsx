@@ -3,11 +3,10 @@ import { ADSGRAM_WALLET } from '../utils/constants.js';
 
 interface AdModalProps {
   open: boolean;
-  onClose: () => void;
   onComplete: () => void;
 }
 
-export default function AdModal({ open, onClose, onComplete }: AdModalProps) {
+export default function AdModal({ open, onComplete }: AdModalProps) {
   useEffect(() => {
     if (!open) return;
     const sdk = (window as any).AdsgramSDK;
@@ -39,9 +38,6 @@ export default function AdModal({ open, onClose, onComplete }: AdModalProps) {
           src="https://interactive-examples.mdn.mozilla.net/media/cc0-videos/flower.webm"
         />
         <p className="text-sm text-subtext">Watch the ad completely to unlock the spin.</p>
-        <button onClick={onClose} className="px-4 py-1 bg-primary hover:bg-primary-hover text-white rounded w-full">
-          Close
-        </button>
       </div>
     </div>
   );

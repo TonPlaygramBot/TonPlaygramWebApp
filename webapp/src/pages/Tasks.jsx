@@ -134,7 +134,7 @@ export default function Tasks() {
           )}
         </li>
       </ul>
-      <AdModal open={showAd} onClose={() => setShowAd(false)} onComplete={handleAdComplete} />
+      <AdModal open={showAd} onComplete={handleAdComplete} />
 
     </div>
 
