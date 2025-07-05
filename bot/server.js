@@ -644,6 +644,17 @@ io.on('connection', (socket) => {
         }
       }
       cb && cb({ success: true, url });
+      setTimeout(async () => {
+        try {
+          const room = await gameManager.getRoom(roomId);
+          if (room.status === 'waiting' && room.players.length >= 2) {
+            room.startGame();
+            await gameManager.saveRoom(room);
+          }
+        } catch (err) {
+          console.error('Failed to auto-start group game:', err.message);
+        }
+      }, 45000);
     },
   );
 
