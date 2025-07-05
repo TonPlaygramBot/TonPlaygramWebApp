@@ -13,6 +13,7 @@ export default function Games() {
       <h2 className="text-2xl font-bold text-center mt-4">Games</h2>
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         <GameCard title="Snake & Ladder" icon="🎲" link="/games/snake/lobby" />
+        <GameCard title="DominoPlay" icon="🁫" link="/games/domino" />
       </div>
     </div>
   );

@@ -1198,3 +1198,40 @@ input:focus {
   box-shadow: 0 0 8px #00f7ff, 0 0 16px #00f7ff;
 }
 
+
+.domino-board {
+  @apply flex flex-wrap justify-center items-center gap-2 board-3d;
+}
+
+.domino-piece {
+  position: relative;
+  width: 4rem;
+  height: 2rem;
+  background: linear-gradient(#fff, #ddd);
+  border: 2px solid #333;
+  border-radius: 0.25rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 0.25rem;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.4);
+  transform-style: preserve-3d;
+}
+
+.domino-divider {
+  position: absolute;
+  top: 0.15rem;
+  bottom: 0.15rem;
+  left: 50%;
+  width: 2px;
+  background: #333;
+  transform: translateZ(1px);
+}
+
+.domino-half {
+  width: 50%;
+  text-align: center;
+  font-weight: bold;
+  font-size: 1rem;
+  z-index: 1;
+}
