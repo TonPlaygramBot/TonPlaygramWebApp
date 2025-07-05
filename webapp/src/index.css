@@ -1236,33 +1236,81 @@ input:focus {
   z-index: 1;
 }
 .ludo-board-tilt {
+
   perspective: 1200px;
+
 }
 
 .ludo-board-grid {
+
+  @apply board-3d-grid relative;
+
   display: grid;
+
+  grid-template-columns: repeat(15, var(--cell-width));
+
+  grid-template-rows: repeat(15, var(--cell-height));
+
   gap: 2px;
-  position: relative;
+
   transform-style: preserve-3d;
+
   transform-origin: bottom center;
+
 }
 
 .ludo-cell {
+
+  @apply board-cell;
+
   background: #eee;
+
 }
-.ludo-red { background:#fecaca; }
-.ludo-green { background:#bbf7d0; }
-.ludo-yellow { background:#fef08a; }
-.ludo-blue { background:#bfdbfe; }
+
+.ludo-red {
+
+  background: #fecaca;
+
+}
+
+.ludo-green {
+
+  background: #bbf7d0;
+
+}
+
+.ludo-yellow {
+
+  background: #fef08a;
+
+}
+
+.ludo-blue {
+
+  background: #bfdbfe;
+
+}
+
 .ludo-token {
+
   width: calc(var(--cell-width) * 0.6);
+
   height: calc(var(--cell-height) * 0.6);
+
   border-radius: 50%;
+
   border: 2px solid #000;
+
   transition: transform 0.3s;
+
   transform: translateZ(10px);
+
 }
+
 .token-wrapper {
+
   position: absolute;
+
   transform-style: preserve-3d;
+
 }
