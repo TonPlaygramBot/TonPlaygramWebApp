@@ -296,6 +296,30 @@ app.get('/api/snake/board/:id', async (req, res) => {
   res.json({ snakes: room.snakes, ladders: room.ladders });
 });
 
+app.get('/api/ludo/lobbies', async (req, res) => {
+  const capacities = [2, 3, 4];
+  const lobbies = await Promise.all(
+    capacities.map(async (cap) => {
+      const id = `ludo-${cap}`;
+      const room = await gameManager.getRoom(id, cap);
+      const players = room.players.filter((p) => !p.disconnected).length;
+      return { id, capacity: cap, players };
+    })
+  );
+  res.json(lobbies);
+});
+
+app.get('/api/ludo/lobby/:id', async (req, res) => {
+  const { id } = req.params;
+  const match = /-(\d+)$/.exec(id);
+  const cap = match ? Number(match[1]) : 4;
+  const room = await gameManager.getRoom(id, cap);
+  const players = room.players
+    .filter((p) => !p.disconnected)
+    .map((p) => ({ id: p.playerId, name: p.name }));
+  res.json({ id, capacity: cap, players });
+});
+
 app.post('/api/snake/invite', async (req, res) => {
   let {
     fromAccount,
