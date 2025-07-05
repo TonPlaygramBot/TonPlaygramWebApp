@@ -1,13 +1,15 @@
 import React from 'react';
 import LudoToken from './LudoToken.jsx';
 
+const CELL_SIZE = 24; // px
+
 const SIZE = 15;
 
 export default function LudoBoard({ players = [] }) {
   const cells = [];
   for (let r = 0; r < SIZE; r++) {
     for (let c = 0; c < SIZE; c++) {
-      let cls = 'ludo-cell';
+      let cls = 'ludo-cell board-cell';
       if (r < 6 && c < 6) cls += ' ludo-red';
       else if (r < 6 && c >= 9) cls += ' ludo-green';
       else if (r >= 9 && c < 6) cls += ' ludo-yellow';
@@ -17,23 +19,33 @@ export default function LudoBoard({ players = [] }) {
   }
 
   return (
-    <div className="ludo-board">
-      {cells}
-      {players.map((p) =>
-        p.tokens.map((t, i) => {
-          if (t < 0) return null;
-          const pos = PATH[t] || { r: 7, c: 7 };
-          return (
-            <div
-              key={`${p.id}-${i}`}
-              className="token-wrapper"
-              style={{ gridRowStart: pos.r + 1, gridColumnStart: pos.c + 1 }}
-            >
-              <LudoToken color={p.color} />
-            </div>
-          );
-        })
-      )}
+    <div className="board-3d">
+      <div
+        className="ludo-board board-3d-grid"
+        style={{
+          '--cell-width': `${CELL_SIZE}px`,
+          '--cell-height': `${CELL_SIZE}px`,
+          width: `${CELL_SIZE * SIZE}px`,
+          height: `${CELL_SIZE * SIZE}px`,
+        }}
+      >
+        {cells}
+        {players.map((p) =>
+          p.tokens.map((t, i) => {
+            if (t < 0) return null;
+            const pos = PATH[t] || { r: 7, c: 7 };
+            return (
+              <div
+                key={`${p.id}-${i}`}
+                className="token-wrapper"
+                style={{ gridRowStart: pos.r + 1, gridColumnStart: pos.c + 1 }}
+              >
+                <LudoToken color={p.color} photoUrl={p.photoUrl} />
+              </div>
+            );
+          })
+        )}
+      </div>
     </div>
   );
 }

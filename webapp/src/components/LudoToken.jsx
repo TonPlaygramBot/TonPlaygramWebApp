@@ -1,10 +1,8 @@
 import React from 'react';
+import PlayerToken from './PlayerToken.jsx';
 
-export default function LudoToken({ color = 'red' }) {
+export default function LudoToken({ color = 'red', photoUrl }) {
   return (
-    <div
-      className="ludo-token"
-      style={{ backgroundColor: color }}
-    />
+    <PlayerToken color={color} photoUrl={photoUrl} />
   );
 }

@@ -14,7 +14,7 @@ export default function Ludo() {
   }));
 
   const handleRoll = (vals) => {
-    const value = vals[0];
+    const value = vals.reduce((a, b) => a + b, 0);
     const p = game.players[game.turn];
     for (let i = 0; i < p.tokens.length; i++) {
       if (p.tokens[i] === -1 && value === 6) {
@@ -34,7 +34,7 @@ export default function Ludo() {
       <div className="flex justify-center">
         <LudoBoard players={game.players} />
       </div>
-      <DiceRoller numDice={1} onRollEnd={handleRoll} clickable />
+      <DiceRoller numDice={2} onRollEnd={handleRoll} clickable />
     </div>
   );
 }
