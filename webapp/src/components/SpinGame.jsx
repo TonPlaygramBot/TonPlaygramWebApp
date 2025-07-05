@@ -154,7 +154,7 @@ export default function SpinGame() {
   const ready = freeSpins > 0 || canSpin(lastSpin);
 
   return (
-    <div className="prism-box flex flex-col items-center space-y-2 p-4 overflow-hidden">
+    <div className="relative bg-surface border border-border rounded-xl p-4 flex flex-col items-center space-y-2 overflow-hidden">
       <img
         
         src="/assets/SnakeLaddersbackground.png"
