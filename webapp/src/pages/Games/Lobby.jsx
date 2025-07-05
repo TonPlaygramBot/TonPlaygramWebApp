@@ -72,8 +72,14 @@ export default function Lobby() {
         clearInterval(id);
       };
     } else if (game === 'domino') {
-      setTables([{ id: 'single', label: 'Single Player vs AI' }]);
-      setTable({ id: 'single', label: 'Single Player vs AI' });
+      const dominoTables = [
+        { id: 'single', label: 'Single Player vs AI' },
+        { id: '2p', capacity: 2, players: 0 },
+        { id: '3p', capacity: 3, players: 0 },
+        { id: '4p', capacity: 4, players: 0 },
+      ];
+      setTables(dominoTables);
+      setTable(dominoTables[0]);
     }
   }, [game]);
 
@@ -197,7 +203,7 @@ export default function Lobby() {
       />
       <h2 className="text-xl font-bold text-center capitalize">{game} Lobby</h2>
       <p className="text-center text-sm">Online users: {online}</p>
-      {game === 'snake' && (
+      {['snake', 'domino'].includes(game) && (
         <div className="space-y-2">
           <div className="flex items-center justify-between">
             <h3 className="font-semibold">Select Table</h3>
