@@ -1,10 +1,10 @@
-import React, { Suspense, lazy } from 'react';
+import React from 'react';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { TonConnectUIProvider } from '@tonconnect/ui-react';
 
 import Home from './pages/Home.jsx';
 import Friends from './pages/Friends.jsx';
-const DominoPlay = lazy(() => import('./pages/Games/DominoPlay.jsx'));
+import DominoPlay from './pages/Games/DominoPlay.jsx';
 import Wallet from './pages/Wallet.jsx';
 import Tasks from './pages/Tasks.jsx';
 import Referral from './pages/Referral.jsx';
@@ -15,10 +15,10 @@ import Trending from './pages/Trending.jsx';
 import Notifications from './pages/Notifications.jsx';
 
 import HorseRacing from './pages/Games/HorseRacing.jsx';
-const SnakeAndLadder = lazy(() => import('./pages/Games/SnakeAndLadder.jsx'));
-const SnakeMultiplayer = lazy(() => import('./pages/Games/SnakeMultiplayer.jsx'));
-const SnakeResults = lazy(() => import('./pages/Games/SnakeResults.jsx'));
-const Ludo = lazy(() => import('./pages/Games/Ludo.jsx'));
+import SnakeAndLadder from './pages/Games/SnakeAndLadder.jsx';
+import SnakeMultiplayer from './pages/Games/SnakeMultiplayer.jsx';
+import SnakeResults from './pages/Games/SnakeResults.jsx';
+import Ludo from './pages/Games/Ludo.jsx';
 import Lobby from './pages/Games/Lobby.jsx';
 import Games from './pages/Games.jsx';
 import SpinPage from './pages/spin.tsx';
@@ -42,38 +42,10 @@ export default function App() {
           <Route path="/games/:game/lobby" element={<Lobby />} />
             <Route path="/games/horse" element={<HorseRacing />} />
           <Route path="/games/domino" element={<DominoPlay />} />
-          <Route
-            path="/games/ludo"
-            element={
-              <Suspense fallback={<div className="p-4 text-center">Loading...</div>}>
-                <Ludo />
-              </Suspense>
-            }
-          />
-          <Route
-            path="/games/snake"
-            element={
-              <Suspense fallback={<div className="p-4 text-center">Loading...</div>}>
-                <SnakeAndLadder />
-              </Suspense>
-            }
-          />
-          <Route
-            path="/games/snake/mp"
-            element={
-              <Suspense fallback={<div className="p-4 text-center">Loading...</div>}>
-                <SnakeMultiplayer />
-              </Suspense>
-            }
-          />
-          <Route
-            path="/games/snake/results"
-            element={
-              <Suspense fallback={<div className="p-4 text-center">Loading...</div>}>
-                <SnakeResults />
-              </Suspense>
-            }
-          />
+          <Route path="/games/ludo" element={<Ludo />} />
+          <Route path="/games/snake" element={<SnakeAndLadder />} />
+          <Route path="/games/snake/mp" element={<SnakeMultiplayer />} />
+          <Route path="/games/snake/results" element={<SnakeResults />} />
           <Route path="/spin" element={<SpinPage />} />
           <Route path="/tasks" element={<Tasks />} />
           <Route path="/store" element={<Store />} />
