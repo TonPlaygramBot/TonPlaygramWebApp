@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react';
 
 import GameCard from '../components/GameCard.jsx';
-import ProfileCard from '../components/ProfileCard.jsx';
 
 import MiningCard from '../components/MiningCard.tsx';
 
@@ -171,7 +170,6 @@ export default function Home() {
         <MiningCard />
         <TasksCard />
         <StoreAd />
-        <ProfileCard />
       </div>
 
       <p className="text-center text-xs text-subtext">Status: {status}</p>

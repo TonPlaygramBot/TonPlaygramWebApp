@@ -1,6 +1,13 @@
 import { AiOutlineShop } from 'react-icons/ai';
 import { Link } from 'react-router-dom';
-import { STORE_BUNDLES } from '../utils/storeData.js';
+import { STORE_CATEGORIES } from '../utils/storeData.js';
+
+const CATEGORY_ICONS = {
+  Presale: '🌱',
+  'Spin & Win': '🎰',
+  'Virtual Friends': '🤖',
+  'Bonus Bundles': '🎁',
+};
 
 export default function StoreAd() {
   return (
@@ -15,20 +22,13 @@ export default function StoreAd() {
         <span className="text-lg font-bold">Store</span>
       </div>
       <div className="flex space-x-4 overflow-x-auto pb-2">
-        {STORE_BUNDLES.map((b) => (
-          <div key={b.id} className="store-card flex-shrink-0 w-60">
+        {STORE_CATEGORIES.map((c) => (
+          <div key={c} className="store-card flex-shrink-0 w-72">
             <div className="flex items-center space-x-2">
-              <span className="text-2xl">{b.icon}</span>
-              <h3 className="font-semibold">{b.name}</h3>
+              <span className="text-2xl">{CATEGORY_ICONS[c]}</span>
+              <h3 className="font-semibold">{c}</h3>
             </div>
-            <div className="text-lg font-bold flex items-center space-x-1">
-              <span>{b.tpc.toLocaleString()}</span>
-              <img src="/assets/icons/TPCcoin.png" alt="TPC" className="w-6 h-6" />
-            </div>
-            <div className="text-primary text-lg flex items-center space-x-1">
-              <span>{b.ton}</span>
-              <img src="/icons/TON.png" alt="TON" className="w-6 h-6" />
-            </div>
+            <p className="text-sm text-subtext">Browse bundles</p>
           </div>
         ))}
       </div>

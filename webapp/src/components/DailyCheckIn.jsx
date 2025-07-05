@@ -106,7 +106,7 @@ export default function DailyCheckIn() {
 
       <div
         key={i}
-        className={`board-style w-20 p-2 flex flex-col items-center justify-center text-xs ${
+        className={`board-style border-2 border-border w-20 p-2 flex flex-col items-center justify-center text-xs ${
           i === streak - 1 ? 'border-4 border-brand-gold' : ''
         }`}
       >
