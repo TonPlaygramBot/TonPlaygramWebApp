@@ -33,8 +33,7 @@ export default function RewardPopup({ reward, onClose, message }: RewardPopupPro
           {reward === 'BONUS_X3' && 'BONUS X3'}
           {typeof reward === 'number' && reward === 1600 && '+1 Free Spin'}
           {typeof reward === 'number' && reward === 1800 && '+2 Free Spins'}
-          {typeof reward === 'number' && reward === 5000 && '+3 Free Spins'}
-          {typeof reward === 'number' && reward !== 1600 && reward !== 1800 && reward !== 5000 && `+${reward} TPC`}
+          {typeof reward === 'number' && reward !== 1600 && reward !== 1800 && `+${reward} TPC`}
         </div>
         {message && <p className="text-sm text-subtext">{message}</p>}
         <button
