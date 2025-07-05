@@ -231,7 +231,11 @@ export default function SpinGame() {
         onClose={() => setReward(null)}
         message="Keep spinning every day to earn more!"
       />
-      <AdModal open={showAd} onComplete={handleAdComplete} />
+      <AdModal
+        open={showAd}
+        onComplete={handleAdComplete}
+        onClose={() => setShowAd(false)}
+      />
     </div>
   );
 }

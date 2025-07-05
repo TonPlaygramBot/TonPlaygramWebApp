@@ -4,9 +4,10 @@ import { ADSGRAM_WALLET } from '../utils/constants.js';
 interface AdModalProps {
   open: boolean;
   onComplete: () => void;
+  onClose?: () => void;
 }
 
-export default function AdModal({ open, onComplete }: AdModalProps) {
+export default function AdModal({ open, onComplete, onClose }: AdModalProps) {
   const [fallback, setFallback] = useState(false);
 
   useEffect(() => {
@@ -45,7 +46,15 @@ export default function AdModal({ open, onComplete }: AdModalProps) {
 
   return (
     <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-70 z-50">
-      <div className="bg-surface border border-border p-6 rounded text-center space-y-4 text-text w-80">
+      <div className="bg-surface border border-border p-6 rounded text-center space-y-4 text-text w-80 relative">
+        {onClose && (
+          <button
+            onClick={onClose}
+            className="absolute -top-3 -right-3 bg-black bg-opacity-70 text-white rounded-full w-6 h-6 flex items-center justify-center"
+          >
+            &times;
+          </button>
+        )}
         <img src="/assets/TonPlayGramLogo.jpg" alt="TonPlaygram Logo" className="w-10 h-10 mx-auto" />
         <h3 className="text-lg font-bold">Watch Ad</h3>
         <div
