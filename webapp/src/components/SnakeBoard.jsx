@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useLayoutEffect, Fragment } from "react";
+import { useState, useEffect, useRef, Fragment } from "react";
 import PlayerToken from "./PlayerToken.jsx";
 
 // Board dimensions
@@ -205,7 +205,6 @@ export default function SnakeBoard({
     return () => window.removeEventListener('resize', updateSize);
   }, []);
 
-  useLayoutEffect(() => {}, [cellWidth, cellHeight]);
 
   const angle = 58;
   const boardXOffset = 10;
