@@ -6,6 +6,7 @@ export default function coinConfetti(count: number = 50) {
   container.style.width = '100%';
   container.style.height = '0';
   container.style.pointerEvents = 'none';
+  container.style.zIndex = '60';
   container.style.overflow = 'visible';
   document.body.appendChild(container);
 

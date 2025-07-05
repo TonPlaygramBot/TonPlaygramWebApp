@@ -915,6 +915,7 @@ input:focus {
   bottom: 50%;
   width: 0;
   height: 0;
+  z-index: 60;
   pointer-events: none;
   overflow: visible;
 }
