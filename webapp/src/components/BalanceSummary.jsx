@@ -46,7 +46,7 @@ function formatValue(value, decimals = 4) {
 function Token({ icon, value, label, decimals }) {
   return (
     <div className="flex items-center justify-start space-x-1 w-full">
-      <img loading="lazy" src={icon} alt={label} className="w-8 h-8" />
+      <img  src={icon} alt={label} className="w-8 h-8" />
       <span>{formatValue(value, decimals)}</span>
     </div>
   );

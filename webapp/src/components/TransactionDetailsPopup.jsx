@@ -45,7 +45,7 @@ export default function TransactionDetailsPopup({ tx, onClose }) {
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-70">
       <div className="relative p-4 space-y-4 w-80 rounded-xl border border-border bg-surface text-text overflow-hidden">
         <img
-          loading="lazy"
+          
           src="/assets/SnakeLaddersbackground.png"
           className="background-behind-board object-cover"
           alt=""
@@ -70,7 +70,7 @@ export default function TransactionDetailsPopup({ tx, onClose }) {
                 if (isReceive) return 'Received';
                 return tx.type;
               })()} {sign}{formattedAmount}
-              <img loading="lazy" src={icon} alt={token} className="w-5 h-5 inline" />
+              <img  src={icon} alt={token} className="w-5 h-5 inline" />
             </span>
             {tx.game && (
               <span className="text-xs capitalize">{tx.type}</span>

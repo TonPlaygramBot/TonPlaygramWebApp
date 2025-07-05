@@ -24,7 +24,7 @@ export default function RewardPopup({ reward, onClose, message }: RewardPopupPro
     <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-70 z-50">
       <div className="text-center space-y-4 text-text">
         <img
-          loading="lazy"
+          
           src="/assets/TonPlayGramLogo.jpg"
           alt="TonPlaygram Logo"
           className="w-10 h-10 mx-auto"
@@ -34,7 +34,7 @@ export default function RewardPopup({ reward, onClose, message }: RewardPopupPro
           {reward === 'BONUS_X3' && (
             <>
               <img
-                loading="lazy"
+                
                 src="/assets/icons/Dice.png"
                 alt="Bonus"
                 className="w-8 h-8"
@@ -45,7 +45,7 @@ export default function RewardPopup({ reward, onClose, message }: RewardPopupPro
           {typeof reward === 'number' && reward === 1600 && (
             <>
               <img
-                loading="lazy"
+                
                 src="/assets/icons/FreeSpin.png"
                 alt="Free Spin"
                 className="w-8 h-8"
@@ -56,7 +56,7 @@ export default function RewardPopup({ reward, onClose, message }: RewardPopupPro
           {typeof reward === 'number' && reward === 1800 && (
             <>
               <img
-                loading="lazy"
+                
                 src="/assets/icons/FreeSpin.png"
                 alt="Free Spin"
                 className="w-8 h-8"
@@ -67,7 +67,7 @@ export default function RewardPopup({ reward, onClose, message }: RewardPopupPro
           {typeof reward === 'number' && reward !== 1600 && reward !== 1800 && (
             <>
               <img
-                loading="lazy"
+                
                 src="/assets/icons/TPCcoin.png"
                 alt="TPC"
                 className="w-8 h-8"

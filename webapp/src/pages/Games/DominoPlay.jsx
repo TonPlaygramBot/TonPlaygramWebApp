@@ -124,7 +124,7 @@ export default function DominoPlay() {
     return (
       <div className="relative p-4 space-y-4 text-text flex flex-col items-center overflow-hidden">
         <img
-          loading="lazy"
+          
           src="/assets/icons/file_0000000091786243919bf8966d4d73ce.png"
           className="background-behind-board object-cover"
           alt=""
@@ -140,7 +140,7 @@ export default function DominoPlay() {
   return (
     <div className="relative p-4 space-y-4 text-text flex flex-col items-center overflow-hidden">
       <img
-        loading="lazy"
+        
         src="/assets/icons/file_0000000091786243919bf8966d4d73ce.png"
         className="background-behind-board object-cover"
         alt=""

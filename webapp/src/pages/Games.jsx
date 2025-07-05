@@ -6,7 +6,7 @@ export default function Games() {
   return (
     <div className="relative space-y-4 text-text">
       <img
-        loading="lazy"
+        
         src="/assets/SnakeLaddersbackground.png"
         className="background-behind-board object-cover"
         alt=""

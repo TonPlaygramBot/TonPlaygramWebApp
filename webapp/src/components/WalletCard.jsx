@@ -34,7 +34,7 @@ export default function WalletCard() {
   return (
     <div className="relative bg-surface border border-border p-4 rounded-xl shadow-lg text-text space-y-2 overflow-hidden">
       <img
-        loading="lazy"
+        
         src="/assets/SnakeLaddersbackground.png"
         className="background-behind-board object-cover"
         alt=""

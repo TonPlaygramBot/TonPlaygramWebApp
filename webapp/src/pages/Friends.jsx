@@ -122,7 +122,7 @@ export default function Friends() {
   return (
     <div className="relative bg-surface border border-border rounded-xl p-4 space-y-4 text-text overflow-hidden">
       <img
-        loading="lazy"
+        
         src="/assets/SnakeLaddersbackground.png"
         className="background-behind-board object-cover"
         alt=""
@@ -181,7 +181,7 @@ export default function Friends() {
 
       <section id="leaderboard" className="relative bg-surface border border-border rounded-xl p-4 space-y-2 overflow-hidden">
         <img
-          loading="lazy"
+          
           src="/assets/SnakeLaddersbackground.png"
           className="background-behind-board object-cover"
           alt=""

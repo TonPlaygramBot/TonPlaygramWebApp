@@ -21,7 +21,7 @@ export default function InvitePopup({
           <p className="text-center">
             {name} wants to play you for {stake?.amount}{' '}
             <img
-              loading="lazy"
+              
               src={
                 stake?.token === 'TPC'
                   ? '/assets/icons/TPCcoin.png'

@@ -114,7 +114,7 @@ export default function Home() {
         <div className="w-full mt-2 space-y-4">
           <div className="relative bg-surface border border-border rounded-xl p-4 flex items-center justify-around overflow-hidden">
             <img
-              loading="lazy"
+              
               src="/assets/SnakeLaddersbackground.png"
               className="background-behind-board object-cover"
               alt=""
@@ -136,7 +136,7 @@ export default function Home() {
                 <span className="text-lg font-bold">Wallet</span>
               </div>
               <img
-                loading="lazy"
+                
                 src="/assets/SnakeLaddersbackground.png"
                 className="background-behind-board object-cover"
                 alt=""

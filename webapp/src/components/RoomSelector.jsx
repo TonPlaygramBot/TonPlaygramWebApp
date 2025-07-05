@@ -30,7 +30,7 @@ export default function RoomSelector({ selected, onSelect, tokens: allowed }) {
                   : ''
               }`}
             >
-              <img loading="lazy" src={icon} alt={id} className="w-8 h-8" />
+              <img  src={icon} alt={id} className="w-8 h-8" />
               <span>{amt}</span>
             </button>
           ))}
