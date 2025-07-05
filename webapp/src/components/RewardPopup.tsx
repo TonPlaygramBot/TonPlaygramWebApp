@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { getGameVolume } from '../utils/sound.js';
-import confetti from 'canvas-confetti';
+import CoinBurst from './CoinBurst.tsx';
 import { Segment } from '../utils/rewardLogic';
 
 interface RewardPopupProps {
@@ -12,16 +12,26 @@ interface RewardPopupProps {
 export default function RewardPopup({ reward, onClose, message }: RewardPopupProps) {
   if (reward === null) return null;
   useEffect(() => {
-    confetti({ particleCount: 150, spread: 70, origin: { y: 0.6 } });
-    const audio = new Audio('/assets/sounds/man-cheering-in-victory-epic-stock-media-1-00-01.mp3');
-    audio.volume = getGameVolume();
-    audio.play().catch(() => {});
-    return () => {
-      audio.pause();
-    };
+    function playCoinSound() {
+      try {
+        const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
+        const o = ctx.createOscillator();
+        const g = ctx.createGain();
+        o.type = 'square';
+        o.frequency.setValueAtTime(880, ctx.currentTime);
+        o.frequency.exponentialRampToValueAtTime(1760, ctx.currentTime + 0.1);
+        g.gain.setValueAtTime(getGameVolume(), ctx.currentTime);
+        o.connect(g);
+        g.connect(ctx.destination);
+        o.start();
+        o.stop(ctx.currentTime + 0.2);
+      } catch {}
+    }
+    playCoinSound();
   }, []);
   return (
     <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-70 z-50">
+      <CoinBurst />
       <div className="bg-surface border border-border p-6 rounded text-center space-y-4 text-text w-80">
         <img
           loading="lazy"
