@@ -2,7 +2,6 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { createCanvas, loadImage } from 'canvas';
 import { fetchTelegramInfo } from './telegram.js';
-import { transferInviteTpc } from './inviteTpc.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const coinPath = path.join(
@@ -117,7 +116,6 @@ export async function sendInviteNotification(
   roomId,
   token,
   amount,
-  sendToken = false,
 ) {
   let info;
   try {
@@ -144,20 +142,16 @@ export async function sendInviteNotification(
     ],
   };
 
-  if (sendToken) {
-    try {
-      await transferInviteTpc(fromId, toId, 1);
-    } catch (err) {
-      console.error('Failed to send invite TPC:', err.message);
-    }
-  }
 
   const photo = info?.photoUrl ? { url: info.photoUrl } : { source: coinPath };
-
-  await bot.telegram.sendPhoto(String(toId), photo, {
-    caption,
-    reply_markup: replyMarkup,
-  });
+  try {
+    await bot.telegram.sendPhoto(String(toId), photo, {
+      caption,
+      reply_markup: replyMarkup,
+    });
+  } catch (err) {
+    console.error('Failed to send invite photo:', err.message);
+  }
 
   // Also send a plain text notification like TPC receipts
   await sendTPCNotification(bot, toId, caption, replyMarkup);

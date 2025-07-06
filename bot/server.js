@@ -395,7 +395,6 @@ app.post('/api/snake/invite', async (req, res) => {
         roomId,
         token,
         amount,
-        true,
       );
     } catch (err) {
       console.error('Failed to send Telegram notification:', err.message);
@@ -546,7 +545,6 @@ io.on('connection', (socket) => {
           roomId,
           token,
           amount,
-          true,
         );
       } catch (err) {
         console.error('Failed to send Telegram notification:', err.message);
@@ -632,7 +630,6 @@ io.on('connection', (socket) => {
               roomId,
               token,
               amount,
-              true,
             );
           } catch (err) {
             console.error('Failed to send Telegram notification:', err.message);
