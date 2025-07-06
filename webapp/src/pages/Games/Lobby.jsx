@@ -16,7 +16,6 @@ import {
   getAccountBalance,
   addTransaction,
 } from '../../utils/api.js';
-import { getLudoLobbies, getLudoLobby } from '../../utils/ludoApi.js';
 import { getPlayerId, ensureAccountId, getTelegramId } from '../../utils/telegram.js';
 import { canStartGame } from '../../utils/lobby.js';
 import { SNAKE_CONTRACT_ADDRESS } from '../../utils/constants.js';
@@ -72,30 +71,6 @@ export default function Lobby() {
         active = false;
         clearInterval(id);
       };
-    } else if (game === 'domino') {
-      const dominoTables = [
-        { id: 'single', label: 'Single Player vs AI' },
-        { id: '2p', capacity: 2, players: 0 },
-        { id: '3p', capacity: 3, players: 0 },
-        { id: '4p', capacity: 4, players: 0 },
-      ];
-      setTables(dominoTables);
-      setTable(dominoTables[0]);
-    } else if (game === 'ludo') {
-      let active = true;
-      function load() {
-        getLudoLobbies()
-          .then((data) => {
-            if (active) setTables([{ id: 'single', label: 'Single Player vs AI' }, ...data]);
-          })
-          .catch(() => {});
-      }
-      load();
-      const id = setInterval(load, 5000);
-      return () => {
-        active = false;
-        clearInterval(id);
-      };
     }
   }, [game]);
 
@@ -124,10 +99,6 @@ export default function Lobby() {
         unseatTable(playerId, table.id).catch(() => {});
       };
     }
-    if (game === 'ludo' && table && table.id !== 'single') {
-      // No seat tracking for ludo yet
-      return undefined;
-    }
   }, [game, table, playerName]);
 
   useEffect(() => {
@@ -135,21 +106,6 @@ export default function Lobby() {
       let active = true;
       function loadPlayers() {
         getSnakeLobby(table.id)
-          .then((data) => {
-            if (active) setPlayers(data.players);
-          })
-          .catch(() => {});
-      }
-      loadPlayers();
-      const id = setInterval(loadPlayers, 3000);
-      return () => {
-        active = false;
-        clearInterval(id);
-      };
-    } else if (game === 'ludo' && table && table.id !== 'single') {
-      let active = true;
-      function loadPlayers() {
-        getLudoLobby(table.id)
           .then((data) => {
             if (active) setPlayers(data.players);
           })
@@ -210,24 +166,6 @@ export default function Lobby() {
           players: aiCount + 1,
         });
       } catch {}
-    } else if (game === 'ludo' && table?.id === 'single') {
-      localStorage.removeItem(`ludoGameState_${aiCount}`);
-      params.set('ai', aiCount);
-      params.set('token', 'TPC');
-      if (stake.amount) params.set('amount', stake.amount);
-      try {
-        const accountId = await ensureAccountId();
-        const balRes = await getAccountBalance(accountId);
-        if ((balRes.balance || 0) < stake.amount) {
-          alert('Insufficient balance');
-          return;
-        }
-        const tgId = getTelegramId();
-        await addTransaction(tgId, -stake.amount, 'stake', {
-          game: 'ludo-ai',
-          players: aiCount + 1,
-        });
-      } catch {}
     } else {
       if (stake.token) params.set('token', stake.token);
       if (stake.amount) params.set('amount', stake.amount);
@@ -257,7 +195,7 @@ export default function Lobby() {
       />
       <h2 className="text-xl font-bold text-center capitalize">{game} Lobby</h2>
       <p className="text-center text-sm">Online users: {online}</p>
-      {['snake', 'domino', 'ludo'].includes(game) && (
+      {game === 'snake' && (
         <div className="space-y-2">
           <div className="flex items-center justify-between">
             <h3 className="font-semibold">Select Table</h3>
@@ -293,7 +231,7 @@ export default function Lobby() {
           tokens={table?.id === 'single' ? ['TPC'] : undefined}
         />
       </div>
-      {['snake', 'ludo'].includes(game) && table?.id === 'single' && (
+      {game === 'snake' && table?.id === 'single' && (
         <div className="space-y-2">
           <h3 className="font-semibold">How many AI opponents?</h3>
           <div className="flex gap-2">
