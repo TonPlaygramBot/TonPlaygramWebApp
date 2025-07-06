@@ -1,6 +1,6 @@
 import React, { Suspense } from 'react';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
-import { TonConnectUIProvider } from '@tonconnect/ui-react';
+import { TonConnectUIProvider, TonConnect } from '@tonconnect/ui-react';
 
 import Home from './pages/Home.jsx';
 const Friends = React.lazy(() => import('./pages/Friends.jsx'));
@@ -30,10 +30,12 @@ export default function App() {
   useTelegramAuth();
 
   const manifestUrl = `${window.location.origin}/tonconnect-manifest.json`;
+  const walletsListUrl = `${window.location.origin}/wallets-v2.json`;
+  const connector = new TonConnect({ manifestUrl, walletsListSource: walletsListUrl });
 
   return (
     <BrowserRouter>
-      <TonConnectUIProvider manifestUrl={manifestUrl}>
+      <TonConnectUIProvider connector={connector}>
         <Layout>
           <Suspense fallback={null}>
           <Routes>
