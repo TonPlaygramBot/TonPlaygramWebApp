@@ -34,11 +34,10 @@ export default function WalletCard() {
   return (
     <div className="relative bg-surface border border-border p-4 rounded-xl shadow-lg text-text space-y-2 overflow-hidden">
       <img
+        
         src="/assets/SnakeLaddersbackground.png"
         className="background-behind-board object-cover"
-        alt="Background"
-        width="1024"
-        height="1536"
+        alt=""
       />
       <h3 className="text-lg font-bold flex items-center space-x-2">
         <span>💰</span>

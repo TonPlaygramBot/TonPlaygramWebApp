@@ -124,11 +124,10 @@ export default function MiningCard() {
   return (
     <div className="relative bg-surface border border-border rounded-xl p-4 space-y-4 text-center overflow-hidden">
       <img
+        
         src="/assets/SnakeLaddersbackground.png"
         className="background-behind-board object-cover"
-        alt="Background"
-        width="1024"
-        height="1536"
+        alt=""
       />
       <div className="flex justify-center items-center space-x-1">
         <GiMining className="w-5 h-5 text-accent" />
