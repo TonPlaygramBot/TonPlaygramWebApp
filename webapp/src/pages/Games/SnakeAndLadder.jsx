@@ -70,6 +70,7 @@ import { socket } from "../../utils/socket.js";
 import PlayerToken from "../../components/PlayerToken.jsx";
 import AvatarTimer from "../../components/AvatarTimer.jsx";
 import ConfirmPopup from "../../components/ConfirmPopup.jsx";
+import CosmicBackground from "../../components/CosmicBackground.jsx";
 import { moveSeq, flashHighlight, applyEffect as applyEffectHelper } from "../../utils/moveHelpers.js";
 
 const TOKEN_COLORS = [
@@ -218,9 +219,8 @@ function Board({
     // subsequent row alternates direction. Tile 1 is at the bottom-left and
     // tile 100 ends up at the top-right.
     const reversed = r % 2 === 1;
-    const colorIdx = Math.floor(r / (ROWS / 5));
-    const TILE_COLORS = ["#6db0ad", "#4a828e", "#3d7078", "#2d5c66", "#0e3b45"];
-    const rowColor = TILE_COLORS[colorIdx] || "#0e3b45";
+    // Use a single background color for all tiles matching the first cell
+    const rowColor = "#6db0ad";
 
     for (let c = 0; c < COLS; c++) {
       const col = c;
@@ -1749,6 +1749,7 @@ export default function SnakeAndLadder() {
 
   return (
     <div className="p-4 pb-32 space-y-4 text-text flex flex-col justify-end items-center relative w-full flex-grow">
+      <CosmicBackground />
       {/* Bottom left controls */}
       <BottomLeftIcons onInfo={() => setShowInfo(true)} />
       {/* Player photos stacked vertically */}
