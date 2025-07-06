@@ -28,15 +28,7 @@ export default function LudoBoard() {
 
   }, []);
 
-  const cells = [
-    <div
-      key="0-0"
-      className="board-cell"
-      style={{ backgroundColor: '#6db0ad' }}
-    >
-      <span className="cell-number">1</span>
-    </div>,
-  ];
+  const cells = [];
 
   return (
 
@@ -67,8 +59,6 @@ export default function LudoBoard() {
         }}
 
       >
-
-        {cells}
 
       </div>
 
