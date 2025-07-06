@@ -43,18 +43,21 @@ export function avatarToName(src) {
   if (!src.startsWith('/') && !src.startsWith('http')) {
     const key = emojiToNameMap[src];
     if (key) {
-      if (/^[a-z]{2}$/i.test(key)) {
-        const code = key.toUpperCase();
+      let normalized = key.replace(/^flag[-_]+/i, '');
+      normalized = normalized
+        .replace(/^face[-_]+of[-_]+/i, '')
+        .replace(/^face[-_]+/i, '');
+      if (/^[a-z]{2}$/i.test(normalized)) {
+        const code = normalized.toUpperCase();
         try {
           const name = regionNames?.of(code);
           if (name) return name;
         } catch {}
         return code;
       }
-      return key
+      return normalized
         .replace(/_/g, ' ')
-        .replace(/\b\w/g, (c) => c.toUpperCase())
-        .replace(/^Flag\s+/i, '');
+        .replace(/\b\w/g, (c) => c.toUpperCase());
     }
     return '';
   }
