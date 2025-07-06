@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
-import { createAccount, getAccountBalance, getTonBalance, getUsdtBalance } from '../utils/api.js';
-import { getTelegramId } from '../utils/telegram.js';
+import { getAccountBalance, getTonBalance, getUsdtBalance } from '../utils/api.js';
+import { getTelegramId, ensureAccountId } from '../utils/telegram.js';
 import { useTonAddress } from '@tonconnect/ui-react';
 
 export default function useTokenBalances() {
@@ -21,9 +21,8 @@ export default function useTokenBalances() {
     async function loadTpc() {
       if (!telegramId) return;
       try {
-        const acc = await createAccount(telegramId);
-        if (acc?.error) throw new Error(acc.error);
-        const bal = await getAccountBalance(acc.accountId);
+        const id = await ensureAccountId();
+        const bal = await getAccountBalance(id);
         if (bal?.error) throw new Error(bal.error);
         setTpcBalance(bal.balance ?? 0);
       } catch (err) {
