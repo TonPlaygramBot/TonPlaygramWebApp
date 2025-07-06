@@ -126,7 +126,7 @@ export default function DailyCheckIn() {
 
   return (
 
-    <div className="relative bg-surface border border-border rounded-xl p-4 space-y-2 text-center overflow-hidden max-w-md mx-auto">
+    <div className="relative bg-surface border border-border rounded-xl p-4 space-y-2 text-center overflow-hidden">
       <img
         
         src="/assets/SnakeLaddersbackground.png"
@@ -149,15 +149,15 @@ export default function DailyCheckIn() {
 
             />
 
-            <h3 className="text-2xl font-bold">Daily Check-In</h3>
+            <h3 className="text-lg font-bold">Daily Check-In</h3>
 
-            <p className="text-base text-subtext">Come back daily to keep your streak!</p>
+            <p className="text-sm text-subtext">Come back daily to keep your streak!</p>
 
             <button
 
               onClick={handleCheckIn}
 
-              className="px-4 py-2 bg-primary hover:bg-primary-hover text-white rounded w-full text-lg"
+              className="px-4 py-2 bg-primary hover:bg-primary-hover text-white rounded w-full"
 
             >
 

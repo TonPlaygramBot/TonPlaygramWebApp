@@ -122,7 +122,7 @@ export default function MiningCard() {
   const minted = isMining ? Math.floor((elapsed / MINING_DURATION) * totalReward) : 0;
 
   return (
-    <div className="relative bg-surface border border-border rounded-xl p-4 space-y-4 text-center overflow-hidden max-w-md mx-auto">
+    <div className="relative bg-surface border border-border rounded-xl p-4 space-y-4 text-center overflow-hidden">
       <img
         
         src="/assets/SnakeLaddersbackground.png"
