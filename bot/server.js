@@ -1,6 +1,7 @@
 import dotenv from 'dotenv';
 import express from 'express';
 import cors from 'cors';
+import helmet from 'helmet';
 import bot from './bot.js';
 import { sendInviteNotification, getInviteUrl } from './utils/notifications.js';
 import mongoose from 'mongoose';
@@ -44,6 +45,7 @@ if (!process.env.MONGODB_URI) {
 
 const PORT = process.env.PORT || 3000;
 const app = express();
+app.use(helmet());
 app.use(cors());
 const httpServer = http.createServer(app);
 const io = new SocketIOServer(httpServer, { cors: { origin: '*' } });
