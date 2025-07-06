@@ -123,12 +123,6 @@ export default function DominoPlay() {
   if (!started) {
     return (
       <div className="relative p-4 space-y-4 text-text flex flex-col items-center overflow-hidden">
-        <img
-          
-          src="/assets/icons/file_0000000091786243919bf8966d4d73ce.png"
-          className="background-behind-board object-cover"
-          alt=""
-        />
         <h2 className="text-xl font-bold text-center">DominoPlay</h2>
         <div className="flex justify-center space-x-4">
           <button className="px-4 py-2 bg-primary rounded text-white" onClick={startGame}>Start vs AI</button>
@@ -139,12 +133,6 @@ export default function DominoPlay() {
 
   return (
     <div className="relative p-4 space-y-4 text-text flex flex-col items-center overflow-hidden">
-      <img
-        
-        src="/assets/icons/file_0000000091786243919bf8966d4d73ce.png"
-        className="background-behind-board object-cover"
-        alt=""
-      />
       <h2 className="text-xl font-bold text-center">DominoPlay</h2>
       <p className="text-center">Stake: {amount} {token}</p>
       {winner !== null && <div className="text-center">Player {winner + 1} wins!</div>}
