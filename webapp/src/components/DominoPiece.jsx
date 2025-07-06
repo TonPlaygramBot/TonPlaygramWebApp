@@ -19,12 +19,12 @@ const dotPositions = {
     [75, 75],
   ],
   6: [
-    [25, 25],
-    [25, 50],
-    [25, 75],
-    [75, 25],
-    [75, 50],
-    [75, 75],
+    [25, 35],
+    [50, 35],
+    [75, 35],
+    [25, 65],
+    [50, 65],
+    [75, 65],
   ],
 };
 
@@ -43,9 +43,9 @@ function renderHalf(value) {
   );
 }
 
-export default function DominoPiece({ left, right, vertical = false }) {
+export default function DominoPiece({ left, right, vertical = false, style = {} }) {
   return (
-    <div className={`domino-piece ${vertical ? 'domino-vert' : ''}`}>
+    <div className={`domino-piece ${vertical ? 'domino-vert' : ''}`} style={style}>
       {renderHalf(left)}
       <span className="domino-divider" />
       {renderHalf(right)}
