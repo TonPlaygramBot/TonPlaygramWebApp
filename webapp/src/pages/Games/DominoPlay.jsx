@@ -15,8 +15,6 @@ export default function DominoPlay() {
   const [board, setBoard] = useState([]);
   const [turn, setTurn] = useState(0);
   const [winner, setWinner] = useState(null);
-  const [highlight, setHighlight] = useState({ left: false, right: false });
-  const [selectedIndex, setSelectedIndex] = useState(null);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -57,21 +55,6 @@ export default function DominoPlay() {
     const piece = hands[0][idx];
     if (!canPlay(piece)) return;
     placePiece(0, idx, piece);
-    setHighlight({ left: false, right: false });
-    setSelectedIndex(null);
-  };
-
-  const showHighlight = (piece) => {
-    if (board.length === 0) {
-      setHighlight({ left: true, right: true });
-      return;
-    }
-    const leftEnd = board[0].left;
-    const rightEnd = board[board.length - 1].right;
-    setHighlight({
-      left: piece.left === leftEnd || piece.right === leftEnd,
-      right: piece.left === rightEnd || piece.right === rightEnd,
-    });
   };
 
   const canPlay = (piece) => {
@@ -140,6 +123,12 @@ export default function DominoPlay() {
   if (!started) {
     return (
       <div className="relative p-4 space-y-4 text-text flex flex-col items-center overflow-hidden">
+        <img
+          
+          src="/assets/icons/file_0000000091786243919bf8966d4d73ce.png"
+          className="background-behind-board object-cover"
+          alt=""
+        />
         <h2 className="text-xl font-bold text-center">DominoPlay</h2>
         <div className="flex justify-center space-x-4">
           <button className="px-4 py-2 bg-primary rounded text-white" onClick={startGame}>Start vs AI</button>
@@ -150,31 +139,20 @@ export default function DominoPlay() {
 
   return (
     <div className="relative p-4 space-y-4 text-text flex flex-col items-center overflow-hidden">
+      <img
+        
+        src="/assets/icons/file_0000000091786243919bf8966d4d73ce.png"
+        className="background-behind-board object-cover"
+        alt=""
+      />
       <h2 className="text-xl font-bold text-center">DominoPlay</h2>
       <p className="text-center">Stake: {amount} {token}</p>
       {winner !== null && <div className="text-center">Player {winner + 1} wins!</div>}
-      <DominoBoard
-        pieces={board}
-        highlight={highlight}
-        onPlaceLeft={() => selectedIndex !== null && play(selectedIndex)}
-        onPlaceRight={() => selectedIndex !== null && play(selectedIndex)}
-      />
+      <DominoBoard pieces={board} />
       <div className="flex space-x-2 overflow-x-auto">
         {hands[0].map((p, i) => (
-          <div
-            key={i}
-            onClick={() => {
-              if (selectedIndex === i) {
-                play(i);
-                setSelectedIndex(null);
-              } else {
-                showHighlight(p);
-                setSelectedIndex(i);
-              }
-            }}
-            className="cursor-pointer"
-          >
-            <DominoPiece left={p.left} right={p.right} vertical />
+          <div key={i} onClick={() => play(i)} className="cursor-pointer">
+            <DominoPiece left={p.left} right={p.right} />
           </div>
         ))}
       </div>

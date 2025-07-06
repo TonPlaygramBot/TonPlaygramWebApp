@@ -228,9 +228,9 @@ export default forwardRef<SpinWheelHandle, SpinWheelProps>(function SpinWheel(
               ) : val === 1600 || val === 1800 ? (
                 <>
                   <img
+                    
                     src="/assets/icons/FreeSpin.png"
                     alt="Free Spin"
-                    loading="lazy"
                     className="w-8 h-8 mr-1"
                   />
                   <span>
@@ -240,12 +240,7 @@ export default forwardRef<SpinWheelHandle, SpinWheelProps>(function SpinWheel(
                 </>
               ) : (
                 <>
-                  <img
-                    src="/assets/icons/TPCcoin.png"
-                    alt="TPC"
-                    loading="lazy"
-                    className="w-8 h-8 mr-1"
-                  />
+                  <img  src="/assets/icons/TPCcoin.png" alt="TPC" className="w-8 h-8 mr-1" />
                   <span>{val >= 1000 ? `${val / 1000}k` : val}</span>
                 </>
               )}

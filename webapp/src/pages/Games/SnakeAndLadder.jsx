@@ -70,7 +70,6 @@ import { socket } from "../../utils/socket.js";
 import PlayerToken from "../../components/PlayerToken.jsx";
 import AvatarTimer from "../../components/AvatarTimer.jsx";
 import ConfirmPopup from "../../components/ConfirmPopup.jsx";
-import CosmicBackground from "../../components/CosmicBackground.jsx";
 import { moveSeq, flashHighlight, applyEffect as applyEffectHelper } from "../../utils/moveHelpers.js";
 
 const TOKEN_COLORS = [
@@ -219,8 +218,9 @@ function Board({
     // subsequent row alternates direction. Tile 1 is at the bottom-left and
     // tile 100 ends up at the top-right.
     const reversed = r % 2 === 1;
-    // Use a single background color for all tiles matching the first cell
-    const rowColor = "#6db0ad";
+    const colorIdx = Math.floor(r / (ROWS / 5));
+    const TILE_COLORS = ["#6db0ad", "#4a828e", "#3d7078", "#2d5c66", "#0e3b45"];
+    const rowColor = TILE_COLORS[colorIdx] || "#0e3b45";
 
     for (let c = 0; c < COLS; c++) {
       const col = c;
@@ -282,16 +282,12 @@ function Board({
                       : 'ladder-text'
                   }`}
                 >
-                  {cellType === 'snake'
-                    ? `-${offsetVal}`
-                    : offsetVal > 0
-                      ? `+${offsetVal}`
-                      : offsetVal}
+                  {offsetVal > 0 ? `+${offsetVal}` : offsetVal}
                 </span>
               )}
             </span>
           )}
-          <span className="cell-number">{num}</span>
+          {!cellType && <span className="cell-number">{num}</span>}
           {diceCells && diceCells[num] && (
             <span className="dice-marker">
               <img  src="/assets/icons/Dice.png" className="dice-icon" />
@@ -338,12 +334,6 @@ function Board({
               {offsetPopup.amount}
             </span>
           )}
-          <div className="cell-tokens">
-            <span className="simple-token token-blue" />
-            <span className="simple-token token-yellow" />
-            <span className="simple-token token-green" />
-            <span className="simple-token token-red" />
-          </div>
         </div>,
       );
     }
@@ -422,6 +412,7 @@ function Board({
 
   return (
     <div className="relative flex justify-center items-center w-screen overflow-visible">
+      <img  src="/assets/SnakeLaddersbackground.png" className="background-behind-board object-cover" alt="" />
       <div
         ref={containerRef}
         className="overflow-y-auto"
@@ -434,15 +425,14 @@ function Board({
         }}
       >
         <div className="snake-board-tilt">
-          <div className="snake-board-frame">
-            <div
-              ref={gridRef}
-              className="snake-board-grid grid gap-x-1 gap-y-2 relative mx-auto"
-              style={{
-                width: `${cellWidth * COLS}px`,
-                height: `${cellHeight * ROWS + offsetYMax}px`,
-                gridTemplateColumns: `repeat(${COLS}, ${cellWidth}px)`,
-                gridTemplateRows: `repeat(${ROWS}, ${cellHeight}px)`,
+          <div
+            ref={gridRef}
+            className="snake-board-grid grid gap-x-1 gap-y-2 relative mx-auto"
+            style={{
+              width: `${cellWidth * COLS}px`,
+              height: `${cellHeight * ROWS + offsetYMax}px`,
+              gridTemplateColumns: `repeat(${COLS}, ${cellWidth}px)`,
+              gridTemplateRows: `repeat(${ROWS}, ${cellHeight}px)`,
               "--cell-width": `${cellWidth}px`,
               "--cell-height": `${cellHeight}px`,
               "--board-width": `${cellWidth * COLS}px`,
@@ -452,7 +442,7 @@ function Board({
               // Fixed camera angle with no zooming
               // Pull the board slightly back so more of the lower rows are
               // visible when the game starts without changing zoom or angle
-              transform: `translate(${boardXOffset}px, ${boardYOffset}px) translateZ(${boardZOffset}px) rotateZ(-45deg) rotateX(${angle}deg) scale(0.9)`,
+              transform: `translate(${boardXOffset}px, ${boardYOffset}px) translateZ(${boardZOffset}px) rotateX(${angle}deg) scale(0.9)`,
             }}
           >
             {/* Game background is rendered outside the grid */}
@@ -500,7 +490,6 @@ function Board({
             </div>
             <div className="logo-wall-main" />
           </div>
-        </div>
         </div>
       </div>
     </div>
@@ -1760,7 +1749,6 @@ export default function SnakeAndLadder() {
 
   return (
     <div className="p-4 pb-32 space-y-4 text-text flex flex-col justify-end items-center relative w-full flex-grow">
-      <CosmicBackground />
       {/* Bottom left controls */}
       <BottomLeftIcons onInfo={() => setShowInfo(true)} />
       {/* Player photos stacked vertically */}

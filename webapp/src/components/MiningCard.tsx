@@ -124,11 +124,10 @@ export default function MiningCard() {
   return (
     <div className="relative bg-surface border border-border rounded-xl p-4 space-y-4 text-center overflow-hidden">
       <img
+        
         src="/assets/SnakeLaddersbackground.png"
         className="background-behind-board object-cover"
         alt=""
-        aria-hidden="true"
-        loading="lazy"
       />
       <div className="flex justify-center items-center space-x-1">
         <GiMining className="w-5 h-5 text-accent" />
@@ -149,12 +148,7 @@ export default function MiningCard() {
       </button>
       {isMining && (
         <div className="flex items-center justify-center space-x-1 text-sm">
-          <img
-            src="/assets/icons/TPCcoin.png"
-            alt="TPC"
-            loading="lazy"
-            className="w-5 h-5"
-          />
+          <img  src="/assets/icons/TPCcoin.png" alt="TPC" className="w-5 h-5" />
           <span>{minted}</span>
         </div>
       )}

@@ -18,8 +18,6 @@ export default function StoreAd() {
         src="/assets/SnakeLaddersbackground.png"
         className="background-behind-board object-cover"
         alt=""
-        aria-hidden="true"
-        loading="lazy"
       />
       <div className="flex items-center justify-center space-x-1">
         <AiOutlineShop className="text-accent" />
@@ -38,23 +36,18 @@ export default function StoreAd() {
       </div>
       <div className="flex space-x-4 overflow-x-auto pb-2">
         {STORE_BUNDLES.filter(b => b.category === category).map((b) => (
-          <div key={b.id} className="store-card flex-shrink-0 w-80">
+          <div key={b.id} className="store-card flex-shrink-0 w-72">
             <div className="flex items-center space-x-2">
               <span className="text-2xl">{b.icon}</span>
               <h3 className="font-semibold">{b.name}</h3>
             </div>
             <div className="text-sm flex items-center space-x-1">
               <span>{b.tpc.toLocaleString()}</span>
-              <img
-                src="/assets/icons/TPCcoin.png"
-                alt="TPC"
-                loading="lazy"
-                className="w-5 h-5"
-              />
+              <img src="/assets/icons/TPCcoin.png" alt="TPC" className="w-5 h-5" />
             </div>
             <div className="text-sm flex items-center space-x-1 text-primary">
               <span>{b.ton}</span>
-              <img src="/icons/TON.png" alt="TON" loading="lazy" className="w-5 h-5" />
+              <img src="/icons/TON.png" alt="TON" className="w-5 h-5" />
             </div>
           </div>
         ))}

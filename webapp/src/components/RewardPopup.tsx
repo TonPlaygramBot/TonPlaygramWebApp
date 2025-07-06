@@ -31,9 +31,9 @@ export default function RewardPopup({ reward, onClose, duration = 2500, showClos
           {reward === 'BONUS_X3' && (
             <>
               <img
+                
                 src="/assets/icons/Dice.png"
                 alt="Bonus"
-                loading="lazy"
                 className="w-8 h-8"
               />
               <span>BONUS X3</span>
@@ -42,9 +42,9 @@ export default function RewardPopup({ reward, onClose, duration = 2500, showClos
           {typeof reward === 'number' && reward === 1600 && (
             <>
               <img
+                
                 src="/assets/icons/FreeSpin.png"
                 alt="Free Spin"
-                loading="lazy"
                 className="w-8 h-8"
               />
               <span>+1</span>
@@ -53,9 +53,9 @@ export default function RewardPopup({ reward, onClose, duration = 2500, showClos
           {typeof reward === 'number' && reward === 1800 && (
             <>
               <img
+                
                 src="/assets/icons/FreeSpin.png"
                 alt="Free Spin"
-                loading="lazy"
                 className="w-8 h-8"
               />
               <span>+2</span>
@@ -64,9 +64,9 @@ export default function RewardPopup({ reward, onClose, duration = 2500, showClos
           {typeof reward === 'number' && reward !== 1600 && reward !== 1800 && (
             <>
               <img
+                
                 src="/assets/icons/TPCcoin.png"
                 alt="TPC"
-                loading="lazy"
                 className="w-8 h-8"
               />
               <span>+{reward}</span>

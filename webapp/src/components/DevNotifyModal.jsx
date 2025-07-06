@@ -24,7 +24,7 @@ export default function DevNotifyModal({
           className="border p-1 rounded w-full h-40 text-black"
         />
         {notifyPhoto && (
-          <img src={notifyPhoto} alt="preview" loading="lazy" className="max-h-40 mx-auto" />
+          <img src={notifyPhoto} alt="preview" className="max-h-40 mx-auto" />
         )}
         <div className="flex space-x-2">
           <label className="flex-1 px-4 py-1 border border-border bg-surface rounded cursor-pointer text-center">

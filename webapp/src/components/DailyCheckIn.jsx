@@ -115,12 +115,7 @@ export default function DailyCheckIn() {
 
         <span className="flex items-center">
           {formatReward(REWARDS[i])}
-          <img
-            src="/assets/icons/TPCcoin.png"
-            alt="TPC"
-            loading="lazy"
-            className="w-8 h-8 -ml-1"
-          />
+          <img  src="/assets/icons/TPCcoin.png" alt="TPC" className="w-8 h-8 -ml-1" />
         </span>
 
       </div>
@@ -133,12 +128,49 @@ export default function DailyCheckIn() {
 
     <div className="relative bg-surface border border-border rounded-xl p-4 space-y-2 text-center overflow-hidden">
       <img
+        
         src="/assets/SnakeLaddersbackground.png"
         className="background-behind-board object-cover"
         alt=""
-        aria-hidden="true"
-        loading="lazy"
       />
+
+      {showPopup && (
+
+        <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-70 z-50">
+
+          <div className="bg-surface border border-border p-6 rounded text-center space-y-4 text-text w-80">
+
+            <img
+              
+              src="/assets/TonPlayGramLogo.jpg"
+              alt="TonPlaygram Logo"
+
+              className="w-10 h-10 mx-auto"
+
+            />
+
+            <h3 className="text-lg font-bold">Daily Check-In</h3>
+
+            <p className="text-sm text-subtext">Come back daily to keep your streak!</p>
+
+            <button
+
+              onClick={handleCheckIn}
+
+              className="px-4 py-2 bg-primary hover:bg-primary-hover text-white rounded w-full"
+
+            >
+
+              Check in
+
+            </button>
+
+          </div>
+
+        </div>
+
+      )}
+
       {reward !== null && (
 
         <RewardPopup
@@ -148,16 +180,9 @@ export default function DailyCheckIn() {
 
       )}
 
-
       <h3 className="text-lg font-bold text-text">Daily Streaks</h3>
 
       <div className="flex space-x-2 overflow-x-auto justify-center">{progress}</div>
-
-      {showPopup && (
-        <button onClick={handleCheckIn} className="text-brand-gold font-bold">
-          Claim
-        </button>
-      )}
 
       <p className="text-sm text-subtext">Check in each day for increasing rewards.</p>
 

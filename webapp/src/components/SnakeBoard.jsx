@@ -16,15 +16,13 @@ function CoinBurst({ token }) {
     <div className="coin-burst">
       {coins.map((c, i) => (
         <img
+          
           key={i}
           src={
             token.toUpperCase() === 'TPC'
               ? '/assets/icons/TPCcoin.png'
               : `/icons/${token.toLowerCase()}.svg`
           }
-          alt=""
-          aria-hidden="true"
-          loading="lazy"
           className="coin-img"
           style={{
             "--dx": `${c.dx}px`,
@@ -80,8 +78,9 @@ export default function SnakeBoard({
     const scaleX = scale * (1 + rowPos * widenStep);
     const offsetX = (scaleX - 1) * cellWidth;
     const reversed = r % 2 === 1;
-    // Use a single background color for all tiles matching the first cell
-    const rowColor = "#6db0ad";
+    const colorIdx = Math.floor(r / (ROWS / 5));
+    const TILE_COLORS = ["#6db0ad", "#4a828e", "#3d7078", "#2d5c66", "#0e3b45"];
+    const rowColor = TILE_COLORS[colorIdx] || "#0e3b45";
 
     for (let c = 0; c < COLS; c++) {
       const col = c;
@@ -134,15 +133,7 @@ export default function SnakeBoard({
         >
           {(iconImage || offsetVal != null) && (
             <span className="cell-marker">
-              {iconImage && (
-                <img
-                  src={iconImage}
-                  alt=""
-                  aria-hidden="true"
-                  loading="lazy"
-                  className="cell-icon"
-                />
-              )}
+              {iconImage && <img  src={iconImage} className="cell-icon" />}
               {offsetVal != null && (
                 <span
                   className={`offset-text ${cellType === 'snake' ? 'snake-text' : 'ladder-text'}`}
@@ -152,16 +143,10 @@ export default function SnakeBoard({
               )}
             </span>
           )}
-          <span className="cell-number">{num}</span>
+          {!cellType && <span className="cell-number">{num}</span>}
           {diceCells && diceCells[num] && (
             <span className="dice-marker">
-              <img
-                src="/assets/icons/Dice.png"
-                alt=""
-                aria-hidden="true"
-                loading="lazy"
-                className="dice-icon"
-              />
+              <img  src="/assets/icons/Dice.png" className="dice-icon" />
               <span className="dice-value">+{diceCells[num]}</span>
             </span>
           )}
@@ -203,12 +188,6 @@ export default function SnakeBoard({
               {offsetPopup.amount}
             </span>
           )}
-          <div className="cell-tokens">
-            <span className="simple-token token-blue" />
-            <span className="simple-token token-yellow" />
-            <span className="simple-token token-green" />
-            <span className="simple-token token-red" />
-          </div>
         </div>
       );
     }
@@ -250,6 +229,7 @@ export default function SnakeBoard({
 
   return (
     <div className="relative flex justify-center items-center w-screen overflow-visible">
+      <img  src="/assets/SnakeLaddersbackground.png" className="background-behind-board object-cover" alt="" />
       <div
         ref={containerRef}
         className="overflow-y-auto"
@@ -262,10 +242,9 @@ export default function SnakeBoard({
         }}
       >
         <div className="snake-board-tilt">
-          <div className="snake-board-frame">
-            <div
-              ref={gridRef}
-              className="snake-board-grid grid gap-x-1 gap-y-2 relative mx-auto"
+          <div
+            ref={gridRef}
+            className="snake-board-grid grid gap-x-1 gap-y-2 relative mx-auto"
             style={{
               width: `${cellWidth * COLS}px`,
               height: `${cellHeight * ROWS + offsetYMax}px`,
@@ -277,7 +256,7 @@ export default function SnakeBoard({
               '--board-height': `${cellHeight * ROWS + offsetYMax}px`,
               '--board-angle': `${angle}deg`,
               '--final-scale': finalScale,
-              transform: `translate(${boardXOffset}px, ${boardYOffset}px) translateZ(${boardZOffset}px) rotateZ(-45deg) rotateX(${angle}deg) scale(0.9)`,
+              transform: `translate(${boardXOffset}px, ${boardYOffset}px) translateZ(${boardZOffset}px) rotateX(${angle}deg) scale(0.9)`,
             }}
           >
             {tiles}
@@ -291,10 +270,10 @@ export default function SnakeBoard({
                     ? '/icons/Usdt.png'
                     : '/assets/icons/TPCcoin.png'
                 }
+                
                 alt={token}
-                loading="lazy"
                 className="pot-icon"
-              />
+                />
               {players
                 .map((p, i) => ({ ...p, index: i }))
                 .filter((p) => p.position === FINAL_TILE)

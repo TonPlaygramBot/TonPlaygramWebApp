@@ -37,8 +37,7 @@ export default function AvatarPickerModal({ open, onClose, onSave }) {
             >
               <img
                 src={getAvatarUrl(src)}
-                alt="Avatar option"
-                loading="lazy"
+                alt="avatar"
                 className="w-full h-full rounded-full object-cover"
               />
             </div>
