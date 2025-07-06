@@ -5,7 +5,7 @@ export default function GameCard({ title, description, link, icon }) {
   if (icon) {
     iconNode =
       typeof icon === 'string' ? (
-        <img src={icon} alt="" className="h-8 w-8 mx-auto" />
+        <img src={icon} alt={title} className="h-8 w-8 mx-auto" width="32" height="32" />
       ) : (
         <span className="text-3xl text-accent">{icon}</span>
       );

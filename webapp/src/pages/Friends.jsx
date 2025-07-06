@@ -123,10 +123,11 @@ export default function Friends() {
     <>
       <div className="relative bg-surface border border-border rounded-xl p-4 space-y-4 text-text overflow-hidden">
       <img
-        
         src="/assets/SnakeLaddersbackground.png"
         className="background-behind-board object-cover"
-        alt=""
+        alt="Background"
+        width="1024"
+        height="1536"
       />
         <h2 className="text-xl font-bold text-center">Friends</h2>
 
@@ -190,7 +191,9 @@ export default function Friends() {
       <img
         src="/assets/SnakeLaddersbackground.png"
         className="background-behind-board object-cover"
-        alt=""
+        alt="Background"
+        width="1024"
+        height="1536"
       />
       <div className="flex items-center justify-between">
         <h3 className="text-lg font-semibold flex-1 text-center">Leaderboard</h3>

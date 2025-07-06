@@ -17,7 +17,9 @@ export default function StoreAd() {
       <img
         src="/assets/SnakeLaddersbackground.png"
         className="background-behind-board object-cover"
-        alt=""
+        alt="Background"
+        width="1024"
+        height="1536"
       />
       <div className="flex items-center justify-center space-x-1">
         <AiOutlineShop className="text-accent" />

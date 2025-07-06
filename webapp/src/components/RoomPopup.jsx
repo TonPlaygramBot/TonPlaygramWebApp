@@ -20,10 +20,11 @@ export default function RoomPopup({
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-70">
       <div className="bg-surface border border-border p-6 rounded space-y-4 text-text w-80">
         <img
-          
           src="/assets/TonPlayGramLogo.jpg"
           alt="TonPlaygram Logo"
           className="w-10 h-10 mx-auto"
+          width="40"
+          height="40"
         />
         <h3 className="text-lg font-bold text-center">Join a Room</h3>
         <p className="text-sm text-subtext text-center">Choose your token and amount</p>

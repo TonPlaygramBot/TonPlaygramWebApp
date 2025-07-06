@@ -113,10 +113,11 @@ export default function Home() {
         <div className="w-full mt-2 space-y-4">
           <div className="relative bg-surface border border-border rounded-xl p-4 flex items-center justify-around overflow-hidden">
             <img
-              
               src="/assets/SnakeLaddersbackground.png"
               className="background-behind-board object-cover"
-              alt=""
+              alt="Background"
+              width="1024"
+              height="1536"
             />
             <div className="flex-1 flex items-center justify-center space-x-1">
               <img src="/icons/TON.png" alt="TON" className="w-8 h-8" />
@@ -135,10 +136,11 @@ export default function Home() {
                 <span className="text-lg font-bold">Wallet</span>
               </div>
               <img
-                
                 src="/assets/SnakeLaddersbackground.png"
                 className="background-behind-board object-cover"
-                alt=""
+                alt="Background"
+                width="1024"
+                height="1536"
               />
 
               <p className="text-center text-xs text-subtext">Only to send and receive TPC coins</p>

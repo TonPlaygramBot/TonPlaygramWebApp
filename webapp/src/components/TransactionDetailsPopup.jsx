@@ -45,10 +45,11 @@ export default function TransactionDetailsPopup({ tx, onClose }) {
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-70">
       <div className="relative p-4 space-y-4 w-80 rounded-xl border border-border bg-surface text-text overflow-hidden">
         <img
-          
           src="/assets/SnakeLaddersbackground.png"
           className="background-behind-board object-cover"
-          alt=""
+          alt="Background"
+          width="1024"
+          height="1536"
         />
         <button
           onClick={onClose}
@@ -81,8 +82,10 @@ export default function TransactionDetailsPopup({ tx, onClose }) {
               {counterparty.photo && (
                 <img
                   src={getAvatarUrl(counterparty.photo)}
-                  alt=""
+                  alt="User avatar"
                   className="w-8 h-8 rounded-full"
+                  width="32"
+                  height="32"
                 />
               )}
               <div className="text-left">
