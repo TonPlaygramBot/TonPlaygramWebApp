@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Domino Prism Table</title>
+  <style>
+    body { margin: 0; overflow: hidden; }
+    canvas { display: block; }
+  </style>
+</head>
+<body>
+<script type="module">
+import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js';
+import { OrbitControls } from 'https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/controls/OrbitControls.js';
+
+// Scene & Camera
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 100);
+camera.position.set(2, 1.6, 1.6);
+camera.lookAt(0, 0, 0);
+
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setSize(window.innerWidth, window.innerHeight);
+document.body.appendChild(renderer.domElement);
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true;
+controls.enablePan = false;
+
+// Lighting
+scene.add(new THREE.AmbientLight(0xffffff, 0.6));
+const dirLight = new THREE.DirectionalLight(0xffffff, 0.6);
+dirLight.position.set(3, 5, 2);
+scene.add(dirLight);
+
+// Table Geometry & Face Mapping
+const tableGeo = new THREE.BoxGeometry(2, 0.1, 1.2);
+
+// CanvasTexture creation for felt surface
+const feltCanvas = document.createElement('canvas');
+feltCanvas.width = feltCanvas.height = 2048;
+const feltCtx = feltCanvas.getContext('2d');
+feltCtx.fillStyle = '#007a3d';
+feltCtx.fillRect(0, 0, feltCanvas.width, feltCanvas.height);
+// optional border lines
+feltCtx.strokeStyle = '#00371a';
+feltCtx.lineWidth = 20;
+feltCtx.strokeRect(0, 0, feltCanvas.width, feltCanvas.height);
+const feltTex = new THREE.CanvasTexture(feltCanvas);
+
+// load logo for sides
+const loader = new THREE.TextureLoader();
+const logoTex = loader.load('/assets/logo.png');
+logoTex.wrapS = logoTex.wrapT = THREE.RepeatWrapping;
+logoTex.repeat.set(1, 1);
+
+const sideMat = new THREE.MeshBasicMaterial({ map: logoTex });
+const materials = [
+  sideMat.clone(), // +X
+  sideMat.clone(), // -X
+  new THREE.MeshPhongMaterial({ map: feltTex }), // +Y top (table surface)
+  new THREE.MeshPhongMaterial({ color: 0x333333 }), // -Y bottom
+  sideMat.clone(), // +Z
+  sideMat.clone()  // -Z
+];
+const table = new THREE.Mesh(tableGeo, materials);
+scene.add(table);
+
+// Domino Pieces
+function createPipTexture(a, b) {
+  const c = document.createElement('canvas');
+  c.width = 256; c.height = 512;
+  const ctx = c.getContext('2d');
+  ctx.fillStyle = '#fff';
+  ctx.fillRect(0,0,c.width,c.height);
+  ctx.strokeStyle = '#000';
+  ctx.lineWidth = 4;
+  ctx.strokeRect(0,0,c.width,c.height);
+  const drawPips = (n, offY) => {
+    const radius = 20; const centerX = c.width/2; const offset = 40;
+    ctx.fillStyle = '#000';
+    const positions = [
+      [],
+      [[0,0]],
+      [[-1,-1],[1,1]],
+      [[-1,-1],[0,0],[1,1]],
+      [[-1,-1],[-1,1],[1,-1],[1,1]],
+      [[-1,-1],[-1,1],[0,0],[1,-1],[1,1]],
+      [[-1,-1],[-1,1],[0,-1],[0,1],[1,-1],[1,1]]
+    ];
+    positions[n].forEach(([x,y])=>{
+      ctx.beginPath();
+      ctx.arc(centerX + x*offset, offY + c.height/4 + y*offset, radius, 0, Math.PI*2);
+      ctx.fill();
+    });
+  };
+  drawPips(a, 0);
+  drawPips(b, c.height/2);
+  return new THREE.CanvasTexture(c);
+}
+
+function createDomino(a, b) {
+  const geo = new THREE.BoxGeometry(0.22, 0.02, 0.11);
+  const tex = createPipTexture(a, b);
+  const materials = [
+    new THREE.MeshPhongMaterial({ color: 0xffffff }), // right
+    new THREE.MeshPhongMaterial({ color: 0xffffff }), // left
+    new THREE.MeshBasicMaterial({ map: tex }), // top with pips
+    new THREE.MeshPhongMaterial({ color: 0xffffff }), // bottom
+    new THREE.MeshPhongMaterial({ color: 0xffffff }), // front
+    new THREE.MeshPhongMaterial({ color: 0xffffff })  // back
+  ];
+  const mesh = new THREE.Mesh(geo, materials);
+  mesh.userData = { values: [a, b], home: new THREE.Vector3() };
+  return mesh;
+}
+
+// create standard double-six set
+const boneyard = new THREE.Group();
+for(let i=0;i<=6;i++){
+  for(let j=i;j<=6;j++){
+    const tile = createDomino(i,j);
+    boneyard.add(tile);
+  }
+}
+scene.add(boneyard);
+
+// Dealing & Initial Layout
+const players = [new THREE.Group(), new THREE.Group(), new THREE.Group(), new THREE.Group()];
+players.forEach(g => scene.add(g));
+const tiles = [...boneyard.children];
+function shuffle(arr){ for(let i=arr.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [arr[i],arr[j]]= [arr[j],arr[i]]; }}
+shuffle(tiles);
+for(let p=0;p<4;p++){
+  for(let t=0;t<7;t++){
+    const tile = tiles.pop();
+    const angle = (p*Math.PI/2);
+    tile.position.set(Math.cos(angle)*0.8, 0.06, Math.sin(angle)*0.6 + t*0.03 - 0.1);
+    tile.rotation.y = -angle;
+    tile.userData.home.copy(tile.position);
+    players[p].add(tile);
+  }
+}
+
+// Touch & Drag Controls
+const raycaster = new THREE.Raycaster();
+let pointer = new THREE.Vector2();
+let dragging = null;
+function onPointerDown(event){
+  pointer.x = (event.clientX/window.innerWidth)*2-1;
+  pointer.y = -(event.clientY/window.innerHeight)*2+1;
+  raycaster.setFromCamera(pointer, camera);
+  const intersects = raycaster.intersectObjects(players.flatMap(g=>g.children));
+  if(intersects.length){ dragging = intersects[0].object; }
+}
+function onPointerMove(event){
+  if(!dragging) return;
+  pointer.x = (event.clientX/window.innerWidth)*2-1;
+  pointer.y = -(event.clientY/window.innerHeight)*2+1;
+  raycaster.setFromCamera(pointer, camera);
+  const planeY = new THREE.Plane(new THREE.Vector3(0,1,0), -0.05);
+  const pos = new THREE.Vector3();
+  raycaster.ray.intersectPlane(planeY, pos);
+  dragging.position.set(pos.x, 0.06, pos.z);
+}
+function onPointerUp(){
+  if(!dragging) return;
+  // Game state update on valid placement
+  // For demo purposes, snap to center if matches open end (simplified)
+  const val = dragging.userData.values;
+  if(openEnds.includes(val[0]) || openEnds.includes(val[1])){
+    dragging.position.set(0, 0.06, 0); // snap to center
+    openEnds = [val[0], val[1]]; // update ends
+    dragging.userData.placed = true;
+  } else {
+    dragging.position.copy(dragging.userData.home);
+  }
+  dragging = null;
+}
+renderer.domElement.addEventListener('pointerdown', onPointerDown);
+renderer.domElement.addEventListener('pointermove', onPointerMove);
+renderer.domElement.addEventListener('pointerup', onPointerUp);
+
+// Game Logic
+let openEnds = [0,0];
+
+// Render Loop
+function animate(){
+  requestAnimationFrame(animate);
+  controls.update();
+  renderer.render(scene, camera);
+}
+animate();
+</script>
+</body>
+</html>
