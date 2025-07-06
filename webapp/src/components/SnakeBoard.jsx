@@ -16,6 +16,7 @@ function CoinBurst({ token }) {
     <div className="coin-burst">
       {coins.map((c, i) => (
         <img
+          
           key={i}
           src={
             token.toUpperCase() === 'TPC'
@@ -23,8 +24,6 @@ function CoinBurst({ token }) {
               : `/icons/${token.toLowerCase()}.svg`
           }
           className="coin-img"
-          width="24"
-          height="24"
           style={{
             "--dx": `${c.dx}px`,
             "--delay": `${c.delay}s`,
@@ -133,15 +132,7 @@ export default function SnakeBoard({
         >
           {(iconImage || offsetVal != null) && (
             <span className="cell-marker">
-              {iconImage && (
-                <img
-                  src={iconImage}
-                  alt="icon"
-                  className="cell-icon"
-                  width="24"
-                  height="24"
-                />
-              )}
+              {iconImage && <img  src={iconImage} className="cell-icon" />}
               {offsetVal != null && (
                 <span
                   className={`offset-text ${cellType === 'snake' ? 'snake-text' : 'ladder-text'}`}
@@ -154,7 +145,7 @@ export default function SnakeBoard({
           {!cellType && <span className="cell-number">{num}</span>}
           {diceCells && diceCells[num] && (
             <span className="dice-marker">
-              <img src="/assets/icons/Dice.png" alt="dice" className="dice-icon" width="24" height="24" />
+              <img  src="/assets/icons/Dice.png" className="dice-icon" />
               <span className="dice-value">+{diceCells[num]}</span>
             </span>
           )}
@@ -277,11 +268,10 @@ export default function SnakeBoard({
                     ? '/icons/Usdt.png'
                     : '/assets/icons/TPCcoin.png'
                 }
+                
                 alt={token}
                 className="pot-icon"
-                width="24"
-                height="24"
-              />
+                />
               {players
                 .map((p, i) => ({ ...p, index: i }))
                 .filter((p) => p.position === FINAL_TILE)
