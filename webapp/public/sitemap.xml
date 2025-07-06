@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url><loc>https://tonplaygram.example.com/</loc></url>
+  <url><loc>https://tonplaygram.example.com/wallet</loc></url>
+  <url><loc>https://tonplaygram.example.com/games</loc></url>
+  <url><loc>https://tonplaygram.example.com/friends</loc></url>
+  <url><loc>https://tonplaygram.example.com/tasks</loc></url>
+  <url><loc>https://tonplaygram.example.com/store</loc></url>
+  <url><loc>https://tonplaygram.example.com/referral</loc></url>
+  <url><loc>https://tonplaygram.example.com/messages</loc></url>
+  <url><loc>https://tonplaygram.example.com/notifications</loc></url>
+  <url><loc>https://tonplaygram.example.com/trending</loc></url>
+  <url><loc>https://tonplaygram.example.com/account</loc></url>
+  <url><loc>https://tonplaygram.example.com/spin</loc></url>
+</urlset>
