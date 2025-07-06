@@ -55,7 +55,12 @@ export default function AdModal({ open, onComplete, onClose }: AdModalProps) {
             &times;
           </button>
         )}
-        <img  src="/assets/TonPlayGramLogo.jpg" alt="TonPlaygram Logo" className="w-10 h-10 mx-auto" />
+        <img
+          src="/assets/TonPlayGramLogo.jpg"
+          alt="TonPlaygram Logo"
+          loading="lazy"
+          className="w-10 h-10 mx-auto"
+        />
         <h3 className="text-lg font-bold">Watch Ad</h3>
         <div
           id="adsgram-player"

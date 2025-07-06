@@ -99,7 +99,7 @@ export default function HexPrismToken({ color = "#008080", topColor, photoUrl, c
       {photoUrl && (
         <img
           src={getAvatarUrl(photoUrl)}
-          alt="token"
+          alt="Token avatar"
           className={`token-photo${rolling ? ' rolling' : ''}${active ? ' active' : ''}`}
           style={{ '--token-border-color': color }}
         />

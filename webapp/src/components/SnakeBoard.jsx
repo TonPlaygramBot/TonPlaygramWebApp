@@ -16,13 +16,15 @@ function CoinBurst({ token }) {
     <div className="coin-burst">
       {coins.map((c, i) => (
         <img
-          
           key={i}
           src={
             token.toUpperCase() === 'TPC'
               ? '/assets/icons/TPCcoin.png'
               : `/icons/${token.toLowerCase()}.svg`
           }
+          alt=""
+          aria-hidden="true"
+          loading="lazy"
           className="coin-img"
           style={{
             "--dx": `${c.dx}px`,
@@ -132,7 +134,15 @@ export default function SnakeBoard({
         >
           {(iconImage || offsetVal != null) && (
             <span className="cell-marker">
-              {iconImage && <img  src={iconImage} className="cell-icon" />}
+              {iconImage && (
+                <img
+                  src={iconImage}
+                  alt=""
+                  aria-hidden="true"
+                  loading="lazy"
+                  className="cell-icon"
+                />
+              )}
               {offsetVal != null && (
                 <span
                   className={`offset-text ${cellType === 'snake' ? 'snake-text' : 'ladder-text'}`}
@@ -145,7 +155,13 @@ export default function SnakeBoard({
           {!cellType && <span className="cell-number">{num}</span>}
           {diceCells && diceCells[num] && (
             <span className="dice-marker">
-              <img  src="/assets/icons/Dice.png" className="dice-icon" />
+              <img
+                src="/assets/icons/Dice.png"
+                alt=""
+                aria-hidden="true"
+                loading="lazy"
+                className="dice-icon"
+              />
               <span className="dice-value">+{diceCells[num]}</span>
             </span>
           )}
@@ -268,10 +284,10 @@ export default function SnakeBoard({
                     ? '/icons/Usdt.png'
                     : '/assets/icons/TPCcoin.png'
                 }
-                
                 alt={token}
+                loading="lazy"
                 className="pot-icon"
-                />
+              />
               {players
                 .map((p, i) => ({ ...p, index: i }))
                 .filter((p) => p.position === FINAL_TILE)
