@@ -1227,7 +1227,7 @@ input:focus {
 
 /* Top surface of the table */
 .domino-board {
-  @apply flex flex-wrap justify-center items-center gap-2;
+  position: relative;
   width: 100%;
   height: 100%;
   transform: rotateX(20deg) translateZ(-20px);
@@ -1251,6 +1251,8 @@ input:focus {
   padding: 0 0.25rem;
   box-shadow: 0 2px 4px rgba(0,0,0,0.4);
   transform-style: preserve-3d;
+  transition: top 0.3s ease, left 0.3s ease, transform 0.3s ease;
+  animation: domino-drop 0.3s ease;
 }
 
 .domino-piece.domino-vert {
@@ -1305,6 +1307,15 @@ input:focus {
   border: 2px dashed yellow;
   border-radius: 0.25rem;
   margin: 0 0.25rem;
+}
+
+@keyframes domino-drop {
+  from {
+    transform: scale(0);
+  }
+  to {
+    transform: scale(1);
+  }
 }
 .ludo-board-tilt {
 
