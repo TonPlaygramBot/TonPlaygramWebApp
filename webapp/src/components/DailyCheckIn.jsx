@@ -115,7 +115,12 @@ export default function DailyCheckIn() {
 
         <span className="flex items-center">
           {formatReward(REWARDS[i])}
-          <img  src="/assets/icons/TPCcoin.png" alt="TPC" className="w-8 h-8 -ml-1" />
+          <img
+            src="/assets/icons/TPCcoin.png"
+            alt="TPC"
+            loading="lazy"
+            className="w-8 h-8 -ml-1"
+          />
         </span>
 
       </div>
@@ -128,10 +133,11 @@ export default function DailyCheckIn() {
 
     <div className="relative bg-surface border border-border rounded-xl p-4 space-y-2 text-center overflow-hidden">
       <img
-        
         src="/assets/SnakeLaddersbackground.png"
         className="background-behind-board object-cover"
         alt=""
+        aria-hidden="true"
+        loading="lazy"
       />
 
       {showPopup && (
@@ -141,12 +147,10 @@ export default function DailyCheckIn() {
           <div className="bg-surface border border-border p-6 rounded text-center space-y-4 text-text w-80">
 
             <img
-              
               src="/assets/TonPlayGramLogo.jpg"
               alt="TonPlaygram Logo"
-
+              loading="lazy"
               className="w-10 h-10 mx-auto"
-
             />
 
             <h3 className="text-lg font-bold">Daily Check-In</h3>

@@ -18,6 +18,8 @@ export default function StoreAd() {
         src="/assets/SnakeLaddersbackground.png"
         className="background-behind-board object-cover"
         alt=""
+        aria-hidden="true"
+        loading="lazy"
       />
       <div className="flex items-center justify-center space-x-1">
         <AiOutlineShop className="text-accent" />
@@ -43,11 +45,16 @@ export default function StoreAd() {
             </div>
             <div className="text-sm flex items-center space-x-1">
               <span>{b.tpc.toLocaleString()}</span>
-              <img src="/assets/icons/TPCcoin.png" alt="TPC" className="w-5 h-5" />
+              <img
+                src="/assets/icons/TPCcoin.png"
+                alt="TPC"
+                loading="lazy"
+                className="w-5 h-5"
+              />
             </div>
             <div className="text-sm flex items-center space-x-1 text-primary">
               <span>{b.ton}</span>
-              <img src="/icons/TON.png" alt="TON" className="w-5 h-5" />
+              <img src="/icons/TON.png" alt="TON" loading="lazy" className="w-5 h-5" />
             </div>
           </div>
         ))}

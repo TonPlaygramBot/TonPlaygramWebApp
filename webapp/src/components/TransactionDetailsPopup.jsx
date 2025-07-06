@@ -45,10 +45,11 @@ export default function TransactionDetailsPopup({ tx, onClose }) {
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-70">
       <div className="relative p-4 space-y-4 w-80 rounded-xl border border-border bg-surface text-text overflow-hidden">
         <img
-          
           src="/assets/SnakeLaddersbackground.png"
           className="background-behind-board object-cover"
           alt=""
+          aria-hidden="true"
+          loading="lazy"
         />
         <button
           onClick={onClose}
@@ -70,7 +71,7 @@ export default function TransactionDetailsPopup({ tx, onClose }) {
                 if (isReceive) return 'Received';
                 return tx.type;
               })()} {sign}{formattedAmount}
-              <img  src={icon} alt={token} className="w-5 h-5 inline" />
+              <img src={icon} alt={token} loading="lazy" className="w-5 h-5 inline" />
             </span>
             {tx.game && (
               <span className="text-xs capitalize">{tx.type}</span>
@@ -81,7 +82,8 @@ export default function TransactionDetailsPopup({ tx, onClose }) {
               {counterparty.photo && (
                 <img
                   src={getAvatarUrl(counterparty.photo)}
-                  alt=""
+                  alt={displayName ? `${displayName}'s avatar` : 'Avatar'}
+                  loading="lazy"
                   className="w-8 h-8 rounded-full"
                 />
               )}

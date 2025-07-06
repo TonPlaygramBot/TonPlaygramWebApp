@@ -21,13 +21,13 @@ export default function InvitePopup({
           <p className="text-center">
             {name} wants to play you for {stake?.amount}{' '}
             <img
-              
               src={
                 stake?.token === 'TPC'
                   ? '/assets/icons/TPCcoin.png'
                   : `/icons/${stake?.token || 'TPC'}.png`
               }
-              alt="token"
+              alt={stake?.token ? `${stake.token} token` : 'token'}
+              loading="lazy"
               className="inline w-4 h-4 mr-1"
             />
             {stake?.token}
