@@ -268,9 +268,9 @@ export default function SnakeBoard({
                     ? '/icons/Usdt.png'
                     : '/assets/icons/TPCcoin.png'
                 }
-                
+
                 alt={token}
-                className="pot-icon"
+                className={`pot-icon${token === 'TPC' ? ' pot-icon-tpc' : ''}`}
                 />
               {players
                 .map((p, i) => ({ ...p, index: i }))

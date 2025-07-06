@@ -43,6 +43,15 @@ export function avatarToName(src) {
   if (!src.startsWith('/') && !src.startsWith('http')) {
     const key = emojiToNameMap[src];
     if (key) {
+      const flagCode = key.match(/^flag[-_]?([a-z]{2})$/i);
+      if (flagCode) {
+        const code = flagCode[1].toUpperCase();
+        try {
+          const name = regionNames?.of(code);
+          if (name) return name;
+        } catch {}
+        return code;
+      }
       if (/^[a-z]{2}$/i.test(key)) {
         const code = key.toUpperCase();
         try {
@@ -51,10 +60,15 @@ export function avatarToName(src) {
         } catch {}
         return code;
       }
-      return key
+      let name = key
         .replace(/_/g, ' ')
         .replace(/\b\w/g, (c) => c.toUpperCase())
-        .replace(/^Flag\s+/i, '');
+        .replace(/^Flag\s+/i, '')
+        .replace(/^Face\s+Of\s+/i, '')
+        .replace(/\bFace\b/gi, '')
+        .replace(/\s{2,}/g, ' ')
+        .trim();
+      return name;
     }
     return '';
   }
