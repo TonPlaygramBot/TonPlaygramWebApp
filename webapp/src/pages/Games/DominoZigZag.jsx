@@ -15,8 +15,6 @@ function initGame() {
     }
   }
 
-  let firstIndex = deck.findIndex((d) => d.left === d.right);
-  if (firstIndex === -1) firstIndex = deck.length - 1;
   for (let v = 6; v >= 0; v--) {
     const i0 = hands[0].findIndex((d) => d.left === v && d.right === v);
     const i1 = hands[1].findIndex((d) => d.left === v && d.right === v);
@@ -28,8 +26,13 @@ function initGame() {
       const piece = hands[1].splice(i1, 1)[0];
       return { hands, deck, board: [piece], startPlayer: 0 };
     }
+    const dIdx = deck.findIndex((d) => d.left === v && d.right === v);
+    if (dIdx !== -1) {
+      const piece = deck.splice(dIdx, 1)[0];
+      return { hands, deck, board: [piece], startPlayer: 0 };
+    }
   }
-  const piece = deck.splice(firstIndex, 1)[0];
+  const piece = deck.pop();
   return { hands, deck, board: [piece], startPlayer: 0 };
 }
 

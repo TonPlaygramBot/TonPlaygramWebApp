@@ -14,7 +14,7 @@ export default function DominoZigZagBoard({ pieces = [], highlight = null, onSlo
 
   const layout = (list, width, height) => {
     let dir = 'right';
-    let x = width / 2 - H_WIDTH;
+    let x = width / 2 - H_WIDTH - V_WIDTH / 2; // center with slight left offset
     let y = height / 2 - H_HEIGHT / 2;
     const pos = [];
 
