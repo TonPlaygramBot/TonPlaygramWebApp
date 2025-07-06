@@ -79,6 +79,13 @@ const TOKEN_COLORS = [
   { name: "yellow", color: "#facc15" },
 ];
 
+const COLOR_MODEL_MAP = {
+  "#60a5fa": "/assets/blue_pawn_with_face.glb",
+  "#ef4444": "/assets/red_pawn_with_face.glb",
+  "#4ade80": "/assets/green_pawn_with_face.glb",
+  "#facc15": "/assets/purple_pawn_with_face.glb",
+};
+
 const PLAYERS = 4;
 // Adjusted board dimensions to show five columns
 // while keeping the total cell count at 100
@@ -311,6 +318,7 @@ function Board({
                   photoUrl={p.photoUrl}
                   type={p.type || (p.index === 0 ? (isHighlight ? highlight.type : tokenType) : "normal")}
                   color={p.color}
+                  modelUrl={COLOR_MODEL_MAP[p.color.toLowerCase()]}
                   rolling={p.index === rollingIndex}
                   active={p.index === currentTurn}
                   className={
@@ -483,6 +491,7 @@ function Board({
                       photoUrl={p.photoUrl}
                       type={p.type || 'normal'}
                       color={p.color}
+                      modelUrl={COLOR_MODEL_MAP[p.color.toLowerCase()]}
                     />
                   </Fragment>
                 ))}

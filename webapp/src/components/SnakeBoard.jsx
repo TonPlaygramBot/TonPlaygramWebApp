@@ -1,6 +1,13 @@
 import { useState, useEffect, useRef, Fragment } from "react";
 import PlayerToken from "./PlayerToken.jsx";
 
+const COLOR_MODEL_MAP = {
+  "#60a5fa": "/assets/blue_pawn_with_face.glb",
+  "#ef4444": "/assets/red_pawn_with_face.glb",
+  "#4ade80": "/assets/green_pawn_with_face.glb",
+  "#facc15": "/assets/purple_pawn_with_face.glb",
+};
+
 // Board dimensions
 const ROWS = 20;
 const COLS = 5;
@@ -167,6 +174,7 @@ export default function SnakeBoard({
                   photoUrl={p.photoUrl}
                   type={p.type || (p.index === 0 ? (isJump ? highlight.type : tokenType) : 'normal')}
                   color={p.color}
+                  modelUrl={COLOR_MODEL_MAP[p.color.toLowerCase()]}
                   rolling={p.index === rollingIndex}
                   active={p.index === currentTurn}
                   className={
@@ -287,7 +295,7 @@ export default function SnakeBoard({
                         '--hex-spin-duration': '7s',
                       }}
                     />
-                    <PlayerToken photoUrl={p.photoUrl} type={p.type || 'normal'} color={p.color} />
+                    <PlayerToken photoUrl={p.photoUrl} type={p.type || 'normal'} color={p.color} modelUrl={COLOR_MODEL_MAP[p.color.toLowerCase()]} />
                   </Fragment>
                 ))}
               {celebrate && <CoinBurst token={token} />}

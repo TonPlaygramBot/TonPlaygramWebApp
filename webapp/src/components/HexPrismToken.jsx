@@ -1,8 +1,9 @@
 import { useRef, useEffect } from "react";
 import * as THREE from "three";
+import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { getAvatarUrl } from '../utils/avatarUtils.js';
 
-export default function HexPrismToken({ color = "#008080", topColor, photoUrl, className = "", rolling = false, active = false }) {
+export default function HexPrismToken({ color = "#008080", topColor, photoUrl, modelUrl, className = "", rolling = false, active = false }) {
   const mountRef = useRef(null);
 
   useEffect(() => {
@@ -25,38 +26,55 @@ export default function HexPrismToken({ color = "#008080", topColor, photoUrl, c
     renderer.setPixelRatio(window.devicePixelRatio);
     mount.appendChild(renderer.domElement);
 
-    // Slightly reduce prism height so tokens are less tall
-    // Height is now 20% shorter than before
-    const geometry = new THREE.CylinderGeometry(1.1, 1.1, 1.44, 6);
-    geometry.scale(SCALE, SCALE, SCALE);
+    let prism;
+    let loadedModel;
+    let geometry;
+    let sideMaterials;
+    let topMaterial;
+    let bottomMaterial;
 
-    // Split geometry so each side can have its own shaded material
-    geometry.clearGroups();
-    for (let i = 0; i < 6; i++) {
-      geometry.addGroup(i * 6, 6, i);
+    if (modelUrl) {
+      const loader = new GLTFLoader();
+      loader.load(modelUrl, (gltf) => {
+        loadedModel = gltf.scene;
+        loadedModel.scale.set(SCALE, SCALE, SCALE);
+        loadedModel.rotation.y = Math.PI / 6;
+        scene.add(loadedModel);
+      });
+    } else {
+      // Slightly reduce prism height so tokens are less tall
+      // Height is now 20% shorter than before
+      geometry = new THREE.CylinderGeometry(1.1, 1.1, 1.44, 6);
+      geometry.scale(SCALE, SCALE, SCALE);
+
+      // Split geometry so each side can have its own shaded material
+      geometry.clearGroups();
+      for (let i = 0; i < 6; i++) {
+        geometry.addGroup(i * 6, 6, i);
+      }
+      geometry.addGroup(36, 18, 6); // top
+      geometry.addGroup(54, 18, 7); // bottom
+
+      const baseColor = new THREE.Color(color);
+      sideMaterials = Array.from({ length: 6 }, () =>
+        new THREE.MeshStandardMaterial({ color: baseColor })
+      );
+
+      topMaterial = new THREE.MeshStandardMaterial({
+        color: topColor ? new THREE.Color(topColor) : baseColor.clone().offsetHSL(0, 0, 0.2),
+        side: THREE.DoubleSide,
+      });
+      bottomMaterial = new THREE.MeshStandardMaterial({
+        color: baseColor.clone().offsetHSL(0, 0, -0.2),
+      });
+
+      prism = new THREE.Mesh(
+        geometry,
+        [...sideMaterials, topMaterial, bottomMaterial],
+      );
+      prism.rotation.y = Math.PI / 6; // show a corner toward the viewer
+      scene.add(prism);
     }
-    geometry.addGroup(36, 18, 6); // top
-    geometry.addGroup(54, 18, 7); // bottom
-
-    const baseColor = new THREE.Color(color);
-    const sideMaterials = Array.from({ length: 6 }, () =>
-      new THREE.MeshStandardMaterial({ color: baseColor })
-    );
-
-    const topMaterial = new THREE.MeshStandardMaterial({
-      color: topColor ? new THREE.Color(topColor) : baseColor.clone().offsetHSL(0, 0, 0.2),
-      side: THREE.DoubleSide,
-    });
-    const bottomMaterial = new THREE.MeshStandardMaterial({
-      color: baseColor.clone().offsetHSL(0, 0, -0.2),
-    });
-
-    const prism = new THREE.Mesh(
-      geometry,
-      [...sideMaterials, topMaterial, bottomMaterial],
-    );
-    prism.rotation.y = Math.PI / 6; // show a corner toward the viewer
-    scene.add(prism);
 
     const ambient = new THREE.AmbientLight(0xffffff, 0.6);
     const directional = new THREE.DirectionalLight(0xffffff, 0.8);
@@ -66,7 +84,12 @@ export default function HexPrismToken({ color = "#008080", topColor, photoUrl, c
 
     let frameId;
     const animate = () => {
-      prism.rotation.y += 0.01;
+      if (prism) {
+        prism.rotation.y += 0.01;
+      }
+      if (loadedModel) {
+        loadedModel.rotation.y += 0.01;
+      }
       renderer.render(scene, camera);
       frameId = requestAnimationFrame(animate);
     };
@@ -85,13 +108,28 @@ export default function HexPrismToken({ color = "#008080", topColor, photoUrl, c
       cancelAnimationFrame(frameId);
       window.removeEventListener("resize", handleResize);
       mount.removeChild(renderer.domElement);
-      geometry.dispose();
-      sideMaterials.forEach((m) => m.dispose());
-      topMaterial.dispose();
-      bottomMaterial.dispose();
+      if (prism) {
+        geometry.dispose();
+        sideMaterials.forEach((m) => m.dispose());
+        topMaterial.dispose();
+        bottomMaterial.dispose();
+      }
+      if (loadedModel) {
+        scene.remove(loadedModel);
+        loadedModel.traverse((obj) => {
+          if (obj.isMesh) {
+            obj.geometry.dispose();
+            if (Array.isArray(obj.material)) {
+              obj.material.forEach((m) => m.dispose());
+            } else if (obj.material) {
+              obj.material.dispose();
+            }
+          }
+        });
+      }
       renderer.dispose();
     };
-  }, [color, topColor]);
+  }, [color, topColor, modelUrl]);
 
 
   return (
