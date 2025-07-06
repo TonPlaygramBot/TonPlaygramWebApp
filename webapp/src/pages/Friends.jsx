@@ -122,12 +122,7 @@ export default function Friends() {
   return (
     <>
       <div className="relative bg-surface border border-border rounded-xl p-4 space-y-4 text-text overflow-hidden">
-      <img
-        
-        src="/assets/SnakeLaddersbackground.png"
-        className="background-behind-board object-cover"
-        alt=""
-      />
+      <div className="background-behind-board galaxy-bg" />
         <h2 className="text-xl font-bold text-center">Friends</h2>
 
       {friendRequests.length > 0 && (
@@ -187,11 +182,7 @@ export default function Friends() {
     </div>
 
     <section id="leaderboard" className="relative bg-surface border border-border rounded-xl p-4 space-y-2 overflow-hidden">
-      <img
-        src="/assets/SnakeLaddersbackground.png"
-        className="background-behind-board object-cover"
-        alt=""
-      />
+      <div className="background-behind-board galaxy-bg" />
       <div className="flex items-center justify-between">
         <h3 className="text-lg font-semibold flex-1 text-center">Leaderboard</h3>
         <span className="flex items-center space-x-2">

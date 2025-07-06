@@ -412,7 +412,7 @@ function Board({
 
   return (
     <div className="relative flex justify-center items-center w-screen overflow-visible">
-      <img  src="/assets/SnakeLaddersbackground.png" className="background-behind-board object-cover" alt="" />
+      <div className="background-behind-board galaxy-bg" />
       <div
         ref={containerRef}
         className="overflow-y-auto"
