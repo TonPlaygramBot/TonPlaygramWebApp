@@ -45,7 +45,28 @@ if (!process.env.MONGODB_URI) {
 
 const PORT = process.env.PORT || 3000;
 const app = express();
-app.use(helmet());
+const cspDirectives = helmet.contentSecurityPolicy.getDefaultDirectives();
+cspDirectives['script-src'] = [
+  ...cspDirectives['script-src'],
+  'https://telegram.org',
+  'https://accounts.google.com',
+];
+cspDirectives['connect-src'] = [
+  ...(cspDirectives['connect-src'] || ["'self'"]),
+  'https://raw.githubusercontent.com',
+];
+cspDirectives['img-src'] = [
+  ...(cspDirectives['img-src'] || ["'self'"]),
+  'https:',
+  'data:',
+];
+app.use(
+  helmet({
+    contentSecurityPolicy: {
+      directives: cspDirectives,
+    },
+  }),
+);
 app.use(cors());
 const httpServer = http.createServer(app);
 const io = new SocketIOServer(httpServer, { cors: { origin: '*' } });
