@@ -1253,6 +1253,26 @@ input:focus {
   transform-style: preserve-3d;
 }
 
+.domino-piece.domino-vert {
+  width: 2rem;
+  height: 4rem;
+  flex-direction: column;
+  padding: 0.25rem 0;
+}
+
+.domino-piece.domino-vert .domino-divider {
+  left: 0.15rem;
+  right: 0.15rem;
+  top: 50%;
+  width: auto;
+  height: 2px;
+}
+
+.domino-piece.domino-vert .domino-half {
+  width: 100%;
+  height: 50%;
+}
+
 .domino-divider {
   position: absolute;
   top: 0.15rem;
@@ -1264,11 +1284,27 @@ input:focus {
 }
 
 .domino-half {
+  position: relative;
   width: 50%;
-  text-align: center;
-  font-weight: bold;
-  font-size: 1rem;
+  height: 100%;
   z-index: 1;
+}
+
+.domino-dot {
+  position: absolute;
+  width: 0.5rem;
+  height: 0.5rem;
+  background: #000;
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+}
+
+.highlight-slot {
+  width: 2rem;
+  height: 4rem;
+  border: 2px dashed yellow;
+  border-radius: 0.25rem;
+  margin: 0 0.25rem;
 }
 .ludo-board-tilt {
 
