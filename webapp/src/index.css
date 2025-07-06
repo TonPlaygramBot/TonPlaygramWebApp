@@ -327,7 +327,7 @@ input:focus {
   top: 50%;
   left: 50%;
   transform: translate(-50%, -110%) translateZ(20px)
-    rotateX(calc(var(--board-angle, 58deg) * -1 - 10deg));
+    rotateX(calc(var(--board-angle, 58deg) * -1 - 7deg));
   pointer-events: none;
   z-index: 3;
 }
