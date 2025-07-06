@@ -14,7 +14,11 @@ export default function StoreAd() {
   const [category, setCategory] = useState(STORE_CATEGORIES[0]);
   return (
     <div className="relative bg-surface border border-border rounded-xl p-4 space-y-2 overflow-hidden">
-      <div className="background-behind-board galaxy-bg" />
+      <img
+        src="/assets/SnakeLaddersbackground.png"
+        className="background-behind-board object-cover"
+        alt=""
+      />
       <div className="flex items-center justify-center space-x-1">
         <AiOutlineShop className="text-accent" />
         <span className="text-lg font-bold">Store</span>

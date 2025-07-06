@@ -228,7 +228,7 @@ export default function SnakeBoard({
 
   return (
     <div className="relative flex justify-center items-center w-screen overflow-visible">
-      <div className="background-behind-board galaxy-bg" />
+      <img  src="/assets/SnakeLaddersbackground.png" className="background-behind-board object-cover" alt="" />
       <div
         ref={containerRef}
         className="overflow-y-auto"
