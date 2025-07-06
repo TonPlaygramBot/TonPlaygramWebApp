@@ -1214,8 +1214,28 @@ input:focus {
 }
 
 
+
+/* Container holding the domino board table */
+.domino-table {
+  @apply board-3d flex items-center justify-center;
+  width: 100%;
+  max-width: 450px;
+  height: 60vh;
+  margin: 0 auto;
+  position: relative;
+}
+
+/* Top surface of the table */
 .domino-board {
-  @apply flex flex-wrap justify-center items-center gap-2 board-3d;
+  @apply flex flex-wrap justify-center items-center gap-2;
+  width: 100%;
+  height: 100%;
+  transform: rotateX(20deg) translateZ(-20px);
+  transform-origin: bottom center;
+  border-radius: 1rem;
+  background: radial-gradient(circle at 50% 40%, #137a1f, #055613);
+  border: 16px solid #8b4513;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
 }
 
 .domino-piece {
