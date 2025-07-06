@@ -1254,6 +1254,15 @@ input:focus {
   transition: top 0.3s ease, left 0.3s ease, transform 0.3s ease;
   animation: domino-drop 0.3s ease;
 }
+.domino-piece.domino-back {
+  background: repeating-linear-gradient(
+    45deg,
+    #999,
+    #999 10px,
+    #ccc 10px,
+    #ccc 20px
+  );
+}
 
 .domino-piece.domino-vert {
   width: 2rem;
@@ -1302,11 +1311,21 @@ input:focus {
 }
 
 .highlight-slot {
-  width: 2rem;
-  height: 4rem;
+  width: 4rem;
+  height: 2rem;
   border: 2px dashed yellow;
   border-radius: 0.25rem;
   margin: 0 0.25rem;
+  pointer-events: none;
+  position: absolute;
+}
+.highlight-slot.domino-vert {
+  width: 2rem;
+  height: 4rem;
+}
+
+.domino-stack > div {
+  margin-bottom: 0.25rem;
 }
 
 @keyframes domino-drop {
