@@ -249,12 +249,7 @@ export default function Lobby() {
 
   return (
     <div className="relative p-4 space-y-4 text-text">
-      <img
-        
-        src="/assets/SnakeLaddersbackground.png"
-        className="background-behind-board object-cover"
-        alt=""
-      />
+      <div className="background-behind-board galaxy-bg" />
       <h2 className="text-xl font-bold text-center capitalize">{game} Lobby</h2>
       <p className="text-center text-sm">Online users: {online}</p>
       {['snake', 'domino', 'ludo'].includes(game) && (

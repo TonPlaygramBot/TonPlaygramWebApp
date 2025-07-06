@@ -68,7 +68,7 @@ export default function Tasks() {
 
     <div className="relative p-4 space-y-2 text-text">
 
-      <img  src="/assets/SnakeLaddersbackground.png" className="background-behind-board object-cover" alt="" />
+      <div className="background-behind-board galaxy-bg" />
       <h2 className="text-xl font-bold">Tasks</h2>
 
       <ul className="space-y-2">

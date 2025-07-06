@@ -44,12 +44,7 @@ export default function TransactionDetailsPopup({ tx, onClose }) {
   return createPortal(
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-70">
       <div className="relative p-4 space-y-4 w-80 rounded-xl border border-border bg-surface text-text overflow-hidden">
-        <img
-          
-          src="/assets/SnakeLaddersbackground.png"
-          className="background-behind-board object-cover"
-          alt=""
-        />
+        <div className="background-behind-board galaxy-bg" />
         <button
           onClick={onClose}
           className="absolute -top-3 -right-3 bg-black bg-opacity-70 text-white rounded-full w-6 h-6 flex items-center justify-center"
