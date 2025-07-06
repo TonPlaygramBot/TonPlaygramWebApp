@@ -20,9 +20,9 @@ export default function RoomPopup({
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-70">
       <div className="bg-surface border border-border p-6 rounded space-y-4 text-text w-80">
         <img
+          
           src="/assets/TonPlayGramLogo.jpg"
           alt="TonPlaygram Logo"
-          loading="lazy"
           className="w-10 h-10 mx-auto"
         />
         <h3 className="text-lg font-bold text-center">Join a Room</h3>

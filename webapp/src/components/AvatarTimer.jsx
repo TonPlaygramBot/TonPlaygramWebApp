@@ -19,7 +19,7 @@ export default function AvatarTimer({
       )}
       <img
         src={getAvatarUrl(photoUrl)}
-        alt={name ? `${name}'s avatar` : 'Player avatar'}
+        alt="player"
         className="w-10 h-10 rounded-full border-2 object-cover"
         style={{
           borderColor: color || '#fde047',

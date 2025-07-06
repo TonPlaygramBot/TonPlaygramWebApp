@@ -1,27 +1,27 @@
-import React, { Suspense } from 'react';
+import React from 'react';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
-import { TonConnectUIProvider, TonConnect } from '@tonconnect/ui-react';
+import { TonConnectUIProvider } from '@tonconnect/ui-react';
 
 import Home from './pages/Home.jsx';
-const Friends = React.lazy(() => import('./pages/Friends.jsx'));
-const DominoPlay = React.lazy(() => import('./pages/Games/DominoPlay.jsx'));
-const Wallet = React.lazy(() => import('./pages/Wallet.jsx'));
-const Tasks = React.lazy(() => import('./pages/Tasks.jsx'));
-const Referral = React.lazy(() => import('./pages/Referral.jsx'));
-const MyAccount = React.lazy(() => import('./pages/MyAccount.jsx'));
-const Store = React.lazy(() => import('./pages/Store.jsx'));
-const Messages = React.lazy(() => import('./pages/Messages.jsx'));
-const Trending = React.lazy(() => import('./pages/Trending.jsx'));
-const Notifications = React.lazy(() => import('./pages/Notifications.jsx'));
+import Friends from './pages/Friends.jsx';
+import DominoPlay from './pages/Games/DominoPlay.jsx';
+import Wallet from './pages/Wallet.jsx';
+import Tasks from './pages/Tasks.jsx';
+import Referral from './pages/Referral.jsx';
+import MyAccount from './pages/MyAccount.jsx';
+import Store from './pages/Store.jsx';
+import Messages from './pages/Messages.jsx';
+import Trending from './pages/Trending.jsx';
+import Notifications from './pages/Notifications.jsx';
 
-const HorseRacing = React.lazy(() => import('./pages/Games/HorseRacing.jsx'));
-const SnakeAndLadder = React.lazy(() => import('./pages/Games/SnakeAndLadder.jsx'));
-const SnakeMultiplayer = React.lazy(() => import('./pages/Games/SnakeMultiplayer.jsx'));
-const SnakeResults = React.lazy(() => import('./pages/Games/SnakeResults.jsx'));
-const Ludo = React.lazy(() => import('./pages/Games/Ludo.jsx'));
-const Lobby = React.lazy(() => import('./pages/Games/Lobby.jsx'));
-const Games = React.lazy(() => import('./pages/Games.jsx'));
-const SpinPage = React.lazy(() => import('./pages/spin.tsx'));
+import HorseRacing from './pages/Games/HorseRacing.jsx';
+import SnakeAndLadder from './pages/Games/SnakeAndLadder.jsx';
+import SnakeMultiplayer from './pages/Games/SnakeMultiplayer.jsx';
+import SnakeResults from './pages/Games/SnakeResults.jsx';
+import Ludo from './pages/Games/Ludo.jsx';
+import Lobby from './pages/Games/Lobby.jsx';
+import Games from './pages/Games.jsx';
+import SpinPage from './pages/spin.tsx';
 
 import Layout from './components/Layout.jsx';
 import useTelegramAuth from './hooks/useTelegramAuth.js';
@@ -30,14 +30,11 @@ export default function App() {
   useTelegramAuth();
 
   const manifestUrl = `${window.location.origin}/tonconnect-manifest.json`;
-  const walletsListUrl = `${window.location.origin}/wallets-v2.json`;
-  const connector = new TonConnect({ manifestUrl, walletsListSource: walletsListUrl });
 
   return (
     <BrowserRouter>
-      <TonConnectUIProvider connector={connector}>
+      <TonConnectUIProvider manifestUrl={manifestUrl}>
         <Layout>
-          <Suspense fallback={null}>
           <Routes>
           <Route path="/" element={<Home />} />
           <Route path="/friends" element={<Friends />} />
@@ -59,7 +56,6 @@ export default function App() {
           <Route path="/trending" element={<Trending />} />
           <Route path="/account" element={<MyAccount />} />
         </Routes>
-          </Suspense>
         </Layout>
       </TonConnectUIProvider>
     </BrowserRouter>

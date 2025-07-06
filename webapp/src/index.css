@@ -92,15 +92,6 @@ input:focus {
   transition: transform 0.3s ease; /* ✅ scaling transition */
 }
 
-/* Yellow frame surrounding the entire board */
-.snake-board-frame {
-  border: 12px solid #facc15;
-  border-radius: 1rem;
-  padding: 0.25rem;
-  display: inline-block;
-  box-sizing: content-box;
-}
-
 
 /* Full-screen stage behind the Snake & Ladder board */
 .background-behind-board {
@@ -336,7 +327,7 @@ input:focus {
   top: 50%;
   left: 50%;
   transform: translate(-50%, -110%) translateZ(20px)
-    rotateX(calc(var(--board-angle, 58deg) * -1 - 7deg));
+    rotateX(calc(var(--board-angle, 58deg) * -1));
   pointer-events: none;
   z-index: 3;
 }
@@ -687,7 +678,7 @@ input:focus {
 
 .cell-marker {
   position: absolute;
-  top: 65%;
+  top: 58%;
   left: 50%;
   /* Center icons slightly lower within the tile */
   transform: translate(-50%, -50%) translateZ(6px)
@@ -717,8 +708,8 @@ input:focus {
 }
 
 .cell-icon {
-  width: calc(var(--cell-width) * 0.9);
-  height: calc(var(--cell-height) * 0.9);
+  width: calc(var(--cell-width) * 0.7);
+  height: calc(var(--cell-height) * 0.7);
   object-fit: contain;
   transition: transform 0.3s ease;
 }
@@ -983,10 +974,10 @@ input:focus {
 
 .dice-marker {
   position: absolute;
-  width: 2.4rem;
-  height: 2.4rem;
+  width: 1.8rem;
+  height: 1.8rem;
   left: 50%;
-  top: 59%;
+  top: 50%;
   transform: translate(-50%, -50%) translateZ(6px)
     rotateX(calc(var(--board-angle, 58deg) * -1));
   display: flex;
@@ -998,8 +989,8 @@ input:focus {
 }
 
 .dice-marker .dice-icon {
-  width: 2.4rem;
-  height: 2.4rem;
+  width: 1.8rem;
+  height: 1.8rem;
   object-fit: contain;
   transition: transform 0.3s ease;
 }
@@ -1214,28 +1205,8 @@ input:focus {
 }
 
 
-
-/* Container holding the domino board table */
-.domino-table {
-  @apply board-3d flex items-center justify-center;
-  width: 100%;
-  max-width: 450px;
-  height: 60vh;
-  margin: 0 auto;
-  position: relative;
-}
-
-/* Top surface of the table */
 .domino-board {
-  position: relative;
-  width: 100%;
-  height: 100%;
-  transform: rotateX(20deg) translateZ(-20px);
-  transform-origin: bottom center;
-  border-radius: 1rem;
-  background: radial-gradient(circle at 50% 40%, #137a1f, #055613);
-  border: 16px solid #8b4513;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+  @apply flex flex-wrap justify-center items-center gap-2 board-3d;
 }
 
 .domino-piece {
@@ -1251,37 +1222,6 @@ input:focus {
   padding: 0 0.25rem;
   box-shadow: 0 2px 4px rgba(0,0,0,0.4);
   transform-style: preserve-3d;
-  transition: top 0.3s ease, left 0.3s ease, transform 0.3s ease;
-  animation: domino-drop 0.3s ease;
-}
-.domino-piece.domino-back {
-  background: repeating-linear-gradient(
-    45deg,
-    #999,
-    #999 10px,
-    #ccc 10px,
-    #ccc 20px
-  );
-}
-
-.domino-piece.domino-vert {
-  width: 2rem;
-  height: 4rem;
-  flex-direction: column;
-  padding: 0.25rem 0;
-}
-
-.domino-piece.domino-vert .domino-divider {
-  left: 0.15rem;
-  right: 0.15rem;
-  top: 50%;
-  width: auto;
-  height: 2px;
-}
-
-.domino-piece.domino-vert .domino-half {
-  width: 100%;
-  height: 50%;
 }
 
 .domino-divider {
@@ -1295,46 +1235,11 @@ input:focus {
 }
 
 .domino-half {
-  position: relative;
   width: 50%;
-  height: 100%;
+  text-align: center;
+  font-weight: bold;
+  font-size: 1rem;
   z-index: 1;
-}
-
-.domino-dot {
-  position: absolute;
-  width: 0.5rem;
-  height: 0.5rem;
-  background: #000;
-  border-radius: 50%;
-  transform: translate(-50%, -50%);
-}
-
-.highlight-slot {
-  width: 4rem;
-  height: 2rem;
-  border: 2px dashed yellow;
-  border-radius: 0.25rem;
-  margin: 0 0.25rem;
-  pointer-events: none;
-  position: absolute;
-}
-.highlight-slot.domino-vert {
-  width: 2rem;
-  height: 4rem;
-}
-
-.domino-stack > div {
-  margin-bottom: 0.25rem;
-}
-
-@keyframes domino-drop {
-  from {
-    transform: scale(0);
-  }
-  to {
-    transform: scale(1);
-  }
 }
 .ludo-board-tilt {
 
@@ -1448,27 +1353,3 @@ input:focus {
     opacity: 0;
   }
 }
-
-/* Tokens displayed in every board cell */
-.cell-tokens {
-  position: absolute;
-  inset: 0;
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  grid-template-rows: repeat(2, 1fr);
-  place-items: center;
-  transform: translateZ(8px);
-  pointer-events: none;
-}
-
-.simple-token {
-  width: 0.75rem;
-  height: 0.75rem;
-  border-radius: 50%;
-  border: 1px solid #000;
-}
-
-.token-blue { background-color: #3b82f6; }
-.token-yellow { background-color: #eab308; }
-.token-green { background-color: #16a34a; }
-.token-red { background-color: #dc2626; }

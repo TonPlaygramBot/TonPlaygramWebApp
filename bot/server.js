@@ -1,7 +1,6 @@
 import dotenv from 'dotenv';
 import express from 'express';
 import cors from 'cors';
-import helmet from 'helmet';
 import bot from './bot.js';
 import { sendInviteNotification, getInviteUrl } from './utils/notifications.js';
 import mongoose from 'mongoose';
@@ -45,30 +44,6 @@ if (!process.env.MONGODB_URI) {
 
 const PORT = process.env.PORT || 3000;
 const app = express();
-const cspDirectives = helmet.contentSecurityPolicy.getDefaultDirectives();
-cspDirectives['script-src'] = [
-  ...cspDirectives['script-src'],
-  'https://telegram.org',
-  'https://accounts.google.com',
-  'https://adsgram.io',
-];
-cspDirectives['connect-src'] = [
-  ...(cspDirectives['connect-src'] || ["'self'"]),
-  'https://raw.githubusercontent.com',
-  'https://adsgram.io',
-];
-cspDirectives['img-src'] = [
-  ...(cspDirectives['img-src'] || ["'self'"]),
-  'https:',
-  'data:',
-];
-app.use(
-  helmet({
-    contentSecurityPolicy: {
-      directives: cspDirectives,
-    },
-  }),
-);
 app.use(cors());
 const httpServer = http.createServer(app);
 const io = new SocketIOServer(httpServer, { cors: { origin: '*' } });
@@ -420,6 +395,7 @@ app.post('/api/snake/invite', async (req, res) => {
         roomId,
         token,
         amount,
+        true,
       );
     } catch (err) {
       console.error('Failed to send Telegram notification:', err.message);
@@ -570,6 +546,7 @@ io.on('connection', (socket) => {
           roomId,
           token,
           amount,
+          true,
         );
       } catch (err) {
         console.error('Failed to send Telegram notification:', err.message);
@@ -655,6 +632,7 @@ io.on('connection', (socket) => {
               roomId,
               token,
               amount,
+              true,
             );
           } catch (err) {
             console.error('Failed to send Telegram notification:', err.message);
