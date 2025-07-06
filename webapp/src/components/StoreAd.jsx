@@ -36,7 +36,7 @@ export default function StoreAd() {
       </div>
       <div className="flex space-x-4 overflow-x-auto pb-2">
         {STORE_BUNDLES.filter(b => b.category === category).map((b) => (
-          <div key={b.id} className="store-card flex-shrink-0 w-72">
+          <div key={b.id} className="store-card flex-shrink-0 w-80">
             <div className="flex items-center space-x-2">
               <span className="text-2xl">{b.icon}</span>
               <h3 className="font-semibold">{b.name}</h3>
