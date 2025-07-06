@@ -332,6 +332,11 @@ input:focus {
   z-index: 3;
 }
 
+.pot-icon-tpc {
+  transform: translate(-50%, -110%) translateZ(20px)
+    rotateX(calc(var(--board-angle, 58deg) * -1 - 10deg)) rotateZ(-65deg);
+}
+
 .token-three canvas {
   width: 100%;
   height: 100%;
