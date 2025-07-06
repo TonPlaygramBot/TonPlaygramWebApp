@@ -2,7 +2,7 @@ import React, { Suspense } from 'react';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { TonConnectUIProvider } from '@tonconnect/ui-react';
 
-const Home = React.lazy(() => import('./pages/Home.jsx'));
+import Home from './pages/Home.jsx';
 const Friends = React.lazy(() => import('./pages/Friends.jsx'));
 const DominoPlay = React.lazy(() => import('./pages/Games/DominoPlay.jsx'));
 const Wallet = React.lazy(() => import('./pages/Wallet.jsx'));
