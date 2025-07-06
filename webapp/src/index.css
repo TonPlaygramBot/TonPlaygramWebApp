@@ -678,7 +678,7 @@ input:focus {
 
 .cell-marker {
   position: absolute;
-  top: 58%;
+  top: 60%;
   left: 50%;
   /* Center icons slightly lower within the tile */
   transform: translate(-50%, -50%) translateZ(6px)
@@ -708,8 +708,8 @@ input:focus {
 }
 
 .cell-icon {
-  width: calc(var(--cell-width) * 0.7);
-  height: calc(var(--cell-height) * 0.7);
+  width: calc(var(--cell-width) * 0.8);
+  height: calc(var(--cell-height) * 0.8);
   object-fit: contain;
   transition: transform 0.3s ease;
 }
@@ -974,10 +974,10 @@ input:focus {
 
 .dice-marker {
   position: absolute;
-  width: 1.8rem;
-  height: 1.8rem;
+  width: 2rem;
+  height: 2rem;
   left: 50%;
-  top: 50%;
+  top: 54%;
   transform: translate(-50%, -50%) translateZ(6px)
     rotateX(calc(var(--board-angle, 58deg) * -1));
   display: flex;
@@ -989,8 +989,8 @@ input:focus {
 }
 
 .dice-marker .dice-icon {
-  width: 1.8rem;
-  height: 1.8rem;
+  width: 2rem;
+  height: 2rem;
   object-fit: contain;
   transition: transform 0.3s ease;
 }
