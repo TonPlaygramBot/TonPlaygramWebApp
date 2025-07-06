@@ -50,12 +50,10 @@ cspDirectives['script-src'] = [
   ...cspDirectives['script-src'],
   'https://telegram.org',
   'https://accounts.google.com',
-  'https://adsgram.io',
 ];
 cspDirectives['connect-src'] = [
   ...(cspDirectives['connect-src'] || ["'self'"]),
   'https://raw.githubusercontent.com',
-  'https://adsgram.io',
 ];
 cspDirectives['img-src'] = [
   ...(cspDirectives['img-src'] || ["'self'"]),
