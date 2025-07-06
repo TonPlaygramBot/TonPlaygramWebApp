@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import useTelegramBackButton from '../../hooks/useTelegramBackButton.js';
-import LudoBoardThree from '../../components/LudoBoardThree.jsx';
+import LudoBoard from '../../components/LudoBoard.jsx';
 import DiceRoller from '../../components/DiceRoller.jsx';
 
 export default function Ludo() {
@@ -32,7 +32,7 @@ export default function Ludo() {
     <div className="p-4 space-y-4">
       <h2 className="text-xl font-bold text-center">Ludo</h2>
       <div className="flex justify-center">
-        <LudoBoardThree />
+        <LudoBoard players={game.players} />
       </div>
       <DiceRoller numDice={2} onRollEnd={handleRoll} clickable />
     </div>
