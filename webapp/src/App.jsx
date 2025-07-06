@@ -4,7 +4,6 @@ import { TonConnectUIProvider } from '@tonconnect/ui-react';
 
 import Home from './pages/Home.jsx';
 import Friends from './pages/Friends.jsx';
-import DominoPlay from './pages/Games/DominoPlay.jsx';
 import Wallet from './pages/Wallet.jsx';
 import Tasks from './pages/Tasks.jsx';
 import Referral from './pages/Referral.jsx';
@@ -18,7 +17,6 @@ import HorseRacing from './pages/Games/HorseRacing.jsx';
 import SnakeAndLadder from './pages/Games/SnakeAndLadder.jsx';
 import SnakeMultiplayer from './pages/Games/SnakeMultiplayer.jsx';
 import SnakeResults from './pages/Games/SnakeResults.jsx';
-import Ludo from './pages/Games/Ludo.jsx';
 import Lobby from './pages/Games/Lobby.jsx';
 import Games from './pages/Games.jsx';
 import SpinPage from './pages/spin.tsx';
@@ -41,8 +39,6 @@ export default function App() {
           <Route path="/games" element={<Games />} />
           <Route path="/games/:game/lobby" element={<Lobby />} />
             <Route path="/games/horse" element={<HorseRacing />} />
-          <Route path="/games/domino" element={<DominoPlay />} />
-          <Route path="/games/ludo" element={<Ludo />} />
           <Route path="/games/snake" element={<SnakeAndLadder />} />
           <Route path="/games/snake/mp" element={<SnakeMultiplayer />} />
           <Route path="/games/snake/results" element={<SnakeResults />} />
