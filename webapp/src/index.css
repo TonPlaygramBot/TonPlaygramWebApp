@@ -92,6 +92,15 @@ input:focus {
   transition: transform 0.3s ease; /* ✅ scaling transition */
 }
 
+/* Yellow frame surrounding the entire board */
+.snake-board-frame {
+  border: 12px solid #facc15;
+  border-radius: 1rem;
+  padding: 0.25rem;
+  display: inline-block;
+  box-sizing: content-box;
+}
+
 
 /* Full-screen stage behind the Snake & Ladder board */
 .background-behind-board {
@@ -1353,3 +1362,27 @@ input:focus {
     opacity: 0;
   }
 }
+
+/* Tokens displayed in every board cell */
+.cell-tokens {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  grid-template-rows: repeat(2, 1fr);
+  place-items: center;
+  transform: translateZ(8px);
+  pointer-events: none;
+}
+
+.simple-token {
+  width: 0.75rem;
+  height: 0.75rem;
+  border-radius: 50%;
+  border: 1px solid #000;
+}
+
+.token-blue { background-color: #3b82f6; }
+.token-yellow { background-color: #eab308; }
+.token-green { background-color: #16a34a; }
+.token-red { background-color: #dc2626; }

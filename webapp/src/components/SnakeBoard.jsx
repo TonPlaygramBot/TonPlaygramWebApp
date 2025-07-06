@@ -152,7 +152,7 @@ export default function SnakeBoard({
               )}
             </span>
           )}
-          {!cellType && <span className="cell-number">{num}</span>}
+          <span className="cell-number">{num}</span>
           {diceCells && diceCells[num] && (
             <span className="dice-marker">
               <img
@@ -203,6 +203,12 @@ export default function SnakeBoard({
               {offsetPopup.amount}
             </span>
           )}
+          <div className="cell-tokens">
+            <span className="simple-token token-blue" />
+            <span className="simple-token token-yellow" />
+            <span className="simple-token token-green" />
+            <span className="simple-token token-red" />
+          </div>
         </div>
       );
     }
@@ -256,9 +262,10 @@ export default function SnakeBoard({
         }}
       >
         <div className="snake-board-tilt">
-          <div
-            ref={gridRef}
-            className="snake-board-grid grid gap-x-1 gap-y-2 relative mx-auto"
+          <div className="snake-board-frame">
+            <div
+              ref={gridRef}
+              className="snake-board-grid grid gap-x-1 gap-y-2 relative mx-auto"
             style={{
               width: `${cellWidth * COLS}px`,
               height: `${cellHeight * ROWS + offsetYMax}px`,
@@ -270,7 +277,7 @@ export default function SnakeBoard({
               '--board-height': `${cellHeight * ROWS + offsetYMax}px`,
               '--board-angle': `${angle}deg`,
               '--final-scale': finalScale,
-              transform: `translate(${boardXOffset}px, ${boardYOffset}px) translateZ(${boardZOffset}px) rotateX(${angle}deg) scale(0.9)`,
+              transform: `translate(${boardXOffset}px, ${boardYOffset}px) translateZ(${boardZOffset}px) rotateZ(-45deg) rotateX(${angle}deg) scale(0.9)`,
             }}
           >
             {tiles}
