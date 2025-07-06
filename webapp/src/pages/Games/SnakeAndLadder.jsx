@@ -282,7 +282,11 @@ function Board({
                       : 'ladder-text'
                   }`}
                 >
-                  {offsetVal > 0 ? `+${offsetVal}` : offsetVal}
+                  {cellType === 'snake'
+                    ? `-${offsetVal}`
+                    : offsetVal > 0
+                      ? `+${offsetVal}`
+                      : offsetVal}
                 </span>
               )}
             </span>
