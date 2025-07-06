@@ -2,7 +2,6 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { createCanvas, loadImage } from 'canvas';
 import { fetchTelegramInfo } from './telegram.js';
-import { transferInviteTpc } from './inviteTpc.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const coinPath = path.join(
@@ -144,13 +143,6 @@ export async function sendInviteNotification(
     ],
   };
 
-  if (sendToken) {
-    try {
-      await transferInviteTpc(fromId, toId, 1);
-    } catch (err) {
-      console.error('Failed to send invite TPC:', err.message);
-    }
-  }
 
   const photo = info?.photoUrl ? { url: info.photoUrl } : { source: coinPath };
 
