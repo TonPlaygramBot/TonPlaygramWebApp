@@ -44,6 +44,10 @@ function renderHalf(value) {
 }
 
 export default function DominoPiece({ left, right, vertical = false, style = {} }) {
+  const isBack = left < 0 || right < 0;
+  if (isBack) {
+    return <div className={`domino-piece ${vertical ? 'domino-vert' : ''} domino-back`} style={style} />;
+  }
   return (
     <div className={`domino-piece ${vertical ? 'domino-vert' : ''}`} style={style}>
       {renderHalf(left)}

@@ -5,6 +5,7 @@ import { TonConnectUIProvider, TonConnect } from '@tonconnect/ui-react';
 import Home from './pages/Home.jsx';
 const Friends = React.lazy(() => import('./pages/Friends.jsx'));
 const DominoPlay = React.lazy(() => import('./pages/Games/DominoPlay.jsx'));
+const DominoZigZag = React.lazy(() => import('./pages/Games/DominoZigZag.jsx'));
 const Wallet = React.lazy(() => import('./pages/Wallet.jsx'));
 const Tasks = React.lazy(() => import('./pages/Tasks.jsx'));
 const Referral = React.lazy(() => import('./pages/Referral.jsx'));
@@ -45,6 +46,7 @@ export default function App() {
           <Route path="/games/:game/lobby" element={<Lobby />} />
             <Route path="/games/horse" element={<HorseRacing />} />
           <Route path="/games/domino" element={<DominoPlay />} />
+          <Route path="/games/domino-zigzag" element={<DominoZigZag />} />
           <Route path="/games/ludo" element={<Ludo />} />
           <Route path="/games/snake" element={<SnakeAndLadder />} />
           <Route path="/games/snake/mp" element={<SnakeMultiplayer />} />
