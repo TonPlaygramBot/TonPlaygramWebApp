@@ -1,6 +1,5 @@
 import { useState, useEffect, useRef, Fragment } from "react";
 import PlayerToken from "./PlayerToken.jsx";
-import PawnModel from "./PawnModel.jsx";
 
 // Board dimensions
 const ROWS = 20;
@@ -181,7 +180,6 @@ export default function SnakeBoard({
                 />
               </Fragment>
             ))}
-          {num === 1 && <PawnModel src="/assets/blue_pawn_with_face.glb" />}
           {offsetPopup && offsetPopup.cell === num && (
             <span
               className={`popup-offset italic font-bold ${offsetPopup.type === 'snake' ? 'text-red-500' : 'text-green-500'}`}
