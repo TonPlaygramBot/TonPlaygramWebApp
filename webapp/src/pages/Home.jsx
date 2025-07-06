@@ -112,7 +112,12 @@ export default function Home() {
 
         <div className="w-full mt-2 space-y-4">
           <div className="relative bg-surface border border-border rounded-xl p-4 flex items-center justify-around overflow-hidden">
-            <div className="background-behind-board galaxy-bg" />
+            <img
+              
+              src="/assets/SnakeLaddersbackground.png"
+              className="background-behind-board object-cover"
+              alt=""
+            />
             <div className="flex-1 flex items-center justify-center space-x-1">
               <img src="/icons/TON.png" alt="TON" className="w-8 h-8" />
               <span className="text-base">{formatValue(tonBalance ?? '...')}</span>
@@ -129,7 +134,12 @@ export default function Home() {
                 <FaWallet className="text-primary" />
                 <span className="text-lg font-bold">Wallet</span>
               </div>
-              <div className="background-behind-board galaxy-bg" />
+              <img
+                
+                src="/assets/SnakeLaddersbackground.png"
+                className="background-behind-board object-cover"
+                alt=""
+              />
 
               <p className="text-center text-xs text-subtext">Only to send and receive TPC coins</p>
 

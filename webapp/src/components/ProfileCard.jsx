@@ -4,7 +4,12 @@ import { Link } from 'react-router-dom';
 export default function ProfileCard() {
   return (
     <div className="relative bg-surface border border-border p-4 rounded-xl shadow-lg space-y-2 text-center overflow-hidden">
-      <div className="background-behind-board galaxy-bg" />
+      <img
+        
+        src="/assets/SnakeLaddersbackground.png"
+        className="background-behind-board object-cover"
+        alt=""
+      />
       <FaUser className="text-accent text-3xl mx-auto" />
       <h3 className="text-lg font-bold text-text">Profile</h3>
       <Link
