@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 
 const SIZE = 1;
 
-const ANGLE = 65;
+const ANGLE = 58;
 
 export default function LudoBoard() {
 

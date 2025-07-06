@@ -322,12 +322,12 @@ input:focus {
 
 .pot-icon {
   position: absolute;
-  width: 4rem;
-  height: 4rem;
+  width: 3rem;
+  height: 3rem;
   top: 50%;
   left: 50%;
   transform: translate(-50%, -110%) translateZ(20px)
-    rotateX(calc(var(--board-angle, 65deg) * -1 - 10deg));
+    rotateX(calc(var(--board-angle, 58deg) * -1 - 10deg));
   pointer-events: none;
   z-index: 3;
 }
@@ -347,7 +347,7 @@ input:focus {
   transform-origin: center;
   /* Position photo so its bottom aligns with the token top centre */
   transform: translate(-50%, -100%) translateZ(15.2px)
-    rotateX(calc(var(--board-angle, 65deg) * -1 - 10deg));
+    rotateX(calc(var(--board-angle, 58deg) * -1 - 10deg));
   object-fit: cover;
   border-radius: 50%;
   border: 4px solid var(--token-border-color, #ffd700);
@@ -367,7 +367,7 @@ input:focus {
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%) translateZ(15.2px)
-    rotateX(calc(var(--board-angle, 65deg) * -1 - 10deg));
+    rotateX(calc(var(--board-angle, 58deg) * -1 - 10deg));
   border-radius: 50%;
   pointer-events: none;
   z-index: 0;
@@ -430,7 +430,7 @@ input:focus {
   height: 100%;
   transform-style: preserve-3d;
   /* Align token with board surface while showing a slight side angle */
-  transform: rotateX(calc(var(--board-angle, 65deg) * -1 - 20deg))
+  transform: rotateX(calc(var(--board-angle, 58deg) * -1 - 20deg))
     rotateY(25deg);
 }
 
@@ -601,7 +601,7 @@ input:focus {
 .board-cell.forward-highlight .dice-marker,
 .board-cell.back-highlight .cell-marker,
 .board-cell.back-highlight .dice-marker {
-  transform: translate(-50%, -50%) translateZ(6px) rotateX(calc(var(--board-angle, 65deg) * -1));
+  transform: translate(-50%, -50%) translateZ(6px) rotateX(calc(var(--board-angle, 58deg) * -1));
 }
 
 .board-cell.ladder-cell.forward-highlight,
@@ -618,7 +618,7 @@ input:focus {
 
 .board-cell.path-highlight .cell-marker,
 .board-cell.path-highlight .dice-marker {
-  transform: translate(-50%, -50%) translateZ(6px) rotateX(calc(var(--board-angle, 65deg) * -1));
+  transform: translate(-50%, -50%) translateZ(6px) rotateX(calc(var(--board-angle, 58deg) * -1));
 }
 .board-cell.ladder-cell.normal-highlight,
 .board-cell.snake-cell.normal-highlight {
@@ -641,7 +641,7 @@ input:focus {
 .board-cell.ladder-highlight .cell-marker,
 .board-cell.dice-cell.normal-highlight .dice-marker {
   transform: translate(-50%, -50%) translateZ(6px)
-    rotateX(calc(var(--board-angle, 65deg) * -1)) scale(3);
+    rotateX(calc(var(--board-angle, 58deg) * -1)) scale(3);
 }
 
 .board-cell.snake-highlight .cell-icon,
@@ -682,7 +682,7 @@ input:focus {
   left: 50%;
   /* Center icons slightly lower within the tile */
   transform: translate(-50%, -50%) translateZ(6px)
-    rotateX(calc(var(--board-angle, 65deg) * -1));
+    rotateX(calc(var(--board-angle, 58deg) * -1));
   display: flex;
   align-items: center;
   justify-content: center; /* keep icon and offset perfectly centred */
@@ -696,7 +696,7 @@ input:focus {
   font-size: 1.1rem;
   font-weight: bold;
   text-shadow: 0 0 2px #000;
-  transform: rotateX(calc(var(--board-angle, 65deg) * -1));
+  transform: rotateX(calc(var(--board-angle, 58deg) * -1));
 }
 
 .snake-text {
@@ -854,7 +854,7 @@ input:focus {
       (var(--final-scale, 1) - 1)
   );
   left: 48%;
-  transform: translateX(-50%) rotateX(calc(var(--board-angle, 65deg) * -1))
+  transform: translateX(-50%) rotateX(calc(var(--board-angle, 58deg) * -1))
     translateZ(-90px) scale(2.31); /* 5% larger */
   transform-origin: bottom center;
   background-image:
@@ -979,7 +979,7 @@ input:focus {
   left: 50%;
   top: 59%;
   transform: translate(-50%, -50%) translateZ(6px)
-    rotateX(calc(var(--board-angle, 65deg) * -1));
+    rotateX(calc(var(--board-angle, 58deg) * -1));
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1001,7 +1001,7 @@ input:focus {
   font-weight: bold;
   color: #3b82f6;
   text-shadow: 0 0 2px #000;
-  transform: rotateX(calc(var(--board-angle, 65deg) * -1));
+  transform: rotateX(calc(var(--board-angle, 58deg) * -1));
 }
 
 
@@ -1024,10 +1024,10 @@ input:focus {
 
 @keyframes hex-spin-reverse {
   from {
-    transform: translateZ(0) rotateX(var(--board-angle, 65deg)) rotate(0deg);
+    transform: translateZ(0) rotateX(var(--board-angle, 58deg)) rotate(0deg);
   }
   to {
-    transform: translateZ(0) rotateX(var(--board-angle, 65deg)) rotate(-360deg);
+    transform: translateZ(0) rotateX(var(--board-angle, 58deg)) rotate(-360deg);
   }
 }
 

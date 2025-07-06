@@ -206,7 +206,7 @@ export default function SnakeBoard({
   }, []);
 
 
-  const angle = 65;
+  const angle = 58;
   const boardXOffset = 10;
   const boardYOffset = 60;
   const boardZOffset = -50;
