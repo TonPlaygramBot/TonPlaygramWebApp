@@ -124,10 +124,11 @@ export default function DominoPlay() {
     return (
       <div className="relative p-4 space-y-4 text-text flex flex-col items-center overflow-hidden">
         <img
-          
           src="/assets/icons/file_0000000091786243919bf8966d4d73ce.png"
           className="background-behind-board object-cover"
-          alt=""
+          alt="Background"
+          width="1024"
+          height="1536"
         />
         <h2 className="text-xl font-bold text-center">DominoPlay</h2>
         <div className="flex justify-center space-x-4">
@@ -140,10 +141,11 @@ export default function DominoPlay() {
   return (
     <div className="relative p-4 space-y-4 text-text flex flex-col items-center overflow-hidden">
       <img
-        
         src="/assets/icons/file_0000000091786243919bf8966d4d73ce.png"
         className="background-behind-board object-cover"
-        alt=""
+        alt="Background"
+        width="1024"
+        height="1536"
       />
       <h2 className="text-xl font-bold text-center">DominoPlay</h2>
       <p className="text-center">Stake: {amount} {token}</p>
