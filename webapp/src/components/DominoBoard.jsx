@@ -11,34 +11,78 @@ export default function DominoBoard({ pieces = [], highlight = {}, onPlaceLeft, 
     const boardHeight = board.clientHeight;
     const boardWidth = board.clientWidth;
 
-    const GAP = 8;
-    const V_HEIGHT = 64;
+    const H_WIDTH = 64;
     const H_HEIGHT = 32;
-    const COLUMN_STEP = 40; // width of vertical piece + gap
+    const V_WIDTH = 32;
+    const V_HEIGHT = 64;
 
-    let x = boardWidth / 2 - COLUMN_STEP; // start slightly left
-    let y = boardHeight / 2 - V_HEIGHT / 2;
-    let downward = true;
     const pos = [];
 
-    pieces.forEach((piece) => {
-      const isDouble = piece.left === piece.right;
-      const height = isDouble ? H_HEIGHT : V_HEIGHT;
-      pos.push({ top: y, left: x, vertical: !isDouble });
+    let dir = 'right';
+    let x = boardWidth / 2 - H_WIDTH; // start from center, slightly left
+    let y = boardHeight - H_HEIGHT; // bottom row
 
-      if (downward) {
-        y += height + GAP;
-        if (y + height > boardHeight) {
-          downward = false;
-          x += COLUMN_STEP;
-          y = boardHeight - height;
+    let leftBound = 0;
+    let rightBound = boardWidth - H_WIDTH;
+    let topBound = 0;
+    let bottomBound = boardHeight - H_HEIGHT;
+
+    pieces.forEach((piece, idx) => {
+      const isDouble = piece.left === piece.right;
+      const vertical = (dir === 'up' || dir === 'down') && !isDouble;
+      const width = vertical ? V_WIDTH : H_WIDTH;
+      const height = vertical ? V_HEIGHT : H_HEIGHT;
+
+      // clamp within current bounds
+      if (x < leftBound) x = leftBound;
+      if (x + width > boardWidth) x = boardWidth - width;
+      if (y < topBound) y = topBound;
+      if (y + height > boardHeight) y = boardHeight - height;
+
+      pos.push({ top: y, left: x, vertical });
+
+      // determine next orientation (lookahead)
+      const nextPiece = pieces[idx + 1];
+      const nextDouble = nextPiece && nextPiece.left === nextPiece.right;
+      const nextVert = (dir === 'right' || dir === 'left') ? false : !nextDouble;
+      const nextWidth = nextVert ? V_WIDTH : H_WIDTH;
+      const nextHeight = nextVert ? V_HEIGHT : H_HEIGHT;
+
+      if (dir === 'right') {
+        if (x + width + nextWidth > rightBound) {
+          dir = 'up';
+          rightBound -= V_WIDTH;
+          y -= nextHeight;
+          x = rightBound;
+        } else {
+          x += width;
         }
-      } else {
-        y -= height + GAP;
-        if (y < 0) {
-          downward = true;
-          x += COLUMN_STEP;
-          y = 0;
+      } else if (dir === 'up') {
+        if (y - nextHeight < topBound) {
+          dir = 'left';
+          topBound += V_HEIGHT;
+          x -= nextWidth;
+          y = topBound;
+        } else {
+          y -= height;
+        }
+      } else if (dir === 'left') {
+        if (x - nextWidth < leftBound) {
+          dir = 'down';
+          leftBound += V_WIDTH;
+          y += nextHeight;
+          x = leftBound;
+        } else {
+          x -= width;
+        }
+      } else if (dir === 'down') {
+        if (y + height + nextHeight > bottomBound) {
+          dir = 'right';
+          bottomBound -= V_HEIGHT;
+          x += nextWidth;
+          y = bottomBound;
+        } else {
+          y += height;
         }
       }
     });
