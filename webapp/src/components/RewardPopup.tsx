@@ -32,7 +32,7 @@ export default function RewardPopup({ reward, onClose, duration = 2500, showClos
             <>
               <img
 
-                src="/assets/icons/file_00000000eeb061f79122a7d007f9bddc.webp"
+                src="/assets/icons/file_00000000ead061faa3b429466e006f48.webp"
                 alt="Bonus"
                 className="w-8 h-8"
               />
@@ -42,8 +42,8 @@ export default function RewardPopup({ reward, onClose, duration = 2500, showClos
           {typeof reward === 'number' && reward === 1600 && (
             <>
               <img
-                
-                src="/assets/icons/FreeSpin.png"
+
+                src="/assets/icons/FreeSpin.webp"
                 alt="Free Spin"
                 className="w-8 h-8"
               />
@@ -53,8 +53,8 @@ export default function RewardPopup({ reward, onClose, duration = 2500, showClos
           {typeof reward === 'number' && reward === 1800 && (
             <>
               <img
-                
-                src="/assets/icons/FreeSpin.png"
+
+                src="/assets/icons/FreeSpin.webp"
                 alt="Free Spin"
                 className="w-8 h-8"
               />

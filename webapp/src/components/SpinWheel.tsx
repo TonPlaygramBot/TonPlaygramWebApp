@@ -228,8 +228,8 @@ export default forwardRef<SpinWheelHandle, SpinWheelProps>(function SpinWheel(
               ) : val === 1600 || val === 1800 ? (
                 <>
                   <img
-                    
-                    src="/assets/icons/FreeSpin.png"
+
+                    src="/assets/icons/FreeSpin.webp"
                     alt="Free Spin"
                     className="w-8 h-8 mr-1"
                   />

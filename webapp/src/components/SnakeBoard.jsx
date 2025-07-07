@@ -105,7 +105,7 @@ export default function SnakeBoard({
         cellType === "ladder"
           ? "/assets/icons/Ladder.webp"
           : cellType === "snake"
-          ? "/assets/icons/snake.png"
+          ? "/assets/icons/snake_vector_no_bg.webp"
           : null;
       const offsetVal =
         cellType === "ladder"
@@ -144,7 +144,7 @@ export default function SnakeBoard({
           {!cellType && <span className="cell-number">{num}</span>}
           {diceCells && diceCells[num] && (
             <span className="dice-marker">
-              <img  src="/assets/icons/file_00000000eeb061f79122a7d007f9bddc.webp" className="dice-icon" />
+              <img  src="/assets/icons/file_00000000ead061faa3b429466e006f48.webp" className="dice-icon" />
               <span className="dice-value">+{diceCells[num]}</span>
             </span>
           )}
