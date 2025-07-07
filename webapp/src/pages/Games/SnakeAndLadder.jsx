@@ -729,6 +729,9 @@ export default function SnakeAndLadder() {
   const timerRef = useRef(null);
   const aiRollTimeoutRef = useRef(null);
   const reloadingRef = useRef(false);
+  const turnEndRef = useRef(Date.now() + TURN_TIME * 1000);
+  const aiRollTimeRef = useRef(null);
+  const prevTimeLeftRef = useRef(TURN_TIME);
 
   useEffect(() => {
     const id = getPlayerId();
@@ -1672,55 +1675,71 @@ export default function SnakeAndLadder() {
       : 0;
 
     if (currentTurn !== myIndex) {
+      turnEndRef.current = Date.now() + TURN_TIME * 1000;
+      prevTimeLeftRef.current = TURN_TIME;
       setTimeLeft(TURN_TIME);
       if (timerRef.current) clearInterval(timerRef.current);
       timerRef.current = setInterval(() => {
-        setTimeLeft((t) => Math.max(0, parseFloat((t - 0.1).toFixed(1))));
+        const remaining = Math.max(
+          0,
+          (turnEndRef.current - Date.now()) / 1000
+        );
+        prevTimeLeftRef.current = remaining;
+        setTimeLeft(parseFloat(remaining.toFixed(1)));
       }, 100);
       if (!isMultiplayer) {
-        if (aiRollTimeoutRef.current) clearTimeout(aiRollTimeoutRef.current);
-        aiRollTimeoutRef.current = setTimeout(() => {
-          triggerAIRoll(currentTurn);
-        }, 2500);
+        aiRollTimeRef.current = Date.now() + 2500;
+        if (aiRollTimeoutRef.current) clearInterval(aiRollTimeoutRef.current);
+        aiRollTimeoutRef.current = setInterval(() => {
+          if (Date.now() >= aiRollTimeRef.current) {
+            clearInterval(aiRollTimeoutRef.current);
+            triggerAIRoll(currentTurn);
+          }
+        }, 100);
       }
       return () => {
         clearInterval(timerRef.current);
-        clearTimeout(aiRollTimeoutRef.current);
+        clearInterval(aiRollTimeoutRef.current);
       };
     }
 
     const limit = TURN_TIME;
+    turnEndRef.current = Date.now() + limit * 1000;
+    prevTimeLeftRef.current = limit;
     setTimeLeft(limit);
     if (timerRef.current) clearInterval(timerRef.current);
     if (timerSoundRef.current) timerSoundRef.current.pause();
     timerRef.current = setInterval(() => {
-      setTimeLeft((t) => {
-        const next = parseFloat((t - 0.1).toFixed(1));
-        if (
-          currentTurn === myIndex &&
-          Math.ceil(next) < Math.ceil(t) &&
-          next <= 7 &&
-          next >= 0 &&
-          timerSoundRef.current
-        ) {
-          timerSoundRef.current.currentTime = 0;
-          if (!muted) timerSoundRef.current.play().catch(() => {});
-        }
-        if (next <= 0) {
-          timerSoundRef.current?.pause();
-          clearInterval(timerRef.current);
-          setPlayerAutoRolling(true);
-          setTurnMessage('Rolling...');
-          setPlayerRollTrigger((r) => r + 1);
-        }
-        return next;
-      });
+      const remaining = Math.max(
+        0,
+        (turnEndRef.current - Date.now()) / 1000
+      );
+      const next = parseFloat(remaining.toFixed(1));
+      if (
+        currentTurn === myIndex &&
+        Math.ceil(next) < Math.ceil(prevTimeLeftRef.current) &&
+        next <= 7 &&
+        next >= 0 &&
+        timerSoundRef.current
+      ) {
+        timerSoundRef.current.currentTime = 0;
+        if (!muted) timerSoundRef.current.play().catch(() => {});
+      }
+      if (next <= 0) {
+        timerSoundRef.current?.pause();
+        clearInterval(timerRef.current);
+        setPlayerAutoRolling(true);
+        setTurnMessage('Rolling...');
+        setPlayerRollTrigger((r) => r + 1);
+      }
+      prevTimeLeftRef.current = next;
+      setTimeLeft(next);
     }, 100);
     return () => {
       clearInterval(timerRef.current);
       timerSoundRef.current?.pause();
     };
-  }, [currentTurn, setupPhase, gameOver, refreshTick, moving, isMultiplayer, mpPlayers]);
+  }, [currentTurn, setupPhase, gameOver, refreshTick, moving, isMultiplayer, mpPlayers, muted]);
 
   // Periodically refresh the component state to avoid freezes
   useEffect(() => {
