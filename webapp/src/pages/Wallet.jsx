@@ -409,7 +409,12 @@ export default function Wallet() {
         </div>
         <div className="space-y-1 text-sm max-h-[40rem] overflow-y-auto border border-border rounded">
           {sortedTransactions.map((tx, i) => {
-            const typeLabel = tx.game ? 'game' : tx.type;
+            const typeLabel = (() => {
+              if (tx.type === 'gift') return 'gift sent';
+              if (tx.type === 'gift-receive') return 'gift received';
+              if (tx.type === 'gift-fee') return 'gift fee';
+              return tx.game ? 'game' : tx.type;
+            })();
             const sign = tx.amount > 0 ? '+' : '-';
             const amt = formatValue(Math.abs(tx.amount), 2);
             return (
