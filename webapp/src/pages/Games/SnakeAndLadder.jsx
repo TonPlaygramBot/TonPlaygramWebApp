@@ -252,7 +252,7 @@ function Board({
         cellType === "ladder"
           ? "/assets/icons/Ladder.webp"
           : cellType === "snake"
-            ? "/assets/icons/snake.png"
+            ? "/assets/icons/snake_vector_no_bg.webp"
             : null;
       const offsetVal =
         cellType === "ladder"
@@ -295,7 +295,7 @@ function Board({
           {!cellType && <span className="cell-number">{num}</span>}
           {diceCells && diceCells[num] && (
             <span className="dice-marker">
-              <img  src="/assets/icons/file_00000000eeb061f79122a7d007f9bddc.webp" className="dice-icon" />
+              <img  src="/assets/icons/file_00000000ead061faa3b429466e006f48.webp" className="dice-icon" />
               <span className="dice-value">+{diceCells[num]}</span>
             </span>
           )}
@@ -1892,7 +1892,7 @@ export default function SnakeAndLadder() {
       {rewardDice > 0 && (
         <div className="fixed bottom-40 inset-x-0 flex justify-center z-30 pointer-events-none reward-dice-container">
           {Array.from({ length: rewardDice }).map((_, i) => (
-            <img key={i}  src="/assets/icons/file_00000000eeb061f79122a7d007f9bddc.webp" className="reward-dice" />
+            <img key={i}  src="/assets/icons/file_00000000ead061faa3b429466e006f48.webp" className="reward-dice" />
           ))}
         </div>
       )}
