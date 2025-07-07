@@ -16,6 +16,7 @@ import { IoLogoTwitter, IoLogoTiktok } from 'react-icons/io5';
 
 import { RiTelegramFill } from 'react-icons/ri';
 import { FiVideo } from 'react-icons/fi';
+import { AiOutlineCheck } from 'react-icons/ai';
 import AdModal from '../components/AdModal.tsx';
 import useTelegramBackButton from '../hooks/useTelegramBackButton.js';
 import { useTonAddress, useTonConnectUI } from '@tonconnect/ui-react';
@@ -132,7 +133,7 @@ export default function Tasks() {
 
   return (
 
-    <div className="relative p-4 space-y-2 text-text flex flex-col items-center">
+    <div className="relative p-4 space-y-2 text-text flex flex-col items-center wide-card">
       <h2 className="text-xl font-bold">Tasks</h2>
       <div className="flex justify-center space-x-2">
         {['TonPlaygram', 'Partners'].map((c) => (
@@ -150,11 +151,12 @@ export default function Tasks() {
           <ul className="space-y-2">
             <li className="lobby-tile w-full flex justify-between items-center">
               <div className="flex items-center space-x-2 text-sm">
+                <AiOutlineCheck className="w-5 h-5 text-accent" />
                 <span>Daily Check-In</span>
-                <span className="text-xs text-subtext">{REWARDS[streak - 1]} TPC</span>
+                <span className="text-xs text-subtext flex items-center gap-1">{REWARDS[streak - 1]} <img src="/assets/icons/TPCcoin.png" alt="TPC" className="w-4 h-4" /></span>
               </div>
               {lastCheck && Date.now() - lastCheck < ONE_DAY ? (
-                <span className="text-accent font-semibold text-sm">Completed</span>
+                <span className="text-green-500 font-semibold text-sm">Completed</span>
               ) : (
                 <button
                   onClick={handleDailyCheck}
@@ -166,11 +168,12 @@ export default function Tasks() {
             </li>
             <li className="lobby-tile w-full flex justify-between items-center">
               <div className="flex items-center space-x-2 text-sm">
+                <AiOutlineCheck className="w-5 h-5 text-accent" />
                 <span>On Chain Check In</span>
-                <span className="text-xs text-subtext">{REWARDS[streak - 1] * 3} TPC</span>
+                <span className="text-xs text-subtext flex items-center gap-1">{REWARDS[streak - 1] * 3} <img src="/assets/icons/TPCcoin.png" alt="TPC" className="w-4 h-4" /></span>
               </div>
               {lastOnchain && Date.now() - lastOnchain < ONE_DAY ? (
-                <span className="text-accent font-semibold text-sm">Completed</span>
+                <span className="text-green-500 font-semibold text-sm">Completed</span>
               ) : (
                 <button
                   onClick={handleOnchainCheck}
@@ -197,13 +200,13 @@ export default function Tasks() {
 
               <span>{t.description}</span>
 
-              <span className="text-xs text-subtext">{t.reward} TPC</span>
+              <span className="text-xs text-subtext flex items-center gap-1">{t.reward} <img src="/assets/icons/TPCcoin.png" alt="TPC" className="w-4 h-4" /></span>
 
             </div>
 
             {t.completed ? (
 
-              <span className="text-accent font-semibold text-sm">Completed</span>
+              <span className="text-green-500 font-semibold text-sm">Completed</span>
 
             ) : (
 
@@ -228,10 +231,10 @@ export default function Tasks() {
           <div className="flex items-center space-x-2 text-sm">
             {ICONS.watch_ad}
             <span>Watch Ad ({adCount}/10)</span>
-            <span className="text-xs text-subtext">100 TPC</span>
+            <span className="text-xs text-subtext flex items-center gap-1">100 <img src="/assets/icons/TPCcoin.png" alt="TPC" className="w-4 h-4" /></span>
           </div>
           {adCount >= 10 ? (
-            <span className="text-accent font-semibold text-sm">Completed</span>
+            <span className="text-green-500 font-semibold text-sm">Completed</span>
           ) : (
             <button
               onClick={() => setShowAd(true)}
