@@ -1231,3 +1231,6 @@ input:focus {
     opacity: 0;
   }
 }
+
+.chat-bubble{ @apply fixed bottom-32 left-1/2 -translate-x-1/2 bg-black bg-opacity-70 text-white rounded px-2 py-1 flex items-center space-x-2; }
+

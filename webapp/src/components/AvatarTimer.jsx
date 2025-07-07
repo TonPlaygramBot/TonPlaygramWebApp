@@ -9,11 +9,12 @@ export default function AvatarTimer({
   name,
   isTurn = false,
   color,
+  onClick,
 }) {
   const angle = (1 - timerPct) * 360;
   const gradient = `conic-gradient(#facc15 ${angle}deg, #16a34a 0deg)`;
   return (
-    <div className="relative w-10 h-10">
+    <div className="relative w-10 h-10" onClick={onClick}>
       {active && (
         <div className="avatar-timer-ring" style={{ '--timer-gradient': gradient }} />
       )}
