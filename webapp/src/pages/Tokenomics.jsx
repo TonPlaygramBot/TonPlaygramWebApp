@@ -57,17 +57,16 @@ const roadmap = [
       { text: 'Staking rewards', done: true },
       { text: 'Mining & daily rewards', done: true },
       { text: 'New games and features', done: true },
-      { text: 'Strategic partnerships', done: true },
     ],
   },
   {
     phase: 'Q4 2024',
     items: [
-      { text: 'Mobile app release', done: false },
-      { text: 'CEX listings', done: false },
-      { text: 'DAO governance launch', done: false },
-      { text: 'Smart contracts for TON/USDT tables', done: false },
       { text: 'Token mint & external wallet claiming', done: false },
+      { text: 'Smart contracts for TON/USDT tables', done: false },
+      { text: 'DAO governance launch', done: false },
+      { text: 'Mobile app release', done: false },
+      { text: 'CEX & DEX listings', done: false },
     ],
   },
 ];
