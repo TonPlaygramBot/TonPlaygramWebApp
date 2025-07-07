@@ -4,6 +4,8 @@ import FriendRequest from '../models/FriendRequest.js';
 import Message from '../models/Message.js';
 import Post from '../models/Post.js';
 import bot from '../bot.js';
+import { ensureTransactionArray } from '../utils/userUtils.js';
+import GIFTS from '../utils/gifts.js';
 
 const router = Router();
 
@@ -93,6 +95,81 @@ router.post('/send-message', async (req, res) => {
     console.error('Failed to send Telegram notification:', err.message);
   }
   res.json(msg);
+});
+
+router.post('/send-gift', async (req, res) => {
+  const { fromId, toId, gift } = req.body;
+  if (!fromId || !toId || !gift) {
+    return res.status(400).json({ error: 'fromId, toId and gift required' });
+  }
+  const g = GIFTS.find((x) => x.id === gift);
+  if (!g) return res.status(400).json({ error: 'invalid gift' });
+
+  const sender = await User.findOne({ telegramId: fromId });
+  if (!sender || sender.balance < g.price) {
+    return res.status(400).json({ error: 'insufficient balance' });
+  }
+  let receiver = await User.findOne({ telegramId: toId });
+  if (!receiver) receiver = new User({ telegramId: toId });
+
+  const devAccount = process.env.DEV_ACCOUNT_ID || process.env.VITE_DEV_ACCOUNT_ID;
+  let devUser = null;
+  if (devAccount) {
+    devUser = await User.findOne({ accountId: devAccount });
+    if (!devUser) devUser = new User({ accountId: devAccount });
+    ensureTransactionArray(devUser);
+  }
+
+  ensureTransactionArray(sender);
+  ensureTransactionArray(receiver);
+
+  const devShare = Math.round(g.price * 0.1);
+  const recvAmount = g.price - devShare;
+  sender.balance -= g.price;
+  receiver.balance += recvAmount;
+  if (devUser) devUser.balance = (devUser.balance || 0) + devShare;
+
+  const txDate = new Date();
+  sender.transactions.push({
+    amount: -g.price,
+    type: 'gift',
+    token: 'TPC',
+    date: txDate,
+    toAccount: String(toId),
+    detail: gift,
+  });
+  receiver.transactions.push({
+    amount: recvAmount,
+    type: 'gift-receive',
+    token: 'TPC',
+    date: txDate,
+    fromAccount: String(fromId),
+    detail: gift,
+  });
+  if (devUser) {
+    devUser.transactions.push({
+      amount: devShare,
+      type: 'gift-fee',
+      token: 'TPC',
+      date: txDate,
+      fromAccount: String(fromId),
+    });
+  }
+
+  await sender.save();
+  await receiver.save();
+  if (devUser) await devUser.save();
+
+  try {
+    await bot.telegram.sendMessage(
+      String(toId),
+      `\u{1FA99} You received ${recvAmount} TPC as a gift`
+    );
+  } catch (err) {
+    console.error('Failed to send Telegram notification:', err.message);
+  }
+
+  res.json({ balance: sender.balance });
 });
 
 router.post('/messages', async (req, res) => {
