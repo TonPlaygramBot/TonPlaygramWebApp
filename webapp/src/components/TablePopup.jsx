@@ -7,8 +7,8 @@ export default function TablePopup({ open, tables, onSelect }) {
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-70">
       <div className="bg-surface border border-border p-6 rounded space-y-4 text-text w-80">
         <img
-          
-          src="/assets/TonPlayGramLogo.jpg"
+
+          src="/assets/icons/TonPlayGramLogo.webp"
           alt="TonPlaygram Logo"
           className="w-10 h-10 mx-auto"
         />

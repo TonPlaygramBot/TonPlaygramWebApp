@@ -23,11 +23,11 @@ export default function TransactionDetailsPopup({ tx, onClose }) {
 
   const token = (tx.token || 'TPC').toUpperCase();
   const iconMap = {
-    TPC: '/assets/icons/TPCcoin.png',
-    TON: '/icons/TON.png',
-    USDT: '/icons/Usdt.png'
+    TPC: '/assets/icons/TPCcoin_1.webp',
+    TON: '/assets/icons/TON.webp',
+    USDT: '/assets/icons/Usdt.webp'
   };
-  const icon = iconMap[token] || `/icons/${token.toLowerCase()}.png`;
+  const icon = iconMap[token] || `/assets/icons/${token}.webp`;
   const isSend = tx.type === 'send';
   const isReceive = tx.type === 'receive';
   const account = isSend ? tx.toAccount : tx.fromAccount;

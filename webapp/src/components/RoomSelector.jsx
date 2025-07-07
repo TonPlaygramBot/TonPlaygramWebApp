@@ -6,9 +6,9 @@ const AMOUNTS = {
   USDT: [0.1, 0.5, 1, 5, 10],
 };
 const tokens = [
-  { id: 'TPC', icon: '/assets/icons/TPCcoin.png' },
-  { id: 'TON', icon: '/icons/TON.png' },
-  { id: 'USDT', icon: '/icons/Usdt.png' },
+  { id: 'TPC', icon: '/assets/icons/TPCcoin_1.webp' },
+  { id: 'TON', icon: '/assets/icons/TON.webp' },
+  { id: 'USDT', icon: '/assets/icons/Usdt.webp' },
 ];
 
 export default function RoomSelector({ selected, onSelect, tokens: allowed }) {

@@ -24,8 +24,10 @@ export default function InvitePopup({
               
               src={
                 stake?.token === 'TPC'
-                  ? '/assets/icons/TPCcoin.png'
-                  : `/icons/${stake?.token || 'TPC'}.png`
+                  ? '/assets/icons/TPCcoin_1.webp'
+                  : stake?.token === 'TON'
+                  ? '/assets/icons/TON.webp'
+                  : '/assets/icons/Usdt.webp'
               }
               alt="token"
               className="inline w-4 h-4 mr-1"

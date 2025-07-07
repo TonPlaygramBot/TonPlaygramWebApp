@@ -20,7 +20,7 @@ function CoinBurst({ token }) {
           key={i}
           src={
             token.toUpperCase() === 'TPC'
-              ? '/assets/icons/TPCcoin.png'
+              ? '/assets/icons/TPCcoin_1.webp'
               : `/icons/${token.toLowerCase()}.svg`
           }
           className="coin-img"
@@ -103,7 +103,7 @@ export default function SnakeBoard({
       const cellClass = cellType ? `${cellType}-cell` : "";
       const iconImage =
         cellType === "ladder"
-          ? "/assets/icons/ladder.svg"
+          ? "/assets/icons/Ladder.webp"
           : cellType === "snake"
           ? "/assets/icons/snake.png"
           : null;
@@ -144,7 +144,7 @@ export default function SnakeBoard({
           {!cellType && <span className="cell-number">{num}</span>}
           {diceCells && diceCells[num] && (
             <span className="dice-marker">
-              <img  src="/assets/icons/Dice.png" className="dice-icon" />
+              <img  src="/assets/icons/file_00000000eeb061f79122a7d007f9bddc.webp" className="dice-icon" />
               <span className="dice-value">+{diceCells[num]}</span>
             </span>
           )}
@@ -263,10 +263,10 @@ export default function SnakeBoard({
               <img
                 src={
                   token === 'TON'
-                    ? '/icons/TON.png'
+                    ? '/assets/icons/TON.webp'
                     : token === 'USDT'
-                    ? '/icons/Usdt.png'
-                    : '/assets/icons/TPCcoin.png'
+                    ? '/assets/icons/Usdt.webp'
+                    : '/assets/icons/TPCcoin_1.webp'
                 }
                 
                 alt={token}

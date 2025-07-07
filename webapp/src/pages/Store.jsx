@@ -65,11 +65,11 @@ export default function Store() {
           </div>
           <div className="text-lg font-bold flex items-center space-x-1">
             <span>{b.tpc.toLocaleString()}</span>
-            <img src="/assets/icons/TPCcoin.png" alt="TPC" className="w-6 h-6" />
+            <img src="/assets/icons/TPCcoin_1.webp" alt="TPC" className="w-6 h-6" />
           </div>
           <div className="text-primary text-lg flex items-center space-x-1">
             <span>{b.ton}</span>
-            <img src="/icons/TON.png" alt="TON" className="w-6 h-6" />
+            <img src="/assets/icons/TON.webp" alt="TON" className="w-6 h-6" />
           </div>
           <div className="text-xs text-accent">{b.category} Bundle</div>
           {b.boost ? (

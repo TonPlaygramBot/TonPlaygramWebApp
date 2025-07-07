@@ -162,7 +162,7 @@ export default function TasksCard() {
           <div className="flex items-center space-x-2 text-sm">
             <AiOutlineCheck className="w-5 h-5 text-accent" />
             <span>Daily Check-In</span>
-            <span className="text-xs text-subtext flex items-center gap-1">{REWARDS[streak - 1]} <img src="/assets/icons/TPCcoin.png" alt="TPC" className="w-4 h-4" /></span>
+            <span className="text-xs text-subtext flex items-center gap-1">{REWARDS[streak - 1]} <img src="/assets/icons/TPCcoin_1.webp" alt="TPC" className="w-4 h-4" /></span>
           </div>
           {lastCheck && Date.now() - lastCheck < ONE_DAY ? (
             <span className="text-green-500 font-semibold text-sm">Done</span>
@@ -179,7 +179,7 @@ export default function TasksCard() {
           <div className="flex items-center space-x-2 text-sm">
             <AiOutlineCheck className="w-5 h-5 text-accent" />
             <span>On Chain Check In</span>
-            <span className="text-xs text-subtext flex items-center gap-1">{REWARDS[streak - 1] * 3} <img src="/assets/icons/TPCcoin.png" alt="TPC" className="w-4 h-4" /></span>
+            <span className="text-xs text-subtext flex items-center gap-1">{REWARDS[streak - 1] * 3} <img src="/assets/icons/TPCcoin_1.webp" alt="TPC" className="w-4 h-4" /></span>
           </div>
           {lastOnchain && Date.now() - lastOnchain < ONE_DAY ? (
             <span className="text-green-500 font-semibold text-sm">Done</span>
@@ -203,7 +203,7 @@ export default function TasksCard() {
 
               <span>{t.description}</span>
 
-              <span className="text-xs text-subtext flex items-center gap-1">{t.reward} <img src="/assets/icons/TPCcoin.png" alt="TPC" className="w-4 h-4" /></span>
+              <span className="text-xs text-subtext flex items-center gap-1">{t.reward} <img src="/assets/icons/TPCcoin_1.webp" alt="TPC" className="w-4 h-4" /></span>
 
             </div>
 
@@ -234,7 +234,7 @@ export default function TasksCard() {
           <div className="flex items-center space-x-2 text-sm">
             {ICONS.watch_ad}
             <span>Watch Ad ({adCount}/10)</span>
-            <span className="text-xs text-subtext flex items-center gap-1">100 <img src="/assets/icons/TPCcoin.png" alt="TPC" className="w-4 h-4" /></span>
+            <span className="text-xs text-subtext flex items-center gap-1">100 <img src="/assets/icons/TPCcoin_1.webp" alt="TPC" className="w-4 h-4" /></span>
           </div>
           {adCount >= 10 ? (
             <span className="text-green-500 font-semibold text-sm">Done</span>

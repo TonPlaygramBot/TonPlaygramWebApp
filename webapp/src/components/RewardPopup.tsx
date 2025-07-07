@@ -31,8 +31,8 @@ export default function RewardPopup({ reward, onClose, duration = 2500, showClos
           {reward === 'BONUS_X3' && (
             <>
               <img
-                
-                src="/assets/icons/Dice.png"
+
+                src="/assets/icons/file_00000000eeb061f79122a7d007f9bddc.webp"
                 alt="Bonus"
                 className="w-8 h-8"
               />
@@ -65,7 +65,7 @@ export default function RewardPopup({ reward, onClose, duration = 2500, showClos
             <>
               <img
                 
-                src="/assets/icons/TPCcoin.png"
+                src="/assets/icons/TPCcoin_1.webp"
                 alt="TPC"
                 className="w-8 h-8"
               />

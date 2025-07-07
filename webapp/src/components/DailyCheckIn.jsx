@@ -115,7 +115,7 @@ export default function DailyCheckIn() {
 
         <span className="flex items-center">
           {formatReward(REWARDS[i])}
-          <img  src="/assets/icons/TPCcoin.png" alt="TPC" className="w-8 h-8 -ml-1" />
+          <img  src="/assets/icons/TPCcoin_1.webp" alt="TPC" className="w-8 h-8 -ml-1" />
         </span>
 
         {i === streak - 1 && showPopup && (
