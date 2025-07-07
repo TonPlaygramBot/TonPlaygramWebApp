@@ -150,8 +150,10 @@ function CoinBurst({ token }) {
           key={i}
           src={
             token.toUpperCase() === 'TPC'
-              ? '/assets/icons/TPCcoin.png'
-              : `/icons/${token.toLowerCase()}.svg`
+              ? '/assets/icons/TPCcoin_1.webp'
+              : token.toUpperCase() === 'TON'
+              ? '/assets/icons/TON.webp'
+              : '/assets/icons/Usdt.webp'
           }
           className="coin-img"
           style={{
@@ -248,7 +250,7 @@ function Board({
       const cellClass = cellType ? `${cellType}-cell` : "";
       const iconImage =
         cellType === "ladder"
-          ? "/assets/icons/ladder.svg"
+          ? "/assets/icons/Ladder.webp"
           : cellType === "snake"
             ? "/assets/icons/snake.png"
             : null;
@@ -293,7 +295,7 @@ function Board({
           {!cellType && <span className="cell-number">{num}</span>}
           {diceCells && diceCells[num] && (
             <span className="dice-marker">
-              <img  src="/assets/icons/Dice.png" className="dice-icon" />
+              <img  src="/assets/icons/file_00000000eeb061f79122a7d007f9bddc.webp" className="dice-icon" />
               <span className="dice-value">+{diceCells[num]}</span>
             </span>
           )}
@@ -460,10 +462,10 @@ function Board({
               <img
                 src={
                   token === 'TON'
-                    ? '/icons/TON.png'
+                    ? '/assets/icons/TON.webp'
                     : token === 'USDT'
-                    ? '/icons/Usdt.png'
-                    : '/assets/icons/TPCcoin.png'
+                    ? '/assets/icons/Usdt.webp'
+                    : '/assets/icons/TPCcoin_1.webp'
                 }
                 alt={token}
                 className="pot-icon"
@@ -633,16 +635,13 @@ export default function SnakeAndLadder() {
   // Preload token and avatar images so board icons and AI photos display
   // immediately without waiting for network requests during gameplay.
   useEffect(() => {
-    [
-      'TON.png',
-      'Usdt.png'
-    ].forEach((file) => {
+    ['TON.webp', 'Usdt.webp'].forEach((file) => {
       const img = new Image();
-      img.src = `/icons/${file}`;
+      img.src = `/assets/icons/${file}`;
     });
     {
       const img = new Image();
-      img.src = '/assets/icons/TPCcoin.png';
+      img.src = '/assets/icons/TPCcoin_1.webp';
     }
     AVATARS.forEach((src) => {
       const img = new Image();
@@ -1893,7 +1892,7 @@ export default function SnakeAndLadder() {
       {rewardDice > 0 && (
         <div className="fixed bottom-40 inset-x-0 flex justify-center z-30 pointer-events-none reward-dice-container">
           {Array.from({ length: rewardDice }).map((_, i) => (
-            <img key={i}  src="/assets/icons/Dice.png" className="reward-dice" />
+            <img key={i}  src="/assets/icons/file_00000000eeb061f79122a7d007f9bddc.webp" className="reward-dice" />
           ))}
         </div>
       )}
@@ -2007,10 +2006,10 @@ export default function SnakeAndLadder() {
               <img
                 src={
                   token === 'TON'
-                    ? '/icons/TON.png'
+                    ? '/assets/icons/TON.webp'
                     : token === 'USDT'
-                    ? '/icons/Usdt.png'
-                    : '/assets/icons/TPCcoin.png'
+                    ? '/assets/icons/Usdt.webp'
+                    : '/assets/icons/TPCcoin_1.webp'
                 }
                 alt={token}
                 className="inline w-4 h-4 align-middle"

@@ -51,7 +51,7 @@ export default function GiftPopup({ open, onClose, players = [] }) {
                   <span>{g.icon}</span>
                   <span className="flex items-center space-x-0.5">
                     <span>{g.price}</span>
-                    <img src="/assets/icons/TPCcoin.png" className="w-3 h-3" />
+                    <img src="/assets/icons/TPCcoin_1.webp" className="w-3 h-3" />
                   </span>
                 </button>
               ))}
@@ -61,7 +61,7 @@ export default function GiftPopup({ open, onClose, players = [] }) {
         <div className="text-xs text-center mt-2 flex items-center justify-center space-x-1">
           <span>Cost:</span>
           <span>{selected.price}</span>
-          <img src="/assets/icons/TPCcoin.png" className="w-3 h-3" />
+          <img src="/assets/icons/TPCcoin_1.webp" className="w-3 h-3" />
         </div>
         <button className="w-full px-3 py-1 bg-primary hover:bg-primary-hover rounded text-black" onClick={handleSend}>
           Send {selected.icon} {selected.name}

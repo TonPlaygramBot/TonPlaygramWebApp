@@ -317,30 +317,30 @@ export default function TokenomicsPage() {
           <h4 className="font-semibold text-accent mb-1">TonPlaygram Accomplishments So Far</h4>
           <ul className="list-disc pl-6 space-y-1">
             <li><b>Core Infrastructure</b></li>
-            <li className="ml-4">🔐 Smart-contract-based presale is live — TON sent, TPC <img src="/assets/icons/TPCcoin.png" alt="TPC" className="inline-block w-4 h-4 ml-1" /> auto-delivered to wallet</li>
+            <li className="ml-4">🔐 Smart-contract-based presale is live — TON sent, TPC <img src="/assets/icons/TPCcoin_1.webp" alt="TPC" className="inline-block w-4 h-4 ml-1" /> auto-delivered to wallet</li>
             <li className="ml-4">🧾 Wallet transaction history fully functional</li>
-            <li className="ml-4">💬 In-chat TPC <img src="/assets/icons/TPCcoin.png" alt="TPC" className="inline-block w-4 h-4 ml-1" /> transfers enabled</li>
+            <li className="ml-4">💬 In-chat TPC <img src="/assets/icons/TPCcoin_1.webp" alt="TPC" className="inline-block w-4 h-4 ml-1" /> transfers enabled</li>
             <li><b>Game Features</b></li>
             <li className="ml-4">🎲 Snake &amp; Ladder Game launched (1v1 vs AI &amp; 2–4 player multiplayer)</li>
             <li className="ml-4">🧑‍🤝‍🤝 Online user status, add friends, and inbox chat inside game</li>
             <li className="ml-4">🕹️ Full integration between Telegram Bot and WebApp</li>
             <li><b>Rewards &amp; Incentives</b></li>
-            <li className="ml-4">🔄 Daily Check-In System: 1,000 <img src="/assets/icons/TPCcoin.png" alt="TPC" className="inline-block w-4 h-4 mx-1" /> on Day 1 → 30,000 <img src="/assets/icons/TPCcoin.png" alt="TPC" className="inline-block w-4 h-4 ml-1" /> by Day 30</li>
-            <li className="ml-4">⛏️ Mining system (2,000 <img src="/assets/icons/TPCcoin.png" alt="TPC" className="inline-block w-4 h-4 mx-1" /> every 12 hours)</li>
-            <li className="ml-4">📺 Ad Watch Rewards: 100 <img src="/assets/icons/TPCcoin.png" alt="TPC" className="inline-block w-4 h-4 mx-1" /> per ad (up to 10/day)</li>
-            <li className="ml-4">🎯 Social Tasks: +10,000 <img src="/assets/icons/TPCcoin.png" alt="TPC" className="inline-block w-4 h-4 mx-1" /> each for Twitter, Telegram, TikTok</li>
-            <li className="ml-4">📹 Intro Video Views: +5 <img src="/assets/icons/TPCcoin.png" alt="TPC" className="inline-block w-4 h-4 mx-1" /> each</li>
-            <li className="ml-4">🎡 Spin &amp; Win Wheel: 300–1800 <img src="/assets/icons/TPCcoin.png" alt="TPC" className="inline-block w-4 h-4 mx-1" /> prizes + Bonus x3 chance</li>
+            <li className="ml-4">🔄 Daily Check-In System: 1,000 <img src="/assets/icons/TPCcoin_1.webp" alt="TPC" className="inline-block w-4 h-4 mx-1" /> on Day 1 → 30,000 <img src="/assets/icons/TPCcoin_1.webp" alt="TPC" className="inline-block w-4 h-4 ml-1" /> by Day 30</li>
+            <li className="ml-4">⛏️ Mining system (2,000 <img src="/assets/icons/TPCcoin_1.webp" alt="TPC" className="inline-block w-4 h-4 mx-1" /> every 12 hours)</li>
+            <li className="ml-4">📺 Ad Watch Rewards: 100 <img src="/assets/icons/TPCcoin_1.webp" alt="TPC" className="inline-block w-4 h-4 mx-1" /> per ad (up to 10/day)</li>
+            <li className="ml-4">🎯 Social Tasks: +10,000 <img src="/assets/icons/TPCcoin_1.webp" alt="TPC" className="inline-block w-4 h-4 mx-1" /> each for Twitter, Telegram, TikTok</li>
+            <li className="ml-4">📹 Intro Video Views: +5 <img src="/assets/icons/TPCcoin_1.webp" alt="TPC" className="inline-block w-4 h-4 mx-1" /> each</li>
+            <li className="ml-4">🎡 Spin &amp; Win Wheel: 300–1800 <img src="/assets/icons/TPCcoin_1.webp" alt="TPC" className="inline-block w-4 h-4 mx-1" /> prizes + Bonus x3 chance</li>
           </ul>
         </div>
 
         <div>
           <h4 className="font-semibold text-accent mb-1">What’s Live Right Now</h4>
           <ul className="list-disc pl-6 space-y-1">
-            <li>🛒 Presale Store with bundles up to 5M <img src="/assets/icons/TPCcoin.png" alt="TPC" className="inline-block w-4 h-4 ml-1" /></li>
+            <li>🛒 Presale Store with bundles up to 5M <img src="/assets/icons/TPCcoin_1.webp" alt="TPC" className="inline-block w-4 h-4 ml-1" /></li>
             <li>🧑‍💻 Mining &amp; Boosters (via Virtual Friends)</li>
-            <li>🔁 Spin &amp; Win Packs (with spins and TPC <img src="/assets/icons/TPCcoin.png" alt="TPC" className="inline-block w-4 h-4 ml-1" />)</li>
-            <li>🎁 Bonus Packs (spins + TPC <img src="/assets/icons/TPCcoin.png" alt="TPC" className="inline-block w-4 h-4 ml-1" /> + boosts)</li>
+            <li>🔁 Spin &amp; Win Packs (with spins and TPC <img src="/assets/icons/TPCcoin_1.webp" alt="TPC" className="inline-block w-4 h-4 ml-1" />)</li>
+            <li>🎁 Bonus Packs (spins + TPC <img src="/assets/icons/TPCcoin_1.webp" alt="TPC" className="inline-block w-4 h-4 ml-1" /> + boosts)</li>
             <li>📲 Telegram Notifications for token transfers</li>
             <li>👥 Multiplayer game rooms and social features</li>
             <li>💼 Automated wallet system across WebApp and Telegram</li>
@@ -351,8 +351,8 @@ export default function TokenomicsPage() {
           <h4 className="font-semibold text-accent mb-1">Next Phase: Coming Soon</h4>
           <ul className="list-disc pl-6 space-y-1">
             <li><b>Utility &amp; Token Expansion</b></li>
-            <li className="ml-4">🪙 Mint TPC <img src="/assets/icons/TPCcoin.png" alt="TPC" className="inline-block w-4 h-4 ml-1" /> on TON network</li>
-            <li className="ml-4">🌐 Enable claiming TPC <img src="/assets/icons/TPCcoin.png" alt="TPC" className="inline-block w-4 h-4 ml-1" /> to external wallets (Tonkeeper, OKX, etc.)</li>
+            <li className="ml-4">🪙 Mint TPC <img src="/assets/icons/TPCcoin_1.webp" alt="TPC" className="inline-block w-4 h-4 ml-1" /> on TON network</li>
+            <li className="ml-4">🌐 Enable claiming TPC <img src="/assets/icons/TPCcoin_1.webp" alt="TPC" className="inline-block w-4 h-4 ml-1" /> to external wallets (Tonkeeper, OKX, etc.)</li>
             <li className="ml-4">💱 Smart contracts for TON/USDT betting tables</li>
             <li><b>Governance &amp; Growth</b></li>
             <li className="ml-4">🗳️ DAO Governance System launch</li>

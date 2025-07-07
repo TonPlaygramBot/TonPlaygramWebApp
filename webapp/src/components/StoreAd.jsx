@@ -43,11 +43,11 @@ export default function StoreAd() {
             </div>
             <div className="text-sm flex items-center space-x-1">
               <span>{b.tpc.toLocaleString()}</span>
-              <img src="/assets/icons/TPCcoin.png" alt="TPC" className="w-5 h-5" />
+              <img src="/assets/icons/TPCcoin_1.webp" alt="TPC" className="w-5 h-5" />
             </div>
             <div className="text-sm flex items-center space-x-1 text-primary">
               <span>{b.ton}</span>
-              <img src="/icons/TON.png" alt="TON" className="w-5 h-5" />
+              <img src="/assets/icons/TON.webp" alt="TON" className="w-5 h-5" />
             </div>
           </div>
         ))}

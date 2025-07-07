@@ -148,7 +148,7 @@ export default function MiningCard() {
       </button>
       {isMining && (
         <div className="flex items-center justify-center space-x-1 text-sm">
-          <img  src="/assets/icons/TPCcoin.png" alt="TPC" className="w-5 h-5" />
+          <img  src="/assets/icons/TPCcoin_1.webp" alt="TPC" className="w-5 h-5" />
           <span>{minted}</span>
         </div>
       )}

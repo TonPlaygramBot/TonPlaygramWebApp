@@ -12,7 +12,7 @@ export default function coinConfetti(count: number = 50) {
 
   for (let i = 0; i < count; i++) {
     const img = document.createElement('img');
-    img.src = '/assets/icons/TPCcoin.png';
+    img.src = '/assets/icons/TPCcoin_1.webp';
     img.alt = 'TPC Coin';
     img.className = 'coin-confetti';
     const left = Math.random() * 100;

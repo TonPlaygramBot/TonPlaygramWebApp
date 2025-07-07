@@ -187,11 +187,11 @@ All webapp icons are stored under `webapp/public`. The board uses emoji symbols
 (🐍, 🪜 and 🎲) for snake, ladder and dice connectors instead of the old SVG
 files.
 
-Token icons for the lobby and wallet are now:
+Token icons for the lobby and wallet are now stored as WebP files:
 
-- `TON.png`
-- `Usdt.png`
-- `assets/icons/TPCcoin.png`
+- `assets/icons/TON.webp`
+- `assets/icons/Usdt.webp`
+- `assets/icons/TPCcoin_1.webp`
 
 Place your own images with those exact names in the same directories to
 override them.

@@ -119,11 +119,11 @@ export default function Home() {
               alt=""
             />
             <div className="flex-1 flex items-center justify-center space-x-1">
-              <img src="/icons/TON.png" alt="TON" className="w-8 h-8" />
+              <img src="/assets/icons/TON.webp" alt="TON" className="w-8 h-8" />
               <span className="text-base">{formatValue(tonBalance ?? '...')}</span>
             </div>
             <div className="flex-1 flex items-center justify-center space-x-1">
-              <img src="/icons/Usdt.png" alt="USDT" className="w-8 h-8" />
+              <img src="/assets/icons/Usdt.webp" alt="USDT" className="w-8 h-8" />
               <span className="text-base">{formatValue(usdtBalance ?? '...', 2)}</span>
             </div>
           </div>
@@ -149,7 +149,7 @@ export default function Home() {
                   <span className="text-xs text-accent">Send</span>
                 </Link>
                 <div className="flex flex-col items-center space-y-1">
-                  <img src="/assets/icons/TPCcoin.png" alt="TPC" className="w-10 h-10" />
+                  <img src="/assets/icons/TPCcoin_1.webp" alt="TPC" className="w-10 h-10" />
                   <span className="text-sm">{formatValue(tpcBalance ?? '...', 2)}</span>
                 </div>
                 <Link to="/wallet?mode=receive" className="flex items-center space-x-1 -mr-1 pt-1">
