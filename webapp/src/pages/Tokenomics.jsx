@@ -1,5 +1,6 @@
 import React from 'react';
 import { PieChart, Pie, Cell, ResponsiveContainer } from 'recharts';
+import { AiOutlineCheck } from 'react-icons/ai';
 
 // TOKEN ALLOCATION DATA
 const tokenData = [
@@ -39,30 +40,30 @@ const feeColors = [
   '#FFDC00', // Yellow - Marketing
 ];
 
-// SIMPLE ROADMAP DATA
+// SIMPLE ROADMAP DATA WITH PROGRESS FLAGS
 const roadmap = [
   {
     phase: 'Q2 2024',
     items: [
-      'Beta launch of TonPlaygram',
-      'Token generation event',
-      'Initial marketing push',
+      { text: 'Beta launch of TonPlaygram', done: true },
+      { text: 'Token generation event', done: true },
+      { text: 'Initial marketing push', done: true },
     ],
   },
   {
     phase: 'Q3 2024',
     items: [
-      'Staking rewards',
-      'New games and features',
-      'Strategic partnerships',
+      { text: 'Staking rewards', done: false },
+      { text: 'New games and features', done: true },
+      { text: 'Strategic partnerships', done: true },
     ],
   },
   {
     phase: 'Q4 2024',
     items: [
-      'Mobile app release',
-      'CEX listings',
-      'DAO governance launch',
+      { text: 'Mobile app release', done: false },
+      { text: 'CEX listings', done: false },
+      { text: 'DAO governance launch', done: false },
     ],
   },
 ];
@@ -294,9 +295,12 @@ export default function TokenomicsPage() {
           {roadmap.map((phase) => (
             <div key={phase.phase}>
               <h4 className="font-semibold text-accent">{phase.phase}</h4>
-              <ul className="list-disc pl-6 space-y-1">
-                {phase.items.map((item) => (
-                  <li key={item}>{item}</li>
+              <ul className="pl-6 space-y-1 list-none">
+                {phase.items.map(({ text, done }) => (
+                  <li key={text} className="flex items-center gap-2">
+                    {done && <AiOutlineCheck className="w-4 h-4 text-green-500" />}
+                    <span className={done ? 'text-green-500' : ''}>{text}</span>
+                  </li>
                 ))}
               </ul>
             </div>
