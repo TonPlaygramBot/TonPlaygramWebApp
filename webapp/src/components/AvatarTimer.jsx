@@ -9,7 +9,6 @@ export default function AvatarTimer({
   name,
   isTurn = false,
   color,
-  secondsLeft,
 }) {
   const angle = (1 - timerPct) * 360;
   const gradient = `conic-gradient(#facc15 ${angle}deg, #16a34a 0deg)`;
@@ -28,9 +27,6 @@ export default function AvatarTimer({
         }}
       />
       {isTurn && <span className="turn-indicator">👈</span>}
-      {isTurn && secondsLeft != null && (
-        <span className="timer-count">{secondsLeft}</span>
-      )}
       {rank != null && (
         <span className="rank-number">{rank}</span>
       )}

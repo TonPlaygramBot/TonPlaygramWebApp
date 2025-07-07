@@ -19,8 +19,6 @@ import {
   AiOutlineReload,
 } from "react-icons/ai";
 import BottomLeftIcons from "../../components/BottomLeftIcons.jsx";
-import Branding from "../../components/Branding.jsx";
-import CosmicBackground from "../../components/CosmicBackground.jsx";
 import { isGameMuted, getGameVolume } from "../../utils/sound.js";
 import useTelegramBackButton from "../../hooks/useTelegramBackButton.js";
 import { useNavigate } from "react-router-dom";
@@ -412,6 +410,7 @@ function Board({
 
   return (
     <div className="relative flex justify-center items-center w-screen overflow-visible">
+      <img src="/assets/SnakeLaddersbackground.png" className="background-behind-board object-cover" alt="" />
       <div
         ref={containerRef}
         className="overflow-y-auto"
@@ -487,6 +486,7 @@ function Board({
                 ))}
               {celebrate && <CoinBurst token={token} />}
             </div>
+            <div className="logo-wall-main" />
           </div>
         </div>
       </div>
@@ -1688,7 +1688,12 @@ export default function SnakeAndLadder() {
     timerRef.current = setInterval(() => {
       setTimeLeft((t) => {
         const next = t - 1;
-        if (next <= 7 && next >= 0 && timerSoundRef.current) {
+        if (
+          currentTurn === myIndex &&
+          next <= 7 &&
+          next >= 0 &&
+          timerSoundRef.current
+        ) {
           timerSoundRef.current.currentTime = 0;
           if (!muted) timerSoundRef.current.play().catch(() => {});
         }
@@ -1747,8 +1752,6 @@ export default function SnakeAndLadder() {
 
   return (
     <div className="p-4 pb-32 space-y-4 text-text flex flex-col justify-end items-center relative w-full flex-grow">
-      <CosmicBackground />
-      <Branding scale={1.2} />
       {/* Bottom left controls */}
       <BottomLeftIcons onInfo={() => setShowInfo(true)} />
       {/* Player photos stacked vertically */}
@@ -1768,7 +1771,6 @@ export default function SnakeAndLadder() {
                   ? timeLeft / 15
                   : 1
               }
-              secondsLeft={p.index === currentTurn ? timeLeft : undefined}
               color={p.color}
             />
           ))}
