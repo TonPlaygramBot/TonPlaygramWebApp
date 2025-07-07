@@ -296,6 +296,10 @@ export function sendMessage(fromId, toId, text) {
   return post('/api/social/send-message', { fromId, toId, text });
 }
 
+export function sendGift(fromId, toId, gift) {
+  return post('/api/social/send-gift', { fromId, toId, gift });
+}
+
 export function getMessages(telegramId, withId) {
   return post('/api/social/messages', { telegramId, withId });
 }
