@@ -48,12 +48,14 @@ const roadmap = [
       { text: 'Beta launch of TonPlaygram', done: true },
       { text: 'Token generation event', done: true },
       { text: 'Initial marketing push', done: true },
+      { text: 'Presale and TPC transfers', done: true },
     ],
   },
   {
     phase: 'Q3 2024',
     items: [
-      { text: 'Staking rewards', done: false },
+      { text: 'Staking rewards', done: true },
+      { text: 'Mining & daily rewards', done: true },
       { text: 'New games and features', done: true },
       { text: 'Strategic partnerships', done: true },
     ],
@@ -64,6 +66,8 @@ const roadmap = [
       { text: 'Mobile app release', done: false },
       { text: 'CEX listings', done: false },
       { text: 'DAO governance launch', done: false },
+      { text: 'Smart contracts for TON/USDT tables', done: false },
+      { text: 'Token mint & external wallet claiming', done: false },
     ],
   },
 ];
@@ -280,6 +284,18 @@ export default function TokenomicsPage() {
           <p>
             All allocations and fee distributions are on-chain and reported regularly. The project focuses on sustainable growth and investor protection.
           </p>
+        </div>
+        <div>
+          <h4 className="font-semibold text-accent mb-1">Platform Highlights &amp; Next Steps</h4>
+          <ul className="list-disc pl-6 space-y-1">
+            <li>Send and receive <b>TPC</b> tokens directly in chat.</li>
+            <li>Mining and daily rewards are active.</li>
+            <li>Presale complete and staking with TPC fully operational.</li>
+            <li>Smart contracts for TON/USDT tables coming soon.</li>
+            <li>More games in development.</li>
+            <li>Upcoming: mint TPC on the TON network and allow claiming to external wallets (Tonkeeper, OKX, etc.) with a <b>0.5&nbsp;TON</b> fee.</li>
+            <li>Telegram notifications for token transfers live; game invite alerts in progress.</li>
+          </ul>
         </div>
       </div>
 
