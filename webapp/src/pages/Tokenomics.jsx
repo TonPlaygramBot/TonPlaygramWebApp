@@ -1,5 +1,5 @@
 import React from 'react';
-import { PieChart, Pie, Cell, Legend, Tooltip, ResponsiveContainer } from 'recharts';
+import { PieChart, Pie, Cell, ResponsiveContainer } from 'recharts';
 
 // TOKEN ALLOCATION DATA
 const tokenData = [
@@ -37,6 +37,34 @@ const feeColors = [
   '#00BFFF', // Blue - Ecosystem
   '#2ECC40', // Green - Liquidity
   '#FFDC00', // Yellow - Marketing
+];
+
+// SIMPLE ROADMAP DATA
+const roadmap = [
+  {
+    phase: 'Q2 2024',
+    items: [
+      'Beta launch of TonPlaygram',
+      'Token generation event',
+      'Initial marketing push',
+    ],
+  },
+  {
+    phase: 'Q3 2024',
+    items: [
+      'Staking rewards',
+      'New games and features',
+      'Strategic partnerships',
+    ],
+  },
+  {
+    phase: 'Q4 2024',
+    items: [
+      'Mobile app release',
+      'CEX listings',
+      'DAO governance launch',
+    ],
+  },
 ];
 
 // TABLE DATA
@@ -86,128 +114,194 @@ const tableRows = [
 ];
 
 export default function TokenomicsPage() {
+  const RADIAN = Math.PI / 180;
+  const renderLabel = ({ cx, cy, midAngle, innerRadius, outerRadius, percent }) => {
+    const radius = innerRadius + (outerRadius - innerRadius) / 2;
+    const x = cx + radius * Math.cos(-midAngle * RADIAN);
+    const y = cy + radius * Math.sin(-midAngle * RADIAN);
+    return (
+      <text x={x} y={y} fill="#fff" fontSize="12" textAnchor="middle" dominantBaseline="middle">
+        {`${(percent * 100).toFixed(0)}%`}
+      </text>
+    );
+  };
+
   return (
-    <div className="w-full min-h-screen bg-background text-white py-8 px-2 flex flex-col items-center">
-      <div className="max-w-4xl w-full mx-auto space-y-8">
-        {/* HEADER */}
-        <h1 className="text-4xl md:text-5xl font-bold mb-2 text-yellow-400 text-center tracking-tight">
-          Tokenomics &amp; Roadmap
-        </h1>
-        <p className="text-lg md:text-xl text-gray-300 text-center mb-10">
+    <div className="space-y-4">
+      <div className="relative bg-surface border border-border rounded-xl p-4 space-y-2 text-center overflow-hidden wide-card">
+        <img
+          src="/assets/SnakeLaddersbackground.png"
+          className="background-behind-board object-cover"
+          alt=""
+        />
+        <h2 className="text-xl font-bold">Tokenomics &amp; Roadmap</h2>
+        <p className="text-subtext">
           The foundation of a sustainable, investor-ready, and community-driven GameFi platform.
         </p>
+      </div>
 
-        {/* PIE CHARTS */}
-        <div className="flex flex-col md:flex-row justify-between items-center gap-12 md:gap-8 my-10">
-          {/* TOKEN ALLOCATION PIE CHART */}
-          <div className="flex flex-col items-center w-full md:w-1/2 mb-8 md:mb-0">
-            <h2 className="text-2xl font-semibold mb-3 text-yellow-300">Token Allocation</h2>
-            <ResponsiveContainer width="100%" height={300}>
-              <PieChart>
-                <Pie
-                  data={tokenData}
-                  dataKey="value"
-                  cx="50%"
-                  cy="50%"
-                  innerRadius={70}
-                  outerRadius={120}
-                  label={({ name, percent }) =>
-                    `${name}: ${(percent * 100).toFixed(1)}%`
-                  }
-                >
-                  {tokenData.map((entry, idx) => (
-                    <Cell key={`cell-token-${idx}`} fill={tokenColors[idx % tokenColors.length]} />
-                  ))}
-                </Pie>
-                <Legend verticalAlign="bottom" />
-                <Tooltip />
-              </PieChart>
-            </ResponsiveContainer>
-          </div>
-
-          {/* FEE DISTRIBUTION PIE CHART */}
-          <div className="flex flex-col items-center w-full md:w-1/2 mb-8 md:mb-0">
-            <h2 className="text-2xl font-semibold mb-3 text-yellow-300">Game Fee Distribution (per Table)</h2>
-            <ResponsiveContainer width="100%" height={300}>
-              <PieChart>
-                <Pie
-                  data={feeData}
-                  dataKey="value"
-                  cx="50%"
-                  cy="50%"
-                  innerRadius={70}
-                  outerRadius={120}
-                  label={({ name, percent }) =>
-                    `${name}: ${(percent * 100).toFixed(1)}%`
-                  }
-                >
-                  {feeData.map((entry, idx) => (
-                    <Cell key={`cell-fee-${idx}`} fill={feeColors[idx % feeColors.length]} />
-                  ))}
-                </Pie>
-                <Legend verticalAlign="bottom" />
-                <Tooltip />
-              </PieChart>
-            </ResponsiveContainer>
-          </div>
+      {/* Token Allocation */}
+      <div className="relative bg-surface border border-border rounded-xl p-4 space-y-2 overflow-hidden wide-card">
+        <img
+          src="/assets/SnakeLaddersbackground.png"
+          className="background-behind-board object-cover"
+          alt=""
+        />
+        <h3 className="text-lg font-bold text-center">Token Allocation</h3>
+        <div className="mx-auto w-40">
+          <ResponsiveContainer width="100%" height={200}>
+            <PieChart>
+              <Pie
+                data={tokenData}
+                dataKey="value"
+                cx="50%"
+                cy="50%"
+                innerRadius={50}
+                outerRadius={80}
+                label={renderLabel}
+                paddingAngle={1}
+              >
+                {tokenData.map((entry, idx) => (
+                  <Cell key={`token-${idx}`} fill={tokenColors[idx % tokenColors.length]} />
+                ))}
+              </Pie>
+            </PieChart>
+          </ResponsiveContainer>
         </div>
+        <ul className="text-sm space-y-1">
+          {tokenData.map((d) => (
+            <li key={d.name} className="flex justify-between">
+              <span>{d.name}</span>
+              <span>{d.value}%</span>
+            </li>
+          ))}
+        </ul>
+      </div>
 
-        {/* DETAILED TABLE */}
-        <div className="mt-10 bg-surface rounded-2xl p-6 shadow-lg overflow-x-auto border border-border">
-          <h2 className="text-2xl font-bold text-yellow-400 mb-5">Full Token Allocation Breakdown</h2>
-          <table className="w-full text-base text-left">
-            <thead>
-              <tr>
-                <th className="py-2 px-2 text-yellow-300">Category</th>
-                <th className="py-2 px-2 text-yellow-300">%</th>
-                <th className="py-2 px-2 text-yellow-300">Tokens</th>
-                <th className="py-2 px-2 text-yellow-300">Details</th>
+      {/* Fee Distribution */}
+      <div className="relative bg-surface border border-border rounded-xl p-4 space-y-2 overflow-hidden wide-card">
+        <img
+          src="/assets/SnakeLaddersbackground.png"
+          className="background-behind-board object-cover"
+          alt=""
+        />
+        <h3 className="text-lg font-bold text-center">Game Fee Distribution (per Table)</h3>
+        <div className="mx-auto w-40">
+          <ResponsiveContainer width="100%" height={200}>
+            <PieChart>
+              <Pie
+                data={feeData}
+                dataKey="value"
+                cx="50%"
+                cy="50%"
+                innerRadius={50}
+                outerRadius={80}
+                label={renderLabel}
+                paddingAngle={1}
+              >
+                {feeData.map((entry, idx) => (
+                  <Cell key={`fee-${idx}`} fill={feeColors[idx % feeColors.length]} />
+                ))}
+              </Pie>
+            </PieChart>
+          </ResponsiveContainer>
+        </div>
+        <ul className="text-sm space-y-1">
+          {feeData.map((d) => (
+            <li key={d.name} className="flex justify-between">
+              <span>{d.name}</span>
+              <span>{d.value}%</span>
+            </li>
+          ))}
+        </ul>
+      </div>
+
+      {/* Detailed Table */}
+      <div className="relative bg-surface border border-border rounded-xl p-4 overflow-hidden wide-card">
+        <img
+          src="/assets/SnakeLaddersbackground.png"
+          className="background-behind-board object-cover"
+          alt=""
+        />
+        <h3 className="text-lg font-bold mb-2 text-center">Full Token Allocation Breakdown</h3>
+        <table className="w-full text-sm text-left">
+          <thead>
+            <tr>
+              <th className="py-2 px-2">Category</th>
+              <th className="py-2 px-2">%</th>
+              <th className="py-2 px-2">Tokens</th>
+              <th className="py-2 px-2">Details</th>
+            </tr>
+          </thead>
+          <tbody>
+            {tableRows.map((row) => (
+              <tr key={row.name} className="border-b border-[#222848] last:border-none">
+                <td className="py-2 px-2 font-semibold">{row.name}</td>
+                <td className="py-2 px-2">{row.percent}</td>
+                <td className="py-2 px-2">{row.tokens}</td>
+                <td className="py-2 px-2">{row.details}</td>
               </tr>
-            </thead>
-            <tbody>
-              {tableRows.map((row, idx) => (
-                <tr key={row.name} className="border-b border-[#222848] last:border-none">
-                  <td className="py-2 px-2 font-semibold">{row.name}</td>
-                  <td className="py-2 px-2">{row.percent}</td>
-                  <td className="py-2 px-2">{row.tokens}</td>
-                  <td className="py-2 px-2">{row.details}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+            ))}
+          </tbody>
+        </table>
+      </div>
 
-        {/* EXPLANATORY TEXT */}
-        <section className="mt-12 space-y-8 text-gray-200 leading-relaxed">
-          <div>
-            <h3 className="text-xl font-semibold text-yellow-300 mb-2">Total Supply</h3>
-            <p>
-              <b>100,000,000 TPC</b> — Fixed supply. Each allocation and fee mechanism is governed by smart contract, with vesting and transparency for investors and users.
-            </p>
-          </div>
-          <div>
-            <h3 className="text-xl font-semibold text-yellow-300 mb-2">Game Fee Model</h3>
-            <p>
-              A <b>10% fee</b> is charged on every table game (winner pays). Distribution:<br/>
-              <b>3%</b> to Dev/Owner (salary, ops, upgrades), <b>3%</b> to buyback & burn (deflationary, value accrual), <b>2%</b> to ecosystem rewards (staking, leaderboard, referrals), <b>1%</b> to liquidity pool (market depth), <b>1%</b> to marketing. The <b>remaining 90%</b> is paid instantly to winners.
-            </p>
-          </div>
-          <div>
-            <h3 className="text-xl font-semibold text-yellow-300 mb-2">Deflation, Sustainability & Growth</h3>
-            <ul className="list-disc pl-6">
-              <li><b>Vesting:</b> Team & treasury allocations are locked and released over time to ensure trust and long-term commitment.</li>
-              <li><b>Buyback & Burn:</b> Constant reduction of supply with platform activity, driving price support and investor confidence.</li>
-              <li><b>Liquidity:</b> Deep pools on DEX/CEX for stable trading, anti-volatility.</li>
-              <li><b>Ecosystem & Marketing:</b> Ongoing incentives for new and existing users, community events, and high-visibility campaigns.</li>
-            </ul>
-          </div>
-          <div>
-            <h3 className="text-xl font-semibold text-yellow-300 mb-2">Transparency & Trust</h3>
-            <p>
-              All allocations and fee distributions are visible on-chain and subject to regular reporting. The project prioritizes sustainable growth, anti-rug mechanisms, and investor protection.
-            </p>
-          </div>
-        </section>
+      {/* Explanation */}
+      <div className="relative bg-surface border border-border rounded-xl p-4 space-y-4 overflow-hidden wide-card text-sm">
+        <img
+          src="/assets/SnakeLaddersbackground.png"
+          className="background-behind-board object-cover"
+          alt=""
+        />
+        <div>
+          <h4 className="font-semibold text-accent mb-1">Total Supply</h4>
+          <p>
+            <b>100,000,000 TPC</b> — Fixed supply. Each allocation and fee mechanism is governed by smart contract, with vesting and transparency for investors and users.
+          </p>
+        </div>
+        <div>
+          <h4 className="font-semibold text-accent mb-1">Game Fee Model</h4>
+          <p>
+            A <b>10% fee</b> is charged on every table game (winner pays). Distribution: <b>3%</b> Dev/Owner, <b>3%</b> buyback & burn, <b>2%</b> ecosystem rewards, <b>1%</b> liquidity pool, <b>1%</b> marketing. The <b>remaining 90%</b> goes to winners.
+          </p>
+        </div>
+        <div>
+          <h4 className="font-semibold text-accent mb-1">Deflation, Sustainability & Growth</h4>
+          <ul className="list-disc pl-6 space-y-1">
+            <li><b>Vesting:</b> Team & treasury allocations locked with long-term vesting.</li>
+            <li><b>Buyback & Burn:</b> Supply reduction tied to platform activity.</li>
+            <li><b>Liquidity:</b> Deep pools on DEX/CEX for stable trading.</li>
+            <li><b>Ecosystem & Marketing:</b> Continuous user incentives and campaigns.</li>
+          </ul>
+        </div>
+        <div>
+          <h4 className="font-semibold text-accent mb-1">Transparency & Trust</h4>
+          <p>
+            All allocations and fee distributions are on-chain and reported regularly. The project focuses on sustainable growth and investor protection.
+          </p>
+        </div>
+      </div>
+
+      {/* Roadmap */}
+      <div className="relative bg-surface border border-border rounded-xl p-4 space-y-4 overflow-hidden wide-card">
+        <img
+          src="/assets/SnakeLaddersbackground.png"
+          className="background-behind-board object-cover"
+          alt=""
+        />
+        <h3 className="text-lg font-bold text-center">Roadmap</h3>
+        <div className="space-y-2 text-sm">
+          {roadmap.map((phase) => (
+            <div key={phase.phase}>
+              <h4 className="font-semibold text-accent">{phase.phase}</h4>
+              <ul className="list-disc pl-6 space-y-1">
+                {phase.items.map((item) => (
+                  <li key={item}>{item}</li>
+                ))}
+              </ul>
+            </div>
+          ))}
+        </div>
       </div>
     </div>
   );
