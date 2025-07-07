@@ -118,6 +118,12 @@ export default function DailyCheckIn() {
           <img  src="/assets/icons/TPCcoin.png" alt="TPC" className="w-8 h-8 -ml-1" />
         </span>
 
+        {i === streak - 1 && showPopup && (
+          <button onClick={handleCheckIn} className="text-brand-gold text-xs mt-1">
+            Check in
+          </button>
+        )}
+
       </div>
 
     );
@@ -134,42 +140,6 @@ export default function DailyCheckIn() {
         alt=""
       />
 
-      {showPopup && (
-
-        <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-70 z-50">
-
-          <div className="bg-surface border border-border p-6 rounded text-center space-y-4 text-text w-80">
-
-            <img
-              
-              src="/assets/TonPlayGramLogo.jpg"
-              alt="TonPlaygram Logo"
-
-              className="w-10 h-10 mx-auto"
-
-            />
-
-            <h3 className="text-lg font-bold">Daily Check-In</h3>
-
-            <p className="text-sm text-subtext">Come back daily to keep your streak!</p>
-
-            <button
-
-              onClick={handleCheckIn}
-
-              className="px-4 py-2 bg-primary hover:bg-primary-hover text-white rounded w-full"
-
-            >
-
-              Check in
-
-            </button>
-
-          </div>
-
-        </div>
-
-      )}
 
       {reward !== null && (
 
