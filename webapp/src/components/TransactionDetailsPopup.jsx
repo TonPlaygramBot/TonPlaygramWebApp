@@ -3,18 +3,21 @@ import { createPortal } from 'react-dom';
 import { FiCopy } from 'react-icons/fi';
 import { getProfileByAccount } from '../utils/api.js';
 import { getAvatarUrl } from '../utils/avatarUtils.js';
+import { GIFTS } from '../utils/gifts.js';
 
 export default function TransactionDetailsPopup({ tx, onClose }) {
   const [counterparty, setCounterparty] = useState(null);
 
   useEffect(() => {
     if (!tx) return;
-    const account = tx.type === 'send' ? tx.toAccount : tx.fromAccount;
-    if (!account) {
+    const giftSend = tx.type === 'gift';
+    const isSend = tx.type === 'send' || giftSend;
+    const acct = isSend ? tx.toAccount : tx.fromAccount;
+    if (!acct) {
       setCounterparty(null);
       return;
     }
-    getProfileByAccount(account)
+    getProfileByAccount(acct)
       .then((profile) => setCounterparty(profile || null))
       .catch(() => setCounterparty(null));
   }, [tx]);
@@ -28,12 +31,19 @@ export default function TransactionDetailsPopup({ tx, onClose }) {
     USDT: '/icons/Usdt.png'
   };
   const icon = iconMap[token] || `/icons/${token.toLowerCase()}.png`;
-  const isSend = tx.type === 'send';
-  const isReceive = tx.type === 'receive';
+  const isGiftSend = tx.type === 'gift';
+  const isGiftReceive = tx.type === 'gift-receive';
+  const isSend = tx.type === 'send' || isGiftSend;
+  const isReceive = tx.type === 'receive' || isGiftReceive;
   const account = isSend ? tx.toAccount : tx.fromAccount;
   const nameOverride = isSend ? tx.toName : tx.fromName;
   const nameFromProfile = counterparty?.nickname || `${counterparty?.firstName || ''} ${counterparty?.lastName || ''}`.trim();
   const displayName = nameOverride || nameFromProfile || '';
+
+  const gift = (isGiftSend || isGiftReceive) && tx.detail
+    ? GIFTS.find((g) => g.id === tx.detail)
+    : null;
+  const giftFee = gift ? Math.round(gift.price * 0.1) : null;
 
   const sign = tx.amount > 0 ? '+' : '-';
   const formattedAmount = Math.abs(tx.amount).toLocaleString(undefined, {
@@ -66,6 +76,8 @@ export default function TransactionDetailsPopup({ tx, onClose }) {
                 if (tx.game) {
                   return tx.amount > 0 ? 'Win' : 'Lost';
                 }
+                if (isGiftSend) return 'Gift Sent';
+                if (isGiftReceive) return 'Gift Received';
                 if (isSend) return 'Sent';
                 if (isReceive) return 'Received';
                 return tx.type;
@@ -106,7 +118,17 @@ export default function TransactionDetailsPopup({ tx, onClose }) {
               />
             </div>
           )}
-          {tx.detail && (
+          {gift && (
+            <div className="text-sm flex items-center space-x-1">
+              <span>Gift:</span>
+              <span>{gift.icon}</span>
+              <span>{gift.name}</span>
+            </div>
+          )}
+          {gift && giftFee !== null && (
+            <div className="text-sm text-subtext">Fee: {giftFee} TPC</div>
+          )}
+          {!gift && tx.detail && (
             <div className="text-sm text-subtext">{tx.detail}</div>
           )}
           <div className="text-xs text-subtext">
