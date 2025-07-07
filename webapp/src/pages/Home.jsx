@@ -179,7 +179,7 @@ export default function Home() {
           <h3 className="text-lg font-bold text-text text-center">Tokenomics &amp; Roadmap</h3>
           <Link
             to="/tokenomics"
-            className="mx-auto block px-3 py-1 bg-primary rounded hover:bg-primary-hover text-white-shadow text-center"
+            className="inline-block px-3 py-1 bg-primary rounded hover:bg-primary-hover text-white-shadow text-center"
           >
             Learn More
           </Link>

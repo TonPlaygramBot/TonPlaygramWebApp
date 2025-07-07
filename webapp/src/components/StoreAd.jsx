@@ -54,7 +54,7 @@ export default function StoreAd() {
       </div>
       <Link
         to="/store"
-        className="mx-auto block px-3 py-1 bg-primary rounded hover:bg-primary-hover text-white-shadow"
+        className="inline-block px-3 py-1 bg-primary rounded hover:bg-primary-hover text-white-shadow"
       >
         Open Store
       </Link>
