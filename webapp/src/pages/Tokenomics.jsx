@@ -45,25 +45,54 @@ const roadmap = [
   {
     phase: 'Q2 2024',
     items: [
-      { text: 'Beta launch of TonPlaygram', done: true },
-      { text: 'Token generation event', done: true },
-      { text: 'Initial marketing push', done: true },
-      { text: 'Presale and TPC transfers', done: true },
+      {
+        text:
+          'Beta launch of TonPlaygram with integrated wallet and The Wall social feed',
+        done: true,
+      },
+      {
+        text:
+          'Token generation event and distribution of initial supply to early supporters',
+        done: true,
+      },
+      {
+        text: 'Initial marketing push across Telegram and X',
+        done: true,
+      },
+      {
+        text: 'Presale and TPC transfers for early backers',
+        done: true,
+      },
     ],
   },
   {
     phase: 'Q3 2024',
     items: [
-      { text: 'Staking rewards', done: true },
-      { text: 'Mining & daily rewards', done: true },
-      { text: 'New games and features', done: true },
+      {
+        text: 'Staking rewards live with lock-ups and compounding APY',
+        done: true,
+      },
+      {
+        text: 'Mining and daily login rewards to grow the user base',
+        done: true,
+      },
+      {
+        text: 'Release of Grid Roller mini games and friend invites',
+        done: true,
+      },
     ],
   },
   {
     phase: 'Q4 2024',
     items: [
-      { text: 'Token mint & external wallet claiming', done: false },
-      { text: 'Smart contracts for TON/USDT tables', done: false },
+      {
+        text: 'Token mint on TON and external wallet claiming via Tonkeeper',
+        done: false,
+      },
+      {
+        text: 'Smart contracts powering TON/USDT tables',
+        done: false,
+      },
       { text: 'DAO governance launch', done: false },
       { text: 'Mobile app release', done: false },
       { text: 'CEX & DEX listings', done: false },
