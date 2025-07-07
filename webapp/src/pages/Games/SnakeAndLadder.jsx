@@ -70,6 +70,9 @@ import { socket } from "../../utils/socket.js";
 import PlayerToken from "../../components/PlayerToken.jsx";
 import AvatarTimer from "../../components/AvatarTimer.jsx";
 import ConfirmPopup from "../../components/ConfirmPopup.jsx";
+import PlayerPopup from "../../components/PlayerPopup.jsx";
+import QuickMessagePopup from "../../components/QuickMessagePopup.jsx";
+import { AiOutlineMessage } from "react-icons/ai";
 import { moveSeq, flashHighlight, applyEffect as applyEffectHelper } from "../../utils/moveHelpers.js";
 
 const TOKEN_COLORS = [
@@ -621,6 +624,9 @@ export default function SnakeAndLadder() {
   const [mpPlayers, setMpPlayers] = useState([]);
   const playersRef = useRef([]);
   const [tableId, setTableId] = useState('snake-4');
+  const [playerPopup, setPlayerPopup] = useState(null);
+  const [showChat, setShowChat] = useState(false);
+  const [chatBubbles, setChatBubbles] = useState([]);
 
   // Preload token and avatar images so board icons and AI photos display
   // immediately without waiting for network requests during gameplay.
@@ -652,7 +658,7 @@ export default function SnakeAndLadder() {
         }
         return c - 1;
       });
-    }, 1000);
+    }, 100);
     return () => clearInterval(id);
   }, [rollCooldown]);
 
@@ -1667,8 +1673,8 @@ export default function SnakeAndLadder() {
       setTimeLeft(TURN_TIME);
       if (timerRef.current) clearInterval(timerRef.current);
       timerRef.current = setInterval(() => {
-        setTimeLeft((t) => Math.max(0, t - 1));
-      }, 1000);
+        setTimeLeft((t) => Math.max(0, parseFloat((t - 0.1).toFixed(1))));
+      }, 100);
       if (!isMultiplayer) {
         if (aiRollTimeoutRef.current) clearTimeout(aiRollTimeoutRef.current);
         aiRollTimeoutRef.current = setTimeout(() => {
@@ -1687,9 +1693,10 @@ export default function SnakeAndLadder() {
     if (timerSoundRef.current) timerSoundRef.current.pause();
     timerRef.current = setInterval(() => {
       setTimeLeft((t) => {
-        const next = t - 1;
+        const next = parseFloat((t - 0.1).toFixed(1));
         if (
           currentTurn === myIndex &&
+          Math.ceil(next) < Math.ceil(t) &&
           next <= 7 &&
           next >= 0 &&
           timerSoundRef.current
@@ -1706,7 +1713,7 @@ export default function SnakeAndLadder() {
         }
         return next;
       });
-    }, 1000);
+    }, 100);
     return () => {
       clearInterval(timerRef.current);
       timerSoundRef.current?.pause();
@@ -1772,6 +1779,12 @@ export default function SnakeAndLadder() {
                   : 1
               }
               color={p.color}
+              onClick={() => {
+                const myIdx = isMultiplayer
+                  ? mpPlayers.findIndex(pl => pl.id === getPlayerId())
+                  : 0;
+                if (p.index !== myIdx) setPlayerPopup(p);
+              }}
             />
           ))}
       </div>
@@ -1792,6 +1805,38 @@ export default function SnakeAndLadder() {
         rollingIndex={rollingIndex}
         currentTurn={currentTurn}
         burning={burning}
+      />
+      {chatBubbles.map((b) => (
+        <div key={b.id} className="chat-bubble">
+          <span>{b.text}</span>
+          <img src={b.photoUrl} className="w-6 h-6 rounded-full" />
+        </div>
+      ))}
+      <button
+        onClick={() => setShowChat(true)}
+        className="fixed right-1 bottom-4 z-20 p-2 flex flex-col items-center"
+      >
+        <AiOutlineMessage className="text-2xl" />
+        <span className="text-xs">Chat</span>
+      </button>
+      <PlayerPopup
+        open={!!playerPopup}
+        player={playerPopup}
+        onClose={() => setPlayerPopup(null)}
+      />
+      <QuickMessagePopup
+        open={showChat}
+        onClose={() => setShowChat(false)}
+        players={players.map((p, i) => ({ ...p, index: i, name: getPlayerName(i) }))}
+        onSend={(idx, text) => {
+          const target = players[idx];
+          const id = Date.now();
+          setChatBubbles((b) => [...b, { id, text, photoUrl: target.photoUrl }]);
+          setTimeout(
+            () => setChatBubbles((b) => b.filter((bb) => bb.id !== id)),
+            3000,
+          );
+        }}
       />
       {waitingForPlayers && (
         <div className="absolute inset-0 z-40 flex items-center justify-center bg-black/70">
