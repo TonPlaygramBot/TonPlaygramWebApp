@@ -253,7 +253,7 @@ export default function Wallet() {
   return (
     <div className="relative p-4 space-y-4 text-text wide-card">
       <h2 className="text-xl font-bold text-center">TPC Account Wallet</h2>
-      <div className="prism-box p-6 space-y-2 w-80 mx-auto min-h-40 flex flex-col items-start">
+      <div className="prism-box p-6 space-y-2 min-h-40 flex flex-col items-start wide-card mx-auto">
         <p className="text-xs break-all w-full text-left">Account: {accountId || '...'}</p>
         <div className="flex items-center space-x-1">
           <img src="/assets/icons/TPCcoin.png" alt="TPC" className="w-8 h-8" />
@@ -272,7 +272,7 @@ export default function Wallet() {
 
       {/* TPC account section */}
       <div className="space-y-4">
-        <div className="prism-box p-6 space-y-3 text-center flex flex-col items-center w-80 mx-auto min-h-40">
+        <div className="prism-box p-6 space-y-3 text-center flex flex-col items-center min-h-40 wide-card mx-auto">
           <label className="block font-semibold">Send TPC</label>
           <input
             type="text"
@@ -316,7 +316,7 @@ export default function Wallet() {
           )}
         </div>
 
-      <div className="prism-box p-6 space-y-3 text-center mt-4 flex flex-col items-center w-80 mx-auto">
+      <div className="prism-box p-6 space-y-3 text-center mt-4 flex flex-col items-center wide-card mx-auto">
         <label className="block font-semibold">Receive TPC</label>
           <button
             onClick={() => navigator.clipboard.writeText(String(accountId))}

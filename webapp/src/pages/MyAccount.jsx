@@ -19,7 +19,6 @@ import AvatarPickerModal from '../components/AvatarPickerModal.jsx';
 import AvatarPromptModal from '../components/AvatarPromptModal.jsx';
 import { getAvatarUrl, saveAvatar, loadAvatar } from '../utils/avatarUtils.js';
 import InfoPopup from '../components/InfoPopup.jsx';
-import InboxWidget from '../components/InboxWidget.jsx';
 import DevNotifyModal from '../components/DevNotifyModal.jsx';
 import Wallet from './Wallet.jsx';
 
@@ -277,7 +276,6 @@ export default function MyAccount() {
 
       {/* Wallet section */}
       <Wallet />
-      <InboxWidget />
       <DevNotifyModal
         open={showNotifyModal}
         onClose={() => setShowNotifyModal(false)}
