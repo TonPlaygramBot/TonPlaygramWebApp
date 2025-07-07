@@ -271,13 +271,10 @@ export default function Friends() {
                     />
                   )}
                   {u.nickname || `${u.firstName} ${u.lastName}`.trim() || 'User'}
-                  {u.accountId !== accountId && (
-                    u.currentTableId ? (
+                  {u.accountId !== accountId &&
+                    u.currentTableId && (
                       <span className="ml-1 text-xs text-red-500">Playing</span>
-                    ) : (
-                      <span className="ml-1 text-xs text-green-500">Available</span>
-                    )
-                  )}
+                    )}
                   {onlineUsers.includes(String(u.accountId)) && (
                     <FaCircle className="ml-1 text-green-500" size={8} />
                   )}
