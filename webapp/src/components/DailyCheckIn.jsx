@@ -132,7 +132,7 @@ export default function DailyCheckIn() {
 
   return (
 
-    <div className="relative bg-surface border border-border rounded-xl p-4 space-y-2 text-center overflow-hidden">
+    <div className="relative bg-surface border border-border rounded-xl p-4 space-y-2 text-center overflow-hidden wide-card">
       <img
         
         src="/assets/SnakeLaddersbackground.png"

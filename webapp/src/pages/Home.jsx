@@ -111,7 +111,7 @@ export default function Home() {
         )}
 
         <div className="w-full mt-2 space-y-4">
-          <div className="relative bg-surface border border-border rounded-xl p-4 flex items-center justify-around overflow-hidden">
+          <div className="relative bg-surface border border-border rounded-xl p-4 flex items-center justify-around overflow-hidden wide-card">
             <img
               
               src="/assets/SnakeLaddersbackground.png"
@@ -129,7 +129,7 @@ export default function Home() {
           </div>
 
           <div className="relative">
-            <div className="relative bg-surface border border-border rounded-xl p-4 pt-6 space-y-2 overflow-hidden">
+            <div className="relative bg-surface border border-border rounded-xl p-4 pt-6 space-y-2 overflow-hidden wide-card">
               <div className="flex items-center justify-center space-x-1 mb-1">
                 <FaWallet className="text-primary" />
                 <span className="text-lg font-bold">Wallet</span>

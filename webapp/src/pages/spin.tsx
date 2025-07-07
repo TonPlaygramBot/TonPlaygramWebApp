@@ -127,7 +127,7 @@ export default function SpinPage() {
     <div className="p-4 space-y-6 flex flex-col items-center text-text">
       <h1 className="text-xl font-bold">Spin &amp; Win</h1>
       <p className="text-sm text-subtext">Try your luck and win rewards!</p>
-      <div className="bg-surface border border-border rounded p-4 flex flex-col items-center space-y-2">
+      <div className="bg-surface border border-border rounded p-4 flex flex-col items-center space-y-2 wide-card">
         <div className="flex justify-center">
           <div className="mr-[-8px]">
             <SpinWheel

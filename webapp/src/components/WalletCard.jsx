@@ -10,7 +10,7 @@ export default function WalletCard() {
     telegramId = getTelegramId();
   } catch (err) {
     return (
-      <div className="bg-surface border border-border rounded-xl">
+      <div className="bg-surface border border-border rounded-xl wide-card">
         <LoginOptions />
       </div>
     );
@@ -32,7 +32,7 @@ export default function WalletCard() {
   }, []);
 
   return (
-    <div className="relative bg-surface border border-border p-4 rounded-xl shadow-lg text-text space-y-2 overflow-hidden">
+    <div className="relative bg-surface border border-border p-4 rounded-xl shadow-lg text-text space-y-2 overflow-hidden wide-card">
       <img
         
         src="/assets/SnakeLaddersbackground.png"
