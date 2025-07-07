@@ -72,6 +72,7 @@ import AvatarTimer from "../../components/AvatarTimer.jsx";
 import ConfirmPopup from "../../components/ConfirmPopup.jsx";
 import PlayerPopup from "../../components/PlayerPopup.jsx";
 import QuickMessagePopup from "../../components/QuickMessagePopup.jsx";
+import GiftPopup from "../../components/GiftPopup.jsx";
 import { AiOutlineMessage } from "react-icons/ai";
 import { moveSeq, flashHighlight, applyEffect as applyEffectHelper } from "../../utils/moveHelpers.js";
 
@@ -626,6 +627,7 @@ export default function SnakeAndLadder() {
   const [tableId, setTableId] = useState('snake-4');
   const [playerPopup, setPlayerPopup] = useState(null);
   const [showChat, setShowChat] = useState(false);
+  const [showGift, setShowGift] = useState(false);
   const [chatBubbles, setChatBubbles] = useState([]);
 
   // Preload token and avatar images so board icons and AI photos display
@@ -1812,13 +1814,22 @@ export default function SnakeAndLadder() {
           <img src={b.photoUrl} className="w-6 h-6 rounded-full" />
         </div>
       ))}
-      <button
-        onClick={() => setShowChat(true)}
-        className="fixed right-1 bottom-4 z-20 p-2 flex flex-col items-center"
-      >
-        <AiOutlineMessage className="text-2xl" />
-        <span className="text-xs">Chat</span>
-      </button>
+      <div className="fixed right-1 bottom-4 z-20 flex space-x-2">
+        <button
+          onClick={() => setShowChat(true)}
+          className="p-2 flex flex-col items-center"
+        >
+          <AiOutlineMessage className="text-2xl" />
+          <span className="text-xs">Chat</span>
+        </button>
+        <button
+          onClick={() => setShowGift(true)}
+          className="p-2 flex flex-col items-center"
+        >
+          <span className="text-2xl">🎁</span>
+          <span className="text-xs">Gift</span>
+        </button>
+      </div>
       <PlayerPopup
         open={!!playerPopup}
         player={playerPopup}
@@ -1837,6 +1848,11 @@ export default function SnakeAndLadder() {
             3000,
           );
         }}
+      />
+      <GiftPopup
+        open={showGift}
+        onClose={() => setShowGift(false)}
+        players={players.map((p, i) => ({ ...p, index: i, name: getPlayerName(i) }))}
       />
       {waitingForPlayers && (
         <div className="absolute inset-0 z-40 flex items-center justify-center bg-black/70">
