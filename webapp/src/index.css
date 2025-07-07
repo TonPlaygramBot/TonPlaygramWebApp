@@ -1204,6 +1204,11 @@ input:focus {
   box-shadow: 0 0 8px #00f7ff, 0 0 16px #00f7ff;
 }
 
+/* Utility class to widen cards edge-to-edge */
+.wide-card {
+  @apply -mx-4;
+}
+
 
 
 
