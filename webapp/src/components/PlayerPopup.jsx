@@ -1,8 +1,11 @@
+import { useState } from 'react';
 import { createPortal } from 'react-dom';
 import { sendFriendRequest } from '../utils/api.js';
 import { getTelegramId } from '../utils/telegram.js';
+import GiftPopup from './GiftPopup.jsx';
 
 export default function PlayerPopup({ open, onClose, player }) {
+  const [giftOpen, setGiftOpen] = useState(false);
   if (!open || !player) return null;
   const handleAdd = async () => {
     try {
@@ -24,13 +27,22 @@ export default function PlayerPopup({ open, onClose, player }) {
       >
         <img src={player.photoUrl} alt="user" className="w-20 h-20 rounded-full mx-auto" />
         <p className="text-center font-semibold">{player.name}</p>
-        <button
-          className="w-full px-3 py-1 bg-primary hover:bg-primary-hover rounded text-black"
-          onClick={handleAdd}
-        >
-          Add Friend
-        </button>
+        <div className="flex space-x-2">
+          <button
+            className="flex-1 px-3 py-1 bg-primary hover:bg-primary-hover rounded text-black"
+            onClick={handleAdd}
+          >
+            Add Friend
+          </button>
+          <button
+            className="px-3 py-1 bg-primary hover:bg-primary-hover rounded text-black"
+            onClick={() => setGiftOpen(true)}
+          >
+            🎁
+          </button>
+        </div>
       </div>
+      <GiftPopup open={giftOpen} onClose={() => setGiftOpen(false)} recipient={player} />
     </div>,
     document.body,
   );
