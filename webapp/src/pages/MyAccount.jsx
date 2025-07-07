@@ -276,9 +276,7 @@ export default function MyAccount() {
       )}
 
       {/* Wallet section */}
-      <div className="bg-surface border border-border rounded-xl p-4 wide-card">
-        <Wallet />
-      </div>
+      <Wallet />
       <InboxWidget />
       <DevNotifyModal
         open={showNotifyModal}
