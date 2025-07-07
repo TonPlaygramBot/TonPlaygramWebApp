@@ -52,7 +52,7 @@ export function avatarToName(src) {
         return code;
       }
       return key
-        .replace(/_/g, ' ')
+        .replace(/[-_]/g, ' ')
         .replace(/\b\w/g, (c) => c.toUpperCase())
         .replace(/\bflag\b/gi, '')
         .replace(/\bof\b/gi, '')
