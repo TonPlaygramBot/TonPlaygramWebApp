@@ -29,12 +29,13 @@ export function loadAvatar() {
 }
 
 import { emoji } from 'emoji-name-map';
+import countryNames from './countryNames.json';
 
 const emojiToNameMap = Object.fromEntries(
   Object.entries(emoji).map(([name, char]) => [char, name])
 );
 const regionNames =
-  typeof Intl !== 'undefined'
+  typeof Intl !== 'undefined' && typeof Intl.DisplayNames !== 'undefined'
     ? new Intl.DisplayNames(['en'], { type: 'region' })
     : null;
 
@@ -46,10 +47,10 @@ export function avatarToName(src) {
       if (/^[a-z]{2}$/i.test(key)) {
         const code = key.toUpperCase();
         try {
-          const name = regionNames?.of(code);
+          const name = regionNames?.of(code) || countryNames[code];
           if (name) return name;
         } catch {}
-        return code;
+        return countryNames[code] || code;
       }
       return key
         .replace(/[-_]/g, ' ')
