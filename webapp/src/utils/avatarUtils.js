@@ -44,6 +44,15 @@ export function avatarToName(src) {
   if (!src.startsWith('/') && !src.startsWith('http')) {
     const key = emojiToNameMap[src];
     if (key) {
+      const flagMatch = key.match(/flag[-_]?([a-z]{2})/i);
+      if (flagMatch) {
+        const code = flagMatch[1].toUpperCase();
+        try {
+          const name = regionNames?.of(code) || countryNames[code];
+          if (name) return name;
+        } catch {}
+        return countryNames[code] || code;
+      }
       if (/^[a-z]{2}$/i.test(key)) {
         const code = key.toUpperCase();
         try {

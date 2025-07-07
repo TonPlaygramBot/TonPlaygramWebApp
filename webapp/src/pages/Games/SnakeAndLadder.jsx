@@ -411,7 +411,6 @@ function Board({
 
   return (
     <div className="relative flex justify-center items-center w-screen overflow-visible">
-      <div className="background-behind-board bg-surface" />
       <div
         ref={containerRef}
         className="overflow-y-auto"
