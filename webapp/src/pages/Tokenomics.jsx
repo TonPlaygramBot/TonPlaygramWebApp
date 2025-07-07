@@ -87,8 +87,8 @@ const tableRows = [
 
 export default function TokenomicsPage() {
   return (
-    <div className="w-full min-h-screen bg-[#0c1020] text-white py-8 px-2 flex flex-col items-center">
-      <div className="max-w-4xl w-full mx-auto">
+    <div className="w-full min-h-screen bg-background text-white py-8 px-2 flex flex-col items-center">
+      <div className="max-w-4xl w-full mx-auto space-y-8">
         {/* HEADER */}
         <h1 className="text-4xl md:text-5xl font-bold mb-2 text-yellow-400 text-center tracking-tight">
           Tokenomics &amp; Roadmap
@@ -98,9 +98,9 @@ export default function TokenomicsPage() {
         </p>
 
         {/* PIE CHARTS */}
-        <div className="flex flex-col md:flex-row justify-between items-center gap-10 my-10">
+        <div className="flex flex-col md:flex-row justify-between items-center gap-12 md:gap-8 my-10">
           {/* TOKEN ALLOCATION PIE CHART */}
-          <div className="flex flex-col items-center w-full md:w-1/2">
+          <div className="flex flex-col items-center w-full md:w-1/2 mb-8 md:mb-0">
             <h2 className="text-2xl font-semibold mb-3 text-yellow-300">Token Allocation</h2>
             <ResponsiveContainer width="100%" height={300}>
               <PieChart>
@@ -126,7 +126,7 @@ export default function TokenomicsPage() {
           </div>
 
           {/* FEE DISTRIBUTION PIE CHART */}
-          <div className="flex flex-col items-center w-full md:w-1/2">
+          <div className="flex flex-col items-center w-full md:w-1/2 mb-8 md:mb-0">
             <h2 className="text-2xl font-semibold mb-3 text-yellow-300">Game Fee Distribution (per Table)</h2>
             <ResponsiveContainer width="100%" height={300}>
               <PieChart>
@@ -153,7 +153,7 @@ export default function TokenomicsPage() {
         </div>
 
         {/* DETAILED TABLE */}
-        <div className="mt-10 bg-[#181d35] rounded-2xl p-6 shadow-lg overflow-x-auto">
+        <div className="mt-10 bg-surface rounded-2xl p-6 shadow-lg overflow-x-auto border border-border">
           <h2 className="text-2xl font-bold text-yellow-400 mb-5">Full Token Allocation Breakdown</h2>
           <table className="w-full text-base text-left">
             <thead>
