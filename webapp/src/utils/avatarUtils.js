@@ -54,7 +54,8 @@ export function avatarToName(src) {
       return key
         .replace(/_/g, ' ')
         .replace(/\b\w/g, (c) => c.toUpperCase())
-        .replace(/^Flag\s+/i, '')
+        .replace(/\bflag\b/gi, '')
+        .replace(/\bof\b/gi, '')
         .replace(/\b(?:Face|Man|Woman|Male|Female|Person)\b/gi, '')
         .replace(/\s+/g, ' ')
         .trim();
