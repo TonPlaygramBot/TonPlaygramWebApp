@@ -12,6 +12,7 @@ import Store from './pages/Store.jsx';
 import Messages from './pages/Messages.jsx';
 import Trending from './pages/Trending.jsx';
 import Notifications from './pages/Notifications.jsx';
+import TokenomicsPage from './pages/Tokenomics.jsx';
 
 import HorseRacing from './pages/Games/HorseRacing.jsx';
 import SnakeAndLadder from './pages/Games/SnakeAndLadder.jsx';
@@ -51,6 +52,7 @@ export default function App() {
           <Route path="/notifications" element={<Notifications />} />
           <Route path="/trending" element={<Trending />} />
           <Route path="/account" element={<MyAccount />} />
+          <Route path="/tokenomics" element={<TokenomicsPage />} />
         </Routes>
         </Layout>
       </TonConnectUIProvider>
