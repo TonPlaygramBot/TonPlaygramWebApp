@@ -85,6 +85,7 @@ const PLAYERS = 4;
 const ROWS = 20;
 const COLS = 5;
 const FINAL_TILE = ROWS * COLS + 1; // 101
+const TURN_TIME = 15;
 
 function shuffle(arr) {
   const copy = [...arr];
@@ -410,7 +411,7 @@ function Board({
 
   return (
     <div className="relative flex justify-center items-center w-screen overflow-visible">
-      <img src="/assets/SnakeLaddersbackground.png" className="background-behind-board object-cover" alt="" />
+      <div className="background-behind-board bg-surface" />
       <div
         ref={containerRef}
         className="overflow-y-auto"
@@ -609,7 +610,7 @@ export default function SnakeAndLadder() {
   const [rollingIndex, setRollingIndex] = useState(null);
   const [playerRollTrigger, setPlayerRollTrigger] = useState(0);
   const [playerAutoRolling, setPlayerAutoRolling] = useState(false);
-  const [timeLeft, setTimeLeft] = useState(15);
+  const [timeLeft, setTimeLeft] = useState(TURN_TIME);
   const [aiAvatars, setAiAvatars] = useState([]);
   const [burning, setBurning] = useState([]); // indices of tokens burning
   const [refreshTick, setRefreshTick] = useState(0);
@@ -1664,7 +1665,7 @@ export default function SnakeAndLadder() {
       : 0;
 
     if (currentTurn !== myIndex) {
-      setTimeLeft(15);
+      setTimeLeft(TURN_TIME);
       if (timerRef.current) clearInterval(timerRef.current);
       timerRef.current = setInterval(() => {
         setTimeLeft((t) => Math.max(0, t - 1));
@@ -1681,7 +1682,7 @@ export default function SnakeAndLadder() {
       };
     }
 
-    const limit = 15;
+    const limit = TURN_TIME;
     setTimeLeft(limit);
     if (timerRef.current) clearInterval(timerRef.current);
     if (timerSoundRef.current) timerSoundRef.current.pause();
@@ -1768,7 +1769,7 @@ export default function SnakeAndLadder() {
               isTurn={p.index === currentTurn}
               timerPct={
                 p.index === currentTurn
-                  ? timeLeft / 15
+                  ? timeLeft / TURN_TIME
                   : 1
               }
               color={p.color}
