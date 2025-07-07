@@ -1856,11 +1856,9 @@ export default function SnakeAndLadder() {
       <QuickMessagePopup
         open={showChat}
         onClose={() => setShowChat(false)}
-        players={players.map((p, i) => ({ ...p, index: i, name: getPlayerName(i) }))}
-        onSend={(idx, text) => {
-          const target = players[idx];
+        onSend={(text) => {
           const id = Date.now();
-          setChatBubbles((b) => [...b, { id, text, photoUrl: target.photoUrl }]);
+          setChatBubbles((b) => [...b, { id, text, photoUrl }]);
           setTimeout(
             () => setChatBubbles((b) => b.filter((bb) => bb.id !== id)),
             3000,
