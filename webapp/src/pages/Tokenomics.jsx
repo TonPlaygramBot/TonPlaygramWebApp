@@ -250,14 +250,14 @@ export default function TokenomicsPage() {
       </div>
 
       {/* Detailed Table */}
-      <div className="relative bg-surface border border-border rounded-xl p-4 overflow-hidden wide-card">
+      <div className="relative bg-surface border border-border rounded-xl p-4 overflow-hidden wide-card overflow-x-auto">
         <img
           src="/assets/SnakeLaddersbackground.png"
           className="background-behind-board object-cover"
           alt=""
         />
         <h3 className="text-lg font-bold mb-2 text-center">Full Token Allocation Breakdown</h3>
-        <table className="w-full text-sm text-left">
+        <table className="w-full text-sm text-left min-w-[32rem]">
           <thead>
             <tr>
               <th className="py-2 px-2">Category</th>
