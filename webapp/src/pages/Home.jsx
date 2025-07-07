@@ -170,6 +170,20 @@ export default function Home() {
         <MiningCard />
         <TasksCard />
         <StoreAd />
+        <div className="relative bg-surface border border-border rounded-xl p-4 space-y-2 overflow-hidden wide-card">
+          <img
+            src="/assets/SnakeLaddersbackground.png"
+            className="background-behind-board object-cover"
+            alt=""
+          />
+          <h3 className="text-lg font-bold text-text text-center">Tokenomics &amp; Roadmap</h3>
+          <Link
+            to="/tokenomics"
+            className="inline-block px-3 py-1 bg-primary rounded hover:bg-primary-hover text-white-shadow text-center"
+          >
+            Learn More
+          </Link>
+        </div>
       </div>
 
       <p className="text-center text-xs text-subtext">Status: {status}</p>
