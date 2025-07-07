@@ -6,7 +6,7 @@ export default function Games() {
   return (
     <div className="relative space-y-4 text-text">
       <h2 className="text-2xl font-bold text-center mt-4">Games</h2>
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+      <div className="space-y-4">
         <GameCard title="Snake & Ladder" icon="🎲" link="/games/snake/lobby" />
       </div>
     </div>

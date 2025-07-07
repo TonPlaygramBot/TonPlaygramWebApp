@@ -242,11 +242,11 @@ export default function MyAccount() {
         </div>
       </div>
 
-      <BalanceSummary />
+      <BalanceSummary className="bg-surface border border-border rounded-xl p-4 wide-card" />
 
       {profile && profile.accountId === DEV_ACCOUNT_ID && (
         <>
-          <div className="prism-box p-4 mt-4 space-y-2 w-80 mx-auto">
+          <div className="prism-box p-4 mt-4 space-y-2 mx-auto wide-card">
             <label className="block font-semibold text-center">Top Up Developer Account</label>
             <input
               type="number"
@@ -264,7 +264,7 @@ export default function MyAccount() {
             </button>
           </div>
 
-          <div className="prism-box p-4 mt-4 space-y-2 w-80 mx-auto">
+          <div className="prism-box p-4 mt-4 space-y-2 mx-auto wide-card">
             <button
               onClick={() => setShowNotifyModal(true)}
               className="px-3 py-1 bg-primary hover:bg-primary-hover rounded text-background w-full"
@@ -276,7 +276,9 @@ export default function MyAccount() {
       )}
 
       {/* Wallet section */}
-      <Wallet />
+      <div className="bg-surface border border-border rounded-xl p-4 wide-card">
+        <Wallet />
+      </div>
       <InboxWidget />
       <DevNotifyModal
         open={showNotifyModal}
