@@ -212,7 +212,7 @@ export default function SpinGame() {
       )}
       <button
         onClick={triggerSpin}
-        className="mt-2 px-6 py-2 bg-green-600 text-white text-sm font-bold rounded disabled:bg-gray-500"
+        className="mt-2 px-4 py-1 bg-green-600 text-white text-sm font-bold rounded disabled:bg-gray-500"
         disabled={spinning || !ready}
       >
         Spin
