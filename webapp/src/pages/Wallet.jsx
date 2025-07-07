@@ -271,8 +271,8 @@ export default function Wallet() {
       </div>
 
       {/* TPC account section */}
-      <div className="space-y-2 border-b border-border pb-4">
-        <div className="p-6 space-y-3 text-center mb-4 flex flex-col items-center w-80 mx-auto min-h-40">
+      <div className="space-y-4">
+        <div className="prism-box p-6 space-y-3 text-center flex flex-col items-center w-80 mx-auto min-h-40">
           <label className="block font-semibold">Send TPC</label>
           <input
             type="text"
@@ -316,7 +316,7 @@ export default function Wallet() {
           )}
         </div>
 
-      <div className="p-6 space-y-3 text-center mt-4 mb-4 flex flex-col items-center w-80 mx-auto">
+      <div className="prism-box p-6 space-y-3 text-center mt-4 flex flex-col items-center w-80 mx-auto">
         <label className="block font-semibold">Receive TPC</label>
           <button
             onClick={() => navigator.clipboard.writeText(String(accountId))}
@@ -333,7 +333,7 @@ export default function Wallet() {
       </div>
 
       {DEV_ACCOUNTS.includes(accountId) && (
-        <div className="p-6 space-y-3 text-center mt-4 mb-4 flex flex-col items-center w-80 mx-auto">
+        <div className="prism-box p-6 space-y-3 text-center mt-4 flex flex-col items-center w-80 mx-auto">
           <label className="block font-semibold">Top Up Developer Account</label>
           <input
             type="number"
@@ -354,7 +354,7 @@ export default function Wallet() {
     </div>
 
 
-    <div className="p-4 space-y-2 text-center mt-4 flex flex-col items-center w-80 mx-auto">
+    <div className="bg-surface border border-border rounded-xl p-4 space-y-2 text-center mt-4 wide-card">
         <h3 className="font-semibold text-center">TPC Statements</h3>
         <div className="flex items-center justify-center">
           <div className="flex items-center space-x-1 flex-wrap justify-center">

@@ -186,14 +186,14 @@ export default function Friends() {
       </section>
     </div>
 
-    <section id="leaderboard" className="relative bg-surface border border-border rounded-xl p-4 space-y-2 overflow-hidden wide-card">
+    <section id="leaderboard" className="relative bg-surface border border-border rounded-xl p-4 space-y-2 overflow-hidden wide-card mt-4">
       <img
         src="/assets/SnakeLaddersbackground.png"
         className="background-behind-board object-cover"
         alt=""
       />
+      <h3 className="text-lg font-semibold text-center">Leaderboard</h3>
       <div className="flex items-center justify-between">
-        <h3 className="text-lg font-semibold flex-1 text-center">Leaderboard</h3>
         <span className="flex items-center space-x-2">
           <select
             value={mode}
