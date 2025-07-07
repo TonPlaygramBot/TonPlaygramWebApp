@@ -1195,7 +1195,7 @@ input:focus {
 
 /* Store page styles */
 .store-card {
-  @apply prism-box flex-col space-y-2 rounded-xl p-4 items-center;
+  @apply prism-box flex-col space-y-2 rounded-xl p-4 items-center w-full;
   box-shadow: 0 0 12px rgba(0, 247, 255, 0.5);
 }
 

@@ -42,6 +42,11 @@ export default function Store() {
 
   return (
     <div className="relative p-4 space-y-4 text-text">
+      <img
+        src="/assets/SnakeLaddersbackground.png"
+        className="background-behind-board object-cover"
+        alt=""
+      />
       <h2 className="text-xl font-bold">Store</h2>
       <div className="flex justify-center space-x-2">
         {STORE_CATEGORIES.map((c) => (

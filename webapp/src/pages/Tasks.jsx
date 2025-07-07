@@ -11,6 +11,7 @@ import { RiTelegramFill } from 'react-icons/ri';
 import { FiVideo } from 'react-icons/fi';
 import AdModal from '../components/AdModal.tsx';
 import useTelegramBackButton from '../hooks/useTelegramBackButton.js';
+import DailyCheckIn from '../components/DailyCheckIn.jsx';
 
 export default function Tasks() {
   useTelegramBackButton();
@@ -24,6 +25,7 @@ export default function Tasks() {
   const [tasks, setTasks] = useState(null);
   const [adCount, setAdCount] = useState(0);
   const [showAd, setShowAd] = useState(false);
+  const [category, setCategory] = useState('TonPlaygram');
 
   const load = async () => {
     const data = await listTasks(telegramId);
@@ -70,8 +72,21 @@ export default function Tasks() {
 
       <img  src="/assets/SnakeLaddersbackground.png" className="background-behind-board object-cover" alt="" />
       <h2 className="text-xl font-bold">Tasks</h2>
-
-      <ul className="space-y-2">
+      <div className="flex justify-center space-x-2">
+        {['TonPlaygram', 'Partners'].map((c) => (
+          <button
+            key={c}
+            onClick={() => setCategory(c)}
+            className={`lobby-tile px-3 py-1 ${category === c ? 'lobby-selected' : ''}`}
+          >
+            {c}
+          </button>
+        ))}
+      </div>
+      {category === 'TonPlaygram' && (
+        <>
+          <DailyCheckIn />
+          <ul className="space-y-2">
 
         {tasks.map((t) => (
 
@@ -134,6 +149,11 @@ export default function Tasks() {
           )}
         </li>
       </ul>
+        </>
+      )}
+      {category === 'Partners' && (
+        <p className="text-center text-subtext">Partner tasks coming soon.</p>
+      )}
       <AdModal
         open={showAd}
         onComplete={handleAdComplete}
