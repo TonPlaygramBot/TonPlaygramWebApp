@@ -50,26 +50,20 @@ The server honors a few extra environment variables when building or serving the
    - `RPC_URL` – TON RPC endpoint (e.g. testnet)
    - `ADMIN_ADDRESS` – address that receives the minted supply
 
-6. Install the Python requirements for the dice roller:
-
-   ```bash
-   pip install -r requirements.txt
-   ```
-
-7. Build the webapp assets. This step copies `public/tonconnect-manifest.json`
+6. Build the webapp assets. This step copies `public/tonconnect-manifest.json`
    into the `dist` folder so wallets can connect:
 
    ```bash
    npm --prefix webapp run build
    ```
 
-8. Run the test suite to verify the setup:
+7. Run the test suite to verify the setup:
 
    ```bash
    npm test
    ```
 
-9. Start the API server and Telegram bot:
+8. Start the API server and Telegram bot:
 
    ```bash
    npm start
@@ -160,26 +154,6 @@ Authorization: Bearer <admin token>
 The request body must include a `text` field. Only tokens listed in
 `AIRDROP_ADMIN_TOKENS` are allowed to call this endpoint.
 
-
-## Telegram game bots
-
-Several small Telegram game bots are included in this repository. They use
-`python-telegram-bot` and Pillow to render board graphics. To try them out run:
-
-```bash
-pip install -r requirements.txt
-
-# Set BOT_TOKEN for your own Telegram bot token
-export BOT_TOKEN=<your token>
-
-# Launch the Mars grid roller game
-python mars_grid_roller.py
-
-# Launch the TonPlaygram dice roller clone
-python tonplaygram_grid_roller.py
-
-
-Each script will start a bot that responds to commands such as `/roll` or `/start`.
 
 ### Customizing Snakes & Ladders icons
 
