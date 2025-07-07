@@ -78,9 +78,7 @@ export default function SnakeBoard({
     const scaleX = scale * (1 + rowPos * widenStep);
     const offsetX = (scaleX - 1) * cellWidth;
     const reversed = r % 2 === 1;
-    const colorIdx = Math.floor(r / (ROWS / 5));
-    const TILE_COLORS = ["#6db0ad", "#4a828e", "#3d7078", "#2d5c66", "#0e3b45"];
-    const rowColor = TILE_COLORS[colorIdx] || "#0e3b45";
+    const rowColor = "#6db0ad";
 
     for (let c = 0; c < COLS; c++) {
       const col = c;
