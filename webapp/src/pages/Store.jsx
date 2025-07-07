@@ -57,7 +57,7 @@ export default function Store() {
       {STORE_BUNDLES.filter(b => b.category === category).map((b) => (
         <div
           key={b.id}
-          className="store-card w-80 mx-auto"
+          className="store-card mx-auto wide-card"
         >
           <div className="flex items-center space-x-2">
             <span className="text-2xl">{b.icon}</span>
