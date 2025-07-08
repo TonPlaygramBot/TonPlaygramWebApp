@@ -26,7 +26,26 @@ export default function GiftPopup({ open, onClose, players = [], senderIndex = 0
       if (sound) {
         const a = new Audio(sound);
         a.volume = getGameVolume();
-        a.play().catch(() => {});
+        if (selected.id === 'bullseye') {
+          setTimeout(() => {
+            a.play().catch(() => {});
+          }, 2500);
+        } else {
+          a.play().catch(() => {});
+        }
+        if (selected.id === 'magic_trick') {
+          setTimeout(() => {
+            a.pause();
+          }, 4000);
+        } else if (selected.id === 'fireworks') {
+          setTimeout(() => {
+            a.pause();
+          }, 6000);
+        } else if (selected.id === 'surprise_box') {
+          setTimeout(() => {
+            a.pause();
+          }, 5000);
+        }
       }
       setInfoMsg(`Sent ${selected.name} to ${recipient.name}`);
       onGiftSent && onGiftSent({ from: senderIndex, to: target, gift: selected });
