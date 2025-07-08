@@ -1333,9 +1333,11 @@ export default function SnakeAndLadder() {
           target = FINAL_TILE;
         } else {
           setMessage("Need a 1 to win!");
-          setTurnMessage("Your turn");
-          setDiceVisible(true);
-          setMoving(false);
+          setTurnMessage("");
+          setDiceVisible(false);
+          const next = (currentTurn + 1) % (ai + 1);
+          setTimeout(() => setCurrentTurn(next), 1500);
+          setTimeout(() => setMoving(false), 1500);
           return;
         }
       } else if (current === 0) {
@@ -1356,9 +1358,11 @@ export default function SnakeAndLadder() {
         target = current + value;
       } else {
         setMessage("Need exact roll!");
-        setTurnMessage("Your turn");
-        setDiceVisible(true);
-        setMoving(false);
+        setTurnMessage("");
+        setDiceVisible(false);
+        const next = (currentTurn + 1) % (ai + 1);
+        setTimeout(() => setCurrentTurn(next), 1500);
+        setTimeout(() => setMoving(false), 1500);
         return;
       }
 
