@@ -82,8 +82,6 @@ import PlayerPopup from "../../components/PlayerPopup.jsx";
 import QuickMessagePopup from "../../components/QuickMessagePopup.jsx";
 import GiftPopup from "../../components/GiftPopup.jsx";
 import { giftSounds } from "../../utils/giftSounds.js";
-import playGiftSound from "../../utils/playGiftSound.js";
-import fireworksAnimation from "../../utils/fireworksAnimation";
 import { moveSeq, flashHighlight, applyEffect as applyEffectHelper } from "../../utils/moveHelpers.js";
 
 const TOKEN_COLORS = [
@@ -1892,30 +1890,31 @@ export default function SnakeAndLadder() {
                 const e = end.getBoundingClientRect();
                 const cx = window.innerWidth / 2;
                 const cy = window.innerHeight / 2;
-                playGiftSound(gift.id);
-                if (gift.id === 'fireworks') {
-                  fireworksAnimation();
-                } else {
-                  const icon = document.createElement('div');
-                  icon.textContent = gift.icon;
-                  icon.style.position = 'fixed';
-                  icon.style.left = '0px';
-                  icon.style.top = '0px';
-                  icon.style.fontSize = '24px';
-                  icon.style.pointerEvents = 'none';
-                  icon.style.transform = `translate(${s.left + s.width / 2}px, ${s.top + s.height / 2}px) scale(1)`;
-                  icon.style.zIndex = '9999';
-                  document.body.appendChild(icon);
-                  const animation = icon.animate(
-                    [
-                      { transform: `translate(${s.left + s.width / 2}px, ${s.top + s.height / 2}px) scale(1)` },
-                      { transform: `translate(${cx}px, ${cy}px) scale(3)`, offset: 0.5 },
-                      { transform: `translate(${e.left + e.width / 2}px, ${e.top + e.height / 2}px) scale(1)` },
-                    ],
-                    { duration: 2000, easing: 'linear' },
-                  );
-                  animation.onfinish = () => icon.remove();
+                const icon = document.createElement('div');
+                icon.textContent = gift.icon;
+                icon.style.position = 'fixed';
+                icon.style.left = '0px';
+                icon.style.top = '0px';
+                icon.style.fontSize = '24px';
+                icon.style.pointerEvents = 'none';
+                icon.style.transform = `translate(${s.left + s.width / 2}px, ${s.top + s.height / 2}px) scale(1)`;
+                icon.style.zIndex = '9999';
+                document.body.appendChild(icon);
+                const giftSound = giftSounds[gift.id];
+                if (giftSound) {
+                  const a = new Audio(giftSound);
+                  a.volume = getGameVolume();
+                  a.play().catch(() => {});
                 }
+                const animation = icon.animate(
+                  [
+                    { transform: `translate(${s.left + s.width / 2}px, ${s.top + s.height / 2}px) scale(1)` },
+                    { transform: `translate(${cx}px, ${cy}px) scale(3)`, offset: 0.5 },
+                    { transform: `translate(${e.left + e.width / 2}px, ${e.top + e.height / 2}px) scale(1)` },
+                  ],
+                  { duration: 2000, easing: 'linear' },
+                );
+                animation.onfinish = () => icon.remove();
               }
             }}
           />
