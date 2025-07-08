@@ -438,6 +438,7 @@ export default function Wallet() {
               if (tx.type === 'gift-fee') return 'gift fee';
               return tx.game ? 'game' : tx.type;
             })();
+            const categoryLabel = tx.category ? ` (Tier ${tx.category})` : '';
             const sign = tx.amount > 0 ? '+' : '-';
             const amt = formatValue(Math.abs(tx.amount), 2);
             return (
@@ -446,7 +447,10 @@ export default function Wallet() {
                 className="lobby-tile w-full flex justify-between items-center cursor-pointer"
                 onClick={() => setSelectedTx(tx)}
               >
-                <span className="capitalize">{typeLabel}</span>
+                <span className="capitalize">
+                  {typeLabel}
+                  {categoryLabel}
+                </span>
                 <span className={tx.amount > 0 ? 'text-green-500' : 'text-red-500'}>
                   {sign}
                   {amt} {(tx.token || 'TPC').toUpperCase()}

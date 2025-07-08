@@ -225,17 +225,14 @@ export default function TransactionDetailsPopup({ tx, onClose }) {
           )}
 
           {gift && (
-
             <div className="text-sm flex items-center space-x-1">
-
               <span>Gift:</span>
-
               <span>{gift.icon}</span>
-
               <span>{gift.name}</span>
-
+              {typeof (tx.category || gift.tier) !== 'undefined' && (
+                <span className="text-xs text-subtext">(Tier {tx.category || gift.tier})</span>
+              )}
             </div>
-
           )}
 
           {gift && giftFee !== null && (
