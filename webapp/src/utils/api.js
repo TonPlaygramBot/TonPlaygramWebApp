@@ -300,6 +300,10 @@ export function sendGift(fromId, toId, gift) {
   return post('/api/account/gift', { fromAccount: fromId, toAccount: toId, gift });
 }
 
+export function convertGifts(accountId, giftIds) {
+  return post('/api/account/convert-gifts', { accountId, giftIds });
+}
+
 export function getMessages(telegramId, withId) {
   return post('/api/social/messages', { telegramId, withId });
 }

@@ -207,22 +207,10 @@ router.post('/gift', async (req, res) => {
   let receiver = await User.findOne({ accountId: toAccount });
   if (!receiver) receiver = new User({ accountId: toAccount });
 
-  const devAccount = process.env.DEV_ACCOUNT_ID || process.env.VITE_DEV_ACCOUNT_ID;
-  let devUser = null;
-  if (devAccount) {
-    devUser = await User.findOne({ accountId: devAccount });
-    if (!devUser) devUser = new User({ accountId: devAccount });
-    ensureTransactionArray(devUser);
-  }
-
   ensureTransactionArray(sender);
-  ensureTransactionArray(receiver);
+  if (!Array.isArray(receiver.gifts)) receiver.gifts = [];
 
-  const devShare = Math.round(g.price * 0.1);
-  const recvAmount = g.price - devShare;
   sender.balance -= g.price;
-  receiver.balance = (receiver.balance || 0) + recvAmount;
-  if (devUser) devUser.balance = (devUser.balance || 0) + devShare;
 
   const txDate = new Date();
   const senderTx = {
@@ -235,38 +223,25 @@ router.post('/gift', async (req, res) => {
     detail: gift,
     category: String(g.tier),
   };
-  const receiverTx = {
-    amount: recvAmount,
-    type: 'gift-receive',
-    token: 'TPC',
-    status: 'delivered',
-    date: txDate,
-    fromAccount: String(fromAccount),
-    detail: gift,
-    category: String(g.tier),
-  };
   sender.transactions.push(senderTx);
-  receiver.transactions.push(receiverTx);
-  if (devUser) {
-    devUser.transactions.push({
-      amount: devShare,
-      type: 'gift-fee',
-      token: 'TPC',
-      status: 'delivered',
-      date: txDate,
-      fromAccount: String(fromAccount),
-    });
-  }
+
+  receiver.gifts.push({
+    gift: g.id,
+    price: g.price,
+    tier: g.tier,
+    fromAccount: String(fromAccount),
+    fromName: sender.nickname || sender.firstName || '',
+    date: txDate,
+  });
 
   await sender.save();
   await receiver.save();
-  if (devUser) await devUser.save();
 
   if (receiver.telegramId) {
     try {
       await bot.telegram.sendMessage(
         String(receiver.telegramId),
-        `\u{1FA99} You received ${recvAmount} TPC as a gift`
+        `\u{1FA99} You received a ${g.name} gift`
       );
     } catch (err) {
       console.error('Failed to send Telegram notification:', err.message);
@@ -274,6 +249,56 @@ router.post('/gift', async (req, res) => {
   }
 
   res.json({ balance: sender.balance, transaction: senderTx });
+});
+
+// Convert received gifts to TPC
+router.post('/convert-gifts', async (req, res) => {
+  const { accountId, giftIds } = req.body;
+  if (!accountId || !Array.isArray(giftIds)) {
+    return res.status(400).json({ error: 'accountId and giftIds required' });
+  }
+
+  const user = await User.findOne({ accountId });
+  if (!user) return res.status(404).json({ error: 'account not found' });
+
+  ensureTransactionArray(user);
+  if (!Array.isArray(user.gifts)) user.gifts = [];
+
+  const selected = user.gifts.filter((g) => giftIds.includes(g._id));
+  if (selected.length === 0) {
+    return res.json({ balance: user.balance, gifts: user.gifts });
+  }
+
+  const txDate = new Date();
+  for (const g of selected) {
+    const fee = Math.round(g.price * 0.1);
+    const net = g.price - fee;
+    user.transactions.push({
+      amount: net,
+      type: 'gift-receive',
+      token: 'TPC',
+      status: 'delivered',
+      date: txDate,
+      fromAccount: g.fromAccount,
+      fromName: g.fromName,
+      detail: g.gift,
+      category: String(g.tier)
+    });
+    user.transactions.push({
+      amount: -fee,
+      type: 'gift-fee',
+      token: 'TPC',
+      status: 'delivered',
+      date: txDate,
+      detail: g.gift
+    });
+  }
+
+  user.gifts = user.gifts.filter((g) => !giftIds.includes(g._id));
+  user.balance = calculateBalance(user);
+  await user.save();
+
+  res.json({ balance: user.balance, gifts: user.gifts });
 });
 
 // List transactions by account id

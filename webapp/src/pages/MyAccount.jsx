@@ -4,8 +4,10 @@ import {
   updateProfile,
   fetchTelegramInfo,
   depositAccount,
-  sendBroadcast
+  sendBroadcast,
+  convertGifts
 } from '../utils/api.js';
+import { GIFTS } from '../utils/gifts.js';
 import {
   getTelegramId,
   getTelegramFirstName,
@@ -62,6 +64,8 @@ export default function MyAccount() {
   const [notifySending, setNotifySending] = useState(false);
   const [notifyStatus, setNotifyStatus] = useState('');
   const [showNotifyModal, setShowNotifyModal] = useState(false);
+  const [selectedGifts, setSelectedGifts] = useState([]);
+  const [converting, setConverting] = useState(false);
 
   useEffect(() => {
     async function load() {
@@ -157,6 +161,22 @@ export default function MyAccount() {
       setNotifySending(false);
       if (timerRef.current) clearTimeout(timerRef.current);
       timerRef.current = setTimeout(() => setNotifyStatus(''), 1500);
+    }
+  };
+
+  const handleConvertGifts = async () => {
+    if (!selectedGifts.length) return;
+    setConverting(true);
+    try {
+      const res = await convertGifts(profile.accountId, selectedGifts);
+      if (!res?.error) {
+        setProfile((p) => ({ ...p, gifts: res.gifts, balance: res.balance }));
+        setSelectedGifts([]);
+      }
+    } catch (err) {
+      console.error('convert gifts failed', err);
+    } finally {
+      setConverting(false);
     }
   };
 
@@ -273,6 +293,47 @@ export default function MyAccount() {
           </div>
         </>
       )}
+
+      {/* Gifts card */}
+      <div className="prism-box p-4 mt-4 space-y-2 mx-auto wide-card">
+        <h3 className="font-semibold text-center">Gifts</h3>
+        <div className="max-h-40 overflow-y-auto space-y-1 text-sm">
+          {profile.gifts && profile.gifts.length > 0 ? (
+            profile.gifts.map((g) => {
+              const info = GIFTS.find((x) => x.id === g.gift) || {};
+              return (
+                <label key={g._id} className="flex items-center space-x-2">
+                  <input
+                    type="checkbox"
+                    checked={selectedGifts.includes(g._id)}
+                    onChange={(e) => {
+                      if (e.target.checked) {
+                        setSelectedGifts([...selectedGifts, g._id]);
+                      } else {
+                        setSelectedGifts(selectedGifts.filter((id) => id !== g._id));
+                      }
+                    }}
+                  />
+                  <span>{info.icon}</span>
+                  <span>{info.name || g.gift}</span>
+                  <span className="ml-auto">{g.price} TPC</span>
+                </label>
+              );
+            })
+          ) : (
+            <p className="text-center text-subtext">No gifts</p>
+          )}
+        </div>
+        {profile.gifts && profile.gifts.length > 0 && (
+          <button
+            onClick={handleConvertGifts}
+            disabled={converting || selectedGifts.length === 0}
+            className="w-full px-3 py-1 bg-primary hover:bg-primary-hover rounded text-black"
+          >
+            {converting ? 'Converting...' : 'Convert Selected'}
+          </button>
+        )}
+      </div>
 
       {/* Wallet section */}
       <Wallet />

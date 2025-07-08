@@ -21,6 +21,19 @@ const transactionSchema = new mongoose.Schema(
   { _id: false }
 );
 
+const giftSchema = new mongoose.Schema(
+  {
+    _id: { type: String, default: uuidv4 },
+    gift: String,
+    price: Number,
+    tier: Number,
+    fromAccount: String,
+    fromName: String,
+    date: { type: Date, default: Date.now }
+  },
+  { _id: false }
+);
+
 const userSchema = new mongoose.Schema({
 
   telegramId: { type: Number, unique: true },
@@ -72,6 +85,8 @@ const userSchema = new mongoose.Schema({
   },
 
   transactions: [transactionSchema],
+
+  gifts: { type: [giftSchema], default: [] },
 
   referralCode: { type: String, unique: true },
 
