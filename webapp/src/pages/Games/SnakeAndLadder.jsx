@@ -294,7 +294,7 @@ function Board({
           {!cellType && <span className="cell-number">{num}</span>}
           {diceCells && diceCells[num] && (
             <span className="dice-marker">
-              <img  src="/assets/icons/file_00000000ead061faa3b429466e006f48.webp" className="dice-icon" />
+              <img  src="/assets/icons/file_000000009160620a96f728f463de1c3f.webp" className="dice-icon" />
               <span className="dice-value">+{diceCells[num]}</span>
             </span>
           )}
@@ -1877,14 +1877,14 @@ export default function SnakeAndLadder() {
       {rewardDice > 0 && (
         <div className="fixed bottom-40 inset-x-0 flex justify-center z-30 pointer-events-none reward-dice-container">
           {Array.from({ length: rewardDice }).map((_, i) => (
-            <img key={i}  src="/assets/icons/file_00000000ead061faa3b429466e006f48.webp" className="reward-dice" />
+            <img key={i}  src="/assets/icons/file_000000009160620a96f728f463de1c3f.webp" className="reward-dice" />
           ))}
         </div>
       )}
       {diceVisible && !isMultiplayer && (
         <div
           className="fixed bottom-24 inset-x-0 flex flex-col items-center z-20"
-          style={{ transform: 'translateX(1rem)' }}
+          style={{ transform: 'translateX(1.5rem)' }}
         >
           <div className="scale-90">
             <DiceRoller
@@ -1933,7 +1933,7 @@ export default function SnakeAndLadder() {
       {isMultiplayer && (
         <div
           className="fixed bottom-24 inset-x-0 flex flex-col items-center z-20"
-          style={{ transform: 'translateX(1rem)' }}
+          style={{ transform: 'translateX(1.5rem)' }}
         >
           <div className="scale-90">
           {(() => {
