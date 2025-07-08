@@ -149,12 +149,10 @@ export default function Tasks() {
       {category === 'TonPlaygram' && (
         <>
           <ul className="space-y-2">
-            <li className="lobby-tile w-full flex justify-between items-center">
-              <div className="flex items-center space-x-2 text-sm">
-                <AiOutlineCheck className="w-5 h-5 text-accent" />
-                <span>Daily Check-In</span>
-                <span className="text-xs text-subtext flex items-center gap-1">{REWARDS[streak - 1]} <img src="/assets/icons/TPCcoin_1.webp" alt="TPC" className="w-4 h-4" /></span>
-              </div>
+            <li className="lobby-tile w-full grid grid-cols-[20px_1fr_auto_auto] items-center gap-2">
+              <AiOutlineCheck className="w-5 h-5 text-accent" />
+              <span className="text-sm">Daily Check-In</span>
+              <span className="text-xs text-subtext flex items-center gap-1">{REWARDS[streak - 1]} <img src="/assets/icons/TPCcoin_1.webp" alt="TPC" className="w-4 h-4" /></span>
               {lastCheck && Date.now() - lastCheck < ONE_DAY ? (
                 <span className="text-green-500 font-semibold text-sm">Completed</span>
               ) : (
@@ -166,12 +164,10 @@ export default function Tasks() {
                 </button>
               )}
             </li>
-            <li className="lobby-tile w-full flex justify-between items-center">
-              <div className="flex items-center space-x-2 text-sm">
-                <AiOutlineCheck className="w-5 h-5 text-accent" />
-                <span>On Chain Check In</span>
-                <span className="text-xs text-subtext flex items-center gap-1">{REWARDS[streak - 1] * 3} <img src="/assets/icons/TPCcoin_1.webp" alt="TPC" className="w-4 h-4" /></span>
-              </div>
+            <li className="lobby-tile w-full grid grid-cols-[20px_1fr_auto_auto] items-center gap-2">
+              <AiOutlineCheck className="w-5 h-5 text-accent" />
+              <span className="text-sm">On Chain Check In</span>
+              <span className="text-xs text-subtext flex items-center gap-1">{REWARDS[streak - 1] * 3} <img src="/assets/icons/TPCcoin_1.webp" alt="TPC" className="w-4 h-4" /></span>
               {lastOnchain && Date.now() - lastOnchain < ONE_DAY ? (
                 <span className="text-green-500 font-semibold text-sm">Completed</span>
               ) : (
@@ -185,54 +181,29 @@ export default function Tasks() {
             </li>
 
         {tasks.map((t) => (
-
           <li
-
             key={t.id}
-
-            className="lobby-tile w-full flex justify-between items-center"
-
+            className="lobby-tile w-full grid grid-cols-[20px_1fr_auto_auto] items-center gap-2"
           >
-
-            <div className="flex items-center space-x-2 text-sm">
-
-              {ICONS[t.id]}
-
-              <span>{t.description}</span>
-
-              <span className="text-xs text-subtext flex items-center gap-1">{t.reward} <img src="/assets/icons/TPCcoin_1.webp" alt="TPC" className="w-4 h-4" /></span>
-
-            </div>
-
+            {ICONS[t.id]}
+            <span className="text-sm">{t.description}</span>
+            <span className="text-xs text-subtext flex items-center gap-1">{t.reward} <img src="/assets/icons/TPCcoin_1.webp" alt="TPC" className="w-4 h-4" /></span>
             {t.completed ? (
-
               <span className="text-green-500 font-semibold text-sm">Completed</span>
-
             ) : (
-
               <button
-
                 onClick={() => handleClaim(t)}
-
                 className="px-2 py-1 bg-primary hover:bg-primary-hover text-background text-sm rounded"
-
               >
-
                 Claim
-
               </button>
-
             )}
-
           </li>
-
         ))}
-        <li className="lobby-tile w-full flex justify-between items-center">
-          <div className="flex items-center space-x-2 text-sm">
-            {ICONS.watch_ad}
-            <span>Watch Ad ({adCount}/10)</span>
-            <span className="text-xs text-subtext flex items-center gap-1">100 <img src="/assets/icons/TPCcoin_1.webp" alt="TPC" className="w-4 h-4" /></span>
-          </div>
+        <li className="lobby-tile w-full grid grid-cols-[20px_1fr_auto_auto] items-center gap-2">
+          {ICONS.watch_ad}
+          <span className="text-sm">Watch Ad ({adCount}/10)</span>
+          <span className="text-xs text-subtext flex items-center gap-1">100 <img src="/assets/icons/TPCcoin_1.webp" alt="TPC" className="w-4 h-4" /></span>
           {adCount >= 10 ? (
             <span className="text-green-500 font-semibold text-sm">Completed</span>
           ) : (
