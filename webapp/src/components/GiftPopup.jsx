@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { createPortal } from 'react-dom';
-import { getPlayerId } from '../utils/telegram.js';
+import { getPlayerId, ensureAccountId } from '../utils/telegram.js';
 import { sendGift } from '../utils/api.js';
 import { GIFTS } from '../utils/gifts.js';
 import { giftSounds } from '../utils/giftSounds.js';
@@ -21,7 +21,8 @@ export default function GiftPopup({ open, onClose, players = [], senderIndex = 0
     if (!recipient) return;
     setConfirmOpen(false);
     try {
-      await sendGift(getPlayerId(), recipient.id, selected.id);
+      const fromId = await ensureAccountId();
+      await sendGift(fromId, recipient.id, selected.id);
       const sound = giftSounds[selected.id];
       if (sound) {
         const a = new Audio(sound);
