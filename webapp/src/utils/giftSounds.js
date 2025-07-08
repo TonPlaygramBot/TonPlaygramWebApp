@@ -24,6 +24,7 @@ export const giftSounds = {
   bullseye: "/assets/sounds/080998_bullet-hit-39870.mp3",
   magic_trick: "/assets/sounds/ah-good-morning-sir-would-you-like-a-cup-of-tea-26151.mp3",
   surprise_box: "/assets/sounds/082229_pinkie-pie-39surprise39wav-86428.mp3",
+  poop: "/assets/sounds/fart-5-228245.mp3",
   dragon_burst: "/assets/sounds/snake-hissing-high-quality-240154.mp3",
   rocket_blast: "/assets/sounds/launch-85216.mp3",
   royal_crown: "/assets/sounds/king-conversation-48272.mp3",
