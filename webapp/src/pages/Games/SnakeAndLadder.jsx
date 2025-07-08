@@ -1932,7 +1932,8 @@ export default function SnakeAndLadder() {
                     { transform: `translate(${cx}px, ${cy}px) scale(3)`, offset: 0.5 },
                     { transform: `translate(${e.left + e.width / 2}px, ${e.top + e.height / 2}px) scale(1)` },
                   ],
-                  { duration: 2000, easing: 'linear' },
+                  // Slow down gift animation to roughly 4.5 seconds
+                  { duration: 4500, easing: 'linear' },
                 );
                 animation.onfinish = () => icon.remove();
               }
