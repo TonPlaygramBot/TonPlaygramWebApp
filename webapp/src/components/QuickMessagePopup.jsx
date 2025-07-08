@@ -9,6 +9,13 @@ const MESSAGES = [
   'Damn it 😡',
   'Love it ❤️',
   'Good job 👏',
+  'So close 😬',
+  'Amazing move 😎',
+  'Too hard 😖',
+  'Yay! 🎉',
+  'This is fun 🤩',
+  "I'm lost 🤯",
+  'Great comeback 🏆',
 ];
 
 export default function QuickMessagePopup({ open, onClose, onSend }) {
