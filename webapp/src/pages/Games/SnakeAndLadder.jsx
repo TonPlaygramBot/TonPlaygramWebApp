@@ -1887,22 +1887,27 @@ export default function SnakeAndLadder() {
               if (start && end) {
                 const s = start.getBoundingClientRect();
                 const e = end.getBoundingClientRect();
+                const cx = window.innerWidth / 2;
+                const cy = window.innerHeight / 2;
                 const icon = document.createElement('div');
                 icon.textContent = gift.icon;
                 icon.style.position = 'fixed';
-                icon.style.left = s.left + s.width / 2 + 'px';
-                icon.style.top = s.top + s.height / 2 + 'px';
-                icon.style.transition = 'transform 1s linear, opacity 1s linear';
-                icon.style.transform = 'translate(-50%, -50%) scale(0.5)';
+                icon.style.left = '0px';
+                icon.style.top = '0px';
+                icon.style.fontSize = '24px';
                 icon.style.pointerEvents = 'none';
+                icon.style.transform = `translate(${s.left + s.width / 2}px, ${s.top + s.height / 2}px) scale(1)`;
+                icon.style.zIndex = '9999';
                 document.body.appendChild(icon);
-                requestAnimationFrame(() => {
-                  const dx = e.left + e.width / 2 - (s.left + s.width / 2);
-                  const dy = e.top + e.height / 2 - (s.top + s.height / 2);
-                  icon.style.transform = `translate(${dx}px, ${dy}px) scale(0.5)`;
-                  icon.style.opacity = '0';
-                });
-                setTimeout(() => document.body.removeChild(icon), 1000);
+                const animation = icon.animate(
+                  [
+                    { transform: `translate(${s.left + s.width / 2}px, ${s.top + s.height / 2}px) scale(1)` },
+                    { transform: `translate(${cx}px, ${cy}px) scale(3)`, offset: 0.5 },
+                    { transform: `translate(${e.left + e.width / 2}px, ${e.top + e.height / 2}px) scale(1)` },
+                  ],
+                  { duration: 2000, easing: 'linear' },
+                );
+                animation.onfinish = () => icon.remove();
               }
             }}
           />
