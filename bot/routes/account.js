@@ -208,6 +208,7 @@ router.post('/gift', async (req, res) => {
   if (!receiver) receiver = new User({ accountId: toAccount });
 
   ensureTransactionArray(sender);
+  ensureTransactionArray(receiver);
   if (!Array.isArray(receiver.gifts)) receiver.gifts = [];
 
   sender.balance -= g.price;
@@ -225,14 +226,30 @@ router.post('/gift', async (req, res) => {
   };
   sender.transactions.push(senderTx);
 
-  receiver.gifts.push({
+  const giftEntry = {
+    _id: uuidv4(),
     gift: g.id,
     price: g.price,
     tier: g.tier,
     fromAccount: String(fromAccount),
     fromName: sender.nickname || sender.firstName || '',
     date: txDate,
-  });
+  };
+  receiver.gifts.push(giftEntry);
+
+  const receiverTx = {
+    amount: 0,
+    type: 'gift-receive',
+    token: 'TPC',
+    status: 'pending',
+    date: txDate,
+    fromAccount: String(fromAccount),
+    fromName: sender.nickname || sender.firstName || '',
+    giftId: giftEntry._id,
+    detail: gift,
+    category: String(g.tier),
+  };
+  receiver.transactions.push(receiverTx);
 
   await sender.save();
   await receiver.save();
@@ -271,6 +288,13 @@ router.post('/convert-gifts', async (req, res) => {
 
   const txDate = new Date();
   for (const g of selected) {
+    // remove pending transaction for this gift
+    const pendingIndex = user.transactions.findIndex(
+      (t) => t.giftId === g._id && t.type === 'gift-receive' && t.status === 'pending'
+    );
+    if (pendingIndex !== -1) {
+      user.transactions.splice(pendingIndex, 1);
+    }
     const fee = Math.round(g.price * 0.1);
     const net = g.price - fee;
     user.transactions.push({
@@ -282,7 +306,8 @@ router.post('/convert-gifts', async (req, res) => {
       fromAccount: g.fromAccount,
       fromName: g.fromName,
       detail: g.gift,
-      category: String(g.tier)
+      category: String(g.tier),
+      giftId: g._id
     });
     user.transactions.push({
       amount: -fee,
