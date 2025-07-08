@@ -75,15 +75,32 @@ export default function Wallet() {
   const [selectedTx, setSelectedTx] = useState(null);
   const dateInputRef = useRef(null);
 
+  const DEFAULT_TX_TYPES = [
+    'mining',
+    'spin',
+    'daily',
+    'receive',
+    'send',
+    'stake',
+    'win',
+    'deposit',
+    'ad',
+    'invite',
+    'gift-sent',
+    'gift-received',
+    'gift-fee',
+  ];
+
   const txTypes = Array.from(
-    new Set(
-      transactions.map((t) => {
+    new Set([
+      ...DEFAULT_TX_TYPES,
+      ...transactions.map((t) => {
         if (t.type === 'gift') return 'gift-sent';
         if (t.type === 'gift-receive') return 'gift-received';
         if (t.type === 'gift-fee') return 'gift-fee';
         return t.type;
-      })
-    )
+      }),
+    ])
   ).filter(Boolean);
 
 
