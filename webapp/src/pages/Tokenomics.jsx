@@ -1,5 +1,8 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { PieChart, Pie, Cell, ResponsiveContainer } from 'recharts';
+
+const TPC_MASTER_ADDRESS =
+  'EQDY3qbfGN6IMI5d4MsEoprhuMTz09OkqjyhPKX6DVtzbi6X';
 import { AiOutlineCheck } from 'react-icons/ai';
 
 // TOKEN ALLOCATION DATA
@@ -86,8 +89,8 @@ const roadmap = [
     phase: 'Q4 2024',
     items: [
       {
-        text: 'Token mint on TON and external wallet claiming via Tonkeeper',
-        done: false,
+        text: `TPC deployed on TON network (${TPC_MASTER_ADDRESS})`,
+        done: true,
       },
       {
         text: 'Smart contracts powering TON/USDT tables',
@@ -148,6 +151,9 @@ const tableRows = [
 
 export default function TokenomicsPage() {
   const RADIAN = Math.PI / 180;
+  const [supply, setSupply] = useState(null);
+  const [holders, setHolders] = useState(null);
+  const [tonBalance, setTonBalance] = useState(null);
   const renderLabel = ({ cx, cy, midAngle, innerRadius, outerRadius, percent }) => {
     const radius = innerRadius + (outerRadius - innerRadius) / 2;
     const x = cx + radius * Math.cos(-midAngle * RADIAN);
@@ -158,6 +164,32 @@ export default function TokenomicsPage() {
       </text>
     );
   };
+
+  useEffect(() => {
+    async function load() {
+      try {
+        const res = await fetch(
+          `https://tonapi.io/v2/jettons/${TPC_MASTER_ADDRESS}`
+        );
+        const data = await res.json();
+        const decimals = Number(data.metadata?.decimals) || 0;
+        setSupply(Number(data.total_supply) / 10 ** decimals);
+        setHolders(data.holders_count);
+      } catch (err) {
+        console.error('Failed to load TPC info:', err);
+      }
+      try {
+        const res = await fetch(
+          `https://tonapi.io/v2/accounts/${TPC_MASTER_ADDRESS}`
+        );
+        const acc = await res.json();
+        setTonBalance(Number(acc.balance) / 1e9);
+      } catch (err) {
+        console.error('Failed to load contract balance:', err);
+      }
+    }
+    load();
+  }, []);
 
   return (
     <div className="space-y-4">
@@ -318,6 +350,7 @@ export default function TokenomicsPage() {
           <ul className="list-disc pl-6 space-y-1">
             <li><b>Core Infrastructure</b></li>
             <li className="ml-4">🔐 Smart-contract-based presale is live — TON sent, TPC <img src="/assets/icons/TPCcoin_1.webp" alt="TPC" className="inline-block w-4 h-4 ml-1" /> auto-delivered to wallet</li>
+            <li className="ml-4">🚀 TPC deployed on TON network at {TPC_MASTER_ADDRESS}</li>
             <li className="ml-4">🧾 Wallet transaction history fully functional</li>
             <li className="ml-4">💬 In-chat TPC <img src="/assets/icons/TPCcoin_1.webp" alt="TPC" className="inline-block w-4 h-4 ml-1" /> transfers enabled</li>
             <li><b>Game Features</b></li>
@@ -351,8 +384,7 @@ export default function TokenomicsPage() {
           <h4 className="font-semibold text-accent mb-1">Next Phase: Coming Soon</h4>
           <ul className="list-disc pl-6 space-y-1">
             <li><b>Utility &amp; Token Expansion</b></li>
-            <li className="ml-4">🪙 Mint TPC <img src="/assets/icons/TPCcoin_1.webp" alt="TPC" className="inline-block w-4 h-4 ml-1" /> on TON network</li>
-            <li className="ml-4">🌐 Enable claiming TPC <img src="/assets/icons/TPCcoin_1.webp" alt="TPC" className="inline-block w-4 h-4 ml-1" /> to external wallets (Tonkeeper, OKX, etc.)</li>
+            <li className="ml-4">🌐 Claim TPC <img src="/assets/icons/TPCcoin_1.webp" alt="TPC" className="inline-block w-4 h-4 ml-1" /> to external wallets (Tonkeeper, OKX, etc.)</li>
             <li className="ml-4">💱 Smart contracts for TON/USDT betting tables</li>
             <li><b>Governance &amp; Growth</b></li>
             <li className="ml-4">🗳️ DAO Governance System launch</li>
@@ -389,7 +421,49 @@ export default function TokenomicsPage() {
           ))}
         </div>
       </div>
+
+      {/* On-chain Stats */}
+      <div className="relative bg-surface border border-border rounded-xl p-4 flex items-center gap-4 overflow-hidden wide-card">
+        <img
+          src="/assets/SnakeLaddersbackground.png"
+          className="background-behind-board object-cover"
+          alt=""
+        />
+        <img src="/assets/icons/TPCcoin_1.webp" alt="TPC" className="w-16 h-16" />
+        <div>
+          <p className="text-lg font-bold">Total Balance</p>
+          <p className="text-2xl">
+            {supply == null ? '...' : formatValue(supply, 2)} TPC
+          </p>
+          {holders != null && (
+            <p className="text-sm text-subtext">Holders: {holders}</p>
+          )}
+          {tonBalance != null && (
+            <p className="text-sm text-subtext">
+              Contract TON balance: {formatValue(tonBalance, 3)} TON
+            </p>
+          )}
+          <p className="text-xs break-all mt-1 text-primary">
+            {TPC_MASTER_ADDRESS}
+          </p>
+        </div>
+      </div>
     </div>
   );
+}
+
+function formatValue(value, decimals = 2) {
+  if (typeof value !== 'number') {
+    const parsed = parseFloat(value);
+    if (isNaN(parsed)) return value;
+    return parsed.toLocaleString(undefined, {
+      minimumFractionDigits: decimals,
+      maximumFractionDigits: decimals,
+    });
+  }
+  return value.toLocaleString(undefined, {
+    minimumFractionDigits: decimals,
+    maximumFractionDigits: decimals,
+  });
 }
 
