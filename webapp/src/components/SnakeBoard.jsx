@@ -136,7 +136,11 @@ export default function SnakeBoard({
                 <span
                   className={`offset-text ${cellType === 'snake' ? 'snake-text' : 'ladder-text'}`}
                 >
-                  {offsetVal > 0 ? `+${offsetVal}` : offsetVal}
+                  {cellType === 'snake'
+                    ? `-${Math.abs(offsetVal)}`
+                    : offsetVal > 0
+                    ? `+${offsetVal}`
+                    : offsetVal}
                 </span>
               )}
             </span>

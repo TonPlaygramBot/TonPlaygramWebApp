@@ -16,6 +16,7 @@ import {
   timerBeep,
   badLuckSound,
   cheerSound,
+  chatBeep,
 } from "../../assets/soundData.js";
 import { AVATARS } from "../../components/AvatarPickerModal.jsx";
 import { getAvatarUrl, saveAvatar, loadAvatar, avatarToName } from "../../utils/avatarUtils.js";
@@ -1803,6 +1804,7 @@ export default function SnakeAndLadder() {
           .map((p) => (
             <AvatarTimer
               key={`player-${p.index}`}
+              index={p.index}
               photoUrl={p.photoUrl}
               active={p.index === currentTurn}
               rank={rankMap[p.index]}
@@ -1858,17 +1860,54 @@ export default function SnakeAndLadder() {
         onSend={(text) => {
           const id = Date.now();
           setChatBubbles((b) => [...b, { id, text, photoUrl }]);
+          if (!muted) {
+            const a = new Audio(chatBeep);
+            a.volume = getGameVolume();
+            a.play().catch(() => {});
+          }
           setTimeout(
             () => setChatBubbles((b) => b.filter((bb) => bb.id !== id)),
             3000,
           );
         }}
       />
-      <GiftPopup
-        open={showGift}
-        onClose={() => setShowGift(false)}
-        players={players.map((p, i) => ({ ...p, index: i, name: getPlayerName(i) }))}
-      />
+      {(() => {
+        const myIdx = isMultiplayer
+          ? mpPlayers.findIndex((p) => p.id === getPlayerId())
+          : 0;
+        return (
+          <GiftPopup
+            open={showGift}
+            onClose={() => setShowGift(false)}
+            players={players.map((p, i) => ({ ...p, index: i, name: getPlayerName(i) }))}
+            senderIndex={myIdx}
+            onGiftSent={({ from, to, gift }) => {
+              const start = document.querySelector(`[data-player-index="${from}"]`);
+              const end = document.querySelector(`[data-player-index="${to}"]`);
+              if (start && end) {
+                const s = start.getBoundingClientRect();
+                const e = end.getBoundingClientRect();
+                const icon = document.createElement('div');
+                icon.textContent = gift.icon;
+                icon.style.position = 'fixed';
+                icon.style.left = s.left + s.width / 2 + 'px';
+                icon.style.top = s.top + s.height / 2 + 'px';
+                icon.style.transition = 'transform 1s linear, opacity 1s linear';
+                icon.style.transform = 'translate(-50%, -50%) scale(0.5)';
+                icon.style.pointerEvents = 'none';
+                document.body.appendChild(icon);
+                requestAnimationFrame(() => {
+                  const dx = e.left + e.width / 2 - (s.left + s.width / 2);
+                  const dy = e.top + e.height / 2 - (s.top + s.height / 2);
+                  icon.style.transform = `translate(${dx}px, ${dy}px) scale(0.5)`;
+                  icon.style.opacity = '0';
+                });
+                setTimeout(() => document.body.removeChild(icon), 1000);
+              }
+            }}
+          />
+        );
+      })()}
       {waitingForPlayers && (
         <div className="absolute inset-0 z-40 flex items-center justify-center bg-black/70">
           <p className="text-white text-lg">
@@ -1896,7 +1935,7 @@ export default function SnakeAndLadder() {
       {diceVisible && !isMultiplayer && (
         <div
           className="fixed bottom-24 inset-x-0 flex flex-col items-center z-20"
-          style={{ transform: 'translateX(1.5rem)' }}
+          style={{ transform: 'translateX(2rem)' }}
         >
           <div className="scale-90">
             <DiceRoller
@@ -1937,7 +1976,12 @@ export default function SnakeAndLadder() {
           {currentTurn === 0 && !aiRollingIndex && !playerAutoRolling && (
             <div className="mt-2 flex flex-col items-center">
               <div className="text-5xl">🫵</div>
-              <div className="turn-message text-xl mt-1">Your turn</div>
+              <div
+                className="turn-message text-2xl mt-1"
+                style={{ color: players[currentTurn]?.color }}
+              >
+                Your turn
+              </div>
             </div>
           )}
         </div>
@@ -1945,7 +1989,7 @@ export default function SnakeAndLadder() {
       {isMultiplayer && (
         <div
           className="fixed bottom-24 inset-x-0 flex flex-col items-center z-20"
-          style={{ transform: 'translateX(1.5rem)' }}
+          style={{ transform: 'translateX(2rem)' }}
         >
           <div className="scale-90">
           {(() => {
