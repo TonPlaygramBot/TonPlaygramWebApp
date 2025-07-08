@@ -138,6 +138,7 @@ router.post('/send-gift', async (req, res) => {
     amount: -g.price,
     type: 'gift',
     token: 'TPC',
+    status: 'delivered',
     date: txDate,
     toAccount: String(receiver.accountId),
     detail: gift,
@@ -147,6 +148,7 @@ router.post('/send-gift', async (req, res) => {
     amount: recvAmount,
     type: 'gift-receive',
     token: 'TPC',
+    status: 'delivered',
     date: txDate,
     fromAccount: String(sender.accountId),
     detail: gift,
@@ -157,6 +159,7 @@ router.post('/send-gift', async (req, res) => {
       amount: devShare,
       type: 'gift-fee',
       token: 'TPC',
+      status: 'delivered',
       date: txDate,
       fromAccount: String(sender.accountId),
     });
