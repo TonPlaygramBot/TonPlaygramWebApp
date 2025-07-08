@@ -381,6 +381,10 @@ export function getAccountBalance(accountId) {
   return post('/api/account/balance', { accountId });
 }
 
+export function getAccountInfo(accountId) {
+  return post('/api/account/info', { accountId });
+}
+
 export function sendAccountTpc(fromAccount, toAccount, amount, note) {
   const body = { fromAccount, toAccount, amount };
   if (note) body.note = note;

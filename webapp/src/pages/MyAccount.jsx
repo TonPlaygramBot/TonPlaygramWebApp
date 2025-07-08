@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import {
-  getProfile,
+  getAccountInfo,
+  createAccount,
   updateProfile,
   fetchTelegramInfo,
   depositAccount,
@@ -69,7 +70,16 @@ export default function MyAccount() {
 
   useEffect(() => {
     async function load() {
-      const data = await getProfile(telegramId);
+      const acc = await createAccount(telegramId);
+      if (acc?.error) {
+        console.error('Failed to load account:', acc.error);
+        return;
+      }
+      if (acc.accountId) {
+        localStorage.setItem('accountId', acc.accountId);
+      }
+
+      const data = await getAccountInfo(acc.accountId);
       let finalProfile = data;
 
       if (!data.photo || !data.firstName || !data.lastName) {
@@ -97,8 +107,9 @@ export default function MyAccount() {
 
           const hasRealPhoto = updated.photo || tg?.photoUrl;
           const mergedProfile = {
+            ...data,
             ...updated,
-            photo: hasRealPhoto || getTelegramPhotoUrl()
+            photo: hasRealPhoto || getTelegramPhotoUrl(),
           };
 
           finalProfile = mergedProfile;
