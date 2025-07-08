@@ -1,4 +1,4 @@
-export default function coinConfetti(count: number = 50) {
+export default function coinConfetti(count: number = 50, iconSrc: string = '/assets/icons/TPCcoin_1.webp') {
   const container = document.createElement('div');
   container.style.position = 'fixed';
   container.style.top = '0';
@@ -12,8 +12,8 @@ export default function coinConfetti(count: number = 50) {
 
   for (let i = 0; i < count; i++) {
     const img = document.createElement('img');
-    img.src = '/assets/icons/TPCcoin_1.webp';
-    img.alt = 'TPC Coin';
+    img.src = iconSrc;
+    img.alt = 'confetti icon';
     img.className = 'coin-confetti';
     const left = Math.random() * 100;
     const delay = Math.random() * 0.2;
