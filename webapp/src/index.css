@@ -678,7 +678,7 @@ input:focus {
 
 .cell-marker {
   position: absolute;
-  top: 62%;
+  top: 65%;
   left: 50%;
   /* Center icons slightly lower within the tile */
   transform: translate(-50%, -50%) translateZ(6px)
@@ -708,8 +708,8 @@ input:focus {
 }
 
 .cell-icon {
-  width: calc(var(--cell-width) * 0.75);
-  height: calc(var(--cell-height) * 0.75);
+  width: calc(var(--cell-width) * 0.85);
+  height: calc(var(--cell-height) * 0.85);
   object-fit: contain;
   transition: transform 0.3s ease;
 }
@@ -736,7 +736,7 @@ input:focus {
 /* Rotate the start cell icon in place */
 .board-cell[data-cell="1"] .cell-marker {
   animation: start-sway 2.5s ease-in-out infinite;
-  top: 58%;
+  top: 61%;
   transform: translate(-50%, -50%) translateZ(6px);
   transform-style: preserve-3d;
 }
@@ -792,7 +792,7 @@ input:focus {
   color: #ff0000;
   font-family: "Comic Sans MS", "Comic Sans", cursive;
   font-weight: bold;
-  font-size: 1.4rem;
+  font-size: 1.8rem;
   line-height: 1;
   text-shadow: 0 0 2px #fff;
 }
@@ -974,10 +974,10 @@ input:focus {
 
 .dice-marker {
   position: absolute;
-  width: 1.8rem;
-  height: 1.8rem;
+  width: 2.2rem;
+  height: 2.2rem;
   left: 50%;
-  top: 50%;
+  top: 55%;
   transform: translate(-50%, -50%) translateZ(6px)
     rotateX(calc(var(--board-angle, 58deg) * -1));
   display: flex;
@@ -989,8 +989,8 @@ input:focus {
 }
 
 .dice-marker .dice-icon {
-  width: 1.8rem;
-  height: 1.8rem;
+  width: 2.2rem;
+  height: 2.2rem;
   object-fit: contain;
   transition: transform 0.3s ease;
 }
@@ -1232,5 +1232,5 @@ input:focus {
   }
 }
 
-.chat-bubble{ @apply fixed bottom-4 left-1/2 -translate-x-1/2 bg-black bg-opacity-70 text-white rounded px-2 py-1 flex items-center space-x-2; }
+.chat-bubble{ @apply fixed bottom-4 left-1/2 -translate-x-1/2 bg-black bg-opacity-70 text-white rounded px-2 py-1 flex items-center space-x-2; font-size:1.2rem; }
 
