@@ -73,7 +73,6 @@ import ConfirmPopup from "../../components/ConfirmPopup.jsx";
 import PlayerPopup from "../../components/PlayerPopup.jsx";
 import QuickMessagePopup from "../../components/QuickMessagePopup.jsx";
 import GiftPopup from "../../components/GiftPopup.jsx";
-import { AiOutlineMessage } from "react-icons/ai";
 import { moveSeq, flashHighlight, applyEffect as applyEffectHelper } from "../../utils/moveHelpers.js";
 
 const TOKEN_COLORS = [
@@ -1780,9 +1779,13 @@ export default function SnakeAndLadder() {
   return (
     <div className="p-4 pb-32 space-y-4 text-text flex flex-col justify-end items-center relative w-full flex-grow">
       {/* Bottom left controls */}
-      <BottomLeftIcons onInfo={() => setShowInfo(true)} />
+      <BottomLeftIcons
+        onInfo={() => setShowInfo(true)}
+        onChat={() => setShowChat(true)}
+        onGift={() => setShowGift(true)}
+      />
       {/* Player photos stacked vertically */}
-      <div className="fixed left-1 top-[50%] -translate-y-1/2 flex flex-col space-y-3 z-20">
+      <div className="fixed left-1 top-[45%] -translate-y-1/2 flex flex-col space-y-3 z-20">
         {players
           .map((p, i) => ({ ...p, index: i }))
           .map((p) => (
@@ -1832,22 +1835,6 @@ export default function SnakeAndLadder() {
           <img src={b.photoUrl} className="w-6 h-6 rounded-full" />
         </div>
       ))}
-      <div className="fixed right-1 bottom-4 z-20 flex space-x-2">
-        <button
-          onClick={() => setShowChat(true)}
-          className="p-2 flex flex-col items-center"
-        >
-          <AiOutlineMessage className="text-2xl" />
-          <span className="text-xs">Chat</span>
-        </button>
-        <button
-          onClick={() => setShowGift(true)}
-          className="p-2 flex flex-col items-center"
-        >
-          <span className="text-2xl">🎁</span>
-          <span className="text-xs">Gift</span>
-        </button>
-      </div>
       <PlayerPopup
         open={!!playerPopup}
         player={playerPopup}
