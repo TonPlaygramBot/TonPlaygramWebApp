@@ -1785,7 +1785,7 @@ export default function SnakeAndLadder() {
         onGift={() => setShowGift(true)}
       />
       {/* Player photos stacked vertically */}
-      <div className="fixed left-1 top-[45%] -translate-y-1/2 flex flex-col space-y-3 z-20">
+      <div className="fixed left-1 top-[40%] -translate-y-1/2 flex flex-col space-y-4 z-20">
         {players
           .map((p, i) => ({ ...p, index: i }))
           .map((p) => (
@@ -1919,7 +1919,7 @@ export default function SnakeAndLadder() {
           />
           {currentTurn === 0 && !aiRollingIndex && !playerAutoRolling && (
             <div className="mt-2 flex flex-col items-center">
-              <div className="text-4xl">🫵</div>
+              <div className="text-5xl">🫵</div>
               <div className="turn-message text-xl mt-1">Your turn</div>
             </div>
           )}
