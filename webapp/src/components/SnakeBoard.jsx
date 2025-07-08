@@ -144,7 +144,7 @@ export default function SnakeBoard({
           {!cellType && <span className="cell-number">{num}</span>}
           {diceCells && diceCells[num] && (
             <span className="dice-marker">
-              <img  src="/assets/icons/file_00000000ead061faa3b429466e006f48.webp" className="dice-icon" />
+              <img  src="/assets/icons/file_000000009160620a96f728f463de1c3f.webp" className="dice-icon" />
               <span className="dice-value">+{diceCells[num]}</span>
             </span>
           )}

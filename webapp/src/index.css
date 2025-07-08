@@ -789,12 +789,12 @@ input:focus {
 
 
 .turn-message {
-  color: #ffffff;
+  color: #ff0000;
   font-family: "Comic Sans MS", "Comic Sans", cursive;
   font-weight: bold;
-  font-size: 1.1rem;
+  font-size: 1.4rem;
   line-height: 1;
-  text-shadow: 0 0 2px #000;
+  text-shadow: 0 0 2px #fff;
 }
 
 .roll-result {
