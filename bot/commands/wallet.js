@@ -34,7 +34,7 @@ export default function registerWallet(bot) {
         let receiver = await User.findOneAndUpdate(
           { telegramId: toId },
           { $inc: { balance: amount }, $setOnInsert: { referralCode: toId.toString() } },
-          { upsert: true, new: true }
+          { upsert: true, new: true, setDefaultsOnInsert: true }
         );
         ensureTransactionArray(receiver);
         sender.balance -= amount;

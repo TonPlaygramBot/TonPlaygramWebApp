@@ -64,7 +64,7 @@ router.post('/grant', adminOnly, async (req, res) => {
 
       { $setOnInsert: { referralCode: telegramId.toString() } },
 
-      { upsert: true, new: true }
+      { upsert: true, new: true, setDefaultsOnInsert: true }
 
     );
 

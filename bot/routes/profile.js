@@ -14,7 +14,7 @@ router.post('/register-wallet', async (req, res) => {
   const user = await User.findOneAndUpdate(
     { walletAddress },
     { $setOnInsert: { walletAddress, referralCode: walletAddress } },
-    { upsert: true, new: true }
+    { upsert: true, new: true, setDefaultsOnInsert: true }
   );
   res.json(user);
 });
@@ -27,7 +27,7 @@ router.post('/register-google', async (req, res) => {
   const user = await User.findOneAndUpdate(
     { googleId },
     { $setOnInsert: { googleId, referralCode: googleId } },
-    { upsert: true, new: true }
+    { upsert: true, new: true, setDefaultsOnInsert: true }
   );
   res.json(user);
 });
@@ -71,7 +71,7 @@ router.post('/get', async (req, res) => {
     user = await User.findOneAndUpdate(
       { telegramId },
       update,
-      { upsert: true, new: true }
+      { upsert: true, new: true, setDefaultsOnInsert: true }
     );
   }
 
@@ -106,7 +106,7 @@ router.post('/update', async (req, res) => {
   const user = await User.findOneAndUpdate(
     { telegramId },
     { $set: update, $setOnInsert: { referralCode: telegramId.toString() } },
-    { upsert: true, new: true }
+    { upsert: true, new: true, setDefaultsOnInsert: true }
   );
   res.json(user);
 });
@@ -119,7 +119,7 @@ router.post('/updateBalance', async (req, res) => {
   const user = await User.findOneAndUpdate(
     { telegramId },
     { $set: { balance }, $setOnInsert: { referralCode: telegramId.toString() } },
-    { upsert: true, new: true }
+    { upsert: true, new: true, setDefaultsOnInsert: true }
   );
   res.json({ balance: user.balance });
 });
@@ -169,7 +169,7 @@ router.post('/link-google', async (req, res) => {
   const user = await User.findOneAndUpdate(
     { telegramId },
     { $set: update, $setOnInsert: { referralCode: telegramId.toString() } },
-    { upsert: true, new: true }
+    { upsert: true, new: true, setDefaultsOnInsert: true }
   );
   res.json(user);
 });
@@ -186,7 +186,7 @@ router.post('/link-social', async (req, res) => {
   const user = await User.findOneAndUpdate(
     { telegramId },
     { $set: update, $setOnInsert: { referralCode: telegramId.toString() } },
-    { upsert: true, new: true }
+    { upsert: true, new: true, setDefaultsOnInsert: true }
   );
   res.json({ social: user.social });
 });

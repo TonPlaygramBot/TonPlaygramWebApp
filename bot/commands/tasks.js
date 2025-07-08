@@ -20,7 +20,7 @@ export default function registerTasks(bot) {
       const user = await User.findOneAndUpdate(
         { telegramId },
         { $setOnInsert: { referralCode: telegramId.toString() } },
-        { upsert: true, new: true }
+        { upsert: true, new: true, setDefaultsOnInsert: true }
       );
       user.minedTPC += config.reward;
       await user.save();
