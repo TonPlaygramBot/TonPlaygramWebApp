@@ -3,8 +3,7 @@ import { createPortal } from 'react-dom';
 import { getPlayerId } from '../utils/telegram.js';
 import { sendGift } from '../utils/api.js';
 import { GIFTS } from '../utils/gifts.js';
-import { giftSounds } from '../utils/giftSounds.js';
-import { getGameVolume } from '../utils/sound.js';
+import playGiftSound from '../utils/playGiftSound.js';
 import ConfirmPopup from './ConfirmPopup.jsx';
 import InfoPopup from './InfoPopup.jsx';
 
@@ -22,12 +21,7 @@ export default function GiftPopup({ open, onClose, players = [], senderIndex = 0
     setConfirmOpen(false);
     try {
       await sendGift(getPlayerId(), recipient.id, selected.id);
-      const sound = giftSounds[selected.id];
-      if (sound) {
-        const a = new Audio(sound);
-        a.volume = getGameVolume();
-        a.play().catch(() => {});
-      }
+      playGiftSound(selected.id);
       setInfoMsg(`Sent ${selected.name} to ${recipient.name}`);
       onGiftSent && onGiftSent({ from: senderIndex, to: target, gift: selected });
     } catch {
