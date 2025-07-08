@@ -16,7 +16,8 @@ const transactionSchema = new mongoose.Schema(
     players: Number,
     detail: String,
     category: String,
-    txHash: String
+    txHash: String,
+    giftId: String
   },
   { _id: false }
 );
