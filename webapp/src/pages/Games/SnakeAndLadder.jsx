@@ -1921,6 +1921,33 @@ export default function SnakeAndLadder() {
                   const a = new Audio(giftSound);
                   a.volume = getGameVolume();
                   a.play().catch(() => {});
+                } else if (gift.id === 'magic_trick' && !muted) {
+                  const a = new Audio(giftSound);
+                  a.volume = getGameVolume();
+                  a.play().catch(() => {});
+                  setTimeout(() => {
+                    a.pause();
+                  }, 4000);
+                } else if (gift.id === 'fireworks' && !muted) {
+                  const a = new Audio(giftSound);
+                  a.volume = getGameVolume();
+                  a.play().catch(() => {});
+                  setTimeout(() => {
+                    a.pause();
+                  }, 6000);
+                } else if (gift.id === 'surprise_box' && !muted) {
+                  const a = new Audio(giftSound);
+                  a.volume = getGameVolume();
+                  a.play().catch(() => {});
+                  setTimeout(() => {
+                    a.pause();
+                  }, 5000);
+                } else if (gift.id === 'bullseye' && !muted) {
+                  const a = new Audio(giftSound);
+                  a.volume = getGameVolume();
+                  setTimeout(() => {
+                    a.play().catch(() => {});
+                  }, 2500);
                 } else if (giftSound) {
                   const a = new Audio(giftSound);
                   a.volume = getGameVolume();
