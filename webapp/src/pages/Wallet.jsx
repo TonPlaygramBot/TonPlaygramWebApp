@@ -77,9 +77,12 @@ export default function Wallet() {
 
   const txTypes = Array.from(
     new Set(
-      transactions.map((t) =>
-        ['gift', 'gift-receive', 'gift-fee'].includes(t.type) ? 'gift' : t.type
-      )
+      transactions.map((t) => {
+        if (t.type === 'gift') return 'gift-sent';
+        if (t.type === 'gift-receive') return 'gift-received';
+        if (t.type === 'gift-fee') return 'gift-fee';
+        return t.type;
+      })
     )
   ).filter(Boolean);
 
@@ -234,14 +237,17 @@ export default function Wallet() {
       if (d !== filterDate) return false;
     }
     if (filterType) {
-      if (
-        filterType === 'gift' &&
-        !['gift', 'gift-receive', 'gift-fee'].includes(tx.type)
-      ) {
+      if (filterType === 'gift-sent' && tx.type !== 'gift') {
+        return false;
+      }
+      if (filterType === 'gift-received' && tx.type !== 'gift-receive') {
+        return false;
+      }
+      if (filterType === 'gift-fee' && tx.type !== 'gift-fee') {
         return false;
       }
       if (
-        filterType !== 'gift' &&
+        !['gift-sent', 'gift-received', 'gift-fee'].includes(filterType) &&
         tx.type !== filterType
       ) {
         return false;
@@ -397,7 +403,7 @@ export default function Wallet() {
               <option value="">All</option>
               {txTypes.map((t) => (
                 <option key={t} value={t} className="capitalize">
-                  {t}
+                  {t.replace(/-/g, ' ')}
                 </option>
               ))}
             </select>
