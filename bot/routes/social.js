@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import { v4 as uuidv4 } from 'uuid';
 import User from '../models/User.js';
 import FriendRequest from '../models/FriendRequest.js';
 import Message from '../models/Message.js';
@@ -112,6 +113,9 @@ router.post('/send-gift', async (req, res) => {
   let receiver = await User.findOne({ telegramId: toId });
   if (!receiver) receiver = new User({ telegramId: toId });
 
+  if (!sender.accountId) sender.accountId = uuidv4();
+  if (!receiver.accountId) receiver.accountId = uuidv4();
+
   const devAccount = process.env.DEV_ACCOUNT_ID || process.env.VITE_DEV_ACCOUNT_ID;
   let devUser = null;
   if (devAccount) {
@@ -135,7 +139,7 @@ router.post('/send-gift', async (req, res) => {
     type: 'gift',
     token: 'TPC',
     date: txDate,
-    toAccount: String(toId),
+    toAccount: String(receiver.accountId),
     detail: gift,
     category: String(g.tier),
   });
@@ -144,7 +148,7 @@ router.post('/send-gift', async (req, res) => {
     type: 'gift-receive',
     token: 'TPC',
     date: txDate,
-    fromAccount: String(fromId),
+    fromAccount: String(sender.accountId),
     detail: gift,
     category: String(g.tier),
   });
@@ -154,7 +158,7 @@ router.post('/send-gift', async (req, res) => {
       type: 'gift-fee',
       token: 'TPC',
       date: txDate,
-      fromAccount: String(fromId),
+      fromAccount: String(sender.accountId),
     });
   }
 
