@@ -15,7 +15,7 @@ export default function registerStart(bot) {
         },
         $setOnInsert: { referralCode: telegramId.toString() }
       },
-      { upsert: true }
+      { upsert: true, new: true, setDefaultsOnInsert: true }
     );
     ctx.reply('Welcome to TonPlaygram!', {
       reply_markup: {

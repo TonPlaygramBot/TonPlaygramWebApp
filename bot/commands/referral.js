@@ -6,7 +6,7 @@ export default function registerReferral(bot) {
     const user = await User.findOneAndUpdate(
       { telegramId },
       { $setOnInsert: { referralCode: telegramId.toString() } },
-      { upsert: true, new: true }
+      { upsert: true, new: true, setDefaultsOnInsert: true }
     );
     const count = await User.countDocuments({ referredBy: user.referralCode });
     const link = `https://t.me/${process.env.BOT_USERNAME || 'YourBot'}?start=${user.referralCode}`;

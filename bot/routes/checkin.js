@@ -16,7 +16,7 @@ router.post('/check-in', async (req, res) => {
     const user = await User.findOneAndUpdate(
       { telegramId },
       { $setOnInsert: { referralCode: telegramId.toString() } },
-      { upsert: true, new: true }
+      { upsert: true, new: true, setDefaultsOnInsert: true }
     );
     ensureTransactionArray(user);
 

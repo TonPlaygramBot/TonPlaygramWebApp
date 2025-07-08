@@ -10,7 +10,7 @@ router.post('/code', async (req, res) => {
   const user = await User.findOneAndUpdate(
     { telegramId },
     { $setOnInsert: { referralCode: telegramId.toString() } },
-    { upsert: true, new: true }
+    { upsert: true, new: true, setDefaultsOnInsert: true }
   );
 
   const count = await User.countDocuments({ referredBy: user.referralCode });
@@ -40,7 +40,7 @@ router.post('/claim', async (req, res) => {
   const user = await User.findOneAndUpdate(
     { telegramId },
     { $setOnInsert: { referralCode: telegramId.toString() } },
-    { upsert: true, new: true }
+    { upsert: true, new: true, setDefaultsOnInsert: true }
   );
 
   if (user.referredBy) {

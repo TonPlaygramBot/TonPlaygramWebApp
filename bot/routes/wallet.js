@@ -198,7 +198,7 @@ router.post('/send', authenticate, async (req, res) => {
 
       { $inc: { balance: amount }, $setOnInsert: { referralCode: toId.toString() } },
 
-      { upsert: true, new: true }
+      { upsert: true, new: true, setDefaultsOnInsert: true }
 
     );
 
@@ -329,7 +329,7 @@ router.post('/deposit', authenticate, async (req, res) => {
 
     { $inc: { balance: amount }, $setOnInsert: { referralCode: telegramId.toString() } },
 
-    { upsert: true, new: true }
+    { upsert: true, new: true, setDefaultsOnInsert: true }
 
   );
 
