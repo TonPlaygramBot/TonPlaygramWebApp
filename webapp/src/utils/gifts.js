@@ -6,6 +6,7 @@ export const GIFTS = [
   { id: 'coffee_boost', name: 'Coffee Boost', icon: '☕', price: 300, tier: 1, effect: 'Funny “energy up” animation' },
   { id: 'baby_chick', name: 'Baby Chick', icon: '🐣', price: 500, tier: 1, effect: 'Cute chick dances on screen' },
   // Tier 2
+  { id: 'poop', name: 'Poop', icon: '💩', price: 666, tier: 2, effect: 'Smelly surprise' },
   { id: 'speed_racer', name: 'Speed Racer', icon: '🏎️', price: 1000, tier: 2, effect: 'Car zooms across the game board' },
   { id: 'bullseye', name: 'Bullseye', icon: '🎯', price: 2000, tier: 2, effect: "Dart hits target on player's profile" },
   { id: 'magic_trick', name: 'Magic Trick', icon: '🎩', price: 3000, tier: 2, effect: 'Random gift animation (slot-style)' },
