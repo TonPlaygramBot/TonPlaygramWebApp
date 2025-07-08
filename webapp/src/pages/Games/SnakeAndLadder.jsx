@@ -1,4 +1,11 @@
-import { useState, useEffect, useRef, useLayoutEffect, Fragment } from "react";
+import {
+  useState,
+  useEffect,
+  useRef,
+  useLayoutEffect,
+  Fragment,
+  useCallback,
+} from "react";
 import coinConfetti from "../../utils/coinConfetti";
 import DiceRoller from "../../components/DiceRoller.jsx";
 import {
@@ -502,7 +509,8 @@ function Board({
 export default function SnakeAndLadder() {
   const [showLobbyConfirm, setShowLobbyConfirm] = useState(false);
   const [showQuitInfo, setShowQuitInfo] = useState(true);
-  useTelegramBackButton(() => setShowLobbyConfirm(true));
+  const handleBack = useCallback(() => setShowLobbyConfirm(true), []);
+  useTelegramBackButton(handleBack);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -1741,7 +1749,7 @@ export default function SnakeAndLadder() {
       clearInterval(timerRef.current);
       timerSoundRef.current?.pause();
     };
-  }, [currentTurn, setupPhase, gameOver, refreshTick, moving, isMultiplayer, mpPlayers, muted]);
+  }, [currentTurn, setupPhase, gameOver, moving, isMultiplayer, mpPlayers, muted]);
 
   // Periodically refresh the component state to avoid freezes
   useEffect(() => {
