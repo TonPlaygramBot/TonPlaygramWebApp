@@ -376,7 +376,7 @@ function Board({
   const angle = 58; // set board tilt to 58 degrees
   // Small horizontal offset so the board sits perfectly centered
   // Slightly shift the board to the right so it is not perfectly centred
-  const boardXOffset = 10; // pixels
+  const boardXOffset = 20; // pixels - nudge board slightly right
   // Lift the board slightly so the bottom row stays visible. Lowered slightly
   // so the logo at the top of the board isn't cropped off screen. Zeroing this
   // aligns the board vertically with the frame.
@@ -1868,7 +1868,7 @@ export default function SnakeAndLadder() {
         <div className="fixed bottom-52 inset-x-0 flex justify-center z-30 pointer-events-none">
           <div
             className="text-7xl roll-result"
-            style={{ color: rollColor, transform: 'translate(-0.25rem, -0.25rem)' }}
+            style={{ color: rollColor, transform: 'translate(0.5rem, -0.25rem)' }}
           >
             {rollResult}
           </div>
@@ -1882,8 +1882,12 @@ export default function SnakeAndLadder() {
         </div>
       )}
       {diceVisible && !isMultiplayer && (
-        <div className="fixed bottom-24 inset-x-0 flex flex-col items-center z-20">
-          <DiceRoller
+        <div
+          className="fixed bottom-24 inset-x-0 flex flex-col items-center z-20"
+          style={{ transform: 'translateX(1rem)' }}
+        >
+          <div className="scale-90">
+            <DiceRoller
             onRollEnd={(vals) => {
               if (aiRollingIndex) {
                 handleAIRoll(aiRollingIndex, vals);
@@ -1917,6 +1921,7 @@ export default function SnakeAndLadder() {
             showButton={false}
             muted={muted}
           />
+          </div>
           {currentTurn === 0 && !aiRollingIndex && !playerAutoRolling && (
             <div className="mt-2 flex flex-col items-center">
               <div className="text-5xl">🫵</div>
@@ -1926,7 +1931,11 @@ export default function SnakeAndLadder() {
         </div>
       )}
       {isMultiplayer && (
-        <div className="fixed bottom-24 inset-x-0 flex flex-col items-center z-20">
+        <div
+          className="fixed bottom-24 inset-x-0 flex flex-col items-center z-20"
+          style={{ transform: 'translateX(1rem)' }}
+        >
+          <div className="scale-90">
           {(() => {
             const myId = getPlayerId();
             const myIndex = mpPlayers.findIndex(p => p.id === myId);
@@ -1942,6 +1951,7 @@ export default function SnakeAndLadder() {
             }
             return null;
           })()}
+          </div>
         </div>
       )}
       <InfoPopup

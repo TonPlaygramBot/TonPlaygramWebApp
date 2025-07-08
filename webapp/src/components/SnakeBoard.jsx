@@ -206,7 +206,7 @@ export default function SnakeBoard({
 
 
   const angle = 58;
-  const boardXOffset = 10;
+  const boardXOffset = 20; // pixels - align board slightly right
   const boardYOffset = 60;
   const boardZOffset = -50;
   const CAMERA_OFFSET_ROWS = 0;
