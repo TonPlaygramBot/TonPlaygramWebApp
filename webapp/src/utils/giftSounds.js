@@ -17,9 +17,9 @@ import {
 export const giftSounds = {
   fireworks: giftSound_gift_00,
   laugh_bomb: giftSound_gift_01,
-  pizza_slice: giftSound_gift_02,
-  coffee_boost: giftSound_gift_03,
-  baby_chick: giftSound_gift_04,
+  pizza_slice: "/assets/sounds/life_is_beautiful_italiano-108264.mp3",
+  coffee_boost: "/assets/sounds/drinking-coffee-214463.mp3",
+  baby_chick: "/assets/sounds/bebek-220068.mp3",
   speed_racer: giftSound_gift_05,
   bullseye: giftSound_gift_06,
   magic_trick: giftSound_gift_07,

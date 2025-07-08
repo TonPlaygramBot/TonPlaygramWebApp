@@ -1901,7 +1901,27 @@ export default function SnakeAndLadder() {
                 icon.style.zIndex = '9999';
                 document.body.appendChild(icon);
                 const giftSound = giftSounds[gift.id];
-                if (giftSound) {
+                if (gift.id === 'laugh_bomb' && !muted) {
+                  bombSoundRef.current.currentTime = 0;
+                  bombSoundRef.current.play().catch(() => {});
+                  hahaSoundRef.current.currentTime = 0;
+                  hahaSoundRef.current.play().catch(() => {});
+                  setTimeout(() => {
+                    hahaSoundRef.current.pause();
+                  }, 5000);
+                } else if (gift.id === 'coffee_boost' && !muted) {
+                  const a = new Audio(giftSound);
+                  a.volume = getGameVolume();
+                  a.currentTime = 4;
+                  a.play().catch(() => {});
+                  setTimeout(() => {
+                    a.pause();
+                  }, 4000);
+                } else if (gift.id === 'baby_chick' && !muted) {
+                  const a = new Audio(giftSound);
+                  a.volume = getGameVolume();
+                  a.play().catch(() => {});
+                } else if (giftSound) {
                   const a = new Audio(giftSound);
                   a.volume = getGameVolume();
                   a.play().catch(() => {});
