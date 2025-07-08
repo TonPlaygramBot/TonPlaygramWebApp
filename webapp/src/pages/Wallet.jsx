@@ -75,9 +75,13 @@ export default function Wallet() {
   const [selectedTx, setSelectedTx] = useState(null);
   const dateInputRef = useRef(null);
 
-  const txTypes = Array.from(new Set(transactions.map((t) => t.type))).filter(
-    Boolean
-  );
+  const txTypes = Array.from(
+    new Set(
+      transactions.map((t) =>
+        ['gift', 'gift-receive', 'gift-fee'].includes(t.type) ? 'gift' : t.type
+      )
+    )
+  ).filter(Boolean);
 
 
   const loadBalances = async () => {
@@ -229,7 +233,20 @@ export default function Wallet() {
       const d = new Date(tx.date).toISOString().slice(0, 10);
       if (d !== filterDate) return false;
     }
-    if (filterType && tx.type !== filterType) return false;
+    if (filterType) {
+      if (
+        filterType === 'gift' &&
+        !['gift', 'gift-receive', 'gift-fee'].includes(tx.type)
+      ) {
+        return false;
+      }
+      if (
+        filterType !== 'gift' &&
+        tx.type !== filterType
+      ) {
+        return false;
+      }
+    }
     if (filterUser) {
       const q = filterUser.toLowerCase();
       const name = (tx.fromName || tx.toName || '').toLowerCase();
