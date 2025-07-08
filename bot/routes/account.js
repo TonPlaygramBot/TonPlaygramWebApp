@@ -51,6 +51,41 @@ router.post('/balance', async (req, res) => {
   res.json({ balance });
 });
 
+// Get full account info including gifts and transactions
+router.post('/info', async (req, res) => {
+  const { accountId } = req.body;
+  if (!accountId)
+    return res.status(400).json({ error: 'accountId required' });
+
+  const user = await User.findOne({ accountId });
+  if (!user) return res.status(404).json({ error: 'account not found' });
+
+  ensureTransactionArray(user);
+  if (!Array.isArray(user.gifts)) user.gifts = [];
+
+  const balance = calculateBalance(user);
+  if (user.balance !== balance) {
+    user.balance = balance;
+    try {
+      await user.save();
+    } catch (err) {
+      console.error('Failed to update balance:', err.message);
+    }
+  }
+
+  res.json({
+    accountId: user.accountId,
+    telegramId: user.telegramId,
+    nickname: user.nickname,
+    firstName: user.firstName,
+    lastName: user.lastName,
+    photo: user.photo,
+    balance: user.balance,
+    gifts: user.gifts,
+    transactions: user.transactions,
+  });
+});
+
 // Send TPC between accounts
 router.post('/send', async (req, res) => {
   const { fromAccount, toAccount, amount, note } = req.body;
