@@ -208,17 +208,13 @@ export default forwardRef<SpinWheelHandle, SpinWheelProps>(function SpinWheel(
           {items.map((val, idx) => (
 
             <div
-
               key={idx}
-
-              className={`board-style border-2 border-border flex items-center justify-center text-sm w-28 font-bold ${
-
+              className={`board-style border-2 border-border text-sm w-28 font-bold flex items-center ${
+                val === 'BONUS_X3' ? 'justify-center' : 'justify-start pl-2 space-x-1'
+              } ${
                 idx === winnerIndex ? 'bg-yellow-300 text-black border-4 border-brand-gold shadow-[0_0_12px_rgba(241,196,15,0.8)]' : 'text-white'
-
               }`}
-
               style={{ height: itemHeight }}
-
             >
 
               {val === 'BONUS_X3' ? (
@@ -231,7 +227,7 @@ export default forwardRef<SpinWheelHandle, SpinWheelProps>(function SpinWheel(
 
                     src="/assets/icons/FreeSpin.webp"
                     alt="Free Spin"
-                    className="w-8 h-8 mr-1"
+                    className="w-8 h-8"
                   />
                   <span>
                     {val === 1600 && '1'}
@@ -240,7 +236,7 @@ export default forwardRef<SpinWheelHandle, SpinWheelProps>(function SpinWheel(
                 </>
               ) : (
                 <>
-                  <img  src="/assets/icons/TPCcoin_1.webp" alt="TPC" className="w-8 h-8 mr-1" />
+                  <img  src="/assets/icons/TPCcoin_1.webp" alt="TPC" className="w-8 h-8" />
                   <span>{val >= 1000 ? `${val / 1000}k` : val}</span>
                 </>
               )}

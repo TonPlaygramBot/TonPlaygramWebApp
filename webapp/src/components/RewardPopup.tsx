@@ -13,7 +13,13 @@ interface RewardPopupProps {
 export default function RewardPopup({ reward, onClose, duration = 2500, showCloseButton = true }: RewardPopupProps) {
   if (reward === null) return null;
   useEffect(() => {
-    coinConfetti(50);
+    let icon = '/assets/icons/TPCcoin_1.webp';
+    if (reward === 'BONUS_X3') {
+      icon = '/assets/icons/file_00000000ead061faa3b429466e006f48.webp';
+    } else if (reward === 1600 || reward === 1800) {
+      icon = '/assets/icons/FreeSpin.webp';
+    }
+    coinConfetti(50, icon);
     const audio = new Audio('/assets/sounds/man-cheering-in-victory-epic-stock-media-1-00-01.mp3');
     audio.volume = getGameVolume();
     audio.play().catch(() => {});
@@ -22,7 +28,7 @@ export default function RewardPopup({ reward, onClose, duration = 2500, showClos
       audio.pause();
       clearTimeout(timer);
     };
-  }, [onClose, duration]);
+  }, [onClose, duration, reward]);
   return (
     <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-70 z-50">
       <div className="text-center space-y-4 text-text">
