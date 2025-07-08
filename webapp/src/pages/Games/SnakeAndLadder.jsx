@@ -81,6 +81,7 @@ import ConfirmPopup from "../../components/ConfirmPopup.jsx";
 import PlayerPopup from "../../components/PlayerPopup.jsx";
 import QuickMessagePopup from "../../components/QuickMessagePopup.jsx";
 import GiftPopup from "../../components/GiftPopup.jsx";
+import { giftSounds } from "../../utils/giftSounds.js";
 import { moveSeq, flashHighlight, applyEffect as applyEffectHelper } from "../../utils/moveHelpers.js";
 
 const TOKEN_COLORS = [
@@ -1899,6 +1900,12 @@ export default function SnakeAndLadder() {
                 icon.style.transform = `translate(${s.left + s.width / 2}px, ${s.top + s.height / 2}px) scale(1)`;
                 icon.style.zIndex = '9999';
                 document.body.appendChild(icon);
+                const giftSound = giftSounds[gift.id];
+                if (giftSound) {
+                  const a = new Audio(giftSound);
+                  a.volume = getGameVolume();
+                  a.play().catch(() => {});
+                }
                 const animation = icon.animate(
                   [
                     { transform: `translate(${s.left + s.width / 2}px, ${s.top + s.height / 2}px) scale(1)` },
