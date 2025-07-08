@@ -137,6 +137,7 @@ router.post('/send-gift', async (req, res) => {
     date: txDate,
     toAccount: String(toId),
     detail: gift,
+    category: String(g.tier),
   });
   receiver.transactions.push({
     amount: recvAmount,
@@ -145,6 +146,7 @@ router.post('/send-gift', async (req, res) => {
     date: txDate,
     fromAccount: String(fromId),
     detail: gift,
+    category: String(g.tier),
   });
   if (devUser) {
     devUser.transactions.push({
