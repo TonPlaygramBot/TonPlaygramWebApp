@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { v4 as uuidv4 } from 'uuid';
 import User from '../models/User.js';
 import { fetchTelegramInfo } from '../utils/telegram.js';
-import { ensureTransactionArray } from '../utils/userUtils.js';
+import { ensureTransactionArray, calculateBalance } from '../utils/userUtils.js';
 
 const router = Router();
 
@@ -77,6 +77,14 @@ router.post('/get', async (req, res) => {
 
   if (!user.accountId) {
     user.accountId = uuidv4();
+    await user.save();
+  }
+
+  ensureTransactionArray(user);
+  if (!Array.isArray(user.gifts)) user.gifts = [];
+  const balance = calculateBalance(user);
+  if (user.balance !== balance) {
+    user.balance = balance;
     await user.save();
   }
 
