@@ -415,18 +415,33 @@ router.post('/withdraw', authenticate, async (req, res) => {
 
 router.post('/transactions', authenticate, async (req, res) => {
 
-  const { telegramId } = req.body;
+  const { telegramId, accountId } = req.body;
 
-  if (!telegramId) {
+  if (!telegramId && !accountId) {
 
-    return res.status(400).json({ error: 'telegramId required' });
+    return res.status(400).json({ error: 'telegramId or accountId required' });
 
   }
-  if (req.auth?.telegramId && telegramId !== req.auth.telegramId) {
-    return res.status(403).json({ error: "forbidden" });
-  }
 
-  const user = await User.findOne({ telegramId });
+  let user;
+  if (accountId) {
+    user = await User.findOne({ accountId });
+    if (!user) {
+      return res.status(404).json({ error: 'account not found' });
+    }
+    if (
+      req.auth?.telegramId &&
+      user.telegramId &&
+      user.telegramId !== req.auth.telegramId
+    ) {
+      return res.status(403).json({ error: 'forbidden' });
+    }
+  } else {
+    if (req.auth?.telegramId && telegramId !== req.auth.telegramId) {
+      return res.status(403).json({ error: 'forbidden' });
+    }
+    user = await User.findOne({ telegramId });
+  }
 
   if (user) {
     // Ensure the transactions property is always an array
