@@ -137,11 +137,18 @@ export async function sendTransferNotification(bot, toId, fromId, amount, note) 
 }
 
 export async function sendGiftNotification(bot, toId, gift, senderName, date) {
-  let buffer;
-  try {
-    buffer = await renderGiftImage(gift.icon);
-  } catch (err) {
-    console.error('Failed to render gift image:', err.message);
+  const isFileIcon =
+    typeof gift.icon === 'string' && gift.icon.startsWith('/');
+  const ext = isFileIcon ? path.extname(gift.icon).toLowerCase() : '';
+
+  let buffer = null;
+  if (!isFileIcon || ['.png', '.jpg', '.jpeg'].includes(ext)) {
+    try {
+      buffer = await renderGiftImage(gift.icon);
+    } catch (err) {
+      console.error('Failed to render gift image:', err.message);
+      buffer = null;
+    }
   }
 
   if (buffer) {
@@ -150,7 +157,7 @@ export async function sendGiftNotification(bot, toId, gift, senderName, date) {
     } catch (err) {
       console.error('Failed to send rendered gift image:', err.message);
     }
-  } else if (typeof gift.icon === 'string' && gift.icon.startsWith('/')) {
+  } else if (isFileIcon) {
     const filePath = path.join(
       __dirname,
       `../../webapp/public${gift.icon}`,
