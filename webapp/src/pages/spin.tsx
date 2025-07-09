@@ -1,5 +1,6 @@
 import { useEffect, useState, useRef } from 'react';
 import SpinWheel, { SpinWheelHandle } from '../components/SpinWheel.tsx';
+import type { Segment } from '../utils/rewardLogic';
 import RewardPopup from '../components/RewardPopup.tsx';
 import AdModal from '../components/AdModal.tsx';
 import { canSpin, nextSpinTime } from '../utils/rewardLogic';
@@ -22,13 +23,38 @@ export default function SpinPage() {
   }
   const [lastSpin, setLastSpin] = useState<number | null>(null);
   const [reward, setReward] = useState<number | null>(null);
-  const [spinning, setSpinning] = useState(false);
+  const [spinningMain, setSpinningMain] = useState(false);
   const [showAd, setShowAd] = useState(false);
   const [adWatched, setAdWatched] = useState(false);
   const [timeLeft, setTimeLeft] = useState(0);
   const [freeSpins, setFreeSpins] = useState(0);
 
-  const wheelRef = useRef<SpinWheelHandle>(null);
+  const [bonusMode, setBonusMode] = useState(false);
+  const [leftReward, setLeftReward] = useState<number | null>(null);
+  const [rightReward, setRightReward] = useState<number | null>(null);
+  const [spinningLeft, setSpinningLeft] = useState(false);
+  const [spinningRight, setSpinningRight] = useState(false);
+
+  const mainRef = useRef<SpinWheelHandle>(null);
+  const leftRef = useRef<SpinWheelHandle>(null);
+  const rightRef = useRef<SpinWheelHandle>(null);
+
+  const globalSpinning = spinningMain || spinningLeft || spinningRight;
+
+  useEffect(() => {
+    if (
+      bonusMode &&
+      leftReward !== null &&
+      rightReward !== null &&
+      !spinningLeft &&
+      !spinningRight
+    ) {
+      finalizeReward(leftReward + rightReward);
+      setLeftReward(null);
+      setRightReward(null);
+      setBonusMode(false);
+    }
+  }, [bonusMode, leftReward, rightReward, spinningLeft, spinningRight]);
 
   const ready = freeSpins > 0 || canSpin(lastSpin);
 
@@ -50,7 +76,29 @@ export default function SpinPage() {
   }, [lastSpin]);
 
 
-  const handleFinish = async (r: number) => {
+  const finalizeReward = async (amount: number) => {
+    setReward(amount);
+    const id = telegramId;
+    const balRes = await getWalletBalance(id);
+    const newBalance = (balRes.balance || 0) + amount;
+    await updateBalance(id, newBalance);
+    await addTransaction(id, amount, 'spin');
+    const now = Date.now();
+    localStorage.setItem('lastSpin', String(now));
+    setLastSpin(now);
+    setAdWatched(false);
+  };
+
+  const handleFinish = async (r: Segment) => {
+    if (r === 'BONUS_X2') {
+      setBonusMode(true);
+      setLeftReward(null);
+      setRightReward(null);
+      leftRef.current?.spin();
+      rightRef.current?.spin();
+      return;
+    }
+
     let extraSpins = 0;
     if (r === 1600) extraSpins = 1;
     else if (r === 1800) extraSpins = 2;
@@ -60,13 +108,7 @@ export default function SpinPage() {
       setFreeSpins(total);
       localStorage.setItem('freeSpins', String(total));
     } else {
-      const finalReward = r;
-      setReward(finalReward);
-      const id = telegramId;
-      const balRes = await getWalletBalance(id);
-      const newBalance = (balRes.balance || 0) + finalReward;
-      await updateBalance(id, newBalance);
-      await addTransaction(id, finalReward, 'spin');
+      await finalizeReward(r as number);
     }
 
     const finalCount = freeSpins + extraSpins;
@@ -75,12 +117,19 @@ export default function SpinPage() {
       localStorage.setItem('lastSpin', String(now));
       setLastSpin(now);
     }
-    if (extraSpins > 0) setReward(r);
-    setAdWatched(false);
+    if (extraSpins > 0) setReward(r as number);
+  };
+
+  const handleLeftFinish = (val: Segment) => {
+    if (typeof val === 'number') setLeftReward(val);
+  };
+
+  const handleRightFinish = (val: Segment) => {
+    if (typeof val === 'number') setRightReward(val);
   };
 
   const triggerSpin = () => {
-    if (spinning) return;
+    if (globalSpinning) return;
     if (freeSpins === 0) {
       if (!adWatched) {
         setShowAd(true);
@@ -95,7 +144,7 @@ export default function SpinPage() {
       localStorage.setItem('freeSpins', String(remaining));
     }
 
-    wheelRef.current?.spin();
+    mainRef.current?.spin();
   };
 
   const handleAdComplete = () => {
@@ -119,20 +168,40 @@ export default function SpinPage() {
       <p className="text-sm text-subtext">Try your luck and win rewards!</p>
       <div className="bg-surface border border-border rounded p-4 flex flex-col items-center space-y-2 wide-card">
         <div className="flex justify-center">
+          {bonusMode && (
+            <SpinWheel
+              ref={leftRef}
+              onFinish={handleLeftFinish}
+              spinning={spinningLeft}
+              setSpinning={setSpinningLeft}
+              disabled={!ready}
+              showButton={false}
+            />
+          )}
           <SpinWheel
-            ref={wheelRef}
+            ref={mainRef}
             onFinish={handleFinish}
-            spinning={spinning}
-            setSpinning={setSpinning}
+            spinning={spinningMain}
+            setSpinning={setSpinningMain}
             disabled={!ready}
             showButton={false}
           />
+          {bonusMode && (
+            <SpinWheel
+              ref={rightRef}
+              onFinish={handleRightFinish}
+              spinning={spinningRight}
+              setSpinning={setSpinningRight}
+              disabled={!ready}
+              showButton={false}
+            />
+          )}
         </div>
         <div className="flex space-x-2 mt-4">
           <button
             onClick={triggerSpin}
             className={spinBtnClass}
-            disabled={spinning || !ready}
+            disabled={globalSpinning || !ready}
           >
             Spin
           </button>
