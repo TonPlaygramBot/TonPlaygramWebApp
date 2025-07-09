@@ -305,8 +305,16 @@ export default function Home() {
             {holders != null && (
               <p className="text-sm text-subtext">Holders: {holders}</p>
             )}
-            <p className="text-xs break-all mt-1 text-brand-gold">
-              Token Contract: {TPC_JETTON_ADDRESS}
+            <p className="text-xs break-all mt-1">
+              <span className="font-semibold text-brand-gold">Token Contract: </span>
+              <a
+                href={`https://tonscan.org/address/${TPC_JETTON_ADDRESS}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-primary hover:underline"
+              >
+                {TPC_JETTON_ADDRESS}
+              </a>
             </p>
           </div>
           <div className="space-y-1">
