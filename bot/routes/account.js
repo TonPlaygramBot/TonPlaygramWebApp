@@ -4,7 +4,11 @@ import User from '../models/User.js';
 import authenticate from '../middleware/auth.js';
 import { ensureTransactionArray, calculateBalance } from '../utils/userUtils.js';
 import bot from '../bot.js';
-import { sendTransferNotification, sendTPCNotification } from '../utils/notifications.js';
+import {
+  sendTransferNotification,
+  sendTPCNotification,
+  sendGiftNotification,
+} from '../utils/notifications.js';
 import NFT_GIFTS from '../utils/nftGifts.js';
 
 import { mintGiftNFT } from '../utils/nftService.js';
@@ -303,9 +307,12 @@ router.post('/gift', async (req, res) => {
 
   if (receiver.telegramId) {
     try {
-      await bot.telegram.sendMessage(
-        String(receiver.telegramId),
-        `\u{1FA99} You received a ${g.name} gift`
+      await sendGiftNotification(
+        bot,
+        receiver.telegramId,
+        g,
+        sender.nickname || sender.firstName || String(fromAccount),
+        txDate,
       );
     } catch (err) {
       console.error('Failed to send Telegram notification:', err.message);

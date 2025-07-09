@@ -75,6 +75,35 @@ async function renderTransferImage(name, amount, date, photoUrl) {
   return canvas.toBuffer();
 }
 
+async function renderGiftImage(icon) {
+  const scale = 2;
+  const size = 160 * scale;
+  const canvas = createCanvas(size, size);
+  const ctx = canvas.getContext('2d');
+
+  ctx.fillStyle = '#2d5c66';
+  ctx.fillRect(0, 0, size, size);
+  ctx.strokeStyle = '#334155';
+  ctx.lineWidth = 4 * scale;
+  ctx.strokeRect(0, 0, size, size);
+
+  if (typeof icon === 'string' && icon.startsWith('/')) {
+    try {
+      const img = await loadImage(path.join(__dirname, `../../webapp/public${icon}`));
+      const padding = 20 * scale;
+      ctx.drawImage(img, padding, padding, size - padding * 2, size - padding * 2);
+    } catch {}
+  } else {
+    ctx.fillStyle = '#ffffff';
+    ctx.font = `${48 * scale}px serif`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(icon || '🎁', size / 2, size / 2);
+  }
+
+  return canvas.toBuffer();
+}
+
 export async function sendTransferNotification(bot, toId, fromId, amount, note) {
   let info;
   try {
@@ -104,6 +133,16 @@ export async function sendTransferNotification(bot, toId, fromId, amount, note) 
   const noteText = note ? `\nNote: ${note}` : '';
   const caption = `You received ${sign}${formatted} TPC from ${name} ${profileIcon}${noteText}`;
 
+  await bot.telegram.sendMessage(String(toId), caption);
+}
+
+export async function sendGiftNotification(bot, toId, gift, senderName, date) {
+  const image = await renderGiftImage(gift.icon);
+  try {
+    await bot.telegram.sendPhoto(String(toId), { source: image });
+  } catch {}
+
+  const caption = `\u{1FA99} You received a ${gift.name} worth ${gift.price} TPC from ${senderName} on ${date.toLocaleString()}`;
   await bot.telegram.sendMessage(String(toId), caption);
 }
 
