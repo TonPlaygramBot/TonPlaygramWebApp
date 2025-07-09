@@ -19,6 +19,7 @@ import { BOT_USERNAME } from '../utils/constants.js';
 import { getAvatarUrl, saveAvatar, loadAvatar } from '../utils/avatarUtils.js';
 import { socket } from '../utils/socket.js';
 import InvitePopup from '../components/InvitePopup.jsx';
+import PlayerInvitePopup from '../components/PlayerInvitePopup.jsx';
 
 export default function Friends() {
   useTelegramBackButton();
@@ -306,12 +307,12 @@ export default function Friends() {
       </div>
     </section>
 
-    <InvitePopup
+    <PlayerInvitePopup
       open={!!inviteTarget}
-      name={inviteTarget?.nickname || `${inviteTarget?.firstName || ''} ${inviteTarget?.lastName || ''}`.trim()}
+      player={inviteTarget}
       stake={stake}
       onStakeChange={setStake}
-      onAccept={() => {
+      onInvite={() => {
         if (inviteTarget) {
           const roomId = `invite-${accountId}-${inviteTarget.accountId}-${Date.now()}-2`;
           socket.emit(
@@ -337,7 +338,7 @@ export default function Friends() {
         }
         setInviteTarget(null);
       }}
-      onReject={() => setInviteTarget(null)}
+      onClose={() => setInviteTarget(null)}
     />
     <InvitePopup
       open={groupPopup}
