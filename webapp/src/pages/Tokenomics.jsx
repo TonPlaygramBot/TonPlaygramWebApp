@@ -96,6 +96,10 @@ const roadmap = [
         text: 'Smart contracts powering TON/USDT tables',
         done: false,
       },
+      {
+        text: 'Adaptive reward formula across mining, ads and tasks',
+        done: true,
+      },
       { text: 'DAO governance launch', done: false },
       { text: 'Mobile app release', done: false },
       { text: 'CEX & DEX listings', done: false },
@@ -108,43 +112,43 @@ const tableRows = [
   {
     name: 'Play-to-Earn & Mining',
     percent: '40%',
-    tokens: '40,000,000',
+    tokens: '400,000,000',
     details: 'Daily emission for players (games, mining, tasks) over 3 years',
   },
   {
     name: 'DEX/CEX Liquidity & Ecosystem',
     percent: '20%',
-    tokens: '20,000,000',
+    tokens: '200,000,000',
     details: 'Exchange pools, partnerships, price stability',
   },
   {
     name: 'Team/Founder',
     percent: '15%',
-    tokens: '15,000,000',
+    tokens: '150,000,000',
     details: '6mo cliff, 2yr linear vesting, owner/dev incentive',
   },
   {
     name: 'Development/Treasury',
     percent: '10%',
-    tokens: '10,000,000',
+    tokens: '100,000,000',
     details: 'Upgrades, maintenance, server costs, audits',
   },
   {
     name: 'Marketing & Growth',
     percent: '7%',
-    tokens: '7,000,000',
+    tokens: '70,000,000',
     details: 'Ads, influencers, user growth, partnerships',
   },
   {
     name: 'Referral/Airdrop/Leaderboard',
     percent: '5%',
-    tokens: '5,000,000',
+    tokens: '50,000,000',
     details: 'Airdrops, viral rewards, competitions',
   },
   {
     name: 'Advisors & Strategic Partners',
     percent: '3%',
-    tokens: '3,000,000',
+    tokens: '30,000,000',
     details: 'Vested, for legal and key partners',
   },
 ];
@@ -321,7 +325,7 @@ export default function TokenomicsPage() {
         <div>
           <h4 className="font-semibold text-accent mb-1">Total Supply</h4>
           <p>
-            <b>100,000,000 TPC</b> — Fixed supply. Each allocation and fee mechanism is governed by smart contract, with vesting and transparency for investors and users.
+            <b>1,000,000,000 TPC</b> — Fixed supply. Each allocation and fee mechanism is governed by smart contract, with vesting and transparency for investors and users.
           </p>
         </div>
         <div>
