@@ -315,9 +315,9 @@ export default function MyAccount() {
       )}
 
       {/* NFT Gifts card */}
-      <div className="prism-box p-4 mt-4 space-y-2 mx-auto wide-card">
-        <h3 className="font-semibold text-center">NFT Gifts</h3>
-        <div className="max-h-40 overflow-y-auto space-y-1 text-sm">
+      <div className="prism-box p-6 mt-4 space-y-2 mx-auto flex flex-col items-center text-center min-h-40 wide-card">
+        <h3 className="font-semibold">NFT Gifts</h3>
+        <div className="max-h-40 overflow-y-auto space-y-1 text-sm w-full flex-grow">
           {profile.gifts && profile.gifts.length > 0 ? (
             profile.gifts.map((g) => {
               const info = NFT_GIFTS.find((x) => x.id === g.gift) || {};
@@ -356,7 +356,7 @@ export default function MyAccount() {
         </div>
         {profile.gifts && profile.gifts.length > 0 && (
           <>
-            <div className="flex items-center space-x-2 mt-2">
+            <div className="flex items-center space-x-2 mt-2 w-full">
               <select
                 value={convertAction}
                 onChange={(e) => setConvertAction(e.target.value)}
@@ -378,7 +378,7 @@ export default function MyAccount() {
             <button
               onClick={handleConvertGifts}
               disabled={converting || selectedGifts.length === 0}
-              className="w-full px-3 py-1 bg-primary hover:bg-primary-hover rounded text-black mt-2"
+              className="mt-auto px-3 py-1 bg-primary hover:bg-primary-hover rounded text-black w-full max-w-xs"
             >
               {converting
                 ? convertAction === 'burn'
