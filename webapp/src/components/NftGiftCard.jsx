@@ -36,29 +36,30 @@ export default function NftGiftCard({ accountId: propAccountId }) {
   }, [accountId, open]);
 
   return (
-    <div className="relative bg-surface border border-border rounded-xl p-4 space-y-2 overflow-hidden wide-card">
+    <div className="relative bg-surface border border-border rounded-xl p-6 space-y-3 overflow-hidden wide-card">
       <img
         src="/assets/SnakeLaddersbackground.png"
         className="background-behind-board object-cover"
         alt=""
       />
       <h3 className="text-lg font-bold text-center">NFT Gifts</h3>
-      <div className="max-h-32 overflow-y-auto text-sm space-y-1">
+      <div className="flex space-x-2 overflow-x-auto pb-2 text-sm">
         {gifts.length ? (
           gifts.map((g) => {
             const info = NFT_GIFTS.find((x) => x.id === g.gift) || {};
             return (
-              <div key={g._id} className="flex justify-between items-center">
-                <span className="flex items-center space-x-1">
-                  <span>{info.icon}</span>
-                  <span>{info.name || g.gift}</span>
-                </span>
+              <div
+                key={g._id}
+                className="flex-shrink-0 flex flex-col items-center space-y-1 border border-border rounded p-2 min-w-[72px]"
+              >
+                <span className="text-xl">{info.icon}</span>
+                <span className="text-center">{info.name || g.gift}</span>
                 <span className="text-xs">{g.price} TPC</span>
               </div>
             );
           })
         ) : (
-          <p className="text-center text-subtext">No NFTs</p>
+          <p className="text-center text-subtext w-full">No NFTs</p>
         )}
       </div>
       <button
