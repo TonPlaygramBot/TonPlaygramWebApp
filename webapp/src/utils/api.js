@@ -412,3 +412,6 @@ export function claimPurchase(accountId, txHash) {
 export function sendBroadcast(data) {
   return post('/api/broadcast/send', data, API_AUTH_TOKEN || undefined);
 }
+
+export function getAppStats() {
+  return fetch(API_BASE_URL + '/api/stats').then((r) => r.json());}
