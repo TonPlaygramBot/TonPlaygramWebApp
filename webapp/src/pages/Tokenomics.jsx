@@ -105,6 +105,19 @@ const roadmap = [
       { text: 'CEX & DEX listings', done: false },
     ],
   },
+  {
+    phase: '2024–2027',
+    items: [
+      {
+        text: 'Emission of 400M TPC with daily cap of 15–20M tokens',
+        done: false,
+      },
+      {
+        text: 'Reward pool depleted; ecosystem runs on in-game demand',
+        done: false,
+      },
+    ],
+  },
 ];
 
 // TABLE DATA
@@ -325,7 +338,7 @@ export default function TokenomicsPage() {
         <div>
           <h4 className="font-semibold text-accent mb-1">Total Supply</h4>
           <p>
-            <b>100,000,000 TPC</b> — Fixed supply. Each allocation and fee mechanism is governed by smart contract, with vesting and transparency for investors and users.
+            <b>1,000,000,000 TPC</b> — Fixed supply. Each allocation and fee mechanism is governed by smart contract, with vesting and transparency for investors and users.
           </p>
         </div>
         <div>
@@ -347,6 +360,21 @@ export default function TokenomicsPage() {
           <h4 className="font-semibold text-accent mb-1">Transparency & Trust</h4>
           <p>
             All allocations and fee distributions are on-chain and reported regularly. The project focuses on sustainable growth and investor protection.
+          </p>
+        </div>
+        <div>
+          <h4 className="font-semibold text-accent mb-1">Emission Formula & Distribution Plan (2024–2027)</h4>
+          <p>
+            To ensure sustainability across our <b>1,000,000,000 TPC</b> supply, TonPlaygram uses an adaptive reward formula that adjusts giveaways based on user activity and capped daily limits.
+          </p>
+          <p>
+            <b>400,000,000 TPC (40%)</b> is allocated for Play-to-Earn, Mining and Tasks. This pool is emitted over three years with per-user rewards and a global cap of around 15–20M TPC per day.
+          </p>
+          <p>
+            Mining, check-ins, ads, spins and referrals all scale with system load. Each reward type has daily emission limits enforced by smart contracts or backend logic.
+          </p>
+          <p>
+            Once the 400M pool is distributed, emissions stop and the circulating supply relies on in-game utility and user-driven demand. This model prevents over-rewarding early users and keeps token economics healthy.
           </p>
         </div>
         <div>
