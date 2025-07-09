@@ -1,4 +1,5 @@
 import User from '../models/User.js';
+import { incrementReferralBonus } from '../utils/userUtils.js';
 import { fetchTelegramInfo } from '../utils/telegram.js';
 
 export default function registerStart(bot) {
@@ -24,8 +25,7 @@ export default function registerStart(bot) {
       if (inviter) {
         user.referredBy = code;
         await user.save();
-        inviter.bonusMiningRate = Math.min((inviter.bonusMiningRate || 0) + 0.1, 2.0);
-        await inviter.save();
+        await incrementReferralBonus(code);
       }
     }
     ctx.reply('Welcome to TonPlaygram!', {

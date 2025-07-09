@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import User from '../models/User.js';
+import { incrementReferralBonus } from '../utils/userUtils.js';
 
 const router = Router();
 
@@ -53,8 +54,7 @@ router.post('/claim', async (req, res) => {
   user.referredBy = code;
   await user.save();
 
-  inviter.bonusMiningRate = Math.min((inviter.bonusMiningRate || 0) + 0.1, 2.0);
-  await inviter.save();
+  await incrementReferralBonus(code);
 
   const count = await User.countDocuments({ referredBy: code });
   res.json({ message: 'claimed', total: count });
