@@ -19,7 +19,7 @@ import airdropRoutes from './routes/airdrop.js';
 import checkinRoutes from './routes/checkin.js';
 import socialRoutes from './routes/social.js';
 import broadcastRoutes from './routes/broadcast.js';
-import storeRoutes from './routes/store.js';
+import storeRoutes, { BUNDLES } from './routes/store.js';
 import adsRoutes from './routes/ads.js';
 import User from './models/User.js';
 import GameResult from "./models/GameResult.js";
@@ -191,6 +191,10 @@ const tableSeats = new Map();
 const userSockets = new Map();
 const pendingInvites = new Map();
 
+const BUNDLE_TON_MAP = Object.fromEntries(
+  Object.values(BUNDLES).map((b) => [b.label, b.ton])
+);
+
 function cleanupSeats() {
   const now = Date.now();
   for (const [tableId, players] of tableSeats) {
@@ -263,11 +267,32 @@ app.get('/api/stats', async (req, res) => {
     ]);
     const accounts = await User.countDocuments();
     const active = onlineUsers.size;
+    const users = await User.find({}, { transactions: 1, gifts: 1 }).lean();
+    let giftSends = 0;
+    let bundlesSold = 0;
+    let tonRaised = 0;
+    let currentNfts = 0;
+    for (const u of users) {
+      currentNfts += (u.gifts || []).filter((g) => g.nftTokenId).length;
+      for (const tx of u.transactions || []) {
+        if (tx.type === 'gift') giftSends++;
+        if (tx.type === 'store') {
+          bundlesSold++;
+          if (tx.detail && BUNDLE_TON_MAP[tx.detail]) {
+            tonRaised += BUNDLE_TON_MAP[tx.detail];
+          }
+        }
+      }
+    }
+    const nftsBurned = giftSends - currentNfts;
     res.json({
       minted: totalBalance + totalMined,
       accounts,
       activeUsers: active,
-      nftsCreated: nftCount,
+      nftsCreated: currentNfts,
+      nftsBurned,
+      bundlesSold,
+      tonRaised,
     });
   } catch (err) {
     console.error('Failed to compute stats:', err.message);

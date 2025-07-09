@@ -28,7 +28,7 @@ function daysFromNow(days) {
   return d;
 }
 
-const BUNDLES = {
+export const BUNDLES = {
   newbie: { tpc: 50000, ton: 0.2, label: 'Newbie Pack' },
   rookie: { tpc: 100000, ton: 0.35, label: 'Rookie' },
   starter: { tpc: 200000, ton: 0.6, label: 'Starter' },
