@@ -15,6 +15,15 @@ export default function GiftPopup({ open, onClose, players = [], senderIndex = 0
   const [target, setTarget] = useState(validPlayers[0]?.index || 0);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [infoMsg, setInfoMsg] = useState('');
+  const [pendingGift, setPendingGift] = useState(null);
+
+  const handleInfoClose = () => {
+    setInfoMsg('');
+    if (pendingGift) {
+      onGiftSent && onGiftSent(pendingGift);
+      setPendingGift(null);
+    }
+  };
   useEffect(() => {
     if (validPlayers.length > 0 && !validPlayers.some((p) => p.index === target)) {
       setTarget(validPlayers[0].index);
@@ -60,7 +69,7 @@ export default function GiftPopup({ open, onClose, players = [], senderIndex = 0
         }
       }
       setInfoMsg(`Sent ${selected.name} to ${recipient.name}`);
-      onGiftSent && onGiftSent({ from: senderIndex, to: target, gift: selected });
+      setPendingGift({ from: senderIndex, to: target, gift: selected });
     } catch {
       setInfoMsg('Failed to send gift');
     }
@@ -139,7 +148,7 @@ export default function GiftPopup({ open, onClose, players = [], senderIndex = 0
       />
       <InfoPopup
         open={Boolean(infoMsg)}
-        onClose={() => setInfoMsg('')}
+        onClose={handleInfoClose}
         title="Gift"
         info={infoMsg}
       />
