@@ -43,6 +43,18 @@ const feeColors = [
   '#FFDC00', // Yellow - Marketing
 ];
 
+// PUBLIC WALLET ADDRESSES
+const walletAddresses = [
+  { label: 'Token Contract', address: 'EQDY3qbfGN6IMI5d4MsEoprhuMTz09OkqjyhPKX6DVtzbi6X' },
+  { label: 'Mining', address: 'UQDM5AVaMaeoLEvSwBn3C6MuMZ-Ouf0IQXEA-kbnzCuKLRBJ' },
+  { label: 'Dev', address: 'UQC5D42owfZ9JzYhyDid93QdVCX8D-DhgupB27FMpKNMf0lb' },
+  { label: 'DEX/CEX & Liquidity', address: 'UQDSPHxwE8o9HoEUF89U-U577GPI_5pdESDkUBIQ4RzFWiH1' },
+  { label: 'Development & Treasury', address: 'UQCGMf2Xqdw6uDpPidA0ufcEeXU4Z7i2DwIxT5gkH4AENmaJ' },
+  { label: 'Marketing & Growth', address: 'UQCGfGKrqLQ8vmsVNLMzBtOUZ-S2-83kQGPoDlHUiKLcf1pm' },
+  { label: 'Referral Leaderboard Airdrop', address: 'UQB28dBa2IUtMfeK2k68FLYqCfXV7_Oh6rB1BdiSZKcvrwxB' },
+  { label: 'Advisors & Partners', address: 'UQDZmB800S6JkIpStYXocag08stDFEHgo1lbxHOXP8bfQRto' },
+];
+
 // SIMPLE ROADMAP DATA WITH PROGRESS FLAGS
 const roadmap = [
   {
@@ -479,6 +491,24 @@ export default function TokenomicsPage() {
             {TPC_MASTER_ADDRESS}
           </p>
         </div>
+      </div>
+
+      {/* Wallet Addresses */}
+      <div className="relative bg-surface border border-border rounded-xl p-4 space-y-2 overflow-hidden wide-card">
+        <img
+          src="/assets/SnakeLaddersbackground.png"
+          className="background-behind-board object-cover"
+          alt=""
+        />
+        <h3 className="text-lg font-bold text-center">TPC Wallet Addresses</h3>
+        <ul className="text-xs break-all space-y-1">
+          {walletAddresses.map((w) => (
+            <li key={w.address}>
+              <span className="font-semibold">{w.label}: </span>
+              <span className="text-primary">{w.address}</span>
+            </li>
+          ))}
+        </ul>
       </div>
     </div>
   );
