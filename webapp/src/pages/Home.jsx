@@ -191,6 +191,7 @@ export default function Home() {
           tonRaised: data.tonRaised,
           appClaimed: data.appClaimed,
           externalClaimed: data.externalClaimed,
+          nftValue: data.nftValue,
         });
       } catch (err) {
         console.error('Failed to load stats:', err);
@@ -304,12 +305,9 @@ export default function Home() {
             {holders != null && (
               <p className="text-sm text-subtext">Holders: {holders}</p>
             )}
-            {contractTonBalance != null && (
-              <p className="text-sm text-subtext">
-                Contract TON balance: {formatValue(contractTonBalance, 3)} TON
-              </p>
-            )}
-            <p className="text-xs break-all mt-1 text-primary">{TPC_JETTON_ADDRESS}</p>
+            <p className="text-xs break-all mt-1 text-brand-gold">
+              Token Contract: {TPC_JETTON_ADDRESS}
+            </p>
           </div>
           <div className="space-y-1">
             <h4 className="text-sm font-bold text-center">TPC Wallet Addresses</h4>
@@ -361,7 +359,12 @@ export default function Home() {
             </p>
             <p>Accounts: {stats.accounts}</p>
             <p>Active Users: {stats.activeUsers}</p>
-            <p>NFTs Created: {stats.nftsCreated}</p>
+            <p>
+              NFTs Created: {stats.nftsCreated}
+              {stats.nftValue != null && (
+                <span> ({formatValue(stats.nftValue, 0)} TPC)</span>
+              )}
+            </p>
             <p>NFTs Burned: {stats.nftsBurned}</p>
             <p>Bundles Sold: {stats.bundlesSold}</p>
             <p>

@@ -511,13 +511,8 @@ export default function TokenomicsPage() {
           {holders != null && (
             <p className="text-sm text-subtext">Holders: {holders}</p>
           )}
-          {tonBalance != null && (
-            <p className="text-sm text-subtext">
-              Contract TON balance: {formatValue(tonBalance, 3)} TON
-            </p>
-          )}
-          <p className="text-xs break-all mt-1 text-primary">
-            {TPC_JETTON_ADDRESS}
+          <p className="text-xs break-all mt-1 text-brand-gold">
+            Token Contract: {TPC_JETTON_ADDRESS}
           </p>
         </div>
       </div>
