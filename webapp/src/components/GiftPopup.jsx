@@ -14,7 +14,7 @@ export default function GiftPopup({ open, onClose, players = [], senderIndex = 0
   const [target, setTarget] = useState(players[0]?.index || 0);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [infoMsg, setInfoMsg] = useState('');
-  if (!open) return null;
+  if (!open && !infoMsg) return null;
   const recipient = players.find((p) => p.index === target);
 
   const handleSend = async () => {
@@ -22,7 +22,12 @@ export default function GiftPopup({ open, onClose, players = [], senderIndex = 0
     setConfirmOpen(false);
     try {
       const fromId = await ensureAccountId();
-      await sendGift(fromId, recipient.id, selected.id);
+      const res = await sendGift(fromId, recipient.id, selected.id);
+      if (res?.error) {
+        setInfoMsg(res.error);
+        onClose();
+        return;
+      }
       const sound = giftSounds[selected.id];
       if (sound) {
         const a = new Audio(sound);
