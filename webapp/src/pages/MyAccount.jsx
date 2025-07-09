@@ -8,7 +8,7 @@ import {
   sendBroadcast,
   convertGifts
 } from '../utils/api.js';
-import { GIFTS } from '../utils/gifts.js';
+import { NFT_GIFTS } from '../utils/nftGifts.js';
 import {
   getTelegramId,
   getTelegramFirstName,
@@ -67,6 +67,8 @@ export default function MyAccount() {
   const [showNotifyModal, setShowNotifyModal] = useState(false);
   const [selectedGifts, setSelectedGifts] = useState([]);
   const [converting, setConverting] = useState(false);
+  const [convertAction, setConvertAction] = useState('burn');
+  const [transferAccount, setTransferAccount] = useState('');
 
   useEffect(() => {
     async function load() {
@@ -179,10 +181,16 @@ export default function MyAccount() {
     if (!selectedGifts.length) return;
     setConverting(true);
     try {
-      const res = await convertGifts(profile.accountId, selectedGifts);
+      const res = await convertGifts(
+        profile.accountId,
+        selectedGifts,
+        convertAction,
+        transferAccount.trim() || undefined
+      );
       if (!res?.error) {
         setProfile((p) => ({ ...p, gifts: res.gifts, balance: res.balance }));
         setSelectedGifts([]);
+        setTransferAccount('');
       }
     } catch (err) {
       console.error('convert gifts failed', err);
@@ -305,13 +313,13 @@ export default function MyAccount() {
         </>
       )}
 
-      {/* Gifts card */}
+      {/* NFT Gifts card */}
       <div className="prism-box p-4 mt-4 space-y-2 mx-auto wide-card">
-        <h3 className="font-semibold text-center">Gifts</h3>
+        <h3 className="font-semibold text-center">NFT Gifts</h3>
         <div className="max-h-40 overflow-y-auto space-y-1 text-sm">
           {profile.gifts && profile.gifts.length > 0 ? (
             profile.gifts.map((g) => {
-              const info = GIFTS.find((x) => x.id === g.gift) || {};
+              const info = NFT_GIFTS.find((x) => x.id === g.gift) || {};
               return (
                 <label key={g._id} className="flex items-center space-x-2">
                   <input
@@ -326,23 +334,60 @@ export default function MyAccount() {
                     }}
                   />
                   <span>{info.icon}</span>
-                  <span>{info.name || g.gift}</span>
+                  <span className="flex items-center space-x-1">
+                    <span>{info.name || g.gift}</span>
+                    <a
+                      href={`https://tonscan.org/nft/${g.tokenId || g._id}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-primary underline text-xs"
+                    >
+                      {g.tokenId || g._id}
+                    </a>
+                  </span>
                   <span className="ml-auto">{g.price} TPC</span>
                 </label>
               );
             })
           ) : (
-            <p className="text-center text-subtext">No gifts</p>
+            <p className="text-center text-subtext">No NFT gifts</p>
           )}
         </div>
         {profile.gifts && profile.gifts.length > 0 && (
-          <button
-            onClick={handleConvertGifts}
-            disabled={converting || selectedGifts.length === 0}
-            className="w-full px-3 py-1 bg-primary hover:bg-primary-hover rounded text-black"
-          >
-            {converting ? 'Converting...' : 'Convert Selected'}
-          </button>
+          <>
+            <div className="flex items-center space-x-2 mt-2">
+              <select
+                value={convertAction}
+                onChange={(e) => setConvertAction(e.target.value)}
+                className="border p-1 rounded text-black"
+              >
+                <option value="burn">Burn for TPC</option>
+                <option value="transfer">Transfer</option>
+              </select>
+              {convertAction === 'transfer' && (
+                <input
+                  type="text"
+                  placeholder="Receiver Account"
+                  value={transferAccount}
+                  onChange={(e) => setTransferAccount(e.target.value)}
+                  className="border p-1 rounded text-black flex-grow"
+                />
+              )}
+            </div>
+            <button
+              onClick={handleConvertGifts}
+              disabled={converting || selectedGifts.length === 0}
+              className="w-full px-3 py-1 bg-primary hover:bg-primary-hover rounded text-black mt-2"
+            >
+              {converting
+                ? convertAction === 'burn'
+                  ? 'Converting...'
+                  : 'Transferring...'
+                : convertAction === 'burn'
+                ? 'Convert Selected'
+                : 'Transfer Selected'}
+            </button>
+          </>
         )}
       </div>
 
