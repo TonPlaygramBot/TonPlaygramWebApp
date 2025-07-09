@@ -6,6 +6,7 @@ import { ensureTransactionArray, calculateBalance } from '../utils/userUtils.js'
 import bot from '../bot.js';
 import { sendTransferNotification, sendTPCNotification } from '../utils/notifications.js';
 import GIFTS from '../utils/gifts.js';
+import { mintGiftNFT } from '../utils/nftService.js';
 
 const router = Router();
 
@@ -246,6 +247,14 @@ router.post('/gift', async (req, res) => {
   ensureTransactionArray(receiver);
   if (!Array.isArray(receiver.gifts)) receiver.gifts = [];
 
+  let nftTokenId;
+  try {
+    nftTokenId = await mintGiftNFT(g.id, receiver.walletAddress);
+  } catch (err) {
+    console.error('Failed to mint gift NFT:', err.message);
+    return res.status(500).json({ error: 'failed to mint NFT' });
+  }
+
   sender.balance -= g.price;
 
   const txDate = new Date();
@@ -269,6 +278,7 @@ router.post('/gift', async (req, res) => {
     fromAccount: String(fromAccount),
     fromName: sender.nickname || sender.firstName || '',
     date: txDate,
+    nftTokenId,
   };
   receiver.gifts.push(giftEntry);
 
