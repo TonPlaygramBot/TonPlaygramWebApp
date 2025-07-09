@@ -1,6 +1,10 @@
 import React, { useEffect, useState } from 'react';
 import { PieChart, Pie, Cell, ResponsiveContainer } from 'recharts';
 
+// Token root (jetton contract) on the TON network
+const TPC_JETTON_ADDRESS =
+  'EQDY3qbfGN6IMI5d4MsEoprhuMTz09OkqjyhPKX6DVtzbi6X';
+// Main mining wallet used throughout the app
 const TPC_MASTER_ADDRESS =
   'UQDM5AVaMaeoLEvSwBn3C6MuMZ-Ouf0IQXEA-kbnzCuKLRBJ';
 import { AiOutlineCheck } from 'react-icons/ai';
@@ -101,7 +105,7 @@ const roadmap = [
     phase: 'Q4 2024',
     items: [
       {
-        text: `TPC deployed on TON network (${TPC_MASTER_ADDRESS})`,
+        text: `TPC deployed on TON network (${TPC_JETTON_ADDRESS})`,
         done: true,
       },
       {
@@ -183,6 +187,7 @@ export default function TokenomicsPage() {
   const [supply, setSupply] = useState(null);
   const [holders, setHolders] = useState(null);
   const [tonBalance, setTonBalance] = useState(null);
+  const [walletBalances, setWalletBalances] = useState({});
   const renderLabel = ({ cx, cy, midAngle, innerRadius, outerRadius, percent }) => {
     const radius = innerRadius + (outerRadius - innerRadius) / 2;
     const x = cx + radius * Math.cos(-midAngle * RADIAN);
@@ -198,7 +203,7 @@ export default function TokenomicsPage() {
     async function load() {
       try {
         const res = await fetch(
-          `https://tonapi.io/v2/jettons/${TPC_MASTER_ADDRESS}`
+          `https://tonapi.io/v2/jettons/${TPC_JETTON_ADDRESS}`
         );
         const data = await res.json();
         const decimals = Number(data.metadata?.decimals) || 0;
@@ -209,7 +214,7 @@ export default function TokenomicsPage() {
       }
       try {
         const res = await fetch(
-          `https://tonapi.io/v2/accounts/${TPC_MASTER_ADDRESS}`
+          `https://tonapi.io/v2/accounts/${TPC_JETTON_ADDRESS}`
         );
         const acc = await res.json();
         setTonBalance(Number(acc.balance) / 1e9);
@@ -218,6 +223,29 @@ export default function TokenomicsPage() {
       }
     }
     load();
+  }, []);
+
+  useEffect(() => {
+    async function loadBalances() {
+      const map = {};
+      await Promise.all(
+        walletAddresses.map(async (w) => {
+          try {
+            const res = await fetch(
+              `https://tonapi.io/v2/accounts/${w.address}/jettons/${TPC_JETTON_ADDRESS}`
+            );
+            if (!res.ok) return;
+            const data = await res.json();
+            const decimals = Number(data.jetton?.decimals) || 0;
+            map[w.address] = Number(data.balance) / 10 ** decimals;
+          } catch (err) {
+            console.error('Failed to load balance for', w.address, err);
+          }
+        })
+      );
+      setWalletBalances(map);
+    }
+    loadBalances();
   }, []);
 
   return (
@@ -394,7 +422,7 @@ export default function TokenomicsPage() {
           <ul className="list-disc pl-6 space-y-1">
             <li><b>Core Infrastructure</b></li>
             <li className="ml-4">🔐 Smart-contract-based presale is live — TON sent, TPC <img src="/assets/icons/TPCcoin_1.webp" alt="TPC" className="inline-block w-4 h-4 ml-1" /> auto-delivered to wallet</li>
-            <li className="ml-4">🚀 TPC deployed on TON network at {TPC_MASTER_ADDRESS}</li>
+            <li className="ml-4">🚀 TPC deployed on TON network at {TPC_JETTON_ADDRESS}</li>
             <li className="ml-4">🧾 Wallet transaction history fully functional</li>
             <li className="ml-4">💬 In-chat TPC <img src="/assets/icons/TPCcoin_1.webp" alt="TPC" className="inline-block w-4 h-4 ml-1" /> transfers enabled</li>
             <li><b>Game Features</b></li>
@@ -476,8 +504,9 @@ export default function TokenomicsPage() {
         <img src="/assets/icons/TPCcoin_1.webp" alt="TPC" className="w-16 h-16" />
         <div>
           <p className="text-lg font-bold">Total Balance</p>
-          <p className="text-2xl">
-            {supply == null ? '...' : formatValue(supply, 2)} TPC
+          <p className="text-2xl flex items-center gap-1">
+            {supply == null ? '...' : formatValue(supply, 2)}
+            <img src="/assets/icons/TPCcoin_1.webp" alt="TPC" className="w-4 h-4" />
           </p>
           {holders != null && (
             <p className="text-sm text-subtext">Holders: {holders}</p>
@@ -488,7 +517,7 @@ export default function TokenomicsPage() {
             </p>
           )}
           <p className="text-xs break-all mt-1 text-primary">
-            {TPC_MASTER_ADDRESS}
+            {TPC_JETTON_ADDRESS}
           </p>
         </div>
       </div>
@@ -503,9 +532,17 @@ export default function TokenomicsPage() {
         <h3 className="text-lg font-bold text-center">TPC Wallet Addresses</h3>
         <ul className="text-xs break-all space-y-1">
           {walletAddresses.map((w) => (
-            <li key={w.address}>
-              <span className="font-semibold">{w.label}: </span>
-              <span className="text-primary">{w.address}</span>
+            <li key={w.address} className="flex justify-between items-center gap-2">
+              <div>
+                <span className="font-semibold">{w.label}: </span>
+                <span className="text-primary">{w.address}</span>
+              </div>
+              {walletBalances[w.address] != null && (
+                <span className="flex items-center whitespace-nowrap">
+                  {formatValue(walletBalances[w.address], 2)}{' '}
+                  <img src="/assets/icons/TPCcoin_1.webp" alt="TPC" className="inline-block w-3 h-3 ml-1" />
+                </span>
+              )}
             </li>
           ))}
         </ul>
