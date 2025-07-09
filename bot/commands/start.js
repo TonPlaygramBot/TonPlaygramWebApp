@@ -5,7 +5,7 @@ export default function registerStart(bot) {
   bot.start(async (ctx) => {
     const telegramId = ctx.from.id;
     const info = await fetchTelegramInfo(telegramId);
-    await User.findOneAndUpdate(
+    const user = await User.findOneAndUpdate(
       { telegramId },
       {
         $set: {
@@ -17,6 +17,17 @@ export default function registerStart(bot) {
       },
       { upsert: true, new: true, setDefaultsOnInsert: true }
     );
+
+    const code = ctx.startPayload;
+    if (code && !user.referredBy && user.referralCode !== code) {
+      const inviter = await User.findOne({ referralCode: code });
+      if (inviter) {
+        user.referredBy = code;
+        await user.save();
+        inviter.bonusMiningRate = Math.min((inviter.bonusMiningRate || 0) + 0.1, 2.0);
+        await inviter.save();
+      }
+    }
     ctx.reply('Welcome to TonPlaygram!', {
       reply_markup: {
         inline_keyboard: [
