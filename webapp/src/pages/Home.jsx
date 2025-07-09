@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 
 import GameCard from '../components/GameCard.jsx';
 
@@ -37,10 +37,6 @@ const TPC_JETTON_ADDRESS =
 
 // Public wallet addresses with initial allocations
 const walletAddresses = [
-  {
-    label: 'Token Contract',
-    address: 'EQDY3qbfGN6IMI5d4MsEoprhuMTz09OkqjyhPKX6DVtzbi6X',
-  },
   {
     label: 'Mining',
     address: 'UQDM5AVaMaeoLEvSwBn3C6MuMZ-Ouf0IQXEA-kbnzCuKLRBJ',
@@ -87,6 +83,9 @@ export default function Home() {
   const [contractTonBalance, setContractTonBalance] = useState(null);
   const [walletBalances, setWalletBalances] = useState({});
   const [stats, setStats] = useState(null);
+  const [liveMinted, setLiveMinted] = useState(null);
+  const mintRateRef = useRef(0);
+  const lastStatsRef = useRef(Date.now());
 
   useEffect(() => {
     ping()
@@ -193,11 +192,33 @@ export default function Home() {
           externalClaimed: data.externalClaimed,
           nftValue: data.nftValue,
         });
+
+        const now = Date.now();
+        if (liveMinted != null) {
+          const dt = (now - lastStatsRef.current) / 1000;
+          if (dt > 0) {
+            const rate = (data.minted - liveMinted) / dt;
+            mintRateRef.current = Number.isFinite(rate) && rate > 0 ? rate : 0;
+          }
+        }
+        lastStatsRef.current = now;
+        setLiveMinted(data.minted);
       } catch (err) {
         console.error('Failed to load stats:', err);
       }
     }
     loadStats();
+    const interval = setInterval(loadStats, 30000);
+    return () => clearInterval(interval);
+  }, []);
+
+  useEffect(() => {
+    const id = setInterval(() => {
+      setLiveMinted((prev) =>
+        prev != null ? prev + mintRateRef.current : prev
+      );
+    }, 1000);
+    return () => clearInterval(id);
   }, []);
 
 
@@ -305,17 +326,6 @@ export default function Home() {
             {holders != null && (
               <p className="text-sm text-subtext">Holders: {holders}</p>
             )}
-            <p className="text-xs break-all mt-1">
-              <span className="font-semibold text-brand-gold">Token Contract: </span>
-              <a
-                href={`https://tonscan.org/address/${TPC_JETTON_ADDRESS}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-primary hover:underline"
-              >
-                {TPC_JETTON_ADDRESS}
-              </a>
-            </p>
           </div>
           <div className="space-y-1">
             <h4 className="text-sm font-bold text-center">TPC Wallet Addresses</h4>
@@ -362,7 +372,7 @@ export default function Home() {
           <h3 className="text-lg font-bold text-text text-center">Platform Stats</h3>
           <div className="text-center space-y-1 text-base">
             <p>
-              Total Minted: {formatValue(stats.minted, 0)}{' '}
+              Total Minted: {liveMinted == null ? '...' : formatValue(liveMinted, 0)}{' '}
               <img src="/assets/icons/TPCcoin_1.webp" alt="TPC" className="inline-block w-4 h-4 ml-1" />
             </p>
             <p>Accounts: {stats.accounts}</p>

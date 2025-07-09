@@ -49,7 +49,6 @@ const feeColors = [
 
 // PUBLIC WALLET ADDRESSES
 const walletAddresses = [
-  { label: 'Token Contract', address: 'EQDY3qbfGN6IMI5d4MsEoprhuMTz09OkqjyhPKX6DVtzbi6X' },
   { label: 'Mining', address: 'UQDM5AVaMaeoLEvSwBn3C6MuMZ-Ouf0IQXEA-kbnzCuKLRBJ' },
   { label: 'Dev', address: 'UQC5D42owfZ9JzYhyDid93QdVCX8D-DhgupB27FMpKNMf0lb' },
   { label: 'DEX/CEX & Liquidity', address: 'UQDSPHxwE8o9HoEUF89U-U577GPI_5pdESDkUBIQ4RzFWiH1' },
