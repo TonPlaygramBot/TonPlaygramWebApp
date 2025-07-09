@@ -305,7 +305,7 @@ router.post('/gift', async (req, res) => {
 
 // Convert received gifts to TPC
 router.post('/convert-gifts', async (req, res) => {
-  const { accountId, giftIds } = req.body;
+  const { accountId, giftIds, action = 'burn', toAccount } = req.body;
   if (!accountId || !Array.isArray(giftIds)) {
     return res.status(400).json({ error: 'accountId and giftIds required' });
   }
@@ -322,43 +322,106 @@ router.post('/convert-gifts', async (req, res) => {
   }
 
   const txDate = new Date();
-  for (const g of selected) {
-    // remove pending transaction for this gift
-    const pendingIndex = user.transactions.findIndex(
-      (t) => t.giftId === g._id && t.type === 'gift-receive' && t.status === 'pending'
-    );
-    if (pendingIndex !== -1) {
-      user.transactions.splice(pendingIndex, 1);
+
+  if (action === 'transfer') {
+    if (!toAccount) {
+      return res.status(400).json({ error: 'toAccount required for transfer' });
     }
-    const fee = Math.round(g.price * 0.1);
-    const net = g.price - fee;
-    user.transactions.push({
-      amount: net,
-      type: 'gift-receive',
-      token: 'TPC',
-      status: 'delivered',
-      date: txDate,
-      fromAccount: g.fromAccount,
-      fromName: g.fromName,
-      detail: g.gift,
-      category: String(g.tier),
-      giftId: g._id
-    });
-    user.transactions.push({
-      amount: -fee,
-      type: 'gift-fee',
-      token: 'TPC',
-      status: 'delivered',
-      date: txDate,
-      detail: g.gift
-    });
+    let receiver = await User.findOne({ accountId: toAccount });
+    if (!receiver) receiver = new User({ accountId: toAccount });
+
+    ensureTransactionArray(receiver);
+    if (!Array.isArray(receiver.gifts)) receiver.gifts = [];
+
+    for (const g of selected) {
+      const pendingIndex = user.transactions.findIndex(
+        (t) => t.giftId === g._id && t.type === 'gift-receive' && t.status === 'pending'
+      );
+      if (pendingIndex !== -1) {
+        user.transactions.splice(pendingIndex, 1);
+      }
+
+      const entry = {
+        _id: g._id,
+        gift: g.gift,
+        price: g.price,
+        tier: g.tier,
+        fromAccount: String(user.accountId),
+        fromName: user.nickname || user.firstName || '',
+        date: txDate
+      };
+      receiver.gifts.push(entry);
+
+      receiver.transactions.push({
+        amount: 0,
+        type: 'gift-receive',
+        token: 'TPC',
+        status: 'pending',
+        date: txDate,
+        fromAccount: String(user.accountId),
+        fromName: user.nickname || user.firstName || '',
+        giftId: entry._id,
+        detail: g.gift,
+        category: String(g.tier)
+      });
+
+      user.transactions.push({
+        amount: 0,
+        type: 'gift-transfer',
+        token: 'TPC',
+        status: 'delivered',
+        date: txDate,
+        toAccount: String(toAccount),
+        toName: receiver.nickname || receiver.firstName || '',
+        giftId: entry._id,
+        detail: g.gift,
+        category: String(g.tier)
+      });
+    }
+
+    user.gifts = user.gifts.filter((g) => !giftIds.includes(g._id));
+    await user.save();
+    await receiver.save();
+
+    return res.json({ balance: user.balance, gifts: user.gifts });
+  } else {
+    for (const g of selected) {
+      const pendingIndex = user.transactions.findIndex(
+        (t) => t.giftId === g._id && t.type === 'gift-receive' && t.status === 'pending'
+      );
+      if (pendingIndex !== -1) {
+        user.transactions.splice(pendingIndex, 1);
+      }
+      const fee = Math.round(g.price * 0.1);
+      const net = g.price - fee;
+      user.transactions.push({
+        amount: net,
+        type: 'gift-receive',
+        token: 'TPC',
+        status: 'delivered',
+        date: txDate,
+        fromAccount: g.fromAccount,
+        fromName: g.fromName,
+        detail: g.gift,
+        category: String(g.tier),
+        giftId: g._id
+      });
+      user.transactions.push({
+        amount: -fee,
+        type: 'gift-fee',
+        token: 'TPC',
+        status: 'delivered',
+        date: txDate,
+        detail: g.gift
+      });
+    }
+
+    user.gifts = user.gifts.filter((g) => !giftIds.includes(g._id));
+    user.balance = calculateBalance(user);
+    await user.save();
+
+    return res.json({ balance: user.balance, gifts: user.gifts });
   }
-
-  user.gifts = user.gifts.filter((g) => !giftIds.includes(g._id));
-  user.balance = calculateBalance(user);
-  await user.save();
-
-  res.json({ balance: user.balance, gifts: user.gifts });
 });
 
 // List transactions by account id
