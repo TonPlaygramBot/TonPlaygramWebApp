@@ -1765,6 +1765,7 @@ export default function SnakeAndLadder() {
 
   const players = isMultiplayer
     ? mpPlayers.map((p, i) => ({
+        id: p.id,
         position: p.position,
         photoUrl: p.photoUrl || '/assets/icons/profile.svg',
         type: 'normal',

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { getPlayerId, ensureAccountId } from '../utils/telegram.js';
 import { sendGift } from '../utils/api.js';
@@ -10,12 +10,18 @@ import InfoPopup from './InfoPopup.jsx';
 
 
 export default function GiftPopup({ open, onClose, players = [], senderIndex = 0, onGiftSent }) {
+  const validPlayers = players.filter((p) => p.id);
   const [selected, setSelected] = useState(NFT_GIFTS[0]);
-  const [target, setTarget] = useState(players[0]?.index || 0);
+  const [target, setTarget] = useState(validPlayers[0]?.index || 0);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [infoMsg, setInfoMsg] = useState('');
+  useEffect(() => {
+    if (validPlayers.length > 0 && !validPlayers.some((p) => p.index === target)) {
+      setTarget(validPlayers[0].index);
+    }
+  }, [validPlayers]);
   if (!open && !infoMsg) return null;
-  const recipient = players.find((p) => p.index === target);
+  const recipient = validPlayers.find((p) => p.index === target);
 
   const handleSend = async () => {
     if (!recipient) return;
@@ -74,7 +80,7 @@ export default function GiftPopup({ open, onClose, players = [], senderIndex = 0
         >
           <p className="text-center font-semibold mb-2">Send Gift</p>
           <div className="space-y-1 max-h-32 overflow-y-auto">
-            {players.map((p) => (
+            {validPlayers.map((p) => (
               <button
                 key={p.index}
                 onClick={() => setTarget(p.index)}
