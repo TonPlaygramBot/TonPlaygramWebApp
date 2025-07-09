@@ -9,6 +9,7 @@ import DailyCheckIn from '../components/DailyCheckIn.jsx';
 
 import TasksCard from '../components/TasksCard.jsx';
 import StoreAd from '../components/StoreAd.jsx';
+import NftGiftCard from '../components/NftGiftCard.jsx';
 
 import {
   FaUser,
@@ -159,6 +160,8 @@ export default function Home() {
               </div>
             </div>
           </div>
+
+          <NftGiftCard />
         </div>
 
       </div>
