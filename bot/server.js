@@ -272,6 +272,8 @@ app.get('/api/stats', async (req, res) => {
     let bundlesSold = 0;
     let tonRaised = 0;
     let currentNfts = 0;
+    let appClaimed = 0;
+    let externalClaimed = 0;
     for (const u of users) {
       currentNfts += (u.gifts || []).filter((g) => g.nftTokenId).length;
       for (const tx of u.transactions || []) {
@@ -282,6 +284,8 @@ app.get('/api/stats', async (req, res) => {
             tonRaised += BUNDLE_TON_MAP[tx.detail];
           }
         }
+        if (tx.type === 'claim') appClaimed += Math.abs(tx.amount || 0);
+        if (tx.type === 'withdraw') externalClaimed += Math.abs(tx.amount || 0);
       }
     }
     const nftsBurned = giftSends - currentNfts;
@@ -293,6 +297,8 @@ app.get('/api/stats', async (req, res) => {
       nftsBurned,
       bundlesSold,
       tonRaised,
+      appClaimed,
+      externalClaimed,
     });
   } catch (err) {
     console.error('Failed to compute stats:', err.message);
