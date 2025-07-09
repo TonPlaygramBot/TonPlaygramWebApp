@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { createPortal } from 'react-dom';
 import { getPlayerId, ensureAccountId } from '../utils/telegram.js';
 import { sendGift } from '../utils/api.js';
-import { GIFTS } from '../utils/gifts.js';
+import { NFT_GIFTS } from '../utils/nftGifts.js';
 import { giftSounds } from '../utils/giftSounds.js';
 import { getGameVolume } from '../utils/sound.js';
 import ConfirmPopup from './ConfirmPopup.jsx';
@@ -10,7 +10,7 @@ import InfoPopup from './InfoPopup.jsx';
 
 
 export default function GiftPopup({ open, onClose, players = [], senderIndex = 0, onGiftSent }) {
-  const [selected, setSelected] = useState(GIFTS[0]);
+  const [selected, setSelected] = useState(NFT_GIFTS[0]);
   const [target, setTarget] = useState(players[0]?.index || 0);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [infoMsg, setInfoMsg] = useState('');
@@ -86,7 +86,7 @@ export default function GiftPopup({ open, onClose, players = [], senderIndex = 0
             <div key={tier} className="space-y-1">
               <p className="text-sm font-bold">Tier {tier}</p>
               <div className="grid grid-cols-2 gap-1">
-                {GIFTS.filter((g) => g.tier === tier).map((g) => (
+                {NFT_GIFTS.filter((g) => g.tier === tier).map((g) => (
                   <button
                     key={g.id}
                     onClick={() => setSelected(g)}

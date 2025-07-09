@@ -8,7 +8,7 @@ import {
   sendBroadcast,
   convertGifts
 } from '../utils/api.js';
-import { GIFTS } from '../utils/gifts.js';
+import { NFT_GIFTS } from '../utils/nftGifts.js';
 import {
   getTelegramId,
   getTelegramFirstName,
@@ -313,13 +313,13 @@ export default function MyAccount() {
         </>
       )}
 
-      {/* Gifts card */}
+      {/* NFT Gifts card */}
       <div className="prism-box p-4 mt-4 space-y-2 mx-auto wide-card">
-        <h3 className="font-semibold text-center">Gifts</h3>
+        <h3 className="font-semibold text-center">NFT Gifts</h3>
         <div className="max-h-40 overflow-y-auto space-y-1 text-sm">
           {profile.gifts && profile.gifts.length > 0 ? (
             profile.gifts.map((g) => {
-              const info = GIFTS.find((x) => x.id === g.gift) || {};
+              const info = NFT_GIFTS.find((x) => x.id === g.gift) || {};
               return (
                 <label key={g._id} className="flex items-center space-x-2">
                   <input
@@ -350,7 +350,7 @@ export default function MyAccount() {
               );
             })
           ) : (
-            <p className="text-center text-subtext">No gifts</p>
+            <p className="text-center text-subtext">No NFT gifts</p>
           )}
         </div>
         {profile.gifts && profile.gifts.length > 0 && (

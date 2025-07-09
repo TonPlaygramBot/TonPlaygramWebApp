@@ -5,7 +5,8 @@ import authenticate from '../middleware/auth.js';
 import { ensureTransactionArray, calculateBalance } from '../utils/userUtils.js';
 import bot from '../bot.js';
 import { sendTransferNotification, sendTPCNotification } from '../utils/notifications.js';
-import GIFTS from '../utils/gifts.js';
+import NFT_GIFTS from '../utils/nftGifts.js';
+
 import { mintGiftNFT } from '../utils/nftService.js';
 
 const router = Router();
@@ -232,7 +233,7 @@ router.post('/gift', async (req, res) => {
       .json({ error: 'fromAccount, toAccount and gift required' });
   }
 
-  const g = GIFTS.find((x) => x.id === gift);
+  const g = NFT_GIFTS.find((x) => x.id === gift);
   if (!g) return res.status(400).json({ error: 'invalid gift' });
 
   const sender = await User.findOne({ accountId: fromAccount });

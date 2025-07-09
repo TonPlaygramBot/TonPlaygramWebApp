@@ -8,7 +8,7 @@ import { getProfileByAccount } from '../utils/api.js';
 
 import { getAvatarUrl } from '../utils/avatarUtils.js';
 
-import { GIFTS } from '../utils/gifts.js';
+import { NFT_GIFTS } from '../utils/nftGifts.js';
 
 export default function TransactionDetailsPopup({ tx, onClose }) {
 
@@ -76,7 +76,7 @@ export default function TransactionDetailsPopup({ tx, onClose }) {
 
   const gift = (isGiftSend || isGiftReceive) && tx.detail
 
-    ? GIFTS.find((g) => g.id === tx.detail)
+    ? NFT_GIFTS.find((g) => g.id === tx.detail)
 
     : null;
 
