@@ -1,4 +1,4 @@
-export const GIFTS = [
+export const NFT_GIFTS = [
   // Tier 1 gifts
   { id: 'fireworks', price: 100, tier: 1 },
   { id: 'laugh_bomb', price: 150, tier: 1 },
@@ -16,4 +16,4 @@ export const GIFTS = [
   { id: 'royal_crown', price: 50000, tier: 3 },
   { id: 'alien_visit', price: 100000, tier: 3 },
 ];
-export default GIFTS;
+export default NFT_GIFTS;
