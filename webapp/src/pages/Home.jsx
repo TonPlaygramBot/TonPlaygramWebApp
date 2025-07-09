@@ -357,6 +357,12 @@ export default function Home() {
             <p>Accounts: {stats.accounts}</p>
             <p>Active Users: {stats.activeUsers}</p>
             <p>NFTs Created: {stats.nftsCreated}</p>
+            <p>NFTs Burned: {stats.nftsBurned}</p>
+            <p>Bundles Sold: {stats.bundlesSold}</p>
+            <p>
+              Total Raised: {formatValue(stats.tonRaised, 2)}{' '}
+              <img src="/assets/icons/TON.webp" alt="TON" className="inline-block w-4 h-4 ml-1" />
+            </p>
           </div>
         </div>
       )}
