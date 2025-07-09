@@ -4,11 +4,13 @@ import { getTelegramId } from '../utils/telegram.js';
 import { NFT_GIFTS } from '../utils/nftGifts.js';
 import GiftIcon from './GiftIcon.jsx';
 import GiftShopPopup from './GiftShopPopup.jsx';
+import InfoPopup from './InfoPopup.jsx';
 
 export default function NftGiftCard({ accountId: propAccountId }) {
   const [accountId, setAccountId] = useState(propAccountId || '');
   const [gifts, setGifts] = useState([]);
   const [open, setOpen] = useState(false);
+  const [preview, setPreview] = useState(null);
 
   useEffect(() => {
     async function ensureAccount() {
@@ -51,7 +53,8 @@ export default function NftGiftCard({ accountId: propAccountId }) {
             return (
               <div
                 key={g._id}
-                className="flex-shrink-0 flex flex-col items-center space-y-1 border border-border rounded p-2 min-w-[72px]"
+                onClick={() => setPreview(info)}
+                className="flex-shrink-0 flex flex-col items-center space-y-1 border border-border rounded p-2 min-w-[72px] cursor-pointer"
               >
                 <GiftIcon icon={info.icon} className="w-12 h-12" />
                 <span className="text-center">{info.name || g.gift}</span>
@@ -70,6 +73,18 @@ export default function NftGiftCard({ accountId: propAccountId }) {
         Buy / Send Gift
       </button>
       <GiftShopPopup open={open} onClose={() => setOpen(false)} accountId={accountId} />
+      <InfoPopup
+        open={!!preview}
+        onClose={() => setPreview(null)}
+        title={preview?.name || 'NFT Gift'}
+      >
+        {preview && (
+          <>
+            <GiftIcon icon={preview.icon} className="w-24 h-24 mx-auto" />
+            <p className="text-center text-sm mt-2">{preview.price} TPC</p>
+          </>
+        )}
+      </InfoPopup>
     </div>
   );
 }
