@@ -30,6 +30,7 @@ const giftSchema = new mongoose.Schema(
     tier: Number,
     fromAccount: String,
     fromName: String,
+    nftTokenId: String,
     date: { type: Date, default: Date.now }
   },
   { _id: false }

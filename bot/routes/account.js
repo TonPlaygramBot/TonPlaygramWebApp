@@ -268,6 +268,7 @@ router.post('/gift', async (req, res) => {
     tier: g.tier,
     fromAccount: String(fromAccount),
     fromName: sender.nickname || sender.firstName || '',
+    nftTokenId: uuidv4(),
     date: txDate,
   };
   receiver.gifts.push(giftEntry);
