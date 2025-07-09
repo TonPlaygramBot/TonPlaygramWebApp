@@ -48,7 +48,7 @@ async function main() {
 
   console.log('Jetton minter deployed at', minter.address.toString());
 
-  const fullSupply = 10000000000n * 1000000000n;
+  const fullSupply = 1000000000n * 1000000000n;
   await minter.sendMint(client.provider(minter.address), sender, ADMIN, fullSupply, toNano('0.01'), toNano('0.02'));
   console.log('Minted supply to admin');
 }
