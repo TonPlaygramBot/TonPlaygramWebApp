@@ -432,6 +432,9 @@ app.post('/api/snake/invite', async (req, res) => {
         console.log(
           `Found Telegram ID ${toTelegramId} using Telegram ID ${toAccount}`,
         );
+      } else {
+        // Fallback to using the numeric ID directly when no user record exists
+        toTelegramId = Number(toAccount);
       }
     }
   }
@@ -591,7 +594,12 @@ io.on('connection', (socket) => {
       if (!user) {
         user = await User.findOne({ telegramId: Number(toId) });
       }
-      if (user) toTelegramId = user.telegramId;
+      if (user) {
+        toTelegramId = user.telegramId;
+      } else if (/^\d+$/.test(String(toId))) {
+        // Use the numeric ID directly when the user is unknown
+        toTelegramId = Number(toId);
+      }
     }
 
     let targets = userSockets.get(String(toId));
@@ -677,6 +685,10 @@ io.on('connection', (socket) => {
           }
           if (user) {
             tgId = user.telegramId;
+            telegramIds[i] = tgId;
+          } else if (/^\d+$/.test(String(toId))) {
+            // Fall back to the numeric ID directly when no record exists
+            tgId = Number(toId);
             telegramIds[i] = tgId;
           }
         }
