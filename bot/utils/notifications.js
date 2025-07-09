@@ -137,10 +137,30 @@ export async function sendTransferNotification(bot, toId, fromId, amount, note) 
 }
 
 export async function sendGiftNotification(bot, toId, gift, senderName, date) {
-  const image = await renderGiftImage(gift.icon);
+  let buffer;
   try {
-    await bot.telegram.sendPhoto(String(toId), { source: image });
-  } catch {}
+    buffer = await renderGiftImage(gift.icon);
+  } catch (err) {
+    console.error('Failed to render gift image:', err.message);
+  }
+
+  if (buffer) {
+    try {
+      await bot.telegram.sendPhoto(String(toId), { source: buffer });
+    } catch (err) {
+      console.error('Failed to send rendered gift image:', err.message);
+    }
+  } else if (typeof gift.icon === 'string' && gift.icon.startsWith('/')) {
+    const filePath = path.join(
+      __dirname,
+      `../../webapp/public${gift.icon}`,
+    );
+    try {
+      await bot.telegram.sendPhoto(String(toId), { source: filePath });
+    } catch (err) {
+      console.error('Failed to send gift icon:', err.message);
+    }
+  }
 
   const caption = `\u{1FA99} You received a ${gift.name} worth ${gift.price} TPC from ${senderName} on ${date.toLocaleString()}`;
   await bot.telegram.sendMessage(String(toId), caption);
