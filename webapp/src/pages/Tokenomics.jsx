@@ -534,8 +534,15 @@ export default function TokenomicsPage() {
           {walletAddresses.map((w) => (
             <li key={w.address} className="flex justify-between items-center gap-2">
               <div>
-                <span className="font-semibold">{w.label}: </span>
-                <span className="text-primary">{w.address}</span>
+                <span className="font-semibold text-brand-gold">{w.label}: </span>
+                <a
+                  href={`https://tonscan.org/address/${w.address}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-primary hover:underline"
+                >
+                  {w.address}
+                </a>
               </div>
               {walletBalances[w.address] != null && (
                 <span className="flex items-center whitespace-nowrap">
