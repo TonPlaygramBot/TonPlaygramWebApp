@@ -21,7 +21,7 @@ import { useTonAddress, useTonConnectUI } from '@tonconnect/ui-react';
 
 import { Link } from 'react-router-dom';
 
-import { ping } from '../utils/api.js';
+import { ping, getAppStats, getOnlineCount } from '../utils/api.js';
 
 import { getAvatarUrl, saveAvatar, loadAvatar } from '../utils/avatarUtils.js';
 
@@ -86,6 +86,7 @@ export default function Home() {
   const [holders, setHolders] = useState(null);
   const [contractTonBalance, setContractTonBalance] = useState(null);
   const [walletBalances, setWalletBalances] = useState({});
+  const [stats, setStats] = useState(null);
 
   useEffect(() => {
     ping()
@@ -173,6 +174,24 @@ export default function Home() {
       setWalletBalances(map);
     }
     loadBalances();
+  }, []);
+
+  useEffect(() => {
+    async function loadStats() {
+      try {
+        const data = await getAppStats();
+        const online = await getOnlineCount();
+        setStats({
+          minted: data.minted,
+          accounts: data.accounts,
+          activeUsers: online.count || data.activeUsers || 0,
+          nftsCreated: data.nftsCreated,
+        });
+      } catch (err) {
+        console.error('Failed to load stats:', err);
+      }
+    }
+    loadStats();
   }, []);
 
 
@@ -270,13 +289,7 @@ export default function Home() {
             alt=""
           />
           <h3 className="text-lg font-bold text-text text-center">Tokenomics &amp; Roadmap</h3>
-          <div className="space-y-1 text-sm">
-            <h4 className="font-semibold text-accent text-center">2024–2027</h4>
-            <ul className="list-disc pl-5">
-              <li>Emission of 400M TPC with daily cap of 15–20M tokens</li>
-              <li>Reward pool depleted; ecosystem runs on in-game demand</li>
-            </ul>
-          </div>
+          {/* Removed outdated emission schedule */}
           <div className="space-y-1">
             <p className="text-lg font-bold">Total Balance</p>
             <p className="text-2xl flex items-center gap-1">
@@ -327,6 +340,26 @@ export default function Home() {
           </Link>
         </div>
       </div>
+
+      {stats && (
+        <div className="relative bg-surface border border-border rounded-xl p-4 space-y-2 overflow-hidden wide-card">
+          <img
+            src="/assets/SnakeLaddersbackground.png"
+            className="background-behind-board object-cover"
+            alt=""
+          />
+          <h3 className="text-lg font-bold text-text text-center">Platform Stats</h3>
+          <div className="text-center space-y-1 text-sm">
+            <p>
+              Total Minted: {formatValue(stats.minted, 0)}{' '}
+              <img src="/assets/icons/TPCcoin_1.webp" alt="TPC" className="inline-block w-4 h-4 ml-1" />
+            </p>
+            <p>Accounts: {stats.accounts}</p>
+            <p>Active Users: {stats.activeUsers}</p>
+            <p>NFTs Created: {stats.nftsCreated}</p>
+          </div>
+        </div>
+      )}
 
       <p className="text-center text-xs text-subtext">Status: {status}</p>
 

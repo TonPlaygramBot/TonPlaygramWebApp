@@ -230,6 +230,51 @@ app.get('/api/online/list', (req, res) => {
   res.json({ users: Array.from(onlineUsers.keys()) });
 });
 
+app.get('/api/stats', async (req, res) => {
+  try {
+    const [{
+      totalBalance = 0,
+      totalMined = 0,
+      nftCount = 0,
+    } = {}] = await User.aggregate([
+      {
+        $project: {
+          balance: 1,
+          minedTPC: 1,
+          nftCount: {
+            $size: {
+              $filter: {
+                input: { $ifNull: ['$gifts', []] },
+                as: 'g',
+                cond: { $ifNull: ['$$g.nftTokenId', false] },
+              },
+            },
+          },
+        },
+      },
+      {
+        $group: {
+          _id: null,
+          totalBalance: { $sum: '$balance' },
+          totalMined: { $sum: '$minedTPC' },
+          nftCount: { $sum: '$nftCount' },
+        },
+      },
+    ]);
+    const accounts = await User.countDocuments();
+    const active = onlineUsers.size;
+    res.json({
+      minted: totalBalance + totalMined,
+      accounts,
+      activeUsers: active,
+      nftsCreated: nftCount,
+    });
+  } catch (err) {
+    console.error('Failed to compute stats:', err.message);
+    res.status(500).json({ error: 'failed to compute stats' });
+  }
+});
+
 app.post('/api/snake/table/seat', (req, res) => {
   const { tableId, playerId, telegramId, name } = req.body || {};
   const pid = playerId || telegramId;
