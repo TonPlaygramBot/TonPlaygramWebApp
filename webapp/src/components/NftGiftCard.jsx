@@ -37,14 +37,14 @@ export default function NftGiftCard({ accountId: propAccountId }) {
   }, [accountId, open]);
 
   return (
-    <div className="relative bg-surface border border-border rounded-xl p-6 space-y-3 overflow-hidden wide-card">
+    <div className="relative prism-box p-6 space-y-3 flex flex-col items-center text-center overflow-hidden min-h-40 wide-card mx-auto">
       <img
         src="/assets/SnakeLaddersbackground.png"
         className="background-behind-board object-cover"
         alt=""
       />
       <h3 className="text-lg font-bold text-center">NFT Gifts</h3>
-      <div className="flex space-x-2 overflow-x-auto pb-2 text-sm">
+      <div className="flex space-x-2 overflow-x-auto pb-2 text-sm w-full flex-grow justify-center">
         {gifts.length ? (
           gifts.map((g) => {
             const info = NFT_GIFTS.find((x) => x.id === g.gift) || {};
@@ -53,7 +53,7 @@ export default function NftGiftCard({ accountId: propAccountId }) {
                 key={g._id}
                 className="flex-shrink-0 flex flex-col items-center space-y-1 border border-border rounded p-2 min-w-[72px]"
               >
-                <GiftIcon icon={info.icon} className="text-xl" />
+                <GiftIcon icon={info.icon} className="w-12 h-12" />
                 <span className="text-center">{info.name || g.gift}</span>
                 <span className="text-xs">{g.price} TPC</span>
               </div>
@@ -65,7 +65,7 @@ export default function NftGiftCard({ accountId: propAccountId }) {
       </div>
       <button
         onClick={() => setOpen(true)}
-        className="mx-auto block px-3 py-1 bg-primary hover:bg-primary-hover rounded text-white-shadow"
+        className="mt-auto px-3 py-1 bg-primary hover:bg-primary-hover rounded text-white-shadow w-full max-w-xs"
       >
         Buy / Send Gift
       </button>
