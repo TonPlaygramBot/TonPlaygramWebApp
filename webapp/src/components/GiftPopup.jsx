@@ -32,7 +32,6 @@ export default function GiftPopup({ open, onClose, players = [], senderIndex = 0
       if (res?.error) {
         setInfoMsg(res.error);
         onClose();
-        setTimeout(() => setInfoMsg(""), 1000);
         return;
       }
       const sound = giftSounds[selected.id];
@@ -61,19 +60,11 @@ export default function GiftPopup({ open, onClose, players = [], senderIndex = 0
         }
       }
       setInfoMsg(`Sent ${selected.name} to ${recipient.name}`);
-      onClose();
-      setTimeout(() => {
-        setInfoMsg("");
-        onGiftSent &&
-          onGiftSent({ from: senderIndex, to: target, gift: selected });
-      }, 1000);
-      return;
+      onGiftSent && onGiftSent({ from: senderIndex, to: target, gift: selected });
     } catch {
-      setInfoMsg("Failed to send gift");
-      onClose();
-      setTimeout(() => setInfoMsg(""), 1000);
-      return;
+      setInfoMsg('Failed to send gift');
     }
+    onClose();
   };
 
   const tiers = [1, 2, 3];
