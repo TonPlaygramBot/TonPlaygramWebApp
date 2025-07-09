@@ -11,6 +11,7 @@ import { getTelegramId } from '../utils/telegram.js';
 import ConfirmPopup from '../components/ConfirmPopup.jsx';
 import InfoPopup from '../components/InfoPopup.jsx';
 import TransactionDetailsPopup from '../components/TransactionDetailsPopup.jsx';
+import NftGiftCard from '../components/NftGiftCard.jsx';
 import { AiOutlineCalendar } from 'react-icons/ai';
 import useTelegramBackButton from '../hooks/useTelegramBackButton.js';
 
@@ -354,6 +355,8 @@ export default function Wallet() {
           </div>
         )}
       </div>
+
+      <NftGiftCard accountId={accountId} />
 
       {DEV_ACCOUNTS.includes(accountId) && (
         <div className="prism-box p-6 space-y-3 text-center mt-4 flex flex-col items-center w-80 mx-auto">
