@@ -32,7 +32,7 @@ export default function GiftShopPopup({ open, onClose, accountId }) {
         onClick={onClose}
       >
         <div
-          className="bg-surface border border-border rounded p-4 space-y-2 w-72"
+          className="bg-surface border border-border rounded p-4 space-y-2 w-80"
           onClick={(e) => e.stopPropagation()}
         >
           <p className="text-center font-semibold mb-2">Buy or Send Gift</p>
