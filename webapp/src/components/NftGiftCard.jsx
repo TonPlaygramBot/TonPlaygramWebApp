@@ -83,16 +83,16 @@ export default function NftGiftCard({ accountId: propAccountId }) {
         widthClass="w-[28rem]"
       >
         {preview && (
-          <>
-            <GiftIcon icon={preview.info.icon} className="w-24 h-24 mx-auto" />
+          <div className="flex flex-col items-center justify-between min-h-60">
+            <GiftIcon icon={preview.info.icon} className="w-24 h-24" />
             <p className="text-center text-sm mt-2">{preview.info.price} TPC</p>
             <button
               onClick={() => setConfirmConvert(true)}
-              className="mt-2 px-4 py-2 bg-primary hover:bg-primary-hover rounded text-white-shadow w-full max-w-xs text-lg"
+              className="w-full max-w-xs mt-4 px-4 py-2 bg-primary hover:bg-primary-hover rounded text-white-shadow text-lg"
             >
               Convert
             </button>
-          </>
+          </div>
         )}
       </InfoPopup>
       <ConfirmPopup
