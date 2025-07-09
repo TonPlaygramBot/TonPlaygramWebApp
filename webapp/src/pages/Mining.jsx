@@ -125,6 +125,10 @@ export default function Mining() {
 
   return (
     <>
+    <DailyCheckIn />
+    <SpinGame />
+    <MiningCard />
+
       <div className="relative bg-surface border border-border rounded-xl p-4 space-y-4 text-text overflow-hidden wide-card">
       <img
         
@@ -189,10 +193,6 @@ export default function Mining() {
         <UserSearchBar />
       </section>
     </div>
-
-    <DailyCheckIn />
-    <SpinGame />
-    <MiningCard />
 
     <PlayerInvitePopup
       open={!!inviteTarget}

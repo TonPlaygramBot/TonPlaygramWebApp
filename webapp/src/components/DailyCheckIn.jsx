@@ -142,12 +142,11 @@ export default function DailyCheckIn() {
 
 
       {reward !== null && (
-
         <RewardPopup
           reward={reward}
           onClose={() => setReward(null)}
+          disableEffects
         />
-
       )}
 
       <h3 className="text-lg font-bold text-text">Daily Streaks</h3>
@@ -159,5 +158,4 @@ export default function DailyCheckIn() {
     </div>
 
   );
-
 }

@@ -9,15 +9,12 @@ export interface SpinWheelHandle {
 }
 
 interface SpinWheelProps {
-
   onFinish: (reward: Segment) => void;
-
   spinning: boolean;
-
   setSpinning: (b: boolean) => void;
-
   disabled?: boolean;
   showButton?: boolean;
+  disableSound?: boolean;
 }
 
 // Slot machine style settings
@@ -38,6 +35,7 @@ export default forwardRef<SpinWheelHandle, SpinWheelProps>(function SpinWheel(
     setSpinning,
     disabled,
     showButton = true,
+    disableSound = false,
   }: SpinWheelProps,
   ref
 ) {
@@ -64,6 +62,7 @@ export default forwardRef<SpinWheelHandle, SpinWheelProps>(function SpinWheel(
   const extraBonusSoundRef1 = useRef<HTMLAudioElement | null>(null);
 
   useEffect(() => {
+    if (disableSound) return;
     spinSoundRef.current = new Audio('/assets/sounds/spinning.mp3');
     spinSoundRef.current.preload = 'auto';
     spinSoundRef.current.loop = true;
@@ -83,9 +82,10 @@ export default forwardRef<SpinWheelHandle, SpinWheelProps>(function SpinWheel(
       bonusSoundRef.current?.pause();
       extraBonusSoundRef1.current?.pause();
     };
-  }, []);
+  }, [disableSound]);
 
   useEffect(() => {
+    if (disableSound) return;
     const handler = () => {
       if (spinSoundRef.current) spinSoundRef.current.volume = getGameVolume();
       if (successSoundRef.current) successSoundRef.current.volume = getGameVolume();
@@ -94,7 +94,7 @@ export default forwardRef<SpinWheelHandle, SpinWheelProps>(function SpinWheel(
     };
     window.addEventListener('gameVolumeChanged', handler);
     return () => window.removeEventListener('gameVolumeChanged', handler);
-  }, []);
+  }, [disableSound]);
 
   const items = useMemo(
     () =>
@@ -108,7 +108,7 @@ export default forwardRef<SpinWheelHandle, SpinWheelProps>(function SpinWheel(
   const spin = () => {
 
     if (spinning || disabled) return;
-    if (spinSoundRef.current) {
+    if (!disableSound && spinSoundRef.current) {
       spinSoundRef.current.currentTime = 0;
       spinSoundRef.current.play().catch(() => {});
     }
@@ -129,21 +129,23 @@ export default forwardRef<SpinWheelHandle, SpinWheelProps>(function SpinWheel(
     setWinnerIndex(null);
 
     setTimeout(() => {
-      spinSoundRef.current?.pause();
-      if (spinSoundRef.current) spinSoundRef.current.currentTime = 0;
+      if (!disableSound) {
+        spinSoundRef.current?.pause();
+        if (spinSoundRef.current) spinSoundRef.current.currentTime = 0;
+      }
 
       setSpinning(false);
       setWinnerIndex(finalIndex);
 
-      if (reward === 'BONUS_X2') {
-        bonusSoundRef.current?.play().catch(() => {});
-        extraBonusSoundRef1.current?.play().catch(() => {});
-        if (successSoundRef.current) {
-          successSoundRef.current.currentTime = 0;
-          successSoundRef.current.play().catch(() => {});
-        }
-      } else {
-        if (successSoundRef.current) {
+      if (!disableSound) {
+        if (reward === 'BONUS_X2') {
+          bonusSoundRef.current?.play().catch(() => {});
+          extraBonusSoundRef1.current?.play().catch(() => {});
+          if (successSoundRef.current) {
+            successSoundRef.current.currentTime = 0;
+            successSoundRef.current.play().catch(() => {});
+          }
+        } else if (successSoundRef.current) {
           successSoundRef.current.currentTime = 0;
           successSoundRef.current.play().catch(() => {});
         }
