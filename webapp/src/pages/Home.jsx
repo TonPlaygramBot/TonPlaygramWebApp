@@ -290,9 +290,9 @@ export default function Home() {
           />
           <h3 className="text-lg font-bold text-text text-center">Tokenomics &amp; Roadmap</h3>
           {/* Removed outdated emission schedule */}
-          <div className="space-y-1">
+          <div className="space-y-1 text-center">
             <p className="text-lg font-bold">Total Balance</p>
-            <p className="text-2xl flex items-center gap-1">
+            <p className="text-2xl flex items-center gap-1 justify-center">
               {supply == null ? '...' : formatValue(supply, 2)}
               <img src="/assets/icons/TPCcoin_1.webp" alt="TPC" className="w-4 h-4" />
             </p>
@@ -363,6 +363,8 @@ export default function Home() {
               Total Raised: {formatValue(stats.tonRaised, 2)}{' '}
               <img src="/assets/icons/TON.webp" alt="TON" className="inline-block w-4 h-4 ml-1" />
             </p>
+            <p>TPC App Claimed: {formatValue(stats.appClaimed, 0)}</p>
+            <p>TPC External Wallet Claimed: {formatValue(stats.externalClaimed, 0)}</p>
           </div>
         </div>
       )}
