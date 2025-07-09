@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { PieChart, Pie, Cell, ResponsiveContainer } from 'recharts';
 
 const TPC_MASTER_ADDRESS =
-  'EQDY3qbfGN6IMI5d4MsEoprhuMTz09OkqjyhPKX6DVtzbi6X';
+  'UQDM5AVaMaeoLEvSwBn3C6MuMZ-Ouf0IQXEA-kbnzCuKLRBJ';
 import { AiOutlineCheck } from 'react-icons/ai';
 
 // TOKEN ALLOCATION DATA
