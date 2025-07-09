@@ -4,6 +4,9 @@ import useTelegramBackButton from '../hooks/useTelegramBackButton.js';
 import LoginOptions from '../components/LoginOptions.jsx';
 import { getTelegramId, getTelegramPhotoUrl, getPlayerId } from '../utils/telegram.js';
 import { FaCircle } from 'react-icons/fa';
+import DailyCheckIn from '../components/DailyCheckIn.jsx';
+import SpinGame from '../components/SpinGame.jsx';
+import MiningCard from '../components/MiningCard.tsx';
 import {
   getLeaderboard,
   getReferralInfo,
@@ -21,7 +24,7 @@ import { socket } from '../utils/socket.js';
 import InvitePopup from '../components/InvitePopup.jsx';
 import PlayerInvitePopup from '../components/PlayerInvitePopup.jsx';
 
-export default function Friends() {
+export default function Mining() {
   useTelegramBackButton();
   let telegramId;
   try {
@@ -129,7 +132,7 @@ export default function Friends() {
         className="background-behind-board object-cover"
         alt=""
       />
-        <h2 className="text-xl font-bold text-center">Friends</h2>
+        <h2 className="text-xl font-bold text-center">Mining</h2>
 
       {friendRequests.length > 0 && (
         <section className="space-y-1">
@@ -187,125 +190,9 @@ export default function Friends() {
       </section>
     </div>
 
-    <section id="leaderboard" className="relative bg-surface border border-border rounded-xl p-4 space-y-2 overflow-hidden wide-card mt-4">
-      <img
-        src="/assets/SnakeLaddersbackground.png"
-        className="background-behind-board object-cover"
-        alt=""
-      />
-      <h3 className="text-lg font-semibold text-center">Leaderboard</h3>
-      <div className="flex items-center justify-between">
-        <span className="flex items-center space-x-2">
-          <select
-            value={mode}
-            onChange={(e) => {
-              setMode(e.target.value);
-              setSelected([]);
-            }}
-            className="bg-surface border border-border rounded text-sm"
-          >
-            <option value="1v1">1v1</option>
-            <option value="group">Group</option>
-          </select>
-          {mode === 'group' && (
-            <button
-              onClick={() => setGroupPopup(true)}
-              disabled={selected.length === 0}
-              className="px-2 py-1 bg-primary hover:bg-primary-hover rounded text-sm text-white-shadow disabled:opacity-50"
-            >
-              Invite {selected.length}/3
-            </button>
-          )}
-          <FaCircle className={onlineCount > 0 ? 'text-green-500' : 'text-red-500'} size={10} />
-          <span className="ml-1">{onlineCount}</span>
-        </span>
-      </div>
-      <div className="max-h-[80rem] overflow-y-auto border border-border rounded">
-        <table className="w-full text-sm">
-          <thead className="sticky top-0 bg-surface">
-            <tr className="border-b border-border text-left">
-              <th className="p-2">#</th>
-              <th className="p-2 w-16"></th>
-              <th className="p-2">User</th>
-              <th className="p-2 text-right">TPC</th>
-            </tr>
-          </thead>
-          <tbody>
-            {leaderboard.map((u, idx) => (
-              <tr
-                key={u.accountId || u.telegramId}
-                className={`border-b border-border h-16 ${u.accountId === accountId ? 'bg-accent text-black' : 'cursor-pointer'}`}
-                onClick={() => {
-                  if (u.accountId === accountId || u.currentTableId) return;
-                  if (mode === 'group') {
-                    setSelected((prev) => {
-                      const exists = prev.find((p) => p.accountId === u.accountId);
-                      if (exists) return prev.filter((p) => p.accountId !== u.accountId);
-                      if (prev.length >= 3) return prev;
-                      return [...prev, u];
-                    });
-                  } else {
-                    setInviteTarget(u);
-                  }
-                }}
-              >
-                <td className="p-2">{idx + 1}</td>
-                <td className="p-2 w-16">
-                  <img
-                    src={getAvatarUrl(
-                      u.accountId === accountId
-                        ? myPhotoUrl || '/assets/icons/profile.svg'
-                        : u.photo || u.photoUrl || '/assets/icons/profile.svg'
-                    )}
-                    alt="avatar"
-                    className="w-16 h-16 hexagon border-2 border-brand-gold object-cover shadow-[0_0_12px_rgba(241,196,15,0.8)]"
-                  />
-                </td>
-                <td className="p-2 flex items-center">
-                  {mode === 'group' && u.accountId !== accountId && (
-                    <input
-                      type="checkbox"
-                      disabled={!!u.currentTableId}
-                      checked={selected.some((p) => p.accountId === u.accountId)}
-                      onChange={() => {}}
-                      className="mr-1"
-                    />
-                  )}
-                  {u.nickname || `${u.firstName} ${u.lastName}`.trim() || 'User'}
-                  {u.accountId !== accountId &&
-                    u.currentTableId && (
-                      <span className="ml-1 text-xs text-red-500">Playing</span>
-                    )}
-                  {onlineUsers.includes(String(u.accountId)) && (
-                    <FaCircle className="ml-1 text-green-500" size={8} />
-                  )}
-                </td>
-                <td className="p-2 text-right">{u.balance}</td>
-              </tr>
-            ))}
-            {rank && rank > 100 && (
-              <tr className="bg-accent text-black h-16">
-                <td className="p-2">{rank}</td>
-                <td className="p-2 w-16">
-                  <img
-                    src={getAvatarUrl(myPhotoUrl || '/assets/icons/profile.svg')}
-                    alt="avatar"
-                    className="w-16 h-16 hexagon border-2 border-brand-gold object-cover shadow-[0_0_12px_rgba(241,196,15,0.8)]"
-                  />
-                </td>
-                <td className="p-2 flex items-center">
-                  You
-                  {onlineUsers.includes(String(accountId)) && (
-                    <FaCircle className="ml-1 text-green-500" size={8} />
-                  )}
-                </td>
-                <td className="p-2 text-right">{leaderboard.find((u) => u.accountId === accountId)?.balance ?? '...'}</td>
-              </tr>
-            )}
-          </tbody>
-        </table>
-      </div>
-    </section>
+    <DailyCheckIn />
+    <SpinGame />
+    <MiningCard />
 
     <PlayerInvitePopup
       open={!!inviteTarget}

@@ -3,7 +3,7 @@ import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { TonConnectUIProvider } from '@tonconnect/ui-react';
 
 import Home from './pages/Home.jsx';
-import Friends from './pages/Friends.jsx';
+import Mining from './pages/Mining.jsx';
 import Wallet from './pages/Wallet.jsx';
 import Tasks from './pages/Tasks.jsx';
 import Referral from './pages/Referral.jsx';
@@ -36,7 +36,7 @@ export default function App() {
         <Layout>
           <Routes>
           <Route path="/" element={<Home />} />
-          <Route path="/friends" element={<Friends />} />
+          <Route path="/mining" element={<Mining />} />
           <Route path="/games" element={<Games />} />
           <Route path="/games/:game/lobby" element={<Lobby />} />
             <Route path="/games/horse" element={<HorseRacing />} />
