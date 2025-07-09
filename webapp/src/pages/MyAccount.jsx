@@ -271,8 +271,8 @@ export default function MyAccount() {
             Use Telegram Photo
           </button>
           <div className="mt-2 space-x-2">
-            <a href="/friends" className="underline text-primary">
-              Friends
+            <a href="/mining" className="underline text-primary">
+              Mining
             </a>
             <a href="/messages" className="underline text-primary">
               Inbox

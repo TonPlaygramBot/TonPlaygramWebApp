@@ -68,7 +68,7 @@ export default function Layout({ children }) {
   }, []);
 
   const isHome = location.pathname === '/';
-  const isFriends = location.pathname === '/friends';
+  const isMining = location.pathname === '/mining';
   const isTasks = location.pathname === '/tasks';
   const isStore = location.pathname === '/store';
   const isAccount = location.pathname === '/account';
@@ -97,8 +97,8 @@ export default function Layout({ children }) {
 
         {showBranding && (
         <Branding
-            scale={isFriends || isTasks || isStore || isAccount || isGamesRoot || isWallet ? 1.2 : 1}
-            offsetY={isFriends ? '0.5rem' : 0}
+            scale={isMining || isTasks || isStore || isAccount || isGamesRoot || isWallet ? 1.2 : 1}
+            offsetY={isMining ? '0.5rem' : 0}
           />
         )}
 

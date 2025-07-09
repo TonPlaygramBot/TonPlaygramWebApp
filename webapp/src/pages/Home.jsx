@@ -2,10 +2,6 @@ import { useEffect, useState, useRef } from 'react';
 
 import GameCard from '../components/GameCard.jsx';
 
-import MiningCard from '../components/MiningCard.tsx';
-
-import SpinGame from '../components/SpinGame.jsx';
-import DailyCheckIn from '../components/DailyCheckIn.jsx';
 
 import TasksCard from '../components/TasksCard.jsx';
 import StoreAd from '../components/StoreAd.jsx';
@@ -302,11 +298,7 @@ export default function Home() {
 
       </div>
 
-      <DailyCheckIn />
-      <SpinGame />
-
       <div className="grid grid-cols-1 gap-4">
-        <MiningCard />
         <TasksCard />
         <StoreAd />
         <div className="relative bg-surface border border-border rounded-xl p-4 space-y-2 overflow-hidden wide-card">

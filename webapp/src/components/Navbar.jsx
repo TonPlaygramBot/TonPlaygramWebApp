@@ -3,9 +3,9 @@ import {
   AiOutlinePlayCircle,
   AiOutlineCheckSquare,
   AiOutlineUser,
-  AiOutlineShop,
-  AiOutlineUsergroupAdd
+  AiOutlineShop
 } from 'react-icons/ai';
+import { GiMining } from 'react-icons/gi';
 import NavItem from './NavItem.jsx';
 
 export default function Navbar() {
@@ -13,7 +13,7 @@ export default function Navbar() {
     <nav className="fixed inset-x-0 bottom-0 z-50 bg-surface text-text shadow border-t border-accent">
       <div className="container mx-auto px-4 py-4 flex items-center justify-between text-base">
         <NavItem to="/" icon={AiOutlineHome} label="Home" />
-        <NavItem to="/friends" icon={AiOutlineUsergroupAdd} label="Friends" />
+        <NavItem to="/mining" icon={GiMining} label="Mining" />
         <NavItem to="/games" icon={AiOutlinePlayCircle} label="Games" />
         <NavItem to="/tasks" icon={AiOutlineCheckSquare} label="Tasks" />
         <NavItem to="/store" icon={AiOutlineShop} label="Store" />
