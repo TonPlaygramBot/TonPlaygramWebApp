@@ -96,7 +96,7 @@ const roadmap = [
         done: true,
       },
       {
-        text: 'Release of Grid Roller mini games and friend invites',
+        text: 'Release of Snake & Ladder mini games and friend invites',
         done: true,
       },
     ],

@@ -360,7 +360,7 @@ export default function Home() {
             alt=""
           />
           <h3 className="text-lg font-bold text-text text-center">Platform Stats</h3>
-          <div className="text-center space-y-1 text-sm">
+          <div className="text-center space-y-1 text-base">
             <p>
               Total Minted: {formatValue(stats.minted, 0)}{' '}
               <img src="/assets/icons/TPCcoin_1.webp" alt="TPC" className="inline-block w-4 h-4 ml-1" />
