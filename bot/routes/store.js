@@ -29,29 +29,29 @@ function daysFromNow(days) {
 }
 
 const BUNDLES = {
-  newbie: { tpc: 25000, ton: 0.25, label: 'Newbie Pack' },
-  rookie: { tpc: 50000, ton: 0.4, label: 'Rookie' },
-  starter: { tpc: 100000, ton: 0.75, label: 'Starter' },
-  miner: { tpc: 250000, ton: 1.6, label: 'Miner Pack', boost: 0.03 },
-  grinder: { tpc: 500000, ton: 3.0, label: 'Grinder', boost: 0.05 },
-  pro: { tpc: 1000000, ton: 5.5, label: 'Pro Bundle', boost: 0.08 },
-  whale: { tpc: 2500000, ton: 10.5, label: 'Whale Bundle', boost: 0.12 },
-  max: { tpc: 5000000, ton: 20, label: 'Max Presale', boost: 0.15 },
+  newbie: { tpc: 50000, ton: 0.2, label: 'Newbie Pack' },
+  rookie: { tpc: 100000, ton: 0.35, label: 'Rookie' },
+  starter: { tpc: 200000, ton: 0.6, label: 'Starter' },
+  miner: { tpc: 400000, ton: 1.2, label: 'Miner Pack', boost: 0.03 },
+  grinder: { tpc: 750000, ton: 2.0, label: 'Grinder', boost: 0.05 },
+  pro: { tpc: 1500000, ton: 3.8, label: 'Pro Bundle', boost: 0.08 },
+  whale: { tpc: 4000000, ton: 9.0, label: 'Whale Bundle', boost: 0.12 },
+  max: { tpc: 8000000, ton: 18.0, label: 'Max Presale', boost: 0.15 },
 
   // Spin & Win Bundles
-  luckyStarter: { tpc: 5000, ton: 0.25, label: 'Lucky Starter' },
-  spinx3: { tpc: 10000, ton: 0.4, label: 'Spin x3 Pack' },
-  megaSpin: { tpc: 25000, ton: 1.0, label: 'Mega Spin Pack' },
+  luckyStarter: { tpc: 6000, ton: 0.15, label: 'Lucky Starter' },
+  spinx3: { tpc: 12000, ton: 0.25, label: 'Spin x3 Pack' },
+  megaSpin: { tpc: 30000, ton: 0.7, label: 'Mega Spin Pack' },
 
   // Virtual Friends
-  lazyLarry: { tpc: 0, ton: 0.15, label: 'Lazy Larry', boost: 0.25, duration: 7 },
-  smartSia: { tpc: 0, ton: 0.3, label: 'Smart Sia', boost: 0.5, duration: 7 },
-  grindBot: { tpc: 0, ton: 0.7, label: 'GrindBot3000', boost: 1.25, duration: 14 },
+  lazyLarry: { tpc: 0, ton: 0.1, label: 'Lazy Larry', boost: 0.25, duration: 7 },
+  smartSia: { tpc: 0, ton: 0.2, label: 'Smart Sia', boost: 0.5, duration: 7 },
+  grindBot: { tpc: 0, ton: 0.5, label: 'GrindBot3000', boost: 1.25, duration: 14 },
 
   // Bonus Bundles
-  powerPack: { tpc: 20000, ton: 0.35, label: 'Power Pack', boost: 0.5, duration: 3 },
-  proPack: { tpc: 40000, ton: 0.6, label: 'Pro Pack', boost: 0.5, duration: 7 },
-  galaxyPack: { tpc: 100000, ton: 1.2, label: 'Galaxy Pack', boost: 1.25, duration: 7 },
+  powerPack: { tpc: 10000, ton: 0.25, label: 'Power Pack', boost: 0.5, duration: 3 },
+  proPack: { tpc: 25000, ton: 0.4, label: 'Pro Pack', boost: 0.5, duration: 7 },
+  galaxyPack: { tpc: 60000, ton: 1.0, label: 'Galaxy Pack', boost: 1.25, duration: 7 },
 };
 
 router.post('/purchase', authenticate, async (req, res) => {
