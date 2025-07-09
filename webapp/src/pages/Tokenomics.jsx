@@ -325,7 +325,7 @@ export default function TokenomicsPage() {
         <div>
           <h4 className="font-semibold text-accent mb-1">Total Supply</h4>
           <p>
-            <b>1,000,000,000 TPC</b> — Fixed supply. Each allocation and fee mechanism is governed by smart contract, with vesting and transparency for investors and users.
+            <b>100,000,000 TPC</b> — Fixed supply. Each allocation and fee mechanism is governed by smart contract, with vesting and transparency for investors and users.
           </p>
         </div>
         <div>
