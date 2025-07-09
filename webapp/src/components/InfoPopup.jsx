@@ -1,11 +1,18 @@
 import React from 'react';
 import { createPortal } from 'react-dom';
 
-export default function InfoPopup({ open, onClose, title, info, children }) {
+export default function InfoPopup({
+  open,
+  onClose,
+  title,
+  info,
+  children,
+  widthClass = 'w-96',
+}) {
   if (!open) return null;
   return createPortal(
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-70">
-      <div className="prism-box p-6 space-y-4 text-text w-96 relative">
+      <div className={`prism-box p-6 space-y-4 text-text relative ${widthClass}`}>
         <button
           onClick={onClose}
           className="absolute -top-3 -right-3 bg-black bg-opacity-70 text-white rounded-full w-6 h-6 flex items-center justify-center"
