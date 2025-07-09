@@ -21,17 +21,11 @@ export default function SpinGame() {
   const [lastSpin, setLastSpin] = useState(null);
   const [reward, setReward] = useState(null);
   const [spinning, setSpinning] = useState(false);
-  const [leftSpinning, setLeftSpinning] = useState(false);
-  const [rightSpinning, setRightSpinning] = useState(false);
   const [showAd, setShowAd] = useState(false);
   const [adWatched, setAdWatched] = useState(false);
   const [freeSpins, setFreeSpins] = useState(0);
   const [timeLeft, setTimeLeft] = useState(0);
   const wheelRef = useRef(null);
-  const leftWheelRef = useRef(null);
-  const rightWheelRef = useRef(null);
-  const [bonusActive, setBonusActive] = useState(false);
-  const [bonusSpinDone, setBonusSpinDone] = useState(0);
 
   useEffect(() => {
     const ts = localStorage.getItem('lastSpin');
@@ -52,7 +46,12 @@ export default function SpinGame() {
 
   const handleFinish = async (r) => {
     if (r === 'BONUS_X2') {
-      setBonusActive(true);
+      setReward(r);
+      if (freeSpins === 0) {
+        const now = Date.now();
+        localStorage.setItem('lastSpin', String(now));
+        setLastSpin(now);
+      }
       setAdWatched(false);
       return;
     }
@@ -72,28 +71,9 @@ export default function SpinGame() {
     setAdWatched(false);
   };
 
-  const handleBonusFinish = async (r) => {
-    if (typeof r !== 'number') return;
-    const id = telegramId;
-    const balRes = await getWalletBalance(id);
-    const newBalance = (balRes.balance || 0) + r;
-    await updateBalance(id, newBalance);
-    await addTransaction(id, r, 'spin');
-    if (freeSpins === 0) {
-      const now = Date.now();
-      localStorage.setItem('lastSpin', String(now));
-      setLastSpin(now);
-    }
-    setReward(r);
-    setBonusSpinDone((c) => {
-      const next = c + 1;
-      if (next >= 2) setBonusActive(false);
-      return next;
-    });
-  };
 
   const triggerSpin = () => {
-    if (spinning || leftSpinning || rightSpinning) return;
+    if (spinning) return;
     if (freeSpins === 0) {
       if (!adWatched) {
         setShowAd(true);
@@ -108,14 +88,7 @@ export default function SpinGame() {
       localStorage.setItem('freeSpins', String(remaining));
     }
 
-    if (bonusActive) {
-      wheelRef.current?.spin();
-      leftWheelRef.current?.spin();
-      rightWheelRef.current?.spin();
-      setBonusSpinDone(0);
-    } else {
-      wheelRef.current?.spin();
-    }
+    wheelRef.current?.spin();
   };
 
   const handleAdComplete = () => {
@@ -143,25 +116,7 @@ export default function SpinGame() {
       />
       <h3 className="text-lg font-bold text-text">Spin &amp; Win</h3>
       <p className="text-sm text-subtext">Try your luck and win rewards!</p>
-      <div className="flex items-start space-x-1">
-        <div className="relative">
-          <div style={{ opacity: bonusActive ? 1 : 0.15 }}>
-            <SpinWheel
-              ref={leftWheelRef}
-              onFinish={handleBonusFinish}
-              spinning={leftSpinning}
-              setSpinning={setLeftSpinning}
-              disabled={!bonusActive}
-              showButton={false}
-              disableSound
-            />
-          </div>
-          {!bonusActive && (
-            <span className="absolute inset-0 flex items-center justify-center text-xs font-bold text-red-600 text-center pointer-events-none drop-shadow-[0_0_2px_white]">
-              Bonus to Activate
-            </span>
-          )}
-        </div>
+      <div className="flex items-start justify-center">
         <SpinWheel
           ref={wheelRef}
           onFinish={handleFinish}
@@ -169,26 +124,7 @@ export default function SpinGame() {
           setSpinning={setSpinning}
           disabled={!ready}
           showButton={false}
-          disableSound
         />
-        <div className="relative">
-          <div style={{ opacity: bonusActive ? 1 : 0.15 }}>
-            <SpinWheel
-              ref={rightWheelRef}
-              onFinish={handleBonusFinish}
-              spinning={rightSpinning}
-              setSpinning={setRightSpinning}
-              disabled={!bonusActive}
-              showButton={false}
-              disableSound
-            />
-          </div>
-          {!bonusActive && (
-            <span className="absolute inset-0 flex items-center justify-center text-xs font-bold text-red-600 text-center pointer-events-none drop-shadow-[0_0_2px_white]">
-              Bonus to Activate
-            </span>
-          )}
-        </div>
       </div>
       {freeSpins > 0 && (
         <p className="text-xs text-accent font-bold">Free Spins: {freeSpins}</p>
@@ -213,7 +149,6 @@ export default function SpinGame() {
       <RewardPopup
         reward={reward}
         onClose={() => setReward(null)}
-        disableEffects
       />
       <AdModal
         open={showAd}
