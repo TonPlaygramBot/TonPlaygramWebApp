@@ -10,7 +10,7 @@ import { getTelegramId } from '../utils/telegram.js';
 import LoginOptions from './LoginOptions.jsx';
 
 const MINING_DURATION = 12 * 60 * 60; // 12 hours in seconds
-const REWARD_AMOUNT = 2000; // must mirror backend reward
+const REWARD_AMOUNT = 1000; // maximum base reward, actual amount may vary
 
 export default function MiningCard() {
   let telegramId: string;

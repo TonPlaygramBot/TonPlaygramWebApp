@@ -62,7 +62,6 @@ export default forwardRef<SpinWheelHandle, SpinWheelProps>(function SpinWheel(
   const successSoundRef = useRef<HTMLAudioElement | null>(null);
   const bonusSoundRef = useRef<HTMLAudioElement | null>(null);
   const extraBonusSoundRef1 = useRef<HTMLAudioElement | null>(null);
-  const freeSpinSoundRef = useRef<HTMLAudioElement | null>(null);
 
   useEffect(() => {
     spinSoundRef.current = new Audio('/assets/sounds/spinning.mp3');
@@ -78,15 +77,11 @@ export default forwardRef<SpinWheelHandle, SpinWheelProps>(function SpinWheel(
     extraBonusSoundRef1.current = new Audio('/assets/sounds/happy-noisesmp3-14568.mp3');
     extraBonusSoundRef1.current.preload = 'auto';
     extraBonusSoundRef1.current.volume = getGameVolume();
-    freeSpinSoundRef.current = new Audio('/assets/sounds/man-cheering-in-victory-epic-stock-media-1-00-01.mp3');
-    freeSpinSoundRef.current.preload = 'auto';
-    freeSpinSoundRef.current.volume = getGameVolume();
     return () => {
       spinSoundRef.current?.pause();
       successSoundRef.current?.pause();
       bonusSoundRef.current?.pause();
       extraBonusSoundRef1.current?.pause();
-      freeSpinSoundRef.current?.pause();
     };
   }, []);
 
@@ -96,7 +91,6 @@ export default forwardRef<SpinWheelHandle, SpinWheelProps>(function SpinWheel(
       if (successSoundRef.current) successSoundRef.current.volume = getGameVolume();
       if (bonusSoundRef.current) bonusSoundRef.current.volume = getGameVolume();
       if (extraBonusSoundRef1.current) extraBonusSoundRef1.current.volume = getGameVolume();
-      if (freeSpinSoundRef.current) freeSpinSoundRef.current.volume = getGameVolume();
     };
     window.addEventListener('gameVolumeChanged', handler);
     return () => window.removeEventListener('gameVolumeChanged', handler);
@@ -141,18 +135,9 @@ export default forwardRef<SpinWheelHandle, SpinWheelProps>(function SpinWheel(
       setSpinning(false);
       setWinnerIndex(finalIndex);
 
-      if (reward === 'BONUS_X3') {
+      if (reward === 'BONUS_X2') {
         bonusSoundRef.current?.play().catch(() => {});
         extraBonusSoundRef1.current?.play().catch(() => {});
-        if (successSoundRef.current) {
-          successSoundRef.current.currentTime = 0;
-          successSoundRef.current.play().catch(() => {});
-        }
-      } else if (reward === 1600 || reward === 1800) {
-        if (freeSpinSoundRef.current) {
-          freeSpinSoundRef.current.currentTime = 0;
-          freeSpinSoundRef.current.play().catch(() => {});
-        }
         if (successSoundRef.current) {
           successSoundRef.current.currentTime = 0;
           successSoundRef.current.play().catch(() => {});
@@ -210,30 +195,16 @@ export default forwardRef<SpinWheelHandle, SpinWheelProps>(function SpinWheel(
             <div
               key={idx}
               className={`board-style border-2 border-border text-sm w-28 font-bold flex items-center ${
-                val === 'BONUS_X3' ? 'justify-center' : 'justify-start pl-2 space-x-1'
+                val === 'BONUS_X2' ? 'justify-center' : 'justify-start pl-2 space-x-1'
               } ${
                 idx === winnerIndex ? 'bg-yellow-300 text-black border-4 border-brand-gold shadow-[0_0_12px_rgba(241,196,15,0.8)]' : 'text-white'
               }`}
               style={{ height: itemHeight }}
             >
-
-              {val === 'BONUS_X3' ? (
+              {val === 'BONUS_X2' ? (
                 <span className="text-red-600 font-bold drop-shadow-[0_0_2px_black]">
-                  BONUS X3
+                  BONUS X2
                 </span>
-              ) : val === 1600 || val === 1800 ? (
-                <>
-                  <img
-
-                    src="/assets/icons/FreeSpin.webp"
-                    alt="Free Spin"
-                    className="w-8 h-8"
-                  />
-                  <span>
-                    {val === 1600 && '1'}
-                    {val === 1800 && '2'}
-                  </span>
-                </>
               ) : (
                 <>
                   <img  src="/assets/icons/TPCcoin_1.webp" alt="TPC" className="w-8 h-8" />

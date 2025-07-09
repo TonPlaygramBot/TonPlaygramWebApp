@@ -2,7 +2,7 @@ import { Router } from 'express';
 import User from '../models/User.js';
 import { ensureTransactionArray } from '../utils/userUtils.js';
 
-const REWARDS = Array.from({ length: 30 }, (_, i) => 1000 * (i + 1));
+const REWARDS = Array.from({ length: 30 }, (_, i) => Math.floor(100 + (i + 1) * 50));
 const ONE_DAY_MS = 24 * 60 * 60 * 1000;
 
 const router = Router();
@@ -29,7 +29,9 @@ router.post('/check-in', async (req, res) => {
     let streak = 1;
     if (user.lastCheckIn && now - user.lastCheckIn.getTime() < ONE_DAY_MS * 2) {
       streak = user.dailyStreak + 1;
-      if (streak > REWARDS.length) streak = 1;
+    }
+    if (streak > REWARDS.length) {
+      return res.status(400).json({ error: 'max days reached' });
     }
     const reward = REWARDS[streak - 1];
 

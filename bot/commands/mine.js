@@ -35,7 +35,7 @@ export default function registerMine(bot) {
         break;
       case 'status':
       default:
-        updateMiningRewards(user);
+        await updateMiningRewards(user);
         await user.save();
         ctx.reply(`Mining: ${user.isMining ? 'active' : 'inactive'}\nPending rewards: ${user.minedTPC} TPC\nBalance: ${user.balance}`);
         break;

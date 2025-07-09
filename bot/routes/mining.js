@@ -40,7 +40,7 @@ router.post('/claim', getUser, async (req, res) => {
 });
 
 router.post('/status', getUser, async (req, res) => {
-  updateMiningRewards(req.user);
+  await updateMiningRewards(req.user);
   await req.user.save();
   res.json({ isMining: req.user.isMining, pending: req.user.minedTPC, balance: req.user.balance });
 });
