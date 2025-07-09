@@ -186,6 +186,11 @@ export default function Home() {
           accounts: data.accounts,
           activeUsers: online.count || data.activeUsers || 0,
           nftsCreated: data.nftsCreated,
+          nftsBurned: data.nftsBurned,
+          bundlesSold: data.bundlesSold,
+          tonRaised: data.tonRaised,
+          appClaimed: data.appClaimed,
+          externalClaimed: data.externalClaimed,
         });
       } catch (err) {
         console.error('Failed to load stats:', err);
