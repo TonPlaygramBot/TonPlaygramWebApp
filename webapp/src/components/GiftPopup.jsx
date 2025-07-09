@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { getPlayerId, ensureAccountId } from '../utils/telegram.js';
 import { sendGift } from '../utils/api.js';
 import { NFT_GIFTS } from '../utils/nftGifts.js';
+import GiftIcon from './GiftIcon.jsx';
 import { giftSounds } from '../utils/giftSounds.js';
 import { getGameVolume } from '../utils/sound.js';
 import ConfirmPopup from './ConfirmPopup.jsx';
@@ -114,7 +115,7 @@ export default function GiftPopup({ open, onClose, players = [], senderIndex = 0
                       selected.id === g.id ? 'bg-accent' : ''
                     }`}
                   >
-                    <span>{g.icon}</span>
+                  <GiftIcon icon={g.icon} className="w-4 h-4" />
                     <span className="flex items-center space-x-0.5">
                       <span>{g.price}</span>
                       <img src="/assets/icons/TPCcoin_1.webp" className="w-3 h-3" />
@@ -133,7 +134,7 @@ export default function GiftPopup({ open, onClose, players = [], senderIndex = 0
             className="w-full px-3 py-1 bg-primary hover:bg-primary-hover rounded text-black"
             onClick={() => setConfirmOpen(true)}
           >
-            Send {selected.icon} {selected.name}
+            Send <GiftIcon icon={selected.icon} className="w-4 h-4 inline" /> {selected.name}
           </button>
           <p className="text-xs text-center mt-1">
             10% charge and the amount of the gift will be deducted from your balance.

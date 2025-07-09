@@ -7,7 +7,7 @@ export const NFT_GIFTS = [
   { id: 'baby_chick', price: 1000, tier: 1 },
   // Tier 2 gifts
   { id: 'poop', price: 1200, tier: 2 },
-  { id: 'speed_racer', price: 1800, tier: 2 },
+  { id: 'speed_racer', price: 1800, tier: 2, icon: '/assets/icons/futuristic_racing_car.webp' },
   { id: 'bullseye', price: 3000, tier: 2 },
   { id: 'magic_trick', price: 5000, tier: 2 },
   { id: 'surprise_box', price: 8000, tier: 2 },

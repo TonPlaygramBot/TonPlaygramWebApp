@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { createPortal } from 'react-dom';
 import { sendGift } from '../utils/api.js';
 import { NFT_GIFTS } from '../utils/nftGifts.js';
+import GiftIcon from './GiftIcon.jsx';
 import ConfirmPopup from './ConfirmPopup.jsx';
 import InfoPopup from './InfoPopup.jsx';
 
@@ -43,7 +44,7 @@ export default function GiftShopPopup({ open, onClose, accountId }) {
                 className={`w-full flex items-center justify-between border border-border rounded px-1 py-0.5 text-sm ${selected.id === g.id ? 'bg-accent' : ''}`}
               >
                 <span className="flex items-center space-x-1">
-                  <span>{g.icon}</span>
+                  <GiftIcon icon={g.icon} className="w-4 h-4" />
                   <span>{g.name}</span>
                 </span>
                 <span className="flex items-center space-x-0.5">
@@ -64,7 +65,7 @@ export default function GiftShopPopup({ open, onClose, accountId }) {
             className="w-full px-3 py-1 bg-primary hover:bg-primary-hover rounded text-black"
             onClick={() => setConfirm(true)}
           >
-            {receiver && receiver !== accountId ? 'Send' : 'Buy'} {selected.icon} {selected.name}
+            {receiver && receiver !== accountId ? 'Send' : 'Buy'} <GiftIcon icon={selected.icon} className="w-4 h-4 inline" /> {selected.name}
           </button>
         </div>
       </div>
