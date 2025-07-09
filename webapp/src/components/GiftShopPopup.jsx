@@ -17,13 +17,9 @@ export default function GiftShopPopup({ open, onClose, accountId }) {
     setConfirm(false);
     try {
       await sendGift(accountId, receiver || accountId, selected.id);
-      setInfo(
-        receiver && receiver !== accountId ? 'Gift sent' : 'Gift purchased'
-      );
-      setTimeout(() => setInfo(''), 1000);
+      setInfo(receiver && receiver !== accountId ? 'Gift sent' : 'Gift purchased');
     } catch (err) {
       setInfo('Failed to send gift');
-      setTimeout(() => setInfo(''), 1000);
     }
     onClose();
   };
