@@ -1,16 +1,15 @@
 // Prize amounts available on the wheel.
-export type Segment = number | 'BONUS_X3';
+export type Segment = number | 'BONUS_X2';
 
 export const segments: Segment[] = [
-  300,
+  400,
+  600,
   800,
   1000,
   1200,
   1400,
-  1500,
   1600,
-  1800,
-  'BONUS_X3',
+  'BONUS_X2',
 ];
 const COOLDOWN = 15 * 60_000; // 15 minutes
 

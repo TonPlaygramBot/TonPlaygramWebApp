@@ -4,8 +4,8 @@ import User from '../models/User.js';
 import { ensureTransactionArray } from '../utils/userUtils.js';
 
 const router = Router();
-const DAILY_LIMIT = 10;
-const REWARD = 100;
+const DAILY_LIMIT = 5;
+const REWARD = 50;
 
 function startOfToday() {
   const d = new Date();

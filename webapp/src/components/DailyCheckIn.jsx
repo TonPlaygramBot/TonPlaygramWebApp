@@ -8,7 +8,7 @@ import { getTelegramId } from '../utils/telegram.js';
 
 import LoginOptions from './LoginOptions.jsx';
 
-const REWARDS = Array.from({ length: 30 }, (_, i) => 1000 * (i + 1));
+const REWARDS = Array.from({ length: 30 }, (_, i) => Math.floor(100 + (i + 1) * 50));
 
 function formatReward(r) {
   return r >= 1000 ? `${r / 1000}k` : String(r);

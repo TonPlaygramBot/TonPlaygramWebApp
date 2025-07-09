@@ -22,7 +22,7 @@ import useTelegramBackButton from '../hooks/useTelegramBackButton.js';
 import { useTonAddress, useTonConnectUI } from '@tonconnect/ui-react';
 import { STORE_ADDRESS } from '../utils/storeData.js';
 
-const REWARDS = Array.from({ length: 30 }, (_, i) => 1000 * (i + 1));
+const REWARDS = Array.from({ length: 30 }, (_, i) => Math.floor(100 + (i + 1) * 50));
 const ONE_DAY = 24 * 60 * 60 * 1000;
 
 export default function Tasks() {
@@ -206,9 +206,9 @@ export default function Tasks() {
           <li className="lobby-tile w-full">
             <div className="grid grid-cols-[20px_1fr_auto_auto] items-center gap-2 w-full">
               {ICONS.watch_ad}
-              <span className="text-sm">Watch Ad ({adCount}/10)</span>
-              <span className="text-xs text-subtext flex items-center gap-1">100 <img src="/assets/icons/TPCcoin_1.webp" alt="TPC" className="w-4 h-4" /></span>
-              {adCount >= 10 ? (
+              <span className="text-sm">Watch Ad ({adCount}/5)</span>
+              <span className="text-xs text-subtext flex items-center gap-1">50 <img src="/assets/icons/TPCcoin_1.webp" alt="TPC" className="w-4 h-4" /></span>
+              {adCount >= 5 ? (
                 <span className="text-green-500 font-semibold text-sm">Completed</span>
               ) : (
                 <button

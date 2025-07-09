@@ -6,7 +6,7 @@ export const TASKS = [
 
     description: 'Join us on X',
 
-    reward: 10000,
+    reward: 2500,
 
     icon: 'twitter',
 
@@ -20,7 +20,7 @@ export const TASKS = [
 
     description: 'Join our Community',
 
-    reward: 10000,
+    reward: 2500,
 
     icon: 'telegram',
 
@@ -34,7 +34,7 @@ export const TASKS = [
 
     description: 'Follow us on TikTok',
 
-    reward: 10000,
+    reward: 2500,
 
     icon: 'tiktok',
 

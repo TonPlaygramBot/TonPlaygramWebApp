@@ -51,28 +51,19 @@ export default function SpinGame() {
   }, [lastSpin]);
 
   const handleFinish = async (r) => {
-    if (r === 'BONUS_X3') {
+    if (r === 'BONUS_X2') {
       setBonusActive(true);
       setAdWatched(false);
       return;
     }
-    let extraSpins = 0;
-    if (r === 1600) extraSpins = 1;
-    else if (r === 1800) extraSpins = 2;
-
-    if (extraSpins > 0) {
-      const total = freeSpins + extraSpins;
-      setFreeSpins(total);
-      localStorage.setItem('freeSpins', String(total));
-    } else if (typeof r === 'number') {
+    if (typeof r === 'number') {
       const id = telegramId;
       const balRes = await getWalletBalance(id);
       const newBalance = (balRes.balance || 0) + r;
       await updateBalance(id, newBalance);
       await addTransaction(id, r, 'spin');
     }
-    const finalCount = freeSpins + extraSpins;
-    if (finalCount === 0) {
+    if (freeSpins === 0) {
       const now = Date.now();
       localStorage.setItem('lastSpin', String(now));
       setLastSpin(now);
@@ -83,23 +74,12 @@ export default function SpinGame() {
 
   const handleBonusFinish = async (r) => {
     if (typeof r !== 'number') return;
-    let extraSpins = 0;
-    if (r === 1600) extraSpins = 1;
-    else if (r === 1800) extraSpins = 2;
-
-    if (extraSpins > 0) {
-      const total = freeSpins + extraSpins;
-      setFreeSpins(total);
-      localStorage.setItem('freeSpins', String(total));
-    } else {
-      const id = telegramId;
-      const balRes = await getWalletBalance(id);
-      const newBalance = (balRes.balance || 0) + r;
-      await updateBalance(id, newBalance);
-      await addTransaction(id, r, 'spin');
-    }
-    const finalCount = freeSpins + extraSpins;
-    if (finalCount === 0) {
+    const id = telegramId;
+    const balRes = await getWalletBalance(id);
+    const newBalance = (balRes.balance || 0) + r;
+    await updateBalance(id, newBalance);
+    await addTransaction(id, r, 'spin');
+    if (freeSpins === 0) {
       const now = Date.now();
       localStorage.setItem('lastSpin', String(now));
       setLastSpin(now);
