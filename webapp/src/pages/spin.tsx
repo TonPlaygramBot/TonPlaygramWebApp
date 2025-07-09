@@ -137,6 +137,7 @@ export default function SpinPage() {
               setSpinning={setSpinningLeft}
               disabled={!ready}
               showButton={false}
+              disableSound
             />
           </div>
           <SpinWheel
@@ -146,6 +147,7 @@ export default function SpinPage() {
             setSpinning={setSpinningMain}
             disabled={!ready}
             showButton={false}
+            disableSound
           />
           <div className="ml-[-8px]">
             <SpinWheel
@@ -155,6 +157,7 @@ export default function SpinPage() {
               setSpinning={setSpinningMiddle}
               disabled={!ready}
               showButton={false}
+              disableSound
             />
           </div>
         </div>
@@ -188,6 +191,7 @@ export default function SpinPage() {
         onClose={() => setReward(null)}
         duration={1500}
         showCloseButton={false}
+        disableEffects
       />
       <AdModal
         open={showAd}

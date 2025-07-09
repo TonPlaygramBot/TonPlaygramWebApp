@@ -153,6 +153,7 @@ export default function SpinGame() {
               setSpinning={setLeftSpinning}
               disabled={!bonusActive}
               showButton={false}
+              disableSound
             />
           </div>
           {!bonusActive && (
@@ -168,6 +169,7 @@ export default function SpinGame() {
           setSpinning={setSpinning}
           disabled={!ready}
           showButton={false}
+          disableSound
         />
         <div className="relative">
           <div style={{ opacity: bonusActive ? 1 : 0.15 }}>
@@ -178,6 +180,7 @@ export default function SpinGame() {
               setSpinning={setRightSpinning}
               disabled={!bonusActive}
               showButton={false}
+              disableSound
             />
           </div>
           {!bonusActive && (
@@ -210,6 +213,7 @@ export default function SpinGame() {
       <RewardPopup
         reward={reward}
         onClose={() => setReward(null)}
+        disableEffects
       />
       <AdModal
         open={showAd}

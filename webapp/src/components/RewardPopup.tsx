@@ -8,25 +8,35 @@ interface RewardPopupProps {
   onClose: () => void;
   duration?: number;
   showCloseButton?: boolean;
+  disableEffects?: boolean;
 }
 
-export default function RewardPopup({ reward, onClose, duration = 2500, showCloseButton = true }: RewardPopupProps) {
+export default function RewardPopup({
+  reward,
+  onClose,
+  duration = 2500,
+  showCloseButton = true,
+  disableEffects = false,
+}: RewardPopupProps) {
   if (reward === null) return null;
   useEffect(() => {
-    let icon = '/assets/icons/TPCcoin_1.webp';
-    if (reward === 'BONUS_X2') {
-      icon = '/assets/icons/file_00000000ead061faa3b429466e006f48.webp';
+    let audio: HTMLAudioElement | undefined;
+    if (!disableEffects) {
+      let icon = '/assets/icons/TPCcoin_1.webp';
+      if (reward === 'BONUS_X2') {
+        icon = '/assets/icons/file_00000000ead061faa3b429466e006f48.webp';
+      }
+      coinConfetti(50, icon);
+      audio = new Audio('/assets/sounds/man-cheering-in-victory-epic-stock-media-1-00-01.mp3');
+      audio.volume = getGameVolume();
+      audio.play().catch(() => {});
     }
-    coinConfetti(50, icon);
-    const audio = new Audio('/assets/sounds/man-cheering-in-victory-epic-stock-media-1-00-01.mp3');
-    audio.volume = getGameVolume();
-    audio.play().catch(() => {});
     const timer = setTimeout(onClose, duration);
     return () => {
-      audio.pause();
+      if (audio) audio.pause();
       clearTimeout(timer);
     };
-  }, [onClose, duration, reward]);
+  }, [onClose, duration, reward, disableEffects]);
   return (
     <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-70 z-50">
       <div className="text-center space-y-4 text-text">
