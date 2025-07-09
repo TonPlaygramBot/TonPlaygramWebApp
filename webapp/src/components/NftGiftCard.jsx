@@ -86,12 +86,11 @@ export default function NftGiftCard({ accountId: propAccountId }) {
       <InfoPopup
         open={previewIndex != null}
         onClose={() => setPreviewIndex(null)}
-        title={previewInfo?.name || 'NFT Gift'}
         widthClass="w-[28rem]"
       >
         {previewInfo && (
           <div
-            className="flex flex-col items-center justify-between min-h-60"
+            className="flex flex-col items-center h-80"
             onTouchStart={(e) => setTouchX(e.touches[0].clientX)}
             onTouchEnd={(e) => {
               if (touchX != null) {
@@ -107,14 +106,27 @@ export default function NftGiftCard({ accountId: propAccountId }) {
               setTouchX(null);
             }}
           >
-            <GiftIcon icon={previewInfo.icon} className="w-32 h-32" />
-            <img src="/assets/icons/TPCcoin_1.webp" className="w-8 h-8 mt-2" />
-            <button
-              onClick={() => setConfirmConvert(true)}
-              className="w-full max-w-xs mt-auto px-4 py-2 bg-primary hover:bg-primary-hover rounded text-white-shadow text-lg"
-            >
-              Convert
-            </button>
+            <p className="font-bold text-lg mb-2 text-center w-full">
+              {previewInfo.name}
+            </p>
+            <div className="flex-grow flex items-center justify-center w-full">
+              <GiftIcon
+                icon={previewInfo.icon}
+                className="max-h-full w-auto object-contain"
+              />
+            </div>
+            <div className="mt-auto flex flex-col items-center space-y-2 w-full">
+              <span className="flex items-center space-x-1 text-lg">
+                <span>{previewInfo.price}</span>
+                <img src="/assets/icons/TPCcoin_1.webp" className="w-6 h-6" />
+              </span>
+              <button
+                onClick={() => setConfirmConvert(true)}
+                className="w-full max-w-xs px-4 py-2 bg-primary hover:bg-primary-hover rounded text-white-shadow text-lg"
+              >
+                Convert
+              </button>
+            </div>
           </div>
         )}
       </InfoPopup>
