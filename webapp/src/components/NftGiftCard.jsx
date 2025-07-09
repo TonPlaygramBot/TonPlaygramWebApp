@@ -11,7 +11,8 @@ export default function NftGiftCard({ accountId: propAccountId }) {
   const [accountId, setAccountId] = useState(propAccountId || '');
   const [gifts, setGifts] = useState([]);
   const [open, setOpen] = useState(false);
-  const [preview, setPreview] = useState(null);
+  const [previewIndex, setPreviewIndex] = useState(null);
+  const [touchX, setTouchX] = useState(null);
   const [confirmConvert, setConfirmConvert] = useState(false);
   const [infoMsg, setInfoMsg] = useState('');
 
@@ -41,6 +42,12 @@ export default function NftGiftCard({ accountId: propAccountId }) {
       .catch(() => {});
   }, [accountId, open]);
 
+  const previewGift =
+    previewIndex != null && gifts[previewIndex] ? gifts[previewIndex] : null;
+  const previewInfo =
+    previewGift &&
+    (NFT_GIFTS.find((x) => x.id === previewGift.gift) || {});
+
   return (
     <div className="relative prism-box p-6 space-y-3 flex flex-col items-center text-center overflow-hidden min-h-40 wide-card mx-auto">
       <img
@@ -51,12 +58,12 @@ export default function NftGiftCard({ accountId: propAccountId }) {
       <h3 className="text-lg font-bold text-center">NFT Gifts</h3>
       <div className="flex space-x-2 overflow-x-auto pb-2 text-sm w-full flex-grow justify-center">
         {gifts.length ? (
-          gifts.map((g) => {
+          gifts.map((g, idx) => {
             const info = NFT_GIFTS.find((x) => x.id === g.gift) || {};
             return (
               <div
                 key={g._id}
-                onClick={() => setPreview({ info, gift: g })}
+                onClick={() => setPreviewIndex(idx)}
                 className="flex-shrink-0 flex flex-col items-center space-y-1 border border-border rounded p-2 min-w-[72px] cursor-pointer"
               >
                 <GiftIcon icon={info.icon} className="w-12 h-12" />
@@ -77,18 +84,34 @@ export default function NftGiftCard({ accountId: propAccountId }) {
       </button>
       <GiftShopPopup open={open} onClose={() => setOpen(false)} accountId={accountId} />
       <InfoPopup
-        open={!!preview}
-        onClose={() => setPreview(null)}
-        title={preview?.info?.name || 'NFT Gift'}
+        open={previewIndex != null}
+        onClose={() => setPreviewIndex(null)}
+        title={previewInfo?.name || 'NFT Gift'}
         widthClass="w-[28rem]"
       >
-        {preview && (
-          <div className="flex flex-col items-center justify-between min-h-60">
-            <GiftIcon icon={preview.info.icon} className="w-24 h-24" />
-            <p className="text-center text-sm mt-2">{preview.info.price} TPC</p>
+        {previewInfo && (
+          <div
+            className="flex flex-col items-center justify-between min-h-60"
+            onTouchStart={(e) => setTouchX(e.touches[0].clientX)}
+            onTouchEnd={(e) => {
+              if (touchX != null) {
+                const diff = e.changedTouches[0].clientX - touchX;
+                if (Math.abs(diff) > 30) {
+                  if (diff < 0) {
+                    setPreviewIndex((i) => (i + 1) % gifts.length);
+                  } else {
+                    setPreviewIndex((i) => (i - 1 + gifts.length) % gifts.length);
+                  }
+                }
+              }
+              setTouchX(null);
+            }}
+          >
+            <GiftIcon icon={previewInfo.icon} className="w-32 h-32" />
+            <img src="/assets/icons/TPCcoin_1.webp" className="w-8 h-8 mt-2" />
             <button
               onClick={() => setConfirmConvert(true)}
-              className="w-full max-w-xs mt-4 px-4 py-2 bg-primary hover:bg-primary-hover rounded text-white-shadow text-lg"
+              className="w-full max-w-xs mt-auto px-4 py-2 bg-primary hover:bg-primary-hover rounded text-white-shadow text-lg"
             >
               Convert
             </button>
@@ -99,13 +122,13 @@ export default function NftGiftCard({ accountId: propAccountId }) {
         open={confirmConvert}
         message="Convert this gift for TPC?"
         onConfirm={async () => {
-          if (!preview?.gift?._id) return;
+          if (!previewGift?._id) return;
           setConfirmConvert(false);
           try {
-            const res = await convertGifts(accountId, [preview.gift._id], 'burn');
+            const res = await convertGifts(accountId, [previewGift._id], 'burn');
             if (!res?.error) {
               setGifts(res.gifts);
-              setPreview(null);
+              setPreviewIndex(null);
               setInfoMsg('Converted');
             } else {
               setInfoMsg(res.error);
