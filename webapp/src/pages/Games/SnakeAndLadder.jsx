@@ -1891,12 +1891,19 @@ export default function SnakeAndLadder() {
                 const e = end.getBoundingClientRect();
                 const cx = window.innerWidth / 2;
                 const cy = window.innerHeight / 2;
-                const icon = document.createElement('div');
-                icon.textContent = gift.icon;
+                let icon;
+                if (typeof gift.icon === 'string' && gift.icon.match(/\.(png|jpg|jpeg|webp|svg)$/)) {
+                  icon = document.createElement('img');
+                  icon.src = gift.icon;
+                  icon.className = 'w-6 h-6';
+                } else {
+                  icon = document.createElement('div');
+                  icon.textContent = gift.icon;
+                  icon.style.fontSize = '24px';
+                }
                 icon.style.position = 'fixed';
                 icon.style.left = '0px';
                 icon.style.top = '0px';
-                icon.style.fontSize = '24px';
                 icon.style.pointerEvents = 'none';
                 icon.style.transform = `translate(${s.left + s.width / 2}px, ${s.top + s.height / 2}px) scale(1)`;
                 icon.style.zIndex = '9999';

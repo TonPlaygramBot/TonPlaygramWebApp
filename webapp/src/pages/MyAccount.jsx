@@ -9,6 +9,7 @@ import {
   convertGifts
 } from '../utils/api.js';
 import { NFT_GIFTS } from '../utils/nftGifts.js';
+import GiftIcon from '../components/GiftIcon.jsx';
 import {
   getTelegramId,
   getTelegramFirstName,
@@ -333,7 +334,7 @@ export default function MyAccount() {
                       }
                     }}
                   />
-                  <span>{info.icon}</span>
+                  <GiftIcon icon={info.icon} className="w-4 h-4" />
                   <span className="flex items-center space-x-1">
                     <span>{info.name || g.gift}</span>
                     <a

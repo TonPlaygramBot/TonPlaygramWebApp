@@ -9,6 +9,7 @@ import { getProfileByAccount } from '../utils/api.js';
 import { getAvatarUrl } from '../utils/avatarUtils.js';
 
 import { NFT_GIFTS } from '../utils/nftGifts.js';
+import GiftIcon from './GiftIcon.jsx';
 
 export default function TransactionDetailsPopup({ tx, onClose }) {
 
@@ -227,7 +228,7 @@ export default function TransactionDetailsPopup({ tx, onClose }) {
           {gift && (
             <div className="text-sm flex items-center space-x-1">
               <span>Gift:</span>
-              <span>{gift.icon}</span>
+              <GiftIcon icon={gift.icon} className="w-4 h-4" />
               <span>{gift.name}</span>
               {typeof (tx.category || gift.tier) !== 'undefined' && (
                 <span className="text-xs text-subtext">(Tier {tx.category || gift.tier})</span>

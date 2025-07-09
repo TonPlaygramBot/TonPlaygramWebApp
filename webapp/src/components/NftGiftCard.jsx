@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { createAccount, getAccountInfo } from '../utils/api.js';
 import { getTelegramId } from '../utils/telegram.js';
 import { NFT_GIFTS } from '../utils/nftGifts.js';
+import GiftIcon from './GiftIcon.jsx';
 import GiftShopPopup from './GiftShopPopup.jsx';
 
 export default function NftGiftCard({ accountId: propAccountId }) {
@@ -52,7 +53,7 @@ export default function NftGiftCard({ accountId: propAccountId }) {
                 key={g._id}
                 className="flex-shrink-0 flex flex-col items-center space-y-1 border border-border rounded p-2 min-w-[72px]"
               >
-                <span className="text-xl">{info.icon}</span>
+                <GiftIcon icon={info.icon} className="text-xl" />
                 <span className="text-center">{info.name || g.gift}</span>
                 <span className="text-xs">{g.price} TPC</span>
               </div>

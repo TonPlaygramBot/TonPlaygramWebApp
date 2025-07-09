@@ -7,7 +7,7 @@ export const NFT_GIFTS = [
   { id: 'baby_chick',   name: 'Baby Chick',   icon: '🐣', price: 1000, tier: 1, effect: 'Cute chick dances on screen' },
   // Tier 2
   { id: 'poop',         name: 'Poop',         icon: '💩', price: 1200,  tier: 2, effect: 'Smelly surprise' },
-  { id: 'speed_racer',  name: 'Speed Racer',  icon: '🏎️', price: 1800,  tier: 2, effect: 'Car zooms across the game board' },
+  { id: 'speed_racer',  name: 'Speed Racer',  icon: '/assets/icons/futuristic_racing_car.webp', price: 1800,  tier: 2, effect: 'Car zooms across the game board' },
   { id: 'bullseye',     name: 'Bullseye',     icon: '🎯', price: 3000,  tier: 2, effect: "Dart hits target on player's profile" },
   { id: 'magic_trick',  name: 'Magic Trick',  icon: '🎩', price: 5000,  tier: 2, effect: 'Random gift animation (slot-style)' },
   { id: 'surprise_box', name: 'Surprise Box', icon: '🎁', price: 8000,  tier: 2, effect: 'Opens to show random emoji effect' },
