@@ -80,6 +80,7 @@ export default function NftGiftCard({ accountId: propAccountId }) {
         open={!!preview}
         onClose={() => setPreview(null)}
         title={preview?.info?.name || 'NFT Gift'}
+        widthClass="w-[28rem]"
       >
         {preview && (
           <>
@@ -87,7 +88,7 @@ export default function NftGiftCard({ accountId: propAccountId }) {
             <p className="text-center text-sm mt-2">{preview.info.price} TPC</p>
             <button
               onClick={() => setConfirmConvert(true)}
-              className="mt-2 px-3 py-1 bg-primary hover:bg-primary-hover rounded text-white-shadow w-full max-w-xs"
+              className="mt-2 px-4 py-2 bg-primary hover:bg-primary-hover rounded text-white-shadow w-full max-w-xs text-lg"
             >
               Convert
             </button>
