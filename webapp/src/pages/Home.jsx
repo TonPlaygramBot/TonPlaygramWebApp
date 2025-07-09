@@ -28,9 +28,45 @@ import { getAvatarUrl, saveAvatar, loadAvatar } from '../utils/avatarUtils.js';
 import TonConnectButton from '../components/TonConnectButton.jsx';
 import useTokenBalances from '../hooks/useTokenBalances.js';
 import useWalletUsdValue from '../hooks/useWalletUsdValue.js';
-
 import { getTelegramId, getTelegramPhotoUrl } from '../utils/telegram.js';
 import { getProfile } from '../utils/api.js';
+
+// Token contract on the TON network
+const TPC_JETTON_ADDRESS =
+  'EQDY3qbfGN6IMI5d4MsEoprhuMTz09OkqjyhPKX6DVtzbi6X';
+
+// Public wallet addresses with initial allocations
+const walletAddresses = [
+  {
+    label: 'Token Contract',
+    address: 'EQDY3qbfGN6IMI5d4MsEoprhuMTz09OkqjyhPKX6DVtzbi6X',
+  },
+  {
+    label: 'Mining',
+    address: 'UQDM5AVaMaeoLEvSwBn3C6MuMZ-Ouf0IQXEA-kbnzCuKLRBJ',
+  },
+  { label: 'Dev', address: 'UQC5D42owfZ9JzYhyDid93QdVCX8D-DhgupB27FMpKNMf0lb' },
+  {
+    label: 'DEX/CEX & Liquidity',
+    address: 'UQDSPHxwE8o9HoEUF89U-U577GPI_5pdESDkUBIQ4RzFWiH1',
+  },
+  {
+    label: 'Development & Treasury',
+    address: 'UQCGMf2Xqdw6uDpPidA0ufcEeXU4Z7i2DwIxT5gkH4AENmaJ',
+  },
+  {
+    label: 'Marketing & Growth',
+    address: 'UQCGfGKrqLQ8vmsVNLMzBtOUZ-S2-83kQGPoDlHUiKLcf1pm',
+  },
+  {
+    label: 'Referral Leaderboard Airdrop',
+    address: 'UQB28dBa2IUtMfeK2k68FLYqCfXV7_Oh6rB1BdiSZKcvrwxB',
+  },
+  {
+    label: 'Advisors & Partners',
+    address: 'UQDZmB800S6JkIpStYXocag08stDFEHgo1lbxHOXP8bfQRto',
+  },
+];
 
 
 export default function Home() {
@@ -45,6 +81,11 @@ export default function Home() {
   const shortAddress = walletAddress
     ? `${walletAddress.slice(0, 4)}...${walletAddress.slice(-4)}`
     : '';
+
+  const [supply, setSupply] = useState(null);
+  const [holders, setHolders] = useState(null);
+  const [contractTonBalance, setContractTonBalance] = useState(null);
+  const [walletBalances, setWalletBalances] = useState({});
 
   useEffect(() => {
     ping()
@@ -83,6 +124,55 @@ export default function Home() {
     };
     window.addEventListener('profilePhotoUpdated', handleUpdate);
     return () => window.removeEventListener('profilePhotoUpdated', handleUpdate);
+  }, []);
+
+  useEffect(() => {
+    async function load() {
+      try {
+        const res = await fetch(
+          `https://tonapi.io/v2/jettons/${TPC_JETTON_ADDRESS}`
+        );
+        const data = await res.json();
+        const decimals = Number(data.metadata?.decimals) || 0;
+        setSupply(Number(data.total_supply) / 10 ** decimals);
+        setHolders(data.holders_count);
+      } catch (err) {
+        console.error('Failed to load TPC info:', err);
+      }
+      try {
+        const res = await fetch(
+          `https://tonapi.io/v2/accounts/${TPC_JETTON_ADDRESS}`
+        );
+        const acc = await res.json();
+        setContractTonBalance(Number(acc.balance) / 1e9);
+      } catch (err) {
+        console.error('Failed to load contract balance:', err);
+      }
+    }
+    load();
+  }, []);
+
+  useEffect(() => {
+    async function loadBalances() {
+      const map = {};
+      await Promise.all(
+        walletAddresses.map(async (w) => {
+          try {
+            const res = await fetch(
+              `https://tonapi.io/v2/accounts/${w.address}/jettons/${TPC_JETTON_ADDRESS}`
+            );
+            if (!res.ok) return;
+            const data = await res.json();
+            const decimals = Number(data.jetton?.decimals) || 0;
+            map[w.address] = Number(data.balance) / 10 ** decimals;
+          } catch (err) {
+            console.error('Failed to load balance for', w.address, err);
+          }
+        })
+      );
+      setWalletBalances(map);
+    }
+    loadBalances();
   }, []);
 
 
@@ -180,6 +270,55 @@ export default function Home() {
             alt=""
           />
           <h3 className="text-lg font-bold text-text text-center">Tokenomics &amp; Roadmap</h3>
+          <div className="space-y-1 text-sm">
+            <h4 className="font-semibold text-accent text-center">2024–2027</h4>
+            <ul className="list-disc pl-5">
+              <li>Emission of 400M TPC with daily cap of 15–20M tokens</li>
+              <li>Reward pool depleted; ecosystem runs on in-game demand</li>
+            </ul>
+          </div>
+          <div className="space-y-1">
+            <p className="text-lg font-bold">Total Balance</p>
+            <p className="text-2xl flex items-center gap-1">
+              {supply == null ? '...' : formatValue(supply, 2)}
+              <img src="/assets/icons/TPCcoin_1.webp" alt="TPC" className="w-4 h-4" />
+            </p>
+            {holders != null && (
+              <p className="text-sm text-subtext">Holders: {holders}</p>
+            )}
+            {contractTonBalance != null && (
+              <p className="text-sm text-subtext">
+                Contract TON balance: {formatValue(contractTonBalance, 3)} TON
+              </p>
+            )}
+            <p className="text-xs break-all mt-1 text-primary">{TPC_JETTON_ADDRESS}</p>
+          </div>
+          <div className="space-y-1">
+            <h4 className="text-sm font-bold text-center">TPC Wallet Addresses</h4>
+            <ul className="text-xs break-all space-y-1">
+              {walletAddresses.map((w) => (
+                <li key={w.address} className="flex justify-between items-center gap-2">
+                  <div>
+                    <span className="font-semibold text-brand-gold">{w.label}: </span>
+                    <a
+                      href={`https://tonscan.org/address/${w.address}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-primary hover:underline"
+                    >
+                      {w.address}
+                    </a>
+                  </div>
+                  {walletBalances[w.address] != null && (
+                    <span className="flex items-center whitespace-nowrap">
+                      {formatValue(walletBalances[w.address], 2)}{' '}
+                      <img src="/assets/icons/TPCcoin_1.webp" alt="TPC" className="inline-block w-3 h-3 ml-1" />
+                    </span>
+                  )}
+                </li>
+              ))}
+            </ul>
+          </div>
           <Link
             to="/tokenomics"
             className="mx-auto block px-3 py-1 bg-primary rounded hover:bg-primary-hover text-white-shadow text-center"
