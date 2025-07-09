@@ -119,9 +119,12 @@ export default function DailyCheckIn() {
         </span>
 
         {i === streak - 1 && showPopup && (
-          <button onClick={handleCheckIn} className="text-brand-gold text-xs mt-1">
-            Check in
-          </button>
+          <span
+            onClick={handleCheckIn}
+            className="text-brand-gold text-xs mt-1 cursor-pointer"
+          >
+            Claim
+          </span>
         )}
 
       </div>

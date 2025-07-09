@@ -148,8 +148,8 @@ export default function MiningCard() {
       </button>
       {isMining && (
         <div className="flex items-center justify-center space-x-1 text-sm">
-          <img  src="/assets/icons/TPCcoin_1.webp" alt="TPC" className="w-5 h-5" />
           <span>{minted}</span>
+          <span>TPC</span>
         </div>
       )}
       <p className="text-xs text-subtext">Speed boost: +{(bonusRate * 100).toFixed(0)}%</p>

@@ -22,19 +22,13 @@ export default function SpinPage() {
   }
   const [lastSpin, setLastSpin] = useState<number | null>(null);
   const [reward, setReward] = useState<number | null>(null);
-  const [spinningMain, setSpinningMain] = useState(false);
-  const [spinningLeft, setSpinningLeft] = useState(false);
-  const [spinningMiddle, setSpinningMiddle] = useState(false);
-  const spinning = spinningMain || spinningLeft || spinningMiddle;
-  const [multiplier, setMultiplier] = useState(false);
+  const [spinning, setSpinning] = useState(false);
   const [showAd, setShowAd] = useState(false);
   const [adWatched, setAdWatched] = useState(false);
   const [timeLeft, setTimeLeft] = useState(0);
   const [freeSpins, setFreeSpins] = useState(0);
 
-  const mainRef = useRef<SpinWheelHandle>(null);
-  const leftRef = useRef<SpinWheelHandle>(null);
-  const middleRef = useRef<SpinWheelHandle>(null);
+  const wheelRef = useRef<SpinWheelHandle>(null);
 
   const ready = freeSpins > 0 || canSpin(lastSpin);
 
@@ -66,7 +60,7 @@ export default function SpinPage() {
       setFreeSpins(total);
       localStorage.setItem('freeSpins', String(total));
     } else {
-      const finalReward = multiplier ? r * 3 : r;
+      const finalReward = r;
       setReward(finalReward);
       const id = telegramId;
       const balRes = await getWalletBalance(id);
@@ -101,11 +95,7 @@ export default function SpinPage() {
       localStorage.setItem('freeSpins', String(remaining));
     }
 
-    if (multiplier) {
-      leftRef.current?.spin();
-      middleRef.current?.spin();
-    }
-    mainRef.current?.spin();
+    wheelRef.current?.spin();
   };
 
   const handleAdComplete = () => {
@@ -129,37 +119,14 @@ export default function SpinPage() {
       <p className="text-sm text-subtext">Try your luck and win rewards!</p>
       <div className="bg-surface border border-border rounded p-4 flex flex-col items-center space-y-2 wide-card">
         <div className="flex justify-center">
-          <div className="mr-[-8px]">
-            <SpinWheel
-              ref={leftRef}
-              onFinish={() => {}}
-              spinning={spinningLeft}
-              setSpinning={setSpinningLeft}
-              disabled={!ready}
-              showButton={false}
-              disableSound
-            />
-          </div>
           <SpinWheel
-            ref={mainRef}
+            ref={wheelRef}
             onFinish={handleFinish}
-            spinning={spinningMain}
-            setSpinning={setSpinningMain}
+            spinning={spinning}
+            setSpinning={setSpinning}
             disabled={!ready}
             showButton={false}
-            disableSound
           />
-          <div className="ml-[-8px]">
-            <SpinWheel
-              ref={middleRef}
-              onFinish={() => {}}
-              spinning={spinningMiddle}
-              setSpinning={setSpinningMiddle}
-              disabled={!ready}
-              showButton={false}
-              disableSound
-            />
-          </div>
         </div>
         <div className="flex space-x-2 mt-4">
           <button
@@ -168,13 +135,6 @@ export default function SpinPage() {
             disabled={spinning || !ready}
           >
             Spin
-          </button>
-          <button
-            onClick={() => setMultiplier(m => !m)}
-            className="px-4 py-1 bg-primary hover:bg-primary-hover text-background text-sm font-bold rounded"
-            disabled={spinning || !ready}
-          >
-            x3
           </button>
         </div>
         {!ready && (
@@ -191,7 +151,6 @@ export default function SpinPage() {
         onClose={() => setReward(null)}
         duration={1500}
         showCloseButton={false}
-        disableEffects
       />
       <AdModal
         open={showAd}

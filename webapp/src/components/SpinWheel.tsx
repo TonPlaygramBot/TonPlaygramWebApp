@@ -197,7 +197,7 @@ export default forwardRef<SpinWheelHandle, SpinWheelProps>(function SpinWheel(
             <div
               key={idx}
               className={`board-style border-2 border-border text-sm w-28 font-bold flex items-center ${
-                val === 'BONUS_X2' ? 'justify-center' : 'justify-start pl-2 space-x-1'
+                val === 'BONUS_X2' ? 'justify-center' : 'justify-center space-x-1'
               } ${
                 idx === winnerIndex ? 'bg-yellow-300 text-black border-4 border-brand-gold shadow-[0_0_12px_rgba(241,196,15,0.8)]' : 'text-white'
               }`}
