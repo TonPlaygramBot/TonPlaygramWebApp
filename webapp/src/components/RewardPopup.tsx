@@ -23,8 +23,10 @@ export default function RewardPopup({
     let audio: HTMLAudioElement | undefined;
     if (!disableEffects) {
       let icon = '/assets/icons/TPCcoin_1.webp';
-      if (reward === 'BONUS_X2') {
+      if (reward === 'BONUS_X3') {
         icon = '/assets/icons/file_00000000ead061faa3b429466e006f48.webp';
+      } else if (reward === 'FREE_SPIN') {
+        icon = '/assets/icons/file_00000000ae68620a96d269fe76d158e5_256x256.webp';
       }
       coinConfetti(50, icon);
       audio = new Audio('/assets/sounds/man-cheering-in-victory-epic-stock-media-1-00-01.mp3');
@@ -42,7 +44,7 @@ export default function RewardPopup({
       <div className="text-center space-y-4 text-text">
         <h3 className="text-lg font-bold">Reward Earned</h3>
         <div className="text-accent text-3xl flex items-center justify-center space-x-2">
-          {reward === 'BONUS_X2' && (
+          {reward === 'BONUS_X3' && (
             <>
               <img
 
@@ -50,7 +52,17 @@ export default function RewardPopup({
                 alt="Bonus"
                 className="w-8 h-8"
               />
-              <span>BONUS X2</span>
+              <span>BONUS X3</span>
+            </>
+          )}
+          {reward === 'FREE_SPIN' && (
+            <>
+              <img
+                src="/assets/icons/file_00000000ae68620a96d269fe76d158e5_256x256.webp"
+                alt="Free Spin"
+                className="w-8 h-8"
+              />
+              <span>FREE SPIN</span>
             </>
           )}
           {typeof reward === 'number' && (
