@@ -1,18 +1,22 @@
 import { useState, useEffect } from 'react';
 import DiceRoller from './DiceRoller.jsx';
 import RewardPopup from './RewardPopup.tsx';
-import { segments } from '../utils/rewardLogic';
+import { numericSegments, getLuckyReward } from '../utils/rewardLogic';
 import { getTelegramId } from '../utils/telegram.js';
 import LoginOptions from './LoginOptions.jsx';
 import { getWalletBalance, updateBalance, addTransaction } from '../utils/api.js';
 
 function shuffleRewards() {
-  const res = [100];
-  for (let i = 1; i < 12; i++) {
-    const idx = Math.floor(Math.random() * segments.length);
-    res.push(segments[idx]);
+  const numbers = [];
+  for (let i = 0; i < 9; i++) {
+    numbers.push(numericSegments[i % numericSegments.length]);
   }
-  return res;
+  const arr = [...numbers, 'FREE_SPIN', 'BONUS_X3'];
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return [100, ...arr];
 }
 
 const todayKey = () => new Date().toISOString().slice(0, 10);
@@ -56,13 +60,12 @@ export default function LuckyNumber() {
 
   const handleRollStart = () => setRolling(true);
 
-  const handleRollEnd = async (values) => {
+  const handleRollEnd = async () => {
     setRolling(false);
-    const sum = values.reduce((a, b) => a + b, 0);
-    const idx = ((sum - 1) % 12);
+    const prize = getLuckyReward();
+    const idx = rewards.indexOf(prize);
     setSelected(idx);
     setShowRewards(true);
-    const prize = rewards[idx];
     if (typeof prize === 'number') {
       try {
         const balRes = await getWalletBalance(telegramId);
