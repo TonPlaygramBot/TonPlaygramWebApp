@@ -72,8 +72,8 @@ export default function DiceRoller({
       return Math.floor(Math.random() * 6) + 1;
     };
 
-    const tick = 50; // ms between face changes
-    const iterations = 24; // faster roll (~1.2s)
+    const tick = 30; // ms between face changes (faster)
+    const iterations = 20; // shorter roll duration
     let count = 0;
 
     const id = setInterval(() => {
