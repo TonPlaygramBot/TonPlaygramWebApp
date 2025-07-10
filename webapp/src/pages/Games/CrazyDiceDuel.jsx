@@ -146,12 +146,8 @@ export default function CrazyDiceDuel() {
 
   const prepareDiceAnimation = (startIdx) => {
     if (startIdx == null) {
-      const board = boardRef.current;
-      const rect = board
-        ? board.getBoundingClientRect()
-        : { left: window.innerWidth / 2, top: window.innerHeight / 2, width: 0, height: 0 };
-      const cx = rect.left + rect.width / 2;
-      const cy = rect.top + rect.height / 2;
+      const cx = window.innerWidth / 2;
+      const cy = window.innerHeight / 2;
       setDiceStyle({
         display: 'block',
         position: 'fixed',
@@ -184,12 +180,8 @@ export default function CrazyDiceDuel() {
     const startEl = document.querySelector(`[data-player-index="${startIdx}"] img`);
     if (!dice || !startEl) return;
     const s = startEl.getBoundingClientRect();
-    const board = boardRef.current;
-    const rect = board
-      ? board.getBoundingClientRect()
-      : { left: window.innerWidth / 2, top: window.innerHeight / 2, width: 0, height: 0 };
-    const cx = rect.left + rect.width / 2;
-    const cy = rect.top + rect.height / 2;
+    const cx = window.innerWidth / 2;
+    const cy = window.innerHeight / 2;
     dice.style.display = 'block';
     dice.style.position = 'fixed';
     dice.style.left = '0px';
@@ -220,12 +212,8 @@ export default function CrazyDiceDuel() {
     const endEl = document.querySelector(`[data-player-index="${idx}"] img`);
     if (!dice || !endEl) return;
     const e = endEl.getBoundingClientRect();
-    const board = boardRef.current;
-    const rect = board
-      ? board.getBoundingClientRect()
-      : { left: window.innerWidth / 2, top: window.innerHeight / 2, width: 0, height: 0 };
-    const cx = rect.left + rect.width / 2;
-    const cy = rect.top + rect.height / 2;
+    const cx = window.innerWidth / 2;
+    const cy = window.innerHeight / 2;
     dice.animate(
       [
         { transform: `translate(${cx}px, ${cy}px) scale(1)` },
@@ -333,6 +321,9 @@ export default function CrazyDiceDuel() {
           rollHistory={players[0].results}
           maxRolls={maxRolls}
           color={players[0].color}
+          onClick={() => {
+            if (current === 0) setTrigger((t) => t + 1);
+          }}
         />
       </div>
       {players.slice(1).map((p, i) => {
@@ -350,6 +341,9 @@ export default function CrazyDiceDuel() {
             rollHistory={p.results}
             maxRolls={maxRolls}
             color={p.color}
+            onClick={() => {
+              if (current === i + 1) setTrigger((t) => t + 1);
+            }}
           />
           </div>
         );

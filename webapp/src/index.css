@@ -434,7 +434,7 @@ input:focus {
 
 .crazy-dice-board .player-left .player-score,
 .crazy-dice-board .player-left .roll-history {
-  left: calc(100% + 0.5rem);
+  left: calc(100% + 0.3rem);
   transform: translateX(0);
 }
 
@@ -449,11 +449,12 @@ input:focus {
   position: absolute;
   bottom: 100%;
   left: 50%;
-  transform: translate(-50%, -0.25rem);
+  transform: translate(-50%, -0.5rem);
   font-size: 0.75rem;
   font-weight: bold;
   white-space: nowrap;
-  pointer-events: none;
+  pointer-events: auto;
+  cursor: pointer;
 }
 
 .timer-count {
@@ -1326,6 +1327,10 @@ input:focus {
   top: 3%;
   left: 50%;
   transform: translateX(-50%);
+}
+.crazy-dice-board .player-center .player-score,
+.crazy-dice-board .player-center .roll-history {
+  transform: translateX(-60%);
 }
 
 .crazy-dice-board .player-right {
