@@ -32,9 +32,11 @@ export default function LuckyNumber() {
   const [canRoll, setCanRoll] = useState(false);
   const [rolling, setRolling] = useState(false);
 
+  const COOLDOWN = 4 * 60 * 60 * 1000; // 4 hours
+
   useEffect(() => {
-    const last = localStorage.getItem('luckyRollDate');
-    setCanRoll(last !== todayKey());
+    const last = parseInt(localStorage.getItem('luckyRollTs') || '0', 10);
+    setCanRoll(Date.now() - last >= COOLDOWN);
   }, []);
 
   useEffect(() => {
@@ -75,7 +77,7 @@ export default function LuckyNumber() {
       localStorage.setItem('bonusX3', 'true');
     }
     setReward(prize);
-    localStorage.setItem('luckyRollDate', todayKey());
+    localStorage.setItem('luckyRollTs', String(Date.now()));
     setCanRoll(false);
   };
 
@@ -143,7 +145,7 @@ export default function LuckyNumber() {
           clickable={canRoll}
         />
         {!canRoll && (
-          <p className="text-sm text-subtext">Come back tomorrow to roll again.</p>
+          <p className="text-sm text-subtext">You can roll again every 4 hours.</p>
         )}
       </div>
       <RewardPopup

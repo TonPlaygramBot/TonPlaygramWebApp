@@ -11,6 +11,7 @@ export const segments: Segment[] = [
   1600,
   'FREE_SPIN',
   'BONUS_X3',
+  'BONUS_X3',
 ];
 
 export const numericSegments: Segment[] = [
@@ -22,7 +23,7 @@ export const numericSegments: Segment[] = [
   1400,
   1600,
 ];
-const COOLDOWN = 15 * 60_000; // 15 minutes
+const COOLDOWN = 60 * 60_000; // 1 hour
 
 export function canSpin(lastSpin: number | null): boolean {
   if (!lastSpin) return true;

@@ -213,7 +213,7 @@ export default function SpinPage() {
             <p className="text-sm text-text font-semibold">
               Next spin in {formatTime(timeLeft)}
             </p>
-            <p className="text-sm text-text">Watch an ad every 15 minutes to get a free spin.</p>
+            <p className="text-sm text-text">Watch an ad every hour to get a free spin.</p>
           </>
         )}
       </div>
