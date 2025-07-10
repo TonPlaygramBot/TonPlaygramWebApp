@@ -172,7 +172,6 @@ export default function CrazyDiceDuel() {
         alt="board"
         className="board-bg"
       />
-      <div className="board-frame absolute inset-0 pointer-events-none" />
       <div className="dice-center">
         {winner == null ? (
           <DiceRoller onRollEnd={onRollEnd} trigger={trigger} />
