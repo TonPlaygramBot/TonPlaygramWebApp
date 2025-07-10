@@ -20,7 +20,7 @@ export default function AvatarTimer({
   return (
     <div className="relative w-14 h-14" onClick={onClick} data-player-index={index}>
       {isTurn && (
-        <div className="turn-indicator">🫵 your turn</div>
+        <div className="turn-indicator" onClick={onClick}>🫵 your turn</div>
       )}
       {active && (
         <div className="avatar-timer-ring" style={{ '--timer-gradient': gradient }} />
