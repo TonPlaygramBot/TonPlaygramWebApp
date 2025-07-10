@@ -653,6 +653,11 @@ export default function SnakeAndLadder() {
   // that size against the Dice component's default 80px width.
   const DICE_SMALL_SCALE = 0.44;
 
+  useEffect(() => {
+    // Ensure dice and turn prompt are visible when the game loads
+    prepareDiceAnimation(null);
+  }, []);
+
   function prepareDiceAnimation(startIdx) {
     if (startIdx == null) {
       setDiceStyle({
@@ -2170,18 +2175,11 @@ export default function SnakeAndLadder() {
             muted={muted}
           />
           {currentTurn === 0 && !aiRollingIndex && !playerAutoRolling && !moving && (
-            <div className="fixed inset-0 z-20 flex flex-col items-center justify-center">
+            <div className="fixed inset-x-0 bottom-24 z-20 flex flex-col items-center pointer-events-none">
               <a
                 href="#"
                 onClick={handlePlayerTurnClick}
-                className="text-5xl pointer-events-auto"
-              >
-                🫵
-              </a>
-              <a
-                href="#"
-                onClick={handlePlayerTurnClick}
-                className="turn-message text-2xl mt-1 pointer-events-auto"
+                className="turn-message text-2xl pointer-events-auto"
                 style={{ color: players[currentTurn]?.color }}
               >
                 🫵 your turn to roll the dices
@@ -2192,9 +2190,9 @@ export default function SnakeAndLadder() {
       )}
       {isMultiplayer && (
         <div
-          className="fixed inset-0 flex flex-col items-center justify-center z-20"
+          className="fixed inset-0 z-20 pointer-events-none"
         >
-          <div className="scale-90">
+          <div className="flex flex-col items-center justify-center h-full scale-90 pointer-events-auto">
             {(() => {
               const myId = getPlayerId();
               const myIndex = mpPlayers.findIndex(p => p.id === myId);
@@ -2220,7 +2218,7 @@ export default function SnakeAndLadder() {
                 <a
                   href="#"
                   onClick={handlePlayerTurnClick}
-                  className="turn-message text-2xl mt-12 pointer-events-auto"
+                  className="turn-message text-2xl absolute inset-x-0 bottom-24 text-center pointer-events-auto"
                   style={{ color: players[currentTurn]?.color }}
                 >
                   🫵 your turn to roll the dices
