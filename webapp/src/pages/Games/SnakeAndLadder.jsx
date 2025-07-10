@@ -677,8 +677,64 @@ export default function SnakeAndLadder() {
     });
   }
 
-  function animateDiceToEnd() {
-    setTimeout(() => setDiceVisible(false), 2000);
+  function animateDiceToCenter(startIdx) {
+    const dice = diceRef.current;
+    const startEl = document.querySelector(`[data-player-index="${startIdx}"] img`);
+    if (!dice || !startEl) return;
+    const s = startEl.getBoundingClientRect();
+    const cx = window.innerWidth / 2;
+    const cy = window.innerHeight / 2;
+    dice.style.display = 'block';
+    dice.style.position = 'fixed';
+    dice.style.left = '0px';
+    dice.style.top = '0px';
+    dice.style.pointerEvents = 'none';
+    dice.style.zIndex = '50';
+    dice.animate(
+      [
+        { transform: `translate(${s.left + s.width / 2}px, ${s.top + s.height / 2}px) scale(1)` },
+        { transform: `translate(${cx}px, ${cy}px) scale(3)`, offset: 0.5 },
+        { transform: `translate(${cx}px, ${cy}px) scale(1)` },
+      ],
+      { duration: 600, easing: 'linear' },
+    ).onfinish = () => {
+      setDiceStyle({
+        display: 'block',
+        position: 'fixed',
+        left: `${cx}px`,
+        top: `${cy}px`,
+        transform: 'translate(-50%, -50%) scale(1)',
+        pointerEvents: 'none',
+        zIndex: 50,
+      });
+    };
+  }
+
+  function animateDiceToPlayer(idx) {
+    const dice = diceRef.current;
+    const endEl = document.querySelector(`[data-player-index="${idx}"] img`);
+    if (!dice || !endEl) return setDiceVisible(false);
+    const e = endEl.getBoundingClientRect();
+    const cx = window.innerWidth / 2;
+    const cy = window.innerHeight / 2;
+    dice.animate(
+      [
+        { transform: `translate(${cx}px, ${cy}px) scale(1)` },
+        { transform: `translate(${cx}px, ${cy}px) scale(3)`, offset: 0.5 },
+        { transform: `translate(${e.left + e.width / 2}px, ${e.top + e.height / 2}px) scale(1)` },
+      ],
+      { duration: 600, easing: 'linear' },
+    ).onfinish = () => {
+      setDiceStyle({
+        display: 'block',
+        position: 'fixed',
+        left: `${e.left + e.width / 2}px`,
+        top: `${e.top + e.height / 2}px`,
+        transform: 'translate(-50%, -50%) scale(1)',
+        pointerEvents: 'none',
+        zIndex: 50,
+      });
+    };
   }
 
   function handlePlayerTurnClick(e) {
@@ -686,6 +742,7 @@ export default function SnakeAndLadder() {
     if (rollingIndex != null || moving) return;
     prepareDiceAnimation(0);
     setDiceVisible(true);
+    animateDiceToCenter(0);
     setPlayerRollTrigger(Date.now());
   }
 
@@ -1383,7 +1440,6 @@ export default function SnakeAndLadder() {
     setTimeout(() => setRollResult(null), 2000);
 
     setTimeout(() => {
-      setDiceVisible(false);
       setOffsetPopup(null);
       setTrail([]);
 
@@ -1394,7 +1450,7 @@ export default function SnakeAndLadder() {
 
       if (current === 100 && diceCount === 2) {
         if (rolledSix) {
-          setDiceCount(1);
+        // setDiceCount(1);
           setMessage("Six rolled! One die removed.");
         } else {
           setMessage("Need a 6 to remove a die.");
@@ -1409,8 +1465,8 @@ export default function SnakeAndLadder() {
         } else {
           setMessage("Need a 1 to win!");
           setTurnMessage("");
-          setDiceVisible(false);
           const next = (currentTurn + 1) % (ai + 1);
+          animateDiceToPlayer(next);
           setTimeout(() => setCurrentTurn(next), 2000);
           setTimeout(() => setMoving(false), 2000);
           return;
@@ -1423,8 +1479,8 @@ export default function SnakeAndLadder() {
         else {
           setMessage("Need a 6 to start!");
           setTurnMessage("");
-          setDiceVisible(false);
           const next = (currentTurn + 1) % (ai + 1);
+          animateDiceToPlayer(next);
           setTimeout(() => setCurrentTurn(next), 2000);
           setTimeout(() => setMoving(false), 2000);
           return;
@@ -1434,8 +1490,8 @@ export default function SnakeAndLadder() {
       } else {
         setMessage("Need exact roll!");
         setTurnMessage("");
-        setDiceVisible(false);
         const next = (currentTurn + 1) % (ai + 1);
+        animateDiceToPlayer(next);
         setTimeout(() => setCurrentTurn(next), 2000);
         setTimeout(() => setMoving(false), 2000);
         return;
@@ -1497,7 +1553,7 @@ export default function SnakeAndLadder() {
           setCelebrate(true);
           setTimeout(() => {
             setCelebrate(false);
-            setDiceCount(2);
+            // keep two dice
           }, 1500);
         }
         let extraTurn = false;
@@ -1530,6 +1586,7 @@ export default function SnakeAndLadder() {
         if (!gameOver) {
           const next = extraTurn ? currentTurn : (currentTurn + 1) % (ai + 1);
           setCurrentTurn(next);
+          animateDiceToPlayer(next);
         }
       };
 
@@ -1584,7 +1641,6 @@ export default function SnakeAndLadder() {
     }
     setTimeout(() => setRollResult(null), 2000);
     setTimeout(() => {
-      setDiceVisible(false);
     let positions = [...aiPositions];
     let current = positions[index - 1];
     let target = current;
@@ -1666,6 +1722,7 @@ export default function SnakeAndLadder() {
       if (next === 0) setTurnMessage("🫵 your turn to roll the dices");
       setCurrentTurn(next);
       setDiceVisible(true);
+      animateDiceToPlayer(next);
       setMoving(false);
       if (extraTurn && next === index) {
         setTimeout(() => triggerAIRoll(index), 1800);
@@ -2080,13 +2137,14 @@ export default function SnakeAndLadder() {
               }
               setRollingIndex(null);
               setPlayerAutoRolling(false);
-              animateDiceToEnd();
+              // Dice will move to the next player after the move resolves
             }}
             onRollStart={() => {
               if (timerRef.current) clearInterval(timerRef.current);
               timerSoundRef.current?.pause();
               setRollingIndex(aiRollingIndex || 0);
               prepareDiceAnimation(aiRollingIndex != null ? aiRollingIndex : 0);
+              animateDiceToCenter(aiRollingIndex != null ? aiRollingIndex : 0);
               if (aiRollingIndex)
                 return setTurnMessage(<>{playerName(aiRollingIndex)} rolling...</>);
               if (playerAutoRolling) return setTurnMessage('Rolling...');
@@ -2099,7 +2157,7 @@ export default function SnakeAndLadder() {
               currentTurn === 0 &&
               !moving
             }
-            numDice={diceCount + bonusDice}
+            numDice={2}
             trigger={aiRollingIndex != null ? aiRollTrigger : playerAutoRolling ? playerRollTrigger : undefined}
             showButton={false}
             muted={muted}
@@ -2135,6 +2193,7 @@ export default function SnakeAndLadder() {
                   showButton={false}
                   muted={muted}
                   emitRollEvent
+                  numDice={2}
                 />
               );
             }
