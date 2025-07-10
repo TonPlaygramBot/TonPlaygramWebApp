@@ -1,5 +1,7 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { pingOnline, getOnlineCount } from '../../utils/api.js';
+import { getPlayerId } from '../../utils/telegram.js';
 import RoomSelector from '../../components/RoomSelector.jsx';
 import useTelegramBackButton from '../../hooks/useTelegramBackButton.js';
 
@@ -12,6 +14,20 @@ export default function CrazyDiceLobby() {
   const [stake, setStake] = useState({ token: 'TPC', amount: 100 });
   const [vsAI, setVsAI] = useState(false);
   const [aiCount, setAiCount] = useState(1);
+  const [online, setOnline] = useState(0);
+
+  useEffect(() => {
+    const playerId = getPlayerId();
+    function ping() {
+      pingOnline(playerId).catch(() => {});
+      getOnlineCount()
+        .then((d) => setOnline(d.count))
+        .catch(() => {});
+    }
+    ping();
+    const id = setInterval(ping, 30000);
+    return () => clearInterval(id);
+  }, []);
 
   const startGame = () => {
     const params = new URLSearchParams();
@@ -30,6 +46,7 @@ export default function CrazyDiceLobby() {
   return (
     <div className="p-4 space-y-4 text-text">
       <h2 className="text-xl font-bold text-center">Crazy Dice Lobby</h2>
+      <p className="text-center text-sm">Online users: {online}</p>
       <div className="space-y-2">
         <h3 className="font-semibold">Mode</h3>
         <div className="flex gap-2">
