@@ -512,14 +512,8 @@ function Board({
 
 export default function SnakeAndLadder() {
   const [showLobbyConfirm, setShowLobbyConfirm] = useState(false);
-  const [showQuitInfo, setShowQuitInfo] = useState(false);
-  const handleBack = useCallback(() => {
-    if (spectator) {
-      navigate('/games/snake/lobby');
-    } else {
-      setShowLobbyConfirm(true);
-    }
-  }, [spectator, navigate]);
+  const [showQuitInfo, setShowQuitInfo] = useState(true);
+  const handleBack = useCallback(() => setShowLobbyConfirm(true), []);
   useTelegramBackButton(handleBack);
   const navigate = useNavigate();
 
@@ -530,16 +524,12 @@ export default function SnakeAndLadder() {
   useEffect(() => {
     const handlePop = (e) => {
       e.preventDefault();
-      if (spectator) {
-        navigate('/games/snake/lobby');
-      } else {
-        setShowLobbyConfirm(true);
-        window.history.pushState(null, '');
-      }
+      setShowLobbyConfirm(true);
+      window.history.pushState(null, '');
     };
     window.addEventListener('popstate', handlePop);
     return () => window.removeEventListener('popstate', handlePop);
-  }, [spectator, navigate]);
+  }, []);
 
   useEffect(() => {
     const handler = () => setMuted(isGameMuted());
@@ -910,7 +900,6 @@ export default function SnakeAndLadder() {
     setAi(aiCount);
     setIsMultiplayer(tableParam && !aiParam);
     setSpectator(!!watchParam);
-    setShowQuitInfo(!watchParam);
     localStorage.removeItem(`snakeGameState_${aiCount}`);
     setAiPositions(Array(aiCount).fill(0));
     setAiAvatars(
@@ -2155,7 +2144,7 @@ export default function SnakeAndLadder() {
         </div>
       )}
       <InfoPopup
-        open={!spectator && showQuitInfo}
+        open={showQuitInfo}
         onClose={() => setShowQuitInfo(false)}
         title="Warning"
         info="If you quit the game your funds will be lost and you will be placed last."
@@ -2235,7 +2224,7 @@ export default function SnakeAndLadder() {
         }}
       />
       <ConfirmPopup
-        open={!spectator && showLobbyConfirm}
+        open={showLobbyConfirm}
         message="Quit the game? If you leave, your funds will be lost and you'll be placed last."
         onConfirm={() => {
           localStorage.removeItem(`snakeGameState_${ai}`);
