@@ -43,8 +43,8 @@ export default function Layout({ children }) {
   }, []);
 
   useEffect(() => {
-    const onInvite = ({ fromId, fromName, roomId, token, amount, group, opponentNames }) => {
-      setInvite({ fromId, fromName, roomId, token, amount, group, opponentNames });
+    const onInvite = ({ fromId, fromName, roomId, token, amount, group, opponentNames, game }) => {
+      setInvite({ fromId, fromName, roomId, token, amount, group, opponentNames, game });
       if (beepRef.current && !isGameMuted()) {
         beepRef.current.currentTime = 0;
         beepRef.current.play().catch(() => {});
@@ -130,7 +130,7 @@ export default function Layout({ children }) {
         onAccept={() => {
           if (invite)
             navigate(
-              `/games/snake?table=${invite.roomId}&token=${invite.token}&amount=${invite.amount}`,
+              `/games/${invite.game || 'snake'}?table=${invite.roomId}&token=${invite.token}&amount=${invite.amount}`,
             );
           setInvite(null);
         }}

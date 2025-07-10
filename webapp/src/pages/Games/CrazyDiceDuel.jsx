@@ -1,10 +1,15 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import DiceRoller from '../../components/DiceRoller.jsx';
 import AvatarTimer from '../../components/AvatarTimer.jsx';
 import BottomLeftIcons from '../../components/BottomLeftIcons.jsx';
+import QuickMessagePopup from '../../components/QuickMessagePopup.jsx';
+import GiftPopup from '../../components/GiftPopup.jsx';
 import useTelegramBackButton from '../../hooks/useTelegramBackButton.js';
 import { loadAvatar } from '../../utils/avatarUtils.js';
+import { chatBeep, timerBeep } from '../../assets/soundData.js';
+import { getGameVolume, isGameMuted } from '../../utils/sound.js';
+import { giftSounds } from '../../utils/giftSounds.js';
 
 const COLORS = ['#60a5fa', '#ef4444', '#4ade80', '#facc15'];
 
@@ -12,23 +17,83 @@ export default function CrazyDiceDuel() {
   const navigate = useNavigate();
   useTelegramBackButton(() => navigate('/games/crazydice/lobby', { replace: true }));
   const [searchParams] = useSearchParams();
-  const playerCount = parseInt(searchParams.get('players')) || 2;
+  const aiCount = parseInt(searchParams.get('ai')) || 0;
+  const playerCount = aiCount > 0
+    ? aiCount + 1
+    : parseInt(searchParams.get('players')) || 2;
   const maxRolls = parseInt(searchParams.get('rolls')) || 1;
 
-  const initialPlayers = useMemo(() => (
-    Array.from({ length: playerCount }, (_, i) => ({
-      score: 0,
-      rolls: 0,
-      photoUrl: loadAvatar() || '/assets/icons/profile.svg',
-      color: COLORS[i % COLORS.length],
-    }))
-  ), [playerCount]);
+  const initialPlayers = useMemo(
+    () =>
+      Array.from({ length: playerCount }, (_, i) => ({
+        score: 0,
+        rolls: 0,
+        photoUrl:
+          i === 0
+            ? loadAvatar() || '/assets/icons/profile.svg'
+            : `/assets/avatars/avatar${(i % 5) + 1}.svg`,
+        color: COLORS[i % COLORS.length],
+      })),
+    [playerCount],
+  );
 
   const [players, setPlayers] = useState(initialPlayers);
   const [current, setCurrent] = useState(0);
   const [trigger, setTrigger] = useState(0);
   const [winner, setWinner] = useState(null);
   const [tiePlayers, setTiePlayers] = useState(null);
+  const [showChat, setShowChat] = useState(false);
+  const [showGift, setShowGift] = useState(false);
+  const [chatBubbles, setChatBubbles] = useState([]);
+  const [muted, setMuted] = useState(isGameMuted());
+  const [timeLeft, setTimeLeft] = useState(15);
+  const timerRef = useRef(null);
+  const timerSoundRef = useRef(null);
+
+  useEffect(() => {
+    timerSoundRef.current = new Audio(timerBeep);
+    timerSoundRef.current.volume = getGameVolume();
+    return () => timerSoundRef.current?.pause();
+  }, []);
+
+  useEffect(() => {
+    const handler = () => setMuted(isGameMuted());
+    window.addEventListener('gameMuteChanged', handler);
+    return () => window.removeEventListener('gameMuteChanged', handler);
+  }, []);
+
+  useEffect(() => {
+    if (timerRef.current) clearInterval(timerRef.current);
+    timerSoundRef.current?.pause();
+    const isAI = aiCount > 0 && current > 0;
+    if (isAI) {
+      const id = setTimeout(() => setTrigger((t) => t + 1), 1000);
+      return () => clearTimeout(id);
+    }
+    setTimeLeft(15);
+    const end = Date.now() + 15000;
+    timerRef.current = setInterval(() => {
+      const remaining = Math.max(0, (end - Date.now()) / 1000);
+      if (
+        remaining <= 7 &&
+        Math.ceil(remaining) !== Math.ceil(timeLeft) &&
+        timerSoundRef.current
+      ) {
+        timerSoundRef.current.currentTime = 0;
+        if (!muted) timerSoundRef.current.play().catch(() => {});
+      }
+      if (remaining <= 0) {
+        timerSoundRef.current?.pause();
+        clearInterval(timerRef.current);
+        setTrigger((t) => t + 1);
+      }
+      setTimeLeft(remaining);
+    }, 100);
+    return () => {
+      clearInterval(timerRef.current);
+      timerSoundRef.current?.pause();
+    };
+  }, [current, aiCount, muted]);
 
   const handleRollEnd = (values) => {
     const value = Array.isArray(values) ? values.reduce((a, b) => a + b, 0) : values;
@@ -84,7 +149,11 @@ export default function CrazyDiceDuel() {
 
   return (
     <div className="crazy-dice-board text-text">
-      <img src="/assets/icons/file_00000000ce2461f7a5c5347320c3167c.webp" alt="board" className="board-bg" />
+      <img
+        src="/assets/icons/file_00000000316461fdac87111607fc8ada%20(1).png"
+        alt="board"
+        className="board-bg"
+      />
       <div className="dice-center">
         {winner == null ? (
           <DiceRoller onRollEnd={onRollEnd} trigger={trigger} />
@@ -94,20 +163,102 @@ export default function CrazyDiceDuel() {
           </div>
         )}
       </div>
-      <div className="fixed left-1 top-1/2 -translate-y-1/2 flex flex-col space-y-4 z-10">
-        {players.map((p, i) => (
+      <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-10">
+        <AvatarTimer
+          index={0}
+          photoUrl={players[0].photoUrl}
+          active={current === 0}
+          timerPct={current === 0 ? timeLeft / 15 : 1}
+          name="You"
+          color={players[0].color}
+        />
+      </div>
+      <div className="absolute top-16 left-1/2 -translate-x-1/2 flex space-x-4 z-10">
+        {players.slice(1).map((p, i) => (
           <AvatarTimer
-            key={i}
-            index={i}
+            key={i + 1}
+            index={i + 1}
             photoUrl={p.photoUrl}
-            active={i === current}
-            timerPct={1}
-            name={`P${i + 1}`}
+            active={current === i + 1}
+            timerPct={current === i + 1 ? timeLeft / 15 : 1}
+            name={`P${i + 2}`}
             color={p.color}
           />
         ))}
       </div>
-      <BottomLeftIcons onInfo={() => {}} />
+      {chatBubbles.map((b) => (
+        <div key={b.id} className="chat-bubble">
+          <span>{b.text}</span>
+          <img src={b.photoUrl} className="w-6 h-6 rounded-full" />
+        </div>
+      ))}
+      <BottomLeftIcons
+        onInfo={() => {}}
+        onChat={() => setShowChat(true)}
+        onGift={() => setShowGift(true)}
+      />
+      <QuickMessagePopup
+        open={showChat}
+        onClose={() => setShowChat(false)}
+        onSend={(text) => {
+          const id = Date.now();
+          setChatBubbles((b) => [...b, { id, text, photoUrl: players[0].photoUrl }]);
+          if (!muted) {
+            const a = new Audio(chatBeep);
+            a.volume = getGameVolume();
+            a.play().catch(() => {});
+          }
+          setTimeout(() => setChatBubbles((b) => b.filter((bb) => bb.id !== id)), 3000);
+        }}
+      />
+      <GiftPopup
+        open={showGift}
+        onClose={() => setShowGift(false)}
+        players={players.map((p, i) => ({ ...p, index: i, name: `P${i + 1}` }))}
+        senderIndex={0}
+        onGiftSent={({ from, to, gift }) => {
+          const start = document.querySelector(`[data-player-index="${from}"]`);
+          const end = document.querySelector(`[data-player-index="${to}"]`);
+          if (start && end) {
+            const s = start.getBoundingClientRect();
+            const e = end.getBoundingClientRect();
+            const cx = window.innerWidth / 2;
+            const cy = window.innerHeight / 2;
+            let icon;
+            if (typeof gift.icon === 'string' && gift.icon.match(/\.(png|jpg|jpeg|webp|svg)$/)) {
+              icon = document.createElement('img');
+              icon.src = gift.icon;
+              icon.className = 'w-6 h-6';
+            } else {
+              icon = document.createElement('div');
+              icon.textContent = gift.icon;
+              icon.style.fontSize = '24px';
+            }
+            icon.style.position = 'fixed';
+            icon.style.left = '0px';
+            icon.style.top = '0px';
+            icon.style.pointerEvents = 'none';
+            icon.style.transform = `translate(${s.left + s.width / 2}px, ${s.top + s.height / 2}px) scale(1)`;
+            icon.style.zIndex = '9999';
+            document.body.appendChild(icon);
+            const giftSound = giftSounds[gift.id];
+            if (giftSound && !muted) {
+              const a = new Audio(giftSound);
+              a.volume = getGameVolume();
+              a.play().catch(() => {});
+            }
+            const animation = icon.animate(
+              [
+                { transform: `translate(${s.left + s.width / 2}px, ${s.top + s.height / 2}px) scale(1)` },
+                { transform: `translate(${cx}px, ${cy}px) scale(3)`, offset: 0.5 },
+                { transform: `translate(${e.left + e.width / 2}px, ${e.top + e.height / 2}px) scale(1)` },
+              ],
+              { duration: 3500, easing: 'linear' },
+            );
+            animation.onfinish = () => icon.remove();
+          }
+        }}
+      />
     </div>
   );
 }

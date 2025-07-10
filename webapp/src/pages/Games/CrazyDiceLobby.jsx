@@ -10,10 +10,17 @@ export default function CrazyDiceLobby() {
   const [players, setPlayers] = useState(2);
   const [rolls, setRolls] = useState(1);
   const [stake, setStake] = useState({ token: 'TPC', amount: 100 });
+  const [vsAI, setVsAI] = useState(false);
+  const [aiCount, setAiCount] = useState(1);
 
   const startGame = () => {
     const params = new URLSearchParams();
-    params.set('players', players);
+    if (vsAI) {
+      params.set('ai', aiCount);
+      params.set('players', aiCount + 1);
+    } else {
+      params.set('players', players);
+    }
     params.set('rolls', rolls);
     if (stake.token) params.set('token', stake.token);
     if (stake.amount) params.set('amount', stake.amount);
@@ -24,19 +31,54 @@ export default function CrazyDiceLobby() {
     <div className="p-4 space-y-4 text-text">
       <h2 className="text-xl font-bold text-center">Crazy Dice Lobby</h2>
       <div className="space-y-2">
-        <h3 className="font-semibold">Players</h3>
+        <h3 className="font-semibold">Mode</h3>
         <div className="flex gap-2">
-          {[1, 2, 3, 4].map((n) => (
-            <button
-              key={n}
-              onClick={() => setPlayers(n)}
-              className={`lobby-tile ${players === n ? 'lobby-selected' : ''}`}
-            >
-              {n}
-            </button>
-          ))}
+          <button
+            onClick={() => setVsAI(false)}
+            className={`lobby-tile ${!vsAI ? 'lobby-selected' : ''}`}
+          >
+            Players
+          </button>
+          <button
+            onClick={() => setVsAI(true)}
+            className={`lobby-tile ${vsAI ? 'lobby-selected' : ''}`}
+          >
+            Vs AI
+          </button>
         </div>
       </div>
+      {!vsAI && (
+        <div className="space-y-2">
+          <h3 className="font-semibold">Players</h3>
+          <div className="flex gap-2">
+            {[2, 3, 4].map((n) => (
+              <button
+                key={n}
+                onClick={() => setPlayers(n)}
+                className={`lobby-tile ${players === n ? 'lobby-selected' : ''}`}
+              >
+                {n}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+      {vsAI && (
+        <div className="space-y-2">
+          <h3 className="font-semibold">AI Opponents</h3>
+          <div className="flex gap-2">
+            {[1, 2, 3].map((n) => (
+              <button
+                key={n}
+                onClick={() => setAiCount(n)}
+                className={`lobby-tile ${aiCount === n ? 'lobby-selected' : ''}`}
+              >
+                {n}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
       <div className="space-y-2">
         <h3 className="font-semibold">Rolls</h3>
         <div className="flex gap-2">

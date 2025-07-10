@@ -9,11 +9,11 @@ const coinPath = path.join(
   '../../webapp/public/assets/icons/TPCcoin_1.webp'
 );
 
-export function getInviteUrl(roomId, token, amount) {
+export function getInviteUrl(roomId, token, amount, game = 'snake') {
   const baseUrl =
     process.env.WEBAPP_BASE_URL ||
     'https://tonplaygramwebapp.onrender.com';
-  return `${baseUrl}/games/snake?table=${roomId}&token=${token}&amount=${amount}`;
+  return `${baseUrl}/games/${game}?table=${roomId}&token=${token}&amount=${amount}`;
 }
 
 async function renderTransferImage(name, amount, date, photoUrl) {
@@ -182,6 +182,7 @@ export async function sendInviteNotification(
   roomId,
   token,
   amount,
+  game,
 ) {
   let info;
   try {
@@ -195,7 +196,7 @@ export async function sendInviteNotification(
     String(fromId);
   const caption = `${display} invited you to a ${type} game`;
 
-  const url = getInviteUrl(roomId, token, amount);
+  const url = getInviteUrl(roomId, token, amount, game);
   const replyMarkup = {
     inline_keyboard: [
       [{ text: 'Open Game', url }],

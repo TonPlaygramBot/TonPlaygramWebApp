@@ -14,6 +14,7 @@ export default function InvitePopup({
   group,
 }) {
   if (!open) return null;
+  const [game, setGame] = React.useState('snake');
   return createPortal(
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-70">
       <div className="bg-surface border border-border rounded p-4 space-y-4 text-text w-72">
@@ -43,12 +44,23 @@ export default function InvitePopup({
               Invite {Array.isArray(name) ? name.join(', ') : name} to play{' '}
               {group ? 'group' : '1v1'}?
             </p>
+            <div className="space-y-1">
+              <p className="font-semibold">Game</p>
+              <select
+                value={game}
+                onChange={(e) => setGame(e.target.value)}
+                className="w-full border border-border rounded px-2 py-1 bg-surface"
+              >
+                <option value="snake">Snake &amp; Ladders</option>
+                <option value="crazydice">Crazy Dice Duel</option>
+              </select>
+            </div>
             <RoomSelector selected={stake} onSelect={onStakeChange} />
           </>
         )}
         <div className="flex justify-center gap-2">
           <button
-            onClick={onAccept}
+            onClick={() => onAccept(game)}
             className="px-3 py-1 bg-primary hover:bg-primary-hover rounded text-black"
           >
             Yes
