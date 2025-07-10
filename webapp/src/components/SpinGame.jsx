@@ -243,7 +243,7 @@ export default function SpinGame() {
             Next spin in {formatTime(timeLeft)}
           </p>
           <p className="text-sm text-white">
-            Watch an ad every 15 minutes to get a free spin.
+            Watch an ad every hour to get a free spin.
           </p>
         </>
       )}
