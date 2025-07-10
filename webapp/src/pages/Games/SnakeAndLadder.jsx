@@ -2124,7 +2124,11 @@ export default function SnakeAndLadder() {
         </div>
       )}
       {diceVisible && !isMultiplayer && (
-        <div ref={diceRef} style={diceStyle} className="dice-travel">
+        <div
+          ref={diceRef}
+          style={diceStyle}
+          className="dice-travel flex flex-col items-center"
+        >
           <DiceRoller
             className="scale-90"
             onRollEnd={(vals) => {
@@ -2162,19 +2166,19 @@ export default function SnakeAndLadder() {
             showButton={false}
             muted={muted}
           />
-        </div>
-      )}
-      {currentTurn === 0 && !aiRollingIndex && !playerAutoRolling && !moving && (
-        <div className="mt-2 flex flex-col items-center">
-          <a href="#" onClick={handlePlayerTurnClick} className="text-5xl">🫵</a>
-          <a
-            href="#"
-            onClick={handlePlayerTurnClick}
-            className="turn-message text-2xl mt-1"
-            style={{ color: players[currentTurn]?.color }}
-          >
-            🫵 your turn to roll the dices
-          </a>
+          {currentTurn === 0 && !aiRollingIndex && !playerAutoRolling && !moving && (
+            <div className="mt-2 flex flex-col items-center">
+              <a href="#" onClick={handlePlayerTurnClick} className="text-5xl">🫵</a>
+              <a
+                href="#"
+                onClick={handlePlayerTurnClick}
+                className="turn-message text-2xl mt-1"
+                style={{ color: players[currentTurn]?.color }}
+              >
+                🫵 your turn to roll the dices
+              </a>
+            </div>
+          )}
         </div>
       )}
       {isMultiplayer && (
@@ -2183,23 +2187,40 @@ export default function SnakeAndLadder() {
           style={{ transform: 'translateX(2rem)' }}
         >
           <div className="scale-90">
+            {(() => {
+              const myId = getPlayerId();
+              const myIndex = mpPlayers.findIndex(p => p.id === myId);
+              if (currentTurn === myIndex && !moving) {
+                return (
+                  <DiceRoller
+                    clickable
+                    showButton={false}
+                    muted={muted}
+                    emitRollEvent
+                    numDice={2}
+                  />
+                );
+              }
+              return null;
+            })()}
+          </div>
           {(() => {
             const myId = getPlayerId();
             const myIndex = mpPlayers.findIndex(p => p.id === myId);
             if (currentTurn === myIndex && !moving) {
               return (
-                <DiceRoller
-                  clickable
-                  showButton={false}
-                  muted={muted}
-                  emitRollEvent
-                  numDice={2}
-                />
+                <a
+                  href="#"
+                  onClick={handlePlayerTurnClick}
+                  className="turn-message text-2xl mt-1"
+                  style={{ color: players[currentTurn]?.color }}
+                >
+                  🫵 your turn to roll the dices
+                </a>
               );
             }
             return null;
           })()}
-          </div>
         </div>
       )}
       <InfoPopup
