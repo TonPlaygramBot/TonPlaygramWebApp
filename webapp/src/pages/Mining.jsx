@@ -7,6 +7,7 @@ import { FaCircle } from 'react-icons/fa';
 import DailyCheckIn from '../components/DailyCheckIn.jsx';
 import SpinGame from '../components/SpinGame.jsx';
 import MiningCard from '../components/MiningCard.tsx';
+import LuckyNumber from '../components/LuckyNumber.jsx';
 import {
   getLeaderboard,
   getReferralInfo,
@@ -127,6 +128,7 @@ export default function Mining() {
     <>
     <DailyCheckIn />
     <SpinGame />
+    <LuckyNumber />
     <MiningCard />
 
       <div className="relative bg-surface border border-border rounded-xl p-4 space-y-4 text-text overflow-hidden wide-card">
