@@ -2167,12 +2167,18 @@ export default function SnakeAndLadder() {
             muted={muted}
           />
           {currentTurn === 0 && !aiRollingIndex && !playerAutoRolling && !moving && (
-            <div className="mt-12 flex flex-col items-center">
-              <a href="#" onClick={handlePlayerTurnClick} className="text-5xl">🫵</a>
+            <div className="fixed inset-0 z-20 flex flex-col items-center justify-center">
               <a
                 href="#"
                 onClick={handlePlayerTurnClick}
-                className="turn-message text-2xl mt-1"
+                className="text-5xl pointer-events-auto"
+              >
+                🫵
+              </a>
+              <a
+                href="#"
+                onClick={handlePlayerTurnClick}
+                className="turn-message text-2xl mt-1 pointer-events-auto"
                 style={{ color: players[currentTurn]?.color }}
               >
                 🫵 your turn to roll the dices
@@ -2183,8 +2189,7 @@ export default function SnakeAndLadder() {
       )}
       {isMultiplayer && (
         <div
-          className="fixed bottom-24 inset-x-0 flex flex-col items-center z-20"
-          style={{ transform: 'translateX(2rem)' }}
+          className="fixed inset-0 flex flex-col items-center justify-center z-20"
         >
           <div className="scale-90">
             {(() => {
@@ -2212,7 +2217,7 @@ export default function SnakeAndLadder() {
                 <a
                   href="#"
                   onClick={handlePlayerTurnClick}
-                  className="turn-message text-2xl mt-12"
+                  className="turn-message text-2xl mt-12 pointer-events-auto"
                   style={{ color: players[currentTurn]?.color }}
                 >
                   🫵 your turn to roll the dices
