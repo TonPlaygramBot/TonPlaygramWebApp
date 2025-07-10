@@ -648,7 +648,10 @@ export default function SnakeAndLadder() {
   const [showGift, setShowGift] = useState(false);
   const [chatBubbles, setChatBubbles] = useState([]);
 
-  const DICE_SMALL_SCALE = 0.6;
+  // Scale the dice when they rest beside each player's photo.
+  // Board dice icons measure about 2.2rem (~35px) so match
+  // that size against the Dice component's default 80px width.
+  const DICE_SMALL_SCALE = 0.44;
 
   function prepareDiceAnimation(startIdx) {
     if (startIdx == null) {
