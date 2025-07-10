@@ -11,7 +11,6 @@ export const segments: Segment[] = [
   1600,
   'FREE_SPIN',
   'BONUS_X3',
-  'BONUS_X3',
 ];
 
 export const numericSegments: Segment[] = [
@@ -37,4 +36,13 @@ export function nextSpinTime(lastSpin: number | null): number {
 export function getRandomReward(): Segment {
   const index = Math.floor(Math.random() * segments.length);
   return segments[index];
+}
+
+// Lucky Number game reward with 30% chance to hit bonus or free spin
+export function getLuckyReward(): Segment {
+  const r = Math.random();
+  if (r < 0.15) return 'BONUS_X3';
+  if (r < 0.3) return 'FREE_SPIN';
+  const idx = Math.floor(Math.random() * numericSegments.length);
+  return numericSegments[idx] as number;
 }
