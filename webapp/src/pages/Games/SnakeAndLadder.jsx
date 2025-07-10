@@ -2168,13 +2168,7 @@ export default function SnakeAndLadder() {
             clickable={false}
             numDice={2}
             trigger={aiRollingIndex != null ? aiRollTrigger : playerAutoRolling ? playerRollTrigger : undefined}
-            showButton={
-              !aiRollingIndex &&
-              !playerAutoRolling &&
-              rollCooldown === 0 &&
-              currentTurn === 0 &&
-              !moving
-            }
+            showButton={false}
             muted={muted}
           />
           {
@@ -2207,7 +2201,7 @@ export default function SnakeAndLadder() {
                 return (
                   <DiceRoller
                     clickable={false}
-                    showButton
+                    showButton={false}
                     muted={muted}
                     emitRollEvent
                     numDice={2}
