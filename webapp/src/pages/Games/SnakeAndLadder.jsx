@@ -633,6 +633,7 @@ export default function SnakeAndLadder() {
   const [waitingForPlayers, setWaitingForPlayers] = useState(false);
   const [playersNeeded, setPlayersNeeded] = useState(0);
   const [isMultiplayer, setIsMultiplayer] = useState(false);
+  const [spectator, setSpectator] = useState(false);
   const [mpPlayers, setMpPlayers] = useState([]);
   const playersRef = useRef([]);
   const [tableId, setTableId] = useState('snake-4');
@@ -841,6 +842,7 @@ export default function SnakeAndLadder() {
     const amt = params.get("amount");
     const aiParam = params.get("ai");
     const tableParam = params.get("table");
+    const watchParam = params.get("watch");
     if (t) setToken(t.toUpperCase());
     if (amt) setPot(Number(amt));
     const aiCount = aiParam
@@ -850,6 +852,7 @@ export default function SnakeAndLadder() {
         : 1;
     setAi(aiCount);
     setIsMultiplayer(tableParam && !aiParam);
+    setSpectator(!!watchParam);
     localStorage.removeItem(`snakeGameState_${aiCount}`);
     setAiPositions(Array(aiCount).fill(0));
     setAiAvatars(
@@ -1128,7 +1131,11 @@ export default function SnakeAndLadder() {
     socket.on('gameWon', onWon);
     socket.on('currentPlayers', onCurrentPlayers);
 
-    socket.emit('joinRoom', { roomId: tableId, playerId: accountId, name });
+    if (spectator) {
+      socket.emit('watchRoom', { roomId: tableId });
+    } else {
+      socket.emit('joinRoom', { roomId: tableId, playerId: accountId, name });
+    }
 
 
     return () => {
@@ -1145,8 +1152,11 @@ export default function SnakeAndLadder() {
       socket.off('diceRolled', onRolled);
       socket.off('gameWon', onWon);
       socket.off('currentPlayers', onCurrentPlayers);
+      if (spectator) {
+        socket.emit('leaveWatch', { roomId: tableId });
+      }
     };
-  }, [isMultiplayer, tableId]);
+  }, [isMultiplayer, tableId, spectator]);
 
   const fastForward = (elapsed, state) => {
     let p = state.pos ?? 0;

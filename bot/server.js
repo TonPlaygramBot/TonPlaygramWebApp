@@ -191,6 +191,7 @@ const tableSeats = new Map();
 const userSockets = new Map();
 const pendingInvites = new Map();
 
+const tableWatchers = new Map();
 const BUNDLE_TON_MAP = Object.fromEntries(
   Object.values(BUNDLES).map((b) => [b.label, b.ton])
 );
@@ -377,6 +378,11 @@ app.get('/api/snake/board/:id', async (req, res) => {
   const room = await gameManager.getRoom(id, cap);
   res.json({ snakes: room.snakes, ladders: room.ladders });
 });
+app.get("/api/watchers/count/:id", (req, res) => {
+  const set = tableWatchers.get(req.params.id);
+  res.json({ count: set ? set.size : 0 });
+});
+
 
 app.get('/api/ludo/lobbies', async (req, res) => {
   const capacities = [2, 3, 4];
@@ -574,6 +580,26 @@ io.on('connection', (socket) => {
     const result = await gameManager.joinRoom(roomId, playerId, name, socket);
     if (result.error) socket.emit('error', result.error);
   });
+  socket.on("watchRoom", ({ roomId }) => {
+    if (!roomId) return;
+    let set = tableWatchers.get(roomId);
+    if (!set) { set = new Set(); tableWatchers.set(roomId, set); }
+    set.add(socket.id);
+    socket.join(roomId);
+    io.to(roomId).emit("watchCount", { roomId, count: set.size });
+  });
+
+  socket.on("leaveWatch", ({ roomId }) => {
+    if (!roomId) return;
+    const set = tableWatchers.get(roomId);
+    socket.leave(roomId);
+    if (set) {
+      set.delete(socket.id);
+      const count = set.size;
+      if (count === 0) tableWatchers.delete(roomId);
+      io.to(roomId).emit("watchCount", { roomId, count });
+    }
+  });
 
   socket.on('rollDice', async () => {
     await gameManager.rollDice(socket);
@@ -768,6 +794,13 @@ io.on('connection', (socket) => {
         if (set.size === 0) userSockets.delete(String(pid));
       }
       onlineUsers.delete(String(pid));
+    }
+    for (const [id, set] of tableWatchers) {
+      if (set.delete(socket.id)) {
+        const count = set.size;
+        if (count === 0) tableWatchers.delete(id);
+        io.to(id).emit("watchCount", { roomId: id, count });
+      }
     }
   });
 });
