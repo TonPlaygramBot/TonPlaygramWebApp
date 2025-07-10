@@ -201,7 +201,7 @@ export default function LeaderboardCard() {
                     />
                     {u.accountId !== accountId &&
                       u.currentTableId && (
-                        <div className="absolute bottom-0 left-0 right-0 flex flex-col items-center">
+                        <div className="absolute bottom-0 right-0 flex items-center space-x-1">
                           <span className="text-xs text-red-500 bg-surface px-1 rounded">Playing</span>
                           <button
                             onClick={(e) => {
@@ -211,7 +211,7 @@ export default function LeaderboardCard() {
                                 : 'snake';
                               window.location.href = `/games/${game}?table=${u.currentTableId}&watch=1`;
                             }}
-                            className="mt-1 text-xs text-blue-500 flex items-center space-x-1"
+                            className="text-xs text-blue-500 flex items-center space-x-1"
                           >
                             <FaTv />
                             <span>Watch</span>
@@ -251,7 +251,7 @@ export default function LeaderboardCard() {
                       const myTable = leaderboard.find((u) => u.accountId === accountId)?.currentTableId;
                       if (!aiPlaying && !myTable) return null;
                       return (
-                        <div className="absolute bottom-0 left-0 right-0 flex flex-col items-center">
+                        <div className="absolute bottom-0 right-0 flex items-center space-x-1">
                           <span className="text-xs text-red-500 bg-surface px-1 rounded">Playing</span>
                           {myTable && (
                             <button
@@ -260,7 +260,7 @@ export default function LeaderboardCard() {
                                 const game = myTable.startsWith('ludo') ? 'ludo' : 'snake';
                                 window.location.href = `/games/${game}?table=${myTable}&watch=1`;
                               }}
-                              className="mt-1 text-xs text-blue-500 flex items-center space-x-1"
+                              className="text-xs text-blue-500 flex items-center space-x-1"
                             >
                               <FaTv />
                               <span>Watch</span>
