@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, useRef } from 'react';
+import { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import DiceRoller from '../../components/DiceRoller.jsx';
 import AvatarTimer from '../../components/AvatarTimer.jsx';
@@ -16,7 +16,11 @@ const COLORS = ['#60a5fa', '#ef4444', '#4ade80', '#facc15'];
 
 export default function CrazyDiceDuel() {
   const navigate = useNavigate();
-  useTelegramBackButton(() => navigate('/games/crazydice/lobby', { replace: true }));
+  const handleBack = useCallback(
+    () => navigate('/games/crazydice/lobby', { replace: true }),
+    [navigate],
+  );
+  useTelegramBackButton(handleBack);
   const [searchParams] = useSearchParams();
   const aiCount = parseInt(searchParams.get('ai')) || 0;
   const playerCount = aiCount > 0
@@ -92,7 +96,9 @@ export default function CrazyDiceDuel() {
     const end = Date.now() + 15000;
     timerRef.current = setInterval(() => {
       const remaining = Math.max(0, (end - Date.now()) / 1000);
+      const isHumanTurn = aiCount === 0 || current === 0;
       if (
+        isHumanTurn &&
         remaining <= 7 &&
         Math.ceil(remaining) !== Math.ceil(timeLeft) &&
         timerSoundRef.current
@@ -121,7 +127,6 @@ export default function CrazyDiceDuel() {
       );
       return next;
     });
-    setTrigger((t) => t + 1);
   };
 
   const nextTurn = () => {
@@ -178,7 +183,12 @@ export default function CrazyDiceDuel() {
       <div className="side-number right">4</div>
       <div className="dice-center">
         {winner == null ? (
-          <DiceRoller onRollEnd={onRollEnd} trigger={trigger} />
+          <DiceRoller
+            onRollEnd={onRollEnd}
+            trigger={trigger}
+            clickable={aiCount === 0 || current === 0}
+            showButton={aiCount === 0 || current === 0}
+          />
         ) : (
           <div className="text-2xl font-bold text-center">
             Player {winner + 1} wins!
