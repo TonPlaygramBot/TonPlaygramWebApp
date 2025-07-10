@@ -76,10 +76,6 @@ input:focus {
   transform-style: preserve-3d;
 }
 
-.board-frame {
-  @apply border-4 border-accent rounded-lg p-1 bg-surface;
-  transform-style: preserve-3d;
-}
 
 /* Tilted view specifically for the Snake & Ladder board */
 .snake-board-tilt {
