@@ -1,5 +1,6 @@
 import { useEffect, useState, useRef } from 'react';
 import SpinWheel, { SpinWheelHandle } from '../components/SpinWheel.tsx';
+import BonusAnimation from '../components/BonusAnimation.tsx';
 import type { Segment } from '../utils/rewardLogic';
 import RewardPopup from '../components/RewardPopup.tsx';
 import AdModal from '../components/AdModal.tsx';
@@ -34,12 +35,21 @@ export default function SpinPage() {
   const [rightReward, setRightReward] = useState<number | null>(null);
   const [spinningLeft, setSpinningLeft] = useState(false);
   const [spinningRight, setSpinningRight] = useState(false);
+  const [showBonusAnim, setShowBonusAnim] = useState(false);
+  const [bonusVisible, setBonusVisible] = useState(false);
 
   const mainRef = useRef<SpinWheelHandle>(null);
   const leftRef = useRef<SpinWheelHandle>(null);
   const rightRef = useRef<SpinWheelHandle>(null);
 
   const globalSpinning = spinningMain || spinningLeft || spinningRight;
+
+  useEffect(() => {
+    if (bonusMode) {
+      leftRef.current?.spin();
+      rightRef.current?.spin();
+    }
+  }, [bonusMode]);
 
   useEffect(() => {
     if (
@@ -53,6 +63,7 @@ export default function SpinPage() {
       setLeftReward(null);
       setRightReward(null);
       setBonusMode(false);
+      setBonusVisible(false);
     }
   }, [bonusMode, leftReward, rightReward, spinningLeft, spinningRight]);
 
@@ -92,10 +103,10 @@ export default function SpinPage() {
     const handleFinish = async (r: Segment) => {
       if (r === 'BONUS_X3') {
         setBonusMode(true);
+        setBonusVisible(false);
+        setShowBonusAnim(true);
         setLeftReward(null);
         setRightReward(null);
-        leftRef.current?.spin();
-        rightRef.current?.spin();
         return;
       }
 
@@ -168,15 +179,17 @@ export default function SpinPage() {
       <div className="bg-surface border border-border rounded p-4 flex flex-col items-center space-y-2 wide-card">
         <div className="flex justify-center">
           {bonusMode && (
-            <SpinWheel
-              ref={leftRef}
-              onFinish={handleLeftFinish}
-              spinning={spinningLeft}
-              setSpinning={setSpinningLeft}
-              disabled={!ready}
-              showButton={false}
-              segments={numericSegments}
-            />
+            <div className={bonusVisible ? '' : 'invisible'}>
+              <SpinWheel
+                ref={leftRef}
+                onFinish={handleLeftFinish}
+                spinning={spinningLeft}
+                setSpinning={setSpinningLeft}
+                disabled={!ready}
+                showButton={false}
+                segments={numericSegments}
+              />
+            </div>
           )}
           <SpinWheel
             ref={mainRef}
@@ -188,15 +201,17 @@ export default function SpinPage() {
             segments={bonusMode ? numericSegments : undefined}
           />
           {bonusMode && (
-            <SpinWheel
-              ref={rightRef}
-              onFinish={handleRightFinish}
-              spinning={spinningRight}
-              setSpinning={setSpinningRight}
-              disabled={!ready}
-              showButton={false}
-              segments={numericSegments}
-            />
+            <div className={bonusVisible ? '' : 'invisible'}>
+              <SpinWheel
+                ref={rightRef}
+                onFinish={handleRightFinish}
+                spinning={spinningRight}
+                setSpinning={setSpinningRight}
+                disabled={!ready}
+                showButton={false}
+                segments={numericSegments}
+              />
+            </div>
           )}
         </div>
         <div className="flex space-x-2 mt-4">
@@ -222,6 +237,13 @@ export default function SpinPage() {
         onClose={() => setReward(null)}
         duration={1500}
         showCloseButton={false}
+      />
+      <BonusAnimation
+        show={showBonusAnim}
+        onComplete={() => {
+          setBonusVisible(true);
+          setShowBonusAnim(false);
+        }}
       />
       <AdModal
         open={showAd}
