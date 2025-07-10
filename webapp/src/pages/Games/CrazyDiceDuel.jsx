@@ -5,6 +5,7 @@ import AvatarTimer from '../../components/AvatarTimer.jsx';
 import BottomLeftIcons from '../../components/BottomLeftIcons.jsx';
 import QuickMessagePopup from '../../components/QuickMessagePopup.jsx';
 import GiftPopup from '../../components/GiftPopup.jsx';
+import GameEndPopup from '../../components/GameEndPopup.jsx';
 import useTelegramBackButton from '../../hooks/useTelegramBackButton.js';
 import { loadAvatar } from '../../utils/avatarUtils.js';
 import { chatBeep, timerBeep } from '../../assets/soundData.js';
@@ -42,6 +43,14 @@ export default function CrazyDiceDuel() {
   const [trigger, setTrigger] = useState(0);
   const [winner, setWinner] = useState(null);
   const [tiePlayers, setTiePlayers] = useState(null);
+  const ranking = useMemo(
+    () =>
+      players
+        .map((p, i) => ({ name: i === 0 ? 'You' : `P${i + 1}`, score: p.score }))
+        .sort((a, b) => b.score - a.score)
+        .map((p) => p.name),
+    [players],
+  );
   const [showChat, setShowChat] = useState(false);
   const [showGift, setShowGift] = useState(false);
   const [chatBubbles, setChatBubbles] = useState([]);
@@ -163,6 +172,7 @@ export default function CrazyDiceDuel() {
         alt="board"
         className="board-bg"
       />
+      <div className="board-frame absolute inset-0 pointer-events-none" />
       <div className="dice-center">
         {winner == null ? (
           <DiceRoller onRollEnd={onRollEnd} trigger={trigger} />
@@ -172,7 +182,7 @@ export default function CrazyDiceDuel() {
           </div>
         )}
       </div>
-      <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-10">
+      <div className="player-bottom z-10">
         <AvatarTimer
           index={0}
           photoUrl={players[0].photoUrl}
@@ -183,20 +193,22 @@ export default function CrazyDiceDuel() {
           color={players[0].color}
         />
       </div>
-      <div className="absolute top-24 left-0 right-0 flex justify-around z-10">
-        {players.slice(1).map((p, i) => (
-          <AvatarTimer
-            key={i + 1}
-            index={i + 1}
-            photoUrl={p.photoUrl}
-            active={current === i + 1}
-            timerPct={current === i + 1 ? timeLeft / 3 : 1}
-            name={`P${i + 2}`}
-            score={p.score}
-            color={p.color}
-          />
-        ))}
-      </div>
+      {players.slice(1).map((p, i) => {
+        const pos = ['player-left', 'player-center', 'player-right'][i] || '';
+        return (
+          <div key={i + 1} className={`${pos} z-10`}>
+            <AvatarTimer
+              index={i + 1}
+              photoUrl={p.photoUrl}
+              active={current === i + 1}
+              timerPct={current === i + 1 ? timeLeft / 3 : 1}
+              name={`P${i + 2}`}
+              score={p.score}
+              color={p.color}
+            />
+          </div>
+        );
+      })}
       {chatBubbles.map((b) => (
         <div key={b.id} className="chat-bubble">
           <span>{b.text}</span>
@@ -269,6 +281,12 @@ export default function CrazyDiceDuel() {
             animation.onfinish = () => icon.remove();
           }
         }}
+      />
+      <GameEndPopup
+        open={winner != null}
+        ranking={ranking}
+        onPlayAgain={() => window.location.reload()}
+        onReturn={() => navigate('/games/crazydice/lobby')}
       />
     </div>
   );
