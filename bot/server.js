@@ -576,6 +576,10 @@ io.on('connection', (socket) => {
     }
     if (playerId) {
       onlineUsers.set(String(playerId), Date.now());
+      // Track the user's current table when they actually join a room
+      User.updateOne({ accountId: playerId }, { currentTableId: roomId }).catch(
+        () => {}
+      );
     }
     const result = await gameManager.joinRoom(roomId, playerId, name, socket);
     if (result.error) socket.emit('error', result.error);
@@ -794,6 +798,8 @@ io.on('connection', (socket) => {
         if (set.size === 0) userSockets.delete(String(pid));
       }
       onlineUsers.delete(String(pid));
+      // Clear the table tracking when the user disconnects
+      User.updateOne({ accountId: pid }, { currentTableId: null }).catch(() => {})
     }
     for (const [id, set] of tableWatchers) {
       if (set.delete(socket.id)) {
