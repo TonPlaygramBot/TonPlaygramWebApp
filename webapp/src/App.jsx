@@ -13,6 +13,7 @@ import Messages from './pages/Messages.jsx';
 import Trending from './pages/Trending.jsx';
 import Notifications from './pages/Notifications.jsx';
 import TokenomicsPage from './pages/Tokenomics.jsx';
+import WatchToEarn from './pages/WatchToEarn.jsx';
 
 import HorseRacing from './pages/Games/HorseRacing.jsx';
 import SnakeAndLadder from './pages/Games/SnakeAndLadder.jsx';
@@ -49,6 +50,7 @@ export default function App() {
           <Route path="/games/snake/results" element={<SnakeResults />} />
           <Route path="/spin" element={<SpinPage />} />
           <Route path="/tasks" element={<Tasks />} />
+          <Route path="/watch" element={<WatchToEarn />} />
           <Route path="/store" element={<Store />} />
           <Route path="/referral" element={<Referral />} />
           <Route path="/wallet" element={<Wallet />} />
