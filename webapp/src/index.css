@@ -1268,3 +1268,30 @@ input:focus {
   left: 50%;
   transform: translate(-50%, -50%);
 }
+
+/* Player positions around the Crazy Dice board */
+.crazy-dice-board .player-bottom {
+  position: absolute;
+  bottom: 20%;
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+.crazy-dice-board .player-left {
+  position: absolute;
+  top: 26%;
+  left: 6%;
+}
+
+.crazy-dice-board .player-center {
+  position: absolute;
+  top: 22%;
+  left: 46%;
+  transform: translateX(-50%);
+}
+
+.crazy-dice-board .player-right {
+  position: absolute;
+  top: 28%;
+  right: 6%;
+}
