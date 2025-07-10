@@ -413,5 +413,9 @@ export function sendBroadcast(data) {
   return post('/api/broadcast/send', data, API_AUTH_TOKEN || undefined);
 }
 
+export function getWatchCount(tableId) {
+  return fetch(API_BASE_URL + "/api/watchers/count/" + tableId).then(r => r.json());
+}
+
 export function getAppStats() {
   return fetch(API_BASE_URL + '/api/stats').then((r) => r.json());}

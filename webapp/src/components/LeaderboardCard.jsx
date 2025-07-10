@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { FaCircle } from 'react-icons/fa';
+import { FaCircle, FaTv } from 'react-icons/fa';
 import LoginOptions from './LoginOptions.jsx';
 import { getTelegramId, getTelegramPhotoUrl, getPlayerId } from '../utils/telegram.js';
 import {
@@ -8,6 +8,7 @@ import {
   getOnlineUsers,
   fetchTelegramInfo,
   getProfile,
+  getWatchCount,
 } from '../utils/api.js';
 import { getAvatarUrl, saveAvatar, loadAvatar } from '../utils/avatarUtils.js';
 import { socket } from '../utils/socket.js';
@@ -34,6 +35,7 @@ export default function LeaderboardCard() {
   const [myName, setMyName] = useState('');
   const [onlineUsers, setOnlineUsers] = useState([]);
   const [onlineCount, setOnlineCount] = useState(0);
+  const [watchCounts, setWatchCounts] = useState({});
   const [mode, setMode] = useState('1v1');
   const [selected, setSelected] = useState([]);
   const [groupPopup, setGroupPopup] = useState(false);
@@ -77,6 +79,22 @@ export default function LeaderboardCard() {
         });
     }
   }, [telegramId]);
+
+  useEffect(() => {
+    const tables = leaderboard
+      .map((u) => u.currentTableId)
+      .filter(Boolean);
+    if (tables.length === 0) return;
+    Promise.all(tables.map((id) => getWatchCount(id).then((c) => [id, c.count])))
+      .then((arr) => {
+        const obj = {};
+        arr.forEach(([id, cnt]) => {
+          obj[id] = cnt;
+        });
+        setWatchCounts(obj);
+      })
+      .catch(() => {});
+  }, [leaderboard]);
 
   useEffect(() => {
     function loadOnline() {
@@ -186,6 +204,23 @@ export default function LeaderboardCard() {
                     {u.accountId !== accountId &&
                       u.currentTableId && (
                         <span className="ml-1 text-xs text-red-500">Playing</span>
+                      )}
+                    {u.accountId !== accountId &&
+                      u.currentTableId && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            const game = u.currentTableId.startsWith('ludo')
+                              ? 'ludo'
+                              : 'snake';
+                            window.location.href = `/games/${game}?table=${u.currentTableId}&watch=1`;
+                          }}
+                          className="ml-1 text-xs text-blue-500 flex items-center space-x-1"
+                        >
+                          <FaTv />
+                          <span>Watch</span>
+                          <span className="ml-0.5">{watchCounts[u.currentTableId] || 0}</span>
+                        </button>
                       )}
                     {onlineUsers.includes(String(u.accountId)) && (
                       <FaCircle className="ml-1 text-green-500" size={8} />
