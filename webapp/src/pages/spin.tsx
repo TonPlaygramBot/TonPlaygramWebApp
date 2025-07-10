@@ -3,7 +3,7 @@ import SpinWheel, { SpinWheelHandle } from '../components/SpinWheel.tsx';
 import type { Segment } from '../utils/rewardLogic';
 import RewardPopup from '../components/RewardPopup.tsx';
 import AdModal from '../components/AdModal.tsx';
-import { canSpin, nextSpinTime } from '../utils/rewardLogic';
+import { canSpin, nextSpinTime, numericSegments } from '../utils/rewardLogic';
 import {
   getWalletBalance,
   updateBalance,
@@ -89,36 +89,35 @@ export default function SpinPage() {
     setAdWatched(false);
   };
 
-  const handleFinish = async (r: Segment) => {
-    if (r === 'BONUS_X2') {
-      setBonusMode(true);
-      setLeftReward(null);
-      setRightReward(null);
-      leftRef.current?.spin();
-      rightRef.current?.spin();
-      return;
-    }
+    const handleFinish = async (r: Segment) => {
+      if (r === 'BONUS_X3') {
+        setBonusMode(true);
+        setLeftReward(null);
+        setRightReward(null);
+        leftRef.current?.spin();
+        rightRef.current?.spin();
+        return;
+      }
 
-    let extraSpins = 0;
-    if (r === 1600) extraSpins = 1;
-    else if (r === 1800) extraSpins = 2;
+      let extraSpins = 0;
+      if (r === 'FREE_SPIN') extraSpins = 1;
 
-    if (extraSpins > 0) {
-      const total = freeSpins + extraSpins;
-      setFreeSpins(total);
-      localStorage.setItem('freeSpins', String(total));
-    } else {
-      await finalizeReward(r as number);
-    }
+      if (extraSpins > 0) {
+        const total = freeSpins + extraSpins;
+        setFreeSpins(total);
+        localStorage.setItem('freeSpins', String(total));
+      } else {
+        if (typeof r === 'number') await finalizeReward(r as number);
+      }
 
-    const finalCount = freeSpins + extraSpins;
-    if (finalCount === 0) {
-      const now = Date.now();
-      localStorage.setItem('lastSpin', String(now));
-      setLastSpin(now);
-    }
-    if (extraSpins > 0) setReward(r as number);
-  };
+      const finalCount = freeSpins + extraSpins;
+      if (finalCount === 0) {
+        const now = Date.now();
+        localStorage.setItem('lastSpin', String(now));
+        setLastSpin(now);
+      }
+      setReward(r);
+    };
 
   const handleLeftFinish = (val: Segment) => {
     if (typeof val === 'number') setLeftReward(val);
@@ -176,6 +175,7 @@ export default function SpinPage() {
               setSpinning={setSpinningLeft}
               disabled={!ready}
               showButton={false}
+              segments={numericSegments}
             />
           )}
           <SpinWheel
@@ -185,6 +185,7 @@ export default function SpinPage() {
             setSpinning={setSpinningMain}
             disabled={!ready}
             showButton={false}
+            segments={bonusMode ? numericSegments : undefined}
           />
           {bonusMode && (
             <SpinWheel
@@ -194,6 +195,7 @@ export default function SpinPage() {
               setSpinning={setSpinningRight}
               disabled={!ready}
               showButton={false}
+              segments={numericSegments}
             />
           )}
         </div>

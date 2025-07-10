@@ -45,7 +45,7 @@ export default function SpinGame() {
   }, [lastSpin]);
 
   const handleFinish = async (r) => {
-    if (r === 'BONUS_X2') {
+    if (r === 'BONUS_X3') {
       setReward(r);
       if (freeSpins === 0) {
         const now = Date.now();

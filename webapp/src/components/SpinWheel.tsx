@@ -12,6 +12,7 @@ interface SpinWheelProps {
   onFinish: (reward: Segment) => void;
   spinning: boolean;
   setSpinning: (b: boolean) => void;
+  segments?: Segment[];
   disabled?: boolean;
   showButton?: boolean;
   disableSound?: boolean;
@@ -33,6 +34,7 @@ export default forwardRef<SpinWheelHandle, SpinWheelProps>(function SpinWheel(
     onFinish,
     spinning,
     setSpinning,
+    segments,
     disabled,
     showButton = true,
     disableSound = false,
@@ -53,8 +55,12 @@ export default forwardRef<SpinWheelHandle, SpinWheelProps>(function SpinWheel(
       .map((x) => x[1]);
 
   const [wheelSegments, setWheelSegments] = useState<Segment[]>(() =>
-    shuffleSegments(baseSegments)
+    shuffleSegments(segments ?? baseSegments)
   );
+
+  useEffect(() => {
+    setWheelSegments(shuffleSegments(segments ?? baseSegments));
+  }, [segments]);
 
   const spinSoundRef = useRef<HTMLAudioElement | null>(null);
   const successSoundRef = useRef<HTMLAudioElement | null>(null);
@@ -138,7 +144,7 @@ export default forwardRef<SpinWheelHandle, SpinWheelProps>(function SpinWheel(
       setWinnerIndex(finalIndex);
 
       if (!disableSound) {
-        if (reward === 'BONUS_X2') {
+        if (reward === 'BONUS_X3') {
           bonusSoundRef.current?.play().catch(() => {});
           extraBonusSoundRef1.current?.play().catch(() => {});
           if (successSoundRef.current) {
@@ -197,19 +203,30 @@ export default forwardRef<SpinWheelHandle, SpinWheelProps>(function SpinWheel(
             <div
               key={idx}
               className={`board-style border-2 border-border text-sm w-28 font-bold flex items-center ${
-                val === 'BONUS_X2' ? 'justify-center' : 'justify-center space-x-1'
+                val === 'BONUS_X3' || val === 'FREE_SPIN'
+                  ? 'justify-center'
+                  : 'justify-center space-x-1'
               } ${
                 idx === winnerIndex ? 'bg-yellow-300 text-black border-4 border-brand-gold shadow-[0_0_12px_rgba(241,196,15,0.8)]' : 'text-white'
               }`}
               style={{ height: itemHeight }}
             >
-              {val === 'BONUS_X2' ? (
+              {val === 'BONUS_X3' ? (
                 <span className="text-red-600 font-bold drop-shadow-[0_0_2px_black]">
-                  BONUS X2
+                  BONUS X3
                 </span>
+              ) : val === 'FREE_SPIN' ? (
+                <>
+                  <img
+                    src="/assets/icons/file_00000000ae68620a96d269fe76d158e5_256x256.webp"
+                    alt="Free Spin"
+                    className="w-8 h-8"
+                  />
+                  <span>FREE SPIN</span>
+                </>
               ) : (
                 <>
-                  <img  src="/assets/icons/TPCcoin_1.webp" alt="TPC" className="w-8 h-8" />
+                  <img src="/assets/icons/TPCcoin_1.webp" alt="TPC" className="w-8 h-8" />
                   <span>{val >= 1000 ? `${val / 1000}k` : val}</span>
                 </>
               )}
