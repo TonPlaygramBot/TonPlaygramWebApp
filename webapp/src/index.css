@@ -1256,6 +1256,7 @@ input:focus {
   object-fit: cover;
   object-position: center;
   transform: scale(1.1);
+  filter: brightness(1.2);
   z-index: -1;
 }
 .crazy-dice-board .dice-center {
@@ -1290,6 +1291,35 @@ input:focus {
   position: absolute;
   top: 28%;
   right: 6%;
+}
+
+/* Markers for easier mapping */
+.crazy-dice-board .side-number {
+  position: absolute;
+  font-size: 0.75rem;
+  color: #fff;
+  opacity: 0.7;
+  pointer-events: none;
+}
+.crazy-dice-board .side-number.top {
+  top: 0.5rem;
+  left: 50%;
+  transform: translateX(-50%);
+}
+.crazy-dice-board .side-number.bottom {
+  bottom: 0.5rem;
+  left: 50%;
+  transform: translateX(-50%);
+}
+.crazy-dice-board .side-number.left {
+  left: 0.5rem;
+  top: 50%;
+  transform: translateY(-50%);
+}
+.crazy-dice-board .side-number.right {
+  right: 0.5rem;
+  top: 50%;
+  transform: translateY(-50%);
 }
 
 /* Rolling dice animation */
