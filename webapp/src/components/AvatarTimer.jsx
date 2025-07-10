@@ -8,6 +8,8 @@ export default function AvatarTimer({
   rank,
   name,
   score,
+  rollHistory = null,
+  maxRolls = 0,
   isTurn = false,
   color,
   onClick,
@@ -41,6 +43,15 @@ export default function AvatarTimer({
         <span className="player-score" style={{ color: color || '#fde047' }}>
           Score: {score}
         </span>
+      )}
+      {rollHistory && maxRolls > 0 && (
+        <div className="roll-history" style={{ color: color || '#fde047' }}>
+          {Array.from({ length: maxRolls }).map((_, i) => (
+            <div key={i} className="roll-box">
+              {rollHistory[i] != null ? rollHistory[i] : ''}
+            </div>
+          ))}
+        </div>
       )}
     </div>
   );
