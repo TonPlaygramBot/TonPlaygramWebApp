@@ -100,7 +100,7 @@ export default function SpinPage() {
       }
 
       let extraSpins = 0;
-      if (r === 'FREE_SPIN') extraSpins = 1;
+      if (r === 'FREE_SPIN') extraSpins = 2;
 
       if (extraSpins > 0) {
         const total = freeSpins + extraSpins;

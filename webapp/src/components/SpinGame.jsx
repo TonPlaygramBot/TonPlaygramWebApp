@@ -55,6 +55,16 @@ export default function SpinGame() {
       setAdWatched(false);
       return;
     }
+
+    if (r === 'FREE_SPIN') {
+      const total = freeSpins + 2;
+      setFreeSpins(total);
+      localStorage.setItem('freeSpins', String(total));
+      setReward(r);
+      setAdWatched(false);
+      return;
+    }
+
     if (typeof r === 'number') {
       const id = telegramId;
       const balRes = await getWalletBalance(id);
@@ -62,6 +72,7 @@ export default function SpinGame() {
       await updateBalance(id, newBalance);
       await addTransaction(id, r, 'spin');
     }
+
     if (freeSpins === 0) {
       const now = Date.now();
       localStorage.setItem('lastSpin', String(now));

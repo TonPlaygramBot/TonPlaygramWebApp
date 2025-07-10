@@ -62,7 +62,7 @@ export default function RewardPopup({
                 alt="Free Spin"
                 className="w-8 h-8"
               />
-              <span>FREE SPIN</span>
+              <span>+2</span>
             </>
           )}
           {typeof reward === 'number' && (
