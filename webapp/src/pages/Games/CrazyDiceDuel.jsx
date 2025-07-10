@@ -64,6 +64,7 @@ export default function CrazyDiceDuel() {
   const timerRef = useRef(null);
   const timerSoundRef = useRef(null);
   const diceRef = useRef(null);
+  const boardRef = useRef(null);
   const [diceStyle, setDiceStyle] = useState({ display: 'none' });
   const DICE_SMALL_SCALE = 0.44;
 
@@ -145,11 +146,17 @@ export default function CrazyDiceDuel() {
 
   const prepareDiceAnimation = (startIdx) => {
     if (startIdx == null) {
+      const board = boardRef.current;
+      const rect = board
+        ? board.getBoundingClientRect()
+        : { left: window.innerWidth / 2, top: window.innerHeight / 2, width: 0, height: 0 };
+      const cx = rect.left + rect.width / 2;
+      const cy = rect.top + rect.height / 2;
       setDiceStyle({
         display: 'block',
         position: 'fixed',
-        left: '50%',
-        top: '50%',
+        left: `${cx}px`,
+        top: `${cy}px`,
         transform: 'translate(-50%, -50%) scale(1)',
         transition: 'none',
         pointerEvents: 'none',
@@ -177,8 +184,12 @@ export default function CrazyDiceDuel() {
     const startEl = document.querySelector(`[data-player-index="${startIdx}"] img`);
     if (!dice || !startEl) return;
     const s = startEl.getBoundingClientRect();
-    const cx = window.innerWidth / 2;
-    const cy = window.innerHeight / 2;
+    const board = boardRef.current;
+    const rect = board
+      ? board.getBoundingClientRect()
+      : { left: window.innerWidth / 2, top: window.innerHeight / 2, width: 0, height: 0 };
+    const cx = rect.left + rect.width / 2;
+    const cy = rect.top + rect.height / 2;
     dice.style.display = 'block';
     dice.style.position = 'fixed';
     dice.style.left = '0px';
@@ -209,8 +220,12 @@ export default function CrazyDiceDuel() {
     const endEl = document.querySelector(`[data-player-index="${idx}"] img`);
     if (!dice || !endEl) return;
     const e = endEl.getBoundingClientRect();
-    const cx = window.innerWidth / 2;
-    const cy = window.innerHeight / 2;
+    const board = boardRef.current;
+    const rect = board
+      ? board.getBoundingClientRect()
+      : { left: window.innerWidth / 2, top: window.innerHeight / 2, width: 0, height: 0 };
+    const cx = rect.left + rect.width / 2;
+    const cy = rect.top + rect.height / 2;
     dice.animate(
       [
         { transform: `translate(${cx}px, ${cy}px) scale(1)` },
@@ -272,7 +287,7 @@ export default function CrazyDiceDuel() {
   };
 
   return (
-    <div className="crazy-dice-board text-text">
+    <div className="crazy-dice-board text-text" ref={boardRef}>
       <img
         src="/assets/icons/file_00000000316461fdac87111607fc8ada%20(1).png"
         alt="board"
@@ -311,6 +326,7 @@ export default function CrazyDiceDuel() {
           index={0}
           photoUrl={players[0].photoUrl}
           active={current === 0}
+          isTurn={current === 0}
           timerPct={current === 0 ? timeLeft / 15 : 1}
           name="You"
           score={players[0].score}
@@ -327,6 +343,7 @@ export default function CrazyDiceDuel() {
             index={i + 1}
             photoUrl={p.photoUrl}
             active={current === i + 1}
+            isTurn={current === i + 1}
             timerPct={current === i + 1 ? timeLeft / 3.5 : 1}
             name={`P${i + 2}`}
             score={p.score}
