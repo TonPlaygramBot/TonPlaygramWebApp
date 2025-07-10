@@ -1295,3 +1295,34 @@ input:focus {
   top: 28%;
   right: 6%;
 }
+
+/* Rolling dice animation */
+.dice-screen-animation {
+  position: fixed;
+  bottom: 3rem;
+  left: 3rem;
+  animation: dice-bounce 2.5s ease-in-out forwards;
+  pointer-events: none;
+  z-index: 100;
+}
+
+@keyframes dice-bounce {
+  0% {
+    transform: translate(0, 0) scale(0.4) rotate(0deg);
+  }
+  20% {
+    transform: translate(30vw, -20vh) scale(1) rotate(360deg);
+  }
+  40% {
+    transform: translate(-25vw, -50vh) scale(1) rotate(720deg);
+  }
+  60% {
+    transform: translate(25vw, 10vh) scale(1) rotate(1080deg);
+  }
+  80% {
+    transform: translate(-20vw, 20vh) scale(1) rotate(1440deg);
+  }
+  100% {
+    transform: translate(50vw, 40vh) scale(0.4) rotate(1800deg);
+  }
+}

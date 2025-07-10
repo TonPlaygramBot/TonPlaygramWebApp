@@ -96,7 +96,7 @@ export default function DiceRoller({
   return (
     <div className="flex flex-col items-center space-y-4">
       <div
-        className={`flex space-x-4 ${clickable ? 'cursor-pointer' : ''}`}
+        className={`flex space-x-4 ${clickable ? 'cursor-pointer' : ''} ${rolling ? 'dice-screen-animation' : ''}`}
         onClick={clickable ? rollDice : undefined}
       >
         <Dice values={values} rolling={rolling} startValues={startValuesRef.current} />
