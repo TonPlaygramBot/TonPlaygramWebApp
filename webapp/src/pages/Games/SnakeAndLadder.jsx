@@ -2054,7 +2054,7 @@ export default function SnakeAndLadder() {
       )}
       {rollResult !== null && (
         <div className="fixed inset-0 flex items-center justify-center z-30 pointer-events-none">
-          <div className="text-7xl roll-result" style={{ color: rollColor }}>
+          <div className="text-8xl font-extrabold roll-result" style={{ color: rollColor }}>
             {rollResult}
           </div>
         </div>

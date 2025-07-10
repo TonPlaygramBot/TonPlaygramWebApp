@@ -406,7 +406,8 @@ input:focus {
   top: calc(100% + 1rem);
   left: 50%;
   transform: translateX(-50%);
-  font-size: 0.6rem;
+  font-size: 0.8rem;
+  font-weight: bold;
   color: inherit;
   white-space: nowrap;
 }
@@ -1276,20 +1277,20 @@ input:focus {
 
 .crazy-dice-board .player-left {
   position: absolute;
-  top: 26%;
+  top: 15%;
   left: 6%;
 }
 
 .crazy-dice-board .player-center {
   position: absolute;
-  top: 22%;
-  left: 46%;
+  top: 8%;
+  left: 50%;
   transform: translateX(-50%);
 }
 
 .crazy-dice-board .player-right {
   position: absolute;
-  top: 28%;
+  top: 15%;
   right: 6%;
 }
 
