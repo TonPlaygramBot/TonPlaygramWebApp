@@ -7,11 +7,10 @@ import LoginOptions from './LoginOptions.jsx';
 import { getWalletBalance, updateBalance, addTransaction } from '../utils/api.js';
 
 function shuffleRewards() {
-  const arr = [...segments];
-  const res = [];
-  for (let i = 0; i < 12; i++) {
-    const idx = Math.floor(Math.random() * arr.length);
-    res.push(arr[idx]);
+  const res = [100];
+  for (let i = 1; i < 12; i++) {
+    const idx = Math.floor(Math.random() * segments.length);
+    res.push(segments[idx]);
   }
   return res;
 }
@@ -29,14 +28,29 @@ export default function LuckyNumber() {
   const [rewards, setRewards] = useState(() => shuffleRewards());
   const [selected, setSelected] = useState(null);
   const [reward, setReward] = useState(null);
+  const [showRewards, setShowRewards] = useState(false);
   const [canRoll, setCanRoll] = useState(false);
   const [rolling, setRolling] = useState(false);
-  const [trigger, setTrigger] = useState(0);
 
   useEffect(() => {
     const last = localStorage.getItem('luckyRollDate');
     setCanRoll(last !== todayKey());
   }, []);
+
+  useEffect(() => {
+    const claimed = localStorage.getItem('luckyCard1Claimed') === todayKey();
+    if (!claimed) {
+      (async () => {
+        try {
+          const balRes = await getWalletBalance(telegramId);
+          const newBalance = (balRes.balance || 0) + 100;
+          await updateBalance(telegramId, newBalance);
+          await addTransaction(telegramId, 100, 'lucky');
+          localStorage.setItem('luckyCard1Claimed', todayKey());
+        } catch (e) {}
+      })();
+    }
+  }, [telegramId]);
 
   const handleRollStart = () => setRolling(true);
 
@@ -45,6 +59,7 @@ export default function LuckyNumber() {
     const sum = values.reduce((a, b) => a + b, 0);
     const idx = ((sum - 1) % 12);
     setSelected(idx);
+    setShowRewards(true);
     const prize = rewards[idx];
     if (typeof prize === 'number') {
       try {
@@ -60,15 +75,10 @@ export default function LuckyNumber() {
       localStorage.setItem('bonusX3', 'true');
     }
     setReward(prize);
-    setRewards(shuffleRewards());
     localStorage.setItem('luckyRollDate', todayKey());
     setCanRoll(false);
   };
 
-  const triggerRoll = () => {
-    if (!canRoll || rolling) return;
-    setTrigger((t) => t + 1);
-  };
 
   return (
     <div className="relative bg-surface border border-border rounded-xl p-4 space-y-2 text-center overflow-hidden wide-card">
@@ -79,39 +89,49 @@ export default function LuckyNumber() {
       />
       <h3 className="text-lg font-bold text-text">Lucky Number</h3>
       <div className="grid grid-cols-3 gap-2 justify-items-center">
-        {rewards.map((_, i) => (
+        {rewards.map((val, i) => (
           <div
             key={i}
-            className={`board-style w-24 h-24 flex items-center justify-center rounded relative ${selected === i ? 'border-4 border-brand-gold' : 'border-2 border-border'}`}
+            className={`board-style w-24 h-24 flex flex-col items-center justify-center rounded relative ${selected === i ? 'border-4 border-brand-gold' : 'border-2 border-border'}`}
           >
-            <img
-              src="/assets/icons/TonPlayGramLogo_2_512x512.webp"
-              alt="Logo"
-              className="absolute inset-0 w-full h-full object-contain opacity-40"
-            />
-            <span className="relative z-10 text-xl font-bold">{i + 1}</span>
+            {(!showRewards && i !== 0) ? (
+              <>
+                <img
+                  src="/assets/icons/TonPlayGramLogo_2_512x512.webp"
+                  alt="Logo"
+                  className="absolute inset-0 w-full h-full object-contain opacity-40"
+                />
+                <span className="relative z-10 text-xl font-bold">{i + 1}</span>
+              </>
+            ) : (
+              <>
+                <img src="/assets/icons/TPCcoin_1.webp" alt="TPC" className="w-8 h-8" />
+                <span className="font-bold">{val}</span>
+                {i === 0 && <span className="text-red-500 text-xs">FREE</span>}
+              </>
+            )}
           </div>
         ))}
       </div>
-      <div className="flex flex-col items-center space-y-2 mt-2">
+      <div className="flex flex-col items-center space-y-2 mt-4">
         <DiceRoller
           onRollEnd={handleRollEnd}
           onRollStart={handleRollStart}
-          trigger={trigger}
           showButton={false}
+          clickable={canRoll}
         />
-        <button
-          onClick={triggerRoll}
-          disabled={!canRoll || rolling}
-          className="px-4 py-2 bg-primary hover:bg-primary-hover text-white rounded disabled:opacity-50"
-        >
-          Roll Dice
-        </button>
         {!canRoll && (
           <p className="text-sm text-subtext">Come back tomorrow to roll again.</p>
         )}
       </div>
-      <RewardPopup reward={reward} onClose={() => setReward(null)} />
+      <RewardPopup
+        reward={reward}
+        onClose={() => {
+          setReward(null);
+          setShowRewards(false);
+          setRewards(shuffleRewards());
+        }}
+      />
     </div>
   );
 }

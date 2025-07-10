@@ -2,7 +2,7 @@ import { useEffect, useState, useRef } from 'react';
 import SpinWheel from './SpinWheel.tsx';
 import RewardPopup from './RewardPopup.tsx';
 import AdModal from './AdModal.tsx';
-import { canSpin, nextSpinTime } from '../utils/rewardLogic';
+import { canSpin, nextSpinTime, numericSegments } from '../utils/rewardLogic';
 import {
   getWalletBalance,
   updateBalance,
@@ -21,11 +21,15 @@ export default function SpinGame() {
   const [lastSpin, setLastSpin] = useState(null);
   const [reward, setReward] = useState(null);
   const [spinning, setSpinning] = useState(false);
+  const [bonusMode, setBonusMode] = useState(false);
+  const [bonusResults, setBonusResults] = useState([]);
   const [showAd, setShowAd] = useState(false);
   const [adWatched, setAdWatched] = useState(false);
   const [freeSpins, setFreeSpins] = useState(0);
   const [timeLeft, setTimeLeft] = useState(0);
   const wheelRef = useRef(null);
+  const bonusRefLeft = useRef(null);
+  const bonusRefRight = useRef(null);
 
   useEffect(() => {
     const ts = localStorage.getItem('lastSpin');
@@ -44,9 +48,19 @@ export default function SpinGame() {
     return () => clearInterval(id);
   }, [lastSpin]);
 
+  useEffect(() => {
+    if (bonusMode) {
+      setBonusResults([]);
+      setSpinning(true);
+      wheelRef.current?.spin();
+      bonusRefLeft.current?.spin();
+      bonusRefRight.current?.spin();
+    }
+  }, [bonusMode]);
+
   const handleFinish = async (r) => {
     if (r === 'BONUS_X3') {
-      setReward(r);
+      setBonusMode(true);
       if (freeSpins === 0) {
         const now = Date.now();
         localStorage.setItem('lastSpin', String(now));
@@ -99,6 +113,7 @@ export default function SpinGame() {
       localStorage.setItem('freeSpins', String(remaining));
     }
 
+    setSpinning(true);
     wheelRef.current?.spin();
   };
 
@@ -115,6 +130,25 @@ export default function SpinGame() {
     return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
   };
 
+  const handleBonusFinish = async (val) => {
+    setBonusResults((r) => {
+      const arr = [...r, val];
+      if (arr.length === 3) {
+        const sum = arr.reduce((a, b) => a + (typeof b === 'number' ? b : 0), 0);
+        (async () => {
+          const balRes = await getWalletBalance(telegramId);
+          const newBalance = (balRes.balance || 0) + sum;
+          await updateBalance(telegramId, newBalance);
+          await addTransaction(telegramId, sum, 'spin');
+        })();
+        setReward(sum);
+        setBonusMode(false);
+        setSpinning(false);
+      }
+      return arr;
+    });
+  };
+
   const ready = freeSpins > 0 || canSpin(lastSpin);
 
   return (
@@ -127,23 +161,52 @@ export default function SpinGame() {
       />
       <h3 className="text-lg font-bold text-text">Spin &amp; Win</h3>
       <p className="text-sm text-subtext">Try your luck and win rewards!</p>
-      <div className="flex items-start justify-center">
-        <SpinWheel
-          ref={wheelRef}
-          onFinish={handleFinish}
-          spinning={spinning}
-          setSpinning={setSpinning}
-          disabled={!ready}
-          showButton={false}
-        />
-      </div>
+      {!bonusMode ? (
+        <div className="flex items-start justify-center">
+          <SpinWheel
+            ref={wheelRef}
+            onFinish={handleFinish}
+            spinning={spinning}
+            setSpinning={setSpinning}
+            disabled={!ready}
+            showButton={false}
+          />
+        </div>
+      ) : (
+        <div className="flex items-start justify-center space-x-2">
+          <SpinWheel
+            ref={bonusRefLeft}
+            onFinish={handleBonusFinish}
+            spinning={spinning}
+            setSpinning={() => {}}
+            segments={numericSegments}
+            showButton={false}
+          />
+          <SpinWheel
+            ref={wheelRef}
+            onFinish={handleBonusFinish}
+            spinning={spinning}
+            setSpinning={() => {}}
+            segments={numericSegments}
+            showButton={false}
+          />
+          <SpinWheel
+            ref={bonusRefRight}
+            onFinish={handleBonusFinish}
+            spinning={spinning}
+            setSpinning={() => {}}
+            segments={numericSegments}
+            showButton={false}
+          />
+        </div>
+      )}
       {freeSpins > 0 && (
         <p className="text-xs text-accent font-bold">Free Spins: {freeSpins}</p>
       )}
       <button
         onClick={triggerSpin}
         className="mt-2 px-6 py-2 bg-green-600 text-white text-sm font-bold rounded disabled:bg-gray-500"
-        disabled={spinning || !ready}
+        disabled={spinning || !ready || bonusMode}
       >
         Spin
       </button>
