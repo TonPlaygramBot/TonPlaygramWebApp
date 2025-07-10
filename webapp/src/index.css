@@ -405,6 +405,16 @@ input:focus {
   white-space: nowrap;
 }
 
+.player-score {
+  position: absolute;
+  top: calc(100% + 1rem);
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 0.6rem;
+  color: inherit;
+  white-space: nowrap;
+}
+
 .turn-indicator {
   position: absolute;
   top: 50%;
@@ -1240,6 +1250,7 @@ input:focus {
   width: 100vw;
   height: 100vh;
   overflow: hidden;
+  transform: translateX(-2%);
 }
 .crazy-dice-board .board-bg {
   position: absolute;
@@ -1248,7 +1259,7 @@ input:focus {
   height: 100%;
   object-fit: contain;
   object-position: left center;
-  transform: translateX(-5%);
+  transform: translateX(-5%) scaleY(1.05);
   z-index: -1;
 }
 .crazy-dice-board .dice-center {
