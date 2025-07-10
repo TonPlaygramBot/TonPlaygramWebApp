@@ -18,6 +18,8 @@ import HorseRacing from './pages/Games/HorseRacing.jsx';
 import SnakeAndLadder from './pages/Games/SnakeAndLadder.jsx';
 import SnakeMultiplayer from './pages/Games/SnakeMultiplayer.jsx';
 import SnakeResults from './pages/Games/SnakeResults.jsx';
+import CrazyDiceDuel from './pages/Games/CrazyDiceDuel.jsx';
+import CrazyDiceLobby from './pages/Games/CrazyDiceLobby.jsx';
 import Lobby from './pages/Games/Lobby.jsx';
 import Games from './pages/Games.jsx';
 import SpinPage from './pages/spin.tsx';
@@ -38,6 +40,8 @@ export default function App() {
           <Route path="/" element={<Home />} />
           <Route path="/mining" element={<Mining />} />
           <Route path="/games" element={<Games />} />
+          <Route path="/games/crazydice" element={<CrazyDiceDuel />} />
+          <Route path="/games/crazydice/lobby" element={<CrazyDiceLobby />} />
           <Route path="/games/:game/lobby" element={<Lobby />} />
             <Route path="/games/horse" element={<HorseRacing />} />
           <Route path="/games/snake" element={<SnakeAndLadder />} />

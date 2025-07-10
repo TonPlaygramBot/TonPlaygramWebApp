@@ -9,6 +9,7 @@ export default function Games() {
       <h2 className="text-2xl font-bold text-center mt-4">Games</h2>
       <div className="space-y-4">
         <GameCard title="Snake & Ladder" icon="🎲" link="/games/snake/lobby" />
+        <GameCard title="Crazy Dice Duel" icon="🎲" link="/games/crazydice/lobby" />
         <LeaderboardCard />
       </div>
     </div>
