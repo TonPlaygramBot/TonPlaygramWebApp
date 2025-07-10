@@ -36,6 +36,7 @@ export default function LeaderboardCard() {
   const [onlineUsers, setOnlineUsers] = useState([]);
   const [onlineCount, setOnlineCount] = useState(0);
   const [watchCounts, setWatchCounts] = useState({});
+  const [aiPlaying, setAiPlaying] = useState(false);
   const [mode, setMode] = useState('1v1');
   const [selected, setSelected] = useState([]);
   const [groupPopup, setGroupPopup] = useState(false);
@@ -104,6 +105,15 @@ export default function LeaderboardCard() {
     loadOnline();
     const id = setInterval(loadOnline, 30000);
     return () => clearInterval(id);
+  }, []);
+
+  useEffect(() => {
+    const checkAi = () =>
+      [1, 2, 3].some((i) => localStorage.getItem(`snakeGameState_${i}`));
+    setAiPlaying(checkAi());
+    const handler = () => setAiPlaying(checkAi());
+    window.addEventListener('storage', handler);
+    return () => window.removeEventListener('storage', handler);
   }, []);
 
   return (
@@ -205,7 +215,7 @@ export default function LeaderboardCard() {
                           >
                             <FaTv />
                             <span>Watch</span>
-                            <span className="ml-0.5">{watchCounts[u.currentTableId] || 0}</span>
+                            <span className="ml-0.5 text-green-500">{watchCounts[u.currentTableId] || 0}</span>
                           </button>
                         </div>
                       )}
@@ -231,12 +241,35 @@ export default function LeaderboardCard() {
               {rank && rank > 100 && (
                 <tr className="bg-accent text-black h-16">
                   <td className="p-2">{rank}</td>
-                  <td className="p-2 w-16">
+                  <td className="p-2 w-16 relative">
                     <img
                       src={getAvatarUrl(myPhotoUrl || '/assets/icons/profile.svg')}
                       alt="avatar"
                       className="w-16 h-16 hexagon border-2 border-brand-gold object-cover shadow-[0_0_12px_rgba(241,196,15,0.8)]"
                     />
+                    {(() => {
+                      const myTable = leaderboard.find((u) => u.accountId === accountId)?.currentTableId;
+                      if (!aiPlaying && !myTable) return null;
+                      return (
+                        <div className="absolute bottom-0 left-0 right-0 flex flex-col items-center">
+                          <span className="text-xs text-red-500 bg-surface px-1 rounded">Playing</span>
+                          {myTable && (
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                const game = myTable.startsWith('ludo') ? 'ludo' : 'snake';
+                                window.location.href = `/games/${game}?table=${myTable}&watch=1`;
+                              }}
+                              className="mt-1 text-xs text-blue-500 flex items-center space-x-1"
+                            >
+                              <FaTv />
+                              <span>Watch</span>
+                              <span className="ml-0.5 text-green-500">{watchCounts[myTable] || 0}</span>
+                            </button>
+                          )}
+                        </div>
+                      );
+                    })()}
                   </td>
                   <td className="p-2 flex items-center">
                     You
