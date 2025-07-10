@@ -1282,7 +1282,7 @@ input:focus {
 .crazy-dice-board .player-left {
   position: absolute;
   top: 3%;
-  left: 3%;
+  left: 1%;
 }
 
 .crazy-dice-board .player-center {
@@ -1295,7 +1295,7 @@ input:focus {
 .crazy-dice-board .player-right {
   position: absolute;
   top: 3%;
-  right: 3%;
+  right: 1%;
 }
 
 /* Markers for easier mapping */
