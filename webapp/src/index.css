@@ -1302,6 +1302,13 @@ input:focus {
   z-index: 100;
 }
 
+.dice-travel {
+  position: fixed;
+  pointer-events: none;
+  transform: translate(-50%, -50%) scale(1);
+  z-index: 50;
+}
+
 @keyframes dice-bounce {
   0% {
     transform: translate(0, 0) scale(0.4) rotate(0deg);
