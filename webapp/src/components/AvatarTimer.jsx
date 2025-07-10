@@ -7,6 +7,7 @@ export default function AvatarTimer({
   timerPct = 1,
   rank,
   name,
+  score,
   isTurn = false,
   color,
   onClick,
@@ -34,6 +35,11 @@ export default function AvatarTimer({
       {name && (
         <span className="rank-name" style={{ color: color || '#fde047' }}>
           {name}
+        </span>
+      )}
+      {score != null && (
+        <span className="player-score" style={{ color: color || '#fde047' }}>
+          Score: {score}
         </span>
       )}
     </div>

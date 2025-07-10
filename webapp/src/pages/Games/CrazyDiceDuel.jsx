@@ -67,8 +67,17 @@ export default function CrazyDiceDuel() {
     timerSoundRef.current?.pause();
     const isAI = aiCount > 0 && current > 0;
     if (isAI) {
-      const id = setTimeout(() => setTrigger((t) => t + 1), 1000);
-      return () => clearTimeout(id);
+      setTimeLeft(3);
+      const end = Date.now() + 3000;
+      timerRef.current = setInterval(() => {
+        const remaining = Math.max(0, (end - Date.now()) / 1000);
+        if (remaining <= 0) {
+          clearInterval(timerRef.current);
+          setTrigger((t) => t + 1);
+        }
+        setTimeLeft(remaining);
+      }, 100);
+      return () => clearInterval(timerRef.current);
     }
     setTimeLeft(15);
     const end = Date.now() + 15000;
@@ -170,6 +179,7 @@ export default function CrazyDiceDuel() {
           active={current === 0}
           timerPct={current === 0 ? timeLeft / 15 : 1}
           name="You"
+          score={players[0].score}
           color={players[0].color}
         />
       </div>
@@ -180,8 +190,9 @@ export default function CrazyDiceDuel() {
             index={i + 1}
             photoUrl={p.photoUrl}
             active={current === i + 1}
-            timerPct={current === i + 1 ? timeLeft / 15 : 1}
+            timerPct={current === i + 1 ? timeLeft / 3 : 1}
             name={`P${i + 2}`}
+            score={p.score}
             color={p.color}
           />
         ))}
