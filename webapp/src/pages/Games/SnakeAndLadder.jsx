@@ -624,6 +624,9 @@ export default function SnakeAndLadder() {
   const [rollingIndex, setRollingIndex] = useState(null);
   const [playerRollTrigger, setPlayerRollTrigger] = useState(0);
   const [playerAutoRolling, setPlayerAutoRolling] = useState(false);
+  const [diceStyle, setDiceStyle] = useState({ display: 'none' });
+  const diceEndRef = useRef(null);
+  const diceRef = useRef(null);
   const [timeLeft, setTimeLeft] = useState(TURN_TIME);
   const [aiAvatars, setAiAvatars] = useState([]);
   const [burning, setBurning] = useState([]); // indices of tokens burning
@@ -641,6 +644,48 @@ export default function SnakeAndLadder() {
   const [showChat, setShowChat] = useState(false);
   const [showGift, setShowGift] = useState(false);
   const [chatBubbles, setChatBubbles] = useState([]);
+
+  function prepareDiceAnimation(startIdx, endIdx) {
+    const startEl = document.querySelector(`[data-player-index="${startIdx}"] img`);
+    const endEl = document.querySelector(`[data-player-index="${endIdx}"] img`);
+    if (!startEl || !endEl) return;
+    const s = startEl.getBoundingClientRect();
+    const e = endEl.getBoundingClientRect();
+    setDiceStyle({
+      display: 'block',
+      position: 'fixed',
+      left: `${s.left + s.width / 2}px`,
+      top: `${s.top + s.height / 2}px`,
+      transform: 'translate(-50%, -50%) scale(1)',
+      transition: 'none',
+      pointerEvents: 'none',
+      zIndex: 50,
+    });
+    diceEndRef.current = { x: e.left + e.width / 2, y: e.top + e.height / 2 };
+  }
+
+  function animateDiceToEnd() {
+    const end = diceEndRef.current;
+    if (!end) return;
+    setDiceStyle((prev) => ({
+      ...prev,
+      left: `${end.x}px`,
+      top: `${end.y}px`,
+      transform: 'translate(-50%, -50%) scale(0.4)',
+      transition: 'left 0.7s ease-out, top 0.7s ease-out, transform 0.7s ease-out',
+    }));
+    setTimeout(() => setDiceVisible(false), 700);
+  }
+
+  function handlePlayerTurnClick(e) {
+    e.preventDefault();
+    if (rollingIndex != null || moving) return;
+    const playersCount = isMultiplayer ? mpPlayers.length : ai + 1;
+    const next = (currentTurn + 1) % playersCount;
+    prepareDiceAnimation(0, next);
+    setDiceVisible(true);
+    setPlayerRollTrigger(Date.now());
+  }
 
   // Preload token and avatar images so board icons and AI photos display
   // immediately without waiting for network requests during gameplay.
@@ -2011,12 +2056,9 @@ export default function SnakeAndLadder() {
         </div>
       )}
       {diceVisible && !isMultiplayer && (
-        <div
-          className="fixed bottom-24 inset-x-0 flex flex-col items-center z-20"
-          style={{ transform: 'translateX(2rem)' }}
-        >
-          <div className="scale-90">
-            <DiceRoller
+        <div ref={diceRef} style={diceStyle} className="dice-travel">
+          <DiceRoller
+            className="scale-90"
             onRollEnd={(vals) => {
               if (aiRollingIndex) {
                 handleAIRoll(aiRollingIndex, vals);
@@ -2027,17 +2069,20 @@ export default function SnakeAndLadder() {
               }
               setRollingIndex(null);
               setPlayerAutoRolling(false);
+              animateDiceToEnd();
             }}
             onRollStart={() => {
-                if (timerRef.current) clearInterval(timerRef.current);
-                timerSoundRef.current?.pause();
-                setRollingIndex(aiRollingIndex || 0);
-                if (aiRollingIndex)
-                  return setTurnMessage(<>{playerName(aiRollingIndex)} rolling...</>);
-                if (playerAutoRolling) return setTurnMessage('Rolling...');
-                return setTurnMessage("Rolling...");
-              }
-            }
+              if (timerRef.current) clearInterval(timerRef.current);
+              timerSoundRef.current?.pause();
+              setRollingIndex(aiRollingIndex || 0);
+              const playersCount = isMultiplayer ? mpPlayers.length : ai + 1;
+              const next = (currentTurn + 1) % playersCount;
+              prepareDiceAnimation(aiRollingIndex != null ? aiRollingIndex : 0, next);
+              if (aiRollingIndex)
+                return setTurnMessage(<>{playerName(aiRollingIndex)} rolling...</>);
+              if (playerAutoRolling) return setTurnMessage('Rolling...');
+              return setTurnMessage('Rolling...');
+            }}
             clickable={
               !aiRollingIndex &&
               !playerAutoRolling &&
@@ -2050,18 +2095,19 @@ export default function SnakeAndLadder() {
             showButton={false}
             muted={muted}
           />
-          </div>
-          {currentTurn === 0 && !aiRollingIndex && !playerAutoRolling && (
-            <div className="mt-2 flex flex-col items-center">
-              <div className="text-5xl">🫵</div>
-              <div
-                className="turn-message text-2xl mt-1"
-                style={{ color: players[currentTurn]?.color }}
-              >
-                Your turn
-              </div>
-            </div>
-          )}
+        </div>
+      )}
+      {currentTurn === 0 && !aiRollingIndex && !playerAutoRolling && !moving && (
+        <div className="mt-2 flex flex-col items-center">
+          <a href="#" onClick={handlePlayerTurnClick} className="text-5xl">🫵</a>
+          <a
+            href="#"
+            onClick={handlePlayerTurnClick}
+            className="turn-message text-2xl mt-1"
+            style={{ color: players[currentTurn]?.color }}
+          >
+            Your turn
+          </a>
         </div>
       )}
       {isMultiplayer && (
