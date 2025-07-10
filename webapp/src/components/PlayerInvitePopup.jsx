@@ -17,6 +17,7 @@ export default function PlayerInvitePopup({
   const [info, setInfo] = useState(null);
   const [records, setRecords] = useState([]);
   const [giftOpen, setGiftOpen] = useState(false);
+  const [game, setGame] = useState('snake');
 
   useEffect(() => {
     if (!open || !player) return;
@@ -102,10 +103,21 @@ export default function PlayerInvitePopup({
               )}
             </ul>
           </div>
+          <div className="space-y-1">
+            <p className="font-semibold">Game</p>
+            <select
+              value={game}
+              onChange={(e) => setGame(e.target.value)}
+              className="w-full border border-border rounded px-2 py-1 bg-surface"
+            >
+              <option value="snake">Snake &amp; Ladders</option>
+              <option value="crazydice">Crazy Dice Duel</option>
+            </select>
+          </div>
           <RoomSelector selected={stake} onSelect={onStakeChange} />
           <div className="flex justify-center gap-2">
             <button
-              onClick={onInvite}
+              onClick={() => onInvite(game)}
               className="px-3 py-1 bg-primary hover:bg-primary-hover rounded text-black"
             >
               Invite

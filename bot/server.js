@@ -451,6 +451,7 @@ app.post('/api/snake/invite', async (req, res) => {
         roomId,
         token,
         amount,
+        game: 'snake',
       });
     }
   } else {
@@ -466,9 +467,10 @@ app.post('/api/snake/invite', async (req, res) => {
     telegramIds: [toTelegramId],
     token,
     amount,
+    game: 'snake',
   });
 
-  let url = getInviteUrl(roomId, token, amount);
+  let url = getInviteUrl(roomId, token, amount, 'snake');
   if (toTelegramId) {
     try {
       url = await sendInviteNotification(
@@ -480,6 +482,7 @@ app.post('/api/snake/invite', async (req, res) => {
         roomId,
         token,
         amount,
+        'snake',
       );
     } catch (err) {
       console.error('Failed to send Telegram notification:', err.message);
@@ -586,6 +589,7 @@ io.on('connection', (socket) => {
       roomId,
       token,
       amount,
+      game,
     } = payload || {};
     if (!fromId || !toId) return cb && cb({ success: false, error: 'invalid ids' });
 
@@ -608,7 +612,7 @@ io.on('connection', (socket) => {
     }
     if (targets && targets.size > 0) {
       for (const sid of targets) {
-        io.to(sid).emit('gameInvite', { fromId, fromName, roomId, token, amount });
+        io.to(sid).emit('gameInvite', { fromId, fromName, roomId, token, amount, game });
       }
     } else {
       console.warn(
@@ -622,8 +626,9 @@ io.on('connection', (socket) => {
       telegramIds: [toTelegramId],
       token,
       amount,
+      game,
     });
-    let url = getInviteUrl(roomId, token, amount);
+    let url = getInviteUrl(roomId, token, amount, game);
     if (toTelegramId) {
       try {
         url = await sendInviteNotification(
@@ -635,6 +640,7 @@ io.on('connection', (socket) => {
           roomId,
           token,
           amount,
+          game,
         );
       } catch (err) {
         console.error('Failed to send Telegram notification:', err.message);
@@ -673,8 +679,9 @@ io.on('connection', (socket) => {
         telegramIds: [...telegramIds],
         token,
         amount,
+        game: 'snake',
       });
-      let url = getInviteUrl(roomId, token, amount);
+      let url = getInviteUrl(roomId, token, amount, 'snake');
       for (let i = 0; i < toIds.length; i++) {
         const toId = toIds[i];
         let tgId = telegramIds[i];
@@ -706,6 +713,7 @@ io.on('connection', (socket) => {
               amount,
               group: toIds,
               opponentNames,
+              game: 'snake',
             });
           }
         } else {
@@ -724,6 +732,7 @@ io.on('connection', (socket) => {
               roomId,
               token,
               amount,
+              'snake',
             );
           } catch (err) {
             console.error('Failed to send Telegram notification:', err.message);

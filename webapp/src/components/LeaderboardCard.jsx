@@ -225,7 +225,7 @@ export default function LeaderboardCard() {
         player={inviteTarget}
         stake={stake}
         onStakeChange={setStake}
-        onInvite={() => {
+        onInvite={(game) => {
           if (inviteTarget) {
             const roomId = `invite-${accountId}-${inviteTarget.accountId}-${Date.now()}-2`;
             socket.emit(
@@ -237,12 +237,13 @@ export default function LeaderboardCard() {
                 toId: inviteTarget.accountId,
                 toTelegramId: inviteTarget.telegramId,
                 roomId,
+                game,
                 token: stake.token,
                 amount: stake.amount,
               },
               (res) => {
                 if (res && res.success) {
-                  window.location.href = `/games/snake?table=${roomId}&token=${stake.token}&amount=${stake.amount}`;
+                  window.location.href = `/games/${game}?table=${roomId}&token=${stake.token}&amount=${stake.amount}`;
                 } else {
                   alert(res?.error || 'Failed to send invite');
                 }
@@ -260,7 +261,7 @@ export default function LeaderboardCard() {
         onStakeChange={setStake}
         group
         opponents={selected.map((u) => u.nickname || `${u.firstName || ''} ${u.lastName || ''}`.trim())}
-        onAccept={() => {
+        onAccept={(game) => {
           if (selected.length > 0) {
             const roomId = `invite-${accountId}-${Date.now()}-${selected.length + 1}`;
             socket.emit(
@@ -273,12 +274,13 @@ export default function LeaderboardCard() {
                 telegramIds: selected.map((u) => u.telegramId),
                 opponentNames: selected.map((u) => u.nickname || `${u.firstName || ''} ${u.lastName || ''}`.trim()),
                 roomId,
+                game,
                 token: stake.token,
                 amount: stake.amount,
               },
               (res) => {
                 if (res && res.success) {
-                  window.location.href = `/games/snake?table=${roomId}&token=${stake.token}&amount=${stake.amount}`;
+                  window.location.href = `/games/${game}?table=${roomId}&token=${stake.token}&amount=${stake.amount}`;
                 } else {
                   alert(res?.error || 'Failed to send invite');
                 }
