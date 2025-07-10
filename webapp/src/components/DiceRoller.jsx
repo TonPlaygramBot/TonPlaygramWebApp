@@ -49,7 +49,7 @@ export default function DiceRoller({
   useEffect(() => {
     if (trigger !== undefined && trigger !== triggerRef.current) {
       triggerRef.current = trigger;
-      setTimeout(() => rollDice(), 1000); // show dice briefly before rolling
+      setTimeout(() => rollDice(), 0); // roll immediately on trigger
     }
   }, [trigger]);
 

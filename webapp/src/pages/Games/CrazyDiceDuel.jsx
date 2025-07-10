@@ -76,8 +76,8 @@ export default function CrazyDiceDuel() {
     timerSoundRef.current?.pause();
     const isAI = aiCount > 0 && current > 0;
     if (isAI) {
-      setTimeLeft(3);
-      const end = Date.now() + 3000;
+      setTimeLeft(3.5);
+      const end = Date.now() + 3500;
       timerRef.current = setInterval(() => {
         const remaining = Math.max(0, (end - Date.now()) / 1000);
         if (remaining <= 0) {
@@ -172,6 +172,10 @@ export default function CrazyDiceDuel() {
         alt="board"
         className="board-bg"
       />
+      <div className="side-number top">1</div>
+      <div className="side-number bottom">2</div>
+      <div className="side-number left">3</div>
+      <div className="side-number right">4</div>
       <div className="dice-center">
         {winner == null ? (
           <DiceRoller onRollEnd={onRollEnd} trigger={trigger} />
@@ -200,7 +204,7 @@ export default function CrazyDiceDuel() {
               index={i + 1}
               photoUrl={p.photoUrl}
               active={current === i + 1}
-              timerPct={current === i + 1 ? timeLeft / 3 : 1}
+              timerPct={current === i + 1 ? timeLeft / 3.5 : 1}
               name={`P${i + 2}`}
               score={p.score}
               color={p.color}
