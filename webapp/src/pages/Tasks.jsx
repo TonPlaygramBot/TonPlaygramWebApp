@@ -1,5 +1,4 @@
 import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
 
 import {
   listTasks,
@@ -136,7 +135,6 @@ export default function Tasks() {
 
     <div className="relative p-4 space-y-2 text-text flex flex-col items-center wide-card">
       <h2 className="text-xl font-bold">Tasks</h2>
-      <Link to="/watch" className="text-primary underline text-sm">Watch to Earn</Link>
       <div className="flex justify-center space-x-2">
         {['TonPlaygram', 'Partners'].map((c) => (
           <button
