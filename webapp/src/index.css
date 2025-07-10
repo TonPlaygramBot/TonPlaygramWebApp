@@ -1277,20 +1277,20 @@ input:focus {
 
 .crazy-dice-board .player-left {
   position: absolute;
-  top: 15%;
+  top: 3%;
   left: 6%;
 }
 
 .crazy-dice-board .player-center {
   position: absolute;
-  top: 8%;
+  top: 3%;
   left: 50%;
   transform: translateX(-50%);
 }
 
 .crazy-dice-board .player-right {
   position: absolute;
-  top: 15%;
+  top: 3%;
   right: 6%;
 }
 
