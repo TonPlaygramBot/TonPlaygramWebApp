@@ -222,7 +222,7 @@ export default forwardRef<SpinWheelHandle, SpinWheelProps>(function SpinWheel(
                     alt="Free Spin"
                     className="w-8 h-8"
                   />
-                  <span>FREE SPIN</span>
+                  <span>+2</span>
                 </>
               ) : (
                 <>
