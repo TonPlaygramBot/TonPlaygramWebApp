@@ -189,7 +189,7 @@ export default function LeaderboardCard() {
                   }}
                 >
                   <td className="p-2">{idx + 1}</td>
-                  <td className="p-2 w-16 relative">
+                  <td className="p-2 w-16">
                     <img
                       src={getAvatarUrl(
                         u.accountId === accountId
@@ -199,26 +199,6 @@ export default function LeaderboardCard() {
                       alt="avatar"
                       className="w-16 h-16 hexagon border-2 border-brand-gold object-cover shadow-[0_0_12px_rgba(241,196,15,0.8)]"
                     />
-                    {u.accountId !== accountId &&
-                      u.currentTableId && (
-                        <div className="absolute bottom-0 right-0 flex items-center space-x-1">
-                          <span className="text-xs text-red-500 bg-surface px-1 rounded">Playing</span>
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              const game = u.currentTableId.startsWith('ludo')
-                                ? 'ludo'
-                                : 'snake';
-                              window.location.href = `/games/${game}?table=${u.currentTableId}&watch=1`;
-                            }}
-                            className="text-xs text-blue-500 flex items-center space-x-1"
-                          >
-                            <FaTv />
-                            <span>Watch</span>
-                            <span className="ml-0.5 text-green-500">{watchCounts[u.currentTableId] || 0}</span>
-                          </button>
-                        </div>
-                      )}
                   </td>
                   <td className="p-2 flex items-center">
                     {mode === 'group' && u.accountId !== accountId && (
@@ -235,23 +215,51 @@ export default function LeaderboardCard() {
                       <FaCircle className="ml-1 text-green-500" size={8} />
                     )}
                   </td>
-                  <td className="p-2 text-right">{u.balance}</td>
+                  <td className="p-2 text-right flex items-center justify-end space-x-2">
+                    <span>{u.balance}</span>
+                    {u.accountId !== accountId && u.currentTableId && (
+                      <div className="flex items-center space-x-1">
+                        <span className="text-xs text-red-500 bg-surface px-1 rounded">Playing</span>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            const game = u.currentTableId.startsWith('ludo') ? 'ludo' : 'snake';
+                            window.location.href = `/games/${game}?table=${u.currentTableId}&watch=1`;
+                          }}
+                          className="text-xs text-blue-500 flex items-center space-x-1"
+                        >
+                          <FaTv />
+                          <span>Watch</span>
+                          <span className="ml-0.5 text-green-500">{watchCounts[u.currentTableId] || 0}</span>
+                        </button>
+                      </div>
+                    )}
+                  </td>
                 </tr>
               ))}
-              {rank && rank > 100 && (
+                {rank && rank > 100 && (
                 <tr className="bg-accent text-black h-16">
                   <td className="p-2">{rank}</td>
-                  <td className="p-2 w-16 relative">
+                  <td className="p-2 w-16">
                     <img
                       src={getAvatarUrl(myPhotoUrl || '/assets/icons/profile.svg')}
                       alt="avatar"
                       className="w-16 h-16 hexagon border-2 border-brand-gold object-cover shadow-[0_0_12px_rgba(241,196,15,0.8)]"
                     />
+                  </td>
+                  <td className="p-2 flex items-center">
+                    You
+                    {onlineUsers.includes(String(accountId)) && (
+                      <FaCircle className="ml-1 text-green-500" size={8} />
+                    )}
+                  </td>
+                  <td className="p-2 text-right flex items-center justify-end space-x-2">
+                    <span>{leaderboard.find((u) => u.accountId === accountId)?.balance ?? '...'}</span>
                     {(() => {
                       const myTable = leaderboard.find((u) => u.accountId === accountId)?.currentTableId;
                       if (!aiPlaying && !myTable) return null;
                       return (
-                        <div className="absolute bottom-0 right-0 flex items-center space-x-1">
+                        <div className="flex items-center space-x-1">
                           <span className="text-xs text-red-500 bg-surface px-1 rounded">Playing</span>
                           {myTable && (
                             <button
@@ -270,15 +278,6 @@ export default function LeaderboardCard() {
                         </div>
                       );
                     })()}
-                  </td>
-                  <td className="p-2 flex items-center">
-                    You
-                    {onlineUsers.includes(String(accountId)) && (
-                      <FaCircle className="ml-1 text-green-500" size={8} />
-                    )}
-                  </td>
-                  <td className="p-2 text-right">
-                    {leaderboard.find((u) => u.accountId === accountId)?.balance ?? '...'}
                   </td>
                 </tr>
               )}
