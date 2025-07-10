@@ -652,6 +652,8 @@ export default function SnakeAndLadder() {
   // Board dice icons measure about 2.2rem (~35px) so match
   // that size against the Dice component's default 80px width.
   const DICE_SMALL_SCALE = 0.44;
+  // Fixed Y position where dice are rolled (around bottom of the screen)
+  const DICE_ROLL_Y_OFFSET = 120;
 
   useEffect(() => {
     // Ensure dice and turn prompt are visible when the game loads
@@ -660,11 +662,12 @@ export default function SnakeAndLadder() {
 
   function prepareDiceAnimation(startIdx) {
     if (startIdx == null) {
+      const cy = window.innerHeight - DICE_ROLL_Y_OFFSET;
       setDiceStyle({
         display: 'block',
         position: 'fixed',
         left: '50%',
-        top: '50%',
+        top: `${cy}px`,
         transform: 'translate(-50%, -50%) scale(1)',
         transition: 'none',
         pointerEvents: 'none',
@@ -693,7 +696,7 @@ export default function SnakeAndLadder() {
     if (!dice || !startEl) return;
     const s = startEl.getBoundingClientRect();
     const cx = window.innerWidth / 2;
-    const cy = window.innerHeight / 2;
+    const cy = window.innerHeight - DICE_ROLL_Y_OFFSET;
     dice.style.display = 'block';
     dice.style.position = 'fixed';
     dice.style.left = '0px';
@@ -725,7 +728,7 @@ export default function SnakeAndLadder() {
     if (!dice || !endEl) return setDiceVisible(false);
     const e = endEl.getBoundingClientRect();
     const cx = window.innerWidth / 2;
-    const cy = window.innerHeight / 2;
+    const cy = window.innerHeight - DICE_ROLL_Y_OFFSET;
     dice.animate(
       [
         { transform: `translate(${cx}px, ${cy}px) scale(1)` },
@@ -2162,30 +2165,34 @@ export default function SnakeAndLadder() {
               if (playerAutoRolling) return setTurnMessage('Rolling...');
               return setTurnMessage('Rolling...');
             }}
-            clickable={
+            clickable={false}
+            numDice={2}
+            trigger={aiRollingIndex != null ? aiRollTrigger : playerAutoRolling ? playerRollTrigger : undefined}
+            showButton={
               !aiRollingIndex &&
               !playerAutoRolling &&
               rollCooldown === 0 &&
               currentTurn === 0 &&
               !moving
             }
-            numDice={2}
-            trigger={aiRollingIndex != null ? aiRollTrigger : playerAutoRolling ? playerRollTrigger : undefined}
-            showButton={false}
             muted={muted}
           />
-          {currentTurn === 0 && !aiRollingIndex && !playerAutoRolling && !moving && (
-            <div className="fixed inset-x-0 bottom-24 z-20 flex flex-col items-center pointer-events-none">
-              <a
-                href="#"
-                onClick={handlePlayerTurnClick}
-                className="turn-message text-2xl pointer-events-auto"
-                style={{ color: players[currentTurn]?.color }}
-              >
-                🫵 your turn to roll the dices
-              </a>
-            </div>
-          )}
+          {
+            !aiRollingIndex &&
+            !playerAutoRolling &&
+            rollCooldown === 0 &&
+            currentTurn === 0 &&
+            !moving && (
+              <div className="fixed inset-x-0 bottom-24 z-20 flex justify-center pointer-events-none">
+                <button
+                  onClick={handlePlayerTurnClick}
+                  className="pointer-events-auto px-4 py-2 bg-primary hover:bg-primary-hover text-white rounded"
+                >
+                  Roll
+                </button>
+              </div>
+            )
+          }
         </div>
       )}
       {isMultiplayer && (
@@ -2199,8 +2206,8 @@ export default function SnakeAndLadder() {
               if (currentTurn === myIndex && !moving) {
                 return (
                   <DiceRoller
-                    clickable
-                    showButton={false}
+                    clickable={false}
+                    showButton
                     muted={muted}
                     emitRollEvent
                     numDice={2}
@@ -2215,14 +2222,14 @@ export default function SnakeAndLadder() {
             const myIndex = mpPlayers.findIndex(p => p.id === myId);
             if (currentTurn === myIndex && !moving) {
               return (
-                <a
-                  href="#"
-                  onClick={handlePlayerTurnClick}
-                  className="turn-message text-2xl absolute inset-x-0 bottom-24 text-center pointer-events-auto"
-                  style={{ color: players[currentTurn]?.color }}
-                >
-                  🫵 your turn to roll the dices
-                </a>
+                <div className="absolute inset-x-0 bottom-24 flex justify-center pointer-events-none">
+                  <button
+                    onClick={handlePlayerTurnClick}
+                    className="pointer-events-auto px-4 py-2 bg-primary hover:bg-primary-hover text-white rounded"
+                  >
+                    Roll
+                  </button>
+                </div>
               );
             }
             return null;
