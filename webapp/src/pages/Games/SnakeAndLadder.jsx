@@ -648,6 +648,8 @@ export default function SnakeAndLadder() {
   const [showGift, setShowGift] = useState(false);
   const [chatBubbles, setChatBubbles] = useState([]);
 
+  const DICE_SMALL_SCALE = 0.6;
+
   function prepareDiceAnimation(startIdx) {
     if (startIdx == null) {
       setDiceStyle({
@@ -670,7 +672,7 @@ export default function SnakeAndLadder() {
       position: 'fixed',
       left: `${s.left + s.width / 2}px`,
       top: `${s.top + s.height / 2}px`,
-      transform: 'translate(-50%, -50%) scale(1)',
+      transform: `translate(-50%, -50%) scale(${DICE_SMALL_SCALE})`,
       transition: 'none',
       pointerEvents: 'none',
       zIndex: 50,
@@ -692,8 +694,7 @@ export default function SnakeAndLadder() {
     dice.style.zIndex = '50';
     dice.animate(
       [
-        { transform: `translate(${s.left + s.width / 2}px, ${s.top + s.height / 2}px) scale(1)` },
-        { transform: `translate(${cx}px, ${cy}px) scale(3)`, offset: 0.5 },
+        { transform: `translate(${s.left + s.width / 2}px, ${s.top + s.height / 2}px) scale(${DICE_SMALL_SCALE})` },
         { transform: `translate(${cx}px, ${cy}px) scale(1)` },
       ],
       { duration: 600, easing: 'linear' },
@@ -720,8 +721,7 @@ export default function SnakeAndLadder() {
     dice.animate(
       [
         { transform: `translate(${cx}px, ${cy}px) scale(1)` },
-        { transform: `translate(${cx}px, ${cy}px) scale(3)`, offset: 0.5 },
-        { transform: `translate(${e.left + e.width / 2}px, ${e.top + e.height / 2}px) scale(1)` },
+        { transform: `translate(${e.left + e.width / 2}px, ${e.top + e.height / 2}px) scale(${DICE_SMALL_SCALE})` },
       ],
       { duration: 600, easing: 'linear' },
     ).onfinish = () => {
@@ -730,7 +730,7 @@ export default function SnakeAndLadder() {
         position: 'fixed',
         left: `${e.left + e.width / 2}px`,
         top: `${e.top + e.height / 2}px`,
-        transform: 'translate(-50%, -50%) scale(1)',
+        transform: `translate(-50%, -50%) scale(${DICE_SMALL_SCALE})`,
         pointerEvents: 'none',
         zIndex: 50,
       });
@@ -2167,7 +2167,7 @@ export default function SnakeAndLadder() {
             muted={muted}
           />
           {currentTurn === 0 && !aiRollingIndex && !playerAutoRolling && !moving && (
-            <div className="mt-2 flex flex-col items-center">
+            <div className="mt-12 flex flex-col items-center">
               <a href="#" onClick={handlePlayerTurnClick} className="text-5xl">🫵</a>
               <a
                 href="#"
@@ -2212,7 +2212,7 @@ export default function SnakeAndLadder() {
                 <a
                   href="#"
                   onClick={handlePlayerTurnClick}
-                  className="turn-message text-2xl mt-1"
+                  className="turn-message text-2xl mt-12"
                   style={{ color: players[currentTurn]?.color }}
                 >
                   🫵 your turn to roll the dices
