@@ -173,7 +173,7 @@ export default function CrazyDiceDuel() {
           color={players[0].color}
         />
       </div>
-      <div className="absolute top-16 left-1/2 -translate-x-1/2 flex space-x-4 z-10">
+      <div className="absolute top-24 left-0 right-0 flex justify-around z-10">
         {players.slice(1).map((p, i) => (
           <AvatarTimer
             key={i + 1}
