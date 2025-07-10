@@ -663,12 +663,11 @@ export default function SnakeAndLadder() {
   function prepareDiceAnimation(startIdx) {
     if (startIdx == null) {
       const cy = window.innerHeight - DICE_ROLL_Y_OFFSET;
+      const cx = window.innerWidth / 2;
       setDiceStyle({
         display: 'block',
         position: 'fixed',
-        left: '50%',
-        top: `${cy}px`,
-        transform: 'translate(-50%, -50%) scale(1)',
+        transform: `translate(${cx}px, ${cy}px) scale(1)`,
         transition: 'none',
         pointerEvents: 'none',
         zIndex: 50,
@@ -681,9 +680,7 @@ export default function SnakeAndLadder() {
     setDiceStyle({
       display: 'block',
       position: 'fixed',
-      left: `${s.left + s.width / 2}px`,
-      top: `${s.top + s.height / 2}px`,
-      transform: `translate(-50%, -50%) scale(${DICE_SMALL_SCALE})`,
+      transform: `translate(${s.left + s.width / 2}px, ${s.top + s.height / 2}px) scale(${DICE_SMALL_SCALE})`,
       transition: 'none',
       pointerEvents: 'none',
       zIndex: 50,
@@ -699,8 +696,6 @@ export default function SnakeAndLadder() {
     const cy = window.innerHeight - DICE_ROLL_Y_OFFSET;
     dice.style.display = 'block';
     dice.style.position = 'fixed';
-    dice.style.left = '0px';
-    dice.style.top = '0px';
     dice.style.pointerEvents = 'none';
     dice.style.zIndex = '50';
     dice.animate(
@@ -713,9 +708,7 @@ export default function SnakeAndLadder() {
       setDiceStyle({
         display: 'block',
         position: 'fixed',
-        left: `${cx}px`,
-        top: `${cy}px`,
-        transform: 'translate(-50%, -50%) scale(1)',
+        transform: `translate(${cx}px, ${cy}px) scale(1)`,
         pointerEvents: 'none',
         zIndex: 50,
       });
@@ -739,9 +732,7 @@ export default function SnakeAndLadder() {
       setDiceStyle({
         display: 'block',
         position: 'fixed',
-        left: `${e.left + e.width / 2}px`,
-        top: `${e.top + e.height / 2}px`,
-        transform: `translate(-50%, -50%) scale(${DICE_SMALL_SCALE})`,
+        transform: `translate(${e.left + e.width / 2}px, ${e.top + e.height / 2}px) scale(${DICE_SMALL_SCALE})`,
         pointerEvents: 'none',
         zIndex: 50,
       });
@@ -2177,22 +2168,6 @@ export default function SnakeAndLadder() {
             }
             muted={muted}
           />
-          {
-            !aiRollingIndex &&
-            !playerAutoRolling &&
-            rollCooldown === 0 &&
-            currentTurn === 0 &&
-            !moving && (
-              <div className="fixed inset-x-0 bottom-24 z-20 flex justify-center pointer-events-none">
-                <button
-                  onClick={handlePlayerTurnClick}
-                  className="pointer-events-auto px-4 py-2 bg-primary hover:bg-primary-hover text-white rounded"
-                >
-                  Roll
-                </button>
-              </div>
-            )
-          }
         </div>
       )}
       {isMultiplayer && (
@@ -2217,23 +2192,6 @@ export default function SnakeAndLadder() {
               return null;
             })()}
           </div>
-          {(() => {
-            const myId = getPlayerId();
-            const myIndex = mpPlayers.findIndex(p => p.id === myId);
-            if (currentTurn === myIndex && !moving) {
-              return (
-                <div className="absolute inset-x-0 bottom-24 flex justify-center pointer-events-none">
-                  <button
-                    onClick={handlePlayerTurnClick}
-                    className="pointer-events-auto px-4 py-2 bg-primary hover:bg-primary-hover text-white rounded"
-                  >
-                    Roll
-                  </button>
-                </div>
-              );
-            }
-            return null;
-          })()}
         </div>
       )}
       <InfoPopup
