@@ -28,6 +28,7 @@ import {
 } from "react-icons/ai";
 import BottomLeftIcons from "../../components/BottomLeftIcons.jsx";
 import { isGameMuted, getGameVolume } from "../../utils/sound.js";
+import { FaTv } from "react-icons/fa";
 import useTelegramBackButton from "../../hooks/useTelegramBackButton.js";
 import { useNavigate } from "react-router-dom";
 import { getPlayerId, getTelegramId, ensureAccountId } from "../../utils/telegram.js";
@@ -36,7 +37,8 @@ import {
   depositAccount,
   getSnakeBoard,
   pingOnline,
-  addTransaction
+  addTransaction,
+  getWatchCount
 } from "../../utils/api.js";
 // Developer accounts that receive shares of each pot
 const DEV_ACCOUNT = import.meta.env.VITE_DEV_ACCOUNT_ID;
@@ -638,6 +640,7 @@ export default function SnakeAndLadder() {
   const [isMultiplayer, setIsMultiplayer] = useState(false);
   const [spectator, setSpectator] = useState(false);
   const [mpPlayers, setMpPlayers] = useState([]);
+  const [watchCount, setWatchCount] = useState(0);
   const playersRef = useRef([]);
   const [tableId, setTableId] = useState('snake-4');
   const [playerPopup, setPlayerPopup] = useState(null);
@@ -964,6 +967,10 @@ export default function SnakeAndLadder() {
   }, []);
 
   useEffect(() => {
+    getWatchCount(tableId).then((c) => setWatchCount(c.count || 0)).catch(() => {});
+  }, [tableId]);
+
+  useEffect(() => {
     playersRef.current = mpPlayers;
   }, [mpPlayers]);
 
@@ -1175,6 +1182,9 @@ export default function SnakeAndLadder() {
     socket.on('diceRolled', onRolled);
     socket.on('gameWon', onWon);
     socket.on('currentPlayers', onCurrentPlayers);
+    socket.on('watchCount', ({ roomId, count }) => {
+      if (roomId === tableId) setWatchCount(count);
+    });
 
     if (spectator) {
       socket.emit('watchRoom', { roomId: tableId });
@@ -1197,6 +1207,7 @@ export default function SnakeAndLadder() {
       socket.off('diceRolled', onRolled);
       socket.off('gameWon', onWon);
       socket.off('currentPlayers', onCurrentPlayers);
+      socket.off('watchCount');
       if (spectator) {
         socket.emit('leaveWatch', { roomId: tableId });
       }
@@ -1848,6 +1859,10 @@ export default function SnakeAndLadder() {
 
   return (
     <div className="p-4 pb-32 space-y-4 text-text flex flex-col justify-end items-center relative w-full flex-grow">
+      <div className="fixed right-2 top-2 flex items-center space-x-1 z-20">
+        <FaTv />
+        <span className="text-green-500 text-sm">{watchCount}</span>
+      </div>
       {/* Bottom left controls */}
       <BottomLeftIcons
         onInfo={() => setShowInfo(true)}
