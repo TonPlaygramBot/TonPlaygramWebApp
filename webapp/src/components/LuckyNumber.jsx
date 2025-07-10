@@ -105,9 +105,31 @@ export default function LuckyNumber() {
               </>
             ) : (
               <>
-                <img src="/assets/icons/TPCcoin_1.webp" alt="TPC" className="w-8 h-8" />
-                <span className="font-bold">{val}</span>
-                {i === 0 && <span className="text-red-500 text-xs">FREE</span>}
+                {val === 'FREE_SPIN' ? (
+                  <>
+                    <img
+                      src="/assets/icons/file_00000000ae68620a96d269fe76d158e5_256x256.webp"
+                      alt="Free Spin"
+                      className="w-8 h-8"
+                    />
+                    <span className="font-bold">+2</span>
+                  </>
+                ) : val === 'BONUS_X3' ? (
+                  <>
+                    <img
+                      src="/assets/icons/file_000000009160620a96f728f463de1c3f.webp"
+                      alt="Bonus"
+                      className="w-8 h-8"
+                    />
+                    <span className="font-bold">X3</span>
+                  </>
+                ) : (
+                  <>
+                    <img src="/assets/icons/TPCcoin_1.webp" alt="TPC" className="w-8 h-8" />
+                    <span className="font-bold">{val}</span>
+                    {i === 0 && <span className="text-red-500 text-xs">FREE</span>}
+                  </>
+                )}
               </>
             )}
           </div>

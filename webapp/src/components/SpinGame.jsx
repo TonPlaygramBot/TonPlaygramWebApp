@@ -26,6 +26,9 @@ export default function SpinGame() {
   const [showAd, setShowAd] = useState(false);
   const [adWatched, setAdWatched] = useState(false);
   const [freeSpins, setFreeSpins] = useState(0);
+  const [spinLock, setSpinLock] = useState(
+    localStorage.getItem('spinInProgress') === '1'
+  );
   const [timeLeft, setTimeLeft] = useState(0);
   const wheelRef = useRef(null);
   const bonusRefLeft = useRef(null);
@@ -36,6 +39,20 @@ export default function SpinGame() {
     if (ts) setLastSpin(parseInt(ts, 10));
     const fs = localStorage.getItem('freeSpins');
     if (fs) setFreeSpins(parseInt(fs, 10));
+    const sl = localStorage.getItem('spinInProgress');
+    if (sl) setSpinLock(sl === '1');
+
+    const handleStorage = (e) => {
+      if (e.key === 'lastSpin') {
+        setLastSpin(e.newValue ? parseInt(e.newValue, 10) : null);
+      } else if (e.key === 'freeSpins') {
+        setFreeSpins(e.newValue ? parseInt(e.newValue, 10) : 0);
+      } else if (e.key === 'spinInProgress') {
+        setSpinLock(e.newValue === '1');
+      }
+    };
+    window.addEventListener('storage', handleStorage);
+    return () => window.removeEventListener('storage', handleStorage);
   }, []);
 
   useEffect(() => {
@@ -59,6 +76,8 @@ export default function SpinGame() {
   }, [bonusMode]);
 
   const handleFinish = async (r) => {
+    localStorage.removeItem('spinInProgress');
+    setSpinLock(false);
     if (r === 'BONUS_X3') {
       setBonusMode(true);
       if (freeSpins === 0) {
@@ -98,21 +117,27 @@ export default function SpinGame() {
 
 
   const triggerSpin = () => {
-    if (spinning) return;
-    if (freeSpins === 0) {
-      if (!adWatched) {
-        setShowAd(true);
-        return;
-      }
-      if (!ready) return;
+    if (spinning || spinLock) return;
+
+    const storedLast = parseInt(localStorage.getItem('lastSpin') || '0', 10);
+    const storedFree = parseInt(localStorage.getItem('freeSpins') || '0', 10);
+
+    if (storedFree === 0 && !canSpin(storedLast)) {
+      return;
     }
 
-    if (freeSpins > 0) {
-      const remaining = freeSpins - 1;
+    if (storedFree > 0) {
+      const remaining = storedFree - 1;
       setFreeSpins(remaining);
       localStorage.setItem('freeSpins', String(remaining));
+    } else {
+      const now = Date.now();
+      localStorage.setItem('lastSpin', String(now));
+      setLastSpin(now);
     }
 
+    localStorage.setItem('spinInProgress', '1');
+    setSpinLock(true);
     setSpinning(true);
     wheelRef.current?.spin();
   };
@@ -134,6 +159,8 @@ export default function SpinGame() {
     setBonusResults((r) => {
       const arr = [...r, val];
       if (arr.length === 3) {
+        localStorage.removeItem('spinInProgress');
+        setSpinLock(false);
         const sum = arr.reduce((a, b) => a + (typeof b === 'number' ? b : 0), 0);
         (async () => {
           const balRes = await getWalletBalance(telegramId);
@@ -205,8 +232,8 @@ export default function SpinGame() {
       )}
       <button
         onClick={triggerSpin}
-        className="mt-2 px-6 py-2 bg-green-600 text-white text-sm font-bold rounded disabled:bg-gray-500"
-        disabled={spinning || !ready || bonusMode}
+        className={`mt-2 px-6 py-2 ${ready ? 'bg-green-600' : 'bg-red-600'} text-white text-sm font-bold rounded disabled:bg-gray-500`}
+        disabled={spinning || spinLock || !ready || bonusMode}
       >
         Spin
       </button>
