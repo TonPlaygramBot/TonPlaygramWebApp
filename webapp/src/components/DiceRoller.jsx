@@ -73,7 +73,7 @@ export default function DiceRoller({
     };
 
     const tick = 50; // ms between face changes
-    const iterations = 20; // ~1 second of rolling
+    const iterations = 48; // ~2.4 seconds of rolling
     let count = 0;
 
     const id = setInterval(() => {
