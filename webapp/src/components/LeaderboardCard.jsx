@@ -179,7 +179,7 @@ export default function LeaderboardCard() {
                   }}
                 >
                   <td className="p-2">{idx + 1}</td>
-                  <td className="p-2 w-16">
+                  <td className="p-2 w-16 relative">
                     <img
                       src={getAvatarUrl(
                         u.accountId === accountId
@@ -189,6 +189,26 @@ export default function LeaderboardCard() {
                       alt="avatar"
                       className="w-16 h-16 hexagon border-2 border-brand-gold object-cover shadow-[0_0_12px_rgba(241,196,15,0.8)]"
                     />
+                    {u.accountId !== accountId &&
+                      u.currentTableId && (
+                        <div className="absolute bottom-0 left-0 right-0 flex flex-col items-center">
+                          <span className="text-xs text-red-500 bg-surface px-1 rounded">Playing</span>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              const game = u.currentTableId.startsWith('ludo')
+                                ? 'ludo'
+                                : 'snake';
+                              window.location.href = `/games/${game}?table=${u.currentTableId}&watch=1`;
+                            }}
+                            className="mt-1 text-xs text-blue-500 flex items-center space-x-1"
+                          >
+                            <FaTv />
+                            <span>Watch</span>
+                            <span className="ml-0.5">{watchCounts[u.currentTableId] || 0}</span>
+                          </button>
+                        </div>
+                      )}
                   </td>
                   <td className="p-2 flex items-center">
                     {mode === 'group' && u.accountId !== accountId && (
@@ -201,27 +221,6 @@ export default function LeaderboardCard() {
                       />
                     )}
                     {u.nickname || `${u.firstName} ${u.lastName}`.trim() || 'User'}
-                    {u.accountId !== accountId &&
-                      u.currentTableId && (
-                        <span className="ml-1 text-xs text-red-500">Playing</span>
-                      )}
-                    {u.accountId !== accountId &&
-                      u.currentTableId && (
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            const game = u.currentTableId.startsWith('ludo')
-                              ? 'ludo'
-                              : 'snake';
-                            window.location.href = `/games/${game}?table=${u.currentTableId}&watch=1`;
-                          }}
-                          className="ml-1 text-xs text-blue-500 flex items-center space-x-1"
-                        >
-                          <FaTv />
-                          <span>Watch</span>
-                          <span className="ml-0.5">{watchCounts[u.currentTableId] || 0}</span>
-                        </button>
-                      )}
                     {onlineUsers.includes(String(u.accountId)) && (
                       <FaCircle className="ml-1 text-green-500" size={8} />
                     )}
