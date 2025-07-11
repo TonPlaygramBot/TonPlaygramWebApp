@@ -2142,8 +2142,8 @@ export default function SnakeAndLadder() {
           className="dice-travel flex flex-col items-center"
         >
           <DiceRoller
-            className=""
-            style={{ transform: 'scale(0.85)' }}
+            className="snake-dice"
+            rollingScale={0.85}
             onRollEnd={(vals) => {
               if (aiRollingIndex) {
                 handleAIRoll(aiRollingIndex, vals);
@@ -2197,7 +2197,7 @@ export default function SnakeAndLadder() {
         <div
           className="fixed inset-0 z-20 pointer-events-none"
         >
-          <div className="flex flex-col items-center justify-center h-full pointer-events-auto" style={{ transform: 'scale(0.85)' }}>
+          <div className="flex flex-col items-center justify-center h-full pointer-events-auto">
             {(() => {
               const myId = getPlayerId();
               const myIndex = mpPlayers.findIndex(p => p.id === myId);
@@ -2209,6 +2209,8 @@ export default function SnakeAndLadder() {
                     muted={muted}
                     emitRollEvent
                     numDice={2}
+                    className="snake-dice"
+                    rollingScale={0.85}
                   />
                 );
               }

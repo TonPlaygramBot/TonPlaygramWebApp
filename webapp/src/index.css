@@ -158,6 +158,22 @@ input:focus {
   transform: rotateX(-90deg) translateZ(2rem);
 }
 
+/* Game specific dice sizing */
+.lucky-dice .dice-container {
+  width: 4rem;
+  height: 4rem;
+}
+
+.snake-dice .dice-container {
+  width: 4rem;
+  height: 4rem;
+}
+
+.crazy-dice .dice-container {
+  width: 4.5rem;
+  height: 4.5rem;
+}
+
 .board-cell {
   @apply relative flex items-center justify-center rounded-xl text-text;
   background-color: var(--tile-bg, #0e3b45);
