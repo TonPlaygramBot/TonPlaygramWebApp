@@ -405,6 +405,38 @@ input:focus {
   white-space: nowrap;
 }
 
+/* Score display below each avatar */
+.player-score {
+  position: absolute;
+  top: calc(100% + 0.1rem);
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 0.6rem;
+  color: inherit;
+  white-space: nowrap;
+}
+
+/* Horizontal history of previous rolls */
+.roll-history {
+  position: absolute;
+  top: calc(100% + 1rem);
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 0.15rem;
+}
+
+.roll-box {
+  width: 0.9rem;
+  height: 0.9rem;
+  border: 1px solid currentColor;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.55rem;
+  border-radius: 0.15rem;
+}
+
 .turn-indicator {
   position: absolute;
   top: 50%;
@@ -1289,6 +1321,14 @@ input:focus {
 }
 .crazy-dice-board .player-center .player-score,
 .crazy-dice-board .player-center .roll-history {
+  transform: translateX(-60%);
+}
+.crazy-dice-board .player-left .player-score,
+.crazy-dice-board .player-left .roll-history {
+  transform: translateX(-40%);
+}
+.crazy-dice-board .player-right .player-score,
+.crazy-dice-board .player-right .roll-history {
   transform: translateX(-60%);
 }
 
