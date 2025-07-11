@@ -651,8 +651,8 @@ export default function SnakeAndLadder() {
   // Dice landing spot (matches roll result text position)
   const RESULT_BOTTOM = 13 * 16; // tailwind bottom-52 -> 13rem
   // Slightly shift the dice roll position up and to the left
-  const RESULT_OFFSET_X = -4; // 0.25rem left shift of text
-  const RESULT_OFFSET_Y = -12; // 0.75rem additional upward shift
+  const RESULT_OFFSET_X = 4; // slight right shift of text
+  const RESULT_OFFSET_Y = -20; // move result a bit higher
 
   useEffect(() => {
     prepareDiceAnimation(0);
@@ -765,7 +765,7 @@ export default function SnakeAndLadder() {
     if (!startEl) return;
     const s = startEl.getBoundingClientRect();
     const targetX = s.left + s.width / 2;
-    const targetY = s.top - s.height * 0.3;
+    const targetY = s.top - s.height * 0.2;
     setDiceStyle({
       display: 'block',
       position: 'fixed',
@@ -784,7 +784,7 @@ export default function SnakeAndLadder() {
     if (!dice || !startEl) return;
     const s = startEl.getBoundingClientRect();
     const startX = s.left + s.width / 2;
-    const startY = s.top - s.height * 0.3;
+    const startY = s.top - s.height * 0.2;
     const { cx, cy } = getDiceCenter();
     dice.style.display = 'block';
     dice.style.position = 'fixed';
@@ -817,7 +817,7 @@ export default function SnakeAndLadder() {
     if (!dice || !endEl) return;
     const e = endEl.getBoundingClientRect();
     const endX = e.left + e.width / 2;
-    const endY = e.top - e.height * 0.3;
+    const endY = e.top - e.height * 0.2;
     const { cx, cy } = getDiceCenter();
     dice.animate(
       [
@@ -1178,7 +1178,7 @@ export default function SnakeAndLadder() {
     const onStarted = () => setWaitingForPlayers(false);
     const onRolled = ({ value }) => {
       setRollResult(value);
-      setTimeout(() => setRollResult(null), 1500);
+      setTimeout(() => setRollResult(null), 2000);
     };
     const onWon = ({ playerId }) => {
       setGameOver(true);
@@ -1431,7 +1431,7 @@ export default function SnakeAndLadder() {
       hahaSoundRef.current.currentTime = 0;
       hahaSoundRef.current.play().catch(() => {});
     }
-    setTimeout(() => setRollResult(null), 1500);
+    setTimeout(() => setRollResult(null), 2000);
 
     setTimeout(() => {
       setDiceVisible(false);
@@ -1462,8 +1462,8 @@ export default function SnakeAndLadder() {
           setTurnMessage("");
           setDiceVisible(false);
           const next = (currentTurn + 1) % (ai + 1);
-          setTimeout(() => setCurrentTurn(next), 1500);
-          setTimeout(() => setMoving(false), 1500);
+          setTimeout(() => setCurrentTurn(next), 2000);
+          setTimeout(() => setMoving(false), 2000);
           return;
         }
       } else if (current === 0) {
@@ -1476,8 +1476,8 @@ export default function SnakeAndLadder() {
           setTurnMessage("");
           setDiceVisible(false);
           const next = (currentTurn + 1) % (ai + 1);
-          setTimeout(() => setCurrentTurn(next), 1500);
-          setTimeout(() => setMoving(false), 1500);
+          setTimeout(() => setCurrentTurn(next), 2000);
+          setTimeout(() => setMoving(false), 2000);
           return;
         }
       } else if (current + value <= FINAL_TILE) {
@@ -1487,8 +1487,8 @@ export default function SnakeAndLadder() {
         setTurnMessage("");
         setDiceVisible(false);
         const next = (currentTurn + 1) % (ai + 1);
-        setTimeout(() => setCurrentTurn(next), 1500);
-        setTimeout(() => setMoving(false), 1500);
+        setTimeout(() => setCurrentTurn(next), 2000);
+        setTimeout(() => setMoving(false), 2000);
         return;
       }
 
@@ -1549,7 +1549,7 @@ export default function SnakeAndLadder() {
           setTimeout(() => {
             setCelebrate(false);
             setDiceCount(2);
-          }, 1500);
+          }, 2000);
         }
         let extraTurn = false;
         if (diceCells[finalPos]) {
@@ -1586,7 +1586,7 @@ export default function SnakeAndLadder() {
       };
 
       moveSeq(steps, 'normal', ctx, () => applyEffect(target), 'forward');
-    }, 1500);
+    }, 2000);
   };
 
   const triggerAIRoll = (index) => {
@@ -1634,7 +1634,7 @@ export default function SnakeAndLadder() {
       hahaSoundRef.current.currentTime = 0;
       hahaSoundRef.current.play().catch(() => {});
     }
-    setTimeout(() => setRollResult(null), 1500);
+    setTimeout(() => setRollResult(null), 2000);
     setTimeout(() => {
       setDiceVisible(false);
     let positions = [...aiPositions];
@@ -1728,7 +1728,7 @@ export default function SnakeAndLadder() {
     const applyEffect = (startPos) => applyEffectHelper(startPos, ctx, finalizeMove);
 
     moveSeq(steps, 'normal', ctx, () => applyEffect(target), 'forward');
-    }, 1500);
+    }, 2000);
   };
 
   useEffect(() => {
@@ -1767,7 +1767,7 @@ export default function SnakeAndLadder() {
           setSetupPhase(false);
           setDiceVisible(true);
           setCurrentTurn(first.index);
-        }, 1500);
+        }, 2000);
         return;
       }
       const idxPlayer = rollOrder[idx];
