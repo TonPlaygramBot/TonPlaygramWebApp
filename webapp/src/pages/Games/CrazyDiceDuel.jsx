@@ -28,6 +28,15 @@ export default function CrazyDiceDuel() {
     : parseInt(searchParams.get('players')) || 2;
   const maxRolls = parseInt(searchParams.get('rolls')) || 1;
 
+  const [bgUnlocked, setBgUnlocked] = useState(() =>
+    localStorage.getItem('crazyDiceBgUnlocked') === 'true',
+  );
+
+  const unlockBackground = () => {
+    localStorage.setItem('crazyDiceBgUnlocked', 'true');
+    setBgUnlocked(true);
+  };
+
   const initialPlayers = useMemo(
     () =>
       Array.from({ length: playerCount }, (_, i) => ({
@@ -276,6 +285,24 @@ export default function CrazyDiceDuel() {
 
   return (
     <div className="crazy-dice-board text-text" ref={boardRef}>
+      {bgUnlocked && (
+        <img
+          src="/assets/SnakeLaddersbackground.png"
+          className="background-behind-board object-cover"
+          alt=""
+          onError={(e) => {
+            e.currentTarget.style.display = 'none';
+          }}
+        />
+      )}
+      {!bgUnlocked && (
+        <button
+          onClick={unlockBackground}
+          className="absolute top-2 right-2 z-20 px-2 py-1 text-sm bg-primary hover:bg-primary-hover text-background rounded"
+        >
+          Unlock Background
+        </button>
+      )}
       <img
         src="/assets/icons/file_00000000d410620a8c1878be43e192a1.png"
         alt="board"
