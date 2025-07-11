@@ -146,6 +146,7 @@ export default function LuckyNumber() {
           onRollStart={handleRollStart}
           showButton={false}
           clickable={canRoll}
+          className="lucky-dice"
         />
         {!canRoll && (
           <p className="text-sm text-subtext">You can roll again every 4 hours.</p>

@@ -63,6 +63,8 @@ function DiceCube({
   rolling = false,
   playSound = false,
   prevValue,
+  size = 64,
+  rollingScale = 1,
 }) {
   // Keep a fixed isometric orientation and simply swap the top face.
   const orientation = baseTilt;
@@ -99,12 +101,15 @@ function DiceCube({
   }, [rolling, playSound]);
 
   return (
-    <div className="dice-container perspective-1000 w-16 h-16">
+    <div
+      className="dice-container perspective-1000"
+      style={{ width: `${size}px`, height: `${size}px` }}
+    >
       <div
         className={`dice-cube relative w-full h-full transition-transform duration-500 transform-style-preserve-3d ${
           rolling ? "animate-roll" : ""
         }`}
-        style={{ transform: orientation }}
+        style={{ transform: `${orientation} scale(${rolling ? rollingScale : 1})` }}
       >
         {/* Dynamic side faces */}
         <Face value={sides[0]} className="dice-face--front absolute" />
@@ -126,6 +131,8 @@ export default function DiceSet({
   rolling = false,
   playSound = false,
   startValues,
+  size = 64,
+  rollingScale = 1,
 }) {
   return (
     <div className="flex gap-4 justify-center items-center">
@@ -136,6 +143,8 @@ export default function DiceSet({
           rolling={rolling}
           playSound={playSound}
           prevValue={startValues?.[i]}
+          size={size}
+          rollingScale={rollingScale}
         />
       ))}
     </div>
