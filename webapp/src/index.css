@@ -420,7 +420,7 @@ input:focus {
 /* Horizontal history of previous rolls */
 .roll-history {
   position: absolute;
-  top: calc(100% + 1rem);
+  top: calc(100% + 1.2rem); /* slightly lower dice rows */
   left: 50%;
   transform: translateX(-50%);
   display: flex;

@@ -650,9 +650,9 @@ export default function SnakeAndLadder() {
   const DICE_ANIM_DURATION = 1800;
   // Dice landing spot (matches roll result text position)
   const RESULT_BOTTOM = 13 * 16; // tailwind bottom-52 -> 13rem
-  // Slightly shift the dice roll position up and to the left
-  const RESULT_OFFSET_X = 4; // slight right shift of text
-  const RESULT_OFFSET_Y = -20; // move result a bit higher
+  // Offset so the landing aligns with the board centre
+  const RESULT_OFFSET_X = 24; // move landing slightly right
+  const RESULT_OFFSET_Y = -36; // raise landing a bit higher
 
   useEffect(() => {
     prepareDiceAnimation(0);
@@ -2105,7 +2105,7 @@ export default function SnakeAndLadder() {
         <div className="fixed bottom-52 inset-x-0 flex justify-center z-30 pointer-events-none">
           <div
             className="text-7xl roll-result"
-            style={{ color: rollColor, transform: 'translate(-0.25rem, -0.75rem)' }}
+            style={{ color: rollColor, transform: 'translate(1rem, -1rem)' }}
           >
             {rollResult}
           </div>
