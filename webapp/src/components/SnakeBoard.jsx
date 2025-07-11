@@ -231,7 +231,14 @@ export default function SnakeBoard({
 
   return (
     <div className="relative flex justify-center items-center w-screen overflow-visible">
-      <img  src="/assets/SnakeLaddersbackground.png" className="background-behind-board object-cover" alt="" />
+      <img
+        src="/assets/SnakeLaddersbackground.png"
+        className="background-behind-board object-cover"
+        alt=""
+        onError={(e) => {
+          e.currentTarget.style.display = 'none';
+        }}
+      />
       <div
         ref={containerRef}
         className="overflow-y-auto"
