@@ -13,11 +13,6 @@ export default function DiceRoller({
   showButton = true,
   muted = false,
   emitRollEvent = false,
-  className = '',
-  style = {},
-  diceContainerClassName = 'space-x-4',
-  size = 64,
-  rollingScale = 1,
 }) {
   const [values, setValues] = useState(Array(numDice).fill(1));
   const [rolling, setRolling] = useState(false);
@@ -52,7 +47,7 @@ export default function DiceRoller({
   useEffect(() => {
     if (trigger !== undefined && trigger !== triggerRef.current) {
       triggerRef.current = trigger;
-      setTimeout(() => rollDice(), 0); // roll immediately on trigger
+      setTimeout(() => rollDice(), 1000); // show dice briefly before rolling
     }
   }, [trigger]);
 
@@ -75,8 +70,8 @@ export default function DiceRoller({
       return Math.floor(Math.random() * 6) + 1;
     };
 
-    const tick = 30; // ms between face changes (faster)
-    const iterations = 20; // shorter roll duration
+    const tick = 50; // ms between face changes
+    const iterations = 20; // ~1 second of rolling
     let count = 0;
 
     const id = setInterval(() => {
@@ -99,18 +94,12 @@ export default function DiceRoller({
   };
 
   return (
-    <div className={`flex flex-col items-center space-y-4 ${className}`} style={style}>
+    <div className="flex flex-col items-center space-y-4">
       <div
-        className={`flex ${clickable ? 'cursor-pointer' : ''} ${diceContainerClassName}`}
+        className={`flex space-x-4 ${clickable ? 'cursor-pointer' : ''}`}
         onClick={clickable ? rollDice : undefined}
       >
-        <Dice
-          values={values}
-          rolling={rolling}
-          startValues={startValuesRef.current}
-          size={size}
-          rollingScale={rollingScale}
-        />
+        <Dice values={values} rolling={rolling} startValues={startValuesRef.current} />
       </div>
       {!clickable && showButton && (
         <button

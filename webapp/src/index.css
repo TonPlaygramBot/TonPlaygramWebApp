@@ -20,7 +20,10 @@ body {
 }
 
 .bg-surface {
-  background: linear-gradient(#081428, #102040);
+  background:
+    radial-gradient(2px 2px at 20% 30%, rgba(255, 255, 255, 0.15), transparent 40%),
+    radial-gradient(1.5px 1.5px at 80% 70%, rgba(255, 255, 255, 0.1), transparent 50%),
+    linear-gradient(#081428, #102040);
   background-color: #0b1a2f;
   box-shadow: inset 0 0 10px rgba(0, 247, 255, 0.4);
 }
@@ -73,6 +76,10 @@ input:focus {
   transform-style: preserve-3d;
 }
 
+.board-frame {
+  @apply border-4 border-accent rounded-lg p-1 bg-surface;
+  transform-style: preserve-3d;
+}
 
 /* Tilted view specifically for the Snake & Ladder board */
 .snake-board-tilt {
@@ -97,18 +104,18 @@ input:focus {
   pointer-events: none;
   /* slightly brighter and scaled up */
   filter: brightness(2.4);
-  transform: translate(30px, 90px) scale(1.2);
+  transform: translateY(90px) scale(1.2);
 }
 
 @keyframes roll {
   0% {
-    transform: rotateX(0deg) rotateY(0deg) rotateZ(0deg);
+    transform: rotateX(0deg) rotateY(0deg) rotateZ(0deg) translateY(0);
   }
   50% {
-    transform: rotateX(360deg) rotateY(360deg) rotateZ(360deg);
+    transform: rotateX(360deg) rotateY(360deg) rotateZ(360deg) translateY(-1rem);
   }
   100% {
-    transform: rotateX(720deg) rotateY(720deg) rotateZ(720deg);
+    transform: rotateX(720deg) rotateY(720deg) rotateZ(720deg) translateY(0);
   }
 }
 
@@ -121,7 +128,7 @@ input:focus {
 }
 
 .dice-cube {
-  @apply relative w-16 h-16 bg-white rounded-xl;
+  @apply relative w-12 h-12 bg-white rounded-xl;
   border: none;
   transform-style: preserve-3d;
   transition: transform 0.5s;
@@ -137,38 +144,22 @@ input:focus {
 }
 
 .dice-face--front {
-  transform: rotateY(0deg) translateZ(2rem);
+  transform: rotateY(0deg) translateZ(1.5rem);
 }
 .dice-face--back {
-  transform: rotateY(180deg) translateZ(2rem);
+  transform: rotateY(180deg) translateZ(1.5rem);
 }
 .dice-face--right {
-  transform: rotateY(90deg) translateZ(2rem);
+  transform: rotateY(90deg) translateZ(1.5rem);
 }
 .dice-face--left {
-  transform: rotateY(-90deg) translateZ(2rem);
+  transform: rotateY(-90deg) translateZ(1.5rem);
 }
 .dice-face--top {
-  transform: rotateX(90deg) translateZ(2rem);
+  transform: rotateX(90deg) translateZ(1.5rem);
 }
 .dice-face--bottom {
-  transform: rotateX(-90deg) translateZ(2rem);
-}
-
-/* Game specific dice sizing */
-.lucky-dice .dice-container {
-  width: 4rem;
-  height: 4rem;
-}
-
-.snake-dice .dice-container {
-  width: 3rem;
-  height: 3rem;
-}
-
-.crazy-dice .dice-container {
-  width: 4.5rem;
-  height: 4.5rem;
+  transform: rotateX(-90deg) translateZ(1.5rem);
 }
 
 .board-cell {
@@ -414,60 +405,12 @@ input:focus {
   white-space: nowrap;
 }
 
-.player-score {
-  position: absolute;
-  top: calc(100% + 1rem);
-  left: 50%;
-  transform: translateX(-50%);
-  font-size: 0.8rem;
-  font-weight: bold;
-  color: inherit;
-  white-space: nowrap;
-}
-
-.roll-history {
-  position: absolute;
-  top: calc(100% + 2rem);
-  left: 50%;
-  transform: translateX(-50%);
-  display: flex;
-  gap: 0.2rem;
-}
-
-.roll-box {
-  width: 1rem;
-  height: 1rem;
-  font-size: 0.6rem;
-  border: 1px solid currentColor;
-  border-radius: 0.25rem;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.crazy-dice-board .player-left .player-score,
-.crazy-dice-board .player-left .roll-history {
-  left: calc(100% + 0.3rem);
-  transform: translateX(0);
-}
-
-.crazy-dice-board .player-right .player-score,
-.crazy-dice-board .player-right .roll-history {
-  right: calc(100% + 0.5rem);
-  left: auto;
-  transform: translateX(0);
-}
-
 .turn-indicator {
   position: absolute;
-  bottom: 100%;
-  left: 50%;
-  transform: translate(-50%, -0.5rem);
-  font-size: 0.75rem;
-  font-weight: bold;
-  white-space: nowrap;
-  pointer-events: auto;
-  cursor: pointer;
+  top: 50%;
+  right: -1.2rem;
+  transform: translateY(-50%);
+  pointer-events: none;
 }
 
 .timer-count {
@@ -695,14 +638,10 @@ input:focus {
 }
 
 .board-cell.snake-highlight .cell-marker,
-.board-cell.ladder-highlight .cell-marker {
-  transform: translate(-50%, -50%) translateZ(6px)
-    rotateX(calc(var(--board-angle, 58deg) * -1)) scale(3);
-}
-
+.board-cell.ladder-highlight .cell-marker,
 .board-cell.dice-cell.normal-highlight .dice-marker {
   transform: translate(-50%, -50%) translateZ(6px)
-    rotateX(calc(var(--board-angle, 58deg) * -1));
+    rotateX(calc(var(--board-angle, 58deg) * -1)) scale(3);
 }
 
 .board-cell.snake-highlight .cell-icon,
@@ -1295,126 +1234,3 @@ input:focus {
 
 .chat-bubble{ @apply fixed bottom-4 left-1/2 -translate-x-1/2 bg-black bg-opacity-70 text-white rounded px-2 py-1 flex items-center space-x-2; font-size:1.2rem; }
 
-
-.crazy-dice-board {
-  position: relative;
-  width: 100vw;
-  height: 100vh;
-  overflow: hidden;
-  transform: translate(-3%, 0);
-}
-.crazy-dice-board .board-bg {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  object-position: center;
-  transform: translate(3%, 0) scale(1.1);
-  filter: brightness(1.2);
-  z-index: -1;
-}
-.crazy-dice-board .dice-center {
-  position: absolute;
-  top: 40%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-}
-
-/* Player positions around the Crazy Dice board */
-.crazy-dice-board .player-bottom {
-  position: absolute;
-  bottom: 20%;
-  left: 50%;
-  transform: translateX(-50%);
-}
-
-.crazy-dice-board .player-left {
-  position: absolute;
-  top: 3%;
-  left: -2%;
-}
-
-.crazy-dice-board .player-center {
-  position: absolute;
-  top: 3%;
-  left: 50%;
-  transform: translateX(-50%);
-}
-.crazy-dice-board .player-center .player-score,
-.crazy-dice-board .player-center .roll-history {
-  transform: translateX(-60%);
-}
-
-.crazy-dice-board .player-right {
-  position: absolute;
-  top: 3%;
-  right: -2%;
-}
-
-/* Markers for easier mapping */
-.crazy-dice-board .side-number {
-  position: absolute;
-  font-size: 0.75rem;
-  color: #fff;
-  opacity: 0.7;
-  pointer-events: none;
-}
-.crazy-dice-board .side-number.top {
-  top: 0.5rem;
-  left: 50%;
-  transform: translateX(-50%);
-}
-.crazy-dice-board .side-number.bottom {
-  bottom: 0.5rem;
-  left: 50%;
-  transform: translateX(-50%);
-}
-.crazy-dice-board .side-number.left {
-  left: 0.5rem;
-  top: 50%;
-  transform: translateY(-50%);
-}
-.crazy-dice-board .side-number.right {
-  right: 0.5rem;
-  top: 50%;
-  transform: translateY(-50%);
-}
-
-/* Rolling dice animation */
-.dice-screen-animation {
-  position: fixed;
-  bottom: 3rem;
-  left: 3rem;
-  animation: dice-bounce 2.5s ease-in-out forwards;
-  pointer-events: none;
-  z-index: 100;
-}
-
-.dice-travel {
-  position: fixed;
-  pointer-events: none;
-  transform: translate(-50%, -50%) scale(1);
-  z-index: 50;
-}
-
-@keyframes dice-bounce {
-  0% {
-    transform: translate(0, 0) scale(0.4) rotate(0deg);
-  }
-  20% {
-    transform: translate(30vw, -20vh) scale(1) rotate(360deg);
-  }
-  40% {
-    transform: translate(-25vw, -50vh) scale(1) rotate(720deg);
-  }
-  60% {
-    transform: translate(25vw, 10vh) scale(1) rotate(1080deg);
-  }
-  80% {
-    transform: translate(-20vw, 20vh) scale(1) rotate(1440deg);
-  }
-  100% {
-    transform: translate(50vw, 40vh) scale(0.4) rotate(1800deg);
-  }
-}

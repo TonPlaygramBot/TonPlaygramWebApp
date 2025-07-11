@@ -28,7 +28,6 @@ import {
 } from "react-icons/ai";
 import BottomLeftIcons from "../../components/BottomLeftIcons.jsx";
 import { isGameMuted, getGameVolume } from "../../utils/sound.js";
-import { FaTv } from "react-icons/fa";
 import useTelegramBackButton from "../../hooks/useTelegramBackButton.js";
 import { useNavigate } from "react-router-dom";
 import { getPlayerId, getTelegramId, ensureAccountId } from "../../utils/telegram.js";
@@ -37,8 +36,7 @@ import {
   depositAccount,
   getSnakeBoard,
   pingOnline,
-  addTransaction,
-  getWatchCount
+  addTransaction
 } from "../../utils/api.js";
 // Developer accounts that receive shares of each pot
 const DEV_ACCOUNT = import.meta.env.VITE_DEV_ACCOUNT_ID;
@@ -587,7 +585,7 @@ export default function SnakeAndLadder() {
   const [tokenType, setTokenType] = useState("normal");
   const [message, setMessage] = useState("");
   const [messageColor, setMessageColor] = useState("");
-  const [turnMessage, setTurnMessage] = useState("🫵 your turn to roll the dices");
+  const [turnMessage, setTurnMessage] = useState("Your turn");
   const [diceVisible, setDiceVisible] = useState(true);
   const [photoUrl, setPhotoUrl] = useState(loadAvatar() || '');
   const [myName, setMyName] = useState('You');
@@ -626,12 +624,6 @@ export default function SnakeAndLadder() {
   const [rollingIndex, setRollingIndex] = useState(null);
   const [playerRollTrigger, setPlayerRollTrigger] = useState(0);
   const [playerAutoRolling, setPlayerAutoRolling] = useState(false);
-  const [diceStyle, setDiceStyle] = useState({ display: 'none' });
-  const diceEndRef = useRef(null);
-  const diceRef = useRef(null);
-  const bounceRef = useRef(false);
-  const bounceAnimRef = useRef(null);
-  const bounceTimeoutRef = useRef(null);
   const [timeLeft, setTimeLeft] = useState(TURN_TIME);
   const [aiAvatars, setAiAvatars] = useState([]);
   const [burning, setBurning] = useState([]); // indices of tokens burning
@@ -641,181 +633,13 @@ export default function SnakeAndLadder() {
   const [waitingForPlayers, setWaitingForPlayers] = useState(false);
   const [playersNeeded, setPlayersNeeded] = useState(0);
   const [isMultiplayer, setIsMultiplayer] = useState(false);
-  const [spectator, setSpectator] = useState(false);
   const [mpPlayers, setMpPlayers] = useState([]);
-  const [watchCount, setWatchCount] = useState(0);
   const playersRef = useRef([]);
   const [tableId, setTableId] = useState('snake-4');
   const [playerPopup, setPlayerPopup] = useState(null);
   const [showChat, setShowChat] = useState(false);
   const [showGift, setShowGift] = useState(false);
   const [chatBubbles, setChatBubbles] = useState([]);
-
-  // Scale the dice when they rest beside each player's photo.
-  // Board dice icons measure about 2.2rem (~35px) so match
-  // that size against the Dice component's default 80px width.
-  const DICE_SMALL_SCALE = 0.4;
-  // Dice roll position relative to screen height (between center and bottom)
-  const DICE_ROLL_RATIO = 0.7;
-
-  useEffect(() => {
-    // Ensure dice and turn prompt are visible when the game loads
-    prepareDiceAnimation(null);
-  }, []);
-
-  function prepareDiceAnimation(startIdx) {
-    if (startIdx == null) {
-      const cy = window.innerHeight * DICE_ROLL_RATIO;
-      setDiceStyle({
-        display: 'block',
-        position: 'fixed',
-        left: '50%',
-        top: `${cy}px`,
-        transform: 'translate(-50%, -50%) scale(1)',
-        transition: 'none',
-        pointerEvents: 'none',
-        zIndex: 50,
-      });
-      return;
-    }
-    const startEl = document.querySelector(`[data-player-index="${startIdx}"] img`);
-    if (!startEl) return;
-    const s = startEl.getBoundingClientRect();
-    setDiceStyle({
-      display: 'block',
-      position: 'fixed',
-      left: `${s.left + s.width / 2}px`,
-      top: `${s.top + s.height / 2}px`,
-      transform: `translate(-50%, -50%) scale(${DICE_SMALL_SCALE})`,
-      transition: 'none',
-      pointerEvents: 'none',
-      zIndex: 50,
-    });
-  }
-
-  function animateDiceToCenter(startIdx) {
-    const dice = diceRef.current;
-    const startEl = document.querySelector(`[data-player-index="${startIdx}"] img`);
-    if (!dice || !startEl) return;
-    const s = startEl.getBoundingClientRect();
-    const cx = window.innerWidth / 2;
-    const cy = window.innerHeight * DICE_ROLL_RATIO;
-    dice.style.display = 'block';
-    dice.style.position = 'fixed';
-    dice.style.left = '0px';
-    dice.style.top = '0px';
-    dice.style.pointerEvents = 'none';
-    dice.style.zIndex = '50';
-    dice.animate(
-      [
-        { transform: `translate(${s.left + s.width / 2}px, ${s.top + s.height / 2}px) scale(${DICE_SMALL_SCALE})` },
-        { transform: `translate(${cx}px, ${cy}px) scale(1)` },
-      ],
-      { duration: 600, easing: 'linear' },
-    ).onfinish = () => {
-      setDiceStyle({
-        display: 'block',
-        position: 'fixed',
-        left: `${cx}px`,
-        top: `${cy}px`,
-        transform: 'translate(-50%, -50%) scale(1)',
-        pointerEvents: 'none',
-        zIndex: 50,
-      });
-    };
-  }
-
-  function animateDiceToPlayer(idx) {
-    const dice = diceRef.current;
-    const endEl = document.querySelector(`[data-player-index="${idx}"] img`);
-    if (!dice || !endEl) return setDiceVisible(false);
-    const e = endEl.getBoundingClientRect();
-    const d = dice.getBoundingClientRect();
-    const cx = d.left + d.width / 2;
-    const cy = d.top + d.height / 2;
-    dice.animate(
-      [
-        { transform: `translate(${cx}px, ${cy}px) scale(1)` },
-        { transform: `translate(${e.left + e.width / 2}px, ${e.top + e.height / 2}px) scale(${DICE_SMALL_SCALE})` },
-      ],
-      { duration: 600, easing: 'linear' },
-    ).onfinish = () => {
-      setDiceStyle({
-        display: 'block',
-        position: 'fixed',
-        left: `${e.left + e.width / 2}px`,
-        top: `${e.top + e.height / 2}px`,
-        transform: `translate(-50%, -50%) scale(${DICE_SMALL_SCALE})`,
-        pointerEvents: 'none',
-        zIndex: 50,
-      });
-    };
-  }
-
-  function startFreeRoll(duration = 2000) {
-    const dice = diceRef.current;
-    if (!dice) return;
-    const rect = dice.getBoundingClientRect();
-    let x = rect.left;
-    let y = rect.top;
-    const w = rect.width;
-    const h = rect.height;
-    let vx = (Math.random() * 4 + 2) * (Math.random() < 0.5 ? -1 : 1);
-    let vy = (Math.random() * 4 + 2) * (Math.random() < 0.5 ? -1 : 1);
-    const maxX = window.innerWidth - w;
-    const maxY = window.innerHeight - h;
-    const start = performance.now();
-    bounceRef.current = true;
-
-    const step = (t) => {
-      if (!bounceRef.current) return;
-      if (t - start >= duration) {
-        bounceRef.current = false;
-        return;
-      }
-      x += vx;
-      y += vy;
-      if (x < 0) {
-        x = 0;
-        vx = -vx;
-      }
-      if (x > maxX) {
-        x = maxX;
-        vx = -vx;
-      }
-      if (y < 0) {
-        y = 0;
-        vy = -vy;
-      }
-      if (y > maxY) {
-        y = maxY;
-        vy = -vy;
-      }
-      dice.style.transform = `translate(${x}px, ${y}px) scale(1)`;
-      bounceAnimRef.current = requestAnimationFrame(step);
-    };
-
-    bounceAnimRef.current = requestAnimationFrame(step);
-    bounceTimeoutRef.current = setTimeout(() => {
-      bounceRef.current = false;
-    }, duration);
-  }
-
-  function stopFreeRoll() {
-    bounceRef.current = false;
-    if (bounceAnimRef.current) cancelAnimationFrame(bounceAnimRef.current);
-    if (bounceTimeoutRef.current) clearTimeout(bounceTimeoutRef.current);
-  }
-
-  function handlePlayerTurnClick(e) {
-    e.preventDefault();
-    if (rollingIndex != null || moving) return;
-    prepareDiceAnimation(0);
-    setDiceVisible(true);
-    animateDiceToCenter(0);
-    setPlayerAutoRolling(true);
-    setPlayerRollTrigger((r) => r + 1);
-  }
 
   // Preload token and avatar images so board icons and AI photos display
   // immediately without waiting for network requests during gameplay.
@@ -1017,7 +841,6 @@ export default function SnakeAndLadder() {
     const amt = params.get("amount");
     const aiParam = params.get("ai");
     const tableParam = params.get("table");
-    const watchParam = params.get("watch");
     if (t) setToken(t.toUpperCase());
     if (amt) setPot(Number(amt));
     const aiCount = aiParam
@@ -1027,7 +850,6 @@ export default function SnakeAndLadder() {
         : 1;
     setAi(aiCount);
     setIsMultiplayer(tableParam && !aiParam);
-    setSpectator(!!watchParam);
     localStorage.removeItem(`snakeGameState_${aiCount}`);
     setAiPositions(Array(aiCount).fill(0));
     setAiAvatars(
@@ -1092,10 +914,6 @@ export default function SnakeAndLadder() {
       })
       .catch(() => {});
   }, []);
-
-  useEffect(() => {
-    getWatchCount(tableId).then((c) => setWatchCount(c.count || 0)).catch(() => {});
-  }, [tableId]);
 
   useEffect(() => {
     playersRef.current = mpPlayers;
@@ -1244,7 +1062,7 @@ export default function SnakeAndLadder() {
     const onStarted = () => setWaitingForPlayers(false);
     const onRolled = ({ value }) => {
       setRollResult(value);
-      setTimeout(() => setRollResult(null), 2000);
+      setTimeout(() => setRollResult(null), 1500);
     };
     const onWon = ({ playerId }) => {
       setGameOver(true);
@@ -1309,15 +1127,8 @@ export default function SnakeAndLadder() {
     socket.on('diceRolled', onRolled);
     socket.on('gameWon', onWon);
     socket.on('currentPlayers', onCurrentPlayers);
-    socket.on('watchCount', ({ roomId, count }) => {
-      if (roomId === tableId) setWatchCount(count);
-    });
 
-    if (spectator) {
-      socket.emit('watchRoom', { roomId: tableId });
-    } else {
-      socket.emit('joinRoom', { roomId: tableId, playerId: accountId, name });
-    }
+    socket.emit('joinRoom', { roomId: tableId, playerId: accountId, name });
 
 
     return () => {
@@ -1334,12 +1145,8 @@ export default function SnakeAndLadder() {
       socket.off('diceRolled', onRolled);
       socket.off('gameWon', onWon);
       socket.off('currentPlayers', onCurrentPlayers);
-      socket.off('watchCount');
-      if (spectator) {
-        socket.emit('leaveWatch', { roomId: tableId });
-      }
     };
-  }, [isMultiplayer, tableId, spectator]);
+  }, [isMultiplayer, tableId]);
 
   const fastForward = (elapsed, state) => {
     let p = state.pos ?? 0;
@@ -1508,9 +1315,10 @@ export default function SnakeAndLadder() {
       hahaSoundRef.current.currentTime = 0;
       hahaSoundRef.current.play().catch(() => {});
     }
-    setTimeout(() => setRollResult(null), 2000);
+    setTimeout(() => setRollResult(null), 1500);
 
     setTimeout(() => {
+      setDiceVisible(false);
       setOffsetPopup(null);
       setTrail([]);
 
@@ -1521,12 +1329,12 @@ export default function SnakeAndLadder() {
 
       if (current === 100 && diceCount === 2) {
         if (rolledSix) {
-        // setDiceCount(1);
+          setDiceCount(1);
           setMessage("Six rolled! One die removed.");
         } else {
           setMessage("Need a 6 to remove a die.");
         }
-        setTurnMessage("🫵 your turn to roll the dices");
+        setTurnMessage("Your turn");
         setDiceVisible(true);
         setMoving(false);
         return;
@@ -1536,10 +1344,10 @@ export default function SnakeAndLadder() {
         } else {
           setMessage("Need a 1 to win!");
           setTurnMessage("");
+          setDiceVisible(false);
           const next = (currentTurn + 1) % (ai + 1);
-          animateDiceToPlayer(next);
-          setTimeout(() => setCurrentTurn(next), 2000);
-          setTimeout(() => setMoving(false), 2000);
+          setTimeout(() => setCurrentTurn(next), 1500);
+          setTimeout(() => setMoving(false), 1500);
           return;
         }
       } else if (current === 0) {
@@ -1550,10 +1358,10 @@ export default function SnakeAndLadder() {
         else {
           setMessage("Need a 6 to start!");
           setTurnMessage("");
+          setDiceVisible(false);
           const next = (currentTurn + 1) % (ai + 1);
-          animateDiceToPlayer(next);
-          setTimeout(() => setCurrentTurn(next), 2000);
-          setTimeout(() => setMoving(false), 2000);
+          setTimeout(() => setCurrentTurn(next), 1500);
+          setTimeout(() => setMoving(false), 1500);
           return;
         }
       } else if (current + value <= FINAL_TILE) {
@@ -1561,10 +1369,10 @@ export default function SnakeAndLadder() {
       } else {
         setMessage("Need exact roll!");
         setTurnMessage("");
+        setDiceVisible(false);
         const next = (currentTurn + 1) % (ai + 1);
-        animateDiceToPlayer(next);
-        setTimeout(() => setCurrentTurn(next), 2000);
-        setTimeout(() => setMoving(false), 2000);
+        setTimeout(() => setCurrentTurn(next), 1500);
+        setTimeout(() => setMoving(false), 1500);
         return;
       }
 
@@ -1624,7 +1432,7 @@ export default function SnakeAndLadder() {
           setCelebrate(true);
           setTimeout(() => {
             setCelebrate(false);
-            // keep two dice
+            setDiceCount(2);
           }, 1500);
         }
         let extraTurn = false;
@@ -1649,7 +1457,7 @@ export default function SnakeAndLadder() {
           setBonusDice(0);
           extraTurn = true;
         } else {
-          setTurnMessage("🫵 your turn to roll the dices");
+          setTurnMessage("Your turn");
           setBonusDice(0);
         }
         setDiceVisible(true);
@@ -1657,12 +1465,11 @@ export default function SnakeAndLadder() {
         if (!gameOver) {
           const next = extraTurn ? currentTurn : (currentTurn + 1) % (ai + 1);
           setCurrentTurn(next);
-          animateDiceToPlayer(next);
         }
       };
 
       moveSeq(steps, 'normal', ctx, () => applyEffect(target), 'forward');
-    }, 2000);
+    }, 1500);
   };
 
   const triggerAIRoll = (index) => {
@@ -1710,8 +1517,9 @@ export default function SnakeAndLadder() {
       hahaSoundRef.current.currentTime = 0;
       hahaSoundRef.current.play().catch(() => {});
     }
-    setTimeout(() => setRollResult(null), 2000);
+    setTimeout(() => setRollResult(null), 1500);
     setTimeout(() => {
+      setDiceVisible(false);
     let positions = [...aiPositions];
     let current = positions[index - 1];
     let target = current;
@@ -1790,10 +1598,9 @@ export default function SnakeAndLadder() {
         extraTurn = true;
       }
       const next = extraTurn ? index : (index + 1) % (ai + 1);
-      if (next === 0) setTurnMessage("🫵 your turn to roll the dices");
+      if (next === 0) setTurnMessage('Your turn');
       setCurrentTurn(next);
       setDiceVisible(true);
-      animateDiceToPlayer(next);
       setMoving(false);
       if (extraTurn && next === index) {
         setTimeout(() => triggerAIRoll(index), 1800);
@@ -1803,7 +1610,7 @@ export default function SnakeAndLadder() {
     const applyEffect = (startPos) => applyEffectHelper(startPos, ctx, finalizeMove);
 
     moveSeq(steps, 'normal', ctx, () => applyEffect(target), 'forward');
-    }, 2000);
+    }, 1500);
   };
 
   useEffect(() => {
@@ -1811,7 +1618,7 @@ export default function SnakeAndLadder() {
     const total = ai + 1;
     if (total === 1) {
       setSetupPhase(false);
-      setTurnMessage("🫵 your turn to roll the dices");
+      setTurnMessage('Your turn');
       setCurrentTurn(0);
       return;
     }
@@ -1857,7 +1664,7 @@ export default function SnakeAndLadder() {
 
   useEffect(() => {
     if (!setupPhase && currentTurn === 0 && !gameOver) {
-      setTurnMessage("🫵 your turn to roll the dices");
+      setTurnMessage('Your turn');
     }
   }, [currentTurn, setupPhase, gameOver, refreshTick, moving]);
 
@@ -1986,10 +1793,6 @@ export default function SnakeAndLadder() {
 
   return (
     <div className="p-4 pb-32 space-y-4 text-text flex flex-col justify-end items-center relative w-full flex-grow">
-      <div className="fixed right-2 top-2 flex items-center space-x-1 z-20">
-        <FaTv />
-        <span className="text-green-500 text-sm">{watchCount}</span>
-      </div>
       {/* Bottom left controls */}
       <BottomLeftIcons
         onInfo={() => setShowInfo(true)}
@@ -2181,8 +1984,11 @@ export default function SnakeAndLadder() {
         </div>
       )}
       {rollResult !== null && (
-        <div className="fixed inset-0 flex items-center justify-center z-30 pointer-events-none">
-          <div className="text-8xl font-extrabold roll-result" style={{ color: rollColor }}>
+        <div className="fixed bottom-52 inset-x-0 flex justify-center z-30 pointer-events-none">
+          <div
+            className="text-7xl roll-result"
+            style={{ color: rollColor, transform: 'translate(0.5rem, -0.25rem)' }}
+          >
             {rollResult}
           </div>
         </div>
@@ -2196,105 +2002,80 @@ export default function SnakeAndLadder() {
       )}
       {diceVisible && !isMultiplayer && (
         <div
-          ref={diceRef}
-          style={diceStyle}
-          className="dice-travel flex flex-col items-center"
+          className="fixed bottom-24 inset-x-0 flex flex-col items-center z-20"
+          style={{ transform: 'translateX(2rem)' }}
         >
-          <DiceRoller
-            className="snake-dice"
-            rollingScale={0.85}
-          onRollEnd={(vals) => {
-            stopFreeRoll();
-            if (aiRollingIndex) {
-              handleAIRoll(aiRollingIndex, vals);
-              setAiRollingIndex(null);
-            } else {
-              handleRoll(vals);
+          <div className="scale-90">
+            <DiceRoller
+            onRollEnd={(vals) => {
+              if (aiRollingIndex) {
+                handleAIRoll(aiRollingIndex, vals);
+                setAiRollingIndex(null);
+              } else {
+                handleRoll(vals);
                 setBonusDice(0);
               }
               setRollingIndex(null);
               setPlayerAutoRolling(false);
-              // Dice will move to the next player after the move resolves
             }}
             onRollStart={() => {
-              if (timerRef.current) clearInterval(timerRef.current);
-              timerSoundRef.current?.pause();
-              setRollingIndex(aiRollingIndex || 0);
-              prepareDiceAnimation(aiRollingIndex != null ? aiRollingIndex : 0);
-              animateDiceToCenter(aiRollingIndex != null ? aiRollingIndex : 0);
-              setTimeout(() => startFreeRoll(), 600);
-              if (aiRollingIndex)
-                return setTurnMessage(<>{playerName(aiRollingIndex)} rolling...</>);
-              if (playerAutoRolling) return setTurnMessage('Rolling...');
-              return setTurnMessage('Rolling...');
-            }}
-            clickable={false}
-            numDice={2}
-            trigger={aiRollingIndex != null ? aiRollTrigger : playerRollTrigger}
+                if (timerRef.current) clearInterval(timerRef.current);
+                timerSoundRef.current?.pause();
+                setRollingIndex(aiRollingIndex || 0);
+                if (aiRollingIndex)
+                  return setTurnMessage(<>{playerName(aiRollingIndex)} rolling...</>);
+                if (playerAutoRolling) return setTurnMessage('Rolling...');
+                return setTurnMessage("Rolling...");
+              }
+            }
+            clickable={
+              !aiRollingIndex &&
+              !playerAutoRolling &&
+              rollCooldown === 0 &&
+              currentTurn === 0 &&
+              !moving
+            }
+            numDice={diceCount + bonusDice}
+            trigger={aiRollingIndex != null ? aiRollTrigger : playerAutoRolling ? playerRollTrigger : undefined}
             showButton={false}
             muted={muted}
           />
+          </div>
+          {currentTurn === 0 && !aiRollingIndex && !playerAutoRolling && (
+            <div className="mt-2 flex flex-col items-center">
+              <div className="text-5xl">🫵</div>
+              <div
+                className="turn-message text-2xl mt-1"
+                style={{ color: players[currentTurn]?.color }}
+              >
+                Your turn
+              </div>
+            </div>
+          )}
         </div>
       )}
-      {
-        !isMultiplayer &&
-        !aiRollingIndex &&
-        !playerAutoRolling &&
-        rollCooldown === 0 &&
-        currentTurn === 0 &&
-        !moving &&
-        diceVisible && (
-          <div className="fixed inset-x-0 bottom-24 z-20 flex justify-center pointer-events-none">
-            <button
-              onClick={handlePlayerTurnClick}
-              className="pointer-events-auto px-4 py-2 bg-primary hover:bg-primary-hover text-white rounded"
-            >
-              Roll
-            </button>
-          </div>
-        )
-      }
       {isMultiplayer && (
         <div
-          className="fixed inset-0 z-20 pointer-events-none"
+          className="fixed bottom-24 inset-x-0 flex flex-col items-center z-20"
+          style={{ transform: 'translateX(2rem)' }}
         >
-          <div className="flex flex-col items-center justify-center h-full pointer-events-auto">
-            {(() => {
-              const myId = getPlayerId();
-              const myIndex = mpPlayers.findIndex(p => p.id === myId);
-              if (currentTurn === myIndex && !moving) {
-                return (
-                  <DiceRoller
-                    clickable={false}
-                    showButton={false}
-                    muted={muted}
-                    emitRollEvent
-                    numDice={2}
-                    className="snake-dice"
-                    rollingScale={0.85}
-                  />
-                );
-              }
-              return null;
-            })()}
-          </div>
+          <div className="scale-90">
           {(() => {
             const myId = getPlayerId();
             const myIndex = mpPlayers.findIndex(p => p.id === myId);
             if (currentTurn === myIndex && !moving) {
               return (
-                <div className="absolute inset-x-0 bottom-24 flex justify-center pointer-events-none">
-                  <button
-                    onClick={handlePlayerTurnClick}
-                    className="pointer-events-auto px-4 py-2 bg-primary hover:bg-primary-hover text-white rounded"
-                  >
-                    Roll
-                  </button>
-                </div>
+                <DiceRoller
+                  clickable
+                  showButton={false}
+                  muted={muted}
+                  emitRollEvent
+                />
               );
             }
             return null;
           })()}
+          </div>
         </div>
       )}
       <InfoPopup
