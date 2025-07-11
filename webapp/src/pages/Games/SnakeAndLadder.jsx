@@ -733,7 +733,8 @@ export default function SnakeAndLadder() {
 
   const getDiceCenter = () => {
     const cx = window.innerWidth / 2 + 32;
-    const cy = window.innerHeight - 208; // align with roll result display
+codex/fix-dice-roll-animation-distance
+    const cy = window.innerHeight - 208; // align with roll result disp
     return { cx, cy };
   };
 
@@ -784,7 +785,7 @@ export default function SnakeAndLadder() {
         { transform: `translate(${s.left + s.width / 2}px, ${s.top + s.height / 2}px) scale(${DICE_SMALL_SCALE})` },
         { transform: `translate(${cx}px, ${cy}px) scale(1)` },
       ],
-      { duration: 1750, easing: 'linear' },
+      { duration: 1000, easing: 'ease-in-out' },
     ).onfinish = () => {
       setDiceStyle({
         display: 'block',
@@ -809,7 +810,7 @@ export default function SnakeAndLadder() {
         { transform: `translate(${cx}px, ${cy}px) scale(1)` },
         { transform: `translate(${e.left + e.width / 2}px, ${e.top + e.height / 2}px) scale(${DICE_SMALL_SCALE})` },
       ],
-      { duration: 1750, easing: 'linear' },
+      { duration: 1000, easing: 'ease-in-out' },
     ).onfinish = () => {
       setDiceStyle({
         display: 'block',
