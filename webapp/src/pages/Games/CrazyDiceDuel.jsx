@@ -14,23 +14,6 @@ import { giftSounds } from '../../utils/giftSounds.js';
 
 const COLORS = ['#60a5fa', '#ef4444', '#4ade80', '#facc15'];
 
-function GuideGrid() {
-  const letters = 'ABCDEFGHIJ'.split('');
-  const rows = Array.from({ length: 10 }, (_, i) => i + 1);
-  return (
-    <div className="guide-grid">
-      {rows.map((r) =>
-        letters.map((l) => (
-          <div key={`${l}${r}`} className="grid-cell">
-            {l}
-            {r}
-          </div>
-        )),
-      )}
-    </div>
-  );
-}
-
 export default function CrazyDiceDuel() {
   const navigate = useNavigate();
   const handleBack = useCallback(
@@ -158,44 +141,96 @@ export default function CrazyDiceDuel() {
     });
     let n = (current + 1) % players.length;
     while (players[n].rolls >= maxRolls) n = (n + 1) % players.length;
-    animateDiceToCenter();
+    animateDiceToPlayer(n);
   };
 
-  const prepareDiceAnimation = () => {
+  const prepareDiceAnimation = (startIdx) => {
+    if (startIdx == null) {
+      const cx = window.innerWidth / 2;
+      const cy = window.innerHeight / 2;
+      setDiceStyle({
+        display: 'block',
+        position: 'fixed',
+        left: `${cx}px`,
+        top: `${cy}px`,
+        transform: 'translate(-50%, -50%) scale(1)',
+        transition: 'none',
+        pointerEvents: 'none',
+        zIndex: 50,
+      });
+      return;
+    }
+    const startEl = document.querySelector(`[data-player-index="${startIdx}"] img`);
+    if (!startEl) return;
+    const s = startEl.getBoundingClientRect();
     setDiceStyle({
       display: 'block',
       position: 'fixed',
-      left: '50%',
-      top: '50%',
-      transform: 'translate(-50%, -50%) scale(1)',
+      left: `${s.left + s.width / 2}px`,
+      top: `${s.top + s.height / 2}px`,
+      transform: `translate(-50%, -50%) scale(${DICE_SMALL_SCALE})`,
       transition: 'none',
       pointerEvents: 'none',
       zIndex: 50,
     });
   };
 
-  const animateDiceToCenter = () => {
-    setDiceStyle({
-      display: 'block',
-      position: 'fixed',
-      left: '50%',
-      top: '50%',
-      transform: 'translate(-50%, -50%) scale(1)',
-      pointerEvents: 'none',
-      zIndex: 50,
-    });
+  const animateDiceToCenter = (startIdx) => {
+    const dice = diceRef.current;
+    const startEl = document.querySelector(`[data-player-index="${startIdx}"] img`);
+    if (!dice || !startEl) return;
+    const s = startEl.getBoundingClientRect();
+    const cx = window.innerWidth / 2;
+    const cy = window.innerHeight / 2;
+    dice.style.display = 'block';
+    dice.style.position = 'fixed';
+    dice.style.left = '0px';
+    dice.style.top = '0px';
+    dice.style.pointerEvents = 'none';
+    dice.style.zIndex = '50';
+    dice.animate(
+      [
+        { transform: `translate(${s.left + s.width / 2}px, ${s.top + s.height / 2}px) scale(${DICE_SMALL_SCALE})` },
+        { transform: `translate(${cx}px, ${cy}px) scale(1)` },
+      ],
+      { duration: 600, easing: 'linear' },
+    ).onfinish = () => {
+      setDiceStyle({
+        display: 'block',
+        position: 'fixed',
+        left: `${cx}px`,
+        top: `${cy}px`,
+        transform: 'translate(-50%, -50%) scale(1)',
+        pointerEvents: 'none',
+        zIndex: 50,
+      });
+    };
   };
 
-  const animateDiceToPlayer = () => {
-    setDiceStyle({
-      display: 'block',
-      position: 'fixed',
-      left: '50%',
-      top: '50%',
-      transform: 'translate(-50%, -50%) scale(1)',
-      pointerEvents: 'none',
-      zIndex: 50,
-    });
+  const animateDiceToPlayer = (idx) => {
+    const dice = diceRef.current;
+    const endEl = document.querySelector(`[data-player-index="${idx}"] img`);
+    if (!dice || !endEl) return;
+    const e = endEl.getBoundingClientRect();
+    const cx = window.innerWidth / 2;
+    const cy = window.innerHeight / 2;
+    dice.animate(
+      [
+        { transform: `translate(${cx}px, ${cy}px) scale(1)` },
+        { transform: `translate(${e.left + e.width / 2}px, ${e.top + e.height / 2}px) scale(${DICE_SMALL_SCALE})` },
+      ],
+      { duration: 600, easing: 'linear' },
+    ).onfinish = () => {
+      setDiceStyle({
+        display: 'block',
+        position: 'fixed',
+        left: `${e.left + e.width / 2}px`,
+        top: `${e.top + e.height / 2}px`,
+        transform: `translate(-50%, -50%) scale(${DICE_SMALL_SCALE})`,
+        pointerEvents: 'none',
+        zIndex: 50,
+      });
+    };
   };
 
   const nextTurn = () => {
@@ -246,7 +281,6 @@ export default function CrazyDiceDuel() {
         alt="board"
         className="board-bg"
       />
-      <GuideGrid />
       <div className="side-number top">1</div>
       <div className="side-number bottom">2</div>
       <div className="side-number left">3</div>
@@ -259,11 +293,10 @@ export default function CrazyDiceDuel() {
             className="dice-travel flex flex-col items-center"
           >
             <DiceRoller
-              className="scale-75"
               onRollEnd={onRollEnd}
               onRollStart={() => {
-                prepareDiceAnimation();
-                animateDiceToCenter();
+                prepareDiceAnimation(current);
+                animateDiceToCenter(current);
               }}
               trigger={trigger}
               clickable={aiCount === 0 || current === 0}
