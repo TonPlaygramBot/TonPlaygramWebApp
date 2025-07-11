@@ -1289,8 +1289,8 @@ input:focus {
   width: 100%;
   height: 100%;
   object-fit: cover;
-  /* Center the board background so it fills the screen evenly */
-  object-position: left top;
+  /* Nudge the board slightly left so the "3" side aligns with the icons */
+  object-position: -4px top;
   filter: brightness(1.2);
   z-index: -1;
 }
