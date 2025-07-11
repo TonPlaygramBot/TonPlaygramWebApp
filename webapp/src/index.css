@@ -102,6 +102,7 @@ input:focus {
   bottom: -160px;
   z-index: -1;
   pointer-events: none;
+  background: radial-gradient(circle at center, #164e63, #0f172a);
   /* slightly brighter and scaled up */
   filter: brightness(2.4);
   transform: translateY(90px) scale(1.2);
