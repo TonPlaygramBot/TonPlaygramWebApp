@@ -1288,8 +1288,8 @@ input:focus {
   width: 100%;
   height: 100%;
   object-fit: cover;
-  /* Shift the board slightly to the right so the phone edge aligns with the screen */
-  object-position: 5% top;
+  /* Center the board background so it fills the screen evenly */
+  object-position: center top;
   filter: brightness(1.2);
   z-index: -1;
 }
