@@ -91,9 +91,6 @@ export default function LuckyNumber() {
         src="/assets/SnakeLaddersbackground.png"
         className="background-behind-board object-cover"
         alt=""
-        onError={(e) => {
-          e.currentTarget.style.display = 'none';
-        }}
       />
       <h3 className="text-lg font-bold text-text">Lucky Number</h3>
       <div className="grid grid-cols-3 gap-2 justify-items-center">

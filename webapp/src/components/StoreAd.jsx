@@ -18,9 +18,6 @@ export default function StoreAd() {
         src="/assets/SnakeLaddersbackground.png"
         className="background-behind-board object-cover"
         alt=""
-        onError={(e) => {
-          e.currentTarget.style.display = 'none';
-        }}
       />
       <div className="flex items-center justify-center space-x-1">
         <AiOutlineShop className="text-accent" />

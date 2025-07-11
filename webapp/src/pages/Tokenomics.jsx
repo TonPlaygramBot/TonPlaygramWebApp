@@ -254,9 +254,6 @@ export default function TokenomicsPage() {
           src="/assets/SnakeLaddersbackground.png"
           className="background-behind-board object-cover"
           alt=""
-          onError={(e) => {
-            e.currentTarget.style.display = 'none';
-          }}
         />
         <h2 className="text-xl font-bold">Tokenomics &amp; Roadmap</h2>
         <p className="text-subtext">
@@ -270,9 +267,6 @@ export default function TokenomicsPage() {
           src="/assets/SnakeLaddersbackground.png"
           className="background-behind-board object-cover"
           alt=""
-          onError={(e) => {
-            e.currentTarget.style.display = 'none';
-          }}
         />
         <h3 className="text-lg font-bold text-center">Token Allocation</h3>
         <div className="mx-auto w-40">
@@ -311,9 +305,6 @@ export default function TokenomicsPage() {
           src="/assets/SnakeLaddersbackground.png"
           className="background-behind-board object-cover"
           alt=""
-          onError={(e) => {
-            e.currentTarget.style.display = 'none';
-          }}
         />
         <h3 className="text-lg font-bold text-center">Game Fee Distribution (per Table)</h3>
         <div className="mx-auto w-40">
@@ -352,9 +343,6 @@ export default function TokenomicsPage() {
           src="/assets/SnakeLaddersbackground.png"
           className="background-behind-board object-cover"
           alt=""
-          onError={(e) => {
-            e.currentTarget.style.display = 'none';
-          }}
         />
         <h3 className="text-lg font-bold mb-2 text-center">Full Token Allocation Breakdown</h3>
         <table className="w-full text-sm text-left min-w-[32rem]">
@@ -385,9 +373,6 @@ export default function TokenomicsPage() {
           src="/assets/SnakeLaddersbackground.png"
           className="background-behind-board object-cover"
           alt=""
-          onError={(e) => {
-            e.currentTarget.style.display = 'none';
-          }}
         />
         <div>
           <h4 className="font-semibold text-accent mb-1">Total Supply</h4>
@@ -489,9 +474,6 @@ export default function TokenomicsPage() {
           src="/assets/SnakeLaddersbackground.png"
           className="background-behind-board object-cover"
           alt=""
-          onError={(e) => {
-            e.currentTarget.style.display = 'none';
-          }}
         />
         <h3 className="text-lg font-bold text-center">Roadmap</h3>
         <div className="space-y-2 text-sm">
@@ -517,9 +499,6 @@ export default function TokenomicsPage() {
           src="/assets/SnakeLaddersbackground.png"
           className="background-behind-board object-cover"
           alt=""
-          onError={(e) => {
-            e.currentTarget.style.display = 'none';
-          }}
         />
         <img src="/assets/icons/TPCcoin_1.webp" alt="TPC" className="w-16 h-16" />
         <div>
@@ -543,9 +522,6 @@ export default function TokenomicsPage() {
           src="/assets/SnakeLaddersbackground.png"
           className="background-behind-board object-cover"
           alt=""
-          onError={(e) => {
-            e.currentTarget.style.display = 'none';
-          }}
         />
         <h3 className="text-lg font-bold text-center">TPC Wallet Addresses</h3>
         <ul className="text-xs break-all space-y-1">
