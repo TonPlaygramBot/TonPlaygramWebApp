@@ -1015,8 +1015,8 @@ input:focus {
 
 .dice-marker {
   position: absolute;
-  width: 2.2rem;
-  height: 2.2rem;
+  width: 1.6rem;
+  height: 1.6rem;
   left: 50%;
   top: 55%;
   transform: translate(-50%, -50%) translateZ(6px)
@@ -1025,13 +1025,13 @@ input:focus {
   align-items: center;
   justify-content: center;
   pointer-events: none;
-  z-index: 2;
+  z-index: 4;
   transition: transform 0.3s ease;
 }
 
 .dice-marker .dice-icon {
-  width: 2.2rem;
-  height: 2.2rem;
+  width: 1.6rem;
+  height: 1.6rem;
   object-fit: contain;
   transition: transform 0.3s ease;
 }
