@@ -653,8 +653,8 @@ export default function SnakeAndLadder() {
   // Slightly offset the dice roll landing spot so it sits a bit right and higher
   // Shift the dice landing spot a bit further right so the
   // dice doesn't overlap the roll result number
-  const RESULT_OFFSET_X = 20; // increased right shift
-  const RESULT_OFFSET_Y = -32; // keep the same vertical position
+  const RESULT_OFFSET_X = 36; // shift landing spot slightly further right
+  const RESULT_OFFSET_Y = -64; // raise landing spot to match higher result text
 
   useEffect(() => {
     prepareDiceAnimation(0);
@@ -2110,9 +2110,9 @@ export default function SnakeAndLadder() {
         <div className="fixed bottom-52 inset-x-0 flex justify-center z-30 pointer-events-none">
           <div
             className="text-7xl roll-result"
-            // Move the number slightly up and to the right so it
-            // doesn't overlap the dice image
-            style={{ color: rollColor, transform: 'translate(1rem, -2rem)' }}
+            // Move the number slightly higher so it's clearer on small screens
+            // and still shifted right so it doesn't overlap the dice image
+            style={{ color: rollColor, transform: 'translate(1rem, -4rem)' }}
           >
             {rollResult}
           </div>
