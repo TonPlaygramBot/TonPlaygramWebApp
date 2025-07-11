@@ -650,9 +650,9 @@ export default function SnakeAndLadder() {
   const DICE_ANIM_DURATION = 1800;
   // Dice landing spot (matches roll result text position)
   const RESULT_BOTTOM = 13 * 16; // tailwind bottom-52 -> 13rem
-  // Slightly shift the dice roll position up and to the left
-  const RESULT_OFFSET_X = 4; // slight right shift of text
-  const RESULT_OFFSET_Y = -20; // move result a bit higher
+  // Slightly offset the dice roll landing spot so it sits a bit right and higher
+  const RESULT_OFFSET_X = 8; // small right shift of text
+  const RESULT_OFFSET_Y = -24; // lift the result slightly
 
   useEffect(() => {
     prepareDiceAnimation(0);
@@ -765,7 +765,8 @@ export default function SnakeAndLadder() {
     if (!startEl) return;
     const s = startEl.getBoundingClientRect();
     const targetX = s.left + s.width / 2;
-    const targetY = s.top - s.height * 0.2;
+    // Center the dice on the avatar when it appears
+    const targetY = s.top + s.height / 2;
     setDiceStyle({
       display: 'block',
       position: 'fixed',
@@ -784,7 +785,8 @@ export default function SnakeAndLadder() {
     if (!dice || !startEl) return;
     const s = startEl.getBoundingClientRect();
     const startX = s.left + s.width / 2;
-    const startY = s.top - s.height * 0.2;
+    // Begin animation from the avatar centre
+    const startY = s.top + s.height / 2;
     const { cx, cy } = getDiceCenter();
     dice.style.display = 'block';
     dice.style.position = 'fixed';
@@ -816,8 +818,9 @@ export default function SnakeAndLadder() {
     const endEl = document.querySelector(`[data-player-index="${idx}"] img`);
     if (!dice || !endEl) return;
     const e = endEl.getBoundingClientRect();
-    const endX = e.left + e.width / 2;
-    const endY = e.top - e.height * 0.2;
+    // Land slightly to the right of the avatar centre
+    const endX = e.left + e.width / 2 + 10;
+    const endY = e.top + e.height / 2;
     const { cx, cy } = getDiceCenter();
     dice.animate(
       [
@@ -2105,7 +2108,7 @@ export default function SnakeAndLadder() {
         <div className="fixed bottom-52 inset-x-0 flex justify-center z-30 pointer-events-none">
           <div
             className="text-7xl roll-result"
-            style={{ color: rollColor, transform: 'translate(-0.25rem, -0.75rem)' }}
+            style={{ color: rollColor, transform: 'translate(0.25rem, -1rem)' }}
           >
             {rollResult}
           </div>
