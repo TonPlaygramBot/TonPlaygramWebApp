@@ -19,9 +19,7 @@ export default function AvatarTimer({
   const gradient = `conic-gradient(#facc15 ${angle}deg, #16a34a 0deg)`;
   return (
     <div className="relative w-14 h-14" onClick={onClick} data-player-index={index}>
-      {isTurn && (
-        <div className="turn-indicator" onClick={onClick}>🫵 your turn</div>
-      )}
+      {/* turn indicator removed */}
       {active && (
         <div className="avatar-timer-ring" style={{ '--timer-gradient': gradient }} />
       )}

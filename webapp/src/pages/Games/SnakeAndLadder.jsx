@@ -642,6 +642,7 @@ export default function SnakeAndLadder() {
   const [chatBubbles, setChatBubbles] = useState([]);
 
   const diceRef = useRef(null);
+  const diceRollerDivRef = useRef(null);
   const [diceStyle, setDiceStyle] = useState({ display: 'none' });
   const DICE_SMALL_SCALE = 0.44;
 
@@ -732,7 +733,7 @@ export default function SnakeAndLadder() {
 
   const getDiceCenter = () => {
     const cx = window.innerWidth / 2 + 32;
-    const cy = window.innerHeight - 96;
+    const cy = window.innerHeight - 160; // position dice slightly higher
     return { cx, cy };
   };
 
@@ -783,7 +784,7 @@ export default function SnakeAndLadder() {
         { transform: `translate(${s.left + s.width / 2}px, ${s.top + s.height / 2}px) scale(${DICE_SMALL_SCALE})` },
         { transform: `translate(${cx}px, ${cy}px) scale(1)` },
       ],
-      { duration: 600, easing: 'linear' },
+      { duration: 1750, easing: 'linear' },
     ).onfinish = () => {
       setDiceStyle({
         display: 'block',
@@ -808,7 +809,7 @@ export default function SnakeAndLadder() {
         { transform: `translate(${cx}px, ${cy}px) scale(1)` },
         { transform: `translate(${e.left + e.width / 2}px, ${e.top + e.height / 2}px) scale(${DICE_SMALL_SCALE})` },
       ],
-      { duration: 600, easing: 'linear' },
+      { duration: 1750, easing: 'linear' },
     ).onfinish = () => {
       setDiceStyle({
         display: 'block',
@@ -2106,6 +2107,7 @@ export default function SnakeAndLadder() {
         <div ref={diceRef} style={diceStyle} className="dice-travel flex flex-col items-center">
           <div className="scale-90">
             <DiceRoller
+              divRef={diceRollerDivRef}
               onRollEnd={(vals) => {
                 if (aiRollingIndex) {
                   handleAIRoll(aiRollingIndex, vals);
@@ -2147,8 +2149,9 @@ export default function SnakeAndLadder() {
       )}
       {currentTurn === 0 && !aiRollingIndex && !playerAutoRolling && (
         <div
-          className="fixed bottom-24 inset-x-0 flex flex-col items-center z-20 pointer-events-none"
+          className="fixed bottom-24 inset-x-0 flex flex-col items-center z-20 cursor-pointer"
           style={{ transform: 'translateX(2rem)' }}
+          onClick={() => diceRollerDivRef.current?.click()}
         >
           <div className="text-5xl">🫵</div>
           <div
@@ -2161,8 +2164,9 @@ export default function SnakeAndLadder() {
       )}
       {isMultiplayer && (
         <div
-          className="fixed bottom-24 inset-x-0 flex flex-col items-center z-20"
+          className="fixed bottom-24 inset-x-0 flex flex-col items-center z-20 cursor-pointer"
           style={{ transform: 'translateX(2rem)' }}
+          onClick={() => diceRollerDivRef.current?.click()}
         >
           <div className="scale-90">
           {(() => {
@@ -2175,6 +2179,7 @@ export default function SnakeAndLadder() {
                   showButton={false}
                   muted={muted}
                   emitRollEvent
+                  divRef={diceRollerDivRef}
                 />
               );
             }

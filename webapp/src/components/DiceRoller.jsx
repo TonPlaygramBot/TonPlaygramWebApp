@@ -13,6 +13,7 @@ export default function DiceRoller({
   showButton = true,
   muted = false,
   emitRollEvent = false,
+  divRef,
 }) {
   const [values, setValues] = useState(Array(numDice).fill(1));
   const [rolling, setRolling] = useState(false);
@@ -98,6 +99,7 @@ export default function DiceRoller({
       <div
         className={`flex space-x-4 ${clickable ? 'cursor-pointer' : ''}`}
         onClick={clickable ? rollDice : undefined}
+        ref={divRef}
       >
         <Dice values={values} rolling={rolling} startValues={startValuesRef.current} />
       </div>
