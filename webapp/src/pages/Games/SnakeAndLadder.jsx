@@ -2119,7 +2119,7 @@ export default function SnakeAndLadder() {
             }}
             clickable={false}
             numDice={2}
-            trigger={aiRollingIndex != null ? aiRollTrigger : playerAutoRolling ? playerRollTrigger : undefined}
+            trigger={aiRollingIndex != null ? aiRollTrigger : playerRollTrigger}
             showButton={false}
             muted={muted}
           />
@@ -2129,7 +2129,7 @@ export default function SnakeAndLadder() {
             rollCooldown === 0 &&
             currentTurn === 0 &&
             !moving && (
-              <div className="fixed inset-x-0 bottom-24 z-20 flex justify-center pointer-events-none">
+              <div className="mt-2 pointer-events-none">
                 <button
                   onClick={handlePlayerTurnClick}
                   className="pointer-events-auto px-4 py-2 bg-primary hover:bg-primary-hover text-white rounded"
@@ -2168,7 +2168,7 @@ export default function SnakeAndLadder() {
             const myIndex = mpPlayers.findIndex(p => p.id === myId);
             if (currentTurn === myIndex && !moving) {
               return (
-                <div className="absolute inset-x-0 bottom-24 flex justify-center pointer-events-none">
+                <div className="absolute inset-x-0 mt-2 flex justify-center pointer-events-none">
                   <button
                     onClick={handlePlayerTurnClick}
                     className="pointer-events-auto px-4 py-2 bg-primary hover:bg-primary-hover text-white rounded"
