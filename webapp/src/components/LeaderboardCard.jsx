@@ -165,7 +165,7 @@ export default function LeaderboardCard() {
             <thead className="sticky top-0 bg-surface">
               <tr className="border-b border-border text-left">
                 <th className="p-2">#</th>
-                <th className="p-2 w-16"></th>
+                <th className="p-2 w-14"></th>
                 <th className="p-2">User</th>
                 <th className="p-2 text-right">TPC</th>
               </tr>
@@ -192,7 +192,7 @@ export default function LeaderboardCard() {
                   }}
                 >
                   <td className="p-2">{idx + 1}</td>
-                  <td className="p-2 w-16 relative">
+                  <td className="p-2 w-14 relative">
                     <img
                       src={getAvatarUrl(
                         u.accountId === accountId
@@ -200,7 +200,7 @@ export default function LeaderboardCard() {
                           : u.photo || u.photoUrl || '/assets/icons/profile.svg'
                       )}
                       alt="avatar"
-                      className="w-16 h-16 hexagon border-2 border-brand-gold object-cover shadow-[0_0_12px_rgba(241,196,15,0.8)]"
+                      className="w-14 h-14 hexagon border-2 border-brand-gold object-cover shadow-[0_0_12px_rgba(241,196,15,0.8)]"
                     />
                     {u.accountId !== accountId &&
                       u.currentTableId && (
@@ -244,11 +244,11 @@ export default function LeaderboardCard() {
               {rank && rank > 100 && (
                 <tr className="bg-accent text-black h-16">
                   <td className="p-2">{rank}</td>
-                  <td className="p-2 w-16 relative">
+                  <td className="p-2 w-14 relative">
                     <img
                       src={getAvatarUrl(myPhotoUrl || '/assets/icons/profile.svg')}
                       alt="avatar"
-                      className="w-16 h-16 hexagon border-2 border-brand-gold object-cover shadow-[0_0_12px_rgba(241,196,15,0.8)]"
+                      className="w-14 h-14 hexagon border-2 border-brand-gold object-cover shadow-[0_0_12px_rgba(241,196,15,0.8)]"
                     />
                     {(() => {
                       const myTable = leaderboard.find((u) => u.accountId === accountId)?.currentTableId;
