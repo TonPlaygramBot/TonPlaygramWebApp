@@ -648,6 +648,10 @@ export default function SnakeAndLadder() {
   // Duration for each leg of the dice travel animation (ms)
   // Slightly slower so the movement matches the NFT gift animation
   const DICE_ANIM_DURATION = 1800;
+  // Dice landing spot (matches roll result text position)
+  const RESULT_BOTTOM = 13 * 16; // tailwind bottom-52 -> 13rem
+  const RESULT_OFFSET_X = 8; // 0.5rem right shift of text
+  const RESULT_OFFSET_Y = -4; // -0.25rem up shift of text
 
   useEffect(() => {
     prepareDiceAnimation(0);
@@ -735,9 +739,9 @@ export default function SnakeAndLadder() {
   };
 
   const getDiceCenter = () => {
-    // Match the NFT gift animation center point
-    const cx = window.innerWidth / 2;
-    const cy = window.innerHeight / 2;
+    // Landing spot aligns with roll result text
+    const cx = window.innerWidth / 2 + RESULT_OFFSET_X;
+    const cy = window.innerHeight - RESULT_BOTTOM + RESULT_OFFSET_Y;
     return { cx, cy };
   };
 
@@ -747,9 +751,9 @@ export default function SnakeAndLadder() {
       setDiceStyle({
         display: 'block',
         position: 'fixed',
-        left: `${cx}px`,
-        top: `${cy}px`,
-        transform: 'translate(-50%, -50%) scale(1)',
+        left: '0px',
+        top: '0px',
+        transform: `translate(${cx}px, ${cy}px) scale(1)`,
         transition: 'none',
         pointerEvents: 'none',
         zIndex: 50,
@@ -762,9 +766,9 @@ export default function SnakeAndLadder() {
     setDiceStyle({
       display: 'block',
       position: 'fixed',
-      left: `${s.left + s.width / 2}px`,
-      top: `${s.top + s.height / 2}px`,
-      transform: `translate(-50%, -50%) scale(${DICE_SMALL_SCALE})`,
+      left: '0px',
+      top: '0px',
+      transform: `translate(${s.left + s.width / 2}px, ${s.top + s.height / 2}px) scale(${DICE_SMALL_SCALE})`,
       transition: 'none',
       pointerEvents: 'none',
       zIndex: 50,
@@ -793,9 +797,9 @@ export default function SnakeAndLadder() {
       setDiceStyle({
         display: 'block',
         position: 'fixed',
-        left: `${cx}px`,
-        top: `${cy}px`,
-        transform: 'translate(-50%, -50%) scale(1)',
+        left: '0px',
+        top: '0px',
+        transform: `translate(${cx}px, ${cy}px) scale(1)`,
         pointerEvents: 'none',
         zIndex: 50,
       });
@@ -818,9 +822,9 @@ export default function SnakeAndLadder() {
       setDiceStyle({
         display: 'block',
         position: 'fixed',
-        left: `${e.left + e.width / 2}px`,
-        top: `${e.top + e.height / 2}px`,
-        transform: `translate(-50%, -50%) scale(${DICE_SMALL_SCALE})`,
+        left: '0px',
+        top: '0px',
+        transform: `translate(${e.left + e.width / 2}px, ${e.top + e.height / 2}px) scale(${DICE_SMALL_SCALE})`,
         pointerEvents: 'none',
         zIndex: 50,
       });
