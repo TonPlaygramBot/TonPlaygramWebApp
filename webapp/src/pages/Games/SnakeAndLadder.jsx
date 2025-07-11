@@ -754,7 +754,7 @@ export default function SnakeAndLadder() {
         position: 'fixed',
         left: '0px',
         top: '0px',
-        transform: `translate(${cx}px, ${cy}px) scale(1)`,
+        transform: `translate(${cx}px, ${cy}px) translate(-50%, -50%) scale(1)`,
         transition: 'none',
         pointerEvents: 'none',
         zIndex: 50,
@@ -771,7 +771,7 @@ export default function SnakeAndLadder() {
       position: 'fixed',
       left: '0px',
       top: '0px',
-      transform: `translate(${targetX}px, ${targetY}px) scale(${DICE_SMALL_SCALE})`,
+      transform: `translate(${targetX}px, ${targetY}px) translate(-50%, -50%) scale(${DICE_SMALL_SCALE})`,
       transition: 'none',
       pointerEvents: 'none',
       zIndex: 50,
@@ -794,8 +794,8 @@ export default function SnakeAndLadder() {
     dice.style.zIndex = '50';
     dice.animate(
       [
-        { transform: `translate(${startX}px, ${startY}px) scale(${DICE_SMALL_SCALE})` },
-        { transform: `translate(${cx}px, ${cy}px) scale(1)` },
+        { transform: `translate(${startX}px, ${startY}px) translate(-50%, -50%) scale(${DICE_SMALL_SCALE})` },
+        { transform: `translate(${cx}px, ${cy}px) translate(-50%, -50%) scale(1)` },
       ],
       { duration: DICE_ANIM_DURATION, easing: 'ease-in-out' },
     ).onfinish = () => {
@@ -804,7 +804,7 @@ export default function SnakeAndLadder() {
         position: 'fixed',
         left: '0px',
         top: '0px',
-        transform: `translate(${cx}px, ${cy}px) scale(1)`,
+        transform: `translate(${cx}px, ${cy}px) translate(-50%, -50%) scale(1)`,
         pointerEvents: 'none',
         zIndex: 50,
       });
@@ -821,8 +821,8 @@ export default function SnakeAndLadder() {
     const { cx, cy } = getDiceCenter();
     dice.animate(
       [
-        { transform: `translate(${cx}px, ${cy}px) scale(1)` },
-        { transform: `translate(${endX}px, ${endY}px) scale(${DICE_SMALL_SCALE})` },
+        { transform: `translate(${cx}px, ${cy}px) translate(-50%, -50%) scale(1)` },
+        { transform: `translate(${endX}px, ${endY}px) translate(-50%, -50%) scale(${DICE_SMALL_SCALE})` },
       ],
       { duration: DICE_ANIM_DURATION, easing: 'ease-in-out' },
     ).onfinish = () => {
@@ -831,7 +831,7 @@ export default function SnakeAndLadder() {
         position: 'fixed',
         left: '0px',
         top: '0px',
-        transform: `translate(${endX}px, ${endY}px) scale(${DICE_SMALL_SCALE})`,
+        transform: `translate(${endX}px, ${endY}px) translate(-50%, -50%) scale(${DICE_SMALL_SCALE})`,
         pointerEvents: 'none',
         zIndex: 50,
       });
