@@ -246,9 +246,9 @@ input:focus {
 /* Three.js token container */
 .token-three {
   position: absolute;
-  /* shrink token by another 20% */
-  width: 7.2rem;
-  height: 7.2rem;
+  /* shrink token slightly */
+  width: 6.6rem;
+  height: 6.6rem;
   /* lower the token an additional 5% */
   transform: translateZ(32px);
   /* Preserve 3D space so the photo can be positioned in depth */
@@ -299,8 +299,8 @@ input:focus {
 
 /* Larger token variant used for inactive pieces */
 .token-three.inactive {
-  width: 7.2rem;
-  height: 7.2rem;
+  width: 6.6rem;
+  height: 6.6rem;
   transform: translateZ(32px);
 }
 
@@ -316,9 +316,9 @@ input:focus {
 
 .pot-token {
   /* enlarge pot token 50% further */
-  width: 16.2rem;
-  height: 16.2rem;
-  transform: translateY(-9rem);
+  width: 14.8rem;
+  height: 14.8rem;
+  transform: translateY(-8rem);
 }
 
 .pot-icon {
@@ -341,8 +341,8 @@ input:focus {
 
 .token-photo {
   position: absolute;
-  width: 2.9rem;
-  height: 2.9rem;
+  width: 2.7rem;
+  height: 2.7rem;
   top: 50%;
   left: 50%;
   transform-origin: center;
@@ -363,8 +363,8 @@ input:focus {
 .timer-ring {
   position: absolute;
   /* match the player photo size so the ring wraps perfectly */
-  width: 2.9rem;
-  height: 2.9rem;
+  width: 2.7rem;
+  height: 2.7rem;
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%) translateZ(15.2px)

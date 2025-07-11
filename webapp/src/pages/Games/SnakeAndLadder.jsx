@@ -2112,7 +2112,7 @@ export default function SnakeAndLadder() {
             className="text-7xl roll-result"
             // Move the number slightly higher so it's clearer on small screens
             // and still shifted right so it doesn't overlap the dice image
-            style={{ color: rollColor, transform: 'translate(1rem, -4rem)' }}
+            style={{ color: rollColor, transform: 'translate(1rem, -6rem)' }}
           >
             {rollResult}
           </div>
