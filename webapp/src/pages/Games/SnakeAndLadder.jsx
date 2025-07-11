@@ -651,8 +651,8 @@ export default function SnakeAndLadder() {
   // Dice landing spot (matches roll result text position)
   const RESULT_BOTTOM = 13 * 16; // tailwind bottom-52 -> 13rem
   // Slightly offset the dice roll landing spot so it sits a bit right and higher
-  const RESULT_OFFSET_X = 8; // small right shift of text
-  const RESULT_OFFSET_Y = -24; // lift the result slightly
+  const RESULT_OFFSET_X = 12; // small right shift of text
+  const RESULT_OFFSET_Y = -32; // lift the result slightly
 
   useEffect(() => {
     prepareDiceAnimation(0);
@@ -819,7 +819,7 @@ export default function SnakeAndLadder() {
     if (!dice || !endEl) return;
     const e = endEl.getBoundingClientRect();
     // Land slightly to the right of the avatar centre
-    const endX = e.left + e.width / 2 + 10;
+    const endX = e.left + e.width / 2 + 14;
     const endY = e.top + e.height / 2;
     const { cx, cy } = getDiceCenter();
     dice.animate(
@@ -2108,7 +2108,7 @@ export default function SnakeAndLadder() {
         <div className="fixed bottom-52 inset-x-0 flex justify-center z-30 pointer-events-none">
           <div
             className="text-7xl roll-result"
-            style={{ color: rollColor, transform: 'translate(0.25rem, -1rem)' }}
+            style={{ color: rollColor, transform: 'translate(0.5rem, -1.5rem)' }}
           >
             {rollResult}
           </div>
