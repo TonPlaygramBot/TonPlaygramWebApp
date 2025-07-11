@@ -277,7 +277,7 @@ export default function CrazyDiceDuel() {
   return (
     <div className="crazy-dice-board text-text" ref={boardRef}>
       <img
-        src="/assets/icons/file_00000000316461fdac87111607fc8ada%20(1).png"
+        src="/assets/icons/file_00000000d410620a8c1878be43e192a1.png"
         alt="board"
         className="board-bg"
       />
