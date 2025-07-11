@@ -754,7 +754,8 @@ export default function SnakeAndLadder() {
     prepareDiceAnimation(0);
     setDiceVisible(true);
     animateDiceToCenter(0);
-    setPlayerRollTrigger(Date.now());
+    setPlayerAutoRolling(true);
+    setPlayerRollTrigger((r) => r + 1);
   }
 
   // Preload token and avatar images so board icons and AI photos display
@@ -2167,28 +2168,30 @@ export default function SnakeAndLadder() {
             }}
             clickable={false}
             numDice={2}
-            trigger={aiRollingIndex != null ? aiRollTrigger : playerAutoRolling ? playerRollTrigger : undefined}
+            trigger={aiRollingIndex != null ? aiRollTrigger : playerRollTrigger}
             showButton={false}
             muted={muted}
           />
-          {
-            !aiRollingIndex &&
-            !playerAutoRolling &&
-            rollCooldown === 0 &&
-            currentTurn === 0 &&
-            !moving && (
-              <div className="fixed inset-x-0 bottom-24 z-20 flex justify-center pointer-events-none">
-                <button
-                  onClick={handlePlayerTurnClick}
-                  className="pointer-events-auto px-4 py-2 bg-primary hover:bg-primary-hover text-white rounded"
-                >
-                  Roll
-                </button>
-              </div>
-            )
-          }
         </div>
       )}
+      {
+        !isMultiplayer &&
+        !aiRollingIndex &&
+        !playerAutoRolling &&
+        rollCooldown === 0 &&
+        currentTurn === 0 &&
+        !moving &&
+        diceVisible && (
+          <div className="fixed inset-x-0 bottom-24 z-20 flex justify-center pointer-events-none">
+            <button
+              onClick={handlePlayerTurnClick}
+              className="pointer-events-auto px-4 py-2 bg-primary hover:bg-primary-hover text-white rounded"
+            >
+              Roll
+            </button>
+          </div>
+        )
+      }
       {isMultiplayer && (
         <div
           className="fixed inset-0 z-20 pointer-events-none"
