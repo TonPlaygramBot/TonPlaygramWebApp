@@ -35,8 +35,8 @@ const diceFaces = {
   ],
 };
 
-// Gentle tilt so three faces are visible
-const baseTilt = "rotateX(-25deg) rotateY(25deg)";
+// Isometric tilt so three faces are equally visible
+const baseTilt = "rotateX(-35deg) rotateY(45deg)";
 
 // Orientation for each numbered face relative to the viewer
 
