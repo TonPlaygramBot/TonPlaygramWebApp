@@ -276,6 +276,7 @@ export default function CrazyDiceDuel() {
 
   return (
     <div className="crazy-dice-board text-text" ref={boardRef}>
+      <div className="guid-grid" />
       <img
         src="/assets/icons/file_00000000316461fdac87111607fc8ada%20(1).png"
         alt="board"
