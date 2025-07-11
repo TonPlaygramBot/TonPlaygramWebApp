@@ -652,10 +652,8 @@ export default function SnakeAndLadder() {
   // Board dice icons measure about 2.2rem (~35px) so match
   // that size against the Dice component's default 80px width.
   const DICE_SMALL_SCALE = 0.44;
-  // Offset from the bottom of the screen where dice roll
-  const DICE_ROLL_Y_OFFSET = 180;
-  // Horizontal nudge so the gap between dice aligns with the middle column
-  const DICE_ROLL_X_OFFSET = boardXOffset;
+  // Fixed Y position where dice are rolled (around bottom of the screen)
+  const DICE_ROLL_Y_OFFSET = 120;
 
   useEffect(() => {
     // Ensure dice and turn prompt are visible when the game loads
@@ -667,7 +665,7 @@ export default function SnakeAndLadder() {
     setDiceStyle({
       display: 'block',
       position: 'fixed',
-      left: `calc(50% + ${DICE_ROLL_X_OFFSET}px)`,
+      left: '50%',
       top: `${cy}px`,
       transform: 'translate(-50%, -50%) scale(1)',
       transition: 'none',
@@ -681,7 +679,7 @@ export default function SnakeAndLadder() {
     setDiceStyle({
       display: 'block',
       position: 'fixed',
-      left: `calc(50% + ${DICE_ROLL_X_OFFSET}px)`,
+      left: '50%',
       top: `${cy}px`,
       transform: 'translate(-50%, -50%) scale(1)',
       pointerEvents: 'none',
@@ -694,7 +692,7 @@ export default function SnakeAndLadder() {
     setDiceStyle({
       display: 'block',
       position: 'fixed',
-      left: `calc(50% + ${DICE_ROLL_X_OFFSET}px)`,
+      left: '50%',
       top: `${cy}px`,
       transform: 'translate(-50%, -50%) scale(1)',
       pointerEvents: 'none',
