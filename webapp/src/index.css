@@ -920,6 +920,14 @@ input:focus {
   overflow: visible;
 }
 
+.dice-travel {
+  position: fixed;
+  left: 0;
+  top: 0;
+  pointer-events: none;
+  z-index: 50;
+}
+
 .coin-img {
   position: absolute;
   left: -16px;
