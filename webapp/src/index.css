@@ -165,8 +165,8 @@ input:focus {
 }
 
 .snake-dice .dice-container {
-  width: 4rem;
-  height: 4rem;
+  width: 3rem;
+  height: 3rem;
 }
 
 .crazy-dice .dice-container {
