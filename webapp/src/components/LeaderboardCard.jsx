@@ -126,6 +126,9 @@ export default function LeaderboardCard() {
           src="/assets/SnakeLaddersbackground.png"
           className="background-behind-board object-cover"
           alt=""
+          onError={(e) => {
+            e.currentTarget.style.display = 'none';
+          }}
         />
         <h3 className="text-lg font-semibold text-center">Leaderboard</h3>
         <div className="flex items-center justify-between">

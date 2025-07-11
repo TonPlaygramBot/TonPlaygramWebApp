@@ -100,13 +100,12 @@ export default function TransactionDetailsPopup({ tx, onClose }) {
       <div className="relative p-4 space-y-4 w-80 rounded-xl border border-border bg-surface text-text overflow-hidden">
 
         <img
-
           src="/assets/SnakeLaddersbackground.png"
-
           className="background-behind-board object-cover"
-
           alt=""
-
+          onError={(e) => {
+            e.currentTarget.style.display = 'none';
+          }}
         />
 
         <button

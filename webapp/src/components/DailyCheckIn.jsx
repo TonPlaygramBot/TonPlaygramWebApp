@@ -137,10 +137,12 @@ export default function DailyCheckIn() {
 
     <div className="relative bg-surface border border-border rounded-xl p-4 space-y-2 text-center overflow-hidden wide-card">
       <img
-        
         src="/assets/SnakeLaddersbackground.png"
         className="background-behind-board object-cover"
         alt=""
+        onError={(e) => {
+          e.currentTarget.style.display = 'none';
+        }}
       />
 
 
