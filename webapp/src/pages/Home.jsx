@@ -246,12 +246,10 @@ export default function Home() {
         <div className="w-full mt-2 space-y-4">
           <div className="relative bg-surface border border-border rounded-xl p-4 flex items-center justify-around overflow-hidden wide-card">
             <img
+              
               src="/assets/SnakeLaddersbackground.png"
               className="background-behind-board object-cover"
               alt=""
-              onError={(e) => {
-                e.currentTarget.style.display = 'none';
-              }}
             />
             <div className="flex-1 flex items-center justify-center space-x-1">
               <img src="/assets/icons/TON.webp" alt="TON" className="w-8 h-8" />
@@ -270,12 +268,10 @@ export default function Home() {
                 <span className="text-lg font-bold">Wallet</span>
               </div>
               <img
+                
                 src="/assets/SnakeLaddersbackground.png"
                 className="background-behind-board object-cover"
                 alt=""
-                onError={(e) => {
-                  e.currentTarget.style.display = 'none';
-                }}
               />
 
               <p className="text-center text-xs text-subtext">Only to send and receive TPC coins</p>
@@ -310,9 +306,6 @@ export default function Home() {
             src="/assets/SnakeLaddersbackground.png"
             className="background-behind-board object-cover"
             alt=""
-            onError={(e) => {
-              e.currentTarget.style.display = 'none';
-            }}
           />
           <h3 className="text-lg font-bold text-text text-center">Tokenomics &amp; Roadmap</h3>
           {/* Removed outdated emission schedule */}
@@ -367,9 +360,6 @@ export default function Home() {
             src="/assets/SnakeLaddersbackground.png"
             className="background-behind-board object-cover"
             alt=""
-            onError={(e) => {
-              e.currentTarget.style.display = 'none';
-            }}
           />
           <h3 className="text-lg font-bold text-text text-center">Platform Stats</h3>
           <div className="text-center space-y-1 text-base">
