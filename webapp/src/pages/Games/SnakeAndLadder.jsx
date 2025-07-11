@@ -645,6 +645,8 @@ export default function SnakeAndLadder() {
   const diceRollerDivRef = useRef(null);
   const [diceStyle, setDiceStyle] = useState({ display: 'none' });
   const DICE_SMALL_SCALE = 0.44;
+  // Duration for each leg of the dice travel animation (ms)
+  const DICE_ANIM_DURATION = 1750;
 
   useEffect(() => {
     prepareDiceAnimation(0);
@@ -732,9 +734,9 @@ export default function SnakeAndLadder() {
   };
 
   const getDiceCenter = () => {
-    const cx = window.innerWidth / 2 + 32;
-    // Keep the dice a little higher so it doesn't drop too low
-    const cy = window.innerHeight - 200;
+    // Match the NFT gift animation center point
+    const cx = window.innerWidth / 2;
+    const cy = window.innerHeight / 2;
     return { cx, cy };
   };
 
@@ -785,7 +787,7 @@ export default function SnakeAndLadder() {
         { transform: `translate(${s.left + s.width / 2}px, ${s.top + s.height / 2}px) scale(${DICE_SMALL_SCALE})` },
         { transform: `translate(${cx}px, ${cy}px) scale(1)` },
       ],
-      { duration: 1000, easing: 'ease-in-out' },
+      { duration: DICE_ANIM_DURATION, easing: 'linear' },
     ).onfinish = () => {
       setDiceStyle({
         display: 'block',
@@ -810,7 +812,7 @@ export default function SnakeAndLadder() {
         { transform: `translate(${cx}px, ${cy}px) scale(1)` },
         { transform: `translate(${e.left + e.width / 2}px, ${e.top + e.height / 2}px) scale(${DICE_SMALL_SCALE})` },
       ],
-      { duration: 1000, easing: 'ease-in-out' },
+      { duration: DICE_ANIM_DURATION, easing: 'linear' },
     ).onfinish = () => {
       setDiceStyle({
         display: 'block',
