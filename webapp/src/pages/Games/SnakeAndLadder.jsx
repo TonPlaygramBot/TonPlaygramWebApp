@@ -821,7 +821,7 @@ export default function SnakeAndLadder() {
     if (!dice || !endEl) return;
     const e = endEl.getBoundingClientRect();
     // Land slightly to the right of the avatar centre
-    const endX = e.left + e.width / 2 + 14;
+    const endX = e.left + e.width / 2 + 10;
     const endY = e.top + e.height / 2;
     const { cx, cy } = getDiceCenter();
     dice.animate(
@@ -1923,7 +1923,7 @@ export default function SnakeAndLadder() {
         onGift={() => setShowGift(true)}
       />
       {/* Player photos stacked vertically */}
-      <div className="fixed left-1 top-[40%] -translate-y-1/2 flex flex-col space-y-4 z-20">
+      <div className="fixed left-0 top-[40%] -translate-y-1/2 flex flex-col space-y-3 z-20">
         {players
           .map((p, i) => ({ ...p, index: i }))
           .map((p) => (
