@@ -1288,7 +1288,7 @@ input:focus {
   height: 100%;
   object-fit: cover;
   object-position: center;
-  transform: translate(3%, 0) scale(1.1);
+  transform: translate(5.5%, 0) scale(1.05);
   filter: brightness(1.2);
   z-index: -1;
 }
@@ -1302,20 +1302,20 @@ input:focus {
 /* Player positions around the Crazy Dice board */
 .crazy-dice-board .player-bottom {
   position: absolute;
-  bottom: 20%;
+  bottom: 18%;
   left: 50%;
   transform: translateX(-50%);
 }
 
 .crazy-dice-board .player-left {
   position: absolute;
-  top: 3%;
-  left: -2%;
+  top: 6%;
+  left: 3%;
 }
 
 .crazy-dice-board .player-center {
   position: absolute;
-  top: 3%;
+  top: 6%;
   left: 50%;
   transform: translateX(-50%);
 }
@@ -1334,7 +1334,7 @@ input:focus {
 
 .crazy-dice-board .player-right {
   position: absolute;
-  top: 3%;
+  top: 6%;
   right: -2%;
 }
 
