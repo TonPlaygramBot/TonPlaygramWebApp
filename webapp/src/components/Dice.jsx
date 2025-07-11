@@ -36,8 +36,8 @@ const diceFaces = {
 };
 
 // Gentle tilt so three faces are visible
-// Increased angle for a clearer view of the top face
-const baseTilt = "rotateX(-40deg) rotateY(40deg)";
+// Increase angle for a clearer view of the top face
+const baseTilt = "rotateX(-55deg) rotateY(35deg)";
 
 // Orientation for each numbered face relative to the viewer
 

@@ -629,6 +629,9 @@ export default function SnakeAndLadder() {
   const [diceStyle, setDiceStyle] = useState({ display: 'none' });
   const diceEndRef = useRef(null);
   const diceRef = useRef(null);
+  const bounceRef = useRef(false);
+  const bounceAnimRef = useRef(null);
+  const bounceTimeoutRef = useRef(null);
   const [timeLeft, setTimeLeft] = useState(TURN_TIME);
   const [aiAvatars, setAiAvatars] = useState([]);
   const [burning, setBurning] = useState([]); // indices of tokens burning
@@ -727,8 +730,9 @@ export default function SnakeAndLadder() {
     const endEl = document.querySelector(`[data-player-index="${idx}"] img`);
     if (!dice || !endEl) return setDiceVisible(false);
     const e = endEl.getBoundingClientRect();
-    const cx = window.innerWidth / 2;
-    const cy = window.innerHeight * DICE_ROLL_RATIO;
+    const d = dice.getBoundingClientRect();
+    const cx = d.left + d.width / 2;
+    const cy = d.top + d.height / 2;
     dice.animate(
       [
         { transform: `translate(${cx}px, ${cy}px) scale(1)` },
@@ -746,6 +750,61 @@ export default function SnakeAndLadder() {
         zIndex: 50,
       });
     };
+  }
+
+  function startFreeRoll(duration = 2000) {
+    const dice = diceRef.current;
+    if (!dice) return;
+    const rect = dice.getBoundingClientRect();
+    let x = rect.left;
+    let y = rect.top;
+    const w = rect.width;
+    const h = rect.height;
+    let vx = (Math.random() * 4 + 2) * (Math.random() < 0.5 ? -1 : 1);
+    let vy = (Math.random() * 4 + 2) * (Math.random() < 0.5 ? -1 : 1);
+    const maxX = window.innerWidth - w;
+    const maxY = window.innerHeight - h;
+    const start = performance.now();
+    bounceRef.current = true;
+
+    const step = (t) => {
+      if (!bounceRef.current) return;
+      if (t - start >= duration) {
+        bounceRef.current = false;
+        return;
+      }
+      x += vx;
+      y += vy;
+      if (x < 0) {
+        x = 0;
+        vx = -vx;
+      }
+      if (x > maxX) {
+        x = maxX;
+        vx = -vx;
+      }
+      if (y < 0) {
+        y = 0;
+        vy = -vy;
+      }
+      if (y > maxY) {
+        y = maxY;
+        vy = -vy;
+      }
+      dice.style.transform = `translate(${x}px, ${y}px) scale(1)`;
+      bounceAnimRef.current = requestAnimationFrame(step);
+    };
+
+    bounceAnimRef.current = requestAnimationFrame(step);
+    bounceTimeoutRef.current = setTimeout(() => {
+      bounceRef.current = false;
+    }, duration);
+  }
+
+  function stopFreeRoll() {
+    bounceRef.current = false;
+    if (bounceAnimRef.current) cancelAnimationFrame(bounceAnimRef.current);
+    if (bounceTimeoutRef.current) clearTimeout(bounceTimeoutRef.current);
   }
 
   function handlePlayerTurnClick(e) {
@@ -2144,12 +2203,13 @@ export default function SnakeAndLadder() {
           <DiceRoller
             className="snake-dice"
             rollingScale={0.85}
-            onRollEnd={(vals) => {
-              if (aiRollingIndex) {
-                handleAIRoll(aiRollingIndex, vals);
-                setAiRollingIndex(null);
-              } else {
-                handleRoll(vals);
+          onRollEnd={(vals) => {
+            stopFreeRoll();
+            if (aiRollingIndex) {
+              handleAIRoll(aiRollingIndex, vals);
+              setAiRollingIndex(null);
+            } else {
+              handleRoll(vals);
                 setBonusDice(0);
               }
               setRollingIndex(null);
@@ -2162,6 +2222,7 @@ export default function SnakeAndLadder() {
               setRollingIndex(aiRollingIndex || 0);
               prepareDiceAnimation(aiRollingIndex != null ? aiRollingIndex : 0);
               animateDiceToCenter(aiRollingIndex != null ? aiRollingIndex : 0);
+              setTimeout(() => startFreeRoll(), 600);
               if (aiRollingIndex)
                 return setTurnMessage(<>{playerName(aiRollingIndex)} rolling...</>);
               if (playerAutoRolling) return setTurnMessage('Rolling...');
