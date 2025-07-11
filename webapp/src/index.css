@@ -1247,7 +1247,6 @@ input:focus {
   width: 100vw;
   height: 100vh;
   overflow: hidden;
-  transform: translate(-3%, 0);
 }
 .crazy-dice-board .board-bg {
   position: absolute;
@@ -1256,15 +1255,33 @@ input:focus {
   height: 100%;
   object-fit: cover;
   object-position: center;
-  transform: translate(3%, 0) scale(1.1);
+  transform: none;
   filter: brightness(1.2);
   z-index: -1;
 }
 .crazy-dice-board .dice-center {
   position: absolute;
-  top: 40%;
+  top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
+}
+
+.crazy-dice-board .guide-grid {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  grid-template-columns: repeat(20, 1fr);
+  grid-template-rows: repeat(40, 1fr);
+  pointer-events: none;
+  font-size: 0.5rem;
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.crazy-dice-board .guide-grid div {
+  border: 1px dashed rgba(255, 255, 255, 0.2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 /* Player positions around the Crazy Dice board */
