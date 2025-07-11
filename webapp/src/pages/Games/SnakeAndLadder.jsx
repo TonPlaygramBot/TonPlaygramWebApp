@@ -651,9 +651,9 @@ export default function SnakeAndLadder() {
   // Scale the dice when they rest beside each player's photo.
   // Board dice icons measure about 2.2rem (~35px) so match
   // that size against the Dice component's default 80px width.
-  const DICE_SMALL_SCALE = 0.44;
-  // Fixed Y position where dice are rolled (around bottom of the screen)
-  const DICE_ROLL_Y_OFFSET = 120;
+  const DICE_SMALL_SCALE = 0.4;
+  // Dice roll position relative to screen height (between center and bottom)
+  const DICE_ROLL_RATIO = 0.7;
 
   useEffect(() => {
     // Ensure dice and turn prompt are visible when the game loads
@@ -662,7 +662,7 @@ export default function SnakeAndLadder() {
 
   function prepareDiceAnimation(startIdx) {
     if (startIdx == null) {
-      const cy = window.innerHeight - DICE_ROLL_Y_OFFSET;
+      const cy = window.innerHeight * DICE_ROLL_RATIO;
       setDiceStyle({
         display: 'block',
         position: 'fixed',
@@ -696,7 +696,7 @@ export default function SnakeAndLadder() {
     if (!dice || !startEl) return;
     const s = startEl.getBoundingClientRect();
     const cx = window.innerWidth / 2;
-    const cy = window.innerHeight - DICE_ROLL_Y_OFFSET;
+    const cy = window.innerHeight * DICE_ROLL_RATIO;
     dice.style.display = 'block';
     dice.style.position = 'fixed';
     dice.style.left = '0px';
@@ -728,7 +728,7 @@ export default function SnakeAndLadder() {
     if (!dice || !endEl) return setDiceVisible(false);
     const e = endEl.getBoundingClientRect();
     const cx = window.innerWidth / 2;
-    const cy = window.innerHeight - DICE_ROLL_Y_OFFSET;
+    const cy = window.innerHeight * DICE_ROLL_RATIO;
     dice.animate(
       [
         { transform: `translate(${cx}px, ${cy}px) scale(1)` },
@@ -2142,7 +2142,8 @@ export default function SnakeAndLadder() {
           className="dice-travel flex flex-col items-center"
         >
           <DiceRoller
-            className="scale-90"
+            className=""
+            style={{ transform: 'scale(0.85)' }}
             onRollEnd={(vals) => {
               if (aiRollingIndex) {
                 handleAIRoll(aiRollingIndex, vals);
@@ -2196,7 +2197,7 @@ export default function SnakeAndLadder() {
         <div
           className="fixed inset-0 z-20 pointer-events-none"
         >
-          <div className="flex flex-col items-center justify-center h-full scale-90 pointer-events-auto">
+          <div className="flex flex-col items-center justify-center h-full pointer-events-auto" style={{ transform: 'scale(0.85)' }}>
             {(() => {
               const myId = getPlayerId();
               const myIndex = mpPlayers.findIndex(p => p.id === myId);
