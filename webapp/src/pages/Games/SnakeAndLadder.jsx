@@ -641,6 +641,14 @@ export default function SnakeAndLadder() {
   const [showGift, setShowGift] = useState(false);
   const [chatBubbles, setChatBubbles] = useState([]);
 
+  const diceRef = useRef(null);
+  const [diceStyle, setDiceStyle] = useState({ display: 'none' });
+  const DICE_SMALL_SCALE = 0.44;
+
+  useEffect(() => {
+    prepareDiceAnimation(0);
+  }, []);
+
   // Preload token and avatar images so board icons and AI photos display
   // immediately without waiting for network requests during gameplay.
   useEffect(() => {
@@ -720,6 +728,98 @@ export default function SnakeAndLadder() {
         }, 1000);
       });
     }
+  };
+
+  const getDiceCenter = () => {
+    const cx = window.innerWidth / 2 + 32;
+    const cy = window.innerHeight - 96;
+    return { cx, cy };
+  };
+
+  const prepareDiceAnimation = (startIdx) => {
+    if (startIdx == null) {
+      const { cx, cy } = getDiceCenter();
+      setDiceStyle({
+        display: 'block',
+        position: 'fixed',
+        left: `${cx}px`,
+        top: `${cy}px`,
+        transform: 'translate(-50%, -50%) scale(1)',
+        transition: 'none',
+        pointerEvents: 'none',
+        zIndex: 50,
+      });
+      return;
+    }
+    const startEl = document.querySelector(`[data-player-index="${startIdx}"] img`);
+    if (!startEl) return;
+    const s = startEl.getBoundingClientRect();
+    setDiceStyle({
+      display: 'block',
+      position: 'fixed',
+      left: `${s.left + s.width / 2}px`,
+      top: `${s.top + s.height / 2}px`,
+      transform: `translate(-50%, -50%) scale(${DICE_SMALL_SCALE})`,
+      transition: 'none',
+      pointerEvents: 'none',
+      zIndex: 50,
+    });
+  };
+
+  const animateDiceToCenter = (startIdx) => {
+    const dice = diceRef.current;
+    const startEl = document.querySelector(`[data-player-index="${startIdx}"] img`);
+    if (!dice || !startEl) return;
+    const s = startEl.getBoundingClientRect();
+    const { cx, cy } = getDiceCenter();
+    dice.style.display = 'block';
+    dice.style.position = 'fixed';
+    dice.style.left = '0px';
+    dice.style.top = '0px';
+    dice.style.pointerEvents = 'none';
+    dice.style.zIndex = '50';
+    dice.animate(
+      [
+        { transform: `translate(${s.left + s.width / 2}px, ${s.top + s.height / 2}px) scale(${DICE_SMALL_SCALE})` },
+        { transform: `translate(${cx}px, ${cy}px) scale(1)` },
+      ],
+      { duration: 600, easing: 'linear' },
+    ).onfinish = () => {
+      setDiceStyle({
+        display: 'block',
+        position: 'fixed',
+        left: `${cx}px`,
+        top: `${cy}px`,
+        transform: 'translate(-50%, -50%) scale(1)',
+        pointerEvents: 'none',
+        zIndex: 50,
+      });
+    };
+  };
+
+  const animateDiceToPlayer = (idx) => {
+    const dice = diceRef.current;
+    const endEl = document.querySelector(`[data-player-index="${idx}"] img`);
+    if (!dice || !endEl) return;
+    const e = endEl.getBoundingClientRect();
+    const { cx, cy } = getDiceCenter();
+    dice.animate(
+      [
+        { transform: `translate(${cx}px, ${cy}px) scale(1)` },
+        { transform: `translate(${e.left + e.width / 2}px, ${e.top + e.height / 2}px) scale(${DICE_SMALL_SCALE})` },
+      ],
+      { duration: 600, easing: 'linear' },
+    ).onfinish = () => {
+      setDiceStyle({
+        display: 'block',
+        position: 'fixed',
+        left: `${e.left + e.width / 2}px`,
+        top: `${e.top + e.height / 2}px`,
+        transform: `translate(-50%, -50%) scale(${DICE_SMALL_SCALE})`,
+        pointerEvents: 'none',
+        zIndex: 50,
+      });
+    };
   };
 
   const moveSoundRef = useRef(null);
@@ -1464,6 +1564,7 @@ export default function SnakeAndLadder() {
         setMoving(false);
         if (!gameOver) {
           const next = extraTurn ? currentTurn : (currentTurn + 1) % (ai + 1);
+          animateDiceToPlayer(next);
           setCurrentTurn(next);
         }
       };
@@ -1599,6 +1700,7 @@ export default function SnakeAndLadder() {
       }
       const next = extraTurn ? index : (index + 1) % (ai + 1);
       if (next === 0) setTurnMessage('Your turn');
+      animateDiceToPlayer(next);
       setCurrentTurn(next);
       setDiceVisible(true);
       setMoving(false);
@@ -2000,18 +2102,15 @@ export default function SnakeAndLadder() {
           ))}
         </div>
       )}
-      {diceVisible && !isMultiplayer && (
-        <div
-          className="fixed bottom-24 inset-x-0 flex flex-col items-center z-20"
-          style={{ transform: 'translateX(2rem)' }}
-        >
+      {!isMultiplayer && (
+        <div ref={diceRef} style={diceStyle} className="dice-travel flex flex-col items-center">
           <div className="scale-90">
             <DiceRoller
-            onRollEnd={(vals) => {
-              if (aiRollingIndex) {
-                handleAIRoll(aiRollingIndex, vals);
-                setAiRollingIndex(null);
-              } else {
+              onRollEnd={(vals) => {
+                if (aiRollingIndex) {
+                  handleAIRoll(aiRollingIndex, vals);
+                  setAiRollingIndex(null);
+                } else {
                 handleRoll(vals);
                 setBonusDice(0);
               }
@@ -2022,6 +2121,9 @@ export default function SnakeAndLadder() {
                 if (timerRef.current) clearInterval(timerRef.current);
                 timerSoundRef.current?.pause();
                 setRollingIndex(aiRollingIndex || 0);
+                const idx = aiRollingIndex != null ? aiRollingIndex : 0;
+                prepareDiceAnimation(idx);
+                animateDiceToCenter(idx);
                 if (aiRollingIndex)
                   return setTurnMessage(<>{playerName(aiRollingIndex)} rolling...</>);
                 if (playerAutoRolling) return setTurnMessage('Rolling...');
@@ -2041,17 +2143,20 @@ export default function SnakeAndLadder() {
             muted={muted}
           />
           </div>
-          {currentTurn === 0 && !aiRollingIndex && !playerAutoRolling && (
-            <div className="mt-2 flex flex-col items-center">
-              <div className="text-5xl">🫵</div>
-              <div
-                className="turn-message text-2xl mt-1"
-                style={{ color: players[currentTurn]?.color }}
-              >
-                Your turn
-              </div>
-            </div>
-          )}
+        </div>
+      )}
+      {currentTurn === 0 && !aiRollingIndex && !playerAutoRolling && (
+        <div
+          className="fixed bottom-24 inset-x-0 flex flex-col items-center z-20 pointer-events-none"
+          style={{ transform: 'translateX(2rem)' }}
+        >
+          <div className="text-5xl">🫵</div>
+          <div
+            className="turn-message text-2xl mt-1"
+            style={{ color: players[currentTurn]?.color }}
+          >
+            Your turn
+          </div>
         </div>
       )}
       {isMultiplayer && (
