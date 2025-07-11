@@ -1280,7 +1280,7 @@ input:focus {
   width: 100vw;
   height: 100vh;
   overflow: hidden;
-  transform: translate(-3%, 0);
+  transform: translate(-2%, 0); /* slightly recenter board */
 }
 .crazy-dice-board .board-bg {
   position: absolute;
@@ -1292,7 +1292,7 @@ input:focus {
   /* Make the board image larger, move it slightly toward side #3 and
      expand vertically so sides 1 and 2 cover the empty space */
   /* Shift the image slightly left so side #3 is not as cropped */
-transform: translate(-10%, 0) scale(1.2, 1.2);
+  transform: translate(-8%, 0) scale(1.1, 1.1); /* zoomed out a bit */
   filter: brightness(1.2);
   z-index: -1;
 }
