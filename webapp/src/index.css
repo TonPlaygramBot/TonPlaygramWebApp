@@ -1294,7 +1294,8 @@ input:focus {
      expand vertically so sides 1 and 2 cover the empty space */
   /* Shift the image slightly left so side #3 is not as cropped */
   /* Shift board slightly left and make it a bit taller */
-  transform: translate(-2%, 0) scale(1.15, 1.2);
+  /* Move the board further left so no empty space shows */
+  transform: translate(-10%, 0) scale(1.2, 1.2);
   filter: brightness(1.2);
   z-index: -1;
 }
