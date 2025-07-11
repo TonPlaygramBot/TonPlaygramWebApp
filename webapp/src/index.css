@@ -1288,8 +1288,8 @@ input:focus {
   height: 100%;
   object-fit: cover;
   object-position: center;
-  /* Enlarged board image so sides 1-3 show more */
-  transform: translate(8%, 0) scale(1.1);
+  /* Make the board image slightly larger and shift towards side #3 */
+  transform: translate(4%, 0) scale(1.15);
   filter: brightness(1.2);
   z-index: -1;
 }
