@@ -13,7 +13,6 @@ import Footer from './Footer.jsx';
 
 import Branding from './Branding.jsx';
 
-import CosmicBackground from './CosmicBackground.jsx';
 import DynamicBackground from './DynamicBackground.jsx';
 import SkyBackground from './SkyBackground.jsx';
 
@@ -91,7 +90,8 @@ export default function Layout({ children }) {
 
     <div className="flex flex-col min-h-screen text-text relative overflow-hidden">
 
-      <CosmicBackground />
+      {/* Removed the starry cosmic background */}
+
 
       <main className={`flex-grow container mx-auto p-4 ${showNavbar ? 'pb-24' : ''}`.trim()}>
 
