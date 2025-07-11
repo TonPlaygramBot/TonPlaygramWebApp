@@ -54,6 +54,9 @@ export default function NftGiftCard({ accountId: propAccountId }) {
         src="/assets/SnakeLaddersbackground.png"
         className="background-behind-board object-cover"
         alt=""
+        onError={(e) => {
+          e.currentTarget.style.display = 'none';
+        }}
       />
       <h3 className="text-lg font-bold text-center">NFT Gifts</h3>
       <div className="flex space-x-2 overflow-x-auto pb-2 text-sm w-full flex-grow justify-center">
