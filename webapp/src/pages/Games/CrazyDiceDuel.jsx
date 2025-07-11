@@ -301,6 +301,7 @@ export default function CrazyDiceDuel() {
               trigger={trigger}
               clickable={aiCount === 0 || current === 0}
               showButton={aiCount === 0 || current === 0}
+              diceContainerClassName="space-x-8"
             />
           </div>
         ) : (

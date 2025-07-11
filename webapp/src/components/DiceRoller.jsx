@@ -15,6 +15,7 @@ export default function DiceRoller({
   emitRollEvent = false,
   className = '',
   style = {},
+  diceContainerClassName = 'space-x-4',
 }) {
   const [values, setValues] = useState(Array(numDice).fill(1));
   const [rolling, setRolling] = useState(false);
@@ -98,7 +99,7 @@ export default function DiceRoller({
   return (
     <div className={`flex flex-col items-center space-y-4 ${className}`} style={style}>
       <div
-        className={`flex space-x-4 ${clickable ? 'cursor-pointer' : ''}`}
+        className={`flex ${clickable ? 'cursor-pointer' : ''} ${diceContainerClassName}`}
         onClick={clickable ? rollDice : undefined}
       >
         <Dice values={values} rolling={rolling} startValues={startValuesRef.current} />
