@@ -1289,9 +1289,9 @@ input:focus {
   height: 100%;
   object-fit: cover;
   object-position: center;
-  /* Shift the board image toward side #3 (left) and enlarge
-     the vertical dimension so sides 1 and 2 fill the empty space */
-  transform: translate(-10%, 0) scale(1.15, 1.2);
+  /* Make the board image larger, move it further toward side #3 and
+     increase the vertical scale so sides 1 and 2 cover the empty space */
+  transform: translate(8%, 0) scale(1.15, 1.12);
   filter: brightness(1.2);
   z-index: -1;
 }
