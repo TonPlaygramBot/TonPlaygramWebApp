@@ -1469,6 +1469,7 @@ export default function SnakeAndLadder() {
           setTurnMessage("");
           setDiceVisible(false);
           const next = (currentTurn + 1) % (ai + 1);
+          animateDiceToPlayer(next);
           setTimeout(() => setCurrentTurn(next), 2000);
           setTimeout(() => setMoving(false), 2000);
           return;
@@ -1483,6 +1484,7 @@ export default function SnakeAndLadder() {
           setTurnMessage("");
           setDiceVisible(false);
           const next = (currentTurn + 1) % (ai + 1);
+          animateDiceToPlayer(next);
           setTimeout(() => setCurrentTurn(next), 2000);
           setTimeout(() => setMoving(false), 2000);
           return;
@@ -1494,11 +1496,22 @@ export default function SnakeAndLadder() {
         setTurnMessage("");
         setDiceVisible(false);
         const next = (currentTurn + 1) % (ai + 1);
+        animateDiceToPlayer(next);
         setTimeout(() => setCurrentTurn(next), 2000);
         setTimeout(() => setMoving(false), 2000);
         return;
       }
 
+
+      let predicted = target;
+      if (snakes[predicted] != null) predicted = Math.max(0, snakes[predicted]);
+      else if (ladders[predicted] != null) {
+        const ladObj = ladders[predicted];
+        predicted = typeof ladObj === 'object' ? ladObj.end : ladObj;
+      }
+      const extraPred = diceCells[predicted] || doubleSix;
+      const nextPlayer = extraPred ? currentTurn : (currentTurn + 1) % (ai + 1);
+      animateDiceToPlayer(nextPlayer);
 
       const steps = [];
       for (let i = current + 1; i <= target; i++) steps.push(i);
@@ -1587,7 +1600,6 @@ export default function SnakeAndLadder() {
         setMoving(false);
         if (!gameOver) {
           const next = extraTurn ? currentTurn : (currentTurn + 1) % (ai + 1);
-          animateDiceToPlayer(next);
           setCurrentTurn(next);
         }
       };
@@ -1658,6 +1670,16 @@ export default function SnakeAndLadder() {
       target = current + value;
     }
 
+    let predicted = target;
+    if (snakes[predicted] != null) predicted = Math.max(0, snakes[predicted]);
+    else if (ladders[predicted] != null) {
+      const ladObj = ladders[predicted];
+      predicted = typeof ladObj === 'object' ? ladObj.end : ladObj;
+    }
+    const extraPred = diceCells[predicted] || doubleSix;
+    const nextPlayer = extraPred ? index : (index + 1) % (ai + 1);
+    animateDiceToPlayer(nextPlayer);
+
     const steps = [];
     for (let i = current + 1; i <= target; i++) steps.push(i);
 
@@ -1723,7 +1745,6 @@ export default function SnakeAndLadder() {
       }
       const next = extraTurn ? index : (index + 1) % (ai + 1);
       if (next === 0) setTurnMessage('Your turn');
-      animateDiceToPlayer(next);
       setCurrentTurn(next);
       setDiceVisible(true);
       setMoving(false);
