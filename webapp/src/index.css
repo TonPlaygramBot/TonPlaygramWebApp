@@ -10,6 +10,7 @@
 
 body {
   font-family: Arial, Helvetica, sans-serif;
+  margin: 0;
   @apply bg-background text-text overflow-x-hidden;
   text-shadow: 0 0 4px #00f7ff;
 }
