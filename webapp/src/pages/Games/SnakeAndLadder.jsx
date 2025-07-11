@@ -647,7 +647,7 @@ export default function SnakeAndLadder() {
   const DICE_SMALL_SCALE = 0.44;
 
   useEffect(() => {
-    prepareDiceAnimation(null);
+    prepareDiceAnimation(0);
   }, []);
 
   // Preload token and avatar images so board icons and AI photos display
@@ -733,8 +733,8 @@ export default function SnakeAndLadder() {
 
   const getDiceCenter = () => {
     const cx = window.innerWidth / 2 + 32;
-codex/fix-dice-roll-animation-distance
-    const cy = window.innerHeight - 208; // align with roll result disp
+    // Keep the dice a little higher so it doesn't drop too low
+    const cy = window.innerHeight - 200;
     return { cx, cy };
   };
 
@@ -1566,6 +1566,7 @@ codex/fix-dice-roll-animation-distance
         setMoving(false);
         if (!gameOver) {
           const next = extraTurn ? currentTurn : (currentTurn + 1) % (ai + 1);
+          animateDiceToPlayer(next);
           setCurrentTurn(next);
         }
       };
@@ -1701,6 +1702,7 @@ codex/fix-dice-roll-animation-distance
       }
       const next = extraTurn ? index : (index + 1) % (ai + 1);
       if (next === 0) setTurnMessage('Your turn');
+      animateDiceToPlayer(next);
       setCurrentTurn(next);
       setDiceVisible(true);
       setMoving(false);
@@ -2122,7 +2124,9 @@ codex/fix-dice-roll-animation-distance
                 if (timerRef.current) clearInterval(timerRef.current);
                 timerSoundRef.current?.pause();
                 setRollingIndex(aiRollingIndex || 0);
-                prepareDiceAnimation(null);
+                const idx = aiRollingIndex != null ? aiRollingIndex : 0;
+                prepareDiceAnimation(idx);
+                animateDiceToCenter(idx);
                 if (aiRollingIndex)
                   return setTurnMessage(<>{playerName(aiRollingIndex)} rolling...</>);
                 if (playerAutoRolling) return setTurnMessage('Rolling...');
