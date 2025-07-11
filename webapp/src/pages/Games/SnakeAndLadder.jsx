@@ -646,7 +646,8 @@ export default function SnakeAndLadder() {
   const [diceStyle, setDiceStyle] = useState({ display: 'none' });
   const DICE_SMALL_SCALE = 0.44;
   // Duration for each leg of the dice travel animation (ms)
-  const DICE_ANIM_DURATION = 1750;
+  // Slightly slower so the movement matches the NFT gift animation
+  const DICE_ANIM_DURATION = 1800;
 
   useEffect(() => {
     prepareDiceAnimation(0);
@@ -787,7 +788,7 @@ export default function SnakeAndLadder() {
         { transform: `translate(${s.left + s.width / 2}px, ${s.top + s.height / 2}px) scale(${DICE_SMALL_SCALE})` },
         { transform: `translate(${cx}px, ${cy}px) scale(1)` },
       ],
-      { duration: DICE_ANIM_DURATION, easing: 'linear' },
+      { duration: DICE_ANIM_DURATION, easing: 'ease-in-out' },
     ).onfinish = () => {
       setDiceStyle({
         display: 'block',
@@ -812,7 +813,7 @@ export default function SnakeAndLadder() {
         { transform: `translate(${cx}px, ${cy}px) scale(1)` },
         { transform: `translate(${e.left + e.width / 2}px, ${e.top + e.height / 2}px) scale(${DICE_SMALL_SCALE})` },
       ],
-      { duration: DICE_ANIM_DURATION, easing: 'linear' },
+      { duration: DICE_ANIM_DURATION, easing: 'ease-in-out' },
     ).onfinish = () => {
       setDiceStyle({
         display: 'block',
