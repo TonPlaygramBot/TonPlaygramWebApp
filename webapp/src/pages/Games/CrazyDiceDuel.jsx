@@ -259,7 +259,7 @@ export default function CrazyDiceDuel() {
             className="dice-travel flex flex-col items-center"
           >
             <DiceRoller
-              className="scale-[0.6]"
+              className="scale-75"
               onRollEnd={onRollEnd}
               onRollStart={() => {
                 prepareDiceAnimation();
