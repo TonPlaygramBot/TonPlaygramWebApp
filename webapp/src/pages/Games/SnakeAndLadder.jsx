@@ -660,100 +660,52 @@ export default function SnakeAndLadder() {
     prepareDiceAnimation(null);
   }, []);
 
-  function prepareDiceAnimation(startIdx) {
-    if (startIdx == null) {
-      const cy = window.innerHeight - DICE_ROLL_Y_OFFSET;
-      setDiceStyle({
-        display: 'block',
-        position: 'fixed',
-        left: '50%',
-        top: `${cy}px`,
-        transform: 'translate(-50%, -50%) scale(1)',
-        transition: 'none',
-        pointerEvents: 'none',
-        zIndex: 50,
-      });
-      return;
-    }
-    const startEl = document.querySelector(`[data-player-index="${startIdx}"] img`);
-    if (!startEl) return;
-    const s = startEl.getBoundingClientRect();
+  function prepareDiceAnimation() {
+    const cy = window.innerHeight - DICE_ROLL_Y_OFFSET;
     setDiceStyle({
       display: 'block',
       position: 'fixed',
-      left: `${s.left + s.width / 2}px`,
-      top: `${s.top + s.height / 2}px`,
-      transform: `translate(-50%, -50%) scale(${DICE_SMALL_SCALE})`,
+      left: '50%',
+      top: `${cy}px`,
+      transform: 'translate(-50%, -50%) scale(1)',
       transition: 'none',
       pointerEvents: 'none',
       zIndex: 50,
     });
   }
 
-  function animateDiceToCenter(startIdx) {
-    const dice = diceRef.current;
-    const startEl = document.querySelector(`[data-player-index="${startIdx}"] img`);
-    if (!dice || !startEl) return;
-    const s = startEl.getBoundingClientRect();
-    const cx = window.innerWidth / 2;
+  function animateDiceToCenter() {
     const cy = window.innerHeight - DICE_ROLL_Y_OFFSET;
-    dice.style.display = 'block';
-    dice.style.position = 'fixed';
-    dice.style.left = '0px';
-    dice.style.top = '0px';
-    dice.style.pointerEvents = 'none';
-    dice.style.zIndex = '50';
-    dice.animate(
-      [
-        { transform: `translate(${s.left + s.width / 2}px, ${s.top + s.height / 2}px) scale(${DICE_SMALL_SCALE})` },
-        { transform: `translate(${cx}px, ${cy}px) scale(1)` },
-      ],
-      { duration: 600, easing: 'linear' },
-    ).onfinish = () => {
-      setDiceStyle({
-        display: 'block',
-        position: 'fixed',
-        left: `${cx}px`,
-        top: `${cy}px`,
-        transform: 'translate(-50%, -50%) scale(1)',
-        pointerEvents: 'none',
-        zIndex: 50,
-      });
-    };
+    setDiceStyle({
+      display: 'block',
+      position: 'fixed',
+      left: '50%',
+      top: `${cy}px`,
+      transform: 'translate(-50%, -50%) scale(1)',
+      pointerEvents: 'none',
+      zIndex: 50,
+    });
   }
 
-  function animateDiceToPlayer(idx) {
-    const dice = diceRef.current;
-    const endEl = document.querySelector(`[data-player-index="${idx}"] img`);
-    if (!dice || !endEl) return setDiceVisible(false);
-    const e = endEl.getBoundingClientRect();
-    const cx = window.innerWidth / 2;
+  function animateDiceToPlayer() {
     const cy = window.innerHeight - DICE_ROLL_Y_OFFSET;
-    dice.animate(
-      [
-        { transform: `translate(${cx}px, ${cy}px) scale(1)` },
-        { transform: `translate(${e.left + e.width / 2}px, ${e.top + e.height / 2}px) scale(${DICE_SMALL_SCALE})` },
-      ],
-      { duration: 600, easing: 'linear' },
-    ).onfinish = () => {
-      setDiceStyle({
-        display: 'block',
-        position: 'fixed',
-        left: `${e.left + e.width / 2}px`,
-        top: `${e.top + e.height / 2}px`,
-        transform: `translate(-50%, -50%) scale(${DICE_SMALL_SCALE})`,
-        pointerEvents: 'none',
-        zIndex: 50,
-      });
-    };
+    setDiceStyle({
+      display: 'block',
+      position: 'fixed',
+      left: '50%',
+      top: `${cy}px`,
+      transform: 'translate(-50%, -50%) scale(1)',
+      pointerEvents: 'none',
+      zIndex: 50,
+    });
   }
 
   function handlePlayerTurnClick(e) {
     e.preventDefault();
     if (rollingIndex != null || moving) return;
-    prepareDiceAnimation(0);
+    prepareDiceAnimation();
     setDiceVisible(true);
-    animateDiceToCenter(0);
+    animateDiceToCenter();
     setPlayerRollTrigger(Date.now());
   }
 
@@ -2158,8 +2110,8 @@ export default function SnakeAndLadder() {
               if (timerRef.current) clearInterval(timerRef.current);
               timerSoundRef.current?.pause();
               setRollingIndex(aiRollingIndex || 0);
-              prepareDiceAnimation(aiRollingIndex != null ? aiRollingIndex : 0);
-              animateDiceToCenter(aiRollingIndex != null ? aiRollingIndex : 0);
+              prepareDiceAnimation();
+              animateDiceToCenter();
               if (aiRollingIndex)
                 return setTurnMessage(<>{playerName(aiRollingIndex)} rolling...</>);
               if (playerAutoRolling) return setTurnMessage('Rolling...');
