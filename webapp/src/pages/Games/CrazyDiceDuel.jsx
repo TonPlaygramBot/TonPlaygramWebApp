@@ -14,6 +14,23 @@ import { giftSounds } from '../../utils/giftSounds.js';
 
 const COLORS = ['#60a5fa', '#ef4444', '#4ade80', '#facc15'];
 
+function GuideGrid() {
+  const letters = 'ABCDEFGHIJ'.split('');
+  const rows = Array.from({ length: 10 }, (_, i) => i + 1);
+  return (
+    <div className="guide-grid">
+      {rows.map((r) =>
+        letters.map((l) => (
+          <div key={`${l}${r}`} className="grid-cell">
+            {l}
+            {r}
+          </div>
+        )),
+      )}
+    </div>
+  );
+}
+
 export default function CrazyDiceDuel() {
   const navigate = useNavigate();
   const handleBack = useCallback(
@@ -229,6 +246,7 @@ export default function CrazyDiceDuel() {
         alt="board"
         className="board-bg"
       />
+      <GuideGrid />
       <div className="side-number top">1</div>
       <div className="side-number bottom">2</div>
       <div className="side-number left">3</div>

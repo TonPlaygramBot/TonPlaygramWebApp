@@ -1368,6 +1368,26 @@ input:focus {
   transform: translateY(-50%);
 }
 
+/* Temporary guide grid for placement */
+.guide-grid {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  grid-template-columns: repeat(10, 1fr);
+  grid-template-rows: repeat(10, 1fr);
+  pointer-events: none;
+  z-index: 1;
+  font-size: 0.75rem;
+  color: #fff;
+}
+
+.guide-grid .grid-cell {
+  border: 1px dashed rgba(255, 255, 255, 0.3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
 /* Rolling dice animation */
 .dice-screen-animation {
   position: fixed;
