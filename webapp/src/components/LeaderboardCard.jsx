@@ -120,7 +120,7 @@ export default function LeaderboardCard() {
     <>
       <section
         id="leaderboard"
-        className="relative bg-surface border border-border rounded-xl p-4 space-y-2 overflow-hidden wide-card mt-4"
+        className="relative bg-surface border border-border rounded-xl p-4 space-y-2 overflow-hidden wide-card mt-4 -ml-2"
       >
         <img
           src="/assets/SnakeLaddersbackground.png"
