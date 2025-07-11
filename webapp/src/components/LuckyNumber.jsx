@@ -76,8 +76,16 @@ export default function LuckyNumber() {
     } else if (prize === 'FREE_SPIN') {
       const fs = parseInt(localStorage.getItem('freeSpins') || '0', 10) + 2;
       localStorage.setItem('freeSpins', String(fs));
+      window.dispatchEvent(new Event('freeSpinAwarded'));
+      document
+        .getElementById('spin-game')
+        ?.scrollIntoView({ behavior: 'smooth' });
     } else if (prize === 'BONUS_X3') {
       localStorage.setItem('bonusX3', 'true');
+      window.dispatchEvent(new Event('bonusX3Awarded'));
+      document
+        .getElementById('spin-game')
+        ?.scrollIntoView({ behavior: 'smooth' });
     }
     setReward(prize);
     localStorage.setItem('luckyRollTs', String(Date.now()));

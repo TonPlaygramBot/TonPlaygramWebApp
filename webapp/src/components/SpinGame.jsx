@@ -35,6 +35,33 @@ export default function SpinGame() {
   const bonusRefRight = useRef(null);
 
   useEffect(() => {
+    const handleFs = () => {
+      const fs = parseInt(localStorage.getItem('freeSpins') || '0', 10);
+      setFreeSpins(fs);
+      document
+        .getElementById('spin-game')
+        ?.scrollIntoView({ behavior: 'smooth' });
+    };
+    window.addEventListener('freeSpinAwarded', handleFs);
+    return () => window.removeEventListener('freeSpinAwarded', handleFs);
+  }, []);
+
+  useEffect(() => {
+    const handleBonus = () => {
+      if (localStorage.getItem('bonusX3') === 'true') {
+        setBonusMode(true);
+        localStorage.removeItem('bonusX3');
+        document
+          .getElementById('spin-game')
+          ?.scrollIntoView({ behavior: 'smooth' });
+      }
+    };
+    window.addEventListener('bonusX3Awarded', handleBonus);
+    handleBonus();
+    return () => window.removeEventListener('bonusX3Awarded', handleBonus);
+  }, []);
+
+  useEffect(() => {
     const ts = localStorage.getItem('lastSpin');
     if (ts) setLastSpin(parseInt(ts, 10));
     const fs = localStorage.getItem('freeSpins');
@@ -179,7 +206,10 @@ export default function SpinGame() {
   const ready = freeSpins > 0 || canSpin(lastSpin);
 
   return (
-    <div className="relative bg-surface border border-border rounded-xl p-4 flex flex-col items-center space-y-2 overflow-hidden wide-card">
+    <div
+      id="spin-game"
+      className="relative bg-surface border border-border rounded-xl p-4 flex flex-col items-center space-y-2 overflow-hidden wide-card"
+    >
       <img
         src="/assets/SnakeLaddersbackground.png"
         className="background-behind-board object-cover"
