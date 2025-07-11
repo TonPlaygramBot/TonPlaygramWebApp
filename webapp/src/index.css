@@ -1234,3 +1234,125 @@ input:focus {
 
 .chat-bubble{ @apply fixed bottom-4 left-1/2 -translate-x-1/2 bg-black bg-opacity-70 text-white rounded px-2 py-1 flex items-center space-x-2; font-size:1.2rem; }
 
+.crazy-dice-board {
+  position: relative;
+  width: 100vw;
+  height: 100vh;
+  overflow: hidden;
+  transform: translate(-3%, 0);
+}
+.crazy-dice-board .board-bg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
+  transform: translate(3%, 0) scale(1.1);
+  filter: brightness(1.2);
+  z-index: -1;
+}
+.crazy-dice-board .dice-center {
+  position: absolute;
+  top: 40%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+}
+
+/* Player positions around the Crazy Dice board */
+.crazy-dice-board .player-bottom {
+  position: absolute;
+  bottom: 20%;
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+.crazy-dice-board .player-left {
+  position: absolute;
+  top: 3%;
+  left: -2%;
+}
+
+.crazy-dice-board .player-center {
+  position: absolute;
+  top: 3%;
+  left: 50%;
+  transform: translateX(-50%);
+}
+.crazy-dice-board .player-center .player-score,
+.crazy-dice-board .player-center .roll-history {
+  transform: translateX(-60%);
+}
+
+.crazy-dice-board .player-right {
+  position: absolute;
+  top: 3%;
+  right: -2%;
+}
+
+/* Markers for easier mapping */
+.crazy-dice-board .side-number {
+  position: absolute;
+  font-size: 0.75rem;
+  color: #fff;
+  opacity: 0.7;
+  pointer-events: none;
+}
+.crazy-dice-board .side-number.top {
+  top: 0.5rem;
+  left: 50%;
+  transform: translateX(-50%);
+}
+.crazy-dice-board .side-number.bottom {
+  bottom: 0.5rem;
+  left: 50%;
+  transform: translateX(-50%);
+}
+.crazy-dice-board .side-number.left {
+  left: 0.5rem;
+  top: 50%;
+  transform: translateY(-50%);
+}
+.crazy-dice-board .side-number.right {
+  right: 0.5rem;
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+/* Rolling dice animation */
+.dice-screen-animation {
+  position: fixed;
+  bottom: 3rem;
+  left: 3rem;
+  animation: dice-bounce 2.5s ease-in-out forwards;
+  pointer-events: none;
+  z-index: 100;
+}
+
+.dice-travel {
+  position: fixed;
+  pointer-events: none;
+  transform: translate(-50%, -50%) scale(1);
+  z-index: 50;
+}
+
+@keyframes dice-bounce {
+  0% {
+    transform: translate(0, 0) scale(0.4) rotate(0deg);
+  }
+  20% {
+    transform: translate(30vw, -20vh) scale(1) rotate(360deg);
+  }
+  40% {
+    transform: translate(-25vw, -50vh) scale(1) rotate(720deg);
+  }
+  60% {
+    transform: translate(25vw, 10vh) scale(1) rotate(1080deg);
+  }
+  80% {
+    transform: translate(-20vw, 20vh) scale(1) rotate(1440deg);
+  }
+  100% {
+    transform: translate(50vw, 40vh) scale(0.4) rotate(1800deg);
+  }
+}
