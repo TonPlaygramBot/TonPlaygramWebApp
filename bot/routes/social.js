@@ -111,6 +111,24 @@ router.post('/messages', async (req, res) => {
   res.json(msgs);
 });
 
+router.post('/unread-count', async (req, res) => {
+  const { telegramId } = req.body;
+  if (!telegramId)
+    return res.status(400).json({ error: 'telegramId required' });
+  const user = await User.findOne({ telegramId });
+  const since = user?.inboxReadAt || new Date(0);
+  const count = await Message.countDocuments({ to: telegramId, createdAt: { $gt: since } });
+  res.json({ count });
+});
+
+router.post('/mark-read', async (req, res) => {
+  const { telegramId } = req.body;
+  if (!telegramId)
+    return res.status(400).json({ error: 'telegramId required' });
+  await User.updateOne({ telegramId }, { inboxReadAt: new Date() });
+  res.json({ success: true });
+});
+
 router.post('/wall/list', async (req, res) => {
   const { ownerId } = req.body;
   if (!ownerId) return res.status(400).json({ error: 'ownerId required' });

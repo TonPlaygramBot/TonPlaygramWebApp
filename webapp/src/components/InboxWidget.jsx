@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import LoginOptions from './LoginOptions.jsx';
 import { getTelegramId } from '../utils/telegram.js';
-import { listFriends, getMessages, sendMessage } from '../utils/api.js';
+import { listFriends, getMessages, sendMessage, markInboxRead } from '../utils/api.js';
 
 export default function InboxWidget() {
   let telegramId;
@@ -22,7 +22,10 @@ export default function InboxWidget() {
 
   useEffect(() => {
     if (selected) {
-      getMessages(telegramId, selected.telegramId).then(setMessages);
+      getMessages(telegramId, selected.telegramId).then((msgs) => {
+        setMessages(msgs);
+        markInboxRead(telegramId);
+      });
     }
   }, [selected, telegramId]);
 
@@ -32,6 +35,7 @@ export default function InboxWidget() {
     setText('');
     const msgs = await getMessages(telegramId, selected.telegramId);
     setMessages(msgs);
+    markInboxRead(telegramId);
   }
 
   return (
