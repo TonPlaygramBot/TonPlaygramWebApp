@@ -107,6 +107,32 @@ export function watchAd(telegramId) {
   return post('/api/ads/watch', { telegramId });
 }
 
+export function submitInfluencerVideo(telegramId, platform, videoUrl) {
+  return post('/api/influencer/submit', { telegramId, platform, videoUrl });
+}
+
+export function myInfluencerVideos(telegramId) {
+  return post('/api/influencer/mine', { telegramId });
+}
+
+export function listAllInfluencer() {
+  const headers = {};
+  if (API_AUTH_TOKEN) headers['Authorization'] = `Bearer ${API_AUTH_TOKEN}`;
+  return fetch(API_BASE_URL + '/api/influencer/admin', { headers }).then(r => r.json());
+}
+
+export function verifyInfluencer(id, status, views) {
+  const headers = { 'Content-Type': 'application/json' };
+  if (API_AUTH_TOKEN) headers['Authorization'] = `Bearer ${API_AUTH_TOKEN}`;
+  const initData = window?.Telegram?.WebApp?.initData;
+  if (initData) headers['X-Telegram-Init-Data'] = initData;
+  return fetch(API_BASE_URL + `/api/influencer/admin/${id}/verify`, {
+    method: 'PATCH',
+    headers,
+    body: JSON.stringify({ status, views })
+  }).then(r => r.json());
+}
+
 export function getProfile(telegramId) {
 
   return post('/api/profile/get', { telegramId });
