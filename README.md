@@ -236,6 +236,13 @@ To move from the start you must roll at least one six when rolling two dice. Any
 - **Winning and extra turns** – You must land exactly on the final pot tile. From tile 100 you need to roll a single one. Rolling double six gives an extra turn.
 - **In‑app help** – A help button in game opens an info popup implemented in [`SnakeAndLadder.jsx`](webapp/src/pages/Games/SnakeAndLadder.jsx).
 
+## Troubleshooting
+
+**Twitter API not configured** – This message appears when verifying the `post_tweet` task without a `TWITTER_BEARER_TOKEN`. Copy `bot/.env.example` to `bot/.env`, supply your bearer token and remove any leading `#` on that line.
+
+**Influencer admin shows "No submissions"** – Ensure your developer token is set in `bot/.env` via `AIRDROP_ADMIN_TOKENS` and in `webapp/.env` through `VITE_API_AUTH_TOKEN` so the webapp can fetch pending submissions.
+
+
 ## License
 
 This project is licensed under the [MIT License](LICENSE).
