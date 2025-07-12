@@ -340,6 +340,14 @@ export function getMessages(telegramId, withId) {
   return post('/api/social/messages', { telegramId, withId });
 }
 
+export function getUnreadCount(telegramId) {
+  return post('/api/social/unread-count', { telegramId });
+}
+
+export function markInboxRead(telegramId) {
+  return post('/api/social/mark-read', { telegramId });
+}
+
 export function listWallPosts(ownerId) {
   return post('/api/social/wall/list', { ownerId });
 }

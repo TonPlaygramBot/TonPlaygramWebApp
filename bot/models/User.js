@@ -101,6 +101,8 @@ const userSchema = new mongoose.Schema({
   storeMiningRate: { type: Number, default: 0 },
   storeMiningExpiresAt: { type: Date, default: null },
 
+  // Timestamp of the last time the user opened their inbox
+  inboxReadAt: { type: Date, default: Date.now },
 
   // Track which game table the user is currently seated at
   currentTableId: { type: String, default: null }

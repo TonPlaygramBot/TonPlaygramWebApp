@@ -7,7 +7,8 @@ import {
   depositAccount,
   sendBroadcast,
   convertGifts,
-  linkSocial
+  linkSocial,
+  getUnreadCount
 } from '../utils/api.js';
 import { NFT_GIFTS } from '../utils/nftGifts.js';
 import GiftIcon from '../components/GiftIcon.jsx';
@@ -74,6 +75,7 @@ export default function MyAccount() {
   const [transferAccount, setTransferAccount] = useState('');
   const [twitterHandle, setTwitterHandle] = useState('');
   const [twitterError, setTwitterError] = useState('');
+  const [unread, setUnread] = useState(0);
 
   useEffect(() => {
     async function load() {
@@ -126,6 +128,10 @@ export default function MyAccount() {
       }
 
       setProfile(finalProfile);
+      try {
+        const res = await getUnreadCount(telegramId);
+        if (!res.error) setUnread(res.count);
+      } catch {}
       setTwitterHandle(finalProfile.social?.twitter || '');
       if (!localStorage.getItem('avatarPromptShown')) {
         setShowAvatarPrompt(true);
@@ -311,8 +317,13 @@ export default function MyAccount() {
             <a href="/mining" className="underline text-primary">
               Mining
             </a>
-            <a href="/messages" className="underline text-primary">
+            <a href="/messages" className="underline text-primary relative">
               Inbox
+              {unread > 0 && (
+                <span className="absolute -top-1 -right-3 bg-red-600 text-background text-xs rounded-full px-1">
+                  {unread}
+                </span>
+              )}
             </a>
           </div>
           {profile.social?.twitter && (

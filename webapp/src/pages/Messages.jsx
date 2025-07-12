@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import useTelegramBackButton from '../hooks/useTelegramBackButton.js';
 import LoginOptions from '../components/LoginOptions.jsx';
 import { getTelegramId } from '../utils/telegram.js';
-import { getMessages, sendMessage, listFriends } from '../utils/api.js';
+import { getMessages, sendMessage, listFriends, markInboxRead } from '../utils/api.js';
 
 export default function Messages() {
   useTelegramBackButton();
@@ -19,12 +19,19 @@ export default function Messages() {
   const [text, setText] = useState('');
 
   useEffect(() => {
+    markInboxRead(telegramId);
+  }, [telegramId]);
+
+  useEffect(() => {
     listFriends(telegramId).then(setFriends);
   }, [telegramId]);
 
   useEffect(() => {
     if (selected) {
-      getMessages(telegramId, selected.telegramId).then(setMessages);
+      getMessages(telegramId, selected.telegramId).then((msgs) => {
+        setMessages(msgs);
+        markInboxRead(telegramId);
+      });
     }
   }, [selected, telegramId]);
 
@@ -34,6 +41,7 @@ export default function Messages() {
     setText('');
     const msgs = await getMessages(telegramId, selected.telegramId);
     setMessages(msgs);
+    markInboxRead(telegramId);
   }
 
   return (
