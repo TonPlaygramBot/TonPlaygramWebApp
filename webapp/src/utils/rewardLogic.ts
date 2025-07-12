@@ -33,16 +33,25 @@ export function nextSpinTime(lastSpin: number | null): number {
   return lastSpin ? lastSpin + COOLDOWN : Date.now();
 }
 
+function secureRandom(): number {
+  if (typeof window !== 'undefined' && window.crypto?.getRandomValues) {
+    const arr = new Uint32Array(1);
+    window.crypto.getRandomValues(arr);
+    return arr[0] / 0xffffffff;
+  }
+  return Math.random();
+}
+
 export function getRandomReward(): Segment {
-  const index = Math.floor(Math.random() * segments.length);
+  const index = Math.floor(secureRandom() * segments.length);
   return segments[index];
 }
 
 // Lucky Number game reward with 30% chance to hit bonus or free spin
 export function getLuckyReward(): Segment {
-  const r = Math.random();
+  const r = secureRandom();
   if (r < 0.15) return 'BONUS_X3';
   if (r < 0.3) return 'FREE_SPIN';
-  const idx = Math.floor(Math.random() * numericSegments.length);
+  const idx = Math.floor(secureRandom() * numericSegments.length);
   return numericSegments[idx] as number;
 }
