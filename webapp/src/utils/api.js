@@ -83,8 +83,8 @@ export function completeTask(telegramId, taskId) {
 
 }
 
-export function verifyRetweet(telegramId, tweetUrl) {
-  return post('/api/tasks/verify-retweet', { telegramId, tweetUrl });
+export function verifyPost(telegramId, tweetUrl) {
+  return post('/api/tasks/verify-post', { telegramId, tweetUrl });
 }
 
 export function listVideos(telegramId) {

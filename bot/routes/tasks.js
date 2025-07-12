@@ -4,6 +4,7 @@ import User from '../models/User.js';
 import { TASKS } from '../utils/tasksData.js';
 import { ensureTransactionArray } from '../utils/userUtils.js';
 import { TwitterApi } from 'twitter-api-v2';
+import PostRecord from '../models/PostRecord.js';
 
 const router = Router();
 const twitterClient = process.env.TWITTER_BEARER_TOKEN
@@ -50,32 +51,34 @@ router.post('/complete', async (req, res) => {
   res.json({ message: 'completed', reward: config.reward });
 });
 
-router.post('/verify-retweet', async (req, res) => {
+router.post('/verify-post', async (req, res) => {
   const { telegramId, tweetUrl } = req.body;
   if (!telegramId || !tweetUrl) {
     return res.status(400).json({ error: 'telegramId and tweetUrl required' });
   }
 
-  const config = TASKS.find((t) => t.id === 'retweet_post');
+  const config = TASKS.find((t) => t.id === 'post_tweet');
   if (!config) return res.status(500).json({ error: 'task not configured' });
 
-  const existing = await Task.findOne({ telegramId, taskId: 'retweet_post' });
-  if (existing) return res.json({ message: 'already completed' });
+  const last = await PostRecord.findOne({ telegramId }).sort({ postedAt: -1 });
+  const TWELVE_HOURS = 12 * 60 * 60 * 1000;
+  if (last && Date.now() - last.postedAt.getTime() < TWELVE_HOURS) {
+    return res.status(400).json({ error: 'cooldown active' });
+  }
 
   if (!twitterClient) {
     return res.status(500).json({ error: 'Twitter API not configured' });
   }
 
-  const targetId = (config.link.match(/status\/(\d+)/) || [])[1];
   const providedId = (tweetUrl.match(/status\/(\d+)/) || [])[1];
-  if (!targetId || !providedId) {
+  if (!providedId) {
     return res.status(400).json({ error: 'invalid tweet URL' });
   }
 
   try {
     const tweet = await twitterClient.v2.singleTweet(providedId, {
-      expansions: ['author_id', 'referenced_tweets.id'],
-      'tweet.fields': ['author_id', 'referenced_tweets']
+      expansions: ['author_id'],
+      'tweet.fields': ['author_id', 'text']
     });
 
     const author = await twitterClient.v2.user(tweet.data.author_id);
@@ -85,26 +88,15 @@ router.post('/verify-retweet', async (req, res) => {
       return res.status(400).json({ error: 'twitter handle mismatch' });
     }
 
-    let valid = false;
-    if (tweet.data.referenced_tweets) {
-      valid = tweet.data.referenced_tweets.some((r) => r.id === targetId);
-    }
-    if (!valid) {
-      const [likes, rts] = await Promise.all([
-        twitterClient.v2.tweetLikedBy(targetId, { asPaginator: false }),
-        twitterClient.v2.tweetRetweetedBy(targetId, { asPaginator: false })
-      ]);
-      const uid = tweet.data.author_id;
-      const liked = likes.data?.some((u) => u.id === uid);
-      const retweeted = rts.data?.some((u) => u.id === uid);
-      valid = liked || retweeted;
+    const text = tweet.data.text.trim().replace(/\s+/g, ' ');
+    const match = config.posts.some((p) => {
+      return text === p.trim().replace(/\s+/g, ' ');
+    });
+    if (!match) {
+      return res.status(400).json({ error: 'tweet text does not match' });
     }
 
-    if (!valid) {
-      return res.status(400).json({ error: 'retweet/like/comment not found' });
-    }
-
-    await Task.create({ telegramId, taskId: 'retweet_post', completedAt: new Date() });
+    await PostRecord.create({ telegramId, tweetId: providedId });
     ensureTransactionArray(user);
     user.minedTPC += config.reward;
     user.transactions.push({
@@ -117,7 +109,7 @@ router.post('/verify-retweet', async (req, res) => {
 
     res.json({ message: 'verified', reward: config.reward });
   } catch (err) {
-    console.error('verify-retweet failed:', err.message);
+    console.error('verify-post failed:', err.message);
     res.status(500).json({ error: 'verification failed' });
   }
 });

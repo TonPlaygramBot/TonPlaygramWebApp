@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import {
   listTasks,
   completeTask,
+  verifyPost,
   getAdStatus,
   watchAd,
   getProfile,
@@ -39,6 +40,7 @@ export default function Tasks() {
   const [tasks, setTasks] = useState(null);
   const [adCount, setAdCount] = useState(0);
   const [showAd, setShowAd] = useState(false);
+  const [postLink, setPostLink] = useState('');
   const [category, setCategory] = useState('TonPlaygram');
   const [streak, setStreak] = useState(1);
   const [lastCheck, setLastCheck] = useState(() => {
@@ -77,13 +79,11 @@ export default function Tasks() {
   }, []);
 
   const handleClaim = async (task) => {
-
-    window.open(task.link, '_blank');
-
+    if (task.link) {
+      window.open(task.link, '_blank');
+    }
     await completeTask(telegramId, task.id);
-
     load();
-
   };
 
   const handleDailyCheck = async () => {
@@ -115,6 +115,18 @@ export default function Tasks() {
     }
   };
 
+  const handlePostVerify = async () => {
+    if (!postLink) return;
+    const res = await verifyPost(telegramId, postLink);
+    if (!res.error) {
+      await completeTask(telegramId, 'post_tweet');
+      setPostLink('');
+      load();
+    } else {
+      alert(res.error);
+    }
+  };
+
   const handleAdComplete = async () => {
     await watchAd(telegramId);
     const ad = await getAdStatus(telegramId);
@@ -128,6 +140,7 @@ export default function Tasks() {
     join_twitter: <IoLogoTwitter className="text-sky-400 w-5 h-5" />,
     join_telegram: <RiTelegramFill className="text-sky-400 w-5 h-5" />,
     follow_tiktok: <IoLogoTiktok className="text-pink-500 w-5 h-5" />,
+    post_tweet: <IoLogoTwitter className="text-sky-400 w-5 h-5" />,
     watch_ad: <FiVideo className="text-yellow-500 w-5 h-5" />
   };
 
@@ -192,6 +205,24 @@ export default function Tasks() {
                 <span className="text-xs text-subtext flex items-center gap-1">{t.reward} <img src="/assets/icons/TPCcoin_1.webp" alt="TPC" className="w-4 h-4" /></span>
                 {t.completed ? (
                   <span className="text-green-500 font-semibold text-sm">Completed</span>
+                ) : t.id === 'post_tweet' ? (
+                  <div className="space-y-2 w-full">
+                    {t.posts.map((p, i) => (
+                      <div key={i} className="flex items-start gap-2 border border-border p-2 rounded">
+                        <textarea readOnly value={p} className="flex-1 text-xs bg-surface border-none resize-none" />
+                        <button onClick={() => navigator.clipboard.writeText(p)} className="px-2 py-0.5 bg-primary hover:bg-primary-hover text-background text-sm rounded">Copy</button>
+                      </div>
+                    ))}
+                    <div className="flex items-center gap-2">
+                      <input
+                        value={postLink}
+                        onChange={(e) => setPostLink(e.target.value)}
+                        placeholder="Tweet link"
+                        className="px-1 py-0.5 text-xs bg-surface border border-border rounded flex-1"
+                      />
+                      <button onClick={handlePostVerify} className="px-2 py-0.5 bg-primary hover:bg-primary-hover text-background text-sm rounded">Verify</button>
+                    </div>
+                  </div>
                 ) : (
                   <button
                     onClick={() => handleClaim(t)}
