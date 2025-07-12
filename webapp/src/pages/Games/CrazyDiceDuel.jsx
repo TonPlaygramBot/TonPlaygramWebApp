@@ -287,17 +287,17 @@ export default function CrazyDiceDuel() {
   return (
     <div className="text-text relative">
       <Branding scale={1.2} />
-      <div className="crazy-dice-board" ref={boardRef}>
       {bgUnlocked && (
         <img
           src="/assets/SnakeLaddersbackground.png"
-          className="background-behind-board object-cover"
+          className="background-behind-board crazy-dice-bg object-cover"
           alt=""
           onError={(e) => {
             e.currentTarget.style.display = 'none';
           }}
         />
       )}
+      <div className="crazy-dice-board" ref={boardRef}>
       {!bgUnlocked && (
         <button
           onClick={unlockBackground}

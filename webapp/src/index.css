@@ -109,6 +109,13 @@ input:focus {
   transform: translateY(90px) scale(1.2);
 }
 
+/* Adjusted placement for Crazy Dice Duel */
+.crazy-dice-bg {
+  top: 0;
+  bottom: 0;
+  transform: none;
+}
+
 @keyframes roll {
   0% {
     transform: rotateX(0deg) rotateY(0deg) rotateZ(0deg) translateY(0);
