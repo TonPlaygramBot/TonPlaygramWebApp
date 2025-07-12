@@ -19,6 +19,7 @@ import { RiTelegramFill } from 'react-icons/ri';
 import { FiVideo } from 'react-icons/fi';
 import { AiOutlineCheck } from 'react-icons/ai';
 import AdModal from '../components/AdModal.tsx';
+import PostsModal from '../components/PostsModal.jsx';
 import useTelegramBackButton from '../hooks/useTelegramBackButton.js';
 import { useTonAddress, useTonConnectUI } from '@tonconnect/ui-react';
 import { STORE_ADDRESS } from '../utils/storeData.js';
@@ -40,6 +41,7 @@ export default function Tasks() {
   const [tasks, setTasks] = useState(null);
   const [adCount, setAdCount] = useState(0);
   const [showAd, setShowAd] = useState(false);
+  const [showPosts, setShowPosts] = useState(false);
   const [postLink, setPostLink] = useState('');
   const [category, setCategory] = useState('TonPlaygram');
   const [streak, setStreak] = useState(1);
@@ -207,12 +209,12 @@ export default function Tasks() {
                   <span className="text-green-500 font-semibold text-sm">Completed</span>
                 ) : t.id === 'post_tweet' ? (
                   <div className="space-y-2 w-full">
-                    {t.posts.map((p, i) => (
-                      <div key={i} className="flex items-start gap-2 border border-border p-2 rounded">
-                        <textarea readOnly value={p} className="flex-1 text-xs bg-surface border-none resize-none" />
-                        <button onClick={() => navigator.clipboard.writeText(p)} className="px-2 py-0.5 bg-primary hover:bg-primary-hover text-background text-sm rounded">Copy</button>
-                      </div>
-                    ))}
+                    <button
+                      onClick={() => setShowPosts(true)}
+                      className="px-2 py-0.5 bg-primary hover:bg-primary-hover text-background text-sm rounded w-full"
+                    >
+                      View Posts
+                    </button>
                     <div className="flex items-center gap-2">
                       <input
                         value={postLink}
@@ -261,6 +263,11 @@ export default function Tasks() {
         open={showAd}
         onComplete={handleAdComplete}
         onClose={() => setShowAd(false)}
+      />
+      <PostsModal
+        open={showPosts}
+        posts={tasks?.find((t) => t.id === 'post_tweet')?.posts || []}
+        onClose={() => setShowPosts(false)}
       />
 
     </div>
