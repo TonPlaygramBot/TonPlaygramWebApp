@@ -10,7 +10,7 @@ export const TASKS = [
 
     icon: 'twitter',
 
-    link: 'https://x.com/TonPlaygram'
+  link: 'https://x.com/TonPlaygram?t=SyGyXA0H8PdLz7z2kfIWQw&s=09'
 
   },
 
@@ -24,7 +24,7 @@ export const TASKS = [
 
     icon: 'telegram',
 
-    link: 'https://t.me/TonPlaygramCommunity'
+  link: 'https://t.me/TonPlaygram'
 
   },
 
@@ -38,7 +38,7 @@ export const TASKS = [
 
     icon: 'tiktok',
 
-    link: 'https://tiktok.com/@TonPlaygram'
+  link: 'https://www.tiktok.com/@tonplaygram?_t=ZS-8xxPL1nbD9U&_r=1'
 
   }
 

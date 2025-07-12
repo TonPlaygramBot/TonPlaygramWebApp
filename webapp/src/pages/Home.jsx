@@ -13,6 +13,8 @@ import {
   FaArrowCircleDown,
   FaWallet
 } from 'react-icons/fa';
+import { IoLogoTwitter, IoLogoTiktok } from 'react-icons/io5';
+import { RiTelegramFill } from 'react-icons/ri';
 import { useTonAddress, useTonConnectUI } from '@tonconnect/ui-react';
 
 import { Link } from 'react-router-dom';
@@ -391,6 +393,29 @@ export default function Home() {
         </div>
       )}
 
+      <div className="flex justify-center space-x-4 mt-4">
+        <a
+          href="https://x.com/TonPlaygram?t=SyGyXA0H8PdLz7z2kfIWQw&s=09"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          <IoLogoTwitter className="text-sky-400 w-6 h-6" />
+        </a>
+        <a
+          href="https://t.me/TonPlaygram"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          <RiTelegramFill className="text-sky-400 w-6 h-6" />
+        </a>
+        <a
+          href="https://www.tiktok.com/@tonplaygram?_t=ZS-8xxPL1nbD9U&_r=1"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          <IoLogoTiktok className="text-pink-500 w-6 h-6" />
+        </a>
+      </div>
       <p className="text-center text-xs text-subtext">Status: {status}</p>
 
 
