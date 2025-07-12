@@ -113,8 +113,8 @@ input:focus {
 .crazy-dice-bg {
   top: 0;
   bottom: 0;
-  /* Shift the backdrop towards side 3 */
-  transform: translateX(-3rem);
+  /* Shift the backdrop further towards side 3 */
+  transform: translateX(-6rem);
 }
 
 @keyframes roll {
@@ -1304,6 +1304,8 @@ input:focus {
   object-fit: cover;
   /* Align the board so the left side (nr 3) is more visible */
   object-position: left center;
+  /* Nudge image slightly further left */
+  transform: translateX(-2rem);
   filter: brightness(1.2);
   z-index: -1;
 }
