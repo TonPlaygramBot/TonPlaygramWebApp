@@ -46,13 +46,13 @@ export const TASKS = [
 
     id: 'retweet_post',
 
-    description: 'Retweet our post',
+    description: 'Like, comment and repost this tweet',
 
     reward: 2500,
 
     icon: 'twitter',
 
-  link: 'https://x.com/TonPlaygram/status/1234567890'
+  link: 'https://x.com/TonPlaygram/status/1943907328652402954?t=KV_XywSPiqk0dJVDGPXocA&s=19'
 
   }
 
