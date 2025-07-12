@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react';
 import {
   listTasks,
   completeTask,
-  verifyRetweet,
+  verifyPost,
   getAdStatus,
   watchAd,
   dailyCheckIn,
@@ -29,7 +29,7 @@ const ICONS = {
   join_telegram: <RiTelegramFill className="text-sky-400 w-5 h-5" />,
   
   follow_tiktok: <IoLogoTiktok className="text-pink-500 w-5 h-5" />,
-  retweet_post: <IoLogoTwitter className="text-sky-400 w-5 h-5" />,
+  post_tweet: <IoLogoTwitter className="text-sky-400 w-5 h-5" />,
   watch_ad: <FiVideo className="text-yellow-500 w-5 h-5" />
 
 };
@@ -52,7 +52,7 @@ export default function TasksCard() {
   const [tasks, setTasks] = useState(null);
   const [adCount, setAdCount] = useState(0);
   const [showAd, setShowAd] = useState(false);
-  const [retweetLink, setRetweetLink] = useState('');
+  const [postLink, setPostLink] = useState('');
   const walletAddress = useTonAddress();
   const [tonConnectUI] = useTonConnectUI();
   const [streak, setStreak] = useState(1);
@@ -101,12 +101,12 @@ export default function TasksCard() {
 
   };
 
-  const handleRetweet = async () => {
-    if (!retweetLink) return;
-    const res = await verifyRetweet(telegramId, retweetLink);
+  const handlePostVerify = async () => {
+    if (!postLink) return;
+    const res = await verifyPost(telegramId, postLink);
     if (!res.error) {
-      await completeTask(telegramId, 'retweet_post');
-      setRetweetLink('');
+      await completeTask(telegramId, 'post_tweet');
+      setPostLink('');
       load();
     } else {
       alert(res.error);
@@ -223,20 +223,37 @@ export default function TasksCard() {
               <span className="text-xs text-subtext flex items-center gap-1">{t.reward} <img src="/assets/icons/TPCcoin_1.webp" alt="TPC" className="w-4 h-4" /></span>
               {t.completed ? (
                 <span className="text-green-500 font-semibold text-sm">Done</span>
-              ) : t.id === 'retweet_post' ? (
-                <div className="flex items-center gap-2">
-                  <input
-                    value={retweetLink}
-                    onChange={(e) => setRetweetLink(e.target.value)}
-                    placeholder="Retweet link"
-                    className="px-1 py-0.5 text-xs bg-surface border border-border rounded"
-                  />
-                  <button
-                    onClick={handleRetweet}
-                    className="px-2 py-0.5 bg-primary hover:bg-primary-hover text-background text-sm rounded"
-                  >
-                    Verify
-                  </button>
+              ) : t.id === 'post_tweet' ? (
+                <div className="space-y-2 w-full">
+                  {t.posts.map((p, i) => (
+                    <div key={i} className="flex items-start gap-2 border border-border p-2 rounded">
+                      <textarea
+                        readOnly
+                        value={p}
+                        className="flex-1 text-xs bg-surface border-none resize-none"
+                      />
+                      <button
+                        onClick={() => navigator.clipboard.writeText(p)}
+                        className="px-2 py-0.5 bg-primary hover:bg-primary-hover text-background text-sm rounded"
+                      >
+                        Copy
+                      </button>
+                    </div>
+                  ))}
+                  <div className="flex items-center gap-2">
+                    <input
+                      value={postLink}
+                      onChange={(e) => setPostLink(e.target.value)}
+                      placeholder="Tweet link"
+                      className="px-1 py-0.5 text-xs bg-surface border border-border rounded flex-1"
+                    />
+                    <button
+                      onClick={handlePostVerify}
+                      className="px-2 py-0.5 bg-primary hover:bg-primary-hover text-background text-sm rounded"
+                    >
+                      Verify
+                    </button>
+                  </div>
                 </div>
               ) : (
                 <button
