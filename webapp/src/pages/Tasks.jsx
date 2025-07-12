@@ -8,6 +8,8 @@ import {
   watchAd,
   getProfile,
   dailyCheckIn,
+  submitInfluencerVideo,
+  myInfluencerVideos,
 } from '../utils/api.js';
 
 import { getTelegramId } from '../utils/telegram.js';
@@ -44,6 +46,10 @@ export default function Tasks() {
   const [showPosts, setShowPosts] = useState(false);
   const [postLink, setPostLink] = useState('');
   const [category, setCategory] = useState('TonPlaygram');
+  const [infTab, setInfTab] = useState('submit');
+  const [platform, setPlatform] = useState('tiktok');
+  const [videoUrl, setVideoUrl] = useState('');
+  const [myVideos, setMyVideos] = useState([]);
   const [streak, setStreak] = useState(1);
   const [lastCheck, setLastCheck] = useState(() => {
     const ts = localStorage.getItem('lastCheckIn');
@@ -74,10 +80,14 @@ export default function Tasks() {
     } catch {}
   };
 
+  const loadInfluencer = async () => {
+    const vids = await myInfluencerVideos(telegramId);
+    if (!vids.error) setMyVideos(vids);
+  };
+
   useEffect(() => {
-
     load();
-
+    loadInfluencer();
   }, []);
 
   const handleClaim = async (task) => {
@@ -136,6 +146,13 @@ export default function Tasks() {
     setShowAd(false);
   };
 
+  const handleVideoSubmit = async () => {
+    if (!videoUrl) return;
+    await submitInfluencerVideo(telegramId, platform, videoUrl);
+    setVideoUrl('');
+    loadInfluencer();
+  };
+
   if (!tasks) return <div className="p-4 text-subtext">Loading...</div>;
 
   const ICONS = {
@@ -151,7 +168,7 @@ export default function Tasks() {
     <div className="relative p-4 space-y-2 text-text flex flex-col items-center wide-card">
       <h2 className="text-xl font-bold">Tasks</h2>
       <div className="flex justify-center space-x-2">
-        {['TonPlaygram', 'Partners'].map((c) => (
+        {['TonPlaygram', 'Influencer', 'Partners'].map((c) => (
           <button
             key={c}
             onClick={() => setCategory(c)}
@@ -255,6 +272,65 @@ export default function Tasks() {
           </li>
       </ul>
         </>
+      )}
+      {category === 'Influencer' && (
+        <div className="w-full space-y-2">
+          <div className="flex justify-center space-x-2">
+            {['submit', 'mine'].map((t) => (
+              <button
+                key={t}
+                onClick={() => setInfTab(t)}
+                className={`lobby-tile px-3 py-1 ${infTab === t ? 'lobby-selected' : ''}`}
+              >
+                {t === 'submit' ? 'Submit Video' : 'My Submissions'}
+              </button>
+            ))}
+          </div>
+          {infTab === 'submit' && (
+            <div className="space-y-2">
+              <select
+                value={platform}
+                onChange={(e) => setPlatform(e.target.value)}
+                className="w-full px-2 py-1 bg-surface border border-border rounded"
+              >
+                <option value="tiktok">TikTok</option>
+                <option value="youtube">YouTube Shorts</option>
+                <option value="instagram">Instagram Reels</option>
+              </select>
+              <input
+                value={videoUrl}
+                onChange={(e) => setVideoUrl(e.target.value)}
+                placeholder="Video URL"
+                className="w-full px-2 py-1 bg-surface border border-border rounded"
+              />
+              <button
+                onClick={handleVideoSubmit}
+                className="w-full px-3 py-1 bg-primary hover:bg-primary-hover text-background rounded"
+              >
+                Submit
+              </button>
+            </div>
+          )}
+          {infTab === 'mine' && (
+            <ul className="space-y-2">
+              {myVideos.map((s) => (
+                <li key={s._id} className="lobby-tile w-full space-y-1">
+                  <div className="flex justify-between text-sm">
+                    <span className="capitalize">{s.platform}</span>
+                    <span>{s.views ? s.views + ' views' : 'pending'}</span>
+                  </div>
+                  <div className="flex justify-between text-xs">
+                    <span>Status: {s.status}</span>
+                    <span>{s.rewardTPC} TPC</span>
+                  </div>
+                </li>
+              ))}
+              {myVideos.length === 0 && (
+                <p className="text-center text-subtext text-sm">No submissions yet.</p>
+              )}
+            </ul>
+          )}
+        </div>
       )}
       {category === 'Partners' && (
         <p className="text-center text-subtext">Partner tasks coming soon.</p>
