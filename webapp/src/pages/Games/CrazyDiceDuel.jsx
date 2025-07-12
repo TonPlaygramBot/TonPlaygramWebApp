@@ -6,6 +6,7 @@ import BottomLeftIcons from '../../components/BottomLeftIcons.jsx';
 import QuickMessagePopup from '../../components/QuickMessagePopup.jsx';
 import GiftPopup from '../../components/GiftPopup.jsx';
 import GameEndPopup from '../../components/GameEndPopup.jsx';
+import Branding from '../../components/Branding.jsx';
 import useTelegramBackButton from '../../hooks/useTelegramBackButton.js';
 import { loadAvatar } from '../../utils/avatarUtils.js';
 import { chatBeep, timerBeep } from '../../assets/soundData.js';
@@ -284,7 +285,9 @@ export default function CrazyDiceDuel() {
   };
 
   return (
-    <div className="crazy-dice-board text-text" ref={boardRef}>
+    <div className="text-text relative">
+      <Branding scale={1.2} />
+      <div className="crazy-dice-board" ref={boardRef}>
       {bgUnlocked && (
         <img
           src="/assets/SnakeLaddersbackground.png"
@@ -456,6 +459,7 @@ export default function CrazyDiceDuel() {
         onPlayAgain={() => window.location.reload()}
         onReturn={() => navigate('/games/crazydice/lobby')}
       />
+      </div>
     </div>
   );
 }
