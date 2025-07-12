@@ -113,7 +113,7 @@ input:focus {
 .crazy-dice-bg {
   top: 0;
   bottom: 0;
-  transform: none;
+  transform: translateX(-1rem);
 }
 
 @keyframes roll {
@@ -423,12 +423,16 @@ input:focus {
   font-size: 0.6rem;
   color: inherit;
   white-space: nowrap;
+  padding: 0 0.2rem;
+  border: 1px solid currentColor;
+  border-radius: 0.15rem;
+  background-color: rgba(0, 0, 0, 0.25);
 }
 
 /* Horizontal history of previous rolls */
 .roll-history {
   position: absolute;
-  top: calc(100% + 1rem);
+  top: calc(100% + 0.5rem);
   left: 50%;
   transform: translateX(-50%);
   display: flex;
@@ -444,6 +448,7 @@ input:focus {
   justify-content: center;
   font-size: 0.55rem;
   border-radius: 0.15rem;
+  background-color: rgba(0, 0, 0, 0.25);
 }
 
 .turn-indicator {
