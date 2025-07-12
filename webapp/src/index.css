@@ -430,7 +430,7 @@ input:focus {
 /* Horizontal history of previous rolls */
 .roll-history {
   position: absolute;
-  top: calc(100% + 0.4rem);
+  top: calc(100% + 0.6rem);
   left: 50%;
   transform: translateX(-50%);
   display: flex;
@@ -1350,8 +1350,8 @@ input:focus {
 
 .crazy-dice-board .player-center {
   position: absolute;
-  top: 17.5%;
-  left: 55%;
+  top: 16%;
+  left: 52%;
   transform: translate(-50%, -50%);
 }
 .crazy-dice-board .player-center .player-score,
@@ -1360,11 +1360,11 @@ input:focus {
 }
 .crazy-dice-board .player-left .player-score,
 .crazy-dice-board .player-left .roll-history {
-  transform: translateX(-40%);
+  transform: translateX(-35%);
 }
 .crazy-dice-board .player-right .player-score,
 .crazy-dice-board .player-right .roll-history {
-  transform: translateX(-60%);
+  transform: translateX(-65%);
 }
 
 .crazy-dice-board .player-right {
