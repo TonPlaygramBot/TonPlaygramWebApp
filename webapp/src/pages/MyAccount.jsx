@@ -6,7 +6,8 @@ import {
   fetchTelegramInfo,
   depositAccount,
   sendBroadcast,
-  convertGifts
+  convertGifts,
+  linkSocial
 } from '../utils/api.js';
 import { NFT_GIFTS } from '../utils/nftGifts.js';
 import GiftIcon from '../components/GiftIcon.jsx';
@@ -71,6 +72,8 @@ export default function MyAccount() {
   const [converting, setConverting] = useState(false);
   const [convertAction, setConvertAction] = useState('burn');
   const [transferAccount, setTransferAccount] = useState('');
+  const [twitterHandle, setTwitterHandle] = useState('');
+  const [twitterError, setTwitterError] = useState('');
 
   useEffect(() => {
     async function load() {
@@ -123,6 +126,7 @@ export default function MyAccount() {
       }
 
       setProfile(finalProfile);
+      setTwitterHandle(finalProfile.social?.twitter || '');
       if (!localStorage.getItem('avatarPromptShown')) {
         setShowAvatarPrompt(true);
       }
@@ -198,6 +202,38 @@ export default function MyAccount() {
       console.error('convert gifts failed', err);
     } finally {
       setConverting(false);
+    }
+  };
+
+  const handleLinkTwitter = async () => {
+    setTwitterError('');
+    try {
+      const res = await linkSocial({ telegramId, twitter: twitterHandle.trim() });
+      if (res?.error) {
+        setTwitterError(res.error);
+      } else {
+        setProfile((p) => ({ ...p, social: res.social }));
+        setTwitterHandle(res.social.twitter || '');
+      }
+    } catch (err) {
+      console.error('link twitter failed', err);
+      setTwitterError('Failed to link');
+    }
+  };
+
+  const handleClearTwitter = async () => {
+    setTwitterError('');
+    try {
+      const res = await linkSocial({ telegramId, twitter: '' });
+      if (res?.error) {
+        setTwitterError(res.error);
+      } else {
+        setProfile((p) => ({ ...p, social: res.social }));
+        setTwitterHandle('');
+      }
+    } catch (err) {
+      console.error('clear twitter failed', err);
+      setTwitterError('Failed to clear');
     }
   };
 
@@ -278,6 +314,32 @@ export default function MyAccount() {
             <a href="/messages" className="underline text-primary">
               Inbox
             </a>
+          </div>
+          {profile.social?.twitter && (
+            <p className="text-sm mt-2">
+              Linked Twitter: @{profile.social.twitter}{' '}
+              <button
+                onClick={handleClearTwitter}
+                className="underline text-primary ml-1"
+              >
+                Clear
+              </button>
+            </p>
+          )}
+          <div className="mt-2 flex items-center space-x-2">
+            <input
+              type="text"
+              placeholder="Twitter handle"
+              value={twitterHandle}
+              onChange={(e) => setTwitterHandle(e.target.value)}
+              className="border p-1 rounded text-black flex-grow"
+            />
+            <button
+              onClick={handleLinkTwitter}
+              className="px-2 py-1 bg-primary hover:bg-primary-hover rounded text-sm text-white-shadow"
+            >
+              Save
+            </button>
           </div>
         </div>
       </div>
@@ -416,6 +478,11 @@ export default function MyAccount() {
         open={!!notifyStatus}
         onClose={() => setNotifyStatus('')}
         info={notifyStatus}
+      />
+      <InfoPopup
+        open={!!twitterError}
+        onClose={() => setTwitterError('')}
+        info={twitterError}
       />
     </div>
   );
