@@ -1331,28 +1331,28 @@ input:focus {
 }
 .crazy-dice-board .dice-center {
   position: absolute;
-  top: 40%;
-  left: 50%;
+  top: 57.5%;
+  left: 55%;
   transform: translate(-50%, -50%);
 }
 
 /* Player positions around the Crazy Dice board */
 .crazy-dice-board .player-bottom {
   position: absolute;
-  bottom: 18%;
+  bottom: 17.5%;
   left: 50%;
   transform: translateX(-50%);
 }
 
 .crazy-dice-board .player-left {
   position: absolute;
-  top: 6%;
-  left: 3%;
+  top: 22%;
+  left: 2%;
 }
 
 .crazy-dice-board .player-center {
   position: absolute;
-  top: 6%;
+  top: 17.5%;
   left: 50%;
   transform: translateX(-50%);
 }
@@ -1371,7 +1371,7 @@ input:focus {
 
 .crazy-dice-board .player-right {
   position: absolute;
-  top: 6%;
+  top: 22%;
   right: -2%;
 }
 
