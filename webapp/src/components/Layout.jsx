@@ -93,7 +93,9 @@ export default function Layout({ children }) {
       {/* Removed the starry cosmic background */}
 
 
-      <main className={`flex-grow container mx-auto p-4 ${showNavbar ? 'pb-24' : ''}`.trim()}>
+      <main className={`flex-grow ${
+        showNavbar ? 'container mx-auto p-4 pb-24' : 'w-full p-0'
+      }`}>
 
         {showBranding && (
         <Branding
