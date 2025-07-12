@@ -40,6 +40,20 @@ export const TASKS = [
 
   link: 'https://www.tiktok.com/@tonplaygram?_t=ZS-8xxPL1nbD9U&_r=1'
 
+  },
+
+  {
+
+    id: 'retweet_post',
+
+    description: 'Retweet our post',
+
+    reward: 2500,
+
+    icon: 'twitter',
+
+  link: 'https://x.com/TonPlaygram/status/1234567890'
+
   }
 
 ];
