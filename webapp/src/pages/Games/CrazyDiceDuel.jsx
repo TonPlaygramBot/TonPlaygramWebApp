@@ -81,7 +81,7 @@ export default function CrazyDiceDuel() {
   const timerSoundRef = useRef(null);
   const diceRef = useRef(null);
   const boardRef = useRef(null);
-  const [diceStyle, setDiceStyle] = useState({ display: 'none' });
+  const [diceStyle, setDiceStyle] = useState({});
 
   // Dice remain at the centre with no travel animation
   const GRID_ROWS = 20;

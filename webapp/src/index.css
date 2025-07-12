@@ -970,7 +970,7 @@ input:focus {
   left: 0;
   top: 0;
   pointer-events: none;
-  z-index: 50;
+  z-index: 101;
 }
 
 .coin-img {
@@ -1421,7 +1421,7 @@ input:focus {
   position: fixed;
   pointer-events: none;
   transform: translate(-50%, -50%) scale(1);
-  z-index: 50;
+  z-index: 101;
 }
 
 @keyframes dice-bounce {
