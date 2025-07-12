@@ -1,4 +1,4 @@
-import dotenv from 'dotenv';
+import './loadEnv.js';
 import express from 'express';
 import cors from 'cors';
 import bot from './bot.js';
@@ -30,7 +30,6 @@ import { execSync } from 'child_process';
 import compression from 'compression';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-dotenv.config({ path: path.join(__dirname, '.env') });
 
 if (proxyUrl) {
   console.log(`Using HTTPS proxy ${proxyUrl}`);
