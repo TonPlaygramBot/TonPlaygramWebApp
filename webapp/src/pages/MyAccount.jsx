@@ -227,6 +227,25 @@ export default function MyAccount() {
     }
   };
 
+  const handleConnectTwitter = async () => {
+    setTwitterError('');
+    try {
+      const res = await fetch('/api/twitter/start', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ telegramId })
+      }).then(r => r.json());
+      if (res.url) {
+        window.open(res.url, '_blank');
+      } else if (res.error) {
+        setTwitterError(res.error);
+      }
+    } catch (err) {
+      console.error('connect twitter failed', err);
+      setTwitterError('Failed to start Twitter auth');
+    }
+  };
+
   const handleClearTwitter = async () => {
     setTwitterError('');
     try {
@@ -350,6 +369,12 @@ export default function MyAccount() {
               className="px-2 py-1 bg-primary hover:bg-primary-hover rounded text-sm text-white-shadow"
             >
               Save
+            </button>
+            <button
+              onClick={handleConnectTwitter}
+              className="px-2 py-1 bg-primary hover:bg-primary-hover rounded text-sm text-white-shadow"
+            >
+              Connect Twitter
             </button>
           </div>
         </div>
