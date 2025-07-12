@@ -430,8 +430,8 @@ input:focus {
 /* Horizontal history of previous rolls */
 .roll-history {
   position: absolute;
-  /* Slightly lower so the boxes sit a bit further from the avatar */
-  top: calc(100% + 0.7rem);
+  /* Keep equal spacing between avatar, score and boxes */
+  top: calc(100% + 0.2rem);
   left: 50%;
   transform: translateX(-50%);
   display: flex;
@@ -1372,7 +1372,8 @@ input:focus {
 
 .crazy-dice-board .player-right {
   position: absolute;
-  top: 17.5%;
+  /* Nudge slightly lower for better alignment */
+  top: 19%;
   right: 5%;
   transform: translate(50%, -50%);
 }

@@ -75,11 +75,7 @@ export default function CrazyDiceDuel() {
   const diceRef = useRef(null);
   const boardRef = useRef(null);
   const [diceStyle, setDiceStyle] = useState({ display: 'none' });
-  // Dice appear slightly smaller when resting at a player's position. The
-  // design calls for them to be roughly 30% smaller than their full size while
-  // rolling in the centre.
-  const DICE_SMALL_SCALE = 0.7;
-  const DICE_ANIM_DURATION = 1800;
+  // Dice remain at the centre with no travel animation
   const GRID_ROWS = 20;
   const GRID_COLS = 10;
 
@@ -186,90 +182,24 @@ export default function CrazyDiceDuel() {
     });
     let n = (current + 1) % players.length;
     while (players[n].rolls >= maxRolls) n = (n + 1) % players.length;
-    animateDiceToPlayer(n);
+    // Dice remain on the centre cell after rolling
   };
 
-  const prepareDiceAnimation = (startIdx) => {
-    if (startIdx == null) {
-      const { cx, cy } = getDiceCenter();
-      setDiceStyle({
-        display: 'block',
-        position: 'fixed',
-        left: '0px',
-        top: '0px',
-        transform: `translate(${cx}px, ${cy}px) translate(-50%, -50%) scale(1)`,
-        transition: 'none',
-        pointerEvents: 'none',
-        zIndex: 50,
-      });
-      return;
-    }
-    const { x, y } = getPlayerDicePos(startIdx);
+  const prepareDiceAnimation = () => {
+    const { cx, cy } = getDiceCenter();
     setDiceStyle({
       display: 'block',
       position: 'fixed',
       left: '0px',
       top: '0px',
-      transform: `translate(${x}px, ${y}px) translate(-50%, -50%) scale(${DICE_SMALL_SCALE})`,
+      transform: `translate(${cx}px, ${cy}px) translate(-50%, -50%) scale(1)`,
       transition: 'none',
       pointerEvents: 'none',
       zIndex: 50,
     });
   };
 
-  const animateDiceToCenter = (startIdx) => {
-    const dice = diceRef.current;
-    if (!dice) return;
-    const { x, y } = getPlayerDicePos(startIdx);
-    const { cx, cy } = getDiceCenter();
-    dice.style.display = 'block';
-    dice.style.position = 'fixed';
-    dice.style.left = '0px';
-    dice.style.top = '0px';
-    dice.style.pointerEvents = 'none';
-    dice.style.zIndex = '50';
-    dice.animate(
-      [
-        { transform: `translate(${x}px, ${y}px) translate(-50%, -50%) scale(${DICE_SMALL_SCALE})` },
-        { transform: `translate(${cx}px, ${cy}px) translate(-50%, -50%) scale(1)` },
-      ],
-      { duration: DICE_ANIM_DURATION, easing: 'ease-in-out' },
-    ).onfinish = () => {
-      setDiceStyle({
-        display: 'block',
-        position: 'fixed',
-        left: '0px',
-        top: '0px',
-        transform: `translate(${cx}px, ${cy}px) translate(-50%, -50%) scale(1)`,
-        pointerEvents: 'none',
-        zIndex: 50,
-      });
-    };
-  };
 
-  const animateDiceToPlayer = (idx) => {
-    const dice = diceRef.current;
-    if (!dice) return;
-    const { x, y } = getPlayerDicePos(idx);
-    const { cx, cy } = getDiceCenter();
-    dice.animate(
-      [
-        { transform: `translate(${cx}px, ${cy}px) translate(-50%, -50%) scale(1)` },
-        { transform: `translate(${x}px, ${y}px) translate(-50%, -50%) scale(${DICE_SMALL_SCALE})` },
-      ],
-      { duration: DICE_ANIM_DURATION, easing: 'ease-in-out' },
-    ).onfinish = () => {
-      setDiceStyle({
-        display: 'block',
-        position: 'fixed',
-        left: '0px',
-        top: '0px',
-        transform: `translate(${x}px, ${y}px) translate(-50%, -50%) scale(${DICE_SMALL_SCALE})`,
-        pointerEvents: 'none',
-        zIndex: 50,
-      });
-    };
-  };
 
   const nextTurn = () => {
     setCurrent((c) => {
@@ -367,8 +297,8 @@ export default function CrazyDiceDuel() {
             <DiceRoller
               onRollEnd={onRollEnd}
               onRollStart={() => {
-                prepareDiceAnimation(current);
-                animateDiceToCenter(current);
+                // Position dice directly at the centre cell without animation
+                prepareDiceAnimation();
               }}
               trigger={trigger}
               clickable={aiCount === 0 || current === 0}
