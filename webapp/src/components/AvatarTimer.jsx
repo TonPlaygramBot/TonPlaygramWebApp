@@ -40,11 +40,6 @@ export default function AvatarTimer({
           {name}
         </span>
       )}
-      {score != null && (
-        <span className="player-score" style={{ color: color || '#fde047' }}>
-          Score: {score}
-        </span>
-      )}
       {rollHistory && maxRolls > 0 && (
         <div className="roll-history" style={{ color: color || '#fde047' }}>
           {Array.from({ length: maxRolls }).map((_, i) => (
@@ -53,6 +48,11 @@ export default function AvatarTimer({
             </div>
           ))}
         </div>
+      )}
+      {score != null && (
+        <span className="player-score" style={{ color: color || '#fde047' }}>
+          Score: {score}
+        </span>
       )}
     </div>
   );

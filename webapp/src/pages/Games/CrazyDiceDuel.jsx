@@ -75,6 +75,7 @@ export default function CrazyDiceDuel() {
   const diceRef = useRef(null);
   const boardRef = useRef(null);
   const [diceStyle, setDiceStyle] = useState({ display: 'none' });
+
   // Dice remain at the centre with no travel animation
   const GRID_ROWS = 20;
   const GRID_COLS = 10;
@@ -195,9 +196,14 @@ export default function CrazyDiceDuel() {
       transform: `translate(${cx}px, ${cy}px) translate(-50%, -50%) scale(1)`,
       transition: 'none',
       pointerEvents: 'none',
-      zIndex: 50,
+      zIndex: 100,
     });
   };
+
+  // Ensure dice are visible on the board when the component mounts
+  useEffect(() => {
+    prepareDiceAnimation();
+  }, []);
 
 
 
