@@ -81,10 +81,10 @@ export default function CrazyDiceDuel() {
   const GRID_COLS = 10;
 
   const PLAYER_DICE_CELLS = [
-    ['E19', 'F19'],
-    ['A8', 'B8'],
-    ['E8', 'F8'],
-    ['I8', 'J8'],
+    ['F19', 'F19'],
+    ['B8', 'B8'],
+    ['F8', 'F8'],
+    ['J8', 'J8'],
   ];
 
   const getCellCenter = (label) => {
@@ -98,9 +98,8 @@ export default function CrazyDiceDuel() {
   };
 
   const getDiceCenter = () => {
-    const p1 = getCellCenter('E12');
-    const p2 = getCellCenter('F12');
-    return { cx: (p1.x + p2.x) / 2, cy: (p1.y + p2.y) / 2 };
+    const { x, y } = getCellCenter('F12');
+    return { cx: x, cy: y };
   };
 
   const getPlayerDicePos = (idx) => {
