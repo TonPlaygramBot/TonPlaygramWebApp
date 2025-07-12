@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import {
   listTasks,
   completeTask,
+  verifyRetweet,
   getAdStatus,
   watchAd,
   dailyCheckIn,
@@ -26,8 +27,9 @@ const ICONS = {
   join_twitter: <IoLogoTwitter className="text-sky-400 w-5 h-5" />,
 
   join_telegram: <RiTelegramFill className="text-sky-400 w-5 h-5" />,
-
+  
   follow_tiktok: <IoLogoTiktok className="text-pink-500 w-5 h-5" />,
+  retweet_post: <IoLogoTwitter className="text-sky-400 w-5 h-5" />,
   watch_ad: <FiVideo className="text-yellow-500 w-5 h-5" />
 
 };
@@ -50,6 +52,7 @@ export default function TasksCard() {
   const [tasks, setTasks] = useState(null);
   const [adCount, setAdCount] = useState(0);
   const [showAd, setShowAd] = useState(false);
+  const [retweetLink, setRetweetLink] = useState('');
   const walletAddress = useTonAddress();
   const [tonConnectUI] = useTonConnectUI();
   const [streak, setStreak] = useState(1);
@@ -96,6 +99,18 @@ export default function TasksCard() {
 
     load();
 
+  };
+
+  const handleRetweet = async () => {
+    if (!retweetLink) return;
+    const res = await verifyRetweet(telegramId, retweetLink);
+    if (!res.error) {
+      await completeTask(telegramId, 'retweet_post');
+      setRetweetLink('');
+      load();
+    } else {
+      alert(res.error);
+    }
   };
 
   const handleDailyCheck = async () => {
@@ -208,6 +223,21 @@ export default function TasksCard() {
               <span className="text-xs text-subtext flex items-center gap-1">{t.reward} <img src="/assets/icons/TPCcoin_1.webp" alt="TPC" className="w-4 h-4" /></span>
               {t.completed ? (
                 <span className="text-green-500 font-semibold text-sm">Done</span>
+              ) : t.id === 'retweet_post' ? (
+                <div className="flex items-center gap-2">
+                  <input
+                    value={retweetLink}
+                    onChange={(e) => setRetweetLink(e.target.value)}
+                    placeholder="Retweet link"
+                    className="px-1 py-0.5 text-xs bg-surface border border-border rounded"
+                  />
+                  <button
+                    onClick={handleRetweet}
+                    className="px-2 py-0.5 bg-primary hover:bg-primary-hover text-background text-sm rounded"
+                  >
+                    Verify
+                  </button>
+                </div>
               ) : (
                 <button
                   onClick={() => handleClaim(t)}

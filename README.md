@@ -15,6 +15,7 @@
    - `DEV_ACCOUNT_ID_1` – (optional) secondary developer account (1% share)
    - `DEV_ACCOUNT_ID_2` – (optional) secondary developer account (2% share)
    - `API_AUTH_TOKEN` – (optional) token for trusted server-to-server calls
+   - `TWITTER_BEARER_TOKEN` – bearer token for verifying retweets
 
 4. Copy `webapp/.env.example` to `webapp/.env` and configure:
    - `VITE_API_BASE_URL` – the base URL where the bot API is hosted (e.g. `http://localhost:3000`).
