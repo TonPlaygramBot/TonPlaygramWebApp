@@ -24,6 +24,7 @@ import AvatarPromptModal from '../components/AvatarPromptModal.jsx';
 import { getAvatarUrl, saveAvatar, loadAvatar } from '../utils/avatarUtils.js';
 import InfoPopup from '../components/InfoPopup.jsx';
 import DevNotifyModal from '../components/DevNotifyModal.jsx';
+import InfluencerClaimsCard from '../components/InfluencerClaimsCard.jsx';
 import Wallet from './Wallet.jsx';
 
 import { FiCopy } from 'react-icons/fi';
@@ -311,6 +312,8 @@ export default function MyAccount() {
               Notify
             </button>
           </div>
+
+          <InfluencerClaimsCard />
         </>
       )}
 

@@ -242,7 +242,7 @@ export default function TasksCard() {
                 <div className="space-y-2 w-full">
                   <button
                     onClick={() => setShowPosts(true)}
-                    className="px-2 py-0.5 bg-primary hover:bg-primary-hover text-background text-sm rounded w-full"
+                    className="px-2 py-0.5 bg-primary hover:bg-primary-hover text-background text-sm rounded w-1/2"
                   >
                     View Posts
                   </button>

@@ -28,6 +28,15 @@ import { useTonAddress, useTonConnectUI } from '@tonconnect/ui-react';
 import { STORE_ADDRESS } from '../utils/storeData.js';
 
 const REWARDS = Array.from({ length: 30 }, (_, i) => Math.floor(100 + (i + 1) * 50));
+const INFLUENCER_REWARDS = [
+  { range: '0 – 149', reward: '0 TPC', notes: 'Below threshold' },
+  { range: '150 – 2,999', reward: '300 TPC', notes: 'Entry-level reward' },
+  { range: '3,000 – 7,999', reward: '900 TPC', notes: 'Small creator range' },
+  { range: '8,000 – 14,999', reward: '1,800 TPC', notes: 'Medium growth videos' },
+  { range: '15,000 – 29,999', reward: '3,500 TPC', notes: 'Strong organic reach' },
+  { range: '30,000 – 99,999', reward: '8,000 TPC', notes: 'Viral tier' },
+  { range: '100,000+', reward: '20,000 TPC', notes: 'Top influencer bonus tier' },
+];
 const ONE_DAY = 24 * 60 * 60 * 1000;
 
 export default function Tasks() {
@@ -241,7 +250,7 @@ export default function Tasks() {
                   <div className="space-y-2 w-full">
                     <button
                       onClick={() => setShowPosts(true)}
-                      className="px-2 py-0.5 bg-primary hover:bg-primary-hover text-background text-sm rounded w-full"
+                      className="px-2 py-0.5 bg-primary hover:bg-primary-hover text-background text-sm rounded w-1/2"
                     >
                       View Posts
                     </button>
@@ -322,6 +331,24 @@ export default function Tasks() {
               >
                 Submit
               </button>
+              <table className="w-full text-xs text-center mt-2 border-collapse">
+                <thead>
+                  <tr className="border-b border-border">
+                    <th className="py-1">Views Range</th>
+                    <th className="py-1">Reward (TPC)</th>
+                    <th className="py-1">Notes</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {INFLUENCER_REWARDS.map((r) => (
+                    <tr key={r.range} className="border-b border-border last:border-0">
+                      <td className="py-1">{r.range}</td>
+                      <td className="py-1">{r.reward}</td>
+                      <td className="py-1">{r.notes}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
           )}
           {infTab === 'mine' && (
