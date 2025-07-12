@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import Task from '../models/Task.js';
 import User from '../models/User.js';
-import { TASKS } from '../utils/tasksData.js';
+import { TASKS, TASKS_VERSION } from '../utils/tasksData.js';
 import { ensureTransactionArray } from '../utils/userUtils.js';
 import { TwitterApi } from 'twitter-api-v2';
 import PostRecord from '../models/PostRecord.js';
@@ -15,11 +15,13 @@ router.post('/list', async (req, res) => {
   const { telegramId } = req.body;
   if (!telegramId) return res.status(400).json({ error: 'telegramId required' });
 
-  const tasks = await Promise.all(TASKS.map(async t => {
-    const rec = await Task.findOne({ telegramId, taskId: t.id });
-    return { ...t, completed: !!rec };
-  }));
-  res.json(tasks);
+  const tasks = await Promise.all(
+    TASKS.map(async (t) => {
+      const rec = await Task.findOne({ telegramId, taskId: t.id });
+      return { ...t, completed: !!rec };
+    })
+  );
+  res.json({ version: TASKS_VERSION, tasks });
 });
 
 router.post('/complete', async (req, res) => {

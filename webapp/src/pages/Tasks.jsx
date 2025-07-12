@@ -22,6 +22,7 @@ import { FiVideo } from 'react-icons/fi';
 import { AiOutlineCheck } from 'react-icons/ai';
 import AdModal from '../components/AdModal.tsx';
 import PostsModal from '../components/PostsModal.jsx';
+import InfoPopup from '../components/InfoPopup.jsx';
 import useTelegramBackButton from '../hooks/useTelegramBackButton.js';
 import { useTonAddress, useTonConnectUI } from '@tonconnect/ui-react';
 import { STORE_ADDRESS } from '../utils/storeData.js';
@@ -44,6 +45,7 @@ export default function Tasks() {
   const [adCount, setAdCount] = useState(0);
   const [showAd, setShowAd] = useState(false);
   const [showPosts, setShowPosts] = useState(false);
+  const [showNew, setShowNew] = useState(false);
   const [postLink, setPostLink] = useState('');
   const [category, setCategory] = useState('TonPlaygram');
   const [infTab, setInfTab] = useState('submit');
@@ -62,7 +64,15 @@ export default function Tasks() {
 
   const load = async () => {
     const data = await listTasks(telegramId);
-    setTasks(data);
+    const tasksList = data.tasks || data;
+    setTasks(tasksList);
+    if (data.version) {
+      const seen = localStorage.getItem('tasksVersion');
+      if (seen !== String(data.version)) {
+        setShowNew(true);
+        localStorage.setItem('tasksVersion', String(data.version));
+      }
+    }
     const ad = await getAdStatus(telegramId);
     if (!ad.error) setAdCount(ad.count);
     try {
@@ -159,6 +169,7 @@ export default function Tasks() {
     join_twitter: <IoLogoTwitter className="text-sky-400 w-5 h-5" />,
     join_telegram: <RiTelegramFill className="text-sky-400 w-5 h-5" />,
     follow_tiktok: <IoLogoTiktok className="text-pink-500 w-5 h-5" />,
+    boost_tiktok: <IoLogoTiktok className="text-pink-500 w-5 h-5" />,
     post_tweet: <IoLogoTwitter className="text-sky-400 w-5 h-5" />,
     watch_ad: <FiVideo className="text-yellow-500 w-5 h-5" />
   };
@@ -344,6 +355,12 @@ export default function Tasks() {
         open={showPosts}
         posts={tasks?.find((t) => t.id === 'post_tweet')?.posts || []}
         onClose={() => setShowPosts(false)}
+      />
+      <InfoPopup
+        open={showNew}
+        onClose={() => setShowNew(false)}
+        title="New Tasks"
+        info="We've added new tasks!"
       />
 
     </div>

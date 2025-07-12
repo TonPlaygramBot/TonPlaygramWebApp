@@ -21,6 +21,7 @@ import { RiTelegramFill } from 'react-icons/ri';
 import { FiVideo } from 'react-icons/fi';
 import AdModal from './AdModal.tsx';
 import PostsModal from './PostsModal.jsx';
+import InfoPopup from './InfoPopup.jsx';
 import { AiOutlineCheckSquare, AiOutlineCheck } from 'react-icons/ai';
 
 const ICONS = {
@@ -30,6 +31,7 @@ const ICONS = {
   join_telegram: <RiTelegramFill className="text-sky-400 w-5 h-5" />,
   
   follow_tiktok: <IoLogoTiktok className="text-pink-500 w-5 h-5" />,
+  boost_tiktok: <IoLogoTiktok className="text-pink-500 w-5 h-5" />,
   post_tweet: <IoLogoTwitter className="text-sky-400 w-5 h-5" />,
   watch_ad: <FiVideo className="text-yellow-500 w-5 h-5" />
 
@@ -66,10 +68,19 @@ export default function TasksCard() {
     const ts = localStorage.getItem('lastOnchainCheck');
     return ts ? parseInt(ts, 10) : null;
   });
+  const [showNew, setShowNew] = useState(false);
 
   const load = async () => {
     const data = await listTasks(telegramId);
-    setTasks(data);
+    const tasksList = data.tasks || data;
+    setTasks(tasksList);
+    if (data.version) {
+      const seen = localStorage.getItem('tasksVersion');
+      if (seen !== String(data.version)) {
+        setShowNew(true);
+        localStorage.setItem('tasksVersion', String(data.version));
+      }
+    }
     const ad = await getAdStatus(telegramId);
     if (!ad.error) setAdCount(ad.count);
     try {
@@ -287,6 +298,12 @@ export default function TasksCard() {
         open={showPosts}
         posts={tasks.find((t) => t.id === 'post_tweet')?.posts || []}
         onClose={() => setShowPosts(false)}
+      />
+      <InfoPopup
+        open={showNew}
+        onClose={() => setShowNew(false)}
+        title="New Tasks"
+        info="We've added new tasks!"
       />
 
     </div>
