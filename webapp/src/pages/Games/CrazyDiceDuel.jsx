@@ -288,9 +288,7 @@ export default function CrazyDiceDuel() {
   const gridCells = [];
   for (let r = 0; r < GRID_ROWS; r++) {
     for (let c = 0; c < GRID_COLS; c++) {
-      const label =
-        (r === 0 ? String.fromCharCode(65 + c) : '') +
-        (c === 0 ? r + 1 : '');
+      const label = `${String.fromCharCode(65 + c)}${r + 1}`;
       gridCells.push({ label });
     }
   }

@@ -425,15 +425,12 @@ input:focus {
   color: inherit;
   white-space: nowrap;
   padding: 0 0.2rem;
-  border: 1px solid currentColor;
-  border-radius: 0.15rem;
-  background-color: rgba(0, 0, 0, 0.25);
 }
 
 /* Horizontal history of previous rolls */
 .roll-history {
   position: absolute;
-  top: calc(100% + 0.5rem);
+  top: calc(100% + 0.7rem);
   left: 50%;
   transform: translateX(-50%);
   display: flex;
