@@ -6,7 +6,6 @@ import BottomLeftIcons from '../../components/BottomLeftIcons.jsx';
 import QuickMessagePopup from '../../components/QuickMessagePopup.jsx';
 import GiftPopup from '../../components/GiftPopup.jsx';
 import GameEndPopup from '../../components/GameEndPopup.jsx';
-import Branding from '../../components/Branding.jsx';
 import useTelegramBackButton from '../../hooks/useTelegramBackButton.js';
 import { loadAvatar } from '../../utils/avatarUtils.js';
 import { chatBeep, timerBeep } from '../../assets/soundData.js';
@@ -284,9 +283,20 @@ export default function CrazyDiceDuel() {
     nextTurn();
   };
 
+  const GRID_ROWS = 20;
+  const GRID_COLS = 10;
+  const gridCells = [];
+  for (let r = 0; r < GRID_ROWS; r++) {
+    for (let c = 0; c < GRID_COLS; c++) {
+      const label =
+        (r === 0 ? String.fromCharCode(65 + c) : '') +
+        (c === 0 ? r + 1 : '');
+      gridCells.push({ label });
+    }
+  }
+
   return (
     <div className="text-text relative">
-      <Branding scale={1.2} />
       {bgUnlocked && (
         <img
           src="/assets/SnakeLaddersbackground.png"
@@ -311,6 +321,13 @@ export default function CrazyDiceDuel() {
         alt="board"
         className="board-bg"
       />
+      <div className="grid-overlay">
+        {gridCells.map((cell, i) => (
+          <div key={i} className="grid-cell">
+            {cell.label && <span className="grid-label">{cell.label}</span>}
+          </div>
+        ))}
+      </div>
       <div className="side-number top">1</div>
       <div className="side-number bottom">2</div>
       <div className="side-number left">3</div>

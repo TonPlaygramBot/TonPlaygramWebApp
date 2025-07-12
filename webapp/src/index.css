@@ -1308,6 +1308,27 @@ input:focus {
   filter: brightness(1.2);
   z-index: -1;
 }
+.crazy-dice-board .grid-overlay {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  grid-template-columns: repeat(10, 1fr);
+  grid-template-rows: repeat(20, 1fr);
+  pointer-events: none;
+  z-index: 0;
+}
+.crazy-dice-board .grid-overlay .grid-cell {
+  border: 1px dashed rgba(255, 255, 255, 0.2);
+  position: relative;
+}
+.crazy-dice-board .grid-overlay .grid-label {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  font-size: 0.5rem;
+  color: #fff;
+  opacity: 0.6;
+}
 .crazy-dice-board .dice-center {
   position: absolute;
   top: 40%;
