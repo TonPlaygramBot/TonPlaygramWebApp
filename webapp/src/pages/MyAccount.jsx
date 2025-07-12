@@ -73,7 +73,6 @@ export default function MyAccount() {
   const [converting, setConverting] = useState(false);
   const [convertAction, setConvertAction] = useState('burn');
   const [transferAccount, setTransferAccount] = useState('');
-  const [twitterHandle, setTwitterHandle] = useState('');
   const [twitterError, setTwitterError] = useState('');
   const [unread, setUnread] = useState(0);
 
@@ -132,7 +131,6 @@ export default function MyAccount() {
         const res = await getUnreadCount(telegramId);
         if (!res.error) setUnread(res.count);
       } catch {}
-      setTwitterHandle(finalProfile.social?.twitter || '');
       if (!localStorage.getItem('avatarPromptShown')) {
         setShowAvatarPrompt(true);
       }
@@ -211,21 +209,6 @@ export default function MyAccount() {
     }
   };
 
-  const handleLinkTwitter = async () => {
-    setTwitterError('');
-    try {
-      const res = await linkSocial({ telegramId, twitter: twitterHandle.trim() });
-      if (res?.error) {
-        setTwitterError(res.error);
-      } else {
-        setProfile((p) => ({ ...p, social: res.social }));
-        setTwitterHandle(res.social.twitter || '');
-      }
-    } catch (err) {
-      console.error('link twitter failed', err);
-      setTwitterError('Failed to link');
-    }
-  };
 
   const handleConnectTwitter = async () => {
     setTwitterError('');
@@ -254,7 +237,6 @@ export default function MyAccount() {
         setTwitterError(res.error);
       } else {
         setProfile((p) => ({ ...p, social: res.social }));
-        setTwitterHandle('');
       }
     } catch (err) {
       console.error('clear twitter failed', err);
@@ -345,7 +327,7 @@ export default function MyAccount() {
               )}
             </a>
           </div>
-          {profile.social?.twitter && (
+          {profile.social?.twitter ? (
             <p className="text-sm mt-2">
               Linked Twitter: @{profile.social.twitter}{' '}
               <button
@@ -355,28 +337,14 @@ export default function MyAccount() {
                 Clear
               </button>
             </p>
-          )}
-          <div className="mt-2 flex items-center space-x-2">
-            <input
-              type="text"
-              placeholder="Twitter handle"
-              value={twitterHandle}
-              onChange={(e) => setTwitterHandle(e.target.value)}
-              className="border p-1 rounded text-black flex-grow"
-            />
-            <button
-              onClick={handleLinkTwitter}
-              className="px-2 py-1 bg-primary hover:bg-primary-hover rounded text-sm text-white-shadow"
-            >
-              Save
-            </button>
+          ) : (
             <button
               onClick={handleConnectTwitter}
-              className="px-2 py-1 bg-primary hover:bg-primary-hover rounded text-sm text-white-shadow"
+              className="mt-2 px-2 py-1 bg-primary hover:bg-primary-hover rounded text-sm text-white-shadow"
             >
               Connect Twitter
             </button>
-          </div>
+          )}
         </div>
       </div>
 
