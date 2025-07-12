@@ -1,4 +1,4 @@
-export const TASKS_VERSION = 2;
+export const TASKS_VERSION = 3;
 
 export const TASKS = [
 
@@ -49,6 +49,22 @@ export const TASKS = [
     reward: 2000,
     icon: 'tiktok',
     link: 'https://vt.tiktok.com/ZSBXkX8pu/'
+  },
+
+  {
+    id: 'react_tg_post',
+    description: 'React to our group post',
+    reward: 2500,
+    icon: 'telegram',
+    link: 'https://t.me/TonPlaygram/1/16'
+  },
+
+  {
+    id: 'engage_tweet',
+    description: 'Like, comment & repost on X',
+    reward: 2500,
+    icon: 'twitter',
+    link: 'https://x.com/TonPlaygram/status/1943907328652402954?t=bG-Ps1S8rbJ-afx2OwcZhA&s=19'
   },
 
   {
