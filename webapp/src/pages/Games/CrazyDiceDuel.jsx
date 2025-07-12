@@ -1,4 +1,11 @@
-import { useState, useMemo, useEffect, useRef, useCallback } from 'react';
+import {
+  useState,
+  useMemo,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useCallback,
+} from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import DiceRoller from '../../components/DiceRoller.jsx';
 import AvatarTimer from '../../components/AvatarTimer.jsx';
@@ -200,9 +207,12 @@ export default function CrazyDiceDuel() {
     });
   };
 
-  // Ensure dice are visible on the board when the component mounts
-  useEffect(() => {
-    prepareDiceAnimation();
+  // Ensure dice are positioned correctly once the layout is ready
+  useLayoutEffect(() => {
+    const update = () => prepareDiceAnimation();
+    update();
+    window.addEventListener('resize', update);
+    return () => window.removeEventListener('resize', update);
   }, []);
 
 
@@ -281,6 +291,7 @@ export default function CrazyDiceDuel() {
         src="/assets/icons/file_00000000d410620a8c1878be43e192a1.png"
         alt="board"
         className="board-bg"
+        onLoad={prepareDiceAnimation}
       />
       <div className="grid-overlay">
         {gridCells.map((cell, i) => (
