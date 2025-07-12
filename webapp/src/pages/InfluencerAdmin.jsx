@@ -1,18 +1,41 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { listAllInfluencer, verifyInfluencer } from '../utils/api.js';
 import useTelegramBackButton from '../hooks/useTelegramBackButton.js';
+import { socket } from '../utils/socket.js';
+import InfoPopup from '../components/InfoPopup.jsx';
+import { isGameMuted, getGameVolume } from '../utils/sound.js';
 
 export default function InfluencerAdmin() {
   useTelegramBackButton();
   const [tasks, setTasks] = useState([]);
   const [views, setViews] = useState({});
+  const [notif, setNotif] = useState('');
+  const beepRef = useRef(null);
 
   const load = async () => {
     const data = await listAllInfluencer();
     if (!data.error) setTasks(data);
   };
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => {
+    load();
+    beepRef.current = new Audio('/assets/sounds/successful.mp3');
+    beepRef.current.volume = getGameVolume();
+    beepRef.current.muted = isGameMuted();
+    const onNew = ({ videoUrl, platform }) => {
+      setNotif(`New ${platform} submission: ${videoUrl}`);
+      if (beepRef.current && !isGameMuted()) {
+        beepRef.current.currentTime = 0;
+        beepRef.current.play().catch(() => {});
+      }
+      load();
+    };
+    socket.on('influencerSubmit', onNew);
+    return () => {
+      socket.off('influencerSubmit', onNew);
+      beepRef.current?.pause();
+    };
+  }, []);
 
   const handle = async (id, status) => {
     const v = parseInt(views[id] || '0', 10);
@@ -54,6 +77,11 @@ export default function InfluencerAdmin() {
           <p className="text-center text-subtext text-sm">No submissions.</p>
         )}
       </ul>
+      <InfoPopup
+        open={!!notif}
+        onClose={() => setNotif('')}
+        info={notif}
+      />
     </div>
   );
 }
