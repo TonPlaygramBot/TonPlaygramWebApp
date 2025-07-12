@@ -75,7 +75,10 @@ export default function CrazyDiceDuel() {
   const diceRef = useRef(null);
   const boardRef = useRef(null);
   const [diceStyle, setDiceStyle] = useState({ display: 'none' });
-  const DICE_SMALL_SCALE = 0.44;
+  // Dice appear slightly smaller when resting at a player's position. The
+  // design calls for them to be roughly 30% smaller than their full size while
+  // rolling in the centre.
+  const DICE_SMALL_SCALE = 0.7;
   const DICE_ANIM_DURATION = 1800;
   const GRID_ROWS = 20;
   const GRID_COLS = 10;
