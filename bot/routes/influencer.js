@@ -2,16 +2,18 @@ import { Router } from 'express';
 import InfluencerTask from '../models/InfluencerTask.js';
 import User from '../models/User.js';
 import { ensureTransactionArray } from '../utils/userUtils.js';
+import bot from '../bot.js';
 
 const router = Router();
 
 function calculateReward(views) {
-  if (views < 1000) return 0;
-  if (views < 5000) return 100;
-  if (views < 10000) return 250;
-  if (views < 25000) return 600;
-  if (views < 100000) return 1200;
-  return 2500;
+  if (views < 150) return 0;
+  if (views < 3000) return 300;
+  if (views < 8000) return 900;
+  if (views < 15000) return 1800;
+  if (views < 30000) return 3500;
+  if (views < 100000) return 8000;
+  return 20000;
 }
 
 // submit influencer video
@@ -26,6 +28,32 @@ router.post('/submit', async (req, res) => {
       videoUrl,
       platform,
     });
+    const io = req.app.get('io');
+    const sockets = req.app.get('userSockets');
+    const devAccount =
+      process.env.DEV_ACCOUNT_ID || process.env.VITE_DEV_ACCOUNT_ID;
+    if (io && sockets && devAccount) {
+      const targets = sockets.get(String(devAccount));
+      if (targets) {
+        for (const sid of targets) {
+          io.to(sid).emit('influencerSubmit', {
+            videoUrl,
+            platform,
+          });
+        }
+      }
+      try {
+        const devUser = await User.findOne({ accountId: devAccount });
+        if (devUser?.telegramId) {
+          await bot.telegram.sendMessage(
+            String(devUser.telegramId),
+            `New influencer submission: ${videoUrl}`,
+          );
+        }
+      } catch (e) {
+        console.error('dev notify failed:', e.message);
+      }
+    }
     res.json(task);
   } catch (err) {
     console.error('submit influencer failed:', err.message);

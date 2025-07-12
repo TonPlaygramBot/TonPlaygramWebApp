@@ -49,6 +49,9 @@ const httpServer = http.createServer(app);
 const io = new SocketIOServer(httpServer, { cors: { origin: '*' } });
 const gameManager = new GameRoomManager(io);
 
+// Expose socket.io instance and userSockets map for routes
+app.set('io', io);
+
 bot.action(/^reject_invite:(.+)/, async (ctx) => {
   const [roomId, telegramId] = ctx.match[1].split(':');
   await ctx.answerCbQuery('Invite rejected');
@@ -191,6 +194,8 @@ const onlineUsers = new Map();
 const tableSeats = new Map();
 const userSockets = new Map();
 const pendingInvites = new Map();
+
+app.set('userSockets', userSockets);
 
 const tableWatchers = new Map();
 const BUNDLE_TON_MAP = Object.fromEntries(
