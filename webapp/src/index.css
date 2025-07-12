@@ -418,7 +418,7 @@ input:focus {
 /* Score display below each avatar */
 .player-score {
   position: absolute;
-  top: calc(100% + 0.1rem);
+  top: calc(100% + 1.3rem); /* below roll boxes with space */
   left: 50%;
   transform: translateX(-50%);
   font-size: 0.6rem;
@@ -430,8 +430,8 @@ input:focus {
 /* Horizontal history of previous rolls */
 .roll-history {
   position: absolute;
-  /* Keep equal spacing between avatar, score and boxes */
-  top: calc(100% + 0.2rem);
+  /* Directly below avatar */
+  top: calc(100% + 0.1rem);
   left: 50%;
   transform: translateX(-50%);
   display: flex;
