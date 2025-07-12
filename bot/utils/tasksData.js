@@ -1,3 +1,5 @@
+export const TASKS_VERSION = 2;
+
 export const TASKS = [
 
   {
@@ -39,7 +41,14 @@ export const TASKS = [
     icon: 'tiktok',
 
   link: 'https://www.tiktok.com/@tonplaygram?_t=ZS-8xxPL1nbD9U&_r=1'
+  },
 
+  {
+    id: 'boost_tiktok',
+    description: 'Like & repost our TikTok',
+    reward: 2000,
+    icon: 'tiktok',
+    link: 'https://vt.tiktok.com/ZSBXkX8pu/'
   },
 
   {
