@@ -69,7 +69,12 @@ router.post('/verify-post', async (req, res) => {
   }
 
   if (!twitterClient) {
-    return res.status(500).json({ error: 'Twitter API not configured' });
+    return res
+      .status(500)
+      .json({
+        error:
+          'Twitter API not configured. Set TWITTER_BEARER_TOKEN in bot/.env',
+      });
   }
 
   const providedId = (tweetUrl.match(/status\/(\d+)/) || [])[1];
