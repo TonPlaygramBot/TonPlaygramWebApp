@@ -137,6 +137,11 @@ input:focus {
   perspective: 600px;
 }
 
+/* Slightly smaller dice for Crazy Dice Duel */
+.crazy-dice {
+  transform: scale(0.8);
+}
+
 .dice-cube {
   @apply relative w-12 h-12 bg-white rounded-xl;
   border: none;

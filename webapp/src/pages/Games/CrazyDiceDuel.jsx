@@ -251,14 +251,15 @@ export default function CrazyDiceDuel() {
       <div className="side-number right">4</div>
       <div className="dice-center">
         {winner == null ? (
-          <DiceRoller
-            onRollEnd={onRollEnd}
-            trigger={trigger}
-            clickable={aiCount === 0 || current === 0}
-            showButton={aiCount === 0 || current === 0}
-            diceContainerClassName="space-x-8"
-            className="crazy-dice"
-          />
+          <div className="crazy-dice">
+            <DiceRoller
+              onRollEnd={onRollEnd}
+              trigger={trigger}
+              clickable={aiCount === 0 || current === 0}
+              showButton={aiCount === 0 || current === 0}
+              diceContainerClassName="space-x-8"
+            />
+          </div>
         ) : (
           <div className="text-2xl font-bold text-center">
             Player {winner + 1} wins!
