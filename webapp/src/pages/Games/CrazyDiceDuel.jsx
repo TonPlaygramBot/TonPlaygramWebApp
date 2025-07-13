@@ -351,7 +351,11 @@ export default function CrazyDiceDuel() {
           : p
       );
       nextIndex = (current + 1) % updated.length;
-      while (updated[nextIndex].rolls >= maxRolls) nextIndex = (nextIndex + 1) % updated.length;
+      let attempts = 0;
+      while (updated[nextIndex].rolls >= maxRolls && attempts < updated.length) {
+        nextIndex = (nextIndex + 1) % updated.length;
+        attempts += 1;
+      }
       return updated;
     });
     setRollResult(value);
