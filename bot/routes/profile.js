@@ -4,6 +4,23 @@ import User from '../models/User.js';
 import { fetchTelegramInfo } from '../utils/telegram.js';
 import { ensureTransactionArray, calculateBalance } from '../utils/userUtils.js';
 
+function parseTwitterHandle(input) {
+  if (!input) return '';
+  let handle = String(input).trim();
+  // Remove URL parts if a full profile link was provided
+  try {
+    const url = new URL(handle);
+    handle = url.pathname.replace(/^\//, '');
+  } catch {
+    // not a URL
+  }
+  // Drop query or trailing segments
+  handle = handle.split(/[/?]/)[0];
+  // Strip leading @ if present
+  handle = handle.replace(/^@/, '');
+  return handle;
+}
+
 const router = Router();
 
 router.post('/register-wallet', async (req, res) => {
@@ -187,7 +204,7 @@ router.post('/link-social', async (req, res) => {
   if (!telegramId) return res.status(400).json({ error: 'telegramId required' });
 
   const update = {};
-  if (twitter !== undefined) update['social.twitter'] = twitter;
+  if (twitter !== undefined) update['social.twitter'] = parseTwitterHandle(twitter);
   if (telegramHandle !== undefined) update['social.telegram'] = telegramHandle;
   if (discord !== undefined) update['social.discord'] = discord;
 
