@@ -99,7 +99,7 @@ export default function CrazyDiceDuel() {
   }, []);
 
   useEffect(() => {
-    prepareDiceAnimation(0);
+    prepareDiceAnimation();
   }, []);
 
   useEffect(() => {
