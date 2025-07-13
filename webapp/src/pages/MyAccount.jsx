@@ -210,22 +210,22 @@ export default function MyAccount() {
   };
 
 
-  const handleConnectTwitter = async () => {
+  const [twitterInput, setTwitterInput] = useState('');
+
+  const handleSaveTwitter = async () => {
+    if (!twitterInput) return;
     setTwitterError('');
     try {
-      const res = await fetch('/api/twitter/start', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ telegramId })
-      }).then(r => r.json());
-      if (res.url) {
-        window.open(res.url, '_blank');
-      } else if (res.error) {
+      const res = await linkSocial({ telegramId, twitter: twitterInput });
+      if (res?.error) {
         setTwitterError(res.error);
+      } else {
+        setProfile((p) => ({ ...p, social: res.social }));
+        setTwitterInput('');
       }
     } catch (err) {
-      console.error('connect twitter failed', err);
-      setTwitterError('Failed to start Twitter auth');
+      console.error('save twitter failed', err);
+      setTwitterError('Failed to save');
     }
   };
 
@@ -329,7 +329,7 @@ export default function MyAccount() {
           </div>
           {profile.social?.twitter ? (
             <p className="text-sm mt-2">
-              Linked Twitter: @{profile.social.twitter}{' '}
+              Linked X: @{profile.social.twitter}{' '}
               <button
                 onClick={handleClearTwitter}
                 className="underline text-primary ml-1"
@@ -338,12 +338,21 @@ export default function MyAccount() {
               </button>
             </p>
           ) : (
-            <button
-              onClick={handleConnectTwitter}
-              className="mt-2 px-2 py-1 bg-primary hover:bg-primary-hover rounded text-sm text-white-shadow"
-            >
-              Connect Twitter
-            </button>
+            <div className="mt-2 flex items-center space-x-2">
+              <input
+                type="text"
+                placeholder="X profile link or @handle"
+                value={twitterInput}
+                onChange={(e) => setTwitterInput(e.target.value)}
+                className="border p-1 rounded text-black flex-grow"
+              />
+              <button
+                onClick={handleSaveTwitter}
+                className="px-2 py-1 bg-primary hover:bg-primary-hover rounded text-sm text-white-shadow"
+              >
+                Save
+              </button>
+            </div>
           )}
         </div>
       </div>
