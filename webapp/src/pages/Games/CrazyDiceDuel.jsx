@@ -83,7 +83,9 @@ export default function CrazyDiceDuel() {
   const boardBgSrc =
     playerCount === 3
       ? '/assets/icons/file_00000000571c6243a07777efa0e0e835 (1).png'
-      : '/assets/icons/file_00000000d410620a8c1878be43e192a1.png';
+      : playerCount === 2
+        ? '/assets/icons/file_000000004fa461f4986874d9da2b93e0 (1).png'
+        : '/assets/icons/file_00000000d410620a8c1878be43e192a1.png';
 
   const boardRef = useRef(null);
   const diceRef = useRef(null);
@@ -166,9 +168,12 @@ export default function CrazyDiceDuel() {
   const getDiceCenter = (playerIdx = 'center') => {
     const posMap = {
       0: { label: 'F19', dx: -0.1 }, // Player 1
-      1: { label: 'B8', dx: -0.1 },  // Player 2
-      2: { label: 'F8' },            // Player 3
-      3: { label: 'J9' },            // Player 4
+      1:
+        playerCount === 2
+          ? { label: 'F8' }
+          : { label: 'B8', dx: -0.1 }, // Player 2
+      2: { label: 'F8' }, // Player 3
+      3: { label: 'J9' }, // Player 4
       center: { label: 'F12' },
     };
     const entry = posMap[playerIdx] || {};
@@ -410,7 +415,9 @@ export default function CrazyDiceDuel() {
         const positions =
           playerCount === 3
             ? ['player-left', 'player-right']
-            : ['player-left', 'player-center', 'player-right'];
+            : playerCount === 2
+              ? ['player-center']
+              : ['player-left', 'player-center', 'player-right'];
         const pos = positions[i] || '';
         return (
           <div key={i + 1} className={`${pos} z-10`}>
