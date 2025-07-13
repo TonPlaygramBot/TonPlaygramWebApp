@@ -62,6 +62,25 @@ router.post('/complete', async (req, res) => {
       console.error('telegram reaction verify failed:', err.message);
       return res.status(500).json({ error: 'verification failed' });
     }
+  } else if (taskId === 'engage_tweet') {
+    if (!twitterClient) {
+      return res.status(500).json({ error: 'Twitter API not configured. Set TWITTER_BEARER_TOKEN in bot/.env' });
+    }
+    const tweetId = extractTweetId(config.link || '');
+    if (!tweetId) return res.status(500).json({ error: 'task misconfigured' });
+    try {
+      const [liked, retweeted, replied] = await Promise.all([
+        didLike(telegramId, tweetId),
+        didRetweet(telegramId, tweetId),
+        didReply(telegramId, tweetId)
+      ]);
+      if (!liked || !retweeted || !replied) {
+        return res.status(400).json({ error: 'engagement not verified' });
+      }
+    } catch (err) {
+      console.error('engage tweet verify failed:', err.message);
+      return res.status(500).json({ error: 'verification failed' });
+    }
   }
 
   const existing = await Task.findOne({ telegramId, taskId });
@@ -94,6 +113,98 @@ router.post('/verify-telegram-reaction', async (req, res) => {
     res.json({ reacted: ids.includes(Number(telegramId)) });
   } catch (err) {
     console.error('verify-telegram-reaction failed:', err.message);
+    res.status(500).json({ error: 'verification failed' });
+  }
+});
+
+async function getUserId(handle) {
+  const info = await twitterClient.v2.userByUsername(handle);
+  return info?.data?.id;
+}
+
+function extractTweetId(url) {
+  return (url.match(/status\/(\d+)/) || [])[1];
+}
+
+async function didLike(telegramId, tweetId) {
+  const user = await User.findOne({ telegramId });
+  const handle = user?.social?.twitter;
+  if (!handle) throw new Error('twitter handle not linked');
+  const userId = await getUserId(handle);
+  const resp = await twitterClient.v2.tweetLikedBy(tweetId);
+  return Array.isArray(resp?.data) && resp.data.some((u) => u.id === userId);
+}
+
+async function didRetweet(telegramId, tweetId) {
+  const user = await User.findOne({ telegramId });
+  const handle = user?.social?.twitter;
+  if (!handle) throw new Error('twitter handle not linked');
+  const userId = await getUserId(handle);
+  const resp = await twitterClient.v2.tweetRetweetedBy(tweetId);
+  return Array.isArray(resp?.data) && resp.data.some((u) => u.id === userId);
+}
+
+async function didReply(telegramId, tweetId) {
+  const user = await User.findOne({ telegramId });
+  const handle = user?.social?.twitter;
+  if (!handle) throw new Error('twitter handle not linked');
+  const search = await twitterClient.v2.search(`conversation_id:${tweetId} from:${handle}`, { max_results: 10 });
+  return Array.isArray(search?.data?.data) && search.data.data.length > 0;
+}
+
+router.post('/verify-like', async (req, res) => {
+  const { telegramId, tweetUrl } = req.body;
+  if (!telegramId || !tweetUrl) {
+    return res.status(400).json({ error: 'telegramId and tweetUrl required' });
+  }
+  if (!twitterClient) {
+    return res.status(500).json({ error: 'Twitter API not configured. Set TWITTER_BEARER_TOKEN in bot/.env' });
+  }
+  const tweetId = extractTweetId(tweetUrl);
+  if (!tweetId) return res.status(400).json({ error: 'invalid tweet URL' });
+  try {
+    const liked = await didLike(telegramId, tweetId);
+    res.json({ liked });
+  } catch (err) {
+    console.error('verify-like failed:', err.message);
+    res.status(500).json({ error: 'verification failed' });
+  }
+});
+
+router.post('/verify-retweet', async (req, res) => {
+  const { telegramId, tweetUrl } = req.body;
+  if (!telegramId || !tweetUrl) {
+    return res.status(400).json({ error: 'telegramId and tweetUrl required' });
+  }
+  if (!twitterClient) {
+    return res.status(500).json({ error: 'Twitter API not configured. Set TWITTER_BEARER_TOKEN in bot/.env' });
+  }
+  const tweetId = extractTweetId(tweetUrl);
+  if (!tweetId) return res.status(400).json({ error: 'invalid tweet URL' });
+  try {
+    const retweeted = await didRetweet(telegramId, tweetId);
+    res.json({ retweeted });
+  } catch (err) {
+    console.error('verify-retweet failed:', err.message);
+    res.status(500).json({ error: 'verification failed' });
+  }
+});
+
+router.post('/verify-reply', async (req, res) => {
+  const { telegramId, tweetUrl } = req.body;
+  if (!telegramId || !tweetUrl) {
+    return res.status(400).json({ error: 'telegramId and tweetUrl required' });
+  }
+  if (!twitterClient) {
+    return res.status(500).json({ error: 'Twitter API not configured. Set TWITTER_BEARER_TOKEN in bot/.env' });
+  }
+  const tweetId = extractTweetId(tweetUrl);
+  if (!tweetId) return res.status(400).json({ error: 'invalid tweet URL' });
+  try {
+    const replied = await didReply(telegramId, tweetId);
+    res.json({ replied });
+  } catch (err) {
+    console.error('verify-reply failed:', err.message);
     res.status(500).json({ error: 'verification failed' });
   }
 });
