@@ -331,31 +331,33 @@ export default function CrazyDiceDuel() {
 
   const allRolled = players.every((p) => p.rolls >= maxRolls);
 
-  if (winner == null && allRolled) {
-    const max = Math.max(...players.map((p) => p.score));
-    const leaders = players.filter((p) => p.score === max);
-    if (leaders.length === 1) {
-      setWinner(players.indexOf(leaders[0]));
-    } else {
-      // tie break
-      setTiePlayers(leaders.map((p, idx) => players.indexOf(p)));
-      setPlayers((prev) => prev.map((p) => ({ ...p, rolls: 0, results: [] })));
+  useEffect(() => {
+    if (winner == null && allRolled) {
+      const max = Math.max(...players.map((p) => p.score));
+      const leaders = players.filter((p) => p.score === max);
+      if (leaders.length === 1) {
+        setWinner(players.indexOf(leaders[0]));
+      } else {
+        // tie break
+        setTiePlayers(leaders.map((p) => players.indexOf(p)));
+        setPlayers((prev) => prev.map((p) => ({ ...p, rolls: 0, results: [] })));
+      }
+      setCurrent(0);
     }
-    setCurrent(0);
-    return null;
-  }
+  }, [allRolled, players, winner, maxRolls]);
 
-  if (tiePlayers && players.every((p) => p.rolls >= maxRolls)) {
-    const max = Math.max(...players.map((p) => p.score));
-    const leaders = players.filter((p) => p.score === max);
-    if (leaders.length === 1) {
-      setWinner(players.indexOf(leaders[0]));
-    } else {
-      setPlayers((prev) => prev.map((p) => ({ ...p, rolls: 0, results: [] }))); 
+  useEffect(() => {
+    if (tiePlayers && players.every((p) => p.rolls >= maxRolls)) {
+      const max = Math.max(...players.map((p) => p.score));
+      const leaders = players.filter((p) => p.score === max);
+      if (leaders.length === 1) {
+        setWinner(players.indexOf(leaders[0]));
+      } else {
+        setPlayers((prev) => prev.map((p) => ({ ...p, rolls: 0, results: [] })));
+      }
+      setCurrent(0);
     }
-    setCurrent(0);
-    return null;
-  }
+  }, [players, tiePlayers, maxRolls]);
 
 
 
@@ -426,6 +428,7 @@ export default function CrazyDiceDuel() {
           rollHistory={players[0].results}
           maxRolls={maxRolls}
           color={players[0].color}
+          size={playerCount === 2 ? 1.3 : 1}
           onClick={rollNow}
         />
       </div>
@@ -454,6 +457,7 @@ export default function CrazyDiceDuel() {
             rollHistory={p.results}
             maxRolls={maxRolls}
             color={p.color}
+            size={playerCount === 3 ? 1.1 : 1}
             onClick={() => {
               if (current === i + 1) setTrigger((t) => t + 1);
             }}
