@@ -9,12 +9,12 @@ const router = Router();
 
 function calculateReward(views) {
   if (views < 150) return 0;
-  if (views < 3000) return 300;
-  if (views < 8000) return 900;
-  if (views < 15000) return 1800;
-  if (views < 30000) return 3500;
-  if (views < 100000) return 8000;
-  return 20000;
+  if (views < 3000) return 900;
+  if (views < 8000) return 2700;
+  if (views < 15000) return 5400;
+  if (views < 30000) return 10500;
+  if (views < 100000) return 24000;
+  return 60000;
 }
 
 // submit influencer video
