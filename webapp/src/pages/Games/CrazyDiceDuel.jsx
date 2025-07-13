@@ -84,7 +84,9 @@ export default function CrazyDiceDuel() {
   const diceCenterRef = useRef(null);
   const [diceStyle, setDiceStyle] = useState({ display: 'none' });
   const [rollResult, setRollResult] = useState(null);
-  const DICE_CENTER_SCALE = 0.5; // 50% smaller when idle or landing
+  const DICE_CENTER_SCALE = 0.85;
+  const DICE_PLAYER_SCALE = 0.75;
+  const DICE_ANIM_DURATION = 1000;
 
   // Board grid size for positioning helpers
   const GRID_ROWS = 20;
@@ -150,9 +152,14 @@ export default function CrazyDiceDuel() {
     };
   }, [current, aiCount, muted]);
 
-  const getDiceCenter = () => {
-    const label = 'F12';
-    if (boardRef.current) {
+  const getDiceCenter = (playerIdx = 0) => {
+    const posMap = {
+      1: 'B8',
+      2: 'F8',
+      3: 'J8',
+    };
+    const label = posMap[playerIdx];
+    if (label && boardRef.current) {
       const board = boardRef.current.getBoundingClientRect();
       const col = label.charCodeAt(0) - 65;
       const row = parseInt(label.slice(1)) - 1;
@@ -170,35 +177,94 @@ export default function CrazyDiceDuel() {
     };
   };
 
-  const prepareDiceAnimation = () => {
-    const { cx, cy } = getDiceCenter();
+  const prepareDiceAnimation = (idx) => {
+    if (idx == null) {
+      const { cx, cy } = getDiceCenter();
+      setDiceStyle({
+        display: 'block',
+        position: 'fixed',
+        left: '0px',
+        top: '0px',
+        transform: `translate(${cx}px, ${cy}px) translate(-50%, -50%) scale(${DICE_CENTER_SCALE})`,
+        pointerEvents: 'none',
+        zIndex: 50,
+      });
+      return;
+    }
+    const startEl = document.querySelector(`[data-player-index="${idx}"] img`);
+    if (!startEl) return;
+    const s = startEl.getBoundingClientRect();
     setDiceStyle({
       display: 'block',
       position: 'fixed',
       left: '0px',
       top: '0px',
-      transform: `translate(${cx}px, ${cy}px) translate(-50%, -50%) scale(${DICE_CENTER_SCALE})`,
+      transform: `translate(${s.left + s.width / 2}px, ${s.top + s.height / 2}px) translate(-50%, -50%) scale(${DICE_PLAYER_SCALE})`,
       pointerEvents: 'none',
       zIndex: 50,
     });
   };
 
-  const animateDiceToCenter = () => {
-    const { cx, cy } = getDiceCenter();
-    setDiceStyle({
-      display: 'block',
-      position: 'fixed',
-      left: '0px',
-      top: '0px',
-      transform: `translate(${cx}px, ${cy}px) translate(-50%, -50%) scale(${DICE_CENTER_SCALE})`,
-      pointerEvents: 'none',
-      zIndex: 50,
-    });
+  const animateDiceToCenter = (idx) => {
+    const dice = diceRef.current;
+    const startEl = document.querySelector(`[data-player-index="${idx}"] img`);
+    if (!dice || !startEl) return;
+    const s = startEl.getBoundingClientRect();
+    const startX = s.left + s.width / 2;
+    const startY = s.top + s.height / 2;
+    const { cx, cy } = getDiceCenter(idx);
+    dice.style.display = 'block';
+    dice.style.position = 'fixed';
+    dice.style.left = '0px';
+    dice.style.top = '0px';
+    dice.style.pointerEvents = 'none';
+    dice.style.zIndex = '50';
+    dice.animate(
+      [
+        { transform: `translate(${startX}px, ${startY}px) translate(-50%, -50%) scale(${DICE_PLAYER_SCALE})` },
+        { transform: `translate(${cx}px, ${cy}px) translate(-50%, -50%) scale(${DICE_CENTER_SCALE})` },
+      ],
+      { duration: DICE_ANIM_DURATION, easing: 'ease-in-out' },
+    ).onfinish = () => {
+      setDiceStyle({
+        display: 'block',
+        position: 'fixed',
+        left: '0px',
+        top: '0px',
+        transform: `translate(${cx}px, ${cy}px) translate(-50%, -50%) scale(${DICE_CENTER_SCALE})`,
+        pointerEvents: 'none',
+        zIndex: 50,
+      });
+    };
+  };
+
+  const animateDiceToPlayer = (idx, fromIdx = idx) => {
+    const dice = diceRef.current;
+    if (!dice) return;
+    const { cx: startX, cy: startY } = getDiceCenter(fromIdx);
+    const { cx: endX, cy: endY } = getDiceCenter(idx);
+    dice.animate(
+      [
+        { transform: `translate(${startX}px, ${startY}px) translate(-50%, -50%) scale(${DICE_CENTER_SCALE})` },
+        { transform: `translate(${endX}px, ${endY}px) translate(-50%, -50%) scale(${DICE_CENTER_SCALE})` },
+      ],
+      { duration: DICE_ANIM_DURATION, easing: 'ease-in-out' },
+    ).onfinish = () => {
+      setDiceStyle({
+        display: 'block',
+        position: 'fixed',
+        left: '0px',
+        top: '0px',
+        transform: `translate(${endX}px, ${endY}px) translate(-50%, -50%) scale(${DICE_CENTER_SCALE})`,
+        pointerEvents: 'none',
+        zIndex: 50,
+      });
+    };
   };
 
   const handleRollStart = () => {
-    prepareDiceAnimation();
-    animateDiceToCenter();
+    prepareDiceAnimation(current);
+    animateDiceToCenter(current);
   };
 
   const handleRollEnd = (values) => {
@@ -221,7 +287,10 @@ export default function CrazyDiceDuel() {
     });
     setRollResult(value);
     setTimeout(() => setRollResult(null), 2000);
-    setTimeout(() => setCurrent(nextIndex), 2000);
+    setTimeout(() => {
+      animateDiceToPlayer(nextIndex, current);
+      setTimeout(() => setCurrent(nextIndex), DICE_ANIM_DURATION);
+    }, 2000);
   };
 
 
