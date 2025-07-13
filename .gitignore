@@ -6,6 +6,7 @@ bot/package-lock.json
 .idea
 
 # Environment files
+twitter.env
 .env*
 **/.env*
 /webapp/dist/

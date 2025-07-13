@@ -18,6 +18,7 @@
    - `TWITTER_BEARER_TOKEN` – bearer token for verifying retweets. Make sure this line is uncommented in `bot/.env`.
    - `TWITTER_CLIENT_ID` – API key for Twitter OAuth linking.
    - `TWITTER_CLIENT_SECRET` – API secret for Twitter OAuth linking.
+   - You can also place these Twitter credentials in `twitter.env` at the repository root.
 
 4. Copy `webapp/.env.example` to `webapp/.env` and configure:
    - `VITE_API_BASE_URL` – the base URL where the bot API is hosted (e.g. `http://localhost:3000`).
@@ -40,7 +41,7 @@ this account.
 
 ⚠️ Misconfiguring these may prevent the wallet from loading correctly.
 
-All `.env` files are excluded from version control via `.gitignore` so your credentials remain private.
+All `.env` files and `twitter.env` are excluded from version control via `.gitignore` so your credentials remain private.
 
 The server honors a few extra environment variables when building or serving the webapp:
 
