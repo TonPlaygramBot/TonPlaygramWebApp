@@ -2,7 +2,6 @@ import {
   useState,
   useMemo,
   useEffect,
-  useLayoutEffect,
   useRef,
   useCallback,
 } from 'react';
@@ -79,43 +78,10 @@ export default function CrazyDiceDuel() {
   const [timeLeft, setTimeLeft] = useState(15);
   const timerRef = useRef(null);
   const timerSoundRef = useRef(null);
-  const diceRef = useRef(null);
-  const boardRef = useRef(null);
-  const [diceStyle, setDiceStyle] = useState({});
 
   // Dice remain at the centre with no travel animation
   const GRID_ROWS = 20;
   const GRID_COLS = 10;
-
-  const PLAYER_DICE_CELLS = [
-    ['F19', 'F19'],
-    ['B8', 'B8'],
-    ['F8', 'F8'],
-    ['J8', 'J8'],
-  ];
-
-  const getCellCenter = (label) => {
-    if (!boardRef.current) return { x: window.innerWidth / 2, y: window.innerHeight / 2 };
-    const rect = boardRef.current.getBoundingClientRect();
-    const col = label.charCodeAt(0) - 65;
-    const row = parseInt(label.slice(1)) - 1;
-    const x = rect.left + rect.width * ((col + 0.5) / GRID_COLS);
-    const y = rect.top + rect.height * ((row + 0.5) / GRID_ROWS);
-    return { x, y };
-  };
-
-  const getDiceCenter = () => {
-    const { x, y } = getCellCenter('F12');
-    return { cx: x, cy: y };
-  };
-
-  const getPlayerDicePos = (idx) => {
-    const cells = PLAYER_DICE_CELLS[idx];
-    if (!cells) return getDiceCenter();
-    const p1 = getCellCenter(cells[0]);
-    const p2 = getCellCenter(cells[1]);
-    return { x: (p1.x + p2.x) / 2, y: (p1.y + p2.y) / 2 };
-  };
 
   useEffect(() => {
     timerSoundRef.current = new Audio(timerBeep);
@@ -193,27 +159,7 @@ export default function CrazyDiceDuel() {
     // Dice remain on the centre cell after rolling
   };
 
-  const prepareDiceAnimation = () => {
-    const { cx, cy } = getDiceCenter();
-    setDiceStyle({
-      display: 'block',
-      position: 'fixed',
-      left: '0px',
-      top: '0px',
-      transform: `translate(${cx}px, ${cy}px) translate(-50%, -50%) scale(1)`,
-      transition: 'none',
-      pointerEvents: 'none',
-      zIndex: 100,
-    });
-  };
-
-  // Ensure dice are positioned correctly once the layout is ready
-  useLayoutEffect(() => {
-    const update = () => prepareDiceAnimation();
-    update();
-    window.addEventListener('resize', update);
-    return () => window.removeEventListener('resize', update);
-  }, []);
+  // Dice remain fixed at the center so no travel animation is needed
 
 
 
@@ -278,7 +224,7 @@ export default function CrazyDiceDuel() {
           }}
         />
       )}
-      <div className="crazy-dice-board" ref={boardRef}>
+      <div className="crazy-dice-board">
       {!bgUnlocked && (
         <button
           onClick={unlockBackground}
@@ -291,7 +237,6 @@ export default function CrazyDiceDuel() {
         src="/assets/icons/file_00000000d410620a8c1878be43e192a1.png"
         alt="board"
         className="board-bg"
-        onLoad={prepareDiceAnimation}
       />
       <div className="grid-overlay">
         {gridCells.map((cell, i) => (
@@ -306,24 +251,14 @@ export default function CrazyDiceDuel() {
       <div className="side-number right">4</div>
       <div className="dice-center">
         {winner == null ? (
-          <div
-            ref={diceRef}
-            style={diceStyle}
-            className="dice-travel flex flex-col items-center"
-          >
-            <DiceRoller
-              onRollEnd={onRollEnd}
-              onRollStart={() => {
-                // Position dice directly at the centre cell without animation
-                prepareDiceAnimation();
-              }}
-              trigger={trigger}
-              clickable={aiCount === 0 || current === 0}
-              showButton={aiCount === 0 || current === 0}
-              diceContainerClassName="space-x-8"
-              className="crazy-dice"
-            />
-          </div>
+          <DiceRoller
+            onRollEnd={onRollEnd}
+            trigger={trigger}
+            clickable={aiCount === 0 || current === 0}
+            showButton={aiCount === 0 || current === 0}
+            diceContainerClassName="space-x-8"
+            className="crazy-dice"
+          />
         ) : (
           <div className="text-2xl font-bold text-center">
             Player {winner + 1} wins!
