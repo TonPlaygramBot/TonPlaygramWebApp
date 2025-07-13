@@ -91,6 +91,7 @@ export default function Layout({ children }) {
     <div className="flex flex-col min-h-screen text-text relative overflow-hidden">
 
       {/* Removed the starry cosmic background */}
+      <DynamicBackground />
 
 
       <main className={`flex-grow ${
