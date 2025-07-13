@@ -4,6 +4,7 @@ bot/node_modules
 webapp/node_modules
 bot/package-lock.json
 .idea
+.env
 bot/.env
 webapp/.env
 scripts/.env
