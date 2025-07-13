@@ -23,8 +23,45 @@ import { getGameVolume, isGameMuted } from '../../utils/sound.js';
 import { giftSounds } from '../../utils/giftSounds.js';
 import InfoPopup from '../../components/InfoPopup.jsx';
 import ConfirmPopup from '../../components/ConfirmPopup.jsx';
+import { ensureAccountId, getTelegramId } from '../../utils/telegram.js';
+import { depositAccount, addTransaction } from '../../utils/api.js';
 
 const COLORS = ['#60a5fa', '#ef4444', '#4ade80', '#facc15'];
+const DEV_ACCOUNT = import.meta.env.VITE_DEV_ACCOUNT_ID;
+const DEV_ACCOUNT_1 = import.meta.env.VITE_DEV_ACCOUNT_ID_1;
+const DEV_ACCOUNT_2 = import.meta.env.VITE_DEV_ACCOUNT_ID_2;
+
+async function awardDevShare(total) {
+  const promises = [];
+  if (DEV_ACCOUNT) {
+    promises.push(
+      depositAccount(DEV_ACCOUNT, Math.round(total * 0.09), {
+        game: 'crazydice-dev',
+      })
+    );
+  }
+  if (DEV_ACCOUNT_1) {
+    promises.push(
+      depositAccount(DEV_ACCOUNT_1, Math.round(total * 0.01), {
+        game: 'crazydice-dev1',
+      })
+    );
+  }
+  if (DEV_ACCOUNT_2) {
+    promises.push(
+      depositAccount(DEV_ACCOUNT_2, Math.round(total * 0.02), {
+        game: 'crazydice-dev2',
+      })
+    );
+  }
+  if (promises.length) {
+    try {
+      await Promise.all(promises);
+    } catch {
+      // ignore errors when depositing developer shares
+    }
+  }
+}
 
 export default function CrazyDiceDuel() {
   const navigate = useNavigate();
@@ -38,6 +75,12 @@ export default function CrazyDiceDuel() {
     ? aiCount + 1
     : parseInt(searchParams.get('players')) || 2;
   const maxRolls = parseInt(searchParams.get('rolls')) || 1;
+  const token = searchParams.get('token') || 'TPC';
+  const amount = Number(searchParams.get('amount')) || 0;
+
+  useEffect(() => {
+    ensureAccountId().catch(() => {});
+  }, []);
 
   const [bgUnlocked, setBgUnlocked] = useState(() =>
     localStorage.getItem('crazyDiceBgUnlocked') === 'true',
@@ -358,6 +401,33 @@ export default function CrazyDiceDuel() {
       setCurrent(0);
     }
   }, [players, tiePlayers, maxRolls]);
+
+  useEffect(() => {
+    if (winner === null) return;
+    if (token !== 'TPC' || amount <= 0) return;
+    const total = amount * playerCount;
+    const reward = async () => {
+      if (winner === 0) {
+        try {
+          const aid = await ensureAccountId();
+          const winAmt = Math.round(total * 0.91);
+          await Promise.all([
+            depositAccount(aid, winAmt, { game: 'crazydice-win' }),
+            awardDevShare(total),
+          ]);
+          const tgId = getTelegramId();
+          addTransaction(tgId, 0, 'win', {
+            game: 'crazydice',
+            players: playerCount,
+            accountId: aid,
+          });
+        } catch {}
+      } else {
+        awardDevShare(total).catch(() => {});
+      }
+    };
+    reward();
+  }, [winner]);
 
 
 
