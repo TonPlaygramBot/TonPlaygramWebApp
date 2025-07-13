@@ -4,7 +4,7 @@ import User from '../models/User.js';
 import { fetchTelegramInfo } from '../utils/telegram.js';
 import { ensureTransactionArray, calculateBalance } from '../utils/userUtils.js';
 
-function parseTwitterHandle(input) {
+export function parseTwitterHandle(input) {
   if (!input) return '';
   let handle = String(input).trim();
   // Support handles like "x.com/user" without protocol
