@@ -72,6 +72,8 @@ export default function TasksCard() {
     return ts ? parseInt(ts, 10) : null;
   });
   const [showNew, setShowNew] = useState(false);
+  const [showTwitterInfo, setShowTwitterInfo] = useState(false);
+  const [profile, setProfile] = useState(null);
 
   const load = async () => {
     const data = await listTasks(telegramId);
@@ -87,10 +89,11 @@ export default function TasksCard() {
     const ad = await getAdStatus(telegramId);
     if (!ad.error) setAdCount(ad.count);
     try {
-      const profile = await getProfile(telegramId);
-      if (profile.dailyStreak) setStreak(profile.dailyStreak);
-      const serverTs = profile.lastCheckIn
-        ? new Date(profile.lastCheckIn).getTime()
+      const prof = await getProfile(telegramId);
+      setProfile(prof);
+      if (prof.dailyStreak) setStreak(prof.dailyStreak);
+      const serverTs = prof.lastCheckIn
+        ? new Date(prof.lastCheckIn).getTime()
         : null;
       const localTs = lastCheck || 0;
       const ts = Math.max(serverTs || 0, localTs);
@@ -108,6 +111,10 @@ export default function TasksCard() {
   }, []);
 
   const handleClaim = async (task) => {
+    if (['join_twitter', 'engage_tweet'].includes(task.id) && !profile?.social?.twitter) {
+      setShowTwitterInfo(true);
+      return;
+    }
 
     window.open(task.link, '_blank');
 
@@ -127,6 +134,10 @@ export default function TasksCard() {
 
   const handlePostVerify = async () => {
     if (!postLink) return;
+    if (!profile?.social?.twitter) {
+      setShowTwitterInfo(true);
+      return;
+    }
     const res = await verifyPost(telegramId, postLink);
     if (!res.error) {
       await completeTask(telegramId, 'post_tweet');
@@ -309,6 +320,12 @@ export default function TasksCard() {
         open={showPosts}
         posts={tasks.find((t) => t.id === 'post_tweet')?.posts || []}
         onClose={() => setShowPosts(false)}
+      />
+      <InfoPopup
+        open={showTwitterInfo}
+        onClose={() => setShowTwitterInfo(false)}
+        title="X Profile Required"
+        info="Please save your X profile link in My Account first."
       />
       <InfoPopup
         open={showNew}

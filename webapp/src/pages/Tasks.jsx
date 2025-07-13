@@ -56,6 +56,8 @@ export default function Tasks() {
   const [showAd, setShowAd] = useState(false);
   const [showPosts, setShowPosts] = useState(false);
   const [showNew, setShowNew] = useState(false);
+  const [showTwitterInfo, setShowTwitterInfo] = useState(false);
+  const [profile, setProfile] = useState(null);
   const [postLink, setPostLink] = useState('');
   const [category, setCategory] = useState('TonPlaygram');
   const [infTab, setInfTab] = useState('submit');
@@ -86,10 +88,11 @@ export default function Tasks() {
     const ad = await getAdStatus(telegramId);
     if (!ad.error) setAdCount(ad.count);
     try {
-      const profile = await getProfile(telegramId);
-      if (profile.dailyStreak) setStreak(profile.dailyStreak);
-      const serverTs = profile.lastCheckIn
-        ? new Date(profile.lastCheckIn).getTime()
+      const prof = await getProfile(telegramId);
+      setProfile(prof);
+      if (prof.dailyStreak) setStreak(prof.dailyStreak);
+      const serverTs = prof.lastCheckIn
+        ? new Date(prof.lastCheckIn).getTime()
         : null;
       const localTs = lastCheck || 0;
       const ts = Math.max(serverTs || 0, localTs);
@@ -111,6 +114,10 @@ export default function Tasks() {
   }, []);
 
   const handleClaim = async (task) => {
+    if (['join_twitter', 'engage_tweet'].includes(task.id) && !profile?.social?.twitter) {
+      setShowTwitterInfo(true);
+      return;
+    }
     if (task.link) {
       window.open(task.link, '_blank');
     }
@@ -156,6 +163,10 @@ export default function Tasks() {
 
   const handlePostVerify = async () => {
     if (!postLink) return;
+    if (!profile?.social?.twitter) {
+      setShowTwitterInfo(true);
+      return;
+    }
     const res = await verifyPost(telegramId, postLink);
     if (!res.error) {
       await completeTask(telegramId, 'post_tweet');
@@ -392,6 +403,12 @@ export default function Tasks() {
         open={showPosts}
         posts={tasks?.find((t) => t.id === 'post_tweet')?.posts || []}
         onClose={() => setShowPosts(false)}
+      />
+      <InfoPopup
+        open={showTwitterInfo}
+        onClose={() => setShowTwitterInfo(false)}
+        title="X Profile Required"
+        info="Please save your X profile link in My Account first."
       />
       <InfoPopup
         open={showNew}
