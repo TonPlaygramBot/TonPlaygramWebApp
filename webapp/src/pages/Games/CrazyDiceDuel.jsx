@@ -166,16 +166,19 @@ export default function CrazyDiceDuel() {
   }, [current, aiCount, muted]);
 
   const getDiceCenter = (playerIdx = 'center') => {
-    const posMap = {
-      0: { label: 'F19', dx: -0.1 }, // Player 1
-      1:
-        playerCount === 2
-          ? { label: 'F8' }
-          : { label: 'B8', dx: -0.1 }, // Player 2
-      2: { label: 'F8' }, // Player 3
-      3: { label: 'J9' }, // Player 4
-      center: { label: 'F12' },
-    };
+      const posMap = {
+        0: { label: 'F19', dx: -0.1 }, // Player 1
+        1:
+          playerCount === 2
+            ? { label: 'F8' }
+            : { label: 'B8', dx: -0.1 }, // Player 2
+        2:
+          playerCount === 3
+            ? { label: 'J9' }
+            : { label: 'F8' }, // Player 3
+        3: { label: 'J9' }, // Player 4
+        center: { label: 'F12' },
+      };
     const entry = posMap[playerIdx] || {};
     const label = entry.label;
     const dx = entry.dx || 0;
