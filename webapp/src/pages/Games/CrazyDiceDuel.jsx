@@ -101,9 +101,7 @@ export default function CrazyDiceDuel() {
     return () => timerSoundRef.current?.pause();
   }, []);
 
-  useEffect(() => {
-    prepareDiceAnimation();
-  }, []);
+
 
   useEffect(() => {
     const handler = () => setMuted(isGameMuted());
@@ -192,7 +190,7 @@ export default function CrazyDiceDuel() {
     if (idx == null) {
       const { cx, cy } = getDiceCenter('center');
       setDiceStyle({
-        display: 'block',
+        display: 'none',
         position: 'fixed',
         left: '0px',
         top: '0px',
@@ -204,7 +202,7 @@ export default function CrazyDiceDuel() {
     }
     const { cx, cy } = getDiceCenter(idx);
     setDiceStyle({
-      display: 'block',
+      display: 'none',
       position: 'fixed',
       left: '0px',
       top: '0px',
@@ -256,15 +254,7 @@ export default function CrazyDiceDuel() {
       ],
       { duration: DICE_ANIM_DURATION, easing: 'ease-in-out' },
     ).onfinish = () => {
-      setDiceStyle({
-        display: 'block',
-        position: 'fixed',
-        left: '0px',
-        top: '0px',
-        transform: `translate(${endX}px, ${endY}px) translate(-50%, -50%) scale(${DICE_PLAYER_SCALE})`,
-        pointerEvents: 'none',
-        zIndex: 50,
-      });
+      setDiceStyle({ display: 'none' });
     };
   };
 
@@ -368,6 +358,9 @@ export default function CrazyDiceDuel() {
       />
       <div ref={diceCenterRef} className="dice-center" />
       <div ref={diceRef} style={diceStyle} className="dice-travel flex flex-col items-center">
+        {rollResult !== null && (
+          <div className="text-5xl roll-result">{rollResult}</div>
+        )}
         {winner == null ? (
           <div className="crazy-dice">
             <DiceRoller
@@ -381,11 +374,6 @@ export default function CrazyDiceDuel() {
         ) : (
           <div className="text-2xl font-bold text-center">
             Player {winner + 1} wins!
-          </div>
-        )}
-        {rollResult !== null && (
-          <div className="text-5xl roll-result" style={{ transform: 'translateY(-6rem)' }}>
-            {rollResult}
           </div>
         )}
       </div>
