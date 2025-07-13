@@ -87,6 +87,10 @@ export function verifyPost(telegramId, tweetUrl) {
   return post('/api/tasks/verify-post', { telegramId, tweetUrl });
 }
 
+export function verifyTelegramReaction(telegramId) {
+  return post('/api/tasks/verify-telegram-reaction', { telegramId });
+}
+
 export function listVideos(telegramId) {
 
   return post('/api/watch/list', { telegramId });

@@ -4,6 +4,7 @@ import {
   listTasks,
   completeTask,
   verifyPost,
+  verifyTelegramReaction,
   getAdStatus,
   watchAd,
   getProfile,
@@ -112,6 +113,13 @@ export default function Tasks() {
   const handleClaim = async (task) => {
     if (task.link) {
       window.open(task.link, '_blank');
+    }
+    if (task.id === 'react_tg_post') {
+      const res = await verifyTelegramReaction(telegramId);
+      if (res.error || !res.reacted) {
+        alert(res.error || 'Reaction not verified');
+        return;
+      }
     }
     await completeTask(telegramId, task.id);
     load();
