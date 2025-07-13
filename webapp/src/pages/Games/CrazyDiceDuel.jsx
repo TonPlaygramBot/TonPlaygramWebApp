@@ -99,7 +99,7 @@ export default function CrazyDiceDuel() {
     playerCount === 3
       ? '/assets/icons/file_00000000571c6243a07777efa0e0e835 (1).png'
       : playerCount === 2
-        ? '/assets/icons/file_000000004fa461f4986874d9da2b93e0 (1).png'
+        ? '/assets/icons/file_000000002984624394e01e572bfb5cde.webp'
         : '/assets/icons/file_00000000d410620a8c1878be43e192a1.png';
 
   const boardRef = useRef(null);
@@ -375,7 +375,7 @@ export default function CrazyDiceDuel() {
       )}
         <div
           ref={boardRef}
-          className={`crazy-dice-board ${playerCount === 3 ? 'three-players' : ''}`}
+          className={`crazy-dice-board ${playerCount === 3 ? 'three-players' : playerCount === 2 ? 'two-players' : ''}`}
         >
       {!bgUnlocked && (
         <button
@@ -428,7 +428,9 @@ export default function CrazyDiceDuel() {
           rollHistory={players[0].results}
           maxRolls={maxRolls}
           color={players[0].color}
-          size={playerCount === 2 ? 1.3 : 1}
+          size={
+            playerCount === 3 ? 1.1 : playerCount > 3 ? 1.05 : 1
+          }
           onClick={rollNow}
         />
       </div>
@@ -457,7 +459,15 @@ export default function CrazyDiceDuel() {
             rollHistory={p.results}
             maxRolls={maxRolls}
             color={p.color}
-            size={playerCount === 3 ? 1.1 : 1}
+            size={
+              playerCount === 2
+                ? 1.2
+                : playerCount === 3
+                  ? 1.1
+                  : playerCount > 3
+                    ? 1.05
+                    : 1
+            }
             onClick={() => {
               if (current === i + 1) setTrigger((t) => t + 1);
             }}
