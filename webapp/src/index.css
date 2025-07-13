@@ -1353,6 +1353,10 @@ input:focus {
   transform: translate(-50%, -50%);
 }
 
+.crazy-dice-board.three-players .player-left {
+  top: 12%;
+}
+
 .crazy-dice-board .player-center {
   position: absolute;
   top: 16%;
@@ -1380,6 +1384,10 @@ input:focus {
   top: 19%;
   right: 5%;
   transform: translate(50%, -50%);
+}
+
+.crazy-dice-board.three-players .player-right {
+  top: 13%;
 }
 
 

@@ -348,7 +348,10 @@ export default function CrazyDiceDuel() {
           }}
         />
       )}
-      <div ref={boardRef} className="crazy-dice-board">
+        <div
+          ref={boardRef}
+          className={`crazy-dice-board ${playerCount === 3 ? 'three-players' : ''}`}
+        >
       {!bgUnlocked && (
         <button
           onClick={unlockBackground}
