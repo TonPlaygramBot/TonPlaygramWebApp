@@ -251,11 +251,11 @@ To move from the start you must roll at least one six when rolling two dice. Any
 
 ## Troubleshooting
 
-**Twitter API not configured** – This message appears when verifying the `post_tweet` task without a `TWITTER_BEARER_TOKEN`. Copy `bot/.env.example` to `bot/.env`, supply your bearer token and remove any leading `#` on that line.
+**Twitter API not configured** – When no `TWITTER_BEARER_TOKEN` is provided the server now skips verification for X related tasks and completes them automatically. Add the token in `bot/.env` if you need strict checks.
 
 **Influencer admin shows "No submissions"** – Ensure your developer token is set in `bot/.env` via `AIRDROP_ADMIN_TOKENS` and in `webapp/.env` through `VITE_API_AUTH_TOKEN` so the webapp can fetch pending submissions.
 
-**Telegram reaction not detected** – The `/api/tasks/verify-telegram-reaction` endpoint checks that you reacted to [TonPlaygram/1/16](https://t.me/TonPlaygram/1/16) using the Telegram Bot API. Make sure `BOT_TOKEN` is configured and call this endpoint before completing the `react_tg_post` task.
+**Telegram reaction not detected** – The `/api/tasks/verify-telegram-reaction` endpoint relies on `BOT_TOKEN`. If this token is missing the check is skipped and the task automatically succeeds. Configure it only if you require strict validation.
 
 
 ## License
