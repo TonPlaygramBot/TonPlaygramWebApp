@@ -97,7 +97,9 @@ app.use('/api/referral', referralRoutes);
 app.use('/api/wallet', walletRoutes);
 app.use('/api/account', accountRoutes);
 app.use('/api/profile', profileRoutes);
-app.use('/api/twitter', twitterAuthRoutes);
+if (process.env.ENABLE_TWITTER_OAUTH === 'true') {
+  app.use('/api/twitter', twitterAuthRoutes);
+}
 app.use('/api/airdrop', airdropRoutes);
 app.use('/api/checkin', checkinRoutes);
 app.use('/api/social', socialRoutes);
