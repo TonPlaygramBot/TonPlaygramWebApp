@@ -3,21 +3,26 @@ import { TwitterApi } from 'twitter-api-v2';
 
 const router = Router();
 
-const clientId = process.env.TWITTER_CLIENT_ID;
-const clientSecret = process.env.TWITTER_CLIENT_SECRET;
-
 const oauthStore = new Map();
 
-if (!clientId || !clientSecret) {
-  console.warn('Twitter OAuth not configured');
+function getTwitterCreds() {
+  const clientId = process.env.TWITTER_CLIENT_ID;
+  const clientSecret = process.env.TWITTER_CLIENT_SECRET;
+  if (!clientId || !clientSecret) {
+    console.warn('Twitter OAuth not configured');
+    return null;
+  }
+  return { clientId, clientSecret };
 }
 
 router.post('/start', async (req, res) => {
   const { telegramId } = req.body || {};
   if (!telegramId) return res.status(400).json({ error: 'telegramId required' });
-  if (!clientId || !clientSecret) {
+  const creds = getTwitterCreds();
+  if (!creds) {
     return res.status(500).json({ error: 'Twitter OAuth not configured' });
   }
+  const { clientId, clientSecret } = creds;
   try {
     const twitterClient = new TwitterApi({ appKey: clientId, appSecret: clientSecret });
     const callbackUrl = `${req.protocol}://${req.get('host')}/api/twitter/callback`;
@@ -36,6 +41,11 @@ router.get('/callback', async (req, res) => {
   if (!entry) {
     return res.status(400).send('Invalid token');
   }
+  const creds = getTwitterCreds();
+  if (!creds) {
+    return res.status(500).send('Twitter OAuth not configured');
+  }
+  const { clientId, clientSecret } = creds;
   try {
     const twitterClient = new TwitterApi({
       appKey: clientId,
