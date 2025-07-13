@@ -79,6 +79,12 @@ export default function CrazyDiceDuel() {
   const timerRef = useRef(null);
   const timerSoundRef = useRef(null);
 
+  // Board background changes depending on number of players
+  const boardBgSrc =
+    playerCount === 3
+      ? '/assets/icons/file_00000000571c6243a07777efa0e0e835 (1).png'
+      : '/assets/icons/file_00000000d410620a8c1878be43e192a1.png';
+
   const boardRef = useRef(null);
   const diceRef = useRef(null);
   const diceCenterRef = useRef(null);
@@ -351,11 +357,7 @@ export default function CrazyDiceDuel() {
           Unlock Background
         </button>
       )}
-      <img
-        src="/assets/icons/file_00000000d410620a8c1878be43e192a1.png"
-        alt="board"
-        className="board-bg"
-      />
+      <img src={boardBgSrc} alt="board" className="board-bg" />
       <div ref={diceCenterRef} className="dice-center" />
       <div ref={diceRef} style={diceStyle} className="dice-travel flex flex-col items-center">
         {rollResult !== null && (
@@ -402,7 +404,11 @@ export default function CrazyDiceDuel() {
         />
       </div>
       {players.slice(1).map((p, i) => {
-        const pos = ['player-left', 'player-center', 'player-right'][i] || '';
+        const positions =
+          playerCount === 3
+            ? ['player-left', 'player-right']
+            : ['player-left', 'player-center', 'player-right'];
+        const pos = positions[i] || '';
         return (
           <div key={i + 1} className={`${pos} z-10`}>
           <AvatarTimer
