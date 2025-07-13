@@ -7,6 +7,10 @@ import { ensureTransactionArray, calculateBalance } from '../utils/userUtils.js'
 function parseTwitterHandle(input) {
   if (!input) return '';
   let handle = String(input).trim();
+  // Support handles like "x.com/user" without protocol
+  if (/^(?:x|twitter)\.com\//.test(handle)) {
+    handle = 'https://' + handle;
+  }
   // Remove URL parts if a full profile link was provided
   try {
     const url = new URL(handle);
