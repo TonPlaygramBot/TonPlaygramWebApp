@@ -84,8 +84,8 @@ export default function CrazyDiceDuel() {
   const diceCenterRef = useRef(null);
   const [diceStyle, setDiceStyle] = useState({ display: 'none' });
   const [rollResult, setRollResult] = useState(null);
-  const DICE_CENTER_SCALE = 0.9;
-  const DICE_PLAYER_SCALE = 0.8;
+  const DICE_CENTER_SCALE = 0.85;
+  const DICE_PLAYER_SCALE = 0.75;
   const DICE_ANIM_DURATION = 1000;
 
   // Board grid size for positioning helpers
@@ -212,7 +212,7 @@ export default function CrazyDiceDuel() {
     const s = startEl.getBoundingClientRect();
     const startX = s.left + s.width / 2;
     const startY = s.top + s.height / 2;
-    const { cx, cy } = getDiceCenter();
+    const { cx, cy } = getDiceCenter(idx);
     dice.style.display = 'block';
     dice.style.position = 'fixed';
     dice.style.left = '0px';
