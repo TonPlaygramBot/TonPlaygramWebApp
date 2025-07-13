@@ -74,6 +74,7 @@ export default function MyAccount() {
   const [convertAction, setConvertAction] = useState('burn');
   const [transferAccount, setTransferAccount] = useState('');
   const [twitterError, setTwitterError] = useState('');
+  const [twitterLink, setTwitterLink] = useState('');
   const [unread, setUnread] = useState(0);
 
   useEffect(() => {
@@ -127,6 +128,7 @@ export default function MyAccount() {
       }
 
       setProfile(finalProfile);
+      setTwitterLink(finalProfile.social?.twitter || '');
       try {
         const res = await getUnreadCount(telegramId);
         if (!res.error) setUnread(res.count);
@@ -244,6 +246,24 @@ export default function MyAccount() {
     }
   };
 
+  const handleSaveTwitter = async () => {
+    setTwitterError('');
+    try {
+      const res = await linkSocial({ telegramId, twitter: twitterLink });
+      if (res?.error) {
+        setTwitterError(res.error);
+      } else {
+        setProfile((p) => ({ ...p, social: res.social }));
+        setTwitterLink(res.social?.twitter || '');
+        setShowSaved(true);
+        setTimeout(() => setShowSaved(false), 1500);
+      }
+    } catch (err) {
+      console.error('save twitter failed', err);
+      setTwitterError('Failed to save');
+    }
+  };
+
   return (
     <div className="relative p-4 space-y-4 text-text wide-card">
       <AvatarPromptModal
@@ -329,7 +349,7 @@ export default function MyAccount() {
           </div>
           {profile.social?.twitter && (
             <p className="text-sm mt-2">
-              Linked Twitter: @{profile.social.twitter}{' '}
+              Linked X: @{profile.social.twitter}{' '}
               <button
                 onClick={handleClearTwitter}
                 className="underline text-primary ml-1"
@@ -338,6 +358,27 @@ export default function MyAccount() {
               </button>
             </p>
           )}
+          <div className="mt-2 flex items-center space-x-2">
+            <input
+              type="text"
+              placeholder="X profile link"
+              value={twitterLink}
+              onChange={(e) => setTwitterLink(e.target.value)}
+              className="border p-1 rounded text-black flex-grow"
+            />
+            <button
+              onClick={handleSaveTwitter}
+              className="px-2 py-1 bg-primary hover:bg-primary-hover rounded text-white-shadow text-sm"
+            >
+              Save
+            </button>
+            <button
+              onClick={handleConnectTwitter}
+              className="px-2 py-1 bg-primary hover:bg-primary-hover rounded text-white-shadow text-sm"
+            >
+              Connect
+            </button>
+          </div>
         </div>
       </div>
 
