@@ -114,7 +114,7 @@ input:focus {
   top: 0;
   bottom: 0;
   /* Center the background image */
-  filter: brightness(2.6);
+  filter: brightness(3);
   transform: translateY(90px) scale(1.2);
 }
 
@@ -469,8 +469,11 @@ input:focus {
   bottom: calc(100% + 0.25rem);
   left: 50%;
   transform: translateX(-50%);
-  font-size: 0.75rem;
+  font-size: 1rem;
   font-weight: bold;
+  border: none;
+  background: transparent;
+  padding: 0;
 }
 
 .timer-count {
@@ -862,6 +865,13 @@ input:focus {
   font-family: "Comic Sans MS", "Comic Sans", cursive;
   font-weight: bold;
   text-shadow: 0 0 2px #000;
+}
+
+.crazy-dice-board .roll-result {
+  position: absolute;
+  top: -3.5rem;
+  left: 50%;
+  transform: translateX(-50%);
 }
 
 .reward-dice-container {
@@ -1318,7 +1328,7 @@ input:focus {
   /* Center the board background */
   object-position: center;
   transform: none;
-  filter: brightness(1.2);
+  filter: brightness(1.6);
   z-index: -1;
 }
 .crazy-dice-board .dice-center {
