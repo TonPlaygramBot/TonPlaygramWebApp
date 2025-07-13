@@ -5,6 +5,7 @@ import { TASKS, TASKS_VERSION } from '../utils/tasksData.js';
 import { ensureTransactionArray } from '../utils/userUtils.js';
 import { TwitterApi } from 'twitter-api-v2';
 import PostRecord from '../models/PostRecord.js';
+import { similarityRatio } from '../utils/textSimilarity.js';
 
 const router = Router();
 const twitterClient = process.env.TWITTER_BEARER_TOKEN
@@ -84,22 +85,22 @@ router.post('/verify-post', async (req, res) => {
 
   try {
     const tweet = await twitterClient.v2.singleTweet(providedId, {
-      expansions: ['author_id'],
-      'tweet.fields': ['author_id', 'text']
+      'tweet.fields': ['text']
     });
 
-    const author = await twitterClient.v2.user(tweet.data.author_id);
     const user = await User.findOne({ telegramId });
-    const linked = user?.social?.twitter?.replace(/^@/, '');
-    if (!linked || author.data.username.toLowerCase() !== linked.toLowerCase()) {
-      return res.status(400).json({ error: 'twitter handle mismatch' });
+    if (!user) {
+      return res.status(404).json({ error: 'user not found' });
     }
 
     const text = tweet.data.text.trim().replace(/\s+/g, ' ');
-    const match = config.posts.some((p) => {
-      return text === p.trim().replace(/\s+/g, ' ');
-    });
-    if (!match) {
+    const highest = Math.max(
+      ...config.posts.map((p) => {
+        const norm = p.trim().replace(/\s+/g, ' ');
+        return similarityRatio(text, norm);
+      })
+    );
+    if (highest < 0.85) {
       return res.status(400).json({ error: 'tweet text does not match' });
     }
 
