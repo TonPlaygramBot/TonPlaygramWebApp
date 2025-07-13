@@ -84,8 +84,9 @@ export default function CrazyDiceDuel() {
   const diceCenterRef = useRef(null);
   const [diceStyle, setDiceStyle] = useState({ display: 'none' });
   const [rollResult, setRollResult] = useState(null);
-  const DICE_CENTER_SCALE = 0.85;
-  const DICE_PLAYER_SCALE = 0.75;
+  // Dice scales: shrink when at a player's position and expand when rolling
+  const DICE_CENTER_SCALE = 1;
+  const DICE_PLAYER_SCALE = 0.6;
   const DICE_ANIM_DURATION = 1000;
 
   // Board grid size for positioning helpers
@@ -154,6 +155,7 @@ export default function CrazyDiceDuel() {
 
   const getDiceCenter = (playerIdx = 0) => {
     const posMap = {
+      0: 'F19',
       1: 'B8',
       2: 'F8',
       3: 'J8',
@@ -246,7 +248,7 @@ export default function CrazyDiceDuel() {
     dice.animate(
       [
         { transform: `translate(${startX}px, ${startY}px) translate(-50%, -50%) scale(${DICE_CENTER_SCALE})` },
-        { transform: `translate(${endX}px, ${endY}px) translate(-50%, -50%) scale(${DICE_CENTER_SCALE})` },
+        { transform: `translate(${endX}px, ${endY}px) translate(-50%, -50%) scale(${DICE_PLAYER_SCALE})` },
       ],
       { duration: DICE_ANIM_DURATION, easing: 'ease-in-out' },
     ).onfinish = () => {
@@ -255,7 +257,7 @@ export default function CrazyDiceDuel() {
         position: 'fixed',
         left: '0px',
         top: '0px',
-        transform: `translate(${endX}px, ${endY}px) translate(-50%, -50%) scale(${DICE_CENTER_SCALE})`,
+        transform: `translate(${endX}px, ${endY}px) translate(-50%, -50%) scale(${DICE_PLAYER_SCALE})`,
         pointerEvents: 'none',
         zIndex: 50,
       });
