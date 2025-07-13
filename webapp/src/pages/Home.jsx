@@ -19,7 +19,7 @@ import { useTonAddress, useTonConnectUI } from '@tonconnect/ui-react';
 
 import { Link } from 'react-router-dom';
 
-import { ping, getAppStats, getOnlineCount } from '../utils/api.js';
+import { ping, getAppStats, getOnlineCount, getProfile, fetchTelegramInfo } from '../utils/api.js';
 
 import { getAvatarUrl, saveAvatar, loadAvatar } from '../utils/avatarUtils.js';
 
@@ -27,7 +27,6 @@ import TonConnectButton from '../components/TonConnectButton.jsx';
 import useTokenBalances from '../hooks/useTokenBalances.js';
 import useWalletUsdValue from '../hooks/useWalletUsdValue.js';
 import { getTelegramId, getTelegramPhotoUrl } from '../utils/telegram.js';
-import { getProfile } from '../utils/api.js';
 
 // Token contract on the TON network
 const TPC_JETTON_ADDRESS =
@@ -97,12 +96,21 @@ export default function Home() {
     } else {
       getProfile(id)
         .then((p) => {
-          const src = p?.photo || getTelegramPhotoUrl();
-          setPhotoUrl(src);
-          if (p?.photo) saveAvatar(p.photo);
+          if (p?.photo) {
+            setPhotoUrl(p.photo);
+            saveAvatar(p.photo);
+          } else {
+            fetchTelegramInfo(id).then((info) => {
+              setPhotoUrl(info?.photoUrl || getTelegramPhotoUrl());
+            });
+          }
         })
         .catch(() => {
-          setPhotoUrl(getTelegramPhotoUrl());
+          fetchTelegramInfo(id)
+            .then((info) => {
+              setPhotoUrl(info?.photoUrl || getTelegramPhotoUrl());
+            })
+            .catch(() => setPhotoUrl(getTelegramPhotoUrl()));
         });
     }
 
@@ -114,10 +122,22 @@ export default function Home() {
       } else {
         getProfile(id)
           .then((p) => {
-            setPhotoUrl(p?.photo || getTelegramPhotoUrl());
-            if (p?.photo) saveAvatar(p.photo);
+            if (p?.photo) {
+              setPhotoUrl(p.photo);
+              saveAvatar(p.photo);
+            } else {
+              fetchTelegramInfo(id).then((info) => {
+                setPhotoUrl(info?.photoUrl || getTelegramPhotoUrl());
+              });
+            }
           })
-          .catch(() => setPhotoUrl(getTelegramPhotoUrl()));
+          .catch(() => {
+            fetchTelegramInfo(id)
+              .then((info) => {
+                setPhotoUrl(info?.photoUrl || getTelegramPhotoUrl());
+              })
+              .catch(() => setPhotoUrl(getTelegramPhotoUrl()));
+          });
       }
     };
     window.addEventListener('profilePhotoUpdated', handleUpdate);

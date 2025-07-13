@@ -10,7 +10,7 @@ export default function useWalletUsdValue(tonBalance, usdtBalance) {
         return;
       }
       try {
-        const res = await fetch('https://tonapi.io/v2/rates?tokens=TON&currencies=usd');
+        const res = await fetch('https://tonapi.io/v2/rates?tokens=TON&currencies=USD');
         const data = await res.json();
         const tonPrice = data?.rates?.TON?.prices?.USD ?? 0;
         const total = (tonBalance ?? 0) * tonPrice + (usdtBalance ?? 0);
