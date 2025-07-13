@@ -60,7 +60,9 @@ The server honors a few extra environment variables when building or serving the
    npm --prefix webapp run build
    ```
 
-7. Run the test suite to verify the setup:
+7. Run the test suite to verify the setup. Ensure all packages are installed
+   first by executing `npm run install-all` (or `npm install` in each package)
+   so dependencies like `express` and `socket.io-client` are available:
 
    ```bash
    npm test
