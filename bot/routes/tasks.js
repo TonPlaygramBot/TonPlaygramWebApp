@@ -6,11 +6,31 @@ import { ensureTransactionArray } from '../utils/userUtils.js';
 import { TwitterApi } from 'twitter-api-v2';
 import PostRecord from '../models/PostRecord.js';
 import { similarityRatio, normalizeText } from '../utils/textSimilarity.js';
+import { withProxy } from '../utils/proxyAgent.js';
 
 const router = Router();
 const twitterClient = process.env.TWITTER_BEARER_TOKEN
   ? new TwitterApi(process.env.TWITTER_BEARER_TOKEN)
   : null;
+
+async function fetchReactionIds() {
+  const base = `https://api.telegram.org/bot${process.env.BOT_TOKEN}`;
+  const url = new URL(`${base}/getMessageReactions`);
+  url.searchParams.set('chat_id', '@TonPlaygram');
+  url.searchParams.set('message_id', '16');
+  url.searchParams.set('message_thread_id', '1');
+  url.searchParams.set('limit', '200');
+  const resp = await fetch(url, withProxy());
+  const data = await resp.json();
+  if (!data.ok) throw new Error(data.description || 'telegram api error');
+  const reactions = data.result?.reactions || data.result || [];
+  const ids = [];
+  for (const r of reactions) {
+    const id = r.user?.id ?? r.user_id ?? r.from?.id;
+    if (typeof id === 'number') ids.push(id);
+  }
+  return ids;
+}
 
 router.post('/list', async (req, res) => {
   const { telegramId } = req.body;
@@ -32,6 +52,18 @@ router.post('/complete', async (req, res) => {
   const config = TASKS.find(t => t.id === taskId);
   if (!config) return res.status(400).json({ error: 'unknown task' });
 
+  if (taskId === 'react_tg_post') {
+    try {
+      const ids = await fetchReactionIds();
+      if (!ids.includes(Number(telegramId))) {
+        return res.status(400).json({ error: 'reaction not verified' });
+      }
+    } catch (err) {
+      console.error('telegram reaction verify failed:', err.message);
+      return res.status(500).json({ error: 'verification failed' });
+    }
+  }
+
   const existing = await Task.findOne({ telegramId, taskId });
   if (existing) return res.json({ message: 'already completed' });
 
@@ -52,6 +84,18 @@ router.post('/complete', async (req, res) => {
   await user.save();
 
   res.json({ message: 'completed', reward: config.reward });
+});
+
+router.post('/verify-telegram-reaction', async (req, res) => {
+  const { telegramId } = req.body;
+  if (!telegramId) return res.status(400).json({ error: 'telegramId required' });
+  try {
+    const ids = await fetchReactionIds();
+    res.json({ reacted: ids.includes(Number(telegramId)) });
+  } catch (err) {
+    console.error('verify-telegram-reaction failed:', err.message);
+    res.status(500).json({ error: 'verification failed' });
+  }
 });
 
 router.post('/verify-post', async (req, res) => {

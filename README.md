@@ -255,6 +255,8 @@ To move from the start you must roll at least one six when rolling two dice. Any
 
 **Influencer admin shows "No submissions"** – Ensure your developer token is set in `bot/.env` via `AIRDROP_ADMIN_TOKENS` and in `webapp/.env` through `VITE_API_AUTH_TOKEN` so the webapp can fetch pending submissions.
 
+**Telegram reaction not detected** – The `/api/tasks/verify-telegram-reaction` endpoint checks that you reacted to [TonPlaygram/1/16](https://t.me/TonPlaygram/1/16) using the Telegram Bot API. Make sure `BOT_TOKEN` is configured and call this endpoint before completing the `react_tg_post` task.
+
 
 ## License
 
