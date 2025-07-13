@@ -10,7 +10,7 @@ export default function Games() {
       <div className="space-y-4">
         <GameCard
           title="Snake & Ladder"
-          icon="/assets/icons/snakes_and_ladders.webp"
+          icon={<img src="/assets/icons/snakes_and_ladders.webp" alt="" className="h-24 w-24 mx-auto" />}
           link="/games/snake/lobby"
         />
         <GameCard title="Crazy Dice Duel" icon="🎲" link="/games/crazydice/lobby" />

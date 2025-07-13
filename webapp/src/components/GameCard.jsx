@@ -1,14 +1,15 @@
+import React from 'react';
 import { Link } from 'react-router-dom';
 
 export default function GameCard({ title, description, link, icon }) {
   let iconNode = null;
   if (icon) {
     iconNode =
-      typeof icon === 'string' ? (
-        <img src={icon} alt="" className="h-8 w-8 mx-auto" />
-      ) : (
-        <span className="text-3xl text-accent">{icon}</span>
-      );
+      typeof icon === 'string'
+        ? <img src={icon} alt="" className="h-8 w-8 mx-auto" />
+        : React.isValidElement(icon)
+          ? icon
+          : <span className="text-3xl text-accent">{icon}</span>;
   }
 
   return (

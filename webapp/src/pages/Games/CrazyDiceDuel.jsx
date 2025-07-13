@@ -84,6 +84,7 @@ export default function CrazyDiceDuel() {
   const diceCenterRef = useRef(null);
   const [diceStyle, setDiceStyle] = useState({ display: 'none' });
   const [rollResult, setRollResult] = useState(null);
+  const [showPrompt, setShowPrompt] = useState(false);
   // Dice scales: shrink when at a player's position and expand when rolling
   // Reduce dice size by 20% when idle or landing
   const DICE_CENTER_SCALE = 0.8;
@@ -109,6 +110,10 @@ export default function CrazyDiceDuel() {
     window.addEventListener('gameMuteChanged', handler);
     return () => window.removeEventListener('gameMuteChanged', handler);
   }, []);
+
+  useEffect(() => {
+    setShowPrompt(current === 0);
+  }, [current]);
 
   useEffect(() => {
     if (timerRef.current) clearInterval(timerRef.current);
@@ -264,6 +269,7 @@ export default function CrazyDiceDuel() {
   };
 
   const handleRollStart = () => {
+    setShowPrompt(false);
     prepareDiceAnimation(current);
     animateDiceToCenter(current);
   };
@@ -292,6 +298,13 @@ export default function CrazyDiceDuel() {
       animateDiceToPlayer(nextIndex);
       setTimeout(() => setCurrent(nextIndex), DICE_ANIM_DURATION);
     }, 2000);
+  };
+
+  const rollNow = () => {
+    if (current === 0) {
+      setShowPrompt(false);
+      setTrigger((t) => t + 1);
+    }
   };
 
 
@@ -325,13 +338,7 @@ export default function CrazyDiceDuel() {
     return null;
   }
 
-  const gridCells = [];
-  for (let r = 0; r < GRID_ROWS; r++) {
-    for (let c = 0; c < GRID_COLS; c++) {
-      const label = `${String.fromCharCode(65 + c)}${r + 1}`;
-      gridCells.push({ label });
-    }
-  }
+
 
   return (
     <div className="text-text relative">
@@ -359,17 +366,6 @@ export default function CrazyDiceDuel() {
         alt="board"
         className="board-bg"
       />
-      <div className="grid-overlay">
-        {gridCells.map((cell, i) => (
-          <div key={i} className="grid-cell">
-            {cell.label && <span className="grid-label">{cell.label}</span>}
-          </div>
-        ))}
-      </div>
-      <div className="side-number top">1</div>
-      <div className="side-number bottom">2</div>
-      <div className="side-number left">3</div>
-      <div className="side-number right">4</div>
       <div ref={diceCenterRef} className="dice-center" />
       <div ref={diceRef} style={diceStyle} className="dice-travel flex flex-col items-center">
         {winner == null ? (
@@ -394,6 +390,15 @@ export default function CrazyDiceDuel() {
         )}
       </div>
       <div className="player-bottom z-10">
+        {showPrompt && (
+          <button
+            className="your-turn-message"
+            style={{ color: players[0].color }}
+            onClick={rollNow}
+          >
+            🫵 you're turn
+          </button>
+        )}
         <AvatarTimer
           index={0}
           photoUrl={players[0].photoUrl}
@@ -405,9 +410,7 @@ export default function CrazyDiceDuel() {
           rollHistory={players[0].results}
           maxRolls={maxRolls}
           color={players[0].color}
-          onClick={() => {
-            if (current === 0) setTrigger((t) => t + 1);
-          }}
+          onClick={rollNow}
         />
       </div>
       {players.slice(1).map((p, i) => {
