@@ -42,6 +42,14 @@ this account.
 ⚠️ Misconfiguring these may prevent the wallet from loading correctly.
 
 All `.env` files and `twitter.env` are excluded from version control via `.gitignore` so your credentials remain private.
+Check `.gitignore` at the repository root if you need a reminder of which files are ignored:
+
+```
+twitter.env
+.env*
+**/.env*
+```
+Files like `bot/.env`, `webapp/.env` and `scripts/.env` match these patterns.
 
 The server honors a few extra environment variables when building or serving the webapp:
 
