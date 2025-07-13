@@ -10,7 +10,8 @@ const router = Router();
 router.post('/search', async (req, res) => {
   const { query } = req.body;
   if (!query) return res.json([]);
-  const regex = new RegExp(query, 'i');
+  const escapeRegExp = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const regex = new RegExp(escapeRegExp(query), 'i');
   const users = await User.find({
     $or: [
       { firstName: regex },
