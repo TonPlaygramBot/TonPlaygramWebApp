@@ -1387,7 +1387,8 @@ input:focus {
 }
 
 .crazy-dice-board.three-players .player-right {
-  top: 15%;
+  top: 14%;
+  right: 4%;
 }
 
 
