@@ -156,10 +156,10 @@ export default function CrazyDiceDuel() {
 
   const getDiceCenter = (playerIdx = 'center') => {
     const posMap = {
-      0: { label: 'B8', dx: -0.1 }, // slightly to the left
-      1: { label: 'F8' },
-      2: { label: 'J9' }, // moved from J8 to J9
-      3: { label: 'F19', dx: -0.1 }, // slightly to the left
+      0: { label: 'F19', dx: -0.1 }, // Player 1
+      1: { label: 'B8', dx: -0.1 },  // Player 2
+      2: { label: 'F8' },            // Player 3
+      3: { label: 'J9' },            // Player 4
       center: { label: 'F12' },
     };
     const entry = posMap[playerIdx] || {};
