@@ -9,7 +9,8 @@ export default function CrazyDiceLobby() {
   const navigate = useNavigate();
   useTelegramBackButton(() => navigate('/games', { replace: true }));
 
-  const [players, setPlayers] = useState(2);
+  // Number of human opponents (excluding the current player)
+  const [players, setPlayers] = useState(1);
   const [rolls, setRolls] = useState(1);
   const [stake, setStake] = useState({ token: 'TPC', amount: 100 });
   const [vsAI, setVsAI] = useState(false);
@@ -35,7 +36,8 @@ export default function CrazyDiceLobby() {
       params.set('ai', aiCount);
       params.set('players', aiCount + 1);
     } else {
-      params.set('players', players);
+      // Convert opponent count to total player count
+      params.set('players', players + 1);
     }
     params.set('rolls', rolls);
     if (stake.token) params.set('token', stake.token);
@@ -68,7 +70,7 @@ export default function CrazyDiceLobby() {
         <div className="space-y-2">
           <h3 className="font-semibold">Players</h3>
           <div className="flex gap-2">
-            {[2, 3, 4].map((n) => (
+            {[1, 2, 3].map((n) => (
               <button
                 key={n}
                 onClick={() => setPlayers(n)}
