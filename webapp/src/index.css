@@ -114,6 +114,7 @@ input:focus {
   top: 0;
   bottom: 0;
   /* Center the background image */
+  filter: brightness(2.6);
   transform: translateY(90px) scale(1.2);
 }
 
@@ -461,6 +462,15 @@ input:focus {
   right: -1.2rem;
   transform: translateY(-50%);
   pointer-events: none;
+}
+
+.your-turn-message {
+  position: absolute;
+  bottom: calc(100% + 0.25rem);
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 0.75rem;
+  font-weight: bold;
 }
 
 .timer-count {
@@ -1311,27 +1321,6 @@ input:focus {
   filter: brightness(1.2);
   z-index: -1;
 }
-.crazy-dice-board .grid-overlay {
-  position: absolute;
-  inset: 0;
-  display: grid;
-  grid-template-columns: repeat(10, 1fr);
-  grid-template-rows: repeat(20, 1fr);
-  pointer-events: none;
-  z-index: 0;
-}
-.crazy-dice-board .grid-overlay .grid-cell {
-  border: 1px dashed rgba(255, 255, 255, 0.2);
-  position: relative;
-}
-.crazy-dice-board .grid-overlay .grid-label {
-  position: absolute;
-  top: 2px;
-  left: 2px;
-  font-size: 0.5rem;
-  color: #fff;
-  opacity: 0.6;
-}
 .crazy-dice-board .dice-center {
   position: absolute;
   top: 57.5%;
@@ -1383,34 +1372,6 @@ input:focus {
   transform: translate(50%, -50%);
 }
 
-/* Markers for easier mapping */
-.crazy-dice-board .side-number {
-  position: absolute;
-  font-size: 0.75rem;
-  color: #fff;
-  opacity: 0.7;
-  pointer-events: none;
-}
-.crazy-dice-board .side-number.top {
-  top: 0.5rem;
-  left: 50%;
-  transform: translateX(-50%);
-}
-.crazy-dice-board .side-number.bottom {
-  bottom: 0.5rem;
-  left: 50%;
-  transform: translateX(-50%);
-}
-.crazy-dice-board .side-number.left {
-  left: 0.5rem;
-  top: 50%;
-  transform: translateY(-50%);
-}
-.crazy-dice-board .side-number.right {
-  right: 0.5rem;
-  top: 50%;
-  transform: translateY(-50%);
-}
 
 /* Rolling dice animation */
 .dice-screen-animation {
