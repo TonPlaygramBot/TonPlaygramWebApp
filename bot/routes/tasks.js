@@ -5,7 +5,7 @@ import { TASKS, TASKS_VERSION } from '../utils/tasksData.js';
 import { ensureTransactionArray } from '../utils/userUtils.js';
 import { TwitterApi } from 'twitter-api-v2';
 import PostRecord from '../models/PostRecord.js';
-import { similarityRatio } from '../utils/textSimilarity.js';
+import { similarityRatio, normalizeText } from '../utils/textSimilarity.js';
 
 const router = Router();
 const twitterClient = process.env.TWITTER_BEARER_TOKEN
@@ -93,10 +93,10 @@ router.post('/verify-post', async (req, res) => {
       return res.status(404).json({ error: 'user not found' });
     }
 
-    const text = tweet.data.text.trim().replace(/\s+/g, ' ');
+    const text = normalizeText(tweet.data.text);
     const highest = Math.max(
       ...config.posts.map((p) => {
-        const norm = p.trim().replace(/\s+/g, ' ');
+        const norm = normalizeText(p);
         return similarityRatio(text, norm);
       })
     );

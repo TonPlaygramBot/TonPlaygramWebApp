@@ -24,3 +24,12 @@ export function similarityRatio(a = '', b = '') {
   const maxLen = Math.max(a.length, b.length);
   return maxLen === 0 ? 1 : 1 - distance / maxLen;
 }
+
+export function normalizeText(text = '') {
+  return text
+    .toLowerCase()
+    .replace(/https?:\/\/\S+/g, '')
+    .replace(/[^a-z0-9@#]+/gi, ' ')
+    .trim()
+    .replace(/\s+/g, ' ');
+}
