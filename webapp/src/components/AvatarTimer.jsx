@@ -14,11 +14,18 @@ export default function AvatarTimer({
   color,
   onClick,
   index,
+  size = 1,
 }) {
   const angle = (1 - timerPct) * 360;
   const gradient = `conic-gradient(#facc15 ${angle}deg, #16a34a 0deg)`;
+  const sizeRem = 3.25 * size;
   return (
-    <div className="relative w-[3.25rem] h-[3.25rem]" onClick={onClick} data-player-index={index}>
+    <div
+      className="relative"
+      style={{ width: `${sizeRem}rem`, height: `${sizeRem}rem` }}
+      onClick={onClick}
+      data-player-index={index}
+    >
       {/* turn indicator removed */}
       {active && (
         <div className="avatar-timer-ring" style={{ '--timer-gradient': gradient }} />
@@ -26,7 +33,7 @@ export default function AvatarTimer({
       <img
         src={getAvatarUrl(photoUrl)}
         alt="player"
-        className="w-[3.25rem] h-[3.25rem] rounded-full border-2 object-cover"
+        className="rounded-full border-2 object-cover w-full h-full"
         style={{
           borderColor: color || '#fde047',
           boxShadow: isTurn ? `0 0 6px ${color || '#fde047'}` : undefined,
