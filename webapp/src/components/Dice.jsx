@@ -127,7 +127,7 @@ export default function DiceSet({
   startValues,
 }) {
   return (
-    <div className="flex gap-4 justify-center items-center">
+    <div className="flex gap-2 justify-center items-center">
       {values.map((v, i) => (
         <DiceCube
           key={i}
