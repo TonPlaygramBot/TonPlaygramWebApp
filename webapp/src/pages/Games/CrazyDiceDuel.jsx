@@ -240,16 +240,13 @@ export default function CrazyDiceDuel() {
 
   const animateDiceToPlayer = (idx, fromIdx = idx) => {
     const dice = diceRef.current;
-    const endEl = document.querySelector(`[data-player-index="${idx}"] img`);
-    if (!dice || !endEl) return;
-    const e = endEl.getBoundingClientRect();
-    const endX = e.left + e.width / 2;
-    const endY = e.top + e.height / 2;
-    const { cx, cy } = getDiceCenter(fromIdx);
+    if (!dice) return;
+    const { cx: startX, cy: startY } = getDiceCenter(fromIdx);
+    const { cx: endX, cy: endY } = getDiceCenter(idx);
     dice.animate(
       [
-        { transform: `translate(${cx}px, ${cy}px) translate(-50%, -50%) scale(${DICE_CENTER_SCALE})` },
-        { transform: `translate(${endX}px, ${endY}px) translate(-50%, -50%) scale(${DICE_PLAYER_SCALE})` },
+        { transform: `translate(${startX}px, ${startY}px) translate(-50%, -50%) scale(${DICE_CENTER_SCALE})` },
+        { transform: `translate(${endX}px, ${endY}px) translate(-50%, -50%) scale(${DICE_CENTER_SCALE})` },
       ],
       { duration: DICE_ANIM_DURATION, easing: 'ease-in-out' },
     ).onfinish = () => {
@@ -258,7 +255,7 @@ export default function CrazyDiceDuel() {
         position: 'fixed',
         left: '0px',
         top: '0px',
-        transform: `translate(${endX}px, ${endY}px) translate(-50%, -50%) scale(${DICE_PLAYER_SCALE})`,
+        transform: `translate(${endX}px, ${endY}px) translate(-50%, -50%) scale(${DICE_CENTER_SCALE})`,
         pointerEvents: 'none',
         zIndex: 50,
       });
