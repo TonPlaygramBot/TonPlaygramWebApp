@@ -79,7 +79,14 @@ export default function CrazyDiceDuel() {
   const timerRef = useRef(null);
   const timerSoundRef = useRef(null);
 
-  // Dice remain at the centre with no travel animation
+  const diceRef = useRef(null);
+  const diceCenterRef = useRef(null);
+  const [diceStyle, setDiceStyle] = useState({ display: 'none' });
+  const [rollResult, setRollResult] = useState(null);
+  const DICE_SMALL_SCALE = 0.5;
+  const DICE_ANIM_DURATION = 1000;
+
+  // Board grid size for positioning helpers
   const GRID_ROWS = 20;
   const GRID_COLS = 10;
 
@@ -87,6 +94,10 @@ export default function CrazyDiceDuel() {
     timerSoundRef.current = new Audio(timerBeep);
     timerSoundRef.current.volume = getGameVolume();
     return () => timerSoundRef.current?.pause();
+  }, []);
+
+  useEffect(() => {
+    prepareDiceAnimation(0);
   }, []);
 
   useEffect(() => {
@@ -139,10 +150,112 @@ export default function CrazyDiceDuel() {
     };
   }, [current, aiCount, muted]);
 
+  const getDiceCenter = () => {
+    const rect = diceCenterRef.current?.getBoundingClientRect();
+    return {
+      cx: rect ? rect.left + rect.width / 2 : window.innerWidth / 2,
+      cy: rect ? rect.top + rect.height / 2 : window.innerHeight / 2,
+    };
+  };
+
+  const prepareDiceAnimation = (idx) => {
+    if (idx == null) {
+      const { cx, cy } = getDiceCenter();
+      setDiceStyle({
+        display: 'block',
+        position: 'fixed',
+        left: '0px',
+        top: '0px',
+        transform: `translate(${cx}px, ${cy}px) translate(-50%, -50%) scale(1)`,
+        pointerEvents: 'none',
+        zIndex: 50,
+      });
+      return;
+    }
+    const startEl = document.querySelector(`[data-player-index="${idx}"] img`);
+    if (!startEl) return;
+    const s = startEl.getBoundingClientRect();
+    setDiceStyle({
+      display: 'block',
+      position: 'fixed',
+      left: '0px',
+      top: '0px',
+      transform: `translate(${s.left + s.width / 2}px, ${s.top + s.height / 2}px) translate(-50%, -50%) scale(${DICE_SMALL_SCALE})`,
+      pointerEvents: 'none',
+      zIndex: 50,
+    });
+  };
+
+  const animateDiceToCenter = (idx) => {
+    const dice = diceRef.current;
+    const startEl = document.querySelector(`[data-player-index="${idx}"] img`);
+    if (!dice || !startEl) return;
+    const s = startEl.getBoundingClientRect();
+    const startX = s.left + s.width / 2;
+    const startY = s.top + s.height / 2;
+    const { cx, cy } = getDiceCenter();
+    dice.style.display = 'block';
+    dice.style.position = 'fixed';
+    dice.style.left = '0px';
+    dice.style.top = '0px';
+    dice.style.pointerEvents = 'none';
+    dice.style.zIndex = '50';
+    dice.animate(
+      [
+        { transform: `translate(${startX}px, ${startY}px) translate(-50%, -50%) scale(${DICE_SMALL_SCALE})` },
+        { transform: `translate(${cx}px, ${cy}px) translate(-50%, -50%) scale(1)` },
+      ],
+      { duration: DICE_ANIM_DURATION, easing: 'ease-in-out' },
+    ).onfinish = () => {
+      setDiceStyle({
+        display: 'block',
+        position: 'fixed',
+        left: '0px',
+        top: '0px',
+        transform: `translate(${cx}px, ${cy}px) translate(-50%, -50%) scale(1)`,
+        pointerEvents: 'none',
+        zIndex: 50,
+      });
+    };
+  };
+
+  const animateDiceToPlayer = (idx) => {
+    const dice = diceRef.current;
+    const endEl = document.querySelector(`[data-player-index="${idx}"] img`);
+    if (!dice || !endEl) return;
+    const e = endEl.getBoundingClientRect();
+    const endX = e.left + e.width / 2;
+    const endY = e.top + e.height / 2;
+    const { cx, cy } = getDiceCenter();
+    dice.animate(
+      [
+        { transform: `translate(${cx}px, ${cy}px) translate(-50%, -50%) scale(1)` },
+        { transform: `translate(${endX}px, ${endY}px) translate(-50%, -50%) scale(${DICE_SMALL_SCALE})` },
+      ],
+      { duration: DICE_ANIM_DURATION, easing: 'ease-in-out' },
+    ).onfinish = () => {
+      setDiceStyle({
+        display: 'block',
+        position: 'fixed',
+        left: '0px',
+        top: '0px',
+        transform: `translate(${endX}px, ${endY}px) translate(-50%, -50%) scale(${DICE_SMALL_SCALE})`,
+        pointerEvents: 'none',
+        zIndex: 50,
+      });
+    };
+  };
+
+  const handleRollStart = () => {
+    prepareDiceAnimation(current);
+    animateDiceToCenter(current);
+  };
+
   const handleRollEnd = (values) => {
     const value = Array.isArray(values) ? values.reduce((a, b) => a + b, 0) : values;
+    let nextIndex = current;
     setPlayers((prev) => {
-      const nextPlayers = prev.map((p, idx) =>
+      const updated = prev.map((p, idx) =>
         idx === current
           ? {
               ...p,
@@ -152,24 +265,20 @@ export default function CrazyDiceDuel() {
             }
           : p
       );
-      return nextPlayers;
+      nextIndex = (current + 1) % updated.length;
+      while (updated[nextIndex].rolls >= maxRolls) nextIndex = (nextIndex + 1) % updated.length;
+      return updated;
     });
-    let n = (current + 1) % players.length;
-    while (players[n].rolls >= maxRolls) n = (n + 1) % players.length;
-    // Dice remain on the centre cell after rolling
+    setRollResult(value);
+    setTimeout(() => setRollResult(null), 2000);
+    setTimeout(() => {
+      animateDiceToPlayer(nextIndex);
+      setTimeout(() => setCurrent(nextIndex), DICE_ANIM_DURATION);
+    }, 2000);
   };
 
-  // Dice remain fixed at the center so no travel animation is needed
 
 
-
-  const nextTurn = () => {
-    setCurrent((c) => {
-      let n = (c + 1) % players.length;
-      while (players[n].rolls >= maxRolls) n = (n + 1) % players.length;
-      return n;
-    });
-  };
 
   const allRolled = players.every((p) => p.rolls >= maxRolls);
 
@@ -198,11 +307,6 @@ export default function CrazyDiceDuel() {
     setCurrent(0);
     return null;
   }
-
-  const onRollEnd = (values) => {
-    handleRollEnd(values);
-    nextTurn();
-  };
 
   const gridCells = [];
   for (let r = 0; r < GRID_ROWS; r++) {
@@ -249,20 +353,26 @@ export default function CrazyDiceDuel() {
       <div className="side-number bottom">2</div>
       <div className="side-number left">3</div>
       <div className="side-number right">4</div>
-      <div className="dice-center">
+      <div ref={diceCenterRef} className="dice-center" />
+      <div ref={diceRef} style={diceStyle} className="dice-travel flex flex-col items-center">
         {winner == null ? (
           <div className="crazy-dice">
             <DiceRoller
-              onRollEnd={onRollEnd}
+              onRollEnd={handleRollEnd}
+              onRollStart={handleRollStart}
               trigger={trigger}
               clickable={aiCount === 0 || current === 0}
               showButton={aiCount === 0 || current === 0}
-              diceContainerClassName="space-x-8"
             />
           </div>
         ) : (
           <div className="text-2xl font-bold text-center">
             Player {winner + 1} wins!
+          </div>
+        )}
+        {rollResult !== null && (
+          <div className="text-5xl roll-result" style={{ transform: 'translateY(-6rem)' }}>
+            {rollResult}
           </div>
         )}
       </div>
