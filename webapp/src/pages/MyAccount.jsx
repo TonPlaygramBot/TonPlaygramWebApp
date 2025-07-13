@@ -327,7 +327,7 @@ export default function MyAccount() {
               )}
             </a>
           </div>
-          {profile.social?.twitter ? (
+          {profile.social?.twitter && (
             <p className="text-sm mt-2">
               Linked Twitter: @{profile.social.twitter}{' '}
               <button
@@ -337,13 +337,6 @@ export default function MyAccount() {
                 Clear
               </button>
             </p>
-          ) : (
-            <button
-              onClick={handleConnectTwitter}
-              className="mt-2 px-2 py-1 bg-primary hover:bg-primary-hover rounded text-sm text-white-shadow"
-            >
-              Connect Twitter
-            </button>
           )}
         </div>
       </div>
