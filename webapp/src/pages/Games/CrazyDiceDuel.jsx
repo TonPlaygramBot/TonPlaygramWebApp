@@ -118,8 +118,8 @@ export default function CrazyDiceDuel() {
     timerSoundRef.current?.pause();
     const isAI = aiCount > 0 && current > 0;
     if (isAI) {
-      setTimeLeft(3.5);
-      const end = Date.now() + 3500;
+      setTimeLeft(2.5);
+      const end = Date.now() + 2500;
       timerRef.current = setInterval(() => {
         const remaining = Math.max(0, (end - Date.now()) / 1000);
         if (remaining <= 0) {
@@ -410,7 +410,7 @@ export default function CrazyDiceDuel() {
             photoUrl={p.photoUrl}
             active={current === i + 1}
             isTurn={current === i + 1}
-            timerPct={current === i + 1 ? timeLeft / 3.5 : 1}
+            timerPct={current === i + 1 ? timeLeft / 2.5 : 1}
             name={`P${i + 2}`}
             score={p.score}
             rollHistory={p.results}
