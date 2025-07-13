@@ -74,7 +74,6 @@ export default function MyAccount() {
   const [convertAction, setConvertAction] = useState('burn');
   const [transferAccount, setTransferAccount] = useState('');
   const [twitterError, setTwitterError] = useState('');
-  const [twitterUrl, setTwitterUrl] = useState('');
   const [unread, setUnread] = useState(0);
 
   useEffect(() => {
@@ -148,12 +147,6 @@ export default function MyAccount() {
 
   const photoUrl = loadAvatar() || profile.photo || getTelegramPhotoUrl();
 
-  useEffect(() => {
-    if (profile?.social?.twitter) {
-      setTwitterUrl(profile.social.twitter);
-    }
-  }, [profile?.social?.twitter]);
-
 
   const handleDevTopup = async () => {
     const amt = Number(devTopup);
@@ -217,20 +210,37 @@ export default function MyAccount() {
   };
 
 
-  const handleSaveTwitter = async () => {
+  const handleConnectTwitter = async () => {
     setTwitterError('');
     try {
-      const res = await linkSocial({ telegramId, twitter: twitterUrl.trim() });
+      const res = await fetch('/api/twitter/start', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ telegramId })
+      }).then(r => r.json());
+      if (res.url) {
+        window.open(res.url, '_blank');
+      } else if (res.error) {
+        setTwitterError(res.error);
+      }
+    } catch (err) {
+      console.error('connect twitter failed', err);
+      setTwitterError('Failed to start Twitter auth');
+    }
+  };
+
+  const handleClearTwitter = async () => {
+    setTwitterError('');
+    try {
+      const res = await linkSocial({ telegramId, twitter: '' });
       if (res?.error) {
         setTwitterError(res.error);
       } else {
         setProfile((p) => ({ ...p, social: res.social }));
-        setShowSaved(true);
-        setTimeout(() => setShowSaved(false), 1500);
       }
     } catch (err) {
-      console.error('save twitter failed', err);
-      setTwitterError('Failed to save');
+      console.error('clear twitter failed', err);
+      setTwitterError('Failed to clear');
     }
   };
 
@@ -317,21 +327,24 @@ export default function MyAccount() {
               )}
             </a>
           </div>
-          <div className="mt-2 flex items-center space-x-2">
-            <input
-              type="text"
-              placeholder="X profile URL"
-              value={twitterUrl}
-              onChange={(e) => setTwitterUrl(e.target.value)}
-              className="border p-1 rounded text-black flex-grow"
-            />
+          {profile.social?.twitter ? (
+            <p className="text-sm mt-2">
+              Linked Twitter: @{profile.social.twitter}{' '}
+              <button
+                onClick={handleClearTwitter}
+                className="underline text-primary ml-1"
+              >
+                Clear
+              </button>
+            </p>
+          ) : (
             <button
-              onClick={handleSaveTwitter}
-              className="px-2 py-1 bg-primary hover:bg-primary-hover rounded text-sm text-white-shadow"
+              onClick={handleConnectTwitter}
+              className="mt-2 px-2 py-1 bg-primary hover:bg-primary-hover rounded text-sm text-white-shadow"
             >
-              Save
+              Connect Twitter
             </button>
-          </div>
+          )}
         </div>
       </div>
 
