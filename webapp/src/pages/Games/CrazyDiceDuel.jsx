@@ -13,19 +13,24 @@ import QuickMessagePopup from '../../components/QuickMessagePopup.jsx';
 import GiftPopup from '../../components/GiftPopup.jsx';
 import GameEndPopup from '../../components/GameEndPopup.jsx';
 import useTelegramBackButton from '../../hooks/useTelegramBackButton.js';
-import { loadAvatar } from '../../utils/avatarUtils.js';
+import {
+  loadAvatar,
+  avatarToName,
+} from '../../utils/avatarUtils.js';
+import { FLAG_EMOJIS } from '../../utils/flagEmojis.js';
 import { chatBeep, timerBeep } from '../../assets/soundData.js';
 import { getGameVolume, isGameMuted } from '../../utils/sound.js';
 import { giftSounds } from '../../utils/giftSounds.js';
+import InfoPopup from '../../components/InfoPopup.jsx';
+import ConfirmPopup from '../../components/ConfirmPopup.jsx';
 
 const COLORS = ['#60a5fa', '#ef4444', '#4ade80', '#facc15'];
 
 export default function CrazyDiceDuel() {
   const navigate = useNavigate();
-  const handleBack = useCallback(
-    () => navigate('/games/crazydice/lobby', { replace: true }),
-    [navigate],
-  );
+  const [showLobbyConfirm, setShowLobbyConfirm] = useState(false);
+  const [showQuitInfo, setShowQuitInfo] = useState(true);
+  const handleBack = useCallback(() => setShowLobbyConfirm(true), []);
   useTelegramBackButton(handleBack);
   const [searchParams] = useSearchParams();
   const aiCount = parseInt(searchParams.get('ai')) || 0;
@@ -43,20 +48,22 @@ export default function CrazyDiceDuel() {
     setBgUnlocked(true);
   };
 
-  const initialPlayers = useMemo(
-    () =>
-      Array.from({ length: playerCount }, (_, i) => ({
-        score: 0,
-        rolls: 0,
-        results: [],
-        photoUrl:
-          i === 0
-            ? loadAvatar() || '/assets/icons/profile.svg'
+  const initialPlayers = useMemo(() => {
+    const randFlag = () =>
+      FLAG_EMOJIS[Math.floor(Math.random() * FLAG_EMOJIS.length)];
+    return Array.from({ length: playerCount }, (_, i) => ({
+      score: 0,
+      rolls: 0,
+      results: [],
+      photoUrl:
+        i === 0
+          ? loadAvatar() || '/assets/icons/profile.svg'
+          : aiCount > 0
+            ? randFlag()
             : `/assets/avatars/avatar${(i % 5) + 1}.svg`,
-        color: COLORS[i % COLORS.length],
-      })),
-    [playerCount],
-  );
+      color: COLORS[i % COLORS.length],
+    }));
+  }, [playerCount, aiCount]);
 
   const [players, setPlayers] = useState(initialPlayers);
   const [current, setCurrent] = useState(0);
@@ -66,10 +73,18 @@ export default function CrazyDiceDuel() {
   const ranking = useMemo(
     () =>
       players
-        .map((p, i) => ({ name: i === 0 ? 'You' : `P${i + 1}`, score: p.score }))
+        .map((p, i) => ({
+          name:
+            i === 0
+              ? 'You'
+              : aiCount > 0
+                ? avatarToName(p.photoUrl) || `AI ${i}`
+                : `P${i + 1}`,
+          score: p.score,
+        }))
         .sort((a, b) => b.score - a.score)
         .map((p) => p.name),
-    [players],
+    [players, aiCount],
   );
   const [showChat, setShowChat] = useState(false);
   const [showGift, setShowGift] = useState(false);
@@ -430,7 +445,11 @@ export default function CrazyDiceDuel() {
             active={current === i + 1}
             isTurn={current === i + 1}
             timerPct={current === i + 1 ? timeLeft / 2.5 : 1}
-            name={`P${i + 2}`}
+            name={
+              aiCount > 0
+                ? avatarToName(p.photoUrl) || `AI ${i + 1}`
+                : `P${i + 2}`
+            }
             score={p.score}
             rollHistory={p.results}
             maxRolls={maxRolls}
@@ -470,7 +489,16 @@ export default function CrazyDiceDuel() {
       <GiftPopup
         open={showGift}
         onClose={() => setShowGift(false)}
-        players={players.map((p, i) => ({ ...p, index: i, name: `P${i + 1}` }))}
+        players={players.map((p, i) => ({
+          ...p,
+          index: i,
+          name:
+            i === 0
+              ? 'You'
+              : aiCount > 0
+                ? avatarToName(p.photoUrl) || `AI ${i}`
+                : `P${i + 1}`,
+        }))}
         senderIndex={0}
         onGiftSent={({ from, to, gift }) => {
           const start = document.querySelector(`[data-player-index="${from}"]`);
@@ -520,6 +548,18 @@ export default function CrazyDiceDuel() {
         ranking={ranking}
         onPlayAgain={() => window.location.reload()}
         onReturn={() => navigate('/games/crazydice/lobby')}
+      />
+      <InfoPopup
+        open={showQuitInfo}
+        onClose={() => setShowQuitInfo(false)}
+        title="Warning"
+        info="If you quit the game your funds will be lost and you will be placed last."
+      />
+      <ConfirmPopup
+        open={showLobbyConfirm}
+        message="Quit the game? If you leave, your funds will be lost and you'll be placed last."
+        onConfirm={() => navigate('/games/crazydice/lobby')}
+        onCancel={() => setShowLobbyConfirm(false)}
       />
       </div>
     </div>

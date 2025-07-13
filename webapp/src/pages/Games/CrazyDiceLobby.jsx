@@ -45,6 +45,8 @@ export default function CrazyDiceLobby() {
     navigate(`/games/crazydice?${params.toString()}`);
   };
 
+  const disabled = !stake.token || !stake.amount || (!vsAI && players > 1);
+
   return (
     <div className="p-4 space-y-4 text-text">
       <h2 className="text-xl font-bold text-center">Crazy Dice Lobby</h2>
@@ -118,7 +120,8 @@ export default function CrazyDiceLobby() {
       </div>
       <button
         onClick={startGame}
-        className="px-4 py-2 w-full bg-primary hover:bg-primary-hover text-background rounded"
+        disabled={disabled}
+        className="px-4 py-2 w-full bg-primary hover:bg-primary-hover text-background rounded disabled:opacity-50"
       >
         Start Game
       </button>
