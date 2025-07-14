@@ -27,9 +27,11 @@ import SpinPage from './pages/spin.tsx';
 
 import Layout from './components/Layout.jsx';
 import useTelegramAuth from './hooks/useTelegramAuth.js';
+import useReferralClaim from './hooks/useReferralClaim.js';
 
 export default function App() {
   useTelegramAuth();
+  useReferralClaim();
 
   const manifestUrl = `${window.location.origin}/tonconnect-manifest.json`;
 
