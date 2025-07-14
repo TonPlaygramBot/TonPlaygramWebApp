@@ -3,14 +3,20 @@ import { useNavigate } from 'react-router-dom';
 import { pingOnline, getOnlineCount } from '../../utils/api.js';
 import { getPlayerId } from '../../utils/telegram.js';
 import RoomSelector from '../../components/RoomSelector.jsx';
+import TableSelector from '../../components/TableSelector.jsx';
 import useTelegramBackButton from '../../hooks/useTelegramBackButton.js';
 
 export default function CrazyDiceLobby() {
   const navigate = useNavigate();
   useTelegramBackButton(() => navigate('/games', { replace: true }));
 
-  // Number of human opponents (excluding the current player)
-  const [players, setPlayers] = useState(1);
+  const TABLES = [
+    { id: '2p', label: 'Table 2p', capacity: 2 },
+    { id: '3p', label: 'Table 3p', capacity: 3 },
+    { id: '4p', label: 'Table 4p', capacity: 4 },
+  ];
+
+  const [table, setTable] = useState(TABLES[0]);
   const [rolls, setRolls] = useState(1);
   const [stake, setStake] = useState({ token: 'TPC', amount: 100 });
   const [vsAI, setVsAI] = useState(false);
@@ -36,8 +42,7 @@ export default function CrazyDiceLobby() {
       params.set('ai', aiCount);
       params.set('players', aiCount + 1);
     } else {
-      // Convert opponent count to total player count
-      params.set('players', players + 1);
+      params.set('players', table.capacity);
     }
     params.set('rolls', rolls);
     if (stake.token) params.set('token', stake.token);
@@ -45,10 +50,10 @@ export default function CrazyDiceLobby() {
     navigate(`/games/crazydice?${params.toString()}`);
   };
 
-  const disabled = !stake.token || !stake.amount || (!vsAI && players > 1);
+  const disabled = !stake.token || !stake.amount || (!vsAI && !table);
 
   return (
-    <div className="p-4 space-y-4 text-text">
+    <div className="relative p-4 space-y-4 text-text">
       <h2 className="text-xl font-bold text-center">Crazy Dice Lobby</h2>
       <p className="text-center text-sm">Online users: {online}</p>
       <div className="space-y-2">
@@ -70,18 +75,8 @@ export default function CrazyDiceLobby() {
       </div>
       {!vsAI && (
         <div className="space-y-2">
-          <h3 className="font-semibold">Players</h3>
-          <div className="flex gap-2">
-            {[1, 2, 3].map((n) => (
-              <button
-                key={n}
-                onClick={() => setPlayers(n)}
-                className={`lobby-tile ${players === n ? 'lobby-selected' : ''}`}
-              >
-                {n}
-              </button>
-            ))}
-          </div>
+          <h3 className="font-semibold">Select Table</h3>
+          <TableSelector tables={TABLES} selected={table} onSelect={setTable} />
         </div>
       )}
       {vsAI && (
