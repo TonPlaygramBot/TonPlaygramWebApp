@@ -15,6 +15,7 @@ import Branding from './Branding.jsx';
 
 import DynamicBackground from './DynamicBackground.jsx';
 import SkyBackground from './SkyBackground.jsx';
+import GalaxyBackground from './GalaxyBackground.jsx';
 
 export default function Layout({ children }) {
   const location = useLocation();
@@ -90,9 +91,7 @@ export default function Layout({ children }) {
 
     <div className="flex flex-col min-h-screen text-text relative overflow-hidden">
 
-      {/* Removed the starry cosmic background */}
-
-
+      <GalaxyBackground />
       <main className={`flex-grow ${
         showNavbar ? 'container mx-auto p-4 pb-24' : 'w-full p-0'
       }`}>
