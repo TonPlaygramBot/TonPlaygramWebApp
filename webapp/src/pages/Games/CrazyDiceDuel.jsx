@@ -228,23 +228,23 @@ export default function CrazyDiceDuel() {
 
   const getDiceCenter = (playerIdx = 'center') => {
       const posMap = {
-        // Bottom player dice position – centre bottom of the board
-        0: { label: 'K30' },
+        // Bottom player dice position – moved slightly up
+        0: { label: 'K28' },
         // Top player dice position. When only two players are present this
         // represents the opponent at the top of the board. When facing two
         // opponents (three players total) the dice are positioned according
         // to the updated Crazy Dice board layout.
         1:
           playerCount === 2
-            ? { label: 'K20' }
+            ? { label: 'J20' }
             : { label: 'E17' },
         2:
           playerCount === 3
             ? { label: 'R17' }
             : { label: 'F8' },
         3: { label: 'J9' },
-        // Dice roll animation centre
-        center: { label: 'K24' },
+        // Dice roll animation centre now aligned with guide box J26
+        center: { label: 'J26' },
       };
     const entry = posMap[playerIdx] || {};
     const label = entry.label;
