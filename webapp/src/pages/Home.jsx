@@ -6,6 +6,7 @@ import GameCard from '../components/GameCard.jsx';
 import TasksCard from '../components/TasksCard.jsx';
 import StoreAd from '../components/StoreAd.jsx';
 import NftGiftCard from '../components/NftGiftCard.jsx';
+import HomeGamesCard from '../components/HomeGamesCard.jsx';
 
 import {
   FaUser,
@@ -318,6 +319,7 @@ export default function Home() {
           </div>
 
           <NftGiftCard />
+          <HomeGamesCard />
         </div>
 
       </div>
