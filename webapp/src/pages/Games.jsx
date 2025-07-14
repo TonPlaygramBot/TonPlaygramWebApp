@@ -13,7 +13,11 @@ export default function Games() {
           icon={<img src="/assets/icons/snakes_and_ladders.webp" alt="" className="h-24 w-24 mx-auto" />}
           link="/games/snake/lobby"
         />
-        <GameCard title="Crazy Dice Duel" icon="🎲" link="/games/crazydice/lobby" />
+        <GameCard
+          title="Crazy Dice Duel"
+          icon={<img src="/assets/icons/Crazy_Dice_Duel_Promo.webp" alt="" className="h-24 w-24 mx-auto" />}
+          link="/games/crazydice/lobby"
+        />
         <LeaderboardCard />
       </div>
     </div>
