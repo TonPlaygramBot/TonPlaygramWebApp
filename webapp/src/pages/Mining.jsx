@@ -11,6 +11,7 @@ import LuckyNumber from '../components/LuckyNumber.jsx';
 import {
   getLeaderboard,
   getReferralInfo,
+  claimReferral,
   fetchTelegramInfo,
   getProfile,
   listFriendRequests,
@@ -36,6 +37,8 @@ export default function Mining() {
   const accountId = getPlayerId();
 
   const [referral, setReferral] = useState(null);
+  const [claim, setClaim] = useState('');
+  const [claimMsg, setClaimMsg] = useState('');
   const [leaderboard, setLeaderboard] = useState([]);
   const [rank, setRank] = useState(null);
   const [myPhotoUrl, setMyPhotoUrl] = useState(
@@ -190,6 +193,35 @@ export default function Mining() {
             Copy
           </button>
         </div>
+        <div className="flex items-center space-x-2 mt-2">
+          <input
+            type="text"
+            placeholder="Paste link or code"
+            value={claim}
+            onChange={(e) => setClaim(e.target.value)}
+            className="flex-1 bg-surface border border-border rounded px-2 py-1 text-sm"
+          />
+          <button
+            onClick={async () => {
+              const c = claim.includes('start=') ? claim.split('start=')[1] : claim;
+              try {
+                const res = await claimReferral(telegramId, c.trim());
+                if (!res.error) {
+                  setClaimMsg('Referral claimed!');
+                  getReferralInfo(telegramId).then(setReferral);
+                } else {
+                  setClaimMsg(res.error || res.message || 'Failed');
+                }
+              } catch {
+                setClaimMsg('Failed');
+              }
+            }}
+            className="px-2 py-1 bg-primary hover:bg-primary-hover rounded text-sm text-white-shadow"
+          >
+            Claim
+          </button>
+        </div>
+        {claimMsg && <p className="text-xs text-subtext">{claimMsg}</p>}
       </section>
 
       <section className="space-y-1">
