@@ -137,13 +137,13 @@ export default function CrazyDiceDuel() {
   const timerRef = useRef(null);
   const timerSoundRef = useRef(null);
 
-  // Board background changes depending on number of players
-  const boardBgSrc =
-    playerCount === 2
-      ? '/assets/icons/file_000000004c0c6243bf81f848563832f3.webp'
-      : playerCount === 3
-        ? '/assets/icons/file_00000000077462468c5871b59180ae3e.webp'
-        : '/assets/icons/file_0000000095a06246adc25e3e6ba244a4.webp';
+  // Board background changes depending on number of opponents
+  const BG_BY_PLAYERS = {
+    2: '/assets/icons/file_000000004c0c6243bf81f848563832f3.webp', // 1v1
+    3: '/assets/icons/file_00000000077462468c5871b59180ae3e.webp', // vs 2 others
+    4: '/assets/icons/file_0000000095a06246adc25e3e6ba244a4.webp', // vs 3 others
+  };
+  const boardBgSrc = BG_BY_PLAYERS[playerCount] || BG_BY_PLAYERS[4];
 
   const boardRef = useRef(null);
   const diceRef = useRef(null);
