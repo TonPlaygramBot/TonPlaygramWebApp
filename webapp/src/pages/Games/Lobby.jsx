@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useTonAddress, useTonConnectUI } from '@tonconnect/ui-react';
 import { FaUsers } from 'react-icons/fa';
 import { useNavigate, useParams } from 'react-router-dom';
@@ -47,6 +47,7 @@ export default function Lobby() {
   const [aiCount, setAiCount] = useState(0);
   const [online, setOnline] = useState(0);
   const [playerName, setPlayerName] = useState('');
+  const autoStartedRef = useRef(false);
 
   useEffect(() => {
     try {
@@ -122,6 +123,26 @@ export default function Lobby() {
     }
   }, [game, table]);
 
+  useEffect(() => {
+    if (
+      game === 'snake' &&
+      table &&
+      table.id !== 'single' &&
+      players.length === table.capacity &&
+      !autoStartedRef.current
+    ) {
+      autoStartedRef.current = true;
+      startGame();
+    } else if (
+      game === 'snake' &&
+      table &&
+      table.id !== 'single' &&
+      players.length < table.capacity
+    ) {
+      autoStartedRef.current = false;
+    }
+  }, [players, game, table]);
+
 
   const startGame = async () => {
     const params = new URLSearchParams();
@@ -174,16 +195,12 @@ export default function Lobby() {
     navigate(`/games/${game}?${params.toString()}`);
   };
 
-  let disabled = !canStartGame(game, table, stake, aiCount, players.length);
-  if (
+  const waitingForPlayers =
     game === 'snake' &&
     table &&
     table.id !== 'single' &&
-    players.length > 0 &&
-    players.length < table.capacity
-  ) {
-    disabled = false;
-  }
+    players.length < table.capacity;
+  const disabled = !canStartGame(game, table, stake, aiCount, players.length);
 
   return (
     <div className="relative p-4 space-y-4 text-text">
@@ -248,7 +265,11 @@ export default function Lobby() {
         disabled={disabled}
         className="px-4 py-2 w-full bg-primary hover:bg-primary-hover text-background rounded disabled:opacity-50"
       >
-        Start Game
+        {waitingForPlayers
+          ? `Waiting for ${table.capacity - players.length} more player${
+              table.capacity - players.length === 1 ? '' : 's'
+            }...`
+          : 'Start Game'}
       </button>
     </div>
   );
