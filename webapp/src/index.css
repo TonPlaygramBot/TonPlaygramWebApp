@@ -1333,15 +1333,17 @@ input:focus {
 }
 .crazy-dice-board .dice-center {
   position: absolute;
-  top: 78.33%;
-  left: 52.5%;
+  /* Center updated to guide box J26 */
+  top: 85%;
+  left: 47.5%;
   transform: translate(-50%, -50%);
 }
 
 /* Player positions around the Crazy Dice board */
 .crazy-dice-board .player-bottom {
   position: absolute;
-  bottom: 2%;
+  /* Moved slightly up for better spacing */
+  bottom: 8%;
   left: 50%;
   transform: translateX(-50%);
 }
@@ -1361,7 +1363,8 @@ input:focus {
 .crazy-dice-board .player-center {
   position: absolute;
   top: 18%;
-  left: 48%;
+  /* Nudged slightly to the right */
+  left: 52%;
   transform: translate(-50%, -50%);
 }
 .crazy-dice-board .player-center .player-score,
