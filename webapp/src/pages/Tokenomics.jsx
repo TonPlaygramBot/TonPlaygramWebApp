@@ -433,6 +433,7 @@ export default function TokenomicsPage() {
             <li className="ml-4">🎲 Snake &amp; Ladder Game launched (1v1 vs AI &amp; 2–4 player multiplayer)</li>
             <li className="ml-4">🧑‍🤝‍🤝 Online user status, add friends, and inbox chat inside game</li>
             <li className="ml-4">🕹️ Full integration between Telegram Bot and WebApp</li>
+            <li className="ml-4">🎲 Crazy Dice Duel for quick head-to-head matches</li>
             <li><b>Rewards &amp; Incentives</b></li>
             <li className="ml-4">🔄 Daily Check-In System: 150 <img src="/assets/icons/TPCcoin_1.webp" alt="TPC" className="inline-block w-4 h-4 mx-1" /> on Day 1 → 1,600 <img src="/assets/icons/TPCcoin_1.webp" alt="TPC" className="inline-block w-4 h-4 ml-1" /> by Day 30</li>
             <li className="ml-4">⛏️ Mining system (250–1,000 <img src="/assets/icons/TPCcoin_1.webp" alt="TPC" className="inline-block w-4 h-4 mx-1" /> every 12 hours)</li>
@@ -440,6 +441,8 @@ export default function TokenomicsPage() {
             <li className="ml-4">🎯 Social Tasks: +2,500 <img src="/assets/icons/TPCcoin_1.webp" alt="TPC" className="inline-block w-4 h-4 mx-1" /> each for Twitter, Telegram, TikTok</li>
             <li className="ml-4">📹 Intro Video Views: +5 <img src="/assets/icons/TPCcoin_1.webp" alt="TPC" className="inline-block w-4 h-4 mx-1" /> each</li>
             <li className="ml-4">🎡 Spin &amp; Win Wheel: 400–1,600 <img src="/assets/icons/TPCcoin_1.webp" alt="TPC" className="inline-block w-4 h-4 mx-1" /> prizes + Bonus x2 chance</li>
+            <li className="ml-4">🍀 Lucky Card daily prizes and free spin chances</li>
+            <li className="ml-4">🎁 NFT Gifts with fun on-screen effects</li>
           </ul>
         </div>
 
@@ -450,6 +453,9 @@ export default function TokenomicsPage() {
             <li>🧑‍💻 Mining &amp; Boosters (via Virtual Friends)</li>
             <li>🔁 Spin &amp; Win Packs (with spins and TPC <img src="/assets/icons/TPCcoin_1.webp" alt="TPC" className="inline-block w-4 h-4 ml-1" />)</li>
             <li>🎁 Bonus Packs (spins + TPC <img src="/assets/icons/TPCcoin_1.webp" alt="TPC" className="inline-block w-4 h-4 ml-1" /> + boosts)</li>
+            <li>🎲 Crazy Dice Duel mini-game</li>
+            <li>🍀 Lucky Card rewards</li>
+            <li>🎁 NFT Gifts marketplace</li>
             <li>📲 Telegram Notifications for token transfers</li>
             <li>👥 Multiplayer game rooms and social features</li>
             <li>💼 Automated wallet system across WebApp and Telegram</li>
