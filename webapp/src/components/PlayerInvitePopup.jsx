@@ -5,6 +5,7 @@ import GiftPopup from './GiftPopup.jsx';
 import GiftIcon from './GiftIcon.jsx';
 import { getAccountInfo, getSnakeResults } from '../utils/api.js';
 import { NFT_GIFTS } from '../utils/nftGifts.js';
+import AchievementsCard from './AchievementsCard.jsx';
 
 export default function PlayerInvitePopup({
   open,
@@ -111,6 +112,7 @@ export default function PlayerInvitePopup({
               )}
             </ul>
           </div>
+          <AchievementsCard telegramId={player.telegramId} />
           <div className="space-y-1">
             <p className="font-semibold">Game</p>
             <div className="flex justify-center space-x-2">

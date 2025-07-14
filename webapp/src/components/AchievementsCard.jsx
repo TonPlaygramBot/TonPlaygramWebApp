@@ -4,16 +4,18 @@ import { getTelegramId } from '../utils/telegram.js';
 import LoginOptions from './LoginOptions.jsx';
 import { Link } from 'react-router-dom';
 
-export default function AchievementsCard() {
-  let telegramId;
-  try {
-    telegramId = getTelegramId();
-  } catch (err) {
-    return (
-      <div className="bg-surface border border-border rounded-xl wide-card">
-        <LoginOptions />
-      </div>
-    );
+export default function AchievementsCard({ telegramId: propTelegramId }) {
+  let telegramId = propTelegramId;
+  if (!telegramId) {
+    try {
+      telegramId = getTelegramId();
+    } catch (err) {
+      return (
+        <div className="bg-surface border border-border rounded-xl wide-card">
+          <LoginOptions />
+        </div>
+      );
+    }
   }
 
   const [profile, setProfile] = useState(null);
