@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import DiceRoller from './DiceRoller.jsx';
 import RewardPopup from './RewardPopup.tsx';
-import { numericSegments, getLuckyReward } from '../utils/rewardLogic';
+import { numericSegments } from '../utils/rewardLogic';
 import { getTelegramId } from '../utils/telegram.js';
 import LoginOptions from './LoginOptions.jsx';
 import { getWalletBalance, updateBalance, addTransaction } from '../utils/api.js';
@@ -32,7 +32,6 @@ export default function LuckyNumber() {
   const [rewards, setRewards] = useState(() => shuffleRewards());
   const [selected, setSelected] = useState(null);
   const [reward, setReward] = useState(null);
-  const [showRewards, setShowRewards] = useState(false);
   const [canRoll, setCanRoll] = useState(false);
   const [rolling, setRolling] = useState(false);
 
@@ -60,12 +59,12 @@ export default function LuckyNumber() {
 
   const handleRollStart = () => setRolling(true);
 
-  const handleRollEnd = async () => {
+  const handleRollEnd = async (values) => {
     setRolling(false);
-    const prize = getLuckyReward();
-    const idx = rewards.indexOf(prize);
+    const sum = values.reduce((acc, v) => acc + v, 0);
+    const idx = Math.min(Math.max(0, sum - 1), rewards.length - 1);
+    const prize = rewards[idx];
     setSelected(idx);
-    setShowRewards(true);
     if (typeof prize === 'number') {
       try {
         const balRes = await getWalletBalance(telegramId);
@@ -110,7 +109,7 @@ export default function LuckyNumber() {
             key={i}
             className={`board-style w-24 h-24 flex flex-col items-center justify-center rounded relative ${selected === i ? 'border-4 border-brand-gold' : 'border-2 border-border'}`}
           >
-            {(!showRewards && i !== 0) ? (
+            {(i !== 0 && selected !== i) ? (
               <>
                 <img
                   src="/assets/icons/TonPlayGramLogo_2_512x512.webp"
@@ -167,7 +166,7 @@ export default function LuckyNumber() {
         reward={reward}
         onClose={() => {
           setReward(null);
-          setShowRewards(false);
+          setSelected(null);
           setRewards(shuffleRewards());
         }}
       />
