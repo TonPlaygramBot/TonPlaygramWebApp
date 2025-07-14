@@ -1,6 +1,13 @@
 import { Router } from 'express';
 import User from '../models/User.js';
-import { incrementReferralBonus } from '../utils/userUtils.js';
+import {
+  incrementReferralBonus,
+  ensureTransactionArray,
+} from '../utils/userUtils.js';
+import bot from '../bot.js';
+import { sendTPCNotification } from '../utils/notifications.js';
+
+const REWARD = 5000;
 
 const router = Router();
 
@@ -55,6 +62,52 @@ router.post('/claim', async (req, res) => {
   await user.save();
 
   await incrementReferralBonus(code);
+
+  ensureTransactionArray(user);
+  ensureTransactionArray(inviter);
+
+  const txDate = new Date();
+  const userTx = {
+    amount: REWARD,
+    type: 'referral',
+    token: 'TPC',
+    status: 'delivered',
+    date: txDate,
+  };
+  const inviterTx = { ...userTx };
+
+  user.balance = (user.balance || 0) + REWARD;
+  inviter.balance = (inviter.balance || 0) + REWARD;
+
+  user.transactions.push(userTx);
+  inviter.transactions.push(inviterTx);
+
+  await user.save();
+  await inviter.save();
+
+  if (inviter.telegramId) {
+    try {
+      await sendTPCNotification(
+        bot,
+        inviter.telegramId,
+        `\u{1FA99} You received ${REWARD} TPC for referring a friend`,
+      );
+    } catch (err) {
+      console.error('Failed to send Telegram notification:', err.message);
+    }
+  }
+
+  if (user.telegramId) {
+    try {
+      await sendTPCNotification(
+        bot,
+        user.telegramId,
+        `\u{1FA99} You received ${REWARD} TPC for joining via referral`,
+      );
+    } catch (err) {
+      console.error('Failed to send Telegram notification:', err.message);
+    }
+  }
 
   const count = await User.countDocuments({ referredBy: code });
   res.json({ message: 'claimed', total: count });

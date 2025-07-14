@@ -69,6 +69,38 @@ test('claiming a referral updates inviter stats', { concurrency: false }, async 
     const updated = await updatedRes.json();
     assert.equal(updated.referralCount, 1);
     assert.equal(updated.bonusMiningRate, 0.1);
+
+    const inviterAccRes = await fetch('http://localhost:3210/api/account/create', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ telegramId: inviterId })
+    });
+    const inviterAcc = await inviterAccRes.json();
+    const inviterInfoRes = await fetch('http://localhost:3210/api/account/info', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ accountId: inviterAcc.accountId })
+    });
+    const inviterAccount = await inviterInfoRes.json();
+    assert.equal(inviterAccount.balance, 5000);
+    assert.equal(inviterAccount.transactions[0].type, 'referral');
+    assert.equal(inviterAccount.transactions[0].amount, 5000);
+
+    const userAccRes = await fetch('http://localhost:3210/api/account/create', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ telegramId: userId })
+    });
+    const userAcc = await userAccRes.json();
+    const userInfoRes = await fetch('http://localhost:3210/api/account/info', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ accountId: userAcc.accountId })
+    });
+    const userAccount = await userInfoRes.json();
+    assert.equal(userAccount.balance, 5000);
+    assert.equal(userAccount.transactions[0].type, 'referral');
+    assert.equal(userAccount.transactions[0].amount, 5000);
   } finally {
     server.kill();
   }
