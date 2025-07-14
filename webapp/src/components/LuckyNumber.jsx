@@ -1,5 +1,4 @@
 import { useState, useEffect } from 'react';
-import luckyCardBg from '/assets/icons/lucky_card_bg.webp';
 import DiceRoller from './DiceRoller.jsx';
 import RewardPopup from './RewardPopup.tsx';
 import { numericSegments } from '../utils/rewardLogic';
@@ -96,9 +95,9 @@ export default function LuckyNumber() {
   return (
     <div className="relative bg-surface border border-border rounded-xl p-4 space-y-2 text-center overflow-hidden wide-card">
       <img
-        src={luckyCardBg}
+        src="/assets/icons/lucky_card_bg.webp"
         className="absolute inset-0 w-full h-full object-cover -z-10 pointer-events-none"
-        alt="Lucky card background"
+        alt=""
         onError={(e) => {
           e.currentTarget.style.display = 'none';
         }}
