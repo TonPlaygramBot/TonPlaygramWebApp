@@ -227,8 +227,8 @@ export default function MyAccount() {
         setTwitterError(res.error);
       }
     } catch (err) {
-      console.error('connect twitter failed', err);
-      setTwitterError('Failed to start Twitter auth');
+      console.error('connect x failed', err);
+      setTwitterError('Failed to start X auth');
     }
   };
 

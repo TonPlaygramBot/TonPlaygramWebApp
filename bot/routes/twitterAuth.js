@@ -9,7 +9,7 @@ function getTwitterCreds() {
   const clientId = process.env.TWITTER_CLIENT_ID;
   const clientSecret = process.env.TWITTER_CLIENT_SECRET;
   if (!clientId || !clientSecret) {
-    console.warn('Twitter OAuth not configured');
+    console.warn('X OAuth not configured');
     return null;
   }
   return { clientId, clientSecret };
@@ -20,7 +20,7 @@ router.post('/start', async (req, res) => {
   if (!telegramId) return res.status(400).json({ error: 'telegramId required' });
   const creds = getTwitterCreds();
   if (!creds) {
-    return res.status(500).json({ error: 'Twitter OAuth not configured' });
+    return res.status(500).json({ error: 'X OAuth not configured' });
   }
   const { clientId, clientSecret } = creds;
   try {
@@ -30,7 +30,7 @@ router.post('/start', async (req, res) => {
     oauthStore.set(oauth_token, { secret: oauth_token_secret, telegramId });
     res.json({ url });
   } catch (err) {
-    console.error('twitter start failed:', err);
+    console.error('x start failed:', err);
     res.status(500).json({ error: 'failed to start auth' });
   }
 });
@@ -43,7 +43,7 @@ router.get('/callback', async (req, res) => {
   }
   const creds = getTwitterCreds();
   if (!creds) {
-    return res.status(500).send('Twitter OAuth not configured');
+    return res.status(500).send('X OAuth not configured');
   }
   const { clientId, clientSecret } = creds;
   try {
@@ -55,16 +55,16 @@ router.get('/callback', async (req, res) => {
     });
     const { client: loggedClient, accessToken, accessSecret, screenName, userId } = await twitterClient.login(oauth_verifier);
     oauthStore.delete(oauth_token);
-    // Save the twitter handle via existing profile route
+    // Save the X handle via existing profile route
     await fetch(`${req.protocol}://${req.get('host')}/api/profile/link-social`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ telegramId: entry.telegramId, twitter: screenName }),
     });
-    res.send('Twitter account linked. You can close this window.');
+    res.send('X account linked. You can close this window.');
   } catch (err) {
-    console.error('twitter callback failed:', err);
-    res.status(500).send('Failed to link Twitter');
+    console.error('x callback failed:', err);
+    res.status(500).send('Failed to link X');
   }
 });
 

@@ -16,7 +16,7 @@ import {
 import { getTelegramId } from '../utils/telegram.js';
 import LoginOptions from '../components/LoginOptions.jsx';
 
-import { IoLogoTwitter, IoLogoTiktok } from 'react-icons/io5';
+import { IoLogoTiktok } from 'react-icons/io5';
 
 import { RiTelegramFill } from 'react-icons/ri';
 import { FiVideo } from 'react-icons/fi';
@@ -193,14 +193,22 @@ export default function Tasks() {
 
   if (!tasks) return <div className="p-4 text-subtext">Loading...</div>;
 
+  const xIcon = (
+    <img
+      src="/assets/icons/new-twitter-x-logo-twitter-icon-x-social-media-icon-free-png.webp"
+      alt="X"
+      className="w-5 h-5"
+    />
+  );
+
   const ICONS = {
-    join_twitter: <IoLogoTwitter className="text-sky-400 w-5 h-5" />,
+    join_twitter: xIcon,
     join_telegram: <RiTelegramFill className="text-sky-400 w-5 h-5" />,
     follow_tiktok: <IoLogoTiktok className="text-pink-500 w-5 h-5" />,
     boost_tiktok: <IoLogoTiktok className="text-pink-500 w-5 h-5" />,
-    post_tweet: <IoLogoTwitter className="text-sky-400 w-5 h-5" />,
+    post_tweet: xIcon,
     react_tg_post: <RiTelegramFill className="text-sky-400 w-5 h-5" />,
-    engage_tweet: <IoLogoTwitter className="text-sky-400 w-5 h-5" />,
+    engage_tweet: xIcon,
     watch_ad: <FiVideo className="text-yellow-500 w-5 h-5" />
   };
 
@@ -277,7 +285,7 @@ export default function Tasks() {
                       <input
                         value={postLink}
                         onChange={(e) => setPostLink(e.target.value)}
-                        placeholder="Tweet link"
+                        placeholder="X post link"
                         className="px-1 py-0.5 text-xs bg-surface border border-border rounded flex-1"
                       />
                       <button onClick={handlePostVerify} className="px-2 py-0.5 bg-primary hover:bg-primary-hover text-background text-sm rounded">Verify</button>

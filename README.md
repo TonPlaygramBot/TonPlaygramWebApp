@@ -15,10 +15,10 @@
    - `DEV_ACCOUNT_ID_1` – (optional) secondary developer account (1% share)
    - `DEV_ACCOUNT_ID_2` – (optional) secondary developer account (2% share)
    - `API_AUTH_TOKEN` – (optional) token for trusted server-to-server calls
-   - `TWITTER_BEARER_TOKEN` – bearer token for verifying retweets. Make sure this line is uncommented in `bot/.env`.
-   - `TWITTER_CLIENT_ID` – API key for Twitter OAuth linking.
-   - `TWITTER_CLIENT_SECRET` – API secret for Twitter OAuth linking.
-   - You can also place these Twitter credentials in `twitter.env` at the repository root.
+  - `TWITTER_BEARER_TOKEN` – bearer token for verifying reposts on **X**. Make sure this line is uncommented in `bot/.env`.
+  - `TWITTER_CLIENT_ID` – API key for **X** OAuth linking.
+  - `TWITTER_CLIENT_SECRET` – API secret for **X** OAuth linking.
+  - You can also place these **X** credentials in `twitter.env` at the repository root.
 
 4. Copy `webapp/.env.example` to `webapp/.env` and configure:
    - `VITE_API_BASE_URL` – the base URL where the bot API is hosted (e.g. `http://localhost:3000`).
@@ -101,7 +101,7 @@ can test changes right away.
 
 ### The Wall
 
-Users can share photos and messages on **The Wall**. Posts support likes, comments and sharing. You can also attach images up to about 10&nbsp;MB and repost to Telegram, Twitter or Facebook. Friends see your updates and receive Telegram notifications when they interact with them.
+Users can share photos and messages on **The Wall**. Posts support likes, comments and sharing. You can also attach images up to about 10&nbsp;MB and repost to Telegram, **X** or Facebook. Friends see your updates and receive Telegram notifications when they interact with them.
 
 The latest update adds avatars, stylish icon buttons and a simple alerts panel right on **The Wall**. Posts now show the author's profile picture and name for a more social look. Buttons for liking, commenting and sharing use crisp icons that suit the premium color scheme. The bell icon scrolls to the **Alerts** section which reminds users that real notifications arrive via Telegram.
 
@@ -268,7 +268,7 @@ To move from the start you must roll at least one six when rolling two dice. Any
 
 ## Troubleshooting
 
-**Twitter API not configured** – When no `TWITTER_BEARER_TOKEN` is provided the server now skips verification for X related tasks and completes them automatically. Add the token in `bot/.env` if you need strict checks.
+**X API not configured** – When no `TWITTER_BEARER_TOKEN` is provided the server now skips verification for X related tasks and completes them automatically. Add the token in `bot/.env` if you need strict checks.
 
 **Influencer admin shows "No submissions"** – Ensure your developer token is set in `bot/.env` via `AIRDROP_ADMIN_TOKENS` and in `webapp/.env` through `VITE_API_AUTH_TOKEN` so the webapp can fetch pending submissions.
 

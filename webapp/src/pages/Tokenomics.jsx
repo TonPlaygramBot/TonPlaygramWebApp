@@ -438,7 +438,7 @@ export default function TokenomicsPage() {
             <li className="ml-4">🔄 Daily Check-In System: 150 <img src="/assets/icons/TPCcoin_1.webp" alt="TPC" className="inline-block w-4 h-4 mx-1" /> on Day 1 → 1,600 <img src="/assets/icons/TPCcoin_1.webp" alt="TPC" className="inline-block w-4 h-4 ml-1" /> by Day 30</li>
             <li className="ml-4">⛏️ Mining system (250–1,000 <img src="/assets/icons/TPCcoin_1.webp" alt="TPC" className="inline-block w-4 h-4 mx-1" /> every 12 hours)</li>
             <li className="ml-4">📺 Ad Watch Rewards: 50 <img src="/assets/icons/TPCcoin_1.webp" alt="TPC" className="inline-block w-4 h-4 mx-1" /> per ad (up to 5/day)</li>
-            <li className="ml-4">🎯 Social Tasks: +2,500 <img src="/assets/icons/TPCcoin_1.webp" alt="TPC" className="inline-block w-4 h-4 mx-1" /> each for Twitter, Telegram, TikTok</li>
+            <li className="ml-4">🎯 Social Tasks: +2,500 <img src="/assets/icons/TPCcoin_1.webp" alt="TPC" className="inline-block w-4 h-4 mx-1" /> each for X, Telegram, TikTok</li>
             <li className="ml-4">📹 Intro Video Views: +5 <img src="/assets/icons/TPCcoin_1.webp" alt="TPC" className="inline-block w-4 h-4 mx-1" /> each</li>
             <li className="ml-4">🎡 Spin &amp; Win Wheel: 400–1,600 <img src="/assets/icons/TPCcoin_1.webp" alt="TPC" className="inline-block w-4 h-4 mx-1" /> prizes + Bonus x2 chance</li>
             <li className="ml-4">🍀 Lucky Card daily prizes and free spin chances</li>

@@ -10,7 +10,7 @@ export const TASKS = [
 
     reward: 2500,
 
-    icon: 'twitter',
+    icon: 'x',
 
   link: 'https://x.com/TonPlaygram?t=SyGyXA0H8PdLz7z2kfIWQw&s=09'
 
@@ -63,7 +63,7 @@ export const TASKS = [
     id: 'engage_tweet',
     description: 'Like, comment & repost on X',
     reward: 2500,
-    icon: 'twitter',
+    icon: 'x',
     link: 'https://x.com/TonPlaygram/status/1943907328652402954?t=bG-Ps1S8rbJ-afx2OwcZhA&s=19'
   },
 
@@ -71,7 +71,7 @@ export const TASKS = [
     id: 'post_tweet',
     description: 'Share a TonPlaygram update on X',
     reward: 5000,
-    icon: 'twitter',
+    icon: 'x',
     posts: [
       `Tokenomics Drop \uD83E\uDE99\n\n\uD83D\uDEA8 TonPlaygram Tokenomics Revealed \uD83D\uDEA8\n\n1B $TPC \u2014 Fixed Supply\n\u2705 40% Play-to-Earn & Mining\n\u2705 20% Liquidity & Ecosystem\n\u2705 15% Team (Vested)\n\u2705 10% Dev/Treasury\n\u2705 Smart contracts power it all.\nLet\u2019s build GameFi on TON.\n\uD83D\uDCDC https://tonplaygramwebapp.onrender.com\n\n#TON #GameFi #CryptoGaming`,
       `Game Fee Model \uD83E\uDEAE\n\nEvery winner pays a 10% fee. Here\u2019s where it goes \uD83D\uDC47\n\n\uD83D\uDD25 3% Buyback & Burn\n\uD83E\uDD01 3% Dev/Operations\n\uD83C\uDFC6 2% Ecosystem Rewards\n\uD83D\uDCA7 1% Liquidity\n\uD83D\uDCE3 1% Marketing\n\n\uD83D\uDCB0 90% goes to the winner.\nPlay. Earn. Burn. Repeat.\n#TonPlaygram $TPC #PlayToEarn`,

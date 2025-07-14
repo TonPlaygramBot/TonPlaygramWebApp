@@ -16,7 +16,7 @@ import { STORE_ADDRESS } from '../utils/storeData.js';
 import { getTelegramId } from '../utils/telegram.js';
 import LoginOptions from './LoginOptions.jsx';
 
-import { IoLogoTwitter, IoLogoTiktok } from 'react-icons/io5';
+import { IoLogoTiktok } from 'react-icons/io5';
 
 import { RiTelegramFill } from 'react-icons/ri';
 import { FiVideo } from 'react-icons/fi';
@@ -25,17 +25,25 @@ import PostsModal from './PostsModal.jsx';
 import InfoPopup from './InfoPopup.jsx';
 import { AiOutlineCheckSquare, AiOutlineCheck } from 'react-icons/ai';
 
+const xIcon = (
+  <img
+    src="/assets/icons/new-twitter-x-logo-twitter-icon-x-social-media-icon-free-png.webp"
+    alt="X"
+    className="w-5 h-5"
+  />
+);
+
 const ICONS = {
 
-  join_twitter: <IoLogoTwitter className="text-sky-400 w-5 h-5" />,
+  join_twitter: xIcon,
 
   join_telegram: <RiTelegramFill className="text-sky-400 w-5 h-5" />,
   
   follow_tiktok: <IoLogoTiktok className="text-pink-500 w-5 h-5" />,
   boost_tiktok: <IoLogoTiktok className="text-pink-500 w-5 h-5" />, 
-  post_tweet: <IoLogoTwitter className="text-sky-400 w-5 h-5" />, 
+  post_tweet: xIcon,
   react_tg_post: <RiTelegramFill className="text-sky-400 w-5 h-5" />,
-  engage_tweet: <IoLogoTwitter className="text-sky-400 w-5 h-5" />,
+  engage_tweet: xIcon,
   watch_ad: <FiVideo className="text-yellow-500 w-5 h-5" />
 
 };

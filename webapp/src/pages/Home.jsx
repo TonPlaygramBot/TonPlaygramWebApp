@@ -15,9 +15,17 @@ import {
   FaArrowCircleDown,
   FaWallet
 } from 'react-icons/fa';
-import { IoLogoTwitter, IoLogoTiktok } from 'react-icons/io5';
+import { IoLogoTiktok } from 'react-icons/io5';
 import { RiTelegramFill } from 'react-icons/ri';
 import { useTonAddress, useTonConnectUI } from '@tonconnect/ui-react';
+
+const xIcon = (
+  <img
+    src="/assets/icons/new-twitter-x-logo-twitter-icon-x-social-media-icon-free-png.webp"
+    alt="X"
+    className="w-6 h-6"
+  />
+);
 
 import { Link } from 'react-router-dom';
 
@@ -423,7 +431,7 @@ export default function Home() {
           target="_blank"
           rel="noopener noreferrer"
         >
-          <IoLogoTwitter className="text-sky-400 w-6 h-6" />
+          {xIcon}
         </a>
         <a
           href="https://t.me/TonPlaygram"

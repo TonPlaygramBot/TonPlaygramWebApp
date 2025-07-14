@@ -1,12 +1,20 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { FaTelegramPlane, FaTwitter, FaFacebook } from 'react-icons/fa';
+import { FaTelegramPlane, FaFacebook } from 'react-icons/fa';
 import {
   AiFillHeart,
   AiOutlineShareAlt,
   AiOutlineComment
 } from 'react-icons/ai';
 import ReactMarkdown from 'react-markdown';
+
+const xIcon = (
+  <img
+    src="/assets/icons/new-twitter-x-logo-twitter-icon-x-social-media-icon-free-png.webp"
+    alt="X"
+    className="w-4 h-4"
+  />
+);
 
 import useTelegramBackButton from '../hooks/useTelegramBackButton.js';
 import LoginOptions from '../components/LoginOptions.jsx';
@@ -88,8 +96,8 @@ export default function Trending() {
       shareUrl = `https://t.me/share/url?url=${encodeURIComponent(
         url
       )}&text=${encodeURIComponent(text)}`;
-    } else if (platform === 'twitter') {
-      shareUrl = `https://twitter.com/intent/tweet?url=${encodeURIComponent(
+    } else if (platform === 'x') {
+      shareUrl = `https://x.com/intent/tweet?url=${encodeURIComponent(
         url
       )}&text=${encodeURIComponent(text)}`;
     } else if (platform === 'facebook') {
@@ -181,9 +189,9 @@ export default function Trending() {
               </button>
               <button
                 className="flex items-center space-x-1 hover:text-accent"
-                onClick={() => shareOn('twitter', p)}
+                onClick={() => shareOn('x', p)}
               >
-                <FaTwitter />
+                {xIcon}
               </button>
               <button
                 className="flex items-center space-x-1 hover:text-accent"
