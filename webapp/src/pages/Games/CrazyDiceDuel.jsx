@@ -139,11 +139,11 @@ export default function CrazyDiceDuel() {
 
   // Board background changes depending on number of players
   const boardBgSrc =
-    playerCount === 3
-      ? '/assets/icons/file_00000000571c6243a07777efa0e0e835 (1).png'
-      : playerCount === 2
-        ? '/assets/icons/file_000000002984624394e01e572bfb5cde.webp'
-        : '/assets/icons/file_00000000d410620a8c1878be43e192a1.png';
+    playerCount === 2
+      ? '/assets/icons/file_000000004c0c6243bf81f848563832f3.webp'
+      : playerCount === 3
+        ? '/assets/icons/file_00000000077462468c5871b59180ae3e.webp'
+        : '/assets/icons/file_0000000095a06246adc25e3e6ba244a4.webp';
 
   const boardRef = useRef(null);
   const diceRef = useRef(null);
