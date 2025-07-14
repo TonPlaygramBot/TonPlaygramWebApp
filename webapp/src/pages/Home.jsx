@@ -6,6 +6,7 @@ import GameCard from '../components/GameCard.jsx';
 import TasksCard from '../components/TasksCard.jsx';
 import StoreAd from '../components/StoreAd.jsx';
 import NftGiftCard from '../components/NftGiftCard.jsx';
+import AchievementsCard from '../components/AchievementsCard.jsx';
 import HomeGamesCard from '../components/HomeGamesCard.jsx';
 
 import {
@@ -380,6 +381,7 @@ export default function Home() {
           </Link>
         </div>
       </div>
+      <AchievementsCard />
 
       {stats && (
         <div className="relative bg-surface border border-border rounded-xl p-4 space-y-2 overflow-hidden wide-card">
