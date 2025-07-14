@@ -1333,8 +1333,8 @@ input:focus {
 }
 .crazy-dice-board .dice-center {
   position: absolute;
-  top: 57.5%;
-  left: 55%;
+  top: 78.33%;
+  left: 52.5%;
   transform: translate(-50%, -50%);
 }
 
@@ -1354,7 +1354,8 @@ input:focus {
 }
 
 .crazy-dice-board.three-players .player-left {
-  top: 14%;
+  top: 25%;
+  left: 15%;
 }
 
 .crazy-dice-board .player-center {
@@ -1387,8 +1388,8 @@ input:focus {
 }
 
 .crazy-dice-board.three-players .player-right {
-  top: 14%;
-  right: 4%;
+  top: 25%;
+  right: 12.5%;
 }
 
 
