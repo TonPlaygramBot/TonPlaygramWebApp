@@ -635,6 +635,7 @@ export default function SnakeAndLadder() {
   const [waitingForPlayers, setWaitingForPlayers] = useState(false);
   const [playersNeeded, setPlayersNeeded] = useState(0);
   const [isMultiplayer, setIsMultiplayer] = useState(false);
+  const [watchOnly, setWatchOnly] = useState(false);
   const [mpPlayers, setMpPlayers] = useState([]);
   const playersRef = useRef([]);
   const [tableId, setTableId] = useState('snake-4');
@@ -960,6 +961,7 @@ export default function SnakeAndLadder() {
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
+    const watchParam = params.get("watch");
     const t = params.get("token");
     const amt = params.get("amount");
     const aiParam = params.get("ai");
@@ -973,6 +975,9 @@ export default function SnakeAndLadder() {
         : 1;
     setAi(aiCount);
     setIsMultiplayer(tableParam && !aiParam);
+    const watching = watchParam === "1";
+    setWatchOnly(watching);
+    if (watching) setShowQuitInfo(false);
     localStorage.removeItem(`snakeGameState_${aiCount}`);
     setAiPositions(Array(aiCount).fill(0));
     setAiAvatars(
@@ -1055,8 +1060,12 @@ export default function SnakeAndLadder() {
     const accountId = getPlayerId();
     const name = myName;
     const capacity = parseInt(tableId.split('-').pop(), 10) || 0;
-    setWaitingForPlayers(true);
-    setPlayersNeeded(capacity);
+    if (!watchOnly) {
+      setWaitingForPlayers(true);
+      setPlayersNeeded(capacity);
+    } else {
+      setWaitingForPlayers(false);
+    }
 
     const updateNeeded = (players) => {
       setPlayersNeeded(Math.max(0, capacity - players.length));
@@ -1251,7 +1260,28 @@ export default function SnakeAndLadder() {
     socket.on('gameWon', onWon);
     socket.on('currentPlayers', onCurrentPlayers);
 
-    socket.emit('joinRoom', { roomId: tableId, playerId: accountId, name });
+    if (watchOnly) {
+      socket.emit('watchRoom', { roomId: tableId });
+      getSnakeLobby(tableId)
+        .then((data) => {
+          const players = data.players || [];
+          return Promise.all(
+            players.map(async (p) => {
+              const prof = await getProfileByAccount(p.id).catch(() => ({}));
+              const n =
+                prof?.nickname || `${prof?.firstName || ''} ${prof?.lastName || ''}`.trim() || p.name;
+              const photoUrl = prof?.photo || '/assets/icons/profile.svg';
+              return { id: p.id, name: n, photoUrl, position: 0 };
+            })
+          ).then((arr) => {
+            setMpPlayers(arr);
+            setPlayersNeeded(Math.max(0, capacity - arr.length));
+          });
+        })
+        .catch(() => {});
+    } else {
+      socket.emit('joinRoom', { roomId: tableId, playerId: accountId, name });
+    }
 
 
     return () => {
@@ -1268,8 +1298,11 @@ export default function SnakeAndLadder() {
       socket.off('diceRolled', onRolled);
       socket.off('gameWon', onWon);
       socket.off('currentPlayers', onCurrentPlayers);
+      if (watchOnly) {
+        socket.emit('leaveWatch', { roomId: tableId });
+      }
     };
-  }, [isMultiplayer, tableId]);
+  }, [isMultiplayer, tableId, watchOnly]);
 
   const fastForward = (elapsed, state) => {
     let p = state.pos ?? 0;
@@ -2233,42 +2266,55 @@ export default function SnakeAndLadder() {
           </div>
         </div>
       )}
+      {!watchOnly && (
       <InfoPopup
         open={showQuitInfo}
         onClose={() => setShowQuitInfo(false)}
         title="Warning"
         info="If you quit the game your funds will be lost and you will be placed last."
       />
+      )}
+      {!watchOnly && (
       <InfoPopup
         open={showInfo}
         onClose={() => setShowInfo(false)}
         title="Snake & Ladder"
         info="Roll the dice to move across the board. Ladders move you up, snakes bring you down. The Pot at the top collects everyone's stake – reach it first to claim the total amount."
       />
+      )}
+      {!watchOnly && (
       <InfoPopup
         open={connectionLost}
         onClose={() => setConnectionLost(false)}
         title="Connection Lost"
         info="Attempting to reconnect..."
       />
+      )}
+      {!watchOnly && (
       <InfoPopup
         open={forfeitMsg}
         onClose={() => setForfeitMsg(false)}
         title="Disconnected"
         info="You were disconnected too long and forfeited the match."
       />
+      )}
+      {!watchOnly && (
       <InfoPopup
         open={!!disconnectMsg}
         onClose={() => setDisconnectMsg(null)}
         title="Player Update"
         info={disconnectMsg}
       />
+      )}
+      {!watchOnly && (
       <InfoPopup
         open={!!cheatMsg}
         onClose={() => setCheatMsg(null)}
         title="Warning"
         info={cheatMsg}
       />
+      )}
+      {!watchOnly && (
       <InfoPopup
         open={!!leftWinner}
         onClose={() => setLeftWinner(null)}
@@ -2301,6 +2347,7 @@ export default function SnakeAndLadder() {
           </button>
         </div>
       </InfoPopup>
+      )}
       <GameEndPopup
         open={gameOver}
         ranking={ranking}
@@ -2313,6 +2360,7 @@ export default function SnakeAndLadder() {
           navigate("/games/snake/lobby");
         }}
       />
+      {!watchOnly && (
       <ConfirmPopup
         open={showLobbyConfirm}
         message="Quit the game? If you leave, your funds will be lost and you'll be placed last."
@@ -2322,6 +2370,7 @@ export default function SnakeAndLadder() {
         }}
         onCancel={() => setShowLobbyConfirm(false)}
       />
+      )}
     </div>
   );
 }
