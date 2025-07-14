@@ -1348,6 +1348,11 @@ input:focus {
   transform: translateX(-50%);
 }
 
+/* Adjust bottom player position for 1v1 games */
+.crazy-dice-board.two-players .player-bottom {
+  bottom: 7%;
+}
+
 .crazy-dice-board .player-left {
   position: absolute;
   top: 17.5%;
@@ -1367,6 +1372,11 @@ input:focus {
   /* Nudged slightly to the right */
   left: 52%;
   transform: translate(-50%, -50%);
+}
+
+/* Slightly shift opponent avatar left in 1v1 games */
+.crazy-dice-board.two-players .player-center {
+  left: 51%;
 }
 .crazy-dice-board .player-center .player-score,
 .crazy-dice-board .player-center .roll-history {
