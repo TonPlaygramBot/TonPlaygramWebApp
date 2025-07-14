@@ -51,6 +51,11 @@ twitter.env
 ```
 Files like `bot/.env`, `webapp/.env` and `scripts/.env` match these patterns.
 
+When deploying on **Render**, provide the same keys using the service's
+**Environment** settings or an environment group. The backend loads values from
+the runtime environment automatically so you can keep the `.env` files only for
+local development.
+
 The server honors a few extra environment variables when building or serving the webapp:
 
 - `WEBAPP_API_BASE_URL` – overrides the API base used during the webapp build. Set this when the bot API is hosted on another domain or port. If left empty the webapp assumes it is served from the same origin.
