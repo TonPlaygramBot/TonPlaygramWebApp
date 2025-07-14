@@ -13,7 +13,7 @@ export default function ProjectAchievementsCard() {
     '🔄 Daily Check-In rewards',
     '⛏️ Mining system active',
     '📺 Ad watch rewards',
-    '🎯 Social tasks for Twitter, Telegram, TikTok',
+    '🎯 Social tasks for X, Telegram, TikTok',
     '📹 Intro video view rewards',
     '🎡 Spin & Win wheel',
     '🍀 Lucky Card prizes',
