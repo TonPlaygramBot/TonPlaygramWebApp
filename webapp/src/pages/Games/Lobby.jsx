@@ -76,28 +76,46 @@ export default function Lobby() {
   }, [game]);
 
   useEffect(() => {
-    const playerId = getPlayerId();
-    function ping() {
-      pingOnline(playerId).catch(() => {});
-      getOnlineCount()
-        .then((d) => setOnline(d.count))
-        .catch(() => {});
-    }
-    ping();
-    const id = setInterval(ping, 30000);
-    return () => clearInterval(id);
+    let cancelled = false;
+    let interval;
+    ensureAccountId()
+      .then((playerId) => {
+        if (cancelled) return;
+        function ping() {
+          pingOnline(playerId).catch(() => {});
+          getOnlineCount()
+            .then((d) => setOnline(d.count))
+            .catch(() => {});
+        }
+        ping();
+        interval = setInterval(ping, 30000);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+      if (interval) clearInterval(interval);
+    };
   }, []);
 
   useEffect(() => {
     if (game === 'snake' && table && table.id !== 'single') {
-      const playerId = getPlayerId();
-      seatTable(playerId, table.id, playerName).catch(() => {});
-      const id = setInterval(() => {
-        seatTable(playerId, table.id, playerName).catch(() => {});
-      }, 30000);
+      let cancelled = false;
+      let interval;
+      let pid;
+      ensureAccountId()
+        .then((accountId) => {
+          if (cancelled) return;
+          pid = accountId;
+          seatTable(pid, table.id, playerName).catch(() => {});
+          interval = setInterval(() => {
+            seatTable(pid, table.id, playerName).catch(() => {});
+          }, 30000);
+        })
+        .catch(() => {});
       return () => {
-        clearInterval(id);
-        unseatTable(playerId, table.id).catch(() => {});
+        cancelled = true;
+        if (interval) clearInterval(interval);
+        if (pid) unseatTable(pid, table.id).catch(() => {});
       };
     }
   }, [game, table, playerName]);
