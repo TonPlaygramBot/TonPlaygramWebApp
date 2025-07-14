@@ -60,4 +60,13 @@ router.post('/claim', async (req, res) => {
   res.json({ message: 'claimed', total: count });
 });
 
+router.get('/list/:code', async (req, res) => {
+  const { code } = req.params;
+  const users = await User.find(
+    { referredBy: code },
+    'telegramId nickname firstName lastName'
+  ).lean();
+  res.json(users);
+});
+
 export default router;

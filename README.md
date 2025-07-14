@@ -169,6 +169,18 @@ The request body must include a `text` field. Only tokens listed in
 `AIRDROP_ADMIN_TOKENS` are allowed to call this endpoint.
 
 
+### Referral
+
+List everyone invited by a specific referral code:
+
+```
+GET /api/referral/list/<code>
+```
+
+The response is an array of users with at least their Telegram ID and
+nickname or name fields.
+
+
 ### Customizing Snakes & Ladders icons
 
 All webapp icons are stored under `webapp/public`. The board uses emoji symbols
