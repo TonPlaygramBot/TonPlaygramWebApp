@@ -3,9 +3,17 @@ import { createPortal } from 'react-dom';
 import RoomSelector from './RoomSelector.jsx';
 import GiftPopup from './GiftPopup.jsx';
 import GiftIcon from './GiftIcon.jsx';
-import { getAccountInfo, getSnakeResults } from '../utils/api.js';
+import { FaTv } from 'react-icons/fa';
+import { getAccountInfo, getSnakeResults, getWatchCount } from '../utils/api.js';
 import { NFT_GIFTS } from '../utils/nftGifts.js';
 import AchievementsCard from './AchievementsCard.jsx';
+
+function getGameFromTableId(id) {
+  if (!id) return 'snake';
+  const prefix = id.split('-')[0];
+  if (['snake', 'ludo', 'crazydice', 'horse'].includes(prefix)) return prefix;
+  return 'snake';
+}
 
 export default function PlayerInvitePopup({
   open,
@@ -19,6 +27,7 @@ export default function PlayerInvitePopup({
   const [records, setRecords] = useState([]);
   const [giftOpen, setGiftOpen] = useState(false);
   const [game, setGame] = useState('snake');
+  const [watchCount, setWatchCount] = useState(0);
 
   useEffect(() => {
     if (!open || !player) return;
@@ -36,6 +45,13 @@ export default function PlayerInvitePopup({
         );
         setRecords(rec.slice(0, 5));
       })
+      .catch(() => {});
+  }, [open, player]);
+
+  useEffect(() => {
+    if (!open || !player?.currentTableId) return;
+    getWatchCount(player.currentTableId)
+      .then((c) => setWatchCount(c.count))
       .catch(() => {});
   }, [open, player]);
 
@@ -75,6 +91,23 @@ export default function PlayerInvitePopup({
                 />
                 {balance}
               </p>
+            )}
+            {player.currentTableId && (
+              <div className="flex items-center justify-center gap-1 mt-1 text-sm">
+                <span className="text-red-500">Playing</span>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    const game = getGameFromTableId(player.currentTableId);
+                    window.location.href = `/games/${game}?table=${player.currentTableId}&watch=1`;
+                  }}
+                  className="text-white flex items-center space-x-1"
+                >
+                  <FaTv />
+                  <span>Watch</span>
+                  <span className="text-green-500">{watchCount}</span>
+                </button>
+              </div>
             )}
           </div>
           <div>

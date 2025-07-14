@@ -49,11 +49,6 @@ export default function LeaderboardCard() {
   const [groupPopup, setGroupPopup] = useState(false);
 
   useEffect(() => {
-    getLeaderboard(telegramId).then((data) => {
-      setLeaderboard(data.users);
-      setRank(data.rank);
-    });
-
     const saved = loadAvatar();
     if (saved) {
       setMyPhotoUrl(saved);
@@ -86,6 +81,18 @@ export default function LeaderboardCard() {
           });
         });
     }
+  }, [telegramId]);
+
+  useEffect(() => {
+    function loadLeaderboard() {
+      getLeaderboard(telegramId).then((data) => {
+        setLeaderboard(data.users);
+        setRank(data.rank);
+      });
+    }
+    loadLeaderboard();
+    const id = setInterval(loadLeaderboard, 15000);
+    return () => clearInterval(id);
   }, [telegramId]);
 
   useEffect(() => {
