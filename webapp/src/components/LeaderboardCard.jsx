@@ -15,6 +15,13 @@ import { socket } from '../utils/socket.js';
 import InvitePopup from './InvitePopup.jsx';
 import PlayerInvitePopup from './PlayerInvitePopup.jsx';
 
+function getGameFromTableId(id) {
+  if (!id) return 'snake';
+  const prefix = id.split('-')[0];
+  if (['snake', 'ludo', 'crazydice', 'horse'].includes(prefix)) return prefix;
+  return 'snake';
+}
+
 export default function LeaderboardCard() {
   let telegramId;
   try {
@@ -82,11 +89,19 @@ export default function LeaderboardCard() {
   }, [telegramId]);
 
   useEffect(() => {
-    const tables = leaderboard
-      .map((u) => u.currentTableId)
-      .filter(Boolean);
-    if (tables.length === 0) return;
-    Promise.all(tables.map((id) => getWatchCount(id).then((c) => [id, c.count])))
+    const tables = new Set(
+      leaderboard.map((u) => u.currentTableId).filter(Boolean),
+    );
+    const myTable = leaderboard.find((u) => u.accountId === accountId)?.currentTableId;
+    if (myTable) tables.add(myTable);
+    if (aiPlaying && !myTable) {
+      const local = localStorage.getItem('snakeCurrentTable');
+      if (local) tables.add(local);
+    }
+    if (tables.size === 0) return;
+    Promise.all(
+      [...tables].map((id) => getWatchCount(id).then((c) => [id, c.count])),
+    )
       .then((arr) => {
         const obj = {};
         arr.forEach(([id, cnt]) => {
@@ -95,7 +110,7 @@ export default function LeaderboardCard() {
         setWatchCounts(obj);
       })
       .catch(() => {});
-  }, [leaderboard]);
+  }, [leaderboard, aiPlaying]);
 
   useEffect(() => {
     function loadOnline() {
@@ -204,38 +219,38 @@ export default function LeaderboardCard() {
                     />
                     {u.accountId !== accountId && null}
                   </td>
-                  <td className="p-2 flex items-center">
-                    {mode === 'group' && u.accountId !== accountId && (
-                      <input
-                        type="checkbox"
-                        disabled={!!u.currentTableId}
-                        checked={selected.some((p) => p.accountId === u.accountId)}
-                        onChange={() => {}}
-                        className="mr-1"
-                      />
-                    )}
-                    {u.nickname || `${u.firstName} ${u.lastName}`.trim() || 'User'}
-                    {onlineUsers.includes(String(u.accountId)) && (
-                      <FaCircle className="ml-1 text-green-500" size={8} />
-                    )}
+                  <td className="p-2 flex flex-col items-start">
+                    <div className="flex items-center">
+                      {mode === 'group' && u.accountId !== accountId && (
+                        <input
+                          type="checkbox"
+                          disabled={!!u.currentTableId}
+                          checked={selected.some((p) => p.accountId === u.accountId)}
+                          onChange={() => {}}
+                          className="mr-1"
+                        />
+                      )}
+                      {u.nickname || `${u.firstName} ${u.lastName}`.trim() || 'User'}
+                      {onlineUsers.includes(String(u.accountId)) && (
+                        <FaCircle className="ml-1 text-green-500" size={8} />
+                      )}
+                    </div>
                     {u.currentTableId && (
-                      <>
-                        <span className="ml-2 text-xs text-red-500">Playing</span>
+                      <div className="flex items-center mt-1 text-xs space-x-1">
+                        <span className="text-red-500">Playing</span>
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
-                            const game = u.currentTableId.startsWith('ludo')
-                              ? 'ludo'
-                              : 'snake';
+                            const game = getGameFromTableId(u.currentTableId);
                             window.location.href = `/games/${game}?table=${u.currentTableId}&watch=1`;
                           }}
-                          className="ml-1 text-white text-xs flex items-center space-x-1"
+                          className="text-white flex items-center space-x-1"
                         >
                           <FaTv />
                           <span>Watch</span>
-                          <span className="ml-0.5 text-green-500">{watchCounts[u.currentTableId] || 0}</span>
+                          <span className="text-green-500">{watchCounts[u.currentTableId] || 0}</span>
                         </button>
-                      </>
+                      </div>
                     )}
                   </td>
                   <td className="p-2 text-right flex items-center justify-end space-x-1">
@@ -253,32 +268,34 @@ export default function LeaderboardCard() {
                       className="w-14 h-14 hexagon border-2 border-brand-gold object-cover shadow-[0_0_12px_rgba(241,196,15,0.8)]"
                     />
                   </td>
-                  <td className="p-2 flex items-center">
-                    You
-                    {onlineUsers.includes(String(accountId)) && (
-                      <FaCircle className="ml-1 text-green-500" size={8} />
-                    )}
+                  <td className="p-2 flex flex-col items-start">
+                    <div className="flex items-center">
+                      You
+                      {onlineUsers.includes(String(accountId)) && (
+                        <FaCircle className="ml-1 text-green-500" size={8} />
+                      )}
+                    </div>
                     {(() => {
                       const myTable = leaderboard.find((u) => u.accountId === accountId)?.currentTableId;
                       if (!aiPlaying && !myTable) return null;
                       return (
-                        <>
-                          <span className="ml-2 text-xs text-red-500">Playing</span>
+                        <div className="flex items-center mt-1 text-xs space-x-1">
+                          <span className="text-red-500">Playing</span>
                           {myTable && (
                             <button
                               onClick={(e) => {
                                 e.stopPropagation();
-                                const game = myTable.startsWith('ludo') ? 'ludo' : 'snake';
+                                const game = getGameFromTableId(myTable);
                                 window.location.href = `/games/${game}?table=${myTable}&watch=1`;
                               }}
-                              className="ml-1 text-white text-xs flex items-center space-x-1"
+                              className="text-white flex items-center space-x-1"
                             >
                               <FaTv />
                               <span>Watch</span>
-                              <span className="ml-0.5 text-green-500">{watchCounts[myTable] || 0}</span>
+                              <span className="text-green-500">{watchCounts[myTable] || 0}</span>
                             </button>
                           )}
-                        </>
+                        </div>
                       );
                     })()}
                   </td>
