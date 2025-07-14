@@ -643,6 +643,7 @@ export default function SnakeAndLadder() {
   const [showChat, setShowChat] = useState(false);
   const [showGift, setShowGift] = useState(false);
   const [chatBubbles, setChatBubbles] = useState([]);
+  const [showWatchWelcome, setShowWatchWelcome] = useState(false);
 
   const diceRef = useRef(null);
   const diceRollerDivRef = useRef(null);
@@ -977,7 +978,12 @@ export default function SnakeAndLadder() {
     setIsMultiplayer(tableParam && !aiParam);
     const watching = watchParam === "1";
     setWatchOnly(watching);
-    if (watching) setShowQuitInfo(false);
+    if (watching) {
+      setShowQuitInfo(false);
+      setShowWatchWelcome(true);
+    } else {
+      setShowWatchWelcome(false);
+    }
     localStorage.removeItem(`snakeGameState_${aiCount}`);
     setAiPositions(Array(aiCount).fill(0));
     setAiAvatars(
@@ -2347,6 +2353,14 @@ export default function SnakeAndLadder() {
           </button>
         </div>
       </InfoPopup>
+      )}
+      {watchOnly && (
+      <InfoPopup
+        open={showWatchWelcome}
+        onClose={() => setShowWatchWelcome(false)}
+        title="Watching Game"
+        info="You're watching this match. Support your player by sending NFT GIFs and chat messages. Watching is free, but each chat costs 10 TPC."
+      />
       )}
       <GameEndPopup
         open={gameOver}
