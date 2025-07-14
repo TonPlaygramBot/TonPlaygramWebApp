@@ -1342,8 +1342,8 @@ input:focus {
 /* Player positions around the Crazy Dice board */
 .crazy-dice-board .player-bottom {
   position: absolute;
-  /* Moved slightly up for better spacing */
-  bottom: 8%;
+  /* Slightly higher than the 1v1 layout */
+  bottom: 4%;
   left: 50%;
   transform: translateX(-50%);
 }
@@ -1356,8 +1356,9 @@ input:focus {
 }
 
 .crazy-dice-board.three-players .player-left {
+  /* Between C&D horizontally and rows 7&8 vertically */
   top: 25%;
-  left: 15%;
+  left: 17.5%;
 }
 
 .crazy-dice-board .player-center {
