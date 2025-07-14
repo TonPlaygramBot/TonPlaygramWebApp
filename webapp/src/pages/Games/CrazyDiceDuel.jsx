@@ -159,9 +159,10 @@ export default function CrazyDiceDuel() {
   const DICE_PLAYER_SCALE = 0.48;
   const DICE_ANIM_DURATION = 1000;
 
-  // Board grid size for positioning helpers
-  const GRID_ROWS = 20;
-  const GRID_COLS = 10;
+  // Board grid size for positioning helpers. Updated to match the
+  // new Crazy Dice board layout which uses a 20x30 grid.
+  const GRID_ROWS = 30;
+  const GRID_COLS = 20;
 
   useEffect(() => {
     timerSoundRef.current = new Audio(timerBeep);
@@ -227,17 +228,21 @@ export default function CrazyDiceDuel() {
 
   const getDiceCenter = (playerIdx = 'center') => {
       const posMap = {
-        0: { label: 'F19', dx: -0.1 }, // Player 1
+        // Bottom player dice position – centre bottom of the board
+        0: { label: 'K30' },
+        // Top player dice position. When only two players are present this
+        // represents the opponent at the top of the board.
         1:
           playerCount === 2
-            ? { label: 'F8' }
-            : { label: 'B8', dx: -0.1 }, // Player 2
+            ? { label: 'K20' }
+            : { label: 'B8', dx: -0.1 },
         2:
           playerCount === 3
             ? { label: 'J9' }
-            : { label: 'F8' }, // Player 3
-        3: { label: 'J9' }, // Player 4
-        center: { label: 'F12' },
+            : { label: 'F8' },
+        3: { label: 'J9' },
+        // Dice roll animation centre
+        center: { label: 'K25' },
       };
     const entry = posMap[playerIdx] || {};
     const label = entry.label;
@@ -538,7 +543,7 @@ export default function CrazyDiceDuel() {
             color={p.color}
             size={
               playerCount === 2
-                ? 1.2
+                ? 2
                 : playerCount === 3
                   ? 1.1
                   : playerCount > 3
