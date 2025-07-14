@@ -65,7 +65,15 @@ export default function PlayerInvitePopup({
               <p className="text-sm break-all">Account: {player.accountId}</p>
             )}
             {balance !== undefined && (
-              <p className="text-sm">Balance: {balance}</p>
+              <p className="text-sm flex items-center justify-center gap-1">
+                Balance:
+                <img
+                  src="/assets/icons/TPCcoin_1.webp"
+                  alt="TPC"
+                  className="inline w-4 h-4"
+                />
+                {balance}
+              </p>
             )}
           </div>
           <div>
@@ -105,14 +113,20 @@ export default function PlayerInvitePopup({
           </div>
           <div className="space-y-1">
             <p className="font-semibold">Game</p>
-            <select
-              value={game}
-              onChange={(e) => setGame(e.target.value)}
-              className="w-full border border-border rounded px-2 py-1 bg-surface"
-            >
-              <option value="snake">Snake &amp; Ladders</option>
-              <option value="crazydice">Crazy Dice Duel</option>
-            </select>
+            <div className="flex justify-center space-x-2">
+              <img
+                src="/assets/icons/snakes_and_ladders.webp"
+                alt="Snake & Ladders"
+                onClick={() => setGame('snake')}
+                className={`w-16 h-16 rounded cursor-pointer border-2 ${game === 'snake' ? 'border-primary' : 'border-border'}`}
+              />
+              <img
+                src="/assets/icons/Crazy_Dice_Duel_Promo.webp"
+                alt="Crazy Dice Duel"
+                onClick={() => setGame('crazydice')}
+                className={`w-16 h-16 rounded cursor-pointer border-2 ${game === 'crazydice' ? 'border-primary' : 'border-border'}`}
+              />
+            </div>
           </div>
           <RoomSelector selected={stake} onSelect={onStakeChange} />
           <div className="flex justify-center gap-2">
