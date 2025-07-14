@@ -238,7 +238,22 @@ export default function LeaderboardCard() {
                       <FaCircle className="ml-1 text-green-500" size={8} />
                     )}
                   </td>
-                  <td className="p-2 text-right">{u.balance}</td>
+                  <td className="p-2 text-right flex items-center justify-end space-x-1">
+                    {u.currentTableId && (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          const game = u.currentTableId.startsWith('ludo') ? 'ludo' : 'snake';
+                          window.location.href = `/games/${game}?table=${u.currentTableId}&watch=1`;
+                        }}
+                        className="text-blue-500 flex items-center"
+                      >
+                        <FaTv />
+                        <span className="ml-0.5 text-green-500">{watchCounts[u.currentTableId] || 0}</span>
+                      </button>
+                    )}
+                    <span>{u.balance}</span>
+                  </td>
                 </tr>
               ))}
               {rank && rank > 100 && (
@@ -280,8 +295,25 @@ export default function LeaderboardCard() {
                       <FaCircle className="ml-1 text-green-500" size={8} />
                     )}
                   </td>
-                  <td className="p-2 text-right">
-                    {leaderboard.find((u) => u.accountId === accountId)?.balance ?? '...'}
+                  <td className="p-2 text-right flex items-center justify-end space-x-1">
+                    {(() => {
+                      const myTable = leaderboard.find((u) => u.accountId === accountId)?.currentTableId;
+                      if (!myTable) return null;
+                      return (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            const game = myTable.startsWith('ludo') ? 'ludo' : 'snake';
+                            window.location.href = `/games/${game}?table=${myTable}&watch=1`;
+                          }}
+                          className="text-blue-500 flex items-center"
+                        >
+                          <FaTv />
+                          <span className="ml-0.5 text-green-500">{watchCounts[myTable] || 0}</span>
+                        </button>
+                      );
+                    })()}
+                    <span>{leaderboard.find((u) => u.accountId === accountId)?.balance ?? '...'}</span>
                   </td>
                 </tr>
               )}
