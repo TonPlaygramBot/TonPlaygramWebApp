@@ -648,6 +648,8 @@ export default function SnakeAndLadder() {
   const diceRef = useRef(null);
   const diceRollerDivRef = useRef(null);
   const [diceStyle, setDiceStyle] = useState({ display: 'none' });
+  const [showTrail, setShowTrail] = useState(false);
+  const trailTimeoutRef = useRef(null);
   const DICE_SMALL_SCALE = 0.44;
   // Duration for each leg of the dice travel animation (ms)
   // Slightly slower so the movement matches the NFT gift animation
@@ -662,6 +664,10 @@ export default function SnakeAndLadder() {
 
   useEffect(() => {
     prepareDiceAnimation(0);
+  }, []);
+
+  useEffect(() => {
+    return () => clearTimeout(trailTimeoutRef.current);
   }, []);
 
   // Preload token and avatar images so board icons and AI photos display
@@ -2188,7 +2194,14 @@ export default function SnakeAndLadder() {
         </div>
       )}
       {!isMultiplayer && (
-        <div ref={diceRef} style={diceStyle} className="dice-travel flex flex-col items-center">
+        <div ref={diceRef} style={diceStyle} className="dice-travel flex flex-col items-center relative">
+          {showTrail && (
+            <img
+              src="/assets/icons/throwing_hand_down.webp"
+              alt=""
+              className="dice-trail-img"
+            />
+          )}
           <div className="scale-90">
             <DiceRoller
               divRef={diceRollerDivRef}
@@ -2210,6 +2223,12 @@ export default function SnakeAndLadder() {
                 const idx = aiRollingIndex != null ? aiRollingIndex : 0;
                 prepareDiceAnimation(idx);
                 animateDiceToCenter(idx);
+                setShowTrail(true);
+                clearTimeout(trailTimeoutRef.current);
+                trailTimeoutRef.current = setTimeout(
+                  () => setShowTrail(false),
+                  DICE_ANIM_DURATION,
+                );
                 if (aiRollingIndex)
                   return setTurnMessage(<>{playerName(aiRollingIndex)} rolling...</>);
                 if (playerAutoRolling) return setTurnMessage('Rolling...');
