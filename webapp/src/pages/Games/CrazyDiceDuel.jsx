@@ -335,13 +335,14 @@ export default function CrazyDiceDuel() {
             ? { label: 'J16' }
             : playerCount === 3
               ? { label: 'E13' }
-              : { label: 'C14' },
-        // Top right player position for three player games
+              : { label: 'D8' },
+        // Top middle player position when facing three opponents
         2:
           playerCount === 3
             ? { label: 'R14' }
-            : { label: 'K20' },
-        3: { label: 'R14' },
+            : { label: 'K8' },
+        // Top right player position in four player games
+        3: { label: 'R8' },
         // Dice roll animation centre: adjust for player count
         center:
           playerCount === 2
