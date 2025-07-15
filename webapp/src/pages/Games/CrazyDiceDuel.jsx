@@ -232,19 +232,29 @@ export default function CrazyDiceDuel() {
         0:
           playerCount === 2
             ? { label: 'J28' }
-            : { label: 'K28' },
-        // Top player dice position in 1v1 starts from J16
+            : playerCount === 3
+              ? { label: 'J28' }
+              : { label: 'K28' },
+        // Top left player position when playing vs two others
         1:
           playerCount === 2
             ? { label: 'J16' }
-            : { label: 'D16' },
+            : playerCount === 3
+              ? { label: 'E13' }
+              : { label: 'D16' },
+        // Top right player position for three player games
         2:
           playerCount === 3
-            ? { label: 'R16' }
+            ? { label: 'R14' }
             : { label: 'F7' },
         3: { label: 'J8' },
-        // Dice roll animation centre for 1v1 at J22
-        center: { label: playerCount === 2 ? 'J22' : 'J25' },
+        // Dice roll animation centre: adjust for player count
+        center:
+          playerCount === 2
+            ? { label: 'J22' }
+            : playerCount === 3
+              ? { label: 'J20' }
+              : { label: 'J25' },
       };
     const entry = posMap[playerIdx] || {};
     const label = entry.label;

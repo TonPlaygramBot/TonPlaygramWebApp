@@ -1339,6 +1339,12 @@ input:focus {
   transform: translate(-50%, -50%);
 }
 
+/* Dice landing spot when facing two opponents */
+.crazy-dice-board.three-players .dice-center {
+  top: 66%;
+  left: 47.5%;
+}
+
 /* Adjust dice landing spot for 1v1 games */
 .crazy-dice-board.two-players .dice-center {
   top: 72%;
@@ -1351,6 +1357,12 @@ input:focus {
   bottom: 5%;
   left: 50%;
   transform: translateX(-50%);
+}
+
+/* Position of the bottom avatar when facing two opponents */
+.crazy-dice-board.three-players .player-bottom {
+  bottom: 8%;
+  left: 47.5%;
 }
 
 /* Adjust bottom player position for 1v1 games */
@@ -1366,9 +1378,9 @@ input:focus {
 }
 
 .crazy-dice-board.three-players .player-left {
-  /* Between C&D horizontally and rows 7&8 vertically */
-  top: 23%;
-  left: 17.5%;
+  /* Positioned around E13 on the grid */
+  top: 42%;
+  left: 22.5%;
 }
 
 .crazy-dice-board .player-center {
@@ -1407,7 +1419,8 @@ input:focus {
 }
 
 .crazy-dice-board.three-players .player-right {
-  top: 23%;
+  /* Positioned around R14 on the grid */
+  top: 45%;
   right: 12.5%;
 }
 
