@@ -1456,27 +1456,27 @@ input:focus {
   right: 12.5%;
 }
 .crazy-dice-board.four-players .player-left {
-  top: 16%;
-  left: 9%;
+  top: 18%;
+  left: 8%;
 }
 .crazy-dice-board.four-players .player-center {
-  top: 16%;
+  top: 17%;
   left: 48%;
 }
 .crazy-dice-board.four-players .player-right {
-  top: 16%;
-  right: 9%;
+  top: 18%;
+  right: 8%;
 }
 .crazy-dice-board.four-players .player-bottom {
   bottom: 8%;
 }
 .crazy-dice-board.four-players .player-bottom .roll-history {
   /* Place roll boxes slightly lower */
-  top: calc(100% + 1.2rem);
+  top: calc(100% + 1.4rem);
 }
 .crazy-dice-board.four-players .player-bottom .player-score {
   /* Score should appear below the roll boxes */
-  top: calc(100% + 2.5rem);
+  top: calc(100% + 2.7rem);
 }
 .crazy-dice-board.four-players .player-left .player-score,
 .crazy-dice-board.four-players .player-center .player-score,
