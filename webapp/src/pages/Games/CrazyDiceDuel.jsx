@@ -154,9 +154,9 @@ export default function CrazyDiceDuel() {
   const [rollResult, setRollResult] = useState(null);
   const [showPrompt, setShowPrompt] = useState(false);
   // Dice scales: shrink when at a player's position and expand when rolling
-  // Reduce dice size by 20% when idle or landing
-  const DICE_CENTER_SCALE = 0.8;
-  const DICE_PLAYER_SCALE = 0.48;
+  // In 1v1 mode dice should start small and grow to normal size when rolling
+  const DICE_CENTER_SCALE = 1;
+  const DICE_PLAYER_SCALE = 0.4;
   const DICE_ANIM_DURATION = 1000;
 
   // Board grid size for positioning helpers. Updated to match the
@@ -228,26 +228,23 @@ export default function CrazyDiceDuel() {
 
   const getDiceCenter = (playerIdx = 'center') => {
       const posMap = {
-        // Bottom player dice position – move slightly up in 1v1
+        // Bottom player dice position
         0:
           playerCount === 2
-            ? { label: 'J24' }
+            ? { label: 'J28' }
             : { label: 'K28' },
-        // Top player dice position. When only two players are present this
-        // represents the opponent at the top of the board. When facing two
-        // opponents (three players total) the dice are positioned according
-        // to the updated Crazy Dice board layout.
+        // Top player dice position in 1v1 starts from J16
         1:
           playerCount === 2
-            ? { label: 'K19' }
+            ? { label: 'J16' }
             : { label: 'D16' },
         2:
           playerCount === 3
             ? { label: 'R16' }
             : { label: 'F7' },
         3: { label: 'J8' },
-        // Dice roll animation centre now aligned with guide box J25
-        center: { label: 'J25' },
+        // Dice roll animation centre for 1v1 at J22
+        center: { label: playerCount === 2 ? 'J22' : 'J25' },
       };
     const entry = posMap[playerIdx] || {};
     const label = entry.label;
