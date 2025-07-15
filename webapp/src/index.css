@@ -1443,6 +1443,31 @@ input:focus {
   top: 45%;
   right: 12.5%;
 }
+.crazy-dice-board.four-players .player-left {
+  top: 15%;
+  left: 7.5%;
+}
+.crazy-dice-board.four-players .player-center {
+  top: 15%;
+  left: 47.5%;
+}
+.crazy-dice-board.four-players .player-right {
+  top: 15%;
+  right: 7.5%;
+}
+.crazy-dice-board.four-players .player-bottom {
+  bottom: 10%;
+}
+.crazy-dice-board.four-players .player-bottom .roll-history {
+  top: calc(100% + 0.45rem);
+}
+.crazy-dice-board.four-players .player-bottom .player-score {
+  top: calc(100% + 1.65rem);
+}
+.crazy-dice-board.four-players .player-center .roll-history {
+  top: calc(100% + 3.7rem);
+}
+
 
 
 /* Rolling dice animation */
