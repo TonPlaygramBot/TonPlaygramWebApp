@@ -1333,8 +1333,8 @@ input:focus {
 }
 .crazy-dice-board .dice-center {
   position: absolute;
-  /* Center updated to guide box J26 */
-  top: 85%;
+  /* Center updated to guide box J25 */
+  top: 84%;
   left: 47.5%;
   transform: translate(-50%, -50%);
 }
@@ -1343,7 +1343,7 @@ input:focus {
 .crazy-dice-board .player-bottom {
   position: absolute;
   /* Slightly higher than the 1v1 layout */
-  bottom: 4%;
+  bottom: 5%;
   left: 50%;
   transform: translateX(-50%);
 }
@@ -1362,7 +1362,7 @@ input:focus {
 
 .crazy-dice-board.three-players .player-left {
   /* Between C&D horizontally and rows 7&8 vertically */
-  top: 25%;
+  top: 23%;
   left: 17.5%;
 }
 
@@ -1402,7 +1402,7 @@ input:focus {
 }
 
 .crazy-dice-board.three-players .player-right {
-  top: 25%;
+  top: 23%;
   right: 12.5%;
 }
 
