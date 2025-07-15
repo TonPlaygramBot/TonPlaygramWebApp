@@ -153,6 +153,8 @@ export default function CrazyDiceDuel() {
   const [diceStyle, setDiceStyle] = useState({ display: 'none' });
   const [rollResult, setRollResult] = useState(null);
   const [showPrompt, setShowPrompt] = useState(false);
+  const [showTrail, setShowTrail] = useState(false);
+  const trailTimeoutRef = useRef(null);
   // Dice scales: shrink when at a player's position and expand when rolling
   // In 1v1 mode dice should start small and grow to normal size when rolling
   const DICE_CENTER_SCALE = 1;
@@ -440,6 +442,16 @@ export default function CrazyDiceDuel() {
     setShowPrompt(false);
     prepareDiceAnimation(current);
     animateDiceToCenter(current);
+    if (current === 0) {
+      setShowTrail(true);
+      clearTimeout(trailTimeoutRef.current);
+      trailTimeoutRef.current = setTimeout(
+        () => setShowTrail(false),
+        DICE_ANIM_DURATION
+      );
+    } else {
+      setShowTrail(false);
+    }
   };
 
   const handleRollEnd = (values) => {
@@ -544,6 +556,10 @@ export default function CrazyDiceDuel() {
     reward();
   }, [winner]);
 
+  useEffect(() => {
+    return () => clearTimeout(trailTimeoutRef.current);
+  }, []);
+
 
 
   return (
@@ -573,7 +589,14 @@ export default function CrazyDiceDuel() {
       <img src={boardBgSrc} alt="board" className="board-bg" />
       <BoardGridOverlay />
       <div ref={diceCenterRef} className="dice-center" />
-      <div ref={diceRef} style={diceStyle} className="dice-travel flex flex-col items-center">
+      <div ref={diceRef} style={diceStyle} className="dice-travel flex flex-col items-center relative">
+        {showTrail && (
+          <img
+            src="/assets/icons/file_00000000926061f590feca40199ee88d.webp"
+            alt=""
+            className="dice-trail-img"
+          />
+        )}
         {rollResult !== null && (
           <div className="text-5xl roll-result">{rollResult}</div>
         )}
