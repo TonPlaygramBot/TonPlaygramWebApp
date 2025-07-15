@@ -1354,7 +1354,7 @@ input:focus {
 .crazy-dice-board .player-bottom {
   position: absolute;
   /* Position aligned with J28 */
-  bottom: 7%;
+  bottom: 8%;
   left: 50%;
   transform: translateX(-50%);
 }
@@ -1408,6 +1408,26 @@ input:focus {
 .crazy-dice-board .player-right .roll-history {
   /* And the right side slightly to the left */
   transform: translateX(-70%);
+}
+
+/* Position roll boxes and scores for top players around row 9/10 */
+.crazy-dice-board .player-left .roll-history,
+.crazy-dice-board .player-center .roll-history,
+.crazy-dice-board .player-right .roll-history {
+  top: calc(100% + 1.8rem);
+}
+.crazy-dice-board .player-left .player-score,
+.crazy-dice-board .player-center .player-score,
+.crazy-dice-board .player-right .player-score {
+  top: calc(100% + 3rem);
+}
+
+/* Slight adjustments for the bottom player's info */
+.crazy-dice-board .player-bottom .roll-history {
+  top: calc(100% + 0.25rem);
+}
+.crazy-dice-board .player-bottom .player-score {
+  top: calc(100% + 1.45rem);
 }
 
 .crazy-dice-board .player-right {
