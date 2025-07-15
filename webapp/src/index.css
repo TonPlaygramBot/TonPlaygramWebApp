@@ -1509,9 +1509,9 @@ input:focus {
 /* Image that appears under the dice when the bottom player rolls */
 .dice-trail-img {
   position: absolute;
-  bottom: -4rem;
+  bottom: -3rem;
   left: 50%;
-  width: 5rem;
+  width: 10rem;
   transform: translateX(-50%) translateY(100%);
   pointer-events: none;
   animation: dice-trail-rise 0.6s ease-out forwards;
