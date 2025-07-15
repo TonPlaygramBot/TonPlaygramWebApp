@@ -58,6 +58,9 @@ const userSchema = new mongoose.Schema({
 
   isWatched: { type: Boolean, default: false },
 
+  // Whether the account is banned from using the platform
+  isBanned: { type: Boolean, default: false },
+
   minedTPC: { type: Number, default: 0 },
 
   dailyStreak: { type: Number, default: 0 },

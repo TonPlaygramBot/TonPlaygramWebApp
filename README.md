@@ -274,6 +274,10 @@ To move from the start you must roll at least one six when rolling two dice. Any
 
 **Telegram reaction not detected** – The `/api/tasks/verify-telegram-reaction` endpoint relies on `BOT_TOKEN`. If this token is missing the check is skipped and the task automatically succeeds. Configure it only if you require strict validation.
 
+### Banning a user
+
+Run `npm run ban-user -- <accountId>` to mark an account as banned in the database. `MONGODB_URI` must point to your MongoDB instance.
+
 
 ## License
 

@@ -10,6 +10,7 @@
     "build": "npm --prefix webapp run build",
     "test": "node --test",
     "recalculate-balances": "node bot/scripts/recalculateBalances.js",
+    "ban-user": "node bot/scripts/banUser.js",
     "dev": "concurrently -k \"npm --prefix webapp run dev\" \"node bot/server.js\""
   },
   "engines": {
