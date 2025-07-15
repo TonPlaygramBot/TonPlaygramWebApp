@@ -1472,11 +1472,11 @@ input:focus {
 }
 .crazy-dice-board.four-players .player-bottom .roll-history {
   /* Place roll boxes slightly lower */
-  top: calc(100% + 1rem);
+  top: calc(100% + 1.2rem);
 }
 .crazy-dice-board.four-players .player-bottom .player-score {
   /* Score should appear below the roll boxes */
-  top: calc(100% + 2.3rem);
+  top: calc(100% + 2.5rem);
 }
 .crazy-dice-board.four-players .player-left .player-score,
 .crazy-dice-board.four-players .player-center .player-score,
