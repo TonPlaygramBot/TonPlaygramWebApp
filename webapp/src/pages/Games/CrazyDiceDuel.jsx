@@ -189,15 +189,6 @@ export default function CrazyDiceDuel() {
     top: `${(row / GRID_ROWS) * 100}%`,
   });
 
-  const cellCenter = (num) => {
-    const col = ((num - 1) % GRID_COLS) + 0.5;
-    const row = Math.floor((num - 1) / GRID_COLS) + 0.5;
-    return {
-      left: `${(col / GRID_COLS) * 100}%`,
-      top: `${(row / GRID_ROWS) * 100}%`,
-    };
-  };
-
   useEffect(() => {
     timerSoundRef.current = new Audio(timerBeep);
     timerSoundRef.current.volume = getGameVolume();
@@ -265,20 +256,20 @@ export default function CrazyDiceDuel() {
         top: board.top + cellH * (r + 0.5),
       });
       setP4ScoreStyles([
-        // Top left opponent score on cell 103
-        { position: 'fixed', transform: 'translate(-50%, -50%)', ...cellCenter(103) },
-        // Top middle opponent score on cell 91
-        { position: 'fixed', transform: 'translate(-50%, -50%)', ...cellCenter(91) },
-        // Top right opponent score on cell 117
-        { position: 'fixed', transform: 'translate(-50%, -50%)', ...cellCenter(117) },
+        // Top left opponent score between cells 103 and 104
+        { position: 'fixed', transform: 'translate(-50%, -50%)', ...center(2.5, 5) },
+        // Top middle opponent score between cells 90 and 91
+        { position: 'fixed', transform: 'translate(-50%, -50%)', ...center(9.5, 4) },
+        // Top right opponent score between cells 117 and 118
+        { position: 'fixed', transform: 'translate(-50%, -50%)', ...center(16.5, 5) },
       ]);
       setP4HistoryStyles([
         // Roll boxes starting on cell 102
-        { position: 'fixed', transform: 'translate(-50%, -50%)', ...cellCenter(102) },
+        { position: 'fixed', transform: 'translate(-50%, -50%)', ...center(1, 5) },
         // Roll boxes starting on cell 89
-        { position: 'fixed', transform: 'translate(-50%, -50%)', ...cellCenter(89) },
+        { position: 'fixed', transform: 'translate(-50%, -50%)', ...center(8, 4) },
         // Roll boxes starting on cell 116
-        { position: 'fixed', transform: 'translate(-50%, -50%)', ...cellCenter(116) },
+        { position: 'fixed', transform: 'translate(-50%, -50%)', ...center(15, 5) },
       ]);
     };
     update();
@@ -665,7 +656,7 @@ export default function CrazyDiceDuel() {
         className="player-bottom z-10"
         style={{
           bottom: 'auto',
-          ...gridPoint(10, 25),
+          ...gridPoint(10, 26),
           transform: 'translate(-50%, -50%)',
         }}
       >
@@ -708,17 +699,17 @@ export default function CrazyDiceDuel() {
         let historyStyle = undefined;
         if (playerCount === 4) {
           if (i === 0) {
-            const pos = cellCenter(64);
+            const pos = gridPoint(3, 3); // cells 43/44/63/64 intersection
             wrapperStyle = { left: pos.left, top: pos.top, right: 'auto' };
             scoreStyle = p4ScoreStyles[0];
             historyStyle = p4HistoryStyles[0];
           } else if (i === 1) {
-            const pos = cellCenter(71);
+            const pos = gridPoint(10, 3); // cells 50/51/70/71 intersection
             wrapperStyle = { left: pos.left, top: pos.top, right: 'auto' };
             scoreStyle = p4ScoreStyles[1];
             historyStyle = p4HistoryStyles[1];
           } else if (i === 2) {
-            const pos = cellCenter(78);
+            const pos = gridPoint(17, 3); // cells 57/58/77/78 intersection
             wrapperStyle = { top: pos.top, right: `${100 - parseFloat(pos.left)}%` };
             scoreStyle = p4ScoreStyles[2];
             historyStyle = p4HistoryStyles[2];
