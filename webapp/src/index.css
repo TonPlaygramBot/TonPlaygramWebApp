@@ -1333,10 +1333,15 @@ input:focus {
 }
 .crazy-dice-board .dice-center {
   position: absolute;
-  /* Center updated to guide box J25 */
+  /* Default center aligned with J25 */
   top: 84%;
   left: 47.5%;
   transform: translate(-50%, -50%);
+}
+
+/* Adjust dice landing spot for 1v1 games */
+.crazy-dice-board.two-players .dice-center {
+  top: 72%;
 }
 
 /* Player positions around the Crazy Dice board */
@@ -1350,7 +1355,7 @@ input:focus {
 
 /* Adjust bottom player position for 1v1 games */
 .crazy-dice-board.two-players .player-bottom {
-  bottom: 7%;
+  bottom: 8%;
 }
 
 .crazy-dice-board .player-left {
