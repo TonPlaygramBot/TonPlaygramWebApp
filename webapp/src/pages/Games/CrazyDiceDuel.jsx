@@ -632,7 +632,7 @@ export default function CrazyDiceDuel() {
           />
         )}
         {rollResult !== null && (
-          <div className="text-5xl roll-result">{rollResult}</div>
+          <div className="text-6xl roll-result">{rollResult}</div>
         )}
         {winner == null ? (
           <div className="crazy-dice">
