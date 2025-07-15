@@ -157,6 +157,7 @@ export default function CrazyDiceDuel() {
   // In 1v1 mode dice should start small and grow to normal size when rolling
   const DICE_CENTER_SCALE = 1;
   const DICE_PLAYER_SCALE = 0.4;
+  const DICE_SHRINK_SCALE = 0.2;
   const DICE_ANIM_DURATION = 1000;
 
   // Board grid size for positioning helpers. Updated to match the
@@ -256,6 +257,20 @@ export default function CrazyDiceDuel() {
               ? { label: 'J20' }
               : { label: 'J20' },
       };
+    if (typeof playerIdx === 'string' && /^[A-Za-z][0-9]+$/.test(playerIdx)) {
+      const label = playerIdx.toUpperCase();
+      if (boardRef.current) {
+        const board = boardRef.current.getBoundingClientRect();
+        const col = label.charCodeAt(0) - 65;
+        const row = parseInt(label.slice(1)) - 1;
+        const cellW = board.width / GRID_COLS;
+        const cellH = board.height / GRID_ROWS;
+        return {
+          cx: board.left + cellW * (col + 0.5),
+          cy: board.top + cellH * (row + 0.5),
+        };
+      }
+    }
     const entry = posMap[playerIdx] || {};
     const label = entry.label;
     const dx = entry.dx || 0;
@@ -349,6 +364,22 @@ export default function CrazyDiceDuel() {
     };
   };
 
+  const animateDiceToLabel = (label, endScale = DICE_SHRINK_SCALE) => {
+    const dice = diceRef.current;
+    if (!dice) return;
+    const { cx: startX, cy: startY } = getDiceCenter('center');
+    const { cx: endX, cy: endY } = getDiceCenter(label);
+    dice.animate(
+      [
+        { transform: `translate(${startX}px, ${startY}px) translate(-50%, -50%) scale(${DICE_CENTER_SCALE})` },
+        { transform: `translate(${endX}px, ${endY}px) translate(-50%, -50%) scale(${endScale})` },
+      ],
+      { duration: DICE_ANIM_DURATION, easing: 'ease-in-out' },
+    ).onfinish = () => {
+      setDiceStyle({ display: 'none' });
+    };
+  };
+
   const handleRollStart = () => {
     setShowPrompt(false);
     prepareDiceAnimation(current);
@@ -380,8 +411,13 @@ export default function CrazyDiceDuel() {
     setRollResult(value);
     setTimeout(() => setRollResult(null), 2000);
     setTimeout(() => {
-      animateDiceToPlayer(nextIndex);
-      setTimeout(() => setCurrent(nextIndex), DICE_ANIM_DURATION);
+      if (playerCount === 4 && current === 1) {
+        animateDiceToLabel('K13');
+        setTimeout(() => setCurrent(nextIndex), DICE_ANIM_DURATION);
+      } else {
+        animateDiceToPlayer(nextIndex);
+        setTimeout(() => setCurrent(nextIndex), DICE_ANIM_DURATION);
+      }
     }, 2000);
   };
 
