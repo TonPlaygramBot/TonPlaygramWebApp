@@ -15,6 +15,8 @@ export default function AvatarTimer({
   onClick,
   index,
   size = 1,
+  scoreStyle = {},
+  rollHistoryStyle = {},
 }) {
   const angle = (1 - timerPct) * 360;
   const gradient = `conic-gradient(#facc15 ${angle}deg, #16a34a 0deg)`;
@@ -48,7 +50,10 @@ export default function AvatarTimer({
         </span>
       )}
       {rollHistory && maxRolls > 0 && (
-        <div className="roll-history" style={{ color: color || '#fde047' }}>
+        <div
+          className="roll-history"
+          style={{ color: color || '#fde047', ...rollHistoryStyle }}
+        >
           {Array.from({ length: maxRolls }).map((_, i) => (
             <div key={i} className="roll-box">
               {rollHistory[i] != null ? rollHistory[i] : ''}
@@ -57,7 +62,10 @@ export default function AvatarTimer({
         </div>
       )}
       {score != null && (
-        <span className="player-score" style={{ color: color || '#fde047' }}>
+        <span
+          className="player-score"
+          style={{ color: color || '#fde047', ...scoreStyle }}
+        >
           Score: {score}
         </span>
       )}
