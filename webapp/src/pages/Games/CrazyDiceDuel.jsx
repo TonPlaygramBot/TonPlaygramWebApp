@@ -234,27 +234,27 @@ export default function CrazyDiceDuel() {
             ? { label: 'J28' }
             : playerCount === 3
               ? { label: 'J28' }
-              : { label: 'K28' },
+              : { label: 'J28' },
         // Top left player position when playing vs two others
         1:
           playerCount === 2
             ? { label: 'J16' }
             : playerCount === 3
               ? { label: 'E13' }
-              : { label: 'D16' },
+              : { label: 'C14' },
         // Top right player position for three player games
         2:
           playerCount === 3
             ? { label: 'R14' }
-            : { label: 'F7' },
-        3: { label: 'J8' },
+            : { label: 'K20' },
+        3: { label: 'R14' },
         // Dice roll animation centre: adjust for player count
         center:
           playerCount === 2
             ? { label: 'J22' }
             : playerCount === 3
               ? { label: 'J20' }
-              : { label: 'J25' },
+              : { label: 'J20' },
       };
     const entry = posMap[playerIdx] || {};
     const label = entry.label;

@@ -1333,8 +1333,8 @@ input:focus {
 }
 .crazy-dice-board .dice-center {
   position: absolute;
-  /* Default center aligned with J25 */
-  top: 84%;
+  /* Default center aligned with J20 */
+  top: 66%;
   left: 47.5%;
   transform: translate(-50%, -50%);
 }
@@ -1353,8 +1353,8 @@ input:focus {
 /* Player positions around the Crazy Dice board */
 .crazy-dice-board .player-bottom {
   position: absolute;
-  /* Slightly higher than the 1v1 layout */
-  bottom: 5%;
+  /* Position aligned with J28 */
+  bottom: 7%;
   left: 50%;
   transform: translateX(-50%);
 }
