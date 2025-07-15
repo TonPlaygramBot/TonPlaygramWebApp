@@ -146,6 +146,7 @@ export default function CrazyDiceDuel() {
     4: '/assets/icons/file_000000003a9c622f8e50bd5d8f381471.webp', // vs 3 others
   };
   const boardBgSrc = BG_BY_PLAYERS[playerCount] || BG_BY_PLAYERS[4];
+  const boardClass = playerCount === 4 ? "four-players" : playerCount === 3 ? "three-players" : playerCount === 2 ? "two-players" : "";
 
   const boardRef = useRef(null);
   const diceRef = useRef(null);
@@ -166,6 +167,8 @@ export default function CrazyDiceDuel() {
   const [tlHistoryStyle, setTlHistoryStyle] = useState(null);
   const [trScoreStyle, setTrScoreStyle] = useState(null);
   const [trHistoryStyle, setTrHistoryStyle] = useState(null);
+  const [p4ScoreStyles, setP4ScoreStyles] = useState([]);
+  const [p4HistoryStyles, setP4HistoryStyles] = useState([]);
 
   // Board grid size for positioning helpers. Updated to match the
   // new Crazy Dice board layout which uses a 20x30 grid.
@@ -235,6 +238,33 @@ export default function CrazyDiceDuel() {
         transform: 'translate(-50%, -50%)',
         ...center(14, 7), // O8
       });
+    };
+    update();
+    window.addEventListener('resize', update);
+    return () => window.removeEventListener('resize', update);
+  }, [playerCount]);
+
+  useEffect(() => {
+    if (playerCount !== 4) return;
+    const update = () => {
+      if (!boardRef.current) return;
+      const board = boardRef.current.getBoundingClientRect();
+      const cellW = board.width / GRID_COLS;
+      const cellH = board.height / GRID_ROWS;
+      const center = (c, r) => ({
+        left: board.left + cellW * (c + 0.5),
+        top: board.top + cellH * (r + 0.5),
+      });
+      setP4ScoreStyles([
+        { position: 'fixed', transform: 'translate(-50%, -50%)', ...center(1, 7) },
+        { position: 'fixed', transform: 'translate(-50%, -50%)', ...center(9, 7) },
+        { position: 'fixed', transform: 'translate(-50%, -50%)', ...center(18, 7) },
+      ]);
+      setP4HistoryStyles([
+        { position: 'fixed', transform: 'translate(-50%, -50%)', ...center(0, 7) },
+        { position: 'fixed', transform: 'translate(-50%, -50%)', ...center(9, 8) },
+        { position: 'fixed', transform: 'translate(-50%, -50%)', ...center(18, 8) },
+      ]);
     };
     update();
     window.addEventListener('resize', update);
@@ -576,7 +606,7 @@ export default function CrazyDiceDuel() {
       )}
         <div
           ref={boardRef}
-          className={`crazy-dice-board ${playerCount === 3 ? 'three-players' : playerCount === 2 ? 'two-players' : ''}`}
+          className={`crazy-dice-board ${boardClass}`}
         >
       {!bgUnlocked && (
         <button
@@ -654,6 +684,24 @@ export default function CrazyDiceDuel() {
         let wrapperStyle = undefined;
         let scoreStyle = undefined;
         let historyStyle = undefined;
+        if (playerCount === 4) {
+          if (i === 0) {
+            const pos = gridCenter('B5');
+            wrapperStyle = { left: pos.left, top: pos.top, right: 'auto' };
+            scoreStyle = p4ScoreStyles[0];
+            historyStyle = p4HistoryStyles[0];
+          } else if (i === 1) {
+            const pos = gridCenter('J5');
+            wrapperStyle = { left: pos.left, top: pos.top, right: 'auto' };
+            scoreStyle = p4ScoreStyles[1];
+            historyStyle = p4HistoryStyles[1];
+          } else if (i === 2) {
+            const pos = gridCenter('S5');
+            wrapperStyle = { top: pos.top, right: `${100 - parseFloat(pos.left)}%` };
+            scoreStyle = p4ScoreStyles[2];
+            historyStyle = p4HistoryStyles[2];
+          }
+        }
         if (playerCount === 3) {
           if (i === 0) {
             wrapperStyle = { ...gridPoint(3, 3), right: 'auto' };
