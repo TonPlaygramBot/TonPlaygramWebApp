@@ -220,22 +220,22 @@ export default function CrazyDiceDuel() {
       setTlScoreStyle({
         position: 'fixed',
         transform: 'translate(-50%, -50%)',
-        ...center(3, 8), // D9
+        ...center(2, 10), // top left score (same as 4 players)
       });
       setTlHistoryStyle({
         position: 'fixed',
         transform: 'translate(-50%, -50%)',
-        ...center(1, 7), // B8
+        ...center(0.5, 11), // top left history (same as 4 players)
       });
       setTrScoreStyle({
         position: 'fixed',
         transform: 'translate(-50%, -50%)',
-        ...center(16, 8), // Q9
+        ...center(16.5, 10), // top right score (same as 4 players)
       });
       setTrHistoryStyle({
         position: 'fixed',
         transform: 'translate(-50%, -50%)',
-        ...center(14, 7), // O8
+        ...center(15, 11), // top right history (same as 4 players)
       });
     };
     update();
@@ -334,7 +334,7 @@ export default function CrazyDiceDuel() {
           playerCount === 2
             ? { label: 'J16' }
             : playerCount === 3
-              ? { label: 'E13' }
+              ? { label: 'C14' }
               : { label: 'C14' },
         // Top right player position for three player games
         2:
@@ -719,11 +719,13 @@ export default function CrazyDiceDuel() {
         }
         if (playerCount === 3) {
           if (i === 0) {
-            wrapperStyle = { ...gridPoint(3, 3), right: 'auto' };
+            // Use same placement as four-player top left
+            wrapperStyle = { ...gridPoint(2, 7), right: 'auto' };
             scoreStyle = tlScoreStyle;
             historyStyle = tlHistoryStyle;
           } else if (i === 1) {
-            wrapperStyle = { ...gridPoint(17, 3), right: 'auto' };
+            // Use same placement as four-player top right
+            wrapperStyle = { ...gridPoint(18, 7), right: 'auto' };
             scoreStyle = trScoreStyle;
             historyStyle = trHistoryStyle;
           }
