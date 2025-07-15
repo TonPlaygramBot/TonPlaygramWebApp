@@ -1462,6 +1462,33 @@ input:focus {
   z-index: 101;
 }
 
+/* Image that appears under the dice when the bottom player rolls */
+.dice-trail-img {
+  position: absolute;
+  bottom: -3.5rem;
+  left: 50%;
+  width: 4rem;
+  transform: translateX(-50%) translateY(100%);
+  pointer-events: none;
+  animation: dice-trail-rise 0.6s ease-out forwards;
+  z-index: -1;
+}
+
+@keyframes dice-trail-rise {
+  0% {
+    opacity: 0;
+    transform: translateX(-50%) translateY(100%);
+  }
+  50% {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+  100% {
+    opacity: 0;
+    transform: translateX(-50%) translateY(0);
+  }
+}
+
 @keyframes dice-bounce {
   0% {
     transform: translate(0, 0) scale(0.4) rotate(0deg);
