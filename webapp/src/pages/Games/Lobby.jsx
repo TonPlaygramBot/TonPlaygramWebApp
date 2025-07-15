@@ -257,8 +257,12 @@ export default function Lobby() {
         <RoomSelector
           selected={stake}
           onSelect={setStake}
-          tokens={table?.id === 'single' ? ['TPC'] : undefined}
+          tokens={['TPC']}
         />
+        <p className="text-center text-subtext text-sm">
+          TON and USDT staking coming soon. Smart contract under
+          construction.
+        </p>
       </div>
       {game === 'snake' && table?.id === 'single' && (
         <div className="space-y-2">

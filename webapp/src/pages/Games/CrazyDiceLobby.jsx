@@ -92,7 +92,11 @@ export default function CrazyDiceLobby() {
       </div>
       <div className="space-y-2">
         <h3 className="font-semibold">Select Stake</h3>
-        <RoomSelector selected={stake} onSelect={setStake} />
+        <RoomSelector selected={stake} onSelect={setStake} tokens={['TPC']} />
+        <p className="text-center text-subtext text-sm">
+          TON and USDT staking coming soon. Smart contract under
+          construction.
+        </p>
       </div>
       <button
         onClick={startGame}
