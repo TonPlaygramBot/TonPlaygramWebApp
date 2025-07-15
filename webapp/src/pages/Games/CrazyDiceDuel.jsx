@@ -260,13 +260,13 @@ export default function CrazyDiceDuel() {
         // Top middle opponent score just below avatar
         { position: 'fixed', transform: 'translate(-50%, -50%)', ...center(9.5, 6) },
         // Top right opponent score shifted left
-        { position: 'fixed', transform: 'translate(-50%, -50%)', ...center(16, 6) },
+        { position: 'fixed', transform: 'translate(-50%, -50%)', ...center(16.5, 6) },
       ]);
       setP4HistoryStyles([
         // Roll boxes for top left player
         { position: 'fixed', transform: 'translate(-50%, -50%)', ...center(0.5, 6) },
         // Roll boxes for top middle player
-        { position: 'fixed', transform: 'translate(-50%, -50%)', ...center(8, 5) },
+        { position: 'fixed', transform: 'translate(-50%, -50%)', ...center(8, 6) },
         // Roll boxes for top right player
         { position: 'fixed', transform: 'translate(-50%, -50%)', ...center(15, 6) },
       ]);
@@ -654,8 +654,8 @@ export default function CrazyDiceDuel() {
         className="player-bottom z-10"
         style={{
           bottom: 'auto',
-          /* Nudge the bottom player slightly upwards */
-          ...gridPoint(10, 25),
+          /* Position the bottom player slightly lower */
+          ...gridPoint(10, 26),
           transform: 'translate(-50%, -50%)',
         }}
       >
@@ -704,14 +704,14 @@ export default function CrazyDiceDuel() {
             scoreStyle = p4ScoreStyles[0];
             historyStyle = p4HistoryStyles[0];
           } else if (i === 1) {
-            /* Top middle opponent nudged lower */
-            const pos = gridPoint(10, 4); // shifted down one row
+            /* Top middle opponent nudged slightly lower */
+            const pos = gridPoint(10, 5); // move down a touch
             wrapperStyle = { left: pos.left, top: pos.top, right: 'auto' };
             scoreStyle = p4ScoreStyles[1];
             historyStyle = p4HistoryStyles[1];
           } else if (i === 2) {
-            /* Top right opponent moved slightly right and down */
-            const pos = gridPoint(17.5, 4); // shifted and nudged
+            /* Top right opponent moved a bit left and down */
+            const pos = gridPoint(17, 5); // nudge position
             wrapperStyle = { top: pos.top, right: `${100 - parseFloat(pos.left)}%` };
             scoreStyle = p4ScoreStyles[2];
             historyStyle = p4HistoryStyles[2];
