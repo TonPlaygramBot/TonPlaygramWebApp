@@ -160,10 +160,29 @@ export default function CrazyDiceDuel() {
   const DICE_SHRINK_SCALE = 0.2;
   const DICE_ANIM_DURATION = 1000;
 
+  const [tlScoreStyle, setTlScoreStyle] = useState(null);
+  const [tlHistoryStyle, setTlHistoryStyle] = useState(null);
+  const [trScoreStyle, setTrScoreStyle] = useState(null);
+  const [trHistoryStyle, setTrHistoryStyle] = useState(null);
+
   // Board grid size for positioning helpers. Updated to match the
   // new Crazy Dice board layout which uses a 20x30 grid.
   const GRID_ROWS = 30;
   const GRID_COLS = 20;
+
+  const gridCenter = (label) => {
+    const col = label.charCodeAt(0) - 65;
+    const row = parseInt(label.slice(1), 10) - 1;
+    return {
+      left: `${((col + 0.5) / GRID_COLS) * 100}%`,
+      top: `${((row + 0.5) / GRID_ROWS) * 100}%`,
+    };
+  };
+
+  const gridPoint = (col, row) => ({
+    left: `${(col / GRID_COLS) * 100}%`,
+    top: `${(row / GRID_ROWS) * 100}%`,
+  });
 
   useEffect(() => {
     timerSoundRef.current = new Audio(timerBeep);
@@ -182,6 +201,43 @@ export default function CrazyDiceDuel() {
   useEffect(() => {
     setShowPrompt(current === 0);
   }, [current]);
+
+  useEffect(() => {
+    if (playerCount !== 3) return;
+    const update = () => {
+      if (!boardRef.current) return;
+      const board = boardRef.current.getBoundingClientRect();
+      const cellW = board.width / GRID_COLS;
+      const cellH = board.height / GRID_ROWS;
+      const center = (c, r) => ({
+        left: board.left + cellW * (c + 0.5),
+        top: board.top + cellH * (r + 0.5),
+      });
+      setTlScoreStyle({
+        position: 'fixed',
+        transform: 'translate(-50%, -50%)',
+        ...center(3, 8), // D9
+      });
+      setTlHistoryStyle({
+        position: 'fixed',
+        transform: 'translate(-50%, -50%)',
+        ...center(1, 7), // B8
+      });
+      setTrScoreStyle({
+        position: 'fixed',
+        transform: 'translate(-50%, -50%)',
+        ...center(16, 8), // Q9
+      });
+      setTrHistoryStyle({
+        position: 'fixed',
+        transform: 'translate(-50%, -50%)',
+        ...center(14, 7), // O8
+      });
+    };
+    update();
+    window.addEventListener('resize', update);
+    return () => window.removeEventListener('resize', update);
+  }, [playerCount]);
 
   useEffect(() => {
     if (timerRef.current) clearInterval(timerRef.current);
@@ -572,36 +628,52 @@ export default function CrazyDiceDuel() {
               ? ['player-center']
               : ['player-left', 'player-center', 'player-right'];
         const pos = positions[i] || '';
+        let wrapperStyle = undefined;
+        let scoreStyle = undefined;
+        let historyStyle = undefined;
+        if (playerCount === 3) {
+          if (i === 0) {
+            wrapperStyle = { ...gridPoint(3, 3), right: 'auto' };
+            scoreStyle = tlScoreStyle;
+            historyStyle = tlHistoryStyle;
+          } else if (i === 1) {
+            wrapperStyle = { ...gridPoint(17, 3), right: 'auto' };
+            scoreStyle = trScoreStyle;
+            historyStyle = trHistoryStyle;
+          }
+        }
         return (
-          <div key={i + 1} className={`${pos} z-10`}>
-          <AvatarTimer
-            index={i + 1}
-            photoUrl={p.photoUrl}
-            active={current === i + 1}
-            isTurn={current === i + 1}
-            timerPct={current === i + 1 ? timeLeft / 2.5 : 1}
-            name={
-              aiCount > 0
-                ? avatarToName(p.photoUrl) || `AI ${i + 1}`
-                : `P${i + 2}`
-            }
-            score={p.score}
-            rollHistory={p.results}
-            maxRolls={maxRolls}
-            color={p.color}
-            size={
-              playerCount === 2
-                ? 2
-                : playerCount === 3
-                  ? 1.1
-                  : playerCount > 3
-                    ? 1.05
-                    : 1
-            }
-            onClick={() => {
-              if (current === i + 1) setTrigger((t) => t + 1);
-            }}
-          />
+          <div key={i + 1} className={`${pos} z-10`} style={wrapperStyle}>
+            <AvatarTimer
+              index={i + 1}
+              photoUrl={p.photoUrl}
+              active={current === i + 1}
+              isTurn={current === i + 1}
+              timerPct={current === i + 1 ? timeLeft / 2.5 : 1}
+              name={
+                aiCount > 0
+                  ? avatarToName(p.photoUrl) || `AI ${i + 1}`
+                  : `P${i + 2}`
+              }
+              score={p.score}
+              rollHistory={p.results}
+              maxRolls={maxRolls}
+              color={p.color}
+              scoreStyle={scoreStyle}
+              rollHistoryStyle={historyStyle}
+              size={
+                playerCount === 2
+                  ? 2
+                  : playerCount === 3
+                    ? 1.1
+                    : playerCount > 3
+                      ? 1.05
+                      : 1
+              }
+              onClick={() => {
+                if (current === i + 1) setTrigger((t) => t + 1);
+              }}
+            />
           </div>
         );
       })}
