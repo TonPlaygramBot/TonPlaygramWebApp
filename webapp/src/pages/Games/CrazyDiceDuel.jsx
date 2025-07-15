@@ -416,7 +416,15 @@ export default function CrazyDiceDuel() {
       ],
       { duration: DICE_ANIM_DURATION, easing: 'ease-in-out' },
     ).onfinish = () => {
-      setDiceStyle({ display: 'none' });
+      setDiceStyle({
+        display: 'block',
+        position: 'fixed',
+        left: '0px',
+        top: '0px',
+        transform: `translate(${endX}px, ${endY}px) translate(-50%, -50%) scale(${DICE_PLAYER_SCALE})`,
+        pointerEvents: 'none',
+        zIndex: 50,
+      });
     };
   };
 
