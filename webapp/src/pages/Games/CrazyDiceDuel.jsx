@@ -698,20 +698,20 @@ export default function CrazyDiceDuel() {
         let historyStyle = undefined;
         if (playerCount === 4) {
           if (i === 0) {
-            /* Top left opponent slightly lower */
-            const pos = gridPoint(3, 4); // shifted down one row
+            /* Align top left opponent with top right */
+            const pos = gridPoint(3, 5); // lowered by one row
             wrapperStyle = { left: pos.left, top: pos.top, right: 'auto' };
             scoreStyle = p4ScoreStyles[0];
             historyStyle = p4HistoryStyles[0];
           } else if (i === 1) {
-            /* Top middle opponent nudged slightly lower */
-            const pos = gridPoint(10, 5); // move down a touch
+            /* Top middle opponent slightly lower */
+            const pos = gridPoint(10, 6); // moved down a bit
             wrapperStyle = { left: pos.left, top: pos.top, right: 'auto' };
             scoreStyle = p4ScoreStyles[1];
             historyStyle = p4HistoryStyles[1];
           } else if (i === 2) {
-            /* Top right opponent moved a bit left and down */
-            const pos = gridPoint(17, 5); // nudge position
+            /* Top right opponent */
+            const pos = gridPoint(17, 5); // same level as top left
             wrapperStyle = { top: pos.top, right: `${100 - parseFloat(pos.left)}%` };
             scoreStyle = p4ScoreStyles[2];
             historyStyle = p4HistoryStyles[2];
