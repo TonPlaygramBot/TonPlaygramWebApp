@@ -698,24 +698,20 @@ export default function CrazyDiceDuel() {
         let historyStyle = undefined;
         if (playerCount === 4) {
           if (i === 0) {
-            /* Top left opponent moved further left */
-            const pos = gridPoint(2, 7);
+            /* Top left opponent moved slightly right */
+            const pos = gridPoint(2.3, 7);
             wrapperStyle = { left: pos.left, top: pos.top, right: 'auto' };
-            scoreStyle = p4ScoreStyles[0];
-            historyStyle = p4HistoryStyles[0];
           } else if (i === 1) {
-            /* Top middle opponent moved slightly lower */
+            /* Top middle opponent */
             const pos = gridPoint(10, 7);
             wrapperStyle = { left: pos.left, top: pos.top, right: 'auto' };
-            scoreStyle = undefined;
-            historyStyle = undefined;
           } else if (i === 2) {
-            /* Top right opponent shifted further right */
-            const pos = gridPoint(18, 7);
+            /* Top right opponent shifted slightly left */
+            const pos = gridPoint(17.7, 7);
             wrapperStyle = { top: pos.top, right: `${100 - parseFloat(pos.left)}%` };
-            scoreStyle = p4ScoreStyles[2];
-            historyStyle = p4HistoryStyles[2];
           }
+          scoreStyle = undefined;
+          historyStyle = undefined;
         }
         if (playerCount === 3) {
           if (i === 0) {
