@@ -698,8 +698,8 @@ export default function CrazyDiceDuel() {
         let historyStyle = undefined;
         if (playerCount === 4) {
           if (i === 0) {
-            /* Top left opponent moved down and a bit right */
-            const pos = gridPoint(3, 7);
+            /* Top left opponent moved further left */
+            const pos = gridPoint(2, 7);
             wrapperStyle = { left: pos.left, top: pos.top, right: 'auto' };
             scoreStyle = p4ScoreStyles[0];
             historyStyle = p4HistoryStyles[0];
@@ -710,8 +710,8 @@ export default function CrazyDiceDuel() {
             scoreStyle = undefined;
             historyStyle = undefined;
           } else if (i === 2) {
-            /* Top right opponent moved down and a bit left */
-            const pos = gridPoint(17, 7);
+            /* Top right opponent shifted further right */
+            const pos = gridPoint(18, 7);
             wrapperStyle = { top: pos.top, right: `${100 - parseFloat(pos.left)}%` };
             scoreStyle = p4ScoreStyles[2];
             historyStyle = p4HistoryStyles[2];
