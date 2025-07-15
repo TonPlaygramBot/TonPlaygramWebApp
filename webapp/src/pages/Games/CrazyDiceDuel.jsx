@@ -652,7 +652,14 @@ export default function CrazyDiceDuel() {
           </div>
         )}
       </div>
-      <div className="player-bottom z-10">
+      <div
+        className="player-bottom z-10"
+        style={{
+          bottom: 'auto',
+          ...gridPoint(10, 26),
+          transform: 'translate(-50%, -50%)',
+        }}
+      >
         {showPrompt && (
           <button
             className="your-turn-message"
