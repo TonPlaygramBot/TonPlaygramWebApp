@@ -2,7 +2,6 @@ import React from 'react';
 
 const COLS = 20;
 const ROWS = 30;
-const LETTERS = 'ABCDEFGHIJKLMNOPQRST'.split('');
 
 export default function BoardGridOverlay({ className = '' }) {
   const lines = [];
@@ -32,45 +31,23 @@ export default function BoardGridOverlay({ className = '' }) {
       />,
     );
   }
-  const letterLabels = LETTERS.map((l, i) => (
-    <text
-      key={`l${i}`}
-      x={i + 0.5}
-      y={-0.3}
-      textAnchor="middle"
-      fontSize={0.8}
-      fill="white"
-    >
-      {l}
-    </text>
-  ));
-  const numberLabels = Array.from({ length: ROWS }, (_, j) => (
-    <text
-      key={`n${j}`}
-      x={-0.3}
-      y={j + 0.7}
-      textAnchor="end"
-      fontSize={0.8}
-      fill="white"
-    >
-      {j + 1}
-    </text>
-  ));
+  // Sequential numbers for each cell
 
   const cellLabels = [];
   for (let i = 0; i < COLS; i++) {
     for (let j = 0; j < ROWS; j++) {
+      const cellNumber = j * COLS + i + 1;
       cellLabels.push(
         <text
           key={`c${i}-${j}`}
           x={i + 0.5}
           y={j + 0.6}
           textAnchor="middle"
-          fontSize={0.6}
+          fontSize={1}
           fill="white"
-          opacity={0.5}
+          opacity={0.7}
         >
-          {`${LETTERS[i]}${j + 1}`}
+          {cellNumber}
         </text>
       );
     }
@@ -85,8 +62,6 @@ export default function BoardGridOverlay({ className = '' }) {
       height="100%"
     >
       {lines}
-      {letterLabels}
-      {numberLabels}
       {cellLabels}
     </svg>
   );
