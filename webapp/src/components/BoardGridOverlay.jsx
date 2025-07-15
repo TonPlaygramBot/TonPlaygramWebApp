@@ -43,7 +43,7 @@ export default function BoardGridOverlay({ className = '' }) {
           x={i + 0.5}
           y={j + 0.6}
           textAnchor="middle"
-          fontSize={1}
+          fontSize={0.5}
           fill="white"
           opacity={0.7}
         >
@@ -55,7 +55,7 @@ export default function BoardGridOverlay({ className = '' }) {
 
   return (
     <svg
-      className={`fixed inset-0 w-screen h-screen pointer-events-none ${className}`}
+      className={`board-grid-overlay ${className}`}
       viewBox="-0.5 -0.5 21 31"
       xmlns="http://www.w3.org/2000/svg"
       width="100%"
