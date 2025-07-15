@@ -12,7 +12,6 @@ import BottomLeftIcons from '../../components/BottomLeftIcons.jsx';
 import QuickMessagePopup from '../../components/QuickMessagePopup.jsx';
 import GiftPopup from '../../components/GiftPopup.jsx';
 import GameEndPopup from '../../components/GameEndPopup.jsx';
-import BoardGridOverlay from '../../components/BoardGridOverlay.jsx';
 import useTelegramBackButton from '../../hooks/useTelegramBackButton.js';
 import {
   loadAvatar,
@@ -623,7 +622,6 @@ export default function CrazyDiceDuel() {
         </button>
       )}
       <img src={boardBgSrc} alt="board" className="board-bg" />
-      <BoardGridOverlay />
       <div ref={diceCenterRef} className="dice-center" />
       <div ref={diceRef} style={diceStyle} className="dice-travel flex flex-col items-center relative">
         {showTrail && (
