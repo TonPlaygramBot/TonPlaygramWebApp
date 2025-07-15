@@ -1444,28 +1444,35 @@ input:focus {
   right: 12.5%;
 }
 .crazy-dice-board.four-players .player-left {
-  top: 15%;
-  left: 7.5%;
+  top: 16%;
+  left: 9%;
 }
 .crazy-dice-board.four-players .player-center {
-  top: 15%;
-  left: 47.5%;
+  top: 16%;
+  left: 48%;
 }
 .crazy-dice-board.four-players .player-right {
-  top: 15%;
-  right: 7.5%;
+  top: 16%;
+  right: 9%;
 }
 .crazy-dice-board.four-players .player-bottom {
-  bottom: 10%;
+  bottom: 12%;
 }
 .crazy-dice-board.four-players .player-bottom .roll-history {
-  top: calc(100% + 0.45rem);
+  top: calc(100% + 0.65rem);
 }
 .crazy-dice-board.four-players .player-bottom .player-score {
-  top: calc(100% + 1.65rem);
+  top: calc(100% + 1.85rem);
 }
-.crazy-dice-board.four-players .player-center .roll-history {
-  top: calc(100% + 3.7rem);
+.crazy-dice-board.four-players .player-left .player-score,
+.crazy-dice-board.four-players .player-center .player-score,
+.crazy-dice-board.four-players .player-right .player-score {
+  top: calc(100% + 1.8rem);
+}
+.crazy-dice-board.four-players .player-left .roll-history,
+.crazy-dice-board.four-players .player-center .roll-history,
+.crazy-dice-board.four-players .player-right .roll-history {
+  top: calc(100% + 3rem);
 }
 
 
