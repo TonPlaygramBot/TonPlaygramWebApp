@@ -231,23 +231,23 @@ export default function CrazyDiceDuel() {
         // Bottom player dice position – move slightly up in 1v1
         0:
           playerCount === 2
-            ? { label: 'J25' }
-            : { label: 'K29' },
+            ? { label: 'J24' }
+            : { label: 'K28' },
         // Top player dice position. When only two players are present this
         // represents the opponent at the top of the board. When facing two
         // opponents (three players total) the dice are positioned according
         // to the updated Crazy Dice board layout.
         1:
           playerCount === 2
-            ? { label: 'K20' }
-            : { label: 'D17' },
+            ? { label: 'K19' }
+            : { label: 'D16' },
         2:
           playerCount === 3
-            ? { label: 'R17' }
-            : { label: 'F8' },
-        3: { label: 'J9' },
-        // Dice roll animation centre now aligned with guide box J26
-        center: { label: 'J26' },
+            ? { label: 'R16' }
+            : { label: 'F7' },
+        3: { label: 'J8' },
+        // Dice roll animation centre now aligned with guide box J25
+        center: { label: 'J25' },
       };
     const entry = posMap[playerIdx] || {};
     const label = entry.label;
