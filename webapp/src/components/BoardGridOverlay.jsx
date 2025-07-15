@@ -57,15 +57,37 @@ export default function BoardGridOverlay({ className = '' }) {
     </text>
   ));
 
+  const cellLabels = [];
+  for (let i = 0; i < COLS; i++) {
+    for (let j = 0; j < ROWS; j++) {
+      cellLabels.push(
+        <text
+          key={`c${i}-${j}`}
+          x={i + 0.5}
+          y={j + 0.6}
+          textAnchor="middle"
+          fontSize={0.6}
+          fill="white"
+          opacity={0.5}
+        >
+          {`${LETTERS[i]}${j + 1}`}
+        </text>
+      );
+    }
+  }
+
   return (
     <svg
-      className={`absolute inset-0 pointer-events-none ${className}`}
+      className={`fixed inset-0 w-screen h-screen pointer-events-none ${className}`}
       viewBox="-0.5 -0.5 21 31"
       xmlns="http://www.w3.org/2000/svg"
+      width="100%"
+      height="100%"
     >
       {lines}
       {letterLabels}
       {numberLabels}
+      {cellLabels}
     </svg>
   );
 }
