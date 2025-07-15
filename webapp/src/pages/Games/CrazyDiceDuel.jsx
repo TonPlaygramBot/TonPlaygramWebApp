@@ -255,20 +255,20 @@ export default function CrazyDiceDuel() {
         top: board.top + cellH * (r + 0.5),
       });
       setP4ScoreStyles([
-        // Top left opponent score
-        { position: 'fixed', transform: 'translate(-50%, -50%)', ...center(2, 6) },
+        // Top left opponent score aligned with center
+        { position: 'fixed', transform: 'translate(-50%, -50%)', ...center(2, 10) },
         // Top middle opponent score just below avatar
         { position: 'fixed', transform: 'translate(-50%, -50%)', ...center(9.5, 10) },
-        // Top right opponent score shifted left
-        { position: 'fixed', transform: 'translate(-50%, -50%)', ...center(16.5, 6) },
+        // Top right opponent score aligned with center
+        { position: 'fixed', transform: 'translate(-50%, -50%)', ...center(16.5, 10) },
       ]);
       setP4HistoryStyles([
         // Roll boxes for top left player
-        { position: 'fixed', transform: 'translate(-50%, -50%)', ...center(0.5, 6) },
+        { position: 'fixed', transform: 'translate(-50%, -50%)', ...center(0.5, 11) },
         // Roll boxes for top middle player
         { position: 'fixed', transform: 'translate(-50%, -50%)', ...center(8, 11) },
         // Roll boxes for top right player
-        { position: 'fixed', transform: 'translate(-50%, -50%)', ...center(15, 6) },
+        { position: 'fixed', transform: 'translate(-50%, -50%)', ...center(15, 11) },
       ]);
     };
     update();
@@ -654,8 +654,8 @@ export default function CrazyDiceDuel() {
         className="player-bottom z-10"
         style={{
           bottom: 'auto',
-          /* Position the bottom player slightly lower */
-          ...gridPoint(10, 26),
+          /* Lift the bottom player a touch */
+          ...gridPoint(10, 25.5),
           transform: 'translate(-50%, -50%)',
         }}
       >
@@ -698,8 +698,8 @@ export default function CrazyDiceDuel() {
         let historyStyle = undefined;
         if (playerCount === 4) {
           if (i === 0) {
-            /* Top left opponent moved slightly left and down */
-            const pos = gridPoint(2, 6);
+            /* Top left opponent moved down and a bit right */
+            const pos = gridPoint(3, 7);
             wrapperStyle = { left: pos.left, top: pos.top, right: 'auto' };
             scoreStyle = p4ScoreStyles[0];
             historyStyle = p4HistoryStyles[0];
@@ -710,8 +710,8 @@ export default function CrazyDiceDuel() {
             scoreStyle = undefined;
             historyStyle = undefined;
           } else if (i === 2) {
-            /* Top right opponent moved slightly right and down */
-            const pos = gridPoint(18, 6);
+            /* Top right opponent moved down and a bit left */
+            const pos = gridPoint(17, 7);
             wrapperStyle = { top: pos.top, right: `${100 - parseFloat(pos.left)}%` };
             scoreStyle = p4ScoreStyles[2];
             historyStyle = p4HistoryStyles[2];
