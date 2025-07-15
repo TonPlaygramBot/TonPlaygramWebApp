@@ -1430,12 +1430,14 @@ input:focus {
 .crazy-dice-board .player-left .roll-history,
 .crazy-dice-board .player-center .roll-history,
 .crazy-dice-board .player-right .roll-history {
-  top: calc(100% + 1.8rem);
+  /* Roll history positioned a consistent distance below avatars */
+  top: calc(100% + 5rem);
 }
 .crazy-dice-board .player-left .player-score,
 .crazy-dice-board .player-center .player-score,
 .crazy-dice-board .player-right .player-score {
-  top: calc(100% + 3rem);
+  /* Scores sit slightly above the roll history */
+  top: calc(100% + 4rem);
 }
 
 /* Slight adjustments for the bottom player's info */
