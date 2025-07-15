@@ -256,14 +256,20 @@ export default function CrazyDiceDuel() {
         top: board.top + cellH * (r + 0.5),
       });
       setP4ScoreStyles([
-        { position: 'fixed', transform: 'translate(-50%, -50%)', ...center(1, 7) },
-        { position: 'fixed', transform: 'translate(-50%, -50%)', ...center(9, 7) },
-        { position: 'fixed', transform: 'translate(-50%, -50%)', ...center(18, 7) },
+        // Top left opponent score between cells 103 and 104
+        { position: 'fixed', transform: 'translate(-50%, -50%)', ...center(2.5, 5) },
+        // Top middle opponent score between cells 90 and 91
+        { position: 'fixed', transform: 'translate(-50%, -50%)', ...center(9.5, 4) },
+        // Top right opponent score between cells 117 and 118
+        { position: 'fixed', transform: 'translate(-50%, -50%)', ...center(16.5, 5) },
       ]);
       setP4HistoryStyles([
-        { position: 'fixed', transform: 'translate(-50%, -50%)', ...center(0, 7) },
-        { position: 'fixed', transform: 'translate(-50%, -50%)', ...center(9, 8) },
-        { position: 'fixed', transform: 'translate(-50%, -50%)', ...center(18, 8) },
+        // Roll boxes starting on cell 102
+        { position: 'fixed', transform: 'translate(-50%, -50%)', ...center(1, 5) },
+        // Roll boxes starting on cell 89
+        { position: 'fixed', transform: 'translate(-50%, -50%)', ...center(8, 4) },
+        // Roll boxes starting on cell 116
+        { position: 'fixed', transform: 'translate(-50%, -50%)', ...center(15, 5) },
       ]);
     };
     update();
@@ -686,17 +692,17 @@ export default function CrazyDiceDuel() {
         let historyStyle = undefined;
         if (playerCount === 4) {
           if (i === 0) {
-            const pos = gridCenter('B5');
+            const pos = gridPoint(3, 3); // cells 43/44/63/64 intersection
             wrapperStyle = { left: pos.left, top: pos.top, right: 'auto' };
             scoreStyle = p4ScoreStyles[0];
             historyStyle = p4HistoryStyles[0];
           } else if (i === 1) {
-            const pos = gridCenter('J5');
+            const pos = gridPoint(10, 3); // cells 50/51/70/71 intersection
             wrapperStyle = { left: pos.left, top: pos.top, right: 'auto' };
             scoreStyle = p4ScoreStyles[1];
             historyStyle = p4HistoryStyles[1];
           } else if (i === 2) {
-            const pos = gridCenter('S5');
+            const pos = gridPoint(17, 3); // cells 57/58/77/78 intersection
             wrapperStyle = { top: pos.top, right: `${100 - parseFloat(pos.left)}%` };
             scoreStyle = p4ScoreStyles[2];
             historyStyle = p4HistoryStyles[2];
