@@ -1377,8 +1377,8 @@ input:focus {
 
 /* Position of the bottom avatar when facing two opponents */
 .crazy-dice-board.three-players .player-bottom {
-  bottom: 8%;
-  left: 47.5%;
+  bottom: 9%;
+  left: 50%;
 }
 
 /* Adjust bottom player position for 1v1 games */
@@ -1446,6 +1446,13 @@ input:focus {
 }
 .crazy-dice-board .player-bottom .player-score {
   top: calc(100% + 1.45rem);
+}
+
+.crazy-dice-board.three-players .player-bottom .roll-history {
+  top: calc(100% + 2rem);
+}
+.crazy-dice-board.three-players .player-bottom .player-score {
+  top: calc(100% + 3.4rem);
 }
 
 .crazy-dice-board .player-right {
