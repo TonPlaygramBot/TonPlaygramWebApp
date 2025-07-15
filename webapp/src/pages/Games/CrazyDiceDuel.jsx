@@ -258,7 +258,7 @@ export default function CrazyDiceDuel() {
         // Top left opponent score
         { position: 'fixed', transform: 'translate(-50%, -50%)', ...center(2, 6) },
         // Top middle opponent score just below avatar
-        { position: 'fixed', transform: 'translate(-50%, -50%)', ...center(9.5, 6) },
+        { position: 'fixed', transform: 'translate(-50%, -50%)', ...center(9.5, 10) },
         // Top right opponent score shifted left
         { position: 'fixed', transform: 'translate(-50%, -50%)', ...center(16.5, 6) },
       ]);
@@ -266,7 +266,7 @@ export default function CrazyDiceDuel() {
         // Roll boxes for top left player
         { position: 'fixed', transform: 'translate(-50%, -50%)', ...center(0.5, 6) },
         // Roll boxes for top middle player
-        { position: 'fixed', transform: 'translate(-50%, -50%)', ...center(8, 6) },
+        { position: 'fixed', transform: 'translate(-50%, -50%)', ...center(8, 11) },
         // Roll boxes for top right player
         { position: 'fixed', transform: 'translate(-50%, -50%)', ...center(15, 6) },
       ]);
@@ -698,20 +698,20 @@ export default function CrazyDiceDuel() {
         let historyStyle = undefined;
         if (playerCount === 4) {
           if (i === 0) {
-            /* Align top left opponent with top right */
-            const pos = gridPoint(3, 5); // lowered by one row
+            /* Top left opponent moved slightly left and down */
+            const pos = gridPoint(2, 6);
             wrapperStyle = { left: pos.left, top: pos.top, right: 'auto' };
             scoreStyle = p4ScoreStyles[0];
             historyStyle = p4HistoryStyles[0];
           } else if (i === 1) {
-            /* Top middle opponent slightly lower */
-            const pos = gridPoint(10, 6); // moved down a bit
+            /* Top middle opponent moved slightly lower */
+            const pos = gridPoint(10, 7);
             wrapperStyle = { left: pos.left, top: pos.top, right: 'auto' };
-            scoreStyle = p4ScoreStyles[1];
-            historyStyle = p4HistoryStyles[1];
+            scoreStyle = undefined;
+            historyStyle = undefined;
           } else if (i === 2) {
-            /* Top right opponent */
-            const pos = gridPoint(17, 5); // same level as top left
+            /* Top right opponent moved slightly right and down */
+            const pos = gridPoint(18, 6);
             wrapperStyle = { top: pos.top, right: `${100 - parseFloat(pos.left)}%` };
             scoreStyle = p4ScoreStyles[2];
             historyStyle = p4HistoryStyles[2];

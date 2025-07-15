@@ -481,6 +481,10 @@ input:focus {
   bottom: calc(100% + 0.25rem);
   left: 50%;
   transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  white-space: nowrap;
   font-size: 1rem;
   font-weight: bold;
   border: none;
@@ -1487,6 +1491,12 @@ input:focus {
 .crazy-dice-board.four-players .player-center .roll-history,
 .crazy-dice-board.four-players .player-right .roll-history {
   top: calc(100% + 3rem);
+}
+.crazy-dice-board.four-players .player-center .player-score {
+  top: calc(100% + 4rem);
+}
+.crazy-dice-board.four-players .player-center .roll-history {
+  top: calc(100% + 5rem);
 }
 
 
