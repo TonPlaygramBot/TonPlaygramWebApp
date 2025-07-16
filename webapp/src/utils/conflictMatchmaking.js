@@ -121,10 +121,20 @@ function codeToFlag(code) {
 }
 
 export async function ipToFlag() {
+  if (typeof localStorage !== 'undefined') {
+    const cached = localStorage.getItem('ipFlag');
+    if (cached) return cached;
+  }
   try {
     const res = await fetch('https://ipinfo.io/json');
     const data = await res.json();
-    return codeToFlag(data && data.country ? data.country : 'US');
+    const flag = codeToFlag(data && data.country ? data.country : 'US');
+    if (typeof localStorage !== 'undefined') {
+      try {
+        localStorage.setItem('ipFlag', flag);
+      } catch {}
+    }
+    return flag;
   } catch {
     return '🇺🇸';
   }
