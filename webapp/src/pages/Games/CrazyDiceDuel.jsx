@@ -715,15 +715,11 @@ export default function CrazyDiceDuel() {
         }
         if (playerCount === 3) {
           if (i === 0) {
-            // Shift the top left opponent slightly right and up
-            wrapperStyle = { ...gridPoint(3.5, 6.5), right: 'auto' };
-            scoreStyle = tlScoreStyle;
-            historyStyle = tlHistoryStyle;
+            // Nudge the top left opponent slightly left and up
+            wrapperStyle = { ...gridPoint(3.3, 6.2), right: 'auto' };
           } else if (i === 1) {
-            // Move the top right opponent a bit left and up
-            wrapperStyle = { ...gridPoint(16.5, 6.5), right: 'auto' };
-            scoreStyle = trScoreStyle;
-            historyStyle = trHistoryStyle;
+            // Move the top right opponent a bit further left
+            wrapperStyle = { ...gridPoint(15.8, 6.5), right: 'auto' };
           }
         }
         return (
