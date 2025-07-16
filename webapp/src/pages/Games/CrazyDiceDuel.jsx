@@ -153,6 +153,7 @@ export default function CrazyDiceDuel() {
   const boardClass = playerCount === 4 ? "four-players" : playerCount === 3 ? "three-players" : playerCount === 2 ? "two-players" : "";
 
   const boardRef = useRef(null);
+  const avatarRefs = useRef([]);
   const diceRef = useRef(null);
   const diceCenterRef = useRef(null);
   const [diceStyle, setDiceStyle] = useState({ display: 'none' });
@@ -684,6 +685,7 @@ export default function CrazyDiceDuel() {
           rollHistory={players[0].results}
           maxRolls={maxRolls}
           color={players[0].color}
+          ref={(el) => (avatarRefs.current[0] = el)}
           size={
             playerCount === 3 ? 1.1 : playerCount > 3 ? 1.05 : 1
           }
@@ -743,8 +745,9 @@ export default function CrazyDiceDuel() {
               score={p.score}
               rollHistory={p.results}
               maxRolls={maxRolls}
-              color={p.color}
-              scoreStyle={scoreStyle}
+          color={p.color}
+          ref={(el) => (avatarRefs.current[i + 1] = el)}
+          scoreStyle={scoreStyle}
               rollHistoryStyle={historyStyle}
               size={
                 playerCount === 2
@@ -802,8 +805,8 @@ export default function CrazyDiceDuel() {
         }))}
         senderIndex={0}
         onGiftSent={({ from, to, gift }) => {
-          const start = document.querySelector(`[data-player-index="${from}"]`);
-          const end = document.querySelector(`[data-player-index="${to}"]`);
+          const start = avatarRefs.current[from];
+          const end = avatarRefs.current[to];
           if (start && end) {
             const s = start.getBoundingClientRect();
             const e = end.getBoundingClientRect();
