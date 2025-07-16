@@ -686,7 +686,7 @@ export default function CrazyDiceDuel() {
           maxRolls={maxRolls}
           color={players[0].color}
           size={
-            playerCount === 3 ? 1.1 : playerCount > 3 ? 1.1 : 1
+            playerCount === 3 ? 1.2 : playerCount > 3 ? 1.1 : 1
           }
           onClick={rollNow}
         />
@@ -704,16 +704,16 @@ export default function CrazyDiceDuel() {
         let historyStyle = undefined;
         if (playerCount === 4) {
           if (i === 0) {
-            /* Top left opponent slightly higher */
-            const pos = gridPoint(2.3, 6.3);
+            /* Top left opponent slightly lower and larger */
+            const pos = gridPoint(2.3, 6.6);
             wrapperStyle = { left: pos.left, top: pos.top, right: 'auto' };
           } else if (i === 1) {
-            /* Top middle opponent raised a little more */
-            const pos = gridPoint(10, 6.2);
+            /* Top middle opponent moved slightly down */
+            const pos = gridPoint(10, 6.5);
             wrapperStyle = { left: pos.left, top: pos.top, right: 'auto' };
           } else if (i === 2) {
-            /* Top right opponent slightly higher */
-            const pos = gridPoint(17.7, 6.3);
+            /* Top right opponent slightly lower */
+            const pos = gridPoint(17.7, 6.6);
             wrapperStyle = { top: pos.top, right: `${100 - parseFloat(pos.left)}%` };
           }
           scoreStyle = undefined;
@@ -721,11 +721,11 @@ export default function CrazyDiceDuel() {
         }
         if (playerCount === 3) {
           if (i === 0) {
-            // Nudge the top left opponent slightly left and up
-            wrapperStyle = { ...gridPoint(3.3, 6.2), right: 'auto' };
+            // Nudge the top left opponent slightly left and higher
+            wrapperStyle = { ...gridPoint(3.3, 6.0), right: 'auto' };
           } else if (i === 1) {
             // Move the top right opponent slightly further left
-            wrapperStyle = { ...gridPoint(15.5, 6.5), right: 'auto' };
+            wrapperStyle = { ...gridPoint(15.0, 6.5), right: 'auto' };
           }
         }
         return (
@@ -751,9 +751,9 @@ export default function CrazyDiceDuel() {
                 playerCount === 2
                   ? 2
                   : playerCount === 3
-                    ? 1.1
+                    ? 1.2
                     : playerCount === 4
-                      ? 1.2
+                      ? 1.3
                       : playerCount > 4
                         ? 1.05
                         : 1
