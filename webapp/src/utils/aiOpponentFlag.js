@@ -4,7 +4,7 @@ export const RIVAL_FLAGS = {
   '🇽🇰': ['🇷🇸'],
   '🇦🇲': ['🇦🇿'],
   '🇦🇿': ['🇦🇲'],
-  '🇷🇺': ['🇺🇦', '🇺🇸', '🇵🇱', '🇱🇹'],
+  '🇷🇺': ['🇺🇦', '🇵🇱', '🇺🇸', '🇱🇹', '🇬🇪', '🇲🇩'],
   '🇺🇦': ['🇷🇺'],
   '🇬🇧': ['🇦🇷', '🇪🇺'],
   '🇪🇸': ['🇬🇧', '🇲🇦'],
@@ -19,7 +19,7 @@ export const RIVAL_FLAGS = {
   '🇮🇶': ['🇹🇷', '🇺🇸', '🇮🇷'],
   '🇮🇳': ['🇵🇰', '🇨🇳'],
   '🇵🇰': ['🇮🇳'],
-  '🇨🇳': ['🇹🇼', '🇺🇸', '🇯🇵', '🇮🇳', '🇵🇭', '🇻🇳'],
+  '🇨🇳': ['🇹🇼', '🇺🇸', '🇯🇵', '🇮🇳', '🇵🇭', '🇻🇳', '🇦🇺'],
   '🇹🇼': ['🇨🇳'],
   '🇯🇵': ['🇨🇳', '🇰🇷', '🇷🇺'],
   '🇰🇵': ['🇰🇷', '🇺🇸', '🇯🇵'],
@@ -49,16 +49,13 @@ import { FLAG_EMOJIS } from './flagEmojis.js';
 
 export function getAIOpponentFlag(playerFlag) {
   const rivals = RIVAL_FLAGS[playerFlag];
-  if (
-    Array.isArray(rivals) &&
-    rivals.length > 0 &&
-    Math.random() < 0.8
-  ) {
+  if (Array.isArray(rivals) && rivals.length > 0) {
     return rivals[Math.floor(Math.random() * rivals.length)];
   }
+  const flags = Object.keys(RIVAL_FLAGS);
   let flag;
   do {
-    flag = FLAG_EMOJIS[Math.floor(Math.random() * FLAG_EMOJIS.length)];
+    flag = flags[Math.floor(Math.random() * flags.length)];
   } while (flag === playerFlag);
   return flag;
 }
