@@ -432,6 +432,16 @@ input:focus {
   color: inherit;
   white-space: nowrap;
 }
+.curved-name {
+  width: 120%;
+  height: 1.2rem;
+  pointer-events: none;
+  overflow: visible;
+}
+.curved-name text {
+  fill: currentColor;
+  font-size: 0.5rem;
+}
 
 /* Score display below each avatar */
 .player-score {

@@ -45,9 +45,23 @@ export default function AvatarTimer({
         <span className="rank-number">{rank}</span>
       )}
       {name && (
-        <span className="rank-name" style={{ color: color || '#fde047' }}>
-          {name}
-        </span>
+        <svg
+          className="rank-name curved-name"
+          viewBox="0 0 100 50"
+          style={{ color: color || '#fde047' }}
+        >
+          <defs>
+            <path
+              id={`name-path-${index}`}
+              d="M10,50 A40,40 0 0 1 90,50"
+            />
+          </defs>
+          <text>
+            <textPath href={`#name-path-${index}`} startOffset="50%" textAnchor="middle">
+              {name}
+            </textPath>
+          </text>
+        </svg>
       )}
       {score != null && (
         <span
