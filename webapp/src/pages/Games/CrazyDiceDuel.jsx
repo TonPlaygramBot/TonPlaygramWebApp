@@ -705,15 +705,15 @@ export default function CrazyDiceDuel() {
         if (playerCount === 4) {
           if (i === 0) {
             /* Top left opponent moved slightly right */
-            const pos = gridPoint(2.3, 7);
+            const pos = gridPoint(2.3, 6.5);
             wrapperStyle = { left: pos.left, top: pos.top, right: 'auto' };
           } else if (i === 1) {
             /* Top middle opponent */
-            const pos = gridPoint(10, 7);
+            const pos = gridPoint(10, 6.5);
             wrapperStyle = { left: pos.left, top: pos.top, right: 'auto' };
           } else if (i === 2) {
             /* Top right opponent shifted slightly left */
-            const pos = gridPoint(17.7, 7);
+            const pos = gridPoint(17.7, 6.5);
             wrapperStyle = { top: pos.top, right: `${100 - parseFloat(pos.left)}%` };
           }
           scoreStyle = undefined;
@@ -752,9 +752,11 @@ export default function CrazyDiceDuel() {
                   ? 2
                   : playerCount === 3
                     ? 1.1
-                    : playerCount > 3
-                      ? 1.05
-                      : 1
+                    : playerCount === 4
+                      ? 1.15
+                      : playerCount > 4
+                        ? 1.05
+                        : 1
               }
               onClick={() => {
                 if (current === i + 1) setTrigger((t) => t + 1);
