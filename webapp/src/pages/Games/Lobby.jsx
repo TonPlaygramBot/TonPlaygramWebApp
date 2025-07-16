@@ -5,6 +5,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import TableSelector from '../../components/TableSelector.jsx';
 import RoomSelector from '../../components/RoomSelector.jsx';
 import useTelegramBackButton from '../../hooks/useTelegramBackButton.js';
+import { REGIONS } from '../../utils/conflictMatchmaking.js';
 import {
   getSnakeLobbies,
   getSnakeLobby,
@@ -45,6 +46,7 @@ export default function Lobby() {
   const [stake, setStake] = useState({ token: '', amount: 0 });
   const [players, setPlayers] = useState([]);
   const [aiCount, setAiCount] = useState(0);
+  const [region, setRegion] = useState('');
   const [online, setOnline] = useState(0);
   const [playerName, setPlayerName] = useState('');
   const autoStartedRef = useRef(false);
@@ -192,6 +194,7 @@ export default function Lobby() {
       params.set('ai', aiCount);
       params.set('token', 'TPC');
       if (stake.amount) params.set('amount', stake.amount);
+      if (region) params.set('region', region);
       try {
         const accountId = await ensureAccountId();
         const balRes = await getAccountBalance(accountId);
@@ -208,6 +211,7 @@ export default function Lobby() {
     } else {
       if (stake.token) params.set('token', stake.token);
       if (stake.amount) params.set('amount', stake.amount);
+      if (region) params.set('region', region);
     }
 
     navigate(`/games/${game}?${params.toString()}`);
@@ -263,6 +267,21 @@ export default function Lobby() {
           TON and USDT staking coming soon. Smart contract under
           construction.
         </p>
+      </div>
+      <div className="space-y-2">
+        <h3 className="font-semibold">Conflict Region</h3>
+        <select
+          value={region}
+          onChange={(e) => setRegion(e.target.value)}
+          className="lobby-tile w-full text-black"
+        >
+          <option value="">Auto (Local)</option>
+          {REGIONS.map((r) => (
+            <option key={r} value={r}>
+              {r}
+            </option>
+          ))}
+        </select>
       </div>
       {game === 'snake' && table?.id === 'single' && (
         <div className="space-y-2">

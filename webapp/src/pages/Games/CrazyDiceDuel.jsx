@@ -17,8 +17,11 @@ import {
   loadAvatar,
   avatarToName,
 } from '../../utils/avatarUtils.js';
-import { FLAG_EMOJIS } from '../../utils/flagEmojis.js';
-import { getAIOpponentFlag } from '../../utils/aiOpponentFlag.js';
+import {
+  get2PlayerConflict,
+  get3PlayerConflict,
+  get4PlayerConflict,
+} from '../../utils/conflictMatchmaking.js';
 import { chatBeep, timerBeep } from '../../assets/soundData.js';
 import { getGameVolume, isGameMuted } from '../../utils/sound.js';
 import { giftSounds } from '../../utils/giftSounds.js';
@@ -94,22 +97,30 @@ export default function CrazyDiceDuel() {
 
   const initialPlayers = useMemo(() => {
     const me = loadAvatar() || '/assets/icons/profile.svg';
-    const playerFlag = FLAG_EMOJIS.includes(me) ? me : null;
-    const randFlag = () =>
-      getAIOpponentFlag(
-        playerFlag || FLAG_EMOJIS[Math.floor(Math.random() * FLAG_EMOJIS.length)]
-      );
     return Array.from({ length: playerCount }, (_, i) => ({
       score: 0,
       rolls: 0,
       results: [],
-      photoUrl:
-        i === 0 ? me : randFlag(),
+      photoUrl: i === 0 ? me : '/assets/icons/profile.svg',
       color: COLORS[i % COLORS.length],
     }));
-  }, [playerCount, aiCount]);
+  }, [playerCount]);
 
   const [players, setPlayers] = useState(initialPlayers);
+
+  useEffect(() => {
+    if (aiCount <= 0) return;
+    const region = searchParams.get('region') || null;
+    (async () => {
+      let flags;
+      if (aiCount === 1) flags = await get2PlayerConflict(region);
+      else if (aiCount === 2) flags = await get3PlayerConflict(region);
+      else flags = get4PlayerConflict(region);
+      setPlayers((prev) =>
+        prev.map((p, i) => (i === 0 ? p : { ...p, photoUrl: flags[i] }))
+      );
+    })();
+  }, [aiCount, playerCount]);
   const [current, setCurrent] = useState(0);
   const [trigger, setTrigger] = useState(0);
   const [winner, setWinner] = useState(null);
