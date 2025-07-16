@@ -49,7 +49,11 @@ import { FLAG_EMOJIS } from './flagEmojis.js';
 
 export function getAIOpponentFlag(playerFlag) {
   const rivals = RIVAL_FLAGS[playerFlag];
-  if (Array.isArray(rivals) && rivals.length > 0) {
+  if (
+    Array.isArray(rivals) &&
+    rivals.length > 0 &&
+    Math.random() < 0.8
+  ) {
     return rivals[Math.floor(Math.random() * rivals.length)];
   }
   let flag;
