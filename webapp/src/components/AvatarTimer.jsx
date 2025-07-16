@@ -34,7 +34,10 @@ export default function AvatarTimer({
       )}
       <img
         src={getAvatarUrl(photoUrl)}
-        alt="player"
+        alt={name || 'player'}
+        onError={(e) => {
+          e.currentTarget.src = '/assets/icons/profile.svg';
+        }}
         className="rounded-full border-2 object-cover w-full h-full"
         style={{
           borderColor: color || '#fde047',
