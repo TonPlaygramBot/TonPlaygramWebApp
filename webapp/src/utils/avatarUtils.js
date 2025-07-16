@@ -39,6 +39,17 @@ const regionNames =
     ? new Intl.DisplayNames(['en'], { type: 'region' })
     : null;
 
+function flagEmojiToCode(flag) {
+  if (!flag) return null;
+  const chars = Array.from(flag);
+  if (chars.length !== 2) return null;
+  const base = 0x1f1e6;
+  const code = chars
+    .map((c) => String.fromCharCode(c.codePointAt(0) - base + 65))
+    .join('');
+  return /^[A-Z]{2}$/.test(code) ? code : null;
+}
+
 export function avatarToName(src) {
   if (!src) return '';
   if (!src.startsWith('/') && !src.startsWith('http')) {
@@ -69,6 +80,14 @@ export function avatarToName(src) {
         .replace(/\b(?:Face|Man|Woman|Male|Female|Person)\b/gi, '')
         .replace(/\s+/g, ' ')
         .trim();
+    }
+    const code = flagEmojiToCode(src);
+    if (code) {
+      try {
+        const name = regionNames?.of(code) || countryNames[code];
+        if (name) return name;
+      } catch {}
+      return countryNames[code] || code;
     }
     return '';
   }
