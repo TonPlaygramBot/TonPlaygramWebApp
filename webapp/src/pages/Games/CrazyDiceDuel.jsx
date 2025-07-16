@@ -719,13 +719,26 @@ export default function CrazyDiceDuel() {
           scoreStyle = undefined;
           historyStyle = undefined;
         }
+        let avatarSize =
+          playerCount === 2
+            ? 2
+            : playerCount === 3
+              ? 1.2
+              : playerCount === 4
+                ? 1.3
+                : playerCount > 4
+                  ? 1.05
+                  : 1;
+
         if (playerCount === 3) {
           if (i === 0) {
             // Nudge the top left opponent slightly left and higher
             wrapperStyle = { ...gridPoint(3.3, 6.0), right: 'auto' };
+            avatarSize = 1.3;
           } else if (i === 1) {
             // Move the top right opponent slightly further left
-            wrapperStyle = { ...gridPoint(15.0, 6.5), right: 'auto' };
+            wrapperStyle = { ...gridPoint(14.0, 6.5), right: 'auto' };
+            avatarSize = 1.3;
           }
         }
         return (
@@ -747,17 +760,7 @@ export default function CrazyDiceDuel() {
               color={p.color}
               scoreStyle={scoreStyle}
               rollHistoryStyle={historyStyle}
-              size={
-                playerCount === 2
-                  ? 2
-                  : playerCount === 3
-                    ? 1.2
-                    : playerCount === 4
-                      ? 1.3
-                      : playerCount > 4
-                        ? 1.05
-                        : 1
-              }
+              size={avatarSize}
               onClick={() => {
                 if (current === i + 1) setTrigger((t) => t + 1);
               }}
