@@ -1,7 +1,7 @@
-import React, { forwardRef } from 'react';
+import React from 'react';
 import { getAvatarUrl } from '../utils/avatarUtils.js';
 
-function AvatarTimer({
+export default function AvatarTimer({
   photoUrl,
   active = false,
   timerPct = 1,
@@ -17,7 +17,7 @@ function AvatarTimer({
   size = 1,
   scoreStyle = {},
   rollHistoryStyle = {},
-}, ref) {
+}) {
   const angle = (1 - timerPct) * 360;
   const gradient = `conic-gradient(#facc15 ${angle}deg, #16a34a 0deg)`;
   const sizeRem = 3.25 * size;
@@ -27,7 +27,6 @@ function AvatarTimer({
       style={{ width: `${sizeRem}rem`, height: `${sizeRem}rem` }}
       onClick={onClick}
       data-player-index={index}
-      ref={ref}
     >
       {/* turn indicator removed */}
       {active && (
@@ -73,5 +72,3 @@ function AvatarTimer({
     </div>
   );
 }
-
-export default forwardRef(AvatarTimer);
