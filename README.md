@@ -266,37 +266,6 @@ To move from the start you must roll at least one six when rolling two dice. Any
 - **Winning and extra turns** – You must land exactly on the final pot tile. From tile 100 you need to roll a single one. Rolling double six gives an extra turn.
 - **In‑app help** – A help button in game opens an info popup implemented in [`SnakeAndLadder.jsx`](webapp/src/pages/Games/SnakeAndLadder.jsx).
 
-### Crazy Dice Duel features
-
-Crazy Dice Duel offers quick score-based matches for up to four players. Start a
-game through the lobby or jump straight in with URL parameters:
-
-- `players` – number of participants (2–4).
-- `ai` – how many computer opponents join you.
-- `rolls` – rolls per player (defaults to one).
-- `token` – token code used for staking, default `TPC`.
-- `amount` – amount each player stakes.
-
-Developer share payouts use the same environment variables as Snake & Ladder:
-
-- `VITE_DEV_ACCOUNT_ID`
-- `VITE_DEV_ACCOUNT_ID_1`
-- `VITE_DEV_ACCOUNT_ID_2`
-
-#### Customizing the Crazy Dice board
-
-All board assets live under `webapp/public/assets/icons`. Replace these WebP
-files to theme the game:
-
-- `file_00000000c9bc61f5825aa75d64fe234a.webp` – background for 1v1 games
-- `file_000000008b1061f68f37fd941a1efcb4.webp` – background when facing two opponents
-- `file_000000003a9c622f8e50bd5d8f381471.webp` – background for four-player games
-- `file_00000000926061f590feca40199ee88d.webp` – dice trail image
-
-Place your own images with those names or adjust the paths in
-[`CrazyDiceDuel.jsx`](webapp/src/pages/Games/CrazyDiceDuel.jsx) to fully
-customize the board.
-
 ## Troubleshooting
 
 **X API not configured** – When no `TWITTER_BEARER_TOKEN` is provided the server now skips verification for X related tasks and completes them automatically. Add the token in `bot/.env` if you need strict checks.
