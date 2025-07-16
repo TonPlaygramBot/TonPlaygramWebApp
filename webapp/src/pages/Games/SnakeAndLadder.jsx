@@ -19,11 +19,12 @@ import {
   chatBeep,
 } from "../../assets/soundData.js";
 import { AVATARS } from "../../components/AvatarPickerModal.jsx";
-import { getAvatarUrl, saveAvatar, loadAvatar, avatarToName } from "../../utils/avatarUtils.js";
+import { getAvatarUrl, saveAvatar, loadAvatar, avatarToName, loadUseCountryFlag } from "../../utils/avatarUtils.js";
 import {
   get2PlayerConflict,
   get3PlayerConflict,
   get4PlayerConflict,
+  ipToFlag,
 } from "../../utils/conflictMatchmaking.js";
 import InfoPopup from "../../components/InfoPopup.jsx";
 import GameEndPopup from "../../components/GameEndPopup.jsx";
@@ -373,7 +374,7 @@ function Board({
     updateSize();
     window.addEventListener("resize", updateSize);
     return () => window.removeEventListener("resize", updateSize);
-  }, []);
+  }, [useFlag]);
 
   useLayoutEffect(() => {
     // board layout recalculations
@@ -524,7 +525,7 @@ export default function SnakeAndLadder() {
 
   useEffect(() => {
     ensureAccountId().catch(() => {});
-  }, []);
+  }, [useFlag]);
 
   useEffect(() => {
     const handlePop = (e) => {
@@ -594,7 +595,11 @@ export default function SnakeAndLadder() {
   const [messageColor, setMessageColor] = useState("");
   const [turnMessage, setTurnMessage] = useState("Your turn");
   const [diceVisible, setDiceVisible] = useState(true);
-  const [photoUrl, setPhotoUrl] = useState(loadAvatar() || '');
+  const paramsRef = useRef(new URLSearchParams(window.location.search));
+  const flagParam = paramsRef.current.get('flag');
+  const initialUseFlag = flagParam === '1' || loadUseCountryFlag();
+  const [useFlag, setUseFlag] = useState(initialUseFlag);
+  const [photoUrl, setPhotoUrl] = useState(initialUseFlag ? '' : loadAvatar() || '');
   const [myName, setMyName] = useState('You');
   const [pot, setPot] = useState(101);
   const [token, setToken] = useState("TPC");
@@ -879,19 +884,28 @@ export default function SnakeAndLadder() {
 
   useEffect(() => {
     const id = getPlayerId();
-    const saved = loadAvatar();
-    if (saved) {
-      setPhotoUrl(saved);
+    if (useFlag) {
+      ipToFlag().then((flag) => setPhotoUrl(flag)).catch(() => {});
+      getProfileByAccount(id)
+        .then((p) => {
+          setMyName(p?.nickname || `${p?.firstName || ''} ${p?.lastName || ''}`.trim());
+        })
+        .catch(() => {});
+    } else {
+      const saved = loadAvatar();
+      if (saved) {
+        setPhotoUrl(saved);
+      }
+      getProfileByAccount(id)
+        .then((p) => {
+          if (p?.photo) {
+            setPhotoUrl((prev) => prev || p.photo);
+            saveAvatar(p.photo);
+          }
+          setMyName(p?.nickname || `${p?.firstName || ''} ${p?.lastName || ''}`.trim());
+        })
+        .catch(() => {});
     }
-    getProfileByAccount(id)
-      .then((p) => {
-        if (p?.photo) {
-          setPhotoUrl((prev) => prev || p.photo);
-          saveAvatar(p.photo);
-        }
-        setMyName(p?.nickname || `${p?.firstName || ''} ${p?.lastName || ''}`.trim());
-      })
-      .catch(() => {});
     const vol = getGameVolume();
     moveSoundRef.current = new Audio(dropSound);
     moveSoundRef.current.volume = vol;
@@ -955,17 +969,26 @@ export default function SnakeAndLadder() {
   useEffect(() => {
     const updatePhoto = () => {
       const id = getPlayerId();
-      const saved = loadAvatar();
-      if (saved) {
-        setPhotoUrl(saved);
+      if (useFlag) {
+        ipToFlag().then((flag) => setPhotoUrl(flag)).catch(() => {});
+        getProfileByAccount(id)
+          .then((p) => {
+            setMyName(p?.nickname || `${p?.firstName || ''} ${p?.lastName || ''}`.trim());
+          })
+          .catch(() => {});
+      } else {
+        const saved = loadAvatar();
+        if (saved) {
+          setPhotoUrl(saved);
+        }
+        getProfileByAccount(id)
+          .then((p) => {
+            setPhotoUrl((prev) => prev || p?.photo || '');
+            if (p?.photo) saveAvatar(p.photo);
+            setMyName(p?.nickname || `${p?.firstName || ''} ${p?.lastName || ''}`.trim());
+          })
+          .catch(() => {});
       }
-      getProfileByAccount(id)
-        .then((p) => {
-          setPhotoUrl((prev) => prev || p?.photo || '');
-          if (p?.photo) saveAvatar(p.photo);
-          setMyName(p?.nickname || `${p?.firstName || ''} ${p?.lastName || ''}`.trim());
-        })
-        .catch(() => {});
     };
     window.addEventListener("profilePhotoUpdated", updatePhoto);
     return () => window.removeEventListener("profilePhotoUpdated", updatePhoto);

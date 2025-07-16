@@ -16,11 +16,13 @@ import useTelegramBackButton from '../../hooks/useTelegramBackButton.js';
 import {
   loadAvatar,
   avatarToName,
+  loadUseCountryFlag,
 } from '../../utils/avatarUtils.js';
 import {
   get2PlayerConflict,
   get3PlayerConflict,
   get4PlayerConflict,
+  ipToFlag,
 } from '../../utils/conflictMatchmaking.js';
 import { chatBeep, timerBeep } from '../../assets/soundData.js';
 import { getGameVolume, isGameMuted } from '../../utils/sound.js';
@@ -75,6 +77,7 @@ export default function CrazyDiceDuel() {
   useTelegramBackButton(handleBack);
   const [searchParams] = useSearchParams();
   const aiCount = parseInt(searchParams.get('ai')) || 0;
+  const useFlag = searchParams.get('flag') === '1' || loadUseCountryFlag();
   const playerCount = aiCount > 0
     ? aiCount + 1
     : parseInt(searchParams.get('players')) || 2;
@@ -96,7 +99,7 @@ export default function CrazyDiceDuel() {
   };
 
   const initialPlayers = useMemo(() => {
-    const me = loadAvatar() || '/assets/icons/profile.svg';
+    const me = useFlag ? '' : loadAvatar() || '/assets/icons/profile.svg';
     return Array.from({ length: playerCount }, (_, i) => ({
       score: 0,
       rolls: 0,
@@ -104,9 +107,20 @@ export default function CrazyDiceDuel() {
       photoUrl: i === 0 ? me : '/assets/icons/profile.svg',
       color: COLORS[i % COLORS.length],
     }));
-  }, [playerCount]);
+  }, [playerCount, useFlag]);
 
   const [players, setPlayers] = useState(initialPlayers);
+
+  useEffect(() => {
+    if (useFlag) {
+      ipToFlag().then((flag) =>
+        setPlayers((prev) => prev.map((p, i) => (i === 0 ? { ...p, photoUrl: flag } : p)))
+      ).catch(() => {});
+    } else {
+      const me = loadAvatar() || '/assets/icons/profile.svg';
+      setPlayers((prev) => prev.map((p, i) => (i === 0 ? { ...p, photoUrl: me } : p)));
+    }
+  }, [useFlag]);
 
   useEffect(() => {
     if (aiCount <= 0) return;
