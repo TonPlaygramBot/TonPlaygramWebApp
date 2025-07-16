@@ -28,25 +28,6 @@ export function loadAvatar() {
   return '';
 }
 
-export function saveUseCountryFlag(val) {
-  if (typeof window !== 'undefined') {
-    try {
-      localStorage.setItem('useCountryFlag', val ? 'true' : 'false');
-    } catch {}
-  }
-}
-
-export function loadUseCountryFlag() {
-  if (typeof window !== 'undefined') {
-    try {
-      return localStorage.getItem('useCountryFlag') === 'true';
-    } catch {
-      return false;
-    }
-  }
-  return false;
-}
-
 import { emoji } from 'emoji-name-map';
 import countryNames from './countryNames.json';
 
@@ -57,17 +38,6 @@ const regionNames =
   typeof Intl !== 'undefined' && typeof Intl.DisplayNames !== 'undefined'
     ? new Intl.DisplayNames(['en'], { type: 'region' })
     : null;
-
-function flagEmojiToCode(flag) {
-  if (!flag) return null;
-  const chars = Array.from(flag);
-  if (chars.length !== 2) return null;
-  const base = 0x1f1e6;
-  const code = chars
-    .map((c) => String.fromCharCode(c.codePointAt(0) - base + 65))
-    .join('');
-  return /^[A-Z]{2}$/.test(code) ? code : null;
-}
 
 export function avatarToName(src) {
   if (!src) return '';
@@ -99,14 +69,6 @@ export function avatarToName(src) {
         .replace(/\b(?:Face|Man|Woman|Male|Female|Person)\b/gi, '')
         .replace(/\s+/g, ' ')
         .trim();
-    }
-    const code = flagEmojiToCode(src);
-    if (code) {
-      try {
-        const name = regionNames?.of(code) || countryNames[code];
-        if (name) return name;
-      } catch {}
-      return countryNames[code] || code;
     }
     return '';
   }
