@@ -718,7 +718,7 @@ export default function SnakeAndLadder() {
     }
     const avatar = aiAvatars[idx - 1];
     const name = avatarToName(avatar);
-    return name || `AI ${idx}`;
+    return name || 'AI';
   };
 
   const playerName = (idx) => (
