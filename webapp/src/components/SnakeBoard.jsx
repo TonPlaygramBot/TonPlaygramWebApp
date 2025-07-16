@@ -157,21 +157,15 @@ export default function SnakeBoard({
             .filter((p) => p.position !== 0 && p.position === num)
             .map((p) => (
               <Fragment key={p.index}>
-                <div
-                  className="start-hexagon"
-                  style={{
-                    '--hex-color': p.color,
-                    '--hex-border-color': p.color,
-                    '--hex-spin-duration': '7s',
-                  }}
-                />
                 <PlayerToken
                   photoUrl={p.photoUrl}
                   type={p.type || (p.index === 0 ? (isJump ? highlight.type : tokenType) : 'normal')}
                   color={p.color}
                   rolling={p.index === rollingIndex}
                   active={p.index === currentTurn}
+                  photoOnly
                   className={
+                    'board-token ' +
                     (p.position === 0
                       ? 'start'
                       : p.index === 0 && isJump
@@ -288,15 +282,13 @@ export default function SnakeBoard({
                 .filter((p) => p.position === FINAL_TILE)
                 .map((p) => (
                   <Fragment key={`win-${p.index}`}>
-                    <div
-                      className="start-hexagon"
-                      style={{
-                        '--hex-color': p.color,
-                        '--hex-border-color': p.color,
-                        '--hex-spin-duration': '7s',
-                      }}
+                    <PlayerToken
+                      photoUrl={p.photoUrl}
+                      type={p.type || 'normal'}
+                      color={p.color}
+                      photoOnly
+                      className="board-token"
                     />
-                    <PlayerToken photoUrl={p.photoUrl} type={p.type || 'normal'} color={p.color} />
                   </Fragment>
                 ))}
               {celebrate && <CoinBurst token={token} />}
