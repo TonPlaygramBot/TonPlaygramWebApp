@@ -147,7 +147,7 @@ export default function CrazyDiceDuel() {
             i === 0
               ? 'You'
               : aiCount > 0
-                ? avatarToName(p.photoUrl) || `AI ${i}`
+                ? avatarToName(p.photoUrl)
                 : `P${i + 1}`,
           score: p.score,
         }))
@@ -758,7 +758,7 @@ export default function CrazyDiceDuel() {
               timerPct={current === i + 1 ? timeLeft / 2.5 : 1}
               name={
                 aiCount > 0
-                  ? avatarToName(p.photoUrl) || `AI ${i + 1}`
+                  ? avatarToName(p.photoUrl)
                   : `P${i + 2}`
               }
               score={p.score}
@@ -818,7 +818,7 @@ export default function CrazyDiceDuel() {
             i === 0
               ? 'You'
               : aiCount > 0
-                ? avatarToName(p.photoUrl) || `AI ${i}`
+                ? avatarToName(p.photoUrl)
                 : `P${i + 1}`,
         }))}
         senderIndex={0}
