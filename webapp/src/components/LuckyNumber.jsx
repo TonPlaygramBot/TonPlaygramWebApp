@@ -93,15 +93,10 @@ export default function LuckyNumber() {
 
 
   return (
-    <div className="relative bg-surface border border-border rounded-xl p-4 space-y-2 text-center overflow-hidden wide-card">
-      <img
-        src="/assets/icons/lucky_card_bg.webp"
-        className="absolute inset-0 w-full h-full object-cover -z-10 pointer-events-none"
-        alt=""
-        onError={(e) => {
-          e.currentTarget.style.display = 'none';
-        }}
-      />
+    <div
+      className="relative bg-surface border border-border rounded-xl p-4 space-y-2 text-center overflow-hidden wide-card bg-cover bg-center"
+      style={{ backgroundImage: "url('/assets/icons/lucky_card_bg.webp')" }}
+    >
       <h3 className="text-lg font-bold text-text">Lucky Number</h3>
       <div className="grid grid-cols-3 gap-2 justify-items-center">
         {rewards.map((val, i) => (
