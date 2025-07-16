@@ -20,8 +20,11 @@ import {
 } from "../../assets/soundData.js";
 import { AVATARS } from "../../components/AvatarPickerModal.jsx";
 import { getAvatarUrl, saveAvatar, loadAvatar, avatarToName } from "../../utils/avatarUtils.js";
-import { FLAG_EMOJIS } from "../../utils/flagEmojis.js";
-import { getAIOpponentFlag } from "../../utils/aiOpponentFlag.js";
+import {
+  get2PlayerConflict,
+  get3PlayerConflict,
+  get4PlayerConflict,
+} from "../../utils/conflictMatchmaking.js";
 import InfoPopup from "../../components/InfoPopup.jsx";
 import GameEndPopup from "../../components/GameEndPopup.jsx";
 import {
@@ -994,14 +997,14 @@ export default function SnakeAndLadder() {
     }
     localStorage.removeItem(`snakeGameState_${aiCount}`);
     setAiPositions(Array(aiCount).fill(0));
-    const isFlag = FLAG_EMOJIS.includes(photoUrl);
-    const randomFlag = () =>
-      FLAG_EMOJIS[Math.floor(Math.random() * FLAG_EMOJIS.length)];
-    setAiAvatars(
-      Array.from({ length: aiCount }, () =>
-        getAIOpponentFlag(isFlag ? photoUrl : randomFlag())
-      )
-    );
+    const region = params.get("region") || null;
+    (async () => {
+      let flags;
+      if (aiCount === 1) flags = await get2PlayerConflict(region);
+      else if (aiCount === 2) flags = await get3PlayerConflict(region);
+      else flags = get4PlayerConflict(region);
+      setAiAvatars(flags.slice(1));
+    })();
     const colors = shuffle(TOKEN_COLORS).slice(0, aiCount + 1).map(c => c.color);
     setPlayerColors(colors);
 
