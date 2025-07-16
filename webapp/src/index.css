@@ -437,14 +437,14 @@ input:focus {
   font-size: 0.6rem;
 }
 .crazy-dice-board.three-players .rank-name {
-  transform: translate(-50%, 0.3rem);
-  font-size: 2.5rem;
+  transform: translate(-50%, -0.05rem);
+  font-size: 0.5rem;
 }
 .crazy-dice-board.three-players .curved-name text {
-  font-size: 2.5rem;
+  font-size: 0.5rem;
 }
 .curved-name {
-  width: 120%;
+  width: 110%;
   height: 1.2rem;
   pointer-events: none;
   overflow: visible;

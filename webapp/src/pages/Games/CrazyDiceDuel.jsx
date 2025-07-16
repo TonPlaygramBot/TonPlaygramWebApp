@@ -119,6 +119,7 @@ export default function CrazyDiceDuel() {
   const [trigger, setTrigger] = useState(0);
   const [winner, setWinner] = useState(null);
   const [tiePlayers, setTiePlayers] = useState(null);
+  const [leaders, setLeaders] = useState([0]);
   const ranking = useMemo(
     () =>
       players
@@ -142,6 +143,20 @@ export default function CrazyDiceDuel() {
   const [timeLeft, setTimeLeft] = useState(15);
   const timerRef = useRef(null);
   const timerSoundRef = useRef(null);
+
+  useEffect(() => {
+    if (aiCount === 0) {
+      setLeaders([]);
+      return;
+    }
+    const max = Math.max(...players.map((p) => p.score));
+    setLeaders(
+      players.reduce((arr, p, idx) => {
+        if (p.score === max) arr.push(idx);
+        return arr;
+      }, [])
+    );
+  }, [players, aiCount]);
 
   // Board background changes depending on number of opponents
   const BG_BY_PLAYERS = {
@@ -688,6 +703,7 @@ export default function CrazyDiceDuel() {
           size={
             playerCount === 3 ? 1.2 : playerCount > 3 ? 1.1 : 1
           }
+          imageScale={leaders.includes(0) ? 1.1 : 1}
           onClick={rollNow}
         />
       </div>
@@ -733,12 +749,12 @@ export default function CrazyDiceDuel() {
         if (playerCount === 3) {
           if (i === 0) {
             // Nudge the top left opponent slightly left and higher
-            wrapperStyle = { ...gridPoint(3.3, 6.0), right: 'auto' };
-            avatarSize = 1.3;
+            wrapperStyle = { ...gridPoint(3.0, 5.8), right: 'auto' };
+            avatarSize = 1.35;
           } else if (i === 1) {
             // Move the top right opponent slightly further left
-            wrapperStyle = { ...gridPoint(14.0, 6.5), right: 'auto' };
-            avatarSize = 1.3;
+            wrapperStyle = { ...gridPoint(13.2, 6.2), right: 'auto' };
+            avatarSize = 1.35;
           }
         }
         return (
@@ -761,6 +777,7 @@ export default function CrazyDiceDuel() {
               scoreStyle={scoreStyle}
               rollHistoryStyle={historyStyle}
               size={avatarSize}
+              imageScale={leaders.includes(i + 1) ? 1.1 : 1}
               onClick={() => {
                 if (current === i + 1) setTrigger((t) => t + 1);
               }}
