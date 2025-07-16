@@ -1144,7 +1144,7 @@ export default function SnakeAndLadder() {
         updatePosition(finalPos);
         setHighlight({ cell: finalPos, type });
         setTrail([]);
-        setTimeout(() => setHighlight(null), 300);
+        setTimeout(() => setHighlight(null), 2300);
         setMoving(false);
       };
       const seq = [];
@@ -1177,7 +1177,7 @@ export default function SnakeAndLadder() {
         updatePosition(finalPos);
         setHighlight({ cell: finalPos, type });
         setTrail([]);
-        setTimeout(() => setHighlight(null), 300);
+        setTimeout(() => setHighlight(null), 2300);
         setMoving(false);
       };
       setMoving(true);
@@ -1587,7 +1587,7 @@ export default function SnakeAndLadder() {
         setHighlight({ cell: finalPos, type });
         setTrail([]);
         setTokenType(type);
-        setTimeout(() => setHighlight(null), 300);
+        setTimeout(() => setHighlight(null), 2300);
         capturePieces(finalPos, 0);
         if (finalPos === FINAL_TILE && !ranking.includes('You')) {
           const first = ranking.length === 0;
@@ -1755,7 +1755,7 @@ export default function SnakeAndLadder() {
       setHighlight({ cell: finalPos, type });
       setTrail([]);
       capturePieces(finalPos, index);
-      setTimeout(() => setHighlight(null), 300);
+      setTimeout(() => setHighlight(null), 2300);
       if (finalPos === FINAL_TILE && !ranking.includes(getPlayerName(index))) {
         const first = ranking.length === 0;
         setRanking(r => [...r, getPlayerName(index)]);
