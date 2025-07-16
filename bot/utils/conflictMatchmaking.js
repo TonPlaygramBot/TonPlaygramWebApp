@@ -1,115 +1,165 @@
 import geoip from 'geoip-lite';
 
 const CONFLICT_MAP = {
-  "\uD83C\uDDE6\uD83C\uDDF1": {
-    region: "Balkans",
-    rivals: ["\uD83C\uDDF7\uD83C\uDDF8", "\uD83C\uDDEC\uD83C\uDDF7", "\uD83C\uDDF2\uD83C\uDDF0"],
-    reason: "Ethnic tensions, historical disputes, minority rights, recognition of Kosovo"
+  '🇦🇱': {
+    region: 'Balkans',
+    rivals: ['🇷🇸', '🇬🇷', '🇲🇰'],
+    reason: 'Kosovo recognition, ethnic tensions, historical disputes'
   },
-  "\uD83C\uDDF7\uD83C\uDDF8": {
-    region: "Balkans",
-    rivals: ["\uD83C\uDDE6\uD83C\uDDF1", "\uD83C\uDDFD\uD83C\uDDF0", "\uD83C\uDDED\uD83C\uDDF7", "\uD83C\uDDE7\uD83C\uDDE6"],
-    reason: "Post-Yugoslav wars, Kosovo, nationalism, ethnic conflicts"
+  '🇷🇸': {
+    region: 'Balkans',
+    rivals: ['🇽🇌', '🇦🇱', '🇭🇷', '🇧🇦'],
+    reason: 'Post-Yugoslav wars, nationalism, ethnic conflicts'
   },
-  "\uD83C\uDDFD\uD83C\uDDF0": {
-    region: "Balkans",
-    rivals: ["\uD83C\uDDF7\uD83C\uDDF8"],
-    reason: "Unrecognized independence by Serbia, historical control"
+  '🇽🇌': {
+    region: 'Balkans',
+    rivals: ['🇷🇸'],
+    reason: 'Unrecognized independence, territorial claim'
   },
-  "\uD83C\uDDE8\uD83C\uDDF1": {
-    region: "Middle East",
-    rivals: ["\uD83C\uDDEE\uD83C\uDDF7", "\uD83C\uDDF5\uD83C\uDDF8", "\uD83C\uDDF8\uD83C\uDDFE", "\uD83C\uDDF1\uD83C\uDDE7"],
-    reason: "Territorial occupation, religious conflict, Iran-Israel enmity"
+  '🇺🇸': {
+    region: 'Global',
+    rivals: ['🇨🇳', '🇷🇺', '🇮🇷', '🇻🇪', '🇰🇵', '🇨🇺'],
+    reason: 'Superpower rivalries, nuclear tension, sanctions'
   },
-  "\uD83C\uDDF5\uD83C\uDDF8": {
-    region: "Middle East",
-    rivals: ["\uD83C\uDDE8\uD83C\uDDF1"],
-    reason: "Occupation of West Bank & Gaza, calls for statehood"
+  '🇨🇳': {
+    region: 'East Asia',
+    rivals: ['🇺🇸', '🇮🇳', '🇯🇵', '🇹🇼', '🇵🇭'],
+    reason: 'South China Sea, Taiwan sovereignty, regional dominance'
   },
-  "\uD83C\uDDEE\uD83C\uDDF7": {
-    region: "Middle East",
-    rivals: ["\uD83C\uDDE8\uD83C\uDDF1", "\uD83C\uDDF8\uD83C\uDDE6", "\uD83C\uDDFA\uD83C\uDDF8"],
-    reason: "Nuclear program, proxy wars, sectarian divide"
+  '🇷🇺': {
+    region: 'Eurasia',
+    rivals: ['🇺🇦', '🇵🇱', '🇺🇸', '🇬🇧', '🇱🇹'],
+    reason: 'Ukraine invasion, NATO expansion, Cold War legacy'
   },
-  "\uD83C\uDDF8\uD83C\uDDE6": {
-    region: "Middle East",
-    rivals: ["\uD83C\uDDEE\uD83C\uDDF7", "\uD83C\uDDFE\uD83C\uDDEA", "\uD83C\uDDF6\uD83C\uDDEA"],
-    reason: "Regional dominance, Sunni-Shia divide, Yemen war"
+  '🇮🇳': {
+    region: 'South Asia',
+    rivals: ['🇵🇰', '🇨🇳'],
+    reason: 'Kashmir, border skirmishes, regional rivalry'
   },
-  "\uD83C\uDDF9\uD83C\uDDF7": {
-    region: "Europe/Middle East",
-    rivals: ["\uD83C\uDDEC\uD83C\uDDF7", "\uD83C\uDDE6\uD83C\uDDF2", "\uD83C\uDDE8\uD83C\uDDFE"],
-    reason: "Aegean Sea disputes, Cyprus division, Armenian genocide denial"
+  '🇵🇰': {
+    region: 'South Asia',
+    rivals: ['🇮🇳', '🇦🇫'],
+    reason: 'Kashmir conflict, terrorism accusations'
   },
-  "\uD83C\uDDEE\uD83C\uDDF3": {
-    region: "South Asia",
-    rivals: ["\uD83C\uDDF5\uD83C\uDDF0", "\uD83C\uDDE8\uD83C\uDDF3"],
-    reason: "Kashmir conflict, border skirmishes, political tension"
+  '🇹🇷': {
+    region: 'Eurasia/Middle East',
+    rivals: ['🇬🇷', '🇦🇲', '🇨🇾'],
+    reason: 'Aegean disputes, Cyprus occupation, genocide denial'
   },
-  "\uD83C\uDDF5\uD83C\uDDF0": {
-    region: "South Asia",
-    rivals: ["\uD83C\uDDEE\uD83C\uDDF3"],
-    reason: "Territorial claims in Kashmir, terrorism accusations"
+  '🇮🇱': {
+    region: 'Middle East',
+    rivals: ['🇵🇸', '🇮🇷', '🇸🇾', '🇱🇧'],
+    reason: 'Territorial conflict, religious war, Iranian threats'
   },
-  "\uD83C\uDDE8\uD83C\uDDF3": {
-    region: "East Asia",
-    rivals: ["\uD83C\uDDF9\uD83C\uDDFC", "\uD83C\uDDFA\uD83C\uDDF8", "\uD83C\uDDEE\uD83C\uDDF3", "\uD83C\uDDEF\uD83C\uDDF5", "\uD83C\uDDF5\uD83C\uDDED"],
-    reason: "South China Sea, Taiwan sovereignty, border tension"
+  '🇵🇸': {
+    region: 'Middle East',
+    rivals: ['🇮🇱'],
+    reason: 'Occupation, sovereignty claims'
   },
-  "\uD83C\uDDF9\uD83C\uDDFC": {
-    region: "East Asia",
-    rivals: ["\uD83C\uDDE8\uD83C\uDDF3"],
-    reason: "China claims Taiwan as its province; Taiwan claims independence"
+  '🇮🇷': {
+    region: 'Middle East',
+    rivals: ['🇺🇸', '🇮🇱', '🇸🇦'],
+    reason: 'Nuclear program, ideological rivalry, proxy wars'
   },
-  "\uD83C\uDDF7\uD83C\uDDFA": {
-    region: "Eurasia",
-    rivals: ["\uD83C\uDDFA\uD83C\uDDE6", "\uD83C\uDDF5\uD83C\uDDF1", "\uD83C\uDDFA\uD83C\uDDF8", "\uD83C\uDDEC\uD83C\uDDE7", "\uD83C\uDDF1\uD83C\uDDF9"],
-    reason: "Ukraine war, NATO expansion, post-Soviet influence"
+  '🇸🇦': {
+    region: 'Middle East',
+    rivals: ['🇮🇷', '🇾🇪', '🇶🇦'],
+    reason: 'Sunni-Shia divide, regional dominance'
   },
-  "\uD83C\uDDFA\uD83C\uDDE6": {
-    region: "Eurasia",
-    rivals: ["\uD83C\uDDF7\uD83C\uDDFA"],
-    reason: "Russia's annexation of Crimea and invasion in 2022"
+  '🇦🇲': {
+    region: 'Caucasus',
+    rivals: ['🇦🇿', '🇹🇷'],
+    reason: 'Nagorno-Karabakh, historical genocide, border tension'
   },
-  "\uD83C\uDDFA\uD83C\uDDF8": {
-    region: "Global",
-    rivals: ["\uD83C\uDDE8\uD83C\uDDF3", "\uD83C\uDDF7\uD83C\uDDFA", "\uD83C\uDDEE\uD83C\uDDF7", "\uD83C\uDDFB\uD83C\uDDEA", "\uD83C\uDDF0\uD83C\uDDF5", "\uD83C\uDDFA\uD83C\uDDFA"],
-    reason: "Cold War legacy, nuclear threats, ideological opposition"
+  '🇦🇿': {
+    region: 'Caucasus',
+    rivals: ['🇦🇲'],
+    reason: 'Territorial claim over Nagorno-Karabakh'
   },
-  "\uD83C\uDDFB\uD83C\uDDEA": {
-    region: "Americas",
-    rivals: ["\uD83C\uDDFA\uD83C\uDDF8", "\uD83C\uDDE8\uD83C\uDDF4"],
-    reason: "US sanctions, regime change attempts, border clashes"
+  '🇬🇧': {
+    region: 'Europe/Global',
+    rivals: ['🇷🇺', '🇦🇷'],
+    reason: 'Support for Ukraine, Falklands War legacy'
   },
-  "\uD83C\uDDE8\uD83C\uDDF4": {
-    region: "Caribbean",
-    rivals: ["\uD83C\uDDFA\uD83C\uDDF8"],
-    reason: "Embargoes, Cold War history, failed diplomacy"
+  '🇦🇷': {
+    region: 'South America',
+    rivals: ['🇬🇧', '🇨🇱'],
+    reason: 'Falklands, Patagonia tensions'
   },
-  "\uD83C\uDDF0\uD83C\uDDF5": {
-    region: "East Asia",
-    rivals: ["\uD83C\uDDF0\uD83C\uDDF7", "\uD83C\uDDFA\uD83C\uDDF8", "\uD83C\uDDEF\uD83C\uDDF5"],
-    reason: "Nuclear program, Korean War legacy"
+  '🇧🇷': {
+    region: 'South America',
+    rivals: ['🇻🇪', '🇧🇴'],
+    reason: 'Ideological differences, Amazon resource disputes'
   },
-  "\uD83C\uDDEC\uD83C\uDDF7": {
-    region: "Europe",
-    rivals: ["\uD83C\uDDF9\uD83C\uDDF7", "\uD83C\uDDE6\uD83C\uDDF1"],
-    reason: "Aegean disputes, maritime borders, minority rights"
+  '🇻🇪': {
+    region: 'South America',
+    rivals: ['🇺🇸', '🇨🇴', '🇧🇷'],
+    reason: 'Sanctions, military threats, migration'
   },
-  "\uD83C\uDDEC\uD83C\uDDE7": {
-    region: "Caucasus",
-    rivals: ["\uD83C\uDDF7\uD83C\uDDFA"],
-    reason: "Russian support for separatists in Abkhazia and South Ossetia"
+  '🇰🇵': {
+    region: 'East Asia',
+    rivals: ['🇰🇷', '🇺🇸', '🇯🇵'],
+    reason: 'Nuclear threat, war legacy, missile launches'
   },
-  "\uD83C\uDDE6\uD83C\uDDF2": {
-    region: "Caucasus",
-    rivals: ["\uD83C\uDDE7\uD83C\uDDFF", "\uD83C\uDDF9\uD83C\uDDF7"],
-    reason: "Nagorno-Karabakh conflict, genocide recognition"
+  '🇰🇷': {
+    region: 'East Asia',
+    rivals: ['🇰🇵', '🇯🇵'],
+    reason: 'Historical occupation, military tension'
   },
-  "\uD83C\uDDE7\uD83C\uDDFF": {
-    region: "Caucasus",
-    rivals: ["\uD83C\uDDE6\uD83C\uDDF2"],
-    reason: "Ongoing conflict over Nagorno-Karabakh region"
+  '🇯🇵': {
+    region: 'East Asia',
+    rivals: ['🇨🇳', '🇰🇷', '🇷🇺'],
+    reason: 'Island disputes, World War legacy'
+  },
+  '🇹🇼': {
+    region: 'East Asia',
+    rivals: ['🇨🇳'],
+    reason: 'Independence claims vs Chinese sovereignty'
+  },
+  '🇲🇽': {
+    region: 'North America',
+    rivals: ['🇺🇸'],
+    reason: 'Border wall, drug wars, immigration'
+  },
+  '🇩🇿': {
+    region: 'Africa',
+    rivals: ['🇲🇦', '🇫🇷'],
+    reason: 'Western Sahara conflict, post-colonial tension'
+  },
+  '🇲🇦': {
+    region: 'Africa',
+    rivals: ['🇩🇿', '🇪🇸'],
+    reason: 'Sahara dispute, migration, Ceuta/Melilla'
+  },
+  '🇪🇬': {
+    region: 'Africa',
+    rivals: ['🇪🇹', '🇸🇩'],
+    reason: 'Nile water dispute over GERD dam'
+  },
+  '🇪🇹': {
+    region: 'Africa',
+    rivals: ['🇪🇬', '🇸🇩', '🇪🇷'],
+    reason: 'Water rights, border clashes, internal conflict'
+  },
+  '🇳🇬': {
+    region: 'Africa',
+    rivals: ['🇿🇦'],
+    reason: 'Economic rivalry, migration disputes'
+  },
+  '🇿🇦': {
+    region: 'Africa',
+    rivals: ['🇳🇬'],
+    reason: 'Leadership competition in Africa'
+  },
+  '🇸🇾': {
+    region: 'Middle East',
+    rivals: ['🇮🇱', '🇹🇷', '🇺🇸'],
+    reason: 'Civil war, proxy wars, occupation'
+  },
+  '🇨🇺': {
+    region: 'Caribbean',
+    rivals: ['🇺🇸'],
+    reason: 'Embargo, ideological Cold War tension'
   }
 };
 
