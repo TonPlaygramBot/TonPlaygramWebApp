@@ -96,8 +96,9 @@ export default function CrazyDiceDuel() {
   const initialPlayers = useMemo(() => {
     const randFlag = () =>
       FLAG_EMOJIS[Math.floor(Math.random() * FLAG_EMOJIS.length)];
-    const randLeader = () =>
-      LEADER_AVATARS[Math.floor(Math.random() * LEADER_AVATARS.length)];
+    const uniqueLeaders = [...LEADER_AVATARS]
+      .sort(() => Math.random() - 0.5)
+      .slice(0, playerCount - 1);
     return Array.from({ length: playerCount }, (_, i) => ({
       score: 0,
       rolls: 0,
@@ -107,7 +108,7 @@ export default function CrazyDiceDuel() {
           ? loadAvatar() || '/assets/icons/profile.svg'
           : aiCount > 0
             ? avatarType === 'leaders'
-              ? randLeader()
+              ? uniqueLeaders[i - 1]
               : randFlag()
             : `/assets/avatars/avatar${(i % 5) + 1}.svg`,
       color: COLORS[i % COLORS.length],
