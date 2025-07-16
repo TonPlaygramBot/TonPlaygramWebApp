@@ -120,7 +120,7 @@ function codeToFlag(code) {
   return String.fromCodePoint(...points);
 }
 
-async function ipToFlag() {
+export async function ipToFlag() {
   try {
     const res = await fetch('https://ipinfo.io/json');
     const data = await res.json();
