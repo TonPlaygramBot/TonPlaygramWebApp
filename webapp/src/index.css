@@ -350,8 +350,8 @@ input:focus {
 
 .pot-icon {
   position: absolute;
-  width: 4rem;
-  height: 4rem;
+  width: 8rem;
+  height: 8rem;
   top: 50%;
   left: 50%;
   transform: translate(-50%, -110%) translateZ(20px)
@@ -383,6 +383,13 @@ input:focus {
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.4);
   pointer-events: none;
   z-index: 1;
+}
+
+.board-token .token-photo {
+  width: 3rem;
+  height: 3rem;
+  transform: translate(-50%, -95%) translateZ(15.2px)
+    rotateX(calc(var(--board-angle, 58deg) * -1 - 10deg));
 }
 
 
@@ -427,8 +434,8 @@ input:focus {
   position: absolute;
   bottom: 100%;
   left: 50%;
-  transform: translate(-50%, -0.1rem);
-  font-size: 0.5rem;
+  transform: translate(-50%, 0.05rem);
+  font-size: 0.6rem;
   color: inherit;
   white-space: nowrap;
 }
@@ -1089,10 +1096,10 @@ input:focus {
 
 .dice-marker {
   position: absolute;
-  width: 1.6rem;
-  height: 1.6rem;
+  width: 1.8rem;
+  height: 1.8rem;
   left: 50%;
-  top: 55%;
+  top: 57%;
   transform: translate(-50%, -50%) translateZ(6px)
     rotateX(calc(var(--board-angle, 58deg) * -1));
   display: flex;
@@ -1104,8 +1111,8 @@ input:focus {
 }
 
 .dice-marker .dice-icon {
-  width: 1.6rem;
-  height: 1.6rem;
+  width: 1.8rem;
+  height: 1.8rem;
   object-fit: contain;
   transition: transform 0.3s ease;
 }
