@@ -478,7 +478,7 @@ input:focus {
 
 .your-turn-message {
   position: absolute;
-  bottom: calc(100% + 0.25rem);
+  bottom: calc(100% + 0.5rem);
   left: 50%;
   transform: translateX(-50%);
   display: flex;
@@ -1394,9 +1394,9 @@ input:focus {
 }
 
 .crazy-dice-board.three-players .player-left {
-  /* Slightly higher and nudged right for better balance */
-  top: 20%;
-  left: 7%;
+  /* Moved slightly left and up for better spacing */
+  top: 19.5%;
+  left: 6.5%;
 }
 
 .crazy-dice-board .player-center {
@@ -1464,9 +1464,9 @@ input:focus {
 }
 
 .crazy-dice-board.three-players .player-right {
-  /* Move a touch left and slightly higher */
+  /* Shifted more to the left */
   top: 20%;
-  right: 7%;
+  right: 9%;
 }
 .crazy-dice-board.four-players .player-left {
   /* Move the top left avatar closer to the screen edge */
