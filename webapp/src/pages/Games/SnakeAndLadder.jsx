@@ -19,6 +19,8 @@ import {
   chatBeep,
 } from "../../assets/soundData.js";
 import { AVATARS } from "../../components/AvatarPickerModal.jsx";
+import { LEADER_AVATARS } from "../../utils/leaderAvatars.js";
+import { FLAG_EMOJIS } from "../../utils/flagEmojis.js";
 import { getAvatarUrl, saveAvatar, loadAvatar, avatarToName } from "../../utils/avatarUtils.js";
 import InfoPopup from "../../components/InfoPopup.jsx";
 import GameEndPopup from "../../components/GameEndPopup.jsx";
@@ -628,6 +630,7 @@ export default function SnakeAndLadder() {
   const [playerAutoRolling, setPlayerAutoRolling] = useState(false);
   const [timeLeft, setTimeLeft] = useState(TURN_TIME);
   const [aiAvatars, setAiAvatars] = useState([]);
+  const [avatarType, setAvatarType] = useState('flags');
   const [burning, setBurning] = useState([]); // indices of tokens burning
   const [refreshTick, setRefreshTick] = useState(0);
   const [rollCooldown, setRollCooldown] = useState(0);
@@ -972,6 +975,7 @@ export default function SnakeAndLadder() {
     const t = params.get("token");
     const amt = params.get("amount");
     const aiParam = params.get("ai");
+    const avatarParam = params.get("avatars") || 'flags';
     const tableParam = params.get("table");
     if (t) setToken(t.toUpperCase());
     if (amt) setPot(Number(amt));
@@ -981,6 +985,7 @@ export default function SnakeAndLadder() {
         ? 0
         : 1;
     setAi(aiCount);
+    setAvatarType(avatarParam);
     setIsMultiplayer(tableParam && !aiParam);
     const watching = watchParam === "1";
     setWatchOnly(watching);
@@ -994,7 +999,9 @@ export default function SnakeAndLadder() {
     setAiPositions(Array(aiCount).fill(0));
     setAiAvatars(
       Array.from({ length: aiCount }, () =>
-        AVATARS[Math.floor(Math.random() * AVATARS.length)]
+        avatarParam === 'leaders'
+          ? LEADER_AVATARS[Math.floor(Math.random() * LEADER_AVATARS.length)]
+          : FLAG_EMOJIS[Math.floor(Math.random() * FLAG_EMOJIS.length)]
       )
     );
     const colors = shuffle(TOKEN_COLORS).slice(0, aiCount + 1).map(c => c.color);

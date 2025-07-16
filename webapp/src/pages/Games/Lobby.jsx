@@ -45,6 +45,7 @@ export default function Lobby() {
   const [stake, setStake] = useState({ token: '', amount: 0 });
   const [players, setPlayers] = useState([]);
   const [aiCount, setAiCount] = useState(0);
+  const [aiType, setAiType] = useState('');
   const [online, setOnline] = useState(0);
   const [playerName, setPlayerName] = useState('');
   const autoStartedRef = useRef(false);
@@ -190,6 +191,7 @@ export default function Lobby() {
     if (game === 'snake' && table?.id === 'single') {
       localStorage.removeItem(`snakeGameState_${aiCount}`);
       params.set('ai', aiCount);
+      params.set('avatars', aiType);
       params.set('token', 'TPC');
       if (stake.amount) params.set('amount', stake.amount);
       try {
@@ -218,7 +220,9 @@ export default function Lobby() {
     table &&
     table.id !== 'single' &&
     players.length < table.capacity;
-  const disabled = !canStartGame(game, table, stake, aiCount, players.length);
+  const disabled =
+    !canStartGame(game, table, stake, aiCount, players.length) ||
+    (game === 'snake' && table?.id === 'single' && !aiType);
 
   return (
     <div className="relative p-4 space-y-4 text-text">
@@ -277,6 +281,18 @@ export default function Lobby() {
                 }`}
               >
                 {n}
+              </button>
+            ))}
+          </div>
+          <h3 className="font-semibold mt-2">AI Avatars</h3>
+          <div className="flex gap-2">
+            {['flags', 'leaders'].map((t) => (
+              <button
+                key={t}
+                onClick={() => setAiType(t)}
+                className={`lobby-tile ${aiType === t ? 'lobby-selected' : ''}`}
+              >
+                {t === 'flags' ? 'Flags' : 'Leaders'}
               </button>
             ))}
           </div>
