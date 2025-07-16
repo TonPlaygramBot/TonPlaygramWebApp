@@ -715,13 +715,13 @@ export default function CrazyDiceDuel() {
         }
         if (playerCount === 3) {
           if (i === 0) {
-            // Use same placement as four-player top left
-            wrapperStyle = { ...gridPoint(2, 7), right: 'auto' };
+            // Shift the top left opponent slightly right and up
+            wrapperStyle = { ...gridPoint(3.5, 6.5), right: 'auto' };
             scoreStyle = tlScoreStyle;
             historyStyle = tlHistoryStyle;
           } else if (i === 1) {
-            // Use same placement as four-player top right
-            wrapperStyle = { ...gridPoint(18, 7), right: 'auto' };
+            // Move the top right opponent a bit left and up
+            wrapperStyle = { ...gridPoint(16.5, 6.5), right: 'auto' };
             scoreStyle = trScoreStyle;
             historyStyle = trHistoryStyle;
           }
