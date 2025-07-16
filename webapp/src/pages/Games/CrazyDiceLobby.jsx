@@ -2,7 +2,6 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { pingOnline, getOnlineCount } from '../../utils/api.js';
 import { getPlayerId } from '../../utils/telegram.js';
-import { REGIONS } from '../../utils/conflictMatchmaking.js';
 import RoomSelector from '../../components/RoomSelector.jsx';
 import TableSelector from '../../components/TableSelector.jsx';
 import useTelegramBackButton from '../../hooks/useTelegramBackButton.js';
@@ -22,7 +21,6 @@ export default function CrazyDiceLobby() {
   const [rolls, setRolls] = useState(1);
   const [stake, setStake] = useState({ token: 'TPC', amount: 100 });
   const [aiCount, setAiCount] = useState(1);
-  const [region, setRegion] = useState('');
   const [online, setOnline] = useState(0);
 
   useEffect(() => {
@@ -49,7 +47,6 @@ export default function CrazyDiceLobby() {
     params.set('rolls', rolls);
     if (stake.token) params.set('token', stake.token);
     if (stake.amount) params.set('amount', stake.amount);
-    if (region) params.set('region', region);
     navigate(`/games/crazydice?${params.toString()}`);
   };
 
@@ -92,21 +89,6 @@ export default function CrazyDiceLobby() {
             </button>
           ))}
         </div>
-      </div>
-      <div className="space-y-2">
-        <h3 className="font-semibold">Conflict Region</h3>
-        <select
-          value={region}
-          onChange={(e) => setRegion(e.target.value)}
-          className="lobby-tile w-full text-black"
-        >
-          <option value="">Auto (Local)</option>
-          {REGIONS.map((r) => (
-            <option key={r} value={r}>
-              {r}
-            </option>
-          ))}
-        </select>
       </div>
       <div className="space-y-2">
         <h3 className="font-semibold">Select Stake</h3>
