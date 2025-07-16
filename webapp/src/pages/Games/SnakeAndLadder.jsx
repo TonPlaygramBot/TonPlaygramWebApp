@@ -640,7 +640,6 @@ export default function SnakeAndLadder() {
   const [watchOnly, setWatchOnly] = useState(false);
   const [mpPlayers, setMpPlayers] = useState([]);
   const playersRef = useRef([]);
-  const avatarRefs = useRef([]);
   const [tableId, setTableId] = useState('snake-4');
   const [playerPopup, setPlayerPopup] = useState(null);
   const [showChat, setShowChat] = useState(false);
@@ -776,7 +775,7 @@ export default function SnakeAndLadder() {
       });
       return;
     }
-    const startEl = avatarRefs.current[startIdx];
+    const startEl = document.querySelector(`[data-player-index="${startIdx}"] img`);
     if (!startEl) return;
     const s = startEl.getBoundingClientRect();
     const targetX = s.left + s.width / 2;
@@ -796,7 +795,7 @@ export default function SnakeAndLadder() {
 
   const animateDiceToCenter = (startIdx) => {
     const dice = diceRef.current;
-    const startEl = avatarRefs.current[startIdx];
+    const startEl = document.querySelector(`[data-player-index="${startIdx}"] img`);
     if (!dice || !startEl) return;
     const s = startEl.getBoundingClientRect();
     const startX = s.left + s.width / 2;
@@ -830,7 +829,7 @@ export default function SnakeAndLadder() {
 
   const animateDiceToPlayer = (idx) => {
     const dice = diceRef.current;
-    const endEl = avatarRefs.current[idx];
+    const endEl = document.querySelector(`[data-player-index="${idx}"] img`);
     if (!dice || !endEl) return;
     const e = endEl.getBoundingClientRect();
     // Land slightly to the right of the avatar centre
@@ -2006,7 +2005,6 @@ export default function SnakeAndLadder() {
               index={p.index}
               photoUrl={p.photoUrl}
               active={p.index === currentTurn}
-              ref={(el) => (avatarRefs.current[p.index] = el)}
               rank={rankMap[p.index]}
               name={getPlayerName(p.index)}
               isTurn={p.index === currentTurn}
@@ -2082,8 +2080,8 @@ export default function SnakeAndLadder() {
             players={players.map((p, i) => ({ ...p, index: i, name: getPlayerName(i) }))}
             senderIndex={myIdx}
             onGiftSent={({ from, to, gift }) => {
-              const start = avatarRefs.current[from];
-              const end = avatarRefs.current[to];
+              const start = document.querySelector(`[data-player-index="${from}"]`);
+              const end = document.querySelector(`[data-player-index="${to}"]`);
               if (start && end) {
                 const s = start.getBoundingClientRect();
                 const e = end.getBoundingClientRect();
