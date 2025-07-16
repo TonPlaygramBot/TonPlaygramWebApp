@@ -478,7 +478,7 @@ input:focus {
 
 .your-turn-message {
   position: absolute;
-  bottom: calc(100% + 0.5rem);
+  bottom: calc(100% + 0.7rem);
   left: 50%;
   transform: translateX(-50%);
   display: flex;
@@ -1351,14 +1351,14 @@ input:focus {
   position: absolute;
   /* Default center aligned with J20 */
   top: 66%;
-  left: 47.5%;
+  left: 48%;
   transform: translate(-50%, -50%);
 }
 
 /* Dice landing spot when facing two opponents */
 .crazy-dice-board.three-players .dice-center {
   top: 66%;
-  left: 47.5%;
+  left: 48%;
 }
 
 /* Adjust dice landing spot for 1v1 games */
@@ -1417,8 +1417,8 @@ input:focus {
 }
 .crazy-dice-board .player-left .player-score,
 .crazy-dice-board .player-left .roll-history {
-  /* Move boxes a tad further left */
-  transform: translateX(-40%);
+  /* Move boxes slightly further left */
+  transform: translateX(-45%);
 }
 .crazy-dice-board .player-right .player-score,
 .crazy-dice-board .player-right .roll-history {

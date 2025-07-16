@@ -157,7 +157,7 @@ export default function CrazyDiceDuel() {
   const trailTimeoutRef = useRef(null);
   // Dice scales: shrink when at a player's position and expand when rolling
   // In 1v1 mode dice should start small and grow to normal size when rolling
-  const DICE_CENTER_SCALE = 1;
+  const DICE_CENTER_SCALE = 0.9;
   const DICE_PLAYER_SCALE = 0.4;
   const DICE_SHRINK_SCALE = 0.2;
   const DICE_ANIM_DURATION = 1000;
@@ -718,8 +718,8 @@ export default function CrazyDiceDuel() {
             // Nudge the top left opponent slightly left and up
             wrapperStyle = { ...gridPoint(3.3, 6.2), right: 'auto' };
           } else if (i === 1) {
-            // Move the top right opponent a bit further left
-            wrapperStyle = { ...gridPoint(15.8, 6.5), right: 'auto' };
+            // Move the top right opponent slightly further left
+            wrapperStyle = { ...gridPoint(15.5, 6.5), right: 'auto' };
           }
         }
         return (
