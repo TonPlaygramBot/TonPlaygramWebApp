@@ -20,6 +20,8 @@ import {
 } from "../../assets/soundData.js";
 import { AVATARS } from "../../components/AvatarPickerModal.jsx";
 import { getAvatarUrl, saveAvatar, loadAvatar, avatarToName } from "../../utils/avatarUtils.js";
+import { FLAG_EMOJIS } from "../../utils/flagEmojis.js";
+import { getAIOpponentFlag } from "../../utils/aiOpponentFlag.js";
 import InfoPopup from "../../components/InfoPopup.jsx";
 import GameEndPopup from "../../components/GameEndPopup.jsx";
 import {
@@ -992,9 +994,12 @@ export default function SnakeAndLadder() {
     }
     localStorage.removeItem(`snakeGameState_${aiCount}`);
     setAiPositions(Array(aiCount).fill(0));
+    const isFlag = FLAG_EMOJIS.includes(photoUrl);
     setAiAvatars(
       Array.from({ length: aiCount }, () =>
-        AVATARS[Math.floor(Math.random() * AVATARS.length)]
+        isFlag
+          ? getAIOpponentFlag(photoUrl)
+          : AVATARS[Math.floor(Math.random() * AVATARS.length)]
       )
     );
     const colors = shuffle(TOKEN_COLORS).slice(0, aiCount + 1).map(c => c.color);
