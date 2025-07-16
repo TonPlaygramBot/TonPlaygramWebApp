@@ -55,7 +55,7 @@ export default function AvatarTimer({
           <defs>
             <path
               id={`name-path-${index}`}
-              d="M10,50 A40,40 0 0 1 90,50"
+              d="M5,50 A45,45 0 0 1 95,50"
             />
           </defs>
           <text>
