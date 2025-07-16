@@ -432,6 +432,10 @@ input:focus {
   color: inherit;
   white-space: nowrap;
 }
+.crazy-dice-board.four-players .rank-name {
+  transform: translate(-50%, -0.05rem);
+  font-size: 0.6rem;
+}
 .curved-name {
   width: 120%;
   height: 1.2rem;
