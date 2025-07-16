@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import { loadUseCountryFlag, saveUseCountryFlag } from '../../utils/avatarUtils.js';
 import { useTonAddress, useTonConnectUI } from '@tonconnect/ui-react';
 import { FaUsers } from 'react-icons/fa';
 import { useNavigate, useParams } from 'react-router-dom';
@@ -47,9 +48,14 @@ export default function Lobby() {
   const [players, setPlayers] = useState([]);
   const [aiCount, setAiCount] = useState(0);
   const [region, setRegion] = useState('');
+  const [useFlag, setUseFlag] = useState(loadUseCountryFlag());
   const [online, setOnline] = useState(0);
   const [playerName, setPlayerName] = useState('');
   const autoStartedRef = useRef(false);
+
+  useEffect(() => {
+    saveUseCountryFlag(useFlag);
+  }, [useFlag]);
 
   useEffect(() => {
     try {
@@ -195,6 +201,7 @@ export default function Lobby() {
       params.set('token', 'TPC');
       if (stake.amount) params.set('amount', stake.amount);
       if (region) params.set('region', region);
+      if (useFlag) params.set('flag', '1');
       try {
         const accountId = await ensureAccountId();
         const balRes = await getAccountBalance(accountId);
@@ -212,6 +219,7 @@ export default function Lobby() {
       if (stake.token) params.set('token', stake.token);
       if (stake.amount) params.set('amount', stake.amount);
       if (region) params.set('region', region);
+      if (useFlag) params.set('flag', '1');
     }
 
     navigate(`/games/${game}?${params.toString()}`);
@@ -282,6 +290,23 @@ export default function Lobby() {
             </option>
           ))}
         </select>
+      </div>
+      <div className="space-y-2">
+        <h3 className="font-semibold">Profile Icon</h3>
+        <div className="flex gap-2">
+          <button
+            onClick={() => setUseFlag(false)}
+            className={`lobby-tile ${useFlag ? '' : 'lobby-selected'}`}
+          >
+            Avatar
+          </button>
+          <button
+            onClick={() => setUseFlag(true)}
+            className={`lobby-tile ${useFlag ? 'lobby-selected' : ''}`}
+          >
+            Country Flag
+          </button>
+        </div>
       </div>
       {game === 'snake' && table?.id === 'single' && (
         <div className="space-y-2">

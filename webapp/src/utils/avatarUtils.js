@@ -28,6 +28,25 @@ export function loadAvatar() {
   return '';
 }
 
+export function saveUseCountryFlag(val) {
+  if (typeof window !== 'undefined') {
+    try {
+      localStorage.setItem('useCountryFlag', val ? 'true' : 'false');
+    } catch {}
+  }
+}
+
+export function loadUseCountryFlag() {
+  if (typeof window !== 'undefined') {
+    try {
+      return localStorage.getItem('useCountryFlag') === 'true';
+    } catch {
+      return false;
+    }
+  }
+  return false;
+}
+
 import { emoji } from 'emoji-name-map';
 import countryNames from './countryNames.json';
 
