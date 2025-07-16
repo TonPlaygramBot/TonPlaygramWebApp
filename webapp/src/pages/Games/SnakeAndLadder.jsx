@@ -997,13 +997,18 @@ export default function SnakeAndLadder() {
     }
     localStorage.removeItem(`snakeGameState_${aiCount}`);
     setAiPositions(Array(aiCount).fill(0));
-    setAiAvatars(
-      Array.from({ length: aiCount }, () =>
-        avatarParam === 'leaders'
-          ? LEADER_AVATARS[Math.floor(Math.random() * LEADER_AVATARS.length)]
-          : FLAG_EMOJIS[Math.floor(Math.random() * FLAG_EMOJIS.length)]
-      )
-    );
+    if (avatarParam === 'leaders') {
+      const unique = [...LEADER_AVATARS]
+        .sort(() => Math.random() - 0.5)
+        .slice(0, aiCount);
+      setAiAvatars(unique);
+    } else {
+      setAiAvatars(
+        Array.from({ length: aiCount }, () =>
+          FLAG_EMOJIS[Math.floor(Math.random() * FLAG_EMOJIS.length)]
+        )
+      );
+    }
     const colors = shuffle(TOKEN_COLORS).slice(0, aiCount + 1).map(c => c.color);
     setPlayerColors(colors);
 
