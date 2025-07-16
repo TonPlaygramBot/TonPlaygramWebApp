@@ -995,11 +995,11 @@ export default function SnakeAndLadder() {
     localStorage.removeItem(`snakeGameState_${aiCount}`);
     setAiPositions(Array(aiCount).fill(0));
     const isFlag = FLAG_EMOJIS.includes(photoUrl);
+    const randomFlag = () =>
+      FLAG_EMOJIS[Math.floor(Math.random() * FLAG_EMOJIS.length)];
     setAiAvatars(
       Array.from({ length: aiCount }, () =>
-        isFlag
-          ? getAIOpponentFlag(photoUrl)
-          : AVATARS[Math.floor(Math.random() * AVATARS.length)]
+        getAIOpponentFlag(isFlag ? photoUrl : randomFlag())
       )
     );
     const colors = shuffle(TOKEN_COLORS).slice(0, aiCount + 1).map(c => c.color);

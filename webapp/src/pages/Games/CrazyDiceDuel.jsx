@@ -96,19 +96,15 @@ export default function CrazyDiceDuel() {
     const me = loadAvatar() || '/assets/icons/profile.svg';
     const playerFlag = FLAG_EMOJIS.includes(me) ? me : null;
     const randFlag = () =>
-      playerFlag
-        ? getAIOpponentFlag(playerFlag)
-        : FLAG_EMOJIS[Math.floor(Math.random() * FLAG_EMOJIS.length)];
+      getAIOpponentFlag(
+        playerFlag || FLAG_EMOJIS[Math.floor(Math.random() * FLAG_EMOJIS.length)]
+      );
     return Array.from({ length: playerCount }, (_, i) => ({
       score: 0,
       rolls: 0,
       results: [],
       photoUrl:
-        i === 0
-          ? me
-          : aiCount > 0
-            ? randFlag()
-            : `/assets/avatars/avatar${(i % 5) + 1}.svg`,
+        i === 0 ? me : randFlag(),
       color: COLORS[i % COLORS.length],
     }));
   }, [playerCount, aiCount]);
