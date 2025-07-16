@@ -21,6 +21,7 @@ export default function CrazyDiceLobby() {
   const [rolls, setRolls] = useState(1);
   const [stake, setStake] = useState({ token: 'TPC', amount: 100 });
   const [aiCount, setAiCount] = useState(1);
+  const [aiType, setAiType] = useState('');
   const [online, setOnline] = useState(0);
 
   useEffect(() => {
@@ -41,6 +42,7 @@ export default function CrazyDiceLobby() {
     if (table.id === 'single') {
       params.set('ai', aiCount);
       params.set('players', aiCount + 1);
+      params.set('avatars', aiType);
     } else {
       params.set('players', table.capacity);
     }
@@ -50,7 +52,11 @@ export default function CrazyDiceLobby() {
     navigate(`/games/crazydice?${params.toString()}`);
   };
 
-  const disabled = !stake.token || !stake.amount || !table;
+  const disabled =
+    !stake.token ||
+    !stake.amount ||
+    !table ||
+    (table.id === 'single' && !aiType);
 
   return (
     <div className="relative p-4 space-y-4 text-text">
@@ -71,6 +77,18 @@ export default function CrazyDiceLobby() {
                 className={`lobby-tile ${aiCount === n ? 'lobby-selected' : ''}`}
               >
                 {n}
+              </button>
+            ))}
+          </div>
+          <h3 className="font-semibold mt-2">AI Avatars</h3>
+          <div className="flex gap-2">
+            {['flags', 'leaders'].map((t) => (
+              <button
+                key={t}
+                onClick={() => setAiType(t)}
+                className={`lobby-tile ${aiType === t ? 'lobby-selected' : ''}`}
+              >
+                {t === 'flags' ? 'Flags' : 'Leaders'}
               </button>
             ))}
           </div>

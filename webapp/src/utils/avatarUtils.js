@@ -77,5 +77,6 @@ export function avatarToName(src) {
   const file = src.split('/').pop().split('.')[0];
   return file
     .replace(/[_-]/g, ' ')
+    .replace(/\bLeader\b/gi, '')
     .replace(/\b\w/g, (c) => c.toUpperCase());
 }

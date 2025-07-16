@@ -18,6 +18,7 @@ import {
   avatarToName,
 } from '../../utils/avatarUtils.js';
 import { FLAG_EMOJIS } from '../../utils/flagEmojis.js';
+import { LEADER_AVATARS } from '../../utils/leaderAvatars.js';
 import { chatBeep, timerBeep } from '../../assets/soundData.js';
 import { getGameVolume, isGameMuted } from '../../utils/sound.js';
 import { giftSounds } from '../../utils/giftSounds.js';
@@ -71,6 +72,7 @@ export default function CrazyDiceDuel() {
   useTelegramBackButton(handleBack);
   const [searchParams] = useSearchParams();
   const aiCount = parseInt(searchParams.get('ai')) || 0;
+  const avatarType = searchParams.get('avatars') || 'flags';
   const playerCount = aiCount > 0
     ? aiCount + 1
     : parseInt(searchParams.get('players')) || 2;
@@ -94,6 +96,8 @@ export default function CrazyDiceDuel() {
   const initialPlayers = useMemo(() => {
     const randFlag = () =>
       FLAG_EMOJIS[Math.floor(Math.random() * FLAG_EMOJIS.length)];
+    const randLeader = () =>
+      LEADER_AVATARS[Math.floor(Math.random() * LEADER_AVATARS.length)];
     return Array.from({ length: playerCount }, (_, i) => ({
       score: 0,
       rolls: 0,
@@ -102,11 +106,13 @@ export default function CrazyDiceDuel() {
         i === 0
           ? loadAvatar() || '/assets/icons/profile.svg'
           : aiCount > 0
-            ? randFlag()
+            ? avatarType === 'leaders'
+              ? randLeader()
+              : randFlag()
             : `/assets/avatars/avatar${(i % 5) + 1}.svg`,
       color: COLORS[i % COLORS.length],
     }));
-  }, [playerCount, aiCount]);
+  }, [playerCount, aiCount, avatarType]);
 
   const [players, setPlayers] = useState(initialPlayers);
   const [current, setCurrent] = useState(0);
