@@ -1394,9 +1394,9 @@ input:focus {
 }
 
 .crazy-dice-board.three-players .player-left {
-  /* Same placement as four-player top left */
-  top: 21%;
-  left: 6%;
+  /* Slightly higher and nudged right for better balance */
+  top: 20%;
+  left: 7%;
 }
 
 .crazy-dice-board .player-center {
@@ -1464,9 +1464,9 @@ input:focus {
 }
 
 .crazy-dice-board.three-players .player-right {
-  /* Same placement as four-player top right */
-  top: 21%;
-  right: 6%;
+  /* Move a touch left and slightly higher */
+  top: 20%;
+  right: 7%;
 }
 .crazy-dice-board.four-players .player-left {
   /* Move the top left avatar closer to the screen edge */
