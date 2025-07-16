@@ -75,8 +75,17 @@ export function avatarToName(src) {
   const match = src.match(/avatar(\d+)\.svg$/);
   if (match) return `Avatar ${match[1]}`;
   const file = src.split('/').pop().split('.')[0];
-  return file
+  let name = file
     .replace(/[_-]/g, ' ')
+    .replace(/([a-z])([A-Z])/g, '$1 $2')
     .replace(/\bLeader\b/gi, '')
-    .replace(/\b\w/g, (c) => c.toUpperCase());
+    .trim();
+  name = name
+    .split(' ')
+    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+    .join(' ');
+  if (/^[A-Za-z]{2,3}$/.test(name)) {
+    return name.toUpperCase();
+  }
+  return name;
 }
