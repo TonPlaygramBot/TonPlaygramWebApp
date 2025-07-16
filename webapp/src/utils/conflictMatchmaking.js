@@ -193,11 +193,18 @@ export async function get3PlayerConflict(region = null) {
 }
 
 export function get4PlayerConflict(region = null) {
-  const groups = region && REGION_GROUPS[region] ? [region] : Object.keys(REGION_GROUPS);
+  const groups =
+    region && REGION_GROUPS[region] ? [region] : Object.keys(REGION_GROUPS);
   const chosenRegion = randomItem(groups);
-  const flags = REGION_GROUPS[chosenRegion];
+  const flags = [...REGION_GROUPS[chosenRegion]];
+  // Ensure we always have at least 4 candidate flags
+  const allFlags = Object.keys(CONFLICT_MAP);
+  while (flags.length < 4) {
+    const next = randomItem(allFlags);
+    if (!flags.includes(next)) flags.push(next);
+  }
   const set = new Set();
-  while (set.size < Math.min(4, flags.length)) {
+  while (set.size < 4) {
     set.add(randomItem(flags));
   }
   return Array.from(set);
