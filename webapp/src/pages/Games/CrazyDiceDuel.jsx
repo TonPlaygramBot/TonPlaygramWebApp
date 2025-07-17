@@ -927,6 +927,7 @@ export default function CrazyDiceDuel() {
         onClose={() => setShowQuitInfo(false)}
         title="Warning"
         info="If you quit the game your funds will be lost and you will be placed last."
+        widthClass="w-80"
       />
       <ConfirmPopup
         open={showLobbyConfirm}
