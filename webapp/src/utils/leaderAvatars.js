@@ -26,3 +26,5 @@ export const LEADER_AVATARS = [
   '/assets/icons/BelarusLeader.webp',
   '/assets/icons/NorthKoreaLeader.webp'
 ];
+
+export const LEADER_PHOTO_AVATARS = LEADER_AVATARS.map(p => p.replace('.webp', '.jpg'));
