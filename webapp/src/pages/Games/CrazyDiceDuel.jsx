@@ -707,6 +707,7 @@ export default function CrazyDiceDuel() {
           imageScale={leaders.includes(0) ? 1.1 : 1}
           imageYOffset={0}
           imageZoom={1}
+          nameCurveRadius={playerCount === 2 ? 50 : 45}
           onClick={rollNow}
         />
       </div>
@@ -797,6 +798,7 @@ export default function CrazyDiceDuel() {
               imageScale={leaders.includes(i + 1) ? 1.1 : 1}
               imageYOffset={playerCount === 2 ? 4 : 0}
               imageZoom={1}
+              nameCurveRadius={playerCount === 2 ? 50 : 45}
               onClick={() => {
                 if (current === i + 1) setTrigger((t) => t + 1);
               }}
