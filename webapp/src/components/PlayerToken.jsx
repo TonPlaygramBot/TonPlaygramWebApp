@@ -2,7 +2,7 @@ import React from "react";
 import HexPrismToken from "./HexPrismToken.jsx";
 import { getAvatarUrl } from "../utils/avatarUtils.js";
 
-export default function PlayerToken({ type = "normal", color, topColor, photoUrl, className = "", rolling = false, active = false, photoOnly = false }) {
+export default function PlayerToken({ type = "normal", color, topColor, photoUrl, className = "", rolling = false, active = false, photoOnly = false, spin = true }) {
   let tokenColor = color;
   if (!tokenColor) {
     if (type === "ladder") tokenColor = "#86efac"; // green
@@ -32,6 +32,7 @@ export default function PlayerToken({ type = "normal", color, topColor, photoUrl
       className={className}
       rolling={rolling}
       active={active}
+      spin={spin}
     />
   );
 }
