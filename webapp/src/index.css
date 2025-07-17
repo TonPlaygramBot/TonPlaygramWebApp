@@ -388,8 +388,8 @@ input:focus {
 .board-token .token-photo {
   width: 3.4rem;
   height: 3.4rem;
-  /* Lower the photo a bit more so it sits better within each tile */
-  transform: translate(-50%, -40%) translateZ(15.2px)
+  /* Lower the photo further so it sits even closer to the tile */
+  transform: translate(-50%, -30%) translateZ(15.2px)
     rotateX(calc(var(--board-angle, 58deg) * -1 - 10deg));
 }
 
