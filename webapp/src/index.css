@@ -103,10 +103,10 @@ input:focus {
   bottom: -160px;
   z-index: -1;
   pointer-events: none;
-  /* Plain dark backdrop without extra glow */
-  background: #0f172a;
-  filter: none;
-  transform: none;
+  background: radial-gradient(circle at center, #164e63, #0f172a);
+  /* slightly brighter and scaled up */
+  filter: brightness(2.4);
+  transform: translateY(90px) scale(1.2);
 }
 
 /* Adjusted placement for Crazy Dice Duel */
@@ -389,8 +389,7 @@ input:focus {
   width: 3.4rem;
   height: 3.4rem;
   /* Position slightly lower and a touch to the right */
-  /* Move a bit further down on the board */
-  transform: translate(-45%, -10%) translateZ(15.2px)
+  transform: translate(-45%, -20%) translateZ(15.2px)
     rotateX(calc(var(--board-angle, 58deg) * -1 - 10deg));
 }
 
