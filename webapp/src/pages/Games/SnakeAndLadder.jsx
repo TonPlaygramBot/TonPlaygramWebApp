@@ -561,6 +561,7 @@ export default function SnakeAndLadder() {
         greeceLeaderSoundRef,
         turkeyLeaderSoundRef,
         ukraineLeaderSoundRef,
+        northKoreaLeaderSoundRef,
         badLuckSoundRef,
         cheerSoundRef,
         timerSoundRef,
@@ -769,6 +770,9 @@ export default function SnakeAndLadder() {
         } else if (avatar.includes('TurkeyLeader')) {
           turkeyLeaderSoundRef.current.currentTime = 0;
           turkeyLeaderSoundRef.current.play().catch(() => {});
+        } else if (avatar.includes('NorthKoreaLeader')) {
+          northKoreaLeaderSoundRef.current.currentTime = 0;
+          northKoreaLeaderSoundRef.current.play().catch(() => {});
         } else if (avatar.includes('UkraineLeader')) {
           ukraineLeaderSoundRef.current.currentTime = 0;
           ukraineLeaderSoundRef.current.play().catch(() => {});
@@ -917,6 +921,7 @@ export default function SnakeAndLadder() {
   const greeceLeaderSoundRef = useRef(null);
   const turkeyLeaderSoundRef = useRef(null);
   const ukraineLeaderSoundRef = useRef(null);
+  const northKoreaLeaderSoundRef = useRef(null);
   const badLuckSoundRef = useRef(null);
   const cheerSoundRef = useRef(null);
   const timerSoundRef = useRef(null);
@@ -963,7 +968,7 @@ export default function SnakeAndLadder() {
     bombSoundRef.current.volume = vol;
     usaLeaderSoundRef.current = new Audio("/assets/sounds/trumpspeach.mp3");
     usaLeaderSoundRef.current.volume = vol;
-    chinaLeaderSoundRef.current = new Audio("/assets/sounds/Chinese_Gong_Meme_Sound_Effect.mp3");
+    chinaLeaderSoundRef.current = new Audio("/assets/sounds/chingpingu.mp3");
     chinaLeaderSoundRef.current.volume = vol;
     russiaLeaderSoundRef.current = new Audio("/assets/sounds/Russia_edit._URA.mp3");
     russiaLeaderSoundRef.current.volume = vol;
@@ -977,6 +982,8 @@ export default function SnakeAndLadder() {
     turkeyLeaderSoundRef.current.volume = vol;
     ukraineLeaderSoundRef.current = new Audio("/assets/sounds/2FilesMerged_20250717_131957.mp3");
     ukraineLeaderSoundRef.current.volume = vol;
+    northKoreaLeaderSoundRef.current = new Audio("/assets/sounds/Chinese_Gong_Meme_Sound_Effect.mp3");
+    northKoreaLeaderSoundRef.current.volume = vol;
     badLuckSoundRef.current = new Audio(badLuckSound);
     badLuckSoundRef.current.volume = vol;
     cheerSoundRef.current = new Audio(cheerSound);
@@ -1001,6 +1008,7 @@ export default function SnakeAndLadder() {
       greeceLeaderSoundRef.current?.pause();
       turkeyLeaderSoundRef.current?.pause();
       ukraineLeaderSoundRef.current?.pause();
+      northKoreaLeaderSoundRef.current?.pause();
       badLuckSoundRef.current?.pause();
       cheerSoundRef.current?.pause();
       timerSoundRef.current?.pause();
@@ -1026,6 +1034,7 @@ export default function SnakeAndLadder() {
       greeceLeaderSoundRef,
       turkeyLeaderSoundRef,
       ukraineLeaderSoundRef,
+      northKoreaLeaderSoundRef,
       badLuckSoundRef,
       cheerSoundRef,
       timerSoundRef,
