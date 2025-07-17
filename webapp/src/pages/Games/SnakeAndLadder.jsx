@@ -464,18 +464,32 @@ function Board({
                 color="#16a34a"
                 topColor="#ff0000"
                 className="pot-token"
+                spin={false}
               />
-              <img
-                src={
-                  token === 'TON'
-                    ? '/assets/icons/TON.webp'
-                    : token === 'USDT'
-                    ? '/assets/icons/Usdt.webp'
-                    : '/assets/icons/TPCcoin_1.webp'
-                }
-                alt={token}
-                className="pot-icon"
-              />
+              <div className="pot-icon">
+                <img
+                  src={
+                    token === 'TON'
+                      ? '/assets/icons/TON.webp'
+                      : token === 'USDT'
+                        ? '/assets/icons/Usdt.webp'
+                        : '/assets/icons/TPCcoin_1.webp'
+                  }
+                  alt={token}
+                  className="coin-face front"
+                />
+                <img
+                  src={
+                    token === 'TON'
+                      ? '/assets/icons/TON.webp'
+                      : token === 'USDT'
+                        ? '/assets/icons/Usdt.webp'
+                        : '/assets/icons/TPCcoin_1.webp'
+                  }
+                  alt=""
+                  className="coin-face back"
+                />
+              </div>
               {players
                 .map((p, i) => ({ ...p, index: i }))
                 .filter((p) => p.position === FINAL_TILE)
@@ -2062,7 +2076,7 @@ export default function SnakeAndLadder() {
         onGift={() => setShowGift(true)}
       />
       {/* Player photos stacked vertically */}
-        <div className="fixed left-0 top-[45%] -translate-y-1/2 flex flex-col space-y-5 z-20">
+        <div className="fixed left-0 top-[45%] -translate-x-2 -translate-y-1/2 flex flex-col space-y-5 z-20">
         {players
           .map((p, i) => ({ ...p, index: i }))
           .map((p) => (

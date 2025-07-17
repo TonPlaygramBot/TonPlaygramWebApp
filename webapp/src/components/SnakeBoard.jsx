@@ -264,19 +264,32 @@ export default function SnakeBoard({
           >
             {tiles}
             <div className={`pot-cell ${highlight && highlight.cell === FINAL_TILE ? 'highlight' : ''}`}>
-              <PlayerToken color="#16a34a" topColor="#ff0000" className="pot-token" />
-              <img
-                src={
-                  token === 'TON'
-                    ? '/assets/icons/TON.webp'
-                    : token === 'USDT'
-                    ? '/assets/icons/Usdt.webp'
-                    : '/assets/icons/TPCcoin_1.webp'
-                }
-                
-                alt={token}
-                className="pot-icon"
+              <PlayerToken color="#16a34a" topColor="#ff0000" className="pot-token" spin={false} />
+              <div className="pot-icon">
+                <img
+                  src={
+                    token === 'TON'
+                      ? '/assets/icons/TON.webp'
+                      : token === 'USDT'
+                        ? '/assets/icons/Usdt.webp'
+                        : '/assets/icons/TPCcoin_1.webp'
+                  }
+
+                  alt={token}
+                  className="coin-face front"
                 />
+                <img
+                  src={
+                    token === 'TON'
+                      ? '/assets/icons/TON.webp'
+                      : token === 'USDT'
+                        ? '/assets/icons/Usdt.webp'
+                        : '/assets/icons/TPCcoin_1.webp'
+                  }
+                  alt=""
+                  className="coin-face back"
+                />
+              </div>
               {players
                 .map((p, i) => ({ ...p, index: i }))
                 .filter((p) => p.position === FINAL_TILE)

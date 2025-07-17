@@ -2,7 +2,7 @@ import { useRef, useEffect } from "react";
 import * as THREE from "three";
 import { getAvatarUrl } from '../utils/avatarUtils.js';
 
-export default function HexPrismToken({ color = "#008080", topColor, photoUrl, className = "", rolling = false, active = false }) {
+export default function HexPrismToken({ color = "#008080", topColor, photoUrl, className = "", rolling = false, active = false, spin = true }) {
   const mountRef = useRef(null);
 
   useEffect(() => {
@@ -66,7 +66,9 @@ export default function HexPrismToken({ color = "#008080", topColor, photoUrl, c
 
     let frameId;
     const animate = () => {
-      prism.rotation.y += 0.01;
+      if (spin) {
+        prism.rotation.y += 0.01;
+      }
       renderer.render(scene, camera);
       frameId = requestAnimationFrame(animate);
     };
@@ -91,7 +93,7 @@ export default function HexPrismToken({ color = "#008080", topColor, photoUrl, c
       bottomMaterial.dispose();
       renderer.dispose();
     };
-  }, [color, topColor]);
+  }, [color, topColor, spin]);
 
 
   return (
