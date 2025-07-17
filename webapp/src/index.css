@@ -355,7 +355,7 @@ input:focus {
   top: 50%;
   left: 50%;
   transform-style: preserve-3d;
-  transform: translate(-50%, -110%) translateZ(40px);
+  transform: translate(-50%, -100%) translateZ(40px);
   animation: coin-spin 3s linear infinite;
   pointer-events: none;
   z-index: 6;
@@ -369,19 +369,19 @@ input:focus {
   top: 0;
   object-fit: contain;
   backface-visibility: hidden;
-  transform: translate(-50%, -110%) translateZ(40px);
+  transform: translate(-50%, -100%) translateZ(40px);
 }
 
 .pot-icon .coin-face.back {
-  transform: translate(-50%, -110%) translateZ(40px) rotateY(180deg);
+  transform: translate(-50%, -100%) translateZ(40px) rotateY(180deg);
 }
 
 @keyframes coin-spin {
   from {
-    transform: translate(-50%, -110%) translateZ(40px) rotateY(0deg);
+    transform: translate(-50%, -100%) translateZ(40px) rotateY(0deg);
   }
   to {
-    transform: translate(-50%, -110%) translateZ(40px) rotateY(360deg);
+    transform: translate(-50%, -100%) translateZ(40px) rotateY(360deg);
   }
 }
 
@@ -414,7 +414,7 @@ input:focus {
   width: 3.4rem;
   height: 3.4rem;
   /* Position slightly lower and a touch to the right */
-  transform: translate(-45%, -10%) translateZ(15.2px)
+  transform: translate(-45%, -5%) translateZ(15.2px)
     rotateX(calc(var(--board-angle, 58deg) * -1 - 10deg));
 }
 
