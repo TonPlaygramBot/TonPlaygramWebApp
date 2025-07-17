@@ -96,12 +96,30 @@ export default function CrazyDiceDuel() {
   const initialPlayers = useMemo(() => {
     const randFlag = () =>
       FLAG_EMOJIS[Math.floor(Math.random() * FLAG_EMOJIS.length)];
-    const uniqueLeaders = [...LEADER_AVATARS]
-      .sort(() => Math.random() - 0.5)
-      .slice(0, playerCount - 1);
-    const uniquePhotos = [...LEADER_PHOTO_AVATARS]
-      .sort(() => Math.random() - 0.5)
-      .slice(0, playerCount - 1);
+    let uniqueLeaders = [...LEADER_AVATARS];
+    let uniquePhotos = [...LEADER_PHOTO_AVATARS];
+
+    if (
+      playerCount === 4 &&
+      aiCount === 3 &&
+      avatarType === 'leaders' &&
+      token === 'TPC' &&
+      amount === 10000
+    ) {
+      uniqueLeaders = [
+        '/assets/icons/UsaLeader.webp',
+        '/assets/icons/RussiaLeader.webp',
+        '/assets/icons/ChinaLeader.webp',
+      ];
+      uniquePhotos = uniqueLeaders.map((p) => p.replace('.webp', '.jpg'));
+    } else {
+      uniqueLeaders = uniqueLeaders
+        .sort(() => Math.random() - 0.5)
+        .slice(0, playerCount - 1);
+      uniquePhotos = uniquePhotos
+        .sort(() => Math.random() - 0.5)
+        .slice(0, playerCount - 1);
+    }
     return Array.from({ length: playerCount }, (_, i) => ({
       score: 0,
       rolls: 0,
