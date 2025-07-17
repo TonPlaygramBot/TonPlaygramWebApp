@@ -1092,10 +1092,22 @@ export default function SnakeAndLadder() {
     setAiPositions(Array(aiCount).fill(0));
     setPlayerDiceCounts(Array(aiCount + 1).fill(2));
     if (avatarParam === 'leaders') {
-      const unique = [...LEADER_AVATARS]
-        .sort(() => Math.random() - 0.5)
-        .slice(0, aiCount);
-      setAiAvatars(unique);
+      const isHighStake =
+        aiCount === 3 &&
+        String(t).toUpperCase() === 'TPC' &&
+        Number(amt) === 10000;
+      if (isHighStake) {
+        setAiAvatars([
+          '/assets/icons/UsaLeader.webp',
+          '/assets/icons/RussiaLeader.webp',
+          '/assets/icons/ChinaLeader.webp',
+        ]);
+      } else {
+        const unique = [...LEADER_AVATARS]
+          .sort(() => Math.random() - 0.5)
+          .slice(0, aiCount);
+        setAiAvatars(unique);
+      }
     } else {
       setAiAvatars(
         Array.from({ length: aiCount }, () =>
