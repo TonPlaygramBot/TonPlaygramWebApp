@@ -87,7 +87,7 @@ export default function TasksCard() {
 
   const load = async () => {
     const data = await listTasks(telegramId);
-    const tasksList = data.tasks || data;
+    const tasksList = (data.tasks || data).filter((t) => !t.hideOnHome);
     setTasks(tasksList);
     if (data.version) {
       const seen = localStorage.getItem('tasksVersion');
