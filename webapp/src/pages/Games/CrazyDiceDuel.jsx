@@ -18,7 +18,7 @@ import {
   avatarToName,
 } from '../../utils/avatarUtils.js';
 import { FLAG_EMOJIS } from '../../utils/flagEmojis.js';
-import { LEADER_AVATARS } from '../../utils/leaderAvatars.js';
+import { LEADER_AVATARS, LEADER_PHOTO_AVATARS } from '../../utils/leaderAvatars.js';
 import { chatBeep, timerBeep } from '../../assets/soundData.js';
 import { getGameVolume, isGameMuted } from '../../utils/sound.js';
 import { giftSounds } from '../../utils/giftSounds.js';
@@ -99,6 +99,9 @@ export default function CrazyDiceDuel() {
     const uniqueLeaders = [...LEADER_AVATARS]
       .sort(() => Math.random() - 0.5)
       .slice(0, playerCount - 1);
+    const uniquePhotos = [...LEADER_PHOTO_AVATARS]
+      .sort(() => Math.random() - 0.5)
+      .slice(0, playerCount - 1);
     return Array.from({ length: playerCount }, (_, i) => ({
       score: 0,
       rolls: 0,
@@ -106,11 +109,13 @@ export default function CrazyDiceDuel() {
       photoUrl:
         i === 0
           ? loadAvatar() || '/assets/icons/profile.svg'
-          : aiCount > 0
-            ? avatarType === 'leaders'
-              ? uniqueLeaders[i - 1]
-              : randFlag()
-            : `/assets/avatars/avatar${(i % 5) + 1}.svg`,
+          : playerCount === 3 && aiCount === 0
+            ? uniquePhotos[i - 1]
+            : aiCount > 0
+              ? avatarType === 'leaders'
+                ? uniqueLeaders[i - 1]
+                : randFlag()
+              : `/assets/avatars/avatar${(i % 5) + 1}.svg`,
       color: COLORS[i % COLORS.length],
     }));
   }, [playerCount, aiCount, avatarType]);
@@ -773,12 +778,12 @@ export default function CrazyDiceDuel() {
 
         if (playerCount === 3) {
           if (i === 0) {
-            // Nudge the top left opponent slightly left and higher
-            wrapperStyle = { ...gridPoint(3.0, 5.8), right: 'auto' };
-            avatarSize = 1.35;
+            // Move the top left opponent slightly right and enlarge
+            wrapperStyle = { ...gridPoint(3.6, 5.8), right: 'auto' };
+            avatarSize = 1.45;
           } else if (i === 1) {
-            // Move the top right opponent slightly further left
-            wrapperStyle = { ...gridPoint(13.2, 6.2), right: 'auto' };
+            // Lower the top right opponent a bit
+            wrapperStyle = { ...gridPoint(13.2, 6.7), right: 'auto' };
             avatarSize = 1.35;
           }
         }
