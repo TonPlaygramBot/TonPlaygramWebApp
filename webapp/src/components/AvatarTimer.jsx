@@ -16,6 +16,8 @@ export default function AvatarTimer({
   index,
   size = 1,
   imageScale = 1,
+  imageYOffset = 0,
+  imageZoom = 1,
   scoreStyle = {},
   rollHistoryStyle = {},
 }) {
@@ -40,7 +42,7 @@ export default function AvatarTimer({
         style={{
           borderColor: color || '#fde047',
           boxShadow: isTurn ? `0 0 6px ${color || '#fde047'}` : undefined,
-          transform: `scale(${imageScale})`,
+          transform: `translateY(${imageYOffset}%) scale(${imageScale * imageZoom})`,
         }}
       />
       {rank != null && (

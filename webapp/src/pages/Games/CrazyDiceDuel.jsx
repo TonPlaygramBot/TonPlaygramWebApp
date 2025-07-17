@@ -705,6 +705,8 @@ export default function CrazyDiceDuel() {
             playerCount === 3 ? 1.2 : playerCount > 3 ? 1.1 : 1
           }
           imageScale={leaders.includes(0) ? 1.1 : 1}
+          imageYOffset={0}
+          imageZoom={1}
           onClick={rollNow}
         />
       </div>
@@ -779,6 +781,8 @@ export default function CrazyDiceDuel() {
               rollHistoryStyle={historyStyle}
               size={avatarSize}
               imageScale={leaders.includes(i + 1) ? 1.1 : 1}
+              imageYOffset={playerCount === 2 ? 4 : 0}
+              imageZoom={playerCount === 2 ? 1.05 : 1}
               onClick={() => {
                 if (current === i + 1) setTrigger((t) => t + 1);
               }}
