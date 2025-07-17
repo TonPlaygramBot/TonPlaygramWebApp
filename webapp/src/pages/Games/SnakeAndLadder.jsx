@@ -600,8 +600,7 @@ export default function SnakeAndLadder() {
   const [diceCells, setDiceCells] = useState({});
   const [bonusDice, setBonusDice] = useState(0);
   const [rewardDice, setRewardDice] = useState(0);
-  // Track dice count for each player individually
-  const [diceCounts, setDiceCounts] = useState([]);
+  const [diceCount, setDiceCount] = useState(2);
   const [gameOver, setGameOver] = useState(false);
   const [ai, setAi] = useState(0);
   const [aiPositions, setAiPositions] = useState([]);
@@ -986,7 +985,6 @@ export default function SnakeAndLadder() {
     }
     localStorage.removeItem(`snakeGameState_${aiCount}`);
     setAiPositions(Array(aiCount).fill(0));
-    setDiceCounts(Array(aiCount + 1).fill(2));
     if (avatarParam === 'leaders') {
       const unique = [...LEADER_AVATARS]
         .sort(() => Math.random() - 0.5)
@@ -1388,7 +1386,6 @@ export default function SnakeAndLadder() {
         } else {
           setPos(data.pos ?? 0);
           setAiPositions(data.aiPositions ?? Array(ai).fill(0));
-          setDiceCounts(data.diceCounts ?? Array(ai + 1).fill(2));
           setCurrentTurn(data.currentTurn ?? 0);
           setDiceCells(data.diceCells ?? {});
           setSnakes(limit(data.snakes ?? {}));
@@ -1421,13 +1418,12 @@ export default function SnakeAndLadder() {
       snakeOffsets,
       ladderOffsets,
       ranking,
-      diceCounts,
       gameOver,
       aiAvatars,
       timestamp: Date.now(),
     };
     localStorage.setItem(key, JSON.stringify(data));
-  }, [ai, pos, aiPositions, currentTurn, diceCells, snakes, ladders, snakeOffsets, ladderOffsets, ranking, diceCounts, gameOver]);
+  }, [ai, pos, aiPositions, currentTurn, diceCells, snakes, ladders, snakeOffsets, ladderOffsets, ranking, gameOver]);
 
   // Ensure stored state is cleared when leaving the page
   useEffect(() => {
@@ -1463,13 +1459,12 @@ export default function SnakeAndLadder() {
     setRollColor(playerColors[0] || '#fff');
 
     // Predict capture for laugh sound
-    const playerDice = diceCounts[0] ?? 2;
     let preview = pos;
     if (preview === 0) {
       if (rolledSix) preview = 1;
-    } else if (preview === 100 && playerDice === 1) {
+    } else if (preview === 100 && diceCount === 1) {
       if (value === 1) preview = FINAL_TILE;
-    } else if (preview !== 100 || playerDice !== 2) {
+    } else if (preview !== 100 || diceCount !== 2) {
       if (preview + value <= FINAL_TILE) preview = preview + value;
     }
     if (snakes[preview] != null) preview = Math.max(0, snakes[preview]);
@@ -1500,14 +1495,9 @@ export default function SnakeAndLadder() {
       let current = pos;
       let target = current;
 
-      const playerDiceCurrent = diceCounts[0] ?? 2;
-      if (current === 100 && playerDiceCurrent === 2) {
+      if (current === 100 && diceCount === 2) {
         if (rolledSix) {
-          setDiceCounts(d => {
-            const arr = [...d];
-            arr[0] = 1;
-            return arr;
-          });
+          setDiceCount(1);
           setMessage("Six rolled! One die removed.");
         } else {
           setMessage("Need a 6 to remove a die.");
@@ -1516,7 +1506,7 @@ export default function SnakeAndLadder() {
         setDiceVisible(true);
         setMoving(false);
         return;
-      } else if (current === 100 && playerDiceCurrent === 1) {
+      } else if (current === 100 && diceCount === 1) {
         if (value === 1) {
           target = FINAL_TILE;
         } else {
@@ -1623,11 +1613,7 @@ export default function SnakeAndLadder() {
           setCelebrate(true);
           setTimeout(() => {
             setCelebrate(false);
-            setDiceCounts(d => {
-              const arr = [...d];
-              arr[0] = 2;
-              return arr;
-            });
+            setDiceCount(2);
           }, 2000);
         }
         let extraTurn = false;
@@ -1685,15 +1671,12 @@ export default function SnakeAndLadder() {
     const doubleSix = Array.isArray(vals) && vals[0] === 6 && vals[1] === 6;
     setRollColor(playerColors[index] || '#fff');
 
-    const aiDice = diceCounts[index] ?? 2;
     let preview = aiPositions[index - 1];
     if (preview === 0) {
       if (rolledSix) preview = 1;
-    } else if (preview === 100 && aiDice === 1) {
+    } else if (preview === 100) {
       if (value === 1) preview = FINAL_TILE;
-    } else if (preview !== 100 || aiDice !== 2) {
-      if (preview + value <= FINAL_TILE) preview = preview + value;
-    }
+    } else if (preview + value <= FINAL_TILE) {
       preview = preview + value;
     }
     if (snakes[preview] != null) preview = Math.max(0, snakes[preview]);
@@ -1726,20 +1709,7 @@ export default function SnakeAndLadder() {
         target = 1;
         if (!muted) cheerSoundRef.current?.play().catch(() => {});
       }
-    } else if (current === 100 && aiDice === 2) {
-      if (rolledSix) {
-        setDiceCounts(d => {
-          const arr = [...d];
-          arr[index] = 1;
-          return arr;
-        });
-      }
-      setTurnMessage(<>{playerName(index)} rolling...</>);
-      setDiceVisible(true);
-      setMoving(false);
-      setTimeout(() => triggerAIRoll(index), 1800);
-      return;
-    } else if (current === 100 && aiDice === 1) {
+    } else if (current === 100) {
       if (value === 1) target = FINAL_TILE;
     } else if (current + value <= FINAL_TILE) {
       target = current + value;
@@ -2272,7 +2242,7 @@ export default function SnakeAndLadder() {
               currentTurn === 0 &&
               !moving
             }
-            numDice={(diceCounts[currentTurn] ?? 2) + bonusDice}
+            numDice={diceCount + bonusDice}
             trigger={aiRollingIndex != null ? aiRollTrigger : playerAutoRolling ? playerRollTrigger : undefined}
             showButton={false}
             muted={muted}
