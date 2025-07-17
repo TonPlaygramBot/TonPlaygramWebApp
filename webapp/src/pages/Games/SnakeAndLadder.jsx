@@ -556,6 +556,11 @@ export default function SnakeAndLadder() {
         usaLeaderSoundRef,
         chinaLeaderSoundRef,
         russiaLeaderSoundRef,
+        italyLeaderSoundRef,
+        albaniaLeaderSoundRef,
+        greeceLeaderSoundRef,
+        turkeyLeaderSoundRef,
+        ukraineLeaderSoundRef,
         badLuckSoundRef,
         cheerSoundRef,
         timerSoundRef,
@@ -752,6 +757,21 @@ export default function SnakeAndLadder() {
         } else if (avatar.includes('RussiaLeader')) {
           russiaLeaderSoundRef.current.currentTime = 0;
           russiaLeaderSoundRef.current.play().catch(() => {});
+        } else if (avatar.includes('ItalyLeader')) {
+          italyLeaderSoundRef.current.currentTime = 0;
+          italyLeaderSoundRef.current.play().catch(() => {});
+        } else if (avatar.includes('AlbaniaLeader')) {
+          albaniaLeaderSoundRef.current.currentTime = 0;
+          albaniaLeaderSoundRef.current.play().catch(() => {});
+        } else if (avatar.includes('GreeceLeader')) {
+          greeceLeaderSoundRef.current.currentTime = 0;
+          greeceLeaderSoundRef.current.play().catch(() => {});
+        } else if (avatar.includes('TurkeyLeader')) {
+          turkeyLeaderSoundRef.current.currentTime = 0;
+          turkeyLeaderSoundRef.current.play().catch(() => {});
+        } else if (avatar.includes('UkraineLeader')) {
+          ukraineLeaderSoundRef.current.currentTime = 0;
+          ukraineLeaderSoundRef.current.play().catch(() => {});
         }
       }
       if (cell <= 4 && !muted) {
@@ -892,6 +912,11 @@ export default function SnakeAndLadder() {
   const usaLeaderSoundRef = useRef(null);
   const chinaLeaderSoundRef = useRef(null);
   const russiaLeaderSoundRef = useRef(null);
+  const italyLeaderSoundRef = useRef(null);
+  const albaniaLeaderSoundRef = useRef(null);
+  const greeceLeaderSoundRef = useRef(null);
+  const turkeyLeaderSoundRef = useRef(null);
+  const ukraineLeaderSoundRef = useRef(null);
   const badLuckSoundRef = useRef(null);
   const cheerSoundRef = useRef(null);
   const timerSoundRef = useRef(null);
@@ -942,6 +967,16 @@ export default function SnakeAndLadder() {
     chinaLeaderSoundRef.current.volume = vol;
     russiaLeaderSoundRef.current = new Audio("/assets/sounds/Russia_edit._URA.mp3");
     russiaLeaderSoundRef.current.volume = vol;
+    italyLeaderSoundRef.current = new Audio("/assets/sounds/meloni preident 2.mp3");
+    italyLeaderSoundRef.current.volume = vol;
+    albaniaLeaderSoundRef.current = new Audio("/assets/sounds/Sorry_for_being_balkanik_shorts_youtubeshorts_motorcycle_motoguzziv9_motoguzzi_b.mp3");
+    albaniaLeaderSoundRef.current.volume = vol;
+    greeceLeaderSoundRef.current = new Audio("/assets/sounds/potukseri.mp3");
+    greeceLeaderSoundRef.current.volume = vol;
+    turkeyLeaderSoundRef.current = new Audio("/assets/sounds/erdogan.mp3");
+    turkeyLeaderSoundRef.current.volume = vol;
+    ukraineLeaderSoundRef.current = new Audio("/assets/sounds/2FilesMerged_20250717_131957.mp3");
+    ukraineLeaderSoundRef.current.volume = vol;
     badLuckSoundRef.current = new Audio(badLuckSound);
     badLuckSoundRef.current.volume = vol;
     cheerSoundRef.current = new Audio(cheerSound);
@@ -961,6 +996,11 @@ export default function SnakeAndLadder() {
       usaLeaderSoundRef.current?.pause();
       chinaLeaderSoundRef.current?.pause();
       russiaLeaderSoundRef.current?.pause();
+      italyLeaderSoundRef.current?.pause();
+      albaniaLeaderSoundRef.current?.pause();
+      greeceLeaderSoundRef.current?.pause();
+      turkeyLeaderSoundRef.current?.pause();
+      ukraineLeaderSoundRef.current?.pause();
       badLuckSoundRef.current?.pause();
       cheerSoundRef.current?.pause();
       timerSoundRef.current?.pause();
@@ -981,6 +1021,11 @@ export default function SnakeAndLadder() {
       usaLeaderSoundRef,
       chinaLeaderSoundRef,
       russiaLeaderSoundRef,
+      italyLeaderSoundRef,
+      albaniaLeaderSoundRef,
+      greeceLeaderSoundRef,
+      turkeyLeaderSoundRef,
+      ukraineLeaderSoundRef,
       badLuckSoundRef,
       cheerSoundRef,
       timerSoundRef,
