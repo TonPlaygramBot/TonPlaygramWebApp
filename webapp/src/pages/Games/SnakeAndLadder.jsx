@@ -2062,7 +2062,7 @@ export default function SnakeAndLadder() {
         onGift={() => setShowGift(true)}
       />
       {/* Player photos stacked vertically */}
-        <div className="fixed left-0 top-[40%] -translate-y-1/2 flex flex-col space-y-5 z-20">
+        <div className="fixed left-0 top-[45%] -translate-y-1/2 flex flex-col space-y-5 z-20">
         {players
           .map((p, i) => ({ ...p, index: i }))
           .map((p) => (
