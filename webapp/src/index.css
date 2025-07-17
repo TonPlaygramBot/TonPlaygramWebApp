@@ -389,7 +389,7 @@ input:focus {
   width: 3.4rem;
   height: 3.4rem;
   /* Position slightly lower and a touch to the right */
-  transform: translate(-45%, -20%) translateZ(15.2px)
+  transform: translate(-45%, -10%) translateZ(15.2px)
     rotateX(calc(var(--board-angle, 58deg) * -1 - 10deg));
 }
 
