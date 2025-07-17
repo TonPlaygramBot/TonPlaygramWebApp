@@ -388,8 +388,8 @@ input:focus {
 .board-token .token-photo {
   width: 3.4rem;
   height: 3.4rem;
-  /* Lower the photo further so it sits even closer to the tile */
-  transform: translate(-50%, -30%) translateZ(15.2px)
+  /* Position slightly lower and a touch to the right */
+  transform: translate(-45%, -20%) translateZ(15.2px)
     rotateX(calc(var(--board-angle, 58deg) * -1 - 10deg));
 }
 
@@ -688,22 +688,27 @@ input:focus {
 
 .board-cell.highlight {
   box-shadow: 0 0 10px 4px rgba(250, 204, 21, 0.8);
+  position: relative;
 }
 
 .board-cell.normal-highlight {
   background-color: #fde047; /* yellow-300 */
+  --glow-color: rgba(253, 224, 71, 0.6);
 }
 
 .board-cell.path-highlight {
   background-color: #fde047;
+  --glow-color: rgba(253, 224, 71, 0.6);
 }
 
 .board-cell.forward-highlight {
   background-color: #fde047;
+  --glow-color: rgba(253, 224, 71, 0.6);
 }
 
 .board-cell.back-highlight {
   background-color: #fca5a5;
+  --glow-color: rgba(252, 165, 165, 0.6);
 }
 
 .board-cell.forward-highlight .cell-marker,
@@ -736,14 +741,17 @@ input:focus {
 
 .board-cell.ladder-highlight {
   background-color: #86efac; /* green-300 */
+  --glow-color: rgba(134, 239, 172, 0.6);
 }
 
 .board-cell.snake-highlight {
   background-color: #fca5a5; /* red-300 */
+  --glow-color: rgba(252, 165, 165, 0.6);
 }
 
 .board-cell.ladder-cell.ladder-highlight {
   background-color: #86efac; /* green-300 */
+  --glow-color: rgba(134, 239, 172, 0.6);
 }
 
 .board-cell.snake-highlight .cell-marker,
@@ -763,6 +771,30 @@ input:focus {
 
 .board-cell.snake-cell.snake-highlight {
   background-color: #fca5a5; /* red-300 */
+  --glow-color: rgba(252, 165, 165, 0.6);
+}
+
+/* Glow effect beneath highlighted tiles */
+.board-cell.normal-highlight::before,
+.board-cell.path-highlight::before,
+.board-cell.forward-highlight::before,
+.board-cell.back-highlight::before,
+.board-cell.ladder-highlight::before,
+.board-cell.ladder-cell.ladder-highlight::before,
+.board-cell.snake-highlight::before,
+.board-cell.snake-cell.snake-highlight::before {
+  content: "";
+  position: absolute;
+  top: 100%;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  border-radius: inherit;
+  background: radial-gradient(circle at center, var(--glow-color, rgba(253, 224, 71, 0.6)) 0%, transparent 80%);
+  transform: rotateX(calc(var(--board-angle, 58deg))) translateZ(-2px);
+  pointer-events: none;
+  filter: blur(6px);
+  opacity: 0.8;
 }
 
 /* Indicate ladder or snake on the board */
