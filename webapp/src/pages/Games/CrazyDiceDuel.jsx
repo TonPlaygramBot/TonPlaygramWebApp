@@ -677,7 +677,14 @@ export default function CrazyDiceDuel() {
         style={{
           bottom: 'auto',
           /* Raise the bottom player slightly when facing two opponents */
-          ...gridPoint(10, playerCount === 3 ? 25.5 : 26.5),
+          ...gridPoint(
+            10,
+            playerCount === 3
+              ? 25.5
+              : playerCount === 4
+                ? 26
+                : 26.5,
+          ),
           transform: 'translate(-50%, -50%)',
         }}
       >
