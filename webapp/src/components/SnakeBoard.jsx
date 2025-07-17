@@ -264,7 +264,7 @@ export default function SnakeBoard({
           >
             {tiles}
             <div className={`pot-cell ${highlight && highlight.cell === FINAL_TILE ? 'highlight' : ''}`}>
-              <PlayerToken color="#16a34a" topColor="#ff0000" className="pot-token" spin={false} />
+              <PlayerToken color="#16a34a" topColor="#ff0000" className="pot-token" />
               <div className="pot-icon">
                 <img
                   src={
