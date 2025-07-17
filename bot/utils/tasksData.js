@@ -1,4 +1,4 @@
-export const TASKS_VERSION = 3;
+export const TASKS_VERSION = 4;
 
 export const TASKS = [
 
@@ -49,6 +49,22 @@ export const TASKS = [
     reward: 2000,
     icon: 'tiktok',
     link: 'https://vt.tiktok.com/ZSBXkX8pu/'
+  },
+
+  {
+    id: 'boost_tiktok_1',
+    description: 'Like, share & comment on TikTok',
+    reward: 2000,
+    icon: 'tiktok',
+    link: 'https://vt.tiktok.com/ZSBnaAGTQ/'
+  },
+
+  {
+    id: 'boost_tiktok_2',
+    description: 'Like, share & comment on TikTok',
+    reward: 2000,
+    icon: 'tiktok',
+    link: 'https://vt.tiktok.com/ZSBnagc3g/'
   },
 
   {
