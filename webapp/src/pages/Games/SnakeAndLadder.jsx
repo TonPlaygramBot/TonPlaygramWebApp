@@ -19,6 +19,9 @@ import {
   chatBeep,
   italyLeaderCaptureSound,
   albaniaLeaderCaptureSound,
+  usaLeaderCaptureSound,
+  chinaLeaderCaptureSound,
+  russiaLeaderCaptureSound,
 } from "../../assets/soundData.js";
 import { AVATARS } from "../../components/AvatarPickerModal.jsx";
 import { LEADER_AVATARS } from "../../utils/leaderAvatars.js";
@@ -557,6 +560,11 @@ export default function SnakeAndLadder() {
         bombSoundRef,
         badLuckSoundRef,
         cheerSoundRef,
+        italyLeaderSoundRef,
+        albaniaLeaderSoundRef,
+        usaLeaderSoundRef,
+        chinaLeaderSoundRef,
+        russiaLeaderSoundRef,
         timerSoundRef,
       ].forEach((r) => {
         if (r.current) r.current.volume = vol;
@@ -741,6 +749,15 @@ export default function SnakeAndLadder() {
         } else if (avatarName === 'albania') {
           albaniaLeaderSoundRef.current.currentTime = 0;
           albaniaLeaderSoundRef.current.play().catch(() => {});
+        } else if (avatarName === 'usa') {
+          usaLeaderSoundRef.current.currentTime = 0;
+          usaLeaderSoundRef.current.play().catch(() => {});
+        } else if (avatarName === 'china') {
+          chinaLeaderSoundRef.current.currentTime = 0;
+          chinaLeaderSoundRef.current.play().catch(() => {});
+        } else if (avatarName === 'russia') {
+          russiaLeaderSoundRef.current.currentTime = 0;
+          russiaLeaderSoundRef.current.play().catch(() => {});
         }
       }
       if (cell <= 4 && !muted) {
@@ -882,6 +899,9 @@ export default function SnakeAndLadder() {
   const cheerSoundRef = useRef(null);
   const italyLeaderSoundRef = useRef(null);
   const albaniaLeaderSoundRef = useRef(null);
+  const usaLeaderSoundRef = useRef(null);
+  const chinaLeaderSoundRef = useRef(null);
+  const russiaLeaderSoundRef = useRef(null);
   const timerSoundRef = useRef(null);
   const timerRef = useRef(null);
   const aiRollTimeoutRef = useRef(null);
@@ -932,6 +952,12 @@ export default function SnakeAndLadder() {
     italyLeaderSoundRef.current.volume = vol;
     albaniaLeaderSoundRef.current = new Audio(albaniaLeaderCaptureSound);
     albaniaLeaderSoundRef.current.volume = vol;
+    usaLeaderSoundRef.current = new Audio(usaLeaderCaptureSound);
+    usaLeaderSoundRef.current.volume = vol;
+    chinaLeaderSoundRef.current = new Audio(chinaLeaderCaptureSound);
+    chinaLeaderSoundRef.current.volume = vol;
+    russiaLeaderSoundRef.current = new Audio(russiaLeaderCaptureSound);
+    russiaLeaderSoundRef.current.volume = vol;
     timerSoundRef.current = new Audio(timerBeep);
     timerSoundRef.current.volume = vol;
     return () => {
@@ -948,6 +974,9 @@ export default function SnakeAndLadder() {
       cheerSoundRef.current?.pause();
       italyLeaderSoundRef.current?.pause();
       albaniaLeaderSoundRef.current?.pause();
+      usaLeaderSoundRef.current?.pause();
+      chinaLeaderSoundRef.current?.pause();
+      russiaLeaderSoundRef.current?.pause();
       timerSoundRef.current?.pause();
     };
   }, []);
@@ -967,6 +996,9 @@ export default function SnakeAndLadder() {
       cheerSoundRef,
       italyLeaderSoundRef,
       albaniaLeaderSoundRef,
+      usaLeaderSoundRef,
+      chinaLeaderSoundRef,
+      russiaLeaderSoundRef,
       timerSoundRef,
     ].forEach((r) => {
       if (r.current) r.current.muted = muted;
