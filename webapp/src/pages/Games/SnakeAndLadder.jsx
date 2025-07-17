@@ -17,6 +17,8 @@ import {
   badLuckSound,
   cheerSound,
   chatBeep,
+  italyLeaderCaptureSound,
+  albaniaLeaderCaptureSound,
 } from "../../assets/soundData.js";
 import { AVATARS } from "../../components/AvatarPickerModal.jsx";
 import { LEADER_AVATARS } from "../../utils/leaderAvatars.js";
@@ -722,6 +724,8 @@ export default function SnakeAndLadder() {
 
   const capturePieces = (cell, mover) => {
     const victims = [];
+    const avatarSrc = mover === 0 ? photoUrl : aiAvatars[mover - 1];
+    const avatarName = avatarToName(avatarSrc).toLowerCase();
     if (mover !== 0 && pos === cell) victims.push(0);
     aiPositions.forEach((p, i) => {
       const idx = i + 1;
@@ -731,6 +735,13 @@ export default function SnakeAndLadder() {
       if (!muted) {
         bombSoundRef.current.currentTime = 0;
         bombSoundRef.current.play().catch(() => {});
+        if (avatarName === 'italy') {
+          italyLeaderSoundRef.current.currentTime = 0;
+          italyLeaderSoundRef.current.play().catch(() => {});
+        } else if (avatarName === 'albania') {
+          albaniaLeaderSoundRef.current.currentTime = 0;
+          albaniaLeaderSoundRef.current.play().catch(() => {});
+        }
       }
       if (cell <= 4 && !muted) {
         setTimeout(() => {
@@ -869,6 +880,8 @@ export default function SnakeAndLadder() {
   const bombSoundRef = useRef(null);
   const badLuckSoundRef = useRef(null);
   const cheerSoundRef = useRef(null);
+  const italyLeaderSoundRef = useRef(null);
+  const albaniaLeaderSoundRef = useRef(null);
   const timerSoundRef = useRef(null);
   const timerRef = useRef(null);
   const aiRollTimeoutRef = useRef(null);
@@ -915,6 +928,10 @@ export default function SnakeAndLadder() {
     badLuckSoundRef.current.volume = vol;
     cheerSoundRef.current = new Audio(cheerSound);
     cheerSoundRef.current.volume = vol;
+    italyLeaderSoundRef.current = new Audio(italyLeaderCaptureSound);
+    italyLeaderSoundRef.current.volume = vol;
+    albaniaLeaderSoundRef.current = new Audio(albaniaLeaderCaptureSound);
+    albaniaLeaderSoundRef.current.volume = vol;
     timerSoundRef.current = new Audio(timerBeep);
     timerSoundRef.current.volume = vol;
     return () => {
@@ -929,6 +946,8 @@ export default function SnakeAndLadder() {
       bombSoundRef.current?.pause();
       badLuckSoundRef.current?.pause();
       cheerSoundRef.current?.pause();
+      italyLeaderSoundRef.current?.pause();
+      albaniaLeaderSoundRef.current?.pause();
       timerSoundRef.current?.pause();
     };
   }, []);
@@ -946,6 +965,8 @@ export default function SnakeAndLadder() {
       bombSoundRef,
       badLuckSoundRef,
       cheerSoundRef,
+      italyLeaderSoundRef,
+      albaniaLeaderSoundRef,
       timerSoundRef,
     ].forEach((r) => {
       if (r.current) r.current.muted = muted;
