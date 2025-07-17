@@ -553,6 +553,9 @@ export default function SnakeAndLadder() {
         hahaSoundRef,
         oldSnakeSoundRef,
         bombSoundRef,
+        usaLeaderSoundRef,
+        chinaLeaderSoundRef,
+        russiaLeaderSoundRef,
         badLuckSoundRef,
         cheerSoundRef,
         timerSoundRef,
@@ -720,6 +723,14 @@ export default function SnakeAndLadder() {
     <span style={{ color: playerColors[idx] }}>{getPlayerName(idx)}</span>
   );
 
+  const getPlayerAvatar = (idx) => {
+    if (idx === 0) return photoUrl;
+    if (isMultiplayer) {
+      return mpPlayers[idx]?.photoUrl || '';
+    }
+    return aiAvatars[idx - 1] || '';
+  };
+
   const capturePieces = (cell, mover) => {
     const victims = [];
     if (mover !== 0 && pos === cell) victims.push(0);
@@ -731,6 +742,17 @@ export default function SnakeAndLadder() {
       if (!muted) {
         bombSoundRef.current.currentTime = 0;
         bombSoundRef.current.play().catch(() => {});
+        const avatar = getPlayerAvatar(mover);
+        if (avatar.includes('UsaLeader')) {
+          usaLeaderSoundRef.current.currentTime = 0;
+          usaLeaderSoundRef.current.play().catch(() => {});
+        } else if (avatar.includes('ChinaLeader')) {
+          chinaLeaderSoundRef.current.currentTime = 0;
+          chinaLeaderSoundRef.current.play().catch(() => {});
+        } else if (avatar.includes('RussiaLeader')) {
+          russiaLeaderSoundRef.current.currentTime = 0;
+          russiaLeaderSoundRef.current.play().catch(() => {});
+        }
       }
       if (cell <= 4 && !muted) {
         setTimeout(() => {
@@ -867,6 +889,9 @@ export default function SnakeAndLadder() {
   const yabbaSoundRef = useRef(null);
   const hahaSoundRef = useRef(null);
   const bombSoundRef = useRef(null);
+  const usaLeaderSoundRef = useRef(null);
+  const chinaLeaderSoundRef = useRef(null);
+  const russiaLeaderSoundRef = useRef(null);
   const badLuckSoundRef = useRef(null);
   const cheerSoundRef = useRef(null);
   const timerSoundRef = useRef(null);
@@ -911,6 +936,12 @@ export default function SnakeAndLadder() {
     hahaSoundRef.current.volume = vol;
     bombSoundRef.current = new Audio(bombSound);
     bombSoundRef.current.volume = vol;
+    usaLeaderSoundRef.current = new Audio("/assets/sounds/trumpspeach.mp3");
+    usaLeaderSoundRef.current.volume = vol;
+    chinaLeaderSoundRef.current = new Audio("/assets/sounds/Chinese_Gong_Meme_Sound_Effect.mp3");
+    chinaLeaderSoundRef.current.volume = vol;
+    russiaLeaderSoundRef.current = new Audio("/assets/sounds/Russia_edit._URA.mp3");
+    russiaLeaderSoundRef.current.volume = vol;
     badLuckSoundRef.current = new Audio(badLuckSound);
     badLuckSoundRef.current.volume = vol;
     cheerSoundRef.current = new Audio(cheerSound);
@@ -927,6 +958,9 @@ export default function SnakeAndLadder() {
       yabbaSoundRef.current?.pause();
       hahaSoundRef.current?.pause();
       bombSoundRef.current?.pause();
+      usaLeaderSoundRef.current?.pause();
+      chinaLeaderSoundRef.current?.pause();
+      russiaLeaderSoundRef.current?.pause();
       badLuckSoundRef.current?.pause();
       cheerSoundRef.current?.pause();
       timerSoundRef.current?.pause();
@@ -944,6 +978,9 @@ export default function SnakeAndLadder() {
       hahaSoundRef,
       oldSnakeSoundRef,
       bombSoundRef,
+      usaLeaderSoundRef,
+      chinaLeaderSoundRef,
+      russiaLeaderSoundRef,
       badLuckSoundRef,
       cheerSoundRef,
       timerSoundRef,
