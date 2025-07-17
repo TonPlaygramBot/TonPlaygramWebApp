@@ -40,9 +40,7 @@ const ICONS = {
   join_telegram: <RiTelegramFill className="text-sky-400 w-5 h-5" />,
   
   follow_tiktok: <IoLogoTiktok className="text-pink-500 w-5 h-5" />,
-  boost_tiktok: <IoLogoTiktok className="text-pink-500 w-5 h-5" />,
-  engage_tiktok_1: <IoLogoTiktok className="text-pink-500 w-5 h-5" />,
-  engage_tiktok_2: <IoLogoTiktok className="text-pink-500 w-5 h-5" />,
+  boost_tiktok: <IoLogoTiktok className="text-pink-500 w-5 h-5" />, 
   post_tweet: xIcon,
   react_tg_post: <RiTelegramFill className="text-sky-400 w-5 h-5" />,
   engage_tweet: xIcon,
