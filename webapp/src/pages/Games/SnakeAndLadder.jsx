@@ -601,6 +601,7 @@ export default function SnakeAndLadder() {
   const [bonusDice, setBonusDice] = useState(0);
   const [rewardDice, setRewardDice] = useState(0);
   const [diceCount, setDiceCount] = useState(2);
+  const [playerDiceCounts, setPlayerDiceCounts] = useState([2]);
   const [gameOver, setGameOver] = useState(false);
   const [ai, setAi] = useState(0);
   const [aiPositions, setAiPositions] = useState([]);
@@ -985,6 +986,7 @@ export default function SnakeAndLadder() {
     }
     localStorage.removeItem(`snakeGameState_${aiCount}`);
     setAiPositions(Array(aiCount).fill(0));
+    setPlayerDiceCounts(Array(aiCount + 1).fill(2));
     if (avatarParam === 'leaders') {
       const unique = [...LEADER_AVATARS]
         .sort(() => Math.random() - 0.5)
@@ -1201,7 +1203,10 @@ export default function SnakeAndLadder() {
     };
     const onTurn = ({ playerId }) => {
       const idx = playersRef.current.findIndex((pl) => pl.id === playerId);
-      if (idx >= 0) setCurrentTurn(idx);
+      if (idx >= 0) {
+        setCurrentTurn(idx);
+        setDiceCount(playerDiceCounts[idx] ?? 2);
+      }
     };
     const onStarted = () => setWaitingForPlayers(false);
     const onRolled = ({ value }) => {
@@ -1366,6 +1371,7 @@ export default function SnakeAndLadder() {
     setPos(p);
     setAiPositions(aiPos);
     setCurrentTurn(turn);
+    setDiceCount(playerDiceCounts[turn] ?? 2);
     setRanking(rank);
     setGameOver(over);
     if (over) {
@@ -1387,6 +1393,7 @@ export default function SnakeAndLadder() {
           setPos(data.pos ?? 0);
           setAiPositions(data.aiPositions ?? Array(ai).fill(0));
           setCurrentTurn(data.currentTurn ?? 0);
+          setDiceCount(playerDiceCounts[data.currentTurn ?? 0] ?? 2);
           setDiceCells(data.diceCells ?? {});
           setSnakes(limit(data.snakes ?? {}));
           setLadders(limit(data.ladders ?? {}));
@@ -1498,6 +1505,11 @@ export default function SnakeAndLadder() {
       if (current === 100 && diceCount === 2) {
         if (rolledSix) {
           setDiceCount(1);
+          setPlayerDiceCounts((arr) => {
+            const copy = [...arr];
+            copy[currentTurn] = 1;
+            return copy;
+          });
           setMessage("Six rolled! One die removed.");
         } else {
           setMessage("Need a 6 to remove a die.");
@@ -1515,7 +1527,10 @@ export default function SnakeAndLadder() {
           setDiceVisible(false);
           const next = (currentTurn + 1) % (ai + 1);
           animateDiceToPlayer(next);
-          setTimeout(() => setCurrentTurn(next), 2000);
+          setTimeout(() => {
+            setCurrentTurn(next);
+            setDiceCount(playerDiceCounts[next] ?? 2);
+          }, 2000);
           setTimeout(() => setMoving(false), 2000);
           return;
         }
@@ -1530,7 +1545,10 @@ export default function SnakeAndLadder() {
           setDiceVisible(false);
           const next = (currentTurn + 1) % (ai + 1);
           animateDiceToPlayer(next);
-          setTimeout(() => setCurrentTurn(next), 2000);
+          setTimeout(() => {
+            setCurrentTurn(next);
+            setDiceCount(playerDiceCounts[next] ?? 2);
+          }, 2000);
           setTimeout(() => setMoving(false), 2000);
           return;
         }
@@ -1542,7 +1560,10 @@ export default function SnakeAndLadder() {
         setDiceVisible(false);
         const next = (currentTurn + 1) % (ai + 1);
         animateDiceToPlayer(next);
-        setTimeout(() => setCurrentTurn(next), 2000);
+        setTimeout(() => {
+          setCurrentTurn(next);
+          setDiceCount(playerDiceCounts[next] ?? 2);
+        }, 2000);
         setTimeout(() => setMoving(false), 2000);
         return;
       }
@@ -1614,6 +1635,11 @@ export default function SnakeAndLadder() {
           setTimeout(() => {
             setCelebrate(false);
             setDiceCount(2);
+            setPlayerDiceCounts((arr) => {
+              const copy = [...arr];
+              copy[currentTurn] = 2;
+              return copy;
+            });
           }, 2000);
         }
         let extraTurn = false;
@@ -1646,6 +1672,7 @@ export default function SnakeAndLadder() {
         if (!gameOver) {
           const next = extraTurn ? currentTurn : (currentTurn + 1) % (ai + 1);
           setCurrentTurn(next);
+          setDiceCount(playerDiceCounts[next] ?? 2);
         }
       };
 
@@ -1709,8 +1736,44 @@ export default function SnakeAndLadder() {
         target = 1;
         if (!muted) cheerSoundRef.current?.play().catch(() => {});
       }
-    } else if (current === 100) {
+    } else if (current === 100 && playerDiceCounts[index] === 2) {
+      if (rolledSix) {
+        setPlayerDiceCounts(arr => {
+          const copy = [...arr];
+          copy[index] = 1;
+          return copy;
+        });
+        if (currentTurn === index) setDiceCount(1);
+        setTurnMessage(`${getPlayerName(index)}'s turn`);
+        setDiceVisible(true);
+        setMoving(false);
+        return;
+      } else {
+        setTurnMessage(`${getPlayerName(index)} needs a 6`);
+        setDiceVisible(false);
+        const next = (currentTurn + 1) % (ai + 1);
+        animateDiceToPlayer(next);
+        setTimeout(() => {
+          setCurrentTurn(next);
+          setDiceCount(playerDiceCounts[next] ?? 2);
+        }, 2000);
+        setTimeout(() => setMoving(false), 2000);
+        return;
+      }
+    } else if (current === 100 && playerDiceCounts[index] === 1) {
       if (value === 1) target = FINAL_TILE;
+      else {
+        setTurnMessage('');
+        setDiceVisible(false);
+        const next = (currentTurn + 1) % (ai + 1);
+        animateDiceToPlayer(next);
+        setTimeout(() => {
+          setCurrentTurn(next);
+          setDiceCount(playerDiceCounts[next] ?? 2);
+        }, 2000);
+        setTimeout(() => setMoving(false), 2000);
+        return;
+      }
     } else if (current + value <= FINAL_TILE) {
       target = current + value;
     }
@@ -1764,6 +1827,11 @@ export default function SnakeAndLadder() {
           setGameOver(true);
         }
         setMessage(`${getPlayerName(index)} wins!`);
+        setPlayerDiceCounts(arr => {
+          const copy = [...arr];
+          copy[index] = 2;
+          return copy;
+        });
         setDiceVisible(false);
         setMoving(false);
         return;
@@ -1791,6 +1859,7 @@ export default function SnakeAndLadder() {
       const next = extraTurn ? index : (index + 1) % (ai + 1);
       if (next === 0) setTurnMessage('Your turn');
       setCurrentTurn(next);
+      setDiceCount(playerDiceCounts[next] ?? 2);
       setDiceVisible(true);
       setMoving(false);
       if (extraTurn && next === index) {
@@ -1811,6 +1880,7 @@ export default function SnakeAndLadder() {
       setSetupPhase(false);
       setTurnMessage('Your turn');
       setCurrentTurn(0);
+      setDiceCount(playerDiceCounts[0] ?? 2);
       return;
     }
     const indices = Array.from({ length: total }, (_, i) => i);
@@ -1840,6 +1910,7 @@ export default function SnakeAndLadder() {
           setSetupPhase(false);
           setDiceVisible(true);
           setCurrentTurn(first.index);
+          setDiceCount(playerDiceCounts[first.index] ?? 2);
         }, 2000);
         return;
       }
