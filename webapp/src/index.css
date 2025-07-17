@@ -1445,7 +1445,8 @@ input:focus {
 
 /* Adjust bottom player position for 1v1 games */
 .crazy-dice-board.two-players .player-bottom {
-  bottom: 8%;
+  /* Match bottom position used when facing multiple opponents */
+  bottom: 9%;
 }
 
 .crazy-dice-board .player-left {
@@ -1471,7 +1472,8 @@ input:focus {
 
 /* Slightly shift opponent avatar left in 1v1 games */
 .crazy-dice-board.two-players .player-center {
-  left: 51%;
+  /* Move the lone opponent slightly further left */
+  left: 49.5%;
 }
 .crazy-dice-board .player-center .player-score,
 .crazy-dice-board .player-center .roll-history {
