@@ -437,30 +437,30 @@ input:focus {
   left: 50%;
   /* Move the curved name closer to the avatar */
   transform: translate(-50%, 0.6rem);
-  font-size: 2.4rem;
+  font-size: 1.2rem;
   color: inherit;
   white-space: nowrap;
 }
 .crazy-dice-board.four-players .rank-name {
   transform: translate(-50%, 0.6rem);
-  font-size: 2.4rem;
+  font-size: 1.2rem;
 }
 .crazy-dice-board.three-players .rank-name {
   transform: translate(-50%, 0.6rem);
-  font-size: 2.4rem;
+  font-size: 1.2rem;
 }
 .crazy-dice-board.three-players .curved-name text {
-  font-size: 2.4rem;
+  font-size: 1.2rem;
 }
 .curved-name {
   width: 110%;
-  height: 2.4rem;
+  height: 1.2rem;
   pointer-events: none;
   overflow: visible;
 }
 .curved-name text {
   fill: currentColor;
-  font-size: 2.4rem;
+  font-size: 1.2rem;
 }
 
 /* Score display below each avatar */
@@ -1510,12 +1510,6 @@ input:focus {
 }
 .crazy-dice-board .player-bottom .player-score {
   top: calc(100% + 1.45rem);
-}
-.crazy-dice-board.two-players .player-bottom .roll-history {
-  top: calc(100% + 0.75rem);
-}
-.crazy-dice-board.two-players .player-bottom .player-score {
-  top: calc(100% + 1.95rem);
 }
 
 .crazy-dice-board.three-players .player-bottom .roll-history {
