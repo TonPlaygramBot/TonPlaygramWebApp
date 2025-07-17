@@ -1451,6 +1451,7 @@ input:focus {
 /* Adjust dice landing spot for 1v1 games */
 .crazy-dice-board.two-players .dice-center {
   top: 72%;
+  left: 50%;
 }
 
 /* Player positions around the Crazy Dice board */
@@ -1474,10 +1475,10 @@ input:focus {
   bottom: 9%;
 }
 .crazy-dice-board.two-players .player-bottom .roll-history {
-  top: calc(100% + 2rem);
+  top: calc(100% + 1.8rem);
 }
 .crazy-dice-board.two-players .player-bottom .player-score {
-  top: calc(100% + 3.4rem);
+  top: calc(100% + 3.2rem);
 }
 
 .crazy-dice-board .player-left {
@@ -1630,6 +1631,9 @@ input:focus {
   pointer-events: none;
   transform: translate(-50%, -50%) scale(1);
   z-index: 101;
+}
+.crazy-dice-board.two-players .dice-travel {
+  transform: translate(-50%, -50%) scale(0.9);
 }
 
 /* Image that appears under the dice when the bottom player rolls */

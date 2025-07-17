@@ -20,6 +20,7 @@ export default function AvatarTimer({
   imageZoom = 1,
   scoreStyle = {},
   rollHistoryStyle = {},
+  nameCurveRadius = 45,
 }) {
   const angle = (1 - timerPct) * 360;
   const gradient = `conic-gradient(#facc15 ${angle}deg, #16a34a 0deg)`;
@@ -55,10 +56,13 @@ export default function AvatarTimer({
           style={{ color: color || '#fde047' }}
         >
           <defs>
-            <path
-              id={`name-path-${index}`}
-              d="M5,50 A45,45 0 0 1 95,50"
-            />
+            {(() => {
+              const r = nameCurveRadius;
+              const start = 50 - r;
+              const end = 50 + r;
+              const path = `M${start},50 A${r},${r} 0 0 1 ${end},50`;
+              return <path id={`name-path-${index}`} d={path} />;
+            })()}
           </defs>
           <text>
             <textPath href={`#name-path-${index}`} startOffset="50%" textAnchor="middle">
