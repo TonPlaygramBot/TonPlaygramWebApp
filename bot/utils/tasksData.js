@@ -1,4 +1,4 @@
-export const TASKS_VERSION = 4;
+export const TASKS_VERSION = 5;
 
 export const TASKS = [
 
@@ -65,6 +65,42 @@ export const TASKS = [
     reward: 2000,
     icon: 'tiktok',
     link: 'https://vt.tiktok.com/ZSBnagc3g/'
+  },
+
+  {
+    id: 'boost_tiktok_3',
+    description: 'Like, comment & repost on TikTok',
+    reward: 2000,
+    icon: 'tiktok',
+    link: 'https://vt.tiktok.com/ZSBngGPdy/',
+    hideOnHome: true
+  },
+
+  {
+    id: 'boost_tiktok_4',
+    description: 'Like, comment & repost on TikTok',
+    reward: 2000,
+    icon: 'tiktok',
+    link: 'https://vt.tiktok.com/ZSBngp3GD/',
+    hideOnHome: true
+  },
+
+  {
+    id: 'boost_tiktok_5',
+    description: 'Like, comment & repost on TikTok',
+    reward: 2000,
+    icon: 'tiktok',
+    link: 'https://vt.tiktok.com/ZSBngWDnQ/',
+    hideOnHome: true
+  },
+
+  {
+    id: 'boost_tiktok_6',
+    description: 'Like, comment & repost on TikTok',
+    reward: 2000,
+    icon: 'tiktok',
+    link: 'https://vt.tiktok.com/ZSBnpkW5v/',
+    hideOnHome: true
   },
 
   {
