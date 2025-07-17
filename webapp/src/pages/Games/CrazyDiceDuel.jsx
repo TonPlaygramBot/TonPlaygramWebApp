@@ -676,8 +676,8 @@ export default function CrazyDiceDuel() {
         className="player-bottom z-10"
         style={{
           bottom: 'auto',
-          /* Place the bottom player slightly lower */
-          ...gridPoint(10, 26.5),
+          /* Raise the bottom player slightly when facing two opponents */
+          ...gridPoint(10, playerCount === 3 ? 25.5 : 26.5),
           transform: 'translate(-50%, -50%)',
         }}
       >
