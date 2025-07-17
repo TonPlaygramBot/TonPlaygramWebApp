@@ -464,7 +464,6 @@ function Board({
                 color="#16a34a"
                 topColor="#ff0000"
                 className="pot-token"
-                spin={false}
               />
               <div className="pot-icon">
                 <img

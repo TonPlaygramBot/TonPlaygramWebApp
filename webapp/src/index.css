@@ -355,7 +355,13 @@ input:focus {
   top: 50%;
   left: 50%;
   transform-style: preserve-3d;
-  transform: translate(-50%, -100%) translateZ(40px);
+  /*
+    Position the coin so its bottom sits flush with the top of the
+    pot token. The pot token is 14.8rem tall and shifted upward
+    by 8rem. Move the coin up by the same amount so it aligns
+    perfectly with the token's upper surface.
+  */
+  transform: translate(-50%, calc(-100% - 15.4rem)) translateZ(40px);
   animation: coin-spin 3s linear infinite;
   pointer-events: none;
   z-index: 6;
@@ -378,10 +384,10 @@ input:focus {
 
 @keyframes coin-spin {
   from {
-    transform: translate(-50%, -100%) translateZ(40px) rotateY(0deg);
+    transform: translate(-50%, calc(-100% - 15.4rem)) translateZ(40px) rotateY(0deg);
   }
   to {
-    transform: translate(-50%, -100%) translateZ(40px) rotateY(360deg);
+    transform: translate(-50%, calc(-100% - 15.4rem)) translateZ(40px) rotateY(360deg);
   }
 }
 
