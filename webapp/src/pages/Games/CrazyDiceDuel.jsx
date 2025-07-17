@@ -676,8 +676,8 @@ export default function CrazyDiceDuel() {
         className="player-bottom z-10"
         style={{
           bottom: 'auto',
-          /* Lift the bottom player a touch */
-          ...gridPoint(10, 25.5),
+          /* Place the bottom player slightly lower */
+          ...gridPoint(10, 26.5),
           transform: 'translate(-50%, -50%)',
         }}
       >
@@ -737,6 +737,20 @@ export default function CrazyDiceDuel() {
           }
           scoreStyle = undefined;
           historyStyle = undefined;
+        } else if (playerCount === 2) {
+          // In 1v1 mode place history and score near the bottom of the board
+          scoreStyle = {
+            position: 'fixed',
+            left: '50%',
+            bottom: '4rem',
+            transform: 'translateX(-50%)',
+          };
+          historyStyle = {
+            position: 'fixed',
+            left: '50%',
+            bottom: '2rem',
+            transform: 'translateX(-50%)',
+          };
         }
         let avatarSize =
           playerCount === 2
@@ -782,7 +796,7 @@ export default function CrazyDiceDuel() {
               size={avatarSize}
               imageScale={leaders.includes(i + 1) ? 1.1 : 1}
               imageYOffset={playerCount === 2 ? 4 : 0}
-              imageZoom={playerCount === 2 ? 1.05 : 1}
+              imageZoom={1}
               onClick={() => {
                 if (current === i + 1) setTrigger((t) => t + 1);
               }}
