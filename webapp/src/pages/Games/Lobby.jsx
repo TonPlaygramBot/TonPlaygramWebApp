@@ -178,7 +178,7 @@ export default function Lobby() {
   }, [players, game, table]);
 
 
-  const startGame = async () => {
+  const startGame = async (flagOverride = flags, leaderOverride = leaders) => {
     const params = new URLSearchParams();
     if (table) params.set('table', table.id);
     if (game === 'snake' && stake.token === 'TON' && stake.amount > 0) {
@@ -208,11 +208,13 @@ export default function Lobby() {
       params.set('ai', aiCount);
       params.set('avatars', aiType);
       params.set('token', 'TPC');
-      if (aiType === 'leaders' && leaders.length) {
-        const ids = leaders.map((l) => LEADER_AVATARS.indexOf(l)).filter((i) => i >= 0);
+      if (aiType === 'leaders' && leaderOverride.length) {
+        const ids = leaderOverride
+          .map((l) => LEADER_AVATARS.indexOf(l))
+          .filter((i) => i >= 0);
         if (ids.length) params.set('leaders', ids.join(','));
-      } else if (aiType === 'flags' && flags.length) {
-        params.set('flags', flags.join(','));
+      } else if (aiType === 'flags' && flagOverride.length) {
+        params.set('flags', flagOverride.join(','));
       }
       if (stake.amount) params.set('amount', stake.amount);
       try {
@@ -338,6 +340,7 @@ export default function Lobby() {
         selected={leaders}
         onSave={setLeaders}
         onClose={() => setShowLeaderPicker(false)}
+        onComplete={(sel) => startGame(flags, sel)}
       />
       <FlagPickerModal
         open={showFlagPicker}
@@ -345,6 +348,7 @@ export default function Lobby() {
         selected={flags}
         onSave={setFlags}
         onClose={() => setShowFlagPicker(false)}
+        onComplete={(sel) => startGame(sel, leaders)}
       />
     </div>
   );

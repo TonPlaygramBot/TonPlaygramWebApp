@@ -59,17 +59,19 @@ export default function CrazyDiceLobby() {
     }
   };
 
-  const startGame = () => {
+  const startGame = (flagOverride = flags, leaderOverride = leaders) => {
     const params = new URLSearchParams();
     if (table.id === 'single') {
       params.set('ai', aiCount);
       params.set('players', aiCount + 1);
       params.set('avatars', aiType);
-      if (aiType === 'leaders' && leaders.length) {
-        const ids = leaders.map((l) => LEADER_AVATARS.indexOf(l)).filter((i) => i >= 0);
+      if (aiType === 'leaders' && leaderOverride.length) {
+        const ids = leaderOverride
+          .map((l) => LEADER_AVATARS.indexOf(l))
+          .filter((i) => i >= 0);
         if (ids.length) params.set('leaders', ids.join(','));
-      } else if (aiType === 'flags' && flags.length) {
-        params.set('flags', flags.join(','));
+      } else if (aiType === 'flags' && flagOverride.length) {
+        params.set('flags', flagOverride.join(','));
       }
     } else {
       params.set('players', table.capacity);
@@ -159,6 +161,7 @@ export default function CrazyDiceLobby() {
         selected={leaders}
         onSave={setLeaders}
         onClose={() => setShowLeaderPicker(false)}
+        onComplete={(sel) => startGame(flags, sel)}
       />
       <FlagPickerModal
         open={showFlagPicker}
@@ -166,6 +169,7 @@ export default function CrazyDiceLobby() {
         selected={flags}
         onSave={setFlags}
         onClose={() => setShowFlagPicker(false)}
+        onComplete={(sel) => startGame(sel, leaders)}
       />
     </div>
   );
