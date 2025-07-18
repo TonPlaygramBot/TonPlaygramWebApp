@@ -87,8 +87,8 @@ export function verifyPost(telegramId, tweetUrl) {
   return post('/api/tasks/verify-post', { telegramId, tweetUrl });
 }
 
-export function verifyTelegramReaction(telegramId) {
-  return post('/api/tasks/verify-telegram-reaction', { telegramId });
+export function verifyTelegramReaction(telegramId, messageId, threadId) {
+  return post('/api/tasks/verify-telegram-reaction', { telegramId, messageId, threadId });
 }
 
 export function listVideos(telegramId) {
