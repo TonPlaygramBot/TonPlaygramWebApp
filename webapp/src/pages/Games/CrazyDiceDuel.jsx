@@ -73,6 +73,10 @@ export default function CrazyDiceDuel() {
   const [searchParams] = useSearchParams();
   const aiCount = parseInt(searchParams.get('ai')) || 0;
   const avatarType = searchParams.get('avatars') || 'flags';
+  const selectedLeadersParam = searchParams.get('leaders');
+  const selectedLeaders = selectedLeadersParam
+    ? selectedLeadersParam.split(',').map((n) => LEADER_AVATARS[parseInt(n)]).filter(Boolean)
+    : null;
   const playerCount = aiCount > 0
     ? aiCount + 1
     : parseInt(searchParams.get('players')) || 2;
@@ -99,7 +103,14 @@ export default function CrazyDiceDuel() {
     let uniqueLeaders = [...LEADER_AVATARS];
     let uniquePhotos = [...LEADER_PHOTO_AVATARS];
 
-    if (
+    if (selectedLeaders && selectedLeaders.length) {
+      uniqueLeaders = selectedLeaders.slice(0, playerCount - 1);
+      while (uniqueLeaders.length < playerCount - 1) {
+        const rand = LEADER_AVATARS[Math.floor(Math.random() * LEADER_AVATARS.length)];
+        if (!uniqueLeaders.includes(rand)) uniqueLeaders.push(rand);
+      }
+      uniquePhotos = uniqueLeaders.map((p) => p.replace('.webp', '.jpg'));
+    } else if (
       playerCount === 4 &&
       aiCount === 3 &&
       avatarType === 'leaders' &&
@@ -136,7 +147,7 @@ export default function CrazyDiceDuel() {
               : `/assets/avatars/avatar${(i % 5) + 1}.svg`,
       color: COLORS[i % COLORS.length],
     }));
-  }, [playerCount, aiCount, avatarType]);
+  }, [playerCount, aiCount, avatarType, selectedLeadersParam]);
 
   const [players, setPlayers] = useState(initialPlayers);
   const [current, setCurrent] = useState(0);
