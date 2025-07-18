@@ -1,7 +1,7 @@
-import { HttpsProxyAgent } from 'https-proxy-agent';
+import { ProxyAgent } from 'undici';
 
 export const proxyUrl = process.env.HTTPS_PROXY || process.env.https_proxy;
-export const proxyAgent = proxyUrl ? new HttpsProxyAgent(proxyUrl) : undefined;
+export const proxyAgent = proxyUrl ? new ProxyAgent(proxyUrl) : undefined;
 
 export function withProxy(options = {}) {
   if (!proxyAgent) return options;
