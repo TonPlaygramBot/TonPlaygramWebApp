@@ -36,9 +36,9 @@ export default function LeaderPickerModal({ open, onClose, count = 1, onSave, se
 
   return (
     <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-70 z-50">
-      <div className="bg-surface border border-border p-4 rounded space-y-4 text-center text-text w-96 max-h-[90vh] overflow-y-auto">
+      <div className="bg-surface border border-border p-4 rounded text-center text-text w-96 max-h-[90vh] flex flex-col space-y-4">
         <h3 className="text-lg font-bold">Select your opponents</h3>
-        <div className="flex flex-wrap justify-center gap-2">
+        <div className="flex-1 overflow-y-auto flex flex-wrap justify-center gap-2">
           {LEADER_AVATARS.map((src) => (
             <div
               key={src}
@@ -49,7 +49,7 @@ export default function LeaderPickerModal({ open, onClose, count = 1, onSave, se
             </div>
           ))}
         </div>
-        <div className="flex space-x-2">
+        <div className="flex space-x-2 pt-2">
           <button
             onClick={confirm}
             disabled={chosen.length !== count}

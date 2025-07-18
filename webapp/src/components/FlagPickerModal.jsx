@@ -41,31 +41,33 @@ export default function FlagPickerModal({ open, onClose, count = 1, onSave, sele
 
   return (
     <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-70 z-50">
-      <div className="bg-surface border border-border p-4 rounded space-y-4 text-center text-text w-96 max-h-[90vh] overflow-y-auto">
+      <div className="bg-surface border border-border p-4 rounded text-center text-text w-96 max-h-[90vh] flex flex-col space-y-4">
         <h3 className="text-lg font-bold">Select your opponents</h3>
-        <div className="flex flex-wrap justify-center gap-2">
-          {continents.map(c => (
-            <button
-              key={c}
-              onClick={() => setCategory(c)}
-              className={`lobby-tile ${category === c ? 'lobby-selected' : ''}`}
-            >
-              {c}
-            </button>
-          ))}
+        <div className="flex-1 overflow-y-auto space-y-2">
+          <div className="flex flex-wrap justify-center gap-2">
+            {continents.map(c => (
+              <button
+                key={c}
+                onClick={() => setCategory(c)}
+                className={`lobby-tile ${category === c ? 'lobby-selected' : ''}`}
+              >
+                {c}
+              </button>
+            ))}
+          </div>
+          <div className="flex flex-wrap justify-center gap-2 mt-2">
+            {FLAG_CATEGORIES[category].map(flag => (
+              <div
+                key={flag}
+                className={`w-12 h-12 flex items-center justify-center text-2xl cursor-pointer hover:opacity-80 ${chosen.includes(flag) ? 'ring-4 ring-accent' : ''}`}
+                onClick={() => toggle(flag)}
+              >
+                {flag}
+              </div>
+            ))}
+          </div>
         </div>
-        <div className="flex flex-wrap justify-center gap-2 mt-2">
-          {FLAG_CATEGORIES[category].map(flag => (
-            <div
-              key={flag}
-              className={`w-12 h-12 flex items-center justify-center text-2xl cursor-pointer hover:opacity-80 ${chosen.includes(flag) ? 'ring-4 ring-accent' : ''}`}
-              onClick={() => toggle(flag)}
-            >
-              {flag}
-            </div>
-          ))}
-        </div>
-        <div className="flex space-x-2">
+        <div className="flex space-x-2 pt-2">
           <button
             onClick={confirm}
             disabled={chosen.length !== count}
