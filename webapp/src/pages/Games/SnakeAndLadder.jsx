@@ -616,6 +616,8 @@ export default function SnakeAndLadder() {
   const [showStartHelp, setShowStartHelp] = useState(false);
   const [showExactHelp, setShowExactHelp] = useState(false);
   const [showRemoveDiceHelp, setShowRemoveDiceHelp] = useState(false);
+  const [startHelpShown, setStartHelpShown] = useState(false);
+  const [removeDiceHelpShown, setRemoveDiceHelpShown] = useState(false);
   const [muted, setMuted] = useState(isGameMuted());
   const [snakes, setSnakes] = useState({});
   const [ladders, setLadders] = useState({});
@@ -683,6 +685,13 @@ export default function SnakeAndLadder() {
   useEffect(() => {
     prepareDiceAnimation(0);
   }, []);
+
+  useEffect(() => {
+    if (!watchOnly && !startHelpShown) {
+      setShowStartHelp(true);
+      setStartHelpShown(true);
+    }
+  }, [watchOnly, startHelpShown]);
 
   useEffect(() => {
     return () => clearTimeout(trailTimeoutRef.current);
@@ -769,8 +778,10 @@ export default function SnakeAndLadder() {
           albaniaLeaderSoundRef.current.currentTime = 0;
           albaniaLeaderSoundRef.current.play().catch(() => {});
         } else if (avatar.includes('GreeceLeader') || avatar === '🇬🇷') {
-          greeceLeaderSoundRef.current.currentTime = 0;
-          greeceLeaderSoundRef.current.play().catch(() => {});
+          setTimeout(() => {
+            greeceLeaderSoundRef.current.currentTime = 0;
+            greeceLeaderSoundRef.current.play().catch(() => {});
+          }, 1500);
         } else if (avatar.includes('TurkeyLeader') || avatar === '🇹🇷') {
           turkeyLeaderSoundRef.current.currentTime = 0;
           turkeyLeaderSoundRef.current.play().catch(() => {});
@@ -1643,7 +1654,10 @@ export default function SnakeAndLadder() {
           setMessage("Six rolled! One die removed.");
         } else {
           setMessage("Need a 6 to remove a die.");
-          setShowRemoveDiceHelp(true);
+          if (!removeDiceHelpShown) {
+            setShowRemoveDiceHelp(true);
+            setRemoveDiceHelpShown(true);
+          }
         }
         setTurnMessage("Your turn");
         setDiceVisible(true);
@@ -1672,7 +1686,10 @@ export default function SnakeAndLadder() {
         }
         else {
           setMessage("Need a 6 to start!");
-          setShowStartHelp(true);
+          if (!startHelpShown) {
+            setShowStartHelp(true);
+            setStartHelpShown(true);
+          }
           setTurnMessage("");
           setDiceVisible(false);
           const next = (currentTurn + 1) % (ai + 1);
