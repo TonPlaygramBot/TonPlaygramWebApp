@@ -27,6 +27,18 @@ export default function FlagPickerModal({ open, onClose, count = 1, onSave, sele
     onClose();
   };
 
+  const randomize = () => {
+    const allFlags = Object.values(FLAG_CATEGORIES).flat();
+    const random = [];
+    while (random.length < count) {
+      const flag = allFlags[Math.floor(Math.random() * allFlags.length)];
+      if (!random.includes(flag)) random.push(flag);
+    }
+    const indices = random.map(f => FLAG_EMOJIS.indexOf(f)).filter(i => i >= 0);
+    onSave(indices.slice(0, count));
+    onClose();
+  };
+
   return (
     <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-70 z-50">
       <div className="bg-surface border border-border p-4 rounded space-y-4 text-center text-text w-96 max-h-[90vh] overflow-y-auto">
@@ -53,13 +65,21 @@ export default function FlagPickerModal({ open, onClose, count = 1, onSave, sele
             </div>
           ))}
         </div>
-        <button
-          onClick={confirm}
-          disabled={chosen.length !== count}
-          className="w-full px-4 py-1 bg-primary hover:bg-primary-hover rounded disabled:opacity-50"
-        >
-          Confirm
-        </button>
+        <div className="flex space-x-2">
+          <button
+            onClick={confirm}
+            disabled={chosen.length !== count}
+            className="flex-1 px-4 py-1 bg-primary hover:bg-primary-hover rounded disabled:opacity-50"
+          >
+            Confirm
+          </button>
+          <button
+            onClick={randomize}
+            className="flex-1 px-4 py-1 border border-border bg-surface rounded"
+          >
+            Random
+          </button>
+        </div>
       </div>
     </div>
   );
