@@ -23,6 +23,7 @@ import { LEADER_AVATARS } from "../../utils/leaderAvatars.js";
 import { FLAG_EMOJIS } from "../../utils/flagEmojis.js";
 import { getAvatarUrl, saveAvatar, loadAvatar, avatarToName } from "../../utils/avatarUtils.js";
 import InfoPopup from "../../components/InfoPopup.jsx";
+import HintPopup from "../../components/HintPopup.jsx";
 import GameEndPopup from "../../components/GameEndPopup.jsx";
 import {
   AiOutlineRollback,
@@ -752,31 +753,31 @@ export default function SnakeAndLadder() {
         bombSoundRef.current.currentTime = 0;
         bombSoundRef.current.play().catch(() => {});
         const avatar = getPlayerAvatar(mover);
-        if (avatar.includes('UsaLeader')) {
+        if (avatar.includes('UsaLeader') || avatar === '🇺🇸') {
           usaLeaderSoundRef.current.currentTime = 0;
           usaLeaderSoundRef.current.play().catch(() => {});
-        } else if (avatar.includes('ChinaLeader')) {
+        } else if (avatar.includes('ChinaLeader') || avatar === '🇨🇳') {
           chinaLeaderSoundRef.current.currentTime = 0;
           chinaLeaderSoundRef.current.play().catch(() => {});
-        } else if (avatar.includes('RussiaLeader')) {
+        } else if (avatar.includes('RussiaLeader') || avatar === '🇷🇺') {
           russiaLeaderSoundRef.current.currentTime = 0;
           russiaLeaderSoundRef.current.play().catch(() => {});
-        } else if (avatar.includes('ItalyLeader')) {
+        } else if (avatar.includes('ItalyLeader') || avatar === '🇮🇹') {
           italyLeaderSoundRef.current.currentTime = 0;
           italyLeaderSoundRef.current.play().catch(() => {});
-        } else if (avatar.includes('AlbaniaLeader')) {
+        } else if (avatar.includes('AlbaniaLeader') || avatar === '🇦🇱') {
           albaniaLeaderSoundRef.current.currentTime = 0;
           albaniaLeaderSoundRef.current.play().catch(() => {});
-        } else if (avatar.includes('GreeceLeader')) {
+        } else if (avatar.includes('GreeceLeader') || avatar === '🇬🇷') {
           greeceLeaderSoundRef.current.currentTime = 0;
           greeceLeaderSoundRef.current.play().catch(() => {});
-        } else if (avatar.includes('TurkeyLeader')) {
+        } else if (avatar.includes('TurkeyLeader') || avatar === '🇹🇷') {
           turkeyLeaderSoundRef.current.currentTime = 0;
           turkeyLeaderSoundRef.current.play().catch(() => {});
-        } else if (avatar.includes('NorthKoreaLeader')) {
+        } else if (avatar.includes('NorthKoreaLeader') || avatar === '🇰🇵') {
           northKoreaLeaderSoundRef.current.currentTime = 0;
           northKoreaLeaderSoundRef.current.play().catch(() => {});
-        } else if (avatar.includes('UkraineLeader')) {
+        } else if (avatar.includes('UkraineLeader') || avatar === '🇺🇦') {
           ukraineLeaderSoundRef.current.currentTime = 0;
           ukraineLeaderSoundRef.current.play().catch(() => {});
         }
@@ -1072,6 +1073,7 @@ export default function SnakeAndLadder() {
     const amt = params.get("amount");
     const aiParam = params.get("ai");
     const avatarParam = params.get("avatars") || 'flags';
+    const flagsParam = params.get('flags');
     const tableParam = params.get("table");
     if (t) setToken(t.toUpperCase());
     if (amt) setPot(Number(amt));
@@ -1112,11 +1114,20 @@ export default function SnakeAndLadder() {
         setAiAvatars(unique);
       }
     } else {
-      setAiAvatars(
-        Array.from({ length: aiCount }, () =>
-          FLAG_EMOJIS[Math.floor(Math.random() * FLAG_EMOJIS.length)]
-        )
-      );
+      if (flagsParam) {
+        const indices = flagsParam.split(',').map((n) => parseInt(n)).filter((i) => i >= 0 && i < FLAG_EMOJIS.length);
+        const chosen = indices.map((i) => FLAG_EMOJIS[i]);
+        while (chosen.length < aiCount) {
+          chosen.push(FLAG_EMOJIS[Math.floor(Math.random() * FLAG_EMOJIS.length)]);
+        }
+        setAiAvatars(chosen.slice(0, aiCount));
+      } else {
+        setAiAvatars(
+          Array.from({ length: aiCount }, () =>
+            FLAG_EMOJIS[Math.floor(Math.random() * FLAG_EMOJIS.length)]
+          )
+        );
+      }
     }
     const colors = shuffle(TOKEN_COLORS).slice(0, aiCount + 1).map(c => c.color);
     setPlayerColors(colors);
@@ -2502,26 +2513,25 @@ export default function SnakeAndLadder() {
       />
       )}
       {!watchOnly && (
-      <InfoPopup
+      <HintPopup
         open={showStartHelp}
         onClose={() => setShowStartHelp(false)}
-        title="Need a 6"
-        info="Roll at least one six to enter the board."
+        message="Roll at least one six to enter the board."
       />
       )}
       {!watchOnly && (
-      <InfoPopup
+      <HintPopup
         open={showExactHelp}
         onClose={() => setShowExactHelp(false)}
-        title="Exact Roll Required"
-        info="You must roll the exact number to land on the pot."/>
+        message="You must roll the exact number to land on the pot."
+      />
       )}
       {!watchOnly && (
-      <InfoPopup
+      <HintPopup
         open={showRemoveDiceHelp}
         onClose={() => setShowRemoveDiceHelp(false)}
-        title="Remove a Die"
-        info="On tile 100 you need a six to drop one die before you can win."/>
+        message="On tile 100 you need a six to drop one die before you can win."
+      />
       )}
       {!watchOnly && (
       <InfoPopup
