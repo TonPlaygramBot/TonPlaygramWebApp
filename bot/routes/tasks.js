@@ -14,22 +14,30 @@ const twitterClient = process.env.TWITTER_BEARER_TOKEN
   : null;
 
 async function fetchReactionIds(messageId = '16', threadId = '1') {
-  const base = `https://api.telegram.org/bot${process.env.BOT_TOKEN}`;
-  const url = new URL(`${base}/getMessageReactions`);
-  url.searchParams.set('chat_id', '@TonPlaygram');
-  url.searchParams.set('message_id', String(messageId));
-  if (threadId) url.searchParams.set('message_thread_id', String(threadId));
-  url.searchParams.set('limit', '200');
-  const resp = await fetch(url, withProxy());
-  const data = await resp.json();
-  if (!data.ok) throw new Error(data.description || 'telegram api error');
-  const reactions = data.result?.reactions || data.result || [];
-  const ids = [];
-  for (const r of reactions) {
-    const id = r.user?.id ?? r.user_id ?? r.from?.id;
-    if (typeof id === 'number') ids.push(id);
+  try {
+    const base = `https://api.telegram.org/bot${process.env.BOT_TOKEN}`;
+    const url = new URL(`${base}/getMessageReactions`);
+    url.searchParams.set('chat_id', '@TonPlaygram');
+    url.searchParams.set('message_id', String(messageId));
+    if (threadId) url.searchParams.set('message_thread_id', String(threadId));
+    url.searchParams.set('limit', '200');
+    const resp = await fetch(url, withProxy());
+    const data = await resp.json();
+    if (!data.ok) {
+      console.warn('getMessageReactions failed:', data.description);
+      return [];
+    }
+    const reactions = data.result?.reactions || data.result || [];
+    const ids = [];
+    for (const r of reactions) {
+      const id = r.user?.id ?? r.user_id ?? r.from?.id;
+      if (typeof id === 'number') ids.push(id);
+    }
+    return ids;
+  } catch (err) {
+    console.error('fetchReactionIds error:', err.message);
+    return [];
   }
-  return ids;
 }
 
 function parseTelegramLink(link) {
