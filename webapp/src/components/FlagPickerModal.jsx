@@ -43,7 +43,7 @@ export default function FlagPickerModal({ open, onClose, count = 1, onSave, sele
     <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-70 z-50">
       <div className="bg-surface border border-border p-4 rounded text-center text-text w-96 max-h-[90vh] flex flex-col space-y-4">
         <h3 className="text-lg font-bold">Select your opponents</h3>
-        <div className="flex-1 overflow-y-auto space-y-2">
+        <div className="flex-1 min-h-0 overflow-y-auto space-y-2">
           <div className="flex flex-wrap justify-center gap-2">
             {continents.map(c => (
               <button
@@ -71,7 +71,7 @@ export default function FlagPickerModal({ open, onClose, count = 1, onSave, sele
           <button
             onClick={confirm}
             disabled={chosen.length !== count}
-            className="flex-1 px-4 py-1 bg-primary hover:bg-primary-hover rounded disabled:opacity-50"
+            className="flex-1 px-4 py-1 bg-primary hover:bg-primary-hover text-background rounded disabled:opacity-50"
           >
             Confirm
           </button>
