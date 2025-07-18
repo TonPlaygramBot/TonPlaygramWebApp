@@ -61,7 +61,7 @@ export default function LeaderPickerModal({ open, onClose, count = 1, onSave, se
             onClick={randomize}
             className="flex-1 px-4 py-1 border border-border bg-surface rounded"
           >
-            Random
+            Quick Play
           </button>
         </div>
       </div>
