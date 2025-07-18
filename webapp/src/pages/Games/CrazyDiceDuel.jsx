@@ -77,6 +77,10 @@ export default function CrazyDiceDuel() {
   const selectedLeaders = selectedLeadersParam
     ? selectedLeadersParam.split(',').map((n) => LEADER_AVATARS[parseInt(n)]).filter(Boolean)
     : null;
+  const selectedFlagsParam = searchParams.get('flags');
+  const selectedFlags = selectedFlagsParam
+    ? selectedFlagsParam.split(',').map((n) => FLAG_EMOJIS[parseInt(n)]).filter(Boolean)
+    : null;
   const playerCount = aiCount > 0
     ? aiCount + 1
     : parseInt(searchParams.get('players')) || 2;
@@ -143,11 +147,13 @@ export default function CrazyDiceDuel() {
             : aiCount > 0
               ? avatarType === 'leaders'
                 ? uniqueLeaders[i - 1]
-                : randFlag()
+                : (selectedFlags && selectedFlags[i - 1])
+                  ? selectedFlags[i - 1]
+                  : randFlag()
               : `/assets/avatars/avatar${(i % 5) + 1}.svg`,
       color: COLORS[i % COLORS.length],
     }));
-  }, [playerCount, aiCount, avatarType, selectedLeadersParam]);
+  }, [playerCount, aiCount, avatarType, selectedLeadersParam, selectedFlagsParam]);
 
   const [players, setPlayers] = useState(initialPlayers);
   const [current, setCurrent] = useState(0);

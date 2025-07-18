@@ -4,6 +4,9 @@ import { FaUsers } from 'react-icons/fa';
 import { useNavigate, useParams } from 'react-router-dom';
 import TableSelector from '../../components/TableSelector.jsx';
 import RoomSelector from '../../components/RoomSelector.jsx';
+import LeaderPickerModal from '../../components/LeaderPickerModal.jsx';
+import FlagPickerModal from '../../components/FlagPickerModal.jsx';
+import { LEADER_AVATARS } from '../../utils/leaderAvatars.js';
 import useTelegramBackButton from '../../hooks/useTelegramBackButton.js';
 import {
   getSnakeLobbies,
@@ -46,9 +49,21 @@ export default function Lobby() {
   const [players, setPlayers] = useState([]);
   const [aiCount, setAiCount] = useState(0);
   const [aiType, setAiType] = useState('');
+  const [showLeaderPicker, setShowLeaderPicker] = useState(false);
+  const [leaders, setLeaders] = useState([]);
+  const [showFlagPicker, setShowFlagPicker] = useState(false);
+  const [flags, setFlags] = useState([]);
   const [online, setOnline] = useState(0);
   const [playerName, setPlayerName] = useState('');
   const autoStartedRef = useRef(false);
+
+  const selectAiType = (t) => {
+    setAiType(t);
+    if (t === 'leaders') setShowLeaderPicker(true);
+    else if (t === 'flags') setShowFlagPicker(true);
+    if (t !== 'leaders') setLeaders([]);
+    if (t !== 'flags') setFlags([]);
+  };
 
   useEffect(() => {
     try {
@@ -193,6 +208,12 @@ export default function Lobby() {
       params.set('ai', aiCount);
       params.set('avatars', aiType);
       params.set('token', 'TPC');
+      if (aiType === 'leaders' && leaders.length) {
+        const ids = leaders.map((l) => LEADER_AVATARS.indexOf(l)).filter((i) => i >= 0);
+        if (ids.length) params.set('leaders', ids.join(','));
+      } else if (aiType === 'flags' && flags.length) {
+        params.set('flags', flags.join(','));
+      }
       if (stake.amount) params.set('amount', stake.amount);
       try {
         const accountId = await ensureAccountId();
@@ -222,7 +243,9 @@ export default function Lobby() {
     players.length < table.capacity;
   const disabled =
     !canStartGame(game, table, stake, aiCount, players.length) ||
-    (game === 'snake' && table?.id === 'single' && !aiType);
+    (game === 'snake' && table?.id === 'single' && !aiType) ||
+    (game === 'snake' && table?.id === 'single' && aiType === 'leaders' && leaders.length !== aiCount) ||
+    (game === 'snake' && table?.id === 'single' && aiType === 'flags' && flags.length !== aiCount);
 
   return (
     <div className="relative p-4 space-y-4 text-text">
@@ -289,7 +312,7 @@ export default function Lobby() {
             {['flags', 'leaders'].map((t) => (
               <button
                 key={t}
-                onClick={() => setAiType(t)}
+                onClick={() => selectAiType(t)}
                 className={`lobby-tile ${aiType === t ? 'lobby-selected' : ''}`}
               >
                 {t === 'flags' ? 'Flags' : 'Leaders'}
@@ -309,6 +332,20 @@ export default function Lobby() {
             }...`
           : 'Start Game'}
       </button>
+      <LeaderPickerModal
+        open={showLeaderPicker}
+        count={aiCount}
+        selected={leaders}
+        onSave={setLeaders}
+        onClose={() => setShowLeaderPicker(false)}
+      />
+      <FlagPickerModal
+        open={showFlagPicker}
+        count={aiCount}
+        selected={flags}
+        onSave={setFlags}
+        onClose={() => setShowFlagPicker(false)}
+      />
     </div>
   );
 }
