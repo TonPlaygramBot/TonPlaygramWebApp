@@ -613,11 +613,7 @@ export default function SnakeAndLadder() {
   const [forfeitMsg, setForfeitMsg] = useState(false);
   const [cheatMsg, setCheatMsg] = useState(null);
   const [showInfo, setShowInfo] = useState(false);
-  const [showStartHelp, setShowStartHelp] = useState(false);
   const [showExactHelp, setShowExactHelp] = useState(false);
-  const [showRemoveDiceHelp, setShowRemoveDiceHelp] = useState(false);
-  const [startHelpShown, setStartHelpShown] = useState(false);
-  const [removeDiceHelpShown, setRemoveDiceHelpShown] = useState(false);
   const [muted, setMuted] = useState(isGameMuted());
   const [snakes, setSnakes] = useState({});
   const [ladders, setLadders] = useState({});
@@ -686,12 +682,6 @@ export default function SnakeAndLadder() {
     prepareDiceAnimation(0);
   }, []);
 
-  useEffect(() => {
-    if (!watchOnly && !startHelpShown) {
-      setShowStartHelp(true);
-      setStartHelpShown(true);
-    }
-  }, [watchOnly, startHelpShown]);
 
   useEffect(() => {
     return () => clearTimeout(trailTimeoutRef.current);
@@ -1085,6 +1075,7 @@ export default function SnakeAndLadder() {
     const aiParam = params.get("ai");
     const avatarParam = params.get("avatars") || 'flags';
     const flagsParam = params.get('flags');
+    const leadersParam = params.get('leaders');
     const tableParam = params.get("table");
     if (t) setToken(t.toUpperCase());
     if (amt) setPot(Number(amt));
@@ -1112,7 +1103,18 @@ export default function SnakeAndLadder() {
         aiCount === 3 &&
         String(t).toUpperCase() === 'TPC' &&
         Number(amt) === 10000;
-      if (isHighStake) {
+      if (leadersParam) {
+        const indices = leadersParam
+          .split(',')
+          .map((n) => parseInt(n))
+          .filter((i) => i >= 0 && i < LEADER_AVATARS.length);
+        const chosen = indices.map((i) => LEADER_AVATARS[i]);
+        while (chosen.length < aiCount) {
+          const rand = LEADER_AVATARS[Math.floor(Math.random() * LEADER_AVATARS.length)];
+          if (!chosen.includes(rand)) chosen.push(rand);
+        }
+        setAiAvatars(chosen.slice(0, aiCount));
+      } else if (isHighStake) {
         setAiAvatars([
           '/assets/icons/UsaLeader.webp',
           '/assets/icons/RussiaLeader.webp',
@@ -1653,11 +1655,7 @@ export default function SnakeAndLadder() {
           });
           setMessage("Six rolled! One die removed.");
         } else {
-          setMessage("Need a 6 to remove a die.");
-          if (!removeDiceHelpShown) {
-            setShowRemoveDiceHelp(true);
-            setRemoveDiceHelpShown(true);
-          }
+          setMessage("");
         }
         setTurnMessage("Your turn");
         setDiceVisible(true);
@@ -1685,11 +1683,7 @@ export default function SnakeAndLadder() {
           if (!muted) cheerSoundRef.current?.play().catch(() => {});
         }
         else {
-          setMessage("Need a 6 to start!");
-          if (!startHelpShown) {
-            setShowStartHelp(true);
-            setStartHelpShown(true);
-          }
+          setMessage("");
           setTurnMessage("");
           setDiceVisible(false);
           const next = (currentTurn + 1) % (ai + 1);
@@ -2212,7 +2206,7 @@ export default function SnakeAndLadder() {
         onGift={() => setShowGift(true)}
       />
       {/* Player photos stacked vertically */}
-        <div className="fixed left-0 top-[45%] -translate-x-2 -translate-y-1/2 flex flex-col space-y-5 z-20">
+        <div className="fixed left-0 top-[45%] -translate-x-1 -translate-y-1/2 flex flex-col space-y-5 z-20">
         {players
           .map((p, i) => ({ ...p, index: i }))
           .map((p) => (
@@ -2526,14 +2520,7 @@ export default function SnakeAndLadder() {
         open={showInfo}
         onClose={() => setShowInfo(false)}
         title="Snake & Ladder"
-        info="Roll two dice each turn. You need a six to leave the start. Move forward by their sum. Ladders lift you up and snakes bring you down. You must land exactly on the pot tile to win. From tile 100 roll a six to drop one die, then a one to reach the pot."
-      />
-      )}
-      {!watchOnly && (
-      <HintPopup
-        open={showStartHelp}
-        onClose={() => setShowStartHelp(false)}
-        message="Roll at least one six to enter the board."
+        info="Roll two dice each turn. Move forward by their sum. Ladders lift you up and snakes bring you down. You must land exactly on the pot tile to win."
       />
       )}
       {!watchOnly && (
@@ -2541,13 +2528,6 @@ export default function SnakeAndLadder() {
         open={showExactHelp}
         onClose={() => setShowExactHelp(false)}
         message="You must roll the exact number to land on the pot."
-      />
-      )}
-      {!watchOnly && (
-      <HintPopup
-        open={showRemoveDiceHelp}
-        onClose={() => setShowRemoveDiceHelp(false)}
-        message="On tile 100 you need a six to drop one die before you can win."
       />
       )}
       {!watchOnly && (

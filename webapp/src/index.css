@@ -1032,7 +1032,7 @@ input:focus {
     var(--cell-height) * -8.7 - var(--cell-height) * 1.7 *
       (var(--final-scale, 1) - 1)
   );
-  left: 48%;
+  left: 47%;
   transform: translateX(-50%) rotateX(calc(var(--board-angle, 58deg) * -1))
     translateZ(-90px) scale(2.31); /* 5% larger */
   transform-origin: bottom center;
