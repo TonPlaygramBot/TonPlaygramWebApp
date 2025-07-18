@@ -4,6 +4,8 @@ import { pingOnline, getOnlineCount } from '../../utils/api.js';
 import { getPlayerId } from '../../utils/telegram.js';
 import RoomSelector from '../../components/RoomSelector.jsx';
 import TableSelector from '../../components/TableSelector.jsx';
+import LeaderPickerModal from '../../components/LeaderPickerModal.jsx';
+import { LEADER_AVATARS } from '../../utils/leaderAvatars.js';
 import useTelegramBackButton from '../../hooks/useTelegramBackButton.js';
 
 export default function CrazyDiceLobby() {
@@ -22,6 +24,8 @@ export default function CrazyDiceLobby() {
   const [stake, setStake] = useState({ token: 'TPC', amount: 100 });
   const [aiCount, setAiCount] = useState(1);
   const [aiType, setAiType] = useState('');
+  const [showLeaderPicker, setShowLeaderPicker] = useState(false);
+  const [leaders, setLeaders] = useState([]);
   const [online, setOnline] = useState(0);
 
   useEffect(() => {
@@ -37,12 +41,25 @@ export default function CrazyDiceLobby() {
     return () => clearInterval(id);
   }, []);
 
+  const selectAiType = (t) => {
+    setAiType(t);
+    if (t === 'leaders') {
+      setShowLeaderPicker(true);
+    } else {
+      setLeaders([]);
+    }
+  };
+
   const startGame = () => {
     const params = new URLSearchParams();
     if (table.id === 'single') {
       params.set('ai', aiCount);
       params.set('players', aiCount + 1);
       params.set('avatars', aiType);
+      if (aiType === 'leaders' && leaders.length) {
+        const ids = leaders.map((l) => LEADER_AVATARS.indexOf(l)).filter((i) => i >= 0);
+        if (ids.length) params.set('leaders', ids.join(','));
+      }
     } else {
       params.set('players', table.capacity);
     }
@@ -56,7 +73,8 @@ export default function CrazyDiceLobby() {
     !stake.token ||
     !stake.amount ||
     !table ||
-    (table.id === 'single' && !aiType);
+    (table.id === 'single' && !aiType) ||
+    (table.id === 'single' && aiType === 'leaders' && leaders.length !== aiCount);
 
   return (
     <div className="relative p-4 space-y-4 text-text">
@@ -85,7 +103,7 @@ export default function CrazyDiceLobby() {
             {['flags', 'leaders'].map((t) => (
               <button
                 key={t}
-                onClick={() => setAiType(t)}
+                onClick={() => selectAiType(t)}
                 className={`lobby-tile ${aiType === t ? 'lobby-selected' : ''}`}
               >
                 {t === 'flags' ? 'Flags' : 'Leaders'}
@@ -123,6 +141,13 @@ export default function CrazyDiceLobby() {
       >
         Start Game
       </button>
+      <LeaderPickerModal
+        open={showLeaderPicker}
+        count={aiCount}
+        selected={leaders}
+        onSave={setLeaders}
+        onClose={() => setShowLeaderPicker(false)}
+      />
     </div>
   );
 }
