@@ -612,6 +612,9 @@ export default function SnakeAndLadder() {
   const [forfeitMsg, setForfeitMsg] = useState(false);
   const [cheatMsg, setCheatMsg] = useState(null);
   const [showInfo, setShowInfo] = useState(false);
+  const [showStartHelp, setShowStartHelp] = useState(false);
+  const [showExactHelp, setShowExactHelp] = useState(false);
+  const [showRemoveDiceHelp, setShowRemoveDiceHelp] = useState(false);
   const [muted, setMuted] = useState(isGameMuted());
   const [snakes, setSnakes] = useState({});
   const [ladders, setLadders] = useState({});
@@ -1629,6 +1632,7 @@ export default function SnakeAndLadder() {
           setMessage("Six rolled! One die removed.");
         } else {
           setMessage("Need a 6 to remove a die.");
+          setShowRemoveDiceHelp(true);
         }
         setTurnMessage("Your turn");
         setDiceVisible(true);
@@ -1657,6 +1661,7 @@ export default function SnakeAndLadder() {
         }
         else {
           setMessage("Need a 6 to start!");
+          setShowStartHelp(true);
           setTurnMessage("");
           setDiceVisible(false);
           const next = (currentTurn + 1) % (ai + 1);
@@ -1672,6 +1677,7 @@ export default function SnakeAndLadder() {
         target = current + value;
       } else {
         setMessage("Need exact roll!");
+        setShowExactHelp(true);
         setTurnMessage("");
         setDiceVisible(false);
         const next = (currentTurn + 1) % (ai + 1);
@@ -2492,8 +2498,30 @@ export default function SnakeAndLadder() {
         open={showInfo}
         onClose={() => setShowInfo(false)}
         title="Snake & Ladder"
-        info="Roll the dice to move across the board. Ladders move you up, snakes bring you down. The Pot at the top collects everyone's stake – reach it first to claim the total amount."
+        info="Roll two dice each turn. You need a six to leave the start. Move forward by their sum. Ladders lift you up and snakes bring you down. You must land exactly on the pot tile to win. From tile 100 roll a six to drop one die, then a one to reach the pot."
       />
+      )}
+      {!watchOnly && (
+      <InfoPopup
+        open={showStartHelp}
+        onClose={() => setShowStartHelp(false)}
+        title="Need a 6"
+        info="Roll at least one six to enter the board."
+      />
+      )}
+      {!watchOnly && (
+      <InfoPopup
+        open={showExactHelp}
+        onClose={() => setShowExactHelp(false)}
+        title="Exact Roll Required"
+        info="You must roll the exact number to land on the pot."/>
+      )}
+      {!watchOnly && (
+      <InfoPopup
+        open={showRemoveDiceHelp}
+        onClose={() => setShowRemoveDiceHelp(false)}
+        title="Remove a Die"
+        info="On tile 100 you need a six to drop one die before you can win."/>
       )}
       {!watchOnly && (
       <InfoPopup
