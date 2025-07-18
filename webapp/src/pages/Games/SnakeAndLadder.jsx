@@ -1642,7 +1642,7 @@ export default function SnakeAndLadder() {
           });
           setMessage("Six rolled! One die removed.");
         } else {
-          setMessage("Need a six to drop a die.");
+          setMessage("Need a 6 to remove a die.");
           setShowRemoveDiceHelp(true);
         }
         setTurnMessage("Your turn");
@@ -1671,7 +1671,7 @@ export default function SnakeAndLadder() {
           if (!muted) cheerSoundRef.current?.play().catch(() => {});
         }
         else {
-          setMessage("Need a six to enter the game.");
+          setMessage("Need a 6 to start!");
           setShowStartHelp(true);
           setTurnMessage("");
           setDiceVisible(false);
@@ -1687,7 +1687,7 @@ export default function SnakeAndLadder() {
       } else if (current + value <= FINAL_TILE) {
         target = current + value;
       } else {
-        setMessage("Need the exact roll.");
+        setMessage("Need exact roll!");
         setShowExactHelp(true);
         setTurnMessage("");
         setDiceVisible(false);
@@ -2509,31 +2509,28 @@ export default function SnakeAndLadder() {
         open={showInfo}
         onClose={() => setShowInfo(false)}
         title="Snake & Ladder"
-        info="Roll two dice each turn. Need a six to enter the board. Move by their sum. Ladders lift you up and snakes pull you down. Land exactly on the pot to win. From tile 100 roll a six to drop a die, then a one to win."
+        info="Roll two dice each turn. You need a six to leave the start. Move forward by their sum. Ladders lift you up and snakes bring you down. You must land exactly on the pot tile to win. From tile 100 roll a six to drop one die, then a one to reach the pot."
       />
       )}
       {!watchOnly && (
       <HintPopup
         open={showStartHelp}
         onClose={() => setShowStartHelp(false)}
-        message="Need a six to enter the game."
-        duration={1500}
+        message="Roll at least one six to enter the board."
       />
       )}
       {!watchOnly && (
       <HintPopup
         open={showExactHelp}
         onClose={() => setShowExactHelp(false)}
-        message="Need the exact roll to reach the pot."
-        duration={1500}
+        message="You must roll the exact number to land on the pot."
       />
       )}
       {!watchOnly && (
       <HintPopup
         open={showRemoveDiceHelp}
         onClose={() => setShowRemoveDiceHelp(false)}
-        message="On tile 100 roll a six to drop a die before you can win."
-        duration={1500}
+        message="On tile 100 you need a six to drop one die before you can win."
       />
       )}
       {!watchOnly && (
