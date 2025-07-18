@@ -13,7 +13,7 @@ import {
   myInfluencerVideos,
 } from '../utils/api.js';
 
-import { getTelegramId } from '../utils/telegram.js';
+import { getTelegramId, parseTelegramPostLink } from '../utils/telegram.js';
 import LoginOptions from '../components/LoginOptions.jsx';
 
 import { IoLogoTiktok } from 'react-icons/io5';
@@ -121,8 +121,9 @@ export default function Tasks() {
     if (task.link) {
       window.open(task.link, '_blank');
     }
-    if (task.id === 'react_tg_post') {
-      const res = await verifyTelegramReaction(telegramId);
+    if (task.id.startsWith('react_tg_post')) {
+      const { messageId, threadId } = parseTelegramPostLink(task.link || '');
+      const res = await verifyTelegramReaction(telegramId, messageId, threadId);
       if (res.error || !res.reacted) {
         alert(res.error || 'Reaction not verified');
         return;
@@ -214,6 +215,7 @@ export default function Tasks() {
     boost_tiktok_6: <IoLogoTiktok className="text-pink-500 w-5 h-5" />,
     post_tweet: xIcon,
     react_tg_post: <RiTelegramFill className="text-sky-400 w-5 h-5" />,
+    react_tg_post_2: <RiTelegramFill className="text-sky-400 w-5 h-5" />,
     engage_tweet: xIcon,
     watch_ad: <FiVideo className="text-yellow-500 w-5 h-5" />
   };

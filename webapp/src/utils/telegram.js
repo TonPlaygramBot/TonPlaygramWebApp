@@ -94,3 +94,11 @@ export function getTelegramPhotoUrl() {
   }
   return '';
 }
+
+export function parseTelegramPostLink(link) {
+  const m = link.match(/TonPlaygram\/(?:([0-9]+)\/)?([0-9]+)/);
+  return {
+    threadId: m && m[1] ? Number(m[1]) : undefined,
+    messageId: m && m[2] ? Number(m[2]) : undefined,
+  };
+}

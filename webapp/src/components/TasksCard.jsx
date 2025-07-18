@@ -13,7 +13,7 @@ import {
 import { useTonAddress, useTonConnectUI } from '@tonconnect/ui-react';
 import { STORE_ADDRESS } from '../utils/storeData.js';
 
-import { getTelegramId } from '../utils/telegram.js';
+import { getTelegramId, parseTelegramPostLink } from '../utils/telegram.js';
 import LoginOptions from './LoginOptions.jsx';
 
 import { IoLogoTiktok } from 'react-icons/io5';
@@ -49,6 +49,7 @@ const ICONS = {
   boost_tiktok_6: <IoLogoTiktok className="text-pink-500 w-5 h-5" />,
   post_tweet: xIcon,
   react_tg_post: <RiTelegramFill className="text-sky-400 w-5 h-5" />,
+  react_tg_post_2: <RiTelegramFill className="text-sky-400 w-5 h-5" />,
   engage_tweet: xIcon,
   watch_ad: <FiVideo className="text-yellow-500 w-5 h-5" />
 
@@ -132,8 +133,9 @@ export default function TasksCard() {
 
     window.open(task.link, '_blank');
 
-    if (task.id === 'react_tg_post') {
-      const res = await verifyTelegramReaction(telegramId);
+    if (task.id.startsWith('react_tg_post')) {
+      const { messageId, threadId } = parseTelegramPostLink(task.link || '');
+      const res = await verifyTelegramReaction(telegramId, messageId, threadId);
       if (res.error || !res.reacted) {
         alert(res.error || 'Reaction not verified');
         return;

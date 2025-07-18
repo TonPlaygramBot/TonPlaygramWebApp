@@ -1,4 +1,4 @@
-export const TASKS_VERSION = 5;
+export const TASKS_VERSION = 6;
 
 export const TASKS = [
 
@@ -109,6 +109,14 @@ export const TASKS = [
     reward: 2500,
     icon: 'telegram',
     link: 'https://t.me/TonPlaygram/1/16'
+  },
+
+  {
+    id: 'react_tg_post_2',
+    description: 'React to our group post',
+    reward: 2500,
+    icon: 'telegram',
+    link: 'https://t.me/TonPlaygram/19'
   },
 
   {
