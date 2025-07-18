@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { LEADER_AVATARS } from '../utils/leaderAvatars.js';
 import { getAvatarUrl } from '../utils/avatarUtils.js';
 
-export default function LeaderPickerModal({ open, onClose, count = 1, onSave, selected = [] }) {
+export default function LeaderPickerModal({ open, onClose, count = 1, onSave, selected = [], onComplete }) {
   const [chosen, setChosen] = useState(selected);
 
   useEffect(() => {
@@ -11,17 +11,27 @@ export default function LeaderPickerModal({ open, onClose, count = 1, onSave, se
 
   if (!open) return null;
 
+  const handleComplete = (selection) => {
+    onSave(selection.slice(0, count));
+    onClose();
+    if (onComplete) onComplete(selection.slice(0, count));
+  };
+
   const toggle = (src) => {
     setChosen((prev) => {
-      if (prev.includes(src)) return prev.filter((s) => s !== src);
-      if (prev.length >= count) return prev;
-      return [...prev, src];
+      let next = prev;
+      if (prev.includes(src)) {
+        next = prev.filter((s) => s !== src);
+      } else if (prev.length < count) {
+        next = [...prev, src];
+        if (next.length === count) handleComplete(next);
+      }
+      return next;
     });
   };
 
   const confirm = () => {
-    onSave(chosen.slice(0, count));
-    onClose();
+    handleComplete(chosen);
   };
 
   const randomize = () => {
@@ -30,8 +40,7 @@ export default function LeaderPickerModal({ open, onClose, count = 1, onSave, se
       const leader = LEADER_AVATARS[Math.floor(Math.random() * LEADER_AVATARS.length)];
       if (!random.includes(leader)) random.push(leader);
     }
-    onSave(random.slice(0, count));
-    onClose();
+    handleComplete(random);
   };
 
   return (
