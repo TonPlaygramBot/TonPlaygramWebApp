@@ -563,6 +563,12 @@ export default function SnakeAndLadder() {
         turkeyLeaderSoundRef,
         ukraineLeaderSoundRef,
         northKoreaLeaderSoundRef,
+        egyptLeaderSoundRef,
+        englandLeaderSoundRef,
+        franceLeaderSoundRef,
+        israelLeaderSoundRef,
+        serbiaLeaderSoundRef,
+        palestineFlagSoundRef,
         badLuckSoundRef,
         cheerSoundRef,
         timerSoundRef,
@@ -748,42 +754,66 @@ export default function SnakeAndLadder() {
       if (idx !== mover && p === cell) victims.push(idx);
     });
     if (victims.length && cell > 0) {
+      const victimPalestine = victims.some((idx) => {
+        const av = getPlayerAvatar(idx);
+        return av.includes('Palestine') || av === '🇵🇸';
+      });
       if (!muted) {
         bombSoundRef.current.currentTime = 0;
         bombSoundRef.current.play().catch(() => {});
-        const avatar = getPlayerAvatar(mover);
-        if (avatar.includes('UsaLeader') || avatar === '🇺🇸') {
-          usaLeaderSoundRef.current.currentTime = 0;
-          usaLeaderSoundRef.current.play().catch(() => {});
-        } else if (avatar.includes('ChinaLeader') || avatar === '🇨🇳') {
-          chinaLeaderSoundRef.current.currentTime = 0;
-          chinaLeaderSoundRef.current.play().catch(() => {});
-        } else if (avatar.includes('RussiaLeader') || avatar === '🇷🇺') {
-          russiaLeaderSoundRef.current.currentTime = 0;
-          russiaLeaderSoundRef.current.play().catch(() => {});
-        } else if (avatar.includes('ItalyLeader') || avatar === '🇮🇹') {
-          italyLeaderSoundRef.current.currentTime = 0;
-          italyLeaderSoundRef.current.play().catch(() => {});
-        } else if (avatar.includes('AlbaniaLeader') || avatar === '🇦🇱') {
-          albaniaLeaderSoundRef.current.currentTime = 0;
-          albaniaLeaderSoundRef.current.play().catch(() => {});
-        } else if (avatar.includes('GreeceLeader') || avatar === '🇬🇷') {
-          setTimeout(() => {
-            greeceLeaderSoundRef.current.currentTime = 0;
-            greeceLeaderSoundRef.current.play().catch(() => {});
-          }, 1500);
-        } else if (avatar.includes('TurkeyLeader') || avatar === '🇹🇷') {
-          turkeyLeaderSoundRef.current.currentTime = 0;
-          turkeyLeaderSoundRef.current.play().catch(() => {});
-        } else if (avatar.includes('NorthKoreaLeader') || avatar === '🇰🇵') {
-          northKoreaLeaderSoundRef.current.currentTime = 0;
-          northKoreaLeaderSoundRef.current.play().catch(() => {});
-        } else if (avatar.includes('UkraineLeader') || avatar === '🇺🇦') {
-          ukraineLeaderSoundRef.current.currentTime = 0;
-          ukraineLeaderSoundRef.current.play().catch(() => {});
+        if (victimPalestine) {
+          palestineFlagSoundRef.current.currentTime = 0;
+          palestineFlagSoundRef.current.play().catch(() => {});
+        } else {
+          const avatar = getPlayerAvatar(mover);
+          if (avatar.includes('UsaLeader') || avatar === '🇺🇸') {
+            usaLeaderSoundRef.current.currentTime = 0;
+            usaLeaderSoundRef.current.play().catch(() => {});
+          } else if (avatar.includes('ChinaLeader') || avatar === '🇨🇳') {
+            chinaLeaderSoundRef.current.currentTime = 0;
+            chinaLeaderSoundRef.current.play().catch(() => {});
+          } else if (avatar.includes('RussiaLeader') || avatar === '🇷🇺') {
+            russiaLeaderSoundRef.current.currentTime = 0;
+            russiaLeaderSoundRef.current.play().catch(() => {});
+          } else if (avatar.includes('ItalyLeader') || avatar === '🇮🇹') {
+            italyLeaderSoundRef.current.currentTime = 0;
+            italyLeaderSoundRef.current.play().catch(() => {});
+          } else if (avatar.includes('AlbaniaLeader') || avatar === '🇦🇱') {
+            albaniaLeaderSoundRef.current.currentTime = 0;
+            albaniaLeaderSoundRef.current.play().catch(() => {});
+          } else if (avatar.includes('GreeceLeader') || avatar === '🇬🇷') {
+            setTimeout(() => {
+              greeceLeaderSoundRef.current.currentTime = 0;
+              greeceLeaderSoundRef.current.play().catch(() => {});
+            }, 1500);
+          } else if (avatar.includes('TurkeyLeader') || avatar === '🇹🇷') {
+            turkeyLeaderSoundRef.current.currentTime = 0;
+            turkeyLeaderSoundRef.current.play().catch(() => {});
+          } else if (avatar.includes('NorthKoreaLeader') || avatar === '🇰🇵') {
+            northKoreaLeaderSoundRef.current.currentTime = 0;
+            northKoreaLeaderSoundRef.current.play().catch(() => {});
+          } else if (avatar.includes('UkraineLeader') || avatar === '🇺🇦') {
+            ukraineLeaderSoundRef.current.currentTime = 0;
+            ukraineLeaderSoundRef.current.play().catch(() => {});
+          } else if (avatar.includes('EgyptLeader') || avatar === '🇪🇬') {
+            egyptLeaderSoundRef.current.currentTime = 0;
+            egyptLeaderSoundRef.current.play().catch(() => {});
+          } else if (avatar.includes('UnitedKingdomLeader') || avatar.includes('EnglandLeader') || avatar === '🇬🇧') {
+            englandLeaderSoundRef.current.currentTime = 0;
+            englandLeaderSoundRef.current.play().catch(() => {});
+          } else if (avatar.includes('FranceLeader') || avatar === '🇫🇷') {
+            franceLeaderSoundRef.current.currentTime = 0;
+            franceLeaderSoundRef.current.play().catch(() => {});
+          } else if (avatar.includes('IsraelLeader') || avatar === '🇮🇱') {
+            israelLeaderSoundRef.current.currentTime = 0;
+            israelLeaderSoundRef.current.play().catch(() => {});
+          } else if (avatar.includes('SerbiaLeader') || avatar === '🇷🇸') {
+            serbiaLeaderSoundRef.current.currentTime = 0;
+            serbiaLeaderSoundRef.current.play().catch(() => {});
+          }
         }
       }
-      if (cell <= 4 && !muted) {
+      if (cell <= 4 && !muted && !victimPalestine) {
         setTimeout(() => {
           hahaSoundRef.current.currentTime = 0;
           hahaSoundRef.current.play().catch(() => {});
@@ -927,6 +957,12 @@ export default function SnakeAndLadder() {
   const turkeyLeaderSoundRef = useRef(null);
   const ukraineLeaderSoundRef = useRef(null);
   const northKoreaLeaderSoundRef = useRef(null);
+  const egyptLeaderSoundRef = useRef(null);
+  const englandLeaderSoundRef = useRef(null);
+  const franceLeaderSoundRef = useRef(null);
+  const israelLeaderSoundRef = useRef(null);
+  const serbiaLeaderSoundRef = useRef(null);
+  const palestineFlagSoundRef = useRef(null);
   const badLuckSoundRef = useRef(null);
   const cheerSoundRef = useRef(null);
   const timerSoundRef = useRef(null);
@@ -989,6 +1025,18 @@ export default function SnakeAndLadder() {
     ukraineLeaderSoundRef.current.volume = vol;
     northKoreaLeaderSoundRef.current = new Audio("/assets/sounds/Chinese_Gong_Meme_Sound_Effect.mp3");
     northKoreaLeaderSoundRef.current.volume = vol;
+    egyptLeaderSoundRef.current = new Audio("/assets/sounds/Ancient_Egyptian_Music__The_Nile_River.mp3");
+    egyptLeaderSoundRef.current.volume = vol;
+    englandLeaderSoundRef.current = new Audio("/assets/sounds/EnglandLeader.mp3");
+    englandLeaderSoundRef.current.volume = vol;
+    franceLeaderSoundRef.current = new Audio("/assets/sounds/FranceLeader.mp3");
+    franceLeaderSoundRef.current.volume = vol;
+    israelLeaderSoundRef.current = new Audio("/assets/sounds/IsraelLeader.mp3");
+    israelLeaderSoundRef.current.volume = vol;
+    serbiaLeaderSoundRef.current = new Audio("/assets/sounds/SerbiaLeader.mp3");
+    serbiaLeaderSoundRef.current.volume = vol;
+    palestineFlagSoundRef.current = new Audio('/assets/sounds/palestineflag.mp3');
+    palestineFlagSoundRef.current.volume = vol;
     badLuckSoundRef.current = new Audio(badLuckSound);
     badLuckSoundRef.current.volume = vol;
     cheerSoundRef.current = new Audio(cheerSound);
@@ -1014,6 +1062,12 @@ export default function SnakeAndLadder() {
       turkeyLeaderSoundRef.current?.pause();
       ukraineLeaderSoundRef.current?.pause();
       northKoreaLeaderSoundRef.current?.pause();
+      egyptLeaderSoundRef.current?.pause();
+      englandLeaderSoundRef.current?.pause();
+      franceLeaderSoundRef.current?.pause();
+      israelLeaderSoundRef.current?.pause();
+      serbiaLeaderSoundRef.current?.pause();
+      palestineFlagSoundRef.current?.pause();
       badLuckSoundRef.current?.pause();
       cheerSoundRef.current?.pause();
       timerSoundRef.current?.pause();
@@ -1040,6 +1094,12 @@ export default function SnakeAndLadder() {
       turkeyLeaderSoundRef,
       ukraineLeaderSoundRef,
       northKoreaLeaderSoundRef,
+      egyptLeaderSoundRef,
+      englandLeaderSoundRef,
+      franceLeaderSoundRef,
+      israelLeaderSoundRef,
+      serbiaLeaderSoundRef,
+      palestineFlagSoundRef,
       badLuckSoundRef,
       cheerSoundRef,
       timerSoundRef,
