@@ -30,7 +30,6 @@ import { fileURLToPath } from 'url';
 import { existsSync } from 'fs';
 import { execSync } from 'child_process';
 import compression from 'compression';
-import { Address } from 'ton-core';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -49,21 +48,7 @@ const app = express();
 app.use(cors());
 const httpServer = http.createServer(app);
 const io = new SocketIOServer(httpServer, { cors: { origin: '*' } });
-
-function handleGameFinish(roomId, winnerId) {
-  User.findOne({ accountId: winnerId })
-    .then((user) => {
-      if (user?.walletAddress) {
-        console.log(`Winner ${winnerId} => ${user.walletAddress}`);
-        // Placeholder for sending blockchain payout
-      } else {
-        console.log('Winner wallet not found for', winnerId);
-      }
-    })
-    .catch((err) => console.error('payout lookup failed:', err));
-}
-
-const gameManager = new GameRoomManager(io, handleGameFinish);
+const gameManager = new GameRoomManager(io);
 
 // Expose socket.io instance and userSockets map for routes
 app.set('io', io);
@@ -217,8 +202,6 @@ const pendingInvites = new Map();
 app.set('userSockets', userSockets);
 
 const tableWatchers = new Map();
-// Track which players have deposited for each room
-const roomDeposits = new Map();
 const BUNDLE_TON_MAP = Object.fromEntries(
   Object.values(BUNDLES).map((b) => [b.label, b.ton])
 );
@@ -408,30 +391,6 @@ app.get('/api/snake/board/:id', async (req, res) => {
 app.get("/api/watchers/count/:id", (req, res) => {
   const set = tableWatchers.get(req.params.id);
   res.json({ count: set ? set.size : 0 });
-});
-
-// Record that a player has deposited the stake for a room
-app.post('/api/snake/deposit', async (req, res) => {
-  const { roomId, playerId } = req.body || {};
-  if (!roomId || !playerId) return res.status(400).json({ error: 'missing data' });
-  let set = roomDeposits.get(roomId);
-  if (!set) { set = new Set(); roomDeposits.set(roomId, set); }
-  set.add(String(playerId));
-  const room = await gameManager.getRoom(roomId);
-  const players = room.players.filter(p => !p.disconnected);
-  const all = players.length > 0 && players.every(p => set.has(String(p.playerId)));
-  if (all && room.status === 'waiting') {
-    room.startGame();
-    await gameManager.saveRoom(room);
-    roomDeposits.delete(roomId);
-  }
-  res.json({ start: all });
-});
-
-// Check which players have deposited for a room
-app.get('/api/snake/deposit-status/:id', (req, res) => {
-  const set = roomDeposits.get(req.params.id);
-  res.json({ deposited: set ? Array.from(set) : [] });
 });
 
 
