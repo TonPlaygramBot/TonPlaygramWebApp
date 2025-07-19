@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { FLAG_EMOJIS } from '../utils/flagEmojis.js';
 import { FLAG_CATEGORIES } from '../utils/flagCategories.js';
+import { avatarToName } from '../utils/avatarUtils.js';
 
 export default function FlagPickerModal({ open, onClose, count = 1, onSave, selected = [], onComplete }) {
   const continents = Object.keys(FLAG_CATEGORIES);
@@ -65,14 +66,18 @@ export default function FlagPickerModal({ open, onClose, count = 1, onSave, sele
               </button>
             ))}
           </div>
-          <div className="flex flex-wrap justify-center gap-2 mt-2">
-            {FLAG_CATEGORIES[category].map(flag => (
-              <div
-                key={flag}
-                className={`w-12 h-12 flex items-center justify-center text-2xl cursor-pointer hover:opacity-80 ${chosen.includes(flag) ? 'ring-4 ring-accent' : ''}`}
-                onClick={() => toggle(flag)}
-              >
-                {flag}
+          <div className="flex flex-wrap justify-center gap-4 mt-2">
+            {FLAG_CATEGORIES[category].map((flag) => (
+              <div key={flag} className="flex flex-col items-center w-16">
+                <div
+                  className={`w-12 h-12 flex items-center justify-center text-2xl cursor-pointer hover:opacity-80 ${chosen.includes(flag) ? 'ring-4 ring-accent' : ''}`}
+                  onClick={() => toggle(flag)}
+                >
+                  {flag}
+                </div>
+                <span className="text-xs mt-1 text-center whitespace-nowrap">
+                  {avatarToName(flag)}
+                </span>
               </div>
             ))}
           </div>
