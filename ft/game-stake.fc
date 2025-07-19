@@ -1,0 +1,27 @@
+;; Game lobby stake contract
+;; Players send TON to this contract before starting a match.
+;; When the game is finished, call op#1 with the winner address
+;; to distribute 90% of the balance to the winner and 10% to the developer.
+
+const DEV_ADDR = 0x0; ;; placeholder replaced during deployment
+const END_GAME_OP = 1;
+
+() recv_internal(int my_balance, int msg_value, cell in_msg_full, slice in_msg_body) impure {
+  if (in_msg_body.slice_empty?()) {
+    accept_message();
+    return ();
+  }
+  int op = in_msg_body~load_uint(32);
+  if (op != END_GAME_OP) {
+    accept_message();
+    return ();
+  }
+  slice winner = in_msg_body~load_msg_addr();
+  int dev_share = my_balance / 10;
+  int win_share = my_balance - dev_share;
+  builder b1 = begin_cell().store_slice(winner).store_coins(win_share);
+  send_raw_message(b1.end_cell(), 1);
+  builder b2 = begin_cell().store_slice(DEV_ADDR).store_coins(dev_share);
+  send_raw_message(b2.end_cell(), 1);
+  accept_message();
+}

@@ -181,19 +181,35 @@ export default function Lobby() {
   const startGame = async (flagOverride = flags, leaderOverride = leaders) => {
     const params = new URLSearchParams();
     if (table) params.set('table', table.id);
-    if (game === 'snake' && stake.token === 'TON' && stake.amount > 0) {
+    if (
+      game === 'snake' &&
+      (stake.token === 'TON' || stake.token === 'USDT') &&
+      stake.amount > 0
+    ) {
       if (!walletAddress) {
         tonConnectUI.openModal();
         return;
       }
-      const tx = {
-        validUntil: Math.floor(Date.now() / 1000) + 60,
-        messages: [
+      let messages;
+      if (stake.token === 'TON') {
+        messages = [
           {
             address: SNAKE_CONTRACT_ADDRESS,
             amount: String(stake.amount * 1e9),
           },
-        ],
+        ];
+      } else {
+        messages = [
+          {
+            address: SNAKE_CONTRACT_ADDRESS,
+            amount: '2000000',
+            payload: `USDT:${stake.amount}`,
+          },
+        ];
+      }
+      const tx = {
+        validUntil: Math.floor(Date.now() / 1000) + 60,
+        messages,
       };
       try {
         await tonConnectUI.sendTransaction(tx);
@@ -286,11 +302,10 @@ export default function Lobby() {
         <RoomSelector
           selected={stake}
           onSelect={setStake}
-          tokens={['TPC']}
+          tokens={['TPC', 'TON', 'USDT']}
         />
         <p className="text-center text-subtext text-sm">
-          TON and USDT staking coming soon. Smart contract under
-          construction.
+          Staking is handled via the on-chain contract.
         </p>
       </div>
       {game === 'snake' && table?.id === 'single' && (
