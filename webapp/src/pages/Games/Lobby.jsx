@@ -56,6 +56,11 @@ export default function Lobby() {
   const [online, setOnline] = useState(0);
   const [playerName, setPlayerName] = useState('');
   const autoStartedRef = useRef(false);
+  const startedRef = useRef(false);
+
+  useEffect(() => {
+    startedRef.current = false;
+  }, [game, table]);
 
   const selectAiType = (t) => {
     setAiType(t);
@@ -131,7 +136,7 @@ export default function Lobby() {
       return () => {
         cancelled = true;
         if (interval) clearInterval(interval);
-        if (pid) unseatTable(pid, table.id).catch(() => {});
+        if (pid && !startedRef.current) unseatTable(pid, table.id).catch(() => {});
       };
     }
   }, [game, table, playerName]);
@@ -251,6 +256,7 @@ export default function Lobby() {
       if (stake.amount) params.set('amount', stake.amount);
     }
 
+    startedRef.current = true;
     navigate(`/games/${game}?${params.toString()}`);
   };
 

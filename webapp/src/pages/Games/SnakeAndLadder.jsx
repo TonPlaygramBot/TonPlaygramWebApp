@@ -39,7 +39,8 @@ import {
   depositAccount,
   getSnakeBoard,
   pingOnline,
-  addTransaction
+  addTransaction,
+  unseatTable
 } from "../../utils/api.js";
 // Developer accounts that receive shares of each pot
 const DEV_ACCOUNT = import.meta.env.VITE_DEV_ACCOUNT_ID;
@@ -1419,7 +1420,10 @@ export default function SnakeAndLadder() {
         setDiceCount(playerDiceCounts[idx] ?? 2);
       }
     };
-    const onStarted = () => setWaitingForPlayers(false);
+    const onStarted = () => {
+      setWaitingForPlayers(false);
+      unseatTable(accountId, tableId).catch(() => {});
+    };
     const onRolled = ({ value }) => {
       setRollResult(value);
       setTimeout(() => setRollResult(null), 2000);
@@ -1528,6 +1532,8 @@ export default function SnakeAndLadder() {
       socket.off('currentPlayers', onCurrentPlayers);
       if (watchOnly) {
         socket.emit('leaveWatch', { roomId: tableId });
+      } else {
+        unseatTable(accountId, tableId).catch(() => {});
       }
     };
   }, [isMultiplayer, tableId, watchOnly]);
