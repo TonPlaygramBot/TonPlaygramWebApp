@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { LEADER_AVATARS } from '../utils/leaderAvatars.js';
+import { LEADER_AVATARS, LEADER_NAMES } from '../utils/leaderAvatars.js';
 import { getAvatarUrl } from '../utils/avatarUtils.js';
 
 export default function LeaderPickerModal({ open, onClose, count = 1, onSave, selected = [], onComplete }) {
@@ -48,13 +48,15 @@ export default function LeaderPickerModal({ open, onClose, count = 1, onSave, se
       <div className="bg-surface border border-border p-4 rounded text-center text-text w-96 max-h-[90vh] flex flex-col space-y-4">
         <h3 className="text-lg font-bold">Select your opponents</h3>
         <div className="flex-1 min-h-0 overflow-y-auto flex flex-wrap justify-center gap-2">
-          {LEADER_AVATARS.map((src) => (
-            <div
-              key={src}
-              className={`w-20 h-20 rounded-full flex items-center justify-center cursor-pointer hover:opacity-80 ${chosen.includes(src) ? 'ring-4 ring-accent' : ''}`}
-              onClick={() => toggle(src)}
-            >
-              <img src={getAvatarUrl(src)} alt="leader" className="w-full h-full rounded-full object-cover" />
+          {LEADER_AVATARS.map((src, i) => (
+            <div key={src} className="flex flex-col items-center w-20">
+              <div
+                className={`w-20 h-20 rounded-full flex items-center justify-center cursor-pointer hover:opacity-80 ${chosen.includes(src) ? 'ring-4 ring-accent' : ''}`}
+                onClick={() => toggle(src)}
+              >
+                <img src={getAvatarUrl(src)} alt="leader" className="w-full h-full rounded-full object-cover" />
+              </div>
+              <span className="text-xs mt-1 text-center whitespace-nowrap">{LEADER_NAMES[i]}</span>
             </div>
           ))}
         </div>

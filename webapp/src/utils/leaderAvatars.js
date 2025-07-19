@@ -28,3 +28,36 @@ export const LEADER_AVATARS = [
 ];
 
 export const LEADER_PHOTO_AVATARS = LEADER_AVATARS.map(p => p.replace('.webp', '.jpg'));
+
+export const LEADER_NAMES = [
+  'E.Rama',
+  'V.Zelensky',
+  'J.Trudeau',
+  'O.Scholz',
+  'F.Kishida',
+  'R.Sunak',
+  'E.Macron',
+  'N.Modi',
+  'X.Jinping',
+  'V.Putin',
+  'D.Trump',
+  'G.Meloni',
+  'K.Mitsotakis',
+  'R.Erdogan',
+  'N.Maduro',
+  'I.Traore',
+  'M.Maktoum',
+  'M.BinSalman',
+  'B.Netanyahu',
+  'A.II',
+  'A.El-Sisi',
+  'E.Raisi',
+  'A.Vucic',
+  'V.Orban',
+  'A.Lukashenko',
+  'K.JongUn'
+];
+
+export const LEADER_NAME_MAP = Object.fromEntries(
+  LEADER_AVATARS.map((src, i) => [src, LEADER_NAMES[i]])
+);
