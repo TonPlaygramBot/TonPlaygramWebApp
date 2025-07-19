@@ -47,12 +47,11 @@ function generateBoard() {
 }
 
 export class GameRoom {
-  constructor(id, io, capacity = 4, board = {}, gameType = 'snake', onFinish) {
+  constructor(id, io, capacity = 4, board = {}, gameType = 'snake') {
     this.id = id;
     this.io = io;
     this.capacity = capacity;
     this.gameType = gameType;
-    this.onFinish = onFinish;
     this.currentTurn = 0;
     this.status = 'waiting';
     if (this.gameType === 'snake') {
@@ -239,9 +238,6 @@ export class GameRoom {
           console.error('Failed to store game result:', err.message)
         );
         this.io.to(this.id).emit('gameWon', { playerId: player.playerId });
-        if (this.onFinish) {
-          try { this.onFinish(this.id, player.playerId); } catch {}
-        }
         return;
       }
 
@@ -260,9 +256,6 @@ export class GameRoom {
       if (result.finished) {
         this.status = 'finished';
         this.io.to(this.id).emit('gameWon', { playerId: player.playerId });
-        if (this.onFinish) {
-          try { this.onFinish(this.id, player.playerId); } catch {}
-        }
         return;
       }
       this.currentTurn = this.game.currentTurn;
@@ -314,9 +307,6 @@ export class GameRoom {
           console.error('Failed to store game result:', err.message)
         );
         this.io.to(this.id).emit('gameWon', { playerId: winner.playerId });
-        if (this.onFinish) {
-          try { this.onFinish(this.id, winner.playerId); } catch {}
-        }
         return;
       }
     }
@@ -341,23 +331,18 @@ export class GameRoom {
 }
 
 export class GameRoomManager {
-  constructor(io, onFinish) {
+  constructor(io) {
     this.io = io;
     this.rooms = new Map();
-    this.onFinish = onFinish;
   }
 
   async loadRooms() {
     const docs = await GameRoomModel.find({});
     for (const doc of docs) {
-      const room = new GameRoom(
-        doc.roomId,
-        this.io,
-        doc.capacity,
-        { snakes: Object.fromEntries(doc.snakes), ladders: Object.fromEntries(doc.ladders) },
-        doc.gameType || 'snake',
-        this.onFinish
-      );
+      const room = new GameRoom(doc.roomId, this.io, doc.capacity, {
+        snakes: Object.fromEntries(doc.snakes),
+        ladders: Object.fromEntries(doc.ladders)
+      }, doc.gameType || 'snake');
       room.players = doc.players.map((p) => ({
         ...p.toObject(),
         socketId: null,
@@ -398,14 +383,10 @@ export class GameRoomManager {
     if (!room) {
       const record = await GameRoomModel.findOne({ roomId: id });
       if (record) {
-        room = new GameRoom(
-          id,
-          this.io,
-          record.capacity,
-          { snakes: Object.fromEntries(record.snakes), ladders: Object.fromEntries(record.ladders) },
-          record.gameType || 'snake',
-          this.onFinish
-        );
+        room = new GameRoom(id, this.io, record.capacity, {
+          snakes: Object.fromEntries(record.snakes),
+          ladders: Object.fromEntries(record.ladders)
+        }, record.gameType || 'snake');
         room.players = record.players.map((p) => ({
           ...p.toObject(),
           socketId: null,
@@ -415,7 +396,7 @@ export class GameRoomManager {
         room.status = record.status;
       } else {
         const type = id.startsWith('ludo') ? 'ludo' : 'snake';
-        room = new GameRoom(id, this.io, capacity, board, type, this.onFinish);
+        room = new GameRoom(id, this.io, capacity, board, type);
         await GameRoomModel.updateOne(
           { roomId: id },
           {
