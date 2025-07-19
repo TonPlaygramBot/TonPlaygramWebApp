@@ -12,31 +12,37 @@ export default function InvitePopup({
   onStakeChange,
   incoming,
   group,
+  onClose
 }) {
   if (!open) return null;
   const [game, setGame] = React.useState('snake');
   return createPortal(
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-70">
-      <div className="bg-surface border border-border rounded p-4 space-y-4 text-text w-72">
+      <div className="bg-surface border border-border rounded p-4 space-y-4 text-text w-72 relative">
+        {onClose && (
+          <button
+            onClick={onClose}
+            className="absolute -top-3 -right-3 bg-black bg-opacity-70 text-white rounded-full w-6 h-6 flex items-center justify-center"
+          >
+            &times;
+          </button>
+        )}
         {incoming ? (
           <p className="text-center">
             {name} wants to play you for {stake?.amount}{' '}
             <img
-              
               src={
                 stake?.token === 'TPC'
                   ? '/assets/icons/TPCcoin_1.webp'
                   : stake?.token === 'TON'
-                  ? '/assets/icons/TON.webp'
-                  : '/assets/icons/Usdt.webp'
+                    ? '/assets/icons/TON.webp'
+                    : '/assets/icons/Usdt.webp'
               }
               alt="token"
               className="inline w-4 h-4 mr-1"
             />
             {stake?.token}
-            {group && opponents.length > 0 && (
-              <> with {opponents.join(', ')}</>
-            )}
+            {group && opponents.length > 0 && <> with {opponents.join(', ')}</>}
           </p>
         ) : (
           <>
@@ -80,6 +86,6 @@ export default function InvitePopup({
         </div>
       </div>
     </div>,
-    document.body,
+    document.body
   );
 }

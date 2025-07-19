@@ -2,7 +2,11 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import useTelegramBackButton from '../hooks/useTelegramBackButton.js';
 import LoginOptions from '../components/LoginOptions.jsx';
-import { getTelegramId, getTelegramPhotoUrl, getPlayerId } from '../utils/telegram.js';
+import {
+  getTelegramId,
+  getTelegramPhotoUrl,
+  getPlayerId
+} from '../utils/telegram.js';
 import { FaCircle } from 'react-icons/fa';
 import DailyCheckIn from '../components/DailyCheckIn.jsx';
 import SpinGame from '../components/SpinGame.jsx';
@@ -68,8 +72,8 @@ export default function Mining() {
       getProfile(telegramId)
         .then((p) =>
           setMyName(
-            p?.nickname || `${p?.firstName || ''} ${p?.lastName || ''}`.trim(),
-          ),
+            p?.nickname || `${p?.firstName || ''} ${p?.lastName || ''}`.trim()
+          )
         )
         .catch(() => {});
     } else {
@@ -83,12 +87,16 @@ export default function Mining() {
               if (info?.photoUrl) setMyPhotoUrl(info.photoUrl);
             });
           }
-          setMyName(p?.nickname || `${p?.firstName || ''} ${p?.lastName || ''}`.trim());
+          setMyName(
+            p?.nickname || `${p?.firstName || ''} ${p?.lastName || ''}`.trim()
+          );
         })
         .catch(() => {
           fetchTelegramInfo(telegramId).then((info) => {
             if (info?.photoUrl) setMyPhotoUrl(info.photoUrl);
-            setMyName(`${info?.firstName || ''} ${info?.lastName || ''}`.trim());
+            setMyName(
+              `${info?.firstName || ''} ${info?.lastName || ''}`.trim()
+            );
           });
         });
     }
@@ -104,7 +112,9 @@ export default function Mining() {
           .then((p) => {
             setMyPhotoUrl(p?.photo || getTelegramPhotoUrl());
             if (p?.photo) saveAvatar(p.photo);
-            setMyName(p?.nickname || `${p?.firstName || ''} ${p?.lastName || ''}`.trim());
+            setMyName(
+              p?.nickname || `${p?.firstName || ''} ${p?.lastName || ''}`.trim()
+            );
           })
           .catch(() => setMyPhotoUrl(getTelegramPhotoUrl()));
       }
@@ -129,180 +139,206 @@ export default function Mining() {
 
   return (
     <>
-    <DailyCheckIn />
-    <SpinGame />
-    <LuckyNumber />
-    <MiningCard />
+      <DailyCheckIn />
+      <SpinGame />
+      <LuckyNumber />
+      <MiningCard />
 
       <div className="relative bg-surface border border-border rounded-xl p-4 space-y-4 text-text overflow-hidden wide-card">
-      <img
-        src="/assets/SnakeLaddersbackground.png"
-        className="background-behind-board object-cover"
-        alt=""
-        onError={(e) => {
-          e.currentTarget.style.display = 'none';
-        }}
-      />
+        <img
+          src="/assets/SnakeLaddersbackground.png"
+          className="background-behind-board object-cover"
+          alt=""
+          onError={(e) => {
+            e.currentTarget.style.display = 'none';
+          }}
+        />
         <h2 className="text-xl font-bold text-center">Mining</h2>
 
-      {friendRequests.length > 0 && (
-        <section className="space-y-1">
-          <h3 className="text-lg font-semibold">Friend Requests</h3>
-          {friendRequests.map((fr) => (
-            <div key={fr._id} className="lobby-tile flex items-center justify-between">
-              <span>{fr.from}</span>
-              <button
-                onClick={async () => {
-                  await acceptFriendRequest(fr._id);
-                  listFriendRequests(telegramId).then(setFriendRequests);
-                }}
-                className="px-2 py-1 text-sm bg-primary hover:bg-primary-hover rounded"
+        {friendRequests.length > 0 && (
+          <section className="space-y-1">
+            <h3 className="text-lg font-semibold">Friend Requests</h3>
+            {friendRequests.map((fr) => (
+              <div
+                key={fr._id}
+                className="lobby-tile flex items-center justify-between"
               >
-                Accept
-              </button>
-            </div>
-          ))}
-        </section>
-      )}
-
-      <section className="space-y-1">
-        <h3 className="text-lg font-semibold">Friends</h3>
-        <p>Invited friends: {referral.referralCount}</p>
-        <p>Mining boost: +{referral.bonusMiningRate * 100}%</p>
-        {referral.storeMiningRate && referral.storeMiningExpiresAt && (
-          <p className="text-sm text-subtext">
-            Boost ends in {Math.max(0, Math.floor((new Date(referral.storeMiningExpiresAt).getTime() - Date.now()) / 86400000))}d
-          </p>
+                <span>{fr.from}</span>
+                <button
+                  onClick={async () => {
+                    await acceptFriendRequest(fr._id);
+                    listFriendRequests(telegramId).then(setFriendRequests);
+                  }}
+                  className="px-2 py-1 text-sm bg-primary hover:bg-primary-hover rounded"
+                >
+                  Accept
+                </button>
+              </div>
+            ))}
+          </section>
         )}
-      </section>
 
-      <section className="space-y-1">
-        <h3 className="text-lg font-semibold">Referral</h3>
-        <div className="flex items-center space-x-2">
-          <input
-            type="text"
-            readOnly
-            value={link}
-            onClick={(e) => e.target.select()}
-            className="flex-1 bg-surface border border-border rounded px-2 py-1 text-sm"
-          />
-          <button
-            onClick={() => navigator.clipboard.writeText(link)}
-            className="px-2 py-1 bg-primary hover:bg-primary-hover rounded text-sm text-white-shadow"
-          >
-            Copy
-          </button>
-        </div>
-        <div className="flex items-center space-x-2 mt-2">
-          <input
-            type="text"
-            placeholder="Paste link or code"
-            value={claim}
-            onChange={(e) => setClaim(e.target.value)}
-            className="flex-1 bg-surface border border-border rounded px-2 py-1 text-sm"
-          />
-          <button
-            onClick={async () => {
-              const c = claim.includes('start=') ? claim.split('start=')[1] : claim;
-              try {
-                const res = await claimReferral(telegramId, c.trim());
-                if (!res.error) {
-                  setClaimMsg('Referral claimed!');
-                  getReferralInfo(telegramId).then(setReferral);
-                } else {
-                  setClaimMsg(res.error || res.message || 'Failed');
+        <section className="space-y-1">
+          <h3 className="text-lg font-semibold">Friends</h3>
+          <p>Invited friends: {referral.referralCount}</p>
+          <p>Mining boost: +{referral.bonusMiningRate * 100}%</p>
+          {referral.storeMiningRate && referral.storeMiningExpiresAt && (
+            <p className="text-sm text-subtext">
+              Boost ends in{' '}
+              {Math.max(
+                0,
+                Math.floor(
+                  (new Date(referral.storeMiningExpiresAt).getTime() -
+                    Date.now()) /
+                    86400000
+                )
+              )}
+              d
+            </p>
+          )}
+        </section>
+
+        <section className="space-y-1">
+          <h3 className="text-lg font-semibold">Referral</h3>
+          <div className="flex items-center space-x-2">
+            <input
+              type="text"
+              readOnly
+              value={link}
+              onClick={(e) => e.target.select()}
+              className="flex-1 bg-surface border border-border rounded px-2 py-1 text-sm"
+            />
+            <button
+              onClick={() => navigator.clipboard.writeText(link)}
+              className="px-2 py-1 bg-primary hover:bg-primary-hover rounded text-sm text-white-shadow"
+            >
+              Copy
+            </button>
+          </div>
+          <div className="flex items-center space-x-2 mt-2">
+            <input
+              type="text"
+              placeholder="Paste link or code"
+              value={claim}
+              onChange={(e) => setClaim(e.target.value)}
+              className="flex-1 bg-surface border border-border rounded px-2 py-1 text-sm"
+            />
+            <button
+              onClick={async () => {
+                const c = claim.includes('start=')
+                  ? claim.split('start=')[1]
+                  : claim;
+                try {
+                  const res = await claimReferral(telegramId, c.trim());
+                  if (!res.error) {
+                    setClaimMsg('Referral claimed!');
+                    getReferralInfo(telegramId).then(setReferral);
+                  } else {
+                    setClaimMsg(res.error || res.message || 'Failed');
+                  }
+                } catch {
+                  setClaimMsg('Failed');
                 }
-              } catch {
-                setClaimMsg('Failed');
-              }
-            }}
-            className="px-2 py-1 bg-primary hover:bg-primary-hover rounded text-sm text-white-shadow"
-          >
-            Claim
-          </button>
-        </div>
-        {claimMsg && <p className="text-xs text-subtext">{claimMsg}</p>}
-      </section>
+              }}
+              className="px-2 py-1 bg-primary hover:bg-primary-hover rounded text-sm text-white-shadow"
+            >
+              Claim
+            </button>
+          </div>
+          {claimMsg && <p className="text-xs text-subtext">{claimMsg}</p>}
+        </section>
 
-      <section className="space-y-1">
-        <h3 className="text-lg font-semibold text-center">Add Friends</h3>
-        <UserSearchBar />
-      </section>
-    </div>
+        <section className="space-y-1">
+          <h3 className="text-lg font-semibold text-center">Add Friends</h3>
+          <UserSearchBar />
+        </section>
+      </div>
 
-    <PlayerInvitePopup
-      open={!!inviteTarget}
-      player={inviteTarget}
-      stake={stake}
-      onStakeChange={setStake}
-      onInvite={() => {
-        if (inviteTarget) {
-          const roomId = `invite-${accountId}-${inviteTarget.accountId}-${Date.now()}-2`;
-          socket.emit(
-            'invite1v1',
-            {
-              fromId: accountId,
-              fromTelegramId: telegramId,
-              fromName: myName,
-              toId: inviteTarget.accountId,
-              toTelegramId: inviteTarget.telegramId,
-              roomId,
-              token: stake.token,
-              amount: stake.amount,
-            },
-            (res) => {
-              if (res && res.success) {
-                window.location.href = `/games/snake?table=${roomId}&token=${stake.token}&amount=${stake.amount}`;
-              } else {
-                alert(res?.error || 'Failed to send invite');
+      <PlayerInvitePopup
+        open={!!inviteTarget}
+        player={inviteTarget}
+        stake={stake}
+        onStakeChange={setStake}
+        onInvite={() => {
+          if (inviteTarget) {
+            const roomId = `invite-${accountId}-${inviteTarget.accountId}-${Date.now()}-2`;
+            socket.emit(
+              'invite1v1',
+              {
+                fromId: accountId,
+                fromTelegramId: telegramId,
+                fromName: myName,
+                toId: inviteTarget.accountId,
+                toTelegramId: inviteTarget.telegramId,
+                roomId,
+                token: stake.token,
+                amount: stake.amount
+              },
+              (res) => {
+                if (res && res.success) {
+                  window.location.href = `/games/snake?table=${roomId}&token=${stake.token}&amount=${stake.amount}`;
+                } else {
+                  alert(res?.error || 'Failed to send invite');
+                }
               }
-            },
-          );
-        }
-        setInviteTarget(null);
-      }}
-      onClose={() => setInviteTarget(null)}
-    />
-    <InvitePopup
-      open={groupPopup}
-      name={selected.map((u) => u.nickname || `${u.firstName || ''} ${u.lastName || ''}`.trim())}
-      stake={stake}
-      onStakeChange={setStake}
-      group
-      opponents={selected.map((u) => u.nickname || `${u.firstName || ''} ${u.lastName || ''}`.trim())}
-      onAccept={() => {
-        if (selected.length > 0) {
-          const roomId = `invite-${accountId}-${Date.now()}-${selected.length + 1}`;
-          socket.emit(
-            'inviteGroup',
-            {
-              fromId: accountId,
-              fromTelegramId: telegramId,
-              fromName: myName,
-              toIds: selected.map((u) => u.accountId),
-              telegramIds: selected.map((u) => u.telegramId),
-              opponentNames: selected.map((u) => u.nickname || `${u.firstName || ''} ${u.lastName || ''}`.trim()),
-              roomId,
-              token: stake.token,
-              amount: stake.amount,
-            },
-            (res) => {
-              if (res && res.success) {
-                window.location.href = `/games/snake?table=${roomId}&token=${stake.token}&amount=${stake.amount}`;
-              } else {
-                alert(res?.error || 'Failed to send invite');
+            );
+          }
+          setInviteTarget(null);
+        }}
+        onClose={() => setInviteTarget(null)}
+      />
+      <InvitePopup
+        open={groupPopup}
+        name={selected.map(
+          (u) => u.nickname || `${u.firstName || ''} ${u.lastName || ''}`.trim()
+        )}
+        stake={stake}
+        onStakeChange={setStake}
+        group
+        opponents={selected.map(
+          (u) => u.nickname || `${u.firstName || ''} ${u.lastName || ''}`.trim()
+        )}
+        onClose={() => {
+          setGroupPopup(false);
+          setSelected([]);
+        }}
+        onAccept={() => {
+          if (selected.length > 0) {
+            const roomId = `invite-${accountId}-${Date.now()}-${selected.length + 1}`;
+            socket.emit(
+              'inviteGroup',
+              {
+                fromId: accountId,
+                fromTelegramId: telegramId,
+                fromName: myName,
+                toIds: selected.map((u) => u.accountId),
+                telegramIds: selected.map((u) => u.telegramId),
+                opponentNames: selected.map(
+                  (u) =>
+                    u.nickname ||
+                    `${u.firstName || ''} ${u.lastName || ''}`.trim()
+                ),
+                roomId,
+                token: stake.token,
+                amount: stake.amount
+              },
+              (res) => {
+                if (res && res.success) {
+                  window.location.href = `/games/snake?table=${roomId}&token=${stake.token}&amount=${stake.amount}`;
+                } else {
+                  alert(res?.error || 'Failed to send invite');
+                }
               }
-            },
-          );
-        }
-        setGroupPopup(false);
-        setSelected([]);
-      }}
-      onReject={() => {
-        setGroupPopup(false);
-        setSelected([]);
-      }}
-    />
+            );
+          }
+          setGroupPopup(false);
+          setSelected([]);
+        }}
+        onReject={() => {
+          setGroupPopup(false);
+          setSelected([]);
+        }}
+      />
     </>
   );
 }

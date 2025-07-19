@@ -4,10 +4,10 @@ import {
   useRef,
   useLayoutEffect,
   Fragment,
-  useCallback,
-} from "react";
-import coinConfetti from "../../utils/coinConfetti";
-import DiceRoller from "../../components/DiceRoller.jsx";
+  useCallback
+} from 'react';
+import coinConfetti from '../../utils/coinConfetti';
+import DiceRoller from '../../components/DiceRoller.jsx';
 import {
   dropSound,
   snakeSound,
@@ -16,24 +16,30 @@ import {
   timerBeep,
   badLuckSound,
   cheerSound,
-  chatBeep,
-} from "../../assets/soundData.js";
-import { AVATARS } from "../../components/AvatarPickerModal.jsx";
-import { LEADER_AVATARS } from "../../utils/leaderAvatars.js";
-import { FLAG_EMOJIS } from "../../utils/flagEmojis.js";
-import { getAvatarUrl, saveAvatar, loadAvatar, avatarToName } from "../../utils/avatarUtils.js";
-import InfoPopup from "../../components/InfoPopup.jsx";
-import HintPopup from "../../components/HintPopup.jsx";
-import GameEndPopup from "../../components/GameEndPopup.jsx";
+  chatBeep
+} from '../../assets/soundData.js';
+import { AVATARS } from '../../components/AvatarPickerModal.jsx';
+import { LEADER_AVATARS } from '../../utils/leaderAvatars.js';
+import { FLAG_EMOJIS } from '../../utils/flagEmojis.js';
 import {
-  AiOutlineRollback,
-  AiOutlineReload,
-} from "react-icons/ai";
-import BottomLeftIcons from "../../components/BottomLeftIcons.jsx";
-import { isGameMuted, getGameVolume } from "../../utils/sound.js";
-import useTelegramBackButton from "../../hooks/useTelegramBackButton.js";
-import { useNavigate } from "react-router-dom";
-import { getPlayerId, getTelegramId, ensureAccountId } from "../../utils/telegram.js";
+  getAvatarUrl,
+  saveAvatar,
+  loadAvatar,
+  avatarToName
+} from '../../utils/avatarUtils.js';
+import InfoPopup from '../../components/InfoPopup.jsx';
+import HintPopup from '../../components/HintPopup.jsx';
+import GameEndPopup from '../../components/GameEndPopup.jsx';
+import { AiOutlineRollback, AiOutlineReload } from 'react-icons/ai';
+import BottomLeftIcons from '../../components/BottomLeftIcons.jsx';
+import { isGameMuted, getGameVolume } from '../../utils/sound.js';
+import useTelegramBackButton from '../../hooks/useTelegramBackButton.js';
+import { useNavigate } from 'react-router-dom';
+import {
+  getPlayerId,
+  getTelegramId,
+  ensureAccountId
+} from '../../utils/telegram.js';
 import {
   getProfileByAccount,
   depositAccount,
@@ -41,7 +47,7 @@ import {
   pingOnline,
   addTransaction,
   unseatTable
-} from "../../utils/api.js";
+} from '../../utils/api.js';
 // Developer accounts that receive shares of each pot
 const DEV_ACCOUNT = import.meta.env.VITE_DEV_ACCOUNT_ID;
 const DEV_ACCOUNT_1 = import.meta.env.VITE_DEV_ACCOUNT_ID_1;
@@ -53,28 +59,28 @@ async function awardDevShare(total) {
     if (DEV_ACCOUNT) {
       promises.push(
         depositAccount(DEV_ACCOUNT, Math.round(total * 0.09), {
-          game: 'snake-dev',
+          game: 'snake-dev'
         })
       );
     }
     if (DEV_ACCOUNT_1) {
       promises.push(
         depositAccount(DEV_ACCOUNT_1, Math.round(total * 0.01), {
-          game: 'snake-dev1',
+          game: 'snake-dev1'
         })
       );
     }
     if (DEV_ACCOUNT_2) {
       promises.push(
         depositAccount(DEV_ACCOUNT_2, Math.round(total * 0.02), {
-          game: 'snake-dev2',
+          game: 'snake-dev2'
         })
       );
     }
   } else if (DEV_ACCOUNT) {
     promises.push(
       depositAccount(DEV_ACCOUNT, Math.round(total * 0.1), {
-        game: 'snake-dev',
+        game: 'snake-dev'
       })
     );
   }
@@ -86,21 +92,25 @@ async function awardDevShare(total) {
     }
   }
 }
-import { socket } from "../../utils/socket.js";
-import PlayerToken from "../../components/PlayerToken.jsx";
-import AvatarTimer from "../../components/AvatarTimer.jsx";
-import ConfirmPopup from "../../components/ConfirmPopup.jsx";
-import PlayerPopup from "../../components/PlayerPopup.jsx";
-import QuickMessagePopup from "../../components/QuickMessagePopup.jsx";
-import GiftPopup from "../../components/GiftPopup.jsx";
-import { giftSounds } from "../../utils/giftSounds.js";
-import { moveSeq, flashHighlight, applyEffect as applyEffectHelper } from "../../utils/moveHelpers.js";
+import { socket } from '../../utils/socket.js';
+import PlayerToken from '../../components/PlayerToken.jsx';
+import AvatarTimer from '../../components/AvatarTimer.jsx';
+import ConfirmPopup from '../../components/ConfirmPopup.jsx';
+import PlayerPopup from '../../components/PlayerPopup.jsx';
+import QuickMessagePopup from '../../components/QuickMessagePopup.jsx';
+import GiftPopup from '../../components/GiftPopup.jsx';
+import { giftSounds } from '../../utils/giftSounds.js';
+import {
+  moveSeq,
+  flashHighlight,
+  applyEffect as applyEffectHelper
+} from '../../utils/moveHelpers.js';
 
 const TOKEN_COLORS = [
-  { name: "blue", color: "#60a5fa" },
-  { name: "red", color: "#ef4444" },
-  { name: "green", color: "#4ade80" },
-  { name: "yellow", color: "#facc15" },
+  { name: 'blue', color: '#60a5fa' },
+  { name: 'red', color: '#ef4444' },
+  { name: 'green', color: '#4ade80' },
+  { name: 'yellow', color: '#facc15' }
 ];
 
 const PLAYERS = 4;
@@ -131,7 +141,8 @@ function generateBoardLocal() {
     const maxDrop = Math.min(start - 1, 20);
     if (maxDrop <= 0) continue;
     const end = start - (Math.floor(Math.random() * maxDrop) + 1);
-    if (used.has(start) || used.has(end) || snakes[start] || end === 1) continue;
+    if (used.has(start) || used.has(end) || snakes[start] || end === 1)
+      continue;
     snakes[start] = end;
     used.add(start);
     used.add(end);
@@ -161,7 +172,7 @@ function CoinBurst({ token }) {
   const coins = Array.from({ length: 30 }, () => ({
     dx: (Math.random() - 0.5) * 100,
     delay: Math.random() * 0.3,
-    dur: 0.8 + Math.random() * 0.4,
+    dur: 0.8 + Math.random() * 0.4
   }));
   return (
     <div className="coin-burst">
@@ -172,14 +183,14 @@ function CoinBurst({ token }) {
             token.toUpperCase() === 'TPC'
               ? '/assets/icons/TPCcoin_1.webp'
               : token.toUpperCase() === 'TON'
-              ? '/assets/icons/TON.webp'
-              : '/assets/icons/Usdt.webp'
+                ? '/assets/icons/TON.webp'
+                : '/assets/icons/Usdt.webp'
           }
           className="coin-img"
           style={{
-            "--dx": `${c.dx}px`,
-            "--delay": `${c.delay}s`,
-            "--dur": `${c.dur}s`,
+            '--dx': `${c.dx}px`,
+            '--delay': `${c.delay}s`,
+            '--dur': `${c.dur}s`
           }}
         />
       ))}
@@ -203,7 +214,7 @@ function Board({
   diceCells,
   rollingIndex,
   currentTurn,
-  burning = [],
+  burning = []
 }) {
   const containerRef = useRef(null);
   const gridRef = useRef(null);
@@ -245,7 +256,7 @@ function Board({
     // subsequent row alternates direction. Tile 1 is at the bottom-left and
     // tile 100 ends up at the top-right.
     const reversed = r % 2 === 1;
-    const rowColor = "#6db0ad";
+    const rowColor = '#6db0ad';
 
     for (let c = 0; c < COLS; c++) {
       const col = c;
@@ -258,33 +269,33 @@ function Board({
         ? `${highlight.type}-highlight`
         : trailHighlight
           ? `${trailHighlight.type}-highlight`
-          : "";
-      const isJump = isHighlight && highlight.type === "normal";
+          : '';
+      const isJump = isHighlight && highlight.type === 'normal';
       const cellType = ladders[num]
-        ? "ladder"
+        ? 'ladder'
         : snakes[num]
-          ? "snake"
+          ? 'snake'
           : diceCells && diceCells[num]
-            ? "dice"
-            : "";
-      const cellClass = cellType ? `${cellType}-cell` : "";
+            ? 'dice'
+            : '';
+      const cellClass = cellType ? `${cellType}-cell` : '';
       const iconImage =
-        cellType === "ladder"
-          ? "/assets/icons/Ladder.webp"
-          : cellType === "snake"
-            ? "/assets/icons/snake_vector_no_bg.webp"
+        cellType === 'ladder'
+          ? '/assets/icons/Ladder.webp'
+          : cellType === 'snake'
+            ? '/assets/icons/snake_vector_no_bg.webp'
             : null;
       const offsetVal =
-        cellType === "ladder"
+        cellType === 'ladder'
           ? ladderOffsets[num]
-          : cellType === "snake"
+          : cellType === 'snake'
             ? snakeOffsets[num]
             : null;
       const style = {
         gridRowStart: ROWS - r,
         gridColumnStart: col + 1,
         transform: `translate(${translateX}px, ${translateY}px) scaleX(${scaleX}) scaleY(${scale}) translateZ(5px)`,
-        transformOrigin: "bottom center",
+        transformOrigin: 'bottom center'
       };
       if (!highlightClass) style.backgroundColor = rowColor;
 
@@ -302,14 +313,10 @@ function Board({
               {offsetVal != null && (
                 <span
                   className={`offset-text ${
-                    cellType === 'snake'
-                      ? 'snake-text'
-                      : 'ladder-text'
+                    cellType === 'snake' ? 'snake-text' : 'ladder-text'
                   }`}
                 >
-                  {cellType === 'snake'
-                    ? `-${offsetVal}`
-                    : `+${offsetVal}`}
+                  {cellType === 'snake' ? `-${offsetVal}` : `+${offsetVal}`}
                 </span>
               )}
             </span>
@@ -317,7 +324,10 @@ function Board({
           {!cellType && <span className="cell-number">{num}</span>}
           {diceCells && diceCells[num] && (
             <span className="dice-marker">
-              <img  src="/assets/icons/file_000000009160620a96f728f463de1c3f.webp" className="dice-icon" />
+              <img
+                src="/assets/icons/file_000000009160620a96f728f463de1c3f.webp"
+                className="dice-icon"
+              />
               <span className="dice-value">+{diceCells[num]}</span>
             </span>
           )}
@@ -328,19 +338,26 @@ function Board({
               <Fragment key={p.index}>
                 <PlayerToken
                   photoUrl={p.photoUrl}
-                  type={p.type || (p.index === 0 ? (isHighlight ? highlight.type : tokenType) : "normal")}
+                  type={
+                    p.type ||
+                    (p.index === 0
+                      ? isHighlight
+                        ? highlight.type
+                        : tokenType
+                      : 'normal')
+                  }
                   color={p.color}
                   rolling={p.index === rollingIndex}
                   active={p.index === currentTurn}
                   photoOnly
                   className={
-                    "board-token " +
+                    'board-token ' +
                     (p.position === 0
-                      ? "start"
+                      ? 'start'
                       : p.index === 0 && isJump
-                        ? "jump"
-                        : "") +
-                    (burning.includes(p.index) ? " burning" : "")
+                        ? 'jump'
+                        : '') +
+                    (burning.includes(p.index) ? ' burning' : '')
                   }
                 />
               </Fragment>
@@ -348,14 +365,14 @@ function Board({
           {offsetPopup && offsetPopup.cell === num && (
             <span
               className={`popup-offset italic font-bold ${
-                offsetPopup.type === "snake" ? "text-red-500" : "text-green-500"
+                offsetPopup.type === 'snake' ? 'text-red-500' : 'text-green-500'
               }`}
             >
-              {offsetPopup.type === "snake" ? "-" : "+"}
+              {offsetPopup.type === 'snake' ? '-' : '+'}
               {offsetPopup.amount}
             </span>
           )}
-        </div>,
+        </div>
       );
     }
   }
@@ -372,15 +389,13 @@ function Board({
       setCellHeight(ch);
     };
     updateSize();
-    window.addEventListener("resize", updateSize);
-    return () => window.removeEventListener("resize", updateSize);
+    window.addEventListener('resize', updateSize);
+    return () => window.removeEventListener('resize', updateSize);
   }, []);
 
   useLayoutEffect(() => {
     // board layout recalculations
   }, [cellWidth, cellHeight]);
-
-
 
   // Icons are rendered directly inside each cell so that they stay perfectly
   // aligned with the grid. Previously additional absolutely positioned markers
@@ -437,11 +452,11 @@ function Board({
         ref={containerRef}
         className="overflow-y-auto"
         style={{
-          overflowX: "hidden",
-          height: "100vh",
-          overscrollBehaviorY: "none",
+          overflowX: 'hidden',
+          height: '100vh',
+          overscrollBehaviorY: 'none',
           paddingTop,
-          paddingBottom,
+          paddingBottom
         }}
       >
         <div className="snake-board-tilt">
@@ -453,22 +468,22 @@ function Board({
               height: `${cellHeight * ROWS + offsetYMax}px`,
               gridTemplateColumns: `repeat(${COLS}, ${cellWidth}px)`,
               gridTemplateRows: `repeat(${ROWS}, ${cellHeight}px)`,
-              "--cell-width": `${cellWidth}px`,
-              "--cell-height": `${cellHeight}px`,
-              "--board-width": `${cellWidth * COLS}px`,
-              "--board-height": `${cellHeight * ROWS + offsetYMax}px`,
-              "--board-angle": `${angle}deg`,
-              "--final-scale": finalScale,
+              '--cell-width': `${cellWidth}px`,
+              '--cell-height': `${cellHeight}px`,
+              '--board-width': `${cellWidth * COLS}px`,
+              '--board-height': `${cellHeight * ROWS + offsetYMax}px`,
+              '--board-angle': `${angle}deg`,
+              '--final-scale': finalScale,
               // Fixed camera angle with no zooming
               // Pull the board slightly back so more of the lower rows are
               // visible when the game starts without changing zoom or angle
-              transform: `translate(${boardXOffset}px, ${boardYOffset}px) translateZ(${boardZOffset}px) rotateX(${angle}deg) scale(0.9)`,
+              transform: `translate(${boardXOffset}px, ${boardYOffset}px) translateZ(${boardZOffset}px) rotateX(${angle}deg) scale(0.9)`
             }}
           >
             {/* Game background is rendered outside the grid */}
             {tiles}
             <div
-              className={`pot-cell ${highlight && highlight.cell === FINAL_TILE ? "highlight" : ""}`}
+              className={`pot-cell ${highlight && highlight.cell === FINAL_TILE ? 'highlight' : ''}`}
             >
               <PlayerToken
                 color="#16a34a"
@@ -580,7 +595,7 @@ export default function SnakeAndLadder() {
         palestineFlagSoundRef,
         badLuckSoundRef,
         cheerSoundRef,
-        timerSoundRef,
+        timerSoundRef
       ].forEach((r) => {
         if (r.current) r.current.volume = vol;
       });
@@ -612,15 +627,15 @@ export default function SnakeAndLadder() {
   const [pos, setPos] = useState(0);
   const [highlight, setHighlight] = useState(null); // { cell: number, type: string }
   const [trail, setTrail] = useState([]);
-  const [tokenType, setTokenType] = useState("normal");
-  const [message, setMessage] = useState("");
-  const [messageColor, setMessageColor] = useState("");
-  const [turnMessage, setTurnMessage] = useState("Your turn");
+  const [tokenType, setTokenType] = useState('normal');
+  const [message, setMessage] = useState('');
+  const [messageColor, setMessageColor] = useState('');
+  const [turnMessage, setTurnMessage] = useState('Your turn');
   const [diceVisible, setDiceVisible] = useState(true);
   const [photoUrl, setPhotoUrl] = useState(loadAvatar() || '');
   const [myName, setMyName] = useState('You');
   const [pot, setPot] = useState(101);
-  const [token, setToken] = useState("TPC");
+  const [token, setToken] = useState('TPC');
   const [celebrate, setCelebrate] = useState(false);
   const [leftWinner, setLeftWinner] = useState(null);
   const [disconnectMsg, setDisconnectMsg] = useState(null);
@@ -696,7 +711,6 @@ export default function SnakeAndLadder() {
   useEffect(() => {
     prepareDiceAnimation(0);
   }, []);
-
 
   useEffect(() => {
     return () => clearTimeout(trailTimeoutRef.current);
@@ -807,7 +821,11 @@ export default function SnakeAndLadder() {
           } else if (avatar.includes('EgyptLeader') || avatar === '🇪🇬') {
             egyptLeaderSoundRef.current.currentTime = 0;
             egyptLeaderSoundRef.current.play().catch(() => {});
-          } else if (avatar.includes('UnitedKingdomLeader') || avatar.includes('EnglandLeader') || avatar === '🇬🇧') {
+          } else if (
+            avatar.includes('UnitedKingdomLeader') ||
+            avatar.includes('EnglandLeader') ||
+            avatar === '🇬🇧'
+          ) {
             englandLeaderSoundRef.current.currentTime = 0;
             englandLeaderSoundRef.current.play().catch(() => {});
           } else if (avatar.includes('FranceLeader') || avatar === '🇫🇷') {
@@ -836,11 +854,12 @@ export default function SnakeAndLadder() {
         setTimeout(() => {
           setBurning((b) => b.filter((v) => v !== idx));
           if (idx === 0) setPos(0);
-          else setAiPositions((arr) => {
-            const copy = [...arr];
-            copy[idx - 1] = 0;
-            return copy;
-          });
+          else
+            setAiPositions((arr) => {
+              const copy = [...arr];
+              copy[idx - 1] = 0;
+              return copy;
+            });
         }, 1000);
       });
     }
@@ -864,11 +883,13 @@ export default function SnakeAndLadder() {
         transform: `translate(${cx}px, ${cy}px) translate(-50%, -50%) scale(1)`,
         transition: 'none',
         pointerEvents: 'none',
-        zIndex: 50,
+        zIndex: 50
       });
       return;
     }
-    const startEl = document.querySelector(`[data-player-index="${startIdx}"] img`);
+    const startEl = document.querySelector(
+      `[data-player-index="${startIdx}"] img`
+    );
     if (!startEl) return;
     const s = startEl.getBoundingClientRect();
     const targetX = s.left + s.width / 2;
@@ -882,13 +903,15 @@ export default function SnakeAndLadder() {
       transform: `translate(${targetX}px, ${targetY}px) translate(-50%, -50%) scale(${DICE_SMALL_SCALE})`,
       transition: 'none',
       pointerEvents: 'none',
-      zIndex: 50,
+      zIndex: 50
     });
   };
 
   const animateDiceToCenter = (startIdx) => {
     const dice = diceRef.current;
-    const startEl = document.querySelector(`[data-player-index="${startIdx}"] img`);
+    const startEl = document.querySelector(
+      `[data-player-index="${startIdx}"] img`
+    );
     if (!dice || !startEl) return;
     const s = startEl.getBoundingClientRect();
     const startX = s.left + s.width / 2;
@@ -903,10 +926,14 @@ export default function SnakeAndLadder() {
     dice.style.zIndex = '50';
     dice.animate(
       [
-        { transform: `translate(${startX}px, ${startY}px) translate(-50%, -50%) scale(${DICE_SMALL_SCALE})` },
-        { transform: `translate(${cx}px, ${cy}px) translate(-50%, -50%) scale(1)` },
+        {
+          transform: `translate(${startX}px, ${startY}px) translate(-50%, -50%) scale(${DICE_SMALL_SCALE})`
+        },
+        {
+          transform: `translate(${cx}px, ${cy}px) translate(-50%, -50%) scale(1)`
+        }
       ],
-      { duration: DICE_ANIM_DURATION, easing: 'ease-in-out' },
+      { duration: DICE_ANIM_DURATION, easing: 'ease-in-out' }
     ).onfinish = () => {
       setDiceStyle({
         display: 'block',
@@ -915,7 +942,7 @@ export default function SnakeAndLadder() {
         top: '0px',
         transform: `translate(${cx}px, ${cy}px) translate(-50%, -50%) scale(1)`,
         pointerEvents: 'none',
-        zIndex: 50,
+        zIndex: 50
       });
     };
   };
@@ -931,10 +958,14 @@ export default function SnakeAndLadder() {
     const { cx, cy } = getDiceCenter();
     dice.animate(
       [
-        { transform: `translate(${cx}px, ${cy}px) translate(-50%, -50%) scale(1)` },
-        { transform: `translate(${endX}px, ${endY}px) translate(-50%, -50%) scale(${DICE_SMALL_SCALE})` },
+        {
+          transform: `translate(${cx}px, ${cy}px) translate(-50%, -50%) scale(1)`
+        },
+        {
+          transform: `translate(${endX}px, ${endY}px) translate(-50%, -50%) scale(${DICE_SMALL_SCALE})`
+        }
       ],
-      { duration: DICE_ANIM_DURATION, easing: 'ease-in-out' },
+      { duration: DICE_ANIM_DURATION, easing: 'ease-in-out' }
     ).onfinish = () => {
       setDiceStyle({
         display: 'block',
@@ -943,7 +974,7 @@ export default function SnakeAndLadder() {
         top: '0px',
         transform: `translate(${endX}px, ${endY}px) translate(-50%, -50%) scale(${DICE_SMALL_SCALE})`,
         pointerEvents: 'none',
-        zIndex: 50,
+        zIndex: 50
       });
     };
   };
@@ -994,7 +1025,9 @@ export default function SnakeAndLadder() {
           setPhotoUrl((prev) => prev || p.photo);
           saveAvatar(p.photo);
         }
-        setMyName(p?.nickname || `${p?.firstName || ''} ${p?.lastName || ''}`.trim());
+        setMyName(
+          p?.nickname || `${p?.firstName || ''} ${p?.lastName || ''}`.trim()
+        );
       })
       .catch(() => {});
     const vol = getGameVolume();
@@ -1006,45 +1039,61 @@ export default function SnakeAndLadder() {
     oldSnakeSoundRef.current.volume = vol;
     ladderSoundRef.current = new Audio(ladderSound);
     ladderSoundRef.current.volume = vol;
-    winSoundRef.current = new Audio("/assets/sounds/successful.mp3");
+    winSoundRef.current = new Audio('/assets/sounds/successful.mp3');
     winSoundRef.current.volume = vol;
-    diceRewardSoundRef.current = new Audio("/assets/sounds/successful.mp3");
+    diceRewardSoundRef.current = new Audio('/assets/sounds/successful.mp3');
     diceRewardSoundRef.current.volume = vol;
-    yabbaSoundRef.current = new Audio("/assets/sounds/yabba-dabba-doo.mp3");
+    yabbaSoundRef.current = new Audio('/assets/sounds/yabba-dabba-doo.mp3');
     yabbaSoundRef.current.volume = vol;
-    hahaSoundRef.current = new Audio("/assets/sounds/Haha.mp3");
+    hahaSoundRef.current = new Audio('/assets/sounds/Haha.mp3');
     hahaSoundRef.current.volume = vol;
     bombSoundRef.current = new Audio(bombSound);
     bombSoundRef.current.volume = vol;
-    usaLeaderSoundRef.current = new Audio("/assets/sounds/trumpspeach.mp3");
+    usaLeaderSoundRef.current = new Audio('/assets/sounds/trumpspeach.mp3');
     usaLeaderSoundRef.current.volume = vol;
-    chinaLeaderSoundRef.current = new Audio("/assets/sounds/chingpingu.mp3");
+    chinaLeaderSoundRef.current = new Audio('/assets/sounds/chingpingu.mp3');
     chinaLeaderSoundRef.current.volume = vol;
-    russiaLeaderSoundRef.current = new Audio("/assets/sounds/Russia_edit._URA.mp3");
+    russiaLeaderSoundRef.current = new Audio(
+      '/assets/sounds/Russia_edit._URA.mp3'
+    );
     russiaLeaderSoundRef.current.volume = vol;
-    italyLeaderSoundRef.current = new Audio("/assets/sounds/meloni preident 2.mp3");
+    italyLeaderSoundRef.current = new Audio(
+      '/assets/sounds/meloni preident 2.mp3'
+    );
     italyLeaderSoundRef.current.volume = vol;
-    albaniaLeaderSoundRef.current = new Audio("/assets/sounds/Sorry_for_being_balkanik_shorts_youtubeshorts_motorcycle_motoguzziv9_motoguzzi_b.mp3");
+    albaniaLeaderSoundRef.current = new Audio(
+      '/assets/sounds/Sorry_for_being_balkanik_shorts_youtubeshorts_motorcycle_motoguzziv9_motoguzzi_b.mp3'
+    );
     albaniaLeaderSoundRef.current.volume = vol;
-    greeceLeaderSoundRef.current = new Audio("/assets/sounds/potukseri.mp3");
+    greeceLeaderSoundRef.current = new Audio('/assets/sounds/potukseri.mp3');
     greeceLeaderSoundRef.current.volume = vol;
-    turkeyLeaderSoundRef.current = new Audio("/assets/sounds/erdogan.mp3");
+    turkeyLeaderSoundRef.current = new Audio('/assets/sounds/erdogan.mp3');
     turkeyLeaderSoundRef.current.volume = vol;
-    ukraineLeaderSoundRef.current = new Audio("/assets/sounds/2FilesMerged_20250717_131957.mp3");
+    ukraineLeaderSoundRef.current = new Audio(
+      '/assets/sounds/2FilesMerged_20250717_131957.mp3'
+    );
     ukraineLeaderSoundRef.current.volume = vol;
-    northKoreaLeaderSoundRef.current = new Audio("/assets/sounds/Chinese_Gong_Meme_Sound_Effect.mp3");
+    northKoreaLeaderSoundRef.current = new Audio(
+      '/assets/sounds/Chinese_Gong_Meme_Sound_Effect.mp3'
+    );
     northKoreaLeaderSoundRef.current.volume = vol;
-    egyptLeaderSoundRef.current = new Audio("/assets/sounds/Ancient_Egyptian_Music__The_Nile_River.mp3");
+    egyptLeaderSoundRef.current = new Audio(
+      '/assets/sounds/Ancient_Egyptian_Music__The_Nile_River.mp3'
+    );
     egyptLeaderSoundRef.current.volume = vol;
-    englandLeaderSoundRef.current = new Audio("/assets/sounds/EnglandLeader.mp3");
+    englandLeaderSoundRef.current = new Audio(
+      '/assets/sounds/EnglandLeader.mp3'
+    );
     englandLeaderSoundRef.current.volume = vol;
-    franceLeaderSoundRef.current = new Audio("/assets/sounds/FranceLeader.mp3");
+    franceLeaderSoundRef.current = new Audio('/assets/sounds/FranceLeader.mp3');
     franceLeaderSoundRef.current.volume = vol;
-    israelLeaderSoundRef.current = new Audio("/assets/sounds/IsraelLeader.mp3");
+    israelLeaderSoundRef.current = new Audio('/assets/sounds/IsraelLeader.mp3');
     israelLeaderSoundRef.current.volume = vol;
-    serbiaLeaderSoundRef.current = new Audio("/assets/sounds/SerbiaLeader.mp3");
+    serbiaLeaderSoundRef.current = new Audio('/assets/sounds/SerbiaLeader.mp3');
     serbiaLeaderSoundRef.current.volume = vol;
-    palestineFlagSoundRef.current = new Audio('/assets/sounds/palestineflag.mp3');
+    palestineFlagSoundRef.current = new Audio(
+      '/assets/sounds/palestineflag.mp3'
+    );
     palestineFlagSoundRef.current.volume = vol;
     badLuckSoundRef.current = new Audio(badLuckSound);
     badLuckSoundRef.current.volume = vol;
@@ -1111,7 +1160,7 @@ export default function SnakeAndLadder() {
       palestineFlagSoundRef,
       badLuckSoundRef,
       cheerSoundRef,
-      timerSoundRef,
+      timerSoundRef
     ].forEach((r) => {
       if (r.current) r.current.muted = muted;
     });
@@ -1128,24 +1177,26 @@ export default function SnakeAndLadder() {
         .then((p) => {
           setPhotoUrl((prev) => prev || p?.photo || '');
           if (p?.photo) saveAvatar(p.photo);
-          setMyName(p?.nickname || `${p?.firstName || ''} ${p?.lastName || ''}`.trim());
+          setMyName(
+            p?.nickname || `${p?.firstName || ''} ${p?.lastName || ''}`.trim()
+          );
         })
         .catch(() => {});
     };
-    window.addEventListener("profilePhotoUpdated", updatePhoto);
-    return () => window.removeEventListener("profilePhotoUpdated", updatePhoto);
+    window.addEventListener('profilePhotoUpdated', updatePhoto);
+    return () => window.removeEventListener('profilePhotoUpdated', updatePhoto);
   }, []);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
-    const watchParam = params.get("watch");
-    const t = params.get("token");
-    const amt = params.get("amount");
-    const aiParam = params.get("ai");
-    const avatarParam = params.get("avatars") || 'flags';
+    const watchParam = params.get('watch');
+    const t = params.get('token');
+    const amt = params.get('amount');
+    const aiParam = params.get('ai');
+    const avatarParam = params.get('avatars') || 'flags';
     const flagsParam = params.get('flags');
     const leadersParam = params.get('leaders');
-    const tableParam = params.get("table");
+    const tableParam = params.get('table');
     if (t) setToken(t.toUpperCase());
     if (amt) setPot(Number(amt));
     const aiCount = aiParam
@@ -1156,7 +1207,7 @@ export default function SnakeAndLadder() {
     setAi(aiCount);
     setAvatarType(avatarParam);
     setIsMultiplayer(tableParam && !aiParam);
-    const watching = watchParam === "1";
+    const watching = watchParam === '1';
     setWatchOnly(watching);
     if (watching) {
       setShowQuitInfo(false);
@@ -1179,7 +1230,8 @@ export default function SnakeAndLadder() {
           .filter((i) => i >= 0 && i < LEADER_AVATARS.length);
         const chosen = indices.map((i) => LEADER_AVATARS[i]);
         while (chosen.length < aiCount) {
-          const rand = LEADER_AVATARS[Math.floor(Math.random() * LEADER_AVATARS.length)];
+          const rand =
+            LEADER_AVATARS[Math.floor(Math.random() * LEADER_AVATARS.length)];
           if (!chosen.includes(rand)) chosen.push(rand);
         }
         setAiAvatars(chosen.slice(0, aiCount));
@@ -1187,7 +1239,7 @@ export default function SnakeAndLadder() {
         setAiAvatars([
           '/assets/icons/UsaLeader.webp',
           '/assets/icons/RussiaLeader.webp',
-          '/assets/icons/ChinaLeader.webp',
+          '/assets/icons/ChinaLeader.webp'
         ]);
       } else {
         const unique = [...LEADER_AVATARS]
@@ -1197,25 +1249,33 @@ export default function SnakeAndLadder() {
       }
     } else {
       if (flagsParam) {
-        const indices = flagsParam.split(',').map((n) => parseInt(n)).filter((i) => i >= 0 && i < FLAG_EMOJIS.length);
+        const indices = flagsParam
+          .split(',')
+          .map((n) => parseInt(n))
+          .filter((i) => i >= 0 && i < FLAG_EMOJIS.length);
         const chosen = indices.map((i) => FLAG_EMOJIS[i]);
         while (chosen.length < aiCount) {
-          chosen.push(FLAG_EMOJIS[Math.floor(Math.random() * FLAG_EMOJIS.length)]);
+          chosen.push(
+            FLAG_EMOJIS[Math.floor(Math.random() * FLAG_EMOJIS.length)]
+          );
         }
         setAiAvatars(chosen.slice(0, aiCount));
       } else {
         setAiAvatars(
-          Array.from({ length: aiCount }, () =>
-            FLAG_EMOJIS[Math.floor(Math.random() * FLAG_EMOJIS.length)]
+          Array.from(
+            { length: aiCount },
+            () => FLAG_EMOJIS[Math.floor(Math.random() * FLAG_EMOJIS.length)]
           )
         );
       }
     }
-    const colors = shuffle(TOKEN_COLORS).slice(0, aiCount + 1).map(c => c.color);
+    const colors = shuffle(TOKEN_COLORS)
+      .slice(0, aiCount + 1)
+      .map((c) => c.color);
     setPlayerColors(colors);
 
     const storedTable = localStorage.getItem('snakeCurrentTable');
-    const table = params.get("table") || storedTable || "snake-4";
+    const table = params.get('table') || storedTable || 'snake-4';
     setTableId(table);
     localStorage.setItem('snakeCurrentTable', table);
     const boardPromise = isMultiplayer
@@ -1236,7 +1296,7 @@ export default function SnakeAndLadder() {
         });
         const lad = {};
         Object.entries(laddersLim).forEach(([s, e]) => {
-          const end = typeof e === "object" ? e.end : e;
+          const end = typeof e === 'object' ? e.end : e;
           lad[s] = end - s;
         });
         setSnakeOffsets(snk);
@@ -1249,7 +1309,7 @@ export default function SnakeAndLadder() {
           ...Object.keys(snakesLim),
           ...Object.keys(laddersLim),
           ...Object.values(snakesLim),
-          ...Object.values(laddersLim),
+          ...Object.values(laddersLim)
         ]);
         diceValues.forEach((val) => {
           let cell;
@@ -1299,7 +1359,10 @@ export default function SnakeAndLadder() {
 
     const onJoined = ({ playerId }) => {
       getProfileByAccount(playerId).then((prof) => {
-        const name = prof?.nickname || `${prof?.firstName || ''} ${prof?.lastName || ''}`.trim() || `Player`;
+        const name =
+          prof?.nickname ||
+          `${prof?.firstName || ''} ${prof?.lastName || ''}`.trim() ||
+          `Player`;
         const photoUrl = prof?.photo || '/assets/icons/profile.svg';
         setMpPlayers((p) => {
           if (p.some((pl) => pl.id === playerId)) {
@@ -1335,7 +1398,9 @@ export default function SnakeAndLadder() {
     };
     const onMove = ({ playerId, from = 0, to }) => {
       const updatePosition = (pos) => {
-        setMpPlayers((p) => p.map((pl) => (pl.id === playerId ? { ...pl, position: pos } : pl)));
+        setMpPlayers((p) =>
+          p.map((pl) => (pl.id === playerId ? { ...pl, position: pos } : pl))
+        );
         if (playerId === accountId) setPos(pos);
       };
       const ctx = {
@@ -1352,7 +1417,7 @@ export default function SnakeAndLadder() {
         ladderSoundRef,
         badLuckSoundRef,
         muted,
-        FINAL_TILE,
+        FINAL_TILE
       };
       const finalizeMove = (finalPos, type) => {
         updatePosition(finalPos);
@@ -1368,7 +1433,9 @@ export default function SnakeAndLadder() {
     };
     const onSnakeOrLadder = ({ playerId, from, to }) => {
       const updatePosition = (pos) => {
-        setMpPlayers((p) => p.map((pl) => (pl.id === playerId ? { ...pl, position: pos } : pl)));
+        setMpPlayers((p) =>
+          p.map((pl) => (pl.id === playerId ? { ...pl, position: pos } : pl))
+        );
         if (playerId === accountId) setPos(pos);
       };
       const ctx = {
@@ -1385,7 +1452,7 @@ export default function SnakeAndLadder() {
         ladderSoundRef,
         badLuckSoundRef,
         muted,
-        FINAL_TILE,
+        FINAL_TILE
       };
       const finalizeMove = (finalPos, type) => {
         updatePosition(finalPos);
@@ -1409,7 +1476,9 @@ export default function SnakeAndLadder() {
       }
       setTimeout(() => {
         setBurning((b) => b.filter((v) => v !== idx));
-        setMpPlayers((p) => p.map((pl) => (pl.id === playerId ? { ...pl, position: 0 } : pl)));
+        setMpPlayers((p) =>
+          p.map((pl) => (pl.id === playerId ? { ...pl, position: 0 } : pl))
+        );
         if (playerId === accountId) setPos(0);
       }, 1000);
     };
@@ -1450,7 +1519,10 @@ export default function SnakeAndLadder() {
       Promise.all(
         players.map(async (p) => {
           const prof = await getProfileByAccount(p.playerId).catch(() => ({}));
-          const name = prof?.nickname || `${prof?.firstName || ''} ${prof?.lastName || ''}`.trim() || p.name;
+          const name =
+            prof?.nickname ||
+            `${prof?.firstName || ''} ${prof?.lastName || ''}`.trim() ||
+            p.name;
           const photoUrl = prof?.photo || '/assets/icons/profile.svg';
           return { id: p.playerId, name, photoUrl, position: p.position || 0 };
         })
@@ -1466,7 +1538,8 @@ export default function SnakeAndLadder() {
       if (playerId === accountId) {
         setConnectionLost(true);
       } else if (capacity > 2) {
-        const name = playersRef.current.find((p) => p.id === playerId)?.name || playerId;
+        const name =
+          playersRef.current.find((p) => p.id === playerId)?.name || playerId;
         setDisconnectMsg(`${name} disconnected`);
         setTimeout(() => setDisconnectMsg(null), 3000);
       }
@@ -1475,7 +1548,8 @@ export default function SnakeAndLadder() {
       if (playerId === accountId) {
         setConnectionLost(false);
       } else if (capacity > 2) {
-        const name = playersRef.current.find((p) => p.id === playerId)?.name || playerId;
+        const name =
+          playersRef.current.find((p) => p.id === playerId)?.name || playerId;
         setDisconnectMsg(`${name} rejoined`);
         setTimeout(() => setDisconnectMsg(null), 3000);
       }
@@ -1501,7 +1575,9 @@ export default function SnakeAndLadder() {
             players.map(async (p) => {
               const prof = await getProfileByAccount(p.id).catch(() => ({}));
               const n =
-                prof?.nickname || `${prof?.firstName || ''} ${prof?.lastName || ''}`.trim() || p.name;
+                prof?.nickname ||
+                `${prof?.firstName || ''} ${prof?.lastName || ''}`.trim() ||
+                p.name;
               const photoUrl = prof?.photo || '/assets/icons/profile.svg';
               return { id: p.id, name: n, photoUrl, position: 0 };
             })
@@ -1514,7 +1590,6 @@ export default function SnakeAndLadder() {
     } else {
       socket.emit('joinRoom', { roomId: tableId, playerId: accountId, name });
     }
-
 
     return () => {
       socket.off('playerJoined', onJoined);
@@ -1644,10 +1719,22 @@ export default function SnakeAndLadder() {
       ranking,
       gameOver,
       aiAvatars,
-      timestamp: Date.now(),
+      timestamp: Date.now()
     };
     localStorage.setItem(key, JSON.stringify(data));
-  }, [ai, pos, aiPositions, currentTurn, diceCells, snakes, ladders, snakeOffsets, ladderOffsets, ranking, gameOver]);
+  }, [
+    ai,
+    pos,
+    aiPositions,
+    currentTurn,
+    diceCells,
+    snakes,
+    ladders,
+    snakeOffsets,
+    ladderOffsets,
+    ranking,
+    gameOver
+  ]);
 
   // Ensure stored state is cleared when leaving the page
   useEffect(() => {
@@ -1666,11 +1753,9 @@ export default function SnakeAndLadder() {
     };
   }, [ai, gameOver]);
 
-
-
   const handleRoll = (values) => {
     setMoving(true);
-    setTurnMessage("");
+    setTurnMessage('');
     setRollCooldown(1);
     const value = Array.isArray(values)
       ? values.reduce((a, b) => a + b, 0)
@@ -1678,7 +1763,8 @@ export default function SnakeAndLadder() {
     const rolledSix = Array.isArray(values)
       ? values.some((v) => Number(v) === 6)
       : Number(value) === 6;
-    const doubleSix = Array.isArray(values) && values[0] === 6 && values[1] === 6;
+    const doubleSix =
+      Array.isArray(values) && values[0] === 6 && values[1] === 6;
 
     setRollColor(playerColors[0] || '#fff');
 
@@ -1714,8 +1800,7 @@ export default function SnakeAndLadder() {
       setOffsetPopup(null);
       setTrail([]);
 
-
-      setMessage("");
+      setMessage('');
       let current = pos;
       let target = current;
 
@@ -1727,11 +1812,11 @@ export default function SnakeAndLadder() {
             copy[currentTurn] = 1;
             return copy;
           });
-          setMessage("Six rolled! One die removed.");
+          setMessage('Six rolled! One die removed.');
         } else {
-          setMessage("");
+          setMessage('');
         }
-        setTurnMessage("Your turn");
+        setTurnMessage('Your turn');
         setDiceVisible(true);
         setMoving(false);
         return;
@@ -1739,8 +1824,8 @@ export default function SnakeAndLadder() {
         if (value === 1) {
           target = FINAL_TILE;
         } else {
-          setMessage("Need a 1 to win!");
-          setTurnMessage("");
+          setMessage('Need a 1 to win!');
+          setTurnMessage('');
           setDiceVisible(false);
           const next = (currentTurn + 1) % (ai + 1);
           animateDiceToPlayer(next);
@@ -1755,10 +1840,9 @@ export default function SnakeAndLadder() {
         if (rolledSix) {
           target = 1;
           if (!muted) cheerSoundRef.current?.play().catch(() => {});
-        }
-        else {
-          setMessage("");
-          setTurnMessage("");
+        } else {
+          setMessage('');
+          setTurnMessage('');
           setDiceVisible(false);
           const next = (currentTurn + 1) % (ai + 1);
           animateDiceToPlayer(next);
@@ -1772,9 +1856,9 @@ export default function SnakeAndLadder() {
       } else if (current + value <= FINAL_TILE) {
         target = current + value;
       } else {
-        setMessage("Need exact roll!");
+        setMessage('Need exact roll!');
         setShowExactHelp(true);
-        setTurnMessage("");
+        setTurnMessage('');
         setDiceVisible(false);
         const next = (currentTurn + 1) % (ai + 1);
         animateDiceToPlayer(next);
@@ -1785,7 +1869,6 @@ export default function SnakeAndLadder() {
         setTimeout(() => setMoving(false), 2000);
         return;
       }
-
 
       let predicted = target;
       if (snakes[predicted] != null) predicted = Math.max(0, snakes[predicted]);
@@ -1800,7 +1883,7 @@ export default function SnakeAndLadder() {
       const steps = [];
       for (let i = current + 1; i <= target; i++) steps.push(i);
 
-        setHighlight(null);
+      setHighlight(null);
       const ctx = {
         updatePosition: (p) => setPos(p),
         setHighlight,
@@ -1815,7 +1898,7 @@ export default function SnakeAndLadder() {
         ladderSoundRef,
         badLuckSoundRef,
         muted,
-        FINAL_TILE,
+        FINAL_TILE
       };
 
       const applyEffect = (startPos) =>
@@ -1837,7 +1920,7 @@ export default function SnakeAndLadder() {
                 const winAmt = Math.round(total * 0.91);
                 await Promise.all([
                   depositAccount(aid, winAmt, { game: 'snake-win' }),
-                  awardDevShare(total),
+                  awardDevShare(total)
                 ]);
               })
               .catch(() => {});
@@ -1846,7 +1929,7 @@ export default function SnakeAndLadder() {
           if (first) setGameOver(true);
           const winAmt = Math.round(total * 0.91);
           setMessage(`You win ${winAmt} ${token}!`);
-          setMessageColor("");
+          setMessageColor('');
           if (!muted) winSoundRef.current?.play().catch(() => {});
           coinConfetti(50);
           setCelebrate(true);
@@ -1882,7 +1965,7 @@ export default function SnakeAndLadder() {
           setBonusDice(0);
           extraTurn = true;
         } else {
-          setTurnMessage("Your turn");
+          setTurnMessage('Your turn');
           setBonusDice(0);
         }
         setDiceVisible(true);
@@ -1909,7 +1992,7 @@ export default function SnakeAndLadder() {
     setMoving(true);
     const value = Array.isArray(vals)
       ? vals.reduce((a, b) => a + b, 0)
-      : vals ?? Math.floor(Math.random() * 6) + 1;
+      : (vals ?? Math.floor(Math.random() * 6) + 1);
     const rolledSix = Array.isArray(vals)
       ? vals.some((v) => Number(v) === 6)
       : Number(value) === 6;
@@ -1933,7 +2016,11 @@ export default function SnakeAndLadder() {
       (index !== 0 && pos === preview) ||
       aiPositions.some((p, i) => i !== index - 1 && p === preview);
 
-    setTurnMessage(<>{playerName(index)} rolled {value}</>);
+    setTurnMessage(
+      <>
+        {playerName(index)} rolled {value}
+      </>
+    );
     setRollResult(value);
     if (doubleSix && !muted) {
       yabbaSoundRef.current.currentTime = 0;
@@ -1946,148 +2033,152 @@ export default function SnakeAndLadder() {
     setTimeout(() => setRollResult(null), 2000);
     setTimeout(() => {
       setDiceVisible(false);
-    let positions = [...aiPositions];
-    let current = positions[index - 1];
-    let target = current;
-    if (current === 0) {
-      if (rolledSix) {
-        target = 1;
-        if (!muted) cheerSoundRef.current?.play().catch(() => {});
+      let positions = [...aiPositions];
+      let current = positions[index - 1];
+      let target = current;
+      if (current === 0) {
+        if (rolledSix) {
+          target = 1;
+          if (!muted) cheerSoundRef.current?.play().catch(() => {});
+        }
+      } else if (current === 100 && playerDiceCounts[index] === 2) {
+        if (rolledSix) {
+          setPlayerDiceCounts((arr) => {
+            const copy = [...arr];
+            copy[index] = 1;
+            return copy;
+          });
+          if (currentTurn === index) setDiceCount(1);
+          setTurnMessage(`${getPlayerName(index)}'s turn`);
+          setDiceVisible(true);
+          setMoving(false);
+          return;
+        } else {
+          setTurnMessage(`${getPlayerName(index)} needs a 6`);
+          setDiceVisible(false);
+          const next = (currentTurn + 1) % (ai + 1);
+          animateDiceToPlayer(next);
+          setTimeout(() => {
+            setCurrentTurn(next);
+            setDiceCount(playerDiceCounts[next] ?? 2);
+          }, 2000);
+          setTimeout(() => setMoving(false), 2000);
+          return;
+        }
+      } else if (current === 100 && playerDiceCounts[index] === 1) {
+        if (value === 1) target = FINAL_TILE;
+        else {
+          setTurnMessage('');
+          setDiceVisible(false);
+          const next = (currentTurn + 1) % (ai + 1);
+          animateDiceToPlayer(next);
+          setTimeout(() => {
+            setCurrentTurn(next);
+            setDiceCount(playerDiceCounts[next] ?? 2);
+          }, 2000);
+          setTimeout(() => setMoving(false), 2000);
+          return;
+        }
+      } else if (current + value <= FINAL_TILE) {
+        target = current + value;
       }
-    } else if (current === 100 && playerDiceCounts[index] === 2) {
-      if (rolledSix) {
-        setPlayerDiceCounts(arr => {
-          const copy = [...arr];
-          copy[index] = 1;
-          return copy;
-        });
-        if (currentTurn === index) setDiceCount(1);
-        setTurnMessage(`${getPlayerName(index)}'s turn`);
-        setDiceVisible(true);
-        setMoving(false);
-        return;
-      } else {
-        setTurnMessage(`${getPlayerName(index)} needs a 6`);
-        setDiceVisible(false);
-        const next = (currentTurn + 1) % (ai + 1);
-        animateDiceToPlayer(next);
-        setTimeout(() => {
-          setCurrentTurn(next);
-          setDiceCount(playerDiceCounts[next] ?? 2);
-        }, 2000);
-        setTimeout(() => setMoving(false), 2000);
-        return;
-      }
-    } else if (current === 100 && playerDiceCounts[index] === 1) {
-      if (value === 1) target = FINAL_TILE;
-      else {
-        setTurnMessage('');
-        setDiceVisible(false);
-        const next = (currentTurn + 1) % (ai + 1);
-        animateDiceToPlayer(next);
-        setTimeout(() => {
-          setCurrentTurn(next);
-          setDiceCount(playerDiceCounts[next] ?? 2);
-        }, 2000);
-        setTimeout(() => setMoving(false), 2000);
-        return;
-      }
-    } else if (current + value <= FINAL_TILE) {
-      target = current + value;
-    }
 
-    let predicted = target;
-    if (snakes[predicted] != null) predicted = Math.max(0, snakes[predicted]);
-    else if (ladders[predicted] != null) {
-      const ladObj = ladders[predicted];
-      predicted = typeof ladObj === 'object' ? ladObj.end : ladObj;
-    }
-    const extraPred = diceCells[predicted] || doubleSix;
-    const nextPlayer = extraPred ? index : (index + 1) % (ai + 1);
-    animateDiceToPlayer(nextPlayer);
+      let predicted = target;
+      if (snakes[predicted] != null) predicted = Math.max(0, snakes[predicted]);
+      else if (ladders[predicted] != null) {
+        const ladObj = ladders[predicted];
+        predicted = typeof ladObj === 'object' ? ladObj.end : ladObj;
+      }
+      const extraPred = diceCells[predicted] || doubleSix;
+      const nextPlayer = extraPred ? index : (index + 1) % (ai + 1);
+      animateDiceToPlayer(nextPlayer);
 
-    const steps = [];
-    for (let i = current + 1; i <= target; i++) steps.push(i);
+      const steps = [];
+      for (let i = current + 1; i <= target; i++) steps.push(i);
 
       setHighlight(null);
-    const ctx = {
-      updatePosition: (p) => {
-        positions[index - 1] = p;
+      const ctx = {
+        updatePosition: (p) => {
+          positions[index - 1] = p;
+          setAiPositions([...positions]);
+        },
+        setHighlight,
+        setTrail,
+        moveSoundRef,
+        hahaSoundRef,
+        snakes,
+        ladders,
+        setOffsetPopup,
+        snakeSoundRef,
+        oldSnakeSoundRef,
+        ladderSoundRef,
+        badLuckSoundRef,
+        muted,
+        FINAL_TILE
+      };
+
+      const finalizeMove = async (finalPos, type) => {
+        positions[index - 1] = finalPos;
         setAiPositions([...positions]);
-      },
-      setHighlight,
-      setTrail,
-      moveSoundRef,
-      hahaSoundRef,
-      snakes,
-      ladders,
-      setOffsetPopup,
-      snakeSoundRef,
-      oldSnakeSoundRef,
-      ladderSoundRef,
-      badLuckSoundRef,
-      muted,
-      FINAL_TILE,
-    };
-
-    const finalizeMove = async (finalPos, type) => {
-      positions[index - 1] = finalPos;
-      setAiPositions([...positions]);
-      setHighlight({ cell: finalPos, type });
-      setTrail([]);
-      capturePieces(finalPos, index);
-      setTimeout(() => setHighlight(null), 2300);
-      if (finalPos === FINAL_TILE && !ranking.includes(getPlayerName(index))) {
-        const first = ranking.length === 0;
-        setRanking(r => [...r, getPlayerName(index)]);
-        if (first) {
-          await awardDevShare(pot * (ai + 1));
-          setGameOver(true);
+        setHighlight({ cell: finalPos, type });
+        setTrail([]);
+        capturePieces(finalPos, index);
+        setTimeout(() => setHighlight(null), 2300);
+        if (
+          finalPos === FINAL_TILE &&
+          !ranking.includes(getPlayerName(index))
+        ) {
+          const first = ranking.length === 0;
+          setRanking((r) => [...r, getPlayerName(index)]);
+          if (first) {
+            await awardDevShare(pot * (ai + 1));
+            setGameOver(true);
+          }
+          setMessage(`${getPlayerName(index)} wins!`);
+          setPlayerDiceCounts((arr) => {
+            const copy = [...arr];
+            copy[index] = 2;
+            return copy;
+          });
+          setDiceVisible(false);
+          setMoving(false);
+          return;
         }
-        setMessage(`${getPlayerName(index)} wins!`);
-        setPlayerDiceCounts(arr => {
-          const copy = [...arr];
-          copy[index] = 2;
-          return copy;
-        });
-        setDiceVisible(false);
+        let extraTurn = false;
+        if (diceCells[finalPos]) {
+          const bonus = diceCells[finalPos];
+          setDiceCells((d) => {
+            const n = { ...d };
+            delete n[finalPos];
+            return n;
+          });
+          setBonusDice(bonus);
+          setRewardDice(bonus);
+          setTurnMessage('Bonus roll');
+          extraTurn = true;
+          if (!muted) {
+            diceRewardSoundRef.current?.play().catch(() => {});
+            yabbaSoundRef.current?.play().catch(() => {});
+          }
+          setTimeout(() => setRewardDice(0), 1000);
+        } else if (doubleSix) {
+          extraTurn = true;
+        }
+        const next = extraTurn ? index : (index + 1) % (ai + 1);
+        if (next === 0) setTurnMessage('Your turn');
+        setCurrentTurn(next);
+        setDiceCount(playerDiceCounts[next] ?? 2);
+        setDiceVisible(true);
         setMoving(false);
-        return;
-      }
-      let extraTurn = false;
-      if (diceCells[finalPos]) {
-        const bonus = diceCells[finalPos];
-        setDiceCells((d) => {
-          const n = { ...d };
-          delete n[finalPos];
-          return n;
-        });
-        setBonusDice(bonus);
-        setRewardDice(bonus);
-        setTurnMessage('Bonus roll');
-        extraTurn = true;
-        if (!muted) {
-          diceRewardSoundRef.current?.play().catch(() => {});
-          yabbaSoundRef.current?.play().catch(() => {});
+        if (extraTurn && next === index) {
+          setTimeout(() => triggerAIRoll(index), 1800);
         }
-        setTimeout(() => setRewardDice(0), 1000);
-      } else if (doubleSix) {
-        extraTurn = true;
-      }
-      const next = extraTurn ? index : (index + 1) % (ai + 1);
-      if (next === 0) setTurnMessage('Your turn');
-      setCurrentTurn(next);
-      setDiceCount(playerDiceCounts[next] ?? 2);
-      setDiceVisible(true);
-      setMoving(false);
-      if (extraTurn && next === index) {
-        setTimeout(() => triggerAIRoll(index), 1800);
-      }
-    };
+      };
 
-    const applyEffect = (startPos) => applyEffectHelper(startPos, ctx, finalizeMove);
+      const applyEffect = (startPos) =>
+        applyEffectHelper(startPos, ctx, finalizeMove);
 
-    moveSeq(steps, 'normal', ctx, () => applyEffect(target), 'forward');
+      moveSeq(steps, 'normal', ctx, () => applyEffect(target), 'forward');
     }, 2000);
   };
 
@@ -2104,7 +2195,8 @@ export default function SnakeAndLadder() {
     const indices = Array.from({ length: total }, (_, i) => i);
     const start = Math.floor(Math.random() * total);
     const rollOrder = [];
-    for (let i = 0; i < total; i++) rollOrder.push(indices[(start + i) % total]);
+    for (let i = 0; i < total; i++)
+      rollOrder.push(indices[(start + i) % total]);
     setDiceVisible(false);
     const results = [];
     const rollNext = (idx) => {
@@ -2135,12 +2227,15 @@ export default function SnakeAndLadder() {
       const idxPlayer = rollOrder[idx];
       const roll = Math.floor(Math.random() * 6) + 1;
       results.push({ index: idxPlayer, roll });
-      setTurnMessage(<>{playerName(idxPlayer)} rolled {roll}</>);
+      setTurnMessage(
+        <>
+          {playerName(idxPlayer)} rolled {roll}
+        </>
+      );
       setTimeout(() => rollNext(idx + 1), 1000);
     };
     rollNext(0);
   }, [ai, aiPositions, setupPhase]);
-
 
   useEffect(() => {
     if (!setupPhase && currentTurn === 0 && !gameOver) {
@@ -2172,10 +2267,7 @@ export default function SnakeAndLadder() {
       setTimeLeft(TURN_TIME);
       if (timerRef.current) clearInterval(timerRef.current);
       timerRef.current = setInterval(() => {
-        const remaining = Math.max(
-          0,
-          (turnEndRef.current - Date.now()) / 1000
-        );
+        const remaining = Math.max(0, (turnEndRef.current - Date.now()) / 1000);
         prevTimeLeftRef.current = remaining;
         setTimeLeft(parseFloat(remaining.toFixed(1)));
       }, 100);
@@ -2202,10 +2294,7 @@ export default function SnakeAndLadder() {
     if (timerRef.current) clearInterval(timerRef.current);
     if (timerSoundRef.current) timerSoundRef.current.pause();
     timerRef.current = setInterval(() => {
-      const remaining = Math.max(
-        0,
-        (turnEndRef.current - Date.now()) / 1000
-      );
+      const remaining = Math.max(0, (turnEndRef.current - Date.now()) / 1000);
       const next = parseFloat(remaining.toFixed(1));
       if (
         currentTurn === myIndex &&
@@ -2231,7 +2320,15 @@ export default function SnakeAndLadder() {
       clearInterval(timerRef.current);
       timerSoundRef.current?.pause();
     };
-  }, [currentTurn, setupPhase, gameOver, moving, isMultiplayer, mpPlayers, muted]);
+  }, [
+    currentTurn,
+    setupPhase,
+    gameOver,
+    moving,
+    isMultiplayer,
+    mpPlayers,
+    muted
+  ]);
 
   // Periodically refresh the component state to avoid freezes
   useEffect(() => {
@@ -2240,8 +2337,6 @@ export default function SnakeAndLadder() {
     }, 5000);
     return () => clearInterval(id);
   }, []);
-
-
 
   const players = isMultiplayer
     ? mpPlayers.map((p, i) => ({
@@ -2270,7 +2365,6 @@ export default function SnakeAndLadder() {
       rankMap[p.idx] = p.pos === 0 ? 0 : i + 1;
     });
 
-
   return (
     <div className="p-4 pb-32 space-y-4 text-text flex flex-col justify-end items-center relative w-full flex-grow">
       {/* Bottom left controls */}
@@ -2280,7 +2374,7 @@ export default function SnakeAndLadder() {
         onGift={() => setShowGift(true)}
       />
       {/* Player photos stacked vertically */}
-        <div className="fixed left-0 top-[45%] -translate-x-1 -translate-y-1/2 flex flex-col space-y-5 z-20">
+      <div className="fixed left-0 top-[45%] -translate-x-1 -translate-y-1/2 flex flex-col space-y-5 z-20">
         {players
           .map((p, i) => ({ ...p, index: i }))
           .map((p) => (
@@ -2292,15 +2386,11 @@ export default function SnakeAndLadder() {
               rank={rankMap[p.index]}
               name={getPlayerName(p.index)}
               isTurn={p.index === currentTurn}
-              timerPct={
-                p.index === currentTurn
-                  ? timeLeft / TURN_TIME
-                  : 1
-              }
+              timerPct={p.index === currentTurn ? timeLeft / TURN_TIME : 1}
               color={p.color}
               onClick={() => {
                 const myIdx = isMultiplayer
-                  ? mpPlayers.findIndex(pl => pl.id === getPlayerId())
+                  ? mpPlayers.findIndex((pl) => pl.id === getPlayerId())
                   : 0;
                 if (p.index !== myIdx) setPlayerPopup(p);
               }}
@@ -2349,7 +2439,7 @@ export default function SnakeAndLadder() {
           }
           setTimeout(
             () => setChatBubbles((b) => b.filter((bb) => bb.id !== id)),
-            3000,
+            3000
           );
         }}
       />
@@ -2361,10 +2451,16 @@ export default function SnakeAndLadder() {
           <GiftPopup
             open={showGift}
             onClose={() => setShowGift(false)}
-            players={players.map((p, i) => ({ ...p, index: i, name: getPlayerName(i) }))}
+            players={players.map((p, i) => ({
+              ...p,
+              index: i,
+              name: getPlayerName(i)
+            }))}
             senderIndex={myIdx}
             onGiftSent={({ from, to, gift }) => {
-              const start = document.querySelector(`[data-player-index="${from}"]`);
+              const start = document.querySelector(
+                `[data-player-index="${from}"]`
+              );
               const end = document.querySelector(`[data-player-index="${to}"]`);
               if (start && end) {
                 const s = start.getBoundingClientRect();
@@ -2372,7 +2468,10 @@ export default function SnakeAndLadder() {
                 const cx = window.innerWidth / 2;
                 const cy = window.innerHeight / 2;
                 let icon;
-                if (typeof gift.icon === 'string' && gift.icon.match(/\.(png|jpg|jpeg|webp|svg)$/)) {
+                if (
+                  typeof gift.icon === 'string' &&
+                  gift.icon.match(/\.(png|jpg|jpeg|webp|svg)$/)
+                ) {
                   icon = document.createElement('img');
                   icon.src = gift.icon;
                   icon.className = 'w-6 h-6';
@@ -2443,12 +2542,19 @@ export default function SnakeAndLadder() {
                 }
                 const animation = icon.animate(
                   [
-                    { transform: `translate(${s.left + s.width / 2}px, ${s.top + s.height / 2}px) scale(1)` },
-                    { transform: `translate(${cx}px, ${cy}px) scale(3)`, offset: 0.5 },
-                    { transform: `translate(${e.left + e.width / 2}px, ${e.top + e.height / 2}px) scale(1)` },
+                    {
+                      transform: `translate(${s.left + s.width / 2}px, ${s.top + s.height / 2}px) scale(1)`
+                    },
+                    {
+                      transform: `translate(${cx}px, ${cy}px) scale(3)`,
+                      offset: 0.5
+                    },
+                    {
+                      transform: `translate(${e.left + e.width / 2}px, ${e.top + e.height / 2}px) scale(1)`
+                    }
                   ],
                   // Slow down gift animation to roughly 3.5 seconds
-                  { duration: 3500, easing: 'linear' },
+                  { duration: 3500, easing: 'linear' }
                 );
                 animation.onfinish = () => icon.remove();
               }
@@ -2459,7 +2565,8 @@ export default function SnakeAndLadder() {
       {waitingForPlayers && (
         <div className="absolute inset-0 z-40 flex items-center justify-center bg-black/70">
           <p className="text-white text-lg">
-            Waiting for {playersNeeded} more player{playersNeeded === 1 ? '' : 's'}...
+            Waiting for {playersNeeded} more player
+            {playersNeeded === 1 ? '' : 's'}...
           </p>
         </div>
       )}
@@ -2478,12 +2585,20 @@ export default function SnakeAndLadder() {
       {rewardDice > 0 && (
         <div className="fixed bottom-40 inset-x-0 flex justify-center z-30 pointer-events-none reward-dice-container">
           {Array.from({ length: rewardDice }).map((_, i) => (
-            <img key={i}  src="/assets/icons/file_000000009160620a96f728f463de1c3f.webp" className="reward-dice" />
+            <img
+              key={i}
+              src="/assets/icons/file_000000009160620a96f728f463de1c3f.webp"
+              className="reward-dice"
+            />
           ))}
         </div>
       )}
       {!isMultiplayer && (
-        <div ref={diceRef} style={diceStyle} className="dice-travel flex flex-col items-center relative">
+        <div
+          ref={diceRef}
+          style={diceStyle}
+          className="dice-travel flex flex-col items-center relative"
+        >
           {showTrail && (
             <img
               src="/assets/icons/throwing_hand_down.webp"
@@ -2499,13 +2614,13 @@ export default function SnakeAndLadder() {
                   handleAIRoll(aiRollingIndex, vals);
                   setAiRollingIndex(null);
                 } else {
-                handleRoll(vals);
-                setBonusDice(0);
-              }
-              setRollingIndex(null);
-              setPlayerAutoRolling(false);
-            }}
-            onRollStart={() => {
+                  handleRoll(vals);
+                  setBonusDice(0);
+                }
+                setRollingIndex(null);
+                setPlayerAutoRolling(false);
+              }}
+              onRollStart={() => {
                 if (timerRef.current) clearInterval(timerRef.current);
                 timerSoundRef.current?.pause();
                 setRollingIndex(aiRollingIndex || 0);
@@ -2516,26 +2631,33 @@ export default function SnakeAndLadder() {
                 clearTimeout(trailTimeoutRef.current);
                 trailTimeoutRef.current = setTimeout(
                   () => setShowTrail(false),
-                  DICE_ANIM_DURATION,
+                  DICE_ANIM_DURATION
                 );
                 if (aiRollingIndex)
-                  return setTurnMessage(<>{playerName(aiRollingIndex)} rolling...</>);
+                  return setTurnMessage(
+                    <>{playerName(aiRollingIndex)} rolling...</>
+                  );
                 if (playerAutoRolling) return setTurnMessage('Rolling...');
-                return setTurnMessage("Rolling...");
+                return setTurnMessage('Rolling...');
+              }}
+              clickable={
+                !aiRollingIndex &&
+                !playerAutoRolling &&
+                rollCooldown === 0 &&
+                currentTurn === 0 &&
+                !moving
               }
-            }
-            clickable={
-              !aiRollingIndex &&
-              !playerAutoRolling &&
-              rollCooldown === 0 &&
-              currentTurn === 0 &&
-              !moving
-            }
-            numDice={diceCount + bonusDice}
-            trigger={aiRollingIndex != null ? aiRollTrigger : playerAutoRolling ? playerRollTrigger : undefined}
-            showButton={false}
-            muted={muted}
-          />
+              numDice={diceCount + bonusDice}
+              trigger={
+                aiRollingIndex != null
+                  ? aiRollTrigger
+                  : playerAutoRolling
+                    ? playerRollTrigger
+                    : undefined
+              }
+              showButton={false}
+              muted={muted}
+            />
           </div>
         </div>
       )}
@@ -2561,122 +2683,122 @@ export default function SnakeAndLadder() {
           onClick={() => diceRollerDivRef.current?.click()}
         >
           <div className="scale-90">
-          {(() => {
-            const myId = getPlayerId();
-            const myIndex = mpPlayers.findIndex(p => p.id === myId);
-            if (currentTurn === myIndex && !moving) {
-              return (
-                <DiceRoller
-                  clickable
-                  showButton={false}
-                  muted={muted}
-                  emitRollEvent
-                  divRef={diceRollerDivRef}
-                />
-              );
-            }
-            return null;
-          })()}
+            {(() => {
+              const myId = getPlayerId();
+              const myIndex = mpPlayers.findIndex((p) => p.id === myId);
+              if (currentTurn === myIndex && !moving) {
+                return (
+                  <DiceRoller
+                    clickable
+                    showButton={false}
+                    muted={muted}
+                    emitRollEvent
+                    divRef={diceRollerDivRef}
+                  />
+                );
+              }
+              return null;
+            })()}
           </div>
         </div>
       )}
       {!watchOnly && (
-      <InfoPopup
-        open={showQuitInfo}
-        onClose={() => setShowQuitInfo(false)}
-        title="Warning"
-        info="If you quit the game your funds will be lost and you will be placed last."
-        widthClass="w-80"
-      />
+        <InfoPopup
+          open={showQuitInfo}
+          onClose={() => setShowQuitInfo(false)}
+          title="Warning"
+          info="If you quit the game your funds will be lost and you will be placed last."
+          widthClass="w-80"
+        />
       )}
       {!watchOnly && (
-      <InfoPopup
-        open={showInfo}
-        onClose={() => setShowInfo(false)}
-        title="Snake & Ladder"
-        info="Roll two dice each turn. Move forward by their sum. Ladders lift you up and snakes bring you down. You must land exactly on the pot tile to win."
-      />
+        <InfoPopup
+          open={showInfo}
+          onClose={() => setShowInfo(false)}
+          title="Snake & Ladder"
+          info="Roll two dice each turn. Move forward by their sum. Ladders lift you up and snakes bring you down. You must land exactly on the pot tile to win."
+        />
       )}
       {!watchOnly && (
-      <HintPopup
-        open={showExactHelp}
-        onClose={() => setShowExactHelp(false)}
-        message="You must roll the exact number to land on the pot."
-      />
+        <HintPopup
+          open={showExactHelp}
+          onClose={() => setShowExactHelp(false)}
+          message="You must roll the exact number to land on the pot."
+        />
       )}
       {!watchOnly && (
-      <InfoPopup
-        open={connectionLost}
-        onClose={() => setConnectionLost(false)}
-        title="Connection Lost"
-        info="Attempting to reconnect..."
-      />
+        <InfoPopup
+          open={connectionLost}
+          onClose={() => setConnectionLost(false)}
+          title="Connection Lost"
+          info="Attempting to reconnect..."
+        />
       )}
       {!watchOnly && (
-      <InfoPopup
-        open={forfeitMsg}
-        onClose={() => setForfeitMsg(false)}
-        title="Disconnected"
-        info="You were disconnected too long and forfeited the match."
-      />
+        <InfoPopup
+          open={forfeitMsg}
+          onClose={() => setForfeitMsg(false)}
+          title="Disconnected"
+          info="You were disconnected too long and forfeited the match."
+        />
       )}
       {!watchOnly && (
-      <InfoPopup
-        open={!!disconnectMsg}
-        onClose={() => setDisconnectMsg(null)}
-        title="Player Update"
-        info={disconnectMsg}
-      />
+        <InfoPopup
+          open={!!disconnectMsg}
+          onClose={() => setDisconnectMsg(null)}
+          title="Player Update"
+          info={disconnectMsg}
+        />
       )}
       {!watchOnly && (
-      <InfoPopup
-        open={!!cheatMsg}
-        onClose={() => setCheatMsg(null)}
-        title="Warning"
-        info={cheatMsg}
-      />
+        <InfoPopup
+          open={!!cheatMsg}
+          onClose={() => setCheatMsg(null)}
+          title="Warning"
+          info={cheatMsg}
+        />
       )}
       {!watchOnly && (
-      <InfoPopup
-        open={!!leftWinner}
-        onClose={() => setLeftWinner(null)}
-        title="Opponent Left"
-        info={
-          leftWinner && (
-            <span>
-              {leftWinner} left the game. You win {Math.round(pot * 2 * 0.91)}{' '}
-              <img
-                src={
-                  token === 'TON'
-                    ? '/assets/icons/TON.webp'
-                    : token === 'USDT'
-                    ? '/assets/icons/Usdt.webp'
-                    : '/assets/icons/TPCcoin_1.webp'
-                }
-                alt={token}
-                className="inline w-4 h-4 align-middle"
-              />
-            </span>
-          )
-        }
-      >
-        <div className="flex justify-center mt-2">
-          <button
-            onClick={() => navigate('/games/snake/lobby')}
-            className="lobby-tile px-4 py-1"
-          >
-            Return to Lobby
-          </button>
-        </div>
-      </InfoPopup>
+        <InfoPopup
+          open={!!leftWinner}
+          onClose={() => setLeftWinner(null)}
+          title="Opponent Left"
+          info={
+            leftWinner && (
+              <span>
+                {leftWinner} left the game. You win {Math.round(pot * 2 * 0.91)}{' '}
+                <img
+                  src={
+                    token === 'TON'
+                      ? '/assets/icons/TON.webp'
+                      : token === 'USDT'
+                        ? '/assets/icons/Usdt.webp'
+                        : '/assets/icons/TPCcoin_1.webp'
+                  }
+                  alt={token}
+                  className="inline w-4 h-4 align-middle"
+                />
+              </span>
+            )
+          }
+        >
+          <div className="flex justify-center mt-2">
+            <button
+              onClick={() => navigate('/games/snake/lobby')}
+              className="lobby-tile px-4 py-1"
+            >
+              Return to Lobby
+            </button>
+          </div>
+        </InfoPopup>
       )}
       {watchOnly && (
-      <InfoPopup
-        open={showWatchWelcome}
-        onClose={() => setShowWatchWelcome(false)}
-        title="Watching Game"
-        info="You're watching this match. Support your player by sending NFT GIFs and chat messages. Watching is free, but each chat costs 10 TPC."
-      />
+        <InfoPopup
+          open={showWatchWelcome}
+          onClose={() => setShowWatchWelcome(false)}
+          title="Watching Game"
+          info="You're watching this match. Support your player by sending NFT GIFs and chat messages. Watching is free, but each chat costs 10 TPC."
+        />
       )}
       <GameEndPopup
         open={gameOver}
@@ -2687,19 +2809,20 @@ export default function SnakeAndLadder() {
         }}
         onReturn={() => {
           localStorage.removeItem(`snakeGameState_${ai}`);
-          navigate("/games/snake/lobby");
+          navigate('/games/snake/lobby');
         }}
+        onClose={() => setGameOver(false)}
       />
       {!watchOnly && (
-      <ConfirmPopup
-        open={showLobbyConfirm}
-        message="Quit the game? If you leave, your funds will be lost and you'll be placed last."
-        onConfirm={() => {
-          localStorage.removeItem(`snakeGameState_${ai}`);
-          navigate("/games/snake/lobby");
-        }}
-        onCancel={() => setShowLobbyConfirm(false)}
-      />
+        <ConfirmPopup
+          open={showLobbyConfirm}
+          message="Quit the game? If you leave, your funds will be lost and you'll be placed last."
+          onConfirm={() => {
+            localStorage.removeItem(`snakeGameState_${ai}`);
+            navigate('/games/snake/lobby');
+          }}
+          onCancel={() => setShowLobbyConfirm(false)}
+        />
       )}
     </div>
   );

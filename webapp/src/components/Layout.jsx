@@ -43,8 +43,26 @@ export default function Layout({ children }) {
   }, []);
 
   useEffect(() => {
-    const onInvite = ({ fromId, fromName, roomId, token, amount, group, opponentNames, game }) => {
-      setInvite({ fromId, fromName, roomId, token, amount, group, opponentNames, game });
+    const onInvite = ({
+      fromId,
+      fromName,
+      roomId,
+      token,
+      amount,
+      group,
+      opponentNames,
+      game
+    }) => {
+      setInvite({
+        fromId,
+        fromName,
+        roomId,
+        token,
+        amount,
+        group,
+        opponentNames,
+        game
+      });
       if (beepRef.current && !isGameMuted()) {
         beepRef.current.currentTime = 0;
         beepRef.current.play().catch(() => {});
@@ -78,45 +96,45 @@ export default function Layout({ children }) {
   const showBranding = isGamesRoot || !location.pathname.startsWith('/games');
 
   const showNavbar = !(
-
     location.pathname.startsWith('/games/') &&
-
     !location.pathname.includes('/lobby')
-
   );
 
   const showFooter = !location.pathname.startsWith('/games/');
 
   return (
-
     <div className="flex flex-col min-h-screen text-text relative overflow-hidden">
-
       <CosmicBackground />
-      <main className={`flex-grow ${
-        showNavbar ? 'container mx-auto p-4 pb-24' : 'w-full p-0'
-      }`}>
-
+      <main
+        className={`flex-grow ${
+          showNavbar ? 'container mx-auto p-4 pb-24' : 'w-full p-0'
+        }`}
+      >
         {showBranding && (
-        <Branding
-            scale={isMining || isTasks || isStore || isAccount || isGamesRoot || isWallet ? 1.2 : 1}
+          <Branding
+            scale={
+              isMining ||
+              isTasks ||
+              isStore ||
+              isAccount ||
+              isGamesRoot ||
+              isWallet
+                ? 1.2
+                : 1
+            }
             offsetY={isMining ? '0.5rem' : 0}
           />
         )}
 
         {children}
-
       </main>
 
       {/* Fixed Bottom Navbar */}
 
       {showNavbar && (
-
         <div className="fixed bottom-0 inset-x-0 z-50">
-
           <Navbar />
-
         </div>
-
       )}
 
       {showFooter && <Footer />}
@@ -128,18 +146,16 @@ export default function Layout({ children }) {
         stake={{ token: invite?.token, amount: invite?.amount }}
         incoming
         group={Array.isArray(invite?.group)}
+        onClose={() => setInvite(null)}
         onAccept={() => {
           if (invite)
             navigate(
-              `/games/${invite.game || 'snake'}?table=${invite.roomId}&token=${invite.token}&amount=${invite.amount}`,
+              `/games/${invite.game || 'snake'}?table=${invite.roomId}&token=${invite.token}&amount=${invite.amount}`
             );
           setInvite(null);
         }}
         onReject={() => setInvite(null)}
       />
-
     </div>
-
   );
-
 }

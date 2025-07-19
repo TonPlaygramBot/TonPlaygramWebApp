@@ -1,10 +1,4 @@
-import {
-  useState,
-  useMemo,
-  useEffect,
-  useRef,
-  useCallback,
-} from 'react';
+import { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import DiceRoller from '../../components/DiceRoller.jsx';
 import AvatarTimer from '../../components/AvatarTimer.jsx';
@@ -13,12 +7,12 @@ import QuickMessagePopup from '../../components/QuickMessagePopup.jsx';
 import GiftPopup from '../../components/GiftPopup.jsx';
 import GameEndPopup from '../../components/GameEndPopup.jsx';
 import useTelegramBackButton from '../../hooks/useTelegramBackButton.js';
-import {
-  loadAvatar,
-  avatarToName,
-} from '../../utils/avatarUtils.js';
+import { loadAvatar, avatarToName } from '../../utils/avatarUtils.js';
 import { FLAG_EMOJIS } from '../../utils/flagEmojis.js';
-import { LEADER_AVATARS, LEADER_PHOTO_AVATARS } from '../../utils/leaderAvatars.js';
+import {
+  LEADER_AVATARS,
+  LEADER_PHOTO_AVATARS
+} from '../../utils/leaderAvatars.js';
 import { chatBeep, timerBeep } from '../../assets/soundData.js';
 import { getGameVolume, isGameMuted } from '../../utils/sound.js';
 import { giftSounds } from '../../utils/giftSounds.js';
@@ -38,28 +32,28 @@ async function awardDevShare(total) {
     if (DEV_ACCOUNT) {
       promises.push(
         depositAccount(DEV_ACCOUNT, Math.round(total * 0.09), {
-          game: 'crazydice-dev',
+          game: 'crazydice-dev'
         })
       );
     }
     if (DEV_ACCOUNT_1) {
       promises.push(
         depositAccount(DEV_ACCOUNT_1, Math.round(total * 0.01), {
-          game: 'crazydice-dev1',
+          game: 'crazydice-dev1'
         })
       );
     }
     if (DEV_ACCOUNT_2) {
       promises.push(
         depositAccount(DEV_ACCOUNT_2, Math.round(total * 0.02), {
-          game: 'crazydice-dev2',
+          game: 'crazydice-dev2'
         })
       );
     }
   } else if (DEV_ACCOUNT) {
     promises.push(
       depositAccount(DEV_ACCOUNT, Math.round(total * 0.1), {
-        game: 'crazydice-dev',
+        game: 'crazydice-dev'
       })
     );
   }
@@ -83,15 +77,20 @@ export default function CrazyDiceDuel() {
   const avatarType = searchParams.get('avatars') || 'flags';
   const selectedLeadersParam = searchParams.get('leaders');
   const selectedLeaders = selectedLeadersParam
-    ? selectedLeadersParam.split(',').map((n) => LEADER_AVATARS[parseInt(n)]).filter(Boolean)
+    ? selectedLeadersParam
+        .split(',')
+        .map((n) => LEADER_AVATARS[parseInt(n)])
+        .filter(Boolean)
     : null;
   const selectedFlagsParam = searchParams.get('flags');
   const selectedFlags = selectedFlagsParam
-    ? selectedFlagsParam.split(',').map((n) => FLAG_EMOJIS[parseInt(n)]).filter(Boolean)
+    ? selectedFlagsParam
+        .split(',')
+        .map((n) => FLAG_EMOJIS[parseInt(n)])
+        .filter(Boolean)
     : null;
-  const playerCount = aiCount > 0
-    ? aiCount + 1
-    : parseInt(searchParams.get('players')) || 2;
+  const playerCount =
+    aiCount > 0 ? aiCount + 1 : parseInt(searchParams.get('players')) || 2;
   const maxRolls = parseInt(searchParams.get('rolls')) || 1;
   const token = searchParams.get('token') || 'TPC';
   const amount = Number(searchParams.get('amount')) || 0;
@@ -100,8 +99,8 @@ export default function CrazyDiceDuel() {
     ensureAccountId().catch(() => {});
   }, []);
 
-  const [bgUnlocked, setBgUnlocked] = useState(() =>
-    localStorage.getItem('crazyDiceBgUnlocked') === 'true',
+  const [bgUnlocked, setBgUnlocked] = useState(
+    () => localStorage.getItem('crazyDiceBgUnlocked') === 'true'
   );
 
   const unlockBackground = () => {
@@ -118,7 +117,8 @@ export default function CrazyDiceDuel() {
     if (selectedLeaders && selectedLeaders.length) {
       uniqueLeaders = selectedLeaders.slice(0, playerCount - 1);
       while (uniqueLeaders.length < playerCount - 1) {
-        const rand = LEADER_AVATARS[Math.floor(Math.random() * LEADER_AVATARS.length)];
+        const rand =
+          LEADER_AVATARS[Math.floor(Math.random() * LEADER_AVATARS.length)];
         if (!uniqueLeaders.includes(rand)) uniqueLeaders.push(rand);
       }
       uniquePhotos = uniqueLeaders.map((p) => p.replace('.webp', '.jpg'));
@@ -132,7 +132,7 @@ export default function CrazyDiceDuel() {
       uniqueLeaders = [
         '/assets/icons/UsaLeader.webp',
         '/assets/icons/RussiaLeader.webp',
-        '/assets/icons/ChinaLeader.webp',
+        '/assets/icons/ChinaLeader.webp'
       ];
       uniquePhotos = uniqueLeaders.map((p) => p.replace('.webp', '.jpg'));
     } else {
@@ -155,13 +155,19 @@ export default function CrazyDiceDuel() {
             : aiCount > 0
               ? avatarType === 'leaders'
                 ? uniqueLeaders[i - 1]
-                : (selectedFlags && selectedFlags[i - 1])
+                : selectedFlags && selectedFlags[i - 1]
                   ? selectedFlags[i - 1]
                   : randFlag()
               : `/assets/avatars/avatar${(i % 5) + 1}.svg`,
-      color: COLORS[i % COLORS.length],
+      color: COLORS[i % COLORS.length]
     }));
-  }, [playerCount, aiCount, avatarType, selectedLeadersParam, selectedFlagsParam]);
+  }, [
+    playerCount,
+    aiCount,
+    avatarType,
+    selectedLeadersParam,
+    selectedFlagsParam
+  ]);
 
   const [players, setPlayers] = useState(initialPlayers);
   const [current, setCurrent] = useState(0);
@@ -179,11 +185,11 @@ export default function CrazyDiceDuel() {
               : aiCount > 0
                 ? avatarToName(p.photoUrl) || `AI ${i}`
                 : `P${i + 1}`,
-          score: p.score,
+          score: p.score
         }))
         .sort((a, b) => b.score - a.score)
         .map((p) => p.name),
-    [players, aiCount],
+    [players, aiCount]
   );
   const [showChat, setShowChat] = useState(false);
   const [showGift, setShowGift] = useState(false);
@@ -212,10 +218,17 @@ export default function CrazyDiceDuel() {
     // Backgrounds were renamed in a recent update
     2: '/assets/icons/file_00000000c9bc61f5825aa75d64fe234a.webp', // 1v1
     3: '/assets/icons/file_000000008b1061f68f37fd941a1efcb4.webp', // vs 2 others
-    4: '/assets/icons/file_000000003a9c622f8e50bd5d8f381471.webp', // vs 3 others
+    4: '/assets/icons/file_000000003a9c622f8e50bd5d8f381471.webp' // vs 3 others
   };
   const boardBgSrc = BG_BY_PLAYERS[playerCount] || BG_BY_PLAYERS[4];
-  const boardClass = playerCount === 4 ? "four-players" : playerCount === 3 ? "three-players" : playerCount === 2 ? "two-players" : "";
+  const boardClass =
+    playerCount === 4
+      ? 'four-players'
+      : playerCount === 3
+        ? 'three-players'
+        : playerCount === 2
+          ? 'two-players'
+          : '';
 
   const boardRef = useRef(null);
   const diceRef = useRef(null);
@@ -249,13 +262,13 @@ export default function CrazyDiceDuel() {
     const row = parseInt(label.slice(1), 10) - 1;
     return {
       left: `${((col + 0.5) / GRID_COLS) * 100}%`,
-      top: `${((row + 0.5) / GRID_ROWS) * 100}%`,
+      top: `${((row + 0.5) / GRID_ROWS) * 100}%`
     };
   };
 
   const gridPoint = (col, row) => ({
     left: `${(col / GRID_COLS) * 100}%`,
-    top: `${(row / GRID_ROWS) * 100}%`,
+    top: `${(row / GRID_ROWS) * 100}%`
   });
 
   useEffect(() => {
@@ -263,8 +276,6 @@ export default function CrazyDiceDuel() {
     timerSoundRef.current.volume = getGameVolume();
     return () => timerSoundRef.current?.pause();
   }, []);
-
-
 
   useEffect(() => {
     const handler = () => setMuted(isGameMuted());
@@ -285,27 +296,27 @@ export default function CrazyDiceDuel() {
       const cellH = board.height / GRID_ROWS;
       const center = (c, r) => ({
         left: board.left + cellW * (c + 0.5),
-        top: board.top + cellH * (r + 0.5),
+        top: board.top + cellH * (r + 0.5)
       });
       setTlScoreStyle({
         position: 'fixed',
         transform: 'translate(-50%, -50%)',
-        ...center(2, 10), // top left score (same as 4 players)
+        ...center(2, 10) // top left score (same as 4 players)
       });
       setTlHistoryStyle({
         position: 'fixed',
         transform: 'translate(-50%, -50%)',
-        ...center(0.5, 11), // top left history (same as 4 players)
+        ...center(0.5, 11) // top left history (same as 4 players)
       });
       setTrScoreStyle({
         position: 'fixed',
         transform: 'translate(-50%, -50%)',
-        ...center(16.5, 10), // top right score (same as 4 players)
+        ...center(16.5, 10) // top right score (same as 4 players)
       });
       setTrHistoryStyle({
         position: 'fixed',
         transform: 'translate(-50%, -50%)',
-        ...center(15, 11), // top right history (same as 4 players)
+        ...center(15, 11) // top right history (same as 4 players)
       });
     };
     update();
@@ -322,23 +333,47 @@ export default function CrazyDiceDuel() {
       const cellH = board.height / GRID_ROWS;
       const center = (c, r) => ({
         left: board.left + cellW * (c + 0.5),
-        top: board.top + cellH * (r + 0.5),
+        top: board.top + cellH * (r + 0.5)
       });
       setP4ScoreStyles([
         // Top left opponent score aligned with center
-        { position: 'fixed', transform: 'translate(-50%, -50%)', ...center(2, 10) },
+        {
+          position: 'fixed',
+          transform: 'translate(-50%, -50%)',
+          ...center(2, 10)
+        },
         // Top middle opponent score just below avatar
-        { position: 'fixed', transform: 'translate(-50%, -50%)', ...center(9.5, 10) },
+        {
+          position: 'fixed',
+          transform: 'translate(-50%, -50%)',
+          ...center(9.5, 10)
+        },
         // Top right opponent score aligned with center
-        { position: 'fixed', transform: 'translate(-50%, -50%)', ...center(16.5, 10) },
+        {
+          position: 'fixed',
+          transform: 'translate(-50%, -50%)',
+          ...center(16.5, 10)
+        }
       ]);
       setP4HistoryStyles([
         // Roll boxes for top left player
-        { position: 'fixed', transform: 'translate(-50%, -50%)', ...center(0.5, 11) },
+        {
+          position: 'fixed',
+          transform: 'translate(-50%, -50%)',
+          ...center(0.5, 11)
+        },
         // Roll boxes for top middle player
-        { position: 'fixed', transform: 'translate(-50%, -50%)', ...center(8, 11) },
+        {
+          position: 'fixed',
+          transform: 'translate(-50%, -50%)',
+          ...center(8, 11)
+        },
         // Roll boxes for top right player
-        { position: 'fixed', transform: 'translate(-50%, -50%)', ...center(15, 11) },
+        {
+          position: 'fixed',
+          transform: 'translate(-50%, -50%)',
+          ...center(15, 11)
+        }
       ]);
     };
     update();
@@ -391,35 +426,32 @@ export default function CrazyDiceDuel() {
   }, [current, aiCount, muted]);
 
   const getDiceCenter = (playerIdx = 'center') => {
-      const posMap = {
-        // Bottom player dice position
-        0:
-          playerCount === 2
+    const posMap = {
+      // Bottom player dice position
+      0:
+        playerCount === 2
+          ? { label: 'J28' }
+          : playerCount === 3
             ? { label: 'J28' }
-            : playerCount === 3
-              ? { label: 'J28' }
-              : { label: 'J28' },
-        // Top left player position when playing vs two others
-        1:
-          playerCount === 2
-            ? { label: 'J16' }
-            : playerCount === 3
-              ? { label: 'C14' }
-              : { label: 'C14' },
-        // Top right player position for three player games
-        2:
-          playerCount === 3
-            ? { label: 'R14' }
-            : { label: 'K20' },
-        3: { label: 'R14' },
-        // Dice roll animation centre: adjust for player count
-        center:
-          playerCount === 2
-            ? { label: 'J22' }
-            : playerCount === 3
-              ? { label: 'J20' }
-              : { label: 'J20' },
-      };
+            : { label: 'J28' },
+      // Top left player position when playing vs two others
+      1:
+        playerCount === 2
+          ? { label: 'J16' }
+          : playerCount === 3
+            ? { label: 'C14' }
+            : { label: 'C14' },
+      // Top right player position for three player games
+      2: playerCount === 3 ? { label: 'R14' } : { label: 'K20' },
+      3: { label: 'R14' },
+      // Dice roll animation centre: adjust for player count
+      center:
+        playerCount === 2
+          ? { label: 'J22' }
+          : playerCount === 3
+            ? { label: 'J20' }
+            : { label: 'J20' }
+    };
     if (typeof playerIdx === 'string' && /^[A-Za-z][0-9]+$/.test(playerIdx)) {
       const label = playerIdx.toUpperCase();
       if (boardRef.current) {
@@ -430,7 +462,7 @@ export default function CrazyDiceDuel() {
         const cellH = board.height / GRID_ROWS;
         return {
           cx: board.left + cellW * (col + 0.5),
-          cy: board.top + cellH * (row + 0.5),
+          cy: board.top + cellH * (row + 0.5)
         };
       }
     }
@@ -445,13 +477,13 @@ export default function CrazyDiceDuel() {
       const cellH = board.height / GRID_ROWS;
       return {
         cx: board.left + cellW * (col + 0.5 + dx),
-        cy: board.top + cellH * (row + 0.5),
+        cy: board.top + cellH * (row + 0.5)
       };
     }
     const rect = diceCenterRef.current?.getBoundingClientRect();
     return {
       cx: rect ? rect.left + rect.width / 2 : window.innerWidth / 2,
-      cy: rect ? rect.top + rect.height / 2 : window.innerHeight / 2,
+      cy: rect ? rect.top + rect.height / 2 : window.innerHeight / 2
     };
   };
 
@@ -465,7 +497,7 @@ export default function CrazyDiceDuel() {
         top: '0px',
         transform: `translate(${cx}px, ${cy}px) translate(-50%, -50%) scale(${DICE_CENTER_SCALE})`,
         pointerEvents: 'none',
-        zIndex: 50,
+        zIndex: 50
       });
       return;
     }
@@ -477,7 +509,7 @@ export default function CrazyDiceDuel() {
       top: '0px',
       transform: `translate(${cx}px, ${cy}px) translate(-50%, -50%) scale(${DICE_PLAYER_SCALE})`,
       pointerEvents: 'none',
-      zIndex: 50,
+      zIndex: 50
     });
   };
 
@@ -494,10 +526,14 @@ export default function CrazyDiceDuel() {
     dice.style.zIndex = '50';
     dice.animate(
       [
-        { transform: `translate(${startX}px, ${startY}px) translate(-50%, -50%) scale(${DICE_PLAYER_SCALE})` },
-        { transform: `translate(${cx}px, ${cy}px) translate(-50%, -50%) scale(${DICE_CENTER_SCALE})` },
+        {
+          transform: `translate(${startX}px, ${startY}px) translate(-50%, -50%) scale(${DICE_PLAYER_SCALE})`
+        },
+        {
+          transform: `translate(${cx}px, ${cy}px) translate(-50%, -50%) scale(${DICE_CENTER_SCALE})`
+        }
       ],
-      { duration: DICE_ANIM_DURATION, easing: 'ease-in-out' },
+      { duration: DICE_ANIM_DURATION, easing: 'ease-in-out' }
     ).onfinish = () => {
       setDiceStyle({
         display: 'block',
@@ -506,7 +542,7 @@ export default function CrazyDiceDuel() {
         top: '0px',
         transform: `translate(${cx}px, ${cy}px) translate(-50%, -50%) scale(${DICE_CENTER_SCALE})`,
         pointerEvents: 'none',
-        zIndex: 50,
+        zIndex: 50
       });
     };
   };
@@ -518,10 +554,14 @@ export default function CrazyDiceDuel() {
     const { cx: endX, cy: endY } = getDiceCenter(idx);
     dice.animate(
       [
-        { transform: `translate(${startX}px, ${startY}px) translate(-50%, -50%) scale(${DICE_CENTER_SCALE})` },
-        { transform: `translate(${endX}px, ${endY}px) translate(-50%, -50%) scale(${DICE_PLAYER_SCALE})` },
+        {
+          transform: `translate(${startX}px, ${startY}px) translate(-50%, -50%) scale(${DICE_CENTER_SCALE})`
+        },
+        {
+          transform: `translate(${endX}px, ${endY}px) translate(-50%, -50%) scale(${DICE_PLAYER_SCALE})`
+        }
       ],
-      { duration: DICE_ANIM_DURATION, easing: 'ease-in-out' },
+      { duration: DICE_ANIM_DURATION, easing: 'ease-in-out' }
     ).onfinish = () => {
       setDiceStyle({ display: 'none' });
     };
@@ -534,10 +574,14 @@ export default function CrazyDiceDuel() {
     const { cx: endX, cy: endY } = getDiceCenter(label);
     dice.animate(
       [
-        { transform: `translate(${startX}px, ${startY}px) translate(-50%, -50%) scale(${DICE_CENTER_SCALE})` },
-        { transform: `translate(${endX}px, ${endY}px) translate(-50%, -50%) scale(${endScale})` },
+        {
+          transform: `translate(${startX}px, ${startY}px) translate(-50%, -50%) scale(${DICE_CENTER_SCALE})`
+        },
+        {
+          transform: `translate(${endX}px, ${endY}px) translate(-50%, -50%) scale(${endScale})`
+        }
       ],
-      { duration: DICE_ANIM_DURATION, easing: 'ease-in-out' },
+      { duration: DICE_ANIM_DURATION, easing: 'ease-in-out' }
     ).onfinish = () => {
       setDiceStyle({ display: 'none' });
     };
@@ -560,7 +604,9 @@ export default function CrazyDiceDuel() {
   };
 
   const handleRollEnd = (values) => {
-    const value = Array.isArray(values) ? values.reduce((a, b) => a + b, 0) : values;
+    const value = Array.isArray(values)
+      ? values.reduce((a, b) => a + b, 0)
+      : values;
     let nextIndex = current;
     setPlayers((prev) => {
       const updated = prev.map((p, idx) =>
@@ -569,13 +615,16 @@ export default function CrazyDiceDuel() {
               ...p,
               score: p.score + value,
               rolls: p.rolls + 1,
-              results: [...p.results, value],
+              results: [...p.results, value]
             }
           : p
       );
       nextIndex = (current + 1) % updated.length;
       let attempts = 0;
-      while (updated[nextIndex].rolls >= maxRolls && attempts < updated.length) {
+      while (
+        updated[nextIndex].rolls >= maxRolls &&
+        attempts < updated.length
+      ) {
         nextIndex = (nextIndex + 1) % updated.length;
         attempts += 1;
       }
@@ -601,9 +650,6 @@ export default function CrazyDiceDuel() {
     }
   };
 
-
-
-
   const allRolled = players.every((p) => p.rolls >= maxRolls);
 
   useEffect(() => {
@@ -615,7 +661,9 @@ export default function CrazyDiceDuel() {
       } else {
         // tie break
         setTiePlayers(leaders.map((p) => players.indexOf(p)));
-        setPlayers((prev) => prev.map((p) => ({ ...p, rolls: 0, results: [] })));
+        setPlayers((prev) =>
+          prev.map((p) => ({ ...p, rolls: 0, results: [] }))
+        );
       }
       setCurrent(0);
     }
@@ -628,7 +676,9 @@ export default function CrazyDiceDuel() {
       if (leaders.length === 1) {
         setWinner(players.indexOf(leaders[0]));
       } else {
-        setPlayers((prev) => prev.map((p) => ({ ...p, rolls: 0, results: [] })));
+        setPlayers((prev) =>
+          prev.map((p) => ({ ...p, rolls: 0, results: [] }))
+        );
       }
       setCurrent(0);
     }
@@ -645,13 +695,13 @@ export default function CrazyDiceDuel() {
           const winAmt = Math.round(total * 0.91);
           await Promise.all([
             depositAccount(aid, winAmt, { game: 'crazydice-win' }),
-            awardDevShare(total),
+            awardDevShare(total)
           ]);
           const tgId = getTelegramId();
           addTransaction(tgId, 0, 'win', {
             game: 'crazydice',
             players: playerCount,
-            accountId: aid,
+            accountId: aid
           });
         } catch {}
       } else {
@@ -665,8 +715,6 @@ export default function CrazyDiceDuel() {
     return () => clearTimeout(trailTimeoutRef.current);
   }, []);
 
-
-
   return (
     <div className="text-text relative">
       {bgUnlocked && (
@@ -679,305 +727,322 @@ export default function CrazyDiceDuel() {
           }}
         />
       )}
-        <div
-          ref={boardRef}
-          className={`crazy-dice-board ${boardClass}`}
-        >
-      {!bgUnlocked && (
-        <button
-          onClick={unlockBackground}
-          className="absolute top-2 right-2 z-20 px-2 py-1 text-sm bg-primary hover:bg-primary-hover text-background rounded"
-        >
-          Unlock Background
-        </button>
-      )}
-      <img src={boardBgSrc} alt="board" className="board-bg" />
-      <div ref={diceCenterRef} className="dice-center" />
-      <div ref={diceRef} style={diceStyle} className="dice-travel flex flex-col items-center relative">
-        {showTrail && (
-          <img
-            src="/assets/icons/file_00000000926061f590feca40199ee88d.webp"
-            alt=""
-            className="dice-trail-img"
-          />
-        )}
-        {rollResult !== null && (
-          <div className="text-6xl roll-result">{rollResult}</div>
-        )}
-        {winner == null ? (
-          <div className="crazy-dice">
-            <DiceRoller
-              onRollEnd={handleRollEnd}
-              onRollStart={handleRollStart}
-              trigger={trigger}
-              clickable={aiCount === 0 || current === 0}
-              showButton={aiCount === 0 || current === 0}
-            />
-          </div>
-        ) : (
-          <div className="text-2xl font-bold text-center">
-            Player {winner + 1} wins!
-          </div>
-        )}
-      </div>
-      <div
-        className="player-bottom z-10"
-        style={{
-          bottom: 'auto',
-          /* Raise the bottom player slightly when facing two opponents */
-          ...gridPoint(
-            10,
-            playerCount === 3
-              ? 25.5
-              : playerCount === 4
-                ? 26
-                : 26.5,
-          ),
-          transform: 'translate(-50%, -50%)',
-        }}
-      >
-        {showPrompt && (
+      <div ref={boardRef} className={`crazy-dice-board ${boardClass}`}>
+        {!bgUnlocked && (
           <button
-            className="your-turn-message"
-            style={{ color: players[0].color }}
-            onClick={rollNow}
+            onClick={unlockBackground}
+            className="absolute top-2 right-2 z-20 px-2 py-1 text-sm bg-primary hover:bg-primary-hover text-background rounded"
           >
-            🫵 you're turn
+            Unlock Background
           </button>
         )}
-        <AvatarTimer
-          index={0}
-          photoUrl={players[0].photoUrl}
-          active={current === 0}
-          isTurn={current === 0}
-          timerPct={current === 0 ? timeLeft / 15 : 1}
-          name="You"
-          score={players[0].score}
-          rollHistory={players[0].results}
-          maxRolls={maxRolls}
-          color={players[0].color}
-          size={
-            playerCount === 3 ? 1.2 : playerCount > 3 ? 1.1 : 1
-          }
-          imageScale={leaders.includes(0) ? 1.1 : 1}
-          imageYOffset={0}
-          imageZoom={1}
-          nameCurveRadius={playerCount === 2 ? 50 : 45}
-          onClick={rollNow}
-        />
-      </div>
-      {players.slice(1).map((p, i) => {
-        const positions =
-          playerCount === 3
-            ? ['player-left', 'player-right']
-            : playerCount === 2
-              ? ['player-center']
-              : ['player-left', 'player-center', 'player-right'];
-        const pos = positions[i] || '';
-        let wrapperStyle = undefined;
-        let scoreStyle = undefined;
-        let historyStyle = undefined;
-        if (playerCount === 4) {
-          if (i === 0) {
-            /* Top left opponent slightly lower and larger */
-            const pos = gridPoint(2.3, 6.6);
-            wrapperStyle = { left: pos.left, top: pos.top, right: 'auto' };
-          } else if (i === 1) {
-            /* Top middle opponent moved slightly down */
-            const pos = gridPoint(10, 6.5);
-            wrapperStyle = { left: pos.left, top: pos.top, right: 'auto' };
-          } else if (i === 2) {
-            /* Top right opponent slightly lower */
-            const pos = gridPoint(17.7, 6.6);
-            wrapperStyle = { top: pos.top, right: `${100 - parseFloat(pos.left)}%` };
-          }
-          scoreStyle = undefined;
-          historyStyle = undefined;
-        } else if (playerCount === 2) {
-          // In 1v1 mode place history and score near the bottom of the board
-          scoreStyle = {
-            position: 'fixed',
-            left: '50%',
-            bottom: '4rem',
-            transform: 'translateX(-50%)',
-          };
-          historyStyle = {
-            position: 'fixed',
-            left: '50%',
-            bottom: '2rem',
-            transform: 'translateX(-50%)',
-          };
-        }
-        let avatarSize =
-          playerCount === 2
-            ? 2
-            : playerCount === 3
-              ? 1.2
-              : playerCount === 4
-                ? 1.3
-                : playerCount > 4
-                  ? 1.05
-                  : 1;
-
-        if (playerCount === 3) {
-          if (i === 0) {
-            // Move the top left opponent slightly right and enlarge
-            wrapperStyle = { ...gridPoint(3.6, 5.8), right: 'auto' };
-            avatarSize = 1.45;
-          } else if (i === 1) {
-            // Lower the top right opponent a bit
-            wrapperStyle = { ...gridPoint(13.2, 6.7), right: 'auto' };
-            avatarSize = 1.35;
-          }
-        }
-        return (
-          <div key={i + 1} className={`${pos} z-10`} style={wrapperStyle}>
-            <AvatarTimer
-              index={i + 1}
-              photoUrl={p.photoUrl}
-              active={current === i + 1}
-              isTurn={current === i + 1}
-              timerPct={current === i + 1 ? timeLeft / 2.5 : 1}
-              name={
-                aiCount > 0
-                  ? avatarToName(p.photoUrl) || `AI ${i + 1}`
-                  : `P${i + 2}`
-              }
-              score={p.score}
-              rollHistory={p.results}
-              maxRolls={maxRolls}
-              color={p.color}
-              scoreStyle={scoreStyle}
-              rollHistoryStyle={historyStyle}
-              size={avatarSize}
-              imageScale={leaders.includes(i + 1) ? 1.1 : 1}
-              imageYOffset={playerCount === 2 ? 4 : 0}
-              imageZoom={1}
-              nameCurveRadius={playerCount === 2 ? 50 : 45}
-              onClick={() => {
-                if (current === i + 1) setTrigger((t) => t + 1);
-              }}
+        <img src={boardBgSrc} alt="board" className="board-bg" />
+        <div ref={diceCenterRef} className="dice-center" />
+        <div
+          ref={diceRef}
+          style={diceStyle}
+          className="dice-travel flex flex-col items-center relative"
+        >
+          {showTrail && (
+            <img
+              src="/assets/icons/file_00000000926061f590feca40199ee88d.webp"
+              alt=""
+              className="dice-trail-img"
             />
-          </div>
-        );
-      })}
-      {chatBubbles.map((b) => (
-        <div key={b.id} className="chat-bubble">
-          <span>{b.text}</span>
-          <img src={b.photoUrl} className="w-6 h-6 rounded-full" />
+          )}
+          {rollResult !== null && (
+            <div className="text-6xl roll-result">{rollResult}</div>
+          )}
+          {winner == null ? (
+            <div className="crazy-dice">
+              <DiceRoller
+                onRollEnd={handleRollEnd}
+                onRollStart={handleRollStart}
+                trigger={trigger}
+                clickable={aiCount === 0 || current === 0}
+                showButton={aiCount === 0 || current === 0}
+              />
+            </div>
+          ) : (
+            <div className="text-2xl font-bold text-center">
+              Player {winner + 1} wins!
+            </div>
+          )}
         </div>
-      ))}
-      {playerCount === 2 ? (
-        <>
+        <div
+          className="player-bottom z-10"
+          style={{
+            bottom: 'auto',
+            /* Raise the bottom player slightly when facing two opponents */
+            ...gridPoint(
+              10,
+              playerCount === 3 ? 25.5 : playerCount === 4 ? 26 : 26.5
+            ),
+            transform: 'translate(-50%, -50%)'
+          }}
+        >
+          {showPrompt && (
+            <button
+              className="your-turn-message"
+              style={{ color: players[0].color }}
+              onClick={rollNow}
+            >
+              🫵 you're turn
+            </button>
+          )}
+          <AvatarTimer
+            index={0}
+            photoUrl={players[0].photoUrl}
+            active={current === 0}
+            isTurn={current === 0}
+            timerPct={current === 0 ? timeLeft / 15 : 1}
+            name="You"
+            score={players[0].score}
+            rollHistory={players[0].results}
+            maxRolls={maxRolls}
+            color={players[0].color}
+            size={playerCount === 3 ? 1.2 : playerCount > 3 ? 1.1 : 1}
+            imageScale={leaders.includes(0) ? 1.1 : 1}
+            imageYOffset={0}
+            imageZoom={1}
+            nameCurveRadius={playerCount === 2 ? 50 : 45}
+            onClick={rollNow}
+          />
+        </div>
+        {players.slice(1).map((p, i) => {
+          const positions =
+            playerCount === 3
+              ? ['player-left', 'player-right']
+              : playerCount === 2
+                ? ['player-center']
+                : ['player-left', 'player-center', 'player-right'];
+          const pos = positions[i] || '';
+          let wrapperStyle = undefined;
+          let scoreStyle = undefined;
+          let historyStyle = undefined;
+          if (playerCount === 4) {
+            if (i === 0) {
+              /* Top left opponent slightly lower and larger */
+              const pos = gridPoint(2.3, 6.6);
+              wrapperStyle = { left: pos.left, top: pos.top, right: 'auto' };
+            } else if (i === 1) {
+              /* Top middle opponent moved slightly down */
+              const pos = gridPoint(10, 6.5);
+              wrapperStyle = { left: pos.left, top: pos.top, right: 'auto' };
+            } else if (i === 2) {
+              /* Top right opponent slightly lower */
+              const pos = gridPoint(17.7, 6.6);
+              wrapperStyle = {
+                top: pos.top,
+                right: `${100 - parseFloat(pos.left)}%`
+              };
+            }
+            scoreStyle = undefined;
+            historyStyle = undefined;
+          } else if (playerCount === 2) {
+            // In 1v1 mode place history and score near the bottom of the board
+            scoreStyle = {
+              position: 'fixed',
+              left: '50%',
+              bottom: '4rem',
+              transform: 'translateX(-50%)'
+            };
+            historyStyle = {
+              position: 'fixed',
+              left: '50%',
+              bottom: '2rem',
+              transform: 'translateX(-50%)'
+            };
+          }
+          let avatarSize =
+            playerCount === 2
+              ? 2
+              : playerCount === 3
+                ? 1.2
+                : playerCount === 4
+                  ? 1.3
+                  : playerCount > 4
+                    ? 1.05
+                    : 1;
+
+          if (playerCount === 3) {
+            if (i === 0) {
+              // Move the top left opponent slightly right and enlarge
+              wrapperStyle = { ...gridPoint(3.6, 5.8), right: 'auto' };
+              avatarSize = 1.45;
+            } else if (i === 1) {
+              // Lower the top right opponent a bit
+              wrapperStyle = { ...gridPoint(13.2, 6.7), right: 'auto' };
+              avatarSize = 1.35;
+            }
+          }
+          return (
+            <div key={i + 1} className={`${pos} z-10`} style={wrapperStyle}>
+              <AvatarTimer
+                index={i + 1}
+                photoUrl={p.photoUrl}
+                active={current === i + 1}
+                isTurn={current === i + 1}
+                timerPct={current === i + 1 ? timeLeft / 2.5 : 1}
+                name={
+                  aiCount > 0
+                    ? avatarToName(p.photoUrl) || `AI ${i + 1}`
+                    : `P${i + 2}`
+                }
+                score={p.score}
+                rollHistory={p.results}
+                maxRolls={maxRolls}
+                color={p.color}
+                scoreStyle={scoreStyle}
+                rollHistoryStyle={historyStyle}
+                size={avatarSize}
+                imageScale={leaders.includes(i + 1) ? 1.1 : 1}
+                imageYOffset={playerCount === 2 ? 4 : 0}
+                imageZoom={1}
+                nameCurveRadius={playerCount === 2 ? 50 : 45}
+                onClick={() => {
+                  if (current === i + 1) setTrigger((t) => t + 1);
+                }}
+              />
+            </div>
+          );
+        })}
+        {chatBubbles.map((b) => (
+          <div key={b.id} className="chat-bubble">
+            <span>{b.text}</span>
+            <img src={b.photoUrl} className="w-6 h-6 rounded-full" />
+          </div>
+        ))}
+        {playerCount === 2 ? (
+          <>
+            <BottomLeftIcons
+              onInfo={() => {}}
+              className="fixed left-1 top-1 flex flex-col items-center space-y-2 z-20"
+            />
+            <BottomLeftIcons
+              onChat={() => setShowChat(true)}
+              onGift={() => setShowGift(true)}
+              className="fixed right-1 top-1 flex flex-col items-center space-y-2 z-20"
+              showInfo={false}
+              showMute={false}
+            />
+          </>
+        ) : (
           <BottomLeftIcons
             onInfo={() => {}}
-            className="fixed left-1 top-1 flex flex-col items-center space-y-2 z-20"
-          />
-          <BottomLeftIcons
             onChat={() => setShowChat(true)}
             onGift={() => setShowGift(true)}
-            className="fixed right-1 top-1 flex flex-col items-center space-y-2 z-20"
-            showInfo={false}
-            showMute={false}
           />
-        </>
-      ) : (
-        <BottomLeftIcons
-          onInfo={() => {}}
-          onChat={() => setShowChat(true)}
-          onGift={() => setShowGift(true)}
-        />
-      )}
-      <QuickMessagePopup
-        open={showChat}
-        onClose={() => setShowChat(false)}
-        onSend={(text) => {
-          const id = Date.now();
-          setChatBubbles((b) => [...b, { id, text, photoUrl: players[0].photoUrl }]);
-          if (!muted) {
-            const a = new Audio(chatBeep);
-            a.volume = getGameVolume();
-            a.play().catch(() => {});
-          }
-          setTimeout(() => setChatBubbles((b) => b.filter((bb) => bb.id !== id)), 3000);
-        }}
-      />
-      <GiftPopup
-        open={showGift}
-        onClose={() => setShowGift(false)}
-        players={players.map((p, i) => ({
-          ...p,
-          index: i,
-          name:
-            i === 0
-              ? 'You'
-              : aiCount > 0
-                ? avatarToName(p.photoUrl) || `AI ${i}`
-                : `P${i + 1}`,
-        }))}
-        senderIndex={0}
-        onGiftSent={({ from, to, gift }) => {
-          const start = document.querySelector(`[data-player-index="${from}"]`);
-          const end = document.querySelector(`[data-player-index="${to}"]`);
-          if (start && end) {
-            const s = start.getBoundingClientRect();
-            const e = end.getBoundingClientRect();
-            const cx = window.innerWidth / 2;
-            const cy = window.innerHeight / 2;
-            let icon;
-            if (typeof gift.icon === 'string' && gift.icon.match(/\.(png|jpg|jpeg|webp|svg)$/)) {
-              icon = document.createElement('img');
-              icon.src = gift.icon;
-              icon.className = 'w-6 h-6';
-            } else {
-              icon = document.createElement('div');
-              icon.textContent = gift.icon;
-              icon.style.fontSize = '24px';
-            }
-            icon.style.position = 'fixed';
-            icon.style.left = '0px';
-            icon.style.top = '0px';
-            icon.style.pointerEvents = 'none';
-            icon.style.transform = `translate(${s.left + s.width / 2}px, ${s.top + s.height / 2}px) scale(1)`;
-            icon.style.zIndex = '9999';
-            document.body.appendChild(icon);
-            const giftSound = giftSounds[gift.id];
-            if (giftSound && !muted) {
-              const a = new Audio(giftSound);
+        )}
+        <QuickMessagePopup
+          open={showChat}
+          onClose={() => setShowChat(false)}
+          onSend={(text) => {
+            const id = Date.now();
+            setChatBubbles((b) => [
+              ...b,
+              { id, text, photoUrl: players[0].photoUrl }
+            ]);
+            if (!muted) {
+              const a = new Audio(chatBeep);
               a.volume = getGameVolume();
               a.play().catch(() => {});
             }
-            const animation = icon.animate(
-              [
-                { transform: `translate(${s.left + s.width / 2}px, ${s.top + s.height / 2}px) scale(1)` },
-                { transform: `translate(${cx}px, ${cy}px) scale(3)`, offset: 0.5 },
-                { transform: `translate(${e.left + e.width / 2}px, ${e.top + e.height / 2}px) scale(1)` },
-              ],
-              { duration: 3500, easing: 'linear' },
+            setTimeout(
+              () => setChatBubbles((b) => b.filter((bb) => bb.id !== id)),
+              3000
             );
-            animation.onfinish = () => icon.remove();
-          }
-        }}
-      />
-      <GameEndPopup
-        open={winner != null}
-        ranking={ranking}
-        onPlayAgain={() => window.location.reload()}
-        onReturn={() => navigate('/games/crazydice/lobby')}
-      />
-      <InfoPopup
-        open={showQuitInfo}
-        onClose={() => setShowQuitInfo(false)}
-        title="Warning"
-        info="If you quit the game your funds will be lost and you will be placed last."
-        widthClass="w-80"
-      />
-      <ConfirmPopup
-        open={showLobbyConfirm}
-        message="Quit the game? If you leave, your funds will be lost and you'll be placed last."
-        onConfirm={() => navigate('/games/crazydice/lobby')}
-        onCancel={() => setShowLobbyConfirm(false)}
-      />
+          }}
+        />
+        <GiftPopup
+          open={showGift}
+          onClose={() => setShowGift(false)}
+          players={players.map((p, i) => ({
+            ...p,
+            index: i,
+            name:
+              i === 0
+                ? 'You'
+                : aiCount > 0
+                  ? avatarToName(p.photoUrl) || `AI ${i}`
+                  : `P${i + 1}`
+          }))}
+          senderIndex={0}
+          onGiftSent={({ from, to, gift }) => {
+            const start = document.querySelector(
+              `[data-player-index="${from}"]`
+            );
+            const end = document.querySelector(`[data-player-index="${to}"]`);
+            if (start && end) {
+              const s = start.getBoundingClientRect();
+              const e = end.getBoundingClientRect();
+              const cx = window.innerWidth / 2;
+              const cy = window.innerHeight / 2;
+              let icon;
+              if (
+                typeof gift.icon === 'string' &&
+                gift.icon.match(/\.(png|jpg|jpeg|webp|svg)$/)
+              ) {
+                icon = document.createElement('img');
+                icon.src = gift.icon;
+                icon.className = 'w-6 h-6';
+              } else {
+                icon = document.createElement('div');
+                icon.textContent = gift.icon;
+                icon.style.fontSize = '24px';
+              }
+              icon.style.position = 'fixed';
+              icon.style.left = '0px';
+              icon.style.top = '0px';
+              icon.style.pointerEvents = 'none';
+              icon.style.transform = `translate(${s.left + s.width / 2}px, ${s.top + s.height / 2}px) scale(1)`;
+              icon.style.zIndex = '9999';
+              document.body.appendChild(icon);
+              const giftSound = giftSounds[gift.id];
+              if (giftSound && !muted) {
+                const a = new Audio(giftSound);
+                a.volume = getGameVolume();
+                a.play().catch(() => {});
+              }
+              const animation = icon.animate(
+                [
+                  {
+                    transform: `translate(${s.left + s.width / 2}px, ${s.top + s.height / 2}px) scale(1)`
+                  },
+                  {
+                    transform: `translate(${cx}px, ${cy}px) scale(3)`,
+                    offset: 0.5
+                  },
+                  {
+                    transform: `translate(${e.left + e.width / 2}px, ${e.top + e.height / 2}px) scale(1)`
+                  }
+                ],
+                { duration: 3500, easing: 'linear' }
+              );
+              animation.onfinish = () => icon.remove();
+            }
+          }}
+        />
+        <GameEndPopup
+          open={winner != null}
+          ranking={ranking}
+          onPlayAgain={() => window.location.reload()}
+          onReturn={() => navigate('/games/crazydice/lobby')}
+          onClose={() => setWinner(null)}
+        />
+        <InfoPopup
+          open={showQuitInfo}
+          onClose={() => setShowQuitInfo(false)}
+          title="Warning"
+          info="If you quit the game your funds will be lost and you will be placed last."
+          widthClass="w-80"
+        />
+        <ConfirmPopup
+          open={showLobbyConfirm}
+          message="Quit the game? If you leave, your funds will be lost and you'll be placed last."
+          onConfirm={() => navigate('/games/crazydice/lobby')}
+          onCancel={() => setShowLobbyConfirm(false)}
+        />
       </div>
     </div>
   );

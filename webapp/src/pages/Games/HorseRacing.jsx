@@ -15,6 +15,7 @@ export default function HorseRacing() {
         selection={selection}
         setSelection={setSelection}
         onConfirm={() => setShowRoom(false)}
+        onClose={() => setShowRoom(false)}
       />
       <p>Horse racing game coming soon.</p>
     </div>

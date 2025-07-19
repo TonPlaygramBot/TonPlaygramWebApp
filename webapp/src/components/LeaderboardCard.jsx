@@ -1,14 +1,18 @@
 import { useEffect, useState } from 'react';
 import { FaCircle, FaTv } from 'react-icons/fa';
 import LoginOptions from './LoginOptions.jsx';
-import { getTelegramId, getTelegramPhotoUrl, getPlayerId } from '../utils/telegram.js';
+import {
+  getTelegramId,
+  getTelegramPhotoUrl,
+  getPlayerId
+} from '../utils/telegram.js';
 import {
   getLeaderboard,
   getOnlineCount,
   getOnlineUsers,
   fetchTelegramInfo,
   getProfile,
-  getWatchCount,
+  getWatchCount
 } from '../utils/api.js';
 import { getAvatarUrl, saveAvatar, loadAvatar } from '../utils/avatarUtils.js';
 import { socket } from '../utils/socket.js';
@@ -77,7 +81,9 @@ export default function LeaderboardCard() {
         .catch(() => {
           fetchTelegramInfo(telegramId).then((info) => {
             if (info?.photoUrl) setMyPhotoUrl(info.photoUrl);
-            setMyName(`${info?.firstName || ''} ${info?.lastName || ''}`.trim());
+            setMyName(
+              `${info?.firstName || ''} ${info?.lastName || ''}`.trim()
+            );
           });
         });
     }
@@ -97,9 +103,11 @@ export default function LeaderboardCard() {
 
   useEffect(() => {
     const tables = new Set(
-      leaderboard.map((u) => u.currentTableId).filter(Boolean),
+      leaderboard.map((u) => u.currentTableId).filter(Boolean)
     );
-    const myTable = leaderboard.find((u) => u.accountId === accountId)?.currentTableId;
+    const myTable = leaderboard.find(
+      (u) => u.accountId === accountId
+    )?.currentTableId;
     if (myTable) tables.add(myTable);
     if (aiPlaying && !myTable) {
       const local = localStorage.getItem('snakeCurrentTable');
@@ -107,7 +115,7 @@ export default function LeaderboardCard() {
     }
     if (tables.size === 0) return;
     Promise.all(
-      [...tables].map((id) => getWatchCount(id).then((c) => [id, c.count])),
+      [...tables].map((id) => getWatchCount(id).then((c) => [id, c.count]))
     )
       .then((arr) => {
         const obj = {};
@@ -197,14 +205,21 @@ export default function LeaderboardCard() {
                 <tr
                   key={u.accountId || u.telegramId}
                   className={`border-b border-border h-16 ${
-                    u.accountId === accountId ? 'bg-accent text-black' : 'cursor-pointer'
+                    u.accountId === accountId
+                      ? 'bg-accent text-black'
+                      : 'cursor-pointer'
                   }`}
                   onClick={() => {
                     if (u.accountId === accountId || u.currentTableId) return;
                     if (mode === 'group') {
                       setSelected((prev) => {
-                        const exists = prev.find((p) => p.accountId === u.accountId);
-                        if (exists) return prev.filter((p) => p.accountId !== u.accountId);
+                        const exists = prev.find(
+                          (p) => p.accountId === u.accountId
+                        );
+                        if (exists)
+                          return prev.filter(
+                            (p) => p.accountId !== u.accountId
+                          );
                         if (prev.length >= 3) return prev;
                         return [...prev, u];
                       });
@@ -232,12 +247,16 @@ export default function LeaderboardCard() {
                         <input
                           type="checkbox"
                           disabled={!!u.currentTableId}
-                          checked={selected.some((p) => p.accountId === u.accountId)}
+                          checked={selected.some(
+                            (p) => p.accountId === u.accountId
+                          )}
                           onChange={() => {}}
                           className="mr-1"
                         />
                       )}
-                      {u.nickname || `${u.firstName} ${u.lastName}`.trim() || 'User'}
+                      {u.nickname ||
+                        `${u.firstName} ${u.lastName}`.trim() ||
+                        'User'}
                       {onlineUsers.includes(String(u.accountId)) && (
                         <FaCircle className="ml-1 text-green-500" size={8} />
                       )}
@@ -255,7 +274,9 @@ export default function LeaderboardCard() {
                         >
                           <FaTv />
                           <span>Watch</span>
-                          <span className="text-green-500">{watchCounts[u.currentTableId] || 0}</span>
+                          <span className="text-green-500">
+                            {watchCounts[u.currentTableId] || 0}
+                          </span>
                         </button>
                       </div>
                     )}
@@ -270,7 +291,9 @@ export default function LeaderboardCard() {
                   <td className="p-2">{rank}</td>
                   <td className="p-2 w-14 relative">
                     <img
-                      src={getAvatarUrl(myPhotoUrl || '/assets/icons/profile.svg')}
+                      src={getAvatarUrl(
+                        myPhotoUrl || '/assets/icons/profile.svg'
+                      )}
                       alt="avatar"
                       className="w-14 h-14 hexagon border-2 border-brand-gold object-cover shadow-[0_0_12px_rgba(241,196,15,0.8)]"
                     />
@@ -283,7 +306,9 @@ export default function LeaderboardCard() {
                       )}
                     </div>
                     {(() => {
-                      const myTable = leaderboard.find((u) => u.accountId === accountId)?.currentTableId;
+                      const myTable = leaderboard.find(
+                        (u) => u.accountId === accountId
+                      )?.currentTableId;
                       if (!aiPlaying && !myTable) return null;
                       return (
                         <div className="flex items-center mt-1 text-xs space-x-1">
@@ -299,7 +324,9 @@ export default function LeaderboardCard() {
                             >
                               <FaTv />
                               <span>Watch</span>
-                              <span className="text-green-500">{watchCounts[myTable] || 0}</span>
+                              <span className="text-green-500">
+                                {watchCounts[myTable] || 0}
+                              </span>
                             </button>
                           )}
                         </div>
@@ -307,7 +334,10 @@ export default function LeaderboardCard() {
                     })()}
                   </td>
                   <td className="p-2 text-right flex items-center justify-end space-x-1">
-                    <span>{leaderboard.find((u) => u.accountId === accountId)?.balance ?? '...'}</span>
+                    <span>
+                      {leaderboard.find((u) => u.accountId === accountId)
+                        ?.balance ?? '...'}
+                    </span>
                   </td>
                 </tr>
               )}
@@ -335,7 +365,7 @@ export default function LeaderboardCard() {
                 roomId,
                 game,
                 token: stake.token,
-                amount: stake.amount,
+                amount: stake.amount
               },
               (res) => {
                 if (res && res.success) {
@@ -352,11 +382,19 @@ export default function LeaderboardCard() {
       />
       <InvitePopup
         open={groupPopup}
-        name={selected.map((u) => u.nickname || `${u.firstName || ''} ${u.lastName || ''}`.trim())}
+        name={selected.map(
+          (u) => u.nickname || `${u.firstName || ''} ${u.lastName || ''}`.trim()
+        )}
         stake={stake}
         onStakeChange={setStake}
         group
-        opponents={selected.map((u) => u.nickname || `${u.firstName || ''} ${u.lastName || ''}`.trim())}
+        opponents={selected.map(
+          (u) => u.nickname || `${u.firstName || ''} ${u.lastName || ''}`.trim()
+        )}
+        onClose={() => {
+          setGroupPopup(false);
+          setSelected([]);
+        }}
         onAccept={(game) => {
           if (selected.length > 0) {
             const roomId = `invite-${accountId}-${Date.now()}-${selected.length + 1}`;
@@ -368,11 +406,15 @@ export default function LeaderboardCard() {
                 fromName: myName,
                 toIds: selected.map((u) => u.accountId),
                 telegramIds: selected.map((u) => u.telegramId),
-                opponentNames: selected.map((u) => u.nickname || `${u.firstName || ''} ${u.lastName || ''}`.trim()),
+                opponentNames: selected.map(
+                  (u) =>
+                    u.nickname ||
+                    `${u.firstName || ''} ${u.lastName || ''}`.trim()
+                ),
                 roomId,
                 game,
                 token: stake.token,
-                amount: stake.amount,
+                amount: stake.amount
               },
               (res) => {
                 if (res && res.success) {
