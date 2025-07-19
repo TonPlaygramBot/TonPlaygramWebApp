@@ -25,9 +25,12 @@
    - `VITE_API_BASE_URL` – the base URL where the bot API is hosted (e.g. `http://localhost:3000`).
      If omitted, the webapp will connect to the same origin it was served from.
    - `VITE_GOOGLE_CLIENT_ID` – OAuth client ID for Google sign-in.
-   - `VITE_DEV_ACCOUNT_ID` – account ID that receives the 9% developer share.
-   - `VITE_DEV_ACCOUNT_ID_1` – (optional) account that receives a 1% share.
-  - `VITE_DEV_ACCOUNT_ID_2` – (optional) account that receives a 2% share.
+  - `VITE_DEV_ACCOUNT_ID` – account ID that receives the developer share
+    (10% by default).
+  - `VITE_DEV_ACCOUNT_ID_1` – (optional) secondary developer account. When set,
+    the main account receives 9% and this account receives 1%.
+  - `VITE_DEV_ACCOUNT_ID_2` – (optional) additional developer account. When set,
+    the main account receives 9% and this account receives 2%.
   - `VITE_API_AUTH_TOKEN` – (optional) token used when calling privileged API
     endpoints outside Telegram.
 

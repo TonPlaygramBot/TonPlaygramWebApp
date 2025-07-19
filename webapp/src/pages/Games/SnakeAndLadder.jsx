@@ -48,24 +48,32 @@ const DEV_ACCOUNT_2 = import.meta.env.VITE_DEV_ACCOUNT_ID_2;
 
 async function awardDevShare(total) {
   const promises = [];
-  if (DEV_ACCOUNT) {
+  if (DEV_ACCOUNT_1 || DEV_ACCOUNT_2) {
+    if (DEV_ACCOUNT) {
+      promises.push(
+        depositAccount(DEV_ACCOUNT, Math.round(total * 0.09), {
+          game: 'snake-dev',
+        })
+      );
+    }
+    if (DEV_ACCOUNT_1) {
+      promises.push(
+        depositAccount(DEV_ACCOUNT_1, Math.round(total * 0.01), {
+          game: 'snake-dev1',
+        })
+      );
+    }
+    if (DEV_ACCOUNT_2) {
+      promises.push(
+        depositAccount(DEV_ACCOUNT_2, Math.round(total * 0.02), {
+          game: 'snake-dev2',
+        })
+      );
+    }
+  } else if (DEV_ACCOUNT) {
     promises.push(
-      depositAccount(DEV_ACCOUNT, Math.round(total * 0.09), {
+      depositAccount(DEV_ACCOUNT, Math.round(total * 0.1), {
         game: 'snake-dev',
-      })
-    );
-  }
-  if (DEV_ACCOUNT_1) {
-    promises.push(
-      depositAccount(DEV_ACCOUNT_1, Math.round(total * 0.01), {
-        game: 'snake-dev1',
-      })
-    );
-  }
-  if (DEV_ACCOUNT_2) {
-    promises.push(
-      depositAccount(DEV_ACCOUNT_2, Math.round(total * 0.02), {
-        game: 'snake-dev2',
       })
     );
   }
