@@ -14,10 +14,10 @@ test('token requires 6 to leave base', () => {
 
 test('player wins when all tokens finish', () => {
   const game = new LudoGame(1);
-  game.players[0].tokens = Array(4).fill(57);
+  game.players[0].tokens = Array(4).fill(56);
   game.players[0].finished = 3;
   game.currentTurn = 0;
-  const res = game.rollDice(6);
+  const res = game.rollDice(1);
   assert.ok(game.finished);
 });
 
