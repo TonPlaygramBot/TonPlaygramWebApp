@@ -1,9 +1,14 @@
 import { Address, beginCell, Cell, Contract, contractAddress, ContractProvider, Sender, SendMode } from '@ton/core';
 
-export type GameStakeConfig = { developer: Address };
+export type GameStakeConfig = { developer: Address; developerShare: number; jettonWallet?: Address };
 
 export function gameStakeConfigToCell(config: GameStakeConfig): Cell {
-  return beginCell().storeAddress(config.developer).endCell();
+  const wallet = config.jettonWallet ?? Address.parse('0:0');
+  return beginCell()
+    .storeAddress(config.developer)
+    .storeUint(config.developerShare, 8)
+    .storeAddress(wallet)
+    .endCell();
 }
 
 export class GameStake implements Contract {
