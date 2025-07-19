@@ -109,8 +109,6 @@ const ROWS = 20;
 const COLS = 5;
 const FINAL_TILE = ROWS * COLS + 1; // 101
 const TURN_TIME = 15;
-// Duration of the burn animation/sound effect in milliseconds
-const BURN_ANIM_DURATION = 10000;
 
 function shuffle(arr) {
   const copy = [...arr];
@@ -823,8 +821,8 @@ export default function SnakeAndLadder() {
       }
       victims.forEach((idx) => {
         setBurning((b) => [...b, idx]);
-        // Reset the piece position after the initial explosion effect
         setTimeout(() => {
+          setBurning((b) => b.filter((v) => v !== idx));
           if (idx === 0) setPos(0);
           else setAiPositions((arr) => {
             const copy = [...arr];
@@ -832,10 +830,6 @@ export default function SnakeAndLadder() {
             return copy;
           });
         }, 1000);
-        // Keep the burning animation for the duration of the sound effect
-        setTimeout(() => {
-          setBurning((b) => b.filter((v) => v !== idx));
-        }, BURN_ANIM_DURATION);
       });
     }
   };
@@ -1401,15 +1395,11 @@ export default function SnakeAndLadder() {
         hahaSoundRef.current.currentTime = 0;
         hahaSoundRef.current.play().catch(() => {});
       }
-      // Move the player back to the start shortly after the explosion
       setTimeout(() => {
+        setBurning((b) => b.filter((v) => v !== idx));
         setMpPlayers((p) => p.map((pl) => (pl.id === playerId ? { ...pl, position: 0 } : pl)));
         if (playerId === accountId) setPos(0);
       }, 1000);
-      // Allow the burn animation to play out fully before clearing the state
-      setTimeout(() => {
-        setBurning((b) => b.filter((v) => v !== idx));
-      }, BURN_ANIM_DURATION);
     };
     const onTurn = ({ playerId }) => {
       const idx = playersRef.current.findIndex((pl) => pl.id === playerId);
