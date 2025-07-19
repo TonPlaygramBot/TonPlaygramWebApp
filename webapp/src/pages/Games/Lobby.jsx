@@ -302,7 +302,7 @@ export default function Lobby() {
         <RoomSelector
           selected={stake}
           onSelect={setStake}
-          tokens={['TPC', 'TON', 'USDT']}
+          tokens={table?.id === 'single' ? ['TPC'] : ['TPC', 'TON', 'USDT']}
         />
         <p className="text-center text-subtext text-sm">
           Staking is handled via the on-chain contract.
