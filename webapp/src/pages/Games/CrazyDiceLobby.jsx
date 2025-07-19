@@ -11,7 +11,7 @@ import useTelegramBackButton from '../../hooks/useTelegramBackButton.js';
 
 export default function CrazyDiceLobby() {
   const navigate = useNavigate();
-  useTelegramBackButton(() => navigate('/games', { replace: true }));
+  useTelegramBackButton();
 
   const TABLES = [
     { id: 'single', label: 'Single Player vs AI', capacity: 1 },

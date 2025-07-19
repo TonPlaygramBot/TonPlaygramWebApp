@@ -1,8 +1,9 @@
 import { useEffect, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 
 export default function useTelegramBackButton(onBack) {
   const navigate = useNavigate();
+  const location = useLocation();
   const cbRef = useRef(onBack);
 
   // Keep the latest callback without re-registering the listener
@@ -13,6 +14,11 @@ export default function useTelegramBackButton(onBack) {
   useEffect(() => {
     const tg = window?.Telegram?.WebApp;
     if (!tg) return;
+
+    if (window.history.length <= 1 || location.pathname === '/') {
+      tg.BackButton.hide();
+      return;
+    }
 
     const handleBack = () => {
       const cb = cbRef.current;
@@ -27,5 +33,5 @@ export default function useTelegramBackButton(onBack) {
       tg.offEvent('backButtonClicked', handleBack);
       tg.BackButton.hide();
     };
-  }, [navigate]);
+  }, [navigate, location.pathname]);
 }
