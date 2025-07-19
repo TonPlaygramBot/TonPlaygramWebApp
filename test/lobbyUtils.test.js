@@ -35,3 +35,7 @@ test('cannot start multiplayer table until full', () => {
   assert.equal(canStartGame('snake', dummyTable, { token: 'TON', amount: 100 }, 0, 1), false);
   assert.equal(canStartGame('snake', dummyTable, { token: 'TON', amount: 100 }, 0, 2), true);
 });
+
+test('cannot start when table over capacity', () => {
+  assert.equal(canStartGame('snake', dummyTable, { token: 'TON', amount: 100 }, 0, 3), false);
+});
