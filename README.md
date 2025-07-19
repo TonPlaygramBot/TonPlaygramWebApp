@@ -11,10 +11,20 @@
    - `AIRDROP_ADMIN_TOKENS` – (optional) tokens allowed to trigger airdrops
    - `DEPOSIT_WALLET_ADDRESS` – TON address that receives user deposits
    - `PORT` – (optional) port for the bot API server (defaults to 3000)
-  - `DEV_ACCOUNT_ID` – account ID that collects transfer fees
+- `DEV_ACCOUNT_ID` – account ID that collects transfer fees
+
   - `DEV_ACCOUNT_ID_1` – (optional) secondary developer account (1% share)
+
   - `DEV_ACCOUNT_ID_2` – (optional) secondary developer account (2% share)
+
   - `API_AUTH_TOKEN` – (optional) token for trusted server-to-server calls
+
+  - `RATE_LIMIT_WINDOW_MS` – (optional) timeframe for rate limits in milliseconds (defaults to 900000)
+
+  - `RATE_LIMIT_MAX` – (optional) max requests per window from one IP (defaults to 100)
+
+  - `ALLOWED_ORIGINS` – comma-separated list of allowed origins for CORS and socket.io
+
   - `TWITTER_BEARER_TOKEN` – bearer token for verifying reposts on **X**.
   - `TWITTER_CLIENT_ID` – API key for **X** OAuth linking.
   - `TWITTER_CLIENT_SECRET` – API secret for **X** OAuth linking.

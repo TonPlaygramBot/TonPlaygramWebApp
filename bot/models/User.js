@@ -112,6 +112,14 @@ const userSchema = new mongoose.Schema({
 
 });
 
+// Index commonly queried fields
+userSchema.index({ telegramId: 1 });
+userSchema.index({ accountId: 1 });
+userSchema.index({ nickname: 1 });
+userSchema.index({ referralCode: 1 });
+userSchema.index({ googleId: 1 });
+userSchema.index({ walletAddress: 1 });
+
 userSchema.pre('save', function(next) {
   if (!this.referralCode) {
     const base = this.telegramId || this.googleId || this.walletAddress || '';

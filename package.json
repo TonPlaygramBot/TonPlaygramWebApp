@@ -9,6 +9,8 @@
     "install-all": "npm install && npm install --prefix bot && npm install --prefix webapp",
     "build": "npm --prefix webapp run build",
     "test": "node --test",
+    "lint": "eslint .",
+    "format": "prettier --write .",
     "recalculate-balances": "node bot/scripts/recalculateBalances.js",
     "ban-user": "node bot/scripts/banUser.js",
     "dev": "concurrently -k \"npm --prefix webapp run dev\" \"node bot/server.js\""
@@ -28,6 +30,14 @@
   },
   "devDependencies": {
     "@ton/blueprint": "^0.37.0",
-    "concurrently": "^8.2.2"
+    "concurrently": "^8.2.2",
+    "eslint": "^8.57.1",
+    "eslint-config-standard": "^17.1.0",
+    "eslint-plugin-import": "^2.32.0",
+    "eslint-plugin-n": "^16.6.2",
+    "eslint-plugin-promise": "^6.6.0",
+    "eslint-plugin-react": "^7.37.5",
+    "eslint-plugin-react-hooks": "^5.2.0",
+    "prettier": "^3.6.2"
   }
 }

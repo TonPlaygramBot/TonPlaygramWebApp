@@ -16,13 +16,13 @@ function CoinBurst({ token }) {
     <div className="coin-burst">
       {coins.map((c, i) => (
         <img
-          
           key={i}
           src={
             token.toUpperCase() === 'TPC'
               ? '/assets/icons/TPCcoin_1.webp'
               : `/icons/${token.toLowerCase()}.svg`
           }
+          alt=""
           className="coin-img"
           style={{
             "--dx": `${c.dx}px`,
@@ -131,7 +131,7 @@ export default function SnakeBoard({
         >
           {(iconImage || offsetVal != null) && (
             <span className="cell-marker">
-              {iconImage && <img  src={iconImage} className="cell-icon" />}
+              {iconImage && <img  src={iconImage} alt="cell icon" className="cell-icon" />}
               {offsetVal != null && (
                 <span
                   className={`offset-text ${cellType === 'snake' ? 'snake-text' : 'ladder-text'}`}
@@ -148,7 +148,7 @@ export default function SnakeBoard({
           {!cellType && <span className="cell-number">{num}</span>}
           {diceCells && diceCells[num] && (
             <span className="dice-marker">
-              <img  src="/assets/icons/file_000000009160620a96f728f463de1c3f.webp" className="dice-icon" />
+              <img  src="/assets/icons/file_000000009160620a96f728f463de1c3f.webp" alt="dice" className="dice-icon" />
               <span className="dice-value">+{diceCells[num]}</span>
             </span>
           )}

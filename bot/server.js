@@ -30,6 +30,7 @@ import { fileURLToPath } from 'url';
 import { existsSync } from 'fs';
 import { execSync } from 'child_process';
 import compression from 'compression';
+import rateLimit from 'express-rate-limit';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -45,9 +46,16 @@ if (!process.env.MONGODB_URI) {
 
 const PORT = process.env.PORT || 3000;
 const allowedOrigins = (process.env.ALLOWED_ORIGINS || '')
+
   .split(',')
+
   .map((o) => o.trim())
+
   .filter(Boolean);
+
+const rateLimitWindowMs = Number(process.env.RATE_LIMIT_WINDOW_MS) || 15 * 60 * 1000;
+
+const rateLimitMax = Number(process.env.RATE_LIMIT_MAX) || 100;
 const app = express();
 app.use(cors({ origin: allowedOrigins.length ? allowedOrigins : '*' }));
 const httpServer = http.createServer(app);
@@ -94,6 +102,13 @@ bot.action(/^reject_invite:(.+)/, async (ctx) => {
 app.use(compression());
 // Increase JSON body limit to handle large photo uploads
 app.use(express.json({ limit: '10mb' }));
+const apiLimiter = rateLimit({
+  windowMs: rateLimitWindowMs,
+  limit: rateLimitMax,
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+app.use('/api', apiLimiter);
 app.use('/api/mining', miningRoutes);
 app.use('/api/tasks', tasksRoutes);
 app.use('/api/watch', watchRoutes);
@@ -562,7 +577,12 @@ if (mongoUri === 'memory') {
   console.log('No MongoDB URI configured, continuing without database');
 }
 
-mongoose.connection.once('open', () => {
+mongoose.connection.once('open', async () => {
+  try {
+    await User.syncIndexes();
+  } catch (err) {
+    console.error('Failed to sync User indexes:', err);
+  }
   gameManager.loadRooms().catch((err) =>
     console.error('Failed to load game rooms:', err)
   );
