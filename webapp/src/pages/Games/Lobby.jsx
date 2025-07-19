@@ -18,6 +18,8 @@ import {
   getProfile,
   getAccountBalance,
   addTransaction,
+  depositStake,
+  getDepositStatus,
 } from '../../utils/api.js';
 import { getPlayerId, ensureAccountId, getTelegramId } from '../../utils/telegram.js';
 import { canStartGame } from '../../utils/lobby.js';
@@ -55,7 +57,29 @@ export default function Lobby() {
   const [flags, setFlags] = useState([]);
   const [online, setOnline] = useState(0);
   const [playerName, setPlayerName] = useState('');
+  const [waiting, setWaiting] = useState(false);
   const autoStartedRef = useRef(false);
+
+  useEffect(() => {
+    if (!waiting || !table) return;
+    let cancelled = false;
+    async function check() {
+      try {
+        const res = await getDepositStatus(table.id);
+        if (res.deposited && res.deposited.length >= table.capacity) {
+          cancelled = true;
+          const params = new URLSearchParams();
+          params.set('table', table.id);
+          if (stake.token) params.set('token', stake.token);
+          if (stake.amount) params.set('amount', stake.amount);
+          navigate(`/games/${game}?${params.toString()}`);
+        }
+      } catch {}
+    }
+    check();
+    const id = setInterval(check, 3000);
+    return () => { cancelled = true; clearInterval(id); };
+  }, [waiting, table, stake, game, navigate]);
 
   const selectAiType = (t) => {
     setAiType(t);
@@ -213,6 +237,17 @@ export default function Lobby() {
       };
       try {
         await tonConnectUI.sendTransaction(tx);
+        try {
+          const pid = await ensureAccountId();
+          const res = await depositStake(table.id, pid);
+          if (res.start) {
+            navigate(`/games/${game}?table=${table.id}&token=${stake.token}&amount=${stake.amount}`);
+            return;
+          } else {
+            setWaiting(true);
+            return;
+          }
+        } catch {}
       } catch {
         alert('Transaction failed');
         return;
@@ -340,13 +375,15 @@ export default function Lobby() {
       )}
       <button
         onClick={startGame}
-        disabled={disabled}
+        disabled={disabled || waiting}
         className="px-4 py-2 w-full bg-primary hover:bg-primary-hover text-background rounded disabled:opacity-50"
       >
         {waitingForPlayers
           ? `Waiting for ${table.capacity - players.length} more player${
               table.capacity - players.length === 1 ? '' : 's'
             }...`
+          : waiting
+          ? 'Waiting for deposits...'
           : 'Start Game'}
       </button>
       <LeaderPickerModal

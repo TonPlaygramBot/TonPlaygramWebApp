@@ -455,6 +455,18 @@ export function sendBroadcast(data) {
   return post('/api/broadcast/send', data, API_AUTH_TOKEN || undefined);
 }
 
+export function depositStake(roomId, playerId) {
+  return fetch(API_BASE_URL + '/api/snake/deposit', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ roomId, playerId }),
+  }).then((r) => r.json());
+}
+
+export function getDepositStatus(roomId) {
+  return fetch(API_BASE_URL + '/api/snake/deposit-status/' + roomId).then((r) => r.json());
+}
+
 export function getWatchCount(tableId) {
   return fetch(API_BASE_URL + "/api/watchers/count/" + tableId).then(r => r.json());
 }
