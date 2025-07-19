@@ -45,13 +45,23 @@ if (!process.env.MONGODB_URI) {
 
 
 const PORT = process.env.PORT || 3000;
-const rateLimitWindowMs = Number(process.env.RATE_LIMIT_WINDOW_MS) || 15 * 60 * 1000;
-const rateLimitMax = Number(process.env.RATE_LIMIT_MAX) || 100;
+const allowedOrigins = (process.env.ALLOWED_ORIGINS || '')
 
+  .split(',')
+
+  .map((o) => o.trim())
+
+  .filter(Boolean);
+
+const rateLimitWindowMs = Number(process.env.RATE_LIMIT_WINDOW_MS) || 15 * 60 * 1000;
+
+const rateLimitMax = Number(process.env.RATE_LIMIT_MAX) || 100;
 const app = express();
-app.use(cors());
+app.use(cors({ origin: allowedOrigins.length ? allowedOrigins : '*' }));
 const httpServer = http.createServer(app);
-const io = new SocketIOServer(httpServer, { cors: { origin: '*' } });
+const io = new SocketIOServer(httpServer, {
+  cors: { origin: allowedOrigins.length ? allowedOrigins : '*' },
+});
 const gameManager = new GameRoomManager(io);
 
 // Expose socket.io instance and userSockets map for routes

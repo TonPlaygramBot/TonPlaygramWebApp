@@ -11,15 +11,25 @@
    - `AIRDROP_ADMIN_TOKENS` – (optional) tokens allowed to trigger airdrops
    - `DEPOSIT_WALLET_ADDRESS` – TON address that receives user deposits
    - `PORT` – (optional) port for the bot API server (defaults to 3000)
-   - `DEV_ACCOUNT_ID` – account ID that collects transfer fees
-   - `DEV_ACCOUNT_ID_1` – (optional) secondary developer account (1% share)
-   - `DEV_ACCOUNT_ID_2` – (optional) secondary developer account (2% share)
-   - `API_AUTH_TOKEN` – (optional) token for trusted server-to-server calls
-   - `RATE_LIMIT_WINDOW_MS` – (optional) timeframe for rate limits in milliseconds (defaults to 900000)
-   - `RATE_LIMIT_MAX` – (optional) max requests per window from one IP (defaults to 100)
-   - `TWITTER_BEARER_TOKEN` – bearer token for verifying reposts on **X**.
+- `DEV_ACCOUNT_ID` – account ID that collects transfer fees
+
+  - `DEV_ACCOUNT_ID_1` – (optional) secondary developer account (1% share)
+
+  - `DEV_ACCOUNT_ID_2` – (optional) secondary developer account (2% share)
+
+  - `API_AUTH_TOKEN` – (optional) token for trusted server-to-server calls
+
+  - `RATE_LIMIT_WINDOW_MS` – (optional) timeframe for rate limits in milliseconds (defaults to 900000)
+
+  - `RATE_LIMIT_MAX` – (optional) max requests per window from one IP (defaults to 100)
+
+  - `ALLOWED_ORIGINS` – comma-separated list of allowed origins for CORS and socket.io
+
+  - `TWITTER_BEARER_TOKEN` – bearer token for verifying reposts on **X**.
   - `TWITTER_CLIENT_ID` – API key for **X** OAuth linking.
   - `TWITTER_CLIENT_SECRET` – API secret for **X** OAuth linking.
+  - `ALLOWED_ORIGINS` – (optional) comma-separated list of origins allowed for
+    CORS and socket.io connections.
 
     When deploying on **Render**, set these values in the service environment instead of storing them in `.env` files.
 
@@ -64,8 +74,9 @@ local development.
 The server honors a few extra environment variables when building or serving the webapp:
 
 - `WEBAPP_API_BASE_URL` – overrides the API base used during the webapp build. Set this when the bot API is hosted on another domain or port. If left empty the webapp assumes it is served from the same origin.
- - `TONCONNECT_MANIFEST_URL` – full URL for a custom `tonconnect-manifest.json`. Defaults to the manifest bundled with the build when unset.
- - `SKIP_WEBAPP_BUILD` – set to any value to skip the automatic webapp build that normally runs when `npm start` is executed. Useful if you built the assets manually.
+- `TONCONNECT_MANIFEST_URL` – full URL for a custom `tonconnect-manifest.json`. Defaults to the manifest bundled with the build when unset.
+- `SKIP_WEBAPP_BUILD` – set to any value to skip the automatic webapp build that normally runs when `npm start` is executed. Useful if you built the assets manually.
+- `ALLOWED_ORIGINS` – comma-separated list of origins allowed for CORS and socket.io when serving the API.
 
 5. Copy `scripts/.env.example` to `scripts/.env` and set:
    - `MNEMONIC` – wallet seed phrase used to deploy the Jetton
