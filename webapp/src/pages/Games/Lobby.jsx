@@ -248,17 +248,13 @@ export default function Lobby() {
     navigate(`/games/${game}?${params.toString()}`);
   };
 
-  const playerPresent = players.some(
-    (p) => String(p.id) === String(playerName)
-  );
-  const totalPlayers = playerPresent ? players.length : players.length + 1;
   const waitingForPlayers =
     game === 'snake' &&
     table &&
     table.id !== 'single' &&
-    totalPlayers < table.capacity;
+    players.length < table.capacity;
   const disabled =
-    !canStartGame(game, table, stake, aiCount, totalPlayers) ||
+    !canStartGame(game, table, stake, aiCount, players.length) ||
     (game === 'snake' && table?.id === 'single' && !aiType) ||
     (game === 'snake' && table?.id === 'single' && aiType === 'leaders' && leaders.length !== aiCount) ||
     (game === 'snake' && table?.id === 'single' && aiType === 'flags' && flags.length !== aiCount);
@@ -303,8 +299,7 @@ export default function Lobby() {
           tokens={table?.id === 'single' ? ['TPC'] : ['TPC', 'TON', 'USDT']}
         />
         <p className="text-center text-subtext text-sm">
-          TON and USDT staking coming soon. Smart contract under
-          construction.
+          Staking is handled via the on-chain contract.
         </p>
       </div>
       {game === 'snake' && table?.id === 'single' && (
