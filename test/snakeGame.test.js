@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { setTimeout as delay } from 'timers/promises';
 import {
   GameRoom,
   FINAL_TILE,
@@ -72,18 +73,20 @@ test('rolling multiple sixes does not skip turn', () => {
   assert.equal(room.players[0].position, 13);
 });
 
-test('room starts when reaching custom capacity', () => {
+test('room starts when reaching custom capacity', async () => {
   const io = new DummyIO();
   const room = new GameRoom('r2', io, 2, {
     snakes: DEFAULT_SNAKES,
     ladders: DEFAULT_LADDERS,
   });
+  room.gameStartDelay = 0;
   room.rollCooldown = 0;
   const s1 = { id: 's1', join: () => {}, emit: () => {} };
   const s2 = { id: 's2', join: () => {}, emit: () => {} };
   room.addPlayer('p1', 'A', s1);
   assert.equal(room.status, 'waiting');
   room.addPlayer('p2', 'B', s2);
+  await delay(0);
   assert.equal(room.status, 'playing');
   const res = room.addPlayer('p3', 'C', { id: 's3', join: () => {} });
   assert.ok(res.error, 'should not allow extra players');

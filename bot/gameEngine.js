@@ -4,6 +4,7 @@ export const DEFAULT_SNAKES = { 99: 80 };
 export const DEFAULT_LADDERS = { 3: 22, 27: 46 };
 export const ROLL_COOLDOWN_MS = 1000;
 export const RECONNECT_GRACE_MS = 60000;
+export const GAME_START_DELAY_MS = 5000;
 import { SnakeGame } from './logic/snakeGame.js';
 import { LudoGame } from './logic/ludoGame.js';
 
@@ -66,7 +67,9 @@ export class GameRoom {
     }
     this.rollCooldown = ROLL_COOLDOWN_MS;
     this.reconnectGrace = RECONNECT_GRACE_MS;
+    this.gameStartDelay = GAME_START_DELAY_MS;
     this.turnTimer = null;
+    this.startTimer = null;
     this.cheatWarnings = {};
     if (this.gameType === 'snake') {
       this.game = new SnakeGame({ snakes: this.snakes, ladders: this.ladders });
@@ -110,7 +113,12 @@ export class GameRoom {
     if (!existing) {
       this.io.to(this.id).emit('playerJoined', { playerId, name });
       if (this.players.length === this.capacity) {
-        this.startGame();
+        if (this.startTimer) clearTimeout(this.startTimer);
+        this.io.to(this.id).emit('gameStarting', { startIn: this.gameStartDelay });
+        this.startTimer = setTimeout(() => {
+          this.startTimer = null;
+          this.startGame();
+        }, this.gameStartDelay);
       }
     } else if (this.status === 'playing') {
       socket.emit('gameStarted');
@@ -121,6 +129,10 @@ export class GameRoom {
 
   startGame() {
     if (this.status !== 'waiting') return;
+    if (this.startTimer) {
+      clearTimeout(this.startTimer);
+      this.startTimer = null;
+    }
     // The board is generated when the room is created and should remain
     // consistent for all players. Do not regenerate it here.
     if (this.gameType === 'snake') {
@@ -270,6 +282,10 @@ export class GameRoom {
     player.disconnected = true;
     player.socketId = null;
     this.io.to(this.id).emit('playerDisconnected', { playerId: player.playerId });
+    if (this.status === 'waiting' && this.startTimer) {
+      clearTimeout(this.startTimer);
+      this.startTimer = null;
+    }
     if (idx === this.currentTurn) {
       if (this.turnTimer) {
         clearTimeout(this.turnTimer);
