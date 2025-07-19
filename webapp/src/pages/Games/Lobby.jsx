@@ -46,7 +46,6 @@ export default function Lobby() {
   const [flags, setFlags] = useState([]);
   const [online, setOnline] = useState(0);
   const [playerName, setPlayerName] = useState('');
-  const autoStartedRef = useRef(false);
   const startedRef = useRef(false);
 
   useEffect(() => {
@@ -153,25 +152,10 @@ export default function Lobby() {
     }
   }, [game, table]);
 
-  useEffect(() => {
-    if (
-      game === 'snake' &&
-      table &&
-      table.id !== 'single' &&
-      players.length === table.capacity &&
-      !autoStartedRef.current
-    ) {
-      autoStartedRef.current = true;
-      startGame();
-    } else if (
-      game === 'snake' &&
-      table &&
-      table.id !== 'single' &&
-      players.length < table.capacity
-    ) {
-      autoStartedRef.current = false;
-    }
-  }, [players, game, table]);
+  // Automatic game start previously triggered when all seats were filled.
+  // This prevented players from selecting their preferred stake before the
+  // match began. The logic has been removed so that each participant must
+  // manually confirm the game start using the button below.
 
 
   const startGame = async (flagOverride = flags, leaderOverride = leaders) => {
@@ -344,7 +328,7 @@ export default function Lobby() {
           ? `Waiting for ${table.capacity - players.length} more player${
               table.capacity - players.length === 1 ? '' : 's'
             }...`
-          : 'Start Game'}
+          : 'Confirm'}
       </button>
       <LeaderPickerModal
         open={showLeaderPicker}
