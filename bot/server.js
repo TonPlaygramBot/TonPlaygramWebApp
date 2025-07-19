@@ -556,7 +556,12 @@ if (mongoUri === 'memory') {
   console.log('No MongoDB URI configured, continuing without database');
 }
 
-mongoose.connection.once('open', () => {
+mongoose.connection.once('open', async () => {
+  try {
+    await User.syncIndexes();
+  } catch (err) {
+    console.error('Failed to sync User indexes:', err);
+  }
   gameManager.loadRooms().catch((err) =>
     console.error('Failed to load game rooms:', err)
   );
