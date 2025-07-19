@@ -121,7 +121,7 @@ export default function NftGiftCard({ accountId: propAccountId }) {
             <div className="mt-auto flex flex-col items-center space-y-2 w-full">
               <span className="flex items-center space-x-1 text-lg">
                 <span>{previewInfo.price}</span>
-                <img src="/assets/icons/TPCcoin_1.webp" className="w-6 h-6" />
+                <img src="/assets/icons/TPCcoin_1.webp" alt="TPC" className="w-6 h-6" />
               </span>
               <button
                 onClick={() => setConfirmConvert(true)}

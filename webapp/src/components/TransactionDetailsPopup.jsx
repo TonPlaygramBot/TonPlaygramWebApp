@@ -168,19 +168,13 @@ export default function TransactionDetailsPopup({ tx, onClose }) {
 
             <div className="flex items-center space-x-2">
 
-              {counterparty.photo && (
-
-                <img
-
-                  src={getAvatarUrl(counterparty.photo)}
-
-                  alt=""
-
-                  className="w-8 h-8 rounded-full"
-
-                />
-
-              )}
+                {counterparty.photo && (
+                  <img
+                    src={getAvatarUrl(counterparty.photo)}
+                    alt="counterparty avatar"
+                    className="w-8 h-8 rounded-full"
+                  />
+                )}
 
               <div className="text-left">
 
