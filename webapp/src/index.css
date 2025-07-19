@@ -296,8 +296,7 @@ input:focus {
 }
 
 .token-three.burning {
-  /* Scale up immediately after the explosion and slowly shrink */
-  animation: token-burn 10s forwards;
+  animation: token-burn 1.5s forwards;
 }
 
 .token-three.burning::after {
@@ -312,15 +311,9 @@ input:focus {
 }
 
 @keyframes token-burn {
-  from {
-    /* Double in size right after the explosion */
-    transform: translateZ(32px) scale(2);
-    opacity: 1;
-  }
   to {
-    /* Fade out while returning to normal size */
     opacity: 0;
-    transform: translateZ(32px) scale(1);
+    transform: translateZ(32px) scale(0.3);
   }
 }
 
