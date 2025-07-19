@@ -237,6 +237,19 @@ function cleanupSeats() {
   }
 }
 
+async function updateLobby(tableId) {
+  const match = /-(\d+)$/.exec(tableId);
+  const cap = match ? Number(match[1]) : 4;
+  const room = await gameManager.getRoom(tableId, cap);
+  const roomPlayers = room.players
+    .filter((p) => !p.disconnected)
+    .map((p) => ({ id: p.playerId, name: p.name }));
+  const lobbyPlayers = Array.from(tableSeats.get(tableId)?.values() || []).map(
+    (p) => ({ id: p.id, name: p.name })
+  );
+  io.emit('lobbyUpdate', { tableId, players: [...lobbyPlayers, ...roomPlayers] });
+}
+
 app.post('/api/online/ping', (req, res) => {
   const { playerId, telegramId } = req.body || {};
   const id = playerId || telegramId;
@@ -357,6 +370,7 @@ app.post('/api/snake/table/seat', (req, res) => {
   map.set(String(pid), { id: pid, name: name || String(pid), ts: Date.now() });
   // Track the user's current table by account id
   User.updateOne({ accountId: pid }, { currentTableId: tableId }).catch(() => {});
+  updateLobby(tableId).catch(() => {});
   res.json({ success: true });
 });
 
@@ -372,6 +386,7 @@ app.post('/api/snake/table/unseat', (req, res) => {
   if (pid) {
     User.updateOne({ accountId: pid }, { currentTableId: null }).catch(() => {});
   }
+  if (tableId) updateLobby(tableId).catch(() => {});
   res.json({ success: true });
 });
 app.get('/api/snake/lobbies', async (req, res) => {

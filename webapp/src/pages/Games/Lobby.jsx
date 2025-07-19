@@ -8,6 +8,7 @@ import LeaderPickerModal from '../../components/LeaderPickerModal.jsx';
 import FlagPickerModal from '../../components/FlagPickerModal.jsx';
 import { LEADER_AVATARS } from '../../utils/leaderAvatars.js';
 import useTelegramBackButton from '../../hooks/useTelegramBackButton.js';
+import { socket } from '../../utils/socket.js';
 import {
   getSnakeLobbies,
   getSnakeLobby,
@@ -142,7 +143,7 @@ export default function Lobby() {
           .catch(() => {});
       }
       loadPlayers();
-      const id = setInterval(loadPlayers, 3000);
+      const id = setInterval(loadPlayers, 30000);
       return () => {
         active = false;
         clearInterval(id);
@@ -151,6 +152,18 @@ export default function Lobby() {
       setPlayers([]);
     }
   }, [game, table]);
+
+  useEffect(() => {
+    const onUpdate = ({ tableId, players: list }) => {
+      if (table && tableId === table.id) {
+        setPlayers(list);
+      }
+    };
+    socket.on('lobbyUpdate', onUpdate);
+    return () => {
+      socket.off('lobbyUpdate', onUpdate);
+    };
+  }, [table]);
 
   // Automatic game start previously triggered when all seats were filled.
   // This prevented players from selecting their preferred stake before the
