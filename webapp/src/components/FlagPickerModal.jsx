@@ -67,7 +67,9 @@ export default function FlagPickerModal({ open, onClose, count = 1, onSave, sele
             ))}
           </div>
           <div className="flex flex-wrap justify-center gap-4 mt-2">
-            {FLAG_CATEGORIES[category].map((flag) => (
+            {FLAG_CATEGORIES[category].map((flag) => {
+              const name = avatarToName(flag);
+              return (
               <div key={flag} className="flex flex-col items-center w-16">
                 <div
                   className={`w-12 h-12 flex items-center justify-center text-2xl cursor-pointer hover:opacity-80 ${chosen.includes(flag) ? 'ring-4 ring-accent' : ''}`}
@@ -75,11 +77,12 @@ export default function FlagPickerModal({ open, onClose, count = 1, onSave, sele
                 >
                   {flag}
                 </div>
-                <span className="text-xs mt-1 text-center whitespace-nowrap">
-                  {avatarToName(flag)}
+                <span className={`${name.length > 12 ? 'text-[10px]' : 'text-xs'} mt-1 text-center whitespace-nowrap`}>
+                  {name}
                 </span>
               </div>
-            ))}
+              );
+            })}
           </div>
         </div>
         <div className="flex space-x-2 pt-2 mt-auto">

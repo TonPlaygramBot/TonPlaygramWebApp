@@ -30,6 +30,7 @@ export function loadAvatar() {
 
 import { emoji } from 'emoji-name-map';
 import countryNames from './countryNames.json';
+import { LEADER_NAME_MAP } from './leaderAvatars.js';
 
 const emojiToNameMap = Object.fromEntries(
   Object.entries(emoji).map(([name, char]) => [char, name])
@@ -41,6 +42,7 @@ const regionNames =
 
 export function avatarToName(src) {
   if (!src) return '';
+  if (LEADER_NAME_MAP[src]) return LEADER_NAME_MAP[src];
   if (!src.startsWith('/') && !src.startsWith('http')) {
     const key = emojiToNameMap[src];
     if (key) {
