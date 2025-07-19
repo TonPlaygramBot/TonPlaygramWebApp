@@ -28,20 +28,11 @@ export default function Lobby() {
   const navigate = useNavigate();
   const walletAddress = useTonAddress();
   const [tonConnectUI] = useTonConnectUI();
-  useTelegramBackButton(() => navigate('/games', { replace: true }));
+  useTelegramBackButton();
 
   useEffect(() => {
     ensureAccountId().catch(() => {});
   }, []);
-
-  useEffect(() => {
-    const handlePop = (e) => {
-      e.preventDefault();
-      navigate('/games', { replace: true });
-    };
-    window.addEventListener('popstate', handlePop);
-    return () => window.removeEventListener('popstate', handlePop);
-  }, [navigate]);
 
   const [tables, setTables] = useState([]);
   const [table, setTable] = useState(null);

@@ -4,7 +4,6 @@ import {
   useRef,
   useLayoutEffect,
   Fragment,
-  useCallback,
 } from "react";
 import coinConfetti from "../../utils/coinConfetti";
 import DiceRoller from "../../components/DiceRoller.jsx";
@@ -526,22 +525,11 @@ function Board({
 export default function SnakeAndLadder() {
   const [showLobbyConfirm, setShowLobbyConfirm] = useState(false);
   const [showQuitInfo, setShowQuitInfo] = useState(true);
-  const handleBack = useCallback(() => setShowLobbyConfirm(true), []);
-  useTelegramBackButton(handleBack);
+  useTelegramBackButton();
   const navigate = useNavigate();
 
   useEffect(() => {
     ensureAccountId().catch(() => {});
-  }, []);
-
-  useEffect(() => {
-    const handlePop = (e) => {
-      e.preventDefault();
-      setShowLobbyConfirm(true);
-      window.history.pushState(null, '');
-    };
-    window.addEventListener('popstate', handlePop);
-    return () => window.removeEventListener('popstate', handlePop);
   }, []);
 
   useEffect(() => {
