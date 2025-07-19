@@ -31,5 +31,8 @@ jobs:
       - name: Install dependencies
         run: npm run install-all
 
+      - name: Run ESLint
+        run: npm run lint
+
       - name: Run tests
         run: npm test
