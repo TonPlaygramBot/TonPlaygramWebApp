@@ -15,10 +15,11 @@
    - `DEV_ACCOUNT_ID_1` – (optional) secondary developer account (1% share)
    - `DEV_ACCOUNT_ID_2` – (optional) secondary developer account (2% share)
    - `API_AUTH_TOKEN` – (optional) token for trusted server-to-server calls
-  - `TWITTER_BEARER_TOKEN` – bearer token for verifying reposts on **X**. Make sure this line is uncommented in `bot/.env`.
+  - `TWITTER_BEARER_TOKEN` – bearer token for verifying reposts on **X**.
   - `TWITTER_CLIENT_ID` – API key for **X** OAuth linking.
   - `TWITTER_CLIENT_SECRET` – API secret for **X** OAuth linking.
-  - You can also place these **X** credentials in `twitter.env` at the repository root.
+
+    When deploying on **Render**, set these values in the service environment instead of storing them in `.env` files.
 
 4. Copy `webapp/.env.example` to `webapp/.env` and configure:
    - `VITE_API_BASE_URL` – the base URL where the bot API is hosted (e.g. `http://localhost:3000`).
@@ -41,11 +42,10 @@ this account.
 
 ⚠️ Misconfiguring these may prevent the wallet from loading correctly.
 
-All `.env` files and `twitter.env` are excluded from version control via `.gitignore` so your credentials remain private.
+All `.env` files are excluded from version control via `.gitignore` so your credentials remain private.
 Check `.gitignore` at the repository root if you need a reminder of which files are ignored:
 
 ```
-twitter.env
 .env*
 **/.env*
 ```
