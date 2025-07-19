@@ -15,7 +15,9 @@
    - `DEV_ACCOUNT_ID_1` – (optional) secondary developer account (1% share)
    - `DEV_ACCOUNT_ID_2` – (optional) secondary developer account (2% share)
    - `API_AUTH_TOKEN` – (optional) token for trusted server-to-server calls
-  - `TWITTER_BEARER_TOKEN` – bearer token for verifying reposts on **X**.
+   - `RATE_LIMIT_WINDOW_MS` – (optional) timeframe for rate limits in milliseconds (defaults to 900000)
+   - `RATE_LIMIT_MAX` – (optional) max requests per window from one IP (defaults to 100)
+   - `TWITTER_BEARER_TOKEN` – bearer token for verifying reposts on **X**.
   - `TWITTER_CLIENT_ID` – API key for **X** OAuth linking.
   - `TWITTER_CLIENT_SECRET` – API secret for **X** OAuth linking.
 
