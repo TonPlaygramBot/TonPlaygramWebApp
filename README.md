@@ -10,10 +10,6 @@
      (falls back to an in-memory database if unset)
    - `AIRDROP_ADMIN_TOKENS` – (optional) tokens allowed to trigger airdrops
    - `DEPOSIT_WALLET_ADDRESS` – TON address that receives user deposits
-   - `STORE_DEPOSIT_ADDRESS` – address receiving TON for store bundles
-   - `TPC_CLAIM_WALLET_ADDRESS` – Jetton wallet used for external claims
-   - `TPC_CLAIM_MNEMONIC` – seed phrase for the claim wallet
-   - `CLAIM_RPC_URL` – RPC endpoint used when sending claim transactions
    - `PORT` – (optional) port for the bot API server (defaults to 3000)
 - `DEV_ACCOUNT_ID` – account ID that collects transfer fees
 
