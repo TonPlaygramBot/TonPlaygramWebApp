@@ -5,7 +5,8 @@ import {
   getAccountBalance,
   sendAccountTpc,
   getAccountTransactions,
-  depositAccount
+  depositAccount,
+  claimExternal
 } from '../utils/api.js';
 import { getTelegramId } from '../utils/telegram.js';
 import ConfirmPopup from '../components/ConfirmPopup.jsx';
@@ -65,6 +66,9 @@ export default function Wallet() {
   const [feeShare, setFeeShare] = useState(0);
   const [topupAmount, setTopupAmount] = useState('');
   const [topupSending, setTopupSending] = useState(false);
+  const [claimAddress, setClaimAddress] = useState('');
+  const [claimAmount, setClaimAmount] = useState('');
+  const [claimSending, setClaimSending] = useState(false);
   const [sending, setSending] = useState(false);
   const [receipt, setReceipt] = useState(null);
   const [confirmOpen, setConfirmOpen] = useState(false);
@@ -232,6 +236,30 @@ export default function Wallet() {
     }
   };
 
+  const handleClaim = async () => {
+    const addr = claimAddress.trim();
+    const amt = Number(claimAmount);
+    if (!addr || !amt) return;
+    setClaimSending(true);
+    try {
+      const res = await claimExternal(telegramId, addr, amt);
+      if (res?.error) {
+        setErrorMsg(res.error);
+        return;
+      }
+      setClaimAddress('');
+      setClaimAmount('');
+      const id = await loadBalances();
+      const txRes = await getAccountTransactions(id || accountId);
+      setTransactions(txRes.transactions || []);
+    } catch (err) {
+      console.error('Claim failed', err);
+      setErrorMsg('Failed to claim');
+    } finally {
+      setClaimSending(false);
+    }
+  };
+
   const filteredTransactions = transactions.filter((tx) => {
     if (filterDate) {
       const d = new Date(tx.date).toISOString().slice(0, 10);
@@ -357,6 +385,32 @@ export default function Wallet() {
       </div>
 
       <NftGiftCard accountId={accountId} />
+
+      <div className="prism-box p-6 space-y-3 text-center mt-4 flex flex-col items-center wide-card mx-auto">
+        <label className="block font-semibold">Claim to TON Wallet</label>
+        <input
+          type="text"
+          placeholder="TON Address"
+          value={claimAddress}
+          onChange={(e) => setClaimAddress(e.target.value)}
+          className="border p-1 rounded w-full max-w-xs mx-auto text-black"
+        />
+        <input
+          type="number"
+          placeholder="Amount"
+          value={claimAmount}
+          onChange={(e) => setClaimAmount(e.target.value)}
+          className="border p-1 rounded w-full max-w-xs mx-auto mt-1 text-black"
+        />
+        <button
+          onClick={handleClaim}
+          className="mt-1 px-3 py-1 bg-primary hover:bg-primary-hover text-background rounded"
+          disabled={claimSending}
+        >
+          {claimSending ? 'Processing...' : 'Claim'}
+        </button>
+        <p className="text-xs text-subtext mt-1">Fee: 0.5 TON per claim</p>
+      </div>
 
       {DEV_ACCOUNTS.includes(accountId) && (
         <div className="prism-box p-6 space-y-3 text-center mt-4 flex flex-col items-center w-80 mx-auto">

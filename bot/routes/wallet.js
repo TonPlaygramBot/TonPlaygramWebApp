@@ -411,6 +411,47 @@ router.post('/withdraw', authenticate, async (req, res) => {
 
 });
 
+// ✅ Claim TPC to an external TON wallet
+router.post('/claim-external', authenticate, async (req, res) => {
+  const { telegramId, address, amount } = req.body;
+  const authId = req.auth?.telegramId;
+
+  if (!telegramId || !address || typeof amount !== 'number' || amount <= 0) {
+    return res
+      .status(400)
+      .json({ error: 'telegramId, address and positive amount required' });
+  }
+  if (!authId || telegramId !== authId) {
+    return res.status(403).json({ error: 'forbidden' });
+  }
+
+  const user = await User.findOne({ telegramId });
+
+  if (!user || user.balance < amount) {
+    return res.status(400).json({ error: 'insufficient balance' });
+  }
+
+  ensureTransactionArray(user);
+
+  user.balance -= amount;
+
+  const tx = {
+    amount: -amount,
+    type: 'withdraw',
+    token: 'TPC',
+    status: 'pending',
+    date: new Date(),
+    address,
+  };
+
+  user.transactions.push(tx);
+  await user.save();
+
+  // In a real implementation the server would transfer TPC to `address` here
+
+  res.json({ balance: user.balance, transaction: tx });
+});
+
 // ✅ Authenticated transaction history
 
 router.post('/transactions', authenticate, async (req, res) => {

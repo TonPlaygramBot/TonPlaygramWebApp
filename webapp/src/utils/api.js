@@ -218,6 +218,10 @@ export function withdraw(telegramId, address, amount) {
   return post('/api/wallet/withdraw', { telegramId, address, amount });
 }
 
+export function claimExternal(telegramId, address, amount) {
+  return post('/api/wallet/claim-external', { telegramId, address, amount });
+}
+
 export function getReferralInfo(telegramId) {
 
   return post('/api/referral/code', { telegramId });
