@@ -11,8 +11,9 @@
    - `AIRDROP_ADMIN_TOKENS` – (optional) tokens allowed to trigger airdrops
    - `DEPOSIT_WALLET_ADDRESS` – TON address that receives user deposits
    - `CLAIM_CONTRACT_ADDRESS` – address of the deployed `tpc_claim_wallet` contract
-   - `CLAIM_WALLET_MNEMONIC` – seed phrase used to sign claim transactions
-   - `RPC_URL` – (optional) TON RPC endpoint for claim messages. Defaults to `https://toncenter.com/api/v2/jsonRPC`
+  - `CLAIM_WALLET_MNEMONIC` – seed phrase used to sign claim transactions
+  - `TPC_JETTON_ADDRESS` – token contract address shown after a claim
+  - `RPC_URL` – (optional) TON RPC endpoint for claim messages. Defaults to `https://toncenter.com/api/v2/jsonRPC`
    - `PORT` – (optional) port for the bot API server (defaults to 3000)
 - `DEV_ACCOUNT_ID` – account ID that collects transfer fees
 
