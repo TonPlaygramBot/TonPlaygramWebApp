@@ -1,5 +1,4 @@
 import { useState, useEffect, useRef } from 'react';
-import { useTonAddress, useTonConnectUI } from '@tonconnect/ui-react';
 import { FaUsers } from 'react-icons/fa';
 import { useNavigate, useParams } from 'react-router-dom';
 import TableSelector from '../../components/TableSelector.jsx';
@@ -22,13 +21,10 @@ import {
 } from '../../utils/api.js';
 import { getPlayerId, ensureAccountId, getTelegramId } from '../../utils/telegram.js';
 import { canStartGame } from '../../utils/lobby.js';
-import { SNAKE_CONTRACT_ADDRESS } from '../../utils/constants.js';
 
 export default function Lobby() {
   const { game } = useParams();
   const navigate = useNavigate();
-  const walletAddress = useTonAddress();
-  const [tonConnectUI] = useTonConnectUI();
   useTelegramBackButton();
 
   useEffect(() => {
@@ -174,43 +170,7 @@ export default function Lobby() {
   const startGame = async (flagOverride = flags, leaderOverride = leaders) => {
     const params = new URLSearchParams();
     if (table) params.set('table', table.id);
-    if (
-      game === 'snake' &&
-      (stake.token === 'TON' || stake.token === 'USDT') &&
-      stake.amount > 0
-    ) {
-      if (!walletAddress) {
-        tonConnectUI.openModal();
-        return;
-      }
-      let messages;
-      if (stake.token === 'TON') {
-        messages = [
-          {
-            address: SNAKE_CONTRACT_ADDRESS,
-            amount: String(stake.amount * 1e9),
-          },
-        ];
-      } else {
-        messages = [
-          {
-            address: SNAKE_CONTRACT_ADDRESS,
-            amount: '2000000',
-            payload: `USDT:${stake.amount}`,
-          },
-        ];
-      }
-      const tx = {
-        validUntil: Math.floor(Date.now() / 1000) + 60,
-        messages,
-      };
-      try {
-        await tonConnectUI.sendTransaction(tx);
-      } catch {
-        alert('Transaction failed');
-        return;
-      }
-    }
+
 
     if (game === 'snake' && table?.id === 'single') {
       localStorage.removeItem(`snakeGameState_${aiCount}`);
@@ -296,7 +256,7 @@ export default function Lobby() {
         <RoomSelector
           selected={stake}
           onSelect={setStake}
-          tokens={table?.id === 'single' ? ['TPC'] : ['TPC', 'TON', 'USDT']}
+          tokens={['TPC']}
         />
         <p className="text-center text-subtext text-sm">
           Staking is handled via the on-chain contract.
