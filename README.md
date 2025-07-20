@@ -10,6 +10,9 @@
      (falls back to an in-memory database if unset)
    - `AIRDROP_ADMIN_TOKENS` – (optional) tokens allowed to trigger airdrops
    - `DEPOSIT_WALLET_ADDRESS` – TON address that receives user deposits
+   - `CLAIM_CONTRACT_ADDRESS` – address of the deployed `tpc_claim_wallet` contract
+   - `CLAIM_WALLET_MNEMONIC` – seed phrase used to sign claim transactions
+   - `RPC_URL` – (optional) TON RPC endpoint for claim messages
    - `PORT` – (optional) port for the bot API server (defaults to 3000)
 - `DEV_ACCOUNT_ID` – account ID that collects transfer fees
 
@@ -150,6 +153,14 @@ so the server can verify the user. When the `API_AUTH_TOKEN` environment
 variable is set, you may instead supply `Authorization: Bearer <token>` to
 bypass Telegram checks. This is useful for server‑side actions such as
 awarding the developer share after a game ends.
+
+### Claiming TPC on-chain
+
+Withdrawals and `/claim-external` trigger a signed message to
+`CLAIM_CONTRACT_ADDRESS` using the mnemonic in `CLAIM_WALLET_MNEMONIC`.
+The contract mints the claimed amount directly to the provided address.
+If the call succeeds the transaction status becomes `delivered`; on failure
+it stays `pending` so it can be retried.
 
 ### Common issues
 

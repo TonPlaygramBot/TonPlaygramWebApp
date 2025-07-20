@@ -11,6 +11,7 @@ import { sendTransferNotification, sendTPCNotification } from '../utils/notifica
 import { ensureTransactionArray, calculateBalance } from '../utils/userUtils.js';
 
 import authenticate from '../middleware/auth.js';
+import tonClaim from '../utils/tonClaim.js';
 
 // Track USDT using the official jetton master address on TON
 const USDT_JETTON_HEX =
@@ -405,7 +406,13 @@ router.post('/withdraw', authenticate, async (req, res) => {
 
   await user.save();
 
-  // In a real implementation the server would send TON to `address` here
+  try {
+    await tonClaim(address, amount);
+    tx.status = 'delivered';
+    await user.save();
+  } catch (err) {
+    console.error('Claim transaction failed:', err.message);
+  }
 
   res.json({ balance: user.balance, transaction: tx });
 
@@ -446,8 +453,13 @@ router.post('/claim-external', authenticate, async (req, res) => {
 
   user.transactions.push(tx);
   await user.save();
-
-  // In a real implementation the server would transfer TPC to `address` here
+  try {
+    await tonClaim(address, amount);
+    tx.status = 'delivered';
+    await user.save();
+  } catch (err) {
+    console.error('Claim transaction failed:', err.message);
+  }
 
   res.json({ balance: user.balance, transaction: tx });
 });
