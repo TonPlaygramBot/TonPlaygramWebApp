@@ -15,17 +15,17 @@ import { JettonWallet } from '../wrappers/JettonWallet';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 dotenv.config({ path: path.join(__dirname, '.env') });
 
-const mnemonic = process.env.TPC_CLAIM_WALLET_SEED;
+const mnemonic = process.env.MNEMONIC;
 const ENDPOINT = process.env.RPC_URL;
 const ADMIN = process.env.ADMIN_ADDRESS && Address.parse(process.env.ADMIN_ADDRESS);
 
 if (!mnemonic || !ENDPOINT || !ADMIN) {
-  console.error('TPC_CLAIM_WALLET_SEED, RPC_URL and ADMIN_ADDRESS must be set in scripts/.env');
+  console.error('MNEMONIC, RPC_URL and ADMIN_ADDRESS must be set in scripts/.env');
   process.exit(1);
 }
 
 async function main() {
-  const keyPair = await mnemonicToWalletKey(mnemonic.trim().split(/\s+/));
+  const keyPair = await mnemonicToWalletKey(mnemonic.split(' '));
   const client = new TonClient4({ endpoint: ENDPOINT });
   const wallet = WalletContractV4.create({ workchain: 0, publicKey: keyPair.publicKey });
   const walletContract = client.open(wallet);

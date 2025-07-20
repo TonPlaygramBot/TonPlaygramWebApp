@@ -7,7 +7,6 @@ import User from '../models/User.js';
 import bot from '../bot.js';
 import Message from '../models/Message.js';
 import { sendTransferNotification, sendTPCNotification } from '../utils/notifications.js';
-import { sendClaim } from '../utils/claimWallet.js';
 
 import { ensureTransactionArray, calculateBalance } from '../utils/userUtils.js';
 
@@ -448,11 +447,7 @@ router.post('/claim-external', authenticate, async (req, res) => {
   user.transactions.push(tx);
   await user.save();
 
-  try {
-    await sendClaim(address, amount);
-  } catch (err) {
-    console.error('Failed to send on-chain claim:', err.message);
-  }
+  // In a real implementation the server would transfer TPC to `address` here
 
   res.json({ balance: user.balance, transaction: tx });
 });
