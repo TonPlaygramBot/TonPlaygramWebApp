@@ -1,4 +1,4 @@
-export const STORE_ADDRESS = 'UQDqDBiNU132j15Qka5EmSf37jCTLF-RdOlaQOXLHIJ5t-XT';
+export const STORE_ADDRESS = 'UQAPwsGyKzA4MuBnCflTVwEcTLcGS9yV6okJWQGzO5VxVYD1';
 
 export const STORE_CATEGORIES = [
   'Presale',

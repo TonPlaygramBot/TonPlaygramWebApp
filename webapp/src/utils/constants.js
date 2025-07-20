@@ -6,7 +6,7 @@ export const DEV_INFO = {
 };
 
 // TON wallet used for store purchases and Adsgram payouts
-export const ADSGRAM_WALLET = 'UQDqDBiNU132j15Qka5EmSf37jCTLF-RdOlaQOXLHIJ5t-XT';
+export const ADSGRAM_WALLET = 'UQAPwsGyKzA4MuBnCflTVwEcTLcGS9yV6okJWQGzO5VxVYD1';
 
 // Address of the Snake & Ladder smart contract used for TON bets
 export const SNAKE_CONTRACT_ADDRESS =
