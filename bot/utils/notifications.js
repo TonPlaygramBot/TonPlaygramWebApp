@@ -12,7 +12,7 @@ const coinPath = path.join(
 export function getInviteUrl(roomId, token, amount, game = 'snake') {
   const baseUrl =
     process.env.WEBAPP_BASE_URL ||
-    'https://tonplaygramwebapp.onrender.com';
+    'https://tpcclaimwallet.onrender.com';
   return `${baseUrl}/games/${game}?table=${roomId}&token=${token}&amount=${amount}`;
 }
 
