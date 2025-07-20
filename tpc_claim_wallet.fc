@@ -1,0 +1,48 @@
+;; TPC Claim Jetton Minter
+;; Admin Wallet: UQAPwsGyKzA4MuBnCflTVwEcTLcGS9yV6okJWQGzO5VxVYD1
+;; This contract handles claims and store bundle payouts.
+
+#include "stdlib.fc";
+#include "cell.fc";
+
+const op::claim = 0x01;
+const op::bundle_purchase = 0x02;
+
+global jetton_total_supply = 0;
+global admin_address = "UQAPwsGyKzA4MuBnCflTVwEcTLcGS9yV6okJWQGzO5VxVYD1";
+global bundles = dict_new(); ;; bundle_id -> jetton amount
+
+;; --- Helpers ---
+int is_admin(slice sender) {
+    return equal_slice_bits(sender, admin_address);
+}
+
+() send_jettons(slice user_wallet, int amount) impure {
+    jetton_total_supply += amount;
+    ;; Pseudo: integrate Jetton wallet transfer message
+}
+
+;; --- External message handler ---
+() recv_external(slice in_msg_body, slice in_msg_sender) impure {
+    int op = in_msg_body~load_uint(32);
+
+    if (op == op::claim) {
+        var user_wallet = in_msg_body~load_msg_addr();
+        var amount = in_msg_body~load_coins();
+        throw_if_not(is_admin(in_msg_sender), 101);
+        send_jettons(user_wallet, amount);
+    } elseif (op == op::bundle_purchase) {
+        var user_wallet = in_msg_body~load_msg_addr();
+        var bundle_id = in_msg_body~load_uint(32);
+        throw_if_not(dict_has_key(bundles, bundle_id), 102);
+        var bundle_amount = dict_get(bundles, bundle_id);
+        send_jettons(user_wallet, bundle_amount);
+    } else {
+        throw(100);
+    }
+}
+
+() set_bundle(int bundle_id, int amount, slice sender) impure {
+    throw_if_not(is_admin(sender), 103);
+    bundles = dict_set(bundles, bundle_id, amount);
+}
