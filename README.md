@@ -309,6 +309,10 @@ To move from the start you must roll at least one six when rolling two dice. Any
 
 Run `npm run ban-user -- <accountId>` to mark an account as banned in the database. `MONGODB_URI` must point to your MongoDB instance.
 
+### Claim test script
+
+Run `node bot/scripts/claimTest.js <TON_ADDRESS> <AMOUNT>` to send TPC from the claim wallet manually. The amount is specified in nanoTPC as expected by `tonClaim`.
+
 
 ## License
 
