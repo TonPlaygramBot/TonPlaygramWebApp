@@ -4,6 +4,8 @@ import { mnemonicToWalletKey } from 'ton-crypto';
 const endpoint = process.env.RPC_URL || 'https://toncenter.com/api/v2/jsonRPC';
 const contract = process.env.CLAIM_CONTRACT_ADDRESS;
 const mnemonic = process.env.CLAIM_WALLET_MNEMONIC;
+// Root address of the TPC Jetton contract used for all claims
+const TPC_JETTON_ROOT = 'EQDY3qbfGN6IMI5d4MsEoprhuMTz09OkqjyhPKX6DVtzbi6X';
 
 export default async function tonClaim(toAddress, amount) {
   if (!contract || !mnemonic) {
