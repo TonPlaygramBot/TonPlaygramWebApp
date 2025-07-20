@@ -163,8 +163,8 @@ Withdrawals and `/claim-external` trigger a signed message to
 The `tpc_claim_wallet` contract forwards this call to the TPC Jetton root
 (`EQDY3qbfGN6IMI5d4MsEoprhuMTz09OkqjyhPKX6DVtzbi6X`) so the specified amount of
 TPC is transferred directly to the provided address. If the call succeeds the
-transaction status becomes `delivered`; on failure it stays `pending` so it can
-be retried.
+transaction status becomes `delivered`. Failed claims revert the user's balance
+and respond with HTTP 500 while the transaction is removed.
 
 ### Common issues
 
