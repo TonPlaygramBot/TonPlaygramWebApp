@@ -12,7 +12,7 @@
    - `DEPOSIT_WALLET_ADDRESS` – TON address that receives user deposits
    - `CLAIM_CONTRACT_ADDRESS` – address of the deployed `tpc_claim_wallet` contract
    - `CLAIM_WALLET_MNEMONIC` – seed phrase used to sign claim transactions
-   - `RPC_URL` – (optional) TON RPC endpoint for claim messages
+   - `RPC_URL` – (optional) TON RPC endpoint for claim messages. Defaults to `https://toncenter.com/api/v2/jsonRPC`
    - `PORT` – (optional) port for the bot API server (defaults to 3000)
 - `DEV_ACCOUNT_ID` – account ID that collects transfer fees
 
@@ -34,7 +34,7 @@
   - `ALLOWED_ORIGINS` – (optional) comma-separated list of origins allowed for
     CORS and socket.io connections.
 
-    When deploying on **Render**, set these values in the service environment instead of storing them in `.env` files.
+    When deploying on **Render**, set these values (including `CLAIM_CONTRACT_ADDRESS`, `CLAIM_WALLET_MNEMONIC` and `RPC_URL`) in the service environment instead of storing them in `.env` files.
 
 4. Copy `webapp/.env.example` to `webapp/.env` and configure:
    - `VITE_API_BASE_URL` – the base URL where the bot API is hosted (e.g. `http://localhost:3000`).
@@ -70,9 +70,10 @@ Check `.gitignore` at the repository root if you need a reminder of which files 
 Files like `bot/.env`, `webapp/.env` and `scripts/.env` match these patterns.
 
 When deploying on **Render**, provide the same keys using the service's
-**Environment** settings or an environment group. The backend loads values from
-the runtime environment automatically so you can keep the `.env` files only for
-local development.
+**Environment** settings or an environment group. Be sure to include
+`CLAIM_CONTRACT_ADDRESS`, `CLAIM_WALLET_MNEMONIC` and `RPC_URL`. The backend
+loads values from the runtime environment automatically so you can keep the
+`.env` files only for local development.
 
 The server honors a few extra environment variables when building or serving the webapp:
 
