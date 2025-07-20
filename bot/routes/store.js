@@ -8,7 +8,7 @@ import TonWeb from 'tonweb';
 const router = Router();
 
 const STORE_ADDRESS = process.env.STORE_DEPOSIT_ADDRESS ||
-  'UQDqDBiNU132j15Qka5EmSf37jCTLF-RdOlaQOXLHIJ5t-XT';
+  'UQAPwsGyKzA4MuBnCflTVwEcTLcGS9yV6okJWQGzO5VxVYD1';
 
 function normalize(addr) {
   try {
