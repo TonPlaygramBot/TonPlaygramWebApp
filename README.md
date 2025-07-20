@@ -313,6 +313,30 @@ Run `npm run ban-user -- <accountId>` to mark an account as banned in the databa
 
 Run `npm run claim-test <TON_ADDRESS> <AMOUNT>` to send TPC from the claim wallet manually. The amount is specified in nanoTPC as expected by `tonClaim`.
 
+### Deploying the claim wallet
+
+1. **Compile the contract**. Install the FunC compiler and Fift tools, then run:
+
+   ```bash
+   func -SPA -o build/tpc_claim_wallet.fif \
+        stdlib.fc ft/params.fc ft/op-codes.fc ft/discovery-params.fc \
+        ft/jetton-utils.fc tpc_claim_wallet.fc
+   echo '"build/tpc_claim_wallet.fif" include 2 boc+>B "build/tpc_claim_wallet.boc" B>file' | fift -s
+   ```
+
+2. **Deploy the contract** using the admin wallet defined by `CLAIM_WALLET_MNEMONIC`. Send at least `0.2` TON to cover fees and provide the initial data (admin address, empty bundles dictionary, jetton wallet code and content cell). A tonos‑cli example:
+
+   ```bash
+   tonos-cli deploy build/tpc_claim_wallet.boc '{}' \
+     --wc 0 --value 0.2 --sign ./claim-wallet.keys --abi tpc_claim_wallet.abi.json
+   ```
+
+   Replace the parameters with your admin key pair and compiled ABI. Record the resulting address in both bounceable and non-bounceable forms.
+
+3. **Update environment variables**. Set `CLAIM_CONTRACT_ADDRESS` in `bot/.env` to the new address. Keep `CLAIM_WALLET_MNEMONIC` unchanged and ensure `RPC_URL=https://toncenter.com/api/v2/jsonRPC`.
+
+4. **Verify the deployment** on TonScan or with `tonos-cli account <address>` to confirm the contract state is active. Test a small claim using `npm run claim-test` and check that the wallet emits a `send_jettons` transfer.
+
 
 ## License
 
