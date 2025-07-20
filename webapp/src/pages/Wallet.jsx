@@ -1,5 +1,6 @@
 import { useEffect, useState, useRef } from 'react';
 import QRCode from 'react-qr-code';
+import { useTonAddress, useTonConnectUI } from '@tonconnect/ui-react';
 import {
   createAccount,
   getAccountBalance,
@@ -9,6 +10,7 @@ import {
   claimExternal
 } from '../utils/api.js';
 import { getTelegramId } from '../utils/telegram.js';
+import { STORE_ADDRESS } from '../utils/storeData.js';
 import ConfirmPopup from '../components/ConfirmPopup.jsx';
 import InfoPopup from '../components/InfoPopup.jsx';
 import TransactionDetailsPopup from '../components/TransactionDetailsPopup.jsx';
@@ -49,6 +51,8 @@ function formatValue(value, decimals = 2) {
 
 export default function Wallet() {
   useTelegramBackButton();
+  const [tonConnectUI] = useTonConnectUI();
+  const walletAddress = useTonAddress();
   let telegramId;
   try {
     telegramId = getTelegramId();
@@ -240,8 +244,17 @@ export default function Wallet() {
     const addr = claimAddress.trim();
     const amt = Number(claimAmount);
     if (!addr || !amt) return;
+    if (!walletAddress) {
+      tonConnectUI.openModal();
+      return;
+    }
     setClaimSending(true);
     try {
+      const tx = {
+        validUntil: Math.floor(Date.now() / 1000) + 60,
+        messages: [{ address: STORE_ADDRESS, amount: String(0.5 * 1e9) }],
+      };
+      await tonConnectUI.sendTransaction(tx);
       const res = await claimExternal(telegramId, addr, amt);
       if (res?.error) {
         setErrorMsg(res.error);
@@ -388,6 +401,7 @@ export default function Wallet() {
 
       <div className="prism-box p-6 space-y-3 text-center mt-4 flex flex-col items-center wide-card mx-auto">
         <label className="block font-semibold">Claim to TON Wallet</label>
+        <p className="text-sm">Available: {tpcBalance === null ? '...' : formatValue(tpcBalance, 2)} TPC</p>
         <input
           type="text"
           placeholder="TON Address"
