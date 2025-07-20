@@ -17,6 +17,11 @@ import tonClaim from '../utils/tonClaim.js';
 const USDT_JETTON_HEX =
   '0:b113a994b5024a16719f69139328eb759596c38a25f59028b146fecdc3621dfe';
 
+// Token root address used when directing users to import TPC
+const TPC_JETTON_ADDRESS =
+  process.env.TPC_JETTON_ADDRESS ||
+  'EQDY3qbfGN6IMI5d4MsEoprhuMTz09OkqjyhPKX6DVtzbi6X';
+
 const router = Router();
 
 router.post('/balance', authenticate, async (req, res) => {
@@ -410,6 +415,15 @@ router.post('/withdraw', authenticate, async (req, res) => {
     await tonClaim(address, amount);
     tx.status = 'delivered';
     await user.save();
+    try {
+      await sendTPCNotification(
+        bot,
+        telegramId,
+        `\u{1FA99} Claim of ${amount} TPC sent to ${address}. If it doesn't appear, add TPC using ${TPC_JETTON_ADDRESS}`
+      );
+    } catch (err) {
+      console.error('Failed to send Telegram notification:', err.message);
+    }
   } catch (err) {
     console.error('Claim transaction failed:', err.message);
   }
@@ -457,6 +471,15 @@ router.post('/claim-external', authenticate, async (req, res) => {
     await tonClaim(address, amount);
     tx.status = 'delivered';
     await user.save();
+    try {
+      await sendTPCNotification(
+        bot,
+        telegramId,
+        `\u{1FA99} Claim of ${amount} TPC sent to ${address}. If it doesn't appear, add TPC using ${TPC_JETTON_ADDRESS}`
+      );
+    } catch (err) {
+      console.error('Failed to send Telegram notification:', err.message);
+    }
   } catch (err) {
     console.error('Claim transaction failed:', err.message);
   }
