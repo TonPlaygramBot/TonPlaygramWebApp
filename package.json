@@ -13,6 +13,7 @@
     "format": "prettier --write .",
     "recalculate-balances": "node bot/scripts/recalculateBalances.js",
     "ban-user": "node bot/scripts/banUser.js",
+    "claim-test": "node bot/scripts/claimTest.js",
     "dev": "concurrently -k \"npm --prefix webapp run dev\" \"node bot/server.js\""
   },
   "engines": {
@@ -21,6 +22,7 @@
   "dependencies": {
     "dotenv": "^16.3.1",
     "emoji-name-map": "^2.0.3",
+    "geoip-lite": "^1.4.10",
     "mongoose": "^7.6.0",
     "socket.io-client": "^4.8.1",
     "ton": "^13.9.0",
