@@ -160,9 +160,11 @@ awarding the developer share after a game ends.
 
 Withdrawals and `/claim-external` trigger a signed message to
 `CLAIM_CONTRACT_ADDRESS` using the mnemonic in `CLAIM_WALLET_MNEMONIC`.
-The contract mints the claimed amount directly to the provided address.
-If the call succeeds the transaction status becomes `delivered`; on failure
-it stays `pending` so it can be retried.
+The `tpc_claim_wallet` contract forwards this call to the TPC Jetton root
+(`EQDY3qbfGN6IMI5d4MsEoprhuMTz09OkqjyhPKX6DVtzbi6X`) so the specified amount of
+TPC is transferred directly to the provided address. If the call succeeds the
+transaction status becomes `delivered`; on failure it stays `pending` so it can
+be retried.
 
 ### Common issues
 
