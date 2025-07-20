@@ -39,32 +39,29 @@ int wallet_forward_amount() asm "50000000 PUSHINT"; ;; 0.05 TON
     .end_cell());
 }
 
-() mint_tokens(slice to_address, cell jetton_wallet_code, int ton_amount, cell master_msg) impure {
-    cell state_init = calculate_jetton_wallet_state_init(to_address, my_address(), jetton_wallet_code);
-    slice to_wallet_address = calculate_jetton_wallet_address(state_init);
-    var msg = begin_cell()
-        .store_uint(0x18, 6)
-        .store_slice(to_wallet_address)
-        .store_coins(ton_amount)
-        .store_uint(4 + 2 + 1, 1 + 4 + 4 + 64 + 32 + 1 + 1 + 1)
-        .store_ref(state_init)
-        .store_ref(master_msg);
-    send_raw_message(msg.end_cell(), 1);
-}
 
 () send_jettons(slice user_wallet, int jetton_amount) impure {
     var (total_supply, admin_addr, content, wallet_code, bundles) = load_data();
+    slice root_addr = content.begin_parse();
+    slice admin_wallet = calculate_user_jetton_wallet_address(admin_addr, root_addr, wallet_code);
     var transfer = begin_cell()
-        .store_uint(op::internal_transfer(), 32)
+        .store_uint(op::transfer(), 32)
         .store_uint(0, 64)
         .store_coins(jetton_amount)
-        .store_slice(my_address())
         .store_slice(user_wallet)
+        .store_slice(my_address())
+        .store_maybe_ref(null())
         .store_coins(0)
-        .store_uint(0, 1)
+        .store_maybe_ref(null())
     .end_cell();
-    mint_tokens(user_wallet, wallet_code, wallet_forward_amount(), transfer);
-    save_data(total_supply + jetton_amount, admin_addr, content, wallet_code, bundles);
+    var msg = begin_cell()
+        .store_uint(0x18, 6)
+        .store_slice(admin_wallet)
+        .store_coins(wallet_forward_amount())
+        .store_uint(0, 1 + 4 + 4 + 64 + 32 + 1 + 1)
+        .store_ref(transfer);
+    send_raw_message(msg.end_cell(), 1);
+    save_data(total_supply, admin_addr, content, wallet_code, bundles);
 }
 
 () recv_internal(int msg_value, cell in_msg_full, slice in_msg_body) impure {
@@ -108,19 +105,7 @@ int wallet_forward_amount() asm "50000000 PUSHINT"; ;; 0.05 TON
         return ();
     }
 
-    ;; Standard Jetton minter operations
-    if (op == op::mint()) {
-        throw_unless(73, equal_slices(sender_address, admin_addr));
-        slice to_address = in_msg_body~load_msg_addr();
-        int ton_amount = in_msg_body~load_coins();
-        cell master_msg = in_msg_body~load_ref();
-        slice mm = master_msg.begin_parse();
-        mm~skip_bits(32 + 64);
-        int jetton_amount = mm~load_coins();
-        mint_tokens(to_address, wallet_code, ton_amount, master_msg);
-        save_data(total_supply + jetton_amount, admin_addr, content, wallet_code, bundles);
-        return ();
-    }
+
 
     if (op == op::burn_notification()) {
         int jetton_amount = in_msg_body~load_coins();
