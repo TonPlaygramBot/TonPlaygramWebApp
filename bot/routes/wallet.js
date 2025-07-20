@@ -424,11 +424,15 @@ router.post('/withdraw', authenticate, async (req, res) => {
     } catch (err) {
       console.error('Failed to send Telegram notification:', err.message);
     }
+    return res.json({ balance: user.balance, transaction: tx });
   } catch (err) {
     console.error('Claim transaction failed:', err.message);
+    user.balance += amount;
+    tx.status = 'failed';
+    user.transactions.pop();
+    await user.save();
+    return res.status(500).json({ error: 'claim failed' });
   }
-
-  res.json({ balance: user.balance, transaction: tx });
 
 });
 
@@ -480,11 +484,15 @@ router.post('/claim-external', authenticate, async (req, res) => {
     } catch (err) {
       console.error('Failed to send Telegram notification:', err.message);
     }
+    return res.json({ balance: user.balance, transaction: tx });
   } catch (err) {
     console.error('Claim transaction failed:', err.message);
+    user.balance += amount;
+    tx.status = 'failed';
+    user.transactions.pop();
+    await user.save();
+    return res.status(500).json({ error: 'claim failed' });
   }
-
-  res.json({ balance: user.balance, transaction: tx });
 });
 
 // ✅ Authenticated transaction history
