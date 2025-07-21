@@ -163,7 +163,11 @@ export default function PlayerInvitePopup({
               />
             </div>
           </div>
-          <RoomSelector selected={stake} onSelect={onStakeChange} />
+          <RoomSelector
+            selected={stake}
+            onSelect={onStakeChange}
+            tokens={['TPC']}
+          />
           <div className="flex justify-center gap-2">
             <button
               onClick={() => onInvite(game)}

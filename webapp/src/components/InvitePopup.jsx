@@ -61,7 +61,11 @@ export default function InvitePopup({
                 />
               </div>
             </div>
-            <RoomSelector selected={stake} onSelect={onStakeChange} />
+            <RoomSelector
+              selected={stake}
+              onSelect={onStakeChange}
+              tokens={['TPC']}
+            />
           </>
         )}
         <div className="flex justify-center gap-2">
