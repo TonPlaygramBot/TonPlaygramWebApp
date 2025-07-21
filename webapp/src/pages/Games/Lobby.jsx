@@ -10,10 +10,8 @@ import useTelegramBackButton from '../../hooks/useTelegramBackButton.js';
 import { socket } from '../../utils/socket.js';
 import {
   getSnakeLobbies,
-  getSnakeLobby,
   pingOnline,
   getOnlineCount,
-  seatTable,
   unseatTable,
   getProfile,
   getAccountBalance,
@@ -108,46 +106,20 @@ export default function Lobby() {
   useEffect(() => {
     if (game === 'snake' && table && table.id !== 'single') {
       let cancelled = false;
-      let interval;
       let pid;
       ensureAccountId()
         .then((accountId) => {
           if (cancelled) return;
           pid = accountId;
-          seatTable(pid, table.id, playerName).catch(() => {});
-          interval = setInterval(() => {
-            seatTable(pid, table.id, playerName).catch(() => {});
-          }, 30000);
+          socket.emit('seatTable', { accountId: pid, tableId: table.id, playerName });
         })
         .catch(() => {});
       return () => {
         cancelled = true;
-        if (interval) clearInterval(interval);
         if (pid && !startedRef.current) unseatTable(pid, table.id).catch(() => {});
       };
     }
   }, [game, table, playerName]);
-
-  useEffect(() => {
-    if (game === 'snake' && table && table.id !== 'single') {
-      let active = true;
-      function loadPlayers() {
-        getSnakeLobby(table.id)
-          .then((data) => {
-            if (active) setPlayers(data.players);
-          })
-          .catch(() => {});
-      }
-      loadPlayers();
-      const id = setInterval(loadPlayers, 30000);
-      return () => {
-        active = false;
-        clearInterval(id);
-      };
-    } else {
-      setPlayers([]);
-    }
-  }, [game, table]);
 
   useEffect(() => {
     const onUpdate = ({ tableId, players: list }) => {
