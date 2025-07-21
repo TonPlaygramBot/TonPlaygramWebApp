@@ -238,6 +238,12 @@ async function updateLobby(tableId) {
 function seatTableSocket(accountId, tableId, playerName, socket) {
   if (!tableId || !accountId) return;
   cleanupSeats();
+  // Ensure this user is not seated at any other table
+  for (const id of Array.from(tableSeats.keys())) {
+    if (id !== tableId && tableSeats.get(id)?.has(String(accountId))) {
+      unseatTableSocket(accountId, id);
+    }
+  }
   let map = tableSeats.get(tableId);
   if (!map) {
     map = new Map();
