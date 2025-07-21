@@ -14,6 +14,7 @@
     "recalculate-balances": "node bot/scripts/recalculateBalances.js",
     "ban-user": "node bot/scripts/banUser.js",
     "claim-test": "node bot/scripts/claimTest.js",
+    "refund-withdrawals": "node bot/scripts/refundPendingWithdrawals.js",
     "dev": "concurrently -k \"npm --prefix webapp run dev\" \"node bot/server.js\""
   },
   "engines": {
