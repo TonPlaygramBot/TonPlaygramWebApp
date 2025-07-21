@@ -123,6 +123,22 @@ export default function Lobby() {
   }, [game, table, playerName]);
 
   useEffect(() => {
+    if (game === 'snake' && table && table.id !== 'single') {
+      let active = true;
+      getSnakeLobby(table.id)
+        .then((data) => {
+          if (!active) return;
+          setPlayers(data.players || []);
+          if (data.currentTurn != null) setCurrentTurn(data.currentTurn);
+        })
+        .catch(() => {});
+      return () => {
+        active = false;
+      };
+    }
+  }, [game, table]);
+
+  useEffect(() => {
     const onUpdate = ({ tableId, players: list, currentTurn }) => {
       if (table && tableId === table.id) {
         setPlayers(list);
