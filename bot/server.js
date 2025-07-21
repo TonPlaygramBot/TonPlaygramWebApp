@@ -251,10 +251,9 @@ async function updateLobby(tableId) {
 }
 
 app.post('/api/online/ping', (req, res) => {
-  const { playerId, telegramId } = req.body || {};
-  const id = playerId || telegramId;
-  if (id) {
-    onlineUsers.set(String(id), Date.now());
+  const { playerId } = req.body || {};
+  if (playerId) {
+    onlineUsers.set(String(playerId), Date.now());
   }
   const now = Date.now();
   for (const [id, ts] of onlineUsers) {
@@ -358,8 +357,8 @@ app.get('/api/stats', async (req, res) => {
 });
 
 app.post('/api/snake/table/seat', (req, res) => {
-  const { tableId, playerId, telegramId, name } = req.body || {};
-  const pid = playerId || telegramId;
+  const { tableId, playerId, name } = req.body || {};
+  const pid = playerId;
   if (!tableId || !pid) return res.status(400).json({ error: 'missing data' });
   cleanupSeats();
   let map = tableSeats.get(tableId);
@@ -375,8 +374,8 @@ app.post('/api/snake/table/seat', (req, res) => {
 });
 
 app.post('/api/snake/table/unseat', (req, res) => {
-  const { tableId, playerId, telegramId } = req.body || {};
-  const pid = playerId || telegramId;
+  const { tableId, playerId } = req.body || {};
+  const pid = playerId;
   const map = tableSeats.get(tableId);
   if (map && pid) {
     map.delete(String(pid));
@@ -605,18 +604,17 @@ mongoose.connection.once('open', async () => {
 
 io.on('connection', (socket) => {
   socket.on('register', ({ playerId, telegramId }) => {
-    const id = playerId || telegramId;
-    if (!id) return;
-    let set = userSockets.get(String(id));
+    if (!playerId) return;
+    let set = userSockets.get(String(playerId));
     if (!set) {
       set = new Set();
-      userSockets.set(String(id), set);
+      userSockets.set(String(playerId), set);
     }
     set.add(socket.id);
     socket.data.telegramId = telegramId || null;
-    socket.data.playerId = String(id);
+    socket.data.playerId = String(playerId);
     // Mark this user as online immediately
-    onlineUsers.set(String(id), Date.now());
+    onlineUsers.set(String(playerId), Date.now());
   });
 
   socket.on('joinRoom', async ({ roomId, playerId, name }) => {
