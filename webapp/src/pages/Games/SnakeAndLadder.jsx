@@ -2560,8 +2560,6 @@ export default function SnakeAndLadder() {
                   muted={muted}
                   emitRollEvent
                   divRef={diceRollerDivRef}
-                  accountId={myId}
-                  tableId={tableId}
                 />
               );
             }
