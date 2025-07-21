@@ -701,6 +701,11 @@ export default function CrazyDiceDuel() {
             className="dice-trail-img"
           />
         )}
+        {showPrompt && (
+          <div className="your-turn-message" style={{ bottom: 'calc(100% + 0.5rem)' }}>
+            🫵 Your turn
+          </div>
+        )}
         {rollResult !== null && (
           <div className="text-6xl roll-result">{rollResult}</div>
         )}
@@ -742,7 +747,7 @@ export default function CrazyDiceDuel() {
             style={{ color: players[0].color }}
             onClick={rollNow}
           >
-            🫵 you're turn
+            🫵 Your turn
           </button>
         )}
         <AvatarTimer
