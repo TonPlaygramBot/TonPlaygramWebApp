@@ -1,7 +1,7 @@
-const express = require('express');
-const http = require('http');
-const { Server } = require('socket.io');
-const crypto = require('crypto');
+import express from 'express';
+import http from 'http';
+import { Server } from 'socket.io';
+import crypto from 'crypto';
 
 const app = express();
 const server = http.createServer(app);
