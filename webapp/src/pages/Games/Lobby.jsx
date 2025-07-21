@@ -33,6 +33,7 @@ export default function Lobby() {
   const [table, setTable] = useState(null);
   const [stake, setStake] = useState({ token: '', amount: 0 });
   const [players, setPlayers] = useState([]);
+  const [currentTurn, setCurrentTurn] = useState(null);
   const [aiCount, setAiCount] = useState(0);
   const [aiType, setAiType] = useState('');
   const [showLeaderPicker, setShowLeaderPicker] = useState(false);
@@ -122,9 +123,10 @@ export default function Lobby() {
   }, [game, table, playerName]);
 
   useEffect(() => {
-    const onUpdate = ({ tableId, players: list }) => {
+    const onUpdate = ({ tableId, players: list, currentTurn }) => {
       if (table && tableId === table.id) {
         setPlayers(list);
+        if (currentTurn != null) setCurrentTurn(currentTurn);
       }
     };
     socket.on('lobbyUpdate', onUpdate);

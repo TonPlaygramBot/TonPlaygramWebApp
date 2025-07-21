@@ -223,6 +223,8 @@ const pendingInvites = new Map();
 app.set('userSockets', userSockets);
 
 const tableWatchers = new Map();
+// Track active 1v1 tables with avatar assignments and current turn
+const tables = {};
 const BUNDLE_TON_MAP = Object.fromEntries(
   Object.values(BUNDLES).map((b) => [b.label, b.ton])
 );
@@ -245,9 +247,14 @@ async function updateLobby(tableId) {
     .filter((p) => !p.disconnected)
     .map((p) => ({ id: p.playerId, name: p.name }));
   const lobbyPlayers = Array.from(tableSeats.get(tableId)?.values() || []).map(
-    (p) => ({ id: p.id, name: p.name })
+    (p) => ({ id: p.id, name: p.name, avatar: p.avatar })
   );
-  io.emit('lobbyUpdate', { tableId, players: [...lobbyPlayers, ...roomPlayers] });
+  const currentTurn = tables[tableId]?.currentTurn || room.currentTurn;
+  io.emit('lobbyUpdate', {
+    tableId,
+    players: [...lobbyPlayers, ...roomPlayers],
+    currentTurn,
+  });
 }
 
 function seatTableSocket(accountId, tableId, playerName, socket) {
@@ -259,9 +266,11 @@ function seatTableSocket(accountId, tableId, playerName, socket) {
     tableSeats.set(tableId, map);
   }
   if (!map.has(String(accountId))) {
+    const assignedAvatar = map.size === 0 ? 'avatar1.png' : 'avatar2.png';
     map.set(String(accountId), {
       id: accountId,
       name: playerName || String(accountId),
+      avatar: assignedAvatar,
       ts: Date.now(),
       socketId: socket?.id,
     });
@@ -270,6 +279,26 @@ function seatTableSocket(accountId, tableId, playerName, socket) {
     info.name = playerName || info.name;
     info.ts = Date.now();
     info.socketId = socket?.id;
+  }
+
+  if (!tables[tableId]) {
+    tables[tableId] = { id: tableId, players: [], currentTurn: null };
+  }
+  const table = tables[tableId];
+  if (!table.players.find((p) => p.id === accountId)) {
+    const assignedAvatar = table.players.length === 0 ? 'avatar1.png' : 'avatar2.png';
+    table.players.push({
+      id: accountId,
+      name: playerName || String(accountId),
+      avatar: assignedAvatar,
+      socketId: socket?.id,
+    });
+  } else {
+    const p = table.players.find((pl) => pl.id === accountId);
+    if (p) p.socketId = socket?.id;
+  }
+  if (!table.currentTurn) {
+    table.currentTurn = table.players[0].id;
   }
   User.updateOne({ accountId }, { currentTableId: tableId }).catch(() => {});
   socket?.join(tableId);
@@ -289,6 +318,23 @@ function unseatTableSocket(accountId, tableId, socketId) {
       }
     }
     if (map.size === 0) tableSeats.delete(tableId);
+  }
+  const table = tables[tableId];
+  if (table) {
+    let removedId = null;
+    if (accountId) {
+      removedId = accountId;
+      table.players = table.players.filter((p) => p.id !== accountId);
+    } else if (socketId) {
+      const pl = table.players.find((p) => p.socketId === socketId);
+      removedId = pl?.id;
+      table.players = table.players.filter((p) => p.socketId !== socketId);
+    }
+    if (table.players.length === 0) {
+      delete tables[tableId];
+    } else if (removedId && table.currentTurn === removedId) {
+      table.currentTurn = table.players[0].id;
+    }
   }
   if (accountId) {
     User.updateOne({ accountId }, { currentTableId: null }).catch(() => {});
@@ -686,8 +732,26 @@ io.on('connection', (socket) => {
     }
   });
 
-  socket.on('rollDice', async () => {
-    await gameManager.rollDice(socket);
+  socket.on('rollDice', async (payload = {}) => {
+    const { accountId, tableId } = payload;
+    const table = tableId && tables[tableId];
+    if (table) {
+      if (table.currentTurn !== accountId) {
+        return socket.emit('errorMessage', 'Not your turn');
+      }
+      const dice = Math.floor(Math.random() * 6) + 1;
+      io.to(tableId).emit('diceRolled', { accountId, dice });
+      const idx = table.players.findIndex((p) => p.id === accountId);
+      const next = (idx + 1) % table.players.length;
+      table.currentTurn = table.players[next].id;
+      io.to(tableId).emit('lobbyUpdate', {
+        tableId,
+        players: table.players,
+        currentTurn: table.currentTurn,
+      });
+    } else {
+      await gameManager.rollDice(socket);
+    }
   });
 
   socket.on('invite1v1', async (payload, cb) => {
