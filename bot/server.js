@@ -250,6 +250,52 @@ async function updateLobby(tableId) {
   io.emit('lobbyUpdate', { tableId, players: [...lobbyPlayers, ...roomPlayers] });
 }
 
+function seatTableSocket(accountId, tableId, playerName, socket) {
+  if (!tableId || !accountId) return;
+  cleanupSeats();
+  let map = tableSeats.get(tableId);
+  if (!map) {
+    map = new Map();
+    tableSeats.set(tableId, map);
+  }
+  if (!map.has(String(accountId))) {
+    map.set(String(accountId), {
+      id: accountId,
+      name: playerName || String(accountId),
+      ts: Date.now(),
+      socketId: socket?.id,
+    });
+  } else {
+    const info = map.get(String(accountId));
+    info.name = playerName || info.name;
+    info.ts = Date.now();
+    info.socketId = socket?.id;
+  }
+  User.updateOne({ accountId }, { currentTableId: tableId }).catch(() => {});
+  socket?.join(tableId);
+  updateLobby(tableId).catch(() => {});
+}
+
+function unseatTableSocket(accountId, tableId, socketId) {
+  if (!tableId) return;
+  const map = tableSeats.get(tableId);
+  if (map) {
+    if (accountId) map.delete(String(accountId));
+    else if (socketId) {
+      for (const [pid, info] of map) {
+        if (info.socketId === socketId) {
+          map.delete(pid);
+        }
+      }
+    }
+    if (map.size === 0) tableSeats.delete(tableId);
+  }
+  if (accountId) {
+    User.updateOne({ accountId }, { currentTableId: null }).catch(() => {});
+  }
+  updateLobby(tableId).catch(() => {});
+}
+
 app.post('/api/online/ping', (req, res) => {
   const { playerId } = req.body || {};
   if (playerId) {
@@ -360,32 +406,14 @@ app.post('/api/snake/table/seat', (req, res) => {
   const { tableId, playerId, name } = req.body || {};
   const pid = playerId;
   if (!tableId || !pid) return res.status(400).json({ error: 'missing data' });
-  cleanupSeats();
-  let map = tableSeats.get(tableId);
-  if (!map) {
-    map = new Map();
-    tableSeats.set(tableId, map);
-  }
-  map.set(String(pid), { id: pid, name: name || String(pid), ts: Date.now() });
-  // Track the user's current table by account id
-  User.updateOne({ accountId: pid }, { currentTableId: tableId }).catch(() => {});
-  updateLobby(tableId).catch(() => {});
+  seatTableSocket(pid, tableId, name);
   res.json({ success: true });
 });
 
 app.post('/api/snake/table/unseat', (req, res) => {
   const { tableId, playerId } = req.body || {};
   const pid = playerId;
-  const map = tableSeats.get(tableId);
-  if (map && pid) {
-    map.delete(String(pid));
-    if (map.size === 0) tableSeats.delete(tableId);
-  }
-  // Clear the table tracking field
-  if (pid) {
-    User.updateOne({ accountId: pid }, { currentTableId: null }).catch(() => {});
-  }
-  if (tableId) updateLobby(tableId).catch(() => {});
+  unseatTableSocket(pid, tableId);
   res.json({ success: true });
 });
 app.get('/api/snake/lobbies', async (req, res) => {
@@ -615,6 +643,10 @@ io.on('connection', (socket) => {
     socket.data.playerId = String(playerId);
     // Mark this user as online immediately
     onlineUsers.set(String(playerId), Date.now());
+  });
+
+  socket.on('seatTable', ({ accountId, tableId, playerName }) => {
+    seatTableSocket(accountId, tableId, playerName, socket);
   });
 
   socket.on('joinRoom', async ({ roomId, playerId, name }) => {
@@ -847,17 +879,22 @@ io.on('connection', (socket) => {
         if (set.size === 0) userSockets.delete(String(pid));
       }
       onlineUsers.delete(String(pid));
-      // Clear the table tracking when the user disconnects
-      User.updateOne({ accountId: pid }, { currentTableId: null }).catch(() => {})
+      User.updateOne({ accountId: pid }, { currentTableId: null }).catch(() => {});
+    }
+    for (const roomId of socket.rooms) {
+      if (tableSeats.has(roomId)) {
+        unseatTableSocket(pid, roomId, socket.id);
+      }
     }
     for (const [id, set] of tableWatchers) {
       if (set.delete(socket.id)) {
         const count = set.size;
         if (count === 0) tableWatchers.delete(id);
-        io.to(id).emit("watchCount", { roomId: id, count });
+        io.to(id).emit('watchCount', { roomId: id, count });
       }
     }
   });
+
 });
 
 // Start the server
