@@ -242,10 +242,8 @@ export default function Mining() {
             'invite1v1',
             {
               fromId: accountId,
-              fromTelegramId: telegramId,
               fromName: myName,
               toId: inviteTarget.accountId,
-              toTelegramId: inviteTarget.telegramId,
               roomId,
               token: stake.token,
               amount: stake.amount,
@@ -277,10 +275,8 @@ export default function Mining() {
             'inviteGroup',
             {
               fromId: accountId,
-              fromTelegramId: telegramId,
               fromName: myName,
               toIds: selected.map((u) => u.accountId),
-              telegramIds: selected.map((u) => u.telegramId),
               opponentNames: selected.map((u) => u.nickname || `${u.firstName || ''} ${u.lastName || ''}`.trim()),
               roomId,
               token: stake.token,

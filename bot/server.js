@@ -2,7 +2,7 @@ import './loadEnv.js';
 import express from 'express';
 import cors from 'cors';
 import bot from './bot.js';
-import { sendInviteNotification, getInviteUrl } from './utils/notifications.js';
+import { getInviteUrl } from './utils/notifications.js';
 import mongoose from 'mongoose';
 import { proxyUrl, proxyAgent } from './utils/proxyAgent.js';
 import http from 'http';
@@ -68,34 +68,12 @@ const gameManager = new GameRoomManager(io);
 app.set('io', io);
 
 bot.action(/^reject_invite:(.+)/, async (ctx) => {
-  const [roomId, telegramId] = ctx.match[1].split(':');
+  const [roomId] = ctx.match[1].split(':');
   await ctx.answerCbQuery('Invite rejected');
   try {
     await ctx.deleteMessage();
   } catch {}
-  const invite = pendingInvites.get(roomId);
-  if (invite) {
-    invite.telegramIds = (invite.telegramIds || []).filter(
-      (id) => String(id) !== telegramId,
-    );
-    pendingInvites.set(roomId, invite);
-    const { fromTelegramId, telegramIds } = invite;
-    try {
-      await bot.telegram.sendMessage(
-        String(fromTelegramId),
-        `${telegramId} rejected your game invite`,
-      );
-    } catch {}
-    for (const other of telegramIds || []) {
-      if (String(other) === telegramId) continue;
-      try {
-        await bot.telegram.sendMessage(
-          String(other),
-          `${telegramId} rejected the group invite`,
-        );
-      } catch {}
-    }
-  }
+  pendingInvites.delete(roomId);
 });
 
 // Middleware and routes
@@ -530,10 +508,8 @@ app.get('/api/ludo/lobby/:id', async (req, res) => {
 app.post('/api/snake/invite', async (req, res) => {
   let {
     fromAccount,
-    fromTelegramId,
     fromName,
     toAccount,
-    toTelegramId,
     roomId,
     token,
     amount,
@@ -543,31 +519,7 @@ app.post('/api/snake/invite', async (req, res) => {
     return res.status(400).json({ error: 'missing data' });
   }
 
-  if (!toTelegramId) {
-    let user = await User.findOne({ accountId: toAccount });
-    if (user) {
-      toTelegramId = user.telegramId;
-      console.log(
-        `Found Telegram ID ${toTelegramId} using account ID ${toAccount}`,
-      );
-    } else if (/^\d+$/.test(String(toAccount))) {
-      user = await User.findOne({ telegramId: Number(toAccount) });
-      if (user) {
-        toTelegramId = user.telegramId;
-        console.log(
-          `Found Telegram ID ${toTelegramId} using Telegram ID ${toAccount}`,
-        );
-      } else {
-        // Fallback to using the numeric ID directly when no user record exists
-        toTelegramId = Number(toAccount);
-      }
-    }
-  }
-
-  let targets = userSockets.get(String(toAccount));
-  if ((!targets || targets.size === 0) && toTelegramId) {
-    targets = userSockets.get(String(toTelegramId));
-  }
+  const targets = userSockets.get(String(toAccount));
   if (targets && targets.size > 0) {
     for (const sid of targets) {
       io.to(sid).emit('gameInvite', {
@@ -579,45 +531,17 @@ app.post('/api/snake/invite', async (req, res) => {
         game: 'snake',
       });
     }
-  } else {
-    console.warn(
-      `No socket found for account ID ${toAccount} or Telegram ID ${toTelegramId}`,
-    );
   }
 
   pendingInvites.set(roomId, {
     fromId: fromAccount,
-    fromTelegramId,
     toIds: [toAccount],
-    telegramIds: [toTelegramId],
     token,
     amount,
     game: 'snake',
   });
 
-  let url = getInviteUrl(roomId, token, amount, 'snake');
-  if (toTelegramId) {
-    try {
-      url = await sendInviteNotification(
-        bot,
-        toTelegramId,
-        fromTelegramId,
-        fromName,
-        type || '1v1',
-        roomId,
-        token,
-        amount,
-        'snake',
-      );
-    } catch (err) {
-      console.error('Failed to send Telegram notification:', err.message);
-    }
-  } else {
-    console.warn(
-      `Could not find Telegram ID using account ID or Telegram ID ${toAccount}`,
-    );
-  }
-
+  const url = getInviteUrl(roomId, token, amount, 'snake');
   res.json({ success: true, url });
 });
 
@@ -677,7 +601,7 @@ mongoose.connection.once('open', async () => {
 });
 
 io.on('connection', (socket) => {
-  socket.on('register', ({ playerId, telegramId }) => {
+  socket.on('register', ({ playerId }) => {
     if (!playerId) return;
     let set = userSockets.get(String(playerId));
     if (!set) {
@@ -685,7 +609,6 @@ io.on('connection', (socket) => {
       userSockets.set(String(playerId), set);
     }
     set.add(socket.id);
-    socket.data.telegramId = telegramId || null;
     socket.data.playerId = String(playerId);
     // Mark this user as online immediately
     onlineUsers.set(String(playerId), Date.now());
@@ -757,10 +680,8 @@ io.on('connection', (socket) => {
   socket.on('invite1v1', async (payload, cb) => {
     let {
       fromId,
-      fromTelegramId,
       fromName,
       toId,
-      toTelegramId,
       roomId,
       token,
       amount,
@@ -768,63 +689,20 @@ io.on('connection', (socket) => {
     } = payload || {};
     if (!fromId || !toId) return cb && cb({ success: false, error: 'invalid ids' });
 
-    if (!toTelegramId) {
-      let user = await User.findOne({ accountId: toId });
-      if (!user) {
-        user = await User.findOne({ telegramId: Number(toId) });
-      }
-      if (user) {
-        toTelegramId = user.telegramId;
-      } else if (/^\d+$/.test(String(toId))) {
-        // Use the numeric ID directly when the user is unknown
-        toTelegramId = Number(toId);
-      }
-    }
-
-    let targets = userSockets.get(String(toId));
-    if ((!targets || targets.size === 0) && toTelegramId) {
-      targets = userSockets.get(String(toTelegramId));
-    }
+    const targets = userSockets.get(String(toId));
     if (targets && targets.size > 0) {
       for (const sid of targets) {
         io.to(sid).emit('gameInvite', { fromId, fromName, roomId, token, amount, game });
       }
-    } else {
-      console.warn(
-        `No socket found for account ID ${toId} or Telegram ID ${toTelegramId}`,
-      );
     }
     pendingInvites.set(roomId, {
       fromId,
-      fromTelegramId,
       toIds: [toId],
-      telegramIds: [toTelegramId],
       token,
       amount,
       game,
     });
-    let url = getInviteUrl(roomId, token, amount, game);
-    if (toTelegramId) {
-      try {
-        url = await sendInviteNotification(
-          bot,
-          toTelegramId,
-          fromTelegramId,
-          fromName,
-          '1v1',
-          roomId,
-          token,
-          amount,
-          game,
-        );
-      } catch (err) {
-        console.error('Failed to send Telegram notification:', err.message);
-      }
-    } else {
-      console.warn(
-        `Could not find Telegram ID for account ID or Telegram ID ${toId}`,
-      );
-    }
+    const url = getInviteUrl(roomId, token, amount, game);
     cb && cb({ success: true, url });
   });
 
@@ -833,10 +711,8 @@ io.on('connection', (socket) => {
     async (
       {
         fromId,
-        fromTelegramId,
         fromName,
         toIds,
-        telegramIds = [],
         opponentNames = [],
         roomId,
         token,
@@ -849,9 +725,7 @@ io.on('connection', (socket) => {
       }
       pendingInvites.set(roomId, {
         fromId,
-        fromTelegramId,
         toIds: [...toIds],
-        telegramIds: [...telegramIds],
         token,
         amount,
         game: 'snake',
@@ -859,25 +733,7 @@ io.on('connection', (socket) => {
       let url = getInviteUrl(roomId, token, amount, 'snake');
       for (let i = 0; i < toIds.length; i++) {
         const toId = toIds[i];
-        let tgId = telegramIds[i];
-        if (!tgId) {
-          let user = await User.findOne({ accountId: toId });
-          if (!user) {
-            user = await User.findOne({ telegramId: Number(toId) });
-          }
-          if (user) {
-            tgId = user.telegramId;
-            telegramIds[i] = tgId;
-          } else if (/^\d+$/.test(String(toId))) {
-            // Fall back to the numeric ID directly when no record exists
-            tgId = Number(toId);
-            telegramIds[i] = tgId;
-          }
-        }
-        let targets = userSockets.get(String(toId));
-        if ((!targets || targets.size === 0) && tgId) {
-          targets = userSockets.get(String(tgId));
-        }
+        const targets = userSockets.get(String(toId));
         if (targets && targets.size > 0) {
           for (const sid of targets) {
             io.to(sid).emit('gameInvite', {
@@ -892,30 +748,7 @@ io.on('connection', (socket) => {
             });
           }
         } else {
-          console.warn(
-            `No socket found for account ID ${toId} or Telegram ID ${tgId}`,
-          );
-        }
-        if (tgId) {
-          try {
-            url = await sendInviteNotification(
-              bot,
-              tgId,
-              fromTelegramId,
-              fromName,
-              'group',
-              roomId,
-              token,
-              amount,
-              'snake',
-            );
-          } catch (err) {
-            console.error('Failed to send Telegram notification:', err.message);
-          }
-        } else {
-          console.warn(
-            `Could not find Telegram ID for account ID or Telegram ID ${toId}`,
-          );
+          console.warn(`No socket found for account ID ${toId}`);
         }
       }
       cb && cb({ success: true, url });
