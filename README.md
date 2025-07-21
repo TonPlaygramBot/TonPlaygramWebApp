@@ -313,6 +313,10 @@ Run `npm run ban-user -- <accountId>` to mark an account as banned in the databa
 
 Run `npm run claim-test <TON_ADDRESS> <AMOUNT>` to send TPC from the claim wallet manually. The amount is specified in nanoTPC as expected by `tonClaim`.
 
+### Refund pending withdrawals
+
+Run `npm run refund-withdrawals` to return all pending withdrawal amounts to user balances. `MONGODB_URI` must point to your MongoDB instance.
+
 ### Deploying the claim wallet
 
 1. **Compile the contract**. Install the FunC compiler and Fift tools, then run:
