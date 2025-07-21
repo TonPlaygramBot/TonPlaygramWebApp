@@ -272,6 +272,9 @@ the URL – or pick the number in the lobby – to change how many AI players jo
 ### Multiplayer status
 
 Online multiplayer has arrived. Join a table in the lobby to create or enter that room. Wait for other players to join you. Once everyone is ready the match starts and you all move on the same board in real time.
+### Dynamic lobby example
+
+A simplified Socket.IO lobby is provided in `examples/dynamic-lobby`. Players join tables by game type and stake, and the server creates new tables as needed. When a table fills up it emits a `gameStart` event.
 
 ### Entering the Snake & Ladder game
 
