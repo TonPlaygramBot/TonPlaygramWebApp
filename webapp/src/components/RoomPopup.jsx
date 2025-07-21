@@ -37,6 +37,7 @@ export default function RoomPopup({
         <RoomSelector
           selected={selection || { token: '', amount: 0 }}
           onSelect={setSelection}
+          tokens={['TPC']}
         />
         <button
           onClick={onConfirm}
