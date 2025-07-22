@@ -250,7 +250,10 @@ async function seatTableSocket(
   socket,
   playerAvatar
 ) {
-  if (!accountId) return;
+  if (!accountId) return null;
+  console.log(
+    `Seating player ${playerName || accountId} at ${gameType}-${maxPlayers} (stake ${stake})`
+  );
   const table = getAvailableTable(gameType, stake, maxPlayers);
   const tableId = table.id;
   cleanupSeats();
@@ -304,6 +307,7 @@ async function seatTableSocket(
     currentTurn: table.currentTurn,
     ready: Array.from(table.ready)
   });
+  return table;
 }
 
 function maybeStartGame(table) {
@@ -667,18 +671,22 @@ io.on('connection', (socket) => {
 
   socket.on(
     'seatTable',
-    ({
-      accountId,
-      gameType,
-      stake,
-      maxPlayers = 4,
-      playerName,
-      tableId,
-      avatar
-    }) => {
+    async (
+      {
+        accountId,
+        gameType,
+        stake,
+        maxPlayers = 4,
+        playerName,
+        tableId,
+        avatar
+      },
+      cb
+    ) => {
+      let table;
       if (tableId) {
         const [gt, capStr] = tableId.split('-');
-        seatTableSocket(
+        table = await seatTableSocket(
           accountId,
           gt,
           stake,
@@ -688,7 +696,7 @@ io.on('connection', (socket) => {
           avatar
         );
       } else {
-        seatTableSocket(
+        table = await seatTableSocket(
           accountId,
           gameType,
           stake,
@@ -697,6 +705,17 @@ io.on('connection', (socket) => {
           socket,
           avatar
         );
+      }
+      if (table && cb) {
+        cb({
+          success: true,
+          tableId: table.id,
+          players: table.players,
+          currentTurn: table.currentTurn,
+          ready: Array.from(table.ready)
+        });
+      } else if (cb) {
+        cb({ success: false, error: 'table_join_failed' });
       }
     }
   );
@@ -709,7 +728,10 @@ io.on('connection', (socket) => {
 
   socket.on('confirmReady', ({ accountId, tableId }) => {
     const table = tableMap.get(tableId);
-    if (!table) return;
+    if (!table) {
+      socket.emit('errorMessage', 'table_not_found');
+      return;
+    }
     if (!table.ready) table.ready = new Set();
     table.ready.add(String(accountId));
     io.to(tableId).emit('lobbyUpdate', {

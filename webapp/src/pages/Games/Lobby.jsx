@@ -50,12 +50,14 @@ export default function Lobby() {
   const [playerAvatar, setPlayerAvatar] = useState('');
   const [readyList, setReadyList] = useState([]);
   const [confirmed, setConfirmed] = useState(false);
+  const [joinedTableId, setJoinedTableId] = useState(null);
   const startedRef = useRef(false);
 
   useEffect(() => {
     startedRef.current = false;
     setConfirmed(false);
     setReadyList([]);
+    setJoinedTableId(null);
   }, [game, table]);
 
   const selectAiType = (t) => {
@@ -139,21 +141,25 @@ export default function Lobby() {
 
   useEffect(() => {
     const onUpdate = ({ tableId, players: list, currentTurn, ready }) => {
-      if (table && tableId === table.id) {
+      console.log('lobbyUpdate', tableId, list);
+      const idToMatch = joinedTableId || table?.id;
+      if (idToMatch && tableId === idToMatch) {
         setPlayers(list);
         if (currentTurn != null) setCurrentTurn(currentTurn);
         if (Array.isArray(ready)) setReadyList(ready);
       }
     };
     const onStart = ({ tableId }) => {
+      console.log('gameStart', tableId);
+      const idToMatch = joinedTableId || table?.id;
       if (
-        table &&
-        tableId === table.id &&
+        idToMatch &&
+        tableId === idToMatch &&
         confirmed &&
         !startedRef.current
       ) {
         const params = new URLSearchParams();
-        params.set('table', table.id);
+        params.set('table', idToMatch);
         if (stake.token) params.set('token', stake.token);
         if (stake.amount) params.set('amount', stake.amount);
         startedRef.current = true;
@@ -166,7 +172,7 @@ export default function Lobby() {
       socket.off('lobbyUpdate', onUpdate);
       socket.off('gameStart', onStart);
     };
-  }, [table, stake, game, navigate]);
+  }, [table, stake, game, navigate, joinedTableId]);
 
   // Automatic game start previously triggered when all seats were filled.
   // This prevented players from selecting their preferred stake before the
@@ -212,14 +218,28 @@ export default function Lobby() {
     if (game === 'snake' && table && table.id !== 'single') {
       const accountId = await ensureAccountId().catch(() => null);
       if (accountId) {
-        socket.emit('seatTable', {
-          accountId,
-          tableId: table.id,
-          playerName,
-          avatar: playerAvatar
-        });
-        socket.emit('confirmReady', { accountId, tableId: table.id });
-        setConfirmed(true);
+        socket.emit(
+          'seatTable',
+          {
+            accountId,
+            tableId: table.id,
+            playerName,
+            avatar: playerAvatar
+          },
+          (resp) => {
+            if (!resp?.success) {
+              alert('Failed to join table');
+              return;
+            }
+            console.log('joined table', resp.tableId);
+            setJoinedTableId(resp.tableId);
+            socket.emit('confirmReady', {
+              accountId,
+              tableId: resp.tableId
+            });
+            setConfirmed(true);
+          }
+        );
       }
     } else {
       startedRef.current = true;
