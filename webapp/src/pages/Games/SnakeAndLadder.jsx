@@ -1475,6 +1475,11 @@ export default function SnakeAndLadder() {
     socket.on('snakeOrLadder', onSnakeOrLadder);
     socket.on('playerReset', onReset);
     socket.on('turnChanged', onTurn);
+    socket.on('turnUpdate', ({ currentTurn }) => onTurn({ playerId: currentTurn }));
+    socket.on('lobbyUpdate', ({ players: list }) => {
+      setMpPlayers(list.map(p => ({ id: p.id, name: p.name, photoUrl: p.avatar || '/assets/icons/profile.svg', position: p.position || 0 }))); 
+    });
+    socket.on('gameStart', onStarted);
     socket.on('gameStarted', onStarted);
     socket.on('diceRolled', onRolled);
     socket.on('gameWon', onWon);
@@ -1514,6 +1519,9 @@ export default function SnakeAndLadder() {
       socket.off('snakeOrLadder', onSnakeOrLadder);
       socket.off('playerReset', onReset);
       socket.off('turnChanged', onTurn);
+      socket.off('turnUpdate');
+      socket.off('lobbyUpdate');
+      socket.off('gameStart', onStarted);
       socket.off('gameStarted', onStarted);
       socket.off('diceRolled', onRolled);
       socket.off('gameWon', onWon);
