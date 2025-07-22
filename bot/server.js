@@ -467,8 +467,8 @@ app.get('/api/snake/lobby/:id', async (req, res) => {
   const room = await gameManager.getRoom(id, cap);
   const roomPlayers = room.players
     .filter((p) => !p.disconnected)
-    .map((p) => ({ id: p.playerId, name: p.name }));
-  const lobbyPlayers = Array.from(tableSeats.get(id)?.values() || []).map((p) => ({ id: p.id, name: p.name }));
+    .map((p) => ({ id: p.playerId, name: p.name, avatar: p.avatar }));
+  const lobbyPlayers = Array.from(tableSeats.get(id)?.values() || []).map((p) => ({ id: p.id, name: p.name, avatar: p.avatar }));
   res.json({ id, capacity: cap, players: [...lobbyPlayers, ...roomPlayers] });
 });
 
