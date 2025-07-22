@@ -2453,10 +2453,20 @@ export default function SnakeAndLadder() {
         );
       })()}
       {waitingForPlayers && (
-        <div className="absolute inset-0 z-40 flex items-center justify-center bg-black/70">
-          <p className="text-white text-lg">
+        <div className="absolute inset-0 z-40 flex flex-col items-center justify-center bg-black/70 text-white">
+          <p className="text-lg mb-2">
             Waiting for {playersNeeded} more player{playersNeeded === 1 ? '' : 's'}...
           </p>
+          <ul className="space-y-1 text-sm">
+            {mpPlayers.map((p) => (
+              <li key={p.id} className="flex items-center space-x-2">
+                {p.photoUrl && (
+                  <img src={p.photoUrl} alt="avatar" className="w-6 h-6 rounded-full" />
+                )}
+                <span>{p.name}</span>
+              </li>
+            ))}
+          </ul>
         </div>
       )}
       {rollResult !== null && (
