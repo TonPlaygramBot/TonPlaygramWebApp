@@ -8,6 +8,8 @@ import FlagPickerModal from '../../components/FlagPickerModal.jsx';
 import { LEADER_AVATARS } from '../../utils/leaderAvatars.js';
 import useTelegramBackButton from '../../hooks/useTelegramBackButton.js';
 import { socket } from '../../utils/socket.js';
+import { loadAvatar, getAvatarUrl } from '../../utils/avatarUtils.js';
+import { getTelegramPhotoUrl } from '../../utils/telegram.js';
 import {
   getSnakeLobbies,
   pingOnline,
@@ -42,6 +44,7 @@ export default function Lobby() {
   const [flags, setFlags] = useState([]);
   const [online, setOnline] = useState(0);
   const [playerName, setPlayerName] = useState('');
+  const [playerAvatar, setPlayerAvatar] = useState('');
   const startedRef = useRef(false);
 
   useEffect(() => {
@@ -60,6 +63,8 @@ export default function Lobby() {
     try {
       const aid = getPlayerId();
       setPlayerName(String(aid));
+      const saved = loadAvatar();
+      setPlayerAvatar(saved || getTelegramPhotoUrl());
     } catch {}
   }, []);
 
@@ -112,7 +117,7 @@ export default function Lobby() {
         .then((accountId) => {
           if (cancelled) return;
           pid = accountId;
-          socket.emit('seatTable', { accountId: pid, tableId: table.id, playerName });
+          socket.emit('seatTable', { accountId: pid, tableId: table.id, playerName, avatar: playerAvatar });
         })
         .catch(() => {});
       return () => {
@@ -120,7 +125,7 @@ export default function Lobby() {
         if (pid && !startedRef.current) unseatTable(pid, table.id).catch(() => {});
       };
     }
-  }, [game, table, playerName]);
+  }, [game, table, playerName, playerAvatar]);
 
   useEffect(() => {
     if (game === 'snake' && table && table.id !== 'single') {
@@ -236,7 +241,12 @@ export default function Lobby() {
           </h3>
           <ul className="text-sm list-disc list-inside">
             {players.map((p) => (
-              <li key={p.id}>{p.name}</li>
+              <li key={p.id} className="flex items-center space-x-2">
+                {p.avatar && (
+                  <img src={getAvatarUrl(p.avatar)} alt="avatar" className="w-4 h-4 rounded-full" />
+                )}
+                <span>{p.name}</span>
+              </li>
             ))}
           </ul>
         </div>

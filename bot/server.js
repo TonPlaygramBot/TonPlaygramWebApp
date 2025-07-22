@@ -196,6 +196,7 @@ app.get('/api/ping', (req, res) => {
 
 const onlineUsers = new Map();
 const tableSeats = new Map();
+const tables = new Map();
 const userSockets = new Map();
 const pendingInvites = new Map();
 
@@ -216,7 +217,7 @@ function getAvailableTable(gameType, stake = 0, maxPlayers = 4) {
     (t) => t.stake === stake && t.players.length < t.maxPlayers
   );
   if (open) return open;
-  const table = { id: randomUUID(), gameType, stake, maxPlayers, players: [] };
+  const table = { id: randomUUID(), gameType, stake, maxPlayers, players: [], currentTurn: null };
   lobbyTables[key].push(table);
   tableMap.set(table.id, table);
   console.log(`Created new table: ${table.id} (${gameType}, cap ${maxPlayers}, stake: ${stake})`);
@@ -234,7 +235,7 @@ function cleanupSeats() {
 }
 
 
-async function seatTableSocket(accountId, gameType, stake, maxPlayers, playerName, socket) {
+async function seatTableSocket(accountId, gameType, stake, maxPlayers, playerName, socket, playerAvatar) {
   if (!accountId) return;
   const table = getAvailableTable(gameType, stake, maxPlayers);
   const tableId = table.id;
@@ -254,31 +255,36 @@ async function seatTableSocket(accountId, gameType, stake, maxPlayers, playerNam
     map.set(String(accountId), {
       id: accountId,
       name: playerName || String(accountId),
+      avatar: playerAvatar || '',
       ts: Date.now(),
       socketId: socket?.id,
     });
-    table.players.push({ id: accountId, name: playerName || String(accountId), socketId: socket?.id });
+    table.players.push({ id: accountId, name: playerName || String(accountId), avatar: playerAvatar || '', position: 0, socketId: socket?.id });
+    if (table.players.length === 1) {
+      table.currentTurn = accountId;
+    }
   } else {
     const info = map.get(String(accountId));
     info.name = playerName || info.name;
+    info.avatar = playerAvatar || info.avatar;
     info.ts = Date.now();
     info.socketId = socket?.id;
     const p = table.players.find((pl) => pl.id === accountId);
-    if (p) p.socketId = socket?.id;
+    if (p) {
+      p.socketId = socket?.id;
+      p.avatar = playerAvatar || p.avatar;
+    }
   }
   console.log(`Player ${playerName || accountId} joined table ${tableId}`);
   socket?.join(tableId);
-  io.to(tableId).emit('lobbyUpdate', { tableId, players: table.players });
+  io.to(tableId).emit('lobbyUpdate', { tableId, players: table.players, currentTurn: table.currentTurn });
   if (table.players.length === table.maxPlayers) {
     console.log(`Table ${tableId} is full. Starting game.`);
-    io.to(tableId).emit('gameStart', { tableId, players: table.players, stake: table.stake });
+    io.to(tableId).emit('gameStart', { tableId, players: table.players, currentTurn: table.currentTurn, stake: table.stake });
     tableSeats.delete(tableId);
     const key = `${gameType}-${maxPlayers}`;
     lobbyTables[key] = (lobbyTables[key] || []).filter((t) => t.id !== tableId);
-    for (const p of table.players) {
-      const sock = io.sockets.sockets.get(p.socketId);
-      if (sock) await gameManager.joinRoom(tableId, p.id, p.name, sock);
-    }
+    // Game logic handled via simple turn system
   }
 }
 
@@ -302,8 +308,15 @@ function unseatTableSocket(accountId, tableId, socketId) {
       tableMap.delete(tableId);
       const key = `${table.gameType}-${table.maxPlayers}`;
       lobbyTables[key] = (lobbyTables[key] || []).filter((t) => t.id !== tableId);
+      table.currentTurn = null;
+    } else if (table.currentTurn === accountId) {
+      const nextIndex = 0;
+      table.currentTurn = table.players[nextIndex].id;
     }
-    io.to(tableId).emit('lobbyUpdate', { tableId, players: table.players });
+    io.to(tableId).emit('lobbyUpdate', { tableId, players: table.players, currentTurn: table.currentTurn });
+    if (accountId && table.currentTurn && table.currentTurn !== accountId) {
+      io.to(tableId).emit('turnUpdate', { currentTurn: table.currentTurn });
+    }
   }
   if (accountId) {
     User.updateOne({ accountId }, { currentTableId: null }).catch(() => {});
@@ -417,11 +430,11 @@ app.get('/api/stats', async (req, res) => {
 });
 
 app.post('/api/snake/table/seat', (req, res) => {
-  const { tableId, playerId, name } = req.body || {};
+  const { tableId, playerId, name, avatar } = req.body || {};
   const pid = playerId;
   if (!tableId || !pid) return res.status(400).json({ error: 'missing data' });
   const [gameType, capStr] = tableId.split('-');
-  seatTableSocket(pid, gameType, 0, Number(capStr) || 4, name);
+  seatTableSocket(pid, gameType, 0, Number(capStr) || 4, name, null, avatar);
   res.json({ success: true });
 });
 
@@ -605,12 +618,12 @@ io.on('connection', (socket) => {
     onlineUsers.set(String(playerId), Date.now());
   });
 
-  socket.on('seatTable', ({ accountId, gameType, stake, maxPlayers = 4, playerName, tableId }) => {
+  socket.on('seatTable', ({ accountId, gameType, stake, maxPlayers = 4, playerName, tableId, avatar }) => {
     if (tableId) {
       const [gt, capStr] = tableId.split('-');
-      seatTableSocket(accountId, gt, stake, Number(capStr) || 4, playerName, socket);
+      seatTableSocket(accountId, gt, stake, Number(capStr) || 4, playerName, socket, avatar);
     } else {
-      seatTableSocket(accountId, gameType, stake, maxPlayers, playerName, socket);
+      seatTableSocket(accountId, gameType, stake, maxPlayers, playerName, socket, avatar);
     }
   });
 
@@ -657,7 +670,25 @@ io.on('connection', (socket) => {
     }
   });
 
-  socket.on('rollDice', async () => {
+  socket.on('rollDice', async (payload = {}) => {
+    const { accountId, tableId } = payload;
+    if (accountId && tableId && tableMap.has(tableId)) {
+      const table = tableMap.get(tableId);
+      if (table.currentTurn !== accountId) {
+        return socket.emit('errorMessage', 'Not your turn');
+      }
+      const player = table.players.find(p => p.id === accountId);
+      if (!player) return;
+      const dice = Math.floor(Math.random() * 6) + 1;
+      player.position += dice;
+      io.to(tableId).emit('diceRolled', { accountId, dice, newPosition: player.position });
+      const idx = table.players.findIndex(p => p.id === accountId);
+      const nextIndex = (idx + 1) % table.players.length;
+      table.currentTurn = table.players[nextIndex].id;
+      io.to(tableId).emit('turnUpdate', { currentTurn: table.currentTurn });
+      return;
+    }
+
     const room = gameManager.findRoomBySocket(socket.id);
     if (!room) return;
     const current = room.players[room.currentTurn];
