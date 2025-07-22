@@ -157,6 +157,7 @@ export default function CrazyDiceLobby() {
         selected={leaders}
         onSave={setLeaders}
         onClose={() => setShowLeaderPicker(false)}
+        onComplete={(sel) => startGame(flags, sel)}
       />
       <FlagPickerModal
         open={showFlagPicker}
@@ -164,6 +165,7 @@ export default function CrazyDiceLobby() {
         selected={flags}
         onSave={setFlags}
         onClose={() => setShowFlagPicker(false)}
+        onComplete={(sel) => startGame(sel, leaders)}
       />
     </div>
   );
