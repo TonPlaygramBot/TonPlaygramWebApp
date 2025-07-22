@@ -146,7 +146,12 @@ export default function Lobby() {
       }
     };
     const onStart = ({ tableId }) => {
-      if (table && tableId === table.id) {
+      if (
+        table &&
+        tableId === table.id &&
+        confirmed &&
+        !startedRef.current
+      ) {
         const params = new URLSearchParams();
         params.set('table', table.id);
         if (stake.token) params.set('token', stake.token);
