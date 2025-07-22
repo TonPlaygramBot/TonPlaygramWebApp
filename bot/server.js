@@ -24,7 +24,7 @@ import storeRoutes, { BUNDLES } from './routes/store.js';
 import adsRoutes from './routes/ads.js';
 import influencerRoutes from './routes/influencer.js';
 import User from './models/User.js';
-import GameResult from "./models/GameResult.js";
+import GameResult from './models/GameResult.js';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { existsSync } from 'fs';
@@ -44,7 +44,6 @@ if (!process.env.MONGODB_URI) {
   console.log('MONGODB_URI not set, defaulting to in-memory MongoDB');
 }
 
-
 const PORT = process.env.PORT || 3000;
 const allowedOrigins = (process.env.ALLOWED_ORIGINS || '')
 
@@ -54,14 +53,15 @@ const allowedOrigins = (process.env.ALLOWED_ORIGINS || '')
 
   .filter(Boolean);
 
-const rateLimitWindowMs = Number(process.env.RATE_LIMIT_WINDOW_MS) || 15 * 60 * 1000;
+const rateLimitWindowMs =
+  Number(process.env.RATE_LIMIT_WINDOW_MS) || 15 * 60 * 1000;
 
 const rateLimitMax = Number(process.env.RATE_LIMIT_MAX) || 100;
 const app = express();
 app.use(cors({ origin: allowedOrigins.length ? allowedOrigins : '*' }));
 const httpServer = http.createServer(app);
 const io = new SocketIOServer(httpServer, {
-  cors: { origin: allowedOrigins.length ? allowedOrigins : '*' },
+  cors: { origin: allowedOrigins.length ? allowedOrigins : '*' }
 });
 const gameManager = new GameRoomManager(io);
 
@@ -85,7 +85,7 @@ const apiLimiter = rateLimit({
   windowMs: rateLimitWindowMs,
   limit: rateLimitMax,
   standardHeaders: true,
-  legacyHeaders: false,
+  legacyHeaders: false
 });
 app.use('/api', apiLimiter);
 app.use('/api/mining', miningRoutes);
@@ -149,10 +149,7 @@ function ensureWebappBuilt() {
 
 ensureWebappBuilt();
 
-
-app.use(
-  express.static(webappPath, { maxAge: '1y', immutable: true })
-);
+app.use(express.static(webappPath, { maxAge: '1y', immutable: true }));
 
 function sendIndex(res) {
   if (ensureWebappBuilt()) {
@@ -217,10 +214,20 @@ function getAvailableTable(gameType, stake = 0, maxPlayers = 4) {
     (t) => t.stake === stake && t.players.length < t.maxPlayers
   );
   if (open) return open;
-  const table = { id: randomUUID(), gameType, stake, maxPlayers, players: [], currentTurn: null };
+  const table = {
+    id: randomUUID(),
+    gameType,
+    stake,
+    maxPlayers,
+    players: [],
+    currentTurn: null,
+    ready: new Set()
+  };
   lobbyTables[key].push(table);
   tableMap.set(table.id, table);
-  console.log(`Created new table: ${table.id} (${gameType}, cap ${maxPlayers}, stake: ${stake})`);
+  console.log(
+    `Created new table: ${table.id} (${gameType}, cap ${maxPlayers}, stake: ${stake})`
+  );
   return table;
 }
 
@@ -234,8 +241,15 @@ function cleanupSeats() {
   }
 }
 
-
-async function seatTableSocket(accountId, gameType, stake, maxPlayers, playerName, socket, playerAvatar) {
+async function seatTableSocket(
+  accountId,
+  gameType,
+  stake,
+  maxPlayers,
+  playerName,
+  socket,
+  playerAvatar
+) {
   if (!accountId) return;
   const table = getAvailableTable(gameType, stake, maxPlayers);
   const tableId = table.id;
@@ -257,9 +271,15 @@ async function seatTableSocket(accountId, gameType, stake, maxPlayers, playerNam
       name: playerName || String(accountId),
       avatar: playerAvatar || '',
       ts: Date.now(),
-      socketId: socket?.id,
+      socketId: socket?.id
     });
-    table.players.push({ id: accountId, name: playerName || String(accountId), avatar: playerAvatar || '', position: 0, socketId: socket?.id });
+    table.players.push({
+      id: accountId,
+      name: playerName || String(accountId),
+      avatar: playerAvatar || '',
+      position: 0,
+      socketId: socket?.id
+    });
     if (table.players.length === 1) {
       table.currentTurn = accountId;
     }
@@ -277,14 +297,33 @@ async function seatTableSocket(accountId, gameType, stake, maxPlayers, playerNam
   }
   console.log(`Player ${playerName || accountId} joined table ${tableId}`);
   socket?.join(tableId);
-  io.to(tableId).emit('lobbyUpdate', { tableId, players: table.players, currentTurn: table.currentTurn });
-  if (table.players.length === table.maxPlayers) {
-    console.log(`Table ${tableId} is full. Starting game.`);
-    io.to(tableId).emit('gameStart', { tableId, players: table.players, currentTurn: table.currentTurn, stake: table.stake });
-    tableSeats.delete(tableId);
-    const key = `${gameType}-${maxPlayers}`;
-    lobbyTables[key] = (lobbyTables[key] || []).filter((t) => t.id !== tableId);
-    // Game logic handled via simple turn system
+  table.ready.delete(String(accountId));
+  io.to(tableId).emit('lobbyUpdate', {
+    tableId,
+    players: table.players,
+    currentTurn: table.currentTurn,
+    ready: Array.from(table.ready)
+  });
+}
+
+function maybeStartGame(table) {
+  if (
+    table.players.length === table.maxPlayers &&
+    table.ready &&
+    table.ready.size === table.maxPlayers
+  ) {
+    console.log(`Table ${table.id} confirmed by all players. Starting game.`);
+    io.to(table.id).emit('gameStart', {
+      tableId: table.id,
+      players: table.players,
+      currentTurn: table.currentTurn,
+      stake: table.stake
+    });
+    tableSeats.delete(table.id);
+    const key = `${table.gameType}-${table.maxPlayers}`;
+    lobbyTables[key] = (lobbyTables[key] || []).filter(
+      (t) => t.id !== table.id
+    );
   }
 }
 
@@ -302,18 +341,35 @@ function unseatTableSocket(accountId, tableId, socketId) {
   }
   const table = tableMap.get(tableId);
   if (table) {
-    if (accountId) table.players = table.players.filter((p) => p.id !== accountId);
-    else if (socketId) table.players = table.players.filter((p) => p.socketId !== socketId);
+    if (accountId)
+      table.players = table.players.filter((p) => p.id !== accountId);
+    else if (socketId)
+      table.players = table.players.filter((p) => p.socketId !== socketId);
+    if (table.ready) {
+      if (accountId) table.ready.delete(String(accountId));
+      if (socketId) {
+        for (const [pid, info] of map || []) {
+          if (info.socketId === socketId) table.ready.delete(pid);
+        }
+      }
+    }
     if (table.players.length === 0) {
       tableMap.delete(tableId);
       const key = `${table.gameType}-${table.maxPlayers}`;
-      lobbyTables[key] = (lobbyTables[key] || []).filter((t) => t.id !== tableId);
+      lobbyTables[key] = (lobbyTables[key] || []).filter(
+        (t) => t.id !== tableId
+      );
       table.currentTurn = null;
     } else if (table.currentTurn === accountId) {
       const nextIndex = 0;
       table.currentTurn = table.players[nextIndex].id;
     }
-    io.to(tableId).emit('lobbyUpdate', { tableId, players: table.players, currentTurn: table.currentTurn });
+    io.to(tableId).emit('lobbyUpdate', {
+      tableId,
+      players: table.players,
+      currentTurn: table.currentTurn,
+      ready: Array.from(table.ready || [])
+    });
     if (accountId && table.currentTurn && table.currentTurn !== accountId) {
       io.to(tableId).emit('turnUpdate', { currentTurn: table.currentTurn });
     }
@@ -353,35 +409,32 @@ app.get('/api/online/list', (req, res) => {
 
 app.get('/api/stats', async (req, res) => {
   try {
-    const [{
-      totalBalance = 0,
-      totalMined = 0,
-      nftCount = 0,
-    } = {}] = await User.aggregate([
-      {
-        $project: {
-          balance: 1,
-          minedTPC: 1,
-          nftCount: {
-            $size: {
-              $filter: {
-                input: { $ifNull: ['$gifts', []] },
-                as: 'g',
-                cond: { $ifNull: ['$$g.nftTokenId', false] },
-              },
-            },
-          },
+    const [{ totalBalance = 0, totalMined = 0, nftCount = 0 } = {}] =
+      await User.aggregate([
+        {
+          $project: {
+            balance: 1,
+            minedTPC: 1,
+            nftCount: {
+              $size: {
+                $filter: {
+                  input: { $ifNull: ['$gifts', []] },
+                  as: 'g',
+                  cond: { $ifNull: ['$$g.nftTokenId', false] }
+                }
+              }
+            }
+          }
         },
-      },
-      {
-        $group: {
-          _id: null,
-          totalBalance: { $sum: '$balance' },
-          totalMined: { $sum: '$minedTPC' },
-          nftCount: { $sum: '$nftCount' },
-        },
-      },
-    ]);
+        {
+          $group: {
+            _id: null,
+            totalBalance: { $sum: '$balance' },
+            totalMined: { $sum: '$minedTPC' },
+            nftCount: { $sum: '$nftCount' }
+          }
+        }
+      ]);
     const accounts = await User.countDocuments();
     const active = onlineUsers.size;
     const users = await User.find({}, { transactions: 1, gifts: 1 }).lean();
@@ -421,7 +474,7 @@ app.get('/api/stats', async (req, res) => {
       tonRaised,
       appClaimed: totalBalance,
       externalClaimed,
-      nftValue,
+      nftValue
     });
   } catch (err) {
     console.error('Failed to compute stats:', err.message);
@@ -468,7 +521,9 @@ app.get('/api/snake/lobby/:id', async (req, res) => {
   const roomPlayers = room.players
     .filter((p) => !p.disconnected)
     .map((p) => ({ id: p.playerId, name: p.name, avatar: p.avatar }));
-  const lobbyPlayers = Array.from(tableSeats.get(id)?.values() || []).map((p) => ({ id: p.id, name: p.name, avatar: p.avatar }));
+  const lobbyPlayers = Array.from(tableSeats.get(id)?.values() || []).map(
+    (p) => ({ id: p.id, name: p.name, avatar: p.avatar })
+  );
   res.json({ id, capacity: cap, players: [...lobbyPlayers, ...roomPlayers] });
 });
 
@@ -479,11 +534,10 @@ app.get('/api/snake/board/:id', async (req, res) => {
   const room = await gameManager.getRoom(id, cap);
   res.json({ snakes: room.snakes, ladders: room.ladders });
 });
-app.get("/api/watchers/count/:id", (req, res) => {
+app.get('/api/watchers/count/:id', (req, res) => {
   const set = tableWatchers.get(req.params.id);
   res.json({ count: set ? set.size : 0 });
 });
-
 
 app.get('/api/ludo/lobbies', async (req, res) => {
   const capacities = [2, 3, 4];
@@ -510,15 +564,8 @@ app.get('/api/ludo/lobby/:id', async (req, res) => {
 });
 
 app.post('/api/snake/invite', async (req, res) => {
-  let {
-    fromAccount,
-    fromName,
-    toAccount,
-    roomId,
-    token,
-    amount,
-    type,
-  } = req.body || {};
+  let { fromAccount, fromName, toAccount, roomId, token, amount, type } =
+    req.body || {};
   if (!fromAccount || !toAccount || !roomId) {
     return res.status(400).json({ error: 'missing data' });
   }
@@ -532,7 +579,7 @@ app.post('/api/snake/invite', async (req, res) => {
         roomId,
         token,
         amount,
-        game: 'snake',
+        game: 'snake'
       });
     }
   }
@@ -542,7 +589,7 @@ app.post('/api/snake/invite', async (req, res) => {
     toIds: [toAccount],
     token,
     amount,
-    game: 'snake',
+    game: 'snake'
   });
 
   const url = getInviteUrl(roomId, token, amount, 'snake');
@@ -554,7 +601,7 @@ app.get('/api/snake/results', async (req, res) => {
     const leaderboard = await GameResult.aggregate([
       { $group: { _id: '$winner', wins: { $sum: 1 } } },
       { $sort: { wins: -1 } },
-      { $limit: 20 },
+      { $limit: 20 }
     ]);
     return res.json({ leaderboard });
   }
@@ -599,9 +646,9 @@ mongoose.connection.once('open', async () => {
   } catch (err) {
     console.error('Failed to sync User indexes:', err);
   }
-  gameManager.loadRooms().catch((err) =>
-    console.error('Failed to load game rooms:', err)
-  );
+  gameManager
+    .loadRooms()
+    .catch((err) => console.error('Failed to load game rooms:', err));
 });
 
 io.on('connection', (socket) => {
@@ -618,19 +665,60 @@ io.on('connection', (socket) => {
     onlineUsers.set(String(playerId), Date.now());
   });
 
-  socket.on('seatTable', ({ accountId, gameType, stake, maxPlayers = 4, playerName, tableId, avatar }) => {
-    if (tableId) {
-      const [gt, capStr] = tableId.split('-');
-      seatTableSocket(accountId, gt, stake, Number(capStr) || 4, playerName, socket, avatar);
-    } else {
-      seatTableSocket(accountId, gameType, stake, maxPlayers, playerName, socket, avatar);
+  socket.on(
+    'seatTable',
+    ({
+      accountId,
+      gameType,
+      stake,
+      maxPlayers = 4,
+      playerName,
+      tableId,
+      avatar
+    }) => {
+      if (tableId) {
+        const [gt, capStr] = tableId.split('-');
+        seatTableSocket(
+          accountId,
+          gt,
+          stake,
+          Number(capStr) || 4,
+          playerName,
+          socket,
+          avatar
+        );
+      } else {
+        seatTableSocket(
+          accountId,
+          gameType,
+          stake,
+          maxPlayers,
+          playerName,
+          socket,
+          avatar
+        );
+      }
     }
-  });
+  );
 
   socket.on('leaveLobby', ({ accountId, tableId }) => {
     if (tableId) {
       unseatTableSocket(accountId, tableId, socket.id);
     }
+  });
+
+  socket.on('confirmReady', ({ accountId, tableId }) => {
+    const table = tableMap.get(tableId);
+    if (!table) return;
+    if (!table.ready) table.ready = new Set();
+    table.ready.add(String(accountId));
+    io.to(tableId).emit('lobbyUpdate', {
+      tableId,
+      players: table.players,
+      currentTurn: table.currentTurn,
+      ready: Array.from(table.ready)
+    });
+    maybeStartGame(table);
   });
 
   socket.on('joinRoom', async ({ roomId, playerId, name }) => {
@@ -649,16 +737,19 @@ io.on('connection', (socket) => {
     const result = await gameManager.joinRoom(roomId, playerId, name, socket);
     if (result.error) socket.emit('error', result.error);
   });
-  socket.on("watchRoom", ({ roomId }) => {
+  socket.on('watchRoom', ({ roomId }) => {
     if (!roomId) return;
     let set = tableWatchers.get(roomId);
-    if (!set) { set = new Set(); tableWatchers.set(roomId, set); }
+    if (!set) {
+      set = new Set();
+      tableWatchers.set(roomId, set);
+    }
     set.add(socket.id);
     socket.join(roomId);
-    io.to(roomId).emit("watchCount", { roomId, count: set.size });
+    io.to(roomId).emit('watchCount', { roomId, count: set.size });
   });
 
-  socket.on("leaveWatch", ({ roomId }) => {
+  socket.on('leaveWatch', ({ roomId }) => {
     if (!roomId) return;
     const set = tableWatchers.get(roomId);
     socket.leave(roomId);
@@ -666,7 +757,7 @@ io.on('connection', (socket) => {
       set.delete(socket.id);
       const count = set.size;
       if (count === 0) tableWatchers.delete(roomId);
-      io.to(roomId).emit("watchCount", { roomId, count });
+      io.to(roomId).emit('watchCount', { roomId, count });
     }
   });
 
@@ -677,12 +768,16 @@ io.on('connection', (socket) => {
       if (table.currentTurn !== accountId) {
         return socket.emit('errorMessage', 'Not your turn');
       }
-      const player = table.players.find(p => p.id === accountId);
+      const player = table.players.find((p) => p.id === accountId);
       if (!player) return;
       const dice = Math.floor(Math.random() * 6) + 1;
       player.position += dice;
-      io.to(tableId).emit('diceRolled', { accountId, dice, newPosition: player.position });
-      const idx = table.players.findIndex(p => p.id === accountId);
+      io.to(tableId).emit('diceRolled', {
+        accountId,
+        dice,
+        newPosition: player.position
+      });
+      const idx = table.players.findIndex((p) => p.id === accountId);
       const nextIndex = (idx + 1) % table.players.length;
       table.currentTurn = table.players[nextIndex].id;
       io.to(tableId).emit('turnUpdate', { currentTurn: table.currentTurn });
@@ -699,21 +794,21 @@ io.on('connection', (socket) => {
   });
 
   socket.on('invite1v1', async (payload, cb) => {
-    let {
-      fromId,
-      fromName,
-      toId,
-      roomId,
-      token,
-      amount,
-      game,
-    } = payload || {};
-    if (!fromId || !toId) return cb && cb({ success: false, error: 'invalid ids' });
+    let { fromId, fromName, toId, roomId, token, amount, game } = payload || {};
+    if (!fromId || !toId)
+      return cb && cb({ success: false, error: 'invalid ids' });
 
     const targets = userSockets.get(String(toId));
     if (targets && targets.size > 0) {
       for (const sid of targets) {
-        io.to(sid).emit('gameInvite', { fromId, fromName, roomId, token, amount, game });
+        io.to(sid).emit('gameInvite', {
+          fromId,
+          fromName,
+          roomId,
+          token,
+          amount,
+          game
+        });
       }
     }
     pendingInvites.set(roomId, {
@@ -721,7 +816,7 @@ io.on('connection', (socket) => {
       toIds: [toId],
       token,
       amount,
-      game,
+      game
     });
     const url = getInviteUrl(roomId, token, amount, game);
     cb && cb({ success: true, url });
@@ -730,16 +825,8 @@ io.on('connection', (socket) => {
   socket.on(
     'inviteGroup',
     async (
-      {
-        fromId,
-        fromName,
-        toIds,
-        opponentNames = [],
-        roomId,
-        token,
-        amount,
-      },
-      cb,
+      { fromId, fromName, toIds, opponentNames = [], roomId, token, amount },
+      cb
     ) => {
       if (!fromId || !Array.isArray(toIds) || toIds.length === 0) {
         return cb && cb({ success: false, error: 'invalid ids' });
@@ -749,7 +836,7 @@ io.on('connection', (socket) => {
         toIds: [...toIds],
         token,
         amount,
-        game: 'snake',
+        game: 'snake'
       });
       let url = getInviteUrl(roomId, token, amount, 'snake');
       for (let i = 0; i < toIds.length; i++) {
@@ -765,7 +852,7 @@ io.on('connection', (socket) => {
               amount,
               group: toIds,
               opponentNames,
-              game: 'snake',
+              game: 'snake'
             });
           }
         } else {
@@ -784,7 +871,7 @@ io.on('connection', (socket) => {
           console.error('Failed to auto-start group game:', err.message);
         }
       }, 45000);
-    },
+    }
   );
 
   socket.on('disconnect', async () => {
@@ -797,7 +884,9 @@ io.on('connection', (socket) => {
         if (set.size === 0) userSockets.delete(String(pid));
       }
       onlineUsers.delete(String(pid));
-      User.updateOne({ accountId: pid }, { currentTableId: null }).catch(() => {});
+      User.updateOne({ accountId: pid }, { currentTableId: null }).catch(
+        () => {}
+      );
     }
     for (const roomId of socket.rooms) {
       if (tableSeats.has(roomId)) {
@@ -812,7 +901,6 @@ io.on('connection', (socket) => {
       }
     }
   });
-
 });
 
 // Start the server
