@@ -74,7 +74,7 @@ export default function Lobby() {
     setConfirmed(false);
     setReadyList([]);
     setJoinedTableId(null);
-    setWaitingForConfirm(false);
+    setWaitingForConfirm(Boolean(table));
   }, [game, table]);
 
   const selectAiType = (t) => {
