@@ -3,7 +3,7 @@ import { FLAG_EMOJIS } from '../utils/flagEmojis.js';
 import { FLAG_CATEGORIES } from '../utils/flagCategories.js';
 import { avatarToName } from '../utils/avatarUtils.js';
 
-export default function FlagPickerModal({ open, onClose, count = 1, onSave, selected = [], onComplete }) {
+export default function FlagPickerModal({ open, onClose, count = 1, onSave, selected = [] }) {
   const continents = Object.keys(FLAG_CATEGORIES);
   const [category, setCategory] = useState(continents[0]);
   const [chosen, setChosen] = useState([]);
@@ -20,7 +20,6 @@ export default function FlagPickerModal({ open, onClose, count = 1, onSave, sele
       .filter((i) => i >= 0);
     onSave(indices.slice(0, count));
     onClose();
-    if (onComplete) onComplete(indices.slice(0, count));
   };
 
   const toggle = (flag) => {
@@ -30,7 +29,6 @@ export default function FlagPickerModal({ open, onClose, count = 1, onSave, sele
         next = prev.filter((f) => f !== flag);
       } else if (prev.length < count) {
         next = [...prev, flag];
-        if (next.length === count) handleComplete(next);
       }
       return next;
     });
@@ -47,7 +45,7 @@ export default function FlagPickerModal({ open, onClose, count = 1, onSave, sele
       const flag = allFlags[Math.floor(Math.random() * allFlags.length)];
       if (!random.includes(flag)) random.push(flag);
     }
-    handleComplete(random);
+    setChosen(random);
   };
 
   return (
