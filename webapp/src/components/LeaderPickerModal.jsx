@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { LEADER_AVATARS, LEADER_NAMES } from '../utils/leaderAvatars.js';
 import { getAvatarUrl } from '../utils/avatarUtils.js';
 
-export default function LeaderPickerModal({ open, onClose, count = 1, onSave, selected = [] }) {
+export default function LeaderPickerModal({ open, onClose, count = 1, onSave, selected = [], onComplete }) {
   const [chosen, setChosen] = useState(selected);
 
   useEffect(() => {
@@ -14,6 +14,7 @@ export default function LeaderPickerModal({ open, onClose, count = 1, onSave, se
   const handleComplete = (selection) => {
     onSave(selection.slice(0, count));
     onClose();
+    if (onComplete) onComplete(selection.slice(0, count));
   };
 
   const toggle = (src) => {
@@ -23,6 +24,7 @@ export default function LeaderPickerModal({ open, onClose, count = 1, onSave, se
         next = prev.filter((s) => s !== src);
       } else if (prev.length < count) {
         next = [...prev, src];
+        if (next.length === count) handleComplete(next);
       }
       return next;
     });
@@ -38,7 +40,7 @@ export default function LeaderPickerModal({ open, onClose, count = 1, onSave, se
       const leader = LEADER_AVATARS[Math.floor(Math.random() * LEADER_AVATARS.length)];
       if (!random.includes(leader)) random.push(leader);
     }
-    setChosen(random);
+    handleComplete(random);
   };
 
   return (
