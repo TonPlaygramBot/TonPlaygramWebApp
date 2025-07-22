@@ -53,6 +53,21 @@ export default function Lobby() {
   const [joinedTableId, setJoinedTableId] = useState(null);
   const startedRef = useRef(false);
 
+  // When the user leaves this lobby or switches tables after joining one,
+  // notify the server to remove them from the previous seat. This avoids
+  // "gameStart" events for stale tables which previously caused the UI to
+  // navigate to a blank game screen without user confirmation.
+  useEffect(() => {
+    return () => {
+      if (!joinedTableId) return;
+      ensureAccountId()
+        .then((accountId) =>
+          socket.emit('leaveLobby', { accountId, tableId: joinedTableId })
+        )
+        .catch(() => {});
+    };
+  }, [joinedTableId]);
+
   useEffect(() => {
     startedRef.current = false;
     setConfirmed(false);
