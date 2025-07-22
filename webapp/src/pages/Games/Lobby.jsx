@@ -14,7 +14,6 @@ import {
   getSnakeLobbies,
   pingOnline,
   getOnlineCount,
-  unseatTable,
   getProfile,
   getAccountBalance,
   addTransaction
@@ -121,29 +120,6 @@ export default function Lobby() {
     };
   }, []);
 
-  useEffect(() => {
-    if (game === 'snake' && table && table.id !== 'single') {
-      let cancelled = false;
-      let pid;
-      ensureAccountId()
-        .then((accountId) => {
-          if (cancelled) return;
-          pid = accountId;
-          socket.emit('seatTable', {
-            accountId: pid,
-            tableId: table.id,
-            playerName,
-            avatar: playerAvatar
-          });
-        })
-        .catch(() => {});
-      return () => {
-        cancelled = true;
-        if (pid && !startedRef.current)
-          unseatTable(pid, table.id).catch(() => {});
-      };
-    }
-  }, [game, table, playerName, playerAvatar]);
 
   useEffect(() => {
     if (game === 'snake' && table && table.id !== 'single') {
@@ -231,6 +207,12 @@ export default function Lobby() {
     if (game === 'snake' && table && table.id !== 'single') {
       const accountId = await ensureAccountId().catch(() => null);
       if (accountId) {
+        socket.emit('seatTable', {
+          accountId,
+          tableId: table.id,
+          playerName,
+          avatar: playerAvatar
+        });
         socket.emit('confirmReady', { accountId, tableId: table.id });
         setConfirmed(true);
       }
