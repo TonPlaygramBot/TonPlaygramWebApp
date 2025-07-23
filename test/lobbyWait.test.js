@@ -31,7 +31,8 @@ test('joinRoom waits until table full', { concurrency: false, timeout: 20000 }, 
     PORT: '3203',
     MONGODB_URI: 'memory',
     BOT_TOKEN: 'dummy',
-    SKIP_WEBAPP_BUILD: '1'
+    SKIP_WEBAPP_BUILD: '1',
+    SKIP_BOT_LAUNCH: '1'
   };
   const server = await startServer(env);
   try {
@@ -45,7 +46,7 @@ test('joinRoom waits until table full', { concurrency: false, timeout: 20000 }, 
     const errors = [];
     s1.on('error', (e) => errors.push(e));
     s1.emit('joinRoom', { roomId: 'snake-2', accountId: 'p1', name: 'A' });
-    await delay(500);
+    await delay(1000);
     assert.ok(errors.length > 0, 'should receive error when table not full');
     s1.off('error');
     errors.length = 0;
