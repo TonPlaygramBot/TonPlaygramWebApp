@@ -86,7 +86,15 @@ export default function LeaderboardCard() {
   useEffect(() => {
     function loadLeaderboard() {
       getLeaderboard(telegramId).then((data) => {
-        setLeaderboard(data.users);
+        const seen = new Set();
+        const unique = [];
+        for (const u of data.users) {
+          if (!seen.has(u.accountId)) {
+            seen.add(u.accountId);
+            unique.push(u);
+          }
+        }
+        setLeaderboard(unique);
         setRank(data.rank);
       });
     }
