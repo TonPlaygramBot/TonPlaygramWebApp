@@ -53,7 +53,6 @@ export default function Lobby() {
   const [flags, setFlags] = useState([]);
   const [online, setOnline] = useState(0);
   const [playerName, setPlayerName] = useState('');
-  const [autoStart, setAutoStart] = useState(false);
 
   const selectAiType = (t) => {
     setAiType(t);
@@ -143,19 +142,6 @@ export default function Lobby() {
       setPlayers([]);
     }
   }, [game, table]);
-
-  useEffect(() => {
-    if (
-      game === 'snake' &&
-      table &&
-      table.id !== 'single' &&
-      players.length === table.capacity &&
-      !autoStart
-    ) {
-      setAutoStart(true);
-      startGame();
-    }
-  }, [game, table, players, autoStart]);
 
   const startGame = (flagOverride = flags, leaderOverride = leaders) => {
     if (
@@ -273,7 +259,7 @@ export default function Lobby() {
         disabled={disabled}
         className="px-4 py-2 w-full bg-primary hover:bg-primary-hover text-text rounded disabled:opacity-50"
       >
-        {game === 'snake' && table?.id !== 'single' && players.length === table.capacity ? 'Confirm' : 'Start Game'}
+        Start Game
       </button>
       <LeaderPickerModal
         open={showLeaderPicker}
