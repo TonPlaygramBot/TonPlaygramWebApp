@@ -365,38 +365,49 @@ export class GameRoomManager {
   async getRoom(id, capacity = 4, board) {
     let room = this.rooms.get(id);
     if (!room) {
-      const record = await GameRoomModel.findOne({ roomId: id });
-      if (record) {
-        room = new GameRoom(id, this.io, record.capacity, {
-          snakes: Object.fromEntries(record.snakes),
-          ladders: Object.fromEntries(record.ladders)
-        }, record.gameType || 'snake');
-        room.players = record.players.map((p) => ({
-          ...p.toObject(),
-          socketId: null,
-          lastRollTime: 0
-        }));
-        room.game.players = room.players;
-        room.currentTurn = record.currentTurn;
-        room.status = record.status;
-      } else {
-        const type = id.startsWith('ludo') ? 'ludo' : 'snake';
-        room = new GameRoom(id, this.io, capacity, board, type);
-        await GameRoomModel.updateOne(
-          { roomId: id },
-          {
+      const type = id.startsWith('ludo') ? 'ludo' : 'snake';
+      const boardData =
+        type === 'snake'
+          ? board?.snakes && board?.ladders
+            ? board
+            : generateBoard()
+          : {};
+
+      const record = await GameRoomModel.findOneAndUpdate(
+        { roomId: id },
+        {
+          $setOnInsert: {
             roomId: id,
-            capacity: room.capacity,
-            gameType: room.gameType,
-            status: room.status,
-            currentTurn: room.currentTurn,
-            snakes: room.snakes,
-            ladders: room.ladders,
+            capacity,
+            gameType: type,
+            status: 'waiting',
+            currentTurn: 0,
+            snakes: boardData.snakes,
+            ladders: boardData.ladders,
             players: []
-          },
-          { upsert: true }
-        );
-      }
+          }
+        },
+        { new: true, upsert: true }
+      );
+
+      room = new GameRoom(
+        record.roomId,
+        this.io,
+        record.capacity,
+        {
+          snakes: Object.fromEntries(record.snakes || {}),
+          ladders: Object.fromEntries(record.ladders || {})
+        },
+        record.gameType || 'snake'
+      );
+      room.players = record.players.map((p) => ({
+        ...p.toObject(),
+        socketId: null,
+        lastRollTime: 0
+      }));
+      room.game.players = room.players;
+      room.currentTurn = record.currentTurn;
+      room.status = record.status;
       this.rooms.set(id, room);
     }
     return room;
