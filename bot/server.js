@@ -168,7 +168,7 @@ app.get('/api/online/list', (req, res) => {
 });
 
 app.post('/api/snake/table/seat', (req, res) => {
-  const { tableId, playerId, telegramId, name } = req.body || {};
+  const { tableId, playerId, telegramId, name, confirmed } = req.body || {};
   const pid = playerId || telegramId;
   if (!tableId || !pid) return res.status(400).json({ error: 'missing data' });
   cleanupSeats();
@@ -177,7 +177,11 @@ app.post('/api/snake/table/seat', (req, res) => {
     map = new Map();
     tableSeats.set(tableId, map);
   }
-  map.set(String(pid), { id: pid, name: name || String(pid), ts: Date.now() });
+  const info = map.get(String(pid)) || { id: pid, name: name || String(pid) };
+  info.name = name || info.name;
+  info.ts = Date.now();
+  if (typeof confirmed === 'boolean') info.confirmed = confirmed;
+  map.set(String(pid), info);
   res.json({ success: true });
 });
 
@@ -215,7 +219,7 @@ app.get('/api/snake/lobby/:id', async (req, res) => {
   const roomPlayers = room.players
     .filter((p) => !p.disconnected)
     .map((p) => ({ id: p.playerId, name: p.name }));
-  const lobbyPlayers = Array.from(tableSeats.get(id)?.values() || []).map((p) => ({ id: p.id, name: p.name }));
+  const lobbyPlayers = Array.from(tableSeats.get(id)?.values() || []).map((p) => ({ id: p.id, name: p.name, confirmed: !!p.confirmed }));
   res.json({ id, capacity: cap, players: [...lobbyPlayers, ...roomPlayers] });
 });
 
@@ -296,12 +300,18 @@ io.on('connection', (socket) => {
   socket.on('joinRoom', async ({ roomId, playerId, name }) => {
     const map = tableSeats.get(roomId);
     const lobbyCount = map ? map.size : 0;
+    const confirmedCount = map
+      ? Array.from(map.values()).filter((p) => p.confirmed).length
+      : 0;
     const match = /(\d+)$/.exec(roomId);
     const cap = match ? Number(match[1]) : 4;
     const room = await gameManager.getRoom(roomId, cap);
     const joined = room.players.filter((p) => !p.disconnected).length;
 
-    if (lobbyCount + joined < room.capacity) {
+    if (
+      confirmedCount + joined < room.capacity ||
+      confirmedCount < lobbyCount
+    ) {
       socket.emit('error', 'table not full');
       return;
     }

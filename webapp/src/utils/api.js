@@ -270,11 +270,14 @@ export function getSnakeResults() {
   return fetch(API_BASE_URL + '/api/snake/results').then((r) => r.json());
 }
 
-export function seatTable(playerId, tableId, name) {
+export function seatTable(playerId, tableId, name, confirmed) {
+  const body = { playerId, tableId };
+  if (name) body.name = name;
+  if (typeof confirmed === 'boolean') body.confirmed = confirmed;
   return fetch(API_BASE_URL + '/api/snake/table/seat', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ playerId, tableId, name }),
+    body: JSON.stringify(body),
   }).then((r) => r.json());
 }
 

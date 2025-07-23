@@ -53,6 +53,7 @@ export default function Lobby() {
   const [flags, setFlags] = useState([]);
   const [online, setOnline] = useState(0);
   const [playerName, setPlayerName] = useState('');
+  const [confirmed, setConfirmed] = useState(false);
 
   const selectAiType = (t) => {
     setAiType(t);
@@ -173,12 +174,40 @@ export default function Lobby() {
     navigate(`/games/${game}?${params.toString()}`);
   };
 
+  const confirmSeat = () => {
+    if (confirmed) return;
+    if (!table) return;
+    if (table.id === 'single') {
+      startGame();
+      return;
+    }
+    const playerId = getPlayerId();
+    seatTable(playerId, table.id, playerName, true)
+      .then(() => setConfirmed(true))
+      .catch(() => {});
+  };
+
   let disabled = !canStartGame(game, table, stake, aiCount, players.length);
   if (game === 'snake' && table?.id === 'single') {
     if (!aiType) disabled = true;
     if (aiType === 'leaders' && leaders.length !== aiCount) disabled = true;
     if (aiType === 'flags' && flags.length !== aiCount) disabled = true;
   }
+  const allConfirmed =
+    players.length === (table?.capacity || 0) &&
+    players.every((p) => p.confirmed);
+
+  useEffect(() => {
+    if (
+      confirmed &&
+      game === 'snake' &&
+      table &&
+      table.id !== 'single' &&
+      allConfirmed
+    ) {
+      startGame();
+    }
+  }, [players, confirmed]);
   // Multiplayer games require a full table before starting
 
   return (
@@ -213,7 +242,10 @@ export default function Lobby() {
           </h3>
           <ul className="text-sm list-disc list-inside">
             {players.map((p) => (
-              <li key={p.id}>{p.name}</li>
+              <li key={p.id}>
+                {p.name}
+                {p.confirmed && ' ✓'}
+              </li>
             ))}
           </ul>
         </div>
@@ -255,11 +287,11 @@ export default function Lobby() {
         </div>
       )}
       <button
-        onClick={startGame}
-        disabled={disabled}
+        onClick={confirmSeat}
+        disabled={disabled || confirmed}
         className="px-4 py-2 w-full bg-primary hover:bg-primary-hover text-text rounded disabled:opacity-50"
       >
-        Start Game
+        {confirmed ? 'Waiting...' : 'Confirm'}
       </button>
       <LeaderPickerModal
         open={showLeaderPicker}
