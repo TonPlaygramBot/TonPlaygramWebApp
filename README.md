@@ -76,12 +76,11 @@ When deploying on **Render**, provide the same keys using the service's
 loads values from the runtime environment automatically so you can keep the
 `.env` files only for local development.
 
-The server honors a few extra environment variables when serving the webapp:
+The server honors a few extra environment variables when building or serving the webapp:
 
 - `WEBAPP_API_BASE_URL` – overrides the API base used during the webapp build. Set this when the bot API is hosted on another domain or port. If left empty the webapp assumes it is served from the same origin.
 - `TONCONNECT_MANIFEST_URL` – full URL for a custom `tonconnect-manifest.json`. Defaults to the manifest bundled with the build when unset.
-- `AUTO_WEBAPP_BUILD` – set to any value to automatically build the webapp on start when the `dist` folder is missing. Without this variable the server expects the build to be done manually.
-- `SKIP_WEBAPP_BUILD` – skip the build check entirely. Useful for tests.
+- `SKIP_WEBAPP_BUILD` – set to any value to skip the automatic webapp build that normally runs when `npm start` is executed. Useful if you built the assets manually.
 - `ALLOWED_ORIGINS` – comma-separated list of origins allowed for CORS and socket.io when serving the API.
 
 5. Copy `scripts/.env.example` to `scripts/.env` and set:
@@ -89,10 +88,8 @@ The server honors a few extra environment variables when serving the webapp:
    - `RPC_URL` – TON RPC endpoint (e.g. testnet)
    - `ADMIN_ADDRESS` – address that receives the minted supply
 
-6. Build the webapp assets. The server no longer builds the webapp
-   automatically, so this must be done before starting it. The step also copies
-   `public/tonconnect-manifest.json` into the `dist` folder so wallets can
-   connect:
+6. Build the webapp assets. This step copies `public/tonconnect-manifest.json`
+   into the `dist` folder so wallets can connect:
 
    ```bash
    npm --prefix webapp run build
