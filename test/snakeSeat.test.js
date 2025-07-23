@@ -30,7 +30,8 @@ test('seat and unseat endpoints update lobby', { concurrency: false, timeout: 20
     PORT: '3202',
     MONGODB_URI: 'memory',
     BOT_TOKEN: 'dummy',
-    SKIP_WEBAPP_BUILD: '1'
+    SKIP_WEBAPP_BUILD: '1',
+    SKIP_BOT_LAUNCH: '1'
   };
 
   const server = await startServer(env);

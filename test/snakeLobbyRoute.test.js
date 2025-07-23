@@ -33,7 +33,8 @@ test('snake lobby route lists players', async () => {
     PORT: '3200',
     MONGODB_URI: 'memory',
     SKIP_WEBAPP_BUILD: '1',
-    BOT_TOKEN: 'dummy'
+    BOT_TOKEN: 'dummy',
+    SKIP_BOT_LAUNCH: '1'
   };
   const server = await startServer(env);
   try {

@@ -63,6 +63,7 @@ test('withdraw route reverts balance on claim failure', { concurrency: false }, 
     MONGODB_URI: 'memory',
     BOT_TOKEN: 'dummy',
     SKIP_WEBAPP_BUILD: '1',
+    SKIP_BOT_LAUNCH: '1',
   };
   const server = await startServer(env);
   try {
@@ -104,6 +105,7 @@ test('claim-external route reverts balance on claim failure', { concurrency: fal
     MONGODB_URI: 'memory',
     BOT_TOKEN: 'dummy',
     SKIP_WEBAPP_BUILD: '1',
+    SKIP_BOT_LAUNCH: '1',
   };
   const server = await startServer(env);
   try {
