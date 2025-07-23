@@ -38,7 +38,7 @@ test('seat and unseat endpoints update lobby', { concurrency: false, timeout: 20
     let res = await fetch('http://localhost:3202/api/snake/table/seat', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ tableId: 'snake-2', playerId: 'p100', name: 'Tester' })
+      body: JSON.stringify({ tableId: 'snake-2', accountId: 'p100', name: 'Tester' })
     });
     assert.equal(res.status, 200);
 
@@ -50,7 +50,7 @@ test('seat and unseat endpoints update lobby', { concurrency: false, timeout: 20
     res = await fetch('http://localhost:3202/api/snake/table/unseat', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ tableId: 'snake-2', playerId: 'p100' })
+      body: JSON.stringify({ tableId: 'snake-2', accountId: 'p100' })
     });
     assert.equal(res.status, 200);
 

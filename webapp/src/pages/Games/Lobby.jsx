@@ -18,7 +18,6 @@ import {
 } from '../../utils/api.js';
 import {
   getTelegramId,
-  getPlayerId,
   ensureAccountId
 } from '../../utils/telegram.js';
 import { canStartGame } from '../../utils/lobby.js';
@@ -97,28 +96,48 @@ export default function Lobby() {
   }, [game]);
 
   useEffect(() => {
-    const telegramId = getPlayerId();
-    function ping() {
-      pingOnline(telegramId).catch(() => {});
-      getOnlineCount()
-        .then((d) => setOnline(d.count))
-        .catch(() => {});
-    }
-    ping();
-    const id = setInterval(ping, 30000);
-    return () => clearInterval(id);
+    let id;
+    let cancelled = false;
+    ensureAccountId()
+      .then((accountId) => {
+        if (cancelled || !accountId) return;
+        function ping() {
+          pingOnline(accountId).catch(() => {});
+          getOnlineCount()
+            .then((d) => setOnline(d.count))
+            .catch(() => {});
+        }
+        ping();
+        id = setInterval(ping, 30000);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+      if (id) clearInterval(id);
+    };
   }, []);
 
   useEffect(() => {
     if (game === 'snake' && table && table.id !== 'single') {
-      const playerId = getPlayerId();
-      seatTable(playerId, table.id, playerName).catch(() => {});
-      const id = setInterval(() => {
-        seatTable(playerId, table.id, playerName).catch(() => {});
-      }, 30000);
+      let interval;
+      let cancelled = false;
+      ensureAccountId()
+        .then((accountId) => {
+          if (cancelled || !accountId) return;
+          seatTable(accountId, table.id, playerName).catch(() => {});
+          interval = setInterval(() => {
+            seatTable(accountId, table.id, playerName).catch(() => {});
+          }, 30000);
+        })
+        .catch(() => {});
       return () => {
-        clearInterval(id);
-        unseatTable(playerId, table.id).catch(() => {});
+        cancelled = true;
+        if (interval) clearInterval(interval);
+        ensureAccountId()
+          .then((accountId) => {
+            if (accountId) unseatTable(accountId, table.id).catch(() => {});
+          })
+          .catch(() => {});
       };
     }
   }, [game, table, playerName]);
@@ -181,9 +200,13 @@ export default function Lobby() {
       startGame();
       return;
     }
-    const playerId = getPlayerId();
-    seatTable(playerId, table.id, playerName, true)
-      .then(() => setConfirmed(true))
+    ensureAccountId()
+      .then((accountId) => {
+        if (!accountId) return;
+        seatTable(accountId, table.id, playerName, true)
+          .then(() => setConfirmed(true))
+          .catch(() => {});
+      })
       .catch(() => {});
   };
 

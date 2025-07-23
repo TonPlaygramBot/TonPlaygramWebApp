@@ -37,7 +37,7 @@ test('online routes reflect pinged users', { concurrency: false }, async () => {
     const pingRes = await fetch('http://localhost:3202/api/online/ping', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ playerId: 'player1' })
+      body: JSON.stringify({ accountId: 'player1' })
     });
     assert.equal(pingRes.status, 200);
     const ping = await pingRes.json();
