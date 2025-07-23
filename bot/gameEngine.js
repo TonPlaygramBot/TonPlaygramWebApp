@@ -365,6 +365,7 @@ export class GameRoomManager {
         socketId: null,
         lastRollTime: 0
       }));
+      room.game.players = room.players;
       room.currentTurn = doc.currentTurn;
       room.status = doc.status;
       this.rooms.set(room.id, room);
@@ -409,6 +410,7 @@ export class GameRoomManager {
           socketId: null,
           lastRollTime: 0
         }));
+        room.game.players = room.players;
         room.currentTurn = record.currentTurn;
         room.status = record.status;
       } else {
