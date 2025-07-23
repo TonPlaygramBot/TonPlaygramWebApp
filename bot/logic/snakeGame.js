@@ -42,7 +42,9 @@ export class SnakeGame {
 
     const dice = Array.isArray(diceValues)
       ? diceValues.map((v) => Math.max(1, Math.min(6, Math.floor(v))))
-      : [Math.floor(Math.random() * 6) + 1];
+      : Array.from({ length: player.diceCount }, () =>
+          Math.floor(Math.random() * 6) + 1
+        );
     const total = dice.reduce((a, b) => a + b, 0);
     const rolledSix = dice.includes(6);
     const doubleSix = dice.length === 2 && dice[0] === 6 && dice[1] === 6;
