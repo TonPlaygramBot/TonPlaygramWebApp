@@ -3,10 +3,7 @@ export function canStartGame(game, table, stake, aiCount = 0, players = 0) {
     if (!stake || !stake.token || !stake.amount) return false;
     return aiCount > 0;
   }
-  if (game === 'snake' && table && table.id !== 'single') {
-    const capacity = table.capacity || 0;
-    if (players !== capacity) return false;
-  }
+  // For multiplayer snake games allow confirming before the table is full.
   if (!stake || !stake.token || !stake.amount) return false;
   if (game === 'snake' && !table) return false;
   return true;
