@@ -1475,11 +1475,6 @@ export default function SnakeAndLadder() {
     socket.on('snakeOrLadder', onSnakeOrLadder);
     socket.on('playerReset', onReset);
     socket.on('turnChanged', onTurn);
-    socket.on('turnUpdate', ({ currentTurn }) => onTurn({ playerId: currentTurn }));
-    socket.on('lobbyUpdate', ({ players: list }) => {
-      setMpPlayers(list.map(p => ({ id: p.id, name: p.name, photoUrl: p.avatar || '/assets/icons/profile.svg', position: p.position || 0 }))); 
-    });
-    socket.on('gameStart', onStarted);
     socket.on('gameStarted', onStarted);
     socket.on('diceRolled', onRolled);
     socket.on('gameWon', onWon);
@@ -1519,9 +1514,6 @@ export default function SnakeAndLadder() {
       socket.off('snakeOrLadder', onSnakeOrLadder);
       socket.off('playerReset', onReset);
       socket.off('turnChanged', onTurn);
-      socket.off('turnUpdate');
-      socket.off('lobbyUpdate');
-      socket.off('gameStart', onStarted);
       socket.off('gameStarted', onStarted);
       socket.off('diceRolled', onRolled);
       socket.off('gameWon', onWon);
@@ -2453,26 +2445,10 @@ export default function SnakeAndLadder() {
         );
       })()}
       {waitingForPlayers && (
-        <div className="absolute inset-0 z-40 flex flex-col items-center justify-center bg-black/60 text-white space-y-2">
-          <p className="text-lg">
+        <div className="absolute inset-0 z-40 flex items-center justify-center bg-black/70">
+          <p className="text-white text-lg">
             Waiting for {playersNeeded} more player{playersNeeded === 1 ? '' : 's'}...
           </p>
-          <ul className="space-y-1 text-sm">
-            {mpPlayers.map((p) => (
-              <li key={p.id} className="flex items-center space-x-2">
-                {p.photoUrl && (
-                  <img src={p.photoUrl} alt="avatar" className="w-6 h-6 rounded-full" />
-                )}
-                <span>{p.name}</span>
-              </li>
-            ))}
-          </ul>
-          <button
-            onClick={() => navigate('/games/snake/lobby')}
-            className="mt-1 px-3 py-1 bg-primary hover:bg-primary-hover rounded text-black"
-          >
-            Leave Table
-          </button>
         </div>
       )}
       {rollResult !== null && (
