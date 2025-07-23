@@ -110,9 +110,9 @@ export class GameRoom {
       position: p.position,
     }));
     socket.emit('currentPlayers', list);
-    this.io.to(this.id).emit('currentPlayers', list);
+    socket.to(this.id).emit('currentPlayers', list);
     if (!existing) {
-      this.io.to(this.id).emit('playerJoined', { playerId, name });
+      socket.to(this.id).emit('playerJoined', { playerId, name });
       if (this.players.length === this.capacity) {
         if (this.startTimer) clearTimeout(this.startTimer);
         this.io.to(this.id).emit('gameStarting', { startIn: this.gameStartDelay });
