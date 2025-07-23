@@ -142,12 +142,12 @@ test('snake API endpoints and socket events', { concurrency: false, timeout: 200
     await fetch('http://localhost:3201/api/snake/table/seat', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ tableId: 'snake-2', playerId: 'p1', name: 'A' })
+      body: JSON.stringify({ tableId: 'snake-2', playerId: 'p1', name: 'A', confirmed: true })
     });
     await fetch('http://localhost:3201/api/snake/table/seat', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ tableId: 'snake-2', playerId: 'p2', name: 'B' })
+      body: JSON.stringify({ tableId: 'snake-2', playerId: 'p2', name: 'B', confirmed: true })
     });
 
     const s1 = io('http://localhost:3201');
