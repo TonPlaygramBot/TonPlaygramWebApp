@@ -83,6 +83,9 @@ export class GameRoom {
   addPlayer(playerId, name, socket) {
     const existing = this.players.find((p) => p.playerId === playerId);
     if (existing) {
+      if (!existing.disconnected) {
+        return { error: 'Player already in room' };
+      }
       existing.socketId = socket.id;
       existing.name = name || existing.name;
       existing.disconnected = false;
