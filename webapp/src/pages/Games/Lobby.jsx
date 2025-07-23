@@ -312,7 +312,7 @@ export default function Lobby() {
       <button
         onClick={confirmSeat}
         disabled={disabled || confirmed}
-        className="px-4 py-2 w-full bg-primary hover:bg-primary-hover text-text rounded disabled:opacity-50"
+        className="px-4 py-2 w-full bg-primary hover:bg-primary-hover text-background rounded disabled:opacity-50"
       >
         {confirmed ? 'Waiting...' : 'Confirm'}
       </button>
