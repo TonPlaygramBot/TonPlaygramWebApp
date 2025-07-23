@@ -262,8 +262,13 @@ export function getSnakeLobby(id) {
   return fetch(API_BASE_URL + '/api/snake/lobby/' + id).then((r) => r.json());
 }
 
-export function getSnakeBoard(id) {
-  return fetch(API_BASE_URL + '/api/snake/board/' + id).then((r) => r.json());
+export async function getSnakeBoard(id) {
+  const response = await fetch(API_BASE_URL + '/api/snake/board/' + id);
+  if (!response.ok) {
+    const text = await response.text().catch(() => '');
+    throw new Error(text || response.statusText);
+  }
+  return response.json();
 }
 
 export function getSnakeResults() {

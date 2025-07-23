@@ -637,6 +637,7 @@ export default function SnakeAndLadder() {
   const [showGift, setShowGift] = useState(false);
   const [chatBubbles, setChatBubbles] = useState([]);
   const [showWatchWelcome, setShowWatchWelcome] = useState(false);
+  const [boardError, setBoardError] = useState(null);
 
   const diceRef = useRef(null);
   const diceRollerDivRef = useRef(null);
@@ -1185,6 +1186,7 @@ export default function SnakeAndLadder() {
       : Promise.resolve(generateBoard());
     boardPromise
       .then(({ snakes: snakesObj = {}, ladders: laddersObj = {} }) => {
+        setBoardError(null);
         const limit = (obj) => {
           return Object.fromEntries(Object.entries(obj).slice(0, 8));
         };
@@ -1228,7 +1230,10 @@ export default function SnakeAndLadder() {
         });
         setDiceCells(diceMap);
       })
-      .catch(() => {});
+      .catch((err) => {
+        console.error(err);
+        setBoardError('Failed to load board. Please try again.');
+      });
   }, []);
 
   useEffect(() => {
@@ -2066,7 +2071,7 @@ export default function SnakeAndLadder() {
   };
 
   useEffect(() => {
-    if (waitingForPlayers || !setupPhase || aiPositions.length !== ai) return;
+    if (waitingForPlayers || !setupPhase || boardError || aiPositions.length !== ai) return;
     const total = ai + 1;
     if (total === 1) {
       setSetupPhase(false);
@@ -2113,7 +2118,7 @@ export default function SnakeAndLadder() {
       setTimeout(() => rollNext(idx + 1), 1000);
     };
     rollNext(0);
-  }, [ai, aiPositions, setupPhase]);
+  }, [ai, aiPositions, setupPhase, boardError]);
 
 
   useEffect(() => {
@@ -2652,6 +2657,21 @@ export default function SnakeAndLadder() {
         info="You're watching this match. Support your player by sending NFT GIFs and chat messages. Watching is free, but each chat costs 10 TPC."
       />
       )}
+      <InfoPopup
+        open={!!boardError}
+        onClose={() => setBoardError(null)}
+        title="Error"
+        info={boardError}
+      >
+        <div className="flex justify-center mt-2">
+          <button
+            onClick={() => window.location.reload()}
+            className="lobby-tile px-4 py-1"
+          >
+            Retry
+          </button>
+        </div>
+      </InfoPopup>
       <GameEndPopup
         open={gameOver}
         ranking={ranking}
