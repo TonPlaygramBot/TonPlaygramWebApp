@@ -9,6 +9,13 @@ const io = new Server(server, { cors: { origin: '*' } });
 
 const tables = {}; // key = `${gameType}-${stake}` -> array of tables
 
+function cleanupTables() {
+  Object.keys(tables).forEach((key) => {
+    tables[key] = tables[key].filter((table) => table.players.length > 0);
+    if (tables[key].length === 0) delete tables[key];
+  });
+}
+
 function createNewTable(gameType, stake) {
   const maxPlayers = gameType === '1v1' ? 2 : gameType === '3player' ? 3 : 4;
   const table = {
@@ -68,6 +75,7 @@ io.on('connection', (socket) => {
         players: table.players
       });
     });
+    cleanupTables();
     console.log(`Player ${accountId} left lobby ${gameType}-${stake}`);
   });
 
@@ -75,6 +83,8 @@ io.on('connection', (socket) => {
     console.log('Disconnected', socket.id);
   });
 });
+
+setInterval(cleanupTables, 60_000);
 
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => console.log('Lobby server listening on', PORT));
