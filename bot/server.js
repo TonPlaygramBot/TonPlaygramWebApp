@@ -309,8 +309,8 @@ io.on('connection', (socket) => {
     const joined = room.players.filter((p) => !p.disconnected).length;
 
     if (
-      confirmedCount + joined < room.capacity ||
-      confirmedCount < lobbyCount
+      map &&
+      (confirmedCount + joined < room.capacity || confirmedCount < lobbyCount)
     ) {
       socket.emit('error', 'table not full');
       return;

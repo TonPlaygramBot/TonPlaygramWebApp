@@ -195,7 +195,7 @@ export default function Lobby() {
   }
   const allConfirmed =
     players.length === (table?.capacity || 0) &&
-    players.every((p) => p.confirmed);
+    players.every((p) => p.confirmed ?? true);
 
   useEffect(() => {
     if (
