@@ -20,6 +20,7 @@ import {
 import { AVATARS } from "../../components/AvatarPickerModal.jsx";
 import { LEADER_AVATARS } from "../../utils/leaderAvatars.js";
 import { FLAG_EMOJIS } from "../../utils/flagEmojis.js";
+import generateBoard from "../../utils/generateBoard.js";
 import { getAvatarUrl, saveAvatar, loadAvatar, avatarToName } from "../../utils/avatarUtils.js";
 import InfoPopup from "../../components/InfoPopup.jsx";
 import HintPopup from "../../components/HintPopup.jsx";
@@ -119,42 +120,6 @@ function shuffle(arr) {
   return copy;
 }
 
-function generateBoardLocal() {
-  const boardSize = FINAL_TILE - 1;
-  const snakeCount = 6 + Math.floor(Math.random() * 3);
-  const ladderCount = 6 + Math.floor(Math.random() * 3);
-  const snakes = {};
-  const used = new Set();
-  while (Object.keys(snakes).length < snakeCount) {
-    const start = Math.floor(Math.random() * (boardSize - 10)) + 10;
-    const maxDrop = Math.min(start - 1, 20);
-    if (maxDrop <= 0) continue;
-    const end = start - (Math.floor(Math.random() * maxDrop) + 1);
-    if (used.has(start) || used.has(end) || snakes[start] || end === 1) continue;
-    snakes[start] = end;
-    used.add(start);
-    used.add(end);
-  }
-  const ladders = {};
-  const usedL = new Set([...used]);
-  while (Object.keys(ladders).length < ladderCount) {
-    const start = Math.floor(Math.random() * (boardSize - 20)) + 2;
-    const max = Math.min(boardSize - start - 1, 20);
-    if (max < 1) continue;
-    const end = start + (Math.floor(Math.random() * max) + 1);
-    if (
-      usedL.has(start) ||
-      usedL.has(end) ||
-      ladders[start] ||
-      Object.values(ladders).includes(end)
-    )
-      continue;
-    ladders[start] = end;
-    usedL.add(start);
-    usedL.add(end);
-  }
-  return { snakes, ladders };
-}
 
 function CoinBurst({ token }) {
   const coins = Array.from({ length: 30 }, () => ({
@@ -1217,7 +1182,7 @@ export default function SnakeAndLadder() {
     localStorage.setItem('snakeCurrentTable', table);
     const boardPromise = isMultiplayer
       ? getSnakeBoard(table)
-      : Promise.resolve(generateBoardLocal());
+      : Promise.resolve(generateBoard());
     boardPromise
       .then(({ snakes: snakesObj = {}, ladders: laddersObj = {} }) => {
         const limit = (obj) => {
