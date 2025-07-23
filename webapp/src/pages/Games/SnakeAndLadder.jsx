@@ -1291,7 +1291,9 @@ export default function SnakeAndLadder() {
     }
 
     const updateNeeded = (players) => {
-      setPlayersNeeded(Math.max(0, capacity - players.length));
+      const need = Math.max(0, capacity - players.length);
+      setPlayersNeeded(need);
+      if (need === 0) setWaitingForPlayers(false);
     };
 
     const onJoined = ({ playerId }) => {
