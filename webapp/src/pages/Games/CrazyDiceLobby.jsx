@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { pingOnline, getOnlineCount } from '../../utils/api.js';
-import { getPlayerId } from '../../utils/telegram.js';
+import { ensureAccountId } from '../../utils/telegram.js';
 import RoomSelector from '../../components/RoomSelector.jsx';
 import TableSelector from '../../components/TableSelector.jsx';
 import LeaderPickerModal from '../../components/LeaderPickerModal.jsx';
@@ -32,16 +32,25 @@ export default function CrazyDiceLobby() {
   const [online, setOnline] = useState(0);
 
   useEffect(() => {
-    const playerId = getPlayerId();
-    function ping() {
-      pingOnline(playerId).catch(() => {});
-      getOnlineCount()
-        .then((d) => setOnline(d.count))
-        .catch(() => {});
-    }
-    ping();
-    const id = setInterval(ping, 30000);
-    return () => clearInterval(id);
+    let id;
+    let cancelled = false;
+    ensureAccountId()
+      .then((accountId) => {
+        if (cancelled || !accountId) return;
+        function ping() {
+          pingOnline(accountId).catch(() => {});
+          getOnlineCount()
+            .then((d) => setOnline(d.count))
+            .catch(() => {});
+        }
+        ping();
+        id = setInterval(ping, 30000);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+      if (id) clearInterval(id);
+    };
   }, []);
 
   const selectAiType = (t) => {

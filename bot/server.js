@@ -139,10 +139,9 @@ function cleanupSeats() {
 }
 
 app.post('/api/online/ping', (req, res) => {
-  const { playerId, telegramId } = req.body || {};
-  const id = playerId || telegramId;
-  if (id) {
-    onlineUsers.set(String(id), Date.now());
+  const { accountId } = req.body || {};
+  if (accountId) {
+    onlineUsers.set(String(accountId), Date.now());
   }
   const now = Date.now();
   for (const [id, ts] of onlineUsers) {
@@ -168,8 +167,8 @@ app.get('/api/online/list', (req, res) => {
 });
 
 app.post('/api/snake/table/seat', (req, res) => {
-  const { tableId, playerId, telegramId, name, confirmed } = req.body || {};
-  const pid = playerId || telegramId;
+  const { tableId, accountId, name, confirmed } = req.body || {};
+  const pid = accountId;
   if (!tableId || !pid) return res.status(400).json({ error: 'missing data' });
   cleanupSeats();
   let map = tableSeats.get(tableId);
@@ -186,8 +185,8 @@ app.post('/api/snake/table/seat', (req, res) => {
 });
 
 app.post('/api/snake/table/unseat', (req, res) => {
-  const { tableId, playerId, telegramId } = req.body || {};
-  const pid = playerId || telegramId;
+  const { tableId, accountId } = req.body || {};
+  const pid = accountId;
   const map = tableSeats.get(tableId);
   if (map && pid) {
     map.delete(String(pid));
@@ -282,8 +281,8 @@ mongoose.connection.once('open', () => {
 });
 
 io.on('connection', (socket) => {
-  socket.on('register', ({ playerId, telegramId }) => {
-    const id = playerId || telegramId;
+  socket.on('register', ({ accountId }) => {
+    const id = accountId;
     if (!id) return;
     let set = userSockets.get(String(id));
     if (!set) {
@@ -291,13 +290,12 @@ io.on('connection', (socket) => {
       userSockets.set(String(id), set);
     }
     set.add(socket.id);
-    socket.data.telegramId = telegramId || null;
     socket.data.playerId = String(id);
     // Mark this user as online immediately
     onlineUsers.set(String(id), Date.now());
   });
 
-  socket.on('joinRoom', async ({ roomId, playerId, name }) => {
+  socket.on('joinRoom', async ({ roomId, accountId, name }) => {
     const map = tableSeats.get(roomId);
     const lobbyCount = map ? map.size : 0;
     const confirmedCount = map
@@ -317,13 +315,13 @@ io.on('connection', (socket) => {
     }
 
     if (map) {
-      map.delete(String(playerId));
+      map.delete(String(accountId));
       if (map.size === 0) tableSeats.delete(roomId);
     }
-    if (playerId) {
-      onlineUsers.set(String(playerId), Date.now());
+    if (accountId) {
+      onlineUsers.set(String(accountId), Date.now());
     }
-    const result = await gameManager.joinRoom(roomId, playerId, name, socket);
+    const result = await gameManager.joinRoom(roomId, accountId, name, socket);
     if (result.error) socket.emit('error', result.error);
   });
 

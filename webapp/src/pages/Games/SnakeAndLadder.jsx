@@ -578,13 +578,22 @@ export default function SnakeAndLadder() {
   }, []);
 
   useEffect(() => {
-    const id = getPlayerId();
-    function ping() {
-      pingOnline(id).catch(() => {});
-    }
-    ping();
-    const t = setInterval(ping, 30000);
-    return () => clearInterval(t);
+    let t;
+    let cancelled = false;
+    ensureAccountId()
+      .then((accountId) => {
+        if (cancelled || !accountId) return;
+        function ping() {
+          pingOnline(accountId).catch(() => {});
+        }
+        ping();
+        t = setInterval(ping, 30000);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+      if (t) clearInterval(t);
+    };
   }, []);
 
   useEffect(() => {
@@ -1500,7 +1509,7 @@ export default function SnakeAndLadder() {
         })
         .catch(() => {});
     } else {
-      socket.emit('joinRoom', { roomId: tableId, playerId: accountId, name });
+      socket.emit('joinRoom', { roomId: tableId, accountId, name });
     }
 
 

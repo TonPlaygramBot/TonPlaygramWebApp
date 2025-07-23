@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { socket } from '../utils/socket.js';
 import { pingOnline } from '../utils/api.js';
-import { getPlayerId } from '../utils/telegram.js';
+import { ensureAccountId } from '../utils/telegram.js';
 import InvitePopup from './InvitePopup.jsx';
 
 import Navbar from './Navbar.jsx';
@@ -29,15 +29,21 @@ export default function Layout({ children }) {
 
   useEffect(() => {
     let id;
-    try {
-      const playerId = getPlayerId();
-      function ping() {
-        pingOnline(playerId).catch(() => {});
-      }
-      ping();
-      id = setInterval(ping, 30000);
-    } catch {}
-    return () => clearInterval(id);
+    let cancelled = false;
+    ensureAccountId()
+      .then((accountId) => {
+        if (cancelled || !accountId) return;
+        function ping() {
+          pingOnline(accountId).catch(() => {});
+        }
+        ping();
+        id = setInterval(ping, 30000);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+      if (id) clearInterval(id);
+    };
   }, []);
 
   const isHome = location.pathname === '/';

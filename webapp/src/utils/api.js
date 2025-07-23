@@ -270,8 +270,8 @@ export function getSnakeResults() {
   return fetch(API_BASE_URL + '/api/snake/results').then((r) => r.json());
 }
 
-export function seatTable(playerId, tableId, name, confirmed) {
-  const body = { playerId, tableId };
+export function seatTable(accountId, tableId, name, confirmed) {
+  const body = { accountId, tableId };
   if (name) body.name = name;
   if (typeof confirmed === 'boolean') body.confirmed = confirmed;
   return fetch(API_BASE_URL + '/api/snake/table/seat', {
@@ -281,19 +281,19 @@ export function seatTable(playerId, tableId, name, confirmed) {
   }).then((r) => r.json());
 }
 
-export function unseatTable(playerId, tableId) {
+export function unseatTable(accountId, tableId) {
   return fetch(API_BASE_URL + '/api/snake/table/unseat', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ playerId, tableId }),
+    body: JSON.stringify({ accountId, tableId }),
   }).then((r) => r.json());
 }
 
-export function pingOnline(playerId) {
+export function pingOnline(accountId) {
   return fetch(API_BASE_URL + '/api/online/ping', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ playerId }),
+    body: JSON.stringify({ accountId }),
   }).then((r) => r.json());
 }
 

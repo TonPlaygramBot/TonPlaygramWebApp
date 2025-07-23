@@ -18,7 +18,7 @@ export function getPlayerId() {
     const aid = localStorage.getItem('accountId');
     if (aid) return aid;
   }
-  return getTelegramId();
+  return null;
 }
 
 export async function ensureAccountId() {
@@ -33,7 +33,7 @@ export async function ensureAccountId() {
       return res.accountId;
     }
   } catch {}
-  return tgId;
+  return null;
 }
 
 export function getTelegramUsername() {
