@@ -1291,7 +1291,9 @@ export default function SnakeAndLadder() {
     }
 
     const updateNeeded = (players) => {
-      const need = Math.max(0, capacity - players.length);
+      // Deduplicate by player id so repeated entries do not skew the count
+      const unique = Array.from(new Set(players.map((p) => p.id)));
+      const need = Math.max(0, capacity - unique.length);
       setPlayersNeeded(need);
       if (need === 0) setWaitingForPlayers(false);
     };
@@ -1454,8 +1456,16 @@ export default function SnakeAndLadder() {
           return { id: p.playerId, name, photoUrl, position: p.position || 0 };
         })
       ).then((arr) => {
-        setMpPlayers(arr);
-        updateNeeded(arr);
+        const unique = [];
+        const seen = new Set();
+        for (const p of arr) {
+          if (!seen.has(p.id)) {
+            seen.add(p.id);
+            unique.push(p);
+          }
+        }
+        setMpPlayers(unique);
+        updateNeeded(unique);
       });
     };
 
