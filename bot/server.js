@@ -65,16 +65,30 @@ app.use('/api/broadcast', broadcastRoutes);
 const webappPath = path.join(__dirname, '../webapp/dist');
 
 function ensureWebappBuilt() {
-  if (process.env.SKIP_WEBAPP_BUILD) {
-    console.log('Skipping webapp build');
-    return true;
-  }
-  if (
+  const built =
     existsSync(path.join(webappPath, 'index.html')) &&
-    existsSync(path.join(webappPath, 'assets'))
-  ) {
+    existsSync(path.join(webappPath, 'assets'));
+
+  if (process.env.SKIP_WEBAPP_BUILD) {
+    if (!built) {
+      console.warn('Webapp build not found but SKIP_WEBAPP_BUILD is set');
+    } else {
+      console.log('Skipping webapp build');
+    }
+    return built;
+  }
+
+  if (built) {
     return true;
   }
+
+  if (!process.env.AUTO_WEBAPP_BUILD) {
+    console.warn(
+      'Webapp assets missing. Run "npm --prefix webapp run build" or set AUTO_WEBAPP_BUILD=1'
+    );
+    return false;
+  }
+
   try {
     console.log('Building webapp...');
     const webappDir = path.join(__dirname, '../webapp');
