@@ -144,6 +144,14 @@ export default function Lobby() {
   }, [game, table]);
 
   const startGame = (flagOverride = flags, leaderOverride = leaders) => {
+    if (
+      table &&
+      table.id !== 'single' &&
+      players.length !== table.capacity
+    ) {
+      // Wait in the lobby until the table is full
+      return;
+    }
     const params = new URLSearchParams();
     if (table) params.set('table', table.id);
     if (table?.id === 'single') {
@@ -171,15 +179,7 @@ export default function Lobby() {
     if (aiType === 'leaders' && leaders.length !== aiCount) disabled = true;
     if (aiType === 'flags' && flags.length !== aiCount) disabled = true;
   }
-  if (
-    game === 'snake' &&
-    table &&
-    table.id !== 'single' &&
-    players.length > 0 &&
-    players.length < table.capacity
-  ) {
-    disabled = false;
-  }
+  // Multiplayer games require a full table before starting
 
   return (
     <div className="relative p-4 space-y-4 text-text">
