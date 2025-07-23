@@ -10,6 +10,7 @@ import { SnakeGame } from './logic/snakeGame.js';
 import { LudoGame } from './logic/ludoGame.js';
 
 import GameRoomModel from './models/GameRoom.js';
+import User from './models/User.js';
 
 function generateBoard() {
   const boardSize = FINAL_TILE - 1;
@@ -440,7 +441,17 @@ export class GameRoomManager {
     const match = /-(\d+)$/.exec(roomId);
     const cap = match ? Number(match[1]) : 4;
     const room = await this.getRoom(roomId, cap);
-    const result = room.addPlayer(playerId, name, socket);
+    let playerName = name;
+    if (!playerName && playerId) {
+      try {
+        const user = await User.findOne({ accountId: playerId }).lean();
+        if (user) {
+          playerName =
+            user.nickname || `${user.firstName || ''} ${user.lastName || ''}`.trim();
+        }
+      } catch {}
+    }
+    const result = room.addPlayer(playerId, playerName, socket);
     if (!result.error) await this.saveRoom(room);
     return result;
   }
