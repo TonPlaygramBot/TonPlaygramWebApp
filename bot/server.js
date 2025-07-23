@@ -295,6 +295,17 @@ io.on('connection', (socket) => {
 
   socket.on('joinRoom', async ({ roomId, playerId, name }) => {
     const map = tableSeats.get(roomId);
+    const lobbyCount = map ? map.size : 0;
+    const match = /(\d+)$/.exec(roomId);
+    const cap = match ? Number(match[1]) : 4;
+    const room = await gameManager.getRoom(roomId, cap);
+    const joined = room.players.filter((p) => !p.disconnected).length;
+
+    if (lobbyCount + joined < room.capacity) {
+      socket.emit('error', 'table not full');
+      return;
+    }
+
     if (map) {
       map.delete(String(playerId));
       if (map.size === 0) tableSeats.delete(roomId);
