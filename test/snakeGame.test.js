@@ -7,6 +7,7 @@ import {
   DEFAULT_SNAKES,
   DEFAULT_LADDERS,
 } from '../bot/gameEngine.js';
+import { SnakeGame } from '../bot/logic/snakeGame.js';
 
 class DummyIO {
   constructor() {
@@ -195,5 +196,17 @@ test('landing on another player sends them to start', () => {
   assert.equal(room.players[1].position, 0);
   const resetEvent = io.emitted.find(e => e.event === 'playerReset');
   assert.ok(resetEvent && resetEvent.data.playerId === 'p2');
+});
+
+test('rollDice uses player diceCount when generating values', () => {
+  const game = new SnakeGame();
+  game.addPlayer('p1', 'A');
+  const res1 = game.rollDice();
+  assert.equal(res1.dice.length, 2);
+  assert.ok(res1.dice.every(d => d >= 1 && d <= 6));
+  game.players[0].diceCount = 1;
+  const res2 = game.rollDice();
+  assert.equal(res2.dice.length, 1);
+  assert.ok(res2.dice[0] >= 1 && res2.dice[0] <= 6);
 });
 
