@@ -44,9 +44,10 @@ test('joinRoom waits until table full', { concurrency: false, timeout: 20000 }, 
 
     const s1 = io('http://localhost:3203');
     const errors = [];
+    await new Promise((resolve) => s1.on('connect', resolve));
     s1.on('error', (e) => errors.push(e));
     s1.emit('joinRoom', { roomId: 'snake-2', accountId: 'p1', name: 'A' });
-    await delay(1000);
+    await delay(1500);
     assert.ok(errors.length > 0, 'should receive error when table not full');
     s1.off('error');
     errors.length = 0;
