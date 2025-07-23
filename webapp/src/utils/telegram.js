@@ -24,11 +24,16 @@ export function getPlayerId() {
 export async function ensureAccountId() {
   if (typeof window === 'undefined') return null;
   let id = localStorage.getItem('accountId');
-  if (!id) {
-    id = crypto.randomUUID();
-    localStorage.setItem('accountId', id);
-  }
-  return id;
+  if (id) return id;
+  const tgId = getTelegramId();
+  try {
+    const res = await createAccount(tgId);
+    if (res && res.accountId) {
+      localStorage.setItem('accountId', res.accountId);
+      return res.accountId;
+    }
+  } catch {}
+  return tgId;
 }
 
 export function getTelegramUsername() {

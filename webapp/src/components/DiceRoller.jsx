@@ -14,8 +14,6 @@ export default function DiceRoller({
   muted = false,
   emitRollEvent = false,
   divRef,
-  accountId,
-  tableId,
 }) {
   const [values, setValues] = useState(Array(numDice).fill(1));
   const [rolling, setRolling] = useState(false);
@@ -89,7 +87,7 @@ export default function DiceRoller({
           startValuesRef.current = results;
           onRollEnd && onRollEnd(results);
           if (emitRollEvent) {
-            socket.emit('rollDice', { accountId, tableId });
+            socket.emit('rollDice');
           }
         }, tick);
       }
