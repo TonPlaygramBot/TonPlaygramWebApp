@@ -1152,7 +1152,8 @@ export default function SnakeAndLadder() {
         : 1;
     setAi(aiCount);
     setAvatarType(avatarParam);
-    setIsMultiplayer(tableParam && !aiParam);
+    const multiplayer = tableParam && !aiParam;
+    setIsMultiplayer(multiplayer);
     const watching = watchParam === "1";
     setWatchOnly(watching);
     if (watching) {
@@ -1215,7 +1216,7 @@ export default function SnakeAndLadder() {
     const table = params.get("table") || storedTable || "snake-4";
     setTableId(table);
     localStorage.setItem('snakeCurrentTable', table);
-    const boardPromise = isMultiplayer
+    const boardPromise = multiplayer
       ? getSnakeBoard(table)
       : Promise.resolve(generateBoardLocal());
     boardPromise
