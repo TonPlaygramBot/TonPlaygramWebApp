@@ -95,6 +95,26 @@ The server honors a few extra environment variables when building or serving the
    npm --prefix webapp run build
    ```
 
+### Preparing the test environment
+
+Use `scripts/setup-tests.sh` to set up a fresh machine for the test suite.
+This script installs OS packages required by optional native modules (such as
+`canvas`) and then runs `npm run install-all` to install all Node.js
+dependencies. Run it once before executing the tests or when installing the
+project on a new system.
+
+The tests require minimal configuration via environment variables. Copy
+`bot/.env.example` to `bot/.env` and set at least:
+
+- `BOT_TOKEN` – any string is sufficient for testing
+- `MONGODB_URI` – set to `memory` to use the in-memory database
+
+With these variables in place you can run the test suite with:
+
+```bash
+npm test
+```
+
 7. Run the test suite to verify the setup. Ensure all packages are installed
    first by executing `npm run install-all` (or `npm install` in each package)
    so dependencies like `express` and `socket.io-client` are available:
