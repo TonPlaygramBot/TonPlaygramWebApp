@@ -231,16 +231,20 @@ app.get('/api/snake/board/:id', async (req, res) => {
 });
 
 app.get('/api/snake/results', async (req, res) => {
-  if (req.query.leaderboard) {
-    const leaderboard = await GameResult.aggregate([
+  const { leaderboard, tableId } = req.query;
+  if (leaderboard) {
+    const match = tableId ? { tableId } : {};
+    const leaderboardData = await GameResult.aggregate([
+      { $match: match },
       { $group: { _id: '$winner', wins: { $sum: 1 } } },
       { $sort: { wins: -1 } },
       { $limit: 20 },
     ]);
-    return res.json({ leaderboard });
+    return res.json({ leaderboard: leaderboardData });
   }
   const limit = Number(req.query.limit) || 20;
-  const results = await GameResult.find()
+  const query = tableId ? { tableId } : {};
+  const results = await GameResult.find(query)
     .sort({ createdAt: -1 })
     .limit(limit)
     .lean();

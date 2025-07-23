@@ -212,7 +212,8 @@ export class GameRoom {
         this.status = 'finished';
         GameResult.create({
           winner: player.name,
-          participants: this.players.map((p) => p.name)
+          participants: this.players.map((p) => p.name),
+          tableId: this.id
         }).catch((err) =>
           console.error('Failed to store game result:', err.message)
         );
@@ -286,6 +287,7 @@ export class GameRoom {
         GameResult.create({
           winner: winner.name,
           participants: this.players.map((p) => p.name),
+          tableId: this.id,
         }).catch((err) =>
           console.error('Failed to store game result:', err.message)
         );

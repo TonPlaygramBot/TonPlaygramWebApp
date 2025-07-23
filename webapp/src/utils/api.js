@@ -271,8 +271,10 @@ export async function getSnakeBoard(id) {
   return response.json();
 }
 
-export function getSnakeResults() {
-  return fetch(API_BASE_URL + '/api/snake/results').then((r) => r.json());
+export function getSnakeResults(tableId) {
+  let url = API_BASE_URL + '/api/snake/results';
+  if (tableId) url += '?tableId=' + encodeURIComponent(tableId);
+  return fetch(url).then((r) => r.json());
 }
 
 export function seatTable(accountId, tableId, name, confirmed) {
