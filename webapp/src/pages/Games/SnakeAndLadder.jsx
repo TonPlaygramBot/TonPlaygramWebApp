@@ -110,6 +110,7 @@ const ROWS = 20;
 const COLS = 5;
 const FINAL_TILE = ROWS * COLS + 1; // 101
 const TURN_TIME = 15;
+const AI_ROLL_DELAY = 3; // seconds until AI rolls automatically
 
 function shuffle(arr) {
   const copy = [...arr];
@@ -1633,7 +1634,7 @@ export default function SnakeAndLadder() {
         }
       }
       turn = (turn + 1) % (ai + 1);
-      elapsed -= 2500;
+      elapsed -= AI_ROLL_DELAY * 1000;
     }
     setPos(p);
     setAiPositions(aiPos);
@@ -2240,7 +2241,7 @@ export default function SnakeAndLadder() {
         setTimeLeft(parseFloat(remaining.toFixed(1)));
       }, 100);
       if (!isMultiplayer) {
-        aiRollTimeRef.current = Date.now() + 2500;
+        aiRollTimeRef.current = Date.now() + AI_ROLL_DELAY * 1000;
         if (aiRollTimeoutRef.current) clearInterval(aiRollTimeoutRef.current);
         aiRollTimeoutRef.current = setInterval(() => {
           if (Date.now() >= aiRollTimeRef.current) {
