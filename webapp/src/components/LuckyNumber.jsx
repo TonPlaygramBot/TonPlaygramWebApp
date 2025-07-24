@@ -150,7 +150,7 @@ export default function LuckyNumber() {
           </div>
         ))}
       </div>
-      <div className="flex flex-col items-center space-y-2 mt-4">
+      <div className="flex flex-col items-center space-y-2 mt-6">
         <DiceRoller
           onRollEnd={handleRollEnd}
           onRollStart={handleRollStart}

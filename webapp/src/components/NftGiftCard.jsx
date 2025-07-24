@@ -115,7 +115,7 @@ export default function NftGiftCard({ accountId: propAccountId }) {
             <div className="flex-grow flex items-center justify-center w-full">
               <GiftIcon
                 icon={previewInfo.icon}
-                className="max-h-full w-auto object-contain"
+                className="max-h-48 w-auto object-contain"
               />
             </div>
             <div className="mt-auto flex flex-col items-center space-y-2 w-full">
