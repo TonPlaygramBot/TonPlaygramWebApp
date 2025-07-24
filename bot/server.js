@@ -41,9 +41,19 @@ if (!process.env.MONGODB_URI) {
 
 const PORT = process.env.PORT || 3000;
 const app = express();
-app.use(cors());
+
+let allowedOrigins = '*';
+if (process.env.ALLOWED_ORIGINS) {
+  allowedOrigins = process.env.ALLOWED_ORIGINS
+    .split(',')
+    .map((o) => o.trim())
+    .filter(Boolean);
+  if (allowedOrigins.length === 0) allowedOrigins = '*';
+}
+
+app.use(cors({ origin: allowedOrigins }));
 const httpServer = http.createServer(app);
-const io = new SocketIOServer(httpServer, { cors: { origin: '*' } });
+const io = new SocketIOServer(httpServer, { cors: { origin: allowedOrigins } });
 const gameManager = new GameRoomManager(io);
 
 // Middleware and routes
