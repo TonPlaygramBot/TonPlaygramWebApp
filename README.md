@@ -27,7 +27,7 @@
 
   - `RATE_LIMIT_MAX` – (optional) max requests per window from one IP (defaults to 100)
 
-  - `ALLOWED_ORIGINS` – comma-separated list of allowed origins for CORS and socket.io
+  - `ALLOWED_ORIGINS` – list of origins allowed for CORS and socket.io. Multiple origins may be comma-separated
 
   - `TWITTER_BEARER_TOKEN` – bearer token for verifying reposts on **X**.
   - `TWITTER_CLIENT_ID` – API key for **X** OAuth linking.
@@ -78,8 +78,8 @@ The server honors a few extra environment variables when building or serving the
 
 - `WEBAPP_API_BASE_URL` – overrides the API base used during the webapp build. Set this when the bot API is hosted on another domain or port. If left empty the webapp assumes it is served from the same origin.
 - `TONCONNECT_MANIFEST_URL` – full URL for a custom `tonconnect-manifest.json`. Defaults to the manifest bundled with the build when unset.
-- `SKIP_WEBAPP_BUILD` – set to any value to skip the automatic webapp build that normally runs when `npm start` is executed. Useful if you built the assets manually.
-- `ALLOWED_ORIGINS` – comma-separated list of origins allowed for CORS and socket.io when serving the API.
+ - `SKIP_WEBAPP_BUILD` – set to any value to skip the automatic webapp build that normally runs when `npm start` is executed. Useful if you built the assets manually.
+ - `ALLOWED_ORIGINS` – list of origins allowed for CORS and socket.io when serving the API. Separate multiple origins with commas.
 
 5. Copy `scripts/.env.example` to `scripts/.env` and set:
    - `MNEMONIC` – wallet seed phrase used to deploy the Jetton
