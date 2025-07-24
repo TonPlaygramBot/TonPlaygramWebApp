@@ -39,14 +39,14 @@ test('joinRoom waits until table full', { concurrency: false, timeout: 20000 }, 
     await fetch('http://localhost:3203/api/snake/table/seat', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ tableId: 'snake-2', accountId: 'p1', name: 'A', confirmed: true })
+      body: JSON.stringify({ tableId: 'snake-2-100', accountId: 'p1', name: 'A', confirmed: true })
     });
 
     const s1 = io('http://localhost:3203');
     const errors = [];
     await new Promise((resolve) => s1.on('connect', resolve));
     s1.on('error', (e) => errors.push(e));
-    s1.emit('joinRoom', { roomId: 'snake-2', accountId: 'p1', name: 'A' });
+    s1.emit('joinRoom', { roomId: 'snake-2-100', accountId: 'p1', name: 'A' });
     await delay(1500);
     assert.ok(errors.length > 0, 'should receive error when table not full');
     s1.off('error');
@@ -55,10 +55,10 @@ test('joinRoom waits until table full', { concurrency: false, timeout: 20000 }, 
     await fetch('http://localhost:3203/api/snake/table/seat', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ tableId: 'snake-2', accountId: 'p2', name: 'B', confirmed: true })
+      body: JSON.stringify({ tableId: 'snake-2-100', accountId: 'p2', name: 'B', confirmed: true })
     });
 
-    s1.emit('joinRoom', { roomId: 'snake-2', accountId: 'p1', name: 'A' });
+    s1.emit('joinRoom', { roomId: 'snake-2-100', accountId: 'p1', name: 'A' });
     await delay(200);
     assert.equal(errors.length, 0, 'should join when table full');
     s1.disconnect();

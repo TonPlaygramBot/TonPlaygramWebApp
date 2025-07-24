@@ -119,14 +119,16 @@ export default function Lobby() {
 
   useEffect(() => {
     if (game === 'snake' && table && table.id !== 'single') {
+      if (!stake.amount) return;
       let interval;
       let cancelled = false;
+      const tableRef = `${table.id}-${stake.amount}`;
       ensureAccountId()
         .then((accountId) => {
           if (cancelled || !accountId) return;
-          seatTable(accountId, table.id, playerName).catch(() => {});
+          seatTable(accountId, tableRef, playerName).catch(() => {});
           interval = setInterval(() => {
-            seatTable(accountId, table.id, playerName).catch(() => {});
+            seatTable(accountId, tableRef, playerName).catch(() => {});
           }, 30000);
         })
         .catch(() => {});
@@ -135,18 +137,19 @@ export default function Lobby() {
         if (interval) clearInterval(interval);
         ensureAccountId()
           .then((accountId) => {
-            if (accountId) unseatTable(accountId, table.id).catch(() => {});
+            if (accountId) unseatTable(accountId, tableRef).catch(() => {});
           })
           .catch(() => {});
       };
     }
-  }, [game, table, playerName]);
+  }, [game, table, playerName, stake]);
 
   useEffect(() => {
-    if (game === 'snake' && table && table.id !== 'single') {
+    if (game === 'snake' && table && table.id !== 'single' && stake.amount) {
+      const tableRef = `${table.id}-${stake.amount}`;
       let active = true;
       function loadPlayers() {
-        getSnakeLobby(table.id)
+        getSnakeLobby(tableRef)
           .then((data) => {
             if (active) setPlayers(data.players);
           })
@@ -161,7 +164,7 @@ export default function Lobby() {
     } else {
       setPlayers([]);
     }
-  }, [game, table]);
+  }, [game, table, stake]);
 
   const startGame = (flagOverride = flags, leaderOverride = leaders) => {
     if (
@@ -173,7 +176,7 @@ export default function Lobby() {
       return;
     }
     const params = new URLSearchParams();
-    if (table) params.set('table', table.id);
+    if (table && stake.amount) params.set('table', `${table.id}-${stake.amount}`);
     if (table?.id === 'single') {
       localStorage.removeItem(`snakeGameState_${aiCount}`);
       params.set('ai', aiCount);
@@ -200,10 +203,12 @@ export default function Lobby() {
       startGame();
       return;
     }
+    if (!stake.amount) return;
+    const tableRef = `${table.id}-${stake.amount}`;
     ensureAccountId()
       .then((accountId) => {
         if (!accountId) return;
-        seatTable(accountId, table.id, playerName, true)
+        seatTable(accountId, tableRef, playerName, true)
           .then(() => setConfirmed(true))
           .catch(() => {});
       })
@@ -276,7 +281,7 @@ export default function Lobby() {
       {!(game === 'snake' && table?.id === 'single') && (
         <div className="space-y-2">
           <h3 className="font-semibold">Select Stake</h3>
-          <RoomSelector selected={stake} onSelect={setStake} />
+          <RoomSelector selected={stake} onSelect={setStake} tokens={['TPC']} />
         </div>
       )}
       {game === 'snake' && table?.id === 'single' && (
