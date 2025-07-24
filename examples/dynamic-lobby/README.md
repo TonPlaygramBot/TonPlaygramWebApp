@@ -2,6 +2,13 @@
 
 This folder contains a simple Socket.IO lobby server and client.
 
+When a table fills up the server waits a short delay before emitting a
+`gameStart` event so that the final player has time to connect. A fresh
+Snakes & Ladders board is generated at that moment and included in the
+event payload. If more players request the same table size and stake
+while an existing table is already full, a new table with the same
+conditions is created automatically.
+
 Set the lobby server URL with the `SERVER_URL` environment variable or pass it when creating the client:
 
 ```bash
