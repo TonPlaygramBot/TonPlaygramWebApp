@@ -1267,8 +1267,10 @@ export default function SnakeAndLadder() {
     const parts = tableId.split('-');
     const capacity = parseInt(parts[1], 10) || 0;
     if (!watchOnly) {
-      setWaitingForPlayers(true);
-      setPlayersNeeded(capacity);
+      // Players already confirmed in the lobby so avoid showing the
+      // blocking waiting popup when entering the board.
+      setWaitingForPlayers(false);
+      setPlayersNeeded(0);
     } else {
       setWaitingForPlayers(false);
     }
@@ -2127,6 +2129,16 @@ export default function SnakeAndLadder() {
 
   useEffect(() => {
     if (waitingForPlayers || !setupPhase || boardError || aiPositions.length !== ai) return;
+
+    if (isMultiplayer) {
+      // The first player to join the table should roll first.
+      setSetupPhase(false);
+      setTurnMessage(`${getPlayerName(0)} starts first.`);
+      setCurrentTurn(0);
+      setDiceCount(playerDiceCounts[0] ?? 2);
+      return;
+    }
+
     const total = ai + 1;
     if (total === 1) {
       setSetupPhase(false);
@@ -2173,7 +2185,7 @@ export default function SnakeAndLadder() {
       setTimeout(() => rollNext(idx + 1), 1000);
     };
     rollNext(0);
-  }, [ai, aiPositions, setupPhase, boardError]);
+  }, [ai, aiPositions, setupPhase, boardError, waitingForPlayers, isMultiplayer, mpPlayers]);
 
 
   useEffect(() => {
