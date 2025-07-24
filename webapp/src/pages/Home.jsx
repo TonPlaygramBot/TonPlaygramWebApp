@@ -424,7 +424,6 @@ export default function Home() {
         </div>
 
 
-
       <div className="flex justify-center space-x-4 mt-4">
         <a
           href="https://x.com/TonPlaygram?t=SyGyXA0H8PdLz7z2kfIWQw&s=09"
