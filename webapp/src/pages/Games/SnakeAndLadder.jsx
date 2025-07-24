@@ -1283,16 +1283,20 @@ export default function SnakeAndLadder() {
       if (need === 0) setWaitingForPlayers(false);
     };
 
-    const onJoined = ({ playerId }) => {
+    const onJoined = ({ playerId, name }) => {
       getProfileByAccount(playerId).then((prof) => {
-        const name = prof?.nickname || `${prof?.firstName || ''} ${prof?.lastName || ''}`.trim() || `Player`;
+        const playerName =
+          name ||
+          prof?.nickname ||
+          `${prof?.firstName || ''} ${prof?.lastName || ''}`.trim() ||
+          'Player';
         const photoUrl = prof?.photo || '/assets/icons/profile.svg';
         setMpPlayers((p) => {
           if (p.some((pl) => pl.id === playerId)) {
             updateNeeded(p);
             return p;
           }
-          const arr = [...p, { id: playerId, name, photoUrl, position: 0 }];
+          const arr = [...p, { id: playerId, name: playerName, photoUrl, position: 0 }];
           updateNeeded(arr);
           return arr;
         });
@@ -1435,7 +1439,10 @@ export default function SnakeAndLadder() {
           players.map(async (p) => {
             const prof = await getProfileByAccount(p.playerId).catch(() => ({}));
             const name =
-              prof?.nickname || `${prof?.firstName || ''} ${prof?.lastName || ''}`.trim() || p.name;
+              p.name ||
+              prof?.nickname ||
+              `${prof?.firstName || ''} ${prof?.lastName || ''}`.trim() ||
+              'Player';
             const photoUrl = prof?.photo || '/assets/icons/profile.svg';
             return { id: p.playerId, name, photoUrl, position: p.position || 0 };
           })
@@ -1476,7 +1483,11 @@ export default function SnakeAndLadder() {
       Promise.all(
         players.map(async (p) => {
           const prof = await getProfileByAccount(p.playerId).catch(() => ({}));
-          const name = prof?.nickname || `${prof?.firstName || ''} ${prof?.lastName || ''}`.trim() || p.name;
+          const name =
+            p.name ||
+            prof?.nickname ||
+            `${prof?.firstName || ''} ${prof?.lastName || ''}`.trim() ||
+            'Player';
           const photoUrl = prof?.photo || '/assets/icons/profile.svg';
           return { id: p.playerId, name, photoUrl, position: p.position || 0 };
         })
@@ -1536,7 +1547,10 @@ export default function SnakeAndLadder() {
             players.map(async (p) => {
               const prof = await getProfileByAccount(p.id).catch(() => ({}));
               const n =
-                prof?.nickname || `${prof?.firstName || ''} ${prof?.lastName || ''}`.trim() || p.name;
+                p.name ||
+                prof?.nickname ||
+                `${prof?.firstName || ''} ${prof?.lastName || ''}`.trim() ||
+                'Player';
               const photoUrl = prof?.photo || '/assets/icons/profile.svg';
               return { id: p.id, name: n, photoUrl, position: 0 };
             })
