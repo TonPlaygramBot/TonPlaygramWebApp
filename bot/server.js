@@ -127,6 +127,7 @@ app.get('/api/ping', (req, res) => {
 const onlineUsers = new Map();
 const tableSeats = new Map();
 const userSockets = new Map();
+const watchSockets = new Map();
 
 function cleanupSeats() {
   const now = Date.now();
@@ -332,6 +333,40 @@ io.on('connection', (socket) => {
     if (result.error) socket.emit('error', result.error);
   });
 
+  socket.on('watchRoom', async ({ roomId }) => {
+    if (!roomId) return;
+    let set = watchSockets.get(roomId);
+    if (!set) {
+      set = new Set();
+      watchSockets.set(roomId, set);
+    }
+    set.add(socket.id);
+    socket.join(roomId);
+    const parts = roomId.split('-');
+    const cap = Number(parts[1]) || 4;
+    const room = await gameManager.getRoom(roomId, cap);
+    const players = room.players.map((p) => ({
+      playerId: p.playerId,
+      name: p.name,
+      position: p.position,
+    }));
+    socket.emit('watchState', {
+      board: { snakes: room.snakes, ladders: room.ladders },
+      players,
+      currentTurn: room.players[room.currentTurn]?.playerId || null,
+    });
+  });
+
+  socket.on('leaveWatch', ({ roomId }) => {
+    if (!roomId) return;
+    const set = watchSockets.get(roomId);
+    if (set) {
+      set.delete(socket.id);
+      if (set.size === 0) watchSockets.delete(roomId);
+    }
+    socket.leave(roomId);
+  });
+
   socket.on('rollDice', async () => {
     await gameManager.rollDice(socket);
   });
@@ -362,6 +397,11 @@ io.on('connection', (socket) => {
         if (set.size === 0) userSockets.delete(String(pid));
       }
       onlineUsers.delete(String(pid));
+    }
+    for (const [rid, set] of watchSockets) {
+      if (set.delete(socket.id) && set.size === 0) {
+        watchSockets.delete(rid);
+      }
     }
   });
 });
