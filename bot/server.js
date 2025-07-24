@@ -197,23 +197,26 @@ app.post('/api/snake/table/unseat', (req, res) => {
 app.get('/api/snake/lobbies', async (req, res) => {
   cleanupSeats();
   const capacities = [2, 3, 4];
-  const lobbies = await Promise.all(
-    capacities.map(async (cap) => {
-      const id = `snake-${cap}`;
-      const room = await gameManager.getRoom(id, cap);
-      const roomCount = room.players.filter((p) => !p.disconnected).length;
-      const lobbyCount = tableSeats.get(id)?.size || 0;
-      const players = roomCount + lobbyCount;
-      return { id, capacity: cap, players };
-    })
-  );
+  const lobbies = capacities.map((cap) => {
+    let players = 0;
+    for (const [tid, map] of tableSeats) {
+      const parts = String(tid).split('-');
+      if (Number(parts[1]) === cap) players += map.size;
+    }
+    for (const room of gameManager.rooms.values()) {
+      const parts = String(room.id).split('-');
+      if (Number(parts[1]) === cap)
+        players += room.players.filter((p) => !p.disconnected).length;
+    }
+    return { id: `snake-${cap}`, capacity: cap, players };
+  });
   res.json(lobbies);
 });
 
 app.get('/api/snake/lobby/:id', async (req, res) => {
   const { id } = req.params;
-  const match = /-(\d+)$/.exec(id);
-  const cap = match ? Number(match[1]) : 4;
+  const parts = id.split('-');
+  const cap = Number(parts[1]) || 4;
   const room = await gameManager.getRoom(id, cap);
   const roomPlayers = room.players
     .filter((p) => !p.disconnected)
@@ -224,8 +227,8 @@ app.get('/api/snake/lobby/:id', async (req, res) => {
 
 app.get('/api/snake/board/:id', async (req, res) => {
   const { id } = req.params;
-  const match = /-(\d+)$/.exec(id);
-  const cap = match ? Number(match[1]) : 4;
+  const parts = id.split('-');
+  const cap = Number(parts[1]) || 4;
   const room = await gameManager.getRoom(id, cap);
   res.json({ snakes: room.snakes, ladders: room.ladders });
 });
@@ -305,8 +308,8 @@ io.on('connection', (socket) => {
     const confirmedCount = map
       ? Array.from(map.values()).filter((p) => p.confirmed).length
       : 0;
-    const match = /(\d+)$/.exec(roomId);
-    const cap = match ? Number(match[1]) : 4;
+    const parts = roomId.split('-');
+    const cap = Number(parts[1]) || 4;
     const room = await gameManager.getRoom(roomId, cap);
     const joined = room.players.filter((p) => !p.disconnected).length;
 

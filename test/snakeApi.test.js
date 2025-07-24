@@ -131,7 +131,7 @@ test('snake API endpoints and socket events', { concurrency: false, timeout: 200
 
     assert.ok(lobbies.every((l) => l.id && l.capacity));
 
-    const boardRes = await fetch('http://localhost:3201/api/snake/board/snake-2');
+    const boardRes = await fetch('http://localhost:3201/api/snake/board/snake-2-100');
 
     assert.equal(boardRes.status, 200);
 
@@ -142,12 +142,12 @@ test('snake API endpoints and socket events', { concurrency: false, timeout: 200
     await fetch('http://localhost:3201/api/snake/table/seat', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ tableId: 'snake-2', accountId: 'p1', name: 'A', confirmed: true })
+      body: JSON.stringify({ tableId: 'snake-2-100', accountId: 'p1', name: 'A', confirmed: true })
     });
     await fetch('http://localhost:3201/api/snake/table/seat', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ tableId: 'snake-2', accountId: 'p2', name: 'B', confirmed: true })
+      body: JSON.stringify({ tableId: 'snake-2-100', accountId: 'p2', name: 'B', confirmed: true })
     });
 
     const s1 = io('http://localhost:3201');
@@ -157,10 +157,10 @@ test('snake API endpoints and socket events', { concurrency: false, timeout: 200
     s1.onAny((e) => events.push(e));
     s2.onAny((e) => events.push(e));
 
-    s1.emit('joinRoom', { roomId: 'snake-2', accountId: 'p1', name: 'A' });
+    s1.emit('joinRoom', { roomId: 'snake-2-100', accountId: 'p1', name: 'A' });
     await delay(200);
 
-    s2.emit('joinRoom', { roomId: 'snake-2', accountId: 'p2', name: 'B' });
+    s2.emit('joinRoom', { roomId: 'snake-2-100', accountId: 'p2', name: 'B' });
 
     for (let i = 0; i < 100 && !events.includes('gameStarted'); i++) {
 

@@ -1252,7 +1252,8 @@ export default function SnakeAndLadder() {
     if (!isMultiplayer) return;
     const accountId = getPlayerId();
     const name = myName;
-    const capacity = parseInt(tableId.split('-').pop(), 10) || 0;
+    const parts = tableId.split('-');
+    const capacity = parseInt(parts[1], 10) || 0;
     if (!watchOnly) {
       setWaitingForPlayers(true);
       setPlayersNeeded(capacity);

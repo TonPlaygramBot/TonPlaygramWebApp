@@ -416,8 +416,8 @@ export class GameRoomManager {
   }
 
   async joinRoom(roomId, playerId, name, socket) {
-    const match = /-(\d+)$/.exec(roomId);
-    const cap = match ? Number(match[1]) : 4;
+    const parts = roomId.split('-');
+    const cap = Number(parts[1]) || 4;
     const room = await this.getRoom(roomId, cap);
     let playerName = name;
     if (!playerName && playerId) {
