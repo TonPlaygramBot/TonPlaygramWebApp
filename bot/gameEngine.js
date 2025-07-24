@@ -4,8 +4,9 @@ export const DEFAULT_SNAKES = { 99: 80 };
 export const DEFAULT_LADDERS = { 3: 22, 27: 46 };
 export const ROLL_COOLDOWN_MS = 1000;
 export const RECONNECT_GRACE_MS = 60000;
-// Start multiplayer games immediately once all players join
-export const GAME_START_DELAY_MS = 0;
+// Delay before starting a multiplayer game after the last player joins
+// Gives the final player a moment to fully connect and display in the lobby
+export const GAME_START_DELAY_MS = 1500;
 import { SnakeGame } from './logic/snakeGame.js';
 import { LudoGame } from './logic/ludoGame.js';
 import generateBoard from './logic/generateBoard.js';
