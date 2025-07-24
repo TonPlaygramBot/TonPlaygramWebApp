@@ -391,8 +391,7 @@ export default function Home() {
       </div>
       <ProjectAchievementsCard />
 
-      {stats && (
-        <div className="relative bg-surface border border-border rounded-xl p-4 space-y-2 overflow-hidden wide-card">
+      <div className="relative bg-surface border border-border rounded-xl p-4 space-y-2 overflow-hidden wide-card">
           <img
             src="/assets/SnakeLaddersbackground.png"
             className="background-behind-board object-cover"
@@ -405,25 +404,25 @@ export default function Home() {
               Total Minted: {liveMinted == null ? '...' : formatValue(liveMinted, 0)}{' '}
               <img src="/assets/icons/TPCcoin_1.webp" alt="TPC" className="inline-block w-4 h-4 ml-1" />
             </p>
-            <p>Accounts: {stats.accounts}</p>
-            <p>Active Users: {stats.activeUsers}</p>
+            <p>Accounts: {stats?.accounts ?? '...'}</p>
+            <p>Active Users: {stats?.activeUsers ?? '...'}</p>
             <p>
-              NFTs Created: {stats.nftsCreated}
-              {stats.nftValue != null && (
+              NFTs Created: {stats?.nftsCreated ?? '...'}
+              {stats?.nftValue != null && (
                 <span> ({formatValue(stats.nftValue, 0)} TPC)</span>
               )}
             </p>
-            <p>NFTs Burned: {stats.nftsBurned}</p>
-            <p>Bundles Sold: {stats.bundlesSold}</p>
+            <p>NFTs Burned: {stats?.nftsBurned ?? '...'}</p>
+            <p>Bundles Sold: {stats?.bundlesSold ?? '...'}</p>
             <p>
-              Total Raised: {formatValue(stats.tonRaised, 2)}{' '}
+              Total Raised: {stats ? formatValue(stats.tonRaised, 2) : '...'}{' '}
               <img src="/assets/icons/TON.webp" alt="TON" className="inline-block w-4 h-4 ml-1" />
             </p>
-            <p>TPC App Claimed: {formatValue(stats.appClaimed, 0)}</p>
-            <p>TPC External Wallet Claimed: {formatValue(stats.externalClaimed, 0)}</p>
+            <p>TPC App Claimed: {stats ? formatValue(stats.appClaimed, 0) : '...'}</p>
+            <p>TPC External Wallet Claimed: {stats ? formatValue(stats.externalClaimed, 0) : '...'}</p>
           </div>
         </div>
-      )}
+
 
       <div className="flex justify-center space-x-4 mt-4">
         <a
