@@ -96,10 +96,23 @@ The server honors a few extra environment variables when building or serving the
 ### Preparing the test environment
 
 Use `scripts/setup-tests.sh` to set up a fresh machine for the test suite.
-This script installs OS packages required by optional native modules (such as
-`canvas`) and then runs `npm run install-all` to install all Node.js
-dependencies. Run it once before executing the tests or when installing the
-project on a new system.
+Native modules such as `canvas` require additional OS packages before they can
+compile correctly. Install them with apt before running
+`scripts/setup-tests.sh` or executing `npm test` directly:
+
+```bash
+sudo apt-get install -y \
+  libcairo2-dev \
+  libjpeg-dev \
+  libpango1.0-dev \
+  libgif-dev \
+  build-essential \
+  pkg-config
+```
+
+The setup script installs these packages automatically and then runs
+`npm run install-all` to install all Node.js dependencies. Run it once before
+executing the tests or when installing the project on a new system.
 
 The tests require minimal configuration via environment variables. Copy
 `bot/.env.example` to `bot/.env` and set at least:
