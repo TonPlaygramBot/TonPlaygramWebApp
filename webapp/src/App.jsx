@@ -22,6 +22,7 @@ import SnakeResults from './pages/Games/SnakeResults.jsx';
 import CrazyDiceDuel from './pages/Games/CrazyDiceDuel.jsx';
 import CrazyDiceLobby from './pages/Games/CrazyDiceLobby.jsx';
 import Lobby from './pages/Games/Lobby.jsx';
+import { GameProvider } from './store/gameState.js';
 import Games from './pages/Games.jsx';
 import SpinPage from './pages/spin.tsx';
 
@@ -47,9 +48,30 @@ export default function App() {
           <Route path="/games/crazydice/lobby" element={<CrazyDiceLobby />} />
           <Route path="/games/:game/lobby" element={<Lobby />} />
             <Route path="/games/horse" element={<HorseRacing />} />
-          <Route path="/games/snake" element={<SnakeAndLadder />} />
-          <Route path="/games/snake/mp" element={<SnakeMultiplayer />} />
-          <Route path="/games/snake/results" element={<SnakeResults />} />
+          <Route
+            path="/games/snake"
+            element={
+              <GameProvider>
+                <SnakeAndLadder />
+              </GameProvider>
+            }
+          />
+          <Route
+            path="/games/snake/mp"
+            element={
+              <GameProvider>
+                <SnakeMultiplayer />
+              </GameProvider>
+            }
+          />
+          <Route
+            path="/games/snake/results"
+            element={
+              <GameProvider>
+                <SnakeResults />
+              </GameProvider>
+            }
+          />
           <Route path="/spin" element={<SpinPage />} />
           <Route path="/admin/influencer" element={<InfluencerAdmin />} />
           <Route path="/tasks" element={<Tasks />} />

@@ -18,6 +18,7 @@ import {
   chatBeep,
 } from "../../assets/soundData.js";
 import { AVATARS } from "../../components/AvatarPickerModal.jsx";
+import { useGame } from "../../store/gameState.js";
 import { LEADER_AVATARS } from "../../utils/leaderAvatars.js";
 import { FLAG_EMOJIS } from "../../utils/flagEmojis.js";
 import generateBoard from "../../utils/generateBoard.js";
@@ -488,6 +489,7 @@ function Board({
 }
 
 export default function SnakeAndLadder() {
+  const { state, dispatch } = useGame();
   const [showLobbyConfirm, setShowLobbyConfirm] = useState(false);
   const [showQuitInfo, setShowQuitInfo] = useState(true);
   useTelegramBackButton();
@@ -640,6 +642,7 @@ export default function SnakeAndLadder() {
   const [showWatchWelcome, setShowWatchWelcome] = useState(false);
   const [boardError, setBoardError] = useState(null);
   const [boardReady, setBoardReady] = useState(false);
+  const playersAddedRef = useRef(false);
 
   const applyBoard = (snakesObj = {}, laddersObj = {}) => {
     const limit = (obj) =>
@@ -682,6 +685,7 @@ export default function SnakeAndLadder() {
       usedD.add(cell);
     });
     setDiceCells(diceMap);
+    dispatch({ type: 'INIT', board: { snakes: snakesLim, ladders: laddersLim, diceCells: diceMap } });
   };
 
   const diceRef = useRef(null);
@@ -1259,6 +1263,16 @@ export default function SnakeAndLadder() {
   }, [location.search]);
 
   useEffect(() => {
+    if (boardReady && !playersAddedRef.current) {
+      dispatch({ type: 'ADD_PLAYER', id: 'player', name: 'You' });
+      for (let i = 1; i <= ai; i++) {
+        dispatch({ type: 'ADD_PLAYER', id: `ai${i}`, name: `AI ${i}` });
+      }
+      playersAddedRef.current = true;
+    }
+  }, [boardReady, ai]);
+
+  useEffect(() => {
     playersRef.current = mpPlayers;
   }, [mpPlayers]);
 
@@ -1730,137 +1744,26 @@ export default function SnakeAndLadder() {
 
   const handleRoll = (values) => {
     setMoving(true);
-    setTurnMessage("");
+    setTurnMessage('');
     setRollCooldown(1);
-    const value = Array.isArray(values)
-      ? values.reduce((a, b) => a + b, 0)
-      : values;
-    const rolledSix = Array.isArray(values)
-      ? values.some((v) => Number(v) === 6)
-      : Number(value) === 6;
-    const doubleSix = Array.isArray(values) && values[0] === 6 && values[1] === 6;
+    const diceVals = Array.isArray(values) ? values : [values];
+    const result = dispatch({ type: 'ROLL', dice: diceVals });
+    if (!result) return;
+
+    const value = result.dice.reduce((a, b) => a + b, 0);
+    const doubleSix =
+      result.dice.length === 2 && result.dice[0] === 6 && result.dice[1] === 6;
 
     setRollColor(playerColors[0] || '#fff');
-
-    // Predict capture for laugh sound
-    let preview = pos;
-    if (preview === 0) {
-      if (rolledSix) preview = 1;
-    } else if (preview === 100 && diceCount === 1) {
-      if (value === 1) preview = FINAL_TILE;
-    } else if (preview !== 100 || diceCount !== 2) {
-      if (preview + value <= FINAL_TILE) preview = preview + value;
-    }
-    if (snakes[preview] != null) preview = Math.max(0, snakes[preview]);
-    else if (ladders[preview] != null) {
-      const ladObj = ladders[preview];
-      preview = typeof ladObj === 'object' ? ladObj.end : ladObj;
-    }
-    const willCapture = aiPositions.some((p) => p === preview);
-
     setRollResult(value);
     if (doubleSix && !muted) {
       yabbaSoundRef.current.currentTime = 0;
       yabbaSoundRef.current.play().catch(() => {});
     }
-    if (willCapture && preview > 4 && !muted) {
-      hahaSoundRef.current.currentTime = 0;
-      hahaSoundRef.current.play().catch(() => {});
-    }
     setTimeout(() => setRollResult(null), 2000);
 
     setTimeout(() => {
       setDiceVisible(false);
-      setOffsetPopup(null);
-      setTrail([]);
-
-
-      setMessage("");
-      let current = pos;
-      let target = current;
-
-      if (current === 100 && diceCount === 2) {
-        if (rolledSix) {
-          setDiceCount(1);
-          setPlayerDiceCounts((arr) => {
-            const copy = [...arr];
-            copy[currentTurn] = 1;
-            return copy;
-          });
-          setMessage("Six rolled! One die removed.");
-        } else {
-          setMessage("");
-        }
-        setTurnMessage("Your turn");
-        setDiceVisible(true);
-        setMoving(false);
-        return;
-      } else if (current === 100 && diceCount === 1) {
-        if (value === 1) {
-          target = FINAL_TILE;
-        } else {
-          setMessage("Need a 1 to win!");
-          setTurnMessage("");
-          setDiceVisible(false);
-          const next = (currentTurn + 1) % (ai + 1);
-          animateDiceToPlayer(next);
-          setTimeout(() => {
-            setCurrentTurn(next);
-            setDiceCount(playerDiceCounts[next] ?? 2);
-          }, 2000);
-          setTimeout(() => setMoving(false), 2000);
-          return;
-        }
-      } else if (current === 0) {
-        if (rolledSix) {
-          target = 1;
-          if (!muted) cheerSoundRef.current?.play().catch(() => {});
-        }
-        else {
-          setMessage("");
-          setTurnMessage("");
-          setDiceVisible(false);
-          const next = (currentTurn + 1) % (ai + 1);
-          animateDiceToPlayer(next);
-          setTimeout(() => {
-            setCurrentTurn(next);
-            setDiceCount(playerDiceCounts[next] ?? 2);
-          }, 2000);
-          setTimeout(() => setMoving(false), 2000);
-          return;
-        }
-      } else if (current + value <= FINAL_TILE) {
-        target = current + value;
-      } else {
-        setMessage("Need exact roll!");
-        setShowExactHelp(true);
-        setTurnMessage("");
-        setDiceVisible(false);
-        const next = (currentTurn + 1) % (ai + 1);
-        animateDiceToPlayer(next);
-        setTimeout(() => {
-          setCurrentTurn(next);
-          setDiceCount(playerDiceCounts[next] ?? 2);
-        }, 2000);
-        setTimeout(() => setMoving(false), 2000);
-        return;
-      }
-
-
-      let predicted = target;
-      if (snakes[predicted] != null) predicted = Math.max(0, snakes[predicted]);
-      else if (ladders[predicted] != null) {
-        const ladObj = ladders[predicted];
-        predicted = typeof ladObj === 'object' ? ladObj.end : ladObj;
-      }
-      const extraPred = diceCells[predicted] || doubleSix;
-      const nextPlayer = extraPred ? currentTurn : (currentTurn + 1) % (ai + 1);
-      animateDiceToPlayer(nextPlayer);
-
-      const steps = [];
-      for (let i = current + 1; i <= target; i++) steps.push(i);
-
-        setHighlight(null);
       const ctx = {
         updatePosition: (p) => setPos(p),
         setHighlight,
@@ -1878,17 +1781,14 @@ export default function SnakeAndLadder() {
         FINAL_TILE,
       };
 
-      const applyEffect = (startPos) =>
-        applyEffectHelper(startPos, ctx, finalizeMove);
-
       const finalizeMove = (finalPos, type) => {
         setPos(finalPos);
         setHighlight({ cell: finalPos, type });
         setTrail([]);
         setTokenType(type);
         setTimeout(() => setHighlight(null), 2300);
-        capturePieces(finalPos, 0);
-        if (finalPos === FINAL_TILE && !ranking.includes('You')) {
+        setAiPositions(state.game.players.slice(1).map((p) => p.position));
+        if (result.finished && !ranking.includes('You')) {
           const first = ranking.length === 0;
           const total = pot * (ai + 1);
           if (first) {
@@ -1906,55 +1806,25 @@ export default function SnakeAndLadder() {
           if (first) setGameOver(true);
           const winAmt = Math.round(total * 0.91);
           setMessage(`You win ${winAmt} ${token}!`);
-          setMessageColor("");
+          setMessageColor('');
           if (!muted) winSoundRef.current?.play().catch(() => {});
           coinConfetti(50);
           setCelebrate(true);
-          setTimeout(() => {
-            setCelebrate(false);
-            setDiceCount(2);
-            setPlayerDiceCounts((arr) => {
-              const copy = [...arr];
-              copy[currentTurn] = 2;
-              return copy;
-            });
-          }, 2000);
+          setTimeout(() => setCelebrate(false), 2000);
         }
-        let extraTurn = false;
-        if (diceCells[finalPos]) {
-          const bonus = diceCells[finalPos];
-          setDiceCells((d) => {
-            const n = { ...d };
-            delete n[finalPos];
-            return n;
-          });
-          setBonusDice(bonus);
-          setRewardDice(bonus);
-          setTurnMessage('Bonus roll');
-          extraTurn = true;
-          if (!muted) {
-            diceRewardSoundRef.current?.play().catch(() => {});
-            yabbaSoundRef.current?.play().catch(() => {});
-          }
-          setTimeout(() => setRewardDice(0), 1000);
-        } else if (doubleSix) {
-          setTurnMessage('Double six! Roll again');
-          setBonusDice(0);
-          extraTurn = true;
+        if (result.extraTurn) {
+          setTurnMessage('Roll again');
         } else {
-          setTurnMessage("Your turn");
-          setBonusDice(0);
+          const next = state.game.currentTurn;
+          setCurrentTurn(next);
+          setTurnMessage(next === 0 ? 'Your turn' : `${getPlayerName(next)}'s turn`);
         }
+        setDiceCount(state.game.players[state.game.currentTurn].diceCount ?? 2);
         setDiceVisible(true);
         setMoving(false);
-        if (!gameOver) {
-          const next = extraTurn ? currentTurn : (currentTurn + 1) % (ai + 1);
-          setCurrentTurn(next);
-          setDiceCount(playerDiceCounts[next] ?? 2);
-        }
       };
 
-      moveSeq(steps, 'normal', ctx, () => applyEffect(target), 'forward');
+      moveSeq(result.path, 'normal', ctx, () => finalizeMove(result.position), 'forward');
     }, 2000);
   };
 
@@ -1967,187 +1837,57 @@ export default function SnakeAndLadder() {
 
   const handleAIRoll = (index, vals) => {
     setMoving(true);
-    const value = Array.isArray(vals)
-      ? vals.reduce((a, b) => a + b, 0)
-      : vals ?? Math.floor(Math.random() * 6) + 1;
-    const rolledSix = Array.isArray(vals)
-      ? vals.some((v) => Number(v) === 6)
-      : Number(value) === 6;
-    const doubleSix = Array.isArray(vals) && vals[0] === 6 && vals[1] === 6;
+    const diceVals = Array.isArray(vals) ? vals : vals != null ? [vals] : [];
+    const result = dispatch({ type: 'ROLL', dice: diceVals });
+    if (!result) return;
+
     setRollColor(playerColors[index] || '#fff');
-
-    let preview = aiPositions[index - 1];
-    if (preview === 0) {
-      if (rolledSix) preview = 1;
-    } else if (preview === 100) {
-      if (value === 1) preview = FINAL_TILE;
-    } else if (preview + value <= FINAL_TILE) {
-      preview = preview + value;
-    }
-    if (snakes[preview] != null) preview = Math.max(0, snakes[preview]);
-    else if (ladders[preview] != null) {
-      const ladObj = ladders[preview];
-      preview = typeof ladObj === 'object' ? ladObj.end : ladObj;
-    }
-    const capture =
-      (index !== 0 && pos === preview) ||
-      aiPositions.some((p, i) => i !== index - 1 && p === preview);
-
-    setTurnMessage(<>{playerName(index)} rolled {value}</>);
-    setRollResult(value);
-    if (doubleSix && !muted) {
-      yabbaSoundRef.current.currentTime = 0;
-      yabbaSoundRef.current.play().catch(() => {});
-    }
-    if (capture && preview > 4 && !muted) {
-      hahaSoundRef.current.currentTime = 0;
-      hahaSoundRef.current.play().catch(() => {});
-    }
+    setTurnMessage(<>{playerName(index)} rolled {diceVals.join(', ')}</>);
+    setRollResult(diceVals.reduce((a, b) => a + b, 0));
     setTimeout(() => setRollResult(null), 2000);
+
     setTimeout(() => {
       setDiceVisible(false);
-    let positions = [...aiPositions];
-    let current = positions[index - 1];
-    let target = current;
-    if (current === 0) {
-      if (rolledSix) {
-        target = 1;
-        if (!muted) cheerSoundRef.current?.play().catch(() => {});
-      }
-    } else if (current === 100 && playerDiceCounts[index] === 2) {
-      if (rolledSix) {
-        setPlayerDiceCounts(arr => {
-          const copy = [...arr];
-          copy[index] = 1;
-          return copy;
-        });
-        if (currentTurn === index) setDiceCount(1);
-        setTurnMessage(`${getPlayerName(index)}'s turn`);
+      const ctx = {
+        updatePosition: (p) => {
+          const positions = state.game.players.slice(1).map((pl) => pl.position);
+          positions[index - 1] = p;
+          setAiPositions(positions);
+        },
+        setHighlight,
+        setTrail,
+        moveSoundRef,
+        hahaSoundRef,
+        snakes,
+        ladders,
+        setOffsetPopup,
+        snakeSoundRef,
+        oldSnakeSoundRef,
+        ladderSoundRef,
+        badLuckSoundRef,
+        muted,
+        FINAL_TILE,
+      };
+
+      const finalizeMove = (finalPos, type) => {
+        const positions = state.game.players.slice(1).map((pl) => pl.position);
+        positions[index - 1] = finalPos;
+        setAiPositions(positions);
+        setHighlight({ cell: finalPos, type });
+        setTrail([]);
+        setTimeout(() => setHighlight(null), 2300);
+        if (result.finished) setGameOver(true);
+        const next = state.game.currentTurn;
+        setCurrentTurn(next);
+        setDiceCount(state.game.players[next].diceCount ?? 2);
         setDiceVisible(true);
         setMoving(false);
-        return;
-      } else {
-        setTurnMessage(`${getPlayerName(index)} needs a 6`);
-        setDiceVisible(false);
-        const next = (currentTurn + 1) % (ai + 1);
-        animateDiceToPlayer(next);
-        setTimeout(() => {
-          setCurrentTurn(next);
-          setDiceCount(playerDiceCounts[next] ?? 2);
-        }, 2000);
-        setTimeout(() => setMoving(false), 2000);
-        return;
-      }
-    } else if (current === 100 && playerDiceCounts[index] === 1) {
-      if (value === 1) target = FINAL_TILE;
-      else {
-        setTurnMessage('');
-        setDiceVisible(false);
-        const next = (currentTurn + 1) % (ai + 1);
-        animateDiceToPlayer(next);
-        setTimeout(() => {
-          setCurrentTurn(next);
-          setDiceCount(playerDiceCounts[next] ?? 2);
-        }, 2000);
-        setTimeout(() => setMoving(false), 2000);
-        return;
-      }
-    } else if (current + value <= FINAL_TILE) {
-      target = current + value;
-    }
-
-    let predicted = target;
-    if (snakes[predicted] != null) predicted = Math.max(0, snakes[predicted]);
-    else if (ladders[predicted] != null) {
-      const ladObj = ladders[predicted];
-      predicted = typeof ladObj === 'object' ? ladObj.end : ladObj;
-    }
-    const extraPred = diceCells[predicted] || doubleSix;
-    const nextPlayer = extraPred ? index : (index + 1) % (ai + 1);
-    animateDiceToPlayer(nextPlayer);
-
-    const steps = [];
-    for (let i = current + 1; i <= target; i++) steps.push(i);
-
-      setHighlight(null);
-    const ctx = {
-      updatePosition: (p) => {
-        positions[index - 1] = p;
-        setAiPositions([...positions]);
-      },
-      setHighlight,
-      setTrail,
-      moveSoundRef,
-      hahaSoundRef,
-      snakes,
-      ladders,
-      setOffsetPopup,
-      snakeSoundRef,
-      oldSnakeSoundRef,
-      ladderSoundRef,
-      badLuckSoundRef,
-      muted,
-      FINAL_TILE,
-    };
-
-    const finalizeMove = async (finalPos, type) => {
-      positions[index - 1] = finalPos;
-      setAiPositions([...positions]);
-      setHighlight({ cell: finalPos, type });
-      setTrail([]);
-      capturePieces(finalPos, index);
-      setTimeout(() => setHighlight(null), 2300);
-      if (finalPos === FINAL_TILE && !ranking.includes(getPlayerName(index))) {
-        const first = ranking.length === 0;
-        setRanking(r => [...r, getPlayerName(index)]);
-        if (first) {
-          await awardDevShare(pot * (ai + 1));
-          setGameOver(true);
+        if (next === 0 && result.extraTurn) {
+          setTimeout(() => triggerAIRoll(index), 1800);
         }
-        setMessage(`${getPlayerName(index)} wins!`);
-        setPlayerDiceCounts(arr => {
-          const copy = [...arr];
-          copy[index] = 2;
-          return copy;
-        });
-        setDiceVisible(false);
-        setMoving(false);
-        return;
-      }
-      let extraTurn = false;
-      if (diceCells[finalPos]) {
-        const bonus = diceCells[finalPos];
-        setDiceCells((d) => {
-          const n = { ...d };
-          delete n[finalPos];
-          return n;
-        });
-        setBonusDice(bonus);
-        setRewardDice(bonus);
-        setTurnMessage('Bonus roll');
-        extraTurn = true;
-        if (!muted) {
-          diceRewardSoundRef.current?.play().catch(() => {});
-          yabbaSoundRef.current?.play().catch(() => {});
-        }
-        setTimeout(() => setRewardDice(0), 1000);
-      } else if (doubleSix) {
-        extraTurn = true;
-      }
-      const next = extraTurn ? index : (index + 1) % (ai + 1);
-      if (next === 0) setTurnMessage('Your turn');
-      setCurrentTurn(next);
-      setDiceCount(playerDiceCounts[next] ?? 2);
-      setDiceVisible(true);
-      setMoving(false);
-      if (extraTurn && next === index) {
-        setTimeout(() => triggerAIRoll(index), 1800);
-      }
-    };
+      };
 
-    const applyEffect = (startPos) => applyEffectHelper(startPos, ctx, finalizeMove);
-
-    moveSeq(steps, 'normal', ctx, () => applyEffect(target), 'forward');
+      moveSeq(result.path, 'normal', ctx, () => finalizeMove(result.position), 'forward');
     }, 2000);
   };
 
