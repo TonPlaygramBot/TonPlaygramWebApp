@@ -8,13 +8,36 @@ export function applySnakesAndLadders(pos, snakes, ladders) {
 }
 
 export class SnakeGame {
-  constructor({ snakes = {}, ladders = {}, diceCells = {} } = {}) {
+  constructor({ snakes = {}, ladders = {}, diceCells = {}, turnDelay = 0 } = {}) {
     this.snakes = snakes;
     this.ladders = ladders;
     this.diceCells = diceCells;
     this.players = [];
     this.currentTurn = 0;
     this.finished = false;
+    this.turnDelay = turnDelay;
+    this.turnTimer = null;
+  }
+
+  startTurnTimer() {
+    if (!this.turnDelay) return;
+    if (this.turnTimer) clearTimeout(this.turnTimer);
+    this.turnTimer = setTimeout(() => {
+      this.turnTimer = null;
+      if (!this.finished) this.rollDice();
+    }, this.turnDelay);
+  }
+
+  cancelTurnTimer() {
+    if (this.turnTimer) {
+      clearTimeout(this.turnTimer);
+      this.turnTimer = null;
+    }
+  }
+
+  resetTurnTimer() {
+    this.cancelTurnTimer();
+    this.startTurnTimer();
   }
 
   addPlayer(id, name) {
@@ -39,6 +62,7 @@ export class SnakeGame {
     if (this.finished) return null;
     const player = this.players[this.currentTurn];
     if (!player) return null;
+    this.cancelTurnTimer();
 
     const dice = Array.isArray(diceValues)
       ? diceValues.map((v) => Math.max(1, Math.min(6, Math.floor(v))))
@@ -101,6 +125,10 @@ export class SnakeGame {
 
     if (!extraTurn && !this.finished) {
       this.currentTurn = this.nextPlayerIndex(this.currentTurn);
+    }
+
+    if (!this.finished) {
+      this.startTurnTimer();
     }
 
     return {
