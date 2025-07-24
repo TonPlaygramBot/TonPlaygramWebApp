@@ -340,6 +340,7 @@ export class GameRoomManager {
       }, doc.gameType || 'snake');
       room.players = doc.players.map((p) => ({
         ...p.toObject(),
+        id: p.playerId,
         socketId: null,
         lastRollTime: 0
       }));
@@ -414,6 +415,7 @@ export class GameRoomManager {
       );
       room.players = record.players.map((p) => ({
         ...p.toObject(),
+        id: p.playerId,
         socketId: null,
         lastRollTime: 0
       }));
