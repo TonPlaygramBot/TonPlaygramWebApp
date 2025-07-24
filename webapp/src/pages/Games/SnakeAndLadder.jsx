@@ -1226,18 +1226,26 @@ export default function SnakeAndLadder() {
     const table = tableParam || storedTable || "snake-4";
     setTableId(table);
     localStorage.setItem('snakeCurrentTable', table);
-    const boardPromise = mp
-      ? getSnakeBoard(table)
-      : Promise.resolve(generateBoard());
-    boardPromise
-      .then(({ snakes: snakesObj = {}, ladders: laddersObj = {} }) => {
+    async function fetchBoard(attempt = 1) {
+      try {
+        const { snakes: snakesObj = {}, ladders: laddersObj = {} } = mp
+          ? await getSnakeBoard(table)
+          : generateBoard();
         setBoardError(null);
         applyBoard(snakesObj, laddersObj);
-      })
-      .catch((err) => {
+      } catch (err) {
         console.error(err);
-        setBoardError('Failed to load board. Please try again.');
-      });
+        if (attempt < 3) {
+          setTimeout(() => fetchBoard(attempt + 1), 1000 * attempt);
+        } else {
+          setBoardError('Failed to load board. Using a local board.');
+          const board = generateBoard();
+          applyBoard(board.snakes, board.ladders);
+        }
+      }
+    }
+
+    fetchBoard();
   }, [location.search]);
 
   useEffect(() => {
@@ -1398,9 +1406,7 @@ export default function SnakeAndLadder() {
     };
     const onStarted = ({ snakes: s = {}, ladders: l = {} } = {}) => {
       setWaitingForPlayers(false);
-      if (Object.keys(s).length || Object.keys(l).length) {
-        applyBoard(s, l);
-      }
+      applyBoard(s, l);
       unseatTable(accountId, tableId).catch(() => {});
     };
     const onWatchState = ({ board, players, currentTurn: turn }) => {
