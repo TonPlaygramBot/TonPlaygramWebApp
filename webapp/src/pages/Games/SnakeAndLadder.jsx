@@ -639,6 +639,49 @@ export default function SnakeAndLadder() {
   const [showWatchWelcome, setShowWatchWelcome] = useState(false);
   const [boardError, setBoardError] = useState(null);
 
+  const applyBoard = (snakesObj = {}, laddersObj = {}) => {
+    const limit = (obj) =>
+      Object.fromEntries(Object.entries(obj).slice(0, 8));
+    const snakesLim = limit(snakesObj);
+    const laddersLim = limit(laddersObj);
+    setSnakes(snakesLim);
+    setLadders(laddersLim);
+    const snk = {};
+    Object.entries(snakesLim).forEach(([s, e]) => {
+      snk[s] = s - e;
+    });
+    const lad = {};
+    Object.entries(laddersLim).forEach(([s, e]) => {
+      const end = typeof e === 'object' ? e.end : e;
+      lad[s] = end - s;
+    });
+    setSnakeOffsets(snk);
+    setLadderOffsets(lad);
+    const boardSize = ROWS * COLS;
+    const diceMap = {};
+    const diceValues = [1, 2, 1];
+    const usedD = new Set([
+      ...Object.keys(snakesLim),
+      ...Object.keys(laddersLim),
+      ...Object.values(snakesLim),
+      ...Object.values(laddersLim),
+    ]);
+    diceValues.forEach((val) => {
+      let cell;
+      do {
+        cell = Math.floor(Math.random() * boardSize) + 1;
+      } while (
+        usedD.has(String(cell)) ||
+        usedD.has(cell) ||
+        cell === FINAL_TILE ||
+        cell === 1
+      );
+      diceMap[cell] = val;
+      usedD.add(cell);
+    });
+    setDiceCells(diceMap);
+  };
+
   const diceRef = useRef(null);
   const diceRollerDivRef = useRef(null);
   const [diceStyle, setDiceStyle] = useState({ display: 'none' });
@@ -1187,48 +1230,7 @@ export default function SnakeAndLadder() {
     boardPromise
       .then(({ snakes: snakesObj = {}, ladders: laddersObj = {} }) => {
         setBoardError(null);
-        const limit = (obj) => {
-          return Object.fromEntries(Object.entries(obj).slice(0, 8));
-        };
-        const snakesLim = limit(snakesObj);
-        const laddersLim = limit(laddersObj);
-        setSnakes(snakesLim);
-        setLadders(laddersLim);
-        const snk = {};
-        Object.entries(snakesLim).forEach(([s, e]) => {
-          snk[s] = s - e;
-        });
-        const lad = {};
-        Object.entries(laddersLim).forEach(([s, e]) => {
-          const end = typeof e === "object" ? e.end : e;
-          lad[s] = end - s;
-        });
-        setSnakeOffsets(snk);
-        setLadderOffsets(lad);
-
-        const boardSize = ROWS * COLS;
-        const diceMap = {};
-        const diceValues = [1, 2, 1];
-        const usedD = new Set([
-          ...Object.keys(snakesLim),
-          ...Object.keys(laddersLim),
-          ...Object.values(snakesLim),
-          ...Object.values(laddersLim),
-        ]);
-        diceValues.forEach((val) => {
-          let cell;
-          do {
-            cell = Math.floor(Math.random() * boardSize) + 1;
-          } while (
-            usedD.has(String(cell)) ||
-            usedD.has(cell) ||
-            cell === FINAL_TILE ||
-            cell === 1
-          );
-          diceMap[cell] = val;
-          usedD.add(cell);
-        });
-        setDiceCells(diceMap);
+        applyBoard(snakesObj, laddersObj);
       })
       .catch((err) => {
         console.error(err);
@@ -1392,8 +1394,11 @@ export default function SnakeAndLadder() {
         setDiceCount(playerDiceCounts[idx] ?? 2);
       }
     };
-    const onStarted = () => {
+    const onStarted = ({ snakes: s = {}, ladders: l = {} } = {}) => {
       setWaitingForPlayers(false);
+      if (Object.keys(s).length || Object.keys(l).length) {
+        applyBoard(s, l);
+      }
       unseatTable(accountId, tableId).catch(() => {});
     };
     const onRolled = ({ value }) => {

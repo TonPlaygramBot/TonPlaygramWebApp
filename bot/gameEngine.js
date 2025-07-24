@@ -88,7 +88,10 @@ export class GameRoom {
         }, this.gameStartDelay);
       }
     } else if (this.status === 'playing') {
-      socket.emit('gameStarted');
+      socket.emit('gameStarted', {
+        snakes: this.snakes,
+        ladders: this.ladders
+      });
       this.emitNextTurn();
     }
     return { success: true };
@@ -125,7 +128,10 @@ export class GameRoom {
     }
     this.status = 'playing';
     this.currentTurn = 0;
-    this.io.to(this.id).emit('gameStarted');
+    this.io.to(this.id).emit('gameStarted', {
+      snakes: this.snakes,
+      ladders: this.ladders
+    });
     this.emitNextTurn();
   }
 
