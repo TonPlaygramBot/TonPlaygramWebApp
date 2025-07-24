@@ -18,6 +18,7 @@ import airdropRoutes from './routes/airdrop.js';
 import checkinRoutes from './routes/checkin.js';
 import socialRoutes from './routes/social.js';
 import broadcastRoutes from './routes/broadcast.js';
+import { BUNDLES } from './routes/store.js';
 import User from './models/User.js';
 import GameResult from "./models/GameResult.js";
 import path from 'path';
@@ -128,6 +129,9 @@ const onlineUsers = new Map();
 const tableSeats = new Map();
 const userSockets = new Map();
 const watchSockets = new Map();
+const BUNDLE_TON_MAP = Object.fromEntries(
+  Object.values(BUNDLES).map((b) => [b.label, b.ton])
+);
 
 function cleanupSeats() {
   const now = Date.now();
@@ -165,6 +169,81 @@ app.get('/api/online/list', (req, res) => {
     if (now - ts > 60_000) onlineUsers.delete(id);
   }
   res.json({ users: Array.from(onlineUsers.keys()) });
+});
+
+app.get('/api/stats', async (req, res) => {
+  try {
+    const [{ totalBalance = 0, totalMined = 0, nftCount = 0 } = {}] =
+      await User.aggregate([
+        {
+          $project: {
+            balance: 1,
+            minedTPC: 1,
+            nftCount: {
+              $size: {
+                $filter: {
+                  input: { $ifNull: ['$gifts', []] },
+                  as: 'g',
+                  cond: { $ifNull: ['$$g.nftTokenId', false] }
+                }
+              }
+            }
+          }
+        },
+        {
+          $group: {
+            _id: null,
+            totalBalance: { $sum: '$balance' },
+            totalMined: { $sum: '$minedTPC' },
+            nftCount: { $sum: '$nftCount' }
+          }
+        }
+      ]);
+    const accounts = await User.countDocuments();
+    const active = onlineUsers.size;
+    const users = await User.find({}, { transactions: 1, gifts: 1 }).lean();
+    let giftSends = 0;
+    let bundlesSold = 0;
+    let tonRaised = 0;
+    let currentNfts = 0;
+    let nftValue = 0;
+    let appClaimed = 0;
+    let externalClaimed = 0;
+    for (const u of users) {
+      const nftGifts = (u.gifts || []).filter((g) => g.nftTokenId);
+      currentNfts += nftGifts.length;
+      for (const g of nftGifts) {
+        nftValue += g.price || 0;
+      }
+      for (const tx of u.transactions || []) {
+        if (tx.type === 'gift') giftSends++;
+        if (tx.type === 'store') {
+          bundlesSold++;
+          if (tx.detail && BUNDLE_TON_MAP[tx.detail]) {
+            tonRaised += BUNDLE_TON_MAP[tx.detail];
+          }
+        }
+        if (tx.type === 'claim') appClaimed += Math.abs(tx.amount || 0);
+        if (tx.type === 'withdraw') externalClaimed += Math.abs(tx.amount || 0);
+      }
+    }
+    const nftsBurned = giftSends - currentNfts;
+    res.json({
+      minted: totalBalance + totalMined,
+      accounts,
+      activeUsers: active,
+      nftsCreated: currentNfts,
+      nftsBurned,
+      bundlesSold,
+      tonRaised,
+      appClaimed: totalBalance,
+      externalClaimed,
+      nftValue
+    });
+  } catch (err) {
+    console.error('Failed to compute stats:', err.message);
+    res.status(500).json({ error: 'failed to compute stats' });
+  }
 });
 
 app.post('/api/snake/table/seat', (req, res) => {
