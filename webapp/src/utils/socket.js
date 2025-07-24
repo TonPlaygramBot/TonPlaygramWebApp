@@ -6,4 +6,7 @@ if (typeof window !== 'undefined' && window.location.protocol === 'https:' && ba
   baseUrl = baseUrl.replace(/^http:/, 'https:');
 }
 
-export const socket = io(baseUrl);
+console.log('Socket is trying to connect to:', baseUrl);
+export const socket = io(baseUrl, {
+  transports: ['websocket', 'polling']
+});
