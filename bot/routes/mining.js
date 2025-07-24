@@ -47,11 +47,21 @@ router.post('/status', getUser, async (req, res) => {
 
 router.post('/leaderboard', async (req, res) => {
   const { telegramId, accountId } = req.body || {};
-  const users = await User.find()
+  const docs = await User.find()
     .sort({ balance: -1 })
     .limit(100)
     .select('telegramId accountId balance nickname firstName lastName photo currentTableId')
     .lean();
+
+  // Deduplicate by accountId to avoid duplicates when users have multiple records
+  const users = [];
+  const seenAccounts = new Set();
+  for (const u of docs) {
+    if (u.accountId && !seenAccounts.has(u.accountId)) {
+      seenAccounts.add(u.accountId);
+      users.push(u);
+    }
+  }
 
   await Promise.all(
     users.map(async (u) => {

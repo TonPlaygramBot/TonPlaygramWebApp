@@ -48,13 +48,15 @@ export class SnakeGame {
     const total = dice.reduce((a, b) => a + b, 0);
     const rolledSix = dice.includes(6);
     const doubleSix = dice.length === 2 && dice[0] === 6 && dice[1] === 6;
-
+    
     let target = player.position;
+    let started = false;
 
     if (player.position === 0) {
       if (rolledSix) {
         player.isActive = true;
         target = 1;
+        started = true;
       }
     } else if (player.position === 100) {
       if (player.diceCount === 2) {
@@ -91,7 +93,7 @@ export class SnakeGame {
       player.bonus = bonus;
       delete this.diceCells[player.position];
       extraTurn = true;
-    } else if (doubleSix) {
+    } else if (doubleSix && !started) {
       extraTurn = true;
     }
 
