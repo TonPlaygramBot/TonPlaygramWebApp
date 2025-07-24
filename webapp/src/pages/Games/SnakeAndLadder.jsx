@@ -1403,6 +1403,45 @@ export default function SnakeAndLadder() {
       }
       unseatTable(accountId, tableId).catch(() => {});
     };
+    const onWatchState = ({ board, players, currentTurn: turn }) => {
+      if (board) {
+        const limit = (obj) => Object.fromEntries(Object.entries(obj).slice(0, 8));
+        const snakesLim = limit(board.snakes || {});
+        const laddersLim = limit(board.ladders || {});
+        setSnakes(snakesLim);
+        setLadders(laddersLim);
+        const snk = {};
+        Object.entries(snakesLim).forEach(([s, e]) => {
+          snk[s] = s - e;
+        });
+        const lad = {};
+        Object.entries(laddersLim).forEach(([s, e]) => {
+          const end = typeof e === 'object' ? e.end : e;
+          lad[s] = end - s;
+        });
+        setSnakeOffsets(snk);
+        setLadderOffsets(lad);
+      }
+      if (players) {
+        Promise.all(
+          players.map(async (p) => {
+            const prof = await getProfileByAccount(p.playerId).catch(() => ({}));
+            const name =
+              prof?.nickname || `${prof?.firstName || ''} ${prof?.lastName || ''}`.trim() || p.name;
+            const photoUrl = prof?.photo || '/assets/icons/profile.svg';
+            return { id: p.playerId, name, photoUrl, position: p.position || 0 };
+          })
+        ).then((arr) => {
+          setMpPlayers(arr);
+          setPlayersNeeded(Math.max(0, capacity - arr.length));
+          const idx = arr.findIndex((pl) => pl.id === turn);
+          if (idx >= 0) {
+            setCurrentTurn(idx);
+            setDiceCount(playerDiceCounts[idx] ?? 2);
+          }
+        });
+      }
+    };
     const onRolled = ({ value }) => {
       setRollResult(value);
       setTimeout(() => setRollResult(null), 2000);
@@ -1478,6 +1517,7 @@ export default function SnakeAndLadder() {
     socket.on('diceRolled', onRolled);
     socket.on('gameWon', onWon);
     socket.on('currentPlayers', onCurrentPlayers);
+    socket.on('watchState', onWatchState);
 
     if (watchOnly) {
       socket.emit('watchRoom', { roomId: tableId });
@@ -1517,6 +1557,7 @@ export default function SnakeAndLadder() {
       socket.off('diceRolled', onRolled);
       socket.off('gameWon', onWon);
       socket.off('currentPlayers', onCurrentPlayers);
+      socket.off('watchState', onWatchState);
       if (watchOnly) {
         socket.emit('leaveWatch', { roomId: tableId });
       } else {
