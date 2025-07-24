@@ -32,7 +32,7 @@ import {
 import BottomLeftIcons from "../../components/BottomLeftIcons.jsx";
 import { isGameMuted, getGameVolume } from "../../utils/sound.js";
 import useTelegramBackButton from "../../hooks/useTelegramBackButton.js";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { getPlayerId, getTelegramId, ensureAccountId } from "../../utils/telegram.js";
 import {
   getProfileByAccount,
@@ -492,6 +492,7 @@ export default function SnakeAndLadder() {
   const [showQuitInfo, setShowQuitInfo] = useState(true);
   useTelegramBackButton();
   const navigate = useNavigate();
+  const location = useLocation();
 
   useEffect(() => {
     ensureAccountId().catch(() => {});
@@ -1143,7 +1144,7 @@ export default function SnakeAndLadder() {
   }, []);
 
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
+    const params = new URLSearchParams(location.search);
     const watchParam = params.get("watch");
     const t = params.get("token");
     const amt = params.get("amount");
@@ -1161,7 +1162,8 @@ export default function SnakeAndLadder() {
         : 1;
     setAi(aiCount);
     setAvatarType(avatarParam);
-    setIsMultiplayer(tableParam && !aiParam);
+    const mp = tableParam && !aiParam;
+    setIsMultiplayer(mp);
     const watching = watchParam === "1";
     setWatchOnly(watching);
     if (watching) {
@@ -1221,10 +1223,10 @@ export default function SnakeAndLadder() {
     setPlayerColors(colors);
 
     const storedTable = localStorage.getItem('snakeCurrentTable');
-    const table = params.get("table") || storedTable || "snake-4";
+    const table = tableParam || storedTable || "snake-4";
     setTableId(table);
     localStorage.setItem('snakeCurrentTable', table);
-    const boardPromise = isMultiplayer
+    const boardPromise = mp
       ? getSnakeBoard(table)
       : Promise.resolve(generateBoard());
     boardPromise
@@ -1236,7 +1238,7 @@ export default function SnakeAndLadder() {
         console.error(err);
         setBoardError('Failed to load board. Please try again.');
       });
-  }, []);
+  }, [location.search]);
 
   useEffect(() => {
     playersRef.current = mpPlayers;
