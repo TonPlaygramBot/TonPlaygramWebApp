@@ -21,6 +21,7 @@ import { AVATARS } from "../../components/AvatarPickerModal.jsx";
 import { LEADER_AVATARS } from "../../utils/leaderAvatars.js";
 import { FLAG_EMOJIS } from "../../utils/flagEmojis.js";
 import generateBoard from "../../utils/generateBoard.js";
+import { SnakeEngine, applySnakesAndLadders } from "../../games/snakeEngine.js";
 import { getAvatarUrl, saveAvatar, loadAvatar, avatarToName } from "../../utils/avatarUtils.js";
 import InfoPopup from "../../components/InfoPopup.jsx";
 import HintPopup from "../../components/HintPopup.jsx";
@@ -632,6 +633,7 @@ export default function SnakeAndLadder() {
   const [watchOnly, setWatchOnly] = useState(false);
   const [mpPlayers, setMpPlayers] = useState([]);
   const playersRef = useRef([]);
+  const engineRef = useRef(new SnakeEngine());
   const [tableId, setTableId] = useState('snake-4');
   const [playerPopup, setPlayerPopup] = useState(null);
   const [showChat, setShowChat] = useState(false);
@@ -640,6 +642,19 @@ export default function SnakeAndLadder() {
   const [showWatchWelcome, setShowWatchWelcome] = useState(false);
   const [boardError, setBoardError] = useState(null);
   const [boardReady, setBoardReady] = useState(false);
+
+  useEffect(() => {
+    const eng = engineRef.current;
+    eng.game.players = [];
+    if (isMultiplayer) {
+      mpPlayers.forEach(p => eng.addPlayer(p.id, p.name));
+    } else {
+      eng.addPlayer(0, myName);
+      for (let i = 0; i < ai; i++) {
+        eng.addPlayer(i + 1, getPlayerName(i + 1));
+      }
+    }
+  }, [isMultiplayer, mpPlayers, ai, myName, aiAvatars]);
 
   const applyBoard = (snakesObj = {}, laddersObj = {}) => {
     const limit = (obj) =>
@@ -682,6 +697,7 @@ export default function SnakeAndLadder() {
       usedD.add(cell);
     });
     setDiceCells(diceMap);
+    engineRef.current.applyBoard(snakesLim, laddersLim, diceMap);
   };
 
   const diceRef = useRef(null);
@@ -1732,6 +1748,7 @@ export default function SnakeAndLadder() {
     setMoving(true);
     setTurnMessage("");
     setRollCooldown(1);
+    const engineResult = engineRef.current.takeTurn(0, values);
     const value = Array.isArray(values)
       ? values.reduce((a, b) => a + b, 0)
       : values;
@@ -1751,11 +1768,7 @@ export default function SnakeAndLadder() {
     } else if (preview !== 100 || diceCount !== 2) {
       if (preview + value <= FINAL_TILE) preview = preview + value;
     }
-    if (snakes[preview] != null) preview = Math.max(0, snakes[preview]);
-    else if (ladders[preview] != null) {
-      const ladObj = ladders[preview];
-      preview = typeof ladObj === 'object' ? ladObj.end : ladObj;
-    }
+    preview = applySnakesAndLadders(preview, snakes, ladders);
     const willCapture = aiPositions.some((p) => p === preview);
 
     setRollResult(value);
@@ -1847,12 +1860,7 @@ export default function SnakeAndLadder() {
       }
 
 
-      let predicted = target;
-      if (snakes[predicted] != null) predicted = Math.max(0, snakes[predicted]);
-      else if (ladders[predicted] != null) {
-        const ladObj = ladders[predicted];
-        predicted = typeof ladObj === 'object' ? ladObj.end : ladObj;
-      }
+      let predicted = applySnakesAndLadders(target, snakes, ladders);
       const extraPred = diceCells[predicted] || doubleSix;
       const nextPlayer = extraPred ? currentTurn : (currentTurn + 1) % (ai + 1);
       animateDiceToPlayer(nextPlayer);
@@ -1967,6 +1975,7 @@ export default function SnakeAndLadder() {
 
   const handleAIRoll = (index, vals) => {
     setMoving(true);
+    engineRef.current.takeTurn(index, vals);
     const value = Array.isArray(vals)
       ? vals.reduce((a, b) => a + b, 0)
       : vals ?? Math.floor(Math.random() * 6) + 1;
@@ -1984,11 +1993,7 @@ export default function SnakeAndLadder() {
     } else if (preview + value <= FINAL_TILE) {
       preview = preview + value;
     }
-    if (snakes[preview] != null) preview = Math.max(0, snakes[preview]);
-    else if (ladders[preview] != null) {
-      const ladObj = ladders[preview];
-      preview = typeof ladObj === 'object' ? ladObj.end : ladObj;
-    }
+    preview = applySnakesAndLadders(preview, snakes, ladders);
     const capture =
       (index !== 0 && pos === preview) ||
       aiPositions.some((p, i) => i !== index - 1 && p === preview);
@@ -2056,12 +2061,7 @@ export default function SnakeAndLadder() {
       target = current + value;
     }
 
-    let predicted = target;
-    if (snakes[predicted] != null) predicted = Math.max(0, snakes[predicted]);
-    else if (ladders[predicted] != null) {
-      const ladObj = ladders[predicted];
-      predicted = typeof ladObj === 'object' ? ladObj.end : ladObj;
-    }
+    let predicted = applySnakesAndLadders(target, snakes, ladders);
     const extraPred = diceCells[predicted] || doubleSix;
     const nextPlayer = extraPred ? index : (index + 1) % (ai + 1);
     animateDiceToPlayer(nextPlayer);
