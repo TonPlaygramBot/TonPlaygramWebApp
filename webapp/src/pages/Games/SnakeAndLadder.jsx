@@ -639,6 +639,7 @@ export default function SnakeAndLadder() {
   const [chatBubbles, setChatBubbles] = useState([]);
   const [showWatchWelcome, setShowWatchWelcome] = useState(false);
   const [boardError, setBoardError] = useState(null);
+  const [boardReady, setBoardReady] = useState(false);
 
   const applyBoard = (snakesObj = {}, laddersObj = {}) => {
     const limit = (obj) =>
@@ -1233,14 +1234,23 @@ export default function SnakeAndLadder() {
           : generateBoard();
         setBoardError(null);
         applyBoard(snakesObj, laddersObj);
+        setBoardReady(true);
       } catch (err) {
         console.error(err);
         if (attempt < 3) {
           setTimeout(() => fetchBoard(attempt + 1), 1000 * attempt);
         } else {
-          setBoardError('Failed to load board. Using a local board.');
-          const board = generateBoard();
-          applyBoard(board.snakes, board.ladders);
+          if (mp) {
+            setBoardError(
+              'Unable to load board – please check your connection or use the same table ID as other players.'
+            );
+            setBoardReady(false);
+          } else {
+            setBoardError('Failed to load board. Using a local board.');
+            const board = generateBoard();
+            applyBoard(board.snakes, board.ladders);
+            setBoardReady(true);
+          }
         }
       }
     }
@@ -2142,7 +2152,7 @@ export default function SnakeAndLadder() {
   };
 
   useEffect(() => {
-    if (waitingForPlayers || !setupPhase || boardError || aiPositions.length !== ai) return;
+    if (waitingForPlayers || !setupPhase || boardError || !boardReady || aiPositions.length !== ai) return;
 
     if (isMultiplayer) {
       // The first player to join the table should roll first.
@@ -2199,7 +2209,7 @@ export default function SnakeAndLadder() {
       setTimeout(() => rollNext(idx + 1), 1000);
     };
     rollNext(0);
-  }, [ai, aiPositions, setupPhase, boardError, waitingForPlayers, isMultiplayer, mpPlayers]);
+  }, [ai, aiPositions, setupPhase, boardError, boardReady, waitingForPlayers, isMultiplayer, mpPlayers]);
 
 
   useEffect(() => {
