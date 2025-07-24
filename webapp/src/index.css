@@ -1689,3 +1689,8 @@ input:focus {
     transform: translate(50vw, 40vh) scale(0.4) rotate(1800deg);
   }
 }
+
+/* Slight adjustment for the Lucky Number dice position */
+.lucky-dice {
+  transform: translate(0.75rem, 0.75rem);
+}
