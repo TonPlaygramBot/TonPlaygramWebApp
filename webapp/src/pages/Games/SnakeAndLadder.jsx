@@ -2519,21 +2519,29 @@ export default function SnakeAndLadder() {
           </div>
         </div>
       )}
-      {currentTurn === 0 && !aiRollingIndex && !playerAutoRolling && (
-        <div
-          className="fixed bottom-24 inset-x-0 flex flex-col items-center z-20 cursor-pointer"
-          style={{ transform: 'translateX(2rem)' }}
-          onClick={() => diceRollerDivRef.current?.click()}
-        >
-          <div className="text-5xl">🫵</div>
-          <div
-            className="turn-message text-2xl mt-1"
-            style={{ color: players[currentTurn]?.color }}
-          >
-            Your turn
-          </div>
-        </div>
-      )}
+      {(() => {
+        const myId = getPlayerId();
+        const myIndex = isMultiplayer
+          ? mpPlayers.findIndex((p) => p.id === myId)
+          : 0;
+        return (
+          currentTurn === myIndex && !aiRollingIndex && !playerAutoRolling && (
+            <div
+              className="fixed bottom-24 inset-x-0 flex flex-col items-center z-20 cursor-pointer"
+              style={{ transform: 'translateX(2rem)' }}
+              onClick={() => diceRollerDivRef.current?.click()}
+            >
+              <div className="text-5xl">🫵</div>
+              <div
+                className="turn-message text-2xl mt-1"
+                style={{ color: players[currentTurn]?.color }}
+              >
+                Your turn
+              </div>
+            </div>
+          )
+        );
+      })()}
       {isMultiplayer && (
         <div
           className="fixed bottom-24 inset-x-0 flex flex-col items-center z-20 cursor-pointer"
