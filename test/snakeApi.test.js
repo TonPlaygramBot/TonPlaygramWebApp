@@ -139,6 +139,7 @@ test('snake API endpoints and socket events', { concurrency: false, timeout: 200
 
     assert.ok(board.snakes && board.ladders);
 
+
     await fetch('http://localhost:3201/api/snake/table/seat', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -149,6 +150,11 @@ test('snake API endpoints and socket events', { concurrency: false, timeout: 200
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ tableId: 'snake-2-100', accountId: 'p2', name: 'B', confirmed: true })
     });
+
+    const boardRes2 = await fetch('http://localhost:3201/api/snake/board/snake-2-100');
+    assert.equal(boardRes2.status, 200);
+    const board2 = await boardRes2.json();
+    assert.deepEqual(board2, board);
 
     const s1 = io('http://localhost:3201');
     const s2 = io('http://localhost:3201');
