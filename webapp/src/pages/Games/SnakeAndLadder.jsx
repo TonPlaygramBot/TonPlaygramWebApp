@@ -21,7 +21,6 @@ import { AVATARS } from "../../components/AvatarPickerModal.jsx";
 import { LEADER_AVATARS } from "../../utils/leaderAvatars.js";
 import { FLAG_EMOJIS } from "../../utils/flagEmojis.js";
 import generateBoard from "../../utils/generateBoard.js";
-import { applySnakesAndLadders } from "../../utils/snakeGame.js";
 import { getAvatarUrl, saveAvatar, loadAvatar, avatarToName } from "../../utils/avatarUtils.js";
 import InfoPopup from "../../components/InfoPopup.jsx";
 import HintPopup from "../../components/HintPopup.jsx";
@@ -1603,7 +1602,11 @@ export default function SnakeAndLadder() {
         } else if (p + roll <= FINAL_TILE) {
           p += roll;
         }
-        p = applySnakesAndLadders(p, state.snakes, state.ladders);
+        if (state.snakes[p] != null) p = Math.max(0, state.snakes[p]);
+        else if (state.ladders[p] != null) {
+          const lad = state.ladders[p];
+          p = typeof lad === 'object' ? lad.end : lad;
+        }
         aiPos = aiPos.map((pos) => (pos === p ? 0 : pos));
         if (p === FINAL_TILE && !rank.includes('You')) {
           rank.push('You');
@@ -1617,7 +1620,11 @@ export default function SnakeAndLadder() {
         } else if (pos + roll <= FINAL_TILE) {
           pos += roll;
         }
-        pos = applySnakesAndLadders(pos, state.snakes, state.ladders);
+        if (state.snakes[pos] != null) pos = Math.max(0, state.snakes[pos]);
+        else if (state.ladders[pos] != null) {
+          const lad = state.ladders[pos];
+          pos = typeof lad === 'object' ? lad.end : lad;
+        }
         if (p === pos) p = 0;
         aiPos = aiPos.map((v, i) => (i === idx ? pos : v === pos ? 0 : v));
         if (pos === FINAL_TILE && !rank.includes(getPlayerName(turn))) {
@@ -1734,7 +1741,11 @@ export default function SnakeAndLadder() {
     } else if (preview !== 100 || diceCount !== 2) {
       if (preview + value <= FINAL_TILE) preview = preview + value;
     }
-    preview = applySnakesAndLadders(preview, snakes, ladders);
+    if (snakes[preview] != null) preview = Math.max(0, snakes[preview]);
+    else if (ladders[preview] != null) {
+      const ladObj = ladders[preview];
+      preview = typeof ladObj === 'object' ? ladObj.end : ladObj;
+    }
     const willCapture = aiPositions.some((p) => p === preview);
 
     setRollResult(value);
@@ -1826,7 +1837,12 @@ export default function SnakeAndLadder() {
       }
 
 
-      let predicted = applySnakesAndLadders(target, snakes, ladders);
+      let predicted = target;
+      if (snakes[predicted] != null) predicted = Math.max(0, snakes[predicted]);
+      else if (ladders[predicted] != null) {
+        const ladObj = ladders[predicted];
+        predicted = typeof ladObj === 'object' ? ladObj.end : ladObj;
+      }
       const extraPred = diceCells[predicted] || doubleSix;
       const nextPlayer = extraPred ? currentTurn : (currentTurn + 1) % (ai + 1);
       animateDiceToPlayer(nextPlayer);
@@ -1958,7 +1974,11 @@ export default function SnakeAndLadder() {
     } else if (preview + value <= FINAL_TILE) {
       preview = preview + value;
     }
-    preview = applySnakesAndLadders(preview, snakes, ladders);
+    if (snakes[preview] != null) preview = Math.max(0, snakes[preview]);
+    else if (ladders[preview] != null) {
+      const ladObj = ladders[preview];
+      preview = typeof ladObj === 'object' ? ladObj.end : ladObj;
+    }
     const capture =
       (index !== 0 && pos === preview) ||
       aiPositions.some((p, i) => i !== index - 1 && p === preview);
@@ -2026,7 +2046,12 @@ export default function SnakeAndLadder() {
       target = current + value;
     }
 
-    let predicted = applySnakesAndLadders(target, snakes, ladders);
+    let predicted = target;
+    if (snakes[predicted] != null) predicted = Math.max(0, snakes[predicted]);
+    else if (ladders[predicted] != null) {
+      const ladObj = ladders[predicted];
+      predicted = typeof ladObj === 'object' ? ladObj.end : ladObj;
+    }
     const extraPred = diceCells[predicted] || doubleSix;
     const nextPlayer = extraPred ? index : (index + 1) % (ai + 1);
     animateDiceToPlayer(nextPlayer);
