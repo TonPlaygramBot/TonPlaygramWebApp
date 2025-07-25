@@ -612,14 +612,24 @@ export default function SnakeAndLadder() {
 
   useEffect(() => {
     const onDisc = () => setConnectionLost(true);
-    const onRec = () => setConnectionLost(false);
+    const onRec = () => {
+      setConnectionLost(false);
+      if (isMultiplayer) {
+        const accountId = getPlayerId();
+        if (watchOnly) {
+          socket.emit('watchRoom', { roomId: tableId });
+        } else if (accountId) {
+          socket.emit('joinRoom', { roomId: tableId, accountId, name: myName });
+        }
+      }
+    };
     socket.on('disconnect', onDisc);
     socket.io.on('reconnect', onRec);
     return () => {
       socket.off('disconnect', onDisc);
       socket.io.off('reconnect', onRec);
     };
-  }, []);
+  }, [isMultiplayer, tableId, watchOnly, myName]);
   const [pos, setPos] = useState(0);
   const [highlight, setHighlight] = useState(null); // { cell: number, type: string }
   const [trail, setTrail] = useState([]);
