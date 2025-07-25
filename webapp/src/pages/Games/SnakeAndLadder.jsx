@@ -1589,11 +1589,29 @@ export default function SnakeAndLadder() {
     socket.on('gameWon', onWon);
     socket.on('currentPlayers', onCurrentPlayers);
     socket.on('watchState', onWatchState);
-    socket.on('game:start', (data) => setMpPlayers(data.players || []));
 
     if (watchOnly) {
       socket.emit('watchRoom', { roomId: tableId });
-      // Player list will be provided via 'game:start'
+      getSnakeLobby(tableId)
+        .then((data) => {
+          const players = data.players || [];
+          return Promise.all(
+            players.map(async (p) => {
+              const prof = await getProfileByAccount(p.id).catch(() => ({}));
+              const n =
+                p.name ||
+                prof?.nickname ||
+                `${prof?.firstName || ''} ${prof?.lastName || ''}`.trim() ||
+                'Player';
+              const photoUrl = prof?.photo || '/assets/icons/profile.svg';
+              return { id: p.id, name: n, photoUrl, position: 0 };
+            })
+          ).then((arr) => {
+            setMpPlayers(arr);
+            setPlayersNeeded(Math.max(0, capacity - arr.length));
+          });
+        })
+        .catch(() => {});
     } else {
       socket.emit('joinRoom', { roomId: tableId, accountId, name });
     }
@@ -1614,7 +1632,6 @@ export default function SnakeAndLadder() {
       socket.off('gameWon', onWon);
       socket.off('currentPlayers', onCurrentPlayers);
       socket.off('watchState', onWatchState);
-      socket.off('game:start');
       if (watchOnly) {
         socket.emit('leaveWatch', { roomId: tableId });
       } else {
