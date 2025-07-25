@@ -168,6 +168,23 @@ function generateDiceCells(id, snakesMap = {}, laddersMap = {}) {
   return map;
 }
 
+function preloadImages(urls) {
+  return Promise.all(
+    urls.map(
+      (url) =>
+        new Promise((resolve) => {
+          const img = new Image();
+          img.onload = () => resolve();
+          img.onerror = () => {
+            img.src = '/assets/icons/TonPlayGramLogo.webp';
+            resolve();
+          };
+          img.src = url;
+        })
+    )
+  );
+}
+
 
 function CoinBurst({ token }) {
   const coins = Array.from({ length: 30 }, () => ({
@@ -310,7 +327,16 @@ function Board({
         >
           {(iconImage || offsetVal != null) && (
             <span className="cell-marker">
-              {iconImage && <img src={iconImage} className="cell-icon" />}
+              {iconImage && (
+                <img
+                  src={iconImage}
+                  alt="cell icon"
+                  className="cell-icon"
+                  onError={(e) => {
+                    e.currentTarget.src = '/assets/icons/TonPlayGramLogo.webp';
+                  }}
+                />
+              )}
               {offsetVal != null && (
                 <span
                   className={`offset-text ${
@@ -329,7 +355,14 @@ function Board({
           {!cellType && <span className="cell-number">{num}</span>}
           {diceCells && diceCells[num] && (
             <span className="dice-marker">
-              <img  src="/assets/icons/file_000000009160620a96f728f463de1c3f.webp" className="dice-icon" />
+              <img
+                src="/assets/icons/file_000000009160620a96f728f463de1c3f.webp"
+                alt="dice"
+                className="dice-icon"
+                onError={(e) => {
+                  e.currentTarget.src = '/assets/icons/TonPlayGramLogo.webp';
+                }}
+              />
               <span className="dice-value">+{diceCells[num]}</span>
             </span>
           )}
@@ -691,6 +724,15 @@ export default function SnakeAndLadder() {
   const [showWatchWelcome, setShowWatchWelcome] = useState(false);
   const [boardError, setBoardError] = useState(null);
   const [boardReady, setBoardReady] = useState(false);
+  const [iconsLoaded, setIconsLoaded] = useState(false);
+
+  useEffect(() => {
+    preloadImages([
+      '/assets/icons/Ladder.webp',
+      '/assets/icons/snake_vector_no_bg.webp',
+      '/assets/icons/file_000000009160620a96f728f463de1c3f.webp',
+    ]).then(() => setIconsLoaded(true));
+  }, []);
 
   useEffect(() => {
     const eng = engineRef.current;
@@ -1637,38 +1679,77 @@ export default function SnakeAndLadder() {
     socket.on('gameWon', onWon);
     socket.on('currentPlayers', onCurrentPlayers);
     socket.on('watchState', onWatchState);
+    socket.on('game:start', (data) => setMpPlayers(data.players || []));
 
     if (watchOnly) {
       socket.emit('watchRoom', { roomId: tableId });
-      getSnakeLobby(tableId)
-        .then((data) => {
-          const players = data.players || [];
-          return Promise.all(
-            players.map(async (p) => {
-              const prof = await getProfileByAccount(p.id).catch(() => ({}));
-              const n =
-                p.name ||
-                prof?.nickname ||
-                `${prof?.firstName || ''} ${prof?.lastName || ''}`.trim() ||
-                'Player';
-              const photoUrl = prof?.photo || '/assets/icons/profile.svg';
-              return { id: p.id, name: n, photoUrl, position: 0 };
-            })
-          ).then((arr) => {
-            setPlayerInfo((info) => {
-              const updated = { ...info };
-              arr.forEach((p) => {
-                const existing = info[p.id] || {};
-                const color = existing.color ||
-                  TOKEN_COLORS[colorIndexRef.current++ % TOKEN_COLORS.length].color;
-                updated[p.id] = { ...existing, ...p, color };
-              });
-              return updated;
-            });
-            setPlayersNeeded(Math.max(0, capacity - arr.length));
-          });
-        })
-        .catch(() => {});
+// Load players either from 'game:start' event or fallback to getSnakeLobby
+
+const loadPlayers = async (tableId, capacity) => {
+
+  try {
+
+    const sourcePlayers = (gameStartPlayers && gameStartPlayers.length > 0)
+
+      ? gameStartPlayers
+
+      : (await getSnakeLobby(tableId)).players || [];
+
+    const arr = await Promise.all(
+
+      sourcePlayers.map(async (p) => {
+
+        const prof = await getProfileByAccount(p.id).catch(() => ({}));
+
+        const n =
+
+          p.name ||
+
+          prof?.nickname ||
+
+          `${prof?.firstName || ''} ${prof?.lastName || ''}`.trim() ||
+
+          'Player';
+
+        const photoUrl = prof?.photo || '/assets/icons/profile.svg';
+
+        return { id: p.id, name: n, photoUrl, position: 0 };
+
+      })
+
+    );
+
+    setPlayerInfo((info) => {
+
+      const updated = { ...info };
+
+      arr.forEach((p) => {
+
+        const existing = info[p.id] || {};
+
+        const color =
+
+          existing.color ||
+
+          TOKEN_COLORS[colorIndexRef.current++ % TOKEN_COLORS.length].color;
+
+        updated[p.id] = { ...existing, ...p, color };
+
+      });
+
+      return updated;
+
+    });
+
+    setPlayersNeeded(Math.max(0, capacity - arr.length));
+
+  } catch (err) {
+
+    console.error("Failed to load players:", err);
+
+  }
+
+};
     } else {
       socket.emit('joinRoom', { roomId: tableId, accountId, name });
     }
@@ -1689,6 +1770,7 @@ export default function SnakeAndLadder() {
       socket.off('gameWon', onWon);
       socket.off('currentPlayers', onCurrentPlayers);
       socket.off('watchState', onWatchState);
+      socket.off('game:start');
       if (watchOnly) {
         socket.emit('leaveWatch', { roomId: tableId });
       } else {
@@ -2476,24 +2558,28 @@ export default function SnakeAndLadder() {
             />
           ))}
       </div>
-      <Board
-        players={players}
-        highlight={highlight}
-        trail={trail}
-        pot={pot}
-        snakes={snakes}
-        ladders={ladders}
-        snakeOffsets={snakeOffsets}
-        ladderOffsets={ladderOffsets}
-        offsetPopup={offsetPopup}
-        celebrate={celebrate}
-        token={token}
-        tokenType={tokenType}
-        diceCells={diceCells}
-        rollingIndex={rollingIndex}
-        currentTurn={currentTurn}
-        burning={burning}
-      />
+      {iconsLoaded ? (
+        <Board
+          players={players}
+          highlight={highlight}
+          trail={trail}
+          pot={pot}
+          snakes={snakes}
+          ladders={ladders}
+          snakeOffsets={snakeOffsets}
+          ladderOffsets={ladderOffsets}
+          offsetPopup={offsetPopup}
+          celebrate={celebrate}
+          token={token}
+          tokenType={tokenType}
+          diceCells={diceCells}
+          rollingIndex={rollingIndex}
+          currentTurn={currentTurn}
+          burning={burning}
+        />
+      ) : (
+        <div className="p-4 text-subtext">Loading board...</div>
+      )}
       {chatBubbles.map((b) => (
         <div key={b.id} className="chat-bubble">
           <span>{b.text}</span>
@@ -2647,7 +2733,15 @@ export default function SnakeAndLadder() {
       {rewardDice > 0 && (
         <div className="fixed bottom-40 inset-x-0 flex justify-center z-30 pointer-events-none reward-dice-container">
           {Array.from({ length: rewardDice }).map((_, i) => (
-            <img key={i}  src="/assets/icons/file_000000009160620a96f728f463de1c3f.webp" className="reward-dice" />
+            <img
+              key={i}
+              src="/assets/icons/file_000000009160620a96f728f463de1c3f.webp"
+              alt="dice"
+              className="reward-dice"
+              onError={(e) => {
+                e.currentTarget.src = '/assets/icons/TonPlayGramLogo.webp';
+              }}
+            />
           ))}
         </div>
       )}

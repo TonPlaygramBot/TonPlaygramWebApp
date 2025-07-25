@@ -129,6 +129,14 @@ export class GameRoom {
     }
     this.status = 'playing';
     this.currentTurn = 0;
+    this.io.to(this.id).emit('game:start', {
+      tableId: this.id,
+      players: this.players.map((p) => ({
+        accountId: p.playerId,
+        name: p.name,
+        avatar: p.photoUrl
+      }))
+    });
     this.io.to(this.id).emit('gameStarted', {
       snakes: this.snakes,
       ladders: this.ladders
