@@ -475,3 +475,11 @@ export function getWatchCount(tableId) {
 
 export function getAppStats() {
   return fetch(API_BASE_URL + '/api/stats').then((r) => r.json());}
+
+export function buyTPC(wallet, amountTON) {
+  return post('/api/buy', { wallet, amountTON });
+}
+
+export function getPresaleStatus() {
+  return fetch(API_BASE_URL + '/api/buy/status').then((r) => r.json());
+}
