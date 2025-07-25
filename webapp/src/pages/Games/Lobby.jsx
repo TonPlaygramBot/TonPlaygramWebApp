@@ -167,7 +167,17 @@ export default function Lobby() {
       function loadPlayers() {
         getSnakeLobby(tableRef)
           .then((data) => {
-            if (active) setPlayers(data.players);
+            if (!active) return;
+            const unique = [];
+            const seen = new Set();
+            for (const p of data.players || []) {
+              const key = p.telegramId || p.id;
+              if (!seen.has(key)) {
+                seen.add(key);
+                unique.push(p);
+              }
+            }
+            setPlayers(unique);
           })
           .catch(() => {});
       }
@@ -288,7 +298,7 @@ export default function Lobby() {
           </h3>
           <ul className="text-sm list-disc list-inside">
             {players.map((p) => (
-              <li key={p.id}>
+              <li key={p.telegramId || p.id}>
                 {p.name}
                 {p.confirmed && ' ✓'}
               </li>

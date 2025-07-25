@@ -264,7 +264,7 @@ app.get('/api/stats', async (req, res) => {
   }
 });
 
-app.post('/api/snake/table/seat', (req, res) => {
+app.post('/api/snake/table/seat', async (req, res) => {
   const { tableId, accountId, name, confirmed } = req.body || {};
   const pid = accountId;
   if (!tableId || !pid) return res.status(400).json({ error: 'missing data' });
@@ -274,7 +274,16 @@ app.post('/api/snake/table/seat', (req, res) => {
     map = new Map();
     tableSeats.set(tableId, map);
   }
-  const info = map.get(String(pid)) || { id: pid, name: name || String(pid) };
+  const info = map.get(String(pid)) || {
+    id: pid,
+    name: name || String(pid)
+  };
+  if (!info.telegramId) {
+    try {
+      const user = await User.findOne({ accountId: pid }).select('telegramId');
+      if (user) info.telegramId = user.telegramId;
+    } catch {}
+  }
   info.name = name || info.name;
   info.ts = Date.now();
   if (typeof confirmed === 'boolean') info.confirmed = confirmed;
@@ -318,9 +327,19 @@ app.get('/api/snake/lobby/:id', async (req, res) => {
   const room = await gameManager.getRoom(id, cap);
   const roomPlayers = room.players
     .filter((p) => !p.disconnected)
-    .map((p) => ({ id: p.playerId, name: p.name }));
-  const lobbyPlayers = Array.from(tableSeats.get(id)?.values() || []).map((p) => ({ id: p.id, name: p.name, confirmed: !!p.confirmed }));
-  res.json({ id, capacity: cap, players: [...lobbyPlayers, ...roomPlayers] });
+    .map((p) => ({ id: p.playerId, telegramId: p.telegramId, name: p.name }));
+  const lobbyPlayers = Array.from(tableSeats.get(id)?.values() || []).map((p) => ({ id: p.id, telegramId: p.telegramId, name: p.name, confirmed: !!p.confirmed }));
+  const combined = [...lobbyPlayers, ...roomPlayers];
+  const unique = [];
+  const seen = new Set();
+  for (const pl of combined) {
+    const key = pl.telegramId || pl.id;
+    if (!seen.has(key)) {
+      seen.add(key);
+      unique.push(pl);
+    }
+  }
+  res.json({ id, capacity: cap, players: unique });
 });
 
 app.get('/api/snake/board/:id', async (req, res) => {
@@ -444,6 +463,7 @@ io.on('connection', (socket) => {
     const room = await gameManager.getRoom(roomId, cap);
     const players = room.players.map((p) => ({
       playerId: p.playerId,
+      telegramId: p.telegramId,
       name: p.name,
       position: p.position,
     }));
