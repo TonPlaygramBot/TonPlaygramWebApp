@@ -1,9 +1,6 @@
-import React, { useEffect } from 'react';
+import React from 'react';
 
 export default function TileFrame({ rect, adjustX = 0, adjustY = 0 }) {
-  useEffect(() => {
-    if (rect) console.log(rect);
-  }, [rect]);
 
   if (!rect) return null;
   const style = {
