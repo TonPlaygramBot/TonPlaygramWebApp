@@ -9,13 +9,13 @@ import {
   PRESALE_ROUNDS,
 } from '../config.js';
 import User from '../models/User.js';
+import WalletPurchase from '../models/WalletPurchase.js';
 import { ensureTransactionArray } from '../utils/userUtils.js';
 import { withProxy } from '../utils/proxyAgent.js';
 import TonWeb from 'tonweb';
 
 const router = Router();
 const dataDir = path.join(path.dirname(new URL(import.meta.url).pathname), '../data');
-const purchasesPath = path.join(dataDir, 'walletPurchases.json');
 const statePath = path.join(dataDir, 'presaleState.json');
 const STORE_ADDRESS = process.env.STORE_DEPOSIT_ADDRESS ||
   'UQAPwsGyKzA4MuBnCflTVwEcTLcGS9yV6okJWQGzO5VxVYD1';
@@ -42,11 +42,6 @@ function writeJson(file, data) {
   fs.writeFileSync(file, JSON.stringify(data, null, 2));
 }
 
-let walletPurchases = readJson(purchasesPath, {});
-for (const key of Object.keys(walletPurchases)) {
-  const info = walletPurchases[key];
-  if (info && typeof info.ton !== 'number') info.ton = 0;
-}
 let state = readJson(statePath, {
   currentRound: 1,
   tokensSold: 0,
@@ -64,15 +59,18 @@ router.get('/status', (_req, res) => {
   });
 });
 
-router.post('/', (req, res) => {
+router.post('/', async (req, res) => {
   const { wallet, amountTON } = req.body;
   if (!wallet || typeof amountTON !== 'number' || amountTON <= 0) {
     return res.status(400).json({ error: 'wallet and amountTON required' });
   }
-  const info = walletPurchases[wallet] || { tpc: 0, ton: 0, last: 0 };
-  if (Date.now() - info.last < PURCHASE_INTERVAL_MS) {
+
+  let info = await WalletPurchase.findOne({ wallet });
+  if (!info) info = new WalletPurchase({ wallet, tpc: 0, ton: 0, last: 0 });
+  if (info.last && Date.now() - info.last.getTime() < PURCHASE_INTERVAL_MS) {
     return res.status(429).json({ error: 'Please wait before buying again.' });
   }
+
   const round = PRESALE_ROUNDS[state.currentRound - 1];
   if (!round) return res.status(400).json({ error: 'presale ended' });
 
@@ -88,8 +86,7 @@ router.post('/', (req, res) => {
   }
   info.tpc += tpc;
   info.ton += amountTON;
-  info.last = Date.now();
-  walletPurchases[wallet] = info;
+  info.last = new Date();
   state.tokensSold += tpc;
   state.currentPrice = Number((state.currentPrice + PRICE_INCREASE_STEP).toFixed(9));
   if (state.tokensSold >= round.maxTokens) {
@@ -98,7 +95,7 @@ router.post('/', (req, res) => {
     const next = PRESALE_ROUNDS[state.currentRound - 1];
     state.currentPrice = next ? next.pricePerTPC : state.currentPrice;
   }
-  writeJson(purchasesPath, walletPurchases);
+  await info.save();
   writeJson(statePath, state);
   res.json({ tpc, currentPrice: state.currentPrice, round: state.currentRound });
 });
@@ -150,11 +147,12 @@ router.post('/claim', async (req, res) => {
 
     const wallet = sender || user.walletAddress;
     if (wallet) {
-      const info = walletPurchases[wallet] || { tpc: 0, ton: 0, last: 0 };
-      info.tpc += tpc;
-      info.ton += tonVal;
-      info.last = Date.now();
-      walletPurchases[wallet] = info;
+      let rec = await WalletPurchase.findOne({ wallet });
+      if (!rec) rec = new WalletPurchase({ wallet, tpc: 0, ton: 0, last: 0 });
+      rec.tpc += tpc;
+      rec.ton += tonVal;
+      rec.last = new Date();
+      await rec.save();
     }
 
     state.tokensSold += tpc;
@@ -168,7 +166,6 @@ router.post('/claim', async (req, res) => {
       state.currentPrice = next ? next.pricePerTPC : state.currentPrice;
     }
     writeJson(statePath, state);
-    writeJson(purchasesPath, walletPurchases);
 
     ensureTransactionArray(user);
     user.balance += tpc;

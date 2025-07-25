@@ -22,6 +22,7 @@ import buyRoutes from './routes/buy.js';
 import { BUNDLES } from './routes/store.js';
 import User from './models/User.js';
 import GameResult from "./models/GameResult.js";
+import WalletPurchase from './models/WalletPurchase.js';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { existsSync, readFileSync } from 'fs';
@@ -260,9 +261,8 @@ app.get('/api/stats', async (req, res) => {
         if (tx.type === 'withdraw') externalClaimed += Math.abs(tx.amount || 0);
       }
     }
-    const purchasesPath = path.join(dataDir, 'walletPurchases.json');
-    const walletPurchases = readJson(purchasesPath, {});
-    for (const info of Object.values(walletPurchases)) {
+    const walletPurchases = await WalletPurchase.find().lean();
+    for (const info of walletPurchases) {
       if (info && typeof info.tpc === 'number') tpcSold += info.tpc;
       if (info && typeof info.ton === 'number') tonRaised += info.ton;
     }
