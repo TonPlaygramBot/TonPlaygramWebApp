@@ -1663,6 +1663,7 @@ export default function SnakeAndLadder() {
       if (watchOnly) {
         socket.emit('leaveWatch', { roomId: tableId });
       } else {
+        socket.emit('leaveRoom');
         unseatTable(accountId, tableId).catch(() => {});
       }
     };
