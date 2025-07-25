@@ -168,23 +168,6 @@ function generateDiceCells(id, snakesMap = {}, laddersMap = {}) {
   return map;
 }
 
-function preloadImages(urls) {
-  return Promise.all(
-    urls.map(
-      (url) =>
-        new Promise((resolve) => {
-          const img = new Image();
-          img.onload = () => resolve();
-          img.onerror = () => {
-            img.src = '/assets/icons/TonPlayGramLogo.webp';
-            resolve();
-          };
-          img.src = url;
-        })
-    )
-  );
-}
-
 
 function CoinBurst({ token }) {
   const coins = Array.from({ length: 30 }, () => ({
@@ -327,16 +310,7 @@ function Board({
         >
           {(iconImage || offsetVal != null) && (
             <span className="cell-marker">
-              {iconImage && (
-                <img
-                  src={iconImage}
-                  alt="cell icon"
-                  className="cell-icon"
-                  onError={(e) => {
-                    e.currentTarget.src = '/assets/icons/TonPlayGramLogo.webp';
-                  }}
-                />
-              )}
+              {iconImage && <img src={iconImage} className="cell-icon" />}
               {offsetVal != null && (
                 <span
                   className={`offset-text ${
@@ -355,14 +329,7 @@ function Board({
           {!cellType && <span className="cell-number">{num}</span>}
           {diceCells && diceCells[num] && (
             <span className="dice-marker">
-              <img
-                src="/assets/icons/file_000000009160620a96f728f463de1c3f.webp"
-                alt="dice"
-                className="dice-icon"
-                onError={(e) => {
-                  e.currentTarget.src = '/assets/icons/TonPlayGramLogo.webp';
-                }}
-              />
+              <img  src="/assets/icons/file_000000009160620a96f728f463de1c3f.webp" className="dice-icon" />
               <span className="dice-value">+{diceCells[num]}</span>
             </span>
           )}
@@ -722,15 +689,6 @@ export default function SnakeAndLadder() {
   const [showWatchWelcome, setShowWatchWelcome] = useState(false);
   const [boardError, setBoardError] = useState(null);
   const [boardReady, setBoardReady] = useState(false);
-  const [iconsLoaded, setIconsLoaded] = useState(false);
-
-  useEffect(() => {
-    preloadImages([
-      '/assets/icons/Ladder.webp',
-      '/assets/icons/snake_vector_no_bg.webp',
-      '/assets/icons/file_000000009160620a96f728f463de1c3f.webp',
-    ]).then(() => setIconsLoaded(true));
-  }, []);
 
   useEffect(() => {
     const eng = engineRef.current;
@@ -2431,28 +2389,24 @@ export default function SnakeAndLadder() {
             />
           ))}
       </div>
-      {iconsLoaded ? (
-        <Board
-          players={players}
-          highlight={highlight}
-          trail={trail}
-          pot={pot}
-          snakes={snakes}
-          ladders={ladders}
-          snakeOffsets={snakeOffsets}
-          ladderOffsets={ladderOffsets}
-          offsetPopup={offsetPopup}
-          celebrate={celebrate}
-          token={token}
-          tokenType={tokenType}
-          diceCells={diceCells}
-          rollingIndex={rollingIndex}
-          currentTurn={currentTurn}
-          burning={burning}
-        />
-      ) : (
-        <div className="p-4 text-subtext">Loading board...</div>
-      )}
+      <Board
+        players={players}
+        highlight={highlight}
+        trail={trail}
+        pot={pot}
+        snakes={snakes}
+        ladders={ladders}
+        snakeOffsets={snakeOffsets}
+        ladderOffsets={ladderOffsets}
+        offsetPopup={offsetPopup}
+        celebrate={celebrate}
+        token={token}
+        tokenType={tokenType}
+        diceCells={diceCells}
+        rollingIndex={rollingIndex}
+        currentTurn={currentTurn}
+        burning={burning}
+      />
       {chatBubbles.map((b) => (
         <div key={b.id} className="chat-bubble">
           <span>{b.text}</span>
@@ -2606,15 +2560,7 @@ export default function SnakeAndLadder() {
       {rewardDice > 0 && (
         <div className="fixed bottom-40 inset-x-0 flex justify-center z-30 pointer-events-none reward-dice-container">
           {Array.from({ length: rewardDice }).map((_, i) => (
-            <img
-              key={i}
-              src="/assets/icons/file_000000009160620a96f728f463de1c3f.webp"
-              alt="dice"
-              className="reward-dice"
-              onError={(e) => {
-                e.currentTarget.src = '/assets/icons/TonPlayGramLogo.webp';
-              }}
-            />
+            <img key={i}  src="/assets/icons/file_000000009160620a96f728f463de1c3f.webp" className="reward-dice" />
           ))}
         </div>
       )}
