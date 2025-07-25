@@ -43,6 +43,10 @@ function writeJson(file, data) {
 }
 
 let walletPurchases = readJson(purchasesPath, {});
+for (const key of Object.keys(walletPurchases)) {
+  const info = walletPurchases[key];
+  if (info && typeof info.ton !== 'number') info.ton = 0;
+}
 let state = readJson(statePath, {
   currentRound: 1,
   tokensSold: 0,
@@ -65,7 +69,7 @@ router.post('/', (req, res) => {
   if (!wallet || typeof amountTON !== 'number' || amountTON <= 0) {
     return res.status(400).json({ error: 'wallet and amountTON required' });
   }
-  const info = walletPurchases[wallet] || { tpc: 0, last: 0 };
+  const info = walletPurchases[wallet] || { tpc: 0, ton: 0, last: 0 };
   if (Date.now() - info.last < PURCHASE_INTERVAL_MS) {
     return res.status(429).json({ error: 'Please wait before buying again.' });
   }
@@ -83,6 +87,7 @@ router.post('/', (req, res) => {
     return res.status(400).json({ error: 'You have reached the presale limit for your wallet.' });
   }
   info.tpc += tpc;
+  info.ton += amountTON;
   info.last = Date.now();
   walletPurchases[wallet] = info;
   state.tokensSold += tpc;
@@ -125,6 +130,7 @@ router.post('/claim', async (req, res) => {
     const out = (data.out_msgs || []).find(
       (m) => normalize(m.destination?.address) === STORE_ADDRESS_NORM
     );
+    const sender = normalize(data.in_msg?.source?.address || '');
     if (!out) return res.status(400).json({ error: 'destination mismatch' });
     const tonVal = Number(out.value) / 1e9;
 
@@ -142,6 +148,15 @@ router.post('/claim', async (req, res) => {
         .json({ error: 'Not enough tokens left in current round' });
     }
 
+    const wallet = sender || user.walletAddress;
+    if (wallet) {
+      const info = walletPurchases[wallet] || { tpc: 0, ton: 0, last: 0 };
+      info.tpc += tpc;
+      info.ton += tonVal;
+      info.last = Date.now();
+      walletPurchases[wallet] = info;
+    }
+
     state.tokensSold += tpc;
     state.currentPrice = Number(
       (state.currentPrice + PRICE_INCREASE_STEP).toFixed(9)
@@ -153,6 +168,7 @@ router.post('/claim', async (req, res) => {
       state.currentPrice = next ? next.pricePerTPC : state.currentPrice;
     }
     writeJson(statePath, state);
+    writeJson(purchasesPath, walletPurchases);
 
     ensureTransactionArray(user);
     user.balance += tpc;

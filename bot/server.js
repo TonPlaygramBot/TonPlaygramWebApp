@@ -263,7 +263,8 @@ app.get('/api/stats', async (req, res) => {
     const purchasesPath = path.join(dataDir, 'walletPurchases.json');
     const walletPurchases = readJson(purchasesPath, {});
     for (const info of Object.values(walletPurchases)) {
-      if (info && info.tpc) tpcSold += info.tpc;
+      if (info && typeof info.tpc === 'number') tpcSold += info.tpc;
+      if (info && typeof info.ton === 'number') tonRaised += info.ton;
     }
     const nftsBurned = giftSends - currentNfts;
     res.json({
