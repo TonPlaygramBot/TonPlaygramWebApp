@@ -10,6 +10,8 @@ import {
 } from '../config.js';
 import User from '../models/User.js';
 import WalletPurchase from '../models/WalletPurchase.js';
+import PresaleState from '../models/PresaleState.js';
+import mongoose from 'mongoose';
 import { ensureTransactionArray } from '../utils/userUtils.js';
 import { withProxy } from '../utils/proxyAgent.js';
 import TonWeb from 'tonweb';
@@ -47,6 +49,41 @@ let state = readJson(statePath, {
   tokensSold: 0,
   currentPrice: INITIAL_PRICE,
 });
+let stateDoc = null;
+
+async function loadState() {
+  try {
+    stateDoc = await PresaleState.findOne();
+    if (!stateDoc) {
+      stateDoc = new PresaleState(state);
+      await stateDoc.save();
+    } else {
+      state = {
+        currentRound: stateDoc.currentRound,
+        tokensSold: stateDoc.tokensSold,
+        currentPrice: stateDoc.currentPrice,
+      };
+    }
+  } catch (err) {
+    console.error('Failed to load presale state from MongoDB:', err.message);
+  }
+}
+
+mongoose.connection.once('open', loadState);
+
+async function saveState() {
+  writeJson(statePath, state);
+  if (stateDoc) {
+    stateDoc.currentRound = state.currentRound;
+    stateDoc.tokensSold = state.tokensSold;
+    stateDoc.currentPrice = state.currentPrice;
+    try {
+      await stateDoc.save();
+    } catch (err) {
+      console.error('Failed to save presale state to MongoDB:', err.message);
+    }
+  }
+}
 
 router.get('/status', (_req, res) => {
   const round = PRESALE_ROUNDS[state.currentRound - 1] || {};
@@ -96,7 +133,7 @@ router.post('/', async (req, res) => {
     state.currentPrice = next ? next.pricePerTPC : state.currentPrice;
   }
   await info.save();
-  writeJson(statePath, state);
+  await saveState();
   res.json({ tpc, currentPrice: state.currentPrice, round: state.currentRound });
 });
 
@@ -165,7 +202,7 @@ router.post('/claim', async (req, res) => {
       const next = PRESALE_ROUNDS[state.currentRound - 1];
       state.currentPrice = next ? next.pricePerTPC : state.currentPrice;
     }
-    writeJson(statePath, state);
+    await saveState();
 
     ensureTransactionArray(user);
     user.balance += tpc;
