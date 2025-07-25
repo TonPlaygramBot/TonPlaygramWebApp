@@ -1179,8 +1179,12 @@ export default function SnakeAndLadder() {
         : 1;
     setAi(aiCount);
     setAvatarType(avatarParam);
-    const mp = tableParam && !aiParam;
-    setIsMultiplayer(mp);
+    const storedTable = localStorage.getItem('snakeCurrentTable');
+    const table = tableParam || storedTable || "snake-4";
+    const mp = !aiParam && (tableParam || storedTable);
+    setIsMultiplayer(!!mp);
+    setTableId(table);
+    localStorage.setItem('snakeCurrentTable', table);
     const watching = watchParam === "1";
     setWatchOnly(watching);
     if (watching) {
@@ -1239,10 +1243,6 @@ export default function SnakeAndLadder() {
     const colors = shuffle(TOKEN_COLORS).slice(0, aiCount + 1).map(c => c.color);
     setPlayerColors(colors);
 
-    const storedTable = localStorage.getItem('snakeCurrentTable');
-    const table = tableParam || storedTable || "snake-4";
-    setTableId(table);
-    localStorage.setItem('snakeCurrentTable', table);
     async function fetchBoard(attempt = 1) {
       try {
         const { snakes: snakesObj = {}, ladders: laddersObj = {} } = mp
