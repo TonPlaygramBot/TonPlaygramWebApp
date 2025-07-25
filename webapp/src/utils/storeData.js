@@ -6,7 +6,7 @@ export let currentPrice = initialPrice;
 export const priceIncreaseStep = 0.0000001; // TON added after each purchase
 
 // Presale launch date (UTC)
-export const PRESALE_START = new Date('2025-07-01T00:00:00Z');
+export const PRESALE_START = new Date();
 
 export const PRESALE_ROUNDS = [
   { round: 1, maxTokens: 125000000, pricePerTPC: 0.000004 },

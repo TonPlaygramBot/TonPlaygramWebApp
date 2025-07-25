@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
-import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
+import BuyTpcCard from './BuyTpcCard.jsx';
 import { getPresaleStatus, getAppStats } from '../utils/api.js';
 import { PRESALE_ROUNDS, PRESALE_START } from '../utils/storeData.js';
 
@@ -107,12 +108,12 @@ export default function PresaleDashboardMultiRound() {
         <h3 className="text-lg font-bold mb-3 text-center text-cyan-300">Sales Progress</h3>
         <div className="h-64">
           <ResponsiveContainer width="100%" height="100%">
-            <LineChart data={salesData}>
+            <BarChart data={salesData}>
               <XAxis dataKey="name" stroke="#ccc" />
               <YAxis stroke="#ccc" />
               <Tooltip />
-              <Line type="monotone" dataKey="sold" stroke="#00FFFF" strokeWidth={2} dot={false} />
-            </LineChart>
+              <Bar dataKey="sold" fill="#00FF00" />
+            </BarChart>
           </ResponsiveContainer>
         </div>
       </div>
@@ -126,17 +127,7 @@ export default function PresaleDashboardMultiRound() {
         </p>
       </div>
 
-      <div className="bg-gray-800 p-5 rounded-xl shadow-inner text-center border border-gray-700 mt-6">
-        <h3 className="text-lg font-bold mb-2 text-cyan-300">Buy TPC</h3>
-        <input
-          type="number"
-          placeholder="TON Amount"
-          className="p-2 w-full rounded-md bg-gray-700 text-white mb-3 border border-gray-600"
-        />
-        <button className="bg-gradient-to-r from-cyan-400 to-blue-500 hover:from-cyan-300 hover:to-blue-400 text-black font-bold py-2 px-4 rounded-lg w-full transition-all duration-300 shadow-md">
-          Buy Now
-        </button>
-      </div>
+      <BuyTpcCard />
     </div>
   );
 }
