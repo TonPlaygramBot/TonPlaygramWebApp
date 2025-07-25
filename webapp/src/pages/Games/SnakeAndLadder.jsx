@@ -337,7 +337,7 @@ function Board({
             .map((p, i) => ({ ...p, index: i }))
             .filter((p) => p.position !== 0 && p.position === num)
             .map((p) => (
-              <Fragment key={p.index}>
+              <Fragment key={p.id}>
                 <PlayerToken
                   photoUrl={p.photoUrl}
                   type={p.type || (p.index === 0 ? (isHighlight ? highlight.type : tokenType) : "normal")}
@@ -515,7 +515,7 @@ function Board({
                 .map((p, i) => ({ ...p, index: i }))
                 .filter((p) => p.position === FINAL_TILE)
                 .map((p) => (
-                  <Fragment key={`win-${p.index}`}>
+                  <Fragment key={p.id}>
                     <PlayerToken
                       photoUrl={p.photoUrl}
                       type={p.type || 'normal'}
@@ -678,7 +678,9 @@ export default function SnakeAndLadder() {
   const [playersNeeded, setPlayersNeeded] = useState(0);
   const [isMultiplayer, setIsMultiplayer] = useState(false);
   const [watchOnly, setWatchOnly] = useState(false);
-  const [mpPlayers, setMpPlayers] = useState([]);
+  const [playerInfo, setPlayerInfo] = useState({});
+  const colorIndexRef = useRef(0);
+  const mpPlayers = Object.values(playerInfo);
   const playersRef = useRef([]);
   const engineRef = useRef(new SnakeEngine());
   const [tableId, setTableId] = useState('snake-4');
@@ -694,14 +696,14 @@ export default function SnakeAndLadder() {
     const eng = engineRef.current;
     eng.game.players = [];
     if (isMultiplayer) {
-      mpPlayers.forEach(p => eng.addPlayer(p.id, p.name));
+      mpPlayers.forEach((p) => eng.addPlayer(p.id, p.name));
     } else {
       eng.addPlayer(0, myName);
       for (let i = 0; i < ai; i++) {
         eng.addPlayer(i + 1, getPlayerName(i + 1));
       }
     }
-  }, [isMultiplayer, mpPlayers, ai, myName, aiAvatars]);
+  }, [isMultiplayer, playerInfo, ai, myName, aiAvatars]);
 
   const applyBoard = (snakesObj = {}, laddersObj = {}) => {
     const limit = (obj) =>
@@ -794,7 +796,15 @@ export default function SnakeAndLadder() {
   };
 
   const playerName = (idx) => (
-    <span style={{ color: playerColors[idx] }}>{getPlayerName(idx)}</span>
+    <span
+      style={{
+        color: isMultiplayer
+          ? mpPlayers[idx]?.color
+          : playerColors[idx],
+      }}
+    >
+      {getPlayerName(idx)}
+    </span>
   );
 
   const getPlayerAvatar = (idx) => {
@@ -1302,7 +1312,7 @@ export default function SnakeAndLadder() {
 
   useEffect(() => {
     playersRef.current = mpPlayers;
-  }, [mpPlayers]);
+  }, [playerInfo]);
 
   useEffect(() => {
     if (isMultiplayer) {
@@ -1343,21 +1353,29 @@ export default function SnakeAndLadder() {
           `${prof?.firstName || ''} ${prof?.lastName || ''}`.trim() ||
           'Player';
         const photoUrl = prof?.photo || '/assets/icons/profile.svg';
-        setMpPlayers((p) => {
-          if (p.some((pl) => pl.id === playerId)) {
-            updateNeeded(p);
-            return p;
+        setPlayerInfo((info) => {
+          if (info[playerId]) {
+            updateNeeded(Object.values(info));
+            return info;
           }
-          const arr = [...p, { id: playerId, name: playerName, photoUrl, position: 0 }];
-          updateNeeded(arr);
-          return arr;
+          const color =
+            info[playerId]?.color ||
+            TOKEN_COLORS[colorIndexRef.current++ % TOKEN_COLORS.length].color;
+          const newInfo = {
+            ...info,
+            [playerId]: { name: playerName, photoUrl, color, position: 0 },
+          };
+          updateNeeded(Object.values(newInfo));
+          return newInfo;
         });
       });
     };
     const onLeft = ({ playerId }) => {
-      setMpPlayers((p) => {
-        const leaving = p.find((pl) => pl.id === playerId);
-        const arr = p.filter((pl) => pl.id !== playerId);
+      setPlayerInfo((info) => {
+        if (!info[playerId]) return info;
+        const leaving = info[playerId];
+        const { [playerId]: _, ...rest } = info;
+        const arr = Object.values(rest);
         updateNeeded(arr);
         if (leaving && !ranking.includes(leaving.name)) {
           setRanking((r) => [...r, leaving.name]);
@@ -1372,12 +1390,16 @@ export default function SnakeAndLadder() {
             setTimeout(() => setDisconnectMsg(null), 3000);
           }
         }
-        return arr;
+        return rest;
       });
     };
     const onMove = ({ playerId, from = 0, to }) => {
       const updatePosition = (pos) => {
-        setMpPlayers((p) => p.map((pl) => (pl.id === playerId ? { ...pl, position: pos } : pl)));
+        setPlayerInfo((info) => {
+          const cur = info[playerId] || {};
+          if (!cur) return info;
+          return { ...info, [playerId]: { ...cur, position: pos } };
+        });
         if (playerId === accountId) setPos(pos);
       };
       const ctx = {
@@ -1410,7 +1432,11 @@ export default function SnakeAndLadder() {
     };
     const onSnakeOrLadder = ({ playerId, from, to }) => {
       const updatePosition = (pos) => {
-        setMpPlayers((p) => p.map((pl) => (pl.id === playerId ? { ...pl, position: pos } : pl)));
+        setPlayerInfo((info) => {
+          const cur = info[playerId] || {};
+          if (!cur) return info;
+          return { ...info, [playerId]: { ...cur, position: pos } };
+        });
         if (playerId === accountId) setPos(pos);
       };
       const ctx = {
@@ -1451,7 +1477,11 @@ export default function SnakeAndLadder() {
       }
       setTimeout(() => {
         setBurning((b) => b.filter((v) => v !== idx));
-        setMpPlayers((p) => p.map((pl) => (pl.id === playerId ? { ...pl, position: 0 } : pl)));
+        setPlayerInfo((info) => {
+          const cur = info[playerId];
+          if (!cur) return info;
+          return { ...info, [playerId]: { ...cur, position: 0 } };
+        });
         if (playerId === accountId) setPos(0);
       }, 1000);
     };
@@ -1499,7 +1529,16 @@ export default function SnakeAndLadder() {
             return { id: p.playerId, name, photoUrl, position: p.position || 0 };
           })
         ).then((arr) => {
-          setMpPlayers(arr);
+          setPlayerInfo((info) => {
+            const updated = { ...info };
+            arr.forEach((p) => {
+              const existing = info[p.id] || {};
+              const color = existing.color ||
+                TOKEN_COLORS[colorIndexRef.current++ % TOKEN_COLORS.length].color;
+              updated[p.id] = { ...existing, ...p, color };
+            });
+            return updated;
+          });
           setPlayersNeeded(Math.max(0, capacity - arr.length));
           const idx = arr.findIndex((pl) => pl.id === turn);
           if (idx >= 0) {
@@ -1552,7 +1591,16 @@ export default function SnakeAndLadder() {
             unique.push(p);
           }
         }
-        setMpPlayers(unique);
+        setPlayerInfo((info) => {
+          const updated = { ...info };
+          unique.forEach((p) => {
+            const existing = info[p.id] || {};
+            const color = existing.color ||
+              TOKEN_COLORS[colorIndexRef.current++ % TOKEN_COLORS.length].color;
+            updated[p.id] = { ...existing, ...p, color };
+          });
+          return updated;
+        });
         updateNeeded(unique);
       });
     };
@@ -1607,7 +1655,16 @@ export default function SnakeAndLadder() {
               return { id: p.id, name: n, photoUrl, position: 0 };
             })
           ).then((arr) => {
-            setMpPlayers(arr);
+            setPlayerInfo((info) => {
+              const updated = { ...info };
+              arr.forEach((p) => {
+                const existing = info[p.id] || {};
+                const color = existing.color ||
+                  TOKEN_COLORS[colorIndexRef.current++ % TOKEN_COLORS.length].color;
+                updated[p.id] = { ...existing, ...p, color };
+              });
+              return updated;
+            });
             setPlayersNeeded(Math.max(0, capacity - arr.length));
           });
         })
@@ -1786,7 +1843,10 @@ export default function SnakeAndLadder() {
       : Number(value) === 6;
     const doubleSix = Array.isArray(values) && values[0] === 6 && values[1] === 6;
 
-    setRollColor(playerColors[0] || '#fff');
+    const myColor = isMultiplayer
+      ? mpPlayers.find((p) => p.id === getPlayerId())?.color
+      : playerColors[0];
+    setRollColor(myColor || '#fff');
 
     // Predict capture for laugh sound
     let preview = pos;
@@ -2012,7 +2072,10 @@ export default function SnakeAndLadder() {
       ? vals.some((v) => Number(v) === 6)
       : Number(value) === 6;
     const doubleSix = Array.isArray(vals) && vals[0] === 6 && vals[1] === 6;
-    setRollColor(playerColors[index] || '#fff');
+    const color = isMultiplayer
+      ? mpPlayers[index]?.color
+      : playerColors[index];
+    setRollColor(color || '#fff');
 
     let preview = aiPositions[index - 1];
     if (preview === 0) {
@@ -2216,7 +2279,14 @@ export default function SnakeAndLadder() {
           <>
             Order:{' '}
             {sorted.map((r, i) => (
-              <span key={r.index} style={{ color: playerColors[r.index] }}>
+              <span
+                key={r.index}
+                style={{
+                  color: isMultiplayer
+                    ? mpPlayers[r.index]?.color
+                    : playerColors[r.index],
+                }}
+              >
                 {i > 0 && ', '} {getPlayerName(r.index)}({r.roll})
               </span>
             ))}
@@ -2238,7 +2308,7 @@ export default function SnakeAndLadder() {
       setTimeout(() => rollNext(idx + 1), 1000);
     };
     rollNext(0);
-  }, [ai, aiPositions, setupPhase, boardError, boardReady, waitingForPlayers, isMultiplayer, mpPlayers]);
+  }, [ai, aiPositions, setupPhase, boardError, boardReady, waitingForPlayers, isMultiplayer, playerInfo]);
 
 
   useEffect(() => {
@@ -2330,7 +2400,7 @@ export default function SnakeAndLadder() {
       clearInterval(timerRef.current);
       timerSoundRef.current?.pause();
     };
-  }, [currentTurn, setupPhase, gameOver, moving, isMultiplayer, mpPlayers, muted]);
+  }, [currentTurn, setupPhase, gameOver, moving, isMultiplayer, playerInfo, muted]);
 
   // Periodically refresh the component state to avoid freezes
   useEffect(() => {
@@ -2343,12 +2413,12 @@ export default function SnakeAndLadder() {
 
 
   const players = isMultiplayer
-    ? mpPlayers.map((p, i) => ({
+    ? mpPlayers.map((p) => ({
         id: p.id,
         position: p.position,
         photoUrl: p.photoUrl || '/assets/icons/profile.svg',
         type: 'normal',
-        color: playerColors[i] || '#fff'
+        color: p.color || '#fff'
       }))
     : [
         { position: pos, photoUrl, type: tokenType, color: playerColors[0] },
@@ -2384,7 +2454,7 @@ export default function SnakeAndLadder() {
           .map((p, i) => ({ ...p, index: i }))
           .map((p) => (
             <AvatarTimer
-              key={`player-${p.index}`}
+              key={p.id}
               index={p.index}
               photoUrl={p.photoUrl}
               active={p.index === currentTurn}
