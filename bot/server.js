@@ -129,12 +129,20 @@ ensureWebappBuilt();
 
 
 app.use(
-  express.static(webappPath, { maxAge: '1y', immutable: true })
+  express.static(webappPath, {
+    maxAge: '1y',
+    immutable: true,
+    index: false
+  })
 );
 
 function sendIndex(res) {
   if (ensureWebappBuilt()) {
-    res.sendFile(path.join(webappPath, 'index.html'));
+    res.sendFile(path.join(webappPath, 'index.html'), {
+      headers: {
+        'Cache-Control': 'no-store'
+      }
+    });
   } else {
     res.status(503).send('Webapp build not available');
   }
