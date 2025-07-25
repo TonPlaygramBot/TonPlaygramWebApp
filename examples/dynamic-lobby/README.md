@@ -9,6 +9,10 @@ event payload. If more players request the same table size and stake
 while an existing table is already full, a new table with the same
 conditions is created automatically.
 
+Players are tracked per connection. If a client disconnects or closes the page
+they are automatically removed from their table and the lobby updates for the
+remaining users.
+
 Set the lobby server URL with the `SERVER_URL` environment variable or pass it when creating the client:
 
 ```bash

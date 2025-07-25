@@ -48,6 +48,7 @@ const server = http.createServer(app);
 const io = new Server(server, { cors: { origin: '*' } });
 
 const tables = {}; // key = `${gameType}-${stake}` -> array of tables
+const socketMap = new Map(); // socket.id -> { key, tableId, accountId }
 
 function cleanupTables() {
   Object.keys(tables).forEach((key) => {
@@ -99,6 +100,12 @@ io.on('connection', (socket) => {
       table.players.push({ id: accountId, name });
     }
 
+    socketMap.set(socket.id, {
+      key: `${gameType}-${stake}`,
+      tableId: table.id,
+      accountId
+    });
+
     socket.join(table.id);
     console.log(`Player ${name} (${accountId}) joined table ${table.id}`);
     io.to(table.id).emit('lobbyUpdate', {
@@ -134,11 +141,29 @@ io.on('connection', (socket) => {
         players: table.players
       });
     });
+    socketMap.delete(socket.id);
     cleanupTables();
     console.log(`Player ${accountId} left lobby ${gameType}-${stake}`);
   });
 
   socket.on('disconnect', () => {
+    const data = socketMap.get(socket.id);
+    if (data) {
+      const { key, accountId } = data;
+      (tables[key] || []).forEach((table) => {
+        table.players = table.players.filter((p) => p.id !== accountId);
+        if (table.startTimer && table.players.length < table.maxPlayers) {
+          clearTimeout(table.startTimer);
+          table.startTimer = null;
+        }
+        io.to(table.id).emit('lobbyUpdate', {
+          tableId: table.id,
+          players: table.players
+        });
+      });
+      socketMap.delete(socket.id);
+      cleanupTables();
+    }
     console.log('Disconnected', socket.id);
   });
 });
