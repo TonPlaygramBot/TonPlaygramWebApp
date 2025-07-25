@@ -18,7 +18,8 @@ import {
 } from '../../utils/api.js';
 import {
   getTelegramId,
-  ensureAccountId
+  ensureAccountId,
+  getPlayerId
 } from '../../utils/telegram.js';
 import { canStartGame } from '../../utils/lobby.js';
 
@@ -225,8 +226,11 @@ export default function Lobby() {
     players.every((p) => p.confirmed ?? true);
 
   useEffect(() => {
+    const accountId = getPlayerId();
+    const me = players.find((p) => p.id === accountId);
+    if (me?.confirmed && !confirmed) setConfirmed(true);
     if (
-      confirmed &&
+      me?.confirmed &&
       game === 'snake' &&
       table &&
       table.id !== 'single' &&
@@ -234,7 +238,7 @@ export default function Lobby() {
     ) {
       startGame();
     }
-  }, [players, confirmed]);
+  }, [players, table, game, allConfirmed, confirmed]);
   // Multiplayer games require a full table before starting
 
   return (
