@@ -197,7 +197,6 @@ export default function Lobby() {
   };
 
   const confirmSeat = () => {
-    if (confirmed) return;
     if (!table) return;
     if (table.id === 'single') {
       startGame();
@@ -208,8 +207,8 @@ export default function Lobby() {
     ensureAccountId()
       .then((accountId) => {
         if (!accountId) return;
-        seatTable(accountId, tableRef, playerName, true)
-          .then(() => setConfirmed(true))
+        seatTable(accountId, tableRef, playerName, !confirmed)
+          .then(() => setConfirmed((c) => !c))
           .catch(() => {});
       })
       .catch(() => {});
@@ -316,10 +315,10 @@ export default function Lobby() {
       )}
       <button
         onClick={confirmSeat}
-        disabled={disabled || confirmed}
+        disabled={disabled}
         className="px-4 py-2 w-full bg-primary hover:bg-primary-hover text-background rounded disabled:opacity-50"
       >
-        {confirmed ? 'Waiting...' : 'Confirm'}
+        {confirmed ? (allConfirmed ? 'Starting...' : 'Unconfirm') : 'Confirm'}
       </button>
       <LeaderPickerModal
         open={showLeaderPicker}
