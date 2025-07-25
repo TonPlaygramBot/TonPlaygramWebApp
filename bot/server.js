@@ -18,6 +18,7 @@ import airdropRoutes from './routes/airdrop.js';
 import checkinRoutes from './routes/checkin.js';
 import socialRoutes from './routes/social.js';
 import broadcastRoutes from './routes/broadcast.js';
+import buyRoutes from './routes/buy.js';
 import { BUNDLES } from './routes/store.js';
 import User from './models/User.js';
 import GameResult from "./models/GameResult.js";
@@ -71,6 +72,7 @@ app.use('/api/airdrop', airdropRoutes);
 app.use('/api/checkin', checkinRoutes);
 app.use('/api/social', socialRoutes);
 app.use('/api/broadcast', broadcastRoutes);
+app.use('/api/buy', buyRoutes);
 
 // Serve the built React app
 const webappPath = path.join(__dirname, '../webapp/dist');

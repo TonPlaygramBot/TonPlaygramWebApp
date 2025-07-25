@@ -12,6 +12,7 @@ import { ensureTransactionArray, calculateBalance } from '../utils/userUtils.js'
 
 import authenticate from '../middleware/auth.js';
 import tonClaim from '../utils/tonClaim.js';
+import { WITHDRAW_ENABLED } from '../config.js';
 
 // Track USDT using the official jetton master address on TON
 const USDT_JETTON_HEX =
@@ -370,6 +371,10 @@ router.post('/deposit', authenticate, async (req, res) => {
 // ✅ Request withdrawal to a TON wallet address
 
 router.post('/withdraw', authenticate, async (req, res) => {
+
+  if (!WITHDRAW_ENABLED) {
+    return res.status(403).json({ error: 'withdrawals disabled' });
+  }
 
   const { telegramId, address, amount } = req.body;
   const authId = req.auth?.telegramId;

@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react';
 import { useTonAddress, useTonConnectUI } from '@tonconnect/ui-react';
 import useTelegramBackButton from '../hooks/useTelegramBackButton.js';
-import { createAccount, buyBundle, claimPurchase } from '../utils/api.js';
+import { createAccount, buyTPC, getPresaleStatus, claimPurchase } from '../utils/api.js';
 import { getTelegramId } from '../utils/telegram.js';
 import InfoPopup from '../components/InfoPopup.jsx';
-import { STORE_ADDRESS, STORE_BUNDLES, STORE_CATEGORIES } from '../utils/storeData.js';
+import { STORE_ADDRESS } from '../utils/storeData.js';
+import { MAX_TPC_PER_WALLET } from '../config.js';
 
 export default function Store() {
   useTelegramBackButton();
@@ -13,28 +14,39 @@ export default function Store() {
   const [accountId, setAccountId] = useState('');
   const [msg, setMsg] = useState('');
   const [claimHash, setClaimHash] = useState('');
-  const [category, setCategory] = useState('Presale');
+  const [amountTon, setAmountTon] = useState('');
+  const [status, setStatus] = useState(null);
 
   useEffect(() => {
     let id;
-    try { id = getTelegramId(); } catch {}
+    try {
+      id = getTelegramId();
+    } catch {}
     createAccount(id).then((acc) => setAccountId(acc.accountId));
+    getPresaleStatus().then(setStatus);
   }, []);
 
-  const handleBuy = async (bundle) => {
+  const handleBuy = async () => {
     if (!walletAddress) {
       tonConnectUI.openModal();
       return;
     }
+    const amount = parseFloat(amountTon);
+    if (!amount || amount <= 0) {
+      setMsg('Enter TON amount');
+      return;
+    }
     const tx = {
       validUntil: Math.floor(Date.now() / 1000) + 60,
-      messages: [{ address: STORE_ADDRESS, amount: String(bundle.ton * 1e9) }]
+      messages: [{ address: STORE_ADDRESS, amount: String(amount * 1e9) }]
     };
     try {
       await tonConnectUI.sendTransaction(tx);
-      const res = await buyBundle(accountId, bundle.id);
+      const res = await buyTPC(walletAddress, amount);
       if (res.error) setMsg(res.error);
       else setMsg('Purchase successful');
+      setAmountTon('');
+      getPresaleStatus().then(setStatus);
     } catch (e) {
       setMsg('Transaction failed');
     }
@@ -43,52 +55,29 @@ export default function Store() {
   return (
     <div className="relative p-4 space-y-4 text-text flex flex-col items-center">
       <h2 className="text-xl font-bold">Store</h2>
-      <div className="flex justify-center space-x-2">
-        {STORE_CATEGORIES.map((c) => (
-          <button
-            key={c}
-            onClick={() => setCategory(c)}
-            className={`lobby-tile px-3 py-1 ${category === c ? 'lobby-selected' : ''}`}
-          >
-            {c}
-          </button>
-        ))}
-      </div>
-      {STORE_BUNDLES.filter(b => b.category === category).map((b) => (
-        <div
-          key={b.id}
-          className="store-card mx-auto wide-card"
-        >
-          <div className="flex items-center space-x-2">
-            <span className="text-2xl">{b.icon}</span>
-            <h3 className="font-semibold">{b.name}</h3>
-          </div>
-          <div className="text-lg font-bold flex items-center space-x-1">
-            <span>{b.tpc.toLocaleString()}</span>
-            <img src="/assets/icons/TPCcoin_1.webp" alt="TPC" className="w-6 h-6" />
-          </div>
-          <div className="text-primary text-lg flex items-center space-x-1">
-            <span>{b.ton}</span>
-            <img src="/assets/icons/TON.webp" alt="TON" className="w-6 h-6" />
-          </div>
-          <div className="text-xs text-accent">{b.category} Bundle</div>
-          {b.boost ? (
-            <div className="text-sm">Mining Boost: +{b.boost * 100}%</div>
-          ) : null}
-          {b.spins ? (
-            <div className="text-sm">Spins: {b.spins}</div>
-          ) : null}
-          {b.duration ? (
-            <div className="text-xs text-subtext">Duration: {b.duration}d</div>
-          ) : null}
-          <button
-            onClick={() => handleBuy(b)}
-            className="buy-button mt-2"
-          >
-            Buy
-          </button>
+      <div className="prism-box p-4 space-y-2 w-80 mx-auto">
+        <div className="text-center text-sm">
+          Current Price: {status ? status.currentPrice : '...'} TON / 1 TPC
         </div>
-      ))}
+        <div className="text-center text-sm">
+          Remaining Tokens in Current Round:{' '}
+          {status ? status.remainingTokens.toLocaleString() : '...'}
+        </div>
+        <div className="text-center text-sm">
+          Max TPC you can buy per wallet:{' '}
+          {MAX_TPC_PER_WALLET.toLocaleString()} TPC
+        </div>
+        <input
+          type="number"
+          placeholder="TON to spend"
+          value={amountTon}
+          onChange={(e) => setAmountTon(e.target.value)}
+          className="w-full p-1 text-black rounded"
+        />
+        <button onClick={handleBuy} className="buy-button w-full">
+          Buy TPC
+        </button>
+      </div>
       <div className="prism-box p-4 space-y-2 w-80 mx-auto">
         <h3 className="text-center font-semibold">Claim Purchase</h3>
         <input
