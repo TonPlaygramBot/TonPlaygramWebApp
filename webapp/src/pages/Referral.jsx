@@ -25,6 +25,8 @@ export default function Referral() {
   if (!info) return <div className="p-4">Loading...</div>;
 
   const link = `https://t.me/${BOT_USERNAME}?start=${info.referralCode}`;
+  const baseReward = 400;
+  const finalReward = Math.round(baseReward * (1 + info.bonusMiningRate));
 
   return (
     <div className="p-4 space-y-2 text-text">
@@ -47,7 +49,8 @@ export default function Referral() {
           </button>
         </div>
         <p className="text-sm text-subtext mt-1">Invited friends: {info.referralCount}</p>
-        <p className="text-sm text-subtext">Mining boost: +{info.bonusMiningRate * 100}%</p>
+        <p className="text-sm text-subtext">Mining boost: +{(info.bonusMiningRate * 100).toFixed(0)}%</p>
+        <p className="text-sm text-subtext">Reward per session: {finalReward} TPC</p>
         {info.storeMiningRate && info.storeMiningExpiresAt && (
           <p className="text-sm text-subtext">
             Boost ends in {Math.max(0, Math.floor((new Date(info.storeMiningExpiresAt).getTime() - Date.now()) / 86400000))}d

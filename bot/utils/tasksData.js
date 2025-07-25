@@ -8,7 +8,7 @@ export const TASKS = [
 
     description: 'Join us on X',
 
-    reward: 2500,
+    reward: 1000,
 
     icon: 'x',
 
@@ -22,7 +22,7 @@ export const TASKS = [
 
     description: 'Join our Community',
 
-    reward: 2500,
+    reward: 1000,
 
     icon: 'telegram',
 
@@ -36,7 +36,7 @@ export const TASKS = [
 
     description: 'Follow us on TikTok',
 
-    reward: 2500,
+    reward: 1000,
 
     icon: 'tiktok',
 
@@ -46,7 +46,7 @@ export const TASKS = [
   {
     id: 'boost_tiktok',
     description: 'Like & repost our TikTok',
-    reward: 2000,
+    reward: 800,
     icon: 'tiktok',
     link: 'https://vt.tiktok.com/ZSBXkX8pu/'
   },
@@ -54,7 +54,7 @@ export const TASKS = [
   {
     id: 'boost_tiktok_1',
     description: 'Like, share & comment on TikTok',
-    reward: 2000,
+    reward: 800,
     icon: 'tiktok',
     link: 'https://vt.tiktok.com/ZSBnaAGTQ/'
   },
@@ -62,7 +62,7 @@ export const TASKS = [
   {
     id: 'boost_tiktok_2',
     description: 'Like, share & comment on TikTok',
-    reward: 2000,
+    reward: 800,
     icon: 'tiktok',
     link: 'https://vt.tiktok.com/ZSBnagc3g/'
   },
@@ -70,7 +70,7 @@ export const TASKS = [
   {
     id: 'boost_tiktok_3',
     description: 'Like, comment & repost on TikTok',
-    reward: 2000,
+    reward: 800,
     icon: 'tiktok',
     link: 'https://vt.tiktok.com/ZSBngGPdy/',
     hideOnHome: true
@@ -79,7 +79,7 @@ export const TASKS = [
   {
     id: 'boost_tiktok_4',
     description: 'Like, comment & repost on TikTok',
-    reward: 2000,
+    reward: 800,
     icon: 'tiktok',
     link: 'https://vt.tiktok.com/ZSBngp3GD/',
     hideOnHome: true
@@ -88,7 +88,7 @@ export const TASKS = [
   {
     id: 'boost_tiktok_5',
     description: 'Like, comment & repost on TikTok',
-    reward: 2000,
+    reward: 800,
     icon: 'tiktok',
     link: 'https://vt.tiktok.com/ZSBngWDnQ/',
     hideOnHome: true
@@ -97,7 +97,7 @@ export const TASKS = [
   {
     id: 'boost_tiktok_6',
     description: 'Like, comment & repost on TikTok',
-    reward: 2000,
+    reward: 800,
     icon: 'tiktok',
     link: 'https://vt.tiktok.com/ZSBnpkW5v/',
     hideOnHome: true
@@ -106,7 +106,7 @@ export const TASKS = [
   {
     id: 'react_tg_post',
     description: 'React to our group post',
-    reward: 2500,
+    reward: 1000,
     icon: 'telegram',
     link: 'https://t.me/TonPlaygram/1/16'
   },
@@ -114,7 +114,7 @@ export const TASKS = [
   {
     id: 'react_tg_post_2',
     description: 'React to our group post',
-    reward: 2500,
+    reward: 1000,
     icon: 'telegram',
     link: 'https://t.me/TonPlaygram/19'
   },
@@ -122,7 +122,7 @@ export const TASKS = [
   {
     id: 'engage_tweet',
     description: 'Like, comment & repost on X',
-    reward: 2500,
+    reward: 1000,
     icon: 'x',
     link: 'https://x.com/TonPlaygram/status/1943907328652402954?t=bG-Ps1S8rbJ-afx2OwcZhA&s=19'
   },
@@ -130,7 +130,7 @@ export const TASKS = [
   {
     id: 'post_tweet',
     description: 'Share a TonPlaygram update on X',
-    reward: 5000,
+    reward: 2000,
     icon: 'x',
     posts: [
       `Tokenomics Drop \uD83E\uDE99\n\n\uD83D\uDEA8 TonPlaygram Tokenomics Revealed \uD83D\uDEA8\n\n1B $TPC \u2014 Fixed Supply\n\u2705 40% Play-to-Earn & Mining\n\u2705 20% Liquidity & Ecosystem\n\u2705 15% Team (Vested)\n\u2705 10% Dev/Treasury\n\u2705 Smart contracts power it all.\nLet\u2019s build GameFi on TON.\n\uD83D\uDCDC https://tonplaygramwebapp.onrender.com\n\n#TON #GameFi #CryptoGaming`,

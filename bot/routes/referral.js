@@ -1,13 +1,11 @@
 import { Router } from 'express';
 import User from '../models/User.js';
-import {
-  incrementReferralBonus,
-  ensureTransactionArray,
-} from '../utils/userUtils.js';
+import { ensureTransactionArray } from '../utils/userUtils.js';
+import { calculateBoost } from '../utils/miningUtils.js';
 import bot from '../bot.js';
 import { sendTPCNotification } from '../utils/notifications.js';
 
-const REWARD = 5000;
+const REWARD = 1000;
 
 const router = Router();
 
@@ -23,14 +21,15 @@ router.post('/code', async (req, res) => {
 
   const count = await User.countDocuments({ referredBy: user.referralCode });
   const storeRate =
-    user.storeMiningRate && user.storeMiningExpiresAt &&
+    user.storeMiningRate &&
+    user.storeMiningExpiresAt &&
     user.storeMiningExpiresAt > new Date()
       ? user.storeMiningRate
       : 0;
   res.json({
     referralCode: user.referralCode,
     referralCount: count,
-    bonusMiningRate: (user.bonusMiningRate || 0) + storeRate,
+    bonusMiningRate: calculateBoost(count) + storeRate,
     storeMiningRate: storeRate,
     storeMiningExpiresAt: storeRate ? user.storeMiningExpiresAt : null,
   });
@@ -60,8 +59,6 @@ router.post('/claim', async (req, res) => {
 
   user.referredBy = code;
   await user.save();
-
-  await incrementReferralBonus(code);
 
   ensureTransactionArray(user);
   ensureTransactionArray(inviter);

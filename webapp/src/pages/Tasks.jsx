@@ -28,7 +28,7 @@ import useTelegramBackButton from '../hooks/useTelegramBackButton.js';
 import { useTonAddress, useTonConnectUI } from '@tonconnect/ui-react';
 import { STORE_ADDRESS } from '../utils/storeData.js';
 
-const REWARDS = Array.from({ length: 30 }, (_, i) => Math.floor(100 + (i + 1) * 50));
+const REWARDS = Array.from({ length: 30 }, (_, i) => 100 + i * 20);
 const INFLUENCER_REWARDS = [
   { range: '0 – 149', reward: 0, notes: 'Below threshold' },
   { range: '150 – 2,999', reward: 900, notes: 'Entry-level reward' },

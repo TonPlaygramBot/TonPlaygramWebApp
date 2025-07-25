@@ -55,7 +55,7 @@ const ICONS = {
 
 };
 
-const REWARDS = Array.from({ length: 30 }, (_, i) => Math.floor(100 + (i + 1) * 50));
+const REWARDS = Array.from({ length: 30 }, (_, i) => 100 + i * 20);
 const ONE_DAY = 24 * 60 * 60 * 1000;
 
 export default function TasksCard() {
