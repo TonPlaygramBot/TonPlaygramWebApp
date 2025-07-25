@@ -107,9 +107,15 @@ export class GameRoom {
       clearTimeout(this.startTimer);
       this.startTimer = null;
     }
-    // The board is generated when the room is created or loaded. Do not
-    // regenerate it here or clients that fetched the board earlier would end
-    // up playing on a different layout.
+    if (this.gameType === 'snake') {
+      // Generate a fresh board for each new game so all players share the
+      // same layout while ensuring variety across games.
+      const board = generateBoard();
+      this.snakes = board.snakes;
+      this.ladders = board.ladders;
+      this.game.snakes = this.snakes;
+      this.game.ladders = this.ladders;
+    }
     this.game.currentTurn = 0;
     this.game.finished = false;
     if (this.gameType === 'snake') {
