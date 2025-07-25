@@ -137,6 +137,9 @@ app.get('/api/ping', (req, res) => {
   res.json({ message: 'pong' });
 });
 
+const ONLINE_TIMEOUT_MS = 30_000;
+const SEAT_TIMEOUT_MS = 30_000;
+
 const onlineUsers = new Map();
 const tableSeats = new Map();
 const userSockets = new Map();
@@ -144,13 +147,13 @@ const watchSockets = new Map();
 const BUNDLE_TON_MAP = Object.fromEntries(
   Object.values(BUNDLES).map((b) => [b.label, b.ton])
 );
-setInterval(cleanupSeats, 60_000);
+setInterval(cleanupSeats, SEAT_TIMEOUT_MS);
 
 function cleanupSeats() {
   const now = Date.now();
   for (const [tableId, players] of tableSeats) {
     for (const [pid, info] of players) {
-      if (now - info.ts > 60_000) {
+      if (now - info.ts > SEAT_TIMEOUT_MS) {
         players.delete(pid);
         if (info.id) {
           User.updateOne({ accountId: info.id }, { currentTableId: null }).catch(
@@ -170,7 +173,7 @@ app.post('/api/online/ping', (req, res) => {
   }
   const now = Date.now();
   for (const [id, ts] of onlineUsers) {
-    if (now - ts > 60_000) onlineUsers.delete(id);
+    if (now - ts > ONLINE_TIMEOUT_MS) onlineUsers.delete(id);
   }
   res.json({ success: true });
 });
@@ -178,7 +181,7 @@ app.post('/api/online/ping', (req, res) => {
 app.get('/api/online/count', (req, res) => {
   const now = Date.now();
   for (const [id, ts] of onlineUsers) {
-    if (now - ts > 60_000) onlineUsers.delete(id);
+    if (now - ts > ONLINE_TIMEOUT_MS) onlineUsers.delete(id);
   }
   res.json({ count: onlineUsers.size });
 });
@@ -186,7 +189,7 @@ app.get('/api/online/count', (req, res) => {
 app.get('/api/online/list', (req, res) => {
   const now = Date.now();
   for (const [id, ts] of onlineUsers) {
-    if (now - ts > 60_000) onlineUsers.delete(id);
+    if (now - ts > ONLINE_TIMEOUT_MS) onlineUsers.delete(id);
   }
   res.json({ users: Array.from(onlineUsers.keys()) });
 });
@@ -530,7 +533,7 @@ io.on('connection', (socket) => {
   socket.on('invite1v1', ({ fromId, fromName, toId, roomId, token, amount }, cb) => {
     if (!fromId || !toId) return cb && cb({ success: false, error: 'invalid ids' });
     const ts = onlineUsers.get(String(toId));
-    if (!ts || Date.now() - ts > 60_000) {
+    if (!ts || Date.now() - ts > ONLINE_TIMEOUT_MS) {
       return cb && cb({ success: false, error: 'User offline' });
     }
     const targets = userSockets.get(String(toId));
