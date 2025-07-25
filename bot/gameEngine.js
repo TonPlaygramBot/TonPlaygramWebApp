@@ -139,6 +139,7 @@ export class GameRoom {
   emitNextTurn() {
     const current = this.players[this.currentTurn];
     if (current) {
+      current.lastRollTime = 0; // reset cooldown at the start of every turn
       this.io.to(this.id).emit('turnChanged', { playerId: current.playerId });
       if (this.turnTimer) clearTimeout(this.turnTimer);
       this.turnTimer = setTimeout(() => {
