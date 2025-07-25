@@ -307,7 +307,7 @@ Online multiplayer has arrived. Join a table in the lobby to create or enter tha
 
 A simplified Socket.IO lobby is provided in `examples/dynamic-lobby`. Players join tables by game type and stake, and the server creates new tables as needed. When a table fills up it emits a `gameStart` event.
 
-If a multiplayer board appears empty, ensure the web server is running and that all players load the game with the same `table` parameter. The client fetches board data from `/api/snake/board/:id`; if this request fails a local board is used which will not match other players.
+If a multiplayer board appears empty, ensure the web server is running and that all players load the game with the same `table` parameter. The client now fetches board data from `/api/snake/board/:id` whenever a table ID is present in the URL or stored from a previous session. If this request fails a local board is used which will not match other players.
 
 ### Entering the Snake & Ladder game
 
