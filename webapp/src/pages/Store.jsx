@@ -1,5 +1,6 @@
 import useTelegramBackButton from '../hooks/useTelegramBackButton.js';
 import PresaleDashboardMultiRound from '../components/PresaleDashboardMultiRound.jsx';
+import ClaimPurchaseCard from '../components/ClaimPurchaseCard.jsx';
 
 export default function Store() {
   useTelegramBackButton();
@@ -9,6 +10,7 @@ export default function Store() {
       <p className="text-brand-gold text-xs tracking-widest">PLAY. EARN. DOMINATE.</p>
       <h2 className="text-2xl font-bold">Buy TPC</h2>
       <PresaleDashboardMultiRound />
+      <ClaimPurchaseCard />
     </div>
   );
 }
