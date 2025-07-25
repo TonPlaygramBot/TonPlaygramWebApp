@@ -63,8 +63,12 @@ export default function PresaleDashboardMultiRound() {
       <h2 className="text-3xl font-extrabold text-center mb-1 tracking-wide bg-clip-text text-transparent bg-gradient-to-r from-cyan-400 to-blue-500">
         Presale - Round {status ? status.currentRound : '...'} of {PRESALE_ROUNDS.length}
       </h2>
-      <p className="text-center text-sm mb-4 text-gray-300">
-        Price: <span className="text-cyan-400">{status ? status.currentPrice : PRESALE_ROUNDS[roundIndex]?.pricePerTPC} TON</span> / 1 TPC
+      <p className="text-center text-sm mb-4 text-gray-300 flex items-center justify-center gap-1">
+        <span>Price:</span>
+        <span className="text-cyan-400">{status ? status.currentPrice : PRESALE_ROUNDS[roundIndex]?.pricePerTPC} TON</span>
+        /
+        1
+        <img src="/assets/icons/TPCcoin_1.webp" alt="TPC" className="w-4 h-4 inline-block" />
       </p>
 
       <div className="text-center mb-4">
@@ -80,12 +84,14 @@ export default function PresaleDashboardMultiRound() {
       </div>
 
       <div className="text-center mb-4 text-gray-300">
-        <p>
-          Tokens Sold:{' '}
+        <p className="flex items-center justify-center gap-1">
+          <span>Tokens Sold:</span>
           <span className="text-cyan-300">
             {status ? sold.toLocaleString() : '...'}
-          </span>{' '}
-          / {maxTokens.toLocaleString()} TPC
+          </span>
+          /
+          {maxTokens.toLocaleString()}
+          <img src="/assets/icons/TPCcoin_1.webp" alt="TPC" className="w-4 h-4 ml-1 inline-block" />
         </p>
       </div>
 
@@ -106,12 +112,15 @@ export default function PresaleDashboardMultiRound() {
         <p className="text-2xl font-extrabold">
           {stats ? totalTonRaised.toFixed(2) : '...'} TON raised
         </p>
-        <p className="mt-1 text-sm">
-          TPC Sold: {status ? sold.toLocaleString() : '...'}
+        <p className="mt-1 text-sm flex items-center justify-center gap-1">
+          <span>TPC Sold:</span>
+          <span>{status ? sold.toLocaleString() : '...'}</span>
+          <img src="/assets/icons/TPCcoin_1.webp" alt="TPC" className="w-4 h-4" />
         </p>
-        <p className="mt-1 text-sm">
-          TGE Amount:{' '}
-          {stats ? (stats.appClaimed + stats.externalClaimed).toLocaleString() : '...'} TPC
+        <p className="mt-1 text-sm flex items-center justify-center gap-1">
+          <span>TGE Amount:</span>
+          <span>{stats ? stats.tpcSold?.toLocaleString() : '...'}</span>
+          <img src="/assets/icons/TPCcoin_1.webp" alt="TPC" className="w-4 h-4" />
         </p>
       </div>
 

@@ -217,6 +217,7 @@ app.get('/api/stats', async (req, res) => {
     let giftSends = 0;
     let bundlesSold = 0;
     let tonRaised = 0;
+    let tpcSold = 0;
     let currentNfts = 0;
     let nftValue = 0;
     let appClaimed = 0;
@@ -234,6 +235,9 @@ app.get('/api/stats', async (req, res) => {
           if (tx.detail && BUNDLE_TON_MAP[tx.detail]) {
             tonRaised += BUNDLE_TON_MAP[tx.detail];
           }
+          if (tx.amount) {
+            tpcSold += Math.abs(tx.amount);
+          }
         }
         if (tx.type === 'claim') appClaimed += Math.abs(tx.amount || 0);
         if (tx.type === 'withdraw') externalClaimed += Math.abs(tx.amount || 0);
@@ -248,6 +252,7 @@ app.get('/api/stats', async (req, res) => {
       nftsBurned,
       bundlesSold,
       tonRaised,
+      tpcSold,
       appClaimed: totalBalance,
       externalClaimed,
       nftValue

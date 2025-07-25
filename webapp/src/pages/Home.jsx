@@ -217,6 +217,7 @@ export default function Home() {
           nftsBurned: data.nftsBurned,
           bundlesSold: data.bundlesSold,
           tonRaised: data.tonRaised,
+          tpcSold: data.tpcSold,
           appClaimed: data.appClaimed,
           externalClaimed: data.externalClaimed,
           nftValue: data.nftValue,
