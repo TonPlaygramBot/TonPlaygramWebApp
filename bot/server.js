@@ -493,7 +493,11 @@ io.on('connection', (socket) => {
     }
 
     if (map) {
-      map.delete(String(accountId));
+      for (const [key, info] of map) {
+        if (String(info.id) === String(accountId)) {
+          map.delete(key);
+        }
+      }
       if (map.size === 0) tableSeats.delete(roomId);
     }
     if (accountId) {
