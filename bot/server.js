@@ -144,6 +144,7 @@ const watchSockets = new Map();
 const BUNDLE_TON_MAP = Object.fromEntries(
   Object.values(BUNDLES).map((b) => [b.label, b.ton])
 );
+setInterval(cleanupSeats, 60_000);
 
 function cleanupSeats() {
   const now = Date.now();
