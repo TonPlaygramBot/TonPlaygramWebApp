@@ -18,8 +18,6 @@ import airdropRoutes from './routes/airdrop.js';
 import checkinRoutes from './routes/checkin.js';
 import socialRoutes from './routes/social.js';
 import broadcastRoutes from './routes/broadcast.js';
-import buyRoutes from './routes/buy.js';
-import { BUNDLES } from './routes/store.js';
 import User from './models/User.js';
 import GameResult from "./models/GameResult.js";
 import path from 'path';
@@ -42,19 +40,9 @@ if (!process.env.MONGODB_URI) {
 
 const PORT = process.env.PORT || 3000;
 const app = express();
-
-let allowedOrigins = '*';
-if (process.env.ALLOWED_ORIGINS) {
-  allowedOrigins = process.env.ALLOWED_ORIGINS
-    .split(',')
-    .map((o) => o.trim())
-    .filter(Boolean);
-  if (allowedOrigins.length === 0) allowedOrigins = '*';
-}
-
-app.use(cors({ origin: allowedOrigins }));
+app.use(cors());
 const httpServer = http.createServer(app);
-const io = new SocketIOServer(httpServer, { cors: { origin: allowedOrigins } });
+const io = new SocketIOServer(httpServer, { cors: { origin: '*' } });
 const gameManager = new GameRoomManager(io);
 
 // Middleware and routes
@@ -72,7 +60,6 @@ app.use('/api/airdrop', airdropRoutes);
 app.use('/api/checkin', checkinRoutes);
 app.use('/api/social', socialRoutes);
 app.use('/api/broadcast', broadcastRoutes);
-app.use('/api/buy', buyRoutes);
 
 // Serve the built React app
 const webappPath = path.join(__dirname, '../webapp/dist');
@@ -140,11 +127,6 @@ app.get('/api/ping', (req, res) => {
 const onlineUsers = new Map();
 const tableSeats = new Map();
 const userSockets = new Map();
-const watchSockets = new Map();
-const BUNDLE_TON_MAP = Object.fromEntries(
-  Object.values(BUNDLES).map((b) => [b.label, b.ton])
-);
-setInterval(cleanupSeats, 60_000);
 
 function cleanupSeats() {
   const now = Date.now();
@@ -157,9 +139,10 @@ function cleanupSeats() {
 }
 
 app.post('/api/online/ping', (req, res) => {
-  const { accountId } = req.body || {};
-  if (accountId) {
-    onlineUsers.set(String(accountId), Date.now());
+  const { playerId, telegramId } = req.body || {};
+  const id = playerId || telegramId;
+  if (id) {
+    onlineUsers.set(String(id), Date.now());
   }
   const now = Date.now();
   for (const [id, ts] of onlineUsers) {
@@ -184,89 +167,9 @@ app.get('/api/online/list', (req, res) => {
   res.json({ users: Array.from(onlineUsers.keys()) });
 });
 
-app.get('/api/stats', async (req, res) => {
-  try {
-    const [{ totalBalance = 0, totalMined = 0, nftCount = 0 } = {}] =
-      await User.aggregate([
-        {
-          $project: {
-            balance: 1,
-            minedTPC: 1,
-            nftCount: {
-              $size: {
-                $filter: {
-                  input: { $ifNull: ['$gifts', []] },
-                  as: 'g',
-                  cond: { $ifNull: ['$$g.nftTokenId', false] }
-                }
-              }
-            }
-          }
-        },
-        {
-          $group: {
-            _id: null,
-            totalBalance: { $sum: '$balance' },
-            totalMined: { $sum: '$minedTPC' },
-            nftCount: { $sum: '$nftCount' }
-          }
-        }
-      ]);
-    const accounts = await User.countDocuments();
-    const active = onlineUsers.size;
-    const users = await User.find({}, { transactions: 1, gifts: 1 }).lean();
-    let giftSends = 0;
-    let bundlesSold = 0;
-    let tonRaised = 0;
-    let tpcSold = 0;
-    let currentNfts = 0;
-    let nftValue = 0;
-    let appClaimed = 0;
-    let externalClaimed = 0;
-    for (const u of users) {
-      const nftGifts = (u.gifts || []).filter((g) => g.nftTokenId);
-      currentNfts += nftGifts.length;
-      for (const g of nftGifts) {
-        nftValue += g.price || 0;
-      }
-      for (const tx of u.transactions || []) {
-        if (tx.type === 'gift') giftSends++;
-        if (tx.type === 'store') {
-          bundlesSold++;
-          if (tx.detail && BUNDLE_TON_MAP[tx.detail]) {
-            tonRaised += BUNDLE_TON_MAP[tx.detail];
-          }
-          if (tx.amount) {
-            tpcSold += Math.abs(tx.amount);
-          }
-        }
-        if (tx.type === 'claim') appClaimed += Math.abs(tx.amount || 0);
-        if (tx.type === 'withdraw') externalClaimed += Math.abs(tx.amount || 0);
-      }
-    }
-    const nftsBurned = giftSends - currentNfts;
-    res.json({
-      minted: totalBalance + totalMined,
-      accounts,
-      activeUsers: active,
-      nftsCreated: currentNfts,
-      nftsBurned,
-      bundlesSold,
-      tonRaised,
-      tpcSold,
-      appClaimed: totalBalance,
-      externalClaimed,
-      nftValue
-    });
-  } catch (err) {
-    console.error('Failed to compute stats:', err.message);
-    res.status(500).json({ error: 'failed to compute stats' });
-  }
-});
-
 app.post('/api/snake/table/seat', (req, res) => {
-  const { tableId, accountId, name, confirmed } = req.body || {};
-  const pid = accountId;
+  const { tableId, playerId, telegramId, name } = req.body || {};
+  const pid = playerId || telegramId;
   if (!tableId || !pid) return res.status(400).json({ error: 'missing data' });
   cleanupSeats();
   let map = tableSeats.get(tableId);
@@ -274,17 +177,13 @@ app.post('/api/snake/table/seat', (req, res) => {
     map = new Map();
     tableSeats.set(tableId, map);
   }
-  const info = map.get(String(pid)) || { id: pid, name: name || String(pid) };
-  info.name = name || info.name;
-  info.ts = Date.now();
-  if (typeof confirmed === 'boolean') info.confirmed = confirmed;
-  map.set(String(pid), info);
+  map.set(String(pid), { id: pid, name: name || String(pid), ts: Date.now() });
   res.json({ success: true });
 });
 
 app.post('/api/snake/table/unseat', (req, res) => {
-  const { tableId, accountId } = req.body || {};
-  const pid = accountId;
+  const { tableId, playerId, telegramId } = req.body || {};
+  const pid = playerId || telegramId;
   const map = tableSeats.get(tableId);
   if (map && pid) {
     map.delete(String(pid));
@@ -295,57 +194,50 @@ app.post('/api/snake/table/unseat', (req, res) => {
 app.get('/api/snake/lobbies', async (req, res) => {
   cleanupSeats();
   const capacities = [2, 3, 4];
-  const lobbies = capacities.map((cap) => {
-    let players = 0;
-    for (const [tid, map] of tableSeats) {
-      const parts = String(tid).split('-');
-      if (Number(parts[1]) === cap) players += map.size;
-    }
-    for (const room of gameManager.rooms.values()) {
-      const parts = String(room.id).split('-');
-      if (Number(parts[1]) === cap)
-        players += room.players.filter((p) => !p.disconnected).length;
-    }
-    return { id: `snake-${cap}`, capacity: cap, players };
-  });
+  const lobbies = await Promise.all(
+    capacities.map(async (cap) => {
+      const id = `snake-${cap}`;
+      const room = await gameManager.getRoom(id, cap);
+      const roomCount = room.players.filter((p) => !p.disconnected).length;
+      const lobbyCount = tableSeats.get(id)?.size || 0;
+      const players = roomCount + lobbyCount;
+      return { id, capacity: cap, players };
+    })
+  );
   res.json(lobbies);
 });
 
 app.get('/api/snake/lobby/:id', async (req, res) => {
   const { id } = req.params;
-  const parts = id.split('-');
-  const cap = Number(parts[1]) || 4;
+  const match = /-(\d+)$/.exec(id);
+  const cap = match ? Number(match[1]) : 4;
   const room = await gameManager.getRoom(id, cap);
   const roomPlayers = room.players
     .filter((p) => !p.disconnected)
     .map((p) => ({ id: p.playerId, name: p.name }));
-  const lobbyPlayers = Array.from(tableSeats.get(id)?.values() || []).map((p) => ({ id: p.id, name: p.name, confirmed: !!p.confirmed }));
+  const lobbyPlayers = Array.from(tableSeats.get(id)?.values() || []).map((p) => ({ id: p.id, name: p.name }));
   res.json({ id, capacity: cap, players: [...lobbyPlayers, ...roomPlayers] });
 });
 
 app.get('/api/snake/board/:id', async (req, res) => {
   const { id } = req.params;
-  const parts = id.split('-');
-  const cap = Number(parts[1]) || 4;
+  const match = /-(\d+)$/.exec(id);
+  const cap = match ? Number(match[1]) : 4;
   const room = await gameManager.getRoom(id, cap);
   res.json({ snakes: room.snakes, ladders: room.ladders });
 });
 
 app.get('/api/snake/results', async (req, res) => {
-  const { leaderboard, tableId } = req.query;
-  if (leaderboard) {
-    const match = tableId ? { tableId } : {};
-    const leaderboardData = await GameResult.aggregate([
-      { $match: match },
+  if (req.query.leaderboard) {
+    const leaderboard = await GameResult.aggregate([
       { $group: { _id: '$winner', wins: { $sum: 1 } } },
       { $sort: { wins: -1 } },
       { $limit: 20 },
     ]);
-    return res.json({ leaderboard: leaderboardData });
+    return res.json({ leaderboard });
   }
   const limit = Number(req.query.limit) || 20;
-  const query = tableId ? { tableId } : {};
-  const results = await GameResult.find(query)
+  const results = await GameResult.find()
     .sort({ createdAt: -1 })
     .limit(limit)
     .lean();
@@ -386,8 +278,8 @@ mongoose.connection.once('open', () => {
 });
 
 io.on('connection', (socket) => {
-  socket.on('register', ({ accountId }) => {
-    const id = accountId;
+  socket.on('register', ({ playerId, telegramId }) => {
+    const id = playerId || telegramId;
     if (!id) return;
     let set = userSockets.get(String(id));
     if (!set) {
@@ -395,73 +287,23 @@ io.on('connection', (socket) => {
       userSockets.set(String(id), set);
     }
     set.add(socket.id);
+    socket.data.telegramId = telegramId || null;
     socket.data.playerId = String(id);
     // Mark this user as online immediately
     onlineUsers.set(String(id), Date.now());
   });
 
-  socket.on('joinRoom', async ({ roomId, accountId, name }) => {
+  socket.on('joinRoom', async ({ roomId, playerId, name }) => {
     const map = tableSeats.get(roomId);
-    const lobbyCount = map ? map.size : 0;
-    const confirmedCount = map
-      ? Array.from(map.values()).filter((p) => p.confirmed).length
-      : 0;
-    const parts = roomId.split('-');
-    const cap = Number(parts[1]) || 4;
-    const room = await gameManager.getRoom(roomId, cap);
-    const joined = room.players.filter((p) => !p.disconnected).length;
-
-    if (
-      map &&
-      (confirmedCount + joined < room.capacity || confirmedCount < lobbyCount)
-    ) {
-      socket.emit('error', 'table not full');
-      return;
-    }
-
     if (map) {
-      map.delete(String(accountId));
+      map.delete(String(playerId));
       if (map.size === 0) tableSeats.delete(roomId);
     }
-    if (accountId) {
-      onlineUsers.set(String(accountId), Date.now());
+    if (playerId) {
+      onlineUsers.set(String(playerId), Date.now());
     }
-    const result = await gameManager.joinRoom(roomId, accountId, name, socket);
+    const result = await gameManager.joinRoom(roomId, playerId, name, socket);
     if (result.error) socket.emit('error', result.error);
-  });
-
-  socket.on('watchRoom', async ({ roomId }) => {
-    if (!roomId) return;
-    let set = watchSockets.get(roomId);
-    if (!set) {
-      set = new Set();
-      watchSockets.set(roomId, set);
-    }
-    set.add(socket.id);
-    socket.join(roomId);
-    const parts = roomId.split('-');
-    const cap = Number(parts[1]) || 4;
-    const room = await gameManager.getRoom(roomId, cap);
-    const players = room.players.map((p) => ({
-      playerId: p.playerId,
-      name: p.name,
-      position: p.position,
-    }));
-    socket.emit('watchState', {
-      board: { snakes: room.snakes, ladders: room.ladders },
-      players,
-      currentTurn: room.players[room.currentTurn]?.playerId || null,
-    });
-  });
-
-  socket.on('leaveWatch', ({ roomId }) => {
-    if (!roomId) return;
-    const set = watchSockets.get(roomId);
-    if (set) {
-      set.delete(socket.id);
-      if (set.size === 0) watchSockets.delete(roomId);
-    }
-    socket.leave(roomId);
   });
 
   socket.on('rollDice', async () => {
@@ -494,11 +336,6 @@ io.on('connection', (socket) => {
         if (set.size === 0) userSockets.delete(String(pid));
       }
       onlineUsers.delete(String(pid));
-    }
-    for (const [rid, set] of watchSockets) {
-      if (set.delete(socket.id) && set.size === 0) {
-        watchSockets.delete(rid);
-      }
     }
   });
 });
