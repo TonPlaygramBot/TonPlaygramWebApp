@@ -5,6 +5,7 @@ import GameCard from '../components/GameCard.jsx';
 
 import TasksCard from '../components/TasksCard.jsx';
 import StoreAd from '../components/StoreAd.jsx';
+import PresaleDashboardMultiRound from '../components/PresaleDashboardMultiRound.jsx';
 import NftGiftCard from '../components/NftGiftCard.jsx';
 import ProjectAchievementsCard from '../components/ProjectAchievementsCard.jsx';
 import HomeGamesCard from '../components/HomeGamesCard.jsx';
@@ -336,6 +337,7 @@ export default function Home() {
       <div className="grid grid-cols-1 gap-4">
         <TasksCard />
         <StoreAd />
+        <PresaleDashboardMultiRound />
         <div className="relative bg-surface border border-border rounded-xl p-4 space-y-2 overflow-hidden wide-card">
           <img
             src="/assets/SnakeLaddersbackground.png"
