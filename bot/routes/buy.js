@@ -10,8 +10,6 @@ import {
 import PresaleState from '../models/PresaleState.js';
 import User from '../models/User.js';
 import WalletPurchase from '../models/WalletPurchase.js';
-import PresaleState from '../models/PresaleState.js';
-import mongoose from 'mongoose';
 import { ensureTransactionArray } from '../utils/userUtils.js';
 import { withProxy } from '../utils/proxyAgent.js';
 import TonWeb from 'tonweb';
@@ -51,103 +49,10 @@ async function saveState() {
   if (state) await state.save();
 }
 
-let state = readJson(statePath, {
-
-  currentRound: 1,
-
-  tokensSold: 0,
-
-  currentPrice: INITIAL_PRICE,
-
-});
-
-let stateDoc = null;
-
-async function loadState() {
-
-  try {
-
-    stateDoc = await PresaleState.findOne();
-
-    if (!stateDoc) {
-
-      stateDoc = new PresaleState(state);
-
-      await stateDoc.save();
-
-    } else {
-
-      state = {
-
-        currentRound: stateDoc.currentRound,
-
-        tokensSold: stateDoc.tokensSold,
-
-        currentPrice: stateDoc.currentPrice,
-
-      };
-
-    }
-
-    return state;
-
-  } catch (err) {
-
-    console.error('Failed to load presale state from MongoDB:', err.message);
-
-    return state; // fallback to in-memory state
-
-  }
-
-}
-
-mongoose.connection.once('open', loadState);
-
-async function saveState() {
-
-  writeJson(statePath, state);
-
-  if (stateDoc) {
-
-    stateDoc.currentRound = state.currentRound;
-
-    stateDoc.tokensSold = state.tokensSold;
-
-    stateDoc.currentPrice = state.currentPrice;
-
-    try {
-
-      await stateDoc.save();
-
-    } catch (err) {
-
-      console.error('Failed to save presale state to MongoDB:', err.message);
-
-    }
-
-  }
-
-}
-
 router.get('/status', async (_req, res) => {
-
   const st = await loadState();
-
   const round = PRESALE_ROUNDS[st.currentRound - 1] || {};
-
   const remaining = round.maxTokens ? round.maxTokens - st.tokensSold : 0;
-
-  res.json({
-
-    ...st,
-
-    remaining,
-
-    round,
-
-  });
-
-});
   res.json({
     currentPrice: st.currentPrice,
     currentRound: st.currentRound,
