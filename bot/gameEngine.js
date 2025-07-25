@@ -332,6 +332,13 @@ export class GameRoom {
       },
       { upsert: true }
     ).catch(() => {});
+
+    if (player.playerId) {
+      User.updateOne(
+        { accountId: player.playerId },
+        { currentTableId: null }
+      ).catch(() => {});
+    }
   }
 }
 
@@ -457,7 +464,15 @@ export class GameRoomManager {
       } catch {}
     }
     const result = room.addPlayer(playerId, playerName, telegramId, socket);
-    if (!result.error) await this.saveRoom(room);
+    if (!result.error) {
+      await this.saveRoom(room);
+      if (playerId) {
+        User.updateOne(
+          { accountId: playerId },
+          { currentTableId: roomId }
+        ).catch(() => {});
+      }
+    }
     return result;
   }
 

@@ -55,7 +55,12 @@ export default function PresaleDashboardMultiRound() {
     }
     load();
     const interval = setInterval(load, 30000);
-    return () => clearInterval(interval);
+    const listener = () => load();
+    window.addEventListener('presaleUpdate', listener);
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('presaleUpdate', listener);
+    };
   }, []);
 
   return (

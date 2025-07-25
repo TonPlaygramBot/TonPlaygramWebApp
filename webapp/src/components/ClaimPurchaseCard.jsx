@@ -21,6 +21,7 @@ export default function ClaimPurchaseCard() {
       if (res?.error) setMsg(res.error);
       else setMsg('Claim submitted');
       setTxHash('');
+      window.dispatchEvent(new Event('presaleUpdate'));
     } catch {
       setMsg('Claim failed');
     }

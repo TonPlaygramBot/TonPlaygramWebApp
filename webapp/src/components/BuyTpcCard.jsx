@@ -43,6 +43,7 @@ export default function BuyTpcCard() {
       else setMsg('Purchase successful');
       setAmountTon('');
       getPresaleStatus().then(setStatus).catch(() => {});
+      window.dispatchEvent(new Event('presaleUpdate'));
     } catch {
       setMsg('Transaction failed');
     }

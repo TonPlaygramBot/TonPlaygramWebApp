@@ -150,7 +150,14 @@ function cleanupSeats() {
   const now = Date.now();
   for (const [tableId, players] of tableSeats) {
     for (const [pid, info] of players) {
-      if (now - info.ts > 60_000) players.delete(pid);
+      if (now - info.ts > 60_000) {
+        players.delete(pid);
+        if (info.id) {
+          User.updateOne({ accountId: info.id }, { currentTableId: null }).catch(
+            () => {}
+          );
+        }
+      }
     }
     if (players.size === 0) tableSeats.delete(tableId);
   }
@@ -269,35 +276,67 @@ app.post('/api/snake/table/seat', async (req, res) => {
   const pid = accountId;
   if (!tableId || !pid) return res.status(400).json({ error: 'missing data' });
   cleanupSeats();
+
+  let user;
+  try {
+    user = await User.findOne({ accountId: pid });
+  } catch {}
+
+  const tgid = user?.telegramId;
+  const key = String(tgid || pid);
+
+  if (user && user.currentTableId && user.currentTableId !== tableId) {
+    const old = tableSeats.get(user.currentTableId);
+    if (old) {
+      old.delete(String(tgid || pid));
+      if (old.size === 0) tableSeats.delete(user.currentTableId);
+    }
+  }
+
   let map = tableSeats.get(tableId);
   if (!map) {
     map = new Map();
     tableSeats.set(tableId, map);
   }
-  const info = map.get(String(pid)) || {
+
+  const info = map.get(key) || {
     id: pid,
+    telegramId: tgid,
     name: name || String(pid)
   };
-  if (!info.telegramId) {
-    try {
-      const user = await User.findOne({ accountId: pid }).select('telegramId');
-      if (user) info.telegramId = user.telegramId;
-    } catch {}
-  }
+
   info.name = name || info.name;
+  info.telegramId = tgid;
+  info.id = pid;
   info.ts = Date.now();
   if (typeof confirmed === 'boolean') info.confirmed = confirmed;
-  map.set(String(pid), info);
+  map.set(key, info);
+
+  if (user) {
+    user.currentTableId = tableId;
+    await user.save().catch(() => {});
+  }
+
   res.json({ success: true });
 });
 
-app.post('/api/snake/table/unseat', (req, res) => {
+app.post('/api/snake/table/unseat', async (req, res) => {
   const { tableId, accountId } = req.body || {};
   const pid = accountId;
+  let user;
+  try {
+    user = await User.findOne({ accountId: pid });
+  } catch {}
+
+  const key = String(user?.telegramId || pid);
   const map = tableSeats.get(tableId);
   if (map && pid) {
-    map.delete(String(pid));
+    map.delete(key);
     if (map.size === 0) tableSeats.delete(tableId);
+  }
+  if (user) {
+    user.currentTableId = null;
+    await user.save().catch(() => {});
   }
   res.json({ success: true });
 });
