@@ -48,17 +48,6 @@ const DEV_ACCOUNT = import.meta.env.VITE_DEV_ACCOUNT_ID;
 const DEV_ACCOUNT_1 = import.meta.env.VITE_DEV_ACCOUNT_ID_1;
 const DEV_ACCOUNT_2 = import.meta.env.VITE_DEV_ACCOUNT_ID_2;
 
-function normalizePlayers(list) {
-  const map = new Map();
-  list.forEach((p) => {
-    const existing = map.get(p.id) || {};
-    map.set(p.id, { ...existing, ...p });
-  });
-  return [...map.values()].sort((a, b) =>
-    String(a.id).localeCompare(String(b.id))
-  );
-}
-
 async function awardDevShare(total) {
   const promises = [];
   if (DEV_ACCOUNT_1 || DEV_ACCOUNT_2) {
@@ -763,20 +752,20 @@ export default function SnakeAndLadder() {
     return () => clearTimeout(trailTimeoutRef.current);
   }, []);
 
-  // Preload token, board icon and avatar images so elements display
+  // Preload token and avatar images so board icons and AI photos display
   // immediately without waiting for network requests during gameplay.
   useEffect(() => {
-    ;['TON.webp', 'Usdt.webp', 'Ladder.webp', 'snake_vector_no_bg.webp'].forEach(
-      (file) => {
-        const img = new Image();
-        img.src = `/assets/icons/${file}`;
-      },
-    );
-    const img = new Image();
-    img.src = '/assets/icons/TPCcoin_1.webp';
+    ['TON.webp', 'Usdt.webp'].forEach((file) => {
+      const img = new Image();
+      img.src = `/assets/icons/${file}`;
+    });
+    {
+      const img = new Image();
+      img.src = '/assets/icons/TPCcoin_1.webp';
+    }
     AVATARS.forEach((src) => {
-      const a = new Image();
-      a.src = getAvatarUrl(src);
+      const img = new Image();
+      img.src = getAvatarUrl(src);
     });
   }, []);
 
@@ -1339,7 +1328,8 @@ export default function SnakeAndLadder() {
     }
 
     const updateNeeded = (players) => {
-      const unique = normalizePlayers(players);
+      // Deduplicate by player id so repeated entries do not skew the count
+      const unique = Array.from(new Set(players.map((p) => p.id)));
       const need = Math.max(0, capacity - unique.length);
       setPlayersNeeded(need);
       if (need === 0) setWaitingForPlayers(false);
@@ -1354,10 +1344,11 @@ export default function SnakeAndLadder() {
           'Player';
         const photoUrl = prof?.photo || '/assets/icons/profile.svg';
         setMpPlayers((p) => {
-          const arr = normalizePlayers([
-            ...p,
-            { id: playerId, name: playerName, photoUrl, position: 0 },
-          ]);
+          if (p.some((pl) => pl.id === playerId)) {
+            updateNeeded(p);
+            return p;
+          }
+          const arr = [...p, { id: playerId, name: playerName, photoUrl, position: 0 }];
           updateNeeded(arr);
           return arr;
         });
@@ -1366,7 +1357,7 @@ export default function SnakeAndLadder() {
     const onLeft = ({ playerId }) => {
       setMpPlayers((p) => {
         const leaving = p.find((pl) => pl.id === playerId);
-        const arr = normalizePlayers(p.filter((pl) => pl.id !== playerId));
+        const arr = p.filter((pl) => pl.id !== playerId);
         updateNeeded(arr);
         if (leaving && !ranking.includes(leaving.name)) {
           setRanking((r) => [...r, leaving.name]);
@@ -1508,10 +1499,9 @@ export default function SnakeAndLadder() {
             return { id: p.playerId, name, photoUrl, position: p.position || 0 };
           })
         ).then((arr) => {
-          const list = normalizePlayers(arr);
-          setMpPlayers(list);
-          setPlayersNeeded(Math.max(0, capacity - list.length));
-          const idx = list.findIndex((pl) => pl.id === turn);
+          setMpPlayers(arr);
+          setPlayersNeeded(Math.max(0, capacity - arr.length));
+          const idx = arr.findIndex((pl) => pl.id === turn);
           if (idx >= 0) {
             setCurrentTurn(idx);
             setDiceCount(playerDiceCounts[idx] ?? 2);
@@ -1554,7 +1544,14 @@ export default function SnakeAndLadder() {
           return { id: p.playerId, name, photoUrl, position: p.position || 0 };
         })
       ).then((arr) => {
-        const unique = normalizePlayers(arr);
+        const unique = [];
+        const seen = new Set();
+        for (const p of arr) {
+          if (!seen.has(p.id)) {
+            seen.add(p.id);
+            unique.push(p);
+          }
+        }
         setMpPlayers(unique);
         updateNeeded(unique);
       });
@@ -1610,9 +1607,8 @@ export default function SnakeAndLadder() {
               return { id: p.id, name: n, photoUrl, position: 0 };
             })
           ).then((arr) => {
-            const list = normalizePlayers(arr);
-            setMpPlayers(list);
-            setPlayersNeeded(Math.max(0, capacity - list.length));
+            setMpPlayers(arr);
+            setPlayersNeeded(Math.max(0, capacity - arr.length));
           });
         })
         .catch(() => {});
