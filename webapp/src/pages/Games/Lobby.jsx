@@ -146,6 +146,21 @@ export default function Lobby() {
   }, [game, table, playerName, stake]);
 
   useEffect(() => {
+    if (game !== 'snake' || !table || table.id === 'single' || !stake.amount)
+      return;
+    const tableRef = `${table.id}-${stake.amount}`;
+    const handleUnload = () => {
+      ensureAccountId()
+        .then((accountId) => {
+          if (accountId) unseatTable(accountId, tableRef).catch(() => {});
+        })
+        .catch(() => {});
+    };
+    window.addEventListener('beforeunload', handleUnload);
+    return () => window.removeEventListener('beforeunload', handleUnload);
+  }, [game, table, stake]);
+
+  useEffect(() => {
     if (game === 'snake' && table && table.id !== 'single' && stake.amount) {
       const tableRef = `${table.id}-${stake.amount}`;
       let active = true;
