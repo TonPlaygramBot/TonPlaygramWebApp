@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { ensureAccountId } from '../utils/telegram.js';
-import { claimPurchase } from '../utils/api.js';
+import { claimPresale } from '../utils/api.js';
 import InfoPopup from './InfoPopup.jsx';
 
 export default function ClaimPurchaseCard() {
@@ -17,7 +17,7 @@ export default function ClaimPurchaseCard() {
     setSending(true);
     try {
       const accountId = await ensureAccountId();
-      const res = await claimPurchase(accountId, hash);
+      const res = await claimPresale(accountId, hash);
       if (res?.error) setMsg(res.error);
       else setMsg('Claim submitted');
       setTxHash('');

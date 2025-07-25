@@ -8,11 +8,27 @@ import {
   PRICE_INCREASE_STEP,
   PRESALE_ROUNDS,
 } from '../config.js';
+import User from '../models/User.js';
+import { ensureTransactionArray } from '../utils/userUtils.js';
+import { withProxy } from '../utils/proxyAgent.js';
+import TonWeb from 'tonweb';
 
 const router = Router();
 const dataDir = path.join(path.dirname(new URL(import.meta.url).pathname), '../data');
 const purchasesPath = path.join(dataDir, 'walletPurchases.json');
 const statePath = path.join(dataDir, 'presaleState.json');
+const STORE_ADDRESS = process.env.STORE_DEPOSIT_ADDRESS ||
+  'UQAPwsGyKzA4MuBnCflTVwEcTLcGS9yV6okJWQGzO5VxVYD1';
+
+function normalize(addr) {
+  try {
+    return new TonWeb.utils.Address(addr).toString(true, false, false);
+  } catch {
+    return null;
+  }
+}
+
+const STORE_ADDRESS_NORM = normalize(STORE_ADDRESS);
 
 function readJson(file, def) {
   try {
@@ -80,6 +96,86 @@ router.post('/', (req, res) => {
   writeJson(purchasesPath, walletPurchases);
   writeJson(statePath, state);
   res.json({ tpc, currentPrice: state.currentPrice, round: state.currentRound });
+});
+
+router.post('/claim', async (req, res) => {
+  const { accountId, txHash } = req.body;
+  if (!accountId || !txHash) {
+    return res.status(400).json({ error: 'accountId and txHash required' });
+  }
+
+  const user = await User.findOne({ accountId });
+  if (!user) return res.status(404).json({ error: 'account not found' });
+
+  const dup = await User.findOne({ 'transactions.txHash': txHash });
+  if (dup) {
+    const existing = dup.transactions.find((t) => t.txHash === txHash);
+    return res.json({ alreadyClaimed: true, date: existing.date });
+  }
+
+  try {
+    const resp = await fetch(
+      `https://tonapi.io/v2/blockchain/transactions/${txHash}`,
+      withProxy()
+    );
+    if (!resp.ok) {
+      return res.status(400).json({ error: 'transaction not found' });
+    }
+    const data = await resp.json();
+    const out = (data.out_msgs || []).find(
+      (m) => normalize(m.destination?.address) === STORE_ADDRESS_NORM
+    );
+    if (!out) return res.status(400).json({ error: 'destination mismatch' });
+    const tonVal = Number(out.value) / 1e9;
+
+    const round = PRESALE_ROUNDS[state.currentRound - 1];
+    if (!round) return res.status(400).json({ error: 'presale ended' });
+
+    let tpc = Math.floor(tonVal / state.currentPrice);
+    if (tpc <= 0)
+      return res.status(400).json({ error: 'amount too small' });
+
+    const remaining = round.maxTokens - state.tokensSold;
+    if (tpc > remaining) {
+      return res
+        .status(400)
+        .json({ error: 'Not enough tokens left in current round' });
+    }
+
+    state.tokensSold += tpc;
+    state.currentPrice = Number(
+      (state.currentPrice + PRICE_INCREASE_STEP).toFixed(9)
+    );
+    if (state.tokensSold >= round.maxTokens) {
+      state.currentRound += 1;
+      state.tokensSold = 0;
+      const next = PRESALE_ROUNDS[state.currentRound - 1];
+      state.currentPrice = next ? next.pricePerTPC : state.currentPrice;
+    }
+    writeJson(statePath, state);
+
+    ensureTransactionArray(user);
+    user.balance += tpc;
+    user.transactions.push({
+      amount: tpc,
+      type: 'presale',
+      token: 'TPC',
+      status: 'delivered',
+      date: new Date(),
+      txHash,
+    });
+    await user.save();
+
+    res.json({
+      balance: user.balance,
+      tpc,
+      currentPrice: state.currentPrice,
+      round: state.currentRound,
+    });
+  } catch (err) {
+    console.error('Failed to verify presale claim:', err.message);
+    res.status(500).json({ error: 'verification failed' });
+  }
 });
 
 export default router;
