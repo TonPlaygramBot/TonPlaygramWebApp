@@ -14,7 +14,7 @@ export default function TableSelector({ tables, selected, onSelect }) {
               selected?.id === t.id ? 'lobby-selected' : ''
             }`}
           >
-            <span>{t.label || `Table ${t.capacity}p`}</span>
+            <span>{t.label || `Table ${idx + 1} (${t.capacity}p)`}</span>
             {t.capacity && (
               <span>
                 {t.players}/{t.capacity}

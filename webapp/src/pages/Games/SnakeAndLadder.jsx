@@ -121,6 +121,53 @@ function shuffle(arr) {
   return copy;
 }
 
+function hashString(str) {
+  let h = 0;
+  for (let i = 0; i < str.length; i++) {
+    h = (h * 31 + str.charCodeAt(i)) >>> 0;
+  }
+  return h >>> 0;
+}
+
+function makeRng(seed) {
+  let s = seed >>> 0;
+  return () => {
+    s = (s * 1664525 + 1013904223) >>> 0;
+    return s / 4294967296;
+  };
+}
+
+function generateDiceCells(id, snakesMap = {}, laddersMap = {}) {
+  const used = new Set([
+    ...Object.keys(snakesMap),
+    ...Object.keys(laddersMap),
+    ...Object.values(snakesMap),
+    ...Object.values(laddersMap),
+  ]);
+  const rng = makeRng(hashString(id));
+  const boardSize = ROWS * COLS;
+  const diceValues = [1, 2, 1];
+  const map = {};
+  diceValues.forEach((val) => {
+    let cell;
+    let tries = 0;
+    do {
+      cell = Math.floor(rng() * boardSize) + 1;
+      tries++;
+      if (tries > 100) break;
+    } while (
+      used.has(String(cell)) ||
+      used.has(cell) ||
+      cell === FINAL_TILE ||
+      cell === 1 ||
+      map[cell]
+    );
+    map[cell] = val;
+    used.add(cell);
+  });
+  return map;
+}
+
 
 function CoinBurst({ token }) {
   const coins = Array.from({ length: 30 }, () => ({
@@ -674,28 +721,7 @@ export default function SnakeAndLadder() {
     });
     setSnakeOffsets(snk);
     setLadderOffsets(lad);
-    const boardSize = ROWS * COLS;
-    const diceMap = {};
-    const diceValues = [1, 2, 1];
-    const usedD = new Set([
-      ...Object.keys(snakesLim),
-      ...Object.keys(laddersLim),
-      ...Object.values(snakesLim),
-      ...Object.values(laddersLim),
-    ]);
-    diceValues.forEach((val) => {
-      let cell;
-      do {
-        cell = Math.floor(Math.random() * boardSize) + 1;
-      } while (
-        usedD.has(String(cell)) ||
-        usedD.has(cell) ||
-        cell === FINAL_TILE ||
-        cell === 1
-      );
-      diceMap[cell] = val;
-      usedD.add(cell);
-    });
+    const diceMap = generateDiceCells(tableId, snakesLim, laddersLim);
     setDiceCells(diceMap);
     engineRef.current.applyBoard(snakesLim, laddersLim, diceMap);
   };
@@ -1687,7 +1713,10 @@ export default function SnakeAndLadder() {
           setAiPositions(data.aiPositions ?? Array(ai).fill(0));
           setCurrentTurn(data.currentTurn ?? 0);
           setDiceCount(playerDiceCounts[data.currentTurn ?? 0] ?? 2);
-          setDiceCells(data.diceCells ?? {});
+          const dc = data.diceCells && Object.keys(data.diceCells).length
+            ? data.diceCells
+            : generateDiceCells(tableId, data.snakes ?? {}, data.ladders ?? {});
+          setDiceCells(dc);
           setSnakes(limit(data.snakes ?? {}));
           setLadders(limit(data.ladders ?? {}));
           setSnakeOffsets(limit(data.snakeOffsets ?? {}));
