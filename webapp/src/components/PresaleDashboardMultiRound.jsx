@@ -1,39 +1,23 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
-
-const ROUNDS = [
-  { round: 1, tokens: 125_000_000, price: 0.000004 },
-  { round: 2, tokens: 100_000_000, price: 0.000005 },
-  { round: 3, tokens: 100_000_000, price: 0.000006 },
-  { round: 4, tokens: 100_000_000, price: 0.000008 },
-  { round: 5, tokens: 75_000_000,  price: 0.000010 }
-];
+import { getPresaleStatus, getAppStats } from '../utils/api.js';
+import { PRESALE_ROUNDS, PRESALE_START } from '../utils/storeData.js';
 
 export default function PresaleDashboardMultiRound() {
-  const [currentRound, setCurrentRound] = useState(0);
-  const [sold, setSold] = useState(0);
+  const [status, setStatus] = useState(null);
+  const [stats, setStats] = useState(null);
   const [timeLeft, setTimeLeft] = useState(0);
   const [salesData, setSalesData] = useState([]);
-  const [totalTonRaised, setTotalTonRaised] = useState(0);
-
-  const getRoundEnd = () => {
-    const now = new Date();
-    return new Date(now.getTime() + 28 * 24 * 60 * 60 * 1000); // 28 days
-  };
-  const [roundEnd, setRoundEnd] = useState(getRoundEnd());
+  const roundEndRef = useRef(null);
 
   useEffect(() => {
-    const timer = setInterval(() => {
-      const now = new Date();
-      const remaining = roundEnd - now;
-      setTimeLeft(remaining);
-
-      if (remaining <= 0 && currentRound < ROUNDS.length - 1) {
-        goToNextRound();
+    const id = setInterval(() => {
+      if (roundEndRef.current) {
+        setTimeLeft(roundEndRef.current - Date.now());
       }
     }, 1000);
-    return () => clearInterval(timer);
-  }, [roundEnd, currentRound]);
+    return () => clearInterval(id);
+  }, []);
 
   const formatTime = (ms) => {
     if (ms <= 0) return '00d 00h 00m 00s';
@@ -45,48 +29,48 @@ export default function PresaleDashboardMultiRound() {
     return `${days}d ${hours}h ${minutes}m ${seconds}s`;
   };
 
-  const maxTokens = ROUNDS[currentRound].tokens;
-  const percent = ((sold / maxTokens) * 100).toFixed(2);
-  const tonRaised = (sold * ROUNDS[currentRound].price).toFixed(2);
+  const roundIndex = status ? status.currentRound - 1 : 0;
+  const maxTokens = PRESALE_ROUNDS[roundIndex]?.maxTokens || 0;
+  const sold = maxTokens - (status?.remainingTokens || 0);
+  const percent = maxTokens
+    ? ((sold / maxTokens) * 100).toFixed(2)
+    : '0';
+  const tonRaised = sold * (status?.currentPrice || PRESALE_ROUNDS[roundIndex]?.pricePerTPC || 0);
+  const totalTonRaised = stats?.tonRaised || 0;
 
   useEffect(() => {
-    const interval = setInterval(() => {
-      const newSold = Math.min(sold + 200_000, maxTokens);
-      setSold(newSold);
-      setSalesData((prev) => [
-        ...prev,
-        { name: `Day ${prev.length + 1}`, sold: newSold }
-      ]);
-      setTotalTonRaised((prev) => prev + 200_000 * ROUNDS[currentRound].price);
-    }, 3000);
+    async function load() {
+      try {
+        const s = await getPresaleStatus();
+        setStatus(s);
+        const idx = s.currentRound - 1;
+        const duration = 4 * 7 * 24 * 60 * 60 * 1000;
+        const start = new Date(PRESALE_START).getTime() + duration * idx;
+        roundEndRef.current = start + duration;
+        const max = PRESALE_ROUNDS[idx]?.maxTokens || 0;
+        const currentSold = max - (s.remainingTokens || 0);
+        setSalesData((prev) => [
+          ...prev,
+          { name: new Date().toLocaleTimeString(), sold: currentSold }
+        ]);
+      } catch {}
+      try {
+        const st = await getAppStats();
+        setStats(st);
+      } catch {}
+    }
+    load();
+    const interval = setInterval(load, 30000);
     return () => clearInterval(interval);
-  }, [sold, maxTokens, currentRound]);
-
-  const goToNextRound = () => {
-    if (currentRound < ROUNDS.length - 1) {
-      setCurrentRound((prev) => prev + 1);
-      setSold(0);
-      setSalesData([]);
-      setRoundEnd(getRoundEnd());
-    }
-  };
-
-  const goToPreviousRound = () => {
-    if (currentRound > 0) {
-      setCurrentRound((prev) => prev - 1);
-      setSold(0);
-      setSalesData([]);
-      setRoundEnd(getRoundEnd());
-    }
-  };
+  }, []);
 
   return (
     <div className="bg-gradient-to-b from-gray-900 to-gray-800 p-6 rounded-2xl shadow-2xl w-full max-w-3xl mx-auto text-white border border-gray-700">
       <h2 className="text-3xl font-extrabold text-center mb-1 tracking-wide bg-clip-text text-transparent bg-gradient-to-r from-cyan-400 to-blue-500">
-        Presale - Round {ROUNDS[currentRound].round} of 5
+        Presale - Round {status ? status.currentRound : '...'} of {PRESALE_ROUNDS.length}
       </h2>
       <p className="text-center text-sm mb-4 text-gray-300">
-        Price: <span className="text-cyan-400">{ROUNDS[currentRound].price} TON</span> / 1 TPC
+        Price: <span className="text-cyan-400">{status ? status.currentPrice : PRESALE_ROUNDS[roundIndex]?.pricePerTPC} TON</span> / 1 TPC
       </p>
 
       <div className="text-center mb-4">
@@ -94,13 +78,20 @@ export default function PresaleDashboardMultiRound() {
           Ends in: <span className="text-cyan-300">{formatTime(timeLeft)}</span>
         </p>
         <p className="text-md text-gray-300 mt-1">
-          TON Raised in this Round: <span className="text-cyan-300">{tonRaised} TON</span>
+          TON Raised in this Round:{' '}
+          <span className="text-cyan-300">
+            {status ? tonRaised.toFixed(2) : '...'} TON
+          </span>
         </p>
       </div>
 
       <div className="text-center mb-4 text-gray-300">
         <p>
-          Tokens Sold: <span className="text-cyan-300">{sold.toLocaleString()}</span> / {maxTokens.toLocaleString()} TPC
+          Tokens Sold:{' '}
+          <span className="text-cyan-300">
+            {status ? sold.toLocaleString() : '...'}
+          </span>{' '}
+          / {maxTokens.toLocaleString()} TPC
         </p>
       </div>
 
@@ -126,34 +117,13 @@ export default function PresaleDashboardMultiRound() {
         </div>
       </div>
 
-      <div className="flex justify-between mb-6">
-        <button
-          onClick={goToPreviousRound}
-          disabled={currentRound === 0}
-          className={`py-2 px-4 rounded-lg ${
-            currentRound === 0
-              ? 'bg-gray-600 cursor-not-allowed'
-              : 'bg-cyan-500 hover:bg-cyan-400 text-black font-bold'
-          }`}
-        >
-          Previous Round
-        </button>
-        <button
-          onClick={goToNextRound}
-          disabled={currentRound === ROUNDS.length - 1}
-          className={`py-2 px-4 rounded-lg ${
-            currentRound === ROUNDS.length - 1
-              ? 'bg-gray-600 cursor-not-allowed'
-              : 'bg-cyan-500 hover:bg-cyan-400 text-black font-bold'
-          }`}
-        >
-          Next Round
-        </button>
-      </div>
+
 
       <div className="bg-gray-800 p-4 rounded-xl text-center border border-gray-700">
         <h3 className="text-lg font-bold mb-2 text-cyan-300">Total TON Raised</h3>
-        <p className="text-2xl font-extrabold">{totalTonRaised.toFixed(2)} TON</p>
+        <p className="text-2xl font-extrabold">
+          {stats ? totalTonRaised.toFixed(2) : '...'} TON
+        </p>
       </div>
 
       <div className="bg-gray-800 p-5 rounded-xl shadow-inner text-center border border-gray-700 mt-6">
