@@ -1,6 +1,5 @@
 import { Router } from 'express';
-import fs from 'fs';
-import path from 'path';
+
 import {
   MAX_TPC_PER_WALLET,
   PURCHASE_INTERVAL_MS,
@@ -8,6 +7,7 @@ import {
   PRICE_INCREASE_STEP,
   PRESALE_ROUNDS,
 } from '../config.js';
+import PresaleState from '../models/PresaleState.js';
 import User from '../models/User.js';
 import WalletPurchase from '../models/WalletPurchase.js';
 import PresaleState from '../models/PresaleState.js';
@@ -17,8 +17,6 @@ import { withProxy } from '../utils/proxyAgent.js';
 import TonWeb from 'tonweb';
 
 const router = Router();
-const dataDir = path.join(path.dirname(new URL(import.meta.url).pathname), '../data');
-const statePath = path.join(dataDir, 'presaleState.json');
 const STORE_ADDRESS = process.env.STORE_DEPOSIT_ADDRESS ||
   'UQAPwsGyKzA4MuBnCflTVwEcTLcGS9yV6okJWQGzO5VxVYD1';
 
@@ -32,71 +30,134 @@ function normalize(addr) {
 
 const STORE_ADDRESS_NORM = normalize(STORE_ADDRESS);
 
-function readJson(file, def) {
-  try {
-    return JSON.parse(fs.readFileSync(file, 'utf8'));
-  } catch {
-    return def;
+let state = null;
+
+async function loadState() {
+  if (!state) {
+    state = await PresaleState.findOne();
+    if (!state) {
+      state = new PresaleState({
+        currentRound: 1,
+        tokensSold: 0,
+        currentPrice: INITIAL_PRICE,
+      });
+      await state.save();
+    }
   }
+  return state;
 }
 
-function writeJson(file, data) {
-  fs.writeFileSync(file, JSON.stringify(data, null, 2));
+async function saveState() {
+  if (state) await state.save();
 }
 
 let state = readJson(statePath, {
+
   currentRound: 1,
+
   tokensSold: 0,
+
   currentPrice: INITIAL_PRICE,
+
 });
+
 let stateDoc = null;
 
 async function loadState() {
+
   try {
+
     stateDoc = await PresaleState.findOne();
+
     if (!stateDoc) {
+
       stateDoc = new PresaleState(state);
+
       await stateDoc.save();
+
     } else {
+
       state = {
+
         currentRound: stateDoc.currentRound,
+
         tokensSold: stateDoc.tokensSold,
+
         currentPrice: stateDoc.currentPrice,
+
       };
+
     }
+
+    return state;
+
   } catch (err) {
+
     console.error('Failed to load presale state from MongoDB:', err.message);
+
+    return state; // fallback to in-memory state
+
   }
+
 }
 
 mongoose.connection.once('open', loadState);
 
 async function saveState() {
+
   writeJson(statePath, state);
+
   if (stateDoc) {
+
     stateDoc.currentRound = state.currentRound;
+
     stateDoc.tokensSold = state.tokensSold;
+
     stateDoc.currentPrice = state.currentPrice;
+
     try {
+
       await stateDoc.save();
+
     } catch (err) {
+
       console.error('Failed to save presale state to MongoDB:', err.message);
+
     }
+
   }
+
 }
 
-router.get('/status', (_req, res) => {
-  const round = PRESALE_ROUNDS[state.currentRound - 1] || {};
-  const remaining = round.maxTokens ? round.maxTokens - state.tokensSold : 0;
+router.get('/status', async (_req, res) => {
+
+  const st = await loadState();
+
+  const round = PRESALE_ROUNDS[st.currentRound - 1] || {};
+
+  const remaining = round.maxTokens ? round.maxTokens - st.tokensSold : 0;
+
   res.json({
-    currentPrice: state.currentPrice,
-    currentRound: state.currentRound,
+
+    ...st,
+
+    remaining,
+
+    round,
+
+  });
+
+});
+  res.json({
+    currentPrice: st.currentPrice,
+    currentRound: st.currentRound,
     remainingTokens: remaining,
     maxPerWallet: MAX_TPC_PER_WALLET,
   });
 });
 
 router.post('/', async (req, res) => {
+  await loadState();
   const { wallet, amountTON } = req.body;
   if (!wallet || typeof amountTON !== 'number' || amountTON <= 0) {
     return res.status(400).json({ error: 'wallet and amountTON required' });
@@ -138,6 +199,7 @@ router.post('/', async (req, res) => {
 });
 
 router.post('/claim', async (req, res) => {
+  await loadState();
   const { accountId, txHash } = req.body;
   if (!accountId || !txHash) {
     return res.status(400).json({ error: 'accountId and txHash required' });
