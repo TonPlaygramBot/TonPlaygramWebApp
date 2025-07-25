@@ -24,11 +24,20 @@ import User from './models/User.js';
 import GameResult from "./models/GameResult.js";
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { existsSync } from 'fs';
+import { existsSync, readFileSync } from 'fs';
 import { execSync } from 'child_process';
 import compression from 'compression';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const dataDir = path.join(__dirname, 'data');
+
+function readJson(file, def) {
+  try {
+    return JSON.parse(readFileSync(file, 'utf8'));
+  } catch {
+    return def;
+  }
+}
 dotenv.config({ path: path.join(__dirname, '.env') });
 
 if (proxyUrl) {
@@ -250,6 +259,11 @@ app.get('/api/stats', async (req, res) => {
         if (tx.type === 'claim') appClaimed += Math.abs(tx.amount || 0);
         if (tx.type === 'withdraw') externalClaimed += Math.abs(tx.amount || 0);
       }
+    }
+    const purchasesPath = path.join(dataDir, 'walletPurchases.json');
+    const walletPurchases = readJson(purchasesPath, {});
+    for (const info of Object.values(walletPurchases)) {
+      if (info && info.tpc) tpcSold += info.tpc;
     }
     const nftsBurned = giftSends - currentNfts;
     res.json({
