@@ -496,6 +496,27 @@ export class GameRoomManager {
     }
   }
 
+  async leaveRoom(socket) {
+    const room = this.findRoomBySocket(socket.id);
+    if (room) {
+      const idx = room.players.findIndex((p) => p.socketId === socket.id);
+      if (idx !== -1) {
+        const player = room.players[idx];
+        room.handleDisconnect(socket);
+        if (player.disconnectTimer) {
+          clearTimeout(player.disconnectTimer);
+          player.disconnectTimer = null;
+        }
+        room.finalizeDisconnect(player);
+        await this.saveRoom(room);
+        if (room.players.every((p) => p.disconnected)) {
+          this.rooms.delete(room.id);
+          await GameRoomModel.deleteOne({ roomId: room.id });
+        }
+      }
+    }
+  }
+
   findRoomBySocket(socketId) {
     for (const room of this.rooms.values()) {
       if (room.players.some((p) => p.socketId === socketId)) return room;

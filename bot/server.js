@@ -542,6 +542,10 @@ io.on('connection', (socket) => {
     socket.leave(roomId);
   });
 
+  socket.on('leaveRoom', async () => {
+    await gameManager.leaveRoom(socket);
+  });
+
   socket.on('rollDice', async () => {
     await gameManager.rollDice(socket);
   });
