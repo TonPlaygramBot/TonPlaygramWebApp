@@ -5,6 +5,7 @@ import { createAccount, buyTPC, getPresaleStatus, claimPurchase, getAppStats } f
 import { getTelegramId } from '../utils/telegram.js';
 import InfoPopup from '../components/InfoPopup.jsx';
 import TonConnectButton from '../components/TonConnectButton.jsx';
+import PresaleDashboardMultiRound from '../components/PresaleDashboardMultiRound.jsx';
 import { calculateTpcAmount } from '../utils/buyLogic.js';
 import { STORE_ADDRESS, PRESALE_ROUNDS, PRESALE_START } from '../utils/storeData.js';
 import { MAX_TPC_PER_WALLET } from '../config.js';
@@ -90,6 +91,7 @@ export default function Store() {
       <img src="/assets/icons/TonPlayGramLogo.webp" alt="TonPlaygram" className="w-16" />
       <p className="text-brand-gold text-xs tracking-widest">PLAY. EARN. DOMINATE.</p>
       <h2 className="text-2xl font-bold">Buy TPC</h2>
+      <PresaleDashboardMultiRound />
       <div className="store-info-bar">
         <div className="flex items-center space-x-1">
           <img src="/assets/icons/TON.webp" alt="TON" className="w-4 h-4" />
