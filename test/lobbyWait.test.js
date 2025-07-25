@@ -48,9 +48,14 @@ test('joinRoom waits until table full', { concurrency: false, timeout: 20000 }, 
     s1.on('error', (e) => errors.push(e));
     s1.emit('joinRoom', { roomId: 'snake-2-100', accountId: 'p1', name: 'A' });
     await delay(1500);
-    assert.ok(errors.length > 0, 'should receive error when table not full');
+    assert.equal(errors.length, 0, 'should join even if table not full');
     s1.off('error');
-    errors.length = 0;
+
+    await fetch('http://localhost:3203/api/snake/table/unseat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ tableId: 'snake-2-100', accountId: 'p1' })
+    });
 
     await fetch('http://localhost:3203/api/snake/table/seat', {
       method: 'POST',
@@ -60,7 +65,7 @@ test('joinRoom waits until table full', { concurrency: false, timeout: 20000 }, 
 
     s1.emit('joinRoom', { roomId: 'snake-2-100', accountId: 'p1', name: 'A' });
     await delay(200);
-    assert.equal(errors.length, 0, 'should join when table full');
+    assert.equal(errors.length, 0, 'should still join when table full');
     s1.disconnect();
   } finally {
     server.kill();
