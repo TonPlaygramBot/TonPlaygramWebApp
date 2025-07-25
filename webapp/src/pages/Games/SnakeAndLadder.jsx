@@ -1271,9 +1271,28 @@ export default function SnakeAndLadder() {
 
     async function fetchBoard(attempt = 1) {
       try {
-        const { snakes: snakesObj = {}, ladders: laddersObj = {} } = mp
-          ? await getSnakeBoard(table)
-          : generateBoard();
+        const board = mp ? await getSnakeBoard(table) : generateBoard();
+        const snakesObj = board?.snakes || {};
+        const laddersObj = board?.ladders || {};
+        const valid =
+          Object.keys(snakesObj).length > 0 &&
+          Object.keys(laddersObj).length > 0;
+        if (!valid) {
+          if (attempt < 3 && !mp) {
+            setTimeout(() => fetchBoard(attempt + 1), 1000 * attempt);
+          } else if (!mp) {
+            setBoardError('Failed to load board. Using a local board.');
+            const fallback = generateBoard();
+            applyBoard(fallback.snakes, fallback.ladders);
+            setBoardReady(true);
+          } else if (attempt < 3) {
+            setTimeout(() => fetchBoard(attempt + 1), 1000 * attempt);
+          } else {
+            setBoardError('Failed to load board data');
+            setBoardReady(false);
+          }
+          return;
+        }
         setBoardError(null);
         applyBoard(snakesObj, laddersObj);
         setBoardReady(true);
@@ -1284,7 +1303,7 @@ export default function SnakeAndLadder() {
         } else {
           if (mp) {
             setBoardError(
-              'Unable to load board – please check your connection or use the same table ID as other players.'
+              'Unable to load board \u2013 please check your connection or use the same table ID as other players.'
             );
             setBoardReady(false);
           } else {
