@@ -113,11 +113,6 @@ export default function PresaleDashboardMultiRound() {
           {stats ? totalTonRaised.toFixed(2) : '...'} TON raised
         </p>
         <p className="mt-1 text-sm flex items-center justify-center gap-1">
-          <span>TPC Sold:</span>
-          <span>{status ? sold.toLocaleString() : '...'}</span>
-          <img src="/assets/icons/TPCcoin_1.webp" alt="TPC" className="w-4 h-4" />
-        </p>
-        <p className="mt-1 text-sm flex items-center justify-center gap-1">
           <span>TGE Amount:</span>
           <span>{stats ? stats.tpcSold?.toLocaleString() : '...'}</span>
           <img src="/assets/icons/TPCcoin_1.webp" alt="TPC" className="w-4 h-4" />

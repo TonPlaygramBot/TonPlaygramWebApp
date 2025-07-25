@@ -58,7 +58,10 @@ export default function BuyTpcCard() {
         onChange={(e) => setAmountTon(e.target.value)}
         className="w-full p-1 text-black rounded"
       />
-      <label className="self-start text-sm">TPC You Receive</label>
+      <label className="self-start text-sm flex items-center gap-1">
+        TPC You Receive
+        <img src="/assets/icons/TPCcoin_1.webp" alt="TPC" className="w-4 h-4" />
+      </label>
       <input
         type="text"
         value={tpcAmount}
