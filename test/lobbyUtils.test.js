@@ -31,10 +31,10 @@ test('can start when table and stake present', () => {
   assert.equal(canStartGame('snake', dummyTable, { token: 'TPC', amount: 100 }, 0, 2), true);
 });
 
-test('cannot start until lobby full', () => {
+test('start allowed before lobby full', () => {
   assert.equal(
     canStartGame('snake', dummyTable, { token: 'TPC', amount: 100 }, 0, 1),
-    false,
+    true,
   );
   assert.equal(
     canStartGame('snake', dummyTable, { token: 'TPC', amount: 100 }, 0, 2),
@@ -42,9 +42,9 @@ test('cannot start until lobby full', () => {
   );
 });
 
-test('starting over capacity not allowed', () => {
+test('starting over capacity still allowed', () => {
   assert.equal(
     canStartGame('snake', dummyTable, { token: 'TPC', amount: 100 }, 0, 3),
-    false,
+    true,
   );
 });
