@@ -1,5 +1,4 @@
 import { useState, useEffect, useRef } from 'react';
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 import BuyTpcCard from './BuyTpcCard.jsx';
 import { getPresaleStatus, getAppStats } from '../utils/api.js';
 import { PRESALE_ROUNDS, PRESALE_START } from '../utils/storeData.js';
@@ -8,7 +7,6 @@ export default function PresaleDashboardMultiRound() {
   const [status, setStatus] = useState(null);
   const [stats, setStats] = useState(null);
   const [timeLeft, setTimeLeft] = useState(0);
-  const [salesData, setSalesData] = useState([]);
   const roundEndRef = useRef(null);
 
   useEffect(() => {
@@ -49,11 +47,6 @@ export default function PresaleDashboardMultiRound() {
         const start = new Date(PRESALE_START).getTime() + duration * idx;
         roundEndRef.current = start + duration;
         const max = PRESALE_ROUNDS[idx]?.maxTokens || 0;
-        const currentSold = max - (s.remainingTokens || 0);
-        setSalesData((prev) => [
-          ...prev,
-          { name: new Date().toLocaleTimeString(), sold: currentSold }
-        ]);
       } catch {}
       try {
         const st = await getAppStats();
@@ -104,26 +97,21 @@ export default function PresaleDashboardMultiRound() {
       </div>
       <p className="text-center text-sm mb-6 text-gray-400">{percent}% Completed</p>
 
-      <div className="bg-gray-800 p-4 rounded-xl mb-6 shadow-inner border border-gray-700">
-        <h3 className="text-lg font-bold mb-3 text-center text-cyan-300">Sales Progress</h3>
-        <div className="h-64">
-          <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={salesData}>
-              <XAxis dataKey="name" stroke="#ccc" />
-              <YAxis stroke="#ccc" />
-              <Tooltip />
-              <Bar dataKey="sold" fill="#00FF00" />
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
-      </div>
+
 
 
 
       <div className="bg-gray-800 p-4 rounded-xl text-center border border-gray-700">
-        <h3 className="text-lg font-bold mb-2 text-cyan-300">Total TON Raised</h3>
+        <h3 className="text-lg font-bold mb-2 text-cyan-300">Presale Stats</h3>
         <p className="text-2xl font-extrabold">
-          {stats ? totalTonRaised.toFixed(2) : '...'} TON
+          {stats ? totalTonRaised.toFixed(2) : '...'} TON raised
+        </p>
+        <p className="mt-1 text-sm">
+          TPC Sold: {status ? sold.toLocaleString() : '...'}
+        </p>
+        <p className="mt-1 text-sm">
+          TGE Amount:{' '}
+          {stats ? (stats.appClaimed + stats.externalClaimed).toLocaleString() : '...'} TPC
         </p>
       </div>
 
