@@ -3,6 +3,7 @@ import mongoose from 'mongoose';
 const playerSchema = new mongoose.Schema(
   {
     playerId: String,
+    telegramId: Number,
     name: String,
     position: { type: Number, default: 0 },
     isActive: { type: Boolean, default: false },

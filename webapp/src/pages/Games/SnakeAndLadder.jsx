@@ -1349,14 +1349,14 @@ export default function SnakeAndLadder() {
     }
 
     const updateNeeded = (players) => {
-      // Deduplicate by player id so repeated entries do not skew the count
-      const unique = Array.from(new Set(players.map((p) => p.id)));
+      // Deduplicate by telegram id or player id so repeated entries do not skew the count
+      const unique = Array.from(new Set(players.map((p) => p.telegramId || p.id)));
       const need = Math.max(0, capacity - unique.length);
       setPlayersNeeded(need);
       if (need === 0) setWaitingForPlayers(false);
     };
 
-    const onJoined = ({ playerId, name }) => {
+    const onJoined = ({ playerId, telegramId, name }) => {
       getProfileByAccount(playerId).then((prof) => {
         const playerName =
           name ||
@@ -1365,20 +1365,20 @@ export default function SnakeAndLadder() {
           'Player';
         const photoUrl = prof?.photo || '/assets/icons/profile.svg';
         setMpPlayers((p) => {
-          if (p.some((pl) => pl.id === playerId)) {
+          if (p.some((pl) => (pl.telegramId || pl.id) === (telegramId || playerId))) {
             updateNeeded(p);
             return p;
           }
-          const arr = [...p, { id: playerId, name: playerName, photoUrl, position: 0 }];
+          const arr = [...p, { id: playerId, telegramId, name: playerName, photoUrl, position: 0 }];
           updateNeeded(arr);
           return arr;
         });
       });
     };
-    const onLeft = ({ playerId }) => {
+    const onLeft = ({ playerId, telegramId }) => {
       setMpPlayers((p) => {
-        const leaving = p.find((pl) => pl.id === playerId);
-        const arr = p.filter((pl) => pl.id !== playerId);
+        const leaving = p.find((pl) => (pl.telegramId || pl.id) === (telegramId || playerId));
+        const arr = p.filter((pl) => (pl.telegramId || pl.id) !== (telegramId || playerId));
         updateNeeded(arr);
         if (leaving && !ranking.includes(leaving.name)) {
           setRanking((r) => [...r, leaving.name]);
@@ -1562,14 +1562,21 @@ export default function SnakeAndLadder() {
             `${prof?.firstName || ''} ${prof?.lastName || ''}`.trim() ||
             'Player';
           const photoUrl = prof?.photo || '/assets/icons/profile.svg';
-          return { id: p.playerId, name, photoUrl, position: p.position || 0 };
+          return {
+            id: p.playerId,
+            telegramId: p.telegramId,
+            name,
+            photoUrl,
+            position: p.position || 0
+          };
         })
       ).then((arr) => {
         const unique = [];
         const seen = new Set();
         for (const p of arr) {
-          if (!seen.has(p.id)) {
-            seen.add(p.id);
+          const key = p.telegramId || p.id;
+          if (!seen.has(key)) {
+            seen.add(key);
             unique.push(p);
           }
         }
@@ -1580,20 +1587,20 @@ export default function SnakeAndLadder() {
 
     socket.on('playerJoined', onJoined);
     socket.on('playerLeft', onLeft);
-    socket.on('playerDisconnected', ({ playerId }) => {
+    socket.on('playerDisconnected', ({ playerId, telegramId }) => {
       if (playerId === accountId) {
         setConnectionLost(true);
       } else if (capacity > 2) {
-        const name = playersRef.current.find((p) => p.id === playerId)?.name || playerId;
+        const name = playersRef.current.find((p) => (p.telegramId || p.id) === (telegramId || playerId))?.name || playerId;
         setDisconnectMsg(`${name} disconnected`);
         setTimeout(() => setDisconnectMsg(null), 3000);
       }
     });
-    socket.on('playerRejoined', ({ playerId }) => {
+    socket.on('playerRejoined', ({ playerId, telegramId }) => {
       if (playerId === accountId) {
         setConnectionLost(false);
       } else if (capacity > 2) {
-        const name = playersRef.current.find((p) => p.id === playerId)?.name || playerId;
+        const name = playersRef.current.find((p) => (p.telegramId || p.id) === (telegramId || playerId))?.name || playerId;
         setDisconnectMsg(`${name} rejoined`);
         setTimeout(() => setDisconnectMsg(null), 3000);
       }

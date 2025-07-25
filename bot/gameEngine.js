@@ -47,11 +47,12 @@ export class GameRoom {
     this.players = this.game.players;
   }
 
-  addPlayer(playerId, name, socket) {
+  addPlayer(playerId, name, telegramId, socket) {
     const existing = this.players.find((p) => p.playerId === playerId);
     if (existing) {
       existing.socketId = socket.id;
       existing.name = name || existing.name;
+      if (telegramId) existing.telegramId = telegramId;
       existing.disconnected = false;
       if (existing.disconnectTimer) {
         clearTimeout(existing.disconnectTimer);
@@ -65,6 +66,7 @@ export class GameRoom {
       this.game.addPlayer(playerId, name);
       const player = this.game.players[this.game.players.length - 1];
       player.playerId = playerId;
+      player.telegramId = telegramId;
       player.socketId = socket.id;
       player.disconnected = false;
       player.lastRollTime = 0;
@@ -73,13 +75,14 @@ export class GameRoom {
     socket.join(this.id);
     const list = this.players.filter((p) => !p.disconnected).map((p) => ({
       playerId: p.playerId,
+      telegramId: p.telegramId,
       name: p.name,
       position: p.position,
     }));
     socket.emit('currentPlayers', list);
     socket.to(this.id).emit('currentPlayers', list);
     if (!existing) {
-      socket.to(this.id).emit('playerJoined', { playerId, name });
+      socket.to(this.id).emit('playerJoined', { playerId, telegramId, name });
       if (this.players.length === this.capacity) {
         if (this.startTimer) clearTimeout(this.startTimer);
         this.io.to(this.id).emit('gameStarting', { startIn: this.gameStartDelay });
@@ -260,7 +263,10 @@ export class GameRoom {
     const player = this.players[idx];
     player.disconnected = true;
     player.socketId = null;
-    this.io.to(this.id).emit('playerDisconnected', { playerId: player.playerId });
+    this.io.to(this.id).emit('playerDisconnected', {
+      playerId: player.playerId,
+      telegramId: player.telegramId
+    });
     if (this.status === 'waiting' && this.startTimer) {
       clearTimeout(this.startTimer);
       this.startTimer = null;
@@ -289,7 +295,10 @@ export class GameRoom {
       player.finished = 0;
     }
     player.disconnectTimer = null;
-    this.io.to(this.id).emit('playerLeft', { playerId: player.playerId });
+    this.io.to(this.id).emit('playerLeft', {
+      playerId: player.playerId,
+      telegramId: player.telegramId
+    });
     if (this.status === 'playing') {
       const active = this.players.filter((p) => !p.disconnected);
       if (active.length === 1) {
@@ -363,6 +372,7 @@ export class GameRoomManager {
       ladders: room.ladders,
       players: room.players.map((p) => ({
         playerId: p.playerId,
+        telegramId: p.telegramId,
         name: p.name,
         position: p.position,
         isActive: p.isActive,
@@ -433,16 +443,20 @@ export class GameRoomManager {
     const cap = Number(parts[1]) || 4;
     const room = await this.getRoom(roomId, cap);
     let playerName = name;
-    if (!playerName && playerId) {
+    let telegramId;
+    if (playerId) {
       try {
         const user = await User.findOne({ accountId: playerId }).lean();
         if (user) {
-          playerName =
-            user.nickname || `${user.firstName || ''} ${user.lastName || ''}`.trim();
+          telegramId = user.telegramId;
+          if (!playerName) {
+            playerName =
+              user.nickname || `${user.firstName || ''} ${user.lastName || ''}`.trim();
+          }
         }
       } catch {}
     }
-    const result = room.addPlayer(playerId, playerName, socket);
+    const result = room.addPlayer(playerId, playerName, telegramId, socket);
     if (!result.error) await this.saveRoom(room);
     return result;
   }
