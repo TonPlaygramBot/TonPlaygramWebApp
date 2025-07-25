@@ -1288,7 +1288,9 @@ export default function SnakeAndLadder() {
           } else if (attempt < 3) {
             setTimeout(() => fetchBoard(attempt + 1), 1000 * attempt);
           } else {
-            setBoardError('Failed to load board data');
+            setBoardError(
+              'Unable to load board \u2013 please check your connection or use the same table ID as other players.'
+            );
             setBoardReady(false);
           }
           return;
