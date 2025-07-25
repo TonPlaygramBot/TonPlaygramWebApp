@@ -298,12 +298,12 @@ app.post('/api/snake/table/seat', async (req, res) => {
   } catch {}
 
   const tgid = user?.telegramId;
-  const key = String(tgid || pid);
+  const key = String(pid);
 
   if (user && user.currentTableId && user.currentTableId !== tableId) {
     const old = tableSeats.get(user.currentTableId);
     if (old) {
-      old.delete(String(tgid || pid));
+      old.delete(String(pid));
       if (old.size === 0) tableSeats.delete(user.currentTableId);
     }
   }
@@ -343,7 +343,7 @@ app.post('/api/snake/table/unseat', async (req, res) => {
     user = await User.findOne({ accountId: pid });
   } catch {}
 
-  const key = String(user?.telegramId || pid);
+  const key = String(pid);
   const map = tableSeats.get(tableId);
   if (map && pid) {
     map.delete(key);
