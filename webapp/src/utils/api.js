@@ -465,6 +465,10 @@ export function claimPurchase(accountId, txHash) {
   return post('/api/store/purchase', { accountId, txHash });
 }
 
+export function claimPresale(accountId, txHash) {
+  return post('/api/buy/claim', { accountId, txHash });
+}
+
 export function sendBroadcast(data) {
   return post('/api/broadcast/send', data, API_AUTH_TOKEN || undefined);
 }
