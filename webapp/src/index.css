@@ -1391,6 +1391,18 @@ input:focus {
   box-shadow: 0 0 8px #00f7ff, 0 0 16px #00f7ff;
 }
 
+/* Horizontal info bar used on the Store page */
+.store-info-bar {
+  @apply bg-surface border border-border rounded-lg text-xs flex justify-around items-center px-2 py-1 space-x-2 w-full max-w-md;
+  box-shadow: 0 0 8px rgba(0, 247, 255, 0.4);
+}
+
+/* Checkout card with a stronger glow */
+.checkout-card {
+  @apply store-card max-w-md w-full;
+  box-shadow: 0 0 16px rgba(0, 247, 255, 0.7);
+}
+
 /* Utility class to widen cards edge-to-edge */
 .wide-card {
   @apply -mx-4;

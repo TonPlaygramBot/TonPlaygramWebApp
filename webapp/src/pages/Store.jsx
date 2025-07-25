@@ -4,8 +4,11 @@ import useTelegramBackButton from '../hooks/useTelegramBackButton.js';
 import { createAccount, buyTPC, getPresaleStatus, claimPurchase } from '../utils/api.js';
 import { getTelegramId } from '../utils/telegram.js';
 import InfoPopup from '../components/InfoPopup.jsx';
+import TonConnectButton from '../components/TonConnectButton.jsx';
+import { calculateTpcAmount } from '../utils/buyLogic.js';
 import { STORE_ADDRESS } from '../utils/storeData.js';
 import { MAX_TPC_PER_WALLET } from '../config.js';
+import { FaCubes, FaWallet } from 'react-icons/fa';
 
 export default function Store() {
   useTelegramBackButton();
@@ -15,6 +18,7 @@ export default function Store() {
   const [msg, setMsg] = useState('');
   const [claimHash, setClaimHash] = useState('');
   const [amountTon, setAmountTon] = useState('');
+  const [tpcAmount, setTpcAmount] = useState('');
   const [status, setStatus] = useState(null);
 
   useEffect(() => {
@@ -25,6 +29,10 @@ export default function Store() {
     createAccount(id).then((acc) => setAccountId(acc.accountId));
     getPresaleStatus().then(setStatus);
   }, []);
+
+  useEffect(() => {
+    setTpcAmount(calculateTpcAmount(amountTon, status?.currentPrice));
+  }, [amountTon, status]);
 
   const handleBuy = async () => {
     if (!walletAddress) {
@@ -53,33 +61,48 @@ export default function Store() {
   };
 
   return (
-    <div className="relative p-4 space-y-4 text-text flex flex-col items-center">
-      <h2 className="text-xl font-bold">Store</h2>
-      <div className="prism-box p-4 space-y-2 w-80 mx-auto">
-        <div className="text-center text-sm">
-          Current Price: {status ? status.currentPrice : '...'} TON / 1 TPC
+    <div className="relative p-4 space-y-4 text-text flex flex-col items-center min-h-screen bg-surface">
+      <img src="/assets/icons/TonPlayGramLogo.webp" alt="TonPlaygram" className="w-16" />
+      <p className="text-brand-gold text-xs tracking-widest">PLAY. EARN. DOMINATE.</p>
+      <h2 className="text-2xl font-bold">Buy TPC</h2>
+      <div className="store-info-bar">
+        <div className="flex items-center space-x-1">
+          <img src="/assets/icons/TON.webp" alt="TON" className="w-4 h-4" />
+          <span>Current Price: {status ? status.currentPrice : '...'} TON / 1 TPC</span>
         </div>
-        <div className="text-center text-sm">
-          Remaining Tokens in Current Round:{' '}
-          {status ? status.remainingTokens.toLocaleString() : '...'}
+        <div className="flex items-center space-x-1">
+          <FaCubes />
+          <span>{status ? status.remainingTokens.toLocaleString() : '...'} left</span>
         </div>
-        <div className="text-center text-sm">
-          Max TPC you can buy per wallet:{' '}
-          {MAX_TPC_PER_WALLET.toLocaleString()} TPC
+        <div className="flex items-center space-x-1">
+          <FaWallet />
+          <span>Max {MAX_TPC_PER_WALLET.toLocaleString()}</span>
         </div>
+      </div>
+      <div className="checkout-card">
+        <label className="self-start text-sm">TON You Pay</label>
         <input
           type="number"
-          placeholder="TON to spend"
+          placeholder="0"
           value={amountTon}
           onChange={(e) => setAmountTon(e.target.value)}
           className="w-full p-1 text-black rounded"
         />
-        <button onClick={handleBuy} className="buy-button w-full">
-          Buy TPC
-        </button>
+        <label className="self-start text-sm">TPC You Receive</label>
+        <input
+          type="text"
+          value={tpcAmount}
+          readOnly
+          className="w-full p-1 text-black rounded"
+        />
+        <TonConnectButton className="w-full" />
+        <div className="flex items-center justify-center text-xs">
+          Payment Method: TON only <img src="/assets/icons/TON.webp" alt="TON" className="w-4 h-4 ml-1" />
+        </div>
+        <button onClick={handleBuy} className="buy-button w-full mt-1">Buy TPC</button>
       </div>
-      <div className="prism-box p-4 space-y-2 w-80 mx-auto">
-        <h3 className="text-center font-semibold">Claim Purchase</h3>
+      <div className="prism-box p-4 space-y-2 w-full max-w-md">
+        <h3 className="text-center font-semibold">Claim Your Purchase</h3>
         <input
           type="text"
           placeholder="Transaction hash"
