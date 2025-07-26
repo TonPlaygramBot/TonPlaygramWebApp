@@ -16,7 +16,9 @@ import {
   getOnlineCount,
   getProfile,
   getAccountBalance,
-  addTransaction
+  addTransaction,
+  seatTable,
+  unseatTable
 } from '../../utils/api.js';
 import {
   getPlayerId,
@@ -57,6 +59,26 @@ export default function Lobby() {
     setConfirmed(false);
     setReadyList([]);
   }, [game, table]);
+
+  useEffect(() => {
+    let accountId;
+    if (game === 'snake' && table && table.id !== 'single') {
+      let active = true;
+      ensureAccountId()
+        .then((id) => {
+          if (!active) return;
+          accountId = id;
+          return seatTable(id, table.id, playerName);
+        })
+        .catch(() => {});
+      return () => {
+        active = false;
+        if (accountId) {
+          unseatTable(accountId, table.id).catch(() => {});
+        }
+      };
+    }
+  }, [game, table, playerName]);
 
   const selectAiType = (t) => {
     setAiType(t);
@@ -168,10 +190,9 @@ export default function Lobby() {
     };
   }, [table, stake, game, navigate]);
 
-  // Automatic game start previously triggered when all seats were filled.
-  // This prevented players from selecting their preferred stake before the
-  // match began. The logic has been removed so that each participant must
-  // manually confirm the game start using the button below.
+  // Players now join a table as soon as it is selected but the match will not
+  // begin until everyone explicitly confirms they are ready using the button
+  // below.
 
   const startGame = async (flagOverride = flags, leaderOverride = leaders) => {
     const params = new URLSearchParams();
@@ -212,13 +233,7 @@ export default function Lobby() {
     if (game === 'snake' && table && table.id !== 'single') {
       const accountId = await ensureAccountId().catch(() => null);
       if (accountId) {
-        socket.emit('seatTable', {
-          accountId,
-          tableId: table.id,
-          playerName,
-          avatar: playerAvatar
-        });
-        socket.emit('confirmReady', { accountId, tableId: table.id });
+        await seatTable(accountId, table.id, playerName, true).catch(() => {});
         setConfirmed(true);
       }
     } else {
