@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { FaUsers } from 'react-icons/fa';
 import { useNavigate, useParams } from 'react-router-dom';
 import TableSelector from '../../components/TableSelector.jsx';
@@ -7,38 +7,45 @@ import LeaderPickerModal from '../../components/LeaderPickerModal.jsx';
 import FlagPickerModal from '../../components/FlagPickerModal.jsx';
 import { LEADER_AVATARS } from '../../utils/leaderAvatars.js';
 import useTelegramBackButton from '../../hooks/useTelegramBackButton.js';
-import { socket } from '../../utils/socket.js';
-import { loadAvatar, getAvatarUrl } from '../../utils/avatarUtils.js';
-import { getTelegramPhotoUrl } from '../../utils/telegram.js';
 import {
   getSnakeLobbies,
+  getSnakeLobby,
   pingOnline,
   getOnlineCount,
+  seatTable,
+  unseatTable,
   getProfile,
   getAccountBalance,
   addTransaction
 } from '../../utils/api.js';
 import {
-  getPlayerId,
-  ensureAccountId,
-  getTelegramId
+  getTelegramId,
+  ensureAccountId
 } from '../../utils/telegram.js';
 import { canStartGame } from '../../utils/lobby.js';
 
 export default function Lobby() {
   const { game } = useParams();
   const navigate = useNavigate();
-  useTelegramBackButton();
+  useTelegramBackButton(() => navigate('/games', { replace: true }));
 
   useEffect(() => {
     ensureAccountId().catch(() => {});
   }, []);
 
+  useEffect(() => {
+    const handlePop = (e) => {
+      e.preventDefault();
+      navigate('/games', { replace: true });
+    };
+    window.addEventListener('popstate', handlePop);
+    return () => window.removeEventListener('popstate', handlePop);
+  }, [navigate]);
+
   const [tables, setTables] = useState([]);
   const [table, setTable] = useState(null);
   const [stake, setStake] = useState({ token: '', amount: 0 });
   const [players, setPlayers] = useState([]);
-  const [currentTurn, setCurrentTurn] = useState(null);
   const [aiCount, setAiCount] = useState(0);
   const [aiType, setAiType] = useState('');
   const [showLeaderPicker, setShowLeaderPicker] = useState(false);
@@ -47,86 +54,24 @@ export default function Lobby() {
   const [flags, setFlags] = useState([]);
   const [online, setOnline] = useState(0);
   const [playerName, setPlayerName] = useState('');
-  const [playerAvatar, setPlayerAvatar] = useState('');
-  const [readyList, setReadyList] = useState([]);
   const [confirmed, setConfirmed] = useState(false);
-  const [waitingForConfirm, setWaitingForConfirm] = useState(false);
-  const [joinedTableId, setJoinedTableId] = useState(null);
-  const startedRef = useRef(false);
-
-  // When the user leaves this lobby or switches tables after joining one,
-  // notify the server to remove them from the previous seat. This avoids
-  // "gameStart" events for stale tables which previously caused the UI to
-  // navigate to a blank game screen without user confirmation.
-  useEffect(() => {
-    return () => {
-      if (!joinedTableId) return;
-      ensureAccountId()
-        .then((accountId) =>
-          socket.emit('leaveLobby', { accountId, tableId: joinedTableId })
-        )
-        .catch(() => {});
-    };
-  }, [joinedTableId]);
-
-  useEffect(() => {
-    startedRef.current = false;
-    setConfirmed(false);
-    setReadyList([]);
-    setJoinedTableId(null);
-    setWaitingForConfirm(Boolean(table));
-  }, [game, table]);
 
   const selectAiType = (t) => {
     setAiType(t);
-    if (t === 'leaders') setShowLeaderPicker(true);
-    else if (t === 'flags') setShowFlagPicker(true);
+    if (t === 'leaders') {
+      setShowLeaderPicker(true);
+    } else if (t === 'flags') {
+      setShowFlagPicker(true);
+    }
     if (t !== 'leaders') setLeaders([]);
     if (t !== 'flags') setFlags([]);
   };
 
-  const handleTableSelect = (t) => {
-    setTable(t);
-    setWaitingForConfirm(true);
-  };
-
-  const joinTable = async () => {
-    const accountId = await ensureAccountId().catch(() => null);
-    return new Promise((resolve) => {
-      if (!accountId || !table) return resolve(null);
-      socket.emit(
-        'seatTable',
-        {
-          accountId,
-          tableId: table.id,
-          playerName,
-          avatar: playerAvatar,
-        },
-        (resp) => {
-          if (!resp?.success) {
-            alert('Failed to join table');
-            resolve(null);
-            return;
-          }
-          setJoinedTableId(resp.tableId);
-          resolve({ accountId, tableId: resp.tableId });
-        },
-      );
-    });
-  };
-
-  const confirmReadyFn = ({ accountId, tableId }) => {
-    socket.emit('confirmReady', { accountId, tableId });
-    setConfirmed(true);
-  };
-
   useEffect(() => {
-    try {
-      const aid = getPlayerId();
-      setPlayerName(String(aid));
-      const saved = loadAvatar();
-      setPlayerAvatar(saved || getTelegramPhotoUrl());
-    } catch {}
+    const id = getTelegramId();
+    getProfile(id)
+      .then((p) => setPlayerName(p?.nickname || p?.firstName || ''))
+      .catch(() => {});
   }, []);
 
   useEffect(() => {
@@ -153,95 +98,85 @@ export default function Lobby() {
   }, [game]);
 
   useEffect(() => {
+    let id;
     let cancelled = false;
-    let interval;
     ensureAccountId()
-      .then((playerId) => {
-        if (cancelled) return;
+      .then((accountId) => {
+        if (cancelled || !accountId) return;
         function ping() {
-          pingOnline(playerId).catch(() => {});
+          pingOnline(accountId).catch(() => {});
           getOnlineCount()
             .then((d) => setOnline(d.count))
             .catch(() => {});
         }
         ping();
-        interval = setInterval(ping, 30000);
+        id = setInterval(ping, 30000);
       })
       .catch(() => {});
     return () => {
       cancelled = true;
-      if (interval) clearInterval(interval);
+      if (id) clearInterval(id);
     };
   }, []);
 
+  useEffect(() => {
+    if (game === 'snake' && table && table.id !== 'single') {
+      let interval;
+      let cancelled = false;
+      ensureAccountId()
+        .then((accountId) => {
+          if (cancelled || !accountId) return;
+          seatTable(accountId, table.id, playerName).catch(() => {});
+          interval = setInterval(() => {
+            seatTable(accountId, table.id, playerName).catch(() => {});
+          }, 30000);
+        })
+        .catch(() => {});
+      return () => {
+        cancelled = true;
+        if (interval) clearInterval(interval);
+        ensureAccountId()
+          .then((accountId) => {
+            if (accountId) unseatTable(accountId, table.id).catch(() => {});
+          })
+          .catch(() => {});
+      };
+    }
+  }, [game, table, playerName]);
 
   useEffect(() => {
     if (game === 'snake' && table && table.id !== 'single') {
       let active = true;
-      getSnakeLobby(table.id)
-        .then((data) => {
-          if (!active) return;
-          setPlayers(data.players || []);
-          if (data.currentTurn != null) setCurrentTurn(data.currentTurn);
-        })
-        .catch(() => {});
+      function loadPlayers() {
+        getSnakeLobby(table.id)
+          .then((data) => {
+            if (active) setPlayers(data.players);
+          })
+          .catch(() => {});
+      }
+      loadPlayers();
+      const id = setInterval(loadPlayers, 3000);
       return () => {
         active = false;
+        clearInterval(id);
       };
+    } else {
+      setPlayers([]);
     }
   }, [game, table]);
 
-  useEffect(() => {
-    const onUpdate = ({ tableId, players: list, currentTurn, ready }) => {
-      console.log('lobbyUpdate', tableId, list);
-      const idToMatch = joinedTableId || table?.id;
-      if (idToMatch && tableId === idToMatch) {
-        setPlayers(list);
-        if (currentTurn != null) setCurrentTurn(currentTurn);
-        if (Array.isArray(ready)) setReadyList(ready);
-      }
-    };
-    const onStart = ({ tableId }) => {
-      console.log('gameStart', tableId);
-      const idToMatch = joinedTableId || table?.id;
-      if (
-        idToMatch &&
-        tableId === idToMatch &&
-        confirmed &&
-        !startedRef.current &&
-        table &&
-        stake.token &&
-        stake.amount
-      ) {
-        const params = new URLSearchParams();
-        params.set('table', idToMatch);
-        if (stake.token) params.set('token', stake.token);
-        if (stake.amount) params.set('amount', stake.amount);
-        startedRef.current = true;
-        navigate(`/games/${game}?${params.toString()}`);
-      }
-    };
-    socket.on('lobbyUpdate', onUpdate);
-    socket.on('gameStart', onStart);
-    return () => {
-      socket.off('lobbyUpdate', onUpdate);
-      socket.off('gameStart', onStart);
-    };
-  }, [table, stake, game, navigate, joinedTableId, players, confirmed]);
-
-  // Game start is now triggered solely by the server's "gameStart" event after
-  // every player has confirmed readiness.  Previous logic automatically
-  // navigated to the game screen when all seats were filled which sometimes
-  // occurred before the user selected a stake.  By removing that effect the
-  // lobby remains visible until the user presses the confirm button and the
-  // server acknowledges the start.
-
   const startGame = async (flagOverride = flags, leaderOverride = leaders) => {
+    if (
+      table &&
+      table.id !== 'single' &&
+      players.length !== table.capacity
+    ) {
+      // Wait in the lobby until the table is full
+      return;
+    }
     const params = new URLSearchParams();
-    setWaitingForConfirm(false);
     if (table) params.set('table', table.id);
-
-    if (game === 'snake' && table?.id === 'single') {
+    if (table?.id === 'single') {
       localStorage.removeItem(`snakeGameState_${aiCount}`);
       params.set('ai', aiCount);
       params.set('avatars', aiType);
@@ -272,38 +207,56 @@ export default function Lobby() {
       if (stake.token) params.set('token', stake.token);
       if (stake.amount) params.set('amount', stake.amount);
     }
-
-    if (game === 'snake' && table && table.id !== 'single') {
-      const join = await joinTable();
-      if (join) confirmReadyFn(join);
-    } else {
-      startedRef.current = true;
-      navigate(`/games/${game}?${params.toString()}`);
-    }
+    navigate(`/games/${game}?${params.toString()}`);
   };
 
-  const waitingForPlayers =
-    game === 'snake' &&
-    table &&
-    table.id !== 'single' &&
-    players.length < table.capacity;
-  const disabled =
-    !canStartGame(game, table, stake, aiCount, players.length) ||
-    (game === 'snake' && table?.id === 'single' && !aiType) ||
-    (game === 'snake' &&
-      table?.id === 'single' &&
-      aiType === 'leaders' &&
-      leaders.length !== aiCount) ||
-    (game === 'snake' &&
-      table?.id === 'single' &&
-      aiType === 'flags' &&
-      flags.length !== aiCount) ||
-    confirmed ||
-    waitingForPlayers ||
-    !waitingForConfirm;
+  const confirmSeat = () => {
+    if (confirmed) return;
+    if (!table) return;
+    if (table.id === 'single') {
+      startGame();
+      return;
+    }
+    ensureAccountId()
+      .then((accountId) => {
+        if (!accountId) return;
+        seatTable(accountId, table.id, playerName, true)
+          .then(() => setConfirmed(true))
+          .catch(() => {});
+      })
+      .catch(() => {});
+  };
+
+  let disabled = !canStartGame(game, table, stake, aiCount, players.length);
+  if (game === 'snake' && table?.id === 'single') {
+    if (!aiType) disabled = true;
+    if (aiType === 'leaders' && leaders.length !== aiCount) disabled = true;
+    if (aiType === 'flags' && flags.length !== aiCount) disabled = true;
+  }
+  const allConfirmed =
+    players.length === (table?.capacity || 0) &&
+    players.every((p) => p.confirmed ?? true);
+
+  useEffect(() => {
+    if (
+      confirmed &&
+      game === 'snake' &&
+      table &&
+      table.id !== 'single' &&
+      allConfirmed
+    ) {
+      startGame();
+    }
+  }, [players, confirmed]);
+  // Multiplayer games require a full table before starting
 
   return (
     <div className="relative p-4 space-y-4 text-text">
+      <img
+        src="/assets/SnakeLaddersbackground.png"
+        className="background-behind-board object-cover"
+        alt=""
+      />
       <h2 className="text-xl font-bold text-center capitalize">{game} Lobby</h2>
       <p className="text-center text-sm">Online users: {online}</p>
       {game === 'snake' && (
@@ -319,11 +272,7 @@ export default function Lobby() {
               </span>
             )}
           </div>
-          <TableSelector
-            tables={tables}
-            selected={table}
-            onSelect={handleTableSelect}
-          />
+          <TableSelector tables={tables} selected={table} onSelect={setTable} />
         </div>
       )}
       {game === 'snake' && table && (
@@ -333,30 +282,20 @@ export default function Lobby() {
           </h3>
           <ul className="text-sm list-disc list-inside">
             {players.map((p) => (
-              <li key={p.id} className="flex items-center space-x-2">
-                {p.avatar && (
-                  <img
-                    src={getAvatarUrl(p.avatar)}
-                    alt="avatar"
-                    className="w-4 h-4 rounded-full"
-                  />
-                )}
-                <span>{p.name}</span>
-                {readyList.includes(p.id) && (
-                  <span className="text-green-500 ml-1">✔</span>
-                )}
+              <li key={p.id}>
+                {p.name}
+                {p.confirmed && ' ✓'}
               </li>
             ))}
           </ul>
         </div>
       )}
-      <div className="space-y-2">
-        <h3 className="font-semibold">Select Stake</h3>
-        <RoomSelector selected={stake} onSelect={setStake} tokens={['TPC']} />
-        <p className="text-center text-subtext text-sm">
-          Staking is handled via the on-chain contract.
-        </p>
-      </div>
+      {!(game === 'snake' && table?.id === 'single') && (
+        <div className="space-y-2">
+          <h3 className="font-semibold">Select Stake</h3>
+          <RoomSelector selected={stake} onSelect={setStake} />
+        </div>
+      )}
       {game === 'snake' && table?.id === 'single' && (
         <div className="space-y-2">
           <h3 className="font-semibold">How many AI opponents?</h3>
@@ -388,23 +327,12 @@ export default function Lobby() {
         </div>
       )}
       <button
-        onClick={startGame}
-        disabled={disabled}
+        onClick={confirmSeat}
+        disabled={disabled || confirmed}
         className="px-4 py-2 w-full bg-primary hover:bg-primary-hover text-background rounded disabled:opacity-50"
       >
-        {waitingForPlayers
-          ? `Waiting for ${table.capacity - players.length} more player${
-              table.capacity - players.length === 1 ? '' : 's'
-            }...`
-          : confirmed
-            ? 'Waiting for others...'
-            : 'Confirm'}
+        {confirmed ? 'Waiting...' : 'Confirm'}
       </button>
-      {confirmed && !waitingForPlayers && (
-        <p className="text-center text-sm text-subtext">
-          Waiting for others...
-        </p>
-      )}
       <LeaderPickerModal
         open={showLeaderPicker}
         count={aiCount}
