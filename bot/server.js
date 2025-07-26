@@ -15,6 +15,7 @@ import referralRoutes from './routes/referral.js';
 import walletRoutes from './routes/wallet.js';
 import accountRoutes from './routes/account.js';
 import profileRoutes from './routes/profile.js';
+import buyRoutes from './routes/buy.js';
 import twitterAuthRoutes from './routes/twitterAuth.js';
 import airdropRoutes from './routes/airdrop.js';
 import checkinRoutes from './routes/checkin.js';
@@ -105,6 +106,7 @@ app.use('/api/airdrop', airdropRoutes);
 app.use('/api/checkin', checkinRoutes);
 app.use('/api/social', socialRoutes);
 app.use('/api/broadcast', broadcastRoutes);
+app.use('/api/buy', buyRoutes);
 app.use('/api/store', storeRoutes);
 
 // Serve the built React app
