@@ -50,31 +50,12 @@ export default function Lobby() {
   const [playerAvatar, setPlayerAvatar] = useState('');
   const [readyList, setReadyList] = useState([]);
   const [confirmed, setConfirmed] = useState(false);
-  const [waitingForConfirm, setWaitingForConfirm] = useState(false);
-  const [joinedTableId, setJoinedTableId] = useState(null);
   const startedRef = useRef(false);
-
-  // When the user leaves this lobby or switches tables after joining one,
-  // notify the server to remove them from the previous seat. This avoids
-  // "gameStart" events for stale tables which previously caused the UI to
-  // navigate to a blank game screen without user confirmation.
-  useEffect(() => {
-    return () => {
-      if (!joinedTableId) return;
-      ensureAccountId()
-        .then((accountId) =>
-          socket.emit('leaveLobby', { accountId, tableId: joinedTableId })
-        )
-        .catch(() => {});
-    };
-  }, [joinedTableId]);
 
   useEffect(() => {
     startedRef.current = false;
     setConfirmed(false);
     setReadyList([]);
-    setJoinedTableId(null);
-    setWaitingForConfirm(Boolean(table));
   }, [game, table]);
 
   const selectAiType = (t) => {
@@ -83,41 +64,6 @@ export default function Lobby() {
     else if (t === 'flags') setShowFlagPicker(true);
     if (t !== 'leaders') setLeaders([]);
     if (t !== 'flags') setFlags([]);
-  };
-
-  const handleTableSelect = (t) => {
-    setTable(t);
-    setWaitingForConfirm(true);
-  };
-
-  const joinTable = async () => {
-    const accountId = await ensureAccountId().catch(() => null);
-    return new Promise((resolve) => {
-      if (!accountId || !table) return resolve(null);
-      socket.emit(
-        'seatTable',
-        {
-          accountId,
-          tableId: table.id,
-          playerName,
-          avatar: playerAvatar,
-        },
-        (resp) => {
-          if (!resp?.success) {
-            alert('Failed to join table');
-            resolve(null);
-            return;
-          }
-          setJoinedTableId(resp.tableId);
-          resolve({ accountId, tableId: resp.tableId });
-        },
-      );
-    });
-  };
-
-  const confirmReadyFn = ({ accountId, tableId }) => {
-    socket.emit('confirmReady', { accountId, tableId });
-    setConfirmed(true);
   };
 
   useEffect(() => {
@@ -193,29 +139,21 @@ export default function Lobby() {
 
   useEffect(() => {
     const onUpdate = ({ tableId, players: list, currentTurn, ready }) => {
-      console.log('lobbyUpdate', tableId, list);
-      const idToMatch = joinedTableId || table?.id;
-      if (idToMatch && tableId === idToMatch) {
+      if (table && tableId === table.id) {
         setPlayers(list);
         if (currentTurn != null) setCurrentTurn(currentTurn);
         if (Array.isArray(ready)) setReadyList(ready);
       }
     };
     const onStart = ({ tableId }) => {
-      console.log('gameStart', tableId);
-      const idToMatch = joinedTableId || table?.id;
       if (
-        idToMatch &&
-        tableId === idToMatch &&
-        confirmed &&
-        !startedRef.current &&
         table &&
-        players.length > 0 &&
-        stake.token &&
-        stake.amount
+        tableId === table.id &&
+        confirmed &&
+        !startedRef.current
       ) {
         const params = new URLSearchParams();
-        params.set('table', idToMatch);
+        params.set('table', table.id);
         if (stake.token) params.set('token', stake.token);
         if (stake.amount) params.set('amount', stake.amount);
         startedRef.current = true;
@@ -228,7 +166,7 @@ export default function Lobby() {
       socket.off('lobbyUpdate', onUpdate);
       socket.off('gameStart', onStart);
     };
-  }, [table, stake, game, navigate, joinedTableId, players, confirmed]);
+  }, [table, stake, game, navigate]);
 
   // Automatic game start previously triggered when all seats were filled.
   // This prevented players from selecting their preferred stake before the
@@ -237,7 +175,6 @@ export default function Lobby() {
 
   const startGame = async (flagOverride = flags, leaderOverride = leaders) => {
     const params = new URLSearchParams();
-    setWaitingForConfirm(false);
     if (table) params.set('table', table.id);
 
     if (game === 'snake' && table?.id === 'single') {
@@ -273,8 +210,17 @@ export default function Lobby() {
     }
 
     if (game === 'snake' && table && table.id !== 'single') {
-      const join = await joinTable();
-      if (join) confirmReadyFn(join);
+      const accountId = await ensureAccountId().catch(() => null);
+      if (accountId) {
+        socket.emit('seatTable', {
+          accountId,
+          tableId: table.id,
+          playerName,
+          avatar: playerAvatar
+        });
+        socket.emit('confirmReady', { accountId, tableId: table.id });
+        setConfirmed(true);
+      }
     } else {
       startedRef.current = true;
       navigate(`/games/${game}?${params.toString()}`);
@@ -298,8 +244,7 @@ export default function Lobby() {
       aiType === 'flags' &&
       flags.length !== aiCount) ||
     confirmed ||
-    waitingForPlayers ||
-    !waitingForConfirm;
+    waitingForPlayers;
 
   return (
     <div className="relative p-4 space-y-4 text-text">
@@ -318,11 +263,7 @@ export default function Lobby() {
               </span>
             )}
           </div>
-          <TableSelector
-            tables={tables}
-            selected={table}
-            onSelect={handleTableSelect}
-          />
+          <TableSelector tables={tables} selected={table} onSelect={setTable} />
         </div>
       )}
       {game === 'snake' && table && (
