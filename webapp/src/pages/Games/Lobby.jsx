@@ -54,6 +54,11 @@ export default function Lobby() {
   const [waitingForConfirm, setWaitingForConfirm] = useState(false);
   const [joinedTableId, setJoinedTableId] = useState(null);
   const startedRef = useRef(false);
+  const joinedTableRef = useRef(null);
+
+  useEffect(() => {
+    joinedTableRef.current = joinedTableId;
+  }, [joinedTableId]);
 
   // When the user leaves this lobby or switches tables after joining one,
   // notify the server to remove them from the previous seat. This avoids
@@ -61,14 +66,17 @@ export default function Lobby() {
   // navigate to a blank game screen without user confirmation.
   useEffect(() => {
     return () => {
-      if (!joinedTableId) return;
+      if (!joinedTableRef.current) return;
       ensureAccountId()
         .then((accountId) =>
-          socket.emit('leaveLobby', { accountId, tableId: joinedTableId })
+          socket.emit('leaveLobby', {
+            accountId,
+            tableId: joinedTableRef.current
+          })
         )
         .catch(() => {});
     };
-  }, [joinedTableId]);
+  }, []);
 
   useEffect(() => {
     startedRef.current = false;
@@ -87,7 +95,21 @@ export default function Lobby() {
     if (t !== 'flags') setFlags([]);
   };
 
+  const leaveCurrentTable = () => {
+    if (!joinedTableId) return;
+    ensureAccountId()
+      .then((accountId) =>
+        socket.emit('leaveLobby', { accountId, tableId: joinedTableId })
+      )
+      .catch(() => {});
+    setJoinedTableId(null);
+    setConfirmed(false);
+    setConfirmingId(null);
+    setReadyList([]);
+  };
+
   const handleTableSelect = (t) => {
+    if (t?.id !== table?.id) leaveCurrentTable();
     setTable(t);
     setWaitingForConfirm(true);
   };
