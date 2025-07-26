@@ -30,8 +30,7 @@ test('seat and unseat endpoints update lobby', { concurrency: false, timeout: 20
     PORT: '3202',
     MONGODB_URI: 'memory',
     BOT_TOKEN: 'dummy',
-    SKIP_WEBAPP_BUILD: '1',
-    SKIP_BOT_LAUNCH: '1'
+    SKIP_WEBAPP_BUILD: '1'
   };
 
   const server = await startServer(env);
@@ -39,11 +38,11 @@ test('seat and unseat endpoints update lobby', { concurrency: false, timeout: 20
     let res = await fetch('http://localhost:3202/api/snake/table/seat', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ tableId: 'snake-2-100', accountId: 'p100', name: 'Tester' })
+      body: JSON.stringify({ tableId: 'snake-2', playerId: 'p100', name: 'Tester' })
     });
     assert.equal(res.status, 200);
 
-    res = await fetch('http://localhost:3202/api/snake/lobby/snake-2-100');
+    res = await fetch('http://localhost:3202/api/snake/lobby/snake-2');
     assert.equal(res.status, 200);
     let lobby = await res.json();
     assert.ok(lobby.players.some(p => p.id === 'p100' && p.name === 'Tester'));
@@ -51,11 +50,11 @@ test('seat and unseat endpoints update lobby', { concurrency: false, timeout: 20
     res = await fetch('http://localhost:3202/api/snake/table/unseat', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ tableId: 'snake-2-100', accountId: 'p100' })
+      body: JSON.stringify({ tableId: 'snake-2', playerId: 'p100' })
     });
     assert.equal(res.status, 200);
 
-    res = await fetch('http://localhost:3202/api/snake/lobby/snake-2-100');
+    res = await fetch('http://localhost:3202/api/snake/lobby/snake-2');
     assert.equal(res.status, 200);
     lobby = await res.json();
     assert.ok(!lobby.players.some(p => p.id === 'p100'));
