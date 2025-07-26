@@ -210,7 +210,6 @@ export default function Lobby() {
         confirmed &&
         !startedRef.current &&
         table &&
-        players.length > 0 &&
         stake.token &&
         stake.amount
       ) {
