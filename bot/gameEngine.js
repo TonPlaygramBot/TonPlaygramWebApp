@@ -4,48 +4,16 @@ export const DEFAULT_SNAKES = { 99: 80 };
 export const DEFAULT_LADDERS = { 3: 22, 27: 46 };
 export const ROLL_COOLDOWN_MS = 1000;
 export const RECONNECT_GRACE_MS = 60000;
-export const GAME_START_DELAY_MS = 5000;
+// Delay before starting a multiplayer game after the last player joins
+// Gives the final player a moment to fully connect and display in the lobby
+export const GAME_START_DELAY_MS = 1500;
 import { SnakeGame } from './logic/snakeGame.js';
 import { LudoGame } from './logic/ludoGame.js';
+import generateBoard from './logic/generateBoard.js';
 
 import GameRoomModel from './models/GameRoom.js';
+import User from './models/User.js';
 
-function generateBoard() {
-  const boardSize = FINAL_TILE - 1;
-  const snakeCount = 6 + Math.floor(Math.random() * 3);
-  const ladderCount = 6 + Math.floor(Math.random() * 3);
-  const snakes = {};
-  const used = new Set();
-  while (Object.keys(snakes).length < snakeCount) {
-    const start = Math.floor(Math.random() * (boardSize - 10)) + 10;
-    const maxDrop = Math.min(start - 1, 20);
-    if (maxDrop <= 0) continue;
-    const end = start - (Math.floor(Math.random() * maxDrop) + 1);
-    if (used.has(start) || used.has(end) || snakes[start] || end === 1) continue;
-    snakes[start] = end;
-    used.add(start);
-    used.add(end);
-  }
-  const ladders = {};
-  const usedL = new Set([...used]);
-  while (Object.keys(ladders).length < ladderCount) {
-    const start = Math.floor(Math.random() * (boardSize - 20)) + 2;
-    const max = Math.min(boardSize - start - 1, 20);
-    if (max < 1) continue;
-    const end = start + (Math.floor(Math.random() * max) + 1);
-    if (
-      usedL.has(start) ||
-      usedL.has(end) ||
-      ladders[start] ||
-      Object.values(ladders).includes(end)
-    )
-      continue;
-    ladders[start] = end;
-    usedL.add(start);
-    usedL.add(end);
-  }
-  return { snakes, ladders };
-}
 
 export class GameRoom {
   constructor(id, io, capacity = 4, board = {}, gameType = 'snake') {
@@ -79,11 +47,12 @@ export class GameRoom {
     this.players = this.game.players;
   }
 
-  addPlayer(playerId, name, socket) {
+  addPlayer(playerId, name, telegramId, socket) {
     const existing = this.players.find((p) => p.playerId === playerId);
     if (existing) {
       existing.socketId = socket.id;
       existing.name = name || existing.name;
+      if (telegramId) existing.telegramId = telegramId;
       existing.disconnected = false;
       if (existing.disconnectTimer) {
         clearTimeout(existing.disconnectTimer);
@@ -97,6 +66,7 @@ export class GameRoom {
       this.game.addPlayer(playerId, name);
       const player = this.game.players[this.game.players.length - 1];
       player.playerId = playerId;
+      player.telegramId = telegramId;
       player.socketId = socket.id;
       player.disconnected = false;
       player.lastRollTime = 0;
@@ -105,13 +75,14 @@ export class GameRoom {
     socket.join(this.id);
     const list = this.players.filter((p) => !p.disconnected).map((p) => ({
       playerId: p.playerId,
+      telegramId: p.telegramId,
       name: p.name,
       position: p.position,
     }));
     socket.emit('currentPlayers', list);
-    this.io.to(this.id).emit('currentPlayers', list);
+    socket.to(this.id).emit('currentPlayers', list);
     if (!existing) {
-      this.io.to(this.id).emit('playerJoined', { playerId, name });
+      socket.to(this.id).emit('playerJoined', { playerId, telegramId, name });
       if (this.players.length === this.capacity) {
         if (this.startTimer) clearTimeout(this.startTimer);
         this.io.to(this.id).emit('gameStarting', { startIn: this.gameStartDelay });
@@ -121,7 +92,10 @@ export class GameRoom {
         }, this.gameStartDelay);
       }
     } else if (this.status === 'playing') {
-      socket.emit('gameStarted');
+      socket.emit('gameStarted', {
+        snakes: this.snakes,
+        ladders: this.ladders
+      });
       this.emitNextTurn();
     }
     return { success: true };
@@ -133,9 +107,12 @@ export class GameRoom {
       clearTimeout(this.startTimer);
       this.startTimer = null;
     }
-    // The board is generated when the room is created and should remain
-    // consistent for all players. Do not regenerate it here.
     if (this.gameType === 'snake') {
+      // Generate a fresh board for each new game so all players share the
+      // same layout while ensuring variety across games.
+      const board = generateBoard();
+      this.snakes = board.snakes;
+      this.ladders = board.ladders;
       this.game.snakes = this.snakes;
       this.game.ladders = this.ladders;
     }
@@ -155,14 +132,26 @@ export class GameRoom {
     }
     this.status = 'playing';
     this.currentTurn = 0;
-    this.io.to(this.id).emit('gameStarted');
+    this.io.to(this.id).emit('gameStarted', {
+      snakes: this.snakes,
+      ladders: this.ladders
+    });
     this.emitNextTurn();
   }
 
-  emitNextTurn() {
+  notifyTurnChange() {
     const current = this.players[this.currentTurn];
     if (current) {
+      console.log('[Server] Next turn for player', current.playerId);
       this.io.to(this.id).emit('turnChanged', { playerId: current.playerId });
+    }
+  }
+
+  emitNextTurn(sendEvent = true) {
+    const current = this.players[this.currentTurn];
+    if (current) {
+      current.lastRollTime = 0; // reset cooldown at the start of every turn
+      if (sendEvent) this.notifyTurnChange();
       if (this.turnTimer) clearTimeout(this.turnTimer);
       this.turnTimer = setTimeout(() => {
         if (
@@ -245,7 +234,8 @@ export class GameRoom {
         this.status = 'finished';
         GameResult.create({
           winner: player.name,
-          participants: this.players.map((p) => p.name)
+          participants: this.players.map((p) => p.name),
+          tableId: this.id
         }).catch((err) =>
           console.error('Failed to store game result:', err.message)
         );
@@ -272,7 +262,8 @@ export class GameRoom {
       }
       this.currentTurn = this.game.currentTurn;
     }
-    this.emitNextTurn();
+    this.notifyTurnChange();
+    this.emitNextTurn(false);
   }
 
   handleDisconnect(socket) {
@@ -281,7 +272,10 @@ export class GameRoom {
     const player = this.players[idx];
     player.disconnected = true;
     player.socketId = null;
-    this.io.to(this.id).emit('playerDisconnected', { playerId: player.playerId });
+    this.io.to(this.id).emit('playerDisconnected', {
+      playerId: player.playerId,
+      telegramId: player.telegramId
+    });
     if (this.status === 'waiting' && this.startTimer) {
       clearTimeout(this.startTimer);
       this.startTimer = null;
@@ -310,7 +304,10 @@ export class GameRoom {
       player.finished = 0;
     }
     player.disconnectTimer = null;
-    this.io.to(this.id).emit('playerLeft', { playerId: player.playerId });
+    this.io.to(this.id).emit('playerLeft', {
+      playerId: player.playerId,
+      telegramId: player.telegramId
+    });
     if (this.status === 'playing') {
       const active = this.players.filter((p) => !p.disconnected);
       if (active.length === 1) {
@@ -319,6 +316,7 @@ export class GameRoom {
         GameResult.create({
           winner: winner.name,
           participants: this.players.map((p) => p.name),
+          tableId: this.id,
         }).catch((err) =>
           console.error('Failed to store game result:', err.message)
         );
@@ -343,6 +341,13 @@ export class GameRoom {
       },
       { upsert: true }
     ).catch(() => {});
+
+    if (player.playerId) {
+      User.updateOne(
+        { accountId: player.playerId },
+        { currentTableId: null }
+      ).catch(() => {});
+    }
   }
 }
 
@@ -361,9 +366,11 @@ export class GameRoomManager {
       }, doc.gameType || 'snake');
       room.players = doc.players.map((p) => ({
         ...p.toObject(),
+        id: p.playerId,
         socketId: null,
         lastRollTime: 0
       }));
+      room.game.players = room.players;
       room.currentTurn = doc.currentTurn;
       room.status = doc.status;
       this.rooms.set(room.id, room);
@@ -381,6 +388,7 @@ export class GameRoomManager {
       ladders: room.ladders,
       players: room.players.map((p) => ({
         playerId: p.playerId,
+        telegramId: p.telegramId,
         name: p.name,
         position: p.position,
         isActive: p.isActive,
@@ -397,48 +405,112 @@ export class GameRoomManager {
   async getRoom(id, capacity = 4, board) {
     let room = this.rooms.get(id);
     if (!room) {
-      const record = await GameRoomModel.findOne({ roomId: id });
-      if (record) {
-        room = new GameRoom(id, this.io, record.capacity, {
-          snakes: Object.fromEntries(record.snakes),
-          ladders: Object.fromEntries(record.ladders)
-        }, record.gameType || 'snake');
-        room.players = record.players.map((p) => ({
-          ...p.toObject(),
-          socketId: null,
-          lastRollTime: 0
-        }));
-        room.currentTurn = record.currentTurn;
-        room.status = record.status;
-      } else {
-        const type = id.startsWith('ludo') ? 'ludo' : 'snake';
-        room = new GameRoom(id, this.io, capacity, board, type);
-        await GameRoomModel.updateOne(
-          { roomId: id },
-          {
+      const type = id.startsWith('ludo') ? 'ludo' : 'snake';
+      const boardData =
+        type === 'snake'
+          ? board?.snakes && board?.ladders
+            ? board
+            : generateBoard()
+          : {};
+
+      const record = await GameRoomModel.findOneAndUpdate(
+        { roomId: id },
+        {
+          $setOnInsert: {
             roomId: id,
-            capacity: room.capacity,
-            gameType: room.gameType,
-            status: room.status,
-            currentTurn: room.currentTurn,
-            snakes: room.snakes,
-            ladders: room.ladders,
+            capacity,
+            gameType: type,
+            status: 'waiting',
+            currentTurn: 0,
+            snakes: boardData.snakes,
+            ladders: boardData.ladders,
             players: []
-          },
-          { upsert: true }
-        );
-      }
+          }
+        },
+        { new: true, upsert: true }
+      );
+
+      room = new GameRoom(
+        record.roomId,
+        this.io,
+        record.capacity,
+        {
+          snakes: Object.fromEntries(record.snakes || {}),
+          ladders: Object.fromEntries(record.ladders || {})
+        },
+        record.gameType || 'snake'
+      );
+      room.players = record.players.map((p) => ({
+        ...p.toObject(),
+        id: p.playerId,
+        socketId: null,
+        lastRollTime: 0
+      }));
+      room.game.players = room.players;
+      room.currentTurn = record.currentTurn;
+      room.status = record.status;
+      this.rooms.set(id, room);
+    }
+    return room;
+  }
+
+  async getExistingRoom(id) {
+    let room = this.rooms.get(id);
+    if (!room) {
+      const record = await GameRoomModel.findOne({ roomId: id });
+      if (!record) return null;
+      room = new GameRoom(
+        record.roomId,
+        this.io,
+        record.capacity,
+        {
+          snakes: Object.fromEntries(record.snakes || {}),
+          ladders: Object.fromEntries(record.ladders || {})
+        },
+        record.gameType || 'snake'
+      );
+      room.players = record.players.map((p) => ({
+        ...p.toObject(),
+        id: p.playerId,
+        socketId: null,
+        lastRollTime: 0
+      }));
+      room.game.players = room.players;
+      room.currentTurn = record.currentTurn;
+      room.status = record.status;
       this.rooms.set(id, room);
     }
     return room;
   }
 
   async joinRoom(roomId, playerId, name, socket) {
-    const match = /-(\d+)$/.exec(roomId);
-    const cap = match ? Number(match[1]) : 4;
+    const parts = roomId.split('-');
+    const cap = Number(parts[1]) || 4;
     const room = await this.getRoom(roomId, cap);
-    const result = room.addPlayer(playerId, name, socket);
-    if (!result.error) await this.saveRoom(room);
+    let playerName = name;
+    let telegramId;
+    if (playerId) {
+      try {
+        const user = await User.findOne({ accountId: playerId }).lean();
+        if (user) {
+          telegramId = user.telegramId;
+          if (!playerName) {
+            playerName =
+              user.nickname || `${user.firstName || ''} ${user.lastName || ''}`.trim();
+          }
+        }
+      } catch {}
+    }
+    const result = room.addPlayer(playerId, playerName, telegramId, socket);
+    if (!result.error) {
+      await this.saveRoom(room);
+      if (playerId) {
+        User.updateOne(
+          { accountId: playerId },
+          { currentTableId: roomId }
+        ).catch(() => {});
+      }
+    }
     return result;
   }
 
@@ -458,6 +530,27 @@ export class GameRoomManager {
       if (room.players.every((p) => p.disconnected)) {
         this.rooms.delete(room.id);
         await GameRoomModel.deleteOne({ roomId: room.id });
+      }
+    }
+  }
+
+  async leaveRoom(socket) {
+    const room = this.findRoomBySocket(socket.id);
+    if (room) {
+      const idx = room.players.findIndex((p) => p.socketId === socket.id);
+      if (idx !== -1) {
+        const player = room.players[idx];
+        room.handleDisconnect(socket);
+        if (player.disconnectTimer) {
+          clearTimeout(player.disconnectTimer);
+          player.disconnectTimer = null;
+        }
+        room.finalizeDisconnect(player);
+        await this.saveRoom(room);
+        if (room.players.every((p) => p.disconnected)) {
+          this.rooms.delete(room.id);
+          await GameRoomModel.deleteOne({ roomId: room.id });
+        }
       }
     }
   }

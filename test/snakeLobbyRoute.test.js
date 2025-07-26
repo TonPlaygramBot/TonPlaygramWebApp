@@ -33,16 +33,17 @@ test('snake lobby route lists players', async () => {
     PORT: '3200',
     MONGODB_URI: 'memory',
     SKIP_WEBAPP_BUILD: '1',
-    BOT_TOKEN: 'dummy'
+    BOT_TOKEN: 'dummy',
+    SKIP_BOT_LAUNCH: '1'
   };
   const server = await startServer(env);
   try {
     for (let i = 0; i < 100; i++) {
       try {
-        const res = await fetch('http://localhost:3200/api/snake/lobby/snake-2');
+        const res = await fetch('http://localhost:3200/api/snake/lobby/snake-2-100');
         if (res.ok) {
           const data = await res.json();
-          assert.equal(data.id, 'snake-2');
+          assert.equal(data.id, 'snake-2-100');
           assert.ok(Array.isArray(data.players));
           return;
         }
