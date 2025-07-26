@@ -22,6 +22,7 @@ import {
   getPlayerId
 } from '../../utils/telegram.js';
 import { canStartGame } from '../../utils/lobby.js';
+import { socket } from '../../utils/socket.js';
 
 export default function Lobby() {
   const { game } = useParams();
@@ -265,16 +266,22 @@ export default function Lobby() {
     const accountId = getPlayerId();
     const me = players.find((p) => p.id === accountId);
     if (me?.confirmed && !confirmed) setConfirmed(true);
-    if (
-      me?.confirmed &&
-      game === 'snake' &&
-      table &&
-      table.id !== 'single' &&
-      allConfirmed
-    ) {
-      startGame();
-    }
-  }, [players, table, game, allConfirmed, confirmed]);
+  }, [players, confirmed]);
+
+  useEffect(() => {
+    if (game !== 'snake' || !table || table.id === 'single' || !stake.amount)
+      return;
+    const tableRef = `${table.id}-${stake.amount}`;
+    const handler = ({ tableId }) => {
+      if (tableId === tableRef) startGame();
+    };
+    socket.on('tableReady', handler);
+    socket.on('gameStart', handler);
+    return () => {
+      socket.off('tableReady', handler);
+      socket.off('gameStart', handler);
+    };
+  }, [game, table, stake, startGame]);
   // Multiplayer games require a full table before starting
 
   return (
