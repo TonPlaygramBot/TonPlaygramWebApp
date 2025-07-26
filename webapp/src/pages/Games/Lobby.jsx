@@ -9,7 +9,6 @@ import { LEADER_AVATARS } from '../../utils/leaderAvatars.js';
 import useTelegramBackButton from '../../hooks/useTelegramBackButton.js';
 import {
   getSnakeLobbies,
-  getSnakeLobby,
   pingOnline,
   getOnlineCount,
   seatTable,
@@ -84,25 +83,16 @@ export default function Lobby() {
 
   useEffect(() => {
     if (game === 'snake') {
-      let active = true;
-      function load() {
-        getSnakeLobbies()
-          .then((data) => {
-            if (active) {
-              setTables([
-                { id: 'single', label: 'Single Player vs AI' },
-                ...data
-              ]);
-              console.log('[Lobby] Loaded tables', data);
-            }
-          })
-          .catch(() => {});
-      }
-      load();
-      const id = setInterval(load, 5000);
+      let cancelled = false;
+      getSnakeLobbies()
+        .then((data) => {
+          if (!cancelled) {
+            setTables([{ id: 'single', label: 'Single Player vs AI' }, ...data]);
+          }
+        })
+        .catch(() => {});
       return () => {
-        active = false;
-        clearInterval(id);
+        cancelled = true;
       };
     }
   }, [game]);
@@ -181,35 +171,47 @@ export default function Lobby() {
   useEffect(() => {
     if (game === 'snake' && table && table.id !== 'single' && stake.amount) {
       const tableRef = `${table.id}-${stake.amount}`;
-      let active = true;
-      function loadPlayers() {
-        getSnakeLobby(tableRef)
-          .then((data) => {
-            if (!active) return;
-            const unique = [];
-            const seen = new Set();
-              for (const p of data.players || []) {
-                const key = p.telegramId || p.id;
-                if (!seen.has(key)) {
-                  seen.add(key);
-                  unique.push(p);
-                }
-              }
-              setPlayers(unique);
-              console.log('[Lobby] Loaded players', unique);
-            })
-            .catch(() => {});
-      }
-      loadPlayers();
-      const id = setInterval(loadPlayers, 3000);
+
+      const onUpdate = ({ tableId, players: pls }) => {
+        if (tableId !== tableRef) return;
+        const unique = [];
+        const seen = new Set();
+        for (const p of pls || []) {
+          const key = p.telegramId || p.id;
+          if (!seen.has(key)) {
+            seen.add(key);
+            unique.push(p);
+          }
+        }
+        setPlayers(unique);
+        setTables((ts) =>
+          ts.map((t) =>
+            t.id === table.id ? { ...t, players: unique.length } : t
+          )
+        );
+      };
+
+      socket.on('lobbyUpdate', onUpdate);
+
+      ensureAccountId()
+        .then((accountId) => {
+          if (accountId) {
+            socket.emit('joinLobby', {
+              tableId: tableRef,
+              accountId,
+              name: playerName
+            });
+          }
+        })
+        .catch(() => {});
+
       return () => {
-        active = false;
-        clearInterval(id);
+        socket.off('lobbyUpdate', onUpdate);
       };
     } else {
       setPlayers([]);
     }
-  }, [game, table, stake]);
+  }, [game, table, stake, playerName]);
 
   const startGame = (flagOverride = flags, leaderOverride = leaders) => {
     if (
