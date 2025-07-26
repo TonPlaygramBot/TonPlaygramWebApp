@@ -57,19 +57,21 @@ router.post('/leaderboard', async (req, res) => {
     users.map(async (u) => {
       if (!u.firstName || !u.lastName || !u.photo) {
         const info = await fetchTelegramInfo(u.telegramId);
-        await User.updateOne(
-          { telegramId: u.telegramId },
-          {
-            $set: {
-              firstName: info.firstName,
-              lastName: info.lastName,
-              photo: info.photoUrl,
-            },
-          }
-        );
-        u.firstName = info.firstName;
-        u.lastName = info.lastName;
-        u.photo = info.photoUrl;
+        if (info) {
+          await User.updateOne(
+            { telegramId: u.telegramId },
+            {
+              $set: {
+                firstName: info.firstName,
+                lastName: info.lastName,
+                photo: info.photoUrl,
+              },
+            }
+          );
+          u.firstName = info.firstName;
+          u.lastName = info.lastName;
+          u.photo = info.photoUrl;
+        }
       }
     })
   );
