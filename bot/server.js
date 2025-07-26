@@ -353,6 +353,7 @@ app.post('/api/snake/table/seat', async (req, res) => {
   info.ts = Date.now();
   if (typeof confirmed === 'boolean') info.confirmed = confirmed;
   map.set(key, info);
+  console.log('[Server] Player seated:', { tableId, id: pid, confirmed: info.confirmed });
 
   if (user) {
     user.currentTableId = tableId;
@@ -534,7 +535,16 @@ io.on('connection', (socket) => {
       onlineUsers.set(String(accountId), Date.now());
     }
     const result = await gameManager.joinRoom(roomId, accountId, name, socket);
-    if (result.error) socket.emit('error', result.error);
+    if (result.error) {
+      socket.emit('error', result.error);
+    } else {
+      const lobbySize = tableSeats.get(roomId)?.size || 0;
+      const roomPlayers = room.players.filter((p) => !p.disconnected).length;
+      console.log('[Server] joinRoom', roomId, {
+        lobby: lobbySize,
+        room: roomPlayers
+      });
+    }
   });
 
   socket.on('watchRoom', async ({ roomId }) => {
@@ -573,7 +583,16 @@ io.on('connection', (socket) => {
   });
 
   socket.on('leaveRoom', async () => {
+    const room = gameManager.findRoomBySocket(socket.id);
     await gameManager.leaveRoom(socket);
+    if (room) {
+      const lobbySize = tableSeats.get(room.id)?.size || 0;
+      const roomPlayers = room.players.filter((p) => !p.disconnected).length;
+      console.log('[Server] leaveRoom', room.id, {
+        lobby: lobbySize,
+        room: roomPlayers
+      });
+    }
   });
 
   socket.on('rollDice', async () => {
