@@ -34,7 +34,8 @@ export default function PresaleDashboardMultiRound() {
   const percent = maxTokens
     ? ((sold / maxTokens) * 100).toFixed(2)
     : '0';
-  const tonRaised = sold * (status?.currentPrice || PRESALE_ROUNDS[roundIndex]?.pricePerTPC || 0);
+  const tonRaised = status?.tonRaised ??
+    sold * (status?.currentPrice || PRESALE_ROUNDS[roundIndex]?.pricePerTPC || 0);
   const totalTonRaised = stats?.tonRaised || 0;
 
   useEffect(() => {

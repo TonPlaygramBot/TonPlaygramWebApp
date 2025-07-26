@@ -28,15 +28,18 @@ function normalize(addr) {
 
 const STORE_ADDRESS_NORM = normalize(STORE_ADDRESS);
 
+const STATE_ID = 'singleton';
 let state = null;
 
 async function loadState() {
   if (!state) {
-    state = await PresaleState.findOne();
+    state = await PresaleState.findById(STATE_ID);
     if (!state) {
       state = new PresaleState({
+        _id: STATE_ID,
         currentRound: 1,
         tokensSold: 0,
+        tonRaised: 0,
         currentPrice: INITIAL_PRICE,
       });
       await state.save();
@@ -58,6 +61,7 @@ router.get('/status', async (_req, res) => {
     currentRound: st.currentRound,
     remainingTokens: remaining,
     maxPerWallet: MAX_TPC_PER_WALLET,
+    tonRaised: st.tonRaised,
   });
 });
 
@@ -90,11 +94,13 @@ router.post('/', async (req, res) => {
   info.tpc += tpc;
   info.ton += amountTON;
   info.last = new Date();
+  state.tonRaised += amountTON;
   state.tokensSold += tpc;
   state.currentPrice = Number((state.currentPrice + PRICE_INCREASE_STEP).toFixed(9));
   if (state.tokensSold >= round.maxTokens) {
     state.currentRound += 1;
     state.tokensSold = 0;
+    state.tonRaised = 0;
     const next = PRESALE_ROUNDS[state.currentRound - 1];
     state.currentPrice = next ? next.pricePerTPC : state.currentPrice;
   }
@@ -159,6 +165,7 @@ router.post('/claim', async (req, res) => {
       await rec.save();
     }
 
+    state.tonRaised += tonVal;
     state.tokensSold += tpc;
     state.currentPrice = Number(
       (state.currentPrice + PRICE_INCREASE_STEP).toFixed(9)
@@ -166,6 +173,7 @@ router.post('/claim', async (req, res) => {
     if (state.tokensSold >= round.maxTokens) {
       state.currentRound += 1;
       state.tokensSold = 0;
+      state.tonRaised = 0;
       const next = PRESALE_ROUNDS[state.currentRound - 1];
       state.currentPrice = next ? next.pricePerTPC : state.currentPrice;
     }
