@@ -210,6 +210,25 @@ const BUNDLE_TON_MAP = Object.fromEntries(
   Object.values(BUNDLES).map((b) => [b.label, b.ton])
 );
 
+async function broadcastSnakeLobbies() {
+  try {
+    const capacities = [2, 3, 4];
+    const lobbies = await Promise.all(
+      capacities.map(async (cap) => {
+        const id = `snake-${cap}`;
+        const room = await gameManager.getRoom(id, cap);
+        const roomCount = room.players.filter((p) => !p.disconnected).length;
+        const lobbyCount = tableSeats.get(id)?.size || 0;
+        const players = roomCount + lobbyCount;
+        return { id, capacity: cap, players };
+      })
+    );
+    io.emit('snakeLobbies', lobbies);
+  } catch (err) {
+    console.error('Failed to broadcast lobby counts:', err.message);
+  }
+}
+
 function getAvailableTable(gameType, stake = 0, maxPlayers = 4) {
   const key = `${gameType}-${maxPlayers}`;
   if (!lobbyTables[key]) lobbyTables[key] = [];
@@ -310,6 +329,7 @@ async function seatTableSocket(
     currentTurn: table.currentTurn,
     ready: Array.from(table.ready)
   });
+  broadcastSnakeLobbies().catch(() => {});
   return table;
 }
 
@@ -331,6 +351,7 @@ function maybeStartGame(table) {
     lobbyTables[key] = (lobbyTables[key] || []).filter(
       (t) => t.id !== table.id
     );
+    broadcastSnakeLobbies().catch(() => {});
   }
 }
 
@@ -371,15 +392,16 @@ function unseatTableSocket(accountId, tableId, socketId) {
       const nextIndex = 0;
       table.currentTurn = table.players[nextIndex].id;
     }
-    io.to(tableId).emit('lobbyUpdate', {
-      tableId,
-      players: table.players,
-      currentTurn: table.currentTurn,
-      ready: Array.from(table.ready || [])
-    });
-    if (accountId && table.currentTurn && table.currentTurn !== accountId) {
-      io.to(tableId).emit('turnUpdate', { currentTurn: table.currentTurn });
-    }
+  io.to(tableId).emit('lobbyUpdate', {
+    tableId,
+    players: table.players,
+    currentTurn: table.currentTurn,
+    ready: Array.from(table.ready || [])
+  });
+  broadcastSnakeLobbies().catch(() => {});
+  if (accountId && table.currentTurn && table.currentTurn !== accountId) {
+    io.to(tableId).emit('turnUpdate', { currentTurn: table.currentTurn });
+  }
   }
   if (accountId) {
     User.updateOne({ accountId }, { currentTableId: null }).catch(() => {});

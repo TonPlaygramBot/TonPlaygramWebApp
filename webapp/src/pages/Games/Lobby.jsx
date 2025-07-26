@@ -77,22 +77,23 @@ export default function Lobby() {
   useEffect(() => {
     if (game === 'snake') {
       let active = true;
+      function apply(data) {
+        if (active)
+          setTables([
+            { id: 'single', label: 'Single Player vs AI' },
+            ...data
+          ]);
+      }
       function load() {
-        getSnakeLobbies()
-          .then((data) => {
-            if (active)
-              setTables([
-                { id: 'single', label: 'Single Player vs AI' },
-                ...data
-              ]);
-          })
-          .catch(() => {});
+        getSnakeLobbies().then(apply).catch(() => {});
       }
       load();
-      const id = setInterval(load, 5000);
+      socket.on('snakeLobbies', apply);
+      const id = setInterval(load, 30000);
       return () => {
         active = false;
         clearInterval(id);
+        socket.off('snakeLobbies', apply);
       };
     }
   }, [game]);
