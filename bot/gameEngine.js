@@ -139,11 +139,19 @@ export class GameRoom {
     this.emitNextTurn();
   }
 
-  emitNextTurn() {
+  notifyTurnChange() {
+    const current = this.players[this.currentTurn];
+    if (current) {
+      console.log('[Server] Next turn for player', current.playerId);
+      this.io.to(this.id).emit('turnChanged', { playerId: current.playerId });
+    }
+  }
+
+  emitNextTurn(sendEvent = true) {
     const current = this.players[this.currentTurn];
     if (current) {
       current.lastRollTime = 0; // reset cooldown at the start of every turn
-      this.io.to(this.id).emit('turnChanged', { playerId: current.playerId });
+      if (sendEvent) this.notifyTurnChange();
       if (this.turnTimer) clearTimeout(this.turnTimer);
       this.turnTimer = setTimeout(() => {
         if (
@@ -254,7 +262,8 @@ export class GameRoom {
       }
       this.currentTurn = this.game.currentTurn;
     }
-    this.emitNextTurn();
+    this.notifyTurnChange();
+    this.emitNextTurn(false);
   }
 
   handleDisconnect(socket) {
@@ -421,6 +430,35 @@ export class GameRoomManager {
         { new: true, upsert: true }
       );
 
+      room = new GameRoom(
+        record.roomId,
+        this.io,
+        record.capacity,
+        {
+          snakes: Object.fromEntries(record.snakes || {}),
+          ladders: Object.fromEntries(record.ladders || {})
+        },
+        record.gameType || 'snake'
+      );
+      room.players = record.players.map((p) => ({
+        ...p.toObject(),
+        id: p.playerId,
+        socketId: null,
+        lastRollTime: 0
+      }));
+      room.game.players = room.players;
+      room.currentTurn = record.currentTurn;
+      room.status = record.status;
+      this.rooms.set(id, room);
+    }
+    return room;
+  }
+
+  async getExistingRoom(id) {
+    let room = this.rooms.get(id);
+    if (!room) {
+      const record = await GameRoomModel.findOne({ roomId: id });
+      if (!record) return null;
       room = new GameRoom(
         record.roomId,
         this.io,

@@ -2226,8 +2226,6 @@ export default function SnakeAndLadder() {
       // The first player to join the table should roll first.
       setSetupPhase(false);
       setTurnMessage(`${getPlayerName(0)} starts first.`);
-      setCurrentTurn(0);
-      setDiceCount(playerDiceCounts[0] ?? 2);
       return;
     }
 

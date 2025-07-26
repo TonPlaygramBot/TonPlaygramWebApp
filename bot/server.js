@@ -183,71 +183,160 @@ function cleanupSeats() {
 }
 
 async function seatLobby(tableId, accountId, name, confirmed) {
+
   const pid = accountId;
+
   if (!tableId || !pid) return [];
+
   cleanupSeats();
 
   let user;
+
   try {
+
     user = await User.findOne({ accountId: pid });
+
   } catch {}
 
   const tgid = user?.telegramId;
+
   const key = String(pid);
 
   if (user && user.currentTableId && user.currentTableId !== tableId) {
+
     const old = tableSeats.get(user.currentTableId);
+
     if (old) {
+
       old.delete(String(pid));
+
       if (old.size === 0) tableSeats.delete(user.currentTableId);
+
     }
+
   }
 
   let map = tableSeats.get(tableId);
+
   if (!map) {
+
     map = new Map();
+
     tableSeats.set(tableId, map);
+
   }
 
   const info = map.get(key) || {
+
     id: pid,
+
     telegramId: tgid,
+
     name: name || String(pid)
+
   };
 
   info.name = name || info.name;
+
   info.telegramId = tgid;
+
   info.id = pid;
+
   info.ts = Date.now();
+
   if (typeof confirmed === 'boolean') info.confirmed = confirmed;
+
   map.set(key, info);
 
   if (user) {
+
     user.currentTableId = tableId;
+
     await user.save().catch(() => {});
+
   }
+
+  // Check if table is ready
+
+  emitTableReady(tableId);
+
   return Array.from(map.values());
+
 }
 
 async function unseatLobby(tableId, accountId) {
+
   const pid = accountId;
+
   if (!tableId || !pid) return [];
+
   let user;
+
   try {
+
     user = await User.findOne({ accountId: pid });
+
   } catch {}
 
   const key = String(pid);
+
   const map = tableSeats.get(tableId);
+
   if (map && pid) {
+
     map.delete(key);
+
     if (map.size === 0) tableSeats.delete(tableId);
+
   }
+
   if (user) {
+
     user.currentTableId = null;
+
     await user.save().catch(() => {});
+
   }
+
   return Array.from(map?.values() || []);
+
+}
+
+function emitTableReady(tableId) {
+
+  const map = tableSeats.get(tableId);
+
+  if (!map) return;
+
+  const parts = String(tableId).split('-');
+
+  const capacity = Number(parts[1]) || 4;
+
+  const confirmedCount = Array.from(map.values()).filter((p) => p.confirmed).length;
+
+  if (confirmedCount === capacity) {
+
+    for (const info of map.values()) {
+
+      const set = userSockets.get(String(info.id));
+
+      if (set) {
+
+        for (const sid of set) {
+
+          io.to(sid).emit('tableReady', { tableId });
+
+          io.to(sid).emit('gameStart', { tableId });
+
+        }
+
+      }
+
+    }
+
+  }
+
+}
 }
 
 app.post('/api/online/ping', (req, res) => {
@@ -403,6 +492,7 @@ app.post('/api/snake/table/seat', async (req, res) => {
   info.ts = Date.now();
   if (typeof confirmed === 'boolean') info.confirmed = confirmed;
   map.set(key, info);
+  console.log('[Server] Player seated:', { tableId, id: pid, confirmed: info.confirmed });
 
   if (user) {
     user.currentTableId = tableId;
@@ -410,6 +500,7 @@ app.post('/api/snake/table/seat', async (req, res) => {
   }
 
   res.json({ success: true });
+  emitTableReady(tableId);
 });
 
 app.post('/api/snake/table/unseat', async (req, res) => {
@@ -431,6 +522,7 @@ app.post('/api/snake/table/unseat', async (req, res) => {
     await user.save().catch(() => {});
   }
   res.json({ success: true });
+  emitTableReady(tableId);
 });
 app.get('/api/snake/lobbies', async (req, res) => {
   cleanupSeats();
@@ -456,10 +548,12 @@ app.get('/api/snake/lobby/:id', async (req, res) => {
   const parts = id.split('-');
   const cap = Number(parts[1]) || 4;
   console.log('[Server] lobby', id, 'tableSeats', tableSeats.get(id)?.size, 'rooms', gameManager.rooms.size);
-  const room = await gameManager.getRoom(id, cap);
-  const roomPlayers = room.players
-    .filter((p) => !p.disconnected)
-    .map((p) => ({ id: p.playerId, telegramId: p.telegramId, name: p.name }));
+  const room = await gameManager.getExistingRoom(id);
+  const roomPlayers = room
+    ? room.players
+        .filter((p) => !p.disconnected)
+        .map((p) => ({ id: p.playerId, telegramId: p.telegramId, name: p.name }))
+    : [];
   const lobbyPlayers = Array.from(tableSeats.get(id)?.values() || []).map((p) => ({ id: p.id, telegramId: p.telegramId, name: p.name, confirmed: !!p.confirmed }));
   const combined = [...lobbyPlayers, ...roomPlayers];
   const unique = [];
@@ -476,9 +570,11 @@ app.get('/api/snake/lobby/:id', async (req, res) => {
 
 app.get('/api/snake/board/:id', async (req, res) => {
   const { id } = req.params;
-  const parts = id.split('-');
-  const cap = Number(parts[1]) || 4;
-  const room = await gameManager.getRoom(id, cap);
+  const room = await gameManager.getExistingRoom(id);
+  if (!room) {
+    res.status(404).json({ error: 'room not found' });
+    return;
+  }
   res.json({ snakes: room.snakes, ladders: room.ladders });
 });
 
@@ -602,7 +698,16 @@ io.on('connection', (socket) => {
       onlineUsers.set(String(accountId), Date.now());
     }
     const result = await gameManager.joinRoom(roomId, accountId, name, socket);
-    if (result.error) socket.emit('error', result.error);
+    if (result.error) {
+      socket.emit('error', result.error);
+    } else {
+      const lobbySize = tableSeats.get(roomId)?.size || 0;
+      const roomPlayers = room.players.filter((p) => !p.disconnected).length;
+      console.log('[Server] joinRoom', roomId, {
+        lobby: lobbySize,
+        room: roomPlayers
+      });
+    }
   });
 
   socket.on('watchRoom', async ({ roomId }) => {
@@ -641,7 +746,16 @@ io.on('connection', (socket) => {
   });
 
   socket.on('leaveRoom', async () => {
+    const room = gameManager.findRoomBySocket(socket.id);
     await gameManager.leaveRoom(socket);
+    if (room) {
+      const lobbySize = tableSeats.get(room.id)?.size || 0;
+      const roomPlayers = room.players.filter((p) => !p.disconnected).length;
+      console.log('[Server] leaveRoom', room.id, {
+        lobby: lobbySize,
+        room: roomPlayers
+      });
+    }
   });
 
   socket.on('rollDice', async () => {

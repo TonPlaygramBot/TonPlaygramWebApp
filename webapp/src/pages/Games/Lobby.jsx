@@ -29,6 +29,14 @@ export default function Lobby() {
   useTelegramBackButton(() => navigate('/games', { replace: true }));
 
   useEffect(() => {
+    const handler = (event, ...args) => {
+      console.log('[Lobby] Socket event', event, ...args);
+    };
+    socket.onAny(handler);
+    return () => socket.offAny(handler);
+  }, []);
+
+  useEffect(() => {
     ensureAccountId().catch(() => {});
   }, []);
 
@@ -248,7 +256,10 @@ export default function Lobby() {
       .then((accountId) => {
         if (!accountId) return;
         seatTable(accountId, tableRef, playerName, !confirmed)
-          .then(() => setConfirmed((c) => !c))
+          .then((res) => {
+            console.log('[Lobby] seatTable response', res);
+            setConfirmed((c) => !c);
+          })
           .catch(() => {});
       })
       .catch(() => {});
@@ -268,16 +279,22 @@ export default function Lobby() {
     const accountId = getPlayerId();
     const me = players.find((p) => p.id === accountId);
     if (me?.confirmed && !confirmed) setConfirmed(true);
-    if (
-      me?.confirmed &&
-      game === 'snake' &&
-      table &&
-      table.id !== 'single' &&
-      allConfirmed
-    ) {
-      startGame();
-    }
-  }, [players, table, game, allConfirmed, confirmed]);
+  }, [players, confirmed]);
+
+  useEffect(() => {
+    if (game !== 'snake' || !table || table.id === 'single' || !stake.amount)
+      return;
+    const tableRef = `${table.id}-${stake.amount}`;
+    const handler = ({ tableId }) => {
+      if (tableId === tableRef) startGame();
+    };
+    socket.on('tableReady', handler);
+    socket.on('gameStart', handler);
+    return () => {
+      socket.off('tableReady', handler);
+      socket.off('gameStart', handler);
+    };
+  }, [game, table, stake, startGame]);
   // Multiplayer games require a full table before starting
 
   return (
