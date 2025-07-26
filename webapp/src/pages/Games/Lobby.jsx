@@ -18,6 +18,7 @@ import {
   getAccountBalance,
   addTransaction
 } from '../../utils/api.js';
+import { socket } from '../../utils/socket.js';
 import {
   getTelegramId,
   ensureAccountId
@@ -125,9 +126,17 @@ export default function Lobby() {
       ensureAccountId()
         .then((accountId) => {
           if (cancelled || !accountId) return;
-          seatTable(accountId, table.id, playerName).catch(() => {});
+          socket.emit('seatTable', {
+            accountId,
+            tableId: table.id,
+            playerName
+          });
           interval = setInterval(() => {
-            seatTable(accountId, table.id, playerName).catch(() => {});
+            socket.emit('seatTable', {
+              accountId,
+              tableId: table.id,
+              playerName
+            });
           }, 30000);
         })
         .catch(() => {});
@@ -136,7 +145,8 @@ export default function Lobby() {
         if (interval) clearInterval(interval);
         ensureAccountId()
           .then((accountId) => {
-            if (accountId) unseatTable(accountId, table.id).catch(() => {});
+            if (accountId)
+              socket.emit('leaveLobby', { accountId, tableId: table.id });
           })
           .catch(() => {});
       };
@@ -149,15 +159,33 @@ export default function Lobby() {
       function loadPlayers() {
         getSnakeLobby(table.id)
           .then((data) => {
-            if (active) setPlayers(data.players);
+            if (active)
+              setPlayers(data.players.map((p) => ({ ...p, confirmed: false })));
           })
           .catch(() => {});
       }
+      const onLobby = ({ tableId, players: list, ready = [] }) => {
+        if (tableId === table.id) {
+          setPlayers(
+            list.map((p) => ({
+              ...p,
+              confirmed: ready.includes(String(p.id))
+            }))
+          );
+        }
+      };
+      const onStart = ({ tableId }) => {
+        if (tableId === table.id) startGame();
+      };
       loadPlayers();
       const id = setInterval(loadPlayers, 3000);
+      socket.on('lobbyUpdate', onLobby);
+      socket.on('gameStart', onStart);
       return () => {
         active = false;
         clearInterval(id);
+        socket.off('lobbyUpdate', onLobby);
+        socket.off('gameStart', onStart);
       };
     } else {
       setPlayers([]);
@@ -219,15 +247,14 @@ export default function Lobby() {
     ensureAccountId()
       .then((accountId) => {
         if (!accountId) return;
-        seatTable(accountId, table.id, playerName, true)
-          .then(() => setConfirmed(true))
-          .catch(() => {});
+        socket.emit('confirmReady', { accountId, tableId: table.id });
+        setConfirmed(true);
       })
       .catch(() => {});
   };
 
   // Only require stake and table selection before confirming. Multiplayer games
-  // start automatically once every player has confirmed their seat.
+  // begin once the server reports all players are ready.
   let disabled =
     !stake.token ||
     !stake.amount ||
@@ -237,21 +264,7 @@ export default function Lobby() {
     if (aiType === 'leaders') disabled ||= leaders.length !== aiCount;
     if (aiType === 'flags') disabled ||= flags.length !== aiCount;
   }
-  const allConfirmed =
-    players.length === (table?.capacity || 0) &&
-    players.every((p) => p.confirmed ?? true);
-
-  useEffect(() => {
-    if (
-      confirmed &&
-      game === 'snake' &&
-      table &&
-      table.id !== 'single' &&
-      allConfirmed
-    ) {
-      startGame();
-    }
-  }, [players, confirmed]);
+  // Game start is handled by the server via the "gameStart" socket event
   // Multiplayer games require a full table before starting
 
   return (
