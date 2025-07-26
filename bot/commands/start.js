@@ -6,16 +6,17 @@ export default function registerStart(bot) {
   bot.start(async (ctx) => {
     const telegramId = ctx.from.id;
     const info = await fetchTelegramInfo(telegramId);
+    const update = { $setOnInsert: { referralCode: telegramId.toString() } };
+    if (info) {
+      update.$set = {
+        firstName: info.firstName,
+        lastName: info.lastName,
+        photo: info.photoUrl,
+      };
+    }
     const user = await User.findOneAndUpdate(
       { telegramId },
-      {
-        $set: {
-          firstName: info.firstName,
-          lastName: info.lastName,
-          photo: info.photoUrl
-        },
-        $setOnInsert: { referralCode: telegramId.toString() }
-      },
+      update,
       { upsert: true, new: true, setDefaultsOnInsert: true }
     );
 
