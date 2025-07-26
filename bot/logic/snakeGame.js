@@ -60,6 +60,7 @@ export class SnakeGame {
 
   rollDice(diceValues) {
     if (this.finished) return null;
+    console.log('[SnakeGame] currentTurn before rollDice', this.currentTurn);
     const player = this.players[this.currentTurn];
     if (!player) return null;
     this.cancelTurnTimer();
@@ -126,6 +127,8 @@ export class SnakeGame {
     if (!extraTurn && !this.finished) {
       this.currentTurn = this.nextPlayerIndex(this.currentTurn);
     }
+
+    console.log('[SnakeGame] currentTurn after rollDice', this.currentTurn);
 
     if (!this.finished) {
       this.startTurnTimer();

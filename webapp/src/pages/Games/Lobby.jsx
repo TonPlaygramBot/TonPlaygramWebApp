@@ -79,11 +79,13 @@ export default function Lobby() {
       function load() {
         getSnakeLobbies()
           .then((data) => {
-            if (active)
+            if (active) {
               setTables([
                 { id: 'single', label: 'Single Player vs AI' },
                 ...data
               ]);
+              console.log('[Lobby] Loaded tables', data);
+            }
           })
           .catch(() => {});
       }
@@ -124,11 +126,18 @@ export default function Lobby() {
       let interval;
       let cancelled = false;
       const tableRef = `${table.id}-${stake.amount}`;
+      console.log('[Lobby] seatTable interval setup', {
+        tableRef,
+        stake,
+        player: playerName
+      });
       ensureAccountId()
         .then((accountId) => {
           if (cancelled || !accountId) return;
+          console.log('[Lobby] seatTable()', { tableRef, accountId });
           seatTable(accountId, tableRef, playerName).catch(() => {});
           interval = setInterval(() => {
+            console.log('[Lobby] seatTable()', { tableRef, accountId });
             seatTable(accountId, tableRef, playerName).catch(() => {});
           }, 30000);
         })
@@ -170,16 +179,17 @@ export default function Lobby() {
             if (!active) return;
             const unique = [];
             const seen = new Set();
-            for (const p of data.players || []) {
-              const key = p.telegramId || p.id;
-              if (!seen.has(key)) {
-                seen.add(key);
-                unique.push(p);
+              for (const p of data.players || []) {
+                const key = p.telegramId || p.id;
+                if (!seen.has(key)) {
+                  seen.add(key);
+                  unique.push(p);
+                }
               }
-            }
-            setPlayers(unique);
-          })
-          .catch(() => {});
+              setPlayers(unique);
+              console.log('[Lobby] Loaded players', unique);
+            })
+            .catch(() => {});
       }
       loadPlayers();
       const id = setInterval(loadPlayers, 3000);
@@ -230,6 +240,7 @@ export default function Lobby() {
     }
     if (!stake.amount) return;
     const tableRef = `${table.id}-${stake.amount}`;
+    console.log('[Lobby] Confirm clicked', { tableRef, stake, nextConfirmed: !confirmed });
     ensureAccountId()
       .then((accountId) => {
         if (!accountId) return;

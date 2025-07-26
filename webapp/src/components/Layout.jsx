@@ -28,6 +28,14 @@ export default function Layout({ children }) {
   }, []);
 
   useEffect(() => {
+    const onConnect = () => {
+      console.log('Connected to lobby server');
+    };
+    socket.on('connect', onConnect);
+    return () => socket.off('connect', onConnect);
+  }, []);
+
+  useEffect(() => {
     let id;
     let cancelled = false;
     ensureAccountId()
