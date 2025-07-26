@@ -7,6 +7,7 @@ import {
   DEFAULT_SNAKES,
   DEFAULT_LADDERS,
 } from '../bot/gameEngine.js';
+import { SnakeGame } from '../bot/logic/snakeGame.js';
 
 class DummyIO {
   constructor() {
@@ -15,6 +16,17 @@ class DummyIO {
   to() {
     return { emit: (e, d) => this.emitted.push({ event: e, data: d }) };
   }
+}
+
+function dummySocket(id, emitFn = () => {}) {
+  return {
+    id,
+    join: () => {},
+    emit: emitFn,
+    to() {
+      return { emit: emitFn };
+    }
+  };
 }
 
 test('applySnakesAndLadders resolves moves', () => {
@@ -37,8 +49,8 @@ test('start requires 6 and rolling 6 does not grant extra turn', () => {
     ladders: DEFAULT_LADDERS,
   });
   room.rollCooldown = 0;
-  const s1 = { id: 's1', join: () => {}, emit: () => {} };
-  const s2 = { id: 's2', join: () => {}, emit: () => {} };
+  const s1 = dummySocket('s1');
+  const s2 = dummySocket('s2');
   room.addPlayer('p1', 'Player1', s1);
   room.addPlayer('p2', 'Player2', s2);
   room.startGame();
@@ -63,7 +75,7 @@ test('rolling multiple sixes does not skip turn', () => {
     ladders: DEFAULT_LADDERS,
   });
   room.rollCooldown = 0;
-  const socket = { id: 's1', join: () => {}, emit: () => {} };
+  const socket = dummySocket('s1');
   room.addPlayer('p1', 'Player', socket);
   room.startGame();
 
@@ -81,8 +93,8 @@ test('room starts when reaching custom capacity', async () => {
   });
   room.gameStartDelay = 0;
   room.rollCooldown = 0;
-  const s1 = { id: 's1', join: () => {}, emit: () => {} };
-  const s2 = { id: 's2', join: () => {}, emit: () => {} };
+  const s1 = dummySocket('s1');
+  const s2 = dummySocket('s2');
   room.addPlayer('p1', 'A', s1);
   assert.equal(room.status, 'waiting');
   room.addPlayer('p2', 'B', s2);
@@ -99,8 +111,8 @@ test('joining player receives full player list', () => {
     snakes: DEFAULT_SNAKES,
     ladders: DEFAULT_LADDERS,
   });
-  const s1 = { id: 's1', join: () => {}, emit: () => {} };
-  const s2 = { id: 's2', join: () => {}, emit: (e,d)=>events.push({event:e,data:d}) };
+  const s1 = dummySocket('s1');
+  const s2 = dummySocket('s2', (e,d)=>events.push({event:e,data:d}));
   room.addPlayer('p1', 'A', s1);
   room.addPlayer('p2', 'B', s2);
   const cur = events.find(e => e.event === 'currentPlayers');
@@ -115,7 +127,7 @@ test('player wins when landing on the final tile', () => {
     ladders: DEFAULT_LADDERS,
   });
   room.rollCooldown = 0;
-  const socket = { id: 's1', join: () => {}, emit: () => {} };
+  const socket = dummySocket('s1');
   room.addPlayer('p1', 'Winner', socket);
   room.startGame();
 
@@ -132,7 +144,7 @@ test('player wins when landing on the final tile', () => {
 test('rolling too quickly triggers anti-cheat', () => {
   const io = new DummyIO();
   const emitted = [];
-  const socket = { id: 's1', join: () => {}, emit: (e, d) => emitted.push({ event: e, data: d }) };
+  const socket = dummySocket('s1', (e, d) => emitted.push({ event: e, data: d }));
   const room = new GameRoom('r4', io, 4, {
     snakes: DEFAULT_SNAKES,
     ladders: DEFAULT_LADDERS,
@@ -153,7 +165,7 @@ test('rolling too quickly triggers anti-cheat', () => {
 test('repeated cheating results in removal', () => {
   const io = new DummyIO();
   const emitted = [];
-  const socket = { id: 'sKick', join: () => {}, emit: (e, d) => emitted.push({ event: e, data: d }) };
+  const socket = dummySocket('sKick', (e, d) => emitted.push({ event: e, data: d }));
   const room = new GameRoom('rKick', io, 1, { snakes: DEFAULT_SNAKES, ladders: DEFAULT_LADDERS });
   room.addPlayer('p1', 'Cheater', socket);
   room.startGame();
@@ -177,8 +189,8 @@ test('landing on another player sends them to start', () => {
     ladders: {},
   });
   room.rollCooldown = 0;
-  const s1 = { id: 's1', join: () => {}, emit: () => {} };
-  const s2 = { id: 's2', join: () => {}, emit: () => {} };
+  const s1 = dummySocket('s1');
+  const s2 = dummySocket('s2');
   room.addPlayer('p1', 'A', s1);
   room.addPlayer('p2', 'B', s2);
   room.startGame();
@@ -195,5 +207,17 @@ test('landing on another player sends them to start', () => {
   assert.equal(room.players[1].position, 0);
   const resetEvent = io.emitted.find(e => e.event === 'playerReset');
   assert.ok(resetEvent && resetEvent.data.playerId === 'p2');
+});
+
+test('rollDice uses player diceCount when generating values', () => {
+  const game = new SnakeGame();
+  game.addPlayer('p1', 'A');
+  const res1 = game.rollDice();
+  assert.equal(res1.dice.length, 2);
+  assert.ok(res1.dice.every(d => d >= 1 && d <= 6));
+  game.players[0].diceCount = 1;
+  const res2 = game.rollDice();
+  assert.equal(res2.dice.length, 1);
+  assert.ok(res2.dice[0] >= 1 && res2.dice[0] <= 6);
 });
 
