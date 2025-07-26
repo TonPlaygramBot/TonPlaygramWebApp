@@ -2453,8 +2453,8 @@ export default function SnakeAndLadder() {
         );
       })()}
       {waitingForPlayers && (
-        <div className="absolute inset-0 z-40 flex flex-col items-center justify-center bg-black/60 text-white space-y-2">
-          <p className="text-lg">
+        <div className="absolute inset-0 z-40 flex flex-col items-center justify-center bg-black/70 text-white">
+          <p className="text-lg mb-2">
             Waiting for {playersNeeded} more player{playersNeeded === 1 ? '' : 's'}...
           </p>
           <ul className="space-y-1 text-sm">
@@ -2467,12 +2467,6 @@ export default function SnakeAndLadder() {
               </li>
             ))}
           </ul>
-          <button
-            onClick={() => navigate('/games/snake/lobby')}
-            className="mt-1 px-3 py-1 bg-primary hover:bg-primary-hover rounded text-black"
-          >
-            Leave Table
-          </button>
         </div>
       )}
       {rollResult !== null && (

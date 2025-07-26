@@ -14,7 +14,8 @@ export default function DiceRoller({
   muted = false,
   emitRollEvent = false,
   divRef,
-  className = '',
+  accountId,
+  tableId,
 }) {
   const [values, setValues] = useState(Array(numDice).fill(1));
   const [rolling, setRolling] = useState(false);
@@ -88,7 +89,7 @@ export default function DiceRoller({
           startValuesRef.current = results;
           onRollEnd && onRollEnd(results);
           if (emitRollEvent) {
-            socket.emit('rollDice');
+            socket.emit('rollDice', { accountId, tableId });
           }
         }, tick);
       }
@@ -96,7 +97,7 @@ export default function DiceRoller({
   };
 
   return (
-    <div className={`flex flex-col items-center space-y-4 ${className}`}>
+    <div className="flex flex-col items-center space-y-4">
       <div
         className={`flex space-x-4 ${clickable ? 'cursor-pointer' : ''}`}
         onClick={clickable ? rollDice : undefined}
