@@ -11,7 +11,9 @@ class DummyIO {
 }
 
 test('concurrent getRoom returns identical boards', async () => {
-  const original = GameRoomModel.findOneAndUpdate;
+  const originalUpdate = GameRoomModel.findOneAndUpdate;
+  const originalFind = GameRoomModel.findOne;
+  const originalUpdateOne = GameRoomModel.updateOne;
   const store = new Map();
   GameRoomModel.findOneAndUpdate = async (query, update, opts) => {
     let doc = store.get(query.roomId);
@@ -24,13 +26,26 @@ test('concurrent getRoom returns identical boards', async () => {
       store.set(query.roomId, doc);
     }
     if (!doc) return null;
-    return {
-      ...doc,
-      players: doc.players,
-    };
+    return { ...doc, players: doc.players };
+  };
+  GameRoomModel.findOne = async (query) => {
+    const doc = store.get(query.roomId);
+    return doc ? { ...doc, players: doc.players } : null;
+  };
+  GameRoomModel.updateOne = async (query, update) => {
+    let doc = store.get(query.roomId);
+    if (!doc) {
+      doc = { ...update, players: [] };
+      store.set(query.roomId, doc);
+    } else {
+      Object.assign(doc, update);
+    }
   };
 
   const manager = new GameRoomManager(new DummyIO());
+
+  // Warm up to create the room in the mocked store
+  const initial = await manager.getRoom('snake-2', 2);
 
   const results = await Promise.all([
     manager.getRoom('snake-2', 2),
@@ -48,5 +63,7 @@ test('concurrent getRoom returns identical boards', async () => {
   assert.deepEqual(again.snakes, first.snakes);
   assert.deepEqual(again.ladders, first.ladders);
 
-  GameRoomModel.findOneAndUpdate = original;
+  GameRoomModel.findOneAndUpdate = originalUpdate;
+  GameRoomModel.findOne = originalFind;
+  GameRoomModel.updateOne = originalUpdateOne;
 });

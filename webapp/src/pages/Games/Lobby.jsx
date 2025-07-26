@@ -229,43 +229,12 @@ export default function Lobby() {
     };
   }, [table, stake, game, navigate, joinedTableId, players, confirmed]);
 
-  // Automatic game start previously triggered when all seats were filled.
-  // This prevented players from selecting their preferred stake before the
-  // match began. The logic has been removed so that each participant must
-  // manually confirm the game start using the button below.
-
-  // When all players at a multiplayer table have confirmed readiness the
-  // game should launch automatically. The server will emit a "lobbyUpdate"
-  // event with the list of ready players. Once every seat has confirmed we
-  // wait briefly to ensure the confirmation is recorded then navigate to the
-  // game screen. This avoids the game starting immediately when selecting a
-  // table while still supporting automatic start after everyone is ready.
-  useEffect(() => {
-    const capacity = table?.capacity || 0;
-    if (
-      game === 'snake' &&
-      table &&
-      table.id !== 'single' &&
-      confirmed &&
-      readyList.length === capacity &&
-      players.length === capacity &&
-      stake.token &&
-      stake.amount &&
-      !startedRef.current
-    ) {
-      const idToMatch = joinedTableId || table.id;
-      if (!idToMatch) return;
-      startedRef.current = true;
-      const params = new URLSearchParams();
-      params.set('table', idToMatch);
-      if (stake.token) params.set('token', stake.token);
-      if (stake.amount) params.set('amount', stake.amount);
-      const timeout = setTimeout(() => {
-        navigate(`/games/${game}?${params.toString()}`);
-      }, 500);
-      return () => clearTimeout(timeout);
-    }
-  }, [game, table, confirmed, readyList, players, stake, joinedTableId, navigate]);
+  // Game start is now triggered solely by the server's "gameStart" event after
+  // every player has confirmed readiness.  Previous logic automatically
+  // navigated to the game screen when all seats were filled which sometimes
+  // occurred before the user selected a stake.  By removing that effect the
+  // lobby remains visible until the user presses the confirm button and the
+  // server acknowledges the start.
 
   const startGame = async (flagOverride = flags, leaderOverride = leaders) => {
     const params = new URLSearchParams();
