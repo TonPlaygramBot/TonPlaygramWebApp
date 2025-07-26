@@ -25,6 +25,7 @@ import adsRoutes from './routes/ads.js';
 import influencerRoutes from './routes/influencer.js';
 import User from './models/User.js';
 import GameResult from './models/GameResult.js';
+import WalletPurchase from './models/WalletPurchase.js';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { existsSync } from 'fs';
@@ -444,7 +445,10 @@ app.get('/api/stats', async (req, res) => {
     const users = await User.find({}, { transactions: 1, gifts: 1 }).lean();
     let giftSends = 0;
     let bundlesSold = 0;
+    // TON raised through store bundle purchases
     let tonRaised = 0;
+    // TON raised through presale purchases
+    let presaleTon = 0;
     let currentNfts = 0;
     let nftValue = 0;
     let appClaimed = 0;
@@ -467,6 +471,17 @@ app.get('/api/stats', async (req, res) => {
         if (tx.type === 'withdraw') externalClaimed += Math.abs(tx.amount || 0);
       }
     }
+    const [{ tpcSold = 0, tonRaised: presaleRaised = 0 } = {}] =
+      await WalletPurchase.aggregate([
+        {
+          $group: {
+            _id: null,
+            tpcSold: { $sum: '$tpc' },
+            tonRaised: { $sum: '$ton' }
+          }
+        }
+      ]);
+    presaleTon = presaleRaised;
     const nftsBurned = giftSends - currentNfts;
     res.json({
       minted: totalBalance + totalMined,
@@ -475,7 +490,8 @@ app.get('/api/stats', async (req, res) => {
       nftsCreated: currentNfts,
       nftsBurned,
       bundlesSold,
-      tonRaised,
+      tonRaised: tonRaised + presaleTon,
+      tpcSold,
       appClaimed: totalBalance,
       externalClaimed,
       nftValue
