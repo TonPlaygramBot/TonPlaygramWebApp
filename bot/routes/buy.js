@@ -35,14 +35,20 @@ async function loadState() {
   if (!state) {
     state = await PresaleState.findById(STATE_ID);
     if (!state) {
-      state = new PresaleState({
-        _id: STATE_ID,
-        currentRound: 1,
-        tokensSold: 0,
-        tonRaised: 0,
-        currentPrice: INITIAL_PRICE,
-      });
-      await state.save();
+      // Fallback for databases using the old schema without a fixed ID
+      const legacy = await PresaleState.findOne();
+      if (legacy) {
+        state = legacy;
+      } else {
+        state = new PresaleState({
+          _id: STATE_ID,
+          currentRound: 1,
+          tokensSold: 0,
+          tonRaised: 0,
+          currentPrice: INITIAL_PRICE,
+        });
+        await state.save();
+      }
     }
   }
   return state;
