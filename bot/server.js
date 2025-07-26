@@ -159,6 +159,7 @@ const onlineUsers = new Map();
 const tableSeats = new Map();
 const userSockets = new Map();
 const watchSockets = new Map();
+const lobbySockets = new Map();
 const BUNDLE_TON_MAP = Object.fromEntries(
   Object.values(BUNDLES).map((b) => [b.label, b.ton])
 );
@@ -179,6 +180,74 @@ function cleanupSeats() {
     }
     if (players.size === 0) tableSeats.delete(tableId);
   }
+}
+
+async function seatLobby(tableId, accountId, name, confirmed) {
+  const pid = accountId;
+  if (!tableId || !pid) return [];
+  cleanupSeats();
+
+  let user;
+  try {
+    user = await User.findOne({ accountId: pid });
+  } catch {}
+
+  const tgid = user?.telegramId;
+  const key = String(pid);
+
+  if (user && user.currentTableId && user.currentTableId !== tableId) {
+    const old = tableSeats.get(user.currentTableId);
+    if (old) {
+      old.delete(String(pid));
+      if (old.size === 0) tableSeats.delete(user.currentTableId);
+    }
+  }
+
+  let map = tableSeats.get(tableId);
+  if (!map) {
+    map = new Map();
+    tableSeats.set(tableId, map);
+  }
+
+  const info = map.get(key) || {
+    id: pid,
+    telegramId: tgid,
+    name: name || String(pid)
+  };
+
+  info.name = name || info.name;
+  info.telegramId = tgid;
+  info.id = pid;
+  info.ts = Date.now();
+  if (typeof confirmed === 'boolean') info.confirmed = confirmed;
+  map.set(key, info);
+
+  if (user) {
+    user.currentTableId = tableId;
+    await user.save().catch(() => {});
+  }
+  return Array.from(map.values());
+}
+
+async function unseatLobby(tableId, accountId) {
+  const pid = accountId;
+  if (!tableId || !pid) return [];
+  let user;
+  try {
+    user = await User.findOne({ accountId: pid });
+  } catch {}
+
+  const key = String(pid);
+  const map = tableSeats.get(tableId);
+  if (map && pid) {
+    map.delete(key);
+    if (map.size === 0) tableSeats.delete(tableId);
+  }
+  if (user) {
+    user.currentTableId = null;
+    await user.save().catch(() => {});
+  }
+  return Array.from(map?.values() || []);
 }
 
 app.post('/api/online/ping', (req, res) => {
@@ -482,6 +551,26 @@ io.on('connection', (socket) => {
     onlineUsers.set(String(id), Date.now());
   });
 
+  socket.on('joinLobby', async ({ tableId, accountId, name }) => {
+    if (!tableId || !accountId) return;
+
+    const prev = lobbySockets.get(socket.id);
+    if (prev && (prev.tableId !== tableId || prev.accountId !== accountId)) {
+      const players = await unseatLobby(prev.tableId, prev.accountId);
+      socket.leave(`lobby:${prev.tableId}`);
+      io.to(`lobby:${prev.tableId}`).emit('lobbyUpdate', {
+        tableId: prev.tableId,
+        players
+      });
+    }
+
+    lobbySockets.set(socket.id, { tableId, accountId });
+    socket.join(`lobby:${tableId}`);
+
+    const players = await seatLobby(tableId, accountId, name);
+    io.to(`lobby:${tableId}`).emit('lobbyUpdate', { tableId, players });
+  });
+
   socket.on('joinRoom', async ({ roomId, accountId, name }) => {
     const map = tableSeats.get(roomId);
     const lobbyCount = map ? map.size : 0;
@@ -585,6 +674,16 @@ io.on('connection', (socket) => {
         if (set.size === 0) userSockets.delete(String(pid));
       }
       onlineUsers.delete(String(pid));
+    }
+    const lobby = lobbySockets.get(socket.id);
+    if (lobby) {
+      const players = await unseatLobby(lobby.tableId, lobby.accountId);
+      io.to(`lobby:${lobby.tableId}`).emit('lobbyUpdate', {
+        tableId: lobby.tableId,
+        players
+      });
+      lobbySockets.delete(socket.id);
+      socket.leave(`lobby:${lobby.tableId}`);
     }
     for (const [rid, set] of watchSockets) {
       if (set.delete(socket.id) && set.size === 0) {
