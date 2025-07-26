@@ -86,8 +86,10 @@ The server honors a few extra environment variables when building or serving the
    - `RPC_URL` – TON RPC endpoint (e.g. testnet)
    - `ADMIN_ADDRESS` – address that receives the minted supply
 
-6. Build the webapp assets. This step copies `public/tonconnect-manifest.json`
-   into the `dist` folder so wallets can connect:
+6. **(Optional)** Build the webapp assets. Running `npm start` will
+   automatically build the webapp if `webapp/dist` is missing. Building manually
+   copies `public/tonconnect-manifest.json` into the `dist` folder so wallets can
+   connect:
 
    ```bash
    npm --prefix webapp run build
