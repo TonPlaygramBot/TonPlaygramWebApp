@@ -189,6 +189,14 @@ variable is set, you may instead supply `Authorization: Bearer <token>` to
 bypass Telegram checks. This is useful for server‑side actions such as
 awarding the developer share after a game ends.
 
+### Account IDs and player profiles
+
+Each user has a unique **TPC account ID** which serves as the main identifier
+when locating players. Most endpoints accept either an `accountId` or a
+Telegram ID. When a profile is requested the server first tries to find the
+account by `accountId`. Missing details such as the name or avatar are
+automatically filled from Telegram when a `telegramId` is provided.
+
 ### Claiming TPC on-chain
 
 Withdrawals and `/claim-external` trigger a signed message to

@@ -71,15 +71,24 @@ router.post('/telegram-info', async (req, res) => {
 });
 
 router.post('/get', async (req, res) => {
-  const { telegramId } = req.body;
-  if (!telegramId) return res.status(400).json({ error: 'telegramId required' });
+  const { telegramId, accountId } = req.body;
+  if (!telegramId && !accountId) {
+    return res.status(400).json({ error: 'telegramId or accountId required' });
+  }
 
-  let user = await User.findOne({ telegramId });
+  let user = null;
+  if (accountId) user = await User.findOne({ accountId });
+  if (!user && telegramId) user = await User.findOne({ telegramId });
+
   let filledFromTelegram = false;
   if (!user || !user.firstName || !user.lastName || !user.photo) {
-    const info = await fetchTelegramInfo(telegramId);
+    let info = null;
+    const tgId = telegramId || user?.telegramId;
+    if (tgId) info = await fetchTelegramInfo(tgId);
 
-    const update = { $setOnInsert: { referralCode: telegramId.toString() } };
+    const update = {
+      $setOnInsert: { referralCode: String(tgId || accountId) }
+    };
     if (info) {
       update.$set = {
         firstName: info.firstName,
@@ -90,7 +99,7 @@ router.post('/get', async (req, res) => {
     }
 
     user = await User.findOneAndUpdate(
-      { telegramId },
+      accountId ? { accountId } : { telegramId: tgId },
       update,
       { upsert: true, new: true, setDefaultsOnInsert: true }
     );
