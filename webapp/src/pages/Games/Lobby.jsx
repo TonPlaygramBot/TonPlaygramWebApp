@@ -22,11 +22,20 @@ import {
   getPlayerId
 } from '../../utils/telegram.js';
 import { canStartGame } from '../../utils/lobby.js';
+import { socket } from '../../utils/socket.js';
 
 export default function Lobby() {
   const { game } = useParams();
   const navigate = useNavigate();
   useTelegramBackButton(() => navigate('/games', { replace: true }));
+
+  useEffect(() => {
+    const handler = (event, ...args) => {
+      console.log('[Lobby] Socket event', event, ...args);
+    };
+    socket.onAny(handler);
+    return () => socket.offAny(handler);
+  }, []);
 
   useEffect(() => {
     ensureAccountId().catch(() => {});
@@ -245,7 +254,10 @@ export default function Lobby() {
       .then((accountId) => {
         if (!accountId) return;
         seatTable(accountId, tableRef, playerName, !confirmed)
-          .then(() => setConfirmed((c) => !c))
+          .then((res) => {
+            console.log('[Lobby] seatTable response', res);
+            setConfirmed((c) => !c);
+          })
           .catch(() => {});
       })
       .catch(() => {});
