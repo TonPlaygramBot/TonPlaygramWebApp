@@ -22,7 +22,6 @@ import {
   getTelegramId,
   ensureAccountId
 } from '../../utils/telegram.js';
-import { canStartGame } from '../../utils/lobby.js';
 
 export default function Lobby() {
   const { game } = useParams();
@@ -227,11 +226,16 @@ export default function Lobby() {
       .catch(() => {});
   };
 
-  let disabled = !canStartGame(game, table, stake, aiCount, players.length);
+  // Only require stake and table selection before confirming. Multiplayer games
+  // start automatically once every player has confirmed their seat.
+  let disabled =
+    !stake.token ||
+    !stake.amount ||
+    (game === 'snake' && !table);
   if (game === 'snake' && table?.id === 'single') {
-    if (!aiType) disabled = true;
-    if (aiType === 'leaders' && leaders.length !== aiCount) disabled = true;
-    if (aiType === 'flags' && flags.length !== aiCount) disabled = true;
+    disabled ||= aiCount === 0 || !aiType;
+    if (aiType === 'leaders') disabled ||= leaders.length !== aiCount;
+    if (aiType === 'flags') disabled ||= flags.length !== aiCount;
   }
   const allConfirmed =
     players.length === (table?.capacity || 0) &&
