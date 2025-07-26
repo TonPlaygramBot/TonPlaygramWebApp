@@ -8,16 +8,11 @@ export default function TableSelector({ tables, selected, onSelect }) {
           {idx === 1 && tables[0]?.id === 'single' && (
             <div className="h-4" />
           )}
-          <div
+          <button
             onClick={() => onSelect(t)}
-            className={`lobby-tile cursor-pointer w-full flex justify-between ${
+            className={`lobby-tile w-full flex justify-between ${
               selected?.id === t.id ? 'lobby-selected' : ''
             }`}
-            role="button"
-            tabIndex={0}
-            onKeyPress={(e) => {
-              if (e.key === 'Enter' || e.key === ' ') onSelect(t);
-            }}
           >
             <span>{t.label || `Table ${t.capacity}p`}</span>
             {t.capacity && (
@@ -25,7 +20,7 @@ export default function TableSelector({ tables, selected, onSelect }) {
                 {t.players}/{t.capacity}
               </span>
             )}
-          </div>
+          </button>
         </React.Fragment>
       ))}
     </div>
