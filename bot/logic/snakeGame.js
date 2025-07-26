@@ -8,36 +8,13 @@ export function applySnakesAndLadders(pos, snakes, ladders) {
 }
 
 export class SnakeGame {
-  constructor({ snakes = {}, ladders = {}, diceCells = {}, turnDelay = 0 } = {}) {
+  constructor({ snakes = {}, ladders = {}, diceCells = {} } = {}) {
     this.snakes = snakes;
     this.ladders = ladders;
     this.diceCells = diceCells;
     this.players = [];
     this.currentTurn = 0;
     this.finished = false;
-    this.turnDelay = turnDelay;
-    this.turnTimer = null;
-  }
-
-  startTurnTimer() {
-    if (!this.turnDelay) return;
-    if (this.turnTimer) clearTimeout(this.turnTimer);
-    this.turnTimer = setTimeout(() => {
-      this.turnTimer = null;
-      if (!this.finished) this.rollDice();
-    }, this.turnDelay);
-  }
-
-  cancelTurnTimer() {
-    if (this.turnTimer) {
-      clearTimeout(this.turnTimer);
-      this.turnTimer = null;
-    }
-  }
-
-  resetTurnTimer() {
-    this.cancelTurnTimer();
-    this.startTurnTimer();
   }
 
   addPlayer(id, name) {
@@ -60,16 +37,12 @@ export class SnakeGame {
 
   rollDice(diceValues) {
     if (this.finished) return null;
-    console.log('[SnakeGame] currentTurn before rollDice', this.currentTurn);
     const player = this.players[this.currentTurn];
     if (!player) return null;
-    this.cancelTurnTimer();
 
     const dice = Array.isArray(diceValues)
       ? diceValues.map((v) => Math.max(1, Math.min(6, Math.floor(v))))
-      : Array.from({ length: player.diceCount }, () =>
-          Math.floor(Math.random() * 6) + 1
-        );
+      : [Math.floor(Math.random() * 6) + 1];
     const total = dice.reduce((a, b) => a + b, 0);
     const rolledSix = dice.includes(6);
     const doubleSix = dice.length === 2 && dice[0] === 6 && dice[1] === 6;
@@ -126,12 +99,6 @@ export class SnakeGame {
 
     if (!extraTurn && !this.finished) {
       this.currentTurn = this.nextPlayerIndex(this.currentTurn);
-    }
-
-    console.log('[SnakeGame] currentTurn after rollDice', this.currentTurn);
-
-    if (!this.finished) {
-      this.startTurnTimer();
     }
 
     return {
