@@ -2,8 +2,7 @@
 ## Installation
 
 1. Install **Node.js 18** or later.
-2. Run `npm run install-all` at the repository root to install dependencies for the bot, webapp and test suite.
-   You can also execute `./scripts/setup-tests.sh` when preparing a clean test environment.
+2. Run `npm run install-all` at the repository root to install dependencies for the bot, webapp and test suite. After the packages finish installing, run `./scripts/setup-tests.sh` once to install OS libraries required by native modules such as `canvas`. Without them `npm test` will fail.
 3. Copy `bot/.env.example` to `bot/.env` and update the values. At minimum set:
    - `BOT_TOKEN` – your Telegram bot token
    - `MONGODB_URI` – MongoDB connection string or `memory`
@@ -112,7 +111,8 @@ sudo apt-get install -y \
   pkg-config
 ```
 
-The setup script installs these packages automatically and then runs
+Without these libraries the `canvas` module cannot compile and `npm test` will
+fail. The setup script installs them automatically and then runs
 `npm run install-all` to install all Node.js dependencies. Run it once before
 executing the tests or when installing the project on a new system.
 
