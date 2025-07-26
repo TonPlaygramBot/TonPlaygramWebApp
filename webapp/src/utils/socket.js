@@ -6,9 +6,4 @@ if (typeof window !== 'undefined' && window.location.protocol === 'https:' && ba
   baseUrl = baseUrl.replace(/^http:/, 'https:');
 }
 
-if (import.meta.env.DEV) {
-  console.log('Socket is trying to connect to:', baseUrl);
-}
-export const socket = io(baseUrl, {
-  transports: ['websocket', 'polling']
-});
+export const socket = io(baseUrl);
