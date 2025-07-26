@@ -337,7 +337,6 @@ function emitTableReady(tableId) {
   }
 
 }
-}
 
 app.post('/api/online/ping', (req, res) => {
   const { accountId } = req.body || {};
