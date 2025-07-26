@@ -50,6 +50,7 @@ export default function Lobby() {
   const [playerAvatar, setPlayerAvatar] = useState('');
   const [readyList, setReadyList] = useState([]);
   const [confirmed, setConfirmed] = useState(false);
+  const [confirmingId, setConfirmingId] = useState(null);
   const [waitingForConfirm, setWaitingForConfirm] = useState(false);
   const [joinedTableId, setJoinedTableId] = useState(null);
   const startedRef = useRef(false);
@@ -72,6 +73,7 @@ export default function Lobby() {
   useEffect(() => {
     startedRef.current = false;
     setConfirmed(false);
+    setConfirmingId(null);
     setReadyList([]);
     setJoinedTableId(null);
     setWaitingForConfirm(Boolean(table));
@@ -116,8 +118,8 @@ export default function Lobby() {
   };
 
   const confirmReadyFn = ({ accountId, tableId }) => {
+    setConfirmingId(String(accountId));
     socket.emit('confirmReady', { accountId, tableId });
-    setConfirmed(true);
   };
 
   useEffect(() => {
@@ -229,6 +231,13 @@ export default function Lobby() {
       socket.off('gameStart', onStart);
     };
   }, [table, stake, game, navigate, joinedTableId, players, confirmed]);
+
+  useEffect(() => {
+    if (confirmingId && readyList.includes(confirmingId)) {
+      setConfirmed(true);
+      setConfirmingId(null);
+    }
+  }, [confirmingId, readyList]);
 
   // Automatic game start previously triggered when all seats were filled.
   // This prevented players from selecting their preferred stake before the
