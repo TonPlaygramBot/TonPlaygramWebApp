@@ -1,7 +1,8 @@
-import dotenv from 'dotenv';
+import './loadEnv.js';
 import express from 'express';
 import cors from 'cors';
 import bot from './bot.js';
+import { getInviteUrl } from './utils/notifications.js';
 import mongoose from 'mongoose';
 import { proxyUrl, proxyAgent } from './utils/proxyAgent.js';
 import http from 'http';
@@ -14,32 +15,25 @@ import referralRoutes from './routes/referral.js';
 import walletRoutes from './routes/wallet.js';
 import accountRoutes from './routes/account.js';
 import profileRoutes from './routes/profile.js';
+import twitterAuthRoutes from './routes/twitterAuth.js';
 import airdropRoutes from './routes/airdrop.js';
 import checkinRoutes from './routes/checkin.js';
 import socialRoutes from './routes/social.js';
 import broadcastRoutes from './routes/broadcast.js';
-import buyRoutes from './routes/buy.js';
-import { BUNDLES } from './routes/store.js';
+import storeRoutes, { BUNDLES } from './routes/store.js';
+import adsRoutes from './routes/ads.js';
+import influencerRoutes from './routes/influencer.js';
 import User from './models/User.js';
-import GameResult from "./models/GameResult.js";
-import WalletPurchase from './models/WalletPurchase.js';
+import GameResult from './models/GameResult.js';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { existsSync, readFileSync } from 'fs';
+import { existsSync } from 'fs';
 import { execSync } from 'child_process';
+import { randomUUID } from 'crypto';
 import compression from 'compression';
+import rateLimit from 'express-rate-limit';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const dataDir = path.join(__dirname, 'data');
-
-function readJson(file, def) {
-  try {
-    return JSON.parse(readFileSync(file, 'utf8'));
-  } catch {
-    return def;
-  }
-}
-dotenv.config({ path: path.join(__dirname, '.env') });
 
 if (proxyUrl) {
   console.log(`Using HTTPS proxy ${proxyUrl}`);
@@ -51,38 +45,66 @@ if (!process.env.MONGODB_URI) {
 }
 
 const PORT = process.env.PORT || 3000;
+const allowedOrigins = (process.env.ALLOWED_ORIGINS || '')
+
+  .split(',')
+
+  .map((o) => o.trim())
+
+  .filter(Boolean);
+
+const rateLimitWindowMs =
+  Number(process.env.RATE_LIMIT_WINDOW_MS) || 15 * 60 * 1000;
+
+const rateLimitMax = Number(process.env.RATE_LIMIT_MAX) || 100;
 const app = express();
-
-let allowedOrigins = '*';
-if (process.env.ALLOWED_ORIGINS) {
-  allowedOrigins = process.env.ALLOWED_ORIGINS
-    .split(',')
-    .map((o) => o.trim())
-    .filter(Boolean);
-  if (allowedOrigins.length === 0) allowedOrigins = '*';
-}
-
-app.use(cors({ origin: allowedOrigins }));
+app.use(cors({ origin: allowedOrigins.length ? allowedOrigins : '*' }));
 const httpServer = http.createServer(app);
-const io = new SocketIOServer(httpServer, { cors: { origin: allowedOrigins } });
+const io = new SocketIOServer(httpServer, {
+  cors: { origin: allowedOrigins.length ? allowedOrigins : '*' }
+});
 const gameManager = new GameRoomManager(io);
+
+// Expose socket.io instance and userSockets map for routes
+app.set('io', io);
+
+bot.action(/^reject_invite:(.+)/, async (ctx) => {
+  const [roomId] = ctx.match[1].split(':');
+  await ctx.answerCbQuery('Invite rejected');
+  try {
+    await ctx.deleteMessage();
+  } catch {}
+  pendingInvites.delete(roomId);
+});
 
 // Middleware and routes
 app.use(compression());
 // Increase JSON body limit to handle large photo uploads
 app.use(express.json({ limit: '10mb' }));
+const apiLimiter = rateLimit({
+  windowMs: rateLimitWindowMs,
+  limit: rateLimitMax,
+  standardHeaders: true,
+  legacyHeaders: false
+});
+app.use('/api', apiLimiter);
 app.use('/api/mining', miningRoutes);
 app.use('/api/tasks', tasksRoutes);
 app.use('/api/watch', watchRoutes);
+app.use('/api/ads', adsRoutes);
+app.use('/api/influencer', influencerRoutes);
 app.use('/api/referral', referralRoutes);
 app.use('/api/wallet', walletRoutes);
 app.use('/api/account', accountRoutes);
 app.use('/api/profile', profileRoutes);
+if (process.env.ENABLE_TWITTER_OAUTH === 'true') {
+  app.use('/api/twitter', twitterAuthRoutes);
+}
 app.use('/api/airdrop', airdropRoutes);
 app.use('/api/checkin', checkinRoutes);
 app.use('/api/social', socialRoutes);
 app.use('/api/broadcast', broadcastRoutes);
-app.use('/api/buy', buyRoutes);
+app.use('/api/store', storeRoutes);
 
 // Serve the built React app
 const webappPath = path.join(__dirname, '../webapp/dist');
@@ -127,26 +149,40 @@ function ensureWebappBuilt() {
 
 ensureWebappBuilt();
 
-
-app.use(
-  express.static(webappPath, {
-    maxAge: '1y',
-    immutable: true,
-    index: false
-  })
-);
+app.use(express.static(webappPath, { maxAge: '1y', immutable: true }));
 
 function sendIndex(res) {
   if (ensureWebappBuilt()) {
-    res.sendFile(path.join(webappPath, 'index.html'), {
-      headers: {
-        'Cache-Control': 'no-store'
-      }
-    });
+    res.sendFile(path.join(webappPath, 'index.html'));
   } else {
     res.status(503).send('Webapp build not available');
   }
+  launchBotWithDelay();
 }
+
+let botLaunchTriggered = false;
+function launchBotWithDelay() {
+  if (botLaunchTriggered) return;
+  botLaunchTriggered = true;
+  if (!process.env.BOT_TOKEN || process.env.BOT_TOKEN === 'dummy') {
+    console.log('BOT_TOKEN not configured. Attempting to launch bot anyway');
+  }
+  setTimeout(async () => {
+    try {
+      // Ensure no lingering webhook is configured when using polling
+      try {
+        await bot.telegram.deleteWebhook({ drop_pending_updates: true });
+      } catch (err) {
+        console.error('Failed to delete existing webhook:', err.message);
+      }
+      await bot.launch({ dropPendingUpdates: true });
+    } catch (err) {
+      console.error('Failed to launch Telegram bot:', err.message);
+    }
+  }, 5000);
+}
+
+launchBotWithDelay();
 
 app.get('/', (req, res) => {
   sendIndex(res);
@@ -157,191 +193,200 @@ app.get('/api/ping', (req, res) => {
 
 const onlineUsers = new Map();
 const tableSeats = new Map();
+const tables = new Map();
 const userSockets = new Map();
-const watchSockets = new Map();
-const lobbySockets = new Map();
+const pendingInvites = new Map();
+
+app.set('userSockets', userSockets);
+
+const tableWatchers = new Map();
+// Dynamic lobby tables grouped by game type and capacity
+const lobbyTables = {};
+const tableMap = new Map();
 const BUNDLE_TON_MAP = Object.fromEntries(
   Object.values(BUNDLES).map((b) => [b.label, b.ton])
 );
-setInterval(cleanupSeats, 60_000);
+
+function getAvailableTable(gameType, stake = 0, maxPlayers = 4) {
+  const key = `${gameType}-${maxPlayers}`;
+  if (!lobbyTables[key]) lobbyTables[key] = [];
+  const open = lobbyTables[key].find(
+    (t) => t.stake === stake && t.players.length < t.maxPlayers
+  );
+  if (open) return open;
+  const table = {
+    id: randomUUID(),
+    gameType,
+    stake,
+    maxPlayers,
+    players: [],
+    currentTurn: null,
+    ready: new Set()
+  };
+  lobbyTables[key].push(table);
+  tableMap.set(table.id, table);
+  console.log(
+    `Created new table: ${table.id} (${gameType}, cap ${maxPlayers}, stake: ${stake})`
+  );
+  return table;
+}
 
 function cleanupSeats() {
   const now = Date.now();
   for (const [tableId, players] of tableSeats) {
     for (const [pid, info] of players) {
-      if (now - info.ts > 60_000) {
-        players.delete(pid);
-        if (info.id) {
-          User.updateOne({ accountId: info.id }, { currentTableId: null }).catch(
-            () => {}
-          );
-        }
-      }
+      if (now - info.ts > 60_000) players.delete(pid);
     }
     if (players.size === 0) tableSeats.delete(tableId);
   }
 }
 
-async function seatLobby(tableId, accountId, name, confirmed) {
-
-  const pid = accountId;
-
-  if (!tableId || !pid) return [];
-
+async function seatTableSocket(
+  accountId,
+  gameType,
+  stake,
+  maxPlayers,
+  playerName,
+  socket,
+  playerAvatar
+) {
+  if (!accountId) return null;
+  console.log(
+    `Seating player ${playerName || accountId} at ${gameType}-${maxPlayers} (stake ${stake})`
+  );
+  const table = getAvailableTable(gameType, stake, maxPlayers);
+  const tableId = table.id;
   cleanupSeats();
-
-  let user;
-
-  try {
-
-    user = await User.findOne({ accountId: pid });
-
-  } catch {}
-
-  const tgid = user?.telegramId;
-
-  const key = String(pid);
-
-  if (user && user.currentTableId && user.currentTableId !== tableId) {
-
-    const old = tableSeats.get(user.currentTableId);
-
-    if (old) {
-
-      old.delete(String(pid));
-
-      if (old.size === 0) tableSeats.delete(user.currentTableId);
-
+  // Ensure this user is not seated at any other table
+  for (const id of Array.from(tableSeats.keys())) {
+    if (id !== tableId && tableSeats.get(id)?.has(String(accountId))) {
+      unseatTableSocket(accountId, id);
     }
-
   }
-
   let map = tableSeats.get(tableId);
-
   if (!map) {
-
     map = new Map();
-
     tableSeats.set(tableId, map);
-
   }
-
-  const info = map.get(key) || {
-
-    id: pid,
-
-    telegramId: tgid,
-
-    name: name || String(pid)
-
-  };
-
-  info.name = name || info.name;
-
-  info.telegramId = tgid;
-
-  info.id = pid;
-
-  info.ts = Date.now();
-
-  if (typeof confirmed === 'boolean') info.confirmed = confirmed;
-
-  map.set(key, info);
-
-  if (user) {
-
-    user.currentTableId = tableId;
-
-    await user.save().catch(() => {});
-
-  }
-
-  // Check if table is ready
-
-  emitTableReady(tableId);
-
-  return Array.from(map.values());
-
-}
-
-async function unseatLobby(tableId, accountId) {
-
-  const pid = accountId;
-
-  if (!tableId || !pid) return [];
-
-  let user;
-
-  try {
-
-    user = await User.findOne({ accountId: pid });
-
-  } catch {}
-
-  const key = String(pid);
-
-  const map = tableSeats.get(tableId);
-
-  if (map && pid) {
-
-    map.delete(key);
-
-    if (map.size === 0) tableSeats.delete(tableId);
-
-  }
-
-  if (user) {
-
-    user.currentTableId = null;
-
-    await user.save().catch(() => {});
-
-  }
-
-  return Array.from(map?.values() || []);
-
-}
-
-function emitTableReady(tableId) {
-
-  const map = tableSeats.get(tableId);
-
-  if (!map) return;
-
-  const parts = String(tableId).split('-');
-
-  const capacity = Number(parts[1]) || 4;
-
-  const confirmedCount = Array.from(map.values()).filter((p) => p.confirmed).length;
-
-  if (confirmedCount === capacity) {
-
-    for (const info of map.values()) {
-
-      const set = userSockets.get(String(info.id));
-
-      if (set) {
-
-        for (const sid of set) {
-
-          io.to(sid).emit('tableReady', { tableId });
-
-          io.to(sid).emit('gameStart', { tableId });
-
-        }
-
-      }
-
+  if (!map.has(String(accountId))) {
+    map.set(String(accountId), {
+      id: accountId,
+      name: playerName || String(accountId),
+      avatar: playerAvatar || '',
+      ts: Date.now(),
+      socketId: socket?.id
+    });
+    table.players.push({
+      id: accountId,
+      name: playerName || String(accountId),
+      avatar: playerAvatar || '',
+      position: 0,
+      socketId: socket?.id
+    });
+    if (table.players.length === 1) {
+      table.currentTurn = accountId;
     }
-
+  } else {
+    const info = map.get(String(accountId));
+    info.name = playerName || info.name;
+    info.avatar = playerAvatar || info.avatar;
+    info.ts = Date.now();
+    info.socketId = socket?.id;
+    const p = table.players.find((pl) => pl.id === accountId);
+    if (p) {
+      p.socketId = socket?.id;
+      p.avatar = playerAvatar || p.avatar;
+    }
   }
+  console.log(`Player ${playerName || accountId} joined table ${tableId}`);
+  socket?.join(tableId);
+  table.ready.delete(String(accountId));
+  io.to(tableId).emit('lobbyUpdate', {
+    tableId,
+    players: table.players,
+    currentTurn: table.currentTurn,
+    ready: Array.from(table.ready)
+  });
+  return table;
+}
 
+function maybeStartGame(table) {
+  if (
+    table.players.length === table.maxPlayers &&
+    table.ready &&
+    table.ready.size === table.maxPlayers
+  ) {
+    console.log(`Table ${table.id} confirmed by all players. Starting game.`);
+    io.to(table.id).emit('gameStart', {
+      tableId: table.id,
+      players: table.players,
+      currentTurn: table.currentTurn,
+      stake: table.stake
+    });
+    tableSeats.delete(table.id);
+    const key = `${table.gameType}-${table.maxPlayers}`;
+    lobbyTables[key] = (lobbyTables[key] || []).filter(
+      (t) => t.id !== table.id
+    );
+  }
+}
+
+function unseatTableSocket(accountId, tableId, socketId) {
+  if (!tableId) return;
+  const map = tableSeats.get(tableId);
+  if (map) {
+    if (accountId) map.delete(String(accountId));
+    else if (socketId) {
+      for (const [pid, info] of map) {
+        if (info.socketId === socketId) map.delete(pid);
+      }
+    }
+    if (map.size === 0) tableSeats.delete(tableId);
+  }
+  const table = tableMap.get(tableId);
+  if (table) {
+    if (accountId)
+      table.players = table.players.filter((p) => p.id !== accountId);
+    else if (socketId)
+      table.players = table.players.filter((p) => p.socketId !== socketId);
+    if (table.ready) {
+      if (accountId) table.ready.delete(String(accountId));
+      if (socketId) {
+        for (const [pid, info] of map || []) {
+          if (info.socketId === socketId) table.ready.delete(pid);
+        }
+      }
+    }
+    if (table.players.length === 0) {
+      tableMap.delete(tableId);
+      const key = `${table.gameType}-${table.maxPlayers}`;
+      lobbyTables[key] = (lobbyTables[key] || []).filter(
+        (t) => t.id !== tableId
+      );
+      table.currentTurn = null;
+    } else if (table.currentTurn === accountId) {
+      const nextIndex = 0;
+      table.currentTurn = table.players[nextIndex].id;
+    }
+    io.to(tableId).emit('lobbyUpdate', {
+      tableId,
+      players: table.players,
+      currentTurn: table.currentTurn,
+      ready: Array.from(table.ready || [])
+    });
+    if (accountId && table.currentTurn && table.currentTurn !== accountId) {
+      io.to(tableId).emit('turnUpdate', { currentTurn: table.currentTurn });
+    }
+  }
+  if (accountId) {
+    User.updateOne({ accountId }, { currentTableId: null }).catch(() => {});
+  }
 }
 
 app.post('/api/online/ping', (req, res) => {
-  const { accountId } = req.body || {};
-  if (accountId) {
-    onlineUsers.set(String(accountId), Date.now());
+  const { playerId } = req.body || {};
+  if (playerId) {
+    onlineUsers.set(String(playerId), Date.now());
   }
   const now = Date.now();
   for (const [id, ts] of onlineUsers) {
@@ -400,7 +445,6 @@ app.get('/api/stats', async (req, res) => {
     let giftSends = 0;
     let bundlesSold = 0;
     let tonRaised = 0;
-    let tpcSold = 0;
     let currentNfts = 0;
     let nftValue = 0;
     let appClaimed = 0;
@@ -418,18 +462,10 @@ app.get('/api/stats', async (req, res) => {
           if (tx.detail && BUNDLE_TON_MAP[tx.detail]) {
             tonRaised += BUNDLE_TON_MAP[tx.detail];
           }
-          if (tx.amount) {
-            tpcSold += Math.abs(tx.amount);
-          }
         }
         if (tx.type === 'claim') appClaimed += Math.abs(tx.amount || 0);
         if (tx.type === 'withdraw') externalClaimed += Math.abs(tx.amount || 0);
       }
-    }
-    const walletPurchases = await WalletPurchase.find().lean();
-    for (const info of walletPurchases) {
-      if (info && typeof info.tpc === 'number') tpcSold += info.tpc;
-      if (info && typeof info.ton === 'number') tonRaised += info.ton;
     }
     const nftsBurned = giftSends - currentNfts;
     res.json({
@@ -440,7 +476,6 @@ app.get('/api/stats', async (req, res) => {
       nftsBurned,
       bundlesSold,
       tonRaised,
-      tpcSold,
       appClaimed: totalBalance,
       externalClaimed,
       nftValue
@@ -451,147 +486,131 @@ app.get('/api/stats', async (req, res) => {
   }
 });
 
-app.post('/api/snake/table/seat', async (req, res) => {
-  const { tableId, accountId, name, confirmed } = req.body || {};
-  const pid = accountId;
+app.post('/api/snake/table/seat', (req, res) => {
+  const { tableId, playerId, name, avatar } = req.body || {};
+  const pid = playerId;
   if (!tableId || !pid) return res.status(400).json({ error: 'missing data' });
-  cleanupSeats();
-
-  let user;
-  try {
-    user = await User.findOne({ accountId: pid });
-  } catch {}
-
-  const tgid = user?.telegramId;
-  const key = String(pid);
-
-  if (user && user.currentTableId && user.currentTableId !== tableId) {
-    const old = tableSeats.get(user.currentTableId);
-    if (old) {
-      old.delete(String(pid));
-      if (old.size === 0) tableSeats.delete(user.currentTableId);
-    }
-  }
-
-  let map = tableSeats.get(tableId);
-  if (!map) {
-    map = new Map();
-    tableSeats.set(tableId, map);
-  }
-
-  const info = map.get(key) || {
-    id: pid,
-    telegramId: tgid,
-    name: name || String(pid)
-  };
-
-  info.name = name || info.name;
-  info.telegramId = tgid;
-  info.id = pid;
-  info.ts = Date.now();
-  if (typeof confirmed === 'boolean') info.confirmed = confirmed;
-  map.set(key, info);
-  console.log('[Server] Player seated:', { tableId, id: pid, confirmed: info.confirmed });
-
-  if (user) {
-    user.currentTableId = tableId;
-    await user.save().catch(() => {});
-  }
-
+  const [gameType, capStr] = tableId.split('-');
+  seatTableSocket(pid, gameType, 0, Number(capStr) || 4, name, null, avatar);
   res.json({ success: true });
-  emitTableReady(tableId);
 });
 
-app.post('/api/snake/table/unseat', async (req, res) => {
-  const { tableId, accountId } = req.body || {};
-  const pid = accountId;
-  let user;
-  try {
-    user = await User.findOne({ accountId: pid });
-  } catch {}
-
-  const key = String(pid);
-  const map = tableSeats.get(tableId);
-  if (map && pid) {
-    map.delete(key);
-    if (map.size === 0) tableSeats.delete(tableId);
-  }
-  if (user) {
-    user.currentTableId = null;
-    await user.save().catch(() => {});
-  }
+app.post('/api/snake/table/unseat', (req, res) => {
+  const { tableId, playerId } = req.body || {};
+  const pid = playerId;
+  unseatTableSocket(pid, tableId);
   res.json({ success: true });
-  emitTableReady(tableId);
 });
 app.get('/api/snake/lobbies', async (req, res) => {
   cleanupSeats();
   const capacities = [2, 3, 4];
-  const lobbies = capacities.map((cap) => {
-    let players = 0;
-    for (const [tid, map] of tableSeats) {
-      const parts = String(tid).split('-');
-      if (Number(parts[1]) === cap) players += map.size;
-    }
-    for (const room of gameManager.rooms.values()) {
-      const parts = String(room.id).split('-');
-      if (Number(parts[1]) === cap)
-        players += room.players.filter((p) => !p.disconnected).length;
-    }
-    return { id: `snake-${cap}`, capacity: cap, players };
-  });
+  const lobbies = await Promise.all(
+    capacities.map(async (cap) => {
+      const id = `snake-${cap}`;
+      const room = await gameManager.getRoom(id, cap);
+      const roomCount = room.players.filter((p) => !p.disconnected).length;
+      const lobbyCount = tableSeats.get(id)?.size || 0;
+      const players = roomCount + lobbyCount;
+      return { id, capacity: cap, players };
+    })
+  );
   res.json(lobbies);
 });
 
 app.get('/api/snake/lobby/:id', async (req, res) => {
   const { id } = req.params;
-  const parts = id.split('-');
-  const cap = Number(parts[1]) || 4;
-  console.log('[Server] lobby', id, 'tableSeats', tableSeats.get(id)?.size, 'rooms', gameManager.rooms.size);
-  const room = await gameManager.getExistingRoom(id);
-  const roomPlayers = room
-    ? room.players
-        .filter((p) => !p.disconnected)
-        .map((p) => ({ id: p.playerId, telegramId: p.telegramId, name: p.name }))
-    : [];
-  const lobbyPlayers = Array.from(tableSeats.get(id)?.values() || []).map((p) => ({ id: p.id, telegramId: p.telegramId, name: p.name, confirmed: !!p.confirmed }));
-  const combined = [...lobbyPlayers, ...roomPlayers];
-  const unique = [];
-  const seen = new Set();
-  for (const pl of combined) {
-    const key = pl.telegramId || pl.id;
-    if (!seen.has(key)) {
-      seen.add(key);
-      unique.push(pl);
-    }
-  }
-  res.json({ id, capacity: cap, players: unique });
+  const match = /-(\d+)$/.exec(id);
+  const cap = match ? Number(match[1]) : 4;
+  const room = await gameManager.getRoom(id, cap);
+  const roomPlayers = room.players
+    .filter((p) => !p.disconnected)
+    .map((p) => ({ id: p.playerId, name: p.name, avatar: p.avatar }));
+  const lobbyPlayers = Array.from(tableSeats.get(id)?.values() || []).map(
+    (p) => ({ id: p.id, name: p.name, avatar: p.avatar })
+  );
+  res.json({ id, capacity: cap, players: [...lobbyPlayers, ...roomPlayers] });
 });
 
 app.get('/api/snake/board/:id', async (req, res) => {
   const { id } = req.params;
-  const room = await gameManager.getExistingRoom(id);
-  if (!room) {
-    res.status(404).json({ error: 'room not found' });
-    return;
-  }
+  const match = /-(\d+)$/.exec(id);
+  const cap = match ? Number(match[1]) : 4;
+  const room = await gameManager.getRoom(id, cap);
   res.json({ snakes: room.snakes, ladders: room.ladders });
+});
+app.get('/api/watchers/count/:id', (req, res) => {
+  const set = tableWatchers.get(req.params.id);
+  res.json({ count: set ? set.size : 0 });
+});
+
+app.get('/api/ludo/lobbies', async (req, res) => {
+  const capacities = [2, 3, 4];
+  const lobbies = await Promise.all(
+    capacities.map(async (cap) => {
+      const id = `ludo-${cap}`;
+      const room = await gameManager.getRoom(id, cap);
+      const players = room.players.filter((p) => !p.disconnected).length;
+      return { id, capacity: cap, players };
+    })
+  );
+  res.json(lobbies);
+});
+
+app.get('/api/ludo/lobby/:id', async (req, res) => {
+  const { id } = req.params;
+  const match = /-(\d+)$/.exec(id);
+  const cap = match ? Number(match[1]) : 4;
+  const room = await gameManager.getRoom(id, cap);
+  const players = room.players
+    .filter((p) => !p.disconnected)
+    .map((p) => ({ id: p.playerId, name: p.name }));
+  res.json({ id, capacity: cap, players });
+});
+
+app.post('/api/snake/invite', async (req, res) => {
+  let { fromAccount, fromName, toAccount, roomId, token, amount, type } =
+    req.body || {};
+  if (!fromAccount || !toAccount || !roomId) {
+    return res.status(400).json({ error: 'missing data' });
+  }
+
+  const targets = userSockets.get(String(toAccount));
+  if (targets && targets.size > 0) {
+    for (const sid of targets) {
+      io.to(sid).emit('gameInvite', {
+        fromId: fromAccount,
+        fromName,
+        roomId,
+        token,
+        amount,
+        game: 'snake'
+      });
+    }
+  }
+
+  pendingInvites.set(roomId, {
+    fromId: fromAccount,
+    toIds: [toAccount],
+    token,
+    amount,
+    game: 'snake'
+  });
+
+  const url = getInviteUrl(roomId, token, amount, 'snake');
+  res.json({ success: true, url });
 });
 
 app.get('/api/snake/results', async (req, res) => {
-  const { leaderboard, tableId } = req.query;
-  if (leaderboard) {
-    const match = tableId ? { tableId } : {};
-    const leaderboardData = await GameResult.aggregate([
-      { $match: match },
+  if (req.query.leaderboard) {
+    const leaderboard = await GameResult.aggregate([
       { $group: { _id: '$winner', wins: { $sum: 1 } } },
       { $sort: { wins: -1 } },
-      { $limit: 20 },
+      { $limit: 20 }
     ]);
-    return res.json({ leaderboard: leaderboardData });
+    return res.json({ leaderboard });
   }
   const limit = Number(req.query.limit) || 20;
-  const query = tableId ? { tableId } : {};
-  const results = await GameResult.find(query)
+  const results = await GameResult.find()
     .sort({ createdAt: -1 })
     .limit(limit)
     .lean();
@@ -625,157 +644,257 @@ if (mongoUri === 'memory') {
   console.log('No MongoDB URI configured, continuing without database');
 }
 
-mongoose.connection.once('open', () => {
-  gameManager.loadRooms().catch((err) =>
-    console.error('Failed to load game rooms:', err)
-  );
+mongoose.connection.once('open', async () => {
+  try {
+    await User.syncIndexes();
+  } catch (err) {
+    console.error('Failed to sync User indexes:', err);
+  }
+  gameManager
+    .loadRooms()
+    .catch((err) => console.error('Failed to load game rooms:', err));
 });
 
 io.on('connection', (socket) => {
-  socket.on('register', ({ accountId }) => {
-    const id = accountId;
-    if (!id) return;
-    let set = userSockets.get(String(id));
+  socket.on('register', ({ playerId }) => {
+    if (!playerId) return;
+    let set = userSockets.get(String(playerId));
     if (!set) {
       set = new Set();
-      userSockets.set(String(id), set);
+      userSockets.set(String(playerId), set);
     }
     set.add(socket.id);
-    socket.data.playerId = String(id);
+    socket.data.playerId = String(playerId);
     // Mark this user as online immediately
-    onlineUsers.set(String(id), Date.now());
+    onlineUsers.set(String(playerId), Date.now());
   });
 
-  socket.on('joinLobby', async ({ tableId, accountId, name }) => {
-    if (!tableId || !accountId) return;
-
-    const prev = lobbySockets.get(socket.id);
-    if (prev && (prev.tableId !== tableId || prev.accountId !== accountId)) {
-      const players = await unseatLobby(prev.tableId, prev.accountId);
-      socket.leave(`lobby:${prev.tableId}`);
-      io.to(`lobby:${prev.tableId}`).emit('lobbyUpdate', {
-        tableId: prev.tableId,
-        players
-      });
+  socket.on(
+    'seatTable',
+    async (
+      {
+        accountId,
+        gameType,
+        stake,
+        maxPlayers = 4,
+        playerName,
+        tableId,
+        avatar
+      },
+      cb
+    ) => {
+      let table;
+      if (tableId) {
+        const [gt, capStr] = tableId.split('-');
+        table = await seatTableSocket(
+          accountId,
+          gt,
+          stake,
+          Number(capStr) || 4,
+          playerName,
+          socket,
+          avatar
+        );
+      } else {
+        table = await seatTableSocket(
+          accountId,
+          gameType,
+          stake,
+          maxPlayers,
+          playerName,
+          socket,
+          avatar
+        );
+      }
+      if (table && cb) {
+        cb({
+          success: true,
+          tableId: table.id,
+          players: table.players,
+          currentTurn: table.currentTurn,
+          ready: Array.from(table.ready)
+        });
+      } else if (cb) {
+        cb({ success: false, error: 'table_join_failed' });
+      }
     }
+  );
 
-    lobbySockets.set(socket.id, { tableId, accountId });
-    socket.join(`lobby:${tableId}`);
-
-    const players = await seatLobby(tableId, accountId, name);
-    io.to(`lobby:${tableId}`).emit('lobbyUpdate', { tableId, players });
+  socket.on('leaveLobby', ({ accountId, tableId }) => {
+    if (tableId) {
+      unseatTableSocket(accountId, tableId, socket.id);
+    }
   });
 
-  socket.on('joinRoom', async ({ roomId, accountId, name }) => {
-    const map = tableSeats.get(roomId);
-    const lobbyCount = map ? map.size : 0;
-    const confirmedCount = map
-      ? Array.from(map.values()).filter((p) => p.confirmed).length
-      : 0;
-    const parts = roomId.split('-');
-    const cap = Number(parts[1]) || 4;
-    const room = await gameManager.getRoom(roomId, cap);
-    const joined = room.players.filter((p) => !p.disconnected).length;
-
-    if (
-      map &&
-      (confirmedCount + joined < room.capacity || confirmedCount < lobbyCount)
-    ) {
-      socket.emit('error', 'table not full');
+  socket.on('confirmReady', ({ accountId, tableId }) => {
+    const table = tableMap.get(tableId);
+    if (!table) {
+      socket.emit('errorMessage', 'table_not_found');
       return;
     }
-
-    if (map) {
-      for (const [key, info] of map) {
-        if (String(info.id) === String(accountId)) {
-          map.delete(key);
-        }
-      }
-      if (map.size === 0) tableSeats.delete(roomId);
-    }
-    if (accountId) {
-      onlineUsers.set(String(accountId), Date.now());
-    }
-    const result = await gameManager.joinRoom(roomId, accountId, name, socket);
-    if (result.error) {
-      socket.emit('error', result.error);
-    } else {
-      const lobbySize = tableSeats.get(roomId)?.size || 0;
-      const roomPlayers = room.players.filter((p) => !p.disconnected).length;
-      console.log('[Server] joinRoom', roomId, {
-        lobby: lobbySize,
-        room: roomPlayers
-      });
-    }
+    if (!table.ready) table.ready = new Set();
+    table.ready.add(String(accountId));
+    io.to(tableId).emit('lobbyUpdate', {
+      tableId,
+      players: table.players,
+      currentTurn: table.currentTurn,
+      ready: Array.from(table.ready)
+    });
+    maybeStartGame(table);
   });
 
-  socket.on('watchRoom', async ({ roomId }) => {
+  socket.on('joinRoom', async ({ roomId, playerId, name }) => {
+    const map = tableSeats.get(roomId);
+    if (map) {
+      map.delete(String(playerId));
+      if (map.size === 0) tableSeats.delete(roomId);
+    }
+    if (playerId) {
+      onlineUsers.set(String(playerId), Date.now());
+      // Track the user's current table when they actually join a room
+      User.updateOne({ accountId: playerId }, { currentTableId: roomId }).catch(
+        () => {}
+      );
+    }
+    const result = await gameManager.joinRoom(roomId, playerId, name, socket);
+    if (result.error) socket.emit('error', result.error);
+  });
+  socket.on('watchRoom', ({ roomId }) => {
     if (!roomId) return;
-    let set = watchSockets.get(roomId);
+    let set = tableWatchers.get(roomId);
     if (!set) {
       set = new Set();
-      watchSockets.set(roomId, set);
+      tableWatchers.set(roomId, set);
     }
     set.add(socket.id);
     socket.join(roomId);
-    const parts = roomId.split('-');
-    const cap = Number(parts[1]) || 4;
-    const room = await gameManager.getRoom(roomId, cap);
-    const players = room.players.map((p) => ({
-      playerId: p.playerId,
-      telegramId: p.telegramId,
-      name: p.name,
-      position: p.position,
-    }));
-    socket.emit('watchState', {
-      board: { snakes: room.snakes, ladders: room.ladders },
-      players,
-      currentTurn: room.players[room.currentTurn]?.playerId || null,
-    });
+    io.to(roomId).emit('watchCount', { roomId, count: set.size });
   });
 
   socket.on('leaveWatch', ({ roomId }) => {
     if (!roomId) return;
-    const set = watchSockets.get(roomId);
+    const set = tableWatchers.get(roomId);
+    socket.leave(roomId);
     if (set) {
       set.delete(socket.id);
-      if (set.size === 0) watchSockets.delete(roomId);
+      const count = set.size;
+      if (count === 0) tableWatchers.delete(roomId);
+      io.to(roomId).emit('watchCount', { roomId, count });
     }
-    socket.leave(roomId);
   });
 
-  socket.on('leaveRoom', async () => {
-    const room = gameManager.findRoomBySocket(socket.id);
-    await gameManager.leaveRoom(socket);
-    if (room) {
-      const lobbySize = tableSeats.get(room.id)?.size || 0;
-      const roomPlayers = room.players.filter((p) => !p.disconnected).length;
-      console.log('[Server] leaveRoom', room.id, {
-        lobby: lobbySize,
-        room: roomPlayers
+  socket.on('rollDice', async (payload = {}) => {
+    const { accountId, tableId } = payload;
+    if (accountId && tableId && tableMap.has(tableId)) {
+      const table = tableMap.get(tableId);
+      if (table.currentTurn !== accountId) {
+        return socket.emit('errorMessage', 'Not your turn');
+      }
+      const player = table.players.find((p) => p.id === accountId);
+      if (!player) return;
+      const dice = Math.floor(Math.random() * 6) + 1;
+      player.position += dice;
+      io.to(tableId).emit('diceRolled', {
+        accountId,
+        dice,
+        newPosition: player.position
       });
+      const idx = table.players.findIndex((p) => p.id === accountId);
+      const nextIndex = (idx + 1) % table.players.length;
+      table.currentTurn = table.players[nextIndex].id;
+      io.to(tableId).emit('turnUpdate', { currentTurn: table.currentTurn });
+      return;
     }
-  });
 
-  socket.on('rollDice', async () => {
+    const room = gameManager.findRoomBySocket(socket.id);
+    if (!room) return;
+    const current = room.players[room.currentTurn];
+    if (!current || current.socketId !== socket.id) {
+      return socket.emit('errorMessage', 'Not your turn');
+    }
     await gameManager.rollDice(socket);
   });
 
-  socket.on('invite1v1', ({ fromId, fromName, toId, roomId, token, amount }, cb) => {
-    if (!fromId || !toId) return cb && cb({ success: false, error: 'invalid ids' });
-    const ts = onlineUsers.get(String(toId));
-    if (!ts || Date.now() - ts > 60_000) {
-      return cb && cb({ success: false, error: 'User offline' });
-    }
+  socket.on('invite1v1', async (payload, cb) => {
+    let { fromId, fromName, toId, roomId, token, amount, game } = payload || {};
+    if (!fromId || !toId)
+      return cb && cb({ success: false, error: 'invalid ids' });
+
     const targets = userSockets.get(String(toId));
-    if (!targets || targets.size === 0) {
-      return cb && cb({ success: false, error: 'User offline' });
+    if (targets && targets.size > 0) {
+      for (const sid of targets) {
+        io.to(sid).emit('gameInvite', {
+          fromId,
+          fromName,
+          roomId,
+          token,
+          amount,
+          game
+        });
+      }
     }
-    for (const sid of targets) {
-      io.to(sid).emit('gameInvite', { fromId, fromName, roomId, token, amount });
-    }
-    cb && cb({ success: true });
+    pendingInvites.set(roomId, {
+      fromId,
+      toIds: [toId],
+      token,
+      amount,
+      game
+    });
+    const url = getInviteUrl(roomId, token, amount, game);
+    cb && cb({ success: true, url });
   });
+
+  socket.on(
+    'inviteGroup',
+    async (
+      { fromId, fromName, toIds, opponentNames = [], roomId, token, amount },
+      cb
+    ) => {
+      if (!fromId || !Array.isArray(toIds) || toIds.length === 0) {
+        return cb && cb({ success: false, error: 'invalid ids' });
+      }
+      pendingInvites.set(roomId, {
+        fromId,
+        toIds: [...toIds],
+        token,
+        amount,
+        game: 'snake'
+      });
+      let url = getInviteUrl(roomId, token, amount, 'snake');
+      for (let i = 0; i < toIds.length; i++) {
+        const toId = toIds[i];
+        const targets = userSockets.get(String(toId));
+        if (targets && targets.size > 0) {
+          for (const sid of targets) {
+            io.to(sid).emit('gameInvite', {
+              fromId,
+              fromName,
+              roomId,
+              token,
+              amount,
+              group: toIds,
+              opponentNames,
+              game: 'snake'
+            });
+          }
+        } else {
+          console.warn(`No socket found for account ID ${toId}`);
+        }
+      }
+      cb && cb({ success: true, url });
+      setTimeout(async () => {
+        try {
+          const room = await gameManager.getRoom(roomId);
+          if (room.status === 'waiting' && room.players.length >= 2) {
+            room.startGame();
+            await gameManager.saveRoom(room);
+          }
+        } catch (err) {
+          console.error('Failed to auto-start group game:', err.message);
+        }
+      }, 45000);
+    }
+  );
 
   socket.on('disconnect', async () => {
     await gameManager.handleDisconnect(socket);
@@ -787,20 +906,20 @@ io.on('connection', (socket) => {
         if (set.size === 0) userSockets.delete(String(pid));
       }
       onlineUsers.delete(String(pid));
+      User.updateOne({ accountId: pid }, { currentTableId: null }).catch(
+        () => {}
+      );
     }
-    const lobby = lobbySockets.get(socket.id);
-    if (lobby) {
-      const players = await unseatLobby(lobby.tableId, lobby.accountId);
-      io.to(`lobby:${lobby.tableId}`).emit('lobbyUpdate', {
-        tableId: lobby.tableId,
-        players
-      });
-      lobbySockets.delete(socket.id);
-      socket.leave(`lobby:${lobby.tableId}`);
+    for (const roomId of socket.rooms) {
+      if (tableSeats.has(roomId)) {
+        unseatTableSocket(pid, roomId, socket.id);
+      }
     }
-    for (const [rid, set] of watchSockets) {
-      if (set.delete(socket.id) && set.size === 0) {
-        watchSockets.delete(rid);
+    for (const [id, set] of tableWatchers) {
+      if (set.delete(socket.id)) {
+        const count = set.size;
+        if (count === 0) tableWatchers.delete(id);
+        io.to(id).emit('watchCount', { roomId: id, count });
       }
     }
   });
@@ -809,19 +928,12 @@ io.on('connection', (socket) => {
 // Start the server
 httpServer.listen(PORT, async () => {
   console.log(`Server running on port ${PORT}`);
-  if (process.env.SKIP_BOT_LAUNCH || !process.env.BOT_TOKEN) {
-    console.log('Skipping Telegram bot launch');
-    return;
-  }
-
-  try {
-    await bot.launch();
-  } catch (err) {
-    console.error('Failed to launch Telegram bot:', err.message);
+  if (!process.env.BOT_TOKEN || process.env.BOT_TOKEN === 'dummy') {
+    console.log('BOT_TOKEN not configured. Bot may fail to connect.');
   }
 });
 
-if (!process.env.SKIP_BOT_LAUNCH && process.env.BOT_TOKEN) {
+if (process.env.BOT_TOKEN && process.env.BOT_TOKEN !== 'dummy') {
   process.once('SIGINT', () => bot.stop('SIGINT'));
   process.once('SIGTERM', () => bot.stop('SIGTERM'));
 }
