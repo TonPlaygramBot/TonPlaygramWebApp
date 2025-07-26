@@ -181,6 +181,25 @@ function cleanupSeats() {
   }
 }
 
+function emitTableReady(tableId) {
+  const map = tableSeats.get(tableId);
+  if (!map) return;
+  const parts = String(tableId).split('-');
+  const capacity = Number(parts[1]) || 4;
+  const confirmedCount = Array.from(map.values()).filter((p) => p.confirmed).length;
+  if (confirmedCount === capacity) {
+    for (const info of map.values()) {
+      const set = userSockets.get(String(info.id));
+      if (set) {
+        for (const sid of set) {
+          io.to(sid).emit('tableReady', { tableId });
+          io.to(sid).emit('gameStart', { tableId });
+        }
+      }
+    }
+  }
+}
+
 app.post('/api/online/ping', (req, res) => {
   const { accountId } = req.body || {};
   if (accountId) {
@@ -341,6 +360,7 @@ app.post('/api/snake/table/seat', async (req, res) => {
   }
 
   res.json({ success: true });
+  emitTableReady(tableId);
 });
 
 app.post('/api/snake/table/unseat', async (req, res) => {
@@ -362,6 +382,7 @@ app.post('/api/snake/table/unseat', async (req, res) => {
     await user.save().catch(() => {});
   }
   res.json({ success: true });
+  emitTableReady(tableId);
 });
 app.get('/api/snake/lobbies', async (req, res) => {
   cleanupSeats();
