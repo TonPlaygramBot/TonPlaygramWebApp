@@ -16,9 +16,7 @@ import {
   getOnlineCount,
   getProfile,
   getAccountBalance,
-  addTransaction,
-  seatTable,
-  unseatTable
+  addTransaction
 } from '../../utils/api.js';
 import {
   getPlayerId,
@@ -52,33 +50,32 @@ export default function Lobby() {
   const [playerAvatar, setPlayerAvatar] = useState('');
   const [readyList, setReadyList] = useState([]);
   const [confirmed, setConfirmed] = useState(false);
+  const [waitingForConfirm, setWaitingForConfirm] = useState(false);
+  const [joinedTableId, setJoinedTableId] = useState(null);
   const startedRef = useRef(false);
+
+  // When the user leaves this lobby or switches tables after joining one,
+  // notify the server to remove them from the previous seat. This avoids
+  // "gameStart" events for stale tables which previously caused the UI to
+  // navigate to a blank game screen without user confirmation.
+  useEffect(() => {
+    return () => {
+      if (!joinedTableId) return;
+      ensureAccountId()
+        .then((accountId) =>
+          socket.emit('leaveLobby', { accountId, tableId: joinedTableId })
+        )
+        .catch(() => {});
+    };
+  }, [joinedTableId]);
 
   useEffect(() => {
     startedRef.current = false;
     setConfirmed(false);
     setReadyList([]);
+    setJoinedTableId(null);
+    setWaitingForConfirm(Boolean(table));
   }, [game, table]);
-
-  useEffect(() => {
-    let accountId;
-    if (game === 'snake' && table && table.id !== 'single') {
-      let active = true;
-      ensureAccountId()
-        .then((id) => {
-          if (!active) return;
-          accountId = id;
-          return seatTable(id, table.id, playerName);
-        })
-        .catch(() => {});
-      return () => {
-        active = false;
-        if (accountId) {
-          unseatTable(accountId, table.id).catch(() => {});
-        }
-      };
-    }
-  }, [game, table, playerName]);
 
   const selectAiType = (t) => {
     setAiType(t);
@@ -86,6 +83,41 @@ export default function Lobby() {
     else if (t === 'flags') setShowFlagPicker(true);
     if (t !== 'leaders') setLeaders([]);
     if (t !== 'flags') setFlags([]);
+  };
+
+  const handleTableSelect = (t) => {
+    setTable(t);
+    setWaitingForConfirm(true);
+  };
+
+  const joinTable = async () => {
+    const accountId = await ensureAccountId().catch(() => null);
+    return new Promise((resolve) => {
+      if (!accountId || !table) return resolve(null);
+      socket.emit(
+        'seatTable',
+        {
+          accountId,
+          tableId: table.id,
+          playerName,
+          avatar: playerAvatar,
+        },
+        (resp) => {
+          if (!resp?.success) {
+            alert('Failed to join table');
+            resolve(null);
+            return;
+          }
+          setJoinedTableId(resp.tableId);
+          resolve({ accountId, tableId: resp.tableId });
+        },
+      );
+    });
+  };
+
+  const confirmReadyFn = ({ accountId, tableId }) => {
+    socket.emit('confirmReady', { accountId, tableId });
+    setConfirmed(true);
   };
 
   useEffect(() => {
@@ -161,21 +193,29 @@ export default function Lobby() {
 
   useEffect(() => {
     const onUpdate = ({ tableId, players: list, currentTurn, ready }) => {
-      if (table && tableId === table.id) {
+      console.log('lobbyUpdate', tableId, list);
+      const idToMatch = joinedTableId || table?.id;
+      if (idToMatch && tableId === idToMatch) {
         setPlayers(list);
         if (currentTurn != null) setCurrentTurn(currentTurn);
         if (Array.isArray(ready)) setReadyList(ready);
       }
     };
     const onStart = ({ tableId }) => {
+      console.log('gameStart', tableId);
+      const idToMatch = joinedTableId || table?.id;
       if (
-        table &&
-        tableId === table.id &&
+        idToMatch &&
+        tableId === idToMatch &&
         confirmed &&
-        !startedRef.current
+        !startedRef.current &&
+        table &&
+        players.length > 0 &&
+        stake.token &&
+        stake.amount
       ) {
         const params = new URLSearchParams();
-        params.set('table', table.id);
+        params.set('table', idToMatch);
         if (stake.token) params.set('token', stake.token);
         if (stake.amount) params.set('amount', stake.amount);
         startedRef.current = true;
@@ -188,14 +228,16 @@ export default function Lobby() {
       socket.off('lobbyUpdate', onUpdate);
       socket.off('gameStart', onStart);
     };
-  }, [table, stake, game, navigate]);
+  }, [table, stake, game, navigate, joinedTableId, players, confirmed]);
 
-  // Players now join a table as soon as it is selected but the match will not
-  // begin until everyone explicitly confirms they are ready using the button
-  // below.
+  // Automatic game start previously triggered when all seats were filled.
+  // This prevented players from selecting their preferred stake before the
+  // match began. The logic has been removed so that each participant must
+  // manually confirm the game start using the button below.
 
   const startGame = async (flagOverride = flags, leaderOverride = leaders) => {
     const params = new URLSearchParams();
+    setWaitingForConfirm(false);
     if (table) params.set('table', table.id);
 
     if (game === 'snake' && table?.id === 'single') {
@@ -231,11 +273,8 @@ export default function Lobby() {
     }
 
     if (game === 'snake' && table && table.id !== 'single') {
-      const accountId = await ensureAccountId().catch(() => null);
-      if (accountId) {
-        await seatTable(accountId, table.id, playerName, true).catch(() => {});
-        setConfirmed(true);
-      }
+      const join = await joinTable();
+      if (join) confirmReadyFn(join);
     } else {
       startedRef.current = true;
       navigate(`/games/${game}?${params.toString()}`);
@@ -259,7 +298,8 @@ export default function Lobby() {
       aiType === 'flags' &&
       flags.length !== aiCount) ||
     confirmed ||
-    waitingForPlayers;
+    waitingForPlayers ||
+    !waitingForConfirm;
 
   return (
     <div className="relative p-4 space-y-4 text-text">
@@ -278,7 +318,11 @@ export default function Lobby() {
               </span>
             )}
           </div>
-          <TableSelector tables={tables} selected={table} onSelect={setTable} />
+          <TableSelector
+            tables={tables}
+            selected={table}
+            onSelect={handleTableSelect}
+          />
         </div>
       )}
       {game === 'snake' && table && (
