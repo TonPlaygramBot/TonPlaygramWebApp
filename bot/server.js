@@ -387,10 +387,12 @@ app.get('/api/snake/lobby/:id', async (req, res) => {
   const parts = id.split('-');
   const cap = Number(parts[1]) || 4;
   console.log('[Server] lobby', id, 'tableSeats', tableSeats.get(id)?.size, 'rooms', gameManager.rooms.size);
-  const room = await gameManager.getRoom(id, cap);
-  const roomPlayers = room.players
-    .filter((p) => !p.disconnected)
-    .map((p) => ({ id: p.playerId, telegramId: p.telegramId, name: p.name }));
+  const room = await gameManager.getExistingRoom(id);
+  const roomPlayers = room
+    ? room.players
+        .filter((p) => !p.disconnected)
+        .map((p) => ({ id: p.playerId, telegramId: p.telegramId, name: p.name }))
+    : [];
   const lobbyPlayers = Array.from(tableSeats.get(id)?.values() || []).map((p) => ({ id: p.id, telegramId: p.telegramId, name: p.name, confirmed: !!p.confirmed }));
   const combined = [...lobbyPlayers, ...roomPlayers];
   const unique = [];
@@ -407,9 +409,11 @@ app.get('/api/snake/lobby/:id', async (req, res) => {
 
 app.get('/api/snake/board/:id', async (req, res) => {
   const { id } = req.params;
-  const parts = id.split('-');
-  const cap = Number(parts[1]) || 4;
-  const room = await gameManager.getRoom(id, cap);
+  const room = await gameManager.getExistingRoom(id);
+  if (!room) {
+    res.status(404).json({ error: 'room not found' });
+    return;
+  }
   res.json({ snakes: room.snakes, ladders: room.ladders });
 });
 

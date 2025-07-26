@@ -133,11 +133,9 @@ test('snake API endpoints and socket events', { concurrency: false, timeout: 200
 
     const boardRes = await fetch('http://localhost:3201/api/snake/board/snake-2-100');
 
-    assert.equal(boardRes.status, 200);
+    assert.equal(boardRes.status, 404);
 
-    const board = await boardRes.json();
-
-    assert.ok(board.snakes && board.ladders);
+    await boardRes.json();
 
 
     await fetch('http://localhost:3201/api/snake/table/seat', {
@@ -152,9 +150,7 @@ test('snake API endpoints and socket events', { concurrency: false, timeout: 200
     });
 
     const boardRes2 = await fetch('http://localhost:3201/api/snake/board/snake-2-100');
-    assert.equal(boardRes2.status, 200);
-    const board2 = await boardRes2.json();
-    assert.deepEqual(board2, board);
+    assert.equal(boardRes2.status, 404);
 
     const s1 = io('http://localhost:3201');
     const s2 = io('http://localhost:3201');
