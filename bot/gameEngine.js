@@ -454,6 +454,35 @@ export class GameRoomManager {
     return room;
   }
 
+  async getExistingRoom(id) {
+    let room = this.rooms.get(id);
+    if (!room) {
+      const record = await GameRoomModel.findOne({ roomId: id });
+      if (!record) return null;
+      room = new GameRoom(
+        record.roomId,
+        this.io,
+        record.capacity,
+        {
+          snakes: Object.fromEntries(record.snakes || {}),
+          ladders: Object.fromEntries(record.ladders || {})
+        },
+        record.gameType || 'snake'
+      );
+      room.players = record.players.map((p) => ({
+        ...p.toObject(),
+        id: p.playerId,
+        socketId: null,
+        lastRollTime: 0
+      }));
+      room.game.players = room.players;
+      room.currentTurn = record.currentTurn;
+      room.status = record.status;
+      this.rooms.set(id, room);
+    }
+    return room;
+  }
+
   async joinRoom(roomId, playerId, name, socket) {
     const parts = roomId.split('-');
     const cap = Number(parts[1]) || 4;
