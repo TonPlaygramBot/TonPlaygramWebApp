@@ -386,6 +386,7 @@ app.get('/api/snake/lobby/:id', async (req, res) => {
   const { id } = req.params;
   const parts = id.split('-');
   const cap = Number(parts[1]) || 4;
+  console.log('[Server] lobby', id, 'tableSeats', tableSeats.get(id)?.size, 'rooms', gameManager.rooms.size);
   const room = await gameManager.getRoom(id, cap);
   const roomPlayers = room.players
     .filter((p) => !p.disconnected)
