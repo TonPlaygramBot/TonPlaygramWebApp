@@ -137,10 +137,12 @@ export function verifyInfluencer(id, status, views) {
   }).then(r => r.json());
 }
 
-export function getProfile(telegramId) {
-
-  return post('/api/profile/get', { telegramId });
-
+export function getProfile(id) {
+  let body;
+  if (typeof id === 'object') body = id;
+  else if (typeof id === 'string' && id.includes('-')) body = { accountId: id };
+  else body = { telegramId: id };
+  return post('/api/profile/get', body);
 }
 
 export function updateProfile(data) {
