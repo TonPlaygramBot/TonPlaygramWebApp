@@ -7,7 +7,9 @@ export default function SnakeResults() {
   const [results, setResults] = useState([]);
 
   useEffect(() => {
-    getSnakeResults().then((data) => setResults(data.results || []));
+    const params = new URLSearchParams(window.location.search);
+    const table = params.get('table');
+    getSnakeResults(table).then((data) => setResults(data.results || []));
   }, []);
 
   return (

@@ -137,10 +137,12 @@ export function verifyInfluencer(id, status, views) {
   }).then(r => r.json());
 }
 
-export function getProfile(telegramId) {
-
-  return post('/api/profile/get', { telegramId });
-
+export function getProfile(id) {
+  let body;
+  if (typeof id === 'object') body = id;
+  else if (typeof id === 'string' && id.includes('-')) body = { accountId: id };
+  else body = { telegramId: id };
+  return post('/api/profile/get', body);
 }
 
 export function updateProfile(data) {
@@ -262,35 +264,45 @@ export function getSnakeLobby(id) {
   return fetch(API_BASE_URL + '/api/snake/lobby/' + id).then((r) => r.json());
 }
 
-export function getSnakeBoard(id) {
-  return fetch(API_BASE_URL + '/api/snake/board/' + id).then((r) => r.json());
+export async function getSnakeBoard(id) {
+  const response = await fetch(API_BASE_URL + '/api/snake/board/' + id);
+  if (!response.ok) {
+    const text = await response.text().catch(() => '');
+    throw new Error(text || response.statusText);
+  }
+  return response.json();
 }
 
-export function getSnakeResults() {
-  return fetch(API_BASE_URL + '/api/snake/results').then((r) => r.json());
+export function getSnakeResults(tableId) {
+  let url = API_BASE_URL + '/api/snake/results';
+  if (tableId) url += '?tableId=' + encodeURIComponent(tableId);
+  return fetch(url).then((r) => r.json());
 }
 
-export function seatTable(playerId, tableId, name) {
+export function seatTable(accountId, tableId, name, confirmed) {
+  const body = { accountId, tableId };
+  if (name) body.name = name;
+  if (typeof confirmed === 'boolean') body.confirmed = confirmed;
   return fetch(API_BASE_URL + '/api/snake/table/seat', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ playerId, tableId, name }),
+    body: JSON.stringify(body),
   }).then((r) => r.json());
 }
 
-export function unseatTable(playerId, tableId) {
+export function unseatTable(accountId, tableId) {
   return fetch(API_BASE_URL + '/api/snake/table/unseat', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ playerId, tableId }),
+    body: JSON.stringify({ accountId, tableId }),
   }).then((r) => r.json());
 }
 
-export function pingOnline(playerId) {
+export function pingOnline(accountId) {
   return fetch(API_BASE_URL + '/api/online/ping', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ playerId }),
+    body: JSON.stringify({ accountId }),
   }).then((r) => r.json());
 }
 
@@ -455,6 +467,10 @@ export function claimPurchase(accountId, txHash) {
   return post('/api/store/purchase', { accountId, txHash });
 }
 
+export function claimPresale(accountId, txHash) {
+  return post('/api/buy/claim', { accountId, txHash });
+}
+
 export function sendBroadcast(data) {
   return post('/api/broadcast/send', data, API_AUTH_TOKEN || undefined);
 }
@@ -465,3 +481,11 @@ export function getWatchCount(tableId) {
 
 export function getAppStats() {
   return fetch(API_BASE_URL + '/api/stats').then((r) => r.json());}
+
+export function buyTPC(wallet, amountTON) {
+  return post('/api/buy', { wallet, amountTON });
+}
+
+export function getPresaleStatus() {
+  return fetch(API_BASE_URL + '/api/buy/status').then((r) => r.json());
+}
