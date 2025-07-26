@@ -139,11 +139,19 @@ export class GameRoom {
     this.emitNextTurn();
   }
 
-  emitNextTurn() {
+  notifyTurnChange() {
+    const current = this.players[this.currentTurn];
+    if (current) {
+      console.log('[Server] Next turn for player', current.playerId);
+      this.io.to(this.id).emit('turnChanged', { playerId: current.playerId });
+    }
+  }
+
+  emitNextTurn(sendEvent = true) {
     const current = this.players[this.currentTurn];
     if (current) {
       current.lastRollTime = 0; // reset cooldown at the start of every turn
-      this.io.to(this.id).emit('turnChanged', { playerId: current.playerId });
+      if (sendEvent) this.notifyTurnChange();
       if (this.turnTimer) clearTimeout(this.turnTimer);
       this.turnTimer = setTimeout(() => {
         if (
@@ -254,7 +262,8 @@ export class GameRoom {
       }
       this.currentTurn = this.game.currentTurn;
     }
-    this.emitNextTurn();
+    this.notifyTurnChange();
+    this.emitNextTurn(false);
   }
 
   handleDisconnect(socket) {
