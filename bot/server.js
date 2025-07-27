@@ -387,6 +387,31 @@ function maybeStartGame(table) {
   }
 }
 
+async function autoStartGameIfReady(tableId) {
+  const table = tableMap.get(tableId);
+  const room = gameManager.rooms.get(tableId);
+  if (
+    table &&
+    room &&
+    room.status === 'waiting' &&
+    table.ready &&
+    table.ready.size === table.maxPlayers &&
+    room.players.length === table.maxPlayers
+  ) {
+    if (room.startTimer) {
+      clearTimeout(room.startTimer);
+      room.startTimer = null;
+    }
+    console.log(`All players joined table ${tableId}. Starting game.`);
+    room.startGame();
+    await gameManager.saveRoom(room);
+    tableSeats.delete(tableId);
+    const key = `${table.gameType}-${table.maxPlayers}`;
+    lobbyTables[key] = (lobbyTables[key] || []).filter((t) => t.id !== tableId);
+    broadcastSnakeLobbies().catch(() => {});
+  }
+}
+
 function unseatTableSocket(accountId, tableId, socketId) {
   if (!tableId) return;
   const map = tableSeats.get(tableId);
@@ -831,6 +856,7 @@ io.on('connection', (socket) => {
       ready: Array.from(table.ready)
     });
     maybeStartGame(table);
+    autoStartGameIfReady(tableId).catch(() => {});
   });
 
   socket.on('joinRoom', async ({ roomId, playerId, name }) => {
@@ -853,6 +879,7 @@ io.on('connection', (socket) => {
     }
     const result = await gameManager.joinRoom(roomId, playerId, name, socket);
     if (result.error) socket.emit('error', result.error);
+    else await autoStartGameIfReady(roomId);
   });
   socket.on('watchRoom', ({ roomId }) => {
     if (!roomId) return;
