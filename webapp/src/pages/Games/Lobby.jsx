@@ -127,18 +127,22 @@ export default function Lobby() {
       ensureAccountId()
         .then((accountId) => {
           if (cancelled || !accountId) return;
-          socket.emit('seatTable', {
-            accountId,
-            tableId: table.id,
-            playerName
-          });
-          interval = setInterval(() => {
+          async function seat() {
             socket.emit('seatTable', {
               accountId,
               tableId: table.id,
               playerName
             });
-          }, 30000);
+            try {
+              const data = await getSnakeLobby(table.id);
+              if (!cancelled)
+                setPlayers(
+                  data.players.map((p) => ({ ...p, confirmed: false }))
+                );
+            } catch {}
+          }
+          seat();
+          interval = setInterval(seat, 30000);
         })
         .catch(() => {});
       return () => {
