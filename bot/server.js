@@ -213,16 +213,24 @@ const BUNDLE_TON_MAP = Object.fromEntries(
 async function broadcastSnakeLobbies() {
   try {
     const capacities = [2, 3, 4];
-    const lobbies = await Promise.all(
-      capacities.map(async (cap) => {
-        const id = `snake-${cap}`;
-        const room = await gameManager.getRoom(id, cap);
-        const roomCount = room.players.filter((p) => !p.disconnected).length;
-        const lobbyCount = tableSeats.get(id)?.size || 0;
-        const players = roomCount + lobbyCount;
-        return { id, capacity: cap, players };
-      })
-    );
+    const lobbies = capacities.map((cap) => {
+      let roomCount = 0;
+      for (const room of gameManager.rooms.values()) {
+        if (room.gameType === 'snake' && room.capacity === cap) {
+          roomCount += room.players.filter((p) => !p.disconnected).length;
+        }
+      }
+      let lobbyCount = 0;
+      for (const [tid, players] of tableSeats) {
+        const table = tableMap.get(tid);
+        if (table && table.gameType === 'snake' && table.maxPlayers === cap) {
+          lobbyCount += players.size;
+        }
+      }
+      const id = `snake-${cap}`;
+      const playersTotal = roomCount + lobbyCount;
+      return { id, capacity: cap, players: playersTotal };
+    });
     io.emit('snakeLobbies', lobbies);
   } catch (err) {
     console.error('Failed to broadcast lobby counts:', err.message);
@@ -270,13 +278,37 @@ async function seatTableSocket(
   maxPlayers,
   playerName,
   socket,
-  playerAvatar
+  playerAvatar,
+  tableIdOverride
 ) {
   if (!accountId) return null;
   console.log(
     `Seating player ${playerName || accountId} at ${gameType}-${maxPlayers} (stake ${stake})`
   );
-  const table = getAvailableTable(gameType, stake, maxPlayers);
+  let table;
+  const key = `${gameType}-${maxPlayers}`;
+  if (tableIdOverride) {
+    table = tableMap.get(tableIdOverride);
+    if (!table) {
+      table = {
+        id: tableIdOverride,
+        gameType,
+        stake,
+        maxPlayers,
+        players: [],
+        currentTurn: null,
+        ready: new Set()
+      };
+      lobbyTables[key] = lobbyTables[key] || [];
+      lobbyTables[key].push(table);
+      tableMap.set(tableIdOverride, table);
+      console.log(
+        `Created new table: ${table.id} (${gameType}, cap ${maxPlayers}, stake: ${stake})`
+      );
+    }
+  } else {
+    table = getAvailableTable(gameType, stake, maxPlayers);
+  }
   const tableId = table.id;
   cleanupSeats();
   // Ensure this user is not seated at any other table
@@ -527,33 +559,50 @@ app.get('/api/stats', async (req, res) => {
 });
 
 app.post('/api/snake/table/seat', (req, res) => {
-  const { tableId, playerId, name, avatar } = req.body || {};
-  const pid = playerId;
+  const { tableId, playerId, accountId, name, avatar } = req.body || {};
+  const pid = playerId || accountId;
   if (!tableId || !pid) return res.status(400).json({ error: 'missing data' });
   const [gameType, capStr] = tableId.split('-');
-  seatTableSocket(pid, gameType, 0, Number(capStr) || 4, name, null, avatar);
+  seatTableSocket(
+    pid,
+    gameType,
+    0,
+    Number(capStr) || 4,
+    name,
+    null,
+    avatar,
+    tableId
+  );
   res.json({ success: true });
 });
 
 app.post('/api/snake/table/unseat', (req, res) => {
-  const { tableId, playerId } = req.body || {};
-  const pid = playerId;
+  const { tableId, playerId, accountId } = req.body || {};
+  const pid = playerId || accountId;
   unseatTableSocket(pid, tableId);
   res.json({ success: true });
 });
 app.get('/api/snake/lobbies', async (req, res) => {
   cleanupSeats();
   const capacities = [2, 3, 4];
-  const lobbies = await Promise.all(
-    capacities.map(async (cap) => {
-      const id = `snake-${cap}`;
-      const room = await gameManager.getRoom(id, cap);
-      const roomCount = room.players.filter((p) => !p.disconnected).length;
-      const lobbyCount = tableSeats.get(id)?.size || 0;
-      const players = roomCount + lobbyCount;
-      return { id, capacity: cap, players };
-    })
-  );
+  const lobbies = capacities.map((cap) => {
+    let roomCount = 0;
+    for (const room of gameManager.rooms.values()) {
+      if (room.gameType === 'snake' && room.capacity === cap) {
+        roomCount += room.players.filter((p) => !p.disconnected).length;
+      }
+    }
+    let lobbyCount = 0;
+    for (const [tid, players] of tableSeats) {
+      const table = tableMap.get(tid);
+      if (table && table.gameType === 'snake' && table.maxPlayers === cap) {
+        lobbyCount += players.size;
+      }
+    }
+    const id = `snake-${cap}`;
+    const playersTotal = roomCount + lobbyCount;
+    return { id, capacity: cap, players: playersTotal };
+  });
   res.json(lobbies);
 });
 
@@ -733,7 +782,8 @@ io.on('connection', (socket) => {
           Number(capStr) || 4,
           playerName,
           socket,
-          avatar
+          avatar,
+          tableId
         );
       } else {
         table = await seatTableSocket(
@@ -784,6 +834,11 @@ io.on('connection', (socket) => {
   });
 
   socket.on('joinRoom', async ({ roomId, playerId, name }) => {
+    const lobbyTable = tableMap.get(roomId);
+    if (lobbyTable && lobbyTable.players.length < lobbyTable.maxPlayers) {
+      socket.emit('error', 'table_not_full');
+      return;
+    }
     const map = tableSeats.get(roomId);
     if (map) {
       map.delete(String(playerId));
