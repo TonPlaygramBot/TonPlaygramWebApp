@@ -1028,6 +1028,12 @@ httpServer.listen(PORT, async () => {
   }
 });
 
+// Periodically clean up stale lobby seats and broadcast updated counts
+setInterval(() => {
+  cleanupSeats();
+  broadcastSnakeLobbies().catch(() => {});
+}, 30_000);
+
 if (process.env.BOT_TOKEN && process.env.BOT_TOKEN !== 'dummy') {
   process.once('SIGINT', () => bot.stop('SIGINT'));
   process.once('SIGTERM', () => bot.stop('SIGTERM'));
