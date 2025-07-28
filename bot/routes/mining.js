@@ -47,6 +47,12 @@ router.post('/status', getUser, async (req, res) => {
 
 router.post('/leaderboard', async (req, res) => {
   const { telegramId, accountId } = req.body || {};
+  const tableMap = req.app.get('tableMap') || new Map();
+  const gameManager = req.app.get('gameManager');
+  const activeTables = new Set([
+    ...tableMap.keys(),
+    ...(gameManager ? [...gameManager.rooms.keys()] : [])
+  ]);
   const users = await User.find()
     .sort({ balance: -1 })
     .limit(100)
@@ -72,6 +78,10 @@ router.post('/leaderboard', async (req, res) => {
           u.lastName = info.lastName;
           u.photo = info.photoUrl;
         }
+      }
+      if (u.currentTableId && !activeTables.has(u.currentTableId)) {
+        await User.updateOne({ accountId: u.accountId }, { currentTableId: null }).catch(() => {});
+        u.currentTableId = null;
       }
     })
   );
