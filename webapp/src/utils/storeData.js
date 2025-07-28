@@ -1,4 +1,6 @@
 export const STORE_ADDRESS = 'UQAPwsGyKzA4MuBnCflTVwEcTLcGS9yV6okJWQGzO5VxVYD1';
+// Address used for presale purchases, defaults to STORE_ADDRESS
+export const PRESALE_ADDRESS = STORE_ADDRESS;
 
 // Dynamic pricing configuration for the presale
 export const initialPrice = 0.000004; // TON per 1 TPC

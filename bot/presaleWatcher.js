@@ -12,6 +12,7 @@ import { ensureTransactionArray } from './utils/userUtils.js';
 
 const STORE_ADDRESS = process.env.STORE_DEPOSIT_ADDRESS ||
   'UQAPwsGyKzA4MuBnCflTVwEcTLcGS9yV6okJWQGzO5VxVYD1';
+const PRESALE_ADDRESS = process.env.PRESALE_DEPOSIT_ADDRESS || STORE_ADDRESS;
 
 function normalize(addr) {
   try {
@@ -20,6 +21,8 @@ function normalize(addr) {
     return null;
   }
 }
+
+const PRESALE_ADDRESS_NORM = normalize(PRESALE_ADDRESS);
 
 const STATE_ID = 'singleton';
 let state = null;
@@ -54,7 +57,7 @@ let lastTime = 0;
 async function processTransactions() {
   try {
     const resp = await fetch(
-      `https://tonapi.io/v2/blockchain/accounts/${STORE_ADDRESS}/transactions?limit=50`
+      `https://tonapi.io/v2/blockchain/accounts/${PRESALE_ADDRESS}/transactions?limit=50`
     );
     if (!resp.ok) return;
     const data = await resp.json();

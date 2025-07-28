@@ -4,7 +4,7 @@ import TonConnectButton from './TonConnectButton.jsx';
 import InfoPopup from './InfoPopup.jsx';
 import { calculateTpcAmount } from '../utils/buyLogic.js';
 import { buyTPC, getPresaleStatus } from '../utils/api.js';
-import { STORE_ADDRESS } from '../utils/storeData.js';
+import { PRESALE_ADDRESS } from '../utils/storeData.js';
 
 export default function BuyTpcCard() {
   const [tonConnectUI] = useTonConnectUI();
@@ -34,7 +34,7 @@ export default function BuyTpcCard() {
     }
     const tx = {
       validUntil: Math.floor(Date.now() / 1000) + 60,
-      messages: [{ address: STORE_ADDRESS, amount: String(amount * 1e9) }]
+      messages: [{ address: PRESALE_ADDRESS, amount: String(amount * 1e9) }]
     };
     try {
       await tonConnectUI.sendTransaction(tx);
