@@ -1,11 +1,10 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 
 import { useLocation, useNavigate } from 'react-router-dom';
 import { socket } from '../utils/socket.js';
 import { pingOnline } from '../utils/api.js';
 import { ensureAccountId } from '../utils/telegram.js';
 import InvitePopup from './InvitePopup.jsx';
-import { isGameMuted, getGameVolume } from '../utils/sound.js';
 
 import Navbar from './Navbar.jsx';
 
@@ -19,7 +18,6 @@ export default function Layout({ children }) {
   const location = useLocation();
   const navigate = useNavigate();
   const [invite, setInvite] = useState(null);
-  const beepRef = useRef(null);
 
   useEffect(() => {
     const onInvite = ({ fromId, fromName, roomId, token, amount }) => {
@@ -28,32 +26,6 @@ export default function Layout({ children }) {
     socket.on('gameInvite', onInvite);
     return () => socket.off('gameInvite', onInvite);
   }, []);
-
-  useEffect(() => {
-    beepRef.current = new Audio('/assets/sounds/successful.mp3');
-    beepRef.current.volume = getGameVolume();
-    beepRef.current.muted = isGameMuted();
-    const volHandler = () => {
-      if (beepRef.current) beepRef.current.volume = getGameVolume();
-    };
-    const muteHandler = () => {
-      if (beepRef.current) beepRef.current.muted = isGameMuted();
-    };
-    window.addEventListener('gameVolumeChanged', volHandler);
-    window.addEventListener('gameMuteChanged', muteHandler);
-    return () => {
-      window.removeEventListener('gameVolumeChanged', volHandler);
-      window.removeEventListener('gameMuteChanged', muteHandler);
-      beepRef.current?.pause();
-    };
-  }, []);
-
-  useEffect(() => {
-    if (invite && beepRef.current && !isGameMuted()) {
-      beepRef.current.currentTime = 0;
-      beepRef.current.play().catch(() => {});
-    }
-  }, [invite]);
 
   useEffect(() => {
     const onConnect = () => {

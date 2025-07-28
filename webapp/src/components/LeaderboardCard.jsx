@@ -200,12 +200,7 @@ export default function LeaderboardCard() {
                     u.accountId === accountId ? 'bg-accent text-black' : 'cursor-pointer'
                   }`}
                   onClick={() => {
-                    if (
-                      u.accountId === accountId ||
-                      u.currentTableId ||
-                      !onlineUsers.includes(String(u.accountId))
-                    )
-                      return;
+                    if (u.accountId === accountId || u.currentTableId) return;
                     if (mode === 'group') {
                       setSelected((prev) => {
                         const exists = prev.find((p) => p.accountId === u.accountId);
@@ -236,10 +231,7 @@ export default function LeaderboardCard() {
                       {mode === 'group' && u.accountId !== accountId && (
                         <input
                           type="checkbox"
-                          disabled={
-                            !!u.currentTableId ||
-                            !onlineUsers.includes(String(u.accountId))
-                          }
+                          disabled={!!u.currentTableId}
                           checked={selected.some((p) => p.accountId === u.accountId)}
                           onChange={() => {}}
                           className="mr-1"
