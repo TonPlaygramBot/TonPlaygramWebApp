@@ -439,7 +439,6 @@ export default function TokenomicsPage() {
             <li className="ml-4">⛏️ Mining system (250–1,000 <img src="/assets/icons/TPCcoin_1.webp" alt="TPC" className="inline-block w-4 h-4 mx-1" /> every 12 hours)</li>
             <li className="ml-4">📺 Ad Watch Rewards: 50 <img src="/assets/icons/TPCcoin_1.webp" alt="TPC" className="inline-block w-4 h-4 mx-1" /> per ad (up to 5/day)</li>
             <li className="ml-4">🎯 Social Tasks: +2,500 <img src="/assets/icons/TPCcoin_1.webp" alt="TPC" className="inline-block w-4 h-4 mx-1" /> each for X, Telegram, TikTok</li>
-            <li className="ml-4">📹 Intro Video Views: +5 <img src="/assets/icons/TPCcoin_1.webp" alt="TPC" className="inline-block w-4 h-4 mx-1" /> each</li>
             <li className="ml-4">🎡 Spin &amp; Win Wheel: 400–1,600 <img src="/assets/icons/TPCcoin_1.webp" alt="TPC" className="inline-block w-4 h-4 mx-1" /> prizes + Bonus x2 chance</li>
             <li className="ml-4">🍀 Lucky Card daily prizes and free spin chances</li>
             <li className="ml-4">🎁 NFT Gifts with fun on-screen effects</li>
@@ -449,10 +448,15 @@ export default function TokenomicsPage() {
         <div>
           <h4 className="font-semibold text-accent mb-1">What’s Live Right Now</h4>
           <ul className="list-disc pl-6 space-y-1">
-            <li>🛒 Presale Store with bundles up to 5M <img src="/assets/icons/TPCcoin_1.webp" alt="TPC" className="inline-block w-4 h-4 ml-1" /></li>
+            <li>
+              🛒 Smart-contract presale running in five stages:
+              <span className="ml-1">0.000004</span>,
+              <span>0.000005</span>,
+              <span>0.000006</span>,
+              <span>0.000008</span>,
+              <span>0.000010 TON</span> per TPC
+            </li>
             <li>🧑‍💻 Mining &amp; Boosters (via Virtual Friends)</li>
-            <li>🔁 Spin &amp; Win Packs (with spins and TPC <img src="/assets/icons/TPCcoin_1.webp" alt="TPC" className="inline-block w-4 h-4 ml-1" />)</li>
-            <li>🎁 Bonus Packs (spins + TPC <img src="/assets/icons/TPCcoin_1.webp" alt="TPC" className="inline-block w-4 h-4 ml-1" /> + boosts)</li>
             <li>🎲 Crazy Dice Duel mini-game</li>
             <li>🍀 Lucky Card rewards</li>
             <li>🎁 NFT Gifts marketplace</li>

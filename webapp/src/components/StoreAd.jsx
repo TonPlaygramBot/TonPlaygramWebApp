@@ -23,7 +23,7 @@ export default function StoreAd() {
         <span className="text-lg font-bold">Store</span>
       </div>
       <div className="text-center text-sm">
-        Current Price: {status ? status.currentPrice : '...'} TON / 1 TPC
+        Presale Stage {status ? status.currentRound : '...'} Price: {status ? status.currentPrice : '...'} TON / 1 TPC (5 stages total)
       </div>
       <Link
         to="/store"

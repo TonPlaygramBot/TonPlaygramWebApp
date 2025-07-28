@@ -215,7 +215,6 @@ export default function Home() {
           activeUsers: online.count || data.activeUsers || 0,
           nftsCreated: data.nftsCreated,
           nftsBurned: data.nftsBurned,
-          bundlesSold: data.bundlesSold,
           tonRaised: data.tonRaised,
           tpcSold: data.tpcSold,
           appClaimed: data.appClaimed,
@@ -416,7 +415,6 @@ export default function Home() {
               )}
             </p>
             <p>NFTs Burned: {stats?.nftsBurned ?? '...'}</p>
-            <p>Bundles Sold: {stats?.bundlesSold ?? '...'}</p>
             <p>
               Total Raised: {stats ? formatValue(stats.tonRaised, 2) : '...'}{' '}
               <img src="/assets/icons/TON.webp" alt="TON" className="inline-block w-4 h-4 ml-1" />
