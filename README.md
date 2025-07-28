@@ -79,7 +79,7 @@ The server honors a few extra environment variables when building or serving the
 - `TONCONNECT_MANIFEST_URL` – full URL for a custom `tonconnect-manifest.json`. Defaults to the manifest bundled with the build when unset.
 - `SKIP_WEBAPP_BUILD` – set to any value to skip the automatic webapp build that normally runs when `npm start` is executed. Useful if you built the assets manually.
 - `ALLOWED_ORIGINS` – list of origins allowed for CORS and socket.io when serving the API. Separate multiple origins with commas.
-- `ENABLE_PRESALE_WATCHER` – set to `true` to automatically credit presale purchases when on-chain transactions to the store address are detected.
+- `ENABLE_PRESALE_WATCHER` – set to `false` to disable automatic crediting of presale purchases. By default the server watches on-chain transactions to the store address and credits tokens automatically.
 
 5. Copy `scripts/.env.example` to `scripts/.env` and set:
    - `MNEMONIC` – wallet seed phrase used to deploy the Jetton
