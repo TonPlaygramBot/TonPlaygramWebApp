@@ -767,6 +767,15 @@ mongoose.connection.once('open', async () => {
   gameManager
     .loadRooms()
     .catch((err) => console.error('Failed to load game rooms:', err));
+
+  if (process.env.ENABLE_PRESALE_WATCHER === 'true') {
+    try {
+      const { startPresaleWatcher } = await import('./presaleWatcher.js');
+      startPresaleWatcher();
+    } catch (err) {
+      console.error('Failed to start presale watcher:', err.message);
+    }
+  }
 });
 
 io.on('connection', (socket) => {

@@ -77,8 +77,9 @@ The server honors a few extra environment variables when building or serving the
 
 - `WEBAPP_API_BASE_URL` – overrides the API base used during the webapp build. Set this when the bot API is hosted on another domain or port. If left empty the webapp assumes it is served from the same origin.
 - `TONCONNECT_MANIFEST_URL` – full URL for a custom `tonconnect-manifest.json`. Defaults to the manifest bundled with the build when unset.
- - `SKIP_WEBAPP_BUILD` – set to any value to skip the automatic webapp build that normally runs when `npm start` is executed. Useful if you built the assets manually.
- - `ALLOWED_ORIGINS` – list of origins allowed for CORS and socket.io when serving the API. Separate multiple origins with commas.
+- `SKIP_WEBAPP_BUILD` – set to any value to skip the automatic webapp build that normally runs when `npm start` is executed. Useful if you built the assets manually.
+- `ALLOWED_ORIGINS` – list of origins allowed for CORS and socket.io when serving the API. Separate multiple origins with commas.
+- `ENABLE_PRESALE_WATCHER` – set to `true` to automatically credit presale purchases when on-chain transactions to the store address are detected.
 
 5. Copy `scripts/.env.example` to `scripts/.env` and set:
    - `MNEMONIC` – wallet seed phrase used to deploy the Jetton
