@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import DiceRoller from './DiceRoller.jsx';
 import RewardPopup from './RewardPopup.tsx';
+import AdModal from './AdModal.tsx';
 import { numericSegments } from '../utils/rewardLogic';
 import { getTelegramId } from '../utils/telegram.js';
 import LoginOptions from './LoginOptions.jsx';
@@ -34,6 +35,9 @@ export default function LuckyNumber() {
   const [reward, setReward] = useState(null);
   const [canRoll, setCanRoll] = useState(false);
   const [rolling, setRolling] = useState(false);
+  const [showAd, setShowAd] = useState(false);
+  const [adWatched, setAdWatched] = useState(false);
+  const [trigger, setTrigger] = useState(0);
 
   const COOLDOWN = 4 * 60 * 60 * 1000; // 4 hours
 
@@ -89,6 +93,22 @@ export default function LuckyNumber() {
     setReward(prize);
     localStorage.setItem('luckyRollTs', String(Date.now()));
     setCanRoll(false);
+    setAdWatched(false);
+  };
+
+  const handleRollClick = () => {
+    if (!canRoll || rolling) return;
+    if (!adWatched) {
+      setShowAd(true);
+      return;
+    }
+    setTrigger((t) => t + 1);
+  };
+
+  const handleAdComplete = () => {
+    setAdWatched(true);
+    setShowAd(false);
+    setTrigger((t) => t + 1);
   };
 
 
@@ -151,17 +171,28 @@ export default function LuckyNumber() {
         ))}
       </div>
       <div className="flex flex-col items-center space-y-2 mt-6">
-        <DiceRoller
-          onRollEnd={handleRollEnd}
-          onRollStart={handleRollStart}
-          showButton={false}
-          clickable={canRoll}
-          className="lucky-dice"
-        />
+        <div
+          onClick={handleRollClick}
+          className={canRoll ? 'cursor-pointer' : 'cursor-not-allowed'}
+        >
+          <DiceRoller
+            onRollEnd={handleRollEnd}
+            onRollStart={handleRollStart}
+            showButton={false}
+            clickable={false}
+            trigger={trigger}
+            className="lucky-dice"
+          />
+        </div>
         {!canRoll && (
           <p className="text-sm text-subtext">You can roll again every 4 hours.</p>
         )}
       </div>
+      <AdModal
+        open={showAd}
+        onComplete={handleAdComplete}
+        onClose={() => setShowAd(false)}
+      />
       <RewardPopup
         reward={reward}
         onClose={() => {
