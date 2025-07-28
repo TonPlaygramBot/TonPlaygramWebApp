@@ -11,20 +11,14 @@ import {
   PRESALE_ROUNDS,
 } from './config.js';
 import { ensureTransactionArray } from './utils/userUtils.js';
+import { normalizeAddress } from './utils/ton.js';
 
-const STORE_ADDRESS = process.env.STORE_DEPOSIT_ADDRESS ||
+const STORE_ADDRESS =
+  process.env.STORE_DEPOSIT_ADDRESS ||
   'UQAPwsGyKzA4MuBnCflTVwEcTLcGS9yV6okJWQGzO5VxVYD1';
 const PRESALE_ADDRESS = process.env.PRESALE_DEPOSIT_ADDRESS || STORE_ADDRESS;
 
-function normalize(addr) {
-  try {
-    return new TonWeb.utils.Address(addr).toString(true, false, false);
-  } catch {
-    return null;
-  }
-}
-
-const PRESALE_ADDRESS_NORM = normalize(PRESALE_ADDRESS);
+const PRESALE_ADDRESS_NORM = normalizeAddress(PRESALE_ADDRESS);
 
 const STATE_ID = 'singleton';
 let state = null;
@@ -121,7 +115,7 @@ async function processTransactions() {
         lastTime = Math.max(lastTime, tx.utime);
         continue;
       }
-      const sender = normalize(tx.in_msg.source.address);
+      const sender = normalizeAddress(tx.in_msg.source.address);
       if (!sender) {
         lastTime = Math.max(lastTime, tx.utime);
         continue;

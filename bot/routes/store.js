@@ -4,21 +4,15 @@ import User from '../models/User.js';
 import { ensureTransactionArray } from '../utils/userUtils.js';
 import { withProxy } from '../utils/proxyAgent.js';
 import TonWeb from 'tonweb';
+import { normalizeAddress } from '../utils/ton.js';
 
 const router = Router();
 
-const STORE_ADDRESS = process.env.STORE_DEPOSIT_ADDRESS ||
+const STORE_ADDRESS =
+  process.env.STORE_DEPOSIT_ADDRESS ||
   'UQAPwsGyKzA4MuBnCflTVwEcTLcGS9yV6okJWQGzO5VxVYD1';
 
-function normalize(addr) {
-  try {
-    return new TonWeb.utils.Address(addr).toString(true, false, false);
-  } catch {
-    return null;
-  }
-}
-
-const STORE_ADDRESS_NORM = normalize(STORE_ADDRESS);
+const STORE_ADDRESS_NORM = normalizeAddress(STORE_ADDRESS);
 
 const BOOST_EXPIRY = new Date('2025-08-21T00:00:00Z');
 
@@ -81,7 +75,9 @@ router.post('/purchase', authenticate, async (req, res) => {
         return res.status(400).json({ error: 'transaction not found' });
       }
       const data = await resp.json();
-      const out = (data.out_msgs || []).find(m => normalize(m.destination?.address) === STORE_ADDRESS_NORM);
+      const out = (data.out_msgs || []).find(
+        (m) => normalizeAddress(m.destination?.address) === STORE_ADDRESS_NORM
+      );
       if (!out) return res.status(400).json({ error: 'destination mismatch' });
       const tonVal = Number(out.value) / 1e9;
       if (!pack) {
@@ -90,8 +86,12 @@ router.post('/purchase', authenticate, async (req, res) => {
       } else if (Math.abs(tonVal - pack.ton) > 1e-6) {
         return res.status(400).json({ error: 'amount mismatch' });
       }
-      const sender = normalize(data.in_msg?.source?.address || '');
-      if (user.walletAddress && sender && normalize(user.walletAddress) !== sender) {
+      const sender = normalizeAddress(data.in_msg?.source?.address || '');
+      if (
+        user.walletAddress &&
+        sender &&
+        normalizeAddress(user.walletAddress) !== sender
+      ) {
         return res.status(400).json({ error: 'sender mismatch' });
       }
     } catch (err) {
