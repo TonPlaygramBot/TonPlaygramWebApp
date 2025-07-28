@@ -3,6 +3,7 @@ import { v4 as uuidv4 } from 'uuid';
 import User from '../models/User.js';
 import { fetchTelegramInfo } from '../utils/telegram.js';
 import { ensureTransactionArray, calculateBalance } from '../utils/userUtils.js';
+import { normalizeAddress } from '../utils/ton.js';
 
 export function parseTwitterHandle(input) {
   if (!input) return '';
@@ -32,9 +33,13 @@ router.post('/register-wallet', async (req, res) => {
   if (!walletAddress) {
     return res.status(400).json({ error: 'walletAddress required' });
   }
+  const normalized = normalizeAddress(walletAddress);
+  if (!normalized) {
+    return res.status(400).json({ error: 'invalid walletAddress' });
+  }
   const user = await User.findOneAndUpdate(
-    { walletAddress },
-    { $setOnInsert: { walletAddress, referralCode: walletAddress } },
+    { walletAddress: normalized },
+    { $setOnInsert: { walletAddress: normalized, referralCode: normalized } },
     { upsert: true, new: true, setDefaultsOnInsert: true }
   );
   res.json(user);

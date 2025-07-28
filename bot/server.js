@@ -706,6 +706,7 @@ app.post('/api/snake/invite', async (req, res) => {
 
   pendingInvites.set(roomId, {
     fromId: fromAccount,
+    fromName,
     toIds: [toAccount],
     token,
     amount,
@@ -793,6 +794,19 @@ io.on('connection', (socket) => {
     socket.data.playerId = String(playerId);
     // Mark this user as online immediately
     onlineUsers.set(String(playerId), Date.now());
+
+    for (const [roomId, invite] of pendingInvites) {
+      if (invite.toIds && invite.toIds.includes(String(playerId))) {
+        io.to(socket.id).emit('gameInvite', {
+          fromId: invite.fromId,
+          fromName: invite.fromName,
+          roomId,
+          token: invite.token,
+          amount: invite.amount,
+          game: invite.game
+        });
+      }
+    }
   });
 
   socket.on(
@@ -969,6 +983,7 @@ io.on('connection', (socket) => {
     }
     pendingInvites.set(roomId, {
       fromId,
+      fromName,
       toIds: [toId],
       token,
       amount,
@@ -989,6 +1004,7 @@ io.on('connection', (socket) => {
       }
       pendingInvites.set(roomId, {
         fromId,
+        fromName,
         toIds: [...toIds],
         token,
         amount,
