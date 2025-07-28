@@ -8,8 +8,10 @@
    - `MONGODB_URI` – MongoDB connection string or `memory`
      (falls back to an in-memory database if unset)
    - `AIRDROP_ADMIN_TOKENS` – (optional) tokens allowed to trigger airdrops
-   - `DEPOSIT_WALLET_ADDRESS` – TON address that receives user deposits
-   - `CLAIM_CONTRACT_ADDRESS` – address of the deployed `tpc_claim_wallet` contract
+  - `DEPOSIT_WALLET_ADDRESS` – TON address that receives user deposits
+  - `STORE_DEPOSIT_ADDRESS` – TON address that receives payments for store bundles
+  - `PRESALE_DEPOSIT_ADDRESS` – (optional) address for presale purchases. Defaults to `STORE_DEPOSIT_ADDRESS`
+  - `CLAIM_CONTRACT_ADDRESS` – address of the deployed `tpc_claim_wallet` contract
   - `CLAIM_WALLET_MNEMONIC` – seed phrase used to sign claim transactions
   - `TPC_JETTON_ADDRESS` – token contract address shown after a claim
   - `RPC_URL` – (optional) TON RPC endpoint for claim messages. Defaults to `https://toncenter.com/api/v2/jsonRPC`

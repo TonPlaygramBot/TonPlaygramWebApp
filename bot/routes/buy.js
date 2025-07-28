@@ -17,6 +17,7 @@ import TonWeb from 'tonweb';
 const router = Router();
 const STORE_ADDRESS = process.env.STORE_DEPOSIT_ADDRESS ||
   'UQAPwsGyKzA4MuBnCflTVwEcTLcGS9yV6okJWQGzO5VxVYD1';
+const PRESALE_ADDRESS = process.env.PRESALE_DEPOSIT_ADDRESS || STORE_ADDRESS;
 
 function normalize(addr) {
   try {
@@ -27,6 +28,7 @@ function normalize(addr) {
 }
 
 const STORE_ADDRESS_NORM = normalize(STORE_ADDRESS);
+const PRESALE_ADDRESS_NORM = normalize(PRESALE_ADDRESS);
 
 const STATE_ID = 'singleton';
 let state = null;
@@ -141,7 +143,7 @@ router.post('/claim', async (req, res) => {
     }
     const data = await resp.json();
     const out = (data.out_msgs || []).find(
-      (m) => normalize(m.destination?.address) === STORE_ADDRESS_NORM
+      (m) => normalize(m.destination?.address) === PRESALE_ADDRESS_NORM
     );
     const sender = normalize(data.in_msg?.source?.address || '');
     if (!out) return res.status(400).json({ error: 'destination mismatch' });
