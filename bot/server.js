@@ -206,6 +206,8 @@ const tableWatchers = new Map();
 // Dynamic lobby tables grouped by game type and capacity
 const lobbyTables = {};
 const tableMap = new Map();
+app.set('tableMap', tableMap);
+app.set('gameManager', gameManager);
 const BUNDLE_TON_MAP = Object.fromEntries(
   Object.values(BUNDLES).map((b) => [b.label, b.ton])
 );
