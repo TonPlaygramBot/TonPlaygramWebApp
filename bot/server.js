@@ -937,6 +937,22 @@ io.on('connection', (socket) => {
       User.updateOne({ accountId: playerId }, { currentTableId: roomId }).catch(
         () => {}
       );
+
+      const invite = pendingInvites.get(roomId);
+      if (invite && invite.toIds && invite.toIds.includes(String(playerId))) {
+        pendingInvites.delete(roomId);
+        const targets = userSockets.get(String(invite.fromId));
+        if (targets && targets.size > 0) {
+          for (const sid of targets) {
+            io.to(sid).emit('inviteAccepted', {
+              roomId,
+              token: invite.token,
+              amount: invite.amount,
+              game: invite.game
+            });
+          }
+        }
+      }
     }
     const result = await gameManager.joinRoom(roomId, playerId, name, socket);
     if (result.error) socket.emit('error', result.error);
