@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 
 import RewardPopup from './RewardPopup.tsx';
+import AdModal from './AdModal.tsx';
 
 import { dailyCheckIn, getProfile } from '../utils/api.js';
 
@@ -44,6 +45,11 @@ export default function DailyCheckIn() {
   });
 
   const [reward, setReward] = useState(null);
+  const [showAd, setShowAd] = useState(false);
+  const [adWatched, setAdWatched] = useState(() => {
+    const ts = localStorage.getItem('lastCheckAd');
+    return ts ? Date.now() - parseInt(ts, 10) < ONE_DAY : false;
+  });
 
   useEffect(() => {
     async function fetchData() {
@@ -88,6 +94,22 @@ export default function DailyCheckIn() {
     setShowPopup(false);
   };
 
+  const attemptCheckIn = () => {
+    if (!adWatched) {
+      setShowAd(true);
+    } else {
+      handleCheckIn();
+    }
+  };
+
+  const handleAdComplete = () => {
+    const now = Date.now();
+    localStorage.setItem('lastCheckAd', String(now));
+    setAdWatched(true);
+    setShowAd(false);
+    handleCheckIn();
+  };
+
   // Show 5-day streak preview
 
   const progress = [];
@@ -120,7 +142,7 @@ export default function DailyCheckIn() {
 
         {i === streak - 1 && showPopup && (
           <span
-            onClick={handleCheckIn}
+            onClick={attemptCheckIn}
             className="text-brand-gold text-xs mt-1 cursor-pointer"
           >
             Claim
@@ -153,6 +175,11 @@ export default function DailyCheckIn() {
           disableEffects
         />
       )}
+      <AdModal
+        open={showAd}
+        onComplete={handleAdComplete}
+        onClose={() => setShowAd(false)}
+      />
 
       <h3 className="text-lg font-bold text-text">Daily Streaks</h3>
 

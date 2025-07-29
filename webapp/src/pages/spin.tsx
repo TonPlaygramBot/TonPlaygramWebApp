@@ -26,7 +26,11 @@ export default function SpinPage() {
   const [reward, setReward] = useState<number | null>(null);
   const [spinningMain, setSpinningMain] = useState(false);
   const [showAd, setShowAd] = useState(false);
-  const [adWatched, setAdWatched] = useState(false);
+  const ONE_HOUR = 60 * 60 * 1000;
+  const [adWatched, setAdWatched] = useState(() => {
+    const ts = localStorage.getItem('lastSpinAd');
+    return ts ? Date.now() - parseInt(ts, 10) < ONE_HOUR : false;
+  });
   const [timeLeft, setTimeLeft] = useState(0);
   const [freeSpins, setFreeSpins] = useState(0);
 
@@ -97,7 +101,6 @@ export default function SpinPage() {
     const now = Date.now();
     localStorage.setItem('lastSpin', String(now));
     setLastSpin(now);
-    setAdWatched(false);
   };
 
     const handleFinish = async (r: Segment) => {
@@ -141,7 +144,10 @@ export default function SpinPage() {
   const triggerSpin = () => {
     if (globalSpinning) return;
     if (freeSpins === 0) {
-      if (!adWatched) {
+      const ts = parseInt(localStorage.getItem('lastSpinAd') || '0', 10);
+      const adValid = Date.now() - ts < ONE_HOUR;
+      if (!adValid) setAdWatched(false);
+      if (!adValid || !adWatched) {
         setShowAd(true);
         return;
       }
@@ -158,6 +164,8 @@ export default function SpinPage() {
   };
 
   const handleAdComplete = () => {
+    const now = Date.now();
+    localStorage.setItem('lastSpinAd', String(now));
     setAdWatched(true);
     setShowAd(false);
     triggerSpin();

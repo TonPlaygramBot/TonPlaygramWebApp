@@ -8,6 +8,7 @@ import {
 } from '../utils/api.js';
 import { getTelegramId } from '../utils/telegram.js';
 import LoginOptions from './LoginOptions.jsx';
+import AdModal from './AdModal.tsx';
 
 const MINING_DURATION = 12 * 60 * 60; // 12 hours in seconds
 const REWARD_AMOUNT = 1000; // maximum base reward, actual amount may vary
@@ -25,6 +26,12 @@ export default function MiningCard() {
   const [elapsed, setElapsed] = useState(0);
   const [bonusRate, setBonusRate] = useState(0);
   const [boostExpiry, setBoostExpiry] = useState<Date | null>(null);
+  const ONE_CYCLE = 12 * 60 * 60 * 1000; // 12 hours
+  const [showAd, setShowAd] = useState(false);
+  const [adWatched, setAdWatched] = useState(() => {
+    const ts = localStorage.getItem('lastMiningAd');
+    return ts ? Date.now() - parseInt(ts, 10) < ONE_CYCLE : false;
+  });
 
   // Load initial mining status
   useEffect(() => {
@@ -104,9 +111,28 @@ export default function MiningCard() {
 
   const toggleMining = async () => {
     if (isMining) return;
+    const ts = parseInt(localStorage.getItem('lastMiningAd') || '0', 10);
+    const adValid = Date.now() - ts < ONE_CYCLE;
+    if (!adValid) setAdWatched(false);
+    if (!adValid || !adWatched) {
+      setShowAd(true);
+      return;
+    }
     await startMining(telegramId);
     const now = Date.now();
     localStorage.setItem('miningStartTime', String(now));
+    setElapsed(0);
+    setIsMining(true);
+  };
+
+  const handleAdComplete = async () => {
+    const now = Date.now();
+    localStorage.setItem('lastMiningAd', String(now));
+    setAdWatched(true);
+    setShowAd(false);
+    await startMining(telegramId);
+    const startNow = Date.now();
+    localStorage.setItem('miningStartTime', String(startNow));
     setElapsed(0);
     setIsMining(true);
   };
@@ -160,6 +186,11 @@ export default function MiningCard() {
           Boost ends in {Math.max(0, Math.floor((boostExpiry.getTime() - Date.now()) / 86400000))}d
         </p>
       )}
+      <AdModal
+        open={showAd}
+        onComplete={handleAdComplete}
+        onClose={() => setShowAd(false)}
+      />
     </div>
   );
 }
