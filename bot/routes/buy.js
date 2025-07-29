@@ -4,7 +4,6 @@ import {
   MAX_TPC_PER_WALLET,
   PURCHASE_INTERVAL_MS,
   INITIAL_PRICE,
-  PRICE_INCREASE_STEP,
   PRESALE_ROUNDS,
 } from '../config.js';
 import PresaleState from '../models/PresaleState.js';
@@ -58,8 +57,9 @@ router.get('/status', async (_req, res) => {
   const st = await loadState();
   const round = PRESALE_ROUNDS[st.currentRound - 1] || {};
   const remaining = round.maxTokens ? round.maxTokens - st.tokensSold : 0;
+  const price = round.pricePerTPC ?? st.currentPrice;
   res.json({
-    currentPrice: st.currentPrice,
+    currentPrice: price,
     currentRound: st.currentRound,
     remainingTokens: remaining,
     maxPerWallet: MAX_TPC_PER_WALLET,
@@ -98,17 +98,17 @@ router.post('/', async (req, res) => {
   info.last = new Date();
   state.tonRaised += amountTON;
   state.tokensSold += tpc;
-  state.currentPrice = Number((state.currentPrice + PRICE_INCREASE_STEP).toFixed(9));
   if (state.tokensSold >= round.maxTokens) {
     state.currentRound += 1;
     state.tokensSold = 0;
     state.tonRaised = 0;
-    const next = PRESALE_ROUNDS[state.currentRound - 1];
-    state.currentPrice = next ? next.pricePerTPC : state.currentPrice;
   }
+  const nextRound = PRESALE_ROUNDS[state.currentRound - 1];
+  state.currentPrice = nextRound ? nextRound.pricePerTPC : state.currentPrice;
   await info.save();
   await saveState();
-  res.json({ tpc, currentPrice: state.currentPrice, round: state.currentRound });
+  const price = PRESALE_ROUNDS[state.currentRound - 1]?.pricePerTPC || state.currentPrice;
+  res.json({ tpc, currentPrice: price, round: state.currentRound });
 });
 
 router.post('/claim', async (req, res) => {
@@ -169,16 +169,13 @@ router.post('/claim', async (req, res) => {
 
     state.tonRaised += tonVal;
     state.tokensSold += tpc;
-    state.currentPrice = Number(
-      (state.currentPrice + PRICE_INCREASE_STEP).toFixed(9)
-    );
     if (state.tokensSold >= round.maxTokens) {
       state.currentRound += 1;
       state.tokensSold = 0;
       state.tonRaised = 0;
-      const next = PRESALE_ROUNDS[state.currentRound - 1];
-      state.currentPrice = next ? next.pricePerTPC : state.currentPrice;
     }
+    const nextRound = PRESALE_ROUNDS[state.currentRound - 1];
+    state.currentPrice = nextRound ? nextRound.pricePerTPC : state.currentPrice;
     await saveState();
 
     ensureTransactionArray(user);
@@ -193,10 +190,11 @@ router.post('/claim', async (req, res) => {
     });
     await user.save();
 
+    const price = PRESALE_ROUNDS[state.currentRound - 1]?.pricePerTPC || state.currentPrice;
     res.json({
       balance: user.balance,
       tpc,
-      currentPrice: state.currentPrice,
+      currentPrice: price,
       round: state.currentRound,
     });
   } catch (err) {

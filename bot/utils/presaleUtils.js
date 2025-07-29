@@ -1,7 +1,7 @@
 import PresaleTransaction from '../models/PresaleTransaction.js';
 import PresaleState from '../models/PresaleState.js';
 import WalletPurchase from '../models/WalletPurchase.js';
-import { MAX_TPC_PER_WALLET, PRICE_INCREASE_STEP, PRESALE_ROUNDS } from '../config.js';
+import { MAX_TPC_PER_WALLET, PRESALE_ROUNDS } from '../config.js';
 import { ensureTransactionArray } from './userUtils.js';
 
 async function loadState() {
@@ -43,14 +43,13 @@ export async function creditPendingPresale(user) {
 
     state.tonRaised += tonVal;
     state.tokensSold += tpc;
-    state.currentPrice = Number((state.currentPrice + PRICE_INCREASE_STEP).toFixed(9));
     if (state.tokensSold >= round.maxTokens) {
       state.currentRound += 1;
       state.tokensSold = 0;
       state.tonRaised = 0;
-      const next = PRESALE_ROUNDS[state.currentRound - 1];
-      state.currentPrice = next ? next.pricePerTPC : state.currentPrice;
     }
+    const nextRound = PRESALE_ROUNDS[state.currentRound - 1];
+    state.currentPrice = nextRound ? nextRound.pricePerTPC : state.currentPrice;
     ensureTransactionArray(user);
     user.balance += tpc;
     user.transactions.push({
