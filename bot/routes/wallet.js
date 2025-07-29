@@ -12,7 +12,8 @@ import { ensureTransactionArray, calculateBalance } from '../utils/userUtils.js'
 
 import authenticate from '../middleware/auth.js';
 import tonClaim from '../utils/tonClaim.js';
-import { WITHDRAW_ENABLED } from '../config.js';
+
+const WITHDRAW_ENABLED = process.env.WITHDRAW_ENABLED === 'true';
 
 // Track USDT using the official jetton master address on TON
 const USDT_JETTON_HEX =
