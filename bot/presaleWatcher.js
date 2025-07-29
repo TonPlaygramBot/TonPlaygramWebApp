@@ -3,6 +3,7 @@ import User from './models/User.js';
 import WalletPurchase from './models/WalletPurchase.js';
 import PresaleTransaction from './models/PresaleTransaction.js';
 import { withProxy } from './utils/proxyAgent.js';
+import tonClaim from './utils/tonClaim.js';
 import {
   MAX_TPC_PER_WALLET,
   INITIAL_PRICE,
@@ -19,6 +20,8 @@ const PRESALE_ADDRESS = process.env.PRESALE_DEPOSIT_ADDRESS || STORE_ADDRESS;
 const PRESALE_ADDRESS_API = normalizeAddress(PRESALE_ADDRESS);
 
 const PRESALE_ADDRESS_NORM = normalizeAddress(PRESALE_ADDRESS);
+
+const AUTO_CLAIM = process.env.PRESALE_AUTO_CLAIM === 'true';
 
 const STATE_ID = 'singleton';
 let state = null;
@@ -91,6 +94,15 @@ async function creditRecord(record, user) {
     txHash: record.txHash,
   });
   await user.save();
+
+  if (AUTO_CLAIM) {
+    const toAddress = record.wallet || user.walletAddress;
+    try {
+      await tonClaim(toAddress, tpc);
+    } catch (err) {
+      console.error('Presale auto claim failed:', err.message);
+    }
+  }
 
   record.processed = true;
   record.accountId = user.accountId;
