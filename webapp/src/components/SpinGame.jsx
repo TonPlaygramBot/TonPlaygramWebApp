@@ -24,7 +24,11 @@ export default function SpinGame() {
   const [bonusMode, setBonusMode] = useState(false);
   const [bonusResults, setBonusResults] = useState([]);
   const [showAd, setShowAd] = useState(false);
-  const [adWatched, setAdWatched] = useState(false);
+  const ONE_HOUR = 60 * 60 * 1000;
+  const [adWatched, setAdWatched] = useState(() => {
+    const ts = localStorage.getItem('lastSpinAd');
+    return ts ? Date.now() - parseInt(ts, 10) < ONE_HOUR : false;
+  });
   const [freeSpins, setFreeSpins] = useState(0);
   const [spinLock, setSpinLock] = useState(
     localStorage.getItem('spinInProgress') === '1'
@@ -112,7 +116,6 @@ export default function SpinGame() {
         localStorage.setItem('lastSpin', String(now));
         setLastSpin(now);
       }
-      setAdWatched(false);
       return;
     }
 
@@ -121,7 +124,6 @@ export default function SpinGame() {
       setFreeSpins(total);
       localStorage.setItem('freeSpins', String(total));
       setReward(r);
-      setAdWatched(false);
       return;
     }
 
@@ -139,7 +141,6 @@ export default function SpinGame() {
       setLastSpin(now);
     }
     setReward(r);
-    setAdWatched(false);
   };
 
 
@@ -151,6 +152,16 @@ export default function SpinGame() {
 
     if (storedFree === 0 && !canSpin(storedLast)) {
       return;
+    }
+
+    if (storedFree === 0) {
+      const ts = parseInt(localStorage.getItem('lastSpinAd') || '0', 10);
+      const adValid = Date.now() - ts < ONE_HOUR;
+      if (!adValid) setAdWatched(false);
+      if (!adValid || !adWatched) {
+        setShowAd(true);
+        return;
+      }
     }
 
     if (storedFree > 0) {
@@ -170,6 +181,8 @@ export default function SpinGame() {
   };
 
   const handleAdComplete = () => {
+    const now = Date.now();
+    localStorage.setItem('lastSpinAd', String(now));
     setAdWatched(true);
     setShowAd(false);
     triggerSpin();
