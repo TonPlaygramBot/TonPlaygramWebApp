@@ -3,6 +3,7 @@ import { v4 as uuidv4 } from 'uuid';
 import User from '../models/User.js';
 import { fetchTelegramInfo } from '../utils/telegram.js';
 import { ensureTransactionArray, calculateBalance } from '../utils/userUtils.js';
+import { creditPendingPresale } from '../utils/presaleUtils.js';
 import { normalizeAddress } from '../utils/ton.js';
 
 export function parseTwitterHandle(input) {
@@ -42,6 +43,7 @@ router.post('/register-wallet', async (req, res) => {
     { $setOnInsert: { walletAddress: normalized, referralCode: normalized } },
     { upsert: true, new: true, setDefaultsOnInsert: true }
   );
+  await creditPendingPresale(user);
   res.json(user);
 });
 
@@ -114,6 +116,8 @@ router.post('/get', async (req, res) => {
     user.accountId = uuidv4();
     await user.save();
   }
+
+  await creditPendingPresale(user);
 
   ensureTransactionArray(user);
   if (!Array.isArray(user.gifts)) user.gifts = [];
