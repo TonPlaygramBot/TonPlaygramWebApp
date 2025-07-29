@@ -15,24 +15,7 @@ const transactionSchema = new mongoose.Schema(
     game: String,
     players: Number,
     detail: String,
-    category: String,
-    txHash: String,
-    giftId: String
-  },
-  { _id: false }
-);
-
-const giftSchema = new mongoose.Schema(
-  {
-    _id: { type: String, default: uuidv4 },
-    gift: String,
-    price: Number,
-    tier: Number,
-    fromAccount: String,
-    fromName: String,
-date: { type: Date, default: Date.now },
-
-nftTokenId: String
+    txHash: String
   },
   { _id: false }
 );
@@ -57,9 +40,6 @@ const userSchema = new mongoose.Schema({
   lastMineAt: { type: Date, default: null },
 
   isWatched: { type: Boolean, default: false },
-
-  // Whether the account is banned from using the platform
-  isBanned: { type: Boolean, default: false },
 
   minedTPC: { type: Number, default: 0 },
 
@@ -92,33 +72,17 @@ const userSchema = new mongoose.Schema({
 
   transactions: [transactionSchema],
 
-  gifts: { type: [giftSchema], default: [] },
-
   referralCode: { type: String, unique: true },
 
   referredBy: { type: String },
 
   bonusMiningRate: { type: Number, default: 0 },
 
-  // Temporary mining bonus from store bundles
-  storeMiningRate: { type: Number, default: 0 },
-  storeMiningExpiresAt: { type: Date, default: null },
-
-  // Timestamp of the last time the user opened their inbox
-  inboxReadAt: { type: Date, default: Date.now },
 
   // Track which game table the user is currently seated at
   currentTableId: { type: String, default: null }
 
 });
-
-// Index commonly queried fields
-userSchema.index({ telegramId: 1 });
-userSchema.index({ accountId: 1 });
-userSchema.index({ nickname: 1 });
-userSchema.index({ referralCode: 1 });
-userSchema.index({ googleId: 1 });
-userSchema.index({ walletAddress: 1 });
 
 userSchema.pre('save', function(next) {
   if (!this.referralCode) {

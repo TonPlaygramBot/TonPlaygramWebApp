@@ -16,7 +16,7 @@ export default function InvitePopup({
   if (!open) return null;
   const [game, setGame] = React.useState('snake');
   return createPortal(
-    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black bg-opacity-70 pointer-events-auto">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-70">
       <div className="bg-surface border border-border rounded p-4 space-y-4 text-text w-72">
         {incoming ? (
           <p className="text-center">

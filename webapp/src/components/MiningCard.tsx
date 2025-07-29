@@ -8,10 +8,9 @@ import {
 } from '../utils/api.js';
 import { getTelegramId } from '../utils/telegram.js';
 import LoginOptions from './LoginOptions.jsx';
-import AdModal from './AdModal.tsx';
 
 const MINING_DURATION = 12 * 60 * 60; // 12 hours in seconds
-const REWARD_AMOUNT = 1000; // maximum base reward, actual amount may vary
+const REWARD_AMOUNT = 2000; // must mirror backend reward
 
 export default function MiningCard() {
   let telegramId: string;
@@ -25,13 +24,6 @@ export default function MiningCard() {
   const [isMining, setIsMining] = useState(false);
   const [elapsed, setElapsed] = useState(0);
   const [bonusRate, setBonusRate] = useState(0);
-  const [boostExpiry, setBoostExpiry] = useState<Date | null>(null);
-  const ONE_CYCLE = 12 * 60 * 60 * 1000; // 12 hours
-  const [showAd, setShowAd] = useState(false);
-  const [adWatched, setAdWatched] = useState(() => {
-    const ts = localStorage.getItem('lastMiningAd');
-    return ts ? Date.now() - parseInt(ts, 10) < ONE_CYCLE : false;
-  });
 
   // Load initial mining status
   useEffect(() => {
@@ -66,15 +58,7 @@ export default function MiningCard() {
     getReferralInfo(telegramId)
       .then((info) => {
         if (ignore) return;
-        const expires = info.storeMiningExpiresAt
-          ? new Date(info.storeMiningExpiresAt)
-          : null;
-        const active =
-          info.storeMiningRate && expires && expires > new Date()
-            ? info.storeMiningRate
-            : 0;
-        setBonusRate((info.bonusMiningRate || 0) + active);
-        setBoostExpiry(active ? expires : null);
+        setBonusRate(info.bonusMiningRate || 0);
       })
       .catch(() => {});
 
@@ -111,28 +95,9 @@ export default function MiningCard() {
 
   const toggleMining = async () => {
     if (isMining) return;
-    const ts = parseInt(localStorage.getItem('lastMiningAd') || '0', 10);
-    const adValid = Date.now() - ts < ONE_CYCLE;
-    if (!adValid) setAdWatched(false);
-    if (!adValid || !adWatched) {
-      setShowAd(true);
-      return;
-    }
     await startMining(telegramId);
     const now = Date.now();
     localStorage.setItem('miningStartTime', String(now));
-    setElapsed(0);
-    setIsMining(true);
-  };
-
-  const handleAdComplete = async () => {
-    const now = Date.now();
-    localStorage.setItem('lastMiningAd', String(now));
-    setAdWatched(true);
-    setShowAd(false);
-    await startMining(telegramId);
-    const startNow = Date.now();
-    localStorage.setItem('miningStartTime', String(startNow));
     setElapsed(0);
     setIsMining(true);
   };
@@ -148,14 +113,11 @@ export default function MiningCard() {
   const minted = isMining ? Math.floor((elapsed / MINING_DURATION) * totalReward) : 0;
 
   return (
-    <div className="relative bg-surface border border-border rounded-xl p-4 space-y-4 text-center overflow-hidden wide-card">
+    <div className="relative bg-surface border border-border rounded-xl p-4 space-y-4 text-center overflow-hidden">
       <img
         src="/assets/SnakeLaddersbackground.png"
         className="background-behind-board object-cover"
         alt=""
-        onError={(e) => {
-          e.currentTarget.style.display = 'none';
-        }}
       />
       <div className="flex justify-center items-center space-x-1">
         <GiMining className="w-5 h-5 text-accent" />
@@ -176,21 +138,11 @@ export default function MiningCard() {
       </button>
       {isMining && (
         <div className="flex items-center justify-center space-x-1 text-sm">
+          <img src="/icons/TPCcoin.png" alt="TPC" className="w-5 h-5" />
           <span>{minted}</span>
-          <span>TPC</span>
         </div>
       )}
       <p className="text-xs text-subtext">Speed boost: +{(bonusRate * 100).toFixed(0)}%</p>
-      {boostExpiry && (
-        <p className="text-xs text-subtext">
-          Boost ends in {Math.max(0, Math.floor((boostExpiry.getTime() - Date.now()) / 86400000))}d
-        </p>
-      )}
-      <AdModal
-        open={showAd}
-        onComplete={handleAdComplete}
-        onClose={() => setShowAd(false)}
-      />
     </div>
   );
 }
