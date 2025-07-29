@@ -22,12 +22,24 @@ export default function Layout({ children }) {
   const [invite, setInvite] = useState(null);
   const beepRef = useRef(null);
 
+  // Load any pending invite from localStorage on mount so the popup persists
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem('pendingInvite');
+      if (stored) setInvite(JSON.parse(stored));
+    } catch {}
+  }, []);
+
   useEffect(() => {
     beepRef.current = new Audio(chatBeep);
     beepRef.current.volume = getGameVolume();
     beepRef.current.muted = isGameMuted();
     const onInvite = ({ fromId, fromName, roomId, token, amount, game }) => {
-      setInvite({ fromId, fromName, roomId, token, amount, game });
+      const data = { fromId, fromName, roomId, token, amount, game };
+      setInvite(data);
+      try {
+        localStorage.setItem('pendingInvite', JSON.stringify(data));
+      } catch {}
       if (beepRef.current && !isGameMuted()) {
         beepRef.current.currentTime = 0;
         beepRef.current.play().catch(() => {});
@@ -145,8 +157,16 @@ export default function Layout({ children }) {
               `/games/${invite.game || 'snake'}?table=${invite.roomId}&token=${invite.token}&amount=${invite.amount}`,
             );
           setInvite(null);
+          try {
+            localStorage.removeItem('pendingInvite');
+          } catch {}
         }}
-        onReject={() => setInvite(null)}
+        onReject={() => {
+          setInvite(null);
+          try {
+            localStorage.removeItem('pendingInvite');
+          } catch {}
+        }}
       />
 
     </div>
