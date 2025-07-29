@@ -4,14 +4,7 @@ import useTelegramBackButton from '../hooks/useTelegramBackButton.js';
 import { createAccount, buyBundle, claimPurchase } from '../utils/api.js';
 import { getTelegramId } from '../utils/telegram.js';
 import InfoPopup from '../components/InfoPopup.jsx';
-
-const STORE_ADDRESS = 'UQDqDBiNU132j15Qka5EmSf37jCTLF-RdOlaQOXLHIJ5t-XT';
-const BUNDLES = [
-  { id: '10k', tpc: 10000, ton: 0.012 },
-  { id: '20k', tpc: 20000, ton: 0.02 },
-  { id: '100k', tpc: 100000, ton: 0.05 },
-  { id: '250k', tpc: 250000, ton: 0.1 }
-];
+import { STORE_ADDRESS, STORE_BUNDLES, STORE_CATEGORIES } from '../utils/storeData.js';
 
 export default function Store() {
   useTelegramBackButton();
@@ -20,6 +13,7 @@ export default function Store() {
   const [accountId, setAccountId] = useState('');
   const [msg, setMsg] = useState('');
   const [claimHash, setClaimHash] = useState('');
+  const [category, setCategory] = useState('Presale');
 
   useEffect(() => {
     let id;
@@ -47,30 +41,52 @@ export default function Store() {
   };
 
   return (
-    <div className="relative p-4 space-y-4 text-text">
+    <div className="relative p-4 space-y-4 text-text flex flex-col items-center">
       <h2 className="text-xl font-bold">Store</h2>
-      {BUNDLES.map((b) => (
+      <div className="flex justify-center space-x-2">
+        {STORE_CATEGORIES.map((c) => (
+          <button
+            key={c}
+            onClick={() => setCategory(c)}
+            className={`lobby-tile px-3 py-1 ${category === c ? 'lobby-selected' : ''}`}
+          >
+            {c}
+          </button>
+        ))}
+      </div>
+      {STORE_BUNDLES.filter(b => b.category === category).map((b) => (
         <div
           key={b.id}
-          className="prism-box p-4 space-y-2 w-80 mx-auto flex flex-col items-center"
+          className="store-card mx-auto wide-card"
         >
+          <div className="flex items-center space-x-2">
+            <span className="text-2xl">{b.icon}</span>
+            <h3 className="font-semibold">{b.name}</h3>
+          </div>
+          <div className="text-lg font-bold flex items-center space-x-1">
+            <span>{b.tpc.toLocaleString()}</span>
+            <img src="/assets/icons/TPCcoin_1.webp" alt="TPC" className="w-6 h-6" />
+          </div>
+          <div className="text-primary text-lg flex items-center space-x-1">
+            <span>{b.ton}</span>
+            <img src="/assets/icons/TON.webp" alt="TON" className="w-6 h-6" />
+          </div>
+          <div className="text-xs text-accent">{b.category} Bundle</div>
+          {b.boost ? (
+            <div className="text-sm">Mining Boost: +{b.boost * 100}%</div>
+          ) : null}
+          {b.spins ? (
+            <div className="text-sm">Spins: {b.spins}</div>
+          ) : null}
+          {b.duration ? (
+            <div className="text-xs text-subtext">Duration: {b.duration}d</div>
+          ) : null}
           <button
             onClick={() => handleBuy(b)}
-            className="lobby-tile px-4 cursor-pointer"
+            className="buy-button mt-2"
           >
             Buy
           </button>
-          <div className="mt-auto flex flex-col space-y-1 w-full">
-            <div className="text-center font-semibold flex items-center justify-center space-x-1">
-              <img src="/icons/TPCcoin.png" alt="TPC" className="w-5 h-5" />
-              <span>{b.tpc.toLocaleString()}</span>
-            </div>
-            <div className="text-center text-sm flex items-center justify-center space-x-1">
-              <span>Price:</span>
-              <img src="/icons/TON.png" alt="TON" className="w-5 h-5" />
-              <span>{b.ton}</span>
-            </div>
-          </div>
         </div>
       ))}
       <div className="prism-box p-4 space-y-2 w-80 mx-auto">

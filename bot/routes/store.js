@@ -8,7 +8,7 @@ import TonWeb from 'tonweb';
 const router = Router();
 
 const STORE_ADDRESS = process.env.STORE_DEPOSIT_ADDRESS ||
-  'UQDqDBiNU132j15Qka5EmSf37jCTLF-RdOlaQOXLHIJ5t-XT';
+  'UQAPwsGyKzA4MuBnCflTVwEcTLcGS9yV6okJWQGzO5VxVYD1';
 
 function normalize(addr) {
   try {
@@ -20,10 +20,38 @@ function normalize(addr) {
 
 const STORE_ADDRESS_NORM = normalize(STORE_ADDRESS);
 
-const BUNDLES = {
-  '10k': { tpc: 10000, ton: 0.012, label: '10k TPC' },
-  '100k': { tpc: 100000, ton: 0.05, label: '100k TPC' },
-  '250k': { tpc: 250000, ton: 0.1, label: '250k TPC' }
+const BOOST_EXPIRY = new Date('2025-08-21T00:00:00Z');
+
+function daysFromNow(days) {
+  const d = new Date();
+  d.setUTCDate(d.getUTCDate() + days);
+  return d;
+}
+
+export const BUNDLES = {
+  newbie: { tpc: 50000, ton: 0.2, label: 'Newbie Pack' },
+  rookie: { tpc: 100000, ton: 0.35, label: 'Rookie' },
+  starter: { tpc: 200000, ton: 0.6, label: 'Starter' },
+  miner: { tpc: 400000, ton: 1.2, label: 'Miner Pack', boost: 0.03 },
+  grinder: { tpc: 750000, ton: 2.0, label: 'Grinder', boost: 0.05 },
+  pro: { tpc: 1500000, ton: 3.8, label: 'Pro Bundle', boost: 0.08 },
+  whale: { tpc: 4000000, ton: 9.0, label: 'Whale Bundle', boost: 0.12 },
+  max: { tpc: 8000000, ton: 18.0, label: 'Max Presale', boost: 0.15 },
+
+  // Spin & Win Bundles
+  luckyStarter: { tpc: 6000, ton: 0.15, label: 'Lucky Starter' },
+  spinx3: { tpc: 12000, ton: 0.25, label: 'Spin x3 Pack' },
+  megaSpin: { tpc: 30000, ton: 0.7, label: 'Mega Spin Pack' },
+
+  // Virtual Friends
+  lazyLarry: { tpc: 0, ton: 0.1, label: 'Lazy Larry', boost: 0.25, duration: 7 },
+  smartSia: { tpc: 0, ton: 0.2, label: 'Smart Sia', boost: 0.5, duration: 7 },
+  grindBot: { tpc: 0, ton: 0.5, label: 'GrindBot3000', boost: 1.25, duration: 14 },
+
+  // Bonus Bundles
+  powerPack: { tpc: 10000, ton: 0.25, label: 'Power Pack', boost: 0.5, duration: 3 },
+  proPack: { tpc: 25000, ton: 0.4, label: 'Pro Pack', boost: 0.5, duration: 7 },
+  galaxyPack: { tpc: 60000, ton: 1.0, label: 'Galaxy Pack', boost: 1.25, duration: 7 },
 };
 
 router.post('/purchase', authenticate, async (req, res) => {
@@ -77,6 +105,15 @@ router.post('/purchase', authenticate, async (req, res) => {
   ensureTransactionArray(user);
   const txDate = new Date();
   user.balance += pack.tpc;
+  if (pack.boost) {
+    const expiry = pack.duration ? daysFromNow(pack.duration) : BOOST_EXPIRY;
+    if (!user.storeMiningExpiresAt || user.storeMiningExpiresAt < expiry) {
+      user.storeMiningExpiresAt = expiry;
+    }
+    if ((user.storeMiningRate || 0) < pack.boost) {
+      user.storeMiningRate = pack.boost;
+    }
+  }
   user.transactions.push({
     amount: pack.tpc,
     type: 'store',
@@ -87,7 +124,12 @@ router.post('/purchase', authenticate, async (req, res) => {
     txHash
   });
   await user.save();
-  res.json({ balance: user.balance, date: txDate });
+  res.json({
+    balance: user.balance,
+    date: txDate,
+    storeMiningRate: user.storeMiningRate || 0,
+    storeMiningExpiresAt: user.storeMiningExpiresAt,
+  });
 });
 
 export default router;
