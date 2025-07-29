@@ -5,6 +5,7 @@ import { socket } from '../utils/socket.js';
 import { pingOnline } from '../utils/api.js';
 import { getPlayerId } from '../utils/telegram.js';
 import { isGameMuted, getGameVolume } from '../utils/sound.js';
+import { chatBeep } from '../assets/soundData.js';
 import InvitePopup from './InvitePopup.jsx';
 
 import Navbar from './Navbar.jsx';
@@ -24,7 +25,7 @@ export default function Layout({ children }) {
   const beepRef = useRef(null);
 
   useEffect(() => {
-    beepRef.current = new Audio('/assets/sounds/successful.mp3');
+    beepRef.current = new Audio(chatBeep);
     beepRef.current.volume = getGameVolume();
     beepRef.current.muted = isGameMuted();
     const volumeHandler = () => {
