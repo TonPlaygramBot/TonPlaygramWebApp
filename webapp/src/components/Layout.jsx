@@ -1,10 +1,12 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 
 import { useLocation, useNavigate } from 'react-router-dom';
 import { socket } from '../utils/socket.js';
 import { pingOnline } from '../utils/api.js';
 import { ensureAccountId } from '../utils/telegram.js';
 import InvitePopup from './InvitePopup.jsx';
+import { chatBeep } from '../assets/soundData.js';
+import { isGameMuted, getGameVolume } from '../utils/sound.js';
 
 import Navbar from './Navbar.jsx';
 
@@ -18,13 +20,39 @@ export default function Layout({ children }) {
   const location = useLocation();
   const navigate = useNavigate();
   const [invite, setInvite] = useState(null);
+  const beepRef = useRef(null);
 
   useEffect(() => {
-    const onInvite = ({ fromId, fromName, roomId, token, amount }) => {
-      setInvite({ fromId, fromName, roomId, token, amount });
+    beepRef.current = new Audio(chatBeep);
+    beepRef.current.volume = getGameVolume();
+    beepRef.current.muted = isGameMuted();
+    const onInvite = ({ fromId, fromName, roomId, token, amount, game }) => {
+      setInvite({ fromId, fromName, roomId, token, amount, game });
+      if (beepRef.current && !isGameMuted()) {
+        beepRef.current.currentTime = 0;
+        beepRef.current.play().catch(() => {});
+      }
     };
     socket.on('gameInvite', onInvite);
-    return () => socket.off('gameInvite', onInvite);
+    return () => {
+      socket.off('gameInvite', onInvite);
+      beepRef.current?.pause();
+    };
+  }, []);
+
+  useEffect(() => {
+    const muteHandler = () => {
+      if (beepRef.current) beepRef.current.muted = isGameMuted();
+    };
+    const volumeHandler = () => {
+      if (beepRef.current) beepRef.current.volume = getGameVolume();
+    };
+    window.addEventListener('gameMuteChanged', muteHandler);
+    window.addEventListener('gameVolumeChanged', volumeHandler);
+    return () => {
+      window.removeEventListener('gameMuteChanged', muteHandler);
+      window.removeEventListener('gameVolumeChanged', volumeHandler);
+    };
   }, []);
 
   useEffect(() => {
@@ -114,7 +142,7 @@ export default function Layout({ children }) {
         onAccept={() => {
           if (invite)
             navigate(
-              `/games/snake?table=${invite.roomId}&token=${invite.token}&amount=${invite.amount}`,
+              `/games/${invite.game || 'snake'}?table=${invite.roomId}&token=${invite.token}&amount=${invite.amount}`,
             );
           setInvite(null);
         }}
