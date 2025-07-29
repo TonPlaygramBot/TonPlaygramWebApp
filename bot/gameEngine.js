@@ -359,15 +359,13 @@ export class GameRoomManager {
         snakes: Object.fromEntries(doc.snakes),
         ladders: Object.fromEntries(doc.ladders)
       }, doc.gameType || 'snake');
-      // Start with an empty room so stale player counts don't persist
-      room.players = [];
-      room.currentTurn = 0;
-      room.status = 'waiting';
-      // Clear any stored players from the database as well
-      await GameRoomModel.updateOne(
-        { roomId: doc.roomId },
-        { players: [], currentTurn: 0, status: 'waiting' }
-      ).catch(() => {});
+      room.players = doc.players.map((p) => ({
+        ...p.toObject(),
+        socketId: null,
+        lastRollTime: 0
+      }));
+      room.currentTurn = doc.currentTurn;
+      room.status = doc.status;
       this.rooms.set(room.id, room);
     }
   }

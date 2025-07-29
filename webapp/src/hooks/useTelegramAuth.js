@@ -1,25 +1,16 @@
 import { useEffect } from 'react';
 import { socket } from '../utils/socket.js';
-import { ensureAccountId } from '../utils/telegram.js';
 
 export default function useTelegramAuth() {
   useEffect(() => {
-    let accountId;
     const user = window?.Telegram?.WebApp?.initDataUnsafe?.user;
-    ensureAccountId()
-      .then((acc) => {
-        accountId = acc;
-        if (acc) {
-          socket.emit('register', { accountId: acc });
-        }
-      })
-      .catch(() => {});
-
-    const onConnect = () => {
-      if (accountId) socket.emit('register', { accountId });
-    };
-    socket.on('connect', onConnect);
-
+    const acc = localStorage.getItem('accountId');
+    if (user?.id) {
+      localStorage.setItem('telegramId', user.id);
+      socket.emit('register', { playerId: acc || user.id });
+    } else if (acc) {
+      socket.emit('register', { playerId: acc });
+    }
     if (user?.username) {
       localStorage.setItem('telegramUsername', user.username);
     }
@@ -32,9 +23,5 @@ export default function useTelegramAuth() {
     if (user) {
       localStorage.setItem('telegramUserData', JSON.stringify(user));
     }
-
-    return () => {
-      socket.off('connect', onConnect);
-    };
   }, []);
 }
