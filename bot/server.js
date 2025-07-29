@@ -717,6 +717,41 @@ app.post('/api/snake/invite', async (req, res) => {
   res.json({ success: true, url });
 });
 
+// Same logic exposed under /api/tpc/invite for clarity when using TPC tokens
+app.post('/api/tpc/invite', async (req, res) => {
+  let { fromAccount, fromName, toAccount, roomId, token, amount, type } =
+    req.body || {};
+  if (!fromAccount || !toAccount || !roomId) {
+    return res.status(400).json({ error: 'missing data' });
+  }
+
+  const targets = userSockets.get(String(toAccount));
+  if (targets && targets.size > 0) {
+    for (const sid of targets) {
+      io.to(sid).emit('gameInvite', {
+        fromId: fromAccount,
+        fromName,
+        roomId,
+        token,
+        amount,
+        game: 'snake'
+      });
+    }
+  }
+
+  pendingInvites.set(roomId, {
+    fromId: fromAccount,
+    fromName,
+    toIds: [toAccount],
+    token,
+    amount,
+    game: 'snake'
+  });
+
+  const url = getInviteUrl(roomId, token, amount, 'snake');
+  res.json({ success: true, url });
+});
+
 app.get('/api/snake/results', async (req, res) => {
   if (req.query.leaderboard) {
     const leaderboard = await GameResult.aggregate([
