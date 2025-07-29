@@ -82,7 +82,6 @@ The server honors a few extra environment variables when building or serving the
 - `SKIP_WEBAPP_BUILD` – set to any value to skip the automatic webapp build that normally runs when `npm start` is executed. Useful if you built the assets manually.
 - `ALLOWED_ORIGINS` – list of origins allowed for CORS and socket.io when serving the API. Separate multiple origins with commas.
 - `ENABLE_PRESALE_WATCHER` – set to `false` to disable automatic crediting of presale purchases. When enabled (default), the backend polls the store address every minute and credits TPC as soon as the payment appears on-chain. Manual hash claims are rarely needed unless the watcher is disabled or cannot reach the TON API.
-- `PRESALE_AUTO_CLAIM` – set to `true` to automatically claim TPC on-chain when a presale transaction is processed. Requires `CLAIM_CONTRACT_ADDRESS` and `CLAIM_WALLET_MNEMONIC`.
 
 5. Copy `scripts/.env.example` to `scripts/.env` and set:
    - `MNEMONIC` – wallet seed phrase used to deploy the Jetton
