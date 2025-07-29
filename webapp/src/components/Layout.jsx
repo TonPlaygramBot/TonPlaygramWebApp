@@ -3,10 +3,9 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { socket } from '../utils/socket.js';
 import { pingOnline } from '../utils/api.js';
-import { ensureAccountId } from '../utils/telegram.js';
-import InvitePopup from './InvitePopup.jsx';
-import { chatBeep } from '../assets/soundData.js';
+import { getPlayerId } from '../utils/telegram.js';
 import { isGameMuted, getGameVolume } from '../utils/sound.js';
+import InvitePopup from './InvitePopup.jsx';
 
 import Navbar from './Navbar.jsx';
 
@@ -14,6 +13,8 @@ import Footer from './Footer.jsx';
 
 import Branding from './Branding.jsx';
 
+import DynamicBackground from './DynamicBackground.jsx';
+import SkyBackground from './SkyBackground.jsx';
 import CosmicBackground from './CosmicBackground.jsx';
 
 export default function Layout({ children }) {
@@ -22,83 +23,56 @@ export default function Layout({ children }) {
   const [invite, setInvite] = useState(null);
   const beepRef = useRef(null);
 
-  // Load any pending invite from localStorage on mount so the popup persists
   useEffect(() => {
-    try {
-      const stored = localStorage.getItem('pendingInvite');
-      if (stored) setInvite(JSON.parse(stored));
-    } catch {}
+    beepRef.current = new Audio('/assets/sounds/successful.mp3');
+    beepRef.current.volume = getGameVolume();
+    beepRef.current.muted = isGameMuted();
+    const volumeHandler = () => {
+      if (beepRef.current) beepRef.current.volume = getGameVolume();
+    };
+    const muteHandler = () => {
+      if (beepRef.current) beepRef.current.muted = isGameMuted();
+    };
+    window.addEventListener('gameVolumeChanged', volumeHandler);
+    window.addEventListener('gameMuteChanged', muteHandler);
+    return () => {
+      window.removeEventListener('gameVolumeChanged', volumeHandler);
+      window.removeEventListener('gameMuteChanged', muteHandler);
+      beepRef.current?.pause();
+    };
   }, []);
 
   useEffect(() => {
-    beepRef.current = new Audio(chatBeep);
-    beepRef.current.volume = getGameVolume();
-    beepRef.current.muted = isGameMuted();
-    const onInvite = ({ fromId, fromName, roomId, token, amount, game }) => {
-      const data = { fromId, fromName, roomId, token, amount, game };
-      setInvite(data);
-      try {
-        localStorage.setItem('pendingInvite', JSON.stringify(data));
-      } catch {}
+    const onInvite = ({ fromId, fromName, roomId, token, amount, group, opponentNames, game }) => {
+      setInvite({ fromId, fromName, roomId, token, amount, group, opponentNames, game });
       if (beepRef.current && !isGameMuted()) {
         beepRef.current.currentTime = 0;
         beepRef.current.play().catch(() => {});
       }
     };
     socket.on('gameInvite', onInvite);
-    return () => {
-      socket.off('gameInvite', onInvite);
-      beepRef.current?.pause();
-    };
-  }, []);
-
-  useEffect(() => {
-    const muteHandler = () => {
-      if (beepRef.current) beepRef.current.muted = isGameMuted();
-    };
-    const volumeHandler = () => {
-      if (beepRef.current) beepRef.current.volume = getGameVolume();
-    };
-    window.addEventListener('gameMuteChanged', muteHandler);
-    window.addEventListener('gameVolumeChanged', volumeHandler);
-    return () => {
-      window.removeEventListener('gameMuteChanged', muteHandler);
-      window.removeEventListener('gameVolumeChanged', volumeHandler);
-    };
-  }, []);
-
-  useEffect(() => {
-    const onConnect = () => {
-      console.log('Connected to lobby server');
-    };
-    socket.on('connect', onConnect);
-    return () => socket.off('connect', onConnect);
+    return () => socket.off('gameInvite', onInvite);
   }, []);
 
   useEffect(() => {
     let id;
-    let cancelled = false;
-    ensureAccountId()
-      .then((accountId) => {
-        if (cancelled || !accountId) return;
-        function ping() {
-          pingOnline(accountId).catch(() => {});
-        }
-        ping();
-        id = setInterval(ping, 30000);
-      })
-      .catch(() => {});
-    return () => {
-      cancelled = true;
-      if (id) clearInterval(id);
-    };
+    try {
+      const playerId = getPlayerId();
+      function ping() {
+        pingOnline(playerId).catch(() => {});
+      }
+      ping();
+      id = setInterval(ping, 30000);
+    } catch {}
+    return () => clearInterval(id);
   }, []);
 
   const isHome = location.pathname === '/';
-  const isFriends = location.pathname === '/friends';
+  const isMining = location.pathname === '/mining';
   const isTasks = location.pathname === '/tasks';
   const isStore = location.pathname === '/store';
   const isAccount = location.pathname === '/account';
+  const isWallet = location.pathname === '/wallet';
   const isGamesRoot = location.pathname === '/games';
 
   const showBranding = isGamesRoot || !location.pathname.startsWith('/games');
@@ -117,14 +91,15 @@ export default function Layout({ children }) {
 
     <div className="flex flex-col min-h-screen text-text relative overflow-hidden">
 
-      {isHome && <CosmicBackground />}
-
-      <main className={`flex-grow container mx-auto p-4 ${showNavbar ? 'pb-24' : ''}`.trim()}>
+      <CosmicBackground />
+      <main className={`flex-grow ${
+        showNavbar ? 'container mx-auto p-4 pb-24' : 'w-full p-0'
+      }`}>
 
         {showBranding && (
-          <Branding
-            scale={isFriends || isTasks || isStore || isAccount || isGamesRoot ? 1.2 : 1}
-            offsetY={isFriends ? '0.5rem' : 0}
+        <Branding
+            scale={isMining || isTasks || isStore || isAccount || isGamesRoot || isWallet ? 1.2 : 1}
+            offsetY={isMining ? '0.5rem' : 0}
           />
         )}
 
@@ -149,24 +124,18 @@ export default function Layout({ children }) {
       <InvitePopup
         open={!!invite}
         name={invite?.fromName || invite?.fromId}
+        opponents={invite?.opponentNames || []}
         stake={{ token: invite?.token, amount: invite?.amount }}
         incoming
+        group={Array.isArray(invite?.group)}
         onAccept={() => {
           if (invite)
             navigate(
               `/games/${invite.game || 'snake'}?table=${invite.roomId}&token=${invite.token}&amount=${invite.amount}`,
             );
           setInvite(null);
-          try {
-            localStorage.removeItem('pendingInvite');
-          } catch {}
         }}
-        onReject={() => {
-          setInvite(null);
-          try {
-            localStorage.removeItem('pendingInvite');
-          } catch {}
-        }}
+        onReject={() => setInvite(null)}
       />
 
     </div>
