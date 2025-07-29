@@ -81,7 +81,7 @@ The server honors a few extra environment variables when building or serving the
 - `TONCONNECT_MANIFEST_URL` – full URL for a custom `tonconnect-manifest.json`. Defaults to the manifest bundled with the build when unset.
 - `SKIP_WEBAPP_BUILD` – set to any value to skip the automatic webapp build that normally runs when `npm start` is executed. Useful if you built the assets manually.
 - `ALLOWED_ORIGINS` – list of origins allowed for CORS and socket.io when serving the API. Separate multiple origins with commas.
-- `ENABLE_PRESALE_WATCHER` – set to `false` to disable automatic crediting of presale purchases. When enabled (default), the backend polls the store address every minute and credits TPC as soon as the payment appears on-chain. Manual hash claims are rarely needed unless the watcher is disabled or cannot reach the TON API.
+- `ENABLE_PRESALE_WATCHER` – set to `false` to disable automatic crediting of presale purchases. When enabled (default), the backend polls the store address every minute and credits TPC as soon as the payment appears on-chain. Transfers from unknown wallets are queued until the owner registers. Manual hash claims are rarely needed unless the watcher is disabled or cannot reach the TON API.
 
 5. Copy `scripts/.env.example` to `scripts/.env` and set:
    - `MNEMONIC` – wallet seed phrase used to deploy the Jetton
@@ -209,6 +209,14 @@ The `tpc_claim_wallet` contract forwards this call to the TPC Jetton root
 TPC is transferred directly to the provided address. If the call succeeds the
 transaction status becomes `delivered`. Failed claims revert the user's balance
 and respond with HTTP 500 while the transaction is removed.
+### Presale purchases
+
+Payments sent to `PRESALE_DEPOSIT_ADDRESS` automatically credit TPC. The presale watcher polls Tonapi every minute and records transfers to this address. When a known wallet is detected, the matching amount of TPC is added to that account.
+
+Transfers from wallets that are not registered yet are kept as pending and credited once the owner connects the wallet or claims manually.
+
+Use `POST /api/buy/claim` with an `accountId` and `txHash` to verify a transaction and credit it if automatic delivery failed. This endpoint is especially useful when `ENABLE_PRESALE_WATCHER` is disabled or the TON API is unreachable.
+
 
 ### Common issues
 
