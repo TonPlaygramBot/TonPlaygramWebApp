@@ -6,7 +6,6 @@ import { withProxy } from './utils/proxyAgent.js';
 import {
   MAX_TPC_PER_WALLET,
   INITIAL_PRICE,
-  PRICE_INCREASE_STEP,
   PRESALE_ROUNDS,
 } from './config.js';
 import { ensureTransactionArray } from './utils/userUtils.js';
@@ -70,14 +69,13 @@ async function creditRecord(record, user) {
 
   st.tonRaised += tonVal;
   st.tokensSold += tpc;
-  st.currentPrice = Number((st.currentPrice + PRICE_INCREASE_STEP).toFixed(9));
   if (st.tokensSold >= round.maxTokens) {
     st.currentRound += 1;
     st.tokensSold = 0;
     st.tonRaised = 0;
-    const next = PRESALE_ROUNDS[st.currentRound - 1];
-    st.currentPrice = next ? next.pricePerTPC : st.currentPrice;
   }
+  const nextRound = PRESALE_ROUNDS[st.currentRound - 1];
+  st.currentPrice = nextRound ? nextRound.pricePerTPC : st.currentPrice;
   await saveState();
 
   ensureTransactionArray(user);
@@ -158,14 +156,13 @@ async function processTransactions() {
 
         st.tonRaised += tonVal;
         st.tokensSold += tpc;
-        st.currentPrice = Number((st.currentPrice + PRICE_INCREASE_STEP).toFixed(9));
         if (st.tokensSold >= round.maxTokens) {
           st.currentRound += 1;
           st.tokensSold = 0;
           st.tonRaised = 0;
-          const next = PRESALE_ROUNDS[st.currentRound - 1];
-          st.currentPrice = next ? next.pricePerTPC : st.currentPrice;
         }
+        const nextRound = PRESALE_ROUNDS[st.currentRound - 1];
+        st.currentPrice = nextRound ? nextRound.pricePerTPC : st.currentPrice;
         await saveState();
 
         ensureTransactionArray(user);
