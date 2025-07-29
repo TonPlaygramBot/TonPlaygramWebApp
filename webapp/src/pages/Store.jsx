@@ -13,7 +13,7 @@ export default function Store() {
   const [accountId, setAccountId] = useState('');
   const [msg, setMsg] = useState('');
   const [claimHash, setClaimHash] = useState('');
-  const [category, setCategory] = useState('Presale');
+  const [category, setCategory] = useState('Bundles');
 
   useEffect(() => {
     let id;

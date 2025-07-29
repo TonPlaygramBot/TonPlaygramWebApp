@@ -2,7 +2,7 @@ import { Link } from 'react-router-dom';
 
 export default function ProjectAchievementsCard() {
   const achievements = [
-    '🔐 Smart-contract presale live with auto-delivery',
+    '🔐 Smart-contract store live with auto-delivery',
     '🚀 TPC deployed on TON network',
     '🧾 Wallet transaction history works',
     '💬 In-chat TPC transfers enabled',
