@@ -1,13 +1,8 @@
 import { AiOutlineShop } from 'react-icons/ai';
 import { Link } from 'react-router-dom';
-import { useEffect, useState } from 'react';
-import { getPresaleStatus } from '../utils/api.js';
+
 
 export default function StoreAd() {
-  const [status, setStatus] = useState(null);
-  useEffect(() => {
-    getPresaleStatus().then(setStatus);
-  }, []);
   return (
     <div className="relative bg-surface border border-border rounded-xl p-4 space-y-2 overflow-hidden wide-card">
       <img
@@ -23,7 +18,7 @@ export default function StoreAd() {
         <span className="text-lg font-bold">Store</span>
       </div>
       <div className="text-center text-sm">
-        Current Price: {status ? status.currentPrice : '...'} TON / 1 TPC
+        Grab TPC bundles and boosters in our store
       </div>
       <Link
         to="/store"

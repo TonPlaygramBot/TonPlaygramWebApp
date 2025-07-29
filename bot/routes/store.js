@@ -36,7 +36,7 @@ export const BUNDLES = {
   grinder: { tpc: 750000, ton: 2.0, label: 'Grinder', boost: 0.05 },
   pro: { tpc: 1500000, ton: 3.8, label: 'Pro Bundle', boost: 0.08 },
   whale: { tpc: 4000000, ton: 9.0, label: 'Whale Bundle', boost: 0.12 },
-  max: { tpc: 8000000, ton: 18.0, label: 'Max Presale', boost: 0.15 },
+  max: { tpc: 8000000, ton: 18.0, label: 'Max Bundle', boost: 0.15 },
 
   // Spin & Win Bundles
   luckyStarter: { tpc: 6000, ton: 0.15, label: 'Lucky Starter' },

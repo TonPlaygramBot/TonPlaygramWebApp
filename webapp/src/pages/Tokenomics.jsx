@@ -78,7 +78,7 @@ const roadmap = [
         done: true,
       },
       {
-        text: 'Presale and TPC transfers for early backers',
+        text: 'Initial TPC transfers for early backers',
         done: true,
       },
     ],
@@ -425,7 +425,7 @@ export default function TokenomicsPage() {
           <h4 className="font-semibold text-accent mb-1">TonPlaygram Accomplishments So Far</h4>
           <ul className="list-disc pl-6 space-y-1">
             <li><b>Core Infrastructure</b></li>
-            <li className="ml-4">🔐 Smart-contract-based presale is live — TON sent, TPC <img src="/assets/icons/TPCcoin_1.webp" alt="TPC" className="inline-block w-4 h-4 ml-1" /> auto-delivered to wallet</li>
+            <li className="ml-4">🔐 Smart-contract store live — TON sent, TPC <img src="/assets/icons/TPCcoin_1.webp" alt="TPC" className="inline-block w-4 h-4 ml-1" /> auto-delivered to wallet</li>
             <li className="ml-4">🚀 TPC deployed on TON network at {TPC_JETTON_ADDRESS}</li>
             <li className="ml-4">🧾 Wallet transaction history fully functional</li>
             <li className="ml-4">💬 In-chat TPC <img src="/assets/icons/TPCcoin_1.webp" alt="TPC" className="inline-block w-4 h-4 ml-1" /> transfers enabled</li>
@@ -449,7 +449,7 @@ export default function TokenomicsPage() {
         <div>
           <h4 className="font-semibold text-accent mb-1">What’s Live Right Now</h4>
           <ul className="list-disc pl-6 space-y-1">
-            <li>🛒 Presale Store with bundles up to 5M <img src="/assets/icons/TPCcoin_1.webp" alt="TPC" className="inline-block w-4 h-4 ml-1" /></li>
+            <li>🛒 Store with bundles up to 8M <img src="/assets/icons/TPCcoin_1.webp" alt="TPC" className="inline-block w-4 h-4 ml-1" /></li>
             <li>🧑‍💻 Mining &amp; Boosters (via Virtual Friends)</li>
             <li>🔁 Spin &amp; Win Packs (with spins and TPC <img src="/assets/icons/TPCcoin_1.webp" alt="TPC" className="inline-block w-4 h-4 ml-1" />)</li>
             <li>🎁 Bonus Packs (spins + TPC <img src="/assets/icons/TPCcoin_1.webp" alt="TPC" className="inline-block w-4 h-4 ml-1" /> + boosts)</li>
