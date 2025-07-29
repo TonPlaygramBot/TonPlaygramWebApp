@@ -10,7 +10,7 @@ import { getTelegramId } from '../utils/telegram.js';
 import LoginOptions from './LoginOptions.jsx';
 
 const MINING_DURATION = 12 * 60 * 60; // 12 hours in seconds
-const REWARD_AMOUNT = 2000; // must mirror backend reward
+const REWARD_AMOUNT = 1000; // maximum base reward, actual amount may vary
 
 export default function MiningCard() {
   let telegramId: string;
@@ -24,6 +24,7 @@ export default function MiningCard() {
   const [isMining, setIsMining] = useState(false);
   const [elapsed, setElapsed] = useState(0);
   const [bonusRate, setBonusRate] = useState(0);
+  const [boostExpiry, setBoostExpiry] = useState<Date | null>(null);
 
   // Load initial mining status
   useEffect(() => {
@@ -58,7 +59,15 @@ export default function MiningCard() {
     getReferralInfo(telegramId)
       .then((info) => {
         if (ignore) return;
-        setBonusRate(info.bonusMiningRate || 0);
+        const expires = info.storeMiningExpiresAt
+          ? new Date(info.storeMiningExpiresAt)
+          : null;
+        const active =
+          info.storeMiningRate && expires && expires > new Date()
+            ? info.storeMiningRate
+            : 0;
+        setBonusRate((info.bonusMiningRate || 0) + active);
+        setBoostExpiry(active ? expires : null);
       })
       .catch(() => {});
 
@@ -113,11 +122,14 @@ export default function MiningCard() {
   const minted = isMining ? Math.floor((elapsed / MINING_DURATION) * totalReward) : 0;
 
   return (
-    <div className="relative bg-surface border border-border rounded-xl p-4 space-y-4 text-center overflow-hidden">
+    <div className="relative bg-surface border border-border rounded-xl p-4 space-y-4 text-center overflow-hidden wide-card">
       <img
         src="/assets/SnakeLaddersbackground.png"
         className="background-behind-board object-cover"
         alt=""
+        onError={(e) => {
+          e.currentTarget.style.display = 'none';
+        }}
       />
       <div className="flex justify-center items-center space-x-1">
         <GiMining className="w-5 h-5 text-accent" />
@@ -138,11 +150,16 @@ export default function MiningCard() {
       </button>
       {isMining && (
         <div className="flex items-center justify-center space-x-1 text-sm">
-          <img src="/icons/TPCcoin.png" alt="TPC" className="w-5 h-5" />
           <span>{minted}</span>
+          <span>TPC</span>
         </div>
       )}
       <p className="text-xs text-subtext">Speed boost: +{(bonusRate * 100).toFixed(0)}%</p>
+      {boostExpiry && (
+        <p className="text-xs text-subtext">
+          Boost ends in {Math.max(0, Math.floor((boostExpiry.getTime() - Date.now()) / 86400000))}d
+        </p>
+      )}
     </div>
   );
 }
