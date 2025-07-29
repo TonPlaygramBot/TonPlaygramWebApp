@@ -1,4 +1,3 @@
-import TonWeb from 'tonweb';
 import PresaleState from './models/PresaleState.js';
 import User from './models/User.js';
 import WalletPurchase from './models/WalletPurchase.js';
@@ -17,6 +16,7 @@ const STORE_ADDRESS =
   process.env.STORE_DEPOSIT_ADDRESS ||
   'UQAPwsGyKzA4MuBnCflTVwEcTLcGS9yV6okJWQGzO5VxVYD1';
 const PRESALE_ADDRESS = process.env.PRESALE_DEPOSIT_ADDRESS || STORE_ADDRESS;
+const PRESALE_ADDRESS_API = normalizeAddress(PRESALE_ADDRESS);
 
 const PRESALE_ADDRESS_NORM = normalizeAddress(PRESALE_ADDRESS);
 
@@ -100,7 +100,7 @@ async function creditRecord(record, user) {
 async function processTransactions() {
   try {
     const resp = await fetch(
-      `https://tonapi.io/v2/blockchain/accounts/${PRESALE_ADDRESS}/transactions?limit=50`,
+      `https://tonapi.io/v2/blockchain/accounts/${PRESALE_ADDRESS_API}/transactions?limit=50`,
       withProxy()
     );
     if (!resp.ok) return;
