@@ -1203,7 +1203,9 @@ export default function SnakeAndLadder() {
     setPlayerColors(colors);
 
     const storedTable = localStorage.getItem('snakeCurrentTable');
-    const table = params.get("table") || storedTable || "snake-4";
+    const tableParam = params.get("table") || storedTable || "snake-4";
+    const validTables = new Set(["snake-2", "snake-3", "snake-4"]);
+    const table = validTables.has(tableParam) ? tableParam : "snake-4";
     setTableId(table);
     localStorage.setItem('snakeCurrentTable', table);
     const boardPromise = isMultiplayer
