@@ -29,19 +29,19 @@ function daysFromNow(days) {
 }
 
 export const BUNDLES = {
-  newbie: { tpc: 50000, ton: 0.2, label: 'Newbie Pack' },
-  rookie: { tpc: 100000, ton: 0.35, label: 'Rookie' },
-  starter: { tpc: 200000, ton: 0.6, label: 'Starter' },
-  miner: { tpc: 400000, ton: 1.2, label: 'Miner Pack', boost: 0.03 },
-  grinder: { tpc: 750000, ton: 2.0, label: 'Grinder', boost: 0.05 },
-  pro: { tpc: 1500000, ton: 3.8, label: 'Pro Bundle', boost: 0.08 },
-  whale: { tpc: 4000000, ton: 9.0, label: 'Whale Bundle', boost: 0.12 },
-  max: { tpc: 8000000, ton: 18.0, label: 'Max Bundle', boost: 0.15 },
+  newbie: { tpc: 20000, ton: 0.2, label: 'Newbie Pack' },
+  rookie: { tpc: 40000, ton: 0.35, label: 'Rookie' },
+  starter: { tpc: 80000, ton: 0.6, label: 'Starter' },
+  miner: { tpc: 160000, ton: 1.2, label: 'Miner Pack', boost: 0.03 },
+  grinder: { tpc: 300000, ton: 2.0, label: 'Grinder', boost: 0.05 },
+  pro: { tpc: 600000, ton: 3.8, label: 'Pro Bundle', boost: 0.08 },
+  whale: { tpc: 1600000, ton: 9.0, label: 'Whale Bundle', boost: 0.12 },
+  max: { tpc: 3200000, ton: 18.0, label: 'Max Bundle', boost: 0.15 },
 
   // Spin & Win Bundles
-  luckyStarter: { tpc: 6000, ton: 0.15, label: 'Lucky Starter' },
-  spinx3: { tpc: 12000, ton: 0.25, label: 'Spin x3 Pack' },
-  megaSpin: { tpc: 30000, ton: 0.7, label: 'Mega Spin Pack' },
+  luckyStarter: { tpc: 2400, ton: 0.15, label: 'Lucky Starter' },
+  spinx3: { tpc: 4800, ton: 0.25, label: 'Spin x3 Pack' },
+  megaSpin: { tpc: 12000, ton: 0.7, label: 'Mega Spin Pack' },
 
   // Virtual Friends
   lazyLarry: { tpc: 0, ton: 0.1, label: 'Lazy Larry', boost: 0.25, duration: 7 },
@@ -49,9 +49,9 @@ export const BUNDLES = {
   grindBot: { tpc: 0, ton: 0.5, label: 'GrindBot3000', boost: 1.25, duration: 14 },
 
   // Bonus Bundles
-  powerPack: { tpc: 10000, ton: 0.25, label: 'Power Pack', boost: 0.5, duration: 3 },
-  proPack: { tpc: 25000, ton: 0.4, label: 'Pro Pack', boost: 0.5, duration: 7 },
-  galaxyPack: { tpc: 60000, ton: 1.0, label: 'Galaxy Pack', boost: 1.25, duration: 7 },
+  powerPack: { tpc: 4000, ton: 0.25, label: 'Power Pack', boost: 0.5, duration: 3 },
+  proPack: { tpc: 10000, ton: 0.4, label: 'Pro Pack', boost: 0.5, duration: 7 },
+  galaxyPack: { tpc: 24000, ton: 1.0, label: 'Galaxy Pack', boost: 1.25, duration: 7 },
 };
 
 router.post('/purchase', authenticate, async (req, res) => {
