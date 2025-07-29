@@ -250,7 +250,7 @@ export default function Mining() {
             },
             (res) => {
               if (res && res.success) {
-                alert('Invite sent!');
+                window.location.href = `/games/snake?table=${roomId}&token=${stake.token}&amount=${stake.amount}`;
               } else {
                 alert(res?.error || 'Failed to send invite');
               }
@@ -277,16 +277,14 @@ export default function Mining() {
               fromId: accountId,
               fromName: myName,
               toIds: selected.map((u) => u.accountId),
-              opponentNames: selected.map((u) =>
-                u.nickname || `${u.firstName || ''} ${u.lastName || ''}`.trim(),
-              ),
+              opponentNames: selected.map((u) => u.nickname || `${u.firstName || ''} ${u.lastName || ''}`.trim()),
               roomId,
               token: stake.token,
               amount: stake.amount,
             },
             (res) => {
               if (res && res.success) {
-                alert('Invites sent!');
+                window.location.href = `/games/snake?table=${roomId}&token=${stake.token}&amount=${stake.amount}`;
               } else {
                 alert(res?.error || 'Failed to send invite');
               }
