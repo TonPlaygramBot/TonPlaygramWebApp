@@ -33,6 +33,7 @@
   - `TWITTER_BEARER_TOKEN` – bearer token for verifying reposts on **X**.
   - `TWITTER_CLIENT_ID` – API key for **X** OAuth linking.
   - `TWITTER_CLIENT_SECRET` – API secret for **X** OAuth linking.
+  - `WITHDRAW_ENABLED` – set to `true` to allow user withdrawals
 
     When deploying on **Render**, set these values (including `CLAIM_CONTRACT_ADDRESS`, `CLAIM_WALLET_MNEMONIC` and `RPC_URL`) in the service environment instead of storing them in `.env` files.
 
