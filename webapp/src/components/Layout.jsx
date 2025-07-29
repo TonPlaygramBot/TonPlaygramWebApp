@@ -76,14 +76,6 @@ export default function Layout({ children }) {
   }, []);
 
   useEffect(() => {
-    const onAccepted = ({ roomId, token, amount, game }) => {
-      navigate(`/games/${game || 'snake'}?table=${roomId}&token=${token}&amount=${amount}`);
-    };
-    socket.on('inviteAccepted', onAccepted);
-    return () => socket.off('inviteAccepted', onAccepted);
-  }, [navigate]);
-
-  useEffect(() => {
     let id;
     let cancelled = false;
     ensureAccountId()
