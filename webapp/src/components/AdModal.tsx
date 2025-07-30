@@ -1,5 +1,9 @@
 import { useEffect, useRef } from 'react';
 
+// URL for the rewarded video ad iframe
+const AD_VIDEO_URL =
+  'https://www.profitableratecpm.com/ee29ns0ue?key=548d7cc2fa500f230382d44b52e931c0';
+
 interface AdModalProps {
   open: boolean;
   onComplete: () => void;
@@ -13,8 +17,8 @@ export default function AdModal({ open, onComplete, onClose }: AdModalProps) {
     if (!open || !containerRef.current) return;
 
     const iframe = document.createElement('iframe');
-    iframe.src =
-      'https://www.profitableratecpm.com/ee29ns0ue?key=548d7cc2fa500f230382d44b52e931c0';
+    // load rewarded video ad
+    iframe.src = AD_VIDEO_URL;
     iframe.width = '100%';
     iframe.height = '100%';
     iframe.setAttribute('frameborder', '0');
