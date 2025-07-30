@@ -1,5 +1,4 @@
-import { useEffect, useState } from 'react';
-import { ADSGRAM_WALLET } from '../utils/constants.js';
+import { useEffect, useRef } from 'react';
 
 interface AdModalProps {
   open: boolean;
@@ -8,38 +7,30 @@ interface AdModalProps {
 }
 
 export default function AdModal({ open, onComplete, onClose }: AdModalProps) {
-  const [fallback, setFallback] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (!open) {
-      setFallback(false);
-      return;
-    }
-    const sdk = (window as any).AdsgramSDK;
-    if (sdk?.createVideoAd) {
-      const ad = sdk.createVideoAd({
-        containerId: 'adsgram-player',
-        walletAddress: ADSGRAM_WALLET,
-      });
+    if (!open || !containerRef.current) return;
 
-      const handleFinish = () => {
-        onComplete();
-      };
+    const iframe = document.createElement('iframe');
+    iframe.src =
+      'https://www.profitableratecpm.com/ee29ns0ue?key=548d7cc2fa500f230382d44b52e931c0';
+    iframe.width = '100%';
+    iframe.height = '100%';
+    iframe.setAttribute('frameborder', '0');
+    iframe.setAttribute('allowfullscreen', '');
 
-      ad.on?.('finish', handleFinish);
-      // Some versions emit 'close' or 'complete' when the ad ends
-      ad.on?.('close', handleFinish);
-      ad.on?.('complete', handleFinish);
+    const container = containerRef.current;
+    container.appendChild(iframe);
 
-      return () => {
-        ad.off?.('finish', handleFinish);
-        ad.off?.('close', handleFinish);
-        ad.off?.('complete', handleFinish);
-        ad.destroy?.();
-      };
-    } else {
-      setFallback(true);
-    }
+    const timer = setTimeout(() => {
+      onComplete();
+    }, 30000);
+
+    return () => {
+      clearTimeout(timer);
+      iframe.remove();
+    };
   }, [open, onComplete]);
 
   if (!open) return null;
@@ -58,17 +49,9 @@ export default function AdModal({ open, onComplete, onClose }: AdModalProps) {
         <h3 className="text-lg font-bold">Watch Ad</h3>
         <div
           id="adsgram-player"
-          className={`w-full h-40 bg-black ${fallback ? 'hidden' : ''}`}
+          ref={containerRef}
+          className="w-full h-40 bg-black"
         />
-        {fallback && (
-          <video
-            className="w-full h-40"
-            autoPlay
-            controls
-            onEnded={onComplete}
-            src="https://interactive-examples.mdn.mozilla.net/media/cc0-videos/flower.webm"
-          />
-        )}
         <p className="text-sm text-subtext">Watch the ad completely to unlock the spin.</p>
       </div>
     </div>
