@@ -1,5 +1,4 @@
 import { useState, useEffect, useRef } from 'react';
-import { FaUsers } from 'react-icons/fa';
 import { useNavigate, useParams } from 'react-router-dom';
 import TableSelector from '../../components/TableSelector.jsx';
 import RoomSelector from '../../components/RoomSelector.jsx';
@@ -11,12 +10,12 @@ import { socket } from '../../utils/socket.js';
 import { loadAvatar, getAvatarUrl } from '../../utils/avatarUtils.js';
 import { getTelegramPhotoUrl } from '../../utils/telegram.js';
 import {
-  getSnakeLobbies,
   pingOnline,
   getOnlineCount,
   getProfile,
   getAccountBalance,
-  addTransaction
+  addTransaction,
+  getSnakeLobby
 } from '../../utils/api.js';
 import {
   getPlayerId,
@@ -79,24 +78,12 @@ export default function Lobby() {
 
   useEffect(() => {
     if (game === 'snake') {
-      let active = true;
-      function load() {
-        getSnakeLobbies()
-          .then((data) => {
-            if (active)
-              setTables([
-                { id: 'single', label: 'Single Player vs AI' },
-                ...data
-              ]);
-          })
-          .catch(() => {});
-      }
-      load();
-      const id = setInterval(load, 5000);
-      return () => {
-        active = false;
-        clearInterval(id);
-      };
+      setTables([
+        { id: 'single', label: 'Single Player vs AI', capacity: 1 },
+        { id: 'snake-2', label: 'Table 2p', capacity: 2 },
+        { id: 'snake-3', label: 'Table 3p', capacity: 3 },
+        { id: 'snake-4', label: 'Table 4p', capacity: 4 }
+      ]);
     }
   }, [game]);
 
@@ -130,7 +117,7 @@ export default function Lobby() {
 
 
   useEffect(() => {
-    if (game === 'snake' && table && table.id !== 'single') {
+    if (game !== 'snake' && table && table.id !== 'single') {
       let active = true;
       getSnakeLobby(table.id)
         .then((data) => {
@@ -146,38 +133,40 @@ export default function Lobby() {
   }, [game, table]);
 
   useEffect(() => {
-    const onUpdate = ({ tableId, players: list, currentTurn, ready }) => {
-      console.log('lobbyUpdate', tableId, list);
-      const idToMatch = joinedTableId || table?.id;
-      if (idToMatch && tableId === idToMatch) {
-        setPlayers(list);
-        if (currentTurn != null) setCurrentTurn(currentTurn);
-        if (Array.isArray(ready)) setReadyList(ready);
-      }
-    };
-    const onStart = ({ tableId }) => {
-      console.log('gameStart', tableId);
-      const idToMatch = joinedTableId || table?.id;
-      if (
-        idToMatch &&
-        tableId === idToMatch &&
-        confirmed &&
-        !startedRef.current
-      ) {
-        const params = new URLSearchParams();
-        params.set('table', idToMatch);
-        if (stake.token) params.set('token', stake.token);
-        if (stake.amount) params.set('amount', stake.amount);
-        startedRef.current = true;
-        navigate(`/games/${game}?${params.toString()}`);
-      }
-    };
-    socket.on('lobbyUpdate', onUpdate);
-    socket.on('gameStart', onStart);
-    return () => {
-      socket.off('lobbyUpdate', onUpdate);
-      socket.off('gameStart', onStart);
-    };
+    if (game !== 'snake') {
+      const onUpdate = ({ tableId, players: list, currentTurn, ready }) => {
+        console.log('lobbyUpdate', tableId, list);
+        const idToMatch = joinedTableId || table?.id;
+        if (idToMatch && tableId === idToMatch) {
+          setPlayers(list);
+          if (currentTurn != null) setCurrentTurn(currentTurn);
+          if (Array.isArray(ready)) setReadyList(ready);
+        }
+      };
+      const onStart = ({ tableId }) => {
+        console.log('gameStart', tableId);
+        const idToMatch = joinedTableId || table?.id;
+        if (
+          idToMatch &&
+          tableId === idToMatch &&
+          confirmed &&
+          !startedRef.current
+        ) {
+          const params = new URLSearchParams();
+          params.set('table', idToMatch);
+          if (stake.token) params.set('token', stake.token);
+          if (stake.amount) params.set('amount', stake.amount);
+          startedRef.current = true;
+          navigate(`/games/${game}?${params.toString()}`);
+        }
+      };
+      socket.on('lobbyUpdate', onUpdate);
+      socket.on('gameStart', onStart);
+      return () => {
+        socket.off('lobbyUpdate', onUpdate);
+        socket.off('gameStart', onStart);
+      };
+    }
   }, [table, stake, game, navigate, joinedTableId]);
 
   // Automatic game start previously triggered when all seats were filled.
@@ -222,42 +211,12 @@ export default function Lobby() {
     }
 
     if (game === 'snake' && table && table.id !== 'single') {
-      const accountId = await ensureAccountId().catch(() => null);
-      if (accountId) {
-        socket.emit(
-          'seatTable',
-          {
-            accountId,
-            tableId: table.id,
-            playerName,
-            avatar: playerAvatar
-          },
-          (resp) => {
-            if (!resp?.success) {
-              alert('Failed to join table');
-              return;
-            }
-            console.log('joined table', resp.tableId);
-            setJoinedTableId(resp.tableId);
-            socket.emit('confirmReady', {
-              accountId,
-              tableId: resp.tableId
-            });
-            setConfirmed(true);
-          }
-        );
-      }
-    } else {
-      startedRef.current = true;
-      navigate(`/games/${game}?${params.toString()}`);
+      params.set('table', table.id);
     }
+    startedRef.current = true;
+    navigate(`/games/${game}?${params.toString()}`);
   };
 
-  const waitingForPlayers =
-    game === 'snake' &&
-    table &&
-    table.id !== 'single' &&
-    players.length < table.capacity;
   const disabled =
     !canStartGame(game, table, stake, aiCount, players.length) ||
     (game === 'snake' && table?.id === 'single' && !aiType) ||
@@ -268,8 +227,7 @@ export default function Lobby() {
     (game === 'snake' &&
       table?.id === 'single' &&
       aiType === 'flags' &&
-      flags.length !== aiCount) ||
-    confirmed;
+      flags.length !== aiCount);
 
   return (
     <div className="relative p-4 space-y-4 text-text">
@@ -279,40 +237,8 @@ export default function Lobby() {
         <div className="space-y-2">
           <div className="flex items-center justify-between">
             <h3 className="font-semibold">Select Table</h3>
-            {table && (
-              <span className="flex items-center">
-                <FaUsers
-                  className={`ml-2 ${players.length > 0 ? 'text-green-500' : 'text-red-500'}`}
-                />
-                <span className="ml-1">{players.length}</span>
-              </span>
-            )}
           </div>
           <TableSelector tables={tables} selected={table} onSelect={setTable} />
-        </div>
-      )}
-      {game === 'snake' && table && (
-        <div className="space-y-1">
-          <h3 className="font-semibold">
-            Online Players ({players.length}/{table.capacity})
-          </h3>
-          <ul className="text-sm list-disc list-inside">
-            {players.map((p) => (
-              <li key={p.id} className="flex items-center space-x-2">
-                {p.avatar && (
-                  <img
-                    src={getAvatarUrl(p.avatar)}
-                    alt="avatar"
-                    className="w-4 h-4 rounded-full"
-                  />
-                )}
-                <span>{p.name}</span>
-                {readyList.includes(p.id) && (
-                  <span className="text-green-500 ml-1">✔</span>
-                )}
-              </li>
-            ))}
-          </ul>
         </div>
       )}
       <div className="space-y-2">
@@ -357,14 +283,8 @@ export default function Lobby() {
         disabled={disabled}
         className="px-4 py-2 w-full bg-primary hover:bg-primary-hover text-background rounded disabled:opacity-50"
       >
-        {confirmed ? 'Waiting for others...' : 'Confirm'}
+        Start Game
       </button>
-      {confirmed && (
-        <p className="text-center text-sm text-subtext">
-          Waiting for {table.capacity - players.length} more player
-          {table.capacity - players.length === 1 ? '' : 's'}...
-        </p>
-      )}
       <LeaderPickerModal
         open={showLeaderPicker}
         count={aiCount}
