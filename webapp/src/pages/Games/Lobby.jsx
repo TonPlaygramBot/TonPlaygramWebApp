@@ -101,6 +101,12 @@ export default function Lobby() {
   }, [game]);
 
   useEffect(() => {
+    if (game === 'snake' && !table && tables.length) {
+      setTable(tables[0]);
+    }
+  }, [game, tables, table]);
+
+  useEffect(() => {
     let cancelled = false;
     let interval;
     ensureAccountId()
