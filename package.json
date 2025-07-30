@@ -27,6 +27,8 @@
     "emoji-name-map": "^2.0.3",
     "geoip-lite": "^1.4.10",
     "mongoose": "^7.6.0",
+    "express": "^4.19.2",
+    "socket.io": "^4.7.5",
     "socket.io-client": "^4.8.1",
     "ton": "^13.9.0",
     "ton-core": "^0.53.0",

@@ -5,8 +5,16 @@ how to synchronize game state across multiple players.
 
 ## Running the server
 
+Install dependencies once in the repository root:
+
 ```
-node server.js
+npm install
+```
+
+Then start the example server:
+
+```
+node examples/snake-ladder/server.js
 ```
 
 ## Using the React client
