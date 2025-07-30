@@ -269,8 +269,7 @@ export default function Lobby() {
       table?.id === 'single' &&
       aiType === 'flags' &&
       flags.length !== aiCount) ||
-    confirmed ||
-    waitingForPlayers;
+    confirmed;
 
   return (
     <div className="relative p-4 space-y-4 text-text">
@@ -358,17 +357,12 @@ export default function Lobby() {
         disabled={disabled}
         className="px-4 py-2 w-full bg-primary hover:bg-primary-hover text-background rounded disabled:opacity-50"
       >
-        {waitingForPlayers
-          ? `Waiting for ${table.capacity - players.length} more player${
-              table.capacity - players.length === 1 ? '' : 's'
-            }...`
-          : confirmed
-            ? 'Waiting for others...'
-            : 'Confirm'}
+        {confirmed ? 'Waiting for others...' : 'Confirm'}
       </button>
-      {confirmed && !waitingForPlayers && (
+      {confirmed && (
         <p className="text-center text-sm text-subtext">
-          Waiting for others...
+          Waiting for {table.capacity - players.length} more player
+          {table.capacity - players.length === 1 ? '' : 's'}...
         </p>
       )}
       <LeaderPickerModal
