@@ -12,13 +12,16 @@ export default function AdModal({ open, onComplete, onClose }: AdModalProps) {
   useEffect(() => {
     if (!open || !containerRef.current) return;
 
-    const script = document.createElement('script');
-    script.type = 'text/javascript';
-    script.src =
-      '//pl27300376.profitableratecpm.com/5c/aa/47/5caa47c392c4c58e997787300589a63c.js';
+    const iframe = document.createElement('iframe');
+    iframe.src =
+      'https://www.profitableratecpm.com/ee29ns0ue?key=548d7cc2fa500f230382d44b52e931c0';
+    iframe.width = '100%';
+    iframe.height = '100%';
+    iframe.setAttribute('frameborder', '0');
+    iframe.setAttribute('allowfullscreen', '');
 
     const container = containerRef.current;
-    container.appendChild(script);
+    container.appendChild(iframe);
 
     const handleMessage = (e: MessageEvent) => {
       if (
@@ -37,7 +40,7 @@ export default function AdModal({ open, onComplete, onClose }: AdModalProps) {
     return () => {
       window.removeEventListener('message', handleMessage);
       clearTimeout(timer);
-      script.remove();
+      iframe.remove();
     };
   }, [open, onComplete]);
 
