@@ -23,11 +23,22 @@ export default function AdModal({ open, onComplete, onClose }: AdModalProps) {
     const container = containerRef.current;
     container.appendChild(iframe);
 
+    const handleMessage = (e: MessageEvent) => {
+      if (
+        e.origin.includes('profitableratecpm.com') &&
+        (e.data === 'complete' || e.data === 'adComplete')
+      ) {
+        onComplete();
+      }
+    };
+    window.addEventListener('message', handleMessage);
+
     const timer = setTimeout(() => {
       onComplete();
-    }, 30000);
+    }, 40000);
 
     return () => {
+      window.removeEventListener('message', handleMessage);
       clearTimeout(timer);
       iframe.remove();
     };
