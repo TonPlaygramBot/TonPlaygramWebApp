@@ -30,6 +30,14 @@ io.on('connection', (socket) => {
     game.rollDice(socket.id);
     io.to(roomId).emit('gameStateUpdate', game.getState());
   });
+
+  socket.on('disconnect', () => {
+    games.forEach((game, id) => {
+      if (game.removePlayer(socket.id)) {
+        io.to(id).emit('gameStateUpdate', game.getState());
+      }
+    });
+  });
 });
 
 const PORT = process.env.PORT || 3000;

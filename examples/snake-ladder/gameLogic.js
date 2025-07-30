@@ -45,6 +45,24 @@ export class Game {
     return player;
   }
 
+  removePlayer(id) {
+    const index = this.players.findIndex((p) => p.id === id);
+    if (index === -1) return false;
+    this.players.splice(index, 1);
+    if (this.players.length === 0) {
+      this.currentPlayer = 0;
+      this.winner = null;
+    } else {
+      if (this.currentPlayer >= this.players.length) {
+        this.currentPlayer = 0;
+      }
+      if (this.winner === id) {
+        this.winner = null;
+      }
+    }
+    return true;
+  }
+
   rollDice(playerId) {
     if (this.winner) return;
     const current = this.players[this.currentPlayer];
