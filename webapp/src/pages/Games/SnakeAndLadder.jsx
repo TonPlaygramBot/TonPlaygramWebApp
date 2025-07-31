@@ -1480,6 +1480,24 @@ export default function SnakeAndLadder() {
     socket.on('diceRolled', onRolled);
     socket.on('gameWon', onWon);
     socket.on('currentPlayers', onCurrentPlayers);
+    socket.on('boardData', ({ snakes: sn, ladders: lad }) => {
+      const limit = (obj) => Object.fromEntries(Object.entries(obj).slice(0, 8));
+      const snakesLim = limit(sn || {});
+      const laddersLim = limit(lad || {});
+      setSnakes(snakesLim);
+      setLadders(laddersLim);
+      const snk = {};
+      Object.entries(snakesLim).forEach(([s, e]) => {
+        snk[s] = s - e;
+      });
+      const ladOff = {};
+      Object.entries(laddersLim).forEach(([s, e]) => {
+        const end = typeof e === 'object' ? e.end : e;
+        ladOff[s] = end - s;
+      });
+      setSnakeOffsets(snk);
+      setLadderOffsets(ladOff);
+    });
 
     if (watchOnly) {
       socket.emit('watchRoom', { roomId: tableId });
@@ -1522,6 +1540,7 @@ export default function SnakeAndLadder() {
       socket.off('diceRolled', onRolled);
       socket.off('gameWon', onWon);
       socket.off('currentPlayers', onCurrentPlayers);
+      socket.off('boardData');
       if (watchOnly) {
         socket.emit('leaveWatch', { roomId: tableId });
       } else {
