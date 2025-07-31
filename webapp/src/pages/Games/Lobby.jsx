@@ -59,6 +59,16 @@ export default function Lobby() {
     setJoinedTableId(null);
   }, [game, table]);
 
+  useEffect(() => {
+    const current = joinedTableId;
+    return () => {
+      if (current) {
+        const id = getPlayerId();
+        socket.emit('leaveLobby', { accountId: id, tableId: current });
+      }
+    };
+  }, [joinedTableId]);
+
   const selectAiType = (t) => {
     setAiType(t);
     if (t === 'leaders') setShowLeaderPicker(true);
@@ -117,7 +127,7 @@ export default function Lobby() {
 
 
   useEffect(() => {
-    if (game !== 'snake' && table && table.id !== 'single') {
+    if (table && table.id !== 'single') {
       let active = true;
       getSnakeLobby(table.id)
         .then((data) => {
@@ -133,41 +143,39 @@ export default function Lobby() {
   }, [game, table]);
 
   useEffect(() => {
-    if (game !== 'snake') {
-      const onUpdate = ({ tableId, players: list, currentTurn, ready }) => {
-        console.log('lobbyUpdate', tableId, list);
-        const idToMatch = joinedTableId || table?.id;
-        if (idToMatch && tableId === idToMatch) {
-          setPlayers(list);
-          if (currentTurn != null) setCurrentTurn(currentTurn);
-          if (Array.isArray(ready)) setReadyList(ready);
-        }
-      };
-      const onStart = ({ tableId }) => {
-        console.log('gameStart', tableId);
-        const idToMatch = joinedTableId || table?.id;
-        if (
-          idToMatch &&
-          tableId === idToMatch &&
-          confirmed &&
-          !startedRef.current
-        ) {
-          const params = new URLSearchParams();
-          params.set('table', idToMatch);
-          if (stake.token) params.set('token', stake.token);
-          if (stake.amount) params.set('amount', stake.amount);
-          startedRef.current = true;
-          navigate(`/games/${game}?${params.toString()}`);
-        }
-      };
-      socket.on('lobbyUpdate', onUpdate);
-      socket.on('gameStart', onStart);
-      return () => {
-        socket.off('lobbyUpdate', onUpdate);
-        socket.off('gameStart', onStart);
-      };
-    }
-  }, [table, stake, game, navigate, joinedTableId]);
+    const onUpdate = ({ tableId, players: list, currentTurn, ready }) => {
+      console.log('lobbyUpdate', tableId, list);
+      const idToMatch = joinedTableId || table?.id;
+      if (idToMatch && tableId === idToMatch) {
+        setPlayers(list);
+        if (currentTurn != null) setCurrentTurn(currentTurn);
+        if (Array.isArray(ready)) setReadyList(ready);
+      }
+    };
+    const onStart = ({ tableId }) => {
+      console.log('gameStart', tableId);
+      const idToMatch = joinedTableId || table?.id;
+      if (
+        idToMatch &&
+        tableId === idToMatch &&
+        confirmed &&
+        !startedRef.current
+      ) {
+        const params = new URLSearchParams();
+        params.set('table', idToMatch);
+        if (stake.token) params.set('token', stake.token);
+        if (stake.amount) params.set('amount', stake.amount);
+        startedRef.current = true;
+        navigate(`/games/${game}?${params.toString()}`);
+      }
+    };
+    socket.on('lobbyUpdate', onUpdate);
+    socket.on('gameStart', onStart);
+    return () => {
+      socket.off('lobbyUpdate', onUpdate);
+      socket.off('gameStart', onStart);
+    };
+  }, [table, stake, game, navigate, joinedTableId, confirmed]);
 
   // Automatic game start previously triggered when all seats were filled.
   // This prevented players from selecting their preferred stake before the
@@ -178,7 +186,33 @@ export default function Lobby() {
     const params = new URLSearchParams();
     if (table) params.set('table', table.id);
 
-    if (game === 'snake' && table?.id === 'single') {
+    if (game === 'snake' && table && table.id !== 'single') {
+      const accountId = await ensureAccountId().catch(() => null);
+      if (!accountId) return;
+      socket.emit(
+        'seatTable',
+        {
+          accountId,
+          gameType: 'snake',
+          stake: stake.amount,
+          maxPlayers: table.capacity,
+          playerName,
+          tableId: table.id,
+          avatar: playerAvatar,
+        },
+        (res) => {
+          if (res && res.success) {
+            setPlayers(res.players || []);
+            setCurrentTurn(res.currentTurn);
+            setReadyList(res.ready || []);
+            setJoinedTableId(res.tableId);
+            socket.emit('confirmReady', { accountId, tableId: res.tableId });
+            setConfirmed(true);
+          }
+        }
+      );
+      return;
+    } else if (game === 'snake' && table?.id === 'single') {
       localStorage.removeItem(`snakeGameState_${aiCount}`);
       params.set('ai', aiCount);
       params.set('avatars', aiType);
@@ -218,7 +252,7 @@ export default function Lobby() {
   };
 
   const disabled =
-    !canStartGame(game, table, stake, aiCount, players.length) ||
+    !stake || !stake.token || !stake.amount ||
     (game === 'snake' && table?.id === 'single' && !aiType) ||
     (game === 'snake' &&
       table?.id === 'single' &&
@@ -280,10 +314,10 @@ export default function Lobby() {
       )}
       <button
         onClick={startGame}
-        disabled={disabled}
+        disabled={disabled || (game === 'snake' && table?.id !== 'single' && confirmed)}
         className="px-4 py-2 w-full bg-primary hover:bg-primary-hover text-background rounded disabled:opacity-50"
       >
-        Start Game
+        {game === 'snake' && table?.id !== 'single' ? (confirmed ? 'Waiting…' : 'Confirm') : 'Start Game'}
       </button>
       <LeaderPickerModal
         open={showLeaderPicker}

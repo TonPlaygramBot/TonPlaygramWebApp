@@ -316,18 +316,22 @@ function maybeStartGame(table) {
     table.ready &&
     table.ready.size === table.maxPlayers
   ) {
-    console.log(`Table ${table.id} confirmed by all players. Starting game.`);
-    io.to(table.id).emit('gameStart', {
-      tableId: table.id,
-      players: table.players,
-      currentTurn: table.currentTurn,
-      stake: table.stake
-    });
-    tableSeats.delete(table.id);
-    const key = `${table.gameType}-${table.maxPlayers}`;
-    lobbyTables[key] = (lobbyTables[key] || []).filter(
-      (t) => t.id !== table.id
-    );
+    if (table.startTimeout) return;
+    table.startTimeout = setTimeout(() => {
+      console.log(`Table ${table.id} confirmed by all players. Starting game.`);
+      io.to(table.id).emit('gameStart', {
+        tableId: table.id,
+        players: table.players,
+        currentTurn: table.currentTurn,
+        stake: table.stake
+      });
+      tableSeats.delete(table.id);
+      const key = `${table.gameType}-${table.maxPlayers}`;
+      lobbyTables[key] = (lobbyTables[key] || []).filter(
+        (t) => t.id !== table.id
+      );
+      table.startTimeout = null;
+    }, 1000);
   }
 }
 
