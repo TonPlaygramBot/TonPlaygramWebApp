@@ -79,11 +79,12 @@ export class GameRoom {
     this.players = this.game.players;
   }
 
-  addPlayer(playerId, name, socket) {
+  addPlayer(playerId, name, socket, avatar = '') {
     const existing = this.players.find((p) => p.playerId === playerId);
     if (existing) {
       existing.socketId = socket.id;
       existing.name = name || existing.name;
+      if (avatar) existing.avatar = avatar;
       existing.disconnected = false;
       if (existing.disconnectTimer) {
         clearTimeout(existing.disconnectTimer);
@@ -101,12 +102,14 @@ export class GameRoom {
       player.disconnected = false;
       player.lastRollTime = 0;
       player.disconnectTimer = null;
+      player.avatar = avatar || '';
     }
     socket.join(this.id);
     const list = this.players.filter((p) => !p.disconnected).map((p) => ({
       playerId: p.playerId,
       name: p.name,
       position: p.position,
+      avatar: p.avatar || ''
     }));
     socket.emit('currentPlayers', list);
     this.io.to(this.id).emit('currentPlayers', list);
@@ -433,11 +436,11 @@ export class GameRoomManager {
     return room;
   }
 
-  async joinRoom(roomId, playerId, name, socket) {
+  async joinRoom(roomId, playerId, name, socket, avatar = '') {
     const match = /-(\d+)$/.exec(roomId);
     const cap = match ? Number(match[1]) : 4;
     const room = await this.getRoom(roomId, cap);
-    const result = room.addPlayer(playerId, name, socket);
+    const result = room.addPlayer(playerId, name, socket, avatar);
     if (!result.error) await this.saveRoom(room);
     return result;
   }

@@ -745,7 +745,7 @@ io.on('connection', (socket) => {
     maybeStartGame(table);
   });
 
-  socket.on('joinRoom', async ({ roomId, playerId, name }) => {
+  socket.on('joinRoom', async ({ roomId, playerId, name, avatar }) => {
     const map = tableSeats.get(roomId);
     if (map) {
       map.delete(String(playerId));
@@ -758,7 +758,7 @@ io.on('connection', (socket) => {
         () => {}
       );
     }
-    const result = await gameManager.joinRoom(roomId, playerId, name, socket);
+    const result = await gameManager.joinRoom(roomId, playerId, name, socket, avatar);
     if (result.error) socket.emit('error', result.error);
   });
   socket.on('watchRoom', ({ roomId }) => {
