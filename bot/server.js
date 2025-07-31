@@ -763,9 +763,13 @@ io.on('connection', (socket) => {
       );
     }
     const result = await gameManager.joinRoom(roomId, playerId, name, socket, avatar);
-    if (result.error) socket.emit('error', result.error);
+    if (result.error) {
+      socket.emit('error', result.error);
+    } else if (result.board) {
+      socket.emit('boardData', result.board);
+    }
   });
-  socket.on('watchRoom', ({ roomId }) => {
+  socket.on('watchRoom', async ({ roomId }) => {
     if (!roomId) return;
     let set = tableWatchers.get(roomId);
     if (!set) {
@@ -774,6 +778,10 @@ io.on('connection', (socket) => {
     }
     set.add(socket.id);
     socket.join(roomId);
+    try {
+      const room = await gameManager.getRoom(roomId);
+      socket.emit('boardData', { snakes: room.snakes, ladders: room.ladders });
+    } catch {}
     io.to(roomId).emit('watchCount', { roomId, count: set.size });
   });
 

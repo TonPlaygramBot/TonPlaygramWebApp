@@ -127,7 +127,10 @@ export class GameRoom {
       socket.emit('gameStarted');
       this.emitNextTurn();
     }
-    return { success: true };
+    return {
+      success: true,
+      board: { snakes: this.snakes, ladders: this.ladders }
+    };
   }
 
   startGame() {
