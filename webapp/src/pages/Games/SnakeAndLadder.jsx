@@ -1286,19 +1286,17 @@ export default function SnakeAndLadder() {
       setPlayersNeeded(Math.max(0, capacity - players.length));
     };
 
-    const onJoined = ({ playerId }) => {
-      getProfileByAccount(playerId).then((prof) => {
-        const name = prof?.nickname || `${prof?.firstName || ''} ${prof?.lastName || ''}`.trim() || `Player`;
-        const photoUrl = prof?.photo || '/assets/icons/profile.svg';
-        setMpPlayers((p) => {
-          if (p.some((pl) => pl.id === playerId)) {
-            updateNeeded(p);
-            return p;
-          }
-          const arr = [...p, { id: playerId, name, photoUrl, position: 0 }];
-          updateNeeded(arr);
-          return arr;
-        });
+    const onJoined = ({ playerId, name: joinedName, avatar }) => {
+      const name = joinedName || `Player`;
+      const photoUrl = avatar || '/assets/icons/profile.svg';
+      setMpPlayers((p) => {
+        if (p.some((pl) => pl.id === playerId)) {
+          updateNeeded(p);
+          return p;
+        }
+        const arr = [...p, { id: playerId, name, photoUrl, position: 0 }];
+        updateNeeded(arr);
+        return arr;
       });
     };
     const onLeft = ({ playerId }) => {
@@ -1436,17 +1434,14 @@ export default function SnakeAndLadder() {
     };
 
     const onCurrentPlayers = (players) => {
-      Promise.all(
-        players.map(async (p) => {
-          const prof = await getProfileByAccount(p.playerId).catch(() => ({}));
-          const name = prof?.nickname || `${prof?.firstName || ''} ${prof?.lastName || ''}`.trim() || p.name;
-          const photoUrl = prof?.photo || '/assets/icons/profile.svg';
-          return { id: p.playerId, name, photoUrl, position: p.position || 0 };
-        })
-      ).then((arr) => {
-        setMpPlayers(arr);
-        updateNeeded(arr);
-      });
+      const arr = players.map((p) => ({
+        id: p.playerId,
+        name: p.name || `Player`,
+        photoUrl: p.avatar || '/assets/icons/profile.svg',
+        position: p.position || 0
+      }));
+      setMpPlayers(arr);
+      updateNeeded(arr);
     };
 
     socket.on('playerJoined', onJoined);
@@ -1506,7 +1501,7 @@ export default function SnakeAndLadder() {
         })
         .catch(() => {});
     } else {
-      socket.emit('joinRoom', { roomId: tableId, playerId: accountId, name });
+      socket.emit('joinRoom', { roomId: tableId, playerId: accountId, name, avatar: photoUrl });
     }
 
 

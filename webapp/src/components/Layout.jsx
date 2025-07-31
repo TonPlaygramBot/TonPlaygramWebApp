@@ -28,6 +28,7 @@ export default function Layout({ children }) {
     beepRef.current = new Audio(chatBeep);
     beepRef.current.volume = getGameVolume();
     beepRef.current.muted = isGameMuted();
+    beepRef.current.load();
     const volumeHandler = () => {
       if (beepRef.current) beepRef.current.volume = getGameVolume();
     };
