@@ -83,11 +83,11 @@ router.post('/quest-watch', async (req, res) => {
     { upsert: true, new: true, setDefaultsOnInsert: true }
   );
   ensureTransactionArray(user);
-  user.minedTPC += HOURLY_REWARD;
+  user.balance += HOURLY_REWARD;
   user.transactions.push({
     amount: HOURLY_REWARD,
     type: 'quest',
-    status: 'pending',
+    status: 'delivered',
     date: new Date()
   });
   await user.save();
