@@ -536,6 +536,8 @@ app.get('/api/snake/board/:id', async (req, res) => {
   const match = /-(\d+)$/.exec(id);
   const cap = match ? Number(match[1]) : 4;
   const room = await gameManager.getRoom(id, cap);
+  // Persist the board so all players receive the same layout
+  await gameManager.saveRoom(room).catch(() => {});
   res.json({ snakes: room.snakes, ladders: room.ladders });
 });
 app.get('/api/watchers/count/:id', (req, res) => {
