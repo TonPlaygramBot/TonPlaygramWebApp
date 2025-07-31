@@ -111,6 +111,14 @@ export function watchAd(telegramId) {
   return post('/api/ads/watch', { telegramId });
 }
 
+export function getQuestStatus(telegramId) {
+  return post('/api/ads/quest-status', { telegramId });
+}
+
+export function completeQuest(telegramId) {
+  return post('/api/ads/quest-watch', { telegramId });
+}
+
 export function submitInfluencerVideo(telegramId, platform, videoUrl) {
   return post('/api/influencer/submit', { telegramId, platform, videoUrl });
 }
