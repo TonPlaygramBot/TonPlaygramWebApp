@@ -7,6 +7,8 @@ import {
   verifyTelegramReaction,
   getAdStatus,
   watchAd,
+  getQuestStatus,
+  completeQuest,
   dailyCheckIn,
   getProfile,
 } from '../utils/api.js';
@@ -57,6 +59,7 @@ const ICONS = {
 
 const REWARDS = Array.from({ length: 30 }, (_, i) => 100 + i * 20);
 const ONE_DAY = 24 * 60 * 60 * 1000;
+const HOUR_MS = 60 * 60 * 1000;
 
 export default function TasksCard() {
   let telegramId;
@@ -73,6 +76,8 @@ export default function TasksCard() {
   const [tasks, setTasks] = useState(null);
   const [adCount, setAdCount] = useState(0);
   const [showAd, setShowAd] = useState(false);
+  const [showQuestAd, setShowQuestAd] = useState(false);
+  const [questTime, setQuestTime] = useState(0);
   const [showPosts, setShowPosts] = useState(false);
   const [postLink, setPostLink] = useState('');
   const walletAddress = useTonAddress();
@@ -103,6 +108,8 @@ export default function TasksCard() {
     }
     const ad = await getAdStatus(telegramId);
     if (!ad.error) setAdCount(ad.count);
+    const quest = await getQuestStatus(telegramId);
+    if (!quest.error) setQuestTime(quest.remaining || 0);
     try {
       const prof = await getProfile(telegramId);
       setProfile(prof);
@@ -123,6 +130,13 @@ export default function TasksCard() {
 
     load();
 
+  }, []);
+
+  useEffect(() => {
+    const id = setInterval(() => {
+      setQuestTime((t) => (t > 1000 ? t - 1000 : 0));
+    }, 1000);
+    return () => clearInterval(id);
   }, []);
 
   const handleClaim = async (task) => {
@@ -200,6 +214,19 @@ export default function TasksCard() {
     const ad = await getAdStatus(telegramId);
     if (!ad.error) setAdCount(ad.count);
     setShowAd(false);
+  };
+
+  const handleQuestComplete = async () => {
+    await completeQuest(telegramId);
+    setQuestTime(HOUR_MS);
+    setShowQuestAd(false);
+  };
+
+  const formatTime = (ms) => {
+    const total = Math.ceil(ms / 1000);
+    const m = Math.floor(total / 60);
+    const s = total % 60;
+    return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
   };
 
   if (!tasks) {
@@ -325,12 +352,34 @@ export default function TasksCard() {
             )}
           </div>
         </li>
+        <li className="lobby-tile w-full">
+          <div className="grid grid-cols-[20px_1fr_auto_auto] items-center gap-2 w-full">
+            {ICONS.watch_ad}
+            <span className="text-sm">Advertising Quest</span>
+            <span className="text-xs text-subtext flex items-center gap-1">200 <img src="/assets/icons/TPCcoin_1.webp" alt="TPC" className="w-4 h-4" /></span>
+            {questTime > 0 ? (
+              <span className="text-sm text-subtext">{formatTime(questTime)}</span>
+            ) : (
+              <button
+                onClick={() => setShowQuestAd(true)}
+                className="px-2 py-0.5 bg-primary hover:bg-primary-hover text-background text-sm rounded"
+              >
+                Watch
+              </button>
+            )}
+          </div>
+        </li>
 
       </ul>
       <AdModal
         open={showAd}
         onComplete={handleAdComplete}
         onClose={() => setShowAd(false)}
+      />
+      <AdModal
+        open={showQuestAd}
+        onComplete={handleQuestComplete}
+        onClose={() => setShowQuestAd(false)}
       />
       <PostsModal
         open={showPosts}
