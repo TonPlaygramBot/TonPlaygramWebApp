@@ -7,7 +7,7 @@ export default function Store() {
   return (
     <div className="relative p-4 space-y-4 text-text flex flex-col items-center">
       <h2 className="text-xl font-bold">Store</h2>
-      <div className="bg-surface border border-border rounded-xl p-2 text-center text-xs space-y-1 w-full max-w-sm">
+      <div className="relative bg-surface border border-border rounded-xl p-2 text-center text-xs space-y-1 overflow-hidden wide-card">
         <img
           src={PTONTPC_LP_TOKEN.image}
           alt={PTONTPC_LP_TOKEN.symbol}
