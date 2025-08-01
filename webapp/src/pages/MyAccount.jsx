@@ -53,6 +53,7 @@ export default function MyAccount() {
   }
 
   const [profile, setProfile] = useState(null);
+  const [photoUrl, setPhotoUrl] = useState('');
   const [autoUpdating, setAutoUpdating] = useState(false);
   const [showAvatarPicker, setShowAvatarPicker] = useState(false);
   const [showAvatarPrompt, setShowAvatarPrompt] = useState(false);
@@ -122,6 +123,7 @@ export default function MyAccount() {
 
       setProfile(finalProfile);
       setTwitterLink(finalProfile.social?.twitter || '');
+      setPhotoUrl(loadAvatar() || finalProfile.photo || getTelegramPhotoUrl());
       try {
         const res = await getUnreadCount(telegramId);
         if (!res.error) setUnread(res.count);
@@ -138,9 +140,24 @@ export default function MyAccount() {
     };
   }, [telegramId]);
 
+  useEffect(() => {
+    async function updatePhoto() {
+      try {
+        const info = await fetchTelegramInfo(telegramId);
+        if (info?.photoUrl) setPhotoUrl(info.photoUrl);
+      } catch (err) {
+        console.error('fetchTelegramInfo failed', err);
+      }
+    }
+    updatePhoto();
+    const handler = () => setPhotoUrl(loadAvatar() || getTelegramPhotoUrl());
+    window.addEventListener('profilePhotoUpdated', handler);
+    return () => window.removeEventListener('profilePhotoUpdated', handler);
+  }, [telegramId]);
+
   if (!profile) return <div className="p-4 text-subtext">Loading...</div>;
 
-  const photoUrl = loadAvatar() || profile.photo || getTelegramPhotoUrl();
+  const photoToShow = photoUrl || getTelegramPhotoUrl();
 
 
   const handleDevTopup = async () => {
@@ -271,8 +288,8 @@ export default function MyAccount() {
       </div>
 
       <div className="flex items-center space-x-4">
-        {photoUrl && (
-          <img src={getAvatarUrl(photoUrl)} alt="avatar" className="w-16 h-16 rounded-full object-cover" />
+        {photoToShow && (
+          <img src={getAvatarUrl(photoToShow)} alt="avatar" className="w-16 h-16 rounded-full object-cover" />
         )}
         <div>
           <p className="font-semibold">
