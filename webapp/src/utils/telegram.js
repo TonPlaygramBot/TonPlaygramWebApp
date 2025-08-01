@@ -1,4 +1,4 @@
-import { createAccount } from "./api.js";
+import { fetchTelegramInfo } from "./api.js";
 export function getTelegramId() {
   if (typeof window !== 'undefined') {
     const tgId = window?.Telegram?.WebApp?.initDataUnsafe?.user?.id;
@@ -6,11 +6,16 @@ export function getTelegramId() {
       localStorage.setItem('telegramId', tgId);
       return tgId;
     }
+    const params = new URLSearchParams(window.location.search);
+    const urlId = params.get('tg') || params.get('telegramId');
+    if (urlId) {
+      localStorage.setItem('telegramId', urlId);
+      return Number(urlId);
+    }
     const stored = localStorage.getItem('telegramId');
     if (stored) return Number(stored);
   }
-  // Fallback for non-Telegram browsers
-  return 1;
+  return null;
 }
 
 export function getPlayerId() {
@@ -86,6 +91,17 @@ export function getTelegramPhotoUrl() {
     }
     const stored = localStorage.getItem('telegramPhotoUrl');
     if (stored) return stored;
+    const id = getTelegramId();
+    if (id) {
+      fetchTelegramInfo(id)
+        .then((info) => {
+          if (info?.photoUrl) {
+            localStorage.setItem('telegramPhotoUrl', info.photoUrl);
+            window.dispatchEvent(new Event('profilePhotoUpdated'));
+          }
+        })
+        .catch(() => {});
+    }
   }
   return '';
 }
