@@ -11,9 +11,9 @@ export default function InfoPopup({
 }) {
   if (!open) return null;
   return createPortal(
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-70">
+    <div className="fixed inset-0 z-50 flex items-start justify-center bg-black bg-opacity-70 overflow-y-auto py-4">
       <div
-        className={`prism-box flex-col p-6 space-y-4 text-text relative max-h-[90vh] overflow-y-auto ${widthClass}`}
+        className={`prism-box flex-col p-6 space-y-4 text-text relative ${widthClass}`}
       >
         {title && <h3 className="text-lg font-bold text-center">{title}</h3>}
         {info && <p className="text-sm text-subtext text-center">{info}</p>}
