@@ -87,6 +87,15 @@ export default function Lobby() {
   }, []);
 
   useEffect(() => {
+    const updatePhoto = () => {
+      const saved = loadAvatar();
+      setPlayerAvatar(saved || getTelegramPhotoUrl());
+    };
+    window.addEventListener('profilePhotoUpdated', updatePhoto);
+    return () => window.removeEventListener('profilePhotoUpdated', updatePhoto);
+  }, []);
+
+  useEffect(() => {
     if (game === 'snake') {
       setTables([
         { id: 'single', label: 'Single Player vs AI', capacity: 1 },
