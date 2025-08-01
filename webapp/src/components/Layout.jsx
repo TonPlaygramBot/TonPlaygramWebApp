@@ -7,6 +7,7 @@ import { getPlayerId } from '../utils/telegram.js';
 import { isGameMuted, getGameVolume } from '../utils/sound.js';
 import { chatBeep } from '../assets/soundData.js';
 import InvitePopup from './InvitePopup.jsx';
+import InfoPopup from './InfoPopup.jsx';
 
 import Navbar from './Navbar.jsx';
 
@@ -22,6 +23,7 @@ export default function Layout({ children }) {
   const location = useLocation();
   const navigate = useNavigate();
   const [invite, setInvite] = useState(null);
+  const [showDevNotice, setShowDevNotice] = useState(true);
   const beepRef = useRef(null);
 
   useEffect(() => {
@@ -45,8 +47,26 @@ export default function Layout({ children }) {
   }, []);
 
   useEffect(() => {
-    const onInvite = ({ fromId, fromName, roomId, token, amount, group, opponentNames, game }) => {
-      setInvite({ fromId, fromName, roomId, token, amount, group, opponentNames, game });
+    const onInvite = ({
+      fromId,
+      fromName,
+      roomId,
+      token,
+      amount,
+      group,
+      opponentNames,
+      game
+    }) => {
+      setInvite({
+        fromId,
+        fromName,
+        roomId,
+        token,
+        amount,
+        group,
+        opponentNames,
+        game
+      });
       if (beepRef.current && !isGameMuted()) {
         beepRef.current.currentTime = 0;
         beepRef.current.play().catch(() => {});
@@ -80,45 +100,45 @@ export default function Layout({ children }) {
   const showBranding = isGamesRoot || !location.pathname.startsWith('/games');
 
   const showNavbar = !(
-
     location.pathname.startsWith('/games/') &&
-
     !location.pathname.includes('/lobby')
-
   );
 
   const showFooter = !location.pathname.startsWith('/games/');
 
   return (
-
     <div className="flex flex-col min-h-screen text-text relative overflow-hidden">
-
       <CosmicBackground />
-      <main className={`flex-grow ${
-        showNavbar ? 'container mx-auto p-4 pb-24' : 'w-full p-0'
-      }`}>
-
+      <main
+        className={`flex-grow ${
+          showNavbar ? 'container mx-auto p-4 pb-24' : 'w-full p-0'
+        }`}
+      >
         {showBranding && (
-        <Branding
-            scale={isMining || isTasks || isStore || isAccount || isGamesRoot || isWallet ? 1.2 : 1}
+          <Branding
+            scale={
+              isMining ||
+              isTasks ||
+              isStore ||
+              isAccount ||
+              isGamesRoot ||
+              isWallet
+                ? 1.2
+                : 1
+            }
             offsetY={isMining ? '0.5rem' : 0}
           />
         )}
 
         {children}
-
       </main>
 
       {/* Fixed Bottom Navbar */}
 
       {showNavbar && (
-
         <div className="fixed bottom-0 inset-x-0 z-50">
-
           <Navbar />
-
         </div>
-
       )}
 
       {showFooter && <Footer />}
@@ -133,15 +153,41 @@ export default function Layout({ children }) {
         onAccept={() => {
           if (invite)
             navigate(
-              `/games/${invite.game || 'snake'}?table=${invite.roomId}&token=${invite.token}&amount=${invite.amount}`,
+              `/games/${invite.game || 'snake'}?table=${invite.roomId}&token=${invite.token}&amount=${invite.amount}`
             );
           setInvite(null);
         }}
         onReject={() => setInvite(null)}
       />
 
+      <InfoPopup
+        open={showDevNotice}
+        onClose={() => setShowDevNotice(false)}
+        title="\u2699\ufe0f Ongoing Development Notice"
+      >
+        <div className="space-y-2 text-sm text-subtext">
+          <p>
+            This platform is currently in its prototype stage, built to give you
+            a clear idea of how the full ecosystem will function. We’re actively
+            working on improvements and new features around the clock.
+          </p>
+          <p>
+            🧠 TonPlaygram was fully designed and developed by a single founder,
+            with the help of AI tools and zero external funding. Despite limited
+            resources, the goal has always been to deliver a powerful, engaging
+            experience from day one.
+          </p>
+          <p>
+            Once sufficient funding is secured, the platform will be rebuilt
+            professionally with a dedicated team to ensure performance,
+            scalability, and long-term growth.
+          </p>
+          <p>
+            Thank you for your support and patience as we continue building the
+            future of crypto gaming. 🚀
+          </p>
+        </div>
+      </InfoPopup>
     </div>
-
   );
-
 }
