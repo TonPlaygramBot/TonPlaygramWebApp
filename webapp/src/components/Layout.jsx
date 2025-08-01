@@ -163,7 +163,7 @@ export default function Layout({ children }) {
       <InfoPopup
         open={showDevNotice}
         onClose={() => setShowDevNotice(false)}
-        title="\u2699\ufe0f Platform in Development \u2014 Built by One Vision"
+        title="Maintenance"
       >
         <div className="space-y-2 text-sm text-subtext">
           <p>
