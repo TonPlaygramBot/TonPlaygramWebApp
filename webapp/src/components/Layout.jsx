@@ -163,29 +163,43 @@ export default function Layout({ children }) {
       <InfoPopup
         open={showDevNotice}
         onClose={() => setShowDevNotice(false)}
-        title="\u2699\ufe0f Ongoing Development Notice"
+        title="\u2699\ufe0f Platform in Development \u2014 Built by One Vision"
       >
         <div className="space-y-2 text-sm text-subtext">
           <p>
-            This platform is currently in its prototype stage, built to give you
-            a clear idea of how the full ecosystem will function. We’re actively
-            working on improvements and new features around the clock.
+            This platform is currently in its prototype stage, designed to give
+            you a working preview of how the full TonPlaygram ecosystem will
+            operate. New features, games, and improvements are being added
+            continuously.
           </p>
           <p>
-            🧠 TonPlaygram was fully designed and developed by a single founder,
-            with the help of AI tools and zero external funding. Despite limited
-            resources, the goal has always been to deliver a powerful, engaging
-            experience from day one.
+            🧠 TonPlaygram was created entirely by one person — Artur Alimadhi —
+            using AI tools and no external funding. Despite limited resources,
+            the goal has been to prove what's possible and build a real
+            foundation for the future.
           </p>
           <p>
-            Once sufficient funding is secured, the platform will be rebuilt
-            professionally with a dedicated team to ensure performance,
-            scalability, and long-term growth.
+            📸 To ensure full transparency, my name and photo are shown below —
+            this is a real, grassroots project built with passion and purpose.
           </p>
           <p>
-            Thank you for your support and patience as we continue building the
-            future of crypto gaming. 🚀
+            💾 All coins minted or earned in the app are securely recorded and
+            backed up in our database. Your progress and balances are saved —
+            nothing is lost, and everything will carry forward as we evolve the
+            platform.
           </p>
+          <p>
+            Once sufficient funding is raised, TonPlaygram will be rebuilt
+            professionally with a dedicated team to scale the experience,
+            enhance the design, and unlock the full potential of our vision.
+          </p>
+          <p>Thank you for being part of the journey. This is just the beginning. 🚀</p>
+          <img
+            src="/assets/icons/Artur Alimadhi.jpg"
+            alt="Artur Alimadhi"
+            className="w-24 h-24 rounded-full mx-auto"
+          />
+          <p className="text-center">— Artur Alimadhi<br />Founder, TonPlaygram</p>
         </div>
       </InfoPopup>
     </div>
