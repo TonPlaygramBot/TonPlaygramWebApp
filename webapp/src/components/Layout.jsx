@@ -185,21 +185,22 @@ export default function Layout({ children }) {
           <p>
             💾 All coins minted or earned in the app are securely recorded and
             backed up in our database. Your progress and balances are saved —
-            nothing is lost, and everything will carry forward as we evolve the
-            platform.
+            nothing is lost, and everything will carry forward as the platform
+            evolves.
           </p>
           <p>
-            Once sufficient funding is raised, TonPlaygram will be rebuilt
-            professionally with a dedicated team to scale the experience,
-            enhance the design, and unlock the full potential of our vision.
+            💰 70 million TPC have been allocated to liquidity, making the token
+            fully tradable on the TON blockchain. This entire amount is being
+            taken from the DEX/CEX & Liquidity wallet.
           </p>
           <p>
-            50 million coins will be added as part of presale for raising
-            funds. 20 million will be taken from the marketing wallet and 30
-            million from the liquidity wallet. The main objective is to launch
-            CEXs and DEXs on September 17.
+            🚀 The next major milestone is to secure listings on centralized
+            exchanges (CEXs), with a target date of September 17.
           </p>
-          <p>Thank you for being part of the journey. This is just the beginning. 🚀</p>
+          <p>
+            Thank you for being part of the journey. This is just the
+            beginning. Let’s build the future of crypto gaming — together.
+          </p>
           <img
             src="/assets/icons/Artur Alimadhi.jpg"
             alt="Artur Alimadhi"
