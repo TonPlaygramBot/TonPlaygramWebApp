@@ -25,7 +25,6 @@ import InfoPopup from '../components/InfoPopup.jsx';
 import DevNotifyModal from '../components/DevNotifyModal.jsx';
 import InfluencerClaimsCard from '../components/InfluencerClaimsCard.jsx';
 import Wallet from './Wallet.jsx';
-import AchievementsCard from '../components/AchievementsCard.jsx';
 
 import { FiCopy } from 'react-icons/fi';
 
@@ -355,8 +354,6 @@ export default function MyAccount() {
       </div>
 
       <BalanceSummary className="bg-surface border border-border rounded-xl p-4 wide-card" />
-      <AchievementsCard telegramId={telegramId} />
-
       {profile && profile.accountId === DEV_ACCOUNT_ID && (
         <>
           <div className="prism-box p-4 mt-4 space-y-2 mx-auto wide-card">
