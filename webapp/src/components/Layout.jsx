@@ -7,7 +7,6 @@ import { getPlayerId } from '../utils/telegram.js';
 import { isGameMuted, getGameVolume } from '../utils/sound.js';
 import { chatBeep } from '../assets/soundData.js';
 import InvitePopup from './InvitePopup.jsx';
-import InfoPopup from './InfoPopup.jsx';
 
 import Navbar from './Navbar.jsx';
 
@@ -23,7 +22,6 @@ export default function Layout({ children }) {
   const location = useLocation();
   const navigate = useNavigate();
   const [invite, setInvite] = useState(null);
-  const [showDevNotice, setShowDevNotice] = useState(true);
   const beepRef = useRef(null);
 
   useEffect(() => {
@@ -160,55 +158,6 @@ export default function Layout({ children }) {
         onReject={() => setInvite(null)}
       />
 
-      <InfoPopup
-        open={showDevNotice}
-        onClose={() => setShowDevNotice(false)}
-        title="Notice"
-      >
-        <div className="space-y-2 text-sm text-subtext">
-          <p>
-            This platform is currently in its prototype stage, designed to give
-            you a working preview of how the full TonPlaygram ecosystem will
-            operate. New features, games, and improvements are being added
-            continuously.
-          </p>
-          <p>
-            🧠 TonPlaygram was created entirely by one person — Artur Alimadhi —
-            using AI tools and no external funding. Despite limited resources,
-            the goal has been to prove what's possible and build a real
-            foundation for the future.
-          </p>
-          <p>
-            📸 To ensure full transparency, my name and photo are shown below —
-            this is a real, grassroots project built with passion and purpose.
-          </p>
-          <p>
-            💾 All coins minted or earned in the app are securely recorded and
-            backed up in our database. Your progress and balances are saved —
-            nothing is lost, and everything will carry forward as the platform
-            evolves.
-          </p>
-          <p>
-            💰 70 million TPC have been allocated to liquidity, making the token
-            fully tradable on the TON blockchain. This entire amount is being
-            taken from the DEX/CEX & Liquidity wallet.
-          </p>
-          <p>
-            🚀 The next major milestone is to secure listings on centralized
-            exchanges (CEXs), with a target date of September 17.
-          </p>
-          <p>
-            Thank you for being part of the journey. This is just the
-            beginning. Let’s build the future of crypto gaming — together.
-          </p>
-          <img
-            src="/assets/icons/Artur Alimadhi.jpg"
-            alt="Artur Alimadhi"
-            className="w-24 h-24 rounded-full mx-auto"
-          />
-          <p className="text-center">— Artur Alimadhi<br />Founder, TonPlaygram</p>
-        </div>
-      </InfoPopup>
     </div>
   );
 }
