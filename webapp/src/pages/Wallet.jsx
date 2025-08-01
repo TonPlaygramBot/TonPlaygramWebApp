@@ -49,7 +49,7 @@ function formatValue(value, decimals = 2) {
   });
 }
 
-export default function Wallet() {
+export default function Wallet({ hideClaim = false }) {
   useTelegramBackButton();
   const [tonConnectUI] = useTonConnectUI();
   const walletAddress = useTonAddress();
@@ -399,32 +399,34 @@ export default function Wallet() {
 
       <NftGiftCard accountId={accountId} />
 
-      <div className="prism-box p-6 space-y-3 text-center mt-4 flex flex-col items-center wide-card mx-auto">
-        <label className="block font-semibold">Claim to TON Wallet</label>
-        <p className="text-sm">Available: {tpcBalance === null ? '...' : formatValue(tpcBalance, 2)} TPC</p>
-        <input
-          type="text"
-          placeholder="TON Address"
-          value={claimAddress}
-          onChange={(e) => setClaimAddress(e.target.value)}
-          className="border p-1 rounded w-full max-w-xs mx-auto text-black"
-        />
-        <input
-          type="number"
-          placeholder="Amount"
-          value={claimAmount}
-          onChange={(e) => setClaimAmount(e.target.value)}
-          className="border p-1 rounded w-full max-w-xs mx-auto mt-1 text-black"
-        />
-        <button
-          onClick={handleClaim}
-          className="mt-1 px-3 py-1 bg-primary hover:bg-primary-hover text-background rounded"
-          disabled={claimSending}
-        >
-          {claimSending ? 'Processing...' : 'Claim'}
-        </button>
-        <p className="text-xs text-subtext mt-1">Fee: 0.5 TON per claim</p>
-      </div>
+      {!hideClaim && (
+        <div className="prism-box p-6 space-y-3 text-center mt-4 flex flex-col items-center wide-card mx-auto">
+          <label className="block font-semibold">Claim to TON Wallet</label>
+          <p className="text-sm">Available: {tpcBalance === null ? '...' : formatValue(tpcBalance, 2)} TPC</p>
+          <input
+            type="text"
+            placeholder="TON Address"
+            value={claimAddress}
+            onChange={(e) => setClaimAddress(e.target.value)}
+            className="border p-1 rounded w-full max-w-xs mx-auto text-black"
+          />
+          <input
+            type="number"
+            placeholder="Amount"
+            value={claimAmount}
+            onChange={(e) => setClaimAmount(e.target.value)}
+            className="border p-1 rounded w-full max-w-xs mx-auto mt-1 text-black"
+          />
+          <button
+            onClick={handleClaim}
+            className="mt-1 px-3 py-1 bg-primary hover:bg-primary-hover text-background rounded"
+            disabled={claimSending}
+          >
+            {claimSending ? 'Processing...' : 'Claim'}
+          </button>
+          <p className="text-xs text-subtext mt-1">Fee: 0.5 TON per claim</p>
+        </div>
+      )}
 
       {DEV_ACCOUNTS.includes(accountId) && (
         <div className="prism-box p-6 space-y-3 text-center mt-4 flex flex-col items-center w-80 mx-auto">
