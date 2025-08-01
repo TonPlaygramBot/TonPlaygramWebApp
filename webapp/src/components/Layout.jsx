@@ -163,7 +163,7 @@ export default function Layout({ children }) {
       <InfoPopup
         open={showDevNotice}
         onClose={() => setShowDevNotice(false)}
-        title="Maintenance"
+        title="Notice"
       >
         <div className="space-y-2 text-sm text-subtext">
           <p>
@@ -192,6 +192,12 @@ export default function Layout({ children }) {
             Once sufficient funding is raised, TonPlaygram will be rebuilt
             professionally with a dedicated team to scale the experience,
             enhance the design, and unlock the full potential of our vision.
+          </p>
+          <p>
+            50 million coins will be added as part of presale for raising
+            funds. 20 million will be taken from the marketing wallet and 30
+            million from the liquidity wallet. The main objective is to launch
+            CEXs and DEXs on September 17.
           </p>
           <p>Thank you for being part of the journey. This is just the beginning. 🚀</p>
           <img
