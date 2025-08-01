@@ -189,9 +189,9 @@ export default function Layout({ children }) {
             evolves.
           </p>
           <p>
-            💰 70 million TPC will be added to liquidity on August 3, making the
-            token fully tradable on the TON blockchain. This entire amount will
-            come from the DEX/CEX & Liquidity wallet.
+            💰 70 million TPC have been allocated to liquidity, making the token
+            fully tradable on the TON blockchain. This entire amount is being
+            taken from the DEX/CEX & Liquidity wallet.
           </p>
           <p>
             🚀 The next major milestone is to secure listings on centralized
