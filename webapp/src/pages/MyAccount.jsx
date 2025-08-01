@@ -498,7 +498,7 @@ export default function MyAccount() {
       </div>
 
       {/* Wallet section */}
-      <Wallet />
+      <Wallet hideClaim />
       <DevNotifyModal
         open={showNotifyModal}
         onClose={() => setShowNotifyModal(false)}
