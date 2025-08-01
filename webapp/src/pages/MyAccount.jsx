@@ -6,12 +6,9 @@ import {
   fetchTelegramInfo,
   depositAccount,
   sendBroadcast,
-  convertGifts,
   linkSocial,
   getUnreadCount
 } from '../utils/api.js';
-import { NFT_GIFTS } from '../utils/nftGifts.js';
-import GiftIcon from '../components/GiftIcon.jsx';
 import {
   getTelegramId,
   getTelegramFirstName,
@@ -70,10 +67,6 @@ export default function MyAccount() {
   const [notifySending, setNotifySending] = useState(false);
   const [notifyStatus, setNotifyStatus] = useState('');
   const [showNotifyModal, setShowNotifyModal] = useState(false);
-  const [selectedGifts, setSelectedGifts] = useState([]);
-  const [converting, setConverting] = useState(false);
-  const [convertAction, setConvertAction] = useState('burn');
-  const [transferAccount, setTransferAccount] = useState('');
   const [twitterError, setTwitterError] = useState('');
   const [twitterLink, setTwitterLink] = useState('');
   const [unread, setUnread] = useState(0);
@@ -187,28 +180,6 @@ export default function MyAccount() {
       setNotifySending(false);
       if (timerRef.current) clearTimeout(timerRef.current);
       timerRef.current = setTimeout(() => setNotifyStatus(''), 1500);
-    }
-  };
-
-  const handleConvertGifts = async () => {
-    if (!selectedGifts.length) return;
-    setConverting(true);
-    try {
-      const res = await convertGifts(
-        profile.accountId,
-        selectedGifts,
-        convertAction,
-        transferAccount.trim() || undefined
-      );
-      if (!res?.error) {
-        setProfile((p) => ({ ...p, gifts: res.gifts, balance: res.balance }));
-        setSelectedGifts([]);
-        setTransferAccount('');
-      }
-    } catch (err) {
-      console.error('convert gifts failed', err);
-    } finally {
-      setConverting(false);
     }
   };
 
@@ -419,83 +390,7 @@ export default function MyAccount() {
         </>
       )}
 
-      {/* NFT Gifts card */}
-      <div className="prism-box p-6 mt-4 space-y-2 mx-auto flex flex-col items-center text-center min-h-40 wide-card">
-        <h3 className="font-semibold">NFT Gifts</h3>
-        <div className="max-h-40 overflow-y-auto space-y-1 text-sm w-full flex-grow">
-          {profile.gifts && profile.gifts.length > 0 ? (
-            profile.gifts.map((g) => {
-              const info = NFT_GIFTS.find((x) => x.id === g.gift) || {};
-              return (
-                <label key={g._id} className="flex items-center space-x-2">
-                  <input
-                    type="checkbox"
-                    checked={selectedGifts.includes(g._id)}
-                    onChange={(e) => {
-                      if (e.target.checked) {
-                        setSelectedGifts([...selectedGifts, g._id]);
-                      } else {
-                        setSelectedGifts(selectedGifts.filter((id) => id !== g._id));
-                      }
-                    }}
-                  />
-                  <GiftIcon icon={info.icon} className="w-4 h-4" />
-                  <span className="flex items-center space-x-1">
-                    <span>{info.name || g.gift}</span>
-                    <a
-                      href={`https://tonscan.org/nft/${g.tokenId || g._id}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-primary underline text-xs"
-                    >
-                      {g.tokenId || g._id}
-                    </a>
-                  </span>
-                  <span className="ml-auto">{g.price} TPC</span>
-                </label>
-              );
-            })
-          ) : (
-            <p className="text-center text-subtext">No NFT gifts</p>
-          )}
-        </div>
-        {profile.gifts && profile.gifts.length > 0 && (
-          <>
-            <div className="flex items-center space-x-2 mt-2 w-full">
-              <select
-                value={convertAction}
-                onChange={(e) => setConvertAction(e.target.value)}
-                className="border p-1 rounded text-black"
-              >
-                <option value="burn">Burn for TPC</option>
-                <option value="transfer">Transfer</option>
-              </select>
-              {convertAction === 'transfer' && (
-                <input
-                  type="text"
-                  placeholder="Receiver Account"
-                  value={transferAccount}
-                  onChange={(e) => setTransferAccount(e.target.value)}
-                  className="border p-1 rounded text-black flex-grow"
-                />
-              )}
-            </div>
-            <button
-              onClick={handleConvertGifts}
-              disabled={converting || selectedGifts.length === 0}
-              className="mt-auto px-3 py-1 bg-primary hover:bg-primary-hover rounded text-black w-full max-w-xs"
-            >
-              {converting
-                ? convertAction === 'burn'
-                  ? 'Converting...'
-                  : 'Transferring...'
-                : convertAction === 'burn'
-                ? 'Convert Selected'
-                : 'Transfer Selected'}
-            </button>
-          </>
-        )}
-      </div>
+
 
       {/* Wallet section */}
       <Wallet hideClaim />
