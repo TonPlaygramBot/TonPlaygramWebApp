@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
 
-// URL for the rewarded video ad iframe
+// URL for the rewarded video ad
 const AD_VIDEO_URL =
   'https://samplelib.com/lib/preview/mp4/sample-5s.mp4';
 
@@ -11,40 +11,23 @@ interface AdModalProps {
 }
 
 export default function AdModal({ open, onComplete, onClose }: AdModalProps) {
-  const containerRef = useRef<HTMLDivElement>(null);
+  const videoRef = useRef<HTMLVideoElement>(null);
 
   useEffect(() => {
-    if (!open || !containerRef.current) return;
+    if (!open || !videoRef.current) return;
 
-    const iframe = document.createElement('iframe');
-    // load rewarded video ad
-    iframe.src = AD_VIDEO_URL;
-    iframe.width = '100%';
-    iframe.height = '100%';
-    iframe.setAttribute('frameborder', '0');
-    iframe.setAttribute('allowfullscreen', '');
+    const video = videoRef.current;
 
-    const container = containerRef.current;
-    container.appendChild(iframe);
-
-    const handleMessage = (e: MessageEvent) => {
-      if (
-        e.origin.includes('profitableratecpm.com') &&
-        (e.data === 'complete' || e.data === 'adComplete')
-      ) {
-        onComplete();
-      }
-    };
-    window.addEventListener('message', handleMessage);
-
-    const timer = setTimeout(() => {
+    const handleEnded = () => {
       onComplete();
-    }, 40000);
+    };
+
+    video.addEventListener('ended', handleEnded);
+    video.play().catch(() => {});
 
     return () => {
-      window.removeEventListener('message', handleMessage);
-      clearTimeout(timer);
-      iframe.remove();
+      video.removeEventListener('ended', handleEnded);
+      video.pause();
     };
   }, [open, onComplete]);
 
@@ -52,7 +35,7 @@ export default function AdModal({ open, onComplete, onClose }: AdModalProps) {
 
   return (
     <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-70 z-50">
-      <div className="relative w-full h-full">
+      <div className="relative w-[640px] h-[360px]">
         {onClose && (
           <button
             onClick={onClose}
@@ -61,10 +44,11 @@ export default function AdModal({ open, onComplete, onClose }: AdModalProps) {
             &times;
           </button>
         )}
-        <div
-          id="adsgram-player"
-          ref={containerRef}
-          className="w-full h-full bg-black"
+        <video
+          ref={videoRef}
+          src={AD_VIDEO_URL}
+          className="w-[640px] h-[360px]"
+          controls
         />
       </div>
     </div>
