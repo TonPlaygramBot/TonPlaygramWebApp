@@ -37,6 +37,7 @@ import TonConnectButton from '../components/TonConnectButton.jsx';
 import useTokenBalances from '../hooks/useTokenBalances.js';
 import useWalletUsdValue from '../hooks/useWalletUsdValue.js';
 import { getTelegramId, getTelegramPhotoUrl } from '../utils/telegram.js';
+import { PTONTPC_LP_TOKEN } from '../utils/lpToken.js';
 
 // Token contract on the TON network
 const TPC_JETTON_ADDRESS =
@@ -380,6 +381,18 @@ export default function Home() {
                 </li>
               ))}
             </ul>
+          </div>
+          <div className="space-y-1 text-center text-xs">
+            <img
+              src={PTONTPC_LP_TOKEN.image}
+              alt={PTONTPC_LP_TOKEN.symbol}
+              className="w-8 h-8 mx-auto"
+            />
+            <p className="font-semibold">{PTONTPC_LP_TOKEN.name}</p>
+            <p>{PTONTPC_LP_TOKEN.description}</p>
+            <p className="break-all text-brand-gold">
+              Address: {PTONTPC_LP_TOKEN.address}
+            </p>
           </div>
           <Link
             to="/tokenomics"
