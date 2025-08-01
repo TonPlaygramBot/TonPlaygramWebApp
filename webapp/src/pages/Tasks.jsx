@@ -184,7 +184,6 @@ export default function Tasks() {
     }
     const res = await verifyPost(telegramId, postLink);
     if (!res.error) {
-      await completeTask(telegramId, 'post_tweet');
       setPostLink('');
       load();
     } else {

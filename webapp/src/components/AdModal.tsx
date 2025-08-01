@@ -2,7 +2,7 @@ import { useEffect, useRef } from 'react';
 
 // URL for the rewarded video ad iframe
 const AD_VIDEO_URL =
-  'https://www.profitableratecpm.com/ee29ns0ue?key=548d7cc2fa500f230382d44b52e931c0';
+  'https://samplelib.com/lib/preview/mp4/sample-5s.mp4';
 
 interface AdModalProps {
   open: boolean;

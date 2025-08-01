@@ -129,7 +129,7 @@ export const TASKS = [
 
   {
     id: 'post_tweet',
-    description: 'Share a TonPlaygram update on X',
+    description: 'Share a TonPlaygram update on X (every 12h)',
     reward: 2000,
     icon: 'x',
     posts: [
