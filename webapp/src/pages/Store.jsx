@@ -22,7 +22,7 @@ export default function Store() {
       <iframe
         src="https://dexscreener.com/ton/eqbq51t0oo_ikuqvs2b0-mqaxns_uz3dest-zjmqc7xyw0ix"
         title="DexScreener"
-        className="w-full max-w-[512px] h-[650px] border-0"
+        className="w-full h-[650px] border-0 -mx-4"
         frameBorder="0"
       />
     </div>
