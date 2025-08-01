@@ -1,5 +1,4 @@
 import { AiOutlineShop } from 'react-icons/ai';
-import { Link } from 'react-router-dom';
 
 
 export default function StoreAd() {
@@ -15,17 +14,17 @@ export default function StoreAd() {
       />
       <div className="flex items-center justify-center space-x-1">
         <AiOutlineShop className="text-accent" />
-        <span className="text-lg font-bold">Store</span>
+        <span className="text-lg font-bold">Buy TPC</span>
       </div>
-      <div className="text-center text-sm">
-        Grab TPC bundles and boosters in our store
-      </div>
-      <Link
-        to="/store"
+      <div className="text-center text-sm">Swap TON for TPC on Ston.fi</div>
+      <a
+        href="https://app.ston.fi/swap?chartVisible=false&chartInterval=1w&ft=TON&tt=EQDY3qbfGN6IMI5d4MsEoprhuMTz09OkqjyhPKX6DVtzbi6X"
+        target="_blank"
+        rel="noopener noreferrer"
         className="mx-auto block px-3 py-1 bg-primary rounded hover:bg-primary-hover text-white-shadow"
       >
-        Open Store
-      </Link>
+        Buy TPC
+      </a>
     </div>
   );
 }
