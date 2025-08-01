@@ -170,9 +170,9 @@ The Wall also features a **Trending** section showing the most liked posts from 
 ### Using an HTTPS proxy
 
 If your server requires a proxy to reach external services like Tonkeeper,
-set the `HTTPS_PROXY` (or `https_proxy`) environment variable before running the
-bot. All fetch requests from the Node.js backend will be routed through this
-proxy.
+set the `HTTPS_PROXY`/`https_proxy` or `HTTP_PROXY`/`http_proxy` environment
+variable before running the bot. All fetch requests from the Node.js backend
+will be routed through this proxy.
 
 
 ### Wallet overview
