@@ -44,6 +44,7 @@ export default function StoreAd() {
       </div>
       {tpcPerTon != null && (
         <div className="text-center text-sm flex items-center justify-center gap-1">
+          <span>1</span>
           <img src="/assets/icons/TON.webp" alt="TON" className="w-4 h-4" />
           <span>= {formatPrice(tpcPerTon)}</span>
           <img src="/assets/icons/TPCcoin_1.webp" alt="TPC" className="w-4 h-4" />
