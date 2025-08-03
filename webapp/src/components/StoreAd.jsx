@@ -9,10 +9,10 @@ export default function StoreAd() {
     async function load() {
       try {
         const res = await fetch(
-          'https://api.dexscreener.com/latest/dex/pairs/ton/eqbq51t0oo_ikuqvs2b0-mqaxns_uz3dest-zjmqc7xyw0ix'
+          'https://api.dexscreener.com/latest/dex/tokens/EQDY3qbfGN6IMI5d4MsEoprhuMTz09OkqjyhPKX6DVtzbi6X'
         );
         const data = await res.json();
-        const p = parseFloat(data?.pair?.priceNative);
+        const p = parseFloat(data?.pairs?.[0]?.priceNative);
         if (!isNaN(p)) setPriceTon(p);
       } catch (err) {
         console.error('Failed to load TPC price:', err);

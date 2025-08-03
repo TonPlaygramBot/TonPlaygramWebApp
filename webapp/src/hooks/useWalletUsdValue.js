@@ -1,11 +1,11 @@
 import { useEffect, useState } from 'react';
 
-export default function useWalletUsdValue(tonBalance, usdtBalance) {
+export default function useWalletUsdValue(tonBalance, tpcWalletBalance) {
   const [usdValue, setUsdValue] = useState(null);
 
   useEffect(() => {
     async function load() {
-      if (tonBalance == null && usdtBalance == null) {
+      if (tonBalance == null && tpcWalletBalance == null) {
         setUsdValue(null);
         return;
       }
@@ -33,11 +33,23 @@ export default function useWalletUsdValue(tonBalance, usdtBalance) {
         }
       }
 
-      const total = (tonBalance ?? 0) * tonPrice + (usdtBalance ?? 0);
+      let tpcPrice = 0;
+      try {
+        const res = await fetch(
+          'https://api.dexscreener.com/latest/dex/tokens/EQDY3qbfGN6IMI5d4MsEoprhuMTz09OkqjyhPKX6DVtzbi6X'
+        );
+        const data = await res.json();
+        tpcPrice = parseFloat(data?.pairs?.[0]?.priceUsd) || 0;
+      } catch (err) {
+        console.error('Failed to load TPC price from dexscreener:', err);
+      }
+
+      const total =
+        (tonBalance ?? 0) * tonPrice + (tpcWalletBalance ?? 0) * tpcPrice;
       setUsdValue(total);
     }
     load();
-  }, [tonBalance, usdtBalance]);
+  }, [tonBalance, tpcWalletBalance]);
 
   return usdValue;
 }
