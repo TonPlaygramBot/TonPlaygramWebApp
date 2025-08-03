@@ -10,6 +10,10 @@ import registerTasks from './commands/tasks.js';
 import registerReferral from './commands/referral.js';
 import registerWallet from './commands/wallet.js';
 import registerHorse from './commands/games/horse.js';
+import registerAnnounce from './commands/announce.js';
+import registerAsk from './commands/ask.js';
+import registerWelcome from './commands/welcome.js';
+import registerModeration from './middleware/moderation.js';
 const bot = new Telegraf(process.env.BOT_TOKEN, {
   telegram: { agent: proxyAgent }
 });
@@ -20,5 +24,9 @@ registerTasks(bot);
 registerReferral(bot);
 registerWallet(bot);
 registerHorse(bot);
+registerAnnounce(bot);
+registerAsk(bot);
+registerWelcome(bot);
+registerModeration(bot);
 
 export default bot;
