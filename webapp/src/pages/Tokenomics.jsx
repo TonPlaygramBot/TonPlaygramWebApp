@@ -541,6 +541,30 @@ export default function TokenomicsPage() {
         </div>
       </div>
 
+      {/* Burned TPC */}
+      <div className="bg-[#0c1020] text-white p-4 rounded-2xl shadow-lg wide-card">
+        <h2 className="text-xl font-bold mb-2">
+          🔥 Burned TPC
+        </h2>
+        <p className="text-3xl font-semibold text-yellow-400">
+          3,521,290.38 TPC
+        </p>
+        <p className="text-sm mt-2 text-gray-400">
+          Burned on August 1, 2025
+        </p>
+        <p className="text-xs mt-1 text-gray-500 break-all">
+          Burn address: UQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAJKZ
+        </p>
+        <a
+          href="https://tonviewer.com/transaction/1cde028b723c0871ee7b7e3faf911d80330fba51a9bf2b5029bd239b1a39b3e8"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-blue-500 underline text-sm mt-2 inline-block"
+        >
+          View on TonViewer
+        </a>
+      </div>
+
       {/* On-chain Stats */}
       <div className="relative bg-surface border border-border rounded-xl p-4 flex items-center gap-4 overflow-hidden wide-card">
         <img
