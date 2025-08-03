@@ -52,10 +52,21 @@ router.post('/list', async (req, res) => {
   const { telegramId } = req.body;
   if (!telegramId) return res.status(400).json({ error: 'telegramId required' });
 
+  const TWELVE_HOURS = 12 * 60 * 60 * 1000;
   const tasks = await Promise.all(
     TASKS.map(async (t) => {
+      if (t.id === 'post_tweet') {
+        const last = await PostRecord.findOne({ telegramId }).sort({ postedAt: -1 });
+        if (last) {
+          const diff = Date.now() - last.postedAt.getTime();
+          if (diff < TWELVE_HOURS) {
+            return { ...t, completed: true, cooldown: TWELVE_HOURS - diff };
+          }
+        }
+        return { ...t, completed: false, cooldown: 0 };
+      }
       const rec = await Task.findOne({ telegramId, taskId: t.id });
-      return { ...t, completed: !!rec };
+      return { ...t, completed: !!rec, cooldown: 0 };
     })
   );
   res.json({ version: TASKS_VERSION, tasks });
@@ -67,6 +78,10 @@ router.post('/complete', async (req, res) => {
 
   const config = TASKS.find(t => t.id === taskId);
   if (!config) return res.status(400).json({ error: 'unknown task' });
+
+  if (taskId === 'post_tweet') {
+    return res.status(400).json({ error: 'use verify-post' });
+  }
 
   if (taskId.startsWith('react_tg_post')) {
     if (process.env.BOT_TOKEN) {

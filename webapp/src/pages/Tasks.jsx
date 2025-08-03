@@ -123,6 +123,19 @@ export default function Tasks() {
   useEffect(() => {
     const id = setInterval(() => {
       setQuestTime((t) => (t > 1000 ? t - 1000 : 0));
+      setTasks((list) =>
+        list
+          ? list.map((task) =>
+              task.cooldown
+                ? {
+                    ...task,
+                    cooldown: task.cooldown > 1000 ? task.cooldown - 1000 : 0,
+                    completed: task.cooldown > 1000
+                  }
+                : task
+            )
+          : list
+      );
     }, 1000);
     return () => clearInterval(id);
   }, []);
@@ -206,9 +219,11 @@ export default function Tasks() {
 
   const formatTime = (ms) => {
     const total = Math.ceil(ms / 1000);
-    const m = Math.floor(total / 60);
+    const h = Math.floor(total / 3600);
+    const m = Math.floor((total % 3600) / 60);
     const s = total % 60;
-    return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+    const hh = h > 0 ? `${h.toString().padStart(2, '0')}:` : '';
+    return `${hh}${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
   };
 
   const handleVideoSubmit = async () => {
@@ -305,7 +320,9 @@ export default function Tasks() {
                 {ICONS[t.id]}
                 <span className="text-sm">{t.description}</span>
                 <span className="text-xs text-subtext flex items-center gap-1">{t.reward} <img src="/assets/icons/TPCcoin_1.webp" alt="TPC" className="w-4 h-4" /></span>
-                {t.completed ? (
+                {t.completed && t.id === 'post_tweet' && t.cooldown > 0 ? (
+                  <span className="text-sm text-subtext">{formatTime(t.cooldown)}</span>
+                ) : t.completed ? (
                   <span className="text-green-500 font-semibold text-sm">Completed</span>
                 ) : t.id === 'post_tweet' ? (
                   <div className="space-y-2 w-full">
