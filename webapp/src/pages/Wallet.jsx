@@ -327,6 +327,9 @@ export default function Wallet({ hideClaim = false }) {
         <p className="text-xl font-medium">
           {tpcBalance === null ? '...' : formatValue(tpcBalance, 2)}
         </p>
+        <p className="text-xs text-subtext">
+          Balance is off-chain and stored within the app
+        </p>
         {DEV_ACCOUNTS.includes(accountId) && (
           <>
             <p className="text-sm">Earnings from games: {formatValue(devShare, 2)}</p>

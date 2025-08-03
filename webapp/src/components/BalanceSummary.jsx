@@ -4,7 +4,7 @@ import LoginOptions from './LoginOptions.jsx';
 import useTokenBalances from '../hooks/useTokenBalances.js';
 
 export default function BalanceSummary({ className = '', showHeader = true }) {
-  const { tpcBalance, tonBalance, usdtBalance, telegramId } = useTokenBalances();
+  const { tpcBalance, tonBalance, tpcWalletBalance, telegramId } = useTokenBalances();
   if (!telegramId) {
     return <LoginOptions />;
   }
@@ -21,8 +21,8 @@ export default function BalanceSummary({ className = '', showHeader = true }) {
       )}
       <div className="grid grid-cols-3 text-sm mt-4">
         <Token icon="/assets/icons/TON.webp" label="TON" value={tonBalance ?? '...'} />
-        <Token icon="/assets/icons/TPCcoin_1.webp" label="TPC" value={tpcBalance ?? 0} decimals={2} />
-        <Token icon="/assets/icons/Usdt.webp" label="USDT" value={usdtBalance ?? '...'} decimals={2} />
+        <Token icon="/assets/icons/TPCcoin_1.webp" label="TPC (App)" value={tpcBalance ?? 0} decimals={2} />
+        <Token icon="/assets/icons/TPCcoin_1.webp" label="TPC" value={tpcWalletBalance ?? '...'} decimals={2} />
       </div>
     </div>
   );
