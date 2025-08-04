@@ -34,15 +34,15 @@ export default function useWalletUsdValue(tonBalance, tpcWalletBalance) {
       }
 
       let tpcPrice = 0;
-      try {
-        const res = await fetch(
-          'https://api.dexscreener.com/latest/dex/tokens/EQDY3qbfGN6IMI5d4MsEoprhuMTz09OkqjyhPKX6DVtzbi6X'
-        );
-        const data = await res.json();
-        tpcPrice = parseFloat(data?.pairs?.[0]?.priceUsd) || 0;
-      } catch (err) {
-        console.error('Failed to load TPC price from dexscreener:', err);
-      }
+        try {
+          const res = await fetch(
+            'https://api.dexscreener.com/latest/dex/tokens/eqdpcahghh97azu5bprmxqwgm0ojg56dqni5oboujxdumsg-'
+          );
+          const data = await res.json();
+          tpcPrice = parseFloat(data?.pairs?.[0]?.priceUsd) || 0;
+        } catch (err) {
+          console.error('Failed to load TPC price from dexscreener:', err);
+        }
 
       const total =
         (tonBalance ?? 0) * tonPrice + (tpcWalletBalance ?? 0) * tpcPrice;
