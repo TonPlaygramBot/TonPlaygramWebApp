@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react';
 import { AiOutlineShop } from 'react-icons/ai';
 
-const TON_ADDRESS = 'EQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAM9c';
 const TPC_ADDRESS = 'EQDY3qbfGN6IMI5d4MsEoprhuMTz09OkqjyhPKX6DVtzbi6X';
 
 export default function StoreAd() {
@@ -10,13 +9,18 @@ export default function StoreAd() {
   useEffect(() => {
     async function load() {
       try {
-        const res = await fetch(
-          `https://api.ston.fi/v1/swap/simulate?offer_address=${TON_ADDRESS}&ask_address=${TPC_ADDRESS}&units=1000000000&slippage_tolerance=0.003`,
-          { method: 'POST' }
+        const res = await fetch('https://api.dedust.io/v2/pools-lite');
+        const pools = await res.json();
+        const pool = pools.find(
+          (p) =>
+            p.assets.includes('native') &&
+            p.assets.includes(`jetton:${TPC_ADDRESS}`)
         );
-        const data = await res.json();
-        const rate = parseFloat(data?.swap_rate);
-        if (!isNaN(rate)) setTpcPerTon(rate);
+        if (pool) {
+          const [tonReserve, tpcReserve] = pool.reserves.map((r) => Number(r));
+          const rate = tpcReserve / tonReserve;
+          if (!isNaN(rate)) setTpcPerTon(rate);
+        }
       } catch (err) {
         console.error('Failed to load TPC price:', err);
       }
@@ -55,9 +59,9 @@ export default function StoreAd() {
           />
         </div>
       )}
-      <div className="text-center text-sm">Buy TPC on DexScreener</div>
+      <div className="text-center text-sm">Buy TPC on DeDust</div>
       <a
-        href="https://dexscreener.com/ton/eqdpcahghh97azu5bprmxqwgm0ojg56dqni5oboujxdumsg-"
+        href="https://app.tonkeeper.com/dapp/https%3A%2F%2Fdedust.io%2Fswap%2FTON%2FEQDY3qbfGN6IMI5d4MsEoprhuMTz09OkqjyhPKX6DVtzbi6X"
         target="_blank"
         rel="noopener noreferrer"
         className="mx-auto block px-3 py-1 bg-primary rounded hover:bg-primary-hover text-white-shadow"
