@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState } from 'react';
 
 import GameCard from '../components/GameCard.jsx';
 
@@ -30,7 +30,7 @@ const xIcon = (
 
 import { Link } from 'react-router-dom';
 
-import { ping, getAppStats, getOnlineCount, getProfile, fetchTelegramInfo } from '../utils/api.js';
+import { ping, getProfile, fetchTelegramInfo } from '../utils/api.js';
 
 import { getAvatarUrl, saveAvatar, loadAvatar } from '../utils/avatarUtils.js';
 
@@ -91,10 +91,6 @@ export default function Home() {
   const [holders, setHolders] = useState(null);
   const [contractTonBalance, setContractTonBalance] = useState(null);
   const [walletBalances, setWalletBalances] = useState({});
-  const [stats, setStats] = useState(null);
-  const [liveMinted, setLiveMinted] = useState(null);
-  const mintRateRef = useRef(0);
-  const lastStatsRef = useRef(Date.now());
 
   useEffect(() => {
     ping()
@@ -205,51 +201,6 @@ export default function Home() {
     loadBalances();
   }, []);
 
-  useEffect(() => {
-    async function loadStats() {
-      try {
-        const data = await getAppStats();
-        const online = await getOnlineCount();
-        setStats({
-          minted: data.minted,
-          accounts: data.accounts,
-          activeUsers: online.count || data.activeUsers || 0,
-          nftsCreated: data.nftsCreated,
-          nftsBurned: data.nftsBurned,
-          bundlesSold: data.bundlesSold,
-          tonRaised: data.tonRaised,
-          appClaimed: data.appClaimed,
-          externalClaimed: data.externalClaimed,
-          nftValue: data.nftValue,
-        });
-
-        const now = Date.now();
-        if (liveMinted != null) {
-          const dt = (now - lastStatsRef.current) / 1000;
-          if (dt > 0) {
-            const rate = (data.minted - liveMinted) / dt;
-            mintRateRef.current = Number.isFinite(rate) && rate > 0 ? rate : 0;
-          }
-        }
-        lastStatsRef.current = now;
-        setLiveMinted(data.minted);
-      } catch (err) {
-        console.error('Failed to load stats:', err);
-      }
-    }
-    loadStats();
-    const interval = setInterval(loadStats, 30000);
-    return () => clearInterval(interval);
-  }, []);
-
-  useEffect(() => {
-    const id = setInterval(() => {
-      setLiveMinted((prev) =>
-        prev != null ? prev + mintRateRef.current : prev
-      );
-    }, 1000);
-    return () => clearInterval(id);
-  }, []);
 
 
   return (
@@ -424,40 +375,6 @@ export default function Home() {
         </div>
       </div>
       <ProjectAchievementsCard />
-
-      {stats && (
-        <div className="relative bg-surface border border-border rounded-xl p-4 space-y-2 overflow-hidden wide-card">
-          <img
-            src="/assets/SnakeLaddersbackground.png"
-            className="background-behind-board object-cover"
-            alt=""
-              onError={(e) => { e.currentTarget.style.display = "none"; }}
-          />
-          <h3 className="text-lg font-bold text-text text-center">Platform Stats</h3>
-          <div className="text-center space-y-1 text-base">
-            <p>
-              Total Minted: {liveMinted == null ? '...' : formatValue(liveMinted, 0)}{' '}
-              <img src="/assets/icons/TPCcoin_1.webp" alt="TPC" className="inline-block w-4 h-4 ml-1" />
-            </p>
-            <p>Accounts: {stats.accounts}</p>
-            <p>Active Users: {stats.activeUsers}</p>
-            <p>
-              NFTs Created: {stats.nftsCreated}
-              {stats.nftValue != null && (
-                <span> ({formatValue(stats.nftValue, 0)} TPC)</span>
-              )}
-            </p>
-            <p>NFTs Burned: {stats.nftsBurned}</p>
-            <p>Bundles Sold: {stats.bundlesSold}</p>
-            <p>
-              Total Raised: {formatValue(stats.tonRaised, 2)}{' '}
-              <img src="/assets/icons/TON.webp" alt="TON" className="inline-block w-4 h-4 ml-1" />
-            </p>
-            <p>TPC App Claimed: {formatValue(stats.appClaimed, 0)}</p>
-            <p>TPC External Wallet Claimed: {formatValue(stats.externalClaimed, 0)}</p>
-          </div>
-        </div>
-      )}
 
       <div className="flex justify-center space-x-4 mt-4">
         <a
