@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react';
 import { AiOutlineShop } from 'react-icons/ai';
 
-
 const TON_ADDRESS = 'EQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAM9c';
 const TPC_ADDRESS = 'EQDY3qbfGN6IMI5d4MsEoprhuMTz09OkqjyhPKX6DVtzbi6X';
 
@@ -26,7 +25,9 @@ export default function StoreAd() {
   }, []);
 
   const formatPrice = (v) =>
-    v != null ? Number(v).toLocaleString(undefined, { maximumFractionDigits: 2 }) : '...';
+    v != null
+      ? Number(v).toLocaleString(undefined, { maximumFractionDigits: 2 })
+      : '...';
 
   return (
     <div className="relative bg-surface border border-border rounded-xl p-4 space-y-2 overflow-hidden wide-card">
@@ -39,20 +40,24 @@ export default function StoreAd() {
         }}
       />
       <div className="flex items-center justify-center space-x-1">
-          <AiOutlineShop className="text-accent" />
-          <span className="text-lg font-bold">Buy TPC</span>
+        <AiOutlineShop className="text-accent" />
+        <span className="text-lg font-bold">Buy TPC</span>
       </div>
       {tpcPerTon != null && (
         <div className="text-center text-sm flex items-center justify-center gap-1">
           <span>1</span>
           <img src="/assets/icons/TON.webp" alt="TON" className="w-4 h-4" />
           <span>= {formatPrice(tpcPerTon)}</span>
-          <img src="/assets/icons/TPCcoin_1.webp" alt="TPC" className="w-4 h-4" />
+          <img
+            src="/assets/icons/TPCcoin_1.webp"
+            alt="TPC"
+            className="w-4 h-4"
+          />
         </div>
       )}
-      <div className="text-center text-sm">Swap TON for TPC on Ston.fi</div>
+      <div className="text-center text-sm">Buy TPC on DexScreener</div>
       <a
-        href="https://app.ston.fi/swap?chartVisible=false&chartInterval=1w&ft=TON&tt=EQDY3qbfGN6IMI5d4MsEoprhuMTz09OkqjyhPKX6DVtzbi6X"
+        href="https://dexscreener.com/ton/eqdpcahghh97azu5bprmxqwgm0ojg56dqni5oboujxdumsg-"
         target="_blank"
         rel="noopener noreferrer"
         className="mx-auto block px-3 py-1 bg-primary rounded hover:bg-primary-hover text-white-shadow"
