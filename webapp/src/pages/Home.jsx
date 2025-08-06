@@ -23,7 +23,7 @@ import { ping, getProfile, fetchTelegramInfo } from '../utils/api.js';
 
 import { getAvatarUrl, saveAvatar, loadAvatar } from '../utils/avatarUtils.js';
 
-import { getTelegramId, getTelegramPhotoUrl } from '../utils/telegram.js';
+import { getTelegramId, getTelegramPhotoUrl, isTelegramWebView } from '../utils/telegram.js';
 
 
 export default function Home() {
@@ -35,6 +35,21 @@ export default function Home() {
   const { publicKey } = useWallet();
   const { connection } = useConnection();
   const [walletUsd, setWalletUsd] = useState(null);
+  const [redirectFailed, setRedirectFailed] = useState(false);
+
+  const openInPhantom = () => {
+    const phantomUrl =
+      'https://phantom.app/ul/browse/' + encodeURIComponent(window.location.href);
+    window.location.href = phantomUrl;
+    setTimeout(() => {
+      if (isTelegramWebView() && !window.solana) {
+        setRedirectFailed(true);
+      }
+    }, 2000);
+  };
+
+  const showPhantomRedirect =
+    isTelegramWebView() && typeof window !== 'undefined' && !window.solana;
 
   useEffect(() => {
     if (!publicKey) {
@@ -137,7 +152,24 @@ export default function Home() {
         )}
 
         {!publicKey ? (
-          <WalletMultiButton className="px-4 py-1 bg-brand-gold text-black rounded" />
+          <>
+            {showPhantomRedirect && (
+              <>
+                <button
+                  onClick={openInPhantom}
+                  className="mb-2 px-4 py-1 bg-brand-gold text-black rounded"
+                >
+                  Open in Phantom
+                </button>
+                {redirectFailed && (
+                  <p className="text-center text-xs">
+                    If the redirect doesn't work, install the Phantom wallet.
+                  </p>
+                )}
+              </>
+            )}
+            <WalletMultiButton className="px-4 py-1 bg-brand-gold text-black rounded" />
+          </>
         ) : walletUsd === null ? (
           <p className="text-center font-semibold">Loading...</p>
         ) : (
