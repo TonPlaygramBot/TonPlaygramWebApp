@@ -1,11 +1,6 @@
 import { useEffect, useState } from 'react';
 
-import GameCard from '../components/GameCard.jsx';
-
-
 import TasksCard from '../components/TasksCard.jsx';
-import StoreAd from '../components/StoreAd.jsx';
-import DexChartCard from '../components/DexChartCard.jsx';
 import NftGiftCard from '../components/NftGiftCard.jsx';
 import ProjectAchievementsCard from '../components/ProjectAchievementsCard.jsx';
 import HomeGamesCard from '../components/HomeGamesCard.jsx';
@@ -26,7 +21,6 @@ import { ping, getProfile, fetchTelegramInfo } from '../utils/api.js';
 
 import { getAvatarUrl, saveAvatar, loadAvatar } from '../utils/avatarUtils.js';
 
-import useTokenBalances from '../hooks/useTokenBalances.js';
 import { getTelegramId, getTelegramPhotoUrl } from '../utils/telegram.js';
 
 
@@ -35,7 +29,6 @@ export default function Home() {
   const [status, setStatus] = useState('checking');
 
   const [photoUrl, setPhotoUrl] = useState(loadAvatar() || '');
-  const { tpcBalance } = useTokenBalances();
 
   useEffect(() => {
     ping()
@@ -125,26 +118,6 @@ export default function Home() {
 
       <div className="grid grid-cols-1 gap-4">
         <TasksCard />
-        <DexChartCard />
-        <StoreAd />
-        <div className="bg-[#0c1020] text-white p-4 rounded-2xl shadow-lg wide-card">
-          <h2 className="text-xl font-bold mb-2">🔥 Burned TPC</h2>
-          <p className="text-3xl font-semibold text-yellow-400">
-            3,521,290.38 TPC
-          </p>
-          <p className="text-sm mt-2 text-gray-400">Burned on August 1, 2025</p>
-          <p className="text-xs mt-1 text-gray-500 break-all">
-            Burn address: UQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAJKZ
-          </p>
-          <a
-            href="https://tonviewer.com/transaction/1cde028b723c0871ee7b7e3faf911d80330fba51a9bf2b5029bd239b1a39b3e8"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-blue-500 underline text-sm mt-2 inline-block"
-          >
-            View on TonViewer
-          </a>
-        </div>
       </div>
       <ProjectAchievementsCard />
 
@@ -178,19 +151,4 @@ export default function Home() {
 
   );
 
-}
-
-function formatValue(value, decimals = 4) {
-  if (typeof value !== 'number') {
-    const parsed = parseFloat(value);
-    if (isNaN(parsed)) return value;
-    return parsed.toLocaleString(undefined, {
-      minimumFractionDigits: decimals,
-      maximumFractionDigits: decimals,
-    });
-  }
-  return value.toLocaleString(undefined, {
-    minimumFractionDigits: decimals,
-    maximumFractionDigits: decimals,
-  });
 }
