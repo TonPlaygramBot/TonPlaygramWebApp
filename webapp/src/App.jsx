@@ -1,5 +1,6 @@
 import React from 'react';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { TonConnectUIProvider } from '@tonconnect/ui-react';
 
 import Home from './pages/Home.jsx';
 import Mining from './pages/Mining.jsx';
@@ -11,6 +12,7 @@ import Store from './pages/Store.jsx';
 import Messages from './pages/Messages.jsx';
 import Trending from './pages/Trending.jsx';
 import Notifications from './pages/Notifications.jsx';
+import TokenomicsPage from './pages/Tokenomics.jsx';
 import InfluencerAdmin from './pages/InfluencerAdmin.jsx';
 
 import HorseRacing from './pages/Games/HorseRacing.jsx';
@@ -31,10 +33,13 @@ export default function App() {
   useTelegramAuth();
   useReferralClaim();
 
+  const manifestUrl = `${window.location.origin}/tonconnect-manifest.json`;
+
   return (
     <BrowserRouter>
-      <Layout>
-        <Routes>
+      <TonConnectUIProvider manifestUrl={manifestUrl}>
+        <Layout>
+          <Routes>
           <Route path="/" element={<Home />} />
           <Route path="/mining" element={<Mining />} />
           <Route path="/games" element={<Games />} />
@@ -55,8 +60,10 @@ export default function App() {
           <Route path="/notifications" element={<Notifications />} />
           <Route path="/trending" element={<Trending />} />
           <Route path="/account" element={<MyAccount />} />
+          <Route path="/tokenomics" element={<TokenomicsPage />} />
         </Routes>
-      </Layout>
+        </Layout>
+      </TonConnectUIProvider>
     </BrowserRouter>
   );
 }
