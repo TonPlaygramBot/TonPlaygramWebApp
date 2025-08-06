@@ -1,13 +1,11 @@
 import { useEffect, useState, useRef } from 'react';
 import QRCode from 'react-qr-code';
-import { useTonAddress, useTonConnectUI } from '@tonconnect/ui-react';
 import {
   createAccount,
   getAccountBalance,
   sendAccountTpc,
   getAccountTransactions,
-  depositAccount,
-  claimExternal
+  depositAccount
 } from '../utils/api.js';
 import { getTelegramId } from '../utils/telegram.js';
 import { STORE_ADDRESS } from '../utils/storeData.js';
@@ -51,8 +49,6 @@ function formatValue(value, decimals = 2) {
 
 export default function Wallet({ hideClaim = false }) {
   useTelegramBackButton();
-  const [tonConnectUI] = useTonConnectUI();
-  const walletAddress = useTonAddress();
   let telegramId;
   try {
     telegramId = getTelegramId();
@@ -70,9 +66,6 @@ export default function Wallet({ hideClaim = false }) {
   const [feeShare, setFeeShare] = useState(0);
   const [topupAmount, setTopupAmount] = useState('');
   const [topupSending, setTopupSending] = useState(false);
-  const [claimAddress, setClaimAddress] = useState('');
-  const [claimAmount, setClaimAmount] = useState('');
-  const [claimSending, setClaimSending] = useState(false);
   const [sending, setSending] = useState(false);
   const [receipt, setReceipt] = useState(null);
   const [confirmOpen, setConfirmOpen] = useState(false);
@@ -240,38 +233,6 @@ export default function Wallet({ hideClaim = false }) {
     }
   };
 
-  const handleClaim = async () => {
-    const addr = claimAddress.trim();
-    const amt = Number(claimAmount);
-    if (!addr || !amt) return;
-    if (!walletAddress) {
-      tonConnectUI.openModal();
-      return;
-    }
-    setClaimSending(true);
-    try {
-      const tx = {
-        validUntil: Math.floor(Date.now() / 1000) + 60,
-        messages: [{ address: STORE_ADDRESS, amount: String(0.5 * 1e9) }],
-      };
-      await tonConnectUI.sendTransaction(tx);
-      const res = await claimExternal(telegramId, addr, amt);
-      if (res?.error) {
-        setErrorMsg(res.error);
-        return;
-      }
-      setClaimAddress('');
-      setClaimAmount('');
-      const id = await loadBalances();
-      const txRes = await getAccountTransactions(id || accountId);
-      setTransactions(txRes.transactions || []);
-    } catch (err) {
-      console.error('Claim failed', err);
-      setErrorMsg('Failed to claim');
-    } finally {
-      setClaimSending(false);
-    }
-  };
 
   const filteredTransactions = transactions.filter((tx) => {
     if (filterDate) {
@@ -401,35 +362,6 @@ export default function Wallet({ hideClaim = false }) {
       </div>
 
       <NftGiftCard accountId={accountId} />
-
-      {!hideClaim && (
-        <div className="prism-box p-6 space-y-3 text-center mt-4 flex flex-col items-center wide-card mx-auto">
-          <label className="block font-semibold">Claim to TON Wallet</label>
-          <p className="text-sm">Available: {tpcBalance === null ? '...' : formatValue(tpcBalance, 2)} TPC</p>
-          <input
-            type="text"
-            placeholder="TON Address"
-            value={claimAddress}
-            onChange={(e) => setClaimAddress(e.target.value)}
-            className="border p-1 rounded w-full max-w-xs mx-auto text-black"
-          />
-          <input
-            type="number"
-            placeholder="Amount"
-            value={claimAmount}
-            onChange={(e) => setClaimAmount(e.target.value)}
-            className="border p-1 rounded w-full max-w-xs mx-auto mt-1 text-black"
-          />
-          <button
-            onClick={handleClaim}
-            className="mt-1 px-3 py-1 bg-primary hover:bg-primary-hover text-background rounded"
-            disabled={claimSending}
-          >
-            {claimSending ? 'Processing...' : 'Claim'}
-          </button>
-          <p className="text-xs text-subtext mt-1">Fee: 0.5 TON per claim</p>
-        </div>
-      )}
 
       {DEV_ACCOUNTS.includes(accountId) && (
         <div className="prism-box p-6 space-y-3 text-center mt-4 flex flex-col items-center w-80 mx-auto">
