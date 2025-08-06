@@ -4,7 +4,9 @@ import { pingOnline, getOnlineCount } from '../../utils/api.js';
 import { ensureAccountId } from '../../utils/telegram.js';
 import RoomSelector from '../../components/RoomSelector.jsx';
 import TableSelector from '../../components/TableSelector.jsx';
+import LeaderPickerModal from '../../components/LeaderPickerModal.jsx';
 import FlagPickerModal from '../../components/FlagPickerModal.jsx';
+import { LEADER_AVATARS } from '../../utils/leaderAvatars.js';
 import useTelegramBackButton from '../../hooks/useTelegramBackButton.js';
 
 export default function CrazyDiceLobby() {
@@ -23,6 +25,8 @@ export default function CrazyDiceLobby() {
   const [stake, setStake] = useState({ token: 'TPC', amount: 100 });
   const [aiCount, setAiCount] = useState(1);
   const [aiType, setAiType] = useState('');
+  const [showLeaderPicker, setShowLeaderPicker] = useState(false);
+  const [leaders, setLeaders] = useState([]);
   const [showFlagPicker, setShowFlagPicker] = useState(false);
   const [flags, setFlags] = useState([]);
   const [online, setOnline] = useState(0);
@@ -49,19 +53,35 @@ export default function CrazyDiceLobby() {
     };
   }, []);
 
-  const selectAiType = () => {
-    setAiType('flags');
-    setShowFlagPicker(true);
-    setFlags([]);
+  const selectAiType = (t) => {
+    setAiType(t);
+    if (t === 'leaders') {
+      setShowLeaderPicker(true);
+    } else if (t === 'flags') {
+      setShowFlagPicker(true);
+    }
+    if (t !== 'leaders') {
+      setLeaders([]);
+    }
+    if (t !== 'flags') {
+      setFlags([]);
+    }
   };
 
-  const startGame = (flagOverride = flags) => {
+  const startGame = (flagOverride = flags, leaderOverride = leaders) => {
     const params = new URLSearchParams();
     if (table.id === 'single') {
       params.set('ai', aiCount);
       params.set('players', aiCount + 1);
-      params.set('avatars', 'flags');
-      if (flagOverride.length) params.set('flags', flagOverride.join(','));
+      params.set('avatars', aiType);
+      if (aiType === 'leaders' && leaderOverride.length) {
+        const ids = leaderOverride
+          .map((l) => LEADER_AVATARS.indexOf(l))
+          .filter((i) => i >= 0);
+        if (ids.length) params.set('leaders', ids.join(','));
+      } else if (aiType === 'flags' && flagOverride.length) {
+        params.set('flags', flagOverride.join(','));
+      }
     } else {
       params.set('players', table.capacity);
     }
@@ -76,6 +96,7 @@ export default function CrazyDiceLobby() {
     !stake.amount ||
     !table ||
     (table.id === 'single' && !aiType) ||
+    (table.id === 'single' && aiType === 'leaders' && leaders.length !== aiCount) ||
     (table.id === 'single' && aiType === 'flags' && flags.length !== aiCount);
 
   return (
@@ -102,13 +123,13 @@ export default function CrazyDiceLobby() {
           </div>
           <h3 className="font-semibold mt-2">AI Avatars</h3>
           <div className="flex gap-2">
-            {['flags'].map((t) => (
+            {['flags', 'leaders'].map((t) => (
               <button
                 key={t}
-                onClick={selectAiType}
+                onClick={() => selectAiType(t)}
                 className={`lobby-tile ${aiType === t ? 'lobby-selected' : ''}`}
               >
-                Flags
+                {t === 'flags' ? 'Flags' : 'Leaders'}
               </button>
             ))}
           </div>
@@ -139,14 +160,22 @@ export default function CrazyDiceLobby() {
       >
         Start Game
       </button>
-        <FlagPickerModal
-          open={showFlagPicker}
-          count={aiCount}
-          selected={flags}
-          onSave={setFlags}
-          onClose={() => setShowFlagPicker(false)}
-          onComplete={(sel) => startGame(sel)}
-        />
-      </div>
-    );
-  }
+      <LeaderPickerModal
+        open={showLeaderPicker}
+        count={aiCount}
+        selected={leaders}
+        onSave={setLeaders}
+        onClose={() => setShowLeaderPicker(false)}
+        onComplete={(sel) => startGame(flags, sel)}
+      />
+      <FlagPickerModal
+        open={showFlagPicker}
+        count={aiCount}
+        selected={flags}
+        onSave={setFlags}
+        onClose={() => setShowFlagPicker(false)}
+        onComplete={(sel) => startGame(sel, leaders)}
+      />
+    </div>
+  );
+}

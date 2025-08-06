@@ -2,10 +2,12 @@ import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import TableSelector from '../../components/TableSelector.jsx';
 import RoomSelector from '../../components/RoomSelector.jsx';
+import LeaderPickerModal from '../../components/LeaderPickerModal.jsx';
 import FlagPickerModal from '../../components/FlagPickerModal.jsx';
+import { LEADER_AVATARS } from '../../utils/leaderAvatars.js';
 import useTelegramBackButton from '../../hooks/useTelegramBackButton.js';
 import { socket } from '../../utils/socket.js';
-import { loadAvatar } from '../../utils/avatarUtils.js';
+import { loadAvatar, getAvatarUrl } from '../../utils/avatarUtils.js';
 import { getTelegramPhotoUrl } from '../../utils/telegram.js';
 import {
   pingOnline,
@@ -38,6 +40,8 @@ export default function Lobby() {
   const [currentTurn, setCurrentTurn] = useState(null);
   const [aiCount, setAiCount] = useState(0);
   const [aiType, setAiType] = useState('');
+  const [showLeaderPicker, setShowLeaderPicker] = useState(false);
+  const [leaders, setLeaders] = useState([]);
   const [showFlagPicker, setShowFlagPicker] = useState(false);
   const [flags, setFlags] = useState([]);
   const [online, setOnline] = useState(0);
@@ -65,10 +69,12 @@ export default function Lobby() {
     };
   }, [joinedTableId]);
 
-  const selectAiType = () => {
-    setAiType('flags');
-    setShowFlagPicker(true);
-    setFlags([]);
+  const selectAiType = (t) => {
+    setAiType(t);
+    if (t === 'leaders') setShowLeaderPicker(true);
+    else if (t === 'flags') setShowFlagPicker(true);
+    if (t !== 'leaders') setLeaders([]);
+    if (t !== 'flags') setFlags([]);
   };
 
   useEffect(() => {
@@ -185,7 +191,7 @@ export default function Lobby() {
   // match began. The logic has been removed so that each participant must
   // manually confirm the game start using the button below.
 
-  const startGame = async (flagOverride = flags) => {
+  const startGame = async (flagOverride = flags, leaderOverride = leaders) => {
     const params = new URLSearchParams();
     if (table) params.set('table', table.id);
 
@@ -218,9 +224,16 @@ export default function Lobby() {
     } else if (game === 'snake' && table?.id === 'single') {
       localStorage.removeItem(`snakeGameState_${aiCount}`);
       params.set('ai', aiCount);
+      params.set('avatars', aiType);
       params.set('token', 'TPC');
-      params.set('avatars', 'flags');
-      if (flagOverride.length) params.set('flags', flagOverride.join(','));
+      if (aiType === 'leaders' && leaderOverride.length) {
+        const ids = leaderOverride
+          .map((l) => LEADER_AVATARS.indexOf(l))
+          .filter((i) => i >= 0);
+        if (ids.length) params.set('leaders', ids.join(','));
+      } else if (aiType === 'flags' && flagOverride.length) {
+        params.set('flags', flagOverride.join(','));
+      }
       if (stake.amount) params.set('amount', stake.amount);
       try {
         const accountId = await ensureAccountId();
@@ -252,10 +265,12 @@ export default function Lobby() {
     (game === 'snake' && table?.id === 'single' && !aiType) ||
     (game === 'snake' &&
       table?.id === 'single' &&
-      (game === 'snake' &&
-        table?.id === 'single' &&
-        aiType === 'flags' &&
-        flags.length !== aiCount);
+      aiType === 'leaders' &&
+      leaders.length !== aiCount) ||
+    (game === 'snake' &&
+      table?.id === 'single' &&
+      aiType === 'flags' &&
+      flags.length !== aiCount);
 
   return (
     <div className="relative p-4 space-y-4 text-text">
@@ -294,13 +309,13 @@ export default function Lobby() {
           </div>
           <h3 className="font-semibold mt-2">AI Avatars</h3>
           <div className="flex gap-2">
-            {['flags'].map((t) => (
+            {['flags', 'leaders'].map((t) => (
               <button
                 key={t}
-                onClick={selectAiType}
+                onClick={() => selectAiType(t)}
                 className={`lobby-tile ${aiType === t ? 'lobby-selected' : ''}`}
               >
-                Flags
+                {t === 'flags' ? 'Flags' : 'Leaders'}
               </button>
             ))}
           </div>
@@ -313,14 +328,22 @@ export default function Lobby() {
       >
         {game === 'snake' && table?.id !== 'single' ? (confirmed ? 'Waiting…' : 'Confirm') : 'Start Game'}
       </button>
-        <FlagPickerModal
-          open={showFlagPicker}
-          count={aiCount}
-          selected={flags}
-          onSave={setFlags}
-          onClose={() => setShowFlagPicker(false)}
-          onComplete={(sel) => startGame(sel)}
-        />
-      </div>
-    );
-  }
+      <LeaderPickerModal
+        open={showLeaderPicker}
+        count={aiCount}
+        selected={leaders}
+        onSave={setLeaders}
+        onClose={() => setShowLeaderPicker(false)}
+        onComplete={(sel) => startGame(flags, sel)}
+      />
+      <FlagPickerModal
+        open={showFlagPicker}
+        count={aiCount}
+        selected={flags}
+        onSave={setFlags}
+        onClose={() => setShowFlagPicker(false)}
+        onComplete={(sel) => startGame(sel, leaders)}
+      />
+    </div>
+  );
+}

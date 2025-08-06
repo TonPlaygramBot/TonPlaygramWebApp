@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { FLAG_EMOJIS } from '../utils/flagEmojis.js';
+import { LEADER_AVATARS } from '../utils/leaderAvatars.js';
 import { getAvatarUrl } from '../utils/avatarUtils.js';
 
 // Pre-bundled DiceBear SVG avatars stored locally under /assets/avatars
@@ -9,7 +10,8 @@ const IMAGE_AVATARS = [
   '/assets/avatars/avatar2.svg',
   '/assets/avatars/avatar3.svg',
   '/assets/avatars/avatar4.svg',
-  '/assets/avatars/avatar5.svg'
+  '/assets/avatars/avatar5.svg',
+  ...LEADER_AVATARS
 ];
 
 const EMOJI_AVATARS = [
