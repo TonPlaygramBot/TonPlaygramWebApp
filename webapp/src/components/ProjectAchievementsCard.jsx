@@ -1,5 +1,3 @@
-import { Link } from 'react-router-dom';
-
 export default function ProjectAchievementsCard() {
   const achievements = [
     '🔐 Smart-contract store live with auto-delivery',
@@ -34,12 +32,6 @@ export default function ProjectAchievementsCard() {
           <li key={a}>{a}</li>
         ))}
       </ul>
-      <Link
-        to="/tokenomics"
-        className="mx-auto block px-3 py-1 bg-primary rounded hover:bg-primary-hover text-white-shadow text-center"
-      >
-        View More
-      </Link>
     </div>
   );
 }

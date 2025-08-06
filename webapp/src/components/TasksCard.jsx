@@ -12,11 +12,9 @@ import {
   dailyCheckIn,
   getProfile,
 } from '../utils/api.js';
-import { useTonAddress, useTonConnectUI } from '@tonconnect/ui-react';
-import { STORE_ADDRESS } from '../utils/storeData.js';
-
 import { getTelegramId, parseTelegramPostLink } from '../utils/telegram.js';
 import LoginOptions from './LoginOptions.jsx';
+
 
 import { IoLogoTiktok } from 'react-icons/io5';
 
@@ -80,15 +78,9 @@ export default function TasksCard() {
   const [questTime, setQuestTime] = useState(0);
   const [showPosts, setShowPosts] = useState(false);
   const [postLink, setPostLink] = useState('');
-  const walletAddress = useTonAddress();
-  const [tonConnectUI] = useTonConnectUI();
   const [streak, setStreak] = useState(1);
   const [lastCheck, setLastCheck] = useState(() => {
     const ts = localStorage.getItem('lastCheckIn');
-    return ts ? parseInt(ts, 10) : null;
-  });
-  const [lastOnchain, setLastOnchain] = useState(() => {
-    const ts = localStorage.getItem('lastOnchainCheck');
     return ts ? parseInt(ts, 10) : null;
   });
   const [showNew, setShowNew] = useState(false);
@@ -202,25 +194,6 @@ export default function TasksCard() {
     } catch {}
   };
 
-  const handleOnchainCheck = async () => {
-    if (!walletAddress) {
-      tonConnectUI.openModal();
-      return;
-    }
-    const tx = {
-      validUntil: Math.floor(Date.now() / 1000) + 60,
-      messages: [{ address: STORE_ADDRESS, amount: String(0.05 * 1e9) }],
-    };
-    try {
-      await tonConnectUI.sendTransaction(tx);
-      const now = Date.now();
-      setLastOnchain(now);
-      localStorage.setItem('lastOnchainCheck', String(now));
-    } catch {
-      alert('Transaction failed');
-    }
-  };
-
   const handleAdComplete = async () => {
     await watchAd(telegramId);
     const ad = await getAdStatus(telegramId);
@@ -289,24 +262,6 @@ export default function TasksCard() {
             )}
           </div>
         </li>
-        <li className="lobby-tile w-full">
-          <div className="grid grid-cols-[20px_1fr_auto_auto] items-center gap-2 w-full">
-            <AiOutlineCheck className="w-5 h-5 text-accent" />
-            <span className="text-sm">On Chain Check In</span>
-            <span className="text-xs text-subtext flex items-center gap-1">{REWARDS[streak - 1] * 3} <img src="/assets/icons/TPCcoin_1.webp" alt="TPC" className="w-4 h-4" /></span>
-            {lastOnchain && Date.now() - lastOnchain < ONE_DAY ? (
-              <span className="text-green-500 font-semibold text-sm">Done</span>
-            ) : (
-              <button
-                onClick={handleOnchainCheck}
-                className="px-2 py-0.5 bg-primary hover:bg-primary-hover text-background text-sm rounded"
-              >
-                Claim
-              </button>
-            )}
-          </div>
-        </li>
-
         {tasks.map((t) => (
           <li key={t.id} className="lobby-tile w-full">
             <div className="grid grid-cols-[20px_1fr_auto_auto] items-center gap-2 w-full">
