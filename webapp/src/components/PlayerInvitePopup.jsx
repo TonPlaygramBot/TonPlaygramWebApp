@@ -85,7 +85,7 @@ export default function PlayerInvitePopup({
               <p className="text-sm flex items-center justify-center gap-1">
                 Balance:
                 <img
-                  src="/assets/icons/TPCcoin_1.webp"
+                  src="/assets/icons/eab316f3-7625-42b2-9468-d421f81c4d7c.webp"
                   alt="TPC"
                   className="inline w-4 h-4"
                 />

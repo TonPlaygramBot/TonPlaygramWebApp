@@ -53,7 +53,7 @@ export default function StoreAd() {
           <img src="/assets/icons/TON.webp" alt="TON" className="w-4 h-4" />
           <span>= {formatPrice(tpcPerTon)}</span>
           <img
-            src="/assets/icons/TPCcoin_1.webp"
+            src="/assets/icons/eab316f3-7625-42b2-9468-d421f81c4d7c.webp"
             alt="TPC"
             className="w-4 h-4"
           />

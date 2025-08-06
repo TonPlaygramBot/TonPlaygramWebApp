@@ -20,7 +20,7 @@ export default function BalanceSummary({ className = '', showHeader = true }) {
         </p>
       )}
       <div className="grid grid-cols-1 text-sm mt-4">
-        <Token icon="/assets/icons/TPCcoin_1.webp" label="TPC" value={tpcBalance ?? 0} decimals={2} />
+        <Token icon="/assets/icons/eab316f3-7625-42b2-9468-d421f81c4d7c.webp" label="TPC" value={tpcBalance ?? 0} decimals={2} />
       </div>
     </div>
   );

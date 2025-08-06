@@ -22,7 +22,7 @@ export default function RewardPopup({
   useEffect(() => {
     let audio: HTMLAudioElement | undefined;
     if (!disableEffects) {
-      let icon = '/assets/icons/TPCcoin_1.webp';
+      let icon = '/assets/icons/eab316f3-7625-42b2-9468-d421f81c4d7c.webp';
       if (reward === 'BONUS_X3') {
         icon = '/assets/icons/file_00000000ead061faa3b429466e006f48.webp';
       } else if (reward === 'FREE_SPIN') {
@@ -69,7 +69,7 @@ export default function RewardPopup({
             <>
               <img
 
-                src="/assets/icons/TPCcoin_1.webp"
+                src="/assets/icons/eab316f3-7625-42b2-9468-d421f81c4d7c.webp"
                 alt="TPC"
                 className="w-8 h-8"
               />

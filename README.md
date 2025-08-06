@@ -266,7 +266,7 @@ Token icons for the lobby and wallet are now stored as WebP files:
 
 - `assets/icons/TON.webp`
 - `assets/icons/Usdt.webp`
-- `assets/icons/TPCcoin_1.webp`
+- `assets/icons/eab316f3-7625-42b2-9468-d421f81c4d7c.webp`
 
 Place your own images with those exact names in the same directories to
 override them.
