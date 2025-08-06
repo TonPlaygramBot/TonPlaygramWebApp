@@ -1,4 +1,10 @@
 import { fetchTelegramInfo } from "./api.js";
+
+export function isTelegramWebView() {
+  if (typeof window === 'undefined') return false;
+  const ua = typeof navigator !== 'undefined' ? navigator.userAgent : '';
+  return Boolean(window.Telegram?.WebApp || ua.includes('Telegram'));
+}
 export function getTelegramId() {
   if (typeof window !== 'undefined') {
     const tgId = window?.Telegram?.WebApp?.initDataUnsafe?.user?.id;
