@@ -169,7 +169,7 @@ function CoinBurst({ token }) {
           key={i}
           src={
             token.toUpperCase() === 'TPC'
-              ? '/assets/icons/TPCcoin_1.webp'
+              ? '/assets/icons/eab316f3-7625-42b2-9468-d421f81c4d7c.webp'
               : token.toUpperCase() === 'TON'
               ? '/assets/icons/TON.webp'
               : '/assets/icons/Usdt.webp'
@@ -481,7 +481,7 @@ function Board({
                       ? '/assets/icons/TON.webp'
                       : token === 'USDT'
                         ? '/assets/icons/Usdt.webp'
-                        : '/assets/icons/TPCcoin_1.webp'
+                        : '/assets/icons/eab316f3-7625-42b2-9468-d421f81c4d7c.webp'
                   }
                   alt={token}
                   className="coin-face front"
@@ -492,7 +492,7 @@ function Board({
                       ? '/assets/icons/TON.webp'
                       : token === 'USDT'
                         ? '/assets/icons/Usdt.webp'
-                        : '/assets/icons/TPCcoin_1.webp'
+                        : '/assets/icons/eab316f3-7625-42b2-9468-d421f81c4d7c.webp'
                   }
                   alt=""
                   className="coin-face back"
@@ -699,7 +699,7 @@ export default function SnakeAndLadder() {
     });
     {
       const img = new Image();
-      img.src = '/assets/icons/TPCcoin_1.webp';
+      img.src = '/assets/icons/eab316f3-7625-42b2-9468-d421f81c4d7c.webp';
     }
     AVATARS.forEach((src) => {
       const img = new Image();
@@ -2672,7 +2672,7 @@ export default function SnakeAndLadder() {
                     ? '/assets/icons/TON.webp'
                     : token === 'USDT'
                     ? '/assets/icons/Usdt.webp'
-                    : '/assets/icons/TPCcoin_1.webp'
+                    : '/assets/icons/eab316f3-7625-42b2-9468-d421f81c4d7c.webp'
                 }
                 alt={token}
                 className="inline w-4 h-4 align-middle"

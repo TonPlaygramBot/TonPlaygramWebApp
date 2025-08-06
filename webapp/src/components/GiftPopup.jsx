@@ -118,7 +118,7 @@ export default function GiftPopup({ open, onClose, players = [], senderIndex = 0
                   <GiftIcon icon={g.icon} className="w-4 h-4" />
                     <span className="flex items-center space-x-0.5">
                       <span>{g.price}</span>
-                      <img src="/assets/icons/TPCcoin_1.webp" alt="TPC" className="w-3 h-3" />
+                      <img src="/assets/icons/eab316f3-7625-42b2-9468-d421f81c4d7c.webp" alt="TPC" className="w-3 h-3" />
                     </span>
                   </button>
                 ))}
@@ -128,7 +128,7 @@ export default function GiftPopup({ open, onClose, players = [], senderIndex = 0
           <div className="text-xs text-center mt-2 flex items-center justify-center space-x-1">
             <span>Cost:</span>
             <span>{selected.price}</span>
-            <img src="/assets/icons/TPCcoin_1.webp" alt="TPC" className="w-3 h-3" />
+            <img src="/assets/icons/eab316f3-7625-42b2-9468-d421f81c4d7c.webp" alt="TPC" className="w-3 h-3" />
           </div>
           <button
             className="w-full px-3 py-1 bg-primary hover:bg-primary-hover rounded text-black"

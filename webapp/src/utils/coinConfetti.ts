@@ -1,4 +1,4 @@
-export default function coinConfetti(count: number = 50, iconSrc: string = '/assets/icons/TPCcoin_1.webp') {
+export default function coinConfetti(count: number = 50, iconSrc: string = '/assets/icons/eab316f3-7625-42b2-9468-d421f81c4d7c.webp') {
   const container = document.createElement('div');
   container.style.position = 'fixed';
   container.style.top = '0';
