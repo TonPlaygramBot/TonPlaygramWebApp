@@ -18,7 +18,6 @@ import {
   chatBeep,
 } from "../../assets/soundData.js";
 import { AVATARS } from "../../components/AvatarPickerModal.jsx";
-import { LEADER_AVATARS } from "../../utils/leaderAvatars.js";
 import { FLAG_EMOJIS } from "../../utils/flagEmojis.js";
 import { getAvatarUrl, saveAvatar, loadAvatar, avatarToName } from "../../utils/avatarUtils.js";
 import InfoPopup from "../../components/InfoPopup.jsx";
@@ -551,21 +550,6 @@ export default function SnakeAndLadder() {
         hahaSoundRef,
         oldSnakeSoundRef,
         bombSoundRef,
-        usaLeaderSoundRef,
-        chinaLeaderSoundRef,
-        russiaLeaderSoundRef,
-        italyLeaderSoundRef,
-        albaniaLeaderSoundRef,
-        greeceLeaderSoundRef,
-        turkeyLeaderSoundRef,
-        ukraineLeaderSoundRef,
-        northKoreaLeaderSoundRef,
-        egyptLeaderSoundRef,
-        englandLeaderSoundRef,
-        franceLeaderSoundRef,
-        israelLeaderSoundRef,
-        serbiaLeaderSoundRef,
-        palestineFlagSoundRef,
         badLuckSoundRef,
         cheerSoundRef,
         timerSoundRef,
@@ -646,7 +630,6 @@ export default function SnakeAndLadder() {
   const [playerAutoRolling, setPlayerAutoRolling] = useState(false);
   const [timeLeft, setTimeLeft] = useState(TURN_TIME);
   const [aiAvatars, setAiAvatars] = useState([]);
-  const [avatarType, setAvatarType] = useState('flags');
   const [burning, setBurning] = useState([]); // indices of tokens burning
   const [refreshTick, setRefreshTick] = useState(0);
   const [rollCooldown, setRollCooldown] = useState(0);
@@ -751,66 +734,11 @@ export default function SnakeAndLadder() {
       if (idx !== mover && p === cell) victims.push(idx);
     });
     if (victims.length && cell > 0) {
-      const victimPalestine = victims.some((idx) => {
-        const av = getPlayerAvatar(idx);
-        return av.includes('Palestine') || av === '🇵🇸';
-      });
       if (!muted) {
         bombSoundRef.current.currentTime = 0;
         bombSoundRef.current.play().catch(() => {});
-        if (victimPalestine) {
-          palestineFlagSoundRef.current.currentTime = 0;
-          palestineFlagSoundRef.current.play().catch(() => {});
-        } else {
-          const avatar = getPlayerAvatar(mover);
-          if (avatar.includes('UsaLeader') || avatar === '🇺🇸') {
-            usaLeaderSoundRef.current.currentTime = 0;
-            usaLeaderSoundRef.current.play().catch(() => {});
-          } else if (avatar.includes('ChinaLeader') || avatar === '🇨🇳') {
-            chinaLeaderSoundRef.current.currentTime = 0;
-            chinaLeaderSoundRef.current.play().catch(() => {});
-          } else if (avatar.includes('RussiaLeader') || avatar === '🇷🇺') {
-            russiaLeaderSoundRef.current.currentTime = 0;
-            russiaLeaderSoundRef.current.play().catch(() => {});
-          } else if (avatar.includes('ItalyLeader') || avatar === '🇮🇹') {
-            italyLeaderSoundRef.current.currentTime = 0;
-            italyLeaderSoundRef.current.play().catch(() => {});
-          } else if (avatar.includes('AlbaniaLeader') || avatar === '🇦🇱') {
-            albaniaLeaderSoundRef.current.currentTime = 0;
-            albaniaLeaderSoundRef.current.play().catch(() => {});
-          } else if (avatar.includes('GreeceLeader') || avatar === '🇬🇷') {
-            setTimeout(() => {
-              greeceLeaderSoundRef.current.currentTime = 0;
-              greeceLeaderSoundRef.current.play().catch(() => {});
-            }, 1500);
-          } else if (avatar.includes('TurkeyLeader') || avatar === '🇹🇷') {
-            turkeyLeaderSoundRef.current.currentTime = 0;
-            turkeyLeaderSoundRef.current.play().catch(() => {});
-          } else if (avatar.includes('NorthKoreaLeader') || avatar === '🇰🇵') {
-            northKoreaLeaderSoundRef.current.currentTime = 0;
-            northKoreaLeaderSoundRef.current.play().catch(() => {});
-          } else if (avatar.includes('UkraineLeader') || avatar === '🇺🇦') {
-            ukraineLeaderSoundRef.current.currentTime = 0;
-            ukraineLeaderSoundRef.current.play().catch(() => {});
-          } else if (avatar.includes('EgyptLeader') || avatar === '🇪🇬') {
-            egyptLeaderSoundRef.current.currentTime = 0;
-            egyptLeaderSoundRef.current.play().catch(() => {});
-          } else if (avatar.includes('UnitedKingdomLeader') || avatar.includes('EnglandLeader') || avatar === '🇬🇧') {
-            englandLeaderSoundRef.current.currentTime = 0;
-            englandLeaderSoundRef.current.play().catch(() => {});
-          } else if (avatar.includes('FranceLeader') || avatar === '🇫🇷') {
-            franceLeaderSoundRef.current.currentTime = 0;
-            franceLeaderSoundRef.current.play().catch(() => {});
-          } else if (avatar.includes('IsraelLeader') || avatar === '🇮🇱') {
-            israelLeaderSoundRef.current.currentTime = 0;
-            israelLeaderSoundRef.current.play().catch(() => {});
-          } else if (avatar.includes('SerbiaLeader') || avatar === '🇷🇸') {
-            serbiaLeaderSoundRef.current.currentTime = 0;
-            serbiaLeaderSoundRef.current.play().catch(() => {});
-          }
-        }
       }
-      if (cell <= 4 && !muted && !victimPalestine) {
+      if (cell <= 4 && !muted) {
         setTimeout(() => {
           hahaSoundRef.current.currentTime = 0;
           hahaSoundRef.current.play().catch(() => {});
@@ -945,21 +873,6 @@ export default function SnakeAndLadder() {
   const yabbaSoundRef = useRef(null);
   const hahaSoundRef = useRef(null);
   const bombSoundRef = useRef(null);
-  const usaLeaderSoundRef = useRef(null);
-  const chinaLeaderSoundRef = useRef(null);
-  const russiaLeaderSoundRef = useRef(null);
-  const italyLeaderSoundRef = useRef(null);
-  const albaniaLeaderSoundRef = useRef(null);
-  const greeceLeaderSoundRef = useRef(null);
-  const turkeyLeaderSoundRef = useRef(null);
-  const ukraineLeaderSoundRef = useRef(null);
-  const northKoreaLeaderSoundRef = useRef(null);
-  const egyptLeaderSoundRef = useRef(null);
-  const englandLeaderSoundRef = useRef(null);
-  const franceLeaderSoundRef = useRef(null);
-  const israelLeaderSoundRef = useRef(null);
-  const serbiaLeaderSoundRef = useRef(null);
-  const palestineFlagSoundRef = useRef(null);
   const badLuckSoundRef = useRef(null);
   const cheerSoundRef = useRef(null);
   const timerSoundRef = useRef(null);
@@ -1004,36 +917,6 @@ export default function SnakeAndLadder() {
     hahaSoundRef.current.volume = vol;
     bombSoundRef.current = new Audio(bombSound);
     bombSoundRef.current.volume = vol;
-    usaLeaderSoundRef.current = new Audio("/assets/sounds/trumpspeach.mp3");
-    usaLeaderSoundRef.current.volume = vol;
-    chinaLeaderSoundRef.current = new Audio("/assets/sounds/chingpingu.mp3");
-    chinaLeaderSoundRef.current.volume = vol;
-    russiaLeaderSoundRef.current = new Audio("/assets/sounds/Russia_edit._URA.mp3");
-    russiaLeaderSoundRef.current.volume = vol;
-    italyLeaderSoundRef.current = new Audio("/assets/sounds/meloni preident 2.mp3");
-    italyLeaderSoundRef.current.volume = vol;
-    albaniaLeaderSoundRef.current = new Audio("/assets/sounds/Sorry_for_being_balkanik_shorts_youtubeshorts_motorcycle_motoguzziv9_motoguzzi_b.mp3");
-    albaniaLeaderSoundRef.current.volume = vol;
-    greeceLeaderSoundRef.current = new Audio("/assets/sounds/potukseri.mp3");
-    greeceLeaderSoundRef.current.volume = vol;
-    turkeyLeaderSoundRef.current = new Audio("/assets/sounds/erdogan.mp3");
-    turkeyLeaderSoundRef.current.volume = vol;
-    ukraineLeaderSoundRef.current = new Audio("/assets/sounds/2FilesMerged_20250717_131957.mp3");
-    ukraineLeaderSoundRef.current.volume = vol;
-    northKoreaLeaderSoundRef.current = new Audio("/assets/sounds/Chinese_Gong_Meme_Sound_Effect.mp3");
-    northKoreaLeaderSoundRef.current.volume = vol;
-    egyptLeaderSoundRef.current = new Audio("/assets/sounds/Ancient_Egyptian_Music__The_Nile_River.mp3");
-    egyptLeaderSoundRef.current.volume = vol;
-    englandLeaderSoundRef.current = new Audio("/assets/sounds/EnglandLeader.mp3");
-    englandLeaderSoundRef.current.volume = vol;
-    franceLeaderSoundRef.current = new Audio("/assets/sounds/FranceLeader.mp3");
-    franceLeaderSoundRef.current.volume = vol;
-    israelLeaderSoundRef.current = new Audio("/assets/sounds/IsraelLeader.mp3");
-    israelLeaderSoundRef.current.volume = vol;
-    serbiaLeaderSoundRef.current = new Audio("/assets/sounds/SerbiaLeader.mp3");
-    serbiaLeaderSoundRef.current.volume = vol;
-    palestineFlagSoundRef.current = new Audio('/assets/sounds/palestineflag.mp3');
-    palestineFlagSoundRef.current.volume = vol;
     badLuckSoundRef.current = new Audio(badLuckSound);
     badLuckSoundRef.current.volume = vol;
     cheerSoundRef.current = new Audio(cheerSound);
@@ -1049,61 +932,31 @@ export default function SnakeAndLadder() {
       diceRewardSoundRef.current?.pause();
       yabbaSoundRef.current?.pause();
       hahaSoundRef.current?.pause();
-      bombSoundRef.current?.pause();
-      usaLeaderSoundRef.current?.pause();
-      chinaLeaderSoundRef.current?.pause();
-      russiaLeaderSoundRef.current?.pause();
-      italyLeaderSoundRef.current?.pause();
-      albaniaLeaderSoundRef.current?.pause();
-      greeceLeaderSoundRef.current?.pause();
-      turkeyLeaderSoundRef.current?.pause();
-      ukraineLeaderSoundRef.current?.pause();
-      northKoreaLeaderSoundRef.current?.pause();
-      egyptLeaderSoundRef.current?.pause();
-      englandLeaderSoundRef.current?.pause();
-      franceLeaderSoundRef.current?.pause();
-      israelLeaderSoundRef.current?.pause();
-      serbiaLeaderSoundRef.current?.pause();
-      palestineFlagSoundRef.current?.pause();
-      badLuckSoundRef.current?.pause();
-      cheerSoundRef.current?.pause();
-      timerSoundRef.current?.pause();
-    };
+        bombSoundRef.current?.pause();
+        badLuckSoundRef.current?.pause();
+        cheerSoundRef.current?.pause();
+        timerSoundRef.current?.pause();
+      };
   }, []);
 
-  useEffect(() => {
-    [
-      moveSoundRef,
-      snakeSoundRef,
-      ladderSoundRef,
-      winSoundRef,
-      diceRewardSoundRef,
-      yabbaSoundRef,
-      hahaSoundRef,
-      oldSnakeSoundRef,
-      bombSoundRef,
-      usaLeaderSoundRef,
-      chinaLeaderSoundRef,
-      russiaLeaderSoundRef,
-      italyLeaderSoundRef,
-      albaniaLeaderSoundRef,
-      greeceLeaderSoundRef,
-      turkeyLeaderSoundRef,
-      ukraineLeaderSoundRef,
-      northKoreaLeaderSoundRef,
-      egyptLeaderSoundRef,
-      englandLeaderSoundRef,
-      franceLeaderSoundRef,
-      israelLeaderSoundRef,
-      serbiaLeaderSoundRef,
-      palestineFlagSoundRef,
-      badLuckSoundRef,
-      cheerSoundRef,
-      timerSoundRef,
-    ].forEach((r) => {
-      if (r.current) r.current.muted = muted;
-    });
-  }, [muted]);
+    useEffect(() => {
+      [
+        moveSoundRef,
+        snakeSoundRef,
+        ladderSoundRef,
+        winSoundRef,
+        diceRewardSoundRef,
+        yabbaSoundRef,
+        hahaSoundRef,
+        oldSnakeSoundRef,
+        bombSoundRef,
+        badLuckSoundRef,
+        cheerSoundRef,
+        timerSoundRef,
+      ].forEach((r) => {
+        if (r.current) r.current.muted = muted;
+      });
+    }, [muted]);
 
   useEffect(() => {
     const updatePhoto = () => {
@@ -1130,9 +983,7 @@ export default function SnakeAndLadder() {
     const t = params.get("token");
     const amt = params.get("amount");
     const aiParam = params.get("ai");
-    const avatarParam = params.get("avatars") || 'flags';
     const flagsParam = params.get('flags');
-    const leadersParam = params.get('leaders');
     const tableParam = params.get("table");
     if (t) setToken(t.toUpperCase());
     if (amt) setPot(Number(amt));
@@ -1142,7 +993,6 @@ export default function SnakeAndLadder() {
         ? 0
         : 1;
     setAi(aiCount);
-    setAvatarType(avatarParam);
     setIsMultiplayer(tableParam && !aiParam);
     const watching = watchParam === "1";
     setWatchOnly(watching);
@@ -1155,49 +1005,22 @@ export default function SnakeAndLadder() {
     localStorage.removeItem(`snakeGameState_${aiCount}`);
     setAiPositions(Array(aiCount).fill(0));
     setPlayerDiceCounts(Array(aiCount + 1).fill(2));
-    if (avatarParam === 'leaders') {
-      const isHighStake =
-        aiCount === 3 &&
-        String(t).toUpperCase() === 'TPC' &&
-        Number(amt) === 10000;
-      if (leadersParam) {
-        const indices = leadersParam
-          .split(',')
-          .map((n) => parseInt(n))
-          .filter((i) => i >= 0 && i < LEADER_AVATARS.length);
-        const chosen = indices.map((i) => LEADER_AVATARS[i]);
-        while (chosen.length < aiCount) {
-          const rand = LEADER_AVATARS[Math.floor(Math.random() * LEADER_AVATARS.length)];
-          if (!chosen.includes(rand)) chosen.push(rand);
-        }
-        setAiAvatars(chosen.slice(0, aiCount));
-      } else if (isHighStake) {
-        setAiAvatars([
-          '/assets/icons/UsaLeader.webp',
-          '/assets/icons/RussiaLeader.webp',
-          '/assets/icons/ChinaLeader.webp',
-        ]);
-      } else {
-        const unique = [...LEADER_AVATARS]
-          .sort(() => Math.random() - 0.5)
-          .slice(0, aiCount);
-        setAiAvatars(unique);
+    if (flagsParam) {
+      const indices = flagsParam
+        .split(',')
+        .map((n) => parseInt(n))
+        .filter((i) => i >= 0 && i < FLAG_EMOJIS.length);
+      const chosen = indices.map((i) => FLAG_EMOJIS[i]);
+      while (chosen.length < aiCount) {
+        chosen.push(FLAG_EMOJIS[Math.floor(Math.random() * FLAG_EMOJIS.length)]);
       }
+      setAiAvatars(chosen.slice(0, aiCount));
     } else {
-      if (flagsParam) {
-        const indices = flagsParam.split(',').map((n) => parseInt(n)).filter((i) => i >= 0 && i < FLAG_EMOJIS.length);
-        const chosen = indices.map((i) => FLAG_EMOJIS[i]);
-        while (chosen.length < aiCount) {
-          chosen.push(FLAG_EMOJIS[Math.floor(Math.random() * FLAG_EMOJIS.length)]);
-        }
-        setAiAvatars(chosen.slice(0, aiCount));
-      } else {
-        setAiAvatars(
-          Array.from({ length: aiCount }, () =>
-            FLAG_EMOJIS[Math.floor(Math.random() * FLAG_EMOJIS.length)]
-          )
-        );
-      }
+      setAiAvatars(
+        Array.from({ length: aiCount }, () =>
+          FLAG_EMOJIS[Math.floor(Math.random() * FLAG_EMOJIS.length)]
+        )
+      );
     }
     const colors = shuffle(TOKEN_COLORS).slice(0, aiCount + 1).map(c => c.color);
     setPlayerColors(colors);
