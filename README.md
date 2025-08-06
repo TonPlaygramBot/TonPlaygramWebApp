@@ -78,7 +78,6 @@ loads values from the runtime environment automatically so you can keep the
 The server honors a few extra environment variables when building or serving the webapp:
 
 - `WEBAPP_API_BASE_URL` – overrides the API base used during the webapp build. Set this when the bot API is hosted on another domain or port. If left empty the webapp assumes it is served from the same origin.
-- `TONCONNECT_MANIFEST_URL` – full URL for a custom `tonconnect-manifest.json`. Defaults to the manifest bundled with the build when unset.
 - `SKIP_WEBAPP_BUILD` – set to any value to skip the automatic webapp build that normally runs when `npm start` is executed. Useful if you built the assets manually.
 - `ALLOWED_ORIGINS` – list of origins allowed for CORS and socket.io when serving the API. Separate multiple origins with commas.
 
@@ -88,9 +87,7 @@ The server honors a few extra environment variables when building or serving the
    - `ADMIN_ADDRESS` – address that receives the minted supply
 
 6. **(Optional)** Build the webapp assets. Running `npm start` will
-   automatically build the webapp if `webapp/dist` is missing. Building manually
-   copies `public/tonconnect-manifest.json` into the `dist` folder so wallets can
-   connect:
+   automatically build the webapp if `webapp/dist` is missing:
 
    ```bash
    npm --prefix webapp run build
