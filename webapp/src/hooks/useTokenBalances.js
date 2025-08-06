@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
-import { createAccount, getAccountBalance } from '../utils/api.js';
+import { createAccount, getAccountBalance, getTonBalance } from '../utils/api.js';
 import { getTelegramId } from '../utils/telegram.js';
+import { useTonAddress } from '@tonconnect/ui-react';
 
 export default function useTokenBalances() {
   let telegramId;
@@ -11,6 +12,10 @@ export default function useTokenBalances() {
   }
 
   const [tpcBalance, setTpcBalance] = useState(null);
+  const [tonBalance, setTonBalance] = useState(null);
+  const [tpcWalletBalance, setTpcWalletBalance] = useState(null);
+
+  const walletAddress = useTonAddress(true);
 
   useEffect(() => {
     async function loadTpc() {
@@ -28,5 +33,37 @@ export default function useTokenBalances() {
     }
     loadTpc();
   }, [telegramId]);
-  return { tpcBalance, telegramId };
+
+  useEffect(() => {
+    async function loadExternal() {
+      if (!walletAddress) {
+        setTonBalance(null);
+        setTpcWalletBalance(null);
+        return;
+      }
+      try {
+        const ton = await getTonBalance(walletAddress);
+        if (ton?.error) throw new Error(ton.error);
+        setTonBalance(ton.balance ?? 0);
+      } catch (err) {
+        console.error('Failed to load TON balance:', err);
+        setTonBalance(0);
+      }
+      try {
+        const res = await fetch(
+          `https://tonapi.io/v2/accounts/${walletAddress}/jettons/EQDY3qbfGN6IMI5d4MsEoprhuMTz09OkqjyhPKX6DVtzbi6X`
+        );
+        if (!res.ok) throw new Error('request failed');
+        const data = await res.json();
+        const decimals = Number(data.jetton?.decimals) || 0;
+        setTpcWalletBalance(Number(data.balance) / 10 ** decimals);
+      } catch (err) {
+        console.error('Failed to load TPC balance:', err);
+        setTpcWalletBalance(0);
+      }
+    }
+    loadExternal();
+  }, [walletAddress]);
+
+  return { tpcBalance, tonBalance, tpcWalletBalance, telegramId };
 }

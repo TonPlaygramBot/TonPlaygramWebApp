@@ -129,12 +129,14 @@ function ensureWebappBuilt() {
     const displayBase = apiBase || '(same origin)';
     console.log(`Using API base URL ${displayBase} for webapp build`);
 
+    const manifestBuild = process.env.TONCONNECT_MANIFEST_URL || '';
     execSync('npm run build', {
       cwd: webappDir,
       stdio: 'inherit',
       env: {
         ...process.env,
-        VITE_API_BASE_URL: apiBase
+        VITE_API_BASE_URL: apiBase,
+        VITE_TONCONNECT_MANIFEST: manifestBuild
       }
     });
 
