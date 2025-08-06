@@ -1,7 +1,6 @@
 export default function ProjectAchievementsCard() {
   const achievements = [
     '🔐 Smart-contract store live with auto-delivery',
-    '🚀 TPC deployed on TON network',
     '🧾 Wallet transaction history works',
     '💬 In-chat TPC transfers enabled',
     '🎲 Snake & Ladder multiplayer game',
@@ -26,7 +25,7 @@ export default function ProjectAchievementsCard() {
         alt=""
         onError={(e) => { e.currentTarget.style.display = 'none'; }}
       />
-      <h3 className="text-lg font-bold text-center">TonPlaygram Achievements</h3>
+      <h3 className="text-lg font-bold text-center">Playgram Achievements</h3>
       <ul className="list-disc pl-6 text-sm space-y-1">
         {achievements.map((a) => (
           <li key={a}>{a}</li>
