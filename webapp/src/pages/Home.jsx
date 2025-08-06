@@ -1,4 +1,6 @@
 import { useEffect, useState } from 'react';
+import { useWallet, useConnection } from '@solana/wallet-adapter-react';
+import { WalletMultiButton } from '@solana/wallet-adapter-react-ui';
 
 import TasksCard from '../components/TasksCard.jsx';
 import NftGiftCard from '../components/NftGiftCard.jsx';
@@ -30,47 +32,30 @@ export default function Home() {
 
   const [photoUrl, setPhotoUrl] = useState(loadAvatar() || '');
 
+  const { publicKey } = useWallet();
+  const { connection } = useConnection();
   const [walletUsd, setWalletUsd] = useState(null);
-  const [connecting, setConnecting] = useState(false);
 
-  const connectPhantom = async () => {
-    const provider = window.solana;
-    if (!provider?.isPhantom) {
-      alert('Phantom wallet not found');
+  useEffect(() => {
+    if (!publicKey) {
+      setWalletUsd(null);
       return;
     }
-    try {
-      setConnecting(true);
-      const resp = await provider.connect();
-      const pubKey = resp.publicKey.toString();
-
-      const balResp = await fetch('https://api.mainnet-beta.solana.com', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          jsonrpc: '2.0',
-          id: 1,
-          method: 'getBalance',
-          params: [pubKey],
-        }),
-      });
-      const balData = await balResp.json();
-      const lamports = balData?.result?.value || 0;
-      const sol = lamports / 1e9;
-
-      const priceRes = await fetch(
-        'https://api.coingecko.com/api/v3/simple/price?ids=solana&vs_currencies=usd'
-      );
-      const priceJson = await priceRes.json();
-      const price = priceJson?.solana?.usd || 0;
-
-      setWalletUsd(sol * price);
-    } catch (err) {
-      console.error('Phantom connect failed', err);
-    } finally {
-      setConnecting(false);
-    }
-  };
+    (async () => {
+      try {
+        const lamports = await connection.getBalance(publicKey);
+        const sol = lamports / 1e9;
+        const priceRes = await fetch(
+          'https://api.coingecko.com/api/v3/simple/price?ids=solana&vs_currencies=usd'
+        );
+        const priceJson = await priceRes.json();
+        const price = priceJson?.solana?.usd || 0;
+        setWalletUsd(sol * price);
+      } catch (err) {
+        console.error('Failed to fetch balance', err);
+      }
+    })();
+  }, [publicKey, connection]);
 
   useEffect(() => {
     ping()
@@ -151,17 +136,16 @@ export default function Home() {
           </div>
         )}
 
-        {walletUsd === null ? (
-          <button
-            onClick={connectPhantom}
-            disabled={connecting}
-            className="px-4 py-1 bg-brand-gold text-black rounded"
-          >
-            {connecting ? 'Connecting...' : 'Connect Phantom'}
-          </button>
+        {!publicKey ? (
+          <WalletMultiButton className="px-4 py-1 bg-brand-gold text-black rounded" />
+        ) : walletUsd === null ? (
+          <p className="text-center font-semibold">Loading...</p>
         ) : (
           <p className="text-center font-semibold">
-            ${walletUsd.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            ${walletUsd.toLocaleString(undefined, {
+              minimumFractionDigits: 2,
+              maximumFractionDigits: 2,
+            })}
           </p>
         )}
 
