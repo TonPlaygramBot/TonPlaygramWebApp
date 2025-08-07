@@ -28,7 +28,6 @@ import GameResult from './models/GameResult.js';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { existsSync } from 'fs';
-import { execSync } from 'child_process';
 import { randomUUID } from 'crypto';
 import compression from 'compression';
 import rateLimit from 'express-rate-limit';
@@ -110,47 +109,25 @@ app.use('/api/store', storeRoutes);
 const webappPath = path.join(__dirname, '../webapp/dist');
 
 function ensureWebappBuilt() {
-  if (process.env.SKIP_WEBAPP_BUILD) {
-    console.log('Skipping webapp build');
-    return true;
-  }
   if (
     existsSync(path.join(webappPath, 'index.html')) &&
     existsSync(path.join(webappPath, 'assets'))
   ) {
     return true;
   }
-  try {
-    console.log('Building webapp...');
-    const webappDir = path.join(__dirname, '../webapp');
-    execSync('npm install', { cwd: webappDir, stdio: 'inherit' });
-
-    const apiBase = process.env.WEBAPP_API_BASE_URL || '';
-    const displayBase = apiBase || '(same origin)';
-    console.log(`Using API base URL ${displayBase} for webapp build`);
-
-    execSync('npm run build', {
-      cwd: webappDir,
-      stdio: 'inherit',
-      env: {
-        ...process.env,
-        VITE_API_BASE_URL: apiBase
-      }
-    });
-
-    return existsSync(path.join(webappPath, 'index.html'));
-  } catch (err) {
-    console.error('Failed to build webapp:', err.message);
-    return false;
-  }
+  console.error(
+    'Webapp build not found. Make sure the webapp is built during deployment.'
+  );
+  return false;
 }
 
-ensureWebappBuilt();
-
-app.use(express.static(webappPath, { maxAge: '1y', immutable: true }));
+const webappBuilt = ensureWebappBuilt();
+if (webappBuilt) {
+  app.use(express.static(webappPath, { maxAge: '1y', immutable: true }));
+}
 
 function sendIndex(res) {
-  if (ensureWebappBuilt()) {
+  if (webappBuilt) {
     res.sendFile(path.join(webappPath, 'index.html'));
   } else {
     res.status(503).send('Webapp build not available');
