@@ -18,7 +18,6 @@ import {
   avatarToName,
 } from '../../utils/avatarUtils.js';
 import { FLAG_EMOJIS } from '../../utils/flagEmojis.js';
-import { LEADER_AVATARS, LEADER_PHOTO_AVATARS } from '../../utils/leaderAvatars.js';
 import { chatBeep, timerBeep } from '../../assets/soundData.js';
 import { getGameVolume, isGameMuted } from '../../utils/sound.js';
 import { giftSounds } from '../../utils/giftSounds.js';
@@ -80,11 +79,6 @@ export default function CrazyDiceDuel() {
   useTelegramBackButton(handleBack);
   const [searchParams] = useSearchParams();
   const aiCount = parseInt(searchParams.get('ai')) || 0;
-  const avatarType = searchParams.get('avatars') || 'flags';
-  const selectedLeadersParam = searchParams.get('leaders');
-  const selectedLeaders = selectedLeadersParam
-    ? selectedLeadersParam.split(',').map((n) => LEADER_AVATARS[parseInt(n)]).filter(Boolean)
-    : null;
   const selectedFlagsParam = searchParams.get('flags');
   const selectedFlags = selectedFlagsParam
     ? selectedFlagsParam.split(',').map((n) => FLAG_EMOJIS[parseInt(n)]).filter(Boolean)
@@ -112,37 +106,6 @@ export default function CrazyDiceDuel() {
   const initialPlayers = useMemo(() => {
     const randFlag = () =>
       FLAG_EMOJIS[Math.floor(Math.random() * FLAG_EMOJIS.length)];
-    let uniqueLeaders = [...LEADER_AVATARS];
-    let uniquePhotos = [...LEADER_PHOTO_AVATARS];
-
-    if (selectedLeaders && selectedLeaders.length) {
-      uniqueLeaders = selectedLeaders.slice(0, playerCount - 1);
-      while (uniqueLeaders.length < playerCount - 1) {
-        const rand = LEADER_AVATARS[Math.floor(Math.random() * LEADER_AVATARS.length)];
-        if (!uniqueLeaders.includes(rand)) uniqueLeaders.push(rand);
-      }
-      uniquePhotos = uniqueLeaders.map((p) => p.replace('.webp', '.jpg'));
-    } else if (
-      playerCount === 4 &&
-      aiCount === 3 &&
-      avatarType === 'leaders' &&
-      token === 'TPC' &&
-      amount === 10000
-    ) {
-      uniqueLeaders = [
-        '/assets/icons/UsaLeader.webp',
-        '/assets/icons/RussiaLeader.webp',
-        '/assets/icons/ChinaLeader.webp',
-      ];
-      uniquePhotos = uniqueLeaders.map((p) => p.replace('.webp', '.jpg'));
-    } else {
-      uniqueLeaders = uniqueLeaders
-        .sort(() => Math.random() - 0.5)
-        .slice(0, playerCount - 1);
-      uniquePhotos = uniquePhotos
-        .sort(() => Math.random() - 0.5)
-        .slice(0, playerCount - 1);
-    }
     return Array.from({ length: playerCount }, (_, i) => ({
       score: 0,
       rolls: 0,
@@ -150,18 +113,14 @@ export default function CrazyDiceDuel() {
       photoUrl:
         i === 0
           ? loadAvatar() || '/assets/icons/profile.svg'
-          : playerCount === 3 && aiCount === 0
-            ? uniquePhotos[i - 1]
-            : aiCount > 0
-              ? avatarType === 'leaders'
-                ? uniqueLeaders[i - 1]
-                : (selectedFlags && selectedFlags[i - 1])
-                  ? selectedFlags[i - 1]
-                  : randFlag()
-              : `/assets/avatars/avatar${(i % 5) + 1}.svg`,
+          : aiCount > 0
+            ? (selectedFlags && selectedFlags[i - 1])
+              ? selectedFlags[i - 1]
+              : randFlag()
+            : `/assets/avatars/avatar${(i % 5) + 1}.svg`,
       color: COLORS[i % COLORS.length],
     }));
-  }, [playerCount, aiCount, avatarType, selectedLeadersParam, selectedFlagsParam]);
+  }, [playerCount, aiCount, selectedFlagsParam]);
 
   const [players, setPlayers] = useState(initialPlayers);
   const [current, setCurrent] = useState(0);
