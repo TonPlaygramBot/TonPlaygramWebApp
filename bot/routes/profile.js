@@ -4,7 +4,6 @@ import User from '../models/User.js';
 import { fetchTelegramInfo } from '../utils/telegram.js';
 import { ensureTransactionArray, calculateBalance } from '../utils/userUtils.js';
 import { normalizeAddress } from '../utils/ton.js';
-import authenticate from '../middleware/auth.js';
 
 export function parseTwitterHandle(input) {
   if (!input) return '';
@@ -137,13 +136,9 @@ router.post('/by-account', async (req, res) => {
   res.json({ nickname, firstName, lastName, photo });
 });
 
-router.post('/update', authenticate, async (req, res) => {
+router.post('/update', async (req, res) => {
   const { telegramId, nickname, photo, bio, firstName, lastName } = req.body;
   if (!telegramId) return res.status(400).json({ error: 'telegramId required' });
-
-  const authId = req.auth?.telegramId;
-  if (!authId) return res.status(401).json({ error: 'unauthorized' });
-  if (telegramId !== authId) return res.status(403).json({ error: 'forbidden' });
 
   const update = {};
   if (nickname !== undefined) update.nickname = nickname;
@@ -160,16 +155,11 @@ router.post('/update', authenticate, async (req, res) => {
   res.json(user);
 });
 
-router.post('/updateBalance', authenticate, async (req, res) => {
+router.post('/updateBalance', async (req, res) => {
   const { telegramId, balance } = req.body;
   if (!telegramId || balance === undefined) {
     return res.status(400).json({ error: 'telegramId and balance required' });
   }
-
-  const authId = req.auth?.telegramId;
-  if (!authId) return res.status(401).json({ error: 'unauthorized' });
-  if (telegramId !== authId) return res.status(403).json({ error: 'forbidden' });
-
   const user = await User.findOneAndUpdate(
     { telegramId },
     { $set: { balance }, $setOnInsert: { referralCode: telegramId.toString() } },
@@ -178,39 +168,23 @@ router.post('/updateBalance', authenticate, async (req, res) => {
   res.json({ balance: user.balance });
 });
 
-router.post('/addTransaction', authenticate, async (req, res) => {
+router.post('/addTransaction', async (req, res) => {
   const { telegramId, accountId, amount, type, game, players } = req.body;
-  const authId = req.auth?.telegramId;
-
-  if (!authId) return res.status(401).json({ error: 'unauthorized' });
   if ((!telegramId && !accountId) || amount === undefined || !type) {
     return res
       .status(400)
       .json({ error: 'telegramId or accountId, amount and type required' });
   }
-
   let user = null;
-
-  if (telegramId) {
-    if (telegramId !== authId) return res.status(403).json({ error: 'forbidden' });
-    user = await User.findOne({ telegramId });
-    if (!user && accountId) user = await User.findOne({ accountId });
-  } else if (accountId) {
-    user = await User.findOne({ accountId });
-    if (!user) return res.status(404).json({ error: 'account not found' });
-    if (user.telegramId && user.telegramId !== authId) {
-      return res.status(403).json({ error: 'forbidden' });
-    }
-  }
-
+  if (telegramId) user = await User.findOne({ telegramId });
+  if (!user && accountId) user = await User.findOne({ accountId });
   if (!user) {
     user = new User({
-      telegramId: authId,
+      telegramId,
       accountId,
       referralCode: String(telegramId || accountId)
     });
   }
-
   ensureTransactionArray(user);
   const tx = { amount, type, date: new Date() };
   if (game) tx.game = game;
@@ -220,15 +194,11 @@ router.post('/addTransaction', authenticate, async (req, res) => {
   res.json({ transactions: user.transactions });
 });
 
-router.post('/link-google', authenticate, async (req, res) => {
+router.post('/link-google', async (req, res) => {
   const { telegramId, googleId, email, dob, firstName, lastName, photo } = req.body;
   if (!telegramId || !googleId) {
     return res.status(400).json({ error: 'telegramId and googleId required' });
   }
-
-  const authId = req.auth?.telegramId;
-  if (!authId) return res.status(401).json({ error: 'unauthorized' });
-  if (telegramId !== authId) return res.status(403).json({ error: 'forbidden' });
 
   const update = {
     googleId,
@@ -248,13 +218,9 @@ router.post('/link-google', authenticate, async (req, res) => {
   res.json(user);
 });
 
-router.post('/link-social', authenticate, async (req, res) => {
+router.post('/link-social', async (req, res) => {
   const { telegramId, twitter, telegramHandle, discord } = req.body;
   if (!telegramId) return res.status(400).json({ error: 'telegramId required' });
-
-  const authId = req.auth?.telegramId;
-  if (!authId) return res.status(401).json({ error: 'unauthorized' });
-  if (telegramId !== authId) return res.status(403).json({ error: 'forbidden' });
 
   const update = {};
   if (twitter !== undefined) update['social.twitter'] = parseTwitterHandle(twitter);
