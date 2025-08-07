@@ -2,9 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import TableSelector from '../../components/TableSelector.jsx';
 import RoomSelector from '../../components/RoomSelector.jsx';
-import LeaderPickerModal from '../../components/LeaderPickerModal.jsx';
 import FlagPickerModal from '../../components/FlagPickerModal.jsx';
-import { LEADER_AVATARS } from '../../utils/leaderAvatars.js';
 import useTelegramBackButton from '../../hooks/useTelegramBackButton.js';
 import { socket } from '../../utils/socket.js';
 import { loadAvatar, getAvatarUrl } from '../../utils/avatarUtils.js';
@@ -40,8 +38,6 @@ export default function Lobby() {
   const [currentTurn, setCurrentTurn] = useState(null);
   const [aiCount, setAiCount] = useState(0);
   const [aiType, setAiType] = useState('');
-  const [showLeaderPicker, setShowLeaderPicker] = useState(false);
-  const [leaders, setLeaders] = useState([]);
   const [showFlagPicker, setShowFlagPicker] = useState(false);
   const [flags, setFlags] = useState([]);
   const [online, setOnline] = useState(0);
@@ -71,9 +67,7 @@ export default function Lobby() {
 
   const selectAiType = (t) => {
     setAiType(t);
-    if (t === 'leaders') setShowLeaderPicker(true);
-    else if (t === 'flags') setShowFlagPicker(true);
-    if (t !== 'leaders') setLeaders([]);
+    if (t === 'flags') setShowFlagPicker(true);
     if (t !== 'flags') setFlags([]);
   };
 
@@ -191,7 +185,7 @@ export default function Lobby() {
   // match began. The logic has been removed so that each participant must
   // manually confirm the game start using the button below.
 
-  const startGame = async (flagOverride = flags, leaderOverride = leaders) => {
+  const startGame = async (flagOverride = flags) => {
     const params = new URLSearchParams();
     if (table) params.set('table', table.id);
 
@@ -226,12 +220,7 @@ export default function Lobby() {
       params.set('ai', aiCount);
       params.set('avatars', aiType);
       params.set('token', 'TPC');
-      if (aiType === 'leaders' && leaderOverride.length) {
-        const ids = leaderOverride
-          .map((l) => LEADER_AVATARS.indexOf(l))
-          .filter((i) => i >= 0);
-        if (ids.length) params.set('leaders', ids.join(','));
-      } else if (aiType === 'flags' && flagOverride.length) {
+      if (aiType === 'flags' && flagOverride.length) {
         params.set('flags', flagOverride.join(','));
       }
       if (stake.amount) params.set('amount', stake.amount);
@@ -263,10 +252,6 @@ export default function Lobby() {
   const disabled =
     !stake || !stake.token || !stake.amount ||
     (game === 'snake' && table?.id === 'single' && !aiType) ||
-    (game === 'snake' &&
-      table?.id === 'single' &&
-      aiType === 'leaders' &&
-      leaders.length !== aiCount) ||
     (game === 'snake' &&
       table?.id === 'single' &&
       aiType === 'flags' &&
@@ -309,13 +294,13 @@ export default function Lobby() {
           </div>
           <h3 className="font-semibold mt-2">AI Avatars</h3>
           <div className="flex gap-2">
-            {['flags', 'leaders'].map((t) => (
+            {['flags'].map((t) => (
               <button
                 key={t}
                 onClick={() => selectAiType(t)}
                 className={`lobby-tile ${aiType === t ? 'lobby-selected' : ''}`}
               >
-                {t === 'flags' ? 'Flags' : 'Leaders'}
+                Flags
               </button>
             ))}
           </div>
@@ -328,21 +313,13 @@ export default function Lobby() {
       >
         {game === 'snake' && table?.id !== 'single' ? (confirmed ? 'Waiting…' : 'Confirm') : 'Start Game'}
       </button>
-      <LeaderPickerModal
-        open={showLeaderPicker}
-        count={aiCount}
-        selected={leaders}
-        onSave={setLeaders}
-        onClose={() => setShowLeaderPicker(false)}
-        onComplete={(sel) => startGame(flags, sel)}
-      />
       <FlagPickerModal
         open={showFlagPicker}
         count={aiCount}
         selected={flags}
         onSave={setFlags}
         onClose={() => setShowFlagPicker(false)}
-        onComplete={(sel) => startGame(sel, leaders)}
+        onComplete={(sel) => startGame(sel)}
       />
     </div>
   );
