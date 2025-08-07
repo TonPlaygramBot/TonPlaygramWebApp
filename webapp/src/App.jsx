@@ -1,5 +1,6 @@
 import React from 'react';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { TonConnectUIProvider } from '@tonconnect/ui-react';
 
 import Home from './pages/Home.jsx';
 import Mining from './pages/Mining.jsx';
@@ -31,32 +32,36 @@ export default function App() {
   useTelegramAuth();
   useReferralClaim();
 
+  const manifestUrl = `${window.location.origin}/tonconnect-manifest.json`;
+
   return (
     <BrowserRouter>
-      <Layout>
-        <Routes>
-          <Route path="/" element={<Home />} />
-          <Route path="/mining" element={<Mining />} />
-          <Route path="/games" element={<Games />} />
-          <Route path="/games/crazydice" element={<CrazyDiceDuel />} />
-          <Route path="/games/crazydice/lobby" element={<CrazyDiceLobby />} />
-          <Route path="/games/:game/lobby" element={<Lobby />} />
-            <Route path="/games/horse" element={<HorseRacing />} />
-          <Route path="/games/snake" element={<SnakeAndLadder />} />
-          <Route path="/games/snake/mp" element={<SnakeMultiplayer />} />
-          <Route path="/games/snake/results" element={<SnakeResults />} />
-          <Route path="/spin" element={<SpinPage />} />
-          <Route path="/admin/influencer" element={<InfluencerAdmin />} />
-          <Route path="/tasks" element={<Tasks />} />
-          <Route path="/store" element={<Store />} />
-          <Route path="/referral" element={<Referral />} />
-          <Route path="/wallet" element={<Wallet />} />
-          <Route path="/messages" element={<Messages />} />
-          <Route path="/notifications" element={<Notifications />} />
-          <Route path="/trending" element={<Trending />} />
-          <Route path="/account" element={<MyAccount />} />
-        </Routes>
-      </Layout>
+      <TonConnectUIProvider manifestUrl={manifestUrl}>
+        <Layout>
+          <Routes>
+            <Route path="/" element={<Home />} />
+            <Route path="/mining" element={<Mining />} />
+            <Route path="/games" element={<Games />} />
+            <Route path="/games/crazydice" element={<CrazyDiceDuel />} />
+            <Route path="/games/crazydice/lobby" element={<CrazyDiceLobby />} />
+            <Route path="/games/:game/lobby" element={<Lobby />} />
+              <Route path="/games/horse" element={<HorseRacing />} />
+            <Route path="/games/snake" element={<SnakeAndLadder />} />
+            <Route path="/games/snake/mp" element={<SnakeMultiplayer />} />
+            <Route path="/games/snake/results" element={<SnakeResults />} />
+            <Route path="/spin" element={<SpinPage />} />
+            <Route path="/admin/influencer" element={<InfluencerAdmin />} />
+            <Route path="/tasks" element={<Tasks />} />
+            <Route path="/store" element={<Store />} />
+            <Route path="/referral" element={<Referral />} />
+            <Route path="/wallet" element={<Wallet />} />
+            <Route path="/messages" element={<Messages />} />
+            <Route path="/notifications" element={<Notifications />} />
+            <Route path="/trending" element={<Trending />} />
+            <Route path="/account" element={<MyAccount />} />
+          </Routes>
+        </Layout>
+      </TonConnectUIProvider>
     </BrowserRouter>
   );
 }
