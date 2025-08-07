@@ -54,9 +54,14 @@ const allowedOrigins = (process.env.ALLOWED_ORIGINS || '')
   .filter(Boolean);
 
 const rateLimitWindowMs =
-  Number(process.env.RATE_LIMIT_WINDOW_MS) || 15 * 60 * 1000;
-
+  Number(process.env.RATE_LIMIT_WINDOW_MS) || 60 * 1000;
 const rateLimitMax = Number(process.env.RATE_LIMIT_MAX) || 100;
+const sensitiveRateLimitWindowMs =
+  Number(process.env.SENSITIVE_RATE_LIMIT_WINDOW_MS) || 5 * 60 * 1000;
+const sensitiveRateLimitMax =
+  Number(process.env.SENSITIVE_RATE_LIMIT_MAX) || 10;
+const keyGenerator = (req, _res) =>
+  req.auth?.telegramId ? `tg:${req.auth.telegramId}` : req.ip;
 const app = express();
 app.use(cors({ origin: allowedOrigins.length ? allowedOrigins : '*' }));
 const httpServer = http.createServer(app);
@@ -85,7 +90,16 @@ const apiLimiter = rateLimit({
   windowMs: rateLimitWindowMs,
   limit: rateLimitMax,
   standardHeaders: true,
-  legacyHeaders: false
+  legacyHeaders: false,
+  keyGenerator,
+  skip: (req) => ['/wallet', '/account'].some((p) => req.path.startsWith(p))
+});
+const sensitiveLimiter = rateLimit({
+  windowMs: sensitiveRateLimitWindowMs,
+  limit: sensitiveRateLimitMax,
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator
 });
 app.use('/api', apiLimiter);
 app.use('/api/mining', miningRoutes);
@@ -94,8 +108,8 @@ app.use('/api/watch', watchRoutes);
 app.use('/api/ads', adsRoutes);
 app.use('/api/influencer', influencerRoutes);
 app.use('/api/referral', referralRoutes);
-app.use('/api/wallet', walletRoutes);
-app.use('/api/account', accountRoutes);
+app.use('/api/wallet', sensitiveLimiter, walletRoutes);
+app.use('/api/account', sensitiveLimiter, accountRoutes);
 app.use('/api/profile', profileRoutes);
 if (process.env.ENABLE_TWITTER_OAUTH === 'true') {
   app.use('/api/twitter', twitterAuthRoutes);

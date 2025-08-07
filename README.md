@@ -23,9 +23,13 @@
 
   - `API_AUTH_TOKEN` – (optional) token for trusted server-to-server calls
 
-  - `RATE_LIMIT_WINDOW_MS` – (optional) timeframe for rate limits in milliseconds (defaults to 900000)
+  - `RATE_LIMIT_WINDOW_MS` – (optional) timeframe for rate limits in milliseconds (defaults to 60000)
 
-  - `RATE_LIMIT_MAX` – (optional) max requests per window from one IP (defaults to 100)
+  - `RATE_LIMIT_MAX` – (optional) max requests per window from one IP or authenticated user (defaults to 100)
+
+  - `SENSITIVE_RATE_LIMIT_WINDOW_MS` – (optional) timeframe for sensitive route limits in milliseconds (defaults to 300000)
+
+  - `SENSITIVE_RATE_LIMIT_MAX` – (optional) max requests per window for sensitive routes (defaults to 10)
 
   - `ALLOWED_ORIGINS` – list of origins allowed for CORS and socket.io. Multiple origins may be comma-separated
 
