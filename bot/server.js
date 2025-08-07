@@ -45,28 +45,23 @@ if (!process.env.MONGODB_URI) {
 }
 
 const PORT = process.env.PORT || 3000;
-const allowedOriginsRaw = process.env.ALLOWED_ORIGINS;
-if (!allowedOriginsRaw) {
-  console.warn(
-    'ALLOWED_ORIGINS not set. Cross-origin requests will be blocked. Set ALLOWED_ORIGINS to a comma-separated list of allowed origins.'
-  );
-}
-const allowedOrigins = allowedOriginsRaw
-  ? allowedOriginsRaw
-      .split(',')
-      .map((o) => o.trim())
-      .filter(Boolean)
-  : [];
+const allowedOrigins = (process.env.ALLOWED_ORIGINS || '')
+
+  .split(',')
+
+  .map((o) => o.trim())
+
+  .filter(Boolean);
 
 const rateLimitWindowMs =
   Number(process.env.RATE_LIMIT_WINDOW_MS) || 15 * 60 * 1000;
 
 const rateLimitMax = Number(process.env.RATE_LIMIT_MAX) || 100;
 const app = express();
-app.use(cors({ origin: allowedOrigins }));
+app.use(cors({ origin: allowedOrigins.length ? allowedOrigins : '*' }));
 const httpServer = http.createServer(app);
 const io = new SocketIOServer(httpServer, {
-  cors: { origin: allowedOrigins }
+  cors: { origin: allowedOrigins.length ? allowedOrigins : '*' }
 });
 const gameManager = new GameRoomManager(io);
 
