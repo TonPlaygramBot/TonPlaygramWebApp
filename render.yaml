@@ -4,7 +4,10 @@ services:
     name: tonplaygram-api
     branch: main
     rootDir: bot
-    buildCommand: npm install && npm --prefix ../webapp install && npm --prefix ../webapp run build
+    buildCommand: |
+      npm install
+      npm --prefix ../webapp ci
+      npm --prefix ../webapp run build
     startCommand: npm start
 
   - type: web
