@@ -93,10 +93,8 @@ router.post('/info', async (req, res) => {
 });
 
 // Send TPC between accounts
-router.post('/send', authenticate, async (req, res) => {
+router.post('/send', async (req, res) => {
   const { fromAccount, toAccount, amount, note } = req.body;
-  const authId = req.auth?.telegramId;
-  if (!authId) return res.status(403).json({ error: 'forbidden' });
   if (!fromAccount || !toAccount || typeof amount !== 'number') {
     return res.status(400).json({ error: 'fromAccount, toAccount and amount required' });
   }
@@ -104,7 +102,6 @@ router.post('/send', authenticate, async (req, res) => {
 
   const sender = await User.findOne({ accountId: fromAccount });
   if (!sender) return res.status(404).json({ error: 'sender not found' });
-  if (sender.telegramId !== authId) return res.status(403).json({ error: 'forbidden' });
   const feeSender = Math.round(amount * 0.02);
   const feeReceiver = Math.round(amount * 0.01);
   if (sender.balance < amount + feeSender) {
@@ -232,10 +229,8 @@ router.post('/send', authenticate, async (req, res) => {
 });
 
 // Send a gift using account ids
-router.post('/gift', authenticate, async (req, res) => {
+router.post('/gift', async (req, res) => {
   const { fromAccount, toAccount, gift } = req.body;
-  const authId = req.auth?.telegramId;
-  if (!authId) return res.status(403).json({ error: 'forbidden' });
   if (!fromAccount || !toAccount || !gift) {
     return res
       .status(400)
@@ -246,9 +241,7 @@ router.post('/gift', authenticate, async (req, res) => {
   if (!g) return res.status(400).json({ error: 'invalid gift' });
 
   const sender = await User.findOne({ accountId: fromAccount });
-  if (!sender) return res.status(404).json({ error: 'sender not found' });
-  if (sender.telegramId !== authId) return res.status(403).json({ error: 'forbidden' });
-  if (sender.balance < g.price) {
+  if (!sender || sender.balance < g.price) {
     return res.status(400).json({ error: 'insufficient balance' });
   }
 
@@ -329,17 +322,14 @@ router.post('/gift', authenticate, async (req, res) => {
 });
 
 // Convert received gifts to TPC
-router.post('/convert-gifts', authenticate, async (req, res) => {
+router.post('/convert-gifts', async (req, res) => {
   const { accountId, giftIds, action = 'burn', toAccount } = req.body;
-  const authId = req.auth?.telegramId;
-  if (!authId) return res.status(403).json({ error: 'forbidden' });
   if (!accountId || !Array.isArray(giftIds)) {
     return res.status(400).json({ error: 'accountId and giftIds required' });
   }
 
   const user = await User.findOne({ accountId });
   if (!user) return res.status(404).json({ error: 'account not found' });
-  if (user.telegramId !== authId) return res.status(403).json({ error: 'forbidden' });
 
   ensureTransactionArray(user);
   if (!Array.isArray(user.gifts)) user.gifts = [];
@@ -453,14 +443,11 @@ router.post('/convert-gifts', authenticate, async (req, res) => {
 });
 
 // List transactions by account id
-router.post('/transactions', authenticate, async (req, res) => {
+router.post('/transactions', async (req, res) => {
   const { accountId } = req.body;
-  const authId = req.auth?.telegramId;
-  if (!authId) return res.status(403).json({ error: 'forbidden' });
   if (!accountId) return res.status(400).json({ error: 'accountId required' });
   const user = await User.findOne({ accountId });
   if (!user) return res.status(404).json({ error: 'account not found' });
-  if (user.telegramId !== authId) return res.status(403).json({ error: 'forbidden' });
   ensureTransactionArray(user);
   res.json({ transactions: user.transactions });
 });
