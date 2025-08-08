@@ -640,22 +640,8 @@ if (mongoUri === 'memory') {
     }
   });
 } else if (mongoUri) {
-  const tlsCert = process.env.MONGODB_TLS_CERT;
-  const tlsKey = process.env.MONGODB_TLS_KEY;
-  const tlsCA = process.env.MONGODB_TLS_CA;
-  const mongoOptions = {};
-  if (tlsCert && tlsKey) {
-    mongoOptions.sslCert = tlsCert.replace(/\\n/g, '\n');
-    mongoOptions.sslKey = tlsKey.replace(/\\n/g, '\n');
-  }
-  if (tlsCA) {
-    mongoOptions.sslCA = tlsCA.replace(/\\n/g, '\n');
-  }
-  if (tlsCert || tlsKey || tlsCA) {
-    mongoOptions.ssl = true;
-  }
   mongoose
-    .connect(mongoUri, mongoOptions)
+    .connect(mongoUri)
     .then(() => console.log('Connected to MongoDB'))
     .catch((err) => console.error('MongoDB connection error:', err));
 } else {
