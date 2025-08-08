@@ -1,5 +1,6 @@
 import { useEffect } from 'react';
 import { socket } from '../utils/socket.js';
+import { createAccount } from '../utils/api.js';
 
 export default function useTelegramAuth() {
   useEffect(() => {
@@ -8,6 +9,9 @@ export default function useTelegramAuth() {
     if (user?.id) {
       localStorage.setItem('telegramId', user.id);
       socket.emit('register', { playerId: acc || user.id });
+      createAccount(user.id).catch(err => {
+        console.error('Failed to create account', err);
+      });
     } else if (acc) {
       socket.emit('register', { playerId: acc });
     }
