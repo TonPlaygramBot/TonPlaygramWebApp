@@ -413,9 +413,10 @@ function unseatTableSocket(accountId, tableId, socketId) {
 }
 
 app.post('/api/online/ping', (req, res) => {
-  const { playerId } = req.body || {};
-  if (playerId) {
-    onlineUsers.set(String(playerId), Date.now());
+  const { accountId, playerId } = req.body || {};
+  const id = accountId ?? playerId;
+  if (id) {
+    onlineUsers.set(String(id), Date.now());
   }
   const now = Date.now();
   for (const [id, ts] of onlineUsers) {
