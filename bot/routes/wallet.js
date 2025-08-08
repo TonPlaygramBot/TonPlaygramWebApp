@@ -180,13 +180,18 @@ router.post('/send', authenticate, async (req, res) => {
 
   const sender = await User.findOne({ telegramId: fromId });
 
-  if (!sender || sender.balance < amount) {
+  ensureTransactionArray(sender);
 
+  if (!sender) {
     return res.status(400).json({ error: 'insufficient balance' });
-
   }
 
-  ensureTransactionArray(sender);
+  const senderBalance = calculateBalance(sender);
+  sender.balance = senderBalance;
+
+  if (senderBalance < amount) {
+    return res.status(400).json({ error: 'insufficient balance' });
+  }
 
   let receiver = await User.findOne({ telegramId: toId });
 
