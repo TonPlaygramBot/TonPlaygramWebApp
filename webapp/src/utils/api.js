@@ -6,13 +6,8 @@ export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
 export const API_AUTH_TOKEN = import.meta.env.VITE_API_AUTH_TOKEN || '';
 
 export async function ping() {
-
-  const res = await fetch(API_BASE_URL + '/api/ping');
-
-  const data = await res.json();
-
+  const data = await get('/api/ping');
   return data.message;
-
 }
 
 async function post(path, body, token) {
@@ -34,6 +29,27 @@ async function post(path, body, token) {
     data = JSON.parse(text);
   } catch (err) {
     // Provide a generic error instead of exposing parse details
+    return { error: 'Invalid server response' };
+  }
+  if (!res.ok) {
+    return { error: data.error || res.statusText };
+  }
+  return data;
+}
+
+async function get(path, token) {
+  const headers = {};
+  if (token) headers['Authorization'] = `Bearer ${token}`;
+  const initData = window?.Telegram?.WebApp?.initData;
+  if (initData) headers['X-Telegram-Init-Data'] = initData;
+
+  const res = await fetch(API_BASE_URL + path, { headers });
+
+  const text = await res.text();
+  let data;
+  try {
+    data = JSON.parse(text);
+  } catch (err) {
     return { error: 'Invalid server response' };
   }
   if (!res.ok) {
@@ -131,9 +147,7 @@ export function myInfluencerVideos(telegramId) {
 }
 
 export function listAllInfluencer() {
-  const headers = {};
-  if (API_AUTH_TOKEN) headers['Authorization'] = `Bearer ${API_AUTH_TOKEN}`;
-  return fetch(API_BASE_URL + '/api/influencer/admin', { headers }).then(r => r.json());
+  return get('/api/influencer/admin', API_AUTH_TOKEN);
 }
 
 export function verifyInfluencer(id, status, views) {
@@ -145,7 +159,17 @@ export function verifyInfluencer(id, status, views) {
     method: 'PATCH',
     headers,
     body: JSON.stringify({ status, views })
-  }).then(r => r.json());
+  }).then(async (res) => {
+    const text = await res.text();
+    let data;
+    try {
+      data = JSON.parse(text);
+    } catch {
+      return { error: 'Invalid server response' };
+    }
+    if (!res.ok) return { error: data.error || res.statusText };
+    return data;
+  });
 }
 
 export function getProfile(telegramId) {
@@ -218,7 +242,7 @@ export function getTransactions(telegramId) {
 }
 
 export function getDepositAddress() {
-  return fetch(API_BASE_URL + '/api/wallet/deposit-address').then((r) => r.json());
+  return get('/api/wallet/deposit-address');
 }
 
 export function deposit(telegramId, amount) {
@@ -266,51 +290,39 @@ export function grantAirdropAll(token, amount, reason = '') {
 }
 
 export function getSnakeLobbies() {
-  return fetch(API_BASE_URL + '/api/snake/lobbies').then((r) => r.json());
+  return get('/api/snake/lobbies');
 }
 
 export function getSnakeLobby(id) {
-  return fetch(API_BASE_URL + '/api/snake/lobby/' + id).then((r) => r.json());
+  return get('/api/snake/lobby/' + id);
 }
 
 export function getSnakeBoard(id) {
-  return fetch(API_BASE_URL + '/api/snake/board/' + id).then((r) => r.json());
+  return get('/api/snake/board/' + id);
 }
 
 export function getSnakeResults() {
-  return fetch(API_BASE_URL + '/api/snake/results').then((r) => r.json());
+  return get('/api/snake/results');
 }
 
 export function seatTable(playerId, tableId, name) {
-  return fetch(API_BASE_URL + '/api/snake/table/seat', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ playerId, tableId, name }),
-  }).then((r) => r.json());
+  return post('/api/snake/table/seat', { playerId, tableId, name });
 }
 
 export function unseatTable(playerId, tableId) {
-  return fetch(API_BASE_URL + '/api/snake/table/unseat', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ playerId, tableId }),
-  }).then((r) => r.json());
+  return post('/api/snake/table/unseat', { playerId, tableId });
 }
 
 export function pingOnline(playerId) {
-  return fetch(API_BASE_URL + '/api/online/ping', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ playerId }),
-  }).then((r) => r.json());
+  return post('/api/online/ping', { playerId });
 }
 
 export function getOnlineCount() {
-  return fetch(API_BASE_URL + '/api/online/count').then((r) => r.json());
+  return get('/api/online/count');
 }
 
 export function getOnlineUsers() {
-  return fetch(API_BASE_URL + '/api/online/list').then((r) => r.json());
+  return get('/api/online/list');
 }
 
 export function registerWallet(walletAddress) {
@@ -471,8 +483,9 @@ export function sendBroadcast(data) {
 }
 
 export function getWatchCount(tableId) {
-  return fetch(API_BASE_URL + "/api/watchers/count/" + tableId).then(r => r.json());
+  return get('/api/watchers/count/' + tableId);
 }
 
 export function getAppStats() {
-  return fetch(API_BASE_URL + '/api/stats').then((r) => r.json());}
+  return get('/api/stats');
+}
