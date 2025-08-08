@@ -249,7 +249,7 @@ export default function TasksCard() {
           <div className="grid grid-cols-[20px_1fr_auto_auto] items-center gap-2 w-full">
             <AiOutlineCheck className="w-5 h-5 text-accent" />
             <span className="text-sm">Daily Check-In</span>
-            <span className="text-xs text-subtext flex items-center gap-1">{REWARDS[streak - 1]} <img src="/assets/icons/eab316f3-7625-42b2-9468-d421f81c4d7c.webp" alt="TPC" className="w-4 h-4" /></span>
+            <span className="text-xs text-subtext flex items-center gap-1">{REWARDS[streak - 1]} <img src="/assets/icons/file_000000005f0c61f48998df883554c3e8 (2).webp" alt="TPC" className="w-4 h-4" /></span>
             {lastCheck && Date.now() - lastCheck < ONE_DAY ? (
               <span className="text-green-500 font-semibold text-sm">Done</span>
             ) : (
@@ -267,7 +267,7 @@ export default function TasksCard() {
             <div className="grid grid-cols-[20px_1fr_auto_auto] items-center gap-2 w-full">
               {ICONS[t.id]}
               <span className="text-sm">{t.description}</span>
-              <span className="text-xs text-subtext flex items-center gap-1">{t.reward} <img src="/assets/icons/eab316f3-7625-42b2-9468-d421f81c4d7c.webp" alt="TPC" className="w-4 h-4" /></span>
+              <span className="text-xs text-subtext flex items-center gap-1">{t.reward} <img src="/assets/icons/file_000000005f0c61f48998df883554c3e8 (2).webp" alt="TPC" className="w-4 h-4" /></span>
               {t.completed && t.id === 'post_tweet' && t.cooldown > 0 ? (
                 <span className="text-sm text-subtext">{formatTime(t.cooldown)}</span>
               ) : t.completed ? (
@@ -310,7 +310,7 @@ export default function TasksCard() {
           <div className="grid grid-cols-[20px_1fr_auto_auto] items-center gap-2 w-full">
             {ICONS.watch_ad}
             <span className="text-sm">Watch Ad ({adCount}/5)</span>
-            <span className="text-xs text-subtext flex items-center gap-1">50 <img src="/assets/icons/eab316f3-7625-42b2-9468-d421f81c4d7c.webp" alt="TPC" className="w-4 h-4" /></span>
+            <span className="text-xs text-subtext flex items-center gap-1">50 <img src="/assets/icons/file_000000005f0c61f48998df883554c3e8 (2).webp" alt="TPC" className="w-4 h-4" /></span>
             {adCount >= 5 ? (
               <span className="text-green-500 font-semibold text-sm">Done</span>
             ) : (
@@ -327,7 +327,7 @@ export default function TasksCard() {
           <div className="grid grid-cols-[20px_1fr_auto_auto] items-center gap-2 w-full">
             {ICONS.watch_ad}
             <span className="text-sm">Advertising Quest</span>
-            <span className="text-xs text-subtext flex items-center gap-1">200 <img src="/assets/icons/eab316f3-7625-42b2-9468-d421f81c4d7c.webp" alt="TPC" className="w-4 h-4" /></span>
+            <span className="text-xs text-subtext flex items-center gap-1">200 <img src="/assets/icons/file_000000005f0c61f48998df883554c3e8 (2).webp" alt="TPC" className="w-4 h-4" /></span>
             {questTime > 0 ? (
               <span className="text-sm text-subtext">{formatTime(questTime)}</span>
             ) : (

@@ -282,7 +282,7 @@ export default function Wallet({ hideClaim = false }) {
       <div className="prism-box p-6 space-y-2 min-h-40 flex flex-col items-start wide-card mx-auto">
         <p className="text-xs break-all w-full text-left">Account: {accountId || '...'}</p>
         <div className="flex items-center space-x-1">
-          <img src="/assets/icons/eab316f3-7625-42b2-9468-d421f81c4d7c.webp" alt="TPC" className="w-8 h-8" />
+          <img src="/assets/icons/file_000000005f0c61f48998df883554c3e8 (2).webp" alt="TPC" className="w-8 h-8" />
           <span className="text-lg font-medium">TPC Balance</span>
         </div>
         <p className="text-xl font-medium">
