@@ -32,6 +32,7 @@ import { execSync } from 'child_process';
 import { randomUUID } from 'crypto';
 import compression from 'compression';
 import rateLimit from 'express-rate-limit';
+import { getMongoUri } from './utils/mongoUri.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -39,7 +40,7 @@ if (proxyUrl) {
   console.log(`Using HTTPS proxy ${proxyUrl}`);
 }
 
-if (!process.env.MONGODB_URI) {
+if (!getMongoUri()) {
   process.env.MONGODB_URI = 'memory';
   console.log('MONGODB_URI not set, defaulting to in-memory MongoDB');
 }
