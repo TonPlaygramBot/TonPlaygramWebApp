@@ -281,6 +281,14 @@ export function getSnakeResults() {
   return fetch(API_BASE_URL + '/api/snake/results').then((r) => r.json());
 }
 
+export function rollSnake(roomId, nonce) {
+  return fetch(API_BASE_URL + '/api/snake/roll', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ roomId, nonce })
+  }).then(r => r.json());
+}
+
 export function seatTable(playerId, tableId, name) {
   return fetch(API_BASE_URL + '/api/snake/table/seat', {
     method: 'POST',

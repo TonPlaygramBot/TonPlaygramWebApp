@@ -19,7 +19,8 @@
     "refund-withdrawals": "node bot/scripts/refundPendingWithdrawals.js",
     "reset-tpc-balances": "node bot/scripts/resetTPCBalances.js",
     "reset-db": "node bot/scripts/resetDatabase.js",
-    "dev": "concurrently -k \"npm --prefix webapp run dev\" \"node bot/server.js\""
+    "dev": "concurrently -k \"npm --prefix webapp run dev\" \"node bot/server.js\"",
+    "e2e": "playwright test"
   },
   "engines": {
     "node": ">=18"
@@ -48,6 +49,7 @@
     "eslint-plugin-react-hooks": "^5.2.0",
     "prettier": "^3.6.2",
     "mongodb-memory-server": "^10.1.4",
-    "vitest": "^1.5.0"
+    "vitest": "^1.5.0",
+    "@playwright/test": "^1.48.0"
   }
 }
