@@ -6,7 +6,7 @@ import { fetchTelegramInfo } from './telegram.js';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const coinPath = path.join(
   __dirname,
-  '../../webapp/public/assets/icons/eab316f3-7625-42b2-9468-d421f81c4d7c.webp'
+  '../../webapp/public/assets/icons/file_000000005f0c61f48998df883554c3e8 (2).webp'
 );
 
 export function getInviteUrl(roomId, token, amount, game = 'snake') {

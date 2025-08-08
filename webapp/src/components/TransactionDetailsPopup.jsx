@@ -47,7 +47,7 @@ export default function TransactionDetailsPopup({ tx, onClose }) {
 
   const iconMap = {
 
-    TPC: '/assets/icons/eab316f3-7625-42b2-9468-d421f81c4d7c.webp',
+    TPC: '/assets/icons/file_000000005f0c61f48998df883554c3e8 (2).webp',
 
     TON: '/assets/icons/TON.webp',
 
