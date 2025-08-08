@@ -4,7 +4,6 @@ import fs from 'fs';
 import { spawn } from 'child_process';
 import { setTimeout as delay } from 'timers/promises';
 import { io } from 'socket.io-client';
-import crypto from 'crypto';
 
 const distDir = new URL('../webapp/dist/', import.meta.url);
 
@@ -37,14 +36,10 @@ test('joinRoom clears lobby seat', { concurrency: false, timeout: 20000 }, async
   };
   const server = await startServer(env);
   try {
-    const token = crypto
-      .createHmac('sha256', 'dummy')
-      .update('p1')
-      .digest('hex');
     await fetch('http://localhost:3204/api/snake/table/seat', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ tableId: 'snake-2-100', playerId: 'p1', name: 'A', token, confirmed: true })
+      body: JSON.stringify({ tableId: 'snake-2-100', accountId: 'p1', name: 'A', confirmed: true })
     });
 
     let res = await fetch('http://localhost:3204/api/snake/lobbies');

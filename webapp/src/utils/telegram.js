@@ -42,23 +42,6 @@ export async function ensureAccountId() {
   return id;
 }
 
-export async function signAccountId(id) {
-  const secret = import.meta.env.VITE_BOT_TOKEN;
-  if (!id || !secret) return '';
-  const enc = new TextEncoder();
-  const key = await crypto.subtle.importKey(
-    'raw',
-    enc.encode(secret),
-    { name: 'HMAC', hash: 'SHA-256' },
-    false,
-    ['sign']
-  );
-  const sig = await crypto.subtle.sign('HMAC', key, enc.encode(String(id)));
-  return Array.from(new Uint8Array(sig))
-    .map((b) => b.toString(16).padStart(2, '0'))
-    .join('');
-}
-
 export function getTelegramUsername() {
   if (typeof window !== 'undefined') {
     const name = window?.Telegram?.WebApp?.initDataUnsafe?.user?.username;

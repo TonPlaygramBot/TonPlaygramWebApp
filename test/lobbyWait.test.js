@@ -4,7 +4,6 @@ import fs from 'fs';
 import { spawn } from 'child_process';
 import { setTimeout as delay } from 'timers/promises';
 import { io } from 'socket.io-client';
-import crypto from 'crypto';
 
 const distDir = new URL('../webapp/dist/', import.meta.url);
 
@@ -37,14 +36,10 @@ test('joinRoom waits until table full', { concurrency: false, timeout: 20000 }, 
   };
   const server = await startServer(env);
   try {
-    let token = crypto
-      .createHmac('sha256', 'dummy')
-      .update('p1')
-      .digest('hex');
     await fetch('http://localhost:3203/api/snake/table/seat', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ tableId: 'snake-2-100', playerId: 'p1', name: 'A', token, confirmed: true })
+      body: JSON.stringify({ tableId: 'snake-2-100', accountId: 'p1', name: 'A', confirmed: true })
     });
 
     const s1 = io('http://localhost:3203');
@@ -57,14 +52,10 @@ test('joinRoom waits until table full', { concurrency: false, timeout: 20000 }, 
     s1.off('error');
     errors.length = 0;
 
-    token = crypto
-      .createHmac('sha256', 'dummy')
-      .update('p2')
-      .digest('hex');
     await fetch('http://localhost:3203/api/snake/table/seat', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ tableId: 'snake-2-100', playerId: 'p2', name: 'B', token, confirmed: true })
+      body: JSON.stringify({ tableId: 'snake-2-100', accountId: 'p2', name: 'B', confirmed: true })
     });
 
     s1.emit('joinRoom', { roomId: 'snake-2-100', accountId: 'p1', name: 'A' });

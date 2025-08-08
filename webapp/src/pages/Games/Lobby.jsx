@@ -18,8 +18,7 @@ import {
 import {
   getPlayerId,
   ensureAccountId,
-  getTelegramId,
-  signAccountId
+  getTelegramId
 } from '../../utils/telegram.js';
 import { canStartGame } from '../../utils/lobby.js';
 
@@ -193,12 +192,10 @@ export default function Lobby() {
     if (game === 'snake' && table && table.id !== 'single') {
       const accountId = await ensureAccountId().catch(() => null);
       if (!accountId) return;
-      const token = await signAccountId(accountId);
       socket.emit(
         'seatTable',
         {
           accountId,
-          token,
           gameType: 'snake',
           stake: stake.amount,
           maxPlayers: table.capacity,
