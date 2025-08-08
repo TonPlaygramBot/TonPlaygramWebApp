@@ -6,6 +6,9 @@ services:
     rootDir: bot
     buildCommand: npm install && npm --prefix ../webapp install && npm --prefix ../webapp run build
     startCommand: npm start
+    envVars:
+      - key: MONGO_URI
+        value: mongodb://localhost:27017/tonplaygram
 
   - type: web
     runtime: static

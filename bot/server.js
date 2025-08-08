@@ -673,7 +673,6 @@ if (mongoUri === 'memory') {
   const connectWithRetry = async (attempt = 1) => {
     try {
       await mongoose.connect(mongoUri);
-      console.log('Connected to MongoDB');
     } catch (err) {
       console.error(`MongoDB connection attempt ${attempt} failed:`, err);
       if (attempt < maxRetries) {
@@ -693,6 +692,7 @@ if (mongoUri === 'memory') {
 }
 
 mongoose.connection.once('open', async () => {
+  console.log('Connected to MongoDB');
   for (const model of models) {
     try {
       await model.syncIndexes();
