@@ -278,11 +278,11 @@ export function getSnakeResults() {
   return fetch(API_BASE_URL + '/api/snake/results').then((r) => r.json());
 }
 
-export function seatTable(playerId, tableId, name, token) {
+export function seatTable(playerId, tableId, name) {
   return fetch(API_BASE_URL + '/api/snake/table/seat', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ playerId, tableId, name, token }),
+    body: JSON.stringify({ playerId, tableId, name }),
   }).then((r) => r.json());
 }
 

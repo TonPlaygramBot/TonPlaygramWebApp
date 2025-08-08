@@ -29,7 +29,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { existsSync } from 'fs';
 import { execSync } from 'child_process';
-import { randomUUID, createHmac } from 'crypto';
+import { randomUUID } from 'crypto';
 import compression from 'compression';
 import rateLimit from 'express-rate-limit';
 
@@ -237,15 +237,6 @@ function cleanupSeats() {
     }
     if (players.size === 0) tableSeats.delete(tableId);
   }
-}
-
-function verifyAccountToken(accountId, token) {
-  const secret = process.env.BOT_TOKEN || '';
-  if (!accountId || !token || !secret) return false;
-  const expected = createHmac('sha256', secret)
-    .update(String(accountId))
-    .digest('hex');
-  return expected === token;
 }
 
 async function seatTableSocket(
@@ -498,14 +489,9 @@ app.get('/api/stats', async (req, res) => {
 });
 
 app.post('/api/snake/table/seat', (req, res) => {
-  const { tableId, playerId, name, avatar, token } = req.body || {};
+  const { tableId, playerId, name, avatar } = req.body || {};
   const pid = playerId;
-  if (!tableId || !pid || !token) {
-    return res.status(400).json({ error: 'missing data' });
-  }
-  if (!verifyAccountToken(pid, token)) {
-    return res.status(401).json({ error: 'invalid token' });
-  }
+  if (!tableId || !pid) return res.status(400).json({ error: 'missing data' });
   const [gameType, capStr] = tableId.split('-');
   seatTableSocket(pid, gameType, 0, Number(capStr) || 4, name, null, avatar);
   res.json({ success: true });
@@ -525,15 +511,7 @@ app.get('/api/snake/lobbies', async (req, res) => {
       const id = `snake-${cap}`;
       const room = await gameManager.getRoom(id, cap);
       const roomCount = room.players.filter((p) => !p.disconnected).length;
-      const lobbyCount = Array.from(tableSeats.entries()).reduce(
-        (cnt, [tid, players]) => {
-          const t = tableMap.get(tid);
-          return t && t.gameType === 'snake' && t.maxPlayers === cap
-            ? cnt + players.size
-            : cnt;
-        },
-        0
-      );
+      const lobbyCount = tableSeats.get(id)?.size || 0;
       const players = roomCount + lobbyCount;
       return { id, capacity: cap, players };
     })
@@ -700,7 +678,6 @@ io.on('connection', (socket) => {
     async (
       {
         accountId,
-        token,
         gameType,
         stake,
         maxPlayers = 4,
@@ -710,11 +687,6 @@ io.on('connection', (socket) => {
       },
       cb
     ) => {
-      if (!verifyAccountToken(accountId, token)) {
-        if (cb) cb({ success: false, error: 'invalid_token' });
-        socket.disconnect(true);
-        return;
-      }
       let table;
       if (tableId) {
         const [gt, capStr] = tableId.split('-');
