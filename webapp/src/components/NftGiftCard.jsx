@@ -25,6 +25,9 @@ export default function NftGiftCard({ accountId: propAccountId }) {
           if (acc?.accountId) {
             id = acc.accountId;
             localStorage.setItem('accountId', id);
+            if (acc.walletAddress) {
+              localStorage.setItem('walletAddress', acc.walletAddress);
+            }
           }
         } catch {}
       }
