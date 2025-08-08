@@ -31,7 +31,7 @@ test('ludo lobby route lists players', async () => {
   const env = {
     ...process.env,
     PORT: '3203',
-    MONGODB_URI: 'memory',
+    MONGO_URI: 'memory',
     SKIP_WEBAPP_BUILD: '1',
     BOT_TOKEN: 'dummy',
     SKIP_BOT_LAUNCH: '1'

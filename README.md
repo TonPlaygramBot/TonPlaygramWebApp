@@ -5,7 +5,7 @@
 2. Run `npm run install-all` at the repository root to install dependencies for the bot, webapp and test suite. After the packages finish installing, run `./scripts/setup-tests.sh` once to install OS libraries required by native modules such as `canvas`. Without them `npm test` will fail.
 3. Copy `bot/.env.example` to `bot/.env` and update the values. At minimum set:
    - `BOT_TOKEN` – your Telegram bot token
-   - `MONGODB_URI` – MongoDB connection string or `memory`
+   - `MONGO_URI` – MongoDB connection string or `memory`
      (falls back to an in-memory database if unset)
    - `AIRDROP_ADMIN_TOKENS` – (optional) tokens allowed to trigger airdrops
   - `DEPOSIT_WALLET_ADDRESS` – TON address that receives user deposits
@@ -119,7 +119,7 @@ The tests require minimal configuration via environment variables. Copy
 `bot/.env.example` to `bot/.env` and set at least:
 
 - `BOT_TOKEN` – any string is sufficient for testing
-- `MONGODB_URI` – set to `memory` to use the in-memory database
+- `MONGO_URI` – set to `memory` to use the in-memory database
 
 With these variables in place you can run the test suite with:
 
@@ -207,7 +207,7 @@ transaction status becomes `delivered`. Failed claims revert the user's balance
 and respond with HTTP 500 while the transaction is removed.
 ### Common issues
 
-- **Balance always zero** – verify MongoDB is running and `MONGODB_URI` points
+- **Balance always zero** – verify MongoDB is running and `MONGO_URI` points
   to a running database instance. The backend must be able to connect.
 - **In-memory database fails to launch** – the app will start without MongoDB if
   the `mongodb-memory-server` download fails.
@@ -351,7 +351,7 @@ To move from the start you must roll at least one six when rolling two dice. Any
 
 ### Banning a user
 
-Run `npm run ban-user -- <accountId>` to mark an account as banned in the database. `MONGODB_URI` must point to your MongoDB instance.
+Run `npm run ban-user -- <accountId>` to mark an account as banned in the database. `MONGO_URI` must point to your MongoDB instance.
 
 ### Claim test script
 
@@ -359,11 +359,11 @@ Run `npm run claim-test <TON_ADDRESS> <AMOUNT>` to send TPC from the claim walle
 
 ### Refund pending withdrawals
 
-Run `npm run refund-withdrawals` to return all pending withdrawal amounts to user balances. `MONGODB_URI` must point to your MongoDB instance.
+Run `npm run refund-withdrawals` to return all pending withdrawal amounts to user balances. `MONGO_URI` must point to your MongoDB instance.
 
 ### Reset database
 
-Run `npm run reset-db` to drop the existing MongoDB database and start with a clean one where all user balances are reset to zero. `MONGODB_URI` must point to your MongoDB instance.
+Run `npm run reset-db` to drop the existing MongoDB database and start with a clean one where all user balances are reset to zero. `MONGO_URI` must point to your MongoDB instance.
 
 ### Deploying the claim wallet
 

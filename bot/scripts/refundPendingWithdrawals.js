@@ -5,9 +5,9 @@ import { ensureTransactionArray } from '../utils/userUtils.js';
 
 dotenv.config();
 
-const uri = process.env.MONGODB_URI;
+const uri = process.env.MONGO_URI;
 if (!uri || uri === 'memory') {
-  console.error('MONGODB_URI must be set to a MongoDB instance');
+  console.error('MONGO_URI must be set to a MongoDB instance');
   process.exit(1);
 }
 

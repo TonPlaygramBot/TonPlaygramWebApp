@@ -30,7 +30,7 @@ test('claiming a referral updates inviter stats', { concurrency: false }, async 
   const env = {
     ...process.env,
     PORT: '3210',
-    MONGODB_URI: 'memory',
+    MONGO_URI: 'memory',
     SKIP_WEBAPP_BUILD: '1',
     BOT_TOKEN: 'dummy',
     SKIP_BOT_LAUNCH: '1'
