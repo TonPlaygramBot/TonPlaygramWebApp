@@ -196,6 +196,16 @@ Telegram ID. When a profile is requested the server first tries to find the
 account by `accountId`. Missing details such as the name or avatar are
 automatically filled from Telegram when a `telegramId` is provided.
 
+### Seating players
+
+Endpoints and socket events that seat a user at a lobby table now require a
+`token` alongside the `accountId`/`playerId`. The token must be the HMAC-SHA256
+signature of the account ID using the bot token as the secret. Include this
+value when calling `POST /api/snake/table/seat` or emitting the `seatTable`
+socket event. The webapp derives this value using the `VITE_BOT_TOKEN` build
+variable. Requests with an invalid token are rejected and sockets are
+disconnected.
+
 ### Claiming TPC on-chain
 
 Withdrawals and `/claim-external` trigger a signed message to

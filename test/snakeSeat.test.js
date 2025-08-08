@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'fs';
 import { spawn } from 'child_process';
+import crypto from 'crypto';
 
 const distDir = new URL('../webapp/dist/', import.meta.url);
 
@@ -25,21 +26,25 @@ test('seat and unseat endpoints update lobby', { concurrency: false, timeout: 20
   fs.mkdirSync(new URL('assets', distDir), { recursive: true });
   fs.writeFileSync(new URL('index.html', distDir), '');
 
-  const env = {
-    ...process.env,
-    PORT: '3202',
-    MONGODB_URI: 'memory',
-    BOT_TOKEN: 'dummy',
-    SKIP_WEBAPP_BUILD: '1'
-  };
+    const env = {
+      ...process.env,
+      PORT: '3202',
+      MONGODB_URI: 'memory',
+      BOT_TOKEN: 'dummy',
+      SKIP_WEBAPP_BUILD: '1'
+    };
 
-  const server = await startServer(env);
-  try {
-    let res = await fetch('http://localhost:3202/api/snake/table/seat', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ tableId: 'snake-2', playerId: 'p100', name: 'Tester' })
-    });
+    const server = await startServer(env);
+    try {
+      const token = crypto
+        .createHmac('sha256', 'dummy')
+        .update('p100')
+        .digest('hex');
+      let res = await fetch('http://localhost:3202/api/snake/table/seat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ tableId: 'snake-2', playerId: 'p100', name: 'Tester', token })
+      });
     assert.equal(res.status, 200);
 
     res = await fetch('http://localhost:3202/api/snake/lobby/snake-2');
