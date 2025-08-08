@@ -640,10 +640,27 @@ if (mongoUri === 'memory') {
     }
   });
 } else if (mongoUri) {
-  mongoose
-    .connect(mongoUri)
-    .then(() => console.log('Connected to MongoDB'))
-    .catch((err) => console.error('MongoDB connection error:', err));
+  const maxRetries = 5;
+  const initialDelayMs = 5000;
+
+  const connectWithRetry = async (attempt = 1) => {
+    try {
+      await mongoose.connect(mongoUri);
+      console.log('Connected to MongoDB');
+    } catch (err) {
+      console.error(`MongoDB connection attempt ${attempt} failed:`, err);
+      if (attempt < maxRetries) {
+        const delay = initialDelayMs * attempt;
+        console.log(`Retrying MongoDB connection in ${delay}ms...`);
+        setTimeout(() => connectWithRetry(attempt + 1), delay);
+      } else {
+        console.error('Exceeded MongoDB connection retries, exiting.');
+        process.exit(1);
+      }
+    }
+  };
+
+  connectWithRetry();
 } else {
   console.log('No MongoDB URI configured, continuing without database');
 }
