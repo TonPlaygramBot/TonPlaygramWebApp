@@ -119,7 +119,7 @@ The tests require minimal configuration via environment variables. Copy
 `bot/.env.example` to `bot/.env` and set at least:
 
 - `BOT_TOKEN` – any string is sufficient for testing
-- `MONGO_URI` – set to `memory` to use the in-memory database
+- `MONGO_URI` – MongoDB connection string (or `memory` to use the in-memory database)
 
 With these variables in place you can run the test suite with:
 
