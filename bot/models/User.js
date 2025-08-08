@@ -41,7 +41,9 @@ const userSchema = new mongoose.Schema({
 
   telegramId: { type: Number, unique: true },
 
-  googleId: { type: String, unique: true },
+  // Allow multiple users without a Google account by making the unique
+  // index sparse (documents missing googleId won't conflict)
+  googleId: { type: String, default: null },
 
   googleEmail: { type: String, default: '' },
 
@@ -117,7 +119,8 @@ userSchema.index({ telegramId: 1 });
 userSchema.index({ accountId: 1 });
 userSchema.index({ nickname: 1 });
 userSchema.index({ referralCode: 1 });
-userSchema.index({ googleId: 1 });
+// Enforce uniqueness of googleId only when the field exists
+userSchema.index({ googleId: 1 }, { unique: true, sparse: true });
 userSchema.index({ walletAddress: 1 });
 
 userSchema.pre('save', function(next) {

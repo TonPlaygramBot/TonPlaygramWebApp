@@ -27,11 +27,14 @@ async function post(path, body, token) {
     body: JSON.stringify(body)
   });
 
+  // Read response as text first to handle non-JSON replies gracefully
+  const text = await res.text();
   let data;
   try {
-    data = await res.json();
+    data = JSON.parse(text);
   } catch (err) {
-    return { error: err.message };
+    // Provide a generic error instead of exposing parse details
+    return { error: 'Invalid server response' };
   }
   if (!res.ok) {
     return { error: data.error || res.statusText };
