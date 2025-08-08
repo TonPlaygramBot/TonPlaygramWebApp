@@ -1,14 +1,13 @@
 import mongoose from 'mongoose';
 import dotenv from 'dotenv';
 import User from '../models/User.js';
-import { getMongoUri } from '../utils/mongoUri.js';
 
 // Reset all user balances and transactions while keeping the database structure.
 // Also clears other collections so the database starts empty for production.
 
 dotenv.config();
 
-const uri = getMongoUri();
+const uri = process.env.MONGODB_URI;
 if (!uri || uri === 'memory') {
   console.error('MONGODB_URI must be set to a MongoDB instance');
   process.exit(1);
