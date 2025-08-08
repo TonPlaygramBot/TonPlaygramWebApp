@@ -6,7 +6,7 @@
 3. Copy `bot/.env.example` to `bot/.env` and update the values. At minimum set:
    - `BOT_TOKEN` – your Telegram bot token
    - `MONGODB_URI` – MongoDB connection string or `memory`
-     (falls back to an in-memory database if unset)
+     (aliases: `MONGO_URI`, `MONGODB_URL`; falls back to an in-memory database if unset)
    - `AIRDROP_ADMIN_TOKENS` – (optional) tokens allowed to trigger airdrops
   - `DEPOSIT_WALLET_ADDRESS` – TON address that receives user deposits
   - `STORE_DEPOSIT_ADDRESS` – TON address that receives payments for store bundles
@@ -120,6 +120,7 @@ The tests require minimal configuration via environment variables. Copy
 
 - `BOT_TOKEN` – any string is sufficient for testing
 - `MONGODB_URI` – set to `memory` to use the in-memory database
+  (aliases: `MONGO_URI`, `MONGODB_URL`)
 
 With these variables in place you can run the test suite with:
 

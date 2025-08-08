@@ -2,10 +2,11 @@ import mongoose from 'mongoose';
 import dotenv from 'dotenv';
 import User from '../models/User.js';
 import { ensureTransactionArray } from '../utils/userUtils.js';
+import { getMongoUri } from '../utils/mongoUri.js';
 
 dotenv.config();
 
-const uri = process.env.MONGODB_URI;
+const uri = getMongoUri();
 if (!uri || uri === 'memory') {
   console.error('MONGODB_URI must be set to a MongoDB instance');
   process.exit(1);
