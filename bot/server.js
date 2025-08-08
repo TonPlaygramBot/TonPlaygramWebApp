@@ -25,6 +25,17 @@ import adsRoutes from './routes/ads.js';
 import influencerRoutes from './routes/influencer.js';
 import User from './models/User.js';
 import GameResult from './models/GameResult.js';
+import AdView from './models/AdView.js';
+import Airdrop from './models/Airdrop.js';
+import BurnedTPC from './models/BurnedTPC.js';
+import FriendRequest from './models/FriendRequest.js';
+import GameRoom from './models/GameRoom.js';
+import InfluencerTask from './models/InfluencerTask.js';
+import Message from './models/Message.js';
+import Post from './models/Post.js';
+import PostRecord from './models/PostRecord.js';
+import Task from './models/Task.js';
+import WatchRecord from './models/WatchRecord.js';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { existsSync } from 'fs';
@@ -32,6 +43,22 @@ import { execSync } from 'child_process';
 import { randomUUID } from 'crypto';
 import compression from 'compression';
 import rateLimit from 'express-rate-limit';
+
+const models = [
+  AdView,
+  Airdrop,
+  BurnedTPC,
+  FriendRequest,
+  GameResult,
+  GameRoom,
+  InfluencerTask,
+  Message,
+  Post,
+  PostRecord,
+  Task,
+  User,
+  WatchRecord
+];
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -666,10 +693,12 @@ if (mongoUri === 'memory') {
 }
 
 mongoose.connection.once('open', async () => {
-  try {
-    await User.syncIndexes();
-  } catch (err) {
-    console.error('Failed to sync User indexes:', err);
+  for (const model of models) {
+    try {
+      await model.syncIndexes();
+    } catch (err) {
+      console.error(`Failed to sync ${model.modelName} indexes:`, err);
+    }
   }
   gameManager
     .loadRooms()
