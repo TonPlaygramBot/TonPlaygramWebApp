@@ -47,9 +47,10 @@ const userSchema = new mongoose.Schema({
 
   googleEmail: { type: String, default: '' },
 
-  googleDob: { type: String, default: '' },
+  walletAddress: { type: String, unique: true, sparse: true },
+  walletPublicKey: { type: String },
+  walletSecretKey: { type: String },
 
-  walletAddress: { type: String, unique: true },
 
   accountId: { type: String, unique: true },
 
@@ -115,13 +116,11 @@ const userSchema = new mongoose.Schema({
 });
 
 // Index commonly queried fields
-userSchema.index({ telegramId: 1 });
-userSchema.index({ accountId: 1 });
 userSchema.index({ nickname: 1 });
-userSchema.index({ referralCode: 1 });
 // Enforce uniqueness of googleId only when the field exists
 userSchema.index({ googleId: 1 }, { unique: true, sparse: true });
-userSchema.index({ walletAddress: 1 });
+// Ensure walletAddress remains unique when present
+userSchema.index({ walletAddress: 1 }, { unique: true, sparse: true });
 
 userSchema.pre('save', function(next) {
   if (!this.referralCode) {

@@ -23,6 +23,9 @@ export default function useTokenBalances() {
       try {
         const acc = await createAccount(telegramId);
         if (acc?.error) throw new Error(acc.error);
+        if (acc.walletAddress) {
+          localStorage.setItem('walletAddress', acc.walletAddress);
+        }
         const bal = await getAccountBalance(acc.accountId);
         if (bal?.error) throw new Error(bal.error);
         setTpcBalance(bal.balance ?? 0);

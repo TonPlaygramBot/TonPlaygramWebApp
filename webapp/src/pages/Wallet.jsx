@@ -102,6 +102,9 @@ export default function Wallet({ hideClaim = false }) {
         return null;
       }
       localStorage.setItem('accountId', acc.accountId);
+      if (acc.walletAddress) {
+        localStorage.setItem('walletAddress', acc.walletAddress);
+      }
       id = acc.accountId;
     }
     setAccountId(acc.accountId || id);

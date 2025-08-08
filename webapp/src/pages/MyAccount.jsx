@@ -81,6 +81,9 @@ export default function MyAccount() {
       if (acc.accountId) {
         localStorage.setItem('accountId', acc.accountId);
       }
+      if (acc.walletAddress) {
+        localStorage.setItem('walletAddress', acc.walletAddress);
+      }
 
       const data = await getAccountInfo(acc.accountId);
       let finalProfile = data;

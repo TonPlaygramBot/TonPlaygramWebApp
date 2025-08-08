@@ -12,6 +12,7 @@ import {
 import NFT_GIFTS from '../utils/nftGifts.js';
 
 import { mintGiftNFT } from '../utils/nftService.js';
+import { generateWalletAddress } from '../utils/wallet.js';
 
 const router = Router();
 
@@ -23,19 +24,45 @@ router.post('/create', async (req, res) => {
   if (telegramId) {
     user = await User.findOne({ telegramId });
     if (!user) {
-      user = new User({ telegramId, accountId: uuidv4(), referralCode: String(telegramId) });
+      const wallet = await generateWalletAddress();
+      user = new User({
+        telegramId,
+        accountId: uuidv4(),
+        referralCode: String(telegramId),
+        walletAddress: wallet.address,
+        walletPublicKey: wallet.publicKey,
+        walletSecretKey: wallet.secretKey,
+      });
       await user.save();
-    } else if (!user.accountId) {
-      user.accountId = uuidv4();
-      await user.save();
+    } else {
+      let updated = false;
+      if (!user.accountId) {
+        user.accountId = uuidv4();
+        updated = true;
+      }
+      if (!user.walletAddress) {
+        const wallet = await generateWalletAddress();
+        user.walletAddress = wallet.address;
+        user.walletPublicKey = wallet.publicKey;
+        user.walletSecretKey = wallet.secretKey;
+        updated = true;
+      }
+      if (updated) await user.save();
     }
   } else {
+    const wallet = await generateWalletAddress();
     const id = uuidv4();
-    user = new User({ accountId: id, referralCode: id });
+    user = new User({
+      accountId: id,
+      referralCode: id,
+      walletAddress: wallet.address,
+      walletPublicKey: wallet.publicKey,
+      walletSecretKey: wallet.secretKey,
+    });
     await user.save();
   }
 
-  res.json({ accountId: user.accountId, balance: user.balance });
+  res.json({ accountId: user.accountId, balance: user.balance, walletAddress: user.walletAddress });
 });
 
 // Get balance by account id
