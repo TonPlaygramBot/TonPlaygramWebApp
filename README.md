@@ -7,23 +7,26 @@
    - `BOT_TOKEN` – your Telegram bot token
    - `MONGODB_URI` – MongoDB connection string or `memory`
      (falls back to an in-memory database if unset)
+   - `MONGODB_TLS_CERT`, `MONGODB_TLS_KEY` – (optional) client TLS certificate
+     and private key for MongoDB
+   - `MONGODB_TLS_CA` – (optional) CA certificate for MongoDB
    - `AIRDROP_ADMIN_TOKENS` – (optional) tokens allowed to trigger airdrops
-  - `DEPOSIT_WALLET_ADDRESS` – TON address that receives user deposits
-  - `STORE_DEPOSIT_ADDRESS` – TON address that receives payments for store bundles
-  - `CLAIM_CONTRACT_ADDRESS` – address of the deployed `tpc_claim_wallet` contract
-  - `CLAIM_WALLET_MNEMONIC` – seed phrase used to sign claim transactions
-  - `TPC_JETTON_ADDRESS` – token contract address shown after a claim
-  - `RPC_URL` – (optional) TON RPC endpoint for claim messages. Defaults to `https://toncenter.com/api/v2/jsonRPC`
+   - `DEPOSIT_WALLET_ADDRESS` – TON address that receives user deposits
+   - `STORE_DEPOSIT_ADDRESS` – TON address that receives payments for store bundles
+   - `CLAIM_CONTRACT_ADDRESS` – address of the deployed `tpc_claim_wallet` contract
+   - `CLAIM_WALLET_MNEMONIC` – seed phrase used to sign claim transactions
+   - `TPC_JETTON_ADDRESS` – token contract address shown after a claim
+   - `RPC_URL` – (optional) TON RPC endpoint for claim messages. Defaults to `https://toncenter.com/api/v2/jsonRPC`
    - `PORT` – (optional) port for the bot API server (defaults to 3000)
-- `DEV_ACCOUNT_ID` – account ID that collects transfer fees
+   - `DEV_ACCOUNT_ID` – account ID that collects transfer fees
 
-  - `DEV_ACCOUNT_ID_1` – (optional) secondary developer account (1% share)
+   - `DEV_ACCOUNT_ID_1` – (optional) secondary developer account (1% share)
 
-  - `DEV_ACCOUNT_ID_2` – (optional) secondary developer account (2% share)
+   - `DEV_ACCOUNT_ID_2` – (optional) secondary developer account (2% share)
 
-  - `API_AUTH_TOKEN` – (optional) token for trusted server-to-server calls
+   - `API_AUTH_TOKEN` – (optional) token for trusted server-to-server calls
 
-  - `RATE_LIMIT_WINDOW_MS` – (optional) timeframe for rate limits in milliseconds (defaults to 900000)
+   - `RATE_LIMIT_WINDOW_MS` – (optional) timeframe for rate limits in milliseconds (defaults to 900000)
 
   - `RATE_LIMIT_MAX` – (optional) max requests per window from one IP (defaults to 100)
 
