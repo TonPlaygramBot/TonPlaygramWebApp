@@ -28,7 +28,7 @@ test('seat and unseat endpoints update lobby', { concurrency: false, timeout: 20
   const env = {
     ...process.env,
     PORT: '3202',
-    MONGODB_URI: 'memory',
+    MONGO_URI: 'memory',
     BOT_TOKEN: 'dummy',
     SKIP_WEBAPP_BUILD: '1'
   };

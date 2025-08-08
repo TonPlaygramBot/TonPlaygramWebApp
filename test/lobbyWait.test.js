@@ -29,7 +29,7 @@ test('joinRoom waits until table full', { concurrency: false, timeout: 20000 }, 
   const env = {
     ...process.env,
     PORT: '3203',
-    MONGODB_URI: 'memory',
+    MONGO_URI: 'memory',
     BOT_TOKEN: 'dummy',
     SKIP_WEBAPP_BUILD: '1',
     SKIP_BOT_LAUNCH: '1'

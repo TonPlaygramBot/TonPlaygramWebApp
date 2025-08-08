@@ -60,7 +60,7 @@ test('withdraw route reverts balance on claim failure', { concurrency: false }, 
   const env = {
     ...process.env,
     PORT: '3211',
-    MONGODB_URI: 'memory',
+    MONGO_URI: 'memory',
     BOT_TOKEN: 'dummy',
     SKIP_WEBAPP_BUILD: '1',
     SKIP_BOT_LAUNCH: '1',
@@ -102,7 +102,7 @@ test('claim-external route reverts balance on claim failure', { concurrency: fal
   const env = {
     ...process.env,
     PORT: '3212',
-    MONGODB_URI: 'memory',
+    MONGO_URI: 'memory',
     BOT_TOKEN: 'dummy',
     SKIP_WEBAPP_BUILD: '1',
     SKIP_BOT_LAUNCH: '1',

@@ -29,7 +29,7 @@ test('joinRoom clears lobby seat', { concurrency: false, timeout: 20000 }, async
   const env = {
     ...process.env,
     PORT: '3204',
-    MONGODB_URI: 'memory',
+    MONGO_URI: 'memory',
     BOT_TOKEN: 'dummy',
     SKIP_WEBAPP_BUILD: '1',
     SKIP_BOT_LAUNCH: '1'

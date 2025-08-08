@@ -39,9 +39,9 @@ if (proxyUrl) {
   console.log(`Using HTTPS proxy ${proxyUrl}`);
 }
 
-if (!process.env.MONGODB_URI) {
-  process.env.MONGODB_URI = 'memory';
-  console.log('MONGODB_URI not set, defaulting to in-memory MongoDB');
+if (!process.env.MONGO_URI) {
+  process.env.MONGO_URI = 'memory';
+  console.log('MONGO_URI not set, defaulting to in-memory MongoDB');
 }
 
 const PORT = process.env.PORT || 3000;
@@ -626,7 +626,7 @@ app.get('*', (req, res) => {
 });
 
 // MongoDB Connection
-const mongoUri = process.env.MONGODB_URI;
+const mongoUri = process.env.MONGO_URI;
 
 if (mongoUri === 'memory') {
   import('mongodb-memory-server').then(async ({ MongoMemoryServer }) => {
