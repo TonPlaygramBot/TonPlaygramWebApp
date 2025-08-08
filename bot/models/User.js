@@ -49,7 +49,9 @@ const userSchema = new mongoose.Schema({
 
   googleDob: { type: String, default: '' },
 
-  walletAddress: { type: String, unique: true },
+  // Wallet addresses should be unique but many users won't have one yet.
+  // Use a sparse unique index so documents missing the field don't clash.
+  walletAddress: { type: String },
 
   accountId: { type: String, unique: true },
 
@@ -121,7 +123,8 @@ userSchema.index({ nickname: 1 });
 userSchema.index({ referralCode: 1 });
 // Enforce uniqueness of googleId only when the field exists
 userSchema.index({ googleId: 1 }, { unique: true, sparse: true });
-userSchema.index({ walletAddress: 1 });
+// Enforce uniqueness of wallet addresses but ignore users without one
+userSchema.index({ walletAddress: 1 }, { unique: true, sparse: true });
 
 userSchema.pre('save', function(next) {
   if (!this.referralCode) {
