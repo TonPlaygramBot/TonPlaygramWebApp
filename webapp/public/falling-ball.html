@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="sq">
+<html lang="en">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
@@ -23,39 +23,25 @@
     .slot.me{ border-color:#7dd3fc; color:#c7f3ff; }
     .status{ position:absolute; left:10px; top:62px; background:rgba(0,0,0,.35); padding:8px 10px; border-radius:12px; border:1px solid rgba(255,255,255,.08); color:var(--muted); font-size:12px; max-width:min(92vw,560px); }
     .sep{ opacity:.3; }
+    .avatar{ width:40px; height:40px; border-radius:50%; border:1px solid rgba(255,255,255,.15); }
   </style>
 </head>
 <body>
   <div class="app">
     <div class="hudTop">
-      <div class="row" id="playerRow"><span style="opacity:.8">Lojtarë</span></div>
+      <div class="row"><img id="playerAvatar" class="avatar" alt="avatar" /></div>
       <div class="row">
-        <span>Stake: <b id="stakeVal">100</b> TPC</span>
-        <button class="btn" id="stakeMinus">-</button>
-        <button class="btn" id="stakePlus">+</button>
-        <span class="sep">|</span>
-        <span>Densiteti:</span>
-        <button class="chip" id="densLow">Low</button>
-        <button class="chip active" id="densMed">Med</button>
-        <button class="chip" id="densHigh">High</button>
-        <span class="sep">|</span>
         <button class="chip active" id="sfxToggle">SFX: On</button>
-        <span class="sep">|</span>
-        <span>Mode:</span>
-        <button class="chip active" id="modeLocal">Local (AI)</button>
-        <button class="chip" id="modeOnline">Online</button>
-        <input id="wsUrl" class="chip" style="min-width:220px;background:rgba(255,255,255,.02);color:#ddd" value="http://localhost:4001" />
-        <button class="btn" id="connectBtn">Connect</button>
         <button class="btn primary" id="startBtn">START</button>
       </div>
     </div>
 
-    <div class="status" id="statusBox">Pengesat rigjenerohen rastësisht pas çdo loje. Rrethi i verdhë është hequr. Grafikë “prism look”, vignette, hije/gloss në top. Densitet i zgjedhshëm & SFX On/Off.</div>
+    <div class="status" id="statusBox">Obstacles regenerate randomly after each game. Yellow circle removed. Prism look graphics with vignette and ball shading. Density chosen in lobby & SFX On/Off.</div>
 
     <div class="panel">
       <div style="display:flex; justify-content:space-between; align-items:center; gap:8px; margin-bottom:6px; font-size:12px; color:#cbd5e1;">
-        <div>Pot: <b id="potVal">0</b> TPC (−10% dev në fund)</div>
-        <div>Fitues: <b id="winnerVal">—</b></div>
+        <div>Pot: <b id="potVal">0</b> TPC (-10% dev fee at end)</div>
+        <div>Winner: <b id="winnerVal">—</b></div>
       </div>
       <div class="grid" id="slots"></div>
     </div>
@@ -108,52 +94,30 @@
   if (m === 'local' || m === 'online') state.mode = m;
   const amt = Number(params.get('amount'));
   if (amt > 0) state.stake = amt;
-
   // ========================= HUD =========================
-  const playerRow=document.getElementById('playerRow');
-  for(let n=2;n<=10;n++){
-    const b=document.createElement('button'); b.className='chip'+(n===state.players?' active':''); b.textContent=String(n);
-    b.onclick=()=>{ state.players=n; [...playerRow.querySelectorAll('.chip')].forEach(x=>x.classList.remove('active')); b.classList.add('active'); refreshSlots(); refreshText(); genPegField(); carveCorridors(); };
-    playerRow.appendChild(b);
-  }
-  document.getElementById('stakeMinus').onclick=()=>{ state.stake=Math.max(10,state.stake-10); refreshText(); };
-  document.getElementById('stakePlus').onclick=()=>{ state.stake+=10; refreshText(); };
-  document.getElementById('modeLocal').onclick=()=>{ state.mode='local'; toggleModeButtons(); setStatus('Local vs AI'); };
-  document.getElementById('modeOnline').onclick=()=>{ state.mode='online'; toggleModeButtons(); setStatus('Online (placeholder)'); };
-  document.getElementById('connectBtn').onclick=()=>{ setStatus('Socket placeholder — lidhu me serverin tënd kur të jetë gati.'); };
-  document.getElementById('startBtn').onclick=startMatch;
-
-  const densLow=document.getElementById('densLow');
-  const densMed=document.getElementById('densMed');
-  const densHigh=document.getElementById('densHigh');
-  densLow.onclick=()=>setDensity('Low');
-  densMed.onclick=()=>setDensity('Med');
-  densHigh.onclick=()=>setDensity('High');
-  function setDensity(d){ state.density=d; [densLow,densMed,densHigh].forEach(el=>el.classList.remove('active')); ({Low:densLow,Med:densMed,High:densHigh})[d].classList.add('active'); genPegField(); carveCorridors(); setStatus('Densiteti: '+d); }
-
-  function toggleModeButtons(){
-    const a=document.getElementById('modeLocal'); const b=document.getElementById('modeOnline');
-    if(state.mode==='local'){ a.classList.add('active'); b.classList.remove('active'); }
-    else { b.classList.add('active'); a.classList.remove('active'); }
-  }
-  function refreshText(){ document.getElementById('stakeVal').textContent=state.stake; state.pot=state.players*state.stake; document.getElementById('potVal').textContent=state.pot; }
+  document.getElementById('startBtn').onclick = startMatch;
   function setStatus(t){ document.getElementById('statusBox').textContent=t; }
 
   function refreshSlots(){
     const wrap=document.getElementById('slots'); wrap.innerHTML=''; state.slots=[];
-    const names=['Ti','Nova','Quark','Rex','Vega','Bolt','Iris','Mira','Axel','Luna'];
+    const names=['You','Nova','Quark','Rex','Vega','Bolt','Iris','Mira','Axel','Luna'];
     for(let i=0;i<state.players;i++){
       const el=document.createElement('div'); el.className='slot'+(i===0?' me':''); el.textContent=names[i%names.length]; wrap.appendChild(el);
       state.slots.push({ idx:i, name:el.textContent, el, left:0, right:0 });
     }
   }
 
+  const avatarUrl = params.get('avatar');
+  document.getElementById('playerAvatar').src = avatarUrl || '/assets/icons/9f14924f-e70c-4728-a9e5-ca25ef4138c8.png';
+  state.pot = state.players * state.stake;
+  document.getElementById('potVal').textContent = state.pot;
+
   // ========================= Obstacles =========================
   function randomBetween(a,b){ return a + Math.random()*(b-a); }
   function genPegField(){
     const pegs=[]; const ballDia = state.ball.r*2; const clearance = ballDia*1.5; // ≥ 1.5× diametri
     const usableTop = 110, usableBottom = H-180; const pad=20;
-    const target = (state.density==='Low') ? 60 : (state.density==='Med') ? 90 : 120;
+    const target = (state.density==='Low') ? 72 : (state.density==='Med') ? 108 : 144;
     const maxAttempts = target*25;
     let attempts=0;
     while (pegs.length<target && attempts++ < maxAttempts){
@@ -165,7 +129,7 @@
       for(const p of pegs){ const minCenter = p.r + cand.r + clearance; const dx=cand.x-p.x, dy=cand.y-p.y; if (dx*dx+dy*dy < minCenter*minCenter){ ok=false; break; } }
       if (ok) pegs.push(cand);
     }
-    const spinnerCount = state.density==='High' ? 6 : state.density==='Med' ? 4 : 3;
+    const spinnerCount = state.density==='High' ? 7 : state.density==='Med' ? 5 : 4;
     for(let i=0;i<spinnerCount;i++){
       const r = randomBetween(14,18);
       const x = randomBetween(pad+r+20, W-pad-r-20);
@@ -197,7 +161,7 @@
     state.started=true; state.time=0; genPegField(); carveCorridors(); genPaddles(); resetBall();
     state.sideGuides = (state.players===2);
     state.pot=state.players*state.stake; document.getElementById('potVal').textContent=state.pot; document.getElementById('winnerVal').textContent='—';
-    setStatus('Loja nis! Pengesa rigjenerohen random.');
+    setStatus('Game started! Obstacles regenerate randomly.');
   }
 
   // ========================= Physics =========================
@@ -241,7 +205,7 @@
     if (b.y + b.r >= groundY){
       b.y = groundY - b.r; b.vy *= -state.bounce;
       if (Math.abs(b.vy) < 1.1){
-        const idx = pickSlotFromX(b.x); state.resultSlot = idx; const fee = Math.floor(state.pot*0.10); const prize = state.pot - fee; document.getElementById('winnerVal').textContent = `${state.slots[idx].name} +${prize} TPC`; setStatus(`Fitues: ${state.slots[idx].name}. Payout ${prize} TPC (−${fee} dev)`); SFX.win();
+        const idx = pickSlotFromX(b.x); state.resultSlot = idx; const fee = Math.floor(state.pot*0.10); const prize = state.pot - fee; document.getElementById('winnerVal').textContent = `${state.slots[idx].name} +${prize} TPC`; setStatus(`Winner: ${state.slots[idx].name}. Payout ${prize} TPC (-${fee} dev)`); SFX.win();
       }
     }
   }
@@ -299,10 +263,9 @@
   // ========================= Init =========================
   function resetBall(){ state.ball.x=W*0.5; state.ball.y=60; state.ball.vx=(Math.random()*2-1)*2; state.ball.vy=0; state.resultSlot=null; }
   function init(){
-    toggleModeButtons();
     refreshSlots();
-    refreshText();
-    setDensity(state.density);
+    genPegField();
+    carveCorridors();
     genPaddles();
     resetBall();
   }
