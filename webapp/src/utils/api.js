@@ -10,16 +10,22 @@ export async function ping() {
   return data.message;
 }
 
-async function fetchWithRetry(url, options = {}, retries = 1) {
+function wait(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function fetchWithRetry(url, options = {}, retries = 3, backoff = 500) {
   try {
     const res = await fetch(url, options);
     if (res.status === 502 && retries > 0) {
-      return fetchWithRetry(url, options, retries - 1);
+      await wait(backoff);
+      return fetchWithRetry(url, options, retries - 1, backoff * 2);
     }
     return res;
   } catch (err) {
     if (retries > 0) {
-      return fetchWithRetry(url, options, retries - 1);
+      await wait(backoff);
+      return fetchWithRetry(url, options, retries - 1, backoff * 2);
     }
     throw err;
   }
