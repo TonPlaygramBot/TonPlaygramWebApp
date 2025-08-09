@@ -6,7 +6,7 @@ import { getInviteUrl } from './utils/notifications.js';
 import mongoose from 'mongoose';
 import { proxyUrl, proxyAgent } from './utils/proxyAgent.js';
 import http from 'http';
-import { Server as SocketIOServer } from 'socket.io';
+import { Server } from 'socket.io';
 import { GameRoomManager } from './gameEngine.js';
 import miningRoutes from './routes/mining.js';
 import tasksRoutes from './routes/tasks.js';
@@ -38,8 +38,6 @@ import Task from './models/Task.js';
 import WatchRecord from './models/WatchRecord.js';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { existsSync } from 'fs';
-import { execSync } from 'child_process';
 import { randomUUID } from 'crypto';
 import compression from 'compression';
 import rateLimit from 'express-rate-limit';
@@ -72,12 +70,9 @@ if (!process.env.MONGO_URI) {
 }
 
 const PORT = process.env.PORT || 3000;
-const allowedOrigins = (process.env.ALLOWED_ORIGINS || '')
-
+const ALLOWED = (process.env.ALLOWED_ORIGINS || '')
   .split(',')
-
   .map((o) => o.trim())
-
   .filter(Boolean);
 
 const rateLimitWindowMs =
@@ -85,10 +80,36 @@ const rateLimitWindowMs =
 
 const rateLimitMax = Number(process.env.RATE_LIMIT_MAX) || 100;
 const app = express();
-app.use(cors({ origin: allowedOrigins.length ? allowedOrigins : '*' }));
 const httpServer = http.createServer(app);
-const io = new SocketIOServer(httpServer, {
-  cors: { origin: allowedOrigins.length ? allowedOrigins : '*' }
+
+// Health (instant)
+app.get('/api/health', (_req, res) => {
+  res.set('Cache-Control', 'no-store');
+  res.status(200).json({ ok: true, ts: Date.now() });
+});
+
+// Timeouts to avoid ALB 60s edge cases
+httpServer.keepAliveTimeout = 61_000;
+httpServer.headersTimeout = 65_000;
+httpServer.requestTimeout = 60_000;
+httpServer.on('connection', (s) => s.setKeepAlive(true, 60_000));
+
+// CORS allowlist
+app.use(
+  cors({
+    origin: (origin, cb) => {
+      if (!origin || !ALLOWED.length || ALLOWED.includes(origin))
+        return cb(null, true);
+      cb(new Error('CORS blocked'));
+    },
+    credentials: true
+  })
+);
+
+const io = new Server(httpServer, {
+  path: '/socket.io',
+  cors: { origin: ALLOWED.length ? ALLOWED : true, methods: ['GET', 'POST'] },
+  transports: ['websocket', 'polling']
 });
 const gameManager = new GameRoomManager(io);
 
@@ -133,85 +154,9 @@ app.use('/api/social', socialRoutes);
 app.use('/api/broadcast', broadcastRoutes);
 app.use('/api/store', storeRoutes);
 
-// Serve the built React app
-const webappPath = path.join(__dirname, '../webapp/dist');
+const dist = path.resolve(__dirname, '../webapp/dist');
+app.use(express.static(dist, { maxAge: '1h', etag: true }));
 
-function ensureWebappBuilt() {
-  if (process.env.SKIP_WEBAPP_BUILD) {
-    console.log('Skipping webapp build');
-    return true;
-  }
-  if (
-    existsSync(path.join(webappPath, 'index.html')) &&
-    existsSync(path.join(webappPath, 'assets'))
-  ) {
-    return true;
-  }
-  try {
-    console.log('Building webapp...');
-    const webappDir = path.join(__dirname, '../webapp');
-    execSync('npm install', { cwd: webappDir, stdio: 'inherit' });
-
-    const apiBase = process.env.WEBAPP_API_BASE_URL || '';
-    const displayBase = apiBase || '(same origin)';
-    console.log(`Using API base URL ${displayBase} for webapp build`);
-
-    execSync('npm run build', {
-      cwd: webappDir,
-      stdio: 'inherit',
-      env: {
-        ...process.env,
-        VITE_API_BASE_URL: apiBase
-      }
-    });
-
-    return existsSync(path.join(webappPath, 'index.html'));
-  } catch (err) {
-    console.error('Failed to build webapp:', err.message);
-    return false;
-  }
-}
-
-ensureWebappBuilt();
-
-app.use(express.static(webappPath, { maxAge: '1y', immutable: true }));
-
-function sendIndex(res) {
-  if (ensureWebappBuilt()) {
-    res.sendFile(path.join(webappPath, 'index.html'));
-  } else {
-    res.status(503).send('Webapp build not available');
-  }
-  launchBotWithDelay();
-}
-
-let botLaunchTriggered = false;
-function launchBotWithDelay() {
-  if (botLaunchTriggered) return;
-  botLaunchTriggered = true;
-  if (!process.env.BOT_TOKEN || process.env.BOT_TOKEN === 'dummy') {
-    console.log('BOT_TOKEN not configured. Attempting to launch bot anyway');
-  }
-  setTimeout(async () => {
-    try {
-      // Ensure no lingering webhook is configured when using polling
-      try {
-        await bot.telegram.deleteWebhook({ drop_pending_updates: true });
-      } catch (err) {
-        console.error('Failed to delete existing webhook:', err.message);
-      }
-      await bot.launch({ dropPendingUpdates: true });
-    } catch (err) {
-      console.error('Failed to launch Telegram bot:', err.message);
-    }
-  }, 5000);
-}
-
-launchBotWithDelay();
-
-app.get('/', (req, res) => {
-  sendIndex(res);
-});
 app.get('/api/ping', (req, res) => {
   res.json({ message: 'pong' });
 });
@@ -650,7 +595,7 @@ app.get('/api/snake/results', async (req, res) => {
 });
 app.get('*', (req, res) => {
   if (req.path.startsWith('/api/')) return res.status(404).end();
-  sendIndex(res);
+  res.sendFile(path.join(dist, 'index.html'));
 });
 
 // MongoDB Connection
@@ -989,10 +934,22 @@ httpServer.listen(PORT, async () => {
   console.log(`Server running on port ${PORT}`);
   if (!process.env.BOT_TOKEN || process.env.BOT_TOKEN === 'dummy') {
     console.log('BOT_TOKEN not configured. Bot may fail to connect.');
+  } else {
+    try {
+      await bot.telegram.deleteWebhook({ drop_pending_updates: true });
+    } catch {}
+    try {
+      await bot.launch({ dropPendingUpdates: true });
+    } catch (err) {
+      console.error('Failed to launch Telegram bot:', err.message);
+    }
   }
 });
 
 if (process.env.BOT_TOKEN && process.env.BOT_TOKEN !== 'dummy') {
   process.once('SIGINT', () => bot.stop('SIGINT'));
   process.once('SIGTERM', () => bot.stop('SIGTERM'));
+  process.on('SIGTERM', () => httpServer.close(() => process.exit(0)));
+} else {
+  process.on('SIGTERM', () => httpServer.close(() => process.exit(0)));
 }
