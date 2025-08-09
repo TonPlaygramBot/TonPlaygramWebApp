@@ -2,8 +2,6 @@ import test from 'node:test';
 
 import assert from 'node:assert/strict';
 
-import fs from 'fs';
-
 import { spawn } from 'child_process';
 
 import { setTimeout as delay } from 'timers/promises';
@@ -11,8 +9,6 @@ import { setTimeout as delay } from 'timers/promises';
 import { io } from 'socket.io-client';
 
 import { GameRoom, DEFAULT_SNAKES, DEFAULT_LADDERS } from '../bot/gameEngine.js';
-
-const distDir = new URL('../webapp/dist/', import.meta.url);
 
 class DummyIO {
 
@@ -99,10 +95,6 @@ async function startServer(env) {
 }
 
 test('snake API endpoints and socket events', { concurrency: false, timeout: 20000 }, async () => {
-
-  fs.mkdirSync(new URL('assets', distDir), { recursive: true });
-
-  fs.writeFileSync(new URL('index.html', distDir), '');
 
   const env = {
 
