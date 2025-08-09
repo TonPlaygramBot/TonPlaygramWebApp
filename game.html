@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<!-- No binaries used. All visuals via Canvas2D gradients and primitives. All sounds via Web Audio synth. -->
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Falling Ball Game</title>
+<style>
+:root{
+  --bg:#0c1020;--panel:#10172a;--panel2:#11172a;--accent:#58f0ff;--text:#e8f6ff;
+  font-family:sans-serif;
+}
+body{margin:0;background:var(--bg);color:var(--text);overflow:hidden;}
+#hud{position:fixed;top:0;left:0;right:0;padding:env(safe-area-inset-top) .5rem .5rem .5rem;background:linear-gradient(145deg,var(--panel),var(--panel2));display:flex;flex-wrap:wrap;gap:.5rem;align-items:center;font-size:.8rem;z-index:10;}
+#hud span{margin-right:.5rem;}
+#hud button{border:none;border-radius:8px;padding:.4rem .6rem;font-size:.8rem;background:var(--accent);color:#000;font-weight:bold;}
+canvas{display:block;width:100vw;height:100vh;}
+#status{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);color:var(--accent);font-size:1.2rem;text-align:center;}
+</style>
+</head>
+<body>
+<div id="hud">
+ <span id="info"></span>
+ <button id="startBtn">Start</button>
+ <button id="sfxBtn">SFX: On</button>
+ <button id="backBtn">Lobby</button>
+ <span id="net"></span>
+</div>
+<canvas id="game"></canvas>
+<div id="status"></div>
+<script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+<script>
+const canvas=document.getElementById('game');
+const ctx=canvas.getContext('2d');
+let width,height,dpr;
+const hudInfo=document.getElementById('info');
+const startBtn=document.getElementById('startBtn');
+const sfxBtn=document.getElementById('sfxBtn');
+const backBtn=document.getElementById('backBtn');
+const statusBox=document.getElementById('status');
+const netSpan=document.getElementById('net');
+
+let players,stake,mode,room,seedStr;
+let baseSeed=0,round=0,rng;
+let obstacles=[],ball,paddles=[]; let running=false; let sfxEnabled=true;
+let audioCtx;
+
+function resize(){dpr=Math.min(window.devicePixelRatio||1,2);width=canvas.clientWidth; height=canvas.clientHeight; canvas.width=width*dpr; canvas.height=height*dpr; ctx.setTransform(dpr,0,0,dpr,0,0);} window.addEventListener('resize',resize);
+
+function playTone(freq,dur,type="sine",gainVal=0.2){if(!sfxEnabled)return;if(!audioCtx){try{audioCtx=new (window.AudioContext||window.webkitAudioContext)();}catch(e){return;}}const o=audioCtx.createOscillator();const g=audioCtx.createGain();o.type=type;o.frequency.value=freq;o.connect(g);g.connect(audioCtx.destination);o.start();g.gain.setValueAtTime(gainVal,audioCtx.currentTime);g.gain.exponentialRampToValueAtTime(0.001,audioCtx.currentTime+dur);o.stop(audioCtx.currentTime+dur);}
+const sfx={bounce:()=>playTone(300,0.05,'triangle',0.15),spin:()=>playTone(500,0.05,'square',0.15),win:()=>{playTone(660,0.15,'sine',0.2);setTimeout(()=>playTone(880,0.15,'sine',0.2),150);}};
+
+function toggleSfx(){sfxEnabled=!sfxEnabled;sfxBtn.textContent='SFX: '+(sfxEnabled?'On':'Off');const saved=JSON.parse(localStorage.getItem('lobby')||'{}');saved.sfx=sfxEnabled;localStorage.setItem('lobby',JSON.stringify(saved));}
+
+sfxBtn.onclick=toggleSfx; backBtn.onclick=()=>location.href='lobby.html';
+
+async function seedToInt(str){const buf=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(str));return new DataView(buf).getUint32(0);} 
+function mulberry32(a){return function(){var t=a+=0x6D2B79F5;t=Math.imul(t^t>>>15,t|1);t^=t+Math.imul(t^t>>>7,t|61);return((t^t>>>14)>>>0)/4294967296;};}
+
+function genObstacles(){obstacles=[];const OB_R=8;const BALL_D=BALL_R*2;const CLEAR=BALL_D*1.5;const maxY=height-SLOT_H-20;const desired=80;let attempts=0;while(obstacles.length<desired && attempts<desired*50){attempts++;const x=rng()*width;const y=rng()*maxY; // reject corridors in lower half
+ if(y>height*0.5){let slotW=width/players;let corridor=BALL_D*3;for(let i=0;i<players;i++){let left=slotW*i+(slotW-corridor)/2;let right=left+corridor;if(x>left&&x<right){y=0;break;}} if(y===0) continue;}
+ let ok=true;for(let o of obstacles){let dx=o.x-x,dy=o.y-y;let min=o.r+OB_R+CLEAR;if(dx*dx+dy*dy<min*min){ok=false;break;}} if(ok) obstacles.push({x,y,r:OB_R,spinner:false,angle:0});}
+ // mark spinners
+ let sp=Math.max(3,Math.floor(obstacles.length*0.1));for(let i=0;i<sp;i++){obstacles[Math.floor(rng()*obstacles.length)].spinner=true;}
+}
+
+const GRAV=500,FRIC=0.999,BOUNCE=0.9,MAX_VY=1200,BALL_R=12,SLOT_H=80;
+
+function spawnBall(){ball={x:width/2,y:BALL_R+10,vx:0,vy:0,r:BALL_R};}
+
+function genPaddles(){paddles=[];if(players===2){const y1=height-SLOT_H-100,y2=height-SLOT_H; paddles=[{side:-1,x:20,y1,y2},{side:1,x:width-20,y1,y2}];}}
+
+function step(dt){if(!running)return;ball.vy+=GRAV*dt;if(ball.vy>MAX_VY)ball.vy=MAX_VY;ball.vx*=FRIC;ball.vy*=FRIC;ball.x+=ball.vx*dt;ball.y+=ball.vy*dt;
+ // walls
+ if(ball.x<ball.r){ball.x=ball.r;ball.vx=Math.abs(ball.vx)*BOUNCE;}
+ if(ball.x>width-ball.r){ball.x=width-ball.r;ball.vx=-Math.abs(ball.vx)*BOUNCE;}
+ if(ball.y<ball.r){ball.y=ball.r;ball.vy=Math.abs(ball.vy)*BOUNCE;}
+ // obstacles
+ for(let o of obstacles){let dx=ball.x-o.x,dy=ball.y-o.y;let dist=Math.hypot(dx,dy);let min=ball.r+o.r; if(dist<min){let nx=dx/dist,ny=dy/dist;ball.x=o.x+nx*min;ball.y=o.y+ny*min;let dot=ball.vx*nx+ball.vy*ny;ball.vx-=2*dot*nx*BOUNCE;ball.vy-=2*dot*ny*BOUNCE; if(o.spinner){let tx=-ny,ty=nx;ball.vx+=tx*50;ball.vy+=ty*50;sfx.spin();} else sfx.bounce();}}
+ // paddles
+ for(let p of paddles){let anim=Math.sin(Date.now()/500);let amp=30;let base=p.side===-1?20:width-20; p.x=base+p.side*amp*anim; if(ball.y+ball.r>p.y1 && ball.y-ball.r<p.y2){if(Math.abs(ball.x-p.x)<ball.r){ball.x=p.x+ball.r*Math.sign(ball.x-p.x);ball.vx=Math.sign(ball.x-p.x)*Math.abs(ball.vx)*BOUNCE + -p.side*200;ball.vy*=BOUNCE;}}}
+ // floor
+ const floor=height-SLOT_H; if(ball.y>floor-ball.r){ball.y=floor-ball.r;ball.vy=-Math.abs(ball.vy)*BOUNCE; if(Math.abs(ball.vy)<30){declareWinner();}}
+}
+
+function draw(){ctx.clearRect(0,0,width,height);
+ // background panel
+ let grad=ctx.createLinearGradient(0,0,width,height);grad.addColorStop(0,'#0c1020');grad.addColorStop(1,'#11172a');ctx.fillStyle=grad;ctx.fillRect(0,0,width,height-SLOT_H);
+ // obstacles
+ ctx.fillStyle='#1f2b48';ctx.strokeStyle='#58f0ff';for(let o of obstacles){ctx.beginPath();ctx.arc(o.x,o.y,o.r,0,Math.PI*2);ctx.fill(); if(o.spinner){ctx.save();ctx.translate(o.x,o.y);ctx.rotate(o.angle);ctx.strokeStyle='#58f0ff';ctx.beginPath();ctx.moveTo(-o.r,0);ctx.lineTo(o.r,0);ctx.moveTo(0,-o.r);ctx.lineTo(0,o.r);ctx.stroke();ctx.restore();o.angle+=0.05;} }
+ // paddles
+ ctx.strokeStyle='#58f0ff';ctx.lineWidth=4;for(let p of paddles){ctx.beginPath();ctx.moveTo(p.x,p.y1);ctx.lineTo(p.x,p.y2);ctx.stroke();}
+ // slots
+ ctx.fillStyle='#10172a';ctx.fillRect(0,height-SLOT_H,width,SLOT_H);ctx.strokeStyle='#0c1020';for(let i=1;i<players;i++){let x=i*width/players;ctx.beginPath();ctx.moveTo(x,height-SLOT_H);ctx.lineTo(x,height);ctx.stroke();}
+ // shadow
+ ctx.fillStyle='rgba(0,0,0,0.5)';ctx.beginPath();ctx.ellipse(ball.x,height-SLOT_H,ball.r*1.2,ball.r*0.5,0,0,Math.PI*2);ctx.fill();
+ // ball
+ let bg=ctx.createRadialGradient(ball.x-ball.r/3,ball.y-ball.r/3,ball.r/4,ball.x,ball.y,ball.r);bg.addColorStop(0,'#fff');bg.addColorStop(1,'#58f0ff');ctx.fillStyle=bg;ctx.beginPath();ctx.arc(ball.x,ball.y,ball.r,0,Math.PI*2);ctx.fill();
+ }
+
+function declareWinner(){if(!running)return;running=false;const slotW=width/players;const floor=height-SLOT_H;const idx=Math.min(players-1,Math.floor(ball.x/slotW));const pot=players*stake;const fee=pot*0.1;const payout=pot-fee;statusBox.textContent=`Pot ${pot} TPC\nWinner: Player ${idx+1} gets ${payout.toFixed(2)} (fee ${fee.toFixed(2)})`;startBtn.textContent='Play Again';sfx.win();}
+
+function startRound(){round++;rng=mulberry32(baseSeed+round);genObstacles();spawnBall();genPaddles();statusBox.textContent='';startBtn.textContent='Restart';running=true;smokeTests();}
+
+startBtn.onclick=()=>{startRound();requestAnimationFrame(loop);};
+
+let last=performance.now();function loop(ts){const dt=(ts-last)/1000;last=ts;if(running)step(dt);draw();requestAnimationFrame(loop);}
+
+function smokeTests(){console.log('players',players);console.log('obstacles',obstacles.length);let minGap=BALL_R*2*1.5;for(let i=0;i<200;i++){let a=obstacles[Math.floor(Math.random()*obstacles.length)];let b=obstacles[Math.floor(Math.random()*obstacles.length)];if(a===b)continue;let dx=a.x-b.x,dy=a.y-b.y;let gap=Math.hypot(dx,dy)-(a.r+b.r);if(gap<minGap)console.warn('gap violation');}console.log('render loop running');}
+
+async function init(){resize();const params=new URLSearchParams(location.search);players=Math.min(10,Math.max(2,parseInt(params.get('players')||'2')));stake=parseInt(params.get('stake')||'10');mode=params.get('mode')||'local';room=params.get('room')||'';seedStr=params.get('seed')||'';const saved=JSON.parse(localStorage.getItem('lobby')||'{}');sfxEnabled=saved.sfx!==false;sfxBtn.textContent='SFX: '+(sfxEnabled?'On':'Off');hudInfo.textContent=`Players:${players} Stake:${stake} Mode:${mode}${room?(' Room:'+room):''} Seed:${seedStr.slice(0,8)}`;baseSeed=await seedToInt(seedStr);if(mode==='online'&&window.io){const socket=io('https://example.com');socket.on('connect',()=>netSpan.textContent='Connected');socket.on('disconnect',()=>netSpan.textContent='Disconnected');}startRound();requestAnimationFrame(loop);}
+init();
+</script>
+</body>
+</html>

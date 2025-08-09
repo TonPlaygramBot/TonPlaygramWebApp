@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<!-- No binaries used. All visuals via Canvas2D gradients and primitives. All sounds via Web Audio synth. -->
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Falling Ball Lobby</title>
+<style>
+  :root {
+    --bg: #0c1020;
+    --panel: #10172a;
+    --panel2: #11172a;
+    --accent: #58f0ff;
+    --text: #e8f6ff;
+    font-family: sans-serif;
+  }
+  body {
+    margin: 0;
+    padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+    background: var(--bg);
+    color: var(--text);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    min-height: 100vh;
+  }
+  header {
+    padding: 1rem;
+    font-size: 1.5rem;
+    font-weight: bold;
+    color: var(--accent);
+  }
+  form {
+    background: linear-gradient(145deg, var(--panel), var(--panel2));
+    padding: 1rem;
+    border-radius: 12px;
+    width: 90%;
+    max-width: 400px;
+    display: flex;
+    flex-direction: column;
+    gap: .75rem;
+  }
+  label {font-size: .9rem;}
+  input, select, button {
+    border-radius: 8px;
+    border: none;
+    padding: .5rem;
+    font-size: 1rem;
+    background: #18223c;
+    color: var(--text);
+  }
+  button {
+    background: var(--accent);
+    color: #000;
+    font-weight: bold;
+  }
+  .row {display:flex; gap:.5rem;}
+  .row > * {flex:1;}
+  .toggle {background:#18223c; color:var(--text);}
+</style>
+<script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+</head>
+<body>
+<header>TonPlaygram</header>
+<form id="setup">
+  <label>Players (2-10)
+    <input type="number" id="players" min="2" max="10" value="5">
+  </label>
+  <label>Stake per player (TPC)
+    <input type="number" id="stake" step="10" min="10" value="100">
+  </label>
+  <label>Mode
+    <select id="mode">
+      <option value="local">Local vs AI</option>
+      <option value="online">Online</option>
+    </select>
+  </label>
+  <label>Room ID
+    <input type="text" id="room" placeholder="room-123">
+  </label>
+  <div class="row">
+    <button type="button" id="create">Create Room</button>
+    <button type="button" id="join">Join Room</button>
+  </div>
+  <div class="row">
+    <button type="button" id="connect">Connect</button>
+    <button type="button" id="start">Start</button>
+  </div>
+  <button type="button" id="sfx" class="toggle">SFX: On</button>
+</form>
+<script>
+const playersEl = document.getElementById('players');
+const stakeEl = document.getElementById('stake');
+const modeEl = document.getElementById('mode');
+const roomEl = document.getElementById('room');
+const startBtn = document.getElementById('start');
+const connectBtn = document.getElementById('connect');
+const sfxBtn = document.getElementById('sfx');
+let audioCtx; let sfxEnabled = true; let socket;
+
+function initAudio(){
+  if(audioCtx) return;
+  try{audioCtx = new (window.AudioContext||window.webkitAudioContext)();}catch(e){console.warn('audio init failed',e);}
+}
+function beep(){
+  if(!sfxEnabled||!audioCtx) return;
+  const o=audioCtx.createOscillator(); const g=audioCtx.createGain();
+  o.type='sine'; o.frequency.value=440; o.connect(g); g.connect(audioCtx.destination);
+  o.start(); g.gain.setValueAtTime(.2,audioCtx.currentTime); g.gain.exponentialRampToValueAtTime(0.001,audioCtx.currentTime+.1); o.stop(audioCtx.currentTime+.1);
+}
+
+// Load saved values
+const saved = JSON.parse(localStorage.getItem('lobby')||'{}');
+if(saved.players) playersEl.value = saved.players;
+if(saved.stake) stakeEl.value = saved.stake;
+if(saved.mode) modeEl.value = saved.mode;
+if(saved.room) roomEl.value = saved.room;
+if(saved.sfx===false){sfxEnabled=false; sfxBtn.textContent='SFX: Off';}
+
+sfxBtn.onclick=()=>{sfxEnabled=!sfxEnabled; sfxBtn.textContent='SFX: '+(sfxEnabled?'On':'Off'); localStorage.setItem('lobby',JSON.stringify({...saved,players:playersEl.value,stake:stakeEl.value,mode:modeEl.value,room:roomEl.value,sfx:sfxEnabled}));};
+
+create.onclick=()=>{console.log('create room',roomEl.value); beep();};
+join.onclick=()=>{console.log('join room',roomEl.value); beep();};
+
+connectBtn.onclick=()=>{
+  if(modeEl.value!=='online'){console.log('select online mode first');return;}
+  if(window.io){
+    socket = io('https://example.com');
+    socket.on('connect',()=>console.log('connected'));
+    socket.on('disconnect',()=>console.log('disconnected'));
+  } else {
+    console.log('socket.io not available');
+  }
+};
+
+startBtn.onclick=async()=>{
+  const p = +playersEl.value; const s = +stakeEl.value; const m = modeEl.value; const r = roomEl.value.trim();
+  if(p<2||p>10){alert('Players must be 2-10');return;}
+  if(s<10){alert('Stake must be >=10');return;}
+  initAudio(); beep();
+  const seedSrc = r + Date.now();
+  const hashBuffer = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(seedSrc));
+  const seedHex = Array.from(new Uint8Array(hashBuffer)).map(b=>b.toString(16).padStart(2,'0')).join('');
+  localStorage.setItem('lobby',JSON.stringify({players:p,stake:s,mode:m,room:r,sfx:sfxEnabled}));
+  location.href = `game.html?players=${p}&stake=${s}&mode=${m}&room=${encodeURIComponent(r)}&seed=${seedHex}`;
+};
+
+console.log('Lobby loaded');
+</script>
+</body>
+</html>
