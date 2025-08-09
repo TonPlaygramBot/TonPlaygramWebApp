@@ -28,6 +28,7 @@ router.post('/start', async (req, res) => {
     const callbackUrl = `${req.protocol}://${req.get('host')}/api/twitter/callback`;
     const { url, oauth_token, oauth_token_secret } = await twitterClient.generateAuthLink(callbackUrl);
     oauthStore.set(oauth_token, { secret: oauth_token_secret, telegramId });
+    setTimeout(() => oauthStore.delete(oauth_token), 5 * 60 * 1000);
     res.json({ url });
   } catch (err) {
     console.error('x start failed:', err);

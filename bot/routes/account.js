@@ -31,7 +31,6 @@ router.post('/create', async (req, res) => {
         referralCode: String(telegramId),
         walletAddress: wallet.address,
         walletPublicKey: wallet.publicKey,
-        walletSecretKey: wallet.secretKey,
       });
       await user.save();
     } else {
@@ -44,7 +43,6 @@ router.post('/create', async (req, res) => {
         const wallet = await generateWalletAddress();
         user.walletAddress = wallet.address;
         user.walletPublicKey = wallet.publicKey;
-        user.walletSecretKey = wallet.secretKey;
         updated = true;
       }
       if (updated) await user.save();
@@ -57,7 +55,6 @@ router.post('/create', async (req, res) => {
       referralCode: id,
       walletAddress: wallet.address,
       walletPublicKey: wallet.publicKey,
-      walletSecretKey: wallet.secretKey,
     });
     await user.save();
   }

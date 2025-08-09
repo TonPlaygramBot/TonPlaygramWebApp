@@ -38,3 +38,21 @@ export async function incrementReferralBonus(code) {
     ]
   );
 }
+
+export function sanitizeUser(user) {
+  if (!user) return null;
+  return {
+    accountId: user.accountId,
+    walletAddress: user.walletAddress,
+    walletPublicKey: user.walletPublicKey,
+    nickname: user.nickname,
+    firstName: user.firstName,
+    lastName: user.lastName,
+    photo: user.photo,
+    bio: user.bio,
+    balance: user.balance,
+    gifts: user.gifts,
+    transactions: user.transactions,
+    social: user.social
+  };
+}
