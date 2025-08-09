@@ -39,10 +39,11 @@ router.post('/balance', authenticate, async (req, res) => {
     return res.status(403).json({ error: "forbidden" });
   }
 
-  let user = await User.findOne({ telegramId: id });
-  if (!user) {
-    user = await User.create({ telegramId: id, referralCode: String(id) });
-  }
+  const user = await User.findOneAndUpdate(
+    { telegramId: id },
+    { $setOnInsert: { referralCode: String(id) } },
+    { upsert: true, new: true, setDefaultsOnInsert: true }
+  );
   const balance = calculateBalance(user);
   if (user.balance !== balance) {
     user.balance = balance;
