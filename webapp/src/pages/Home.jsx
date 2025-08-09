@@ -57,7 +57,6 @@ export default function Home() {
     } else {
       getProfile(id)
         .then((p) => {
-          setProfile(p);
           if (p?.photo) {
             setPhotoUrl(p.photo);
             saveAvatar(p.photo);
@@ -84,7 +83,6 @@ export default function Home() {
       } else {
         getProfile(id)
           .then((p) => {
-            setProfile(p);
             if (p?.photo) {
               setPhotoUrl(p.photo);
               saveAvatar(p.photo);
@@ -107,14 +105,7 @@ export default function Home() {
     return () => window.removeEventListener('profilePhotoUpdated', handleUpdate);
   }, []);
 
-  const toNumber = (v, def = 0) =>
-    Number.isFinite(Number(v)) ? Number(v) : def;
-  const clean = (s) => (typeof s === 'string' && s.trim() ? s.trim() : '');
-  const miningBoost = toNumber(profile?.miningBoost, 0);
-  const referralCode = clean(profile?.referralCode);
-  const referralLink = referralCode
-    ? `https://t.me/TonPlaygramBot?start=${referralCode}`
-    : '';
+
 
   return (
 
@@ -204,12 +195,6 @@ export default function Home() {
           <TasksCard />
         </div>
         <ProjectAchievementsCard />
-        <div>Mining boost: +{miningBoost}%</div>
-        {referralLink ? (
-          <div className="break-all">{referralLink}</div>
-        ) : (
-          <div className="text-text/60 text-sm">Referral link appears after you’re connected.</div>
-        )}
 
       <div className="flex justify-center space-x-4 mt-4">
         <a

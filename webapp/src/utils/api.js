@@ -2,15 +2,33 @@
 
 // so the webapp works when served by the Express server in production.
 
-import { fetchWithRetry } from './http.js';
-
-export const API_BASE_URL =
-  import.meta.env.VITE_API_BASE_URL || window.location.origin;
+export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
 export const API_AUTH_TOKEN = import.meta.env.VITE_API_AUTH_TOKEN || '';
 
 export async function ping() {
-  const data = await apiGet('/api/ping');
+  const data = await get('/api/ping');
   return data.message;
+}
+
+function wait(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function fetchWithRetry(url, options = {}, retries = 3, backoff = 500) {
+  try {
+    const res = await fetch(url, options);
+    if (res.status === 502 && retries > 0) {
+      await wait(backoff);
+      return fetchWithRetry(url, options, retries - 1, backoff * 2);
+    }
+    return res;
+  } catch (err) {
+    if (retries > 0) {
+      await wait(backoff);
+      return fetchWithRetry(url, options, retries - 1, backoff * 2);
+    }
+    throw err;
+  }
 }
 
 async function post(path, body, token) {
@@ -21,7 +39,7 @@ async function post(path, body, token) {
 
   let res;
   try {
-    res = await fetch(API_BASE_URL + path, {
+    res = await fetchWithRetry(API_BASE_URL + path, {
       method: 'POST',
       headers,
       body: JSON.stringify(body)
@@ -53,18 +71,38 @@ async function post(path, body, token) {
   return data;
 }
 
-export async function apiGet(path, token) {
+async function get(path, token) {
   const headers = {};
   if (token) headers['Authorization'] = `Bearer ${token}`;
   const initData = window?.Telegram?.WebApp?.initData;
   if (initData) headers['X-Telegram-Init-Data'] = initData;
 
-  const res = await fetchWithRetry(API_BASE_URL + path, {
-    method: 'GET',
-    headers
-  });
-  if (!res.ok) throw new Error(`${res.status} ${path}`);
-  return res.json();
+  let res;
+  try {
+    res = await fetchWithRetry(API_BASE_URL + path, { headers });
+  } catch (err) {
+    return { error: 'Network request failed' };
+  }
+
+  let text;
+  try {
+    text = await res.text();
+  } catch {
+    return { error: 'Invalid server response' };
+  }
+  let data;
+  try {
+    data = text ? JSON.parse(text) : {};
+  } catch (err) {
+    return { error: 'Invalid server response' };
+  }
+  if (!res.ok) {
+    if (res.status === 502) {
+      return { error: 'Server unavailable. Please try again later.' };
+    }
+    return { error: data.error || res.statusText || 'Request failed' };
+  }
+  return data;
 }
 
 export function getMiningStatus(telegramId) {
@@ -156,7 +194,7 @@ export function myInfluencerVideos(telegramId) {
 }
 
 export function listAllInfluencer() {
-  return apiGet('/api/influencer/admin', API_AUTH_TOKEN);
+  return get('/api/influencer/admin', API_AUTH_TOKEN);
 }
 
 export function verifyInfluencer(id, status, views) {
@@ -251,7 +289,7 @@ export function getTransactions(telegramId) {
 }
 
 export function getDepositAddress() {
-  return apiGet('/api/wallet/deposit-address');
+  return get('/api/wallet/deposit-address');
 }
 
 export function deposit(telegramId, amount) {
@@ -299,19 +337,19 @@ export function grantAirdropAll(token, amount, reason = '') {
 }
 
 export function getSnakeLobbies() {
-  return apiGet('/api/snake/lobbies');
+  return get('/api/snake/lobbies');
 }
 
 export function getSnakeLobby(id) {
-  return apiGet('/api/snake/lobby/' + id);
+  return get('/api/snake/lobby/' + id);
 }
 
 export function getSnakeBoard(id) {
-  return apiGet('/api/snake/board/' + id);
+  return get('/api/snake/board/' + id);
 }
 
 export function getSnakeResults() {
-  return apiGet('/api/snake/results');
+  return get('/api/snake/results');
 }
 
 export function seatTable(playerId, tableId, name) {
@@ -327,11 +365,11 @@ export function pingOnline(playerId) {
 }
 
 export function getOnlineCount() {
-  return apiGet('/api/online/count');
+  return get('/api/online/count');
 }
 
 export function getOnlineUsers() {
-  return apiGet('/api/online/list');
+  return get('/api/online/list');
 }
 
 export function registerWallet(walletAddress) {
@@ -492,9 +530,9 @@ export function sendBroadcast(data) {
 }
 
 export function getWatchCount(tableId) {
-  return apiGet('/api/watchers/count/' + tableId);
+  return get('/api/watchers/count/' + tableId);
 }
 
 export function getAppStats() {
-  return apiGet('/api/stats');
+  return get('/api/stats');
 }

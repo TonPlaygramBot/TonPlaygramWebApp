@@ -4,15 +4,17 @@ services:
     name: tonplaygram-api
     branch: main
     rootDir: bot
-    buildCommand: npm ci && npm --prefix ../webapp ci && npm --prefix ../webapp run build
+    buildCommand: npm install && npm --prefix ../webapp install && npm --prefix ../webapp run build
     startCommand: npm start
-    healthCheckPath: /api/health
     envVars:
       - key: MONGO_URI
         value: mongodb://localhost:27017/tonplaygram
-      - key: SKIP_WEBAPP_BUILD
-        value: "1"
-      - key: ALLOWED_ORIGINS
-        value: https://tonplaygram-bot.onrender.com
-      - key: NODE_OPTIONS
-        value: --max-old-space-size=512
+
+  - type: web
+    runtime: static
+    name: tonplaygram-fe
+    branch: main
+    rootDir: webapp
+    buildCommand: npm install && npm run build
+    staticPublishPath: dist
+
