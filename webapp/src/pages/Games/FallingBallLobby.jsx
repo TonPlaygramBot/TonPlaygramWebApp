@@ -41,6 +41,7 @@ export default function FallingBallLobby() {
     params.set('mode', mode);
     if (stake.token) params.set('token', stake.token);
     if (stake.amount) params.set('amount', stake.amount);
+    if (avatar) params.set('avatar', avatar);
     navigate(`/games/fallingball?${params.toString()}`);
   };
 
@@ -48,7 +49,7 @@ export default function FallingBallLobby() {
     <div className="relative p-4 space-y-4 text-text">
       <h2 className="text-xl font-bold text-center">Falling Ball Lobby</h2>
       <div className="space-y-2">
-        <h3 className="font-semibold">Lojtarë</h3>
+        <h3 className="font-semibold">Players</h3>
         <div className="flex gap-2 flex-wrap">
           {[2,3,4,5,6,7,8,9,10].map((n) => (
             <button
@@ -66,7 +67,7 @@ export default function FallingBallLobby() {
         <RoomSelector selected={stake} onSelect={setStake} tokens={['TPC']} />
       </div>
       <div className="space-y-2">
-        <h3 className="font-semibold">Densiteti</h3>
+        <h3 className="font-semibold">Density</h3>
         <div className="flex gap-2">
           {['low','med','high'].map((d) => (
             <button
@@ -74,7 +75,7 @@ export default function FallingBallLobby() {
               onClick={() => setDensity(d)}
               className={`lobby-tile capitalize ${density === d ? 'lobby-selected' : ''}`}
             >
-              {d === 'med' ? 'Med' : d.charAt(0).toUpperCase() + d.slice(1)}
+              {d === 'med' ? 'Medium' : d.charAt(0).toUpperCase() + d.slice(1)}
             </button>
           ))}
         </div>
@@ -95,16 +96,6 @@ export default function FallingBallLobby() {
             </button>
           ))}
         </div>
-      </div>
-      <div className="flex gap-2">
-        {Array.from({ length: players }).map((_, idx) => (
-          <img
-            key={idx}
-            src={idx === 0 ? avatar : '/assets/icons/9f14924f-e70c-4728-a9e5-ca25ef4138c8.png'}
-            alt="avatar"
-            className="w-10 h-10 rounded-full border"
-          />
-        ))}
       </div>
       <button
         onClick={startGame}
