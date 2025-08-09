@@ -132,7 +132,7 @@ export default function LuckyNumber() {
             {(i !== 0 && selected !== i) ? (
               <>
                 <img
-                  src="/assets/icons/file_000000002f08620a8b0d3154b9c3fdaa.webp"
+                  src="/assets/icons/TonPlayGramLogo_2_512x512.webp"
                   alt="Logo"
                   className="absolute inset-0 w-full h-full object-contain opacity-40"
                 />

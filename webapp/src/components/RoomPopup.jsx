@@ -21,7 +21,7 @@ export default function RoomPopup({
       <div className="bg-surface border border-border p-6 rounded space-y-4 text-text w-80">
         <img
 
-          src="/assets/icons/file_000000002f08620a8b0d3154b9c3fdaa.webp"
+          src="/assets/icons/TonPlayGramLogo_2_512x512.webp"
           alt="TonPlaygram Logo"
           className="w-10 h-10 mx-auto"
         />
