@@ -10,29 +10,57 @@ export async function ping() {
   return data.message;
 }
 
+async function fetchWithRetry(url, options = {}, retries = 1) {
+  try {
+    const res = await fetch(url, options);
+    if (res.status === 502 && retries > 0) {
+      return fetchWithRetry(url, options, retries - 1);
+    }
+    return res;
+  } catch (err) {
+    if (retries > 0) {
+      return fetchWithRetry(url, options, retries - 1);
+    }
+    throw err;
+  }
+}
+
 async function post(path, body, token) {
   const headers = { 'Content-Type': 'application/json' };
   if (token) headers['Authorization'] = `Bearer ${token}`;
   const initData = window?.Telegram?.WebApp?.initData;
   if (initData) headers['X-Telegram-Init-Data'] = initData;
 
-  const res = await fetch(API_BASE_URL + path, {
-    method: 'POST',
-    headers,
-    body: JSON.stringify(body)
-  });
+  let res;
+  try {
+    res = await fetchWithRetry(API_BASE_URL + path, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(body)
+    });
+  } catch (err) {
+    return { error: 'Network request failed' };
+  }
 
   // Read response as text first to handle non-JSON replies gracefully
-  const text = await res.text();
+  let text;
+  try {
+    text = await res.text();
+  } catch {
+    return { error: 'Invalid server response' };
+  }
   let data;
   try {
-    data = JSON.parse(text);
+    data = text ? JSON.parse(text) : {};
   } catch (err) {
     // Provide a generic error instead of exposing parse details
     return { error: 'Invalid server response' };
   }
   if (!res.ok) {
-    return { error: data.error || res.statusText };
+    if (res.status === 502) {
+      return { error: 'Server unavailable. Please try again later.' };
+    }
+    return { error: data.error || res.statusText || 'Request failed' };
   }
   return data;
 }
@@ -43,17 +71,30 @@ async function get(path, token) {
   const initData = window?.Telegram?.WebApp?.initData;
   if (initData) headers['X-Telegram-Init-Data'] = initData;
 
-  const res = await fetch(API_BASE_URL + path, { headers });
+  let res;
+  try {
+    res = await fetchWithRetry(API_BASE_URL + path, { headers });
+  } catch (err) {
+    return { error: 'Network request failed' };
+  }
 
-  const text = await res.text();
+  let text;
+  try {
+    text = await res.text();
+  } catch {
+    return { error: 'Invalid server response' };
+  }
   let data;
   try {
-    data = JSON.parse(text);
+    data = text ? JSON.parse(text) : {};
   } catch (err) {
     return { error: 'Invalid server response' };
   }
   if (!res.ok) {
-    return { error: data.error || res.statusText };
+    if (res.status === 502) {
+      return { error: 'Server unavailable. Please try again later.' };
+    }
+    return { error: data.error || res.statusText || 'Request failed' };
   }
   return data;
 }
