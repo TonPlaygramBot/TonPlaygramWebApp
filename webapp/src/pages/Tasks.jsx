@@ -16,7 +16,7 @@ import {
 } from '../utils/api.js';
 
 import { getTelegramId, parseTelegramPostLink } from '../utils/telegram.js';
-import LoginOptions from '../components/LoginOptions.jsx';
+import RequireAuth from '../components/RequireAuth.jsx';
 
 import { IoLogoTiktok } from 'react-icons/io5';
 
@@ -47,7 +47,7 @@ export default function Tasks() {
   try {
     telegramId = getTelegramId();
   } catch (err) {
-    return <LoginOptions />;
+    telegramId = undefined;
   }
 
   const [tasks, setTasks] = useState(null);
@@ -108,9 +108,10 @@ export default function Tasks() {
   };
 
   useEffect(() => {
+    if (!telegramId) return;
     load();
     loadInfluencer();
-  }, []);
+  }, [telegramId]);
 
   useEffect(() => {
     const id = setInterval(() => {
@@ -237,7 +238,7 @@ export default function Tasks() {
   };
 
   return (
-
+    <RequireAuth>
     <div className="relative p-4 space-y-2 text-text flex flex-col items-center wide-card">
       <h2 className="text-xl font-bold">Tasks</h2>
       <div className="flex justify-center space-x-2">
@@ -456,7 +457,6 @@ export default function Tasks() {
       />
 
     </div>
-
+    </RequireAuth>
   );
-
 }
