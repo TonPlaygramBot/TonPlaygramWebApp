@@ -4,7 +4,7 @@ import cors from 'cors';
 import bot from './bot.js';
 import { getInviteUrl } from './utils/notifications.js';
 import mongoose from 'mongoose';
-import { proxyUrl, proxyAgent } from './utils/proxyAgent.js';
+import { proxyUrl } from './utils/proxyAgent.js';
 import http from 'http';
 import { Server as SocketIOServer } from 'socket.io';
 import { GameRoomManager } from './gameEngine.js';
@@ -36,10 +36,8 @@ import Post from './models/Post.js';
 import PostRecord from './models/PostRecord.js';
 import Task from './models/Task.js';
 import WatchRecord from './models/WatchRecord.js';
-import path from 'path';
-import { fileURLToPath } from 'url';
-import { existsSync } from 'fs';
-import { execSync } from 'child_process';
+// Removed path, fileURLToPath, existsSync, and execSync imports because
+// the server no longer builds or serves the static webapp bundle.
 import { randomUUID } from 'crypto';
 import compression from 'compression';
 import rateLimit from 'express-rate-limit';
@@ -59,8 +57,6 @@ const models = [
   User,
   WatchRecord
 ];
-
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 if (proxyUrl) {
   console.log(`Using HTTPS proxy ${proxyUrl}`);
@@ -133,55 +129,24 @@ app.use('/api/social', socialRoutes);
 app.use('/api/broadcast', broadcastRoutes);
 app.use('/api/store', storeRoutes);
 
-// Serve the built React app
-const webappPath = path.join(__dirname, '../webapp/dist');
-
-function ensureWebappBuilt() {
-  if (process.env.SKIP_WEBAPP_BUILD) {
-    console.log('Skipping webapp build');
-    return true;
-  }
-  if (
-    existsSync(path.join(webappPath, 'index.html')) &&
-    existsSync(path.join(webappPath, 'assets'))
-  ) {
-    return true;
-  }
-  try {
-    console.log('Building webapp...');
-    const webappDir = path.join(__dirname, '../webapp');
-    execSync('npm install', { cwd: webappDir, stdio: 'inherit' });
-
-    const apiBase = process.env.WEBAPP_API_BASE_URL || '';
-    const displayBase = apiBase || '(same origin)';
-    console.log(`Using API base URL ${displayBase} for webapp build`);
-
-    execSync('npm run build', {
-      cwd: webappDir,
-      stdio: 'inherit',
-      env: {
-        ...process.env,
-        VITE_API_BASE_URL: apiBase
-      }
-    });
-
-    return existsSync(path.join(webappPath, 'index.html'));
-  } catch (err) {
-    console.error('Failed to build webapp:', err.message);
-    return false;
-  }
+// Dynamic page rendering
+function renderPage(pathname) {
+  const title = process.env.PAGE_TITLE || 'TonPlaygram';
+  return `<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>${title}</title>
+  </head>
+  <body>
+    <h1>${title}</h1>
+    <p>You requested: ${pathname}</p>
+  </body>
+</html>`;
 }
 
-ensureWebappBuilt();
-
-app.use(express.static(webappPath, { maxAge: '1y', immutable: true }));
-
-function sendIndex(res) {
-  if (ensureWebappBuilt()) {
-    res.sendFile(path.join(webappPath, 'index.html'));
-  } else {
-    res.status(503).send('Webapp build not available');
-  }
+function sendIndex(req, res) {
+  res.type('html').send(renderPage(req.path));
   launchBotWithDelay();
 }
 
@@ -209,9 +174,6 @@ function launchBotWithDelay() {
 
 launchBotWithDelay();
 
-app.get('/', (req, res) => {
-  sendIndex(res);
-});
 app.get('/api/ping', (req, res) => {
   res.json({ message: 'pong' });
 });
@@ -650,7 +612,7 @@ app.get('/api/snake/results', async (req, res) => {
 });
 app.get('*', (req, res) => {
   if (req.path.startsWith('/api/')) return res.status(404).end();
-  sendIndex(res);
+  sendIndex(req, res);
 });
 
 // MongoDB Connection
