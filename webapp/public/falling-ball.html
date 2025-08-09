@@ -18,10 +18,12 @@
     .btn.primary{ background:linear-gradient(135deg,#7dd3fc,#60a5fa); color:#001122; border:none; box-shadow:0 6px 18px rgba(96,165,250,.35); }
     .btn:disabled{ opacity:.5; }
     .panel{ position:absolute; left:10px; bottom:10px; right:10px; background:linear-gradient(180deg, rgba(16,23,42,.9), rgba(16,23,42,.6)); border:1px solid rgba(255,255,255,.08); border-radius:16px; padding:10px; }
-    .grid{ display:grid; grid-template-columns:repeat(5,minmax(0,1fr)); gap:6px; }
+    .grid{ display:grid; grid-template-columns:repeat(var(--cols,5),minmax(0,1fr)); gap:6px; }
     .slot{ text-align:center; font-size:12px; color:#cbd5e1; padding:6px 0; border-radius:10px; border:1px dashed rgba(255,255,255,.12); display:flex; flex-direction:column; align-items:center; gap:4px; }
     .slot.me{ border-color:#7dd3fc; color:#c7f3ff; }
-    .slot img{ width:24px; height:24px; border-radius:50%; }
+    .slot img{ width:var(--avatar-size,24px); height:var(--avatar-size,24px); border-radius:50%; }
+    .coin-confetti{ position:fixed; top:-40px; width:32px; height:32px; pointer-events:none; animation:coin-fall var(--duration,3s) linear forwards; }
+    @keyframes coin-fall{ from{ transform:translateY(-10vh) rotate(0deg); opacity:1; } to{ transform:translateY(100vh) rotate(360deg); opacity:0; } }
     .status{ position:absolute; left:10px; top:62px; background:rgba(0,0,0,.35); padding:8px 10px; border-radius:12px; border:1px solid rgba(255,255,255,.08); color:var(--muted); font-size:12px; max-width:min(92vw,560px); }
     .sep{ opacity:.3; }
     .popup{ position:absolute; inset:0; background:rgba(0,0,0,.6); display:flex; align-items:center; justify-content:center; }
@@ -41,11 +43,11 @@
     <div class="status" id="statusBox">Obstacles regenerate randomly after each game. Yellow circle removed. Prism look graphics with vignette and ball shading. Density chosen in lobby & SFX On/Off.</div>
 
     <div class="panel">
-      <div style="display:flex; justify-content:space-between; align-items:center; gap:8px; margin-bottom:6px; font-size:12px; color:#cbd5e1;">
-        <div>Pot: <b id="potVal">0</b> TPC (-10% dev fee at end)</div>
+      <div style="display:flex; justify-content:flex-end; align-items:center; gap:8px; margin-bottom:6px; font-size:12px; color:#cbd5e1;">
         <div>Winner: <b id="winnerVal">—</b></div>
       </div>
       <div class="grid" id="slots"></div>
+      <div style="margin-top:6px; font-size:12px; color:#cbd5e1;">Pot: <b id="potVal">0</b> TPC (-10% dev fee at end)</div>
     </div>
 
     <canvas id="scene"></canvas>
@@ -70,6 +72,33 @@
   function ensureAudio(){ if(!audioCtx){ try{ audioCtx = new (window.AudioContext||window.webkitAudioContext)(); }catch(e){} } }
   function playTone(f=440, t=0.06, type='sine', gain=0.04){ if(!sfxOn) return; ensureAudio(); if(!audioCtx) return; const o=audioCtx.createOscillator(); const g=audioCtx.createGain(); o.type=type; o.frequency.setValueAtTime(f, audioCtx.currentTime); g.gain.value=gain; o.connect(g).connect(audioCtx.destination); o.start(); o.stop(audioCtx.currentTime+t); }
   const SFX = { bounce(){ playTone(520+Math.random()*120, 0.05, 'triangle', 0.05); }, spinner(){ playTone(740,0.08,'square',0.04); }, win(){ playTone(660,0.12,'sine',0.06); setTimeout(()=>playTone(880,0.18,'sine',0.06), 90); } };
+
+  function coinConfetti(count=50, iconSrc='/assets/icons/file_000000005f0c61f48998df883554c3e8 (2).webp'){
+    const container=document.createElement('div');
+    container.style.position='fixed';
+    container.style.top='0';
+    container.style.left='0';
+    container.style.width='100%';
+    container.style.height='0';
+    container.style.pointerEvents='none';
+    container.style.zIndex='60';
+    container.style.overflow='visible';
+    document.body.appendChild(container);
+    for(let i=0;i<count;i++){
+      const img=document.createElement('img');
+      img.src=iconSrc;
+      img.alt='confetti icon';
+      img.className='coin-confetti';
+      const left=Math.random()*100;
+      const delay=Math.random()*0.2;
+      const duration=2+Math.random()*2;
+      img.style.left=left+'vw';
+      img.style.animationDelay=delay+'s';
+      img.style.setProperty('--duration',duration+'s');
+      container.appendChild(img);
+    }
+    setTimeout(()=>container.remove(),5000);
+  }
 
   document.getElementById('sfxToggle').onclick = (e)=>{ sfxOn = !sfxOn; e.currentTarget.classList.toggle('active', sfxOn); e.currentTarget.textContent = 'SFX: ' + (sfxOn?'On':'Off'); ensureAudio(); };
 
@@ -126,8 +155,11 @@
   }
   function refreshSlots(){
     const wrap=document.getElementById('slots'); wrap.innerHTML=''; state.slots=[];
+    wrap.style.setProperty('--cols', state.players);
+    const avatarSize = state.players>5 ? Math.max(16, Math.floor((W-40)/state.players*0.6)) : 24;
+    wrap.style.setProperty('--avatar-size', avatarSize+'px');
     const players=buildPlayers();
-    players.forEach((p,i)=>{ const el=document.createElement('div'); el.className='slot'+(p.isMe?' me':''); el.innerHTML=`<div>${p.name}</div><img src="${p.avatar}" alt="avatar"/>`; wrap.appendChild(el); state.slots.push({ idx:i, name:p.name, el, left:0, right:0 }); });
+    players.forEach((p,i)=>{ const el=document.createElement('div'); el.className='slot'+(p.isMe?' me':''); el.style.fontSize=state.players>5?'10px':'12px'; el.innerHTML=`<img src="${p.avatar}" alt="avatar"/><div>${p.name}</div>`; wrap.appendChild(el); state.slots.push({ idx:i, name:p.name, el, left:0, right:0 }); });
   }
 
   state.pot = state.players * state.stake;
@@ -137,7 +169,7 @@
   function randomBetween(a,b){ return a + Math.random()*(b-a); }
   function genPegField(){
     const pegs=[]; const ballDia = state.ball.r*2; const clearance = ballDia*1.5; // ≥ 1.5× diametri
-    const usableTop = 110, usableBottom = H-180; const pad=20;
+    const usableTop = 110, usableBottom = H-190; const pad=20;
     const target = Math.round(((state.density==='Low') ? 72 : (state.density==='Med') ? 108 : 144)*1.05);
     const maxAttempts = target*25;
     let attempts=0;
@@ -174,7 +206,7 @@
     const ballDia = state.ball.r*2; const pad=20; const usableW=W-2*pad; const slotW = usableW / state.players;
     const corridorWidth = Math.max(ballDia*1.5 + 6, slotW*0.3);
     const corridors = []; for(let i=0;i<state.players;i++){ const cx = pad + slotW*(i+0.5); corridors.push({ left: cx - corridorWidth*0.5, right: cx + corridorWidth*0.5 }); }
-    const cutY = H*0.55;
+    const cutY = H*0.75;
     state.obstacles = state.obstacles.filter(o=>{ if (o.y < cutY) return true; for(const c of corridors){ if (o.x>c.left && o.x<c.right) return false; } return true; });
   }
 
@@ -219,11 +251,11 @@
     }
 
     // ground / slots
-    const groundY = H - 140;
+    const groundY = H - 160;
     if (b.y + b.r >= groundY){
       b.y = groundY - b.r; b.vy *= -state.bounce;
       if (Math.abs(b.vy) < 1.1){
-        const idx = pickSlotFromX(b.x); state.resultSlot = idx; const fee = Math.floor(state.pot*0.10); const prize = state.pot - fee; document.getElementById('winnerVal').textContent = `${state.slots[idx].name} +${prize} TPC`; setStatus(`Winner: ${state.slots[idx].name}. Payout ${prize} TPC (-${fee} dev)`); SFX.win(); showWinnerPopup(state.slots[idx].name);
+        const idx = pickSlotFromX(b.x); state.resultSlot = idx; const fee = Math.floor(state.pot*0.10); const prize = state.pot - fee; document.getElementById('winnerVal').textContent = `${state.slots[idx].name} +${prize} TPC`; setStatus(`Winner: ${state.slots[idx].name}. Payout ${prize} TPC (-${fee} dev)`); SFX.win(); coinConfetti(50); setTimeout(()=>showWinnerPopup(state.slots[idx].name),2000);
       }
     }
   }
@@ -279,7 +311,7 @@
       }
     }
   }
-  function drawSlotsGuide(){ const pad=20; const usable=W-2*pad; const w = usable / state.players; const top = H-140; const bottom=H-120; for(let i=0;i<state.players;i++){ const x1=pad+i*w; ctx.fillStyle='rgba(255,255,255,0.05)'; ctx.fillRect(x1, top, w-2, bottom-top); if (state.resultSlot===i){ ctx.strokeStyle='rgba(125,211,252,0.9)'; ctx.lineWidth=3; ctx.strokeRect(x1+1, top, w-4, bottom-top); } } }
+  function drawSlotsGuide(){ const pad=20; const usable=W-2*pad; const w = usable / state.players; const top = H-160; const bottom=H-120; for(let i=0;i<state.players;i++){ const x1=pad+i*w; ctx.fillStyle='rgba(255,255,255,0.05)'; ctx.fillRect(x1, top, w-2, bottom-top); if (state.resultSlot===i){ ctx.fillStyle='rgba(250,204,21,0.4)'; ctx.fillRect(x1, top, w-2, bottom-top); ctx.strokeStyle='rgba(250,204,21,0.9)'; ctx.lineWidth=3; ctx.strokeRect(x1+1, top, w-4, bottom-top); } const cx=x1+(w-2)/2; const cy=(top+bottom)/2; ctx.fillStyle='#000'; ctx.beginPath(); ctx.arc(cx, cy, state.ball.r*1.1,0,Math.PI*2); ctx.fill(); } }
   function drawBall(){ const b=state.ball; ctx.fillStyle='rgba(0,0,0,0.28)'; ctx.beginPath(); ctx.ellipse(b.x, b.y+b.r+6, b.r*1.2, b.r*0.5, 0,0,Math.PI*2); ctx.fill(); const grad = ctx.createRadialGradient(b.x-6,b.y-6,4, b.x,b.y,b.r+6); grad.addColorStop(0,'#5c7ad1'); grad.addColorStop(0.55,'#2a3a6a'); grad.addColorStop(1,'#0b1022'); ctx.fillStyle=grad; ctx.beginPath(); ctx.arc(b.x,b.y,b.r,0,Math.PI*2); ctx.fill(); ctx.globalAlpha=0.15; ctx.fillStyle='#cde6ff'; ctx.beginPath(); ctx.ellipse(b.x-5,b.y-8,b.r*0.7,b.r*0.35,-0.2,0,Math.PI*2); ctx.fill(); ctx.globalAlpha=1; }
 
   function frame(ts){ const dt = Math.min(33, ts - state.time); state.time=ts; step(dt/16.6667); ctx.clearRect(0,0,W,H); drawBackground(); drawPrismPanel(); drawObstacles(); drawSlotsGuide(); drawBall(); requestAnimationFrame(frame); }
