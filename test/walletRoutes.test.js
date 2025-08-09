@@ -1,7 +1,10 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import fs from 'fs';
 import { spawn } from 'child_process';
 import crypto from 'crypto';
+
+const distDir = new URL('../webapp/dist/', import.meta.url);
 
 function createInitData(id, token) {
   const params = new URLSearchParams();
@@ -51,6 +54,9 @@ async function deposit(port, token, telegramId, amount) {
 }
 
 test('withdraw route reverts balance on claim failure', { concurrency: false }, async () => {
+  fs.mkdirSync(new URL('assets', distDir), { recursive: true });
+  fs.writeFileSync(new URL('index.html', distDir), '');
+
   const env = {
     ...process.env,
     PORT: '3211',
@@ -90,6 +96,9 @@ test('withdraw route reverts balance on claim failure', { concurrency: false }, 
 });
 
 test('claim-external route reverts balance on claim failure', { concurrency: false }, async () => {
+  fs.mkdirSync(new URL('assets', distDir), { recursive: true });
+  fs.writeFileSync(new URL('index.html', distDir), '');
+
   const env = {
     ...process.env,
     PORT: '3212',
