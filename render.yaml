@@ -11,10 +11,10 @@ services:
         value: mongodb://localhost:27017/tonplaygram
 
   - type: web
-    runtime: static
+    runtime: node
     name: tonplaygram-fe
     branch: main
     rootDir: webapp
     buildCommand: npm install && npm run build
-    staticPublishPath: dist
+    startCommand: npm start
 
