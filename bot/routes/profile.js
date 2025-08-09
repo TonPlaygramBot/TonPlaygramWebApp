@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { v4 as uuidv4 } from 'uuid';
 import User from '../models/User.js';
 import { fetchTelegramInfo } from '../utils/telegram.js';
-import { ensureTransactionArray, calculateBalance } from '../utils/userUtils.js';
+import { ensureTransactionArray, calculateBalance, sanitizeUser } from '../utils/userUtils.js';
 import { normalizeAddress } from '../utils/ton.js';
 
 export function parseTwitterHandle(input) {
@@ -42,7 +42,7 @@ router.post('/register-wallet', async (req, res) => {
     { $setOnInsert: { walletAddress: normalized, referralCode: normalized } },
     { upsert: true, new: true, setDefaultsOnInsert: true }
   );
-  res.json(user);
+  res.json(sanitizeUser(user));
 });
 
 router.post('/register-google', async (req, res) => {
@@ -55,7 +55,7 @@ router.post('/register-google', async (req, res) => {
     { $setOnInsert: { googleId, referralCode: googleId } },
     { upsert: true, new: true, setDefaultsOnInsert: true }
   );
-  res.json(user);
+  res.json(sanitizeUser(user));
 });
 
 router.post('/telegram-info', async (req, res) => {
@@ -124,7 +124,7 @@ router.post('/get', async (req, res) => {
     await user.save();
   }
 
-  res.json({ ...user.toObject(), filledFromTelegram });
+  res.json({ ...sanitizeUser(user), filledFromTelegram });
 });
 
 router.post('/by-account', async (req, res) => {
@@ -152,7 +152,7 @@ router.post('/update', async (req, res) => {
     { $set: update, $setOnInsert: { referralCode: telegramId.toString() } },
     { upsert: true, new: true, setDefaultsOnInsert: true }
   );
-  res.json(user);
+  res.json(sanitizeUser(user));
 });
 
 router.post('/updateBalance', async (req, res) => {
@@ -215,7 +215,7 @@ router.post('/link-google', async (req, res) => {
     { $set: update, $setOnInsert: { referralCode: telegramId.toString() } },
     { upsert: true, new: true, setDefaultsOnInsert: true }
   );
-  res.json(user);
+  res.json(sanitizeUser(user));
 });
 
 router.post('/link-social', async (req, res) => {

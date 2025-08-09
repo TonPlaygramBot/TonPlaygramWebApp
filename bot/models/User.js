@@ -49,7 +49,6 @@ const userSchema = new mongoose.Schema({
 
   walletAddress: { type: String, unique: true, sparse: true },
   walletPublicKey: { type: String },
-  walletSecretKey: { type: String },
 
 
   accountId: { type: String, unique: true },

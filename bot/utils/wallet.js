@@ -9,7 +9,6 @@ export async function generateWalletAddress() {
   return {
     address,
     publicKey: Buffer.from(keyPair.publicKey).toString('hex'),
-    secretKey: Buffer.from(keyPair.secretKey).toString('hex'),
-    mnemonic: mnemonics.join(' ')
+    // secret key and mnemonic intentionally omitted to avoid sensitive data exposure
   };
 }
