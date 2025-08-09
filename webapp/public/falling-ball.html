@@ -1,0 +1,298 @@
+<!doctype html>
+<html lang="sq">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>TonPlaygram – Falling Ball PvP (SFX + Visuals)</title>
+  <style>
+    :root{ --bg:#0c1020; --panel:#10172a; --ink:#fff; --muted:#cbd5e1; --accent:#94a3b8; }
+    html,body{ height:100%; margin:0; }
+    body{ background:var(--bg); color:var(--ink); font-family:Inter,system-ui,Segoe UI,Roboto,Arial,sans-serif; }
+    .app{ position:fixed; inset:0; overflow:hidden; }
+    canvas{ display:block; width:100%; height:100%; }
+    .hudTop{ position:absolute; inset-inline:0; top:0; padding:10px; display:flex; flex-wrap:wrap; gap:8px; align-items:center; justify-content:space-between; font-size:12px; color:var(--muted); }
+    .row{ display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+    .chip{ padding:6px 10px; border-radius:12px; border:1px solid rgba(255,255,255,.15); color:#eee; background:transparent; cursor:pointer; }
+    .chip.active{ border-color:#7dd3fc; }
+    .btn{ appearance:none; border:1px solid rgba(255,255,255,.15); background:rgba(255,255,255,.06); color:var(--ink); padding:10px 14px; border-radius:14px; font-weight:600; font-size:14px; cursor:pointer; }
+    .btn.primary{ background:linear-gradient(135deg,#7dd3fc,#60a5fa); color:#001122; border:none; box-shadow:0 6px 18px rgba(96,165,250,.35); }
+    .btn:disabled{ opacity:.5; }
+    .panel{ position:absolute; left:10px; bottom:10px; right:10px; background:linear-gradient(180deg, rgba(16,23,42,.9), rgba(16,23,42,.6)); border:1px solid rgba(255,255,255,.08); border-radius:16px; padding:10px; }
+    .grid{ display:grid; grid-template-columns:repeat(5,minmax(0,1fr)); gap:6px; }
+    .slot{ text-align:center; font-size:12px; color:#cbd5e1; padding:6px 0; border-radius:10px; border:1px dashed rgba(255,255,255,.12); }
+    .slot.me{ border-color:#7dd3fc; color:#c7f3ff; }
+    .status{ position:absolute; left:10px; top:62px; background:rgba(0,0,0,.35); padding:8px 10px; border-radius:12px; border:1px solid rgba(255,255,255,.08); color:var(--muted); font-size:12px; max-width:min(92vw,560px); }
+    .sep{ opacity:.3; }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <div class="hudTop">
+      <div class="row" id="playerRow"><span style="opacity:.8">Lojtarë</span></div>
+      <div class="row">
+        <span>Stake: <b id="stakeVal">100</b> TPC</span>
+        <button class="btn" id="stakeMinus">-</button>
+        <button class="btn" id="stakePlus">+</button>
+        <span class="sep">|</span>
+        <span>Densiteti:</span>
+        <button class="chip" id="densLow">Low</button>
+        <button class="chip active" id="densMed">Med</button>
+        <button class="chip" id="densHigh">High</button>
+        <span class="sep">|</span>
+        <button class="chip active" id="sfxToggle">SFX: On</button>
+        <span class="sep">|</span>
+        <span>Mode:</span>
+        <button class="chip active" id="modeLocal">Local (AI)</button>
+        <button class="chip" id="modeOnline">Online</button>
+        <input id="wsUrl" class="chip" style="min-width:220px;background:rgba(255,255,255,.02);color:#ddd" value="http://localhost:4001" />
+        <button class="btn" id="connectBtn">Connect</button>
+        <button class="btn primary" id="startBtn">START</button>
+      </div>
+    </div>
+
+    <div class="status" id="statusBox">Pengesat rigjenerohen rastësisht pas çdo loje. Rrethi i verdhë është hequr. Grafikë “prism look”, vignette, hije/gloss në top. Densitet i zgjedhshëm & SFX On/Off.</div>
+
+    <div class="panel">
+      <div style="display:flex; justify-content:space-between; align-items:center; gap:8px; margin-bottom:6px; font-size:12px; color:#cbd5e1;">
+        <div>Pot: <b id="potVal">0</b> TPC (−10% dev në fund)</div>
+        <div>Fitues: <b id="winnerVal">—</b></div>
+      </div>
+      <div class="grid" id="slots"></div>
+    </div>
+
+    <canvas id="scene"></canvas>
+  </div>
+
+  <script>
+  // ========================= Canvas & Brand =========================
+  const canvas = document.getElementById('scene');
+  const ctx = canvas.getContext('2d');
+  let W=innerWidth, H=innerHeight; canvas.width=W; canvas.height=H;
+  addEventListener('resize', ()=>{ W=innerWidth; H=innerHeight; canvas.width=W; canvas.height=H; genPegField(); carveCorridors(); });
+
+  // ========================= Audio (Web Audio, no binaries) =========================
+  let audioCtx = null; let sfxOn = true;
+  function ensureAudio(){ if(!audioCtx){ try{ audioCtx = new (window.AudioContext||window.webkitAudioContext)(); }catch(e){} } }
+  function playTone(f=440, t=0.06, type='sine', gain=0.04){ if(!sfxOn) return; ensureAudio(); if(!audioCtx) return; const o=audioCtx.createOscillator(); const g=audioCtx.createGain(); o.type=type; o.frequency.setValueAtTime(f, audioCtx.currentTime); g.gain.value=gain; o.connect(g).connect(audioCtx.destination); o.start(); o.stop(audioCtx.currentTime+t); }
+  const SFX = { bounce(){ playTone(520+Math.random()*120, 0.05, 'triangle', 0.05); }, spinner(){ playTone(740,0.08,'square',0.04); }, win(){ playTone(660,0.12,'sine',0.06); setTimeout(()=>playTone(880,0.18,'sine',0.06), 90); } };
+
+  document.getElementById('sfxToggle').onclick = (e)=>{ sfxOn = !sfxOn; e.currentTarget.classList.toggle('active', sfxOn); e.currentTarget.textContent = 'SFX: ' + (sfxOn?'On':'Off'); ensureAudio(); };
+
+  // ========================= State =========================
+  const state={
+    mode:'local',
+    players:5,
+    stake:100,
+    pot:0,
+    started:false,
+    resultSlot:null,
+    slots:[],
+    obstacles:[], // {x,y,r,type,angle,spin}
+    paddles:[],
+    density:'Med', // Low|Med|High
+    sideGuides:false,
+    ball:{ x:0, y:0, vx:0, vy:0, r:14 },
+    gravity:0.38,
+    bounce:0.78,
+    fric:0.003,
+    time:0,
+    maxVy:22,
+  };
+
+  // ========================= HUD =========================
+  const playerRow=document.getElementById('playerRow');
+  for(let n=2;n<=10;n++){
+    const b=document.createElement('button'); b.className='chip'+(n===state.players?' active':''); b.textContent=String(n);
+    b.onclick=()=>{ state.players=n; [...playerRow.querySelectorAll('.chip')].forEach(x=>x.classList.remove('active')); b.classList.add('active'); refreshSlots(); refreshText(); genPegField(); carveCorridors(); };
+    playerRow.appendChild(b);
+  }
+  document.getElementById('stakeMinus').onclick=()=>{ state.stake=Math.max(10,state.stake-10); refreshText(); };
+  document.getElementById('stakePlus').onclick=()=>{ state.stake+=10; refreshText(); };
+  document.getElementById('modeLocal').onclick=()=>{ state.mode='local'; toggleModeButtons(); setStatus('Local vs AI'); };
+  document.getElementById('modeOnline').onclick=()=>{ state.mode='online'; toggleModeButtons(); setStatus('Online (placeholder)'); };
+  document.getElementById('connectBtn').onclick=()=>{ setStatus('Socket placeholder — lidhu me serverin tënd kur të jetë gati.'); };
+  document.getElementById('startBtn').onclick=startMatch;
+
+  const densLow=document.getElementById('densLow');
+  const densMed=document.getElementById('densMed');
+  const densHigh=document.getElementById('densHigh');
+  densLow.onclick=()=>setDensity('Low');
+  densMed.onclick=()=>setDensity('Med');
+  densHigh.onclick=()=>setDensity('High');
+  function setDensity(d){ state.density=d; [densLow,densMed,densHigh].forEach(el=>el.classList.remove('active')); ({Low:densLow,Med:densMed,High:densHigh})[d].classList.add('active'); genPegField(); carveCorridors(); setStatus('Densiteti: '+d); }
+
+  function toggleModeButtons(){
+    const a=document.getElementById('modeLocal'); const b=document.getElementById('modeOnline');
+    if(state.mode==='local'){ a.classList.add('active'); b.classList.remove('active'); }
+    else { b.classList.add('active'); a.classList.remove('active'); }
+  }
+  function refreshText(){ document.getElementById('stakeVal').textContent=state.stake; state.pot=state.players*state.stake; document.getElementById('potVal').textContent=state.pot; }
+  function setStatus(t){ document.getElementById('statusBox').textContent=t; }
+
+  function refreshSlots(){
+    const wrap=document.getElementById('slots'); wrap.innerHTML=''; state.slots=[];
+    const names=['Ti','Nova','Quark','Rex','Vega','Bolt','Iris','Mira','Axel','Luna'];
+    for(let i=0;i<state.players;i++){
+      const el=document.createElement('div'); el.className='slot'+(i===0?' me':''); el.textContent=names[i%names.length]; wrap.appendChild(el);
+      state.slots.push({ idx:i, name:el.textContent, el, left:0, right:0 });
+    }
+  }
+
+  // ========================= Obstacles =========================
+  function randomBetween(a,b){ return a + Math.random()*(b-a); }
+  function genPegField(){
+    const pegs=[]; const ballDia = state.ball.r*2; const clearance = ballDia*1.5; // ≥ 1.5× diametri
+    const usableTop = 110, usableBottom = H-180; const pad=20;
+    const target = (state.density==='Low') ? 60 : (state.density==='Med') ? 90 : 120;
+    const maxAttempts = target*25;
+    let attempts=0;
+    while (pegs.length<target && attempts++ < maxAttempts){
+      const r = randomBetween(10, 14);
+      const x = randomBetween(pad+r+6, W-pad-r-6);
+      const y = randomBetween(usableTop+r+6, usableBottom-r-6);
+      const cand = { x, y, r, type:'peg' };
+      let ok=true;
+      for(const p of pegs){ const minCenter = p.r + cand.r + clearance; const dx=cand.x-p.x, dy=cand.y-p.y; if (dx*dx+dy*dy < minCenter*minCenter){ ok=false; break; } }
+      if (ok) pegs.push(cand);
+    }
+    const spinnerCount = state.density==='High' ? 6 : state.density==='Med' ? 4 : 3;
+    for(let i=0;i<spinnerCount;i++){
+      const r = randomBetween(14,18);
+      const x = randomBetween(pad+r+20, W-pad-r-20);
+      const y = randomBetween(usableTop+r+40, usableBottom-r-40);
+      const cand = { x, y, r, type:'spinner', angle:0, spin: randomBetween(-0.06,0.06) };
+      let ok=true; for(const p of pegs){ const minCenter = p.r + cand.r + clearance; const dx=cand.x-p.x, dy=cand.y-p.y; if (dx*dx+dy*dy < minCenter*minCenter){ ok=false; break; } }
+      if (ok) pegs.push(cand);
+    }
+    state.obstacles = pegs; // regenerated every game
+  }
+
+  function carveCorridors(){
+    if (!state.obstacles.length) return;
+    const ballDia = state.ball.r*2; const pad=20; const usableW=W-2*pad; const slotW = usableW / state.players;
+    const corridorWidth = Math.max(ballDia*1.5 + 6, slotW*0.3);
+    const corridors = []; for(let i=0;i<state.players;i++){ const cx = pad + slotW*(i+0.5); corridors.push({ left: cx - corridorWidth*0.5, right: cx + corridorWidth*0.5 }); }
+    const cutY = H*0.55;
+    state.obstacles = state.obstacles.filter(o=>{ if (o.y < cutY) return true; for(const c of corridors){ if (o.x>c.left && o.x<c.right) return false; } return true; });
+  }
+
+  function genPaddles(){
+    state.paddles = [];
+    if (state.players===2){ const padY = H*0.78; const width= W*0.22; const gap=W*0.24; state.paddles.push({ side:'L', yTop:padY-80, yBot:H-130, width, gap }); state.paddles.push({ side:'R', yTop:padY-80, yBot:H-130, width, gap }); }
+  }
+
+  function resetBall(){ state.ball.x=W*0.5; state.ball.y=60; state.ball.vx=(Math.random()*2-1)*2; state.ball.vy=0; state.resultSlot=null; }
+
+  function startMatch(){
+    state.started=true; state.time=0; genPegField(); carveCorridors(); genPaddles(); resetBall();
+    state.sideGuides = (state.players===2);
+    state.pot=state.players*state.stake; document.getElementById('potVal').textContent=state.pot; document.getElementById('winnerVal').textContent='—';
+    setStatus('Loja nis! Pengesa rigjenerohen random.');
+  }
+
+  // ========================= Physics =========================
+  function step(dt){
+    if(!state.started || state.resultSlot!==null) return;
+    const b=state.ball;
+    b.vy = Math.min(state.maxVy, b.vy + state.gravity);
+    b.vx *= (1 - state.fric);
+    b.x += b.vx; b.y += b.vy;
+
+    // walls
+    if (b.x - b.r < 10){ b.x = 10 + b.r; b.vx = Math.abs(b.vx)*0.85; SFX.bounce(); }
+    if (b.x + b.r > W-10){ b.x = W-10 - b.r; b.vx = -Math.abs(b.vx)*0.85; SFX.bounce(); }
+    if (b.y - b.r < 10){ b.y = 10 + b.r; b.vy *= -state.bounce; SFX.bounce(); }
+
+    // pegs & spinners
+    for(const o of state.obstacles){
+      if (collideCircle(b, o, o.type==='spinner'?1.08:1)){
+        if (o.type==='spinner'){ o.angle = (o.angle || 0) + (o.spin||0); SFX.spinner(); }
+        else { SFX.bounce(); }
+      }
+    }
+
+    // side paddles (2P)
+    if (state.sideGuides){
+      const t = Math.sin(state.time*0.0016)*0.5+0.5;
+      const padYTop = H*0.78-80, padYBot=H-130;
+      const gap=W*0.24, width=W*0.22;
+      const leftX = W*0.5 - gap*0.5 - width*t;
+      const rightX= W*0.5 + gap*0.5 + width*t;
+      if (segmentCircleHit(leftX, padYTop, leftX, padYBot, b.x, b.y, b.r)){
+        b.vx = Math.abs(b.vx)*0.92 + 2.2; b.vy *= -0.72; SFX.bounce();
+      }
+      if (segmentCircleHit(rightX, padYTop, rightX, padYBot, b.x, b.y, b.r)){
+        b.vx = -Math.abs(b.vx)*0.92 - 2.2; b.vy *= -0.72; SFX.bounce();
+      }
+    }
+
+    // ground / slots
+    const groundY = H - 140;
+    if (b.y + b.r >= groundY){
+      b.y = groundY - b.r; b.vy *= -state.bounce;
+      if (Math.abs(b.vy) < 1.1){
+        const idx = pickSlotFromX(b.x); state.resultSlot = idx; const fee = Math.floor(state.pot*0.10); const prize = state.pot - fee; document.getElementById('winnerVal').textContent = `${state.slots[idx].name} +${prize} TPC`; setStatus(`Fitues: ${state.slots[idx].name}. Payout ${prize} TPC (−${fee} dev)`); SFX.win();
+      }
+    }
+  }
+
+  function collideCircle(b, o, mult=1){
+    const dx=b.x-o.x, dy=b.y-o.y, rr=b.r+(o.r||14);
+    if (dx*dx+dy*dy < rr*rr){
+      const len=Math.max(0.0001, Math.hypot(dx,dy)); const nx=dx/len, ny=dy/len;
+      const overlap = rr - len + 0.2; b.x += nx*overlap; b.y += ny*overlap;
+      const vn = b.vx*nx + b.vy*ny; b.vx -= (1+state.bounce*mult)*vn*nx; b.vy -= (1+state.bounce*mult)*vn*ny;
+      // very light jitter to avoid sticking (doesn’t close gaps)
+      b.vx += (Math.random()*0.3-0.15); b.vy -= (Math.random()*0.2);
+      return true;
+    }
+    return false;
+  }
+
+  function segmentCircleHit(x1,y1,x2,y2, cx,cy, r){ const dx=x2-x1, dy=y2-y1; const fx=cx-x1, fy=cy-y1; const t = Math.max(0, Math.min(1, (fx*dx+fy*dy)/(dx*dx+dy*dy||1))); const px=x1+dx*t, py=y1+dy*t; const dd=(cx-px)**2+(cy-py)**2; return dd <= r*r; }
+  function pickSlotFromX(x){ const pad=20; const usable=W-2*pad; const w = usable / state.players; const i=Math.max(0, Math.min(state.players-1, Math.floor((x-pad)/w))); return i; }
+
+  // ========================= Render =========================
+  function drawBackground(){
+    // deep radial vignette
+    const g = ctx.createRadialGradient(W*0.5, H*0.4, Math.min(W,H)*0.15, W*0.5, H*0.5, Math.max(W,H)*0.75);
+    g.addColorStop(0,'#0e1326'); g.addColorStop(1,'#070a14');
+    ctx.fillStyle=g; ctx.fillRect(0,0,W,H);
+  }
+  function drawPrismPanel(){
+    // prism-like elliptical panel (NO gold ring)
+    const cx=W*0.5, cy=H*0.45, rx=Math.min(W*0.5, 560), ry=Math.min(H*0.32, 300);
+    const g = ctx.createLinearGradient(0, cy-ry, 0, cy+ry);
+    g.addColorStop(0,'#0f162c'); g.addColorStop(0.5,'#0a1226'); g.addColorStop(1,'#091021');
+    ctx.fillStyle=g; ctx.beginPath(); ctx.ellipse(cx,cy,rx,ry,0,0,Math.PI*2); ctx.fill();
+    // inner sheen
+    ctx.globalAlpha=0.08; ctx.fillStyle='#9ecbff'; ctx.beginPath(); ctx.ellipse(cx-40, cy-ry*0.6, rx*0.6, ry*0.25, -0.2, 0, Math.PI*2); ctx.fill(); ctx.globalAlpha=1;
+  }
+  function drawObstacles(){
+    for(const o of state.obstacles){
+      const grad = ctx.createRadialGradient(o.x-6,o.y-8,4, o.x,o.y,(o.r||14)+12);
+      grad.addColorStop(0,'#223259'); grad.addColorStop(0.6,'#142246'); grad.addColorStop(1,'#0a1022');
+      ctx.fillStyle=grad; ctx.beginPath(); ctx.arc(o.x,o.y,o.r||14,0,Math.PI*2); ctx.fill();
+      ctx.strokeStyle='rgba(255,255,255,0.06)'; ctx.stroke();
+      if (o.type==='spinner'){
+        const ang=o.angle||0; const r=(o.r||16)+4; ctx.strokeStyle='rgba(148,163,184,0.35)'; ctx.beginPath(); ctx.moveTo(o.x, o.y); ctx.lineTo(o.x+Math.cos(ang)*r, o.y+Math.sin(ang)*r); ctx.stroke();
+      }
+    }
+  }
+  function drawSideGuides(){ if (!state.sideGuides) return; const t = Math.sin(state.time*0.0016)*0.5+0.5; const padYTop = H*0.78-80, padYBot=H-130; const gap=W*0.24, width=W*0.22; const leftX = W*0.5 - gap*0.5 - width*t; const rightX= W*0.5 + gap*0.5 + width*t; ctx.strokeStyle='rgba(148,163,184,0.35)'; ctx.lineWidth=6; ctx.beginPath(); ctx.moveTo(leftX,padYTop); ctx.lineTo(leftX,padYBot); ctx.stroke(); ctx.beginPath(); ctx.moveTo(rightX,padYTop); ctx.lineTo(rightX,padYBot); ctx.stroke(); }
+  function drawSlotsGuide(){ const pad=20; const usable=W-2*pad; const w = usable / state.players; const top = H-140; const bottom=H-120; for(let i=0;i<state.players;i++){ const x1=pad+i*w; ctx.fillStyle='rgba(255,255,255,0.05)'; ctx.fillRect(x1, top, w-2, bottom-top); if (state.resultSlot===i){ ctx.strokeStyle='rgba(125,211,252,0.9)'; ctx.lineWidth=3; ctx.strokeRect(x1+1, top, w-4, bottom-top); } } }
+  function drawBall(){ const b=state.ball; ctx.fillStyle='rgba(0,0,0,0.28)'; ctx.beginPath(); ctx.ellipse(b.x, b.y+b.r+6, b.r*1.2, b.r*0.5, 0,0,Math.PI*2); ctx.fill(); const grad = ctx.createRadialGradient(b.x-6,b.y-6,4, b.x,b.y,b.r+6); grad.addColorStop(0,'#5c7ad1'); grad.addColorStop(0.55,'#2a3a6a'); grad.addColorStop(1,'#0b1022'); ctx.fillStyle=grad; ctx.beginPath(); ctx.arc(b.x,b.y,b.r,0,Math.PI*2); ctx.fill(); ctx.globalAlpha=0.15; ctx.fillStyle='#cde6ff'; ctx.beginPath(); ctx.ellipse(b.x-5,b.y-8,b.r*0.7,b.r*0.35,-0.2,0,Math.PI*2); ctx.fill(); ctx.globalAlpha=1; }
+
+  function frame(ts){ const dt = Math.min(33, ts - state.time); state.time=ts; step(dt/16.6667); ctx.clearRect(0,0,W,H); drawBackground(); drawPrismPanel(); drawObstacles(); drawSideGuides(); drawSlotsGuide(); drawBall(); requestAnimationFrame(frame); }
+  requestAnimationFrame(frame);
+
+  // ========================= Init =========================
+  function resetBall(){ state.ball.x=W*0.5; state.ball.y=60; state.ball.vx=(Math.random()*2-1)*2; state.ball.vy=0; state.resultSlot=null; }
+  function init(){ refreshSlots(); refreshText(); genPegField(); carveCorridors(); genPaddles(); resetBall(); }
+  init();
+
+  // ========== Smoke Tests ==========
+  try{ console.assert(state.players>=2 && state.players<=10, 'players between 2 and 10'); const count = state.obstacles.length; console.assert(count>30, 'obstacles generated'); console.log('%cSFX+Visuals ready','color:#22c55e'); }catch(e){ console.warn('Smoke tests failed', e); }
+  </script>
+</body>
+</html>

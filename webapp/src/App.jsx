@@ -23,6 +23,7 @@ import CrazyDiceLobby from './pages/Games/CrazyDiceLobby.jsx';
 import Lobby from './pages/Games/Lobby.jsx';
 import Games from './pages/Games.jsx';
 import SpinPage from './pages/spin.tsx';
+import FallingBall from './pages/Games/FallingBall.jsx';
 
 import Layout from './components/Layout.jsx';
 import useTelegramAuth from './hooks/useTelegramAuth.js';
@@ -49,6 +50,7 @@ export default function App() {
             <Route path="/games/snake" element={<SnakeAndLadder />} />
             <Route path="/games/snake/mp" element={<SnakeMultiplayer />} />
             <Route path="/games/snake/results" element={<SnakeResults />} />
+            <Route path="/games/fallingball" element={<FallingBall />} />
             <Route path="/spin" element={<SpinPage />} />
             <Route path="/admin/influencer" element={<InfluencerAdmin />} />
             <Route path="/tasks" element={<Tasks />} />
