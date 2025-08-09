@@ -30,16 +30,6 @@ export default function Games() {
                 Open
               </Link>
             </div>
-            <div className="flex flex-col items-center space-y-1">
-              <img src="/assets/icons/throwing_hand_down.webp" alt="" className="h-24 w-24" />
-              <h3 className="text-lg font-bold">Falling Ball</h3>
-              <Link
-                to="/games/fallingball/lobby"
-                className="inline-block px-3 py-1 bg-primary rounded hover:bg-primary-hover text-white-shadow"
-              >
-                Open
-              </Link>
-            </div>
           </div>
         </div>
         <LeaderboardCard />
