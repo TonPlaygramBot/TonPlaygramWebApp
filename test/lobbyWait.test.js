@@ -1,11 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import fs from 'fs';
 import { spawn } from 'child_process';
 import { setTimeout as delay } from 'timers/promises';
 import { io } from 'socket.io-client';
-
-const distDir = new URL('../webapp/dist/', import.meta.url);
 
 async function startServer(env) {
   const server = spawn('node', ['bot/server.js'], { env, stdio: 'pipe' });
@@ -24,8 +21,6 @@ async function startServer(env) {
 }
 
 test('joinRoom waits until table full', { concurrency: false, timeout: 20000 }, async () => {
-  fs.mkdirSync(new URL('assets', distDir), { recursive: true });
-  fs.writeFileSync(new URL('index.html', distDir), '');
   const env = {
     ...process.env,
     PORT: '3203',
