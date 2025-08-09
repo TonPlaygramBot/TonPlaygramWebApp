@@ -5,7 +5,6 @@
   "type": "module",
   "main": "bot/server.js",
   "scripts": {
-    "prestart": "npm run build",
     "start": "node bot/server.js",
     "install-all": "npm install && npm install --prefix bot && npm install --prefix webapp",
     "build": "npm --prefix webapp run build",
