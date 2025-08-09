@@ -27,6 +27,13 @@ export default function HomeGamesCard() {
             className="w-24 h-24"
           />
         </Link>
+        <Link to="/games/fallingball/lobby" className="flex-shrink-0">
+          <img
+            src="/assets/icons/throwing_hand_down.webp"
+            alt="Falling Ball"
+            className="w-24 h-24"
+          />
+        </Link>
       </div>
       <Link
         to="/games"
