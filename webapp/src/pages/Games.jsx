@@ -34,7 +34,7 @@ export default function Games() {
                 <img src="/assets/icons/falling_ball.svg" alt="" className="h-24 w-24" />
                 <h3 className="text-lg font-bold">Falling Ball</h3>
                 <Link
-                  to="/games/fallingball"
+                  to="/games/fallingball/lobby"
                   className="inline-block px-3 py-1 bg-primary rounded hover:bg-primary-hover text-white-shadow"
                 >
                   Open

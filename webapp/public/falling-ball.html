@@ -99,6 +99,16 @@
     maxVy:22,
   };
 
+  const params = new URLSearchParams(location.search);
+  const p = Number(params.get('players'));
+  if (p >= 2 && p <= 10) state.players = p;
+  const dens = params.get('density');
+  if (dens) state.density = dens.charAt(0).toUpperCase() + dens.slice(1).toLowerCase();
+  const m = params.get('mode');
+  if (m === 'local' || m === 'online') state.mode = m;
+  const amt = Number(params.get('amount'));
+  if (amt > 0) state.stake = amt;
+
   // ========================= HUD =========================
   const playerRow=document.getElementById('playerRow');
   for(let n=2;n<=10;n++){
@@ -288,7 +298,14 @@
 
   // ========================= Init =========================
   function resetBall(){ state.ball.x=W*0.5; state.ball.y=60; state.ball.vx=(Math.random()*2-1)*2; state.ball.vy=0; state.resultSlot=null; }
-  function init(){ refreshSlots(); refreshText(); genPegField(); carveCorridors(); genPaddles(); resetBall(); }
+  function init(){
+    toggleModeButtons();
+    refreshSlots();
+    refreshText();
+    setDensity(state.density);
+    genPaddles();
+    resetBall();
+  }
   init();
 
   // ========== Smoke Tests ==========
