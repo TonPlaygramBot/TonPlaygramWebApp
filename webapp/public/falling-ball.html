@@ -40,7 +40,7 @@
       </div>
     </div>
 
-    <div class="status" id="statusBox">Obstacles regenerate randomly after each game. Yellow circle removed. Prism look graphics with vignette and ball shading. Density chosen in lobby & SFX On/Off.</div>
+    <div class="status" id="statusBox">Obstacles regenerate randomly after each game. Density fixed to high. SFX On/Off.</div>
 
     <div class="panel">
       <div style="display:flex; justify-content:flex-end; align-items:center; gap:8px; margin-bottom:6px; font-size:12px; color:#cbd5e1;">
@@ -117,7 +117,7 @@
     resultSlot:null,
     slots:[],
     obstacles:[], // {x,y,r,type,angle,spin}
-    density:'Med', // Low|Med|High
+    density:'High', // Low|Med|High
     ball:{ x:0, y:0, vx:0, vy:0, r:14 },
     gravity:0.38,
     bounce:0.78,
@@ -129,8 +129,6 @@
   const params = new URLSearchParams(location.search);
   const p = Number(params.get('players'));
   if (p >= 2 && p <= 10) state.players = p;
-  const dens = params.get('density');
-  if (dens) state.density = dens.charAt(0).toUpperCase() + dens.slice(1).toLowerCase();
   const m = params.get('mode');
   if (m === 'local' || m === 'online') state.mode = m;
   const amt = Number(params.get('amount'));
@@ -262,15 +260,6 @@
       ctx.drawImage(bgImg, 0, 0, W, H);
     }
   }
-  function drawPrismPanel(){
-    // prism-like elliptical panel (NO gold ring)
-    const cx=W*0.5, cy=H*0.45, rx=Math.min(W*0.5, 560), ry=Math.min(H*0.32, 300);
-    const g = ctx.createLinearGradient(0, cy-ry, 0, cy+ry);
-    g.addColorStop(0,'#a7f3d0'); g.addColorStop(0.5,'#86efac'); g.addColorStop(1,'#6ee7b7');
-    ctx.fillStyle=g; ctx.beginPath(); ctx.ellipse(cx,cy,rx,ry,0,0,Math.PI*2); ctx.fill();
-    // inner sheen
-    ctx.globalAlpha=0.08; ctx.fillStyle='#bbf7d0'; ctx.beginPath(); ctx.ellipse(cx-40, cy-ry*0.6, rx*0.6, ry*0.25, -0.2, 0, Math.PI*2); ctx.fill(); ctx.globalAlpha=1;
-  }
   function drawObstacles(){
     for(const o of state.obstacles){
       const grad = ctx.createRadialGradient(o.x-2,o.y-2,2, o.x,o.y,(o.r||14));
@@ -285,7 +274,7 @@
   function drawSlotsGuide(){ const pad=20; const usable=W-2*pad; const w = usable / state.players; const top = H-160; const bottom=H-120; for(let i=0;i<state.players;i++){ const x1=pad+i*w; ctx.fillStyle='rgba(255,255,255,0.05)'; ctx.fillRect(x1, top, w-2, bottom-top); if (state.resultSlot===i){ ctx.fillStyle='rgba(250,204,21,0.4)'; ctx.fillRect(x1, top, w-2, bottom-top); ctx.strokeStyle='rgba(250,204,21,0.9)'; ctx.lineWidth=3; ctx.strokeRect(x1+1, top, w-4, bottom-top); } } }
   function drawBall(){ const b=state.ball; ctx.fillStyle='rgba(0,0,0,0.28)'; ctx.beginPath(); ctx.ellipse(b.x, b.y+b.r+6, b.r*1.2, b.r*0.5, 0,0,Math.PI*2); ctx.fill(); const grad = ctx.createRadialGradient(b.x-6,b.y-6,4, b.x,b.y,b.r+6); grad.addColorStop(0,'#ff9999'); grad.addColorStop(0.55,'#ff0000'); grad.addColorStop(1,'#990000'); ctx.fillStyle=grad; ctx.beginPath(); ctx.arc(b.x,b.y,b.r,0,Math.PI*2); ctx.fill(); ctx.globalAlpha=0.15; ctx.fillStyle='#ffe5e5'; ctx.beginPath(); ctx.ellipse(b.x-5,b.y-8,b.r*0.7,b.r*0.35,-0.2,0,Math.PI*2); ctx.fill(); ctx.globalAlpha=1; }
 
-  function frame(ts){ const dt = Math.min(33, ts - state.time); state.time=ts; step(dt/16.6667); ctx.clearRect(0,0,W,H); drawBackground(); drawPrismPanel(); drawObstacles(); drawSlotsGuide(); drawBall(); requestAnimationFrame(frame); }
+  function frame(ts){ const dt = Math.min(33, ts - state.time); state.time=ts; step(dt/16.6667); ctx.clearRect(0,0,W,H); drawBackground(); drawObstacles(); drawSlotsGuide(); drawBall(); requestAnimationFrame(frame); }
   requestAnimationFrame(frame);
 
   // ========================= Init =========================
