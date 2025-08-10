@@ -32,6 +32,12 @@
     @media (orientation:landscape){
       .landscape-block{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:#0008;z-index:20;color:#fff;text-align:center;padding:24px}
     }
+    .coin-confetti{position:fixed;top:-40px;width:32px;height:32px;pointer-events:none;animation:coin-fall var(--duration,3s) linear forwards;}
+    @keyframes coin-fall{from{transform:translateY(-10vh) rotate(0deg);opacity:1;}to{transform:translateY(100vh) rotate(360deg);opacity:0;}}
+    .popup{position:fixed;inset:0;background:rgba(0,0,0,.7);display:flex;align-items:center;justify-content:center;z-index:50;}
+    .popup.hidden{display:none;}
+    .popup .box{background:linear-gradient(#081428,#102040);background-color:#0b1a2f;border:1px solid #00f7ff;box-shadow:0 0 8px #00f7ff,inset 0 0 10px rgba(0,247,255,.4);padding:20px;border-radius:12px;text-align:center;color:#00f7ff;}
+    .btn{appearance:none;border:none;background:#00f7ff;color:#fff;padding:10px 14px;border-radius:14px;font-weight:600;cursor:pointer;}
   </style>
 </head>
 <body>
@@ -49,6 +55,12 @@
   </div>
   <div class="hint" id="startHint">Portrait • <b>P1</b>: touch/drag in the <b>bottom</b> half. <b>P2</b>: touch/drag in the <b>top</b> half (or AI). Paddle speed follows finger speed. Sounds for hit, wall and goal ⚡️</div>
   <div class="landscape-block" style="display:none">Please hold your phone in <b>portrait</b> for the best experience.</div>
+  <div id="winnerPopup" class="popup hidden">
+    <div class="box">
+      <div id="winnerText" style="margin-bottom:10px;"></div>
+      <button id="lobbyBtn" class="btn">Return Lobby</button>
+    </div>
+  </div>
 
 <script>
 (() => {
@@ -58,6 +70,10 @@
   const s2El = document.getElementById('s2');
   const startHint = document.getElementById('startHint');
   const landscapeBlock = document.querySelector('.landscape-block');
+  const winnerPopup = document.getElementById('winnerPopup');
+  const winnerText = document.getElementById('winnerText');
+  const lobbyBtn = document.getElementById('lobbyBtn');
+  lobbyBtn.addEventListener('click', () => { location.href = '/games/airhockey/lobby'; });
 
   const params = new URLSearchParams(location.search);
   const stake = Number(params.get('amount')) || 0;
@@ -65,11 +81,49 @@
   const mode = params.get('mode') || 'ai';
   const difficulty = params.get('difficulty') || 'normal';
   const target = Number(params.get('target')) || 3;
+  const avatarUrl = params.get('avatar');
+  const devAccount = params.get('devAcc');
+  let avatarImg;
+  if (avatarUrl){ avatarImg = new Image(); avatarImg.crossOrigin='anonymous'; avatarImg.src = avatarUrl; }
 
   async function awardTpc(telegramId, amount){
     try{
       await fetch('/api/profile/addTransaction',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({telegramId,amount,type:'win',game:'airhockey'})});
     }catch(err){ console.warn('Failed to award TPC',err); }
+  }
+
+  function coinConfetti(count=50, iconSrc='/assets/icons/file_000000005f0c61f48998df883554c3e8 (2).webp'){
+    const container=document.createElement('div');
+    container.style.position='fixed';
+    container.style.top='0';
+    container.style.left='0';
+    container.style.width='100%';
+    container.style.height='0';
+    container.style.pointerEvents='none';
+    container.style.zIndex='60';
+    container.style.overflow='visible';
+    document.body.appendChild(container);
+    for(let i=0;i<count;i++){
+      const img=document.createElement('img');
+      img.src=iconSrc;
+      img.alt='confetti icon';
+      img.className='coin-confetti';
+      const left=Math.random()*100;
+      const delay=Math.random()*0.2;
+      const duration=2+Math.random()*2;
+      img.style.left=left+'vw';
+      img.style.animationDelay=delay+'s';
+      img.style.setProperty('--duration',duration+'s');
+      container.appendChild(img);
+    }
+    setTimeout(()=>container.remove(),5000);
+  }
+
+  async function depositDev(amount){
+    if(!devAccount || amount<=0) return;
+    try{
+      await fetch('/api/account/deposit',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({accountId:devAccount,amount,game:'airhockey-dev'})});
+    }catch(err){ console.warn('Failed to deposit dev share',err); }
   }
 
   let W = 720, H = 1280;
@@ -79,13 +133,14 @@
     canvas.style.width = window.innerWidth + 'px';
     canvas.style.height = window.innerHeight + 'px';
     rink.x = Math.round(W*0.06); rink.w = Math.round(W*0.88);
-    rink.y = Math.round(H*0.04); rink.h = Math.round(H*0.92);
+    rink.y = goalDepth; rink.h = H - goalDepth*2;
     centerX = W/2; centerY = H/2;
     goalWidth = Math.round(W*0.42);
     const base = Math.max(24, Math.round(Math.min(W,H)*0.035));
     paddleRadius = base*2;
     puck.r = Math.max(14, Math.round(base*0.6));
-    p1.r = paddleRadius; p2.r = paddleRadius;
+    p1.r = Math.round(paddleRadius*1.2);
+    p2.r = paddleRadius;
   }
   window.addEventListener('resize', fit);
 
@@ -167,10 +222,20 @@
     ctx.fillRect(centerX - goalWidth/2, rink.y-1, goalWidth, goalDepth);
     ctx.fillRect(centerX - goalWidth/2, rink.y + rink.h - goalDepth + 1, goalWidth, goalDepth);
   }
-  function drawPaddle(p, color){
-    const g = ctx.createRadialGradient(p.x-6, p.y-6, 6, p.x, p.y, p.r);
-    g.addColorStop(0, '#fff'); g.addColorStop(0.2, color); g.addColorStop(1, '#0d0f14');
-    ctx.fillStyle = g; ctx.beginPath(); ctx.arc(p.x,p.y,p.r,0,Math.PI*2); ctx.fill();
+  function drawPaddle(p, color, avatar){
+    if(avatar && avatar.complete){
+      ctx.save();
+      ctx.beginPath(); ctx.arc(p.x,p.y,p.r,0,Math.PI*2); ctx.clip();
+      ctx.drawImage(avatar, p.x-p.r, p.y-p.r, p.r*2, p.r*2);
+      ctx.restore();
+      ctx.lineWidth = Math.max(2, p.r*0.1);
+      ctx.strokeStyle = color;
+      ctx.beginPath(); ctx.arc(p.x,p.y,p.r,0,Math.PI*2); ctx.stroke();
+    } else {
+      const g = ctx.createRadialGradient(p.x-6, p.y-6, 6, p.x, p.y, p.r);
+      g.addColorStop(0, '#fff'); g.addColorStop(0.2, color); g.addColorStop(1, '#0d0f14');
+      ctx.fillStyle = g; ctx.beginPath(); ctx.arc(p.x,p.y,p.r,0,Math.PI*2); ctx.fill();
+    }
   }
   function drawPuck(){
     ctx.fillStyle = getCSS('--puck');
@@ -304,7 +369,7 @@
     ctx.clearRect(0,0,W,H);
     drawRink();
     drawPaddle(p2, getCSS('--p2'));
-    drawPaddle(p1, getCSS('--p1'));
+    drawPaddle(p1, getCSS('--p1'), avatarImg);
     drawPuck();
   }
 
@@ -324,9 +389,20 @@
       if (stake>0 && myTgId){
         const pot = stake*2; const fee = Math.floor(pot*0.10); const prize = pot - fee;
         awardTpc(myTgId, prize);
+        depositDev(fee);
       }
+      coinConfetti();
+      setTimeout(()=>showWinnerPopup('P1 Wins!'),2000);
     }
-    if (score.p2>=score.target){ running=false; toast('🎉 P2 wins!'); }
+    if (score.p2>=score.target){
+      running=false; toast('🎉 P2 wins!');
+      coinConfetti();
+      setTimeout(()=>showWinnerPopup('P2 Wins!'),2000);
+    }
+  }
+  function showWinnerPopup(msg){
+    winnerText.textContent = msg;
+    winnerPopup.classList.remove('hidden');
   }
   function toast(msg){
     const old = startHint.textContent;

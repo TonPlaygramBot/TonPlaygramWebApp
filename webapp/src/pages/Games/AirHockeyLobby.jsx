@@ -5,6 +5,7 @@ import useTelegramBackButton from '../../hooks/useTelegramBackButton.js';
 import { ensureAccountId, getTelegramId, getTelegramPhotoUrl } from '../../utils/telegram.js';
 import { getAccountBalance, addTransaction } from '../../utils/api.js';
 import { loadAvatar } from '../../utils/avatarUtils.js';
+import { DEV_INFO } from '../../utils/constants.js';
 
 export default function AirHockeyLobby() {
   const navigate = useNavigate();
@@ -44,6 +45,7 @@ export default function AirHockeyLobby() {
     if (stake.amount) params.set('amount', stake.amount);
     if (avatar) params.set('avatar', avatar);
     if (tgId) params.set('tgId', tgId);
+    if (DEV_INFO?.account) params.set('devAcc', DEV_INFO.account);
     navigate(`/games/airhockey?${params.toString()}`);
   };
 
