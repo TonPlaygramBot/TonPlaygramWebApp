@@ -150,12 +150,12 @@
     slots:[],
     obstacles:[], // {x,y,r,type,angle,spin}
     density:'High', // Low|Med|High
-    ball:{ x:0, y:0, vx:0, vy:0, r:14 },
-    gravity:0.65,
+    ball:{ x:0, y:0, vx:0, vy:0, r:12 },
+    gravity:0.58,
     bounce:0.78,
     fric:0.003,
     time:0,
-    maxVy:25,
+    maxVy:22,
   };
   const DEFAULT_AVATAR='/assets/icons/9f14924f-e70c-4728-a9e5-ca25ef4138c8.png';
 
@@ -210,7 +210,7 @@
   function genPegField(){
     const pegs=[]; const ballDia = state.ball.r*2; const clearance = ballDia*1.5; // ensure gaps exceed ball diameter
     const usableTop = 110, usableBottom = H-190; const pad=30;
-    const target = Math.round(((state.density==='Low') ? 120 : (state.density==='Med') ? 180 : 240)*1.05);
+    const target = Math.round(((state.density==='Low') ? 120 : (state.density==='Med') ? 180 : 240)*1.15);
     const maxAttempts = target*25;
     let attempts=0;
     while (pegs.length<target && attempts++ < maxAttempts){
@@ -222,7 +222,7 @@
       for(const p of pegs){ const minCenter = p.r + cand.r + clearance; const dx=cand.x-p.x, dy=cand.y-p.y; if (dx*dx+dy*dy < minCenter*minCenter){ ok=false; break; } }
       if (ok) pegs.push(cand);
     }
-    const extra = Math.round(target*0.1); let tries=0;
+    const extra = Math.round(target*0.15); let tries=0;
     while(pegs.length < target+extra && tries++ < extra*25){
       const r = randomBetween(6,8);
       const x = randomBetween(pad+r+6, W-pad-r-6);
@@ -245,8 +245,9 @@
   }
 
   function addStars(){
-    const count = Math.min(4, state.obstacles.length);
-    const spins = [0.05, -0.05, 0.04, -0.04];
+    const maxStars = Math.floor(Math.random()*3) + 4; // 4-6 stars
+    const count = Math.min(maxStars, state.obstacles.length);
+    const spins = [0.05, -0.05, 0.04, -0.04, 0.06, -0.06];
     const indices = [...Array(state.obstacles.length).keys()];
     for(let i=0;i<count;i++){
       const idx = indices.splice(Math.floor(Math.random()*indices.length),1)[0];
@@ -255,7 +256,7 @@
     }
   }
 
-  function resetBall(){ state.ball.x=W*0.5; state.ball.y=60; state.ball.vx=(Math.random()*2-1)*2; state.ball.vy=0; state.resultSlot=null; }
+  function resetBall(){ state.ball.x=W*0.5; state.ball.y=60; state.ball.vx=(Math.random()*2-1)*1.8; state.ball.vy=0; state.resultSlot=null; }
 
   function startMatch(){
     refreshSlots();
