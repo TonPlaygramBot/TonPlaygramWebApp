@@ -82,6 +82,8 @@
   const stake = Number(params.get('amount')) || 0;
   const myAccountId = params.get('accountId');
   const devAccount = params.get('dev');
+  const devAccount1 = params.get('dev1');
+  const devAccount2 = params.get('dev2');
   const tgId = params.get('tgId');
   const mode = params.get('mode') || 'ai';
   const difficulty = params.get('difficulty') || 'normal';
@@ -113,11 +115,16 @@
       await fetch('/api/account/deposit',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({accountId,amount,game:'airhockey'})});
     }catch(err){ console.warn('Failed to award TPC',err); }
   }
-  async function awardDev(amount){
-    if(!devAccount) return;
-    try{
-      await fetch('/api/account/deposit',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({accountId:devAccount,amount,game:'airhockey-dev'})});
-    }catch{}
+  async function awardDevShare(total){
+    const headers={'Content-Type':'application/json'}; const ops=[];
+    if(devAccount1||devAccount2){
+      if(devAccount) ops.push(fetch('/api/account/deposit',{method:'POST',headers,body:JSON.stringify({accountId:devAccount,amount:Math.round(total*0.09),game:'airhockey-dev'})}));
+      if(devAccount1) ops.push(fetch('/api/account/deposit',{method:'POST',headers,body:JSON.stringify({accountId:devAccount1,amount:Math.round(total*0.01),game:'airhockey-dev1'})}));
+      if(devAccount2) ops.push(fetch('/api/account/deposit',{method:'POST',headers,body:JSON.stringify({accountId:devAccount2,amount:Math.round(total*0.02),game:'airhockey-dev2'})}));
+    }else if(devAccount){
+      ops.push(fetch('/api/account/deposit',{method:'POST',headers,body:JSON.stringify({accountId:devAccount,amount:Math.round(total*0.1),game:'airhockey-dev'})}));
+    }
+    if(ops.length){ try{ await Promise.all(ops); }catch{} }
   }
 
   function coinConfetti(count=50,iconSrc='/assets/icons/file_000000005f0c61f48998df883554c3e8 (2).webp'){
@@ -478,19 +485,17 @@
   function checkWin(){
     if (score.p1>=score.target){
       running=false;
+      const pot = stake*2;
       if (stake>0 && myAccountId){
-        const pot = stake*2; const fee = Math.floor(pot*0.10); const prize = pot - fee;
+        const prize = Math.round(pot*0.91);
         awardTpc(myAccountId, prize);
-        awardDev(fee);
       }
+      if(stake>0) awardDevShare(pot);
       celebrate('P1', p1AvatarImg, p1AvatarEmoji);
     }
     if (score.p2>=score.target){
       running=false;
-      if(stake>0){
-        const pot = stake*2;
-        awardDev(pot);
-      }
+      if(stake>0) awardDevShare(stake*2);
       celebrate('P2', p2AvatarImg, p2AvatarEmoji);
     }
   }
