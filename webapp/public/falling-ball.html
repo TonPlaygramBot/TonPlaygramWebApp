@@ -161,7 +161,14 @@
   if (m === 'local' || m === 'online') state.mode = m;
   const amt = Number(params.get('amount'));
   if (amt > 0) state.stake = amt;
-  const myAccountId = params.get('accountId');
+  let myAccountId = params.get('accountId');
+  if (!myAccountId) {
+    try { myAccountId = localStorage.getItem('accountId'); } catch {}
+  }
+  if (!myAccountId) {
+    myAccountId = crypto.randomUUID();
+    try { localStorage.setItem('accountId', myAccountId); } catch {}
+  }
   const devAccountId = params.get('dev');
   const devAccountId1 = params.get('dev1');
   const devAccountId2 = params.get('dev2');

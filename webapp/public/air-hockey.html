@@ -66,6 +66,7 @@
   <div class="hint" id="startHint"></div>
   <div class="landscape-block" style="display:none">Please hold your phone in <b>portrait</b> for the best experience.</div>
 
+<script src="/falling-ball-api.js"></script>
 <script>
 (() => {
   const canvas = document.getElementById('game');
@@ -80,7 +81,14 @@
 
   const params = new URLSearchParams(location.search);
   const stake = Number(params.get('amount')) || 0;
-  const myAccountId = params.get('accountId');
+  let myAccountId = params.get('accountId');
+  if (!myAccountId) {
+    try { myAccountId = localStorage.getItem('accountId'); } catch {}
+  }
+  if (!myAccountId) {
+    myAccountId = crypto.randomUUID();
+    try { localStorage.setItem('accountId', myAccountId); } catch {}
+  }
   const devAccount = params.get('dev');
   const devAccount1 = params.get('dev1');
   const devAccount2 = params.get('dev2');
@@ -114,31 +122,23 @@
 
   async function awardTpc(accountId, amount){
     try{
-      await fetch('/api/account/deposit',{
-        method:'POST',
-        headers:{'Content-Type':'application/json'},
-        body:JSON.stringify({accountId,amount,game:'airhockey-win'})
-      });
+      await fbApi.depositAccount(accountId, amount, { game: 'airhockey-win' });
     }catch(err){ console.warn('Failed to award TPC',err); }
   }
   async function recordWin(tgId, accountId){
     if(!tgId) return;
     try{
-      await fetch('/api/profile/addTransaction',{
-        method:'POST',
-        headers:{'Content-Type':'application/json'},
-        body:JSON.stringify({telegramId:tgId,amount:0,type:'win',game:'airhockey',players:2,accountId})
-      });
+      await fbApi.addTransaction(tgId, 0, 'win', { game:'airhockey', players:2, accountId });
     }catch{}
   }
   async function awardDevShare(total){
-    const headers={'Content-Type':'application/json'}; const ops=[];
+    const ops=[];
     if(devAccount1||devAccount2){
-      if(devAccount) ops.push(fetch('/api/account/deposit',{method:'POST',headers,body:JSON.stringify({accountId:devAccount,amount:Math.round(total*0.09),game:'airhockey-dev'})}));
-      if(devAccount1) ops.push(fetch('/api/account/deposit',{method:'POST',headers,body:JSON.stringify({accountId:devAccount1,amount:Math.round(total*0.01),game:'airhockey-dev1'})}));
-      if(devAccount2) ops.push(fetch('/api/account/deposit',{method:'POST',headers,body:JSON.stringify({accountId:devAccount2,amount:Math.round(total*0.02),game:'airhockey-dev2'})}));
+      if(devAccount) ops.push(fbApi.depositAccount(devAccount, Math.round(total*0.09), {game:'airhockey-dev'}));
+      if(devAccount1) ops.push(fbApi.depositAccount(devAccount1, Math.round(total*0.01), {game:'airhockey-dev1'}));
+      if(devAccount2) ops.push(fbApi.depositAccount(devAccount2, Math.round(total*0.02), {game:'airhockey-dev2'}));
     }else if(devAccount){
-      ops.push(fetch('/api/account/deposit',{method:'POST',headers,body:JSON.stringify({accountId:devAccount,amount:Math.round(total*0.1),game:'airhockey-dev'})}));
+      ops.push(fbApi.depositAccount(devAccount, Math.round(total*0.1), {game:'airhockey-dev'}));
     }
     if(ops.length){ try{ await Promise.all(ops); }catch{} }
   }
@@ -162,7 +162,7 @@
   async function chargeStake(){
     if(!tgId || stake<=0) return;
     try{
-      await fetch('/api/profile/addTransaction',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({telegramId:tgId,amount:-stake,type:'stake',game:'airhockey'})});
+      await fbApi.addTransaction(tgId, -stake, 'stake', { game:'airhockey' });
     }catch{}
   }
 
