@@ -60,22 +60,14 @@
   .flip{transform-style:preserve-3d;transition:transform .35s}
   .flip.hide{transform:rotateY(90deg)}
 
-  /* —— Actions (side) —— */
-  .side{position:absolute;top:50%;transform:translateY(-50%);display:flex;flex-direction:column;gap:10px;z-index:5}
-  .left{left:6px} .right{right:6px}
+  /* —— Bottom actions —— */
+  .actions{position:absolute;left:50%;bottom:6px;transform:translateX(-50%);display:flex;gap:10px;z-index:5}
   button{width:var(--btn-w);height:var(--btn-h);border:0;border-radius:12px;
          background:#1b2741;color:#fff;font-weight:800;letter-spacing:.2px;box-shadow:0 6px 18px rgba(0,0,0,.35)}
   button:disabled{opacity:.45}
   .primary{background:#f0b018;color:#131210}
   .danger{background:#cf2f46}
   .sub{background:#2b3b60}
-
-  /* —— Bottom dock when very narrow —— */
-  @media (max-width: 360px){
-    .side{position:static;transform:none;flex-direction:row;justify-content:center;margin-top:6px}
-    .left{left:auto} .right{right:auto}
-    .dock{position:absolute;left:0;right:0;bottom:0;padding:6px;background:#0b1528cc;border-top:1px solid #1c2740}
-  }
 
   /* —— Top bar + calibrator —— */
   .topbar{position:absolute;left:0;right:0;top:6px;display:flex;gap:8px;justify-content:center;align-items:center;z-index:6}
@@ -94,7 +86,7 @@
 <body>
   <div class="wrap">
     <div class="table" id="table">
-      <div class="bg" id="bg"><img id="bgImg" alt=""></div>
+        <div class="bg has" id="bg"><img id="bgImg" src="assets/icons/file_000000008ab462439ff27618691146eb.png" alt=""></div>
       <div class="deck"><div class="back"></div></div>
 
       <!-- Seats -->
@@ -127,19 +119,14 @@
       <div class="community" id="community"></div>
       <div class="hero-cards" id="heroCards"></div>
 
-      <!-- Side actions -->
-      <div class="side left">
+      <!-- Bottom actions -->
+      <div class="actions">
         <button class="danger" id="btnFold">Fold</button>
         <button class="sub" id="btnCheckCall">Check</button>
-      </div>
-      <div class="side right">
         <button class="primary" id="btnRaise">Raise</button>
         <input id="raise" type="range" min="20" max="400" step="10" style="width:var(--btn-w)">
         <button class="sub" id="btnNext">Next</button>
       </div>
-
-      <!-- Dock (auto shows on tiny screens via media query) -->
-      <div class="dock"></div>
 
       <!-- Top controls -->
       <div class="topbar">
