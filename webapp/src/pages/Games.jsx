@@ -41,16 +41,6 @@ export default function Games() {
               </Link>
             </div>
             <div className="flex flex-col items-center space-y-1">
-              <img src="/assets/icons/lucky_card_bg.webp" alt="" className="h-24 w-24" />
-              <h3 className="text-lg font-bold">Poker</h3>
-              <Link
-                to="/games/poker/lobby"
-                className="inline-block px-3 py-1 bg-primary rounded hover:bg-primary-hover text-white-shadow"
-              >
-                Open
-              </Link>
-            </div>
-            <div className="flex flex-col items-center space-y-1">
               <img src="/assets/icons/air_hockey.svg" alt="" className="h-24 w-24" />
               <h3 className="text-lg font-bold">Air Hockey</h3>
               <Link

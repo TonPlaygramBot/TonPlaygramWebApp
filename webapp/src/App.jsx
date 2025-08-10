@@ -25,8 +25,6 @@ import Games from './pages/Games.jsx';
 import SpinPage from './pages/spin.tsx';
 import FallingBall from './pages/Games/FallingBall.jsx';
 import FallingBallLobby from './pages/Games/FallingBallLobby.jsx';
-import Poker from './pages/Games/Poker.jsx';
-import PokerLobby from './pages/Games/PokerLobby.jsx';
 import AirHockey from './pages/Games/AirHockey.jsx';
 import AirHockeyLobby from './pages/Games/AirHockeyLobby.jsx';
 
@@ -57,8 +55,6 @@ export default function App() {
             <Route path="/games/snake/results" element={<SnakeResults />} />
             <Route path="/games/fallingball/lobby" element={<FallingBallLobby />} />
             <Route path="/games/fallingball" element={<FallingBall />} />
-            <Route path="/games/poker/lobby" element={<PokerLobby />} />
-            <Route path="/games/poker" element={<Poker />} />
             <Route path="/games/airhockey/lobby" element={<AirHockeyLobby />} />
             <Route path="/games/airhockey" element={<AirHockey />} />
             <Route path="/spin" element={<SpinPage />} />
