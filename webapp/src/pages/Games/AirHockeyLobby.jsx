@@ -25,8 +25,9 @@ export default function AirHockeyLobby() {
 
   const startGame = async () => {
     let tgId;
+    let accountId;
     try {
-      const accountId = await ensureAccountId();
+      accountId = await ensureAccountId();
       const balRes = await getAccountBalance(accountId);
       if ((balRes.balance || 0) < stake.amount) {
         alert('Insufficient balance');
@@ -44,6 +45,9 @@ export default function AirHockeyLobby() {
     if (stake.amount) params.set('amount', stake.amount);
     if (avatar) params.set('avatar', avatar);
     if (tgId) params.set('tgId', tgId);
+    if (accountId) params.set('accountId', accountId);
+    const devAcc = import.meta.env.VITE_DEV_ACCOUNT_ID;
+    if (devAcc) params.set('dev', devAcc);
     navigate(`/games/airhockey?${params.toString()}`);
   };
 
