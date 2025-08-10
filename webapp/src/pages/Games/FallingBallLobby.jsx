@@ -12,7 +12,6 @@ export default function FallingBallLobby() {
 
   const [players, setPlayers] = useState(2);
   const [stake, setStake] = useState({ token: 'TPC', amount: 100 });
-  const [density, setDensity] = useState('low');
   const [mode, setMode] = useState('local');
   const [avatar, setAvatar] = useState('');
 
@@ -37,7 +36,7 @@ export default function FallingBallLobby() {
 
     const params = new URLSearchParams();
     params.set('players', players);
-    params.set('density', density);
+    params.set('density', 'high');
     params.set('mode', mode);
     if (stake.token) params.set('token', stake.token);
     if (stake.amount) params.set('amount', stake.amount);
@@ -65,20 +64,6 @@ export default function FallingBallLobby() {
       <div className="space-y-2">
         <h3 className="font-semibold">Stake</h3>
         <RoomSelector selected={stake} onSelect={setStake} tokens={['TPC']} />
-      </div>
-      <div className="space-y-2">
-        <h3 className="font-semibold">Density</h3>
-        <div className="flex gap-2">
-          {['low','med','high'].map((d) => (
-            <button
-              key={d}
-              onClick={() => setDensity(d)}
-              className={`lobby-tile capitalize ${density === d ? 'lobby-selected' : ''}`}
-            >
-              {d === 'med' ? 'Medium' : d.charAt(0).toUpperCase() + d.slice(1)}
-            </button>
-          ))}
-        </div>
       </div>
       <div className="space-y-2">
         <h3 className="font-semibold">Mode</h3>
