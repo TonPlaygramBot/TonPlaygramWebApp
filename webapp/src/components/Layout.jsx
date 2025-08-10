@@ -35,7 +35,7 @@ export default function Layout({ children }) {
   }, []);
 
   // Persist the current path so reloads return to the same page
-  useEffect(() => {
+  useLayoutEffect(() => {
     try {
       const current = location.pathname + location.search;
       localStorage.setItem('lastPath', current);
