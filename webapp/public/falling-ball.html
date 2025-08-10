@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <title>TonPlaygram – Falling Ball PvP (SFX + Visuals)</title>
   <style>
-    :root{ --bg:#0c1020; --panel:#10172a; --ink:#fff; --muted:#cbd5e1; --accent:#94a3b8; }
+    :root{ --bg:#d1fae5; --panel:#10172a; --ink:#000; --muted:#065f46; --accent:#94a3b8; }
     html,body{ height:100%; margin:0; }
     body{ background:var(--bg); color:var(--ink); font-family:Inter,system-ui,Segoe UI,Roboto,Arial,sans-serif; }
     .app{ position:fixed; inset:0; overflow:hidden; }
@@ -156,7 +156,8 @@
   function refreshSlots(){
     const wrap=document.getElementById('slots'); wrap.innerHTML=''; state.slots=[];
     wrap.style.setProperty('--cols', state.players);
-    const avatarSize = state.players>5 ? Math.max(16, Math.floor((W-40)/state.players*0.6)) : 24;
+    const basePlayers = Math.max(state.players, 5);
+    const avatarSize = Math.max(16, Math.floor((W-40)/basePlayers*0.6));
     wrap.style.setProperty('--avatar-size', avatarSize+'px');
     const players=buildPlayers();
     players.forEach((p,i)=>{ const el=document.createElement('div'); el.className='slot'+(p.isMe?' me':''); el.style.fontSize=state.players>5?'10px':'12px'; el.innerHTML=`<img src="${p.avatar}" alt="avatar"/><div>${p.name}</div>`; wrap.appendChild(el); state.slots.push({ idx:i, name:p.name, el, left:0, right:0 }); });
@@ -168,13 +169,13 @@
   // ========================= Obstacles =========================
   function randomBetween(a,b){ return a + Math.random()*(b-a); }
   function genPegField(){
-    const pegs=[]; const ballDia = state.ball.r*2; const clearance = ballDia*1.5; // ≥ 1.5× diametri
+    const pegs=[]; const ballDia = state.ball.r*2; const clearance = ballDia*1.2; // ensure gaps exceed ball diameter
     const usableTop = 110, usableBottom = H-190; const pad=20;
-    const target = Math.round(((state.density==='Low') ? 72 : (state.density==='Med') ? 108 : 144)*1.05);
+    const target = Math.round(((state.density==='Low') ? 100 : (state.density==='Med') ? 150 : 200)*1.05);
     const maxAttempts = target*25;
     let attempts=0;
     while (pegs.length<target && attempts++ < maxAttempts){
-      const r = randomBetween(10, 14);
+      const r = randomBetween(8, 10);
       const x = randomBetween(pad+r+6, W-pad-r-6);
       const y = randomBetween(usableTop+r+6, usableBottom-r-6);
       const cand = { x, y, r, type:'peg' };
@@ -182,21 +183,21 @@
       for(const p of pegs){ const minCenter = p.r + cand.r + clearance; const dx=cand.x-p.x, dy=cand.y-p.y; if (dx*dx+dy*dy < minCenter*minCenter){ ok=false; break; } }
       if (ok) pegs.push(cand);
     }
-    const spinnerCount = state.density==='High' ? 7 : state.density==='Med' ? 5 : 4;
+    const spinnerCount = state.density==='High' ? 9 : state.density==='Med' ? 7 : 5;
     for(let i=0;i<spinnerCount;i++){
-      const r = randomBetween(14,18);
+      const r = randomBetween(10,14);
       const x = randomBetween(pad+r+20, W-pad-r-20);
       const y = randomBetween(usableTop+r+40, usableBottom-r-40);
       const cand = { x, y, r, type:'spinner', angle:0, spin: randomBetween(-0.06,0.06) };
       let ok=true; for(const p of pegs){ const minCenter = p.r + cand.r + clearance; const dx=cand.x-p.x, dy=cand.y-p.y; if (dx*dx+dy*dy < minCenter*minCenter){ ok=false; break; } }
       if (ok) pegs.push(cand);
     }
-    const iCount = Math.floor(randomBetween(3,6));
-    for(let i=0;i<iCount;i++){
-      const len=randomBetween(50,90);
+    const lCount = Math.floor(randomBetween(6,10));
+    for(let i=0;i<lCount;i++){
+      const len=randomBetween(30,60);
       const x=randomBetween(pad+len*0.5+20, W-pad-len*0.5-20);
       const y=randomBetween(usableTop+len*0.5+40, usableBottom-len*0.5-40);
-      pegs.push({ x, y, len, type:'I', angle:randomBetween(0,Math.PI*2), spin:randomBetween(-0.04,0.04) });
+      pegs.push({ x, y, len, type:'l', angle:randomBetween(0,Math.PI*2), spin:randomBetween(-0.04,0.04) });
     }
     state.obstacles = pegs; // regenerated every game
   }
@@ -204,7 +205,7 @@
   function carveCorridors(){
     if (!state.obstacles.length) return;
     const ballDia = state.ball.r*2; const pad=20; const usableW=W-2*pad; const slotW = usableW / state.players;
-    const corridorWidth = Math.max(ballDia*1.5 + 6, slotW*0.3);
+    const corridorWidth = Math.max(ballDia + 6, slotW*0.3);
     const corridors = []; for(let i=0;i<state.players;i++){ const cx = pad + slotW*(i+0.5); corridors.push({ left: cx - corridorWidth*0.5, right: cx + corridorWidth*0.5 }); }
     const cutY = H*0.75;
     state.obstacles = state.obstacles.filter(o=>{ if (o.y < cutY) return true; for(const c of corridors){ if (o.x>c.left && o.x<c.right) return false; } return true; });
@@ -235,7 +236,7 @@
 
     // obstacles
     for(const o of state.obstacles){
-      if(o.type==='I'){
+      if(o.type==='l'){
         const ang=o.angle||0; const half=o.len*0.5;
         const x1=o.x+half*Math.sin(ang), y1=o.y-half*Math.cos(ang);
         const x2=o.x-half*Math.sin(ang), y2=o.y+half*Math.cos(ang);
@@ -280,29 +281,28 @@
   function drawBackground(){
     // deep radial vignette
     const g = ctx.createRadialGradient(W*0.5, H*0.4, Math.min(W,H)*0.15, W*0.5, H*0.5, Math.max(W,H)*0.75);
-    g.addColorStop(0,'#0e1326'); g.addColorStop(1,'#070a14');
+    g.addColorStop(0,'#d1fae5'); g.addColorStop(1,'#bbf7d0');
     ctx.fillStyle=g; ctx.fillRect(0,0,W,H);
   }
   function drawPrismPanel(){
     // prism-like elliptical panel (NO gold ring)
     const cx=W*0.5, cy=H*0.45, rx=Math.min(W*0.5, 560), ry=Math.min(H*0.32, 300);
     const g = ctx.createLinearGradient(0, cy-ry, 0, cy+ry);
-    g.addColorStop(0,'#0f162c'); g.addColorStop(0.5,'#0a1226'); g.addColorStop(1,'#091021');
+    g.addColorStop(0,'#a7f3d0'); g.addColorStop(0.5,'#86efac'); g.addColorStop(1,'#6ee7b7');
     ctx.fillStyle=g; ctx.beginPath(); ctx.ellipse(cx,cy,rx,ry,0,0,Math.PI*2); ctx.fill();
     // inner sheen
-    ctx.globalAlpha=0.08; ctx.fillStyle='#9ecbff'; ctx.beginPath(); ctx.ellipse(cx-40, cy-ry*0.6, rx*0.6, ry*0.25, -0.2, 0, Math.PI*2); ctx.fill(); ctx.globalAlpha=1;
+    ctx.globalAlpha=0.08; ctx.fillStyle='#bbf7d0'; ctx.beginPath(); ctx.ellipse(cx-40, cy-ry*0.6, rx*0.6, ry*0.25, -0.2, 0, Math.PI*2); ctx.fill(); ctx.globalAlpha=1;
   }
   function drawObstacles(){
     for(const o of state.obstacles){
-      if(o.type==='I'){
+      if(o.type==='l'){
         ctx.save(); ctx.translate(o.x,o.y); ctx.rotate(o.angle||0); ctx.strokeStyle='rgba(148,163,184,0.35)'; ctx.lineWidth=6;
         ctx.beginPath(); ctx.moveTo(0,-o.len*0.5); ctx.lineTo(0,o.len*0.5); ctx.stroke();
-        ctx.beginPath(); ctx.moveTo(-12,-o.len*0.5); ctx.lineTo(12,-o.len*0.5); ctx.stroke();
-        ctx.beginPath(); ctx.moveTo(-12,o.len*0.5); ctx.lineTo(12,o.len*0.5); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(0,o.len*0.5); ctx.lineTo(12,o.len*0.5); ctx.stroke();
         ctx.restore();
       } else {
         const grad = ctx.createRadialGradient(o.x-6,o.y-8,4, o.x,o.y,(o.r||14)+12);
-        grad.addColorStop(0,'#223259'); grad.addColorStop(0.6,'#142246'); grad.addColorStop(1,'#0a1022');
+        grad.addColorStop(0,'#a7f3d0'); grad.addColorStop(0.6,'#86efac'); grad.addColorStop(1,'#6ee7b7');
         ctx.fillStyle=grad; ctx.beginPath(); ctx.arc(o.x,o.y,o.r||14,0,Math.PI*2); ctx.fill();
         ctx.strokeStyle='rgba(255,255,255,0.06)'; ctx.stroke();
         if (o.type==='spinner'){
@@ -311,7 +311,7 @@
       }
     }
   }
-  function drawSlotsGuide(){ const pad=20; const usable=W-2*pad; const w = usable / state.players; const top = H-160; const bottom=H-120; for(let i=0;i<state.players;i++){ const x1=pad+i*w; ctx.fillStyle='rgba(255,255,255,0.05)'; ctx.fillRect(x1, top, w-2, bottom-top); if (state.resultSlot===i){ ctx.fillStyle='rgba(250,204,21,0.4)'; ctx.fillRect(x1, top, w-2, bottom-top); ctx.strokeStyle='rgba(250,204,21,0.9)'; ctx.lineWidth=3; ctx.strokeRect(x1+1, top, w-4, bottom-top); } const cx=x1+(w-2)/2; const cy=(top+bottom)/2; ctx.fillStyle='#000'; ctx.beginPath(); ctx.arc(cx, cy, state.ball.r*1.1,0,Math.PI*2); ctx.fill(); } }
+  function drawSlotsGuide(){ const pad=20; const usable=W-2*pad; const w = usable / state.players; const top = H-160; const bottom=H-120; for(let i=0;i<state.players;i++){ const x1=pad+i*w; ctx.fillStyle='rgba(255,255,255,0.05)'; ctx.fillRect(x1, top, w-2, bottom-top); if (state.resultSlot===i){ ctx.fillStyle='rgba(250,204,21,0.4)'; ctx.fillRect(x1, top, w-2, bottom-top); ctx.strokeStyle='rgba(250,204,21,0.9)'; ctx.lineWidth=3; ctx.strokeRect(x1+1, top, w-4, bottom-top); } } }
   function drawBall(){ const b=state.ball; ctx.fillStyle='rgba(0,0,0,0.28)'; ctx.beginPath(); ctx.ellipse(b.x, b.y+b.r+6, b.r*1.2, b.r*0.5, 0,0,Math.PI*2); ctx.fill(); const grad = ctx.createRadialGradient(b.x-6,b.y-6,4, b.x,b.y,b.r+6); grad.addColorStop(0,'#5c7ad1'); grad.addColorStop(0.55,'#2a3a6a'); grad.addColorStop(1,'#0b1022'); ctx.fillStyle=grad; ctx.beginPath(); ctx.arc(b.x,b.y,b.r,0,Math.PI*2); ctx.fill(); ctx.globalAlpha=0.15; ctx.fillStyle='#cde6ff'; ctx.beginPath(); ctx.ellipse(b.x-5,b.y-8,b.r*0.7,b.r*0.35,-0.2,0,Math.PI*2); ctx.fill(); ctx.globalAlpha=1; }
 
   function frame(ts){ const dt = Math.min(33, ts - state.time); state.time=ts; step(dt/16.6667); ctx.clearRect(0,0,W,H); drawBackground(); drawPrismPanel(); drawObstacles(); drawSlotsGuide(); drawBall(); requestAnimationFrame(frame); }
