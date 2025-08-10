@@ -27,7 +27,10 @@
     .canvasWrap{position:absolute;inset:0}
     canvas{position:absolute;inset:0;width:100vw;height:100vh;display:block;touch-action:none}
 
-    .hint{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;margin:auto;max-width:680px;background:rgba(10,16,34,.6);backdrop-filter:blur(6px);border:1px solid #1f2944;border-radius:12px;padding:8px 12px;text-align:center;font-size:.9rem}
+    .hint{position:fixed;inset:0;display:none;align-items:center;justify-content:center;margin:auto;max-width:680px;background:rgba(10,16,34,.6);backdrop-filter:blur(6px);border:1px solid #1f2944;border-radius:12px;padding:8px 12px;text-align:center;font-size:.9rem}
+
+    .coin-confetti{position:fixed;top:-40px;width:32px;height:32px;pointer-events:none;animation:coin-fall var(--duration,3s) linear forwards}
+    @keyframes coin-fall{from{transform:translateY(-10vh) rotate(0deg);opacity:1}to{transform:translateY(100vh) rotate(360deg);opacity:0}}
 
     .panel{position:fixed;top:0;height:100%;width:200px;background:#0b1220;color:#e5e7eb;z-index:10;transition:transform .3s;}
     .panel.left{left:0;transform:translateX(-100%);}
@@ -60,7 +63,7 @@
       <button id="muteBtn" style="margin:8px">Toggle Sound</button>
     </div>
   </div>
-  <div class="hint" id="startHint">Portrait • <b>P1</b>: touch/drag in the <b>bottom</b> half. <b>P2</b>: touch/drag in the <b>top</b> half (or AI). Paddle speed follows finger speed. Sounds for hit, wall and goal ⚡️</div>
+  <div class="hint" id="startHint"></div>
   <div class="landscape-block" style="display:none">Please hold your phone in <b>portrait</b> for the best experience.</div>
 
 <script>
@@ -79,11 +82,13 @@
   const stake = Number(params.get('amount')) || 0;
   const myAccountId = params.get('accountId');
   const devAccount = params.get('dev');
+  const tgId = params.get('tgId');
   const mode = params.get('mode') || 'ai';
   const difficulty = params.get('difficulty') || 'normal';
   const target = Number(params.get('target')) || 3;
   const avatarParam = params.get('avatar') || '';
   const oppParam = params.get('p2Avatar') || '';
+  const FLAGS = ['🇺🇸','🇬🇧','🇫🇷','🇩🇪','🇨🇦','🇯🇵','🇮🇳','🇰🇷','🇧🇷','🇲🇽','🇨🇳','🇦🇺','🇮🇹','🇪🇸','🇷🇺'];
 
   let p1AvatarImg=null, p1AvatarEmoji=null;
   if(avatarParam){
@@ -94,6 +99,13 @@
   if(oppParam){
     if(oppParam.startsWith('http') || oppParam.startsWith('/')){ p2AvatarImg = new Image(); p2AvatarImg.src = oppParam; p2AvatarEmoji=null; }
     else { p2AvatarEmoji = oppParam; }
+  }
+
+  if(mode==='ai'){
+    const randFlag = () => FLAGS[Math.floor(Math.random()*FLAGS.length)];
+    p1AvatarImg = null; p2AvatarImg = null;
+    p1AvatarEmoji = randFlag();
+    p2AvatarEmoji = randFlag();
   }
 
   async function awardTpc(accountId, amount){
@@ -108,6 +120,71 @@
     }catch{}
   }
 
+  function coinConfetti(count=50,iconSrc='/assets/icons/file_000000005f0c61f48998df883554c3e8 (2).webp'){
+    const container=document.createElement('div');
+    container.style.position='fixed';container.style.top='0';container.style.left='0';
+    container.style.width='100%';container.style.height='0';container.style.pointerEvents='none';
+    container.style.zIndex='60';container.style.overflow='visible';
+    document.body.appendChild(container);
+    for(let i=0;i<count;i++){
+      const img=document.createElement('img');
+      img.src=iconSrc;img.alt='confetti icon';img.className='coin-confetti';
+      const left=Math.random()*100;const delay=Math.random()*0.2;const duration=2+Math.random()*2;
+      img.style.left=left+'vw';img.style.animationDelay=delay+'s';img.style.setProperty('--duration',duration+'s');
+      container.appendChild(img);
+    }
+    setTimeout(()=>container.remove(),5000);
+  }
+
+  async function chargeStake(){
+    if(!tgId || stake<=0) return;
+    try{
+      await fetch('/api/profile/addTransaction',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({telegramId:tgId,amount:-stake,type:'stake',game:'airhockey'})});
+    }catch{}
+  }
+
+  function celebrate(winner,avatarImg,avatarEmoji){
+    coinConfetti();
+    let audio;
+    try{
+      audio=new Audio('/assets/sounds/man-cheering-in-victory-epic-stock-media-1-00-01.mp3');
+      if(audioEnabled) audio.volume=master?.gain.value||0.25;
+      audio.play().catch(()=>{});
+    }catch{}
+    const overlay=document.createElement('div');
+    overlay.style.position='fixed';overlay.style.inset='0';overlay.style.display='flex';overlay.style.flexDirection='column';
+    overlay.style.alignItems='center';overlay.style.justifyContent='center';overlay.style.background='rgba(0,0,0,0.7)';overlay.style.zIndex='40';
+    const av=document.createElement('div');
+    av.style.fontSize='64px';av.style.width='80px';av.style.height='80px';av.style.display='flex';
+    av.style.alignItems='center';av.style.justifyContent='center';av.style.borderRadius='50%';av.style.background='#fff';
+    if(avatarImg && avatarImg.complete){av.style.backgroundImage=`url(${avatarImg.src})`;av.style.backgroundSize='cover';av.textContent='';}
+    else{av.textContent=avatarEmoji||'';}
+    const txt=document.createElement('div');
+    txt.textContent=`${winner} Wins!`;txt.style.color='#fff';txt.style.fontSize='2rem';txt.style.marginTop='16px';txt.style.fontWeight='bold';
+    overlay.appendChild(av);overlay.appendChild(txt);document.body.appendChild(overlay);
+    setTimeout(()=>{overlay.remove();showEndPopup();if(audio) audio.pause();},2500);
+  }
+
+  function showEndPopup(){
+    const pop=document.createElement('div');
+    pop.style.position='fixed';pop.style.inset='0';pop.style.display='flex';pop.style.alignItems='center';pop.style.justifyContent='center';pop.style.background='rgba(0,0,0,0.7)';pop.style.zIndex='50';
+    const box=document.createElement('div');
+    box.style.background='#0b1220';box.style.padding='16px';box.style.borderRadius='12px';box.style.display='flex';box.style.flexDirection='column';box.style.gap='8px';box.style.minWidth='200px';
+    const btnLobby=document.createElement('button');btnLobby.textContent='Return to Lobby';btnLobby.style.padding='8px';btnLobby.onclick=()=>{location.href='/games/airhockey/lobby';};
+    const btnAgain=document.createElement('button');btnAgain.textContent='Play Again';btnAgain.style.padding='8px';
+    btnAgain.onclick=async()=>{
+      if(mode==='ai'){
+        await chargeStake();
+        score.p1=0;score.p2=0;updateScore();resetPositions();running=true;pop.remove();
+      }else{
+        btnAgain.disabled=true;
+        const wait=document.createElement('div');wait.textContent='Waiting for opponent...';wait.style.color='#fff';wait.style.marginTop='8px';box.appendChild(wait);
+        try{await fetch('/api/airhockey/rematch',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({accountId:myAccountId})});}catch{}
+      }
+    };
+    box.appendChild(btnLobby);box.appendChild(btnAgain);pop.appendChild(box);document.body.appendChild(pop);
+  }
+
   let W = 720, H = 1280;
   function fit(){
     W = canvas.width = Math.floor(window.innerWidth * devicePixelRatio);
@@ -119,7 +196,7 @@
     centerX = W/2; centerY = H/2;
     goalWidth = Math.round(W*0.42);
     const base = Math.max(24, Math.round(Math.min(W,H)*0.035));
-    paddleRadius = base*2.4;
+    paddleRadius = base*2.6;
     puck.r = Math.max(16, Math.round(base*0.8));
     p1.r = paddleRadius; p2.r = paddleRadius;
   }
@@ -297,19 +374,20 @@
   }
 
   function aiUpdate(){
-    const targetY = H*0.2;
-    let tx = clamp(puck.x, rink.x + p2.r + 8, rink.x + rink.w - p2.r - 8);
-    let ty = targetY;
-    if (puck.vy < 0) {
-      const predictY = H*0.28;
-      let t = (puck.y - predictY) / (Math.abs(puck.vy) || 0.001);
-      t = clamp(t, 0, 120/60);
-      tx = clamp(puck.x + puck.vx * t, rink.x + p2.r + 8, rink.x + rink.w - p2.r - 8);
-      ty = predictY;
+    const reaction = {easy:0.05, normal:0.1, hard:0.18}[difficulty] || 0.1;
+    let tx = centerX;
+    let ty = rink.y + rink.h*0.15;
+    if(puck.y < centerY){
+      tx = clamp(puck.x, rink.x + p2.r + 8, rink.x + rink.w - p2.r - 8);
+      ty = clamp(puck.y, rink.y + p2.r + 8, centerY - p2.r - 8);
     }
-    const sp = p2.max * speedMul;
-    const dx = tx - p2.x, dy = ty - p2.y; const d = Math.hypot(dx,dy)||1; const step = Math.min(sp, d);
-    p2.x += dx/d*step; p2.y += dy/d*step;
+    p2.x += (tx - p2.x) * reaction;
+    p2.y += (ty - p2.y) * reaction;
+    const maxStep = p2.max * speedMul;
+    const vx = p2.x - p2.lastX;
+    const vy = p2.y - p2.lastY;
+    const v = Math.hypot(vx,vy);
+    if(v > maxStep){ const s = maxStep / v; p2.x = p2.lastX + vx*s; p2.y = p2.lastY + vy*s; }
     p2.vx = p2.x - p2.lastX; p2.vy = p2.y - p2.lastY;
   }
 
@@ -399,19 +477,21 @@
   function updateScore(){ s1El.textContent = score.p1; s2El.textContent = score.p2; }
   function checkWin(){
     if (score.p1>=score.target){
-      running=false; toast('🎉 P1 wins!');
+      running=false;
       if (stake>0 && myAccountId){
         const pot = stake*2; const fee = Math.floor(pot*0.10); const prize = pot - fee;
         awardTpc(myAccountId, prize);
         awardDev(fee);
       }
+      celebrate('P1', p1AvatarImg, p1AvatarEmoji);
     }
     if (score.p2>=score.target){
-      running=false; toast('🎉 P2 wins!');
+      running=false;
       if(stake>0){
         const pot = stake*2;
         awardDev(pot);
       }
+      celebrate('P2', p2AvatarImg, p2AvatarEmoji);
     }
   }
   function toast(msg){
@@ -478,7 +558,6 @@
   window.addEventListener('orientationchange', checkOrientation);
 
   fit(); checkOrientation(); resetPositions(); updateScore(); requestAnimationFrame(loop);
-  setTimeout(()=>{ startHint.style.display='none'; }, 3000);
 })();
 </script>
 </body>
