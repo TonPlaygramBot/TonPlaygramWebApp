@@ -69,6 +69,7 @@
   </div>
 
   <script src="/flag-emojis.js"></script>
+  <script src="/falling-ball-api.js"></script>
   <script>
   // ========================= Canvas & Brand =========================
   const canvas = document.getElementById('scene');
@@ -125,15 +126,6 @@
     setTimeout(()=>container.remove(),5000);
   }
 
-  async function depositTpc(accountId, amount, tag){
-    try{
-      const headers = { 'Content-Type':'application/json' };
-      const initData = window?.Telegram?.WebApp?.initData;
-      if (initData) headers['X-Telegram-Init-Data'] = initData;
-      await fetch('/api/account/deposit',{method:'POST',headers,body:JSON.stringify({accountId,amount,game:tag})});
-    }catch(err){ console.warn('Failed to deposit TPC',err); }
-  }
-
   const sfxToggleBtn = document.getElementById('sfxToggle');
   sfxToggleBtn.onclick = (e)=>{
     sfxOn = !sfxOn;
@@ -171,6 +163,7 @@
   if (amt > 0) state.stake = amt;
   const myAccountId = params.get('accountId');
   const devAccountId = params.get('dev');
+  const myTelegramId = window?.Telegram?.WebApp?.initDataUnsafe?.user?.id;
   // ========================= HUD =========================
   const startBtn = document.getElementById('startBtn');
   startBtn.onclick = startMatch;
@@ -312,7 +305,7 @@
     if (b.y + b.r >= groundY){
       b.y = groundY - b.r; b.vy *= -state.bounce;
       if (Math.abs(b.vy) < 1.1){
-        const idx = pickSlotFromX(b.x); state.resultSlot = idx; const fee = Math.floor(state.pot*0.10); const prize = state.pot - fee; document.getElementById('winnerVal').textContent = `${state.slots[idx].name} +${prize} TPC`; setStatus(`Winner: ${state.slots[idx].name}. Payout ${prize} TPC (-${fee} dev)`); SFX.win(); coinConfetti(50); if(state.slots[idx].isMe && myAccountId){ depositTpc(myAccountId, prize, 'fallingball-win'); } if(devAccountId){ depositTpc(devAccountId, fee, 'fallingball-dev'); } setTimeout(()=>showWinnerPopup(state.slots[idx].name),2000);
+        const idx = pickSlotFromX(b.x); state.resultSlot = idx; const fee = Math.floor(state.pot*0.10); const prize = state.pot - fee; document.getElementById('winnerVal').textContent = `${state.slots[idx].name} +${prize} TPC`; setStatus(`Winner: ${state.slots[idx].name}. Payout ${prize} TPC (-${fee} dev)`); SFX.win(); coinConfetti(50); if(state.slots[idx].isMe && myAccountId){ fbApi.depositAccount(myAccountId, prize, { game: 'fallingball-win' }); if(myTelegramId) fbApi.addTransaction(myTelegramId, 0, 'win', { game: 'fallingball', players: state.players, accountId: myAccountId }); } if(devAccountId){ fbApi.depositAccount(devAccountId, fee, { game: 'fallingball-dev' }); } setTimeout(()=>showWinnerPopup(state.slots[idx].name),2000);
       }
     }
   }
