@@ -6,6 +6,8 @@ import { ensureAccountId, getTelegramId, getTelegramPhotoUrl } from '../../utils
 import { getAccountBalance, addTransaction } from '../../utils/api.js';
 import { loadAvatar } from '../../utils/avatarUtils.js';
 
+const DEV_ACCOUNT = import.meta.env.VITE_DEV_ACCOUNT_ID;
+
 export default function FallingBallLobby() {
   const navigate = useNavigate();
   useTelegramBackButton();
@@ -24,8 +26,9 @@ export default function FallingBallLobby() {
 
   const startGame = async () => {
     let tgId;
+    let accountId;
     try {
-      const accountId = await ensureAccountId();
+      accountId = await ensureAccountId();
       const balRes = await getAccountBalance(accountId);
       if ((balRes.balance || 0) < stake.amount) {
         alert('Insufficient balance');
@@ -42,7 +45,8 @@ export default function FallingBallLobby() {
     if (stake.token) params.set('token', stake.token);
     if (stake.amount) params.set('amount', stake.amount);
     if (avatar) params.set('avatar', avatar);
-    if (tgId) params.set('tgId', tgId);
+    if (accountId) params.set('accountId', accountId);
+    if (DEV_ACCOUNT) params.set('dev', DEV_ACCOUNT);
     navigate(`/games/fallingball?${params.toString()}`);
   };
 
