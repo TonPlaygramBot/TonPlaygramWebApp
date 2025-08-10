@@ -12,6 +12,8 @@ export default function AirHockeyLobby() {
 
   const [stake, setStake] = useState({ token: 'TPC', amount: 100 });
   const [mode, setMode] = useState('ai');
+  const [difficulty, setDifficulty] = useState('normal');
+  const [goal, setGoal] = useState(3);
   const [avatar, setAvatar] = useState('');
 
   useEffect(() => {
@@ -36,6 +38,8 @@ export default function AirHockeyLobby() {
 
     const params = new URLSearchParams();
     params.set('mode', mode);
+    params.set('target', goal);
+    if (mode === 'ai') params.set('difficulty', difficulty);
     if (stake.token) params.set('token', stake.token);
     if (stake.amount) params.set('amount', stake.amount);
     if (avatar) params.set('avatar', avatar);
@@ -59,6 +63,40 @@ export default function AirHockeyLobby() {
               className={`lobby-tile ${mode === id ? 'lobby-selected' : ''}`}
             >
               {label}
+            </button>
+          ))}
+        </div>
+      </div>
+      {mode === 'ai' && (
+        <div className="space-y-2">
+          <h3 className="font-semibold">Difficulty</h3>
+          <div className="flex gap-2">
+            {[
+              { id: 'easy', label: 'Easy' },
+              { id: 'normal', label: 'Normal' },
+              { id: 'hard', label: 'Hard' }
+            ].map(({ id, label }) => (
+              <button
+                key={id}
+                onClick={() => setDifficulty(id)}
+                className={`lobby-tile ${difficulty === id ? 'lobby-selected' : ''}`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+      <div className="space-y-2">
+        <h3 className="font-semibold">Goals</h3>
+        <div className="flex gap-2">
+          {[3, 5, 10].map(g => (
+            <button
+              key={g}
+              onClick={() => setGoal(g)}
+              className={`lobby-tile ${goal === g ? 'lobby-selected' : ''}`}
+            >
+              {g}
             </button>
           ))}
         </div>
