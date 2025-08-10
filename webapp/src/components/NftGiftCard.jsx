@@ -54,7 +54,7 @@ export default function NftGiftCard({ accountId: propAccountId }) {
   return (
     <div className="relative prism-box p-6 space-y-3 flex flex-col items-center text-center overflow-hidden min-h-40 wide-card mx-auto">
       <img
-        src="/assets/SnakeLaddersbackground.png"
+        src="/assets/icons/snakes_and_ladders.webp"
         className="background-behind-board object-cover"
         alt=""
         onError={(e) => {

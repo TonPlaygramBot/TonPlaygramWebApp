@@ -630,7 +630,7 @@ export default function CrazyDiceDuel() {
     <div className="text-text relative">
       {bgUnlocked && (
         <img
-          src="/assets/SnakeLaddersbackground.png"
+          src="/assets/icons/snakes_and_ladders.webp"
           className="background-behind-board crazy-dice-bg object-cover"
           alt=""
           onError={(e) => {

@@ -36,7 +36,7 @@ export default function AchievementsCard({ telegramId: propTelegramId }) {
     return (
       <div className="relative bg-surface border border-border rounded-xl p-4 text-subtext text-center overflow-hidden wide-card">
         <img
-          src="/assets/SnakeLaddersbackground.png"
+          src="/assets/icons/snakes_and_ladders.webp"
           className="background-behind-board object-cover"
           alt=""
           onError={(e) => { e.currentTarget.style.display = 'none'; }}
@@ -49,7 +49,7 @@ export default function AchievementsCard({ telegramId: propTelegramId }) {
   return (
     <div className="relative bg-surface border border-border rounded-xl p-4 space-y-2 overflow-hidden wide-card">
       <img
-        src="/assets/SnakeLaddersbackground.png"
+        src="/assets/icons/snakes_and_ladders.webp"
         className="background-behind-board object-cover"
         alt=""
         onError={(e) => { e.currentTarget.style.display = 'none'; }}
