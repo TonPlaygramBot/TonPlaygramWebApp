@@ -1,0 +1,411 @@
+<!DOCTYPE html>
+<html lang="sq">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+  <title>Air Hockey – Mobile Portrait</title>
+  <style>
+    :root{
+      --bg:#050812;
+      --ice:#0f1730;
+      --line:#67a6ff;
+      --goal:#ff3b3b;
+      --p1:#22c55e;
+      --p2:#f59e0b;
+      --puck:#e5e7eb;
+    }
+    *{box-sizing:border-box; -webkit-tap-highlight-color: transparent;}
+    html,body{height:100%;}
+    body{margin:0;background:var(--bg);color:#e5e7eb;font-family:system-ui,Segoe UI,Roboto,Helvetica,Arial;overflow:hidden}
+    .ui{position:fixed;inset:0;display:flex;flex-direction:column;}
+    .topbar{display:flex;gap:8px;align-items:center;justify-content:space-between;padding:8px 12px;background:rgba(6,10,24,.6);backdrop-filter:blur(6px)}
+    .group{display:flex;gap:8px;align-items:center}
+    button,select{background:#0b1224;color:#e5e7eb;border:1px solid #1f2944;border-radius:12px;padding:8px 12px;font-weight:600}
+    button:active{transform:scale(.98)}
+    .score{font-variant-numeric:tabular-nums;background:#0b1220;border:1px solid #233050;border-radius:12px;padding:6px 10px;display:flex;align-items:center;gap:8px}
+    .badge{padding:2px 8px;border-radius:999px;font-weight:800}
+    .p1{background:var(--p1);color:#052e12}
+    .p2{background:var(--p2);color:#3a2600}
+
+    .canvasWrap{position:relative;flex:1}
+    canvas{position:absolute;inset:0;width:100vw;height:100dvh;display:block;touch-action:none}
+
+    .hint{position:fixed;bottom:8px;left:0;right:0;margin:auto;max-width:680px;background:rgba(10,16,34,.6);backdrop-filter:blur(6px);border:1px solid #1f2944;border-radius:12px;padding:8px 12px;text-align:center;font-size:.9rem}
+
+    @media (orientation:landscape){
+      .landscape-block{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:#0008;z-index:20;color:#fff;text-align:center;padding:24px}
+    }
+  </style>
+</head>
+<body>
+  <div class="ui">
+    <div class="topbar">
+      <div class="group">
+        <button id="startBtn">Start</button>
+        <button id="pauseBtn">Pauzë</button>
+        <button id="resetBtn">Rifillo</button>
+        <button id="fsBtn">Full‑Screen</button>
+        <button id="sndBtn">🔊 Zëri: Off</button>
+      </div>
+      <div class="group">
+        <select id="modeSel" title="Mënyra">
+          <option value="ai">Vs AI</option>
+          <option value="online">1v1 Online</option>
+        </select>
+        <select id="speedSel" title="Shpejtësia">
+          <option value="1">Normal</option>
+          <option value="1.2">+20%</option>
+          <option value="1.4">+40%</option>
+          <option value="0.8">-20%</option>
+        </select>
+        <div class="score" aria-live="polite">
+          <span class="badge p1">P1</span><span id="s1">0</span>
+          <span>—</span>
+          <span id="s2">0</span><span class="badge p2">P2</span>
+        </div>
+      </div>
+    </div>
+    <div class="canvasWrap">
+      <canvas id="game" width="720" height="1280" aria-label="Fusha e Air Hockey Portret"></canvas>
+    </div>
+  </div>
+  <div class="hint">Portret • <b>P1</b>: prek/rrëshqit në gjysmën <b>poshtë</b>. <b>P2</b>: prek/rrëshqit në gjysmën <b>sipër</b> (ose AI). Shpejtësia e paddle-it ndjek shpejtësinë e gishtit. Ka tinguj për goditje, mur dhe gol ⚡️</div>
+  <div class="landscape-block" style="display:none">Ju lutem mbajeni telefonin në <b>portret</b> për eksperiencë më të mirë.</div>
+
+<script>
+(() => {
+  const canvas = document.getElementById('game');
+  const ctx = canvas.getContext('2d');
+  const startBtn = document.getElementById('startBtn');
+  const pauseBtn = document.getElementById('pauseBtn');
+  const resetBtn = document.getElementById('resetBtn');
+  const fsBtn = document.getElementById('fsBtn');
+  const sndBtn = document.getElementById('sndBtn');
+  const s1El = document.getElementById('s1');
+  const s2El = document.getElementById('s2');
+  const speedSel = document.getElementById('speedSel');
+  const modeSel = document.getElementById('modeSel');
+  const landscapeBlock = document.querySelector('.landscape-block');
+
+  const params = new URLSearchParams(location.search);
+  const stake = Number(params.get('amount')) || 0;
+  const myTgId = params.get('tgId');
+  let mode = params.get('mode') || 'ai';
+  modeSel.value = mode;
+
+  async function awardTpc(telegramId, amount){
+    try{
+      await fetch('/api/profile/addTransaction',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({telegramId,amount,type:'win',game:'airhockey'})});
+    }catch(err){ console.warn('Failed to award TPC',err); }
+  }
+
+  let W = 720, H = 1280;
+  function fit(){
+    W = canvas.width = Math.floor(window.innerWidth * devicePixelRatio);
+    H = canvas.height = Math.floor(window.innerHeight * devicePixelRatio);
+    canvas.style.width = window.innerWidth + 'px';
+    canvas.style.height = window.innerHeight + 'px';
+    rink.x = Math.round(W*0.06); rink.w = Math.round(W*0.88);
+    rink.y = Math.round(H*0.04); rink.h = Math.round(H*0.92);
+    centerX = W/2; centerY = H/2;
+    goalWidth = Math.round(W*0.42);
+    paddleRadius = Math.max(24, Math.round(Math.min(W,H)*0.035));
+    puck.r = Math.max(14, Math.round(paddleRadius*0.6));
+    p1.r = paddleRadius; p2.r = paddleRadius;
+  }
+  window.addEventListener('resize', fit);
+
+  const rink = { x:0,y:0,w:0,h:0,r:24 };
+  let centerX = 0, centerY = 0;
+  let goalWidth = 260;
+  let goalDepth = 14;
+  let paddleRadius = 28;
+
+  const puck = { x:0, y:0, r:16, vx:0, vy:0, max: 22 };
+  const p1 = { x:0, y:0, r:28, vx:0, vy:0, max: 18, lastX:0, lastY:0 };
+  const p2 = { x:0, y:0, r:28, vx:0, vy:0, max: 18, lastX:0, lastY:0 };
+  const score = { p1:0, p2:0, target:7 };
+  let running = false; let last = 0; let speedMul = 1;
+
+  let audioEnabled = false; let ac; let master;
+  function initAudio(){
+    if (audioEnabled) return;
+    ac = new (window.AudioContext || window.webkitAudioContext)();
+    master = ac.createGain(); master.gain.value = 0.25; master.connect(ac.destination);
+    audioEnabled = true; sndBtn.textContent = '🔊 Zëri: On';
+  }
+  function beep({freq=440, dur=0.06, type='square', gain=0.3}){
+    if (!audioEnabled) return;
+    const o = ac.createOscillator(); const g = ac.createGain();
+    o.type = type; o.frequency.value = freq;
+    g.gain.setValueAtTime(0, ac.currentTime);
+    g.gain.linearRampToValueAtTime(gain, ac.currentTime + 0.005);
+    g.gain.exponentialRampToValueAtTime(0.0001, ac.currentTime + dur);
+    o.connect(g); g.connect(master); o.start(); o.stop(ac.currentTime + dur);
+  }
+  const sfx = {
+    hit(){ beep({freq: 220 + Math.random()*60, dur:0.05, type:'square', gain:0.35}); },
+    wall(){ beep({freq: 320, dur:0.04, type:'triangle', gain:0.25}); },
+    goal(){
+      beep({freq:520, dur:0.08, type:'sawtooth', gain:0.35});
+      setTimeout(()=>beep({freq:660, dur:0.10, type:'sawtooth', gain:0.35}), 80);
+    }
+  };
+
+  const keys = new Set();
+  const touches = new Map();
+
+  function clamp(v,a,b){ return Math.max(a, Math.min(b,v)); }
+  function dist(x1,y1,x2,y2){ const dx=x2-x1, dy=y2-y1; return Math.hypot(dx,dy); }
+
+  function resetPositions(serving = (Math.random()<0.5?'p1':'p2')){
+    puck.x = centerX; puck.y = centerY; puck.vx = (Math.random()*2-1)*10; puck.vy = (serving==='p1'? -10: 10)*(0.6+Math.random());
+    p1.x = centerX; p1.y = Math.min(rink.y+rink.h- rink.h*0.12, H*0.85);
+    p2.x = centerX; p2.y = Math.max(rink.y + rink.h*0.12, H*0.15);
+    [p1,p2].forEach(p=>{p.vx=0;p.vy=0;p.lastX=p.x;p.lastY=p.y;});
+  }
+
+  function rr(x,y,w,h,r){
+    const rr = Math.min(r,w/2,h/2);
+    ctx.beginPath();
+    ctx.moveTo(x+rr,y);
+    ctx.arcTo(x+w,y,x+w,y+h,rr);
+    ctx.arcTo(x+w,y+h,x,y+h,rr);
+    ctx.arcTo(x,y+h,x,y,rr);
+    ctx.arcTo(x,y,x+w,y,rr);
+    ctx.closePath();
+  }
+  function drawRink(){
+    rr(rink.x, rink.y, rink.w, rink.h, rink.r);
+    ctx.fillStyle = getCSS('--ice'); ctx.fill();
+    ctx.lineWidth = Math.max(2, W*0.003);
+    ctx.strokeStyle = getCSS('--line');
+    ctx.beginPath(); ctx.moveTo(rink.x+10, centerY); ctx.lineTo(rink.x+rink.w-10, centerY); ctx.stroke();
+    ctx.beginPath(); ctx.arc(centerX, centerY, Math.min(W,H)*0.11, 0, Math.PI*2); ctx.stroke();
+    ctx.beginPath();
+    ctx.arc(centerX, H*0.25, Math.min(W,H)*0.09, 0, Math.PI*2);
+    ctx.moveTo(centerX + Math.min(W,H)*0.09, H*0.75);
+    ctx.arc(centerX, H*0.75, Math.min(W,H)*0.09, 0, Math.PI*2);
+    ctx.stroke();
+    ctx.fillStyle = getCSS('--goal');
+    ctx.fillRect(centerX - goalWidth/2, rink.y-1, goalWidth, goalDepth);
+    ctx.fillRect(centerX - goalWidth/2, rink.y + rink.h - goalDepth + 1, goalWidth, goalDepth);
+  }
+  function drawPaddle(p, color){
+    const g = ctx.createRadialGradient(p.x-6, p.y-6, 6, p.x, p.y, p.r);
+    g.addColorStop(0, '#fff'); g.addColorStop(0.2, color); g.addColorStop(1, '#0d0f14');
+    ctx.fillStyle = g; ctx.beginPath(); ctx.arc(p.x,p.y,p.r,0,Math.PI*2); ctx.fill();
+  }
+  function drawPuck(){
+    ctx.fillStyle = getCSS('--puck');
+    ctx.beginPath(); ctx.arc(puck.x,puck.y,puck.r,0,Math.PI*2); ctx.fill();
+    ctx.globalAlpha = .18; ctx.fillStyle = '#000';
+    ctx.beginPath(); ctx.arc(puck.x+5,puck.y+5,puck.r,0,Math.PI*2); ctx.fill(); ctx.globalAlpha = 1;
+  }
+  function getCSS(v){ return getComputedStyle(document.documentElement).getPropertyValue(v).trim(); }
+
+  const friction = 0.993;
+  function constrainPaddle(p, bottom){
+    const margin=12;
+    const minX = rink.x + margin + p.r;
+    const maxX = rink.x + rink.w - margin - p.r;
+    const minY = rink.y + margin + p.r;
+    const maxY = rink.y + rink.h - margin - p.r;
+    if (bottom){
+      p.y = clamp(p.y, centerY + p.r, maxY);
+    } else {
+      p.y = clamp(p.y, minY, centerY - p.r);
+    }
+    p.x = clamp(p.x, minX, maxX);
+  }
+
+  function paddleFollowTouch(p, bottom){
+    let best = null; let bestD = 1e9;
+    touches.forEach(t=>{
+      if (bottom && t.y > centerY) {
+        const d = dist(p.x,p.y,t.x,t.y); if (d<bestD){bestD=d; best=t;}
+      }
+      if (!bottom && t.y < centerY) {
+        const d = dist(p.x,p.y,t.x,t.y); if (d<bestD){bestD=d; best=t;}
+      }
+    });
+    if (best){
+      const ease = 0.45;
+      const tx = best.x, ty = best.y;
+      const nx = p.x + (tx - p.x)*ease;
+      const ny = p.y + (ty - p.y)*ease;
+      p.vx = (nx - p.lastX); p.vy = (ny - p.lastY);
+      p.x = nx; p.y = ny;
+    } else {
+      p.vx *= 0.8; p.vy *= 0.8;
+    }
+  }
+
+  function aiUpdate(){
+    const targetY = H*0.2;
+    let tx = clamp(puck.x, rink.x + p2.r + 8, rink.x + rink.w - p2.r - 8);
+    let ty = targetY;
+    if (puck.vy < 0) {
+      const predictY = H*0.28;
+      let t = (puck.y - predictY) / (Math.abs(puck.vy) || 0.001);
+      t = clamp(t, 0, 120/60);
+      tx = clamp(puck.x + puck.vx * t, rink.x + p2.r + 8, rink.x + rink.w - p2.r - 8);
+      ty = predictY;
+    }
+    const sp = p2.max * speedMul;
+    const dx = tx - p2.x, dy = ty - p2.y; const d = Math.hypot(dx,dy)||1; const step = Math.min(sp, d);
+    p2.x += dx/d*step; p2.y += dy/d*step;
+    p2.vx = p2.x - p2.lastX; p2.vy = p2.y - p2.lastY;
+  }
+
+  function handleCollisions(){
+    [p1,p2].forEach(p => {
+      const d = dist(p.x,p.y,puck.x,puck.y);
+      const minD = p.r + puck.r;
+      if (d < minD){
+        const nx = (puck.x - p.x) / (d||1);
+        const ny = (puck.y - p.y) / (d||1);
+        const overlap = minD - d + 0.5;
+        puck.x += nx * overlap; puck.y += ny * overlap;
+        const relVX = puck.vx - p.vx*1.2;
+        const relVY = puck.vy - p.vy*1.2;
+        const relAlongNormal = relVX*nx + relVY*ny;
+        const restitution = 1.06;
+        puck.vx -= (1+restitution) * relAlongNormal * nx;
+        puck.vy -= (1+restitution) * relAlongNormal * ny;
+        puck.vx += p.vx*0.45; puck.vy += p.vy*0.45;
+        const v = Math.hypot(puck.vx,puck.vy); const maxV = puck.max*speedMul*1.25;
+        if (v>maxV){ const s=maxV/v; puck.vx*=s; puck.vy*=s; }
+        sfx.hit();
+      }
+    });
+
+    const left = rink.x + 6 + puck.r;
+    const right = rink.x + rink.w - 6 - puck.r;
+    const top = rink.y + 6 + puck.r;
+    const bottom = rink.y + rink.h - 6 - puck.r;
+
+    if (puck.x < left){ puck.x = left; puck.vx *= -1; sfx.wall(); }
+    if (puck.x > right){ puck.x = right; puck.vx *= -1; sfx.wall(); }
+
+    const goalLeft = centerX - goalWidth/2 + puck.r;
+    const goalRight = centerX + goalWidth/2 - puck.r;
+
+    if (puck.y < top){
+      if (puck.x > goalLeft && puck.x < goalRight){
+        score.p1++; updateScore(); sfx.goal(); checkWin(); resetPositions('p2'); return;
+      } else { puck.y = top; puck.vy *= -1; sfx.wall(); }
+    }
+    if (puck.y > bottom){
+      if (puck.x > goalLeft && puck.x < goalRight){
+        score.p2++; updateScore(); sfx.goal(); checkWin(); resetPositions('p1'); return;
+      } else { puck.y = bottom; puck.vy *= -1; sfx.wall(); }
+    }
+  }
+
+  function update(dt){
+    paddleFollowTouch(p1, true);
+    if (mode==='ai') {
+      aiUpdate();
+    } else {
+      paddleFollowTouch(p2, false);
+    }
+
+    constrainPaddle(p1, true);
+    constrainPaddle(p2, false);
+
+    puck.x += puck.vx * dt * 60;
+    puck.y += puck.vy * dt * 60;
+    puck.vx *= Math.pow(friction, dt*60);
+    puck.vy *= Math.pow(friction, dt*60);
+
+    handleCollisions();
+
+    [p1,p2].forEach(p=>{p.lastX=p.x; p.lastY=p.y;});
+  }
+
+  function render(){
+    ctx.clearRect(0,0,W,H);
+    drawRink();
+    drawPaddle(p2, getCSS('--p2'));
+    drawPaddle(p1, getCSS('--p1'));
+    drawPuck();
+  }
+
+  function loop(ts){
+    if (!running){ last = ts; render(); return requestAnimationFrame(loop); }
+    const dt = Math.min(0.033, (ts - last)/1000 || 0.016);
+    last = ts;
+    update(dt);
+    render();
+    requestAnimationFrame(loop);
+  }
+
+  function updateScore(){ s1El.textContent = score.p1; s2El.textContent = score.p2; }
+  function checkWin(){
+    if (score.p1>=score.target){
+      running=false; toast('🎉 P1 fitoi!');
+      if (stake>0 && myTgId){
+        const pot = stake*2; const fee = Math.floor(pot*0.10); const prize = pot - fee;
+        awardTpc(myTgId, prize);
+      }
+    }
+    if (score.p2>=score.target){ running=false; toast('🎉 P2 fitoi!'); }
+  }
+  function toast(msg){
+    const hint = document.querySelector('.hint');
+    const old = hint.textContent; hint.textContent = msg;
+    setTimeout(()=>{ hint.textContent = old; }, 1400);
+  }
+
+  startBtn.addEventListener('click', ()=>{ running=true; });
+  pauseBtn.addEventListener('click', ()=>{ running=false; });
+  resetBtn.addEventListener('click', ()=>{ score.p1=score.p2=0; updateScore(); resetPositions(); });
+  speedSel.addEventListener('change', e=>{ speedMul = parseFloat(e.target.value)||1; });
+  modeSel.addEventListener('change', e=>{ mode = e.target.value; resetPositions(mode==='ai'?'p1':'p2'); });
+  fsBtn.addEventListener('click', async ()=>{
+    try {
+      if (!document.fullscreenElement) await document.documentElement.requestFullscreen();
+      else await document.exitFullscreen();
+    } catch(err) { console.log(err); }
+  });
+  sndBtn.addEventListener('click', ()=>{ if (!audioEnabled) initAudio(); else { audioEnabled=false; sndBtn.textContent='🔊 Zëri: Off'; } });
+
+  window.addEventListener('keydown', e=>keys.add(e.key));
+  window.addEventListener('keyup', e=>keys.delete(e.key));
+
+  function posFromEvent(e){
+    const rect = canvas.getBoundingClientRect();
+    const scaleX = canvas.width / rect.width; const scaleY = canvas.height / rect.height;
+    return { x: (e.clientX-rect.left)*scaleX, y: (e.clientY-rect.top)*scaleY };
+  }
+  canvas.addEventListener('pointerdown', e=>{
+    canvas.setPointerCapture(e.pointerId);
+    const p = posFromEvent(e); const t = performance.now();
+    touches.set(e.pointerId, {x:p.x, y:p.y, vx:0, vy:0, t});
+    initAudio();
+  });
+  canvas.addEventListener('pointermove', e=>{
+    if (!touches.has(e.pointerId)) return;
+    const p = posFromEvent(e); const now = performance.now();
+    const last = touches.get(e.pointerId);
+    const dt = Math.max(1, now - last.t);
+    const vx = (p.x - last.x) / dt * 16.67;
+    const vy = (p.y - last.y) / dt * 16.67;
+    touches.set(e.pointerId, {x:p.x, y:p.y, vx, vy, t:now});
+    const d1 = dist(p1.x,p1.y,p.x,p.y); const d2 = dist(p2.x,p2.y,p.x,p.y);
+    if (p.y > centerY && d1 < d2) { p1.vx = vx; p1.vy = vy; }
+    else if (p.y < centerY && d2 <= d1) { p2.vx = vx; p2.vy = vy; }
+  });
+  function clearTouch(id){ touches.delete(id); }
+  canvas.addEventListener('pointerup', e=>clearTouch(e.pointerId));
+  canvas.addEventListener('pointercancel', e=>clearTouch(e.pointerId));
+
+  function checkOrientation(){ landscapeBlock.style.display = (window.matchMedia('(orientation: landscape)').matches ? 'flex' : 'none'); }
+  window.addEventListener('orientationchange', checkOrientation);
+
+  fit(); checkOrientation(); resetPositions(); updateScore(); requestAnimationFrame(loop);
+})();
+</script>
+</body>
+</html>
