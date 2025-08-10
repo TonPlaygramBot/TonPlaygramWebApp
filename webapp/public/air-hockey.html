@@ -85,6 +85,8 @@
   const devAccount1 = params.get('dev1');
   const devAccount2 = params.get('dev2');
   const tgId = params.get('tgId');
+  const oppAccountId = params.get('oppAcc') || params.get('oppId') || params.get('p2AccountId');
+  const oppTgId = params.get('oppTg') || params.get('p2TgId');
   const mode = params.get('mode') || 'ai';
   const difficulty = params.get('difficulty') || 'normal';
   const target = Number(params.get('target')) || 3;
@@ -112,8 +114,22 @@
 
   async function awardTpc(accountId, amount){
     try{
-      await fetch('/api/account/deposit',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({accountId,amount,game:'airhockey'})});
+      await fetch('/api/account/deposit',{
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({accountId,amount,game:'airhockey-win'})
+      });
     }catch(err){ console.warn('Failed to award TPC',err); }
+  }
+  async function recordWin(tgId, accountId){
+    if(!tgId) return;
+    try{
+      await fetch('/api/profile/addTransaction',{
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({telegramId:tgId,amount:0,type:'win',game:'airhockey',players:2,accountId})
+      });
+    }catch{}
   }
   async function awardDevShare(total){
     const headers={'Content-Type':'application/json'}; const ops=[];
@@ -489,13 +505,20 @@
       if (stake>0 && myAccountId){
         const prize = Math.round(pot*0.91);
         awardTpc(myAccountId, prize);
+        recordWin(tgId, myAccountId);
       }
       if(stake>0) awardDevShare(pot);
       celebrate('P1', p1AvatarImg, p1AvatarEmoji);
     }
     if (score.p2>=score.target){
       running=false;
-      if(stake>0) awardDevShare(stake*2);
+      const pot = stake*2;
+      if(stake>0 && oppAccountId){
+        const prize = Math.round(pot*0.91);
+        awardTpc(oppAccountId, prize);
+        recordWin(oppTgId, oppAccountId);
+      }
+      if(stake>0) awardDevShare(pot);
       celebrate('P2', p2AvatarImg, p2AvatarEmoji);
     }
   }
