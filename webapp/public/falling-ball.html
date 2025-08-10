@@ -90,7 +90,7 @@
     bgImg.src = '/assets/icons/Screenshot_20250810_110502_Gallery.jpg';
   let bgReady = false;
   bgImg.onload = () => { bgReady = true; };
-  addEventListener('resize', ()=>{ W=innerWidth; H=innerHeight; resizeCanvas(); genPegField(); carveCorridors(); });
+  addEventListener('resize', ()=>{ W=innerWidth; H=innerHeight; resizeCanvas(); genPegField(); carveCorridors(); addStars(); });
 
   // ========================= Audio (Web Audio, no binaries) =========================
   let audioCtx = null; let sfxOn = true;
@@ -145,7 +145,7 @@
     obstacles:[], // {x,y,r,type,angle,spin}
     density:'High', // Low|Med|High
     ball:{ x:0, y:0, vx:0, vy:0, r:14 },
-    gravity:0.6,
+    gravity:0.55,
     bounce:0.78,
     fric:0.003,
     time:0,
@@ -227,12 +227,23 @@
     state.obstacles = state.obstacles.filter(o=>{ if (o.y < cutY) return true; for(const c of corridors){ if (o.x>c.left && o.x<c.right) return false; } return true; });
   }
 
+  function addStars(){
+    const count = Math.min(4, state.obstacles.length);
+    const spins = [0.05, -0.05, 0.04, -0.04];
+    const indices = [...Array(state.obstacles.length).keys()];
+    for(let i=0;i<count;i++){
+      const idx = indices.splice(Math.floor(Math.random()*indices.length),1)[0];
+      const base = state.obstacles[idx];
+      state.obstacles[idx] = { ...base, type:'star', r: state.ball.r*2, angle: Math.random()*Math.PI*2, spin: spins[i] };
+    }
+  }
+
   function resetBall(){ state.ball.x=W*0.5; state.ball.y=60; state.ball.vx=(Math.random()*2-1)*2; state.ball.vy=0; state.resultSlot=null; }
 
   function startMatch(){
     refreshSlots();
     document.getElementById('winnerPopup').classList.add('hidden');
-    state.started=true; state.time=0; genPegField(); carveCorridors(); resetBall();
+    state.started=true; state.time=0; genPegField(); carveCorridors(); addStars(); resetBall();
     state.pot=state.players*state.stake; document.getElementById('potVal').textContent=state.pot; document.getElementById('winnerVal').textContent='—';
     setStatus('Game started! Obstacles regenerate randomly.');
     if(state.mode==='local') startBtn.style.display='none';
@@ -268,6 +279,7 @@
 
     // obstacles
     for(const o of state.obstacles){
+      if(o.type==='star') o.angle += o.spin;
       if (collideCircle(b, o)) {
         SFX.bounce();
       }
@@ -307,13 +319,32 @@
   }
   function drawObstacles(){
     for(const o of state.obstacles){
-      const grad = ctx.createRadialGradient(o.x-2,o.y-2,2, o.x,o.y,(o.r||14));
-      grad.addColorStop(0,'#ff9999');
-      grad.addColorStop(1,'#ff0000');
-      ctx.fillStyle = grad;
-      ctx.beginPath();
-      ctx.arc(o.x, o.y, o.r || 14, 0, Math.PI*2);
-      ctx.fill();
+      if(o.type==='star'){
+        ctx.save();
+        ctx.translate(o.x, o.y);
+        ctx.rotate(o.angle);
+        const grad = ctx.createRadialGradient(0,0,2,0,0,o.r);
+        grad.addColorStop(0,'#fff9c4');
+        grad.addColorStop(1,'#facc15');
+        ctx.fillStyle = grad;
+        ctx.beginPath();
+        const r=o.r, inner=r*0.5;
+        for(let i=0;i<4;i++){
+          ctx.lineTo(Math.cos(i*Math.PI/2)*r, Math.sin(i*Math.PI/2)*r);
+          ctx.lineTo(Math.cos(i*Math.PI/2+Math.PI/4)*inner, Math.sin(i*Math.PI/2+Math.PI/4)*inner);
+        }
+        ctx.closePath();
+        ctx.fill();
+        ctx.restore();
+      }else{
+        const grad = ctx.createRadialGradient(o.x-2,o.y-2,2, o.x,o.y,(o.r||14));
+        grad.addColorStop(0,'#ff9999');
+        grad.addColorStop(1,'#ff0000');
+        ctx.fillStyle = grad;
+        ctx.beginPath();
+        ctx.arc(o.x, o.y, o.r || 14, 0, Math.PI*2);
+        ctx.fill();
+      }
     }
   }
   function drawSlotsGuide(){ const pad=30; const usable=W-2*pad; const w = usable / state.players; const top = H-160; const bottom=H-120; for(let i=0;i<state.players;i++){ const x1=pad+i*w; ctx.fillStyle='rgba(0,0,0,0.25)'; ctx.fillRect(x1, top, w-2, bottom-top); if (state.resultSlot===i){ ctx.fillStyle='rgba(250,204,21,0.4)'; ctx.fillRect(x1, top, w-2, bottom-top); ctx.strokeStyle='rgba(250,204,21,0.9)'; ctx.lineWidth=3; ctx.strokeRect(x1+1, top, w-4, bottom-top); } } }
@@ -327,6 +358,7 @@
     refreshSlots();
     genPegField();
     carveCorridors();
+    addStars();
     resetBall();
     if(state.mode==='local'){
       startBtn.style.position='fixed';
