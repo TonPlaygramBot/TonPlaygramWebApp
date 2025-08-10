@@ -37,10 +37,12 @@
   <div class="app">
     <div class="hudTop">
       <div class="row">
-        <button class="chip active" id="sfxToggle">SFX: On</button>
-        <button class="btn primary" id="startBtn">START</button>
+        <span>SFX:</span>
+        <button class="chip active" id="sfxToggle">On</button>
       </div>
     </div>
+
+    <button class="btn primary" id="startBtn">START</button>
 
     <div class="status" id="statusBox">Obstacles regenerate randomly after each game. Density fixed to high. SFX On/Off.</div>
 
@@ -108,7 +110,13 @@
     setTimeout(()=>container.remove(),5000);
   }
 
-  document.getElementById('sfxToggle').onclick = (e)=>{ sfxOn = !sfxOn; e.currentTarget.classList.toggle('active', sfxOn); e.currentTarget.textContent = 'SFX: ' + (sfxOn?'On':'Off'); ensureAudio(); };
+  const sfxToggleBtn = document.getElementById('sfxToggle');
+  sfxToggleBtn.onclick = (e)=>{
+    sfxOn = !sfxOn;
+    e.currentTarget.classList.toggle('active', sfxOn);
+    e.currentTarget.textContent = sfxOn ? 'On' : 'Off';
+    ensureAudio();
+  };
 
   // ========================= State =========================
   const state={
@@ -307,9 +315,9 @@
     resetBall();
     if(state.mode==='local'){
       startBtn.style.position='fixed';
-      startBtn.style.bottom='20px';
+      startBtn.style.top='75%';
       startBtn.style.left='50%';
-      startBtn.style.transform='translateX(-50%)';
+      startBtn.style.transform='translate(-50%, -50%)';
     }else if(state.mode==='online'){
       startBtn.style.display='none';
       countdownAndStart();
