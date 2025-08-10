@@ -27,6 +27,8 @@ import FallingBall from './pages/Games/FallingBall.jsx';
 import FallingBallLobby from './pages/Games/FallingBallLobby.jsx';
 import Poker from './pages/Games/Poker.jsx';
 import PokerLobby from './pages/Games/PokerLobby.jsx';
+import AirHockey from './pages/Games/AirHockey.jsx';
+import AirHockeyLobby from './pages/Games/AirHockeyLobby.jsx';
 
 import Layout from './components/Layout.jsx';
 import useTelegramAuth from './hooks/useTelegramAuth.js';
@@ -57,6 +59,8 @@ export default function App() {
             <Route path="/games/fallingball" element={<FallingBall />} />
             <Route path="/games/poker/lobby" element={<PokerLobby />} />
             <Route path="/games/poker" element={<Poker />} />
+            <Route path="/games/airhockey/lobby" element={<AirHockeyLobby />} />
+            <Route path="/games/airhockey" element={<AirHockey />} />
             <Route path="/spin" element={<SpinPage />} />
             <Route path="/admin/influencer" element={<InfluencerAdmin />} />
             <Route path="/tasks" element={<Tasks />} />
