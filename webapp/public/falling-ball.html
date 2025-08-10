@@ -165,7 +165,7 @@
   const devAccountId = params.get('dev');
   const devAccountId1 = params.get('dev1');
   const devAccountId2 = params.get('dev2');
-  const myTelegramId = window?.Telegram?.WebApp?.initDataUnsafe?.user?.id;
+  const myTelegramId = params.get('tgId') || window?.Telegram?.WebApp?.initDataUnsafe?.user?.id;
 
   async function awardDevShare(total){
     const ops=[];
