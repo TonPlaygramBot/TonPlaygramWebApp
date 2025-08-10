@@ -47,7 +47,11 @@ export default function AirHockeyLobby() {
     if (tgId) params.set('tgId', tgId);
     if (accountId) params.set('accountId', accountId);
     const devAcc = import.meta.env.VITE_DEV_ACCOUNT_ID;
+    const devAcc1 = import.meta.env.VITE_DEV_ACCOUNT_ID_1;
+    const devAcc2 = import.meta.env.VITE_DEV_ACCOUNT_ID_2;
     if (devAcc) params.set('dev', devAcc);
+    if (devAcc1) params.set('dev1', devAcc1);
+    if (devAcc2) params.set('dev2', devAcc2);
     navigate(`/games/airhockey?${params.toString()}`);
   };
 
