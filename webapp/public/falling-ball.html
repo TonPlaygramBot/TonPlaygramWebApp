@@ -125,9 +125,19 @@
     setTimeout(()=>container.remove(),5000);
   }
 
+  let cachedAccountId = null;
   async function awardTpc(telegramId, amount){
     try{
-      await fetch('/api/profile/addTransaction',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({telegramId,amount,type:'win',game:'fallingball'})});
+      if(!cachedAccountId){
+        const profRes = await fetch('/api/profile/get',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({telegramId})});
+        const profData = await profRes.json();
+        cachedAccountId = profData.accountId;
+      }
+      if(!cachedAccountId) return;
+      const headers={'Content-Type':'application/json'};
+      const initData=window?.Telegram?.WebApp?.initData;
+      if(initData) headers['X-Telegram-Init-Data']=initData;
+      await fetch('/api/account/deposit',{method:'POST',headers,body:JSON.stringify({accountId:cachedAccountId,amount,game:'fallingball-win'})});
     }catch(err){ console.warn('Failed to award TPC',err); }
   }
 

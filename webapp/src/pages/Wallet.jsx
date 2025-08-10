@@ -447,6 +447,7 @@ export default function Wallet({ hideClaim = false }) {
               if (tx.type === 'gift') return 'gift sent';
               if (tx.type === 'gift-receive') return 'gift received';
               if (tx.type === 'gift-fee') return 'gift fee';
+              if (tx.game && tx.type === 'deposit') return 'game won';
               return tx.game ? 'game' : tx.type;
             })();
             const categoryLabel = tx.category ? ` (Tier ${tx.category})` : '';
