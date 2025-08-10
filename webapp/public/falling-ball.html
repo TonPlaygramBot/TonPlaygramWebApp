@@ -17,7 +17,7 @@
     .btn{ appearance:none; border:1px solid rgba(255,255,255,.15); background:rgba(255,255,255,.06); color:#fff; padding:10px 14px; border-radius:14px; font-weight:600; font-size:14px; cursor:pointer; }
     .btn.primary{ background:linear-gradient(135deg,#7dd3fc,#60a5fa); color:#fff; border:none; box-shadow:0 6px 18px rgba(96,165,250,.35); }
     .btn:disabled{ opacity:.5; }
-    .panel{ position:absolute; left:10px; bottom:10px; right:10px; background:linear-gradient(180deg, rgba(16,23,42,.9), rgba(16,23,42,.6)); border:1px solid rgba(255,255,255,.08); border-radius:16px; padding:10px; }
+    .panel{ position:absolute; left:10px; bottom:10px; right:10px; background:transparent; border:none; border-radius:16px; padding:10px; }
     .grid{ display:grid; grid-template-columns:repeat(var(--cols,5),minmax(0,1fr)); gap:6px; }
     .slot{ text-align:center; font-size:12px; color:#fff; padding:6px 0; border-radius:10px; border:1px dashed rgba(255,255,255,.12); display:flex; flex-direction:column; align-items:center; gap:4px; }
     .slot.me{ border-color:#7dd3fc; color:#c7f3ff; }
@@ -29,6 +29,8 @@
     .popup{ position:absolute; inset:0; background:rgba(0,0,0,.6); display:flex; align-items:center; justify-content:center; }
     .popup.hidden{ display:none; }
     .popup .box{ background:var(--panel); padding:20px; border-radius:12px; text-align:center; }
+    .countdown{ position:fixed; inset:0; display:flex; align-items:center; justify-content:center; font-size:48px; font-weight:bold; color:#fff; background:rgba(0,0,0,0.5); z-index:50; }
+    .countdown.hidden{ display:none; }
   </style>
 </head>
 <body>
@@ -57,6 +59,7 @@
         <button class="btn" id="lobbyBtn">Return Lobby</button>
       </div>
     </div>
+    <div id="countdown" class="countdown hidden"></div>
   </div>
 
   <script src="/flag-emojis.js"></script>
@@ -134,7 +137,8 @@
   const amt = Number(params.get('amount'));
   if (amt > 0) state.stake = amt;
   // ========================= HUD =========================
-  document.getElementById('startBtn').onclick = startMatch;
+  const startBtn = document.getElementById('startBtn');
+  startBtn.onclick = startMatch;
   function setStatus(t){ document.getElementById('statusBox').textContent=t; }
   function showWinnerPopup(name){ document.getElementById('winnerText').textContent = `${name} wins!`; document.getElementById('winnerPopup').classList.remove('hidden'); }
   document.getElementById('lobbyBtn').onclick=()=>{ location.href='/games/fallingball/lobby'; };
@@ -206,6 +210,22 @@
     state.started=true; state.time=0; genPegField(); carveCorridors(); resetBall();
     state.pot=state.players*state.stake; document.getElementById('potVal').textContent=state.pot; document.getElementById('winnerVal').textContent='—';
     setStatus('Game started! Obstacles regenerate randomly.');
+    if(state.mode==='local') startBtn.style.display='none';
+  }
+
+  function countdownAndStart(){
+    const cd=document.getElementById('countdown');
+    let c=3; cd.textContent=c; cd.classList.remove('hidden');
+    const timer=setInterval(()=>{
+      c--;
+      if(c>0){
+        cd.textContent=c;
+      }else{
+        clearInterval(timer);
+        cd.classList.add('hidden');
+        startMatch();
+      }
+    },1000);
   }
 
   // ========================= Physics =========================
@@ -285,6 +305,15 @@
     genPegField();
     carveCorridors();
     resetBall();
+    if(state.mode==='local'){
+      startBtn.style.position='fixed';
+      startBtn.style.bottom='20px';
+      startBtn.style.left='50%';
+      startBtn.style.transform='translateX(-50%)';
+    }else if(state.mode==='online'){
+      startBtn.style.display='none';
+      countdownAndStart();
+    }
   }
   init();
 
