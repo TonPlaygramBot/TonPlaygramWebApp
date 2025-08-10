@@ -23,6 +23,7 @@ export default function FallingBallLobby() {
   }, []);
 
   const startGame = async () => {
+    let tgId;
     try {
       const accountId = await ensureAccountId();
       const balRes = await getAccountBalance(accountId);
@@ -30,7 +31,7 @@ export default function FallingBallLobby() {
         alert('Insufficient balance');
         return;
       }
-      const tgId = getTelegramId();
+      tgId = getTelegramId();
       await addTransaction(tgId, -stake.amount, 'stake', { game: 'fallingball' });
     } catch {}
 
@@ -41,6 +42,7 @@ export default function FallingBallLobby() {
     if (stake.token) params.set('token', stake.token);
     if (stake.amount) params.set('amount', stake.amount);
     if (avatar) params.set('avatar', avatar);
+    if (tgId) params.set('tgId', tgId);
     navigate(`/games/fallingball?${params.toString()}`);
   };
 

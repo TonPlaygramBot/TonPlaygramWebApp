@@ -125,6 +125,12 @@
     setTimeout(()=>container.remove(),5000);
   }
 
+  async function awardTpc(telegramId, amount){
+    try{
+      await fetch('/api/profile/addTransaction',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({telegramId,amount,type:'win',game:'fallingball'})});
+    }catch(err){ console.warn('Failed to award TPC',err); }
+  }
+
   const sfxToggleBtn = document.getElementById('sfxToggle');
   sfxToggleBtn.onclick = (e)=>{
     sfxOn = !sfxOn;
@@ -160,6 +166,7 @@
   if (m === 'local' || m === 'online') state.mode = m;
   const amt = Number(params.get('amount'));
   if (amt > 0) state.stake = amt;
+  const myTgId = params.get('tgId');
   // ========================= HUD =========================
   const startBtn = document.getElementById('startBtn');
   startBtn.onclick = startMatch;
@@ -215,6 +222,16 @@
       for(const p of pegs){ const minCenter = p.r + cand.r + clearance; const dx=cand.x-p.x, dy=cand.y-p.y; if (dx*dx+dy*dy < minCenter*minCenter){ ok=false; break; } }
       if (ok) pegs.push(cand);
     }
+    const extra = Math.round(target*0.1); let tries=0;
+    while(pegs.length < target+extra && tries++ < extra*25){
+      const r = randomBetween(6,8);
+      const x = randomBetween(pad+r+6, W-pad-r-6);
+      const y = randomBetween(usableBottom-120+r+6, usableBottom-r-6);
+      const cand = { x, y, r, type:'peg' };
+      let ok=true;
+      for(const p of pegs){ const minCenter = p.r + cand.r + clearance; const dx=cand.x-p.x, dy=cand.y-p.y; if (dx*dx+dy*dy < minCenter*minCenter){ ok=false; break; } }
+      if (ok) pegs.push(cand);
+    }
     state.obstacles = pegs; // regenerated every game
   }
 
@@ -234,7 +251,7 @@
     for(let i=0;i<count;i++){
       const idx = indices.splice(Math.floor(Math.random()*indices.length),1)[0];
       const base = state.obstacles[idx];
-      state.obstacles[idx] = { ...base, type:'star', r: state.ball.r*2, angle: Math.random()*Math.PI*2, spin: spins[i] };
+      state.obstacles[idx] = { ...base, type:'star', r: state.ball.r*1.8, drawR: state.ball.r*2.2, angle: Math.random()*Math.PI*2, spin: spins[i] };
     }
   }
 
@@ -290,7 +307,7 @@
     if (b.y + b.r >= groundY){
       b.y = groundY - b.r; b.vy *= -state.bounce;
       if (Math.abs(b.vy) < 1.1){
-        const idx = pickSlotFromX(b.x); state.resultSlot = idx; const fee = Math.floor(state.pot*0.10); const prize = state.pot - fee; document.getElementById('winnerVal').textContent = `${state.slots[idx].name} +${prize} TPC`; setStatus(`Winner: ${state.slots[idx].name}. Payout ${prize} TPC (-${fee} dev)`); SFX.win(); coinConfetti(50); setTimeout(()=>showWinnerPopup(state.slots[idx].name),2000);
+        const idx = pickSlotFromX(b.x); state.resultSlot = idx; const fee = Math.floor(state.pot*0.10); const prize = state.pot - fee; document.getElementById('winnerVal').textContent = `${state.slots[idx].name} +${prize} TPC`; setStatus(`Winner: ${state.slots[idx].name}. Payout ${prize} TPC (-${fee} dev)`); SFX.win(); coinConfetti(50); if(state.slots[idx].isMe && myTgId){ awardTpc(myTgId, prize); } setTimeout(()=>showWinnerPopup(state.slots[idx].name),2000);
       }
     }
   }
@@ -323,12 +340,12 @@
         ctx.save();
         ctx.translate(o.x, o.y);
         ctx.rotate(o.angle);
-        const grad = ctx.createRadialGradient(0,0,2,0,0,o.r);
+        const grad = ctx.createRadialGradient(0,0,2,0,0,(o.drawR||o.r));
         grad.addColorStop(0,'#fff9c4');
         grad.addColorStop(1,'#facc15');
         ctx.fillStyle = grad;
         ctx.beginPath();
-        const r=o.r, inner=r*0.5;
+        const r=(o.drawR||o.r), inner=r*0.35;
         for(let i=0;i<4;i++){
           ctx.lineTo(Math.cos(i*Math.PI/2)*r, Math.sin(i*Math.PI/2)*r);
           ctx.lineTo(Math.cos(i*Math.PI/2+Math.PI/4)*inner, Math.sin(i*Math.PI/2+Math.PI/4)*inner);
