@@ -11,5 +11,5 @@
     "skipLibCheck": true,
     "baseUrl": "."
   },
-  "include": ["app", "components", "lib", "shared", "test"]
+  "include": ["lib", "test"]
 }
