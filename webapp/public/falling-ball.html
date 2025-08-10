@@ -70,10 +70,12 @@
   // ========================= Canvas & Brand =========================
   const canvas = document.getElementById('scene');
   const ctx = canvas.getContext('2d');
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = 'high';
   let W=innerWidth, H=innerHeight; canvas.width=W; canvas.height=H;
   // background image
     const bgImg = new Image();
-    bgImg.src = '/assets/icons/file_00000000e6e46246bc1e1a1e5eaaa784.webp';
+    bgImg.src = '/assets/icons/Screenshot_20250810_110502_Gallery.jpg';
   let bgReady = false;
   bgImg.onload = () => { bgReady = true; };
   addEventListener('resize', ()=>{ W=innerWidth; H=innerHeight; canvas.width=W; canvas.height=H; genPegField(); carveCorridors(); });
@@ -287,8 +289,6 @@
   function drawBackground(){
     if(bgReady){
       ctx.drawImage(bgImg, 0, 0, W, H);
-      ctx.fillStyle = 'rgba(255,255,255,0.15)';
-      ctx.fillRect(0, 0, W, H);
     }
   }
   function drawObstacles(){
