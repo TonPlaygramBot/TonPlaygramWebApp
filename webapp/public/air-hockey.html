@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="sq">
+<html lang="en">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
-  <title>Air Hockey – Mobile Portrait</title>
+  <title>Air Hockey</title>
   <style>
     :root{
       --bg:#050812;
@@ -17,20 +17,17 @@
     *{box-sizing:border-box; -webkit-tap-highlight-color: transparent;}
     html,body{height:100%;}
     body{margin:0;background:var(--bg);color:#e5e7eb;font-family:system-ui,Segoe UI,Roboto,Helvetica,Arial;overflow:hidden}
-    .ui{position:fixed;inset:0;display:flex;flex-direction:column;}
-    .topbar{display:flex;gap:8px;align-items:center;justify-content:space-between;padding:8px 12px;background:rgba(6,10,24,.6);backdrop-filter:blur(6px)}
-    .group{display:flex;gap:8px;align-items:center}
-    button,select{background:#0b1224;color:#e5e7eb;border:1px solid #1f2944;border-radius:12px;padding:8px 12px;font-weight:600}
-    button:active{transform:scale(.98)}
+    .ui{position:fixed;inset:0;}
+    .scoreboard{position:absolute;top:8px;left:50%;transform:translateX(-50%);}
     .score{font-variant-numeric:tabular-nums;background:#0b1220;border:1px solid #233050;border-radius:12px;padding:6px 10px;display:flex;align-items:center;gap:8px}
     .badge{padding:2px 8px;border-radius:999px;font-weight:800}
     .p1{background:var(--p1);color:#052e12}
     .p2{background:var(--p2);color:#3a2600}
 
-    .canvasWrap{position:relative;flex:1}
-    canvas{position:absolute;inset:0;width:100vw;height:100dvh;display:block;touch-action:none}
+    .canvasWrap{position:absolute;inset:0}
+    canvas{position:absolute;inset:0;width:100vw;height:100vh;display:block;touch-action:none}
 
-    .hint{position:fixed;bottom:8px;left:0;right:0;margin:auto;max-width:680px;background:rgba(10,16,34,.6);backdrop-filter:blur(6px);border:1px solid #1f2944;border-radius:12px;padding:8px 12px;text-align:center;font-size:.9rem}
+    .hint{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;margin:auto;max-width:680px;background:rgba(10,16,34,.6);backdrop-filter:blur(6px);border:1px solid #1f2944;border-radius:12px;padding:8px 12px;text-align:center;font-size:.9rem}
 
     @media (orientation:landscape){
       .landscape-block{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:#0008;z-index:20;color:#fff;text-align:center;padding:24px}
@@ -39,59 +36,35 @@
 </head>
 <body>
   <div class="ui">
-    <div class="topbar">
-      <div class="group">
-        <button id="startBtn">Start</button>
-        <button id="pauseBtn">Pauzë</button>
-        <button id="resetBtn">Rifillo</button>
-        <button id="fsBtn">Full‑Screen</button>
-        <button id="sndBtn">🔊 Zëri: Off</button>
-      </div>
-      <div class="group">
-        <select id="modeSel" title="Mënyra">
-          <option value="ai">Vs AI</option>
-          <option value="online">1v1 Online</option>
-        </select>
-        <select id="speedSel" title="Shpejtësia">
-          <option value="1">Normal</option>
-          <option value="1.2">+20%</option>
-          <option value="1.4">+40%</option>
-          <option value="0.8">-20%</option>
-        </select>
-        <div class="score" aria-live="polite">
-          <span class="badge p1">P1</span><span id="s1">0</span>
-          <span>—</span>
-          <span id="s2">0</span><span class="badge p2">P2</span>
-        </div>
+    <div class="scoreboard">
+      <div class="score" aria-live="polite">
+        <span class="badge p1">P1</span><span id="s1">0</span>
+        <span>—</span>
+        <span id="s2">0</span><span class="badge p2">P2</span>
       </div>
     </div>
     <div class="canvasWrap">
-      <canvas id="game" width="720" height="1280" aria-label="Fusha e Air Hockey Portret"></canvas>
+      <canvas id="game" width="720" height="1280" aria-label="Air Hockey Field"></canvas>
     </div>
   </div>
-  <div class="hint">Portret • <b>P1</b>: prek/rrëshqit në gjysmën <b>poshtë</b>. <b>P2</b>: prek/rrëshqit në gjysmën <b>sipër</b> (ose AI). Shpejtësia e paddle-it ndjek shpejtësinë e gishtit. Ka tinguj për goditje, mur dhe gol ⚡️</div>
-  <div class="landscape-block" style="display:none">Ju lutem mbajeni telefonin në <b>portret</b> për eksperiencë më të mirë.</div>
+  <div class="hint" id="startHint">Portrait • <b>P1</b>: touch/drag in the <b>bottom</b> half. <b>P2</b>: touch/drag in the <b>top</b> half (or AI). Paddle speed follows finger speed. Sounds for hit, wall and goal ⚡️</div>
+  <div class="landscape-block" style="display:none">Please hold your phone in <b>portrait</b> for the best experience.</div>
 
 <script>
 (() => {
   const canvas = document.getElementById('game');
   const ctx = canvas.getContext('2d');
-  const startBtn = document.getElementById('startBtn');
-  const pauseBtn = document.getElementById('pauseBtn');
-  const resetBtn = document.getElementById('resetBtn');
-  const fsBtn = document.getElementById('fsBtn');
-  const sndBtn = document.getElementById('sndBtn');
   const s1El = document.getElementById('s1');
   const s2El = document.getElementById('s2');
-  const speedSel = document.getElementById('speedSel');
-  const modeSel = document.getElementById('modeSel');
+  const startHint = document.getElementById('startHint');
   const landscapeBlock = document.querySelector('.landscape-block');
 
   const params = new URLSearchParams(location.search);
   const stake = Number(params.get('amount')) || 0;
   const myTgId = params.get('tgId');
-  let mode = params.get('mode') || 'ai';
-  modeSel.value = mode;
+  const mode = params.get('mode') || 'ai';
+  const difficulty = params.get('difficulty') || 'normal';
+  const target = Number(params.get('target')) || 3;
 
   async function awardTpc(telegramId, amount){
     try{
@@ -109,8 +82,9 @@
     rink.y = Math.round(H*0.04); rink.h = Math.round(H*0.92);
     centerX = W/2; centerY = H/2;
     goalWidth = Math.round(W*0.42);
-    paddleRadius = Math.max(24, Math.round(Math.min(W,H)*0.035));
-    puck.r = Math.max(14, Math.round(paddleRadius*0.6));
+    const base = Math.max(24, Math.round(Math.min(W,H)*0.035));
+    paddleRadius = base*2;
+    puck.r = Math.max(14, Math.round(base*0.6));
     p1.r = paddleRadius; p2.r = paddleRadius;
   }
   window.addEventListener('resize', fit);
@@ -124,15 +98,17 @@
   const puck = { x:0, y:0, r:16, vx:0, vy:0, max: 22 };
   const p1 = { x:0, y:0, r:28, vx:0, vy:0, max: 18, lastX:0, lastY:0 };
   const p2 = { x:0, y:0, r:28, vx:0, vy:0, max: 18, lastX:0, lastY:0 };
-  const score = { p1:0, p2:0, target:7 };
-  let running = false; let last = 0; let speedMul = 1;
+  const score = { p1:0, p2:0, target }; 
+  let running = true; let last = 0; const speedMul = 1;
+  const difficultySpeeds = { easy:14, normal:18, hard:24 };
+  p2.max = difficultySpeeds[difficulty] || 18;
 
   let audioEnabled = false; let ac; let master;
   function initAudio(){
     if (audioEnabled) return;
     ac = new (window.AudioContext || window.webkitAudioContext)();
     master = ac.createGain(); master.gain.value = 0.25; master.connect(ac.destination);
-    audioEnabled = true; sndBtn.textContent = '🔊 Zëri: On';
+    audioEnabled = true;
   }
   function beep({freq=440, dur=0.06, type='square', gain=0.3}){
     if (!audioEnabled) return;
@@ -344,32 +320,20 @@
   function updateScore(){ s1El.textContent = score.p1; s2El.textContent = score.p2; }
   function checkWin(){
     if (score.p1>=score.target){
-      running=false; toast('🎉 P1 fitoi!');
+      running=false; toast('🎉 P1 wins!');
       if (stake>0 && myTgId){
         const pot = stake*2; const fee = Math.floor(pot*0.10); const prize = pot - fee;
         awardTpc(myTgId, prize);
       }
     }
-    if (score.p2>=score.target){ running=false; toast('🎉 P2 fitoi!'); }
+    if (score.p2>=score.target){ running=false; toast('🎉 P2 wins!'); }
   }
   function toast(msg){
-    const hint = document.querySelector('.hint');
-    const old = hint.textContent; hint.textContent = msg;
-    setTimeout(()=>{ hint.textContent = old; }, 1400);
+    const old = startHint.textContent;
+    startHint.textContent = msg;
+    startHint.style.display = 'flex';
+    setTimeout(()=>{ startHint.textContent = old; startHint.style.display = 'none'; }, 1400);
   }
-
-  startBtn.addEventListener('click', ()=>{ running=true; });
-  pauseBtn.addEventListener('click', ()=>{ running=false; });
-  resetBtn.addEventListener('click', ()=>{ score.p1=score.p2=0; updateScore(); resetPositions(); });
-  speedSel.addEventListener('change', e=>{ speedMul = parseFloat(e.target.value)||1; });
-  modeSel.addEventListener('change', e=>{ mode = e.target.value; resetPositions(mode==='ai'?'p1':'p2'); });
-  fsBtn.addEventListener('click', async ()=>{
-    try {
-      if (!document.fullscreenElement) await document.documentElement.requestFullscreen();
-      else await document.exitFullscreen();
-    } catch(err) { console.log(err); }
-  });
-  sndBtn.addEventListener('click', ()=>{ if (!audioEnabled) initAudio(); else { audioEnabled=false; sndBtn.textContent='🔊 Zëri: Off'; } });
 
   window.addEventListener('keydown', e=>keys.add(e.key));
   window.addEventListener('keyup', e=>keys.delete(e.key));
@@ -401,10 +365,13 @@
   canvas.addEventListener('pointerup', e=>clearTouch(e.pointerId));
   canvas.addEventListener('pointercancel', e=>clearTouch(e.pointerId));
 
+  document.addEventListener('pointerdown', ()=>{ initAudio(); }, { once:true });
+
   function checkOrientation(){ landscapeBlock.style.display = (window.matchMedia('(orientation: landscape)').matches ? 'flex' : 'none'); }
   window.addEventListener('orientationchange', checkOrientation);
 
   fit(); checkOrientation(); resetPositions(); updateScore(); requestAnimationFrame(loop);
+  setTimeout(()=>{ startHint.style.display='none'; }, 3000);
 })();
 </script>
 </body>
