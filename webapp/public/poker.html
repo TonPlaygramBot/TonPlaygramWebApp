@@ -1,0 +1,444 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport"
+      content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
+<title>TonPlaygram Poker • Mobile</title>
+<style>
+  :root{
+    --w: min(100vw, 760px);
+    --h: calc(var(--w) * 1.45);             /* raport vertikal si fotoja jote */
+    --card-w: clamp(44px, 11vw, 66px);
+    --card-h: calc(var(--card-w) * 1.4);
+    --chip: clamp(16px, 4vw, 24px);
+    --btn-w: clamp(78px, 22vw, 120px);
+    --btn-h: clamp(36px, 8vw, 44px);
+    --gap: clamp(6px, 1.8vw, 12px);
+    --shadow: 0 10px 26px rgba(0,0,0,.45);
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  body{margin:0;background:#0c1020;color:#eef2f7;font-family:system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial}
+  .wrap{display:flex;justify-content:center;padding:8px}
+  .table{position:relative;width:var(--w);height:var(--h);border-radius:16px;overflow:hidden;box-shadow:var(--shadow);background:#0f3b2c}
+  .bg{position:absolute;inset:0;background:
+      radial-gradient(75% 55% at 50% 35%, #115a4d 0%, #0f3b2c 60%, #0a231d 100%);
+      background-size:cover;background-position:center}
+  .bg.has{background:none}
+  .bg img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:none}
+  .bg.has img{display:block}
+
+  /* —— Deck position for deal animation —— */
+  .deck{position:absolute;left:50%;top:63%;transform:translate(-50%,-50%);width:var(--card-w);height:var(--card-h);pointer-events:none}
+  .deck .back{width:100%;height:100%;border-radius:8px;background:
+      repeating-linear-gradient(45deg,#0f2438 0 6px,#173652 6px 12px);box-shadow:var(--shadow)}
+
+  /* —— Seats aligned me foton —— */
+  .seat{position:absolute;display:flex;flex-direction:column;align-items:center;gap:var(--gap);pointer-events:none}
+  .s-top-l{left:14%; top:24%}
+  .s-top-m{left:50%; top:22%; transform:translateX(-50%)}
+  .s-top-r{right:14%; top:24%}
+  .s-hero {left:50%; bottom:7%; transform:translateX(-50%)}
+  .avatar{width:clamp(48px,11vw,76px);height:clamp(48px,11vw,76px);border-radius:50%;
+          background:linear-gradient(#0a2033,#071420);box-shadow:inset 0 0 0 2px #0c1f30, 0 6px 18px rgba(0,0,0,.35)}
+  .name{font-size:clamp(11px,2.6vw,13px);opacity:.9}
+  .stack{display:flex;gap:4px;transform:translateY(2px)}
+  .chip{width:var(--chip);height:var(--chip);border-radius:50%;box-shadow:inset 0 0 0 3px #0d2236, 0 2px 0 rgba(0,0,0,.25)}
+  .c-gold{background:#f0b018} .c-red{background:#d54242} .c-blue{background:#2a7bdc}
+  .hand{position:relative;display:flex;gap:6px;min-height:var(--card-h)}
+
+  /* —— Community & Hero cards rreth logot —— */
+  .community{position:absolute;left:50%;top:56%;transform:translate(-50%,-50%);display:flex;gap:var(--gap)}
+  .hero-cards{position:absolute;left:50%;top:69%;transform:translateX(-50%);display:flex;gap:var(--gap)}
+
+  /* —— Playing cards —— */
+  .card{width:var(--card-w);height:var(--card-h);border-radius:8px;background:#fff;
+        display:grid;place-items:center;font-weight:800;font-size:clamp(16px,4.8vw,22px);
+        color:#101010;box-shadow:0 6px 16px rgba(0,0,0,.35);user-select:none}
+  .red{color:#c0192d}
+  .back{background:repeating-linear-gradient(45deg,#0f2438 0 6px,#173652 6px 12px)}
+  .flip{transform-style:preserve-3d;transition:transform .35s}
+  .flip.hide{transform:rotateY(90deg)}
+
+  /* —— Actions (side) —— */
+  .side{position:absolute;top:50%;transform:translateY(-50%);display:flex;flex-direction:column;gap:10px;z-index:5}
+  .left{left:6px} .right{right:6px}
+  button{width:var(--btn-w);height:var(--btn-h);border:0;border-radius:12px;
+         background:#1b2741;color:#fff;font-weight:800;letter-spacing:.2px;box-shadow:0 6px 18px rgba(0,0,0,.35)}
+  button:disabled{opacity:.45}
+  .primary{background:#f0b018;color:#131210}
+  .danger{background:#cf2f46}
+  .sub{background:#2b3b60}
+
+  /* —— Bottom dock when very narrow —— */
+  @media (max-width: 360px){
+    .side{position:static;transform:none;flex-direction:row;justify-content:center;margin-top:6px}
+    .left{left:auto} .right{right:auto}
+    .dock{position:absolute;left:0;right:0;bottom:0;padding:6px;background:#0b1528cc;border-top:1px solid #1c2740}
+  }
+
+  /* —— Top bar + calibrator —— */
+  .topbar{position:absolute;left:0;right:0;top:6px;display:flex;gap:8px;justify-content:center;align-items:center;z-index:6}
+  .topbar label{font-size:12px;opacity:.9}
+  input[type="file"]{font-size:12px}
+  .status{position:absolute;left:50%;bottom:6px;transform:translateX(-50%);font-size:12px;opacity:.9}
+  .panel{position:absolute;right:8px;bottom:8px;background:#0b1528e6;border:1px solid #1c2740;border-radius:12px;padding:8px 10px;z-index:7}
+  .panel h4{margin:0 0 6px 0;font-size:12px;opacity:.9}
+  .row{display:flex;align-items:center;gap:6px;margin:4px 0}
+  .row span{width:86px;font-size:12px;opacity:.8}
+  .row input{width:160px}
+  .tinybtn{margin-top:6px;width:100%;height:30px;border-radius:8px;background:#243457;color:#fff;border:0}
+  .hide{display:none}
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="table" id="table">
+      <div class="bg" id="bg"><img id="bgImg" alt=""></div>
+      <div class="deck"><div class="back"></div></div>
+
+      <!-- Seats -->
+      <div class="seat s-top-l" id="seat0">
+        <div class="avatar"></div>
+        <div class="stack"><div class="chip c-gold"></div><div class="chip c-blue"></div><div class="chip c-red"></div></div>
+        <div class="hand"></div>
+        <div class="name">Player 1</div>
+      </div>
+      <div class="seat s-top-m" id="seat1">
+        <div class="avatar"></div>
+        <div class="stack"><div class="chip c-gold"></div><div class="chip c-gold"></div><div class="chip c-blue"></div></div>
+        <div class="hand"></div>
+        <div class="name">Player 2</div>
+      </div>
+      <div class="seat s-top-r" id="seat2">
+        <div class="avatar"></div>
+        <div class="stack"><div class="chip c-gold"></div><div class="chip c-red"></div><div class="chip c-blue"></div></div>
+        <div class="hand"></div>
+        <div class="name">Player 3</div>
+      </div>
+      <div class="seat s-hero" id="seat3">
+        <div class="avatar"></div>
+        <div class="stack"><div class="chip c-gold"></div><div class="chip c-gold"></div><div class="chip c-gold"></div></div>
+        <div class="hand" id="heroHand"></div>
+        <div class="name">You</div>
+      </div>
+
+      <!-- Community & Hero overlay -->
+      <div class="community" id="community"></div>
+      <div class="hero-cards" id="heroCards"></div>
+
+      <!-- Side actions -->
+      <div class="side left">
+        <button class="danger" id="btnFold">Fold</button>
+        <button class="sub" id="btnCheckCall">Check</button>
+      </div>
+      <div class="side right">
+        <button class="primary" id="btnRaise">Raise</button>
+        <input id="raise" type="range" min="20" max="400" step="10" style="width:var(--btn-w)">
+        <button class="sub" id="btnNext">Next</button>
+      </div>
+
+      <!-- Dock (auto shows on tiny screens via media query) -->
+      <div class="dock"></div>
+
+      <!-- Top controls -->
+      <div class="topbar">
+        <button id="btnStart" class="primary" style="width:auto;padding:0 12px">Start hand</button>
+        <label><input type="checkbox" id="auto"> Auto next</label>
+        <label>Upload background <input type="file" id="bgUpload" accept="image/*"></label>
+        <button id="lock" class="sub" style="width:auto;padding:0 10px">Hide calibrator</button>
+      </div>
+
+      <!-- Calibrator -->
+      <div class="panel" id="panel">
+        <h4>Calibrate positions (%)</h4>
+        <div class="row"><span>Top Left (Y)</span><input type="range" id="tlY" min="15" max="35" step="0.1" value="24"></div>
+        <div class="row"><span>Top Mid (Y)</span><input type="range" id="tmY" min="18" max="33" step="0.1" value="22"></div>
+        <div class="row"><span>Top Right (Y)</span><input type="range" id="trY" min="15" max="35" step="0.1" value="24"></div>
+        <div class="row"><span>Community (Y)</span><input type="range" id="comY" min="50" max="64" step="0.1" value="56"></div>
+        <div class="row"><span>Hero Hand (Y)</span><input type="range" id="heroY" min="64" max="76" step="0.1" value="69"></div>
+        <div class="row"><span>Hero Bottom</span><input type="range" id="heroB" min="4" max="12" step="0.1" value="7"></div>
+        <button class="tinybtn" id="reset">Reset</button>
+      </div>
+
+      <div class="status" id="status">Ready.</div>
+    </div>
+  </div>
+
+<script>
+/* ========= Utilities ========= */
+const el=(t,c)=>{const n=document.createElement(t); if(c) n.className=c; return n;};
+const suits=[{s:'♠',red:false},{s:'♥',red:true},{s:'♦',red:true},{s:'♣',red:false}];
+const ranks=['2','3','4','5','6','7','8','9','T','J','Q','K','A'];
+const rv=r=>ranks.indexOf(r);
+
+function newDeck(){
+  const d=[]; for(let i=0;i<4;i++) for(const r of ranks) d.push({r, ...suits[i]});
+  for(let i=d.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [d[i],d[j]]=[d[j],d[i]]; }
+  return d;
+}
+function cardEl(o){ const n=el('div','card'+(o.red?' red':'')); n.textContent=o.r+o.s; return n; }
+function backEl(){ return el('div','card back'); }
+
+function sleep(ms){ return new Promise(r=>setTimeout(r,ms)); }
+
+/* ========= 7-card evaluator (lightweight) ========= */
+function evaluate7(cards){
+  const byS={'♠':[],'♥':[],'♦':[],'♣':[]}, byR={};
+  for(const c of cards){ byS[c.s].push(c); byR[c.r]=(byR[c.r]||0)+1; }
+  const uniq=[...new Set(cards.map(c=>c.r))].sort((a,b)=>rv(b)-rv(a));
+  const straightHigh=(vals)=>{ const set=new Set(vals); if(set.has('A')) set.add('1'); // A low
+    const arr=[...set].map(v=> v==='1'?-1:rv(v)).sort((a,b)=>b-a);
+    let run=1; for(let i=0;i<arr.length-1;i++){ if(arr[i]-1===arr[i+1]) run++; else run=1; if(run>=5) return arr[i+1]+4; }
+    return -1;
+  };
+  // Straight flush
+  for(const s of ['♠','♥','♦','♣']){
+    if(byS[s].length>=5){
+      const vals=[...new Set(byS[s].map(c=>c.r))];
+      const hi=straightHigh(vals); if(hi>=0) return [8,hi];
+    }
+  }
+  const counts=Object.entries(byR).map(([r,c])=>({r,c,v:rv(r)})).sort((a,b)=> b.c===a.c? b.v-a.v : b.c-a.c);
+  if(counts[0]?.c===4){ const q=counts[0].v,k=counts.filter(x=>x.v!==q).sort((a,b)=>b.v-a.v)[0].v; return [7,q,k]; }
+  if(counts[0]?.c===3 && counts[1]?.c>=2){ return [6, counts[0].v, counts[1].v]; }
+  for(const s of ['♠','♥','♦','♣']){
+    if(byS[s].length>=5){
+      const top=byS[s].map(c=>rv(c.r)).sort((a,b)=>b-a).slice(0,5);
+      return [5, ...top];
+    }
+  }
+  const sh=straightHigh(uniq); if(sh>=0) return [4,sh];
+  if(counts[0]?.c===3){ const t=counts[0].v, ks=counts.filter(x=>x.v!==t).sort((a,b)=>b.v-a.v).slice(0,2).map(x=>x.v); return [3,t,...ks]; }
+  if(counts[0]?.c===2 && counts[1]?.c===2){ const hp=Math.max(counts[0].v,counts[1].v), lp=Math.min(counts[0].v,counts[1].v), k=counts.filter(x=>x.v!==hp&&x.v!==lp).sort((a,b)=>b.v-a.v)[0]?.v??0; return [2,hp,lp,k]; }
+  if(counts[0]?.c===2){ const p=counts[0].v, ks=counts.filter(x=>x.v!==p).sort((a,b)=>b.v-a.v).slice(0,3).map(x=>x.v); return [1,p,...ks]; }
+  const highs=counts.sort((a,b)=>b.v-a.v).slice(0,5).map(x=>x.v); return [0,...highs];
+}
+function cmp(a,b){ for(let i=0;i<Math.max(a.length,b.length);i++){ const x=a[i]??-1,y=b[i]??-1; if(x!==y) return x-y; } return 0; }
+
+/* ========= Game state ========= */
+const seats=[...document.querySelectorAll('.seat')];
+const hands=[[],[],[],[]]; // 3 bots + hero (index 3)
+const invested=[0,0,0,0];
+const folded=[false,false,false,false];
+let chips=[2000,2000,2000,2000];
+let pot=0, dealer=0, toAct=0, stage='idle', currentBet=0;
+let D=[];
+
+const statusEl=document.getElementById('status');
+const communityEl=document.getElementById('community');
+const heroCardsEl=document.getElementById('heroCards');
+const raiseSlider=document.getElementById('raise');
+
+/* ========= Rendering ========= */
+function updateHUD(){
+  document.getElementById('btnCheckCall').textContent = (currentBet>invested[3]) ? 'Call' : 'Check';
+  document.getElementById('btnFold').disabled = !(stage!=='idle' && stage!=='showdown' && toAct===3);
+  document.getElementById('btnCheckCall').disabled = !(stage!=='idle' && stage!=='showdown' && toAct===3);
+  document.getElementById('btnRaise').disabled = !(stage!=='idle' && stage!=='showdown' && toAct===3);
+  document.getElementById('btnNext').disabled = stage!=='showdown';
+  statusEl.textContent = `Pot: ${pot} • SB/BB 10/20 • ${['Preflop','Flop','Turn','River','Showdown','Idle'][['preflop','flop','turn','river','showdown','idle'].indexOf(stage)]||'Idle'}`;
+}
+
+/* ========= Animations ========= */
+async function dealTo(targetHandEl, cardObj, faceUp=false){
+  // create card at deck center
+  const deck=document.querySelector('.deck');
+  const c=faceUp? cardEl(cardObj) : backEl(); c.style.position='absolute'; c.style.left='50%'; c.style.top='63%';
+  c.style.transform='translate(-50%,-50%)'; c.style.zIndex=10;
+  document.getElementById('table').appendChild(c);
+  await sleep(10);
+  // animate to target
+  const rectTo=targetHandEl.getBoundingClientRect();
+  const rectTbl=document.getElementById('table').getBoundingClientRect();
+  const x=rectTo.left-rectTbl.left + (targetHandEl.childElementCount* (parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--card-w'))+6));
+  const y=rectTo.top-rectTbl.top;
+  c.style.transition='transform .22s ease, left .22s ease, top .22s ease';
+  c.style.left = x+'px'; c.style.top = y+'px'; c.style.transform='translate(0,0)';
+  await sleep(220);
+  // place to final container
+  targetHandEl.appendChild(faceUp? cardEl(cardObj) : backEl());
+  c.remove();
+}
+
+async function flipHero(){
+  const hs=heroCardsEl.children;
+  for(const k of [0,1]){
+    hs[k].classList.add('flip'); await sleep(20);
+    hs[k].classList.add('hide'); await sleep(150);
+    const c=hands[3][k]; const repl=cardEl(c);
+    heroCardsEl.replaceChild(repl, hs[k]); await sleep(80);
+  }
+}
+
+/* ========= Flow helpers ========= */
+function resetRound(){
+  communityEl.innerHTML=''; heroCardsEl.innerHTML='';
+  for(const s of seats) s.querySelector('.hand').innerHTML='';
+  for(let i=0;i<4;i++){ hands[i]=[]; invested[i]=0; folded[i]=false; }
+  pot=0; currentBet=0;
+}
+
+async function startHand(){
+  resetRound(); stage='preflop'; D=newDeck();
+  // blinds
+  const sb=(dealer+1)%4, bb=(dealer+2)%4;
+  chips[sb]-=10; chips[bb]-=20; invested[sb]=10; invested[bb]=20; pot=30; currentBet=20;
+  toAct=(dealer+3)%4;
+  // deal 2 rounds
+  for(let r=0;r<2;r++){
+    for(let p=0;p<4;p++){
+      const seatIdx=(dealer+1+p)%4;
+      const handEl = seatIdx===3? heroCardsEl : seats[seatIdx].querySelector('.hand');
+      const card=D.pop(); hands[seatIdx].push(card);
+      await dealTo(handEl, card, seatIdx===3); // hero face up
+    }
+  }
+  updateHUD();
+  // hero cards flip (already face up), bots keep back
+}
+
+function allMatched(){
+  for(let i=0;i<4;i++){ if(folded[i]) continue; if(invested[i]!==currentBet) return false; }
+  return true;
+}
+
+async function nextBoard(){
+  if(stage==='preflop'){ // burn + flop
+    D.pop(); for(let i=0;i<3;i++){ const c=D.pop(); await dealTo(communityEl, c, true); communityEl.lastChild.textContent=c.r+c.s; }
+    stage='flop';
+  }else if(stage==='flop'){
+    D.pop(); const c=D.pop(); await dealTo(communityEl, c, true); stage='turn';
+  }else if(stage==='turn'){
+    D.pop(); const c=D.pop(); await dealTo(communityEl, c, true); stage='river';
+  }
+  currentBet=0; for(let i=0;i<4;i++) invested[i]=0;
+  toAct=(dealer+1)%4; updateHUD();
+}
+
+function showdown(){
+  stage='showdown';
+  // reveal bot holes (replace backs with faces)
+  for(let i=0;i<3;i++){
+    const handEl=seats[i].querySelector('.hand'); handEl.innerHTML='';
+    for(const c of hands[i]) handEl.appendChild(cardEl(c));
+  }
+  // evaluate winners
+  const scores=[0,1,2,3].map(i=> folded[i]?[-1]:evaluate7([...hands[i],...communityCards()]));
+  let best=scores[0], winners=[0];
+  for(let i=1;i<4;i++){ const d=cmp(scores[i],best); if(d>0){ best=scores[i]; winners=[i]; } else if(d===0){ winners.push(i); } }
+  const share=Math.floor(pot/winners.length); for(const w of winners) chips[w]+=share;
+  statusEl.textContent=`Showdown • Winner${winners.length>1?'s':''}: ${winners.map(i=>i===3?'You':('P'+(i+1))).join(', ')} • Pot ${pot}`;
+  updateHUD();
+  if(document.getElementById('auto').checked) setTimeout(()=>{ nextHand(); }, 900);
+}
+
+function communityCards(){
+  const arr=[]; for(const n of communityEl.children){ const t=n.textContent; arr.push({r:t.slice(0,-1), s:t.slice(-1), red:(t.slice(-1)==='♥'||t.slice(-1)==='♦')}); }
+  return arr;
+}
+
+function advanceIfReady(){
+  const alive=folded.reduce((a,v,i)=>{ if(!v) a.push(i); return a; },[]);
+  if(alive.length===1){ chips[alive[0]]+=pot; stage='showdown'; updateHUD(); return; }
+  if(allMatched()){
+    if(communityEl.childElementCount<5) nextBoard(); else showdown();
+  }
+}
+
+/* ========= Actions ========= */
+function actHeroFold(){ if(toAct!==3||stage==='showdown') return; folded[3]=true; toAct=(toAct+1)%4; updateHUD(); botLoop(); advanceIfReady(); }
+function actHeroCheckCall(){
+  if(toAct!==3||stage==='showdown') return;
+  const need=currentBet-invested[3];
+  if(need>0){ const pay=Math.min(chips[3],need); chips[3]-=pay; invested[3]+=pay; pot+=pay; }
+  toAct=(toAct+1)%4; updateHUD(); botLoop(); advanceIfReady();
+}
+function actHeroRaise(){
+  if(toAct!==3||stage==='showdown') return;
+  const target=currentBet+Math.max(20,parseInt(raiseSlider.value));
+  const need=target-invested[3]; const pay=Math.min(chips[3],need);
+  chips[3]-=pay; invested[3]+=pay; pot+=pay; currentBet=invested[3];
+  toAct=(toAct+1)%4; updateHUD(); botLoop(); advanceIfReady();
+}
+document.getElementById('btnFold').onclick=actHeroFold;
+document.getElementById('btnCheckCall').onclick=actHeroCheckCall;
+document.getElementById('btnRaise').onclick=actHeroRaise;
+document.getElementById('btnNext').onclick=()=>{ if(stage==='showdown') nextHand(); };
+
+/* ========= Bot AI ========= */
+function botStrength(i){
+  // very rough score: use current community or padded to 5 with lowest cards
+  const board=communityCards(); const pad=Array(Math.max(0,5-board.length)).fill({r:'2',s:'♣',red:false});
+  return evaluate7([...hands[i], ...board, ...pad])[0];
+}
+function botAction(i){
+  if(folded[i]) return 'skip';
+  const need=currentBet-invested[i];
+  const s=botStrength(i);
+  if(s>=2 && Math.random()<0.35){ // raise sometimes if pair+ potential
+    const raiseBy=Math.max(20, Math.floor((pot+40)*0.25));
+    const target=currentBet+raiseBy; const pay=Math.min(chips[i], target-invested[i]);
+    chips[i]-=pay; invested[i]+=pay; pot+=pay; currentBet=invested[i]; return 'raise';
+  }
+  if(need<=0){ invested[i]=currentBet; return 'check'; }
+  if(need<chips[i]*0.35){ chips[i]-=need; invested[i]+=need; pot+=need; return 'call'; }
+  folded[i]=true; return 'fold';
+}
+function botLoop(){
+  const start=toAct;
+  const run=()=> {
+    if(stage==='idle'||stage==='showdown') return;
+    if(toAct===3) return; // hero turn
+    if(folded[toAct] || chips[toAct]<=0){ toAct=(toAct+1)%4; if(toAct===3) { updateHUD(); advanceIfReady(); return; } return run(); }
+    const action=botAction(toAct);
+    toAct=(toAct+1)%4;
+    updateHUD();
+    if(toAct===3){ advanceIfReady(); return; }
+    setTimeout(run, 380);
+  };
+  setTimeout(run, 420);
+}
+
+/* ========= Round transitions ========= */
+async function nextHand(){
+  stage='idle'; dealer=(dealer+1)%4; updateHUD(); await startHand();
+}
+document.getElementById('btnStart').onclick=startHand;
+
+/* ========= Background + Calibrator ========= */
+const bg=document.getElementById('bg'), bgImg=document.getElementById('bgImg');
+document.getElementById('bgUpload').addEventListener('change',(e)=>{
+  const f=e.target.files[0]; if(!f) return;
+  const url=URL.createObjectURL(f); bgImg.src=url; bg.classList.add('has');
+});
+const inputs={ tlY:val('tlY'), tmY:val('tmY'), trY:val('trY'), comY:val('comY'), heroY:val('heroY'), heroB:val('heroB') };
+function val(id){ return document.getElementById(id); }
+function applyCalib(){
+  seat0.style.top=inputs.tlY.value+'%';
+  seat1.style.top=inputs.tmY.value+'%';
+  seat2.style.top=inputs.trY.value+'%';
+  communityEl.style.top=inputs.comY.value+'%';
+  heroCardsEl.style.top=inputs.heroY.value+'%';
+  seat3.style.bottom=inputs.heroB.value+'%';
+  localStorage.setItem('tp_poker_calib', JSON.stringify(Object.fromEntries(Object.entries(inputs).map(([k,i])=>[k,i.value]))));
+}
+for(const i of Object.values(inputs)) i.addEventListener('input', applyCalib);
+document.getElementById('reset').onclick=()=>{ localStorage.removeItem('tp_poker_calib'); location.reload(); };
+(function loadCalib(){
+  try{
+    const d=JSON.parse(localStorage.getItem('tp_poker_calib')); if(!d) return;
+    for(const k in d) inputs[k].value=d[k]; applyCalib();
+  }catch(e){}
+})();
+document.getElementById('lock').onclick=()=>{
+  panel.classList.toggle('hide');
+  document.getElementById('lock').textContent = panel.classList.contains('hide') ? 'Show calibrator':'Hide calibrator';
+};
+
+/* ========= Kickoff ========= */
+applyCalib();
+statusEl.textContent='Ready. Upload background dhe shtyp “Start hand”.';
+</script>
+</body>
+</html>
