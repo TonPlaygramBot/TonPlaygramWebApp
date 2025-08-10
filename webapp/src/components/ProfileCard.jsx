@@ -5,7 +5,7 @@ export default function ProfileCard() {
   return (
     <div className="relative bg-surface border border-border p-4 rounded-xl shadow-lg space-y-2 text-center overflow-hidden wide-card">
       <img
-        src="/assets/SnakeLaddersbackground.png"
+        src="/assets/icons/snakes_and_ladders.webp"
         className="background-behind-board object-cover"
         alt=""
         onError={(e) => {

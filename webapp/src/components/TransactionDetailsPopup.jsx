@@ -100,7 +100,7 @@ export default function TransactionDetailsPopup({ tx, onClose }) {
       <div className="relative p-4 space-y-4 w-80 rounded-xl border border-border bg-surface text-text overflow-hidden">
 
         <img
-          src="/assets/SnakeLaddersbackground.png"
+          src="/assets/icons/snakes_and_ladders.webp"
           className="background-behind-board object-cover"
           alt=""
           onError={(e) => {

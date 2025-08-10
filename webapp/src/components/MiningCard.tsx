@@ -124,7 +124,7 @@ export default function MiningCard() {
   return (
     <div className="relative bg-surface border border-border rounded-xl p-4 space-y-4 text-center overflow-hidden wide-card">
       <img
-        src="/assets/SnakeLaddersbackground.png"
+        src="/assets/icons/snakes_and_ladders.webp"
         className="background-behind-board object-cover"
         alt=""
         onError={(e) => {
