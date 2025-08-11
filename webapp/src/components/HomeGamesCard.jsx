@@ -41,6 +41,13 @@ export default function HomeGamesCard() {
               className="w-24 h-24"
             />
           </Link>
+          <Link to="/games/bubblepoproyale/lobby" className="flex-shrink-0">
+            <img
+              src="/assets/icons/bubble_pop.svg"
+              alt="Bubble Pop Royale"
+              className="w-24 h-24"
+            />
+          </Link>
         </div>
       <Link
         to="/games"
