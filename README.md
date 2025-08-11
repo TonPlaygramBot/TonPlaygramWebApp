@@ -38,9 +38,8 @@
 
 4. Copy `webapp/.env.example` to `webapp/.env` and configure:
    - `VITE_API_BASE_URL` – the base URL where the bot API is hosted (e.g. `http://localhost:3000`).
-   If omitted, the webapp will connect to the same origin it was served from.
+     If omitted, the webapp will connect to the same origin it was served from.
    - `VITE_GOOGLE_CLIENT_ID` – OAuth client ID for Google sign-in.
-   - `VITE_GAME_ACCOUNT_ID` – account ID of the games wallet where deposits and payouts occur.
   - `VITE_DEV_ACCOUNT_ID` – account ID that receives the developer share
     (10% by default).
   - `VITE_DEV_ACCOUNT_ID_1` – (optional) secondary developer account. When set,
