@@ -132,7 +132,10 @@ window.__TETRIS_ROYALE__ = true;
   if (initParam && !window.Telegram) {
     window.Telegram = { WebApp: { initData: decodeURIComponent(initParam) } };
   }
-  const userName = params.get('name') || params.get('username') || window?.Telegram?.WebApp?.initDataUnsafe?.user?.first_name || 'USER';
+  const storedName = (()=>{ try{ const fn=localStorage.getItem('telegramFirstName')||''; const ln=localStorage.getItem('telegramLastName')||''; return (fn+' '+ln).trim()||null; }catch{return null;} })();
+  const userName = storedName || params.get('name') || params.get('username') || window?.Telegram?.WebApp?.initDataUnsafe?.user?.first_name || 'USER';
+  const regionNames = typeof Intl!== 'undefined' ? new Intl.DisplayNames(['en'],{type:'region'}) : null;
+  function flagName(flag){ try{ const code=[...flag].map(c=>String.fromCharCode(c.codePointAt(0)-127397)).join(''); return regionNames?.of(code)||code; }catch{return 'AI';} }
 
   function emojiToDataUri(flag){
     return `data:image/svg+xml,${encodeURIComponent(`<svg xmlns='http://www.w3.org/2000/svg' width='64' height='64'><text x='50%' y='50%' font-size='48' text-anchor='middle' dominant-baseline='central'>${flag}</text></svg>`)}`;
@@ -253,12 +256,24 @@ window.__TETRIS_ROYALE__ = true;
     }
     if(active){
       const {piece,pos,color} = active;
+      let gy = pos.y;
+      while(!collide(board, piece, {x:pos.x, y:gy+1})) gy++;
+      ctx.save();
+      ctx.fillStyle = color;
+      ctx.globalAlpha = 0.3;
+      for(let y=0;y<piece.length;y++){
+        for(let x=0;x<piece[y].length;x++){
+          if(piece[y][x]) ctx.fillRect((pos.x+x)*bw, (gy+y)*bh, bw-1, bh-1);
+        }
+      }
+      ctx.globalAlpha = 1;
       ctx.fillStyle = color;
       for(let y=0;y<piece.length;y++){
         for(let x=0;x<piece[y].length;x++){
           if(piece[y][x]) ctx.fillRect((pos.x+x)*bw, (pos.y+y)*bh, bw-1, bh-1);
         }
       }
+      ctx.restore();
     }
   }
   function createGame(canvas){
@@ -330,10 +345,15 @@ window.__TETRIS_ROYALE__ = true;
         start.x = px;
       }
       const dy = py - start.y;
-      if(dy > r.height/30){
-        game.pos.y += 1;
-        if(collide(game.board, game.piece, game.pos)) game.pos.y -= 1;
-        start.y = py;
+      const cellH = r.height/ROWS;
+      if(Math.abs(dy) >= cellH){
+        const steps = Math.floor(dy / cellH);
+        const dir = Math.sign(steps);
+        for(let s=0; s<Math.abs(steps); s++){
+          game.pos.y += dir;
+          if(collide(game.board, game.piece, game.pos)){ game.pos.y -= dir; break; }
+        }
+        start.y += steps * cellH;
       }
     });
     canvas.addEventListener('pointerup', e=>{
@@ -369,6 +389,7 @@ window.__TETRIS_ROYALE__ = true;
   const canvases = { user: $('#user'), opp1: $('#opp1'), opp2: $('#opp2'), opp3: $('#opp3') };
   const avatarEls = document.querySelectorAll('.avatar');
   const miniWraps = document.querySelectorAll('.top .mini');
+  const nameEls = document.querySelectorAll('.top .mini h3');
   $('#username').textContent = userName;
   const ui = {
     time: $('#time'), pot: $('#pot'), myscore: $('#myscore'),
@@ -384,6 +405,7 @@ window.__TETRIS_ROYALE__ = true;
     const flag = FLAG_EMOJIS[(Math.random()*FLAG_EMOJIS.length)|0];
     const uri = emojiToDataUri(flag);
     if(avatarEls[i]) avatarEls[i].src = uri;
+    if(nameEls[i]) nameEls[i].textContent = flagName(flag);
     playerAvatars[i] = uri;
     if(miniWraps[i]) miniWraps[i].style.display='flex';
   }
@@ -425,7 +447,7 @@ window.__TETRIS_ROYALE__ = true;
       games[i].step(dt);
       games[i].draw();
     }
-    if(botTimer > 450){ for(let i=0;i<games.length-1;i++) botTick(games[i]); botTimer = 0; }
+    if(botTimer > 800){ for(let i=0;i<games.length-1;i++) botTick(games[i]); botTimer = 0; }
     ui.myscore.textContent = String(games[games.length-1].score);
     updateTimer();
     rafId = requestAnimationFrame(loop);
