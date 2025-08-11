@@ -47,9 +47,9 @@
   <div class="ui">
     <div class="scoreboard">
       <div class="score" aria-live="polite">
-        <span class="badge p1">P1</span><span id="s1">0</span>
+        <span id="p1Name" class="badge p1">P1</span><span id="s1">0</span>
         <span>—</span>
-        <span id="s2">0</span><span class="badge p2">P2</span>
+        <span id="s2">0</span><span id="p2Name" class="badge p2">P2</span>
       </div>
     </div>
     <div class="canvasWrap">
@@ -73,6 +73,8 @@
   const ctx = canvas.getContext('2d');
   const s1El = document.getElementById('s1');
   const s2El = document.getElementById('s2');
+  const p1NameEl = document.getElementById('p1Name');
+  const p2NameEl = document.getElementById('p2Name');
   const startHint = document.getElementById('startHint');
   const landscapeBlock = document.querySelector('.landscape-block');
   const menuPanel = document.getElementById('menuPanel');
@@ -106,7 +108,25 @@
   const target = Number(params.get('target')) || 3;
   const avatarParam = params.get('avatar') || '';
   const oppParam = params.get('p2Avatar') || '';
-  const FLAGS = ['🇺🇸','🇬🇧','🇫🇷','🇩🇪','🇨🇦','🇯🇵','🇮🇳','🇰🇷','🇧🇷','🇲🇽','🇨🇳','🇦🇺','🇮🇹','🇪🇸','🇷🇺'];
+  let p1Name = params.get('name') || 'P1';
+  let p2Name = params.get('p2Name') || 'P2';
+  const FLAG_DATA = [
+    { emoji:'🇺🇸', name:'USA' },
+    { emoji:'🇬🇧', name:'UK' },
+    { emoji:'🇫🇷', name:'France' },
+    { emoji:'🇩🇪', name:'Germany' },
+    { emoji:'🇨🇦', name:'Canada' },
+    { emoji:'🇯🇵', name:'Japan' },
+    { emoji:'🇮🇳', name:'India' },
+    { emoji:'🇰🇷', name:'South Korea' },
+    { emoji:'🇧🇷', name:'Brazil' },
+    { emoji:'🇲🇽', name:'Mexico' },
+    { emoji:'🇨🇳', name:'China' },
+    { emoji:'🇦🇺', name:'Australia' },
+    { emoji:'🇮🇹', name:'Italy' },
+    { emoji:'🇪🇸', name:'Spain' },
+    { emoji:'🇷🇺', name:'Russia' }
+  ];
 
   let p1AvatarImg=null, p1AvatarEmoji=null;
   if(avatarParam){
@@ -120,11 +140,13 @@
   }
 
   if(mode==='ai'){
-    const randFlag = () => FLAGS[Math.floor(Math.random()*FLAGS.length)];
-    p1AvatarImg = null; p2AvatarImg = null;
-    p1AvatarEmoji = randFlag();
-    p2AvatarEmoji = randFlag();
+    const ai = FLAG_DATA[Math.floor(Math.random()*FLAG_DATA.length)];
+    p2AvatarImg = null;
+    p2AvatarEmoji = ai.emoji;
+    p2Name = ai.name;
   }
+  p1NameEl.textContent = p1Name;
+  p2NameEl.textContent = p2Name;
 
   async function awardTpc(accountId, amount){
     try{
@@ -460,13 +482,16 @@
         const ny = (puck.y - p.y) / (d||1);
         const overlap = minD - d + 0.5;
         puck.x += nx * overlap; puck.y += ny * overlap;
-        const relVX = puck.vx - p.vx*1.2;
-        const relVY = puck.vy - p.vy*1.2;
+        const relVX = puck.vx - p.vx;
+        const relVY = puck.vy - p.vy;
         const relAlongNormal = relVX*nx + relVY*ny;
-        const restitution = 1.06;
-        puck.vx -= (1+restitution) * relAlongNormal * nx;
-        puck.vy -= (1+restitution) * relAlongNormal * ny;
-        puck.vx += p.vx*0.45; puck.vy += p.vy*0.45;
+        if (relAlongNormal < 0){
+          const restitution = 1.06;
+          const impulse = -(1+restitution) * relAlongNormal;
+          puck.vx += impulse * nx;
+          puck.vy += impulse * ny;
+          puck.vx += p.vx*0.2; puck.vy += p.vy*0.2;
+        }
         const v = Math.hypot(puck.vx,puck.vy); const maxV = puck.max*speedMul*1.25;
         if (v>maxV){ const s=maxV/v; puck.vx*=s; puck.vy*=s; }
         sfx.hit();
@@ -545,7 +570,7 @@
         recordWin(tgId, myAccountId);
       }
       if(stake>0) awardDevShare(pot);
-      celebrate('P1', p1AvatarImg, p1AvatarEmoji);
+      celebrate(p1Name, p1AvatarImg, p1AvatarEmoji);
     }
     if (score.p2>=score.target){
       running=false;
@@ -556,7 +581,7 @@
         recordWin(oppTgId, oppAccountId);
       }
       if(stake>0) awardDevShare(pot);
-      celebrate('P2', p2AvatarImg, p2AvatarEmoji);
+      celebrate(p2Name, p2AvatarImg, p2AvatarEmoji);
     }
   }
   function toast(msg){
