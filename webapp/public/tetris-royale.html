@@ -1,0 +1,374 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+<title>Tetris Royale — 4 Player Layout</title>
+<style>
+  :root{ --bg:#0c1020; --panel:#11172a; --primary:#2563eb; --gold:#d4af37; --text:#e7eefc; --muted:#8fa1d2; --danger:#ff5a6b; }
+  *{box-sizing:border-box;font-family:Inter,system-ui,Segoe UI,Roboto,Helvetica,Arial,sans-serif}
+  html,body{height:100vh}
+  body{margin:0;background:radial-gradient(1200px 800px at 70% -10%, #1a2450 0%, #0c1020 38%, #0c1020 100%) fixed;color:var(--text);overflow:hidden}
+  .app{height:100vh;display:flex;flex-direction:column;padding:12px;gap:10px;max-width:1100px;margin:0 auto}
+  header{display:flex;gap:12px;align-items:center;justify-content:space-between}
+  .badge{background:#0f1736;border:1px solid #223063;border-radius:10px;padding:6px 10px;color:var(--muted);font-size:12px}
+  .controls{display:grid;grid-template-columns:1fr 1fr 1fr auto;gap:8px}
+  label{font-size:12px;color:var(--muted);display:block;margin-bottom:6px}
+  select,button,input{width:100%;padding:10px 12px;border-radius:10px;border:1px solid #223063;background:#0e1430;color:#e7eefc}
+  .btn{background:linear-gradient(180deg,#2a6cf0,#2156c8);border:none;font-weight:700;cursor:pointer}
+  .hud{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+  .panel{border:1px solid #223063;background:#0b1228;border-radius:12px;padding:10px;display:flex;align-items:center;justify-content:space-between}
+  .score{color:var(--gold);font-weight:800}
+  .timer{font-variant-numeric:tabular-nums;font-weight:800}
+  .layout{display:grid;grid-template-rows:25vh 1fr;gap:10px;flex:1;min-height:0}
+  .top{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+  .mini{position:relative;border:1px solid #223063;background:linear-gradient(180deg,#0f1530,#0a0f24);border-radius:12px;padding:8px;display:flex;flex-direction:column;align-items:center}
+  .mini h3{margin:0 0 6px 0;font-size:12px;color:var(--muted)}
+  .mini canvas{flex:1;width:100%;height:100%;background:#0e1430;border-radius:8px;image-rendering:pixelated}
+  .userWrap{position:relative;border:1px solid #223063;background:linear-gradient(180deg,#0f1530,#0a0f24);border-radius:14px;padding:10px;display:flex;flex-direction:column;min-height:0;align-items:center}
+  .userWrap h3{margin:0 0 8px 0;font-size:13px;color:var(--muted);display:flex;align-items:center;gap:8px}
+  #user{flex:1;width:100%;height:100%;background:#0e1430;border-radius:10px;touch-action:none;image-rendering:pixelated}
+  .avatar{width:32px;height:32px;border-radius:50%;margin-bottom:6px}
+  .rotateBtn{position:absolute;right:-60px;top:50%;transform:translateY(-50%);width:48px;height:48px;border-radius:50%;background:linear-gradient(180deg,#2a6cf0,#2156c8);border:1px solid #223063;color:#fff;font-size:20px;cursor:pointer}
+  .toast{position:fixed;left:50%;transform:translateX(-50%);bottom:16px;background:#0d1536;border:1px solid #223063;border-radius:10px;padding:8px 12px;font-size:13px;opacity:0;transition:opacity .2s}
+  .toast.show{opacity:1}
+  dialog{border:none;border-radius:16px;background:#0d1330;color:#e7eefc;max-width:520px;width:calc(100% - 24px)}
+  .modal{padding:16px;border:1px solid #223063;border-radius:16px;background:linear-gradient(180deg,#0f1736,#0b1126)}
+  .grid{display:grid;gap:10px}
+  .grid.two{grid-template-columns:1fr 1fr}
+  .kpi{background:#0b1228;border:1px solid #223063;border-radius:12px;padding:10px;text-align:center}
+  .kpi .v{font-size:22px;font-weight:800}
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <div style="display:flex;align-items:center;gap:10px">
+      <h1 style="margin:0;font-size:18px">Tetris Royale</h1>
+      <span class="badge">Local test • TPC only</span>
+    </div>
+  </header>
+  <div class="controls">
+    <div>
+      <label>Players</label>
+      <select id="players">
+        <option value="2">2 players</option>
+        <option value="3">3 players</option>
+        <option value="4" selected>4 players</option>
+      </select>
+    </div>
+    <div>
+      <label>Duration</label>
+      <select id="duration">
+        <option value="60">1 min</option>
+        <option value="180" selected>3 min</option>
+        <option value="300">5 min</option>
+      </select>
+    </div>
+    <div>
+      <label>Stake per player (TPC)</label>
+      <input id="stake" type="number" value="300" min="0" step="50"/>
+    </div>
+    <div>
+      <button id="start" class="btn">Start Match</button>
+    </div>
+  </div>
+  <div class="hud">
+    <div class="panel"><strong>Time</strong><span id="time" class="timer">03:00</span></div>
+    <div class="panel"><strong>Pot (TPC)</strong><span id="pot" class="score">0</span></div>
+    <div class="panel"><strong>Your score</strong><span id="myscore" class="score">0</span></div>
+  </div>
+  <div class="layout">
+    <div class="top">
+      <div class="mini"><h3>P1</h3><img src="assets/icons/profile.svg" alt="" class="avatar"/><canvas id="opp1"></canvas></div>
+      <div class="mini"><h3>P2</h3><img src="assets/icons/profile.svg" alt="" class="avatar"/><canvas id="opp2"></canvas></div>
+      <div class="mini"><h3>P3</h3><img src="assets/icons/profile.svg" alt="" class="avatar"/><canvas id="opp3"></canvas></div>
+    </div>
+    <div class="userWrap">
+      <h3>USER</h3>
+      <img src="assets/icons/profile.svg" alt="" class="avatar"/>
+      <canvas id="user"></canvas>
+      <button id="rotate" class="rotateBtn">⟳</button>
+    </div>
+  </div>
+</div>
+<div id="toast" class="toast"></div>
+<dialog id="results">
+  <div class="modal">
+    <h2>Round results</h2>
+    <div class="grid two">
+      <div class="kpi"><div class="v" id="winner">-</div><div>Winner</div></div>
+      <div class="kpi"><div class="v" id="payout">0</div><div>Payout TPC</div></div>
+    </div>
+    <div class="grid" style="margin-top:10px">
+      <div class="kpi"><div class="v" id="fee">0</div><div>Fee 10%</div></div>
+      <div class="kpi"><div class="v" id="potFinal">0</div><div>Final Pot</div></div>
+    </div>
+    <div class="grid" id="scoreList" style="margin-top:10px"></div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px">
+      <button class="btn" id="rematch">Rematch</button>
+      <button class="btn" id="change">Change settings</button>
+    </div>
+  </div>
+</dialog>
+<script>
+if(!window.__TETRIS_ROYALE__){
+window.__TETRIS_ROYALE__ = true;
+(function(){
+  const COLS = 10, ROWS = 20;
+  const COLORS = ['#000','#5aa2ff','#ff9d5a','#ff5a6b','#d4af37','#34d399','#a78bfa','#f472b6'];
+  const SHAPES = {
+    I:[[0,0,0,0],[1,1,1,1],[0,0,0,0],[0,0,0,0]],
+    J:[[1,0,0],[1,1,1],[0,0,0]],
+    L:[[0,0,1],[1,1,1],[0,0,0]],
+    O:[[1,1],[1,1]],
+    S:[[0,1,1],[1,1,0],[0,0,0]],
+    T:[[0,1,0],[1,1,1],[0,0,0]],
+    Z:[[1,1,0],[0,1,1],[0,0,0]],
+  };
+  const SCORE_PER_LINES = [0,100,300,500,800];
+  const $ = sel => document.querySelector(sel);
+  const toastEl = $('#toast');
+  const showToast = (msg)=>{ toastEl.textContent = msg; toastEl.classList.add('show'); setTimeout(()=>toastEl.classList.remove('show'), 1400); };
+  const fmt = (s)=>{ const m = String((s/60)|0).padStart(2,'0'); const ss = String(Math.max(0, s%60)).padStart(2,'0'); return `${m}:${ss}`; };
+  function createEmpty(){ return Array.from({length:ROWS},()=>Array(COLS).fill(0)); }
+  function randomShape(){ const keys = Object.keys(SHAPES); const k = keys[(Math.random()*keys.length)|0]; return SHAPES[k].map(r=>r.slice()); }
+  function rotate(mat){ return mat[0].map((_,i)=>mat.map(row=>row[i])).reverse(); }
+  function collide(board, piece, pos){
+    for(let y=0;y<piece.length;y++){
+      for(let x=0;x<piece[y].length;x++){
+        if(!piece[y][x]) continue;
+        const nx = pos.x + x, ny = pos.y + y;
+        if(nx<0 || nx>=COLS || ny>=ROWS) return true;
+        if(ny>=0 && board[ny][nx]) return true;
+      }
+    }
+    return false;
+  }
+  function merge(board, piece, pos, color){
+    for(let y=0;y<piece.length;y++){
+      for(let x=0;x<piece[y].length;x++){
+        if(piece[y][x]){ board[pos.y+y][pos.x+x] = color; }
+      }
+    }
+  }
+  function sweep(board){
+    let lines = 0;
+    for(let y=ROWS-1;y>=0;y--){
+      if(board[y].every(v=>v)){
+        board.splice(y,1);
+        board.unshift(Array(COLS).fill(0));
+        lines++;
+        y++;
+      }
+    }
+    return lines;
+  }
+  function fitCanvas(canvas){
+    const r = canvas.getBoundingClientRect();
+    canvas.width = Math.floor(r.width);
+    canvas.height = Math.floor(r.height);
+  }
+  function drawBoard(ctx, canvas, board, active){
+    const bw = canvas.width / COLS, bh = canvas.height / ROWS;
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+    ctx.fillStyle = '#0e1430'; ctx.fillRect(0,0,canvas.width,canvas.height);
+    for(let y=0;y<ROWS;y++){
+      for(let x=0;x<COLS;x++){
+        const c = board[y][x];
+        if(c){ ctx.fillStyle = c; ctx.fillRect(x*bw, y*bh, bw-1, bh-1); }
+      }
+    }
+    if(active){
+      const {piece,pos,color} = active;
+      ctx.fillStyle = color;
+      for(let y=0;y<piece.length;y++){
+        for(let x=0;x<piece[y].length;x++){
+          if(piece[y][x]) ctx.fillRect((pos.x+x)*bw, (pos.y+y)*bh, bw-1, bh-1);
+        }
+      }
+    }
+  }
+  function createGame(canvas){
+    const ctx = canvas.getContext('2d');
+    fitCanvas(canvas);
+    const game = {
+      board: createEmpty(),
+      piece: randomShape(),
+      pos: {x:3,y:0},
+      color: COLORS[1 + ((Math.random()*6)|0)],
+      dropMs: 700,
+      dropAcc: 0,
+      score: 0,
+      over: false,
+    };
+    if(collide(game.board, game.piece, game.pos)) game.over=true;
+    game.reset = function(){
+      game.piece = randomShape();
+      game.pos = {x:3,y:0};
+      game.color = COLORS[1 + ((Math.random()*6)|0)];
+      if(collide(game.board, game.piece, game.pos)) game.over = true;
+    };
+    game.step = function(dt){
+      if(game.over) return;
+      game.dropAcc += dt;
+      if(game.dropAcc >= game.dropMs){
+        game.dropAcc = 0;
+        game.pos.y++;
+        if(collide(game.board, game.piece, game.pos)){
+          game.pos.y--;
+          merge(game.board, game.piece, game.pos, game.color);
+          const lines = sweep(game.board);
+          game.score += SCORE_PER_LINES[lines];
+          game.reset();
+        }
+      }
+    };
+    game.hardDrop = function(){
+      if(game.over) return;
+      while(!collide(game.board, game.piece, {x:game.pos.x, y:game.pos.y+1})){
+        game.pos.y++;
+      }
+      merge(game.board, game.piece, game.pos, game.color);
+      const lines = sweep(game.board);
+      game.score += SCORE_PER_LINES[lines] + 2;
+      game.reset();
+    };
+    game.move = function(dx){
+      const nx = {x:game.pos.x+dx, y:game.pos.y};
+      if(!collide(game.board, game.piece, nx)) game.pos.x += dx;
+    };
+    game.rotate = function(){
+      const r = rotate(game.piece);
+      const kicks = [0,-1,1,-2,2];
+      for(const k of kicks){
+        const testPos = {x:game.pos.x + k, y:game.pos.y};
+        if(!collide(game.board, r, testPos)){
+          game.piece = r; game.pos = testPos; return;
+        }
+      }
+    };
+    game.draw = function(){ drawBoard(ctx, canvas, game.board, {piece:game.piece,pos:game.pos,color:game.color}); };
+    window.addEventListener('resize', ()=>{ fitCanvas(canvas); game.draw(); });
+    return game;
+  }
+  function bindUserControls(canvas, game){
+    let start = null;
+    canvas.addEventListener('pointerdown', e=>{
+      const r = canvas.getBoundingClientRect();
+      start = {x:e.clientX - r.left, y:e.clientY - r.top, t:performance.now()};
+      canvas.setPointerCapture(e.pointerId);
+    });
+    canvas.addEventListener('pointermove', e=>{
+      if(!start) return;
+      const r = canvas.getBoundingClientRect();
+      const px = e.clientX - r.left, py = e.clientY - r.top;
+      const dx = px - start.x;
+      if(Math.abs(dx) > r.width/20){
+        game.move(dx>0?1:-1);
+        start.x = px;
+      }
+      const dy = py - start.y;
+      if(dy > r.height/30){
+        game.pos.y += 1;
+        if(collide(game.board, game.piece, game.pos)) game.pos.y -= 1;
+        start.y = py;
+      }
+    });
+    canvas.addEventListener('pointerup', e=>{
+      if(!start) return;
+      const r = canvas.getBoundingClientRect();
+      const dt = performance.now() - start.t;
+      const endY = e.clientY - r.top;
+      const dy = endY - start.y;
+      if(dt < 180 && dy > r.height/10){
+        game.hardDrop();
+      }
+      start = null;
+      canvas.releasePointerCapture(e.pointerId);
+    });
+  }
+  function botTick(bot){
+    if(bot.over) return;
+    if(Math.random()<0.4){ bot.move(Math.random()<0.5?-1:1); }
+    if(Math.random()<0.1){ bot.rotate(); }
+    if(Math.random()<0.25){ bot.hardDrop(); }
+  }
+  const canvases = { user: $('#user'), opp1: $('#opp1'), opp2: $('#opp2'), opp3: $('#opp3') };
+  const ui = {
+    time: $('#time'), pot: $('#pot'), myscore: $('#myscore'),
+    duration: $('#duration'), players: $('#players'), stake: $('#stake'),
+    start: $('#start'), results: $('#results'), winner: $('#winner'),
+    payout: $('#payout'), fee: $('#fee'), potFinal: $('#potFinal'),
+    scoreList: $('#scoreList'), rematch: $('#rematch'), change: $('#change'),
+    rotate: $('#rotate')
+  };
+  let games = [];
+  let last = performance.now();
+  let endAt = 0; let running = false; let rafId = null; let botTimer = 0;
+  function layoutCanvases(){
+    Object.values(canvases).forEach(c=>{ if(!c) return; const r=c.getBoundingClientRect(); c.width=r.width; c.height=r.height; });
+  }
+  function startMatch(){
+    if(document.documentElement.requestFullscreen && !document.fullscreenElement){
+      document.documentElement.requestFullscreen().catch(()=>{});
+    }
+    layoutCanvases();
+    const n = Math.max(2, Math.min(4, parseInt(ui.players.value,10)||4));
+    const stake = Math.max(0, parseInt(ui.stake.value||'0',10));
+    const durSec = Math.max(10, parseInt(ui.duration.value,10)||180);
+    ui.pot.textContent = String(stake * n);
+    ui.time.textContent = fmt(durSec);
+    games = [];
+    const oppSlots = [canvases.opp1, canvases.opp2, canvases.opp3];
+    for(let i=0;i<n-1;i++){ games.push(createGame(oppSlots[i])); }
+    const userGame = createGame(canvases.user); games.push(userGame);
+    bindUserControls(canvases.user, userGame);
+    ui.rotate.onclick = () => userGame.rotate();
+    endAt = performance.now() + durSec*1000;
+    running = true; last = performance.now(); botTimer=0;
+    loop();
+  }
+  function updateTimer(){
+    const remain = Math.max(0, Math.ceil((endAt - performance.now())/1000));
+    ui.time.textContent = fmt(remain);
+    if(remain<=0){ finish(); }
+  }
+  function loop(){
+    if(!running) return;
+    const now = performance.now();
+    const dt = now - last; last = now; botTimer += dt;
+    for(let i=0;i<games.length;i++){
+      games[i].step(dt);
+      games[i].draw();
+    }
+    if(botTimer > 450){ for(let i=0;i<games.length-1;i++) botTick(games[i]); botTimer = 0; }
+    ui.myscore.textContent = String(games[games.length-1].score);
+    updateTimer();
+    rafId = requestAnimationFrame(loop);
+  }
+  function finish(){
+    if(!running) return; running=false; if(rafId) cancelAnimationFrame(rafId);
+    const n = games.length; const stake = Math.max(0, parseInt(ui.stake.value||'0',10));
+    const gross = stake * n; const fee = Math.round(gross*0.10); const net = gross - fee;
+    const scores = games.map((g,i)=>({i,score:g.score}));
+    const max = Math.max(...scores.map(s=>s.score));
+    const winners = scores.filter(s=>s.score===max);
+    const payout = winners.length? Math.floor(net / winners.length) : 0;
+    ui.winner.textContent = winners.length>1 ? `Tie (${winners.map(w=>'P'+(w.i+1)).join(', ')})` : `P${winners[0].i+1}`;
+    ui.payout.textContent = String(payout);
+    ui.fee.textContent = String(fee);
+    ui.potFinal.textContent = String(net);
+    ui.scoreList.innerHTML = scores.sort((a,b)=>b.score-a.score).map(s=>`<div class="kpi"><div class="v">P${s.i+1}: ${s.score}</div><div>—</div></div>`).join('');
+    if(!ui.results.open) ui.results.showModal();
+  }
+  ui.start.addEventListener('click', startMatch);
+  ui.rematch.addEventListener('click', ()=>{ ui.results.close(); startMatch(); });
+  ui.change.addEventListener('click', ()=>{ ui.results.close(); });
+  window.addEventListener('resize', layoutCanvases);
+  layoutCanvases();
+})();
+}
+</script>
+</body>
+</html>
