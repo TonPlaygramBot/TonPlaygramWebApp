@@ -65,14 +65,6 @@
         align-items: center;
         gap: 10px;
       }
-      .badge {
-        background: linear-gradient(90deg, #1d2753, #11172a);
-        padding: 6px 10px;
-        border-radius: 10px;
-        border: 1px solid #1e2a56;
-        color: var(--muted);
-        font-size: 12px;
-      }
       h1 {
         font-size: 18px;
         margin: 0;
@@ -242,6 +234,7 @@
       .score {
         color: var(--gold);
         font-weight: 700;
+        font-size: 16px;
       }
       .toast {
         position: fixed;
@@ -375,7 +368,6 @@
       <header>
         <div class="brand">
           <h1>Brick Breaker Royale</h1>
-          <span class="badge">Local test • TPC only</span>
         </div>
       </header>
 
@@ -913,6 +905,17 @@
             state.timerId = requestAnimationFrame(updateTimer);
           }
 
+          function checkEarlyWin() {
+            const user = state.match.states[state.match.userIdx];
+            const others = state.match.states.filter((_, i) => i !== state.match.userIdx);
+            const allOut = others.every((s) => s.lives <= 0);
+            const ahead = others.every((s) => user.score > s.score);
+            const timeLeft = state.endAt - performance.now();
+            if (allOut && ahead && timeLeft > 0) {
+              endMatch();
+            }
+          }
+
           function loop() {
             if (!state.running) return;
             const now = performance.now();
@@ -927,10 +930,14 @@
             const u = state.match.states[state.match.userIdx];
             updateBoard(u, dt, state.userInputX);
             drawBoard(state.match.userCtx, u);
+            checkEarlyWin();
             requestAnimationFrame(loop);
           }
 
           function countdownAndStart() {
+            if (document.documentElement.requestFullscreen && !document.fullscreenElement) {
+              document.documentElement.requestFullscreen().catch(() => {});
+            }
             let c = 3;
             $countdown.textContent = c;
             $countdown.classList.remove('hidden');
