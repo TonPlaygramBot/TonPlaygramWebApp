@@ -190,6 +190,43 @@ window.__TETRIS_ROYALE__ = true;
     }
     return lines;
   }
+  function cloneBoard(board){ return board.map(row=>row.slice()); }
+  function evaluate(board, lines){
+    const heights = Array(COLS).fill(0);
+    let aggregateHeight = 0, holes = 0;
+    for(let x=0;x<COLS;x++){
+      let y=0;
+      while(y<ROWS && !board[y][x]) y++;
+      heights[x] = ROWS - y;
+      aggregateHeight += heights[x];
+      for(let yy=y+1;yy<ROWS;yy++) if(!board[yy][x]) holes++;
+    }
+    let bumpiness = 0;
+    for(let x=0;x<COLS-1;x++){ bumpiness += Math.abs(heights[x]-heights[x+1]); }
+    return lines*100 - aggregateHeight*1 - holes*45 - bumpiness*5;
+  }
+  function bestMove(game){
+    let best = null;
+    const rotations = [];
+    let piece = game.piece;
+    for(let r=0;r<4;r++){
+      if(r>0) piece = rotate(piece);
+      rotations.push(piece);
+    }
+    for(let r=0;r<rotations.length;r++){
+      const p = rotations[r];
+      const width = p[0].length;
+      for(let x=-2;x<=COLS-width+2;x++){
+        if(collide(game.board, p, {x, y:0})) continue;
+        let y=0; while(!collide(game.board, p, {x, y:y+1})) y++;
+        const boardCopy = cloneBoard(game.board);
+        merge(boardCopy, p, {x,y}, 1);
+        const score = evaluate(boardCopy, sweep(boardCopy));
+        if(!best || score>best.score){ best={score,x,rot:r}; }
+      }
+    }
+    return best;
+  }
   function fitCanvas(canvas){
     const r = canvas.getBoundingClientRect();
     canvas.width = Math.floor(r.width);
@@ -227,12 +264,14 @@ window.__TETRIS_ROYALE__ = true;
       dropAcc: 0,
       score: 0,
       over: false,
+      plan: null,
     };
     game.draw = function(){ drawBoard(ctx, canvas, game.board, {piece:game.piece,pos:game.pos,color:game.color}); };
     game.newPiece = function(){
       game.piece = randomShape();
       game.pos = {x:3,y:0};
       game.color = COLORS[1 + ((Math.random()*6)|0)];
+      game.plan = null;
       if(collide(game.board, game.piece, game.pos)) game.over = true;
     };
     game.move = function(dir){
@@ -309,9 +348,14 @@ window.__TETRIS_ROYALE__ = true;
   }
   function botTick(bot){
     if(bot.over) return;
-    if(Math.random()<0.4){ bot.move(Math.random()<0.5?-1:1); }
-    if(Math.random()<0.1){ bot.rotate(); }
-    if(Math.random()<0.25){ bot.hardDrop(); }
+    if(!bot.plan) bot.plan = bestMove(bot);
+    if(bot.plan){
+      if(bot.plan.rot > 0){ bot.rotate(); bot.plan.rot--; return; }
+      if(bot.pos.x < bot.plan.x){ bot.move(1); return; }
+      if(bot.pos.x > bot.plan.x){ bot.move(-1); return; }
+      bot.hardDrop();
+      bot.plan = null;
+    }
   }
   const canvases = { user: $('#user'), opp1: $('#opp1'), opp2: $('#opp2'), opp3: $('#opp3') };
   const avatarEls = document.querySelectorAll('.avatar');
