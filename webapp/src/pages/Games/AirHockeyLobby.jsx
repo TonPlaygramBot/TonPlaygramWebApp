@@ -45,6 +45,7 @@ export default function AirHockeyLobby() {
     params.set('mode', mode);
     params.set('target', goal);
     if (mode === 'ai') params.set('difficulty', difficulty);
+    const initData = window.Telegram?.WebApp?.initData;
     if (stake.token) params.set('token', stake.token);
     if (stake.amount) params.set('amount', stake.amount);
     if (avatar) params.set('avatar', avatar);
@@ -56,6 +57,7 @@ export default function AirHockeyLobby() {
     if (devAcc) params.set('dev', devAcc);
     if (devAcc1) params.set('dev1', devAcc1);
     if (devAcc2) params.set('dev2', devAcc2);
+    if (initData) params.set('init', encodeURIComponent(initData));
     navigate(`/games/airhockey?${params.toString()}`);
   };
 

@@ -93,6 +93,10 @@
   const devAccount1 = params.get('dev1');
   const devAccount2 = params.get('dev2');
   const tgId = params.get('tgId');
+  const initParam = params.get('init');
+  if (initParam && !window.Telegram) {
+    window.Telegram = { WebApp: { initData: decodeURIComponent(initParam) } };
+  }
   const oppAccountId = params.get('oppAcc') || params.get('oppId') || params.get('p2AccountId');
   const oppTgId = params.get('oppTg') || params.get('p2TgId');
   const mode = params.get('mode') || 'ai';
