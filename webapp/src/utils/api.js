@@ -509,6 +509,14 @@ export function sendAccountTpc(fromAccount, toAccount, amount, note) {
   return post('/api/account/send', body);
 }
 
+export function stakeGame(accountId, amount, game) {
+  return post('/api/game/stake', { accountId, amount, game });
+}
+
+export function payoutGame(accountId, amount, game) {
+  return post('/api/game/payout', { winnerAccountId: accountId, amount, game });
+}
+
 export function getAccountTransactions(accountId) {
   return post('/api/account/transactions', { accountId });
 }

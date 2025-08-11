@@ -34,56 +34,12 @@ import { useNavigate } from "react-router-dom";
 import { getPlayerId, getTelegramId, ensureAccountId } from "../../utils/telegram.js";
 import {
   getProfileByAccount,
-  depositAccount,
   getSnakeBoard,
   pingOnline,
   addTransaction,
-  unseatTable
+  unseatTable,
+  payoutGame
 } from "../../utils/api.js";
-// Developer accounts that receive shares of each pot
-const DEV_ACCOUNT = import.meta.env.VITE_DEV_ACCOUNT_ID;
-const DEV_ACCOUNT_1 = import.meta.env.VITE_DEV_ACCOUNT_ID_1;
-const DEV_ACCOUNT_2 = import.meta.env.VITE_DEV_ACCOUNT_ID_2;
-
-async function awardDevShare(total) {
-  const promises = [];
-  if (DEV_ACCOUNT_1 || DEV_ACCOUNT_2) {
-    if (DEV_ACCOUNT) {
-      promises.push(
-        depositAccount(DEV_ACCOUNT, Math.round(total * 0.09), {
-          game: 'snake-dev',
-        })
-      );
-    }
-    if (DEV_ACCOUNT_1) {
-      promises.push(
-        depositAccount(DEV_ACCOUNT_1, Math.round(total * 0.01), {
-          game: 'snake-dev1',
-        })
-      );
-    }
-    if (DEV_ACCOUNT_2) {
-      promises.push(
-        depositAccount(DEV_ACCOUNT_2, Math.round(total * 0.02), {
-          game: 'snake-dev2',
-        })
-      );
-    }
-  } else if (DEV_ACCOUNT) {
-    promises.push(
-      depositAccount(DEV_ACCOUNT, Math.round(total * 0.1), {
-        game: 'snake-dev',
-      })
-    );
-  }
-  if (promises.length) {
-    try {
-      await Promise.all(promises);
-    } catch {
-      // ignore errors when depositing developer shares
-    }
-  }
-}
 import { socket } from "../../utils/socket.js";
 import PlayerToken from "../../components/PlayerToken.jsx";
 import AvatarTimer from "../../components/AvatarTimer.jsx";
@@ -1668,17 +1624,13 @@ export default function SnakeAndLadder() {
           if (first) {
             ensureAccountId()
               .then(async (aid) => {
-                const winAmt = Math.round(total * 0.91);
-                await Promise.all([
-                  depositAccount(aid, winAmt, { game: 'snake-win' }),
-                  awardDevShare(total),
-                ]);
+                await payoutGame(aid, total, 'snake');
               })
               .catch(() => {});
           }
           setRanking((r) => [...r, 'You']);
           if (first) setGameOver(true);
-          const winAmt = Math.round(total * 0.91);
+          const winAmt = Math.round(total * 0.9);
           setMessage(`You win ${winAmt} ${token}!`);
           setMessageColor("");
           if (!muted) winSoundRef.current?.play().catch(() => {});
@@ -1875,7 +1827,6 @@ export default function SnakeAndLadder() {
         const first = ranking.length === 0;
         setRanking(r => [...r, getPlayerName(index)]);
         if (first) {
-          await awardDevShare(pot * (ai + 1));
           setGameOver(true);
         }
         setMessage(`${getPlayerName(index)} wins!`);

@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import RoomSelector from '../../components/RoomSelector.jsx';
 import useTelegramBackButton from '../../hooks/useTelegramBackButton.js';
 import { ensureAccountId, getTelegramId, getTelegramPhotoUrl } from '../../utils/telegram.js';
-import { getAccountBalance, addTransaction } from '../../utils/api.js';
+import { getAccountBalance, stakeGame } from '../../utils/api.js';
 import { loadAvatar } from '../../utils/avatarUtils.js';
 
 export default function AirHockeyLobby() {
@@ -33,8 +33,8 @@ export default function AirHockeyLobby() {
         alert('Insufficient balance');
         return;
       }
+      await stakeGame(accountId, stake.amount, 'airhockey');
       tgId = getTelegramId();
-      await addTransaction(tgId, -stake.amount, 'stake', { game: 'airhockey' });
     } catch {}
 
     const params = new URLSearchParams();
@@ -46,12 +46,6 @@ export default function AirHockeyLobby() {
     if (avatar) params.set('avatar', avatar);
     if (tgId) params.set('tgId', tgId);
     if (accountId) params.set('accountId', accountId);
-    const devAcc = import.meta.env.VITE_DEV_ACCOUNT_ID;
-    const devAcc1 = import.meta.env.VITE_DEV_ACCOUNT_ID_1;
-    const devAcc2 = import.meta.env.VITE_DEV_ACCOUNT_ID_2;
-    if (devAcc) params.set('dev', devAcc);
-    if (devAcc1) params.set('dev1', devAcc1);
-    if (devAcc2) params.set('dev2', devAcc2);
     navigate(`/games/airhockey?${params.toString()}`);
   };
 
