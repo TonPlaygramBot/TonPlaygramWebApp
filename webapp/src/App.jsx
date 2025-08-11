@@ -29,6 +29,8 @@ import AirHockey from './pages/Games/AirHockey.jsx';
 import AirHockeyLobby from './pages/Games/AirHockeyLobby.jsx';
 import BrickBreaker from './pages/Games/BrickBreaker.jsx';
 import BrickBreakerLobby from './pages/Games/BrickBreakerLobby.jsx';
+import TetrisRoyale from './pages/Games/TetrisRoyale.jsx';
+import TetrisRoyaleLobby from './pages/Games/TetrisRoyaleLobby.jsx';
 
 import Layout from './components/Layout.jsx';
 import useTelegramAuth from './hooks/useTelegramAuth.js';
@@ -61,6 +63,8 @@ export default function App() {
             <Route path="/games/airhockey" element={<AirHockey />} />
             <Route path="/games/brickbreaker/lobby" element={<BrickBreakerLobby />} />
             <Route path="/games/brickbreaker" element={<BrickBreaker />} />
+            <Route path="/games/tetrisroyale/lobby" element={<TetrisRoyaleLobby />} />
+            <Route path="/games/tetrisroyale" element={<TetrisRoyale />} />
             <Route path="/spin" element={<SpinPage />} />
             <Route path="/admin/influencer" element={<InfluencerAdmin />} />
             <Route path="/tasks" element={<Tasks />} />

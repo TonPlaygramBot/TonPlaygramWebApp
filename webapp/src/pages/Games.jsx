@@ -60,6 +60,16 @@ export default function Games() {
                 Open
               </Link>
             </div>
+            <div className="flex flex-col items-center space-y-1">
+              <img src="/assets/icons/tetris.svg" alt="" className="h-24 w-24" />
+              <h3 className="text-lg font-bold">Tetris Royale</h3>
+              <Link
+                to="/games/tetrisroyale/lobby"
+                className="inline-block px-3 py-1 bg-primary rounded hover:bg-primary-hover text-white-shadow"
+              >
+                Open
+              </Link>
+            </div>
           </div>
         </div>
         <LeaderboardCard />
