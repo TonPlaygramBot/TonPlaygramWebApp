@@ -48,13 +48,16 @@ export default function FallingBallLobby() {
     params.set('players', players);
     params.set('density', 'high');
     params.set('mode', mode);
+    const initData = window.Telegram?.WebApp?.initData;
     if (stake.token) params.set('token', stake.token);
     if (stake.amount) params.set('amount', stake.amount);
     if (avatar) params.set('avatar', avatar);
+    if (tgId) params.set('tgId', tgId);
     if (accountId) params.set('accountId', accountId);
     if (DEV_ACCOUNT) params.set('dev', DEV_ACCOUNT);
     if (DEV_ACCOUNT_1) params.set('dev1', DEV_ACCOUNT_1);
     if (DEV_ACCOUNT_2) params.set('dev2', DEV_ACCOUNT_2);
+    if (initData) params.set('init', encodeURIComponent(initData));
     navigate(`/games/fallingball?${params.toString()}`);
   };
 

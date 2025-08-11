@@ -172,6 +172,10 @@
   const devAccountId = params.get('dev');
   const devAccountId1 = params.get('dev1');
   const devAccountId2 = params.get('dev2');
+  const initParam = params.get('init');
+  if (initParam && !window.Telegram) {
+    window.Telegram = { WebApp: { initData: decodeURIComponent(initParam) } };
+  }
   const myTelegramId = params.get('tgId') || window?.Telegram?.WebApp?.initDataUnsafe?.user?.id;
   const accountsParam = params.get('accounts');
   const tgIdsParam = params.get('tgIds');
