@@ -8,9 +8,9 @@
   <meta http-equiv="Expires" content="0" />
   <title>TonPlaygram – Falling Ball PvP (SFX + Visuals)</title>
   <style>
-    :root{ --bg:#050812; --panel:#10172a; --ink:#e5e7eb; --muted:#10b981; --accent:#94a3b8; }
+    :root{ --bg:linear-gradient(#081428,#102040); --panel:#10172a; --ink:#e5e7eb; --muted:#10b981; --accent:#94a3b8; }
     html,body{ height:100%; margin:0; }
-    body{ background:var(--bg); color:var(--ink); font-family:Inter,system-ui,Segoe UI,Roboto,Arial,sans-serif; }
+    body{ background:var(--bg); background-color:#0b1a2f; color:var(--ink); font-family:Inter,system-ui,Segoe UI,Roboto,Arial,sans-serif; }
     .app{ position:fixed; inset:0; overflow:hidden; }
     canvas{ display:block; width:100%; height:100%; }
     .hudTop{ position:absolute; inset-inline:0; top:0; padding:4px 10px; display:flex; flex-wrap:wrap; gap:8px; align-items:center; justify-content:space-between; font-size:12px; color:#fff; }
@@ -86,7 +86,7 @@
     ctx.setTransform(dpr,0,0,dpr,0,0);
   }
   resizeCanvas();
-  const BG_COLOR = '#050812';
+  const BG_COLOR = '#0b1a2f';
   addEventListener('resize', ()=>{ W=innerWidth; H=innerHeight; resizeCanvas(); genPegField(); carveCorridors(); addStars(); });
 
   // ========================= Audio (Web Audio, no binaries) =========================
