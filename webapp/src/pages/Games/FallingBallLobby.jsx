@@ -2,10 +2,13 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import RoomSelector from '../../components/RoomSelector.jsx';
 import useTelegramBackButton from '../../hooks/useTelegramBackButton.js';
-import { ensureAccountId, getTelegramPhotoUrl } from '../../utils/telegram.js';
-import { getAccountBalance, stakeGame } from '../../utils/api.js';
+import { ensureAccountId, getTelegramId, getTelegramPhotoUrl } from '../../utils/telegram.js';
+import { getAccountBalance, addTransaction } from '../../utils/api.js';
 import { loadAvatar } from '../../utils/avatarUtils.js';
 
+const DEV_ACCOUNT = import.meta.env.VITE_DEV_ACCOUNT_ID;
+const DEV_ACCOUNT_1 = import.meta.env.VITE_DEV_ACCOUNT_ID_1;
+const DEV_ACCOUNT_2 = import.meta.env.VITE_DEV_ACCOUNT_ID_2;
 
 export default function FallingBallLobby() {
   const navigate = useNavigate();
@@ -24,6 +27,7 @@ export default function FallingBallLobby() {
   }, []);
 
   const startGame = async () => {
+    let tgId;
     let accountId;
     try {
       accountId = await ensureAccountId();
@@ -32,7 +36,8 @@ export default function FallingBallLobby() {
         alert('Insufficient balance');
         return;
       }
-      await stakeGame(accountId, stake.amount, 'fallingball');
+      tgId = getTelegramId();
+      await addTransaction(tgId, -stake.amount, 'stake', { game: 'fallingball' });
     } catch {}
 
     const params = new URLSearchParams();
@@ -43,6 +48,9 @@ export default function FallingBallLobby() {
     if (stake.amount) params.set('amount', stake.amount);
     if (avatar) params.set('avatar', avatar);
     if (accountId) params.set('accountId', accountId);
+    if (DEV_ACCOUNT) params.set('dev', DEV_ACCOUNT);
+    if (DEV_ACCOUNT_1) params.set('dev1', DEV_ACCOUNT_1);
+    if (DEV_ACCOUNT_2) params.set('dev2', DEV_ACCOUNT_2);
     navigate(`/games/fallingball?${params.toString()}`);
   };
 

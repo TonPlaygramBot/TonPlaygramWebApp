@@ -89,7 +89,10 @@
     myAccountId = crypto.randomUUID();
     try { localStorage.setItem('accountId', myAccountId); } catch {}
   }
-    const tgId = params.get('tgId');
+  const devAccount = params.get('dev');
+  const devAccount1 = params.get('dev1');
+  const devAccount2 = params.get('dev2');
+  const tgId = params.get('tgId');
   const oppAccountId = params.get('oppAcc') || params.get('oppId') || params.get('p2AccountId');
   const oppTgId = params.get('oppTg') || params.get('p2TgId');
   const mode = params.get('mode') || 'ai';
@@ -117,11 +120,27 @@
     p2AvatarEmoji = randFlag();
   }
 
+  async function awardTpc(accountId, amount){
+    try{
+      await fbApi.depositAccount(accountId, amount, { game: 'airhockey-win' });
+    }catch(err){ console.warn('Failed to award TPC',err); }
+  }
   async function recordWin(tgId, accountId){
     if(!tgId) return;
     try{
       await fbApi.addTransaction(tgId, 0, 'win', { game:'airhockey', players:2, accountId });
     }catch{}
+  }
+  async function awardDevShare(total){
+    const ops=[];
+    if(devAccount1||devAccount2){
+      if(devAccount) ops.push(fbApi.depositAccount(devAccount, Math.round(total*0.09), {game:'airhockey-dev'}));
+      if(devAccount1) ops.push(fbApi.depositAccount(devAccount1, Math.round(total*0.01), {game:'airhockey-dev1'}));
+      if(devAccount2) ops.push(fbApi.depositAccount(devAccount2, Math.round(total*0.02), {game:'airhockey-dev2'}));
+    }else if(devAccount){
+      ops.push(fbApi.depositAccount(devAccount, Math.round(total*0.1), {game:'airhockey-dev'}));
+    }
+    if(ops.length){ try{ await Promise.all(ops); }catch{} }
   }
 
   function coinConfetti(count=50,iconSrc='/assets/icons/file_000000005f0c61f48998df883554c3e8 (2).webp'){
@@ -140,12 +159,12 @@
     setTimeout(()=>container.remove(),5000);
   }
 
-    async function chargeStake(){
-      if(!myAccountId || stake<=0) return;
-      try{
-        await fbApi.stakeGame(myAccountId, stake, 'airhockey');
-      }catch{}
-    }
+  async function chargeStake(){
+    if(!tgId || stake<=0) return;
+    try{
+      await fbApi.addTransaction(tgId, -stake, 'stake', { game:'airhockey' });
+    }catch{}
+  }
 
   function celebrate(winner,avatarImg,avatarEmoji){
     coinConfetti();
@@ -480,22 +499,26 @@
 
   function updateScore(){ s1El.textContent = score.p1; s2El.textContent = score.p2; }
   function checkWin(){
-      if (score.p1>=score.target){
+    if (score.p1>=score.target){
       running=false;
       const pot = stake*2;
       if (stake>0 && myAccountId){
-        fbApi.gamePayout(myAccountId, pot, 'airhockey').catch(()=>{});
+        const prize = Math.round(pot*0.91);
+        awardTpc(myAccountId, prize);
         recordWin(tgId, myAccountId);
       }
+      if(stake>0) awardDevShare(pot);
       celebrate('P1', p1AvatarImg, p1AvatarEmoji);
     }
     if (score.p2>=score.target){
       running=false;
       const pot = stake*2;
       if(stake>0 && oppAccountId){
-        fbApi.gamePayout(oppAccountId, pot, 'airhockey').catch(()=>{});
+        const prize = Math.round(pot*0.91);
+        awardTpc(oppAccountId, prize);
         recordWin(oppTgId, oppAccountId);
       }
+      if(stake>0) awardDevShare(pot);
       celebrate('P2', p2AvatarImg, p2AvatarEmoji);
     }
   }

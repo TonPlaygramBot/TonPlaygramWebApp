@@ -15,7 +15,6 @@ import referralRoutes from './routes/referral.js';
 import walletRoutes from './routes/wallet.js';
 import accountRoutes from './routes/account.js';
 import profileRoutes from './routes/profile.js';
-import gameRoutes from './routes/game.js';
 import twitterAuthRoutes from './routes/twitterAuth.js';
 import airdropRoutes from './routes/airdrop.js';
 import checkinRoutes from './routes/checkin.js';
@@ -124,7 +123,6 @@ app.use('/api/influencer', influencerRoutes);
 app.use('/api/referral', referralRoutes);
 app.use('/api/wallet', walletRoutes);
 app.use('/api/account', accountRoutes);
-app.use('/api/game', gameRoutes);
 app.use('/api/profile', profileRoutes);
 if (process.env.ENABLE_TWITTER_OAUTH === 'true') {
   app.use('/api/twitter', twitterAuthRoutes);

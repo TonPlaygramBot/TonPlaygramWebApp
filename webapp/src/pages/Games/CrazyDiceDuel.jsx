@@ -24,9 +24,52 @@ import { giftSounds } from '../../utils/giftSounds.js';
 import InfoPopup from '../../components/InfoPopup.jsx';
 import ConfirmPopup from '../../components/ConfirmPopup.jsx';
 import { ensureAccountId, getTelegramId } from '../../utils/telegram.js';
-import { payoutGame, addTransaction } from '../../utils/api.js';
+import { depositAccount, addTransaction } from '../../utils/api.js';
 
 const COLORS = ['#60a5fa', '#ef4444', '#4ade80', '#facc15'];
+const DEV_ACCOUNT = import.meta.env.VITE_DEV_ACCOUNT_ID;
+const DEV_ACCOUNT_1 = import.meta.env.VITE_DEV_ACCOUNT_ID_1;
+const DEV_ACCOUNT_2 = import.meta.env.VITE_DEV_ACCOUNT_ID_2;
+
+async function awardDevShare(total) {
+  const promises = [];
+  if (DEV_ACCOUNT_1 || DEV_ACCOUNT_2) {
+    if (DEV_ACCOUNT) {
+      promises.push(
+        depositAccount(DEV_ACCOUNT, Math.round(total * 0.09), {
+          game: 'crazydice-dev',
+        })
+      );
+    }
+    if (DEV_ACCOUNT_1) {
+      promises.push(
+        depositAccount(DEV_ACCOUNT_1, Math.round(total * 0.01), {
+          game: 'crazydice-dev1',
+        })
+      );
+    }
+    if (DEV_ACCOUNT_2) {
+      promises.push(
+        depositAccount(DEV_ACCOUNT_2, Math.round(total * 0.02), {
+          game: 'crazydice-dev2',
+        })
+      );
+    }
+  } else if (DEV_ACCOUNT) {
+    promises.push(
+      depositAccount(DEV_ACCOUNT, Math.round(total * 0.1), {
+        game: 'crazydice-dev',
+      })
+    );
+  }
+  if (promises.length) {
+    try {
+      await Promise.all(promises);
+    } catch {
+      // ignore errors when depositing developer shares
+    }
+  }
+}
 
 export default function CrazyDiceDuel() {
   const navigate = useNavigate();
@@ -558,7 +601,11 @@ export default function CrazyDiceDuel() {
       if (winner === 0) {
         try {
           const aid = await ensureAccountId();
-          await payoutGame(aid, total, 'crazydice');
+          const winAmt = Math.round(total * 0.91);
+          await Promise.all([
+            depositAccount(aid, winAmt, { game: 'crazydice-win' }),
+            awardDevShare(total),
+          ]);
           const tgId = getTelegramId();
           addTransaction(tgId, 0, 'win', {
             game: 'crazydice',
@@ -566,6 +613,8 @@ export default function CrazyDiceDuel() {
             accountId: aid,
           });
         } catch {}
+      } else {
+        awardDevShare(total).catch(() => {});
       }
     };
     reward();

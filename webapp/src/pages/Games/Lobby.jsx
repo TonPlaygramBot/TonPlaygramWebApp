@@ -12,12 +12,13 @@ import {
   getOnlineCount,
   getProfile,
   getAccountBalance,
-  stakeGame,
+  addTransaction,
   getSnakeLobby
 } from '../../utils/api.js';
 import {
   getPlayerId,
-  ensureAccountId
+  ensureAccountId,
+  getTelegramId
 } from '../../utils/telegram.js';
 import { canStartGame } from '../../utils/lobby.js';
 
@@ -230,7 +231,11 @@ export default function Lobby() {
           alert('Insufficient balance');
           return;
         }
-        await stakeGame(accountId, stake.amount, 'snake-ai');
+        const tgId = getTelegramId();
+        await addTransaction(tgId, -stake.amount, 'stake', {
+          game: 'snake-ai',
+          players: aiCount + 1
+        });
       } catch {}
     } else {
       if (stake.token) params.set('token', stake.token);
