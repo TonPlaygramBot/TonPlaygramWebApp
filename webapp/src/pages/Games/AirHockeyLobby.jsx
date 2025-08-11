@@ -34,7 +34,11 @@ export default function AirHockeyLobby() {
         return;
       }
       tgId = getTelegramId();
-      await addTransaction(tgId, -stake.amount, 'stake', { game: 'airhockey' });
+      await addTransaction(tgId, -stake.amount, 'stake', {
+        game: 'airhockey',
+        players: 2,
+        accountId,
+      });
     } catch {}
 
     const params = new URLSearchParams();
