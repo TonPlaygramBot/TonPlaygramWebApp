@@ -93,24 +93,7 @@
         opacity: 0.6;
         cursor: not-allowed;
       }
-      .hud {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 10px;
-        margin: 12px 0;
-      }
-      .hud .panel {
-        border-radius: 12px;
-        border: 1px solid #223063;
-        background: #0b1228;
-        padding: 10px;
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-      }
-      .panel strong {
-        font-size: 14px;
-      }
+      /* HUD removed - time and pot moved inline with user info */
       .timer {
         font-variant-numeric: tabular-nums;
         font-weight: 700;
@@ -215,6 +198,9 @@
         color: var(--gold);
         font-weight: 700;
         font-size: 16px;
+      }
+      #userScore {
+        font-size: 18px;
       }
       .toast {
         position: fixed;
@@ -345,15 +331,6 @@
   </head>
   <body>
     <div class="app">
-      <div class="hud">
-        <div class="panel">
-          <strong>Time</strong> <span class="timer" id="time">00:00</span>
-        </div>
-        <div class="panel">
-          <strong>Pot (TPC)</strong> <span id="pot" class="score">0</span>
-        </div>
-      </div>
-
       <div class="game-layout">
         <div id="strip" class="strip"></div>
         <div class="user-area">
@@ -365,6 +342,12 @@
                 ><span class="life" id="userLives">♥♥♥</span> •
                 <span class="score" id="userScore">0</span></span
               >
+              <span class="pill">
+                Time <span class="timer" id="time">00:00</span>
+              </span>
+              <span class="pill">
+                Pot (TPC) <span id="pot" class="score">0</span>
+              </span>
             </h3>
             <canvas
               id="userCanvas"
@@ -513,6 +496,9 @@
             ? params.get('tgIds').split(',')
             : [];
           const userAvatar = params.get('avatar');
+          const userName =
+            params.get('name') ||
+            window?.Telegram?.WebApp?.initDataUnsafe?.user?.first_name;
           const userAccount = params.get('accountId');
           const userTgId = params.get('tgId');
           const devAccountId = params.get('dev');
@@ -837,7 +823,7 @@
             const players = [];
             for (let i = 0; i < n; i++) {
               let avatar = i === n - 1 ? userAvatar || avatars[i] : avatars[i];
-              let name = names[i];
+              let name = i === n - 1 ? userName : names[i];
               if (!avatar) {
                 const flag = choice(FLAG_EMOJIS);
                 avatar = flagToDataUri(flag);
