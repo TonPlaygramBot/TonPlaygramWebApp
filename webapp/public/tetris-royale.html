@@ -22,13 +22,11 @@
   .timer{font-variant-numeric:tabular-nums;font-weight:800}
   .layout{display:grid;grid-template-rows:25vh 1fr;gap:10px;flex:1;min-height:0}
   .top{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
-    .mini{position:relative;border:1px solid #223063;background:linear-gradient(180deg,#0f1530,#0a0f24);border-radius:12px;padding:8px;display:flex;flex-direction:column;align-items:center}
-    .mini .info{margin:0;font-size:12px;color:var(--muted);display:flex;align-items:center;gap:4px}
-    .mini .scoreLine{font-size:12px;color:var(--muted);margin:0 0 6px 0}
-    .mini canvas{flex:1;width:100%;height:100%;background:#0e1430;border-radius:8px;image-rendering:pixelated}
-    .userWrap{position:relative;border:1px solid #223063;background:linear-gradient(180deg,#0f1530,#0a0f24);border-radius:14px;padding:10px;display:flex;flex-direction:column;min-height:0;align-items:center}
-    .userWrap .info{margin:0;font-size:13px;color:var(--muted);display:flex;align-items:center;gap:8px}
-    .userWrap .scoreLine{font-size:13px;color:var(--muted);margin:0 0 8px 0}
+  .mini{position:relative;border:1px solid #223063;background:linear-gradient(180deg,#0f1530,#0a0f24);border-radius:12px;padding:8px;display:flex;flex-direction:column;align-items:center}
+  .mini h3{margin:0 0 6px 0;font-size:12px;color:var(--muted)}
+  .mini canvas{flex:1;width:100%;height:100%;background:#0e1430;border-radius:8px;image-rendering:pixelated}
+  .userWrap{position:relative;border:1px solid #223063;background:linear-gradient(180deg,#0f1530,#0a0f24);border-radius:14px;padding:10px;display:flex;flex-direction:column;min-height:0;align-items:center}
+  .userWrap h3{margin:0 0 8px 0;font-size:13px;color:var(--muted);display:flex;align-items:center;gap:8px}
   #user{flex:1;width:100%;height:100%;background:#0e1430;border-radius:10px;touch-action:none;image-rendering:pixelated}
   .avatar{width:32px;height:32px;border-radius:50%;margin-bottom:6px}
   .countdown{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;font-size:48px;font-weight:bold;color:#fff;background:rgba(0,0,0,0.5);z-index:50}
@@ -57,19 +55,18 @@
     <div class="panel"><strong>Your score</strong><span id="myscore" class="score">0</span></div>
   </div>
   <div class="layout">
-      <div class="top">
-        <div class="mini"><div class="info"><span class="flag"></span><span class="name">P1</span></div><div class="scoreLine">0</div><img src="assets/icons/profile.svg" alt="" class="avatar"/><canvas id="opp1"></canvas></div>
-        <div class="mini"><div class="info"><span class="flag"></span><span class="name">P2</span></div><div class="scoreLine">0</div><img src="assets/icons/profile.svg" alt="" class="avatar"/><canvas id="opp2"></canvas></div>
-        <div class="mini"><div class="info"><span class="flag"></span><span class="name">P3</span></div><div class="scoreLine">0</div><img src="assets/icons/profile.svg" alt="" class="avatar"/><canvas id="opp3"></canvas></div>
-      </div>
-      <div class="userWrap">
-        <div class="info"><span id="username">USER</span></div>
-        <div class="scoreLine" id="userScore">0</div>
-        <img src="assets/icons/profile.svg" alt="" class="avatar"/>
-        <canvas id="user"></canvas>
-      </div>
-      </div>
+    <div class="top">
+      <div class="mini"><h3>P1</h3><img src="assets/icons/profile.svg" alt="" class="avatar"/><canvas id="opp1"></canvas></div>
+      <div class="mini"><h3>P2</h3><img src="assets/icons/profile.svg" alt="" class="avatar"/><canvas id="opp2"></canvas></div>
+      <div class="mini"><h3>P3</h3><img src="assets/icons/profile.svg" alt="" class="avatar"/><canvas id="opp3"></canvas></div>
     </div>
+    <div class="userWrap">
+      <h3>USER</h3>
+      <img src="assets/icons/profile.svg" alt="" class="avatar"/>
+      <canvas id="user"></canvas>
+    </div>
+  </div>
+</div>
 <div id="toast" class="toast"></div>
 <dialog id="results">
   <div class="modal">
@@ -122,25 +119,20 @@ window.__TETRIS_ROYALE__ = true;
   const accountId = params.get('accountId');
   const devAccount = params.get('dev');
   const devAccount1 = params.get('dev1');
-    const devAccount2 = params.get('dev2');
-    const initParam = params.get('init');
-    if (initParam && !window.Telegram) {
-      window.Telegram = { WebApp: { initData: decodeURIComponent(initParam) } };
-    }
+  const devAccount2 = params.get('dev2');
+  const initParam = params.get('init');
+  if (initParam && !window.Telegram) {
+    window.Telegram = { WebApp: { initData: decodeURIComponent(initParam) } };
+  }
 
-    function emojiToDataUri(flag){
-      return `data:image/svg+xml,${encodeURIComponent(`<svg xmlns='http://www.w3.org/2000/svg' width='64' height='64'><text x='50%' y='50%' font-size='48' text-anchor='middle' dominant-baseline='central'>${flag}</text></svg>`)}`;
-    }
-    function flagToCountryCode(flag){
-      return Array.from(flag).map(c=>String.fromCharCode(c.codePointAt(0)-127397)).join('');
-    }
-    const regionNames = new Intl.DisplayNames(['en'], {type:'region'});
-    function flagToName(flag){ return regionNames.of(flagToCountryCode(flag)); }
-    function coinConfetti(count=50, iconSrc='/assets/icons/file_000000005f0c61f48998df883554c3e8 (2).webp'){
-      for(let i=0;i<count;i++){
-        const img=document.createElement('img');
-        img.src=iconSrc;
-        img.className='coin-confetti';
+  function emojiToDataUri(flag){
+    return `data:image/svg+xml,${encodeURIComponent(`<svg xmlns='http://www.w3.org/2000/svg' width='64' height='64'><text x='50%' y='50%' font-size='48' text-anchor='middle' dominant-baseline='central'>${flag}</text></svg>`)}`;
+  }
+  function coinConfetti(count=50, iconSrc='/assets/icons/file_000000005f0c61f48998df883554c3e8 (2).webp'){
+    for(let i=0;i<count;i++){
+      const img=document.createElement('img');
+      img.src=iconSrc;
+      img.className='coin-confetti';
       img.style.left=Math.random()*100+'vw';
       img.style.setProperty('--duration', (2+Math.random()*2)+'s');
       document.body.appendChild(img);
@@ -159,29 +151,13 @@ window.__TETRIS_ROYALE__ = true;
     if(ops.length){ try{ await Promise.all(ops); }catch{} }
   }
 
-    const accounts = Array(n).fill(null);
-    const tgIds = Array(n).fill(null);
-    accounts[n-1] = accountId;
-    tgIds[n-1] = tgId;
-    const playerAvatars = Array(n).fill('');
-    const playerNames = Array(n).fill('');
-    const playerFlags = Array(n).fill('');
+  const accounts = Array(n).fill(null);
+  const tgIds = Array(n).fill(null);
+  accounts[n-1] = accountId;
+  tgIds[n-1] = tgId;
+  const playerAvatars = Array(n).fill('');
 
-    let userName = 'USER';
-    try{
-      const initDataStr = window.Telegram?.WebApp?.initData;
-      if(initDataStr){
-        const initParams = new URLSearchParams(initDataStr);
-        const userStr = initParams.get('user');
-        if(userStr){
-          const u = JSON.parse(userStr);
-          userName = u.username || [u.first_name, u.last_name].filter(Boolean).join(' ');
-        }
-      }
-    }catch{}
-    playerNames[n-1] = userName;
-
-    function createEmpty(){ return Array.from({length:ROWS},()=>Array(COLS).fill(0)); }
+  function createEmpty(){ return Array.from({length:ROWS},()=>Array(COLS).fill(0)); }
   function randomShape(){ const keys = Object.keys(SHAPES); const k = keys[(Math.random()*keys.length)|0]; return SHAPES[k].map(r=>r.slice()); }
   function rotate(mat){ return mat[0].map((_,i)=>mat.map(row=>row[i])).reverse(); }
   function collide(board, piece, pos){
@@ -381,45 +357,34 @@ window.__TETRIS_ROYALE__ = true;
       bot.plan = null;
     }
   }
-    const canvases = { user: $('#user'), opp1: $('#opp1'), opp2: $('#opp2'), opp3: $('#opp3') };
-    const avatarEls = document.querySelectorAll('.avatar');
-    const miniWraps = document.querySelectorAll('.top .mini');
-    const flagEls = document.querySelectorAll('.top .mini .flag');
-    const nameEls = document.querySelectorAll('.top .mini .name');
-    const scoreEls = document.querySelectorAll('.top .mini .scoreLine');
-    const userNameEl = $('#username');
-    const userScoreEl = $('#userScore');
-    const ui = {
-      time: $('#time'), pot: $('#pot'), myscore: $('#myscore'),
-      results: $('#results'), winner: $('#winner'),
-      payout: $('#payout'), fee: $('#fee'), potFinal: $('#potFinal'),
-      scoreList: $('#scoreList'), rematch: $('#rematch'), lobby: $('#lobby')
+  const canvases = { user: $('#user'), opp1: $('#opp1'), opp2: $('#opp2'), opp3: $('#opp3') };
+  const avatarEls = document.querySelectorAll('.avatar');
+  const miniWraps = document.querySelectorAll('.top .mini');
+  const ui = {
+    time: $('#time'), pot: $('#pot'), myscore: $('#myscore'),
+    results: $('#results'), winner: $('#winner'),
+    payout: $('#payout'), fee: $('#fee'), potFinal: $('#potFinal'),
+    scoreList: $('#scoreList'), rematch: $('#rematch'), lobby: $('#lobby')
   };
   let games = [];
   let last = performance.now();
   let endAt = 0; let running = false; let rafId = null; let botTimer = 0;
 
-    for(let i=0;i<n-1;i++){
-      const flag = FLAG_EMOJIS[(Math.random()*FLAG_EMOJIS.length)|0];
-      const name = flagToName(flag);
-      const uri = emojiToDataUri(flag);
-      if(flagEls[i]) flagEls[i].textContent = flag;
-      if(nameEls[i]) nameEls[i].textContent = name;
-      if(avatarEls[i]) avatarEls[i].src = uri;
-      playerAvatars[i] = uri;
-      playerNames[i] = name;
-      playerFlags[i] = flag;
-      if(miniWraps[i]) miniWraps[i].style.display='flex';
-    }
-    for(let i=n-1;i<3;i++){ if(miniWraps[i]) miniWraps[i].style.display='none'; }
-    let userAvatar = avatarParam;
-    if(!userAvatar){ userAvatar = 'assets/icons/profile.svg'; }
-    else if(!(userAvatar.startsWith('http') || userAvatar.startsWith('/') || userAvatar.startsWith('data:'))){
-      userAvatar = emojiToDataUri(userAvatar);
-    }
-    avatarEls[3].src = userAvatar;
-    playerAvatars[n-1] = userAvatar;
-    if(userNameEl) userNameEl.textContent = userName;
+  for(let i=0;i<n-1;i++){
+    const flag = FLAG_EMOJIS[(Math.random()*FLAG_EMOJIS.length)|0];
+    const uri = emojiToDataUri(flag);
+    if(avatarEls[i]) avatarEls[i].src = uri;
+    playerAvatars[i] = uri;
+    if(miniWraps[i]) miniWraps[i].style.display='flex';
+  }
+  for(let i=n-1;i<3;i++){ if(miniWraps[i]) miniWraps[i].style.display='none'; }
+  let userAvatar = avatarParam;
+  if(!userAvatar){ userAvatar = 'assets/icons/profile.svg'; }
+  else if(!(userAvatar.startsWith('http') || userAvatar.startsWith('/') || userAvatar.startsWith('data:'))){
+    userAvatar = emojiToDataUri(userAvatar);
+  }
+  avatarEls[3].src = userAvatar;
+  playerAvatars[n-1] = userAvatar;
 
   function layoutCanvases(){
     Object.values(canvases).forEach(c=>{ if(!c) return; const r=c.getBoundingClientRect(); c.width=r.width; c.height=r.height; });
@@ -451,28 +416,22 @@ window.__TETRIS_ROYALE__ = true;
       games[i].draw();
     }
     if(botTimer > 450){ for(let i=0;i<games.length-1;i++) botTick(games[i]); botTimer = 0; }
-    const userGame = games[games.length-1];
-    ui.myscore.textContent = String(userGame.score);
-    if(userScoreEl) userScoreEl.textContent = String(userGame.score);
-    for(let i=0;i<games.length-1;i++){
-      if(scoreEls[i]) scoreEls[i].textContent = String(games[i].score);
-    }
+    ui.myscore.textContent = String(games[games.length-1].score);
     updateTimer();
     rafId = requestAnimationFrame(loop);
   }
   async function finish(){
     if(!running) return; running=false; if(rafId) cancelAnimationFrame(rafId);
     const gross = stake * n; const fee = Math.round(gross*0.10); const net = gross - fee;
-    const scores = games.map((g,i)=>({i,score:g.score,flag:playerFlags[i],name:playerNames[i]}));
+    const scores = games.map((g,i)=>({i,score:g.score}));
     const max = Math.max(...scores.map(s=>s.score));
     const winners = scores.filter(s=>s.score===max);
     const payout = winners.length? Math.floor(net / winners.length) : 0;
-    const winnerText = winners.length>1 ? `Tie (${winners.map(w=>`${w.flag? w.flag+' ':''}${w.name}`).join(', ')})` : `${winners[0].flag? winners[0].flag+' ':''}${winners[0].name}`;
-    ui.winner.textContent = winnerText;
+    ui.winner.textContent = winners.length>1 ? `Tie (${winners.map(w=>'P'+(w.i+1)).join(', ')})` : `P${winners[0].i+1}`;
     ui.payout.textContent = String(payout);
     ui.fee.textContent = String(fee);
     ui.potFinal.textContent = String(net);
-    ui.scoreList.innerHTML = scores.sort((a,b)=>b.score-a.score).map(s=>`<div class="kpi"><div class="v">${s.flag? s.flag+' ':''}${s.name}: ${s.score}</div><div>—</div></div>`).join('');
+    ui.scoreList.innerHTML = scores.sort((a,b)=>b.score-a.score).map(s=>`<div class="kpi"><div class="v">P${s.i+1}: ${s.score}</div><div>—</div></div>`).join('');
     const overlay = $('#winnerOverlay');
     const avatar = playerAvatars[winners[0].i];
     if(avatar){ overlay.innerHTML = `<img src="${avatar}"/>`; overlay.classList.remove('hidden'); }
