@@ -223,8 +223,8 @@
     centerX = W/2; centerY = H/2;
     goalWidth = Math.round(W*0.42);
     const base = Math.max(24, Math.round(Math.min(W,H)*0.035));
-    paddleRadius = base*2.6;
-    puck.r = Math.max(16, Math.round(base*0.8));
+    paddleRadius = base*3.0;
+    puck.r = Math.max(20, Math.round(base*1.0));
     p1.r = paddleRadius; p2.r = paddleRadius;
   }
   window.addEventListener('resize', fit);
@@ -232,7 +232,7 @@
   const rink = { x:0,y:0,w:0,h:0,r:24 };
   let centerX = 0, centerY = 0;
   let goalWidth = 260;
-  let goalDepth = 14;
+  let goalDepth = 24;
   let paddleRadius = 34;
 
   const puck = { x:0, y:0, r:20, vx:0, vy:0, max: 22 };
@@ -259,20 +259,23 @@
     g.gain.exponentialRampToValueAtTime(0.0001, ac.currentTime + dur);
     o.connect(g); g.connect(master); o.start(); o.stop(ac.currentTime + dur);
   }
+  function whistle(){
+    const o = ac.createOscillator();
+    const g = ac.createGain();
+    o.type = 'sine';
+    o.frequency.setValueAtTime(1500, ac.currentTime);
+    o.frequency.exponentialRampToValueAtTime(1000, ac.currentTime + 0.5);
+    g.gain.setValueAtTime(0, ac.currentTime);
+    g.gain.linearRampToValueAtTime(0.3, ac.currentTime + 0.05);
+    g.gain.exponentialRampToValueAtTime(0.0001, ac.currentTime + 0.5);
+    o.connect(g); g.connect(master); o.start(); o.stop(ac.currentTime + 0.5);
+  }
   const sfx = {
     hit(){ beep({freq: 220 + Math.random()*60, dur:0.05, type:'square', gain:0.35}); },
     wall(){ beep({freq: 320, dur:0.04, type:'triangle', gain:0.25}); },
     goal(){
       if(!audioEnabled) return;
-      const horn = ac.createOscillator();
-      horn.type = 'square';
-      horn.frequency.value = 440;
-      const hg = ac.createGain();
-      hg.gain.setValueAtTime(0, ac.currentTime);
-      hg.gain.linearRampToValueAtTime(0.4, ac.currentTime + 0.01);
-      hg.gain.exponentialRampToValueAtTime(0.0001, ac.currentTime + 0.5);
-      horn.connect(hg); hg.connect(master); horn.start(); horn.stop(ac.currentTime + 0.5);
-
+      whistle();
       const buffer = ac.createBuffer(1, ac.sampleRate*1.5, ac.sampleRate);
       const data = buffer.getChannelData(0);
       for(let i=0;i<data.length;i++){ data[i] = Math.random()*2-1; }
@@ -293,9 +296,16 @@
   function dist(x1,y1,x2,y2){ const dx=x2-x1, dy=y2-y1; return Math.hypot(dx,dy); }
 
   function resetPositions(serving = (Math.random()<0.5?'p1':'p2')){
-    puck.x = centerX; puck.y = centerY; puck.vx = (Math.random()*2-1)*10; puck.vy = (serving==='p1'? -10: 10)*(0.6+Math.random());
     p1.x = centerX; p1.y = Math.min(rink.y+rink.h- rink.h*0.12, H*0.85);
     p2.x = centerX; p2.y = Math.max(rink.y + rink.h*0.12, H*0.15);
+    if(serving==='p1'){
+      puck.x = p1.x;
+      puck.y = p1.y - p1.r - puck.r - 10;
+    }else{
+      puck.x = p2.x;
+      puck.y = p2.y + p2.r + puck.r + 10;
+    }
+    puck.vx = 0; puck.vy = 0;
     [p1,p2].forEach(p=>{p.vx=0;p.vy=0;p.lastX=p.x;p.lastY=p.y;});
   }
 
@@ -321,9 +331,27 @@
     ctx.moveTo(centerX + Math.min(W,H)*0.09, H*0.75);
     ctx.arc(centerX, H*0.75, Math.min(W,H)*0.09, 0, Math.PI*2);
     ctx.stroke();
-    ctx.fillStyle = getCSS('--goal');
-    ctx.fillRect(centerX - goalWidth/2, rink.y-1, goalWidth, goalDepth);
-    ctx.fillRect(centerX - goalWidth/2, rink.y + rink.h - goalDepth + 1, goalWidth, goalDepth);
+    drawGoal(centerX, rink.y, goalWidth, goalDepth, -1);
+    drawGoal(centerX, rink.y + rink.h, goalWidth, goalDepth, 1);
+  }
+  function drawGoal(cx, y, w, d, dir){
+    ctx.save();
+    ctx.translate(cx, y);
+    ctx.scale(1, dir);
+    ctx.strokeStyle = '#fff';
+    ctx.lineWidth = Math.max(3, W*0.004);
+    ctx.strokeRect(-w/2, 0, w, d);
+    const spacing = Math.max(8, w/10);
+    ctx.beginPath();
+    for(let i=-w/2+spacing;i<w/2;i+=spacing){
+      ctx.moveTo(i,0); ctx.lineTo(i,d);
+    }
+    for(let j=spacing;j<d;j+=spacing){
+      ctx.moveTo(-w/2,j); ctx.lineTo(w/2,j);
+    }
+    ctx.strokeStyle = 'rgba(255,255,255,0.4)';
+    ctx.stroke();
+    ctx.restore();
   }
   function drawPaddle(p, color, img, emoji){
     const g = ctx.createRadialGradient(p.x-6, p.y-6, 6, p.x, p.y, p.r);
