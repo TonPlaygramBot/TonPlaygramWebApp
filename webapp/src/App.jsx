@@ -27,6 +27,8 @@ import FallingBall from './pages/Games/FallingBall.jsx';
 import FallingBallLobby from './pages/Games/FallingBallLobby.jsx';
 import AirHockey from './pages/Games/AirHockey.jsx';
 import AirHockeyLobby from './pages/Games/AirHockeyLobby.jsx';
+import GamesWallet from './pages/GamesWallet.jsx';
+import DevelopmentWallet from './pages/DevelopmentWallet.jsx';
 
 import Layout from './components/Layout.jsx';
 import useTelegramAuth from './hooks/useTelegramAuth.js';
@@ -63,6 +65,8 @@ export default function App() {
             <Route path="/store" element={<Store />} />
             <Route path="/referral" element={<Referral />} />
             <Route path="/wallet" element={<Wallet />} />
+            <Route path="/wallet/games" element={<GamesWallet />} />
+            <Route path="/wallet/development" element={<DevelopmentWallet />} />
             <Route path="/messages" element={<Messages />} />
             <Route path="/notifications" element={<Notifications />} />
             <Route path="/trending" element={<Trending />} />
