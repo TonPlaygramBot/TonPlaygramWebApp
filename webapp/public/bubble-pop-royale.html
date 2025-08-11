@@ -105,7 +105,7 @@
       </div>
     </div>
     <div class="userWrap">
-      <h3>USER</h3>
+      <h3 id="playerName">USER</h3>
       <img id="avatarUser" src="assets/icons/profile.svg" alt="" class="avatar"/>
       <canvas id="user"></canvas>
       <div class="overlayButtons">
@@ -238,6 +238,10 @@ window.__BUBBLE_ROYALE_POWER__ = true;
   const avatarEls = [$('#avatar1'), $('#avatar2'), $('#avatar3'), $('#avatarUser')];
   const nameEls = [$('#name1'), $('#name2'), $('#name3')];
   const scoreEls = [$('#score1'), $('#score2'), $('#score3')];
+  const playerNameEl = $('#playerName');
+  const userData = window?.Telegram?.WebApp?.initDataUnsafe?.user;
+  const playerName = userData?.username || [userData?.first_name, userData?.last_name].filter(Boolean).join(' ') || 'Player';
+  if(playerNameEl) playerNameEl.textContent = playerName;
   const avatarUrls = Array(n).fill('');
   if(avatarParam) avatarEls[3].src = avatarParam;
   for(let i=0;i<n-1;i++){ const flag = FLAG_EMOJIS[(Math.random()*FLAG_EMOJIS.length)|0]; const url = emojiToDataUrl(flag); avatarEls[i].src = url; avatarUrls[i] = url; nameEls[i].textContent = `AI ${i+1}`; scoreEls[i].textContent = '0'; }
