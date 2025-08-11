@@ -28,7 +28,8 @@ import FallingBallLobby from './pages/Games/FallingBallLobby.jsx';
 import AirHockey from './pages/Games/AirHockey.jsx';
 import AirHockeyLobby from './pages/Games/AirHockeyLobby.jsx';
 import BrickBreaker from './pages/Games/BrickBreaker.jsx';
-import BrickBreakerLobby from './pages/Games/BrickBreakerLobby.jsx';
+import BubblePopRoyale from './pages/Games/BubblePopRoyale.jsx';
+import BubblePopRoyaleLobby from './pages/Games/BubblePopRoyaleLobby.jsx';
 import TetrisRoyale from './pages/Games/TetrisRoyale.jsx';
 import TetrisRoyaleLobby from './pages/Games/TetrisRoyaleLobby.jsx';
 
@@ -62,7 +63,8 @@ export default function App() {
             <Route path="/games/airhockey/lobby" element={<AirHockeyLobby />} />
             <Route path="/games/airhockey" element={<AirHockey />} />
             <Route path="/games/brickbreaker/lobby" element={<BrickBreakerLobby />} />
-            <Route path="/games/brickbreaker" element={<BrickBreaker />} />
+            <Route path="/games/bubblepoproyale/lobby" element={<BubblePopRoyaleLobby />} />
+            <Route path="/games/bubblepoproyale" element={<BubblePopRoyale />} />
             <Route path="/games/tetrisroyale/lobby" element={<TetrisRoyaleLobby />} />
             <Route path="/games/tetrisroyale" element={<TetrisRoyale />} />
             <Route path="/spin" element={<SpinPage />} />
