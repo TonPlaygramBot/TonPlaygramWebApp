@@ -39,7 +39,9 @@ nftTokenId: String
 
 const userSchema = new mongoose.Schema({
 
-  telegramId: { type: Number, unique: true },
+  // Allow multiple users without a Telegram account by making the unique
+  // index sparse (documents missing telegramId won't conflict)
+  telegramId: { type: Number },
 
   // Allow multiple users without a Google account by making the unique
   // index sparse (documents missing googleId won't conflict)
@@ -116,6 +118,8 @@ const userSchema = new mongoose.Schema({
 
 // Index commonly queried fields
 userSchema.index({ nickname: 1 });
+// Ensure telegramId remains unique when present
+userSchema.index({ telegramId: 1 }, { unique: true, sparse: true });
 // Enforce uniqueness of googleId only when the field exists
 userSchema.index({ googleId: 1 }, { unique: true, sparse: true });
 // Ensure walletAddress remains unique when present
