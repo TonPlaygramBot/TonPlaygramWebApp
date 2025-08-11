@@ -692,12 +692,23 @@
               );
               b.paddle.x = target;
             } else {
-              const t = Date.now() / 700 + b.index;
-              b.paddle.x = clamp(
-                (Math.sin(t) * 0.5 + 0.5) * (CANVAS_W - b.paddle.w - 24) + 12,
-                12,
-                CANVAS_W - b.paddle.w - 12
-              );
+              const balls = b.balls.filter((ball) => ball.vy > 0);
+              let target = b.paddle.x;
+              if (balls.length) {
+                const ball = balls.reduce((a, c) => (c.y > a.y ? c : a));
+                const time = (b.paddle.y - ball.y) / ball.vy;
+                let projected = ball.x + ball.vx * time;
+                const left = 10 + ball.r;
+                const right = CANVAS_W - 10 - ball.r;
+                while (projected < left || projected > right) {
+                  if (projected < left) projected = left + (left - projected);
+                  else if (projected > right) projected = right - (projected - right);
+                }
+                target = projected - b.paddle.w / 2 + rand(-6, 6);
+              }
+              const speed = 3.5;
+              b.paddle.x += clamp(target - b.paddle.x, -speed, speed);
+              b.paddle.x = clamp(b.paddle.x, 12, CANVAS_W - b.paddle.w - 12);
             }
 
             for (const ball of [...b.balls]) {
