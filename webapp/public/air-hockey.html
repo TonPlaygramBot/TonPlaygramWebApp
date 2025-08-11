@@ -485,7 +485,7 @@
         const relVX = puck.vx - p.vx;
         const relVY = puck.vy - p.vy;
         const relAlongNormal = relVX*nx + relVY*ny;
-        if (relAlongNormal < 0){
+        if (relAlongNormal <= 0){
           const restitution = 1.06;
           const impulse = -(1+restitution) * relAlongNormal;
           puck.vx += impulse * nx;
