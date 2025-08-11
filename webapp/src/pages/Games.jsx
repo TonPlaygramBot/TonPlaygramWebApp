@@ -2,6 +2,9 @@ import { Link } from 'react-router-dom';
 import useTelegramBackButton from '../hooks/useTelegramBackButton.js';
 import LeaderboardCard from '../components/LeaderboardCard.jsx';
 
+const GAME_ACCOUNT_ID = import.meta.env.VITE_GAME_ACCOUNT_ID;
+const DEV_ACCOUNT_ID = import.meta.env.VITE_DEV_ACCOUNT_ID;
+
 export default function Games() {
   useTelegramBackButton();
   return (
@@ -52,6 +55,29 @@ export default function Games() {
             </div>
           </div>
         </div>
+        {(GAME_ACCOUNT_ID || DEV_ACCOUNT_ID) && (
+          <div className="relative bg-surface border border-border rounded-xl p-4 shadow-lg overflow-hidden wide-card">
+            <h3 className="text-lg font-bold text-center">Wallets</h3>
+            <div className="flex flex-col items-center space-y-1">
+              {GAME_ACCOUNT_ID && (
+                <Link
+                  to={`/wallet?account=${GAME_ACCOUNT_ID}`}
+                  className="text-primary underline"
+                >
+                  Game Wallet
+                </Link>
+              )}
+              {DEV_ACCOUNT_ID && (
+                <Link
+                  to={`/wallet?account=${DEV_ACCOUNT_ID}`}
+                  className="text-primary underline"
+                >
+                  Dev Wallet
+                </Link>
+              )}
+            </div>
+          </div>
+        )}
         <LeaderboardCard />
       </div>
     </div>
