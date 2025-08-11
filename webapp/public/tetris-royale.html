@@ -29,7 +29,8 @@
   .userWrap h3{margin:0 0 8px 0;font-size:13px;color:var(--muted);display:flex;align-items:center;gap:8px}
   #user{flex:1;width:100%;height:100%;background:#0e1430;border-radius:10px;touch-action:none;image-rendering:pixelated}
   .avatar{width:32px;height:32px;border-radius:50%;margin-bottom:6px}
-  .rotateBtn{position:absolute;right:-60px;top:50%;transform:translateY(-50%);width:48px;height:48px;border-radius:50%;background:linear-gradient(180deg,#2a6cf0,#2156c8);border:1px solid #223063;color:#fff;font-size:20px;cursor:pointer}
+  .countdown{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;font-size:48px;font-weight:bold;color:#fff;background:rgba(0,0,0,0.5);z-index:50}
+  .countdown.hidden{display:none}
   .toast{position:fixed;left:50%;transform:translateX(-50%);bottom:16px;background:#0d1536;border:1px solid #223063;border-radius:10px;padding:8px 12px;font-size:13px;opacity:0;transition:opacity .2s}
   .toast.show{opacity:1}
   dialog{border:none;border-radius:16px;background:#0d1330;color:#e7eefc;max-width:520px;width:calc(100% - 24px)}
@@ -38,41 +39,16 @@
   .grid.two{grid-template-columns:1fr 1fr}
   .kpi{background:#0b1228;border:1px solid #223063;border-radius:12px;padding:10px;text-align:center}
   .kpi .v{font-size:22px;font-weight:800}
+  .winnerOverlay{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.6);z-index:60}
+  .winnerOverlay.hidden{display:none}
+  .winnerOverlay img{width:120px;height:120px;border-radius:50%}
+  .coin-confetti{position:fixed;top:-40px;width:32px;height:32px;pointer-events:none;animation:coin-fall var(--duration,3s) linear forwards}
+  @keyframes coin-fall{from{transform:translateY(-10vh) rotate(0deg);opacity:1}to{transform:translateY(100vh) rotate(360deg);opacity:0}}
 </style>
 </head>
 <body>
 <div class="app">
-  <header>
-    <div style="display:flex;align-items:center;gap:10px">
-      <h1 style="margin:0;font-size:18px">Tetris Royale</h1>
-      <span class="badge">Local test • TPC only</span>
-    </div>
-  </header>
-  <div class="controls">
-    <div>
-      <label>Players</label>
-      <select id="players">
-        <option value="2">2 players</option>
-        <option value="3">3 players</option>
-        <option value="4" selected>4 players</option>
-      </select>
-    </div>
-    <div>
-      <label>Duration</label>
-      <select id="duration">
-        <option value="60">1 min</option>
-        <option value="180" selected>3 min</option>
-        <option value="300">5 min</option>
-      </select>
-    </div>
-    <div>
-      <label>Stake per player (TPC)</label>
-      <input id="stake" type="number" value="300" min="0" step="50"/>
-    </div>
-    <div>
-      <button id="start" class="btn">Start Match</button>
-    </div>
-  </div>
+  <div id="countdown" class="countdown hidden"></div>
   <div class="hud">
     <div class="panel"><strong>Time</strong><span id="time" class="timer">03:00</span></div>
     <div class="panel"><strong>Pot (TPC)</strong><span id="pot" class="score">0</span></div>
@@ -88,7 +64,6 @@
       <h3>USER</h3>
       <img src="assets/icons/profile.svg" alt="" class="avatar"/>
       <canvas id="user"></canvas>
-      <button id="rotate" class="rotateBtn">⟳</button>
     </div>
   </div>
 </div>
@@ -106,11 +81,14 @@
     </div>
     <div class="grid" id="scoreList" style="margin-top:10px"></div>
     <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px">
-      <button class="btn" id="rematch">Rematch</button>
-      <button class="btn" id="change">Change settings</button>
+      <button class="btn" id="rematch">Play Again</button>
+      <button class="btn" id="lobby">Return to Lobby</button>
     </div>
   </div>
 </dialog>
+<div id="winnerOverlay" class="winnerOverlay hidden"></div>
+<script src="/flag-emojis.js"></script>
+<script src="/falling-ball-api.js"></script>
 <script>
 if(!window.__TETRIS_ROYALE__){
 window.__TETRIS_ROYALE__ = true;
@@ -131,6 +109,54 @@ window.__TETRIS_ROYALE__ = true;
   const toastEl = $('#toast');
   const showToast = (msg)=>{ toastEl.textContent = msg; toastEl.classList.add('show'); setTimeout(()=>toastEl.classList.remove('show'), 1400); };
   const fmt = (s)=>{ const m = String((s/60)|0).padStart(2,'0'); const ss = String(Math.max(0, s%60)).padStart(2,'0'); return `${m}:${ss}`; };
+
+  const params = new URLSearchParams(location.search);
+  const n = Math.max(2, Math.min(4, parseInt(params.get('players'),10)||4));
+  const stake = Math.max(0, parseInt(params.get('amount'),10)||300);
+  const durSec = Math.max(10, parseInt(params.get('duration'),10)||180);
+  const avatarParam = params.get('avatar') || '';
+  const tgId = params.get('tgId');
+  const accountId = params.get('accountId');
+  const devAccount = params.get('dev');
+  const devAccount1 = params.get('dev1');
+  const devAccount2 = params.get('dev2');
+  const initParam = params.get('init');
+  if (initParam && !window.Telegram) {
+    window.Telegram = { WebApp: { initData: decodeURIComponent(initParam) } };
+  }
+
+  function emojiToDataUri(flag){
+    return `data:image/svg+xml,${encodeURIComponent(`<svg xmlns='http://www.w3.org/2000/svg' width='64' height='64'><text x='50%' y='50%' font-size='48' text-anchor='middle' dominant-baseline='central'>${flag}</text></svg>`)}`;
+  }
+  function coinConfetti(count=50, iconSrc='/assets/icons/file_000000005f0c61f48998df883554c3e8 (2).webp'){
+    for(let i=0;i<count;i++){
+      const img=document.createElement('img');
+      img.src=iconSrc;
+      img.className='coin-confetti';
+      img.style.left=Math.random()*100+'vw';
+      img.style.setProperty('--duration', (2+Math.random()*2)+'s');
+      document.body.appendChild(img);
+      setTimeout(()=>img.remove(),3000);
+    }
+  }
+  async function awardDevShare(total){
+    const ops=[];
+    if(devAccount1||devAccount2){
+      if(devAccount) ops.push(fbApi.depositAccount(devAccount, Math.round(total*0.09), {game:'tetrisroyale-dev'}));
+      if(devAccount1) ops.push(fbApi.depositAccount(devAccount1, Math.round(total*0.01), {game:'tetrisroyale-dev1'}));
+      if(devAccount2) ops.push(fbApi.depositAccount(devAccount2, Math.round(total*0.02), {game:'tetrisroyale-dev2'}));
+    }else if(devAccount){
+      ops.push(fbApi.depositAccount(devAccount, Math.round(total*0.1), {game:'tetrisroyale-dev'}));
+    }
+    if(ops.length){ try{ await Promise.all(ops); }catch{} }
+  }
+
+  const accounts = Array(n).fill(null);
+  const tgIds = Array(n).fill(null);
+  accounts[n-1] = accountId;
+  tgIds[n-1] = tgId;
+  const playerAvatars = Array(n).fill('');
+
   function createEmpty(){ return Array.from({length:ROWS},()=>Array(COLS).fill(0)); }
   function randomShape(){ const keys = Object.keys(SHAPES); const k = keys[(Math.random()*keys.length)|0]; return SHAPES[k].map(r=>r.slice()); }
   function rotate(mat){ return mat[0].map((_,i)=>mat.map(row=>row[i])).reverse(); }
@@ -202,54 +228,41 @@ window.__TETRIS_ROYALE__ = true;
       score: 0,
       over: false,
     };
-    if(collide(game.board, game.piece, game.pos)) game.over=true;
-    game.reset = function(){
+    game.draw = function(){ drawBoard(ctx, canvas, game.board, {piece:game.piece,pos:game.pos,color:game.color}); };
+    game.newPiece = function(){
       game.piece = randomShape();
       game.pos = {x:3,y:0};
       game.color = COLORS[1 + ((Math.random()*6)|0)];
       if(collide(game.board, game.piece, game.pos)) game.over = true;
     };
+    game.move = function(dir){
+      game.pos.x += dir;
+      if(collide(game.board, game.piece, game.pos)) game.pos.x -= dir;
+    };
+    game.rotate = function(){
+      const r = rotate(game.piece);
+      if(!collide(game.board, r, game.pos)) game.piece = r;
+    };
+    game.hardDrop = function(){
+      while(!collide(game.board, game.piece, {x:game.pos.x,y:game.pos.y+1})) game.pos.y++;
+      merge(game.board, game.piece, game.pos, game.color);
+      game.score += SCORE_PER_LINES[sweep(game.board)];
+      game.newPiece();
+    };
     game.step = function(dt){
-      if(game.over) return;
       game.dropAcc += dt;
-      if(game.dropAcc >= game.dropMs){
+      if(game.dropAcc > game.dropMs){
         game.dropAcc = 0;
         game.pos.y++;
         if(collide(game.board, game.piece, game.pos)){
           game.pos.y--;
           merge(game.board, game.piece, game.pos, game.color);
           const lines = sweep(game.board);
-          game.score += SCORE_PER_LINES[lines];
-          game.reset();
+          if(lines){ game.score += SCORE_PER_LINES[lines]; showToast(`+${SCORE_PER_LINES[lines]}`); }
+          game.newPiece();
         }
       }
     };
-    game.hardDrop = function(){
-      if(game.over) return;
-      while(!collide(game.board, game.piece, {x:game.pos.x, y:game.pos.y+1})){
-        game.pos.y++;
-      }
-      merge(game.board, game.piece, game.pos, game.color);
-      const lines = sweep(game.board);
-      game.score += SCORE_PER_LINES[lines] + 2;
-      game.reset();
-    };
-    game.move = function(dx){
-      const nx = {x:game.pos.x+dx, y:game.pos.y};
-      if(!collide(game.board, game.piece, nx)) game.pos.x += dx;
-    };
-    game.rotate = function(){
-      const r = rotate(game.piece);
-      const kicks = [0,-1,1,-2,2];
-      for(const k of kicks){
-        const testPos = {x:game.pos.x + k, y:game.pos.y};
-        if(!collide(game.board, r, testPos)){
-          game.piece = r; game.pos = testPos; return;
-        }
-      }
-    };
-    game.draw = function(){ drawBoard(ctx, canvas, game.board, {piece:game.piece,pos:game.pos,color:game.color}); };
-    window.addEventListener('resize', ()=>{ fitCanvas(canvas); game.draw(); });
     return game;
   }
   function bindUserControls(canvas, game){
@@ -279,10 +292,16 @@ window.__TETRIS_ROYALE__ = true;
       if(!start) return;
       const r = canvas.getBoundingClientRect();
       const dt = performance.now() - start.t;
+      const endX = e.clientX - r.left;
       const endY = e.clientY - r.top;
+      const dx = endX - start.x;
       const dy = endY - start.y;
-      if(dt < 180 && dy > r.height/10){
-        game.hardDrop();
+      if(dt < 180){
+        if(Math.abs(dx) < r.width/10 && Math.abs(dy) < r.height/10){
+          game.rotate();
+        } else if(dy > r.height/10){
+          game.hardDrop();
+        }
       }
       start = null;
       canvas.releasePointerCapture(e.pointerId);
@@ -295,28 +314,39 @@ window.__TETRIS_ROYALE__ = true;
     if(Math.random()<0.25){ bot.hardDrop(); }
   }
   const canvases = { user: $('#user'), opp1: $('#opp1'), opp2: $('#opp2'), opp3: $('#opp3') };
+  const avatarEls = document.querySelectorAll('.avatar');
+  const miniWraps = document.querySelectorAll('.top .mini');
   const ui = {
     time: $('#time'), pot: $('#pot'), myscore: $('#myscore'),
-    duration: $('#duration'), players: $('#players'), stake: $('#stake'),
-    start: $('#start'), results: $('#results'), winner: $('#winner'),
+    results: $('#results'), winner: $('#winner'),
     payout: $('#payout'), fee: $('#fee'), potFinal: $('#potFinal'),
-    scoreList: $('#scoreList'), rematch: $('#rematch'), change: $('#change'),
-    rotate: $('#rotate')
+    scoreList: $('#scoreList'), rematch: $('#rematch'), lobby: $('#lobby')
   };
   let games = [];
   let last = performance.now();
   let endAt = 0; let running = false; let rafId = null; let botTimer = 0;
+
+  for(let i=0;i<n-1;i++){
+    const flag = FLAG_EMOJIS[(Math.random()*FLAG_EMOJIS.length)|0];
+    const uri = emojiToDataUri(flag);
+    if(avatarEls[i]) avatarEls[i].src = uri;
+    playerAvatars[i] = uri;
+    if(miniWraps[i]) miniWraps[i].style.display='flex';
+  }
+  for(let i=n-1;i<3;i++){ if(miniWraps[i]) miniWraps[i].style.display='none'; }
+  let userAvatar = avatarParam;
+  if(!userAvatar){ userAvatar = 'assets/icons/profile.svg'; }
+  else if(!(userAvatar.startsWith('http') || userAvatar.startsWith('/') || userAvatar.startsWith('data:'))){
+    userAvatar = emojiToDataUri(userAvatar);
+  }
+  avatarEls[3].src = userAvatar;
+  playerAvatars[n-1] = userAvatar;
+
   function layoutCanvases(){
     Object.values(canvases).forEach(c=>{ if(!c) return; const r=c.getBoundingClientRect(); c.width=r.width; c.height=r.height; });
   }
   function startMatch(){
-    if(document.documentElement.requestFullscreen && !document.fullscreenElement){
-      document.documentElement.requestFullscreen().catch(()=>{});
-    }
     layoutCanvases();
-    const n = Math.max(2, Math.min(4, parseInt(ui.players.value,10)||4));
-    const stake = Math.max(0, parseInt(ui.stake.value||'0',10));
-    const durSec = Math.max(10, parseInt(ui.duration.value,10)||180);
     ui.pot.textContent = String(stake * n);
     ui.time.textContent = fmt(durSec);
     games = [];
@@ -324,7 +354,6 @@ window.__TETRIS_ROYALE__ = true;
     for(let i=0;i<n-1;i++){ games.push(createGame(oppSlots[i])); }
     const userGame = createGame(canvases.user); games.push(userGame);
     bindUserControls(canvases.user, userGame);
-    ui.rotate.onclick = () => userGame.rotate();
     endAt = performance.now() + durSec*1000;
     running = true; last = performance.now(); botTimer=0;
     loop();
@@ -347,9 +376,8 @@ window.__TETRIS_ROYALE__ = true;
     updateTimer();
     rafId = requestAnimationFrame(loop);
   }
-  function finish(){
+  async function finish(){
     if(!running) return; running=false; if(rafId) cancelAnimationFrame(rafId);
-    const n = games.length; const stake = Math.max(0, parseInt(ui.stake.value||'0',10));
     const gross = stake * n; const fee = Math.round(gross*0.10); const net = gross - fee;
     const scores = games.map((g,i)=>({i,score:g.score}));
     const max = Math.max(...scores.map(s=>s.score));
@@ -360,13 +388,34 @@ window.__TETRIS_ROYALE__ = true;
     ui.fee.textContent = String(fee);
     ui.potFinal.textContent = String(net);
     ui.scoreList.innerHTML = scores.sort((a,b)=>b.score-a.score).map(s=>`<div class="kpi"><div class="v">P${s.i+1}: ${s.score}</div><div>—</div></div>`).join('');
-    if(!ui.results.open) ui.results.showModal();
+    const overlay = $('#winnerOverlay');
+    const avatar = playerAvatars[winners[0].i];
+    if(avatar){ overlay.innerHTML = `<img src="${avatar}"/>`; overlay.classList.remove('hidden'); }
+    coinConfetti(50);
+    if(winners.some(w=>w.i===n-1) && accountId){
+      try{
+        await fbApi.depositAccount(accountId, payout, {game:'tetrisroyale-win'});
+        if(tgId) await fbApi.addTransaction(tgId, 0, 'win', {game:'tetrisroyale', players:n, accountId});
+      }catch{}
+    }
+    await awardDevShare(gross);
+    setTimeout(()=>{ overlay.classList.add('hidden'); if(!ui.results.open) ui.results.showModal(); },2000);
   }
-  ui.start.addEventListener('click', startMatch);
-  ui.rematch.addEventListener('click', ()=>{ ui.results.close(); startMatch(); });
-  ui.change.addEventListener('click', ()=>{ ui.results.close(); });
+  function countdownAndStart(){
+    const cd = $('#countdown');
+    let c = 3; cd.textContent = c; cd.classList.remove('hidden');
+    const timer = setInterval(()=>{
+      c--;
+      if(c>0){ cd.textContent = c; }
+      else { clearInterval(timer); cd.classList.add('hidden'); startMatch(); }
+    },1000);
+  }
+
+  ui.rematch.addEventListener('click', ()=>{ ui.results.close(); countdownAndStart(); });
+  ui.lobby.addEventListener('click', ()=>{ ui.results.close(); location.href='/games/tetrisroyale/lobby'; });
   window.addEventListener('resize', layoutCanvases);
   layoutCanvases();
+  countdownAndStart();
 })();
 }
 </script>
