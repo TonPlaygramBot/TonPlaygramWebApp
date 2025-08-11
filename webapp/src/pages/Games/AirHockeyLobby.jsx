@@ -12,7 +12,6 @@ export default function AirHockeyLobby() {
 
   const [stake, setStake] = useState({ token: 'TPC', amount: 100 });
   const [mode, setMode] = useState('ai');
-  const [difficulty, setDifficulty] = useState('normal');
   const [goal, setGoal] = useState(3);
   const [avatar, setAvatar] = useState('');
 
@@ -44,7 +43,6 @@ export default function AirHockeyLobby() {
     const params = new URLSearchParams();
     params.set('mode', mode);
     params.set('target', goal);
-    if (mode === 'ai') params.set('difficulty', difficulty);
     const initData = window.Telegram?.WebApp?.initData;
     if (stake.token) params.set('token', stake.token);
     if (stake.amount) params.set('amount', stake.amount);
@@ -81,26 +79,6 @@ export default function AirHockeyLobby() {
           ))}
         </div>
       </div>
-      {mode === 'ai' && (
-        <div className="space-y-2">
-          <h3 className="font-semibold">Difficulty</h3>
-          <div className="flex gap-2">
-            {[
-              { id: 'easy', label: 'Easy' },
-              { id: 'normal', label: 'Normal' },
-              { id: 'hard', label: 'Hard' }
-            ].map(({ id, label }) => (
-              <button
-                key={id}
-                onClick={() => setDifficulty(id)}
-                className={`lobby-tile ${difficulty === id ? 'lobby-selected' : ''}`}
-              >
-                {label}
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
       <div className="space-y-2">
         <h3 className="font-semibold">Goals</h3>
         <div className="flex gap-2">

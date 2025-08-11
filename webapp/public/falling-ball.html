@@ -8,7 +8,7 @@
   <meta http-equiv="Expires" content="0" />
   <title>TonPlaygram – Falling Ball PvP (SFX + Visuals)</title>
   <style>
-    :root{ --bg:#f0fdf4; --panel:#10172a; --ink:#000; --muted:#10b981; --accent:#94a3b8; }
+    :root{ --bg:#050812; --panel:#10172a; --ink:#e5e7eb; --muted:#10b981; --accent:#94a3b8; }
     html,body{ height:100%; margin:0; }
     body{ background:var(--bg); color:var(--ink); font-family:Inter,system-ui,Segoe UI,Roboto,Arial,sans-serif; }
     .app{ position:fixed; inset:0; overflow:hidden; }
@@ -86,11 +86,7 @@
     ctx.setTransform(dpr,0,0,dpr,0,0);
   }
   resizeCanvas();
-  // background image
-    const bgImg = new Image();
-    bgImg.src = '/assets/icons/Screenshot_20250810_110502_Gallery.jpg';
-  let bgReady = false;
-  bgImg.onload = () => { bgReady = true; };
+  const BG_COLOR = '#050812';
   addEventListener('resize', ()=>{ W=innerWidth; H=innerHeight; resizeCanvas(); genPegField(); carveCorridors(); addStars(); });
 
   // ========================= Audio (Web Audio, no binaries) =========================
@@ -371,9 +367,8 @@
 
   // ========================= Render =========================
   function drawBackground(){
-    if(bgReady){
-      ctx.drawImage(bgImg, 0, 0, W, H);
-    }
+    ctx.fillStyle = BG_COLOR;
+    ctx.fillRect(0,0,W,H);
   }
   function drawObstacles(){
     for(const o of state.obstacles){
