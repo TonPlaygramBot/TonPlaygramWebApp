@@ -8,7 +8,7 @@ export default function BubblePopRoyale() {
     <iframe
       src={`/bubble-pop-royale.html${search}`}
       title="Bubble Pop Royale"
-      className="w-full h-screen border-0"
+      className="w-full h-[100dvh] border-0"
     />
   );
 }
