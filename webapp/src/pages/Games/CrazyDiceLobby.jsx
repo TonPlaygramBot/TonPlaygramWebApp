@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { pingOnline, getOnlineCount } from '../../utils/api.js';
+import { pingOnline, getOnlineCount, getAccountBalance, stakeGame } from '../../utils/api.js';
 import { ensureAccountId } from '../../utils/telegram.js';
 import RoomSelector from '../../components/RoomSelector.jsx';
 import TableSelector from '../../components/TableSelector.jsx';
@@ -59,7 +59,7 @@ export default function CrazyDiceLobby() {
     }
   };
 
-  const startGame = (flagOverride = flags) => {
+  const startGame = async (flagOverride = flags) => {
     const params = new URLSearchParams();
     if (table.id === 'single') {
       params.set('ai', aiCount);
@@ -74,6 +74,15 @@ export default function CrazyDiceLobby() {
     params.set('rolls', rolls);
     if (stake.token) params.set('token', stake.token);
     if (stake.amount) params.set('amount', stake.amount);
+    try {
+      const accountId = await ensureAccountId();
+      const bal = await getAccountBalance(accountId);
+      if ((bal.balance || 0) < stake.amount) {
+        alert('Insufficient balance');
+        return;
+      }
+      await stakeGame(accountId, stake.amount, 'crazydice');
+    } catch {}
     navigate(`/games/crazydice?${params.toString()}`);
   };
 

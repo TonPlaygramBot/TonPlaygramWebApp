@@ -42,6 +42,12 @@
         type,
         ...extra
       });
+    },
+    stakeGame(accountId, amount, game) {
+      return post('/api/game/stake', { accountId, amount, game });
+    },
+    gamePayout(accountId, amount, game) {
+      return post('/api/game/payout', { winnerAccountId: accountId, amount, game });
     }
   };
 })();
