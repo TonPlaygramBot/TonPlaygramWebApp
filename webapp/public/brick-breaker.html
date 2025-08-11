@@ -46,28 +46,9 @@
       }
 
       .app {
-        max-width: 1100px;
-        margin: 0 auto;
-        padding: 16px;
         height: 100vh;
         display: flex;
         flex-direction: column;
-      }
-      header {
-        display: flex;
-        gap: 12px;
-        align-items: center;
-        justify-content: space-between;
-        margin: 12px 0;
-      }
-      .brand {
-        display: flex;
-        align-items: center;
-        gap: 10px;
-      }
-      h1 {
-        font-size: 18px;
-        margin: 0;
       }
       .card {
         background: linear-gradient(180deg, #11172a 0%, #0e1428 100%);
@@ -137,7 +118,7 @@
 
       .game-layout {
         display: grid;
-        grid-template-rows: 25vh 1fr;
+        grid-template-rows: 20vh 1fr;
         gap: 12px;
         min-height: 0;
         flex: 1;
@@ -395,11 +376,6 @@
           </div>
         </div>
       </div>
-      <header>
-        <div class="brand">
-          <h1>Brick Breaker Royale</h1>
-        </div>
-      </header>
     </div>
 
     <div id="toast" class="toast"></div>
@@ -583,7 +559,7 @@
           function createBoardState(index) {
             return {
               index,
-              paddle: { x: CANVAS_W / 2 - 45, y: CANVAS_H - 36, w: 90, h: 12 },
+              paddle: { x: CANVAS_W / 2 - 45, y: CANVAS_H - 42, w: 90, h: 18 },
               balls: [
                 {
                   x: CANVAS_W / 2,
