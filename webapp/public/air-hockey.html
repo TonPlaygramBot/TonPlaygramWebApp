@@ -226,7 +226,7 @@
     centerX = W/2; centerY = H/2;
     goalWidth = Math.round(W*0.42);
     const base = Math.max(24, Math.round(Math.min(W,H)*0.035));
-    paddleRadius = base*3.0;
+    paddleRadius = base*3.4;
     puck.r = Math.max(20, Math.round(base*1.0));
     p1.r = paddleRadius; p2.r = paddleRadius;
   }
@@ -424,12 +424,7 @@
       const tx = best.x, ty = best.y;
       const nx = p.x + (tx - p.x) * ease;
       let ny = p.y + (ty - p.y) * ease;
-      const off = p.r * 0.3;
-      if (bottom) {
-        ny += ty < p.y ? -off : off;
-      } else {
-        ny += ty > p.y ? off : -off;
-      }
+      ny -= p.r * 0.5;
       p.vx = nx - p.lastX;
       p.vy = ny - p.lastY;
       p.x = nx; p.y = ny;
