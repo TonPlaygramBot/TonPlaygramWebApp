@@ -18,14 +18,14 @@
     html,body{height:100%;}
     body{margin:0;background:var(--bg);color:#e5e7eb;font-family:system-ui,Segoe UI,Roboto,Helvetica,Arial;overflow:hidden}
     .ui{position:fixed;inset:0;}
-    .scoreboard{position:absolute;top:8px;left:50%;transform:translateX(-50%);}
+    .scoreboard{position:absolute;top:0;left:0;right:0;height:40px;display:flex;align-items:center;justify-content:center;pointer-events:none;}
     .score{font-variant-numeric:tabular-nums;background:#0b1220;border:1px solid #233050;border-radius:12px;padding:6px 10px;display:flex;align-items:center;gap:8px}
     .badge{padding:2px 8px;border-radius:999px;font-weight:800}
     .p1{background:var(--p1);color:#052e12}
     .p2{background:var(--p2);color:#3a2600}
 
-    .canvasWrap{position:absolute;inset:0}
-    canvas{position:absolute;inset:0;width:100vw;height:100vh;display:block;touch-action:none}
+    .canvasWrap{position:absolute;top:40px;bottom:20px;left:0;right:0;}
+    canvas{position:absolute;inset:0;width:100%;height:100%;display:block;touch-action:none}
 
     .hint{position:fixed;inset:0;display:none;align-items:center;justify-content:center;margin:auto;max-width:680px;background:rgba(10,16,34,.6);backdrop-filter:blur(6px);border:1px solid #1f2944;border-radius:12px;padding:8px 12px;text-align:center;font-size:.9rem}
 
@@ -78,6 +78,8 @@
   const menuPanel = document.getElementById('menuPanel');
   const optionsPanel = document.getElementById('optionsPanel');
   const muteBtn = document.getElementById('muteBtn');
+  const TOP_BAR = 40; // height of scoreboard bar
+  const BOTTOM_GAP = 20; // gap below rink
 
   const params = new URLSearchParams(location.search);
   const stake = Number(params.get('amount')) || 0;
@@ -215,9 +217,10 @@
   let W = 720, H = 1280;
   function fit(){
     W = canvas.width = Math.floor(window.innerWidth * devicePixelRatio);
-    H = canvas.height = Math.floor(window.innerHeight * devicePixelRatio);
+    const usableHeight = window.innerHeight - TOP_BAR - BOTTOM_GAP;
+    H = canvas.height = Math.floor(usableHeight * devicePixelRatio);
     canvas.style.width = window.innerWidth + 'px';
-    canvas.style.height = window.innerHeight + 'px';
+    canvas.style.height = usableHeight + 'px';
     rink.x = Math.round(W*0.06); rink.w = Math.round(W*0.88);
     rink.y = Math.round(H*0.04); rink.h = Math.round(H*0.92);
     centerX = W/2; centerY = H/2;
@@ -419,9 +422,16 @@
     if (best){
       const ease = 0.45;
       const tx = best.x, ty = best.y;
-      const nx = p.x + (tx - p.x)*ease;
-      const ny = p.y + (ty - p.y)*ease;
-      p.vx = (nx - p.lastX); p.vy = (ny - p.lastY);
+      const nx = p.x + (tx - p.x) * ease;
+      let ny = p.y + (ty - p.y) * ease;
+      const off = p.r * 0.3;
+      if (bottom) {
+        ny += ty < p.y ? -off : off;
+      } else {
+        ny += ty > p.y ? off : -off;
+      }
+      p.vx = nx - p.lastX;
+      p.vy = ny - p.lastY;
       p.x = nx; p.y = ny;
     } else {
       p.vx *= 0.8; p.vy *= 0.8;
