@@ -160,7 +160,7 @@
         flex: 1;
       }
       .user-board h3 {
-        margin: 0 0 8px 0;
+        margin: 0 0 4px 0;
         font-size: 13px;
         color: var(--muted);
         display: flex;
@@ -193,14 +193,15 @@
       }
       .life {
         color: var(--danger);
+        font-size: 16px;
       }
       .score {
         color: var(--gold);
         font-weight: 700;
-        font-size: 16px;
+        font-size: 18px;
       }
       #userScore {
-        font-size: 18px;
+        font-size: 20px;
       }
       .toast {
         position: fixed;
@@ -509,6 +510,33 @@
             };
           }
 
+          async function fetchPlayerName(tgId, accountId) {
+            try {
+              const headers = { 'Content-Type': 'application/json' };
+              const initData = window?.Telegram?.WebApp?.initData;
+              if (initData) headers['X-Telegram-Init-Data'] = initData;
+              let res;
+              if (tgId) {
+                res = await fetch('/api/profile/telegram-info', {
+                  method: 'POST',
+                  headers,
+                  body: JSON.stringify({ telegramId: tgId })
+                });
+              } else if (accountId) {
+                res = await fetch('/api/profile/by-account', {
+                  method: 'POST',
+                  headers,
+                  body: JSON.stringify({ accountId })
+                });
+              }
+              if (res && res.ok) {
+                const data = await res.json();
+                return data.nickname || data.firstName || '';
+              }
+            } catch {}
+            return '';
+          }
+
           function genBricks(density) {
             const cols = 10,
               rows = density === 'high' ? 9 : density === 'medium' ? 8 : 7;
@@ -812,7 +840,7 @@
             }
           }
 
-          function startMatch() {
+          async function startMatch() {
             const n = settings.players;
             const stake = settings.stake;
             GAME_DURATION_MS = settings.duration * 60000;
@@ -824,6 +852,9 @@
             for (let i = 0; i < n; i++) {
               let avatar = i === n - 1 ? userAvatar || avatars[i] : avatars[i];
               let name = i === n - 1 ? userName : names[i];
+              if (!name && (tgIds[i] || accounts[i])) {
+                name = await fetchPlayerName(tgIds[i], accounts[i]);
+              }
               if (!avatar) {
                 const flag = choice(FLAG_EMOJIS);
                 avatar = flagToDataUri(flag);
