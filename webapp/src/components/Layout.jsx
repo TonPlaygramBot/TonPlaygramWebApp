@@ -42,6 +42,18 @@ export default function Layout({ children }) {
     } catch {}
   }, [location]);
 
+  // Ensure the current path is saved if the page is reloaded or closed
+  useEffect(() => {
+    const savePath = () => {
+      try {
+        const current = window.location.pathname + window.location.search;
+        localStorage.setItem('lastPath', current);
+      } catch {}
+    };
+    window.addEventListener('beforeunload', savePath);
+    return () => window.removeEventListener('beforeunload', savePath);
+  }, []);
+
   useEffect(() => {
     beepRef.current = new Audio(chatBeep);
     beepRef.current.volume = getGameVolume();

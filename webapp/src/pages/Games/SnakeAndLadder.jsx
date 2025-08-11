@@ -1248,11 +1248,29 @@ export default function SnakeAndLadder() {
       if (playerId === accountId) {
         const totalPlayers = isMultiplayer ? mpPlayers.length : ai + 1;
         const tgId = getTelegramId();
-        addTransaction(tgId, 0, 'win', {
-          game: 'snake',
-          players: totalPlayers,
-          accountId
-        });
+        if (token === 'TPC' && pot > 0) {
+          const total = pot * totalPlayers;
+          ensureAccountId()
+            .then(async (aid) => {
+              const winAmt = Math.round(total * 0.91);
+              await Promise.all([
+                depositAccount(aid, winAmt, { game: 'snake-win' }),
+                awardDevShare(total)
+              ]);
+              addTransaction(tgId, 0, 'win', {
+                game: 'snake',
+                players: totalPlayers,
+                accountId: aid
+              });
+            })
+            .catch(() => {});
+        } else {
+          addTransaction(tgId, 0, 'win', {
+            game: 'snake',
+            players: totalPlayers,
+            accountId
+          });
+        }
       }
     };
 
