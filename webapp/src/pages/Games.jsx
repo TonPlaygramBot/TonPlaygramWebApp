@@ -52,6 +52,23 @@ export default function Games() {
             </div>
           </div>
         </div>
+        <div className="relative bg-surface border border-border rounded-xl p-4 shadow-lg overflow-hidden wide-card">
+          <h3 className="text-lg font-bold text-center mb-2">Public Wallets</h3>
+          <div className="flex justify-around items-center flex-wrap gap-4">
+            <Link
+              to="/wallet/games"
+              className="inline-block px-3 py-1 bg-primary rounded hover:bg-primary-hover text-white-shadow"
+            >
+              Games Wallet
+            </Link>
+            <Link
+              to="/wallet/development"
+              className="inline-block px-3 py-1 bg-primary rounded hover:bg-primary-hover text-white-shadow"
+            >
+              Development Wallet
+            </Link>
+          </div>
+        </div>
         <LeaderboardCard />
       </div>
     </div>
