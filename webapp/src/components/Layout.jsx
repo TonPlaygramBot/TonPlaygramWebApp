@@ -30,7 +30,12 @@ export default function Layout({ children }) {
     try {
       const saved = localStorage.getItem('lastPath');
       const current = location.pathname + location.search;
-      if (saved && saved !== current) navigate(saved, { replace: true });
+      if (
+        saved &&
+        saved !== current &&
+        window.history.length <= 1
+      )
+        navigate(saved, { replace: true });
     } catch {}
   }, []);
 
