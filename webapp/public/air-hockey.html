@@ -162,7 +162,7 @@
   async function chargeStake(){
     if(!tgId || stake<=0) return;
     try{
-      await fbApi.addTransaction(tgId, -stake, 'stake', { game:'airhockey' });
+      await fbApi.addTransaction(tgId, -stake, 'stake', { game:'airhockey', players:2, accountId: myAccountId });
     }catch{}
   }
 

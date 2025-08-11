@@ -37,7 +37,11 @@ export default function FallingBallLobby() {
         return;
       }
       tgId = getTelegramId();
-      await addTransaction(tgId, -stake.amount, 'stake', { game: 'fallingball' });
+      await addTransaction(tgId, -stake.amount, 'stake', {
+        game: 'fallingball',
+        players,
+        accountId,
+      });
     } catch {}
 
     const params = new URLSearchParams();

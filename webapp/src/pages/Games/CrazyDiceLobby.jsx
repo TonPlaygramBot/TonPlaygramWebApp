@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { pingOnline, getOnlineCount } from '../../utils/api.js';
-import { ensureAccountId } from '../../utils/telegram.js';
+import { pingOnline, getOnlineCount, getAccountBalance, addTransaction } from '../../utils/api.js';
+import { ensureAccountId, getTelegramId } from '../../utils/telegram.js';
 import RoomSelector from '../../components/RoomSelector.jsx';
 import TableSelector from '../../components/TableSelector.jsx';
 import FlagPickerModal from '../../components/FlagPickerModal.jsx';
@@ -59,11 +59,29 @@ export default function CrazyDiceLobby() {
     }
   };
 
-  const startGame = (flagOverride = flags) => {
+  const startGame = async (flagOverride = flags) => {
+    let tgId;
+    let accountId;
+    const playerCount = table.id === 'single' ? aiCount + 1 : table.capacity;
+    try {
+      accountId = await ensureAccountId();
+      const balRes = await getAccountBalance(accountId);
+      if ((balRes.balance || 0) < stake.amount) {
+        alert('Insufficient balance');
+        return;
+      }
+      tgId = getTelegramId();
+      await addTransaction(tgId, -stake.amount, 'stake', {
+        game: 'crazydice',
+        players: playerCount,
+        accountId,
+      });
+    } catch {}
+
     const params = new URLSearchParams();
     if (table.id === 'single') {
       params.set('ai', aiCount);
-      params.set('players', aiCount + 1);
+      params.set('players', playerCount);
       params.set('avatars', aiType);
       if (aiType === 'flags' && flagOverride.length) {
         params.set('flags', flagOverride.join(','));
@@ -74,6 +92,8 @@ export default function CrazyDiceLobby() {
     params.set('rolls', rolls);
     if (stake.token) params.set('token', stake.token);
     if (stake.amount) params.set('amount', stake.amount);
+    if (tgId) params.set('tgId', tgId);
+    if (accountId) params.set('accountId', accountId);
     navigate(`/games/crazydice?${params.toString()}`);
   };
 
