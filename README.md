@@ -390,6 +390,25 @@ Run `npm run reset-db` to drop the existing MongoDB database and start with a cl
 4. **Verify the deployment** on TonScan or with `tonos-cli account <address>` to confirm the contract state is active. Test a small claim using `npm run claim-test` and check that the wallet emits a `send_jettons` transfer.
 
 
+### Game wallet contract
+
+`tpc_game_wallet.fc` manages deposits and payouts for games. Compile the contract with:
+
+```bash
+func -SPA -o build/tpc_game_wallet.fif \
+     stdlib.fc ft/params.fc ft/op-codes.fc ft/discovery-params.fc \
+     ft/jetton-utils.fc tpc_game_wallet.fc
+echo '"build/tpc_game_wallet.fif" include 2 boc+>B "build/tpc_game_wallet.boc" B>file' | fift -s
+```
+
+The contract exposes three operations:
+
+- `op::deposit` – increase the internal balance after a stake.
+- `op::payout` – transfer the stake to the winner and send a 10% share to the developer wallet.
+- `op::ai_win` – add the stake to the game balance when the AI wins while still paying the developer share.
+
+Ensure the game wallet begins with at least 1,000,000 TPC so payouts can be covered.
+
 ## License
 
 This project is licensed under the [MIT License](LICENSE).
