@@ -602,11 +602,21 @@ export default function CrazyDiceDuel() {
         try {
           const aid = await ensureAccountId();
           const winAmt = Math.round(total * 0.91);
-          await Promise.all([
-            depositAccount(aid, winAmt, { game: 'crazydice-win' }),
-            awardDevShare(total),
-          ]);
           const tgId = getTelegramId();
+          if (tgId) {
+            await Promise.all([
+              depositAccount(aid, winAmt, { game: 'crazydice-win' }),
+              awardDevShare(total),
+            ]);
+          } else {
+            await Promise.all([
+              addTransaction(null, winAmt, 'deposit', {
+                game: 'crazydice-win',
+                accountId: aid,
+              }),
+              awardDevShare(total),
+            ]);
+          }
           addTransaction(tgId, 0, 'win', {
             game: 'crazydice',
             players: playerCount,
