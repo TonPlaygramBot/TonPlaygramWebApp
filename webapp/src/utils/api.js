@@ -514,7 +514,11 @@ export function getAccountTransactions(accountId) {
 }
 
 export function depositAccount(accountId, amount, extra = {}) {
-  return post('/api/account/deposit', { accountId, amount, ...extra });
+  return post(
+    '/api/account/deposit',
+    { accountId, amount, ...extra },
+    API_AUTH_TOKEN || undefined
+  );
 }
 
 export function buyBundle(accountId, bundle) {
