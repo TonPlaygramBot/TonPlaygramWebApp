@@ -32,8 +32,18 @@
     return data;
   }
   window.fbApi = {
-    depositAccount(accountId, amount, extra = {}) {
-      return post('/api/account/deposit', { accountId, amount, ...extra });
+    async depositAccount(accountId, amount, extra = {}) {
+      const res = await post('/api/account/deposit', { accountId, amount, ...extra });
+      if (res && res.error) {
+        return post('/api/profile/addTransaction', {
+          telegramId: null,
+          amount,
+          type: 'deposit',
+          accountId,
+          ...extra,
+        });
+      }
+      return res;
     },
     addTransaction(telegramId, amount, type, extra = {}) {
       return post('/api/profile/addTransaction', {

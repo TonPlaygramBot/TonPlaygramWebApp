@@ -1253,10 +1253,20 @@ export default function SnakeAndLadder() {
           ensureAccountId()
             .then(async (aid) => {
               const winAmt = Math.round(total * 0.91);
-              await Promise.all([
-                depositAccount(aid, winAmt, { game: 'snake-win' }),
-                awardDevShare(total)
-              ]);
+              if (tgId) {
+                await Promise.all([
+                  depositAccount(aid, winAmt, { game: 'snake-win' }),
+                  awardDevShare(total)
+                ]);
+              } else {
+                await Promise.all([
+                  addTransaction(null, winAmt, 'deposit', {
+                    game: 'snake-win',
+                    accountId: aid
+                  }),
+                  awardDevShare(total)
+                ]);
+              }
               addTransaction(tgId, 0, 'win', {
                 game: 'snake',
                 players: totalPlayers,
