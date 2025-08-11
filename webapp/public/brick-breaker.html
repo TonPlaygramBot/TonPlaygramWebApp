@@ -143,9 +143,8 @@
         font-size: 13px;
         color: var(--muted);
         display: flex;
-        flex-direction: column;
         gap: 6px;
-        align-items: flex-start;
+        align-items: center;
       }
       .mini .avatar {
         width: 24px;
@@ -454,6 +453,12 @@
           };
           const flagToDataUri = (flag) =>
             `data:image/svg+xml,${encodeURIComponent(`<svg xmlns='http://www.w3.org/2000/svg' width='64' height='64'><text x='50%' y='50%' font-size='48' text-anchor='middle' dominant-baseline='central'>${flag}</text></svg>`)}`;
+          const regionNames = new Intl.DisplayNames(['en'], { type: 'region' });
+          const flagToCountryCode = (flag) =>
+            [...flag]
+              .map((c) => String.fromCharCode(c.codePointAt(0) - 0x1f1e6 + 0x41))
+              .join('');
+          const flagToName = (flag) => regionNames.of(flagToCountryCode(flag));
           function coinConfetti(
             count = 50,
             iconSrc = '/assets/icons/file_000000005f0c61f48998df883554c3e8 (2).webp'
@@ -583,7 +588,7 @@
           function addMiniSlot(label, avatar) {
             const wrap = document.createElement('div');
             wrap.className = 'mini';
-            wrap.innerHTML = `<h3>${label}<img class="avatar" src="${avatar}" alt="avatar"/></h3>`;
+            wrap.innerHTML = `<h3><img class="avatar" src="${avatar}" alt="avatar"/>${label}</h3>`;
             const cv = document.createElement('canvas');
             cv.width = CANVAS_W;
             cv.height = CANVAS_H;
@@ -832,12 +837,14 @@
             const players = [];
             for (let i = 0; i < n; i++) {
               let avatar = i === n - 1 ? userAvatar || avatars[i] : avatars[i];
+              let name = names[i];
               if (!avatar) {
                 const flag = choice(FLAG_EMOJIS);
                 avatar = flagToDataUri(flag);
+                if (!name) name = flagToName(flag);
               }
               players.push({
-                name: names[i] || `P${i + 1}`,
+                name: name || `P${i + 1}`,
                 avatar,
                 accountId: i === n - 1 ? userAccount : accounts[i],
                 telegramId: i === n - 1 ? userTgId : tgIds[i]
