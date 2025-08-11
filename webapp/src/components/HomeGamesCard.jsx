@@ -34,6 +34,13 @@ export default function HomeGamesCard() {
               className="w-24 h-24"
             />
           </Link>
+          <Link to="/games/brickbreaker/lobby" className="flex-shrink-0">
+            <img
+              src="/assets/icons/brick_breaker.svg"
+              alt="Brick Breaker Royale"
+              className="w-24 h-24"
+            />
+          </Link>
         </div>
       <Link
         to="/games"
