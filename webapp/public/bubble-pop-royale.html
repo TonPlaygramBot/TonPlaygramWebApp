@@ -16,7 +16,8 @@
   label{font-size:12px;color:var(--muted);display:block;margin-bottom:6px}
   select,button,input{width:100%;padding:10px 12px;border-radius:10px;border:1px solid #223063;background:#0e1430;color:#e7eefc}
   .btn{background:linear-gradient(180deg,#2a6cf0,#2156c8);border:none;font-weight:700;cursor:pointer}
-  .hud{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+  .hud{display:flex;gap:8px}
+  .hud .panel{flex:1}
   .panel{border:1px solid #223063;background:#0b1228;border-radius:12px;padding:10px;display:flex;align-items:center;justify-content:space-between}
   .score{color:var(--gold);font-weight:800}
   .timer{font-variant-numeric:tabular-nums;font-weight:800}
@@ -28,11 +29,12 @@
   .flagInline{width:16px;height:16px;border-radius:2px}
   .mini canvas{flex:1;width:100%;height:100%;background:#0e1430;border-radius:8px}
   .userWrap{position:relative;border:1px solid #223063;background:linear-gradient(180deg,#0f1530,#0a0f24);border-radius:14px;padding:10px;display:flex;flex-direction:column;min-height:0}
-  .userWrap h3{margin:0 0 8px 0;font-size:13px;color:var(--muted);display:flex;align-items:center;gap:8px}
+  .userHeader{display:flex;align-items:center;gap:8px;margin-bottom:8px}
+  .userWrap h3{margin:0;font-size:13px;color:var(--muted)}
   #user{flex:1;width:100%;height:100%;background:#0e1430;border-radius:10px;touch-action:none}
   .overlayButtons{position:absolute;right:10px;bottom:10px;display:flex;gap:8px}
   .small{padding:8px 10px;border-radius:10px;border:1px solid #223063;background:#15204a;color:#e7eefc;font-size:12px;cursor:pointer}
-  .avatar{width:32px;height:32px;border-radius:50%;margin-bottom:6px}
+  .avatar{width:32px;height:32px;border-radius:50%}
   .toast{position:fixed;left:50%;transform:translateX(-50%);bottom:16px;background:#0d1536;border:1px solid #223063;border-radius:10px;padding:8px 12px;font-size:13px;opacity:0;transition:opacity .2s}
   .toast.show{opacity:1}
   dialog{border:none;border-radius:16px;background:#0d1330;color:#e7eefc;max-width:520px;width:calc(100% - 24px)}
@@ -81,11 +83,6 @@
       <button id="start" class="btn">Start Match</button>
     </div>
   </div>
-  <div class="hud">
-    <div class="panel"><strong>Time</strong><span id="time" class="timer">03:00</span></div>
-    <div class="panel"><strong>Pot (TPC)</strong><span id="pot" class="score">0</span></div>
-    <div class="panel"><strong>Your score</strong><span id="myscore" class="score">0</span></div>
-  </div>
   <div class="layout">
     <div class="top">
       <div class="mini">
@@ -105,8 +102,15 @@
       </div>
     </div>
     <div class="userWrap">
-      <h3 id="playerName">USER</h3>
-      <img id="avatarUser" src="assets/icons/profile.svg" alt="" class="avatar"/>
+      <div class="userHeader">
+        <img id="avatarUser" src="assets/icons/profile.svg" alt="" class="avatar"/>
+        <h3 id="playerName">USER</h3>
+        <div class="hud">
+          <div class="panel"><strong>Time</strong><span id="time" class="timer">03:00</span></div>
+          <div class="panel"><strong>Pot (TPC)</strong><span id="pot" class="score">0</span></div>
+          <div class="panel"><strong>Your score</strong><span id="myscore" class="score">0</span></div>
+        </div>
+      </div>
       <canvas id="user"></canvas>
       <div class="overlayButtons">
         <button id="swapBtn" class="small">Swap</button>
@@ -147,6 +151,12 @@ window.__BUBBLE_ROYALE_POWER__ = true;
   const tgId = params.get('tgId');
   const FLAG_EMOJIS = ["🇦🇫","🇦🇽","🇦🇱","🇩🇿","🇦🇸","🇦🇩","🇦🇴","🇦🇮","🇦🇶","🇦🇬","🇦🇷","🇦🇲","🇦🇼","🇦🇺","🇦🇹","🇦🇿","🇧🇸","🇧🇭","🇧🇩","🇧🇧","🇧🇾","🇧🇪","🇧🇿","🇧🇯","🇧🇲","🇧🇹","🇧🇴","🇧🇦","🇧🇼","🇧🇻","🇧🇷","🇮🇴","🇻🇬","🇧🇳","🇧🇬","🇧🇫","🇧🇮","🇰🇭","🇨🇲","🇨🇦","🇨🇻","🇧🇶","🇰🇾","🇨🇫","🇹🇩","🇨🇱","🇨🇳","🇨🇽","🇨🇨","🇨🇴","🇰🇲","🇨🇬","🇨🇩","🇨🇰","🇨🇷","🇨🇮","🇭🇷","🇨🇺","🇨🇼","🇨🇾","🇨🇿","🇩🇰","🇩🇯","🇩🇲","🇩🇴","🇪🇨","🇪🇬","🇸🇻","🇬🇶","🇪🇷","🇪🇪","🇸🇿","🇪🇹","🇫🇰","🇫🇴","🇫🇯","🇫🇮","🇫🇷","🇬🇫","🇵🇫","🇹🇫","🇬🇦","🇬🇲","🇬🇪","🇩🇪","🇬🇭","🇬🇮","🇬🇷","🇬🇱","🇬🇩","🇬🇵","🇬🇺","🇬🇹","🇬🇬","🇬🇳","🇬🇼","🇬🇾","🇭🇹","🇭🇲","🇭🇳","🇭🇰","🇭🇺","🇮🇸","🇮🇳","🇮🇩","🇮🇷","🇮🇶","🇮🇪","🇮🇲","🇮🇱","🇮🇹","🇯🇲","🇯🇵","🇯🇪","🇯🇴","🇰🇿","🇰🇪","🇰🇮","🇰🇼","🇰🇬","🇱🇦","🇱🇻","🇱🇧","🇱🇸","🇱🇷","🇱🇾","🇱🇮","🇱🇹","🇱🇺","🇲🇴","🇲🇬","🇲🇼","🇲🇾","🇲🇻","🇲🇱","🇲🇹","🇲🇭","🇲🇶","🇲🇷","🇲🇺","🇾🇹","🇲🇽","🇫🇲","🇲🇩","🇲🇨","🇲🇳","🇲🇪","🇲🇸","🇲🇦","🇲🇿","🇲🇲","🇳🇦","🇳🇷","🇳🇵","🇳🇱","🇳🇨","🇳🇿","🇳🇮","🇳🇪","🇳🇬","🇳🇺","🇳🇫","🇰🇵","🇲🇰","🇲🇵","🇳🇴","🇴🇲","🇵🇰","🇵🇼","🇵🇸","🇵🇦","🇵🇬","🇵🇾","🇵🇪","🇵🇭","🇵🇳","🇵🇱","🇵🇹","🇵🇷","🇶🇦","🇷🇪","🇷🇴","🇷🇺","🇷🇼","🇼🇸","🇸🇲","🇸🇹","🇸🇦","🇸🇳","🇷🇸","🇸🇨","🇸🇱","🇸🇬","🇸🇽","🇸🇰","🇸🇮","🇸🇧","🇸🇴","🇿🇦","🇬🇸","🇰🇷","🇸🇸","🇪🇸","🇱🇰","🇧🇱","🇸🇭","🇰🇳","🇱🇨","🇲🇫","🇵🇲","🇻🇨","🇸🇩","🇸🇷","🇸🇯","🇸🇪","🇨🇭","🇸🇾","🇹🇼","🇹🇯","🇹🇿","🇹🇭","🇹🇱","🇹🇬","🇹🇰","🇹🇴","🇹🇹","🇹🇳","🇹🇷","🇹🇲","🇹🇨","🇹🇻","🇺🇲","🇻🇮","🇺🇬","🇺🇦","🇦🇪","🇬🇧","🇺🇸","🇺🇾","🇺🇿","🇻🇺","🇻🇦","🇻🇪","🇻🇳","🇼🇫","🇪🇭","🇾🇪","🇿🇲","🇿🇼"];
   const emojiToDataUrl = (e)=>`data:image/svg+xml,${encodeURIComponent("<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 120 120'><text y='96' font-size='96'>"+e+"</text></svg>")}`;
+  const regionNames = new Intl.DisplayNames(['en'], { type: 'region' });
+  const flagToName = (flag)=>{
+    const codes = Array.from(flag).map(c=>c.codePointAt(0)-0x1F1E6+65);
+    const cc = String.fromCharCode(...codes);
+    return regionNames.of(cc);
+  };
   const accountId = params.get('accountId');
   const devAccount = params.get('dev');
   const devAccount1 = params.get('dev1');
@@ -202,7 +212,8 @@ window.__BUBBLE_ROYALE_POWER__ = true;
       score: 0,
       over:false,
       aimAngle: -Math.PI/4,
-      isUser:false
+      isUser:false,
+      cooldown:0
     };
     function bubble(color, special=null){ return {color, special}; }
     function recomputeCell(){ game.cell.w = canvas.width / GRID_COLS; game.cell.h = game.cell.w; game.cell.r = game.cell.w*0.48; }
@@ -221,13 +232,13 @@ window.__BUBBLE_ROYALE_POWER__ = true;
     function step(dt){ if(game.over) return; if(game.cur.active){ game.cur.x += game.cur.vx * dt; game.cur.y += game.cur.vy * dt; const r = game.cell.r; if(game.cur.x - r < 0){ game.cur.x = r; game.cur.vx = Math.abs(game.cur.vx)*BOUNCE_DAMP; S.bounce(); } if(game.cur.x + r > canvas.width){ game.cur.x = canvas.width - r; game.cur.vx = -Math.abs(game.cur.vx)*BOUNCE_DAMP; S.bounce(); } const col = collidesAny(game.cur.x, game.cur.y); if(col.hit || game.cur.y - r <= 0){ const bub = game.cur.bubble || bubble(randColor(), null); const spot = placeIntoGrid(game.cur.x, game.cur.y, bub); if(bub.special){ const cleared = triggerSpecial(spot.cx, spot.cy, bub.special); const floating = removeFloating(); if(cleared+floating>0) S.pop(); } else { const cluster = floodSame(spot.cx, spot.cy, bub.color); if(cluster.length >= 3){ for(const [cx,cy] of cluster) game.grid[cy][cx] = null; game.score += cluster.length * POP_SCORE; const floating = removeFloating(); game.score += floating * POP_SCORE; S.pop(); } } game.cur.active = false; game.cur.bubble = null; game.nextBubble = bubble(randColor(), chance(SPECIAL_RATE_NEXT)?SPECIALS[(Math.random()*3)|0]:null); for(let x=0;x<GRID_COLS;x++){ if(game.grid[GRID_ROWS-1][x]){ game.over = true; S.over(); break; } } } } }
     function draw(){ ctx.clearRect(0,0,canvas.width,canvas.height); for(let y=0;y<GRID_ROWS;y++){ for(let x=0;x<GRID_COLS;x++){ const cell = game.grid[y][x]; if(!cell) continue; const w = cellToWorld(x,y); ctx.fillStyle = cell.color; ctx.beginPath(); ctx.arc(w.x, w.y, game.cell.r, 0, Math.PI*2); ctx.fill(); if(cell.special){ ctx.fillStyle = '#0b1228'; ctx.font = `bold ${Math.floor(game.cell.r*1.0)}px system-ui`; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText(cell.special, w.x, w.y+1); } } } if(game.cur.active || game.cur.bubble){ const y = game.cur.active ? game.cur.y : (canvas.height - game.cell.r - 2); const x = game.cur.active ? game.cur.x : (canvas.width/2); const b = game.cur.bubble || {color:COLORS[0], special:null}; ctx.fillStyle = b.color; ctx.beginPath(); ctx.arc(x, y, game.cell.r, 0, Math.PI*2); ctx.fill(); if(b.special){ ctx.fillStyle = '#0b1228'; ctx.font = `bold ${Math.floor(game.cell.r*1.0)}px system-ui`; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText(b.special, x, y+1); } } if(game.nextBubble){ ctx.fillStyle = game.nextBubble.color; ctx.beginPath(); ctx.arc(canvas.width - 24, canvas.height - 24, Math.min(12, game.cell.r*0.6), 0, Math.PI*2); ctx.fill(); if(game.nextBubble.special){ ctx.fillStyle = '#0b1228'; ctx.font = 'bold 10px system-ui'; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText(game.nextBubble.special, canvas.width - 24, canvas.height - 24); } } if(game.isUser && game.over){ ctx.fillStyle = 'rgba(0,0,0,0.45)'; ctx.fillRect(0,0,canvas.width,canvas.height); ctx.fillStyle = '#e7eefc'; ctx.font='bold 16px system-ui'; ctx.fillText('Board filled!', 14, 28); } }
     game.resize = function(){ fitCanvas(canvas); recomputeCell(); };
-    game.tick = function(dt){ step(dt); draw(); };
+    game.tick = function(dt){ if(game.cooldown>0) game.cooldown-=dt; step(dt); draw(); };
     game.start = function(){ recomputeCell(); seedRows(4); game.cur.bubble = bubble(randColor(), chance(SPECIAL_RATE_NEXT)?SPECIALS[(Math.random()*3)|0]:null); game.nextBubble = bubble(randColor(), chance(SPECIAL_RATE_NEXT)?SPECIALS[(Math.random()*3)|0]:null); };
     function bindUserInput(){ const swapBtn = document.getElementById('swapBtn'); const soundBtn = document.getElementById('soundBtn'); let soundOn = true; let unlocked=false; const handlePointer=(e)=>{ if(!unlocked){ S.enable(true); unlocked=true; } if(!game.isUser || game.over) return; const r = canvas.getBoundingClientRect(); const x = e.clientX - r.left, y = e.clientY - r.top; launchToward(x,y); }; canvas.addEventListener('pointerdown', handlePointer); swapBtn.onclick = ()=>{ if(!game.cur.active) swapBubble(); }; soundBtn.onclick = ()=>{ soundOn = !soundOn; S.enable(soundOn); soundBtn.textContent = soundOn ? '🔊' : '🔇'; }; }
     game.bindUserInput = bindUserInput;
     return game;
   }
-  function botStep(bot, dt){ if(bot.over) return; if(!bot.cur.active){ const canvas = bot.__canvas; const bub = bot.cur.bubble || { color: COLORS[(Math.random()*COLORS.length)|0], special: Math.random()<0.05? ['H','V','B'][(Math.random()*3)|0] : null }; bot.cur.bubble = bub; let targetX, targetY; if(Math.random()<0.7){ const targets=[]; const dirs=[[1,0],[-1,0],[0,1],[0,-1],[1,1],[-1,-1]]; for(let y=0;y<GRID_ROWS;y++){ for(let x=0;x<GRID_COLS;x++){ const cell=bot.grid[y][x]; if(cell && cell.color===bub.color){ for(const [dx,dy] of dirs){ const nx=x+dx, ny=y+dy; if(nx>=0&&nx<GRID_COLS&&ny>=0&&ny<GRID_ROWS && !bot.grid[ny][nx]) targets.push({x:(nx+0.5)*bot.cell.w, y:(ny+0.5)*bot.cell.h}); } } } } if(targets.length){ const t=targets[(Math.random()*targets.length)|0]; targetX=t.x; targetY=t.y; } } if(targetX===undefined){ targetX=(Math.random()*canvas.width*0.9) + canvas.width*0.05; targetY=(Math.random()*canvas.height*0.4) + canvas.height*0.1; } const ox=canvas.width/2, oy=canvas.height - bot.cell.r - 2; let ang=Math.atan2(targetY - oy, targetX - ox); ang = clamp(ang, MIN_ANGLE, MAX_ANGLE); ang += (Math.random()-0.5)*0.1; bot.cur.x=ox; bot.cur.y=oy; bot.cur.vx=Math.cos(ang)*LAUNCH_SPEED; bot.cur.vy=Math.sin(ang)*LAUNCH_SPEED; bot.cur.active=true; } }
+  function botStep(bot, dt){ if(bot.over) return; if(!bot.cur.active && bot.cooldown<=0){ const canvas = bot.__canvas; const bub = bot.cur.bubble || { color: COLORS[(Math.random()*COLORS.length)|0], special: Math.random()<0.05? ['H','V','B'][(Math.random()*3)|0] : null }; bot.cur.bubble = bub; let targetX, targetY; if(Math.random()<0.7){ const targets=[]; const dirs=[[1,0],[-1,0],[0,1],[0,-1],[1,1],[-1,-1]]; for(let y=0;y<GRID_ROWS;y++){ for(let x=0;x<GRID_COLS;x++){ const cell=bot.grid[y][x]; if(cell && cell.color===bub.color){ for(const [dx,dy] of dirs){ const nx=x+dx, ny=y+dy; if(nx>=0&&nx<GRID_COLS&&ny>=0&&ny<GRID_ROWS && !bot.grid[ny][nx]) targets.push({x:(nx+0.5)*bot.cell.w, y:(ny+0.5)*bot.cell.h}); } } } } if(targets.length){ const t=targets[(Math.random()*targets.length)|0]; targetX=t.x; targetY=t.y; } } if(targetX===undefined){ targetX=(Math.random()*canvas.width*0.9) + canvas.width*0.05; targetY=(Math.random()*canvas.height*0.4) + canvas.height*0.1; } const ox=canvas.width/2, oy=canvas.height - bot.cell.r - 2; let ang=Math.atan2(targetY - oy, targetX - ox); ang = clamp(ang, MIN_ANGLE, MAX_ANGLE); ang += (Math.random()-0.5)*0.1; bot.cur.x=ox; bot.cur.y=oy; bot.cur.vx=Math.cos(ang)*LAUNCH_SPEED; bot.cur.vy=Math.sin(ang)*LAUNCH_SPEED; bot.cur.active=true; bot.cooldown = 0.8 + Math.random()*0.7; } }
   const canvases = { user: $('#user'), opp1: $('#opp1'), opp2: $('#opp2'), opp3: $('#opp3') };
   const ui = { time: $('#time'), pot: $('#pot'), myscore: $('#myscore'), duration: $('#duration'), players: $('#players'), stake: $('#stake'), start: $('#start'), results: $('#results'), winner: $('#winner'), payout: $('#payout'), fee: $('#fee'), potFinal: $('#potFinal'), scoreList: $('#scoreList'), rematch: $('#rematch'), change: $('#change') };
   ui.players.value = n;
@@ -243,8 +254,12 @@ window.__BUBBLE_ROYALE_POWER__ = true;
   const playerName = userData?.username || [userData?.first_name, userData?.last_name].filter(Boolean).join(' ') || 'Player';
   if(playerNameEl) playerNameEl.textContent = playerName;
   const avatarUrls = Array(n).fill('');
-  if(avatarParam) avatarEls[3].src = avatarParam;
-  for(let i=0;i<n-1;i++){ const flag = FLAG_EMOJIS[(Math.random()*FLAG_EMOJIS.length)|0]; const url = emojiToDataUrl(flag); avatarEls[i].src = url; avatarUrls[i] = url; nameEls[i].textContent = `AI ${i+1}`; scoreEls[i].textContent = '0'; }
+  if(avatarParam){
+    avatarEls[3].src = avatarParam;
+  } else if(userData?.photo_url){
+    avatarEls[3].src = userData.photo_url;
+  }
+  for(let i=0;i<n-1;i++){ const flag = FLAG_EMOJIS[(Math.random()*FLAG_EMOJIS.length)|0]; const url = emojiToDataUrl(flag); avatarEls[i].src = url; avatarUrls[i] = url; nameEls[i].textContent = flagToName(flag); scoreEls[i].textContent = '0'; }
   avatarUrls[n-1] = avatarEls[3].src;
   let games = [];
   let last = performance.now();
