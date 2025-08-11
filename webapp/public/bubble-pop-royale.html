@@ -39,6 +39,11 @@
   .grid.two{grid-template-columns:1fr 1fr}
   .kpi{background:#0b1228;border:1px solid #223063;border-radius:12px;padding:10px;text-align:center}
   .kpi .v{font-size:22px;font-weight:800}
+  .winner-celebration{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:70;display:flex;flex-direction:column;align-items:center;pointer-events:none}
+  .winner-celebration img{width:80px;height:80px;border-radius:50%;margin-bottom:8px;border:2px solid var(--gold)}
+  .coin-burst{position:fixed;left:50%;bottom:50%;width:0;height:0;z-index:60;pointer-events:none;overflow:visible}
+  .coin-img{position:absolute;left:-16px;bottom:0;width:32px;height:32px;transform:translate(-50%,0);animation-name:coin-up;animation-duration:var(--dur);animation-delay:var(--delay);animation-timing-function:ease-out;animation-fill-mode:forwards;filter:brightness(1.5) drop-shadow(0 0 4px gold)}
+  @keyframes coin-up{to{transform:translate(calc(-50% + var(--dx)),160px);opacity:0}}
 </style>
 </head>
 <body>
@@ -99,7 +104,7 @@
 <div id="toast" class="toast"></div>
 <dialog id="results">
   <div class="modal">
-    <h2>Round results</h2>
+    <h2>Game Over</h2>
     <div class="grid two">
       <div class="kpi"><div class="v" id="winner">-</div><div>Winner</div></div>
       <div class="kpi"><div class="v" id="payout">0</div><div>Payout TPC</div></div>
@@ -110,8 +115,8 @@
     </div>
     <div class="grid" id="scoreList" style="margin-top:10px"></div>
     <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px">
-      <button class="btn" id="rematch">Rematch</button>
-      <button class="btn" id="change">Change settings</button>
+      <button class="btn" id="rematch">Play Again</button>
+      <button class="btn" id="change">Return to Lobby</button>
     </div>
   </div>
 </dialog>
@@ -126,6 +131,8 @@ window.__BUBBLE_ROYALE_POWER__ = true;
   let durSec = Math.max(10, parseInt(params.get('duration'),10)||180);
   const avatarParam = params.get('avatar') || '';
   const tgId = params.get('tgId');
+  const FLAG_EMOJIS = ["🇦🇫","🇦🇽","🇦🇱","🇩🇿","🇦🇸","🇦🇩","🇦🇴","🇦🇮","🇦🇶","🇦🇬","🇦🇷","🇦🇲","🇦🇼","🇦🇺","🇦🇹","🇦🇿","🇧🇸","🇧🇭","🇧🇩","🇧🇧","🇧🇾","🇧🇪","🇧🇿","🇧🇯","🇧🇲","🇧🇹","🇧🇴","🇧🇦","🇧🇼","🇧🇻","🇧🇷","🇮🇴","🇻🇬","🇧🇳","🇧🇬","🇧🇫","🇧🇮","🇰🇭","🇨🇲","🇨🇦","🇨🇻","🇧🇶","🇰🇾","🇨🇫","🇹🇩","🇨🇱","🇨🇳","🇨🇽","🇨🇨","🇨🇴","🇰🇲","🇨🇬","🇨🇩","🇨🇰","🇨🇷","🇨🇮","🇭🇷","🇨🇺","🇨🇼","🇨🇾","🇨🇿","🇩🇰","🇩🇯","🇩🇲","🇩🇴","🇪🇨","🇪🇬","🇸🇻","🇬🇶","🇪🇷","🇪🇪","🇸🇿","🇪🇹","🇫🇰","🇫🇴","🇫🇯","🇫🇮","🇫🇷","🇬🇫","🇵🇫","🇹🇫","🇬🇦","🇬🇲","🇬🇪","🇩🇪","🇬🇭","🇬🇮","🇬🇷","🇬🇱","🇬🇩","🇬🇵","🇬🇺","🇬🇹","🇬🇬","🇬🇳","🇬🇼","🇬🇾","🇭🇹","🇭🇲","🇭🇳","🇭🇰","🇭🇺","🇮🇸","🇮🇳","🇮🇩","🇮🇷","🇮🇶","🇮🇪","🇮🇲","🇮🇱","🇮🇹","🇯🇲","🇯🇵","🇯🇪","🇯🇴","🇰🇿","🇰🇪","🇰🇮","🇰🇼","🇰🇬","🇱🇦","🇱🇻","🇱🇧","🇱🇸","🇱🇷","🇱🇾","🇱🇮","🇱🇹","🇱🇺","🇲🇴","🇲🇬","🇲🇼","🇲🇾","🇲🇻","🇲🇱","🇲🇹","🇲🇭","🇲🇶","🇲🇷","🇲🇺","🇾🇹","🇲🇽","🇫🇲","🇲🇩","🇲🇨","🇲🇳","🇲🇪","🇲🇸","🇲🇦","🇲🇿","🇲🇲","🇳🇦","🇳🇷","🇳🇵","🇳🇱","🇳🇨","🇳🇿","🇳🇮","🇳🇪","🇳🇬","🇳🇺","🇳🇫","🇰🇵","🇲🇰","🇲🇵","🇳🇴","🇴🇲","🇵🇰","🇵🇼","🇵🇸","🇵🇦","🇵🇬","🇵🇾","🇵🇪","🇵🇭","🇵🇳","🇵🇱","🇵🇹","🇵🇷","🇶🇦","🇷🇪","🇷🇴","🇷🇺","🇷🇼","🇼🇸","🇸🇲","🇸🇹","🇸🇦","🇸🇳","🇷🇸","🇸🇨","🇸🇱","🇸🇬","🇸🇽","🇸🇰","🇸🇮","🇸🇧","🇸🇴","🇿🇦","🇬🇸","🇰🇷","🇸🇸","🇪🇸","🇱🇰","🇧🇱","🇸🇭","🇰🇳","🇱🇨","🇲🇫","🇵🇲","🇻🇨","🇸🇩","🇸🇷","🇸🇯","🇸🇪","🇨🇭","🇸🇾","🇹🇼","🇹🇯","🇹🇿","🇹🇭","🇹🇱","🇹🇬","🇹🇰","🇹🇴","🇹🇹","🇹🇳","🇹🇷","🇹🇲","🇹🇨","🇹🇻","🇺🇲","🇻🇮","🇺🇬","🇺🇦","🇦🇪","🇬🇧","🇺🇸","🇺🇾","🇺🇿","🇻🇺","🇻🇦","🇻🇪","🇻🇳","🇼🇫","🇪🇭","🇾🇪","🇿🇲","🇿🇼"];
+  const emojiToDataUrl = (e)=>`data:image/svg+xml,${encodeURIComponent("<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 120 120'><text y='96' font-size='96'>"+e+"</text></svg>")}`;
   const accountId = params.get('accountId');
   const devAccount = params.get('dev');
   const devAccount1 = params.get('dev1');
@@ -212,8 +219,11 @@ window.__BUBBLE_ROYALE_POWER__ = true;
   ui.stake.value = stake;
   document.querySelector('.controls').style.display='none';
   document.querySelector('header').style.display='none';
-  const avatarUser = document.getElementById('avatarUser');
-  if(avatarParam) avatarUser.src = avatarParam;
+  const avatarEls = [$('#avatar1'), $('#avatar2'), $('#avatar3'), $('#avatarUser')];
+  const avatarUrls = Array(n).fill('');
+  if(avatarParam) avatarEls[3].src = avatarParam;
+  for(let i=0;i<n-1;i++){ const flag = FLAG_EMOJIS[(Math.random()*FLAG_EMOJIS.length)|0]; const url = emojiToDataUrl(flag); avatarEls[i].src = url; avatarUrls[i] = url; }
+  avatarUrls[n-1] = avatarEls[3].src;
   let games = [];
   let last = performance.now();
   let endAt = 0; let running = false; let rafId = null;
@@ -221,7 +231,9 @@ window.__BUBBLE_ROYALE_POWER__ = true;
   function startMatch(){ layoutCanvases(); ui.pot.textContent = String(stake * n); ui.time.textContent = fmt(durSec); games = []; const oppSlots = [canvases.opp1, canvases.opp2, canvases.opp3]; for(let i=0;i<n-1;i++){ const g = createBubbleGame(oppSlots[i]); g.__canvas = oppSlots[i]; g.isUser = false; g.start(); games.push(g); } const userGame = createBubbleGame(canvases.user); userGame.__canvas = canvases.user; userGame.isUser = true; userGame.start(); userGame.bindUserInput(); games.push(userGame); endAt = performance.now() + durSec*1000; running = true; last = performance.now(); loop(); }
   function updateTimer(){ const remain = Math.max(0, Math.ceil((endAt - performance.now())/1000)); ui.time.textContent = fmt(remain); if(remain<=0){ finish(); } }
   function loop(){ if(!running) return; const now = performance.now(); const dt = (now - last)/1000; last = now; for(let i=0;i<games.length;i++){ const g = games[i]; if(!g.isUser) botStep(g, dt); g.tick(dt); } ui.myscore.textContent = String(games[games.length-1].score); updateTimer(); rafId = requestAnimationFrame(loop); }
-  async function finish(){ if(!running) return; running=false; if(rafId) cancelAnimationFrame(rafId); const gross = stake * n; const fee = Math.round(gross*0.10); const net = gross - fee; const scores = games.map((g,i)=>({i,score:g.score})); const max = Math.max(...scores.map(s=>s.score)); const winners = scores.filter(s=>s.score===max); const payout = winners.length? Math.floor(net / winners.length) : 0; ui.winner.textContent = winners.length>1 ? `Tie (${winners.map(w=>'P'+(w.i+1)).join(', ')})` : `P${winners[0].i+1}`; ui.payout.textContent = String(payout); ui.fee.textContent = String(fee); ui.potFinal.textContent = String(net); ui.scoreList.innerHTML = scores.sort((a,b)=>b.score-a.score).map(s=>`<div class="kpi"><div class="v">P${s.i+1}: ${s.score}</div><div>—</div></div>`).join(''); if(winners.some(w=>w.i===n-1) && accountId){ try{ await fbApi.depositAccount(accountId, payout, {game:'bubblepop-win'}); if(tgId) await fbApi.addTransaction(tgId, 0, 'win', {game:'bubblepop', players:n, accountId}); }catch{} } await awardDevShare(gross); if(!ui.results.open) ui.results.showModal(); }
+  function coinBurst(){ const burst=document.createElement('div'); burst.className='coin-burst'; for(let i=0;i<30;i++){ const img=document.createElement('img'); img.src='/assets/icons/file_000000005f0c61f48998df883554c3e8 (2).webp'; img.className='coin-img'; img.style.setProperty('--dx',`${(Math.random()-0.5)*100}px`); img.style.setProperty('--delay',`${Math.random()*0.3}s`); img.style.setProperty('--dur',`${0.8+Math.random()*0.4}s`); burst.appendChild(img); } document.body.appendChild(burst); setTimeout(()=>burst.remove(),1200); }
+  function celebrate(idx){ return new Promise(res=>{ const wrap=document.createElement('div'); wrap.className='winner-celebration'; const img=document.createElement('img'); img.src=avatarUrls[idx]; wrap.appendChild(img); const text=document.createElement('div'); text.textContent=`P${idx+1} Wins!`; wrap.appendChild(text); document.body.appendChild(wrap); coinBurst(); setTimeout(()=>{wrap.remove();res();},1500); }); }
+  async function finish(){ if(!running) return; running=false; if(rafId) cancelAnimationFrame(rafId); const gross = stake * n; const fee = Math.round(gross*0.10); const net = gross - fee; const scores = games.map((g,i)=>({i,score:g.score})); const max = Math.max(...scores.map(s=>s.score)); const winners = scores.filter(s=>s.score===max); const payout = winners.length? Math.floor(net / winners.length) : 0; ui.winner.textContent = winners.length>1 ? `Tie (${winners.map(w=>'P'+(w.i+1)).join(', ')})` : `P${winners[0].i+1}`; ui.payout.textContent = String(payout); ui.fee.textContent = String(fee); ui.potFinal.textContent = String(net); ui.scoreList.innerHTML = scores.sort((a,b)=>b.score-a.score).map(s=>`<div class="kpi"><div class="v">P${s.i+1}: ${s.score}</div><div>—</div></div>`).join(''); if(winners.some(w=>w.i===n-1) && accountId){ try{ await fbApi.depositAccount(accountId, payout, {game:'bubblepop-win'}); if(tgId) await fbApi.addTransaction(tgId, 0, 'win', {game:'bubblepop', players:n, accountId}); }catch{} } await awardDevShare(gross); await celebrate(winners[0].i); if(!ui.results.open) ui.results.showModal(); }
   ui.rematch.addEventListener('click', ()=>{ ui.results.close(); startMatch(); });
   ui.change.addEventListener('click', ()=>{ ui.results.close(); location.href='/games/bubblepoproyale/lobby'; });
   window.addEventListener('resize', layoutCanvases);
