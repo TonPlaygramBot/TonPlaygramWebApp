@@ -31,6 +31,7 @@ const DEV_ACCOUNTS = [
 if (urlParams.get('dev')) {
   localStorage.setItem('devAccountId', urlParams.get('dev'));
 }
+const ACCOUNT_ID_PARAM = urlParams.get('account');
 
 function formatValue(value, decimals = 2) {
   if (typeof value !== 'number') {
@@ -91,9 +92,11 @@ export default function Wallet({ hideClaim = false }) {
 
   const loadBalances = async () => {
     const devMode = urlParams.get('dev') || localStorage.getItem('devAccountId');
-    let id = devMode ? DEV_ACCOUNT_ID : localStorage.getItem('accountId');
+    let id = ACCOUNT_ID_PARAM || (devMode ? DEV_ACCOUNT_ID : localStorage.getItem('accountId'));
     let acc;
-    if (id) {
+    if (ACCOUNT_ID_PARAM) {
+      acc = { accountId: ACCOUNT_ID_PARAM };
+    } else if (id) {
       acc = { accountId: id };
     } else {
       acc = await createAccount(telegramId);
