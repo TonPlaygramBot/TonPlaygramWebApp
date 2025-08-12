@@ -1,6 +1,5 @@
 export default function ProjectAchievementsCard() {
   const achievements = [
-    '🔐 Smart-contract store live with auto-delivery',
     '🧾 Wallet transaction history works',
     '💬 In-chat TPC transfers enabled',
     '🎲 Snake & Ladder multiplayer game',
@@ -10,7 +9,9 @@ export default function ProjectAchievementsCard() {
     '🪂 Falling Ball mini-game',
     '🏒 Air Hockey multiplayer',
     '🧱 Brick Breaker Royale',
+    '🍉 Fruit Slice Royale',
     '🫧 Bubble Pop Royale',
+    '💥 Bubble Smash Royale',
     '🧩 Tetris Royale',
     '🔄 Daily Check-In rewards',
     '⛏️ Mining system active',
