@@ -583,7 +583,7 @@ const CANVAS_W = 720,
                 }
                 bricks.push({
                   x: c * (VIEW_W / cols) + 4,
-                  y: 80 + r * 28,
+                  y: 72 + r * 28,
                   w: VIEW_W / cols - 8,
                   h: 20,
                   type,
@@ -641,12 +641,12 @@ const CANVAS_W = 720,
             ctx.clearRect(0, 0, W, H);
             ctx.strokeStyle = COLORS.wall;
             ctx.lineWidth = OUTLINE;
-            ctx.strokeRect(8, 60, W - 16, H - 90);
+            ctx.strokeRect(8, 52, W - 16, H - 82);
             ctx.fillStyle = COLORS.text;
             ctx.font = '14px system-ui';
-            ctx.fillText(`Score: ${b.score}`, 12, 52);
+            ctx.fillText(`Score: ${b.score}`, 12, 44);
             ctx.fillStyle = COLORS.danger;
-            ctx.fillText('♥'.repeat(b.lives), W - 40, 52);
+            ctx.fillText('♥'.repeat(b.lives), W - 40, 44);
             for (const br of b.bricks) {
               if (!br.alive) continue;
 ctx.fillStyle = br.color;
@@ -778,8 +778,8 @@ ctx.strokeRect(br.x, br.y, br.w, br.h);
                 ball.x = VIEW_W - 10 - ball.r;
                 ball.vx = -Math.abs(ball.vx);
               }
-              if (ball.y - ball.r < 62) {
-                ball.y = 62 + ball.r;
+              if (ball.y - ball.r < 54) {
+                ball.y = 54 + ball.r;
                 ball.vy = Math.abs(ball.vy);
               }
               if (ball.y - ball.r > VIEW_H - 20) {
