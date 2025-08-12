@@ -375,9 +375,12 @@
       if (!window.__BBR_INITED__) {
         window.__BBR_INITED__ = true;
         (() => {
+          const params = new URLSearchParams(location.search);
+          const RESOLUTION = parseFloat(params.get('resolution') || '1');
+          const OUTLINE = parseFloat(params.get('outline') || '2');
           let GAME_DURATION_MS = 60000;
-          const CANVAS_W = 360,
-            CANVAS_H = 560;
+          const CANVAS_W = 360 * RESOLUTION,
+            CANVAS_H = 560 * RESOLUTION;
           const COLORS = {
             bg: '#0a0f24',
             wall: '#223063',
@@ -404,6 +407,8 @@
 
           const $strip = document.getElementById('strip');
           const $userCanvas = document.getElementById('userCanvas');
+          $userCanvas.width = CANVAS_W;
+          $userCanvas.height = CANVAS_H;
           const $userLives = document.getElementById('userLives');
           const $time = document.getElementById('time');
           const $pot = document.getElementById('pot');
@@ -468,7 +473,6 @@
             setTimeout(() => container.remove(), 5000);
           }
 
-          const params = new URLSearchParams(location.search);
           const rawPlayers = parseInt(params.get('players'), 10);
           const settings = {
             players: Math.max(
@@ -608,7 +612,7 @@
               H = CANVAS_H;
             ctx.clearRect(0, 0, W, H);
             ctx.strokeStyle = COLORS.wall;
-            ctx.lineWidth = 2;
+            ctx.lineWidth = OUTLINE;
             ctx.strokeRect(8, 60, W - 16, H - 90);
             ctx.fillStyle = COLORS.text;
             ctx.font = '14px system-ui';
