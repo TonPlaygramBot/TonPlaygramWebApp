@@ -8,7 +8,9 @@ services:
     startCommand: npm start
     envVars:
       - key: MONGO_URI
-        value: mongodb://localhost:27017/tonplaygram
+        fromSecret: MONGO_URI
+      - key: BOT_TOKEN
+        fromSecret: BOT_TOKEN
 
   - type: web
     runtime: static
