@@ -44,8 +44,10 @@
           fixed;
         color: var(--text);
         scrollbar-color: #ffd700 transparent;
+        position: relative;
       }
 
+      /* Show a smaller scroll highlight roughly the height of six bricks */
       body::-webkit-scrollbar {
         width: 8px;
       }
@@ -53,10 +55,25 @@
       body::-webkit-scrollbar-thumb {
         background: #ffd700;
         border-radius: 4px;
+        min-height: 168px; /* 6 bricks * 28px each */
       }
 
       body::-webkit-scrollbar-track {
         background: transparent;
+      }
+
+      /* Vertical label beside the scrollbar */
+      body::after {
+        content: 'Scroll';
+        position: fixed;
+        right: 2px;
+        top: 50%;
+        transform: translateY(-50%);
+        font-size: 10px;
+        color: #ffd700;
+        writing-mode: vertical-rl;
+        text-orientation: mixed;
+        pointer-events: none;
       }
 
       .app {
