@@ -259,15 +259,6 @@ window.__TETRIS_ROYALE__ = true;
     }
     return lines;
   }
-  function findFullRows(board){
-    const rows = [];
-    for(let y=0;y<ROWS;y++) if(board[y].every(v=>v)) rows.push(y);
-    return rows;
-  }
-  function removeRows(board, rows){
-    rows.sort((a,b)=>a-b);
-    for(const y of rows){ board.splice(y,1); board.unshift(Array(COLS).fill(0)); }
-  }
   function cloneBoard(board){ return board.map(row=>row.slice()); }
   function evaluate(board, lines){
     const heights = Array(COLS).fill(0);
@@ -309,51 +300,28 @@ window.__TETRIS_ROYALE__ = true;
     const r = canvas.getBoundingClientRect();
     canvas.width = Math.floor(r.width);
     canvas.height = Math.floor(r.height);
-  }function shadeColor(color, percent){
-
-  const f = parseInt(color.slice(1), 16);
-
-  const t = percent < 0 ? 0 : 255;
-
-  const p = Math.abs(percent);
-
-  const R = f >> 16;
-
-  const G = f >> 8 & 0x00FF;
-
-  const B = f & 0x0000FF;
-
-  return '#' + (0x1000000 + (Math.round((t - R) * p) + R) * 0x10000 + (Math.round((t - G) * p) + G) * 0x100 + (Math.round((t - B) * p) + B)).toString(16).slice(1);
-
-}
-
-function drawBlock(ctx, x, y, w, h, color){
-
-  const grad = ctx.createLinearGradient(x, y, x + w, y + h);
-
-  grad.addColorStop(0, shadeColor(color, 0.3));
-
-  grad.addColorStop(1, shadeColor(color, -0.3));
-
-  ctx.fillStyle = grad;
-
-  ctx.fillRect(x, y, w, h);
-
-  const hl = shadeColor(color, 0.5);
-
-  ctx.fillStyle = hl;
-
-  ctx.fillRect(x, y, w, Math.max(2, h * 0.15));
-
-  ctx.fillRect(x, y, Math.max(2, w * 0.15), h);
-
-}
-
-function drawBoard(ctx, canvas, board, active, clearRows = [], clearTimer = 0, particles = []){
-
-  // your existing 2.5D board drawing logic here...
-
-}
+  }
+  function shadeColor(color, percent){
+    const f = parseInt(color.slice(1), 16);
+    const t = percent < 0 ? 0 : 255;
+    const p = Math.abs(percent);
+    const R = f >> 16;
+    const G = f >> 8 & 0x00FF;
+    const B = f & 0x0000FF;
+    return '#' + (0x1000000 + (Math.round((t - R) * p) + R) * 0x10000 + (Math.round((t - G) * p) + G) * 0x100 + (Math.round((t - B) * p) + B)).toString(16).slice(1);
+  }
+  function drawBlock(ctx, x, y, w, h, color){
+    const grad = ctx.createLinearGradient(x, y, x + w, y + h);
+    grad.addColorStop(0, shadeColor(color, 0.3));
+    grad.addColorStop(1, shadeColor(color, -0.3));
+    ctx.fillStyle = grad;
+    ctx.fillRect(x, y, w, h);
+    const hl = shadeColor(color, 0.5);
+    ctx.fillStyle = hl;
+    ctx.fillRect(x, y, w, Math.max(2, h * 0.15));
+    ctx.fillRect(x, y, Math.max(2, w * 0.15), h);
+  }
+  function drawBoard(ctx, canvas, board, active){
     const bw = canvas.width / COLS, bh = canvas.height / ROWS;
     ctx.clearRect(0,0,canvas.width,canvas.height);
     const bgGrad = ctx.createRadialGradient(
@@ -391,21 +359,6 @@ function drawBoard(ctx, canvas, board, active, clearRows = [], clearTimer = 0, p
         }
       }
     }
-    if(clearRows.length){
-      const a = (clearTimer/300)*0.8;
-      ctx.fillStyle = `rgba(255,255,255,${a})`;
-      for(const y of clearRows){ ctx.fillRect(0, y*bh, canvas.width, bh); }
-    }
-    if(particles.length){
-      ctx.fillStyle = '#fff';
-      for(const p of particles){
-        ctx.globalAlpha = p.alpha;
-        ctx.beginPath();
-        ctx.arc(p.x, p.y, p.r, 0, Math.PI*2);
-        ctx.fill();
-      }
-      ctx.globalAlpha = 1;
-    }
   }
   function createGame(canvas){
     const ctx = canvas.getContext('2d');
@@ -420,46 +373,14 @@ function drawBoard(ctx, canvas, board, active, clearRows = [], clearTimer = 0, p
       score: 0,
       over: false,
       plan: null,
-      clearRows: [],
-      clearTimer: 0,
-      particles: [],
-      canvas,
     };
-    game.draw = function(){
-      drawBoard(ctx, canvas, game.board, {piece:game.piece,pos:game.pos,color:game.color}, game.clearRows, game.clearTimer, game.particles);
-    };
+    game.draw = function(){ drawBoard(ctx, canvas, game.board, {piece:game.piece,pos:game.pos,color:game.color}); };
     game.newPiece = function(){
       game.piece = randomShape();
       game.pos = {x:3,y:0};
       game.color = COLORS[1 + ((Math.random()*6)|0)];
       game.plan = null;
       if(collide(game.board, game.piece, game.pos)) game.over = true;
-    };
-    function spawnParticles(row){
-      const bw = canvas.width / COLS, bh = canvas.height / ROWS;
-      for(let i=0;i<12;i++){
-        game.particles.push({
-          x: Math.random()*canvas.width,
-          y: row*bh + bh/2,
-          r: bw*0.1 + Math.random()*bw*0.2,
-          vy: -bh*(0.5+Math.random())/300,
-          alpha: 1,
-          fade: 1/300,
-        });
-      }
-    }
-    game.lockPiece = function(){
-      merge(game.board, game.piece, game.pos, game.color);
-      const rows = findFullRows(game.board);
-      if(rows.length){
-        game.clearRows = rows;
-        game.clearTimer = 300;
-        rows.forEach(spawnParticles);
-        game.score += SCORE_PER_LINES[rows.length];
-        showToast(`+${SCORE_PER_LINES[rows.length]}`);
-      } else {
-        game.newPiece();
-      }
     };
     game.move = function(dir){
       game.pos.x += dir;
@@ -470,30 +391,22 @@ function drawBoard(ctx, canvas, board, active, clearRows = [], clearTimer = 0, p
       if(!collide(game.board, r, game.pos)) game.piece = r;
     };
     game.hardDrop = function(){
-      if(game.clearTimer>0) return;
       while(!collide(game.board, game.piece, {x:game.pos.x,y:game.pos.y+1})) game.pos.y++;
-      game.lockPiece();
+      merge(game.board, game.piece, game.pos, game.color);
+      game.score += SCORE_PER_LINES[sweep(game.board)];
+      game.newPiece();
     };
     game.step = function(dt){
-      if(game.clearTimer>0){
-        game.clearTimer -= dt;
-        for(const p of game.particles){ p.y += p.vy*dt; p.alpha -= p.fade*dt; }
-        game.particles = game.particles.filter(p=>p.alpha>0);
-        if(game.clearTimer<=0){
-          removeRows(game.board, game.clearRows);
-          game.clearRows = [];
-          game.particles = [];
-          game.newPiece();
-        }
-        return;
-      }
       game.dropAcc += dt;
       if(game.dropAcc > game.dropMs){
         game.dropAcc = 0;
         game.pos.y++;
         if(collide(game.board, game.piece, game.pos)){
           game.pos.y--;
-          game.lockPiece();
+          merge(game.board, game.piece, game.pos, game.color);
+          const lines = sweep(game.board);
+          if(lines){ game.score += SCORE_PER_LINES[lines]; showToast(`+${SCORE_PER_LINES[lines]}`); }
+          game.newPiece();
         }
       }
     };
