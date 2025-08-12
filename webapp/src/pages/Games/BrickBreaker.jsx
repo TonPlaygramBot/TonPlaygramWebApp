@@ -7,6 +7,8 @@ export default function BrickBreaker() {
       src={`/brick-breaker.html${search}`}
       title="Brick Breaker Royale"
       className="w-screen h-screen border-0"
+      allow="fullscreen"
+      allowFullScreen
     />
   );
 }
