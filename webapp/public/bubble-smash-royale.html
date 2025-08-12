@@ -10,28 +10,28 @@
   html,body{height:100vh}
   body{margin:0;background:radial-gradient(1200px 800px at 70% -10%, #1a2450 0%, #0c1020 38%, #0c1020 100%) fixed;color:var(--text);overflow:hidden}
   .app{height:100vh;display:flex;flex-direction:column;padding:12px;gap:10px;max-width:1100px;margin:0 auto}
-  header{display:flex;gap:12px;align-items:center;justify-content:space-between}
-  .badge{background:#0f1736;border:1px solid #223063;border-radius:10px;padding:6px 10px;color:var(--muted);font-size:12px}
 
-  .controls{display:grid;grid-template-columns:1fr 1fr 1fr auto;gap:8px}
-  label{font-size:12px;color:var(--muted);display:block;margin-bottom:6px}
-  select,button,input{width:100%;padding:10px 12px;border-radius:10px;border:1px solid #223063;background:#0e1430;color:#e7eefc}
-  .btn{background:linear-gradient(180deg,#2a6cf0,#2156c8);border:none;font-weight:700;cursor:pointer}
-
-  .hud{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
-  .panel{border:1px solid #223063;background:#0b1228;border-radius:12px;padding:10px;display:flex;align-items:center;justify-content:space-between}
+  .hud{display:flex;gap:8px}
+  .hud .panel{flex:1}
+  .panel{border:1px solid #223063;background:#0b1228;border-radius:12px;padding:10px;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:4px}
   .score{color:var(--gold);font-weight:800}
   .timer{font-variant-numeric:tabular-nums;font-weight:800}
 
   .layout{display:grid;grid-template-rows:25vh 1fr;gap:10px;flex:1;min-height:0}
   .top{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;min-height:0}
   .mini{position:relative;border:1px solid #223063;background:linear-gradient(180deg,#0f1530,#0a0f24);border-radius:12px;padding:8px;display:flex;flex-direction:column;min-height:0}
-  .mini h3{margin:0 0 6px 0;font-size:12px;color:var(--muted)}
+  .mini h3{margin:0;font-size:12px;color:var(--muted);display:flex;align-items:center;gap:4px}
+  .mini .aiScore{font-size:12px;color:var(--muted);margin:2px 0 6px}
+  .flagInline{width:16px;height:16px;border-radius:2px}
   .mini canvas{flex:1;width:100%;height:100%;background:#0e1430;border-radius:8px;image-rendering:pixelated}
 
   .userWrap{position:relative;border:1px solid #223063;background:linear-gradient(180deg,#0f1530,#0a0f24);border-radius:14px;padding:10px;display:flex;flex-direction:column;min-height:0}
-  .userWrap h3{margin:0 0 8px 0;font-size:13px;color:var(--muted);display:flex;align-items:center;gap:8px}
+  .userHeader{display:flex;align-items:center;gap:8px;margin-bottom:8px}
+  .avatar{width:32px;height:32px;border-radius:50%}
+  .userWrap h3{margin:0;font-size:13px;color:var(--muted)}
   #user{flex:1;width:100%;height:100%;background:#0e1430;border-radius:10px;touch-action:none;image-rendering:pixelated}
+  .overlayButtons{position:absolute;left:10px;bottom:10px;display:flex;gap:8px}
+  .small{padding:8px 10px;border-radius:10px;border:1px solid #223063;background:#15204a;color:#e7eefc;font-size:12px;cursor:pointer}
 
   .toast{position:fixed;left:50%;transform:translateX(-50%);bottom:16px;background:#0d1536;border:1px solid #223063;border-radius:10px;padding:8px 12px;font-size:13px;opacity:0;transition:opacity .2s}
   .toast.show{opacity:1}
@@ -42,65 +42,51 @@
   .grid.two{grid-template-columns:1fr 1fr}
   .kpi{background:#0b1228;border:1px solid #223063;border-radius:12px;padding:10px;text-align:center}
   .kpi .v{font-size:22px;font-weight:800}
-
-  .mute{position:fixed;right:12px;bottom:12px;background:#0f1736;border:1px solid #223063;border-radius:10px;padding:8px 10px;cursor:pointer}
 </style>
 </head>
 <body>
 <div class="app">
-  <header>
-    <div style="display:flex;align-items:center;gap:10px">
-      <h1 style="margin:0;font-size:18px">Bubble Smash Royale</h1>
-      <span class="badge">Local test • TPC only</span>
-    </div>
-  </header>
-
-  <div class="controls">
-    <div>
-      <label>Players</label>
-      <select id="players">
-        <option value="2">2 players</option>
-        <option value="3">3 players</option>
-        <option value="4" selected>4 players</option>
-      </select>
-    </div>
-    <div>
-      <label>Duration</label>
-      <select id="duration">
-        <option value="60">1 min</option>
-        <option value="180" selected>3 min</option>
-        <option value="300">5 min</option>
-      </select>
-    </div>
-    <div>
-      <label>Stake per player (TPC)</label>
-      <input id="stake" type="number" value="300" min="0" step="50"/>
-    </div>
-    <div>
-      <button id="start" class="btn">Start Match</button>
-    </div>
-  </div>
-
-  <div class="hud">
-    <div class="panel"><strong>Time</strong><span id="time" class="timer">03:00</span></div>
-    <div class="panel"><strong>Pot (TPC)</strong><span id="pot" class="score">0</span></div>
-    <div class="panel"><strong>Your score</strong><span id="myscore" class="score">0</span></div>
-  </div>
-
   <div class="layout">
     <div class="top">
-      <div class="mini"><h3>P1</h3><canvas id="opp1"></canvas></div>
-      <div class="mini"><h3>P2</h3><canvas id="opp2"></canvas></div>
-      <div class="mini"><h3>P3</h3><canvas id="opp3"></canvas></div>
+      <div class="mini">
+        <h3><img id="avatar1" src="assets/icons/profile.svg" alt="" class="flagInline"/><span id="name1">P1</span></h3>
+        <div id="score1" class="aiScore">0</div>
+        <canvas id="opp1"></canvas>
+      </div>
+      <div class="mini">
+        <h3><img id="avatar2" src="assets/icons/profile.svg" alt="" class="flagInline"/><span id="name2">P2</span></h3>
+        <div id="score2" class="aiScore">0</div>
+        <canvas id="opp2"></canvas>
+      </div>
+      <div class="mini">
+        <h3><img id="avatar3" src="assets/icons/profile.svg" alt="" class="flagInline"/><span id="name3">P3</span></h3>
+        <div id="score3" class="aiScore">0</div>
+        <canvas id="opp3"></canvas>
+      </div>
     </div>
     <div class="userWrap">
-      <h3>USER</h3>
+      <div class="userHeader">
+        <img id="avatarUser" src="assets/icons/profile.svg" alt="" class="avatar"/>
+        <h3 id="playerName">USER</h3>
+        <div class="hud">
+          <div class="panel">
+            <strong>Time</strong>
+            <span id="time" class="timer">03:00</span>
+          </div>
+          <div class="panel">
+            <strong>Your score</strong>
+            <span id="myscore" class="score">0</span>
+          </div>
+        </div>
+      </div>
       <canvas id="user"></canvas>
+      <div class="overlayButtons">
+        <button id="soundBtn" class="small">🔊</button>
+      </div>
     </div>
   </div>
 </div>
 <div id="toast" class="toast"></div>
-<button id="mute" class="mute">🔊</button>
 
 <dialog id="results">
   <div class="modal">
@@ -115,8 +101,8 @@
     </div>
     <div class="grid" id="scoreList" style="margin-top:10px"></div>
     <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px">
-      <button class="btn" id="rematch">Rematch</button>
-      <button class="btn" id="change">Change settings</button>
+      <button class="btn" id="rematch">Play Again</button>
+      <button class="btn" id="change">Return to Lobby</button>
     </div>
   </div>
 </dialog>
@@ -233,9 +219,12 @@
         for(let x=0;x<COLS;x++){
           const t=board[y][x]; if(!t) continue;
           const cx=o.x+x*csize+csize/2, cy=o.y+y*csize+csize/2, r=csize*0.38;
-          const g=ctx.createRadialGradient(cx-r*0.4, cy-r*0.5, r*0.2, cx,cy,r);
-          g.addColorStop(0,'#ffffff66'); g.addColorStop(0.25, t.c); g.addColorStop(1,'#00000055');
+          const g=ctx.createRadialGradient(cx - r*0.3, cy - r*0.3, r*0.1, cx, cy, r);
+          g.addColorStop(0,'#ffffff');
+          g.addColorStop(0.3, t.c);
+          g.addColorStop(1, t.c);
           ctx.fillStyle=g; ctx.beginPath(); ctx.arc(cx,cy,r,0,Math.PI*2); ctx.fill();
+          ctx.lineWidth=2; ctx.strokeStyle='#00000066'; ctx.stroke();
         }
       }
       if(sel){
@@ -422,99 +411,93 @@
 
   // ===== Shell / Multiplayer =====
   const canvases={ user:$('#user'), opp1:$('#opp1'), opp2:$('#opp2'), opp3:$('#opp3') };
-  const ui={ time:$('#time'), pot:$('#pot'), myscore:$('#myscore'),
-    duration:$('#duration'), players:$('#players'), stake:$('#stake'),
-    start:$('#start'), results:$('#results'), winner:$('#winner'),
-    payout:$('#payout'), fee:$('#fee'), potFinal:$('#potFinal'),
-    scoreList:$('#scoreList'), rematch:$('#rematch'), change:$('#change'),
-    mute:$('#mute') };
+  const ui={ time:$('#time'), myscore:$('#myscore'), results:$('#results'), winner:$('#winner'), payout:$('#payout'), fee:$('#fee'), potFinal:$('#potFinal'), scoreList:$('#scoreList'), rematch:$('#rematch'), change:$('#change'), soundBtn:$('#soundBtn') };
+
+  const params=new URLSearchParams(location.search);
+  const n=Math.max(2,Math.min(4,parseInt(params.get('players'),10)||4));
+  const stake=Math.max(0,parseInt(params.get('amount'),10)||300);
+  const durSec=Math.max(10,parseInt(params.get('duration'),10)||180);
+  const avatarParam=params.get('avatar')||'';
+  const tgId=params.get('tgId');
+  const accountId=params.get('accountId');
+  const initParam=params.get('init');
+  if(initParam && !window.Telegram){ const decoded=decodeURIComponent(initParam); window.Telegram={WebApp:{initData:decoded}}; try{ const parsed=Object.fromEntries(new URLSearchParams(decoded)); if(parsed.user){ window.Telegram.WebApp.initDataUnsafe={user:JSON.parse(parsed.user)}; } }catch{} }
+  ui.time.textContent=fmt(durSec);
+
+  const FLAG_EMOJIS=['🇺🇸','🇬🇧','🇨🇦','🇯🇵','🇫🇷','🇩🇪','🇮🇳','🇧🇷','🇦🇺','🇪🇸'];
+  const emojiToDataUrl=(e)=>`data:image/svg+xml,${encodeURIComponent("<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 120 120'><text y='96' font-size='96'>"+e+"</text></svg>")}`;
+  const regionNames=new Intl.DisplayNames(['en'],{type:'region'});
+  const flagToName=(flag)=>{ const codes=Array.from(flag).map(c=>c.codePointAt(0)-0x1F1E6+65); const cc=String.fromCharCode(...codes); return regionNames.of(cc); };
+
+  const avatarEls=[$('#avatar1'),$('#avatar2'),$('#avatar3'),$('#avatarUser')];
+  const nameEls=[$('#name1'),$('#name2'),$('#name3')];
+  const scoreEls=[$('#score1'),$('#score2'),$('#score3')];
+  const playerNameEl=$('#playerName');
+  const userData=window?.Telegram?.WebApp?.initDataUnsafe?.user;
+  const playerName=userData?.username||[userData?.first_name,userData?.last_name].filter(Boolean).join(' ')||'Player';
+  function adjustNameSize(el){ if(!el) return; const len=el.textContent.length; if(len>12){ const size=Math.max(8,13-(len-12)*0.5); el.style.fontSize=size+'px'; } }
+  if(playerNameEl){ playerNameEl.textContent=playerName; adjustNameSize(playerNameEl); }
+  const avatarUrls=Array(n).fill('');
+  if(avatarParam){ avatarEls[3].src=avatarParam; } else if(userData?.photo_url){ avatarEls[3].src=userData.photo_url; }
+  for(let i=0;i<n-1;i++){ const flag=FLAG_EMOJIS[(Math.random()*FLAG_EMOJIS.length)|0]; const url=emojiToDataUrl(flag); avatarEls[i].src=url; avatarUrls[i]=url; nameEls[i].textContent=flagToName(flag); adjustNameSize(nameEls[i]); scoreEls[i].textContent='0'; }
+  avatarUrls[n-1]=avatarEls[3].src;
 
   let games=[]; let rafId=null; let endAt=0; let last=performance.now(); let running=false;
-
-  // bots tempo state
-  const botTimers=[]; // per-bot next timestamp
+  const botTimers=[];
 
   function layout(){ Object.values(canvases).forEach(c=>{ if(c) fitCanvas(c); }); }
 
   function startMatch(){
     layout();
-    const n=Math.max(2,Math.min(4,parseInt(ui.players.value,10)||4));
-    const stake=Math.max(0,parseInt(ui.stake.value||'0',10));
-    const durSec=Math.max(10,parseInt(ui.duration.value,10)||180);
-    ui.pot.textContent=String(stake*n);
     ui.time.textContent=fmt(durSec);
-
     games=[];
     const opp=[canvases.opp1,canvases.opp2,canvases.opp3];
     for(let i=0;i<n-1;i++){ const g=createGame(opp[i],false); games.push(g); }
     const u=createGame(canvases.user,true); games.push(u);
-
-    // init bot timers
     botTimers.length=0;
-    for(let i=0;i<n-1;i++) botTimers[i]=scheduleNext(1000 + i*80); // staggered start
-
+    for(let i=0;i<n-1;i++) botTimers[i]=scheduleNext(1000+i*80);
     endAt=performance.now()+durSec*1000;
     running=true; last=performance.now();
     loop();
   }
 
-  function updateTimer(){
-    const remain=Math.max(0,Math.ceil((endAt-performance.now())/1000));
-    ui.time.textContent=fmt(remain);
-    if(remain<=0) finish();
-  }
+  function updateTimer(){ const remain=Math.max(0,Math.ceil((endAt-performance.now())/1000)); ui.time.textContent=fmt(remain); if(remain<=0) finish(); }
 
   function finish(){
     if(!running) return; running=false; if(rafId) cancelAnimationFrame(rafId);
-    const n=games.length; const stake=Math.max(0,parseInt(ui.stake.value||'0',10));
     const gross=stake*n; const fee=Math.round(gross*0.10); const net=gross-fee;
     const scores=games.map((g,i)=>({i,score:g.score}));
     const max=Math.max(...scores.map(s=>s.score));
     const winners=scores.filter(s=>s.score===max);
     const payout=winners.length?Math.floor(net / winners.length):0;
-
-    $('#winner').textContent = winners.length>1 ? `Tie (${winners.map(w=>'P'+(w.i+1)).join(', ')})` : `P${winners[0].i+1}`;
-    $('#payout').textContent=String(payout); $('#fee').textContent=String(fee); $('#potFinal').textContent=String(net);
-    $('#scoreList').innerHTML = scores.sort((a,b)=>b.score-a.score).map(s=>`<div class="kpi"><div class="v">P${s.i+1}: ${s.score}</div><div>—</div></div>`).join('');
-    if(!$('#results').open) $('#results').showModal();
+    ui.winner.textContent = winners.length>1 ? `Tie (${winners.map(w=>'P'+(w.i+1)).join(', ')})` : `P${winners[0].i+1}`;
+    ui.payout.textContent=String(payout); ui.fee.textContent=String(fee); ui.potFinal.textContent=String(net);
+    ui.scoreList.innerHTML = scores.sort((a,b)=>b.score-a.score).map(s=>`<div class="kpi"><div class="v">P${s.i+1}: ${s.score}</div><div>—</div></div>`).join('');
+    if(!ui.results.open) ui.results.showModal();
   }
 
   function loop(){
     if(!running) return;
     const now=performance.now(); const dt=(now-last)/1000; last=now;
-
-    // draw
     for(const g of games) g.draw();
-
-    // bots act with human-like timing
     for(let i=0;i<games.length-1;i++){
       const g=games[i];
-      if(now >= botTimers[i] && !g.busy){
-        const moved = botThink(g);
-        botTimers[i] = scheduleNext(1100 + (moved?0:150)); // tiny delay if had to reshuffle
-      }
+      if(now>=botTimers[i] && !g.busy){ const moved=botThink(g); botTimers[i]=scheduleNext(1100+(moved?0:150)); }
+      if(scoreEls[i]) scoreEls[i].textContent=String(g.score);
     }
-
-    // UI
-    $('#myscore').textContent = String(games[games.length-1].score);
+    ui.myscore.textContent=String(games[games.length-1].score);
     updateTimer();
     rafId=requestAnimationFrame(loop);
   }
 
-  // Bind
-  $('#start').addEventListener('click', startMatch);
-  $('#rematch').addEventListener('click', ()=>{ $('#results').close(); startMatch(); });
-  $('#change').addEventListener('click', ()=>{ $('#results').close(); });
+  ui.rematch.addEventListener('click', ()=>{ ui.results.close(); startMatch(); });
+  ui.change.addEventListener('click', ()=>{ ui.results.close(); location.href='/games/bubblesmashroyale/lobby'; });
 
-  // Mute toggle
-  $('#mute').addEventListener('click', ()=>{
-    muted=!muted;
-    $('#mute').textContent = muted? '🔇' : '🔊';
-    if(!muted) ensureAudio();
-  });
+  ui.soundBtn.addEventListener('click', ()=>{ muted=!muted; ui.soundBtn.textContent=muted?'🔇':'🔊'; if(!muted) ensureAudio(); });
 
   window.addEventListener('resize', layout);
   layout();
+  startMatch();
 })();
 </script>
 </body>
