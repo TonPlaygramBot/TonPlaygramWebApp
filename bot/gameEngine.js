@@ -6,7 +6,6 @@ export const ROLL_COOLDOWN_MS = 1000;
 export const RECONNECT_GRACE_MS = 60000;
 export const GAME_START_DELAY_MS = 5000;
 import { SnakeGame } from './logic/snakeGame.js';
-import { LudoGame } from './logic/ludoGame.js';
 import { CheckersGame } from './logic/checkersGame.js';
 
 import GameRoomModel from './models/GameRoom.js';
@@ -74,8 +73,6 @@ export class GameRoom {
     this.cheatWarnings = {};
     if (this.gameType === 'snake') {
       this.game = new SnakeGame({ snakes: this.snakes, ladders: this.ladders });
-    } else if (this.gameType === 'ludo') {
-      this.game = new LudoGame(this.capacity);
     } else {
       this.game = new CheckersGame();
     }
@@ -160,11 +157,6 @@ export class GameRoom {
         p.position = 0;
         p.diceCount = 2;
         p.isActive = false;
-      });
-    } else if (this.gameType === 'ludo') {
-      this.players.forEach((p) => {
-        p.tokens = Array(4).fill(-1);
-        p.finished = 0;
       });
     }
     this.status = 'playing';
@@ -319,9 +311,6 @@ export class GameRoom {
     if (!player.disconnected) return;
     if (this.gameType === 'snake') {
       player.position = 0;
-    } else {
-      player.tokens = Array(4).fill(-1);
-      player.finished = 0;
     }
     player.disconnectTimer = null;
     this.io.to(this.id).emit('playerLeft', { playerId: player.playerId });
@@ -344,14 +333,12 @@ export class GameRoom {
       { roomId: this.id },
       {
         players: this.players.map((p) => ({
-          playerId: p.playerId,
-          name: p.name,
-          position: p.position,
-          isActive: p.isActive,
-          tokens: p.tokens,
-          finished: p.finished,
-          disconnected: p.disconnected,
-        })),
+        playerId: p.playerId,
+        name: p.name,
+        position: p.position,
+        isActive: p.isActive,
+        disconnected: p.disconnected,
+      })),
         status: this.status,
         currentTurn: this.currentTurn,
       },
@@ -398,8 +385,6 @@ export class GameRoomManager {
         name: p.name,
         position: p.position,
         isActive: p.isActive,
-        tokens: p.tokens,
-        finished: p.finished,
         disconnected: p.disconnected
       }))
     };
@@ -427,11 +412,7 @@ export class GameRoomManager {
       } else {
         const type =
           gameType ||
-          (id.startsWith('ludo')
-            ? 'ludo'
-            : id.startsWith('checkers')
-            ? 'checkers'
-            : 'snake');
+          (id.startsWith('checkers') ? 'checkers' : 'snake');
         room = new GameRoom(id, this.io, capacity, board, type);
         await GameRoomModel.updateOne(
           { roomId: id },
