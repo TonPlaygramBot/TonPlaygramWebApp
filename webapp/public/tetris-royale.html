@@ -385,11 +385,17 @@ function drawBoard(ctx, canvas, board, active, clearRows = [], clearTimer = 0, p
         }
       }
       ctx.globalAlpha = 1;
+      ctx.shadowColor = 'rgba(0,0,0,0.25)';
+      ctx.shadowBlur = 4;
+      ctx.shadowOffsetY = 2;
       for(let y=0;y<piece.length;y++){
         for(let x=0;x<piece[y].length;x++){
           if(piece[y][x]) drawBlock(ctx, (pos.x+x)*bw, (pos.y+y)*bh, bw-1, bh-1, color);
         }
       }
+      ctx.shadowColor = 'rgba(0,0,0,0)';
+      ctx.shadowBlur = 0;
+      ctx.shadowOffsetY = 0;
     }
     if(clearRows.length){
       const a = (clearTimer/300)*0.8;
