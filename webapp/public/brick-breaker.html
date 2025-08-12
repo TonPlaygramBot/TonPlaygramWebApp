@@ -43,33 +43,25 @@
           )
           fixed;
         color: var(--text);
-        scrollbar-color: #ffd700 transparent;
         position: relative;
+        overflow: auto;
+        scrollbar-width: none; /* Hide default scrollbar in Firefox */
       }
 
-      /* Show a smaller scroll highlight roughly the height of six bricks */
+      /* Hide scrollbars in WebKit browsers */
       body::-webkit-scrollbar {
-        width: 8px;
+        display: none;
       }
 
-      body::-webkit-scrollbar-thumb {
-        background: #ffd700;
-        border-radius: 4px;
-        min-height: 168px; /* 6 bricks * 28px each */
-      }
-
-      body::-webkit-scrollbar-track {
-        background: transparent;
-      }
-
-      /* Vertical label beside the scrollbar */
+      /* Vertical scroll prompt */
       body::after {
         content: 'Scroll';
         position: fixed;
-        right: 2px;
+        right: 4px;
         top: 50%;
         transform: translateY(-50%);
-        font-size: 10px;
+        font-size: 14px;
+        font-weight: 600;
         color: #ffd700;
         writing-mode: vertical-rl;
         text-orientation: mixed;
