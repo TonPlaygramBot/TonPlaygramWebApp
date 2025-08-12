@@ -34,7 +34,8 @@ export default function CrazyDiceLobby() {
       .then((accountId) => {
         if (cancelled || !accountId) return;
         function ping() {
-          pingOnline(accountId).catch(() => {});
+          const status = localStorage.getItem('onlineStatus') || 'online';
+          pingOnline(accountId, status).catch(() => {});
           getOnlineCount()
             .then((d) => setOnline(d.count))
             .catch(() => {});

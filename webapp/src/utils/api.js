@@ -360,8 +360,8 @@ export function unseatTable(playerId, tableId) {
   return post('/api/snake/table/unseat', { playerId, tableId });
 }
 
-export function pingOnline(playerId) {
-  return post('/api/online/ping', { playerId });
+export function pingOnline(playerId, status) {
+  return post('/api/online/ping', { playerId, status });
 }
 
 export function getOnlineCount() {

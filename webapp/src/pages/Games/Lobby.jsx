@@ -113,7 +113,8 @@ export default function Lobby() {
       .then((playerId) => {
         if (cancelled) return;
         function ping() {
-          pingOnline(playerId).catch(() => {});
+          const status = localStorage.getItem('onlineStatus') || 'online';
+          pingOnline(playerId, status).catch(() => {});
           getOnlineCount()
             .then((d) => setOnline(d.count))
             .catch(() => {});
