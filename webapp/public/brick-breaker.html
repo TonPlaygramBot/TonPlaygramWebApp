@@ -408,15 +408,37 @@ const CANVAS_W = 720,
           const POINTS = { standard: 10, tough: 20, explosive: 10 };
 
           const brickCanvasCache = {};
+          const shadeColor = (c, amt) => {
+            const num = parseInt(c.slice(1), 16);
+            let r = (num >> 16) + amt;
+            let g = ((num >> 8) & 0xff) + amt;
+            let b = (num & 0xff) + amt;
+            r = Math.max(0, Math.min(255, r));
+            g = Math.max(0, Math.min(255, g));
+            b = Math.max(0, Math.min(255, b));
+            return `#${(r << 16 | g << 8 | b).toString(16).padStart(6, '0')}`;
+          };
           const getBrickCanvas = (color, w, h) => {
             const key = `${color}_${w}x${h}`;
             if (!brickCanvasCache[key]) {
               const cv = document.createElement('canvas');
-              cv.width = w;
-              cv.height = h;
+              cv.width = w * DPR;
+              cv.height = h * DPR;
               const ictx = cv.getContext('2d');
-              ictx.fillStyle = color;
+              ictx.scale(DPR, DPR);
+              const grad = ictx.createLinearGradient(0, 0, 0, h);
+              grad.addColorStop(0, shadeColor(color, 40));
+              grad.addColorStop(1, shadeColor(color, -40));
+              ictx.fillStyle = grad;
               ictx.fillRect(0, 0, w, h);
+              const hi = ictx.createLinearGradient(0, 0, w, h);
+              hi.addColorStop(0, '#ffffff55');
+              hi.addColorStop(0.3, '#ffffff00');
+              ictx.fillStyle = hi;
+              ictx.fillRect(0, 0, w, h);
+              ictx.lineWidth = 4;
+              ictx.strokeStyle = '#00000066';
+              ictx.strokeRect(0, 0, w, h);
               brickCanvasCache[key] = cv;
             }
             return brickCanvasCache[key];
@@ -649,15 +671,7 @@ const CANVAS_W = 720,
             ctx.fillText('♥'.repeat(b.lives), W - 40, 44);
             for (const br of b.bricks) {
               if (!br.alive) continue;
-ctx.fillStyle = br.color;
-
-ctx.fillRect(br.x, br.y, br.w, br.h);
-
-ctx.lineWidth = 4;
-
-ctx.strokeStyle = COLORS.wall;
-
-ctx.strokeRect(br.x, br.y, br.w, br.h);
+              ctx.drawImage(getBrickCanvas(br.color, br.w, br.h), br.x, br.y);
             }
             for (const p of b.powerups) {
               ctx.fillStyle = COLORS.power;
@@ -678,18 +692,33 @@ ctx.strokeRect(br.x, br.y, br.w, br.h);
               ctx.fillText(tag, p.x, p.y + 3);
               ctx.textAlign = 'start';
             }
-            ctx.fillStyle = COLORS.paddle;
+            const padGrad = ctx.createLinearGradient(0, b.paddle.y, 0, b.paddle.y + b.paddle.h);
+            padGrad.addColorStop(0, shadeColor(COLORS.paddle, 40));
+            padGrad.addColorStop(1, shadeColor(COLORS.paddle, -40));
+            ctx.fillStyle = padGrad;
             ctx.fillRect(b.paddle.x, b.paddle.y, b.paddle.w, b.paddle.h);
-            ctx.lineWidth = 6;
-            ctx.strokeStyle = COLORS.wall;
+            ctx.lineWidth = 4;
+            ctx.strokeStyle = '#00000066';
             ctx.strokeRect(b.paddle.x, b.paddle.y, b.paddle.w, b.paddle.h);
             for (const ball of b.balls) {
-              ctx.fillStyle = ball.fire ? COLORS.danger : COLORS.ball;
+              const c = ball.fire ? COLORS.danger : COLORS.ball;
+              const grad = ctx.createRadialGradient(
+                ball.x - ball.r * 0.3,
+                ball.y - ball.r * 0.3,
+                ball.r * 0.1,
+                ball.x,
+                ball.y,
+                ball.r
+              );
+              grad.addColorStop(0, '#ffffff');
+              grad.addColorStop(0.3, c);
+              grad.addColorStop(1, c);
+              ctx.fillStyle = grad;
               ctx.beginPath();
               ctx.arc(ball.x, ball.y, ball.r, 0, Math.PI * 2);
               ctx.fill();
               ctx.lineWidth = 4;
-              ctx.strokeStyle = COLORS.wall;
+              ctx.strokeStyle = '#00000066';
               ctx.stroke();
             }
           }
