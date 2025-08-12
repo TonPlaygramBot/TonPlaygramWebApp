@@ -213,17 +213,17 @@
     // Spawner
     let spawnAcc=0, spawnNext=500;
     function spawnWave(){
-      const n=2+(Math.random()<0.6?1:0);
+      const n=4+(Math.random()<0.5?1:0);
       for(let i=0;i<n;i++){
         const isBomb=Math.random()<0.15;
         const data=isBomb?BOMB: FRUITS[(Math.random()*FRUITS.length)|0];
-        const x=rnd(W()*0.15, W()*0.85), y=H()+30;
-        const speed=rnd(7.2,9.8), vx=rnd(-1.6,1.6), vy=-speed, ay=0.18+Math.random()*0.08;
+        const x=rnd(W()*0.15, W()*0.85), y=-30;
+        const speed=rnd(2.4,3.8), vx=rnd(-1.2,1.2), vy=speed, ay=0.05+Math.random()*0.03;
         const base=Math.max(16, Math.min(W(),H())*0.04);
         const r=base*(isBomb?1.05:data.sf*rnd(0.95,1.1));
         fruits.push({x,y,vx,vy,ay,r,data,type:isBomb?'bomb':'fruit',rot:rnd(0,Math.PI),spin:rnd(-0.08,0.08)});
       }
-      spawnNext=650+Math.random()*450;
+      spawnNext=450+Math.random()*350;
     }
 
     // Painters (cartoon fruits)
