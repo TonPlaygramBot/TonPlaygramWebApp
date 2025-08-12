@@ -6,4 +6,4 @@ if (typeof window !== 'undefined' && window.location.protocol === 'https:' && ba
   baseUrl = baseUrl.replace(/^http:/, 'https:');
 }
 
-export const socket = io(baseUrl);
+export const socket = io(baseUrl, { transports: ['websocket'] });

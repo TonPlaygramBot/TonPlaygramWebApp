@@ -67,6 +67,10 @@ if (proxyUrl) {
 }
 
 if (!process.env.MONGO_URI) {
+  if (process.env.NODE_ENV === 'production') {
+    console.error('MONGO_URI is required in production');
+    process.exit(1);
+  }
   process.env.MONGO_URI = 'memory';
   console.log('MONGO_URI not set, defaulting to in-memory MongoDB');
 }
@@ -88,7 +92,10 @@ const app = express();
 app.use(cors({ origin: allowedOrigins.length ? allowedOrigins : '*' }));
 const httpServer = http.createServer(app);
 const io = new SocketIOServer(httpServer, {
-  cors: { origin: allowedOrigins.length ? allowedOrigins : '*' }
+  cors: { origin: allowedOrigins.length ? allowedOrigins : '*', methods: ['GET', 'POST'] },
+  transports: ['websocket', 'polling'],
+  pingInterval: 25000,
+  pingTimeout: 60000
 });
 const gameManager = new GameRoomManager(io);
 
