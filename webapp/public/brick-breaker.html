@@ -41,7 +41,8 @@
             #0c1020 38%,
             #0c1020 100%
           )
-          fixed;
+          fixed,
+          linear-gradient(180deg, #0c1020 0%, #050710 100%) fixed;
         color: var(--text);
         position: relative;
         overflow: auto;
@@ -107,10 +108,28 @@
         border-color: var(--primary);
       }
       .btn {
+        position: relative;
         background: linear-gradient(180deg, #2a6cf0, #2156c8);
         border: none;
         cursor: pointer;
         font-weight: 600;
+        box-shadow: 0 4px 0 #1b4bbf, 0 4px 8px rgba(0, 0, 0, 0.4);
+        overflow: hidden;
+      }
+      .btn::before {
+        content: '';
+        position: absolute;
+        top: 2px;
+        left: 2px;
+        right: 2px;
+        height: 50%;
+        border-radius: inherit;
+        background: linear-gradient(180deg, rgba(255, 255, 255, 0.6), rgba(255, 255, 255, 0));
+        pointer-events: none;
+      }
+      .btn:active {
+        transform: translateY(2px);
+        box-shadow: 0 2px 0 #1b4bbf, 0 2px 6px rgba(0, 0, 0, 0.4);
       }
       .btn:disabled {
         opacity: 0.6;
@@ -328,6 +347,16 @@
         width: 120px;
         height: 120px;
         border-radius: 50%;
+        box-shadow: 0 0 20px rgba(255, 215, 0, 0.8);
+        animation: winnerGlow 1.5s ease-in-out infinite alternate;
+      }
+      @keyframes winnerGlow {
+        from {
+          box-shadow: 0 0 10px rgba(255, 215, 0, 0.6);
+        }
+        to {
+          box-shadow: 0 0 25px rgba(255, 215, 0, 1);
+        }
       }
       .winner-popup .buttons {
         display: flex;
@@ -430,6 +459,17 @@ const CANVAS_W = 720,
           const POWERUPS = ['multiball', 'fireball', 'wide', 'slow', 'x2'];
           const POINTS = { standard: 10, tough: 20, explosive: 10 };
 
+          function shadeColor(color, percent) {
+            const num = parseInt(color.slice(1), 16);
+            let r = (num >> 16) + Math.round(255 * percent);
+            let g = ((num >> 8) & 0x00ff) + Math.round(255 * percent);
+            let b = (num & 0x0000ff) + Math.round(255 * percent);
+            r = Math.min(255, Math.max(0, r));
+            g = Math.min(255, Math.max(0, g));
+            b = Math.min(255, Math.max(0, b));
+            return '#' + ((r << 16) | (g << 8) | b).toString(16).padStart(6, '0');
+          }
+
           const brickCanvasCache = {};
           const getBrickCanvas = (color, w, h) => {
             const key = `${color}_${w}x${h}`;
@@ -438,14 +478,26 @@ const CANVAS_W = 720,
               cv.width = w;
               cv.height = h;
               const ictx = cv.getContext('2d');
-              ictx.fillStyle = color;
+              const grad = ictx.createLinearGradient(0, 0, 0, h);
+              grad.addColorStop(0, shadeColor(color, 0.2));
+              grad.addColorStop(1, shadeColor(color, -0.2));
+              ictx.fillStyle = grad;
               ictx.fillRect(0, 0, w, h);
+              ictx.fillStyle = 'rgba(255,255,255,0.2)';
+              ictx.fillRect(2, 2, w - 4, h * 0.3);
+              ictx.strokeStyle = '#00000055';
+              ictx.lineWidth = 2;
+              ictx.strokeRect(0, 0, w, h);
               brickCanvasCache[key] = cv;
             }
             return brickCanvasCache[key];
           };
 
           function drawBubble(ctx, x, y, r, color) {
+            ctx.save();
+            ctx.shadowColor = 'rgba(0, 0, 0, 0.3)';
+            ctx.shadowBlur = 4;
+            ctx.shadowOffsetY = 2;
             const grad = ctx.createRadialGradient(
               x - r * 0.3,
               y - r * 0.3,
@@ -461,6 +513,7 @@ const CANVAS_W = 720,
             ctx.beginPath();
             ctx.arc(x, y, r, 0, Math.PI * 2);
             ctx.fill();
+            ctx.restore();
             ctx.lineWidth = 2;
             ctx.strokeStyle = '#00000066';
             ctx.stroke();
@@ -661,6 +714,7 @@ const CANVAS_W = 720,
               slow: false,
               bricks: genBricks(settings.density),
               powerups: [],
+              particles: [],
               over: false
             };
           }
@@ -693,15 +747,23 @@ const CANVAS_W = 720,
             ctx.fillText('♥'.repeat(b.lives), W - 40, 44);
             for (const br of b.bricks) {
               if (!br.alive) continue;
-ctx.fillStyle = br.color;
-
-ctx.fillRect(br.x, br.y, br.w, br.h);
-
-ctx.lineWidth = 4;
-
-ctx.strokeStyle = COLORS.wall;
-
-ctx.strokeRect(br.x, br.y, br.w, br.h);
+              ctx.save();
+              ctx.shadowColor = 'rgba(0, 0, 0, 0.3)';
+              ctx.shadowBlur = 4;
+              ctx.shadowOffsetY = 2;
+              ctx.drawImage(getBrickCanvas(br.color, br.w, br.h), br.x, br.y);
+              ctx.restore();
+            }
+            for (const pt of b.particles) {
+              ctx.save();
+              ctx.globalAlpha = pt.alpha;
+              ctx.shadowColor = pt.color;
+              ctx.shadowBlur = 10;
+              ctx.fillStyle = pt.color;
+              ctx.beginPath();
+              ctx.arc(pt.x, pt.y, pt.r, 0, Math.PI * 2);
+              ctx.fill();
+              ctx.restore();
             }
             for (const p of b.powerups) {
               ctx.fillStyle = COLORS.power;
@@ -722,8 +784,21 @@ ctx.strokeRect(br.x, br.y, br.w, br.h);
               ctx.fillText(tag, p.x, p.y + 3);
               ctx.textAlign = 'start';
             }
-            ctx.fillStyle = COLORS.paddle;
+            const paddleGrad = ctx.createLinearGradient(
+              b.paddle.x,
+              b.paddle.y,
+              b.paddle.x,
+              b.paddle.y + b.paddle.h
+            );
+            paddleGrad.addColorStop(0, shadeColor(COLORS.paddle, 0.2));
+            paddleGrad.addColorStop(1, shadeColor(COLORS.paddle, -0.2));
+            ctx.save();
+            ctx.shadowColor = 'rgba(0, 0, 0, 0.3)';
+            ctx.shadowBlur = 4;
+            ctx.shadowOffsetY = 2;
+            ctx.fillStyle = paddleGrad;
             ctx.fillRect(b.paddle.x, b.paddle.y, b.paddle.w, b.paddle.h);
+            ctx.restore();
             ctx.lineWidth = 6;
             ctx.strokeStyle = COLORS.wall;
             ctx.strokeRect(b.paddle.x, b.paddle.y, b.paddle.w, b.paddle.h);
@@ -891,6 +966,17 @@ ctx.strokeRect(br.x, br.y, br.w, br.h);
                     else br.color = '#ffbb7d';
                     if (!ball.fire) ball.vy *= -1;
                   }
+                  for (let i = 0; i < 8; i++) {
+                    b.particles.push({
+                      x: ball.x,
+                      y: ball.y,
+                      vx: rand(-1, 1),
+                      vy: rand(-1.5, -0.5),
+                      r: rand(1, 3),
+                      alpha: 1,
+                      color: br.color
+                    });
+                  }
                   if (Math.random() < 0.12) {
                     b.powerups.push({
                       x: ball.x,
@@ -917,6 +1003,13 @@ ctx.strokeRect(br.x, br.y, br.w, br.h);
                 b.powerups = b.powerups.filter((x) => x !== pu);
               }
             }
+            for (const pt of b.particles) {
+              pt.x += pt.vx * (dt * 0.06);
+              pt.y += pt.vy * (dt * 0.06);
+              pt.vy += 0.03;
+              pt.alpha -= 0.02 * (dt * 0.06);
+            }
+            b.particles = b.particles.filter((pt) => pt.alpha > 0);
           }
 
           async function startMatch() {
