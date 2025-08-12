@@ -5,8 +5,9 @@
 2. Run `npm run install-all` at the repository root to install dependencies for the bot, webapp and test suite. After the packages finish installing, run `./scripts/setup-tests.sh` once to install OS libraries required by native modules such as `canvas`. Without them `npm test` will fail.
 3. Copy `bot/.env.example` to `bot/.env` and update the values. At minimum set:
    - `BOT_TOKEN` – your Telegram bot token
-   - `MONGO_URI` – MongoDB connection string or `memory`
-     (falls back to an in-memory database if unset)
+   - `MONGO_URI` – MongoDB connection string. If left empty in development it
+     falls back to an in-memory database, but you must provide a real URI in
+     production.
    - `AIRDROP_ADMIN_TOKENS` – (optional) tokens allowed to trigger airdrops
   - `DEPOSIT_WALLET_ADDRESS` – TON address that receives user deposits
   - `STORE_DEPOSIT_ADDRESS` – TON address that receives payments for store bundles
@@ -27,7 +28,9 @@
 
   - `RATE_LIMIT_MAX` – (optional) max requests per window from one IP (defaults to 100)
 
-  - `ALLOWED_ORIGINS` – list of origins allowed for CORS and socket.io. Multiple origins may be comma-separated
+  - `ALLOWED_ORIGINS` – list of origins allowed for CORS and socket.io. Multiple
+    origins may be comma-separated, e.g.
+    `https://tonplaygram-bot.onrender.com,https://t.me,https://web.telegram.org`
 
   - `TWITTER_BEARER_TOKEN` – bearer token for verifying reposts on **X**.
   - `TWITTER_CLIENT_ID` – API key for **X** OAuth linking.
@@ -37,8 +40,9 @@
     When deploying on **Render**, set these values (including `CLAIM_CONTRACT_ADDRESS`, `CLAIM_WALLET_MNEMONIC` and `RPC_URL`) in the service environment instead of storing them in `.env` files.
 
 4. Copy `webapp/.env.example` to `webapp/.env` and configure:
-   - `VITE_API_BASE_URL` – the base URL where the bot API is hosted (e.g. `http://localhost:3000`).
-     If omitted, the webapp will connect to the same origin it was served from.
+   - `VITE_API_BASE_URL` – the base URL where the bot API is hosted (e.g.
+     `https://tonplaygram-bot.onrender.com`). If omitted, the webapp will
+     connect to the same origin it was served from.
    - `VITE_GOOGLE_CLIENT_ID` – OAuth client ID for Google sign-in.
   - `VITE_DEV_ACCOUNT_ID` – account ID that receives the developer share
     (10% by default).
