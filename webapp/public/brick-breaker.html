@@ -200,9 +200,6 @@
         font-weight: 700;
         font-size: 18px;
       }
-      #userScore {
-        font-size: 20px;
-      }
       .toast {
         position: fixed;
         left: 50%;
@@ -340,8 +337,7 @@
               <img class="avatar" id="userAvatar" alt="avatar" />
               <span id="userLabel">USER</span>
               <span class="pill"
-                ><span class="life" id="userLives">♥♥♥</span> •
-                <span class="score" id="userScore">0</span></span
+                ><span class="life" id="userLives">♥♥♥</span></span
               >
               <span class="pill">
                 Time <span class="timer" id="time">00:00</span>
@@ -408,7 +404,6 @@
 
           const $strip = document.getElementById('strip');
           const $userCanvas = document.getElementById('userCanvas');
-          const $userScore = document.getElementById('userScore');
           const $userLives = document.getElementById('userLives');
           const $time = document.getElementById('time');
           const $pot = document.getElementById('pot');
@@ -484,9 +479,6 @@
             density: params.get('density') || 'medium',
             duration: parseInt(params.get('duration'), 10) || 1
           };
-          const names = params.get('names')
-            ? params.get('names').split(',').map(decodeURIComponent)
-            : [];
           const avatars = params.get('avatars')
             ? params.get('avatars').split(',').map(decodeURIComponent)
             : [];
@@ -619,10 +611,10 @@
             ctx.lineWidth = 2;
             ctx.strokeRect(8, 60, W - 16, H - 90);
             ctx.fillStyle = COLORS.text;
-            ctx.font = '12px system-ui';
-            ctx.fillText(`Score: ${b.score}`, 12, 50);
+            ctx.font = '14px system-ui';
+            ctx.fillText(`Score: ${b.score}`, 12, 52);
             ctx.fillStyle = COLORS.danger;
-            ctx.fillText('♥'.repeat(b.lives), W - 40, 50);
+            ctx.fillText('♥'.repeat(b.lives), W - 40, 52);
             for (const br of b.bricks) {
               if (!br.alive) continue;
               ctx.fillStyle = br.color;
@@ -789,7 +781,6 @@
                   ball.y < br.y + br.h
                 ) {
                   b.score += br.pts * b.mult;
-                  if (inputX != null) $userScore.textContent = b.score;
                   if (br.type === 'explosive') {
                     br.alive = false;
                     for (const nb of b.bricks) {
@@ -802,7 +793,6 @@
                       ) {
                         nb.alive = false;
                         b.score += nb.pts * b.mult;
-                        if (inputX != null) $userScore.textContent = b.score;
                       }
                     }
                     if (!ball.fire) ball.vy *= -1;
@@ -850,21 +840,24 @@
             for (let i = 0; i < n; i++) states.push(createBoardState(i));
             const players = [];
             for (let i = 0; i < n; i++) {
+              const playerTgId = i === n - 1 ? userTgId : tgIds[i];
+              const playerAccount = i === n - 1 ? userAccount : accounts[i];
               let avatar = i === n - 1 ? userAvatar || avatars[i] : avatars[i];
-              let name = i === n - 1 ? userName : names[i];
-              if (!name && (tgIds[i] || accounts[i])) {
-                name = await fetchPlayerName(tgIds[i], accounts[i]);
+              let name;
+              if (playerTgId || playerAccount) {
+                name = await fetchPlayerName(playerTgId, playerAccount);
               }
-              if (!avatar) {
+              if (!name && i === n - 1) name = userName;
+              if (!avatar || !name) {
                 const flag = choice(FLAG_EMOJIS);
-                avatar = flagToDataUri(flag);
+                if (!avatar) avatar = flagToDataUri(flag);
                 if (!name) name = flagToName(flag);
               }
               players.push({
                 name: name || `P${i + 1}`,
                 avatar,
-                accountId: i === n - 1 ? userAccount : accounts[i],
-                telegramId: i === n - 1 ? userTgId : tgIds[i]
+                accountId: playerAccount,
+                telegramId: playerTgId
               });
             }
             document.getElementById('userLabel').textContent =
