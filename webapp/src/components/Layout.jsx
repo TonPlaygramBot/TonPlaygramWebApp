@@ -79,7 +79,8 @@ export default function Layout({ children }) {
     try {
       const playerId = getPlayerId();
       function ping() {
-        pingOnline(playerId).catch(() => {});
+        const status = localStorage.getItem('onlineStatus') || 'online';
+        pingOnline(playerId, status).catch(() => {});
       }
       ping();
       id = setInterval(ping, 30000);

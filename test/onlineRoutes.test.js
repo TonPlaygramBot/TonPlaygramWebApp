@@ -38,7 +38,7 @@ test('online routes reflect pinged users', { concurrency: false }, async () => {
     const pingRes = await fetch('http://localhost:3202/api/online/ping', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ accountId: 'player1' })
+      body: JSON.stringify({ playerId: 'player1', status: 'online' })
     });
     assert.equal(pingRes.status, 200);
     const ping = await pingRes.json();
@@ -52,7 +52,7 @@ test('online routes reflect pinged users', { concurrency: false }, async () => {
     const listRes = await fetch('http://localhost:3202/api/online/list');
     assert.equal(listRes.status, 200);
     const list = await listRes.json();
-    assert.deepEqual(list.users, ['player1']);
+    assert.deepEqual(list.users, [{ id: 'player1', status: 'online' }]);
   } finally {
     server.kill();
   }

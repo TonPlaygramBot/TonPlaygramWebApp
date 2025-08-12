@@ -9,6 +9,7 @@ import {
   fetchTelegramInfo,
   getProfile,
   getWatchCount,
+  pingOnline,
 } from '../utils/api.js';
 import { getAvatarUrl, saveAvatar, loadAvatar } from '../utils/avatarUtils.js';
 import { socket } from '../utils/socket.js';
@@ -40,7 +41,10 @@ export default function LeaderboardCard() {
   const [inviteTarget, setInviteTarget] = useState(null);
   const [stake, setStake] = useState({ token: 'TPC', amount: 100 });
   const [myName, setMyName] = useState('');
-  const [onlineUsers, setOnlineUsers] = useState([]);
+  const [status, setStatus] = useState(
+    localStorage.getItem('onlineStatus') || 'online'
+  );
+  const [onlineUsers, setOnlineUsers] = useState({});
   const [onlineCount, setOnlineCount] = useState(0);
   const [watchCounts, setWatchCounts] = useState({});
   const [aiPlaying, setAiPlaying] = useState(false);
@@ -121,13 +125,28 @@ export default function LeaderboardCard() {
 
   useEffect(() => {
     function loadOnline() {
-      getOnlineUsers().then((d) => setOnlineUsers(d.users || []));
-      getOnlineCount().then((d) => setOnlineCount(d.count || 0));
+      getOnlineUsers()
+        .then((d) => {
+          const obj = {};
+          (d.users || []).forEach((u) => {
+            obj[String(u.id)] = u.status;
+          });
+          setOnlineUsers(obj);
+        })
+        .catch(() => {});
+      getOnlineCount()
+        .then((d) => setOnlineCount(d.count || 0))
+        .catch(() => {});
     }
     loadOnline();
     const id = setInterval(loadOnline, 30000);
     return () => clearInterval(id);
   }, []);
+
+  useEffect(() => {
+    localStorage.setItem('onlineStatus', status);
+    pingOnline(accountId, status).catch(() => {});
+  }, [status, accountId]);
 
   useEffect(() => {
     const checkAi = () =>
@@ -175,6 +194,15 @@ export default function LeaderboardCard() {
                 Invite {selected.length}/3
               </button>
             )}
+            <select
+              value={status}
+              onChange={(e) => setStatus(e.target.value)}
+              className="bg-surface border border-border rounded text-sm"
+            >
+              <option value="online">Online</option>
+              <option value="busy">Busy</option>
+              <option value="offline">Offline</option>
+            </select>
             <FaCircle
               className={onlineCount > 0 ? 'text-green-500' : 'text-red-500'}
               size={10}
@@ -238,9 +266,18 @@ export default function LeaderboardCard() {
                         />
                       )}
                       {u.nickname || `${u.firstName} ${u.lastName}`.trim() || 'User'}
-                      {onlineUsers.includes(String(u.accountId)) && (
-                        <FaCircle className="ml-1 text-green-500" size={8} />
-                      )}
+                      {(() => {
+                        const userStatus = u.currentTableId
+                          ? 'playing'
+                          : onlineUsers[String(u.accountId)];
+                        if (userStatus === 'online')
+                          return <FaCircle className="ml-1 text-green-500" size={8} />;
+                        if (userStatus === 'busy')
+                          return <FaCircle className="ml-1 text-orange-500" size={8} />;
+                        if (userStatus === 'playing')
+                          return <FaCircle className="ml-1 text-red-500" size={8} />;
+                        return null;
+                      })()}
                     </div>
                     {u.currentTableId && (
                       <div className="flex items-center mt-1 text-xs space-x-1">
@@ -278,12 +315,28 @@ export default function LeaderboardCard() {
                   <td className="p-2 flex flex-col items-start">
                     <div className="flex items-center">
                       You
-                      {onlineUsers.includes(String(accountId)) && (
-                        <FaCircle className="ml-1 text-green-500" size={8} />
-                      )}
+                      {(() => {
+                        const myTable = leaderboard.find(
+                          (u) => u.accountId === accountId
+                        )?.currentTableId;
+                        const myStatus = myTable
+                          ? 'playing'
+                          : aiPlaying
+                          ? 'playing'
+                          : onlineUsers[String(accountId)];
+                        if (myStatus === 'online')
+                          return <FaCircle className="ml-1 text-green-500" size={8} />;
+                        if (myStatus === 'busy')
+                          return <FaCircle className="ml-1 text-orange-500" size={8} />;
+                        if (myStatus === 'playing')
+                          return <FaCircle className="ml-1 text-red-500" size={8} />;
+                        return null;
+                      })()}
                     </div>
                     {(() => {
-                      const myTable = leaderboard.find((u) => u.accountId === accountId)?.currentTableId;
+                      const myTable = leaderboard.find(
+                        (u) => u.accountId === accountId
+                      )?.currentTableId;
                       if (!aiPlaying && !myTable) return null;
                       return (
                         <div className="flex items-center mt-1 text-xs space-x-1">

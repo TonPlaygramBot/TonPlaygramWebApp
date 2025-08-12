@@ -420,32 +420,40 @@ function unseatTableSocket(accountId, tableId, socketId) {
 }
 
 app.post('/api/online/ping', (req, res) => {
-  const { accountId, playerId } = req.body || {};
+  const { accountId, playerId, status } = req.body || {};
   const id = accountId ?? playerId;
+  const stat = status || 'online';
   if (id) {
-    onlineUsers.set(String(id), Date.now());
+    if (stat === 'offline') onlineUsers.delete(String(id));
+    else
+      onlineUsers.set(String(id), { ts: Date.now(), status: stat });
   }
   const now = Date.now();
-  for (const [id, ts] of onlineUsers) {
-    if (now - ts > 60_000) onlineUsers.delete(id);
+  for (const [id, data] of onlineUsers) {
+    if (now - data.ts > 60_000) onlineUsers.delete(id);
   }
   res.json({ success: true });
 });
 
 app.get('/api/online/count', (req, res) => {
   const now = Date.now();
-  for (const [id, ts] of onlineUsers) {
-    if (now - ts > 60_000) onlineUsers.delete(id);
+  for (const [id, data] of onlineUsers) {
+    if (now - data.ts > 60_000) onlineUsers.delete(id);
   }
   res.json({ count: onlineUsers.size });
 });
 
 app.get('/api/online/list', (req, res) => {
   const now = Date.now();
-  for (const [id, ts] of onlineUsers) {
-    if (now - ts > 60_000) onlineUsers.delete(id);
+  for (const [id, data] of onlineUsers) {
+    if (now - data.ts > 60_000) onlineUsers.delete(id);
   }
-  res.json({ users: Array.from(onlineUsers.keys()) });
+  res.json({
+    users: Array.from(onlineUsers.entries()).map(([id, data]) => ({
+      id,
+      status: data.status
+    }))
+  });
 });
 
 app.get('/api/stats', async (req, res) => {
@@ -724,7 +732,8 @@ io.on('connection', (socket) => {
     set.add(socket.id);
     socket.data.playerId = String(playerId);
     // Mark this user as online immediately
-    onlineUsers.set(String(playerId), Date.now());
+    const prev = onlineUsers.get(String(playerId))?.status || 'online';
+    onlineUsers.set(String(playerId), { ts: Date.now(), status: prev });
   });
 
   socket.on(
@@ -808,7 +817,8 @@ io.on('connection', (socket) => {
       if (map.size === 0) tableSeats.delete(roomId);
     }
     if (playerId) {
-      onlineUsers.set(String(playerId), Date.now());
+      const prev = onlineUsers.get(String(playerId))?.status || 'online';
+      onlineUsers.set(String(playerId), { ts: Date.now(), status: prev });
       // Track the user's current table when they actually join a room
       User.updateOne({ accountId: playerId }, { currentTableId: roomId }).catch(
         () => {}

@@ -564,7 +564,8 @@ export default function SnakeAndLadder() {
   useEffect(() => {
     const id = getPlayerId();
     function ping() {
-      pingOnline(id).catch(() => {});
+      const status = localStorage.getItem('onlineStatus') || 'online';
+      pingOnline(id, status).catch(() => {});
     }
     ping();
     const t = setInterval(ping, 30000);
