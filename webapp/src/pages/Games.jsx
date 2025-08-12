@@ -34,6 +34,10 @@ export default function Games() {
                 <img src="/assets/icons/bubble_pop.svg" alt="" className="h-24 w-24" />
                 <h3 className="text-lg font-bold">Bubble Pop Royale</h3>
               </Link>
+              <Link to="/games/bubblesmashroyale/lobby" className="flex flex-col items-center space-y-1">
+                <img src="/assets/icons/bubble_smash.svg" alt="" className="h-24 w-24" />
+                <h3 className="text-lg font-bold">Bubble Smash Royale</h3>
+              </Link>
               <Link to="/games/tetrisroyale/lobby" className="flex flex-col items-center space-y-1">
                 <img src="/assets/icons/tetris.svg" alt="" className="h-24 w-24" />
                 <h3 className="text-lg font-bold">Tetris Royale</h3>

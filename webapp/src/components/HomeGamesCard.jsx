@@ -48,6 +48,13 @@ export default function HomeGamesCard() {
               className="w-24 h-24"
             />
           </Link>
+          <Link to="/games/bubblesmashroyale/lobby" className="flex-shrink-0">
+            <img
+              src="/assets/icons/bubble_smash.svg"
+              alt="Bubble Smash Royale"
+              className="w-24 h-24"
+            />
+          </Link>
         </div>
       <Link
         to="/games"
