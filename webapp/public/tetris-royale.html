@@ -23,16 +23,21 @@
   .layout{display:grid;grid-template-rows:25vh 1fr;gap:10px;flex:1;min-height:0}
   .top{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
   .mini{position:relative;border:1px solid #223063;background:linear-gradient(180deg,#0f1530,#0a0f24);border-radius:12px;padding:8px;display:flex;flex-direction:column;align-items:center}
-  .mini h3{margin:0 0 6px 0;font-size:12px;color:var(--muted)}
+  .mini .oppBar{width:100%;display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:4px}
+  .mini .oppInfo{display:flex;flex-direction:column;align-items:flex-start}
+  .mini .oppName{margin:0;font-size:12px;color:var(--muted)}
+  .mini .oppInfo .avatar{margin-top:4px;width:24px;height:24px}
+  .mini .oppScore{font-size:12px}
   .mini canvas{flex:1;width:100%;height:100%;background:#0e1430;border-radius:8px;image-rendering:pixelated}
   .userWrap{position:relative;border:1px solid #223063;background:linear-gradient(180deg,#0f1530,#0a0f24);border-radius:14px;padding:10px;display:flex;flex-direction:column;min-height:0}
   .userBar{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:8px}
-  .userInfo{display:flex;align-items:center;gap:8px}
+  .userInfo{display:flex;flex-direction:column;align-items:center;gap:4px}
   .userWrap h3{margin:0;font-size:13px;color:var(--muted)}
   #user{flex:1;width:100%;height:100%;background:#0e1430;border-radius:10px;touch-action:none;image-rendering:pixelated}
   .avatar{width:32px;height:32px;border-radius:50%}
-  .mini .avatar{margin-bottom:6px}
-  .userInfo .avatar{margin-right:0}
+  .mini .avatar{margin-bottom:0}
+  .userInfo .avatar{margin-top:4px}
+  .scorePanel{flex-direction:column;align-items:center;justify-content:center}
   .countdown{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;font-size:48px;font-weight:bold;color:#fff;background:rgba(0,0,0,0.5);z-index:50}
   .countdown.hidden{display:none}
   .toast{position:fixed;left:50%;transform:translateX(-50%);bottom:16px;background:#0d1536;border:1px solid #223063;border-radius:10px;padding:8px 12px;font-size:13px;opacity:0;transition:opacity .2s}
@@ -55,20 +60,37 @@
   <div id="countdown" class="countdown hidden"></div>
   <div class="layout">
     <div class="top">
-      <div class="mini"><h3>P1</h3><img src="assets/icons/profile.svg" alt="" class="avatar"/><canvas id="opp1"></canvas></div>
-      <div class="mini"><h3>P2</h3><img src="assets/icons/profile.svg" alt="" class="avatar"/><canvas id="opp2"></canvas></div>
-      <div class="mini"><h3>P3</h3><img src="assets/icons/profile.svg" alt="" class="avatar"/><canvas id="opp3"></canvas></div>
+      <div class="mini">
+        <div class="oppBar">
+          <div class="oppInfo"><h3 class="oppName">P1</h3><img src="assets/icons/profile.svg" alt="" class="avatar"/></div>
+          <span class="score oppScore">0</span>
+        </div>
+        <canvas id="opp1"></canvas>
+      </div>
+      <div class="mini">
+        <div class="oppBar">
+          <div class="oppInfo"><h3 class="oppName">P2</h3><img src="assets/icons/profile.svg" alt="" class="avatar"/></div>
+          <span class="score oppScore">0</span>
+        </div>
+        <canvas id="opp2"></canvas>
+      </div>
+      <div class="mini">
+        <div class="oppBar">
+          <div class="oppInfo"><h3 class="oppName">P3</h3><img src="assets/icons/profile.svg" alt="" class="avatar"/></div>
+          <span class="score oppScore">0</span>
+        </div>
+        <canvas id="opp3"></canvas>
+      </div>
     </div>
     <div class="userWrap">
       <div class="userBar">
         <div class="userInfo">
-          <img src="assets/icons/profile.svg" alt="" class="avatar" id="userAvatar"/>
           <h3 id="username">USER</h3>
+          <img src="assets/icons/profile.svg" alt="" class="avatar" id="userAvatar"/>
         </div>
         <div class="hud">
           <div class="panel"><strong>Time</strong><span id="time" class="timer">03:00</span></div>
-          <div class="panel"><strong>Pot (TPC)</strong><span id="pot" class="score">0</span></div>
-          <div class="panel"><strong>Your score</strong><span id="myscore" class="score">0</span></div>
+          <div class="panel scorePanel"><strong>Your score</strong><span id="myscore" class="score">0</span></div>
         </div>
       </div>
       <canvas id="user"></canvas>
@@ -137,6 +159,12 @@ window.__TETRIS_ROYALE__ = true;
   function emojiToDataUri(flag){
     return `data:image/svg+xml,${encodeURIComponent(`<svg xmlns='http://www.w3.org/2000/svg' width='64' height='64'><text x='50%' y='50%' font-size='48' text-anchor='middle' dominant-baseline='central'>${flag}</text></svg>`)}`;
   }
+  const regionNames = new Intl.DisplayNames(['en'], { type: 'region' });
+  function flagName(flag){
+    const pts = [...flag].map(c=>c.codePointAt(0)-127397);
+    const code = String.fromCharCode(...pts);
+    return regionNames.of(code) || flag;
+  }
   function coinConfetti(count=50, iconSrc='/assets/icons/file_000000005f0c61f48998df883554c3e8 (2).webp'){
     for(let i=0;i<count;i++){
       const img=document.createElement('img');
@@ -165,6 +193,7 @@ window.__TETRIS_ROYALE__ = true;
   accounts[n-1] = accountId;
   tgIds[n-1] = tgId;
   const playerAvatars = Array(n).fill('');
+  const playerNames = Array(n).fill('');
 
   function createEmpty(){ return Array.from({length:ROWS},()=>Array(COLS).fill(0)); }
   function randomShape(){ const keys = Object.keys(SHAPES); const k = keys[(Math.random()*keys.length)|0]; return SHAPES[k].map(r=>r.slice()); }
@@ -253,7 +282,16 @@ window.__TETRIS_ROYALE__ = true;
     }
     if(active){
       const {piece,pos,color} = active;
+      let gy = pos.y;
+      while(!collide(board, piece, {x:pos.x, y:gy+1})) gy++;
       ctx.fillStyle = color;
+      ctx.globalAlpha = 0.3;
+      for(let y=0;y<piece.length;y++){
+        for(let x=0;x<piece[y].length;x++){
+          if(piece[y][x]) ctx.fillRect((pos.x+x)*bw, (gy+y)*bh, bw-1, bh-1);
+        }
+      }
+      ctx.globalAlpha = 1;
       for(let y=0;y<piece.length;y++){
         for(let x=0;x<piece[y].length;x++){
           if(piece[y][x]) ctx.fillRect((pos.x+x)*bw, (pos.y+y)*bh, bw-1, bh-1);
@@ -330,10 +368,15 @@ window.__TETRIS_ROYALE__ = true;
         start.x = px;
       }
       const dy = py - start.y;
-      if(dy > r.height/30){
-        game.pos.y += 1;
-        if(collide(game.board, game.piece, game.pos)) game.pos.y -= 1;
-        start.y = py;
+      const rowH = r.height / ROWS;
+      const moveRows = Math.floor(dy / rowH);
+      if(moveRows !== 0){
+        const dir = Math.sign(moveRows);
+        for(let i=0;i<Math.abs(moveRows);i++){
+          game.pos.y += dir;
+          if(collide(game.board, game.piece, game.pos)){ game.pos.y -= dir; break; }
+        }
+        start.y += moveRows * rowH;
       }
     });
     canvas.addEventListener('pointerup', e=>{
@@ -369,9 +412,11 @@ window.__TETRIS_ROYALE__ = true;
   const canvases = { user: $('#user'), opp1: $('#opp1'), opp2: $('#opp2'), opp3: $('#opp3') };
   const avatarEls = document.querySelectorAll('.avatar');
   const miniWraps = document.querySelectorAll('.top .mini');
+  const oppNameEls = document.querySelectorAll('.oppName');
+  const oppScoreEls = document.querySelectorAll('.oppScore');
   $('#username').textContent = userName;
   const ui = {
-    time: $('#time'), pot: $('#pot'), myscore: $('#myscore'),
+    time: $('#time'), myscore: $('#myscore'),
     results: $('#results'), winner: $('#winner'),
     payout: $('#payout'), fee: $('#fee'), potFinal: $('#potFinal'),
     scoreList: $('#scoreList'), rematch: $('#rematch'), lobby: $('#lobby')
@@ -383,8 +428,11 @@ window.__TETRIS_ROYALE__ = true;
   for(let i=0;i<n-1;i++){
     const flag = FLAG_EMOJIS[(Math.random()*FLAG_EMOJIS.length)|0];
     const uri = emojiToDataUri(flag);
+    const name = flagName(flag);
     if(avatarEls[i]) avatarEls[i].src = uri;
+    if(oppNameEls[i]) oppNameEls[i].textContent = name;
     playerAvatars[i] = uri;
+    playerNames[i] = name;
     if(miniWraps[i]) miniWraps[i].style.display='flex';
   }
   for(let i=n-1;i<3;i++){ if(miniWraps[i]) miniWraps[i].style.display='none'; }
@@ -395,13 +443,13 @@ window.__TETRIS_ROYALE__ = true;
   }
   avatarEls[3].src = userAvatar;
   playerAvatars[n-1] = userAvatar;
+  playerNames[n-1] = userName;
 
   function layoutCanvases(){
     Object.values(canvases).forEach(c=>{ if(!c) return; const r=c.getBoundingClientRect(); c.width=r.width; c.height=r.height; });
   }
   function startMatch(){
     layoutCanvases();
-    ui.pot.textContent = String(stake * n);
     ui.time.textContent = fmt(durSec);
     games = [];
     const oppSlots = [canvases.opp1, canvases.opp2, canvases.opp3];
@@ -425,7 +473,10 @@ window.__TETRIS_ROYALE__ = true;
       games[i].step(dt);
       games[i].draw();
     }
-    if(botTimer > 450){ for(let i=0;i<games.length-1;i++) botTick(games[i]); botTimer = 0; }
+    if(botTimer > 1000){ for(let i=0;i<games.length-1;i++) botTick(games[i]); botTimer = 0; }
+    for(let i=0;i<games.length-1;i++){
+      if(oppScoreEls[i]) oppScoreEls[i].textContent = String(games[i].score);
+    }
     ui.myscore.textContent = String(games[games.length-1].score);
     updateTimer();
     rafId = requestAnimationFrame(loop);
@@ -433,15 +484,15 @@ window.__TETRIS_ROYALE__ = true;
   async function finish(){
     if(!running) return; running=false; if(rafId) cancelAnimationFrame(rafId);
     const gross = stake * n; const fee = Math.round(gross*0.10); const net = gross - fee;
-    const scores = games.map((g,i)=>({i,score:g.score}));
+    const scores = games.map((g,i)=>({i,score:g.score,name:playerNames[i]}));
     const max = Math.max(...scores.map(s=>s.score));
     const winners = scores.filter(s=>s.score===max);
     const payout = winners.length? Math.floor(net / winners.length) : 0;
-    ui.winner.textContent = winners.length>1 ? `Tie (${winners.map(w=>'P'+(w.i+1)).join(', ')})` : `P${winners[0].i+1}`;
+    ui.winner.textContent = winners.length>1 ? `Tie (${winners.map(w=>w.name).join(', ')})` : winners[0].name;
     ui.payout.textContent = String(payout);
     ui.fee.textContent = String(fee);
     ui.potFinal.textContent = String(net);
-    ui.scoreList.innerHTML = scores.sort((a,b)=>b.score-a.score).map(s=>`<div class="kpi"><div class="v">P${s.i+1}: ${s.score}</div><div>—</div></div>`).join('');
+    ui.scoreList.innerHTML = scores.sort((a,b)=>b.score-a.score).map(s=>`<div class="kpi"><div class="v">${s.name}: ${s.score}</div><div>—</div></div>`).join('');
     const overlay = $('#winnerOverlay');
     const avatar = playerAvatars[winners[0].i];
     if(avatar){ overlay.innerHTML = `<img src="${avatar}"/>`; overlay.classList.remove('hidden'); }
