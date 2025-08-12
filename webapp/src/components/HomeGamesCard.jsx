@@ -49,6 +49,13 @@ export default function HomeGamesCard() {
             <h3 className="text-sm font-semibold text-center">Brick Breaker Royale</h3>
           </Link>
           <Link
+            to="/games/fruitsliceroyale/lobby"
+            className="flex flex-col items-center space-y-1 border border-border rounded-lg p-2 flex-shrink-0"
+          >
+            <img src="/assets/icons/fruit_slice.svg" alt="" className="h-20 w-20" />
+            <h3 className="text-sm font-semibold text-center">Fruit Slice Royale</h3>
+          </Link>
+          <Link
             to="/games/bubblepoproyale/lobby"
             className="flex flex-col items-center space-y-1 border border-border rounded-lg p-2 flex-shrink-0"
           >

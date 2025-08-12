@@ -69,6 +69,11 @@ export default function InvitePopup({
                     alt: 'Brick Breaker Royale',
                   },
                   {
+                    id: 'fruitsliceroyale',
+                    src: '/assets/icons/fruit_slice.svg',
+                    alt: 'Fruit Slice Royale',
+                  },
+                  {
                     id: 'bubblepoproyale',
                     src: '/assets/icons/bubble_pop.svg',
                     alt: 'Bubble Pop Royale',
