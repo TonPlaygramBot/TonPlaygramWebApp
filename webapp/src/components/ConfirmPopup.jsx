@@ -1,7 +1,14 @@
 import React from 'react';
 import { createPortal } from 'react-dom';
 
-export default function ConfirmPopup({ open, message, onConfirm, onCancel }) {
+export default function ConfirmPopup({
+  open,
+  message,
+  onConfirm,
+  onCancel,
+  confirmLabel = 'Yes',
+  cancelLabel = 'No',
+}) {
   if (!open) return null;
   return createPortal(
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-70">
@@ -13,14 +20,14 @@ export default function ConfirmPopup({ open, message, onConfirm, onCancel }) {
             onClick={onConfirm}
             className="flex-1 lobby-tile text-sm cursor-pointer"
           >
-            Yes
+            {confirmLabel}
           </button>
           <button
             type="button"
             onClick={onCancel}
             className="flex-1 lobby-tile text-sm cursor-pointer"
           >
-            No
+            {cancelLabel}
           </button>
         </div>
       </div>

@@ -948,9 +948,11 @@ export default function CrazyDiceDuel() {
       />
       <ConfirmPopup
         open={showLobbyConfirm}
-        message="Quit the game? If you leave, your funds will be lost and you'll be placed last."
+        message="Your funds will be lost if you quit the game."
+        confirmLabel="Return to Lobby"
+        cancelLabel="Games"
         onConfirm={() => navigate('/games/crazydice/lobby')}
-        onCancel={() => setShowLobbyConfirm(false)}
+        onCancel={() => navigate('/games')}
       />
       </div>
     </div>
