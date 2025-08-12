@@ -58,37 +58,37 @@ export default function InvitePopup({
                     src: '/assets/icons/Crazy_Dice_Duel_Promo.webp',
                     alt: 'Crazy Dice Duel',
                   },
-                  {
-                    id: 'fallingball',
-                    src: '/assets/icons/falling_ball.svg',
-                    alt: 'Falling Ball',
-                  },
-                  {
-                    id: 'brickbreaker',
-                    src: '/assets/icons/brick_breaker.svg',
-                    alt: 'Brick Breaker Royale',
-                  },
-                  {
-                    id: 'fruitsliceroyale',
-                    src: '/assets/icons/fruit_slice.svg',
-                    alt: 'Fruit Slice Royale',
-                  },
-                  {
-                    id: 'bubblepoproyale',
-                    src: '/assets/icons/bubble_pop.svg',
-                    alt: 'Bubble Pop Royale',
-                  },
-                  {
-                    id: 'bubblesmashroyale',
-                    src: '/assets/icons/bubble_smash.svg',
-                    alt: 'Bubble Smash Royale',
-                  },
-                  {
-                    id: 'airhockey',
-                    src: '/assets/icons/air_hockey.svg',
-                    alt: 'Air Hockey',
-                  },
-                ].map((g) => (
+                {
+                  id: 'fallingball',
+                  src: '/assets/icons/Falling Ball .png',
+                  alt: 'Falling Ball',
+                },
+                {
+                  id: 'brickbreaker',
+                  src: '/assets/icons/Brick Breaker Royale .png',
+                  alt: 'Brick Breaker Royale',
+                },
+                {
+                  id: 'fruitsliceroyale',
+                  src: '/assets/icons/Fruit Slice Royale .png',
+                  alt: 'Fruit Slice Royale',
+                },
+                {
+                  id: 'bubblepoproyale',
+                  src: '/assets/icons/Bubble Pop Royale .png',
+                  alt: 'Bubble Pop Royale',
+                },
+                {
+                  id: 'bubblesmashroyale',
+                  src: '/assets/icons/Bubble Smash Royale .png',
+                  alt: 'Bubble Smash Royale',
+                },
+                {
+                  id: 'airhockey',
+                  src: '/assets/icons/Air Hockey .png',
+                  alt: 'Air Hockey',
+                },
+              ].map((g) => (
                   <img
                     key={g.id}
                     src={g.src}
