@@ -18,8 +18,8 @@
   select,button,input{width:100%;padding:10px 12px;border-radius:10px;border:1px solid #223063;background:#0e1430;color:#e7eefc}
   .btn{background:linear-gradient(180deg,#2a6cf0,#2156c8);border:none;font-weight:700;cursor:pointer}
 
-  .hud{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
-  .panel{border:1px solid #223063;background:#0b1228;border-radius:12px;padding:10px;display:flex;align-items:center;justify-content:space-between}
+  .hud{display:flex;gap:8px}
+  .panel{flex:1;border:1px solid #223063;background:#0b1228;border-radius:12px;padding:10px;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:4px}
   .score{color:var(--gold);font-weight:800}
   .timer{font-variant-numeric:tabular-nums;font-weight:800}
 
@@ -30,10 +30,11 @@
   .mini canvas{flex:1;width:100%;height:100%;background:#0e1430;border-radius:8px}
 
   .userWrap{position:relative;border:1px solid #223063;background:linear-gradient(180deg,#0f1530,#0a0f24);border-radius:14px;padding:10px;display:flex;flex-direction:column;min-height:0}
-  .userWrap h3{margin:0 0 8px 0;font-size:13px;color:var(--muted);display:flex;align-items:center;gap:8px}
+  .userHeader{display:flex;align-items:center;gap:8px;margin-bottom:8px}
+  .userWrap h3{margin:0;font-size:13px;color:var(--muted)}
   #user{flex:1;width:100%;height:100%;background:#0e1430;border-radius:10px;touch-action:none}
-
-  .mute{position:fixed;right:12px;bottom:12px;background:#0f1736;border:1px solid #223063;border-radius:10px;padding:8px 10px;cursor:pointer}
+  .overlayButtons{position:absolute;left:10px;bottom:10px;display:flex;gap:8px}
+  .small{padding:8px 10px;border-radius:10px;border:1px solid #223063;background:#15204a;color:#e7eefc;font-size:12px;cursor:pointer}
   dialog{border:none;border-radius:16px;background:#0d1330;color:#e7eefc;max-width:520px;width:calc(100% - 24px)}
   .modal{padding:16px;border:1px solid #223063;border-radius:16px;background:linear-gradient(180deg,#0f1736,#0b1126)}
   .grid{display:grid;gap:10px}
@@ -44,46 +45,6 @@
 </head>
 <body>
 <div class="app">
-  <header>
-    <div style="display:flex;align-items:center;gap:10px">
-      <h1 style="margin:0;font-size:18px">Fruit Slice Royale</h1>
-      <span class="badge">Local test • TPC only</span>
-    </div>
-    <button id="mute" class="mute">🔊</button>
-  </header>
-
-  <div class="controls">
-    <div>
-      <label>Players</label>
-      <select id="players">
-        <option value="2">2 players</option>
-        <option value="3">3 players</option>
-        <option value="4" selected>4 players</option>
-      </select>
-    </div>
-    <div>
-      <label>Duration</label>
-      <select id="duration">
-        <option value="60">1 min</option>
-        <option value="180" selected>3 min</option>
-        <option value="300">5 min</option>
-      </select>
-    </div>
-    <div>
-      <label>Stake per player (TPC)</label>
-      <input id="stake" type="number" value="300" min="0" step="50"/>
-    </div>
-    <div>
-      <button id="start" class="btn">Start Match</button>
-    </div>
-  </div>
-
-  <div class="hud">
-    <div class="panel"><strong>Time</strong><span id="time" class="timer">03:00</span></div>
-    <div class="panel"><strong>Pot (TPC)</strong><span id="pot" class="score">0</span></div>
-    <div class="panel"><strong>Your score</strong><span id="myscore" class="score">0</span></div>
-  </div>
-
   <div class="layout">
     <div class="top">
       <div class="mini"><h3>P1</h3><canvas id="opp1"></canvas></div>
@@ -91,8 +52,17 @@
       <div class="mini"><h3>P3</h3><canvas id="opp3"></canvas></div>
     </div>
     <div class="userWrap">
-      <h3>USER</h3>
+      <div class="userHeader">
+        <h3 id="playerName">USER</h3>
+        <div class="hud">
+          <div class="panel"><strong>Time</strong><span id="time" class="timer">03:00</span></div>
+          <div class="panel"><strong>Your score</strong><span id="myscore" class="score">0</span></div>
+        </div>
+      </div>
       <canvas id="user"></canvas>
+      <div class="overlayButtons">
+        <button id="soundBtn" class="small">🔊</button>
+      </div>
     </div>
   </div>
 </div>
@@ -110,8 +80,8 @@
     </div>
     <div class="grid" id="scoreList" style="margin-top:10px"></div>
     <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px">
-      <button class="btn" id="rematch">Rematch</button>
-      <button class="btn" id="change">Change settings</button>
+      <button class="btn" id="rematch">Play Again</button>
+      <button class="btn" id="change">Return to Lobby</button>
     </div>
   </div>
 </dialog>
@@ -120,6 +90,10 @@
 (function(){
   const $=s=>document.querySelector(s);
   const canvases={ user:$('#user'), opp1:$('#opp1'), opp2:$('#opp2'), opp3:$('#opp3') };
+  const params=new URLSearchParams(location.search);
+  let n=Math.max(2,Math.min(4,parseInt(params.get('players'),10)||4));
+  let stake=Math.max(0,parseInt(params.get('amount'),10)||300);
+  let durSec=Math.max(10,parseInt(params.get('duration'),10)||180);
   function fitCanvas(c){ const r=c.getBoundingClientRect(); c.width=Math.max(10,r.width); c.height=Math.max(10,r.height); }
 
   // ===== Audio =====
@@ -464,10 +438,6 @@
 
   function startMatch(){
     layout();
-    const n=Math.max(2,Math.min(4,parseInt($('#players').value,10)||4));
-    const stake=Math.max(0,parseInt($('#stake').value||'0',10));
-    const durSec=Math.max(10,parseInt($('#duration').value,10)||180);
-    $('#pot').textContent=String(stake*n);
     $('#time').textContent=fmt(durSec);
 
     games.length=0;
@@ -493,7 +463,6 @@
   }
   function finish(){
     if(!running) return; running=false; if(raf) cancelAnimationFrame(raf);
-    const n=games.length; const stake=Math.max(0,parseInt($('#stake').value||'0',10));
     const gross=stake*n; const fee=Math.round(gross*0.10); const net=gross-fee;
     const scores=games.map((g,i)=>({i,score:g.score}));
     const max=Math.max(...scores.map(s=>s.score));
@@ -507,13 +476,13 @@
   }
 
   // Bindings
-  $('#start').addEventListener('click', startMatch);
   $('#rematch').addEventListener('click', ()=>{ $('#results').close(); startMatch(); });
-  $('#change').addEventListener('click', ()=>{ $('#results').close(); });
-  $('#mute').addEventListener('click', ()=>{ muted=!muted; $('#mute').textContent=muted?'🔇':'🔊'; if(!muted) ensureAudio(); });
+  $('#change').addEventListener('click', ()=>{ $('#results').close(); location.href='/games/fruitsliceroyale/lobby'; });
+  $('#soundBtn').addEventListener('click', ()=>{ muted=!muted; $('#soundBtn').textContent=muted?'🔇':'🔊'; if(!muted) ensureAudio(); });
 
   window.addEventListener('resize', layout);
   layout();
+  startMatch();
 })();
 </script>
 </body>
