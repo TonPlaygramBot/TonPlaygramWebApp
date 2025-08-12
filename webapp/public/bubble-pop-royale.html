@@ -225,7 +225,17 @@ window.__BUBBLE_ROYALE_POWER__ = true;
       ctx.fillText(special, x, y+1);
     }
   }
-  function fitCanvas(c){ const r=c.getBoundingClientRect(); c.width=r.width; c.height=r.height; }
+  function fitCanvas(c){
+    const r = c.getBoundingClientRect();
+    const dpr = window.devicePixelRatio || 1;
+    c.style.width = r.width + 'px';
+    c.style.height = r.height + 'px';
+    c.width = Math.round(r.width * dpr);
+    c.height = Math.round(r.height * dpr);
+    const ctx = c.getContext('2d');
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    c.dpr = dpr;
+  }
   function createBubbleGame(canvas){
     const ctx = canvas.getContext('2d');
     fitCanvas(canvas);
@@ -241,7 +251,9 @@ window.__BUBBLE_ROYALE_POWER__ = true;
       cooldown:0
     };
     function bubble(color, special=null){ return {color, special}; }
-    function recomputeCell(){ game.cell.w = canvas.width / GRID_COLS; game.cell.h = game.cell.w; game.cell.r = game.cell.w*0.48; }
+    const cw = () => canvas.width / (canvas.dpr || 1);
+    const ch = () => canvas.height / (canvas.dpr || 1);
+    function recomputeCell(){ const w = cw(); game.cell.w = w / GRID_COLS; game.cell.h = game.cell.w; game.cell.r = game.cell.w*0.48; }
     function seedRows(rows=4){ for(let y=0;y<rows;y++){ for(let x=0;x<GRID_COLS;x++){ if(Math.random() < 0.75){ const col = randColor(); const sp = chance(SPECIAL_RATE_SEED) ? SPECIALS[(Math.random()*SPECIALS.length)|0] : null; game.grid[y][x] = bubble(col, sp); } } } }
     function worldToCell(x,y){ return { cx: Math.round(x / game.cell.w - 0.5), cy: Math.round(y / game.cell.h - 0.5) }; }
     function cellToWorld(cx,cy){ return { x: (cx+0.5)*game.cell.w, y: (cy+0.5)*game.cell.h }; }
@@ -252,7 +264,7 @@ window.__BUBBLE_ROYALE_POWER__ = true;
     function floodSame(startCx,startCy,color){ const seen = new Set(); const q = [[startCx,startCy]]; const cluster = []; while(q.length){ const [cx,cy] = q.shift(); const key = cx+','+cy; if(seen.has(key)) continue; seen.add(key); if(!validCell(cx,cy)) continue; const cell = game.grid[cy][cx]; if(!cell || cell.color !== color || cell.special) continue; cluster.push([cx,cy]); for(const [nx,ny] of neighbors(cx,cy)) q.push([nx,ny]); } return cluster; }
     function removeFloating(){ const seen = new Set(); const stack = []; for(let x=0;x<GRID_COLS;x++){ if(game.grid[0][x]) stack.push([x,0]); } while(stack.length){ const [cx,cy] = stack.pop(); const k=cx+','+cy; if(seen.has(k)) continue; seen.add(k); for(const [nx,ny] of neighbors(cx,cy)){ if(validCell(nx,ny) && game.grid[ny][nx]) stack.push([nx,ny]); } } let removed = 0; for(let y=0;y<GRID_ROWS;y++){ for(let x=0;x<GRID_COLS;x++){ if(game.grid[y][x] && !seen.has(x+','+y)){ game.grid[y][x]=null; removed++; } } } return removed; }
     function triggerSpecial(cx,cy,kind){ let removed = 0; if(kind==='H'){ for(let x=0;x<GRID_COLS;x++){ if(game.grid[cy][x]){ game.grid[cy][x]=null; removed++; } } S.clear(); } else if(kind==='V'){ for(let y=0;y<GRID_ROWS;y++){ if(game.grid[y][cx]){ game.grid[y][cx]=null; removed++; } } S.clear(); } else if(kind==='B'){ for(let y=cy-1;y<=cy+1;y++){ for(let x=cx-1;x<=cx+1;x++){ if(validCell(x,y) && game.grid[y][x]){ game.grid[y][x]=null; removed++; } } } S.clear(); } game.score += removed * POP_SCORE; return removed; }
-    function launchToward(targetX, targetY){ if(game.cur.active || game.over) return; const ox = canvas.width/2, oy = canvas.height - game.cell.r - 2; let ang = Math.atan2(targetY - oy, targetX - ox); ang = clamp(ang, MIN_ANGLE, MAX_ANGLE); game.cur.x = ox; game.cur.y = oy; game.cur.vx = Math.cos(ang)*LAUNCH_SPEED; game.cur.vy = Math.sin(ang)*LAUNCH_SPEED; if(!game.cur.bubble) game.cur.bubble = game.nextBubble || bubble(randColor(), chance(SPECIAL_RATE_NEXT)?SPECIALS[(Math.random()*3)|0]:null); game.cur.active = true; S.launch(); }
+    function launchToward(targetX, targetY){ if(game.cur.active || game.over) return; const ox = cw()/2, oy = ch() - game.cell.r - 2; let ang = Math.atan2(targetY - oy, targetX - ox); ang = clamp(ang, MIN_ANGLE, MAX_ANGLE); game.cur.x = ox; game.cur.y = oy; game.cur.vx = Math.cos(ang)*LAUNCH_SPEED; game.cur.vy = Math.sin(ang)*LAUNCH_SPEED; if(!game.cur.bubble) game.cur.bubble = game.nextBubble || bubble(randColor(), chance(SPECIAL_RATE_NEXT)?SPECIALS[(Math.random()*3)|0]:null); game.cur.active = true; S.launch(); }
     function swapBubble(){ const next = game.nextBubble || bubble(randColor(), chance(SPECIAL_RATE_NEXT)?SPECIALS[(Math.random()*3)|0]:null); const curColor = game.cur.bubble ? game.cur.bubble.color : randColor(); const curSpecial = game.cur.bubble ? game.cur.bubble.special : null; game.nextBubble = { color: curColor, special: curSpecial }; game.cur.bubble = bubble(next.color, next.special); S.swap(); showToast('Swapped'); }
     function step(dt){
       if(game.over) return;
@@ -265,7 +277,7 @@ window.__BUBBLE_ROYALE_POWER__ = true;
           game.cur.x += game.cur.vx * stepDt;
           game.cur.y += game.cur.vy * stepDt;
           if(game.cur.x - r < 0){ game.cur.x = r; game.cur.vx = Math.abs(game.cur.vx)*BOUNCE_DAMP; S.bounce(); }
-          if(game.cur.x + r > canvas.width){ game.cur.x = canvas.width - r; game.cur.vx = -Math.abs(game.cur.vx)*BOUNCE_DAMP; S.bounce(); }
+          if(game.cur.x + r > cw()){ game.cur.x = cw() - r; game.cur.vx = -Math.abs(game.cur.vx)*BOUNCE_DAMP; S.bounce(); }
           const col = collidesAny(game.cur.x, game.cur.y);
           if(col.hit || game.cur.y - r <= 0){
             const bub = game.cur.bubble || bubble(randColor(), null);
@@ -285,7 +297,7 @@ window.__BUBBLE_ROYALE_POWER__ = true;
               }
             }
             game.cur.active = false;
-            game.cur.bubble = null;
+            game.cur.bubble = game.nextBubble || bubble(randColor(), chance(SPECIAL_RATE_NEXT)?SPECIALS[(Math.random()*3)|0]:null);
             game.nextBubble = bubble(randColor(), chance(SPECIAL_RATE_NEXT)?SPECIALS[(Math.random()*3)|0]:null);
             for(let x=0;x<GRID_COLS;x++){ if(game.grid[GRID_ROWS-1][x]){ game.over = true; S.over(); break; } }
           }
@@ -293,7 +305,7 @@ window.__BUBBLE_ROYALE_POWER__ = true;
       }
     }
     function draw(){
-      ctx.clearRect(0,0,canvas.width,canvas.height);
+      ctx.clearRect(0,0,cw(),ch());
       for(let y=0;y<GRID_ROWS;y++){
         for(let x=0;x<GRID_COLS;x++){
           const cell = game.grid[y][x];
@@ -303,20 +315,20 @@ window.__BUBBLE_ROYALE_POWER__ = true;
         }
       }
       if(game.cur.active || game.cur.bubble){
-        const y = game.cur.active ? game.cur.y : (canvas.height - game.cell.r - 2);
-        const x = game.cur.active ? game.cur.x : (canvas.width/2);
+        const y = game.cur.active ? game.cur.y : (ch() - game.cell.r - 2);
+        const x = game.cur.active ? game.cur.x : (cw()/2);
         const b = game.cur.bubble || {color:COLORS[0], special:null};
         drawCartoonBubble(ctx, x, y, game.cell.r, b.color, b.special);
       }
       if(game.nextBubble){
         const nr = Math.min(game.cell.r, 24);
-        const nx = canvas.width - nr - 10;
-        const ny = canvas.height - nr - 10;
+        const nx = cw() - nr - 10;
+        const ny = ch() - nr - 10;
         drawCartoonBubble(ctx, nx, ny, nr, game.nextBubble.color, game.nextBubble.special);
       }
       if(game.isUser && game.over){
         ctx.fillStyle = 'rgba(0,0,0,0.45)';
-        ctx.fillRect(0,0,canvas.width,canvas.height);
+        ctx.fillRect(0,0,cw(),ch());
         ctx.fillStyle = '#e7eefc';
         ctx.font='bold 16px system-ui';
         ctx.fillText('Board filled!', 14, 28);
@@ -329,7 +341,7 @@ window.__BUBBLE_ROYALE_POWER__ = true;
     game.bindUserInput = bindUserInput;
     return game;
   }
-  function botStep(bot, dt){ if(bot.over) return; if(!bot.cur.active && bot.cooldown<=0){ const canvas = bot.__canvas; const bub = bot.cur.bubble || { color: COLORS[(Math.random()*COLORS.length)|0], special: Math.random()<0.05? ['H','V','B'][(Math.random()*3)|0] : null }; bot.cur.bubble = bub; let targetX, targetY; if(Math.random()<0.7){ const targets=[]; const dirs=[[1,0],[-1,0],[0,1],[0,-1],[1,1],[-1,-1]]; for(let y=0;y<GRID_ROWS;y++){ for(let x=0;x<GRID_COLS;x++){ const cell=bot.grid[y][x]; if(cell && cell.color===bub.color){ for(const [dx,dy] of dirs){ const nx=x+dx, ny=y+dy; if(nx>=0&&nx<GRID_COLS&&ny>=0&&ny<GRID_ROWS && !bot.grid[ny][nx]) targets.push({x:(nx+0.5)*bot.cell.w, y:(ny+0.5)*bot.cell.h}); } } } } if(targets.length){ const t=targets[(Math.random()*targets.length)|0]; targetX=t.x; targetY=t.y; } } if(targetX===undefined){ targetX=(Math.random()*canvas.width*0.9) + canvas.width*0.05; targetY=(Math.random()*canvas.height*0.4) + canvas.height*0.1; } const ox=canvas.width/2, oy=canvas.height - bot.cell.r - 2; let ang=Math.atan2(targetY - oy, targetX - ox); ang = clamp(ang, MIN_ANGLE, MAX_ANGLE); ang += (Math.random()-0.5)*0.1; bot.cur.x=ox; bot.cur.y=oy; bot.cur.vx=Math.cos(ang)*LAUNCH_SPEED; bot.cur.vy=Math.sin(ang)*LAUNCH_SPEED; bot.cur.active=true; bot.cooldown = 0.8 + Math.random()*0.7; } }
+  function botStep(bot, dt){ if(bot.over) return; if(!bot.cur.active && bot.cooldown<=0){ const canvas = bot.__canvas; const dpr = canvas.dpr || 1; const cw = canvas.width / dpr; const ch = canvas.height / dpr; const bub = bot.cur.bubble || { color: COLORS[(Math.random()*COLORS.length)|0], special: Math.random()<0.05? ['H','V','B'][(Math.random()*3)|0] : null }; bot.cur.bubble = bub; let targetX, targetY; if(Math.random()<0.7){ const targets=[]; const dirs=[[1,0],[-1,0],[0,1],[0,-1],[1,1],[-1,-1]]; for(let y=0;y<GRID_ROWS;y++){ for(let x=0;x<GRID_COLS;x++){ const cell=bot.grid[y][x]; if(cell && cell.color===bub.color){ for(const [dx,dy] of dirs){ const nx=x+dx, ny=y+dy; if(nx>=0&&nx<GRID_COLS&&ny>=0&&ny<GRID_ROWS && !bot.grid[ny][nx]) targets.push({x:(nx+0.5)*bot.cell.w, y:(ny+0.5)*bot.cell.h}); } } } } if(targets.length){ const t=targets[(Math.random()*targets.length)|0]; targetX=t.x; targetY=t.y; } } if(targetX===undefined){ targetX=(Math.random()*cw*0.9) + cw*0.05; targetY=(Math.random()*ch*0.4) + ch*0.1; } const ox=cw/2, oy=ch - bot.cell.r - 2; let ang=Math.atan2(targetY - oy, targetX - ox); ang = clamp(ang, MIN_ANGLE, MAX_ANGLE); ang += (Math.random()-0.5)*0.1; bot.cur.x=ox; bot.cur.y=oy; bot.cur.vx=Math.cos(ang)*LAUNCH_SPEED; bot.cur.vy=Math.sin(ang)*LAUNCH_SPEED; bot.cur.active=true; bot.cooldown = 0.8 + Math.random()*0.7; } }
   const canvases = { user: $('#user'), opp1: $('#opp1'), opp2: $('#opp2'), opp3: $('#opp3') };
   const ui = { time: $('#time'), myscore: $('#myscore'), duration: $('#duration'), players: $('#players'), stake: $('#stake'), start: $('#start'), results: $('#results'), winner: $('#winner'), payout: $('#payout'), fee: $('#fee'), potFinal: $('#potFinal'), scoreList: $('#scoreList'), rematch: $('#rematch'), change: $('#change') };
   ui.players.value = n;
@@ -343,14 +355,25 @@ window.__BUBBLE_ROYALE_POWER__ = true;
   const playerNameEl = $('#playerName');
   const userData = window?.Telegram?.WebApp?.initDataUnsafe?.user;
   const playerName = userData?.username || [userData?.first_name, userData?.last_name].filter(Boolean).join(' ') || 'Player';
-  if(playerNameEl) playerNameEl.textContent = playerName;
+  function adjustNameSize(el){
+    if(!el) return;
+    const len = el.textContent.length;
+    if(len > 12){
+      const size = Math.max(8, 13 - (len - 12) * 0.5);
+      el.style.fontSize = size + 'px';
+    }
+  }
+  if(playerNameEl){
+    playerNameEl.textContent = playerName;
+    adjustNameSize(playerNameEl);
+  }
   const avatarUrls = Array(n).fill('');
   if(avatarParam){
     avatarEls[3].src = avatarParam;
   } else if(userData?.photo_url){
     avatarEls[3].src = userData.photo_url;
   }
-  for(let i=0;i<n-1;i++){ const flag = FLAG_EMOJIS[(Math.random()*FLAG_EMOJIS.length)|0]; const url = emojiToDataUrl(flag); avatarEls[i].src = url; avatarUrls[i] = url; nameEls[i].textContent = flagToName(flag); scoreEls[i].textContent = '0'; }
+  for(let i=0;i<n-1;i++){ const flag = FLAG_EMOJIS[(Math.random()*FLAG_EMOJIS.length)|0]; const url = emojiToDataUrl(flag); avatarEls[i].src = url; avatarUrls[i] = url; nameEls[i].textContent = flagToName(flag); adjustNameSize(nameEls[i]); scoreEls[i].textContent = '0'; }
   avatarUrls[n-1] = avatarEls[3].src;
   let games = [];
   let last = performance.now();
