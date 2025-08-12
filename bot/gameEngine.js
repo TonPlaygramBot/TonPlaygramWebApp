@@ -7,6 +7,7 @@ export const RECONNECT_GRACE_MS = 60000;
 export const GAME_START_DELAY_MS = 5000;
 import { SnakeGame } from './logic/snakeGame.js';
 import { LudoGame } from './logic/ludoGame.js';
+import { CheckersGame } from './logic/checkersGame.js';
 
 import GameRoomModel from './models/GameRoom.js';
 
@@ -73,8 +74,10 @@ export class GameRoom {
     this.cheatWarnings = {};
     if (this.gameType === 'snake') {
       this.game = new SnakeGame({ snakes: this.snakes, ladders: this.ladders });
-    } else {
+    } else if (this.gameType === 'ludo') {
       this.game = new LudoGame(this.capacity);
+    } else {
+      this.game = new CheckersGame();
     }
     this.players = this.game.players;
   }
@@ -129,7 +132,12 @@ export class GameRoom {
     }
     return {
       success: true,
-      board: { snakes: this.snakes, ladders: this.ladders }
+      board:
+        this.gameType === 'snake'
+          ? { snakes: this.snakes, ladders: this.ladders }
+          : this.gameType === 'checkers'
+          ? { board: this.game.board }
+          : undefined
     };
   }
 
@@ -153,7 +161,7 @@ export class GameRoom {
         p.diceCount = 2;
         p.isActive = false;
       });
-    } else {
+    } else if (this.gameType === 'ludo') {
       this.players.forEach((p) => {
         p.tokens = Array(4).fill(-1);
         p.finished = 0;
@@ -400,7 +408,7 @@ export class GameRoomManager {
     });
   }
 
-  async getRoom(id, capacity = 4, board) {
+  async getRoom(id, capacity = 4, board, gameType) {
     let room = this.rooms.get(id);
     if (!room) {
       const record = await GameRoomModel.findOne({ roomId: id });
@@ -417,7 +425,13 @@ export class GameRoomManager {
         room.currentTurn = record.currentTurn;
         room.status = record.status;
       } else {
-        const type = id.startsWith('ludo') ? 'ludo' : 'snake';
+        const type =
+          gameType ||
+          (id.startsWith('ludo')
+            ? 'ludo'
+            : id.startsWith('checkers')
+            ? 'checkers'
+            : 'snake');
         room = new GameRoom(id, this.io, capacity, board, type);
         await GameRoomModel.updateOne(
           { roomId: id },
