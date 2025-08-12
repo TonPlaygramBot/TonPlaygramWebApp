@@ -148,19 +148,49 @@ export default function PlayerInvitePopup({
           <AchievementsCard telegramId={player.telegramId} />
           <div className="space-y-1">
             <p className="font-semibold">Game</p>
-            <div className="flex justify-center space-x-2">
-              <img
-                src="/assets/icons/snakes_and_ladders.webp"
-                alt="Snake & Ladders"
-                onClick={() => setGame('snake')}
-                className={`w-16 h-16 rounded cursor-pointer border-2 ${game === 'snake' ? 'border-primary' : 'border-border'}`}
-              />
-              <img
-                src="/assets/icons/Crazy_Dice_Duel_Promo.webp"
-                alt="Crazy Dice Duel"
-                onClick={() => setGame('crazydice')}
-                className={`w-16 h-16 rounded cursor-pointer border-2 ${game === 'crazydice' ? 'border-primary' : 'border-border'}`}
-              />
+            <div className="flex flex-wrap justify-center gap-2">
+              {[
+                {
+                  id: 'snake',
+                  src: '/assets/icons/snakes_and_ladders.webp',
+                  alt: 'Snake & Ladders',
+                },
+                {
+                  id: 'crazydice',
+                  src: '/assets/icons/Crazy_Dice_Duel_Promo.webp',
+                  alt: 'Crazy Dice Duel',
+                },
+                {
+                  id: 'fallingball',
+                  src: '/assets/icons/falling_ball.svg',
+                  alt: 'Falling Ball',
+                },
+                {
+                  id: 'brickbreaker',
+                  src: '/assets/icons/brick_breaker.svg',
+                  alt: 'Brick Breaker Royale',
+                },
+                {
+                  id: 'bubblepoproyale',
+                  src: '/assets/icons/bubble_pop.svg',
+                  alt: 'Bubble Pop Royale',
+                },
+                {
+                  id: 'airhockey',
+                  src: '/assets/icons/air_hockey.svg',
+                  alt: 'Air Hockey',
+                },
+              ].map((g) => (
+                <img
+                  key={g.id}
+                  src={g.src}
+                  alt={g.alt}
+                  onClick={() => setGame(g.id)}
+                  className={`w-16 h-16 rounded cursor-pointer border-2 ${
+                    game === g.id ? 'border-yellow-400 bg-yellow-100' : 'border-border'
+                  }`}
+                />
+              ))}
             </div>
           </div>
           <RoomSelector
