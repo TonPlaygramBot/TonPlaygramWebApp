@@ -5,7 +5,7 @@ import { socket } from '../utils/socket.js';
 import { pingOnline } from '../utils/api.js';
 import { getPlayerId } from '../utils/telegram.js';
 import { isGameMuted, getGameVolume } from '../utils/sound.js';
-import { chatBeep } from '../assets/soundData.js';
+import { chatBeep as inviteBeep } from '../assets/soundData.js';
 import InvitePopup from './InvitePopup.jsx';
 
 import Navbar from './Navbar.jsx';
@@ -22,25 +22,25 @@ export default function Layout({ children }) {
   const location = useLocation();
   const navigate = useNavigate();
   const [invite, setInvite] = useState(null);
-  const beepRef = useRef(null);
+  const inviteSoundRef = useRef(null);
 
   useEffect(() => {
-    beepRef.current = new Audio(chatBeep);
-    beepRef.current.volume = getGameVolume();
-    beepRef.current.muted = isGameMuted();
-    beepRef.current.load();
+    inviteSoundRef.current = new Audio(inviteBeep);
+    inviteSoundRef.current.volume = getGameVolume();
+    inviteSoundRef.current.muted = isGameMuted();
+    inviteSoundRef.current.load();
     const volumeHandler = () => {
-      if (beepRef.current) beepRef.current.volume = getGameVolume();
+      if (inviteSoundRef.current) inviteSoundRef.current.volume = getGameVolume();
     };
     const muteHandler = () => {
-      if (beepRef.current) beepRef.current.muted = isGameMuted();
+      if (inviteSoundRef.current) inviteSoundRef.current.muted = isGameMuted();
     };
     window.addEventListener('gameVolumeChanged', volumeHandler);
     window.addEventListener('gameMuteChanged', muteHandler);
     return () => {
       window.removeEventListener('gameVolumeChanged', volumeHandler);
       window.removeEventListener('gameMuteChanged', muteHandler);
-      beepRef.current?.pause();
+      inviteSoundRef.current?.pause();
     };
   }, []);
 
@@ -65,9 +65,9 @@ export default function Layout({ children }) {
         opponentNames,
         game
       });
-      if (beepRef.current && !isGameMuted()) {
-        beepRef.current.currentTime = 0;
-        beepRef.current.play().catch(() => {});
+      if (inviteSoundRef.current && !isGameMuted()) {
+        inviteSoundRef.current.currentTime = 0;
+        inviteSoundRef.current.play().catch(() => {});
       }
     };
     socket.on('gameInvite', onInvite);
