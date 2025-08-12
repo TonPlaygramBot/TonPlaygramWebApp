@@ -26,11 +26,13 @@
   .layout{display:grid;grid-template-rows:25vh 1fr;gap:10px;flex:1;min-height:0}
   .top{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;min-height:0}
   .mini{position:relative;border:1px solid #223063;background:linear-gradient(180deg,#0f1530,#0a0f24);border-radius:12px;padding:8px;display:flex;flex-direction:column;min-height:0}
-  .mini h3{margin:0 0 6px 0;font-size:12px;color:var(--muted)}
+  .mini h3{margin:0 0 6px 0;font-size:12px;color:var(--muted);display:flex;align-items:center;gap:4px}
+  .mini h3 .flag{font-size:14px}
   .mini canvas{flex:1;width:100%;height:100%;background:#0e1430;border-radius:8px}
 
   .userWrap{position:relative;border:1px solid #223063;background:linear-gradient(180deg,#0f1530,#0a0f24);border-radius:14px;padding:10px;display:flex;flex-direction:column;min-height:0}
   .userHeader{display:flex;align-items:center;gap:8px;margin-bottom:8px}
+  .userHeader img{width:24px;height:24px;border-radius:50%;object-fit:cover}
   .userWrap h3{margin:0;font-size:13px;color:var(--muted)}
   #user{flex:1;width:100%;height:100%;background:#0e1430;border-radius:10px;touch-action:none}
   .overlayButtons{position:absolute;left:10px;bottom:10px;display:flex;gap:8px}
@@ -47,12 +49,13 @@
 <div class="app">
   <div class="layout">
     <div class="top">
-      <div class="mini"><h3>P1</h3><canvas id="opp1"></canvas></div>
-      <div class="mini"><h3>P2</h3><canvas id="opp2"></canvas></div>
-      <div class="mini"><h3>P3</h3><canvas id="opp3"></canvas></div>
+      <div class="mini"><h3><span class="flag" id="opp1Flag"></span><span id="opp1Name">P1</span></h3><canvas id="opp1"></canvas></div>
+      <div class="mini"><h3><span class="flag" id="opp2Flag"></span><span id="opp2Name">P2</span></h3><canvas id="opp2"></canvas></div>
+      <div class="mini"><h3><span class="flag" id="opp3Flag"></span><span id="opp3Name">P3</span></h3><canvas id="opp3"></canvas></div>
     </div>
     <div class="userWrap">
       <div class="userHeader">
+        <img id="playerAvatar" alt="avatar" />
         <h3 id="playerName">USER</h3>
         <div class="hud">
           <div class="panel"><strong>Time</strong><span id="time" class="timer">03:00</span></div>
@@ -94,6 +97,33 @@
   let n=Math.max(2,Math.min(4,parseInt(params.get('players'),10)||4));
   let stake=Math.max(0,parseInt(params.get('amount'),10)||300);
   let durSec=Math.max(10,parseInt(params.get('duration'),10)||180);
+  const playerName=params.get('name')||'USER';
+  $('#playerName').textContent=playerName;
+  const avatarUrl=params.get('avatar');
+  if(avatarUrl){ $('#playerAvatar').src=avatarUrl; } else { $('#playerAvatar').style.display='none'; }
+  const flags=[
+    {emoji:'🇺🇸',name:'USA'},
+    {emoji:'🇬🇧',name:'UK'},
+    {emoji:'🇫🇷',name:'France'},
+    {emoji:'🇩🇪',name:'Germany'},
+    {emoji:'🇮🇹',name:'Italy'},
+    {emoji:'🇪🇸',name:'Spain'},
+    {emoji:'🇯🇵',name:'Japan'},
+    {emoji:'🇧🇷',name:'Brazil'},
+    {emoji:'🇰🇷',name:'Korea'}
+  ];
+  for(let i=1;i<=3;i++){
+    const flagEl=$(`#opp${i}Flag`);
+    const nameEl=$(`#opp${i}Name`);
+    if(i<=n-1){
+      const f=flags[(Math.random()*flags.length)|0];
+      if(flagEl) flagEl.textContent=f.emoji;
+      if(nameEl) nameEl.textContent=f.name;
+    }else{
+      if(flagEl) flagEl.textContent='';
+      if(nameEl) nameEl.textContent='';
+    }
+  }
   function fitCanvas(c){ const r=c.getBoundingClientRect(); c.width=Math.max(10,r.width); c.height=Math.max(10,r.height); }
 
   // ===== Audio =====
