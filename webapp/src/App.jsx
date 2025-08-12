@@ -14,7 +14,6 @@ import Trending from './pages/Trending.jsx';
 import Notifications from './pages/Notifications.jsx';
 import InfluencerAdmin from './pages/InfluencerAdmin.jsx';
 
-import HorseRacing from './pages/Games/HorseRacing.jsx';
 import SnakeAndLadder from './pages/Games/SnakeAndLadder.jsx';
 import SnakeMultiplayer from './pages/Games/SnakeMultiplayer.jsx';
 import SnakeResults from './pages/Games/SnakeResults.jsx';
@@ -59,7 +58,6 @@ export default function App() {
             <Route path="/games/crazydice" element={<CrazyDiceDuel />} />
             <Route path="/games/crazydice/lobby" element={<CrazyDiceLobby />} />
             <Route path="/games/:game/lobby" element={<Lobby />} />
-              <Route path="/games/horse" element={<HorseRacing />} />
             <Route path="/games/snake" element={<SnakeAndLadder />} />
             <Route path="/games/snake/mp" element={<SnakeMultiplayer />} />
             <Route path="/games/snake/results" element={<SnakeResults />} />

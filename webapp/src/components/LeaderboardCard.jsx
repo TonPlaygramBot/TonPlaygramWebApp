@@ -22,9 +22,7 @@ function getGameFromTableId(id) {
   if (
     [
       'snake',
-      'ludo',
       'crazydice',
-      'horse',
       'fallingball',
       'airhockey',
       'brickbreaker',
