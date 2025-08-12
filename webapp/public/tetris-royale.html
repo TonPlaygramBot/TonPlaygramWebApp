@@ -16,28 +16,23 @@
   label{font-size:12px;color:var(--muted);display:block;margin-bottom:6px}
   select,button,input{width:100%;padding:10px 12px;border-radius:10px;border:1px solid #223063;background:#0e1430;color:#e7eefc}
   .btn{background:linear-gradient(180deg,#2a6cf0,#2156c8);border:none;font-weight:700;cursor:pointer}
-  .hud{display:flex;gap:8px}
+  .hud{display:flex;gap:8px;margin-bottom:8px}
   .panel{border:1px solid #223063;background:#0b1228;border-radius:12px;padding:10px;display:flex;align-items:center;justify-content:space-between}
   .score{color:var(--gold);font-weight:800}
   .timer{font-variant-numeric:tabular-nums;font-weight:800}
   .layout{display:grid;grid-template-rows:25vh 1fr;gap:10px;flex:1;min-height:0}
   .top{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
-  .mini{position:relative;border:1px solid #223063;background:linear-gradient(180deg,#0f1530,#0a0f24);border-radius:12px;padding:8px;display:flex;flex-direction:column;align-items:center}
-  .mini .oppBar{width:100%;display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:4px}
-  .mini .oppInfo{display:flex;flex-direction:column;align-items:flex-start}
-  .mini .oppName{margin:0;font-size:12px;color:var(--muted)}
-  .mini .oppInfo .avatar{margin-top:4px;width:24px;height:24px}
-  .mini .oppScore{font-size:12px}
+  .mini{position:relative;border:1px solid #223063;background:linear-gradient(180deg,#0f1530,#0a0f24);border-radius:12px;padding:8px;display:flex;flex-direction:column}
+  .mini h3{margin:0;font-size:12px;color:var(--muted);display:flex;align-items:center;gap:4px}
+  .mini .oppScore{font-size:12px;color:var(--muted);margin:2px 0 6px}
   .mini canvas{flex:1;width:100%;height:100%;background:#0e1430;border-radius:8px;image-rendering:pixelated}
   .userWrap{position:relative;border:1px solid #223063;background:linear-gradient(180deg,#0f1530,#0a0f24);border-radius:14px;padding:10px;display:flex;flex-direction:column;min-height:0}
-  .userBar{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:8px}
-  .userInfo{display:flex;flex-direction:column;align-items:center;gap:4px}
   .userWrap h3{margin:0;font-size:13px;color:var(--muted)}
   #user{flex:1;width:100%;height:100%;background:#0e1430;border-radius:10px;touch-action:none;image-rendering:pixelated}
   .avatar{width:32px;height:32px;border-radius:50%}
-  .mini .avatar{margin-bottom:0}
-  .userInfo .avatar{margin-top:4px}
+  .mini h3 .avatar{width:16px;height:16px;border-radius:2px}
   .scorePanel{flex-direction:column;align-items:center;justify-content:center}
+  .userFooter{position:absolute;right:10px;bottom:10px;display:flex;align-items:center;gap:6px}
   .countdown{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;font-size:48px;font-weight:bold;color:#fff;background:rgba(0,0,0,0.5);z-index:50}
   .countdown.hidden{display:none}
   .toast{position:fixed;left:50%;transform:translateX(-50%);bottom:16px;background:#0d1536;border:1px solid #223063;border-radius:10px;padding:8px 12px;font-size:13px;opacity:0;transition:opacity .2s}
@@ -61,39 +56,31 @@
   <div class="layout">
     <div class="top">
       <div class="mini">
-        <div class="oppBar">
-          <div class="oppInfo"><h3 class="oppName">P1</h3><img src="assets/icons/profile.svg" alt="" class="avatar"/></div>
-          <span class="score oppScore">0</span>
-        </div>
+        <h3><img src="assets/icons/profile.svg" alt="" class="avatar"/><span class="oppName">P1</span></h3>
+        <div class="oppScore">0</div>
         <canvas id="opp1"></canvas>
       </div>
       <div class="mini">
-        <div class="oppBar">
-          <div class="oppInfo"><h3 class="oppName">P2</h3><img src="assets/icons/profile.svg" alt="" class="avatar"/></div>
-          <span class="score oppScore">0</span>
-        </div>
+        <h3><img src="assets/icons/profile.svg" alt="" class="avatar"/><span class="oppName">P2</span></h3>
+        <div class="oppScore">0</div>
         <canvas id="opp2"></canvas>
       </div>
       <div class="mini">
-        <div class="oppBar">
-          <div class="oppInfo"><h3 class="oppName">P3</h3><img src="assets/icons/profile.svg" alt="" class="avatar"/></div>
-          <span class="score oppScore">0</span>
-        </div>
+        <h3><img src="assets/icons/profile.svg" alt="" class="avatar"/><span class="oppName">P3</span></h3>
+        <div class="oppScore">0</div>
         <canvas id="opp3"></canvas>
       </div>
     </div>
     <div class="userWrap">
-      <div class="userBar">
-        <div class="userInfo">
-          <h3 id="username">USER</h3>
-          <img src="assets/icons/profile.svg" alt="" class="avatar" id="userAvatar"/>
-        </div>
-        <div class="hud">
-          <div class="panel"><strong>Time</strong><span id="time" class="timer">03:00</span></div>
-          <div class="panel scorePanel"><strong>Your score</strong><span id="myscore" class="score">0</span></div>
-        </div>
+      <div class="hud">
+        <div class="panel"><strong>Time</strong><span id="time" class="timer">03:00</span></div>
+        <div class="panel scorePanel"><strong>Your score</strong><span id="myscore" class="score">0</span></div>
       </div>
       <canvas id="user"></canvas>
+      <div class="userFooter">
+        <h3 id="username">PLAYER</h3>
+        <img src="assets/icons/profile.svg" alt="" class="avatar" id="userAvatar"/>
+      </div>
     </div>
   </div>
 </div>
@@ -122,7 +109,7 @@
 <script>
 if(!window.__TETRIS_ROYALE__){
 window.__TETRIS_ROYALE__ = true;
-(function(){
+(async function(){
   const COLS = 10, ROWS = 20;
   const COLORS = ['#000','#5aa2ff','#ff9d5a','#ff5a6b','#d4af37','#34d399','#a78bfa','#f472b6'];
   const SHAPES = {
@@ -154,7 +141,7 @@ window.__TETRIS_ROYALE__ = true;
   if (initParam && !window.Telegram) {
     window.Telegram = { WebApp: { initData: decodeURIComponent(initParam) } };
   }
-  const userName = params.get('name') || params.get('username') || window?.Telegram?.WebApp?.initDataUnsafe?.user?.first_name || 'USER';
+  let userName = params.get('name') || params.get('username') || '';
 
   function emojiToDataUri(flag){
     return `data:image/svg+xml,${encodeURIComponent(`<svg xmlns='http://www.w3.org/2000/svg' width='64' height='64'><text x='50%' y='50%' font-size='48' text-anchor='middle' dominant-baseline='central'>${flag}</text></svg>`)}`;
@@ -194,6 +181,38 @@ window.__TETRIS_ROYALE__ = true;
   tgIds[n-1] = tgId;
   const playerAvatars = Array(n).fill('');
   const playerNames = Array(n).fill('');
+
+  async function fetchPlayerName(tgId, accountId){
+    try{
+      const headers={'Content-Type':'application/json'};
+      const initData = window?.Telegram?.WebApp?.initData;
+      if(initData) headers['X-Telegram-Init-Data'] = initData;
+      let res;
+      if(tgId){
+        res = await fetch('/api/profile/telegram-info',{method:'POST',headers,body:JSON.stringify({telegramId:tgId})});
+      }else if(accountId){
+        res = await fetch('/api/profile/by-account',{method:'POST',headers,body:JSON.stringify({accountId})});
+      }
+      if(res && res.ok){
+        const data = await res.json();
+        return data.nickname || data.firstName || data.first_name || '';
+      }
+    }catch{}
+    return '';
+  }
+
+  async function initUserName(){
+    if(!userName){
+      userName = await fetchPlayerName(tgId, accountId);
+    }
+    if(!userName){
+      const userData = window?.Telegram?.WebApp?.initDataUnsafe?.user;
+      userName = userData?.username || [userData?.first_name, userData?.last_name].filter(Boolean).join(' ') || 'Player';
+    }
+    const el = $('#username');
+    if(el) el.textContent = userName;
+    playerNames[n-1] = userName;
+  }
 
   function createEmpty(){ return Array.from({length:ROWS},()=>Array(COLS).fill(0)); }
   function randomShape(){ const keys = Object.keys(SHAPES); const k = keys[(Math.random()*keys.length)|0]; return SHAPES[k].map(r=>r.slice()); }
@@ -414,7 +433,6 @@ window.__TETRIS_ROYALE__ = true;
   const miniWraps = document.querySelectorAll('.top .mini');
   const oppNameEls = document.querySelectorAll('.oppName');
   const oppScoreEls = document.querySelectorAll('.oppScore');
-  $('#username').textContent = userName;
   const ui = {
     time: $('#time'), myscore: $('#myscore'),
     results: $('#results'), winner: $('#winner'),
@@ -443,7 +461,6 @@ window.__TETRIS_ROYALE__ = true;
   }
   avatarEls[3].src = userAvatar;
   playerAvatars[n-1] = userAvatar;
-  playerNames[n-1] = userName;
 
   function layoutCanvases(){
     Object.values(canvases).forEach(c=>{ if(!c) return; const r=c.getBoundingClientRect(); c.width=r.width; c.height=r.height; });
@@ -519,6 +536,7 @@ window.__TETRIS_ROYALE__ = true;
   ui.rematch.addEventListener('click', ()=>{ ui.results.close(); countdownAndStart(); });
   ui.lobby.addEventListener('click', ()=>{ ui.results.close(); location.href='/games/tetrisroyale/lobby'; });
   window.addEventListener('resize', layoutCanvases);
+  await initUserName();
   layoutCanvases();
   countdownAndStart();
 })();
