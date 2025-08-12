@@ -220,8 +220,28 @@ export default function Home() {
         </a>
       </div>
       <p className="text-center text-xs text-subtext">Status: {status}</p>
-
-
+      <div className="mt-4 space-y-2 text-center text-xs text-subtext">
+        <p>
+          This platform is currently in its prototype stage, built to give you a
+          clear idea of how the full ecosystem will function. We’re actively
+          working on improvements and new features around the clock.
+        </p>
+        <p>
+          🧠 TonPlaygram was fully designed and developed by a single founder,
+          with the help of AI tools and zero external funding. Despite limited
+          resources, the goal has always been to deliver a powerful, engaging
+          experience from day one.
+        </p>
+        <p>
+          Once sufficient funding is secured, the platform will be rebuilt
+          professionally with a dedicated team to ensure performance,
+          scalability, and long-term growth.
+        </p>
+        <p>
+          Thank you for your support and patience as we continue building the
+          future of crypto gaming. 🚀
+        </p>
+      </div>
     </div>
 
   );
