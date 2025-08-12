@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useLayoutEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 
 import { useLocation, useNavigate } from 'react-router-dom';
 import { socket } from '../utils/socket.js';
@@ -23,41 +23,6 @@ export default function Layout({ children }) {
   const navigate = useNavigate();
   const [invite, setInvite] = useState(null);
   const beepRef = useRef(null);
-
-  // Restore the last visited path on initial load (useful when Telegram
-  // always reloads the original start link).
-  useLayoutEffect(() => {
-    try {
-      const saved = localStorage.getItem('lastPath');
-      const current = location.pathname + location.search;
-      if (
-        saved &&
-        saved !== current &&
-        window.history.length <= 1
-      )
-        navigate(saved, { replace: true });
-    } catch {}
-  }, []);
-
-  // Persist the current path so reloads return to the same page
-  useLayoutEffect(() => {
-    try {
-      const current = location.pathname + location.search;
-      localStorage.setItem('lastPath', current);
-    } catch {}
-  }, [location]);
-
-  // Ensure the current path is saved if the page is reloaded or closed
-  useEffect(() => {
-    const savePath = () => {
-      try {
-        const current = window.location.pathname + window.location.search;
-        localStorage.setItem('lastPath', current);
-      } catch {}
-    };
-    window.addEventListener('beforeunload', savePath);
-    return () => window.removeEventListener('beforeunload', savePath);
-  }, []);
 
   useEffect(() => {
     beepRef.current = new Audio(chatBeep);
