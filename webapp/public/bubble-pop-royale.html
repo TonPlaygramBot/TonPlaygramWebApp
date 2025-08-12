@@ -18,7 +18,7 @@
   .btn{background:linear-gradient(180deg,#2a6cf0,#2156c8);border:none;font-weight:700;cursor:pointer}
   .hud{display:flex;gap:8px}
   .hud .panel{flex:1}
-  .panel{border:1px solid #223063;background:#0b1228;border-radius:12px;padding:10px;display:flex;align-items:center;justify-content:space-between}
+  .panel{border:1px solid #223063;background:#0b1228;border-radius:12px;padding:10px;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:4px}
   .score{color:var(--gold);font-weight:800}
   .timer{font-variant-numeric:tabular-nums;font-weight:800}
   .layout{display:grid;grid-template-rows:25vh 1fr;gap:10px;flex:1;min-height:0}
@@ -106,9 +106,14 @@
         <img id="avatarUser" src="assets/icons/profile.svg" alt="" class="avatar"/>
         <h3 id="playerName">USER</h3>
         <div class="hud">
-          <div class="panel"><strong>Time</strong><span id="time" class="timer">03:00</span></div>
-          <div class="panel"><strong>Pot (TPC)</strong><span id="pot" class="score">0</span></div>
-          <div class="panel"><strong>Your score</strong><span id="myscore" class="score">0</span></div>
+          <div class="panel">
+            <strong>Time</strong>
+            <span id="time" class="timer">03:00</span>
+          </div>
+          <div class="panel">
+            <strong>Your score</strong>
+            <span id="myscore" class="score">0</span>
+          </div>
         </div>
       </div>
       <canvas id="user"></canvas>
@@ -240,7 +245,7 @@ window.__BUBBLE_ROYALE_POWER__ = true;
   }
   function botStep(bot, dt){ if(bot.over) return; if(!bot.cur.active && bot.cooldown<=0){ const canvas = bot.__canvas; const bub = bot.cur.bubble || { color: COLORS[(Math.random()*COLORS.length)|0], special: Math.random()<0.05? ['H','V','B'][(Math.random()*3)|0] : null }; bot.cur.bubble = bub; let targetX, targetY; if(Math.random()<0.7){ const targets=[]; const dirs=[[1,0],[-1,0],[0,1],[0,-1],[1,1],[-1,-1]]; for(let y=0;y<GRID_ROWS;y++){ for(let x=0;x<GRID_COLS;x++){ const cell=bot.grid[y][x]; if(cell && cell.color===bub.color){ for(const [dx,dy] of dirs){ const nx=x+dx, ny=y+dy; if(nx>=0&&nx<GRID_COLS&&ny>=0&&ny<GRID_ROWS && !bot.grid[ny][nx]) targets.push({x:(nx+0.5)*bot.cell.w, y:(ny+0.5)*bot.cell.h}); } } } } if(targets.length){ const t=targets[(Math.random()*targets.length)|0]; targetX=t.x; targetY=t.y; } } if(targetX===undefined){ targetX=(Math.random()*canvas.width*0.9) + canvas.width*0.05; targetY=(Math.random()*canvas.height*0.4) + canvas.height*0.1; } const ox=canvas.width/2, oy=canvas.height - bot.cell.r - 2; let ang=Math.atan2(targetY - oy, targetX - ox); ang = clamp(ang, MIN_ANGLE, MAX_ANGLE); ang += (Math.random()-0.5)*0.1; bot.cur.x=ox; bot.cur.y=oy; bot.cur.vx=Math.cos(ang)*LAUNCH_SPEED; bot.cur.vy=Math.sin(ang)*LAUNCH_SPEED; bot.cur.active=true; bot.cooldown = 0.8 + Math.random()*0.7; } }
   const canvases = { user: $('#user'), opp1: $('#opp1'), opp2: $('#opp2'), opp3: $('#opp3') };
-  const ui = { time: $('#time'), pot: $('#pot'), myscore: $('#myscore'), duration: $('#duration'), players: $('#players'), stake: $('#stake'), start: $('#start'), results: $('#results'), winner: $('#winner'), payout: $('#payout'), fee: $('#fee'), potFinal: $('#potFinal'), scoreList: $('#scoreList'), rematch: $('#rematch'), change: $('#change') };
+  const ui = { time: $('#time'), myscore: $('#myscore'), duration: $('#duration'), players: $('#players'), stake: $('#stake'), start: $('#start'), results: $('#results'), winner: $('#winner'), payout: $('#payout'), fee: $('#fee'), potFinal: $('#potFinal'), scoreList: $('#scoreList'), rematch: $('#rematch'), change: $('#change') };
   ui.players.value = n;
   ui.duration.value = durSec;
   ui.stake.value = stake;
@@ -265,7 +270,7 @@ window.__BUBBLE_ROYALE_POWER__ = true;
   let last = performance.now();
   let endAt = 0; let running = false; let rafId = null;
   function layoutCanvases(){ Object.values(canvases).forEach(c=>{ if(!c) return; fitCanvas(c); }); }
-  function startMatch(){ layoutCanvases(); ui.pot.textContent = String(stake * n); ui.time.textContent = fmt(durSec); games = []; const oppSlots = [canvases.opp1, canvases.opp2, canvases.opp3]; for(let i=0;i<n-1;i++){ const g = createBubbleGame(oppSlots[i]); g.__canvas = oppSlots[i]; g.isUser = false; g.start(); games.push(g); } const userGame = createBubbleGame(canvases.user); userGame.__canvas = canvases.user; userGame.isUser = true; userGame.start(); userGame.bindUserInput(); games.push(userGame); endAt = performance.now() + durSec*1000; running = true; last = performance.now(); loop(); }
+  function startMatch(){ layoutCanvases(); ui.time.textContent = fmt(durSec); games = []; const oppSlots = [canvases.opp1, canvases.opp2, canvases.opp3]; for(let i=0;i<n-1;i++){ const g = createBubbleGame(oppSlots[i]); g.__canvas = oppSlots[i]; g.isUser = false; g.start(); games.push(g); } const userGame = createBubbleGame(canvases.user); userGame.__canvas = canvases.user; userGame.isUser = true; userGame.start(); userGame.bindUserInput(); games.push(userGame); endAt = performance.now() + durSec*1000; running = true; last = performance.now(); loop(); }
   function updateTimer(){ const remain = Math.max(0, Math.ceil((endAt - performance.now())/1000)); ui.time.textContent = fmt(remain); if(remain<=0){ finish(); } }
   function loop(){ if(!running) return; const now = performance.now(); const dt = (now - last)/1000; last = now; for(let i=0;i<games.length;i++){ const g = games[i]; if(!g.isUser){ botStep(g, dt); if(scoreEls[i]) scoreEls[i].textContent = String(g.score); } g.tick(dt); } ui.myscore.textContent = String(games[games.length-1].score); updateTimer(); rafId = requestAnimationFrame(loop); }
   function coinBurst(){ const burst=document.createElement('div'); burst.className='coin-burst'; for(let i=0;i<30;i++){ const img=document.createElement('img'); img.src='/assets/icons/file_000000005f0c61f48998df883554c3e8 (2).webp'; img.className='coin-img'; img.style.setProperty('--dx',`${(Math.random()-0.5)*100}px`); img.style.setProperty('--delay',`${Math.random()*0.3}s`); img.style.setProperty('--dur',`${0.8+Math.random()*0.4}s`); burst.appendChild(img); } document.body.appendChild(burst); setTimeout(()=>burst.remove(),1200); }
