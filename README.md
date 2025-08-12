@@ -168,6 +168,10 @@ Posts support **markdown formatting** and emoji **reactions**. Owners can pin fa
 
 The Wall also features a **Trending** section showing the most liked posts from the last 24 hours.
 
+### Brick Breaker Royale
+
+Bricks are pre-rendered to off-screen canvases and reused during board drawing, minimizing repeated `fillRect` calls for smoother gameplay.
+
 ### Using an HTTPS proxy
 
 If your server requires a proxy to reach external services like Tonkeeper,

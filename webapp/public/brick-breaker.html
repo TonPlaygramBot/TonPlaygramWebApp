@@ -393,6 +393,21 @@
           const POWERUPS = ['multiball', 'fireball', 'wide', 'slow', 'x2'];
           const POINTS = { standard: 10, tough: 20, explosive: 10 };
 
+          const brickCanvasCache = {};
+          const getBrickCanvas = (color, w, h) => {
+            const key = `${color}_${w}x${h}`;
+            if (!brickCanvasCache[key]) {
+              const cv = document.createElement('canvas');
+              cv.width = w;
+              cv.height = h;
+              const ictx = cv.getContext('2d');
+              ictx.fillStyle = color;
+              ictx.fillRect(0, 0, w, h);
+              brickCanvasCache[key] = cv;
+            }
+            return brickCanvasCache[key];
+          };
+
           const state = {
             match: null,
             timerId: null,
@@ -617,8 +632,7 @@
             ctx.fillText('♥'.repeat(b.lives), W - 40, 52);
             for (const br of b.bricks) {
               if (!br.alive) continue;
-              ctx.fillStyle = br.color;
-              ctx.fillRect(br.x, br.y, br.w, br.h);
+              ctx.drawImage(getBrickCanvas(br.color, br.w, br.h), br.x, br.y);
             }
             for (const p of b.powerups) {
               ctx.fillStyle = COLORS.power;
