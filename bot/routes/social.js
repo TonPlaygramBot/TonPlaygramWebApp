@@ -8,17 +8,21 @@ import bot from '../bot.js';
 const router = Router();
 
 router.post('/search', async (req, res) => {
-  const { query } = req.body;
+  const { query, telegramId } = req.body;
   if (!query) return res.json([]);
-  const escapeRegExp = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const escapeRegExp = (s) => s.replace(/[.*+?^${}()|[\\]\\]/g, '\\$&');
   const regex = new RegExp(escapeRegExp(query), 'i');
-  const users = await User.find({
+  const filter = {
     $or: [
       { firstName: regex },
       { lastName: regex },
       { nickname: regex }
     ]
-  })
+  };
+  if (telegramId) {
+    filter.telegramId = { $ne: Number(telegramId) };
+  }
+  const users = await User.find(filter)
     .limit(20)
     .select('telegramId firstName lastName nickname photo');
   res.json(users);

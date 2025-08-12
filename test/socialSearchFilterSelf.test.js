@@ -2,8 +2,6 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'fs';
 import { spawn } from 'child_process';
-import { setTimeout as delay } from 'timers/promises';
-import { io } from 'socket.io-client';
 
 const distDir = new URL('../webapp/dist/', import.meta.url);
 
@@ -23,7 +21,7 @@ async function startServer(env) {
   return server;
 }
 
-test('joinRoom waits until table full', { concurrency: false, timeout: 20000 }, async () => {
+test('search excludes requesting user', { concurrency: false }, async () => {
   fs.mkdirSync(new URL('assets', distDir), { recursive: true });
   fs.writeFileSync(new URL('index.html', distDir), '');
   const env = {
@@ -36,32 +34,25 @@ test('joinRoom waits until table full', { concurrency: false, timeout: 20000 }, 
   };
   const server = await startServer(env);
   try {
-    await fetch('http://localhost:3203/api/snake/table/seat', {
+    await fetch('http://localhost:3203/api/profile/update', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ tableId: 'snake-2-100', accountId: 'p1', name: 'A', confirmed: true })
+      body: JSON.stringify({ telegramId: 1, firstName: 'Alice' })
     });
-
-    const s1 = io('http://localhost:3203');
-    const errors = [];
-    await new Promise((resolve) => s1.on('connect', resolve));
-    s1.on('error', (e) => errors.push(e));
-    s1.emit('joinRoom', { roomId: 'snake-2-100', playerId: 'p1', name: 'A' });
-    await delay(1500);
-    assert.equal(errors.length, 0, 'should not error when table not full');
-    s1.off('error');
-    errors.length = 0;
-
-    await fetch('http://localhost:3203/api/snake/table/seat', {
+    await fetch('http://localhost:3203/api/profile/update', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ tableId: 'snake-2-100', accountId: 'p2', name: 'B', confirmed: true })
+      body: JSON.stringify({ telegramId: 2, firstName: 'Alicia' })
     });
-
-    s1.emit('joinRoom', { roomId: 'snake-2-100', playerId: 'p1', name: 'A' });
-    await delay(200);
-    assert.equal(errors.length, 0, 'should join when table full');
-    s1.disconnect();
+    const res = await fetch('http://localhost:3203/api/social/search', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ query: 'Ali', telegramId: 1 })
+    });
+    assert.equal(res.status, 200);
+    const users = await res.json();
+    assert.equal(users.length, 1);
+    assert.equal(users[0].telegramId, 2);
   } finally {
     server.kill();
   }

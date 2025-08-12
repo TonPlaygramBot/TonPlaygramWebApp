@@ -6,7 +6,7 @@ import { getInviteUrl } from './utils/notifications.js';
 import mongoose from 'mongoose';
 import { proxyUrl, proxyAgent } from './utils/proxyAgent.js';
 import http from 'http';
-import { Server as SocketIOServer } from 'socket.io';
+import { initSocket } from './socket.js';
 import { GameRoomManager } from './gameEngine.js';
 import miningRoutes from './routes/mining.js';
 import tasksRoutes from './routes/tasks.js';
@@ -23,6 +23,7 @@ import broadcastRoutes from './routes/broadcast.js';
 import storeRoutes, { BUNDLES } from './routes/store.js';
 import adsRoutes from './routes/ads.js';
 import influencerRoutes from './routes/influencer.js';
+import onlineRoutes from './routes/online.js';
 import User from './models/User.js';
 import GameResult from './models/GameResult.js';
 import AdView from './models/AdView.js';
@@ -36,6 +37,7 @@ import Post from './models/Post.js';
 import PostRecord from './models/PostRecord.js';
 import Task from './models/Task.js';
 import WatchRecord from './models/WatchRecord.js';
+import ActiveConnection from './models/ActiveConnection.js';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { existsSync } from 'fs';
@@ -43,6 +45,12 @@ import { execSync } from 'child_process';
 import { randomUUID } from 'crypto';
 import compression from 'compression';
 import rateLimit from 'express-rate-limit';
+import {
+  registerConnection,
+  removeConnection,
+  countOnline,
+  listOnline
+} from './services/connectionService.js';
 
 const models = [
   AdView,
@@ -57,7 +65,8 @@ const models = [
   PostRecord,
   Task,
   User,
-  WatchRecord
+  WatchRecord,
+  ActiveConnection
 ];
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -91,7 +100,7 @@ const rateLimitMax = Number(process.env.RATE_LIMIT_MAX) || 100;
 const app = express();
 app.use(cors({ origin: allowedOrigins.length ? allowedOrigins : '*' }));
 const httpServer = http.createServer(app);
-const io = new SocketIOServer(httpServer, {
+const io = initSocket(httpServer, {
   cors: { origin: allowedOrigins.length ? allowedOrigins : '*', methods: ['GET', 'POST'] },
   transports: ['websocket', 'polling'],
   pingInterval: 25000,
@@ -139,6 +148,7 @@ app.use('/api/checkin', checkinRoutes);
 app.use('/api/social', socialRoutes);
 app.use('/api/broadcast', broadcastRoutes);
 app.use('/api/store', storeRoutes);
+app.use('/api/online', onlineRoutes);
 
 // Serve the built React app
 const webappPath = path.join(__dirname, '../webapp/dist');
@@ -223,7 +233,6 @@ app.get('/api/ping', (req, res) => {
   res.json({ message: 'pong' });
 });
 
-const onlineUsers = new Map();
 const tableSeats = new Map();
 const tables = new Map();
 const userSockets = new Map();
@@ -419,43 +428,6 @@ function unseatTableSocket(accountId, tableId, socketId) {
   }
 }
 
-app.post('/api/online/ping', (req, res) => {
-  const { accountId, playerId, status } = req.body || {};
-  const id = accountId ?? playerId;
-  const stat = status || 'online';
-  if (id) {
-    if (stat === 'offline') onlineUsers.delete(String(id));
-    else
-      onlineUsers.set(String(id), { ts: Date.now(), status: stat });
-  }
-  const now = Date.now();
-  for (const [id, data] of onlineUsers) {
-    if (now - data.ts > 60_000) onlineUsers.delete(id);
-  }
-  res.json({ success: true });
-});
-
-app.get('/api/online/count', (req, res) => {
-  const now = Date.now();
-  for (const [id, data] of onlineUsers) {
-    if (now - data.ts > 60_000) onlineUsers.delete(id);
-  }
-  res.json({ count: onlineUsers.size });
-});
-
-app.get('/api/online/list', (req, res) => {
-  const now = Date.now();
-  for (const [id, data] of onlineUsers) {
-    if (now - data.ts > 60_000) onlineUsers.delete(id);
-  }
-  res.json({
-    users: Array.from(onlineUsers.entries()).map(([id, data]) => ({
-      id,
-      status: data.status
-    }))
-  });
-});
-
 app.get('/api/stats', async (req, res) => {
   try {
     const [{ totalBalance = 0, totalMined = 0, nftCount = 0 } = {}] =
@@ -485,7 +457,7 @@ app.get('/api/stats', async (req, res) => {
         }
       ]);
     const accounts = await User.countDocuments();
-    const active = onlineUsers.size;
+    const active = await countOnline();
     const users = await User.find({}, { transactions: 1, gifts: 1 }).lean();
     let giftSends = 0;
     let bundlesSold = 0;
@@ -722,7 +694,7 @@ mongoose.connection.once('open', async () => {
 });
 
 io.on('connection', (socket) => {
-  socket.on('register', ({ playerId }) => {
+  socket.on('register', async ({ playerId }) => {
     if (!playerId) return;
     let set = userSockets.get(String(playerId));
     if (!set) {
@@ -731,9 +703,18 @@ io.on('connection', (socket) => {
     }
     set.add(socket.id);
     socket.data.playerId = String(playerId);
-    // Mark this user as online immediately
-    const prev = onlineUsers.get(String(playerId))?.status || 'online';
-    onlineUsers.set(String(playerId), { ts: Date.now(), status: prev });
+    await registerConnection({ userId: String(playerId), socketId: socket.id });
+  });
+
+  socket.on('createLobby', ({ roomId }, cb) => {
+    const id = roomId || randomUUID();
+    socket.join(id);
+    cb && cb({ roomId: id });
+  });
+
+  socket.on('listPlayers', async (cb) => {
+    const users = await listOnline();
+    cb && cb(users);
   });
 
   socket.on(
@@ -810,21 +791,30 @@ io.on('connection', (socket) => {
     maybeStartGame(table);
   });
 
-  socket.on('joinRoom', async ({ roomId, playerId, name, avatar }) => {
+  socket.on('joinRoom', async ({ roomId, playerId, accountId, name, avatar }) => {
+    const pid = playerId || accountId;
     const map = tableSeats.get(roomId);
+    const cap = Number(roomId.split('-')[1]) || 4;
+    if (!gameManager.rooms.has(roomId) && map && map.size < cap) {
+      socket.emit('error', 'waiting_for_players');
+      return;
+    }
     if (map) {
-      map.delete(String(playerId));
+      map.delete(String(pid));
       if (map.size === 0) tableSeats.delete(roomId);
     }
-    if (playerId) {
-      const prev = onlineUsers.get(String(playerId))?.status || 'online';
-      onlineUsers.set(String(playerId), { ts: Date.now(), status: prev });
+    if (pid) {
+      await registerConnection({
+        userId: String(pid),
+        roomId,
+        socketId: socket.id
+      });
       // Track the user's current table when they actually join a room
-      User.updateOne({ accountId: playerId }, { currentTableId: roomId }).catch(
+      User.updateOne({ accountId: pid }, { currentTableId: roomId }).catch(
         () => {}
       );
     }
-    const result = await gameManager.joinRoom(roomId, playerId, name, socket, avatar);
+    const result = await gameManager.joinRoom(roomId, pid, name, socket, avatar);
     if (result.error) {
       socket.emit('error', result.error);
     } else if (result.board) {
@@ -981,7 +971,7 @@ io.on('connection', (socket) => {
         set.delete(socket.id);
         if (set.size === 0) userSockets.delete(String(pid));
       }
-      onlineUsers.delete(String(pid));
+      await removeConnection(socket.id);
       User.updateOne({ accountId: pid }, { currentTableId: null }).catch(
         () => {}
       );
