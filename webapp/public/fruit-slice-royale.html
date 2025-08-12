@@ -26,14 +26,17 @@
   .layout{display:grid;grid-template-rows:25vh 1fr;gap:10px;flex:1;min-height:0}
   .top{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;min-height:0}
   .mini{position:relative;border:1px solid #223063;background:linear-gradient(180deg,#0f1530,#0a0f24);border-radius:12px;padding:8px;display:flex;flex-direction:column;min-height:0}
-  .mini h3{margin:0 0 6px 0;font-size:12px;color:var(--muted)}
+  .mini h3{margin:0;font-size:12px;color:var(--muted);display:flex;align-items:center;gap:4px}
+  .mini .aiScore{font-size:12px;color:var(--muted);margin:2px 0 6px}
+  .flagInline{width:16px;height:16px;border-radius:2px}
   .mini canvas{flex:1;width:100%;height:100%;background:#0e1430;border-radius:8px}
 
   .userWrap{position:relative;border:1px solid #223063;background:linear-gradient(180deg,#0f1530,#0a0f24);border-radius:14px;padding:10px;display:flex;flex-direction:column;min-height:0}
-  .userWrap h3{margin:0 0 8px 0;font-size:13px;color:var(--muted);display:flex;align-items:center;gap:8px}
+  .userHeader{display:flex;align-items:center;gap:8px;margin-bottom:8px}
+  .userHeader h3{margin:0;font-size:13px;color:var(--muted)}
   #user{flex:1;width:100%;height:100%;background:#0e1430;border-radius:10px;touch-action:none}
+  .avatar{width:32px;height:32px;border-radius:50%}
 
-  .mute{position:fixed;right:12px;bottom:12px;background:#0f1736;border:1px solid #223063;border-radius:10px;padding:8px 10px;cursor:pointer}
   dialog{border:none;border-radius:16px;background:#0d1330;color:#e7eefc;max-width:520px;width:calc(100% - 24px)}
   .modal{padding:16px;border:1px solid #223063;border-radius:16px;background:linear-gradient(180deg,#0f1736,#0b1126)}
   .grid{display:grid;gap:10px}
@@ -49,7 +52,6 @@
       <h1 style="margin:0;font-size:18px">Fruit Slice Royale</h1>
       <span class="badge">Local test • TPC only</span>
     </div>
-    <button id="mute" class="mute">🔊</button>
   </header>
 
   <div class="controls">
@@ -78,20 +80,34 @@
     </div>
   </div>
 
-  <div class="hud">
-    <div class="panel"><strong>Time</strong><span id="time" class="timer">03:00</span></div>
-    <div class="panel"><strong>Pot (TPC)</strong><span id="pot" class="score">0</span></div>
-    <div class="panel"><strong>Your score</strong><span id="myscore" class="score">0</span></div>
-  </div>
-
   <div class="layout">
     <div class="top">
-      <div class="mini"><h3>P1</h3><canvas id="opp1"></canvas></div>
-      <div class="mini"><h3>P2</h3><canvas id="opp2"></canvas></div>
-      <div class="mini"><h3>P3</h3><canvas id="opp3"></canvas></div>
+      <div class="mini">
+        <h3><img id="avatar1" src="assets/icons/profile.svg" alt="" class="flagInline"/><span id="name1">P1</span></h3>
+        <div id="score1" class="aiScore">0</div>
+        <canvas id="opp1"></canvas>
+      </div>
+      <div class="mini">
+        <h3><img id="avatar2" src="assets/icons/profile.svg" alt="" class="flagInline"/><span id="name2">P2</span></h3>
+        <div id="score2" class="aiScore">0</div>
+        <canvas id="opp2"></canvas>
+      </div>
+      <div class="mini">
+        <h3><img id="avatar3" src="assets/icons/profile.svg" alt="" class="flagInline"/><span id="name3">P3</span></h3>
+        <div id="score3" class="aiScore">0</div>
+        <canvas id="opp3"></canvas>
+      </div>
     </div>
     <div class="userWrap">
-      <h3>USER</h3>
+      <div class="userHeader">
+        <img id="avatarUser" src="assets/icons/profile.svg" alt="" class="avatar"/>
+        <h3 id="playerName">USER</h3>
+        <div class="hud">
+          <div class="panel"><strong>Time</strong><span id="time" class="timer">03:00</span></div>
+          <div class="panel"><strong>Pot (TPC)</strong><span id="pot" class="score">0</span></div>
+          <div class="panel"><strong>Your score</strong><span id="myscore" class="score">0</span></div>
+        </div>
+      </div>
       <canvas id="user"></canvas>
     </div>
   </div>
@@ -120,6 +136,28 @@
 (function(){
   const $=s=>document.querySelector(s);
   const canvases={ user:$('#user'), opp1:$('#opp1'), opp2:$('#opp2'), opp3:$('#opp3') };
+  const params=new URLSearchParams(location.search);
+  let n=Math.max(2,Math.min(4,parseInt(params.get('players'),10)||4));
+  let stake=Math.max(0,parseInt(params.get('amount'),10)||300);
+  let durSec=Math.max(10,parseInt(params.get('duration'),10)||180);
+  const avatarParam=params.get('avatar')||'';
+  $('#players').value=n; $('#duration').value=durSec; $('#stake').value=stake;
+  document.querySelector('.controls').style.display='none';
+  document.querySelector('header').style.display='none';
+  const avatarEls=[$('#avatar1'),$('#avatar2'),$('#avatar3'),$('#avatarUser')];
+  const nameEls=[$('#name1'),$('#name2'),$('#name3')];
+  const scoreEls=[$('#score1'),$('#score2'),$('#score3')];
+  const playerNameEl=$('#playerName');
+  const userData=window?.Telegram?.WebApp?.initDataUnsafe?.user;
+  const playerName=userData?.username||[userData?.first_name,userData?.last_name].filter(Boolean).join(' ')||'Player';
+  function adjustNameSize(el){ if(!el) return; const len=el.textContent.length; if(len>12){ const size=Math.max(8,13-(len-12)*0.5); el.style.fontSize=size+'px'; } }
+  if(playerNameEl){ playerNameEl.textContent=playerName; adjustNameSize(playerNameEl); }
+  if(avatarParam){ avatarEls[3].src=avatarParam; } else if(userData?.photo_url){ avatarEls[3].src=userData.photo_url; }
+  const FLAG_EMOJIS=["🇦🇫","🇦🇽","🇦🇱","🇩🇿","🇦🇸","🇦🇩","🇦🇴","🇦🇮","🇦🇶","🇦🇬","🇦🇷","🇦🇲","🇦🇼","🇦🇺","🇦🇹","🇦🇿","🇧🇸","🇧🇭","🇧🇩","🇧🇧","🇧🇾","🇧🇪","🇧🇿","🇧🇯","🇧🇲","🇧🇹","🇧🇴","🇧🇦","🇧🇼","🇧🇻","🇧🇷","🇮🇴","🇻🇬","🇧🇳","🇧🇬","🇧🇫","🇧🇮","🇰🇭","🇨🇲","🇨🇦","🇨🇻","🇧🇶","🇰🇾","🇨🇫","🇹🇩","🇨🇱","🇨🇳","🇨🇽","🇨🇨","🇨🇴","🇰🇲","🇨🇬","🇨🇩","🇨🇰","🇨🇷","🇨🇮","🇭🇷","🇨🇺","🇨🇼","🇨🇾","🇨🇿","🇩🇰","🇩🇯","🇩🇲","🇩🇴","🇪🇨","🇪🇬","🇸🇻","🇬🇶","🇪🇷","🇪🇪","🇸🇿","🇪🇹","🇫🇰","🇫🇴","🇫🇯","🇫🇮","🇫🇷","🇬🇫","🇵🇫","🇹🇫","🇬🇦","🇬🇲","🇬🇪","🇩🇪","🇬🇭","🇬🇮","🇬🇷","🇬🇱","🇬🇩","🇬🇵","🇬🇺","🇬🇹","🇬🇬","🇬🇳","🇬🇼","🇬🇾","🇭🇹","🇭🇲","🇭🇳","🇭🇰","🇭🇺","🇮🇸","🇮🇳","🇮🇩","🇮🇷","🇮🇶","🇮🇪","🇮🇲","🇮🇱","🇮🇹","🇯🇲","🇯🇵","🇯🇪","🇯🇴","🇰🇿","🇰🇪","🇰🇮","🇰🇼","🇰🇬","🇱🇦","🇱🇻","🇱🇧","🇱🇸","🇱🇷","🇱🇾","🇱🇮","🇱🇹","🇱🇺","🇲🇴","🇲🇬","🇲🇼","🇲🇾","🇲🇻","🇲🇱","🇲🇹","🇲🇭","🇲🇶","🇲🇷","🇲🇺","🇾🇹","🇲🇽","🇫🇲","🇲🇩","🇲🇨","🇲🇳","🇲🇪","🇲🇸","🇲🇦","🇲🇿","🇲🇲","🇳🇦","🇳🇷","🇳🇵","🇳🇱","🇳🇨","🇳🇿","🇳🇮","🇳🇪","🇳🇬","🇳🇺","🇳🇫","🇰🇵","🇲🇰","🇲🇵","🇳🇴","🇴🇲","🇵🇰","🇵🇼","🇵🇸","🇵🇦","🇵🇬","🇵🇾","🇵🇪","🇵🇭","🇵🇳","🇵🇱","🇵🇹","🇵🇷","🇶🇦","🇷🇪","🇷🇴","🇷🇺","🇷🇼","🇼🇸","🇸🇲","🇸🇹","🇸🇦","🇸🇳","🇷🇸","🇸🇨","🇸🇱","🇸🇬","🇸🇽","🇸🇰","🇸🇮","🇸🇧","🇸🇴","🇿🇦","🇬🇸","🇰🇷","🇸🇸","🇪🇸","🇱🇰","🇧🇱","🇸🇭","🇰🇳","🇱🇨","🇲🇫","🇵🇲","🇻🇨","🇸🇩","🇸🇷","🇸🇯","🇸🇪","🇨🇭","🇸🇾","🇹🇼","🇹🇯","🇹🇿","🇹🇭","🇹🇱","🇹🇬","🇹🇰","🇹🇴","🇹🇹","🇹🇳","🇹🇷","🇹🇲","🇹🇨","🇹🇻","🇺🇲","🇻🇮","🇺🇬","🇺🇦","🇦🇪","🇬🇧","🇺🇸","🇺🇾","🇺🇿","🇻🇺","🇻🇦","🇻🇪","🇻🇳","🇼🇫","🇪🇭","🇾🇪","🇿🇲","🇿🇼"];
+  const emojiToDataUrl=e=>`data:image/svg+xml,${encodeURIComponent("<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 120 120'><text y='96' font-size='96'>"+e+"</text></svg>")}`;
+  const regionNames=new Intl.DisplayNames(['en'], { type:'region' });
+  const flagToName=flag=>{ const codes=Array.from(flag).map(c=>c.codePointAt(0)-0x1F1E6+65); const cc=String.fromCharCode(...codes); return regionNames.of(cc); };
+  for(let i=0;i<n-1;i++){ const flag=FLAG_EMOJIS[(Math.random()*FLAG_EMOJIS.length)|0]; const url=emojiToDataUrl(flag); avatarEls[i].src=url; nameEls[i].textContent=flagToName(flag); adjustNameSize(nameEls[i]); scoreEls[i].textContent='0'; }
   function fitCanvas(c){ const r=c.getBoundingClientRect(); c.width=Math.max(10,r.width); c.height=Math.max(10,r.height); }
 
   // ===== Audio =====
@@ -465,15 +503,15 @@
 
   function startMatch(){
     layout();
-    const n=Math.max(2,Math.min(4,parseInt($('#players').value,10)||4));
-    const stake=Math.max(0,parseInt($('#stake').value||'0',10));
-    const durSec=Math.max(10,parseInt($('#duration').value,10)||180);
+    n=Math.max(2,Math.min(4,parseInt($('#players').value,10)||4));
+    stake=Math.max(0,parseInt($('#stake').value||'0',10));
+    durSec=Math.max(10,parseInt($('#duration').value,10)||180);
     $('#pot').textContent=String(stake*n);
     $('#time').textContent=fmt(durSec);
 
     games.length=0;
     const opp=[$('#opp1'),$('#opp2'),$('#opp3')];
-    for(let i=0;i<n-1;i++) games.push(createGame(opp[i],false));
+    for(let i=0;i<n-1;i++){ scoreEls[i].textContent='0'; games.push(createGame(opp[i],false)); }
     games.push(createGame($('#user'),true));
 
     endAt=performance.now()+durSec*1000;
@@ -488,7 +526,11 @@
   function loop(){
     if(!running) return;
     const now=performance.now(), dt=now-last; last=now;
-    for(const g of games){ g.update(dt); g.draw(); g.aiThink(now); }
+    for(let i=0;i<games.length;i++){
+      const g=games[i];
+      g.update(dt); g.draw(); g.aiThink(now);
+      if(i<n-1) scoreEls[i].textContent=String(g.score);
+    }
     $('#myscore').textContent=String(games[games.length-1].score);
     updateTimer(); raf=requestAnimationFrame(loop);
   }
@@ -508,13 +550,12 @@
   }
 
   // Bindings
-  $('#start').addEventListener('click', startMatch);
   $('#rematch').addEventListener('click', ()=>{ $('#results').close(); startMatch(); });
   $('#change').addEventListener('click', ()=>{ $('#results').close(); location.href='/games/fruitsliceroyale/lobby'; });
-  $('#mute').addEventListener('click', ()=>{ muted=!muted; $('#mute').textContent=muted?'🔇':'🔊'; if(!muted) ensureAudio(); });
 
   window.addEventListener('resize', layout);
   layout();
+  startMatch();
 })();
 </script>
 </body>
