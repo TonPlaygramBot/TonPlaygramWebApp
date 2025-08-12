@@ -1,0 +1,521 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+<title>Bubble Smash Royale — Touch & Human Bots</title>
+<style>
+  :root{ --bg:#0c1020; --panel:#11172a; --primary:#2563eb; --gold:#d4af37; --text:#e7eefc; --muted:#8fa1d2; }
+  *{box-sizing:border-box;font-family:Inter,system-ui,Segoe UI,Roboto,Helvetica,Arial,sans-serif}
+  html,body{height:100vh}
+  body{margin:0;background:radial-gradient(1200px 800px at 70% -10%, #1a2450 0%, #0c1020 38%, #0c1020 100%) fixed;color:var(--text);overflow:hidden}
+  .app{height:100vh;display:flex;flex-direction:column;padding:12px;gap:10px;max-width:1100px;margin:0 auto}
+  header{display:flex;gap:12px;align-items:center;justify-content:space-between}
+  .badge{background:#0f1736;border:1px solid #223063;border-radius:10px;padding:6px 10px;color:var(--muted);font-size:12px}
+
+  .controls{display:grid;grid-template-columns:1fr 1fr 1fr auto;gap:8px}
+  label{font-size:12px;color:var(--muted);display:block;margin-bottom:6px}
+  select,button,input{width:100%;padding:10px 12px;border-radius:10px;border:1px solid #223063;background:#0e1430;color:#e7eefc}
+  .btn{background:linear-gradient(180deg,#2a6cf0,#2156c8);border:none;font-weight:700;cursor:pointer}
+
+  .hud{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+  .panel{border:1px solid #223063;background:#0b1228;border-radius:12px;padding:10px;display:flex;align-items:center;justify-content:space-between}
+  .score{color:var(--gold);font-weight:800}
+  .timer{font-variant-numeric:tabular-nums;font-weight:800}
+
+  .layout{display:grid;grid-template-rows:25vh 1fr;gap:10px;flex:1;min-height:0}
+  .top{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;min-height:0}
+  .mini{position:relative;border:1px solid #223063;background:linear-gradient(180deg,#0f1530,#0a0f24);border-radius:12px;padding:8px;display:flex;flex-direction:column;min-height:0}
+  .mini h3{margin:0 0 6px 0;font-size:12px;color:var(--muted)}
+  .mini canvas{flex:1;width:100%;height:100%;background:#0e1430;border-radius:8px;image-rendering:pixelated}
+
+  .userWrap{position:relative;border:1px solid #223063;background:linear-gradient(180deg,#0f1530,#0a0f24);border-radius:14px;padding:10px;display:flex;flex-direction:column;min-height:0}
+  .userWrap h3{margin:0 0 8px 0;font-size:13px;color:var(--muted);display:flex;align-items:center;gap:8px}
+  #user{flex:1;width:100%;height:100%;background:#0e1430;border-radius:10px;touch-action:none;image-rendering:pixelated}
+
+  .toast{position:fixed;left:50%;transform:translateX(-50%);bottom:16px;background:#0d1536;border:1px solid #223063;border-radius:10px;padding:8px 12px;font-size:13px;opacity:0;transition:opacity .2s}
+  .toast.show{opacity:1}
+
+  dialog{border:none;border-radius:16px;background:#0d1330;color:#e7eefc;max-width:520px;width:calc(100% - 24px)}
+  .modal{padding:16px;border:1px solid #223063;border-radius:16px;background:linear-gradient(180deg,#0f1736,#0b1126)}
+  .grid{display:grid;gap:10px}
+  .grid.two{grid-template-columns:1fr 1fr}
+  .kpi{background:#0b1228;border:1px solid #223063;border-radius:12px;padding:10px;text-align:center}
+  .kpi .v{font-size:22px;font-weight:800}
+
+  .mute{position:fixed;right:12px;bottom:12px;background:#0f1736;border:1px solid #223063;border-radius:10px;padding:8px 10px;cursor:pointer}
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <div style="display:flex;align-items:center;gap:10px">
+      <h1 style="margin:0;font-size:18px">Bubble Smash Royale</h1>
+      <span class="badge">Local test • TPC only</span>
+    </div>
+  </header>
+
+  <div class="controls">
+    <div>
+      <label>Players</label>
+      <select id="players">
+        <option value="2">2 players</option>
+        <option value="3">3 players</option>
+        <option value="4" selected>4 players</option>
+      </select>
+    </div>
+    <div>
+      <label>Duration</label>
+      <select id="duration">
+        <option value="60">1 min</option>
+        <option value="180" selected>3 min</option>
+        <option value="300">5 min</option>
+      </select>
+    </div>
+    <div>
+      <label>Stake per player (TPC)</label>
+      <input id="stake" type="number" value="300" min="0" step="50"/>
+    </div>
+    <div>
+      <button id="start" class="btn">Start Match</button>
+    </div>
+  </div>
+
+  <div class="hud">
+    <div class="panel"><strong>Time</strong><span id="time" class="timer">03:00</span></div>
+    <div class="panel"><strong>Pot (TPC)</strong><span id="pot" class="score">0</span></div>
+    <div class="panel"><strong>Your score</strong><span id="myscore" class="score">0</span></div>
+  </div>
+
+  <div class="layout">
+    <div class="top">
+      <div class="mini"><h3>P1</h3><canvas id="opp1"></canvas></div>
+      <div class="mini"><h3>P2</h3><canvas id="opp2"></canvas></div>
+      <div class="mini"><h3>P3</h3><canvas id="opp3"></canvas></div>
+    </div>
+    <div class="userWrap">
+      <h3>USER</h3>
+      <canvas id="user"></canvas>
+    </div>
+  </div>
+</div>
+<div id="toast" class="toast"></div>
+<button id="mute" class="mute">🔊</button>
+
+<dialog id="results">
+  <div class="modal">
+    <h2>Round results</h2>
+    <div class="grid two">
+      <div class="kpi"><div class="v" id="winner">-</div><div>Winner</div></div>
+      <div class="kpi"><div class="v" id="payout">0</div><div>Payout TPC</div></div>
+    </div>
+    <div class="grid" style="margin-top:10px">
+      <div class="kpi"><div class="v" id="fee">0</div><div>Fee 10%</div></div>
+      <div class="kpi"><div class="v" id="potFinal">0</div><div>Final Pot</div></div>
+    </div>
+    <div class="grid" id="scoreList" style="margin-top:10px"></div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px">
+      <button class="btn" id="rematch">Rematch</button>
+      <button class="btn" id="change">Change settings</button>
+    </div>
+  </div>
+</dialog>
+
+<script>
+(function(){
+  // ===== Core config =====
+  const COLS=9, ROWS=9;
+  const COLORS=['#5aa2ff','#ff9d5a','#ff5a6b','#d4af37','#34d399','#a78bfa'];
+  const SCORE_BASE=60, SCORE_EXTRA=30;
+
+  // ===== Helpers =====
+  const $=s=>document.querySelector(s);
+  const fmt=s=>{const m=String((s/60)|0).padStart(2,'0');const ss=String(Math.max(0,s%60)).padStart(2,'0');return `${m}:${ss}`;};
+  function fitCanvas(c){const r=c.getBoundingClientRect(); c.width=Math.max(10,r.width); c.height=Math.max(10,r.height); }
+
+  // Audio
+  let audioCtx=null, muted=false;
+  function ensureAudio(){ if(!audioCtx){ audioCtx=new (window.AudioContext||window.webkitAudioContext)(); } }
+  function pop(freq=900, dur=0.08, vol=0.22){
+    if(!audioCtx||muted) return;
+    const t=audioCtx.currentTime, o=audioCtx.createOscillator(), g=audioCtx.createGain();
+    o.type='triangle'; o.frequency.value=freq;
+    g.gain.setValueAtTime(0, t);
+    g.gain.linearRampToValueAtTime(vol, t+0.01);
+    g.gain.exponentialRampToValueAtTime(0.0001, t+dur);
+    o.connect(g); g.connect(audioCtx.destination);
+    o.start(t); o.stop(t+dur+0.02);
+  }
+
+  // ===== Board model =====
+  function makeCell(color){return {c:color};}
+  const randColor=()=>COLORS[(Math.random()*COLORS.length)|0];
+
+  function createBoard(){
+    const b=Array.from({length:ROWS},()=>Array(COLS).fill(null));
+    for(let y=0;y<ROWS;y++){
+      for(let x=0;x<COLS;x++){
+        do{ b[y][x]=makeCell(randColor()); }while(runHere(b,x,y));
+      }
+    }
+    return b;
+  }
+  function runHere(b,x,y){
+    const c=b[y][x].c;
+    if(x>=2&&b[y][x-1]&&b[y][x-2]&&b[y][x-1].c===c&&b[y][x-2].c===c) return true;
+    if(y>=2&&b[y-1][x]&&b[y-2][x]&&b[y-1][x].c===c&&b[y-2][x].c===c) return true;
+    return false;
+  }
+
+  function findMatches(b){
+    const marks=Array.from({length:ROWS},()=>Array(COLS).fill(false));
+    let any=false, clusters=[];
+    // horiz
+    for(let y=0;y<ROWS;y++){
+      let run=1;
+      for(let x=1;x<=COLS;x++){
+        const cont=(x<COLS && b[y][x]&&b[y][x-1]&&b[y][x].c===b[y][x-1].c);
+        if(cont){ run++; } else {
+          if(run>=3){ any=true; const list=[]; for(let k=0;k<run;k++){ marks[y][x-1-k]=true; list.push({x:x-1-k,y}); } clusters.push(list); }
+          run=1;
+        }
+      }
+    }
+    // vert
+    for(let x=0;x<COLS;x++){
+      let run=1;
+      for(let y=1;y<=ROWS;y++){
+        const cont=(y<ROWS && b[y][x]&&b[y-1][x]&&b[y][x].c===b[y-1][x].c);
+        if(cont){ run++; } else {
+          if(run>=3){ any=true; const list=[]; for(let k=0;k<run;k++){ if(!marks[y-1-k][x]) list.push({x,y:y-1-k}); marks[y-1-k][x]=true; } clusters.push(list); }
+          run=1;
+        }
+      }
+    }
+    return any?{marks,clusters}:null;
+  }
+
+  function applyMatches(board, match, addFX){
+    let removed=0;
+    for(let y=0;y<ROWS;y++){
+      for(let x=0;x<COLS;x++){
+        if(match.marks[y][x]){
+          if(addFX) addFX(x,y);
+          board[y][x]=null; removed++;
+        }
+      }
+    }
+    // gravity
+    for(let x=0;x<COLS;x++){
+      let ptr=ROWS-1;
+      for(let y=ROWS-1;y>=0;y--){
+        if(board[y][x]){ board[ptr][x]=board[y][x]; if(ptr!==y) board[y][x]=null; ptr--; }
+      }
+      for(let y=ptr;y>=0;y--) board[y][x]=makeCell(randColor());
+    }
+    const gained = removed>=3 ? (SCORE_BASE + (removed-3)*SCORE_EXTRA) : 0;
+    return {removed,gained};
+  }
+
+  // ===== Renderer + FX =====
+  function createFX(canvas){
+    const fx=[];
+    const ctx=canvas.getContext('2d');
+    const cell=()=>Math.floor(Math.min(canvas.width/COLS,canvas.height/ROWS));
+    const off=()=>({x:Math.floor((canvas.width-cell()*COLS)/2), y:Math.floor((canvas.height-cell()*ROWS)/2)});
+
+    function drawBoard(board, sel){
+      const csize=cell(), o=off();
+      ctx.clearRect(0,0,canvas.width,canvas.height);
+      ctx.fillStyle='#0e1430'; ctx.fillRect(0,0,canvas.width,canvas.height);
+
+      for(let y=0;y<ROWS;y++){
+        for(let x=0;x<COLS;x++){
+          const t=board[y][x]; if(!t) continue;
+          const cx=o.x+x*csize+csize/2, cy=o.y+y*csize+csize/2, r=csize*0.38;
+          const g=ctx.createRadialGradient(cx-r*0.4, cy-r*0.5, r*0.2, cx,cy,r);
+          g.addColorStop(0,'#ffffff66'); g.addColorStop(0.25, t.c); g.addColorStop(1,'#00000055');
+          ctx.fillStyle=g; ctx.beginPath(); ctx.arc(cx,cy,r,0,Math.PI*2); ctx.fill();
+        }
+      }
+      if(sel){
+        ctx.strokeStyle='#8fa1d2'; ctx.lineWidth=3;
+        const x=o.x+sel.x*csize+2, y=o.y+sel.y*csize+2;
+        ctx.strokeRect(x,y,csize-4,csize-4);
+      }
+
+      // FX
+      const now=performance.now();
+      for(let i=fx.length-1;i>=0;i--){
+        const f=fx[i], p=(now-f.t0)/f.dur;
+        if(p>=1){ fx.splice(i,1); continue; }
+        if(f.kind==='burst'){
+          for(const part of f.parts){
+            const px = part.x + part.vx * p;
+            const py = part.y + part.vy * p + 0.3*p*p*part.g;
+            const alpha = 1 - p;
+            ctx.fillStyle = `rgba(231,238,252,${alpha})`;
+            ctx.beginPath(); ctx.arc(px, py, part.r*(1-p*0.6), 0, Math.PI*2); ctx.fill();
+          }
+        } else if(f.kind==='float'){
+          const alpha = 1 - p;
+          const y = f.y - p*30;
+          ctx.fillStyle=`rgba(212,175,55,${alpha})`;
+          ctx.font=`bold ${Math.max(12, Math.floor(csize*0.4))}px system-ui`;
+          ctx.textAlign='center';
+          ctx.fillText(f.text, f.x, y);
+        }
+      }
+    }
+
+    function centerOfCell(cx,cy){
+      const csize=cell(), o=off();
+      return {x:o.x+cx*csize+csize/2, y:o.y+cy*csize+csize/2};
+    }
+
+    return {
+      list:fx,
+      draw:drawBoard,
+      burstAt(cx,cy){
+        const c=centerOfCell(cx,cy); const parts=[];
+        const csize=cell();
+        for(let i=0;i<10;i++){
+          const a=Math.random()*Math.PI*2, sp=(0.6+Math.random()*1.2)*csize/2;
+          parts.push({x:c.x,y:c.y,vx:Math.cos(a)*sp,vy:Math.sin(a)*sp,g:csize*0.8,r:Math.max(2,csize*0.08)});
+        }
+        fx.push({kind:'burst',t0:performance.now(),dur:260,parts});
+      },
+      floatScore(cx,cy,pts){
+        const c=centerOfCell(cx,cy);
+        fx.push({kind:'float',t0:performance.now(),dur:700,x:c.x,y:c.y,text:`+${pts}`});
+      }
+    };
+  }
+
+  function neighbors4(a,b){ return (Math.abs(a.x-b.x)+Math.abs(a.y-b.y))===1; }
+  function evtToCell(canvas,e){
+    const r=canvas.getBoundingClientRect();
+    const x=e.clientX-r.left, y=e.clientY-r.top;
+    const c=Math.min(canvas.width/COLS,canvas.height/ROWS);
+    const offX=(canvas.width-c*COLS)/2, offY=(canvas.height-c*ROWS)/2;
+    const cx=Math.floor((x-offX)/c), cy=Math.floor((y-offY)/c);
+    if(cx<0||cx>=COLS||cy<0||cy>=ROWS) return null; return {x:cx,y:cy};
+  }
+
+  function validSwap(b,a,bp){
+    const t=b[a.y][a.x]; b[a.y][a.x]=b[bp.y][bp.x]; b[bp.y][bp.x]=t;
+    const ok = !!findMatches(b);
+    const t2=b[a.y][a.x]; b[a.y][a.x]=b[bp.y][bp.x]; b[bp.y][bp.x]=t2;
+    return ok;
+  }
+
+  // ===== Game (per board) =====
+  function createGame(canvas,isUser){
+    const ctx=canvas.getContext('2d'); fitCanvas(canvas);
+    const fx=createFX(canvas);
+    const game={ board:createBoard(), score:0, selected:null, busy:false, over:false, isUser, fx };
+
+    function cascade(){
+      game.busy=true;
+      let chain=0;
+      (function step(){
+        const match=findMatches(game.board);
+        if(!match){ game.busy=false; return; }
+        chain++;
+        if(isUser){ pop(700+chain*80, 0.06, 0.2); }
+        const res=applyMatches(game.board, match, (cx,cy)=>fx.burstAt(cx,cy));
+        if(match.clusters && match.clusters.length){
+          const biggest = match.clusters.reduce((a,b)=> b.length>a.length?b:a, match.clusters[0]);
+          const mid = biggest[(biggest.length/2)|0];
+          const pts = Math.max(30, Math.floor(res.gained / Math.max(1, match.clusters.length)));
+          fx.floatScore(mid.x, mid.y, pts);
+        }
+        game.score += res.gained;
+        setTimeout(step, 90);
+      })();
+    }
+
+    game.trySwap=function(a,b){
+      if(game.busy||game.over) return;
+      if(!neighbors4(a,b)) return;
+      if(!validSwap(game.board,a,b)) return;
+      const t=game.board[a.y][a.x]; game.board[a.y][a.x]=game.board[b.y][b.x]; game.board[b.y][b.x]=t;
+      cascade();
+    };
+
+    game.draw=()=>fx.draw(game.board, game.selected);
+    window.addEventListener('resize',()=>{ fitCanvas(canvas); game.draw(); });
+
+    // Touch-only input (finger drag)
+    if(isUser){
+      ['pointerdown','touchstart','mousedown'].forEach(ev=>canvas.addEventListener(ev,()=>{ensureAudio();},{once:true}));
+      let start=null; let dragging=false;
+      canvas.addEventListener('pointerdown', e=>{
+        const cell=evtToCell(canvas,e); if(!cell) return;
+        start=cell; dragging=true; game.selected=cell; game.draw();
+        canvas.setPointerCapture(e.pointerId);
+      });
+      canvas.addEventListener('pointermove', e=>{
+        if(!dragging||!start) return;
+        const r=canvas.getBoundingClientRect();
+        const x=e.clientX-r.left, y=e.clientY-r.top;
+        const c=Math.min(canvas.width/COLS,canvas.height/ROWS);
+        const offX=(canvas.width-c*COLS)/2, offY=(canvas.height-c*ROWS)/2;
+        const dx = x - (offX + start.x*c + c/2);
+        const dy = y - (offY + start.y*c + c/2);
+        const TH = c*0.28; // drag threshold
+        if(Math.hypot(dx,dy) < TH) return;
+        // decide direction by larger axis
+        let target = {x:start.x, y:start.y};
+        if(Math.abs(dx) > Math.abs(dy)) target.x += (dx>0?1:-1); else target.y += (dy>0?1:-1);
+        if(target.x<0||target.x>=COLS||target.y<0||target.y>=ROWS) return;
+        const a=start,b=target; start=null; dragging=false; game.selected=null;
+        game.trySwap(a,b); game.draw();
+        try{ canvas.releasePointerCapture(e.pointerId); }catch(_){}
+      });
+      canvas.addEventListener('pointerup', e=>{
+        dragging=false; start=null; game.selected=null; game.draw();
+        try{ canvas.releasePointerCapture(e.pointerId); }catch(_){}}
+      );
+      canvas.addEventListener('pointercancel', ()=>{ dragging=false; start=null; game.selected=null; game.draw(); });
+    }
+
+    // safety
+    cascade();
+    return game;
+  }
+
+  // ===== Human-like Bot =====
+  function findFirstGoodSwap(board){
+    for(let y=0;y<ROWS;y++){
+      for(let x=0;x<COLS;x++){
+        const a={x,y};
+        const neigh=[{x:x+1,y},{x,y:y+1}];
+        for(const b of neigh){
+          if(b.x>=COLS||b.y>=ROWS) continue;
+          if(validSwap(board,a,b)) return {a,b};
+        }
+      }
+    }
+    return null;
+  }
+
+  function scheduleNext(delayBase=1200){
+    return performance.now() + delayBase + Math.random()*400; // 1.2s–1.6s
+    // (feels human, not spammy)
+  }
+
+  function botThink(bot){
+    if(bot.busy||bot.over) return false;
+    const mv=findFirstGoodSwap(bot.board);
+    if(!mv) { bot.board=createBoard(); return false; }
+    const t=bot.board[mv.a.y][mv.a.x]; bot.board[mv.a.y][mv.a.x]=bot.board[mv.b.y][mv.b.x]; bot.board[mv.b.y][mv.b.x]=t;
+    // resolve cascades (same as user but silent)
+    (function resolve(){
+      const m=findMatches(bot.board);
+      if(!m){ return; }
+      const res=applyMatches(bot.board,m); bot.score+=res.gained;
+      setTimeout(resolve, 90);
+    })();
+    return true;
+  }
+
+  // ===== Shell / Multiplayer =====
+  const canvases={ user:$('#user'), opp1:$('#opp1'), opp2:$('#opp2'), opp3:$('#opp3') };
+  const ui={ time:$('#time'), pot:$('#pot'), myscore:$('#myscore'),
+    duration:$('#duration'), players:$('#players'), stake:$('#stake'),
+    start:$('#start'), results:$('#results'), winner:$('#winner'),
+    payout:$('#payout'), fee:$('#fee'), potFinal:$('#potFinal'),
+    scoreList:$('#scoreList'), rematch:$('#rematch'), change:$('#change'),
+    mute:$('#mute') };
+
+  let games=[]; let rafId=null; let endAt=0; let last=performance.now(); let running=false;
+
+  // bots tempo state
+  const botTimers=[]; // per-bot next timestamp
+
+  function layout(){ Object.values(canvases).forEach(c=>{ if(c) fitCanvas(c); }); }
+
+  function startMatch(){
+    layout();
+    const n=Math.max(2,Math.min(4,parseInt(ui.players.value,10)||4));
+    const stake=Math.max(0,parseInt(ui.stake.value||'0',10));
+    const durSec=Math.max(10,parseInt(ui.duration.value,10)||180);
+    ui.pot.textContent=String(stake*n);
+    ui.time.textContent=fmt(durSec);
+
+    games=[];
+    const opp=[canvases.opp1,canvases.opp2,canvases.opp3];
+    for(let i=0;i<n-1;i++){ const g=createGame(opp[i],false); games.push(g); }
+    const u=createGame(canvases.user,true); games.push(u);
+
+    // init bot timers
+    botTimers.length=0;
+    for(let i=0;i<n-1;i++) botTimers[i]=scheduleNext(1000 + i*80); // staggered start
+
+    endAt=performance.now()+durSec*1000;
+    running=true; last=performance.now();
+    loop();
+  }
+
+  function updateTimer(){
+    const remain=Math.max(0,Math.ceil((endAt-performance.now())/1000));
+    ui.time.textContent=fmt(remain);
+    if(remain<=0) finish();
+  }
+
+  function finish(){
+    if(!running) return; running=false; if(rafId) cancelAnimationFrame(rafId);
+    const n=games.length; const stake=Math.max(0,parseInt(ui.stake.value||'0',10));
+    const gross=stake*n; const fee=Math.round(gross*0.10); const net=gross-fee;
+    const scores=games.map((g,i)=>({i,score:g.score}));
+    const max=Math.max(...scores.map(s=>s.score));
+    const winners=scores.filter(s=>s.score===max);
+    const payout=winners.length?Math.floor(net / winners.length):0;
+
+    $('#winner').textContent = winners.length>1 ? `Tie (${winners.map(w=>'P'+(w.i+1)).join(', ')})` : `P${winners[0].i+1}`;
+    $('#payout').textContent=String(payout); $('#fee').textContent=String(fee); $('#potFinal').textContent=String(net);
+    $('#scoreList').innerHTML = scores.sort((a,b)=>b.score-a.score).map(s=>`<div class="kpi"><div class="v">P${s.i+1}: ${s.score}</div><div>—</div></div>`).join('');
+    if(!$('#results').open) $('#results').showModal();
+  }
+
+  function loop(){
+    if(!running) return;
+    const now=performance.now(); const dt=(now-last)/1000; last=now;
+
+    // draw
+    for(const g of games) g.draw();
+
+    // bots act with human-like timing
+    for(let i=0;i<games.length-1;i++){
+      const g=games[i];
+      if(now >= botTimers[i] && !g.busy){
+        const moved = botThink(g);
+        botTimers[i] = scheduleNext(1100 + (moved?0:150)); // tiny delay if had to reshuffle
+      }
+    }
+
+    // UI
+    $('#myscore').textContent = String(games[games.length-1].score);
+    updateTimer();
+    rafId=requestAnimationFrame(loop);
+  }
+
+  // Bind
+  $('#start').addEventListener('click', startMatch);
+  $('#rematch').addEventListener('click', ()=>{ $('#results').close(); startMatch(); });
+  $('#change').addEventListener('click', ()=>{ $('#results').close(); });
+
+  // Mute toggle
+  $('#mute').addEventListener('click', ()=>{
+    muted=!muted;
+    $('#mute').textContent = muted? '🔇' : '🔊';
+    if(!muted) ensureAudio();
+  });
+
+  window.addEventListener('resize', layout);
+  layout();
+})();
+</script>
+</body>
+</html>
