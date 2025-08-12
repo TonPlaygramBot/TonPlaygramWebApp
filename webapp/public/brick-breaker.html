@@ -140,6 +140,8 @@
         border-radius: 10px;
         background: linear-gradient(0deg, #0a1026, #0c1430);
         display: block;
+        image-rendering: pixelated;
+        filter: saturate(1.2);
       }
 
       .user-area {
@@ -179,6 +181,8 @@
         border-radius: 10px;
         background: linear-gradient(0deg, #0a1026, #0c1430);
         touch-action: none;
+        image-rendering: pixelated;
+        filter: saturate(1.2);
       }
 
       .pill {
@@ -376,8 +380,8 @@
         window.__BBR_INITED__ = true;
         (() => {
           const params = new URLSearchParams(location.search);
-          const RESOLUTION = parseFloat(params.get('resolution') || '1');
-          const OUTLINE = parseFloat(params.get('outline') || '2');
+          const RESOLUTION = parseFloat(params.get('resolution') || '2');
+          const OUTLINE = parseFloat(params.get('outline') || '1');
           let GAME_DURATION_MS = 60000;
 const CANVAS_W = 720,
 
