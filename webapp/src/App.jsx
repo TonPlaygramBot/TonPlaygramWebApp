@@ -35,8 +35,6 @@ import BubblePopRoyale from './pages/Games/BubblePopRoyale.jsx';
 import BubblePopRoyaleLobby from './pages/Games/BubblePopRoyaleLobby.jsx';
 import BubbleSmashRoyale from './pages/Games/BubbleSmashRoyale.jsx';
 import BubbleSmashRoyaleLobby from './pages/Games/BubbleSmashRoyaleLobby.jsx';
-import FruitSliceRoyale from './pages/Games/FruitSliceRoyale.jsx';
-import FruitSliceRoyaleLobby from './pages/Games/FruitSliceRoyaleLobby.jsx';
 
 import Layout from './components/Layout.jsx';
 import useTelegramAuth from './hooks/useTelegramAuth.js';
@@ -75,8 +73,6 @@ export default function App() {
             <Route path="/games/bubblepoproyale" element={<BubblePopRoyale />} />
             <Route path="/games/bubblesmashroyale/lobby" element={<BubbleSmashRoyaleLobby />} />
             <Route path="/games/bubblesmashroyale" element={<BubbleSmashRoyale />} />
-            <Route path="/games/fruitsliceroyale/lobby" element={<FruitSliceRoyaleLobby />} />
-            <Route path="/games/fruitsliceroyale" element={<FruitSliceRoyale />} />
             <Route path="/spin" element={<SpinPage />} />
             <Route path="/admin/influencer" element={<InfluencerAdmin />} />
             <Route path="/tasks" element={<Tasks />} />
