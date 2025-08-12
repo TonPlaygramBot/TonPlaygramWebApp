@@ -586,6 +586,38 @@ app.get('/api/ludo/lobby/:id', async (req, res) => {
   res.json({ id, capacity: cap, players });
 });
 
+app.get('/api/checkers/lobbies', async (req, res) => {
+  const capacities = [2];
+  const lobbies = await Promise.all(
+    capacities.map(async (cap) => {
+      const id = `checkers-${cap}`;
+      const room = await gameManager.getRoom(id, cap);
+      const players = room.players.filter((p) => !p.disconnected).length;
+      return { id, capacity: cap, players };
+    })
+  );
+  res.json(lobbies);
+});
+
+app.get('/api/checkers/lobby/:id', async (req, res) => {
+  const { id } = req.params;
+  const match = /-(\d+)$/.exec(id);
+  const cap = match ? Number(match[1]) : 2;
+  const room = await gameManager.getRoom(id, cap);
+  const players = room.players
+    .filter((p) => !p.disconnected)
+    .map((p) => ({ id: p.playerId, name: p.name }));
+  res.json({ id, capacity: cap, players });
+});
+
+app.get('/api/checkers/board/:id', async (req, res) => {
+  const { id } = req.params;
+  const match = /-(\d+)$/.exec(id);
+  const cap = match ? Number(match[1]) : 2;
+  const room = await gameManager.getRoom(id, cap);
+  res.json({ board: room.game.board });
+});
+
 app.post('/api/snake/invite', async (req, res) => {
   let { fromAccount, fromName, toAccount, roomId, token, amount, type } =
     req.body || {};
@@ -832,7 +864,13 @@ io.on('connection', (socket) => {
     socket.join(roomId);
     try {
       const room = await gameManager.getRoom(roomId);
-      socket.emit('boardData', { snakes: room.snakes, ladders: room.ladders });
+      const board =
+        room.gameType === 'snake'
+          ? { snakes: room.snakes, ladders: room.ladders }
+          : room.gameType === 'checkers'
+          ? { board: room.game.board }
+          : null;
+      if (board) socket.emit('boardData', board);
     } catch {}
     io.to(roomId).emit('watchCount', { roomId, count: set.size });
   });
