@@ -349,8 +349,8 @@
             <canvas
               id="userCanvas"
               class="main"
-              width="360"
-              height="560"
+              width="720"
+              height="1120"
             ></canvas>
           </div>
         </div>
@@ -376,19 +376,22 @@
         window.__BBR_INITED__ = true;
         (() => {
           let GAME_DURATION_MS = 60000;
-          const CANVAS_W = 360,
-            CANVAS_H = 560;
+          const CANVAS_W = 720,
+            CANVAS_H = 1120,
+            DPR = window.devicePixelRatio || 1,
+            VIEW_W = CANVAS_W / DPR,
+            VIEW_H = CANVAS_H / DPR;
           const COLORS = {
-            bg: '#0a0f24',
-            wall: '#223063',
-            paddle: '#2563eb',
-            ball: '#d4af37',
-            brickA: '#5aa2ff',
-            brickB: '#ff9d5a',
-            brickC: '#ff5a6b',
-            text: '#e7eefc',
-            power: '#34d399',
-            danger: '#ff5a6b'
+            bg: '#ffffff',
+            wall: '#000000',
+            paddle: '#ff6b6b',
+            ball: '#ffd166',
+            brickA: '#06d6a0',
+            brickB: '#118ab2',
+            brickC: '#ef476f',
+            text: '#ffffff',
+            power: '#ffa600',
+            danger: '#ef476f'
           };
           const POWERUPS = ['multiball', 'fireball', 'wide', 'slow', 'x2'];
           const POINTS = { standard: 10, tough: 20, explosive: 10 };
@@ -552,9 +555,9 @@
                   col = COLORS.brickB;
                 }
                 bricks.push({
-                  x: c * (CANVAS_W / cols) + 4,
+                  x: c * (VIEW_W / cols) + 4,
                   y: 80 + r * 28,
-                  w: CANVAS_W / cols - 8,
+                  w: VIEW_W / cols - 8,
                   h: 20,
                   type,
                   hits,
@@ -570,11 +573,11 @@
           function createBoardState(index) {
             return {
               index,
-              paddle: { x: CANVAS_W / 2 - 45, y: CANVAS_H - 42, w: 90, h: 18 },
+              paddle: { x: VIEW_W / 2 - 45, y: VIEW_H - 42, w: 90, h: 18 },
               balls: [
                 {
-                  x: CANVAS_W / 2,
-                  y: CANVAS_H - 60,
+                  x: VIEW_W / 2,
+                  y: VIEW_H - 60,
                   r: 6,
                   vx: 2.2 * (Math.random() < 0.5 ? -1 : 1),
                   vy: -3.2,
@@ -598,14 +601,16 @@
             const cv = document.createElement('canvas');
             cv.width = CANVAS_W;
             cv.height = CANVAS_H;
+            const ctx = cv.getContext('2d');
+            ctx.scale(DPR, DPR);
             wrap.appendChild(cv);
             $strip.appendChild(wrap);
-            return cv.getContext('2d');
+            return ctx;
           }
 
           function drawBoard(ctx, b) {
-            const W = CANVAS_W,
-              H = CANVAS_H;
+            const W = VIEW_W,
+              H = VIEW_H;
             ctx.clearRect(0, 0, W, H);
             ctx.strokeStyle = COLORS.wall;
             ctx.lineWidth = 2;
@@ -619,6 +624,9 @@
               if (!br.alive) continue;
               ctx.fillStyle = br.color;
               ctx.fillRect(br.x, br.y, br.w, br.h);
+              ctx.lineWidth = 4;
+              ctx.strokeStyle = COLORS.wall;
+              ctx.strokeRect(br.x, br.y, br.w, br.h);
             }
             for (const p of b.powerups) {
               ctx.fillStyle = COLORS.power;
@@ -641,19 +649,25 @@
             }
             ctx.fillStyle = COLORS.paddle;
             ctx.fillRect(b.paddle.x, b.paddle.y, b.paddle.w, b.paddle.h);
+            ctx.lineWidth = 6;
+            ctx.strokeStyle = COLORS.wall;
+            ctx.strokeRect(b.paddle.x, b.paddle.y, b.paddle.w, b.paddle.h);
             for (const ball of b.balls) {
               ctx.fillStyle = ball.fire ? COLORS.danger : COLORS.ball;
               ctx.beginPath();
               ctx.arc(ball.x, ball.y, ball.r, 0, Math.PI * 2);
               ctx.fill();
+              ctx.lineWidth = 4;
+              ctx.strokeStyle = COLORS.wall;
+              ctx.stroke();
             }
           }
 
           function applyPowerup(b, kind) {
             if (kind === 'multiball') {
               const base = b.balls[0] || {
-                x: CANVAS_W / 2,
-                y: CANVAS_H - 80,
+                x: VIEW_W / 2,
+                y: VIEW_H - 80,
                 r: 6,
                 vx: 2.1,
                 vy: -3.0
@@ -699,7 +713,7 @@
               const target = clamp(
                 inputX - b.paddle.w / 2,
                 12,
-                CANVAS_W - b.paddle.w - 12
+                VIEW_W - b.paddle.w - 12
               );
               b.paddle.x = target;
             } else {
@@ -710,7 +724,7 @@
                 const time = (b.paddle.y - ball.y) / ball.vy;
                 let projected = ball.x + ball.vx * time;
                 const left = 10 + ball.r;
-                const right = CANVAS_W - 10 - ball.r;
+                const right = VIEW_W - 10 - ball.r;
                 while (projected < left || projected > right) {
                   if (projected < left) projected = left + (left - projected);
                   else if (projected > right) projected = right - (projected - right);
@@ -719,7 +733,7 @@
               }
               const speed = 3.5;
               b.paddle.x += clamp(target - b.paddle.x, -speed, speed);
-              b.paddle.x = clamp(b.paddle.x, 12, CANVAS_W - b.paddle.w - 12);
+              b.paddle.x = clamp(b.paddle.x, 12, VIEW_W - b.paddle.w - 12);
             }
 
             for (const ball of [...b.balls]) {
@@ -729,15 +743,15 @@
                 ball.x = 10 + ball.r;
                 ball.vx = Math.abs(ball.vx);
               }
-              if (ball.x + ball.r > CANVAS_W - 10) {
-                ball.x = CANVAS_W - 10 - ball.r;
+              if (ball.x + ball.r > VIEW_W - 10) {
+                ball.x = VIEW_W - 10 - ball.r;
                 ball.vx = -Math.abs(ball.vx);
               }
               if (ball.y - ball.r < 62) {
                 ball.y = 62 + ball.r;
                 ball.vy = Math.abs(ball.vy);
               }
-              if (ball.y - ball.r > CANVAS_H - 20) {
+              if (ball.y - ball.r > VIEW_H - 20) {
                 b.balls = b.balls.filter((x) => x !== ball);
                 if (b.balls.length === 0) {
                   b.lives--;
@@ -748,8 +762,8 @@
                     continue;
                   }
                   b.balls.push({
-                    x: CANVAS_W / 2,
-                    y: CANVAS_H - 60,
+                    x: VIEW_W / 2,
+                    y: VIEW_H - 60,
                     r: 6,
                     vx: 2.2 * (Math.random() < 0.5 ? -1 : 1),
                     vy: -3.2,
@@ -824,7 +838,7 @@
                 if (inputX != null)
                   showToast(`USER: ${pu.kind.toUpperCase()}!`);
               }
-              if (pu.y > CANVAS_H + 10) {
+              if (pu.y > VIEW_H + 10) {
                 b.powerups = b.powerups.filter((x) => x !== pu);
               }
             }
@@ -870,19 +884,21 @@
               miniCtxs[i] = addMiniSlot(players[i].name, players[i].avatar);
             }
 
+            const userCtx = $userCanvas.getContext('2d');
+            userCtx.scale(DPR, DPR);
             state.match = {
               n,
               stakeTPC: stake,
               states,
               miniCtxs,
               userIdx: n - 1,
-              userCtx: $userCanvas.getContext('2d'),
+              userCtx,
               players
             };
 
             const setUserX = (clientX) => {
               const r = $userCanvas.getBoundingClientRect();
-              state.userInputX = ((clientX - r.left) / r.width) * CANVAS_W;
+              state.userInputX = ((clientX - r.left) / r.width) * VIEW_W;
             };
             $userCanvas.onpointerdown = (e) => setUserX(e.clientX);
             $userCanvas.onpointermove = (e) => {
