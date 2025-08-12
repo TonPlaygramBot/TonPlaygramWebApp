@@ -84,6 +84,11 @@ export default function InvitePopup({
                     alt: 'Bubble Smash Royale',
                   },
                   {
+                    id: 'slingshotroyale',
+                    src: '/assets/icons/slingshot_royale.svg',
+                    alt: 'Slingshot Royale',
+                  },
+                  {
                     id: 'airhockey',
                     src: '/assets/icons/air_hockey.svg',
                     alt: 'Air Hockey',
