@@ -25,11 +25,23 @@
   .mini{position:relative;border:1px solid #223063;background:linear-gradient(180deg,#0f1530,#0a0f24);border-radius:12px;padding:8px;display:flex;flex-direction:column}
   .mini h3{margin:0;font-size:12px;color:var(--muted);display:flex;align-items:center;gap:4px}
   .mini .oppScore{font-size:12px;color:var(--muted);margin:2px 0 6px}
-  .mini canvas{flex:1;width:100%;height:100%;background:#0e1430;border-radius:8px;image-rendering:pixelated}
+  @keyframes canvasDepthMove{from{background-position:0 0,center}to{background-position:100px 100px,center}}
+  .mini canvas,
+  #user{
+    flex:1;width:100%;height:100%;
+    image-rendering:pixelated;
+    background:
+      repeating-linear-gradient(45deg,rgba(255,255,255,0.03)0 2px,transparent 2px 4px),
+      radial-gradient(circle at center,#1a2450 0%,#0e1430 80%);
+    background-size:100px 100px,cover;
+    background-position:0 0,center;
+    animation:canvasDepthMove 30s linear infinite;
+    border-radius:8px;
+  }
   .userWrap{position:relative;border:1px solid #223063;background:linear-gradient(180deg,#0f1530,#0a0f24);border-radius:14px;padding:10px;display:flex;flex-direction:column;min-height:0}
   .userWrap h3{margin:0;font-size:13px;color:var(--muted)}
   .userHeader{display:flex;align-items:center;gap:8px;margin-bottom:8px}
-  #user{flex:1;width:100%;height:100%;background:#0e1430;border-radius:10px;touch-action:none;image-rendering:pixelated}
+  #user{border-radius:10px;touch-action:none}
   .avatar{width:32px;height:32px;border-radius:50%}
   .mini h3 .avatar{width:16px;height:16px;border-radius:2px}
   .scorePanel{flex-direction:column;align-items:center;justify-content:center}
@@ -292,7 +304,18 @@ window.__TETRIS_ROYALE__ = true;
   function drawBoard(ctx, canvas, board, active){
     const bw = canvas.width / COLS, bh = canvas.height / ROWS;
     ctx.clearRect(0,0,canvas.width,canvas.height);
-    ctx.fillStyle = '#0e1430'; ctx.fillRect(0,0,canvas.width,canvas.height);
+    const bgGrad = ctx.createRadialGradient(
+      canvas.width/2,
+      canvas.height/2,
+      0,
+      canvas.width/2,
+      canvas.height/2,
+      Math.max(canvas.width, canvas.height)/2
+    );
+    bgGrad.addColorStop(0, '#1a2450');
+    bgGrad.addColorStop(1, '#0e1430');
+    ctx.fillStyle = bgGrad;
+    ctx.fillRect(0,0,canvas.width,canvas.height);
     for(let y=0;y<ROWS;y++){
       for(let x=0;x<COLS;x++){
         const c = board[y][x];
