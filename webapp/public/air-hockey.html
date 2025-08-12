@@ -67,7 +67,6 @@
   <div class="landscape-block" style="display:none">Please hold your phone in <b>portrait</b> for the best experience.</div>
 
 <script src="/falling-ball-api.js"></script>
-<script src="/game-sync.js"></script>
 <script>
 (() => {
   const canvas = document.getElementById('game');
@@ -148,18 +147,6 @@
   }
   p1NameEl.textContent = p1Name;
   p2NameEl.textContent = p2Name;
-
-  const myPlayer = !oppAccountId || myAccountId < oppAccountId ? 'p1' : 'p2';
-  const remotePlayer = myPlayer === 'p1' ? 'p2' : 'p1';
-  const isHost = myPlayer === 'p1';
-  if (window.gameSync) {
-    gameSync.on('paddleMove', ({ player, x, y, vx, vy }) => {
-      const target = player === 'p1' ? p1 : p2;
-      target.x = x; target.y = y; target.vx = vx; target.vy = vy;
-    });
-    gameSync.on('puckState', (state) => { puck.x = state.x; puck.y = state.y; puck.vx = state.vx; puck.vy = state.vy; });
-    gameSync.on('scoreState', (s) => { score.p1 = s.p1; score.p2 = s.p2; updateScore(); });
-  }
 
   async function awardTpc(accountId, amount){
     try{
@@ -569,10 +556,6 @@
     last = ts;
     update(dt);
     render();
-    if (isHost && window.gameSync) {
-      gameSync.send('puckState', { x: puck.x, y: puck.y, vx: puck.vx, vy: puck.vy });
-      gameSync.send('scoreState', { p1: score.p1, p2: score.p2 });
-    }
     requestAnimationFrame(loop);
   }
 
@@ -630,13 +613,9 @@
     const vx = (p.x - last.x) / dt * 16.67;
     const vy = (p.y - last.y) / dt * 16.67;
     touches.set(e.pointerId, {x:p.x, y:p.y, vx, vy, t:now});
-    if (myPlayer === 'p1' && p.y > centerY) {
-      p1.vx = vx; p1.vy = vy;
-      if (window.gameSync) gameSync.send('paddleMove', { player:'p1', x:p1.x, y:p1.y, vx, vy });
-    } else if (myPlayer === 'p2' && p.y < centerY) {
-      p2.vx = vx; p2.vy = vy;
-      if (window.gameSync) gameSync.send('paddleMove', { player:'p2', x:p2.x, y:p2.y, vx, vy });
-    }
+    const d1 = dist(p1.x,p1.y,p.x,p.y); const d2 = dist(p2.x,p2.y,p.x,p.y);
+    if (p.y > centerY && d1 < d2) { p1.vx = vx; p1.vy = vy; }
+    else if (p.y < centerY && d2 <= d1) { p2.vx = vx; p2.vy = vy; }
   });
   function clearTouch(id){ touches.delete(id); }
   canvas.addEventListener('pointerup', e=>clearTouch(e.pointerId));
