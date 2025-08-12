@@ -70,6 +70,13 @@ export default function HomeGamesCard() {
             <h3 className="text-sm font-semibold text-center">Bubble Smash Royale</h3>
           </Link>
           <Link
+            to="/games/slingshotroyale/lobby"
+            className="flex flex-col items-center space-y-1 border border-border rounded-lg p-2 flex-shrink-0"
+          >
+            <img src="/assets/icons/slingshot_royale.svg" alt="" className="h-20 w-20" />
+            <h3 className="text-sm font-semibold text-center">Slingshot Royale</h3>
+          </Link>
+          <Link
             to="/games/tetrisroyale/lobby"
             className="flex flex-col items-center space-y-1 border border-border rounded-lg p-2 flex-shrink-0"
           >
