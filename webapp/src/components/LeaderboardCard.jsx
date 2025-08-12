@@ -19,7 +19,22 @@ import PlayerInvitePopup from './PlayerInvitePopup.jsx';
 function getGameFromTableId(id) {
   if (!id) return 'snake';
   const prefix = id.split('-')[0];
-  if (['snake', 'ludo', 'crazydice', 'horse'].includes(prefix)) return prefix;
+  if (
+    [
+      'snake',
+      'ludo',
+      'crazydice',
+      'horse',
+      'fallingball',
+      'airhockey',
+      'brickbreaker',
+      'fruitsliceroyale',
+      'bubblepoproyale',
+      'bubblesmashroyale',
+      'tetrisroyale',
+    ].includes(prefix)
+  )
+    return prefix;
   return 'snake';
 }
 

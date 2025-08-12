@@ -11,7 +11,22 @@ import AchievementsCard from './AchievementsCard.jsx';
 function getGameFromTableId(id) {
   if (!id) return 'snake';
   const prefix = id.split('-')[0];
-  if (['snake', 'ludo', 'crazydice', 'horse'].includes(prefix)) return prefix;
+  if (
+    [
+      'snake',
+      'ludo',
+      'crazydice',
+      'horse',
+      'fallingball',
+      'airhockey',
+      'brickbreaker',
+      'fruitsliceroyale',
+      'bubblepoproyale',
+      'bubblesmashroyale',
+      'tetrisroyale',
+    ].includes(prefix)
+  )
+    return prefix;
   return 'snake';
 }
 
@@ -189,6 +204,11 @@ export default function PlayerInvitePopup({
                   id: 'airhockey',
                   src: '/assets/icons/Air Hockey .png',
                   alt: 'Air Hockey',
+                },
+                {
+                  id: 'tetrisroyale',
+                  src: '/assets/icons/file_00000000240061f4abd28311d76970a5.png',
+                  alt: 'Tetris Royale',
                 },
               ].map((g) => (
                 <img
