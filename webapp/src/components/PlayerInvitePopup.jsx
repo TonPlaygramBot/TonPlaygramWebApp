@@ -162,32 +162,32 @@ export default function PlayerInvitePopup({
                 },
                 {
                   id: 'fallingball',
-                  src: '/assets/icons/falling_ball.svg',
+                  src: '/assets/icons/Falling Ball .png',
                   alt: 'Falling Ball',
                 },
                 {
                   id: 'brickbreaker',
-                  src: '/assets/icons/brick_breaker.svg',
+                  src: '/assets/icons/Brick Breaker Royale .png',
                   alt: 'Brick Breaker Royale',
                 },
                 {
                   id: 'fruitsliceroyale',
-                  src: '/assets/icons/fruit_slice.svg',
+                  src: '/assets/icons/Fruit Slice Royale .png',
                   alt: 'Fruit Slice Royale',
                 },
                 {
                   id: 'bubblepoproyale',
-                  src: '/assets/icons/bubble_pop.svg',
+                  src: '/assets/icons/Bubble Pop Royale .png',
                   alt: 'Bubble Pop Royale',
                 },
                 {
                   id: 'bubblesmashroyale',
-                  src: '/assets/icons/bubble_smash.svg',
+                  src: '/assets/icons/Bubble Smash Royale .png',
                   alt: 'Bubble Smash Royale',
                 },
                 {
                   id: 'airhockey',
-                  src: '/assets/icons/air_hockey.svg',
+                  src: '/assets/icons/Air Hockey .png',
                   alt: 'Air Hockey',
                 },
               ].map((g) => (
