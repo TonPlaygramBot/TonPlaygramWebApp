@@ -43,6 +43,20 @@
           )
           fixed;
         color: var(--text);
+        scrollbar-color: #ffd700 transparent;
+      }
+
+      body::-webkit-scrollbar {
+        width: 8px;
+      }
+
+      body::-webkit-scrollbar-thumb {
+        background: #ffd700;
+        border-radius: 4px;
+      }
+
+      body::-webkit-scrollbar-track {
+        background: transparent;
       }
 
       .app {
@@ -422,6 +436,27 @@ const CANVAS_W = 720,
             return brickCanvasCache[key];
           };
 
+          function drawBubble(ctx, x, y, r, color) {
+            const grad = ctx.createRadialGradient(
+              x - r * 0.3,
+              y - r * 0.3,
+              r * 0.1,
+              x,
+              y,
+              r
+            );
+            grad.addColorStop(0, '#ffffff');
+            grad.addColorStop(0.3, color);
+            grad.addColorStop(1, color);
+            ctx.fillStyle = grad;
+            ctx.beginPath();
+            ctx.arc(x, y, r, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.lineWidth = 2;
+            ctx.strokeStyle = '#00000066';
+            ctx.stroke();
+          }
+
           const state = {
             match: null,
             timerId: null,
@@ -684,13 +719,13 @@ ctx.strokeRect(br.x, br.y, br.w, br.h);
             ctx.strokeStyle = COLORS.wall;
             ctx.strokeRect(b.paddle.x, b.paddle.y, b.paddle.w, b.paddle.h);
             for (const ball of b.balls) {
-              ctx.fillStyle = ball.fire ? COLORS.danger : COLORS.ball;
-              ctx.beginPath();
-              ctx.arc(ball.x, ball.y, ball.r, 0, Math.PI * 2);
-              ctx.fill();
-              ctx.lineWidth = 4;
-              ctx.strokeStyle = COLORS.wall;
-              ctx.stroke();
+              drawBubble(
+                ctx,
+                ball.x,
+                ball.y,
+                ball.r,
+                ball.fire ? COLORS.danger : COLORS.ball
+              );
             }
           }
 

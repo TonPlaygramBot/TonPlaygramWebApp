@@ -13,6 +13,20 @@ body {
   margin: 0;
   @apply bg-background text-text overflow-x-hidden;
   text-shadow: 0 0 4px #00f7ff;
+  scrollbar-color: #ffd700 transparent;
+}
+
+body::-webkit-scrollbar {
+  width: 8px;
+}
+
+body::-webkit-scrollbar-thumb {
+  background-color: #ffd700;
+  border-radius: 4px;
+}
+
+body::-webkit-scrollbar-track {
+  background: transparent;
 }
 
 /* Neon theme elements */
