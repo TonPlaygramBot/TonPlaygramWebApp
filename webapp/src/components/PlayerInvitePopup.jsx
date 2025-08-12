@@ -186,11 +186,6 @@ export default function PlayerInvitePopup({
                   alt: 'Bubble Smash Royale',
                 },
                 {
-                  id: 'slingshotroyale',
-                  src: '/assets/icons/slingshot_royale.svg',
-                  alt: 'Slingshot Royale',
-                },
-                {
                   id: 'airhockey',
                   src: '/assets/icons/air_hockey.svg',
                   alt: 'Air Hockey',

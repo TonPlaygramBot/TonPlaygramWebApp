@@ -11,7 +11,6 @@ export default function ProjectAchievementsCard() {
     '🏒 Air Hockey multiplayer',
     '🧱 Brick Breaker Royale',
     '🫧 Bubble Pop Royale',
-    '🏹 Slingshot Royale',
     '🧩 Tetris Royale',
     '🔄 Daily Check-In rewards',
     '⛏️ Mining system active',
