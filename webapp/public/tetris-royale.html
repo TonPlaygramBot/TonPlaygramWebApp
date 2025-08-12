@@ -289,6 +289,26 @@ window.__TETRIS_ROYALE__ = true;
     canvas.width = Math.floor(r.width);
     canvas.height = Math.floor(r.height);
   }
+  function shadeColor(color, percent){
+    const f = parseInt(color.slice(1), 16);
+    const t = percent < 0 ? 0 : 255;
+    const p = Math.abs(percent);
+    const R = f >> 16;
+    const G = f >> 8 & 0x00FF;
+    const B = f & 0x0000FF;
+    return '#' + (0x1000000 + (Math.round((t - R) * p) + R) * 0x10000 + (Math.round((t - G) * p) + G) * 0x100 + (Math.round((t - B) * p) + B)).toString(16).slice(1);
+  }
+  function drawBlock(ctx, x, y, w, h, color){
+    const grad = ctx.createLinearGradient(x, y, x + w, y + h);
+    grad.addColorStop(0, shadeColor(color, 0.3));
+    grad.addColorStop(1, shadeColor(color, -0.3));
+    ctx.fillStyle = grad;
+    ctx.fillRect(x, y, w, h);
+    const hl = shadeColor(color, 0.5);
+    ctx.fillStyle = hl;
+    ctx.fillRect(x, y, w, Math.max(2, h * 0.15));
+    ctx.fillRect(x, y, Math.max(2, w * 0.15), h);
+  }
   function drawBoard(ctx, canvas, board, active){
     const bw = canvas.width / COLS, bh = canvas.height / ROWS;
     ctx.clearRect(0,0,canvas.width,canvas.height);
@@ -296,24 +316,23 @@ window.__TETRIS_ROYALE__ = true;
     for(let y=0;y<ROWS;y++){
       for(let x=0;x<COLS;x++){
         const c = board[y][x];
-        if(c){ ctx.fillStyle = c; ctx.fillRect(x*bw, y*bh, bw-1, bh-1); }
+        if(c){ drawBlock(ctx, x*bw, y*bh, bw-1, bh-1, c); }
       }
     }
     if(active){
       const {piece,pos,color} = active;
       let gy = pos.y;
       while(!collide(board, piece, {x:pos.x, y:gy+1})) gy++;
-      ctx.fillStyle = color;
       ctx.globalAlpha = 0.3;
       for(let y=0;y<piece.length;y++){
         for(let x=0;x<piece[y].length;x++){
-          if(piece[y][x]) ctx.fillRect((pos.x+x)*bw, (gy+y)*bh, bw-1, bh-1);
+          if(piece[y][x]) drawBlock(ctx, (pos.x+x)*bw, (gy+y)*bh, bw-1, bh-1, color);
         }
       }
       ctx.globalAlpha = 1;
       for(let y=0;y<piece.length;y++){
         for(let x=0;x<piece[y].length;x++){
-          if(piece[y][x]) ctx.fillRect((pos.x+x)*bw, (pos.y+y)*bh, bw-1, bh-1);
+          if(piece[y][x]) drawBlock(ctx, (pos.x+x)*bw, (pos.y+y)*bh, bw-1, bh-1, color);
         }
       }
     }
