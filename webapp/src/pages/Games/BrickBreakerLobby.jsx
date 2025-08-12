@@ -19,8 +19,6 @@ export default function BrickBreakerLobby() {
   const [mode, setMode] = useState('local');
   const [duration, setDuration] = useState(1);
   const [avatar, setAvatar] = useState('');
-  const [resolution, setResolution] = useState('1');
-  const [outline, setOutline] = useState('2');
 
   useEffect(() => {
     try {
@@ -52,8 +50,8 @@ export default function BrickBreakerLobby() {
     params.set('density', 'medium');
     params.set('mode', mode);
     params.set('duration', duration);
-    params.set('resolution', resolution);
-    params.set('outline', outline);
+    params.set('resolution', '2');
+    params.set('outline', '1');
     const initData = window.Telegram?.WebApp?.initData;
     if (stake.token) params.set('token', stake.token);
     if (stake.amount) params.set('amount', stake.amount);
@@ -118,30 +116,6 @@ export default function BrickBreakerLobby() {
             </button>
           ))}
         </div>
-      </div>
-      <div className="space-y-2">
-        <h3 className="font-semibold">Resolution</h3>
-        <select
-          value={resolution}
-          onChange={(e) => setResolution(e.target.value)}
-          className="w-full bg-surface border border-border rounded p-2"
-        >
-          <option value="1">1x (360×560)</option>
-          <option value="1.5">1.5x (540×840)</option>
-          <option value="2">2x (720×1120)</option>
-        </select>
-      </div>
-      <div className="space-y-2">
-        <h3 className="font-semibold">Outline Thickness</h3>
-        <select
-          value={outline}
-          onChange={(e) => setOutline(e.target.value)}
-          className="w-full bg-surface border border-border rounded p-2"
-        >
-          <option value="1">1</option>
-          <option value="2">2</option>
-          <option value="3">3</option>
-        </select>
       </div>
       <button
         onClick={startGame}
