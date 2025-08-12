@@ -32,7 +32,7 @@
   .userHeader{display:flex;align-items:center;gap:8px;margin-bottom:8px}
   .userWrap h3{margin:0;font-size:13px;color:var(--muted)}
   #user{flex:1;width:100%;height:100%;background:#0e1430;border-radius:10px;touch-action:none}
-  .overlayButtons{position:absolute;right:10px;bottom:10px;display:flex;gap:8px}
+  .overlayButtons{position:absolute;left:10px;bottom:10px;display:flex;gap:8px}
   .small{padding:8px 10px;border-radius:10px;border:1px solid #223063;background:#15204a;color:#e7eefc;font-size:12px;cursor:pointer}
   .avatar{width:32px;height:32px;border-radius:50%}
   .toast{position:fixed;left:50%;transform:translateX(-50%);bottom:16px;background:#0d1536;border:1px solid #223063;border-radius:10px;padding:8px 12px;font-size:13px;opacity:0;transition:opacity .2s}
@@ -205,6 +205,26 @@ window.__BUBBLE_ROYALE_POWER__ = true;
   const fmt = (s)=>{ const m = String((s/60)|0).padStart(2,'0'); const ss = String(Math.max(0, s%60)).padStart(2,'0'); return `${m}:${ss}`; };
   const randColor = ()=> COLORS[(Math.random()*COLORS.length)|0];
   const chance = (p)=> Math.random()<p;
+  function drawCartoonBubble(ctx, x, y, r, color, special){
+    const grad = ctx.createRadialGradient(x - r*0.3, y - r*0.3, r*0.1, x, y, r);
+    grad.addColorStop(0, '#ffffff');
+    grad.addColorStop(0.3, color);
+    grad.addColorStop(1, color);
+    ctx.fillStyle = grad;
+    ctx.beginPath();
+    ctx.arc(x, y, r, 0, Math.PI*2);
+    ctx.fill();
+    ctx.lineWidth = 2;
+    ctx.strokeStyle = '#00000066';
+    ctx.stroke();
+    if(special){
+      ctx.fillStyle = '#0b1228';
+      ctx.font = `bold ${Math.floor(r*1.0)}px system-ui`;
+      ctx.textAlign='center';
+      ctx.textBaseline='middle';
+      ctx.fillText(special, x, y+1);
+    }
+  }
   function fitCanvas(c){ const r=c.getBoundingClientRect(); c.width=r.width; c.height=r.height; }
   function createBubbleGame(canvas){
     const ctx = canvas.getContext('2d');
@@ -234,8 +254,74 @@ window.__BUBBLE_ROYALE_POWER__ = true;
     function triggerSpecial(cx,cy,kind){ let removed = 0; if(kind==='H'){ for(let x=0;x<GRID_COLS;x++){ if(game.grid[cy][x]){ game.grid[cy][x]=null; removed++; } } S.clear(); } else if(kind==='V'){ for(let y=0;y<GRID_ROWS;y++){ if(game.grid[y][cx]){ game.grid[y][cx]=null; removed++; } } S.clear(); } else if(kind==='B'){ for(let y=cy-1;y<=cy+1;y++){ for(let x=cx-1;x<=cx+1;x++){ if(validCell(x,y) && game.grid[y][x]){ game.grid[y][x]=null; removed++; } } } S.clear(); } game.score += removed * POP_SCORE; return removed; }
     function launchToward(targetX, targetY){ if(game.cur.active || game.over) return; const ox = canvas.width/2, oy = canvas.height - game.cell.r - 2; let ang = Math.atan2(targetY - oy, targetX - ox); ang = clamp(ang, MIN_ANGLE, MAX_ANGLE); game.cur.x = ox; game.cur.y = oy; game.cur.vx = Math.cos(ang)*LAUNCH_SPEED; game.cur.vy = Math.sin(ang)*LAUNCH_SPEED; if(!game.cur.bubble) game.cur.bubble = game.nextBubble || bubble(randColor(), chance(SPECIAL_RATE_NEXT)?SPECIALS[(Math.random()*3)|0]:null); game.cur.active = true; S.launch(); }
     function swapBubble(){ const next = game.nextBubble || bubble(randColor(), chance(SPECIAL_RATE_NEXT)?SPECIALS[(Math.random()*3)|0]:null); const curColor = game.cur.bubble ? game.cur.bubble.color : randColor(); const curSpecial = game.cur.bubble ? game.cur.bubble.special : null; game.nextBubble = { color: curColor, special: curSpecial }; game.cur.bubble = bubble(next.color, next.special); S.swap(); showToast('Swapped'); }
-    function step(dt){ if(game.over) return; if(game.cur.active){ game.cur.x += game.cur.vx * dt; game.cur.y += game.cur.vy * dt; const r = game.cell.r; if(game.cur.x - r < 0){ game.cur.x = r; game.cur.vx = Math.abs(game.cur.vx)*BOUNCE_DAMP; S.bounce(); } if(game.cur.x + r > canvas.width){ game.cur.x = canvas.width - r; game.cur.vx = -Math.abs(game.cur.vx)*BOUNCE_DAMP; S.bounce(); } const col = collidesAny(game.cur.x, game.cur.y); if(col.hit || game.cur.y - r <= 0){ const bub = game.cur.bubble || bubble(randColor(), null); const spot = placeIntoGrid(game.cur.x, game.cur.y, bub); if(bub.special){ const cleared = triggerSpecial(spot.cx, spot.cy, bub.special); const floating = removeFloating(); if(cleared+floating>0) S.pop(); } else { const cluster = floodSame(spot.cx, spot.cy, bub.color); if(cluster.length >= 3){ for(const [cx,cy] of cluster) game.grid[cy][cx] = null; game.score += cluster.length * POP_SCORE; const floating = removeFloating(); game.score += floating * POP_SCORE; S.pop(); } } game.cur.active = false; game.cur.bubble = null; game.nextBubble = bubble(randColor(), chance(SPECIAL_RATE_NEXT)?SPECIALS[(Math.random()*3)|0]:null); for(let x=0;x<GRID_COLS;x++){ if(game.grid[GRID_ROWS-1][x]){ game.over = true; S.over(); break; } } } } }
-    function draw(){ ctx.clearRect(0,0,canvas.width,canvas.height); for(let y=0;y<GRID_ROWS;y++){ for(let x=0;x<GRID_COLS;x++){ const cell = game.grid[y][x]; if(!cell) continue; const w = cellToWorld(x,y); ctx.fillStyle = cell.color; ctx.beginPath(); ctx.arc(w.x, w.y, game.cell.r, 0, Math.PI*2); ctx.fill(); if(cell.special){ ctx.fillStyle = '#0b1228'; ctx.font = `bold ${Math.floor(game.cell.r*1.0)}px system-ui`; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText(cell.special, w.x, w.y+1); } } } if(game.cur.active || game.cur.bubble){ const y = game.cur.active ? game.cur.y : (canvas.height - game.cell.r - 2); const x = game.cur.active ? game.cur.x : (canvas.width/2); const b = game.cur.bubble || {color:COLORS[0], special:null}; ctx.fillStyle = b.color; ctx.beginPath(); ctx.arc(x, y, game.cell.r, 0, Math.PI*2); ctx.fill(); if(b.special){ ctx.fillStyle = '#0b1228'; ctx.font = `bold ${Math.floor(game.cell.r*1.0)}px system-ui`; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText(b.special, x, y+1); } } if(game.nextBubble){ ctx.fillStyle = game.nextBubble.color; ctx.beginPath(); ctx.arc(canvas.width - 24, canvas.height - 24, Math.min(12, game.cell.r*0.6), 0, Math.PI*2); ctx.fill(); if(game.nextBubble.special){ ctx.fillStyle = '#0b1228'; ctx.font = 'bold 10px system-ui'; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText(game.nextBubble.special, canvas.width - 24, canvas.height - 24); } } if(game.isUser && game.over){ ctx.fillStyle = 'rgba(0,0,0,0.45)'; ctx.fillRect(0,0,canvas.width,canvas.height); ctx.fillStyle = '#e7eefc'; ctx.font='bold 16px system-ui'; ctx.fillText('Board filled!', 14, 28); } }
+    function step(dt){
+      if(game.over) return;
+      if(game.cur.active){
+        const r = game.cell.r;
+        const maxMove = Math.max(Math.abs(game.cur.vx*dt), Math.abs(game.cur.vy*dt));
+        const steps = Math.max(1, Math.ceil(maxMove / (r/2)));
+        const stepDt = dt / steps;
+        for(let i=0;i<steps && game.cur.active;i++){
+          game.cur.x += game.cur.vx * stepDt;
+          game.cur.y += game.cur.vy * stepDt;
+          if(game.cur.x - r < 0){ game.cur.x = r; game.cur.vx = Math.abs(game.cur.vx)*BOUNCE_DAMP; S.bounce(); }
+          if(game.cur.x + r > canvas.width){ game.cur.x = canvas.width - r; game.cur.vx = -Math.abs(game.cur.vx)*BOUNCE_DAMP; S.bounce(); }
+          const col = collidesAny(game.cur.x, game.cur.y);
+          if(col.hit || game.cur.y - r <= 0){
+            const bub = game.cur.bubble || bubble(randColor(), null);
+            const spot = placeIntoGrid(game.cur.x, game.cur.y, bub);
+            if(bub.special){
+              const cleared = triggerSpecial(spot.cx, spot.cy, bub.special);
+              const floating = removeFloating();
+              if(cleared+floating>0) S.pop();
+            } else {
+              const cluster = floodSame(spot.cx, spot.cy, bub.color);
+              if(cluster.length >= 3){
+                for(const [cx,cy] of cluster) game.grid[cy][cx] = null;
+                game.score += cluster.length * POP_SCORE;
+                const floating = removeFloating();
+                game.score += floating * POP_SCORE;
+                S.pop();
+              }
+            }
+            game.cur.active = false;
+            game.cur.bubble = null;
+            game.nextBubble = bubble(randColor(), chance(SPECIAL_RATE_NEXT)?SPECIALS[(Math.random()*3)|0]:null);
+            for(let x=0;x<GRID_COLS;x++){ if(game.grid[GRID_ROWS-1][x]){ game.over = true; S.over(); break; } }
+          }
+        }
+      }
+    }
+    function draw(){
+      ctx.clearRect(0,0,canvas.width,canvas.height);
+      for(let y=0;y<GRID_ROWS;y++){
+        for(let x=0;x<GRID_COLS;x++){
+          const cell = game.grid[y][x];
+          if(!cell) continue;
+          const w = cellToWorld(x,y);
+          drawCartoonBubble(ctx, w.x, w.y, game.cell.r, cell.color, cell.special);
+        }
+      }
+      if(game.cur.active || game.cur.bubble){
+        const y = game.cur.active ? game.cur.y : (canvas.height - game.cell.r - 2);
+        const x = game.cur.active ? game.cur.x : (canvas.width/2);
+        const b = game.cur.bubble || {color:COLORS[0], special:null};
+        drawCartoonBubble(ctx, x, y, game.cell.r, b.color, b.special);
+      }
+      if(game.nextBubble){
+        const nr = Math.min(game.cell.r, 24);
+        const nx = canvas.width - nr - 10;
+        const ny = canvas.height - nr - 10;
+        drawCartoonBubble(ctx, nx, ny, nr, game.nextBubble.color, game.nextBubble.special);
+      }
+      if(game.isUser && game.over){
+        ctx.fillStyle = 'rgba(0,0,0,0.45)';
+        ctx.fillRect(0,0,canvas.width,canvas.height);
+        ctx.fillStyle = '#e7eefc';
+        ctx.font='bold 16px system-ui';
+        ctx.fillText('Board filled!', 14, 28);
+      }
+    }
     game.resize = function(){ fitCanvas(canvas); recomputeCell(); };
     game.tick = function(dt){ if(game.cooldown>0) game.cooldown-=dt; step(dt); draw(); };
     game.start = function(){ recomputeCell(); seedRows(4); game.cur.bubble = bubble(randColor(), chance(SPECIAL_RATE_NEXT)?SPECIALS[(Math.random()*3)|0]:null); game.nextBubble = bubble(randColor(), chance(SPECIAL_RATE_NEXT)?SPECIALS[(Math.random()*3)|0]:null); };
