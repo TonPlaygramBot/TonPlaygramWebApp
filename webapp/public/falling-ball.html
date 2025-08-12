@@ -70,6 +70,7 @@
 
   <script src="/flag-emojis.js"></script>
   <script src="/falling-ball-api.js"></script>
+  <script src="/game-sync.js"></script>
   <script>
   // ========================= Canvas & Brand =========================
   const canvas = document.getElementById('scene');
@@ -177,6 +178,15 @@
   const accountsParam = params.get('accounts');
   const tgIdsParam = params.get('tgIds');
 
+  const accounts = accountsParam ? accountsParam.split(',') : [];
+  const tgIds = tgIdsParam ? tgIdsParam.split(',') : [];
+  const oppAccountId = accounts[1];
+  const isHost = !oppAccountId || myAccountId < oppAccountId;
+  if (window.gameSync) {
+    gameSync.on('ballState', (b) => { state.ball.x = b.x; state.ball.y = b.y; state.ball.vx = b.vx; state.ball.vy = b.vy; });
+    gameSync.on('obstacles', (obs) => { state.obstacles = obs; });
+  }
+
   async function awardDevShare(total){
     const ops=[];
     if(devAccountId1||devAccountId2){
@@ -201,8 +211,7 @@
   function buildPlayers(){
     const list=[]; const avatarsParam=params.get('avatars'); const namesParam=params.get('names');
     const profileAvatar = (()=>{ try{ return localStorage.getItem('profilePhoto'); }catch{return null;} })();
-    const accounts = accountsParam ? accountsParam.split(',') : [];
-    const tgIds = tgIdsParam ? tgIdsParam.split(',') : [];
+    // accounts and tgIds are defined globally
     if(state.mode==='online' && avatarsParam && namesParam){
       const names=namesParam.split(',').map(decodeURIComponent);
       const avatars=avatarsParam.split(',').map(decodeURIComponent);
@@ -438,13 +447,24 @@
   function drawSlotsGuide(){ const pad=30; const usable=W-2*pad; const w = usable / state.players; const bottom = H-120; const top = bottom-40; for(let i=0;i<state.players;i++){ const x1=pad+i*w; ctx.fillStyle='rgba(0,0,0,0.25)'; ctx.fillRect(x1, top, w-2, bottom-top); if (state.resultSlot===i){ ctx.fillStyle='rgba(250,204,21,0.4)'; ctx.fillRect(x1, top, w-2, bottom-top); ctx.strokeStyle='rgba(250,204,21,0.9)'; ctx.lineWidth=3; ctx.strokeRect(x1+1, top, w-4, bottom-top); } } }
   function drawBall(){ const b=state.ball; ctx.fillStyle='rgba(0,0,0,0.28)'; ctx.beginPath(); ctx.ellipse(b.x, b.y+b.r+6, b.r*1.2, b.r*0.5, 0,0,Math.PI*2); ctx.fill(); const grad = ctx.createRadialGradient(b.x-6,b.y-6,4, b.x,b.y,b.r+6); grad.addColorStop(0,'#fef08a'); grad.addColorStop(0.55,'#facc15'); grad.addColorStop(1,'#ca8a04'); ctx.fillStyle=grad; ctx.beginPath(); ctx.arc(b.x,b.y,b.r,0,Math.PI*2); ctx.fill(); ctx.globalAlpha=0.15; ctx.fillStyle='#fefce8'; ctx.beginPath(); ctx.ellipse(b.x-5,b.y-8,b.r*0.7,b.r*0.35,-0.2,0,Math.PI*2); ctx.fill(); ctx.globalAlpha=1; }
 
-  function frame(ts){ const dt = Math.min(33, ts - state.time); state.time=ts; step(dt/16.6667); ctx.clearRect(0,0,W,H); drawBackground(); drawObstacles(); drawSlotsGuide(); drawBall(); requestAnimationFrame(frame); }
+  function frame(ts){
+    const dt = Math.min(33, ts - state.time); state.time = ts;
+    if (isHost) step(dt/16.6667);
+    ctx.clearRect(0,0,W,H);
+    drawBackground();
+    drawObstacles();
+    drawSlotsGuide();
+    drawBall();
+    if (isHost && window.gameSync) gameSync.send('ballState', state.ball);
+    requestAnimationFrame(frame);
+  }
   requestAnimationFrame(frame);
 
   // ========================= Init =========================
   function init(){
     refreshSlots();
     genPegField();
+    if (isHost && window.gameSync) gameSync.send('obstacles', state.obstacles);
     carveCorridors();
     addStars();
     resetBall();

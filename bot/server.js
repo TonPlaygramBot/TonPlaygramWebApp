@@ -714,6 +714,18 @@ io.on('connection', (socket) => {
     await registerConnection({ userId: String(playerId), socketId: socket.id });
   });
 
+  socket.on('joinGame', ({ roomId }) => {
+    if (roomId) {
+      socket.join(roomId);
+    }
+  });
+
+  socket.on('gameAction', ({ roomId, event, payload }) => {
+    if (roomId && event) {
+      socket.to(roomId).emit('gameAction', { event, payload });
+    }
+  });
+
   socket.on('createLobby', ({ roomId }, cb) => {
     const id = roomId || randomUUID();
     socket.join(id);
