@@ -88,6 +88,11 @@ export default function InvitePopup({
                   src: '/assets/icons/Air Hockey .png',
                   alt: 'Air Hockey',
                 },
+                {
+                  id: 'tetrisroyale',
+                  src: '/assets/icons/file_00000000240061f4abd28311d76970a5.png',
+                  alt: 'Tetris Royale',
+                },
               ].map((g) => (
                   <img
                     key={g.id}
