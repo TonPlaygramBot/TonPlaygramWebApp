@@ -419,7 +419,7 @@
       canvas.addEventListener('pointercancel',()=>{ game.dragging=false; game.lastPt=null; });
     }
 
-    // AI (human pace)
+    // AI (faster pace)
     function aiThink(now){
       if(isUser || now<game.nextAi) return;
       const cands=fruits.filter(f=>!f._gone && f.type==='fruit' && f.y>H()*0.15 && f.y<H()*0.85);
@@ -437,7 +437,7 @@
           if(f.type!=='bomb'){ spawnHalves(f, ang); game.score+=f.data.score; }
         }
       }
-      game.nextAi=now+1000+Math.random()*600;
+      game.nextAi=now+700+Math.random()*300;
     }
 
     // Update/Draw
