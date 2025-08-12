@@ -31,6 +31,8 @@ import BrickBreaker from './pages/Games/BrickBreaker.jsx';
 import BrickBreakerLobby from './pages/Games/BrickBreakerLobby.jsx';
 import TetrisRoyale from './pages/Games/TetrisRoyale.jsx';
 import TetrisRoyaleLobby from './pages/Games/TetrisRoyaleLobby.jsx';
+import FruitSliceRoyale from './pages/Games/FruitSliceRoyale.jsx';
+import FruitSliceRoyaleLobby from './pages/Games/FruitSliceRoyaleLobby.jsx';
 import BubblePopRoyale from './pages/Games/BubblePopRoyale.jsx';
 import BubblePopRoyaleLobby from './pages/Games/BubblePopRoyaleLobby.jsx';
 import BubbleSmashRoyale from './pages/Games/BubbleSmashRoyale.jsx';
@@ -69,6 +71,8 @@ export default function App() {
             <Route path="/games/brickbreaker" element={<BrickBreaker />} />
             <Route path="/games/tetrisroyale/lobby" element={<TetrisRoyaleLobby />} />
             <Route path="/games/tetrisroyale" element={<TetrisRoyale />} />
+            <Route path="/games/fruitsliceroyale/lobby" element={<FruitSliceRoyaleLobby />} />
+            <Route path="/games/fruitsliceroyale" element={<FruitSliceRoyale />} />
             <Route path="/games/bubblepoproyale/lobby" element={<BubblePopRoyaleLobby />} />
             <Route path="/games/bubblepoproyale" element={<BubblePopRoyale />} />
             <Route path="/games/bubblesmashroyale/lobby" element={<BubbleSmashRoyaleLobby />} />
