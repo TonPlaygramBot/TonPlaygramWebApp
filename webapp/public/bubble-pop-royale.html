@@ -168,7 +168,14 @@ window.__BUBBLE_ROYALE_POWER__ = true;
   const devAccount2 = params.get('dev2');
   const initParam = params.get('init');
   if (initParam && !window.Telegram) {
-    window.Telegram = { WebApp: { initData: decodeURIComponent(initParam) } };
+    const decoded = decodeURIComponent(initParam);
+    window.Telegram = { WebApp: { initData: decoded } };
+    try {
+      const parsed = Object.fromEntries(new URLSearchParams(decoded));
+      if (parsed.user) {
+        window.Telegram.WebApp.initDataUnsafe = { user: JSON.parse(parsed.user) };
+      }
+    } catch {}
   }
   async function awardDevShare(total){
     const ops=[];
@@ -227,7 +234,8 @@ window.__BUBBLE_ROYALE_POWER__ = true;
   }
   function fitCanvas(c){
     const r = c.getBoundingClientRect();
-    const dpr = window.devicePixelRatio || 1;
+    const dprBase = window.devicePixelRatio || 1;
+    const dpr = dprBase * 2;
     c.style.width = r.width + 'px';
     c.style.height = r.height + 'px';
     c.width = Math.round(r.width * dpr);
