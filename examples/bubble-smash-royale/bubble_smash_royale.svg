@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Bubble Smash Royale illustration using THUA technique: thick outline, high saturation, uniform highlights -->
+<svg width="1024" height="1024" viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <radialGradient id="bubbleGradient" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#7bdfff" />
+      <stop offset="100%" stop-color="#00b4ff" />
+    </radialGradient>
+  </defs>
+  <circle cx="512" cy="512" r="400" fill="url(#bubbleGradient)" stroke="#0047ab" stroke-width="40" />
+  <!-- THUA highlight: a crisp, uniform light ellipse -->
+  <ellipse cx="380" cy="380" rx="120" ry="90" fill="#ffffff" fill-opacity="0.6" />
+  <!-- Secondary highlight for depth -->
+  <ellipse cx="600" cy="620" rx="80" ry="60" fill="#ffffff" fill-opacity="0.3" />
+</svg>
