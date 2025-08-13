@@ -309,11 +309,13 @@ window.__TETRIS_ROYALE__ = true;
     ctx.beginPath();
     ctx.rect(x, y, w, h);
     ctx.clip();
-    // hard-edged square highlights
+    // hard-edged square highlights sized to the block
+    const sizeLarge = Math.floor(r * 0.4);
+    const sizeSmall = Math.floor(r * 0.2);
     ctx.fillStyle = 'rgba(255,255,255,0.35)';
-    ctx.fillRect(x, y, w * 0.4, h * 0.4);
+    ctx.fillRect(x, y, sizeLarge, sizeLarge);
     ctx.fillStyle = 'rgba(255,255,255,0.6)';
-    ctx.fillRect(x, y, w * 0.2, h * 0.2);
+    ctx.fillRect(x, y, sizeSmall, sizeSmall);
     ctx.restore();
   }
   function fitCanvas(canvas, ctx){
