@@ -1,13 +1,13 @@
 import { useLocation } from 'react-router-dom';
 import useTelegramBackButton from '../../hooks/useTelegramBackButton.js';
 
-export default function AirHockey() {
+export default function GoalRush() {
   useTelegramBackButton();
   const { search } = useLocation();
   return (
     <iframe
-      src={`/air-hockey.html${search}`}
-      title="Air Hockey"
+      src={`/goal-rush.html${search}`}
+      title="Goal Rush"
       className="w-full h-screen border-0"
     />
   );

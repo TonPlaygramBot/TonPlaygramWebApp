@@ -292,7 +292,7 @@ export default function MyAccount() {
 
       <div className="flex items-center space-x-4">
         {photoToShow && (
-          <img src={getAvatarUrl(photoToShow)} alt="avatar" className="w-16 h-16 rounded-full object-cover" />
+          <img src={getAvatarUrl(photoToShow)} alt="avatar" className="w-14 h-14 rounded-full object-cover" />
         )}
         <div>
           <p className="font-semibold">

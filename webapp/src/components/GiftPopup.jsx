@@ -98,7 +98,7 @@ export default function GiftPopup({ open, onClose, players = [], senderIndex = 0
                   target === p.index ? 'bg-accent' : ''
                 }`}
               >
-                <img src={p.photoUrl} alt={`${p.name}'s avatar`} className="w-6 h-6 rounded-full" />
+                <img src={p.photoUrl} alt={`${p.name}'s avatar`} className="w-5 h-5 rounded-full" />
                 <span>{p.name}</span>
               </button>
             ))}

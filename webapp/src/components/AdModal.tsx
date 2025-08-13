@@ -39,7 +39,7 @@ export default function AdModal({ open, onComplete, onClose }: AdModalProps) {
         {onClose && (
           <button
             onClick={onClose}
-            className="absolute top-2 right-2 bg-black bg-opacity-70 text-white rounded-full w-6 h-6 flex items-center justify-center"
+            className="absolute top-2 right-2 bg-black bg-opacity-70 text-white rounded-full w-5 h-5 flex items-center justify-center"
           >
             &times;
           </button>

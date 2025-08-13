@@ -79,7 +79,7 @@ input:focus {
 }
 
 .player-avatar {
-  @apply w-12 h-12 rounded-full border border-yellow-400;
+  @apply w-10 h-10 rounded-full border border-yellow-400;
 }
 
 .board-3d {
@@ -230,7 +230,7 @@ input:focus {
 }
 
 .token {
-  @apply absolute w-16 h-16 rounded-full shadow-lg object-cover;
+  @apply absolute w-14 h-14 rounded-full shadow-lg object-cover;
   transform: translateZ(10px);
 }
 

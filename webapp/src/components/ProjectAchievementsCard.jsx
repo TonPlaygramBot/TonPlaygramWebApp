@@ -7,7 +7,7 @@ export default function ProjectAchievementsCard() {
     '🕹️ Telegram bot and web app integration',
     '🎲 Crazy Dice Duel mini-game',
     '🪂 Falling Ball mini-game',
-    '🏒 Air Hockey multiplayer',
+    '🥅 Goal Rush multiplayer',
     '🧱 Brick Breaker Royale',
     '🍉 Fruit Slice Royale',
     '🫧 Bubble Pop Royale',

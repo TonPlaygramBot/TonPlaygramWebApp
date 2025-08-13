@@ -6,7 +6,7 @@ import { ensureAccountId, getTelegramId, getTelegramPhotoUrl, getTelegramFirstNa
 import { getAccountBalance, addTransaction } from '../../utils/api.js';
 import { loadAvatar } from '../../utils/avatarUtils.js';
 
-export default function AirHockeyLobby() {
+export default function GoalRushLobby() {
   const navigate = useNavigate();
   useTelegramBackButton();
 
@@ -34,7 +34,7 @@ export default function AirHockeyLobby() {
       }
       tgId = getTelegramId();
       await addTransaction(tgId, -stake.amount, 'stake', {
-        game: 'airhockey',
+        game: 'goalrush',
         players: 2,
         accountId,
       });
@@ -58,12 +58,12 @@ export default function AirHockeyLobby() {
     if (devAcc1) params.set('dev1', devAcc1);
     if (devAcc2) params.set('dev2', devAcc2);
     if (initData) params.set('init', encodeURIComponent(initData));
-    navigate(`/games/airhockey?${params.toString()}`);
+    navigate(`/games/goalrush?${params.toString()}`);
   };
 
   return (
     <div className="relative p-4 space-y-4 text-text">
-      <h2 className="text-xl font-bold text-center">Air Hockey Lobby</h2>
+      <h2 className="text-xl font-bold text-center">Goal Rush Lobby</h2>
       <div className="space-y-2">
         <h3 className="font-semibold">Mode</h3>
         <div className="flex gap-2">

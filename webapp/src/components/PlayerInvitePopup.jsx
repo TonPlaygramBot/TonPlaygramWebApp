@@ -16,7 +16,7 @@ function getGameFromTableId(id) {
       'snake',
       'crazydice',
       'fallingball',
-      'airhockey',
+      'goalrush',
       'brickbreaker',
       'fruitsliceroyale',
       'bubblepoproyale',
@@ -133,7 +133,7 @@ export default function PlayerInvitePopup({
                     <GiftIcon
                       key={g._id}
                       icon={gi.icon}
-                      className="w-6 h-6"
+                      className="w-5 h-5"
                       title={gi.name || g.gift}
                     />
                   );
@@ -199,9 +199,9 @@ export default function PlayerInvitePopup({
                   alt: 'Bubble Smash Royale',
                 },
                 {
-                  id: 'airhockey',
-                  src: '/assets/icons/Air Hockey .png',
-                  alt: 'Air Hockey',
+                  id: 'goalrush',
+                  src: '/assets/icons/Goal Rush .png',
+                  alt: 'Goal Rush',
                 },
                 {
                   id: 'tetrisroyale',
@@ -214,7 +214,7 @@ export default function PlayerInvitePopup({
                   src={g.src}
                   alt={g.alt}
                   onClick={() => setGame(g.id)}
-                  className={`w-16 h-16 rounded cursor-pointer border-2 ${
+                  className={`w-14 h-14 rounded cursor-pointer border-2 ${
                     game === g.id ? 'border-yellow-400 bg-yellow-100' : 'border-border'
                   }`}
                 />
