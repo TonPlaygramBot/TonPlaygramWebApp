@@ -31,7 +31,7 @@
       }
       html,
       body {
-        height: 100vh;
+        height: 100dvh;
       }
       body {
         margin: 0;
@@ -44,32 +44,11 @@
           fixed;
         color: var(--text);
         position: relative;
-        overflow: auto;
-        scrollbar-width: none; /* Hide default scrollbar in Firefox */
-      }
-
-      /* Hide scrollbars in WebKit browsers */
-      body::-webkit-scrollbar {
-        display: none;
-      }
-
-      /* Vertical scroll prompt */
-      body::after {
-        content: 'Scroll';
-        position: fixed;
-        right: 4px;
-        top: 50%;
-        transform: translateY(-50%);
-        font-size: 14px;
-        font-weight: 600;
-        color: #ffd700;
-        writing-mode: vertical-rl;
-        text-orientation: mixed;
-        pointer-events: none;
+        overflow: hidden;
       }
 
       .app {
-        height: 100vh;
+        height: 100dvh;
         display: flex;
         flex-direction: column;
       }
@@ -406,15 +385,11 @@
           const RESOLUTION = parseFloat(params.get('resolution') || '2');
           const OUTLINE = parseFloat(params.get('outline') || '1');
           let GAME_DURATION_MS = 60000;
-const CANVAS_W = 720,
-
-  CANVAS_H = 1120,
-
-  DPR = window.devicePixelRatio || 1,
-
-  VIEW_W = CANVAS_W / DPR,
-
-  VIEW_H = CANVAS_H / DPR;
+          const CANVAS_W = 720,
+            CANVAS_H = 1120,
+            DPR = window.devicePixelRatio || 1,
+            VIEW_W = CANVAS_W / DPR,
+            VIEW_H = CANVAS_H / DPR;
           const COLORS = {
             bg: '#ffffff',
             wall: '#000000',
@@ -510,7 +485,9 @@ const CANVAS_W = 720,
           const regionNames = new Intl.DisplayNames(['en'], { type: 'region' });
           const flagToCountryCode = (flag) =>
             [...flag]
-              .map((c) => String.fromCharCode(c.codePointAt(0) - 0x1f1e6 + 0x41))
+              .map((c) =>
+                String.fromCharCode(c.codePointAt(0) - 0x1f1e6 + 0x41)
+              )
               .join('');
           const flagToName = (flag) => regionNames.of(flagToCountryCode(flag));
           function coinConfetti(
@@ -644,7 +621,7 @@ const CANVAS_W = 720,
           function createBoardState(index) {
             return {
               index,
-              paddle: { x: VIEW_W / 2 - 45, y: VIEW_H - 42, w: 90, h: 18 },
+              paddle: { x: VIEW_W / 2 - 45, y: VIEW_H - 60, w: 90, h: 18 },
               balls: [
                 {
                   x: VIEW_W / 2,
@@ -693,15 +670,15 @@ const CANVAS_W = 720,
             ctx.fillText('♥'.repeat(b.lives), W - 40, 44);
             for (const br of b.bricks) {
               if (!br.alive) continue;
-ctx.fillStyle = br.color;
+              ctx.fillStyle = br.color;
 
-ctx.fillRect(br.x, br.y, br.w, br.h);
+              ctx.fillRect(br.x, br.y, br.w, br.h);
 
-ctx.lineWidth = 4;
+              ctx.lineWidth = 4;
 
-ctx.strokeStyle = COLORS.wall;
+              ctx.strokeStyle = COLORS.wall;
 
-ctx.strokeRect(br.x, br.y, br.w, br.h);
+              ctx.strokeRect(br.x, br.y, br.w, br.h);
             }
             for (const p of b.powerups) {
               ctx.fillStyle = COLORS.power;
@@ -802,7 +779,8 @@ ctx.strokeRect(br.x, br.y, br.w, br.h);
                 const right = VIEW_W - 10 - ball.r;
                 while (projected < left || projected > right) {
                   if (projected < left) projected = left + (left - projected);
-                  else if (projected > right) projected = right - (projected - right);
+                  else if (projected > right)
+                    projected = right - (projected - right);
                 }
                 target = projected - b.paddle.w / 2 + rand(-6, 6);
               }
@@ -1001,7 +979,9 @@ ctx.strokeRect(br.x, br.y, br.w, br.h);
 
           function checkEarlyWin() {
             const user = state.match.states[state.match.userIdx];
-            const others = state.match.states.filter((_, i) => i !== state.match.userIdx);
+            const others = state.match.states.filter(
+              (_, i) => i !== state.match.userIdx
+            );
             const allOut = others.every((s) => s.lives <= 0);
             const ahead = others.every((s) => user.score > s.score);
             const timeLeft = state.endAt - performance.now();
@@ -1029,7 +1009,10 @@ ctx.strokeRect(br.x, br.y, br.w, br.h);
           }
 
           function countdownAndStart() {
-            if (document.documentElement.requestFullscreen && !document.fullscreenElement) {
+            if (
+              document.documentElement.requestFullscreen &&
+              !document.fullscreenElement
+            ) {
               document.documentElement.requestFullscreen().catch(() => {});
             }
             let c = 3;
