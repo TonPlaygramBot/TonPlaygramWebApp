@@ -83,6 +83,11 @@
   const TOP_BAR = 40; // height of scoreboard bar
   const BOTTOM_GAP = 20; // gap below rink
 
+  const fieldImg = new Image();
+  fieldImg.src = '/assets/icons/file_00000000becc620a8755badc01cfefca.webp';
+  const puckImg = new Image();
+  puckImg.src = '/assets/icons/file_0000000061d4620aaf506adfa605e1f3.webp';
+
   const params = new URLSearchParams(location.search);
   const stake = Number(params.get('amount')) || 0;
   let myAccountId = params.get('accountId');
@@ -345,6 +350,10 @@
     ctx.closePath();
   }
   function drawRink(){
+    if (fieldImg.complete) {
+      ctx.drawImage(fieldImg, rink.x, rink.y, rink.w, rink.h);
+      return;
+    }
     rr(rink.x, rink.y, rink.w, rink.h, rink.r);
     ctx.fillStyle = getCSS('--ice'); ctx.fill();
     ctx.lineWidth = Math.max(2, W*0.003);
@@ -397,6 +406,10 @@
   }
   function drawPuck(){
     const r = puck.r;
+    if (puckImg.complete) {
+      ctx.drawImage(puckImg, puck.x - r, puck.y - r, r * 2, r * 2);
+      return;
+    }
     ctx.fillStyle = '#fff';
     ctx.beginPath(); ctx.arc(puck.x,puck.y,r,0,Math.PI*2); ctx.fill();
     ctx.fillStyle = '#000';
