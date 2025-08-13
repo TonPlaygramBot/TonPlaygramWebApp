@@ -30,13 +30,8 @@
 
     .hint{position:fixed;inset:0;display:none;align-items:center;justify-content:center;margin:auto;max-width:680px;background:rgba(10,16,34,.6);backdrop-filter:blur(6px);border:1px solid #1f2944;border-radius:12px;padding:8px 12px;text-align:center;font-size:.9rem}
 
-    .calib-btn{position:absolute;top:6px;right:6px;z-index:5;background:#0b1220;border:1px solid #233050;color:#e5e7eb;border-radius:8px;padding:4px 8px;font-size:14px}
-    .calib-pop{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:rgba(10,16,34,.6);backdrop-filter:blur(6px);z-index:30}
-    .calib-box{background:#0b1220;border:1px solid #1f2944;border-radius:12px;padding:16px;display:flex;flex-direction:column;gap:8px;min-width:240px}
-    .calib-box label{display:flex;justify-content:space-between;align-items:center;font-size:.9rem}
-    .calib-box input{width:80px;background:#131a2e;border:1px solid #233050;border-radius:6px;color:#e5e7eb;padding:4px}
-    .calib-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:8px}
-    .calib-actions button{background:#1a2237;border:1px solid #233050;border-radius:6px;padding:4px 8px;color:#e5e7eb}
+    .mute-btn{position:absolute;top:6px;right:6px;z-index:5;background:#0b1220;border:1px solid #233050;color:#e5e7eb;border-radius:8px;padding:4px 8px;font-size:14px}
+    .mute-btn.muted::after{content:'';position:absolute;top:50%;left:20%;width:60%;height:2px;background:#ff3b3b;transform:rotate(-45deg)}
 
     .coin-confetti{position:fixed;top:-40px;width:32px;height:32px;pointer-events:none;animation:coin-fall var(--duration,3s) linear forwards}
     @keyframes coin-fall{from{transform:translateY(-10vh) rotate(0deg);opacity:1}to{transform:translateY(100vh) rotate(360deg);opacity:0}}
@@ -55,26 +50,13 @@
         <span id="s2">0</span><span id="p2Name" class="badge p2">P2</span>
       </div>
     </div>
-    <button id="calibrateBtn" class="calib-btn" aria-label="Calibrate">⚙️</button>
+    <button id="muteBtn" class="mute-btn" aria-label="Toggle sound">🔊</button>
     <div class="canvasWrap">
       <canvas id="game" width="720" height="1280" aria-label="Goal Rush Field"></canvas>
     </div>
   </div>
   <div class="hint" id="startHint"></div>
   <div class="landscape-block" style="display:none">Please hold your phone in <b>portrait</b> for the best experience.</div>
-  <div class="calib-pop" id="calibPop">
-    <div class="calib-box">
-      <label>Field <input id="fieldScaleInput" type="number" step="0.01" min="0.5" max="2"></label>
-      <label>Ball <input id="puckScaleInput" type="number" step="0.01" min="0.5" max="2"></label>
-      <label>Avatar <input id="paddleScaleInput" type="number" step="0.01" min="0.5" max="2"></label>
-      <label>Goal Size <input id="goalWidthInput" type="number" step="0.01" min="0.1" max="1"></label>
-      <label>Ball Speed <input id="speedMulInput" type="number" step="0.1" min="0.1" max="5"></label>
-      <div class="calib-actions">
-        <button id="calibSave">Save</button>
-        <button id="calibClose">Close</button>
-      </div>
-    </div>
-  </div>
 
 <script src="/falling-ball-api.js"></script>
 <script>
@@ -87,6 +69,7 @@
   const p2NameEl = document.getElementById('p2Name');
   const startHint = document.getElementById('startHint');
   const landscapeBlock = document.querySelector('.landscape-block');
+  const muteBtn = document.getElementById('muteBtn');
   const TOP_BAR = 40; // height of scoreboard bar
   const BOTTOM_GAP = 20; // gap below rink
   let fieldScaleActual = 1;
@@ -298,17 +281,17 @@
   const difficultySpeeds = { easy:14, normal:18, hard:24 };
   p2.max = difficultySpeeds[difficulty] || 18;
 
-  let audioEnabled = false;
+  let audioEnabled = true;
+  let audioStarted = false;
   const crowdSound = new Audio('/assets/sounds/football-crowd-3-69245.mp3');
   crowdSound.loop = true;
   const whistleSound = new Audio('/assets/sounds/metal-whistle-6121.mp3');
-  const netSound = new Audio('/assets/sounds/a-football-hits-the-net-goal-313216.mp3');
   const crowdBaseVolume = 0.5;
   crowdSound.volume = crowdBaseVolume;
   let pendingWhistle = false;
 
   function playWhistle(){
-    if(!audioEnabled){ pendingWhistle = true; return; }
+    if(!audioEnabled || !audioStarted){ pendingWhistle = true; return; }
     pendingWhistle = false;
     whistleSound.currentTime = 0;
     whistleSound.play().catch(()=>{});
@@ -316,11 +299,24 @@
   }
 
   function initAudio(){
-    if(audioEnabled) return;
-    audioEnabled = true;
+    if(audioStarted || !audioEnabled) return;
+    audioStarted = true;
     crowdSound.play().catch(()=>{});
     if(pendingWhistle) playWhistle();
   }
+
+  muteBtn.classList.toggle('muted', !audioEnabled);
+  muteBtn.addEventListener('click', () => {
+    audioEnabled = !audioEnabled;
+    muteBtn.classList.toggle('muted', !audioEnabled);
+    if(audioEnabled){
+      if(!audioStarted) initAudio();
+      else crowdSound.play().catch(()=>{});
+    }else{
+      crowdSound.pause();
+      whistleSound.pause();
+    }
+  });
 
   const sfx = {
     hit(){
@@ -332,12 +328,9 @@
     wall(){},
     goal(){
       if(!audioEnabled) return;
-      netSound.currentTime = 0;
-      netSound.play().catch(()=>{});
-      setTimeout(()=>{ netSound.pause(); netSound.currentTime = 0; },2000);
-      crowdSound.volume = Math.min(1, crowdBaseVolume * 1.35);
-      setTimeout(()=>{ crowdSound.volume = crowdBaseVolume; },2000);
-      setTimeout(()=>{ playWhistle(); },2000);
+      crowdSound.volume = Math.min(1, crowdBaseVolume * 1.7);
+      setTimeout(()=>{ crowdSound.volume = crowdBaseVolume; },1500);
+      setTimeout(()=>{ playWhistle(); },1500);
     }
   };
 
@@ -689,48 +682,10 @@
     clearTouch(e.pointerId);
   });
 
-  document.addEventListener('pointerdown', ()=>{ initAudio(); }, { once:true });
-
   function checkOrientation(){ landscapeBlock.style.display = (window.matchMedia('(orientation: landscape)').matches ? 'flex' : 'none'); }
   window.addEventListener('orientationchange', checkOrientation);
 
-  const calibPop = document.getElementById('calibPop');
-  const calibBtn = document.getElementById('calibrateBtn');
-  const fieldScaleInput = document.getElementById('fieldScaleInput');
-  const puckScaleInput = document.getElementById('puckScaleInput');
-  const paddleScaleInput = document.getElementById('paddleScaleInput');
-  const goalWidthInput = document.getElementById('goalWidthInput');
-  const speedMulInput = document.getElementById('speedMulInput');
-  const calibSave = document.getElementById('calibSave');
-  const calibClose = document.getElementById('calibClose');
-
-  function openCalib(){
-    fieldScaleInput.value = fieldScale.toFixed(2);
-    puckScaleInput.value = puckScale.toFixed(2);
-    paddleScaleInput.value = paddleScale.toFixed(2);
-    goalWidthInput.value = goalWidthPct.toFixed(2);
-    speedMulInput.value = speedMul.toFixed(2);
-    calibPop.style.display = 'flex';
-  }
-  function closeCalib(){ calibPop.style.display = 'none'; }
-  calibBtn.addEventListener('click', openCalib);
-  calibClose.addEventListener('click', closeCalib);
-  calibSave.addEventListener('click', () => {
-    fieldScale = parseFloat(fieldScaleInput.value) || 1;
-    puckScale = parseFloat(puckScaleInput.value) || 1;
-    paddleScale = parseFloat(paddleScaleInput.value) || 1;
-    goalWidthPct = parseFloat(goalWidthInput.value) || 0.36;
-    speedMul = parseFloat(speedMulInput.value) || 1;
-    localStorage.setItem('fieldScale', fieldScale);
-    localStorage.setItem('puckScale', puckScale);
-    localStorage.setItem('paddleScale', paddleScale);
-    localStorage.setItem('goalWidthPct', goalWidthPct);
-    localStorage.setItem('speedMul', speedMul);
-    fit();
-    closeCalib();
-  });
-
-    fit(); checkOrientation(); resetPositions(); updateScore(); playWhistle(); requestAnimationFrame(loop);
+  fit(); checkOrientation(); resetPositions(); updateScore(); playWhistle(); requestAnimationFrame(loop);
   })();
 </script>
 </body>
