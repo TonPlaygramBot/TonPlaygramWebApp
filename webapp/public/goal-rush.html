@@ -27,6 +27,8 @@
     .canvasWrap{position:absolute;top:40px;bottom:20px;left:0;right:0;}
     canvas{position:absolute;inset:0;width:100%;height:100%;display:block;touch-action:none}
 
+    .calibrateBtn{position:absolute;top:8px;right:8px;padding:6px 10px;border-radius:8px;border:1px solid #233050;background:#0b1220;color:#e5e7eb;font-size:.8rem;cursor:pointer;z-index:5}
+
     .hint{position:fixed;inset:0;display:none;align-items:center;justify-content:center;margin:auto;max-width:680px;background:rgba(10,16,34,.6);backdrop-filter:blur(6px);border:1px solid #1f2944;border-radius:12px;padding:8px 12px;text-align:center;font-size:.9rem}
 
     .coin-confetti{position:fixed;top:-40px;width:32px;height:32px;pointer-events:none;animation:coin-fall var(--duration,3s) linear forwards}
@@ -46,6 +48,7 @@
         <span id="s2">0</span><span id="p2Name" class="badge p2">P2</span>
       </div>
     </div>
+    <button id="calibrateBtn" class="calibrateBtn">Calibrate</button>
     <div class="canvasWrap">
       <canvas id="game" width="720" height="1280" aria-label="Goal Rush Field"></canvas>
     </div>
@@ -66,6 +69,10 @@
   const landscapeBlock = document.querySelector('.landscape-block');
   const TOP_BAR = 40; // height of scoreboard bar
   const BOTTOM_GAP = 20; // gap below rink
+  const calibrateBtn = document.getElementById('calibrateBtn');
+  let calibrating = false;
+  let dragPost = null;
+  let fieldScaleActual = 1;
 
   const fieldImg = new Image();
   fieldImg.src = '/assets/icons/file_00000000becc620a8755badc01cfefca.webp';
@@ -145,6 +152,10 @@
   }
     p1NameEl.textContent = p1Name;
     p2NameEl.textContent = p2Name;
+  calibrateBtn.addEventListener('click', () => {
+    calibrating = !calibrating;
+    calibrateBtn.textContent = calibrating ? 'Done' : 'Calibrate';
+  });
 
   async function awardTpc(accountId, amount){
     try{
@@ -244,6 +255,7 @@
     const baseH = H*0.92;
     const maxFieldScale = Math.min(W/baseW, H/baseH);
     const fs = Math.min(fieldScale, maxFieldScale);
+    fieldScaleActual = fs;
     rink.w = Math.round(baseW * fs);
     rink.h = Math.round(baseH * fs);
     rink.x = Math.round((W - rink.w) / 2);
@@ -372,9 +384,18 @@
     ctx.save();
     ctx.translate(cx, y);
     ctx.scale(1, dir);
+    const lw = Math.max(3, W*0.004);
+    ctx.lineWidth = lw;
     ctx.strokeStyle = '#fff';
-    ctx.lineWidth = Math.max(3, W*0.004);
-    ctx.strokeRect(-w/2, 0, w, d);
+    ctx.beginPath();
+    ctx.moveTo(-w/2, 0); ctx.lineTo(w/2, 0);
+    ctx.moveTo(-w/2, d); ctx.lineTo(w/2, d);
+    ctx.stroke();
+    ctx.strokeStyle = '#facc15';
+    ctx.beginPath();
+    ctx.moveTo(-w/2, 0); ctx.lineTo(-w/2, d);
+    ctx.moveTo(w/2, 0); ctx.lineTo(w/2, d);
+    ctx.stroke();
     const spacing = Math.max(8, w/10);
     ctx.beginPath();
     for(let i=-w/2+spacing;i<w/2;i+=spacing){
@@ -621,14 +642,41 @@
     return { x: (e.clientX-rect.left)*scaleX, y: (e.clientY-rect.top)*scaleY };
   }
   canvas.addEventListener('pointerdown', e=>{
+    const p = posFromEvent(e);
     canvas.setPointerCapture(e.pointerId);
-    const p = posFromEvent(e); const t = performance.now();
+    if(calibrating){
+      const left = goalCenterX - goalWidth/2;
+      const right = goalCenterX + goalWidth/2;
+      const hit = Math.max(20, goalWidth*0.05);
+      if(Math.abs(p.x - left) < hit) dragPost = 'left';
+      else if(Math.abs(p.x - right) < hit) dragPost = 'right';
+      return;
+    }
+    const t = performance.now();
     touches.set(e.pointerId, {x:p.x, y:p.y, vx:0, vy:0, t});
     initAudio();
   });
   canvas.addEventListener('pointermove', e=>{
+    const p = posFromEvent(e);
+    if(calibrating && dragPost){
+      const minX = rink.x;
+      const maxX = rink.x + rink.w;
+      let left = goalCenterX - goalWidth/2;
+      let right = goalCenterX + goalWidth/2;
+      const minWidth = Math.max(40, rink.w*0.1);
+      if(dragPost==='left'){
+        left = clamp(p.x, minX, right - minWidth);
+      }else if(dragPost==='right'){
+        right = clamp(p.x, left + minWidth, maxX);
+      }
+      goalCenterX = (left + right)/2;
+      goalWidth = right - left;
+      goalWidthPct = goalWidth / (W * fieldScaleActual);
+      goalOffsetPct = (goalCenterX - centerX) / rink.w;
+      return;
+    }
     if (!touches.has(e.pointerId)) return;
-    const p = posFromEvent(e); const now = performance.now();
+    const now = performance.now();
     const last = touches.get(e.pointerId);
     const dt = Math.max(1, now - last.t);
     const vx = (p.x - last.x) / dt * 16.67;
@@ -639,8 +687,21 @@
     else if (p.y < centerY && d2 <= d1) { p2.vx = vx; p2.vy = vy; }
   });
   function clearTouch(id){ touches.delete(id); }
-  canvas.addEventListener('pointerup', e=>clearTouch(e.pointerId));
-  canvas.addEventListener('pointercancel', e=>clearTouch(e.pointerId));
+  canvas.addEventListener('pointerup', e=>{
+    if(calibrating){
+      dragPost = null;
+      try{
+        localStorage.setItem('goalWidthPct', goalWidthPct);
+        localStorage.setItem('goalOffsetPct', goalOffsetPct);
+      }catch{}
+      return;
+    }
+    clearTouch(e.pointerId);
+  });
+  canvas.addEventListener('pointercancel', e=>{
+    if(calibrating){ dragPost = null; return; }
+    clearTouch(e.pointerId);
+  });
 
   document.addEventListener('pointerdown', ()=>{ initAudio(); }, { once:true });
 
