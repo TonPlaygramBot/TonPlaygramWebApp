@@ -117,7 +117,18 @@
   // ===== Helpers =====
   const $=s=>document.querySelector(s);
   const fmt=s=>{const m=String((s/60)|0).padStart(2,'0');const ss=String(Math.max(0,s%60)).padStart(2,'0');return `${m}:${ss}`;};
-  function fitCanvas(c){const r=c.getBoundingClientRect(); c.width=Math.max(10,r.width); c.height=Math.max(10,r.height); }
+  function fitCanvas(c){
+    const r = c.getBoundingClientRect();
+    const dprBase = window.devicePixelRatio || 1;
+    const dpr = dprBase * 2;
+    c.style.width = r.width + 'px';
+    c.style.height = r.height + 'px';
+    c.width = Math.round(r.width * dpr);
+    c.height = Math.round(r.height * dpr);
+    const ctx = c.getContext('2d');
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    c.dpr = dpr;
+  }
 
   // Audio
   let audioCtx=null, muted=false;
@@ -204,27 +215,41 @@
   }
 
   // ===== Renderer + FX =====
+  function drawCartoonBubble(ctx, x, y, r, color){
+    ctx.beginPath();
+    ctx.arc(x, y, r, 0, Math.PI*2);
+    ctx.fillStyle = color;
+    ctx.fill();
+    ctx.lineWidth = Math.max(2, r * 0.1);
+    ctx.strokeStyle = '#000';
+    ctx.lineJoin = 'round';
+    ctx.lineCap = 'round';
+    ctx.stroke();
+    ctx.fillStyle = 'rgba(255,255,255,0.6)';
+    ctx.beginPath();
+    ctx.arc(x - r*0.3, y - r*0.3, r*0.25, 0, Math.PI*2);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.arc(x - r*0.45, y - r*0.45, r*0.07, 0, Math.PI*2);
+    ctx.fill();
+  }
   function createFX(canvas){
     const fx=[];
     const ctx=canvas.getContext('2d');
-    const cell=()=>Math.floor(Math.min(canvas.width/COLS,canvas.height/ROWS));
-    const off=()=>({x:Math.floor((canvas.width-cell()*COLS)/2), y:Math.floor((canvas.height-cell()*ROWS)/2)});
+    const cell=()=>Math.floor(Math.min((canvas.width/(canvas.dpr||1))/COLS,(canvas.height/(canvas.dpr||1))/ROWS));
+    const off=()=>{const w=canvas.width/(canvas.dpr||1), h=canvas.height/(canvas.dpr||1); const c=cell(); return {x:Math.floor((w-c*COLS)/2), y:Math.floor((h-c*ROWS)/2)};};
 
     function drawBoard(board, sel){
       const csize=cell(), o=off();
-      ctx.clearRect(0,0,canvas.width,canvas.height);
-      ctx.fillStyle='#0e1430'; ctx.fillRect(0,0,canvas.width,canvas.height);
+      const w=canvas.width/(canvas.dpr||1), h=canvas.height/(canvas.dpr||1);
+      ctx.clearRect(0,0,w,h);
+      ctx.fillStyle='#0e1430'; ctx.fillRect(0,0,w,h);
 
       for(let y=0;y<ROWS;y++){
         for(let x=0;x<COLS;x++){
           const t=board[y][x]; if(!t) continue;
           const cx=o.x+x*csize+csize/2, cy=o.y+y*csize+csize/2, r=csize*0.38;
-          const g=ctx.createRadialGradient(cx - r*0.3, cy - r*0.3, r*0.1, cx, cy, r);
-          g.addColorStop(0,'#ffffff');
-          g.addColorStop(0.3, t.c);
-          g.addColorStop(1, t.c);
-          ctx.fillStyle=g; ctx.beginPath(); ctx.arc(cx,cy,r,0,Math.PI*2); ctx.fill();
-          ctx.lineWidth=2; ctx.strokeStyle='#00000066'; ctx.stroke();
+          drawCartoonBubble(ctx, cx, cy, r, t.c);
         }
       }
       if(sel){
@@ -285,8 +310,9 @@
   function evtToCell(canvas,e){
     const r=canvas.getBoundingClientRect();
     const x=e.clientX-r.left, y=e.clientY-r.top;
-    const c=Math.min(canvas.width/COLS,canvas.height/ROWS);
-    const offX=(canvas.width-c*COLS)/2, offY=(canvas.height-c*ROWS)/2;
+    const dpr=canvas.dpr||1;
+    const c=Math.min((canvas.width/dpr)/COLS,(canvas.height/dpr)/ROWS);
+    const offX=(canvas.width/dpr - c*COLS)/2, offY=(canvas.height/dpr - c*ROWS)/2;
     const cx=Math.floor((x-offX)/c), cy=Math.floor((y-offY)/c);
     if(cx<0||cx>=COLS||cy<0||cy>=ROWS) return null; return {x:cx,y:cy};
   }
