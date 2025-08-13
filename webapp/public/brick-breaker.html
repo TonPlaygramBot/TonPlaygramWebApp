@@ -621,11 +621,11 @@
           function createBoardState(index) {
             return {
               index,
-              paddle: { x: VIEW_W / 2 - 45, y: VIEW_H - 60, w: 90, h: 18 },
+              paddle: { x: VIEW_W / 2 - 45, y: VIEW_H - 80, w: 90, h: 18 },
               balls: [
                 {
                   x: VIEW_W / 2,
-                  y: VIEW_H - 60,
+                  y: VIEW_H - 80,
                   r: 6,
                   vx: 2.2 * (Math.random() < 0.5 ? -1 : 1),
                   vy: -3.2,
@@ -719,7 +719,7 @@
             if (kind === 'multiball') {
               const base = b.balls[0] || {
                 x: VIEW_W / 2,
-                y: VIEW_H - 80,
+                y: VIEW_H - 100,
                 r: 6,
                 vx: 2.1,
                 vy: -3.0
@@ -768,7 +768,7 @@
                 VIEW_W - b.paddle.w - 12
               );
               b.paddle.x = target;
-            } else {
+            } else if (!state.match || b.index !== state.match.userIdx) {
               const balls = b.balls.filter((ball) => ball.vy > 0);
               let target = b.paddle.x;
               if (balls.length) {
@@ -816,7 +816,7 @@
                   }
                   b.balls.push({
                     x: VIEW_W / 2,
-                    y: VIEW_H - 60,
+                    y: VIEW_H - 80,
                     r: 6,
                     vx: 2.2 * (Math.random() < 0.5 ? -1 : 1),
                     vy: -3.2,
@@ -957,6 +957,9 @@
             $userCanvas.onpointermove = (e) => {
               if (e.buttons === 1) setUserX(e.clientX);
             };
+            $userCanvas.onpointerup = () => (state.userInputX = null);
+            $userCanvas.onpointerleave = () => (state.userInputX = null);
+            $userCanvas.onpointercancel = () => (state.userInputX = null);
 
             state.endAt = performance.now() + GAME_DURATION_MS;
             state.running = true;
