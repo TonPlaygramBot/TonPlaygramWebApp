@@ -112,7 +112,7 @@ export default function TransactionDetailsPopup({ tx, onClose }) {
 
           onClick={onClose}
 
-          className="absolute -top-3 -right-3 bg-black bg-opacity-70 text-white rounded-full w-6 h-6 flex items-center justify-center"
+          className="absolute -top-3 -right-3 bg-black bg-opacity-70 text-white rounded-full w-5 h-5 flex items-center justify-center"
 
         >
 
@@ -172,7 +172,7 @@ export default function TransactionDetailsPopup({ tx, onClose }) {
                   <img
                     src={getAvatarUrl(counterparty.photo)}
                     alt="counterparty avatar"
-                    className="w-8 h-8 rounded-full"
+                    className="w-7 h-7 rounded-full"
                   />
                 )}
 

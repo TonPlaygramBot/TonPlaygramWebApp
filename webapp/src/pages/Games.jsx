@@ -11,11 +11,11 @@ export default function Games() {
           <div className="relative bg-surface border border-border rounded-xl p-4 shadow-lg overflow-hidden wide-card">
             <div className="flex overflow-x-auto space-x-4 items-center pb-2">
                 <Link
-                  to="/games/airhockey/lobby"
+                  to="/games/goalrush/lobby"
                   className="flex flex-col items-center space-y-1 border border-border rounded-lg p-2 flex-shrink-0"
                 >
-                  <img src="/assets/icons/Air Hockey .png" alt="" className="h-20 w-20" />
-                  <h3 className="text-sm font-semibold text-center">Air Hockey</h3>
+                  <img src="/assets/icons/Goal Rush .png" alt="" className="h-20 w-20" />
+                  <h3 className="text-sm font-semibold text-center">Goal Rush</h3>
                 </Link>
                 <Link
                   to="/games/snake/lobby"

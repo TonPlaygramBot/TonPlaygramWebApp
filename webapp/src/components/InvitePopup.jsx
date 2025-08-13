@@ -84,9 +84,9 @@ export default function InvitePopup({
                   alt: 'Bubble Smash Royale',
                 },
                 {
-                  id: 'airhockey',
-                  src: '/assets/icons/Air Hockey .png',
-                  alt: 'Air Hockey',
+                  id: 'goalrush',
+                  src: '/assets/icons/Goal Rush .png',
+                  alt: 'Goal Rush',
                 },
                 {
                   id: 'tetrisroyale',
@@ -99,7 +99,7 @@ export default function InvitePopup({
                     src={g.src}
                     alt={g.alt}
                     onClick={() => setGame(g.id)}
-                    className={`w-16 h-16 rounded cursor-pointer border-2 ${
+                    className={`w-14 h-14 rounded cursor-pointer border-2 ${
                       game === g.id ? 'border-yellow-400 bg-yellow-100' : 'border-border'
                     }`}
                   />

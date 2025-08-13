@@ -9,7 +9,7 @@ export default function DicePopup({ open, onClose, onRollEnd }) {
       <div className="relative">
         <button
           onClick={onClose}
-          className="absolute -top-3 -right-3 bg-black bg-opacity-70 text-white rounded-full w-6 h-6 flex items-center justify-center"
+          className="absolute -top-3 -right-3 bg-black bg-opacity-70 text-white rounded-full w-5 h-5 flex items-center justify-center"
         >
           &times;
         </button>

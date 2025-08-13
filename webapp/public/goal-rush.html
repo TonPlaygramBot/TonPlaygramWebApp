@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
-  <title>Air Hockey</title>
+  <title>Goal Rush</title>
   <style>
     :root{
       --bg:#050812;
@@ -47,7 +47,7 @@
       </div>
     </div>
     <div class="canvasWrap">
-      <canvas id="game" width="720" height="1280" aria-label="Air Hockey Field"></canvas>
+      <canvas id="game" width="720" height="1280" aria-label="Goal Rush Field"></canvas>
     </div>
   </div>
   <div class="hint" id="startHint"></div>
@@ -148,23 +148,23 @@
 
   async function awardTpc(accountId, amount){
     try{
-      await fbApi.depositAccount(accountId, amount, { game: 'airhockey-win' });
+      await fbApi.depositAccount(accountId, amount, { game: 'goalrush-win' });
     }catch(err){ console.warn('Failed to award TPC',err); }
   }
   async function recordWin(tgId, accountId){
     if(!tgId) return;
     try{
-      await fbApi.addTransaction(tgId, 0, 'win', { game:'airhockey', players:2, accountId });
+      await fbApi.addTransaction(tgId, 0, 'win', { game:'goalrush', players:2, accountId });
     }catch{}
   }
   async function awardDevShare(total){
     const ops=[];
     if(devAccount1||devAccount2){
-      if(devAccount) ops.push(fbApi.depositAccount(devAccount, Math.round(total*0.09), {game:'airhockey-dev'}));
-      if(devAccount1) ops.push(fbApi.depositAccount(devAccount1, Math.round(total*0.01), {game:'airhockey-dev1'}));
-      if(devAccount2) ops.push(fbApi.depositAccount(devAccount2, Math.round(total*0.02), {game:'airhockey-dev2'}));
+      if(devAccount) ops.push(fbApi.depositAccount(devAccount, Math.round(total*0.09), {game:'goalrush-dev'}));
+      if(devAccount1) ops.push(fbApi.depositAccount(devAccount1, Math.round(total*0.01), {game:'goalrush-dev1'}));
+      if(devAccount2) ops.push(fbApi.depositAccount(devAccount2, Math.round(total*0.02), {game:'goalrush-dev2'}));
     }else if(devAccount){
-      ops.push(fbApi.depositAccount(devAccount, Math.round(total*0.1), {game:'airhockey-dev'}));
+      ops.push(fbApi.depositAccount(devAccount, Math.round(total*0.1), {game:'goalrush-dev'}));
     }
     if(ops.length){ try{ await Promise.all(ops); }catch{} }
   }
@@ -188,7 +188,7 @@
   async function chargeStake(){
     if(!tgId || stake<=0) return;
     try{
-      await fbApi.addTransaction(tgId, -stake, 'stake', { game:'airhockey', players:2, accountId: myAccountId });
+      await fbApi.addTransaction(tgId, -stake, 'stake', { game:'goalrush', players:2, accountId: myAccountId });
     }catch{}
   }
 
@@ -218,7 +218,7 @@
     pop.style.position='fixed';pop.style.inset='0';pop.style.display='flex';pop.style.alignItems='center';pop.style.justifyContent='center';pop.style.background='rgba(0,0,0,0.7)';pop.style.zIndex='50';
     const box=document.createElement('div');
     box.style.background='#0b1220';box.style.padding='16px';box.style.borderRadius='12px';box.style.display='flex';box.style.flexDirection='column';box.style.gap='8px';box.style.minWidth='200px';
-    const btnLobby=document.createElement('button');btnLobby.textContent='Return to Lobby';btnLobby.style.padding='8px';btnLobby.onclick=()=>{location.href='/games/airhockey/lobby';};
+    const btnLobby=document.createElement('button');btnLobby.textContent='Return to Lobby';btnLobby.style.padding='8px';btnLobby.onclick=()=>{location.href='/games/goalrush/lobby';};
     const btnAgain=document.createElement('button');btnAgain.textContent='Play Again';btnAgain.style.padding='8px';
     btnAgain.onclick=async()=>{
       if(mode==='ai'){
@@ -227,7 +227,7 @@
       }else{
         btnAgain.disabled=true;
         const wait=document.createElement('div');wait.textContent='Waiting for opponent...';wait.style.color='#fff';wait.style.marginTop='8px';box.appendChild(wait);
-        try{await fetch('/api/airhockey/rematch',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({accountId:myAccountId})});}catch{}
+        try{await fetch('/api/goalrush/rematch',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({accountId:myAccountId})});}catch{}
       }
     };
     box.appendChild(btnLobby);box.appendChild(btnAgain);pop.appendChild(box);document.body.appendChild(pop);

@@ -2191,7 +2191,7 @@ export default function SnakeAndLadder() {
       {chatBubbles.map((b) => (
         <div key={b.id} className="chat-bubble">
           <span>{b.text}</span>
-          <img src={b.photoUrl} className="w-6 h-6 rounded-full" />
+          <img src={b.photoUrl} className="w-5 h-5 rounded-full" />
         </div>
       ))}
       <PlayerPopup
@@ -2238,7 +2238,7 @@ export default function SnakeAndLadder() {
                 if (typeof gift.icon === 'string' && gift.icon.match(/\.(png|jpg|jpeg|webp|svg)$/)) {
                   icon = document.createElement('img');
                   icon.src = gift.icon;
-                  icon.className = 'w-6 h-6';
+                  icon.className = 'w-5 h-5';
                 } else {
                   icon = document.createElement('div');
                   icon.textContent = gift.icon;
@@ -2328,7 +2328,7 @@ export default function SnakeAndLadder() {
             {mpPlayers.map((p) => (
               <li key={p.id} className="flex items-center space-x-2">
                 {p.photoUrl && (
-                  <img src={p.photoUrl} alt="avatar" className="w-6 h-6 rounded-full" />
+                  <img src={p.photoUrl} alt="avatar" className="w-5 h-5 rounded-full" />
                 )}
                 <span>{p.name}</span>
               </li>

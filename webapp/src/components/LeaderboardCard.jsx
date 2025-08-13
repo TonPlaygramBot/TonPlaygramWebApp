@@ -24,7 +24,7 @@ function getGameFromTableId(id) {
       'snake',
       'crazydice',
       'fallingball',
-      'airhockey',
+      'goalrush',
       'brickbreaker',
       'fruitsliceroyale',
       'bubblepoproyale',
@@ -255,7 +255,7 @@ export default function LeaderboardCard() {
                   }}
                 >
                   <td className="p-2">{idx + 1}</td>
-                  <td className="p-2 w-14 relative">
+                  <td className="p-2 w-12 relative">
                     <img
                       src={getAvatarUrl(
                         u.accountId === accountId
@@ -263,7 +263,7 @@ export default function LeaderboardCard() {
                           : u.photo || u.photoUrl || '/assets/icons/profile.svg'
                       )}
                       alt="avatar"
-                      className="w-14 h-14 hexagon border-2 border-brand-gold object-cover shadow-[0_0_12px_rgba(241,196,15,0.8)]"
+                      className="w-12 h-12 hexagon border-2 border-brand-gold object-cover shadow-[0_0_12px_rgba(241,196,15,0.8)]"
                     />
                     {u.accountId !== accountId && null}
                   </td>
@@ -318,11 +318,11 @@ export default function LeaderboardCard() {
               {rank && rank > 100 && (
                 <tr className="bg-accent text-black h-16">
                   <td className="p-2">{rank}</td>
-                  <td className="p-2 w-14 relative">
+                  <td className="p-2 w-12 relative">
                     <img
                       src={getAvatarUrl(myPhotoUrl || '/assets/icons/profile.svg')}
                       alt="avatar"
-                      className="w-14 h-14 hexagon border-2 border-brand-gold object-cover shadow-[0_0_12px_rgba(241,196,15,0.8)]"
+                      className="w-12 h-12 hexagon border-2 border-brand-gold object-cover shadow-[0_0_12px_rgba(241,196,15,0.8)]"
                     />
                   </td>
                   <td className="p-2 flex flex-col items-start">

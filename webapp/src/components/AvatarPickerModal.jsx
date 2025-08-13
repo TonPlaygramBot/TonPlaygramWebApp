@@ -32,7 +32,7 @@ export default function AvatarPickerModal({ open, onClose, onSave }) {
           {AVATARS.map((src) => (
             <div
               key={src}
-              className={`w-20 h-20 rounded-full flex items-center justify-center cursor-pointer hover:opacity-80 ${selected === src ? 'ring-4 ring-accent' : ''}`}
+              className={`w-18 h-18 rounded-full flex items-center justify-center cursor-pointer hover:opacity-80 ${selected === src ? 'ring-4 ring-accent' : ''}`}
               onClick={() => setSelected(src)}
             >
               <img
