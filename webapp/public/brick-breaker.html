@@ -395,9 +395,6 @@
             wall: '#000000',
             paddle: '#ff6b6b',
             ball: '#ffd166',
-            brickA: '#06d6a0',
-            brickB: '#118ab2',
-            brickC: '#ef476f',
             text: '#ffffff',
             power: '#ffa600',
             danger: '#ef476f'
@@ -405,20 +402,28 @@
           const POWERUPS = ['multiball', 'fireball', 'wide', 'slow', 'x2'];
           const POINTS = { standard: 10, tough: 20, explosive: 10 };
 
-          const brickCanvasCache = {};
-          const getBrickCanvas = (color, w, h) => {
-            const key = `${color}_${w}x${h}`;
-            if (!brickCanvasCache[key]) {
-              const cv = document.createElement('canvas');
-              cv.width = w;
-              cv.height = h;
-              const ictx = cv.getContext('2d');
-              ictx.fillStyle = color;
-              ictx.fillRect(0, 0, w, h);
-              brickCanvasCache[key] = cv;
-            }
-            return brickCanvasCache[key];
-          };
+          const BRICK_IMAGES = [
+            'SkyBlueBrick.webp',
+            'MintBrick.webp',
+            'LimeGreenBrick.webp',
+            'YellowBrick.webp',
+            'LightPinkBrick.webp',
+            'CoralRedBrick.webp',
+            'PinkBrick.webp',
+            'PurpleBrick.webp',
+            'BlueVioletBrick.webp',
+            'LightBlueBrick.webp',
+            'TealBrick.webp',
+            'AquaGreenBrick.webp',
+            'LightGreenBrick.webp',
+            'Orangebrick.webp',
+            'Redbrick.webp',
+            'LightYellowBrick.webp'
+          ].map((name) => {
+            const img = new Image();
+            img.src = `/assets/icons/${name}`;
+            return img;
+          });
 
           function drawBubble(ctx, x, y, r, color) {
             const grad = ctx.createRadialGradient(
@@ -589,18 +594,15 @@
                 const roll = Math.random();
                 let type = 'standard',
                   hits = 1,
-                  pts = POINTS.standard,
-                  col = COLORS.brickA;
+                  pts = POINTS.standard;
                 if (roll > 0.82) {
                   type = 'explosive';
                   hits = 1;
                   pts = POINTS.explosive;
-                  col = COLORS.brickC;
                 } else if (roll > 0.55) {
                   type = 'tough';
                   hits = 2;
                   pts = POINTS.tough;
-                  col = COLORS.brickB;
                 }
                 bricks.push({
                   x: c * (VIEW_W / cols) + 4,
@@ -610,7 +612,7 @@
                   type,
                   hits,
                   pts,
-                  color: col,
+                  img: choice(BRICK_IMAGES),
                   alive: true
                 });
               }
@@ -670,14 +672,13 @@
             ctx.fillText('♥'.repeat(b.lives), W - 40, 44);
             for (const br of b.bricks) {
               if (!br.alive) continue;
-              ctx.fillStyle = br.color;
-
-              ctx.fillRect(br.x, br.y, br.w, br.h);
-
+              ctx.drawImage(br.img, br.x, br.y, br.w, br.h);
+              if (br.type === 'tough' && br.hits === 1) {
+                ctx.fillStyle = 'rgba(255,255,255,0.5)';
+                ctx.fillRect(br.x, br.y, br.w, br.h);
+              }
               ctx.lineWidth = 4;
-
               ctx.strokeStyle = COLORS.wall;
-
               ctx.strokeRect(br.x, br.y, br.w, br.h);
             }
             for (const p of b.powerups) {
@@ -866,7 +867,6 @@
                   } else {
                     br.hits--;
                     if (br.hits <= 0) br.alive = false;
-                    else br.color = '#ffbb7d';
                     if (!ball.fire) ball.vy *= -1;
                   }
                   if (Math.random() < 0.12) {
