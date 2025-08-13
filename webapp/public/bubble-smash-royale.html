@@ -229,14 +229,6 @@
 
   // ===== Renderer + FX =====
   function drawCartoonBubble(ctx, x, y, r, color){
-    // subtle drop shadow
-    ctx.save();
-    ctx.fillStyle = 'rgba(0,0,0,0.3)';
-    ctx.beginPath();
-    ctx.arc(x + r*0.2, y + r*0.2, r*0.25, 0, Math.PI*2);
-    ctx.fill();
-    ctx.restore();
-
     ctx.beginPath();
     ctx.arc(x, y, r, 0, Math.PI*2);
     ctx.fillStyle = color;
@@ -248,7 +240,10 @@
     ctx.stroke();
     ctx.fillStyle = 'rgba(255,255,255,0.6)';
     ctx.beginPath();
-    ctx.arc(x - r*0.1, y - r*0.1, r*0.8, 0, Math.PI*2);
+    ctx.arc(x - r*0.3, y - r*0.3, r*0.25, 0, Math.PI*2);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.arc(x - r*0.45, y - r*0.45, r*0.07, 0, Math.PI*2);
     ctx.fill();
   }
   function createFX(canvas){
@@ -316,7 +311,7 @@
           const alpha = 1 - p;
           const y = f.y - p*30;
           ctx.fillStyle=`rgba(212,175,55,${alpha})`;
-          ctx.font=`bold ${Math.max(12, Math.floor(csize*0.4))}px system-ui`;
+          ctx.font=`bold ${Math.max(14, Math.floor(csize*0.5))}px system-ui`;
           ctx.textAlign='center';
           ctx.fillText(f.text, f.x, y);
         } else if(f.kind==='fall'){
@@ -359,7 +354,7 @@
         fx.push({kind:'float',t0:performance.now(),dur:700,x:c.x,y:c.y,text:`+${pts}`});
       },
       fall(fromX,fromY,toX,toY,color){
-        fx.push({kind:'fall',t0:performance.now(),dur:400,from:{x:fromX,y:fromY},to:{x:toX,y:toY},color});
+        fx.push({kind:'fall',t0:performance.now(),dur:500,from:{x:fromX,y:fromY},to:{x:toX,y:toY},color});
       }
     };
   }
@@ -377,7 +372,8 @@
 
   function validSwap(b,a,bp){
     const t=b[a.y][a.x]; b[a.y][a.x]=b[bp.y][bp.x]; b[bp.y][bp.x]=t;
-    const ok = !!findMatches(b);
+    const match=findMatches(b);
+    const ok = match && match.clusters.some(cl=>cl.some(c=> (c.x===a.x&&c.y===a.y) || (c.x===bp.x&&c.y===bp.y)));
     const t2=b[a.y][a.x]; b[a.y][a.x]=b[bp.y][bp.x]; b[bp.y][bp.x]=t2;
     return ok;
   }
@@ -404,7 +400,7 @@
           fx.floatScore(mid.x, mid.y, pts);
         }
         game.score += res.gained;
-        setTimeout(step, 450);
+        setTimeout(step, 550);
       })();
     }
 
@@ -512,7 +508,7 @@
       const m=findMatches(bot.board);
       if(!m){ return; }
       const res=applyMatches(bot.board,m, (cx,cy,c)=>bot.fx.burstAt(cx,cy,c), (x,fy,ty,c)=>bot.fx.fall(x,fy,ty,c)); bot.score+=res.gained;
-      setTimeout(resolve, 300);
+      setTimeout(resolve, 550);
     })();
     return true;
   }
