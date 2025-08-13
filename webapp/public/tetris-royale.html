@@ -296,41 +296,62 @@ window.__TETRIS_ROYALE__ = true;
     }
     return best;
   }
+  function drawCartoonBlock(ctx, x, y, w, h, color){
+    const r = Math.min(w, h);
+    ctx.fillStyle = color;
+    ctx.fillRect(x, y, w, h);
+    ctx.lineWidth = Math.max(2, r * 0.1);
+    ctx.strokeStyle = '#000';
+    ctx.lineJoin = 'round';
+    ctx.lineCap = 'round';
+    ctx.strokeRect(x, y, w, h);
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(x, y, w, h);
+    ctx.clip();
+    ctx.fillStyle = 'rgba(255,255,255,0.6)';
+    ctx.beginPath();
+    ctx.arc(x + w*0.3, y + h*0.3, r*0.25, 0, Math.PI*2);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.arc(x + w*0.15, y + h*0.15, r*0.07, 0, Math.PI*2);
+    ctx.fill();
+    ctx.restore();
+  }
   function fitCanvas(canvas, ctx){
     const r = canvas.getBoundingClientRect();
-    const scale = window.devicePixelRatio || 1;
-    canvas.width = Math.floor(r.width * scale);
-    canvas.height = Math.floor(r.height * scale);
+    const dprBase = window.devicePixelRatio || 1;
+    const dpr = dprBase * 2;
     canvas.style.width = `${Math.floor(r.width)}px`;
     canvas.style.height = `${Math.floor(r.height)}px`;
-    ctx.scale(scale, scale);
+    canvas.width = Math.round(r.width * dpr);
+    canvas.height = Math.round(r.height * dpr);
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     ctx.imageSmoothingEnabled = false;
+    canvas.dpr = dpr;
   }
   function drawBoard(ctx, canvas, board, active){
-    const r = canvas.getBoundingClientRect();
-    const bw = r.width / COLS, bh = r.height / ROWS;
-    ctx.clearRect(0,0,canvas.width,canvas.height);
-    ctx.lineWidth = 2;
-    ctx.strokeStyle = '#000';
+    const cw = canvas.width / (canvas.dpr || 1);
+    const ch = canvas.height / (canvas.dpr || 1);
+    const bw = cw / COLS, bh = ch / ROWS;
+    ctx.clearRect(0,0,cw,ch);
     const bgGrad = ctx.createRadialGradient(
-      canvas.width/2,
-      canvas.height/2,
+      cw/2,
+      ch/2,
       0,
-      canvas.width/2,
-      canvas.height/2,
-      Math.max(canvas.width, canvas.height)/2
+      cw/2,
+      ch/2,
+      Math.max(cw, ch)/2
     );
     bgGrad.addColorStop(0, '#1a2450');
     bgGrad.addColorStop(1, '#0e1430');
     ctx.fillStyle = bgGrad;
-    ctx.fillRect(0,0,canvas.width,canvas.height);
+    ctx.fillRect(0,0,cw,ch);
     for(let y=0;y<ROWS;y++){
       for(let x=0;x<COLS;x++){
         const c = board[y][x];
         if(c){
-          ctx.fillStyle = c;
-          ctx.fillRect(x*bw, y*bh, bw, bh);
-          ctx.strokeRect(x*bw, y*bh, bw, bh);
+          drawCartoonBlock(ctx, x*bw, y*bh, bw, bh, c);
         }
       }
     }
@@ -338,13 +359,11 @@ window.__TETRIS_ROYALE__ = true;
       const {piece,pos,color} = active;
       let gy = pos.y;
       while(!collide(board, piece, {x:pos.x, y:gy+1})) gy++;
-      ctx.fillStyle = color;
       ctx.globalAlpha = 0.3;
       for(let y=0;y<piece.length;y++){
         for(let x=0;x<piece[y].length;x++){
           if(piece[y][x]){
-            ctx.fillRect((pos.x+x)*bw, (gy+y)*bh, bw, bh);
-            ctx.strokeRect((pos.x+x)*bw, (gy+y)*bh, bw, bh);
+            drawCartoonBlock(ctx, (pos.x+x)*bw, (gy+y)*bh, bw, bh, color);
           }
         }
       }
@@ -352,8 +371,7 @@ window.__TETRIS_ROYALE__ = true;
       for(let y=0;y<piece.length;y++){
         for(let x=0;x<piece[y].length;x++){
           if(piece[y][x]){
-            ctx.fillRect((pos.x+x)*bw, (pos.y+y)*bh, bw, bh);
-            ctx.strokeRect((pos.x+x)*bw, (pos.y+y)*bh, bw, bh);
+            drawCartoonBlock(ctx, (pos.x+x)*bw, (pos.y+y)*bh, bw, bh, color);
           }
         }
       }
@@ -504,7 +522,7 @@ window.__TETRIS_ROYALE__ = true;
   playerAvatars[n-1] = userAvatar;
 
   function layoutCanvases(){
-    Object.values(canvases).forEach(c=>{ if(!c) return; const r=c.getBoundingClientRect(); c.width=r.width; c.height=r.height; });
+    Object.values(canvases).forEach(c=>{ if(!c) return; const ctx=c.getContext('2d'); fitCanvas(c, ctx); });
   }
   function startMatch(){
     layoutCanvases();
