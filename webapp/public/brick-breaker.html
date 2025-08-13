@@ -402,28 +402,24 @@
           const POWERUPS = ['multiball', 'fireball', 'wide', 'slow', 'x2'];
           const POINTS = { standard: 10, tough: 20, explosive: 10 };
 
-          const BRICK_IMAGES = [
-            'SkyBlueBrick.webp',
-            'MintBrick.webp',
-            'LimeGreenBrick.webp',
-            'YellowBrick.webp',
-            'LightPinkBrick.webp',
-            'CoralRedBrick.webp',
-            'PinkBrick.webp',
-            'PurpleBrick.webp',
-            'BlueVioletBrick.webp',
-            'LightBlueBrick.webp',
-            'TealBrick.webp',
-            'AquaGreenBrick.webp',
-            'LightGreenBrick.webp',
-            'Orangebrick.webp',
-            'Redbrick.webp',
-            'LightYellowBrick.webp'
-          ].map((name) => {
-            const img = new Image();
-            img.src = `/assets/icons/${name}`;
-            return img;
-          });
+          const BRICK_COLORS = [
+            '#87ceeb',
+            '#98ff98',
+            '#32cd32',
+            '#ffff00',
+            '#ffb6c1',
+            '#ff4040',
+            '#ff69b4',
+            '#800080',
+            '#8a2be2',
+            '#add8e6',
+            '#008080',
+            '#00fa9a',
+            '#90ee90',
+            '#ffa500',
+            '#ff0000',
+            '#ffffe0'
+          ];
 
           const BALL_IMAGES = {
             normal: (() => {
@@ -436,6 +432,37 @@
               img.src = '/assets/icons/Orange (Glowing)Ball.webp';
               return img;
             })()
+          };
+
+          const shade = (color, percent) => {
+            const num = parseInt(color.slice(1), 16);
+            let r = (num >> 16) + Math.round(255 * percent);
+            let g = ((num >> 8) & 0x00ff) + Math.round(255 * percent);
+            let b = (num & 0x0000ff) + Math.round(255 * percent);
+            r = Math.min(255, Math.max(0, r));
+            g = Math.min(255, Math.max(0, g));
+            b = Math.min(255, Math.max(0, b));
+            return `#${r.toString(16).padStart(2, '0')}${g
+              .toString(16)
+              .padStart(2, '0')}${b.toString(16).padStart(2, '0')}`;
+          };
+
+          const drawBlock = (ctx, x, y, w, h, color) => {
+            const grad = ctx.createLinearGradient(x, y, x, y + h);
+            grad.addColorStop(0, shade(color, 0.3));
+            grad.addColorStop(0.5, color);
+            grad.addColorStop(1, shade(color, -0.3));
+            ctx.fillStyle = grad;
+            ctx.fillRect(x, y, w, h);
+            const gloss = ctx.createLinearGradient(x, y, x, y + h);
+            gloss.addColorStop(0, 'rgba(255,255,255,0.4)');
+            gloss.addColorStop(0.3, 'rgba(255,255,255,0.1)');
+            gloss.addColorStop(0.5, 'rgba(255,255,255,0)');
+            ctx.fillStyle = gloss;
+            ctx.fillRect(x, y, w, h);
+            ctx.strokeStyle = shade(color, -0.5);
+            ctx.lineWidth = OUTLINE;
+            ctx.strokeRect(x + OUTLINE / 2, y + OUTLINE / 2, w - OUTLINE, h - OUTLINE);
           };
 
           const state = {
@@ -604,7 +631,7 @@
                   type,
                   hits,
                   pts,
-                  img: choice(BRICK_IMAGES),
+                  color: choice(BRICK_COLORS),
                   alive: true
                 });
               }
@@ -664,19 +691,7 @@
             ctx.fillText('♥'.repeat(b.lives), W - 40, 44);
             for (const br of b.bricks) {
               if (!br.alive) continue;
-              if (br.img?.complete && br.img.naturalWidth && br.img.naturalHeight) {
-                ctx.drawImage(
-                  br.img,
-                  0,
-                  0,
-                  br.img.naturalWidth,
-                  br.img.naturalHeight,
-                  br.x,
-                  br.y,
-                  br.w,
-                  br.h
-                );
-              }
+              drawBlock(ctx, br.x, br.y, br.w, br.h, br.color);
               if (br.type === 'tough' && br.hits === 1) {
                 ctx.fillStyle = 'rgba(255,255,255,0.5)';
                 ctx.fillRect(br.x, br.y, br.w, br.h);
@@ -701,11 +716,14 @@
               ctx.fillText(tag, p.x, p.y + 3);
               ctx.textAlign = 'start';
             }
-            ctx.fillStyle = COLORS.paddle;
-            ctx.fillRect(b.paddle.x, b.paddle.y, b.paddle.w, b.paddle.h);
-            ctx.lineWidth = 6;
-            ctx.strokeStyle = COLORS.wall;
-            ctx.strokeRect(b.paddle.x, b.paddle.y, b.paddle.w, b.paddle.h);
+            drawBlock(
+              ctx,
+              b.paddle.x,
+              b.paddle.y,
+              b.paddle.w,
+              b.paddle.h,
+              COLORS.paddle
+            );
             for (const ball of b.balls) {
               const img = ball.fire ? BALL_IMAGES.fire : BALL_IMAGES.normal;
               ctx.drawImage(img, ball.x - ball.r, ball.y - ball.r, ball.r * 2, ball.r * 2);
