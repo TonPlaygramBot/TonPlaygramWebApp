@@ -200,7 +200,7 @@ export default function PlayerInvitePopup({
                 },
                 {
                   id: 'goalrush',
-                  src: '/assets/icons/Goal Rush .png',
+                  src: '/assets/icons/goal_rush_card_1200x675.webp',
                   alt: 'Goal Rush',
                 },
                 {
