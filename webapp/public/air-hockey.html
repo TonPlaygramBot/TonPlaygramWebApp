@@ -68,6 +68,15 @@
       <div style="margin:8px">
         <label>Puck Size: <input id="puckScale" type="range" min="0.5" max="1.5" step="0.05" /></label>
       </div>
+      <div style="margin:8px">
+        <label>Goal Width: <input id="goalWidth" type="range" min="0.2" max="0.6" step="0.01" /></label>
+      </div>
+      <div style="margin:8px">
+        <label>Goal Offset: <input id="goalOffset" type="range" min="-0.2" max="0.2" step="0.01" /></label>
+      </div>
+      <div style="margin:8px">
+        <label>Avatar Size: <input id="paddleScale" type="range" min="0.5" max="1.5" step="0.05" /></label>
+      </div>
       <button id="saveCalibration" style="margin:8px">Save Calibration</button>
     </div>
   </div>
@@ -90,6 +99,9 @@
   const muteBtn = document.getElementById('muteBtn');
   const fieldScaleInput = document.getElementById('fieldScale');
   const puckScaleInput = document.getElementById('puckScale');
+  const goalWidthInput = document.getElementById('goalWidth');
+  const goalOffsetInput = document.getElementById('goalOffset');
+  const paddleScaleInput = document.getElementById('paddleScale');
   const saveCalBtn = document.getElementById('saveCalibration');
   const TOP_BAR = 40; // height of scoreboard bar
   const BOTTOM_GAP = 20; // gap below rink
@@ -126,10 +138,13 @@
   const oppParam = params.get('p2Avatar') || '';
   let p1Name = params.get('name') || 'P1';
   let p2Name = params.get('p2Name') || 'P2';
-  let fieldScale = 1, puckScale = 1;
+  let fieldScale = 1, puckScale = 1, goalWidthPct = 0.36, goalOffsetPct = 0, paddleScale = 1;
   try {
     fieldScale = parseFloat(localStorage.getItem('fieldScale')) || 1;
     puckScale = parseFloat(localStorage.getItem('puckScale')) || 1;
+    goalWidthPct = parseFloat(localStorage.getItem('goalWidthPct')) || 0.36;
+    goalOffsetPct = parseFloat(localStorage.getItem('goalOffsetPct')) || 0;
+    paddleScale = parseFloat(localStorage.getItem('paddleScale')) || 1;
   } catch {}
   const FLAG_DATA = [
     { emoji:'🇺🇸', name:'USA' },
@@ -170,6 +185,9 @@
   p2NameEl.textContent = p2Name;
   fieldScaleInput.value = fieldScale;
   puckScaleInput.value = puckScale;
+  goalWidthInput.value = goalWidthPct;
+  goalOffsetInput.value = goalOffsetPct;
+  paddleScaleInput.value = paddleScale;
   fieldScaleInput.addEventListener('input', () => {
     fieldScale = parseFloat(fieldScaleInput.value);
     fit();
@@ -180,10 +198,28 @@
     fit();
     resetPositions();
   });
+  goalWidthInput.addEventListener('input', () => {
+    goalWidthPct = parseFloat(goalWidthInput.value);
+    fit();
+    resetPositions();
+  });
+  goalOffsetInput.addEventListener('input', () => {
+    goalOffsetPct = parseFloat(goalOffsetInput.value);
+    fit();
+    resetPositions();
+  });
+  paddleScaleInput.addEventListener('input', () => {
+    paddleScale = parseFloat(paddleScaleInput.value);
+    fit();
+    resetPositions();
+  });
   saveCalBtn.addEventListener('click', () => {
     try {
       localStorage.setItem('fieldScale', fieldScale);
       localStorage.setItem('puckScale', puckScale);
+      localStorage.setItem('goalWidthPct', goalWidthPct);
+      localStorage.setItem('goalOffsetPct', goalOffsetPct);
+      localStorage.setItem('paddleScale', paddleScale);
     } catch {}
   });
 
@@ -275,7 +311,7 @@
     box.appendChild(btnLobby);box.appendChild(btnAgain);pop.appendChild(box);document.body.appendChild(pop);
   }
 
-  let W = 720, H = 1280;
+  let W = 720, H = 1280, goalCenterX = 0;
   function fit(){
     W = canvas.width = Math.floor(window.innerWidth * devicePixelRatio);
     const usableHeight = window.innerHeight - TOP_BAR - BOTTOM_GAP;
@@ -291,9 +327,10 @@
     rink.x = Math.round((W - rink.w) / 2);
     rink.y = Math.round((H - rink.h) / 2);
     centerX = W/2; centerY = H/2;
-    goalWidth = Math.round(W*0.36*fs);
+    goalCenterX = centerX + rink.w * goalOffsetPct;
+    goalWidth = Math.round(W*goalWidthPct*fs);
     const base = Math.max(24, Math.round(Math.min(W,H)*0.035*fs));
-    paddleRadius = base*3.4;
+    paddleRadius = base*3.4*paddleScale;
     puck.r = Math.max(20, Math.round(base*1.0*puckScale));
     p1.r = paddleRadius; p2.r = paddleRadius;
   }
@@ -405,8 +442,8 @@
     ctx.moveTo(centerX + Math.min(W,H)*0.09, H*0.75);
     ctx.arc(centerX, H*0.75, Math.min(W,H)*0.09, 0, Math.PI*2);
     ctx.stroke();
-    drawGoal(centerX, rink.y, goalWidth, goalDepth, -1);
-    drawGoal(centerX, rink.y + rink.h, goalWidth, goalDepth, 1);
+    drawGoal(goalCenterX, rink.y, goalWidth, goalDepth, -1);
+    drawGoal(goalCenterX, rink.y + rink.h, goalWidth, goalDepth, 1);
   }
   function drawGoal(cx, y, w, d, dir){
     ctx.save();
@@ -559,8 +596,8 @@
     if (puck.x < left){ puck.x = left; puck.vx *= -1; sfx.wall(); }
     if (puck.x > right){ puck.x = right; puck.vx *= -1; sfx.wall(); }
 
-    const goalLeft = centerX - goalWidth/2 + puck.r;
-    const goalRight = centerX + goalWidth/2 - puck.r;
+    const goalLeft = goalCenterX - goalWidth/2 + puck.r;
+    const goalRight = goalCenterX + goalWidth/2 - puck.r;
 
     if (puck.y < top){
       if (puck.x > goalLeft && puck.x < goalRight){
