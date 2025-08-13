@@ -27,7 +27,6 @@
     .canvasWrap{position:absolute;top:40px;bottom:20px;left:0;right:0;}
     canvas{position:absolute;inset:0;width:100%;height:100%;display:block;touch-action:none}
 
-    .calibrateBtn{position:absolute;top:8px;right:8px;padding:6px 10px;border-radius:8px;border:1px solid #233050;background:#0b1220;color:#e5e7eb;font-size:.8rem;cursor:pointer;z-index:5}
 
     .hint{position:fixed;inset:0;display:none;align-items:center;justify-content:center;margin:auto;max-width:680px;background:rgba(10,16,34,.6);backdrop-filter:blur(6px);border:1px solid #1f2944;border-radius:12px;padding:8px 12px;text-align:center;font-size:.9rem}
 
@@ -48,7 +47,6 @@
         <span id="s2">0</span><span id="p2Name" class="badge p2">P2</span>
       </div>
     </div>
-    <button id="calibrateBtn" class="calibrateBtn">Calibrate</button>
     <div class="canvasWrap">
       <canvas id="game" width="720" height="1280" aria-label="Goal Rush Field"></canvas>
     </div>
@@ -69,9 +67,6 @@
   const landscapeBlock = document.querySelector('.landscape-block');
   const TOP_BAR = 40; // height of scoreboard bar
   const BOTTOM_GAP = 20; // gap below rink
-  const calibrateBtn = document.getElementById('calibrateBtn');
-  let calibrating = false;
-  let dragPost = null;
   let fieldScaleActual = 1;
 
   const fieldImg = new Image();
@@ -152,10 +147,6 @@
   }
     p1NameEl.textContent = p1Name;
     p2NameEl.textContent = p2Name;
-  calibrateBtn.addEventListener('click', () => {
-    calibrating = !calibrating;
-    calibrateBtn.textContent = calibrating ? 'Done' : 'Calibrate';
-  });
 
   async function awardTpc(accountId, amount){
     try{
@@ -276,7 +267,7 @@
   let goalDepth = 24;
   let paddleRadius = 34;
 
-  const puck = { x:0, y:0, r:20, vx:0, vy:0, max: 24 };
+  const puck = { x:0, y:0, r:20, vx:0, vy:0, max: 30, angle: 0 };
   const p1 = { x:0, y:0, r:34, vx:0, vy:0, max: 18, lastX:0, lastY:0 };
   const p2 = { x:0, y:0, r:34, vx:0, vy:0, max: 18, lastX:0, lastY:0 };
   const score = { p1:0, p2:0, target }; 
@@ -413,12 +404,12 @@
     g.addColorStop(0, '#fff'); g.addColorStop(0.2, color); g.addColorStop(1, '#0d0f14');
     ctx.beginPath(); ctx.arc(p.x,p.y,p.r,0,Math.PI*2); ctx.fillStyle = g; ctx.fill();
     ctx.save();
-    ctx.beginPath(); ctx.arc(p.x,p.y,p.r*0.9,0,Math.PI*2); ctx.clip();
+    ctx.beginPath(); ctx.arc(p.x,p.y,p.r*0.8,0,Math.PI*2); ctx.clip();
     if(img && img.complete){
-      ctx.drawImage(img, p.x-p.r*0.9, p.y-p.r*0.9, p.r*1.8, p.r*1.8);
+      ctx.drawImage(img, p.x-p.r*0.8, p.y-p.r*0.8, p.r*1.6, p.r*1.6);
     } else if(emoji){
       ctx.fillStyle = '#fff';
-      ctx.font = `${p.r}px sans-serif`;
+      ctx.font = `${p.r*0.8}px sans-serif`;
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
       ctx.fillText(emoji, p.x, p.y+1);
@@ -427,30 +418,35 @@
   }
   function drawPuck(){
     const r = puck.r;
+    ctx.save();
+    ctx.translate(puck.x, puck.y);
+    ctx.rotate(puck.angle);
     if (puckImg.complete) {
-      ctx.drawImage(puckImg, puck.x - r, puck.y - r, r * 2, r * 2);
+      ctx.drawImage(puckImg, -r, -r, r * 2, r * 2);
+      ctx.restore();
       return;
     }
     ctx.fillStyle = '#fff';
-    ctx.beginPath(); ctx.arc(puck.x,puck.y,r,0,Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.arc(0,0,r,0,Math.PI*2); ctx.fill();
     ctx.fillStyle = '#000';
     const pentR = r*0.4;
     ctx.beginPath();
-    for(let i=0;i<5;i++){ const a=-Math.PI/2+i*2*Math.PI/5; ctx.lineTo(puck.x+pentR*Math.cos(a), puck.y+pentR*Math.sin(a)); }
+    for(let i=0;i<5;i++){ const a=-Math.PI/2+i*2*Math.PI/5; ctx.lineTo(pentR*Math.cos(a), pentR*Math.sin(a)); }
     ctx.closePath(); ctx.fill();
     for(let i=0;i<5;i++){
       const a=-Math.PI/2+i*2*Math.PI/5;
-      const bx=puck.x+r*0.9*Math.cos(a), by=puck.y+r*0.9*Math.sin(a);
+      const bx=r*0.9*Math.cos(a), by=r*0.9*Math.sin(a);
       ctx.beginPath();
       for(let j=0;j<5;j++){ const ang=a+Math.PI/5+j*2*Math.PI/5; ctx.lineTo(bx+pentR*0.6*Math.cos(ang), by+pentR*0.6*Math.sin(ang)); }
       ctx.closePath(); ctx.fill();
     }
     ctx.globalAlpha = .18; ctx.fillStyle = '#000';
-    ctx.beginPath(); ctx.arc(puck.x+5,puck.y+5,r,0,Math.PI*2); ctx.fill(); ctx.globalAlpha = 1;
+    ctx.beginPath(); ctx.arc(5,5,r,0,Math.PI*2); ctx.fill(); ctx.globalAlpha = 1;
+    ctx.restore();
   }
   function getCSS(v){ return getComputedStyle(document.documentElement).getPropertyValue(v).trim(); }
 
-  const friction = 0.995;
+  const friction = 0.997;
   function constrainPaddle(p, bottom){
     const margin=12;
     const minX = rink.x + margin + p.r;
@@ -578,6 +574,7 @@
     puck.y += puck.vy * dt * 60;
     puck.vx *= Math.pow(friction, dt*60);
     puck.vy *= Math.pow(friction, dt*60);
+    puck.angle += Math.hypot(puck.vx, puck.vy) * dt * 0.1;
 
     handleCollisions();
 
@@ -644,37 +641,12 @@
   canvas.addEventListener('pointerdown', e=>{
     const p = posFromEvent(e);
     canvas.setPointerCapture(e.pointerId);
-    if(calibrating){
-      const left = goalCenterX - goalWidth/2;
-      const right = goalCenterX + goalWidth/2;
-      const hit = Math.max(20, goalWidth*0.05);
-      if(Math.abs(p.x - left) < hit) dragPost = 'left';
-      else if(Math.abs(p.x - right) < hit) dragPost = 'right';
-      return;
-    }
     const t = performance.now();
     touches.set(e.pointerId, {x:p.x, y:p.y, vx:0, vy:0, t});
     initAudio();
   });
   canvas.addEventListener('pointermove', e=>{
     const p = posFromEvent(e);
-    if(calibrating && dragPost){
-      const minX = rink.x;
-      const maxX = rink.x + rink.w;
-      let left = goalCenterX - goalWidth/2;
-      let right = goalCenterX + goalWidth/2;
-      const minWidth = Math.max(40, rink.w*0.1);
-      if(dragPost==='left'){
-        left = clamp(p.x, minX, right - minWidth);
-      }else if(dragPost==='right'){
-        right = clamp(p.x, left + minWidth, maxX);
-      }
-      goalCenterX = (left + right)/2;
-      goalWidth = right - left;
-      goalWidthPct = goalWidth / (W * fieldScaleActual);
-      goalOffsetPct = (goalCenterX - centerX) / rink.w;
-      return;
-    }
     if (!touches.has(e.pointerId)) return;
     const now = performance.now();
     const last = touches.get(e.pointerId);
@@ -688,18 +660,9 @@
   });
   function clearTouch(id){ touches.delete(id); }
   canvas.addEventListener('pointerup', e=>{
-    if(calibrating){
-      dragPost = null;
-      try{
-        localStorage.setItem('goalWidthPct', goalWidthPct);
-        localStorage.setItem('goalOffsetPct', goalOffsetPct);
-      }catch{}
-      return;
-    }
     clearTouch(e.pointerId);
   });
   canvas.addEventListener('pointercancel', e=>{
-    if(calibrating){ dragPost = null; return; }
     clearTouch(e.pointerId);
   });
 

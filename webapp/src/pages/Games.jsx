@@ -14,7 +14,7 @@ export default function Games() {
                   to="/games/goalrush/lobby"
                   className="flex flex-col items-center space-y-1 border border-border rounded-lg p-2 flex-shrink-0"
                 >
-                  <img src="/assets/icons/Goal Rush .png" alt="" className="h-20 w-20" />
+                  <img src="/assets/icons/goal_rush_card_1200x675.webp" alt="" className="h-20 w-20" />
                   <h3 className="text-sm font-semibold text-center">Goal Rush</h3>
                 </Link>
                 <Link
