@@ -7,7 +7,7 @@
 <style>
   :root{ --bg:#0c1020; --panel:#11172a; --primary:#2563eb; --gold:#d4af37; --text:#e7eefc; --muted:#8fa1d2; --danger:#ff5a6b; }
   *{box-sizing:border-box;font-family:Inter,system-ui,Segoe UI,Roboto,Helvetica,Arial,sans-serif}
-  html,body{height:100vh}
+  html,body{height:100vh;overscroll-behavior:none}
   body{margin:0;background:radial-gradient(1200px 800px at 70% -10%, #1a2450 0%, #0c1020 38%, #0c1020 100%) fixed;color:var(--text);overflow:hidden}
   .app{height:100vh;display:flex;flex-direction:column;padding:12px;gap:10px;max-width:1100px;margin:0 auto}
   header{display:flex;gap:12px;align-items:center;justify-content:space-between}
@@ -138,6 +138,11 @@ window.__TETRIS_ROYALE__ = true;
   const toastEl = $('#toast');
   const showToast = (msg)=>{ toastEl.textContent = msg; toastEl.classList.add('show'); setTimeout(()=>toastEl.classList.remove('show'), 1400); };
   const fmt = (s)=>{ const m = String((s/60)|0).padStart(2,'0'); const ss = String(Math.max(0, s%60)).padStart(2,'0'); return `${m}:${ss}`; };
+
+  if(window.Telegram?.WebApp?.disableVerticalExpansion){
+    window.Telegram.WebApp.disableVerticalExpansion();
+  }
+  document.addEventListener('touchmove', e=>e.preventDefault(), {passive:false});
 
   const params = new URLSearchParams(location.search);
   const n = Math.max(2, Math.min(4, parseInt(params.get('players'),10)||4));
@@ -312,10 +317,11 @@ window.__TETRIS_ROYALE__ = true;
     // hard-edged square highlights sized to the block (90% and 50%) positioned bottom-left
     const sizeLarge = Math.floor(r * 0.9);
     const sizeSmall = Math.floor(r * 0.5);
+    const extra = Math.floor(r * 0.05);
     ctx.fillStyle = 'rgba(255,255,255,0.25)';
-    ctx.fillRect(x, y + h - sizeLarge, sizeLarge, sizeLarge);
+    ctx.fillRect(x, y + h - sizeLarge, sizeLarge + extra, sizeLarge);
     ctx.fillStyle = 'rgba(255,255,255,0.5)';
-    ctx.fillRect(x, y + h - sizeSmall, sizeSmall, sizeSmall);
+    ctx.fillRect(x, y + h - sizeSmall, sizeSmall + extra, sizeSmall);
     ctx.restore();
   }
   function fitCanvas(canvas, ctx){
@@ -334,19 +340,7 @@ window.__TETRIS_ROYALE__ = true;
     const cw = canvas.width / (canvas.dpr || 1);
     const ch = canvas.height / (canvas.dpr || 1);
     const bw = cw / COLS, bh = ch / ROWS;
-    ctx.clearRect(0,0,cw,ch);
-    const bgGrad = ctx.createRadialGradient(
-      cw/2,
-      ch/2,
-      0,
-      cw/2,
-      ch/2,
-      Math.max(cw, ch)/2
-    );
-    bgGrad.addColorStop(0, '#1a2450');
-    bgGrad.addColorStop(1, '#11183a');
-    ctx.fillStyle = bgGrad;
-    ctx.fillRect(0,0,cw,ch);
+    ctx.clearRect(0,0,cw,ch); // preserve CSS grid background
     for(let y=0;y<ROWS;y++){
       for(let x=0;x<COLS;x++){
         const c = board[y][x];
@@ -385,7 +379,7 @@ window.__TETRIS_ROYALE__ = true;
       piece: randomShape(),
       pos: {x:3,y:0},
       color: COLORS[1 + ((Math.random()*6)|0)],
-      dropMs: 700,
+      dropMs: 500,
       dropAcc: 0,
       score: 0,
       over: false,
