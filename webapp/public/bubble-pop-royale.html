@@ -190,6 +190,20 @@ window.__BUBBLE_ROYALE_POWER__ = true;
   }
   const GRID_COLS = 12, GRID_ROWS = 18;
   const COLORS = ['#5aa2ff','#ff9d5a','#ff5a6b','#d4af37','#34d399','#a78bfa'];
+  const BUBBLE_IMAGES = {
+    '#5aa2ff': 'assets/icons/BlueBall.webp',
+    '#ff9d5a': 'assets/icons/OrangeBall.webp',
+    '#ff5a6b': 'assets/icons/PinkBall.webp',
+    '#d4af37': 'assets/icons/GoldBall.webp',
+    '#34d399': 'assets/icons/GreenBall.webp',
+    '#a78bfa': 'assets/icons/PurpleBall.webp'
+  };
+  const BUBBLE_IMGS = {};
+  for(const [color,src] of Object.entries(BUBBLE_IMAGES)){
+    const img=new Image();
+    img.src=src;
+    BUBBLE_IMGS[color]=img;
+  }
   const POP_SCORE = 10;
   const LAUNCH_SPEED = 360;
   const MIN_ANGLE = (-175 * Math.PI/180);
@@ -213,17 +227,22 @@ window.__BUBBLE_ROYALE_POWER__ = true;
   const randColor = ()=> COLORS[(Math.random()*COLORS.length)|0];
   const chance = (p)=> Math.random()<p;
   function drawCartoonBubble(ctx, x, y, r, color, special){
-    const grad = ctx.createRadialGradient(x - r*0.3, y - r*0.3, r*0.1, x, y, r);
-    grad.addColorStop(0, '#ffffff');
-    grad.addColorStop(0.3, color);
-    grad.addColorStop(1, color);
-    ctx.fillStyle = grad;
-    ctx.beginPath();
-    ctx.arc(x, y, r, 0, Math.PI*2);
-    ctx.fill();
-    ctx.lineWidth = 2;
-    ctx.strokeStyle = '#00000066';
-    ctx.stroke();
+    const img = BUBBLE_IMGS[color];
+    if(img && img.complete){
+      ctx.drawImage(img, x - r, y - r, r*2, r*2);
+    }else{
+      const grad = ctx.createRadialGradient(x - r*0.3, y - r*0.3, r*0.1, x, y, r);
+      grad.addColorStop(0, '#ffffff');
+      grad.addColorStop(0.3, color);
+      grad.addColorStop(1, color);
+      ctx.fillStyle = grad;
+      ctx.beginPath();
+      ctx.arc(x, y, r, 0, Math.PI*2);
+      ctx.fill();
+      ctx.lineWidth = 2;
+      ctx.strokeStyle = '#00000066';
+      ctx.stroke();
+    }
     if(special){
       ctx.fillStyle = '#0b1228';
       ctx.font = `bold ${Math.floor(r*1.0)}px system-ui`;
