@@ -29,7 +29,7 @@
   .mini canvas,
   #user{
     flex:1;width:100%;height:100%;
-    image-rendering:pixelated;
+    image-rendering:crisp-edges;
     background:
       repeating-linear-gradient(45deg,rgba(255,255,255,0.03)0 2px,transparent 2px 4px),
       radial-gradient(circle at center,#1a2450 0%,#0e1430 80%);
@@ -123,7 +123,7 @@ if(!window.__TETRIS_ROYALE__){
 window.__TETRIS_ROYALE__ = true;
 (async function(){
   const COLS = 10, ROWS = 20;
-  const COLORS = ['#000','#5aa2ff','#ff9d5a','#ff5a6b','#d4af37','#34d399','#a78bfa','#f472b6'];
+  const COLORS = ['#000','#00bfff','#ff7f00','#ff1493','#ffd700','#32cd32','#8a2be2','#ff69b4'];
   const SHAPES = {
     I:[[0,0,0,0],[1,1,1,1],[0,0,0,0],[0,0,0,0]],
     J:[[1,0,0],[1,1,1],[0,0,0]],
@@ -296,14 +296,22 @@ window.__TETRIS_ROYALE__ = true;
     }
     return best;
   }
-  function fitCanvas(canvas){
+  function fitCanvas(canvas, ctx){
     const r = canvas.getBoundingClientRect();
-    canvas.width = Math.floor(r.width);
-    canvas.height = Math.floor(r.height);
+    const scale = window.devicePixelRatio || 1;
+    canvas.width = Math.floor(r.width * scale);
+    canvas.height = Math.floor(r.height * scale);
+    canvas.style.width = `${Math.floor(r.width)}px`;
+    canvas.style.height = `${Math.floor(r.height)}px`;
+    ctx.scale(scale, scale);
+    ctx.imageSmoothingEnabled = false;
   }
   function drawBoard(ctx, canvas, board, active){
-    const bw = canvas.width / COLS, bh = canvas.height / ROWS;
+    const r = canvas.getBoundingClientRect();
+    const bw = r.width / COLS, bh = r.height / ROWS;
     ctx.clearRect(0,0,canvas.width,canvas.height);
+    ctx.lineWidth = 2;
+    ctx.strokeStyle = '#000';
     const bgGrad = ctx.createRadialGradient(
       canvas.width/2,
       canvas.height/2,
@@ -319,7 +327,11 @@ window.__TETRIS_ROYALE__ = true;
     for(let y=0;y<ROWS;y++){
       for(let x=0;x<COLS;x++){
         const c = board[y][x];
-        if(c){ ctx.fillStyle = c; ctx.fillRect(x*bw, y*bh, bw-1, bh-1); }
+        if(c){
+          ctx.fillStyle = c;
+          ctx.fillRect(x*bw, y*bh, bw, bh);
+          ctx.strokeRect(x*bw, y*bh, bw, bh);
+        }
       }
     }
     if(active){
@@ -330,20 +342,26 @@ window.__TETRIS_ROYALE__ = true;
       ctx.globalAlpha = 0.3;
       for(let y=0;y<piece.length;y++){
         for(let x=0;x<piece[y].length;x++){
-          if(piece[y][x]) ctx.fillRect((pos.x+x)*bw, (gy+y)*bh, bw-1, bh-1);
+          if(piece[y][x]){
+            ctx.fillRect((pos.x+x)*bw, (gy+y)*bh, bw, bh);
+            ctx.strokeRect((pos.x+x)*bw, (gy+y)*bh, bw, bh);
+          }
         }
       }
       ctx.globalAlpha = 1;
       for(let y=0;y<piece.length;y++){
         for(let x=0;x<piece[y].length;x++){
-          if(piece[y][x]) ctx.fillRect((pos.x+x)*bw, (pos.y+y)*bh, bw-1, bh-1);
+          if(piece[y][x]){
+            ctx.fillRect((pos.x+x)*bw, (pos.y+y)*bh, bw, bh);
+            ctx.strokeRect((pos.x+x)*bw, (pos.y+y)*bh, bw, bh);
+          }
         }
       }
     }
   }
   function createGame(canvas){
     const ctx = canvas.getContext('2d');
-    fitCanvas(canvas);
+    fitCanvas(canvas, ctx);
     const game = {
       board: createEmpty(),
       piece: randomShape(),
