@@ -101,14 +101,14 @@
   const oppParam = params.get('p2Avatar') || '';
   let p1Name = params.get('name') || 'P1';
   let p2Name = params.get('p2Name') || 'P2';
-  let fieldScale = 1, fieldImgScale = 1, puckScale = 1, goalWidthPct = 0.36, goalOffsetPct = 0, paddleScale = 1;
+  let fieldScale = 1, fieldImgScale = 1, puckScale = 0.9, goalWidthPct = 0.36, goalOffsetPct = 0, paddleScale = 0.95;
   try {
     fieldScale = parseFloat(localStorage.getItem('fieldScale')) || 1;
     fieldImgScale = parseFloat(localStorage.getItem('fieldImgScale')) || 1;
-    puckScale = parseFloat(localStorage.getItem('puckScale')) || 1;
+    puckScale = parseFloat(localStorage.getItem('puckScale')) || 0.9;
     goalWidthPct = parseFloat(localStorage.getItem('goalWidthPct')) || 0.36;
     goalOffsetPct = parseFloat(localStorage.getItem('goalOffsetPct')) || 0;
-    paddleScale = parseFloat(localStorage.getItem('paddleScale')) || 1;
+    paddleScale = parseFloat(localStorage.getItem('paddleScale')) || 0.95;
   } catch {}
   const FLAG_DATA = [
     { emoji:'🇺🇸', name:'USA' },
@@ -267,7 +267,7 @@
   let goalDepth = 24;
   let paddleRadius = 34;
 
-  const puck = { x:0, y:0, r:20, vx:0, vy:0, max: 30, angle: 0 };
+  const puck = { x:0, y:0, r:20, vx:0, vy:0, max: 29, angle: 0 };
   const p1 = { x:0, y:0, r:34, vx:0, vy:0, max: 18, lastX:0, lastY:0 };
   const p2 = { x:0, y:0, r:34, vx:0, vy:0, max: 18, lastX:0, lastY:0 };
   const score = { p1:0, p2:0, target }; 
@@ -446,7 +446,7 @@
   }
   function getCSS(v){ return getComputedStyle(document.documentElement).getPropertyValue(v).trim(); }
 
-  const friction = 0.997;
+  const friction = 0.996;
   function constrainPaddle(p, bottom){
     const margin=12;
     const minX = rink.x + margin + p.r;
