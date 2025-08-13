@@ -301,7 +301,7 @@ window.__TETRIS_ROYALE__ = true;
     ctx.fillStyle = color;
     ctx.fillRect(x, y, w, h);
     ctx.lineWidth = Math.max(2, r * 0.1);
-    ctx.strokeStyle = '#000';
+    ctx.strokeStyle = 'rgba(0,0,0,0.4)';
     ctx.lineJoin = 'round';
     ctx.lineCap = 'round';
     ctx.strokeRect(x, y, w, h);
@@ -309,13 +309,13 @@ window.__TETRIS_ROYALE__ = true;
     ctx.beginPath();
     ctx.rect(x, y, w, h);
     ctx.clip();
-    // hard-edged square highlights sized to the block (85% and 45%) positioned on the right
+    // hard-edged square highlights sized to the block (85% and 45%) positioned bottom-left
     const sizeLarge = Math.floor(r * 0.85);
     const sizeSmall = Math.floor(r * 0.45);
-    ctx.fillStyle = 'rgba(255,255,255,0.35)';
-    ctx.fillRect(x + w - sizeLarge, y, sizeLarge, sizeLarge);
-    ctx.fillStyle = 'rgba(255,255,255,0.6)';
-    ctx.fillRect(x + w - sizeSmall, y, sizeSmall, sizeSmall);
+    ctx.fillStyle = 'rgba(255,255,255,0.25)';
+    ctx.fillRect(x, y + h - sizeLarge, sizeLarge, sizeLarge);
+    ctx.fillStyle = 'rgba(255,255,255,0.5)';
+    ctx.fillRect(x, y + h - sizeSmall, sizeSmall, sizeSmall);
     ctx.restore();
   }
   function fitCanvas(canvas, ctx){
@@ -344,7 +344,7 @@ window.__TETRIS_ROYALE__ = true;
       Math.max(cw, ch)/2
     );
     bgGrad.addColorStop(0, '#1a2450');
-    bgGrad.addColorStop(1, '#0e1430');
+    bgGrad.addColorStop(1, '#11183a');
     ctx.fillStyle = bgGrad;
     ctx.fillRect(0,0,cw,ch);
     for(let y=0;y<ROWS;y++){
@@ -451,9 +451,13 @@ window.__TETRIS_ROYALE__ = true;
         return;
       }
       const dx = px - start.x;
-      if(Math.abs(dx) > r.width/20){
-        game.move(dx>0?1:-1);
-        start.x = px;
+      const colW = r.width / COLS;
+      const moveCols = Math.floor(dx / colW);
+      if(moveCols !== 0){
+        for(let i=0;i<Math.abs(moveCols);i++){
+          game.move(moveCols>0?1:-1);
+        }
+        start.x += moveCols * colW;
       }
       const rowH = r.height / ROWS;
       const moveRows = Math.floor(dy / rowH);
