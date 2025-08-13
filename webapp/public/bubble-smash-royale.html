@@ -111,7 +111,7 @@
 (function(){
   // ===== Core config =====
   const COLS=8, ROWS=8;
-  const COLORS=['#5aa2ff','#ff9d5a','#ff5a6b','#d4af37','#34d399','#a78bfa'];
+  const COLORS=['#00bfff','#ff7f00','#ff1493','#ffd700','#32cd32','#8a2be2','#ff69b4'];
   const SCORE_BASE=60, SCORE_EXTRA=30;
 
   // ===== Helpers =====
@@ -229,6 +229,14 @@
 
   // ===== Renderer + FX =====
   function drawCartoonBubble(ctx, x, y, r, color){
+    // subtle drop shadow
+    ctx.save();
+    ctx.fillStyle = 'rgba(0,0,0,0.3)';
+    ctx.beginPath();
+    ctx.arc(x + r*0.2, y + r*0.2, r*0.25, 0, Math.PI*2);
+    ctx.fill();
+    ctx.restore();
+
     ctx.beginPath();
     ctx.arc(x, y, r, 0, Math.PI*2);
     ctx.fillStyle = color;
@@ -249,7 +257,7 @@
     const cell=()=>Math.floor(Math.min((canvas.width/(canvas.dpr||1))/COLS,(canvas.height/(canvas.dpr||1))/ROWS));
     const off=()=>{const w=canvas.width/(canvas.dpr||1), h=canvas.height/(canvas.dpr||1); const c=cell(); return {x:Math.floor((w-c*COLS)/2), y:Math.floor((h-c*ROWS)/2)};};
 
-    function drawBoard(board, sel){
+    function drawBoard(board, sel, drag){
       const csize=cell(), o=off();
       const w=canvas.width/(canvas.dpr||1), h=canvas.height/(canvas.dpr||1);
       ctx.clearRect(0,0,w,h);
@@ -264,12 +272,26 @@
         }
       }
 
+      const dragged=[];
       for(let y=0;y<ROWS;y++){
         for(let x=0;x<COLS;x++){
           if(skip.has(`${x},${y}`)) continue;
           const t=board[y][x]; if(!t) continue;
+          if(drag && ((x===drag.start.x && y===drag.start.y) || (drag.neigh && x===drag.neigh.x && y===drag.neigh.y))){
+            dragged.push({x,y,t});
+            continue;
+          }
           const cx=o.x+x*csize+csize/2, cy=o.y+y*csize+csize/2, r=csize*0.38;
           drawCartoonBubble(ctx, cx, cy, r, t.c);
+        }
+      }
+      if(drag){
+        for(const d of dragged){
+          const cx=o.x+d.x*csize+csize/2, cy=o.y+d.y*csize+csize/2, r=csize*0.38;
+          let dx=0, dy=0;
+          if(d.x===drag.start.x && d.y===drag.start.y){ dx=drag.dx; dy=drag.dy; }
+          else { dx = drag.dx - (drag.dir==='x'?Math.sign(drag.dx)*csize:0); dy = drag.dy - (drag.dir==='y'?Math.sign(drag.dy)*csize:0); }
+          drawCartoonBubble(ctx, cx+dx, cy+dy, r, d.t.c);
         }
       }
       if(sel){
@@ -364,7 +386,7 @@
   function createGame(canvas,isUser){
     const ctx=canvas.getContext('2d'); fitCanvas(canvas);
     const fx=createFX(canvas);
-    const game={ board:createBoard(), score:0, selected:null, busy:false, over:false, isUser, fx };
+    const game={ board:createBoard(), score:0, selected:null, drag:null, busy:false, over:false, isUser, fx };
 
     function cascade(){
       game.busy=true;
@@ -394,7 +416,7 @@
       cascade();
     };
 
-    game.draw=()=>fx.draw(game.board, game.selected);
+    game.draw=()=>fx.draw(game.board, game.selected, game.drag);
     window.addEventListener('resize',()=>{ fitCanvas(canvas); game.draw(); });
 
     // Touch-only input (finger drag)
@@ -404,36 +426,55 @@
       canvas.addEventListener('pointerdown', e=>{
         if(e.pointerType!=='touch') return;
         const cell=evtToCell(canvas,e); if(!cell) return;
-        start=cell; dragging=true; game.selected=cell; game.draw();
+        start=cell; dragging=true;
+        game.selected=cell;
+        game.drag={start:cell,dx:0,dy:0,dir:null,neigh:null};
+        game.draw();
         canvas.setPointerCapture(e.pointerId);
       });
       canvas.addEventListener('pointermove', e=>{
-        if(e.pointerType!=='touch'||!dragging||!start) return;
+        if(e.pointerType!=='touch'||!dragging||!start||!game.drag) return;
         const r=canvas.getBoundingClientRect();
         const x=e.clientX-r.left, y=e.clientY-r.top;
         const c=Math.min(canvas.width/COLS,canvas.height/ROWS);
         const offX=(canvas.width-c*COLS)/2, offY=(canvas.height-c*ROWS)/2;
         const dx = x - (offX + start.x*c + c/2);
         const dy = y - (offY + start.y*c + c/2);
-        const TH = c*0.28; // drag threshold
-        if(Math.hypot(dx,dy) < TH) return;
-        // decide direction by larger axis
-        let target = {x:start.x, y:start.y};
-        if(Math.abs(dx) > Math.abs(dy)) target.x += (dx>0?1:-1); else target.y += (dy>0?1:-1);
-        if(target.x<0||target.x>=COLS||target.y<0||target.y>=ROWS) return;
-        const a=start,b=target; start=null; dragging=false; game.selected=null;
-        game.trySwap(a,b); game.draw();
-        try{ canvas.releasePointerCapture(e.pointerId); }catch(_){}
+        if(!game.drag.dir) game.drag.dir = Math.abs(dx) > Math.abs(dy) ? 'x' : 'y';
+        if(game.drag.dir==='x'){
+          let ndx = Math.max(-c, Math.min(c, dx));
+          const target={x:start.x+(ndx>0?1:-1), y:start.y};
+          if(target.x<0||target.x>=COLS){ ndx=0; game.drag.neigh=null; }
+          else game.drag.neigh=target;
+          game.drag.dx=ndx; game.drag.dy=0;
+        } else {
+          let ndy = Math.max(-c, Math.min(c, dy));
+          const target={x:start.x, y:start.y+(ndy>0?1:-1)};
+          if(target.y<0||target.y>=ROWS){ ndy=0; game.drag.neigh=null; }
+          else game.drag.neigh=target;
+          game.drag.dy=ndy; game.drag.dx=0;
+        }
+        game.draw();
       });
-      canvas.addEventListener('pointerup', e=>{
+      const endDrag=e=>{
         if(e.pointerType!=='touch') return;
-        dragging=false; start=null; game.selected=null; game.draw();
+        const c=Math.min(canvas.width/COLS,canvas.height/ROWS);
+        const TH=c*0.28;
+        if(dragging && start && game.drag && game.drag.neigh){
+          const m=Math.max(Math.abs(game.drag.dx),Math.abs(game.drag.dy));
+          if(m>TH){
+            const a=start, b=game.drag.neigh;
+            game.selected=null; game.drag=null; dragging=false; start=null;
+            game.trySwap(a,b); game.draw();
+            try{ canvas.releasePointerCapture(e.pointerId); }catch(_){ }
+            return;
+          }
+        }
+        dragging=false; start=null; game.selected=null; game.drag=null; game.draw();
         try{ canvas.releasePointerCapture(e.pointerId); }catch(_){ }
-      });
-      canvas.addEventListener('pointercancel', e=>{
-        if(e.pointerType!=='touch') return;
-        dragging=false; start=null; game.selected=null; game.draw();
-      });
+      };
+      canvas.addEventListener('pointerup', endDrag);
+      canvas.addEventListener('pointercancel', endDrag);
     }
 
     // safety
