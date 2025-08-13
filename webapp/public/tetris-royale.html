@@ -296,27 +296,33 @@ window.__TETRIS_ROYALE__ = true;
     }
     return best;
   }
-  function drawCartoonBlock(ctx, x, y, w, h, color){
-    const r = Math.min(w, h);
+  function drawBlock(ctx, x, y, size, color){
+    ctx.lineWidth = 1;
+    ctx.lineJoin = 'miter';
+    ctx.lineCap = 'butt';
     ctx.fillStyle = color;
-    ctx.fillRect(x, y, w, h);
-    ctx.lineWidth = Math.max(2, r * 0.1);
+    ctx.fillRect(x, y, size, size);
+
+    const topGrad = ctx.createLinearGradient(0, y, 0, y + size);
+    topGrad.addColorStop(0, 'rgba(255,255,255,0.25)');
+    topGrad.addColorStop(0.2, 'rgba(255,255,255,0)');
+    ctx.fillStyle = topGrad;
+    ctx.fillRect(x, y, size, size);
+
+    const bottomGrad = ctx.createLinearGradient(0, y, 0, y + size);
+    bottomGrad.addColorStop(0.8, 'rgba(0,0,0,0)');
+    bottomGrad.addColorStop(1, 'rgba(0,0,0,0.3)');
+    ctx.fillStyle = bottomGrad;
+    ctx.fillRect(x, y, size, size);
+
+    const rightGrad = ctx.createLinearGradient(x, 0, x + size, 0);
+    rightGrad.addColorStop(0.8, 'rgba(0,0,0,0)');
+    rightGrad.addColorStop(1, 'rgba(0,0,0,0.3)');
+    ctx.fillStyle = rightGrad;
+    ctx.fillRect(x, y, size, size);
+
     ctx.strokeStyle = '#000';
-    ctx.lineJoin = 'round';
-    ctx.lineCap = 'round';
-    ctx.strokeRect(x, y, w, h);
-    ctx.save();
-    ctx.beginPath();
-    ctx.rect(x, y, w, h);
-    ctx.clip();
-    ctx.fillStyle = 'rgba(255,255,255,0.6)';
-    ctx.beginPath();
-    ctx.arc(x + w*0.3, y + h*0.3, r*0.25, 0, Math.PI*2);
-    ctx.fill();
-    ctx.beginPath();
-    ctx.arc(x + w*0.15, y + h*0.15, r*0.07, 0, Math.PI*2);
-    ctx.fill();
-    ctx.restore();
+    ctx.strokeRect(x + 0.5, y + 0.5, size - 1, size - 1);
   }
   function fitCanvas(canvas, ctx){
     const r = canvas.getBoundingClientRect();
@@ -334,6 +340,9 @@ window.__TETRIS_ROYALE__ = true;
     const cw = canvas.width / (canvas.dpr || 1);
     const ch = canvas.height / (canvas.dpr || 1);
     const bw = cw / COLS, bh = ch / ROWS;
+    const size = Math.min(bw, bh);
+    const ox = (bw - size) / 2;
+    const oy = (bh - size) / 2;
     ctx.clearRect(0,0,cw,ch);
     const bgGrad = ctx.createRadialGradient(
       cw/2,
@@ -351,7 +360,7 @@ window.__TETRIS_ROYALE__ = true;
       for(let x=0;x<COLS;x++){
         const c = board[y][x];
         if(c){
-          drawCartoonBlock(ctx, x*bw, y*bh, bw, bh, c);
+          drawBlock(ctx, x*bw + ox, y*bh + oy, size, c);
         }
       }
     }
@@ -363,7 +372,7 @@ window.__TETRIS_ROYALE__ = true;
       for(let y=0;y<piece.length;y++){
         for(let x=0;x<piece[y].length;x++){
           if(piece[y][x]){
-            drawCartoonBlock(ctx, (pos.x+x)*bw, (gy+y)*bh, bw, bh, color);
+            drawBlock(ctx, (pos.x+x)*bw + ox, (gy+y)*bh + oy, size, color);
           }
         }
       }
@@ -371,7 +380,7 @@ window.__TETRIS_ROYALE__ = true;
       for(let y=0;y<piece.length;y++){
         for(let x=0;x<piece[y].length;x++){
           if(piece[y][x]){
-            drawCartoonBlock(ctx, (pos.x+x)*bw, (pos.y+y)*bh, bw, bh, color);
+            drawBlock(ctx, (pos.x+x)*bw + ox, (pos.y+y)*bh + oy, size, color);
           }
         }
       }
