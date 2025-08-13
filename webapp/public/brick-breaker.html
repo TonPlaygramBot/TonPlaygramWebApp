@@ -425,26 +425,18 @@
             return img;
           });
 
-          function drawBubble(ctx, x, y, r, color) {
-            const grad = ctx.createRadialGradient(
-              x - r * 0.3,
-              y - r * 0.3,
-              r * 0.1,
-              x,
-              y,
-              r
-            );
-            grad.addColorStop(0, '#ffffff');
-            grad.addColorStop(0.3, color);
-            grad.addColorStop(1, color);
-            ctx.fillStyle = grad;
-            ctx.beginPath();
-            ctx.arc(x, y, r, 0, Math.PI * 2);
-            ctx.fill();
-            ctx.lineWidth = 2;
-            ctx.strokeStyle = '#00000066';
-            ctx.stroke();
-          }
+          const BALL_IMAGES = {
+            normal: (() => {
+              const img = new Image();
+              img.src = '/assets/icons/WhiteBall.webp';
+              return img;
+            })(),
+            fire: (() => {
+              const img = new Image();
+              img.src = '/assets/icons/Orange (Glowing)Ball.webp';
+              return img;
+            })()
+          };
 
           const state = {
             match: null,
@@ -677,9 +669,6 @@
                 ctx.fillStyle = 'rgba(255,255,255,0.5)';
                 ctx.fillRect(br.x, br.y, br.w, br.h);
               }
-              ctx.lineWidth = 4;
-              ctx.strokeStyle = COLORS.wall;
-              ctx.strokeRect(br.x, br.y, br.w, br.h);
             }
             for (const p of b.powerups) {
               ctx.fillStyle = COLORS.power;
@@ -706,13 +695,8 @@
             ctx.strokeStyle = COLORS.wall;
             ctx.strokeRect(b.paddle.x, b.paddle.y, b.paddle.w, b.paddle.h);
             for (const ball of b.balls) {
-              drawBubble(
-                ctx,
-                ball.x,
-                ball.y,
-                ball.r,
-                ball.fire ? COLORS.danger : COLORS.ball
-              );
+              const img = ball.fire ? BALL_IMAGES.fire : BALL_IMAGES.normal;
+              ctx.drawImage(img, ball.x - ball.r, ball.y - ball.r, ball.r * 2, ball.r * 2);
             }
           }
 
