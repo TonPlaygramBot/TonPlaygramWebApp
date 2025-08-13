@@ -402,23 +402,15 @@
           const POWERUPS = ['multiball', 'fireball', 'wide', 'slow', 'x2'];
           const POINTS = { standard: 10, tough: 20, explosive: 10 };
 
+          const BALL_RADIUS = 8;
+
           const BRICK_COLORS = [
-            '#87ceeb',
-            '#98ff98',
-            '#32cd32',
-            '#ffff00',
-            '#ffb6c1',
-            '#ff4040',
-            '#ff69b4',
-            '#800080',
-            '#8a2be2',
-            '#add8e6',
-            '#008080',
-            '#00fa9a',
-            '#90ee90',
-            '#ffa500',
-            '#ff0000',
-            '#ffffe0'
+            '#5aa2ff',
+            '#ff9d5a',
+            '#ff5a6b',
+            '#d4af37',
+            '#34d399',
+            '#a78bfa'
           ];
 
           const BALL_IMAGES = {
@@ -447,10 +439,11 @@
             ctx.beginPath();
             ctx.rect(x, y, w, h);
             ctx.clip();
-            ctx.fillStyle = 'rgba(255,255,255,0.35)';
-            ctx.fillRect(x, y, w * 0.4, h * 0.4);
-            ctx.fillStyle = 'rgba(255,255,255,0.6)';
-            ctx.fillRect(x, y, w * 0.2, h * 0.2);
+            const grad = ctx.createLinearGradient(x, y + h, x + w, y);
+            grad.addColorStop(0, 'rgba(255,255,255,0.35)');
+            grad.addColorStop(0.6, 'rgba(255,255,255,0)');
+            ctx.fillStyle = grad;
+            ctx.fillRect(x, y, w, h);
             ctx.restore();
           };
 
@@ -636,7 +629,7 @@
                 {
                   x: VIEW_W / 2,
                   y: VIEW_H - 80,
-                  r: 6,
+                  r: BALL_RADIUS,
                   vx: 2.2 * (Math.random() < 0.5 ? -1 : 1),
                   vy: -3.2,
                   fire: false
@@ -724,7 +717,7 @@
               const base = b.balls[0] || {
                 x: VIEW_W / 2,
                 y: VIEW_H - 100,
-                r: 6,
+                r: BALL_RADIUS,
                 vx: 2.1,
                 vy: -3.0
               };
@@ -732,7 +725,7 @@
                 b.balls.push({
                   x: base.x,
                   y: base.y,
-                  r: 6,
+                  r: BALL_RADIUS,
                   vx: rand(-2.5, 2.5),
                   vy: -rand(2.5, 3.8),
                   fire: false
@@ -821,7 +814,7 @@
                   b.balls.push({
                     x: VIEW_W / 2,
                     y: VIEW_H - 80,
-                    r: 6,
+                    r: BALL_RADIUS,
                     vx: 2.2 * (Math.random() < 0.5 ? -1 : 1),
                     vy: -3.2,
                     fire: false
