@@ -213,22 +213,27 @@ window.__BUBBLE_ROYALE_POWER__ = true;
   const randColor = ()=> COLORS[(Math.random()*COLORS.length)|0];
   const chance = (p)=> Math.random()<p;
   function drawCartoonBubble(ctx, x, y, r, color, special){
-    const grad = ctx.createRadialGradient(x - r*0.3, y - r*0.3, r*0.1, x, y, r);
-    grad.addColorStop(0, '#ffffff');
-    grad.addColorStop(0.3, color);
-    grad.addColorStop(1, color);
-    ctx.fillStyle = grad;
     ctx.beginPath();
     ctx.arc(x, y, r, 0, Math.PI*2);
+    ctx.fillStyle = color;
     ctx.fill();
-    ctx.lineWidth = 2;
-    ctx.strokeStyle = '#00000066';
+    ctx.lineWidth = Math.max(2, r * 0.1);
+    ctx.strokeStyle = '#000';
+    ctx.lineJoin = 'round';
+    ctx.lineCap = 'round';
     ctx.stroke();
+    ctx.fillStyle = 'rgba(255,255,255,0.6)';
+    ctx.beginPath();
+    ctx.arc(x - r*0.3, y - r*0.3, r*0.25, 0, Math.PI*2);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.arc(x - r*0.45, y - r*0.45, r*0.07, 0, Math.PI*2);
+    ctx.fill();
     if(special){
       ctx.fillStyle = '#0b1228';
       ctx.font = `bold ${Math.floor(r*1.0)}px system-ui`;
-      ctx.textAlign='center';
-      ctx.textBaseline='middle';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
       ctx.fillText(special, x, y+1);
     }
   }
