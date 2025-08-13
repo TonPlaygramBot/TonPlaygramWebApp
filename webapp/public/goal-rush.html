@@ -30,6 +30,14 @@
 
     .hint{position:fixed;inset:0;display:none;align-items:center;justify-content:center;margin:auto;max-width:680px;background:rgba(10,16,34,.6);backdrop-filter:blur(6px);border:1px solid #1f2944;border-radius:12px;padding:8px 12px;text-align:center;font-size:.9rem}
 
+    .calib-btn{position:absolute;top:6px;right:6px;z-index:5;background:#0b1220;border:1px solid #233050;color:#e5e7eb;border-radius:8px;padding:4px 8px;font-size:14px}
+    .calib-pop{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:rgba(10,16,34,.6);backdrop-filter:blur(6px);z-index:30}
+    .calib-box{background:#0b1220;border:1px solid #1f2944;border-radius:12px;padding:16px;display:flex;flex-direction:column;gap:8px;min-width:240px}
+    .calib-box label{display:flex;justify-content:space-between;align-items:center;font-size:.9rem}
+    .calib-box input{width:80px;background:#131a2e;border:1px solid #233050;border-radius:6px;color:#e5e7eb;padding:4px}
+    .calib-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:8px}
+    .calib-actions button{background:#1a2237;border:1px solid #233050;border-radius:6px;padding:4px 8px;color:#e5e7eb}
+
     .coin-confetti{position:fixed;top:-40px;width:32px;height:32px;pointer-events:none;animation:coin-fall var(--duration,3s) linear forwards}
     @keyframes coin-fall{from{transform:translateY(-10vh) rotate(0deg);opacity:1}to{transform:translateY(100vh) rotate(360deg);opacity:0}}
 
@@ -47,12 +55,26 @@
         <span id="s2">0</span><span id="p2Name" class="badge p2">P2</span>
       </div>
     </div>
+    <button id="calibrateBtn" class="calib-btn" aria-label="Calibrate">⚙️</button>
     <div class="canvasWrap">
       <canvas id="game" width="720" height="1280" aria-label="Goal Rush Field"></canvas>
     </div>
   </div>
   <div class="hint" id="startHint"></div>
   <div class="landscape-block" style="display:none">Please hold your phone in <b>portrait</b> for the best experience.</div>
+  <div class="calib-pop" id="calibPop">
+    <div class="calib-box">
+      <label>Field <input id="fieldScaleInput" type="number" step="0.01" min="0.5" max="2"></label>
+      <label>Ball <input id="puckScaleInput" type="number" step="0.01" min="0.5" max="2"></label>
+      <label>Avatar <input id="paddleScaleInput" type="number" step="0.01" min="0.5" max="2"></label>
+      <label>Goal Size <input id="goalWidthInput" type="number" step="0.01" min="0.1" max="1"></label>
+      <label>Ball Speed <input id="speedMulInput" type="number" step="0.1" min="0.1" max="5"></label>
+      <div class="calib-actions">
+        <button id="calibSave">Save</button>
+        <button id="calibClose">Close</button>
+      </div>
+    </div>
+  </div>
 
 <script src="/falling-ball-api.js"></script>
 <script>
@@ -101,7 +123,7 @@
   const oppParam = params.get('p2Avatar') || '';
   let p1Name = params.get('name') || 'P1';
   let p2Name = params.get('p2Name') || 'P2';
-  let fieldScale = 1, fieldImgScale = 1, puckScale = 0.9, goalWidthPct = 0.36, goalOffsetPct = 0, paddleScale = 0.95;
+  let fieldScale = 1, fieldImgScale = 1, puckScale = 0.9, goalWidthPct = 0.36, goalOffsetPct = 0, paddleScale = 0.95, speedMul = 1;
   try {
     fieldScale = parseFloat(localStorage.getItem('fieldScale')) || 1;
     fieldImgScale = parseFloat(localStorage.getItem('fieldImgScale')) || 1;
@@ -109,6 +131,7 @@
     goalWidthPct = parseFloat(localStorage.getItem('goalWidthPct')) || 0.36;
     goalOffsetPct = parseFloat(localStorage.getItem('goalOffsetPct')) || 0;
     paddleScale = parseFloat(localStorage.getItem('paddleScale')) || 0.95;
+    speedMul = parseFloat(localStorage.getItem('speedMul')) || 1;
   } catch {}
   const FLAG_DATA = [
     { emoji:'🇺🇸', name:'USA' },
@@ -271,7 +294,7 @@
   const p1 = { x:0, y:0, r:34, vx:0, vy:0, max: 18, lastX:0, lastY:0 };
   const p2 = { x:0, y:0, r:34, vx:0, vy:0, max: 18, lastX:0, lastY:0 };
   const score = { p1:0, p2:0, target }; 
-  let running = true; let last = 0; const speedMul = 1;
+  let running = true; let last = 0;
   const difficultySpeeds = { easy:14, normal:18, hard:24 };
   p2.max = difficultySpeeds[difficulty] || 18;
 
@@ -382,7 +405,7 @@
     ctx.moveTo(-w/2, 0); ctx.lineTo(w/2, 0);
     ctx.moveTo(-w/2, d); ctx.lineTo(w/2, d);
     ctx.stroke();
-    ctx.strokeStyle = '#facc15';
+    ctx.strokeStyle = getCSS('--goal');
     ctx.beginPath();
     ctx.moveTo(-w/2, 0); ctx.lineTo(-w/2, d);
     ctx.moveTo(w/2, 0); ctx.lineTo(w/2, d);
@@ -670,6 +693,42 @@
 
   function checkOrientation(){ landscapeBlock.style.display = (window.matchMedia('(orientation: landscape)').matches ? 'flex' : 'none'); }
   window.addEventListener('orientationchange', checkOrientation);
+
+  const calibPop = document.getElementById('calibPop');
+  const calibBtn = document.getElementById('calibrateBtn');
+  const fieldScaleInput = document.getElementById('fieldScaleInput');
+  const puckScaleInput = document.getElementById('puckScaleInput');
+  const paddleScaleInput = document.getElementById('paddleScaleInput');
+  const goalWidthInput = document.getElementById('goalWidthInput');
+  const speedMulInput = document.getElementById('speedMulInput');
+  const calibSave = document.getElementById('calibSave');
+  const calibClose = document.getElementById('calibClose');
+
+  function openCalib(){
+    fieldScaleInput.value = fieldScale.toFixed(2);
+    puckScaleInput.value = puckScale.toFixed(2);
+    paddleScaleInput.value = paddleScale.toFixed(2);
+    goalWidthInput.value = goalWidthPct.toFixed(2);
+    speedMulInput.value = speedMul.toFixed(2);
+    calibPop.style.display = 'flex';
+  }
+  function closeCalib(){ calibPop.style.display = 'none'; }
+  calibBtn.addEventListener('click', openCalib);
+  calibClose.addEventListener('click', closeCalib);
+  calibSave.addEventListener('click', () => {
+    fieldScale = parseFloat(fieldScaleInput.value) || 1;
+    puckScale = parseFloat(puckScaleInput.value) || 1;
+    paddleScale = parseFloat(paddleScaleInput.value) || 1;
+    goalWidthPct = parseFloat(goalWidthInput.value) || 0.36;
+    speedMul = parseFloat(speedMulInput.value) || 1;
+    localStorage.setItem('fieldScale', fieldScale);
+    localStorage.setItem('puckScale', puckScale);
+    localStorage.setItem('paddleScale', paddleScale);
+    localStorage.setItem('goalWidthPct', goalWidthPct);
+    localStorage.setItem('speedMul', speedMul);
+    fit();
+    closeCalib();
+  });
 
     fit(); checkOrientation(); resetPositions(); updateScore(); playWhistle(); requestAnimationFrame(loop);
   })();
