@@ -664,7 +664,19 @@
             ctx.fillText('♥'.repeat(b.lives), W - 40, 44);
             for (const br of b.bricks) {
               if (!br.alive) continue;
-              ctx.drawImage(br.img, br.x, br.y, br.w, br.h);
+              if (br.img?.complete && br.img.naturalWidth && br.img.naturalHeight) {
+                ctx.drawImage(
+                  br.img,
+                  0,
+                  0,
+                  br.img.naturalWidth,
+                  br.img.naturalHeight,
+                  br.x,
+                  br.y,
+                  br.w,
+                  br.h
+                );
+              }
               if (br.type === 'tough' && br.hits === 1) {
                 ctx.fillStyle = 'rgba(255,255,255,0.5)';
                 ctx.fillRect(br.x, br.y, br.w, br.h);
