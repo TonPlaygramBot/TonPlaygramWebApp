@@ -309,9 +309,9 @@ window.__TETRIS_ROYALE__ = true;
     ctx.beginPath();
     ctx.rect(x, y, w, h);
     ctx.clip();
-    // hard-edged square highlights sized to the block
-    const sizeLarge = Math.floor(r * 0.6);
-    const sizeSmall = Math.floor(r * 0.3);
+    // hard-edged square highlights sized to the block (80% and 40%)
+    const sizeLarge = Math.floor(r * 0.8);
+    const sizeSmall = Math.floor(r * 0.4);
     ctx.fillStyle = 'rgba(255,255,255,0.35)';
     ctx.fillRect(x, y, sizeLarge, sizeLarge);
     ctx.fillStyle = 'rgba(255,255,255,0.6)';
