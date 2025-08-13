@@ -309,13 +309,13 @@ window.__TETRIS_ROYALE__ = true;
     ctx.beginPath();
     ctx.rect(x, y, w, h);
     ctx.clip();
-    // hard-edged square highlights sized to the block (80% and 40%)
-    const sizeLarge = Math.floor(r * 0.8);
-    const sizeSmall = Math.floor(r * 0.4);
+    // hard-edged square highlights sized to the block (85% and 45%) positioned on the right
+    const sizeLarge = Math.floor(r * 0.85);
+    const sizeSmall = Math.floor(r * 0.45);
     ctx.fillStyle = 'rgba(255,255,255,0.35)';
-    ctx.fillRect(x, y, sizeLarge, sizeLarge);
+    ctx.fillRect(x + w - sizeLarge, y, sizeLarge, sizeLarge);
     ctx.fillStyle = 'rgba(255,255,255,0.6)';
-    ctx.fillRect(x, y, sizeSmall, sizeSmall);
+    ctx.fillRect(x + w - sizeSmall, y, sizeSmall, sizeSmall);
     ctx.restore();
   }
   function fitCanvas(canvas, ctx){
@@ -359,7 +359,7 @@ window.__TETRIS_ROYALE__ = true;
       const {piece,pos,color} = active;
       let gy = pos.y;
       while(!collide(board, piece, {x:pos.x, y:gy+1})) gy++;
-      ctx.globalAlpha = 0.3;
+      ctx.globalAlpha = 0.15;
       for(let y=0;y<piece.length;y++){
         for(let x=0;x<piece[y].length;x++){
           if(piece[y][x]){
@@ -411,6 +411,7 @@ window.__TETRIS_ROYALE__ = true;
       while(!collide(game.board, game.piece, {x:game.pos.x,y:game.pos.y+1})) game.pos.y++;
       merge(game.board, game.piece, game.pos, game.color);
       game.score += SCORE_PER_LINES[sweep(game.board)];
+      if(game.board[0].some(Boolean)){ game.over = true; return; }
       game.newPiece();
     };
     game.step = function(dt){
@@ -423,7 +424,8 @@ window.__TETRIS_ROYALE__ = true;
           merge(game.board, game.piece, game.pos, game.color);
           const lines = sweep(game.board);
           if(lines){ game.score += SCORE_PER_LINES[lines]; showToast(`+${SCORE_PER_LINES[lines]}`); }
-          game.newPiece();
+          if(game.board[0].some(Boolean)){ game.over = true; }
+          else { game.newPiece(); }
         }
       }
     };
@@ -440,19 +442,25 @@ window.__TETRIS_ROYALE__ = true;
       if(!start) return;
       const r = canvas.getBoundingClientRect();
       const px = e.clientX - r.left, py = e.clientY - r.top;
+      const dy = py - start.y;
+      const dt = performance.now() - start.t;
+      if(dy > r.height/5 && dt < 180){
+        game.hardDrop();
+        start = null;
+        canvas.releasePointerCapture(e.pointerId);
+        return;
+      }
       const dx = px - start.x;
       if(Math.abs(dx) > r.width/20){
         game.move(dx>0?1:-1);
         start.x = px;
       }
-      const dy = py - start.y;
       const rowH = r.height / ROWS;
       const moveRows = Math.floor(dy / rowH);
-      if(moveRows !== 0){
-        const dir = Math.sign(moveRows);
-        for(let i=0;i<Math.abs(moveRows);i++){
-          game.pos.y += dir;
-          if(collide(game.board, game.piece, game.pos)){ game.pos.y -= dir; break; }
+      if(moveRows > 0){
+        for(let i=0;i<moveRows;i++){
+          game.pos.y++;
+          if(collide(game.board, game.piece, game.pos)){ game.pos.y--; break; }
         }
         start.y += moveRows * rowH;
       }
@@ -555,6 +563,8 @@ window.__TETRIS_ROYALE__ = true;
     }
     ui.myscore.textContent = String(games[games.length-1].score);
     updateTimer();
+    const activeLeft = games.filter(g=>!g.over).length;
+    if(activeLeft <= 1){ finish(); return; }
     rafId = requestAnimationFrame(loop);
   }
   async function finish(){
