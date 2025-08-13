@@ -447,11 +447,10 @@
             ctx.beginPath();
             ctx.rect(x, y, w, h);
             ctx.clip();
-            // hard-edged square highlights sized to the block (80% and 40%)
             ctx.fillStyle = 'rgba(255,255,255,0.35)';
-            ctx.fillRect(x, y, w * 0.8, h * 0.8);
-            ctx.fillStyle = 'rgba(255,255,255,0.6)';
             ctx.fillRect(x, y, w * 0.4, h * 0.4);
+            ctx.fillStyle = 'rgba(255,255,255,0.6)';
+            ctx.fillRect(x, y, w * 0.2, h * 0.2);
             ctx.restore();
           };
 
