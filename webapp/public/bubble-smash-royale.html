@@ -415,12 +415,13 @@
     game.draw=()=>fx.draw(game.board, game.selected, game.drag);
     window.addEventListener('resize',()=>{ fitCanvas(canvas); game.draw(); });
 
-    // Touch-only input (finger drag)
+    // Pointer input (touch or mouse drag)
     if(isUser){
-      canvas.addEventListener('pointerdown', e=>{ if(e.pointerType==='touch'){ ensureAudio(); } }, {once:true});
+      canvas.addEventListener('pointerdown', e=>{ if(e.pointerType==='touch'||e.pointerType==='mouse'){ ensureAudio(); } }, {once:true});
       let start=null; let dragging=false;
       canvas.addEventListener('pointerdown', e=>{
-        if(e.pointerType!=='touch') return;
+        if(e.pointerType!=='touch'&&e.pointerType!=='mouse') return;
+        if(e.pointerType==='mouse' && e.button!==0) return;
         const cell=evtToCell(canvas,e); if(!cell) return;
         start=cell; dragging=true;
         game.selected=cell;
@@ -429,7 +430,7 @@
         canvas.setPointerCapture(e.pointerId);
       });
       canvas.addEventListener('pointermove', e=>{
-        if(e.pointerType!=='touch'||!dragging||!start||!game.drag) return;
+        if((e.pointerType!=='touch'&&e.pointerType!=='mouse')||!dragging||!start||!game.drag) return;
         const r=canvas.getBoundingClientRect();
         const x=e.clientX-r.left, y=e.clientY-r.top;
         const c=Math.min(canvas.width/COLS,canvas.height/ROWS);
@@ -453,7 +454,7 @@
         game.draw();
       });
       const endDrag=e=>{
-        if(e.pointerType!=='touch') return;
+        if(e.pointerType!=='touch'&&e.pointerType!=='mouse') return;
         const c=Math.min(canvas.width/COLS,canvas.height/ROWS);
         const TH=c*0.28;
         if(dragging && start && game.drag && game.drag.neigh){
