@@ -32,12 +32,6 @@
     .coin-confetti{position:fixed;top:-40px;width:32px;height:32px;pointer-events:none;animation:coin-fall var(--duration,3s) linear forwards}
     @keyframes coin-fall{from{transform:translateY(-10vh) rotate(0deg);opacity:1}to{transform:translateY(100vh) rotate(360deg);opacity:0}}
 
-    #calibrationBtn{position:absolute;top:8px;right:8px;z-index:15;background:#0b1220;color:#e5e7eb;border:1px solid #233050;border-radius:8px;padding:6px 10px}
-    #calibrationPopup{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:transparent;backdrop-filter:none;z-index:20}
-    #calibrationPopup .content{background:transparent;border-radius:12px;padding:24px;color:#e5e7eb;width:95%;max-width:400px}
-    #calibrationPopup label{display:block;margin:8px 0}
-    #calibrationPopup button{margin-top:8px}
-
     @media (orientation:landscape){
       .landscape-block{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:#0008;z-index:20;color:#fff;text-align:center;padding:24px}
     }
@@ -55,31 +49,6 @@
     <div class="canvasWrap">
       <canvas id="game" width="720" height="1280" aria-label="Air Hockey Field"></canvas>
     </div>
-    <button id="calibrationBtn">Calibrate</button>
-    <div id="calibrationPopup">
-      <div class="content">
-        <h3>Calibration</h3>
-      <div>
-          <label>Field Size: <input id="fieldScale" type="range" min="0.8" max="1.2" step="0.01" /></label>
-        </div>
-        <div>
-          <label>Field Image Size: <input id="fieldImgScale" type="range" min="0.8" max="1.2" step="0.01" /></label>
-        </div>
-        <div>
-          <label>Puck Size: <input id="puckScale" type="range" min="0.5" max="1.5" step="0.05" /></label>
-        </div>
-        <div>
-          <label>Goal Width: <input id="goalWidth" type="range" min="0.2" max="0.6" step="0.01" /></label>
-        </div>
-        <div>
-          <label>Goal Offset: <input id="goalOffset" type="range" min="-0.2" max="0.2" step="0.01" /></label>
-        </div>
-        <div>
-          <label>Avatar Size: <input id="paddleScale" type="range" min="0.5" max="1.5" step="0.05" /></label>
-        </div>
-        <button id="saveCalibration">Save Calibration</button>
-      </div>
-    </div>
   </div>
   <div class="hint" id="startHint"></div>
   <div class="landscape-block" style="display:none">Please hold your phone in <b>portrait</b> for the best experience.</div>
@@ -95,18 +64,8 @@
   const p2NameEl = document.getElementById('p2Name');
   const startHint = document.getElementById('startHint');
   const landscapeBlock = document.querySelector('.landscape-block');
-  const calibrationBtn = document.getElementById('calibrationBtn');
-  const calibrationPopup = document.getElementById('calibrationPopup');
-  const fieldScaleInput = document.getElementById('fieldScale');
-  const fieldImgScaleInput = document.getElementById('fieldImgScale');
-  const puckScaleInput = document.getElementById('puckScale');
-  const goalWidthInput = document.getElementById('goalWidth');
-  const goalOffsetInput = document.getElementById('goalOffset');
-  const paddleScaleInput = document.getElementById('paddleScale');
-  const saveCalBtn = document.getElementById('saveCalibration');
   const TOP_BAR = 40; // height of scoreboard bar
   const BOTTOM_GAP = 20; // gap below rink
-  let showCalOverlay = false;
 
   const fieldImg = new Image();
   fieldImg.src = '/assets/icons/file_00000000becc620a8755badc01cfefca.webp';
@@ -184,61 +143,8 @@
     p2AvatarEmoji = ai.emoji;
     p2Name = ai.name;
   }
-  p1NameEl.textContent = p1Name;
-  p2NameEl.textContent = p2Name;
-  fieldScaleInput.value = fieldScale;
-  fieldImgScaleInput.value = fieldImgScale;
-  puckScaleInput.value = puckScale;
-  goalWidthInput.value = goalWidthPct;
-  goalOffsetInput.value = goalOffsetPct;
-  paddleScaleInput.value = paddleScale;
-  calibrationBtn.addEventListener('click',()=>{
-    calibrationPopup.style.display='flex';
-    showCalOverlay=true;
-  });
-  fieldScaleInput.addEventListener('input', () => {
-    fieldScale = parseFloat(fieldScaleInput.value);
-    fit();
-    resetPositions();
-  });
-  puckScaleInput.addEventListener('input', () => {
-    puckScale = parseFloat(puckScaleInput.value);
-    fit();
-    resetPositions();
-  });
-  goalWidthInput.addEventListener('input', () => {
-    goalWidthPct = parseFloat(goalWidthInput.value);
-    fit();
-    resetPositions();
-  });
-  goalOffsetInput.addEventListener('input', () => {
-    goalOffsetPct = parseFloat(goalOffsetInput.value);
-    fit();
-    resetPositions();
-  });
-  paddleScaleInput.addEventListener('input', () => {
-    paddleScale = parseFloat(paddleScaleInput.value);
-    fit();
-    resetPositions();
-  });
-  fieldImgScaleInput.addEventListener('input', () => {
-    fieldImgScale = parseFloat(fieldImgScaleInput.value);
-    fit();
-    resetPositions();
-  });
-  saveCalBtn.addEventListener('click', () => {
-    try {
-      localStorage.setItem('fieldScale', fieldScale);
-      localStorage.setItem('fieldImgScale', fieldImgScale);
-      localStorage.setItem('puckScale', puckScale);
-      localStorage.setItem('goalWidthPct', goalWidthPct);
-      localStorage.setItem('goalOffsetPct', goalOffsetPct);
-      localStorage.setItem('paddleScale', paddleScale);
-      localStorage.setItem('calibrationDone','true');
-    } catch {}
-    calibrationPopup.style.display='none';
-    showCalOverlay=false;
-  });
+    p1NameEl.textContent = p1Name;
+    p2NameEl.textContent = p2Name;
 
   async function awardTpc(accountId, amount){
     try{
@@ -290,9 +196,8 @@
     coinConfetti();
     let audio;
     try{
-      audio=new Audio('/assets/sounds/man-cheering-in-victory-epic-stock-media-1-00-01.mp3');
-      if(audioEnabled) audio.volume=master?.gain.value||0.25;
-      audio.play().catch(()=>{});
+      audio=new Audio('/assets/sounds/11l-victory_sound_with_t-1749487412779-357604.mp3');
+      if(audioEnabled) audio.play().catch(()=>{});
     }catch{}
     const overlay=document.createElement('div');
     overlay.style.position='fixed';overlay.style.inset='0';overlay.style.display='flex';overlay.style.flexDirection='column';
@@ -367,49 +272,46 @@
   const difficultySpeeds = { easy:14, normal:18, hard:24 };
   p2.max = difficultySpeeds[difficulty] || 18;
 
-  let audioEnabled = false; let ac; let master;
+  let audioEnabled = false;
+  const crowdSound = new Audio('/assets/sounds/football-crowd-3-69245.mp3');
+  crowdSound.loop = true;
+  const whistleSound = new Audio('/assets/sounds/metal-whistle-6121.mp3');
+  const netSound = new Audio('/assets/sounds/a-football-hits-the-net-goal-313216.mp3');
+  const crowdBaseVolume = 0.5;
+  crowdSound.volume = crowdBaseVolume;
+  let pendingWhistle = false;
+
+  function playWhistle(){
+    if(!audioEnabled){ pendingWhistle = true; return; }
+    pendingWhistle = false;
+    whistleSound.currentTime = 0;
+    whistleSound.play().catch(()=>{});
+    setTimeout(()=>{ whistleSound.pause(); whistleSound.currentTime = 0; },2000);
+  }
+
   function initAudio(){
-    if (audioEnabled) return;
-    ac = new (window.AudioContext || window.webkitAudioContext)();
-    master = ac.createGain(); master.gain.value = 0.25; master.connect(ac.destination);
+    if(audioEnabled) return;
     audioEnabled = true;
+    crowdSound.play().catch(()=>{});
+    if(pendingWhistle) playWhistle();
   }
-  function beep({freq=440, dur=0.06, type='square', gain=0.3}){
-    if (!audioEnabled) return;
-    const o = ac.createOscillator(); const g = ac.createGain();
-    o.type = type; o.frequency.value = freq;
-    g.gain.setValueAtTime(0, ac.currentTime);
-    g.gain.linearRampToValueAtTime(gain, ac.currentTime + 0.005);
-    g.gain.exponentialRampToValueAtTime(0.0001, ac.currentTime + dur);
-    o.connect(g); g.connect(master); o.start(); o.stop(ac.currentTime + dur);
-  }
-  function whistle(){
-    const o = ac.createOscillator();
-    const g = ac.createGain();
-    o.type = 'sine';
-    o.frequency.setValueAtTime(1500, ac.currentTime);
-    o.frequency.exponentialRampToValueAtTime(1000, ac.currentTime + 0.5);
-    g.gain.setValueAtTime(0, ac.currentTime);
-    g.gain.linearRampToValueAtTime(0.3, ac.currentTime + 0.05);
-    g.gain.exponentialRampToValueAtTime(0.0001, ac.currentTime + 0.5);
-    o.connect(g); g.connect(master); o.start(); o.stop(ac.currentTime + 0.5);
-  }
+
   const sfx = {
-    hit(){ beep({freq: 220 + Math.random()*60, dur:0.05, type:'square', gain:0.35}); },
-    wall(){ beep({freq: 320, dur:0.04, type:'triangle', gain:0.25}); },
+    hit(){
+      if(!audioEnabled) return;
+      const snd = new Audio('/assets/sounds/football-game-sound-effects-359284.mp3');
+      snd.play().catch(()=>{});
+      setTimeout(()=>{ snd.pause(); },700);
+    },
+    wall(){},
     goal(){
       if(!audioEnabled) return;
-      whistle();
-      const buffer = ac.createBuffer(1, ac.sampleRate*1.5, ac.sampleRate);
-      const data = buffer.getChannelData(0);
-      for(let i=0;i<data.length;i++){ data[i] = Math.random()*2-1; }
-      const crowd = ac.createBufferSource();
-      crowd.buffer = buffer;
-      const cg = ac.createGain();
-      cg.gain.setValueAtTime(0, ac.currentTime);
-      cg.gain.linearRampToValueAtTime(0.5, ac.currentTime + 0.2);
-      cg.gain.exponentialRampToValueAtTime(0.0001, ac.currentTime + 1.5);
-      crowd.connect(cg); cg.connect(master); crowd.start(); crowd.stop(ac.currentTime + 1.5);
+      netSound.currentTime = 0;
+      netSound.play().catch(()=>{});
+      setTimeout(()=>{ netSound.pause(); netSound.currentTime = 0; },2000);
+      crowdSound.volume = Math.min(1, crowdBaseVolume * 1.35);
+      setTimeout(()=>{ crowdSound.volume = crowdBaseVolume; },2000);
+      setTimeout(()=>{ playWhistle(); },2000);
     }
   };
 
@@ -565,19 +467,6 @@
       p.vx *= 0.8; p.vy *= 0.8;
     }
   }
-  function drawCalibrationGuide(){
-    ctx.save();
-    ctx.strokeStyle = 'yellow';
-    ctx.lineWidth = Math.max(2, W*0.005);
-    ctx.fillStyle = 'rgba(255,255,0,0.15)';
-    ctx.fillRect(rink.x, rink.y, rink.w, rink.h);
-    ctx.strokeRect(rink.x, rink.y, rink.w, rink.h);
-    ctx.fillRect(goalCenterX - goalWidth/2, rink.y - goalDepth, goalWidth, goalDepth);
-    ctx.strokeRect(goalCenterX - goalWidth/2, rink.y - goalDepth, goalWidth, goalDepth);
-    ctx.fillRect(goalCenterX - goalWidth/2, rink.y + rink.h, goalWidth, goalDepth);
-    ctx.strokeRect(goalCenterX - goalWidth/2, rink.y + rink.h, goalWidth, goalDepth);
-    ctx.restore();
-  }
 
   function aiUpdate(){
     const reaction = {easy:0.05, normal:0.1, hard:0.18}[difficulty] || 0.1;
@@ -671,8 +560,7 @@
     drawRink();
     drawPaddle(p2, getCSS('--p2'), p2AvatarImg, p2AvatarEmoji);
     drawPaddle(p1, getCSS('--p1'), p1AvatarImg, p1AvatarEmoji);
-    drawPuck();
-    if (showCalOverlay) drawCalibrationGuide();
+      drawPuck();
   }
 
   function loop(ts){
@@ -751,8 +639,8 @@
   function checkOrientation(){ landscapeBlock.style.display = (window.matchMedia('(orientation: landscape)').matches ? 'flex' : 'none'); }
   window.addEventListener('orientationchange', checkOrientation);
 
-  fit(); checkOrientation(); resetPositions(); updateScore(); requestAnimationFrame(loop);
-})();
+    fit(); checkOrientation(); resetPositions(); updateScore(); playWhistle(); requestAnimationFrame(loop);
+  })();
 </script>
 </body>
 </html>
