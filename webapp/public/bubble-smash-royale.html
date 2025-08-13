@@ -112,6 +112,20 @@
   // ===== Core config =====
   const COLS=9, ROWS=9;
   const COLORS=['#5aa2ff','#ff9d5a','#ff5a6b','#d4af37','#34d399','#a78bfa'];
+  const BUBBLE_IMAGES={
+    '#5aa2ff':'assets/icons/BlueBall.webp',
+    '#ff9d5a':'assets/icons/OrangeBall.webp',
+    '#ff5a6b':'assets/icons/PinkBall.webp',
+    '#d4af37':'assets/icons/GoldBall.webp',
+    '#34d399':'assets/icons/GreenBall.webp',
+    '#a78bfa':'assets/icons/PurpleBall.webp'
+  };
+  const BUBBLE_IMGS={};
+  for(const [c,src] of Object.entries(BUBBLE_IMAGES)){
+    const img=new Image();
+    img.src=src;
+    BUBBLE_IMGS[c]=img;
+  }
   const SCORE_BASE=60, SCORE_EXTRA=30;
 
   // ===== Helpers =====
@@ -219,12 +233,17 @@
         for(let x=0;x<COLS;x++){
           const t=board[y][x]; if(!t) continue;
           const cx=o.x+x*csize+csize/2, cy=o.y+y*csize+csize/2, r=csize*0.38;
-          const g=ctx.createRadialGradient(cx - r*0.3, cy - r*0.3, r*0.1, cx, cy, r);
-          g.addColorStop(0,'#ffffff');
-          g.addColorStop(0.3, t.c);
-          g.addColorStop(1, t.c);
-          ctx.fillStyle=g; ctx.beginPath(); ctx.arc(cx,cy,r,0,Math.PI*2); ctx.fill();
-          ctx.lineWidth=2; ctx.strokeStyle='#00000066'; ctx.stroke();
+          const img=BUBBLE_IMGS[t.c];
+          if(img && img.complete){
+            ctx.drawImage(img, cx - r, cy - r, r*2, r*2);
+          }else{
+            const g=ctx.createRadialGradient(cx - r*0.3, cy - r*0.3, r*0.1, cx, cy, r);
+            g.addColorStop(0,'#ffffff');
+            g.addColorStop(0.3, t.c);
+            g.addColorStop(1, t.c);
+            ctx.fillStyle=g; ctx.beginPath(); ctx.arc(cx,cy,r,0,Math.PI*2); ctx.fill();
+            ctx.lineWidth=2; ctx.strokeStyle='#00000066'; ctx.stroke();
+          }
         }
       }
       if(sel){
