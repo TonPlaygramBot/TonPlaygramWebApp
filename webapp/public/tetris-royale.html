@@ -301,7 +301,7 @@ window.__TETRIS_ROYALE__ = true;
     ctx.fillStyle = color;
     ctx.fillRect(x, y, w, h);
     ctx.lineWidth = Math.max(2, r * 0.1);
-    ctx.strokeStyle = 'rgba(0,0,0,0.4)';
+    ctx.strokeStyle = 'rgba(0,0,0,0.6)';
     ctx.lineJoin = 'round';
     ctx.lineCap = 'round';
     ctx.strokeRect(x, y, w, h);
@@ -309,9 +309,9 @@ window.__TETRIS_ROYALE__ = true;
     ctx.beginPath();
     ctx.rect(x, y, w, h);
     ctx.clip();
-    // hard-edged square highlights sized to the block (85% and 45%) positioned bottom-left
-    const sizeLarge = Math.floor(r * 0.85);
-    const sizeSmall = Math.floor(r * 0.45);
+    // hard-edged square highlights sized to the block (90% and 50%) positioned bottom-left
+    const sizeLarge = Math.floor(r * 0.9);
+    const sizeSmall = Math.floor(r * 0.5);
     ctx.fillStyle = 'rgba(255,255,255,0.25)';
     ctx.fillRect(x, y + h - sizeLarge, sizeLarge, sizeLarge);
     ctx.fillStyle = 'rgba(255,255,255,0.5)';
