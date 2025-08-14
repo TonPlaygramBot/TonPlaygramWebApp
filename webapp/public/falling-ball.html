@@ -165,6 +165,7 @@
     bounce:0.78,
     fric:0.003,
     time:0,
+    elapsed:0,
     maxVy:22,
   };
   const DEFAULT_AVATAR='/assets/icons/9f14924f-e70c-4728-a9e5-ca25ef4138c8.png';
@@ -353,7 +354,7 @@
   function startMatch(){
     refreshSlots();
     document.getElementById('winnerPopup').classList.add('hidden');
-    state.started=true; state.time=0; state.resultSlot=null;
+    state.started=true; state.time=0; state.elapsed=0; state.resultSlot=null;
     state.pot=state.players*state.stake;
     document.getElementById('winnerVal').textContent='—';
     if(state.shared){
@@ -369,6 +370,13 @@
         const x=20 + (i/(n-1||1))*(W-40);
         state.balls.push({x,y:60,vx:(Math.random()*2-1)*1.8,vy:0,r,color,value,stuckCounter:0,landed:false});
       }
+      state.balls.sort((a,b)=>a.value-b.value);
+      const batchSize=Math.ceil(state.balls.length/4);
+      state.balls.forEach((ball,i)=>{
+        const batchIndex=Math.floor(i/batchSize);
+        ball.releaseTime=batchIndex*600;
+        ball.released=false;
+      });
       state.ball.r=Math.max(...state.balls.map(b=>b.r));
     }else{
       document.getElementById('potVal').textContent=state.pot;
@@ -399,8 +407,15 @@
     if(!state.started) return;
     const groundY = H - 10;
     const balls = state.shared ? state.balls : [state.ball];
+    const now = state.elapsed;
     for(const b of balls){
-      if(state.shared && b.landed) continue;
+      if(state.shared){
+        if(!b.released){
+          if(now < b.releaseTime) continue;
+          b.released = true;
+        }
+        if(b.landed) continue;
+      }
       b.vy = Math.min(state.maxVy, b.vy + state.gravity);
       b.vx *= (1 - state.fric);
       b.x += b.vx; b.y += b.vy;
@@ -418,13 +433,17 @@
         }
       }
 
-      // shake if stuck
+      // rethrow if stuck for ~1s
       if (Math.abs(b.vx)+Math.abs(b.vy) < 0.1 && b.y + b.r < groundY - 5){
         b.stuckCounter++;
         if(b.stuckCounter > 60){
-          b.vx += (Math.random()*2-1)*2;
-          b.vy -= Math.random()*2;
-          b.stuckCounter=0;
+          b.x = 20 + Math.random()*(W-40);
+          b.y = 60;
+          b.vx = (Math.random()*2-1)*1.8;
+          b.vy = 0;
+          b.stuckCounter = 0;
+          b.landed = false;
+          b.released = true;
         }
       }else{
         b.stuckCounter=0;
@@ -545,6 +564,7 @@
   function drawBalls(){
     const balls = state.shared ? state.balls : [state.ball];
     for(const b of balls){
+      if(state.shared && !b.released) continue;
       ctx.fillStyle='rgba(0,0,0,0.28)';
       ctx.beginPath();
       ctx.ellipse(b.x, b.y+b.r+6, b.r*1.2, b.r*0.5, 0,0,Math.PI*2);
@@ -560,7 +580,7 @@
     }
   }
 
-  function frame(ts){ const dt = Math.min(33, ts - state.time); state.time=ts; step(dt/16.6667); ctx.clearRect(0,0,W,H); drawObstacles(); drawSlotsGuide(); drawBalls(); requestAnimationFrame(frame); }
+  function frame(ts){ const dt = Math.min(33, ts - state.time); state.time=ts; state.elapsed += dt; step(dt/16.6667); ctx.clearRect(0,0,W,H); drawObstacles(); drawSlotsGuide(); drawBalls(); requestAnimationFrame(frame); }
   requestAnimationFrame(frame);
 
   // ========================= Init =========================
