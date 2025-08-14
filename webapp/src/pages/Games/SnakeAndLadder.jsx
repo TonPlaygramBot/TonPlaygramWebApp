@@ -214,7 +214,6 @@ function Board({
   // Gradual horizontal widening towards the top. Keep the bottom
   // row the same width and slightly expand each successive row so
   // the board forms a soft V shape.
-  // Increase the widening and scaling so the top merges with the logo
   const widenStep = 0.07; // how much each row expands horizontally
   const scaleStep = 0.03; // how much each row's cells scale
   // Perspective with smaller cells at the bottom growing larger towards the pot
@@ -386,16 +385,13 @@ function Board({
   // board scaled. The markers logic has been removed and the icons are now
   // displayed only once within the cell itself.
   // Fixed board angle with no zoom
-  // Lowered camera angle so the logo touches the top of the screen
   // Tilt angle for the entire board in 3D space
   const angle = 58; // set board tilt to 58 degrees
   // Small horizontal offset so the board sits perfectly centered
   // Slightly shift the board to the right so it is not perfectly centred
   const boardXOffset = 20; // pixels - nudge board slightly right
   // Lift the board slightly so the bottom row stays visible. Lowered slightly
-  // so the logo at the top of the board isn't cropped off screen. Zeroing this
   // aligns the board vertically with the frame.
-  // Move the board slightly downward so the top row clears the logo frame
   const boardYOffset = 60; // pixels - slightly lower
   // Pull the board away from the camera without changing the angle or zoom
   const boardZOffset = -50; // pixels
@@ -513,7 +509,6 @@ function Board({
                 ))}
               {celebrate && <CoinBurst token={token} />}
             </div>
-            <div className="logo-wall-main" />
           </div>
         </div>
       </div>
