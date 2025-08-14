@@ -11,8 +11,8 @@
   <!-- Base brick -->
   <rect x="112" y="312" width="800" height="400" fill="url(#brickGradient)" stroke="#000" stroke-width="40" rx="40"/>
   <!-- Highlights in the top-right corner -->
-  <rect x="660" y="372" width="160" height="80" fill="#ffffff" fill-opacity="0.2" rx="24"/>
-  <rect x="720" y="432" width="96" height="48" fill="#ffffff" fill-opacity="0.35" rx="16"/>
+  <rect x="670" y="382" width="150" height="70" fill="#ffffff" fill-opacity="0.3" rx="24"/>
+  <rect x="730" y="438" width="86" height="42" fill="#ffffff" fill-opacity="0.45" rx="16"/>
   <!-- Subtle shadow in the bottom-left corner -->
   <rect x="112" y="612" width="200" height="80" fill="#000000" fill-opacity="0.15" rx="20"/>
 </svg>
