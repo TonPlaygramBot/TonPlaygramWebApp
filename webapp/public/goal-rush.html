@@ -7,9 +7,9 @@
   <style>
     :root{
       --bg:#050812;
-      --ice:#0f1730;
+      --ice:#ff0000;
       --line:#67a6ff;
-      --goal:#ff3b3b;
+      --goal:#ff0000;
       --p1:#22c55e;
       --p2:#f59e0b;
       --puck:#e5e7eb;
@@ -32,6 +32,10 @@
 
     .mute-btn{position:absolute;top:6px;right:6px;z-index:5;background:#0b1220;border:1px solid #233050;color:#e5e7eb;border-radius:8px;padding:4px 8px;font-size:14px}
     .mute-btn.muted::after{content:'';position:absolute;top:50%;left:20%;width:60%;height:2px;background:#ff3b3b;transform:rotate(-45deg)}
+    .config-btn{position:absolute;top:6px;left:6px;z-index:5;background:#0b1220;border:1px solid #233050;color:#e5e7eb;border-radius:8px;padding:4px 8px;font-size:14px}
+    .config-panel{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,0);z-index:60}
+    .config-content{background:#0b1220;padding:16px;border-radius:12px;display:flex;flex-direction:column;gap:8px;color:#fff}
+    .config-content label{font-size:14px;display:flex;flex-direction:column;gap:4px}
 
     .coin-confetti{position:fixed;top:-40px;width:32px;height:32px;pointer-events:none;animation:coin-fall var(--duration,3s) linear forwards}
     @keyframes coin-fall{from{transform:translateY(-10vh) rotate(0deg);opacity:1}to{transform:translateY(100vh) rotate(360deg);opacity:0}}
@@ -51,8 +55,21 @@
       </div>
     </div>
     <button id="muteBtn" class="mute-btn" aria-label="Toggle sound">🔊</button>
+    <button id="configBtn" class="config-btn" aria-label="Open settings">⚙️</button>
     <div class="canvasWrap">
       <canvas id="game" width="720" height="1280" aria-label="Goal Rush Field"></canvas>
+    </div>
+    <div id="configPanel" class="config-panel">
+      <div class="config-content">
+        <label>Field Width <input type="range" id="fieldWidthRange" min="0.5" max="2" step="0.1"></label>
+        <label>Field Height <input type="range" id="fieldHeightRange" min="0.5" max="2" step="0.1"></label>
+        <label>Goal Width <input type="range" id="goalWidthRange" min="0.1" max="0.9" step="0.01"></label>
+        <label>Bg Width <input type="range" id="bgWidthRange" min="0.5" max="2" step="0.1"></label>
+        <label>Bg Height <input type="range" id="bgHeightRange" min="0.5" max="2" step="0.1"></label>
+        <label>Avatar Size <input type="range" id="avatarSizeRange" min="0.5" max="1.5" step="0.05"></label>
+        <label>Ball Size <input type="range" id="ballSizeRange" min="0.5" max="1.5" step="0.05"></label>
+        <button id="closeConfig">Close</button>
+      </div>
     </div>
   </div>
   <div class="hint" id="startHint"></div>
@@ -70,6 +87,16 @@
   const startHint = document.getElementById('startHint');
   const landscapeBlock = document.querySelector('.landscape-block');
   const muteBtn = document.getElementById('muteBtn');
+  const configBtn = document.getElementById('configBtn');
+  const configPanel = document.getElementById('configPanel');
+  const fieldWidthRange = document.getElementById('fieldWidthRange');
+  const fieldHeightRange = document.getElementById('fieldHeightRange');
+  const goalWidthRange = document.getElementById('goalWidthRange');
+  const bgWidthRange = document.getElementById('bgWidthRange');
+  const bgHeightRange = document.getElementById('bgHeightRange');
+  const avatarSizeRange = document.getElementById('avatarSizeRange');
+  const ballSizeRange = document.getElementById('ballSizeRange');
+  const closeConfigBtn = document.getElementById('closeConfig');
   const TOP_BAR = 40; // height of scoreboard bar
   const BOTTOM_GAP = 20; // gap below rink
   let fieldScaleActual = 1;
@@ -106,16 +133,36 @@
   const oppParam = params.get('p2Avatar') || '';
   let p1Name = params.get('name') || 'P1';
   let p2Name = params.get('p2Name') || 'P2';
-  let fieldScale = 1, fieldImgScale = 1, puckScale = 0.9, goalWidthPct = 0.36, goalOffsetPct = 0, paddleScale = 0.95, speedMul = 1;
+  let fieldScaleX = 1, fieldScaleY = 1, fieldImgScaleX = 1, fieldImgScaleY = 1, puckScale = 0.9, goalWidthPct = 0.36, goalOffsetPct = 0, paddleScale = 0.95, speedMul = 1;
   try {
-    fieldScale = parseFloat(localStorage.getItem('fieldScale')) || 1;
-    fieldImgScale = parseFloat(localStorage.getItem('fieldImgScale')) || 1;
+    fieldScaleX = parseFloat(localStorage.getItem('fieldScaleX')) || 1;
+    fieldScaleY = parseFloat(localStorage.getItem('fieldScaleY')) || 1;
+    fieldImgScaleX = parseFloat(localStorage.getItem('fieldImgScaleX')) || 1;
+    fieldImgScaleY = parseFloat(localStorage.getItem('fieldImgScaleY')) || 1;
     puckScale = parseFloat(localStorage.getItem('puckScale')) || 0.9;
     goalWidthPct = parseFloat(localStorage.getItem('goalWidthPct')) || 0.36;
     goalOffsetPct = parseFloat(localStorage.getItem('goalOffsetPct')) || 0;
     paddleScale = parseFloat(localStorage.getItem('paddleScale')) || 0.95;
     speedMul = parseFloat(localStorage.getItem('speedMul')) || 1;
   } catch {}
+  fieldWidthRange.value = fieldScaleX;
+  fieldHeightRange.value = fieldScaleY;
+  goalWidthRange.value = goalWidthPct;
+  bgWidthRange.value = fieldImgScaleX;
+  bgHeightRange.value = fieldImgScaleY;
+  avatarSizeRange.value = paddleScale;
+  ballSizeRange.value = puckScale;
+
+  configBtn.addEventListener('click', () => { configPanel.style.display = 'flex'; });
+  closeConfigBtn.addEventListener('click', () => { configPanel.style.display = 'none'; });
+
+  fieldWidthRange.addEventListener('input', e => { fieldScaleX = parseFloat(e.target.value); localStorage.setItem('fieldScaleX', fieldScaleX); fit(); });
+  fieldHeightRange.addEventListener('input', e => { fieldScaleY = parseFloat(e.target.value); localStorage.setItem('fieldScaleY', fieldScaleY); fit(); });
+  goalWidthRange.addEventListener('input', e => { goalWidthPct = parseFloat(e.target.value); localStorage.setItem('goalWidthPct', goalWidthPct); fit(); });
+  bgWidthRange.addEventListener('input', e => { fieldImgScaleX = parseFloat(e.target.value); localStorage.setItem('fieldImgScaleX', fieldImgScaleX); fit(); });
+  bgHeightRange.addEventListener('input', e => { fieldImgScaleY = parseFloat(e.target.value); localStorage.setItem('fieldImgScaleY', fieldImgScaleY); fit(); });
+  avatarSizeRange.addEventListener('input', e => { paddleScale = parseFloat(e.target.value); localStorage.setItem('paddleScale', paddleScale); fit(); });
+  ballSizeRange.addEventListener('input', e => { puckScale = parseFloat(e.target.value); localStorage.setItem('puckScale', puckScale); fit(); });
   const FLAG_DATA = [
     { emoji:'🇺🇸', name:'USA' },
     { emoji:'🇬🇧', name:'UK' },
@@ -250,17 +297,19 @@
     canvas.style.height = usableHeight + 'px';
     const baseW = W*0.88;
     const baseH = H*0.92;
-    const maxFieldScale = Math.min(W/baseW, H/baseH);
-    const fs = Math.min(fieldScale, maxFieldScale);
-    fieldScaleActual = fs;
-    rink.w = Math.round(baseW * fs);
-    rink.h = Math.round(baseH * fs);
+    const maxFieldScaleX = W/baseW;
+    const maxFieldScaleY = H/baseH;
+    const fsX = Math.min(fieldScaleX, maxFieldScaleX);
+    const fsY = Math.min(fieldScaleY, maxFieldScaleY);
+    fieldScaleActual = Math.min(fsX, fsY);
+    rink.w = Math.round(baseW * fsX);
+    rink.h = Math.round(baseH * fsY);
     rink.x = Math.round((W - rink.w) / 2);
     rink.y = Math.round((H - rink.h) / 2);
     centerX = W/2; centerY = H/2;
     goalCenterX = centerX + rink.w * goalOffsetPct;
-    goalWidth = Math.round(W*goalWidthPct*fs);
-    const base = Math.max(24, Math.round(Math.min(W,H)*0.035*fs));
+    goalWidth = Math.round(W*goalWidthPct*fsX);
+    const base = Math.max(24, Math.round(Math.min(W,H)*0.035*fieldScaleActual));
     paddleRadius = base*3.4*paddleScale;
     puck.r = Math.max(20, Math.round(base*1.0*puckScale));
     p1.r = paddleRadius; p2.r = paddleRadius;
@@ -364,11 +413,13 @@
   }
   function drawRink(){
     if (fieldImg.complete) {
-      const imgW = rink.w * fieldImgScale;
-      const imgH = rink.h * fieldImgScale;
+      const imgW = rink.w * fieldImgScaleX;
+      const imgH = rink.h * fieldImgScaleY;
       const imgX = rink.x + (rink.w - imgW)/2;
       const imgY = rink.y + (rink.h - imgH)/2;
       ctx.drawImage(fieldImg, imgX, imgY, imgW, imgH);
+      ctx.fillStyle = 'rgba(255,0,0,0.5)';
+      ctx.fillRect(rink.x, rink.y, rink.w, rink.h);
     } else {
       rr(rink.x, rink.y, rink.w, rink.h, rink.r);
       ctx.fillStyle = getCSS('--ice'); ctx.fill();
