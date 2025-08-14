@@ -92,6 +92,13 @@ export default function Layout({ children }) {
 
   return (
     <div className="flex flex-col min-h-screen text-text relative overflow-hidden">
+      <header className="w-full bg-surface border-b-2 border-accent flex justify-center py-4">
+        <img
+          src="/assets/icons/TON.webp"
+          alt="TonPlaygram logo"
+          className="h-12"
+        />
+      </header>
       <main
         className={`flex-grow ${
           showNavbar ? 'container mx-auto p-4 pb-24' : 'w-full p-0'
