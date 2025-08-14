@@ -455,13 +455,12 @@
             ctx.beginPath();
             ctx.rect(x, y, w, h);
             ctx.clip();
-            const sizeLarge = Math.floor(r * 0.9);
-            const sizeSmall = Math.floor(r * 0.5);
-            const extra = Math.floor(r * 0.05);
+            const largeH = Math.floor(h * 0.35);
+            const smallH = Math.floor(h * 0.2);
             ctx.fillStyle = 'rgba(255,255,255,0.25)';
-            ctx.fillRect(x, y + h - sizeLarge, sizeLarge + extra, sizeLarge);
+            ctx.fillRect(x, y, w, largeH);
             ctx.fillStyle = 'rgba(255,255,255,0.5)';
-            ctx.fillRect(x, y + h - sizeSmall, sizeSmall + extra, sizeSmall);
+            ctx.fillRect(x, y, w, smallH);
             ctx.restore();
           };
 
