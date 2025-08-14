@@ -526,20 +526,29 @@
   }
 
   function aiUpdate(){
-    const reaction = {easy:0.05, normal:0.1, hard:0.18}[difficulty] || 0.1;
+    const reaction = { easy: 0.05, normal: 0.1, hard: 0.18 }[difficulty] || 0.1;
+    const margin = p2.r + 12;
+    const minX = rink.x + margin;
+    const maxX = rink.x + rink.w - margin;
+    const minY = rink.y + margin;
     let tx = centerX;
-    let ty = rink.y + rink.h*0.15;
-    if(puck.y < centerY){
-      tx = clamp(puck.x, rink.x + p2.r + 8, rink.x + rink.w - p2.r - 8);
-      ty = clamp(puck.y, rink.y + p2.r + 8, centerY - p2.r - 8);
+    let ty = rink.y + rink.h * 0.15;
+    if (puck.y < centerY) {
+      tx = clamp(puck.x, minX, maxX);
+      ty = clamp(puck.y, minY, centerY - p2.r - 8);
+    }
+    // Pull the AI away from corners when the puck is far away
+    if (puck.y >= centerY && (p2.x <= minX + 1 || p2.x >= maxX - 1 || p2.y <= minY + 1)) {
+      tx = centerX;
+      ty = rink.y + rink.h * 0.2;
     }
     p2.x += (tx - p2.x) * reaction;
     p2.y += (ty - p2.y) * reaction;
     const maxStep = p2.max * speedMul;
     const vx = p2.x - p2.lastX;
     const vy = p2.y - p2.lastY;
-    const v = Math.hypot(vx,vy);
-    if(v > maxStep){ const s = maxStep / v; p2.x = p2.lastX + vx*s; p2.y = p2.lastY + vy*s; }
+    const v = Math.hypot(vx, vy);
+    if (v > maxStep) { const s = maxStep / v; p2.x = p2.lastX + vx * s; p2.y = p2.lastY + vy * s; }
     p2.vx = p2.x - p2.lastX; p2.vy = p2.y - p2.lastY;
   }
 
