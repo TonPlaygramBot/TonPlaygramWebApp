@@ -96,7 +96,7 @@ export default function Layout({ children }) {
   const isWallet = location.pathname === '/wallet';
   const isGamesRoot = location.pathname === '/games';
 
-  const showBranding = isGamesRoot || !location.pathname.startsWith('/games');
+  const showBranding = !location.pathname.startsWith('/games');
 
   const showNavbar = !(
     location.pathname.startsWith('/games/') &&
