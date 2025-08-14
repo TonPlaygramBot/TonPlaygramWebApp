@@ -9,7 +9,6 @@
     "start": "node bot/server.js",
     "install-all": "npm install && npm install --prefix bot && npm install --prefix webapp",
     "build": "npm --prefix webapp run build",
-    "pretest": "npm run install-all",
     "test": "node --test",
     "lint": "eslint .",
     "format": "prettier --write .",

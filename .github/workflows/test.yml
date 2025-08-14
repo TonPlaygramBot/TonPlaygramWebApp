@@ -28,8 +28,14 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-npm-
 
-      - name: Install dependencies
+      - name: Setup system dependencies
         run: bash scripts/setup-tests.sh
+
+      - name: Install Node dependencies
+        run: |
+          npm ci
+          npm ci --prefix bot
+          npm ci --prefix webapp
 
       - name: Run ESLint
         run: npm run lint
