@@ -88,10 +88,12 @@ export default function Layout({ children }) {
     !location.pathname.includes('/lobby')
   );
 
+  const isLobby = location.pathname.includes('/lobby');
+
   const showFooter = !location.pathname.startsWith('/games/');
   const showHeader =
     !location.pathname.startsWith('/games/') ||
-    location.pathname.includes('/lobby') ||
+    isLobby ||
     location.pathname.startsWith('/games/snake');
 
   return (
@@ -107,7 +109,11 @@ export default function Layout({ children }) {
       )}
       <main
         className={`flex-grow ${
-          showNavbar ? 'container mx-auto p-4 pb-24' : 'w-full p-0'
+          showNavbar
+            ? isLobby
+              ? 'w-full p-4 pb-24'
+              : 'container mx-auto p-4 pb-24'
+            : 'w-full p-0'
         }`}
       >
         {children}
