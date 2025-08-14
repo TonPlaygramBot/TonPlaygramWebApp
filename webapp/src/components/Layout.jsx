@@ -99,11 +99,11 @@ export default function Layout({ children }) {
   return (
     <div className="flex flex-col min-h-screen text-text relative overflow-hidden">
       {showHeader && (
-        <header className="w-full bg-surface border-b-2 border-accent flex justify-center py-2">
+        <header className="w-full bg-surface border-b-2 border-accent flex justify-center py-1">
           <img
             src="/assets/icons/file_00000000bc2862439eecffff3730bbe4.webp"
             alt="TonPlaygram logo"
-            className="h-40"
+            className="h-48"
           />
         </header>
       )}
