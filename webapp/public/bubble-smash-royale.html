@@ -168,38 +168,118 @@
   }
 
   function findMatches(b){
-    const marks=Array.from({length:ROWS},()=>Array(COLS).fill(false));
-    let any=false, clusters=[];
+    const marks = Array.from({ length: ROWS }, () => Array(COLS).fill(false));
+    let any = false,
+      clusters = [];
     // horiz
-    for(let y=0;y<ROWS;y++){
-      let run=1;
-      for(let x=1;x<=COLS;x++){
-        const cont=(x<COLS && b[y][x]&&b[y][x-1]&&b[y][x].c===b[y][x-1].c);
-        if(cont){ run++; } else {
-          if(run>=3){ any=true; const list=[]; for(let k=0;k<run;k++){ marks[y][x-1-k]=true; list.push({x:x-1-k,y}); } clusters.push(list); }
-          run=1;
+    for (let y = 0; y < ROWS; y++) {
+      let run = 1;
+      for (let x = 1; x <= COLS; x++) {
+        const cont =
+          x < COLS &&
+          b[y][x] &&
+          b[y][x - 1] &&
+          b[y][x].c === b[y][x - 1].c;
+        if (cont) {
+          run++;
+        } else {
+          if (run >= 3) {
+            any = true;
+            const list = [];
+            for (let k = 0; k < run; k++) {
+              marks[y][x - 1 - k] = true;
+              list.push({ x: x - 1 - k, y });
+            }
+            clusters.push({ cells: list, dir: 'h' });
+          }
+          run = 1;
         }
       }
     }
     // vert
-    for(let x=0;x<COLS;x++){
-      let run=1;
-      for(let y=1;y<=ROWS;y++){
-        const cont=(y<ROWS && b[y][x]&&b[y-1][x]&&b[y][x].c===b[y-1][x].c);
-        if(cont){ run++; } else {
-          if(run>=3){ any=true; const list=[]; for(let k=0;k<run;k++){ if(!marks[y-1-k][x]) list.push({x,y:y-1-k}); marks[y-1-k][x]=true; } clusters.push(list); }
-          run=1;
+    for (let x = 0; x < COLS; x++) {
+      let run = 1;
+      for (let y = 1; y <= ROWS; y++) {
+        const cont =
+          y < ROWS &&
+          b[y][x] &&
+          b[y - 1][x] &&
+          b[y][x].c === b[y - 1][x].c;
+        if (cont) {
+          run++;
+        } else {
+          if (run >= 3) {
+            any = true;
+            const list = [];
+            for (let k = 0; k < run; k++) {
+              if (!marks[y - 1 - k][x]) list.push({ x, y: y - 1 - k });
+              marks[y - 1 - k][x] = true;
+            }
+            clusters.push({ cells: list, dir: 'v' });
+          }
+          run = 1;
         }
       }
     }
-    return any?{marks,clusters}:null;
+    return any ? { marks, clusters } : null;
   }
 
   function applyMatches(board, match, addFX, fallFX){
+    // extend marks for special shapes
+    const m = match.marks;
+    for (const cl of match.clusters) {
+      const len = cl.cells.length;
+      if (len === 4) {
+        if (cl.dir === 'h') {
+          const y = cl.cells[0].y;
+          for (let x = 0; x < COLS; x++) m[y][x] = true;
+        } else {
+          const x = cl.cells[0].x;
+          for (let y = 0; y < ROWS; y++) m[y][x] = true;
+        }
+      } else if (len >= 5) {
+        if (cl.dir === 'h') {
+          const y = cl.cells[0].y;
+          const mid = cl.cells[(len / 2) | 0].x;
+          for (let x = 0; x < COLS; x++) m[y][x] = true;
+          for (let y2 = 0; y2 < ROWS; y2++) m[y2][mid] = true;
+        } else {
+          const x = cl.cells[0].x;
+          const mid = cl.cells[(len / 2) | 0].y;
+          for (let y = 0; y < ROWS; y++) m[y][x] = true;
+          for (let x2 = 0; x2 < COLS; x2++) m[mid][x2] = true;
+        }
+      }
+    }
+    // T-shape detection
+    const horiz = match.clusters.filter((c) => c.dir === 'h');
+    const vert = match.clusters.filter((c) => c.dir === 'v');
+    for (const h of horiz) {
+      for (const v of vert) {
+        for (const hc of h.cells) {
+          for (const vc of v.cells) {
+            if (hc.x === vc.x && hc.y === vc.y) {
+              const set = new Set(
+                h.cells.map((c) => `${c.x},${c.y}`).concat(
+                  v.cells.map((c) => `${c.x},${c.y}`)
+                )
+              );
+              if (set.size >= 5) {
+                const ix = hc.x,
+                  iy = hc.y;
+                for (let x = 0; x < COLS; x++) m[iy][x] = true;
+                for (let y = 0; y < ROWS; y++) m[y][ix] = true;
+              }
+            }
+          }
+        }
+      }
+    }
+
     let removed=0;
     for(let y=0;y<ROWS;y++){
       for(let x=0;x<COLS;x++){
-        if(match.marks[y][x]){
+        if(m[y][x]){
           if(addFX) addFX(x,y, board[y][x].c);
           board[y][x]=null; removed++;
         }
@@ -376,7 +456,7 @@
   function validSwap(b,a,bp){
     const t=b[a.y][a.x]; b[a.y][a.x]=b[bp.y][bp.x]; b[bp.y][bp.x]=t;
     const match=findMatches(b);
-    const ok = match && match.clusters.some(cl=>cl.some(c=> (c.x===a.x&&c.y===a.y) || (c.x===bp.x&&c.y===bp.y)));
+    const ok = match && match.clusters.some(cl=>cl.cells.some(c=> (c.x===a.x&&c.y===a.y) || (c.x===bp.x&&c.y===bp.y)));
     const t2=b[a.y][a.x]; b[a.y][a.x]=b[bp.y][bp.x]; b[bp.y][bp.x]=t2;
     return ok;
   }
@@ -397,8 +477,8 @@
         if(isUser){ pop(700+chain*80, 0.06, 0.2); }
         const res=applyMatches(game.board, match, (cx,cy,c)=>fx.burstAt(cx,cy,c), (x,fy,ty,c)=>fx.fall(x,fy,ty,c));
         if(match.clusters && match.clusters.length){
-          const biggest = match.clusters.reduce((a,b)=> b.length>a.length?b:a, match.clusters[0]);
-          const mid = biggest[(biggest.length/2)|0];
+          const biggest = match.clusters.reduce((a,b)=> b.cells.length>a.cells.length?b:a, match.clusters[0]);
+          const mid = biggest.cells[(biggest.cells.length/2)|0];
           const pts = Math.max(30, Math.floor(res.gained / Math.max(1, match.clusters.length)));
           fx.floatScore(mid.x, mid.y, pts);
         }
