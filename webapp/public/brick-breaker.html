@@ -461,10 +461,10 @@
             ctx.beginPath();
             ctx.rect(x, y, w, h);
             ctx.clip();
-            const sizeLargeW = Math.floor(w * 0.65);
-            const sizeLargeH = Math.floor(h * 0.65);
-            const sizeSmallW = Math.floor(w * 0.3);
-            const sizeSmallH = Math.floor(h * 0.3);
+            const sizeLargeW = Math.floor(w * 0.55);
+            const sizeLargeH = Math.floor(h * 0.55);
+            const sizeSmallW = Math.floor(w * 0.25);
+            const sizeSmallH = Math.floor(h * 0.25);
             const extra = Math.floor(r * 0.03);
             ctx.fillStyle = 'rgba(255,255,255,0.2)';
             ctx.fillRect(x, y + h - sizeLargeH, sizeLargeW + extra, sizeLargeH);
@@ -944,6 +944,9 @@
               if (pu.y > VIEW_H + 10) {
                 b.powerups = b.powerups.filter((x) => x !== pu);
               }
+            }
+            if (b.bricks.every((br) => !br.alive)) {
+              b.bricks = genBricks(settings.density);
             }
           }
 
