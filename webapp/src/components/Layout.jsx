@@ -89,16 +89,22 @@ export default function Layout({ children }) {
   );
 
   const showFooter = !location.pathname.startsWith('/games/');
+  const showHeader =
+    !location.pathname.startsWith('/games/') ||
+    location.pathname.includes('/lobby') ||
+    location.pathname.startsWith('/games/snake');
 
   return (
     <div className="flex flex-col min-h-screen text-text relative overflow-hidden">
-      <header className="w-full bg-surface border-b-2 border-accent flex justify-center py-4">
-        <img
-          src="/assets/icons/TON.webp"
-          alt="TonPlaygram logo"
-          className="h-12"
-        />
-      </header>
+      {showHeader && (
+        <header className="w-full bg-surface border-b-2 border-accent flex justify-center py-4">
+          <img
+            src="/assets/icons/file_00000000bc2862439eecffff3730bbe4.webp"
+            alt="TonPlaygram logo"
+            className="h-12"
+          />
+        </header>
+      )}
       <main
         className={`flex-grow ${
           showNavbar ? 'container mx-auto p-4 pb-24' : 'w-full p-0'
