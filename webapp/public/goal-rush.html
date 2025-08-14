@@ -384,6 +384,15 @@
       drawGoal(goalCenterX, rink.y, goalWidth, goalDepth, -1);
       drawGoal(goalCenterX, rink.y + rink.h, goalWidth, goalDepth, 1);
     }
+    const lw = Math.max(3, W*0.004);
+    ctx.lineWidth = lw;
+    ctx.strokeStyle = getCSS('--goal');
+    ctx.beginPath();
+    ctx.moveTo(goalCenterX - goalWidth / 2, rink.y);
+    ctx.lineTo(goalCenterX + goalWidth / 2, rink.y);
+    ctx.moveTo(goalCenterX - goalWidth / 2, rink.y + rink.h);
+    ctx.lineTo(goalCenterX + goalWidth / 2, rink.y + rink.h);
+    ctx.stroke();
   }
   function drawGoal(cx, y, w, d, dir){
     ctx.save();
