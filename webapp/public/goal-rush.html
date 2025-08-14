@@ -485,6 +485,8 @@
   function getCSS(v){ return getComputedStyle(document.documentElement).getPropertyValue(v).trim(); }
 
   const friction = 0.996;
+  const wallBounce = 1.05;
+  const minWallSpeed = 4;
   function constrainPaddle(p, bottom){
     const margin=12;
     const minX = rink.x + margin + p.r;
@@ -584,8 +586,24 @@
     const top = goalTopY + 6 + puck.r;
     const bottom = goalBottomY - 6 - puck.r;
 
-    if (puck.x < left){ puck.x = left; puck.vx *= -1; sfx.wall(); }
-    if (puck.x > right){ puck.x = right; puck.vx *= -1; sfx.wall(); }
+    if (puck.x < left){
+      puck.x = left;
+      const speed = Math.max(Math.abs(puck.vx), minWallSpeed);
+      puck.vx = speed * wallBounce;
+      if (Math.abs(puck.vy) < minWallSpeed / 2) {
+        puck.vy = (Math.sign(puck.vy) || 1) * (minWallSpeed / 2);
+      }
+      sfx.wall();
+    }
+    if (puck.x > right){
+      puck.x = right;
+      const speed = Math.max(Math.abs(puck.vx), minWallSpeed);
+      puck.vx = -speed * wallBounce;
+      if (Math.abs(puck.vy) < minWallSpeed / 2) {
+        puck.vy = (Math.sign(puck.vy) || 1) * (minWallSpeed / 2);
+      }
+      sfx.wall();
+    }
 
     const goalLeft = goalCenterX - goalWidth/2 + puck.r;
     const goalRight = goalCenterX + goalWidth/2 - puck.r;
@@ -603,7 +621,15 @@
           setTimeout(()=>{ resetPositions(2); running = true; }, GOAL_PAUSE);
         }
         return;
-      } else { puck.y = top; puck.vy *= -1; sfx.wall(); }
+      } else {
+        puck.y = top;
+        const speed = Math.max(Math.abs(puck.vy), minWallSpeed);
+        puck.vy = speed * wallBounce;
+        if (Math.abs(puck.vx) < minWallSpeed / 2) {
+          puck.vx = (Math.sign(puck.vx) || 1) * (minWallSpeed / 2);
+        }
+        sfx.wall();
+      }
     }
     if (puck.y > bottom){
       if (puck.x > goalLeft && puck.x < goalRight){
@@ -618,7 +644,15 @@
           setTimeout(()=>{ resetPositions(1); running = true; }, GOAL_PAUSE);
         }
         return;
-      } else { puck.y = bottom; puck.vy *= -1; sfx.wall(); }
+      } else {
+        puck.y = bottom;
+        const speed = Math.max(Math.abs(puck.vy), minWallSpeed);
+        puck.vy = -speed * wallBounce;
+        if (Math.abs(puck.vx) < minWallSpeed / 2) {
+          puck.vx = (Math.sign(puck.vx) || 1) * (minWallSpeed / 2);
+        }
+        sfx.wall();
+      }
     }
   }
 
