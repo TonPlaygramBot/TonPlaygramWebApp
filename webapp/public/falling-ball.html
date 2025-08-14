@@ -34,6 +34,8 @@
     .slot{ text-align:center; font-size:12px; color:#fff; padding:6px 0; border-radius:10px; border:1px dashed rgba(255,255,255,.12); display:flex; flex-direction:column; align-items:center; gap:4px; }
     .slot.me{ border-color:#7dd3fc; color:#c7f3ff; }
     .slot img{ width:var(--avatar-size,24px); height:var(--avatar-size,24px); border-radius:50%; }
+    .slot.winner img{ outline:2px solid #facc15; box-shadow:0 0 6px #facc15; }
+    #winnerBall{ position:absolute; width:24px; height:24px; border-radius:50%; pointer-events:none; z-index:40; background:radial-gradient(circle at 30% 30%, #fef08a, #facc15 55%, #ca8a04); box-shadow:0 2px 4px rgba(0,0,0,0.3); }
     .coin-confetti{ position:fixed; top:-40px; width:32px; height:32px; pointer-events:none; animation:coin-fall var(--duration,3s) linear forwards; }
     @keyframes coin-fall{ from{ transform:translateY(-10vh) rotate(0deg); opacity:1; } to{ transform:translateY(100vh) rotate(360deg); opacity:0; } }
     .status{ position:absolute; left:10px; top:48px; background:rgba(0,0,0,.35); padding:8px 10px; border-radius:12px; border:1px solid rgba(255,255,255,.08); color:#fff; font-size:12px; max-width:min(92vw,560px); }
@@ -159,6 +161,7 @@
     stuckCounter:0,
   };
   const DEFAULT_AVATAR='/assets/icons/9f14924f-e70c-4728-a9e5-ca25ef4138c8.png';
+  let winnerBallEl=null;
 
   const params = new URLSearchParams(location.search);
   const p = Number(params.get('players'));
@@ -225,6 +228,7 @@
     return list;
   }
   function refreshSlots(){
+    removeWinnerBall();
     const wrap=document.getElementById('slots'); wrap.innerHTML=''; state.slots=[];
     wrap.style.setProperty('--cols', state.players);
     const basePlayers = Math.max(state.players, 5);
@@ -232,6 +236,24 @@
     wrap.style.setProperty('--avatar-size', avatarSize+'px');
     const players=buildPlayers();
     players.forEach((p,i)=>{ const el=document.createElement('div'); el.className='slot'+(p.isMe?' me':''); el.style.fontSize=state.players>5?'10px':'12px'; el.innerHTML=`<img src="${p.avatar}" alt="avatar" onerror="this.onerror=null;this.src='${DEFAULT_AVATAR}'"/><div>${p.name}</div>`; wrap.appendChild(el); state.slots.push({ idx:i, name:p.name, el, left:0, right:0, isMe:p.isMe, accountId:p.accountId, telegramId:p.telegramId }); });
+  }
+
+  function showWinnerBall(slotEl){
+    if(!winnerBallEl){
+      winnerBallEl=document.createElement('div');
+      winnerBallEl.id='winnerBall';
+      document.body.appendChild(winnerBallEl);
+    }
+    const rect=slotEl.getBoundingClientRect();
+    const size=state.ball.r*2;
+    winnerBallEl.style.width=size+'px';
+    winnerBallEl.style.height=size+'px';
+    winnerBallEl.style.left=rect.left + rect.width/2 - state.ball.r + 'px';
+    winnerBallEl.style.top=rect.top - state.ball.r - 8 + 'px';
+  }
+
+  function removeWinnerBall(){
+    if(winnerBallEl){ winnerBallEl.remove(); winnerBallEl=null; }
   }
 
   state.pot = state.players * state.stake;
@@ -379,6 +401,9 @@
         const winner = state.slots[idx];
         document.getElementById('winnerVal').textContent = `${winner.name} +${winAmt} TPC`;
         setStatus(`Winner: ${winner.name}. Payout ${winAmt} TPC (-${fee} dev)`);
+        state.slots.forEach(s=>s.el.classList.remove('winner'));
+        winner.el.classList.add('winner');
+        showWinnerBall(winner.el);
         SFX.win();
         coinConfetti(50);
         if(winner.accountId){
