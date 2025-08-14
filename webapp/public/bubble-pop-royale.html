@@ -7,7 +7,7 @@
 <style>
   :root{ --bg:#0c1020; --panel:#11172a; --primary:#2563eb; --gold:#d4af37; --text:#e7eefc; --muted:#8fa1d2; --danger:#ff5a6b; }
   *{box-sizing:border-box;font-family:Inter,system-ui,Segoe UI,Roboto,Helvetica,Arial,sans-serif}
-  html,body{height:100dvh}
+  html,body{height:100dvh;overscroll-behavior:none}
   body{margin:0;background:radial-gradient(1200px 800px at 70% -10%, #1a2450 0%, #0c1020 38%, #0c1020 100%) fixed;color:var(--text);overflow:hidden}
   .app{height:100dvh;display:flex;flex-direction:column;padding:12px;gap:10px;max-width:1100px;margin:0 auto}
   .tetris-grid-bg{background: repeating-linear-gradient(45deg,rgba(255,255,255,0.03)0 2px,transparent 2px 4px), radial-gradient(circle at center,#1a2450 0%,#0e1430 80%); background-size:100px 100px,cover; background-position:0 0,center; animation:canvasDepthMove 30s linear infinite}
