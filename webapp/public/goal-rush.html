@@ -33,6 +33,12 @@
     .mute-btn{position:absolute;top:6px;right:6px;z-index:5;background:#0b1220;border:1px solid #233050;color:#e5e7eb;border-radius:8px;padding:4px 8px;font-size:14px}
     .mute-btn.muted::after{content:'';position:absolute;top:50%;left:20%;width:60%;height:2px;background:#ff3b3b;transform:rotate(-45deg)}
 
+    .config-btn{position:absolute;top:6px;left:6px;z-index:5;background:#0b1220;border:1px solid #233050;color:#e5e7eb;border-radius:8px;padding:4px 8px;font-size:14px}
+    .config-popup{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:transparent;z-index:40}
+    .config-panel{display:flex;flex-direction:column;gap:8px;color:#e5e7eb;padding:12px;border:1px solid #233050;border-radius:8px;background:transparent}
+    .config-panel label{display:flex;flex-direction:column;font-size:14px;gap:4px}
+    .config-panel input{width:200px}
+  
     .coin-confetti{position:fixed;top:-40px;width:32px;height:32px;pointer-events:none;animation:coin-fall var(--duration,3s) linear forwards}
     @keyframes coin-fall{from{transform:translateY(-10vh) rotate(0deg);opacity:1}to{transform:translateY(100vh) rotate(360deg);opacity:0}}
 
@@ -50,9 +56,17 @@
         <span id="s2">0</span><span id="p2Name" class="badge p2">P2</span>
       </div>
     </div>
+    <button id="configBtn" class="config-btn" aria-label="Configure game">⚙️</button>
     <button id="muteBtn" class="mute-btn" aria-label="Toggle sound">🔊</button>
     <div class="canvasWrap">
       <canvas id="game" width="720" height="1280" aria-label="Goal Rush Field"></canvas>
+    </div>
+  </div>
+  <div id="configPopup" class="config-popup">
+    <div class="config-panel">
+      <label>Goal Width<input type="range" id="goalWidthInput" min="0.2" max="0.6" step="0.01"></label>
+      <label>Field Scale<input type="range" id="fieldScaleInput" min="0.5" max="1.5" step="0.05"></label>
+      <button id="configSave" class="mute-btn" style="position:static">Save</button>
     </div>
   </div>
   <div class="hint" id="startHint"></div>
@@ -70,12 +84,15 @@
   const startHint = document.getElementById('startHint');
   const landscapeBlock = document.querySelector('.landscape-block');
   const muteBtn = document.getElementById('muteBtn');
+  const configBtn = document.getElementById('configBtn');
+  const configPopup = document.getElementById('configPopup');
+  const goalWidthInput = document.getElementById('goalWidthInput');
+  const fieldScaleInput = document.getElementById('fieldScaleInput');
+  const configSave = document.getElementById('configSave');
   const TOP_BAR = 40; // height of scoreboard bar
   const BOTTOM_GAP = 20; // gap below rink
   let fieldScaleActual = 1;
 
-  const fieldImg = new Image();
-  fieldImg.src = '/assets/icons/file_00000000becc620a8755badc01cfefca.webp';
   const puckImg = new Image();
   puckImg.src = '/assets/icons/file_0000000061d4620aaf506adfa605e1f3.webp';
 
@@ -106,16 +123,17 @@
   const oppParam = params.get('p2Avatar') || '';
   let p1Name = params.get('name') || 'P1';
   let p2Name = params.get('p2Name') || 'P2';
-  let fieldScale = 1, fieldImgScale = 1, puckScale = 0.9, goalWidthPct = 0.36, goalOffsetPct = 0, paddleScale = 0.95, speedMul = 1;
+  let fieldScale = 1, puckScale = 0.9, goalWidthPct = 0.36, goalOffsetPct = 0, paddleScale = 0.95, speedMul = 1;
   try {
     fieldScale = parseFloat(localStorage.getItem('fieldScale')) || 1;
-    fieldImgScale = parseFloat(localStorage.getItem('fieldImgScale')) || 1;
     puckScale = parseFloat(localStorage.getItem('puckScale')) || 0.9;
     goalWidthPct = parseFloat(localStorage.getItem('goalWidthPct')) || 0.36;
     goalOffsetPct = parseFloat(localStorage.getItem('goalOffsetPct')) || 0;
     paddleScale = parseFloat(localStorage.getItem('paddleScale')) || 0.95;
     speedMul = parseFloat(localStorage.getItem('speedMul')) || 1;
   } catch {}
+  goalWidthInput.value = goalWidthPct;
+  fieldScaleInput.value = fieldScale;
   const FLAG_DATA = [
     { emoji:'🇺🇸', name:'USA' },
     { emoji:'🇬🇧', name:'UK' },
@@ -318,6 +336,25 @@
     }
   });
 
+  configBtn.addEventListener('click', () => {
+    configPopup.style.display = 'flex';
+    goalWidthInput.value = goalWidthPct;
+    fieldScaleInput.value = fieldScale;
+  });
+  configSave.addEventListener('click', () => {
+    goalWidthPct = parseFloat(goalWidthInput.value);
+    fieldScale = parseFloat(fieldScaleInput.value);
+    try {
+      localStorage.setItem('goalWidthPct', goalWidthPct);
+      localStorage.setItem('fieldScale', fieldScale);
+    } catch {}
+    fit();
+    configPopup.style.display = 'none';
+  });
+  configPopup.addEventListener('click', e => {
+    if (e.target === configPopup) configPopup.style.display = 'none';
+  });
+
   const sfx = {
     hit(){
       if(!audioEnabled) return;
@@ -352,38 +389,17 @@
     [p1,p2].forEach(p=>{p.vx=0;p.vy=0;p.lastX=p.x;p.lastY=p.y;});
   }
 
-  function rr(x,y,w,h,r){
-    const rr = Math.min(r,w/2,h/2);
-    ctx.beginPath();
-    ctx.moveTo(x+rr,y);
-    ctx.arcTo(x+w,y,x+w,y+h,rr);
-    ctx.arcTo(x+w,y+h,x,y+h,rr);
-    ctx.arcTo(x,y+h,x,y,rr);
-    ctx.arcTo(x,y,x+w,y,rr);
-    ctx.closePath();
-  }
   function drawRink(){
-    if (fieldImg.complete) {
-      const imgW = rink.w * fieldImgScale;
-      const imgH = rink.h * fieldImgScale;
-      const imgX = rink.x + (rink.w - imgW)/2;
-      const imgY = rink.y + (rink.h - imgH)/2;
-      ctx.drawImage(fieldImg, imgX, imgY, imgW, imgH);
-    } else {
-      rr(rink.x, rink.y, rink.w, rink.h, rink.r);
-      ctx.fillStyle = getCSS('--ice'); ctx.fill();
-      ctx.lineWidth = Math.max(2, W*0.003);
-      ctx.strokeStyle = getCSS('--line');
-      ctx.beginPath(); ctx.moveTo(rink.x+10, centerY); ctx.lineTo(rink.x+rink.w-10, centerY); ctx.stroke();
-      ctx.beginPath(); ctx.arc(centerX, centerY, Math.min(W,H)*0.11, 0, Math.PI*2); ctx.stroke();
-      ctx.beginPath();
-      ctx.arc(centerX, H*0.25, Math.min(W,H)*0.09, 0, Math.PI*2);
-      ctx.moveTo(centerX + Math.min(W,H)*0.09, H*0.75);
-      ctx.arc(centerX, H*0.75, Math.min(W,H)*0.09, 0, Math.PI*2);
-      ctx.stroke();
-      drawGoal(goalCenterX, rink.y, goalWidth, goalDepth, -1);
-      drawGoal(goalCenterX, rink.y + rink.h, goalWidth, goalDepth, 1);
-    }
+    ctx.fillStyle = getCSS('--ice');
+    ctx.fillRect(rink.x, rink.y, rink.w, rink.h);
+    ctx.lineWidth = Math.max(2, W*0.003);
+    ctx.strokeStyle = getCSS('--goal');
+    ctx.beginPath();
+    ctx.moveTo(rink.x, rink.y); ctx.lineTo(rink.x, rink.y + rink.h);
+    ctx.moveTo(rink.x + rink.w, rink.y); ctx.lineTo(rink.x + rink.w, rink.y + rink.h);
+    ctx.stroke();
+    drawGoal(goalCenterX, rink.y, goalWidth, goalDepth, -1);
+    drawGoal(goalCenterX, rink.y + rink.h, goalWidth, goalDepth, 1);
   }
   function drawGoal(cx, y, w, d, dir){
     ctx.save();
@@ -391,25 +407,10 @@
     ctx.scale(1, dir);
     const lw = Math.max(3, W*0.004);
     ctx.lineWidth = lw;
-    ctx.strokeStyle = '#fff';
-    ctx.beginPath();
-    ctx.moveTo(-w/2, 0); ctx.lineTo(w/2, 0);
-    ctx.moveTo(-w/2, d); ctx.lineTo(w/2, d);
-    ctx.stroke();
     ctx.strokeStyle = getCSS('--goal');
     ctx.beginPath();
     ctx.moveTo(-w/2, 0); ctx.lineTo(-w/2, d);
     ctx.moveTo(w/2, 0); ctx.lineTo(w/2, d);
-    ctx.stroke();
-    const spacing = Math.max(8, w/10);
-    ctx.beginPath();
-    for(let i=-w/2+spacing;i<w/2;i+=spacing){
-      ctx.moveTo(i,0); ctx.lineTo(i,d);
-    }
-    for(let j=spacing;j<d;j+=spacing){
-      ctx.moveTo(-w/2,j); ctx.lineTo(w/2,j);
-    }
-    ctx.strokeStyle = 'rgba(255,255,255,0.4)';
     ctx.stroke();
     ctx.restore();
   }
