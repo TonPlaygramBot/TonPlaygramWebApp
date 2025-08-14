@@ -26,7 +26,7 @@ test('search excludes requesting user', { concurrency: false }, async () => {
   fs.writeFileSync(new URL('index.html', distDir), '');
   const env = {
     ...process.env,
-    PORT: '3203',
+    PORT: '3208',
     MONGO_URI: 'memory',
     BOT_TOKEN: 'dummy',
     SKIP_WEBAPP_BUILD: '1',
@@ -34,17 +34,17 @@ test('search excludes requesting user', { concurrency: false }, async () => {
   };
   const server = await startServer(env);
   try {
-    await fetch('http://localhost:3203/api/profile/update', {
+    await fetch('http://localhost:3208/api/profile/update', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ telegramId: 1, firstName: 'Alice' })
     });
-    await fetch('http://localhost:3203/api/profile/update', {
+    await fetch('http://localhost:3208/api/profile/update', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ telegramId: 2, firstName: 'Alicia' })
     });
-    const res = await fetch('http://localhost:3203/api/social/search', {
+    const res = await fetch('http://localhost:3208/api/social/search', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ query: 'Ali', telegramId: 1 })
