@@ -506,8 +506,8 @@ app.get('/api/stats', async (req, res) => {
 });
 
 app.post('/api/snake/table/seat', (req, res) => {
-  const { tableId, playerId, name, avatar } = req.body || {};
-  const pid = playerId;
+  const { tableId, playerId, accountId, name, avatar } = req.body || {};
+  const pid = playerId || accountId;
   if (!tableId || !pid) return res.status(400).json({ error: 'missing data' });
   const [gameType, capStr] = tableId.split('-');
   seatTableSocket(pid, gameType, 0, Number(capStr) || 4, name, null, avatar);
@@ -515,8 +515,8 @@ app.post('/api/snake/table/seat', (req, res) => {
 });
 
 app.post('/api/snake/table/unseat', (req, res) => {
-  const { tableId, playerId } = req.body || {};
-  const pid = playerId;
+  const { tableId, playerId, accountId } = req.body || {};
+  const pid = playerId || accountId;
   unseatTableSocket(pid, tableId);
   res.json({ success: true });
 });
@@ -528,7 +528,16 @@ app.get('/api/snake/lobbies', async (req, res) => {
       const id = `snake-${cap}`;
       const room = await gameManager.getRoom(id, cap);
       const roomCount = room.players.filter((p) => !p.disconnected).length;
-      const lobbyCount = tableSeats.get(id)?.size || 0;
+      // Seats are stored in `tableSeats` under their actual table ids, which may
+      // include additional stake or random components (e.g. `snake-2-100`).
+      // Aggregate seats for all tables matching this game type and capacity.
+      let lobbyCount = 0;
+      for (const [tid, players] of tableSeats.entries()) {
+        const t = tableMap.get(tid);
+        if (t && t.gameType === 'snake' && t.maxPlayers === cap) {
+          lobbyCount += players.size;
+        }
+      }
       const players = roomCount + lobbyCount;
       return { id, capacity: cap, players };
     })
@@ -809,9 +818,16 @@ io.on('connection', (socket) => {
       socket.emit('error', 'waiting_for_players');
       return;
     }
+    // When a player connects to the actual game room we should keep their
+    // lobby seat so that lobby endpoints continue to reflect the occupied
+    // seat. Previously this function removed the player's seat from
+    // `tableSeats`, which caused the lobby to show zero players after a
+    // socket joined the room. Tests expect the lobby count to remain until the
+    // game starts or the player explicitly leaves, so we simply update the
+    // stored socket id without deleting the seat.
     if (map) {
-      map.delete(String(pid));
-      if (map.size === 0) tableSeats.delete(roomId);
+      const info = map.get(String(pid));
+      if (info) info.socketId = socket.id;
     }
     if (pid) {
       await registerConnection({
