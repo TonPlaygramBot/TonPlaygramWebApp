@@ -1,0 +1,610 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no"/>
+<title>Pac-Man Royale — TPC Stake (Local Test)</title>
+<style>
+  :root{
+    --bg:#0c1020; --panel:#11172a; --primary:#2563eb; --gold:#f2c94c; --text:#e7eefc;
+    --muted:#8fa1d2; --danger:#ff5a6b; --success:#34d399; --wall:#1e4fe8; --dot:#ffd166;
+  }
+  *{box-sizing:border-box;font-family:Inter,system-ui,Segoe UI,Roboto,Helvetica,Arial,sans-serif}
+  html,body{height:100%}
+  body{margin:0;background:radial-gradient(1200px 800px at 70% -10%, #1a2450 0%, #0c1020 38%, #0c1020 100%) fixed;color:var(--text);}
+  .app{max-width:1100px;margin:0 auto;padding:16px;min-height:100% ;display:flex;flex-direction:column}
+
+  header{display:flex;gap:12px;align-items:center;justify-content:space-between;margin-bottom:12px}
+  .brand{display:flex;align-items:center;gap:10px}
+  h1{font-size:18px;margin:0}
+  .badge{background:linear-gradient(90deg,#1d2753,#11172a);padding:6px 10px;border-radius:10px;border:1px solid #1e2a56;color:var(--muted);font-size:12px}
+
+  .card{background:linear-gradient(180deg,#11172a 0%,#0e1428 100%);border:1px solid #1f2a58;border-radius:14px;padding:14px}
+  .settings{display:grid;grid-template-columns:1fr 1fr 1fr auto;gap:10px;align-items:end}
+  label{font-size:12px;color:var(--muted);display:block;margin-bottom:6px}
+  input,select,button{width:100%;padding:10px 12px;border-radius:10px;border:1px solid #223063;background:#0e1430;color:var(--text);outline:none}
+  input:focus,select:focus{border-color:var(--primary)}
+  .btn{background:linear-gradient(180deg,#2a6cf0,#2156c8);border:none;cursor:pointer;font-weight:700}
+  .btn:disabled{opacity:.6;cursor:not-allowed}
+
+  .hud{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:12px 0}
+  .hud .panel{border-radius:12px;border:1px solid #223063;background:#0b1228;padding:10px;display:flex;align-items:center;justify-content:space-between}
+  .score{color:var(--gold);font-weight:800}
+  .timer{font-variant-numeric:tabular-nums;font-weight:700}
+
+  /* Game layout: 3 minis on top, main bottom */
+  .game-layout{display:grid;grid-template-rows:25vh 1fr;gap:12px;min-height:0;flex:1}
+  .strip{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;min-height:0}
+  .mini,.user-board{position:relative;border-radius:14px;border:1px solid #223063;background:linear-gradient(180deg,#0f1536,#0a0f24);padding:10px;display:flex;flex-direction:column;min-height:0}
+  .mini h3,.user-board h3{margin:0 0 6px 0;font-size:13px;color:var(--muted);display:flex;gap:8px;align-items:center}
+  .pill{display:inline-flex;align-items:center;gap:6px;background:#0f1736;border:1px solid #223063;border-radius:999px;padding:4px 8px;font-size:12px}
+  canvas{width:100%;height:100%;display:block;border-radius:10px;background:linear-gradient(0deg,#020615,#06102a)}
+  .life{color:var(--danger)}
+
+  /* On-screen controls (mobile) */
+  .controls{position:absolute;left:12px;bottom:12px;display:grid;grid-template-areas:
+    ". up ."
+    "left . right"
+    ". down ."; gap:8px;pointer-events:auto}
+  .ctl{grid-area:auto;background:#0f1736;border:1px solid #223063;color:var(--text);width:54px;height:54px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-weight:900;opacity:.85}
+  .up{grid-area:up} .down{grid-area:down} .left{grid-area:left} .right{grid-area:right}
+
+  .toast{position:fixed;left:50%;transform:translateX(-50%);bottom:18px;background:#0d1536;border:1px solid #223063;padding:8px 12px;border-radius:10px;font-size:13px;opacity:0;transition:opacity .25s}
+  .toast.show{opacity:1}
+
+  dialog{border:none;border-radius:16px;padding:0;background:#0d1330;color:var(--text);max-width:560px;width:calc(100% - 24px)}
+  .modal{padding:16px;border:1px solid #223063;border-radius:16px;background:linear-gradient(180deg,#0f1736,#0b1126)}
+  .modal h2{margin:6px 0 10px 0}
+  .grid{display:grid;gap:10px}
+  .grid.two{grid-template-columns:1fr 1fr}
+  .kpi{background:#0b1228;border:1px solid #223063;border-radius:12px;padding:10px;text-align:center}
+  .kpi .v{font-size:22px;font-weight:800}
+  .actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
+  .ghost{background:#0f1736;border:1px solid #223063}
+  .success{background:linear-gradient(180deg,#37d493,#1ea76e)}
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <div class="brand">
+      <h1>Pac-Man Royale</h1>
+      <span class="badge">Local test • TPC only</span>
+    </div>
+  </header>
+
+  <div class="card settings">
+    <div>
+      <label>Stake per participant (TPC)</label>
+      <input id="stake" type="number" min="0" step="50" value="500">
+    </div>
+    <div>
+      <label>AI speed</label>
+      <select id="aiSpeed">
+        <option value="easy">Easy</option>
+        <option value="normal" selected>Normal</option>
+        <option value="fast">Fast</option>
+      </select>
+    </div>
+    <div>
+      <label>Duration</label>
+      <select id="duration">
+        <option value="90">1:30</option>
+        <option value="120" selected>2:00</option>
+        <option value="180">3:00</option>
+      </select>
+    </div>
+    <div>
+      <button id="start" class="btn">Start Match</button>
+    </div>
+  </div>
+
+  <div class="hud">
+    <div class="panel"><strong>Time</strong> <span class="timer" id="time">02:00</span></div>
+    <div class="panel"><strong>Pot (TPC)</strong> <span id="pot" class="score">0</span></div>
+  </div>
+
+  <div class="game-layout">
+    <!-- top strip: 3 minis (one per ghost) -->
+    <div id="strip" class="strip"></div>
+
+    <!-- user area: main board -->
+    <div class="user-board">
+      <h3><span>Player</span> <span class="pill"><span id="lives" class="life">♥♥♥</span> • <span class="score" id="score">0</span></span></h3>
+      <canvas id="main" width="560" height="620"></canvas>
+      <!-- mobile onscreen controls -->
+      <div class="controls" id="ctl">
+        <div class="ctl up">▲</div>
+        <div class="ctl left">◀</div>
+        <div class="ctl right">▶</div>
+        <div class="ctl down">▼</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="toast" class="toast"></div>
+
+<dialog id="results">
+  <div class="modal">
+    <h2>Match Results</h2>
+    <div class="grid two">
+      <div class="kpi"><div class="v" id="winner">-</div><div>Winner</div></div>
+      <div class="kpi"><div class="v" id="payout">0</div><div>Payout TPC</div></div>
+    </div>
+    <div class="grid" style="margin-top:10px">
+      <div class="kpi">
+        <div class="v" id="fee">0</div>
+        <div>Fee 10% • <span class="split">3% Burn • 3% Dev • 2% Eco • 1% LP • 1% Mkt</span></div>
+      </div>
+      <div class="kpi">
+        <div class="v" id="potFinal">0</div>
+        <div>Net Pot (after fee)</div>
+      </div>
+    </div>
+    <div class="actions">
+      <button class="btn success" id="rematch">Rematch</button>
+      <button class="btn ghost" id="change">Change Stake / Settings</button>
+    </div>
+  </div>
+</dialog>
+
+<script>
+if(!window.__PACROY_INITED__){
+window.__PACROY_INITED__ = true;
+(()=>{
+// ---------- Config ----------
+const TILE = 20;                 // base tile size
+const COLS = 28, ROWS = 31;      // classic pacman grid
+const CANVAS_W = COLS*TILE, CANVAS_H = (ROWS+1)*TILE; // +HUD row
+const COLORS = {
+  wall:"#1e4fe8", wallGlow:"#5aa2ff", bg:"#06102a", dot:"#ffd166", power:"#ff8fab",
+  pac:"#ffe14d",
+  ghosts:["#ff4d6d","#36d399","#6ecbff"],
+  text:"#e7eefc"
+};
+const GAME = { duration:120000, lives:3, pellets:0 };
+
+// ---------- DOM ----------
+const $main = document.getElementById('main');
+const ctx = $main.getContext('2d');
+const $stake = document.getElementById('stake');
+const $aiSpeed = document.getElementById('aiSpeed');
+const $duration = document.getElementById('duration');
+const $start = document.getElementById('start');
+const $time = document.getElementById('time');
+const $pot = document.getElementById('pot');
+const $lives = document.getElementById('lives');
+const $score = document.getElementById('score');
+const $strip = document.getElementById('strip');
+const $toast = document.getElementById('toast');
+const $results = document.getElementById('results');
+const $winner = document.getElementById('winner');
+const $payout = document.getElementById('payout');
+const $fee = document.getElementById('fee');
+const $potFinal = document.getElementById('potFinal');
+const $rematch = document.getElementById('rematch');
+const $change = document.getElementById('change');
+const $ctl = document.getElementById('ctl');
+
+$main.width = CANVAS_W;
+$main.height = CANVAS_H;
+
+// apply query params if present
+const params = new URLSearchParams(location.search);
+const amountParam = params.get('amount');
+if (amountParam) $stake.value = amountParam;
+const aiParam = params.get('ai');
+if (aiParam) $aiSpeed.value = aiParam;
+const durParam = params.get('duration');
+if (durParam) $duration.value = durParam;
+const auto = params.get('autostart');
+
+// ---------- Utils ----------
+const showToast = (msg)=>{ $toast.textContent = msg; $toast.classList.add('show'); setTimeout(()=> $toast.classList.remove('show'), 1600); };
+const fmt = (ms)=>{ const s=Math.max(0,Math.ceil(ms/1000)), m=String((s/60)|0).padStart(2,'0'), ss=String(s%60).padStart(2,'0'); return `${m}:${ss}`; };
+const clamp=(v,mi,ma)=>Math.max(mi,Math.min(ma,v));
+const rnd=(a,b)=>Math.random()*(b-a)+a;
+
+// ---------- Map (classic-ish). 0 empty, 1 wall, 2 dot, 3 power, 4 tunnel
+// This is a compact template; we'll expand dots programmatically where 0.
+const MAP_TEMPLATE = [
+"1111111111111111111111111111",
+"1000000000110000000000000001",
+"1011110110110111101111011101",
+"1030000100000100000100000301",
+"1011110111111111111111011101",
+"1000000100001100000100000001",
+"1111100110110111101100111111",
+"0000100000110000001100001000",
+"1110101111110111111110101111",
+"1000000100000000000100000001",
+"1011110110111111101101111101",
+"1030000000100001000000000301",
+"1111101111101110111110111111",
+"0000100000004  0000000100000",
+"1110101111110111111110101111",
+"1000000100000000000100000001",
+"1011110110111111101101111101",
+"1030000100100001001000000301",
+"1111100110110111101100111111",
+"1000000100001100000100000001",
+"1011110111111111111111011101",
+"1030000100000100000100000301",
+"1011110110110111101111011101",
+"1000000000110000000000000001",
+"1111111111111111111111111111"
+];
+// normalize rows to ROWS (pad with border)
+let MAP = [];
+(function buildMap(){
+  // Start with empty border
+  for(let r=0;r<ROWS;r++){
+    MAP[r] = new Array(COLS).fill(1);
+  }
+  // Paste template roughly centered vertically
+  const startR = 3;
+  for(let r=0;r<MAP_TEMPLATE.length;r++){
+    const line = MAP_TEMPLATE[r].replace(/\s/g,''); // strip spaces
+    for(let c=0;c<Math.min(COLS,line.length);c++){
+      let ch = line[c];
+      if(ch==="0") MAP[startR+r][c]=2; // dot
+      else if(ch==="1") MAP[startR+r][c]=1; // wall
+      else if(ch==="3") MAP[startR+r][c]=3; // power
+      else if(ch==="4") MAP[startR+r][c]=4; // tunnel space
+      else MAP[startR+r][c]=2;
+    }
+  }
+  // Count pellets
+  let pellets=0;
+  for(let r=0;r<ROWS;r++) for(let c=0;c<COLS;c++){
+    if(MAP[r][c]===2) pellets++;
+    if(MAP[r][c]===3) pellets+=4; // power worth multiple dots
+  }
+  GAME.pellets = pellets;
+})();
+
+// ---------- Drawing ----------
+function drawWallCell(x,y){
+  // glowing blue rounded cell
+  ctx.fillStyle = COLORS.wall;
+  ctx.strokeStyle = COLORS.wallGlow;
+  const px=x*TILE, py=y*TILE;
+  ctx.beginPath();
+  ctx.roundRect(px+2,py+2,TILE-4,TILE-4,6);
+  ctx.fill();
+  ctx.stroke();
+}
+function drawMap(){
+  ctx.fillStyle = COLORS.bg;
+  ctx.fillRect(0,0,CANVAS_W,CANVAS_H);
+
+  // grid
+  for(let r=0;r<ROWS;r++){
+    for(let c=0;c<COLS;c++){
+      const v = MAP[r][c];
+      if(v===1) drawWallCell(c,r);
+      else if(v===2){ // dot
+        ctx.fillStyle = COLORS.dot;
+        ctx.beginPath();
+        ctx.arc(c*TILE+TILE/2, r*TILE+TILE/2, 2.2, 0, Math.PI*2); ctx.fill();
+      } else if(v===3){ // power pellet
+        ctx.fillStyle = COLORS.power;
+        ctx.beginPath();
+        ctx.arc(c*TILE+TILE/2, r*TILE+TILE/2, 5, 0, Math.PI*2); ctx.fill();
+      }
+    }
+  }
+  // HUD line
+  ctx.fillStyle="#0c1534";
+  ctx.fillRect(0, ROWS*TILE, CANVAS_W, TILE);
+  ctx.fillStyle=COLORS.text;
+  ctx.font="12px system-ui"; ctx.fillText("Pac-Man Royale • TPC Stake", 8, ROWS*TILE+14);
+}
+
+function drawPac(x,y,mouthPhase,color){
+  const cx=x*TILE+TILE/2, cy=y*TILE+TILE/2;
+  const r=TILE/2-2;
+  ctx.fillStyle = color||COLORS.pac;
+  const open = 0.25 * Math.abs(Math.sin(mouthPhase));
+  const a1 = open * Math.PI, a2 = (2-open) * Math.PI;
+  ctx.beginPath();
+  ctx.moveTo(cx,cy);
+  ctx.arc(cx,cy,r,a1,a2,false);
+  ctx.closePath();
+  ctx.fill();
+  // shine
+  ctx.fillStyle="rgba(255,255,255,.35)";
+  ctx.beginPath(); ctx.arc(cx-r/2,cy-r/3, r/3, 0, Math.PI*2); ctx.fill();
+}
+
+function drawGhost(x,y,color,vulnerable){
+  const cx=x*TILE+TILE/2, cy=y*TILE+TILE/2, r=TILE/2-2;
+  const body = vulnerable ? "#4cc9f0" : color;
+  ctx.fillStyle = body;
+  ctx.beginPath();
+  ctx.arc(cx, cy-r/4, r, Math.PI, 0);
+  ctx.lineTo(cx+r, cy+r/2);
+  ctx.lineTo(cx+r*0.6, cy+r*0.1);
+  ctx.lineTo(cx, cy+r/2);
+  ctx.lineTo(cx-r*0.6, cy+r*0.1);
+  ctx.lineTo(cx-r, cy+r/2);
+  ctx.closePath(); ctx.fill();
+  // eyes
+  ctx.fillStyle="#fff";
+  ctx.beginPath(); ctx.arc(cx-r/3, cy-r/6, r/4, 0, Math.PI*2); ctx.fill();
+  ctx.beginPath(); ctx.arc(cx+r/3, cy-r/6, r/4, 0, Math.PI*2); ctx.fill();
+  ctx.fillStyle="#223";
+  ctx.beginPath(); ctx.arc(cx-r/3+2, cy-r/6, r/9, 0, Math.PI*2); ctx.fill();
+  ctx.beginPath(); ctx.arc(cx+r/3+2, cy-r/6, r/9, 0, Math.PI*2); ctx.fill();
+}
+
+// ---------- Entities ----------
+const pac = {
+  x:14, y:22, dir:{x:0,y:0}, next:{x:0,y:0}, speed:0.12, lives:GAME.lives, score:0, mouth:0,
+  powerLeft:0
+};
+const ghosts = [
+  { x:13, y:14, dir:{x:1,y:0}, speed:0.10, color:COLORS.ghosts[0], vulnerable:false, home:{x:13,y:14}},
+  { x:14, y:14, dir:{x:-1,y:0}, speed:0.10, color:COLORS.ghosts[1], vulnerable:false, home:{x:14,y:14}},
+  { x:15, y:14, dir:{x:0,y:1}, speed:0.10, color:COLORS.ghosts[2], vulnerable:false, home:{x:15,y:14}},
+];
+
+function setAISpeed(mode){
+  const m = (mode==="easy")? 0.09 : (mode==="normal"? 0.11 : 0.13);
+  ghosts.forEach(g=>g.speed=m);
+}
+
+// movement helpers
+function passable(x,y){
+  // tunnel wrap
+  if(y===14 && (x<0 || x>=COLS)) return true;
+  return MAP[y] && MAP[y][x]!==1;
+}
+function wrap(x,y){
+  if(y===14 && x<0) return {x:COLS-1,y};
+  if(y===14 && x>=COLS) return {x:0,y};
+  return {x,y};
+}
+function atCenter(v){ // on tile center tolerance
+  const fx = Math.abs(v.x - Math.round(v.x));
+  const fy = Math.abs(v.y - Math.round(v.y));
+  return fx<0.001 && fy<0.001;
+}
+
+// ---------- Mini canvases ----------
+const minis = [];
+function buildStrip(){
+  $strip.innerHTML="";
+  for(let i=0;i<3;i++){
+    const wrap = document.createElement('div');
+    wrap.className="mini";
+    wrap.innerHTML = `<h3>Ghost ${i+1} <span class="pill">${ghosts[i].color}</span></h3>`;
+    const cv = document.createElement('canvas');
+    cv.width = CANVAS_W; cv.height = CANVAS_H;
+    wrap.appendChild(cv);
+    $strip.appendChild(wrap);
+    minis.push(cv.getContext('2d'));
+  }
+}
+buildStrip();
+function drawMini(ctxMini, focusIdx){
+  // very light rendering (just map + that ghost + pac)
+  ctxMini.fillStyle = COLORS.bg; ctxMini.fillRect(0,0,CANVAS_W,CANVAS_H);
+  for(let r=0;r<ROWS;r++)for(let c=0;c<COLS;c++){ if(MAP[r][c]===1) {
+    ctxMini.fillStyle = COLORS.wall;
+    ctxMini.beginPath();
+    ctxMini.roundRect(c*TILE+2,r*TILE+2,TILE-4,TILE-4,6); ctxMini.fill();
+  }}
+  // pac
+  ctxMini.fillStyle = COLORS.pac;
+  drawPac.call({ctx:ctxMini}, pac.x, pac.y, pac.mouth, COLORS.pac);
+  // ghost
+  const g = ghosts[focusIdx];
+  drawGhost.call({ctx:ctxMini}, g.x, g.y, g.color, g.vulnerable);
+}
+
+// ---------- Game state ----------
+let running=false, endAt=0, last=performance.now(), raf=null, tfraf=null;
+
+// ---------- Input ----------
+document.addEventListener('keydown',e=>{
+  if(e.key==="ArrowUp") pac.next={x:0,y:-1};
+  if(e.key==="ArrowDown") pac.next={x:0,y:1};
+  if(e.key==="ArrowLeft") pac.next={x:-1,y:0};
+  if(e.key==="ArrowRight") pac.next={x:1,y:0};
+});
+
+// Touch (swipe) + on-screen buttons
+let t0=null;
+$main.addEventListener('touchstart',e=>{ const t=e.touches[0]; t0={x:t.clientX,y:t.clientY}; },{passive:true});
+$main.addEventListener('touchend',e=>{
+  if(!t0) return; const t=e.changedTouches[0];
+  const dx=t.clientX-t0.x, dy=t.clientY-t0.y; t0=null;
+  if(Math.abs(dx)>Math.abs(dy)) pac.next = (dx>0)?{x:1,y:0}:{x:-1,y:0};
+  else pac.next = (dy>0)?{x:0,y:1}:{x:0,y:-1};
+});
+$ctl.querySelector('.up').onclick=()=>pac.next={x:0,y:-1};
+$ctl.querySelector('.down').onclick=()=>pac.next={x:0,y:1};
+$ctl.querySelector('.left').onclick=()=>pac.next={x:-1,y:0};
+$ctl.querySelector('.right').onclick=()=>pac.next={x:1,y:0};
+
+// ---------- Update ----------
+function update(dt){
+  // pac movement
+  pac.mouth += dt*0.008;
+
+  // try turn if at center
+  if(atCenter(pac)){
+    const tx = Math.round(pac.x)+pac.next.x;
+    const ty = Math.round(pac.y)+pac.next.y;
+    if(passable(tx,ty)){ pac.dir = {...pac.next}; }
+  }
+  // advance
+  let nx = pac.x + pac.dir.x * pac.speed * dt;
+  let ny = pac.y + pac.dir.y * pac.speed * dt;
+  let gx=Math.round(pac.x), gy=Math.round(pac.y);
+  // check walls ahead only when crossing center lines
+  const ahead = {x: Math.round(nx), y: Math.round(ny)};
+  if(passable(ahead.x,ahead.y)){ const w=wrap(nx,ny); pac.x=w.x; pac.y=w.y; }
+  else { pac.dir={x:0,y:0}; pac.x=Math.round(pac.x); pac.y=Math.round(pac.y); }
+
+  // eat pellets
+  const cx = Math.round(pac.x), cy = Math.round(pac.y);
+  if(MAP[cy] && (MAP[cy][cx]===2 || MAP[cy][cx]===3)){
+    if(MAP[cy][cx]===2){ pac.score+=10; GAME.pellets--; }
+    if(MAP[cy][cx]===3){ pac.score+=50; pac.powerLeft = 6000; ghosts.forEach(g=>g.vulnerable=true); }
+    MAP[cy][cx]=0;
+    $score.textContent = pac.score;
+  }
+
+  // power timer
+  if(pac.powerLeft>0){ pac.powerLeft -= dt; if(pac.powerLeft<=0){ ghosts.forEach(g=>g.vulnerable=false); } }
+
+  // ghosts AI (greedy with randomness; speed set by select)
+  for(const g of ghosts){
+    if(atCenter(g)){
+      // compute best dirs
+      const dirs = [{x:1,y:0},{x:-1,y:0},{x:0,y:1},{x:0,y:-1}];
+      const valid = dirs.filter(d=>passable(Math.round(g.x)+d.x, Math.round(g.y)+d.y) && !(d.x===-g.dir.x && d.y===-g.dir.y));
+      // target pac (or scatter random a bit)
+      const target = (Math.random()<0.15) ? {x: rnd(1,COLS-2), y: rnd(1,ROWS-2)} : {x:pac.x, y:pac.y};
+      valid.sort((a,b)=>{
+        const ax = Math.round(g.x)+a.x, ay = Math.round(g.y)+a.y;
+        const bx = Math.round(g.x)+b.x, by = Math.round(g.y)+b.y;
+        const da = Math.hypot(ax-target.x, ay-target.y);
+        const db = Math.hypot(bx-target.x, by-target.y);
+        return da-db;
+      });
+      g.dir = valid[0] || {x:0,y:0};
+    }
+    let nx = g.x + g.dir.x * g.speed * dt;
+    let ny = g.y + g.dir.y * g.speed * dt;
+    const w = wrap(nx,ny);
+    // walls?
+    if(passable(Math.round(w.x),Math.round(w.y))){ g.x = w.x; g.y = w.y; }
+    else { g.dir={x:0,y:0}; g.x=Math.round(g.x); g.y=Math.round(g.y); }
+  }
+
+  // collisions pac vs ghosts
+  for(const g of ghosts){
+    const dist = Math.hypot(pac.x-g.x, pac.y-g.y);
+    if(dist < 0.5){
+      if(g.vulnerable){
+        // eat ghost
+        pac.score += 200;
+        $score.textContent = pac.score;
+        // send to home
+        g.x=g.home.x; g.y=g.home.y; g.dir={x:0,y:0}; g.vulnerable=false;
+      } else {
+        // lose life
+        pac.lives--;
+        $lives.textContent = "♥".repeat(Math.max(0,pac.lives));
+        showToast("Ouch! Life lost.");
+        resetPositions();
+        if(pac.lives<=0){ endMatch(false); }
+        break;
+      }
+    }
+  }
+
+  // win condition: all pellets eaten
+  if(GAME.pellets<=0){ endMatch(true); }
+}
+
+function resetPositions(){
+  pac.x=14; pac.y=22; pac.dir={x:0,y:0}; pac.next={x:0,y:0}; pac.powerLeft=0;
+  ghosts[0].x=13; ghosts[0].y=14; ghosts[0].dir={x:1,y:0}; ghosts[0].vulnerable=false;
+  ghosts[1].x=14; ghosts[1].y=14; ghosts[1].dir={x:-1,y:0}; ghosts[1].vulnerable=false;
+  ghosts[2].x=15; ghosts[2].y=14; ghosts[2].dir={x:0,y:1}; ghosts[2].vulnerable=false;
+}
+
+// ---------- Render ----------
+function render(){
+  drawMap();
+  // draw entities
+  drawPac(pac.x,pac.y,pac.mouth,COLORS.pac);
+  ghosts.forEach((g,i)=> drawGhost(g.x,g.y,g.color,g.vulnerable));
+  // minis
+  for(let i=0;i<minis.length;i++){ drawMini(minis[i], i); }
+}
+
+// ---------- Loop ----------
+function loop(){
+  if(!running) return;
+  const now = performance.now(), dt = now - last; last = now;
+  update(dt);
+  render();
+  raf = requestAnimationFrame(loop);
+}
+let timerRAF=null;
+function tickTimer(){
+  if(!running) return;
+  const left = endAt - performance.now();
+  $time.textContent = fmt(left);
+  if(left<=0){ endMatch(false); return; }
+  timerRAF = requestAnimationFrame(tickTimer);
+}
+
+// ---------- Stake / Match control ----------
+function startMatch(){
+  // compute pot: 4 participants (player + 3 AI)
+  const stake = Math.max(0, parseInt($stake.value||"0",10));
+  $pot.textContent = String(stake * 4);
+
+  // AI speed
+  setAISpeed($aiSpeed.value);
+  // duration
+  GAME.duration = parseInt($duration.value,10)*1000;
+
+  // reset UI & map
+  pac.lives = GAME.lives; $lives.textContent="♥".repeat(GAME.lives);
+  pac.score = 0; $score.textContent="0";
+  // rebuild map pellets (reset)
+  buildMap();
+  resetPositions();
+
+  // start
+  running=true;
+  last=performance.now();
+  endAt = performance.now() + GAME.duration;
+  loop();
+  tickTimer();
+}
+
+function endMatch(playerWon){
+  running=false;
+  if(raf) cancelAnimationFrame(raf);
+  if(timerRAF) cancelAnimationFrame(timerRAF);
+
+  const stake = Math.max(0, parseInt($stake.value||"0",10));
+  const potGross = stake*4;
+  const fee = Math.round(potGross*0.10);
+  const potNet = potGross - fee;
+
+  $fee.textContent = String(fee);
+  $potFinal.textContent = String(potNet);
+  if(playerWon){
+    $winner.textContent = "PLAYER";
+    $payout.textContent = String(potNet);
+  } else {
+    $winner.textContent = "AI Team";
+    $payout.textContent = "0";
+  }
+  if(!$results.open) $results.showModal();
+}
+
+// ---------- Events ----------
+$start.addEventListener('click', startMatch);
+$rematch.addEventListener('click', ()=>{ $results.close(); startMatch(); });
+$change.addEventListener('click', ()=>{ $results.close(); showToast("Change settings, then press Start."); });
+
+// initial UI time text
+$time.textContent = fmt(parseInt($duration.value,10)*1000);
+if (auto === '1') startMatch();
+
+})(); // IIFE
+}
+</script>
+</body>
+</html>
