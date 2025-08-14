@@ -173,12 +173,15 @@
     g.gain.setValueAtTime(0,t); g.gain.linearRampToValueAtTime(vol,t+0.01); g.gain.exponentialRampToValueAtTime(0.0001,t+dur);
     o.connect(g); g.connect(audioCtx.destination); o.start(t); o.stop(t+dur+0.02);
   }
-  const bombAudio=new Audio('/assets/sounds/a-bomb-139689.mp3');
-  bombAudio.volume=0.6;
-  function playBomb(){
-    if(muted) return;
-    bombAudio.currentTime=0;
-    bombAudio.play().catch(()=>{});
+  function explosionSound(){
+    if(!audioCtx||muted) return;
+    const t=audioCtx.currentTime;
+    const buffer=audioCtx.createBuffer(1, audioCtx.sampleRate*0.45, audioCtx.sampleRate);
+    const data=buffer.getChannelData(0);
+    for(let i=0;i<data.length;i++){ data[i]=(Math.random()*2-1)*Math.exp(-i/(audioCtx.sampleRate*0.12)); }
+    const noise=audioCtx.createBufferSource(); noise.buffer=buffer;
+    const ng=audioCtx.createGain(); ng.gain.setValueAtTime(0.6,t); ng.gain.exponentialRampToValueAtTime(0.0001,t+0.45);
+    noise.connect(ng).connect(audioCtx.destination); noise.start(t);
   }
 
   const loadImage=src=>{ const i=new Image(); i.src=src; return i; };
@@ -210,7 +213,7 @@
     const ctx=canvas.getContext('2d'); fitCanvas(canvas);
     const W=()=>canvas.width, H=()=>canvas.height;
 
-    const fruits=[], halves=[], splats[], slices[], texts[], explosions[];
+    const fruits=[], halves=[], splats=[], smokeRings=[], slices=[], texts=[];
     const game={ isUser, score:0, dragging:false, lastPt:null, nextAi: performance.now()+1000+Math.random()*400 };
 
     // Spawner
@@ -280,29 +283,20 @@
     function drawTexts(dt){
       for(let i=texts.length-1;i>=0;i--){
         const t=texts[i]; t.life-=dt; if(t.life<=0){ texts.splice(i,1); continue; }
-        const p=1-t.life/800;
-        ctx.font='bold 28px "Comic Sans MS", cursive';
-        ctx.textAlign='center';
-        ctx.lineWidth=4; ctx.strokeStyle='#000';
-        ctx.fillStyle=`rgba(212,175,55,${1-p})`;
-        ctx.strokeText(t.text, t.x, t.y - p*40);
-        ctx.fillText(t.text, t.x, t.y - p*40);
+        const p=1-t.life/800; ctx.fillStyle=`rgba(212,175,55,${1-p})`;
+        ctx.font='bold 18px system-ui'; ctx.textAlign='center'; ctx.fillText(t.text, t.x, t.y - p*28);
       }
     }
-    function spawnExplosion(x,y,r){
-      explosions.push({x,y,life:300,size:r*2.5});
-      playBomb();
+    function spawnRing(x,y){
+      smokeRings.push({x,y,t:0,dur:520,max:Math.max(W(),H())*0.12});
+      explosionSound();
     }
-    function drawExplosions(dt){
-      for(let i=explosions.length-1;i>=0;i--){
-        const e=explosions[i]; e.life-=dt; if(e.life<=0){ explosions.splice(i,1); continue; }
-        const p=e.life/300;
-        ctx.save();
-        ctx.globalAlpha=p;
-        ctx.font=`${e.size}px system-ui`;
-        ctx.textAlign='center'; ctx.textBaseline='middle';
-        ctx.fillText('💥', e.x, e.y);
-        ctx.restore();
+    function drawRings(dt){
+      for(let i=smokeRings.length-1;i>=0;i--){
+        const e=smokeRings[i]; e.t+=dt; const p=Math.min(1,e.t/e.dur), rr=p*e.max;
+        ctx.strokeStyle=`rgba(255,220,120,${1-p})`; ctx.lineWidth=3;
+        ctx.beginPath(); ctx.arc(e.x,e.y,rr,0,Math.PI*2); ctx.stroke();
+        if(p>=1) smokeRings.splice(i,1);
       }
     }
 
@@ -354,8 +348,8 @@
           if(f._gone) continue;
           if(segHit(lp.x,lp.y,x,y,f.x,f.y,f.r*0.9)){
             f._gone=true; // VANISH
-            if(f.type==='bomb'){ spawnExplosion(f.x,f.y,f.r); }
-            else { pop(900+Math.random()*200,0.07,0.22); burstJuice(f.x,f.y,f.data.juice); spawnHalves(f, ang); game.score+=f.data.score; floatText(f.x,f.y,'+'+f.data.score); }
+            if(f.type==='bomb'){ spawnRing(f.x,f.y); /* bombs just explode & vanish */ }
+            else { pop(900+Math.random()*200,0.07,0.22); burstJuice(f.x,f.y,f.data.juice); spawnHalves(f, ang); game.score+=f.data.score; }
           }
         }
         game.lastPt={x,y};
@@ -379,7 +373,7 @@
         if(f._gone) continue;
         if(segHit(x1,y1,x2,y2,f.x,f.y,f.r*0.9)){
           f._gone=true;
-        if(f.type!=='bomb'){ spawnHalves(f, ang); game.score+=f.data.score; floatText(f.x,f.y,'+'+f.data.score); }
+          if(f.type!=='bomb'){ spawnHalves(f, ang); game.score+=f.data.score; }
         }
       }
       game.nextAi=now+700+Math.random()*300;
@@ -421,16 +415,11 @@
         }
         if(!s.parts.length) splats.splice(i,1);
       }
-      // explosions
-      for(let i=explosions.length-1;i>=0;i--){
-        const e=explosions[i]; e.life-=16; if(e.life<=0){ explosions.splice(i,1); continue; }
-        const p=e.life/300;
-        ctx.save();
-        ctx.globalAlpha=p;
-        ctx.font=`${e.size}px system-ui`;
-        ctx.textAlign='center'; ctx.textBaseline='middle';
-        ctx.fillText('💥', e.x, e.y);
-        ctx.restore();
+      // rings
+      for(let i=smokeRings.length-1;i>=0;i--){
+        const e=smokeRings[i]; e.t+=16; const p=Math.min(1,e.t/e.dur), rr=p*e.max;
+        ctx.strokeStyle=`rgba(255,220,120,${1-p})`; ctx.lineWidth=3; ctx.beginPath(); ctx.arc(e.x,e.y,rr,0,Math.PI*2); ctx.stroke();
+        if(p>=1) smokeRings.splice(i,1);
       }
       // swipe + texts
       for(let i=slices.length-1;i>=0;i--){
@@ -439,13 +428,7 @@
       }
       for(let i=texts.length-1;i>=0;i--){
         const t=texts[i]; t.life-=16; if(t.life<=0){ texts.splice(i,1); continue; }
-        const p=1-t.life/800;
-        ctx.font='bold 28px "Comic Sans MS", cursive';
-        ctx.textAlign='center';
-        ctx.lineWidth=4; ctx.strokeStyle='#000';
-        ctx.fillStyle=`rgba(212,175,55,${1-p})`;
-        ctx.strokeText(t.text, t.x, t.y - p*40);
-        ctx.fillText(t.text, t.x, t.y - p*40);
+        const p=1-t.life/800; ctx.fillStyle=`rgba(212,175,55,${1-p})`; ctx.font='bold 18px system-ui'; ctx.textAlign='center'; ctx.fillText(t.text, t.x, t.y - p*28);
       }
     }
 
