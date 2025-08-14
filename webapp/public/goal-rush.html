@@ -36,6 +36,9 @@
     .coin-confetti{position:fixed;top:-40px;width:32px;height:32px;pointer-events:none;animation:coin-fall var(--duration,3s) linear forwards}
     @keyframes coin-fall{from{transform:translateY(-10vh) rotate(0deg);opacity:1}to{transform:translateY(100vh) rotate(360deg);opacity:0}}
 
+    .goal-text{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);font-size:48px;font-weight:800;color:var(--goal);text-align:center;display:none;pointer-events:none;text-shadow:2px 2px 0 #000;line-height:1.1}
+    .goal-text .score-line{display:block;font-size:32px;font-weight:600}
+
     @media (orientation:landscape){
       .landscape-block{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:#0008;z-index:20;color:#fff;text-align:center;padding:24px}
     }
@@ -54,6 +57,7 @@
     <div class="canvasWrap">
       <canvas id="game" width="720" height="1280" aria-label="Goal Rush Field"></canvas>
     </div>
+    <div id="goalText" class="goal-text"></div>
   </div>
   <div class="hint" id="startHint"></div>
   <div class="landscape-block" style="display:none">Please hold your phone in <b>portrait</b> for the best experience.</div>
@@ -71,6 +75,7 @@
   const startHint = document.getElementById('startHint');
   const landscapeBlock = document.querySelector('.landscape-block');
   const muteBtn = document.getElementById('muteBtn');
+  const goalText = document.getElementById('goalText');
   const TOP_BAR = 40; // height of scoreboard bar
   const BOTTOM_GAP = 20; // gap below rink
   let fieldScaleActual = 1;
@@ -353,18 +358,19 @@
   function clamp(v,a,b){ return Math.max(a, Math.min(b,v)); }
   function dist(x1,y1,x2,y2){ const dx=x2-x1, dy=y2-y1; return Math.hypot(dx,dy); }
 
-  function resetPositions(serving = (Math.random()<0.5?'p1':'p2')){
+  function resetPositions(){
     p1.x = centerX; p1.y = Math.min(rink.y+rink.h- rink.h*0.12, H*0.85);
     p2.x = centerX; p2.y = Math.max(rink.y + rink.h*0.12, H*0.15);
-    if(serving==='p1'){
-      puck.x = centerX;
-      puck.y = H*0.75;
-    }else{
-      puck.x = centerX;
-      puck.y = H*0.25;
-    }
+    puck.x = centerX;
+    puck.y = centerY;
     puck.vx = 0; puck.vy = 0;
     [p1,p2].forEach(p=>{p.vx=0;p.vy=0;p.lastX=p.x;p.lastY=p.y;});
+  }
+
+  function showGoalMessage(){
+    goalText.innerHTML = `GOAL!<span class="score-line">${score.p1} - ${score.p2}</span>`;
+    goalText.style.display = 'block';
+    setTimeout(()=>{ goalText.style.display='none'; }, 1000);
   }
 
   function rr(x,y,w,h,r){
@@ -575,12 +581,32 @@
 
     if (puck.y < top){
       if (puck.x > goalLeft && puck.x < goalRight){
-        score.p1++; updateScore(); sfx.goal(); checkWin(); resetPositions('p2'); return;
+        score.p1++; updateScore(); sfx.goal();
+        const goalLine = goalTopY + 6;
+        puck.y = goalLine - 0.6 * puck.r;
+        puck.vx = 0; puck.vy = 0;
+        running = false;
+        showGoalMessage();
+        checkWin();
+        if (score.p1 < score.target && score.p2 < score.target){
+          setTimeout(()=>{ resetPositions(); running = true; }, 1000);
+        }
+        return;
       } else { puck.y = top; puck.vy *= -1; sfx.wall(); }
     }
     if (puck.y > bottom){
       if (puck.x > goalLeft && puck.x < goalRight){
-        score.p2++; updateScore(); sfx.goal(); checkWin(); resetPositions('p1'); return;
+        score.p2++; updateScore(); sfx.goal();
+        const goalLine = goalBottomY - 6;
+        puck.y = goalLine + 0.6 * puck.r;
+        puck.vx = 0; puck.vy = 0;
+        running = false;
+        showGoalMessage();
+        checkWin();
+        if (score.p1 < score.target && score.p2 < score.target){
+          setTimeout(()=>{ resetPositions(); running = true; }, 1000);
+        }
+        return;
       } else { puck.y = bottom; puck.vy *= -1; sfx.wall(); }
     }
   }
