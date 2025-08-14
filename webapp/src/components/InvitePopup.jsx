@@ -25,7 +25,7 @@ export default function InvitePopup({
               
               src={
                 stake?.token === 'TPC'
-                  ? '/assets/icons/file_000000005f0c61f48998df883554c3e8 (2).webp'
+                  ? '/assets/icons/ezgif-54c96d8a9b9236.webp'
                   : stake?.token === 'TON'
                   ? '/assets/icons/TON.webp'
                   : '/assets/icons/Usdt.webp'

@@ -22,8 +22,8 @@ export default function BalanceSummary({ className = '', showHeader = true }) {
       )}
       <div className="grid grid-cols-3 text-sm mt-4">
         <Token icon="/assets/icons/TON.webp" label="TON" value={tonBalance ?? '...'} />
-        <Token icon="/assets/icons/file_000000005f0c61f48998df883554c3e8 (2).webp" label="TPC (App)" value={tpcBalance ?? 0} decimals={2} />
-        <Token icon="/assets/icons/file_000000005f0c61f48998df883554c3e8 (2).webp" label="TPC" value={tpcWalletBalance ?? '...'} decimals={2} />
+        <Token icon="/assets/icons/ezgif-54c96d8a9b9236.webp" label="TPC (App)" value={tpcBalance ?? 0} decimals={2} />
+        <Token icon="/assets/icons/ezgif-54c96d8a9b9236.webp" label="TPC" value={tpcWalletBalance ?? '...'} decimals={2} />
       </div>
     </div>
   );

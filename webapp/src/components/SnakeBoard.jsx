@@ -19,7 +19,7 @@ function CoinBurst({ token }) {
           key={i}
           src={
             token.toUpperCase() === 'TPC'
-              ? '/assets/icons/file_000000005f0c61f48998df883554c3e8 (2).webp'
+              ? '/assets/icons/ezgif-54c96d8a9b9236.webp'
               : `/icons/${token.toLowerCase()}.svg`
           }
           alt=""
@@ -272,7 +272,7 @@ export default function SnakeBoard({
                       ? '/assets/icons/TON.webp'
                       : token === 'USDT'
                         ? '/assets/icons/Usdt.webp'
-                        : '/assets/icons/file_000000005f0c61f48998df883554c3e8 (2).webp'
+                        : '/assets/icons/ezgif-54c96d8a9b9236.webp'
                   }
 
                   alt={token}
@@ -284,7 +284,7 @@ export default function SnakeBoard({
                       ? '/assets/icons/TON.webp'
                       : token === 'USDT'
                         ? '/assets/icons/Usdt.webp'
-                        : '/assets/icons/file_000000005f0c61f48998df883554c3e8 (2).webp'
+                        : '/assets/icons/ezgif-54c96d8a9b9236.webp'
                   }
                   alt=""
                   className="coin-face back"
