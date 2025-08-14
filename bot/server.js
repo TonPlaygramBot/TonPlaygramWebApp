@@ -199,7 +199,8 @@ function sendIndex(res) {
   } else {
     res.status(503).send('Webapp build not available');
   }
-  launchBotWithDelay();
+  if (process.env.SKIP_BOT_LAUNCH !== '1') launchBotWithDelay();
+  else console.log('Skipping Telegram bot launch');
 }
 
 let botLaunchTriggered = false;
@@ -224,7 +225,8 @@ function launchBotWithDelay() {
   }, 5000);
 }
 
-launchBotWithDelay();
+if (process.env.SKIP_BOT_LAUNCH !== '1') launchBotWithDelay();
+else console.log('Skipping Telegram bot launch');
 
 app.get('/', (req, res) => {
   sendIndex(res);
