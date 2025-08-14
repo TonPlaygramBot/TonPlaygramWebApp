@@ -433,8 +433,9 @@
         if((e.pointerType!=='touch'&&e.pointerType!=='mouse')||!dragging||!start||!game.drag) return;
         const r=canvas.getBoundingClientRect();
         const x=e.clientX-r.left, y=e.clientY-r.top;
-        const c=Math.min(canvas.width/COLS,canvas.height/ROWS);
-        const offX=(canvas.width-c*COLS)/2, offY=(canvas.height-c*ROWS)/2;
+        const dpr=canvas.dpr||1;
+        const c=Math.min((canvas.width/dpr)/COLS,(canvas.height/dpr)/ROWS);
+        const offX=(canvas.width/dpr-c*COLS)/2, offY=(canvas.height/dpr-c*ROWS)/2;
         const dx = x - (offX + start.x*c + c/2);
         const dy = y - (offY + start.y*c + c/2);
         if(!game.drag.dir) game.drag.dir = Math.abs(dx) > Math.abs(dy) ? 'x' : 'y';
@@ -455,7 +456,8 @@
       });
       const endDrag=e=>{
         if(e.pointerType!=='touch'&&e.pointerType!=='mouse') return;
-        const c=Math.min(canvas.width/COLS,canvas.height/ROWS);
+        const dpr=canvas.dpr||1;
+        const c=Math.min((canvas.width/dpr)/COLS,(canvas.height/dpr)/ROWS);
         const TH=c*0.28;
         if(dragging && start && game.drag && game.drag.neigh){
           const m=Math.max(Math.abs(game.drag.dx),Math.abs(game.drag.dy));
