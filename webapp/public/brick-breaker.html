@@ -407,13 +407,15 @@
             power: '#ffa600',
             danger: '#ef476f'
           };
-          const POWERUPS = ['multiball', 'fireball', 'wide', 'slow', 'x2'];
+          const POWERUPS = ['multiball', 'fireball', 'wide', 'slow', 'x2', 'life', 'shrink'];
           const POWERUP_COLORS = {
             multiball: '#a78bfa',
             fireball: '#ff5a6b',
             wide: '#34d399',
             slow: '#5aa2ff',
-            x2: '#d4af37'
+            x2: '#d4af37',
+            life: '#fbbf24',
+            shrink: '#9ca3af'
           };
           const POINTS = { standard: 10, tough: 20, explosive: 10 };
 
@@ -459,10 +461,10 @@
             ctx.beginPath();
             ctx.rect(x, y, w, h);
             ctx.clip();
-            const sizeLargeW = Math.floor(w * 0.9);
-            const sizeLargeH = Math.floor(h * 0.9);
-            const sizeSmallW = Math.floor(w * 0.5);
-            const sizeSmallH = Math.floor(h * 0.5);
+            const sizeLargeW = Math.floor(w * 0.8);
+            const sizeLargeH = Math.floor(h * 0.8);
+            const sizeSmallW = Math.floor(w * 0.4);
+            const sizeSmallH = Math.floor(h * 0.4);
             const extra = Math.floor(r * 0.05);
             ctx.fillStyle = 'rgba(255,255,255,0.25)';
             ctx.fillRect(x, y + h - sizeLargeH, sizeLargeW + extra, sizeLargeH);
@@ -629,6 +631,7 @@
                   hits = 2;
                   pts = POINTS.tough;
                 }
+                const powerup = Math.random() < 0.12 ? choice(POWERUPS) : null;
                 bricks.push({
                   x: c * (VIEW_W / cols) + 4,
                   y: 72 + r * 28,
@@ -638,7 +641,8 @@
                   hits,
                   pts,
                   color: choice(BRICK_COLORS),
-                  alive: true
+                  alive: true,
+                  powerup
                 });
               }
             }
@@ -704,6 +708,10 @@
                 ctx.fillStyle = 'rgba(255,255,255,0.5)';
                 ctx.fillRect(br.x, br.y, br.w, br.h);
               }
+              if (br.powerup) {
+                const color = POWERUP_COLORS[br.powerup] || COLORS.power;
+                drawBall(ctx, br.x + br.w / 2, br.y + br.h / 2, 3, color);
+              }
             }
             for (const p of b.powerups) {
               const color = POWERUP_COLORS[p.kind] || COLORS.power;
@@ -714,6 +722,19 @@
               paddleColor = POWERUP_COLORS[b.activePowers[0]] || COLORS.paddle;
             }
             drawBlock(ctx, b.paddle.x, b.paddle.y, b.paddle.w, b.paddle.h, paddleColor);
+            if (b.activePowers.length) {
+              ctx.fillStyle = COLORS.text;
+              ctx.font = '10px system-ui';
+              ctx.textAlign = 'center';
+              ctx.textBaseline = 'middle';
+              ctx.fillText(
+                b.activePowers[0],
+                b.paddle.x + b.paddle.w / 2,
+                b.paddle.y + b.paddle.h / 2
+              );
+              ctx.textAlign = 'left';
+              ctx.textBaseline = 'alphabetic';
+            }
             for (const ball of b.balls) {
               let color = COLORS.ball;
               if (ball.fire) color = POWERUP_COLORS.fireball;
@@ -777,6 +798,17 @@
               addLabel('x2', 5000);
               b.mult = 2;
               setTimeout(() => (b.mult = 1), 5000);
+            }
+            if (kind === 'life') {
+              addLabel('life', 2000);
+              b.lives++;
+              if (state.match && b.index === state.match.userIdx)
+                $userLives.textContent = '♥'.repeat(Math.max(0, b.lives));
+            }
+            if (kind === 'shrink') {
+              addLabel('shrink', 10000);
+              b.paddle.w = Math.max(60, b.paddle.w - 30);
+              setTimeout(() => (b.paddle.w = 90), 10000);
             }
           }
 
@@ -889,12 +921,12 @@
                     if (br.hits <= 0) br.alive = false;
                     if (!ball.fire) ball.vy *= -1;
                   }
-                  if (Math.random() < 0.12) {
+                  if (br.powerup) {
                     b.powerups.push({
                       x: ball.x,
                       y: br.y + br.h,
                       vy: 1.6,
-                      kind: choice(POWERUPS)
+                      kind: br.powerup
                     });
                   }
                   break;
@@ -908,8 +940,6 @@
               if (pu.y >= p.y - 4 && pu.x >= p.x && pu.x <= p.x + p.w) {
                 applyPowerup(b, pu.kind);
                 b.powerups = b.powerups.filter((x) => x !== pu);
-                if (inputX != null)
-                  showToast(`USER: ${pu.kind.toUpperCase()}!`);
               }
               if (pu.y > VIEW_H + 10) {
                 b.powerups = b.powerups.filter((x) => x !== pu);
