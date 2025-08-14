@@ -402,12 +402,19 @@
             bg: '#ffffff',
             wall: '#000000',
             paddle: '#ff6b6b',
-            ball: '#5aa2ff',
+            ball: '#ffffff',
             text: '#ffffff',
             power: '#ffa600',
             danger: '#ef476f'
           };
           const POWERUPS = ['multiball', 'fireball', 'wide', 'slow', 'x2'];
+          const POWERUP_COLORS = {
+            multiball: '#9b59b6',
+            fireball: '#e74c3c',
+            wide: '#1abc9c',
+            slow: '#3498db',
+            x2: '#f1c40f'
+          };
           const POINTS = { standard: 10, tough: 20, explosive: 10 };
 
           const BRICK_COLORS = [
@@ -429,39 +436,43 @@
             '#ffffe0'
           ];
 
-          const BALL_IMAGES = {
-            normal: (() => {
-              const img = new Image();
-              img.src = '/assets/icons/white_ball.svg';
-              return img;
-            })(),
-            fire: (() => {
-              const img = new Image();
-              img.src = '/assets/icons/orange_ball.svg';
-              return img;
-            })()
+          const drawBall = (ctx, x, y, r, color) => {
+            ctx.beginPath();
+            ctx.arc(x, y, r, 0, Math.PI * 2);
+            ctx.fillStyle = color;
+            ctx.fill();
+            const grad = ctx.createLinearGradient(x - r, y + r, x + r, y - r);
+            grad.addColorStop(0, 'rgba(255,255,255,0.4)');
+            grad.addColorStop(0.5, 'rgba(255,255,255,0)');
+            grad.addColorStop(1, 'rgba(0,0,0,0.4)');
+            ctx.fillStyle = grad;
+            ctx.beginPath();
+            ctx.arc(x, y, r, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.lineWidth = Math.max(2, r * 0.2);
+            ctx.strokeStyle = 'rgba(0,0,0,0.6)';
+            ctx.stroke();
           };
 
           const drawBlock = (ctx, x, y, w, h, color) => {
             const r = Math.min(w, h);
             ctx.fillStyle = color;
             ctx.fillRect(x, y, w, h);
+            const gradHi = ctx.createLinearGradient(x, y + h, x + w, y);
+            gradHi.addColorStop(0, 'rgba(255,255,255,0.3)');
+            gradHi.addColorStop(1, 'rgba(255,255,255,0)');
+            ctx.fillStyle = gradHi;
+            ctx.fillRect(x, y, w, h);
+            const gradShadow = ctx.createLinearGradient(x + w, y, x, y + h);
+            gradShadow.addColorStop(0, 'rgba(0,0,0,0.3)');
+            gradShadow.addColorStop(1, 'rgba(0,0,0,0)');
+            ctx.fillStyle = gradShadow;
+            ctx.fillRect(x, y, w, h);
             ctx.lineWidth = Math.max(2, r * 0.1);
             ctx.strokeStyle = 'rgba(0,0,0,0.6)';
             ctx.lineJoin = 'round';
             ctx.lineCap = 'round';
             ctx.strokeRect(x, y, w, h);
-            ctx.save();
-            ctx.beginPath();
-            ctx.rect(x, y, w, h);
-            ctx.clip();
-            const largeH = Math.floor(h * 0.35);
-            const smallH = Math.floor(h * 0.2);
-            ctx.fillStyle = 'rgba(255,255,255,0.25)';
-            ctx.fillRect(x, y, w, largeH);
-            ctx.fillStyle = 'rgba(255,255,255,0.5)';
-            ctx.fillRect(x, y, w, smallH);
-            ctx.restore();
           };
 
           const state = {
@@ -658,6 +669,7 @@
               slow: false,
               bricks: genBricks(settings.density),
               powerups: [],
+              activePowers: [],
               over: false
             };
           }
@@ -698,23 +710,8 @@
               }
             }
             for (const p of b.powerups) {
-              ctx.fillStyle = COLORS.power;
-              ctx.beginPath();
-              ctx.arc(p.x, p.y, 7, 0, Math.PI * 2);
-              ctx.fill();
-              ctx.fillStyle = COLORS.bg;
-              ctx.font = '10px system-ui';
-              ctx.textAlign = 'center';
-              const tag =
-                {
-                  multiball: 'M',
-                  fireball: 'F',
-                  wide: 'W',
-                  slow: 'S',
-                  x2: '2'
-                }[p.kind] || '?';
-              ctx.fillText(tag, p.x, p.y + 3);
-              ctx.textAlign = 'start';
+              const color = POWERUP_COLORS[p.kind] || COLORS.power;
+              drawBall(ctx, p.x, p.y, 7, color);
             }
             drawBlock(
               ctx,
@@ -724,14 +721,39 @@
               b.paddle.h,
               COLORS.paddle
             );
+            if (b.activePowers.length) {
+              ctx.fillStyle = COLORS.text;
+              ctx.font = '10px system-ui';
+              ctx.textAlign = 'center';
+              ctx.textBaseline = 'middle';
+              ctx.fillText(
+                b.activePowers.join(' '),
+                b.paddle.x + b.paddle.w / 2,
+                b.paddle.y + b.paddle.h / 2
+              );
+              ctx.textAlign = 'start';
+              ctx.textBaseline = 'alphabetic';
+            }
             for (const ball of b.balls) {
-              const img = ball.fire ? BALL_IMAGES.fire : BALL_IMAGES.normal;
-              ctx.drawImage(img, ball.x - ball.r, ball.y - ball.r, ball.r * 2, ball.r * 2);
+              let color = COLORS.ball;
+              if (ball.fire) color = POWERUP_COLORS.fireball;
+              else if (b.balls.length > 1) color = POWERUP_COLORS.multiball;
+              else if (b.slow) color = POWERUP_COLORS.slow;
+              else if (b.mult > 1) color = POWERUP_COLORS.x2;
+              else if (b.paddle.w > 90) color = POWERUP_COLORS.wide;
+              drawBall(ctx, ball.x, ball.y, ball.r, color);
             }
           }
 
           function applyPowerup(b, kind) {
+            const addLabel = (label, ms) => {
+              if (!b.activePowers.includes(label)) b.activePowers.push(label);
+              setTimeout(() => {
+                b.activePowers = b.activePowers.filter((x) => x !== label);
+              }, ms);
+            };
             if (kind === 'multiball') {
+              addLabel('MULTI', 10000);
               const base = b.balls[0] || {
                 x: VIEW_W / 2,
                 y: VIEW_H - 100,
@@ -754,6 +776,7 @@
               }, 10000);
             }
             if (kind === 'fireball') {
+              addLabel('FIRE', 5000);
               b.balls.forEach((ball) => (ball.fire = true));
               setTimeout(
                 () => b.balls.forEach((ball) => (ball.fire = false)),
@@ -761,14 +784,17 @@
               );
             }
             if (kind === 'wide') {
+              addLabel('WIDE', 10000);
               b.paddle.w = Math.min(150, b.paddle.w + 40);
               setTimeout(() => (b.paddle.w = 90), 10000);
             }
             if (kind === 'slow') {
+              addLabel('SLOW', 5000);
               b.slow = true;
               setTimeout(() => (b.slow = false), 5000);
             }
             if (kind === 'x2') {
+              addLabel('2X', 5000);
               b.mult = 2;
               setTimeout(() => (b.mult = 1), 5000);
             }
