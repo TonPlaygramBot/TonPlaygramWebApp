@@ -314,12 +314,12 @@ window.__TETRIS_ROYALE__ = true;
     ctx.beginPath();
     ctx.rect(x, y, w, h);
     ctx.clip();
-    // hard-edged rectangular highlights sized to the block (90% and 50%) positioned bottom-left
-    const sizeLargeW = Math.floor(w * 0.9);
-    const sizeLargeH = Math.floor(h * 0.9);
-    const sizeSmallW = Math.floor(w * 0.5);
-    const sizeSmallH = Math.floor(h * 0.5);
-    const extra = Math.floor(r * 0.05);
+    // hard-edged rectangular highlights sized to the block (80% and 40%) positioned bottom-left
+    const sizeLargeW = Math.floor(w * 0.8);
+    const sizeLargeH = Math.floor(h * 0.8);
+    const sizeSmallW = Math.floor(w * 0.4);
+    const sizeSmallH = Math.floor(h * 0.4);
+    const extra = Math.floor(r * 0.03);
     ctx.fillStyle = 'rgba(255,255,255,0.25)';
     ctx.fillRect(x, y + h - sizeLargeH, sizeLargeW + extra, sizeLargeH);
     ctx.fillStyle = 'rgba(255,255,255,0.5)';
@@ -355,7 +355,7 @@ window.__TETRIS_ROYALE__ = true;
       const {piece,pos,color} = active;
       let gy = pos.y;
       while(!collide(board, piece, {x:pos.x, y:gy+1})) gy++;
-      ctx.globalAlpha = 0.15;
+      ctx.globalAlpha = 0.07;
       for(let y=0;y<piece.length;y++){
         for(let x=0;x<piece[y].length;x++){
           if(piece[y][x]){
@@ -381,7 +381,7 @@ window.__TETRIS_ROYALE__ = true;
       piece: randomShape(),
       pos: {x:3,y:0},
       color: COLORS[1 + ((Math.random()*6)|0)],
-      dropMs: 500,
+      dropMs: 350,
       dropAcc: 0,
       score: 0,
       over: false,
