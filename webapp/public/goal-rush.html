@@ -9,7 +9,7 @@
       --bg:#050812;
       --ice:#0f1730;
       --line:#67a6ff;
-      --goal:#ff3b3b;
+      --goal:#fff;
       --p1:#22c55e;
       --p2:#f59e0b;
       --puck:#e5e7eb;
@@ -33,13 +33,6 @@
     .mute-btn{position:absolute;top:6px;right:6px;z-index:5;background:#0b1220;border:1px solid #233050;color:#e5e7eb;border-radius:8px;padding:4px 8px;font-size:14px}
     .mute-btn.muted::after{content:'';position:absolute;top:50%;left:20%;width:60%;height:2px;background:#ff3b3b;transform:rotate(-45deg)}
 
-    .config-btn{position:absolute;top:6px;right:40px;z-index:5;background:#0b1220;border:1px solid #233050;color:#e5e7eb;border-radius:8px;padding:4px 8px;font-size:14px}
-    .config-popup{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;z-index:10;background:transparent}
-    .config-box{background:#0b1220;border:1px solid #233050;border-radius:12px;padding:16px;color:#e5e7eb;display:flex;flex-direction:column;gap:8px}
-    .config-box label{display:flex;align-items:center;gap:8px;font-size:14px}
-    .config-box input[type=range]{flex:1}
-    .config-save{margin-top:8px;padding:6px 12px;background:#233050;color:#e5e7eb;border:1px solid #455a88;border-radius:8px}
-
     .coin-confetti{position:fixed;top:-40px;width:32px;height:32px;pointer-events:none;animation:coin-fall var(--duration,3s) linear forwards}
     @keyframes coin-fall{from{transform:translateY(-10vh) rotate(0deg);opacity:1}to{transform:translateY(100vh) rotate(360deg);opacity:0}}
 
@@ -58,7 +51,6 @@
       </div>
     </div>
     <button id="muteBtn" class="mute-btn" aria-label="Toggle sound">🔊</button>
-    <button id="configBtn" class="config-btn" aria-label="Game settings">⚙️</button>
     <div class="canvasWrap">
       <canvas id="game" width="720" height="1280" aria-label="Goal Rush Field"></canvas>
     </div>
@@ -66,21 +58,6 @@
   <div class="hint" id="startHint"></div>
   <div class="landscape-block" style="display:none">Please hold your phone in <b>portrait</b> for the best experience.</div>
 
-  <div id="configPopup" class="config-popup" style="display:none">
-    <div class="config-box">
-      <label>Goal Width<input type="range" id="cfgGoalWidth" min="0.2" max="0.6" step="0.01"></label>
-      <label>Avatar Size<input type="range" id="cfgAvatarSize" min="0.5" max="1.5" step="0.01"></label>
-      <label>Ball Size<input type="range" id="cfgBallSize" min="0.5" max="1.5" step="0.01"></label>
-      <label>Field Width<input type="range" id="cfgFieldWidth" min="0.5" max="1.5" step="0.01"></label>
-      <label>Field Height<input type="range" id="cfgFieldHeight" min="0.5" max="1.5" step="0.01"></label>
-      <label>Background Width<input type="range" id="cfgBgWidth" min="0.5" max="1.5" step="0.01"></label>
-      <label>Background Height<input type="range" id="cfgBgHeight" min="0.5" max="1.5" step="0.01"></label>
-      <label>Goal Offset X<input type="range" id="cfgGoalOffsetX" min="-0.5" max="0.5" step="0.01"></label>
-      <label>Goal Offset Y<input type="range" id="cfgGoalOffsetY" min="-0.5" max="0.5" step="0.01"></label>
-      <label>Ball Speed<input type="range" id="cfgBallSpeed" min="0.5" max="2" step="0.05"></label>
-      <button id="cfgSave" class="config-save">Save</button>
-    </div>
-  </div>
 
 <script src="/falling-ball-api.js"></script>
 <script>
@@ -94,19 +71,6 @@
   const startHint = document.getElementById('startHint');
   const landscapeBlock = document.querySelector('.landscape-block');
   const muteBtn = document.getElementById('muteBtn');
-  const configBtn = document.getElementById('configBtn');
-  const configPopup = document.getElementById('configPopup');
-  const cfgGoalWidth = document.getElementById('cfgGoalWidth');
-  const cfgAvatarSize = document.getElementById('cfgAvatarSize');
-  const cfgBallSize = document.getElementById('cfgBallSize');
-  const cfgFieldWidth = document.getElementById('cfgFieldWidth');
-  const cfgFieldHeight = document.getElementById('cfgFieldHeight');
-  const cfgBgWidth = document.getElementById('cfgBgWidth');
-  const cfgBgHeight = document.getElementById('cfgBgHeight');
-  const cfgGoalOffsetX = document.getElementById('cfgGoalOffsetX');
-  const cfgGoalOffsetY = document.getElementById('cfgGoalOffsetY');
-  const cfgBallSpeed = document.getElementById('cfgBallSpeed');
-  const cfgSave = document.getElementById('cfgSave');
   const TOP_BAR = 40; // height of scoreboard bar
   const BOTTOM_GAP = 20; // gap below rink
   let fieldScaleActual = 1;
@@ -305,6 +269,10 @@
     goalCenterX = centerX + rink.w * goalOffsetXPct;
     goalTopY = rink.y + rink.h * goalOffsetYPct;
     goalBottomY = goalTopY + rink.h;
+    try{
+      localStorage.setItem('goalTopY', goalTopY);
+      localStorage.setItem('goalBottomY', goalBottomY);
+    }catch{}
     goalWidth = Math.round(W*goalWidthPct*fsx);
     const base = Math.max(24, Math.round(Math.min(W,H)*0.035*fieldScaleActual));
     paddleRadius = base*3.4*paddleScale;
@@ -364,45 +332,6 @@
     }
   });
 
-  configBtn.addEventListener('click', () => {
-    cfgGoalWidth.value = goalWidthPct;
-    cfgAvatarSize.value = paddleScale;
-    cfgBallSize.value = puckScale;
-    cfgFieldWidth.value = fieldScaleX;
-    cfgFieldHeight.value = fieldScaleY;
-    cfgBgWidth.value = fieldImgScaleX;
-    cfgBgHeight.value = fieldImgScaleY;
-    cfgGoalOffsetX.value = goalOffsetXPct;
-    cfgGoalOffsetY.value = goalOffsetYPct;
-    cfgBallSpeed.value = speedMul;
-    configPopup.style.display = 'flex';
-  });
-  cfgGoalWidth.addEventListener('input', e=>{ goalWidthPct = parseFloat(e.target.value); fit(); });
-  cfgAvatarSize.addEventListener('input', e=>{ paddleScale = parseFloat(e.target.value); fit(); });
-  cfgBallSize.addEventListener('input', e=>{ puckScale = parseFloat(e.target.value); fit(); });
-  cfgFieldWidth.addEventListener('input', e=>{ fieldScaleX = parseFloat(e.target.value); fit(); });
-  cfgFieldHeight.addEventListener('input', e=>{ fieldScaleY = parseFloat(e.target.value); fit(); });
-  cfgBgWidth.addEventListener('input', e=>{ fieldImgScaleX = parseFloat(e.target.value); });
-  cfgBgHeight.addEventListener('input', e=>{ fieldImgScaleY = parseFloat(e.target.value); });
-  cfgGoalOffsetX.addEventListener('input', e=>{ goalOffsetXPct = parseFloat(e.target.value); fit(); });
-  cfgGoalOffsetY.addEventListener('input', e=>{ goalOffsetYPct = parseFloat(e.target.value); fit(); });
-  cfgBallSpeed.addEventListener('input', e=>{ speedMul = parseFloat(e.target.value); });
-  cfgSave.addEventListener('click', () => {
-    try{
-      localStorage.setItem('goalWidthPct', goalWidthPct);
-      localStorage.setItem('paddleScale', paddleScale);
-      localStorage.setItem('puckScale', puckScale);
-      localStorage.setItem('fieldScaleX', fieldScaleX);
-      localStorage.setItem('fieldScaleY', fieldScaleY);
-      localStorage.setItem('fieldImgScaleX', fieldImgScaleX);
-      localStorage.setItem('fieldImgScaleY', fieldImgScaleY);
-      localStorage.setItem('goalOffsetXPct', goalOffsetXPct);
-      localStorage.setItem('goalOffsetYPct', goalOffsetYPct);
-      localStorage.setItem('speedMul', speedMul);
-    }catch{}
-    configPopup.style.display = 'none';
-    fit();
-  });
 
   const sfx = {
     hit(){
@@ -470,15 +399,6 @@
       drawGoal(goalCenterX, goalTopY, goalWidth, goalDepth, -1);
       drawGoal(goalCenterX, goalBottomY, goalWidth, goalDepth, 1);
     }
-    const lw = Math.max(3, W*0.004);
-    ctx.lineWidth = lw;
-    ctx.strokeStyle = getCSS('--goal');
-    ctx.beginPath();
-    ctx.moveTo(goalCenterX - goalWidth / 2, goalTopY);
-    ctx.lineTo(goalCenterX + goalWidth / 2, goalTopY);
-    ctx.moveTo(goalCenterX - goalWidth / 2, goalBottomY);
-    ctx.lineTo(goalCenterX + goalWidth / 2, goalBottomY);
-    ctx.stroke();
   }
   function drawGoal(cx, y, w, d, dir){
     ctx.save();
@@ -490,9 +410,6 @@
     ctx.beginPath();
     ctx.moveTo(-w/2, 0); ctx.lineTo(w/2, 0);
     ctx.moveTo(-w/2, d); ctx.lineTo(w/2, d);
-    ctx.stroke();
-    ctx.strokeStyle = getCSS('--goal');
-    ctx.beginPath();
     ctx.moveTo(-w/2, 0); ctx.lineTo(-w/2, d);
     ctx.moveTo(w/2, 0); ctx.lineTo(w/2, d);
     ctx.stroke();
