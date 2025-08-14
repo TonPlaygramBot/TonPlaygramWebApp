@@ -158,14 +158,14 @@
     density:'High', // Low|Med|High
     shared:false,
     ballValues:[],
-    currentBall:0,
-    ball:{ x:0, y:0, vx:0, vy:0, r:12, value:0, color:'#facc15' },
+    ballValuesMax:0,
+    balls:[],
+    ball:{ x:0, y:0, vx:0, vy:0, r:12, value:0, color:'#facc15', stuckCounter:0 },
     gravity:0.58,
     bounce:0.78,
     fric:0.003,
     time:0,
     maxVy:22,
-    stuckCounter:0,
   };
   const DEFAULT_AVATAR='/assets/icons/9f14924f-e70c-4728-a9e5-ca25ef4138c8.png';
 
@@ -329,7 +329,7 @@
     }
   }
 
-  function resetBall(){ state.ball.x=W*0.5; state.ball.y=60; state.ball.vx=(Math.random()*2-1)*1.8; state.ball.vy=0; state.resultSlot=null; state.stuckCounter=0; }
+  function resetBall(){ state.ball.x=W*0.5; state.ball.y=60; state.ball.vx=(Math.random()*2-1)*1.8; state.ball.vy=0; state.ball.stuckCounter=0; state.resultSlot=null; }
 
   const COLORS=['#f87171','#34d399','#60a5fa','#fbbf24','#a78bfa','#f472b6','#38bdf8','#facc15'];
   function generateBallValues(total,count){
@@ -349,33 +349,32 @@
     }
     return values;
   }
-  function setupSharedBall(){
-    const value = state.ballValues[state.currentBall];
-    const maxVal = state.ballValuesMax;
-    const minR=8, maxR=12;
-    state.ball.value=value;
-    state.ball.r=minR + (maxR-minR)*(value/maxVal);
-    state.ball.color=COLORS[state.currentBall % COLORS.length];
-    resetBall();
-  }
 
   function startMatch(){
     refreshSlots();
     document.getElementById('winnerPopup').classList.add('hidden');
-    state.started=true; state.time=0; genPegField(); carveCorridors(); addStars();
+    state.started=true; state.time=0; state.resultSlot=null;
     state.pot=state.players*state.stake;
     document.getElementById('winnerVal').textContent='—';
     if(state.shared){
       state.ballValues=generateBallValues(Math.round(state.pot*0.9),20);
       state.ballValuesMax=Math.max(...state.ballValues);
-      state.currentBall=0;
       state.slots.forEach(s=>s.win=0);
       document.getElementById('potVal').textContent=state.ballValues.reduce((a,b)=>a+b,0);
-      setupSharedBall();
+      const minR=8, maxR=12; const n=state.ballValues.length; state.balls=[];
+      for(let i=0;i<n;i++){
+        const value=state.ballValues[i];
+        const r=minR + (maxR-minR)*(value/state.ballValuesMax);
+        const color=COLORS[i % COLORS.length];
+        const x=20 + (i/(n-1||1))*(W-40);
+        state.balls.push({x,y:60,vx:(Math.random()*2-1)*1.8,vy:0,r,color,value,stuckCounter:0,landed:false});
+      }
+      state.ball.r=Math.max(...state.balls.map(b=>b.r));
     }else{
       document.getElementById('potVal').textContent=state.pot;
       resetBall();
     }
+    genPegField(); carveCorridors(); addStars();
     setStatus('Game started! Obstacles regenerate randomly.');
     if(state.mode==='local') startBtn.style.display='none';
   }
@@ -397,78 +396,79 @@
 
   // ========================= Physics =========================
   function step(dt){
-    if(!state.started || state.resultSlot!==null) return;
-    const b=state.ball;
+    if(!state.started) return;
     const groundY = H - 10;
-    b.vy = Math.min(state.maxVy, b.vy + state.gravity);
-    b.vx *= (1 - state.fric);
-    b.x += b.vx; b.y += b.vy;
+    const balls = state.shared ? state.balls : [state.ball];
+    for(const b of balls){
+      if(state.shared && b.landed) continue;
+      b.vy = Math.min(state.maxVy, b.vy + state.gravity);
+      b.vx *= (1 - state.fric);
+      b.x += b.vx; b.y += b.vy;
 
-    // walls
-    if (b.x - b.r < 10){ b.x = 10 + b.r; b.vx = Math.abs(b.vx)*0.85; SFX.bounce(); }
-    if (b.x + b.r > W-10){ b.x = W-10 - b.r; b.vx = -Math.abs(b.vx)*0.85; SFX.bounce(); }
-    if (b.y - b.r < 10){ b.y = 10 + b.r; b.vy *= -state.bounce; SFX.bounce(); }
+      // walls
+      if (b.x - b.r < 10){ b.x = 10 + b.r; b.vx = Math.abs(b.vx)*0.85; SFX.bounce(); }
+      if (b.x + b.r > W-10){ b.x = W-10 - b.r; b.vx = -Math.abs(b.vx)*0.85; SFX.bounce(); }
+      if (b.y - b.r < 10){ b.y = 10 + b.r; b.vy *= -state.bounce; SFX.bounce(); }
 
-    // obstacles
-    for(const o of state.obstacles){
-      if(o.type==='star') o.angle += o.spin;
-      if (collideCircle(b, o)) {
-        SFX.bounce();
+      // obstacles
+      for(const o of state.obstacles){
+        if(o.type==='star') o.angle += o.spin;
+        if (collideCircle(b, o)) {
+          SFX.bounce();
+        }
       }
-    }
 
-    // shake if stuck
-    if (Math.abs(b.vx)+Math.abs(b.vy) < 0.1 && b.y + b.r < groundY - 5){
-      state.stuckCounter++;
-      if(state.stuckCounter > 60){
-        b.vx += (Math.random()*2-1)*2;
-        b.vy -= Math.random()*2;
-        state.stuckCounter=0;
+      // shake if stuck
+      if (Math.abs(b.vx)+Math.abs(b.vy) < 0.1 && b.y + b.r < groundY - 5){
+        b.stuckCounter++;
+        if(b.stuckCounter > 60){
+          b.vx += (Math.random()*2-1)*2;
+          b.vy -= Math.random()*2;
+          b.stuckCounter=0;
+        }
+      }else{
+        b.stuckCounter=0;
       }
-    }else{
-      state.stuckCounter=0;
-    }
 
-    // ground / slots
-    if (b.y + b.r >= groundY){
-      b.y = groundY - b.r; b.vy *= -state.bounce;
-      if (Math.abs(b.vy) < 1.1){
-        const idx = pickSlotFromX(b.x);
-        state.resultSlot = idx;
-        const winner = state.slots[idx];
-        if(state.shared){
-          const winAmt = state.ball.value;
-          winner.win = (winner.win||0) + winAmt;
-          document.getElementById('winnerVal').textContent = `${winner.name} +${winAmt} TPC`;
-          setStatus(`Ball ${state.currentBall+1}/${state.ballValues.length}: ${winner.name} +${winAmt} TPC`);
-          SFX.win();
-          coinConfetti(20);
-          if(winner.accountId){
-            fbApi.depositAccount(winner.accountId, winAmt, { game: 'fallingball-win' });
-            if(winner.telegramId) fbApi.addTransaction(winner.telegramId, 0, 'win', { game: 'fallingball', players: state.players, accountId: winner.accountId });
-          }
-          state.currentBall++;
-          if(state.currentBall < state.ballValues.length){
-            setupSharedBall();
+      // ground / slots
+      if (b.y + b.r >= groundY){
+        b.y = groundY - b.r; b.vy *= -state.bounce;
+        if (Math.abs(b.vy) < 1.1 && (!state.shared || !b.landed)){
+          const idx = pickSlotFromX(b.x);
+          if(!state.shared) state.resultSlot = idx;
+          const winner = state.slots[idx];
+          if(state.shared){
+            const winAmt = b.value;
+            b.landed = true;
+            winner.win = (winner.win||0) + winAmt;
+            document.getElementById('winnerVal').textContent = `${winner.name} +${winAmt} TPC`;
+            setStatus(`${winner.name} +${winAmt} TPC`);
+            SFX.win();
+            coinConfetti(20);
+            if(winner.accountId){
+              fbApi.depositAccount(winner.accountId, winAmt, { game: 'fallingball-win' });
+              if(winner.telegramId) fbApi.addTransaction(winner.telegramId, 0, 'win', { game: 'fallingball', players: state.players, accountId: winner.accountId });
+            }
+            if(state.balls.every(ball=>ball.landed)){
+              awardDevShare(state.pot);
+              setTimeout(()=>showResultsPopup(),2000);
+            }
           }else{
+            const winAmt = Math.round(state.pot*0.91);
+            const fee = state.pot - winAmt;
+            document.getElementById('winnerVal').textContent = `${winner.name} +${winAmt} TPC`;
+            setStatus(`Winner: ${winner.name}. Payout ${winAmt} TPC (-${fee} dev)`);
+            state.slots.forEach(s=>s.el.classList.remove('winner'));
+            winner.el.classList.add('winner');
+            SFX.win();
+            coinConfetti(50);
+            if(winner.accountId){
+              fbApi.depositAccount(winner.accountId, winAmt, { game: 'fallingball-win' });
+              if(winner.telegramId) fbApi.addTransaction(winner.telegramId, 0, 'win', { game: 'fallingball', players: state.players, accountId: winner.accountId });
+            }
             awardDevShare(state.pot);
-            setTimeout(()=>showResultsPopup(),2000);
+            setTimeout(()=>showWinnerPopup(winner.name),2000);
           }
-        }else{
-          const winAmt = Math.round(state.pot*0.91);
-          const fee = state.pot - winAmt;
-          document.getElementById('winnerVal').textContent = `${winner.name} +${winAmt} TPC`;
-          setStatus(`Winner: ${winner.name}. Payout ${winAmt} TPC (-${fee} dev)`);
-          state.slots.forEach(s=>s.el.classList.remove('winner'));
-          winner.el.classList.add('winner');
-          SFX.win();
-          coinConfetti(50);
-          if(winner.accountId){
-            fbApi.depositAccount(winner.accountId, winAmt, { game: 'fallingball-win' });
-            if(winner.telegramId) fbApi.addTransaction(winner.telegramId, 0, 'win', { game: 'fallingball', players: state.players, accountId: winner.accountId });
-          }
-          awardDevShare(state.pot);
-          setTimeout(()=>showWinnerPopup(winner.name),2000);
         }
       }
     }
@@ -523,27 +523,44 @@
       }
     }
   }
-  function drawSlotsGuide(){ const pad=30; const usable=W-2*pad; const w = usable / state.players; const bottom = H-10; const top = bottom-40; for(let i=0;i<state.players;i++){ const x1=pad+i*w; ctx.fillStyle='rgba(0,0,0,0.25)'; ctx.fillRect(x1, top, w-2, bottom-top); if (state.resultSlot===i){ ctx.fillStyle='rgba(250,204,21,0.4)'; ctx.fillRect(x1, top, w-2, bottom-top); ctx.strokeStyle='rgba(250,204,21,0.9)'; ctx.lineWidth=3; ctx.strokeRect(x1+1, top, w-4, bottom-top); } } }
-  function drawBall(){
-    const b=state.ball;
-    ctx.fillStyle='rgba(0,0,0,0.28)';
+  function drawCartoonBubble(ctx,x,y,r,color){
     ctx.beginPath();
-    ctx.ellipse(b.x, b.y+b.r+6, b.r*1.2, b.r*0.5, 0,0,Math.PI*2);
+    ctx.arc(x,y,r,0,Math.PI*2);
+    ctx.fillStyle=color;
     ctx.fill();
-    ctx.fillStyle=b.color;
+    ctx.lineWidth=Math.max(2,r*0.1);
+    ctx.strokeStyle='#000';
+    ctx.lineJoin='round';
+    ctx.lineCap='round';
+    ctx.stroke();
+    ctx.fillStyle='rgba(255,255,255,0.6)';
     ctx.beginPath();
-    ctx.arc(b.x,b.y,b.r,0,Math.PI*2);
+    ctx.arc(x - r*0.3, y - r*0.3, r*0.25, 0, Math.PI*2);
     ctx.fill();
-    if(b.value){
-      ctx.fillStyle='#000';
-      ctx.font=`${Math.max(10,b.r)}px sans-serif`;
-      ctx.textAlign='center';
-      ctx.textBaseline='middle';
-      ctx.fillText(b.value, b.x, b.y);
+    ctx.beginPath();
+    ctx.arc(x - r*0.45, y - r*0.45, r*0.07, 0, Math.PI*2);
+    ctx.fill();
+  }
+  function drawSlotsGuide(){ const pad=30; const usable=W-2*pad; const w = usable / state.players; const bottom = H-10; const top = bottom-40; for(let i=0;i<state.players;i++){ const x1=pad+i*w; ctx.fillStyle='rgba(0,0,0,0.25)'; ctx.fillRect(x1, top, w-2, bottom-top); if (!state.shared && state.resultSlot===i){ ctx.fillStyle='rgba(250,204,21,0.4)'; ctx.fillRect(x1, top, w-2, bottom-top); ctx.strokeStyle='rgba(250,204,21,0.9)'; ctx.lineWidth=3; ctx.strokeRect(x1+1, top, w-4, bottom-top); } } }
+  function drawBalls(){
+    const balls = state.shared ? state.balls : [state.ball];
+    for(const b of balls){
+      ctx.fillStyle='rgba(0,0,0,0.28)';
+      ctx.beginPath();
+      ctx.ellipse(b.x, b.y+b.r+6, b.r*1.2, b.r*0.5, 0,0,Math.PI*2);
+      ctx.fill();
+      drawCartoonBubble(ctx,b.x,b.y,b.r,b.color);
+      if(b.value){
+        ctx.fillStyle='#000';
+        ctx.font=`${Math.max(8,b.r*0.8)}px sans-serif`;
+        ctx.textAlign='center';
+        ctx.textBaseline='middle';
+        ctx.fillText(b.value, b.x, b.y);
+      }
     }
   }
 
-  function frame(ts){ const dt = Math.min(33, ts - state.time); state.time=ts; step(dt/16.6667); ctx.clearRect(0,0,W,H); drawObstacles(); drawSlotsGuide(); drawBall(); requestAnimationFrame(frame); }
+  function frame(ts){ const dt = Math.min(33, ts - state.time); state.time=ts; step(dt/16.6667); ctx.clearRect(0,0,W,H); drawObstacles(); drawSlotsGuide(); drawBalls(); requestAnimationFrame(frame); }
   requestAnimationFrame(frame);
 
   // ========================= Init =========================
