@@ -147,6 +147,18 @@
     o.start(t); o.stop(t+dur+0.02);
   }
 
+  function matchSound(size){
+    if(!audioCtx||muted) return;
+    const t=audioCtx.currentTime, o=audioCtx.createOscillator(), g=audioCtx.createGain();
+    o.type='square';
+    o.frequency.value = size>=5 ? 1100 : 850;
+    g.gain.setValueAtTime(0, t);
+    g.gain.linearRampToValueAtTime(0.25, t+0.01);
+    g.gain.exponentialRampToValueAtTime(0.0001, t+0.3);
+    o.connect(g); g.connect(audioCtx.destination);
+    o.start(t); o.stop(t+0.32);
+  }
+
   // ===== Board model =====
   function makeCell(color){return {c:color};}
   const randColor=()=>COLORS[(Math.random()*COLORS.length)|0];
@@ -429,8 +441,8 @@
           const a=Math.random()*Math.PI*2, sp=(0.6+Math.random()*1.2)*csize/2;
           parts.push({x:c.x,y:c.y,vx:Math.cos(a)*sp,vy:Math.sin(a)*sp,g:csize*0.8,r:Math.max(2,csize*0.08)});
         }
-        fx.push({kind:'burst',t0:performance.now(),dur:260,parts});
-        fx.push({kind:'pop',t0:performance.now(),dur:200,x:c.x,y:c.y,r:csize*0.38,color});
+        fx.push({kind:'burst',t0:performance.now(),dur:360,parts});
+        fx.push({kind:'pop',t0:performance.now(),dur:300,x:c.x,y:c.y,r:csize*0.38,color});
       },
       floatScore(cx,cy,pts){
         const c=centerOfCell(cx,cy);
@@ -474,7 +486,12 @@
         const match=findMatches(game.board);
         if(!match){ game.busy=false; return; }
         chain++;
-        if(isUser){ pop(700+chain*80, 0.06, 0.2); }
+        if(isUser){
+          const largest = Math.max(...match.clusters.map(cl=>cl.cells.length));
+          if(largest >= 5) matchSound(5);
+          else if(largest === 4) matchSound(4);
+          else pop(700+chain*80, 0.06, 0.2);
+        }
         const res=applyMatches(game.board, match, (cx,cy,c)=>fx.burstAt(cx,cy,c), (x,fy,ty,c)=>fx.fall(x,fy,ty,c));
         if(match.clusters && match.clusters.length){
           const biggest = match.clusters.reduce((a,b)=> b.cells.length>a.cells.length?b:a, match.clusters[0]);
@@ -483,7 +500,7 @@
           fx.floatScore(mid.x, mid.y, pts);
         }
         game.score += res.gained;
-        setTimeout(step, 550);
+        setTimeout(step, 700);
       })();
     }
 
