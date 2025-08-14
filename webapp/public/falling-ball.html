@@ -160,7 +160,7 @@
     ballValues:[],
     ballValuesMax:0,
     balls:[],
-    ball:{ x:0, y:0, vx:0, vy:0, r:12, value:0, color:'#facc15', stuckCounter:0 },
+    ball:{ x:0, y:0, vx:0, vy:0, r:12, value:0, color:'#facc15', stuckCounter:0, stuckBox:null },
     gravity:0.58,
     bounce:0.78,
     fric:0.003,
@@ -205,6 +205,18 @@
       if(devAccountId2) ops.push(fbApi.depositAccount(devAccountId2, Math.round(total*0.02), {game:'fallingball-dev2'}));
     }else if(devAccountId){
       ops.push(fbApi.depositAccount(devAccountId, Math.round(total*0.1), {game:'fallingball-dev'}));
+    }
+    if(ops.length){ try{ await Promise.all(ops); }catch{} }
+  }
+
+  async function finalizeSharedPayouts(){
+    const ops=[];
+    for(const s of state.slots){
+      const win=s.win||0;
+      if(win>0 && s.accountId){
+        ops.push(fbApi.depositAccount(s.accountId, win, { game: 'fallingball-win' }));
+        if(s.telegramId) ops.push(fbApi.addTransaction(s.telegramId, 0, 'win', { game: 'fallingball', players: state.players, accountId: s.accountId }));
+      }
     }
     if(ops.length){ try{ await Promise.all(ops); }catch{} }
   }
@@ -330,7 +342,7 @@
     }
   }
 
-  function resetBall(){ state.ball.x=W*0.5; state.ball.y=60; state.ball.vx=(Math.random()*2-1)*1.8; state.ball.vy=0; state.ball.stuckCounter=0; state.resultSlot=null; }
+  function resetBall(){ state.ball.x=W*0.5; state.ball.y=60; state.ball.vx=(Math.random()*2-1)*1.8; state.ball.vy=0; state.ball.stuckCounter=0; state.ball.stuckBox={minX:state.ball.x,maxX:state.ball.x,minY:state.ball.y,maxY:state.ball.y}; state.resultSlot=null; }
 
   const COLORS=['#f87171','#34d399','#60a5fa','#fbbf24','#a78bfa','#f472b6','#38bdf8','#facc15'];
   function generateBallValues(total,count){
@@ -368,7 +380,7 @@
         const r=minR + (maxR-minR)*(value/state.ballValuesMax);
         const color=COLORS[i % COLORS.length];
         const x=20 + (i/(n-1||1))*(W-40);
-        state.balls.push({x,y:60,vx:(Math.random()*2-1)*1.8,vy:0,r,color,value,stuckCounter:0,landed:false});
+        state.balls.push({x,y:60,vx:(Math.random()*2-1)*1.8,vy:0,r,color,value,stuckCounter:0,stuckBox:{minX:x,maxX:x,minY:60,maxY:60},landed:false});
       }
       state.balls.sort((a,b)=>a.value-b.value);
       const batchSize=Math.ceil(state.balls.length/4);
@@ -433,20 +445,38 @@
         }
       }
 
-      // rethrow if stuck for ~1s
-      if (Math.abs(b.vx)+Math.abs(b.vy) < 0.1 && b.y + b.r < groundY - 5){
-        b.stuckCounter++;
-        if(b.stuckCounter > 60){
-          b.x = 20 + Math.random()*(W-40);
-          b.y = 60;
-          b.vx = (Math.random()*2-1)*1.8;
-          b.vy = 0;
-          b.stuckCounter = 0;
-          b.landed = false;
-          b.released = true;
+      // detect if ball is stuck or jittering in a tiny area
+      if (b.y + b.r < groundY - 5){
+        if(!b.stuckBox){ b.stuckBox={minX:b.x,maxX:b.x,minY:b.y,maxY:b.y}; }
+        b.stuckBox.minX = Math.min(b.stuckBox.minX, b.x);
+        b.stuckBox.maxX = Math.max(b.stuckBox.maxX, b.x);
+        b.stuckBox.minY = Math.min(b.stuckBox.minY, b.y);
+        b.stuckBox.maxY = Math.max(b.stuckBox.maxY, b.y);
+        const boxW = b.stuckBox.maxX - b.stuckBox.minX;
+        const boxH = b.stuckBox.maxY - b.stuckBox.minY;
+        const speed = Math.abs(b.vx)+Math.abs(b.vy);
+        const jitter = boxW < 8 && boxH < 8 && speed > 2;
+        const frozen = speed < 0.1;
+        if(jitter || frozen){
+          b.stuckCounter++;
+          const limit = jitter ? 120 : 60;
+          if(b.stuckCounter > limit){
+            b.x = 20 + Math.random()*(W-40);
+            b.y = 60;
+            b.vx = (Math.random()*2-1)*1.8;
+            b.vy = 0;
+            b.stuckCounter = 0;
+            b.stuckBox = {minX:b.x,maxX:b.x,minY:b.y,maxY:b.y};
+            b.landed = false;
+            b.released = true;
+          }
+        }else{
+          b.stuckCounter=0;
+          b.stuckBox = {minX:b.x,maxX:b.x,minY:b.y,maxY:b.y};
         }
       }else{
         b.stuckCounter=0;
+        b.stuckBox = {minX:b.x,maxX:b.x,minY:b.y,maxY:b.y};
       }
 
       // ground / slots
@@ -464,11 +494,8 @@
             setStatus(`${winner.name} +${winAmt} TPC`);
             SFX.win();
             coinConfetti(20);
-            if(winner.accountId){
-              fbApi.depositAccount(winner.accountId, winAmt, { game: 'fallingball-win' });
-              if(winner.telegramId) fbApi.addTransaction(winner.telegramId, 0, 'win', { game: 'fallingball', players: state.players, accountId: winner.accountId });
-            }
             if(state.balls.every(ball=>ball.landed)){
+              finalizeSharedPayouts();
               awardDevShare(state.pot);
               setTimeout(()=>showResultsPopup(),2000);
             }
