@@ -401,39 +401,30 @@
           const COLORS = {
             bg: '#ffffff',
             wall: '#000000',
-            paddle: '#ff6b6b',
-            ball: '#ffffff',
+            paddle: '#00bfff',
+            ball: '#5aa2ff',
             text: '#ffffff',
             power: '#ffa600',
             danger: '#ef476f'
           };
           const POWERUPS = ['multiball', 'fireball', 'wide', 'slow', 'x2'];
           const POWERUP_COLORS = {
-            multiball: '#9b59b6',
-            fireball: '#e74c3c',
-            wide: '#1abc9c',
-            slow: '#3498db',
-            x2: '#f1c40f'
+            multiball: '#a78bfa',
+            fireball: '#ff5a6b',
+            wide: '#34d399',
+            slow: '#5aa2ff',
+            x2: '#d4af37'
           };
           const POINTS = { standard: 10, tough: 20, explosive: 10 };
 
           const BRICK_COLORS = [
-            '#87ceeb',
-            '#98ff98',
+            '#00bfff',
+            '#ff7f00',
+            '#ff1493',
+            '#ffd700',
             '#32cd32',
-            '#ffff00',
-            '#ffb6c1',
-            '#ff4040',
-            '#ff69b4',
-            '#800080',
             '#8a2be2',
-            '#add8e6',
-            '#008080',
-            '#00fa9a',
-            '#90ee90',
-            '#ffa500',
-            '#ff0000',
-            '#ffffe0'
+            '#ff69b4'
           ];
 
           const drawBall = (ctx, x, y, r, color) => {
@@ -441,38 +432,43 @@
             ctx.arc(x, y, r, 0, Math.PI * 2);
             ctx.fillStyle = color;
             ctx.fill();
-            const grad = ctx.createLinearGradient(x - r, y + r, x + r, y - r);
-            grad.addColorStop(0, 'rgba(255,255,255,0.4)');
-            grad.addColorStop(0.5, 'rgba(255,255,255,0)');
-            grad.addColorStop(1, 'rgba(0,0,0,0.4)');
-            ctx.fillStyle = grad;
-            ctx.beginPath();
-            ctx.arc(x, y, r, 0, Math.PI * 2);
-            ctx.fill();
-            ctx.lineWidth = Math.max(2, r * 0.2);
-            ctx.strokeStyle = 'rgba(0,0,0,0.6)';
+            ctx.lineWidth = Math.max(2, r * 0.1);
+            ctx.strokeStyle = '#000';
+            ctx.lineJoin = 'round';
+            ctx.lineCap = 'round';
             ctx.stroke();
+            ctx.fillStyle = 'rgba(255,255,255,0.6)';
+            ctx.beginPath();
+            ctx.arc(x - r * 0.3, y - r * 0.3, r * 0.25, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.beginPath();
+            ctx.arc(x - r * 0.45, y - r * 0.45, r * 0.07, 0, Math.PI * 2);
+            ctx.fill();
           };
 
           const drawBlock = (ctx, x, y, w, h, color) => {
             const r = Math.min(w, h);
             ctx.fillStyle = color;
             ctx.fillRect(x, y, w, h);
-            const gradHi = ctx.createLinearGradient(x, y + h, x + w, y);
-            gradHi.addColorStop(0, 'rgba(255,255,255,0.3)');
-            gradHi.addColorStop(1, 'rgba(255,255,255,0)');
-            ctx.fillStyle = gradHi;
-            ctx.fillRect(x, y, w, h);
-            const gradShadow = ctx.createLinearGradient(x + w, y, x, y + h);
-            gradShadow.addColorStop(0, 'rgba(0,0,0,0.3)');
-            gradShadow.addColorStop(1, 'rgba(0,0,0,0)');
-            ctx.fillStyle = gradShadow;
-            ctx.fillRect(x, y, w, h);
             ctx.lineWidth = Math.max(2, r * 0.1);
             ctx.strokeStyle = 'rgba(0,0,0,0.6)';
             ctx.lineJoin = 'round';
             ctx.lineCap = 'round';
             ctx.strokeRect(x, y, w, h);
+            ctx.save();
+            ctx.beginPath();
+            ctx.rect(x, y, w, h);
+            ctx.clip();
+            const sizeLargeW = Math.floor(w * 0.9);
+            const sizeLargeH = Math.floor(h * 0.9);
+            const sizeSmallW = Math.floor(w * 0.5);
+            const sizeSmallH = Math.floor(h * 0.5);
+            const extra = Math.floor(r * 0.05);
+            ctx.fillStyle = 'rgba(255,255,255,0.25)';
+            ctx.fillRect(x, y + h - sizeLargeH, sizeLargeW + extra, sizeLargeH);
+            ctx.fillStyle = 'rgba(255,255,255,0.5)';
+            ctx.fillRect(x, y + h - sizeSmallH, sizeSmallW + extra, sizeSmallH);
+            ctx.restore();
           };
 
           const state = {
@@ -713,27 +709,11 @@
               const color = POWERUP_COLORS[p.kind] || COLORS.power;
               drawBall(ctx, p.x, p.y, 7, color);
             }
-            drawBlock(
-              ctx,
-              b.paddle.x,
-              b.paddle.y,
-              b.paddle.w,
-              b.paddle.h,
-              COLORS.paddle
-            );
+            let paddleColor = COLORS.paddle;
             if (b.activePowers.length) {
-              ctx.fillStyle = COLORS.text;
-              ctx.font = '10px system-ui';
-              ctx.textAlign = 'center';
-              ctx.textBaseline = 'middle';
-              ctx.fillText(
-                b.activePowers.join(' '),
-                b.paddle.x + b.paddle.w / 2,
-                b.paddle.y + b.paddle.h / 2
-              );
-              ctx.textAlign = 'start';
-              ctx.textBaseline = 'alphabetic';
+              paddleColor = POWERUP_COLORS[b.activePowers[0]] || COLORS.paddle;
             }
+            drawBlock(ctx, b.paddle.x, b.paddle.y, b.paddle.w, b.paddle.h, paddleColor);
             for (const ball of b.balls) {
               let color = COLORS.ball;
               if (ball.fire) color = POWERUP_COLORS.fireball;
@@ -753,7 +733,7 @@
               }, ms);
             };
             if (kind === 'multiball') {
-              addLabel('MULTI', 10000);
+              addLabel('multiball', 10000);
               const base = b.balls[0] || {
                 x: VIEW_W / 2,
                 y: VIEW_H - 100,
@@ -776,7 +756,7 @@
               }, 10000);
             }
             if (kind === 'fireball') {
-              addLabel('FIRE', 5000);
+              addLabel('fireball', 5000);
               b.balls.forEach((ball) => (ball.fire = true));
               setTimeout(
                 () => b.balls.forEach((ball) => (ball.fire = false)),
@@ -784,17 +764,17 @@
               );
             }
             if (kind === 'wide') {
-              addLabel('WIDE', 10000);
+              addLabel('wide', 10000);
               b.paddle.w = Math.min(150, b.paddle.w + 40);
               setTimeout(() => (b.paddle.w = 90), 10000);
             }
             if (kind === 'slow') {
-              addLabel('SLOW', 5000);
+              addLabel('slow', 5000);
               b.slow = true;
               setTimeout(() => (b.slow = false), 5000);
             }
             if (kind === 'x2') {
-              addLabel('2X', 5000);
+              addLabel('x2', 5000);
               b.mult = 2;
               setTimeout(() => (b.mult = 1), 5000);
             }
