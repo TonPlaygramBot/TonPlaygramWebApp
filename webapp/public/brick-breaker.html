@@ -407,6 +407,14 @@
             power: '#ffa600',
             danger: '#ef476f'
           };
+          const ABILITY_COLORS = {
+            multiball: '#5aa2ff',
+            fireball: '#ff6b00',
+            wide: '#32cd32',
+            slow: '#8a2be2',
+            x2: '#d4af37',
+            normal: COLORS.ball
+          };
           const POWERUPS = ['multiball', 'fireball', 'wide', 'slow', 'x2'];
           const POINTS = { standard: 10, tough: 20, explosive: 10 };
 
@@ -429,39 +437,55 @@
             '#ffffe0'
           ];
 
-          const BALL_IMAGES = {
-            normal: (() => {
-              const img = new Image();
-              img.src = '/assets/icons/white_ball.svg';
-              return img;
-            })(),
-            fire: (() => {
-              const img = new Image();
-              img.src = '/assets/icons/orange_ball.svg';
-              return img;
-            })()
-          };
-
+          function shadeColor(color, percent) {
+            const num = parseInt(color.slice(1), 16);
+            const amt = Math.round(2.55 * percent);
+            const R = (num >> 16) + amt;
+            const G = ((num >> 8) & 0x00ff) + amt;
+            const B = (num & 0x0000ff) + amt;
+            return (
+              '#' +
+              (
+                0x1000000 +
+                (R < 255 ? (R < 0 ? 0 : R) : 255) * 0x10000 +
+                (G < 255 ? (G < 0 ? 0 : G) : 255) * 0x100 +
+                (B < 255 ? (B < 0 ? 0 : B) : 255)
+              )
+                .toString(16)
+                .slice(1)
+            );
+          }
           const drawBlock = (ctx, x, y, w, h, color) => {
             const r = Math.min(w, h);
-            ctx.fillStyle = color;
+            const grad = ctx.createLinearGradient(x, y + h, x + w, y);
+            grad.addColorStop(0, shadeColor(color, -20));
+            grad.addColorStop(1, shadeColor(color, 20));
+            ctx.fillStyle = grad;
             ctx.fillRect(x, y, w, h);
             ctx.lineWidth = Math.max(2, r * 0.1);
             ctx.strokeStyle = 'rgba(0,0,0,0.6)';
             ctx.lineJoin = 'round';
             ctx.lineCap = 'round';
             ctx.strokeRect(x, y, w, h);
-            ctx.save();
+          };
+          const drawBall = (ctx, x, y, r, color) => {
+            const grad = ctx.createLinearGradient(x - r, y + r, x + r, y - r);
+            grad.addColorStop(0, shadeColor(color, -20));
+            grad.addColorStop(1, shadeColor(color, 20));
+            ctx.fillStyle = grad;
             ctx.beginPath();
-            ctx.rect(x, y, w, h);
-            ctx.clip();
-            const largeH = Math.floor(h * 0.35);
-            const smallH = Math.floor(h * 0.2);
-            ctx.fillStyle = 'rgba(255,255,255,0.25)';
-            ctx.fillRect(x, y, w, largeH);
-            ctx.fillStyle = 'rgba(255,255,255,0.5)';
-            ctx.fillRect(x, y, w, smallH);
-            ctx.restore();
+            ctx.arc(x, y, r, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.lineWidth = Math.max(1, r * 0.1);
+            ctx.strokeStyle = 'rgba(0,0,0,0.6)';
+            ctx.stroke();
+          };
+          const getPaddleAbilityText = (b) => {
+            if (b.balls.some((ball) => ball.fire)) return 'FIRE';
+            if (b.slow) return 'SLOW';
+            if (b.paddle.w > 90) return 'WIDE';
+            if (b.mult > 1) return 'X2';
+            return '';
           };
 
           const state = {
@@ -698,23 +722,8 @@
               }
             }
             for (const p of b.powerups) {
-              ctx.fillStyle = COLORS.power;
-              ctx.beginPath();
-              ctx.arc(p.x, p.y, 7, 0, Math.PI * 2);
-              ctx.fill();
-              ctx.fillStyle = COLORS.bg;
-              ctx.font = '10px system-ui';
-              ctx.textAlign = 'center';
-              const tag =
-                {
-                  multiball: 'M',
-                  fireball: 'F',
-                  wide: 'W',
-                  slow: 'S',
-                  x2: '2'
-                }[p.kind] || '?';
-              ctx.fillText(tag, p.x, p.y + 3);
-              ctx.textAlign = 'start';
+              const col = ABILITY_COLORS[p.kind] || COLORS.power;
+              drawBall(ctx, p.x, p.y, 7, col);
             }
             drawBlock(
               ctx,
@@ -724,9 +733,24 @@
               b.paddle.h,
               COLORS.paddle
             );
+            const label = getPaddleAbilityText(b);
+            if (label) {
+              ctx.fillStyle = COLORS.text;
+              ctx.font = '10px system-ui';
+              ctx.textAlign = 'center';
+              ctx.fillText(
+                label,
+                b.paddle.x + b.paddle.w / 2,
+                b.paddle.y + b.paddle.h / 2 + 3
+              );
+              ctx.textAlign = 'start';
+            }
             for (const ball of b.balls) {
-              const img = ball.fire ? BALL_IMAGES.fire : BALL_IMAGES.normal;
-              ctx.drawImage(img, ball.x - ball.r, ball.y - ball.r, ball.r * 2, ball.r * 2);
+              let color = ABILITY_COLORS.normal;
+              if (ball.fire) color = ABILITY_COLORS.fireball;
+              else if (b.slow) color = ABILITY_COLORS.slow;
+              else if (b.mult > 1) color = ABILITY_COLORS.x2;
+              drawBall(ctx, ball.x, ball.y, ball.r, color);
             }
           }
 
