@@ -27,7 +27,7 @@ test('seat and unseat endpoints update lobby', { concurrency: false, timeout: 20
 
   const env = {
     ...process.env,
-    PORT: '3202',
+    PORT: '3206',
     MONGO_URI: 'memory',
     BOT_TOKEN: 'dummy',
     SKIP_WEBAPP_BUILD: '1'
@@ -35,26 +35,26 @@ test('seat and unseat endpoints update lobby', { concurrency: false, timeout: 20
 
   const server = await startServer(env);
   try {
-    let res = await fetch('http://localhost:3202/api/snake/table/seat', {
+    let res = await fetch('http://localhost:3206/api/snake/table/seat', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ tableId: 'snake-2', playerId: 'p100', name: 'Tester' })
     });
     assert.equal(res.status, 200);
 
-    res = await fetch('http://localhost:3202/api/snake/lobby/snake-2');
+    res = await fetch('http://localhost:3206/api/snake/lobby/snake-2');
     assert.equal(res.status, 200);
     let lobby = await res.json();
     assert.ok(lobby.players.some(p => p.id === 'p100' && p.name === 'Tester'));
 
-    res = await fetch('http://localhost:3202/api/snake/table/unseat', {
+    res = await fetch('http://localhost:3206/api/snake/table/unseat', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ tableId: 'snake-2', playerId: 'p100' })
     });
     assert.equal(res.status, 200);
 
-    res = await fetch('http://localhost:3202/api/snake/lobby/snake-2');
+    res = await fetch('http://localhost:3206/api/snake/lobby/snake-2');
     assert.equal(res.status, 200);
     lobby = await res.json();
     assert.ok(!lobby.players.some(p => p.id === 'p100'));

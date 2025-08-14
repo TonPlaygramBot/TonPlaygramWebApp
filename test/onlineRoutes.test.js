@@ -27,7 +27,7 @@ test('online routes reflect pinged users', { concurrency: false }, async () => {
 
   const env = {
     ...process.env,
-    PORT: '3202',
+    PORT: '3205',
     MONGO_URI: 'memory',
     BOT_TOKEN: 'dummy',
     SKIP_WEBAPP_BUILD: '1',
@@ -35,7 +35,7 @@ test('online routes reflect pinged users', { concurrency: false }, async () => {
   };
   const server = await startServer(env);
   try {
-    const pingRes = await fetch('http://localhost:3202/api/online/ping', {
+    const pingRes = await fetch('http://localhost:3205/api/online/ping', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ playerId: 'player1', status: 'online' })
@@ -44,12 +44,12 @@ test('online routes reflect pinged users', { concurrency: false }, async () => {
     const ping = await pingRes.json();
     assert.equal(ping.success, true);
 
-    const countRes = await fetch('http://localhost:3202/api/online/count');
+    const countRes = await fetch('http://localhost:3205/api/online/count');
     assert.equal(countRes.status, 200);
     const count = await countRes.json();
     assert.equal(count.count, 1);
 
-    const listRes = await fetch('http://localhost:3202/api/online/list');
+    const listRes = await fetch('http://localhost:3205/api/online/list');
     assert.equal(listRes.status, 200);
     const list = await listRes.json();
     assert.deepEqual(list.users, [{ id: 'player1', status: 'online' }]);
