@@ -52,6 +52,14 @@
         display: flex;
         flex-direction: column;
       }
+      .tetris-grid-bg{
+        background:
+          repeating-linear-gradient(45deg,rgba(255,255,255,0.03) 0 2px,transparent 2px 4px),
+          radial-gradient(circle at center,#1a2450 0%,#0e1430 80%);
+        background-size:100px 100px,cover;
+        background-position:0 0,center;
+        animation:canvasDepthMove 30s linear infinite;
+      }
       .card {
         background: linear-gradient(180deg, #0f1530, #0a0f24);
         border: 1px solid #1f2a58;
@@ -140,10 +148,6 @@
         width: 100%;
         height: 100%;
         border-radius: 10px;
-        background: repeating-linear-gradient(45deg,rgba(255,255,255,0.03) 0 2px,transparent 2px 4px), radial-gradient(circle at center,#1a2450 0%,#0e1430 80%);
-        background-size: 100px 100px, cover;
-        background-position: 0 0, center;
-        animation: canvasDepthMove 30s linear infinite;
         display: block;
         image-rendering: pixelated;
         filter: saturate(1.2);
@@ -184,10 +188,6 @@
         height: 100%;
         display: block;
         border-radius: 10px;
-        background: repeating-linear-gradient(45deg,rgba(255,255,255,0.03) 0 2px,transparent 2px 4px), radial-gradient(circle at center,#1a2450 0%,#0e1430 80%);
-        background-size: 100px 100px, cover;
-        background-position: 0 0, center;
-        animation: canvasDepthMove 30s linear infinite;
         touch-action: none;
         image-rendering: pixelated;
         filter: saturate(1.2);
@@ -362,7 +362,7 @@
             </h3>
             <canvas
               id="userCanvas"
-              class="main"
+              class="main tetris-grid-bg"
               width="720"
               height="1120"
             ></canvas>
@@ -665,6 +665,7 @@
             wrap.className = 'mini';
             wrap.innerHTML = `<h3><img class="avatar" src="${avatar}" alt="avatar"/>${label}</h3>`;
             const cv = document.createElement('canvas');
+            cv.className = 'tetris-grid-bg';
             cv.width = CANVAS_W;
             cv.height = CANVAS_H;
             const ctx = cv.getContext('2d');

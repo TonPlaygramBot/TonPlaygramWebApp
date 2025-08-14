@@ -12,12 +12,15 @@
     html,body{ height:100%; margin:0; }
     body{ background:var(--bg) fixed; background-color:#0c1020; color:var(--ink); font-family:Inter,system-ui,Segoe UI,Roboto,Arial,sans-serif; }
     .app{ position:fixed; inset:0; overflow:hidden; }
-    canvas{ display:block; width:100%; height:100%; background:
-      repeating-linear-gradient(45deg,rgba(255,255,255,0.03)0 2px,transparent 2px 4px),
-      radial-gradient(circle at center,#1a2450 0%,#0e1430 80%);
-    background-size:100px 100px,cover;
-    background-position:0 0,center;
-    animation:canvasDepthMove 30s linear infinite; }
+    .tetris-grid-bg{
+      background:
+        repeating-linear-gradient(45deg,rgba(255,255,255,0.03)0 2px,transparent 2px 4px),
+        radial-gradient(circle at center,#1a2450 0%,#0e1430 80%);
+      background-size:100px 100px,cover;
+      background-position:0 0,center;
+      animation:canvasDepthMove 30s linear infinite;
+    }
+    canvas{ display:block; width:100%; height:100%; }
     .hudTop{ position:absolute; inset-inline:0; top:0; padding:4px 10px; display:flex; flex-wrap:wrap; gap:8px; align-items:center; justify-content:space-between; font-size:12px; color:#fff; }
     .row{ display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
     .chip{ padding:6px 10px; border-radius:12px; border:1px solid rgba(255,255,255,.15); color:#fff; background:transparent; cursor:pointer; }
@@ -65,7 +68,7 @@
       <div style="margin-top:6px; font-size:12px; color:#fff;">Pot: <b id="potVal">0</b> TPC (-10% dev fee at end)</div>
     </div>
 
-    <canvas id="scene"></canvas>
+    <canvas id="scene" class="tetris-grid-bg"></canvas>
     <div id="winnerPopup" class="popup hidden">
       <div class="box">
         <div id="winnerText" style="margin-bottom:10px;"></div>
