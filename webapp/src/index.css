@@ -14,10 +14,6 @@ body {
   @apply text-text overflow-x-hidden;
   background: radial-gradient(1200px 800px at 70% -10%, #1a2450 0%, #0c1020 38%, #0c1020 100%) fixed;
   background-color: #0c1020;
-  text-shadow:
-    2px 2px 0 #000,
-    4px 4px 0 #333,
-    0 0 4px #00f7ff;
 }
 
 /* Neon theme elements */
@@ -35,12 +31,7 @@ body {
   box-shadow: inset 0 0 10px rgba(0, 247, 255, 0.4);
 }
 
-.text-text {
-  text-shadow:
-    2px 2px 0 #000,
-    4px 4px 0 #333,
-    0 0 4px #00f7ff;
-}
+
 
 button,
 input {
@@ -58,7 +49,6 @@ input:focus {
 /* Utility class for white text with a subtle black shadow */
 .text-white-shadow {
   color: #ffffff;
-  text-shadow: 0 0 2px #000;
 }
 
 .hexagon {
@@ -878,7 +868,6 @@ input:focus {
 .offset-text {
   font-size: 1.1rem;
   font-weight: bold;
-  text-shadow: 0 0 2px #000;
   transform: rotateX(calc(var(--board-angle, 58deg) * -1));
 }
 
@@ -964,7 +953,6 @@ input:focus {
   font-weight: bold;
   font-size: 1.3rem; /* slightly bigger numbers */
   line-height: 1;
-  text-shadow: 0 0 2px #000;
   transform: translateY(-10%);
 }
 
@@ -977,14 +965,12 @@ input:focus {
   font-weight: bold;
   font-size: 1.8rem;
   line-height: 1;
-  text-shadow: 0 0 2px #fff;
 }
 
 .roll-result {
   color: #ffffff;
   font-family: "Comic Sans MS", "Comic Sans", cursive;
   font-weight: bold;
-  text-shadow: 0 0 2px #000;
 }
 
 .crazy-dice-board .roll-result {
@@ -1151,7 +1137,6 @@ input:focus {
   font-size: 0.9rem;
   font-weight: bold;
   color: #3b82f6;
-  text-shadow: 0 0 2px #000;
   transform: rotateX(calc(var(--board-angle, 58deg) * -1));
 }
 
