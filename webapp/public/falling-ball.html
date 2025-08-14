@@ -12,7 +12,12 @@
     html,body{ height:100%; margin:0; }
     body{ background:var(--bg) fixed; background-color:#0c1020; color:var(--ink); font-family:Inter,system-ui,Segoe UI,Roboto,Arial,sans-serif; }
     .app{ position:fixed; inset:0; overflow:hidden; }
-    canvas{ display:block; width:100%; height:100%; }
+    canvas{ display:block; width:100%; height:100%; background:
+      repeating-linear-gradient(45deg,rgba(255,255,255,0.03)0 2px,transparent 2px 4px),
+      radial-gradient(circle at center,#1a2450 0%,#0e1430 80%);
+    background-size:100px 100px,cover;
+    background-position:0 0,center;
+    animation:canvasDepthMove 30s linear infinite; }
     .hudTop{ position:absolute; inset-inline:0; top:0; padding:4px 10px; display:flex; flex-wrap:wrap; gap:8px; align-items:center; justify-content:space-between; font-size:12px; color:#fff; }
     .row{ display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
     .chip{ padding:6px 10px; border-radius:12px; border:1px solid rgba(255,255,255,.15); color:#fff; background:transparent; cursor:pointer; }
@@ -35,6 +40,8 @@
       .popup .box{ background:linear-gradient(180deg,#0f1530,#0a0f24); background-color:#0b1a2f; border:1px solid #00f7ff; box-shadow:0 0 8px #00f7ff, inset 0 0 10px rgba(0,247,255,.4); padding:20px; border-radius:12px; text-align:center; color:#00f7ff; }
     .countdown{ position:fixed; inset:0; display:flex; align-items:center; justify-content:center; font-size:48px; font-weight:bold; color:#fff; background:rgba(0,0,0,0.5); z-index:50; }
     .countdown.hidden{ display:none; }
+  
+    @keyframes canvasDepthMove{from{background-position:0 0,center}to{background-position:100px 100px,center}}
   </style>
 </head>
 <body>
