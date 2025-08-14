@@ -586,7 +586,7 @@
         }
         const v = Math.hypot(puck.vx,puck.vy); const maxV = puck.max*speedMul*1.25;
         if (v>maxV){ const s=maxV/v; puck.vx*=s; puck.vy*=s; }
-        sfx.hit();
+        if (p === p1 || mode !== 'ai') sfx.hit();
       }
     });
 
