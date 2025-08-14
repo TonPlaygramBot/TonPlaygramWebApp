@@ -62,7 +62,7 @@ export default function GoalRushLobby() {
   };
 
   return (
-    <div className="relative p-4 space-y-4 text-text">
+    <div className="relative p-4 space-y-4 text-text min-h-screen tetris-grid-bg">
       <h2 className="text-xl font-bold text-center">Goal Rush Lobby</h2>
       <div className="space-y-2">
         <h3 className="font-semibold">Mode</h3>

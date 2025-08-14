@@ -10,6 +10,7 @@
   html,body{height:100vh}
   body{margin:0;background:radial-gradient(1200px 800px at 70% -10%, #1a2450 0%, #0c1020 38%, #0c1020 100%) fixed;color:var(--text);overflow:hidden}
   .app{height:100vh;display:flex;flex-direction:column;padding:12px;gap:10px;max-width:1100px;margin:0 auto}
+  .tetris-grid-bg{background: repeating-linear-gradient(45deg,rgba(255,255,255,0.03)0 2px,transparent 2px 4px), radial-gradient(circle at center,#1a2450 0%,#0e1430 80%); background-size:100px 100px,cover; background-position:0 0,center; animation:canvasDepthMove 30s linear infinite}
   header{display:flex;gap:12px;align-items:center;justify-content:space-between}
   .badge{background:#0f1736;border:1px solid #223063;border-radius:10px;padding:6px 10px;color:var(--muted);font-size:12px}
 
@@ -29,12 +30,12 @@
   .mini h3{margin:0;font-size:12px;color:var(--muted);display:flex;align-items:center;gap:4px}
   .mini .aiScore{font-size:12px;color:var(--muted);margin:2px 0 6px}
   .flagInline{width:16px;height:16px;border-radius:2px}
-  .mini canvas{flex:1;width:100%;height:100%;background: repeating-linear-gradient(45deg,rgba(255,255,255,0.03)0 2px,transparent 2px 4px), radial-gradient(circle at center,#1a2450 0%,#0e1430 80%); background-size:100px 100px,cover; background-position:0 0,center; animation:canvasDepthMove 30s linear infinite;border-radius:8px}
+  .mini canvas{flex:1;width:100%;height:100%;border-radius:8px}
 
   .userWrap{position:relative;border:1px solid #223063;background:linear-gradient(180deg,#0f1530,#0a0f24);border-radius:14px;padding:10px;display:flex;flex-direction:column;min-height:0}
   .userHeader{display:flex;align-items:center;gap:8px;margin-bottom:8px}
   .userHeader h3{margin:0;font-size:13px;color:var(--muted)}
-  #user{flex:1;width:100%;height:100%;background: repeating-linear-gradient(45deg,rgba(255,255,255,0.03)0 2px,transparent 2px 4px), radial-gradient(circle at center,#1a2450 0%,#0e1430 80%); background-size:100px 100px,cover; background-position:0 0,center; animation:canvasDepthMove 30s linear infinite;border-radius:10px;touch-action:none}
+  #user{flex:1;width:100%;height:100%;border-radius:10px;touch-action:none}
   .avatar{width:32px;height:32px;border-radius:50%}
 
   dialog{border:none;border-radius:16px;background:#0d1330;color:#e7eefc;max-width:520px;width:calc(100% - 24px)}
@@ -87,17 +88,17 @@
       <div class="mini">
         <h3><img id="avatar1" src="assets/icons/profile.svg" alt="" class="flagInline"/><span id="name1">P1</span></h3>
         <div id="score1" class="aiScore">0</div>
-        <canvas id="opp1"></canvas>
+        <canvas id="opp1" class="tetris-grid-bg"></canvas>
       </div>
       <div class="mini">
         <h3><img id="avatar2" src="assets/icons/profile.svg" alt="" class="flagInline"/><span id="name2">P2</span></h3>
         <div id="score2" class="aiScore">0</div>
-        <canvas id="opp2"></canvas>
+        <canvas id="opp2" class="tetris-grid-bg"></canvas>
       </div>
       <div class="mini">
         <h3><img id="avatar3" src="assets/icons/profile.svg" alt="" class="flagInline"/><span id="name3">P3</span></h3>
         <div id="score3" class="aiScore">0</div>
-        <canvas id="opp3"></canvas>
+        <canvas id="opp3" class="tetris-grid-bg"></canvas>
       </div>
     </div>
     <div class="userWrap">
@@ -110,7 +111,7 @@
           <div class="panel"><strong>Your score</strong><span id="myscore" class="score">0</span></div>
         </div>
       </div>
-      <canvas id="user"></canvas>
+      <canvas id="user" class="tetris-grid-bg"></canvas>
     </div>
   </div>
 </div>
