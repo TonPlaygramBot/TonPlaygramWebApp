@@ -447,7 +447,7 @@
             ctx.fillStyle = color;
             ctx.fillRect(x, y, w, h);
             ctx.lineWidth = Math.max(2, r * 0.1);
-            ctx.strokeStyle = '#000';
+            ctx.strokeStyle = 'rgba(0,0,0,0.6)';
             ctx.lineJoin = 'round';
             ctx.lineCap = 'round';
             ctx.strokeRect(x, y, w, h);
@@ -455,10 +455,13 @@
             ctx.beginPath();
             ctx.rect(x, y, w, h);
             ctx.clip();
-            ctx.fillStyle = 'rgba(255,255,255,0.35)';
-            ctx.fillRect(x, y, w * 0.4, h * 0.4);
-            ctx.fillStyle = 'rgba(255,255,255,0.6)';
-            ctx.fillRect(x, y, w * 0.2, h * 0.2);
+            const sizeLarge = Math.floor(r * 0.9);
+            const sizeSmall = Math.floor(r * 0.5);
+            const extra = Math.floor(r * 0.05);
+            ctx.fillStyle = 'rgba(255,255,255,0.25)';
+            ctx.fillRect(x, y + h - sizeLarge, sizeLarge + extra, sizeLarge);
+            ctx.fillStyle = 'rgba(255,255,255,0.5)';
+            ctx.fillRect(x, y + h - sizeSmall, sizeSmall + extra, sizeSmall);
             ctx.restore();
           };
 
