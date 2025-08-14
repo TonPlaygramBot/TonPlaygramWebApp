@@ -78,6 +78,7 @@
   const goalText = document.getElementById('goalText');
   const TOP_BAR = 40; // height of scoreboard bar
   const BOTTOM_GAP = 20; // gap below rink
+  const GOAL_PAUSE = 1500; // pause after a goal
   let fieldScaleActual = 1;
 
   const fieldImg = new Image();
@@ -292,7 +293,7 @@
   let goalDepth = 24;
   let paddleRadius = 34;
 
-  const puck = { x:0, y:0, r:20, vx:0, vy:0, max: 29, angle: 0 };
+  const puck = { x:0, y:0, r:20, vx:0, vy:0, max: 29, angle: 0, spin: 0 };
   const p1 = { x:0, y:0, r:34, vx:0, vy:0, max: 18, lastX:0, lastY:0 };
   const p2 = { x:0, y:0, r:34, vx:0, vy:0, max: 18, lastX:0, lastY:0 };
   const score = { p1:0, p2:0, target }; 
@@ -358,19 +359,24 @@
   function clamp(v,a,b){ return Math.max(a, Math.min(b,v)); }
   function dist(x1,y1,x2,y2){ const dx=x2-x1, dy=y2-y1; return Math.hypot(dx,dy); }
 
-  function resetPositions(){
+  function resetPositions(kickoff=0){
     p1.x = centerX; p1.y = Math.min(rink.y+rink.h- rink.h*0.12, H*0.85);
     p2.x = centerX; p2.y = Math.max(rink.y + rink.h*0.12, H*0.15);
     puck.x = centerX;
     puck.y = centerY;
-    puck.vx = 0; puck.vy = 0;
+    if(kickoff===1){
+      puck.y = centerY + rink.h/4;
+    } else if(kickoff===2){
+      puck.y = centerY - rink.h/4;
+    }
+    puck.vx = 0; puck.vy = 0; puck.spin = 0;
     [p1,p2].forEach(p=>{p.vx=0;p.vy=0;p.lastX=p.x;p.lastY=p.y;});
   }
 
   function showGoalMessage(){
     goalText.innerHTML = `GOAL!<span class="score-line">${score.p1} - ${score.p2}</span>`;
     goalText.style.display = 'block';
-    setTimeout(()=>{ goalText.style.display='none'; }, 1000);
+    setTimeout(()=>{ goalText.style.display='none'; }, GOAL_PAUSE);
   }
 
   function rr(x,y,w,h,r){
@@ -544,9 +550,14 @@
         const ny = (puck.y - p.y) / (d||1);
         const overlap = minD - d + 0.5;
         puck.x += nx * overlap; puck.y += ny * overlap;
+        p.x -= nx * overlap; p.y -= ny * overlap;
+        constrainPaddle(p, p === p1);
+        p.vx = p.x - p.lastX; p.vy = p.y - p.lastY;
         const relVX = puck.vx - p.vx;
         const relVY = puck.vy - p.vy;
         const relAlongNormal = relVX*nx + relVY*ny;
+        const tangential = relVX*(-ny) + relVY*nx;
+        puck.spin += tangential * 0.02;
         if (relAlongNormal <= 0){
           const restitution = 1.06;
           const impulse = -(1+restitution) * relAlongNormal;
@@ -589,7 +600,7 @@
         showGoalMessage();
         checkWin();
         if (score.p1 < score.target && score.p2 < score.target){
-          setTimeout(()=>{ resetPositions(); running = true; }, 1000);
+          setTimeout(()=>{ resetPositions(2); running = true; }, GOAL_PAUSE);
         }
         return;
       } else { puck.y = top; puck.vy *= -1; sfx.wall(); }
@@ -604,7 +615,7 @@
         showGoalMessage();
         checkWin();
         if (score.p1 < score.target && score.p2 < score.target){
-          setTimeout(()=>{ resetPositions(); running = true; }, 1000);
+          setTimeout(()=>{ resetPositions(1); running = true; }, GOAL_PAUSE);
         }
         return;
       } else { puck.y = bottom; puck.vy *= -1; sfx.wall(); }
@@ -624,9 +635,16 @@
 
     puck.x += puck.vx * dt * 60;
     puck.y += puck.vy * dt * 60;
+    const mag = puck.spin * dt * 2;
+    const magVx = -puck.vy * mag;
+    const magVy = puck.vx * mag;
+    puck.vx += magVx;
+    puck.vy += magVy;
     puck.vx *= Math.pow(friction, dt*60);
     puck.vy *= Math.pow(friction, dt*60);
     puck.angle += Math.hypot(puck.vx, puck.vy) * dt * 0.1;
+    puck.angle += puck.spin * dt * 60;
+    puck.spin *= Math.pow(0.99, dt*60);
 
     handleCollisions();
 
