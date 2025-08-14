@@ -1677,3 +1677,20 @@ input:focus {
 .lucky-dice {
   transform: translate(0.75rem, 0.75rem);
 }
+@keyframes canvasDepthMove {
+  from {
+    background-position: 0 0, center;
+  }
+  to {
+    background-position: 100px 100px, center;
+  }
+}
+
+.tetris-grid-bg {
+  background:
+    repeating-linear-gradient(45deg, rgba(255, 255, 255, 0.03) 0 2px, transparent 2px 4px),
+    radial-gradient(circle at center, #1a2450 0%, #0e1430 80%);
+  background-size: 100px 100px, cover;
+  background-position: 0 0, center;
+  animation: canvasDepthMove 30s linear infinite;
+}

@@ -27,11 +27,11 @@
   .mini h3{margin:0;font-size:12px;color:var(--muted);display:flex;align-items:center;gap:4px}
   .mini .aiScore{font-size:12px;color:var(--muted);margin:2px 0 6px}
   .flagInline{width:16px;height:16px;border-radius:2px}
-  .mini canvas{flex:1;width:100%;height:100%;background:#0e1430;border-radius:8px}
+  .mini canvas{flex:1;width:100%;height:100%;background: repeating-linear-gradient(45deg,rgba(255,255,255,0.03)0 2px,transparent 2px 4px), radial-gradient(circle at center,#1a2450 0%,#0e1430 80%); background-size:100px 100px,cover; background-position:0 0,center; animation:canvasDepthMove 30s linear infinite;border-radius:8px}
   .userWrap{position:relative;border:1px solid #223063;background:linear-gradient(180deg,#0f1530,#0a0f24);border-radius:14px;padding:10px;display:flex;flex-direction:column;min-height:0}
   .userHeader{display:flex;align-items:center;gap:8px;margin-bottom:8px}
   .userWrap h3{margin:0;font-size:13px;color:var(--muted)}
-  #user{flex:1;width:100%;height:100%;background:#0e1430;border-radius:10px;touch-action:none}
+  #user{flex:1;width:100%;height:100%;background: repeating-linear-gradient(45deg,rgba(255,255,255,0.03)0 2px,transparent 2px 4px), radial-gradient(circle at center,#1a2450 0%,#0e1430 80%); background-size:100px 100px,cover; background-position:0 0,center; animation:canvasDepthMove 30s linear infinite;border-radius:10px;touch-action:none}
   .overlayButtons{position:absolute;left:10px;bottom:10px;display:flex;gap:8px}
   .small{padding:8px 10px;border-radius:10px;border:1px solid #223063;background:#15204a;color:#e7eefc;font-size:12px;cursor:pointer}
   .avatar{width:32px;height:32px;border-radius:50%}
@@ -48,6 +48,8 @@
   .coin-burst{position:fixed;left:50%;bottom:50%;width:0;height:0;z-index:60;pointer-events:none;overflow:visible}
   .coin-img{position:absolute;left:-16px;bottom:0;width:32px;height:32px;transform:translate(-50%,0);animation-name:coin-up;animation-duration:var(--dur);animation-delay:var(--delay);animation-timing-function:ease-out;animation-fill-mode:forwards;filter:brightness(1.5) drop-shadow(0 0 4px gold)}
   @keyframes coin-up{to{transform:translate(calc(-50% + var(--dx)),160px);opacity:0}}
+
+  @keyframes canvasDepthMove{from{background-position:0 0,center}to{background-position:100px 100px,center}}
 </style>
 </head>
 <body>
