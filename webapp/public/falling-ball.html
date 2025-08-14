@@ -20,7 +20,7 @@
       background-position:0 0,center;
       animation:canvasDepthMove 30s linear infinite;
     }
-    canvas{ display:block; width:100%; height:100%; }
+    canvas{ display:block; width:100%; height:100%; position:absolute; top:0; left:0; }
     .hudTop{ position:absolute; inset-inline:0; top:0; padding:4px 10px; display:flex; flex-wrap:wrap; gap:8px; align-items:center; justify-content:space-between; font-size:12px; color:#fff; }
     .row{ display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
     .chip{ padding:6px 10px; border-radius:12px; border:1px solid rgba(255,255,255,.15); color:#fff; background:transparent; cursor:pointer; }
@@ -29,13 +29,12 @@
       .btn.primary{ background:#00f7ff; color:#fff; border:none; box-shadow:0 0 8px rgba(0,247,255,.5); }
       .btn.primary:hover{ background:#66fcff; }
     .btn:disabled{ opacity:.5; }
-    .panel{ position:absolute; left:10px; bottom:10px; right:10px; background:linear-gradient(180deg,#0f1530,#0a0f24); border:1px solid #223063; border-radius:16px; padding:10px; }
+    .panel{ position:absolute; left:10px; bottom:10px; right:10px; background:linear-gradient(180deg,#0f1530,#0a0f24); border:1px solid #223063; border-radius:16px; padding:10px; z-index:10; }
     .grid{ display:grid; grid-template-columns:repeat(var(--cols,5),minmax(0,1fr)); gap:6px; }
-    .slot{ text-align:center; font-size:12px; color:#fff; padding:6px 0; border-radius:10px; border:1px dashed rgba(255,255,255,.12); display:flex; flex-direction:column; align-items:center; gap:4px; }
+    .slot{ text-align:center; font-size:12px; color:#fff; padding:6px 0; border-radius:10px; border:1px dashed rgba(255,255,255,.12); display:flex; flex-direction:column; align-items:center; gap:4px; background:rgba(16,23,42,0.85); }
     .slot.me{ border-color:#7dd3fc; color:#c7f3ff; }
     .slot img{ width:var(--avatar-size,24px); height:var(--avatar-size,24px); border-radius:50%; }
     .slot.winner img{ outline:2px solid #facc15; box-shadow:0 0 6px #facc15; }
-    #winnerBall{ position:absolute; width:24px; height:24px; border-radius:50%; pointer-events:none; z-index:40; background:radial-gradient(circle at 30% 30%, #fef08a, #facc15 55%, #ca8a04); box-shadow:0 2px 4px rgba(0,0,0,0.3); }
     .coin-confetti{ position:fixed; top:-40px; width:32px; height:32px; pointer-events:none; animation:coin-fall var(--duration,3s) linear forwards; }
     @keyframes coin-fall{ from{ transform:translateY(-10vh) rotate(0deg); opacity:1; } to{ transform:translateY(100vh) rotate(360deg); opacity:0; } }
     .status{ position:absolute; left:10px; top:48px; background:rgba(0,0,0,.35); padding:8px 10px; border-radius:12px; border:1px solid rgba(255,255,255,.08); color:#fff; font-size:12px; max-width:min(92vw,560px); }
@@ -90,6 +89,10 @@
   ctx.imageSmoothingQuality = 'high';
   let W=innerWidth, H=innerHeight;
   function resizeCanvas(){
+    const panel = document.querySelector('.panel');
+    const panelH = panel ? panel.offsetHeight + 20 : 0;
+    W = innerWidth;
+    H = innerHeight - panelH;
     const dpr = window.devicePixelRatio || 1;
     canvas.style.width = W + 'px';
     canvas.style.height = H + 'px';
@@ -98,7 +101,7 @@
     ctx.setTransform(dpr,0,0,dpr,0,0);
   }
   resizeCanvas();
-  addEventListener('resize', ()=>{ W=innerWidth; H=innerHeight; resizeCanvas(); genPegField(); carveCorridors(); addStars(); });
+  addEventListener('resize', ()=>{ resizeCanvas(); genPegField(); carveCorridors(); addStars(); });
 
   // ========================= Audio (Web Audio, no binaries) =========================
   let audioCtx = null; let sfxOn = true;
@@ -161,7 +164,6 @@
     stuckCounter:0,
   };
   const DEFAULT_AVATAR='/assets/icons/9f14924f-e70c-4728-a9e5-ca25ef4138c8.png';
-  let winnerBallEl=null;
 
   const params = new URLSearchParams(location.search);
   const p = Number(params.get('players'));
@@ -228,7 +230,6 @@
     return list;
   }
   function refreshSlots(){
-    removeWinnerBall();
     const wrap=document.getElementById('slots'); wrap.innerHTML=''; state.slots=[];
     wrap.style.setProperty('--cols', state.players);
     const basePlayers = Math.max(state.players, 5);
@@ -236,25 +237,9 @@
     wrap.style.setProperty('--avatar-size', avatarSize+'px');
     const players=buildPlayers();
     players.forEach((p,i)=>{ const el=document.createElement('div'); el.className='slot'+(p.isMe?' me':''); el.style.fontSize=state.players>5?'10px':'12px'; el.innerHTML=`<img src="${p.avatar}" alt="avatar" onerror="this.onerror=null;this.src='${DEFAULT_AVATAR}'"/><div>${p.name}</div>`; wrap.appendChild(el); state.slots.push({ idx:i, name:p.name, el, left:0, right:0, isMe:p.isMe, accountId:p.accountId, telegramId:p.telegramId }); });
+    resizeCanvas();
   }
 
-  function showWinnerBall(slotEl){
-    if(!winnerBallEl){
-      winnerBallEl=document.createElement('div');
-      winnerBallEl.id='winnerBall';
-      document.body.appendChild(winnerBallEl);
-    }
-    const rect=slotEl.getBoundingClientRect();
-    const size=state.ball.r*2;
-    winnerBallEl.style.width=size+'px';
-    winnerBallEl.style.height=size+'px';
-    winnerBallEl.style.left=rect.left + rect.width/2 - state.ball.r + 'px';
-    winnerBallEl.style.top=rect.top - state.ball.r - 8 + 'px';
-  }
-
-  function removeWinnerBall(){
-    if(winnerBallEl){ winnerBallEl.remove(); winnerBallEl=null; }
-  }
 
   state.pot = state.players * state.stake;
   document.getElementById('potVal').textContent = state.pot;
@@ -263,7 +248,7 @@
   function randomBetween(a,b){ return a + Math.random()*(b-a); }
   function genPegField(){
     const pegs=[]; const ballDia = state.ball.r*2; const clearance = ballDia*1.5; // ensure gaps exceed ball diameter
-    const usableTop = 110, usableBottom = H-190; const pad=30;
+    const usableTop = 110, usableBottom = H-80; const pad=30;
     const target = Math.round(((state.density==='Low') ? 120 : (state.density==='Med') ? 180 : 240)*1.15);
     const maxAttempts = target*25;
     let attempts=0;
@@ -360,7 +345,7 @@
   function step(dt){
     if(!state.started || state.resultSlot!==null) return;
     const b=state.ball;
-    const groundY = H - 120;
+    const groundY = H - 10;
     b.vy = Math.min(state.maxVy, b.vy + state.gravity);
     b.vx *= (1 - state.fric);
     b.x += b.vx; b.y += b.vy;
@@ -403,7 +388,6 @@
         setStatus(`Winner: ${winner.name}. Payout ${winAmt} TPC (-${fee} dev)`);
         state.slots.forEach(s=>s.el.classList.remove('winner'));
         winner.el.classList.add('winner');
-        showWinnerBall(winner.el);
         SFX.win();
         coinConfetti(50);
         if(winner.accountId){
@@ -465,7 +449,7 @@
       }
     }
   }
-  function drawSlotsGuide(){ const pad=30; const usable=W-2*pad; const w = usable / state.players; const bottom = H-120; const top = bottom-40; for(let i=0;i<state.players;i++){ const x1=pad+i*w; ctx.fillStyle='rgba(0,0,0,0.25)'; ctx.fillRect(x1, top, w-2, bottom-top); if (state.resultSlot===i){ ctx.fillStyle='rgba(250,204,21,0.4)'; ctx.fillRect(x1, top, w-2, bottom-top); ctx.strokeStyle='rgba(250,204,21,0.9)'; ctx.lineWidth=3; ctx.strokeRect(x1+1, top, w-4, bottom-top); } } }
+  function drawSlotsGuide(){ const pad=30; const usable=W-2*pad; const w = usable / state.players; const bottom = H-10; const top = bottom-40; for(let i=0;i<state.players;i++){ const x1=pad+i*w; ctx.fillStyle='rgba(0,0,0,0.25)'; ctx.fillRect(x1, top, w-2, bottom-top); if (state.resultSlot===i){ ctx.fillStyle='rgba(250,204,21,0.4)'; ctx.fillRect(x1, top, w-2, bottom-top); ctx.strokeStyle='rgba(250,204,21,0.9)'; ctx.lineWidth=3; ctx.strokeRect(x1+1, top, w-4, bottom-top); } } }
   function drawBall(){ const b=state.ball; ctx.fillStyle='rgba(0,0,0,0.28)'; ctx.beginPath(); ctx.ellipse(b.x, b.y+b.r+6, b.r*1.2, b.r*0.5, 0,0,Math.PI*2); ctx.fill(); const grad = ctx.createRadialGradient(b.x-6,b.y-6,4, b.x,b.y,b.r+6); grad.addColorStop(0,'#fef08a'); grad.addColorStop(0.55,'#facc15'); grad.addColorStop(1,'#ca8a04'); ctx.fillStyle=grad; ctx.beginPath(); ctx.arc(b.x,b.y,b.r,0,Math.PI*2); ctx.fill(); ctx.globalAlpha=0.15; ctx.fillStyle='#fefce8'; ctx.beginPath(); ctx.ellipse(b.x-5,b.y-8,b.r*0.7,b.r*0.35,-0.2,0,Math.PI*2); ctx.fill(); ctx.globalAlpha=1; }
 
   function frame(ts){ const dt = Math.min(33, ts - state.time); state.time=ts; step(dt/16.6667); ctx.clearRect(0,0,W,H); drawObstacles(); drawSlotsGuide(); drawBall(); requestAnimationFrame(frame); }
