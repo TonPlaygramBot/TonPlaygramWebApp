@@ -96,7 +96,6 @@
     ctx.setTransform(dpr,0,0,dpr,0,0);
   }
   resizeCanvas();
-  const BG_COLOR = '#0b1a2f';
   addEventListener('resize', ()=>{ W=innerWidth; H=innerHeight; resizeCanvas(); genPegField(); carveCorridors(); addStars(); });
 
   // ========================= Audio (Web Audio, no binaries) =========================
@@ -409,10 +408,6 @@
   function pickSlotFromX(x){ const pad=30; const usable=W-2*pad; const w = usable / state.players; const i=Math.max(0, Math.min(state.players-1, Math.floor((x-pad)/w))); return i; }
 
   // ========================= Render =========================
-  function drawBackground(){
-    ctx.fillStyle = BG_COLOR;
-    ctx.fillRect(0,0,W,H);
-  }
   function drawObstacles(){
     for(const o of state.obstacles){
       if(o.type==='star'){
@@ -448,7 +443,7 @@
   function drawSlotsGuide(){ const pad=30; const usable=W-2*pad; const w = usable / state.players; const bottom = H-120; const top = bottom-40; for(let i=0;i<state.players;i++){ const x1=pad+i*w; ctx.fillStyle='rgba(0,0,0,0.25)'; ctx.fillRect(x1, top, w-2, bottom-top); if (state.resultSlot===i){ ctx.fillStyle='rgba(250,204,21,0.4)'; ctx.fillRect(x1, top, w-2, bottom-top); ctx.strokeStyle='rgba(250,204,21,0.9)'; ctx.lineWidth=3; ctx.strokeRect(x1+1, top, w-4, bottom-top); } } }
   function drawBall(){ const b=state.ball; ctx.fillStyle='rgba(0,0,0,0.28)'; ctx.beginPath(); ctx.ellipse(b.x, b.y+b.r+6, b.r*1.2, b.r*0.5, 0,0,Math.PI*2); ctx.fill(); const grad = ctx.createRadialGradient(b.x-6,b.y-6,4, b.x,b.y,b.r+6); grad.addColorStop(0,'#fef08a'); grad.addColorStop(0.55,'#facc15'); grad.addColorStop(1,'#ca8a04'); ctx.fillStyle=grad; ctx.beginPath(); ctx.arc(b.x,b.y,b.r,0,Math.PI*2); ctx.fill(); ctx.globalAlpha=0.15; ctx.fillStyle='#fefce8'; ctx.beginPath(); ctx.ellipse(b.x-5,b.y-8,b.r*0.7,b.r*0.35,-0.2,0,Math.PI*2); ctx.fill(); ctx.globalAlpha=1; }
 
-  function frame(ts){ const dt = Math.min(33, ts - state.time); state.time=ts; step(dt/16.6667); ctx.clearRect(0,0,W,H); drawBackground(); drawObstacles(); drawSlotsGuide(); drawBall(); requestAnimationFrame(frame); }
+  function frame(ts){ const dt = Math.min(33, ts - state.time); state.time=ts; step(dt/16.6667); ctx.clearRect(0,0,W,H); drawObstacles(); drawSlotsGuide(); drawBall(); requestAnimationFrame(frame); }
   requestAnimationFrame(frame);
 
   // ========================= Init =========================
