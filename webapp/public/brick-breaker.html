@@ -461,14 +461,14 @@
             ctx.beginPath();
             ctx.rect(x, y, w, h);
             ctx.clip();
-            const sizeLargeW = Math.floor(w * 0.65);
-            const sizeLargeH = Math.floor(h * 0.65);
-            const sizeSmallW = Math.floor(w * 0.25);
-            const sizeSmallH = Math.floor(h * 0.25);
+            const sizeLargeW = Math.floor(w * 0.55);
+            const sizeLargeH = Math.floor(h * 0.55);
+            const sizeSmallW = Math.floor(w * 0.2);
+            const sizeSmallH = Math.floor(h * 0.2);
             const extra = Math.floor(r * 0.02);
-            ctx.fillStyle = 'rgba(255,255,255,0.4)';
+            ctx.fillStyle = 'rgba(255,255,255,0.3)';
             ctx.fillRect(x, y + h - sizeLargeH, sizeLargeW + extra, sizeLargeH);
-            ctx.fillStyle = 'rgba(255,255,255,0.6)';
+            ctx.fillStyle = 'rgba(255,255,255,0.5)';
             ctx.fillRect(x, y + h - sizeSmallH, sizeSmallW + extra, sizeSmallH);
             ctx.restore();
           };
@@ -633,6 +633,8 @@
                 }
                 const powerup = Math.random() < 0.12 ? choice(POWERUPS) : null;
                 bricks.push({
+                  col: c,
+                  row: r,
                   x: c * (VIEW_W / cols) + 4,
                   y: 72 + r * 28,
                   w: VIEW_W / cols - 8,
@@ -708,9 +710,28 @@
                 ctx.fillStyle = 'rgba(255,255,255,0.5)';
                 ctx.fillRect(br.x, br.y, br.w, br.h);
               }
+              if (br.type === 'explosive') {
+                ctx.fillStyle = COLORS.text;
+                ctx.font = `${br.h - 4}px system-ui`;
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText('💣', br.x + br.w / 2, br.y + br.h / 2 + 1);
+                ctx.textAlign = 'left';
+                ctx.textBaseline = 'alphabetic';
+              }
               if (br.powerup) {
-                const color = POWERUP_COLORS[br.powerup] || COLORS.power;
-                drawBall(ctx, br.x + br.w / 2, br.y + br.h / 2, 3, color);
+                if (br.powerup === 'life') {
+                  ctx.fillStyle = COLORS.text;
+                  ctx.font = `${br.h - 4}px system-ui`;
+                  ctx.textAlign = 'center';
+                  ctx.textBaseline = 'middle';
+                  ctx.fillText('❤️', br.x + br.w / 2, br.y + br.h / 2 + 1);
+                  ctx.textAlign = 'left';
+                  ctx.textBaseline = 'alphabetic';
+                } else {
+                  const color = POWERUP_COLORS[br.powerup] || COLORS.power;
+                  drawBall(ctx, br.x + br.w / 2, br.y + br.h / 2, 6, color);
+                }
               }
             }
             for (const p of b.powerups) {
@@ -904,13 +925,11 @@
                   if (br.type === 'explosive') {
                     br.alive = false;
                     for (const nb of b.bricks) {
-                      if (!nb.alive) continue;
-                      if (
-                        Math.hypot(
-                          nb.x + nb.w / 2 - (br.x + br.w / 2),
-                          nb.y + nb.h / 2 - (br.y + br.h / 2)
-                        ) < 48
-                      ) {
+                      if (!nb.alive || nb === br) continue;
+                      const isNeighbor =
+                        (nb.row === br.row && Math.abs(nb.col - br.col) === 1) ||
+                        (nb.col === br.col && Math.abs(nb.row - br.row) === 1);
+                      if (isNeighbor) {
                         nb.alive = false;
                         b.score += nb.pts * b.mult;
                       }
