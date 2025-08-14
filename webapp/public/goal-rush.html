@@ -557,7 +557,7 @@
         const relVY = puck.vy - p.vy;
         const relAlongNormal = relVX*nx + relVY*ny;
         const tangential = relVX*(-ny) + relVY*nx;
-        puck.spin += tangential * 0.02;
+        puck.spin += tangential * 0.01;
         if (relAlongNormal <= 0){
           const restitution = 1.06;
           const impulse = -(1+restitution) * relAlongNormal;
@@ -635,7 +635,7 @@
 
     puck.x += puck.vx * dt * 60;
     puck.y += puck.vy * dt * 60;
-    const mag = puck.spin * dt * 2;
+    const mag = puck.spin * dt;
     const magVx = -puck.vy * mag;
     const magVy = puck.vx * mag;
     puck.vx += magVx;
@@ -643,7 +643,7 @@
     puck.vx *= Math.pow(friction, dt*60);
     puck.vy *= Math.pow(friction, dt*60);
     puck.angle += Math.hypot(puck.vx, puck.vy) * dt * 0.1;
-    puck.angle += puck.spin * dt * 60;
+    puck.angle += puck.spin * dt * 30;
     puck.spin *= Math.pow(0.99, dt*60);
 
     handleCollisions();
