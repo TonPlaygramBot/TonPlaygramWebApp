@@ -429,6 +429,10 @@
             '#ff69b4'
           ];
 
+          // Bomb explosion sound reused from Snake & Ladder
+          const bombAudio = new Audio('/assets/sounds/a-bomb-139689.mp3');
+          bombAudio.volume = 0.6;
+
           const drawBall = (ctx, x, y, r, color) => {
             ctx.beginPath();
             ctx.arc(x, y, r, 0, Math.PI * 2);
@@ -622,11 +626,8 @@
                 let type = 'standard',
                   hits = 1,
                   pts = POINTS.standard;
-                if (roll > 0.82) {
-                  type = 'explosive';
-                  hits = 1;
-                  pts = POINTS.explosive;
-                } else if (roll > 0.55) {
+                // Tough bricks remain a random chance
+                if (roll > 0.55) {
                   type = 'tough';
                   hits = 2;
                   pts = POINTS.tough;
@@ -647,6 +648,17 @@
                   powerup
                 });
               }
+            }
+            // Randomly place 5-10 bombs after the grid is generated
+            const bombCount = 5 + Math.floor(Math.random() * 6); // 5..10
+            for (let i = 0; i < bombCount; i++) {
+              let idx;
+              do {
+                idx = Math.floor(Math.random() * bricks.length);
+              } while (bricks[idx].type === 'explosive');
+              bricks[idx].type = 'explosive';
+              bricks[idx].hits = 1;
+              bricks[idx].pts = POINTS.explosive;
             }
             return bricks;
           }
@@ -672,6 +684,7 @@
               bricks: genBricks(settings.density),
               powerups: [],
               activePowers: [],
+              explosions: [],
               over: false
             };
           }
@@ -737,6 +750,17 @@
             for (const p of b.powerups) {
               const color = POWERUP_COLORS[p.kind] || COLORS.power;
               drawBall(ctx, p.x, p.y, 7, color);
+            }
+            for (const ex of b.explosions) {
+              const size = (b.bricks[0]?.w || 20) * 3;
+              ctx.save();
+              ctx.globalAlpha = ex.timer / 300;
+              ctx.fillStyle = COLORS.text;
+              ctx.font = `${size}px system-ui`;
+              ctx.textAlign = 'center';
+              ctx.textBaseline = 'middle';
+              ctx.fillText('💥', ex.x, ex.y);
+              ctx.restore();
             }
             let paddleColor = COLORS.paddle;
             if (b.activePowers.length) {
@@ -835,6 +859,10 @@
 
           function updateBoard(b, dt, inputX = null) {
             if (b.over) return;
+            for (const ex of [...b.explosions]) {
+              ex.timer -= dt;
+              if (ex.timer <= 0) b.explosions = b.explosions.filter((x) => x !== ex);
+            }
             if (inputX != null) {
               const target = clamp(
                 inputX - b.paddle.w / 2,
@@ -924,6 +952,13 @@
                   b.score += br.pts * b.mult;
                   if (br.type === 'explosive') {
                     br.alive = false;
+                    b.explosions.push({
+                      x: br.x + br.w / 2,
+                      y: br.y + br.h / 2,
+                      timer: 300
+                    });
+                    bombAudio.currentTime = 0;
+                    bombAudio.play().catch(() => {});
                     for (const nb of b.bricks) {
                       if (!nb.alive || nb === br) continue;
                       const isNeighbor =
