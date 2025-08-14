@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Brick Breaker Royale brick with shading from bottom-left to top-right using Bubble Pop Royale style -->
+<svg width="1024" height="1024" viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <!-- Gradient to provide shading from bottom-left to top-right -->
+    <linearGradient id="brickGradient" x1="0%" y1="100%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#d03b4f"/>
+      <stop offset="100%" stop-color="#ff7a8a"/>
+    </linearGradient>
+  </defs>
+  <!-- Base brick -->
+  <rect x="112" y="312" width="800" height="400" fill="url(#brickGradient)" stroke="#000" stroke-width="40" rx="40"/>
+  <!-- Highlights in the top-right corner -->
+  <rect x="660" y="352" width="200" height="100" fill="#ffffff" fill-opacity="0.25" rx="30"/>
+  <rect x="720" y="412" width="120" height="60" fill="#ffffff" fill-opacity="0.25" rx="20"/>
+  <!-- Subtle shadow in the bottom-left corner -->
+  <rect x="112" y="612" width="200" height="80" fill="#000000" fill-opacity="0.15" rx="20"/>
+</svg>
