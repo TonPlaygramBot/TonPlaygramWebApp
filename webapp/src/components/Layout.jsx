@@ -12,11 +12,6 @@ import Navbar from './Navbar.jsx';
 
 import Footer from './Footer.jsx';
 
-import Branding from './Branding.jsx';
-
-import DynamicBackground from './DynamicBackground.jsx';
-import SkyBackground from './SkyBackground.jsx';
-import CosmicBackground from './CosmicBackground.jsx';
 
 export default function Layout({ children }) {
   const location = useLocation();
@@ -88,16 +83,6 @@ export default function Layout({ children }) {
     return () => clearInterval(id);
   }, []);
 
-  const isHome = location.pathname === '/';
-  const isMining = location.pathname === '/mining';
-  const isTasks = location.pathname === '/tasks';
-  const isStore = location.pathname === '/store';
-  const isAccount = location.pathname === '/account';
-  const isWallet = location.pathname === '/wallet';
-  const isGamesRoot = location.pathname === '/games';
-
-  const showBranding = !location.pathname.startsWith('/games');
-
   const showNavbar = !(
     location.pathname.startsWith('/games/') &&
     !location.pathname.includes('/lobby')
@@ -107,28 +92,11 @@ export default function Layout({ children }) {
 
   return (
     <div className="flex flex-col min-h-screen text-text relative overflow-hidden">
-      <CosmicBackground />
       <main
         className={`flex-grow ${
           showNavbar ? 'container mx-auto p-4 pb-24' : 'w-full p-0'
         }`}
       >
-        {showBranding && (
-          <Branding
-            scale={
-              isMining ||
-              isTasks ||
-              isStore ||
-              isAccount ||
-              isGamesRoot ||
-              isWallet
-                ? 1.2
-                : 1
-            }
-            offsetY={isMining ? '0.5rem' : 0}
-          />
-        )}
-
         {children}
       </main>
 

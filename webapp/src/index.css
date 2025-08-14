@@ -1040,53 +1040,6 @@ input:focus {
   box-shadow: 0 0 10px 4px rgba(250, 204, 21, 0.8);
 }
 
-.logo-wall-main {
-  @apply absolute flex items-center justify-center;
-  /* make the logo 5% bigger */
-  width: calc(var(--cell-width) * 10.5);
-  height: calc(var(--cell-height) * 5.25);
-  /* move the logo slightly up */
-  top: calc(
-    var(--cell-height) * -8.7 - var(--cell-height) * 1.7 *
-      (var(--final-scale, 1) - 1)
-  );
-  left: 47%;
-  transform: translateX(-50%) rotateX(calc(var(--board-angle, 58deg) * -1))
-    translateZ(-90px) scale(2.31); /* 5% larger */
-  transform-origin: bottom center;
-  background-image:
-    linear-gradient(to bottom, rgba(0, 0, 0, 0.25), rgba(0, 0, 0, 0) 70%),
-    url("/assets/icons/TonPlayGramLogo_2_512x512.webp");
-  background-size: contain;
-  background-repeat: no-repeat;
-  background-position: center;
-  filter: brightness(1.2);
-  z-index: 5;
-}
-
-.logo-wall-main::before,
-.logo-wall-main::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  border-radius: 0.75rem;
-  pointer-events: none;
-}
-
-
-.logo-wall-main::before {
-  border-left: 6px solid #334155;
-  border-right: 6px solid #334155;
-}
-
-.logo-wall-main::after {
-  border-top: 6px solid #334155;
-  border-bottom: 6px solid #334155;
-  box-shadow:
-    0 0 10px rgba(0, 0, 0, 0.8),
-    inset 0 0 10px rgba(0, 0, 0, 0.5);
-}
-
 
 .snake-connector,
 .ladder-connector {

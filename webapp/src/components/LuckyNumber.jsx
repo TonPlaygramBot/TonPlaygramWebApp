@@ -130,14 +130,7 @@ export default function LuckyNumber() {
             className={`board-style w-24 h-24 flex flex-col items-center justify-center rounded relative ${selected === i ? 'border-4 border-brand-gold' : 'border-2 border-border'}`}
           >
             {(i !== 0 && selected !== i) ? (
-              <>
-                <img
-                  src="/assets/icons/TonPlayGramLogo_2_512x512.webp"
-                  alt="Logo"
-                  className="absolute inset-0 w-full h-full object-contain opacity-40"
-                />
-                <span className="relative z-10 text-xl font-bold">{i + 1}</span>
-              </>
+              <span className="text-xl font-bold">{i + 1}</span>
             ) : (
               <>
                 {val === 'FREE_SPIN' ? (
