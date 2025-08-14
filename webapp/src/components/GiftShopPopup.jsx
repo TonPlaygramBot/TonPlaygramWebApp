@@ -49,7 +49,7 @@ export default function GiftShopPopup({ open, onClose, accountId }) {
                 </span>
                 <span className="flex items-center space-x-0.5">
                   <span>{g.price}</span>
-                  <img src="/assets/icons/file_000000005f0c61f48998df883554c3e8 (2).webp" alt="TPC" className="w-3 h-3" />
+                  <img src="/assets/icons/ezgif-54c96d8a9b9236.webp" alt="TPC" className="w-3 h-3" />
                 </span>
               </button>
             ))}

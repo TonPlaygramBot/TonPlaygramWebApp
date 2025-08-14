@@ -168,7 +168,7 @@ function CoinBurst({ token }) {
           key={i}
           src={
             token.toUpperCase() === 'TPC'
-              ? '/assets/icons/file_000000005f0c61f48998df883554c3e8 (2).webp'
+              ? '/assets/icons/ezgif-54c96d8a9b9236.webp'
               : token.toUpperCase() === 'TON'
               ? '/assets/icons/TON.webp'
               : '/assets/icons/Usdt.webp'
@@ -476,7 +476,7 @@ function Board({
                       ? '/assets/icons/TON.webp'
                       : token === 'USDT'
                         ? '/assets/icons/Usdt.webp'
-                        : '/assets/icons/file_000000005f0c61f48998df883554c3e8 (2).webp'
+                        : '/assets/icons/ezgif-54c96d8a9b9236.webp'
                   }
                   alt={token}
                   className="coin-face front"
@@ -487,7 +487,7 @@ function Board({
                       ? '/assets/icons/TON.webp'
                       : token === 'USDT'
                         ? '/assets/icons/Usdt.webp'
-                        : '/assets/icons/file_000000005f0c61f48998df883554c3e8 (2).webp'
+                        : '/assets/icons/ezgif-54c96d8a9b9236.webp'
                   }
                   alt=""
                   className="coin-face back"
@@ -678,7 +678,7 @@ export default function SnakeAndLadder() {
     });
     {
       const img = new Image();
-      img.src = '/assets/icons/file_000000005f0c61f48998df883554c3e8 (2).webp';
+      img.src = '/assets/icons/ezgif-54c96d8a9b9236.webp';
     }
     AVATARS.forEach((src) => {
       const img = new Image();
@@ -2519,7 +2519,7 @@ export default function SnakeAndLadder() {
                     ? '/assets/icons/TON.webp'
                     : token === 'USDT'
                     ? '/assets/icons/Usdt.webp'
-                    : '/assets/icons/file_000000005f0c61f48998df883554c3e8 (2).webp'
+                    : '/assets/icons/ezgif-54c96d8a9b9236.webp'
                 }
                 alt={token}
                 className="inline w-4 h-4 align-middle"

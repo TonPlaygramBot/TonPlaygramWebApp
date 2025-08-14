@@ -153,7 +153,7 @@ export default function LuckyNumber() {
                   </>
                 ) : (
                   <>
-                    <img src="/assets/icons/file_000000005f0c61f48998df883554c3e8 (2).webp" alt="TPC" className="w-8 h-8" />
+                    <img src="/assets/icons/ezgif-54c96d8a9b9236.webp" alt="TPC" className="w-8 h-8" />
                     <span className="font-bold">{val}</span>
                     {i === 0 && <span className="text-red-500 text-xs">FREE</span>}
                   </>
