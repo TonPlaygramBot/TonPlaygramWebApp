@@ -11,7 +11,9 @@
 body {
   font-family: Arial, Helvetica, sans-serif;
   margin: 0;
-  @apply bg-background text-text overflow-x-hidden;
+  @apply text-text overflow-x-hidden;
+  background: radial-gradient(1200px 800px at 70% -10%, #1a2450 0%, #0c1020 38%, #0c1020 100%) fixed;
+  background-color: #0c1020;
   text-shadow: 0 0 4px #00f7ff;
   scrollbar-color: #ffd700 transparent;
 }
