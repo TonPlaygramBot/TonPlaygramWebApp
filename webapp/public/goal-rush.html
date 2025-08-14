@@ -65,8 +65,7 @@
   <div id="configPopup" class="config-popup">
     <div class="config-panel">
       <label>Goal Width<input type="range" id="goalWidthInput" min="0.2" max="0.6" step="0.01"></label>
-      <label>Field Width<input type="range" id="fieldWidthInput" min="0.5" max="1.5" step="0.05"></label>
-      <label>Field Height<input type="range" id="fieldHeightInput" min="0.5" max="1.5" step="0.05"></label>
+      <label>Field Scale<input type="range" id="fieldScaleInput" min="0.5" max="1.5" step="0.05"></label>
       <button id="configSave" class="mute-btn" style="position:static">Save</button>
     </div>
   </div>
@@ -88,8 +87,7 @@
   const configBtn = document.getElementById('configBtn');
   const configPopup = document.getElementById('configPopup');
   const goalWidthInput = document.getElementById('goalWidthInput');
-  const fieldWidthInput = document.getElementById('fieldWidthInput');
-  const fieldHeightInput = document.getElementById('fieldHeightInput');
+  const fieldScaleInput = document.getElementById('fieldScaleInput');
   const configSave = document.getElementById('configSave');
   const TOP_BAR = 40; // height of scoreboard bar
   const BOTTOM_GAP = 20; // gap below rink
@@ -125,10 +123,9 @@
   const oppParam = params.get('p2Avatar') || '';
   let p1Name = params.get('name') || 'P1';
   let p2Name = params.get('p2Name') || 'P2';
-  let fieldScaleX = 1, fieldScaleY = 1, puckScale = 0.9, goalWidthPct = 0.36, goalOffsetPct = 0, paddleScale = 0.95, speedMul = 1;
+  let fieldScale = 1, puckScale = 0.9, goalWidthPct = 0.36, goalOffsetPct = 0, paddleScale = 0.95, speedMul = 1;
   try {
-    fieldScaleX = parseFloat(localStorage.getItem('fieldScaleX')) || 1;
-    fieldScaleY = parseFloat(localStorage.getItem('fieldScaleY')) || 1;
+    fieldScale = parseFloat(localStorage.getItem('fieldScale')) || 1;
     puckScale = parseFloat(localStorage.getItem('puckScale')) || 0.9;
     goalWidthPct = parseFloat(localStorage.getItem('goalWidthPct')) || 0.36;
     goalOffsetPct = parseFloat(localStorage.getItem('goalOffsetPct')) || 0;
@@ -136,8 +133,7 @@
     speedMul = parseFloat(localStorage.getItem('speedMul')) || 1;
   } catch {}
   goalWidthInput.value = goalWidthPct;
-  fieldWidthInput.value = fieldScaleX;
-  fieldHeightInput.value = fieldScaleY;
+  fieldScaleInput.value = fieldScale;
   const FLAG_DATA = [
     { emoji:'🇺🇸', name:'USA' },
     { emoji:'🇬🇧', name:'UK' },
@@ -272,19 +268,17 @@
     canvas.style.height = usableHeight + 'px';
     const baseW = W*0.88;
     const baseH = H*0.92;
-    const maxFieldScaleX = W/baseW;
-    const maxFieldScaleY = H/baseH;
-    const fsx = Math.min(fieldScaleX, maxFieldScaleX);
-    const fsy = Math.min(fieldScaleY, maxFieldScaleY);
-    fieldScaleActual = Math.min(fsx, fsy);
-    rink.w = Math.round(baseW * fsx);
-    rink.h = Math.round(baseH * fsy);
+    const maxFieldScale = Math.min(W/baseW, H/baseH);
+    const fs = Math.min(fieldScale, maxFieldScale);
+    fieldScaleActual = fs;
+    rink.w = Math.round(baseW * fs);
+    rink.h = Math.round(baseH * fs);
     rink.x = Math.round((W - rink.w) / 2);
     rink.y = Math.round((H - rink.h) / 2);
     centerX = W/2; centerY = H/2;
     goalCenterX = centerX + rink.w * goalOffsetPct;
-    goalWidth = Math.round(W*goalWidthPct*fieldScaleActual);
-    const base = Math.max(24, Math.round(Math.min(W,H)*0.035*fieldScaleActual));
+    goalWidth = Math.round(W*goalWidthPct*fs);
+    const base = Math.max(24, Math.round(Math.min(W,H)*0.035*fs));
     paddleRadius = base*3.4*paddleScale;
     puck.r = Math.max(20, Math.round(base*1.0*puckScale));
     p1.r = paddleRadius; p2.r = paddleRadius;
@@ -345,17 +339,14 @@
   configBtn.addEventListener('click', () => {
     configPopup.style.display = 'flex';
     goalWidthInput.value = goalWidthPct;
-    fieldWidthInput.value = fieldScaleX;
-    fieldHeightInput.value = fieldScaleY;
+    fieldScaleInput.value = fieldScale;
   });
   configSave.addEventListener('click', () => {
     goalWidthPct = parseFloat(goalWidthInput.value);
-    fieldScaleX = parseFloat(fieldWidthInput.value);
-    fieldScaleY = parseFloat(fieldHeightInput.value);
+    fieldScale = parseFloat(fieldScaleInput.value);
     try {
       localStorage.setItem('goalWidthPct', goalWidthPct);
-      localStorage.setItem('fieldScaleX', fieldScaleX);
-      localStorage.setItem('fieldScaleY', fieldScaleY);
+      localStorage.setItem('fieldScale', fieldScale);
     } catch {}
     fit();
     configPopup.style.display = 'none';
