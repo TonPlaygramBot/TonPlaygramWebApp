@@ -8,6 +8,11 @@
   --cell-height: 80px;
 }
 
+html,
+body {
+  overscroll-behavior: none;
+}
+
 body {
   font-family: 'Luckiest Guy', 'Comic Sans MS', cursive;
   margin: 0;
