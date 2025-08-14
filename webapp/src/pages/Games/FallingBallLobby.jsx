@@ -17,6 +17,7 @@ export default function FallingBallLobby() {
   const [players, setPlayers] = useState(2);
   const [stake, setStake] = useState({ token: 'TPC', amount: 100 });
   const [mode, setMode] = useState('local');
+  const [payout, setPayout] = useState('single');
   const [avatar, setAvatar] = useState('');
 
   useEffect(() => {
@@ -48,6 +49,7 @@ export default function FallingBallLobby() {
     params.set('players', players);
     params.set('density', 'high');
     params.set('mode', mode);
+    if (payout === 'shared') params.set('shared', '1');
     const initData = window.Telegram?.WebApp?.initData;
     if (stake.token) params.set('token', stake.token);
     if (stake.amount) params.set('amount', stake.amount);
@@ -93,6 +95,23 @@ export default function FallingBallLobby() {
               key={id}
               onClick={() => setMode(id)}
               className={`lobby-tile ${mode === id ? 'lobby-selected' : ''}`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+      </div>
+      <div className="space-y-2">
+        <h3 className="font-semibold">Payout</h3>
+        <div className="flex gap-2">
+          {[
+            { id: 'single', label: 'Winner Takes All' },
+            { id: 'shared', label: 'Shared Pot' }
+          ].map(({ id, label }) => (
+            <button
+              key={id}
+              onClick={() => setPayout(id)}
+              className={`lobby-tile ${payout === id ? 'lobby-selected' : ''}`}
             >
               {label}
             </button>
