@@ -247,7 +247,10 @@ export default function TasksCard() {
         }}
       />
 
-      <h3 className="text-lg font-bold text-text flex items-center justify-center space-x-1"><AiOutlineCheckSquare className="text-accent" /><span>Tasks</span></h3>
+      <h3 className="text-lg font-bold flex items-center justify-center space-x-1">
+        <AiOutlineCheckSquare className="text-accent" />
+        <span className="text-white-shadow">Tasks</span>
+      </h3>
 
       <ul className="space-y-2">
         <li className="lobby-tile w-full">
