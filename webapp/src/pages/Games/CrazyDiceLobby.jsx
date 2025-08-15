@@ -106,7 +106,7 @@ export default function CrazyDiceLobby() {
     (table.id === 'single' && aiType === 'flags' && flags.length !== aiCount);
 
   return (
-    <div className="relative p-4 space-y-4 text-text min-h-screen tetris-grid-bg">
+    <div className="relative p-4 space-y-4 text-text min-h-screen game-page-bg">
       <h2 className="text-xl font-bold text-center">Crazy Dice Lobby</h2>
       <p className="text-center text-sm">Online users: {online}</p>
       <div className="space-y-2">

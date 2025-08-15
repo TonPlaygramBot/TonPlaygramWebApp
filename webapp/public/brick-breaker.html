@@ -53,10 +53,10 @@
         display: flex;
         flex-direction: column;
       }
-      .tetris-grid-bg{
+      .brick-breaker-bg{
         background:
-          repeating-linear-gradient(45deg,rgba(255,255,255,0.05) 0 2px,transparent 2px 4px),
-          radial-gradient(circle at center,#243375 0%,#18234d 80%);
+          repeating-linear-gradient(45deg,rgba(255,255,255,0.1) 0 2px,transparent 2px 4px),
+          radial-gradient(circle at center,#2c3e91 0%,#1e2d64 80%);
         background-size:100px 100px,cover;
         background-position:0 0,center;
         animation:canvasDepthMove 30s linear infinite;
@@ -363,7 +363,7 @@
             </h3>
             <canvas
               id="userCanvas"
-              class="main tetris-grid-bg"
+              class="main brick-breaker-bg"
               width="720"
               height="1120"
             ></canvas>
@@ -695,7 +695,7 @@
             wrap.className = 'mini';
             wrap.innerHTML = `<h3><img class="avatar" src="${avatar}" alt="avatar"/>${label}</h3>`;
             const cv = document.createElement('canvas');
-            cv.className = 'tetris-grid-bg';
+            cv.className = 'brick-breaker-bg';
             cv.width = CANVAS_W;
             cv.height = CANVAS_H;
             const ctx = cv.getContext('2d');
