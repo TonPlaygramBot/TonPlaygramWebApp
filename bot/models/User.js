@@ -41,9 +41,10 @@ const userSchema = new mongoose.Schema({
 
   telegramId: { type: Number, unique: true },
 
-  // Allow multiple users without a Google account by making the unique
-  // index sparse (documents missing googleId won't conflict)
-  googleId: { type: String, default: null },
+  // Allow multiple users without a Google account. By omitting the field when
+  // it isn't provided (default: undefined), the sparse unique index below will
+  // ignore these documents instead of treating `null` values as duplicates.
+  googleId: { type: String, default: undefined },
 
   googleEmail: { type: String, default: '' },
 
