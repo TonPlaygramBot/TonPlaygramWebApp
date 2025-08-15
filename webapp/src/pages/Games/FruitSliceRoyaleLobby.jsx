@@ -63,7 +63,7 @@ export default function FruitSliceRoyaleLobby() {
   };
 
   return (
-    <div className="relative p-4 space-y-4 text-text min-h-screen tetris-grid-bg">
+    <div className="relative p-4 space-y-4 text-text min-h-screen game-page-bg">
       <h2 className="text-xl font-bold text-center">Fruit Slice Royale Lobby</h2>
       <div className="space-y-2">
         <h3 className="font-semibold">Players</h3>
