@@ -841,21 +841,7 @@ export default function CrazyDiceDuel() {
           <img src={b.photoUrl} className="w-5 h-5 rounded-full" />
         </div>
       ))}
-      {playerCount === 2 ? (
-        <>
-          <BottomLeftIcons
-            onInfo={() => {}}
-            className="fixed left-1 top-1 flex flex-col items-center space-y-2 z-20"
-          />
-          <BottomLeftIcons
-            onChat={() => setShowChat(true)}
-            onGift={() => setShowGift(true)}
-            className="fixed right-1 top-1 flex flex-col items-center space-y-2 z-20"
-            showInfo={false}
-            showMute={false}
-          />
-        </>
-      ) : (
+      {playerCount === 2 ? null : (
         <BottomLeftIcons
           onInfo={() => {}}
           onChat={() => setShowChat(true)}
