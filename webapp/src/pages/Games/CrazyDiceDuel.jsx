@@ -138,10 +138,10 @@ export default function CrazyDiceDuel() {
               : aiCount > 0
                 ? avatarToName(p.photoUrl) || `AI ${i}`
                 : `P${i + 1}`,
-          score: p.score,
+          photoUrl: p.photoUrl || '/assets/icons/profile.svg',
+          amount: p.score,
         }))
-        .sort((a, b) => b.score - a.score)
-        .map((p) => p.name),
+        .sort((a, b) => b.amount - a.amount),
     [players, aiCount],
   );
   const [showChat, setShowChat] = useState(false);
@@ -936,7 +936,6 @@ export default function CrazyDiceDuel() {
       <GameEndPopup
         open={winner != null}
         ranking={ranking}
-        onPlayAgain={() => window.location.reload()}
         onReturn={() => navigate('/games/crazydice/lobby')}
       />
       <InfoPopup
