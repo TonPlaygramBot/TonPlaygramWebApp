@@ -1821,18 +1821,6 @@ input:focus {
   animation: canvasDepthMove 30s linear infinite;
 }
 
-/* Shared lobby background tweaks */
-.game-lobby {
-  background-repeat: no-repeat;
-  background-position: center;
-  background-size: 110%;
-}
-
-/* Individual lobby backgrounds */
-.goalrush-lobby-bg {
-  background-image: radial-gradient(circle at center, #facc15 0%, #ca8a04 80%);
-}
-
 /* Ensure TPC icon appears slightly larger across the site */
 img[alt="TPC"] {
   min-width: 1.25rem;
