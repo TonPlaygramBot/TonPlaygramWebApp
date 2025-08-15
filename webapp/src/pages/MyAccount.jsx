@@ -297,11 +297,12 @@ export default function MyAccount() {
           <img src={getAvatarUrl(photoToShow)} alt="avatar" className="w-14 h-14 rounded-full object-cover" />
         )}
         <div>
-          <p className="font-semibold">
+          <p className="font-semibold text-white-shadow">
             {profile.firstName} {profile.lastName}
           </p>
-          <div className="text-sm text-subtext flex items-center space-x-1">
-            <span>Account: {profile.accountId}</span>
+          <div className="text-sm flex items-center space-x-1">
+            <span className="text-white-shadow">Account:</span>
+            <span className="text-yellow-400 text-outline-black">{profile.accountId}</span>
             <FiCopy
               className="w-4 h-4 cursor-pointer"
               onClick={() => navigator.clipboard.writeText(String(profile.accountId))}
@@ -327,11 +328,11 @@ export default function MyAccount() {
           >
             Use Telegram Photo
           </button>
-          <div className="mt-2 space-x-2">
-            <a href="/mining" className="underline text-primary">
-              Mining
-            </a>
-            <a href="/messages" className="underline text-primary relative">
+          <div className="mt-2">
+            <a
+              href="/messages"
+              className="underline text-red-600 text-outline-white relative"
+            >
               Inbox
               {unread > 0 && (
                 <span className="absolute -top-1 -right-3 bg-red-600 text-background text-xs rounded-full px-1">
@@ -362,7 +363,7 @@ export default function MyAccount() {
             />
             <button
               onClick={handleSaveTwitter}
-              className="px-2 py-1 bg-primary hover:bg-primary-hover rounded text-white-shadow text-sm"
+              className="px-2 py-1 bg-primary hover:bg-primary-hover rounded text-sm text-white-shadow"
             >
               Save
             </button>
