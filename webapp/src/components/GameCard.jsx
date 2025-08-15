@@ -15,7 +15,12 @@ export default function GameCard({ title, description, link, icon }) {
   return (
     <div className="relative bg-surface border border-border rounded-xl p-4 shadow-lg space-y-2 text-center overflow-hidden wide-card">
       {iconNode}
-      <h3 className="text-lg font-bold text-text">{title}</h3>
+      <h3
+        className="text-lg font-bold text-yellow-400"
+        style={{ WebkitTextStroke: '1px black' }}
+      >
+        {title}
+      </h3>
       {description && <p className="text-subtext text-sm">{description}</p>}
       {link && (
         <Link
