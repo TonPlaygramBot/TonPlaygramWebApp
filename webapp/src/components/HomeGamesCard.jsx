@@ -18,63 +18,63 @@ export default function HomeGamesCard() {
             className="flex flex-col items-center space-y-1 border border-border rounded-lg p-2 flex-shrink-0 tetris-grid-bg"
           >
             <img src="/assets/icons/goal_rush_card_1200x675.webp" alt="" className="h-20 w-20" />
-            <h3 className="text-sm font-semibold text-center text-yellow-400">Goal Rush</h3>
+            <h3 className="text-sm font-semibold text-center text-yellow-400 text-outline-black">Goal Rush</h3>
           </Link>
           <Link
             to="/games/snake/lobby"
             className="flex flex-col items-center space-y-1 border border-border rounded-lg p-2 flex-shrink-0 tetris-grid-bg"
           >
             <img src="/assets/icons/snakes_and_ladders.webp" alt="" className="h-20 w-20" />
-            <h3 className="text-sm font-semibold text-center text-yellow-400">Snake &amp; Ladder</h3>
+            <h3 className="text-sm font-semibold text-center text-yellow-400 text-outline-black">Snake &amp; Ladder</h3>
           </Link>
           <Link
             to="/games/fallingball/lobby"
             className="flex flex-col items-center space-y-1 border border-border rounded-lg p-2 flex-shrink-0 tetris-grid-bg"
           >
             <img src="/assets/icons/Falling Ball .png" alt="" className="h-20 w-20" />
-            <h3 className="text-sm font-semibold text-center text-yellow-400">Falling Ball</h3>
+            <h3 className="text-sm font-semibold text-center text-yellow-400 text-outline-black">Falling Ball</h3>
           </Link>
           <Link
             to="/games/fruitsliceroyale/lobby"
             className="flex flex-col items-center space-y-1 border border-border rounded-lg p-2 flex-shrink-0 tetris-grid-bg"
           >
             <img src="/assets/icons/Fruit Slice Royale .png" alt="" className="h-20 w-20" />
-            <h3 className="text-sm font-semibold text-center text-yellow-400">Fruit Slice Royale</h3>
+            <h3 className="text-sm font-semibold text-center text-yellow-400 text-outline-black">Fruit Slice Royale</h3>
           </Link>
           <Link
             to="/games/brickbreaker/lobby"
             className="flex flex-col items-center space-y-1 border border-border rounded-lg p-2 flex-shrink-0 tetris-grid-bg"
           >
             <img src="/assets/icons/Brick Breaker Royale .png" alt="" className="h-20 w-20" />
-            <h3 className="text-sm font-semibold text-center text-yellow-400">Brick Breaker Royale</h3>
+            <h3 className="text-sm font-semibold text-center text-yellow-400 text-outline-black">Brick Breaker Royale</h3>
           </Link>
           <Link
             to="/games/tetrisroyale/lobby"
             className="flex flex-col items-center space-y-1 border border-border rounded-lg p-2 flex-shrink-0 tetris-grid-bg"
           >
             <img src="/assets/icons/file_00000000240061f4abd28311d76970a5.png" alt="" className="h-20 w-20" />
-            <h3 className="text-sm font-semibold text-center text-yellow-400">Tetris Royale</h3>
+            <h3 className="text-sm font-semibold text-center text-yellow-400 text-outline-black">Tetris Royale</h3>
           </Link>
           <Link
             to="/games/bubblesmashroyale/lobby"
             className="flex flex-col items-center space-y-1 border border-border rounded-lg p-2 flex-shrink-0 tetris-grid-bg"
           >
             <img src="/assets/icons/Bubble Smash Royale .png" alt="" className="h-20 w-20" />
-            <h3 className="text-sm font-semibold text-center text-yellow-400">Bubble Smash Royale</h3>
+            <h3 className="text-sm font-semibold text-center text-yellow-400 text-outline-black">Bubble Smash Royale</h3>
           </Link>
           <Link
             to="/games/crazydice/lobby"
             className="flex flex-col items-center space-y-1 border border-border rounded-lg p-2 flex-shrink-0 tetris-grid-bg"
           >
             <img src="/assets/icons/Crazy_Dice_Duel_Promo.webp" alt="" className="h-20 w-20" />
-            <h3 className="text-sm font-semibold text-center text-yellow-400">Crazy Dice Duel</h3>
+            <h3 className="text-sm font-semibold text-center text-yellow-400 text-outline-black">Crazy Dice Duel</h3>
           </Link>
           <Link
             to="/games/bubblepoproyale/lobby"
             className="flex flex-col items-center space-y-1 border border-border rounded-lg p-2 flex-shrink-0 tetris-grid-bg"
           >
             <img src="/assets/icons/Bubble Pop Royale .png" alt="" className="h-20 w-20" />
-            <h3 className="text-sm font-semibold text-center text-yellow-400">Bubble Pop Royale</h3>
+            <h3 className="text-sm font-semibold text-center text-yellow-400 text-outline-black">Bubble Pop Royale</h3>
           </Link>
         </div>
       <Link
