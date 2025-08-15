@@ -56,17 +56,29 @@ body {
 }
 
 .text-text {
-  /* Gold price-style text with electric blue outline */
-  -webkit-text-stroke-color: #00f7ff;
+  /* Gold price-style text with black outline */
+  -webkit-text-stroke-color: #000000;
 }
 
 [class*='text-yellow-'] {
-  /* Electric blue outline for yellow text */
-  -webkit-text-stroke-color: #00f7ff;
+  /* Black outline for yellow text */
+  -webkit-text-stroke-color: #000000;
 }
 
 [class*='text-white'] {
   /* Black outline for white text */
+  -webkit-text-stroke-color: #000000;
+  text-shadow: 0 0 4px #000000;
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  color: #ffffff;
+  -webkit-text-stroke-width: 0.3px;
   -webkit-text-stroke-color: #000000;
   text-shadow: 0 0 4px #000000;
 }
