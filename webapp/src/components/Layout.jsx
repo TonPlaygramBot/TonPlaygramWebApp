@@ -111,7 +111,7 @@ export default function Layout({ children }) {
         className={`flex-grow ${
           showNavbar
             ? isLobby
-              ? 'w-full p-4 pb-24'
+              ? 'w-full p-0 pb-24'
               : 'container mx-auto p-4 pb-24'
             : 'w-full p-0'
         }`}
