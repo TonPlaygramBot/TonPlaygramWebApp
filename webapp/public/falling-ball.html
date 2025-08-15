@@ -42,7 +42,10 @@
     .sep{ opacity:.3; }
       .popup{ position:absolute; inset:0; background:rgba(0,0,0,.7); display:flex; align-items:center; justify-content:center; }
       .popup.hidden{ display:none; }
-      .popup .box{ background:linear-gradient(180deg,#0f1530,#0a0f24); background-color:#0b1a2f; border:1px solid #facc15; box-shadow:0 0 8px #00f7ff, inset 0 0 10px rgba(0,247,255,.4); padding:20px; border-radius:12px; text-align:center; color:#facc15; -webkit-text-stroke-width:.3px; -webkit-text-stroke-color:#00f7ff; }
+      .popup .box{ background:linear-gradient(180deg,#0f1736,#0b1126); border:1px solid #223063; box-shadow:0 0 8px rgba(0,0,0,0.5); padding:20px; border-radius:12px; text-align:center; color:var(--ink); }
+    .winnerOverlay{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.6);z-index:60}
+    .winnerOverlay.hidden{display:none}
+    .winnerOverlay img{width:120px;height:120px;border-radius:50%}
     .countdown{ position:fixed; inset:0; display:flex; align-items:center; justify-content:center; font-size:48px; font-weight:bold; color:#fff; background:rgba(0,0,0,0.5); z-index:50; }
     .countdown.hidden{ display:none; }
   
@@ -77,6 +80,7 @@
         <button class="btn primary" id="lobbyBtn">Return Lobby</button>
       </div>
     </div>
+    <div id="winnerOverlay" class="winnerOverlay hidden"></div>
     <div id="countdown" class="countdown hidden"></div>
   </div>
 
@@ -141,6 +145,14 @@
       }
       setTimeout(()=>container.remove(),5000);
     }
+
+  const winnerOverlay = document.getElementById('winnerOverlay');
+  function showWinnerOverlay(avatar){
+    if(!winnerOverlay) return;
+    winnerOverlay.innerHTML = avatar ? `<img src="${avatar}" alt="winner"/>` : '';
+    winnerOverlay.classList.remove('hidden');
+    setTimeout(()=>winnerOverlay.classList.add('hidden'),2000);
+  }
 
   const sfxToggleBtn = document.getElementById('sfxToggle');
   sfxToggleBtn.onclick = (e)=>{
@@ -484,21 +496,23 @@
       // ground / slots
       if (b.y + b.r >= groundY){
         b.y = groundY - b.r; b.vy *= -state.bounce;
-        if (Math.abs(b.vy) < 1.1 && (!state.shared || !b.landed)){
+        if (Math.abs(b.vy) < 1.1 && !b.landed){
+          b.landed = true;
           const idx = pickSlotFromX(b.x);
           if(!state.shared) state.resultSlot = idx;
           const winner = state.slots[idx];
           if(state.shared){
             const winAmt = b.value;
-            b.landed = true;
             winner.win = (winner.win||0) + winAmt;
             document.getElementById('winnerVal').textContent = `${winner.name} +${winAmt} TPC`;
             setStatus(`${winner.name} +${winAmt} TPC`);
-            SFX.win();
-            coinConfetti();
             if(state.balls.every(ball=>ball.landed)){
               finalizeSharedPayouts();
               awardDevShare(state.pot);
+              const top = state.slots.reduce((a,b)=> ((a.win||0)>(b.win||0)?a:b), state.slots[0]);
+              SFX.win();
+              coinConfetti();
+              showWinnerOverlay(top.avatar);
               setTimeout(()=>showResultsPopup(),2000);
             }
           }else{
@@ -510,6 +524,7 @@
             winner.el.classList.add('winner');
             SFX.win();
             coinConfetti();
+            showWinnerOverlay(winner.avatar);
             if(winner.accountId){
               fbApi.depositAccount(winner.accountId, winAmt, { game: 'fallingball-win' });
               if(winner.telegramId) fbApi.addTransaction(winner.telegramId, 0, 'win', { game: 'fallingball', players: state.players, accountId: winner.accountId });
