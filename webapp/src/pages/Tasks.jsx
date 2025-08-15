@@ -111,6 +111,9 @@ export default function Tasks() {
   useEffect(() => {
     load();
     loadInfluencer();
+    const handler = () => load();
+    window.addEventListener('tasksUpdated', handler);
+    return () => window.removeEventListener('tasksUpdated', handler);
   }, []);
 
   useEffect(() => {
