@@ -405,6 +405,17 @@ input:focus {
   }
 }
 
+.bomb-explosion {
+  animation: bomb-pop 1s forwards;
+}
+
+@keyframes bomb-pop {
+  to {
+    transform: scale(3);
+    opacity: 0;
+  }
+}
+
 /* Larger token variant used for inactive pieces */
 .token-three.inactive {
   width: 6.6rem;

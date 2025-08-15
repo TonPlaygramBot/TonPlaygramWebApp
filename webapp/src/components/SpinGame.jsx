@@ -9,6 +9,7 @@ import {
   addTransaction
 } from '../utils/api.js';
 import { getTelegramId } from '../utils/telegram.js';
+import { getGameVolume } from '../utils/sound.js';
 import LoginOptions from './LoginOptions.jsx';
 
 export default function SpinGame() {
@@ -37,6 +38,27 @@ export default function SpinGame() {
   const wheelRef = useRef(null);
   const bonusRefLeft = useRef(null);
   const bonusRefRight = useRef(null);
+  const [bombed, setBombed] = useState(false);
+  const bombSoundRef = useRef(null);
+
+  useEffect(() => {
+    bombSoundRef.current = new Audio('/assets/sounds/a-bomb-139689.mp3');
+    bombSoundRef.current.volume = getGameVolume();
+    const handler = () => {
+      if (bombSoundRef.current) bombSoundRef.current.volume = getGameVolume();
+    };
+    window.addEventListener('gameVolumeChanged', handler);
+    return () => {
+      window.removeEventListener('gameVolumeChanged', handler);
+      bombSoundRef.current?.pause();
+    };
+  }, []);
+
+  useEffect(() => {
+    if (bombed) {
+      bombSoundRef.current?.play().catch(() => {});
+    }
+  }, [bombed]);
 
   useEffect(() => {
     const handleFs = () => {
@@ -109,6 +131,16 @@ export default function SpinGame() {
   const handleFinish = async (r) => {
     localStorage.removeItem('spinInProgress');
     setSpinLock(false);
+    if (r === 'BOMB') {
+      if (freeSpins === 0) {
+        const now = Date.now();
+        localStorage.setItem('lastSpin', String(now));
+        setLastSpin(now);
+      }
+      setSpinning(false);
+      setBombed(true);
+      return;
+    }
     if (r === 'BONUS_X3') {
       setBonusMode(true);
       if (freeSpins === 0) {
@@ -231,7 +263,7 @@ export default function SpinGame() {
           e.currentTarget.style.display = 'none';
         }}
       />
-      <h3 className="text-lg font-bold text-text">Spin &amp; Win</h3>
+      <h3 className="text-lg font-bold text-white">Spin &amp; Win</h3>
       <p className="text-sm text-subtext">Try your luck and win rewards!</p>
       {!bonusMode ? (
         <div className="flex items-start justify-center">
@@ -301,6 +333,20 @@ export default function SpinGame() {
         onComplete={handleAdComplete}
         onClose={() => setShowAd(false)}
       />
+      {bombed && (
+        <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-70 z-50">
+          <div className="text-center space-y-4">
+            <div className="text-6xl bomb-explosion">💥</div>
+            <p className="text-text text-xl font-bold">Try Again Later</p>
+            <button
+              onClick={() => setBombed(false)}
+              className="px-4 py-1 bg-primary hover:bg-primary-hover text-white rounded w-full"
+            >
+              Close
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

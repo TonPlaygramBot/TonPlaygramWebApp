@@ -207,7 +207,9 @@ export default forwardRef<SpinWheelHandle, SpinWheelProps>(function SpinWheel(
                   ? 'justify-center'
                   : 'justify-center space-x-1'
               } ${
-                idx === winnerIndex ? 'bg-yellow-300 text-black border-4 border-brand-gold shadow-[0_0_12px_rgba(241,196,15,0.8)]' : 'text-white'
+                idx === winnerIndex
+                  ? 'bg-yellow-300 text-black border-4 border-brand-gold shadow-[0_0_12px_rgba(241,196,15,0.8)]'
+                  : 'text-text'
               }`}
               style={{ height: itemHeight }}
             >
@@ -224,9 +226,17 @@ export default forwardRef<SpinWheelHandle, SpinWheelProps>(function SpinWheel(
                   />
                   <span>+2</span>
                 </>
+              ) : val === 'BOMB' ? (
+                <span className="text-2xl" role="img" aria-label="Bomb">
+                  💣
+                </span>
               ) : (
                 <>
-                  <img src="/assets/icons/ezgif-54c96d8a9b9236.webp" alt="TPC" className="w-8 h-8" />
+                  <img
+                    src="/assets/icons/ezgif-54c96d8a9b9236.webp"
+                    alt="TPC"
+                    className="w-8 h-8"
+                  />
                   <span>{val >= 1000 ? `${val / 1000}k` : val}</span>
                 </>
               )}
