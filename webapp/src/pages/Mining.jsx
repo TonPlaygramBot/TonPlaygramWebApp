@@ -126,6 +126,8 @@ export default function Mining() {
   if (!referral) return <div className="p-4">Loading...</div>;
 
   const link = `https://t.me/${BOT_USERNAME}?start=${referral.referralCode}`;
+  const totalBoost =
+    (referral.bonusMiningRate || 0) + (referral.storeMiningRate || 0);
 
   return (
     <>
@@ -166,9 +168,21 @@ export default function Mining() {
       )}
 
       <section className="space-y-1">
-        <h3 className="text-lg font-semibold">Friends</h3>
-        <p className="text-brand-gold text-outline-black">Invited friends: {referral.referralCount}</p>
-        <p className="text-brand-gold text-outline-black">Mining boost: +{referral.bonusMiningRate * 100}%</p>
+        <h3 className="text-lg font-semibold">Referral</h3>
+        <p className="text-white text-outline-black">
+          Invited friends:{' '}
+          <span className="text-yellow-400 text-outline-black">
+            {referral.referralCount}
+          </span>
+        </p>
+        {totalBoost > 0 && (
+          <p className="text-white text-outline-black">
+            Mining boost:{' '}
+            <span className="text-yellow-400 text-outline-black">
+              +{(totalBoost * 100).toFixed(0)}%
+            </span>
+          </p>
+        )}
         {referral.storeMiningRate && referral.storeMiningExpiresAt && (
           <p className="text-sm text-subtext">
             Boost ends in {Math.max(0, Math.floor((new Date(referral.storeMiningExpiresAt).getTime() - Date.now()) / 86400000))}d
