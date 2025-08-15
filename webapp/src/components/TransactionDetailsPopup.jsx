@@ -11,6 +11,25 @@ import { getAvatarUrl } from '../utils/avatarUtils.js';
 import { NFT_GIFTS } from '../utils/nftGifts.js';
 import GiftIcon from './GiftIcon.jsx';
 
+const GAME_NAME_MAP = {
+  snake: 'Snake & Ladder',
+  crazydice: 'Crazy Dice Duel',
+  tetris: 'Tetris Royale',
+  goalrush: 'Goal Rush',
+  bubblepop: 'Bubble Pop Royale',
+  bubblesmash: 'Bubble Smash Royale',
+  fruitslice: 'Fruit Slice Royale',
+  brickbreaker: 'Brick Breaker Royale',
+  fallingball: 'Falling Ball'
+};
+
+function getGameName(slug = '') {
+  const entry = Object.entries(GAME_NAME_MAP).find(([key]) =>
+    slug.startsWith(key)
+  );
+  return entry ? entry[1] : slug;
+}
+
 export default function TransactionDetailsPopup({ tx, onClose }) {
 
   const [counterparty, setCounterparty] = useState(null);
@@ -74,6 +93,7 @@ export default function TransactionDetailsPopup({ tx, onClose }) {
     counterparty?.nickname || `${counterparty?.firstName || ''} ${counterparty?.lastName || ''}`.trim();
 
   const displayName = nameOverride || nameFromProfile || '';
+  const gameName = tx.game ? getGameName(tx.game) : '';
 
   const gift = (isGiftSend || isGiftReceive) && tx.detail
 
@@ -235,16 +255,21 @@ export default function TransactionDetailsPopup({ tx, onClose }) {
 
           )}
 
+          {tx.game && (
+            <div className="text-sm text-subtext">
+              {gameName}
+              {typeof tx.players === 'number' && (
+                <> vs {tx.players} {tx.players === 1 ? 'player' : 'players'}</>
+              )}
+            </div>
+          )}
+
           {!gift && tx.detail && (
-
             <div className="text-sm text-subtext">{tx.detail}</div>
-
           )}
 
           <div className="text-xs text-subtext">
-
-            {new Date(tx.date).toLocaleString()}
-
+            {new Date(tx.date).toLocaleString(undefined, { hour12: false })}
           </div>
 
         </div>
