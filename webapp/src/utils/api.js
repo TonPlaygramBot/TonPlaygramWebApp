@@ -161,12 +161,20 @@ export function adminListTasks() {
   return post('/api/tasks/admin/list', {}, API_AUTH_TOKEN || undefined);
 }
 
-export function adminCreateTask(platform, reward, link) {
-  return post('/api/tasks/admin/create', { platform, reward, link }, API_AUTH_TOKEN || undefined);
+export function adminCreateTask(platform, reward, link, description) {
+  return post(
+    '/api/tasks/admin/create',
+    { platform, reward, link, description },
+    API_AUTH_TOKEN || undefined
+  );
 }
 
-export function adminUpdateTask(id, platform, reward, link) {
-  return post('/api/tasks/admin/update', { id, platform, reward, link }, API_AUTH_TOKEN || undefined);
+export function adminUpdateTask(id, platform, reward, link, description) {
+  return post(
+    '/api/tasks/admin/update',
+    { id, platform, reward, link, description },
+    API_AUTH_TOKEN || undefined
+  );
 }
 
 export function adminDeleteTask(id) {

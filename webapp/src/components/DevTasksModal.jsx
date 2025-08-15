@@ -6,12 +6,14 @@ import {
   adminUpdateTask,
   adminDeleteTask
 } from '../utils/api.js';
+import { FiEdit, FiTrash2 } from 'react-icons/fi';
 
 export default function DevTasksModal({ open, onClose }) {
   const [tasks, setTasks] = useState([]);
   const [platform, setPlatform] = useState('tiktok');
   const [reward, setReward] = useState('');
   const [link, setLink] = useState('');
+  const [description, setDescription] = useState('');
   const [editing, setEditing] = useState(null);
 
   const load = async () => {
@@ -25,15 +27,16 @@ export default function DevTasksModal({ open, onClose }) {
 
   const handleAdd = async () => {
     const r = parseInt(reward, 10);
-    if (!platform || !r || !link) return;
+    if (!platform || !r || !link || !description) return;
     if (editing) {
-      await adminUpdateTask(editing, platform, r, link);
+      await adminUpdateTask(editing, platform, r, link, description);
     } else {
-      await adminCreateTask(platform, r, link);
+      await adminCreateTask(platform, r, link, description);
     }
     setPlatform('tiktok');
     setReward('');
     setLink('');
+    setDescription('');
     setEditing(null);
     load();
   };
@@ -42,10 +45,12 @@ export default function DevTasksModal({ open, onClose }) {
     setPlatform(task.platform);
     setReward(String(task.reward));
     setLink(task.link);
+    setDescription(task.description || '');
     setEditing(task._id);
   };
 
   const handleDelete = async (id) => {
+    if (!window.confirm('Are you sure you want to delete this task?')) return;
     await adminDeleteTask(id);
     load();
   };
@@ -84,6 +89,13 @@ export default function DevTasksModal({ open, onClose }) {
             onChange={(e) => setLink(e.target.value)}
             className="border p-1 rounded w-full text-black"
           />
+          <input
+            type="text"
+            placeholder="Description"
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            className="border p-1 rounded w-full text-black"
+          />
           <button
             onClick={handleAdd}
             className="px-3 py-1 bg-primary hover:bg-primary-hover rounded text-background w-full"
@@ -97,6 +109,7 @@ export default function DevTasksModal({ open, onClose }) {
                 setPlatform('tiktok');
                 setReward('');
                 setLink('');
+                setDescription('');
               }}
               className="px-3 py-1 bg-red-600 text-background rounded w-full"
             >
@@ -107,23 +120,20 @@ export default function DevTasksModal({ open, onClose }) {
         <ul className="space-y-2">
           {tasks.map((t) => (
             <li key={t._id} className="lobby-tile space-y-1">
-              <div className="text-sm break-all">
+              <div className="text-sm break-all">{t.description}</div>
+              <div className="text-xs break-all">
                 {t.platform} - {t.reward} TPC
               </div>
               <div className="text-xs break-all">{t.link}</div>
-              <div className="flex gap-2 mt-1">
-                <button
+              <div className="flex gap-4 mt-1 justify-center">
+                <FiEdit
+                  className="w-4 h-4 cursor-pointer text-primary"
                   onClick={() => handleEdit(t)}
-                  className="px-2 py-1 bg-primary hover:bg-primary-hover text-background rounded text-xs"
-                >
-                  Edit
-                </button>
-                <button
+                />
+                <FiTrash2
+                  className="w-4 h-4 cursor-pointer text-red-600"
                   onClick={() => handleDelete(t._id)}
-                  className="px-2 py-1 bg-red-600 text-background rounded text-xs"
-                >
-                  Remove
-                </button>
+                />
               </div>
             </li>
           ))}
