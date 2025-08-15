@@ -1760,3 +1760,59 @@ input:focus {
     center;
   animation: canvasDepthMove 30s linear infinite;
 }
+
+/* Shared lobby background tweaks */
+.game-lobby {
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: 110%;
+}
+
+/* Individual lobby backgrounds */
+.tetris-lobby-bg {
+  background:
+    repeating-linear-gradient(
+      45deg,
+      rgba(255, 255, 255, 0.05) 0 2px,
+      transparent 2px 4px
+    ),
+    radial-gradient(circle at center, #243375 0%, #18234d 80%);
+  background-size:
+    110px 110px,
+    110%;
+  background-position:
+    0 0,
+    center;
+}
+
+.brickbreaker-lobby-bg {
+  background-image: radial-gradient(circle at center, #8b0000 0%, #330000 80%);
+}
+
+.bubblepop-lobby-bg {
+  background-image: radial-gradient(circle at center, #3b82f6 0%, #1e3a8a 80%);
+}
+
+.bubblesmash-lobby-bg {
+  background-image: radial-gradient(circle at center, #9333ea 0%, #5b21b6 80%);
+}
+
+.fallingball-lobby-bg {
+  background-image: radial-gradient(circle at center, #f97316 0%, #9a3412 80%);
+}
+
+.fruitslice-lobby-bg {
+  background-image: radial-gradient(circle at center, #16a34a 0%, #14532d 80%);
+}
+
+.goalrush-lobby-bg {
+  background-image: radial-gradient(circle at center, #facc15 0%, #ca8a04 80%);
+}
+
+.crazydice-lobby-bg {
+  background-image: radial-gradient(circle at center, #d946ef 0%, #86198f 80%);
+}
+
+.snake-lobby-bg {
+  background-image: radial-gradient(circle at center, #22c55e 0%, #065f46 80%);
+}

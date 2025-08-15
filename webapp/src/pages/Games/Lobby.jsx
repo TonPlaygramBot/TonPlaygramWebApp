@@ -259,7 +259,7 @@ export default function Lobby() {
       flags.length !== aiCount);
 
   return (
-    <div className="relative p-4 space-y-4 text-text min-h-screen tetris-grid-bg">
+    <div className={`relative p-4 space-y-4 text-text min-h-screen game-lobby ${game}-lobby-bg`}>
       <h2 className="text-xl font-bold text-center capitalize">{game} Lobby</h2>
       <p className="text-center text-sm">Online users: {online}</p>
       {game === 'snake' && (
