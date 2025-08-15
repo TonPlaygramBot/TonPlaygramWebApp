@@ -45,7 +45,7 @@ export default function InvitePopup({
               {group ? 'group' : '1v1'}?
             </p>
             <div className="space-y-1">
-              <p className="font-semibold">Game</p>
+              <p className="font-semibold text-white-shadow">Game</p>
               <div className="flex flex-wrap justify-center gap-2">
                 {[
                   {
