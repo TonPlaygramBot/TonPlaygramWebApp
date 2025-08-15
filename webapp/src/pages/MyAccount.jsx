@@ -342,7 +342,8 @@ export default function MyAccount() {
           </div>
           {profile.social?.twitter && (
             <p className="text-sm mt-2">
-              Linked X: @{profile.social.twitter}{' '}
+              <span className="text-white text-outline-black">Linked X:</span>{' '}
+              @{profile.social.twitter}{' '}
               <button
                 onClick={handleClearTwitter}
                 className="underline text-primary ml-1"

@@ -283,12 +283,19 @@ export default function Wallet({ hideClaim = false }) {
     <div className="relative p-4 space-y-4 text-text wide-card">
       <h2 className="text-xl font-bold text-center">TPC Account Wallet</h2>
       <div className="prism-box p-6 space-y-2 min-h-40 flex flex-col items-start wide-card mx-auto">
-        <p className="text-xs break-all w-full text-left">Account: {accountId || '...'}</p>
+        <p className="text-xs break-all w-full text-left">
+          <span className="text-white text-outline-black">Account:</span>{' '}
+          <span className="text-yellow-400 text-outline-black">
+            {accountId || '...'}
+          </span>
+        </p>
         <div className="flex items-center space-x-1">
           <img src="/assets/icons/ezgif-54c96d8a9b9236.webp" alt="TPC" className="w-8 h-8" />
-          <span className="text-lg font-medium">TPC Balance</span>
+          <span className="text-lg font-medium text-white text-outline-black">
+            TPC Balance
+          </span>
         </div>
-        <p className="text-xl font-medium">
+        <p className="text-xl font-medium text-yellow-400 text-outline-black">
           {tpcBalance === null ? '...' : formatValue(tpcBalance, 2)}
         </p>
         <p className="text-xs text-subtext">
@@ -305,7 +312,9 @@ export default function Wallet({ hideClaim = false }) {
       {/* TPC account section */}
       <div className="space-y-4">
         <div className="prism-box p-6 space-y-3 text-center flex flex-col items-center min-h-40 wide-card mx-auto">
-          <label className="block font-semibold">Send TPC</label>
+          <label className="block font-semibold text-white text-outline-black">
+            Send TPC
+          </label>
           <input
             type="text"
             placeholder="Receiver Account Number"
@@ -349,7 +358,9 @@ export default function Wallet({ hideClaim = false }) {
         </div>
 
       <div className="prism-box p-6 space-y-3 text-center mt-4 flex flex-col items-center wide-card mx-auto">
-        <label className="block font-semibold">Receive TPC</label>
+        <label className="block font-semibold text-white text-outline-black">
+          Receive TPC
+        </label>
           <button
             onClick={() => navigator.clipboard.writeText(String(accountId))}
             className="mt-2 px-3 py-1 bg-primary hover:bg-primary-hover text-background rounded"
