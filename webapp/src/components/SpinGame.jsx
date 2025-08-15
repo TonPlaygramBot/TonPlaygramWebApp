@@ -316,10 +316,10 @@ export default function SpinGame() {
       </button>
       {!ready && (
         <>
-          <p className="text-sm text-white font-semibold">
+          <p className="text-sm font-semibold text-yellow-400 text-outline-black">
             Next spin in {formatTime(timeLeft)}
           </p>
-          <p className="text-sm text-white">
+          <p className="text-sm text-yellow-400 text-outline-black">
             Watch an ad every hour to get a free spin.
           </p>
         </>
