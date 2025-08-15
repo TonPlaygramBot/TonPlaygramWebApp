@@ -1498,8 +1498,8 @@ input:focus {
 .coin-confetti {
   position: fixed;
   top: -40px;
-  width: 32px;
-  height: 32px;
+  width: 48px;
+  height: 48px;
   pointer-events: none;
   animation: coin-fall var(--duration, 3s) linear forwards;
 }
