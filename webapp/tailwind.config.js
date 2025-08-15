@@ -12,8 +12,8 @@ export default {
           border: '#00f7ff',            // Glowing cyan borders
           primary: '#00f7ff',           // Button base in electric blue
           'primary-hover': '#66fcff',   // Lighter hover effect
-          text: '#00f7ff',              // Electric blue text
-          subtext: '#66fcff',           // Slightly dimmed blue
+          text: '#facc15',              // Gold price-style text
+          subtext: '#fde047',           // Slightly dimmed gold
           accent: '#00f7ff',            // Accent color
           brand: {
             gold: '#facc15',            // Yellow highlight
