@@ -16,35 +16,33 @@ body {
 body {
   font-family: 'Luckiest Guy', 'Comic Sans MS', cursive;
   margin: 0;
-  @apply text-text overflow-x-hidden font-extralight;
+  @apply text-text overflow-x-hidden font-thin;
   background: radial-gradient(1200px 800px at 70% -10%, #1a2450 0%, #0c1020 38%, #0c1020 100%) fixed;
   background-color: #0c1020;
 }
 
 /* Outline text with contrasting edges */
 [class*="text-blue-"],
+[class*="text-sky-"],
 [class*="text-red-"],
 [class*="text-yellow-"],
 [class*="text-black"],
 [class*="text-green-"],
 [class*="text-white"] {
-  -webkit-text-stroke-width: 0.5px;
+  -webkit-text-stroke-width: 0.3px;
 }
 
 [class*="text-blue-"],
+[class*="text-sky-"],
 [class*="text-red-"],
 [class*="text-yellow-"],
-[class*="text-black"] {
+[class*="text-black"],
+[class*="text-green-"] {
   -webkit-text-stroke-color: #ffffff;
 }
 
 [class*="text-white"] {
   -webkit-text-stroke-color: #000000;
-}
-
-[class*="text-green-"] {
-  -webkit-text-stroke-color: #22c55e;
-  color: #ffffff;
 }
 
 /* Neon theme elements */
