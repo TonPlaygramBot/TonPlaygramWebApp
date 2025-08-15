@@ -6,7 +6,6 @@ import GiftIcon from './GiftIcon.jsx';
 import { FaTv } from 'react-icons/fa';
 import { getAccountInfo, getSnakeResults, getWatchCount } from '../utils/api.js';
 import { NFT_GIFTS } from '../utils/nftGifts.js';
-import AchievementsCard from './AchievementsCard.jsx';
 
 function getGameFromTableId(id) {
   if (!id) return 'snake';
@@ -92,17 +91,24 @@ export default function PlayerInvitePopup({
             />
             <p className="font-semibold">{name}</p>
             {player.accountId && (
-              <p className="text-sm break-all">Account: {player.accountId}</p>
+              <p className="text-sm break-all">
+                <span className="text-white-shadow">Account:</span>{' '}
+                <span className="text-yellow-400 text-outline-black">
+                  {player.accountId}
+                </span>
+              </p>
             )}
             {balance !== undefined && (
               <p className="text-sm flex items-center justify-center gap-1">
-                Balance:
+                <span className="text-white-shadow">Balance:</span>
                 <img
                   src="/assets/icons/ezgif-54c96d8a9b9236.webp"
                   alt="TPC"
                   className="inline w-4 h-4"
                 />
-                {balance}
+                <span className="text-yellow-400 text-outline-black">
+                  {balance}
+                </span>
               </p>
             )}
             {player.currentTableId && (
@@ -158,9 +164,8 @@ export default function PlayerInvitePopup({
               )}
             </ul>
           </div>
-          <AchievementsCard telegramId={player.telegramId} />
           <div className="space-y-1">
-            <p className="font-semibold">Game</p>
+            <p className="font-semibold text-white-shadow">Game</p>
             <div className="flex flex-wrap justify-center gap-2">
               {[
                 {
@@ -229,19 +234,19 @@ export default function PlayerInvitePopup({
           <div className="flex justify-center gap-2">
             <button
               onClick={() => onInvite(game)}
-              className="px-3 py-1 bg-primary hover:bg-primary-hover rounded text-black"
+              className="px-2 py-1 bg-primary hover:bg-primary-hover rounded text-white-shadow text-sm"
             >
               Invite
             </button>
             <button
               onClick={() => setGiftOpen(true)}
-              className="px-3 py-1 bg-primary hover:bg-primary-hover rounded text-black"
+              className="px-2 py-1 bg-primary hover:bg-primary-hover rounded text-white-shadow text-sm"
             >
               Send NFT
             </button>
             <button
               onClick={onClose}
-              className="px-3 py-1 bg-primary hover:bg-primary-hover rounded text-black"
+              className="px-2 py-1 bg-primary hover:bg-primary-hover rounded text-white-shadow text-sm"
             >
               Close
             </button>
