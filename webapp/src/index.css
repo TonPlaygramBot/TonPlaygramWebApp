@@ -106,7 +106,14 @@ h6 {
   box-shadow: inset 0 0 10px rgba(0, 247, 255, 0.4);
 }
 
-button,
+button {
+  @apply px-2 py-1 bg-primary hover:bg-primary-hover text-outline-white text-sm rounded;
+}
+
+body.mining-page button {
+  @apply text-white-shadow;
+}
+
 input {
   border-color: #facc15;
   color: #facc15;

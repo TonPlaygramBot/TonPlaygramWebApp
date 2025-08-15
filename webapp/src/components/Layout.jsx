@@ -96,6 +96,14 @@ export default function Layout({ children }) {
     isLobby ||
     location.pathname.startsWith('/games/snake');
 
+  useEffect(() => {
+    if (location.pathname === '/mining') {
+      document.body.classList.add('mining-page');
+    } else {
+      document.body.classList.remove('mining-page');
+    }
+  }, [location.pathname]);
+
   return (
     <div className="flex flex-col min-h-screen text-text relative overflow-hidden">
       {showHeader && (
