@@ -471,67 +471,85 @@
           b.released = true;
           b.releaseTime = now;
         }
-        if(b.landed) continue;
+        if(b.settled) continue;
       }else if(!b.releaseTime){
         b.releaseTime = now;
       }
 
-      b.vy = Math.min(state.maxVy, b.vy + state.gravity);
-      b.vx *= (1 - state.fric);
-      b.x += b.vx; b.y += b.vy;
+      if(!b.landed){
+        b.vy = Math.min(state.maxVy, b.vy + state.gravity);
+        b.vx *= (1 - state.fric);
+        b.x += b.vx; b.y += b.vy;
+      }else{
+        b.vx *= (1 - state.fric);
+        b.x += b.vx;
+      }
 
       // walls
       if (b.x - b.r < 10){ b.x = 10 + b.r; b.vx = Math.abs(b.vx)*0.85; SFX.bounce(); }
       if (b.x + b.r > W-10){ b.x = W-10 - b.r; b.vx = -Math.abs(b.vx)*0.85; SFX.bounce(); }
-      if (b.y - b.r < 10){ b.y = 10 + b.r; b.vy *= -state.bounce; SFX.bounce(); }
+      if (!b.landed && b.y - b.r < 10){ b.y = 10 + b.r; b.vy *= -state.bounce; SFX.bounce(); }
 
       // obstacles
-      for(const o of state.obstacles){
-        if(o.type==='star') o.angle += o.spin;
-        if (collideCircle(b, o)) {
-          SFX.bounce();
+      if(!b.landed){
+        for(const o of state.obstacles){
+          if(o.type==='star') o.angle += o.spin;
+          if (collideCircle(b, o)) {
+            SFX.bounce();
+          }
         }
       }
 
       // ground / slots
-      if (b.y + b.r >= groundY){
-        b.y = groundY - b.r; b.vy *= -state.bounce;
-        if (Math.abs(b.vy) < 1.1 && !b.landed){
+      if (!b.landed && b.y + b.r >= groundY){
+        b.y = groundY - b.r;
+        if (Math.abs(b.vy) < 1.1){
           b.landed = true;
-          const idx = pickSlotFromX(b.x);
-          if(!state.shared) state.resultSlot = idx;
-          const winner = state.slots[idx];
-          if(state.shared){
-            const winAmt = b.value;
-            winner.win = (winner.win||0) + winAmt;
-            document.getElementById('winnerVal').textContent = `${winner.name} +${winAmt} TPC`;
-            setStatus(`${winner.name} +${winAmt} TPC`);
-            if(state.balls.every(ball=>ball.landed)){
-              finalizeSharedPayouts();
-              awardDevShare(state.pot);
-              const top = state.slots.reduce((a,b)=> ((a.win||0)>(b.win||0)?a:b), state.slots[0]);
-              SFX.win();
-              coinConfetti();
-              showWinnerOverlay(top.avatar);
-              setTimeout(()=>showResultsPopup(),2000);
-            }
-          }else{
-            const winAmt = Math.round(state.pot*0.91);
-            const fee = state.pot - winAmt;
-            document.getElementById('winnerVal').textContent = `${winner.name} +${winAmt} TPC`;
-            setStatus(`Winner: ${winner.name}. Payout ${winAmt} TPC (-${fee} dev)`);
+          b.vy = 0;
+        }else{
+          b.vy *= -state.bounce;
+          SFX.bounce();
+        }
+      }
+
+      if(b.landed && !b.settled && Math.abs(b.vx) < 0.1){
+        b.vx = 0;
+        b.settled = true;
+        const idx = pickSlotFromX(b.x);
+        if(!state.shared) state.resultSlot = idx;
+        const winner = state.slots[idx];
+        if(!state.shared) state.slots.forEach(s=>s.el.classList.remove('winner'));
+        winner.el.classList.add('winner');
+        if(state.shared){
+          const winAmt = b.value;
+          winner.win = (winner.win||0) + winAmt;
+          document.getElementById('winnerVal').textContent = `${winner.name} +${winAmt} TPC`;
+          setStatus(`${winner.name} +${winAmt} TPC`);
+          if(state.balls.every(ball=>ball.settled)){
+            finalizeSharedPayouts();
+            awardDevShare(state.pot);
+            const top = state.slots.reduce((a,b)=> ((a.win||0)>(b.win||0)?a:b), state.slots[0]);
             state.slots.forEach(s=>s.el.classList.remove('winner'));
-            winner.el.classList.add('winner');
+            top.el.classList.add('winner');
             SFX.win();
             coinConfetti();
-            showWinnerOverlay(winner.avatar);
-            if(winner.accountId){
-              fbApi.depositAccount(winner.accountId, winAmt, { game: 'fallingball-win' });
-              if(winner.telegramId) fbApi.addTransaction(winner.telegramId, 0, 'win', { game: 'fallingball', players: state.players, accountId: winner.accountId });
-            }
-            awardDevShare(state.pot);
-            setTimeout(()=>showWinnerPopup(winner.name),2000);
+            showWinnerOverlay(top.avatar);
+            setTimeout(()=>showResultsPopup(),2000);
           }
+        }else{
+          const winAmt = Math.round(state.pot*0.91);
+          const fee = state.pot - winAmt;
+          document.getElementById('winnerVal').textContent = `${winner.name} +${winAmt} TPC`;
+          setStatus(`Winner: ${winner.name}. Payout ${winAmt} TPC (-${fee} dev)`);
+          SFX.win();
+          coinConfetti();
+          showWinnerOverlay(winner.avatar);
+          if(winner.accountId){
+            fbApi.depositAccount(winner.accountId, winAmt, { game: 'fallingball-win' });
+            if(winner.telegramId) fbApi.addTransaction(winner.telegramId, 0, 'win', { game: 'fallingball', players: state.players, accountId: winner.accountId });
+          }
+          awardDevShare(state.pot);
+          setTimeout(()=>showWinnerPopup(winner.name),2000);
         }
       }
     }
