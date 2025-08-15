@@ -283,8 +283,8 @@ export default function Wallet({ hideClaim = false }) {
     <div className="relative p-4 space-y-4 text-text wide-card">
       <h2 className="text-xl font-bold text-center">TPC Account Wallet</h2>
       <div className="prism-box p-6 space-y-2 min-h-40 flex flex-col items-start wide-card mx-auto">
-        <p className="text-xs break-all w-full text-left text-white">Account: {accountId || '...'}</p>
-        <div className="flex items-center space-x-1 text-white">
+        <p className="text-xs break-all w-full text-left">Account: {accountId || '...'}</p>
+        <div className="flex items-center space-x-1">
           <img src="/assets/icons/ezgif-54c96d8a9b9236.webp" alt="TPC" className="w-8 h-8" />
           <span className="text-lg font-medium">TPC Balance</span>
         </div>
@@ -305,7 +305,7 @@ export default function Wallet({ hideClaim = false }) {
       {/* TPC account section */}
       <div className="space-y-4">
         <div className="prism-box p-6 space-y-3 text-center flex flex-col items-center min-h-40 wide-card mx-auto">
-          <label className="block font-semibold text-white">Send TPC</label>
+          <label className="block font-semibold">Send TPC</label>
           <input
             type="text"
             placeholder="Receiver Account Number"
@@ -330,7 +330,7 @@ export default function Wallet({ hideClaim = false }) {
           />
           <button
             onClick={handleSendClick}
-            className="mt-1 px-3 py-1 bg-primary hover:bg-primary-hover text-black rounded"
+            className="mt-1 px-3 py-1 bg-primary hover:bg-primary-hover text-background rounded"
           >
             Send
           </button>
@@ -349,10 +349,10 @@ export default function Wallet({ hideClaim = false }) {
         </div>
 
       <div className="prism-box p-6 space-y-3 text-center mt-4 flex flex-col items-center wide-card mx-auto">
-        <label className="block font-semibold text-white">Receive TPC</label>
+        <label className="block font-semibold">Receive TPC</label>
           <button
             onClick={() => navigator.clipboard.writeText(String(accountId))}
-            className="mt-2 px-3 py-1 bg-primary hover:bg-primary-hover text-black rounded"
+            className="mt-2 px-3 py-1 bg-primary hover:bg-primary-hover text-background rounded"
           >
             Copy Account Number
           </button>
@@ -378,7 +378,7 @@ export default function Wallet({ hideClaim = false }) {
           />
           <button
             onClick={handleTopup}
-            className="mt-1 px-3 py-1 bg-primary hover:bg-primary-hover text-black rounded"
+            className="mt-1 px-3 py-1 bg-primary hover:bg-primary-hover text-background rounded"
             disabled={topupSending}
           >
             {topupSending ? 'Processing...' : 'Top Up'}

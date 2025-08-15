@@ -300,7 +300,7 @@ export default function MyAccount() {
           <p className="font-semibold">
             {profile.firstName} {profile.lastName}
           </p>
-          <div className="text-sm flex items-center space-x-1 text-white">
+          <div className="text-sm text-subtext flex items-center space-x-1">
             <span>Account: {profile.accountId}</span>
             <FiCopy
               className="w-4 h-4 cursor-pointer"
@@ -309,7 +309,7 @@ export default function MyAccount() {
           </div>
           <button
             onClick={() => setShowAvatarPicker(true)}
-            className="mt-2 px-2 py-1 bg-primary hover:bg-primary-hover rounded text-sm text-black"
+            className="mt-2 px-2 py-1 bg-primary hover:bg-primary-hover rounded text-sm text-white-shadow"
           >
             Change Avatar
           </button>
@@ -323,7 +323,7 @@ export default function MyAccount() {
               setTimeout(() => setShowSaved(false), 1500);
               window.dispatchEvent(new Event('profilePhotoUpdated'));
             }}
-            className="mt-2 ml-2 px-2 py-1 bg-primary hover:bg-primary-hover rounded text-sm text-black"
+            className="mt-2 ml-2 px-2 py-1 bg-primary hover:bg-primary-hover rounded text-sm text-white-shadow"
           >
             Use Telegram Photo
           </button>
@@ -341,7 +341,7 @@ export default function MyAccount() {
             </a>
           </div>
           {profile.social?.twitter && (
-            <p className="text-sm mt-2 text-white">
+            <p className="text-sm mt-2">
               Linked X: @{profile.social.twitter}{' '}
               <button
                 onClick={handleClearTwitter}
@@ -361,13 +361,13 @@ export default function MyAccount() {
             />
             <button
               onClick={handleSaveTwitter}
-              className="px-2 py-1 bg-primary hover:bg-primary-hover rounded text-black text-sm"
+              className="px-2 py-1 bg-primary hover:bg-primary-hover rounded text-white-shadow text-sm"
             >
               Save
             </button>
             <button
               onClick={handleConnectTwitter}
-              className="px-2 py-1 bg-primary hover:bg-primary-hover rounded text-black text-sm"
+              className="px-2 py-1 bg-primary hover:bg-primary-hover rounded text-white-shadow text-sm"
             >
               Connect
             </button>
@@ -390,7 +390,7 @@ export default function MyAccount() {
             <button
               onClick={handleDevTopup}
               disabled={devTopupSending}
-              className="mt-1 px-3 py-1 bg-primary hover:bg-primary-hover rounded text-black"
+              className="mt-1 px-3 py-1 bg-primary hover:bg-primary-hover rounded text-background"
             >
               {devTopupSending ? 'Processing...' : 'Top Up'}
             </button>
@@ -399,7 +399,7 @@ export default function MyAccount() {
           <div className="prism-box p-4 mt-4 space-y-2 mx-auto wide-card">
             <button
               onClick={() => setShowNotifyModal(true)}
-              className="px-3 py-1 bg-primary hover:bg-primary-hover rounded text-black w-full"
+              className="px-3 py-1 bg-primary hover:bg-primary-hover rounded text-background w-full"
             >
               Notify
             </button>
@@ -408,7 +408,7 @@ export default function MyAccount() {
           <div className="prism-box p-4 mt-4 space-y-2 mx-auto wide-card">
             <button
               onClick={() => setShowTasksModal(true)}
-              className="px-3 py-1 bg-primary hover:bg-primary-hover rounded text-black w-full"
+              className="px-3 py-1 bg-primary hover:bg-primary-hover rounded text-background w-full"
             >
               Manage Tasks
             </button>
