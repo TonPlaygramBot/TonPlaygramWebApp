@@ -7,11 +7,22 @@ import { TwitterApi } from 'twitter-api-v2';
 import PostRecord from '../models/PostRecord.js';
 import { similarityRatio, normalizeText } from '../utils/textSimilarity.js';
 import { withProxy } from '../utils/proxyAgent.js';
+import CustomTask from '../models/CustomTask.js';
 
 const router = Router();
 const twitterClient = process.env.TWITTER_BEARER_TOKEN
   ? new TwitterApi(process.env.TWITTER_BEARER_TOKEN)
   : null;
+
+const PLATFORM_ICONS = {
+  tiktok: 'tiktok',
+  x: 'x',
+  telegram: 'telegram',
+  discord: 'discord',
+  youtube: 'youtube',
+  facebook: 'facebook',
+  instagram: 'instagram'
+};
 
 async function fetchReactionIds(messageId = '16', threadId = '1') {
   try {
@@ -53,7 +64,7 @@ router.post('/list', async (req, res) => {
   if (!telegramId) return res.status(400).json({ error: 'telegramId required' });
 
   const TWELVE_HOURS = 12 * 60 * 60 * 1000;
-  const tasks = await Promise.all(
+  const baseTasks = await Promise.all(
     TASKS.map(async (t) => {
       if (t.id === 'post_tweet') {
         const last = await PostRecord.findOne({ telegramId }).sort({ postedAt: -1 });
@@ -69,14 +80,37 @@ router.post('/list', async (req, res) => {
       return { ...t, completed: !!rec, cooldown: 0 };
     })
   );
-  res.json({ version: TASKS_VERSION, tasks });
+
+  const customList = await CustomTask.find().lean();
+  const customTasks = await Promise.all(
+    customList.map(async (t) => {
+      const taskId = `custom_${t._id}`;
+      const rec = await Task.findOne({ telegramId, taskId });
+      return {
+        id: taskId,
+        description: t.description || `Task on ${t.platform}`,
+        reward: t.reward,
+        icon: PLATFORM_ICONS[t.platform] || t.platform,
+        link: t.link,
+        completed: !!rec,
+        cooldown: 0
+      };
+    })
+  );
+
+  res.json({ version: TASKS_VERSION, tasks: [...baseTasks, ...customTasks] });
 });
 
 router.post('/complete', async (req, res) => {
   const { telegramId, taskId } = req.body;
   if (!telegramId || !taskId) return res.status(400).json({ error: 'telegramId and taskId required' });
 
-  const config = TASKS.find(t => t.id === taskId);
+  let config = TASKS.find(t => t.id === taskId);
+  if (!config && taskId.startsWith('custom_')) {
+    const id = taskId.replace('custom_', '');
+    const custom = await CustomTask.findById(id);
+    if (custom) config = { reward: custom.reward };
+  }
   if (!config) return res.status(400).json({ error: 'unknown task' });
 
   if (taskId === 'post_tweet') {
@@ -330,6 +364,50 @@ router.post('/verify-post', async (req, res) => {
     console.error('verify-post failed:', err.message);
     res.status(500).json({ error: 'verification failed' });
   }
+});
+
+function isAuthorized(req) {
+  const auth = req.headers.authorization || '';
+  return (
+    process.env.API_AUTH_TOKEN && auth === `Bearer ${process.env.API_AUTH_TOKEN}`
+  );
+}
+
+router.post('/admin/list', async (req, res) => {
+  if (!isAuthorized(req)) return res.status(403).json({ error: 'unauthorized' });
+  const tasks = await CustomTask.find().lean();
+  res.json(tasks);
+});
+
+router.post('/admin/create', async (req, res) => {
+  if (!isAuthorized(req)) return res.status(403).json({ error: 'unauthorized' });
+  const { platform, reward, link } = req.body;
+  if (!platform || !reward || !link) {
+    return res.status(400).json({ error: 'platform, reward and link required' });
+  }
+  const task = await CustomTask.create({ platform, reward, link });
+  res.json(task);
+});
+
+router.post('/admin/update', async (req, res) => {
+  if (!isAuthorized(req)) return res.status(403).json({ error: 'unauthorized' });
+  const { id, platform, reward, link } = req.body;
+  if (!id) return res.status(400).json({ error: 'id required' });
+  const task = await CustomTask.findByIdAndUpdate(
+    id,
+    { platform, reward, link },
+    { new: true }
+  );
+  if (!task) return res.status(404).json({ error: 'not found' });
+  res.json(task);
+});
+
+router.post('/admin/delete', async (req, res) => {
+  if (!isAuthorized(req)) return res.status(403).json({ error: 'unauthorized' });
+  const { id } = req.body;
+  if (!id) return res.status(400).json({ error: 'id required' });
+  await CustomTask.findByIdAndDelete(id);
+  res.json({ success: true });
 });
 
 export default router;

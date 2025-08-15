@@ -21,7 +21,8 @@ import LoginOptions from '../components/LoginOptions.jsx';
 import { IoLogoTiktok } from 'react-icons/io5';
 
 import { RiTelegramFill } from 'react-icons/ri';
-import { FiVideo } from 'react-icons/fi';
+import { FiVideo, FiLink } from 'react-icons/fi';
+import { FaDiscord, FaYoutube, FaFacebook, FaInstagram } from 'react-icons/fa';
 import { AiOutlineCheck } from 'react-icons/ai';
 import AdModal from '../components/AdModal.tsx';
 import PostsModal from '../components/PostsModal.jsx';
@@ -233,7 +234,14 @@ export default function Tasks() {
     react_tg_post: <RiTelegramFill className="text-sky-400 w-5 h-5" />,
     react_tg_post_2: <RiTelegramFill className="text-sky-400 w-5 h-5" />,
     engage_tweet: xIcon,
-    watch_ad: <FiVideo className="text-yellow-500 w-5 h-5" />
+    watch_ad: <FiVideo className="text-yellow-500 w-5 h-5" />,
+    tiktok: <IoLogoTiktok className="text-pink-500 w-5 h-5" />,
+    x: xIcon,
+    telegram: <RiTelegramFill className="text-sky-400 w-5 h-5" />,
+    discord: <FaDiscord className="text-indigo-500 w-5 h-5" />,
+    youtube: <FaYoutube className="text-red-600 w-5 h-5" />,
+    facebook: <FaFacebook className="text-blue-600 w-5 h-5" />,
+    instagram: <FaInstagram className="text-pink-400 w-5 h-5" />
   };
 
   return (
@@ -274,7 +282,7 @@ export default function Tasks() {
           {tasks.map((t) => (
             <li key={t.id} className="lobby-tile w-full">
               <div className="grid grid-cols-[20px_1fr_auto_auto] items-center gap-2 w-full">
-                {ICONS[t.id]}
+                {ICONS[t.id] || ICONS[t.icon] || <FiLink className="w-5 h-5" />}
                 <span className="text-sm">{t.description}</span>
                 <span className="text-xs text-subtext flex items-center gap-1">{t.reward} <img src="/assets/icons/ezgif-54c96d8a9b9236.webp" alt="TPC" className="w-4 h-4" /></span>
                 {t.completed && t.id === 'post_tweet' && t.cooldown > 0 ? (
