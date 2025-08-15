@@ -84,7 +84,7 @@ export default function NftGiftCard({ accountId: propAccountId }) {
       </div>
       <button
         onClick={() => setOpen(true)}
-        className="mt-auto px-3 py-1 bg-primary hover:bg-primary-hover rounded text-white-shadow w-full max-w-xs"
+        className="mt-auto w-48 mx-auto px-3 py-1 bg-primary hover:bg-primary-hover rounded text-white-shadow"
       >
         Buy / Send Gift
       </button>
