@@ -254,7 +254,12 @@ export default function LeaderboardCard() {
                     }
                   }}
                 >
-                  <td className="p-2">{idx + 1}</td>
+                  <td
+                    className={`p-2 ${idx < 3 ? 'text-white' : ''}`}
+                    style={idx < 3 ? { WebkitTextStroke: '1px black' } : {}}
+                  >
+                    {idx + 1}
+                  </td>
                   <td className="p-2 w-12 relative">
                     <img
                       src={getAvatarUrl(
@@ -267,7 +272,12 @@ export default function LeaderboardCard() {
                     />
                     {u.accountId !== accountId && null}
                   </td>
-                  <td className="p-2 flex flex-col items-start">
+                  <td
+                    className={`p-2 flex flex-col items-start ${
+                      idx < 3 ? 'text-white' : ''
+                    }`}
+                    style={idx < 3 ? { WebkitTextStroke: '1px black' } : {}}
+                  >
                     <div className="flex items-center">
                       {mode === 'group' && u.accountId !== accountId && (
                         <input
@@ -310,7 +320,12 @@ export default function LeaderboardCard() {
                       </div>
                     )}
                   </td>
-                  <td className="p-2 text-right flex items-center justify-end space-x-1">
+                  <td
+                    className={`p-2 text-right flex items-center justify-end space-x-1 ${
+                      idx < 3 ? 'text-white' : ''
+                    }`}
+                    style={idx < 3 ? { WebkitTextStroke: '1px black' } : {}}
+                  >
                     <span>{u.balance}</span>
                   </td>
                 </tr>
@@ -457,6 +472,13 @@ export default function LeaderboardCard() {
           setSelected([]);
         }}
       />
+      <button
+        onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+        className="fixed bottom-4 right-4 text-3xl"
+        aria-label="Back to top"
+      >
+        ☝️
+      </button>
     </>
   );
 }
