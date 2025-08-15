@@ -44,10 +44,14 @@ body {
 [class*='text-blue-'],
 [class*='text-sky-'],
 [class*='text-red-'],
-[class*='text-yellow-'],
 [class*='text-black'],
 [class*='text-green-'] {
   -webkit-text-stroke-color: #ffffff;
+}
+
+[class*='text-yellow-'] {
+  /* Electric blue outline for yellow text */
+  -webkit-text-stroke-color: #00f7ff;
 }
 
 [class*='text-primary'],
@@ -57,7 +61,8 @@ body {
 }
 
 [class*='text-white'] {
-  -webkit-text-stroke-color: #000000;
+  /* Red outline for white text */
+  -webkit-text-stroke-color: #ff0000;
 }
 
 /* Neon theme elements */
