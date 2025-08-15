@@ -19,25 +19,6 @@ export default function Layout({ children }) {
   const [invite, setInvite] = useState(null);
   const inviteSoundRef = useRef(null);
 
-  // Restore last visited path on initial load (helps with Telegram reloads)
-  useEffect(() => {
-    const stored = localStorage.getItem('lastVisitedPath');
-    const current = window.location.pathname + window.location.search;
-    if (
-      stored &&
-      stored !== current &&
-      (window.location.pathname === '/' || window.location.pathname === '')
-    ) {
-      navigate(stored, { replace: true });
-    }
-  }, [navigate]);
-
-  // Persist current path so reloads return to the same page
-  useEffect(() => {
-    const current = location.pathname + location.search;
-    localStorage.setItem('lastVisitedPath', current);
-  }, [location.pathname, location.search]);
-
   useEffect(() => {
     inviteSoundRef.current = new Audio(inviteBeep);
     inviteSoundRef.current.volume = getGameVolume();
