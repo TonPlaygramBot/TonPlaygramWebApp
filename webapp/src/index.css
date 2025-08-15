@@ -28,6 +28,7 @@ body {
 [class*="text-yellow-"],
 [class*="text-black"],
 [class*="text-green-"],
+.text-text,
 [class*="text-white"] {
   -webkit-text-stroke-width: 0.3px;
 }
@@ -37,7 +38,8 @@ body {
 [class*="text-red-"],
 [class*="text-yellow-"],
 [class*="text-black"],
-[class*="text-green-"] {
+[class*="text-green-"],
+.text-text {
   -webkit-text-stroke-color: #ffffff;
 }
 
