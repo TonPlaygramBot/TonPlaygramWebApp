@@ -339,7 +339,7 @@ export default function Wallet({ hideClaim = false }) {
           />
           <button
             onClick={handleSendClick}
-            className="mt-1 px-3 py-1 bg-primary hover:bg-primary-hover text-background rounded"
+            className="mt-1 px-3 py-1 bg-primary hover:bg-primary-hover rounded text-white-shadow"
           >
             Send
           </button>
@@ -363,7 +363,7 @@ export default function Wallet({ hideClaim = false }) {
         </label>
           <button
             onClick={() => navigator.clipboard.writeText(String(accountId))}
-            className="mt-2 px-3 py-1 bg-primary hover:bg-primary-hover text-background rounded"
+            className="mt-2 px-3 py-1 bg-primary hover:bg-primary-hover rounded text-white-shadow"
           >
             Copy Account Number
           </button>
