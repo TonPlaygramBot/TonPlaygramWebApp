@@ -79,7 +79,7 @@ export default function HomeGamesCard() {
         </div>
       <Link
         to="/games"
-        className="mx-auto block px-3 py-1 bg-primary rounded hover:bg-primary-hover text-white-shadow"
+        className="mx-auto block w-48 px-3 py-1 bg-primary hover:bg-primary-hover rounded text-white-shadow"
       >
         Open Games
       </Link>
