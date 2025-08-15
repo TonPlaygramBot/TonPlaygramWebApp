@@ -156,7 +156,7 @@ export default function Home() {
             <div className="relative bg-surface border border-border rounded-xl p-4 pt-6 space-y-2 overflow-hidden wide-card">
               <div className="flex items-center justify-center space-x-1 mb-1">
                 <FaWallet className="text-primary" />
-                <span className="text-lg font-bold">Wallet</span>
+                <span className="text-lg font-bold text-white">Wallet</span>
               </div>
               <img
                 
@@ -166,7 +166,7 @@ export default function Home() {
               onError={(e) => { e.currentTarget.style.display = "none"; }}
               />
 
-              <p className="text-center text-xs text-subtext">Only to send and receive TPC coins</p>
+              <p className="text-center text-xs text-yellow-400">Only to send and receive TPC coins</p>
 
               <div className="flex items-start justify-between">
                 <Link to="/wallet?mode=send" className="flex items-center space-x-1 -ml-1 pt-1">
