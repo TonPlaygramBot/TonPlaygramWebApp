@@ -40,9 +40,14 @@
     @keyframes coin-fall{ from{ transform:translateY(-10vh) rotate(0deg); opacity:1; } to{ transform:translateY(100vh) rotate(360deg); opacity:0; } }
     .status{ position:absolute; left:10px; top:48px; background:rgba(0,0,0,.35); padding:8px 10px; border-radius:12px; border:1px solid rgba(255,255,255,.08); color:#fff; font-size:12px; max-width:min(92vw,560px); }
     .sep{ opacity:.3; }
-      .popup{ position:absolute; inset:0; background:rgba(0,0,0,.7); display:flex; align-items:center; justify-content:center; }
+      .popup{ position:absolute; inset:0; background:none; display:flex; align-items:center; justify-content:center; }
       .popup.hidden{ display:none; }
-      .popup .box{ background:linear-gradient(180deg,#0f1736,#0b1126); border:1px solid #223063; box-shadow:0 0 8px rgba(0,0,0,0.5); padding:20px; border-radius:12px; text-align:center; color:var(--ink); }
+      .popup .box{ background:none; border:none; box-shadow:none; padding:20px; border-radius:12px; text-align:center; color:var(--ink); }
+      .winner-row{display:flex;align-items:center;gap:8px;margin-bottom:6px;}
+      .winner-row:last-child{margin-bottom:0;}
+      .winner-row img{width:24px;height:24px;border-radius:50%;}
+      .winner-row .amount{margin-left:auto;display:flex;align-items:center;gap:4px;}
+      .winner-row .amount img{width:16px;height:16px;}
     .winnerOverlay{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.6);z-index:60}
     .winnerOverlay.hidden{display:none}
     .winnerOverlay img{width:120px;height:120px;border-radius:50%}
@@ -243,11 +248,16 @@
   function setStatus(t){ document.getElementById('statusBox').textContent=t; }
   function showWinnerPopup(name){ document.getElementById('winnerText').textContent = `${name} wins!`; document.getElementById('winnerPopup').classList.remove('hidden'); }
   function showResultsPopup(){
-    const lines = state.slots
+    const winners = state.slots
       .filter(s => (s.win||0) > 0)
-      .sort((a,b)=> (b.win||0)-(a.win||0))
-      .map(s => `${s.name}: ${s.win||0} TPC`)
-      .join('<br/>');
+      .sort((a,b)=> (b.win||0)-(a.win||0));
+    const lines = winners.map(s => `
+      <div class="winner-row">
+        <img src="${s.avatar}" alt="avatar" onerror="this.onerror=null;this.src='${DEFAULT_AVATAR}'"/>
+        <span>${s.name}</span>
+        <span class="amount">${s.win||0} <img src="/assets/icons/ezgif-54c96d8a9b9236.webp" alt="TPC"/></span>
+      </div>
+    `).join('');
     document.getElementById('winnerText').innerHTML = lines || 'No winnings';
     document.getElementById('winnerPopup').classList.remove('hidden');
   }
@@ -280,7 +290,7 @@
     const avatarSize = Math.max(16, Math.floor((W-40)/basePlayers*0.6));
     wrap.style.setProperty('--avatar-size', avatarSize+'px');
     const players=buildPlayers();
-    players.forEach((p,i)=>{ const el=document.createElement('div'); el.className='slot'+(p.isMe?' me':''); el.style.fontSize=state.players>5?'10px':'12px'; el.innerHTML=`<img src="${p.avatar}" alt="avatar" onerror="this.onerror=null;this.src='${DEFAULT_AVATAR}'"/><div>${p.name}</div>`; wrap.appendChild(el); state.slots.push({ idx:i, name:p.name, el, left:0, right:0, isMe:p.isMe, accountId:p.accountId, telegramId:p.telegramId }); });
+    players.forEach((p,i)=>{ const el=document.createElement('div'); el.className='slot'+(p.isMe?' me':''); el.style.fontSize=state.players>5?'10px':'12px'; el.innerHTML=`<img src="${p.avatar}" alt="avatar" onerror="this.onerror=null;this.src='${DEFAULT_AVATAR}'"/><div>${p.name}</div>`; wrap.appendChild(el); state.slots.push({ idx:i, name:p.name, avatar:p.avatar, el, left:0, right:0, isMe:p.isMe, accountId:p.accountId, telegramId:p.telegramId }); });
     resizeCanvas();
   }
 
