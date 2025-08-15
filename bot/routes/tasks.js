@@ -6,7 +6,6 @@ import { ensureTransactionArray } from '../utils/userUtils.js';
 import { TwitterApi } from 'twitter-api-v2';
 import PostRecord from '../models/PostRecord.js';
 import { similarityRatio, normalizeText } from '../utils/textSimilarity.js';
-import { withProxy } from '../utils/proxyAgent.js';
 import CustomTask from '../models/CustomTask.js';
 
 const router = Router();
@@ -24,40 +23,6 @@ const PLATFORM_ICONS = {
   instagram: 'instagram'
 };
 
-async function fetchReactionIds(messageId = '16', threadId = '1') {
-  try {
-    const base = `https://api.telegram.org/bot${process.env.BOT_TOKEN}`;
-    const url = new URL(`${base}/getMessageReactions`);
-    url.searchParams.set('chat_id', '@TonPlaygram');
-    url.searchParams.set('message_id', String(messageId));
-    if (threadId) url.searchParams.set('message_thread_id', String(threadId));
-    url.searchParams.set('limit', '200');
-    const resp = await fetch(url, withProxy());
-    const data = await resp.json();
-    if (!data.ok) {
-      console.warn('getMessageReactions failed:', data.description);
-      return [];
-    }
-    const reactions = data.result?.reactions || data.result || [];
-    const ids = [];
-    for (const r of reactions) {
-      const id = r.user?.id ?? r.user_id ?? r.from?.id;
-      if (typeof id === 'number') ids.push(id);
-    }
-    return ids;
-  } catch (err) {
-    console.error('fetchReactionIds error:', err.message);
-    return [];
-  }
-}
-
-function parseTelegramLink(link) {
-  const m = link.match(/TonPlaygram\/(?:([0-9]+)\/)?([0-9]+)/);
-  return {
-    threadId: m && m[1] ? m[1] : undefined,
-    messageId: m && m[2] ? m[2] : undefined,
-  };
-}
 
 router.post('/list', async (req, res) => {
   const { telegramId } = req.body;
@@ -117,43 +82,6 @@ router.post('/complete', async (req, res) => {
     return res.status(400).json({ error: 'use verify-post' });
   }
 
-  if (taskId.startsWith('react_tg_post')) {
-    if (process.env.BOT_TOKEN) {
-      try {
-        const { messageId, threadId } = parseTelegramLink(config.link || '');
-        const ids = await fetchReactionIds(messageId, threadId);
-        if (!ids.includes(Number(telegramId))) {
-          return res.status(400).json({ error: 'reaction not verified' });
-        }
-      } catch (err) {
-        console.error('telegram reaction verify failed:', err.message);
-        return res.status(500).json({ error: 'verification failed' });
-      }
-    } else {
-      console.warn('BOT_TOKEN not configured; skipping Telegram reaction check');
-    }
-  } else if (taskId === 'engage_tweet') {
-    if (twitterClient) {
-      const tweetId = extractTweetId(config.link || '');
-      if (!tweetId) return res.status(500).json({ error: 'task misconfigured' });
-      try {
-        const [liked, retweeted, replied] = await Promise.all([
-          didLike(telegramId, tweetId),
-          didRetweet(telegramId, tweetId),
-          didReply(telegramId, tweetId)
-        ]);
-        if (!liked || !retweeted || !replied) {
-          return res.status(400).json({ error: 'engagement not verified' });
-        }
-      } catch (err) {
-        console.error('engage tweet verify failed:', err.message);
-        return res.status(500).json({ error: 'verification failed' });
-      }
-    } else {
-      console.warn('TWITTER_BEARER_TOKEN not configured; skipping X engagement check');
-    }
-  }
-
   const existing = await Task.findOne({ telegramId, taskId });
   if (existing) return res.json({ message: 'already completed' });
 
@@ -172,25 +100,6 @@ router.post('/complete', async (req, res) => {
     date: new Date()
   });
   await user.save();
-
-  res.json({ message: 'completed', reward: config.reward });
-});
-
-router.post('/verify-telegram-reaction', async (req, res) => {
-  const { telegramId, messageId, threadId } = req.body;
-  if (!telegramId) return res.status(400).json({ error: 'telegramId required' });
-  if (!process.env.BOT_TOKEN) {
-    console.warn('BOT_TOKEN not configured; skipping Telegram reaction verification');
-    return res.json({ reacted: false });
-  }
-  try {
-    const ids = await fetchReactionIds(messageId, threadId);
-    res.json({ reacted: ids.includes(Number(telegramId)) });
-  } catch (err) {
-    console.error('verify-telegram-reaction failed:', err.message);
-    res.status(500).json({ error: 'verification failed' });
-  }
-});
 
 async function getUserId(handle) {
   const info = await twitterClient.v2.userByUsername(handle);
