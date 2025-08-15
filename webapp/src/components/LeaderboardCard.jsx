@@ -269,10 +269,7 @@ export default function LeaderboardCard() {
                     }
                   }}
                 >
-                  <td
-                    className={`p-2 ${idx < 3 ? 'text-white' : ''}`}
-                    style={idx < 3 ? { WebkitTextStroke: '1px black' } : {}}
-                  >
+                  <td className="p-2 text-white" style={{ WebkitTextStroke: '1px black' }}>
                     {idx + 1}
                   </td>
                   <td className="p-2 w-12 relative">
@@ -287,12 +284,7 @@ export default function LeaderboardCard() {
                     />
                     {u.accountId !== accountId && null}
                   </td>
-                  <td
-                    className={`p-2 flex flex-col items-start ${
-                      idx < 3 ? 'text-white' : ''
-                    }`}
-                    style={idx < 3 ? { WebkitTextStroke: '1px black' } : {}}
-                  >
+                  <td className="p-2 flex flex-col items-start">
                     <div className="flex items-center">
                       {mode === 'group' && u.accountId !== accountId && (
                         <input
@@ -303,7 +295,12 @@ export default function LeaderboardCard() {
                           className="mr-1"
                         />
                       )}
-                      {u.nickname || `${u.firstName} ${u.lastName}`.trim() || 'User'}
+                      <span
+                        className="text-white"
+                        style={{ WebkitTextStroke: '1px black' }}
+                      >
+                        {u.nickname || `${u.firstName} ${u.lastName}`.trim() || 'User'}
+                      </span>
                       {(() => {
                         const userStatus = u.currentTableId
                           ? 'playing'
@@ -335,19 +332,24 @@ export default function LeaderboardCard() {
                       </div>
                     )}
                   </td>
-                  <td
-                    className={`p-2 text-right flex items-center justify-end space-x-1 ${
-                      idx < 3 ? 'text-white' : ''
-                    }`}
-                    style={idx < 3 ? { WebkitTextStroke: '1px black' } : {}}
-                  >
-                    <span>{u.balance}</span>
+                  <td className="p-2 text-right flex items-center justify-end space-x-1">
+                    <span
+                      className="text-yellow-400"
+                      style={{ WebkitTextStroke: '1px black' }}
+                    >
+                      {u.balance}
+                    </span>
                   </td>
                 </tr>
               ))}
               {rank && rank > 100 && (
                 <tr className="bg-accent text-black h-16">
-                  <td className="p-2">{rank}</td>
+                  <td
+                    className="p-2 text-white"
+                    style={{ WebkitTextStroke: '1px black' }}
+                  >
+                    {rank}
+                  </td>
                   <td className="p-2 w-12 relative">
                     <img
                       src={getAvatarUrl(myPhotoUrl || '/assets/icons/profile.svg')}
@@ -357,7 +359,12 @@ export default function LeaderboardCard() {
                   </td>
                   <td className="p-2 flex flex-col items-start">
                     <div className="flex items-center">
-                      You
+                      <span
+                        className="text-white"
+                        style={{ WebkitTextStroke: '1px black' }}
+                      >
+                        You
+                      </span>
                       {(() => {
                         const myTable = leaderboard.find(
                           (u) => u.accountId === accountId
@@ -403,7 +410,12 @@ export default function LeaderboardCard() {
                     })()}
                   </td>
                   <td className="p-2 text-right flex items-center justify-end space-x-1">
-                    <span>{leaderboard.find((u) => u.accountId === accountId)?.balance ?? '...'}</span>
+                    <span
+                      className="text-yellow-400"
+                      style={{ WebkitTextStroke: '1px black' }}
+                    >
+                      {leaderboard.find((u) => u.accountId === accountId)?.balance ?? '...'}
+                    </span>
                   </td>
                 </tr>
               )}
