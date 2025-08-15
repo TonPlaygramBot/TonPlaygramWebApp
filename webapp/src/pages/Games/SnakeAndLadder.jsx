@@ -1123,8 +1123,8 @@ export default function SnakeAndLadder() {
         const leaving = p.find((pl) => pl.id === playerId);
         const arr = p.filter((pl) => pl.id !== playerId);
         updateNeeded(arr);
-        if (leaving && !ranking.includes(leaving.name)) {
-          setRanking((r) => [...r, leaving.name]);
+        if (leaving && !ranking.some((r) => r.name === leaving.name)) {
+          setRanking((r) => [...r, { name: leaving.name, photoUrl: leaving.photoUrl, amount: 0 }]);
         }
         if (leaving) {
           if (playerId === accountId) {
@@ -1237,9 +1237,13 @@ export default function SnakeAndLadder() {
     const onWon = ({ playerId }) => {
       setGameOver(true);
       const winnerName = playerId === accountId ? myName : playerId;
+      const winnerPhoto =
+        playerId === accountId
+          ? photoUrl
+          : mpPlayers.find((p) => p.id === playerId)?.photoUrl || '';
       setRanking((r) => {
-        const others = r.filter((n) => n !== winnerName);
-        return [winnerName, ...others];
+        const others = r.filter((p) => p.name !== winnerName);
+        return [{ name: winnerName, photoUrl: winnerPhoto, amount: 0 }, ...others];
       });
       if (playerId === accountId) {
         const totalPlayers = isMultiplayer ? mpPlayers.length : ai + 1;
@@ -1400,7 +1404,9 @@ export default function SnakeAndLadder() {
     let p = state.pos ?? 0;
     let aiPos = [...(state.aiPositions ?? Array(ai).fill(0))];
     let turn = state.currentTurn ?? 0;
-    let rank = [...(state.ranking ?? [])];
+    let rank = [...(state.ranking ?? [])].map((r) =>
+      typeof r === 'string' ? { name: r, photoUrl: '', amount: 0 } : r,
+    );
     let over = state.gameOver ?? false;
     while (elapsed > 0 && !over) {
       const roll = Math.floor(Math.random() * 6) + 1;
@@ -1416,8 +1422,8 @@ export default function SnakeAndLadder() {
           p = typeof lad === 'object' ? lad.end : lad;
         }
         aiPos = aiPos.map((pos) => (pos === p ? 0 : pos));
-        if (p === FINAL_TILE && !rank.includes('You')) {
-          rank.push('You');
+        if (p === FINAL_TILE && !rank.some((r) => r.name === 'You')) {
+          rank.push({ name: 'You', photoUrl: '', amount: 0 });
           if (rank.length === 1) over = true;
         }
       } else {
@@ -1435,8 +1441,8 @@ export default function SnakeAndLadder() {
         }
         if (p === pos) p = 0;
         aiPos = aiPos.map((v, i) => (i === idx ? pos : v === pos ? 0 : v));
-        if (pos === FINAL_TILE && !rank.includes(getPlayerName(turn))) {
-          rank.push(getPlayerName(turn));
+        if (pos === FINAL_TILE && !rank.some((r) => r.name === getPlayerName(turn))) {
+          rank.push({ name: getPlayerName(turn), photoUrl: getPlayerAvatar(turn), amount: 0 });
           if (rank.length === 1) over = true;
         }
       }
@@ -1474,7 +1480,11 @@ export default function SnakeAndLadder() {
           setLadders(limit(data.ladders ?? {}));
           setSnakeOffsets(limit(data.snakeOffsets ?? {}));
           setLadderOffsets(limit(data.ladderOffsets ?? {}));
-          setRanking(data.ranking ?? []);
+          setRanking((data.ranking || []).map((r) =>
+            typeof r === 'string'
+              ? { name: r, photoUrl: '', amount: 0 }
+              : r,
+          ));
           setGameOver(false);
           if (Array.isArray(data.aiAvatars)) {
             setAiAvatars(data.aiAvatars);
@@ -1686,13 +1696,13 @@ export default function SnakeAndLadder() {
         setTokenType(type);
         setTimeout(() => setHighlight(null), 2300);
         capturePieces(finalPos, 0);
-        if (finalPos === FINAL_TILE && !ranking.includes('You')) {
+        if (finalPos === FINAL_TILE && !ranking.some((r) => r.name === 'You')) {
           const first = ranking.length === 0;
           const total = pot * (ai + 1);
+          const winAmt = Math.round(total * 0.91);
           if (first) {
             ensureAccountId()
               .then(async (aid) => {
-                const winAmt = Math.round(total * 0.91);
                 await Promise.all([
                   depositAccount(aid, winAmt, { game: 'snake-win' }),
                   awardDevShare(total),
@@ -1700,9 +1710,8 @@ export default function SnakeAndLadder() {
               })
               .catch(() => {});
           }
-          setRanking((r) => [...r, 'You']);
+          setRanking((r) => [...r, { name: 'You', photoUrl, amount: winAmt }]);
           if (first) setGameOver(true);
-          const winAmt = Math.round(total * 0.91);
           setMessage(`You win ${winAmt} ${token}!`);
           setMessageColor("");
           if (!muted) winSoundRef.current?.play().catch(() => {});
@@ -1895,14 +1904,17 @@ export default function SnakeAndLadder() {
       setTrail([]);
       capturePieces(finalPos, index);
       setTimeout(() => setHighlight(null), 2300);
-      if (finalPos === FINAL_TILE && !ranking.includes(getPlayerName(index))) {
+      if (finalPos === FINAL_TILE && !ranking.some((r) => r.name === getPlayerName(index))) {
         const first = ranking.length === 0;
-        setRanking(r => [...r, getPlayerName(index)]);
+        const name = getPlayerName(index);
+        const avatar = getPlayerAvatar(index);
+        const winAmt = Math.round(pot * (ai + 1) * 0.91);
+        setRanking((r) => [...r, { name, photoUrl: avatar, amount: first ? winAmt : 0 }]);
         if (first) {
           await awardDevShare(pot * (ai + 1));
           setGameOver(true);
         }
-        setMessage(`${getPlayerName(index)} wins!`);
+        setMessage(`${name} wins!`);
         setPlayerDiceCounts(arr => {
           const copy = [...arr];
           copy[index] = 2;
@@ -2549,10 +2561,6 @@ export default function SnakeAndLadder() {
       <GameEndPopup
         open={gameOver}
         ranking={ranking}
-        onPlayAgain={() => {
-          localStorage.removeItem(`snakeGameState_${ai}`);
-          window.location.reload();
-        }}
         onReturn={() => {
           localStorage.removeItem(`snakeGameState_${ai}`);
           navigate("/games/snake/lobby");
