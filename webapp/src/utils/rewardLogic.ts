@@ -1,5 +1,5 @@
 // Prize amounts available on the wheel.
-export type Segment = number | 'BONUS_X3' | 'FREE_SPIN';
+export type Segment = number | 'BONUS_X3' | 'FREE_SPIN' | 'BOMB';
 
 export const segments: Segment[] = [
   400,
@@ -11,6 +11,8 @@ export const segments: Segment[] = [
   1600,
   'FREE_SPIN',
   'BONUS_X3',
+  'BOMB',
+  'BOMB',
 ];
 
 export const numericSegments: Segment[] = [

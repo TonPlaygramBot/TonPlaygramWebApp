@@ -122,7 +122,7 @@ export default function LuckyNumber() {
           e.currentTarget.style.display = 'none';
         }}
       />
-      <h3 className="text-lg font-bold text-text">Lucky Number</h3>
+      <h3 className="text-lg font-bold text-white">Lucky Card</h3>
       <div className="grid grid-cols-3 gap-2 justify-items-center">
         {rewards.map((val, i) => (
           <div
@@ -130,7 +130,10 @@ export default function LuckyNumber() {
             className={`board-style w-24 h-24 flex flex-col items-center justify-center rounded relative ${selected === i ? 'border-4 border-brand-gold' : 'border-2 border-border'}`}
           >
             {(i !== 0 && selected !== i) ? (
-              <span className="text-xl font-bold">{i + 1}</span>
+              <>
+                <img src="/assets/icons/ezgif-54c96d8a9b9236.webp" alt="TPC" className="w-8 h-8" />
+                <span className="text-text text-xl font-bold">{i + 1}</span>
+              </>
             ) : (
               <>
                 {val === 'FREE_SPIN' ? (
@@ -154,7 +157,7 @@ export default function LuckyNumber() {
                 ) : (
                   <>
                     <img src="/assets/icons/ezgif-54c96d8a9b9236.webp" alt="TPC" className="w-8 h-8" />
-                    <span className="font-bold">{val}</span>
+                    <span className="font-bold text-text">{val}</span>
                     {i === 0 && <span className="text-red-500 text-xs">FREE</span>}
                   </>
                 )}

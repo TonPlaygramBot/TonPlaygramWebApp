@@ -133,7 +133,7 @@ export default function DailyCheckIn() {
         }`}
       >
 
-        <span>Day {i + 1}</span>
+        <span className="text-text">Day {i + 1}</span>
 
         <span className="flex items-center">
           {formatReward(REWARDS[i])}
@@ -181,7 +181,7 @@ export default function DailyCheckIn() {
         onClose={() => setShowAd(false)}
       />
 
-      <h3 className="text-lg font-bold text-text">Daily Streaks</h3>
+      <h3 className="text-lg font-bold text-white">Daily Streaks</h3>
 
       <div className="flex space-x-2 overflow-x-auto justify-center">{progress}</div>
 
