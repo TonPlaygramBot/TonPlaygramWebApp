@@ -260,7 +260,7 @@ export default function TasksCard() {
             ) : (
               <button
                 onClick={handleDailyCheck}
-                className="px-2 py-0.5 bg-primary hover:bg-primary-hover text-outline-white text-sm rounded"
+                className="px-2 py-0.5 bg-primary hover:bg-primary-hover text-white-shadow text-sm rounded"
               >
                 Claim
               </button>
@@ -303,7 +303,7 @@ export default function TasksCard() {
               ) : (
                 <button
                   onClick={() => handleClaim(t)}
-                  className="px-2 py-0.5 bg-primary hover:bg-primary-hover text-outline-white text-sm rounded"
+                  className="px-2 py-0.5 bg-primary hover:bg-primary-hover text-white-shadow text-sm rounded"
                 >
                   Claim
                 </button>
@@ -321,7 +321,7 @@ export default function TasksCard() {
             ) : (
               <button
                 onClick={() => setShowAd(true)}
-                className="px-2 py-0.5 bg-primary hover:bg-primary-hover text-outline-white text-sm rounded"
+                className="px-2 py-0.5 bg-primary hover:bg-primary-hover text-white-shadow text-sm rounded"
               >
                 Watch
               </button>
@@ -338,7 +338,7 @@ export default function TasksCard() {
             ) : (
               <button
                 onClick={() => setShowQuestAd(true)}
-                className="px-2 py-0.5 bg-primary hover:bg-primary-hover text-outline-white text-sm rounded"
+                className="px-2 py-0.5 bg-primary hover:bg-primary-hover text-white-shadow text-sm rounded"
               >
                 Watch
               </button>
