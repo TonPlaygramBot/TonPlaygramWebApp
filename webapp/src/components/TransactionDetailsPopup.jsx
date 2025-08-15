@@ -120,7 +120,7 @@ export default function TransactionDetailsPopup({ tx, onClose }) {
 
         </button>
 
-        <h3 className="text-lg font-bold text-center text-red-600 drop-shadow-[0_0_2px_black]">TPC Statement Details</h3>
+        <h3 className="text-lg font-bold text-center">TPC Statement Details</h3>
 
         <div className="flex flex-col items-center space-y-2">
 

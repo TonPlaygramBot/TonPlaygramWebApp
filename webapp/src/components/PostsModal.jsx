@@ -11,7 +11,7 @@ export default function PostsModal({ open, posts = [], onClose }) {
         className="bg-surface border border-border p-4 rounded space-y-2 w-80 text-text"
         onClick={(e) => e.stopPropagation()}
       >
-        <h3 className="text-lg font-bold text-center text-red-600 drop-shadow-[0_0_2px_black]">Ready-Made Posts</h3>
+        <h3 className="text-lg font-bold text-center">Ready-Made Posts</h3>
         {posts.map((p, i) => (
           <div
             key={i}

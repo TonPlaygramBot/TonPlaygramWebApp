@@ -27,7 +27,7 @@ export default function AvatarPickerModal({ open, onClose, onSave }) {
   return (
     <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-70 z-50">
       <div className="bg-surface border border-border p-4 rounded space-y-4 text-center text-text">
-        <h3 className="text-lg font-bold text-red-600 drop-shadow-[0_0_2px_black]">Pick a Profile Avatar</h3>
+        <h3 className="text-lg font-bold">Pick a Profile Avatar</h3>
         <div className="flex flex-wrap justify-center gap-2 max-h-60 overflow-auto">
           {AVATARS.map((src) => (
             <div
