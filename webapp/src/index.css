@@ -119,6 +119,13 @@ input:focus {
   box-shadow: 0 0 10px #facc15;
 }
 
+/* Black text with a white outline */
+.text-outline-white {
+  color: #000000 !important;
+  -webkit-text-stroke-width: 0.5px;
+  -webkit-text-stroke-color: #ffffff;
+}
+
 /* Utility class for white text with a subtle black shadow */
 .text-white-shadow {
   color: #ffffff;
