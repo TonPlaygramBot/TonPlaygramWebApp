@@ -4,6 +4,9 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
   <title>Goal Rush</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Luckiest+Guy&display=swap" rel="stylesheet">
   <style>
     :root{
       --bg:#050812;
@@ -16,13 +19,14 @@
     }
     *{box-sizing:border-box; -webkit-tap-highlight-color: transparent;}
     html,body{height:100%;overscroll-behavior:none;}
-    body{margin:0;background:var(--bg);color:#e5e7eb;font-family:system-ui,Segoe UI,Roboto,Helvetica,Arial;overflow:hidden}
+    body{margin:0;background:var(--bg);color:#e5e7eb;font-family:'Luckiest Guy','Comic Sans MS',cursive;overflow:hidden}
     .ui{position:fixed;inset:0;}
     .scoreboard{position:absolute;top:0;left:0;right:0;height:40px;display:flex;align-items:center;justify-content:center;pointer-events:none;}
-    .score{font-variant-numeric:tabular-nums;background:#0b1220;border:1px solid #233050;border-radius:12px;padding:6px 10px;display:flex;align-items:center;gap:8px}
-    .badge{padding:2px 8px;border-radius:999px;font-weight:800}
-    .p1{background:var(--p1);color:#052e12}
-    .p2{background:var(--p2);color:#3a2600}
+    .score{font-variant-numeric:tabular-nums;background:#0b1220;border:1px solid #233050;border-radius:12px;padding:6px 10px;display:flex;align-items:center;gap:8px;-webkit-text-stroke:0.3px #000;text-shadow:0 0 4px #000;color:#fff}
+    .score span{-webkit-text-stroke:0.3px #000;text-shadow:0 0 4px #000;color:#fff}
+    .badge{padding:2px 8px;border-radius:999px;font-weight:800;color:#fff;-webkit-text-stroke:0.3px #000;text-shadow:0 0 4px #000}
+    .p1{background:var(--p1)}
+    .p2{background:var(--p2)}
 
     .canvasWrap{position:absolute;top:40px;bottom:20px;left:0;right:0;}
     canvas{position:absolute;inset:0;width:100%;height:100%;display:block;touch-action:none}
@@ -36,7 +40,8 @@
     .coin-confetti{position:fixed;top:-40px;width:32px;height:32px;pointer-events:none;animation:coin-fall var(--duration,3s) linear forwards}
     @keyframes coin-fall{from{transform:translateY(-10vh) rotate(0deg);opacity:1}to{transform:translateY(100vh) rotate(360deg);opacity:0}}
 
-      .goal-text{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);font-size:48px;font-weight:800;color:var(--goal);text-align:center;display:none;pointer-events:none;line-height:1.1}
+      .goal-text{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);font-size:48px;font-weight:800;color:var(--goal);text-align:center;display:none;pointer-events:none;line-height:1.1;-webkit-text-stroke:2px #000;text-shadow:-2px -2px 0 #000,2px -2px 0 #000,-2px 2px 0 #000,2px 2px 0 #000}
+      .goal-text.own-goal{color:#ff0000;-webkit-text-stroke:2px #fff;text-shadow:-2px -2px 0 #fff,2px -2px 0 #fff,-2px 2px 0 #fff,2px 2px 0 #fff}
       .goal-text .score-line{display:block;font-size:32px;font-weight:600}
       .post-text{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);font-size:48px;font-weight:800;color:#facc15;text-align:center;display:none;pointer-events:none;line-height:1.1;-webkit-text-stroke:2px #000;text-shadow:-2px -2px 0 #000,2px -2px 0 #000,-2px 2px 0 #000,2px 2px 0 #000}
       .lobby-btn{padding:8px;background:#00f7ff;color:#fff;border:none;border-radius:8px;font-size:14px;font-weight:600;-webkit-text-stroke:0.5px #000;text-shadow:-1px -1px 0 #000,1px -1px 0 #000,-1px 1px 0 #000,1px 1px 0 #000;cursor:pointer}
@@ -276,7 +281,7 @@
     goalWidth = Math.round(W*goalWidthPct*fsx);
     const base = Math.max(24, Math.round(Math.min(W,H)*0.035*fieldScaleActual));
     paddleRadius = base*3.4*paddleScale;
-    puck.r = Math.max(20, Math.round(base*1.0*puckScale));
+    puck.r = Math.max(22, Math.round(base*1.1*puckScale));
     p1.r = paddleRadius; p2.r = paddleRadius;
   }
   window.addEventListener('resize', fit);
@@ -287,11 +292,12 @@
   let goalDepth = 24;
   let paddleRadius = 34;
 
-  const puck = { x:0, y:0, r:20, vx:0, vy:0, max: 29, angle: 0, spin: 0 };
+  const puck = { x:0, y:0, r:22, vx:0, vy:0, max: 29, angle: 0, spin: 0 };
   const p1 = { x:0, y:0, r:34, vx:0, vy:0, max: 18, lastX:0, lastY:0 };
   const p2 = { x:0, y:0, r:34, vx:0, vy:0, max: 18, lastX:0, lastY:0 };
-  const score = { p1:0, p2:0, target }; 
+  const score = { p1:0, p2:0, target };
   let running = true; let last = 0;
+  let lastTouch = null;
   const difficultySpeeds = { easy:14, normal:18, hard:24 };
   p2.max = difficultySpeeds[difficulty] || 18;
 
@@ -365,10 +371,17 @@
     }
     puck.vx = 0; puck.vy = 0; puck.spin = 0;
     [p1,p2].forEach(p=>{p.vx=0;p.vy=0;p.lastX=p.x;p.lastY=p.y;});
+    lastTouch = null;
   }
 
-  function showGoalMessage(){
-    goalText.innerHTML = `GOAL!<span class="score-line">${score.p1} - ${score.p2}</span>`;
+  function showGoalMessage(ownGoal=false){
+    if(ownGoal){
+      goalText.innerHTML = `OWN GOAL<span class="score-line">${score.p1} - ${score.p2}</span>`;
+      goalText.classList.add('own-goal');
+    } else {
+      goalText.innerHTML = `GOAL!<span class="score-line">${score.p1} - ${score.p2}</span>`;
+      goalText.classList.remove('own-goal');
+    }
     goalText.style.display = 'block';
     setTimeout(()=>{ goalText.style.display='none'; }, GOAL_PAUSE);
   }
@@ -581,7 +594,7 @@
         const relVY = puck.vy - p.vy;
         const relAlongNormal = relVX*nx + relVY*ny;
         const tangential = relVX*(-ny) + relVY*nx;
-        puck.spin += tangential * 0.01;
+        puck.spin += tangential * 0.008;
         if (relAlongNormal <= 0){
           const restitution = 1.06;
           const impulse = -(1+restitution) * relAlongNormal;
@@ -599,6 +612,7 @@
         }
         const v = Math.hypot(puck.vx,puck.vy); const maxV = puck.max*speedMul*1.25;
         if (v>maxV){ const s=maxV/v; puck.vx*=s; puck.vy*=s; }
+        lastTouch = (p === p1) ? 'p1' : 'p2';
         if (p === p1 || mode !== 'ai') sfx.hit();
       }
     });
@@ -636,8 +650,9 @@
         const goalLine = goalTopY + 6;
         puck.y = goalLine - 0.6 * puck.r;
         puck.vx = 0; puck.vy = 0;
+        const ownGoal = lastTouch === 'p2';
         running = false;
-        showGoalMessage();
+        showGoalMessage(ownGoal);
         checkWin();
         if (score.p1 < score.target && score.p2 < score.target){
           setTimeout(()=>{ resetPositions(2); running = true; }, GOAL_PAUSE);
@@ -662,8 +677,9 @@
         const goalLine = goalBottomY - 6;
         puck.y = goalLine + 0.6 * puck.r;
         puck.vx = 0; puck.vy = 0;
+        const ownGoal = lastTouch === 'p1';
         running = false;
-        showGoalMessage();
+        showGoalMessage(ownGoal);
         checkWin();
         if (score.p1 < score.target && score.p2 < score.target){
           setTimeout(()=>{ resetPositions(1); running = true; }, GOAL_PAUSE);
@@ -697,7 +713,7 @@
 
     puck.x += puck.vx * dt * 60;
     puck.y += puck.vy * dt * 60;
-    const mag = puck.spin * dt * 0.5;
+    const mag = puck.spin * dt * 0.4;
     const magVx = -puck.vy * mag;
     const magVy = puck.vx * mag;
     puck.vx += magVx;
@@ -705,7 +721,7 @@
     puck.vx *= Math.pow(friction, dt*60);
     puck.vy *= Math.pow(friction, dt*60);
     puck.angle += Math.hypot(puck.vx, puck.vy) * dt * 0.1;
-    puck.angle += puck.spin * dt * 15;
+    puck.angle += puck.spin * dt * 12;
     puck.spin *= Math.pow(0.99, dt*60);
 
     handleCollisions();
