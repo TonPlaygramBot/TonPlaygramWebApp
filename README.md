@@ -355,6 +355,7 @@ To move from the start you must roll at least one six when rolling two dice. Any
 
 **Influencer admin shows "No submissions"** – Ensure your developer token is set in `bot/.env` via `AIRDROP_ADMIN_TOKENS` and in `webapp/.env` through `VITE_API_AUTH_TOKEN` so the webapp can fetch pending submissions.
 
+**Telegram reaction not detected** – The `/api/tasks/verify-telegram-reaction` endpoint relies on `BOT_TOKEN`. If this token is missing the check is skipped and the task automatically succeeds. Configure it only if you require strict validation.
 
 ### Banning a user
 
