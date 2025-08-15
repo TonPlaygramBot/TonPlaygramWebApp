@@ -6,8 +6,8 @@ import ProjectAchievementsCard from '../components/ProjectAchievementsCard.jsx';
 import HomeGamesCard from '../components/HomeGamesCard.jsx';
 
 import {
-  FaArrowCircleUp,
-  FaArrowCircleDown,
+  FaArrowUp,
+  FaArrowDown,
   FaWallet
 } from 'react-icons/fa';
 import { IoLogoTiktok } from 'react-icons/io5';
@@ -170,16 +170,20 @@ export default function Home() {
 
               <div className="flex items-start justify-between">
                 <Link to="/wallet?mode=send" className="flex items-center space-x-1 -ml-1 pt-1">
-                  <FaArrowCircleUp className="text-accent w-8 h-8" />
-                  <span className="text-xs text-accent">Send</span>
+                  <div className="w-8 h-8 rounded-full bg-red-500 border-2 border-white flex items-center justify-center">
+                    <FaArrowUp className="text-white w-4 h-4" style={{ stroke: 'black', strokeWidth: '2px' }} />
+                  </div>
+                  <span className="text-xs text-red-500" style={{ WebkitTextStroke: '1px white' }}>Send</span>
                 </Link>
                 <div className="flex flex-col items-center space-y-1">
                   <img src="/assets/icons/ezgif-54c96d8a9b9236.webp" alt="TPC" className="w-10 h-10" />
                   <span className="text-sm">{formatValue(tpcBalance ?? '...', 2)}</span>
                 </div>
                 <Link to="/wallet?mode=receive" className="flex items-center space-x-1 -mr-1 pt-1">
-                  <FaArrowCircleDown className="text-accent w-8 h-8" />
-                  <span className="text-xs text-accent">Receive</span>
+                  <div className="w-8 h-8 rounded-full bg-red-500 border-2 border-white flex items-center justify-center">
+                    <FaArrowDown className="text-white w-4 h-4" style={{ stroke: 'black', strokeWidth: '2px' }} />
+                  </div>
+                  <span className="text-xs text-green-500" style={{ WebkitTextStroke: '1px white' }}>Receive</span>
                 </Link>
               </div>
             </div>
