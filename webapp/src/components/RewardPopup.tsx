@@ -29,7 +29,9 @@ export default function RewardPopup({
         icon = '/assets/icons/file_00000000ae68620a96d269fe76d158e5_256x256.webp';
       }
       coinConfetti(50, icon);
-      audio = new Audio('/assets/sounds/man-cheering-in-victory-epic-stock-media-1-00-01.mp3');
+      audio = new Audio(
+        '/assets/sounds/11l-victory_sound_with_t-1749487412779-357604.mp3',
+      );
       audio.volume = getGameVolume();
       audio.play().catch(() => {});
     }
