@@ -111,7 +111,7 @@ export default function Layout({ children }) {
           <img
             src="/assets/icons/file_00000000bc2862439eecffff3730bbe4.webp"
             alt="TonPlaygram logo"
-            className="h-28"
+            className="h-[190px]"
           />
         </header>
       )}
