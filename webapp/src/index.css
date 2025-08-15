@@ -34,10 +34,10 @@ body {
 [class*='text-yellow-'],
 [class*='text-black'],
 [class*='text-green-'],
-.text-text,
 [class*='text-primary'],
 [class*='text-accent'],
-[class*='text-white'] {
+[class*='text-white'],
+.text-text {
   -webkit-text-stroke-width: 0.3px;
 }
 
@@ -50,10 +50,14 @@ body {
 
 [class*='text-blue-'],
 [class*='text-primary'],
-[class*='text-accent'],
-.text-text {
+[class*='text-accent'] {
   -webkit-text-stroke-color: #ff0000;
   text-shadow: 0 0 4px #ffffff;
+}
+
+.text-text {
+  /* Gold price-style text with electric blue outline */
+  -webkit-text-stroke-color: #00f7ff;
 }
 
 [class*='text-yellow-'] {
@@ -92,15 +96,15 @@ body {
 
 button,
 input {
-  border-color: #00f7ff;
-  color: #00f7ff;
-  box-shadow: 0 0 6px rgba(0, 247, 255, 0.6);
+  border-color: #facc15;
+  color: #facc15;
+  box-shadow: 0 0 6px rgba(250, 204, 21, 0.6);
 }
 
 button:focus,
 input:focus {
   outline: none;
-  box-shadow: 0 0 10px #00f7ff;
+  box-shadow: 0 0 10px #facc15;
 }
 
 /* Utility class for white text with a subtle black shadow */
