@@ -13,7 +13,7 @@ export default {
           primary: '#00f7ff',           // Button base in electric blue
           'primary-hover': '#66fcff',   // Lighter hover effect
           text: '#00f7ff',              // Electric blue text
-          subtext: '#66fcff',           // Slightly dimmed blue
+          subtext: '#00f7ff',           // Match card text to Spin & Win message
           accent: '#00f7ff',            // Accent color
           brand: {
             gold: '#facc15',            // Yellow highlight

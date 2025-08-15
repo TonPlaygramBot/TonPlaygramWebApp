@@ -15,7 +15,11 @@ export default function InfoPopup({
       <div
         className={`prism-box flex-col p-6 space-y-4 text-text relative ${widthClass}`}
       >
-        {title && <h3 className="text-lg font-bold text-center">{title}</h3>}
+        {title && (
+          <h3 className="text-lg font-bold text-center text-red-600 drop-shadow-[0_0_2px_black]">
+            {title}
+          </h3>
+        )}
         {info && <p className="text-sm text-subtext text-center">{info}</p>}
         {children}
         <button
