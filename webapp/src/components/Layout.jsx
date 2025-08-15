@@ -83,43 +83,6 @@ export default function Layout({ children }) {
     return () => clearInterval(id);
   }, []);
 
-  useEffect(() => {
-    if (location.pathname.startsWith('/games/')) return;
-
-    let startY = 0;
-    let active = false;
-
-    const onTouchStart = (e) => {
-      if (window.scrollY === 0) {
-        startY = e.touches[0].clientY;
-        active = true;
-      }
-    };
-
-    const onTouchMove = (e) => {
-      if (!active) return;
-      const currentY = e.touches[0].clientY;
-      if (currentY - startY > 80) {
-        active = false;
-        window.location.reload();
-      }
-      e.preventDefault();
-    };
-
-    const onTouchEnd = () => {
-      active = false;
-    };
-
-    window.addEventListener('touchstart', onTouchStart, { passive: true });
-    window.addEventListener('touchmove', onTouchMove, { passive: false });
-    window.addEventListener('touchend', onTouchEnd);
-    return () => {
-      window.removeEventListener('touchstart', onTouchStart);
-      window.removeEventListener('touchmove', onTouchMove);
-      window.removeEventListener('touchend', onTouchEnd);
-    };
-  }, [location.pathname]);
-
   const showNavbar = !(
     location.pathname.startsWith('/games/') &&
     !location.pathname.includes('/lobby')
