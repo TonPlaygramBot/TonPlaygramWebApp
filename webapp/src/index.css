@@ -17,33 +17,46 @@ body {
   font-family: 'Luckiest Guy', 'Comic Sans MS', cursive;
   margin: 0;
   @apply text-text overflow-x-hidden font-thin;
-  background: radial-gradient(1200px 800px at 70% -10%, #1a2450 0%, #0c1020 38%, #0c1020 100%) fixed;
+  background: radial-gradient(
+      1200px 800px at 70% -10%,
+      #1a2450 0%,
+      #0c1020 38%,
+      #0c1020 100%
+    )
+    fixed;
   background-color: #0c1020;
 }
 
 /* Outline text with contrasting edges */
-[class*="text-blue-"],
-[class*="text-sky-"],
-[class*="text-red-"],
-[class*="text-yellow-"],
-[class*="text-black"],
-[class*="text-green-"],
+[class*='text-blue-'],
+[class*='text-sky-'],
+[class*='text-red-'],
+[class*='text-yellow-'],
+[class*='text-black'],
+[class*='text-green-'],
 .text-text,
-[class*="text-white"] {
+[class*='text-primary'],
+[class*='text-accent'],
+[class*='text-white'] {
   -webkit-text-stroke-width: 0.3px;
 }
 
-[class*="text-blue-"],
-[class*="text-sky-"],
-[class*="text-red-"],
-[class*="text-yellow-"],
-[class*="text-black"],
-[class*="text-green-"],
-.text-text {
+[class*='text-blue-'],
+[class*='text-sky-'],
+[class*='text-red-'],
+[class*='text-yellow-'],
+[class*='text-black'],
+[class*='text-green-'] {
   -webkit-text-stroke-color: #ffffff;
 }
 
-[class*="text-white"] {
+[class*='text-primary'],
+[class*='text-accent'],
+.text-text {
+  -webkit-text-stroke-color: #facc15;
+}
+
+[class*='text-white'] {
   -webkit-text-stroke-color: #000000;
 }
 
@@ -54,15 +67,21 @@ body {
 
 .bg-surface {
   background:
-    repeating-linear-gradient(45deg, rgba(255, 255, 255, 0.03) 0 2px, transparent 2px 4px),
+    repeating-linear-gradient(
+      45deg,
+      rgba(255, 255, 255, 0.03) 0 2px,
+      transparent 2px 4px
+    ),
     radial-gradient(circle at center, #1a2450 0%, #0e1430 80%);
-  background-size: 100px 100px, cover;
-  background-position: 0 0, center;
+  background-size:
+    100px 100px,
+    cover;
+  background-position:
+    0 0,
+    center;
   animation: canvasDepthMove 30s linear infinite;
   box-shadow: inset 0 0 10px rgba(0, 247, 255, 0.4);
 }
-
-
 
 button,
 input {
@@ -123,7 +142,6 @@ input:focus {
   transition: transform 0.3s ease; /* ✅ scaling transition */
 }
 
-
 /* Full-screen stage behind the Snake & Ladder board */
 .background-behind-board {
   position: absolute;
@@ -134,8 +152,16 @@ input:focus {
   z-index: -1;
   pointer-events: none;
   background:
-    radial-gradient(2px 2px at 20% 30%, rgba(255, 255, 255, 0.15), transparent 40%),
-    radial-gradient(1.5px 1.5px at 80% 70%, rgba(255, 255, 255, 0.1), transparent 50%),
+    radial-gradient(
+      2px 2px at 20% 30%,
+      rgba(255, 255, 255, 0.15),
+      transparent 40%
+    ),
+    radial-gradient(
+      1.5px 1.5px at 80% 70%,
+      rgba(255, 255, 255, 0.1),
+      transparent 50%
+    ),
     linear-gradient(#081428, #102040);
   background-color: #0b1a2f;
   transform: translateY(90px) scale(1.2);
@@ -237,7 +263,7 @@ input:focus {
 }
 
 .board-cell::after {
-  content: "";
+  content: '';
   position: absolute;
   inset: 2px;
   border-radius: inherit;
@@ -332,7 +358,7 @@ input:focus {
 }
 
 .token-three.burning::after {
-  content: "\1F525"; /* fire emoji */
+  content: '\1F525'; /* fire emoji */
   position: absolute;
   top: 50%;
   left: 48%;
@@ -416,10 +442,12 @@ input:focus {
 
 @keyframes coin-spin {
   from {
-    transform: translate(-50%, calc(-100% - 15.4rem)) translateZ(40px) rotateY(0deg);
+    transform: translate(-50%, calc(-100% - 15.4rem)) translateZ(40px)
+      rotateY(0deg);
   }
   to {
-    transform: translate(-50%, calc(-100% - 15.4rem)) translateZ(40px) rotateY(360deg);
+    transform: translate(-50%, calc(-100% - 15.4rem)) translateZ(40px)
+      rotateY(360deg);
   }
 }
 
@@ -442,7 +470,9 @@ input:focus {
   object-fit: cover;
   border-radius: 50%;
   border: 4px solid var(--token-border-color, #ffd700);
-  transition: border-color 0.3s ease, border-width 0.3s ease;
+  transition:
+    border-color 0.3s ease,
+    border-width 0.3s ease;
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.4);
   pointer-events: none;
   z-index: 1;
@@ -455,8 +485,6 @@ input:focus {
   transform: translate(-45%, -5%) translateZ(15.2px)
     rotateX(calc(var(--board-angle, 58deg) * -1 - 10deg));
 }
-
-
 
 .timer-ring {
   position: absolute;
@@ -472,7 +500,7 @@ input:focus {
   z-index: 0;
   background: var(--timer-gradient);
   -webkit-mask: radial-gradient(farthest-side, transparent 65%, black 66%);
-          mask: radial-gradient(farthest-side, transparent 65%, black 66%);
+  mask: radial-gradient(farthest-side, transparent 65%, black 66%);
 }
 
 .avatar-timer-ring {
@@ -482,7 +510,7 @@ input:focus {
   pointer-events: none;
   background: var(--timer-gradient);
   -webkit-mask: radial-gradient(farthest-side, transparent 65%, black 66%);
-          mask: radial-gradient(farthest-side, transparent 65%, black 66%);
+  mask: radial-gradient(farthest-side, transparent 65%, black 66%);
 }
 
 .rank-number {
@@ -778,7 +806,8 @@ input:focus {
 .board-cell.forward-highlight .dice-marker,
 .board-cell.back-highlight .cell-marker,
 .board-cell.back-highlight .dice-marker {
-  transform: translate(-50%, -50%) translateZ(6px) rotateX(calc(var(--board-angle, 58deg) * -1));
+  transform: translate(-50%, -50%) translateZ(6px)
+    rotateX(calc(var(--board-angle, 58deg) * -1));
 }
 
 .board-cell.ladder-cell.forward-highlight,
@@ -795,7 +824,8 @@ input:focus {
 
 .board-cell.path-highlight .cell-marker,
 .board-cell.path-highlight .dice-marker {
-  transform: translate(-50%, -50%) translateZ(6px) rotateX(calc(var(--board-angle, 58deg) * -1));
+  transform: translate(-50%, -50%) translateZ(6px)
+    rotateX(calc(var(--board-angle, 58deg) * -1));
 }
 .board-cell.ladder-cell.normal-highlight,
 .board-cell.snake-cell.normal-highlight {
@@ -846,14 +876,18 @@ input:focus {
 .board-cell.ladder-cell.ladder-highlight::before,
 .board-cell.snake-highlight::before,
 .board-cell.snake-cell.snake-highlight::before {
-  content: "";
+  content: '';
   position: absolute;
   top: 100%;
   left: 0;
   width: 100%;
   height: 100%;
   border-radius: inherit;
-  background: radial-gradient(circle at center, var(--glow-color, rgba(253, 224, 71, 0.6)) 0%, transparent 80%);
+  background: radial-gradient(
+    circle at center,
+    var(--glow-color, rgba(253, 224, 71, 0.6)) 0%,
+    transparent 80%
+  );
   transform: rotateX(calc(var(--board-angle, 58deg))) translateZ(-2px);
   pointer-events: none;
   filter: blur(6px);
@@ -923,21 +957,21 @@ input:focus {
 }
 
 /* Start cell icon tweaks */
-.board-cell[data-cell="1"] .cell-icon {
+.board-cell[data-cell='1'] .cell-icon {
   width: 4.8rem;
   height: 4.8rem;
   animation: hex-spin 10.5s linear infinite;
   transform-origin: center;
 }
 
-.board-cell[data-cell="1"] .cell-emoji {
+.board-cell[data-cell='1'] .cell-emoji {
   font-size: 4.8rem;
   animation: hex-spin 10.5s linear infinite;
   transform-origin: center;
 }
 
 /* Rotate the start cell icon in place */
-.board-cell[data-cell="1"] .cell-marker {
+.board-cell[data-cell='1'] .cell-marker {
   animation: start-sway 2.5s ease-in-out infinite;
   top: 61%;
   transform: translate(-50%, -50%) translateZ(6px);
@@ -949,7 +983,7 @@ input:focus {
 }
 
 /* Center the start cell number inside the enlarged hexagon */
-.board-cell[data-cell="1"] .cell-number {
+.board-cell[data-cell='1'] .cell-number {
   position: absolute;
   top: 50%;
   left: 50%;
@@ -975,12 +1009,11 @@ input:focus {
   }
 }
 
-
 .cell-number {
   position: relative;
   z-index: 1;
   color: #ffffff;
-  font-family: "Comic Sans MS", "Comic Sans", cursive;
+  font-family: 'Comic Sans MS', 'Comic Sans', cursive;
   font-weight: bold;
   font-size: 1.3rem; /* slightly bigger numbers */
   line-height: 1;
@@ -989,10 +1022,9 @@ input:focus {
 
 /* Small hexagonal frame for the starting cell number */
 
-
 .turn-message {
   color: #ff0000;
-  font-family: "Comic Sans MS", "Comic Sans", cursive;
+  font-family: 'Comic Sans MS', 'Comic Sans', cursive;
   font-weight: bold;
   font-size: 1.8rem;
   line-height: 1;
@@ -1000,7 +1032,7 @@ input:focus {
 
 .roll-result {
   color: #ffffff;
-  font-family: "Comic Sans MS", "Comic Sans", cursive;
+  font-family: 'Comic Sans MS', 'Comic Sans', cursive;
   font-weight: bold;
 }
 
@@ -1045,11 +1077,9 @@ input:focus {
   transform: translate(-50%, -50%) translateZ(32px);
 }
 
-
 .pot-cell.highlight {
   box-shadow: 0 0 10px 4px rgba(250, 204, 21, 0.8);
 }
-
 
 .snake-connector,
 .ladder-connector {
@@ -1067,7 +1097,6 @@ input:focus {
   height: 1.2rem;
   object-fit: contain;
 }
-
 
 .coin-burst {
   position: absolute;
@@ -1171,7 +1200,6 @@ input:focus {
   transform: rotateX(calc(var(--board-angle, 58deg) * -1));
 }
 
-
 .start-hexagon {
   position: absolute;
   inset: 0;
@@ -1187,7 +1215,6 @@ input:focus {
   z-index: 0;
   animation: hex-spin var(--hex-spin-duration, 10.5s) linear infinite;
 }
-
 
 @keyframes hex-spin-reverse {
   from {
@@ -1250,16 +1277,16 @@ input:focus {
   background-color: #0e3b45;
   color: #ffffff;
 }
-.friend-background{
+.friend-background {
   transform: translateY(70px) scale(1.98);
 }
 
-.friend-background.flip-vertical{
+.friend-background.flip-vertical {
   transform: translateY(70px) scale(1.98) scaleY(-1);
 }
 
 /* Slightly larger background for the profile page */
-.account-background{
+.account-background {
   transform: translateY(90px) scale(1.35);
 }
 
@@ -1303,9 +1330,21 @@ input:focus {
   position: absolute;
   inset: 0;
   background-image:
-    radial-gradient(circle at 15% 20%, rgba(255, 255, 255, 0.8) 0%, rgba(255, 255, 255, 0) 60%),
-    radial-gradient(circle at 70% 30%, rgba(255, 255, 255, 0.7) 0%, rgba(255, 255, 255, 0) 60%),
-    radial-gradient(circle at 50% 80%, rgba(255, 255, 255, 0.6) 0%, rgba(255, 255, 255, 0) 60%);
+    radial-gradient(
+      circle at 15% 20%,
+      rgba(255, 255, 255, 0.8) 0%,
+      rgba(255, 255, 255, 0) 60%
+    ),
+    radial-gradient(
+      circle at 70% 30%,
+      rgba(255, 255, 255, 0.7) 0%,
+      rgba(255, 255, 255, 0) 60%
+    ),
+    radial-gradient(
+      circle at 50% 80%,
+      rgba(255, 255, 255, 0.6) 0%,
+      rgba(255, 255, 255, 0) 60%
+    );
   background-size: 200% 100%;
   animation: clouds-move 60s linear infinite;
 }
@@ -1353,10 +1392,16 @@ input:focus {
 
 @keyframes clouds-move {
   from {
-    background-position: 0 0, 0 0, 0 0;
+    background-position:
+      0 0,
+      0 0,
+      0 0;
   }
   to {
-    background-position: -400px 0, 400px 0, -200px 0;
+    background-position:
+      -400px 0,
+      400px 0,
+      -200px 0;
   }
 }
 
@@ -1368,7 +1413,9 @@ input:focus {
 
 .buy-button {
   @apply lobby-tile w-full rounded-full cursor-pointer text-black bg-primary;
-  box-shadow: 0 0 8px #00f7ff, 0 0 16px #00f7ff;
+  box-shadow:
+    0 0 8px #00f7ff,
+    0 0 16px #00f7ff;
 }
 
 /* Horizontal info bar used on the Store page */
@@ -1387,9 +1434,6 @@ input:focus {
 .wide-card {
   @apply -mx-4;
 }
-
-
-
 
 .coin-confetti {
   position: fixed;
@@ -1411,7 +1455,10 @@ input:focus {
   }
 }
 
-.chat-bubble{ @apply fixed bottom-4 left-1/2 -translate-x-1/2 bg-black bg-opacity-70 text-white rounded px-2 py-1 flex items-center space-x-2; font-size:1.2rem; }
+.chat-bubble {
+  @apply fixed bottom-4 left-1/2 -translate-x-1/2 bg-black bg-opacity-70 text-white rounded px-2 py-1 flex items-center space-x-2;
+  font-size: 1.2rem;
+}
 
 .crazy-dice-board {
   position: relative;
@@ -1612,8 +1659,6 @@ input:focus {
   top: calc(100% + 5rem);
 }
 
-
-
 /* Rolling dice animation */
 .dice-screen-animation {
   position: fixed;
@@ -1688,18 +1733,30 @@ input:focus {
 }
 @keyframes canvasDepthMove {
   from {
-    background-position: 0 0, center;
+    background-position:
+      0 0,
+      center;
   }
   to {
-    background-position: 100px 100px, center;
+    background-position:
+      100px 100px,
+      center;
   }
 }
 
 .tetris-grid-bg {
   background:
-    repeating-linear-gradient(45deg, rgba(255, 255, 255, 0.05) 0 2px, transparent 2px 4px),
+    repeating-linear-gradient(
+      45deg,
+      rgba(255, 255, 255, 0.05) 0 2px,
+      transparent 2px 4px
+    ),
     radial-gradient(circle at center, #243375 0%, #18234d 80%);
-  background-size: 100px 100px, cover;
-  background-position: 0 0, center;
+  background-size:
+    100px 100px,
+    cover;
+  background-position:
+    0 0,
+    center;
   animation: canvasDepthMove 30s linear infinite;
 }
