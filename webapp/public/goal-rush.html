@@ -36,8 +36,11 @@
     .coin-confetti{position:fixed;top:-40px;width:32px;height:32px;pointer-events:none;animation:coin-fall var(--duration,3s) linear forwards}
     @keyframes coin-fall{from{transform:translateY(-10vh) rotate(0deg);opacity:1}to{transform:translateY(100vh) rotate(360deg);opacity:0}}
 
-    .goal-text{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);font-size:48px;font-weight:800;color:var(--goal);text-align:center;display:none;pointer-events:none;line-height:1.1}
-    .goal-text .score-line{display:block;font-size:32px;font-weight:600}
+      .goal-text{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);font-size:48px;font-weight:800;color:var(--goal);text-align:center;display:none;pointer-events:none;line-height:1.1}
+      .goal-text .score-line{display:block;font-size:32px;font-weight:600}
+      .post-text{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);font-size:48px;font-weight:800;color:#facc15;text-align:center;display:none;pointer-events:none;line-height:1.1;-webkit-text-stroke:2px #000;text-shadow:-2px -2px 0 #000,2px -2px 0 #000,-2px 2px 0 #000,2px 2px 0 #000}
+      .lobby-btn{padding:8px;background:#00f7ff;color:#fff;border:none;border-radius:8px;font-size:14px;font-weight:600;-webkit-text-stroke:0.5px #000;text-shadow:-1px -1px 0 #000,1px -1px 0 #000,-1px 1px 0 #000,1px 1px 0 #000;cursor:pointer}
+      .lobby-btn:hover{background:#66fcff}
 
     @media (orientation:landscape){
       .landscape-block{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:#0008;z-index:20;color:#fff;text-align:center;padding:24px}
@@ -57,7 +60,8 @@
     <div class="canvasWrap">
       <canvas id="game" width="720" height="1280" aria-label="Goal Rush Field"></canvas>
     </div>
-    <div id="goalText" class="goal-text"></div>
+      <div id="goalText" class="goal-text"></div>
+      <div id="postText" class="post-text"></div>
   </div>
   <div class="hint" id="startHint"></div>
   <div class="landscape-block" style="display:none">Please hold your phone in <b>portrait</b> for the best experience.</div>
@@ -76,6 +80,7 @@
   const landscapeBlock = document.querySelector('.landscape-block');
   const muteBtn = document.getElementById('muteBtn');
   const goalText = document.getElementById('goalText');
+  const postText = document.getElementById('postText');
   const TOP_BAR = 40; // height of scoreboard bar
   const BOTTOM_GAP = 20; // gap below rink
   const GOAL_PAUSE = 1500; // pause after a goal
@@ -238,19 +243,8 @@
     pop.style.position='fixed';pop.style.inset='0';pop.style.display='flex';pop.style.alignItems='center';pop.style.justifyContent='center';pop.style.background='rgba(0,0,0,0.7)';pop.style.zIndex='50';
     const box=document.createElement('div');
     box.style.background='#0b1220';box.style.padding='16px';box.style.borderRadius='12px';box.style.display='flex';box.style.flexDirection='column';box.style.gap='8px';box.style.minWidth='200px';
-    const btnLobby=document.createElement('button');btnLobby.textContent='Return to Lobby';btnLobby.style.padding='8px';btnLobby.onclick=()=>{location.href='/games/goalrush/lobby';};
-    const btnAgain=document.createElement('button');btnAgain.textContent='Play Again';btnAgain.style.padding='8px';
-    btnAgain.onclick=async()=>{
-      if(mode==='ai'){
-        await chargeStake();
-        score.p1=0;score.p2=0;updateScore();resetPositions();running=true;pop.remove();
-      }else{
-        btnAgain.disabled=true;
-        const wait=document.createElement('div');wait.textContent='Waiting for opponent...';wait.style.color='#fff';wait.style.marginTop='8px';box.appendChild(wait);
-        try{await fetch('/api/goalrush/rematch',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({accountId:myAccountId})});}catch{}
-      }
-    };
-    box.appendChild(btnLobby);box.appendChild(btnAgain);pop.appendChild(box);document.body.appendChild(pop);
+    const btnLobby=document.createElement('button');btnLobby.textContent='Return to Lobby';btnLobby.className='lobby-btn';btnLobby.onclick=()=>{location.href='/games/goalrush/lobby';};
+    box.appendChild(btnLobby);pop.appendChild(box);document.body.appendChild(pop);
   }
 
   let W = 720, H = 1280, goalCenterX = 0, goalTopY = 0, goalBottomY = 0;
@@ -377,6 +371,12 @@
     goalText.innerHTML = `GOAL!<span class="score-line">${score.p1} - ${score.p2}</span>`;
     goalText.style.display = 'block';
     setTimeout(()=>{ goalText.style.display='none'; }, GOAL_PAUSE);
+  }
+
+  function showPostMessage(){
+    postText.textContent = 'HIT THE POST';
+    postText.style.display = 'block';
+    setTimeout(()=>{ postText.style.display='none'; }, 1000);
   }
 
   function rr(x,y,w,h,r){
@@ -650,6 +650,9 @@
         if (Math.abs(puck.vx) < minWallSpeed / 2) {
           puck.vx = (Math.sign(puck.vx) || 1) * (minWallSpeed / 2);
         }
+        if (Math.abs(puck.x - goalLeft) < puck.r || Math.abs(puck.x - goalRight) < puck.r) {
+          showPostMessage();
+        }
         sfx.wall();
       }
     }
@@ -672,6 +675,9 @@
         puck.vy = -speed * wallBounce;
         if (Math.abs(puck.vx) < minWallSpeed / 2) {
           puck.vx = (Math.sign(puck.vx) || 1) * (minWallSpeed / 2);
+        }
+        if (Math.abs(puck.x - goalLeft) < puck.r || Math.abs(puck.x - goalRight) < puck.r) {
+          showPostMessage();
         }
         sfx.wall();
       }
