@@ -53,7 +53,7 @@ export default function FlagPickerModal({ open, onClose, count = 1, onSave, sele
   return (
     <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-70 z-50">
       <div className="bg-surface border border-border p-4 rounded text-center text-text w-96 max-h-[90vh] flex flex-col space-y-4">
-        <h3 className="text-lg font-bold text-red-600 drop-shadow-[0_0_2px_black]">Select your opponents</h3>
+        <h3 className="text-lg font-bold">Select your opponents</h3>
         <div className="flex-1 min-h-0 overflow-y-auto space-y-2">
           <div className="flex flex-wrap justify-center gap-2">
             {continents.map(c => (

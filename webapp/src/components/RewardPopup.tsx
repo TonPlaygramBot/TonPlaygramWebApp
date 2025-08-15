@@ -42,9 +42,7 @@ export default function RewardPopup({
   return (
     <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-70 z-50">
       <div className="text-center space-y-4 text-text">
-        <h3 className="text-lg font-bold text-red-600 drop-shadow-[0_0_2px_black]">
-          Reward Earned
-        </h3>
+        <h3 className="text-lg font-bold">Reward Earned</h3>
         <div className="text-accent text-3xl flex items-center justify-center space-x-2">
           {reward === 'BONUS_X3' && (
             <>
