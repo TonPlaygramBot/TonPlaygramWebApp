@@ -297,7 +297,7 @@ export default function MyAccount() {
           <img src={getAvatarUrl(photoToShow)} alt="avatar" className="w-14 h-14 rounded-full object-cover" />
         )}
         <div>
-          <p className="font-semibold text-white-shadow">
+          <p className="font-semibold text-yellow-400 text-outline-black">
             {profile.firstName} {profile.lastName}
           </p>
           <div className="text-sm flex items-center space-x-1">
