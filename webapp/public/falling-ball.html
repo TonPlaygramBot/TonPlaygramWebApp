@@ -25,7 +25,7 @@
     .row{ display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
     .chip{ padding:6px 10px; border-radius:12px; border:1px solid rgba(255,255,255,.15); color:#fff; background:transparent; cursor:pointer; }
     .chip.active{ border-color:#7dd3fc; }
-      .btn{ appearance:none; border:1px solid #00f7ff; background:rgba(0,0,0,.3); color:#00f7ff; padding:10px 14px; border-radius:14px; font-weight:600; font-size:14px; cursor:pointer; }
+      .btn{ appearance:none; border:1px solid #00f7ff; background:rgba(0,0,0,.3); color:#00f7ff; -webkit-text-stroke-width:.3px; -webkit-text-stroke-color:#ff0000; text-shadow:0 0 4px #fff; padding:10px 14px; border-radius:14px; font-weight:600; font-size:14px; cursor:pointer; }
       .btn.primary{ background:#00f7ff; color:#fff; border:none; box-shadow:0 0 8px rgba(0,247,255,.5); }
       .btn.primary:hover{ background:#66fcff; }
     .btn:disabled{ opacity:.5; }
@@ -42,7 +42,7 @@
     .sep{ opacity:.3; }
       .popup{ position:absolute; inset:0; background:rgba(0,0,0,.7); display:flex; align-items:center; justify-content:center; }
       .popup.hidden{ display:none; }
-      .popup .box{ background:linear-gradient(180deg,#0f1530,#0a0f24); background-color:#0b1a2f; border:1px solid #00f7ff; box-shadow:0 0 8px #00f7ff, inset 0 0 10px rgba(0,247,255,.4); padding:20px; border-radius:12px; text-align:center; color:#00f7ff; }
+      .popup .box{ background:linear-gradient(180deg,#0f1530,#0a0f24); background-color:#0b1a2f; border:1px solid #00f7ff; box-shadow:0 0 8px #00f7ff, inset 0 0 10px rgba(0,247,255,.4); padding:20px; border-radius:12px; text-align:center; color:#00f7ff; -webkit-text-stroke-width:.3px; -webkit-text-stroke-color:#ff0000; text-shadow:0 0 4px #fff; }
     .countdown{ position:fixed; inset:0; display:flex; align-items:center; justify-content:center; font-size:48px; font-weight:bold; color:#fff; background:rgba(0,0,0,0.5); z-index:50; }
     .countdown.hidden{ display:none; }
   
