@@ -227,10 +227,25 @@ export default function LeaderboardCard() {
           <table className="w-full text-sm">
             <thead className="sticky top-0 bg-surface">
               <tr className="border-b border-border text-left">
-                <th className="p-2">#</th>
+                <th
+                  className="p-2 text-white"
+                  style={{ WebkitTextStroke: '1px black' }}
+                >
+                  #
+                </th>
                 <th className="p-2 w-14"></th>
-                <th className="p-2">User</th>
-                <th className="p-2 text-right">TPC</th>
+                <th
+                  className="p-2 text-white"
+                  style={{ WebkitTextStroke: '1px black' }}
+                >
+                  User
+                </th>
+                <th
+                  className="p-2 text-right text-white"
+                  style={{ WebkitTextStroke: '1px black' }}
+                >
+                  TPC
+                </th>
               </tr>
             </thead>
             <tbody>
