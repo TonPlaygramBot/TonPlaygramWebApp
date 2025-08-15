@@ -18,7 +18,7 @@ export default function DevTasksModal({ open, onClose }) {
 
   const load = async () => {
     const data = await adminListTasks();
-    if (!data.error) setTasks(data);
+    if (!data.error) setTasks(data.tasks || data);
   };
 
   useEffect(() => {
@@ -39,6 +39,7 @@ export default function DevTasksModal({ open, onClose }) {
     setDescription('');
     setEditing(null);
     load();
+    window.dispatchEvent(new Event('tasksUpdated'));
   };
 
   const handleEdit = (task) => {
@@ -53,6 +54,7 @@ export default function DevTasksModal({ open, onClose }) {
     if (!window.confirm('Are you sure you want to delete this task?')) return;
     await adminDeleteTask(id);
     load();
+    window.dispatchEvent(new Event('tasksUpdated'));
   };
 
   if (!open) return null;

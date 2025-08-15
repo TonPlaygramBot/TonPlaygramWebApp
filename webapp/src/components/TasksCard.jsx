@@ -123,9 +123,10 @@ export default function TasksCard() {
   };
 
   useEffect(() => {
-
     load();
-
+    const handler = () => load();
+    window.addEventListener('tasksUpdated', handler);
+    return () => window.removeEventListener('tasksUpdated', handler);
   }, []);
 
   useEffect(() => {
