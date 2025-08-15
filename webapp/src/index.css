@@ -62,8 +62,9 @@ body {
 }
 
 [class*='text-white'] {
-  /* Red outline for white text */
-  -webkit-text-stroke-color: #ff0000;
+  /* Black outline for white text */
+  -webkit-text-stroke-color: #000000;
+  text-shadow: 0 0 4px #000000;
 }
 
 /* Neon theme elements */
