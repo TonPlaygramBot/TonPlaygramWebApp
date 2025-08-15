@@ -1,19 +1,28 @@
 import React, { useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import coinConfetti from '../utils/coinConfetti';
+import { loadAvatar } from '../utils/avatarUtils.js';
 
 export default function GameEndPopup({ open, ranking = [], onReturn }) {
   if (!open) return null;
 
-  const players = ranking.map((r) =>
-    typeof r === 'string'
-      ? { name: r, photoUrl: '/assets/icons/profile.svg', amount: 0 }
-      : r,
-  );
+  const players = ranking.map((r, i) => {
+    if (typeof r === 'string') {
+      return {
+        name: r,
+        photoUrl: i === 0 ? loadAvatar() || '/assets/icons/profile.svg' : '/assets/icons/profile.svg',
+        amount: 0,
+      };
+    }
+    if (!r.photoUrl && i === 0) {
+      return { ...r, photoUrl: loadAvatar() || '/assets/icons/profile.svg' };
+    }
+    return r;
+  });
 
   useEffect(() => {
     coinConfetti();
-    const snd = new Audio('/assets/sounds/metal-whistle-6121.mp3');
+    const snd = new Audio('/assets/sounds/11l-victory_sound_with_t-1749487412779-357604.mp3');
     snd.play().catch(() => {});
     return () => snd.pause();
   }, []);
