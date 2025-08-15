@@ -16,7 +16,7 @@ body {
 body {
   font-family: 'Luckiest Guy', 'Comic Sans MS', cursive;
   margin: 0;
-  @apply text-text overflow-x-hidden;
+  @apply text-text overflow-x-hidden font-light;
   background: radial-gradient(1200px 800px at 70% -10%, #1a2450 0%, #0c1020 38%, #0c1020 100%) fixed;
   background-color: #0c1020;
 }
