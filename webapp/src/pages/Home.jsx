@@ -180,7 +180,7 @@ export default function Home() {
                   <span className="text-sm">{formatValue(tpcBalance ?? '...', 2)}</span>
                 </div>
                 <Link to="/wallet?mode=receive" className="flex items-center space-x-1 -mr-1 pt-1">
-                  <div className="w-8 h-8 rounded-full bg-red-500 border-2 border-white flex items-center justify-center">
+                  <div className="w-8 h-8 rounded-full bg-green-500 border-2 border-white flex items-center justify-center">
                     <FaArrowDown className="text-white w-4 h-4" style={{ stroke: 'black', strokeWidth: '2px' }} />
                   </div>
                   <span className="text-xs text-green-500" style={{ WebkitTextStroke: '1px white' }}>Receive</span>
