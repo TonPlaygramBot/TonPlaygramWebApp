@@ -381,21 +381,23 @@ router.post('/admin/list', async (req, res) => {
 
 router.post('/admin/create', async (req, res) => {
   if (!isAuthorized(req)) return res.status(403).json({ error: 'unauthorized' });
-  const { platform, reward, link } = req.body;
+  const { platform, reward, link, description } = req.body;
   if (!platform || !reward || !link) {
-    return res.status(400).json({ error: 'platform, reward and link required' });
+    return res
+      .status(400)
+      .json({ error: 'platform, reward and link required' });
   }
-  const task = await CustomTask.create({ platform, reward, link });
+  const task = await CustomTask.create({ platform, reward, link, description });
   res.json(task);
 });
 
 router.post('/admin/update', async (req, res) => {
   if (!isAuthorized(req)) return res.status(403).json({ error: 'unauthorized' });
-  const { id, platform, reward, link } = req.body;
+  const { id, platform, reward, link, description } = req.body;
   if (!id) return res.status(400).json({ error: 'id required' });
   const task = await CustomTask.findByIdAndUpdate(
     id,
-    { platform, reward, link },
+    { platform, reward, link, description },
     { new: true }
   );
   if (!task) return res.status(404).json({ error: 'not found' });
