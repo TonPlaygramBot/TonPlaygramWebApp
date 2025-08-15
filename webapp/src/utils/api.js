@@ -157,6 +157,22 @@ export function verifyTelegramReaction(telegramId, messageId, threadId) {
   return post('/api/tasks/verify-telegram-reaction', { telegramId, messageId, threadId });
 }
 
+export function adminListTasks() {
+  return post('/api/tasks/admin/list', {}, API_AUTH_TOKEN || undefined);
+}
+
+export function adminCreateTask(platform, reward, link) {
+  return post('/api/tasks/admin/create', { platform, reward, link }, API_AUTH_TOKEN || undefined);
+}
+
+export function adminUpdateTask(id, platform, reward, link) {
+  return post('/api/tasks/admin/update', { id, platform, reward, link }, API_AUTH_TOKEN || undefined);
+}
+
+export function adminDeleteTask(id) {
+  return post('/api/tasks/admin/delete', { id }, API_AUTH_TOKEN || undefined);
+}
+
 export function listVideos(telegramId) {
 
   return post('/api/watch/list', { telegramId });

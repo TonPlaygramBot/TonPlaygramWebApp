@@ -24,6 +24,7 @@ import { getAvatarUrl, saveAvatar, loadAvatar } from '../utils/avatarUtils.js';
 import InfoPopup from '../components/InfoPopup.jsx';
 import DevNotifyModal from '../components/DevNotifyModal.jsx';
 import InfluencerClaimsCard from '../components/InfluencerClaimsCard.jsx';
+import DevTasksModal from '../components/DevTasksModal.jsx';
 import Wallet from './Wallet.jsx';
 
 import { FiCopy } from 'react-icons/fi';
@@ -67,6 +68,7 @@ export default function MyAccount() {
   const [notifySending, setNotifySending] = useState(false);
   const [notifyStatus, setNotifyStatus] = useState('');
   const [showNotifyModal, setShowNotifyModal] = useState(false);
+  const [showTasksModal, setShowTasksModal] = useState(false);
   const [twitterError, setTwitterError] = useState('');
   const [twitterLink, setTwitterLink] = useState('');
   const [unread, setUnread] = useState(0);
@@ -403,6 +405,15 @@ export default function MyAccount() {
             </button>
           </div>
 
+          <div className="prism-box p-4 mt-4 space-y-2 mx-auto wide-card">
+            <button
+              onClick={() => setShowTasksModal(true)}
+              className="px-3 py-1 bg-primary hover:bg-primary-hover rounded text-background w-full"
+            >
+              Manage Tasks
+            </button>
+          </div>
+
           <InfluencerClaimsCard />
         </>
       )}
@@ -420,6 +431,10 @@ export default function MyAccount() {
         setNotifyPhoto={setNotifyPhoto}
         notifySending={notifySending}
         onSend={handleDevNotify}
+      />
+      <DevTasksModal
+        open={showTasksModal}
+        onClose={() => setShowTasksModal(false)}
       />
       <InfoPopup
         open={showSaved}
