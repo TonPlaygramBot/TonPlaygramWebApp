@@ -1706,7 +1706,7 @@ export default function SnakeAndLadder() {
           setMessage(`You win ${winAmt} ${token}!`);
           setMessageColor("");
           if (!muted) winSoundRef.current?.play().catch(() => {});
-          coinConfetti(50);
+          coinConfetti();
           setCelebrate(true);
           setTimeout(() => {
             setCelebrate(false);

@@ -36,7 +36,7 @@
     .slot.me{ border-color:#7dd3fc; color:#c7f3ff; }
     .slot img{ width:var(--avatar-size,24px); height:var(--avatar-size,24px); border-radius:50%; }
     .slot.winner img{ outline:2px solid #facc15; box-shadow:0 0 6px #facc15; }
-    .coin-confetti{ position:fixed; top:-40px; width:32px; height:32px; pointer-events:none; animation:coin-fall var(--duration,3s) linear forwards; }
+    .coin-confetti{ position:fixed; top:-40px; width:48px; height:48px; pointer-events:none; animation:coin-fall var(--duration,3s) linear forwards; }
     @keyframes coin-fall{ from{ transform:translateY(-10vh) rotate(0deg); opacity:1; } to{ transform:translateY(100vh) rotate(360deg); opacity:0; } }
     .status{ position:absolute; left:10px; top:48px; background:rgba(0,0,0,.35); padding:8px 10px; border-radius:12px; border:1px solid rgba(255,255,255,.08); color:#fff; font-size:12px; max-width:min(92vw,560px); }
     .sep{ opacity:.3; }
@@ -110,32 +110,33 @@
   function playTone(f=440, t=0.06, type='sine', gain=0.04){ if(!sfxOn) return; ensureAudio(); if(!audioCtx) return; const o=audioCtx.createOscillator(); const g=audioCtx.createGain(); o.type=type; o.frequency.setValueAtTime(f, audioCtx.currentTime); g.gain.value=gain; o.connect(g).connect(audioCtx.destination); o.start(); o.stop(audioCtx.currentTime+t); }
   const SFX = { bounce(){ playTone(520+Math.random()*120, 0.05, 'triangle', 0.05); }, spinner(){ playTone(740,0.08,'square',0.04); }, win(){ playTone(660,0.12,'sine',0.06); setTimeout(()=>playTone(880,0.18,'sine',0.06), 90); } };
 
-  function coinConfetti(count=50, iconSrc='/assets/icons/ezgif-54c96d8a9b9236.webp'){
-    const container=document.createElement('div');
-    container.style.position='fixed';
-    container.style.top='0';
-    container.style.left='0';
-    container.style.width='100%';
-    container.style.height='0';
-    container.style.pointerEvents='none';
-    container.style.zIndex='60';
-    container.style.overflow='visible';
-    document.body.appendChild(container);
-    for(let i=0;i<count;i++){
-      const img=document.createElement('img');
-      img.src=iconSrc;
-      img.alt='confetti icon';
-      img.className='coin-confetti';
-      const left=Math.random()*100;
-      const delay=Math.random()*0.2;
-      const duration=2+Math.random()*2;
-      img.style.left=left+'vw';
-      img.style.animationDelay=delay+'s';
-      img.style.setProperty('--duration',duration+'s');
-      container.appendChild(img);
+  function coinConfetti(_count=50, iconSrc='/assets/icons/ezgif-54c96d8a9b9236.webp'){
+      const count=25;
+      const container=document.createElement('div');
+      container.style.position='fixed';
+      container.style.top='0';
+      container.style.left='0';
+      container.style.width='100%';
+      container.style.height='0';
+      container.style.pointerEvents='none';
+      container.style.zIndex='60';
+      container.style.overflow='visible';
+      document.body.appendChild(container);
+      for(let i=0;i<count;i++){
+        const img=document.createElement('img');
+        img.src=iconSrc;
+        img.alt='confetti icon';
+        img.className='coin-confetti';
+        const left=Math.random()*100;
+        const delay=Math.random()*0.2;
+        const duration=2+Math.random()*2;
+        img.style.left=left+'vw';
+        img.style.animationDelay=delay+'s';
+        img.style.setProperty('--duration',duration+'s');
+        container.appendChild(img);
+      }
+      setTimeout(()=>container.remove(),5000);
     }
-    setTimeout(()=>container.remove(),5000);
-  }
 
   const sfxToggleBtn = document.getElementById('sfxToggle');
   sfxToggleBtn.onclick = (e)=>{
@@ -459,10 +460,6 @@
         b.releaseTime = now;
       }
 
-      if(now - b.releaseTime > 5000 && b.y + b.r < groundY - 5){
-        respawnBall(b, now);
-      }
-
       b.vy = Math.min(state.maxVy, b.vy + state.gravity);
       b.vx *= (1 - state.fric);
       b.x += b.vx; b.y += b.vy;
@@ -480,33 +477,6 @@
         }
       }
 
-      // detect if ball is stuck or jittering in a tiny area
-      if (b.y + b.r < groundY - 5){
-        if(!b.stuckBox){ b.stuckBox={minX:b.x,maxX:b.x,minY:b.y,maxY:b.y}; }
-        b.stuckBox.minX = Math.min(b.stuckBox.minX, b.x);
-        b.stuckBox.maxX = Math.max(b.stuckBox.maxX, b.x);
-        b.stuckBox.minY = Math.min(b.stuckBox.minY, b.y);
-        b.stuckBox.maxY = Math.max(b.stuckBox.maxY, b.y);
-        const boxW = b.stuckBox.maxX - b.stuckBox.minX;
-        const boxH = b.stuckBox.maxY - b.stuckBox.minY;
-        const speed = Math.abs(b.vx)+Math.abs(b.vy);
-        const jitter = boxW < 8 && boxH < 8 && speed > 2;
-        const frozen = speed < 0.1;
-        if(jitter || frozen){
-          b.stuckCounter++;
-          const limit = jitter ? 120 : 60;
-          if(b.stuckCounter > limit){
-            respawnBall(b, now);
-          }
-        }else{
-          b.stuckCounter=0;
-          b.stuckBox = {minX:b.x,maxX:b.x,minY:b.y,maxY:b.y};
-        }
-      }else{
-        b.stuckCounter=0;
-        b.stuckBox = {minX:b.x,maxX:b.x,minY:b.y,maxY:b.y};
-      }
-
       // ground / slots
       if (b.y + b.r >= groundY){
         b.y = groundY - b.r; b.vy *= -state.bounce;
@@ -521,7 +491,7 @@
             document.getElementById('winnerVal').textContent = `${winner.name} +${winAmt} TPC`;
             setStatus(`${winner.name} +${winAmt} TPC`);
             SFX.win();
-            coinConfetti(20);
+            coinConfetti();
             if(state.balls.every(ball=>ball.landed)){
               finalizeSharedPayouts();
               awardDevShare(state.pot);
@@ -535,7 +505,7 @@
             state.slots.forEach(s=>s.el.classList.remove('winner'));
             winner.el.classList.add('winner');
             SFX.win();
-            coinConfetti(50);
+            coinConfetti();
             if(winner.accountId){
               fbApi.depositAccount(winner.accountId, winAmt, { game: 'fallingball-win' });
               if(winner.telegramId) fbApi.addTransaction(winner.telegramId, 0, 'win', { game: 'fallingball', players: state.players, accountId: winner.accountId });

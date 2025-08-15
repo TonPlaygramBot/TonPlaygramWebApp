@@ -1,4 +1,5 @@
-export default function coinConfetti(count: number = 50, iconSrc: string = '/assets/icons/ezgif-54c96d8a9b9236.webp') {
+export default function coinConfetti(_count: number = 0, iconSrc: string = '/assets/icons/ezgif-54c96d8a9b9236.webp') {
+  const count = 25;
   const container = document.createElement('div');
   container.style.position = 'fixed';
   container.style.top = '0';
