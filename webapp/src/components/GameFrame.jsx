@@ -24,23 +24,7 @@ export default function GameFrame({ src, title, info, layout = 'default', player
   return (
     <div className="relative w-full h-screen">
       <iframe src={src} title={title} className="w-full h-full border-0" />
-      {layout === 'split' ? (
-        <>
-          <BottomLeftIcons
-            onInfo={() => setShowInfo(true)}
-            className="fixed left-1 top-1 flex flex-col items-center space-y-2 z-20"
-            showChat={false}
-            showGift={false}
-          />
-          <BottomLeftIcons
-            onChat={() => setShowChat(true)}
-            onGift={() => setShowGift(true)}
-            className="fixed right-1 top-1 flex flex-col items-center space-y-2 z-20"
-            showInfo={false}
-            showMute={false}
-          />
-        </>
-      ) : (
+      {layout === 'split' ? null : (
         <BottomLeftIcons
           onInfo={() => setShowInfo(true)}
           onChat={() => setShowChat(true)}
