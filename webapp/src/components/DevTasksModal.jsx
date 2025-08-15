@@ -62,7 +62,7 @@ export default function DevTasksModal({ open, onClose }) {
   return createPortal(
     <div className="fixed inset-0 bg-black bg-opacity-70 z-50 overflow-auto flex flex-col">
       <div className="bg-surface text-text p-4 flex-1">
-        <h3 className="text-lg font-bold mb-4 text-center">Manage Tasks</h3>
+        <h3 className="text-lg font-bold mb-4 text-center text-red-600 drop-shadow-[0_0_2px_black]">Manage Tasks</h3>
         <div className="space-y-2 mb-4">
           <select
             value={platform}
