@@ -131,8 +131,8 @@ export default function LuckyNumber() {
           >
             {(i !== 0 && selected !== i) ? (
               <>
-                <img src="/assets/icons/file_00000000bc2862439eecffff3730bbe4.webp" alt="TonPlaygram" className="w-8 h-8" />
-                <span className="text-text text-xl font-bold">{i + 1}</span>
+                <img src="/assets/icons/file_00000000bc2862439eecffff3730bbe4.webp" alt="TonPlaygram" className="w-10 h-10" />
+                <span className="text-white text-xl font-bold" style={{ WebkitTextStroke: '1px black' }}>{i + 1}</span>
               </>
             ) : (
               <>
@@ -141,23 +141,23 @@ export default function LuckyNumber() {
                     <img
                       src="/assets/icons/file_00000000ae68620a96d269fe76d158e5_256x256.webp"
                       alt="Free Spin"
-                      className="w-8 h-8"
+                      className="w-10 h-10"
                     />
-                    <span className="font-bold">+2</span>
+                    <span className="font-bold text-white" style={{ WebkitTextStroke: '1px black' }}>+2</span>
                   </>
                 ) : val === 'BONUS_X3' ? (
                   <>
                     <img
                       src="/assets/icons/file_000000009160620a96f728f463de1c3f.webp"
                       alt="Bonus"
-                      className="w-8 h-8"
+                      className="w-10 h-10"
                     />
-                    <span className="font-bold">X3</span>
+                    <span className="font-bold text-white" style={{ WebkitTextStroke: '1px black' }}>X3</span>
                   </>
                 ) : (
                   <>
-                    <img src="/assets/icons/file_00000000bc2862439eecffff3730bbe4.webp" alt="TonPlaygram" className="w-8 h-8" />
-                    <span className="font-bold text-text">{val}</span>
+                    <img src="/assets/icons/file_00000000bc2862439eecffff3730bbe4.webp" alt="TonPlaygram" className="w-10 h-10" />
+                    <span className="font-bold text-white" style={{ WebkitTextStroke: '1px black' }}>{val}</span>
                     {i === 0 && <span className="text-red-500 text-xs">FREE</span>}
                   </>
                 )}
