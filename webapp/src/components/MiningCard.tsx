@@ -133,7 +133,7 @@ export default function MiningCard() {
       />
       <div className="flex justify-center items-center space-x-1">
         <GiMining className="w-5 h-5 text-accent" />
-        <span className="text-lg font-bold text-text">Mining</span>
+        <span className="text-lg font-bold text-white text-outline-black">Mining</span>
       </div>
 
       <button

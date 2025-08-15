@@ -167,8 +167,8 @@ export default function Mining() {
 
       <section className="space-y-1">
         <h3 className="text-lg font-semibold">Friends</h3>
-        <p className="text-white">Invited friends: {referral.referralCount}</p>
-        <p className="text-white">Mining boost: +{referral.bonusMiningRate * 100}%</p>
+        <p className="text-brand-gold text-outline-black">Invited friends: {referral.referralCount}</p>
+        <p className="text-brand-gold text-outline-black">Mining boost: +{referral.bonusMiningRate * 100}%</p>
         {referral.storeMiningRate && referral.storeMiningExpiresAt && (
           <p className="text-sm text-subtext">
             Boost ends in {Math.max(0, Math.floor((new Date(referral.storeMiningExpiresAt).getTime() - Date.now()) / 86400000))}d

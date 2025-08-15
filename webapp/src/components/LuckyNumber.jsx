@@ -131,7 +131,7 @@ export default function LuckyNumber() {
           >
             {(i !== 0 && selected !== i) ? (
               <>
-                <img src="/assets/icons/ezgif-54c96d8a9b9236.webp" alt="TPC" className="w-8 h-8" />
+                <img src="/assets/icons/file_00000000bc2862439eecffff3730bbe4.webp" alt="TonPlaygram" className="w-8 h-8" />
                 <span className="text-text text-xl font-bold">{i + 1}</span>
               </>
             ) : (
@@ -156,7 +156,7 @@ export default function LuckyNumber() {
                   </>
                 ) : (
                   <>
-                    <img src="/assets/icons/ezgif-54c96d8a9b9236.webp" alt="TPC" className="w-8 h-8" />
+                    <img src="/assets/icons/file_00000000bc2862439eecffff3730bbe4.webp" alt="TonPlaygram" className="w-8 h-8" />
                     <span className="font-bold text-text">{val}</span>
                     {i === 0 && <span className="text-red-500 text-xs">FREE</span>}
                   </>
