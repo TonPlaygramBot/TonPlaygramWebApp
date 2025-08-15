@@ -1,14 +1,15 @@
 import { useLocation } from 'react-router-dom';
 import useTelegramBackButton from '../../hooks/useTelegramBackButton.js';
+import GameFrame from '../../components/GameFrame.jsx';
 
 export default function BubblePopRoyale() {
   useTelegramBackButton();
   const { search } = useLocation();
   return (
-    <iframe
+    <GameFrame
       src={`/bubble-pop-royale.html${search}`}
       title="Bubble Pop Royale"
-      className="w-full h-[100dvh] border-0"
+      info="Pop bubbles against the clock and rack up the highest score."
     />
   );
 }
