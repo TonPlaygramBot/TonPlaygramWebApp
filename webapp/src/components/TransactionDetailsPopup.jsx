@@ -112,7 +112,7 @@ export default function TransactionDetailsPopup({ tx, onClose }) {
 
           onClick={onClose}
 
-          className="absolute -top-3 -right-3 bg-black bg-opacity-70 text-white rounded-full w-5 h-5 flex items-center justify-center"
+          className="absolute -top-3 -right-1 bg-black bg-opacity-70 text-white rounded-full w-5 h-5 flex items-center justify-center"
 
         >
 

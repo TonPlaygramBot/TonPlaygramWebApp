@@ -467,7 +467,7 @@ export default function Wallet({ hideClaim = false }) {
                   {amt} {(tx.token || 'TPC').toUpperCase()}
                 </span>
                 <span className="text-xs">{new Date(tx.date).toLocaleString()}</span>
-                <span className="text-xs">{tx.status}</span>
+                <span className={`text-xs ${tx.status?.toLowerCase() === 'delivered' ? 'text-green-500' : ''}`}>{tx.status}</span>
               </div>
             );
           })}
