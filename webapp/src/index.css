@@ -41,7 +41,6 @@ body {
   -webkit-text-stroke-width: 0.3px;
 }
 
-[class*='text-blue-'],
 [class*='text-sky-'],
 [class*='text-red-'],
 [class*='text-black'],
@@ -49,15 +48,17 @@ body {
   -webkit-text-stroke-color: #ffffff;
 }
 
-[class*='text-yellow-'] {
-  /* Electric blue outline for yellow text */
-  -webkit-text-stroke-color: #00f7ff;
-}
-
+[class*='text-blue-'],
 [class*='text-primary'],
 [class*='text-accent'],
 .text-text {
-  -webkit-text-stroke-color: #facc15;
+  -webkit-text-stroke-color: #ff0000;
+  text-shadow: 0 0 4px #ffffff;
+}
+
+[class*='text-yellow-'] {
+  /* Electric blue outline for yellow text */
+  -webkit-text-stroke-color: #00f7ff;
 }
 
 [class*='text-white'] {
