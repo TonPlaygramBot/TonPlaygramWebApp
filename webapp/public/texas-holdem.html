@@ -20,7 +20,7 @@
     }
     .stage{ position:relative; width:100vw; height:100vh; display:grid; place-items:center; perspective:1100px; }
     .stage::before{ content:""; position:absolute; inset:0; background: url('assets/icons/de2a24a7-922a-4400-8edc-027a1017224e.webp') center/cover no-repeat; z-index:0 }
-      .center{ position:absolute; left:50%; top:52%; transform:translate(-50%,-50%); display:flex; gap:10px; z-index:2 }
+      .center{ position:absolute; left:50%; top:48%; transform:translate(-50%,-50%); display:flex; gap:10px; z-index:2 }
       .seats{ position:absolute; inset:0; z-index:2 }
       .seat{ position:absolute; display:flex; flex-direction:column; align-items:center; gap:6px; width:clamp(120px, 28vw, 200px) }
       .seat.small{ --card-scale:.9; }
@@ -38,12 +38,12 @@
       .suggested{ outline:3px dashed #2563eb; }
       .card.back{ background:url('assets/icons/file_00000000bc2862439eecffff3730bbe4.webp') center/60% no-repeat, repeating-linear-gradient(45deg,#233,#233 6px,#122 6px,#122 12px); border:2px solid rgba(255,255,255,.5); color:transparent; }
       .card.back::before{ content:""; position:absolute; inset:6px; border-radius:8px; border:2px dashed rgba(255,255,255,.35); }
-      .seat.bottom{ bottom:3%; left:50%; transform:translateX(-50%); }
+      .seat.bottom{ bottom:1%; left:50%; transform:translateX(-50%); }
       .seat.top{ top:5%; left:50%; transform:translateX(-50%); }
-      .seat.left{ left:16%; top:37%; transform:translate(-50%,-50%); --card-scale:.85; }
-      .seat.right{ left:84%; top:37%; transform:translate(-50%,-50%); }
-      .seat.bottom-left{ left:16%; top:52%; transform:translate(-50%,-50%); --card-scale:.85; }
-      .seat.bottom-right{ left:84%; top:52%; transform:translate(-50%,-50%); }
+      .seat.left{ left:16%; top:32%; transform:translate(-50%,-50%); --card-scale:.85; }
+      .seat.right{ left:84%; top:32%; transform:translate(-50%,-50%); }
+      .seat.bottom-left{ left:16%; top:56%; transform:translate(-50%,-50%); --card-scale:.85; }
+      .seat.bottom-right{ left:84%; top:56%; transform:translate(-50%,-50%); }
       .seat.bottom .cards{ gap:0 }
       .timer{ font-weight:800; background:rgba(0,0,0,.5); padding:2px 6px; border-radius:8px; }
     .controls{ display:flex; gap:8px; margin-top:8px; }
