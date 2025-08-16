@@ -134,12 +134,12 @@ export default function Games() {
                   to="/games/pollroyale/lobby"
                   className="flex flex-col items-center space-y-1 border border-border rounded-lg p-2 flex-shrink-0 tetris-grid-bg"
                 >
-                  <img src="/assets/icons/64e79228-35e3-4fdc-b914-fca635a40220.webp" alt="" className="h-20 w-20" />
+                  <img src="/assets/icons/pool-royale.svg" alt="" className="h-20 w-20" />
                   <h3
                     className="text-sm font-semibold text-center text-yellow-400"
                     style={{ WebkitTextStroke: '1px black' }}
                   >
-                    8 Ball Royale
+                    8 Poll Royale
                   </h3>
                 </Link>
             </div>

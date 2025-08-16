@@ -8,7 +8,7 @@ export default function PollRoyale() {
     <div className="relative w-full h-screen">
       <iframe
         src={`/poll-royale.html${search}`}
-        title="8 Ball Royale"
+        title="8 Poll Royale"
         className="w-full h-full border-0"
       />
     </div>
