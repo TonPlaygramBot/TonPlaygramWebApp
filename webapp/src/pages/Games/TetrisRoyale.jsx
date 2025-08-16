@@ -1,15 +1,15 @@
 import { useLocation } from 'react-router-dom';
 import useTelegramBackButton from '../../hooks/useTelegramBackButton.js';
-import GameFrame from '../../components/GameFrame.jsx';
-
 export default function TetrisRoyale() {
   useTelegramBackButton();
   const { search } = useLocation();
   return (
-    <GameFrame
-      src={`/tetris-royale.html${search}`}
-      title="Tetris Royale"
-      info="Clear lines and survive longer than everyone else in this block-dropping battle."
-    />
+    <div className="relative w-full h-screen">
+      <iframe
+        src={`/tetris-royale.html${search}`}
+        title="Tetris Royale"
+        className="w-full h-full border-0"
+      />
+    </div>
   );
 }
