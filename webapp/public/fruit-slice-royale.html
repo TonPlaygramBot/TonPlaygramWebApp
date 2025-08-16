@@ -110,7 +110,6 @@
         <h3 id="playerName">USER</h3>
         <div class="hud">
           <div class="panel"><strong>Time</strong><span id="time" class="timer">03:00</span></div>
-          <div class="panel"><strong>Pot (TPC)</strong><span id="pot" class="score">0</span></div>
           <div class="panel"><strong>Your score</strong><span id="myscore" class="score">0</span></div>
         </div>
       </div>
@@ -448,7 +447,6 @@
     n=Math.max(2,Math.min(4,parseInt($('#players').value,10)||4));
     stake=Math.max(0,parseInt($('#stake').value||'0',10));
     durSec=Math.max(10,parseInt($('#duration').value,10)||180);
-    $('#pot').textContent=String(stake*n);
     $('#time').textContent=fmt(durSec);
 
     games.length=0;
