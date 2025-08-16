@@ -8,8 +8,11 @@
     :root{
       --felt:#0a8f5e; --felt-d:#063f2b; --rail:#4b3520; --rail-d:#342313; --shadow:rgba(0,0,0,.45);
       --gold:#f5cc4e; --ui:#2563eb; --ui2:#0ea5e9;
-      --card-w: clamp(44px, 9.6vw, 70px);
+      --card-scale:1;
+      --avatar-scale:1;
+      --card-w: calc(clamp(44px, 9.6vw, 70px) * var(--card-scale));
       --card-h: calc(var(--card-w)*1.45);
+      --avatar-size: calc(54px * var(--avatar-scale));
     }
     *{box-sizing:border-box}
     html,body{height:100%;margin:0}
@@ -43,7 +46,7 @@
     /* PLAYERS ON TABLE PERIMETER  (user fixed bottom) */
     .seats{ position:absolute; inset:0; z-index:2 }
     .seat{ position:absolute; display:grid; place-items:center; gap:6px; width:clamp(120px, 28vw, 200px) }
-    .avatar{ width:54px; height:54px; border-radius:50%; display:grid; place-items:center; background:radial-gradient(circle at 30% 30%, #fff, #ddd 40%, #bbb 60%, #999 100%); color:#111; font-size:28px; border:4px solid rgba(255,255,255,.65); box-shadow:0 8px 20px var(--shadow); }
+    .avatar{ width:var(--avatar-size); height:var(--avatar-size); border-radius:50%; display:grid; place-items:center; background:radial-gradient(circle at 30% 30%, #fff, #ddd 40%, #bbb 60%, #999 100%); color:#111; font-size:28px; border:4px solid rgba(255,255,255,.65); box-shadow:0 8px 20px var(--shadow); }
     .name{ font-weight:800; text-shadow:0 2px 6px #000; font-size:14px }
     .timer{ font-weight:800; background:rgba(0,0,0,.5); padding:2px 6px; border-radius:8px; }
     .seat.active .avatar{ border-color:var(--ui2); box-shadow:0 0 10px var(--ui2); }
@@ -76,10 +79,9 @@
     /* CONFIG POPUP */
     .config-popup{ position:fixed; inset:0; background:rgba(0,0,0,.6); display:none; align-items:center; justify-content:center; z-index:20 }
     .config-popup .box{ background:#fff; color:#000; padding:20px; border-radius:12px; width:90%; max-width:400px; display:flex; flex-direction:column; gap:12px }
-    .config-popup select{ width:100%; padding:6px; border-radius:8px }
     .config-popup .sliders{ display:flex; flex-direction:column; gap:10px }
     .config-popup label{ display:flex; flex-direction:column; font-weight:700; gap:4px }
-    .config-popup .btn{ align-self:flex-end }
+    .config-popup .actions{ display:flex; justify-content:flex-end; gap:10px }
 
     @media (max-width:900px){ .log{ display:none } }
   </style>
@@ -114,13 +116,14 @@
 
   <div id="configPopup" class="config-popup">
     <div class="box">
-      <select id="configObjects"></select>
       <div class="sliders">
-        <label>Left<input type="range" id="cfgLeft" min="-200" max="200" /></label>
-        <label>Top<input type="range" id="cfgTop" min="-200" max="200" /></label>
-        <label>Scale<input type="range" id="cfgScale" min="0.5" max="2" step="0.1" /></label>
+        <label>Card Size<input type="range" id="cfgCard" min="0.5" max="1.5" step="0.1" /></label>
+        <label>Avatar Size<input type="range" id="cfgAvatar" min="0.5" max="1.5" step="0.1" /></label>
       </div>
-      <button id="configSave" class="btn">💾 Save</button>
+      <div class="actions">
+        <button id="configSave" class="btn">💾 Save</button>
+        <button id="configExit" class="btn secondary">✖️ Exit</button>
+      </div>
     </div>
   </div>
 
@@ -141,8 +144,8 @@
   const sndCard = el('#sndCard');
   const sndTimer = el('#sndTimer');
 
-  let configMode = false, selectedEl = null;
-  let currentCalibration = {};
+  let configMode = false;
+  let currentConfig = { cardScale: 1, avatarScale: 1 };
 
   function toast(msg){ toastEl.textContent = msg; toastEl.style.display='block'; setTimeout(()=> toastEl.style.display='none', 1400); }
 
@@ -289,7 +292,7 @@
     });
   }
 
-  function renderAll(){ posSeats(); renderPile(); potEl.textContent = `Pot: ${state.pot}`; updateTimerDisplay(); applyCalibration(); }
+  function renderAll(){ posSeats(); renderPile(); potEl.textContent = `Pot: ${state.pot}`; updateTimerDisplay(); applyConfig(); }
 
   let timerInterval;
   function updateTimerDisplay(){
@@ -419,130 +422,62 @@
   }
 
   // ===== CONFIG MODE =====
-  function getCalKey(el){
-    if(el.dataset.calKey) return el.dataset.calKey;
-    if(el.classList.contains('seat')){
-      const idx = Array.from(seatsEl.children).indexOf(el);
-      return 'seat'+idx;
-    }
-    return el.id || '';
+  function applyConfig(){
+    document.documentElement.style.setProperty('--card-scale', currentConfig.cardScale);
+    document.documentElement.style.setProperty('--avatar-scale', currentConfig.avatarScale);
   }
 
-  function applyCalibration(){
-    const sels = ['#pile','#pot','.rail','.felt','.glow','.seat'];
-    sels.forEach(sel=>{
-      document.querySelectorAll(sel).forEach((el,idx)=>{
-        const key = sel==='.seat'? `seat${idx}` : (el.id || sel);
-        el.dataset.calKey = key;
-        const val = currentCalibration[key];
-        const base = (el.dataset.baseTransform || el.style.transform || '').replace(/scale\([^)]*\)/,'').trim();
-        el.dataset.baseTransform = base;
-        if(val){
-          el.style.position='absolute';
-          if(val.left) el.style.left = val.left;
-          if(val.top) el.style.top = val.top;
-          const sc = val.scale || 1;
-          el.dataset.scale = sc;
-          el.style.transform = base + (sc!=1? ` scale(${sc})` : '');
-        }
-      });
-    });
+  function loadConfig(){
+    try{ currentConfig = JSON.parse(localStorage.getItem('murlanCalibration')) || currentConfig; }
+    catch{ currentConfig = { cardScale:1, avatarScale:1 }; }
+    applyConfig();
   }
-
-  function loadCalibration(){
-    try{ currentCalibration = JSON.parse(localStorage.getItem('murlanCalibration')) || {}; }
-    catch{ currentCalibration = {}; }
-    applyCalibration();
-  }
-
-  function deselect(){ if(selectedEl){ selectedEl.style.outline=''; selectedEl=null; } }
 
   function setupConfig(){
     const cfgBtn = el('#configToggle');
     const popup = el('#configPopup');
-    const objList = el('#configObjects');
-    const leftInput = el('#cfgLeft');
-    const topInput = el('#cfgTop');
-    const scaleInput = el('#cfgScale');
+    const cardInput = el('#cfgCard');
+    const avatarInput = el('#cfgAvatar');
     const saveBtn = el('#configSave');
+    const exitBtn = el('#configExit');
 
-    let elements = [];
-
-    function refreshList(){
-      elements = Array.from(document.querySelectorAll('.seat, #pile, #pot, .rail, .felt, .glow'));
-      objList.innerHTML = '';
-      elements.forEach((el, idx)=>{
-        const opt = document.createElement('option');
-        const name = el.id || (el.className.split(' ')[0] + (el.id ? '' : '-' + idx));
-        opt.value = idx;
-        opt.textContent = name;
-        objList.appendChild(opt);
-      });
-    }
-
-    function updateInputs(){
-      if(!selectedEl) return;
-      leftInput.value = parseInt(selectedEl.style.left) || 0;
-      topInput.value = parseInt(selectedEl.style.top) || 0;
-      scaleInput.value = selectedEl.dataset.scale || 1;
+    function preview(){
+      document.documentElement.style.setProperty('--card-scale', cardInput.value);
+      document.documentElement.style.setProperty('--avatar-scale', avatarInput.value);
     }
 
     cfgBtn.addEventListener('click', ()=>{
-      configMode=!configMode;
+      configMode = !configMode;
       cfgBtn.textContent = configMode? '⚙️ Config: On' : '⚙️ Config: Off';
       popup.style.display = configMode? 'flex' : 'none';
       if(configMode){
-        refreshList();
-        deselect();
+        cardInput.value = currentConfig.cardScale;
+        avatarInput.value = currentConfig.avatarScale;
+        preview();
       }else{
-        deselect();
+        applyConfig();
       }
     });
 
-    objList.addEventListener('change', ()=>{
-      deselect();
-      selectedEl = elements[objList.value];
-      if(selectedEl){
-        selectedEl.style.outline='2px dashed yellow';
-        updateInputs();
-      }
-    });
-
-    function updateCalib(){
-      if(!selectedEl) return;
-      const key=getCalKey(selectedEl);
-      currentCalibration[key]={
-        left:selectedEl.style.left,
-        top:selectedEl.style.top,
-        scale:selectedEl.dataset.scale || 1
-      };
-    }
-
-    leftInput.addEventListener('input', ()=>{
-      if(!selectedEl) return;
-      selectedEl.style.position='absolute';
-      selectedEl.style.left=leftInput.value+'px';
-      updateCalib();
-    });
-
-    topInput.addEventListener('input', ()=>{
-      if(!selectedEl) return;
-      selectedEl.style.position='absolute';
-      selectedEl.style.top=topInput.value+'px';
-      updateCalib();
-    });
-
-    scaleInput.addEventListener('input', ()=>{
-      if(!selectedEl) return;
-      const base = selectedEl.dataset.baseTransform || '';
-      selectedEl.dataset.scale = scaleInput.value;
-      selectedEl.style.transform = base + ` scale(${scaleInput.value})`;
-      updateCalib();
-    });
+    cardInput.addEventListener('input', preview);
+    avatarInput.addEventListener('input', preview);
 
     saveBtn.addEventListener('click', ()=>{
-      localStorage.setItem('murlanCalibration', JSON.stringify(currentCalibration));
-      toast('Calibration saved');
+      currentConfig.cardScale = parseFloat(cardInput.value);
+      currentConfig.avatarScale = parseFloat(avatarInput.value);
+      localStorage.setItem('murlanCalibration', JSON.stringify(currentConfig));
+      applyConfig();
+      popup.style.display='none';
+      configMode=false;
+      cfgBtn.textContent='⚙️ Config: Off';
+      toast('Configuration saved');
+    });
+
+    exitBtn.addEventListener('click', ()=>{
+      popup.style.display='none';
+      configMode=false;
+      cfgBtn.textContent='⚙️ Config: Off';
+      applyConfig();
     });
   }
 
@@ -569,7 +504,7 @@
   });
 
   // boot
-  initPlayers(); deal(); renderAll(); loadCalibration(); setupConfig(); toast('Murlan Royale • Jokers on • Manual arrange ready');
+    initPlayers(); deal(); renderAll(); loadConfig(); setupConfig(); toast('Murlan Royale • Jokers on • Manual arrange ready');
   // start at user
   state.turn = 0; playTurn(state.turn);
 })();
