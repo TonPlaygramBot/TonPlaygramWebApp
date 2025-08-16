@@ -23,8 +23,8 @@
     }
 
     /* TABLE */
-    .stage{ position:relative; width:100vw; height:100vh; display:grid; place-items:center; perspective:1100px;
-      background: url('assets/icons/de2a24a7-922a-4400-8edc-027a1017224e.webp') center/cover no-repeat; }
+    .stage{ position:relative; width:100vw; height:100vh; display:grid; place-items:center; perspective:1100px; }
+    .stage::before{ content:""; position:absolute; inset:0; background: url('assets/icons/de2a24a7-922a-4400-8edc-027a1017224e.webp') center/cover no-repeat; z-index:0 }
 
     /* CENTER: community pile + pot */
     .center{ position:absolute; left:50%; top:50%; transform:translate(-50%,-50%); display:grid; gap:10px; place-items:center; z-index:2 }
