@@ -74,26 +74,26 @@
     /* TOAST */
     .toast{ position:fixed; left:50%; top:12%; transform:translateX(-50%); background:rgba(0,0,0,.6); border:1px solid rgba(255,255,255,.12); padding:8px 14px; border-radius:12px; font-weight:800; z-index:12 }
     /* CONFIG POPUP */
-    .config-popup{ position:fixed; inset:0; background:rgba(0,0,0,.6); display:none; align-items:center; justify-content:center; z-index:20 }
+    .config-popup{ position:fixed; inset:0; background:rgba(0,0,0,.8); display:none; align-items:center; justify-content:center; z-index:20 }
     .config-popup .box{ background:#fff; color:#000; padding:20px; border-radius:12px; width:90%; max-width:400px; display:flex; flex-direction:column; gap:12px }
     .config-popup select{ width:100%; padding:6px; border-radius:8px }
     .config-popup .sliders{ display:flex; flex-direction:column; gap:10px }
     .config-popup label{ display:flex; flex-direction:column; font-weight:700; gap:4px }
-    .config-popup .btn{ align-self:flex-end }
+    .config-popup .actions{ display:flex; gap:10px; align-self:flex-end }
 
     @media (max-width:900px){ .log{ display:none } }
   </style>
 </head>
 <body>
   <div class="stage">
-    <div class="rail"></div>
-    <div class="felt"></div>
-    <div class="glow"></div>
+    <div class="rail" data-name="Table Rail"></div>
+    <div class="felt" data-name="Table Felt"></div>
+    <div class="glow" data-name="Table Glow"></div>
 
     <!-- Center play area -->
     <div class="center">
-      <div id="pile" class="pile"></div>
-      <div id="pot" class="pot">Pot: 0</div>
+      <div id="pile" class="pile" data-name="Community Pile"></div>
+      <div id="pot" class="pot" data-name="Pot">Pot: 0</div>
     </div>
 
     <!-- Seats on perimeter -->
@@ -120,7 +120,10 @@
         <label>Top<input type="range" id="cfgTop" min="-200" max="200" /></label>
         <label>Scale<input type="range" id="cfgScale" min="0.5" max="2" step="0.1" /></label>
       </div>
-      <button id="configSave" class="btn">💾 Save</button>
+      <div class="actions">
+        <button id="configExit" class="btn secondary">❌ Exit</button>
+        <button id="configSave" class="btn">💾 Save</button>
+      </div>
     </div>
   </div>
 
@@ -218,7 +221,7 @@
       else if(s < w+h+w){ x=x0+(w-(s-(w+h))); y=y0+h; side='bottom'; }
       else { x=x0; y=y0+(h-(s-(w+h+w))); side='left'; }
 
-      const seat = document.createElement('div'); seat.className='seat '+side;
+      const seat = document.createElement('div'); seat.className='seat '+side; seat.dataset.name = p.name + ' Seat';
       const area = el('.stage').getBoundingClientRect();
       seat.style.left=(x - area.left)+'px';
       seat.style.top=(y - area.top)+'px';
@@ -465,6 +468,7 @@
     const topInput = el('#cfgTop');
     const scaleInput = el('#cfgScale');
     const saveBtn = el('#configSave');
+    const exitBtn = el('#configExit');
 
     let elements = [];
 
@@ -473,7 +477,7 @@
       objList.innerHTML = '';
       elements.forEach((el, idx)=>{
         const opt = document.createElement('option');
-        const name = el.id || (el.className.split(' ')[0] + (el.id ? '' : '-' + idx));
+        const name = el.dataset.name || el.id || (el.className.split(' ')[0] + (el.id ? '' : '-' + idx));
         opt.value = idx;
         opt.textContent = name;
         objList.appendChild(opt);
@@ -543,6 +547,13 @@
     saveBtn.addEventListener('click', ()=>{
       localStorage.setItem('murlanCalibration', JSON.stringify(currentCalibration));
       toast('Calibration saved');
+    });
+
+    exitBtn.addEventListener('click', ()=>{
+      configMode = false;
+      cfgBtn.textContent = '⚙️ Config: Off';
+      popup.style.display = 'none';
+      deselect();
     });
   }
 
