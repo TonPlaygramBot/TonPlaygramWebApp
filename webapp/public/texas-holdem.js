@@ -60,8 +60,8 @@ function init() {
   } catch {}
 
     const deck = shuffle(createDeck());
-    const { hands, deck: rest } = dealHoleCards(deck, 4);
-    const flags = [...FLAG_EMOJIS].sort(() => 0.5 - Math.random()).slice(0, 3);
+    const { hands, deck: rest } = dealHoleCards(deck, 6);
+    const flags = [...FLAG_EMOJIS].sort(() => 0.5 - Math.random()).slice(0, 5);
     state.players = [
       { name, avatar, hand: hands[0], isHuman: true },
       ...flags.map((f, idx) => ({
@@ -79,7 +79,7 @@ function init() {
 function renderSeats() {
   const seats = document.getElementById('seats');
   seats.innerHTML = '';
-  const positions = ['bottom', 'right', 'top', 'left'];
+  const positions = ['bottom', 'bottom-right', 'right', 'top', 'left', 'bottom-left'];
   state.players.forEach((p, i) => {
     const seat = document.createElement('div');
     seat.className = 'seat ' + positions[i];
