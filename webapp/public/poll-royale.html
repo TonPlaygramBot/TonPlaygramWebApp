@@ -103,20 +103,21 @@
     }
 
     #spinBox {
-      width: 90px;
-      height: 90px;
+      width: 36px;
+      height: 36px;
       border-radius: 50%;
       background: #f6f6f6;
       position: relative;
       box-shadow: 0 4px 10px rgba(0,0,0,.4) inset,
                   0 0 0 2px rgba(0,0,0,.15);
       transform-origin: center;
+      transition: transform .2s;
     }
 
     #spinDot {
       position: absolute;
-      width: 16px;
-      height: 16px;
+      width: 6px;
+      height: 6px;
       border-radius: 50%;
       background: #e63; /* pika e kuqe */
       left: 50%;
@@ -153,10 +154,10 @@
       position: absolute;
       left: 50%;
       transform: translateX(-50%);
-      width: 8px;
+      width: 4px;
       height: 60%;
       background: linear-gradient(#caa471, #9c7a4d);
-      border-radius: 6px;
+      border-radius: 3px;
       box-shadow: 0 1px 0 rgba(255,255,255,.25) inset,
                   0 4px 10px rgba(0,0,0,.35);
     }
@@ -165,11 +166,11 @@
       position: absolute;
       left: 50%;
       transform: translateX(-50%);
-      width: 12px;
-      height: 12px;
+      width: 8px;
+      height: 8px;
       background: #5c3a21; /* ferrule */
       border-radius: 50%;
-      top: calc(50% - 6px);
+      top: calc(50% - 4px);
       box-shadow: 0 0 0 2px rgba(0,0,0,.25);
     }
 
@@ -317,11 +318,11 @@
         <label>Hole Size
           <input type="range" id="holeInput" min="10" max="60" step="1" value="28" />
         </label>
-        <label>Field Width
-          <input type="number" id="widthInput" min="400" max="1000" value="640" />
+        <label>Field Width <span id="widthVal">640</span>
+          <input type="range" id="widthInput" min="400" max="1000" step="10" value="640" />
         </label>
-        <label>Field Height
-          <input type="number" id="heightInput" min="800" max="1600" value="1280" />
+        <label>Field Height <span id="heightVal">1280</span>
+          <input type="range" id="heightInput" min="800" max="1600" step="10" value="1280" />
         </label>
         <div class="actions">
           <button id="saveSettings">Save</button>
@@ -388,9 +389,14 @@
     var holeInput = document.getElementById('holeInput');
     var widthInput = document.getElementById('widthInput');
     var heightInput = document.getElementById('heightInput');
+    var widthVal   = document.getElementById('widthVal');
+    var heightVal  = document.getElementById('heightVal');
     var saveSettings = document.getElementById('saveSettings');
     var exitSettings = document.getElementById('exitSettings');
     canvas.style.transform = 'scale(' + ZOOM + ')';
+
+    widthInput.addEventListener('input', function(){ widthVal.textContent = widthInput.value; });
+    heightInput.addEventListener('input', function(){ heightVal.textContent = heightInput.value; });
 
     document.addEventListener('touchmove', function(e){ e.preventDefault(); }, {passive:false});
 
@@ -738,6 +744,8 @@
       holeInput.value = POCKET_R;
       widthInput.value = TABLE_W;
       heightInput.value = TABLE_H;
+      widthVal.textContent = TABLE_W;
+      heightVal.textContent = TABLE_H;
     });
 
     exitSettings.addEventListener('click', function(){
@@ -824,7 +832,7 @@
     function setSpin(nx,ny){ spinDot.style.left = (50+nx*50)+'%'; spinDot.style.top = (50+ny*50)+'%'; spinVec = { x:nx, y:ny }; }
     setSpin(0,0);
     function updateSpin(e){ var r=spinBox.getBoundingClientRect(); var x=(e.clientX-r.left)/r.width*2-1, y=(e.clientY-r.top)/r.height*2-1; var L=Math.hypot(x,y); x=(x/(L||1))*Math.min(1,L); y=(y/(L||1))*Math.min(1,L); setSpin(x,y); spinMoved=true; }
-    spinBox.addEventListener('pointerdown', function(e){ spinMoved=false; spinBox.style.transform='scale(1.4)'; clearTimeout(spinTimer); updateSpin(e); spinTimer=setTimeout(function(){ if(!spinMoved) spinBox.style.transform='scale(1)'; }, 1500); });
+    spinBox.addEventListener('pointerdown', function(e){ spinMoved=false; spinBox.style.transform='scale(2.5)'; clearTimeout(spinTimer); updateSpin(e); spinTimer=setTimeout(function(){ if(!spinMoved) spinBox.style.transform='scale(1)'; }, 1500); });
     spinBox.addEventListener('pointermove', updateSpin);
     spinBox.addEventListener('pointerup', function(){ clearTimeout(spinTimer); setTimeout(function(){ spinBox.style.transform='scale(1)'; }, 50); });
 
