@@ -41,7 +41,7 @@
     .seat.active .avatar{ border-color:var(--ui2); box-shadow:0 0 10px var(--ui2); }
     .seat.left .cards{ transform:rotate(90deg); transform-origin:center; }
     .seat.right .cards{ transform:rotate(-90deg); transform-origin:center; }
-    .seat.bottom .cards{ touch-action:none; transform:scale(var(--my-card-scale)); transform-origin:center bottom; }
+    .seat.bottom .cards{ touch-action:none; transform:scale(var(--my-card-scale)); transform-origin:center bottom; gap:3px; }
 
     /* CARDS */
     .cards{ display:flex; gap:6px; flex-wrap:nowrap }
@@ -69,6 +69,14 @@
     /* TOAST */
     .toast{ position:fixed; left:50%; top:12%; transform:translateX(-50%); background:rgba(0,0,0,.6); border:1px solid rgba(255,255,255,.12); padding:8px 14px; border-radius:12px; font-weight:800; z-index:12 }
 
+    .combo-label{ position:absolute; top:-28px; left:50%; transform:translateX(-50%); font-size:32px; }
+    .winnerOverlay{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.6);z-index:60}
+    .winnerOverlay.hidden{display:none}
+    .winnerOverlay .emoji{font-size:96px}
+
+    .coin-confetti{ position:fixed; top:-40px; width:48px; height:48px; pointer-events:none; animation:coin-fall var(--duration,3s) linear forwards; }
+    @keyframes coin-fall{ from{ transform:translateY(-10vh) rotate(0deg); opacity:1; } to{ transform:translateY(100vh) rotate(360deg); opacity:0; } }
+
     @media (max-width:900px){ .log{ display:none } }
   </style>
 </head>
@@ -89,6 +97,7 @@
 
     <div id="toast" class="toast" style="display:none"></div>
   </div>
+  <div id="winnerOverlay" class="winnerOverlay hidden"><div class="emoji"></div></div>
 
   <!-- sounds -->
   <audio id="sndChip" src="https://cdn.jsdelivr.net/gh/naptha/tiny-sound@master/sounds/click2.ogg"></audio>
@@ -106,6 +115,42 @@
   const sndChip = el('#sndChip');
   const sndCard = el('#sndCard');
   const sndTimer = el('#sndTimer');
+  const winnerOverlay = el('#winnerOverlay');
+
+  function coinConfetti(count=50, iconSrc='/assets/icons/ezgif-54c96d8a9b9236.webp'){
+    const container=document.createElement('div');
+    container.style.position='fixed';
+    container.style.top='0';
+    container.style.left='0';
+    container.style.width='100%';
+    container.style.height='0';
+    container.style.pointerEvents='none';
+    container.style.zIndex='60';
+    container.style.overflow='visible';
+    document.body.appendChild(container);
+    for(let i=0;i<count;i++){
+      const img=document.createElement('img');
+      img.src=iconSrc;
+      img.alt='confetti icon';
+      img.className='coin-confetti';
+      const left=Math.random()*100;
+      const delay=Math.random()*0.2;
+      const duration=2+Math.random()*2;
+      img.style.left=left+'vw';
+      img.style.animationDelay=delay+'s';
+      img.style.setProperty('--duration',duration+'s');
+      container.appendChild(img);
+    }
+    setTimeout(()=>container.remove(),5000);
+  }
+
+  function showWinnerOverlay(emoji){
+    if(!winnerOverlay) return;
+    const slot = winnerOverlay.querySelector('.emoji');
+    if(slot) slot.textContent = emoji || '🏆';
+    winnerOverlay.classList.remove('hidden');
+    setTimeout(()=>winnerOverlay.classList.add('hidden'),2000);
+  }
 
   let userScale = 1;
   let userAdjusted = false;
@@ -228,6 +273,10 @@
         seat.style.left='50%';
         seat.style.top='8px';
         seat.style.transform='translateX(-50%)';
+      }else if(side==='right'){
+        seat.style.left=(x - area.left - 20)+'px';
+        seat.style.top=(y - area.top)+'px';
+        seat.style.transform='translate(-50%,-50%)';
       }else{
         seat.style.left=(x - area.left)+'px';
         seat.style.top=(y - area.top)+'px';
@@ -300,13 +349,24 @@
 
   function renderPile(){
     pileEl.innerHTML='';
+    const cardW = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--card-w'));
+    pileEl.style.width = (cardW + (state.pile.length-1)*24) + 'px';
     state.pile.forEach((c,idx)=> {
       const face = cardFaceEl(c);
-      face.style.left = (idx*4)+'px';
-      face.style.top = (idx*4)+'px';
+      face.style.left = (idx*24)+'px';
+      face.style.top = '0';
       face.style.zIndex = idx;
       pileEl.appendChild(face);
     });
+    if(state.pile.length){
+      const suit = state.pile[0].s;
+      if(state.pile.every(pc=> pc.s===suit)){
+        const lbl=document.createElement('div');
+        lbl.className='combo-label';
+        lbl.textContent=suit;
+        pileEl.appendChild(lbl);
+      }
+    }
   }
 
   function adjustHandScale(){
@@ -470,7 +530,13 @@
     state.turn = (state.turn + 1) % state.players.length;
     // If someone has no cards -> they win
     const won = state.players.find(pl=> pl.hand.length===0);
-    if(won){ toast((won.isHuman? 'You' : won.name)+' won!'); clearInterval(timerInterval); return; }
+    if(won){
+      toast((won.isHuman? 'You' : won.name)+' won!');
+      clearInterval(timerInterval);
+      coinConfetti();
+      showWinnerOverlay(state.players.indexOf(won)===0 ? '🃏' : '🐾');
+      return;
+    }
     playTurn(state.turn);
   }
 
