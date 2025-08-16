@@ -71,15 +71,24 @@ function renderSeats() {
     const name = document.createElement('div');
     name.className = 'name';
     name.textContent = p.name;
-    const timer = document.createElement('div');
-    timer.className = 'timer';
-    timer.id = 'timer-' + i;
-    seat.append(avatar, cards, name, timer);
     if (i === 0) {
+      const wrap = document.createElement('div');
+      wrap.className = 'avatar-wrap';
+      wrap.style.order = -2;
+      const ring = document.createElement('div');
+      ring.className = 'timer-ring';
+      ring.id = 'timer-' + i;
+      wrap.append(ring, avatar);
       const controls = document.createElement('div');
       controls.className = 'controls';
       controls.id = 'controls';
-      seat.appendChild(controls);
+      controls.style.order = -1;
+      seat.append(wrap, cards, name, controls);
+    } else {
+      const timer = document.createElement('div');
+      timer.className = 'timer';
+      timer.id = 'timer-' + i;
+      seat.append(avatar, cards, name, timer);
     }
     seats.appendChild(seat);
   });
@@ -88,7 +97,17 @@ function renderSeats() {
 function cardEl(card) {
   const div = document.createElement('div');
   div.className = 'card';
-  div.textContent = card.rank + card.suit;
+  if (card.suit === '♥' || card.suit === '♦') div.classList.add('red');
+  const tl = document.createElement('div');
+  tl.className = 'tl';
+  tl.textContent = card.rank + card.suit;
+  const br = document.createElement('div');
+  br.className = 'br';
+  br.textContent = card.rank + card.suit;
+  const big = document.createElement('div');
+  big.className = 'big';
+  big.textContent = card.suit;
+  div.append(tl, br, big);
   return div;
 }
 
@@ -151,7 +170,13 @@ function startTurnTimer(onTimeout) {
 
 function updateTimer() {
   const t = document.getElementById('timer-' + state.turn);
-  if (t) t.textContent = state.turnTime > 0 ? state.turnTime : '';
+  if (!t) return;
+  if (state.turn === 0) {
+    const pct = (state.turnTime / 15) * 360;
+    t.style.setProperty('--progress', pct);
+  } else {
+    t.textContent = state.turnTime > 0 ? state.turnTime : '';
+  }
 }
 
 function playerFold() {
