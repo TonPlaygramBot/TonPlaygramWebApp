@@ -62,6 +62,7 @@
     .red{ color:#d12d2d }
     .joker{ background:repeating-linear-gradient(45deg,#eee,#eee 6px,#ddd 6px,#ddd 12px); }
     .selected{ outline:3px solid var(--ui2); transform:translateY(-6px); }
+    .suggested{ outline:3px dashed var(--ui); }
 
     /* Facedown backs for opponents */
     .back{ background:repeating-linear-gradient(45deg,#233,#233 6px,#122 6px,#122 12px); border:2px solid rgba(255,255,255,.5); color:transparent; }
@@ -71,7 +72,9 @@
     /* ICON CONTROLS */
     .icon-btn{ appearance:none; border:none; background:none; cursor:pointer; font-size:32px; color:#fff; text-shadow:0 2px 6px #000; }
     .arrange-icon{ position:fixed; left:max(8px, env(safe-area-inset-left)); bottom:calc(var(--card-h) + var(--avatar-size)/2 + 16px); z-index:10 }
-    .play-icon{ position:fixed; left:50%; transform:translateX(-50%); bottom:calc(var(--card-h) + 16px); z-index:10 }
+    .controls{ display:flex; align-items:center; gap:12px; }
+    .play-icon{ color:#22c55e; }
+    .pass-icon{ }
 
     /* TOAST */
     .toast{ position:fixed; left:50%; top:12%; transform:translateX(-50%); background:rgba(0,0,0,.6); border:1px solid rgba(255,255,255,.12); padding:8px 14px; border-radius:12px; font-weight:800; z-index:12 }
@@ -96,7 +99,6 @@
 
     <!-- UI -->
     <button id="arrange" class="icon-btn arrange-icon">🔧</button>
-    <button id="confirmPlay" class="icon-btn play-icon">▶️</button>
 
     <div id="toast" class="toast" style="display:none"></div>
   </div>
@@ -197,6 +199,7 @@
         seat.style.left='50%';
         seat.style.bottom='8px';
         seat.style.transform='translateX(-50%)';
+        seat.style.width='auto';
       }else if(side==='top'){
         seat.style.left='50%';
         seat.style.top='8px';
@@ -231,7 +234,17 @@
 
       const timer=document.createElement('div'); timer.className='timer';
 
-      seat.append(av,name,cards,timer);
+      if(side==='bottom'){
+        const controls=document.createElement('div'); controls.className='controls';
+        const playBtn=document.createElement('button'); playBtn.id='confirmPlay'; playBtn.className='icon-btn play-icon'; playBtn.textContent='▶️';
+        playBtn.addEventListener('click', confirmPlayAction);
+        const passBtn=document.createElement('button'); passBtn.id='passBtn'; passBtn.className='icon-btn pass-icon'; passBtn.textContent='👋';
+        passBtn.addEventListener('click', ()=>{ toast('You pass'); state.passesSincePlay++; clearSelections(); advanceTurn(); });
+        controls.append(playBtn,av,passBtn);
+        seat.append(controls,name,cards,timer);
+      }else{
+        seat.append(av,name,cards,timer);
+      }
       seatsEl.appendChild(seat);
     });
   }
@@ -321,6 +334,7 @@
     return sel;
   }
   function clearSelections(){ seatsEl.querySelectorAll('.card.selected').forEach(n=> n.classList.remove('selected')); }
+  function clearSuggestions(){ seatsEl.querySelectorAll('.card.suggested').forEach(n=> n.classList.remove('suggested')); }
 
   function player(i){ return state.players[i]; }
 
@@ -372,10 +386,21 @@
     return [];
   }
 
+  function highlightSuggestions(){
+    const chosen = aiChoose(player(0));
+    const idxs = chosen.map(c=> player(0).hand.indexOf(c));
+    const faces = seatsEl.querySelectorAll('.seat.bottom .cards .card:not(.back)');
+    faces.forEach(f=>{
+      const idx=Number(f.dataset.index);
+      f.classList.toggle('suggested', idxs.includes(idx));
+    });
+  }
+
   function playTurn(i){
+    clearSuggestions();
     const p = player(i);
     startTurnTimer();
-    if(p.isHuman){ toast('Your turn'+(state.lastPlayLen? ` • play ${state.lastPlayLen}`:'')); return; }
+    if(p.isHuman){ toast('Your turn'+(state.lastPlayLen? ` • play ${state.lastPlayLen}`:'')); highlightSuggestions(); return; }
     // AI with small delay
     setTimeout(()=>{
       let chosen = aiChoose(p);
@@ -403,6 +428,7 @@
   }
 
   function advanceTurn(){
+    clearSuggestions();
     // If everyone else passed since last play, clear pile and set turn to last player
     if(state.passesSincePlay >= state.players.length-1){
       state.pile = []; state.lastPlayLen=0; state.passesSincePlay=0; state.turn = state.lastPlayerToPlay; renderAll(); toast('New round');
@@ -423,7 +449,7 @@
     if(!higherThanPile(cards)){ toast('Play higher'); return; }
     cards.forEach(c=>{ const idx = player(0).hand.indexOf(c); if(idx>-1) player(0).hand.splice(idx,1); state.pile.push(c); });
     state.lastPlayLen = cards.length; state.passesSincePlay=0; state.lastPlayerToPlay=0; sndCard.currentTime=0; sndCard.play();
-    clearSelections(); renderAll();
+    clearSelections(); clearSuggestions(); renderAll();
     advanceTurn();
   }
 
@@ -432,7 +458,6 @@
     state.arrangeMode = !state.arrangeMode; renderAll();
     toast(state.arrangeMode? 'Drag your cards to reorder' : 'Manual arrange off');
   });
-  el('#confirmPlay').addEventListener('click', confirmPlayAction);
 
   // boot
     initPlayers(); deal(); renderAll(); toast('Murlan Royale • Jokers on • Manual arrange ready');
