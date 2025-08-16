@@ -205,7 +205,7 @@
 
   function posSeats(){
     seatsEl.innerHTML='';
-    const tableRect = el('.felt').getBoundingClientRect();
+    const tableRect = el('.stage').getBoundingClientRect();
     const padX=24, padY=16; const x0=tableRect.left+padX, y0=tableRect.top+padY; const w=tableRect.width-padX*2, h=tableRect.height-padY*2;
     const perim = 2*(w+h), step = perim/state.players.length;
     let s0 = w + h + w/2; // bottom center for user (index 0)
