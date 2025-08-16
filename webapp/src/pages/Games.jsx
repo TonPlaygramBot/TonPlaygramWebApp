@@ -119,6 +119,18 @@ export default function Games() {
                   </h3>
                 </Link>
                 <Link
+                  to="/games/murlanroyale/lobby"
+                  className="flex flex-col items-center space-y-1 border border-border rounded-lg p-2 flex-shrink-0 tetris-grid-bg"
+                >
+                  <img src="/assets/icons/murlan-royale.svg" alt="" className="h-20 w-20" />
+                  <h3
+                    className="text-sm font-semibold text-center text-yellow-400"
+                    style={{ WebkitTextStroke: '1px black' }}
+                  >
+                    Murlan Royale
+                  </h3>
+                </Link>
+                <Link
                   to="/games/texasholdem/lobby"
                   className="flex flex-col items-center space-y-1 border border-border rounded-lg p-2 flex-shrink-0 tetris-grid-bg"
                 >
