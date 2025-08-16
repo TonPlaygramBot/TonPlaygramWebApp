@@ -1,0 +1,389 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no" />
+  <title>Murlan Royale – Card Table with Jokers</title>
+  <style>
+    :root{
+      --felt:#0a8f5e; --felt-d:#063f2b; --rail:#4b3520; --rail-d:#342313; --shadow:rgba(0,0,0,.45);
+      --gold:#f5cc4e; --ui:#2563eb; --ui2:#0ea5e9;
+      --card-w: clamp(44px, 9.6vw, 70px);
+      --card-h: calc(var(--card-w)*1.45);
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%;margin:0}
+    body{
+      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial;
+      background: radial-gradient(1200px 900px at 50% -10%, #1a2545 0, #0c1020 60%, #070a16 100%);
+      color:#fff; overflow:hidden; height:100vh; width:100vw;
+    }
+
+    /* TABLE */
+    .stage{ position:relative; width:100vw; height:100vh; display:grid; place-items:center; perspective:1100px; }
+    .rail{ position:absolute; width:min(92vw, 86vh); height:min(64vh, 72vw); border-radius:22px; left:50%; top:50%; transform:translate(-50%,-50%);
+      background:linear-gradient(180deg,var(--rail),var(--rail-d)); box-shadow: inset 0 6px 10px rgba(255,255,255,.22), inset 0 -14px 20px rgba(0,0,0,.6), 0 40px 70px var(--shadow);
+    }
+    .felt{ position:absolute; width:calc(min(92vw, 86vh) - 28px); height:calc(min(64vh, 72vw) - 28px); border-radius:18px; left:50%; top:50%; transform:translate(-50%,-50%) rotateX(12deg);
+      background:
+        radial-gradient(closest-side at 50% 45%, rgba(255,255,255,.10), transparent 60%),
+        radial-gradient(closest-side at 50% 55%, rgba(0,0,0,.18), transparent 60%),
+        linear-gradient(180deg, var(--felt), var(--felt-d));
+      box-shadow: inset 0 0 0 10px rgba(0,0,0,.25);
+    }
+    .glow{ position:absolute; width:calc(min(92vw, 86vh) - 28px); height:calc(min(64vh, 72vw) - 28px); left:50%; top:50%; transform:translate(-50%,-50%);
+      border-radius:18px; box-shadow:0 0 140px 40px rgba(245,204,78,.08), inset 0 0 80px rgba(0,0,0,.35); pointer-events:none; }
+
+    /* CENTER: community pile + pot */
+    .center{ position:absolute; left:50%; top:50%; transform:translate(-50%,-50%); display:grid; gap:10px; place-items:center; z-index:2 }
+    .pile{ display:flex; gap:8px; align-items:center; justify-content:center; min-height:var(--card-h); flex-wrap:wrap; max-width:70vw }
+    .pot{ font-weight:900; letter-spacing:.3px; color:#ffeaa7; background:rgba(0,0,0,.28); padding:6px 12px; border-radius:12px; border:1px solid rgba(255,255,255,.12); text-shadow:0 2px 6px #000 }
+
+    /* PLAYERS ON TABLE PERIMETER  (user fixed bottom) */
+    .seats{ position:absolute; inset:0; z-index:2 }
+    .seat{ position:absolute; display:grid; place-items:center; gap:6px; width:clamp(120px, 28vw, 200px) }
+    .avatar{ width:54px; height:54px; border-radius:50%; display:grid; place-items:center; background:radial-gradient(circle at 30% 30%, #fff, #ddd 40%, #bbb 60%, #999 100%); color:#111; font-size:28px; border:4px solid rgba(255,255,255,.65); box-shadow:0 8px 20px var(--shadow); }
+    .name{ font-weight:800; text-shadow:0 2px 6px #000; font-size:14px }
+    .stack{ display:flex; gap:4px; align-items:flex-end }
+    .chip{ width:20px; height:20px; border-radius:50%; box-shadow:0 4px 8px rgba(0,0,0,.45), inset 0 0 0 3px rgba(255,255,255,.55); }
+    .c1{ background:#93c5fd } .c2{ background:#fca5a5 } .c3{ background:#fde68a } .c4{ background:#c4b5fd }
+
+    /* CARDS */
+    .cards{ display:flex; gap:6px; flex-wrap:nowrap }
+    .card{ width:var(--card-w); height:var(--card-h); border-radius:10px; position:relative; flex:0 0 auto; background:#fff; color:#111; font-weight:900; letter-spacing:.3px; box-shadow:0 10px 25px var(--shadow), inset 0 0 0 2px rgba(0,0,0,.08); touch-action:none }
+    .card .tl{ position:absolute; left:8px; top:6px; font-size:calc(var(--card-w)*0.28) }
+    .card .br{ position:absolute; right:8px; bottom:8px; font-size:calc(var(--card-w)*0.3) }
+    .card .big{ position:absolute; left:50%; top:50%; transform:translate(-50%,-50%); font-size:calc(var(--card-w)*0.52); opacity:.9 }
+    .red{ color:#d12d2d }
+    .joker{ background:repeating-linear-gradient(45deg,#eee,#eee 6px,#ddd 6px,#ddd 12px); }
+    .selected{ outline:3px solid var(--ui2); transform:translateY(-6px); }
+
+    /* Facedown backs for opponents */
+    .back{ background:repeating-linear-gradient(45deg,#233,#233 6px,#122 6px,#122 12px); border:2px solid rgba(255,255,255,.5); color:transparent; }
+    .back::before{ content:""; position:absolute; inset:6px; border-radius:8px; border:2px dashed rgba(255,255,255,.35); }
+    .opp-fan .card{ margin-left:-30px; transform:rotateZ(var(--rot,0deg)) }
+
+    /* UI BUTTONS */
+    .left-ui{ position:fixed; left:max(8px, env(safe-area-inset-left)); top:50%; transform:translateY(-50%); display:flex; flex-direction:column; gap:10px; z-index:10 }
+    .right-ui{ position:fixed; right:max(8px, env(safe-area-inset-right)); top:50%; transform:translateY(-50%); display:flex; flex-direction:column; gap:10px; z-index:10 }
+    .btn{ appearance:none; border:none; cursor:pointer; font-weight:800; padding:12px 14px; border-radius:12px; background:linear-gradient(180deg, var(--gold), #e4b325); color:#412e02; box-shadow:0 6px 0 #b38e1f, 0 12px 24px var(--shadow); white-space:nowrap }
+    .btn.secondary{ background:linear-gradient(180deg,#e0e7ff,#c7d2fe); color:#102a43; box-shadow:0 6px 0 #a5b4fc, 0 12px 24px var(--shadow); }
+
+    /* TOAST */
+    .toast{ position:fixed; left:50%; top:12%; transform:translateX(-50%); background:rgba(0,0,0,.6); border:1px solid rgba(255,255,255,.12); padding:8px 14px; border-radius:12px; font-weight:800; z-index:12 }
+
+    @media (max-width:900px){ .log{ display:none } }
+  </style>
+</head>
+<body>
+  <div class="stage">
+    <div class="rail"></div>
+    <div class="felt"></div>
+    <div class="glow"></div>
+
+    <!-- Center play area -->
+    <div class="center">
+      <div id="pile" class="pile"></div>
+      <div id="pot" class="pot">Pot: 0</div>
+    </div>
+
+    <!-- Seats on perimeter -->
+    <div id="seats" class="seats"></div>
+
+    <!-- UI -->
+    <div class="left-ui">
+      <button id="arrange" class="btn secondary">🔧 Manual Arrange: Off</button>
+    </div>
+    <div class="right-ui">
+      <button id="selectToggle" class="btn secondary">🖐️ Select</button>
+      <button id="confirmPlay" class="btn">✅ Play</button>
+    </div>
+
+    <div id="toast" class="toast" style="display:none"></div>
+  </div>
+
+  <!-- sounds -->
+  <audio id="sndChip" src="https://cdn.jsdelivr.net/gh/naptha/tiny-sound@master/sounds/click2.ogg"></audio>
+  <audio id="sndCard" src="https://cdn.jsdelivr.net/gh/naptha/tiny-sound@master/sounds/click4.ogg"></audio>
+
+<script>
+(() => {
+  // ====== UTIL ======
+  const el = s => document.querySelector(s);
+  const pileEl = el('#pile');
+  const seatsEl = el('#seats');
+  const potEl = el('#pot');
+  const toastEl = el('#toast');
+  const sndChip = el('#sndChip');
+  const sndCard = el('#sndCard');
+
+  function toast(msg){ toastEl.textContent = msg; toastEl.style.display='block'; setTimeout(()=> toastEl.style.display='none', 1400); }
+
+  // ====== DECK (with Jokers) ======
+  const SUITS = ['♠','♥','♦','♣'];
+  const RANKS = [3,4,5,6,7,8,9,10,'J','Q','K','A',2,'BJ','RJ']; // BJ < RJ (both above 2)
+  function makeDeck(){
+    const d = [];
+    for(const s of SUITS){ for(const r of [3,4,5,6,7,8,9,10,'J','Q','K','A',2]) d.push({r,s}); }
+    d.push({r:'BJ', s:'🃏'}); d.push({r:'RJ', s:'🃏'});
+    for(let i=d.length-1;i>0;i--){ const j = Math.floor(Math.random()*(i+1)); [d[i],d[j]]=[d[j],d[i]]; }
+    return d;
+  }
+  function rankValue(r){
+    if(r==='BJ') return 15; if(r==='RJ') return 16; if(r==='J') return 11; if(r==='Q') return 12; if(r==='K') return 13; if(r==='A') return 14; return r;
+  }
+
+  // ====== STATE ======
+  const state = {
+    players: [], // {name,isHuman,hand:[],chips}
+    turn: 0,
+    pile: [], // last played cards
+    pot: 0,
+    selectMode: false,
+    arrangeMode: false,
+    lastPlayLen: 0,
+    passesSincePlay: 0,
+    lastPlayerToPlay: 0,
+  };
+
+  // create 4 players (user bottom)
+  function initPlayers(){
+    state.players = [
+      {name:'You', isHuman:true, chips:1500, hand:[]},
+      {name:'Luna', chips:1200, hand:[]},
+      {name:'Rex', chips:1000, hand:[]},
+      {name:'Milo', chips:900, hand:[]},
+    ];
+  }
+
+  function deal(){
+    const deck = makeDeck();
+    for(let i=0;i<13;i++){
+      for(let p=0;p<state.players.length;p++){
+        state.players[p].hand.push(deck.pop());
+      }
+    }
+  }
+
+  // ===== RENDER =====
+  function cardFaceEl(c){
+    const d = document.createElement('div'); d.className='card'+((c.s==='♥'||c.s==='♦')?' red':'')+((c.r==='RJ'||c.r==='BJ')?' joker':'');
+    const tl=document.createElement('div'); tl.className='tl'; tl.textContent = (c.r==='BJ'?'JB': c.r==='RJ'?'JR': c.r) + (c.s==='🃏'?'':c.s);
+    const br=document.createElement('div'); br.className='br'; br.textContent = (c.s==='🃏'? '🃏' : c.s);
+    const big=document.createElement('div'); big.className='big'; big.textContent = (c.s==='🃏'? '🃏' : c.s);
+    d.append(tl,big,br);
+    return d;
+  }
+  function cardBackEl(){ const d=document.createElement('div'); d.className='card back'; return d; }
+
+  function posSeats(){
+    seatsEl.innerHTML='';
+    const tableRect = el('.felt').getBoundingClientRect();
+    const padX=24, padY=16; const x0=tableRect.left+padX, y0=tableRect.top+padY; const w=tableRect.width-padX*2, h=tableRect.height-padY*2;
+    const perim = 2*(w+h), step = perim/state.players.length;
+    let s0 = w + h + w/2; // bottom center for user (index 0)
+
+    state.players.forEach((p, i)=>{
+      const s = (s0 + i*step) % perim; let x,y;
+      if(s < w){ x=x0+s; y=y0; }
+      else if(s < w+h){ x=x0+w; y=y0+(s-w); }
+      else if(s < w+h+w){ x=x0+(w-(s-(w+h))); y=y0+h; }
+      else { x=x0; y=y0+(h-(s-(w+h+w))); }
+
+      const seat = document.createElement('div'); seat.className='seat';
+      const area = el('.stage').getBoundingClientRect();
+      seat.style.left=(x - area.left - 70)+'px';
+      seat.style.top=(y - area.top - 60)+'px';
+
+      const av = document.createElement('div'); av.className='avatar'; av.textContent = i===0?'🃏':'🐾';
+      const name = document.createElement('div'); name.className='name'; name.textContent = p.name;
+
+      const cards = document.createElement('div'); cards.className='cards';
+      if(p.isHuman){
+        // Show face-up cards (draggable when arrangeMode)
+        const sorted = [...p.hand];
+        sorted.forEach((c, idx)=> {
+          const face = cardFaceEl(c);
+          face.dataset.index = idx;
+          if(state.selectMode){ face.addEventListener('click', ()=>{ face.classList.toggle('selected'); sndChip.currentTime=0; sndChip.play(); }); }
+          if(state.arrangeMode){ enableDrag(face, cards, p); }
+          cards.appendChild(face);
+        });
+      } else {
+        // Opponents: facedown fanned stack
+        cards.classList.add('opp-fan');
+        const count = p.hand.length;
+        const show = Math.min(10, count); // cap visual
+        for(let k=0;k<show;k++){ const b = cardBackEl(); b.style.setProperty('--rot', ((k-show/2)*2)+'deg'); cards.appendChild(b); }
+      }
+
+      const stack=document.createElement('div'); stack.className='stack';
+      for(let k=0;k<3;k++){ const ch=document.createElement('div'); ch.className='chip '+['c1','c2','c3','c4'][k%4]; ch.style.transform=`translateY(-${k*2.5}px)`; stack.appendChild(ch);}   
+
+      seat.append(av,name,cards,stack);
+      seatsEl.appendChild(seat);
+    });
+  }
+
+  // Drag-to-reorder (manual arrange for user)
+  let drag = {active:false, startX:0, fromIdx:-1, owner:null, container:null};
+  function enableDrag(elm, container, owner){
+    elm.style.touchAction = 'none';
+    elm.addEventListener('pointerdown', e=>{
+      if(!state.arrangeMode || !owner.isHuman) return;
+      drag.active=true; drag.startX=e.clientX; drag.fromIdx=Number(elm.dataset.index); drag.owner=owner; drag.container=container;
+      elm.setPointerCapture(e.pointerId);
+      elm.style.opacity=.7; sndChip.currentTime=0; sndChip.play();
+    });
+    elm.addEventListener('pointermove', e=>{
+      if(!drag.active) return; const dx = e.clientX - drag.startX; elm.style.transform = `translateX(${dx}px)`;
+    });
+    elm.addEventListener('pointerup', e=>{
+      if(!drag.active) return; elm.style.opacity=1; elm.style.transform='';
+      const rect = drag.container.getBoundingClientRect();
+      const relX = e.clientX - rect.left; // place by slot width
+      const slotW = rect.width / Math.max(1, drag.container.children.length);
+      let toIdx = Math.min(drag.container.children.length-1, Math.max(0, Math.floor(relX/slotW)));
+      reorderHand(drag.owner, drag.fromIdx, toIdx);
+      drag.active=false; renderAll();
+    });
+  }
+  function reorderHand(player, from, to){ if(from===to) return; const arr=player.hand; const [c]=arr.splice(from,1); arr.splice(to,0,c); }
+
+  function renderPile(){
+    pileEl.innerHTML='';
+    state.pile.forEach(c=> pileEl.appendChild(cardFaceEl(c)));
+  }
+
+  function renderAll(){ posSeats(); renderPile(); potEl.textContent = `Pot: ${state.pot}`; }
+
+  // ===== GAME FLOW (singles/pairs + simple AI) =====
+  function collectSelected(){
+    const mySeat = seatsEl.querySelector('.seat .cards');
+    const faces = mySeat ? Array.from(mySeat.querySelectorAll('.card:not(.back)')) : [];
+    const sel = faces.filter(f=> f.classList.contains('selected')).map(f=> ({c: player(0).hand[Number(f.dataset.index)], idx:Number(f.dataset.index)}));
+    return sel;
+  }
+  function clearSelections(){ seatsEl.querySelectorAll('.card.selected').forEach(n=> n.classList.remove('selected')); }
+
+  function player(i){ return state.players[i]; }
+
+  function higherThanPile(cards){
+    if(state.lastPlayLen===0) return true;
+    if(cards.length!==state.lastPlayLen) return false;
+    const lastHigh = Math.max(...state.pile.map(c=> rankValue(c.r)));
+    const nowHigh = Math.max(...cards.map(c=> rankValue(c.r)));
+    return nowHigh > lastHigh;
+  }
+
+  function canPlaySome(p){
+    // Check if player has any legal move (single/pair) vs current pile
+    const hand = p.hand;
+    // singles
+    if(state.lastPlayLen===0){ return hand.length>0; }
+    if(state.lastPlayLen===1){ return hand.some(c=> rankValue(c.r) > Math.max(...state.pile.map(pc=> rankValue(pc.r)))); }
+    if(state.lastPlayLen===2){
+      const counts = countByRank(hand);
+      const lastHigh = Math.max(...state.pile.map(pc=> rankValue(pc.r)));
+      return Object.entries(counts).some(([r,c])=> c>=2 && rankValue(parseRank(r))>lastHigh);
+    }
+    return false;
+  }
+  function parseRank(r){ return (r==='11'?'J':r==='12'?'Q':r==='13'?'K':r==='14'?'A': (r==='15'?'BJ': r==='16'?'RJ': isNaN(r)? r: Number(r))); }
+  function countByRank(hand){ const m={}; hand.forEach(c=>{ const k=rankValue(c.r); m[k]=(m[k]||0)+1; }); return m; }
+
+  function aiChoose(p){
+    const hand=[...p.hand].sort((a,b)=> rankValue(a.r)-rankValue(b.r));
+    if(state.lastPlayLen===0){
+      // Start round: prefer lowest pair, else lowest single
+      const counts = countByRank(hand);
+      const pairRank = Object.keys(counts).map(Number).filter(k=> counts[k]>=2).sort((a,b)=>a-b)[0];
+      if(pairRank){ return hand.filter(c=> rankValue(c.r)===pairRank).slice(0,2); }
+      return [hand[0]];
+    }
+    if(state.lastPlayLen===1){
+      const lastHigh = Math.max(...state.pile.map(c=> rankValue(c.r)));
+      const cand = hand.find(c=> rankValue(c.r) > lastHigh);
+      return cand? [cand] : [];
+    }
+    if(state.lastPlayLen===2){
+      const counts = countByRank(hand);
+      const lastHigh = Math.max(...state.pile.map(c=> rankValue(c.r)));
+      const pair = Object.keys(counts).map(Number).filter(k=> counts[k]>=2 && k>lastHigh).sort((a,b)=>a-b)[0];
+      if(pair){ return hand.filter(c=> rankValue(c.r)===pair).slice(0,2); }
+      return [];
+    }
+    return [];
+  }
+
+  function playTurn(i){
+    const p = player(i);
+    if(p.isHuman){ toast('Your turn'+(state.lastPlayLen? ` • play ${state.lastPlayLen}`:'')); return; }
+    // AI with small delay
+    setTimeout(()=>{
+      let chosen = aiChoose(p);
+      if(chosen.length===0){
+        state.passesSincePlay++;
+        toast(p.name+' passes');
+        advanceTurn();
+        return;
+      }
+      // place if higher than pile
+      if(!higherThanPile(chosen)){
+        state.passesSincePlay++;
+        toast(p.name+' passes');
+        advanceTurn();
+        return;
+      }
+      // commit play
+      chosen.forEach(c=> { const idx=p.hand.indexOf(c); if(idx>-1) p.hand.splice(idx,1); state.pile.push(c); });
+      state.lastPlayLen = chosen.length;
+      state.passesSincePlay = 0; state.lastPlayerToPlay = i;
+      sndCard.currentTime=0; sndCard.play();
+      renderAll();
+      advanceTurn();
+    }, 700);
+  }
+
+  function advanceTurn(){
+    // If everyone else passed since last play, clear pile and set turn to last player
+    if(state.passesSincePlay >= state.players.length-1){
+      state.pile = []; state.lastPlayLen=0; state.passesSincePlay=0; state.turn = state.lastPlayerToPlay; renderAll(); toast('New round');
+    }
+    state.turn = (state.turn + 1) % state.players.length;
+    // If someone has no cards -> they win
+    const won = state.players.find(pl=> pl.hand.length===0);
+    if(won){ toast((won.isHuman? 'You' : won.name)+' won!'); return; }
+    playTurn(state.turn);
+  }
+
+  // ===== UI HANDLERS =====
+  el('#arrange').addEventListener('click', (e)=>{
+    state.arrangeMode = !state.arrangeMode; e.currentTarget.textContent = '🔧 Manual Arrange: '+(state.arrangeMode?'On':'Off');
+    renderAll();
+    toast(state.arrangeMode? 'Drag your cards to reorder' : 'Manual arrange off');
+  });
+  el('#selectToggle').addEventListener('click', (e)=>{ state.selectMode = !state.selectMode; e.currentTarget.textContent = state.selectMode? '✅ Selecting' : '🖐️ Select'; toast(state.selectMode? 'Tap cards to select' : 'Selection off'); });
+  el('#confirmPlay').addEventListener('click', ()=>{
+    const sel = collectSelected();
+    if(sel.length===0){ toast('Select cards first'); return; }
+    const cards = sel.map(s=> s.c);
+    // Allow singles/pairs only for now
+    const allSame = cards.every(c=> rankValue(c.r)===rankValue(cards[0].r));
+    if(!(cards.length===1 || (cards.length===2 && allSame))){ toast('Only singles or pairs in this demo'); return; }
+    if(!higherThanPile(cards)){ toast('Play higher'); return; }
+    // commit
+    cards.forEach(c=>{ const idx = player(0).hand.indexOf(c); if(idx>-1) player(0).hand.splice(idx,1); state.pile.push(c); });
+    state.lastPlayLen = cards.length; state.passesSincePlay=0; state.lastPlayerToPlay=0; sndCard.currentTime=0; sndCard.play();
+    clearSelections(); renderAll();
+    advanceTurn();
+  });
+
+  // boot
+  initPlayers(); deal(); renderAll(); toast('Murlan Royale • Jokers on • Manual arrange ready');
+  // start at user
+  state.turn = 0; playTurn(state.turn);
+})();
+</script>
+</body>
+</html>
