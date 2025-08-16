@@ -24,32 +24,29 @@
     .community .card{ width:var(--card-w); height:var(--card-h); background:#fff; border-radius:6px; display:grid; place-items:center; color:#000; }
     .seats{ position:absolute; inset:0; z-index:2 }
     .seat{ position:absolute; display:flex; flex-direction:column; align-items:center; gap:6px; width:clamp(120px, 28vw, 200px) }
-    .avatar{ width:var(--avatar-size); height:var(--avatar-size); border-radius:50%; display:grid; place-items:center; background:radial-gradient(circle at 30% 30%, #fff, #ddd 40%, #bbb 60%, #999 100%); color:#111; font-size:28px; border:4px solid rgba(255,255,255,.65); box-shadow:0 8px 20px var(--shadow); }
+    .avatar{ width:var(--avatar-size); height:var(--avatar-size); border-radius:50%; display:grid; place-items:center; background:radial-gradient(circle at 30% 30%, #fff, #ddd 40%, #bbb 60%, #999 100%); color:#111; font-size:28px; border:4px solid rgba(255,255,255,.65); box-shadow:0 8px 20px var(--shadow); overflow:hidden }
     .cards{ display:flex; gap:4px; }
-    .card{ width:var(--card-w); height:var(--card-h); background:#fff; border-radius:6px; display:grid; place-items:center; color:#000; }
-    .card.back{ background:#444 }
-    #ai-seat{ top:10%; left:50%; transform:translateX(-50%); }
-    #player-seat{ bottom:10%; left:50%; transform:translateX(-50%); }
+    .card{ width:var(--card-w); height:var(--card-h); background:#fff; border-radius:6px; display:grid; place-items:center; color:#000; position:relative; }
+    .card.back{ background:url('assets/icons/file_00000000bc2862439eecffff3730bbe4.webp') center/60% no-repeat, repeating-linear-gradient(45deg,#233,#233 6px,#122 6px,#122 12px); border:2px solid rgba(255,255,255,.5); color:transparent; }
+    .card.back::before{ content:""; position:absolute; inset:6px; border-radius:8px; border:2px dashed rgba(255,255,255,.35); }
+    .seat.bottom{ bottom:10%; left:50%; transform:translateX(-50%); }
+    .seat.top{ top:10%; left:50%; transform:translateX(-50%); }
+    .seat.left{ left:5%; top:50%; transform:translateY(-50%); }
+    .seat.right{ right:5%; top:50%; transform:translateY(-50%); }
+    .seat.bottom .cards{ gap:0 }
+    .timer{ font-weight:800; background:rgba(0,0,0,.5); padding:2px 6px; border-radius:8px; }
+    .controls{ display:flex; gap:8px; margin-top:8px; }
+    .controls button{ padding:6px 12px; border:none; border-radius:8px; background:#2563eb; color:#fff; font-weight:600; }
     #status{ position:absolute; top:50%; left:50%; transform:translate(-50%, -50%); font-weight:900; letter-spacing:.3px; color:#ffeaa7; background:rgba(0,0,0,.28); padding:6px 12px; border-radius:12px; border:1px solid rgba(255,255,255,.12); text-shadow:0 2px 6px #000 }
   </style>
 </head>
 <body>
   <div class="stage">
     <div class="center community" id="community"></div>
-    <div class="seats">
-      <div class="seat" id="ai-seat">
-        <div class="avatar">AI</div>
-        <div class="cards" id="ai-cards"></div>
-        <div class="name">AI</div>
-      </div>
-      <div class="seat" id="player-seat">
-        <div class="avatar">You</div>
-        <div class="cards" id="player-cards"></div>
-        <div class="name">You</div>
-      </div>
-    </div>
+    <div class="seats" id="seats"></div>
     <div id="status"></div>
   </div>
+  <audio id="sndTimer" src="https://cdn.jsdelivr.net/gh/naptha/tiny-sound@master/sounds/beep1.ogg"></audio>
   <script type="module" src="/texas-holdem.js"></script>
 </body>
 </html>
