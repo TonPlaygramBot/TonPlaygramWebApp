@@ -61,7 +61,7 @@ export default function PollRoyaleLobby() {
 
   return (
     <div className="relative p-4 space-y-4 text-text min-h-screen tetris-grid-bg">
-      <h2 className="text-xl font-bold text-center">8 Poll Royale Lobby</h2>
+      <h2 className="text-xl font-bold text-center">8 Ball Royale Lobby</h2>
       <div className="space-y-2">
         <h3 className="font-semibold">Mode</h3>
         <div className="flex gap-2">
