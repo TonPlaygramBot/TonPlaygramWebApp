@@ -38,6 +38,8 @@ import BubbleSmashRoyale from './pages/Games/BubbleSmashRoyale.jsx';
 import BubbleSmashRoyaleLobby from './pages/Games/BubbleSmashRoyaleLobby.jsx';
 import MurlanRoyale from './pages/Games/MurlanRoyale.jsx';
 import MurlanRoyaleLobby from './pages/Games/MurlanRoyaleLobby.jsx';
+import PollRoyale from './pages/Games/PollRoyale.jsx';
+import PollRoyaleLobby from './pages/Games/PollRoyaleLobby.jsx';
 
 import Layout from './components/Layout.jsx';
 import useTelegramAuth from './hooks/useTelegramAuth.js';
@@ -79,6 +81,8 @@ export default function App() {
             <Route path="/games/bubblesmashroyale" element={<BubbleSmashRoyale />} />
             <Route path="/games/murlanroyale/lobby" element={<MurlanRoyaleLobby />} />
             <Route path="/games/murlanroyale" element={<MurlanRoyale />} />
+            <Route path="/games/pollroyale/lobby" element={<PollRoyaleLobby />} />
+            <Route path="/games/pollroyale" element={<PollRoyale />} />
             <Route path="/spin" element={<SpinPage />} />
             <Route path="/admin/influencer" element={<InfluencerAdmin />} />
             <Route path="/tasks" element={<Tasks />} />
