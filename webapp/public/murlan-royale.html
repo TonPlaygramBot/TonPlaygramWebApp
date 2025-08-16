@@ -73,6 +73,13 @@
 
     /* TOAST */
     .toast{ position:fixed; left:50%; top:12%; transform:translateX(-50%); background:rgba(0,0,0,.6); border:1px solid rgba(255,255,255,.12); padding:8px 14px; border-radius:12px; font-weight:800; z-index:12 }
+    /* CONFIG POPUP */
+    .config-popup{ position:fixed; inset:0; background:rgba(0,0,0,.6); display:none; align-items:center; justify-content:center; z-index:20 }
+    .config-popup .box{ background:#fff; color:#000; padding:20px; border-radius:12px; width:90%; max-width:400px; display:flex; flex-direction:column; gap:12px }
+    .config-popup select{ width:100%; padding:6px; border-radius:8px }
+    .config-popup .sliders{ display:flex; flex-direction:column; gap:10px }
+    .config-popup label{ display:flex; flex-direction:column; font-weight:700; gap:4px }
+    .config-popup .btn{ align-self:flex-end }
 
     @media (max-width:900px){ .log{ display:none } }
   </style>
@@ -96,7 +103,6 @@
     <div class="left-ui">
       <button id="arrange" class="btn secondary">🔧 Manual Arrange: Off</button>
       <button id="configToggle" class="btn secondary">⚙️ Config: Off</button>
-      <button id="saveCal" class="btn secondary" style="display:none">💾 Save</button>
     </div>
     <div class="right-ui">
       <button id="selectToggle" class="btn secondary">🖐️ Select</button>
@@ -104,6 +110,18 @@
     </div>
 
     <div id="toast" class="toast" style="display:none"></div>
+  </div>
+
+  <div id="configPopup" class="config-popup">
+    <div class="box">
+      <select id="configObjects"></select>
+      <div class="sliders">
+        <label>Left<input type="range" id="cfgLeft" min="-200" max="200" /></label>
+        <label>Top<input type="range" id="cfgTop" min="-200" max="200" /></label>
+        <label>Scale<input type="range" id="cfgScale" min="0.5" max="2" step="0.1" /></label>
+      </div>
+      <button id="configSave" class="btn">💾 Save</button>
+    </div>
   </div>
 
   <!-- sounds -->
@@ -124,8 +142,6 @@
   const sndTimer = el('#sndTimer');
 
   let configMode = false, selectedEl = null;
-  const pointers = new Map();
-  let dragState = {};
   let currentCalibration = {};
 
   function toast(msg){ toastEl.textContent = msg; toastEl.style.display='block'; setTimeout(()=> toastEl.style.display='none', 1400); }
@@ -443,55 +459,52 @@
 
   function setupConfig(){
     const cfgBtn = el('#configToggle');
-    const saveBtn = el('#saveCal');
+    const popup = el('#configPopup');
+    const objList = el('#configObjects');
+    const leftInput = el('#cfgLeft');
+    const topInput = el('#cfgTop');
+    const scaleInput = el('#cfgScale');
+    const saveBtn = el('#configSave');
+
+    let elements = [];
+
+    function refreshList(){
+      elements = Array.from(document.querySelectorAll('.seat, #pile, #pot, .rail, .felt, .glow'));
+      objList.innerHTML = '';
+      elements.forEach((el, idx)=>{
+        const opt = document.createElement('option');
+        const name = el.id || (el.className.split(' ')[0] + (el.id ? '' : '-' + idx));
+        opt.value = idx;
+        opt.textContent = name;
+        objList.appendChild(opt);
+      });
+    }
+
+    function updateInputs(){
+      if(!selectedEl) return;
+      leftInput.value = parseInt(selectedEl.style.left) || 0;
+      topInput.value = parseInt(selectedEl.style.top) || 0;
+      scaleInput.value = selectedEl.dataset.scale || 1;
+    }
+
     cfgBtn.addEventListener('click', ()=>{
       configMode=!configMode;
       cfgBtn.textContent = configMode? '⚙️ Config: On' : '⚙️ Config: Off';
-      saveBtn.style.display = configMode? 'inline-block':'none';
-      if(!configMode) deselect();
-    });
-    saveBtn.addEventListener('click', ()=>{
-      localStorage.setItem('murlanCalibration', JSON.stringify(currentCalibration));
-      toast('Calibration saved');
-    });
-
-    document.addEventListener('click', e=>{
-      if(!configMode) return;
-      const t = e.target.closest('.seat, #pile, #pot, .rail, .felt, .glow');
-      if(!t) return;
-      deselect(); selectedEl=t; selectedEl.style.outline='2px dashed yellow';
-      e.stopPropagation(); e.preventDefault();
-    });
-
-    document.addEventListener('pointerdown', e=>{
-      if(!configMode || !selectedEl || !selectedEl.contains(e.target)) return;
-      pointers.set(e.pointerId,{x:e.clientX,y:e.clientY});
-      if(pointers.size===1){
-        const rect=selectedEl.getBoundingClientRect();
-        dragState={initX:e.clientX, initY:e.clientY, initLeft:rect.left, initTop:rect.top, initScale:parseFloat(selectedEl.dataset.scale||'1'), baseTransform:selectedEl.dataset.baseTransform||''};
-      } else if(pointers.size===2){
-        const pts=Array.from(pointers.values());
-        dragState.initDist=Math.hypot(pts[0].x-pts[1].x, pts[0].y-pts[1].y);
+      popup.style.display = configMode? 'flex' : 'none';
+      if(configMode){
+        refreshList();
+        deselect();
+      }else{
+        deselect();
       }
-      selectedEl.setPointerCapture(e.pointerId);
-      e.preventDefault();
     });
 
-    document.addEventListener('pointermove', e=>{
-      if(!configMode || !selectedEl || !pointers.has(e.pointerId)) return;
-      pointers.set(e.pointerId,{x:e.clientX,y:e.clientY});
-      const pts=Array.from(pointers.values());
-      if(pts.length===1){
-        const dx=pts[0].x-dragState.initX;
-        const dy=pts[0].y-dragState.initY;
-        selectedEl.style.position='absolute';
-        selectedEl.style.left=dragState.initLeft+dx+'px';
-        selectedEl.style.top=dragState.initTop+dy+'px';
-      } else if(pts.length===2){
-        const dist=Math.hypot(pts[0].x-pts[1].x, pts[0].y-pts[1].y);
-        const scale=dragState.initScale*(dist/dragState.initDist);
-        selectedEl.dataset.scale=scale;
-        selectedEl.style.transform=dragState.baseTransform+` scale(${scale})`;
+    objList.addEventListener('change', ()=>{
+      deselect();
+      selectedEl = elements[objList.value];
+      if(selectedEl){
+        selectedEl.style.outline='2px dashed yellow';
+        updateInputs();
       }
     });
 
@@ -505,17 +518,31 @@
       };
     }
 
-    document.addEventListener('pointerup', e=>{
-      if(!pointers.has(e.pointerId)) return;
-      if(selectedEl){
-        updateCalib();
-        selectedEl.releasePointerCapture(e.pointerId);
-      }
-      pointers.delete(e.pointerId);
+    leftInput.addEventListener('input', ()=>{
+      if(!selectedEl) return;
+      selectedEl.style.position='absolute';
+      selectedEl.style.left=leftInput.value+'px';
+      updateCalib();
     });
-    document.addEventListener('pointercancel', e=>{
-      if(pointers.has(e.pointerId)) pointers.delete(e.pointerId);
-      if(selectedEl) selectedEl.releasePointerCapture(e.pointerId);
+
+    topInput.addEventListener('input', ()=>{
+      if(!selectedEl) return;
+      selectedEl.style.position='absolute';
+      selectedEl.style.top=topInput.value+'px';
+      updateCalib();
+    });
+
+    scaleInput.addEventListener('input', ()=>{
+      if(!selectedEl) return;
+      const base = selectedEl.dataset.baseTransform || '';
+      selectedEl.dataset.scale = scaleInput.value;
+      selectedEl.style.transform = base + ` scale(${scaleInput.value})`;
+      updateCalib();
+    });
+
+    saveBtn.addEventListener('click', ()=>{
+      localStorage.setItem('murlanCalibration', JSON.stringify(currentCalibration));
+      toast('Calibration saved');
     });
   }
 
