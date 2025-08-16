@@ -40,7 +40,7 @@
     /* CENTER: community pile + pot */
     .center{ position:absolute; left:50%; top:50%; transform:translate(-50%,-50%); display:grid; gap:10px; place-items:center; z-index:2 }
     .pile{ position:relative; width:var(--card-w); height:var(--card-h); }
-    .pile .card{ position:absolute; left:0; top:0; }
+    .pile .card{ position:absolute; left:0; top:0; transform:scale(1.3); transform-origin:center; }
     .pot{ font-weight:900; letter-spacing:.3px; color:#ffeaa7; background:rgba(0,0,0,.28); padding:6px 12px; border-radius:12px; border:1px solid rgba(255,255,255,.12); text-shadow:0 2px 6px #000 }
 
     /* PLAYERS ON TABLE PERIMETER  (user fixed bottom) */
@@ -68,20 +68,13 @@
     .back::before{ content:""; position:absolute; inset:6px; border-radius:8px; border:2px dashed rgba(255,255,255,.35); }
     .opp-fan .card{ margin-left:-30px; transform:rotateZ(var(--rot,0deg)) }
 
-    /* UI BUTTONS */
-    .left-ui{ position:fixed; left:max(8px, env(safe-area-inset-left)); top:50%; transform:translateY(-50%); display:flex; flex-direction:column; gap:10px; z-index:10 }
-    .right-ui{ position:fixed; right:max(8px, env(safe-area-inset-right)); top:50%; transform:translateY(-50%); display:flex; flex-direction:column; gap:10px; z-index:10 }
-    .btn{ appearance:none; border:none; cursor:pointer; font-weight:800; padding:12px 14px; border-radius:12px; background:linear-gradient(180deg, var(--gold), #e4b325); color:#412e02; box-shadow:0 6px 0 #b38e1f, 0 12px 24px var(--shadow); white-space:nowrap }
-    .btn.secondary{ background:linear-gradient(180deg,#e0e7ff,#c7d2fe); color:#102a43; box-shadow:0 6px 0 #a5b4fc, 0 12px 24px var(--shadow); }
+    /* ICON CONTROLS */
+    .icon-btn{ appearance:none; border:none; background:none; cursor:pointer; font-size:32px; color:#fff; text-shadow:0 2px 6px #000; }
+    .arrange-icon{ position:fixed; left:max(8px, env(safe-area-inset-left)); bottom:calc(var(--card-h) + var(--avatar-size)/2 + 16px); z-index:10 }
+    .play-icon{ position:fixed; left:50%; transform:translateX(-50%); bottom:calc(var(--card-h) + 16px); z-index:10 }
 
     /* TOAST */
     .toast{ position:fixed; left:50%; top:12%; transform:translateX(-50%); background:rgba(0,0,0,.6); border:1px solid rgba(255,255,255,.12); padding:8px 14px; border-radius:12px; font-weight:800; z-index:12 }
-    /* CONFIG POPUP */
-    .config-popup{ position:fixed; inset:0; background:rgba(0,0,0,.6); display:none; align-items:center; justify-content:center; z-index:20 }
-    .config-popup .box{ background:#fff; color:#000; padding:20px; border-radius:12px; width:90%; max-width:400px; display:flex; flex-direction:column; gap:12px }
-    .config-popup .sliders{ display:flex; flex-direction:column; gap:10px }
-    .config-popup label{ display:flex; flex-direction:column; font-weight:700; gap:4px }
-    .config-popup .actions{ display:flex; justify-content:flex-end; gap:10px }
 
     @media (max-width:900px){ .log{ display:none } }
   </style>
@@ -102,29 +95,10 @@
     <div id="seats" class="seats"></div>
 
     <!-- UI -->
-    <div class="left-ui">
-      <button id="arrange" class="btn secondary">🔧 Manual Arrange: Off</button>
-      <button id="configToggle" class="btn secondary">⚙️ Config: Off</button>
-    </div>
-    <div class="right-ui">
-      <button id="selectToggle" class="btn secondary">🖐️ Select</button>
-      <button id="confirmPlay" class="btn">✅ Play</button>
-    </div>
+    <button id="arrange" class="icon-btn arrange-icon">🔧</button>
+    <button id="confirmPlay" class="icon-btn play-icon">▶️</button>
 
     <div id="toast" class="toast" style="display:none"></div>
-  </div>
-
-  <div id="configPopup" class="config-popup">
-    <div class="box">
-      <div class="sliders">
-        <label>Card Size<input type="range" id="cfgCard" min="0.5" max="1.5" step="0.1" /></label>
-        <label>Avatar Size<input type="range" id="cfgAvatar" min="0.5" max="1.5" step="0.1" /></label>
-      </div>
-      <div class="actions">
-        <button id="configSave" class="btn">💾 Save</button>
-        <button id="configExit" class="btn secondary">✖️ Exit</button>
-      </div>
-    </div>
   </div>
 
   <!-- sounds -->
@@ -143,9 +117,6 @@
   const sndChip = el('#sndChip');
   const sndCard = el('#sndCard');
   const sndTimer = el('#sndTimer');
-
-  let configMode = false;
-  let currentConfig = { cardScale: 1, avatarScale: 1 };
 
   function toast(msg){ toastEl.textContent = msg; toastEl.style.display='block'; setTimeout(()=> toastEl.style.display='none', 1400); }
 
@@ -170,7 +141,6 @@
     turnTime: 15,
     pile: [], // last played cards
     pot: 0,
-    selectMode: false,
     arrangeMode: false,
     lastPlayLen: 0,
     passesSincePlay: 0,
@@ -223,9 +193,19 @@
 
       const seat = document.createElement('div'); seat.className='seat '+side;
       const area = el('.stage').getBoundingClientRect();
-      seat.style.left=(x - area.left)+'px';
-      seat.style.top=(y - area.top)+'px';
-      seat.style.transform='translate(-50%,-50%)';
+      if(side==='bottom'){
+        seat.style.left='50%';
+        seat.style.bottom='8px';
+        seat.style.transform='translateX(-50%)';
+      }else if(side==='top'){
+        seat.style.left='50%';
+        seat.style.top='8px';
+        seat.style.transform='translateX(-50%)';
+      }else{
+        seat.style.left=(x - area.left)+'px';
+        seat.style.top=(y - area.top)+'px';
+        seat.style.transform='translate(-50%,-50%)';
+      }
 
       const av = document.createElement('div'); av.className='avatar'; av.textContent = i===0?'🃏':'🐾';
       const name = document.createElement('div'); name.className='name'; name.textContent = p.name;
@@ -237,7 +217,7 @@
         sorted.forEach((c, idx)=> {
           const face = cardFaceEl(c);
           face.dataset.index = idx;
-          if(state.selectMode){ face.addEventListener('click', ()=>{ face.classList.toggle('selected'); sndChip.currentTime=0; sndChip.play(); }); }
+          face.addEventListener('click', ()=>{ face.classList.toggle('selected'); sndChip.currentTime=0; sndChip.play(); });
           if(state.arrangeMode){ enableDrag(face, cards, p); }
           cards.appendChild(face);
         });
@@ -292,7 +272,20 @@
     });
   }
 
-  function renderAll(){ posSeats(); renderPile(); potEl.textContent = `Pot: ${state.pot}`; updateTimerDisplay(); applyConfig(); }
+  function adjustHandScale(){
+    const hand = document.querySelector('.seat.bottom .cards');
+    if(!hand) return;
+    const screen = window.innerWidth - 20;
+    const rect = hand.getBoundingClientRect();
+    if(rect.width > screen){
+      const scale = screen / rect.width;
+      document.documentElement.style.setProperty('--card-scale', scale.toFixed(2));
+    } else {
+      document.documentElement.style.setProperty('--card-scale', 1);
+    }
+  }
+
+  function renderAll(){ posSeats(); renderPile(); potEl.textContent = `Pot: ${state.pot}`; updateTimerDisplay(); adjustHandScale(); }
 
   let timerInterval;
   function updateTimerDisplay(){
@@ -421,90 +414,28 @@
     playTurn(state.turn);
   }
 
-  // ===== CONFIG MODE =====
-  function applyConfig(){
-    document.documentElement.style.setProperty('--card-scale', currentConfig.cardScale);
-    document.documentElement.style.setProperty('--avatar-scale', currentConfig.avatarScale);
-  }
-
-  function loadConfig(){
-    try{ currentConfig = JSON.parse(localStorage.getItem('murlanCalibration')) || currentConfig; }
-    catch{ currentConfig = { cardScale:1, avatarScale:1 }; }
-    applyConfig();
-  }
-
-  function setupConfig(){
-    const cfgBtn = el('#configToggle');
-    const popup = el('#configPopup');
-    const cardInput = el('#cfgCard');
-    const avatarInput = el('#cfgAvatar');
-    const saveBtn = el('#configSave');
-    const exitBtn = el('#configExit');
-
-    function preview(){
-      document.documentElement.style.setProperty('--card-scale', cardInput.value);
-      document.documentElement.style.setProperty('--avatar-scale', avatarInput.value);
-    }
-
-    cfgBtn.addEventListener('click', ()=>{
-      configMode = !configMode;
-      cfgBtn.textContent = configMode? '⚙️ Config: On' : '⚙️ Config: Off';
-      popup.style.display = configMode? 'flex' : 'none';
-      if(configMode){
-        cardInput.value = currentConfig.cardScale;
-        avatarInput.value = currentConfig.avatarScale;
-        preview();
-      }else{
-        applyConfig();
-      }
-    });
-
-    cardInput.addEventListener('input', preview);
-    avatarInput.addEventListener('input', preview);
-
-    saveBtn.addEventListener('click', ()=>{
-      currentConfig.cardScale = parseFloat(cardInput.value);
-      currentConfig.avatarScale = parseFloat(avatarInput.value);
-      localStorage.setItem('murlanCalibration', JSON.stringify(currentConfig));
-      applyConfig();
-      popup.style.display='none';
-      configMode=false;
-      cfgBtn.textContent='⚙️ Config: Off';
-      toast('Configuration saved');
-    });
-
-    exitBtn.addEventListener('click', ()=>{
-      popup.style.display='none';
-      configMode=false;
-      cfgBtn.textContent='⚙️ Config: Off';
-      applyConfig();
-    });
-  }
-
-  // ===== UI HANDLERS =====
-  el('#arrange').addEventListener('click', (e)=>{
-    state.arrangeMode = !state.arrangeMode; e.currentTarget.textContent = '🔧 Manual Arrange: '+(state.arrangeMode?'On':'Off');
-    renderAll();
-    toast(state.arrangeMode? 'Drag your cards to reorder' : 'Manual arrange off');
-  });
-  el('#selectToggle').addEventListener('click', (e)=>{ state.selectMode = !state.selectMode; e.currentTarget.textContent = state.selectMode? '✅ Selecting' : '🖐️ Select'; toast(state.selectMode? 'Tap cards to select' : 'Selection off'); });
-  el('#confirmPlay').addEventListener('click', ()=>{
+  function confirmPlayAction(){
     const sel = collectSelected();
     if(sel.length===0){ toast('Select cards first'); return; }
     const cards = sel.map(s=> s.c);
-    // Allow singles/pairs only for now
     const allSame = cards.every(c=> rankValue(c.r)===rankValue(cards[0].r));
     if(!(cards.length===1 || (cards.length===2 && allSame))){ toast('Only singles or pairs in this demo'); return; }
     if(!higherThanPile(cards)){ toast('Play higher'); return; }
-    // commit
     cards.forEach(c=>{ const idx = player(0).hand.indexOf(c); if(idx>-1) player(0).hand.splice(idx,1); state.pile.push(c); });
     state.lastPlayLen = cards.length; state.passesSincePlay=0; state.lastPlayerToPlay=0; sndCard.currentTime=0; sndCard.play();
     clearSelections(); renderAll();
     advanceTurn();
+  }
+
+  // ===== UI HANDLERS =====
+  el('#arrange').addEventListener('click', ()=>{
+    state.arrangeMode = !state.arrangeMode; renderAll();
+    toast(state.arrangeMode? 'Drag your cards to reorder' : 'Manual arrange off');
   });
+  el('#confirmPlay').addEventListener('click', confirmPlayAction);
 
   // boot
-    initPlayers(); deal(); renderAll(); loadConfig(); setupConfig(); toast('Murlan Royale • Jokers on • Manual arrange ready');
+    initPlayers(); deal(); renderAll(); toast('Murlan Royale • Jokers on • Manual arrange ready');
   // start at user
   state.turn = 0; playTurn(state.turn);
 })();
