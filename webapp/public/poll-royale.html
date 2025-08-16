@@ -536,26 +536,18 @@
     Table.prototype.render = function(){
       ctx.clearRect(0,0,canvas.width,canvas.height);
 
-      // Felt
+      // Sides where the ball bounces – green outline
       var x0 = BORDER*sX, y0 = BORDER*sY, w = (TABLE_W-2*BORDER)*sX, h = (TABLE_H-2*BORDER)*sY;
-      var felt = ctx.createLinearGradient(0,y0,0,y0+h); felt.addColorStop(0,'#0d803c'); felt.addColorStop(1,'#074120');
-      ctx.fillStyle = felt; ctx.fillRect(x0,y0,w,h);
+      ctx.strokeStyle = '#00ff00';
+      ctx.lineWidth = 4;
+      ctx.strokeRect(x0, y0, w, h);
 
-      // Korniza druri
-      ctx.fillStyle = '#724e28';
-      ctx.fillRect(0,0,canvas.width,BORDER*sY);
-      ctx.fillRect(0,(TABLE_H-BORDER)*sY,canvas.width,BORDER*sY);
-      ctx.fillRect(0,0,BORDER*sX,canvas.height);
-      ctx.fillRect((TABLE_W-BORDER)*sX,0,BORDER*sX,canvas.height);
-
-      // Gropat (4 qoshe + 2 ne mes anesore)
+      // Pockets (4 corners + 2 middles) outlined in green
       for (var i=0;i<this.pockets.length;i++){
         var pk = this.pockets[i];
-        ctx.fillStyle = '#000';
         ctx.beginPath();
         ctx.arc(pk.x*sX, pk.y*sY, pocketR, 0, Math.PI*2);
-        ctx.fill();
-        ctx.strokeStyle = 'rgba(0,0,0,.5)';
+        ctx.strokeStyle = '#00ff00';
         ctx.lineWidth = 4;
         ctx.stroke();
       }
