@@ -79,6 +79,8 @@
       inset: 0 auto 0 0;
       right: var(--rpw);
       z-index: 4;
+      background: url('/assets/icons/64e79228-35e3-4fdc-b914-fca635a40220.webp') center/cover no-repeat;
+      transform-origin: center;
     }
 
     /* Paneli djathtas – SPIN siper, STEKA poshte */
@@ -213,6 +215,57 @@
     }
 
     #play:hover { background: #3c67a3; }
+
+    #calibrateBtn {
+      background: none;
+      border: none;
+      color: #fff;
+      font-size: 24px;
+      cursor: pointer;
+    }
+
+    #calibrationPopup {
+      position: fixed;
+      inset: 0;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      background: rgba(0,0,0,0.4);
+      z-index: 20;
+    }
+
+    #calibrationPanel {
+      background: rgba(16,24,48,0.9);
+      padding: 20px;
+      border-radius: 8px;
+      color: #fff;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      min-width: 240px;
+    }
+
+    #calibrationPanel label {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      font-size: 14px;
+    }
+
+    #calibrationPanel .actions {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    #calibrationPanel button {
+      padding: 8px 12px;
+      background: #1e293b;
+      color: #fff;
+      border: 1px solid #475569;
+      border-radius: 6px;
+      cursor: pointer;
+    }
   </style>
 </head>
 <body>
@@ -222,6 +275,7 @@
         <div class="avatar" id="userAvatar">A</div>
         <div class="name" id="userName">Artur</div>
       </div>
+      <button id="calibrateBtn" title="Calibrate">⚙️</button>
       <div class="player">
         <div class="name" id="aiName">CPU</div>
         <div class="avatar" id="aiAvatar">C</div>
@@ -252,6 +306,30 @@
       <button id="play">Play</button>
     </div>
 
+    <div id="calibrationPopup">
+      <div id="calibrationPanel">
+        <label>Zoom
+          <input type="range" id="zoomInput" min="0.5" max="2" step="0.1" value="1" />
+        </label>
+        <label>Ball Speed
+          <input type="range" id="speedInput" min="500" max="3000" step="100" value="1900" />
+        </label>
+        <label>Hole Size
+          <input type="range" id="holeInput" min="10" max="60" step="1" value="28" />
+        </label>
+        <label>Field Width
+          <input type="number" id="widthInput" min="400" max="1000" value="640" />
+        </label>
+        <label>Field Height
+          <input type="number" id="heightInput" min="800" max="1600" value="1280" />
+        </label>
+        <div class="actions">
+          <button id="saveSettings">Save</button>
+          <button id="exitSettings">Exit</button>
+        </div>
+      </div>
+    </div>
+
     <div id="footer">
       <div id="capP1">Guret e marra (P1): —</div>
       <div id="capP2">Guret e marra (CPU): —</div>
@@ -280,6 +358,8 @@
     var BOUNCE   = 0.98;    // koeficienti i rikthimit
 
     var MIN_V = 0.08;       // shpejtesia min. qe konsiderohet "ne levizje"
+    var BASE_SPEED = 1900;  // shpejtesia baze e goditjes
+    var ZOOM = 1;           // zmadhimi i fushes
 
     /* ==========================================================
        ELEMENTET DOM
@@ -301,6 +381,16 @@
     var userNameEl= document.getElementById('userName');
     var aiAvatar  = document.getElementById('aiAvatar');
     var aiNameEl  = document.getElementById('aiName');
+    var calibrateBtn = document.getElementById('calibrateBtn');
+    var settingsPopup = document.getElementById('calibrationPopup');
+    var zoomInput = document.getElementById('zoomInput');
+    var speedInput = document.getElementById('speedInput');
+    var holeInput = document.getElementById('holeInput');
+    var widthInput = document.getElementById('widthInput');
+    var heightInput = document.getElementById('heightInput');
+    var saveSettings = document.getElementById('saveSettings');
+    var exitSettings = document.getElementById('exitSettings');
+    canvas.style.transform = 'scale(' + ZOOM + ')';
 
     document.addEventListener('touchmove', function(e){ e.preventDefault(); }, {passive:false});
 
@@ -641,6 +731,31 @@
     var spinVec = { x:0, y:0 };// spini i zgjedhur
     var power = 0;             // fuqi [0..1]
 
+    calibrateBtn.addEventListener('click', function(){
+      settingsPopup.style.display = 'flex';
+      zoomInput.value = ZOOM;
+      speedInput.value = BASE_SPEED;
+      holeInput.value = POCKET_R;
+      widthInput.value = TABLE_W;
+      heightInput.value = TABLE_H;
+    });
+
+    exitSettings.addEventListener('click', function(){
+      settingsPopup.style.display = 'none';
+    });
+
+    saveSettings.addEventListener('click', function(){
+      ZOOM = parseFloat(zoomInput.value);
+      BASE_SPEED = parseFloat(speedInput.value);
+      POCKET_R = parseFloat(holeInput.value);
+      TABLE_W = parseFloat(widthInput.value);
+      TABLE_H = parseFloat(heightInput.value);
+      canvas.style.transform = 'scale(' + ZOOM + ')';
+      table.reset();
+      resize();
+      settingsPopup.style.display = 'none';
+    });
+
     /* ==========================================================
        RENDER + UPDATE LOOP
        ========================================================= */
@@ -722,7 +837,7 @@
     pullArea.addEventListener('pointermove', function(e){ if (!pulling) return; var rect=pullArea.getBoundingClientRect(); power=clamp((e.clientY-pullStartY)/(rect.height*0.9),0,1); updatePowerUI(); var minY=rect.top+12, maxY=rect.bottom-12, y=minY+(maxY-minY)*power; cueStickEl.style.height=(60+30*power)+'%'; cueTipEl.style.top=(y-rect.top-6)+'px'; cueStickEl.style.top=(y-rect.top-(cueStickEl.getBoundingClientRect().height-12)/2)+'px'; cuePullVisual=power*(BALL_R*14); });
     pullArea.addEventListener('pointerup', function(){ if (!pulling) return; pulling=false; shoot(power); power=0; updatePowerUI(); cuePullVisual=0; cueStickEl.style.height='60%'; });
 
-    function shoot(p){ if (!table.running || table.isMoving()) return; var cue=table.balls[0]; if (!cue || cue.pocketed) return; var d=norm(table.aim.x-cue.p.x,table.aim.y-cue.p.y); var base=1900; cue.v.x=d.x*base*(0.25+0.75*p)+spinVec.x*260*p; cue.v.y=d.y*base*(0.25+0.75*p)+spinVec.y*260*p; setSpin(0,0); showGuides=false; table.turn=2; }
+    function shoot(p){ if (!table.running || table.isMoving()) return; var cue=table.balls[0]; if (!cue || cue.pocketed) return; var d=norm(table.aim.x-cue.p.x,table.aim.y-cue.p.y); var base=BASE_SPEED; cue.v.x=d.x*base*(0.25+0.75*p)+spinVec.x*260*p; cue.v.y=d.y*base*(0.25+0.75*p)+spinVec.y*260*p; setSpin(0,0); showGuides=false; table.turn=2; }
 
     /* ==========================================================
        CPU – turn i thjeshte (normal skill)
