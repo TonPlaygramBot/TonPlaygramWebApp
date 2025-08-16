@@ -95,6 +95,8 @@
     <!-- UI -->
     <div class="left-ui">
       <button id="arrange" class="btn secondary">🔧 Manual Arrange: Off</button>
+      <button id="configToggle" class="btn secondary">⚙️ Config: Off</button>
+      <button id="saveCal" class="btn secondary" style="display:none">💾 Save</button>
     </div>
     <div class="right-ui">
       <button id="selectToggle" class="btn secondary">🖐️ Select</button>
@@ -120,6 +122,11 @@
   const sndChip = el('#sndChip');
   const sndCard = el('#sndCard');
   const sndTimer = el('#sndTimer');
+
+  let configMode = false, selectedEl = null;
+  const pointers = new Map();
+  let dragState = {};
+  let currentCalibration = {};
 
   function toast(msg){ toastEl.textContent = msg; toastEl.style.display='block'; setTimeout(()=> toastEl.style.display='none', 1400); }
 
@@ -266,7 +273,7 @@
     });
   }
 
-  function renderAll(){ posSeats(); renderPile(); potEl.textContent = `Pot: ${state.pot}`; updateTimerDisplay(); }
+  function renderAll(){ posSeats(); renderPile(); potEl.textContent = `Pot: ${state.pot}`; updateTimerDisplay(); applyCalibration(); }
 
   let timerInterval;
   function updateTimerDisplay(){
@@ -395,6 +402,123 @@
     playTurn(state.turn);
   }
 
+  // ===== CONFIG MODE =====
+  function getCalKey(el){
+    if(el.dataset.calKey) return el.dataset.calKey;
+    if(el.classList.contains('seat')){
+      const idx = Array.from(seatsEl.children).indexOf(el);
+      return 'seat'+idx;
+    }
+    return el.id || '';
+  }
+
+  function applyCalibration(){
+    const sels = ['#pile','#pot','.rail','.felt','.glow','.seat'];
+    sels.forEach(sel=>{
+      document.querySelectorAll(sel).forEach((el,idx)=>{
+        const key = sel==='.seat'? `seat${idx}` : (el.id || sel);
+        el.dataset.calKey = key;
+        const val = currentCalibration[key];
+        const base = (el.dataset.baseTransform || el.style.transform || '').replace(/scale\([^)]*\)/,'').trim();
+        el.dataset.baseTransform = base;
+        if(val){
+          el.style.position='absolute';
+          if(val.left) el.style.left = val.left;
+          if(val.top) el.style.top = val.top;
+          const sc = val.scale || 1;
+          el.dataset.scale = sc;
+          el.style.transform = base + (sc!=1? ` scale(${sc})` : '');
+        }
+      });
+    });
+  }
+
+  function loadCalibration(){
+    try{ currentCalibration = JSON.parse(localStorage.getItem('murlanCalibration')) || {}; }
+    catch{ currentCalibration = {}; }
+    applyCalibration();
+  }
+
+  function deselect(){ if(selectedEl){ selectedEl.style.outline=''; selectedEl=null; } }
+
+  function setupConfig(){
+    const cfgBtn = el('#configToggle');
+    const saveBtn = el('#saveCal');
+    cfgBtn.addEventListener('click', ()=>{
+      configMode=!configMode;
+      cfgBtn.textContent = configMode? '⚙️ Config: On' : '⚙️ Config: Off';
+      saveBtn.style.display = configMode? 'inline-block':'none';
+      if(!configMode) deselect();
+    });
+    saveBtn.addEventListener('click', ()=>{
+      localStorage.setItem('murlanCalibration', JSON.stringify(currentCalibration));
+      toast('Calibration saved');
+    });
+
+    document.addEventListener('click', e=>{
+      if(!configMode) return;
+      const t = e.target.closest('.seat, #pile, #pot, .rail, .felt, .glow');
+      if(!t) return;
+      deselect(); selectedEl=t; selectedEl.style.outline='2px dashed yellow';
+      e.stopPropagation(); e.preventDefault();
+    });
+
+    document.addEventListener('pointerdown', e=>{
+      if(!configMode || !selectedEl || !selectedEl.contains(e.target)) return;
+      pointers.set(e.pointerId,{x:e.clientX,y:e.clientY});
+      if(pointers.size===1){
+        const rect=selectedEl.getBoundingClientRect();
+        dragState={initX:e.clientX, initY:e.clientY, initLeft:rect.left, initTop:rect.top, initScale:parseFloat(selectedEl.dataset.scale||'1'), baseTransform:selectedEl.dataset.baseTransform||''};
+      } else if(pointers.size===2){
+        const pts=Array.from(pointers.values());
+        dragState.initDist=Math.hypot(pts[0].x-pts[1].x, pts[0].y-pts[1].y);
+      }
+      selectedEl.setPointerCapture(e.pointerId);
+      e.preventDefault();
+    });
+
+    document.addEventListener('pointermove', e=>{
+      if(!configMode || !selectedEl || !pointers.has(e.pointerId)) return;
+      pointers.set(e.pointerId,{x:e.clientX,y:e.clientY});
+      const pts=Array.from(pointers.values());
+      if(pts.length===1){
+        const dx=pts[0].x-dragState.initX;
+        const dy=pts[0].y-dragState.initY;
+        selectedEl.style.position='absolute';
+        selectedEl.style.left=dragState.initLeft+dx+'px';
+        selectedEl.style.top=dragState.initTop+dy+'px';
+      } else if(pts.length===2){
+        const dist=Math.hypot(pts[0].x-pts[1].x, pts[0].y-pts[1].y);
+        const scale=dragState.initScale*(dist/dragState.initDist);
+        selectedEl.dataset.scale=scale;
+        selectedEl.style.transform=dragState.baseTransform+` scale(${scale})`;
+      }
+    });
+
+    function updateCalib(){
+      if(!selectedEl) return;
+      const key=getCalKey(selectedEl);
+      currentCalibration[key]={
+        left:selectedEl.style.left,
+        top:selectedEl.style.top,
+        scale:selectedEl.dataset.scale || 1
+      };
+    }
+
+    document.addEventListener('pointerup', e=>{
+      if(!pointers.has(e.pointerId)) return;
+      if(selectedEl){
+        updateCalib();
+        selectedEl.releasePointerCapture(e.pointerId);
+      }
+      pointers.delete(e.pointerId);
+    });
+    document.addEventListener('pointercancel', e=>{
+      if(pointers.has(e.pointerId)) pointers.delete(e.pointerId);
+      if(selectedEl) selectedEl.releasePointerCapture(e.pointerId);
+    });
+  }
+
   // ===== UI HANDLERS =====
   el('#arrange').addEventListener('click', (e)=>{
     state.arrangeMode = !state.arrangeMode; e.currentTarget.textContent = '🔧 Manual Arrange: '+(state.arrangeMode?'On':'Off');
@@ -418,7 +542,7 @@
   });
 
   // boot
-  initPlayers(); deal(); renderAll(); toast('Murlan Royale • Jokers on • Manual arrange ready');
+  initPlayers(); deal(); renderAll(); loadCalibration(); setupConfig(); toast('Murlan Royale • Jokers on • Manual arrange ready');
   // start at user
   state.turn = 0; playTurn(state.turn);
 })();
