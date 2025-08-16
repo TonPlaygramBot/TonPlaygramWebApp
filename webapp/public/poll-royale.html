@@ -23,6 +23,7 @@
       background: #0b1120; /* blu e errete, si sallon bilardoje */
       color: #fff;
       font-family: system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Cantarell,"Helvetica Neue",Arial,"Noto Sans";
+      overscroll-behavior: none;
     }
 
     #app {
@@ -212,30 +213,18 @@
     }
 
     #play:hover { background: #3c67a3; }
-
-    #aimGlow {
-      position: absolute;
-      width: 42px;
-      height: 42px;
-      border-radius: 50%;
-      pointer-events: none;
-      opacity: 0;
-      transition: opacity .15s ease;
-      box-shadow: 0 0 0 0 rgba(255,80,80,0);
-      z-index: 5;
-    }
   </style>
 </head>
 <body>
   <div id="app">
     <div id="header">
       <div class="player">
-        <div class="avatar">A</div>
-        <div class="name">Artur</div>
+        <div class="avatar" id="userAvatar">A</div>
+        <div class="name" id="userName">Artur</div>
       </div>
       <div class="player">
-        <div class="name">CPU</div>
-        <div class="avatar">C</div>
+        <div class="name" id="aiName">CPU</div>
+        <div class="avatar" id="aiAvatar">C</div>
       </div>
     </div>
 
@@ -261,7 +250,6 @@
       </aside>
 
       <button id="play">Play</button>
-      <div id="aimGlow"></div>
     </div>
 
     <div id="footer">
@@ -300,7 +288,6 @@
     var ctx       = canvas.getContext('2d');
     var rightPanel= document.getElementById('rightPanel');
     var playBtn   = document.getElementById('play');
-    var aimGlow   = document.getElementById('aimGlow');
     var capP1     = document.getElementById('capP1');
     var capP2     = document.getElementById('capP2');
     var spinBox   = document.getElementById('spinBox');
@@ -310,6 +297,41 @@
     var cueTipEl  = document.getElementById('tip');
     var powerFill = document.getElementById('powerFill');
     var powerTxt  = document.getElementById('powerTxt');
+    var userAvatar= document.getElementById('userAvatar');
+    var userNameEl= document.getElementById('userName');
+    var aiAvatar  = document.getElementById('aiAvatar');
+    var aiNameEl  = document.getElementById('aiName');
+
+    document.addEventListener('touchmove', function(e){ e.preventDefault(); }, {passive:false});
+
+    var tgUser = window.Telegram && window.Telegram.WebApp && window.Telegram.WebApp.initDataUnsafe && window.Telegram.WebApp.initDataUnsafe.user;
+    if (tgUser) {
+      var name = tgUser.username || [tgUser.first_name, tgUser.last_name].filter(Boolean).join(' ');
+      userNameEl.textContent = name;
+      if (tgUser.photo_url) {
+        userAvatar.innerHTML = '';
+        var img = document.createElement('img');
+        img.src = tgUser.photo_url;
+        img.style.width = '100%';
+        img.style.height = '100%';
+        img.style.borderRadius = '50%';
+        userAvatar.appendChild(img);
+      } else {
+        userAvatar.textContent = name.charAt(0).toUpperCase();
+      }
+    }
+
+    var flags = [
+      { flag:'\u{1F1FA}\u{1F1F8}', name:'USA' },
+      { flag:'\u{1F1EC}\u{1F1E7}', name:'UK' },
+      { flag:'\u{1F1EB}\u{1F1F7}', name:'France' },
+      { flag:'\u{1F1E9}\u{1F1EA}', name:'Germany' },
+      { flag:'\u{1F1EF}\u{1F1F5}', name:'Japan' },
+      { flag:'\u{1F1E8}\u{1F1E6}', name:'Canada' }
+    ];
+    var ai = flags[Math.floor(Math.random()*flags.length)];
+    aiAvatar.textContent = ai.flag;
+    aiNameEl.textContent = ai.name;
 
     /* ==========================================================
        SHKALlEZIMI / RESIZE
@@ -653,25 +675,15 @@
 
     canvas.addEventListener('pointerdown', function(e){
       if (!table.running || table.isMoving()) return;
-      aiming = true; showGuides = true; var t = screenToTable(e.clientX,e.clientY); table.aim = t; placeAimGlow(t);
+      aiming = true; showGuides = true; var t = screenToTable(e.clientX,e.clientY); table.aim = t;
     });
 
     canvas.addEventListener('pointermove', function(e){
-      if (!aiming || !table.running) return; var t = screenToTable(e.clientX,e.clientY); table.aim = t; placeAimGlow(t);
+      if (!aiming || !table.running) return; var t = screenToTable(e.clientX,e.clientY); table.aim = t;
     });
 
     canvas.addEventListener('pointerup', function(){ aiming = false; });
 
-    function placeAimGlow(t){
-      var r = canvas.getBoundingClientRect();
-      var gx = t.x/TABLE_W * r.width + r.left;
-      var gy = t.y/TABLE_H * r.height + r.top;
-      aimGlow.style.left = (gx-21) + 'px';
-      aimGlow.style.top  = (gy-21) + 'px';
-      var col = 'rgba(' + Math.round(120+power*135) + ',' + Math.round(60+power*20) + ',' + Math.round(60+power*80) + ',.45)';
-      aimGlow.style.boxShadow = '0 0 ' + (8+power*24) + 'px ' + (4+power*20) + 'px ' + col;
-      aimGlow.style.opacity   = showGuides ? 1 : 0;
-    }
 
     /* ==========================================================
        GUIDES + CUE ON TABLE
@@ -715,10 +727,10 @@
     var pulling=false, pullStartY=0;
     function updatePowerUI(){ powerFill.style.height = Math.round(power*100)+'%'; powerTxt.textContent = 'FORCA '+Math.round(power*100)+'%'; }
     pullArea.addEventListener('pointerdown', function(e){ if (!table.running || table.isMoving()) return; pulling=true; pullStartY=e.clientY; power=0; updatePowerUI(); });
-    pullArea.addEventListener('pointermove', function(e){ if (!pulling) return; var rect=pullArea.getBoundingClientRect(); power=clamp((e.clientY-pullStartY)/(rect.height*0.9),0,1); updatePowerUI(); var minY=rect.top+12, maxY=rect.bottom-12, y=minY+(maxY-minY)*power; cueStickEl.style.height=(60+30*power)+'%'; cueTipEl.style.top=(y-rect.top-6)+'px'; cueStickEl.style.top=(y-rect.top-(cueStickEl.getBoundingClientRect().height-12)/2)+'px'; cuePullVisual=power*(BALL_R*14); placeAimGlow(table.aim); });
+    pullArea.addEventListener('pointermove', function(e){ if (!pulling) return; var rect=pullArea.getBoundingClientRect(); power=clamp((e.clientY-pullStartY)/(rect.height*0.9),0,1); updatePowerUI(); var minY=rect.top+12, maxY=rect.bottom-12, y=minY+(maxY-minY)*power; cueStickEl.style.height=(60+30*power)+'%'; cueTipEl.style.top=(y-rect.top-6)+'px'; cueStickEl.style.top=(y-rect.top-(cueStickEl.getBoundingClientRect().height-12)/2)+'px'; cuePullVisual=power*(BALL_R*14); });
     pullArea.addEventListener('pointerup', function(){ if (!pulling) return; pulling=false; shoot(power); power=0; updatePowerUI(); cuePullVisual=0; cueStickEl.style.height='60%'; });
 
-    function shoot(p){ if (!table.running || table.isMoving()) return; var cue=table.balls[0]; if (!cue || cue.pocketed) return; var d=norm(table.aim.x-cue.p.x,table.aim.y-cue.p.y); var base=950; cue.v.x=d.x*base*(0.25+0.75*p)+spinVec.x*260*p; cue.v.y=d.y*base*(0.25+0.75*p)+spinVec.y*260*p; setSpin(0,0); showGuides=false; table.turn=2; }
+    function shoot(p){ if (!table.running || table.isMoving()) return; var cue=table.balls[0]; if (!cue || cue.pocketed) return; var d=norm(table.aim.x-cue.p.x,table.aim.y-cue.p.y); var base=1900; cue.v.x=d.x*base*(0.25+0.75*p)+spinVec.x*260*p; cue.v.y=d.y*base*(0.25+0.75*p)+spinVec.y*260*p; setSpin(0,0); showGuides=false; table.turn=2; }
 
     /* ==========================================================
        CPU – turn i thjeshte (normal skill)
