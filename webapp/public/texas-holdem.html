@@ -71,8 +71,8 @@
 .card .big{ position:absolute; left:50%; top:50%; transform:translate(-50%,-50%); font-size:calc(var(--card-w)*0.55); opacity:.85 }
 .back{ background: repeating-linear-gradient(45deg, #224, #224 6px, #112 6px, #112 12px); border:2px solid rgba(255,255,255,.5); }
 
-/* Controls: right-center vertical, avoid blocking table (narrow) */
-.controls{ position:absolute; right: max(10px, env(safe-area-inset-right)); top:50%; transform:translateY(-50%); display:flex; flex-direction:column; gap:8px; z-index:3; width:min(40vw, 180px); }
+/* Controls: bottom horizontal layout */
+.controls{ position:absolute; left:50%; bottom: max(10px, env(safe-area-inset-bottom)); transform:translateX(-50%); display:flex; flex-direction:row; gap:8px; z-index:3; }
 .btn{ appearance:none; border:none; cursor:pointer; font-weight:800; padding:12px 14px; border-radius:12px; letter-spacing:.4px; background: linear-gradient(180deg, var(--gold), #e4b325); color:#412e02; box-shadow:0 6px 0 #b38e1f, 0 12px 24px var(--shadow); font-size:14px; white-space:nowrap; }
 .btn.secondary{ background:linear-gradient(180deg,#e0e7ff,#c7d2fe); color:#102a43; box-shadow:0 6px 0 #a5b4fc, 0 12px 24px var(--shadow); }
 
@@ -87,11 +87,15 @@
 
 .toast{ position:absolute; left:50%; top:12%; transform:translateX(-50%); background:rgba(0,0,0,.6); border:1px solid rgba(255,255,255,.1); padding:8px 14px; border-radius:12px; font-weight:700; letter-spacing:.3px; z-index:5 }
 
-/* Bet rack sits under user's cards (auto-placed) */
-.bet-rack{ position:absolute; display:flex; gap:8px; z-index:4; }
+/* Bet rack sits above controls */
+.bet-rack{ position:absolute; left:50%; transform:translateX(-50%); display:flex; gap:8px; z-index:4; }
 .rack-chip{ width:36px; height:36px; border-radius:50%; display:grid; place-items:center; font-weight:800; font-size:12px; color:#111; text-shadow:0 1px rgba(255,255,255,.4); box-shadow:0 6px 12px rgba(0,0,0,.5), inset 0 0 0 3px rgba(255,255,255,.55); cursor:pointer; user-select:none; }
 
 @media (max-width: 900px){ .log{ display:none } }
+
+/* Config panel overlay */
+.config-panel{ position:fixed; inset:0; background:rgba(0,0,0,.5); display:none; align-items:center; justify-content:center; z-index:6; }
+.config-content{ background:rgba(255,255,255,.1); border:1px solid rgba(255,255,255,.3); padding:20px; border-radius:12px; backdrop-filter:blur(6px); text-align:center; }
 
   </style>
 </head>
@@ -110,11 +114,12 @@
   <div id="seats" class="seats"></div>
 
   <div class="topbar">
+    <button id="config" class="btn secondary">⚙️ Config</button>
     <button id="sound" class="btn secondary">🔊 Sound: On</button>
     <button id="fullscreen" class="btn secondary">⛶ Fullscreen</button>
   </div>
 
-  <!-- Right-side controls (vertical) -->
+  <!-- Bottom controls (horizontal) -->
   <div class="controls">
     <button id="newHand" class="btn">🔁 New Hand</button>
     <button id="nextStage" class="btn">➡️ Next</button>
@@ -127,8 +132,17 @@
   <div class="log" id="log"><h3>Events</h3></div>
   <div class="toast" id="toast" style="display:none"></div>
 
-  <!-- Bet rack auto positioned under the user's hand -->
+  <!-- Bet rack positioned above controls -->
   <div class="bet-rack" id="betRack"></div>
+
+  <!-- Config panel overlay -->
+  <div id="configPanel" class="config-panel">
+    <div class="config-content">
+      <p>Layout controls</p>
+      <button id="closeConfig" class="btn secondary">Close</button>
+    </div>
+  </div>
+
 </div>
 
   </div><script>
@@ -166,7 +180,7 @@
   const SUITS = ['♠','♥','♦','♣'];
   const RANKS = [2,3,4,5,6,7,8,9,10,11,12,13,14];
   const el = sel => document.querySelector(sel);
-  const logEl = el('#log'); const seatsEl = el('#seats'); const commEl = el('#community'); const potEl = el('#pot'); const toastEl = el('#toast'); const potStackEl = el('#potStack'); const betRackEl = el('#betRack');
+  const logEl = el('#log'); const seatsEl = el('#seats'); const commEl = el('#community'); const potEl = el('#pot'); const toastEl = el('#toast'); const potStackEl = el('#potStack'); const betRackEl = el('#betRack'); const configPanel = el('#configPanel');
 
   const state = { players: [], dealerIndex: 0, currentIndex: 0, stage: 'idle', deck: [], community: [], pot: 0, currentBet: 0, minBet: 50, pendingBet: 0 };
   const N_PLAYERS = 6; const DENOMS = [10,20,50,100,200,500];
@@ -229,10 +243,9 @@
       seatsEl.appendChild(seat);
 
       if(p.isHuman){
-        const handRect = hnd.getBoundingClientRect();
-        betRackEl.style.left = (handRect.left + handRect.width/2) + 'px';
-        betRackEl.style.top = (handRect.bottom + 8) + 'px';
-        betRackEl.style.transform = 'translateX(-50%)';
+        const controlsRect = el('.controls').getBoundingClientRect();
+        betRackEl.style.bottom = (window.innerHeight - controlsRect.top + 8) + 'px';
+        betRackEl.style.top = '';
       }
     }
   }
@@ -274,6 +287,8 @@
   el('#fold').addEventListener('click', ()=>{ const me=state.players.find(p=>p.isHuman); if(state.stage==='idle'||!me||me.folded) return; me.folded=true; addLog('<b>You</b>: FOLD'); foldS(); renderAll(); advanceTurn(); });
   el('#sound').addEventListener('click', ()=>{ soundOn=!soundOn; if(soundOn) ensureAudio(); el('#sound').textContent = (soundOn? '🔊 Sound: On' : '🔇 Sound: Off'); });
   el('#fullscreen').addEventListener('click', ()=>{ const root = document.documentElement; const anyDoc = /** @type {any} */(document); if(!document.fullscreenElement){ (root.requestFullscreen||root.webkitRequestFullscreen||root.msRequestFullscreen).call(root); } else { (anyDoc.exitFullscreen||anyDoc.webkitExitFullscreen||anyDoc.msExitFullscreen).call(document); } });
+  el('#config').addEventListener('click', ()=>{ configPanel.style.display='flex'; });
+  el('#closeConfig').addEventListener('click', ()=>{ configPanel.style.display='none'; });
 
   function initPlayers(){
     const pool=[];
