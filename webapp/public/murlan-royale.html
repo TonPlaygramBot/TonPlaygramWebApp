@@ -64,7 +64,6 @@
     .icon-btn{ appearance:none; border:none; background:none; cursor:pointer; font-size:32px; color:#fff; text-shadow:0 2px 6px #000; }
     .arrange-icon{ position:fixed; left:max(8px, env(safe-area-inset-left)); bottom:calc(var(--card-h) + var(--avatar-size)/2 + 16px); z-index:10 }
     .controls{ display:flex; align-items:center; gap:12px; }
-    .play-icon{ color:#22c55e; }
     .pass-icon{ }
 
     /* TOAST */
@@ -87,7 +86,7 @@
     <!-- Center play area -->
     <div class="center">
       <div id="pile" class="pile"></div>
-      <div id="pot" class="pot">Pot: 0</div>
+      <div id="pot" class="pot"></div>
     </div>
 
     <!-- Seats on perimeter -->
@@ -203,7 +202,14 @@
     return d;
   }
   function rankValue(r){
-    if(r==='BJ') return 15; if(r==='RJ') return 16; if(r==='J') return 11; if(r==='Q') return 12; if(r==='K') return 13; if(r==='A') return 14; return r;
+    if(r==='RJ') return 17;
+    if(r==='BJ') return 16;
+    if(r===2) return 15;
+    if(r==='A') return 14;
+    if(r==='K') return 13;
+    if(r==='Q') return 12;
+    if(r==='J') return 11;
+    return r;
   }
 
   // ====== STATE ======
@@ -212,9 +218,10 @@
     turn: 0,
     turnTime: 15,
     pile: [], // last played cards
-    pot: 0,
     arrangeMode: false,
     lastPlayLen: 0,
+    lastPlayType: null,
+    pot: 0,
     passesSincePlay: 0,
     lastPlayerToPlay: 0,
   };
@@ -310,11 +317,12 @@
 
       if(side==='bottom'){
         const controls=document.createElement('div'); controls.className='controls';
-        const playBtn=document.createElement('button'); playBtn.id='confirmPlay'; playBtn.className='icon-btn play-icon'; playBtn.textContent='▶️';
-        playBtn.addEventListener('click', confirmPlayAction);
-        const passBtn=document.createElement('button'); passBtn.id='passBtn'; passBtn.className='icon-btn pass-icon'; passBtn.textContent='👋';
+        av.addEventListener('click', confirmPlayAction); av.style.cursor='pointer';
+        const passBtn=document.createElement('button'); passBtn.id='passBtn'; passBtn.className='icon-btn pass-icon';
+        passBtn.innerHTML='👋<span style="font-size:14px;display:block">Pass</span>';
+        passBtn.style.display='flex'; passBtn.style.flexDirection='column'; passBtn.style.alignItems='center';
         passBtn.addEventListener('click', ()=>{ toast('You pass'); state.passesSincePlay++; clearSelections(); advanceTurn(); });
-        controls.append(playBtn,av,passBtn);
+        controls.append(av,passBtn);
         seat.append(controls,name,cards,timer);
       }else{
         seat.append(av,name,cards,timer);
@@ -352,7 +360,7 @@
     pileEl.innerHTML='';
     if(!state.pile.length) return;
     const cardW = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--card-w'));
-    const offset = cardW * 0.7; // 30% overlap
+    const offset = cardW + 8; // all cards visible with small gap
     pileEl.style.width = (cardW + (state.pile.length-1)*offset) + 'px';
     state.pile.forEach((c,idx)=> {
       const face = cardFaceEl(c);
@@ -389,7 +397,7 @@
   function renderAll(){
     posSeats();
     renderPile();
-    potEl.textContent = `Pot: ${state.pot}`;
+    potEl.textContent = comboLabel(state.lastPlayType);
     updateTimerDisplay();
     adjustHandScale();
     setupZoom();
@@ -399,7 +407,13 @@
   function updateTimerDisplay(){
     seatsEl.querySelectorAll('.seat').forEach((seat, idx)=>{
       const t = seat.querySelector('.timer');
-      if(t) t.textContent = idx===state.turn ? state.turnTime : '';
+      if(t){
+        if(idx===state.turn){
+          t.textContent = idx===0 ? 'play' : state.turnTime;
+        } else {
+          t.textContent = '';
+        }
+      }
       seat.classList.toggle('active', idx===state.turn);
     });
   }
@@ -433,12 +447,42 @@
 
   function player(i){ return state.players[i]; }
 
+  function comboType(cards){
+    const ranks = cards.map(c=> rankValue(c.r)).sort((a,b)=>a-b);
+    const suits = cards.map(c=> c.s);
+    const uniqueRanks = new Set(ranks).size;
+    const uniqueSuits = new Set(suits).size;
+    const isSeq = ranks.length>=5 && ranks.every((v,i,arr)=> i===0 || v===arr[i-1]+1);
+    if(cards.length===1) return 'single';
+    if(cards.length===2 && uniqueRanks===1) return 'double';
+    if(cards.length===3 && uniqueRanks===1) return 'triple';
+    if(cards.length===4 && uniqueRanks===1) return 'four';
+    if(cards.length>=5 && uniqueSuits===1 && isSeq) return 'straight';
+    if(cards.length>=5 && uniqueSuits===1) return 'flush';
+    if(cards.length>=5 && isSeq) return 'straight';
+    return 'invalid';
+  }
+
   function higherThanPile(cards){
+    const combo = comboType(cards);
+    if(combo==='invalid') return false;
     if(state.lastPlayLen===0) return true;
-    if(cards.length!==state.lastPlayLen) return false;
+    if(combo!==state.lastPlayType || cards.length!==state.lastPlayLen) return false;
     const lastHigh = Math.max(...state.pile.map(c=> rankValue(c.r)));
     const nowHigh = Math.max(...cards.map(c=> rankValue(c.r)));
     return nowHigh > lastHigh;
+  }
+
+  function comboLabel(type){
+    switch(type){
+      case 'single': return 'Single';
+      case 'double': return 'Double';
+      case 'triple': return 'Triple';
+      case 'four': return '4 of a kind';
+      case 'flush': return 'Flush';
+      case 'straight': return 'Straight';
+      default: return '';
+    }
   }
 
   function canPlaySome(p){
@@ -454,7 +498,18 @@
     }
     return false;
   }
-  function parseRank(r){ return (r==='11'?'J':r==='12'?'Q':r==='13'?'K':r==='14'?'A': (r==='15'?'BJ': r==='16'?'RJ': isNaN(r)? r: Number(r))); }
+  function parseRank(r){
+    return (
+      r==='11' ? 'J' :
+      r==='12' ? 'Q' :
+      r==='13' ? 'K' :
+      r==='14' ? 'A' :
+      r==='15' ? 2 :
+      r==='16' ? 'BJ' :
+      r==='17' ? 'RJ' :
+      isNaN(r) ? r : Number(r)
+    );
+  }
   function countByRank(hand){ const m={}; hand.forEach(c=>{ const k=rankValue(c.r); m[k]=(m[k]||0)+1; }); return m; }
 
   function aiChoose(p){
@@ -495,7 +550,7 @@
     clearSuggestions();
     const p = player(i);
     startTurnTimer();
-    if(p.isHuman){ toast('Your turn'+(state.lastPlayLen? ` • play ${state.lastPlayLen}`:'')); highlightSuggestions(); return; }
+    if(p.isHuman){ toast('Your turn'+(state.lastPlayLen? ` • play ${comboLabel(state.lastPlayType)}`:'')); highlightSuggestions(); return; }
     // AI with small delay
     setTimeout(()=>{
       let chosen = aiChoose(p);
@@ -513,9 +568,10 @@
         return;
       }
       // commit play
+      const combo = comboType(chosen);
       state.pile = [];
       chosen.forEach(c=> { const idx=p.hand.indexOf(c); if(idx>-1) p.hand.splice(idx,1); state.pile.push(c); });
-      state.lastPlayLen = chosen.length;
+      state.lastPlayLen = chosen.length; state.lastPlayType = combo;
       state.passesSincePlay = 0; state.lastPlayerToPlay = i;
       sndCard.currentTime=0; sndCard.play();
       renderAll();
@@ -527,7 +583,7 @@
     clearSuggestions();
     // If everyone else passed since last play, clear pile and set turn to last player
     if(state.passesSincePlay >= state.players.length-1){
-      state.pile = []; state.lastPlayLen=0; state.passesSincePlay=0; state.turn = state.lastPlayerToPlay; renderAll(); toast('New round');
+      state.pile = []; state.lastPlayLen=0; state.lastPlayType=null; state.passesSincePlay=0; state.turn = state.lastPlayerToPlay; renderAll(); toast('New round');
     }
     state.turn = (state.turn + 1) % state.players.length;
     // If someone has no cards -> they win
@@ -543,15 +599,17 @@
   }
 
   function confirmPlayAction(){
+    if(state.turn!==0){ return; }
     const sel = collectSelected();
     if(sel.length===0){ toast('Select cards first'); return; }
     const cards = sel.map(s=> s.c);
-    const allSame = cards.every(c=> rankValue(c.r)===rankValue(cards[0].r));
-    if(!(cards.length===1 || (cards.length===2 && allSame))){ toast('Only singles or pairs in this demo'); return; }
+    const combo = comboType(cards);
+    if(combo==='invalid'){ toast('Invalid combo'); return; }
+    if(state.lastPlayLen && combo!==state.lastPlayType){ toast('Must play '+comboLabel(state.lastPlayType)); return; }
     if(!higherThanPile(cards)){ toast('Play higher'); return; }
     state.pile = [];
     cards.forEach(c=>{ const idx = player(0).hand.indexOf(c); if(idx>-1) player(0).hand.splice(idx,1); state.pile.push(c); });
-    state.lastPlayLen = cards.length; state.passesSincePlay=0; state.lastPlayerToPlay=0; sndCard.currentTime=0; sndCard.play();
+    state.lastPlayLen = cards.length; state.lastPlayType = combo; state.passesSincePlay=0; state.lastPlayerToPlay=0; sndCard.currentTime=0; sndCard.play();
     clearSelections(); clearSuggestions(); renderAll();
     advanceTurn();
   }
