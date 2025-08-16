@@ -40,10 +40,10 @@
       .card.back::before{ content:""; position:absolute; inset:6px; border-radius:8px; border:2px dashed rgba(255,255,255,.35); }
       .seat.bottom{ bottom:3%; left:50%; transform:translateX(-50%); }
       .seat.top{ top:5%; left:50%; transform:translateX(-50%); }
-      .seat.left{ left:18%; top:37%; transform:translate(-50%,-50%); }
-      .seat.right{ left:82%; top:37%; transform:translate(-50%,-50%); }
-      .seat.bottom-left{ bottom:8%; left:18%; transform:translateX(-50%); }
-      .seat.bottom-right{ bottom:8%; left:82%; transform:translateX(-50%); }
+      .seat.left{ left:16%; top:37%; transform:translate(-50%,-50%); --card-scale:.85; }
+      .seat.right{ left:84%; top:37%; transform:translate(-50%,-50%); }
+      .seat.bottom-left{ left:16%; top:52%; transform:translate(-50%,-50%); --card-scale:.85; }
+      .seat.bottom-right{ left:84%; top:52%; transform:translate(-50%,-50%); }
       .seat.bottom .cards{ gap:0 }
       .timer{ font-weight:800; background:rgba(0,0,0,.5); padding:2px 6px; border-radius:8px; }
     .controls{ display:flex; gap:8px; margin-top:8px; }
