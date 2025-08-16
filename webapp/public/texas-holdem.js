@@ -1,67 +1,226 @@
-import { createDeck, shuffle, dealHoleCards, dealCommunity, evaluateWinner, aiChooseAction, bestHand } from './lib/texasHoldem.js';
+import { createDeck, shuffle, dealHoleCards, dealCommunity, evaluateWinner, aiChooseAction } from './lib/texasHoldem.js';
 
-const state={};
-function init(){
-  const deck=shuffle(createDeck());
-  const {hands, deck:rest}=dealHoleCards(deck,2);
-  state.players=[{name:'You', hand:hands[0]},{name:'AI', hand:hands[1]}];
-  const comm=dealCommunity(rest);
-  state.community=comm.community;
-  state.stage=0;
-  renderHands();
-  setTimeout(()=>revealFlop(),500);
+const state = {
+  players: [],
+  community: [],
+  stage: 0,
+  currentBet: 0,
+  turn: 0,
+  turnTime: 0,
+  timerInterval: null,
+};
+
+function init() {
+  const params = new URLSearchParams(location.search);
+  let name = params.get('username') || 'You';
+  let avatar = params.get('avatar') || '';
+  try {
+    if (!name) {
+      const initParam = params.get('init');
+      if (initParam) {
+        const data = new URLSearchParams(decodeURIComponent(initParam));
+        const user = JSON.parse(data.get('user') || '{}');
+        name = user.username || user.first_name || name;
+        avatar = user.photo_url || avatar;
+      } else if (window.Telegram?.WebApp?.initDataUnsafe?.user) {
+        const u = window.Telegram.WebApp.initDataUnsafe.user;
+        name = u.username || u.first_name || name;
+        avatar = u.photo_url || avatar;
+      }
+    }
+  } catch {}
+
+  const deck = shuffle(createDeck());
+  const { hands, deck: rest } = dealHoleCards(deck, 4);
+  state.players = [
+    { name, avatar, hand: hands[0], isHuman: true },
+    { name: 'AI 1', avatar: '🤖', hand: hands[1] },
+    { name: 'AI 2', avatar: '🤖', hand: hands[2] },
+    { name: 'AI 3', avatar: '🤖', hand: hands[3] },
+  ];
+  const comm = dealCommunity(rest);
+  state.community = comm.community;
+  renderSeats();
+  startPlayerTurn();
 }
 
-function cardEl(card){
-  const div=document.createElement('div');
-  div.className='card';
-  div.textContent=card.rank+card.suit;
+function renderSeats() {
+  const seats = document.getElementById('seats');
+  seats.innerHTML = '';
+  const positions = ['bottom', 'right', 'top', 'left'];
+  state.players.forEach((p, i) => {
+    const seat = document.createElement('div');
+    seat.className = 'seat ' + positions[i];
+    const avatar = document.createElement('div');
+    avatar.className = 'avatar';
+    if (p.avatar && p.avatar.startsWith('http')) {
+      avatar.style.background = `url('${p.avatar}') center/cover no-repeat`;
+    } else if (p.avatar) {
+      avatar.textContent = p.avatar;
+    } else {
+      avatar.textContent = p.name[0] || '?';
+    }
+    const cards = document.createElement('div');
+    cards.className = 'cards';
+    cards.id = 'cards-' + i;
+    if (p.isHuman) {
+      p.hand.forEach((c) => cards.appendChild(cardEl(c)));
+    } else {
+      p.hand.forEach(() => cards.appendChild(cardBackEl()));
+    }
+    const name = document.createElement('div');
+    name.className = 'name';
+    name.textContent = p.name;
+    const timer = document.createElement('div');
+    timer.className = 'timer';
+    timer.id = 'timer-' + i;
+    seat.append(avatar, cards, name, timer);
+    if (i === 0) {
+      const controls = document.createElement('div');
+      controls.className = 'controls';
+      controls.id = 'controls';
+      seat.appendChild(controls);
+    }
+    seats.appendChild(seat);
+  });
+}
+
+function cardEl(card) {
+  const div = document.createElement('div');
+  div.className = 'card';
+  div.textContent = card.rank + card.suit;
   return div;
 }
 
-function renderHands(){
-  const pc=document.getElementById('player-cards');
-  pc.innerHTML='';
-  state.players[0].hand.forEach(c=>pc.appendChild(cardEl(c)));
-  const ai=document.getElementById('ai-cards');
-  ai.innerHTML='';
-  if(state.stage<5){
-    state.players[1].hand.forEach(()=>{
-      const b=document.createElement('div'); b.className='card back'; ai.appendChild(b);
-    });
-  }else{
-    state.players[1].hand.forEach(c=>ai.appendChild(cardEl(c)));
-  }
+function cardBackEl() {
+  const div = document.createElement('div');
+  div.className = 'card back';
+  return div;
 }
 
-function revealFlop(){
-  state.stage=3;
-  const comm=document.getElementById('community');
-  for(let i=0;i<3;i++) comm.appendChild(cardEl(state.community[i]));
-  const aiAction=aiChooseAction(state.players[1].hand, state.community.slice(0,3));
-  document.getElementById('status').textContent=`AI ${aiAction}s`;
-  setTimeout(()=>revealTurn(),800);
+function showControls() {
+  const controls = document.getElementById('controls');
+  controls.innerHTML = '';
+  const actions = [
+    { id: 'fold', fn: playerFold },
+    { id: 'check', fn: playerCheck },
+    { id: 'call', fn: playerCall },
+    { id: 'raise', fn: playerRaise },
+  ];
+  actions.forEach((a) => {
+    const btn = document.createElement('button');
+    btn.textContent = a.id;
+    btn.addEventListener('click', a.fn);
+    controls.appendChild(btn);
+  });
 }
 
-function revealTurn(){
-  state.stage=4;
-  const comm=document.getElementById('community');
+function hideControls() {
+  const controls = document.getElementById('controls');
+  if (controls) controls.innerHTML = '';
+}
+
+function startPlayerTurn() {
+  state.turn = 0;
+  state.currentBet = 0;
+  showControls();
+  startTurnTimer(() => {
+    if (state.currentBet > 0) playerFold();
+    else playerCheck();
+  });
+}
+
+function startTurnTimer(onTimeout) {
+  state.turnTime = 15;
+  updateTimer();
+  const snd = document.getElementById('sndTimer');
+  clearInterval(state.timerInterval);
+  state.timerInterval = setInterval(() => {
+    state.turnTime--;
+    if (state.turnTime <= 7 && state.turnTime > 0) {
+      snd.currentTime = 0;
+      snd.play();
+    }
+    updateTimer();
+    if (state.turnTime <= 0) {
+      clearInterval(state.timerInterval);
+      onTimeout();
+    }
+  }, 1000);
+}
+
+function updateTimer() {
+  const t = document.getElementById('timer-' + state.turn);
+  if (t) t.textContent = state.turnTime > 0 ? state.turnTime : '';
+}
+
+function playerFold() {
+  clearInterval(state.timerInterval);
+  hideControls();
+  document.getElementById('status').textContent = 'You folded';
+}
+
+function playerCheck() {
+  proceedStage();
+}
+
+function playerCall() {
+  proceedStage();
+}
+
+function playerRaise() {
+  state.currentBet++;
+  proceedStage();
+}
+
+function proceedStage() {
+  clearInterval(state.timerInterval);
+  hideControls();
+  state.players.slice(1).forEach((p) => {
+    const action = aiChooseAction(p.hand, state.community.slice(0, stageCommunityCount()));
+    document.getElementById('status').textContent = `${p.name} ${action}s`;
+  });
+  state.stage++;
+  if (state.stage === 1) revealFlop();
+  else if (state.stage === 2) revealTurn();
+  else if (state.stage === 3) revealRiver();
+  else showdown();
+}
+
+function stageCommunityCount() {
+  if (state.stage === 0) return 0;
+  if (state.stage === 1) return 3;
+  if (state.stage === 2) return 4;
+  return 5;
+}
+
+function revealFlop() {
+  const comm = document.getElementById('community');
+  for (let i = 0; i < 3; i++) comm.appendChild(cardEl(state.community[i]));
+  startPlayerTurn();
+}
+
+function revealTurn() {
+  const comm = document.getElementById('community');
   comm.appendChild(cardEl(state.community[3]));
-  setTimeout(()=>revealRiver(),800);
+  startPlayerTurn();
 }
 
-function revealRiver(){
-  state.stage=5;
-  const comm=document.getElementById('community');
+function revealRiver() {
+  const comm = document.getElementById('community');
   comm.appendChild(cardEl(state.community[4]));
-  renderHands();
-  showdown();
+  startPlayerTurn();
 }
 
-function showdown(){
-  const winner=evaluateWinner(state.players, state.community);
-  const text= winner? `${state.players[winner.index].name} wins!` : 'Tie';
-  document.getElementById('status').textContent=text;
+function showdown() {
+  state.players.forEach((p, i) => {
+    const cards = document.getElementById('cards-' + i);
+    cards.innerHTML = '';
+    p.hand.forEach((c) => cards.appendChild(cardEl(c)));
+  });
+  const winner = evaluateWinner(state.players, state.community);
+  const text = winner ? `${state.players[winner.index].name} wins!` : 'Tie';
+  document.getElementById('status').textContent = text;
 }
 
 document.addEventListener('DOMContentLoaded', init);

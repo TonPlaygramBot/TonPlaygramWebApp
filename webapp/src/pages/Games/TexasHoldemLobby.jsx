@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import RoomSelector from '../../components/RoomSelector.jsx';
 import useTelegramBackButton from '../../hooks/useTelegramBackButton.js';
-import { ensureAccountId, getTelegramId, getTelegramPhotoUrl } from '../../utils/telegram.js';
+import { ensureAccountId, getTelegramId, getTelegramPhotoUrl, getTelegramUsername } from '../../utils/telegram.js';
 import { getAccountBalance, addTransaction } from '../../utils/api.js';
 import { loadAvatar } from '../../utils/avatarUtils.js';
 
@@ -47,6 +47,8 @@ export default function TexasHoldemLobby() {
     if (stake.token) params.set('token', stake.token);
     if (stake.amount) params.set('amount', stake.amount);
     if (avatar) params.set('avatar', avatar);
+    const username = getTelegramUsername();
+    if (username) params.set('username', username);
     if (mode === 'local') params.set('avatars', 'flags');
     if (tgId) params.set('tgId', tgId);
     if (accountId) params.set('accountId', accountId);
