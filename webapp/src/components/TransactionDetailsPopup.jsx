@@ -20,7 +20,8 @@ const GAME_NAME_MAP = {
   bubblesmash: 'Bubble Smash Royale',
   fruitslice: 'Fruit Slice Royale',
   brickbreaker: 'Brick Breaker Royale',
-  fallingball: 'Falling Ball'
+  fallingball: 'Falling Ball',
+  poll: '8 Poll Royale'
 };
 
 function getGameName(slug = '') {
