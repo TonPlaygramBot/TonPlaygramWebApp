@@ -130,6 +130,18 @@ export default function Games() {
                     Murlan Royale
                   </h3>
                 </Link>
+                <Link
+                  to="/games/poolroyale/lobby"
+                  className="flex flex-col items-center space-y-1 border border-border rounded-lg p-2 flex-shrink-0 tetris-grid-bg"
+                >
+                  <span className="text-4xl" role="img" aria-label="8 ball">🎱</span>
+                  <h3
+                    className="text-sm font-semibold text-center text-yellow-400"
+                    style={{ WebkitTextStroke: '1px black' }}
+                  >
+                    8 Pool Royale
+                  </h3>
+                </Link>
             </div>
           </div>
         </div>
