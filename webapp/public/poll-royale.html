@@ -393,6 +393,13 @@
     var heightVal  = document.getElementById('heightVal');
     var saveSettings = document.getElementById('saveSettings');
     var exitSettings = document.getElementById('exitSettings');
+    var savedSettings = JSON.parse(localStorage.getItem('pollRoyaleSettings') || '{}');
+    if (savedSettings.zoom) ZOOM = savedSettings.zoom;
+    if (savedSettings.baseSpeed) BASE_SPEED = savedSettings.baseSpeed;
+    if (savedSettings.pocketR) POCKET_R = savedSettings.pocketR;
+    if (savedSettings.tableW) TABLE_W = savedSettings.tableW;
+    if (savedSettings.tableH) TABLE_H = savedSettings.tableH;
+    if (savedSettings.zoom) calibrateBtn.style.display = 'none';
     canvas.style.transform = 'scale(' + ZOOM + ')';
 
     widthInput.addEventListener('input', function(){ widthVal.textContent = widthInput.value; });
@@ -757,10 +764,18 @@
       POCKET_R = parseFloat(holeInput.value);
       TABLE_W = parseFloat(widthInput.value);
       TABLE_H = parseFloat(heightInput.value);
+      localStorage.setItem('pollRoyaleSettings', JSON.stringify({
+        zoom: ZOOM,
+        baseSpeed: BASE_SPEED,
+        pocketR: POCKET_R,
+        tableW: TABLE_W,
+        tableH: TABLE_H
+      }));
       canvas.style.transform = 'scale(' + ZOOM + ')';
       table.reset();
       resize();
       settingsPopup.style.display = 'none';
+      calibrateBtn.style.display = 'none';
     });
 
     /* ==========================================================
