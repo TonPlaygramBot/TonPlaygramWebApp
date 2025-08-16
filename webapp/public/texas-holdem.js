@@ -1,4 +1,5 @@
 import { createDeck, shuffle, dealHoleCards, dealCommunity, evaluateWinner, aiChooseAction } from './lib/texasHoldem.js';
+import { FLAG_EMOJIS } from './flag-emojis.js';
 
 const state = {
   players: [],
@@ -9,6 +10,34 @@ const state = {
   turnTime: 0,
   timerInterval: null,
 };
+
+const SUIT_MAP = { H: '♥', D: '♦', C: '♣', S: '♠' };
+const regionNames = new Intl.DisplayNames(['en'], { type: 'region' });
+function flagName(flag) {
+  const codePoints = [...flag].map((c) => c.codePointAt(0) - 0x1f1e6 + 65);
+  return regionNames.of(String.fromCharCode(...codePoints));
+}
+
+function cardFaceEl(c) {
+  const d = document.createElement('div');
+  d.className =
+    'card' +
+    ((c.s === '♥' || c.s === '♦') ? ' red' : '') +
+    ((c.r === 'RJ' || c.r === 'BJ') ? ' joker' : '');
+  const tl = document.createElement('div');
+  tl.className = 'tl';
+  tl.textContent =
+    (c.r === 'BJ' ? 'JB' : c.r === 'RJ' ? 'JR' : c.r) +
+    (c.s === '🃏' ? '' : c.s);
+  const br = document.createElement('div');
+  br.className = 'br';
+  br.textContent = c.s === '🃏' ? '🃏' : c.s;
+  const big = document.createElement('div');
+  big.className = 'big';
+  big.textContent = c.s === '🃏' ? '🃏' : c.s;
+  d.append(tl, big, br);
+  return d;
+}
 
 function init() {
   const params = new URLSearchParams(location.search);
@@ -30,14 +59,17 @@ function init() {
     }
   } catch {}
 
-  const deck = shuffle(createDeck());
-  const { hands, deck: rest } = dealHoleCards(deck, 4);
-  state.players = [
-    { name, avatar, hand: hands[0], isHuman: true },
-    { name: 'AI 1', avatar: '🤖', hand: hands[1] },
-    { name: 'AI 2', avatar: '🤖', hand: hands[2] },
-    { name: 'AI 3', avatar: '🤖', hand: hands[3] },
-  ];
+    const deck = shuffle(createDeck());
+    const { hands, deck: rest } = dealHoleCards(deck, 4);
+    const flags = [...FLAG_EMOJIS].sort(() => 0.5 - Math.random()).slice(0, 3);
+    state.players = [
+      { name, avatar, hand: hands[0], isHuman: true },
+      ...flags.map((f, idx) => ({
+        name: flagName(f),
+        avatar: f,
+        hand: hands[idx + 1],
+      })),
+    ];
   const comm = dealCommunity(rest);
   state.community = comm.community;
   renderSeats();
@@ -68,47 +100,35 @@ function renderSeats() {
     } else {
       p.hand.forEach(() => cards.appendChild(cardBackEl()));
     }
-    const name = document.createElement('div');
-    name.className = 'name';
-    name.textContent = p.name;
-    if (i === 0) {
-      const wrap = document.createElement('div');
-      wrap.className = 'avatar-wrap';
-      wrap.style.order = -2;
-      const ring = document.createElement('div');
-      ring.className = 'timer-ring';
-      ring.id = 'timer-' + i;
-      wrap.append(ring, avatar);
-      const controls = document.createElement('div');
-      controls.className = 'controls';
-      controls.id = 'controls';
-      controls.style.order = -1;
-      seat.append(wrap, cards, name, controls);
-    } else {
-      const timer = document.createElement('div');
-      timer.className = 'timer';
-      timer.id = 'timer-' + i;
-      seat.append(avatar, cards, name, timer);
-    }
+      const name = document.createElement('div');
+      name.className = 'name';
+      name.textContent = p.name;
+      if (i === 0) {
+        const wrap = document.createElement('div');
+        wrap.className = 'avatar-wrap';
+        const ring = document.createElement('div');
+        ring.className = 'timer-ring';
+        ring.id = 'timer-' + i;
+        wrap.append(ring, avatar);
+        const controls = document.createElement('div');
+        controls.className = 'controls';
+        controls.id = 'controls';
+        seat.append(cards, controls, wrap, name);
+      } else {
+        const timer = document.createElement('div');
+        timer.className = 'timer';
+        timer.id = 'timer-' + i;
+        seat.append(avatar, cards, name, timer);
+      }
     seats.appendChild(seat);
   });
 }
 
 function cardEl(card) {
-  const div = document.createElement('div');
-  div.className = 'card';
-  if (card.suit === '♥' || card.suit === '♦') div.classList.add('red');
-  const tl = document.createElement('div');
-  tl.className = 'tl';
-  tl.textContent = card.rank + card.suit;
-  const br = document.createElement('div');
-  br.className = 'br';
-  br.textContent = card.rank + card.suit;
-  const big = document.createElement('div');
-  big.className = 'big';
-  big.textContent = card.suit;
-  div.append(tl, br, big);
-  return div;
+  return cardFaceEl({
+    r: card.rank === 'T' ? '10' : card.rank,
+    s: SUIT_MAP[card.suit] || card.suit,
+  });
 }
 
 function cardBackEl() {
