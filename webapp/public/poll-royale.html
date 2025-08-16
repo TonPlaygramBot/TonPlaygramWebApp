@@ -84,9 +84,36 @@
       position: absolute;
       inset: 0;
       z-index: 1;
-      background: url('/assets/icons/64e79228-35e3-4fdc-b914-fca635a40220.webp') center 52%/103% 95% no-repeat;
-      background-attachment: fixed;
+      background: transparent;
       transform-origin: center;
+    }
+
+    /* Dekor i tavolines – kornize druri dhe felt i gjelbert */
+    #tableSkin {
+      position: absolute;
+      inset: 0;
+      z-index: 0;
+      border-radius: 32px;
+      border: 24px solid transparent;
+      background:
+        radial-gradient(circle at 0% 0%, #000 0 3%, transparent 3%),
+        radial-gradient(circle at 50% 0%, #000 0 3%, transparent 3%),
+        radial-gradient(circle at 100% 0%, #000 0 3%, transparent 3%),
+        radial-gradient(circle at 0% 100%, #000 0 3%, transparent 3%),
+        radial-gradient(circle at 50% 100%, #000 0 3%, transparent 3%),
+        radial-gradient(circle at 100% 100%, #000 0 3%, transparent 3%),
+        linear-gradient(#2e8b57, #0d6130) padding-box,
+        linear-gradient(#caa471, #9c7a4d) border-box;
+      background-clip:
+        padding-box,
+        padding-box,
+        padding-box,
+        padding-box,
+        padding-box,
+        padding-box,
+        padding-box,
+        border-box;
+      box-shadow: inset 0 8px rgba(255, 255, 255, 0.4);
     }
 
     /* Paneli djathtas – SPIN siper, STEKA poshte */
@@ -238,6 +265,7 @@
       </div>
 
     <div id="wrap">
+      <div id="tableSkin"></div>
       <canvas id="table"></canvas>
 
         <!-- Panel djathtas: STEKA poshte -->
