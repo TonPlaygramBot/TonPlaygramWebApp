@@ -83,6 +83,7 @@ function renderSeats() {
   state.players.forEach((p, i) => {
     const seat = document.createElement('div');
     seat.className = 'seat ' + positions[i];
+    if (!p.isHuman) seat.classList.add('small');
     const avatar = document.createElement('div');
     avatar.className = 'avatar';
     if (p.avatar && p.avatar.startsWith('http')) {
@@ -118,7 +119,8 @@ function renderSeats() {
         const timer = document.createElement('div');
         timer.className = 'timer';
         timer.id = 'timer-' + i;
-        seat.append(avatar, cards, name, timer);
+        if (positions[i] === 'top') seat.append(name, avatar, cards, timer);
+        else seat.append(avatar, cards, name, timer);
       }
     seats.appendChild(seat);
   });
