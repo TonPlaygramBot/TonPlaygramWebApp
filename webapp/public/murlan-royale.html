@@ -41,7 +41,8 @@
     .seat.active .avatar{ border-color:var(--ui2); box-shadow:0 0 10px var(--ui2); }
     .seat.left .cards{ transform:rotate(90deg); transform-origin:center; }
     .seat.right .cards{ transform:rotate(-90deg); transform-origin:center; }
-    .seat.bottom .cards{ touch-action:none; transform:scale(var(--my-card-scale)); transform-origin:center bottom; gap:3px; }
+    .seat.bottom .cards{ touch-action:none; transform:scale(var(--my-card-scale)); transform-origin:center bottom; gap:0; }
+    .seat.bottom .cards .card:not(:first-child){ margin-left:calc(var(--card-w)*-0.3); }
 
     /* CARDS */
     .cards{ display:flex; gap:6px; flex-wrap:nowrap }
@@ -349,23 +350,23 @@
 
   function renderPile(){
     pileEl.innerHTML='';
+    if(!state.pile.length) return;
     const cardW = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--card-w'));
-    pileEl.style.width = (cardW + (state.pile.length-1)*24) + 'px';
+    const offset = cardW * 0.7; // 30% overlap
+    pileEl.style.width = (cardW + (state.pile.length-1)*offset) + 'px';
     state.pile.forEach((c,idx)=> {
       const face = cardFaceEl(c);
-      face.style.left = (idx*24)+'px';
+      face.style.left = (idx*offset)+'px';
       face.style.top = '0';
       face.style.zIndex = idx;
       pileEl.appendChild(face);
     });
-    if(state.pile.length){
-      const suit = state.pile[0].s;
-      if(state.pile.every(pc=> pc.s===suit)){
-        const lbl=document.createElement('div');
-        lbl.className='combo-label';
-        lbl.textContent=suit;
-        pileEl.appendChild(lbl);
-      }
+    const suit = state.pile[0].s;
+    if(state.pile.every(pc=> pc.s===suit)){
+      const lbl=document.createElement('div');
+      lbl.className='combo-label';
+      lbl.textContent=suit;
+      pileEl.appendChild(lbl);
     }
   }
 
@@ -512,6 +513,7 @@
         return;
       }
       // commit play
+      state.pile = [];
       chosen.forEach(c=> { const idx=p.hand.indexOf(c); if(idx>-1) p.hand.splice(idx,1); state.pile.push(c); });
       state.lastPlayLen = chosen.length;
       state.passesSincePlay = 0; state.lastPlayerToPlay = i;
@@ -547,6 +549,7 @@
     const allSame = cards.every(c=> rankValue(c.r)===rankValue(cards[0].r));
     if(!(cards.length===1 || (cards.length===2 && allSame))){ toast('Only singles or pairs in this demo'); return; }
     if(!higherThanPile(cards)){ toast('Play higher'); return; }
+    state.pile = [];
     cards.forEach(c=>{ const idx = player(0).hand.indexOf(c); if(idx>-1) player(0).hand.splice(idx,1); state.pile.push(c); });
     state.lastPlayLen = cards.length; state.passesSincePlay=0; state.lastPlayerToPlay=0; sndCard.currentTime=0; sndCard.play();
     clearSelections(); clearSuggestions(); renderAll();
@@ -559,10 +562,33 @@
     toast(state.arrangeMode? 'Drag your cards to reorder' : 'Manual arrange off');
   });
 
+  function startGame(){
+    state.turn = 0;
+    playTurn(state.turn);
+  }
+
+  function startArrangePhase(){
+    state.arrangeMode = true;
+    let t = 30;
+    state.turn = 0;
+    state.turnTime = t;
+    renderAll();
+    toast('Arrange your cards');
+    const arrangeInterval = setInterval(()=>{
+      t--;
+      state.turnTime = t;
+      updateTimerDisplay();
+      if(t<=0){
+        clearInterval(arrangeInterval);
+        state.arrangeMode = false;
+        renderAll();
+        startGame();
+      }
+    },1000);
+  }
+
   // boot
-    initPlayers(); deal(); renderAll(); toast('Murlan Royale • Jokers on • Manual arrange ready');
-  // start at user
-  state.turn = 0; playTurn(state.turn);
+    initPlayers(); deal(); renderAll(); startArrangePhase();
 })();
 </script>
 </body>
