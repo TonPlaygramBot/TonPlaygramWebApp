@@ -21,17 +21,17 @@
 
     /* TABLE */
     .stage{ position:relative; width:100vw; height:100vh; display:grid; place-items:center; perspective:1100px; }
-    .rail{ position:absolute; width:min(64vw, 72vh); height:min(92vh, 86vw); border-radius:22px; left:50%; top:50%; transform:translate(-50%,-50%);
+    .rail{ position:absolute; width:min(92vw, 86vh); height:min(64vh, 72vw); border-radius:22px; left:50%; top:50%; transform:translate(-50%,-50%);
       background:linear-gradient(180deg,var(--rail),var(--rail-d)); box-shadow: inset 0 6px 10px rgba(255,255,255,.22), inset 0 -14px 20px rgba(0,0,0,.6), 0 40px 70px var(--shadow);
     }
-    .felt{ position:absolute; width:calc(min(64vw, 72vh) - 28px); height:calc(min(92vh, 86vw) - 28px); border-radius:18px; left:50%; top:50%; transform:translate(-50%,-50%) rotateX(12deg);
+    .felt{ position:absolute; width:calc(min(92vw, 86vh) - 28px); height:calc(min(64vh, 72vw) - 28px); border-radius:18px; left:50%; top:50%; transform:translate(-50%,-50%) rotateX(12deg);
       background:
         radial-gradient(closest-side at 50% 45%, rgba(255,255,255,.10), transparent 60%),
         radial-gradient(closest-side at 50% 55%, rgba(0,0,0,.18), transparent 60%),
         linear-gradient(180deg, var(--felt), var(--felt-d));
       box-shadow: inset 0 0 0 10px rgba(0,0,0,.25);
     }
-    .glow{ position:absolute; width:calc(min(64vw, 72vh) - 28px); height:calc(min(92vh, 86vw) - 28px); left:50%; top:50%; transform:translate(-50%,-50%);
+    .glow{ position:absolute; width:calc(min(92vw, 86vh) - 28px); height:calc(min(64vh, 72vw) - 28px); left:50%; top:50%; transform:translate(-50%,-50%);
       border-radius:18px; box-shadow:0 0 140px 40px rgba(245,204,78,.08), inset 0 0 80px rgba(0,0,0,.35); pointer-events:none; }
 
     /* CENTER: community pile + pot */
@@ -41,14 +41,12 @@
 
     /* PLAYERS ON TABLE PERIMETER  (user fixed bottom) */
     .seats{ position:absolute; inset:0; z-index:2 }
-    .seat{ position:absolute; display:flex; flex-direction:column; align-items:center; gap:6px; width:clamp(120px, 28vw, 200px) }
-    .avatar{ width:54px; height:54px; border-radius:50%; border:4px solid rgba(255,255,255,.65); box-shadow:0 8px 20px var(--shadow); object-fit:cover; }
+    .seat{ position:absolute; display:grid; place-items:center; gap:6px; width:clamp(120px, 28vw, 200px) }
+    .avatar{ width:54px; height:54px; border-radius:50%; display:grid; place-items:center; background:radial-gradient(circle at 30% 30%, #fff, #ddd 40%, #bbb 60%, #999 100%); color:#111; font-size:28px; border:4px solid rgba(255,255,255,.65); box-shadow:0 8px 20px var(--shadow); }
     .name{ font-weight:800; text-shadow:0 2px 6px #000; font-size:14px }
     .stack{ display:flex; gap:4px; align-items:flex-end }
-    .chip{ width:26px; height:26px; border-radius:50%; box-shadow:0 4px 8px rgba(0,0,0,.45), inset 0 0 0 3px rgba(255,255,255,.55); display:flex; align-items:center; justify-content:center; color:#111; font-weight:700; font-size:12px; }
+    .chip{ width:20px; height:20px; border-radius:50%; box-shadow:0 4px 8px rgba(0,0,0,.45), inset 0 0 0 3px rgba(255,255,255,.55); }
     .c1{ background:#93c5fd } .c2{ background:#fca5a5 } .c3{ background:#fde68a } .c4{ background:#c4b5fd }
-    .card-area{ position:relative; }
-    .arrange-btn{ position:absolute; left:0; bottom:100%; margin-bottom:4px; }
 
     /* CARDS */
     .cards{ display:flex; gap:6px; flex-wrap:nowrap }
@@ -64,10 +62,9 @@
     .back{ background:repeating-linear-gradient(45deg,#233,#233 6px,#122 6px,#122 12px); border:2px solid rgba(255,255,255,.5); color:transparent; }
     .back::before{ content:""; position:absolute; inset:6px; border-radius:8px; border:2px dashed rgba(255,255,255,.35); }
     .opp-fan .card{ margin-left:-30px; transform:rotateZ(var(--rot,0deg)) }
-    .opp-fan.vertical{ flex-direction:column; }
-    .opp-fan.vertical .card{ margin-left:0; margin-top:-30px; }
 
     /* UI BUTTONS */
+    .left-ui{ position:fixed; left:max(8px, env(safe-area-inset-left)); top:50%; transform:translateY(-50%); display:flex; flex-direction:column; gap:10px; z-index:10 }
     .right-ui{ position:fixed; right:max(8px, env(safe-area-inset-right)); top:50%; transform:translateY(-50%); display:flex; flex-direction:column; gap:10px; z-index:10 }
     .btn{ appearance:none; border:none; cursor:pointer; font-weight:800; padding:12px 14px; border-radius:12px; background:linear-gradient(180deg, var(--gold), #e4b325); color:#412e02; box-shadow:0 6px 0 #b38e1f, 0 12px 24px var(--shadow); white-space:nowrap }
     .btn.secondary{ background:linear-gradient(180deg,#e0e7ff,#c7d2fe); color:#102a43; box-shadow:0 6px 0 #a5b4fc, 0 12px 24px var(--shadow); }
@@ -94,6 +91,9 @@
     <div id="seats" class="seats"></div>
 
     <!-- UI -->
+    <div class="left-ui">
+      <button id="arrange" class="btn secondary">🔧 Manual Arrange: Off</button>
+    </div>
     <div class="right-ui">
       <button id="selectToggle" class="btn secondary">🖐️ Select</button>
       <button id="confirmPlay" class="btn">✅ Play</button>
@@ -106,7 +106,6 @@
   <audio id="sndChip" src="https://cdn.jsdelivr.net/gh/naptha/tiny-sound@master/sounds/click2.ogg"></audio>
   <audio id="sndCard" src="https://cdn.jsdelivr.net/gh/naptha/tiny-sound@master/sounds/click4.ogg"></audio>
 
-  <script src="/flag-emojis.js"></script>
 <script>
 (() => {
   // ====== UTIL ======
@@ -117,18 +116,6 @@
   const toastEl = el('#toast');
   const sndChip = el('#sndChip');
   const sndCard = el('#sndCard');
-
-  const params = new URLSearchParams(location.search);
-  let userName = params.get('name') || params.get('username') || '';
-  let avatarParam = params.get('avatar') || '';
-  const tgId = params.get('tgId');
-  const accountId = params.get('accountId');
-  const initParam = params.get('init');
-  if(initParam && !window.Telegram){ window.Telegram = { WebApp: { initData: decodeURIComponent(initParam) } }; }
-  function emojiToDataUri(flag){ return `data:image/svg+xml,${encodeURIComponent(`<svg xmlns='http://www.w3.org/2000/svg' width='64' height='64'><text x='50%' y='50%' font-size='48' text-anchor='middle' dominant-baseline='central'>${flag}</text></svg>`)}`; }
-  const regionNames = typeof Intl !== 'undefined' ? new Intl.DisplayNames(['en'], { type:'region'}) : null;
-  function flagName(flag){ const pts=[...flag].map(c=>c.codePointAt(0)-127397); const code=String.fromCharCode(...pts); return regionNames?.of(code) || flag; }
-  async function fetchPlayerName(tgId, accountId){ try{ const headers={'Content-Type':'application/json'}; const initData=window?.Telegram?.WebApp?.initData; if(initData) headers['X-Telegram-Init-Data']=initData; let res; if(tgId){ res=await fetch('/api/profile/telegram-info',{method:'POST',headers,body:JSON.stringify({telegramId:tgId})}); } else if(accountId){ res=await fetch('/api/profile/by-account',{method:'POST',headers,body:JSON.stringify({accountId})}); } if(res && res.ok){ const data=await res.json(); return data.nickname || data.firstName || data.first_name || ''; } }catch{} return ''; }
 
   function toast(msg){ toastEl.textContent = msg; toastEl.style.display='block'; setTimeout(()=> toastEl.style.display='none', 1400); }
 
@@ -160,14 +147,13 @@
   };
 
   // create 4 players (user bottom)
-  async function initPlayers(){
-    if(!userName){ userName = await fetchPlayerName(tgId, accountId); }
-    if(!userName){ const u = window?.Telegram?.WebApp?.initDataUnsafe?.user; userName = u?.username || [u?.first_name, u?.last_name].filter(Boolean).join(' ') || 'You'; }
-    let userAvatar = avatarParam || window?.Telegram?.WebApp?.initDataUnsafe?.user?.photo_url || 'assets/icons/profile.svg';
-    if(!(userAvatar.startsWith('http') || userAvatar.startsWith('/') || userAvatar.startsWith('data:'))){ userAvatar = emojiToDataUri(userAvatar); }
-    state.players = [ {name:userName, isHuman:true, chips:1500, hand:[], avatar:userAvatar} ];
-    const aiChips = [1200,1000,900];
-    for(let i=0;i<3;i++){ const flag = FLAG_EMOJIS[(Math.random()*FLAG_EMOJIS.length)|0]; state.players.push({name:flagName(flag), chips:aiChips[i], hand:[], avatar:emojiToDataUri(flag)}); }
+  function initPlayers(){
+    state.players = [
+      {name:'You', isHuman:true, chips:1500, hand:[]},
+      {name:'Luna', chips:1200, hand:[]},
+      {name:'Rex', chips:1000, hand:[]},
+      {name:'Milo', chips:900, hand:[]},
+    ];
   }
 
   function deal(){
@@ -205,12 +191,11 @@
       else { x=x0; y=y0+(h-(s-(w+h+w))); }
 
       const seat = document.createElement('div'); seat.className='seat';
-      if(i===1) seat.classList.add('left'); else if(i===3) seat.classList.add('right');
       const area = el('.stage').getBoundingClientRect();
       seat.style.left=(x - area.left - 70)+'px';
       seat.style.top=(y - area.top - 60)+'px';
 
-      const av = document.createElement('img'); av.className='avatar'; av.src = p.avatar || 'assets/icons/profile.svg';
+      const av = document.createElement('div'); av.className='avatar'; av.textContent = i===0?'🃏':'🐾';
       const name = document.createElement('div'); name.className='name'; name.textContent = p.name;
 
       const cards = document.createElement('div'); cards.className='cards';
@@ -227,24 +212,15 @@
       } else {
         // Opponents: facedown fanned stack
         cards.classList.add('opp-fan');
-        if(i===1 || i===3) cards.classList.add('vertical');
         const count = p.hand.length;
         const show = Math.min(10, count); // cap visual
         for(let k=0;k<show;k++){ const b = cardBackEl(); b.style.setProperty('--rot', ((k-show/2)*2)+'deg'); cards.appendChild(b); }
       }
 
       const stack=document.createElement('div'); stack.className='stack';
-      [10,50,100,500,1000].forEach((v,k)=>{ const ch=document.createElement('div'); ch.className='chip '+['c1','c2','c3','c4'][k%4]; ch.textContent=v; ch.style.transform=`translateY(-${k*2.5}px)`; stack.appendChild(ch);});
+      for(let k=0;k<3;k++){ const ch=document.createElement('div'); ch.className='chip '+['c1','c2','c3','c4'][k%4]; ch.style.transform=`translateY(-${k*2.5}px)`; stack.appendChild(ch);}   
 
-      if(p.isHuman){
-        const cardArea=document.createElement('div'); cardArea.className='card-area';
-        const arrange=document.createElement('button'); arrange.id='arrange'; arrange.className='btn secondary arrange-btn'; arrange.textContent='🔧 Manual Arrange: '+(state.arrangeMode?'On':'Off');
-        arrange.addEventListener('click', (e)=>{ state.arrangeMode=!state.arrangeMode; e.currentTarget.textContent='🔧 Manual Arrange: '+(state.arrangeMode?'On':'Off'); renderAll(); toast(state.arrangeMode? 'Drag your cards to reorder' : 'Manual arrange off'); });
-        cardArea.append(arrange,cards);
-        seat.append(stack,cardArea,av,name);
-      } else {
-        seat.append(stack,cards,av,name);
-      }
+      seat.append(av,name,cards,stack);
       seatsEl.appendChild(seat);
     });
   }
@@ -382,6 +358,11 @@
   }
 
   // ===== UI HANDLERS =====
+  el('#arrange').addEventListener('click', (e)=>{
+    state.arrangeMode = !state.arrangeMode; e.currentTarget.textContent = '🔧 Manual Arrange: '+(state.arrangeMode?'On':'Off');
+    renderAll();
+    toast(state.arrangeMode? 'Drag your cards to reorder' : 'Manual arrange off');
+  });
   el('#selectToggle').addEventListener('click', (e)=>{ state.selectMode = !state.selectMode; e.currentTarget.textContent = state.selectMode? '✅ Selecting' : '🖐️ Select'; toast(state.selectMode? 'Tap cards to select' : 'Selection off'); });
   el('#confirmPlay').addEventListener('click', ()=>{
     const sel = collectSelected();
@@ -399,7 +380,9 @@
   });
 
   // boot
-  initPlayers().then(()=>{ deal(); renderAll(); toast('Murlan Royale • Jokers on • Manual arrange ready'); state.turn = 0; playTurn(state.turn); });
+  initPlayers(); deal(); renderAll(); toast('Murlan Royale • Jokers on • Manual arrange ready');
+  // start at user
+  state.turn = 0; playTurn(state.turn);
 })();
 </script>
 </body>
