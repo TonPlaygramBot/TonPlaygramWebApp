@@ -23,6 +23,7 @@
       .center{ position:absolute; left:50%; top:52%; transform:translate(-50%,-50%); display:flex; gap:10px; z-index:2 }
       .seats{ position:absolute; inset:0; z-index:2 }
       .seat{ position:absolute; display:flex; flex-direction:column; align-items:center; gap:6px; width:clamp(120px, 28vw, 200px) }
+      .seat.small{ --card-scale:.9; }
       .avatar{ width:var(--avatar-size); height:var(--avatar-size); border-radius:50%; display:grid; place-items:center; background:radial-gradient(circle at 30% 30%, #fff, #ddd 40%, #bbb 60%, #999 100%); color:#111; font-size:28px; border:4px solid rgba(255,255,255,.65); box-shadow:0 8px 20px var(--shadow); overflow:hidden }
       .avatar-wrap{ position:relative; width:var(--avatar-size); height:var(--avatar-size); display:grid; place-items:center; }
       .timer-ring{ position:absolute; inset:-6px; border-radius:50%; background:conic-gradient(#f5cc4e var(--progress,0deg), transparent 0); -webkit-mask:radial-gradient(farthest-side,transparent calc(100% - 6px),#000 calc(100% - 6px)); mask:radial-gradient(farthest-side,transparent calc(100% - 6px),#000 calc(100% - 6px)); pointer-events:none }
@@ -37,7 +38,7 @@
       .suggested{ outline:3px dashed #2563eb; }
       .card.back{ background:url('assets/icons/file_00000000bc2862439eecffff3730bbe4.webp') center/60% no-repeat, repeating-linear-gradient(45deg,#233,#233 6px,#122 6px,#122 12px); border:2px solid rgba(255,255,255,.5); color:transparent; }
       .card.back::before{ content:""; position:absolute; inset:6px; border-radius:8px; border:2px dashed rgba(255,255,255,.35); }
-      .seat.bottom{ bottom:5%; left:50%; transform:translateX(-50%); }
+      .seat.bottom{ bottom:3%; left:50%; transform:translateX(-50%); }
       .seat.top{ top:5%; left:50%; transform:translateX(-50%); }
       .seat.left{ left:18%; top:37%; transform:translate(-50%,-50%); }
       .seat.right{ left:82%; top:37%; transform:translate(-50%,-50%); }
