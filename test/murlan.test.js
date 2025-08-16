@@ -103,3 +103,54 @@ test('aiChooseAction avoids breaking bomb', () => {
   }
 });
 
+test('bomb closes round immediately', () => {
+  const state = {
+    players: [
+      {
+        hand: [
+          card('K', '♣'),
+          card('K', '♦'),
+          card('K', '♥'),
+          card('K', '♠'),
+          card('3', '♣')
+        ],
+        finished: false
+      },
+      { hand: [card('4', '♦')], finished: false },
+      { hand: [card('5', '♥')], finished: false }
+    ],
+    turn: { activePlayer: 0, currentCombo: null, passesInRow: 0 },
+    config: DEFAULT_CONFIG,
+    lastWinner: 0
+  };
+  const bomb = state.players[0].hand.slice(0, 4);
+  playTurn(state, { type: 'PLAY', cards: bomb });
+  assert.equal(state.turn.currentCombo, null);
+  assert.equal(state.turn.activePlayer, 0);
+});
+
+test('bomb finishing hand passes lead', () => {
+  const state = {
+    players: [
+      {
+        hand: [
+          card('Q', '♣'),
+          card('Q', '♦'),
+          card('Q', '♥'),
+          card('Q', '♠')
+        ],
+        finished: false
+      },
+      { hand: [card('4', '♦')], finished: false },
+      { hand: [card('5', '♥')], finished: false }
+    ],
+    turn: { activePlayer: 0, currentCombo: null, passesInRow: 0 },
+    config: DEFAULT_CONFIG,
+    lastWinner: 0
+  };
+  const bomb = state.players[0].hand.slice();
+  playTurn(state, { type: 'PLAY', cards: bomb });
+  assert.equal(state.players[0].finished, true);
+  assert.equal(state.turn.activePlayer, 1);
+});
+
