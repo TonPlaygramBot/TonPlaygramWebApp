@@ -108,7 +108,8 @@
         overflow: hidden;
         background: url('/assets/icons/64e79228-35e3-4fdc-b914-fca635a40220.webp')
           center/cover no-repeat;
-        background-position: calc(50% - 10px) center;
+        background-position: calc(50% - 5px) calc(50% + 5px);
+        background-size: calc(100% - 20px) auto;
       }
 
       :root {
@@ -452,6 +453,7 @@
         var HEAD_STRING_Y = BORDER + PLAY_H * 0.75; // 25% nga ana "head"
         var FOOT_SPOT_X = TABLE_W / 2;
         var FOOT_SPOT_Y = BORDER + PLAY_H * 0.25; // 75% nga "head"
+        var CUE_START_Y = (HEAD_STRING_Y + TABLE_H - BORDER) / 2 - BALL_R;
 
         var FRICTION = 0.985; // ferkimi linear
         var BOUNCE = 0.98; // koeficienti i rikthimit
@@ -466,10 +468,14 @@
         if (CAL.bw && CAL.bh) {
           wrap.style.backgroundSize = CAL.bw + 'px ' + CAL.bh + 'px';
         } else {
-          wrap.style.backgroundSize = 'cover';
+          wrap.style.backgroundSize = 'calc(100% - 20px) auto';
         }
-        var xPos = isNaN(CAL.bx) ? '50%' : 'calc(50% + ' + CAL.bx + 'px)';
-        var yPos = isNaN(CAL.by) ? '50%' : 'calc(50% + ' + CAL.by + 'px)';
+        var xPos = isNaN(CAL.bx)
+          ? 'calc(50% - 5px)'
+          : 'calc(50% + ' + CAL.bx + 'px)';
+        var yPos = isNaN(CAL.by)
+          ? 'calc(50% + 5px)'
+          : 'calc(50% + ' + CAL.by + 'px)';
         wrap.style.backgroundPosition = xPos + ' ' + yPos;
         var canvas = document.getElementById('table');
         var ctx = canvas.getContext('2d');
@@ -688,6 +694,7 @@
           this.pottedInTurn = false;
           this.captured = { 1: [], 2: [] };
           this.aim = { x: TABLE_W / 2, y: TABLE_H / 3 };
+          this.ballInHand = true;
           this.reset();
         }
 
@@ -700,15 +707,16 @@
           this.turn = 1;
           this.lastShooter = 1;
           this.pottedInTurn = false;
+          this.ballInHand = true;
 
-          // Cue ball (poshte, qender)
+          // Cue ball (pak me lart se gjysma e zones se bardhe)
           this.balls.push(
-            new Ball(BALL_BY_N[0], TABLE_W / 2, TABLE_H - BORDER - BALL_R * 2)
+            new Ball(BALL_BY_N[0], TABLE_W / 2, CUE_START_Y)
           );
 
-          // Trekendshi siper me 15 topa (8-shi ne qender rreshti 3)
+          // Trekendshi poshte me 15 topa (8-shi ne qender rreshti 3)
           var cx = TABLE_W / 2;
-          var cy = FOOT_SPOT_Y;
+          var cy = TABLE_H - FOOT_SPOT_Y;
           var rowGap = BALL_R * 1.95;
           var colGap = BALL_R * 2.1;
 
@@ -729,7 +737,7 @@
             var count = r + 1;
             for (j = 0; j < count; j++) {
               var x = cx - (count - 1) * BALL_R * 1.05 + j * colGap;
-              var y = cy + r * rowGap;
+              var y = cy - r * rowGap;
               var num = layout[r][j] || pool[cursor++];
               var info = BALL_BY_N[num];
               if (!info) {
@@ -844,9 +852,10 @@
                 if (b2.n === 0) {
                   this.turn = this.turn === 1 ? 2 : 1; // scratch => kalon radha
                   b2.p.x = TABLE_W / 2;
-                  b2.p.y = TABLE_H - BORDER - BALL_R * 2;
+                  b2.p.y = CUE_START_Y;
                   b2.v.x = 0;
                   b2.v.y = 0;
+                  this.ballInHand = true;
                 } else {
                   b2.pocketed = true;
                   this.captured[this.lastShooter].push(b2.n);
@@ -1104,6 +1113,7 @@
         var table = new Table();
         var last = 0; // koha e frame te fundit
         var aiming = false; // a po caktohet drejtimi
+        var draggingCue = false; // levizja e gurit te bardhe
         var showGuides = false; // a shfaqen pikat
         var cuePullVisual = 0; // shfaqje e terheqjes ne felt
         var spinVec = { x: 0, y: 0 }; // spini i zgjedhur
@@ -1148,27 +1158,50 @@
           var cue = table.balls[0];
           if (!cue) return;
           var p = screenToTable(e.clientX, e.clientY);
+          var dist = Math.hypot(p.x - cue.p.x, p.y - cue.p.y);
+          if (table.ballInHand && dist <= BALL_R * 1.5) {
+            draggingCue = true;
+            moveCue(p);
+            return;
+          }
           var dx = table.aim.x - cue.p.x,
             dy = table.aim.y - cue.p.y;
           var len = Math.sqrt(dx * dx + dy * dy) || 1;
-          var dist =
-            Math.abs((p.x - cue.p.x) * dy - (p.y - cue.p.y) * dx) / len;
-          if (dist <= BALL_R * 2) {
+          var d = Math.abs((p.x - cue.p.x) * dy - (p.y - cue.p.y) * dx) / len;
+          if (d <= BALL_R * 2) {
             aiming = true;
             showGuides = true;
             table.aim = p;
+            table.ballInHand = false;
           }
         });
 
         canvas.addEventListener('pointermove', function (e) {
-          if (!aiming || !table.running) return;
-          var t = screenToTable(e.clientX, e.clientY);
-          table.aim = t;
+          var p = screenToTable(e.clientX, e.clientY);
+          if (draggingCue && table.ballInHand) {
+            moveCue(p);
+          } else if (aiming && table.running && !table.ballInHand) {
+            table.aim = p;
+          }
         });
 
         canvas.addEventListener('pointerup', function () {
+          draggingCue = false;
           aiming = false;
         });
+
+        function moveCue(p) {
+          var cue = table.balls[0];
+          if (!cue) return;
+          cue.p.x = Math.min(
+            Math.max(p.x, BORDER + BALL_R),
+            TABLE_W - BORDER - BALL_R
+          );
+          cue.p.y = Math.min(
+            Math.max(p.y, HEAD_STRING_Y + BALL_R),
+            TABLE_H - BORDER - BALL_R
+          );
+        }
 
         /* ==========================================================
        GUIDES + CUE ON TABLE
