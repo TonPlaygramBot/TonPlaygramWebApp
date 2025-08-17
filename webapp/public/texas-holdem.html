@@ -68,11 +68,11 @@
     #check{ background:#facc15; }
     #call{ background:#16a34a; }
     #fold{ background:#dc2626; }
-      .raise-container{ position:fixed; display:flex; align-items:flex-end; gap:8px; right:16px; bottom:16px; }
+      .raise-container{ position:fixed; display:flex; flex-direction:column; align-items:center; gap:8px; right:16px; bottom:12px; }
       .raise-btn-wrap{ display:flex; flex-direction:column; align-items:center; }
     #raise{ padding:0; font-size:14px; border-radius:50%; }
     .raise-amount{ font-size:10px; margin-top:2px; }
-    #raisePanel{ position:relative; width:clamp(44px,5vw,88px); height:25vh; padding:12px; border-radius:14px; background:rgba(255,255,255,0.02); overflow:hidden; }
+    #raisePanel{ position:relative; width:clamp(48px,6vw,96px); height:22vh; padding:12px; border-radius:14px; background:rgba(255,255,255,0.02); overflow:hidden; }
     #raisePanel::before{ content:""; position:absolute; left:50%; top:12px; bottom:12px; width:1px; background:rgba(230,237,247,0.2); }
     #raiseFill{ position:absolute; left:12px; right:12px; bottom:12px; height:0%; border-radius:8px; background:rgba(255,255,255,0.2); box-shadow:inset 0 -1px 0 rgba(0,0,0,0.2); }
     #raiseFill::after{ content:""; position:absolute; top:0; left:0; right:0; height:2px; background:rgba(255,255,255,0.2); }
