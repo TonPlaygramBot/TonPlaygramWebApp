@@ -185,7 +185,6 @@ function showControls() {
   });
   const raiseContainer = document.createElement('div');
   raiseContainer.className = 'raise-container';
-  raiseContainer.id = 'raiseContainer';
   const panel = document.createElement('div');
   panel.id = 'raisePanel';
   panel.innerHTML =
@@ -197,19 +196,14 @@ function showControls() {
   btn.id = 'raise';
   btn.addEventListener('click', playerRaise);
   if (state.pot >= state.maxPot) btn.disabled = true;
-  const btnWrap = document.createElement('div');
-  btnWrap.className = 'raise-btn-wrap';
-  btnWrap.appendChild(btn);
+  raiseContainer.appendChild(btn);
   const amountText = document.createElement('div');
   amountText.id = 'raiseAmountText';
   amountText.className = 'raise-amount';
   amountText.textContent = `0 ${state.token}`;
-  btnWrap.appendChild(amountText);
-  raiseContainer.appendChild(btnWrap);
-  document.body.appendChild(raiseContainer);
+  raiseContainer.appendChild(amountText);
+  controls.appendChild(raiseContainer);
   initRaiseSlider();
-  positionRaiseContainer();
-  window.addEventListener('resize', positionRaiseContainer);
 }
 
 function initRaiseSlider() {
@@ -243,28 +237,9 @@ function initRaiseSlider() {
   });
 }
 
-function positionRaiseContainer() {
-  const bottom = document.querySelector('.seat.bottom .avatar-wrap');
-  const right =
-    document.querySelector('.seat.bottom-right .avatar-wrap') ||
-    document.querySelector('.seat.right .avatar-wrap');
-  const container = document.getElementById('raiseContainer');
-  if (!bottom || !right || !container) return;
-  const bottomRect = bottom.getBoundingClientRect();
-  const rightRect = right.getBoundingClientRect();
-  const containerRect = container.getBoundingClientRect();
-  container.style.left =
-    rightRect.left + rightRect.width / 2 - containerRect.width / 2 + 'px';
-  container.style.top =
-    bottomRect.top + bottomRect.height / 2 - containerRect.height / 2 + 8 + 'px';
-}
-
 function hideControls() {
   const controls = document.getElementById('controls');
   if (controls) controls.innerHTML = '';
-  const raiseContainer = document.getElementById('raiseContainer');
-  if (raiseContainer) raiseContainer.remove();
-  window.removeEventListener('resize', positionRaiseContainer);
 }
 
 function startPlayerTurn() {
