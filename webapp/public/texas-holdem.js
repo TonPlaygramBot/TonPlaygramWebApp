@@ -1,4 +1,12 @@
-import { createDeck, shuffle, dealHoleCards, dealCommunity, evaluateWinner, aiChooseAction } from './lib/texasHoldem.js';
+import {
+  createDeck,
+  shuffle,
+  dealHoleCards,
+  dealCommunity,
+  evaluateWinner,
+  aiChooseAction,
+  HAND_RANK_NAMES,
+} from './lib/texasHoldem.js';
 import { FLAG_EMOJIS } from './flag-emojis.js';
 
 const state = {
@@ -9,6 +17,8 @@ const state = {
   turn: 0,
   turnTime: 0,
   timerInterval: null,
+  stake: 0,
+  token: 'TPC',
 };
 
 const SUIT_MAP = { H: '♥', D: '♦', C: '♣', S: '♠' };
@@ -39,10 +49,24 @@ function cardFaceEl(c) {
   return d;
 }
 
+function coinConfetti(count = 50, iconSrc = '/assets/icons/ezgif-54c96d8a9b9236.webp') {
+  for (let i = 0; i < count; i++) {
+    const img = document.createElement('img');
+    img.src = iconSrc;
+    img.className = 'coin-confetti';
+    img.style.left = Math.random() * 100 + 'vw';
+    img.style.setProperty('--duration', 2 + Math.random() * 2 + 's');
+    document.body.appendChild(img);
+    setTimeout(() => img.remove(), 3000);
+  }
+}
+
 function init() {
   const params = new URLSearchParams(location.search);
   let name = params.get('username') || 'You';
   let avatar = params.get('avatar') || '';
+  state.stake = parseInt(params.get('amount'), 10) || 0;
+  state.token = params.get('token') || 'TPC';
   try {
     if (!name) {
       const initParam = params.get('init');
@@ -266,7 +290,10 @@ function showdown() {
     p.hand.forEach((c) => cards.appendChild(cardEl(c)));
   });
   const winner = evaluateWinner(state.players, state.community);
-  const text = winner ? `${state.players[winner.index].name} wins!` : 'Tie';
+  const pot = state.stake * state.players.length;
+  const text = winner
+    ? `${state.players[winner.index].name} wins with ${HAND_RANK_NAMES[winner.score.rank]}!`
+    : 'Tie';
   document.getElementById('status').textContent = text;
   if (winner) {
     const winning = winner.score.cards;
@@ -281,7 +308,31 @@ function showdown() {
     });
     const seat = playerCardsEl.closest('.seat');
     if (seat) seat.classList.add('winner');
+
+    const winnerPlayer = state.players[winner.index];
+    const overlay = document.getElementById('winnerOverlay');
+    const amountText = pot ? `${pot} ${state.token}` : '';
+    if (winnerPlayer.avatar && winnerPlayer.avatar.startsWith('http')) {
+      overlay.innerHTML = `<img src="${winnerPlayer.avatar}"/><div>${amountText}</div>`;
+    } else if (winnerPlayer.avatar) {
+      overlay.innerHTML = `<div class="avatar">${winnerPlayer.avatar}</div><div>${amountText}</div>`;
+    } else {
+      overlay.innerHTML = `<div class="avatar">${winnerPlayer.name[0] || '?'}</div><div>${amountText}</div>`;
+    }
+    overlay.classList.remove('hidden');
+    coinConfetti(50);
+    setTimeout(() => {
+      overlay.classList.add('hidden');
+      document.getElementById('resultText').textContent = `${winnerPlayer.name} won ${amountText}`;
+      document.getElementById('results').showModal();
+    }, 2000);
+  } else {
+    document.getElementById('resultText').textContent = 'Tie';
+    document.getElementById('results').showModal();
   }
 }
 
+document.getElementById('lobbyBtn')?.addEventListener('click', () => {
+  location.href = '/games/texasholdem/lobby';
+});
 document.addEventListener('DOMContentLoaded', init);
