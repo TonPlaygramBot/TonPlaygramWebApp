@@ -179,12 +179,13 @@ function showControls() {
   baseActions.forEach((a) => {
     const btn = document.createElement('button');
     btn.id = a.id;
-    btn.textContent = a.id;
+    btn.textContent = a.id.charAt(0).toUpperCase() + a.id.slice(1);
     btn.addEventListener('click', a.fn);
     controls.appendChild(btn);
   });
   const raiseContainer = document.createElement('div');
   raiseContainer.className = 'raise-container';
+  raiseContainer.id = 'raiseContainer';
   const panel = document.createElement('div');
   panel.id = 'raisePanel';
   panel.innerHTML =
@@ -192,7 +193,7 @@ function showControls() {
     '<div id="raiseFill"></div><div id="raiseThumb"></div>';
   raiseContainer.appendChild(panel);
   const btn = document.createElement('button');
-  btn.textContent = 'raise';
+  btn.textContent = 'Raise';
   btn.id = 'raise';
   btn.addEventListener('click', playerRaise);
   if (state.pot >= state.maxPot) btn.disabled = true;
@@ -202,8 +203,10 @@ function showControls() {
   amountText.className = 'raise-amount';
   amountText.textContent = `0 ${state.token}`;
   raiseContainer.appendChild(amountText);
-  controls.appendChild(raiseContainer);
+  document.body.appendChild(raiseContainer);
   initRaiseSlider();
+  positionRaiseContainer();
+  window.addEventListener('resize', positionRaiseContainer);
 }
 
 function initRaiseSlider() {
@@ -237,9 +240,29 @@ function initRaiseSlider() {
   });
 }
 
+function positionRaiseContainer() {
+  const bottom = document.querySelector('.seat.bottom .avatar-wrap');
+  const right =
+    document.querySelector('.seat.right .avatar-wrap') ||
+    document.querySelector('.seat.bottom-right .avatar-wrap');
+  const container = document.getElementById('raiseContainer');
+  const btn = document.getElementById('raise');
+  if (!bottom || !right || !container || !btn) return;
+  const bottomRect = bottom.getBoundingClientRect();
+  const rightRect = right.getBoundingClientRect();
+  const btnRect = btn.getBoundingClientRect();
+  container.style.left =
+    rightRect.left + rightRect.width / 2 - btnRect.width / 2 + 'px';
+  container.style.top =
+    bottomRect.top + bottomRect.height / 2 - btnRect.height / 2 + 'px';
+}
+
 function hideControls() {
   const controls = document.getElementById('controls');
   if (controls) controls.innerHTML = '';
+  const raiseContainer = document.getElementById('raiseContainer');
+  if (raiseContainer) raiseContainer.remove();
+  window.removeEventListener('resize', positionRaiseContainer);
 }
 
 function startPlayerTurn() {
