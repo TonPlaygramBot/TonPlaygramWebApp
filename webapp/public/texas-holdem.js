@@ -268,6 +268,20 @@ function showdown() {
   const winner = evaluateWinner(state.players, state.community);
   const text = winner ? `${state.players[winner.index].name} wins!` : 'Tie';
   document.getElementById('status').textContent = text;
+  if (winner) {
+    const winning = winner.score.cards;
+    const commEl = document.getElementById('community');
+    state.community.forEach((c, idx) => {
+      if (winning.includes(c)) commEl.children[idx].classList.add('winning');
+    });
+    const playerCardsEl = document.getElementById('cards-' + winner.index);
+    state.players[winner.index].hand.forEach((c, idx) => {
+      const el = playerCardsEl.children[idx];
+      el.classList.add('winning');
+    });
+    const seat = playerCardsEl.closest('.seat');
+    if (seat) seat.classList.add('winner');
+  }
 }
 
 document.addEventListener('DOMContentLoaded', init);
