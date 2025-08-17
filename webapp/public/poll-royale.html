@@ -227,20 +227,37 @@
 
       /* Paneli djathtas – SPIN siper, STEKA poshte */
       #rightPanel {
+        position: fixed;
+        top: 50%;
+        right: 0;
+        transform: translateY(-50%);
+        width: clamp(48px, 6vw, 96px);
+        height: 72vh;
+        padding: 12px;
+        border-radius: 20px;
+        background: linear-gradient(#0c1020, #11172a);
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+        border: 1px solid rgba(31, 42, 68, 0.4);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        opacity: 0.8;
+        transition: opacity 0.2s, box-shadow 0.2s;
+        z-index: 6;
+      }
+      #rightPanel::after {
+        content: '';
         position: absolute;
         top: 0;
-        right: 8px;
+        right: 0;
         bottom: 0;
-        width: var(--rpw);
-
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        justify-content: flex-start;
-
-        background: transparent;
-        padding: 12px 8px;
-        z-index: 6;
+        width: 2px;
+        background: rgba(255, 255, 255, 0.06);
+        pointer-events: none;
+      }
+      #rightPanel.active {
+        opacity: 1;
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45), 0 0 8px rgba(96, 165, 250, 0.6);
       }
 
       #spinBox {
@@ -272,59 +289,148 @@
         transform: translate(-50%, -50%);
       }
 
-      #pullArea {
+      #sliderTrack {
         position: relative;
-        width: 96px;
-        height: 50vh;
+        width: 100%;
+        height: 100%;
+        padding: 12px;
         border-radius: 14px;
-        background: transparent;
-        box-shadow: none;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        padding: 8px;
-        margin-top: 30vh;
-      }
-
-      #cueStick {
-        position: absolute;
-        left: calc(50% + 4px);
-        transform: translateX(-50%);
-        width: 4px;
-        height: 60%;
-        background: linear-gradient(#caa471, #9c7a4d);
-        border-radius: 3px;
-      }
-
-      #tip {
-        position: absolute;
-        left: calc(50% + 4px);
-        transform: translateX(-50%);
-        width: 8px;
-        height: 8px;
-        background: #5c3a21; /* ferrule */
-        border-radius: 50%;
-        top: calc(50% - 4px);
-        box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.25);
-      }
-
-      #powerBox {
-        width: 70px;
-        height: 18%;
-        background: #333;
-        border-radius: 16px;
-        position: relative;
+        background: rgba(255, 255, 255, 0.02);
         overflow: hidden;
-        box-shadow: inset 0 0 0 2px rgba(0, 0, 0, 0.25);
       }
-
+      #sliderTrack::before {
+        content: '';
+        position: absolute;
+        left: 50%;
+        top: 12px;
+        bottom: 12px;
+        width: 1px;
+        background: rgba(230, 237, 247, 0.2);
+      }
+      #sliderTrack::after {
+        content: '';
+        position: absolute;
+        inset: 0;
+        background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20'%3E%3Crect width='1' height='1' fill='%23fff'/%3E%3C/svg%3E") repeat;
+        opacity: 0.03;
+        pointer-events: none;
+      }
+      #sliderTrack .tick {
+        position: absolute;
+        left: 50%;
+        width: 8px;
+        height: 1px;
+        background: rgba(230, 237, 247, 0.6);
+        transform: translateX(-50%);
+      }
+      #sliderTrack .tick span {
+        position: absolute;
+        left: 10px;
+        top: 50%;
+        transform: translateY(-50%);
+        font-size: 9px;
+        color: rgba(230, 237, 247, 0.6);
+      }
+      #sliderTrack .tick.mid {
+        width: 12px;
+      }
+      #sliderTrack .tick.mid .dot {
+        position: absolute;
+        left: 50%;
+        top: 50%;
+        transform: translate(-50%, -50%);
+        width: 3px;
+        height: 3px;
+        border-radius: 50%;
+        background: rgba(230, 237, 247, 0.6);
+      }
       #powerFill {
         position: absolute;
-        left: 0;
-        bottom: 0;
-        width: 100%;
+        left: 12px;
+        right: 12px;
+        bottom: 12px;
         height: 0%;
-        background: linear-gradient(#ffcc00, #ff4444);
+        border-radius: 8px;
+        background: linear-gradient(to top, #10b981, #facc15, #ef4444);
+        box-shadow: inset 0 -1px 0 rgba(0, 0, 0, 0.2);
+      }
+      #powerFill::after {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 2px;
+        background: rgba(255, 255, 255, 0.2);
+      }
+      #thumb {
+        position: absolute;
+        left: 50%;
+        transform: translate(-50%, 50%);
+        bottom: 12px;
+        width: 28px;
+        height: 28px;
+        border-radius: 50%;
+        background: #ffffff;
+        border: 4px solid #0b1224;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.45);
+        touch-action: none;
+      }
+      #thumb::before {
+        content: '';
+        position: absolute;
+        inset: 2px;
+        border-radius: 50%;
+        background: radial-gradient(circle at 30% 30%, #ffffff, #d1d5db);
+      }
+      #thumb.pressed {
+        border-color: #60a5fa;
+        box-shadow: 0 0 0 2px rgba(96, 165, 250, 0.7), 0 2px 8px rgba(0, 0, 0, 0.45);
+        transform: translate(-50%, 50%) scale(1.1);
+      }
+      #rightPanel .power-label {
+        position: absolute;
+        bottom: -24px;
+        left: 50%;
+        transform: translateX(-50%);
+        font-size: 10px;
+        color: rgba(200, 213, 240, 0.7);
+      }
+      #sliderTrack .max-zone {
+        position: absolute;
+        top: 0;
+        left: 12px;
+        right: 12px;
+        height: 15%;
+        background: repeating-linear-gradient(45deg, rgba(239, 68, 68, 0.08) 0 8px, transparent 8px 16px);
+        animation: shimmer 2s linear infinite;
+        pointer-events: none;
+      }
+      #sliderTrack .max-label {
+        position: absolute;
+        top: 4px;
+        left: 50%;
+        transform: translateX(-50%);
+        font-size: 10px;
+        color: #ef4444;
+        animation: pulse 1.5s infinite;
+      }
+      @keyframes pulse {
+        0%,
+        100% {
+          opacity: 0.6;
+        }
+        50% {
+          opacity: 1;
+        }
+      }
+      @keyframes shimmer {
+        from {
+          background-position: 0 0;
+        }
+        to {
+          background-position: 100px 0;
+        }
       }
 
       #play {
@@ -379,23 +485,37 @@
         />
         <canvas id="table"></canvas>
 
-        <!-- Panel djathtas: STEKA poshte -->
+        <!-- Panel djathtas: power slider -->
         <aside id="rightPanel">
-          <div id="pullArea">
-            <div id="cueStick"></div>
-            <div id="tip"></div>
+          <div id="sliderTrack">
+            <div class="max-zone">
+              <div class="max-label">MAX</div>
+            </div>
+            <div id="powerFill"></div>
+            <div class="tick" style="bottom:12px"><span>0</span></div>
+            <div
+              class="tick"
+              style="bottom:calc(12px + (100% - 24px) * 0.25)"
+            >
+              <span>25</span>
+            </div>
+            <div
+              class="tick mid"
+              style="bottom:calc(12px + (100% - 24px) * 0.5)"
+            >
+              <span>50</span>
+              <div class="dot"></div>
+            </div>
+            <div
+              class="tick"
+              style="bottom:calc(12px + (100% - 24px) * 0.75)"
+            >
+              <span>75</span>
+            </div>
+            <div class="tick" style="top:12px"><span>100</span></div>
           </div>
-
-          <div
-            style="
-              display: flex;
-              flex-direction: column;
-              align-items: center;
-              gap: 6px;
-            "
-          >
-            <div id="powerBox"><div id="powerFill"></div></div>
-          </div>
+          <div id="thumb"></div>
+          <div class="power-label">Power</div>
         </aside>
 
         <button id="play">Play</button>
@@ -440,10 +560,8 @@
         var playBtn = document.getElementById('play');
         var spinBox = document.getElementById('spinBox');
         var spinDot = document.getElementById('spinDot');
-        var pullArea = document.getElementById('pullArea');
-        var cueStickEl = document.getElementById('cueStick');
-        var cueTipEl = document.getElementById('tip');
         var powerFill = document.getElementById('powerFill');
+        var thumb = document.getElementById('thumb');
         var userAvatar = document.getElementById('userAvatar');
         var userNameEl = document.getElementById('userName');
         var aiAvatar = document.getElementById('aiAvatar');
@@ -1367,43 +1485,38 @@
         /* ==========================================================
        PULL & RELEASE – fuqi e goditjes
        ========================================================= */
-        var pulling = false,
-          pullStartY = 0;
+        var pulling = false;
         function updatePowerUI() {
-          powerFill.style.height = Math.round(power * 100) + '%';
+          var pct = Math.round(power * 100);
+          powerFill.style.height = pct + '%';
+          thumb.style.bottom = 'calc(12px + (100% - 24px) * ' + power + ')';
         }
-        pullArea.addEventListener('pointerdown', function (e) {
+        function updatePower(e) {
+          var rect = rightPanel.getBoundingClientRect();
+          power = clamp((rect.bottom - e.clientY) / (rect.height * 0.9), 0, 1);
+          updatePowerUI();
+          cuePullVisual = power * (BALL_R * 14);
+        }
+        rightPanel.addEventListener('pointerdown', function (e) {
           if (!table.running || table.isMoving()) return;
           pulling = true;
-          pullStartY = e.clientY;
-          power = 0;
-          updatePowerUI();
+          rightPanel.classList.add('active');
+          thumb.classList.add('pressed');
+          updatePower(e);
         });
-        pullArea.addEventListener('pointermove', function (e) {
+        rightPanel.addEventListener('pointermove', function (e) {
           if (!pulling) return;
-          var rect = pullArea.getBoundingClientRect();
-          power = clamp((e.clientY - pullStartY) / (rect.height * 0.9), 0, 1);
-          updatePowerUI();
-          var minY = rect.top + 12,
-            maxY = rect.bottom - 12,
-            y = minY + (maxY - minY) * power;
-          cueStickEl.style.height = 60 + 30 * power + '%';
-          cueTipEl.style.top = y - rect.top - 6 + 'px';
-          cueStickEl.style.top =
-            y -
-            rect.top -
-            (cueStickEl.getBoundingClientRect().height - 12) / 2 +
-            'px';
-          cuePullVisual = power * (BALL_R * 14);
+          updatePower(e);
         });
-        pullArea.addEventListener('pointerup', function () {
+        rightPanel.addEventListener('pointerup', function () {
           if (!pulling) return;
           pulling = false;
+          rightPanel.classList.remove('active');
+          thumb.classList.remove('pressed');
           shoot(power);
           power = 0;
           updatePowerUI();
           cuePullVisual = 0;
-          cueStickEl.style.height = '60%';
         });
 
         function shoot(p) {
