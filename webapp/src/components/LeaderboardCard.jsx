@@ -30,7 +30,7 @@ function getGameFromTableId(id) {
       'bubblepoproyale',
       'bubblesmashroyale',
       'tetrisroyale',
-      'pollroyale',
+      'poolroyale',
     ].includes(prefix)
   )
     return prefix;

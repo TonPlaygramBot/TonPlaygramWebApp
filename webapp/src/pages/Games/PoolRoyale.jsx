@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import useTelegramBackButton from '../../hooks/useTelegramBackButton.js';
-import { getPollRoyaleCalibration } from '../../utils/api.js';
+import { getPoolRoyaleCalibration } from '../../utils/api.js';
 
-export default function PollRoyale() {
+export default function PoolRoyale() {
   useTelegramBackButton();
   const { search } = useLocation();
   const [calibration, setCalibration] = useState(null);
@@ -11,7 +11,7 @@ export default function PollRoyale() {
   useEffect(() => {
     async function load() {
       try {
-        const res = await getPollRoyaleCalibration();
+        const res = await getPoolRoyaleCalibration();
         if (!res.error && res.width && res.height) {
           setCalibration(res);
         }
@@ -29,11 +29,11 @@ export default function PollRoyale() {
     iframeParams.set('bx', calibration.bgX);
   if (typeof calibration?.bgY === 'number')
     iframeParams.set('by', calibration.bgY);
-  const src = `/poll-royale.html?${iframeParams.toString()}`;
+  const src = `/pool-royale.html?${iframeParams.toString()}`;
 
   return (
     <div className="relative w-full h-screen">
-      <iframe src={src} title="8 Poll Royale" className="w-full h-full border-0" />
+      <iframe src={src} title="Pool Royale 🎱" className="w-full h-full border-0" />
     </div>
   );
 }
