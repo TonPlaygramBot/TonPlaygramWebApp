@@ -31,7 +31,7 @@ export default function RoomSelector({ selected, onSelect, tokens: allowed }) {
               }`}
             >
               <img  src={icon} alt={id} className="w-8 h-8" />
-              <span>{amt}</span>
+              <span>{amt.toLocaleString('en-US')}</span>
             </button>
           ))}
         </div>
