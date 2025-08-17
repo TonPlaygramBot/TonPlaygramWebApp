@@ -7,8 +7,22 @@ import {
 
 export default function PoolRoyaleCalibration() {
   useTelegramBackButton();
-  const [dims, setDims] = useState({ width: 1000, height: 2000, bgWidth: 0, bgHeight: 0, bgX: 0, bgY: 0 });
-  const [pockets, setPockets] = useState([]);
+  const [dims, setDims] = useState({
+    width: 691,
+    height: 1536,
+    bgWidth: 0,
+    bgHeight: 0,
+    bgX: 0,
+    bgY: 0
+  });
+  const [pockets, setPockets] = useState([
+    { x: 48, y: 233 },
+    { x: 643, y: 233 },
+    { x: 48, y: 842 },
+    { x: 643, y: 842 },
+    { x: 48, y: 1450 },
+    { x: 643, y: 1450 }
+  ]);
 
   useEffect(() => {
     async function load() {
