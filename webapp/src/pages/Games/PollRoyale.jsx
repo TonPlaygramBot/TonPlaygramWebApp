@@ -34,6 +34,12 @@ export default function PollRoyale() {
   const iframeParams = new URLSearchParams(search);
   if (calibration?.width) iframeParams.set('cw', calibration.width);
   if (calibration?.height) iframeParams.set('ch', calibration.height);
+  if (calibration?.bgWidth) iframeParams.set('bw', calibration.bgWidth);
+  if (calibration?.bgHeight) iframeParams.set('bh', calibration.bgHeight);
+  if (typeof calibration?.bgX === 'number')
+    iframeParams.set('bx', calibration.bgX);
+  if (typeof calibration?.bgY === 'number')
+    iframeParams.set('by', calibration.bgY);
   const src = `/poll-royale.html?${iframeParams.toString()}`;
 
   return (

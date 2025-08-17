@@ -568,6 +568,10 @@ export function getPollRoyaleCalibration() {
   return get('/api/pollroyale/calibration');
 }
 
-export function savePollRoyaleCalibration(width, height) {
-  return post('/api/pollroyale/calibration', { width, height }, API_AUTH_TOKEN || undefined);
+export function savePollRoyaleCalibration(width, height, bgWidth, bgHeight, bgX, bgY) {
+  return post(
+    '/api/pollroyale/calibration',
+    { width, height, bgWidth, bgHeight, bgX, bgY },
+    API_AUTH_TOKEN || undefined
+  );
 }

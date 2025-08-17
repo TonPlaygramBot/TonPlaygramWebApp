@@ -7,6 +7,10 @@ const STORAGE_KEY = 'pollRoyaleCalibration';
 export default function PoolCalibrationModal({ open, onClose, onSave, onChange }) {
   const [width, setWidth] = useState(1000);
   const [height, setHeight] = useState(2000);
+  const [bgWidth, setBgWidth] = useState(1000);
+  const [bgHeight, setBgHeight] = useState(2000);
+  const [bgX, setBgX] = useState(0);
+  const [bgY, setBgY] = useState(0);
   const areaRef = useRef(null);
   const [drag, setDrag] = useState(null);
 
@@ -18,13 +22,18 @@ export default function PoolCalibrationModal({ open, onClose, onSave, onChange }
         const parsed = JSON.parse(stored);
         if (parsed.width) setWidth(parsed.width);
         if (parsed.height) setHeight(parsed.height);
+        if (parsed.bgWidth) setBgWidth(parsed.bgWidth);
+        if (parsed.bgHeight) setBgHeight(parsed.bgHeight);
+        if (typeof parsed.bgX === 'number') setBgX(parsed.bgX);
+        if (typeof parsed.bgY === 'number') setBgY(parsed.bgY);
       }
     } catch {}
   }, [open]);
 
   useEffect(() => {
-    if (onChange) onChange({ width, height });
-  }, [width, height, onChange]);
+    if (onChange)
+      onChange({ width, height, bgWidth, bgHeight, bgX, bgY });
+  }, [width, height, bgWidth, bgHeight, bgX, bgY, onChange]);
 
   useEffect(() => {
     if (!drag) return;
@@ -54,9 +63,9 @@ export default function PoolCalibrationModal({ open, onClose, onSave, onChange }
   }, [drag]);
 
   const handleSave = async () => {
-    const data = { width, height };
+    const data = { width, height, bgWidth, bgHeight, bgX, bgY };
     try {
-      await savePollRoyaleCalibration(width, height);
+      await savePollRoyaleCalibration(width, height, bgWidth, bgHeight, bgX, bgY);
     } catch {}
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
@@ -107,6 +116,42 @@ export default function PoolCalibrationModal({ open, onClose, onSave, onChange }
           max="3000"
           value={height}
           onChange={(e) => setHeight(Number(e.target.value))}
+          className="w-full"
+        />
+        <label className="block text-sm">Background Width: {bgWidth}px</label>
+        <input
+          type="range"
+          min="100"
+          max="4000"
+          value={bgWidth}
+          onChange={(e) => setBgWidth(Number(e.target.value))}
+          className="w-full"
+        />
+        <label className="block text-sm">Background Height: {bgHeight}px</label>
+        <input
+          type="range"
+          min="100"
+          max="4000"
+          value={bgHeight}
+          onChange={(e) => setBgHeight(Number(e.target.value))}
+          className="w-full"
+        />
+        <label className="block text-sm">Background X Offset: {bgX}px</label>
+        <input
+          type="range"
+          min="-1000"
+          max="1000"
+          value={bgX}
+          onChange={(e) => setBgX(Number(e.target.value))}
+          className="w-full"
+        />
+        <label className="block text-sm">Background Y Offset: {bgY}px</label>
+        <input
+          type="range"
+          min="-1000"
+          max="1000"
+          value={bgY}
+          onChange={(e) => setBgY(Number(e.target.value))}
           className="w-full"
         />
         <div className="flex justify-end gap-2 pt-2">
