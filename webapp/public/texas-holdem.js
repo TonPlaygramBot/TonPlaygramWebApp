@@ -197,15 +197,12 @@ function showControls() {
   btn.id = 'raise';
   btn.addEventListener('click', playerRaise);
   if (state.pot >= state.maxPot) btn.disabled = true;
-  const btnWrap = document.createElement('div');
-  btnWrap.className = 'raise-btn-wrap';
-  btnWrap.appendChild(btn);
+  raiseContainer.appendChild(btn);
   const amountText = document.createElement('div');
   amountText.id = 'raiseAmountText';
   amountText.className = 'raise-amount';
   amountText.textContent = `0 ${state.token}`;
-  btnWrap.appendChild(amountText);
-  raiseContainer.appendChild(btnWrap);
+  raiseContainer.appendChild(amountText);
   document.body.appendChild(raiseContainer);
   initRaiseSlider();
   positionRaiseContainer();
@@ -246,17 +243,18 @@ function initRaiseSlider() {
 function positionRaiseContainer() {
   const bottom = document.querySelector('.seat.bottom .avatar-wrap');
   const right =
-    document.querySelector('.seat.bottom-right .avatar-wrap') ||
-    document.querySelector('.seat.right .avatar-wrap');
+    document.querySelector('.seat.right .avatar-wrap') ||
+    document.querySelector('.seat.bottom-right .avatar-wrap');
   const container = document.getElementById('raiseContainer');
-  if (!bottom || !right || !container) return;
+  const btn = document.getElementById('raise');
+  if (!bottom || !right || !container || !btn) return;
   const bottomRect = bottom.getBoundingClientRect();
   const rightRect = right.getBoundingClientRect();
-  const containerRect = container.getBoundingClientRect();
+  const btnRect = btn.getBoundingClientRect();
   container.style.left =
-    rightRect.left + rightRect.width / 2 - containerRect.width / 2 + 'px';
+    rightRect.left + rightRect.width / 2 - btnRect.width / 2 + 'px';
   container.style.top =
-    bottomRect.top + bottomRect.height / 2 - containerRect.height / 2 + 'px';
+    bottomRect.top + bottomRect.height / 2 - btnRect.height / 2 + 'px';
 }
 
 function hideControls() {
