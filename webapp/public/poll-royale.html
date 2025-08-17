@@ -408,7 +408,7 @@
     tipit "Unexpected token / (1:0)" ne disa rrethina.
   -->
     <script type="text/javascript">
-      (function () {
+      function init(CONFIG) {
         'use strict';
 
         /* ==========================================================
@@ -416,20 +416,21 @@
        ========================================================= */
         var TABLE_W = 1000; // gjeresi logjike e felt-it
         var TABLE_H = TABLE_W * 2; // raport 2:1 (gjatesia dy here gjeresia)
-        var BORDER = TABLE_W * 0.0625; // ~6.25% e gjeresise
-        var POCKET_R = TABLE_W * 0.05; // ~5% e gjeresise
+        var BORDER = TABLE_W * CONFIG.playfield.x;
+        var PLAY_W = TABLE_W * CONFIG.playfield.w;
+        var PLAY_H = TABLE_H * CONFIG.playfield.h;
+        var POCKET_R = TABLE_W * CONFIG.pockets[0].r;
         var BALL_R = TABLE_W * 0.028125; // ~2.8% e gjeresise
-        var PLAY_W = TABLE_W - 2 * BORDER; // fusha pa spondat
-        var PLAY_H = TABLE_H - 2 * BORDER;
-        var HEAD_STRING_Y = BORDER + PLAY_H * 0.75; // 25% nga ana "head"
-        var FOOT_SPOT_X = TABLE_W / 2;
-        var FOOT_SPOT_Y = BORDER + PLAY_H * 0.25; // 75% nga "head"
+        var HEAD_STRING_Y = BORDER + PLAY_H * CONFIG.headString; // 25% nga ana "head"
+        var FOOT_SPOT_X = BORDER + PLAY_W * CONFIG.footSpot.x;
+        var FOOT_SPOT_Y = BORDER + PLAY_H * CONFIG.footSpot.y; // 75% nga "head"
 
         var FRICTION = 0.985; // ferkimi linear
         var BOUNCE = 0.98; // koeficienti i rikthimit
 
         var MIN_V = 0.08; // shpejtesia min. qe konsiderohet "ne levizje"
         var BASE_SPEED = 5700; // shpejtesia baze e goditjes
+        var GAME_MODE = '8ball'; // ose '9ball', '14_1'
 
         /* ==========================================================
        ELEMENTET DOM
@@ -499,7 +500,7 @@
        ========================================================= */
         var sX = 1,
           sY = 1,
-          pocketR = POCKET_R,
+          pocketScale = 1,
           ballR = BALL_R;
         function resize() {
           var wrap = document.getElementById('wrap');
@@ -516,8 +517,8 @@
           canvas.style.left = '0px';
           sX = cw / TABLE_W;
           sY = ch / TABLE_H;
-          pocketR = POCKET_R * ((sX + sY) / 2);
-          ballR = BALL_R * ((sX + sY) / 2);
+          pocketScale = (sX + sY) / 2;
+          ballR = BALL_R * pocketScale;
         }
         window.addEventListener('resize', resize);
 
@@ -547,6 +548,9 @@
           var dx = a.x - b.x,
             dy = a.y - b.y;
           return dx * dx + dy * dy;
+        }
+        function isBallInPocket(ball, pocket, ballR) {
+          return Math.hypot(ball.p.x - pocket.x, ball.p.y - pocket.y) < pocket.r - ballR * 0.2;
         }
 
         /* ==========================================================
@@ -639,9 +643,64 @@
           this.a = Math.PI; // orientim fillestar: numrat poshte
         }
 
-        function Pocket(x, y) {
+        function Pocket(x, y, r) {
           this.x = x;
           this.y = y;
+          this.r = r;
+        }
+
+        function rack8Ball(table, cx, cy, rowGap, colGap) {
+          var layout = [[1], [0, 0], [0, 8, 0], [0, 0, 0, 0], [2, 0, 0, 0, 11]];
+          var pool = [];
+          for (var i = 1; i <= 15; i++) {
+            if (i !== 1 && i !== 2 && i !== 8 && i !== 11) pool.push(i);
+          }
+          shuffle(pool);
+          for (var r = 0; r < layout.length; r++) {
+            for (var c = 0; c < layout[r].length; c++) {
+              var num = layout[r][c] || pool.pop();
+              var x = cx + (c - r / 2) * colGap;
+              var y = cy + r * rowGap;
+              var info = BALL_BY_N[num];
+              table.balls.push(new Ball(info, x, y));
+            }
+          }
+        }
+
+        function rack9Ball(table, cx, cy, rowGap, colGap) {
+          var layout = [[1], [0, 0], [0, 9, 0], [0, 0, 0], [0, 0, 0, 0]];
+          var pool = [];
+          for (var i = 1; i <= 9; i++) {
+            if (i !== 1 && i !== 9) pool.push(i);
+          }
+          shuffle(pool);
+          for (var r = 0; r < 5; r++) {
+            for (var c = 0; c < r + 1; c++) {
+              var num = layout[r][c] || pool.pop();
+              var x = cx + (c - r / 2) * colGap;
+              var y = cy + r * rowGap;
+              var info = BALL_BY_N[num];
+              table.balls.push(new Ball(info, x, y));
+            }
+          }
+        }
+
+        function rack14_1(table, cx, cy, rowGap, colGap) {
+          var layout = [[1], [0, 0], [0, 0, 0], [0, 0, 0, 0], [0, 5, 0, 0, 0]];
+          var pool = [];
+          for (var i = 1; i <= 15; i++) {
+            if (i !== 1 && i !== 5) pool.push(i);
+          }
+          shuffle(pool);
+          for (var r = 0; r < layout.length; r++) {
+            for (var c = 0; c < layout[r].length; c++) {
+              var num = layout[r][c] || pool.pop();
+              var x = cx + (c - r / 2) * colGap;
+              var y = cy + r * rowGap;
+              var info = BALL_BY_N[num];
+              table.balls.push(new Ball(info, x, y));
+            }
+          }
         }
 
         function Table() {
@@ -671,49 +730,22 @@
             new Ball(BALL_BY_N[0], TABLE_W / 2, TABLE_H - BORDER - BALL_R * 2)
           );
 
-          // Trekendshi siper me 15 topa (8-shi ne qender rreshti 3)
+          // Trekendshi siper me topat sipas modes
           var cx = TABLE_W / 2;
           var cy = FOOT_SPOT_Y;
           var rowGap = BALL_R * 1.95;
           var colGap = BALL_R * 2.1;
 
-          // Rregullimi i topave ne trekendesh:
-          // 1 ne maje, 8 ne qender, 2 dhe 11 ne cepat poshte
-          var layout = [[1], [0, 0], [0, 8, 0], [0, 0, 0, 0], [2, 0, 0, 0, 11]];
-
-          // Numrat e mbetur per mbushjen e trekendeshit
-          var pool = [];
-          for (i = 1; i <= 15; i++) {
-            if (i !== 1 && i !== 2 && i !== 8 && i !== 11) pool.push(i);
-          }
-          shuffle(pool);
-          var cursor = 0;
-
-          // 5 rreshta (1..5) — ne total 15 topa
-          for (var r = 0; r < 5; r++) {
-            var count = r + 1;
-            for (j = 0; j < count; j++) {
-              var x = cx - (count - 1) * BALL_R * 1.05 + j * colGap;
-              var y = cy + r * rowGap;
-              var num = layout[r][j] || pool[cursor++];
-              var info = BALL_BY_N[num];
-              if (!info) {
-                console.warn('Rack: numer i papercaktuar', num);
-                continue;
-              }
-              this.balls.push(new Ball(info, x, y));
-            }
-          }
+          if (GAME_MODE === '9ball') rack9Ball(this, cx, cy, rowGap, colGap);
+          else if (GAME_MODE === '14_1') rack14_1(this, cx, cy, rowGap, colGap);
+          else rack8Ball(this, cx, cy, rowGap, colGap);
 
           // Pockets (4 qoshe + 2 te mesit anesore)
-          this.pockets = [
-            new Pocket(BORDER, BORDER),
-            new Pocket(TABLE_W - BORDER, BORDER),
-            new Pocket(BORDER, TABLE_H / 2),
-            new Pocket(TABLE_W - BORDER, TABLE_H / 2),
-            new Pocket(BORDER, TABLE_H - BORDER),
-            new Pocket(TABLE_W - BORDER, TABLE_H - BORDER)
-          ];
+          this.pockets = CONFIG.pockets.map(function (pk) {
+            var x = TABLE_W * (CONFIG.playfield.x + CONFIG.playfield.w * (pk.x + pk.offX));
+            var y = TABLE_H * (CONFIG.playfield.y + CONFIG.playfield.h * (pk.y + pk.offY));
+            return new Pocket(x, y, pk.r * TABLE_W);
+          });
 
           // TESTE TE INTEGRITETIT (console.assert)
           runSelfTests(this);
@@ -803,9 +835,7 @@
             for (j = 0; j < this.balls.length; j++) {
               var b2 = this.balls[j];
               if (b2.pocketed) continue;
-              var ddx = b2.p.x - p.x,
-                ddy = b2.p.y - p.y;
-              if (Math.hypot(ddx, ddy) < POCKET_R * 0.9) {
+              if (isBallInPocket(b2, p, BALL_R)) {
                 if (b2.n === 0) {
                   this.turn = this.turn === 1 ? 2 : 1; // scratch => kalon radha
                   b2.p.x = TABLE_W / 2;
@@ -841,7 +871,7 @@
           for (var i = 0; i < this.pockets.length; i++) {
             var pk = this.pockets[i];
             ctx.beginPath();
-            ctx.arc(pk.x * sX, pk.y * sY, pocketR, 0, Math.PI * 2);
+            ctx.arc(pk.x * sX, pk.y * sY, pk.r * pocketScale, 0, Math.PI * 2);
             ctx.fillStyle = '#000';
             ctx.fill();
             ctx.strokeStyle = '#00ff00';
@@ -1462,7 +1492,10 @@
         });
         resize();
         table.render();
-      })();
+      }
+      fetch('pool-config.json').then(function (r) {
+        return r.json();
+      }).then(init);
     </script>
   </body>
 </html>
