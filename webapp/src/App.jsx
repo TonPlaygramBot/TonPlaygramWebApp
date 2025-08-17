@@ -38,8 +38,6 @@ import BubbleSmashRoyale from './pages/Games/BubbleSmashRoyale.jsx';
 import BubbleSmashRoyaleLobby from './pages/Games/BubbleSmashRoyaleLobby.jsx';
 import MurlanRoyale from './pages/Games/MurlanRoyale.jsx';
 import MurlanRoyaleLobby from './pages/Games/MurlanRoyaleLobby.jsx';
-import TexasHoldem from './pages/Games/TexasHoldem.jsx';
-import TexasHoldemLobby from './pages/Games/TexasHoldemLobby.jsx';
 import PoolRoyale from './pages/Games/PoolRoyale.jsx';
 import PoolRoyaleLobby from './pages/Games/PoolRoyaleLobby.jsx';
 import PoolRoyaleCalibration from './pages/Games/PoolRoyaleCalibration.jsx';
@@ -82,8 +80,6 @@ export default function App() {
             <Route path="/games/bubblepoproyale" element={<BubblePopRoyale />} />
             <Route path="/games/bubblesmashroyale/lobby" element={<BubbleSmashRoyaleLobby />} />
             <Route path="/games/bubblesmashroyale" element={<BubbleSmashRoyale />} />
-            <Route path="/games/texasholdem/lobby" element={<TexasHoldemLobby />} />
-            <Route path="/games/texasholdem" element={<TexasHoldem />} />
             <Route path="/games/murlanroyale/lobby" element={<MurlanRoyaleLobby />} />
             <Route path="/games/murlanroyale" element={<MurlanRoyale />} />
             <Route path="/games/poolroyale/lobby" element={<PoolRoyaleLobby />} />
