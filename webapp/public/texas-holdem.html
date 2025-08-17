@@ -62,18 +62,22 @@
       .seat.bottom .cards{ gap:0 }
       .timer{ font-weight:800; background:rgba(0,0,0,.5); padding:2px 6px; border-radius:8px; }
     .controls{ display:flex; gap:8px; margin-top:8px; }
-    .controls button{ padding:4px 8px; border:none; border-radius:8px; background:#2563eb; color:#fff; font-weight:600; font-size:12px; }
-    .raise-container{ display:flex; flex-direction:column; align-items:center; }
-    #raise{ padding:6px 12px; font-size:14px; }
+    .controls button{ width:var(--avatar-size); height:var(--avatar-size); padding:0; border:4px solid #000; border-radius:50%; background:#2563eb; color:#fff; font-weight:600; font-size:12px; display:flex; align-items:center; justify-content:center; }
+    #raise{ background:#2563eb; }
+    #check{ background:#facc15; }
+    #call{ background:#16a34a; }
+    #fold{ background:#dc2626; }
+    .raise-container{ position:fixed; right:2vw; top:50%; transform:translateY(-50%); display:flex; flex-direction:column; align-items:center; gap:8px; }
+    #raise{ padding:0; font-size:14px; border-radius:50%; }
     .raise-amount{ font-size:10px; margin-top:2px; }
     #raisePanel{ position:relative; width:clamp(44px,5vw,88px); height:25vh; padding:12px; border-radius:14px; background:rgba(255,255,255,0.02); overflow:hidden; }
     #raisePanel::before{ content:""; position:absolute; left:50%; top:12px; bottom:12px; width:1px; background:rgba(230,237,247,0.2); }
-    #raiseFill{ position:absolute; left:12px; right:12px; bottom:12px; height:0%; border-radius:8px; background:linear-gradient(to top,#10b981,#facc15,#ef4444); box-shadow:inset 0 -1px 0 rgba(0,0,0,0.2); }
+    #raiseFill{ position:absolute; left:12px; right:12px; bottom:12px; height:0%; border-radius:8px; background:rgba(255,255,255,0.2); box-shadow:inset 0 -1px 0 rgba(0,0,0,0.2); }
     #raiseFill::after{ content:""; position:absolute; top:0; left:0; right:0; height:2px; background:rgba(255,255,255,0.2); }
     #raiseThumb{ position:absolute; left:50%; transform:translate(-50%,50%); bottom:12px; width:28px; height:28px; border-radius:50%; background:#ffffff; border:4px solid #0b1224; box-shadow:0 2px 8px rgba(0,0,0,0.45); touch-action:none; }
     #raiseThumb::before{ content:""; position:absolute; inset:2px; border-radius:50%; background:radial-gradient(circle at 30% 30%,#ffffff,#d1d5db); }
-    #raisePanel .max-zone{ position:absolute; top:0; left:12px; right:12px; height:15%; background:repeating-linear-gradient(45deg,rgba(239,68,68,0.08) 0 8px,transparent 8px 16px); animation:shimmer 2s linear infinite; pointer-events:none; }
-    #raisePanel .max-label{ position:absolute; top:4px; left:50%; transform:translateX(-50%); font-size:10px; color:#ef4444; animation:pulse 1.5s infinite; }
+    #raisePanel .max-zone{ position:absolute; top:0; left:12px; right:12px; height:15%; background:rgba(255,255,255,0.08); animation:shimmer 2s linear infinite; pointer-events:none; }
+    #raisePanel .max-label{ position:absolute; top:4px; left:50%; transform:translateX(-50%); font-size:10px; color:#fff; animation:pulse 1.5s infinite; }
     @keyframes pulse{0%,100%{opacity:0.6}50%{opacity:1}}
     @keyframes shimmer{from{background-position:0 0}to{background-position:100px 0}}
     #status{ position:absolute; top:52%; left:50%; transform:translate(-50%, -50%); font-weight:900; letter-spacing:.3px; color:#ff0; background:rgba(0,0,0,.28); padding:6px 12px; border-radius:12px; border:1px solid rgba(255,255,255,.12); text-shadow:0 2px 6px #000; -webkit-text-stroke:1px #000 }
