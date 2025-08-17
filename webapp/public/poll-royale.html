@@ -432,16 +432,29 @@
             var p = new URLSearchParams(location.search);
             var w = parseInt(p.get('cw'));
             var h = parseInt(p.get('ch'));
-            if (w && h) return { w: w, h: h };
+            var bw = parseInt(p.get('bw'));
+            var bh = parseInt(p.get('bh'));
+            var bx = parseInt(p.get('bx'));
+            var by = parseInt(p.get('by'));
+            if (w && h)
+              return { w: w, h: h, bw: bw, bh: bh, bx: bx, by: by };
           } catch {}
           try {
             var s = localStorage.getItem('pollRoyaleCalibration');
             if (s) {
               var c = JSON.parse(s);
-              if (c.width && c.height) return { w: c.width, h: c.height };
+              if (c.width && c.height)
+                return {
+                  w: c.width,
+                  h: c.height,
+                  bw: c.bgWidth,
+                  bh: c.bgHeight,
+                  bx: c.bgX,
+                  by: c.bgY
+                };
             }
           } catch {}
-          return { w: 1000, h: 2000 };
+          return { w: 1000, h: 2000, bw: 0, bh: 0, bx: 0, by: 0 };
         })();
         var TABLE_W = CAL.w; // gjeresi logjike e felt-it
         var TABLE_H = CAL.h; // gjatesia logjike e felt-it
@@ -463,6 +476,15 @@
         /* ==========================================================
        ELEMENTET DOM
        ========================================================= */
+        var wrap = document.getElementById('wrap');
+        if (CAL.bw && CAL.bh) {
+          wrap.style.backgroundSize = CAL.bw + 'px ' + CAL.bh + 'px';
+        } else {
+          wrap.style.backgroundSize = 'cover';
+        }
+        var xPos = isNaN(CAL.bx) ? '50%' : 'calc(50% + ' + CAL.bx + 'px)';
+        var yPos = isNaN(CAL.by) ? '50%' : 'calc(50% + ' + CAL.by + 'px)';
+        wrap.style.backgroundPosition = xPos + ' ' + yPos;
         var canvas = document.getElementById('table');
         var ctx = canvas.getContext('2d');
         var rightPanel = document.getElementById('rightPanel');
@@ -529,7 +551,6 @@
           pocketR = POCKET_R,
           ballR = BALL_R;
         function resize() {
-          var wrap = document.getElementById('wrap');
           var w = wrap.clientWidth;
           var h = wrap.clientHeight;
           var ar = TABLE_W / TABLE_H;
