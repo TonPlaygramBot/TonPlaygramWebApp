@@ -94,7 +94,7 @@
       inset: 0;
       z-index: 0;
       border-radius: 32px;
-      border: 24px solid transparent;
+      border: 28px solid transparent;
       background:
         radial-gradient(circle at 0% 0%, #000 0 3%, transparent 3%),
         radial-gradient(circle at 100% 0%, #000 0 3%, transparent 3%),
@@ -317,7 +317,7 @@
        ========================================================= */
     var TABLE_W = 640;      // gjeresi logjike e felt-it (pak me e vogel)
     var TABLE_H = 1000;     // lartesi logjike e felt-it (pak me e vogel)
-    var BORDER  = 36;       // korniza e drurit rreth e rrotull
+    var BORDER  = 40;       // korniza e drurit rreth e rrotull
     var POCKET_R = 26;      // rrezja baze e gropave per perputhje me dekorin
     var BALL_R   = 18;      // rrezja baze e topave
 
@@ -626,11 +626,13 @@
       ctx.lineWidth = 4;
       ctx.strokeRect(x0, y0, w, h);
 
-      // Pockets (4 corners + 2 middles) outlined in green
+      // Pockets (4 corners + 2 middles) filled black with green outline
       for (var i=0;i<this.pockets.length;i++){
         var pk = this.pockets[i];
         ctx.beginPath();
         ctx.arc(pk.x*sX, pk.y*sY, pocketR, 0, Math.PI*2);
+        ctx.fillStyle = '#000';
+        ctx.fill();
         ctx.strokeStyle = '#00ff00';
         ctx.lineWidth = 4;
         ctx.stroke();
