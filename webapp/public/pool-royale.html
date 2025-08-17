@@ -439,8 +439,14 @@
             var bh = parseInt(p.get('bh'));
             var bx = parseInt(p.get('bx'));
             var by = parseInt(p.get('by'));
+            var pockets = [];
+            for (var i = 1; i <= 6; i++) {
+              var px = parseInt(p.get('p' + i + 'x'));
+              var py = parseInt(p.get('p' + i + 'y'));
+              if (!isNaN(px) && !isNaN(py)) pockets.push({ x: px, y: py });
+            }
             if (w && h)
-              return { w: w, h: h, bw: bw, bh: bh, bx: bx, by: by };
+              return { w: w, h: h, bw: bw, bh: bh, bx: bx, by: by, pockets: pockets };
           } catch {}
           return { w: 1000, h: 2000, bw: 0, bh: 0, bx: 0, by: 0 };
         })();
@@ -756,14 +762,21 @@
           }
 
           // Pockets (4 qoshe + 2 te mesit anesore)
-          this.pockets = [
-            new Pocket(BORDER, BORDER),
-            new Pocket(TABLE_W - BORDER, BORDER),
-            new Pocket(BORDER, TABLE_H / 2),
-            new Pocket(TABLE_W - BORDER, TABLE_H / 2),
-            new Pocket(BORDER, TABLE_H - BORDER),
-            new Pocket(TABLE_W - BORDER, TABLE_H - BORDER)
+          var defPockets = [
+            { x: BORDER, y: BORDER },
+            { x: TABLE_W - BORDER, y: BORDER },
+            { x: BORDER, y: TABLE_H / 2 },
+            { x: TABLE_W - BORDER, y: TABLE_H / 2 },
+            { x: BORDER, y: TABLE_H - BORDER },
+            { x: TABLE_W - BORDER, y: TABLE_H - BORDER }
           ];
+          var calPockets = (CAL.pockets || []).length === 6 ? CAL.pockets : defPockets;
+          this.pockets = calPockets.map(function (p, idx) {
+            var def = defPockets[idx];
+            var x = typeof p.x === 'number' ? p.x : def.x;
+            var y = typeof p.y === 'number' ? p.y : def.y;
+            return new Pocket(x, y);
+          });
 
           // TESTE TE INTEGRITETIT (console.assert)
           runSelfTests(this);

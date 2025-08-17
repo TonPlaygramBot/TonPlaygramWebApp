@@ -568,10 +568,18 @@ export function getPoolRoyaleCalibration() {
   return get('/api/poolroyale/calibration');
 }
 
-export function savePoolRoyaleCalibration(width, height, bgWidth, bgHeight, bgX, bgY) {
+export function savePoolRoyaleCalibration(
+  width,
+  height,
+  bgWidth,
+  bgHeight,
+  bgX,
+  bgY,
+  pockets
+) {
   return post(
     '/api/poolroyale/calibration',
-    { width, height, bgWidth, bgHeight, bgX, bgY },
+    { width, height, bgWidth, bgHeight, bgX, bgY, pockets },
     API_AUTH_TOKEN || undefined
   );
 }

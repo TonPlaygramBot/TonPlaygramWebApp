@@ -42,6 +42,7 @@ import TexasHoldem from './pages/Games/TexasHoldem.jsx';
 import TexasHoldemLobby from './pages/Games/TexasHoldemLobby.jsx';
 import PoolRoyale from './pages/Games/PoolRoyale.jsx';
 import PoolRoyaleLobby from './pages/Games/PoolRoyaleLobby.jsx';
+import PoolRoyaleCalibration from './pages/Games/PoolRoyaleCalibration.jsx';
 
 import Layout from './components/Layout.jsx';
 import useTelegramAuth from './hooks/useTelegramAuth.js';
@@ -87,6 +88,7 @@ export default function App() {
             <Route path="/games/murlanroyale" element={<MurlanRoyale />} />
             <Route path="/games/poolroyale/lobby" element={<PoolRoyaleLobby />} />
             <Route path="/games/poolroyale" element={<PoolRoyale />} />
+            <Route path="/games/poolroyale/calibrate" element={<PoolRoyaleCalibration />} />
             <Route path="/spin" element={<SpinPage />} />
             <Route path="/admin/influencer" element={<InfluencerAdmin />} />
             <Route path="/tasks" element={<Tasks />} />
