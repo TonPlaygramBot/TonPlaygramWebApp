@@ -17,6 +17,7 @@ export default function TexasHoldemLobby() {
   const [stake, setStake] = useState({ token: 'TPC', amount: 100 });
   const [mode, setMode] = useState('local');
   const [avatar, setAvatar] = useState('');
+  const startBet = stake.amount / 100;
 
   useEffect(() => {
     try {
@@ -66,6 +67,9 @@ export default function TexasHoldemLobby() {
       <div className="space-y-2">
         <h3 className="font-semibold">Stake</h3>
         <RoomSelector selected={stake} onSelect={setStake} tokens={['TPC']} />
+        <p className="text-sm text-center">
+          Start bet: {startBet.toLocaleString('en-US')} TPC • Pot max: {stake.amount.toLocaleString('en-US')} TPC
+        </p>
       </div>
       <div className="space-y-2">
         <h3 className="font-semibold">Mode</h3>
