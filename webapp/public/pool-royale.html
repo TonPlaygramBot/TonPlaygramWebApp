@@ -137,7 +137,7 @@
         height: 78vh;
         padding: 12px;
         border-radius: 20px;
-        background: linear-gradient(#0c1020, #11172a);
+        background: transparent;
         box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
         border: 1px solid rgba(31, 42, 68, 0.4);
         display: flex;
@@ -197,7 +197,7 @@
         height: 100%;
         padding: 12px;
         border-radius: 14px;
-        background: rgba(255, 255, 255, 0.02);
+        background: transparent;
         overflow: hidden;
       }
       #sliderTrack::before {
@@ -745,9 +745,9 @@
           shuffle(pool);
           var cursor = 0;
 
-          // 5 rreshta (1..5) — ne total 15 topa
+          // 5 rreshta (5..1) — ne total 15 topa
           for (var r = 0; r < 5; r++) {
-            var count = r + 1;
+            var count = 5 - r;
             for (j = 0; j < count; j++) {
               var x = cx - (count - 1) * BALL_R * 1.05 + j * colGap;
               var y = cy + r * rowGap;
