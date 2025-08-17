@@ -1,7 +1,0 @@
-[
-  { "stake": 100, "startBet": 1, "stepBet": 1, "potCap": 100, "SB": 1, "BB": 2 },
-  { "stake": 500, "startBet": 5, "stepBet": 5, "potCap": 500, "SB": 5, "BB": 10 },
-  { "stake": 1000, "startBet": 10, "stepBet": 10, "potCap": 1000, "SB": 10, "BB": 20 },
-  { "stake": 5000, "startBet": 50, "stepBet": 50, "potCap": 5000, "SB": 50, "BB": 100 },
-  { "stake": 10000, "startBet": 100, "stepBet": 100, "potCap": 10000, "SB": 100, "BB": 200 }
-]

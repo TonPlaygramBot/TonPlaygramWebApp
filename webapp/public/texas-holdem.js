@@ -8,9 +8,6 @@ import {
   HAND_RANK_NAMES,
 } from './lib/texasHoldem.js';
 import { FLAG_EMOJIS } from './flag-emojis.js';
-import { HOLD_EM_EVENTS } from './lib/holdemEvents.js';
-// export events for UI systems; mark as used
-void HOLD_EM_EVENTS;
 
 const state = {
   players: [],
