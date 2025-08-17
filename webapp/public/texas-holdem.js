@@ -196,6 +196,11 @@ function showControls() {
   btn.addEventListener('click', playerRaise);
   if (state.pot >= state.maxPot) btn.disabled = true;
   raiseContainer.appendChild(btn);
+  const amountText = document.createElement('div');
+  amountText.id = 'raiseAmountText';
+  amountText.className = 'raise-amount';
+  amountText.textContent = `0 ${state.token}`;
+  raiseContainer.appendChild(amountText);
   controls.appendChild(raiseContainer);
   initRaiseSlider();
 }
@@ -214,6 +219,10 @@ function initRaiseSlider() {
     thumb.style.bottom = 'calc(12px + (100% - 24px) * ' + pct + ')';
     const maxAllowed = Math.min(state.stake, state.maxPot - state.pot);
     state.raiseAmount = Math.round(pct * maxAllowed);
+    const amtEl = document.getElementById('raiseAmountText');
+    if (amtEl) amtEl.textContent = `${state.raiseAmount} ${state.token}`;
+    const status = document.getElementById('status');
+    if (status) status.textContent = `Raise ${state.raiseAmount} ${state.token}`;
   }
   panel.addEventListener('pointerdown', function (e) {
     update(e);
