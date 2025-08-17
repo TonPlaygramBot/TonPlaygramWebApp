@@ -847,15 +847,19 @@
             path2.push({x:cx,y:cy});
           }
         } else if (impactBall){
+          var n = norm(impactBall.p.x - cue.p.x, impactBall.p.y - cue.p.y);
           var ox = impactBall.p.x, oy = impactBall.p.y;
           for (var k=0;k<remaining;k++){
-            ox += dir.x * step; oy += dir.y * step;
+            ox += n.x * step; oy += n.y * step;
             if (ox < BORDER+BALL_R || ox > TABLE_W-BORDER-BALL_R || oy < BORDER+BALL_R || oy > TABLE_H-BORDER-BALL_R) break;
             path2.push({x:ox,y:oy});
           }
-          var n = norm(impactBall.p.x - cue.p.x, impactBall.p.y - cue.p.y);
-          var dot = dir.x*n.x + dir.y*n.y;
-          var dirCue = norm(dir.x - n.x*dot, dir.y - n.y*dot);
+          var base = BASE_SPEED;
+          var vx = dir.x*base*(0.25+0.75*power) + spinVec.x*260*power;
+          var vy = dir.y*base*(0.25+0.75*power) + spinVec.y*260*power;
+          var velDir = norm(vx, vy);
+          var dot = velDir.x*n.x + velDir.y*n.y;
+          var dirCue = norm(velDir.x - n.x*dot, velDir.y - n.y*dot);
           var cx = x, cy = y;
           for (var k=0;k<remaining;k++){
             cx += dirCue.x * step; cy += dirCue.y * step;
