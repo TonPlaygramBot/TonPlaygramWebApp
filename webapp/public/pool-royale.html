@@ -108,8 +108,8 @@
         overflow: hidden;
         background: url('/assets/icons/64e79228-35e3-4fdc-b914-fca635a40220.webp')
           center/cover no-repeat;
-        background-position: calc(50% - 10px) calc(50% - 5px);
-        background-size: calc(100% - 20px) calc(100% + 20px);
+        background-position: calc(50% - 8px) calc(50% + 8px);
+        background-size: calc(100% - 25px) calc(100% + 30px);
       }
 
       :root {
@@ -468,13 +468,13 @@
         if (CAL.bw && CAL.bh) {
           wrap.style.backgroundSize = CAL.bw + 'px ' + CAL.bh + 'px';
         } else {
-          wrap.style.backgroundSize = 'calc(100% - 20px) auto';
+          wrap.style.backgroundSize = 'calc(100% - 25px) calc(100% + 10px)';
         }
         var xPos = isNaN(CAL.bx)
-          ? 'calc(50% - 5px)'
+          ? 'calc(50% - 8px)'
           : 'calc(50% + ' + CAL.bx + 'px)';
         var yPos = isNaN(CAL.by)
-          ? 'calc(50% + 5px)'
+          ? 'calc(50% + 8px)'
           : 'calc(50% + ' + CAL.by + 'px)';
         wrap.style.backgroundPosition = xPos + ' ' + yPos;
         var canvas = document.getElementById('table');
@@ -554,7 +554,7 @@
         canvas.width = cw;
         canvas.height = ch;
         canvas.style.top = (h - ch) / 2 + 'px';
-        canvas.style.left = '5px';
+        canvas.style.left = '7px';
         sX = cw / TABLE_W;
         sY = ch / TABLE_H;
         pocketR = POCKET_R * ((sX + sY) / 2);
