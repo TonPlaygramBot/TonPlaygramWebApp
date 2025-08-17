@@ -256,7 +256,7 @@ function positionRaiseContainer() {
   container.style.left =
     rightRect.left + rightRect.width / 2 - containerRect.width / 2 + 'px';
   container.style.top =
-    bottomRect.top + bottomRect.height / 2 - containerRect.height / 2 + 'px';
+    bottomRect.top + bottomRect.height / 2 - containerRect.height / 2 + 8 + 'px';
 }
 
 function hideControls() {
