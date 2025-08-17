@@ -108,9 +108,9 @@
         overflow: hidden;
         background: url('/assets/icons/64e79228-35e3-4fdc-b914-fca635a40220.webp')
           center/cover no-repeat;
-        /* Adjust pool field: slightly up, right, wider and shorter */
-        background-position: calc(50% - 6px) calc(50% + 2px);
-        background-size: calc(100% - 6px) calc(100% + 10px);
+        /* Adjust pool field: moved slightly up and to the right; made wider and shorter */
+        background-position: calc(50% - 3px) calc(50% + 0px);
+        background-size: calc(100% + 8px) calc(100% - 6px);
       }
 
       :root {
@@ -475,13 +475,13 @@
         if (CAL.bw && CAL.bh) {
           wrap.style.backgroundSize = CAL.bw + 'px ' + CAL.bh + 'px';
         } else {
-          wrap.style.backgroundSize = 'calc(100% - 25px) calc(100% + 10px)';
+          wrap.style.backgroundSize = 'calc(100% + 8px) calc(100% - 6px)';
         }
         var xPos = isNaN(CAL.bx)
-          ? 'calc(50% - 8px)'
+          ? 'calc(50% - 3px)'
           : 'calc(50% + ' + CAL.bx + 'px)';
         var yPos = isNaN(CAL.by)
-          ? 'calc(50% + 8px)'
+          ? 'calc(50% + 0px)'
           : 'calc(50% + ' + CAL.by + 'px)';
         wrap.style.backgroundPosition = xPos + ' ' + yPos;
         var canvas = document.getElementById('table');
