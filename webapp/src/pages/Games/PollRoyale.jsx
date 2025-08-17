@@ -50,6 +50,7 @@ export default function PollRoyale() {
             open={showCal}
             onClose={() => setShowCal(false)}
             onSave={(c) => setCalibration(c)}
+            onChange={(c) => setCalibration(c)}
           />
         </>
       )}
