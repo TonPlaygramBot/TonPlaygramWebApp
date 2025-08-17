@@ -136,7 +136,7 @@ export function bestHand(cards){
   for(const c of combinations(cards,5)){
     const e=evaluate5(c);
     if(!best||e.rank>best.rank|| (e.rank===best.rank && compareTiebreak(e.tiebreak,best.tiebreak)>0)){
-      best=e;
+      best={...e,cards:c};
     }
   }
   return best;
