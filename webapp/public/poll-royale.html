@@ -227,12 +227,6 @@
       background: linear-gradient(#ffcc00, #ff4444);
     }
 
-    #powerTxt {
-      margin-top: 8px;
-      font-size: 12px;
-      opacity: .85;
-    }
-
     #play {
       position: absolute;
       left: 50%;
@@ -288,7 +282,6 @@
 
           <div style="display:flex;flex-direction:column;align-items:center;gap:6px;">
             <div id="powerBox"><div id="powerFill"></div></div>
-            <div id="powerTxt">FORCA 0%</div>
           </div>
         </aside>
 
@@ -342,7 +335,6 @@
     var cueStickEl= document.getElementById('cueStick');
     var cueTipEl  = document.getElementById('tip');
     var powerFill = document.getElementById('powerFill');
-    var powerTxt  = document.getElementById('powerTxt');
     var userAvatar= document.getElementById('userAvatar');
     var userNameEl= document.getElementById('userName');
     var aiAvatar  = document.getElementById('aiAvatar');
@@ -762,7 +754,12 @@
 
     canvas.addEventListener('pointerdown', function(e){
       if (!table.running || table.isMoving()) return;
-      aiming = true; showGuides = true; var t = screenToTable(e.clientX,e.clientY); table.aim = t;
+      var cue = table.balls[0]; if (!cue) return;
+      var p = screenToTable(e.clientX, e.clientY);
+      var dx = table.aim.x - cue.p.x, dy = table.aim.y - cue.p.y;
+      var len = Math.sqrt(dx*dx + dy*dy) || 1;
+      var dist = Math.abs((p.x - cue.p.x)*dy - (p.y - cue.p.y)*dx) / len;
+      if (dist <= BALL_R*2){ aiming = true; showGuides = true; table.aim = p; }
     });
 
     canvas.addEventListener('pointermove', function(e){
@@ -837,7 +834,7 @@
        PULL & RELEASE – fuqi e goditjes
        ========================================================= */
     var pulling=false, pullStartY=0;
-    function updatePowerUI(){ powerFill.style.height = Math.round(power*100)+'%'; powerTxt.textContent = 'FORCA '+Math.round(power*100)+'%'; }
+    function updatePowerUI(){ powerFill.style.height = Math.round(power*100)+'%'; }
     pullArea.addEventListener('pointerdown', function(e){ if (!table.running || table.isMoving()) return; pulling=true; pullStartY=e.clientY; power=0; updatePowerUI(); });
     pullArea.addEventListener('pointermove', function(e){ if (!pulling) return; var rect=pullArea.getBoundingClientRect(); power=clamp((e.clientY-pullStartY)/(rect.height*0.9),0,1); updatePowerUI(); var minY=rect.top+12, maxY=rect.bottom-12, y=minY+(maxY-minY)*power; cueStickEl.style.height=(60+30*power)+'%'; cueTipEl.style.top=(y-rect.top-6)+'px'; cueStickEl.style.top=(y-rect.top-(cueStickEl.getBoundingClientRect().height-12)/2)+'px'; cuePullVisual=power*(BALL_R*14); });
     pullArea.addEventListener('pointerup', function(){ if (!pulling) return; pulling=false; shoot(power); power=0; updatePowerUI(); cuePullVisual=0; cueStickEl.style.height='60%'; });
