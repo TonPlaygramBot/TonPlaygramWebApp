@@ -427,8 +427,24 @@
         /* ==========================================================
        KONSTANTA TE LAYOUT-it DHE FIZIKES (sipas portrait)
        ========================================================= */
-        var TABLE_W = 1000; // gjeresi logjike e felt-it
-        var TABLE_H = TABLE_W * 2; // raport 2:1 (gjatesia dy here gjeresia)
+        var CAL = (function () {
+          try {
+            var p = new URLSearchParams(location.search);
+            var w = parseInt(p.get('cw'));
+            var h = parseInt(p.get('ch'));
+            if (w && h) return { w: w, h: h };
+          } catch {}
+          try {
+            var s = localStorage.getItem('pollRoyaleCalibration');
+            if (s) {
+              var c = JSON.parse(s);
+              if (c.width && c.height) return { w: c.width, h: c.height };
+            }
+          } catch {}
+          return { w: 1000, h: 2000 };
+        })();
+        var TABLE_W = CAL.w; // gjeresi logjike e felt-it
+        var TABLE_H = CAL.h; // gjatesia logjike e felt-it
         var BORDER = TABLE_W * 0.0625; // ~6.25% e gjeresise
         var POCKET_R = TABLE_W * 0.05; // ~5% e gjeresise
         var BALL_R = TABLE_W * 0.028125; // ~2.8% e gjeresise
