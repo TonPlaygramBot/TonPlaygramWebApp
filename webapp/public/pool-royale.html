@@ -6,7 +6,7 @@
       name="viewport"
       content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no"
     />
-    <title>Deluxe Billiards • 2.5D Cartoon (Portrait)</title>
+    <title>Pool Royale 🎱</title>
     <style>
       /* ------------------------------------------------------------------
        DELUXE BILLIARDS 2.5D CARTOON (PORTRAIT)
@@ -108,8 +108,8 @@
         overflow: hidden;
         background: url('/assets/icons/64e79228-35e3-4fdc-b914-fca635a40220.webp')
           center/cover no-repeat;
-        background-position: calc(50% - 5px) calc(50% + 5px);
-        background-size: calc(100% - 20px) auto;
+        background-position: calc(50% - 10px) calc(50% - 5px);
+        background-size: calc(100% - 20px) calc(100% + 20px);
       }
 
       :root {
@@ -714,15 +714,21 @@
             new Ball(BALL_BY_N[0], TABLE_W / 2, CUE_START_Y)
           );
 
-          // Trekendshi poshte me 15 topa (8-shi ne qender rreshti 3)
+          // Trekendshi siper me 15 topa (8-shi ne qender rreshti 3)
           var cx = TABLE_W / 2;
-          var cy = TABLE_H - FOOT_SPOT_Y;
+          var cy = FOOT_SPOT_Y;
           var rowGap = BALL_R * 1.95;
           var colGap = BALL_R * 2.1;
 
           // Rregullimi i topave ne trekendesh:
-          // 1 ne maje, 8 ne qender, 2 dhe 11 ne cepat poshte
-          var layout = [[1], [0, 0], [0, 8, 0], [0, 0, 0, 0], [2, 0, 0, 0, 11]];
+          // 1 ne fund, 8 ne qender, 2 dhe 11 ne cepat siper
+          var layout = [
+            [2, 0, 0, 0, 11],
+            [0, 0, 0, 0],
+            [0, 8, 0],
+            [0, 0],
+            [1]
+          ];
 
           // Numrat e mbetur per mbushjen e trekendeshit
           var pool = [];
@@ -737,7 +743,7 @@
             var count = r + 1;
             for (j = 0; j < count; j++) {
               var x = cx - (count - 1) * BALL_R * 1.05 + j * colGap;
-              var y = cy - r * rowGap;
+              var y = cy + r * rowGap;
               var num = layout[r][j] || pool[cursor++];
               var info = BALL_BY_N[num];
               if (!info) {

@@ -1,4 +1,4 @@
-// Advanced aim guide calculations for 8 Pool Royale
+// Advanced aim guide calculations for Pool Royale 🎱
 // Implements dotted guide lines for cue and object balls taking into account
 // power, spin and simple reflections on a rectangular table with pockets.
 

@@ -564,13 +564,13 @@ export function getWatchCount(tableId) {
 export function getAppStats() {
   return get('/api/stats');
 }
-export function getPollRoyaleCalibration() {
-  return get('/api/pollroyale/calibration');
+export function getPoolRoyaleCalibration() {
+  return get('/api/poolroyale/calibration');
 }
 
-export function savePollRoyaleCalibration(width, height, bgWidth, bgHeight, bgX, bgY) {
+export function savePoolRoyaleCalibration(width, height, bgWidth, bgHeight, bgX, bgY) {
   return post(
-    '/api/pollroyale/calibration',
+    '/api/poolroyale/calibration',
     { width, height, bgWidth, bgHeight, bgX, bgY },
     API_AUTH_TOKEN || undefined
   );
