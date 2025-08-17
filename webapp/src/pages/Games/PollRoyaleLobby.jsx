@@ -12,6 +12,7 @@ export default function PollRoyaleLobby() {
 
   const [stake, setStake] = useState({ token: 'TPC', amount: 100 });
   const [mode, setMode] = useState('ai');
+  const [gameType, setGameType] = useState('8');
   const [avatar, setAvatar] = useState('');
 
   useEffect(() => {
@@ -47,6 +48,7 @@ export default function PollRoyaleLobby() {
     if (avatar) params.set('avatar', avatar);
     if (tgId) params.set('tgId', tgId);
     if (accountId) params.set('accountId', accountId);
+    if (gameType) params.set('game', gameType);
     const name = getTelegramFirstName();
     if (name) params.set('name', name);
     const devAcc = import.meta.env.VITE_DEV_ACCOUNT_ID;
@@ -62,6 +64,24 @@ export default function PollRoyaleLobby() {
   return (
     <div className="relative p-4 space-y-4 text-text min-h-screen tetris-grid-bg">
       <h2 className="text-xl font-bold text-center">8 Poll Royale Lobby</h2>
+      <div className="space-y-2">
+        <h3 className="font-semibold">Game Type</h3>
+        <div className="flex gap-2">
+          {[
+            { id: '8', label: '8-Ball' },
+            { id: '9', label: '9-Ball' },
+            { id: '15', label: 'Straight Pool' }
+          ].map(({ id, label }) => (
+            <button
+              key={id}
+              onClick={() => setGameType(id)}
+              className={`lobby-tile ${gameType === id ? 'lobby-selected' : ''}`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+      </div>
       <div className="space-y-2">
         <h3 className="font-semibold">Mode</h3>
         <div className="flex gap-2">

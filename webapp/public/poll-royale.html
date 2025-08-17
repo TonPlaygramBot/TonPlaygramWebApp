@@ -341,6 +341,8 @@
   (function(){
     'use strict';
 
+    var GAME_TYPE = new URLSearchParams(location.search).get('game') || '8';
+
     /* ==========================================================
        KONSTANTA TE LAYOUT-it DHE FIZIKES (sipas portrait)
        ========================================================= */
@@ -464,6 +466,70 @@
     // Map i sigurt sipas numrit → shmang akses jashte indekseve
     var BALL_BY_N = {}; BALLS.forEach(function(b){ BALL_BY_N[b.n] = b; });
 
+    function rackTriangle15(CX, FSY, D){
+      var R = D/2, V = R*Math.sqrt(3), res = [];
+      for(var i=0;i<5;i++){
+        var y = FSY + i*V;
+        var x0 = CX - i*(D/2);
+        for(var j=0;j<=i;j++) res.push({ x:x0 + j*D, y:y });
+      }
+      return res;
+    }
+
+    function rackDiamond9(CX, FSY, D){
+      var R = D/2, V = R*Math.sqrt(3), rows = [1,2,3,2,1], res = [];
+      for(var i=0;i<rows.length;i++){
+        var count = rows[i];
+        var y = FSY + i*V;
+        var x0 = CX - (count-1)*(D/2);
+        for(var j=0;j<count;j++) res.push({ x:x0 + j*D, y:y });
+      }
+      return res;
+    }
+
+    function createRack(game){
+      var CX = TABLE_W/2, FSY = TABLE_H * 0.23, D = BALL_R*2, spots, layout, pool, i;
+      if (game === '9') {
+        spots = rackDiamond9(CX, FSY, D);
+        layout = Array(spots.length).fill(null);
+        layout[0] = 1; // apex
+        layout[4] = 9; // center
+        pool = [2,3,4,5,6,7,8];
+        shuffle(pool);
+        var idx = 0;
+        for (i=0;i<layout.length;i++) if (!layout[i]) layout[i] = pool[idx++];
+      } else if (game === '15') {
+        spots = rackTriangle15(CX, FSY, D);
+        layout = Array(spots.length).fill(null);
+        layout[0] = 1;  // apex
+        layout[14] = 5; // back right corner
+        pool = [2,3,4,6,7,8,9,10,11,12,13,14,15];
+        shuffle(pool);
+        var idx2 = 0;
+        for (i=0;i<layout.length;i++) if (!layout[i]) layout[i] = pool[idx2++];
+      } else {
+        spots = rackTriangle15(CX, FSY, D);
+        layout = Array(spots.length).fill(null);
+        layout[4] = 8; // center
+        pool = [1,2,3,4,5,6,7,9,10,11,12,13,14,15];
+        var apexBall = pool.splice(Math.floor(Math.random()*pool.length),1)[0];
+        layout[0] = apexBall;
+        var solids = [1,2,3,4,5,6,7].filter(function(n){ return n!==apexBall; });
+        var stripes = [9,10,11,12,13,14,15].filter(function(n){ return n!==apexBall; });
+        var solidBall = solids.splice(Math.floor(Math.random()*solids.length),1)[0];
+        var stripeBall = stripes.splice(Math.floor(Math.random()*stripes.length),1)[0];
+        if (Math.random() < 0.5) { layout[10] = solidBall; layout[14] = stripeBall; }
+        else { layout[10] = stripeBall; layout[14] = solidBall; }
+        pool = pool.filter(function(n){ return n!==solidBall && n!==stripeBall; });
+        shuffle(pool);
+        var idx3 = 0;
+        for (i=0;i<layout.length;i++) if (!layout[i]) layout[i] = pool[idx3++];
+      }
+      var out = [];
+      for(i=0;i<layout.length;i++) out.push({ num: layout[i], x: spots[i].x, y: spots[i].y });
+      return out;
+    }
+
     function createMiniBall(n){
       var c = document.createElement('canvas');
       c.width = 14; c.height = 14;
@@ -529,41 +595,12 @@
       // Cue ball (poshte, qender)
       this.balls.push(new Ball(BALL_BY_N[0], TABLE_W/2, TABLE_H - BORDER - BALL_R*2));
 
-      // Trekendshi siper me 15 topa (8-shi ne qender rreshti 3)
-      var cx = TABLE_W/2;
-      var cy = TABLE_H * 0.23;
-      var rowGap = BALL_R*1.95;
-      var colGap = BALL_R*2.1;
-
-      // Rregullimi i topave ne trekendesh:
-      // 1 ne maje, 8 ne qender, 2 dhe 11 ne cepat poshte
-      var layout = [
-        [1],
-        [0, 0],
-        [0, 8, 0],
-        [0, 0, 0, 0],
-        [2, 0, 0, 0, 11]
-      ];
-
-      // Numrat e mbetur per mbushjen e trekendeshit
-      var pool = [];
-      for (i = 1; i <= 15; i++) {
-        if (i !== 1 && i !== 2 && i !== 8 && i !== 11) pool.push(i);
-      }
-      shuffle(pool);
-      var cursor = 0;
-
-      // 5 rreshta (1..5) — ne total 15 topa
-      for (var r=0; r<5; r++) {
-        var count = r+1;
-        for (j=0; j<count; j++) {
-          var x = cx - (count-1)*BALL_R*1.05 + j*colGap;
-          var y = cy + r*rowGap;
-          var num = layout[r][j] || pool[cursor++];
-          var info = BALL_BY_N[num];
-          if (!info) { console.warn('Rack: numer i papercaktuar', num); continue; }
-          this.balls.push(new Ball(info, x, y));
-        }
+      var rack = createRack(GAME_TYPE);
+      for (i=0;i<rack.length;i++){
+        var num = rack[i].num;
+        var info = BALL_BY_N[num];
+        if (!info) { console.warn('Rack: numer i papercaktuar', num); continue; }
+        this.balls.push(new Ball(info, rack[i].x, rack[i].y));
       }
 
       // Pockets (4 qoshe + 2 te mesit anesore)
@@ -739,8 +776,9 @@
         var it = BALLS[i];
         console.assert(typeof it.n==='number' && typeof it.t==='string' && typeof it.c==='string', 'TEST FAIL: item pa fusha', it);
       }
-      // tavolina 16 topa (perfshi cue)
-      console.assert(tbl.balls.length===16, 'TEST FAIL: tavolina ka', tbl.balls.length, 'topa (duhet 16)');
+      // tavolina objektat + cue
+      var expected = GAME_TYPE === '9' ? 10 : 16;
+      console.assert(tbl.balls.length===expected, 'TEST FAIL: tavolina ka', tbl.balls.length, 'topa (duhet', expected, ')');
       // asnje top undefined
       for (var j=0;j<tbl.balls.length;j++){
         var b = tbl.balls[j];
