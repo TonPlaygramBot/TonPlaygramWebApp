@@ -5,7 +5,7 @@ import {
   dealCommunity,
   evaluateWinner,
   aiChooseAction,
-  HAND_RANK_NAMES
+  HAND_RANK_NAMES,
 } from './lib/texasHoldem.js';
 import { FLAG_EMOJIS } from './flag-emojis.js';
 
@@ -21,7 +21,7 @@ const state = {
   token: 'TPC',
   pot: 0,
   maxPot: 0,
-  raiseAmount: 0
+  raiseAmount: 0,
 };
 
 const SUIT_MAP = { H: '♥', D: '♦', C: '♣', S: '♠' };
@@ -35,8 +35,8 @@ function cardFaceEl(c) {
   const d = document.createElement('div');
   d.className =
     'card' +
-    (c.s === '♥' || c.s === '♦' ? ' red' : '') +
-    (c.r === 'RJ' || c.r === 'BJ' ? ' joker' : '');
+    ((c.s === '♥' || c.s === '♦') ? ' red' : '') +
+    ((c.r === 'RJ' || c.r === 'BJ') ? ' joker' : '');
   const tl = document.createElement('div');
   tl.className = 'tl';
   tl.textContent =
@@ -52,10 +52,7 @@ function cardFaceEl(c) {
   return d;
 }
 
-function coinConfetti(
-  count = 50,
-  iconSrc = '/assets/icons/ezgif-54c96d8a9b9236.webp'
-) {
+function coinConfetti(count = 50, iconSrc = '/assets/icons/ezgif-54c96d8a9b9236.webp') {
   for (let i = 0; i < count; i++) {
     const img = document.createElement('img');
     img.src = iconSrc;
@@ -89,17 +86,17 @@ function init() {
     }
   } catch {}
 
-  const deck = shuffle(createDeck());
-  const { hands, deck: rest } = dealHoleCards(deck, 6);
-  const flags = [...FLAG_EMOJIS].sort(() => 0.5 - Math.random()).slice(0, 5);
+    const deck = shuffle(createDeck());
+    const { hands, deck: rest } = dealHoleCards(deck, 6);
+    const flags = [...FLAG_EMOJIS].sort(() => 0.5 - Math.random()).slice(0, 5);
   state.players = [
-    { name, avatar, hand: hands[0], isHuman: true },
-    ...flags.map((f, idx) => ({
-      name: flagName(f),
-      avatar: f,
-      hand: hands[idx + 1]
-    }))
-  ];
+      { name, avatar, hand: hands[0], isHuman: true },
+      ...flags.map((f, idx) => ({
+        name: flagName(f),
+        avatar: f,
+        hand: hands[idx + 1],
+      })),
+    ];
   const comm = dealCommunity(rest);
   state.community = comm.community;
   state.maxPot = state.stake * state.players.length;
@@ -111,14 +108,7 @@ function init() {
 function renderSeats() {
   const seats = document.getElementById('seats');
   seats.innerHTML = '';
-  const positions = [
-    'bottom',
-    'bottom-right',
-    'right',
-    'top',
-    'left',
-    'bottom-left'
-  ];
+  const positions = ['bottom', 'bottom-right', 'right', 'top', 'left', 'bottom-left'];
   state.players.forEach((p, i) => {
     const seat = document.createElement('div');
     seat.className = 'seat ' + positions[i];
@@ -140,27 +130,27 @@ function renderSeats() {
     } else {
       p.hand.forEach(() => cards.appendChild(cardBackEl()));
     }
-    const name = document.createElement('div');
-    name.className = 'name';
-    name.textContent = p.name;
-    if (i === 0) {
-      const wrap = document.createElement('div');
-      wrap.className = 'avatar-wrap';
-      const ring = document.createElement('div');
-      ring.className = 'timer-ring';
-      ring.id = 'timer-' + i;
-      wrap.append(ring, avatar);
-      const controls = document.createElement('div');
-      controls.className = 'controls';
-      controls.id = 'controls';
-      seat.append(cards, controls, wrap, name);
-    } else {
-      const timer = document.createElement('div');
-      timer.className = 'timer';
-      timer.id = 'timer-' + i;
-      if (positions[i] === 'top') seat.append(name, avatar, cards, timer);
-      else seat.append(avatar, cards, name, timer);
-    }
+      const name = document.createElement('div');
+      name.className = 'name';
+      name.textContent = p.name;
+      if (i === 0) {
+        const wrap = document.createElement('div');
+        wrap.className = 'avatar-wrap';
+        const ring = document.createElement('div');
+        ring.className = 'timer-ring';
+        ring.id = 'timer-' + i;
+        wrap.append(ring, avatar);
+        const controls = document.createElement('div');
+        controls.className = 'controls';
+        controls.id = 'controls';
+        seat.append(cards, controls, wrap, name);
+      } else {
+        const timer = document.createElement('div');
+        timer.className = 'timer';
+        timer.id = 'timer-' + i;
+        if (positions[i] === 'top') seat.append(name, avatar, cards, timer);
+        else seat.append(avatar, cards, name, timer);
+      }
     seats.appendChild(seat);
   });
 }
@@ -168,7 +158,7 @@ function renderSeats() {
 function cardEl(card) {
   return cardFaceEl({
     r: card.rank === 'T' ? '10' : card.rank,
-    s: SUIT_MAP[card.suit] || card.suit
+    s: SUIT_MAP[card.suit] || card.suit,
   });
 }
 
@@ -184,7 +174,7 @@ function showControls() {
   const baseActions = [
     { id: 'fold', fn: playerFold },
     { id: 'check', fn: playerCheck },
-    { id: 'call', fn: playerCall }
+    { id: 'call', fn: playerCall },
   ];
   baseActions.forEach((a) => {
     const btn = document.createElement('button');
@@ -216,8 +206,10 @@ function showControls() {
   amountText.textContent = `0 ${state.token}`;
   btnWrap.appendChild(amountText);
   raiseContainer.appendChild(btnWrap);
-  controls.appendChild(raiseContainer);
+  document.body.appendChild(raiseContainer);
   initRaiseSlider();
+  positionRaiseContainer();
+  window.addEventListener('resize', positionRaiseContainer);
 }
 
 function initRaiseSlider() {
@@ -237,8 +229,7 @@ function initRaiseSlider() {
     const amtEl = document.getElementById('raiseAmountText');
     if (amtEl) amtEl.textContent = `${state.raiseAmount} ${state.token}`;
     const status = document.getElementById('status');
-    if (status)
-      status.textContent = `Raise ${state.raiseAmount} ${state.token}`;
+    if (status) status.textContent = `Raise ${state.raiseAmount} ${state.token}`;
   }
   panel.addEventListener('pointerdown', function (e) {
     update(e);
@@ -252,9 +243,28 @@ function initRaiseSlider() {
   });
 }
 
+function positionRaiseContainer() {
+  const bottom = document.querySelector('.seat.bottom .avatar-wrap');
+  const right =
+    document.querySelector('.seat.bottom-right .avatar-wrap') ||
+    document.querySelector('.seat.right .avatar-wrap');
+  const container = document.getElementById('raiseContainer');
+  if (!bottom || !right || !container) return;
+  const bottomRect = bottom.getBoundingClientRect();
+  const rightRect = right.getBoundingClientRect();
+  const containerRect = container.getBoundingClientRect();
+  container.style.left =
+    rightRect.left + rightRect.width / 2 - containerRect.width / 2 + 'px';
+  container.style.top =
+    bottomRect.top + bottomRect.height / 2 - containerRect.height / 2 + 'px';
+}
+
 function hideControls() {
   const controls = document.getElementById('controls');
   if (controls) controls.innerHTML = '';
+  const raiseContainer = document.getElementById('raiseContainer');
+  if (raiseContainer) raiseContainer.remove();
+  window.removeEventListener('resize', positionRaiseContainer);
 }
 
 function startPlayerTurn() {
@@ -317,8 +327,7 @@ function playerRaise() {
   if (amount <= 0) return;
   state.pot += amount;
   state.currentBet += amount;
-  document.getElementById('status').textContent =
-    `You raise ${amount} ${state.token}`;
+  document.getElementById('status').textContent = `You raise ${amount} ${state.token}`;
   proceedStage();
 }
 
@@ -326,10 +335,7 @@ function proceedStage() {
   clearInterval(state.timerInterval);
   hideControls();
   state.players.slice(1).forEach((p) => {
-    const action = aiChooseAction(
-      p.hand,
-      state.community.slice(0, stageCommunityCount())
-    );
+    const action = aiChooseAction(p.hand, state.community.slice(0, stageCommunityCount()));
     document.getElementById('status').textContent = `${p.name} ${action}s`;
   });
   state.stage++;
@@ -404,8 +410,7 @@ function showdown() {
     coinConfetti(50);
     setTimeout(() => {
       overlay.classList.add('hidden');
-      document.getElementById('resultText').textContent =
-        `${winnerPlayer.name} won ${amountText}`;
+      document.getElementById('resultText').textContent = `${winnerPlayer.name} won ${amountText}`;
       document.getElementById('results').showModal();
     }, 2000);
   } else {
