@@ -178,6 +178,7 @@ function showControls() {
   ];
   baseActions.forEach((a) => {
     const btn = document.createElement('button');
+    btn.id = a.id;
     btn.textContent = a.id;
     btn.addEventListener('click', a.fn);
     controls.appendChild(btn);
