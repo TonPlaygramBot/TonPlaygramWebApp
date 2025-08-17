@@ -33,17 +33,16 @@
       flex-direction: column;
     }
 
-    #header, #footer {
+    #header {
       height: 56px;
       display: flex;
       align-items: center;
       justify-content: space-between;
       padding: 0 12px;
       background: linear-gradient(#15203a, #0b1120);
+      border-bottom: 1px solid #24375f;
+      position: relative;
     }
-
-      #header { border-bottom: 1px solid #24375f; position: relative; }
-    #footer { border-top: 1px solid #24375f; }
 
     .player {
       display: flex;
@@ -93,8 +92,8 @@
       position: absolute;
       inset: 0;
       z-index: 0;
-      border-radius: 48px;
-      border: 28px solid transparent;
+      border-radius: 60px;
+      border: 40px solid transparent;
       background:
         radial-gradient(circle at 0% 0%, #000 0 4%, transparent 4%),
         radial-gradient(circle at 100% 0%, #000 0 4%, transparent 4%),
@@ -103,7 +102,7 @@
         radial-gradient(circle at 0% 100%, #000 0 4%, transparent 4%),
         radial-gradient(circle at 100% 100%, #000 0 4%, transparent 4%),
         linear-gradient(#2e8b57, #0d6130) padding-box,
-        repeating-linear-gradient(45deg, #caa471, #caa471 10px, #b78955 10px, #b78955 20px) border-box;
+        linear-gradient(#caa471, #b78955) border-box;
       background-clip:
         padding-box,
         padding-box,
@@ -116,25 +115,45 @@
       box-shadow: inset 0 8px rgba(255, 255, 255, 0.4);
     }
 
+    #tableSkin::before,
     #tableSkin::after {
       content: '';
       position: absolute;
       inset: 0;
       border-radius: inherit;
       pointer-events: none;
+    }
+
+    #tableSkin::after {
       background:
-        radial-gradient(circle at 50% 0%, #000 0 0.8%, transparent 0.8%),
-        radial-gradient(circle at 25% 0%, #000 0 0.8%, transparent 0.8%),
-        radial-gradient(circle at 75% 0%, #000 0 0.8%, transparent 0.8%),
-        radial-gradient(circle at 50% 100%, #000 0 0.8%, transparent 0.8%),
-        radial-gradient(circle at 25% 100%, #000 0 0.8%, transparent 0.8%),
-        radial-gradient(circle at 75% 100%, #000 0 0.8%, transparent 0.8%),
-        radial-gradient(circle at 0% 50%, #000 0 0.8%, transparent 0.8%),
-        radial-gradient(circle at 0% 25%, #000 0 0.8%, transparent 0.8%),
-        radial-gradient(circle at 0% 75%, #000 0 0.8%, transparent 0.8%),
-        radial-gradient(circle at 100% 50%, #000 0 0.8%, transparent 0.8%),
-        radial-gradient(circle at 100% 25%, #000 0 0.8%, transparent 0.8%),
-        radial-gradient(circle at 100% 75%, #000 0 0.8%, transparent 0.8%);
+        radial-gradient(circle at 25% 20px, #000 0 2px, transparent 2px),
+        radial-gradient(circle at 50% 20px, #000 0 2px, transparent 2px),
+        radial-gradient(circle at 75% 20px, #000 0 2px, transparent 2px),
+        radial-gradient(circle at 25% calc(100% - 20px), #000 0 2px, transparent 2px),
+        radial-gradient(circle at 50% calc(100% - 20px), #000 0 2px, transparent 2px),
+        radial-gradient(circle at 75% calc(100% - 20px), #000 0 2px, transparent 2px),
+        radial-gradient(circle at 20px 25%, #000 0 2px, transparent 2px),
+        radial-gradient(circle at 20px 50%, #000 0 2px, transparent 2px),
+        radial-gradient(circle at 20px 75%, #000 0 2px, transparent 2px),
+        radial-gradient(circle at calc(100% - 20px) 25%, #000 0 2px, transparent 2px),
+        radial-gradient(circle at calc(100% - 20px) 50%, #000 0 2px, transparent 2px),
+        radial-gradient(circle at calc(100% - 20px) 75%, #000 0 2px, transparent 2px);
+    }
+
+    #tableSkin::before {
+      background:
+        linear-gradient(#8b5a2b, #8b5a2b) 25% 20px / 8% 2px no-repeat,
+        linear-gradient(#8b5a2b, #8b5a2b) 50% 20px / 8% 2px no-repeat,
+        linear-gradient(#8b5a2b, #8b5a2b) 75% 20px / 8% 2px no-repeat,
+        linear-gradient(#8b5a2b, #8b5a2b) 25% calc(100% - 20px) / 8% 2px no-repeat,
+        linear-gradient(#8b5a2b, #8b5a2b) 50% calc(100% - 20px) / 8% 2px no-repeat,
+        linear-gradient(#8b5a2b, #8b5a2b) 75% calc(100% - 20px) / 8% 2px no-repeat,
+        linear-gradient(#8b5a2b, #8b5a2b) 20px 25% / 2px 8% no-repeat,
+        linear-gradient(#8b5a2b, #8b5a2b) 20px 50% / 2px 8% no-repeat,
+        linear-gradient(#8b5a2b, #8b5a2b) 20px 75% / 2px 8% no-repeat,
+        linear-gradient(#8b5a2b, #8b5a2b) calc(100% - 20px) 25% / 2px 8% no-repeat,
+        linear-gradient(#8b5a2b, #8b5a2b) calc(100% - 20px) 50% / 2px 8% no-repeat,
+        linear-gradient(#8b5a2b, #8b5a2b) calc(100% - 20px) 75% / 2px 8% no-repeat;
     }
 
     #tableLogo {
@@ -311,10 +330,6 @@
 
 
 
-    <div id="footer">
-      <div id="capP1">Guret e marra (P1): —</div>
-      <div id="capP2">Guret e marra (CPU): —</div>
-    </div>
   </div>
 
   <!--
@@ -348,8 +363,6 @@
     var ctx       = canvas.getContext('2d');
     var rightPanel= document.getElementById('rightPanel');
     var playBtn   = document.getElementById('play');
-    var capP1     = document.getElementById('capP1');
-    var capP2     = document.getElementById('capP2');
     var spinBox   = document.getElementById('spinBox');
     var spinDot   = document.getElementById('spinDot');
     var pullArea  = document.getElementById('pullArea');
@@ -758,8 +771,6 @@
       if (table.running) {
         table.update(Math.min(dt, 0.033));
         table.render();
-        capP1.textContent = 'Guret e marra (P1): ' + (table.captured[1].join(', ') || '—');
-        capP2.textContent = 'Guret e marra (CPU): ' + (table.captured[2].join(', ') || '—');
         if (!table.isMoving()) {
           if (table.pottedInTurn) {
             table.turn = table.lastShooter;
