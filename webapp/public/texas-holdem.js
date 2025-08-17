@@ -19,6 +19,9 @@ const state = {
   timerInterval: null,
   stake: 0,
   token: 'TPC',
+  pot: 0,
+  maxPot: 0,
+  raiseAmount: 0,
 };
 
 const SUIT_MAP = { H: '♥', D: '♦', C: '♣', S: '♠' };
@@ -86,7 +89,7 @@ function init() {
     const deck = shuffle(createDeck());
     const { hands, deck: rest } = dealHoleCards(deck, 6);
     const flags = [...FLAG_EMOJIS].sort(() => 0.5 - Math.random()).slice(0, 5);
-    state.players = [
+  state.players = [
       { name, avatar, hand: hands[0], isHuman: true },
       ...flags.map((f, idx) => ({
         name: flagName(f),
@@ -96,6 +99,8 @@ function init() {
     ];
   const comm = dealCommunity(rest);
   state.community = comm.community;
+  state.maxPot = state.stake * state.players.length;
+  state.pot = 0;
   renderSeats();
   startPlayerTurn();
 }
@@ -166,17 +171,59 @@ function cardBackEl() {
 function showControls() {
   const controls = document.getElementById('controls');
   controls.innerHTML = '';
-  const actions = [
+  const baseActions = [
     { id: 'fold', fn: playerFold },
     { id: 'check', fn: playerCheck },
     { id: 'call', fn: playerCall },
-    { id: 'raise', fn: playerRaise },
   ];
-  actions.forEach((a) => {
+  baseActions.forEach((a) => {
     const btn = document.createElement('button');
     btn.textContent = a.id;
     btn.addEventListener('click', a.fn);
     controls.appendChild(btn);
+  });
+  const raiseContainer = document.createElement('div');
+  raiseContainer.className = 'raise-container';
+  const panel = document.createElement('div');
+  panel.id = 'raisePanel';
+  panel.innerHTML =
+    '<div class="max-zone"><div class="max-label">MAX</div></div>' +
+    '<div id="raiseFill"></div><div id="raiseThumb"></div>';
+  raiseContainer.appendChild(panel);
+  const btn = document.createElement('button');
+  btn.textContent = 'raise';
+  btn.id = 'raise';
+  btn.addEventListener('click', playerRaise);
+  if (state.pot >= state.maxPot) btn.disabled = true;
+  raiseContainer.appendChild(btn);
+  controls.appendChild(raiseContainer);
+  initRaiseSlider();
+}
+
+function initRaiseSlider() {
+  const panel = document.getElementById('raisePanel');
+  const fill = document.getElementById('raiseFill');
+  const thumb = document.getElementById('raiseThumb');
+  if (!panel || !fill || !thumb) return;
+  state.raiseAmount = 0;
+  function update(e) {
+    const rect = panel.getBoundingClientRect();
+    let pct = (rect.bottom - e.clientY) / rect.height;
+    pct = Math.max(0, Math.min(1, pct));
+    fill.style.height = pct * 100 + '%';
+    thumb.style.bottom = 'calc(12px + (100% - 24px) * ' + pct + ')';
+    const maxAllowed = Math.min(state.stake, state.maxPot - state.pot);
+    state.raiseAmount = Math.round(pct * maxAllowed);
+  }
+  panel.addEventListener('pointerdown', function (e) {
+    update(e);
+    panel.setPointerCapture(e.pointerId);
+  });
+  panel.addEventListener('pointermove', function (e) {
+    if (panel.hasPointerCapture(e.pointerId)) update(e);
+  });
+  panel.addEventListener('pointerup', function (e) {
+    panel.releasePointerCapture(e.pointerId);
   });
 }
 
@@ -240,7 +287,12 @@ function playerCall() {
 }
 
 function playerRaise() {
-  state.currentBet++;
+  const maxAllowed = Math.min(state.stake, state.maxPot - state.pot);
+  const amount = Math.min(state.raiseAmount, maxAllowed);
+  if (amount <= 0) return;
+  state.pot += amount;
+  state.currentBet += amount;
+  document.getElementById('status').textContent = `You raise ${amount} ${state.token}`;
   proceedStage();
 }
 
@@ -290,7 +342,7 @@ function showdown() {
     p.hand.forEach((c) => cards.appendChild(cardEl(c)));
   });
   const winner = evaluateWinner(state.players, state.community);
-  const pot = state.stake * state.players.length;
+  const pot = state.pot;
   const text = winner
     ? `${state.players[winner.index].name} wins with ${HAND_RANK_NAMES[winner.score.rank]}!`
     : 'Tie';
