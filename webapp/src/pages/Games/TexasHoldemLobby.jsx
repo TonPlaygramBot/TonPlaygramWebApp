@@ -2,8 +2,13 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import RoomSelector from '../../components/RoomSelector.jsx';
 import useTelegramBackButton from '../../hooks/useTelegramBackButton.js';
-import { ensureAccountId, getTelegramId, getTelegramPhotoUrl, getTelegramUsername } from '../../utils/telegram.js';
-import { getAccountBalance, addTransaction } from '../../utils/api.js';
+import {
+  ensureAccountId,
+  getTelegramId,
+  getTelegramPhotoUrl,
+  getTelegramUsername
+} from '../../utils/telegram.js';
+import { getAccountBalance } from '../../utils/api.js';
 import { loadAvatar } from '../../utils/avatarUtils.js';
 
 const DEV_ACCOUNT = import.meta.env.VITE_DEV_ACCOUNT_ID;
@@ -37,10 +42,6 @@ export default function TexasHoldemLobby() {
         return;
       }
       tgId = getTelegramId();
-      await addTransaction(tgId, -stake.amount, 'stake', {
-        game: 'texasholdem',
-        accountId,
-      });
     } catch {}
 
     const params = new URLSearchParams();
@@ -68,13 +69,17 @@ export default function TexasHoldemLobby() {
         <h3 className="font-semibold">Stake</h3>
         <RoomSelector selected={stake} onSelect={setStake} tokens={['TPC']} />
         <p className="text-sm text-center">
-          Start bet: {startBet.toLocaleString('en-US')} TPC • Pot max: {stake.amount.toLocaleString('en-US')} TPC
+          Start bet: {startBet.toLocaleString('en-US')} TPC • Pot max:{' '}
+          {stake.amount.toLocaleString('en-US')} TPC
         </p>
       </div>
       <div className="space-y-2">
         <h3 className="font-semibold">Mode</h3>
         <div className="flex gap-2">
-          {[{ id: 'local', label: 'Local (AI)' }, { id: 'online', label: 'Online' }].map(({ id, label }) => (
+          {[
+            { id: 'local', label: 'Local (AI)' },
+            { id: 'online', label: 'Online' }
+          ].map(({ id, label }) => (
             <button
               key={id}
               onClick={() => setMode(id)}
