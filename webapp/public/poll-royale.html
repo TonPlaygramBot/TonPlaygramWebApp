@@ -108,6 +108,7 @@
         overflow: hidden;
         background: url('/assets/icons/64e79228-35e3-4fdc-b914-fca635a40220.webp')
           center/cover no-repeat;
+        background-position: calc(50% - 10px) center;
       }
 
       :root {
@@ -539,19 +540,20 @@
           var w = wrap.clientWidth;
           var h = wrap.clientHeight;
           var ar = TABLE_W / TABLE_H;
-          var cw = w,
-            ch = h;
-          if (cw / ch > ar) cw = ch * ar;
-          else ch = cw / ar;
-          canvas.width = cw;
-          canvas.height = ch;
-          canvas.style.top = (h - ch) / 2 + 'px';
-          canvas.style.left = '0px';
-          sX = cw / TABLE_W;
-          sY = ch / TABLE_H;
-          pocketR = POCKET_R * ((sX + sY) / 2);
-          ballR = BALL_R * ((sX + sY) / 2);
-        }
+        var cw = w,
+          ch = h;
+        if (cw / ch > ar) cw = ch * ar;
+        else ch = cw / ar;
+        ch -= 10;
+        canvas.width = cw;
+        canvas.height = ch;
+        canvas.style.top = (h - ch) / 2 + 'px';
+        canvas.style.left = '5px';
+        sX = cw / TABLE_W;
+        sY = ch / TABLE_H;
+        pocketR = POCKET_R * ((sX + sY) / 2);
+        ballR = BALL_R * ((sX + sY) / 2);
+      }
         window.addEventListener('resize', resize);
 
         /* ==========================================================
