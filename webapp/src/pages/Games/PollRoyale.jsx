@@ -54,7 +54,12 @@ export default function PollRoyale() {
           />
         </>
       )}
-      <iframe src={src} title="8 Poll Royale" className="w-full h-full border-0" />
+      <iframe
+        src={src}
+        title="8 Poll Royale"
+        className="w-full h-full border-0"
+        style={{ pointerEvents: showCal ? 'none' : 'auto' }}
+      />
     </div>
   );
 }
