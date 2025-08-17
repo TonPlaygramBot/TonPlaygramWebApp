@@ -71,7 +71,7 @@ export default function PoolCalibrationModal({ open, onClose, onSave, onChange }
     <div className="fixed inset-0 z-50 flex flex-col bg-black bg-opacity-50 pointer-events-auto">
       <div ref={areaRef} className="relative flex-1">
         <div
-          className="absolute border-2 border-red-500"
+          className="absolute border-2 border-red-500 pointer-events-none"
           style={{
             width: `${width}px`,
             height: `${height}px`,
@@ -81,16 +81,16 @@ export default function PoolCalibrationModal({ open, onClose, onSave, onChange }
           }}
         >
           <div
-            className="absolute inset-y-0 -right-2 w-4 cursor-ew-resize"
+            className="absolute inset-y-0 -right-2 w-4 cursor-ew-resize pointer-events-auto"
             onPointerDown={() => setDrag('width')}
           />
           <div
-            className="absolute -bottom-2 inset-x-0 h-4 cursor-ns-resize"
+            className="absolute -bottom-2 inset-x-0 h-4 cursor-ns-resize pointer-events-auto"
             onPointerDown={() => setDrag('height')}
           />
         </div>
       </div>
-      <div className="bg-surface text-text p-4 space-y-2">
+      <div className="bg-surface text-text p-4 space-y-2 relative z-10">
         <label className="block text-sm">Width: {width}px</label>
         <input
           type="range"
