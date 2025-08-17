@@ -439,21 +439,6 @@
             if (w && h)
               return { w: w, h: h, bw: bw, bh: bh, bx: bx, by: by };
           } catch {}
-          try {
-            var s = localStorage.getItem('pollRoyaleCalibration');
-            if (s) {
-              var c = JSON.parse(s);
-              if (c.width && c.height)
-                return {
-                  w: c.width,
-                  h: c.height,
-                  bw: c.bgWidth,
-                  bh: c.bgHeight,
-                  bx: c.bgX,
-                  by: c.bgY
-                };
-            }
-          } catch {}
           return { w: 1000, h: 2000, bw: 0, bh: 0, bx: 0, by: 0 };
         })();
         var TABLE_W = CAL.w; // gjeresi logjike e felt-it
