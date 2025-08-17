@@ -780,36 +780,63 @@
       var x = cue.p.x, y = cue.p.y;
       var yellow = power<.33 ? 'rgba(255,255,0,.7)' : power<.66 ? 'rgba(255,255,0,.85)' : 'rgba(255,255,0,1)';
       var white  = power<.33 ? 'rgba(255,255,255,.7)' : power<.66 ? 'rgba(255,255,255,.85)' : 'rgba(255,255,255,1)';
-      var path1 = [], path2 = [];
-      var impactType = null;
+      var path1 = [], path2 = [], cuePath = [];
+      var impactType = null, impactBall = null;
       for (var i=0;i<dots;i++){
         x += dir.x * step; y += dir.y * step;
         var hit = false;
         if (x < BORDER+BALL_R || x > TABLE_W-BORDER-BALL_R || y < BORDER+BALL_R || y > TABLE_H-BORDER-BALL_R){
           impactType = 'wall'; hit = true;
         }
-        for (var j=0;j<table.balls.length && !hit;j++){ var b=table.balls[j]; if (b===cue || b.pocketed) continue; if (d2({x:x,y:y}, b.p) < (BALL_R*2.05)*(BALL_R*2.05)) { impactType='ball'; hit=true; break; } }
+        for (var j=0;j<table.balls.length && !hit;j++){
+          var b=table.balls[j]; if (b===cue || b.pocketed) continue;
+          if (d2({x:x,y:y}, b.p) < (BALL_R*2.05)*(BALL_R*2.05)) { impactType='ball'; impactBall=b; hit=true; break; }
+        }
         path1.push({x:x,y:y});
         if (hit) break;
       }
       if (impactType){
-        var dir2 = { x:dir.x, y:dir.y };
+        var remaining = dots - path1.length;
         if (impactType==='wall'){
+          var dir2 = { x:dir.x, y:dir.y };
           if (x <= BORDER+BALL_R || x >= TABLE_W-BORDER-BALL_R) dir2.x = -dir2.x;
           if (y <= BORDER+BALL_R || y >= TABLE_H-BORDER-BALL_R) dir2.y = -dir2.y;
-        }
-        var remaining = dots - path1.length;
-        for (var k=0;k<remaining;k++){
-          x += dir2.x * step; y += dir2.y * step;
-          if (x < BORDER+BALL_R || x > TABLE_W-BORDER-BALL_R || y < BORDER+BALL_R || y > TABLE_H-BORDER-BALL_R) break;
-          path2.push({x:x,y:y});
+          var cx = x, cy = y;
+          for (var k=0;k<remaining;k++){
+            cx += dir2.x * step; cy += dir2.y * step;
+            if (cx < BORDER+BALL_R || cx > TABLE_W-BORDER-BALL_R || cy < BORDER+BALL_R || cy > TABLE_H-BORDER-BALL_R) break;
+            path2.push({x:cx,y:cy});
+          }
+        } else if (impactBall){
+          var ox = impactBall.p.x, oy = impactBall.p.y;
+          for (var k=0;k<remaining;k++){
+            ox += dir.x * step; oy += dir.y * step;
+            if (ox < BORDER+BALL_R || ox > TABLE_W-BORDER-BALL_R || oy < BORDER+BALL_R || oy > TABLE_H-BORDER-BALL_R) break;
+            path2.push({x:ox,y:oy});
+          }
+          var n = norm(impactBall.p.x - cue.p.x, impactBall.p.y - cue.p.y);
+          var dot = dir.x*n.x + dir.y*n.y;
+          var dirCue = norm(dir.x - n.x*dot, dir.y - n.y*dot);
+          var cx = x, cy = y;
+          for (var k=0;k<remaining;k++){
+            cx += dirCue.x * step; cy += dirCue.y * step;
+            if (cx < BORDER+BALL_R || cx > TABLE_W-BORDER-BALL_R || cy < BORDER+BALL_R || cy > TABLE_H-BORDER-BALL_R) break;
+            cuePath.push({x:cx,y:cy});
+          }
         }
       }
       ctx.fillStyle = yellow;
       path1.forEach(function(p){ ctx.beginPath(); ctx.arc(p.x*sX, p.y*sY, clamp(1.5+power*2.2, 1.5, 4), 0, Math.PI*2); ctx.fill(); });
-      if (path2.length){
+      if (impactType==='ball' && path2.length){
+        ctx.fillStyle = yellow;
+        path2.forEach(function(p){ ctx.beginPath(); ctx.arc(p.x*sX, p.y*sY, clamp(1.5+power*2.2, 1.5, 4), 0, Math.PI*2); ctx.fill(); });
+      } else if (impactType==='wall' && path2.length){
         ctx.fillStyle = white;
         path2.forEach(function(p){ ctx.beginPath(); ctx.arc(p.x*sX, p.y*sY, clamp(1.5+power*2.2, 1.5, 4), 0, Math.PI*2); ctx.fill(); });
+      }
+      if (cuePath.length){
+        ctx.fillStyle = white;
+        cuePath.forEach(function(p){ ctx.beginPath(); ctx.arc(p.x*sX, p.y*sY, clamp(1.5+power*2.2, 1.5, 4), 0, Math.PI*2); ctx.fill(); });
       }
     }
 
