@@ -70,7 +70,7 @@
       overflow: hidden;
     }
 
-    :root { --rpw: min(22vw, 120px); }
+    :root { --rpw: min(20vw, 100px); }
 
     /* Canvas i tavolines (mbulon gjithcka, pervec panelit djathtas) */
     #table {
@@ -100,8 +100,8 @@
     }
 
     #spinBox {
-      width: 90px;
-      height: 90px;
+      width: 45px;
+      height: 45px;
       border-radius: 50%;
       background: #f6f6f6;
       position: relative;
@@ -112,8 +112,8 @@
 
     #spinDot {
       position: absolute;
-      width: 16px;
-      height: 16px;
+      width: 8px;
+      height: 8px;
       border-radius: 50%;
       background: #e63; /* pika e kuqe */
       left: 50%;
@@ -123,7 +123,7 @@
 
     #pullArea {
       position: relative;
-      width: 96px;
+      width: 84px;
       height: 58%;
       border-radius: 14px;
       background: linear-gradient(180deg, rgba(0,0,0,.18), rgba(0,0,0,.28));
@@ -171,7 +171,7 @@
     }
 
     #powerBox {
-      width: 70px;
+      width: 50px;
       height: 18%;
       background: #333;
       border-radius: 16px;
@@ -282,7 +282,7 @@
     /* ==========================================================
        KONSTANTA TE LAYOUT-it DHE FIZIKES (sipas portrait)
        ========================================================= */
-    var TABLE_W = 640;      // gjeresi logjike e felt-it
+    var TABLE_W = 768;      // gjeresi logjike e felt-it
     var TABLE_H = 1280;     // lartesi logjike e felt-it
     var BORDER  = 36;       // korniza e drurit rreth e rrotull
     var POCKET_R = 28;      // rrezja baze e gropave
@@ -718,7 +718,10 @@
     pullArea.addEventListener('pointermove', function(e){ if (!pulling) return; var rect=pullArea.getBoundingClientRect(); power=clamp((e.clientY-pullStartY)/(rect.height*0.9),0,1); updatePowerUI(); var minY=rect.top+12, maxY=rect.bottom-12, y=minY+(maxY-minY)*power; cueStickEl.style.height=(60+30*power)+'%'; cueTipEl.style.top=(y-rect.top-6)+'px'; cueStickEl.style.top=(y-rect.top-(cueStickEl.getBoundingClientRect().height-12)/2)+'px'; cuePullVisual=power*(BALL_R*14); placeAimGlow(table.aim); });
     pullArea.addEventListener('pointerup', function(){ if (!pulling) return; pulling=false; shoot(power); power=0; updatePowerUI(); cuePullVisual=0; cueStickEl.style.height='60%'; });
 
-    function shoot(p){ if (!table.running || table.isMoving()) return; var cue=table.balls[0]; if (!cue || cue.pocketed) return; var d=norm(table.aim.x-cue.p.x,table.aim.y-cue.p.y); var base=950; cue.v.x=d.x*base*(0.25+0.75*p)+spinVec.x*260*p; cue.v.y=d.y*base*(0.25+0.75*p)+spinVec.y*260*p; setSpin(0,0); showGuides=false; table.turn=2; }
+    function shoot(p){ if (!table.running || table.isMoving()) return; var cue=table.balls[0]; if (!cue || cue.pocketed) return; var d=norm(table.aim.x-cue.p.x,table.aim.y-cue.p.y); var base=950*3; // increased force by 200%
+      cue.v.x=d.x*base*(0.25+0.75*p)+spinVec.x*260*3*p;
+      cue.v.y=d.y*base*(0.25+0.75*p)+spinVec.y*260*3*p;
+      setSpin(0,0); showGuides=false; table.turn=2; }
 
     /* ==========================================================
        CPU – turn i thjeshte (normal skill)
