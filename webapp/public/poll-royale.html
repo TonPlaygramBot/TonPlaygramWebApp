@@ -78,7 +78,10 @@
     /* Canvas i tavolines (mbulon gjithcka, pervec panelit djathtas) */
     #table {
       position: absolute;
-      inset: 0;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 5%;
       z-index: 4;
     }
 
@@ -350,7 +353,7 @@
       var cw = w, ch = h;
       if (cw/ch > ar) cw = ch * ar; else ch = cw / ar;
       canvas.width = cw; canvas.height = ch;
-      canvas.style.top = ((h - ch) / 2) + 'px';
+      canvas.style.top = '0px';
       canvas.style.left = '0px';
       sX = cw / TABLE_W; sY = ch / TABLE_H;
       pocketR = POCKET_R * ((sX + sY) / 2);
