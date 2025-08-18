@@ -25,6 +25,19 @@ const state = {
   seated: true,
 };
 
+let myAccountId = '';
+let myTelegramId;
+let devAccountId;
+
+async function awardDevShare(total) {
+  if (!devAccountId || !window.fbApi) return;
+  try {
+    await window.fbApi.depositAccount(devAccountId, Math.round(total * 0.1), {
+      game: 'texasholdem-dev',
+    });
+  } catch {}
+}
+
 const SUIT_MAP = { H: '♥', D: '♦', C: '♣', S: '♠' };
 const CHIP_VALUES = [1000, 500, 200, 100, 50, 20, 10, 5, 1];
 const ANTE = 10;
@@ -62,6 +75,18 @@ function init() {
   let avatar = params.get('avatar') || '';
   state.stake = parseInt(params.get('amount'), 10) || 0;
   state.token = params.get('token') || 'TPC';
+  devAccountId = params.get('dev');
+  myAccountId = params.get('accountId') || '';
+  try {
+    if (!myAccountId) myAccountId = localStorage.getItem('accountId');
+  } catch {}
+  if (!myAccountId) {
+    myAccountId = crypto.randomUUID();
+    try {
+      localStorage.setItem('accountId', myAccountId);
+    } catch {}
+  }
+  myTelegramId = params.get('tgId') || window?.Telegram?.WebApp?.initDataUnsafe?.user?.id;
   try {
     if (!name) {
       const initParam = params.get('init');
@@ -103,6 +128,16 @@ function init() {
   state.raiseAmount = 0;
   state.pot = 0;
   state.maxPot = state.stake * state.players.filter((p) => p.active).length;
+  const potEl = document.getElementById('pot');
+  const wrap = document.getElementById('potWrap');
+  if (potEl && wrap) {
+    potEl.classList.remove('moving-pot');
+    potEl.style.left = '';
+    potEl.style.top = '';
+    wrap.appendChild(potEl);
+  }
+  const potText = document.getElementById('potTotal');
+  if (potText) potText.textContent = '';
   setupFlopBacks();
   renderSeats();
   collectAntes();
@@ -212,6 +247,8 @@ function updatePotDisplay() {
       potEl.appendChild(pile);
     }
   });
+  const textEl = document.getElementById('potTotal');
+  if (textEl) textEl.textContent = `Total: ${state.pot} ${state.token}`;
 }
 
 async function dealInitialCards() {
@@ -430,15 +467,19 @@ async function proceedStage() {
     if (action === 'call') {
       state.pot += state.currentBet;
       updatePotDisplay();
+      document.getElementById('status').textContent = `${p.name} calls ${state.currentBet} ${state.token}`;
+    } else if (action === 'fold') {
+      document.getElementById('status').textContent = `${p.name} folds`;
+    } else {
+      document.getElementById('status').textContent = `${p.name} checks`;
     }
-    document.getElementById('status').textContent = `${p.name} ${action}s`;
   }
   setPlayerTurnIndicator(null);
   state.stage++;
   if (state.stage === 1) revealFlop();
   else if (state.stage === 2) revealTurn();
   else if (state.stage === 3) revealRiver();
-  else showdown();
+  else await showdown();
 }
 
 function stageCommunityCount() {
@@ -493,7 +534,7 @@ function revealRiver() {
   startPlayerTurn();
 }
 
-function showdown() {
+async function showdown() {
   state.players.forEach((p, i) => {
     if (p.vacant) return;
     const cards = document.getElementById('cards-' + i);
@@ -522,7 +563,26 @@ function showdown() {
     });
     const seat = playerCardsEl.closest('.seat');
     if (seat) seat.classList.add('winner');
-    if (pot > 0) movePotToWinner(playerIndex);
+    if (pot > 0) {
+      movePotToWinner(playerIndex);
+      await awardDevShare(pot);
+      if (winnerPlayer.isHuman && myAccountId && window.fbApi) {
+        const winAmt = Math.round(pot * 0.9);
+        try {
+          await window.fbApi.depositAccount(myAccountId, winAmt, {
+            game: 'texasholdem-win',
+          });
+          if (myTelegramId) {
+            window.fbApi.addTransaction(myTelegramId, 0, 'win', {
+              game: 'texasholdem',
+              players: activePlayers.length,
+              accountId: myAccountId,
+            });
+          }
+        } catch {}
+      }
+      state.pot = 0;
+    }
   }
   setTimeout(() => init(), 5000);
 }
