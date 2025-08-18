@@ -101,8 +101,7 @@
     .top-controls button img{width:24px;height:24px}
     .seat.vacant .vacant-seat{width:var(--avatar-size);height:var(--avatar-size);border-radius:50%;border:4px solid #000;background:#facc15;color:#16a34a;font-weight:700;display:flex;align-items:center;justify-content:center}
 
-    .pot{ position:absolute; left:50%; top:35%; transform:translate(-50%,-50%); display:flex; flex-direction:column; align-items:center; gap:6px; z-index:2; }
-    .pot-amount{font-size:12px;color:#fff;margin-top:2px;}
+    .pot{ position:absolute; left:50%; top:35%; transform:translate(-50%,-50%); display:flex; gap:6px; z-index:2; }
     .chip-pile{ position:relative; width:calc(var(--avatar-size)/2); height:calc(var(--avatar-size)/2); }
     .chip{ position:absolute; left:0; width:calc(var(--avatar-size)/2); height:calc(var(--avatar-size)/2); border-radius:50%; display:flex; align-items:center; justify-content:center; font-weight:700; font-size:calc(var(--avatar-size)/4); color:#000; box-shadow:0 2px 4px rgba(0,0,0,.4); }
     .chip.v1{ background:#ffffff; }
@@ -115,20 +114,6 @@
     .chip.v500{ background:#fb923c; }
     .chip.v1000{ background:#eab308; }
     .moving-pot{ position:absolute; transition:left .5s ease, top .5s ease; }
-    .moving-chip{ position:absolute; transition:left .5s ease, top .5s ease; z-index:1000; }
-    .action-text{position:absolute;font-weight:700;font-size:12px;}
-    .action-fold{color:#dc2626;-webkit-text-stroke:1px #fff;}
-    .action-call{color:#16a34a;-webkit-text-stroke:1px #fff;}
-    .action-check{color:#facc15;-webkit-text-stroke:1px #000;}
-    .action-raise{color:#2563eb;-webkit-text-stroke:1px #fff;}
-    .seat.bottom .action-text{left:calc(100% + 4px);top:50%;transform:translateY(-50%);}
-    .seat.bottom-right .action-text{left:calc(100% + 4px);top:50%;transform:translateY(-50%);}
-    .seat.right .action-text{left:calc(100% + 4px);top:50%;transform:translateY(-50%);}
-    .seat.top .action-text{top:calc(100% + 4px);left:50%;transform:translateX(-50%);}
-    .seat.left .action-text{right:calc(100% + 4px);top:50%;transform:translateY(-50%);}
-    .seat.bottom-left .action-text{right:calc(100% + 4px);top:50%;transform:translateY(-50%);}
-    #controls button:disabled{opacity:.5;}
-    .win-prob{font-size:12px;color:#fff;margin-top:2px;}
   </style>
 </head>
 <body>
