@@ -57,10 +57,6 @@ function cardFaceEl(c) {
 
 function init() {
   clearInterval(state.timerInterval);
-  // Ensure the local player is always seated when a new game starts so
-  // the action buttons and turn indicator are visible when playing vs AI
-  // after navigating back from the lobby.
-  state.seated = true;
   const params = new URLSearchParams(location.search);
   let name = params.get('username') || 'You';
   let avatar = params.get('avatar') || '';
