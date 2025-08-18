@@ -40,9 +40,8 @@ import MurlanRoyale from './pages/Games/MurlanRoyale.jsx';
 import MurlanRoyaleLobby from './pages/Games/MurlanRoyaleLobby.jsx';
 import TexasHoldem from './pages/Games/TexasHoldem.jsx';
 import TexasHoldemLobby from './pages/Games/TexasHoldemLobby.jsx';
-import PoolRoyale from './pages/Games/PoolRoyale.jsx';
-import PoolRoyaleLobby from './pages/Games/PoolRoyaleLobby.jsx';
-import PoolRoyaleCalibration from './pages/Games/PoolRoyaleCalibration.jsx';
+import PollRoyale from './pages/Games/PollRoyale.jsx';
+import PollRoyaleLobby from './pages/Games/PollRoyaleLobby.jsx';
 
 import Layout from './components/Layout.jsx';
 import useTelegramAuth from './hooks/useTelegramAuth.js';
@@ -86,9 +85,8 @@ export default function App() {
             <Route path="/games/texasholdem" element={<TexasHoldem />} />
             <Route path="/games/murlanroyale/lobby" element={<MurlanRoyaleLobby />} />
             <Route path="/games/murlanroyale" element={<MurlanRoyale />} />
-            <Route path="/games/poolroyale/lobby" element={<PoolRoyaleLobby />} />
-            <Route path="/games/poolroyale" element={<PoolRoyale />} />
-            <Route path="/games/poolroyale/calibrate" element={<PoolRoyaleCalibration />} />
+            <Route path="/games/pollroyale/lobby" element={<PollRoyaleLobby />} />
+            <Route path="/games/pollroyale" element={<PollRoyale />} />
             <Route path="/spin" element={<SpinPage />} />
             <Route path="/admin/influencer" element={<InfluencerAdmin />} />
             <Route path="/tasks" element={<Tasks />} />

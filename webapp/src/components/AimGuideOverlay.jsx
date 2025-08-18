@@ -2,7 +2,7 @@ import { useEffect, useRef } from 'react';
 import { AimGuide } from '../utils/aimGuides';
 
 /**
- * React canvas overlay that renders aim guides for the Pool Royale 🎱 table.
+ * React canvas overlay that renders aim guides for the 8 Pool Royale table.
  * Expects cueBall and targetBall objects with {x, y}, a power value 0..1 and
  * optional spin object {side, top}. Table should define width, height and
  * ballRadius in canvas pixels.

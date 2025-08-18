@@ -6,7 +6,7 @@
       name="viewport"
       content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no"
     />
-    <title>Pool Royale 🎱</title>
+    <title>Deluxe Billiards • 2.5D Cartoon (Portrait)</title>
     <style>
       /* ------------------------------------------------------------------
        DELUXE BILLIARDS 2.5D CARTOON (PORTRAIT)
@@ -108,9 +108,6 @@
         overflow: hidden;
         background: url('/assets/icons/64e79228-35e3-4fdc-b914-fca635a40220.webp')
           center/cover no-repeat;
-        /* Fine-tune background without affecting pool field */
-        background-size: 95% 105%;
-        background-position: left center;
       }
 
       :root {
@@ -137,7 +134,7 @@
         height: 78vh;
         padding: 12px;
         border-radius: 20px;
-        background: transparent;
+        background: linear-gradient(#0c1020, #11172a);
         box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
         border: 1px solid rgba(31, 42, 68, 0.4);
         display: flex;
@@ -195,19 +192,19 @@
         position: relative;
         width: 100%;
         height: 100%;
-        padding: 16px;
+        padding: 12px;
         border-radius: 14px;
-        background: transparent;
+        background: rgba(255, 255, 255, 0.02);
         overflow: hidden;
       }
       #sliderTrack::before {
         content: '';
         position: absolute;
         left: 50%;
-        top: 16px;
-        bottom: 16px;
+        top: 12px;
+        bottom: 12px;
         width: 1px;
-        background: rgba(255, 255, 255, 0.4);
+        background: rgba(230, 237, 247, 0.2);
       }
       #sliderTrack::after {
         content: '';
@@ -222,7 +219,7 @@
         left: 50%;
         width: 8px;
         height: 1px;
-        background: rgba(255, 255, 255, 0.9);
+        background: rgba(230, 237, 247, 0.6);
         transform: translateX(-50%);
       }
       #sliderTrack .tick span {
@@ -231,7 +228,7 @@
         top: 50%;
         transform: translateY(-50%);
         font-size: 9px;
-        color: rgba(255, 255, 255, 0.9);
+        color: rgba(230, 237, 247, 0.6);
       }
       #sliderTrack .tick.mid {
         width: 12px;
@@ -244,16 +241,16 @@
         width: 3px;
         height: 3px;
         border-radius: 50%;
-        background: rgba(255, 255, 255, 0.9);
+        background: rgba(230, 237, 247, 0.6);
       }
       #powerFill {
         position: absolute;
-        left: 16px;
-        right: 16px;
-        top: 16px;
+        left: 12px;
+        right: 12px;
+        bottom: 12px;
         height: 0%;
         border-radius: 8px;
-        background: linear-gradient(to bottom, #10b981, #facc15, #ef4444);
+        background: linear-gradient(to top, #10b981, #facc15, #ef4444);
         box-shadow: inset 0 -1px 0 rgba(0, 0, 0, 0.2);
       }
       #powerFill::after {
@@ -268,21 +265,15 @@
       #thumb {
         position: absolute;
         left: 50%;
-        top: 16px;
-        transform: translate(-50%, -50%);
-        width: 32px;
-        height: 32px;
+        transform: translate(-50%, 50%);
+        bottom: 12px;
+        width: 28px;
+        height: 28px;
         border-radius: 50%;
         background: #ffffff;
         border: 4px solid #0b1224;
         box-shadow: 0 2px 8px rgba(0, 0, 0, 0.45);
         touch-action: none;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 10px;
-        font-weight: 600;
-        color: #0b1224;
       }
       #thumb::before {
         content: '';
@@ -294,7 +285,7 @@
       #thumb.pressed {
         border-color: #60a5fa;
         box-shadow: 0 0 0 2px rgba(96, 165, 250, 0.7), 0 2px 8px rgba(0, 0, 0, 0.45);
-        transform: translate(-50%, -50%) scale(1.1);
+        transform: translate(-50%, 50%) scale(1.1);
       }
       #rightPanel .power-label {
         position: absolute;
@@ -302,8 +293,43 @@
         left: 50%;
         transform: translateX(-50%);
         font-size: 10px;
+        color: rgba(200, 213, 240, 0.7);
+      }
+      #sliderTrack .max-zone {
+        position: absolute;
+        top: 0;
+        left: 12px;
+        right: 12px;
+        height: 15%;
+        background: repeating-linear-gradient(45deg, rgba(239, 68, 68, 0.08) 0 8px, transparent 8px 16px);
+        animation: shimmer 2s linear infinite;
+        pointer-events: none;
+      }
+      #sliderTrack .max-label {
+        position: absolute;
+        top: 4px;
+        left: 50%;
+        transform: translateX(-50%);
+        font-size: 10px;
         color: #ef4444;
-        font-weight: 700;
+        animation: pulse 1.5s infinite;
+      }
+      @keyframes pulse {
+        0%,
+        100% {
+          opacity: 0.6;
+        }
+        50% {
+          opacity: 1;
+        }
+      }
+      @keyframes shimmer {
+        from {
+          background-position: 0 0;
+        }
+        to {
+          background-position: 100px 0;
+        }
       }
 
       #play {
@@ -355,31 +381,34 @@
         <!-- Panel djathtas: power slider -->
         <aside id="rightPanel">
           <div id="sliderTrack">
+            <div class="max-zone">
+              <div class="max-label">MAX</div>
+            </div>
             <div id="powerFill"></div>
-            <div class="tick" style="top:16px"><span>0</span></div>
+            <div class="tick" style="bottom:12px"><span>0</span></div>
             <div
               class="tick"
-              style="top:calc(16px + (100% - 32px) * 0.25)"
+              style="bottom:calc(12px + (100% - 24px) * 0.25)"
             >
               <span>25</span>
             </div>
             <div
               class="tick mid"
-              style="top:calc(16px + (100% - 32px) * 0.5)"
+              style="bottom:calc(12px + (100% - 24px) * 0.5)"
             >
               <span>50</span>
               <div class="dot"></div>
             </div>
             <div
               class="tick"
-              style="top:calc(16px + (100% - 32px) * 0.75)"
+              style="bottom:calc(12px + (100% - 24px) * 0.75)"
             >
               <span>75</span>
             </div>
-            <div class="tick" style="bottom:16px"><span>100</span></div>
+            <div class="tick" style="top:12px"><span>100</span></div>
           </div>
-          <div id="thumb"><span>Pull</span></div>
-          <div class="power-label">MAX</div>
+          <div id="thumb"></div>
+          <div class="power-label">Power</div>
         </aside>
 
         <button id="play">Play</button>
@@ -398,76 +427,21 @@
         /* ==========================================================
        KONSTANTA TE LAYOUT-it DHE FIZIKES (sipas portrait)
        ========================================================= */
-        var WIDTH_SCALE = 1.1; // 10% wider to the right
-        var HEIGHT_SCALE = 0.95; // 5% shorter while keeping top edge
-
         var CAL = (function () {
           try {
             var p = new URLSearchParams(location.search);
             var w = parseInt(p.get('cw'));
             var h = parseInt(p.get('ch'));
-            var bw = parseInt(p.get('bw'));
-            var bh = parseInt(p.get('bh'));
-            var bx = parseInt(p.get('bx'));
-            var by = parseInt(p.get('by'));
-            var pockets = [];
-            for (var i = 1; i <= 6; i++) {
-              var px = parseInt(p.get('p' + i + 'x'));
-              var py = parseInt(p.get('p' + i + 'y'));
-              if (!isNaN(px) && !isNaN(py)) pockets.push({ x: px, y: py });
-            }
-            var anchors = [];
-            for (var j = 1; j <= 3; j++) {
-              var ax = parseInt(p.get('c' + j + 'x'));
-              var ay = parseInt(p.get('c' + j + 'y'));
-              if (!isNaN(ax) && !isNaN(ay)) anchors.push({ x: ax, y: ay });
-            }
-            if (w && h) {
-              // apply scaling requested by design: widen to the right and shorten in height
-              w = Math.round(w * WIDTH_SCALE);
-              h = Math.round(h * HEIGHT_SCALE);
-
-              if (anchors.length === 3) {
-                var lm = anchors[0];
-                var tr = anchors[1];
-                var br = anchors[2];
-                var xLeft = lm.x;
-                var xRight = (tr.x + br.x) / 2;
-                var yTop = tr.y;
-                var yBottom = br.y;
-                var width = xRight - xLeft;
-                var height = yBottom - yTop;
-                xRight = xLeft + width * WIDTH_SCALE; // expand width to the right
-                yBottom = yTop + height * HEIGHT_SCALE; // reduce height while keeping top edge
-                var yCenter = (yTop + yBottom) / 2;
-                anchors = [
-                  { x: xLeft, y: yCenter },
-                  { x: xRight, y: yTop },
-                  { x: xRight, y: yBottom }
-                ];
-                pockets = [
-                  { x: xLeft, y: yTop },
-                  { x: xRight, y: yTop },
-                  { x: xLeft, y: yCenter },
-                  { x: xRight, y: yCenter },
-                  { x: xLeft, y: yBottom },
-                  { x: xRight, y: yBottom }
-                ];
-              }
-
-              return {
-                w: w,
-                h: h,
-                bw: bw,
-                bh: bh,
-                bx: bx,
-                by: by,
-                pockets: pockets,
-                anchors: anchors
-              };
+            if (w && h) return { w: w, h: h };
+          } catch {}
+          try {
+            var s = localStorage.getItem('pollRoyaleCalibration');
+            if (s) {
+              var c = JSON.parse(s);
+              if (c.width && c.height) return { w: c.width, h: c.height };
             }
           } catch {}
-          return { w: 1000, h: 2000, bw: 0, bh: 0, bx: 0, by: 0, anchors: [] };
+          return { w: 1000, h: 2000 };
         })();
         var TABLE_W = CAL.w; // gjeresi logjike e felt-it
         var TABLE_H = CAL.h; // gjatesia logjike e felt-it
@@ -479,7 +453,6 @@
         var HEAD_STRING_Y = BORDER + PLAY_H * 0.75; // 25% nga ana "head"
         var FOOT_SPOT_X = TABLE_W / 2;
         var FOOT_SPOT_Y = BORDER + PLAY_H * 0.25; // 75% nga "head"
-        var CUE_START_Y = (HEAD_STRING_Y + TABLE_H - BORDER) / 2 - BALL_R;
 
         var FRICTION = 0.985; // ferkimi linear
         var BOUNCE = 0.98; // koeficienti i rikthimit
@@ -490,19 +463,6 @@
         /* ==========================================================
        ELEMENTET DOM
        ========================================================= */
-        var wrap = document.getElementById('wrap');
-          if (CAL.bw && CAL.bh) {
-            wrap.style.backgroundSize = CAL.bw + 'px ' + CAL.bh + 'px';
-          } else {
-            wrap.style.backgroundSize = 'calc(100% + 8px) calc(100% - 4px)';
-          }
-          var xPos = isNaN(CAL.bx)
-            ? '50%'
-            : 'calc(50% + ' + CAL.bx + 'px)';
-          var yPos = isNaN(CAL.by)
-            ? '50%'
-            : 'calc(50% + ' + CAL.by + 'px)';
-          wrap.style.backgroundPosition = xPos + ' ' + yPos;
         var canvas = document.getElementById('table');
         var ctx = canvas.getContext('2d');
         var rightPanel = document.getElementById('rightPanel');
@@ -569,23 +529,7 @@
           pocketR = POCKET_R,
           ballR = BALL_R;
         function resize() {
-          if ((CAL.anchors || []).length === 3) {
-            var lm = CAL.anchors[0];
-            var tr = CAL.anchors[1];
-            var br = CAL.anchors[2];
-            var lmRef = { x: BORDER, y: TABLE_H / 2 };
-            var trRef = { x: TABLE_W - BORDER, y: BORDER };
-            var brRef = { x: TABLE_W - BORDER, y: TABLE_H - BORDER };
-            sX = (tr.x - lm.x) / (trRef.x - lmRef.x);
-            sY = (br.y - tr.y) / (brRef.y - trRef.y);
-            canvas.width = TABLE_W * sX;
-            canvas.height = TABLE_H * sY;
-            canvas.style.left = lm.x - lmRef.x * sX + 'px';
-            canvas.style.top = tr.y - trRef.y * sY + 'px';
-            pocketR = POCKET_R * ((sX + sY) / 2);
-            ballR = BALL_R * ((sX + sY) / 2);
-            return;
-          }
+          var wrap = document.getElementById('wrap');
           var w = wrap.clientWidth;
           var h = wrap.clientHeight;
           var ar = TABLE_W / TABLE_H;
@@ -593,11 +537,10 @@
             ch = h;
           if (cw / ch > ar) cw = ch * ar;
           else ch = cw / ar;
-          ch -= 10;
           canvas.width = cw;
           canvas.height = ch;
           canvas.style.top = (h - ch) / 2 + 'px';
-          canvas.style.left = '7px';
+          canvas.style.left = '0px';
           sX = cw / TABLE_W;
           sY = ch / TABLE_H;
           pocketR = POCKET_R * ((sX + sY) / 2);
@@ -737,7 +680,6 @@
           this.pottedInTurn = false;
           this.captured = { 1: [], 2: [] };
           this.aim = { x: TABLE_W / 2, y: TABLE_H / 3 };
-          this.ballInHand = true;
           this.reset();
         }
 
@@ -750,11 +692,10 @@
           this.turn = 1;
           this.lastShooter = 1;
           this.pottedInTurn = false;
-          this.ballInHand = true;
 
-          // Cue ball (pak me lart se gjysma e zones se bardhe)
+          // Cue ball (poshte, qender)
           this.balls.push(
-            new Ball(BALL_BY_N[0], TABLE_W / 2, CUE_START_Y)
+            new Ball(BALL_BY_N[0], TABLE_W / 2, TABLE_H - BORDER - BALL_R * 2)
           );
 
           // Trekendshi siper me 15 topa (8-shi ne qender rreshti 3)
@@ -764,14 +705,8 @@
           var colGap = BALL_R * 2.1;
 
           // Rregullimi i topave ne trekendesh:
-          // 1 ne fund, 8 ne qender, 2 dhe 11 ne cepat siper
-          var layout = [
-            [2, 0, 0, 0, 11],
-            [0, 0, 0, 0],
-            [0, 8, 0],
-            [0, 0],
-            [1]
-          ];
+          // 1 ne maje, 8 ne qender, 2 dhe 11 ne cepat poshte
+          var layout = [[1], [0, 0], [0, 8, 0], [0, 0, 0, 0], [2, 0, 0, 0, 11]];
 
           // Numrat e mbetur per mbushjen e trekendeshit
           var pool = [];
@@ -781,9 +716,9 @@
           shuffle(pool);
           var cursor = 0;
 
-          // 5 rreshta (5..1) — ne total 15 topa
+          // 5 rreshta (1..5) — ne total 15 topa
           for (var r = 0; r < 5; r++) {
-            var count = 5 - r;
+            var count = r + 1;
             for (j = 0; j < count; j++) {
               var x = cx - (count - 1) * BALL_R * 1.05 + j * colGap;
               var y = cy + r * rowGap;
@@ -798,21 +733,14 @@
           }
 
           // Pockets (4 qoshe + 2 te mesit anesore)
-          var defPockets = [
-            { x: BORDER, y: BORDER + 5 },
-            { x: TABLE_W - BORDER + 10, y: BORDER },
-            { x: BORDER, y: TABLE_H / 2 + 2 },
-            { x: TABLE_W - BORDER + 10, y: TABLE_H / 2 },
-            { x: BORDER, y: TABLE_H - BORDER - 5 },
-            { x: TABLE_W - BORDER + 10, y: TABLE_H - BORDER }
+          this.pockets = [
+            new Pocket(BORDER, BORDER),
+            new Pocket(TABLE_W - BORDER, BORDER),
+            new Pocket(BORDER, TABLE_H / 2),
+            new Pocket(TABLE_W - BORDER, TABLE_H / 2),
+            new Pocket(BORDER, TABLE_H - BORDER),
+            new Pocket(TABLE_W - BORDER, TABLE_H - BORDER)
           ];
-          var calPockets = (CAL.pockets || []).length === 6 ? CAL.pockets : defPockets;
-          this.pockets = calPockets.map(function (p, idx) {
-            var def = defPockets[idx];
-            var x = typeof p.x === 'number' ? p.x : def.x;
-            var y = typeof p.y === 'number' ? p.y : def.y;
-            return new Pocket(x, y);
-          });
 
           // TESTE TE INTEGRITETIT (console.assert)
           runSelfTests(this);
@@ -908,10 +836,9 @@
                 if (b2.n === 0) {
                   this.turn = this.turn === 1 ? 2 : 1; // scratch => kalon radha
                   b2.p.x = TABLE_W / 2;
-                  b2.p.y = CUE_START_Y;
+                  b2.p.y = TABLE_H - BORDER - BALL_R * 2;
                   b2.v.x = 0;
                   b2.v.y = 0;
-                  this.ballInHand = true;
                 } else {
                   b2.pocketed = true;
                   this.captured[this.lastShooter].push(b2.n);
@@ -947,11 +874,6 @@
             ctx.strokeStyle = '#00ff00';
             ctx.lineWidth = 4;
             ctx.stroke();
-            ctx.fillStyle = '#00ff00';
-            ctx.font = pocketR + 'px sans-serif';
-            ctx.textAlign = 'center';
-            ctx.textBaseline = 'middle';
-            ctx.fillText(i + 1, pk.x * sX, pk.y * sY);
           }
 
           // Vizat orientuese mbi spondat
@@ -1174,7 +1096,6 @@
         var table = new Table();
         var last = 0; // koha e frame te fundit
         var aiming = false; // a po caktohet drejtimi
-        var draggingCue = false; // levizja e gurit te bardhe
         var showGuides = false; // a shfaqen pikat
         var cuePullVisual = 0; // shfaqje e terheqjes ne felt
         var spinVec = { x: 0, y: 0 }; // spini i zgjedhur
@@ -1219,50 +1140,27 @@
           var cue = table.balls[0];
           if (!cue) return;
           var p = screenToTable(e.clientX, e.clientY);
-          var dist = Math.hypot(p.x - cue.p.x, p.y - cue.p.y);
-          if (table.ballInHand && dist <= BALL_R * 1.5) {
-            draggingCue = true;
-            moveCue(p);
-            return;
-          }
           var dx = table.aim.x - cue.p.x,
             dy = table.aim.y - cue.p.y;
           var len = Math.sqrt(dx * dx + dy * dy) || 1;
-          var d = Math.abs((p.x - cue.p.x) * dy - (p.y - cue.p.y) * dx) / len;
-          if (d <= BALL_R * 2) {
+          var dist =
+            Math.abs((p.x - cue.p.x) * dy - (p.y - cue.p.y) * dx) / len;
+          if (dist <= BALL_R * 2) {
             aiming = true;
             showGuides = true;
             table.aim = p;
-            table.ballInHand = false;
           }
         });
 
         canvas.addEventListener('pointermove', function (e) {
-          var p = screenToTable(e.clientX, e.clientY);
-          if (draggingCue && table.ballInHand) {
-            moveCue(p);
-          } else if (aiming && table.running && !table.ballInHand) {
-            table.aim = p;
-          }
+          if (!aiming || !table.running) return;
+          var t = screenToTable(e.clientX, e.clientY);
+          table.aim = t;
         });
 
         canvas.addEventListener('pointerup', function () {
-          draggingCue = false;
           aiming = false;
         });
-
-        function moveCue(p) {
-          var cue = table.balls[0];
-          if (!cue) return;
-          cue.p.x = Math.min(
-            Math.max(p.x, BORDER + BALL_R),
-            TABLE_W - BORDER - BALL_R
-          );
-          cue.p.y = Math.min(
-            Math.max(p.y, HEAD_STRING_Y + BALL_R),
-            TABLE_H - BORDER - BALL_R
-          );
-        }
 
         /* ==========================================================
        GUIDES + CUE ON TABLE
@@ -1500,11 +1398,11 @@
         function updatePowerUI() {
           var pct = Math.round(power * 100);
           powerFill.style.height = pct + '%';
-          thumb.style.top = 'calc(16px + (100% - 32px) * ' + power + ')';
+          thumb.style.bottom = 'calc(12px + (100% - 24px) * ' + power + ')';
         }
         function updatePower(e) {
           var rect = rightPanel.getBoundingClientRect();
-          power = clamp((e.clientY - rect.top) / (rect.height * 0.9), 0, 1);
+          power = clamp((rect.bottom - e.clientY) / (rect.height * 0.9), 0, 1);
           updatePowerUI();
           cuePullVisual = power * (BALL_R * 14);
         }

@@ -13,7 +13,7 @@ export default function ProjectAchievementsCard() {
     '🫧 Bubble Pop Royale',
     '💥 Bubble Smash Royale',
     '🧩 Tetris Royale',
-    '🎱 Pool Royale 🎱',
+    '🎱 8 Poll Royale',
     '🔄 Daily Check-In rewards',
     '⛏️ Mining system active',
     '📺 Ad watch rewards',
