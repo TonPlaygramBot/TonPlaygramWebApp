@@ -27,6 +27,7 @@ const state = {
 
 const SUIT_MAP = { H: '♥', D: '♦', C: '♣', S: '♠' };
 const CHIP_VALUES = [1000, 500, 200, 100, 50, 20, 10, 5, 1];
+const ANTE = 10;
 const regionNames = new Intl.DisplayNames(['en'], { type: 'region' });
 function flagName(flag) {
   const codePoints = [...flag].map((c) => c.codePointAt(0) - 0x1f1e6 + 65);
@@ -102,9 +103,10 @@ function init() {
   state.raiseAmount = 0;
   state.pot = 0;
   state.maxPot = state.stake * state.players.filter((p) => p.active).length;
-  document.getElementById('community').innerHTML = '';
-  updatePotDisplay();
+  setupFlopBacks();
   renderSeats();
+  collectAntes();
+  updatePotDisplay();
   dealInitialCards();
 }
 
@@ -175,6 +177,18 @@ function cardBackEl() {
   const div = document.createElement('div');
   div.className = 'card back';
   return div;
+}
+
+function setupFlopBacks() {
+  const comm = document.getElementById('community');
+  if (!comm) return;
+  comm.innerHTML = '';
+  for (let i = 0; i < 3; i++) comm.appendChild(cardBackEl());
+}
+
+function collectAntes() {
+  const active = state.players.filter((p) => !p.vacant).length;
+  state.pot += ANTE * active;
 }
 
 function updatePotDisplay() {
@@ -380,10 +394,14 @@ function playerFold() {
 }
 
 function playerCheck() {
+  document.getElementById('status').textContent = 'You check';
   proceedStage();
 }
 
 function playerCall() {
+  state.pot += state.currentBet;
+  updatePotDisplay();
+  document.getElementById('status').textContent = `You call ${state.currentBet} ${state.token}`;
   proceedStage();
 }
 
@@ -409,6 +427,10 @@ async function proceedStage() {
     document.getElementById('status').textContent = `${p.name}...`;
     await new Promise((r) => setTimeout(r, 2500));
     const action = aiChooseAction(p.hand, state.community.slice(0, stageCommunityCount()));
+    if (action === 'call') {
+      state.pot += state.currentBet;
+      updatePotDisplay();
+    }
     document.getElementById('status').textContent = `${p.name} ${action}s`;
   }
   setPlayerTurnIndicator(null);
@@ -451,7 +473,11 @@ function movePotToWinner(idx) {
 
 function revealFlop() {
   const comm = document.getElementById('community');
-  for (let i = 0; i < 3; i++) comm.appendChild(cardEl(state.community[i]));
+  for (let i = 0; i < 3; i++) {
+    const card = cardEl(state.community[i]);
+    if (comm.children[i]) comm.children[i].replaceWith(card);
+    else comm.appendChild(card);
+  }
   startPlayerTurn();
 }
 
