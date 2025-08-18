@@ -105,12 +105,9 @@ function init() {
   state.maxPot = state.stake * state.players.filter((p) => p.active).length;
   setupFlopBacks();
   renderSeats();
-  showControls();
-  hideControls();
   collectAntes();
   updatePotDisplay();
   dealInitialCards();
-  document.getElementById('status').textContent = '';
 }
 
 function renderSeats() {
@@ -157,22 +154,13 @@ function renderSeats() {
       const controls = document.createElement('div');
       controls.className = 'controls';
       controls.id = 'controls';
-      const prob = document.createElement('div');
-      prob.id = 'winProb';
-      prob.className = 'win-prob';
-      const action = document.createElement('div');
-      action.id = 'action-' + i;
-      action.className = 'action-text';
-      seat.append(cards, prob, controls, wrap, name, action);
+      seat.append(cards, controls, wrap, name);
     } else {
       const timer = document.createElement('div');
       timer.className = 'timer';
       timer.id = 'timer-' + i;
-      const action = document.createElement('div');
-      action.id = 'action-' + i;
-      action.className = 'action-text';
-      if (positions[i] === 'top') seat.append(name, avatar, cards, timer, action);
-      else seat.append(avatar, cards, name, timer, action);
+      if (positions[i] === 'top') seat.append(name, avatar, cards, timer);
+      else seat.append(avatar, cards, name, timer);
     }
     seats.appendChild(seat);
   });
@@ -224,71 +212,6 @@ function updatePotDisplay() {
       potEl.appendChild(pile);
     }
   });
-  const amt = document.createElement('div');
-  amt.className = 'pot-amount';
-  amt.textContent = `${state.pot} ${state.token}`;
-  potEl.appendChild(amt);
-}
-
-function animateChips(idx, amount) {
-  return new Promise((resolve) => {
-    const stage = document.querySelector('.stage');
-    const potEl = document.getElementById('pot');
-    const fromCards = document.getElementById('cards-' + idx);
-    if (!stage || !potEl || !fromCards) {
-      resolve();
-      return;
-    }
-    const stageRect = stage.getBoundingClientRect();
-    const fromRect = fromCards.getBoundingClientRect();
-    const potRect = potEl.getBoundingClientRect();
-    const chip = document.createElement('div');
-    chip.className = 'chip v1 moving-chip';
-    chip.textContent = amount;
-    chip.style.left = fromRect.left - stageRect.left + 'px';
-    chip.style.top = fromRect.top - stageRect.top + 'px';
-    stage.appendChild(chip);
-    requestAnimationFrame(() => {
-      chip.style.left = potRect.left - stageRect.left + potRect.width / 2 - chip.offsetWidth / 2 + 'px';
-      chip.style.top = potRect.top - stageRect.top + potRect.height / 2 - chip.offsetHeight / 2 + 'px';
-    });
-    chip.addEventListener('transitionend', () => {
-      chip.remove();
-      resolve();
-    }, { once: true });
-  });
-}
-
-function calculateWinProbability(samples = 200) {
-  const known = state.community.slice(0, stageCommunityCount());
-  const used = [...state.players[0].hand, ...known];
-  const deck = createDeck().filter(
-    (c) => !used.some((u) => u.rank === c.rank && u.suit === c.suit)
-  );
-  let wins = 0;
-  let ties = 0;
-  const opponents = state.players.filter((p, i) => i !== 0 && !p.vacant).length;
-  for (let i = 0; i < samples; i++) {
-    const d = shuffle(deck);
-    const commNeeded = 5 - known.length;
-    const community = [...known, ...d.splice(0, commNeeded)];
-    const hands = [];
-    for (let j = 0; j < opponents; j++) {
-      hands.push([d.pop(), d.pop()]);
-    }
-    const players = [{ hand: state.players[0].hand }, ...hands.map((h) => ({ hand: h }))];
-    const res = evaluateWinner(players, community);
-    if (res && res.index === 0) wins++;
-    else if (!res) ties++;
-  }
-  const pct = ((wins + ties * 0.5) / samples) * 100;
-  return pct.toFixed(1);
-}
-
-function updateWinProbability() {
-  const el = document.getElementById('winProb');
-  if (!el) return;
-  el.textContent = calculateWinProbability() + '%';
 }
 
 async function dealInitialCards() {
@@ -299,7 +222,6 @@ async function dealInitialCards() {
       await dealCardToPlayer(i, p.hand[r], !!p.isHuman);
     }
   }
-  updateWinProbability();
   if (state.seated) startPlayerTurn();
   else proceedStage();
 }
@@ -351,42 +273,40 @@ function setPlayerTurnIndicator(idx) {
 
 function showControls() {
   const controls = document.getElementById('controls');
-  if (!controls) return;
-  if (!controls.children.length) {
-    const baseActions = [
-      { id: 'fold', fn: playerFold },
-      { id: 'check', fn: playerCheck },
-      { id: 'call', fn: playerCall },
-    ];
-    baseActions.forEach((a) => {
-      const btn = document.createElement('button');
-      btn.id = a.id;
-      btn.textContent = a.id;
-      btn.addEventListener('click', a.fn);
-      controls.appendChild(btn);
-    });
-    const raiseContainer = document.createElement('div');
-    raiseContainer.className = 'raise-container';
-    const panel = document.createElement('div');
-    panel.id = 'raisePanel';
-    panel.innerHTML =
-      '<div class="max-zone"><div class="max-label">MAX</div></div>' +
-      '<div id="raiseFill"></div><div id="raiseThumb"></div>';
-    raiseContainer.appendChild(panel);
+  controls.innerHTML = '';
+  const baseActions = [
+    { id: 'fold', fn: playerFold },
+    { id: 'check', fn: playerCheck },
+    { id: 'call', fn: playerCall },
+  ];
+  baseActions.forEach((a) => {
     const btn = document.createElement('button');
-    btn.textContent = 'raise';
-    btn.id = 'raise';
-    btn.addEventListener('click', playerRaise);
-    raiseContainer.appendChild(btn);
-    const amountText = document.createElement('div');
-    amountText.id = 'raiseAmountText';
-    amountText.className = 'raise-amount';
-    amountText.textContent = `0 ${state.token}`;
-    raiseContainer.appendChild(amountText);
-    controls.appendChild(raiseContainer);
-    initRaiseSlider();
-  }
-  controls.querySelectorAll('button').forEach((b) => (b.disabled = false));
+    btn.id = a.id;
+    btn.textContent = a.id;
+    btn.addEventListener('click', a.fn);
+    controls.appendChild(btn);
+  });
+  const raiseContainer = document.createElement('div');
+  raiseContainer.className = 'raise-container';
+  const panel = document.createElement('div');
+  panel.id = 'raisePanel';
+  panel.innerHTML =
+    '<div class="max-zone"><div class="max-label">MAX</div></div>' +
+    '<div id="raiseFill"></div><div id="raiseThumb"></div>';
+  raiseContainer.appendChild(panel);
+  const btn = document.createElement('button');
+  btn.textContent = 'raise';
+  btn.id = 'raise';
+  btn.addEventListener('click', playerRaise);
+  if (state.pot >= state.maxPot) btn.disabled = true;
+  raiseContainer.appendChild(btn);
+  const amountText = document.createElement('div');
+  amountText.id = 'raiseAmountText';
+  amountText.className = 'raise-amount';
+  amountText.textContent = `0 ${state.token}`;
+  raiseContainer.appendChild(amountText);
+  controls.appendChild(raiseContainer);
+  initRaiseSlider();
 }
 
 function initRaiseSlider() {
@@ -405,6 +325,8 @@ function initRaiseSlider() {
     state.raiseAmount = Math.round(pct * maxAllowed);
     const amtEl = document.getElementById('raiseAmountText');
     if (amtEl) amtEl.textContent = `${state.raiseAmount} ${state.token}`;
+    const status = document.getElementById('status');
+    if (status) status.textContent = `Raise ${state.raiseAmount} ${state.token}`;
   }
   panel.addEventListener('pointerdown', function (e) {
     update(e);
@@ -420,8 +342,7 @@ function initRaiseSlider() {
 
 function hideControls() {
   const controls = document.getElementById('controls');
-  if (!controls) return;
-  controls.querySelectorAll('button').forEach((b) => (b.disabled = true));
+  if (controls) controls.innerHTML = '';
 }
 
 function startPlayerTurn() {
@@ -465,46 +386,33 @@ function updateTimer() {
   }
 }
 
-function showAction(idx, action, amount = 0) {
-  const el = document.getElementById('action-' + idx);
-  if (!el) return;
-  el.className = 'action-text action-' + action;
-  el.textContent = action + (amount ? ' ' + amount : '');
-  setTimeout(() => {
-    el.textContent = '';
-  }, 2000);
-}
-
 function playerFold() {
   clearInterval(state.timerInterval);
   hideControls();
   setPlayerTurnIndicator(null);
-  showAction(0, 'fold');
-  proceedStage();
+  document.getElementById('status').textContent = 'You folded';
 }
 
 function playerCheck() {
-  showAction(0, 'check');
+  document.getElementById('status').textContent = 'You check';
   proceedStage();
 }
 
-async function playerCall() {
+function playerCall() {
   state.pot += state.currentBet;
-  showAction(0, 'call', state.currentBet);
-  await animateChips(0, state.currentBet);
   updatePotDisplay();
+  document.getElementById('status').textContent = `You call ${state.currentBet} ${state.token}`;
   proceedStage();
 }
 
-async function playerRaise() {
+function playerRaise() {
   const maxAllowed = Math.min(state.stake, state.maxPot - state.pot);
   const amount = Math.min(state.raiseAmount, maxAllowed);
   if (amount <= 0) return;
   state.pot += amount;
   state.currentBet += amount;
-  showAction(0, 'raise', amount);
-  await animateChips(0, amount);
   updatePotDisplay();
+  document.getElementById('status').textContent = `You raise ${amount} ${state.token}`;
   proceedStage();
 }
 
@@ -516,29 +424,14 @@ async function proceedStage() {
     const p = state.players[i];
     if (p.vacant) continue;
     setPlayerTurnIndicator(i);
+    document.getElementById('status').textContent = `${p.name}...`;
     await new Promise((r) => setTimeout(r, 2500));
-    const action = aiChooseAction(
-      p.hand,
-      state.community.slice(0, stageCommunityCount()),
-      state.currentBet
-    );
+    const action = aiChooseAction(p.hand, state.community.slice(0, stageCommunityCount()));
     if (action === 'call') {
       state.pot += state.currentBet;
-      showAction(i, 'call', state.currentBet);
-      await animateChips(i, state.currentBet);
       updatePotDisplay();
-    } else if (action === 'raise') {
-      const raiseAmt = Math.min(20, state.maxPot - state.pot);
-      state.currentBet += raiseAmt;
-      state.pot += raiseAmt;
-      showAction(i, 'raise', raiseAmt);
-      await animateChips(i, raiseAmt);
-      updatePotDisplay();
-    } else if (action === 'fold') {
-      showAction(i, 'fold');
-    } else {
-      showAction(i, 'check');
     }
+    document.getElementById('status').textContent = `${p.name} ${action}s`;
   }
   setPlayerTurnIndicator(null);
   state.stage++;
@@ -585,21 +478,18 @@ function revealFlop() {
     if (comm.children[i]) comm.children[i].replaceWith(card);
     else comm.appendChild(card);
   }
-  updateWinProbability();
   startPlayerTurn();
 }
 
 function revealTurn() {
   const comm = document.getElementById('community');
   comm.appendChild(cardEl(state.community[3]));
-  updateWinProbability();
   startPlayerTurn();
 }
 
 function revealRiver() {
   const comm = document.getElementById('community');
   comm.appendChild(cardEl(state.community[4]));
-  updateWinProbability();
   startPlayerTurn();
 }
 
@@ -614,7 +504,7 @@ function showdown() {
   const winner = evaluateWinner(activePlayers, state.community);
   const pot = state.pot;
   const text = winner
-    ? `${activePlayers[winner.index].name} wins ${pot} ${state.token} with ${HAND_RANK_NAMES[winner.score.rank]}!`
+    ? `${activePlayers[winner.index].name} wins with ${HAND_RANK_NAMES[winner.score.rank]}!`
     : 'Tie';
   document.getElementById('status').textContent = text;
   if (winner) {
