@@ -441,6 +441,11 @@
           var yTop = tr.y;
           var yBottom = br.y;
           var yCenter = lm.y;
+          var width = xRight - xLeft;
+          var height = yBottom - yTop;
+          xRight = xLeft + width * 1.1;
+          yBottom = yTop + height * 0.9;
+          yCenter = (yTop + yBottom) / 2;
           CAL.anchors = [
             { x: xLeft, y: yCenter },
             { x: xRight, y: yTop },
