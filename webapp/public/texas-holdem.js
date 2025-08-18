@@ -505,14 +505,13 @@ async function proceedStage() {
       updatePotDisplay();
       showActionOverlay(i, 'call');
       document.getElementById('status').textContent = `${p.name} calls ${amt} ${state.token}`;
-    } else if (act.action === 'raise' || act.action === 'bluff') {
+    } else if (act.action === 'raise') {
       const bet = deductChips(i, act.amount);
       state.pot += bet;
       state.currentBet = bet;
       updatePotDisplay();
       showActionOverlay(i, 'raise');
-      const prefix = act.action === 'bluff' ? 'bluffs and ' : '';
-      document.getElementById('status').textContent = `${p.name} ${prefix}raises ${bet} ${state.token}`;
+      document.getElementById('status').textContent = `${p.name} raises ${bet} ${state.token}`;
     } else if (act.action === 'check') {
       showActionOverlay(i, 'check');
       document.getElementById('status').textContent = `${p.name} checks`;
