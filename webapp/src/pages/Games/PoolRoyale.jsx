@@ -35,6 +35,12 @@ export default function PoolRoyale() {
       if (typeof p.y === 'number') iframeParams.set(`p${i + 1}y`, p.y);
     });
   }
+  if (Array.isArray(calibration?.anchors)) {
+    calibration.anchors.forEach((p, i) => {
+      if (typeof p.x === 'number') iframeParams.set(`c${i + 1}x`, p.x);
+      if (typeof p.y === 'number') iframeParams.set(`c${i + 1}y`, p.y);
+    });
+  }
   const src = `/pool-royale.html?${iframeParams.toString()}`;
 
   return (
