@@ -762,12 +762,12 @@
 
           // Pockets (4 qoshe + 2 te mesit anesore)
           var defPockets = [
-            { x: BORDER, y: BORDER },
-            { x: TABLE_W - BORDER, y: BORDER },
-            { x: BORDER, y: TABLE_H / 2 },
-            { x: TABLE_W - BORDER, y: TABLE_H / 2 },
-            { x: BORDER, y: TABLE_H - BORDER },
-            { x: TABLE_W - BORDER, y: TABLE_H - BORDER }
+            { x: BORDER, y: BORDER + 5 },
+            { x: TABLE_W - BORDER + 10, y: BORDER },
+            { x: BORDER, y: TABLE_H / 2 + 2 },
+            { x: TABLE_W - BORDER + 10, y: TABLE_H / 2 },
+            { x: BORDER, y: TABLE_H - BORDER - 5 },
+            { x: TABLE_W - BORDER + 10, y: TABLE_H - BORDER }
           ];
           var calPockets = (CAL.pockets || []).length === 6 ? CAL.pockets : defPockets;
           this.pockets = calPockets.map(function (p, idx) {
