@@ -181,24 +181,16 @@ export function evaluateWinner(players, community){
   return winner;
 }
 
-export function aiChooseAction(hand, community=[], options={}){
-  const { currentBet=0, chips=0 } = options;
+export function aiChooseAction(hand, community=[]){
+  const stage=community.length; //0 preflop,3 flop,4 turn,5 river
   const score=bestHand([...hand,...community]);
-  const strength=score.rank;
-  const rnd=Math.random();
-  if(currentBet===0){
-    if(strength>=2){
-      return {action:'raise', amount:Math.min(20, chips)};
-    }
-    if(rnd<0.1 && chips>20){
-      return {action:'bluff', amount:Math.min(20, chips)};
-    }
-    return {action:'check'};
+  // very naive thresholds
+  if(stage<3){
+    // preflop
+    const hv=hand.map(c=>rankValue(c.rank)).sort((a,b)=>b-a);
+    if(hv[0]>=12 || hv[0]===hv[1]) return 'call';
+    return 'fold';
   }
-  if(chips<=currentBet) return {action:'fold'};
-  if(strength>=2 || (strength===1 && rnd>0.5)) return {action:'call'};
-  if(rnd<0.1 && chips>currentBet*2){
-    return {action:'bluff', amount:Math.min(currentBet*2, chips)};
-  }
-  return {action:'fold'};
+  if(score.rank>=1) return 'call';
+  return 'fold';
 }
