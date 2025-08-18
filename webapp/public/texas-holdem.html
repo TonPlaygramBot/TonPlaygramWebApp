@@ -93,14 +93,10 @@
     @keyframes pulse{0%,100%{opacity:0.6}50%{opacity:1}}
     @keyframes shimmer{from{background-position:0 0}to{background-position:100px 0}}
     #status{ position:absolute; top:52%; left:50%; transform:translate(-50%, -50%); font-weight:900; letter-spacing:.3px; color:#ff0; background:rgba(0,0,0,.28); padding:6px 12px; border-radius:12px; border:1px solid rgba(255,255,255,.12); text-shadow:0 2px 6px #000; -webkit-text-stroke:1px #000 }
-    .winnerOverlay{position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;background:rgba(0,0,0,0.6);z-index:60}
-    .winnerOverlay.hidden{display:none}
-    .winnerOverlay img,.winnerOverlay .avatar{width:120px;height:120px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:48px;background:#fff;color:#111;margin-bottom:12px}
-    .coin-confetti{position:fixed;top:-40px;width:32px;height:32px;pointer-events:none;animation:coin-fall var(--duration,3s) linear forwards}
-    @keyframes coin-fall{from{transform:translateY(-10vh) rotate(0deg);opacity:1}to{transform:translateY(100vh) rotate(360deg);opacity:0}}
-    dialog{border:none;border-radius:16px;background:#0d1330;color:#e7eefc;max-width:300px;width:calc(100% - 24px)}
-    .modal{padding:16px;border:1px solid #223063;border-radius:16px;background:linear-gradient(180deg,#0f1736,#0b1126);display:flex;flex-direction:column;gap:12px;align-items:center}
-    .btn{padding:10px 20px;border-radius:8px;border:none;background:#2563eb;color:#fff;font-weight:700;cursor:pointer}
+    .top-controls{position:absolute;top:8px;right:8px;display:flex;flex-direction:column;gap:8px;z-index:10}
+    .top-controls button{width:44px;height:44px;padding:0;border:2px solid #000;border-radius:50%;display:flex;align-items:center;justify-content:center;background:#2563eb;color:#fff;font-weight:600}
+    .top-controls button img{width:24px;height:24px}
+    .seat.vacant .vacant-seat{width:var(--avatar-size);height:var(--avatar-size);border-radius:50%;border:4px solid #000;background:#facc15;color:#16a34a;font-weight:700;display:flex;align-items:center;justify-content:center}
   </style>
 </head>
 <body>
@@ -110,13 +106,10 @@
     <div id="status"></div>
   </div>
   <audio id="sndTimer" src="https://cdn.jsdelivr.net/gh/naptha/tiny-sound@master/sounds/beep1.ogg"></audio>
-  <div id="winnerOverlay" class="winnerOverlay hidden"></div>
-  <dialog id="results">
-    <div class="modal">
-      <p id="resultText"></p>
-      <button class="btn" id="lobbyBtn">Return to Lobby</button>
-    </div>
-  </dialog>
+  <div class="top-controls">
+    <button id="lobbyIcon"><img src="assets/icons/texas-holdem.svg" alt="Lobby"/></button>
+    <button id="leaveSeatBtn">Leave</button>
+  </div>
   <script src="/flag-emojis.js"></script>
   <script type="module" src="/texas-holdem.js"></script>
 </body>
