@@ -412,10 +412,25 @@
               var py = parseInt(p.get('p' + i + 'y'));
               if (!isNaN(px) && !isNaN(py)) pockets.push({ x: px, y: py });
             }
+            var anchors = [];
+            for (var j = 1; j <= 3; j++) {
+              var ax = parseInt(p.get('c' + j + 'x'));
+              var ay = parseInt(p.get('c' + j + 'y'));
+              if (!isNaN(ax) && !isNaN(ay)) anchors.push({ x: ax, y: ay });
+            }
             if (w && h)
-              return { w: w, h: h, bw: bw, bh: bh, bx: bx, by: by, pockets: pockets };
+              return {
+                w: w,
+                h: h,
+                bw: bw,
+                bh: bh,
+                bx: bx,
+                by: by,
+                pockets: pockets,
+                anchors: anchors
+              };
           } catch {}
-          return { w: 1000, h: 2000, bw: 0, bh: 0, bx: 0, by: 0 };
+          return { w: 1000, h: 2000, bw: 0, bh: 0, bx: 0, by: 0, anchors: [] };
         })();
         var TABLE_W = CAL.w; // gjeresi logjike e felt-it
         var TABLE_H = CAL.h; // gjatesia logjike e felt-it
@@ -517,23 +532,40 @@
           pocketR = POCKET_R,
           ballR = BALL_R;
         function resize() {
+          if ((CAL.anchors || []).length === 3) {
+            var lm = CAL.anchors[0];
+            var tr = CAL.anchors[1];
+            var br = CAL.anchors[2];
+            var lmRef = { x: BORDER, y: TABLE_H / 2 };
+            var trRef = { x: TABLE_W - BORDER, y: BORDER };
+            var brRef = { x: TABLE_W - BORDER, y: TABLE_H - BORDER };
+            sX = (tr.x - lm.x) / (trRef.x - lmRef.x);
+            sY = (br.y - tr.y) / (brRef.y - trRef.y);
+            canvas.width = TABLE_W * sX;
+            canvas.height = TABLE_H * sY;
+            canvas.style.left = lm.x - lmRef.x * sX + 'px';
+            canvas.style.top = tr.y - trRef.y * sY + 'px';
+            pocketR = POCKET_R * ((sX + sY) / 2);
+            ballR = BALL_R * ((sX + sY) / 2);
+            return;
+          }
           var w = wrap.clientWidth;
           var h = wrap.clientHeight;
           var ar = TABLE_W / TABLE_H;
-        var cw = w,
-          ch = h;
-        if (cw / ch > ar) cw = ch * ar;
-        else ch = cw / ar;
-        ch -= 10;
-        canvas.width = cw;
-        canvas.height = ch;
-        canvas.style.top = (h - ch) / 2 + 'px';
-        canvas.style.left = '7px';
-        sX = cw / TABLE_W;
-        sY = ch / TABLE_H;
-        pocketR = POCKET_R * ((sX + sY) / 2);
-        ballR = BALL_R * ((sX + sY) / 2);
-      }
+          var cw = w,
+            ch = h;
+          if (cw / ch > ar) cw = ch * ar;
+          else ch = cw / ar;
+          ch -= 10;
+          canvas.width = cw;
+          canvas.height = ch;
+          canvas.style.top = (h - ch) / 2 + 'px';
+          canvas.style.left = '7px';
+          sX = cw / TABLE_W;
+          sY = ch / TABLE_H;
+          pocketR = POCKET_R * ((sX + sY) / 2);
+          ballR = BALL_R * ((sX + sY) / 2);
+        }
         window.addEventListener('resize', resize);
 
         /* ==========================================================
