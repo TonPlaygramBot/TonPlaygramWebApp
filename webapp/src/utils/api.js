@@ -565,14 +565,3 @@ export function getWatchCount(tableId) {
 export function getAppStats() {
   return get('/api/stats');
 }
-export function getPollRoyaleCalibration() {
-  return get('/api/pollroyale/calibration');
-}
-
-export function savePollRoyaleCalibration(width, height) {
-  return post(
-    '/api/pollroyale/calibration',
-    { width, height },
-    API_AUTH_TOKEN || undefined
-  );
-}

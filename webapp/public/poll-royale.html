@@ -1,14 +1,11 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="sq">
-  <head>
-    <meta charset="utf-8" />
-    <meta
-      name="viewport"
-      content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no"
-    />
-    <title>Deluxe Billiards • 2.5D Cartoon (Portrait)</title>
-    <style>
-      /* ------------------------------------------------------------------
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no" />
+  <title>Deluxe Billiards • 2.5D Cartoon (Portrait)</title>
+  <style>
+    /* ------------------------------------------------------------------
        DELUXE BILLIARDS 2.5D CARTOON (PORTRAIT)
        - Tavoline vertikale, kornize druri, 6 gropa korrekte (meset anesore).
        - Panel djathtas: SPIN siper, STEKA poshte (pull & release).
@@ -18,1473 +15,724 @@
        - Teste konsole per integritet – te ndihmojne te debug.
        ------------------------------------------------------------------ */
 
-      * {
-        box-sizing: border-box;
-        touch-action: none;
-      }
+    * { box-sizing: border-box; touch-action: none; }
 
-      html,
-      body {
-        margin: 0;
-        height: 100%;
-        background: #0b1120; /* blu e errete, si sallon bilardoje */
-        color: #fff;
-        font-family:
-          system-ui,
-          -apple-system,
-          Segoe UI,
-          Roboto,
-          Ubuntu,
-          Cantarell,
-          'Helvetica Neue',
-          Arial,
-          'Noto Sans';
-        overscroll-behavior: none;
-      }
+    html, body {
+      margin: 0;
+      height: 100%;
+      background: #0b1120; /* blu e errete, si sallon bilardoje */
+      color: #fff;
+      font-family: system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Cantarell,"Helvetica Neue",Arial,"Noto Sans";
+    }
 
-      #app {
-        position: fixed;
-        inset: 0;
-        display: flex;
-        flex-direction: column;
-      }
+    #app {
+      position: fixed;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+    }
 
-      #header {
-        height: 56px;
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        padding: 0 12px;
-        background: linear-gradient(#15203a, #0b1120);
-        border-bottom: 1px solid #24375f;
-        position: relative;
-      }
+    #header, #footer {
+      height: 56px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 12px;
+      background: linear-gradient(#15203a, #0b1120);
+    }
 
-      .player {
-        display: flex;
-        align-items: center;
-        gap: 8px;
-      }
+    #header { border-bottom: 1px solid #24375f; }
+    #footer { border-top: 1px solid #24375f; }
 
-      .avatar {
-        width: 36px;
-        height: 36px;
-        border-radius: 50%;
-        background: #fff;
-        color: #222;
-        display: grid;
-        place-items: center;
-        font-weight: 700;
-      }
+    .player {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
 
-      .name {
-        font-weight: 700;
-      }
+    .avatar {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      background: #fff;
+      color: #222;
+      display: grid;
+      place-items: center;
+      font-weight: 700;
+    }
 
-      .info {
-        display: flex;
-        flex-direction: column;
-      }
-      #header .player:first-child .info {
-        align-items: flex-start;
-      }
-      #header .player:last-child .info {
-        align-items: flex-end;
-      }
-      .potted {
-        display: flex;
-        gap: 4px;
-        margin-top: 2px;
-      }
-      .potted canvas {
-        width: 14px;
-        height: 14px;
-      }
+    .name { font-weight: 700; }
 
-      #wrap {
-        position: relative;
-        flex: 1 1 auto;
-        display: flex;
-        overflow: hidden;
-        background: url('/assets/icons/64e79228-35e3-4fdc-b914-fca635a40220.webp')
-          center/cover no-repeat;
-      }
+    #wrap {
+      position: relative;
+      flex: 1 1 auto;
+      display: flex;
+      overflow: hidden;
+    }
 
-      :root {
-        --rpw: min(22vw, 120px);
-      }
+    :root { --rpw: min(22vw, 120px); }
 
-      /* Canvas i tavolines (mbulon gjithcka, pervec panelit djathtas) */
-      #table {
-        position: absolute;
-        inset: 0;
-        z-index: 1;
-        background: transparent;
-        transform-origin: center;
-      }
+    /* Canvas i tavolines (mbulon gjithcka, pervec panelit djathtas) */
+    #table {
+      position: absolute;
+      inset: 0 auto 0 0;
+      right: var(--rpw);
+      z-index: 4;
+    }
 
+    /* Paneli djathtas – SPIN siper, STEKA poshte */
+    #rightPanel {
+      position: absolute;
+      top: 56px;
+      right: 0;
+      bottom: 56px;
+      width: var(--rpw);
 
-      /* Paneli djathtas – SPIN siper, STEKA poshte */
-      #rightPanel {
-        position: fixed;
-        top: 50%;
-        right: 0;
-        transform: translateY(-50%);
-        width: clamp(44px, 5vw, 88px);
-        height: 78vh;
-        padding: 12px;
-        border-radius: 20px;
-        background: linear-gradient(#0c1020, #11172a);
-        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
-        border: 1px solid rgba(31, 42, 68, 0.4);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        opacity: 0.8;
-        transition: opacity 0.2s, box-shadow 0.2s;
-        z-index: 6;
-      }
-      #rightPanel::after {
-        content: '';
-        position: absolute;
-        top: 0;
-        right: 0;
-        bottom: 0;
-        width: 2px;
-        background: rgba(255, 255, 255, 0.06);
-        pointer-events: none;
-      }
-      #rightPanel.active {
-        opacity: 1;
-        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45), 0 0 8px rgba(96, 165, 250, 0.6);
-      }
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: space-between;
 
-      #spinBox {
-        width: 36px;
-        height: 36px;
-        border-radius: 50%;
-        background: transparent url('/assets/icons/white_ball.svg') center/cover
-          no-repeat;
-        position: absolute;
-        left: 50%;
-        top: 50%;
-        margin-left: -18px;
-        margin-top: -18px;
-        box-shadow:
-          0 4px 10px rgba(0, 0, 0, 0.4) inset,
-          0 0 0 2px rgba(0, 0, 0, 0.15);
-        transform-origin: center;
-        transition: transform 0.2s;
-      }
+      background: rgba(16,24,48,.76);
+      border-left: 2px solid #2c3d63;
+      padding: 12px 8px;
+      z-index: 6;
+    }
 
-      #spinDot {
-        position: absolute;
-        width: 6px;
-        height: 6px;
-        border-radius: 50%;
-        background: #e63; /* pika e kuqe */
-        left: 50%;
-        top: 50%;
-        transform: translate(-50%, -50%);
-      }
+    #spinBox {
+      width: 90px;
+      height: 90px;
+      border-radius: 50%;
+      background: #f6f6f6;
+      position: relative;
+      box-shadow: 0 4px 10px rgba(0,0,0,.4) inset,
+                  0 0 0 2px rgba(0,0,0,.15);
+      transform-origin: center;
+    }
 
-      #sliderTrack {
-        position: relative;
-        width: 100%;
-        height: 100%;
-        padding: 12px;
-        border-radius: 14px;
-        background: rgba(255, 255, 255, 0.02);
-        overflow: hidden;
-      }
-      #sliderTrack::before {
-        content: '';
-        position: absolute;
-        left: 50%;
-        top: 12px;
-        bottom: 12px;
-        width: 1px;
-        background: rgba(230, 237, 247, 0.2);
-      }
-      #sliderTrack::after {
-        content: '';
-        position: absolute;
-        inset: 0;
-        background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20'%3E%3Crect width='1' height='1' fill='%23fff'/%3E%3C/svg%3E") repeat;
-        opacity: 0.03;
-        pointer-events: none;
-      }
-      #sliderTrack .tick {
-        position: absolute;
-        left: 50%;
-        width: 8px;
-        height: 1px;
-        background: rgba(230, 237, 247, 0.6);
-        transform: translateX(-50%);
-      }
-      #sliderTrack .tick span {
-        position: absolute;
-        left: 10px;
-        top: 50%;
-        transform: translateY(-50%);
-        font-size: 9px;
-        color: rgba(230, 237, 247, 0.6);
-      }
-      #sliderTrack .tick.mid {
-        width: 12px;
-      }
-      #sliderTrack .tick.mid .dot {
-        position: absolute;
-        left: 50%;
-        top: 50%;
-        transform: translate(-50%, -50%);
-        width: 3px;
-        height: 3px;
-        border-radius: 50%;
-        background: rgba(230, 237, 247, 0.6);
-      }
-      #powerFill {
-        position: absolute;
-        left: 12px;
-        right: 12px;
-        bottom: 12px;
-        height: 0%;
-        border-radius: 8px;
-        background: linear-gradient(to top, #10b981, #facc15, #ef4444);
-        box-shadow: inset 0 -1px 0 rgba(0, 0, 0, 0.2);
-      }
-      #powerFill::after {
-        content: '';
-        position: absolute;
-        top: 0;
-        left: 0;
-        right: 0;
-        height: 2px;
-        background: rgba(255, 255, 255, 0.2);
-      }
-      #thumb {
-        position: absolute;
-        left: 50%;
-        transform: translate(-50%, 50%);
-        bottom: 12px;
-        width: 28px;
-        height: 28px;
-        border-radius: 50%;
-        background: #ffffff;
-        border: 4px solid #0b1224;
-        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.45);
-        touch-action: none;
-      }
-      #thumb::before {
-        content: '';
-        position: absolute;
-        inset: 2px;
-        border-radius: 50%;
-        background: radial-gradient(circle at 30% 30%, #ffffff, #d1d5db);
-      }
-      #thumb.pressed {
-        border-color: #60a5fa;
-        box-shadow: 0 0 0 2px rgba(96, 165, 250, 0.7), 0 2px 8px rgba(0, 0, 0, 0.45);
-        transform: translate(-50%, 50%) scale(1.1);
-      }
-      #rightPanel .power-label {
-        position: absolute;
-        bottom: -24px;
-        left: 50%;
-        transform: translateX(-50%);
-        font-size: 10px;
-        color: rgba(200, 213, 240, 0.7);
-      }
-      #sliderTrack .max-zone {
-        position: absolute;
-        top: 0;
-        left: 12px;
-        right: 12px;
-        height: 15%;
-        background: repeating-linear-gradient(45deg, rgba(239, 68, 68, 0.08) 0 8px, transparent 8px 16px);
-        animation: shimmer 2s linear infinite;
-        pointer-events: none;
-      }
-      #sliderTrack .max-label {
-        position: absolute;
-        top: 4px;
-        left: 50%;
-        transform: translateX(-50%);
-        font-size: 10px;
-        color: #ef4444;
-        animation: pulse 1.5s infinite;
-      }
-      @keyframes pulse {
-        0%,
-        100% {
-          opacity: 0.6;
-        }
-        50% {
-          opacity: 1;
-        }
-      }
-      @keyframes shimmer {
-        from {
-          background-position: 0 0;
-        }
-        to {
-          background-position: 100px 0;
-        }
-      }
+    #spinDot {
+      position: absolute;
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      background: #e63; /* pika e kuqe */
+      left: 50%;
+      top: 50%;
+      transform: translate(-50%, -50%);
+    }
 
-      #play {
-        position: absolute;
-        left: 50%;
-        top: 50%;
-        transform: translate(-50%, -50%);
-        background: #2b4f81;
-        color: #fff;
-        border: none;
-        border-radius: 10px;
-        padding: 14px 28px;
-        font-size: 16px;
-        cursor: pointer;
-        z-index: 10;
-        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.45);
-      }
+    #pullArea {
+      position: relative;
+      width: 96px;
+      height: 58%;
+      border-radius: 14px;
+      background: linear-gradient(180deg, rgba(0,0,0,.18), rgba(0,0,0,.28));
+      box-shadow: inset 0 0 0 1px rgba(255,255,255,.05),
+                  0 8px 24px rgba(0,0,0,.35);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 8px;
+    }
 
-      #play:hover {
-        background: #3c67a3;
-      }
-    </style>
-  </head>
-  <body>
-    <div id="app">
-      <div id="header">
-        <div class="player">
-          <div class="avatar" id="userAvatar">A</div>
-          <div class="info">
-            <div class="name" id="userName">Artur</div>
-            <div class="potted" id="userPotted"></div>
-          </div>
-        </div>
-        <div class="player">
-          <div class="info">
-            <div class="name" id="aiName">CPU</div>
-            <div class="potted" id="aiPotted"></div>
-          </div>
-          <div class="avatar" id="aiAvatar">C</div>
-        </div>
-        <div id="spinBox">
-          <div id="spinDot"></div>
-        </div>
+    #cueRail {
+      position: absolute;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 10px;
+      height: calc(100% - 24px);
+      background: #3a2a17;
+      border-radius: 8px;
+      box-shadow: inset 0 0 0 2px rgba(0,0,0,.15);
+    }
+
+    #cueStick {
+      position: absolute;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 8px;
+      height: 60%;
+      background: linear-gradient(#caa471, #9c7a4d);
+      border-radius: 6px;
+      box-shadow: 0 1px 0 rgba(255,255,255,.25) inset,
+                  0 4px 10px rgba(0,0,0,.35);
+    }
+
+    #tip {
+      position: absolute;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 12px;
+      height: 12px;
+      background: #5c3a21; /* ferrule */
+      border-radius: 50%;
+      top: calc(50% - 6px);
+      box-shadow: 0 0 0 2px rgba(0,0,0,.25);
+    }
+
+    #powerBox {
+      width: 70px;
+      height: 18%;
+      background: #333;
+      border-radius: 16px;
+      position: relative;
+      overflow: hidden;
+      box-shadow: inset 0 0 0 2px rgba(0,0,0,.25);
+    }
+
+    #powerFill {
+      position: absolute;
+      left: 0;
+      bottom: 0;
+      width: 100%;
+      height: 0%;
+      background: linear-gradient(#ffcc00, #ff4444);
+    }
+
+    #powerTxt {
+      margin-top: 8px;
+      font-size: 12px;
+      opacity: .85;
+    }
+
+    #play {
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      transform: translate(-50%, -50%);
+      background: #2b4f81;
+      color: #fff;
+      border: none;
+      border-radius: 10px;
+      padding: 14px 28px;
+      font-size: 16px;
+      cursor: pointer;
+      z-index: 10;
+      box-shadow: 0 10px 30px rgba(0,0,0,.45);
+    }
+
+    #play:hover { background: #3c67a3; }
+
+    #aimGlow {
+      position: absolute;
+      width: 42px;
+      height: 42px;
+      border-radius: 50%;
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity .15s ease;
+      box-shadow: 0 0 0 0 rgba(255,80,80,0);
+      z-index: 5;
+    }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <div id="header">
+      <div class="player">
+        <div class="avatar">A</div>
+        <div class="name">Artur</div>
       </div>
-
-      <div id="wrap">
-        <canvas id="table"></canvas>
-
-        <!-- Panel djathtas: power slider -->
-        <aside id="rightPanel">
-          <div id="sliderTrack">
-            <div class="max-zone">
-              <div class="max-label">MAX</div>
-            </div>
-            <div id="powerFill"></div>
-            <div class="tick" style="bottom:12px"><span>0</span></div>
-            <div
-              class="tick"
-              style="bottom:calc(12px + (100% - 24px) * 0.25)"
-            >
-              <span>25</span>
-            </div>
-            <div
-              class="tick mid"
-              style="bottom:calc(12px + (100% - 24px) * 0.5)"
-            >
-              <span>50</span>
-              <div class="dot"></div>
-            </div>
-            <div
-              class="tick"
-              style="bottom:calc(12px + (100% - 24px) * 0.75)"
-            >
-              <span>75</span>
-            </div>
-            <div class="tick" style="top:12px"><span>100</span></div>
-          </div>
-          <div id="thumb"></div>
-          <div class="power-label">Power</div>
-        </aside>
-
-        <button id="play">Play</button>
+      <div class="player">
+        <div class="name">CPU</div>
+        <div class="avatar">C</div>
       </div>
     </div>
 
-    <!--
+    <div id="wrap">
+      <canvas id="table"></canvas>
+
+      <!-- Panel djathtas: SPIN siper, STEKA poshte -->
+      <aside id="rightPanel">
+        <div id="spinBox">
+          <div id="spinDot"></div>
+        </div>
+
+        <div id="pullArea">
+          <div id="cueRail"></div>
+          <div id="cueStick"></div>
+          <div id="tip"></div>
+        </div>
+
+        <div style="display:flex;flex-direction:column;align-items:center;gap:6px;">
+          <div id="powerBox"><div id="powerFill"></div></div>
+          <div id="powerTxt">FORCA 0%</div>
+        </div>
+      </aside>
+
+      <button id="play">Play</button>
+      <div id="aimGlow"></div>
+    </div>
+
+    <div id="footer">
+      <div id="capP1">Guret e marra (P1): —</div>
+      <div id="capP2">Guret e marra (CPU): —</div>
+    </div>
+  </div>
+
+  <!--
     Shenim: Perdorim script me type="text/javascript" per te shmangur
     cdo interpretim si modul ose si gjuhe tjeter; kjo adreson gabimet e
     tipit "Unexpected token / (1:0)" ne disa rrethina.
   -->
-    <script type="text/javascript">
-      (function () {
-        'use strict';
+  <script type="text/javascript">
+  (function(){
+    'use strict';
 
-        /* ==========================================================
+    /* ==========================================================
        KONSTANTA TE LAYOUT-it DHE FIZIKES (sipas portrait)
        ========================================================= */
-        var CAL = (function () {
-          try {
-            var p = new URLSearchParams(location.search);
-            var w = parseInt(p.get('cw'));
-            var h = parseInt(p.get('ch'));
-            if (w && h) return { w: w, h: h };
-          } catch {}
-          try {
-            var s = localStorage.getItem('pollRoyaleCalibration');
-            if (s) {
-              var c = JSON.parse(s);
-              if (c.width && c.height) return { w: c.width, h: c.height };
-            }
-          } catch {}
-          return { w: 1000, h: 2000 };
-        })();
-        var TABLE_W = CAL.w; // gjeresi logjike e felt-it
-        var TABLE_H = CAL.h; // gjatesia logjike e felt-it
-        var BORDER = TABLE_W * 0.0625; // ~6.25% e gjeresise
-        var POCKET_R = TABLE_W * 0.05; // ~5% e gjeresise
-        var BALL_R = TABLE_W * 0.028125; // ~2.8% e gjeresise
-        var PLAY_W = TABLE_W - 2 * BORDER; // fusha pa spondat
-        var PLAY_H = TABLE_H - 2 * BORDER;
-        var HEAD_STRING_Y = BORDER + PLAY_H * 0.75; // 25% nga ana "head"
-        var FOOT_SPOT_X = TABLE_W / 2;
-        var FOOT_SPOT_Y = BORDER + PLAY_H * 0.25; // 75% nga "head"
+    var TABLE_W = 640;      // gjeresi logjike e felt-it
+    var TABLE_H = 1280;     // lartesi logjike e felt-it
+    var BORDER  = 36;       // korniza e drurit rreth e rrotull
+    var POCKET_R = 28;      // rrezja baze e gropave
+    var BALL_R   = 18;      // rrezja baze e topave
 
-        var FRICTION = 0.985; // ferkimi linear
-        var BOUNCE = 0.98; // koeficienti i rikthimit
+    var FRICTION = 0.985;   // ferkimi linear
+    var BOUNCE   = 0.98;    // koeficienti i rikthimit
 
-        var MIN_V = 0.08; // shpejtesia min. qe konsiderohet "ne levizje"
-        var BASE_SPEED = 5700; // shpejtesia baze e goditjes
+    var MIN_V = 0.08;       // shpejtesia min. qe konsiderohet "ne levizje"
 
-        /* ==========================================================
+    /* ==========================================================
        ELEMENTET DOM
        ========================================================= */
-        var canvas = document.getElementById('table');
-        var ctx = canvas.getContext('2d');
-        var rightPanel = document.getElementById('rightPanel');
-        var playBtn = document.getElementById('play');
-        var spinBox = document.getElementById('spinBox');
-        var spinDot = document.getElementById('spinDot');
-        var powerFill = document.getElementById('powerFill');
-        var thumb = document.getElementById('thumb');
-        var userAvatar = document.getElementById('userAvatar');
-        var userNameEl = document.getElementById('userName');
-        var aiAvatar = document.getElementById('aiAvatar');
-        var aiNameEl = document.getElementById('aiName');
-        var userPotted = document.getElementById('userPotted');
-        var aiPotted = document.getElementById('aiPotted');
+    var canvas    = document.getElementById('table');
+    var ctx       = canvas.getContext('2d');
+    var rightPanel= document.getElementById('rightPanel');
+    var playBtn   = document.getElementById('play');
+    var aimGlow   = document.getElementById('aimGlow');
+    var capP1     = document.getElementById('capP1');
+    var capP2     = document.getElementById('capP2');
+    var spinBox   = document.getElementById('spinBox');
+    var spinDot   = document.getElementById('spinDot');
+    var pullArea  = document.getElementById('pullArea');
+    var cueStickEl= document.getElementById('cueStick');
+    var cueTipEl  = document.getElementById('tip');
+    var powerFill = document.getElementById('powerFill');
+    var powerTxt  = document.getElementById('powerTxt');
 
-        document.addEventListener(
-          'touchmove',
-          function (e) {
-            e.preventDefault();
-          },
-          { passive: false }
-        );
-
-        var tgUser =
-          window.Telegram &&
-          window.Telegram.WebApp &&
-          window.Telegram.WebApp.initDataUnsafe &&
-          window.Telegram.WebApp.initDataUnsafe.user;
-        if (tgUser) {
-          var name =
-            tgUser.username ||
-            [tgUser.first_name, tgUser.last_name].filter(Boolean).join(' ');
-          userNameEl.textContent = name;
-          if (tgUser.photo_url) {
-            userAvatar.innerHTML = '';
-            var img = document.createElement('img');
-            img.src = tgUser.photo_url;
-            img.style.width = '100%';
-            img.style.height = '100%';
-            img.style.borderRadius = '50%';
-            userAvatar.appendChild(img);
-          } else {
-            userAvatar.textContent = name.charAt(0).toUpperCase();
-          }
-        }
-
-        var flags = [
-          { flag: '\u{1F1FA}\u{1F1F8}', name: 'USA' },
-          { flag: '\u{1F1EC}\u{1F1E7}', name: 'UK' },
-          { flag: '\u{1F1EB}\u{1F1F7}', name: 'France' },
-          { flag: '\u{1F1E9}\u{1F1EA}', name: 'Germany' },
-          { flag: '\u{1F1EF}\u{1F1F5}', name: 'Japan' },
-          { flag: '\u{1F1E8}\u{1F1E6}', name: 'Canada' }
-        ];
-        var ai = flags[Math.floor(Math.random() * flags.length)];
-        aiAvatar.textContent = ai.flag;
-        aiNameEl.textContent = ai.name;
-
-        /* ==========================================================
+    /* ==========================================================
        SHKALlEZIMI / RESIZE
        ========================================================= */
-        var sX = 1,
-          sY = 1,
-          pocketR = POCKET_R,
-          ballR = BALL_R;
-        function resize() {
-          var wrap = document.getElementById('wrap');
-          var w = wrap.clientWidth;
-          var h = wrap.clientHeight;
-          var ar = TABLE_W / TABLE_H;
-          var cw = w,
-            ch = h;
-          if (cw / ch > ar) cw = ch * ar;
-          else ch = cw / ar;
-          canvas.width = cw;
-          canvas.height = ch;
-          canvas.style.top = (h - ch) / 2 + 'px';
-          canvas.style.left = '0px';
-          sX = cw / TABLE_W;
-          sY = ch / TABLE_H;
-          pocketR = POCKET_R * ((sX + sY) / 2);
-          ballR = BALL_R * ((sX + sY) / 2);
-        }
-        window.addEventListener('resize', resize);
+    var sX = 1, sY = 1, pocketR = POCKET_R, ballR = BALL_R;
+    function resize(){
+      var rpw = rightPanel.getBoundingClientRect().width;
+      var wrap = document.getElementById('wrap');
+      var w = wrap.clientWidth - rpw;
+      var h = wrap.clientHeight;
+      var ar = TABLE_W / TABLE_H;
+      var cw = w, ch = h;
+      if (cw/ch > ar) cw = ch * ar; else ch = cw / ar;
+      canvas.width = cw; canvas.height = ch;
+      canvas.style.top = ((h - ch) / 2) + 'px';
+      canvas.style.left = '0px';
+      sX = cw / TABLE_W; sY = ch / TABLE_H;
+      pocketR = POCKET_R * ((sX + sY) / 2);
+      ballR   = BALL_R   * ((sX + sY) / 2);
+    }
+    window.addEventListener('resize', resize);
 
-        /* ==========================================================
+    /* ==========================================================
        UTILITARE
        ========================================================= */
-        function clamp(v, a, b) {
-          return Math.max(a, Math.min(b, v));
-        }
-        function len(x, y) {
-          return Math.hypot(x, y);
-        }
-        function shuffle(arr) {
-          for (var i = arr.length - 1; i > 0; i--) {
-            var j = Math.floor(Math.random() * (i + 1));
-            var t = arr[i];
-            arr[i] = arr[j];
-            arr[j] = t;
-          }
-          return arr;
-        }
-        function norm(x, y) {
-          var L = len(x, y) || 1;
-          return { x: x / L, y: y / L };
-        }
-        function d2(a, b) {
-          var dx = a.x - b.x,
-            dy = a.y - b.y;
-          return dx * dx + dy * dy;
-        }
+    function clamp(v,a,b){ return Math.max(a, Math.min(b, v)); }
+    function len(x,y){ return Math.hypot(x,y); }
+    function norm(x,y){ var L = len(x,y) || 1; return { x:x/L, y:y/L }; }
+    function d2(a,b){ var dx=a.x-b.x, dy=a.y-b.y; return dx*dx + dy*dy; }
 
-        /* ==========================================================
+    /* ==========================================================
        PALETA E NGJYRAVE DHE LISTA E TOPAVE
        ========================================================= */
-        var COL = {
-          cue: '#f5f5f5',
-          1: '#f5c400',
-          2: '#2256ff',
-          3: '#d92d30',
-          4: '#7c3aed',
-          5: '#ff8c1a',
-          6: '#1faa4a',
-          7: '#7a2f2f',
-          8: '#111'
-        };
+    var COL = { cue:'#f5f5f5', 1:'#f5c400', 2:'#2256ff', 3:'#d92d30', 4:'#7c3aed', 5:'#ff8c1a', 6:'#1faa4a', 7:'#7a2f2f', 8:'#111' };
 
-        // BALLS – 0..15 — cdo element ka { n, t, c }
-        var BALLS = [
-          { n: 0, t: 'cue', c: COL.cue },
-          { n: 1, t: 'solid', c: COL[1] },
-          { n: 2, t: 'solid', c: COL[2] },
-          { n: 3, t: 'solid', c: COL[3] },
-          { n: 4, t: 'solid', c: COL[4] },
-          { n: 5, t: 'solid', c: COL[5] },
-          { n: 6, t: 'solid', c: COL[6] },
-          { n: 7, t: 'solid', c: COL[7] },
-          { n: 8, t: 'eight', c: COL[8] },
-          { n: 9, t: 'stripe', c: COL[1] },
-          { n: 10, t: 'stripe', c: COL[2] },
-          { n: 11, t: 'stripe', c: COL[3] },
-          { n: 12, t: 'stripe', c: COL[4] },
-          { n: 13, t: 'stripe', c: COL[5] },
-          { n: 14, t: 'stripe', c: COL[6] },
-          { n: 15, t: 'stripe', c: COL[7] }
-        ];
+    // BALLS – 0..15 — cdo element ka { n, t, c }
+    var BALLS = [
+      { n:0,  t:'cue',    c:COL.cue },
+      { n:1,  t:'solid',  c:COL[1] },
+      { n:2,  t:'solid',  c:COL[2] },
+      { n:3,  t:'solid',  c:COL[3] },
+      { n:4,  t:'solid',  c:COL[4] },
+      { n:5,  t:'solid',  c:COL[5] },
+      { n:6,  t:'solid',  c:COL[6] },
+      { n:7,  t:'solid',  c:COL[7] },
+      { n:8,  t:'eight',  c:COL[8] },
+      { n:9,  t:'stripe', c:COL[1] },
+      { n:10, t:'stripe', c:COL[2] },
+      { n:11, t:'stripe', c:COL[3] },
+      { n:12, t:'stripe', c:COL[4] },
+      { n:13, t:'stripe', c:COL[5] },
+      { n:14, t:'stripe', c:COL[6] },
+      { n:15, t:'stripe', c:COL[7] }
+    ];
 
-        // Map i sigurt sipas numrit → shmang akses jashte indekseve
-        var BALL_BY_N = {};
-        BALLS.forEach(function (b) {
-          BALL_BY_N[b.n] = b;
-        });
+    // Map i sigurt sipas numrit → shmang akses jashte indekseve
+    var BALL_BY_N = {}; BALLS.forEach(function(b){ BALL_BY_N[b.n] = b; });
 
-        function createMiniBall(n) {
-          var c = document.createElement('canvas');
-          c.width = 14;
-          c.height = 14;
-          var cx = c.getContext('2d'),
-            r = 7;
-          cx.fillStyle = BALL_BY_N[n].c;
-          cx.beginPath();
-          cx.arc(r, r, r, 0, Math.PI * 2);
-          cx.fill();
-          if (BALL_BY_N[n].t === 'stripe') {
-            cx.save();
-            cx.beginPath();
-            cx.arc(r, r, r, 0, Math.PI * 2);
-            cx.clip();
-            cx.fillStyle = '#fff';
-            cx.fillRect(0, r - r * 0.3, r * 2, r * 0.6);
-            cx.restore();
-          }
-          if (n !== 0) {
-            cx.fillStyle =
-              BALL_BY_N[n].t === 'stripe' ? BALL_BY_N[n].c : '#fff';
-            cx.beginPath();
-            cx.arc(r, r, r * 0.45, 0, Math.PI * 2);
-            cx.fill();
-            cx.fillStyle = BALL_BY_N[n].t === 'stripe' ? '#fff' : '#111';
-            cx.font = '6px system-ui,sans-serif';
-            cx.textAlign = 'center';
-            cx.textBaseline = 'middle';
-            cx.fillText(String(n), r, r);
-          }
-          return c;
-        }
-
-        /* ==========================================================
+    /* ==========================================================
        KLASAT E ENTITETEVE
        ========================================================= */
-        function Ball(info, x, y) {
-          if (!info)
-            throw new Error('Ball info undefined (nuk egziston ne BALLS)');
-          this.n = info.n; // numri (0..15)
-          this.t = info.t; // tipi (solid / stripe / eight / cue)
-          this.c = info.c; // ngjyra
-          this.p = { x: x, y: y }; // pozicioni
-          this.v = { x: 0, y: 0 }; // shpejtesia
-          this.pocketed = false; // ne grope
-          this.a = Math.PI; // orientim fillestar: numrat poshte
+    function Ball(info, x, y){
+      if (!info) throw new Error('Ball info undefined (nuk egziston ne BALLS)');
+      this.n = info.n;   // numri (0..15)
+      this.t = info.t;   // tipi (solid / stripe / eight / cue)
+      this.c = info.c;   // ngjyra
+      this.p = { x:x, y:y }; // pozicioni
+      this.v = { x:0, y:0 }; // shpejtesia
+      this.pocketed = false; // ne grope
+      this.a = 0; // kendi per vizualizim rrotullimi
+    }
+
+    function Pocket(x,y){ this.x = x; this.y = y; }
+
+    function Table(){
+      this.balls = [];
+      this.pockets = [];
+      this.running = false;
+      this.turn = 1; // 1: P1, 2: CPU
+      this.captured = { 1:[], 2:[] };
+      this.aim = { x:TABLE_W/2, y:TABLE_H/3 };
+      this.reset();
+    }
+
+    Table.prototype.reset = function(){
+      var i, j;
+      this.balls = [];
+
+      // Cue ball (poshte, qender)
+      this.balls.push(new Ball(BALL_BY_N[0], TABLE_W/2, TABLE_H - BORDER - BALL_R*2));
+
+      // Trekendshi siper me 15 topa (8-shi ne qender rreshti 3)
+      var cx = TABLE_W/2;
+      var cy = BORDER + BALL_R*2.2;
+      var rowGap = BALL_R*1.95;
+      var colGap = BALL_R*2.1;
+
+      // Lista e numrave te tjere (pa 8) – do perdoren gradualisht
+      var pool = []; for (i=1;i<=15;i++){ if(i!==8) pool.push(i); }
+      var cursor = 0;
+
+      // 5 rreshta (1..5) — ne total 15 topa
+      for (var r=0; r<5; r++) {
+        var count = r+1;
+        for (j=0; j<count; j++) {
+          var x = cx - (count-1)*BALL_R*1.05 + j*colGap;
+          var y = cy + r*rowGap;
+          var num;
+          if (r===2 && j===1) num = 8;            // qendra e rreshtit 3
+          else if (r===4 && j===0) num = 1;       // qoshe e majte poshte solid
+          else if (r===4 && j===4) num = 11;      // qoshe e djathte poshte stripe
+          else num = pool[cursor++];
+          var info = BALL_BY_N[num];
+          if (!info) { console.warn('Rack: numer i pape rcaktuar', num); continue; }
+          this.balls.push(new Ball(info, x, y));
         }
+      }
 
-        function Pocket(x, y) {
-          this.x = x;
-          this.y = y;
+      // Pockets (4 qoshe + 2 te mesit anesore)
+      this.pockets = [
+        new Pocket(BORDER, BORDER),
+        new Pocket(TABLE_W - BORDER, BORDER),
+        new Pocket(BORDER, TABLE_H/2),
+        new Pocket(TABLE_W - BORDER, TABLE_H/2),
+        new Pocket(BORDER, TABLE_H - BORDER),
+        new Pocket(TABLE_W - BORDER, TABLE_H - BORDER)
+      ];
+
+      this.captured = { 1:[], 2:[] };
+      this.turn = 1;
+
+      // TESTE TE INTEGRITETIT (console.assert)
+      runSelfTests(this);
+    };
+
+    Table.prototype.isMoving = function(){
+      for (var i=0;i<this.balls.length;i++){
+        var b = this.balls[i];
+        if (b.pocketed) continue;
+        if (Math.abs(b.v.x) > MIN_V || Math.abs(b.v.y) > MIN_V) return true;
+      }
+      return false;
+    };
+
+    Table.prototype.update = function(dt){
+      var i,j;
+      // Levizje + ferkim + kufij
+      for (i=0;i<this.balls.length;i++){
+        var b = this.balls[i];
+        if (b.pocketed) continue;
+        b.p.x += b.v.x * dt;
+        b.p.y += b.v.y * dt;
+        b.v.x *= FRICTION; b.v.y *= FRICTION;
+        b.a   += Math.hypot(b.v.x, b.v.y) * dt / (BALL_R*0.6);
+
+        var L = BORDER + BALL_R;
+        var R = TABLE_W - BORDER - BALL_R;
+        var T = BORDER + BALL_R;
+        var B = TABLE_H - BORDER - BALL_R;
+        if (b.p.x < L) { b.p.x = L; b.v.x *= -BOUNCE; }
+        if (b.p.x > R) { b.p.x = R; b.v.x *= -BOUNCE; }
+        if (b.p.y < T) { b.p.y = T; b.v.y *= -BOUNCE; }
+        if (b.p.y > B) { b.p.y = B; b.v.y *= -BOUNCE; }
+      }
+
+      // Perplasje ball-ball
+      var N = this.balls.length;
+      for (i=0;i<N;i++) for (j=i+1;j<N;j++){
+        var a = this.balls[i], bb = this.balls[j];
+        if (!a || !bb || a.pocketed || bb.pocketed) continue;
+        var dx = bb.p.x - a.p.x, dy = bb.p.y - a.p.y, d = Math.hypot(dx,dy);
+        if (d < BALL_R*2) {
+          var nx = dx/(d||1), ny = dy/(d||1), over = (BALL_R*2 - d)/2;
+          a.p.x -= nx*over; a.p.y -= ny*over; bb.p.x += nx*over; bb.p.y += ny*over;
+          var rvx = bb.v.x - a.v.x, rvy = bb.v.y - a.v.y, vn = rvx*nx + rvy*ny;
+          if (vn < 0) {
+            var imp = -vn; a.v.x -= imp*nx; a.v.y -= imp*ny; bb.v.x += imp*nx; bb.v.y += imp*ny;
+            a.v.x *= BOUNCE; a.v.y *= BOUNCE; bb.v.x *= BOUNCE; bb.v.y *= BOUNCE;
+          }
         }
+      }
 
-        function Table() {
-          this.balls = [];
-          this.pockets = [];
-          this.running = false;
-          this.turn = 1; // 1: P1, 2: CPU
-          this.lastShooter = 1; // kush goditi se fundi
-          this.pottedInTurn = false;
-          this.captured = { 1: [], 2: [] };
-          this.aim = { x: TABLE_W / 2, y: TABLE_H / 3 };
-          this.reset();
+      // Kontroll i gropave
+      for (i=0;i<this.pockets.length;i++){
+        var p = this.pockets[i];
+        for (j=0;j<this.balls.length;j++){
+          var b2 = this.balls[j];
+          if (b2.pocketed) continue;
+          var ddx = b2.p.x - p.x, ddy = b2.p.y - p.y;
+          if (Math.hypot(ddx,ddy) < POCKET_R*0.9) {
+            if (b2.n === 0) {
+              this.turn = this.turn===1 ? 2 : 1; // scratch => kalon radha
+              b2.p.x = TABLE_W/2; b2.p.y = TABLE_H - BORDER - BALL_R*2; b2.v.x = 0; b2.v.y = 0;
+            } else {
+              b2.pocketed = true; this.captured[this.turn].push(b2.n);
+            }
+          }
         }
+      }
+    };
 
-        Table.prototype.reset = function () {
-          var i, j;
-          this.balls = [];
-          userPotted.innerHTML = '';
-          aiPotted.innerHTML = '';
-          this.captured = { 1: [], 2: [] };
-          this.turn = 1;
-          this.lastShooter = 1;
-          this.pottedInTurn = false;
+    Table.prototype.render = function(){
+      ctx.clearRect(0,0,canvas.width,canvas.height);
 
-          // Cue ball (poshte, qender)
-          this.balls.push(
-            new Ball(BALL_BY_N[0], TABLE_W / 2, TABLE_H - BORDER - BALL_R * 2)
-          );
+      // Felt
+      var x0 = BORDER*sX, y0 = BORDER*sY, w = (TABLE_W-2*BORDER)*sX, h = (TABLE_H-2*BORDER)*sY;
+      var felt = ctx.createLinearGradient(0,y0,0,y0+h); felt.addColorStop(0,'#0d803c'); felt.addColorStop(1,'#074120');
+      ctx.fillStyle = felt; ctx.fillRect(x0,y0,w,h);
 
-          // Trekendshi siper me 15 topa (8-shi ne qender rreshti 3)
-          var cx = TABLE_W / 2;
-          var cy = FOOT_SPOT_Y;
-          var rowGap = BALL_R * 1.95;
-          var colGap = BALL_R * 2.1;
+      // Korniza druri
+      ctx.fillStyle = '#724e28';
+      ctx.fillRect(0,0,canvas.width,BORDER*sY);
+      ctx.fillRect(0,(TABLE_H-BORDER)*sY,canvas.width,BORDER*sY);
+      ctx.fillRect(0,0,BORDER*sX,canvas.height);
+      ctx.fillRect((TABLE_W-BORDER)*sX,0,BORDER*sX,canvas.height);
 
-          // Rregullimi i topave ne trekendesh:
-          // 1 ne maje, 8 ne qender, 2 dhe 11 ne cepat poshte
-          var layout = [[1], [0, 0], [0, 8, 0], [0, 0, 0, 0], [2, 0, 0, 0, 11]];
+      // Gropat (4 qoshe + 2 ne mes anesore)
+      for (var i=0;i<this.pockets.length;i++){
+        var pk = this.pockets[i];
+        ctx.fillStyle = '#000';
+        ctx.beginPath();
+        ctx.arc(pk.x*sX, pk.y*sY, pocketR, 0, Math.PI*2);
+        ctx.fill();
+        ctx.strokeStyle = 'rgba(0,0,0,.5)';
+        ctx.lineWidth = 4;
+        ctx.stroke();
+      }
 
-          // Numrat e mbetur per mbushjen e trekendeshit
-          var pool = [];
-          for (i = 1; i <= 15; i++) {
-            if (i !== 1 && i !== 2 && i !== 8 && i !== 11) pool.push(i);
-          }
-          shuffle(pool);
-          var cursor = 0;
+      // Topat
+      for (var j=0;j<this.balls.length;j++){
+        var b = this.balls[j];
+        if (!b || b.pocketed) continue;
+        var px = b.p.x*sX, py = b.p.y*sY;
 
-          // 5 rreshta (1..5) — ne total 15 topa
-          for (var r = 0; r < 5; r++) {
-            var count = r + 1;
-            for (j = 0; j < count; j++) {
-              var x = cx - (count - 1) * BALL_R * 1.05 + j * colGap;
-              var y = cy + r * rowGap;
-              var num = layout[r][j] || pool[cursor++];
-              var info = BALL_BY_N[num];
-              if (!info) {
-                console.warn('Rack: numer i papercaktuar', num);
-                continue;
-              }
-              this.balls.push(new Ball(info, x, y));
-            }
-          }
+        // hije eliptike 2.5D
+        ctx.fillStyle = 'rgba(0,0,0,.35)';
+        ctx.beginPath();
+        ctx.ellipse(px, py + ballR*0.35, ballR*1.05, ballR*0.45, 0, 0, Math.PI*2);
+        ctx.fill();
 
-          // Pockets (4 qoshe + 2 te mesit anesore)
-          this.pockets = [
-            new Pocket(BORDER, BORDER),
-            new Pocket(TABLE_W - BORDER, BORDER),
-            new Pocket(BORDER, TABLE_H / 2),
-            new Pocket(TABLE_W - BORDER, TABLE_H / 2),
-            new Pocket(BORDER, TABLE_H - BORDER),
-            new Pocket(TABLE_W - BORDER, TABLE_H - BORDER)
-          ];
+        // trup i topit
+        ctx.save(); ctx.translate(px,py); ctx.rotate(b.a);
+        ctx.fillStyle = BALL_BY_N[b.n].c;
+        ctx.beginPath(); ctx.arc(0,0,ballR,0,Math.PI*2); ctx.fill();
 
-          // TESTE TE INTEGRITETIT (console.assert)
-          runSelfTests(this);
-        };
+        // highlight
+        var hl = ctx.createRadialGradient(-ballR*0.4,-ballR*0.4,2,-ballR*0.4,-ballR*0.4,ballR*1.2);
+        hl.addColorStop(0,'rgba(255,255,255,.55)'); hl.addColorStop(1,'rgba(255,255,255,0)');
+        ctx.fillStyle = hl; ctx.beginPath(); ctx.arc(0,0,ballR,0,Math.PI*2); ctx.fill();
 
-        Table.prototype.isMoving = function () {
-          for (var i = 0; i < this.balls.length; i++) {
-            var b = this.balls[i];
-            if (b.pocketed) continue;
-            if (Math.abs(b.v.x) > MIN_V || Math.abs(b.v.y) > MIN_V) return true;
-          }
-          return false;
-        };
-
-        Table.prototype.update = function (dt) {
-          var i, j;
-          // Levizje + ferkim + kufij
-          for (i = 0; i < this.balls.length; i++) {
-            var b = this.balls[i];
-            if (b.pocketed) continue;
-            b.p.x += b.v.x * dt;
-            b.p.y += b.v.y * dt;
-            b.v.x *= FRICTION;
-            b.v.y *= FRICTION;
-            b.a += (Math.hypot(b.v.x, b.v.y) * dt) / (BALL_R * 0.6);
-
-            var L = BORDER + BALL_R;
-            var R = TABLE_W - BORDER - BALL_R;
-            var T = BORDER + BALL_R;
-            var B = TABLE_H - BORDER - BALL_R;
-            if (b.p.x < L) {
-              b.p.x = L;
-              b.v.x *= -BOUNCE;
-            }
-            if (b.p.x > R) {
-              b.p.x = R;
-              b.v.x *= -BOUNCE;
-            }
-            if (b.p.y < T) {
-              b.p.y = T;
-              b.v.y *= -BOUNCE;
-            }
-            if (b.p.y > B) {
-              b.p.y = B;
-              b.v.y *= -BOUNCE;
-            }
-          }
-
-          // Perplasje ball-ball
-          var N = this.balls.length;
-          for (i = 0; i < N; i++)
-            for (j = i + 1; j < N; j++) {
-              var a = this.balls[i],
-                bb = this.balls[j];
-              if (!a || !bb || a.pocketed || bb.pocketed) continue;
-              var dx = bb.p.x - a.p.x,
-                dy = bb.p.y - a.p.y,
-                d = Math.hypot(dx, dy);
-              if (d < BALL_R * 2) {
-                var nx = dx / (d || 1),
-                  ny = dy / (d || 1),
-                  over = (BALL_R * 2 - d) / 2;
-                a.p.x -= nx * over;
-                a.p.y -= ny * over;
-                bb.p.x += nx * over;
-                bb.p.y += ny * over;
-                var rvx = bb.v.x - a.v.x,
-                  rvy = bb.v.y - a.v.y,
-                  vn = rvx * nx + rvy * ny;
-                if (vn < 0) {
-                  var imp = -vn;
-                  a.v.x -= imp * nx;
-                  a.v.y -= imp * ny;
-                  bb.v.x += imp * nx;
-                  bb.v.y += imp * ny;
-                  a.v.x *= BOUNCE;
-                  a.v.y *= BOUNCE;
-                  bb.v.x *= BOUNCE;
-                  bb.v.y *= BOUNCE;
-                }
-              }
-            }
-
-          // Kontroll i gropave
-          for (i = 0; i < this.pockets.length; i++) {
-            var p = this.pockets[i];
-            for (j = 0; j < this.balls.length; j++) {
-              var b2 = this.balls[j];
-              if (b2.pocketed) continue;
-              var ddx = b2.p.x - p.x,
-                ddy = b2.p.y - p.y;
-              if (Math.hypot(ddx, ddy) < POCKET_R * 0.9) {
-                if (b2.n === 0) {
-                  this.turn = this.turn === 1 ? 2 : 1; // scratch => kalon radha
-                  b2.p.x = TABLE_W / 2;
-                  b2.p.y = TABLE_H - BORDER - BALL_R * 2;
-                  b2.v.x = 0;
-                  b2.v.y = 0;
-                } else {
-                  b2.pocketed = true;
-                  this.captured[this.lastShooter].push(b2.n);
-                  this.pottedInTurn = true;
-                  var icon = createMiniBall(b2.n);
-                  if (this.lastShooter === 1) userPotted.appendChild(icon);
-                  else aiPotted.appendChild(icon);
-                }
-              }
-            }
-          }
-        };
-
-        Table.prototype.render = function () {
-          ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-          // Sides where the ball bounces – green outline
-          var x0 = BORDER * sX,
-            y0 = BORDER * sY,
-            w = (TABLE_W - 2 * BORDER) * sX,
-            h = (TABLE_H - 2 * BORDER) * sY;
-          ctx.strokeStyle = '#00ff00';
-          ctx.lineWidth = 4;
-          ctx.strokeRect(x0, y0, w, h);
-
-          // Pockets (4 corners + 2 middles) filled black with green outline
-          for (var i = 0; i < this.pockets.length; i++) {
-            var pk = this.pockets[i];
-            ctx.beginPath();
-            ctx.arc(pk.x * sX, pk.y * sY, pocketR, 0, Math.PI * 2);
-            ctx.fillStyle = '#000';
-            ctx.fill();
-            ctx.strokeStyle = '#00ff00';
-            ctx.lineWidth = 4;
-            ctx.stroke();
-          }
-
-          // Vizat orientuese mbi spondat
-          var markL = BORDER * 0.5;
-          ctx.strokeStyle = '#8b5a2b';
-          ctx.lineWidth = 2;
-
-          function drawH(y, xs, xe, n) {
-            var yy = y === BORDER ? y - BORDER / 2 : y + BORDER / 2;
-            for (var k = 1; k <= n; k++) {
-              var t = k / (n + 1);
-              var xx = xs + (xe - xs) * t;
-              ctx.beginPath();
-              ctx.moveTo(xx * sX, (yy - markL / 2) * sY);
-              ctx.lineTo(xx * sX, (yy + markL / 2) * sY);
-              ctx.stroke();
-            }
-          }
-          function drawV(x, ys, ye, n) {
-            var xx = x === BORDER ? x - BORDER / 2 : x + BORDER / 2;
-            for (var k = 1; k <= n; k++) {
-              var t = k / (n + 1);
-              var yy = ys + (ye - ys) * t;
-              ctx.beginPath();
-              ctx.moveTo((xx - markL / 2) * sX, yy * sY);
-              ctx.lineTo((xx + markL / 2) * sX, yy * sY);
-              ctx.stroke();
-            }
-          }
-
-          // Top dhe bottom (bandat e shkurtra)
-          drawH(BORDER, BORDER + POCKET_R, TABLE_W - BORDER - POCKET_R, 3);
-          drawH(
-            TABLE_H - BORDER,
-            BORDER + POCKET_R,
-            TABLE_W - BORDER - POCKET_R,
-            3
-          );
-
-          // Spondat e gjata majtas/djathtas (siper dhe poshte gropes anesore)
-          drawV(BORDER, BORDER + POCKET_R, TABLE_H / 2 - POCKET_R, 3);
-          drawV(BORDER, TABLE_H / 2 + POCKET_R, TABLE_H - BORDER - POCKET_R, 3);
-          drawV(TABLE_W - BORDER, BORDER + POCKET_R, TABLE_H / 2 - POCKET_R, 3);
-          drawV(
-            TABLE_W - BORDER,
-            TABLE_H / 2 + POCKET_R,
-            TABLE_H - BORDER - POCKET_R,
-            3
-          );
-
-          // Head String / Kitchen line
-          ctx.strokeStyle = 'rgba(255,255,255,0.3)';
-          ctx.lineWidth = 2;
-          ctx.setLineDash([10, 6]);
-          var hy = HEAD_STRING_Y * sY;
-          ctx.beginPath();
-          ctx.moveTo(x0, hy);
-          ctx.lineTo(x0 + w, hy);
-          ctx.stroke();
-          ctx.setLineDash([]);
-
-          // Foot spot
+        // stripe nese duhet
+        if (BALL_BY_N[b.n].t === 'stripe') {
           ctx.fillStyle = '#fff';
+          ctx.fillRect(-ballR, -ballR*0.45, ballR*2, ballR*0.9);
+        }
+
+        // numri (jo te cue)
+        if (b.n !== 0) {
+          ctx.fillStyle = (BALL_BY_N[b.n].t==='stripe') ? BALL_BY_N[b.n].c : '#fff';
+          ctx.beginPath(); ctx.arc(0,0,ballR*.52,0,Math.PI*2); ctx.fill();
+          ctx.fillStyle = (BALL_BY_N[b.n].t==='stripe') ? '#fff' : '#111';
+          ctx.font = (ballR*.9) + 'px system-ui,sans-serif';
+          ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+          ctx.fillText(String(b.n), 0, 0);
+        }
+
+        // pika e spin-it te cue
+        if (b.n === 0) {
+          ctx.fillStyle = '#e63';
           ctx.beginPath();
-          ctx.arc(
-            FOOT_SPOT_X * sX,
-            FOOT_SPOT_Y * sY,
-            BORDER * 0.1 * ((sX + sY) / 2),
-            0,
-            Math.PI * 2
-          );
+          ctx.arc(spinVec.x*ballR*0.75, spinVec.y*ballR*0.75, ballR*0.22, 0, Math.PI*2);
           ctx.fill();
+        }
+        ctx.restore();
+      }
 
-          // Topat
-          for (var j = 0; j < this.balls.length; j++) {
-            var b = this.balls[j];
-            if (!b || b.pocketed) continue;
-            var px = b.p.x * sX,
-              py = b.p.y * sY;
+      // Steka mbi felt + guida
+      if (!this.isMoving() && this.balls[0] && !this.balls[0].pocketed) {
+        drawCueOnTable(this.balls[0].p, this.aim, cuePullVisual);
+        if (showGuides) drawGuides(this.balls[0], this.aim);
+      }
+    };
 
-            // hije eliptike 2.5D
-            ctx.fillStyle = 'rgba(0,0,0,.35)';
-            ctx.beginPath();
-            ctx.ellipse(
-              px,
-              py + ballR * 0.35,
-              ballR * 1.05,
-              ballR * 0.45,
-              0,
-              0,
-              Math.PI * 2
-            );
-            ctx.fill();
-
-            // trup i topit
-            ctx.save();
-            ctx.translate(px, py);
-            ctx.rotate(b.a);
-            ctx.fillStyle = BALL_BY_N[b.n].c;
-            ctx.beginPath();
-            ctx.arc(0, 0, ballR, 0, Math.PI * 2);
-            ctx.fill();
-
-            // highlight
-            var hl = ctx.createRadialGradient(
-              -ballR * 0.4,
-              -ballR * 0.4,
-              2,
-              -ballR * 0.4,
-              -ballR * 0.4,
-              ballR * 1.2
-            );
-            hl.addColorStop(0, 'rgba(255,255,255,.55)');
-            hl.addColorStop(1, 'rgba(255,255,255,0)');
-            ctx.fillStyle = hl;
-            ctx.beginPath();
-            ctx.arc(0, 0, ballR, 0, Math.PI * 2);
-            ctx.fill();
-
-            // stripe nese duhet
-            if (BALL_BY_N[b.n].t === 'stripe') {
-              ctx.save();
-              ctx.beginPath();
-              ctx.arc(0, 0, ballR, 0, Math.PI * 2);
-              ctx.clip();
-              ctx.fillStyle = '#fff';
-              ctx.fillRect(-ballR, -ballR * 0.4, ballR * 2, ballR * 0.8);
-              ctx.restore();
-            }
-
-            // numri (jo te cue)
-            if (b.n !== 0) {
-              ctx.fillStyle =
-                BALL_BY_N[b.n].t === 'stripe' ? BALL_BY_N[b.n].c : '#fff';
-              ctx.beginPath();
-              ctx.arc(0, 0, ballR * 0.52, 0, Math.PI * 2);
-              ctx.fill();
-              ctx.fillStyle = BALL_BY_N[b.n].t === 'stripe' ? '#fff' : '#111';
-              ctx.font = ballR * 0.9 + 'px system-ui,sans-serif';
-              ctx.textAlign = 'center';
-              ctx.textBaseline = 'middle';
-              ctx.fillText(String(b.n), 0, 0);
-            }
-
-            // pika e spin-it te cue
-            if (b.n === 0) {
-              ctx.fillStyle = '#e63';
-              ctx.beginPath();
-              ctx.arc(
-                spinVec.x * ballR * 0.75,
-                spinVec.y * ballR * 0.75,
-                ballR * 0.22,
-                0,
-                Math.PI * 2
-              );
-              ctx.fill();
-            }
-            ctx.restore();
-          }
-
-          // Steka mbi felt + guida
-          if (!this.isMoving() && this.balls[0] && !this.balls[0].pocketed) {
-            drawCueOnTable(this.balls[0].p, this.aim, cuePullVisual);
-            if (showGuides) drawGuides(this.balls[0], this.aim);
-          }
-        };
-
-        /* ==========================================================
+    /* ==========================================================
        TESTE – kapin gabime si "undefined .n" heret
        ========================================================= */
-        function runSelfTests(tbl) {
-          // BALLS duhet te kete 16 elemente
-          console.assert(
-            Array.isArray(BALLS) && BALLS.length === 16,
-            'TEST FAIL: BALLS duhet 16'
-          );
-          for (var i = 0; i < BALLS.length; i++) {
-            var it = BALLS[i];
-            console.assert(
-              typeof it.n === 'number' &&
-                typeof it.t === 'string' &&
-                typeof it.c === 'string',
-              'TEST FAIL: item pa fusha',
-              it
-            );
-          }
-          // tavolina 16 topa (perfshi cue)
-          console.assert(
-            tbl.balls.length === 16,
-            'TEST FAIL: tavolina ka',
-            tbl.balls.length,
-            'topa (duhet 16)'
-          );
-          // asnje top undefined
-          for (var j = 0; j < tbl.balls.length; j++) {
-            var b = tbl.balls[j];
-            console.assert(
-              b && typeof b.n === 'number',
-              'TEST FAIL: ball undefined ose pa n te index',
-              j,
-              b
-            );
-          }
-          // 6 gropa
-          console.assert(
-            tbl.pockets.length === 6,
-            'TEST FAIL: pockets',
-            tbl.pockets.length
-          );
-          // vlera fillestare te aim/cue te vlefshme
-          console.assert(
-            typeof tbl.aim.x === 'number' && typeof tbl.aim.y === 'number',
-            'TEST FAIL: aim i pavlefshem'
-          );
-        }
+    function runSelfTests(tbl){
+      // BALLS duhet te kete 16 elemente
+      console.assert(Array.isArray(BALLS) && BALLS.length===16, 'TEST FAIL: BALLS duhet 16');
+      for (var i=0;i<BALLS.length;i++){
+        var it = BALLS[i];
+        console.assert(typeof it.n==='number' && typeof it.t==='string' && typeof it.c==='string', 'TEST FAIL: item pa fusha', it);
+      }
+      // tavolina 16 topa (perfshi cue)
+      console.assert(tbl.balls.length===16, 'TEST FAIL: tavolina ka', tbl.balls.length, 'topa (duhet 16)');
+      // asnje top undefined
+      for (var j=0;j<tbl.balls.length;j++){
+        var b = tbl.balls[j];
+        console.assert(b && typeof b.n==='number', 'TEST FAIL: ball undefined ose pa n te index', j, b);
+      }
+      // 6 gropa
+      console.assert(tbl.pockets.length===6, 'TEST FAIL: pockets', tbl.pockets.length);
+      // vlera fillestare te aim/cue te vlefshme
+      console.assert(typeof tbl.aim.x==='number' && typeof tbl.aim.y==='number', 'TEST FAIL: aim i pavlefshem');
+    }
 
-        /* ==========================================================
+    /* ==========================================================
        GJENDJE GLOBALE E LOJES
        ========================================================= */
-        var table = new Table();
-        var last = 0; // koha e frame te fundit
-        var aiming = false; // a po caktohet drejtimi
-        var showGuides = false; // a shfaqen pikat
-        var cuePullVisual = 0; // shfaqje e terheqjes ne felt
-        var spinVec = { x: 0, y: 0 }; // spini i zgjedhur
-        var power = 0; // fuqi [0..1]
+    var table = new Table();
+    var last = 0;              // koha e frame te fundit
+    var aiming = false;        // a po caktohet drejtimi
+    var showGuides = false;    // a shfaqen pikat
+    var cuePullVisual = 0;     // shfaqje e terheqjes ne felt
+    var spinVec = { x:0, y:0 };// spini i zgjedhur
+    var power = 0;             // fuqi [0..1]
 
-        /* ==========================================================
+    /* ==========================================================
        RENDER + UPDATE LOOP
        ========================================================= */
-        function loop(t) {
-          var dt = (t - last) / 1000 || 0;
-          last = t;
-          if (table.running) {
-            table.update(Math.min(dt, 0.033));
-            table.render();
-            if (!table.isMoving()) {
-              if (table.pottedInTurn) {
-                table.turn = table.lastShooter;
-                table.pottedInTurn = false;
-                if (table.turn === 2) setTimeout(cpuTurn, 400);
-              } else if (table.turn === 2) {
-                setTimeout(cpuTurn, 400);
-              }
-            }
-          }
-          requestAnimationFrame(loop);
-        }
-        requestAnimationFrame(loop);
+    function loop(t){
+      var dt = (t - last) / 1000 || 0; last = t;
+      if (table.running) {
+        table.update(Math.min(dt, 0.033));
+        table.render();
+        capP1.textContent = 'Guret e marra (P1): ' + (table.captured[1].join(', ') || '—');
+        capP2.textContent = 'Guret e marra (CPU): ' + (table.captured[2].join(', ') || '—');
+        if (!table.isMoving() && table.turn===2) setTimeout(cpuTurn, 400);
+      }
+      requestAnimationFrame(loop);
+    }
+    requestAnimationFrame(loop);
 
-        /* ==========================================================
+    /* ==========================================================
        INPUT – Aiming & Glow
        ========================================================= */
-        function screenToTable(x, y) {
-          var r = canvas.getBoundingClientRect();
-          return {
-            x: ((x - r.left) / r.width) * TABLE_W,
-            y: ((y - r.top) / r.height) * TABLE_H
-          };
-        }
+    function screenToTable(x,y){
+      var r = canvas.getBoundingClientRect();
+      return { x:(x-r.left)/r.width*TABLE_W, y:(y-r.top)/r.height*TABLE_H };
+    }
 
-        canvas.addEventListener('pointerdown', function (e) {
-          if (!table.running || table.isMoving()) return;
-          var cue = table.balls[0];
-          if (!cue) return;
-          var p = screenToTable(e.clientX, e.clientY);
-          var dx = table.aim.x - cue.p.x,
-            dy = table.aim.y - cue.p.y;
-          var len = Math.sqrt(dx * dx + dy * dy) || 1;
-          var dist =
-            Math.abs((p.x - cue.p.x) * dy - (p.y - cue.p.y) * dx) / len;
-          if (dist <= BALL_R * 2) {
-            aiming = true;
-            showGuides = true;
-            table.aim = p;
-          }
-        });
+    canvas.addEventListener('pointerdown', function(e){
+      if (!table.running || table.isMoving()) return;
+      aiming = true; showGuides = true; var t = screenToTable(e.clientX,e.clientY); table.aim = t; placeAimGlow(t);
+    });
 
-        canvas.addEventListener('pointermove', function (e) {
-          if (!aiming || !table.running) return;
-          var t = screenToTable(e.clientX, e.clientY);
-          table.aim = t;
-        });
+    canvas.addEventListener('pointermove', function(e){
+      if (!aiming || !table.running) return; var t = screenToTable(e.clientX,e.clientY); table.aim = t; placeAimGlow(t);
+    });
 
-        canvas.addEventListener('pointerup', function () {
-          aiming = false;
-        });
+    canvas.addEventListener('pointerup', function(){ aiming = false; });
 
-        /* ==========================================================
+    function placeAimGlow(t){
+      var r = canvas.getBoundingClientRect();
+      var gx = t.x/TABLE_W * r.width + r.left;
+      var gy = t.y/TABLE_H * r.height + r.top;
+      aimGlow.style.left = (gx-21) + 'px';
+      aimGlow.style.top  = (gy-21) + 'px';
+      var col = 'rgba(' + Math.round(120+power*135) + ',' + Math.round(60+power*20) + ',' + Math.round(60+power*80) + ',.45)';
+      aimGlow.style.boxShadow = '0 0 ' + (8+power*24) + 'px ' + (4+power*20) + 'px ' + col;
+      aimGlow.style.opacity   = showGuides ? 1 : 0;
+    }
+
+    /* ==========================================================
        GUIDES + CUE ON TABLE
        ========================================================= */
-        function drawGuides(cue, aim) {
-          var dx = aim.x - cue.p.x,
-            dy = aim.y - cue.p.y;
-          var L = len(dx, dy) || 1;
-          var dir = { x: dx / L, y: dy / L };
-          var step = BALL_R * (0.6 - 0.35 * power + 0.05),
-            dots = 60 + Math.round(power * 60);
-          var x = cue.p.x,
-            y = cue.p.y;
-          var yellow =
-            power < 0.33
-              ? 'rgba(255,255,0,.7)'
-              : power < 0.66
-                ? 'rgba(255,255,0,.85)'
-                : 'rgba(255,255,0,1)';
-          var white =
-            power < 0.33
-              ? 'rgba(255,255,255,.7)'
-              : power < 0.66
-                ? 'rgba(255,255,255,.85)'
-                : 'rgba(255,255,255,1)';
-          var path1 = [],
-            path2 = [],
-            cuePath = [];
-          var impactType = null,
-            impactBall = null;
-          for (var i = 0; i < dots; i++) {
-            x += dir.x * step;
-            y += dir.y * step;
-            var hit = false;
-            if (
-              x < BORDER + BALL_R ||
-              x > TABLE_W - BORDER - BALL_R ||
-              y < BORDER + BALL_R ||
-              y > TABLE_H - BORDER - BALL_R
-            ) {
-              impactType = 'wall';
-              hit = true;
-            }
-            for (var j = 0; j < table.balls.length && !hit; j++) {
-              var b = table.balls[j];
-              if (b === cue || b.pocketed) continue;
-              if (d2({ x: x, y: y }, b.p) < BALL_R * 2.05 * (BALL_R * 2.05)) {
-                impactType = 'ball';
-                impactBall = b;
-                hit = true;
-                break;
-              }
-            }
-            path1.push({ x: x, y: y });
-            if (hit) break;
-          }
-          if (impactType) {
-            var remaining = dots - path1.length;
-            if (impactType === 'wall') {
-              var dir2 = { x: dir.x, y: dir.y };
-              if (x <= BORDER + BALL_R || x >= TABLE_W - BORDER - BALL_R)
-                dir2.x = -dir2.x;
-              if (y <= BORDER + BALL_R || y >= TABLE_H - BORDER - BALL_R)
-                dir2.y = -dir2.y;
-              var cx = x,
-                cy = y;
-              for (var k = 0; k < remaining; k++) {
-                cx += dir2.x * step;
-                cy += dir2.y * step;
-                if (
-                  cx < BORDER + BALL_R ||
-                  cx > TABLE_W - BORDER - BALL_R ||
-                  cy < BORDER + BALL_R ||
-                  cy > TABLE_H - BORDER - BALL_R
-                )
-                  break;
-                path2.push({ x: cx, y: cy });
-              }
-            } else if (impactBall) {
-              var n = norm(impactBall.p.x - cue.p.x, impactBall.p.y - cue.p.y);
-              var ox = impactBall.p.x,
-                oy = impactBall.p.y;
-              for (var k = 0; k < remaining; k++) {
-                ox += n.x * step;
-                oy += n.y * step;
-                if (
-                  ox < BORDER + BALL_R ||
-                  ox > TABLE_W - BORDER - BALL_R ||
-                  oy < BORDER + BALL_R ||
-                  oy > TABLE_H - BORDER - BALL_R
-                )
-                  break;
-                path2.push({ x: ox, y: oy });
-              }
-              var base = BASE_SPEED;
-              var vx =
-                dir.x * base * (0.25 + 0.75 * power) + spinVec.x * 260 * power;
-              var vy =
-                dir.y * base * (0.25 + 0.75 * power) + spinVec.y * 260 * power;
-              var velDir = norm(vx, vy);
-              var dot = velDir.x * n.x + velDir.y * n.y;
-              var dirCue = norm(velDir.x - n.x * dot, velDir.y - n.y * dot);
-              var cx = x,
-                cy = y;
-              for (var k = 0; k < remaining; k++) {
-                cx += dirCue.x * step;
-                cy += dirCue.y * step;
-                if (
-                  cx < BORDER + BALL_R ||
-                  cx > TABLE_W - BORDER - BALL_R ||
-                  cy < BORDER + BALL_R ||
-                  cy > TABLE_H - BORDER - BALL_R
-                )
-                  break;
-                cuePath.push({ x: cx, y: cy });
-              }
-            }
-          }
-          ctx.fillStyle = yellow;
-          path1.forEach(function (p) {
-            ctx.beginPath();
-            ctx.arc(
-              p.x * sX,
-              p.y * sY,
-              clamp(1.5 + power * 2.2, 1.5, 4),
-              0,
-              Math.PI * 2
-            );
-            ctx.fill();
-          });
-          if (impactType === 'ball' && path2.length) {
-            ctx.fillStyle = yellow;
-            path2.forEach(function (p) {
-              ctx.beginPath();
-              ctx.arc(
-                p.x * sX,
-                p.y * sY,
-                clamp(1.5 + power * 2.2, 1.5, 4),
-                0,
-                Math.PI * 2
-              );
-              ctx.fill();
-            });
-          } else if (impactType === 'wall' && path2.length) {
-            ctx.fillStyle = white;
-            path2.forEach(function (p) {
-              ctx.beginPath();
-              ctx.arc(
-                p.x * sX,
-                p.y * sY,
-                clamp(1.5 + power * 2.2, 1.5, 4),
-                0,
-                Math.PI * 2
-              );
-              ctx.fill();
-            });
-          }
-          if (cuePath.length) {
-            ctx.fillStyle = white;
-            cuePath.forEach(function (p) {
-              ctx.beginPath();
-              ctx.arc(
-                p.x * sX,
-                p.y * sY,
-                clamp(1.5 + power * 2.2, 1.5, 4),
-                0,
-                Math.PI * 2
-              );
-              ctx.fill();
-            });
-          }
-        }
+    function drawGuides(cue,aim){
+      var dx = aim.x - cue.p.x, dy = aim.y - cue.p.y; var L = len(dx,dy) || 1; var dir = { x:dx/L, y:dy/L };
+      var step = BALL_R * (.6 - .35*power + .05), dots = 60 + Math.round(power*60);
+      var x = cue.p.x, y = cue.p.y;
+      ctx.fillStyle = power<.33 ? 'rgba(255,255,255,.7)' : power<.66 ? 'rgba(255,255,255,.85)' : 'rgba(255,255,255,1)';
+      for (var i=0;i<dots;i++){
+        x += dir.x * step; y += dir.y * step;
+        if (x < BORDER+BALL_R || x > TABLE_W-BORDER-BALL_R || y < BORDER+BALL_R || y > TABLE_H-BORDER-BALL_R) break;
+        ctx.beginPath(); ctx.arc(x*sX, y*sY, clamp(1.5+power*2.2, 1.5, 4), 0, Math.PI*2); ctx.fill();
+        for (var j=0;j<table.balls.length;j++){ var b=table.balls[j]; if (b===cue || b.pocketed) continue; if (d2({x:x,y:y}, b.p) < (BALL_R*2.05)*(BALL_R*2.05)) { i=dots; break; } }
+      }
+    }
 
-        function drawCueOnTable(cuePos, aim, pull) {
-          var d = norm(aim.x - cuePos.x, aim.y - cuePos.y);
-          var start = {
-            x: cuePos.x - d.x * (BALL_R * 2),
-            y: cuePos.y - d.y * (BALL_R * 2)
-          };
-          var end = {
-            x: start.x - d.x * (BALL_R * 20 + pull),
-            y: start.y - d.y * (BALL_R * 20 + pull)
-          };
-          ctx.strokeStyle = '#caa471';
-          ctx.lineWidth = BALL_R * 0.5;
-          ctx.lineCap = 'round';
-          ctx.beginPath();
-          ctx.moveTo(start.x * sX, start.y * sY);
-          ctx.lineTo(end.x * sX, end.y * sY);
-          ctx.stroke();
-        }
+    function drawCueOnTable(cuePos, aim, pull){
+      var d = norm(aim.x-cuePos.x, aim.y-cuePos.y);
+      var start = { x: cuePos.x - d.x*(BALL_R*2), y: cuePos.y - d.y*(BALL_R*2) };
+      var end   = { x: start.x - d.x*(BALL_R*20 + pull), y: start.y - d.y*(BALL_R*20 + pull) };
+      ctx.strokeStyle = '#caa471'; ctx.lineWidth = BALL_R*0.5; ctx.lineCap = 'round';
+      ctx.beginPath(); ctx.moveTo(start.x*sX, start.y*sY); ctx.lineTo(end.x*sX, end.y*sY); ctx.stroke();
+      ctx.strokeStyle = '#5c3a21'; ctx.lineWidth = BALL_R*0.7; ctx.beginPath(); ctx.moveTo(start.x*sX, start.y*sY); ctx.lineTo((start.x-d.x*BALL_R*1.2)*sX, (start.y-d.y*BALL_R*1.2)*sY); ctx.stroke();
+    }
 
-        /* ==========================================================
+    /* ==========================================================
        SPIN CONTROL – disk i bardhe me pike te kuqe
        ========================================================= */
-        var spinTimer = null,
-          spinMoved = false;
-        function setSpin(nx, ny) {
-          spinDot.style.left = 50 + nx * 50 + '%';
-          spinDot.style.top = 50 + ny * 50 + '%';
-          spinVec = { x: nx, y: ny };
-        }
-        setSpin(0, 0);
-        function updateSpin(e) {
-          var r = spinBox.getBoundingClientRect();
-          var x = ((e.clientX - r.left) / r.width) * 2 - 1,
-            y = ((e.clientY - r.top) / r.height) * 2 - 1;
-          var L = Math.hypot(x, y);
-          x = (x / (L || 1)) * Math.min(1, L);
-          y = (y / (L || 1)) * Math.min(1, L);
-          setSpin(x, y);
-          spinMoved = true;
-        }
-        spinBox.addEventListener('pointerdown', function (e) {
-          spinMoved = false;
-          spinBox.style.transform = 'scale(2.5)';
-          clearTimeout(spinTimer);
-          updateSpin(e);
-          spinTimer = setTimeout(function () {
-            if (!spinMoved) spinBox.style.transform = 'scale(1)';
-          }, 1500);
-        });
-        spinBox.addEventListener('pointermove', updateSpin);
-        spinBox.addEventListener('pointerup', function () {
-          clearTimeout(spinTimer);
-          setTimeout(function () {
-            spinBox.style.transform = 'scale(1)';
-          }, 50);
-        });
+    var spinTimer = null, spinMoved = false;
+    function setSpin(nx,ny){ spinDot.style.left = (50+nx*50)+'%'; spinDot.style.top = (50+ny*50)+'%'; spinVec = { x:nx, y:ny }; }
+    setSpin(0,0);
+    function updateSpin(e){ var r=spinBox.getBoundingClientRect(); var x=(e.clientX-r.left)/r.width*2-1, y=(e.clientY-r.top)/r.height*2-1; var L=Math.hypot(x,y); x=(x/(L||1))*Math.min(1,L); y=(y/(L||1))*Math.min(1,L); setSpin(x,y); spinMoved=true; }
+    spinBox.addEventListener('pointerdown', function(e){ spinMoved=false; spinBox.style.transform='scale(1.4)'; clearTimeout(spinTimer); updateSpin(e); spinTimer=setTimeout(function(){ if(!spinMoved) spinBox.style.transform='scale(1)'; }, 1500); });
+    spinBox.addEventListener('pointermove', updateSpin);
+    spinBox.addEventListener('pointerup', function(){ clearTimeout(spinTimer); setTimeout(function(){ spinBox.style.transform='scale(1)'; }, 50); });
 
-        /* ==========================================================
+    /* ==========================================================
        PULL & RELEASE – fuqi e goditjes
        ========================================================= */
-        var pulling = false;
-        function updatePowerUI() {
-          var pct = Math.round(power * 100);
-          powerFill.style.height = pct + '%';
-          thumb.style.bottom = 'calc(12px + (100% - 24px) * ' + power + ')';
-        }
-        function updatePower(e) {
-          var rect = rightPanel.getBoundingClientRect();
-          power = clamp((rect.bottom - e.clientY) / (rect.height * 0.9), 0, 1);
-          updatePowerUI();
-          cuePullVisual = power * (BALL_R * 14);
-        }
-        rightPanel.addEventListener('pointerdown', function (e) {
-          if (!table.running || table.isMoving()) return;
-          pulling = true;
-          rightPanel.classList.add('active');
-          thumb.classList.add('pressed');
-          updatePower(e);
-        });
-        rightPanel.addEventListener('pointermove', function (e) {
-          if (!pulling) return;
-          updatePower(e);
-        });
-        rightPanel.addEventListener('pointerup', function () {
-          if (!pulling) return;
-          pulling = false;
-          rightPanel.classList.remove('active');
-          thumb.classList.remove('pressed');
-          shoot(power);
-          power = 0;
-          updatePowerUI();
-          cuePullVisual = 0;
-        });
+    var pulling=false, pullStartY=0;
+    function updatePowerUI(){ powerFill.style.height = Math.round(power*100)+'%'; powerTxt.textContent = 'FORCA '+Math.round(power*100)+'%'; }
+    pullArea.addEventListener('pointerdown', function(e){ if (!table.running || table.isMoving()) return; pulling=true; pullStartY=e.clientY; power=0; updatePowerUI(); });
+    pullArea.addEventListener('pointermove', function(e){ if (!pulling) return; var rect=pullArea.getBoundingClientRect(); power=clamp((e.clientY-pullStartY)/(rect.height*0.9),0,1); updatePowerUI(); var minY=rect.top+12, maxY=rect.bottom-12, y=minY+(maxY-minY)*power; cueStickEl.style.height=(60+30*power)+'%'; cueTipEl.style.top=(y-rect.top-6)+'px'; cueStickEl.style.top=(y-rect.top-(cueStickEl.getBoundingClientRect().height-12)/2)+'px'; cuePullVisual=power*(BALL_R*14); placeAimGlow(table.aim); });
+    pullArea.addEventListener('pointerup', function(){ if (!pulling) return; pulling=false; shoot(power); power=0; updatePowerUI(); cuePullVisual=0; cueStickEl.style.height='60%'; });
 
-        function shoot(p) {
-          if (!table.running || table.isMoving()) return;
-          var cue = table.balls[0];
-          if (!cue || cue.pocketed) return;
-          var d = norm(table.aim.x - cue.p.x, table.aim.y - cue.p.y);
-          var base = BASE_SPEED;
-          cue.v.x = d.x * base * (0.25 + 0.75 * p) + spinVec.x * 260 * p;
-          cue.v.y = d.y * base * (0.25 + 0.75 * p) + spinVec.y * 260 * p;
-          setSpin(0, 0);
-          showGuides = false;
-          table.lastShooter = 1;
-          table.pottedInTurn = false;
-          table.turn = 2;
-        }
+    function shoot(p){ if (!table.running || table.isMoving()) return; var cue=table.balls[0]; if (!cue || cue.pocketed) return; var d=norm(table.aim.x-cue.p.x,table.aim.y-cue.p.y); var base=950; cue.v.x=d.x*base*(0.25+0.75*p)+spinVec.x*260*p; cue.v.y=d.y*base*(0.25+0.75*p)+spinVec.y*260*p; setSpin(0,0); showGuides=false; table.turn=2; }
 
-        /* ==========================================================
+    /* ==========================================================
        CPU – turn i thjeshte (normal skill)
        ========================================================= */
-        function cpuTurn() {
-          if (table.isMoving() || table.turn !== 2) return;
-          var cue = table.balls[0];
-          var t = null,
-            m = 1e9;
-          for (var i = 0; i < table.balls.length; i++) {
-            var b = table.balls[i];
-            if (!b || b.n === 0 || b.pocketed) continue;
-            var dd = d2(cue.p, b.p);
-            if (dd < m) {
-              m = dd;
-              t = b;
-            }
-          }
-          if (!t) {
-            table.turn = 1;
-            return;
-          }
-          var d = norm(t.p.x - cue.p.x, t.p.y - cue.p.y);
-          var p = 0.32 + Math.random() * 0.28;
-          cue.v.x = d.x * 780 * (0.3 + p);
-          cue.v.y = d.y * 780 * (0.3 + p);
-          table.lastShooter = 2;
-          table.pottedInTurn = false;
-          table.turn = 1;
-        }
+    function cpuTurn(){ if (table.isMoving() || table.turn!==2) return; var cue=table.balls[0]; var t=null,m=1e9; for (var i=0;i<table.balls.length;i++){ var b=table.balls[i]; if (!b || b.n===0 || b.pocketed) continue; var dd=d2(cue.p,b.p); if (dd<m){m=dd; t=b;} } if (!t){ table.turn=1; return; } var d=norm(t.p.x-cue.p.x, t.p.y-cue.p.y); var p=0.32+Math.random()*0.28; cue.v.x=d.x*780*(0.3+p); cue.v.y=d.y*780*(0.3+p); table.turn=1; }
 
-        /* ==========================================================
+    /* ==========================================================
        START / RESIZE / RENDER fillestar
        ========================================================= */
-        playBtn.addEventListener('click', function () {
-          playBtn.style.display = 'none';
-          table.running = true;
-          resize();
-          table.render();
-        });
-        resize();
-        table.render();
-      })();
-    </script>
-  </body>
+    playBtn.addEventListener('click', function(){ playBtn.style.display='none'; table.running=true; resize(); table.render(); });
+    resize();
+    table.render();
+
+  })();
+  </script>
+</body>
 </html>
