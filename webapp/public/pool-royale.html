@@ -761,43 +761,13 @@
           }
 
           // Pockets (4 qoshe + 2 te mesit anesore)
-          // Pocket 2 should align under the power slider thumb
-          // Pocket 6 should align under the "MAX" label in the same vertical line
-
-          var canvasRect = canvas.getBoundingClientRect();
-          var thumb = document.getElementById('thumb');
-          var powerLabel = document.querySelector('#rightPanel .power-label');
-
-          function toTableX(screenX) {
-            return ((screenX - canvasRect.left) / canvasRect.width) * TABLE_W;
-          }
-
-          function toTableY(screenY) {
-            return ((screenY - canvasRect.top) / canvasRect.height) * TABLE_H;
-          }
-
-          var sliderX = TABLE_W - BORDER + 10;
-          var pocket2Y = BORDER;
-          var pocket6Y = TABLE_H - BORDER;
-
-          if (thumb) {
-            var thumbRect = thumb.getBoundingClientRect();
-            sliderX = toTableX(thumbRect.left + thumbRect.width / 2);
-            pocket2Y = toTableY(thumbRect.bottom);
-          }
-
-          if (powerLabel) {
-            var labelRect = powerLabel.getBoundingClientRect();
-            pocket6Y = toTableY(labelRect.bottom);
-          }
-
           var defPockets = [
             { x: BORDER, y: BORDER + 5 },
-            { x: sliderX, y: pocket2Y },
+            { x: TABLE_W - BORDER + 10, y: BORDER },
             { x: BORDER, y: TABLE_H / 2 + 2 },
             { x: TABLE_W - BORDER + 10, y: TABLE_H / 2 },
             { x: BORDER, y: TABLE_H - BORDER - 5 },
-            { x: sliderX, y: pocket6Y }
+            { x: TABLE_W - BORDER + 10, y: TABLE_H - BORDER }
           ];
           var calPockets = (CAL.pockets || []).length === 6 ? CAL.pockets : defPockets;
           this.pockets = calPockets.map(function (p, idx) {
