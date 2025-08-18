@@ -63,6 +63,30 @@
 
     .name { font-weight: 700; }
 
+    .player .info {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    .potted {
+      display: flex;
+      gap: 2px;
+      margin-top: 2px;
+    }
+
+    .potted .ball {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 7px;
+      line-height: 10px;
+      color: #000;
+    }
+
     #wrap {
       position: relative;
       flex: 1 1 auto;
@@ -81,7 +105,7 @@
       top: 0;
       left: 0;
       right: 0;
-      bottom: 5%;
+      bottom: 0;
       z-index: 4;
     }
 
@@ -227,10 +251,16 @@
     <div id="header">
       <div class="player">
         <div class="avatar">A</div>
-        <div class="name">Artur</div>
+        <div class="info">
+          <div class="name">Artur</div>
+          <div class="potted" id="p1Potted"></div>
+        </div>
       </div>
       <div class="player">
-        <div class="name">CPU</div>
+        <div class="info">
+          <div class="name">CPU</div>
+          <div class="potted" id="p2Potted"></div>
+        </div>
         <div class="avatar">C</div>
       </div>
     </div>
@@ -280,10 +310,12 @@
        KONSTANTA TE LAYOUT-it DHE FIZIKES (sipas portrait)
        ========================================================= */
     var TABLE_W = 768;      // gjeresi logjike e felt-it
-    var TABLE_H = 1280;     // lartesi logjike e felt-it
+    var TABLE_H = 1216;     // lartesi logjike e felt-it (5% me e shkurter poshte)
     var BORDER  = 55;       // korniza e drurit e zgjeruar ~5%
     var POCKET_R = 42;      // rrezja baze e gropave
     var BALL_R   = 24.3;    // rrezja baze e topave (10% me e vegjel)
+    var HEAD_Y   = TABLE_H * 0.75; // vija e bardhe e kufirit te cueball-it
+    var CUE_START_Y = HEAD_Y + (TABLE_H - HEAD_Y - BORDER - BALL_R*2) / 2; // pozicioni fillestar i cueball-it
 
     var FRICTION = 0.985;   // ferkimi linear
     var BOUNCE   = 0.98;    // koeficienti i rikthimit
@@ -313,6 +345,8 @@
     var nameP1   = document.querySelector('#header .player:first-child .name');
     var avatarCPU= document.querySelector('#header .player:last-child .avatar');
     var nameCPU  = document.querySelector('#header .player:last-child .name');
+    var pottedP1 = document.getElementById('p1Potted');
+    var pottedP2 = document.getElementById('p2Potted');
 
     var tg = window.Telegram?.WebApp;
     var userData = tg?.initDataUnsafe?.user;
@@ -428,8 +462,9 @@
       var i, j;
       this.balls = [];
 
-      // Cue ball (right side, center vertically)
-      this.balls.push(new Ball(BALL_BY_N[0], TABLE_W - BORDER - BALL_R*2, TABLE_H/2));
+      // Cue ball (center poshte vijes se bardhe)
+      this.balls.push(new Ball(BALL_BY_N[0], TABLE_W/2, CUE_START_Y));
+      cueBallFree = true;
 
       // Trekendshi siper me 15 topa (8-shi ne qender rreshti 3)
       var cx = TABLE_W/2;
@@ -537,10 +572,19 @@
           var ddx = b2.p.x - p.x, ddy = b2.p.y - p.y;
           if (Math.hypot(ddx,ddy) < POCKET_R*0.9) {
             if (b2.n === 0) {
-              this.turn = this.turn===1 ? 2 : 1; // scratch => kalon radha
-              b2.p.x = TABLE_W/2; b2.p.y = TABLE_H - BORDER - BALL_R*2; b2.v.x = 0; b2.v.y = 0;
+              scratch = true;
+              cueBallFree = true;
+              b2.p.x = TABLE_W/2; b2.p.y = CUE_START_Y; b2.v.x = 0; b2.v.y = 0;
             } else {
-              b2.pocketed = true; this.captured[this.turn].push(b2.n);
+              b2.pocketed = true;
+              pocketedAny = true;
+              this.captured[currentShooter].push(b2.n);
+              var tType = BALL_BY_N[b2.n].t;
+              if (!assignedTypes[1] && tType !== 'eight') {
+                assignedTypes[currentShooter] = tType;
+                assignedTypes[currentShooter===1?2:1] = (tType==='solid'?'stripe':'solid');
+              }
+              if (assignedTypes[currentShooter] === tType) pocketedOwn = true;
             }
           }
         }
@@ -554,6 +598,18 @@
       ctx.strokeStyle = '#00ff00';
       ctx.lineWidth = 4;
       ctx.strokeRect(x0, y0, w, h);
+
+      // Vija kufizuese e cueball-it dhe pika qendrore
+      ctx.strokeStyle = '#fff';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(x0, HEAD_Y*sY);
+      ctx.lineTo(x0 + w, HEAD_Y*sY);
+      ctx.stroke();
+      ctx.fillStyle = '#fff';
+      ctx.beginPath();
+      ctx.arc((TABLE_W/2)*sX, HEAD_Y*sY, 5*((sX+sY)/2), 0, Math.PI*2);
+      ctx.fill();
 
       // Pocket markers
       ctx.lineWidth = 3;
@@ -658,6 +714,41 @@
     var cuePullVisual = 0;     // shfaqje e terheqjes ne felt
     var spinVec = { x:0, y:0 };// spini i zgjedhur
     var power = 0;             // fuqi [0..1]
+    var cueBallFree = true;    // a mund te vendoset cueball
+    var shotInProgress = false;
+    var currentShooter = 1;
+    var pocketedAny = false;
+    var pocketedOwn = false;
+    var scratch = false;
+    var assignedTypes = {1:null,2:null};
+
+    function updateCapturedUI(){
+      function render(el, arr){
+        el.innerHTML = '';
+        arr.forEach(function(n){
+          var b = BALL_BY_N[n];
+          var d = document.createElement('div');
+          d.className = 'ball';
+          d.style.background = b.c;
+          d.textContent = n;
+          el.appendChild(d);
+        });
+      }
+      render(pottedP1, table.captured[1]);
+      render(pottedP2, table.captured[2]);
+      capP1.textContent = 'Guret e marra (P1): ' + (table.captured[1].join(', ') || '—');
+      capP2.textContent = 'Guret e marra (CPU): ' + (table.captured[2].join(', ') || '—');
+    }
+
+    function endShot(){
+      shotInProgress = false;
+      if (scratch || !pocketedOwn) {
+        table.turn = table.turn===1 ? 2 : 1;
+      }
+      pocketedAny = false;
+      pocketedOwn = false;
+      scratch = false;
+    }
 
     /* ==========================================================
        RENDER + UPDATE LOOP
@@ -667,9 +758,9 @@
       if (table.running) {
         table.update(Math.min(dt, 0.033));
         table.render();
-        capP1.textContent = 'Guret e marra (P1): ' + (table.captured[1].join(', ') || '—');
-        capP2.textContent = 'Guret e marra (CPU): ' + (table.captured[2].join(', ') || '—');
-        if (!table.isMoving() && table.turn===2) setTimeout(cpuTurn, 400);
+        updateCapturedUI();
+        if (shotInProgress && !table.isMoving()) endShot();
+        if (!table.isMoving() && table.turn===2 && !shotInProgress) setTimeout(cpuTurn, 400);
       }
       requestAnimationFrame(loop);
     }
@@ -685,7 +776,19 @@
 
     canvas.addEventListener('pointerdown', function(e){
       if (!table.running || table.isMoving()) return;
-      aiming = true; showGuides = true; var t = screenToTable(e.clientX,e.clientY); table.aim = t; placeAimGlow(t);
+      var t = screenToTable(e.clientX,e.clientY);
+      var cue = table.balls[0];
+      if (cueBallFree) {
+        var dist = Math.hypot(t.x - cue.p.x, t.y - cue.p.y);
+        if (dist > BALL_R*2) {
+          var minX = BORDER + BALL_R, maxX = TABLE_W - BORDER - BALL_R;
+          var minY = HEAD_Y + BALL_R, maxY = TABLE_H - BORDER - BALL_R;
+          cue.p.x = clamp(t.x, minX, maxX);
+          cue.p.y = clamp(t.y, minY, maxY);
+          return;
+        }
+      }
+      aiming = true; showGuides = true; table.aim = t; placeAimGlow(t);
     });
 
     canvas.addEventListener('pointermove', function(e){
@@ -749,16 +852,43 @@
     pullArea.addEventListener('pointermove', function(e){ if (!pulling) return; var rect=pullArea.getBoundingClientRect(); power=clamp((e.clientY-pullStartY)/(rect.height*0.9),0,1); updatePowerUI(); var minY=rect.top+12, maxY=rect.bottom-12, y=minY+(maxY-minY)*power; cueStickEl.style.height=(60+30*power)+'%'; cueTipEl.style.top=(y-rect.top-6)+'px'; cueStickEl.style.top=(y-rect.top-(cueStickEl.getBoundingClientRect().height-12)/2)+'px'; cuePullVisual=power*(BALL_R*14); placeAimGlow(table.aim); });
     pullArea.addEventListener('pointerup', function(){ if (!pulling) return; pulling=false; shoot(power); power=0; updatePowerUI(); cuePullVisual=0; cueStickEl.style.height='60%'; });
 
-    function shoot(p){ if (!table.running || table.isMoving()) return; var cue=table.balls[0]; if (!cue || cue.pocketed) return; var d=norm(table.aim.x-cue.p.x,table.aim.y-cue.p.y); var base=950*3; // force tripled
-      cue.v.x=d.x*base*(0.25+0.75*p)+spinVec.x*260*2*p;
-      cue.v.y=d.y*base*(0.25+0.75*p)+spinVec.y*260*2*p;
+    function shoot(p){
+      if (!table.running || table.isMoving()) return;
+      var cue = table.balls[0]; if (!cue || cue.pocketed) return;
+      var d = norm(table.aim.x-cue.p.x, table.aim.y-cue.p.y);
+      var base = 950*3; // force tripled
+      currentShooter = table.turn;
+      shotInProgress = true;
+      pocketedAny = false; pocketedOwn = false; scratch = false;
+      cue.v.x = d.x*base*(0.25+0.75*p)+spinVec.x*260*2*p;
+      cue.v.y = d.y*base*(0.25+0.75*p)+spinVec.y*260*2*p;
       cue.spin = { x:spinVec.x*5*p, y:spinVec.y*5*p };
-      setSpin(0,0); showGuides=false; table.turn=2; }
+      cueBallFree = false;
+      setSpin(0,0); showGuides=false;
+    }
 
     /* ==========================================================
        CPU – turn i thjeshte (normal skill)
        ========================================================= */
-    function cpuTurn(){ if (table.isMoving() || table.turn!==2) return; var cue=table.balls[0]; var t=null,m=1e9; for (var i=0;i<table.balls.length;i++){ var b=table.balls[i]; if (!b || b.n===0 || b.pocketed) continue; var dd=d2(cue.p,b.p); if (dd<m){m=dd; t=b;} } if (!t){ table.turn=1; return; } var d=norm(t.p.x-cue.p.x, t.p.y-cue.p.y); var p=0.32+Math.random()*0.28; var cpuBase=780*2; cue.v.x=d.x*cpuBase*(0.3+p); cue.v.y=d.y*cpuBase*(0.3+p); table.turn=1; }
+    function cpuTurn(){
+      if (table.isMoving() || table.turn!==2) return;
+      var cue=table.balls[0];
+      var t=null,m=1e9;
+      for (var i=0;i<table.balls.length;i++){
+        var b=table.balls[i];
+        if (!b || b.n===0 || b.pocketed) continue;
+        var dd=d2(cue.p,b.p); if (dd<m){m=dd; t=b;}
+      }
+      if (!t){ table.turn=1; return; }
+      var d=norm(t.p.x-cue.p.x, t.p.y-cue.p.y);
+      var p=0.32+Math.random()*0.28;
+      var cpuBase=780*2;
+      currentShooter=2;
+      shotInProgress=true;
+      pocketedAny=false; pocketedOwn=false; scratch=false;
+      cue.v.x=d.x*cpuBase*(0.3+p);
+      cue.v.y=d.y*cpuBase*(0.3+p);
+    }
 
     /* ==========================================================
        START / RESIZE / RENDER fillestar
