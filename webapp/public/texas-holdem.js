@@ -6,6 +6,7 @@ import {
   evaluateWinner,
   aiChooseAction,
   HAND_RANK_NAMES,
+  estimateWinProbability,
 } from './lib/texasHoldem.js';
 const FLAG_EMOJIS = window.FLAG_EMOJIS || [];
 
@@ -28,6 +29,52 @@ const state = {
 const SUIT_MAP = { H: '♥', D: '♦', C: '♣', S: '♠' };
 const CHIP_VALUES = [1000, 500, 200, 100, 50, 20, 10, 5, 1];
 const regionNames = new Intl.DisplayNames(['en'], { type: 'region' });
+
+let audioCtx;
+function getAudioCtx() {
+  if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  return audioCtx;
+}
+function playDealSound() {
+  const ctx = getAudioCtx();
+  const o = ctx.createOscillator();
+  const g = ctx.createGain();
+  o.type = 'square';
+  o.frequency.value = 800;
+  g.gain.setValueAtTime(0.1, ctx.currentTime);
+  g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.08);
+  o.connect(g);
+  g.connect(ctx.destination);
+  o.start();
+  o.stop(ctx.currentTime + 0.08);
+}
+function playKnockSound() {
+  const ctx = getAudioCtx();
+  const o = ctx.createOscillator();
+  const g = ctx.createGain();
+  o.type = 'sine';
+  o.frequency.value = 200;
+  g.gain.setValueAtTime(0.3, ctx.currentTime);
+  g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.1);
+  o.connect(g);
+  g.connect(ctx.destination);
+  o.start();
+  o.stop(ctx.currentTime + 0.1);
+}
+function playChipsSound() {
+  const ctx = getAudioCtx();
+  const buffer = ctx.createBuffer(1, ctx.sampleRate * 0.2, ctx.sampleRate);
+  const data = buffer.getChannelData(0);
+  for (let i = 0; i < data.length; i++) data[i] = Math.random() * 2 - 1;
+  const noise = ctx.createBufferSource();
+  noise.buffer = buffer;
+  const g = ctx.createGain();
+  g.gain.setValueAtTime(0.2, ctx.currentTime);
+  g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.2);
+  noise.connect(g);
+  g.connect(ctx.destination);
+  noise.start();
+}
 function flagName(flag) {
   const codePoints = [...flag].map((c) => c.codePointAt(0) - 0x1f1e6 + 65);
   return regionNames.of(String.fromCharCode(...codePoints));
@@ -139,6 +186,10 @@ function renderSeats() {
     const cards = document.createElement('div');
     cards.className = 'cards';
     cards.id = 'cards-' + i;
+    const prob = document.createElement('div');
+    prob.className = 'prob';
+    prob.id = 'prob-' + i;
+    prob.textContent = '';
     const name = document.createElement('div');
     name.className = 'name';
     name.textContent = p.name;
@@ -152,13 +203,13 @@ function renderSeats() {
       const controls = document.createElement('div');
       controls.className = 'controls';
       controls.id = 'controls';
-      seat.append(cards, controls, wrap, name);
+      seat.append(cards, prob, controls, wrap, name);
     } else {
       const timer = document.createElement('div');
       timer.className = 'timer';
       timer.id = 'timer-' + i;
-      if (positions[i] === 'top') seat.append(name, avatar, cards, timer);
-      else seat.append(avatar, cards, name, timer);
+      if (positions[i] === 'top') seat.append(name, avatar, cards, prob, timer);
+      else seat.append(avatar, cards, prob, name, timer);
     }
     seats.appendChild(seat);
   });
@@ -200,6 +251,61 @@ function updatePotDisplay() {
   });
 }
 
+function animateChips(idx, amount) {
+  return new Promise((resolve) => {
+    const stage = document.querySelector('.stage');
+    const potEl = document.getElementById('pot');
+    const cards = document.getElementById('cards-' + idx);
+    if (!stage || !potEl || !cards) {
+      updatePotDisplay();
+      resolve();
+      return;
+    }
+    const stageRect = stage.getBoundingClientRect();
+    const from = cards.getBoundingClientRect();
+    const to = potEl.getBoundingClientRect();
+    const chip = document.createElement('div');
+    const val = CHIP_VALUES.find((v) => amount >= v) || 1;
+    chip.className = 'chip v' + val;
+    chip.textContent = amount;
+    chip.classList.add('moving-chip');
+    chip.style.left = from.left - stageRect.left + 'px';
+    chip.style.top = from.top - stageRect.top + 'px';
+    stage.appendChild(chip);
+    requestAnimationFrame(() => {
+      chip.style.left = to.left - stageRect.left + 'px';
+      chip.style.top = to.top - stageRect.top + 'px';
+    });
+    chip.addEventListener(
+      'transitionend',
+      () => {
+        chip.remove();
+        updatePotDisplay();
+        resolve();
+      },
+      { once: true }
+    );
+  });
+}
+
+function addToPot(idx, amount) {
+  if (amount <= 0) return;
+  state.pot += amount;
+  playChipsSound();
+  animateChips(idx, amount);
+}
+
+function updateWinProbabilities() {
+  const active = state.players.filter((p) => p.active && !p.vacant);
+  const comm = state.community.slice(0, stageCommunityCount());
+  active.forEach((p) => {
+    const prob = estimateWinProbability(p.hand, comm, active.length, 80);
+    const idx = state.players.indexOf(p);
+    const el = document.getElementById('prob-' + idx);
+    if (el) el.textContent = Math.round(prob * 100) + '%';
+  });
+}
+
 async function dealInitialCards() {
   for (let r = 0; r < 2; r++) {
     for (let i = 0; i < state.players.length; i++) {
@@ -208,6 +314,7 @@ async function dealInitialCards() {
       await dealCardToPlayer(i, p.hand[r], !!p.isHuman);
     }
   }
+  updateWinProbabilities();
   if (state.seated) startPlayerTurn();
   else proceedStage();
 }
@@ -222,6 +329,7 @@ function dealCardToPlayer(idx, card, showFace) {
       resolve();
       return;
     }
+    playDealSound();
     const stageRect = stage.getBoundingClientRect();
     const deckRect = deck.getBoundingClientRect();
     const temp = showFace ? cardEl(card) : cardBackEl();
@@ -254,7 +362,10 @@ function setPlayerTurnIndicator(idx) {
   document.querySelectorAll('.avatar').forEach((a) => a.classList.remove('turn'));
   if (idx === null || idx === undefined || idx < 0) return;
   const avatar = document.getElementById('avatar-' + idx);
-  if (avatar) avatar.classList.add('turn');
+  if (avatar) {
+    avatar.classList.add('turn');
+    playKnockSound();
+  }
 }
 
 function showControls() {
@@ -376,6 +487,8 @@ function playerFold() {
   clearInterval(state.timerInterval);
   hideControls();
   setPlayerTurnIndicator(null);
+  state.players[0].active = false;
+  updateWinProbabilities();
   document.getElementById('status').textContent = 'You folded';
 }
 
@@ -384,6 +497,7 @@ function playerCheck() {
 }
 
 function playerCall() {
+  addToPot(0, state.currentBet);
   proceedStage();
 }
 
@@ -391,9 +505,8 @@ function playerRaise() {
   const maxAllowed = Math.min(state.stake, state.maxPot - state.pot);
   const amount = Math.min(state.raiseAmount, maxAllowed);
   if (amount <= 0) return;
-  state.pot += amount;
+  addToPot(0, amount);
   state.currentBet += amount;
-  updatePotDisplay();
   document.getElementById('status').textContent = `You raise ${amount} ${state.token}`;
   proceedStage();
 }
@@ -404,13 +517,27 @@ async function proceedStage() {
   hideControls();
   for (let i = 1; i < state.players.length; i++) {
     const p = state.players[i];
-    if (p.vacant) continue;
+    if (p.vacant || !p.active) continue;
     setPlayerTurnIndicator(i);
     document.getElementById('status').textContent = `${p.name}...`;
     await new Promise((r) => setTimeout(r, 2500));
-    const action = aiChooseAction(p.hand, state.community.slice(0, stageCommunityCount()));
-    document.getElementById('status').textContent = `${p.name} ${action}s`;
+    const action = aiChooseAction(
+      p.hand,
+      state.community.slice(0, stageCommunityCount()),
+      state.players.filter((pl) => pl.active && !pl.vacant).length
+    );
+    document.getElementById('status').textContent = `${p.name} ${action.action}s`;
+    if (action.action === 'fold') {
+      p.active = false;
+    } else if (action.action === 'call') {
+      addToPot(i, state.currentBet);
+    } else if (action.action === 'raise') {
+      addToPot(i, action.amount || 0);
+      state.currentBet += action.amount || 0;
+    }
+    await new Promise((r) => setTimeout(r, 800));
   }
+  updateWinProbabilities();
   setPlayerTurnIndicator(null);
   state.stage++;
   if (state.stage === 1) revealFlop();
@@ -452,18 +579,21 @@ function movePotToWinner(idx) {
 function revealFlop() {
   const comm = document.getElementById('community');
   for (let i = 0; i < 3; i++) comm.appendChild(cardEl(state.community[i]));
+  updateWinProbabilities();
   startPlayerTurn();
 }
 
 function revealTurn() {
   const comm = document.getElementById('community');
   comm.appendChild(cardEl(state.community[3]));
+  updateWinProbabilities();
   startPlayerTurn();
 }
 
 function revealRiver() {
   const comm = document.getElementById('community');
   comm.appendChild(cardEl(state.community[4]));
+  updateWinProbabilities();
   startPlayerTurn();
 }
 

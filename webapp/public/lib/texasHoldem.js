@@ -181,16 +181,35 @@ export function evaluateWinner(players, community){
   return winner;
 }
 
-export function aiChooseAction(hand, community=[]){
-  const stage=community.length; //0 preflop,3 flop,4 turn,5 river
-  const score=bestHand([...hand,...community]);
-  // very naive thresholds
-  if(stage<3){
-    // preflop
-    const hv=hand.map(c=>rankValue(c.rank)).sort((a,b)=>b-a);
-    if(hv[0]>=12 || hv[0]===hv[1]) return 'call';
-    return 'fold';
+export function estimateWinProbability(hand, community=[], players=2, sims=100){
+  const known=[...hand,...community];
+  const deck=shuffle(createDeck().filter(c=>!known.some(k=>k.rank===c.rank && k.suit===c.suit)));
+  let wins=0;
+  for(let i=0;i<sims;i++){
+    const d=[...deck];
+    const needed=5-community.length;
+    const comm=[...community];
+    for(let j=0;j<needed;j++) comm.push(d.pop());
+    const myBest=bestHand([...hand,...comm]);
+    let win=true;
+    for(let p=1;p<players;p++){
+      const opp=[d.pop(),d.pop()];
+      const oppBest=bestHand([...opp,...comm]);
+      if(oppBest.rank>myBest.rank || (oppBest.rank===myBest.rank && compareTiebreak(oppBest.tiebreak,myBest.tiebreak)>=0)){
+        win=false; break;
+      }
+    }
+    if(win) wins++;
   }
-  if(score.rank>=1) return 'call';
-  return 'fold';
+  return wins/sims;
+}
+
+export function aiChooseAction(hand, community=[], players=2){
+  const prob=estimateWinProbability(hand, community, players, 80);
+  const bluff=Math.random()<0.1;
+  if(bluff) return {action:'raise', amount:20};
+  if(prob>0.75) return {action:'raise', amount:20};
+  if(prob>0.4) return {action: community.length===0 ? 'check' : 'call'};
+  if(prob>0.25) return {action:'check'};
+  return {action:'fold'};
 }
