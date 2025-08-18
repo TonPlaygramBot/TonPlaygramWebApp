@@ -398,6 +398,9 @@
         /* ==========================================================
        KONSTANTA TE LAYOUT-it DHE FIZIKES (sipas portrait)
        ========================================================= */
+        var WIDTH_SCALE = 1.1; // 10% wider to the right
+        var HEIGHT_SCALE = 0.95; // 5% shorter while keeping top edge
+
         var CAL = (function () {
           try {
             var p = new URLSearchParams(location.search);
@@ -419,7 +422,9 @@
               var ay = parseInt(p.get('c' + j + 'y'));
               if (!isNaN(ax) && !isNaN(ay)) anchors.push({ x: ax, y: ay });
             }
-            if (w && h)
+            if (w && h) {
+              w = Math.round(w * WIDTH_SCALE);
+              h = Math.round(h * HEIGHT_SCALE);
               return {
                 w: w,
                 h: h,
@@ -430,6 +435,7 @@
                 pockets: pockets,
                 anchors: anchors
               };
+            }
           } catch {}
           return { w: 1000, h: 2000, bw: 0, bh: 0, bx: 0, by: 0, anchors: [] };
         })();
@@ -444,8 +450,8 @@
           var yCenter = lm.y;
           var width = xRight - xLeft;
           var height = yBottom - yTop;
-          xRight = xLeft + width * 1.1; // expand width 10% to the right
-          yBottom = yTop + height * 0.95; // reduce height by 5%
+          xRight = xLeft + width * WIDTH_SCALE; // expand width to the right
+          yBottom = yTop + height * HEIGHT_SCALE; // reduce height while keeping top
           yCenter = (yTop + yBottom) / 2;
           CAL.anchors = [
             { x: xLeft, y: yCenter },
