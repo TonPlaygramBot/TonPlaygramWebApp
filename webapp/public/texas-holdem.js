@@ -47,6 +47,13 @@ function flagName(flag) {
   return regionNames.of(String.fromCharCode(...codePoints));
 }
 
+function deductChips(idx, amount) {
+  const p = state.players[idx];
+  const a = Math.min(amount, p.chips);
+  p.chips -= a;
+  return a;
+}
+
 function cardFaceEl(c) {
   const d = document.createElement('div');
   d.className =
@@ -111,13 +118,14 @@ function init() {
     .slice(0, playerCount - (state.seated ? 1 : 0));
   state.players = [
     state.seated
-      ? { name, avatar, hand: hands[0], isHuman: true, active: true }
-      : { name: '', avatar: '', hand: [], isHuman: false, active: false, vacant: true },
+      ? { name, avatar, hand: hands[0], isHuman: true, active: true, chips: state.stake }
+      : { name: '', avatar: '', hand: [], isHuman: false, active: false, vacant: true, chips: 0 },
     ...flags.map((f, idx) => ({
       name: flagName(f),
       avatar: f,
       hand: hands[idx + (state.seated ? 1 : 0)],
       active: true,
+      chips: state.stake,
     })),
   ];
   const comm = dealCommunity(rest);
@@ -179,6 +187,9 @@ function renderSeats() {
     const name = document.createElement('div');
     name.className = 'name';
     name.textContent = p.name;
+    const overlay = document.createElement('div');
+    overlay.className = 'action-overlay';
+    overlay.id = 'overlay-' + i;
     if (i === 0) {
       const wrap = document.createElement('div');
       wrap.className = 'avatar-wrap';
@@ -189,13 +200,13 @@ function renderSeats() {
       const controls = document.createElement('div');
       controls.className = 'controls';
       controls.id = 'controls';
-      seat.append(cards, controls, wrap, name);
+      seat.append(cards, controls, wrap, overlay, name);
     } else {
       const timer = document.createElement('div');
       timer.className = 'timer';
       timer.id = 'timer-' + i;
-      if (positions[i] === 'top') seat.append(name, avatar, cards, timer);
-      else seat.append(avatar, cards, name, timer);
+      if (positions[i] === 'top') seat.append(name, avatar, cards, overlay, timer);
+      else seat.append(avatar, cards, name, overlay, timer);
     }
     seats.appendChild(seat);
   });
@@ -222,8 +233,9 @@ function setupFlopBacks() {
 }
 
 function collectAntes() {
-  const active = state.players.filter((p) => !p.vacant).length;
-  state.pot += ANTE * active;
+  state.players.forEach((p, idx) => {
+    if (!p.vacant) state.pot += deductChips(idx, ANTE);
+  });
 }
 
 function updatePotDisplay() {
@@ -306,6 +318,18 @@ function setPlayerTurnIndicator(idx) {
   if (idx === null || idx === undefined || idx < 0) return;
   const avatar = document.getElementById('avatar-' + idx);
   if (avatar) avatar.classList.add('turn');
+  const overlay = document.getElementById('overlay-' + idx);
+  if (overlay) {
+    overlay.textContent = '';
+    overlay.className = 'action-overlay';
+  }
+}
+
+function showActionOverlay(idx, action) {
+  const el = document.getElementById('overlay-' + idx);
+  if (!el) return;
+  el.textContent = action;
+  el.className = 'action-overlay ' + action;
 }
 
 function showControls() {
@@ -358,7 +382,7 @@ function initRaiseSlider() {
     pct = Math.max(0, Math.min(1, pct));
     fill.style.height = pct * 100 + '%';
     thumb.style.bottom = 'calc(12px + (100% - 24px) * ' + pct + ')';
-    const maxAllowed = Math.min(state.stake, state.maxPot - state.pot);
+    const maxAllowed = Math.min(state.players[0].chips, state.maxPot - state.pot);
     state.raiseAmount = Math.round(pct * maxAllowed);
     const amtEl = document.getElementById('raiseAmountText');
     if (amtEl) amtEl.textContent = `${state.raiseAmount} ${state.token}`;
@@ -427,28 +451,35 @@ function playerFold() {
   clearInterval(state.timerInterval);
   hideControls();
   setPlayerTurnIndicator(null);
+  showActionOverlay(0, 'fold');
   document.getElementById('status').textContent = 'You folded';
 }
 
 function playerCheck() {
+  showActionOverlay(0, 'check');
   document.getElementById('status').textContent = 'You check';
   proceedStage();
 }
 
 function playerCall() {
-  state.pot += state.currentBet;
+  const amt = deductChips(0, state.currentBet);
+  state.pot += amt;
+  if (amt < state.currentBet) state.currentBet = amt;
   updatePotDisplay();
-  document.getElementById('status').textContent = `You call ${state.currentBet} ${state.token}`;
+  showActionOverlay(0, 'call');
+  document.getElementById('status').textContent = `You call ${amt} ${state.token}`;
   proceedStage();
 }
 
 function playerRaise() {
-  const maxAllowed = Math.min(state.stake, state.maxPot - state.pot);
-  const amount = Math.min(state.raiseAmount, maxAllowed);
+  const maxAllowed = Math.min(state.players[0].chips, state.maxPot - state.pot);
+  let amount = Math.min(state.raiseAmount, maxAllowed);
   if (amount <= 0) return;
+  amount = deductChips(0, amount);
   state.pot += amount;
-  state.currentBet += amount;
+  state.currentBet = amount;
   updatePotDisplay();
+  showActionOverlay(0, 'raise');
   document.getElementById('status').textContent = `You raise ${amount} ${state.token}`;
   proceedStage();
 }
@@ -463,15 +494,31 @@ async function proceedStage() {
     setPlayerTurnIndicator(i);
     document.getElementById('status').textContent = `${p.name}...`;
     await new Promise((r) => setTimeout(r, 2500));
-    const action = aiChooseAction(p.hand, state.community.slice(0, stageCommunityCount()));
-    if (action === 'call') {
-      state.pot += state.currentBet;
+    const act = aiChooseAction(p.hand, state.community.slice(0, stageCommunityCount()), {
+      currentBet: state.currentBet,
+      chips: p.chips,
+    });
+    if (act.action === 'call') {
+      const amt = deductChips(i, state.currentBet);
+      state.pot += amt;
+      if (amt < state.currentBet) state.currentBet = amt;
       updatePotDisplay();
-      document.getElementById('status').textContent = `${p.name} calls ${state.currentBet} ${state.token}`;
-    } else if (action === 'fold') {
-      document.getElementById('status').textContent = `${p.name} folds`;
-    } else {
+      showActionOverlay(i, 'call');
+      document.getElementById('status').textContent = `${p.name} calls ${amt} ${state.token}`;
+    } else if (act.action === 'raise' || act.action === 'bluff') {
+      const bet = deductChips(i, act.amount);
+      state.pot += bet;
+      state.currentBet = bet;
+      updatePotDisplay();
+      showActionOverlay(i, 'raise');
+      const prefix = act.action === 'bluff' ? 'bluffs and ' : '';
+      document.getElementById('status').textContent = `${p.name} ${prefix}raises ${bet} ${state.token}`;
+    } else if (act.action === 'check') {
+      showActionOverlay(i, 'check');
       document.getElementById('status').textContent = `${p.name} checks`;
+    } else {
+      showActionOverlay(i, 'fold');
+      document.getElementById('status').textContent = `${p.name} folds`;
     }
   }
   setPlayerTurnIndicator(null);
