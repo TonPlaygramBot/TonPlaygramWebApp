@@ -181,16 +181,14 @@ export function evaluateWinner(players, community){
   return winner;
 }
 
-export function aiChooseAction(hand, community=[]){
-  const stage=community.length; //0 preflop,3 flop,4 turn,5 river
+export function aiChooseAction(hand, community = [], currentBet = 0){
   const score=bestHand([...hand,...community]);
-  // very naive thresholds
-  if(stage<3){
-    // preflop
-    const hv=hand.map(c=>rankValue(c.rank)).sort((a,b)=>b-a);
-    if(hv[0]>=12 || hv[0]===hv[1]) return 'call';
-    return 'fold';
+  if(currentBet===0){
+    if(score.rank>=3) return 'raise';
+    if(score.rank>=1) return 'check';
+    return Math.random()<0.2 ? 'raise' : 'check';
   }
+  if(score.rank>=2) return 'raise';
   if(score.rank>=1) return 'call';
   return 'fold';
 }
