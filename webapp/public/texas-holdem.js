@@ -101,9 +101,9 @@ function init() {
   state.raiseAmount = 0;
   state.pot = 0;
   state.maxPot = state.stake * state.players.filter((p) => p.active).length;
+  document.getElementById('community').innerHTML = '';
   renderSeats();
-  if (state.seated) startPlayerTurn();
-  else proceedStage();
+  dealInitialCards();
 }
 
 function renderSeats() {
@@ -136,11 +136,6 @@ function renderSeats() {
     const cards = document.createElement('div');
     cards.className = 'cards';
     cards.id = 'cards-' + i;
-    if (p.isHuman) {
-      p.hand.forEach((c) => cards.appendChild(cardEl(c)));
-    } else {
-      p.hand.forEach(() => cards.appendChild(cardBackEl()));
-    }
     const name = document.createElement('div');
     name.className = 'name';
     name.textContent = p.name;
@@ -177,6 +172,61 @@ function cardBackEl() {
   const div = document.createElement('div');
   div.className = 'card back';
   return div;
+}
+
+async function dealInitialCards() {
+  for (let r = 0; r < 2; r++) {
+    for (let i = 0; i < state.players.length; i++) {
+      const p = state.players[i];
+      if (p.vacant) continue;
+      await dealCardToPlayer(i, p.hand[r], !!p.isHuman);
+    }
+  }
+  if (state.seated) startPlayerTurn();
+  else proceedStage();
+}
+
+function dealCardToPlayer(idx, card, showFace) {
+  return new Promise((resolve) => {
+    const stage = document.querySelector('.stage');
+    const deck = document.getElementById('community');
+    if (!stage || !deck) {
+      const target = document.getElementById('cards-' + idx);
+      if (target) target.appendChild(showFace ? cardEl(card) : cardBackEl());
+      resolve();
+      return;
+    }
+    const stageRect = stage.getBoundingClientRect();
+    const deckRect = deck.getBoundingClientRect();
+    const temp = showFace ? cardEl(card) : cardBackEl();
+    temp.classList.add('moving-card');
+    temp.style.left = deckRect.left + deckRect.width / 2 - stageRect.left + 'px';
+    temp.style.top = deckRect.top + deckRect.height / 2 - stageRect.top + 'px';
+    stage.appendChild(temp);
+    const target = document.getElementById('cards-' + idx);
+    const targetRect = target.getBoundingClientRect();
+    requestAnimationFrame(() => {
+      temp.style.left = targetRect.left - stageRect.left + 'px';
+      temp.style.top = targetRect.top - stageRect.top + 'px';
+    });
+    temp.addEventListener(
+      'transitionend',
+      () => {
+        temp.classList.remove('moving-card');
+        temp.style.left = '';
+        temp.style.top = '';
+        temp.style.transition = '';
+        target.appendChild(temp);
+        resolve();
+      },
+      { once: true }
+    );
+  });
+}
+
+function setPlayerTurnIndicator(on) {
+  const avatar = document.querySelector('.seat.bottom .avatar');
+  if (avatar) avatar.classList.toggle('turn', on);
 }
 
 function showControls() {
@@ -256,6 +306,7 @@ function hideControls() {
 function startPlayerTurn() {
   state.turn = 0;
   state.currentBet = 0;
+  setPlayerTurnIndicator(true);
   showControls();
   startTurnTimer(() => {
     if (state.currentBet > 0) playerFold();
@@ -296,6 +347,7 @@ function updateTimer() {
 function playerFold() {
   clearInterval(state.timerInterval);
   hideControls();
+  setPlayerTurnIndicator(false);
   document.getElementById('status').textContent = 'You folded';
 }
 
@@ -317,14 +369,18 @@ function playerRaise() {
   proceedStage();
 }
 
-function proceedStage() {
+async function proceedStage() {
   clearInterval(state.timerInterval);
+  setPlayerTurnIndicator(false);
   hideControls();
-  state.players.slice(1).forEach((p) => {
-    if (p.vacant) return;
+  for (let i = 1; i < state.players.length; i++) {
+    const p = state.players[i];
+    if (p.vacant) continue;
+    document.getElementById('status').textContent = `${p.name}...`;
+    await new Promise((r) => setTimeout(r, 2500));
     const action = aiChooseAction(p.hand, state.community.slice(0, stageCommunityCount()));
     document.getElementById('status').textContent = `${p.name} ${action}s`;
-  });
+  }
   state.stage++;
   if (state.stage === 1) revealFlop();
   else if (state.stage === 2) revealTurn();
