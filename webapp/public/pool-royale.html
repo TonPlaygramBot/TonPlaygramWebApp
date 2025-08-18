@@ -108,8 +108,9 @@
         overflow: hidden;
         background: url('/assets/icons/64e79228-35e3-4fdc-b914-fca635a40220.webp')
           center/cover no-repeat;
-        /* Expand pool field slightly without moving background */
-        background-size: calc(100% + 8px) calc(100% - 4px);
+        /* Fine-tune background without affecting pool field */
+        background-size: calc(100% + 8px) calc(100% + 8px);
+        background-position: calc(50% - 4px) calc(50% + 2px);
       }
 
       :root {
