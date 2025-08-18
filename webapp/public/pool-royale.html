@@ -423,8 +423,38 @@
               if (!isNaN(ax) && !isNaN(ay)) anchors.push({ x: ax, y: ay });
             }
             if (w && h) {
+              // apply scaling requested by design: widen to the right and shorten in height
               w = Math.round(w * WIDTH_SCALE);
               h = Math.round(h * HEIGHT_SCALE);
+
+              if (anchors.length === 3) {
+                var lm = anchors[0];
+                var tr = anchors[1];
+                var br = anchors[2];
+                var xLeft = lm.x;
+                var xRight = (tr.x + br.x) / 2;
+                var yTop = tr.y;
+                var yBottom = br.y;
+                var width = xRight - xLeft;
+                var height = yBottom - yTop;
+                xRight = xLeft + width * WIDTH_SCALE; // expand width to the right
+                yBottom = yTop + height * HEIGHT_SCALE; // reduce height while keeping top edge
+                var yCenter = (yTop + yBottom) / 2;
+                anchors = [
+                  { x: xLeft, y: yCenter },
+                  { x: xRight, y: yTop },
+                  { x: xRight, y: yBottom }
+                ];
+                pockets = [
+                  { x: xLeft, y: yTop },
+                  { x: xRight, y: yTop },
+                  { x: xLeft, y: yCenter },
+                  { x: xRight, y: yCenter },
+                  { x: xLeft, y: yBottom },
+                  { x: xRight, y: yBottom }
+                ];
+              }
+
               return {
                 w: w,
                 h: h,
@@ -439,34 +469,6 @@
           } catch {}
           return { w: 1000, h: 2000, bw: 0, bh: 0, bx: 0, by: 0, anchors: [] };
         })();
-        if ((CAL.anchors || []).length === 3) {
-          var lm = CAL.anchors[0];
-          var tr = CAL.anchors[1];
-          var br = CAL.anchors[2];
-          var xLeft = lm.x;
-          var xRight = (tr.x + br.x) / 2;
-          var yTop = tr.y;
-          var yBottom = br.y;
-          var yCenter = lm.y;
-          var width = xRight - xLeft;
-          var height = yBottom - yTop;
-          xRight = xLeft + width * WIDTH_SCALE; // expand width to the right
-          yBottom = yTop + height * HEIGHT_SCALE; // reduce height while keeping top
-          yCenter = (yTop + yBottom) / 2;
-          CAL.anchors = [
-            { x: xLeft, y: yCenter },
-            { x: xRight, y: yTop },
-            { x: xRight, y: yBottom }
-          ];
-          CAL.pockets = [
-            { x: xLeft, y: yTop },
-            { x: xRight, y: yTop },
-            { x: xLeft, y: yCenter },
-            { x: xRight, y: yCenter },
-            { x: xLeft, y: yBottom },
-            { x: xRight, y: yBottom }
-          ];
-        }
         var TABLE_W = CAL.w; // gjeresi logjike e felt-it
         var TABLE_H = CAL.h; // gjatesia logjike e felt-it
         var BORDER = TABLE_W * 0.0625; // ~6.25% e gjeresise
