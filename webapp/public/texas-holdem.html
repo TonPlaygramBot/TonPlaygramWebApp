@@ -67,7 +67,16 @@
     #check{ background:#facc15; }
     #call{ background:#16a34a; }
     #fold{ background:#dc2626; }
-    .raise-container{ display:flex; flex-direction:column; align-items:center; gap:8px; }
+    .raise-container{
+      display:flex;
+      flex-direction:column;
+      align-items:center;
+      gap:8px;
+      padding:8px;
+      border:2px solid rgba(255,255,255,0.2);
+      border-radius:16px;
+      background:rgba(0,0,0,0.2);
+    }
     #raise{ padding:0; font-size:14px; border-radius:50%; }
     .raise-amount{ font-size:10px; margin-top:2px; }
     #raisePanel{ position:relative; width:clamp(44px,5vw,88px); height:18vh; padding:12px; border-radius:14px; background:rgba(255,255,255,0.02); overflow:hidden; }
