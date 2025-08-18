@@ -75,8 +75,7 @@
     /* Canvas i tavolines (mbulon gjithcka, pervec panelit djathtas) */
     #table {
       position: absolute;
-      inset: 0 auto 0 0;
-      right: var(--rpw);
+      inset: 0;
       z-index: 4;
     }
 
@@ -270,6 +269,8 @@
     </div>
   </div>
 
+  <script src="/flag-emojis.js"></script>
+
   <!--
     Shenim: Perdorim script me type="text/javascript" per te shmangur
     cdo interpretim si modul ose si gjuhe tjeter; kjo adreson gabimet e
@@ -285,8 +286,8 @@
     var TABLE_W = 768;      // gjeresi logjike e felt-it
     var TABLE_H = 1280;     // lartesi logjike e felt-it
     var BORDER  = 36;       // korniza e drurit rreth e rrotull
-    var POCKET_R = 28;      // rrezja baze e gropave
-    var BALL_R   = 18;      // rrezja baze e topave
+    var POCKET_R = 42;      // rrezja baze e gropave (50% me e madhe)
+    var BALL_R   = 27;      // rrezja baze e topave (50% me e madhe)
 
     var FRICTION = 0.985;   // ferkimi linear
     var BOUNCE   = 0.98;    // koeficienti i rikthimit
@@ -311,14 +312,45 @@
     var powerFill = document.getElementById('powerFill');
     var powerTxt  = document.getElementById('powerTxt');
 
+    var avatarP1 = document.querySelector('#header .player:first-child .avatar');
+    var nameP1   = document.querySelector('#header .player:first-child .name');
+    var avatarCPU= document.querySelector('#header .player:last-child .avatar');
+    var nameCPU  = document.querySelector('#header .player:last-child .name');
+
+    var tg = window.Telegram?.WebApp;
+    var userData = tg?.initDataUnsafe?.user;
+    if (userData) {
+      nameP1.textContent = [userData.first_name, userData.last_name].filter(Boolean).join(' ') || 'You';
+      if (userData.photo_url) {
+        avatarP1.style.backgroundImage = 'url(' + userData.photo_url + ')';
+        avatarP1.style.backgroundSize = 'cover';
+        avatarP1.textContent = '';
+      } else if (userData.first_name) {
+        avatarP1.textContent = userData.first_name.charAt(0);
+      }
+      tg?.expand();
+    }
+
+    var regionNames = new Intl.DisplayNames(['en'], { type:'region' });
+    function flagToName(flag){
+      try{
+        var codes = Array.from(flag).map(function(c){ return c.codePointAt(0) - 0x1F1E6 + 65; });
+        return regionNames.of(String.fromCharCode.apply(null, codes));
+      }catch(e){ return 'AI'; }
+    }
+    if (window.FLAG_EMOJIS) {
+      var flag = FLAG_EMOJIS[(Math.random()*FLAG_EMOJIS.length)|0];
+      avatarCPU.textContent = flag;
+      nameCPU.textContent = flagToName(flag) || 'CPU';
+    }
+
     /* ==========================================================
        SHKALlEZIMI / RESIZE
        ========================================================= */
     var sX = 1, sY = 1, pocketR = POCKET_R, ballR = BALL_R;
     function resize(){
-      var rpw = rightPanel.getBoundingClientRect().width;
       var wrap = document.getElementById('wrap');
-      var w = wrap.clientWidth - rpw;
+      var w = wrap.clientWidth;
       var h = wrap.clientHeight;
       var ar = TABLE_W / TABLE_H;
       var cw = w, ch = h;
@@ -519,6 +551,21 @@
       var felt = ctx.createLinearGradient(0,y0,0,y0+h); felt.addColorStop(0,'#0d803c'); felt.addColorStop(1,'#074120');
       ctx.fillStyle = felt; ctx.fillRect(x0,y0,w,h);
 
+      // Penalty dot dhe vija e "kitchen" per cue ball
+      var playH = (TABLE_H - 2*BORDER);
+      var footSpotY = BORDER + playH * 0.25;
+      var headStringY = BORDER + playH * 0.75;
+      ctx.fillStyle = '#111';
+      ctx.beginPath();
+      ctx.arc((TABLE_W/2)*sX, footSpotY*sY, ballR*0.3, 0, Math.PI*2);
+      ctx.fill();
+      ctx.strokeStyle = 'rgba(255,255,255,0.15)';
+      ctx.lineWidth = 2 * ((sX + sY)/2);
+      ctx.beginPath();
+      ctx.moveTo(BORDER*sX, headStringY*sY);
+      ctx.lineTo((TABLE_W-BORDER)*sX, headStringY*sY);
+      ctx.stroke();
+
       // Korniza druri
       ctx.fillStyle = '#724e28';
       ctx.fillRect(0,0,canvas.width,BORDER*sY);
@@ -562,8 +609,13 @@
 
         // stripe nese duhet
         if (BALL_BY_N[b.n].t === 'stripe') {
+          ctx.save();
+          ctx.beginPath();
+          ctx.arc(0,0,ballR,0,Math.PI*2);
+          ctx.clip();
           ctx.fillStyle = '#fff';
-          ctx.fillRect(-ballR, -ballR*0.45, ballR*2, ballR*0.9);
+          ctx.fillRect(-ballR, -ballR*0.3, ballR*2, ballR*0.6);
+          ctx.restore();
         }
 
         // numri (jo te cue)
@@ -718,15 +770,15 @@
     pullArea.addEventListener('pointermove', function(e){ if (!pulling) return; var rect=pullArea.getBoundingClientRect(); power=clamp((e.clientY-pullStartY)/(rect.height*0.9),0,1); updatePowerUI(); var minY=rect.top+12, maxY=rect.bottom-12, y=minY+(maxY-minY)*power; cueStickEl.style.height=(60+30*power)+'%'; cueTipEl.style.top=(y-rect.top-6)+'px'; cueStickEl.style.top=(y-rect.top-(cueStickEl.getBoundingClientRect().height-12)/2)+'px'; cuePullVisual=power*(BALL_R*14); placeAimGlow(table.aim); });
     pullArea.addEventListener('pointerup', function(){ if (!pulling) return; pulling=false; shoot(power); power=0; updatePowerUI(); cuePullVisual=0; cueStickEl.style.height='60%'; });
 
-    function shoot(p){ if (!table.running || table.isMoving()) return; var cue=table.balls[0]; if (!cue || cue.pocketed) return; var d=norm(table.aim.x-cue.p.x,table.aim.y-cue.p.y); var base=950*3; // increased force by 200%
-      cue.v.x=d.x*base*(0.25+0.75*p)+spinVec.x*260*3*p;
-      cue.v.y=d.y*base*(0.25+0.75*p)+spinVec.y*260*3*p;
+    function shoot(p){ if (!table.running || table.isMoving()) return; var cue=table.balls[0]; if (!cue || cue.pocketed) return; var d=norm(table.aim.x-cue.p.x,table.aim.y-cue.p.y); var base=950*2; // force doubled
+      cue.v.x=d.x*base*(0.25+0.75*p)+spinVec.x*260*2*p;
+      cue.v.y=d.y*base*(0.25+0.75*p)+spinVec.y*260*2*p;
       setSpin(0,0); showGuides=false; table.turn=2; }
 
     /* ==========================================================
        CPU – turn i thjeshte (normal skill)
        ========================================================= */
-    function cpuTurn(){ if (table.isMoving() || table.turn!==2) return; var cue=table.balls[0]; var t=null,m=1e9; for (var i=0;i<table.balls.length;i++){ var b=table.balls[i]; if (!b || b.n===0 || b.pocketed) continue; var dd=d2(cue.p,b.p); if (dd<m){m=dd; t=b;} } if (!t){ table.turn=1; return; } var d=norm(t.p.x-cue.p.x, t.p.y-cue.p.y); var p=0.32+Math.random()*0.28; cue.v.x=d.x*780*(0.3+p); cue.v.y=d.y*780*(0.3+p); table.turn=1; }
+    function cpuTurn(){ if (table.isMoving() || table.turn!==2) return; var cue=table.balls[0]; var t=null,m=1e9; for (var i=0;i<table.balls.length;i++){ var b=table.balls[i]; if (!b || b.n===0 || b.pocketed) continue; var dd=d2(cue.p,b.p); if (dd<m){m=dd; t=b;} } if (!t){ table.turn=1; return; } var d=norm(t.p.x-cue.p.x, t.p.y-cue.p.y); var p=0.32+Math.random()*0.28; var cpuBase=780*2; cue.v.x=d.x*cpuBase*(0.3+p); cue.v.y=d.y*cpuBase*(0.3+p); table.turn=1; }
 
     /* ==========================================================
        START / RESIZE / RENDER fillestar
