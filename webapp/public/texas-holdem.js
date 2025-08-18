@@ -5,7 +5,7 @@ import {
   dealCommunity,
   evaluateWinner,
   aiChooseAction,
-  HAND_RANK_NAMES,
+  HAND_RANK_NAMES
 } from './lib/texasHoldem.js';
 const FLAG_EMOJIS = window.FLAG_EMOJIS || [];
 
@@ -21,7 +21,7 @@ const state = {
   token: 'TPC',
   pot: 0,
   maxPot: 0,
-  raiseAmount: 0,
+  raiseAmount: 0
 };
 
 const SUIT_MAP = { H: '♥', D: '♦', C: '♣', S: '♠' };
@@ -35,8 +35,8 @@ function cardFaceEl(c) {
   const d = document.createElement('div');
   d.className =
     'card' +
-    ((c.s === '♥' || c.s === '♦') ? ' red' : '') +
-    ((c.r === 'RJ' || c.r === 'BJ') ? ' joker' : '');
+    (c.s === '♥' || c.s === '♦' ? ' red' : '') +
+    (c.r === 'RJ' || c.r === 'BJ' ? ' joker' : '');
   const tl = document.createElement('div');
   tl.className = 'tl';
   tl.textContent =
@@ -52,7 +52,10 @@ function cardFaceEl(c) {
   return d;
 }
 
-function coinConfetti(count = 50, iconSrc = '/assets/icons/ezgif-54c96d8a9b9236.webp') {
+function coinConfetti(
+  count = 50,
+  iconSrc = '/assets/icons/ezgif-54c96d8a9b9236.webp'
+) {
   for (let i = 0; i < count; i++) {
     const img = document.createElement('img');
     img.src = iconSrc;
@@ -86,17 +89,17 @@ function init() {
     }
   } catch {}
 
-    const deck = shuffle(createDeck());
-    const { hands, deck: rest } = dealHoleCards(deck, 6);
-    const flags = [...FLAG_EMOJIS].sort(() => 0.5 - Math.random()).slice(0, 5);
+  const deck = shuffle(createDeck());
+  const { hands, deck: rest } = dealHoleCards(deck, 6);
+  const flags = [...FLAG_EMOJIS].sort(() => 0.5 - Math.random()).slice(0, 5);
   state.players = [
-      { name, avatar, hand: hands[0], isHuman: true },
-      ...flags.map((f, idx) => ({
-        name: flagName(f),
-        avatar: f,
-        hand: hands[idx + 1],
-      })),
-    ];
+    { name, avatar, hand: hands[0], isHuman: true },
+    ...flags.map((f, idx) => ({
+      name: flagName(f),
+      avatar: f,
+      hand: hands[idx + 1]
+    }))
+  ];
   const comm = dealCommunity(rest);
   state.community = comm.community;
   state.maxPot = state.stake * state.players.length;
@@ -108,7 +111,14 @@ function init() {
 function renderSeats() {
   const seats = document.getElementById('seats');
   seats.innerHTML = '';
-  const positions = ['bottom', 'bottom-right', 'right', 'top', 'left', 'bottom-left'];
+  const positions = [
+    'bottom',
+    'bottom-right',
+    'right',
+    'top',
+    'left',
+    'bottom-left'
+  ];
   state.players.forEach((p, i) => {
     const seat = document.createElement('div');
     seat.className = 'seat ' + positions[i];
@@ -130,27 +140,27 @@ function renderSeats() {
     } else {
       p.hand.forEach(() => cards.appendChild(cardBackEl()));
     }
-      const name = document.createElement('div');
-      name.className = 'name';
-      name.textContent = p.name;
-      if (i === 0) {
-        const wrap = document.createElement('div');
-        wrap.className = 'avatar-wrap';
-        const ring = document.createElement('div');
-        ring.className = 'timer-ring';
-        ring.id = 'timer-' + i;
-        wrap.append(ring, avatar);
-        const controls = document.createElement('div');
-        controls.className = 'controls';
-        controls.id = 'controls';
-        seat.append(cards, controls, wrap, name);
-      } else {
-        const timer = document.createElement('div');
-        timer.className = 'timer';
-        timer.id = 'timer-' + i;
-        if (positions[i] === 'top') seat.append(name, avatar, cards, timer);
-        else seat.append(avatar, cards, name, timer);
-      }
+    const name = document.createElement('div');
+    name.className = 'name';
+    name.textContent = p.name;
+    if (i === 0) {
+      const wrap = document.createElement('div');
+      wrap.className = 'avatar-wrap';
+      const ring = document.createElement('div');
+      ring.className = 'timer-ring';
+      ring.id = 'timer-' + i;
+      wrap.append(ring, avatar);
+      const controls = document.createElement('div');
+      controls.className = 'controls';
+      controls.id = 'controls';
+      seat.append(cards, controls, wrap, name);
+    } else {
+      const timer = document.createElement('div');
+      timer.className = 'timer';
+      timer.id = 'timer-' + i;
+      if (positions[i] === 'top') seat.append(name, avatar, cards, timer);
+      else seat.append(avatar, cards, name, timer);
+    }
     seats.appendChild(seat);
   });
 }
@@ -158,7 +168,7 @@ function renderSeats() {
 function cardEl(card) {
   return cardFaceEl({
     r: card.rank === 'T' ? '10' : card.rank,
-    s: SUIT_MAP[card.suit] || card.suit,
+    s: SUIT_MAP[card.suit] || card.suit
   });
 }
 
@@ -174,7 +184,7 @@ function showControls() {
   const baseActions = [
     { id: 'fold', fn: playerFold },
     { id: 'check', fn: playerCheck },
-    { id: 'call', fn: playerCall },
+    { id: 'call', fn: playerCall }
   ];
   baseActions.forEach((a) => {
     const btn = document.createElement('button');
@@ -185,11 +195,14 @@ function showControls() {
   });
   const raiseContainer = document.createElement('div');
   raiseContainer.className = 'raise-container';
+  const amountText = document.createElement('div');
+  amountText.id = 'raiseAmountText';
+  amountText.className = 'raise-amount';
+  amountText.textContent = `0 ${state.token}`;
+  raiseContainer.appendChild(amountText);
   const panel = document.createElement('div');
   panel.id = 'raisePanel';
-  panel.innerHTML =
-    '<div class="max-zone"><div class="max-label">MAX</div></div>' +
-    '<div id="raiseFill"></div><div id="raiseThumb"></div>';
+  panel.innerHTML = '<div id="raiseFill"></div><div id="raiseThumb"></div>';
   raiseContainer.appendChild(panel);
   const btn = document.createElement('button');
   btn.textContent = 'raise';
@@ -197,11 +210,6 @@ function showControls() {
   btn.addEventListener('click', playerRaise);
   if (state.pot >= state.maxPot) btn.disabled = true;
   raiseContainer.appendChild(btn);
-  const amountText = document.createElement('div');
-  amountText.id = 'raiseAmountText';
-  amountText.className = 'raise-amount';
-  amountText.textContent = `0 ${state.token}`;
-  raiseContainer.appendChild(amountText);
   controls.appendChild(raiseContainer);
   initRaiseSlider();
 }
@@ -223,7 +231,8 @@ function initRaiseSlider() {
     const amtEl = document.getElementById('raiseAmountText');
     if (amtEl) amtEl.textContent = `${state.raiseAmount} ${state.token}`;
     const status = document.getElementById('status');
-    if (status) status.textContent = `Raise ${state.raiseAmount} ${state.token}`;
+    if (status)
+      status.textContent = `Raise ${state.raiseAmount} ${state.token}`;
   }
   panel.addEventListener('pointerdown', function (e) {
     update(e);
@@ -302,7 +311,8 @@ function playerRaise() {
   if (amount <= 0) return;
   state.pot += amount;
   state.currentBet += amount;
-  document.getElementById('status').textContent = `You raise ${amount} ${state.token}`;
+  document.getElementById('status').textContent =
+    `You raise ${amount} ${state.token}`;
   proceedStage();
 }
 
@@ -310,7 +320,10 @@ function proceedStage() {
   clearInterval(state.timerInterval);
   hideControls();
   state.players.slice(1).forEach((p) => {
-    const action = aiChooseAction(p.hand, state.community.slice(0, stageCommunityCount()));
+    const action = aiChooseAction(
+      p.hand,
+      state.community.slice(0, stageCommunityCount())
+    );
     document.getElementById('status').textContent = `${p.name} ${action}s`;
   });
   state.stage++;
@@ -385,7 +398,8 @@ function showdown() {
     coinConfetti(50);
     setTimeout(() => {
       overlay.classList.add('hidden');
-      document.getElementById('resultText').textContent = `${winnerPlayer.name} won ${amountText}`;
+      document.getElementById('resultText').textContent =
+        `${winnerPlayer.name} won ${amountText}`;
       document.getElementById('results').showModal();
     }, 2000);
   } else {
