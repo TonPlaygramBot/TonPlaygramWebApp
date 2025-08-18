@@ -7,7 +7,7 @@ import {
   aiChooseAction,
   HAND_RANK_NAMES,
 } from './lib/texasHoldem.js';
-import { FLAG_EMOJIS } from './flag-emojis.js';
+const FLAG_EMOJIS = window.FLAG_EMOJIS || [];
 
 const state = {
   players: [],
