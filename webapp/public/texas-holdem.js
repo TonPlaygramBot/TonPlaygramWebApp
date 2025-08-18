@@ -22,6 +22,7 @@ const state = {
   pot: 0,
   maxPot: 0,
   raiseAmount: 0,
+  seated: true,
 };
 
 const SUIT_MAP = { H: '♥', D: '♦', C: '♣', S: '♠' };
@@ -52,19 +53,8 @@ function cardFaceEl(c) {
   return d;
 }
 
-function coinConfetti(count = 50, iconSrc = '/assets/icons/ezgif-54c96d8a9b9236.webp') {
-  for (let i = 0; i < count; i++) {
-    const img = document.createElement('img');
-    img.src = iconSrc;
-    img.className = 'coin-confetti';
-    img.style.left = Math.random() * 100 + 'vw';
-    img.style.setProperty('--duration', 2 + Math.random() * 2 + 's');
-    document.body.appendChild(img);
-    setTimeout(() => img.remove(), 3000);
-  }
-}
-
 function init() {
+  clearInterval(state.timerInterval);
   const params = new URLSearchParams(location.search);
   let name = params.get('username') || 'You';
   let avatar = params.get('avatar') || '';
@@ -86,23 +76,34 @@ function init() {
     }
   } catch {}
 
-    const deck = shuffle(createDeck());
-    const { hands, deck: rest } = dealHoleCards(deck, 6);
-    const flags = [...FLAG_EMOJIS].sort(() => 0.5 - Math.random()).slice(0, 5);
+  const deck = shuffle(createDeck());
+  const playerCount = state.seated ? 6 : 5;
+  const { hands, deck: rest } = dealHoleCards(deck, playerCount);
+  const flags = [...FLAG_EMOJIS]
+    .sort(() => 0.5 - Math.random())
+    .slice(0, playerCount - (state.seated ? 1 : 0));
   state.players = [
-      { name, avatar, hand: hands[0], isHuman: true },
-      ...flags.map((f, idx) => ({
-        name: flagName(f),
-        avatar: f,
-        hand: hands[idx + 1],
-      })),
-    ];
+    state.seated
+      ? { name, avatar, hand: hands[0], isHuman: true, active: true }
+      : { name: '', avatar: '', hand: [], isHuman: false, active: false, vacant: true },
+    ...flags.map((f, idx) => ({
+      name: flagName(f),
+      avatar: f,
+      hand: hands[idx + (state.seated ? 1 : 0)],
+      active: true,
+    })),
+  ];
   const comm = dealCommunity(rest);
   state.community = comm.community;
-  state.maxPot = state.stake * state.players.length;
+  state.stage = 0;
+  state.turn = 0;
+  state.currentBet = 0;
+  state.raiseAmount = 0;
   state.pot = 0;
+  state.maxPot = state.stake * state.players.filter((p) => p.active).length;
   renderSeats();
-  startPlayerTurn();
+  if (state.seated) startPlayerTurn();
+  else proceedStage();
 }
 
 function renderSeats() {
@@ -112,6 +113,16 @@ function renderSeats() {
   state.players.forEach((p, i) => {
     const seat = document.createElement('div');
     seat.className = 'seat ' + positions[i];
+    if (p.vacant) {
+      seat.classList.add('vacant');
+      const btn = document.createElement('button');
+      btn.className = 'vacant-seat';
+      btn.textContent = 'Seat';
+      btn.addEventListener('click', joinSeat);
+      seat.appendChild(btn);
+      seats.appendChild(seat);
+      return;
+    }
     if (!p.isHuman) seat.classList.add('small');
     const avatar = document.createElement('div');
     avatar.className = 'avatar';
@@ -130,27 +141,27 @@ function renderSeats() {
     } else {
       p.hand.forEach(() => cards.appendChild(cardBackEl()));
     }
-      const name = document.createElement('div');
-      name.className = 'name';
-      name.textContent = p.name;
-      if (i === 0) {
-        const wrap = document.createElement('div');
-        wrap.className = 'avatar-wrap';
-        const ring = document.createElement('div');
-        ring.className = 'timer-ring';
-        ring.id = 'timer-' + i;
-        wrap.append(ring, avatar);
-        const controls = document.createElement('div');
-        controls.className = 'controls';
-        controls.id = 'controls';
-        seat.append(cards, controls, wrap, name);
-      } else {
-        const timer = document.createElement('div');
-        timer.className = 'timer';
-        timer.id = 'timer-' + i;
-        if (positions[i] === 'top') seat.append(name, avatar, cards, timer);
-        else seat.append(avatar, cards, name, timer);
-      }
+    const name = document.createElement('div');
+    name.className = 'name';
+    name.textContent = p.name;
+    if (i === 0) {
+      const wrap = document.createElement('div');
+      wrap.className = 'avatar-wrap';
+      const ring = document.createElement('div');
+      ring.className = 'timer-ring';
+      ring.id = 'timer-' + i;
+      wrap.append(ring, avatar);
+      const controls = document.createElement('div');
+      controls.className = 'controls';
+      controls.id = 'controls';
+      seat.append(cards, controls, wrap, name);
+    } else {
+      const timer = document.createElement('div');
+      timer.className = 'timer';
+      timer.id = 'timer-' + i;
+      if (positions[i] === 'top') seat.append(name, avatar, cards, timer);
+      else seat.append(avatar, cards, name, timer);
+    }
     seats.appendChild(seat);
   });
 }
@@ -310,6 +321,7 @@ function proceedStage() {
   clearInterval(state.timerInterval);
   hideControls();
   state.players.slice(1).forEach((p) => {
+    if (p.vacant) return;
     const action = aiChooseAction(p.hand, state.community.slice(0, stageCommunityCount()));
     document.getElementById('status').textContent = `${p.name} ${action}s`;
   });
@@ -347,14 +359,16 @@ function revealRiver() {
 
 function showdown() {
   state.players.forEach((p, i) => {
+    if (p.vacant) return;
     const cards = document.getElementById('cards-' + i);
     cards.innerHTML = '';
     p.hand.forEach((c) => cards.appendChild(cardEl(c)));
   });
-  const winner = evaluateWinner(state.players, state.community);
+  const activePlayers = state.players.filter((p) => !p.vacant);
+  const winner = evaluateWinner(activePlayers, state.community);
   const pot = state.pot;
   const text = winner
-    ? `${state.players[winner.index].name} wins with ${HAND_RANK_NAMES[winner.score.rank]}!`
+    ? `${activePlayers[winner.index].name} wins with ${HAND_RANK_NAMES[winner.score.rank]}!`
     : 'Tie';
   document.getElementById('status').textContent = text;
   if (winner) {
@@ -363,40 +377,29 @@ function showdown() {
     state.community.forEach((c, idx) => {
       if (winning.includes(c)) commEl.children[idx].classList.add('winning');
     });
-    const playerCardsEl = document.getElementById('cards-' + winner.index);
-    state.players[winner.index].hand.forEach((c, idx) => {
+    const winnerPlayer = activePlayers[winner.index];
+    const playerIndex = state.players.indexOf(winnerPlayer);
+    const playerCardsEl = document.getElementById('cards-' + playerIndex);
+    state.players[playerIndex].hand.forEach((c, idx) => {
       const el = playerCardsEl.children[idx];
       el.classList.add('winning');
     });
     const seat = playerCardsEl.closest('.seat');
     if (seat) seat.classList.add('winner');
-
-    const winnerPlayer = state.players[winner.index];
-    const overlay = document.getElementById('winnerOverlay');
-    const amountText = pot ? `${pot} ${state.token}` : '';
-    if (winnerPlayer.avatar && winnerPlayer.avatar.startsWith('http')) {
-      overlay.innerHTML = `<img src="${winnerPlayer.avatar}"/><div>${amountText}</div>`;
-    } else if (winnerPlayer.avatar) {
-      overlay.innerHTML = `<div class="avatar">${winnerPlayer.avatar}</div><div>${amountText}</div>`;
-    } else {
-      overlay.innerHTML = `<div class="avatar">${winnerPlayer.name[0] || '?'}</div><div>${amountText}</div>`;
-    }
-    setTimeout(() => {
-      overlay.classList.remove('hidden');
-      coinConfetti(50);
-      setTimeout(() => {
-        overlay.classList.add('hidden');
-        document.getElementById('resultText').textContent = `${winnerPlayer.name} won ${amountText}`;
-        document.getElementById('results').showModal();
-      }, 2000);
-    }, 7000);
-  } else {
-    document.getElementById('resultText').textContent = 'Tie';
-    document.getElementById('results').showModal();
   }
+  setTimeout(() => init(), 5000);
 }
 
-document.getElementById('lobbyBtn')?.addEventListener('click', () => {
+document.getElementById('lobbyIcon')?.addEventListener('click', () => {
   location.href = '/games/texasholdem/lobby';
 });
+document.getElementById('leaveSeatBtn')?.addEventListener('click', () => {
+  state.seated = false;
+  init();
+});
 document.addEventListener('DOMContentLoaded', init);
+
+function joinSeat() {
+  state.seated = true;
+  init();
+}
