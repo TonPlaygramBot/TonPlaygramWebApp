@@ -191,17 +191,14 @@ export function aiChooseAction(hand, community=[], options={}){
       return {action:'raise', amount:Math.min(20, chips)};
     }
     if(rnd<0.1 && chips>20){
-      // Avoid returning the special 'bluff' action which wasn't universally
-      // supported. Use a standard raise instead.
-      return {action:'raise', amount:Math.min(20, chips)};
+      return {action:'bluff', amount:Math.min(20, chips)};
     }
     return {action:'check'};
   }
   if(chips<=currentBet) return {action:'fold'};
   if(strength>=2 || (strength===1 && rnd>0.5)) return {action:'call'};
   if(rnd<0.1 && chips>currentBet*2){
-    // Replace bluff with raise to ensure the AI always returns valid actions
-    return {action:'raise', amount:Math.min(currentBet*2, chips)};
+    return {action:'bluff', amount:Math.min(currentBet*2, chips)};
   }
   return {action:'fold'};
 }
