@@ -576,12 +576,11 @@ export function savePoolRoyaleCalibration(
   bgHeight,
   bgX,
   bgY,
-  pockets,
-  pocketRadius
+  pockets
 ) {
   return post(
     '/api/poolroyale/calibration',
-    { width, height, bgWidth, bgHeight, bgX, bgY, pockets, pocketRadius },
+    { width, height, bgWidth, bgHeight, bgX, bgY, pockets },
     API_AUTH_TOKEN || undefined
   );
 }
