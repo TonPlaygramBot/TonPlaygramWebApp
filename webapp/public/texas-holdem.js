@@ -381,13 +381,15 @@ function showdown() {
     } else {
       overlay.innerHTML = `<div class="avatar">${winnerPlayer.name[0] || '?'}</div><div>${amountText}</div>`;
     }
-    overlay.classList.remove('hidden');
-    coinConfetti(50);
     setTimeout(() => {
-      overlay.classList.add('hidden');
-      document.getElementById('resultText').textContent = `${winnerPlayer.name} won ${amountText}`;
-      document.getElementById('results').showModal();
-    }, 2000);
+      overlay.classList.remove('hidden');
+      coinConfetti(50);
+      setTimeout(() => {
+        overlay.classList.add('hidden');
+        document.getElementById('resultText').textContent = `${winnerPlayer.name} won ${amountText}`;
+        document.getElementById('results').showModal();
+      }, 2000);
+    }, 7000);
   } else {
     document.getElementById('resultText').textContent = 'Tie';
     document.getElementById('results').showModal();
