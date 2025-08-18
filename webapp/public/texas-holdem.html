@@ -1,111 +1,488 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no" />
-  <title>Texas Hold'em Royale</title>
-  <style>
-    :root{
-      --shadow:rgba(0,0,0,.45);
-      --card-scale:0.85; --avatar-scale:1;
-      --card-w: calc(clamp(44px, 9.6vw, 70px) * var(--card-scale));
-      --card-h: calc(var(--card-w)*1.45);
-      --avatar-size: calc(54px * var(--avatar-scale));
-    }
-    *{box-sizing:border-box}
-    html,body{height:100%;margin:0}
-    body{
-      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial;
-      color:#fff; overflow:hidden; height:100vh; width:100vw;
-    }
-    .stage{ position:relative; width:100vw; height:100vh; display:grid; place-items:center; perspective:1100px; }
-    .stage::before{ content:""; position:absolute; top:0; bottom:0; left:1vw; right:1vw; background: url('assets/icons/de2a24a7-922a-4400-8edc-027a1017224e.webp') center/cover no-repeat; z-index:0 }
-      .center{ position:absolute; left:50%; top:46%; transform:translate(-50%,-50%); display:flex; gap:10px; z-index:2; --card-scale:1.1; }
-      .seats{ position:absolute; inset:0; z-index:2 }
-      .seat{ position:absolute; display:flex; flex-direction:column; align-items:center; gap:6px; width:clamp(120px, 28vw, 200px) }
-      .seat.small{ --card-scale:.8; }
-      .avatar{ width:var(--avatar-size); height:var(--avatar-size); border-radius:50%; display:grid; place-items:center; background:radial-gradient(circle at 30% 30%, #fff, #ddd 40%, #bbb 60%, #999 100%); color:#111; font-size:28px; border:4px solid rgba(255,255,255,.65); box-shadow:0 8px 20px var(--shadow); overflow:hidden }
-      .avatar-wrap{ position:relative; width:var(--avatar-size); height:var(--avatar-size); display:grid; place-items:center; }
-      .timer-ring{ position:absolute; inset:-6px; border-radius:50%; background:conic-gradient(#f5cc4e var(--progress,0deg), transparent 0); -webkit-mask:radial-gradient(farthest-side,transparent calc(100% - 6px),#000 calc(100% - 6px)); mask:radial-gradient(farthest-side,transparent calc(100% - 6px),#000 calc(100% - 6px)); pointer-events:none }
-      .cards{ display:flex; gap:6px; flex-wrap:nowrap }
-      .card{ width:var(--card-w); height:var(--card-h); border-radius:10px; position:relative; flex:0 0 auto; background:#fff; color:#111; font-weight:900; letter-spacing:.3px; box-shadow:0 10px 25px var(--shadow), inset 0 0 0 2px rgba(0,0,0,.08); touch-action:none }
-      .card .tl{ position:absolute; left:8px; top:6px; font-size:calc(var(--card-w)*0.28) }
-      .card .br{ position:absolute; right:8px; bottom:8px; font-size:calc(var(--card-w)*0.3) }
-      .card .big{ position:absolute; left:50%; top:50%; transform:translate(-50%,-50%); font-size:calc(var(--card-w)*0.52); opacity:.9 }
-      .red{ color:#d12d2d }
-      .joker{ background:repeating-linear-gradient(45deg,#eee,#eee 6px,#ddd 6px,#ddd 12px); }
-      .selected{ outline:3px solid #0ea5e9; transform:translateY(-6px); }
-      .suggested{ outline:3px dashed #2563eb; }
-      .card.back{ background:url('assets/icons/file_00000000bc2862439eecffff3730bbe4.webp') center/60% no-repeat, repeating-linear-gradient(45deg,#233,#233 6px,#122 6px,#122 12px); border:2px solid rgba(255,255,255,.5); color:transparent; }
-      .card.back::before{ content:""; position:absolute; inset:6px; border-radius:8px; border:2px dashed rgba(255,255,255,.35); }
-/* Winner highlight styles + seating layout */
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no"
+    />
+    <title>Texas Hold'em Royale</title>
+    <style>
+      :root {
+        --shadow: rgba(0, 0, 0, 0.45);
+        --card-scale: 0.85;
+        --avatar-scale: 1;
+        --card-w: calc(clamp(44px, 9.6vw, 70px) * var(--card-scale));
+        --card-h: calc(var(--card-w) * 1.45);
+        --avatar-size: calc(54px * var(--avatar-scale));
+      }
+      * {
+        box-sizing: border-box;
+      }
+      html,
+      body {
+        height: 100%;
+        margin: 0;
+      }
+      body {
+        font-family:
+          ui-sans-serif,
+          system-ui,
+          -apple-system,
+          Segoe UI,
+          Roboto,
+          Helvetica,
+          Arial;
+        color: #fff;
+        overflow: hidden;
+        height: 100vh;
+        width: 100vw;
+      }
+      .stage {
+        position: relative;
+        width: 100vw;
+        height: 100vh;
+        display: grid;
+        place-items: center;
+        perspective: 1100px;
+      }
+      .stage::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        bottom: 0;
+        left: 1vw;
+        right: 1vw;
+        background: url('assets/icons/de2a24a7-922a-4400-8edc-027a1017224e.webp')
+          center/cover no-repeat;
+        z-index: 0;
+      }
+      .center {
+        position: absolute;
+        left: 50%;
+        top: 46%;
+        transform: translate(-50%, -50%);
+        display: flex;
+        gap: 10px;
+        z-index: 2;
+        --card-scale: 1.1;
+      }
+      .seats {
+        position: absolute;
+        inset: 0;
+        z-index: 2;
+      }
+      .seat {
+        position: absolute;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 6px;
+        width: clamp(120px, 28vw, 200px);
+      }
+      .seat.small {
+        --card-scale: 0.8;
+      }
+      .avatar {
+        width: var(--avatar-size);
+        height: var(--avatar-size);
+        border-radius: 50%;
+        display: grid;
+        place-items: center;
+        background: radial-gradient(
+          circle at 30% 30%,
+          #fff,
+          #ddd 40%,
+          #bbb 60%,
+          #999 100%
+        );
+        color: #111;
+        font-size: 28px;
+        border: 4px solid rgba(255, 255, 255, 0.65);
+        box-shadow: 0 8px 20px var(--shadow);
+        overflow: hidden;
+      }
+      .avatar-wrap {
+        position: relative;
+        width: var(--avatar-size);
+        height: var(--avatar-size);
+        display: grid;
+        place-items: center;
+      }
+      .timer-ring {
+        position: absolute;
+        inset: -6px;
+        border-radius: 50%;
+        background: conic-gradient(
+          #f5cc4e var(--progress, 0deg),
+          transparent 0
+        );
+        -webkit-mask: radial-gradient(
+          farthest-side,
+          transparent calc(100% - 6px),
+          #000 calc(100% - 6px)
+        );
+        mask: radial-gradient(
+          farthest-side,
+          transparent calc(100% - 6px),
+          #000 calc(100% - 6px)
+        );
+        pointer-events: none;
+      }
+      .cards {
+        display: flex;
+        gap: 6px;
+        flex-wrap: nowrap;
+      }
+      .card {
+        width: var(--card-w);
+        height: var(--card-h);
+        border-radius: 10px;
+        position: relative;
+        flex: 0 0 auto;
+        background: #fff;
+        color: #111;
+        font-weight: 900;
+        letter-spacing: 0.3px;
+        box-shadow:
+          0 10px 25px var(--shadow),
+          inset 0 0 0 2px rgba(0, 0, 0, 0.08);
+        touch-action: none;
+      }
+      .card .tl {
+        position: absolute;
+        left: 8px;
+        top: 6px;
+        font-size: calc(var(--card-w) * 0.28);
+      }
+      .card .br {
+        position: absolute;
+        right: 8px;
+        bottom: 8px;
+        font-size: calc(var(--card-w) * 0.3);
+      }
+      .card .big {
+        position: absolute;
+        left: 50%;
+        top: 50%;
+        transform: translate(-50%, -50%);
+        font-size: calc(var(--card-w) * 0.52);
+        opacity: 0.9;
+      }
+      .red {
+        color: #d12d2d;
+      }
+      .joker {
+        background: repeating-linear-gradient(
+          45deg,
+          #eee,
+          #eee 6px,
+          #ddd 6px,
+          #ddd 12px
+        );
+      }
+      .selected {
+        outline: 3px solid #0ea5e9;
+        transform: translateY(-6px);
+      }
+      .suggested {
+        outline: 3px dashed #2563eb;
+      }
+      .card.back {
+        background:
+          url('assets/icons/file_00000000bc2862439eecffff3730bbe4.webp')
+            center/60% no-repeat,
+          repeating-linear-gradient(45deg, #233, #233 6px, #122 6px, #122 12px);
+        border: 2px solid rgba(255, 255, 255, 0.5);
+        color: transparent;
+      }
+      .card.back::before {
+        content: '';
+        position: absolute;
+        inset: 6px;
+        border-radius: 8px;
+        border: 2px dashed rgba(255, 255, 255, 0.35);
+      }
+      /* Winner highlight styles + seating layout */
 
-.card.winning { outline: 3px solid #facc15; background: #fef08a; }
+      .card.winning {
+        outline: 3px solid #facc15;
+        background: #fef08a;
+      }
 
-.community .card.winning { transform: translateY(-12px); }
+      .community .card.winning {
+        transform: translateY(-12px);
+      }
 
-.seat.winner .avatar { box-shadow: 0 0 12px #facc15; border-color: #facc15; }
+      .seat.winner .avatar {
+        box-shadow: 0 0 12px #facc15;
+        border-color: #facc15;
+      }
 
-.seat.winner .name { color: #facc15; }
+      .seat.winner .name {
+        color: #facc15;
+      }
 
-.seat.bottom { bottom: 1%; left: 50%; transform: translateX(-50%); }
+      .seat.bottom {
+        bottom: 1%;
+        left: 50%;
+        transform: translateX(-50%);
+      }
 
-.seat.top { top: 1%; left: 50%; transform: translateX(-50%); }
+      .seat.top {
+        top: 1%;
+        left: 50%;
+        transform: translateX(-50%);
+      }
 
-.seat.left { left: 16%; top: 28%; transform: translate(-50%, -50%); --card-scale: .85; }
+      .seat.left {
+        left: 16%;
+        top: 28%;
+        transform: translate(-50%, -50%);
+        --card-scale: 0.85;
+      }
 
-.seat.right { left: 84%; top: 28%; transform: translate(-50%, -50%); }
+      .seat.right {
+        left: 84%;
+        top: 28%;
+        transform: translate(-50%, -50%);
+      }
 
-.seat.bottom-left { left: 16%; top: 63%; transform: translate(-50%, -50%); --card-scale: .85; }
+      .seat.bottom-left {
+        left: 16%;
+        top: 63%;
+        transform: translate(-50%, -50%);
+        --card-scale: 0.85;
+      }
 
-.seat.bottom-right { left: 84%; top: 63%; transform: translate(-50%, -50%); }
-      .seat.bottom .cards{ gap:0 }
-      .timer{ font-weight:800; background:rgba(0,0,0,.5); padding:2px 6px; border-radius:8px; }
-    .controls{ display:flex; gap:8px; margin-top:8px; }
-    .controls button{ width:var(--avatar-size); height:var(--avatar-size); padding:0; border:4px solid #000; border-radius:50%; background:#2563eb; color:#fff; font-weight:600; font-size:12px; display:flex; align-items:center; justify-content:center; }
-    #raise{ background:#2563eb; }
-    #check{ background:#facc15; }
-    #call{ background:#16a34a; }
-    #fold{ background:#dc2626; }
-    .raise-container{ position:fixed; right:0.5vw; top:50%; transform:translateY(-50%); display:flex; flex-direction:column; align-items:center; gap:8px; }
-    #raise{ padding:0; font-size:14px; border-radius:50%; }
-    .raise-amount{ font-size:10px; margin-top:2px; }
-    #raisePanel{ position:relative; width:clamp(44px,5vw,88px); height:18vh; padding:12px; border-radius:14px; background:rgba(255,255,255,0.02); overflow:hidden; }
-    #raisePanel::before{ content:""; position:absolute; left:50%; top:12px; bottom:12px; width:1px; background:rgba(230,237,247,0.2); }
-    #raiseFill{ position:absolute; left:12px; right:12px; bottom:12px; height:0%; border-radius:8px; background:rgba(255,255,255,0.2); box-shadow:inset 0 -1px 0 rgba(0,0,0,0.2); }
-    #raiseFill::after{ content:""; position:absolute; top:0; left:0; right:0; height:2px; background:rgba(255,255,255,0.2); }
-    #raiseThumb{ position:absolute; left:50%; transform:translate(-50%,50%); bottom:12px; width:28px; height:28px; border-radius:50%; background:#ffffff; border:4px solid #0b1224; box-shadow:0 2px 8px rgba(0,0,0,0.45); touch-action:none; }
-    #raiseThumb::before{ content:""; position:absolute; inset:2px; border-radius:50%; background:radial-gradient(circle at 30% 30%,#ffffff,#d1d5db); }
-    #raisePanel .max-zone{ position:absolute; top:0; left:12px; right:12px; height:15%; background:rgba(255,255,255,0.08); animation:shimmer 2s linear infinite; pointer-events:none; }
-    #raisePanel .max-label{ position:absolute; top:4px; left:50%; transform:translateX(-50%); font-size:10px; color:#fff; animation:pulse 1.5s infinite; }
-    @keyframes pulse{0%,100%{opacity:0.6}50%{opacity:1}}
-    @keyframes shimmer{from{background-position:0 0}to{background-position:100px 0}}
-    #status{ position:absolute; top:52%; left:50%; transform:translate(-50%, -50%); font-weight:900; letter-spacing:.3px; color:#ff0; background:rgba(0,0,0,.28); padding:6px 12px; border-radius:12px; border:1px solid rgba(255,255,255,.12); text-shadow:0 2px 6px #000; -webkit-text-stroke:1px #000 }
-    .winnerOverlay{position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;background:rgba(0,0,0,0.6);z-index:60}
-    .winnerOverlay.hidden{display:none}
-    .winnerOverlay img,.winnerOverlay .avatar{width:120px;height:120px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:48px;background:#fff;color:#111;margin-bottom:12px}
-    .coin-confetti{position:fixed;top:-40px;width:32px;height:32px;pointer-events:none;animation:coin-fall var(--duration,3s) linear forwards}
-    @keyframes coin-fall{from{transform:translateY(-10vh) rotate(0deg);opacity:1}to{transform:translateY(100vh) rotate(360deg);opacity:0}}
-    dialog{border:none;border-radius:16px;background:#0d1330;color:#e7eefc;max-width:300px;width:calc(100% - 24px)}
-    .modal{padding:16px;border:1px solid #223063;border-radius:16px;background:linear-gradient(180deg,#0f1736,#0b1126);display:flex;flex-direction:column;gap:12px;align-items:center}
-    .btn{padding:10px 20px;border-radius:8px;border:none;background:#2563eb;color:#fff;font-weight:700;cursor:pointer}
-  </style>
-</head>
-<body>
-  <div class="stage">
-    <div class="center community" id="community"></div>
-    <div class="seats" id="seats"></div>
-    <div id="status"></div>
-  </div>
-  <audio id="sndTimer" src="https://cdn.jsdelivr.net/gh/naptha/tiny-sound@master/sounds/beep1.ogg"></audio>
-  <div id="winnerOverlay" class="winnerOverlay hidden"></div>
-  <dialog id="results">
-    <div class="modal">
-      <p id="resultText"></p>
-      <button class="btn" id="lobbyBtn">Return to Lobby</button>
+      .seat.bottom-right {
+        left: 84%;
+        top: 63%;
+        transform: translate(-50%, -50%);
+      }
+      .seat.bottom .cards {
+        gap: 0;
+      }
+      .timer {
+        font-weight: 800;
+        background: rgba(0, 0, 0, 0.5);
+        padding: 2px 6px;
+        border-radius: 8px;
+      }
+      .controls {
+        display: flex;
+        gap: 8px;
+        margin-top: 8px;
+      }
+      .controls button {
+        width: var(--avatar-size);
+        height: var(--avatar-size);
+        padding: 0;
+        border: 4px solid #000;
+        border-radius: 50%;
+        background: #2563eb;
+        color: #fff;
+        font-weight: 600;
+        font-size: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      #raise {
+        background: #2563eb;
+      }
+      #check {
+        background: #facc15;
+      }
+      #call {
+        background: #16a34a;
+      }
+      #fold {
+        background: #dc2626;
+      }
+      .raise-container {
+        position: fixed;
+        right: 0;
+        top: 50%;
+        transform: translateY(-50%);
+        width: clamp(44px, 5vw, 88px);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 8px;
+      }
+      #raise {
+        padding: 0;
+        font-size: 14px;
+        border-radius: 50%;
+      }
+      .raise-amount {
+        font-size: 10px;
+        margin-top: 2px;
+      }
+      #raisePanel {
+        position: relative;
+        width: 100%;
+        height: 18vh;
+        padding: 12px;
+        border-radius: 14px;
+        background: rgba(255, 255, 255, 0.02);
+        overflow: hidden;
+      }
+      #raisePanel::before {
+        content: '';
+        position: absolute;
+        left: 50%;
+        top: 12px;
+        bottom: 12px;
+        width: 1px;
+        background: rgba(230, 237, 247, 0.2);
+      }
+      #raiseFill {
+        position: absolute;
+        left: 12px;
+        right: 12px;
+        bottom: 12px;
+        height: 0%;
+        border-radius: 8px;
+        background: rgba(255, 255, 255, 0.2);
+        box-shadow: inset 0 -1px 0 rgba(0, 0, 0, 0.2);
+      }
+      #raiseFill::after {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 2px;
+        background: rgba(255, 255, 255, 0.2);
+      }
+      #raiseThumb {
+        position: absolute;
+        left: 50%;
+        transform: translate(-50%, 50%);
+        bottom: 12px;
+        width: 28px;
+        height: 28px;
+        border-radius: 50%;
+        background: #ffffff;
+        border: 4px solid #0b1224;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.45);
+        touch-action: none;
+      }
+      #raiseThumb::before {
+        content: '';
+        position: absolute;
+        inset: 2px;
+        border-radius: 50%;
+        background: radial-gradient(circle at 30% 30%, #ffffff, #d1d5db);
+      }
+      #status {
+        position: absolute;
+        top: 52%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        font-weight: 900;
+        letter-spacing: 0.3px;
+        color: #ff0;
+        background: rgba(0, 0, 0, 0.28);
+        padding: 6px 12px;
+        border-radius: 12px;
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        text-shadow: 0 2px 6px #000;
+        -webkit-text-stroke: 1px #000;
+      }
+      .winnerOverlay {
+        position: fixed;
+        inset: 0;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        background: rgba(0, 0, 0, 0.6);
+        z-index: 60;
+      }
+      .winnerOverlay.hidden {
+        display: none;
+      }
+      .winnerOverlay img,
+      .winnerOverlay .avatar {
+        width: 120px;
+        height: 120px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 48px;
+        background: #fff;
+        color: #111;
+        margin-bottom: 12px;
+      }
+      .coin-confetti {
+        position: fixed;
+        top: -40px;
+        width: 32px;
+        height: 32px;
+        pointer-events: none;
+        animation: coin-fall var(--duration, 3s) linear forwards;
+      }
+      @keyframes coin-fall {
+        from {
+          transform: translateY(-10vh) rotate(0deg);
+          opacity: 1;
+        }
+        to {
+          transform: translateY(100vh) rotate(360deg);
+          opacity: 0;
+        }
+      }
+      dialog {
+        border: none;
+        border-radius: 16px;
+        background: #0d1330;
+        color: #e7eefc;
+        max-width: 300px;
+        width: calc(100% - 24px);
+      }
+      .modal {
+        padding: 16px;
+        border: 1px solid #223063;
+        border-radius: 16px;
+        background: linear-gradient(180deg, #0f1736, #0b1126);
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+        align-items: center;
+      }
+      .btn {
+        padding: 10px 20px;
+        border-radius: 8px;
+        border: none;
+        background: #2563eb;
+        color: #fff;
+        font-weight: 700;
+        cursor: pointer;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="stage">
+      <div class="center community" id="community"></div>
+      <div class="seats" id="seats"></div>
+      <div id="status"></div>
     </div>
-  </dialog>
-  <script src="/flag-emojis.js"></script>
-  <script type="module" src="/texas-holdem.js"></script>
-</body>
+    <audio
+      id="sndTimer"
+      src="https://cdn.jsdelivr.net/gh/naptha/tiny-sound@master/sounds/beep1.ogg"
+    ></audio>
+    <div id="winnerOverlay" class="winnerOverlay hidden"></div>
+    <dialog id="results">
+      <div class="modal">
+        <p id="resultText"></p>
+        <button class="btn" id="lobbyBtn">Return to Lobby</button>
+      </div>
+    </dialog>
+    <script src="/flag-emojis.js"></script>
+    <script type="module" src="/texas-holdem.js"></script>
+  </body>
 </html>
