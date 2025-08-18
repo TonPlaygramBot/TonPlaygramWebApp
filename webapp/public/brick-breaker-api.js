@@ -36,7 +36,6 @@
       const res = await post('/api/account/deposit', { accountId, amount, ...extra });
       if (res && res.error) {
         return post('/api/profile/addTransaction', {
-          telegramId: null,
           amount,
           type: 'deposit',
           accountId,
@@ -46,12 +45,9 @@
       return res;
     },
     addTransaction(telegramId, amount, type, extra = {}) {
-      return post('/api/profile/addTransaction', {
-        telegramId,
-        amount,
-        type,
-        ...extra
-      });
+      const body = { amount, type, ...extra };
+      if (telegramId != null) body.telegramId = telegramId;
+      return post('/api/profile/addTransaction', body);
     }
   };
 })();

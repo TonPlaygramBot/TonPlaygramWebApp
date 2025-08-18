@@ -262,12 +262,13 @@ export function updateBalance(telegramId, balance) {
 }
 
 export function addTransaction(telegramId, amount, type, extra = {}) {
-  return post('/api/profile/addTransaction', {
-    telegramId,
+  const body = {
     amount,
     type,
     ...extra,
-  });
+  };
+  if (telegramId != null) body.telegramId = telegramId;
+  return post('/api/profile/addTransaction', body);
 }
 
 export function getProfileByAccount(accountId) {

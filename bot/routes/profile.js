@@ -170,20 +170,21 @@ router.post('/updateBalance', async (req, res) => {
 
 router.post('/addTransaction', async (req, res) => {
   const { telegramId, accountId, amount, type, game, players } = req.body;
-  if ((!telegramId && !accountId) || amount === undefined || !type) {
+  if ((telegramId == null && !accountId) || amount === undefined || !type) {
     return res
       .status(400)
       .json({ error: 'telegramId or accountId, amount and type required' });
   }
   let user = null;
-  if (telegramId) user = await User.findOne({ telegramId });
+  if (telegramId != null) user = await User.findOne({ telegramId });
   if (!user && accountId) user = await User.findOne({ accountId });
   if (!user) {
-    user = new User({
-      telegramId,
+    const data = {
       accountId,
       referralCode: String(telegramId || accountId)
-    });
+    };
+    if (telegramId != null) data.telegramId = telegramId;
+    user = new User(data);
   }
   ensureTransactionArray(user);
   const tx = { amount, type, date: new Date() };
