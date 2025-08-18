@@ -407,6 +407,7 @@
             var bh = parseInt(p.get('bh'));
             var bx = parseInt(p.get('bx'));
             var by = parseInt(p.get('by'));
+            var pr = parseInt(p.get('pr'));
             var pockets = [];
             for (var i = 1; i <= 6; i++) {
               var px = parseInt(p.get('p' + i + 'x'));
@@ -427,6 +428,7 @@
                 bh: bh,
                 bx: bx,
                 by: by,
+                pr: pr,
                 pockets: pockets,
                 anchors: anchors
               };
@@ -464,7 +466,7 @@
         var TABLE_W = CAL.w; // gjeresi logjike e felt-it
         var TABLE_H = CAL.h; // gjatesia logjike e felt-it
         var BORDER = TABLE_W * 0.0625; // ~6.25% e gjeresise
-        var POCKET_R = TABLE_W * 0.05; // ~5% e gjeresise
+        var POCKET_R = isNaN(CAL.pr) ? TABLE_W * 0.05 : CAL.pr; // ~5% e gjeresise
         var BALL_R = TABLE_W * 0.028125; // ~2.8% e gjeresise
         var PLAY_W = TABLE_W - 2 * BORDER; // fusha pa spondat
         var PLAY_H = TABLE_H - 2 * BORDER;
