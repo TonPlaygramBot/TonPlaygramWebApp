@@ -68,6 +68,9 @@
       flex: 1 1 auto;
       display: flex;
       overflow: hidden;
+      background: url('/assets/icons/64e79228-35e3-4fdc-b914-fca635a40220.webp') center/cover no-repeat;
+      background-size: 95% 105%;
+      background-position: left center;
     }
 
     :root { --rpw: min(20vw, 100px); }
@@ -422,8 +425,8 @@
       var i, j;
       this.balls = [];
 
-      // Cue ball (poshte, qender)
-      this.balls.push(new Ball(BALL_BY_N[0], TABLE_W/2, TABLE_H - BORDER - BALL_R*2));
+      // Cue ball (right side, center vertically)
+      this.balls.push(new Ball(BALL_BY_N[0], TABLE_W - BORDER - BALL_R*2, TABLE_H/2));
 
       // Trekendshi siper me 15 topa (8-shi ne qender rreshti 3)
       var cx = TABLE_W/2;
@@ -543,73 +546,19 @@
 
     Table.prototype.render = function(){
       ctx.clearRect(0,0,canvas.width,canvas.height);
-
-      // Felt
+      // Field outline
       var x0 = BORDER*sX, y0 = BORDER*sY, w = (TABLE_W-2*BORDER)*sX, h = (TABLE_H-2*BORDER)*sY;
-      var felt = ctx.createLinearGradient(0,y0,0,y0+h); felt.addColorStop(0,'#0d803c'); felt.addColorStop(1,'#074120');
-      ctx.fillStyle = felt; ctx.fillRect(x0,y0,w,h);
+      ctx.strokeStyle = '#00ff00';
+      ctx.lineWidth = 4;
+      ctx.strokeRect(x0, y0, w, h);
 
-      // Logo ne qender
-      if (logoImg.complete) {
-        var sz = 160 * ((sX + sY) / 2);
-        ctx.save();
-        ctx.globalAlpha = 0.25;
-        ctx.shadowColor = 'rgba(0,0,0,0.3)';
-        ctx.shadowBlur = 10;
-        ctx.drawImage(logoImg, (TABLE_W*sX - sz)/2, (TABLE_H*sY - sz)/2, sz, sz);
-        ctx.restore();
-      }
-
-      // Penalty dot dhe vija e "kitchen" per cue ball
-      var playH = (TABLE_H - 2*BORDER);
-      var footSpotY = BORDER + playH * 0.25;
-      var headStringY = BORDER + playH * 0.75;
-      ctx.fillStyle = '#111';
-      ctx.beginPath();
-      ctx.arc((TABLE_W/2)*sX, footSpotY*sY, ballR*0.3, 0, Math.PI*2);
-      ctx.fill();
-      ctx.strokeStyle = 'rgba(255,255,255,0.15)';
-      ctx.lineWidth = 2 * ((sX + sY)/2);
-      ctx.beginPath();
-      ctx.moveTo(BORDER*sX, headStringY*sY);
-      ctx.lineTo((TABLE_W-BORDER)*sX, headStringY*sY);
-      ctx.stroke();
-
-      // Korniza druri
-      ctx.fillStyle = '#724e28';
-      ctx.fillRect(0,0,canvas.width,BORDER*sY);
-      ctx.fillRect(0,(TABLE_H-BORDER)*sY,canvas.width,BORDER*sY);
-      ctx.fillRect(0,0,BORDER*sX,canvas.height);
-      ctx.fillRect((TABLE_W-BORDER)*sX,0,BORDER*sX,canvas.height);
-
-      // Dots ne kornizat
-      ctx.fillStyle = '#e0c18b';
-      var mark = 8 * ((sX + sY) / 2);
-      var pos = [0.25,0.5,0.75];
-      pos.forEach(function(p){
-        var x = BORDER*sX + (TABLE_W-2*BORDER)*p*sX;
-        var yT = BORDER*sY/2;
-        var yB = (TABLE_H - BORDER/2)*sY;
-        ctx.save(); ctx.translate(x,yT); ctx.rotate(Math.PI/4); ctx.fillRect(-mark/2,-mark/2,mark,mark); ctx.restore();
-        ctx.save(); ctx.translate(x,yB); ctx.rotate(Math.PI/4); ctx.fillRect(-mark/2,-mark/2,mark,mark); ctx.restore();
-      });
-      pos.forEach(function(p){
-        var y = BORDER*sY + (TABLE_H-2*BORDER)*p*sY;
-        var xL = BORDER*sX/2;
-        var xR = (TABLE_W - BORDER/2)*sX;
-        ctx.save(); ctx.translate(xL,y); ctx.rotate(Math.PI/4); ctx.fillRect(-mark/2,-mark/2,mark,mark); ctx.restore();
-        ctx.save(); ctx.translate(xR,y); ctx.rotate(Math.PI/4); ctx.fillRect(-mark/2,-mark/2,mark,mark); ctx.restore();
-      });
-
-      // Gropat (4 qoshe + 2 ne mes anesore)
+      // Pocket markers
+      ctx.lineWidth = 3;
       for (var i=0;i<this.pockets.length;i++){
         var pk = this.pockets[i];
-        ctx.fillStyle = '#000';
         ctx.beginPath();
         ctx.arc(pk.x*sX, pk.y*sY, pocketR, 0, Math.PI*2);
-        ctx.fill();
-        ctx.strokeStyle = 'rgba(0,0,0,.5)';
-        ctx.lineWidth = 4;
+        ctx.strokeStyle = '#00ff00';
         ctx.stroke();
       }
 
