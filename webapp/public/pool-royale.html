@@ -432,6 +432,29 @@
           } catch {}
           return { w: 1000, h: 2000, bw: 0, bh: 0, bx: 0, by: 0, anchors: [] };
         })();
+        if ((CAL.anchors || []).length === 3) {
+          var lm = CAL.anchors[0];
+          var tr = CAL.anchors[1];
+          var br = CAL.anchors[2];
+          var xLeft = lm.x;
+          var xRight = (tr.x + br.x) / 2;
+          var yTop = tr.y;
+          var yBottom = br.y;
+          var yCenter = lm.y;
+          CAL.anchors = [
+            { x: xLeft, y: yCenter },
+            { x: xRight, y: yTop },
+            { x: xRight, y: yBottom }
+          ];
+          CAL.pockets = [
+            { x: xLeft, y: yTop },
+            { x: xRight, y: yTop },
+            { x: xLeft, y: yCenter },
+            { x: xRight, y: yCenter },
+            { x: xLeft, y: yBottom },
+            { x: xRight, y: yBottom }
+          ];
+        }
         var TABLE_W = CAL.w; // gjeresi logjike e felt-it
         var TABLE_H = CAL.h; // gjatesia logjike e felt-it
         var BORDER = TABLE_W * 0.0625; // ~6.25% e gjeresise
