@@ -26,6 +26,7 @@ const state = {
 };
 
 const SUIT_MAP = { H: '♥', D: '♦', C: '♣', S: '♠' };
+const CHIP_VALUES = [1000, 500, 200, 100, 50, 20, 10, 5, 1];
 const regionNames = new Intl.DisplayNames(['en'], { type: 'region' });
 function flagName(flag) {
   const codePoints = [...flag].map((c) => c.codePointAt(0) - 0x1f1e6 + 65);
@@ -102,6 +103,7 @@ function init() {
   state.pot = 0;
   state.maxPot = state.stake * state.players.filter((p) => p.active).length;
   document.getElementById('community').innerHTML = '';
+  updatePotDisplay();
   renderSeats();
   dealInitialCards();
 }
@@ -126,6 +128,7 @@ function renderSeats() {
     if (!p.isHuman) seat.classList.add('small');
     const avatar = document.createElement('div');
     avatar.className = 'avatar';
+    avatar.id = 'avatar-' + i;
     if (p.avatar && p.avatar.startsWith('http')) {
       avatar.style.background = `url('${p.avatar}') center/cover no-repeat`;
     } else if (p.avatar) {
@@ -172,6 +175,29 @@ function cardBackEl() {
   const div = document.createElement('div');
   div.className = 'card back';
   return div;
+}
+
+function updatePotDisplay() {
+  const potEl = document.getElementById('pot');
+  if (!potEl) return;
+  potEl.innerHTML = '';
+  let amount = state.pot;
+  CHIP_VALUES.forEach((val) => {
+    const count = Math.floor(amount / val);
+    if (count > 0) {
+      amount -= count * val;
+      const pile = document.createElement('div');
+      pile.className = 'chip-pile';
+      for (let i = 0; i < count; i++) {
+        const chip = document.createElement('div');
+        chip.className = 'chip v' + val;
+        chip.textContent = val;
+        chip.style.top = -i * 4 + 'px';
+        pile.appendChild(chip);
+      }
+      potEl.appendChild(pile);
+    }
+  });
 }
 
 async function dealInitialCards() {
@@ -224,9 +250,11 @@ function dealCardToPlayer(idx, card, showFace) {
   });
 }
 
-function setPlayerTurnIndicator(on) {
-  const avatar = document.querySelector('.seat.bottom .avatar');
-  if (avatar) avatar.classList.toggle('turn', on);
+function setPlayerTurnIndicator(idx) {
+  document.querySelectorAll('.avatar').forEach((a) => a.classList.remove('turn'));
+  if (idx === null || idx === undefined || idx < 0) return;
+  const avatar = document.getElementById('avatar-' + idx);
+  if (avatar) avatar.classList.add('turn');
 }
 
 function showControls() {
@@ -306,7 +334,7 @@ function hideControls() {
 function startPlayerTurn() {
   state.turn = 0;
   state.currentBet = 0;
-  setPlayerTurnIndicator(true);
+  setPlayerTurnIndicator(0);
   showControls();
   startTurnTimer(() => {
     if (state.currentBet > 0) playerFold();
@@ -347,7 +375,7 @@ function updateTimer() {
 function playerFold() {
   clearInterval(state.timerInterval);
   hideControls();
-  setPlayerTurnIndicator(false);
+  setPlayerTurnIndicator(null);
   document.getElementById('status').textContent = 'You folded';
 }
 
@@ -365,22 +393,25 @@ function playerRaise() {
   if (amount <= 0) return;
   state.pot += amount;
   state.currentBet += amount;
+  updatePotDisplay();
   document.getElementById('status').textContent = `You raise ${amount} ${state.token}`;
   proceedStage();
 }
 
 async function proceedStage() {
   clearInterval(state.timerInterval);
-  setPlayerTurnIndicator(false);
+  setPlayerTurnIndicator(null);
   hideControls();
   for (let i = 1; i < state.players.length; i++) {
     const p = state.players[i];
     if (p.vacant) continue;
+    setPlayerTurnIndicator(i);
     document.getElementById('status').textContent = `${p.name}...`;
     await new Promise((r) => setTimeout(r, 2500));
     const action = aiChooseAction(p.hand, state.community.slice(0, stageCommunityCount()));
     document.getElementById('status').textContent = `${p.name} ${action}s`;
   }
+  setPlayerTurnIndicator(null);
   state.stage++;
   if (state.stage === 1) revealFlop();
   else if (state.stage === 2) revealTurn();
@@ -393,6 +424,29 @@ function stageCommunityCount() {
   if (state.stage === 1) return 3;
   if (state.stage === 2) return 4;
   return 5;
+}
+
+function movePotToWinner(idx) {
+  const potEl = document.getElementById('pot');
+  const stage = document.querySelector('.stage');
+  if (!potEl || !stage) return;
+  const stageRect = stage.getBoundingClientRect();
+  const potRect = potEl.getBoundingClientRect();
+  potEl.classList.add('moving-pot');
+  potEl.style.left = potRect.left - stageRect.left + 'px';
+  potEl.style.top = potRect.top - stageRect.top + 'px';
+  stage.appendChild(potEl);
+  const cards = document.getElementById('cards-' + idx);
+  if (!cards) return;
+  const cardRect = cards.getBoundingClientRect();
+  const targetX = cardRect.left - stageRect.left + cardRect.width / 2 - potEl.offsetWidth / 2;
+  const targetY = idx === 0
+    ? cardRect.top - stageRect.top - potEl.offsetHeight - 10
+    : cardRect.bottom - stageRect.top + 10;
+  requestAnimationFrame(() => {
+    potEl.style.left = targetX + 'px';
+    potEl.style.top = targetY + 'px';
+  });
 }
 
 function revealFlop() {
@@ -442,6 +496,7 @@ function showdown() {
     });
     const seat = playerCardsEl.closest('.seat');
     if (seat) seat.classList.add('winner');
+    if (pot > 0) movePotToWinner(playerIndex);
   }
   setTimeout(() => init(), 5000);
 }
