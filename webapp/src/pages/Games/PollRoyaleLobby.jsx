@@ -6,7 +6,7 @@ import { ensureAccountId, getTelegramId, getTelegramPhotoUrl, getTelegramFirstNa
 import { getAccountBalance, addTransaction } from '../../utils/api.js';
 import { loadAvatar } from '../../utils/avatarUtils.js';
 
-export default function PoolRoyaleLobby() {
+export default function PollRoyaleLobby() {
   const navigate = useNavigate();
   useTelegramBackButton();
 
@@ -33,7 +33,7 @@ export default function PoolRoyaleLobby() {
       }
       tgId = getTelegramId();
       await addTransaction(tgId, -stake.amount, 'stake', {
-        game: 'poolroyale',
+        game: 'pollroyale',
         players: 2,
         accountId,
       });
@@ -56,12 +56,12 @@ export default function PoolRoyaleLobby() {
     if (devAcc1) params.set('dev1', devAcc1);
     if (devAcc2) params.set('dev2', devAcc2);
     if (initData) params.set('init', encodeURIComponent(initData));
-    navigate(`/games/poolroyale?${params.toString()}`);
+    navigate(`/games/pollroyale?${params.toString()}`);
   };
 
   return (
     <div className="relative p-4 space-y-4 text-text min-h-screen tetris-grid-bg">
-      <h2 className="text-xl font-bold text-center">Pool Royale 🎱 Lobby</h2>
+      <h2 className="text-xl font-bold text-center">8 Poll Royale Lobby</h2>
       <div className="space-y-2">
         <h3 className="font-semibold">Mode</h3>
         <div className="flex gap-2">

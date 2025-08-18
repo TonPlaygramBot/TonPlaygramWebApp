@@ -21,7 +21,7 @@ const GAME_NAME_MAP = {
   fruitslice: 'Fruit Slice Royale',
   brickbreaker: 'Brick Breaker Royale',
   fallingball: 'Falling Ball',
-  pool: 'Pool Royale 🎱'
+  poll: '8 Poll Royale'
 };
 
 function getGameName(slug = '') {

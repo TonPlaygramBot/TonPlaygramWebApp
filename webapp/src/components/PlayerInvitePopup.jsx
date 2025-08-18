@@ -214,9 +214,9 @@ export default function PlayerInvitePopup({
                   alt: 'Tetris Royale',
                 },
                 {
-                  id: 'poolroyale',
+                  id: 'pollroyale',
                   src: '/assets/icons/pool-royale.svg',
-                  alt: 'Pool Royale 🎱',
+                  alt: '8 Poll Royale',
                 },
               ].map((g) => (
                 <img
