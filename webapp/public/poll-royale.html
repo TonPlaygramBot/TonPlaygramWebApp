@@ -141,11 +141,12 @@
       background: #f6f6f6;
       position: absolute;
       left: 50%;
-      top: 70%;
+      top: 80%;
       transform: translate(-50%, -50%);
       box-shadow: 0 4px 10px rgba(0,0,0,.4) inset,
                   0 0 0 2px rgba(0,0,0,.15);
       transform-origin: center;
+      z-index: 1;
     }
 
     #spinDot {
@@ -170,7 +171,7 @@
       align-items: center;
       justify-content: center;
       padding: 8px;
-      transform: translate(4px, 24px);
+      transform: translate(12px, 32px);
     }
 
     #cueRail {
@@ -945,17 +946,20 @@
 
     function drawCueOnTable(cuePos, aim, pull){
       var d = norm(aim.x-cuePos.x, aim.y-cuePos.y);
-      var start = { x: cuePos.x - d.x*(BALL_R*2), y: cuePos.y - d.y*(BALL_R*2) };
-      var length = BALL_R*20 + pull;
-      var angle = Math.atan2(d.y, d.x) + Math.PI/2;
+      var start = {
+        x: cuePos.x - d.x * (BALL_R * 1.2 + pull),
+        y: cuePos.y - d.y * (BALL_R * 1.2 + pull)
+      };
+      var length = BALL_R * 20;
+      var angle = Math.atan2(d.y, d.x) + Math.PI / 2;
       if (cueImg.complete) {
         var scale = (length * sX) / cueImg.width;
         var drawW = cueImg.width * scale;
         var drawH = cueImg.height * scale;
         ctx.save();
-        ctx.translate(start.x*sX, start.y*sY);
+        ctx.translate(start.x * sX, start.y * sY);
         ctx.rotate(angle);
-        ctx.drawImage(cueImg, 0, -drawH/2, drawW, drawH);
+        ctx.drawImage(cueImg, 0, -drawH / 2, drawW, drawH);
         ctx.restore();
       }
     }
