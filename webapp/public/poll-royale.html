@@ -156,10 +156,14 @@
       position: relative;
       width: 84px;
       height: 58%;
-      /* Removed card background and frame so only the cue remains */
+      border-radius: 14px;
+      background: linear-gradient(180deg, rgba(0,0,0,.18), rgba(0,0,0,.28));
+      box-shadow: inset 0 0 0 1px rgba(255,255,255,.05),
+                  0 8px 24px rgba(0,0,0,.35);
       display: flex;
       align-items: center;
       justify-content: center;
+      padding: 8px;
     }
 
     #cueRail {
@@ -384,20 +388,10 @@
       var ar = TABLE_W / TABLE_H;
       var cw = w, ch = h;
       if (cw/ch > ar) cw = ch * ar; else ch = cw / ar;
-
-      // Preliminary scale to estimate ball size for top cropping
-      var tmpSX = cw / TABLE_W, tmpSY = ch / TABLE_H;
-      var tmpBallR = BALL_R * ((tmpSX + tmpSY) / 2);
-
-      // Extend canvas downward and shift up by one ball diameter
-      canvas.width = cw;
-      canvas.height = ch + tmpBallR * 2;
-      canvas.style.top = (-tmpBallR * 2) + 'px';
+      canvas.width = cw; canvas.height = ch;
+      canvas.style.top = '0px';
       canvas.style.left = '0px';
-
-      // Final scale based on adjusted canvas size
-      sX = cw / TABLE_W;
-      sY = canvas.height / TABLE_H;
+      sX = cw / TABLE_W; sY = ch / TABLE_H;
       pocketR = POCKET_R * ((sX + sY) / 2);
       ballR   = BALL_R   * ((sX + sY) / 2);
     }
