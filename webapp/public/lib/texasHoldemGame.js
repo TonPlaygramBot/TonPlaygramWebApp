@@ -9,7 +9,7 @@ export class TexasHoldemGame {
       startingChips = 100,
       blinds = { small: 5, big: 10 },
       deck = shuffle(createDeck()),
-      actions = [] // array of functions(hand, community, toCall) -> 'fold'|'call'|'check'|'raise'
+      actions = [] // array of functions(hand, community) -> 'fold'|'call'
     } = options
 
     this.deck = [...deck]
@@ -21,8 +21,7 @@ export class TexasHoldemGame {
       totalBet: 0,
       folded: false,
       allIn: false,
-      action:
-        actions[i] || ((hand, community, toCall) => aiChooseAction(hand, community, toCall))
+      action: actions[i] || ((hand, community) => aiChooseAction(hand, community))
     }))
     this.blinds = blinds
     this.pot = 0
@@ -61,25 +60,10 @@ export class TexasHoldemGame {
       const p = this.players[idx]
       if (!p.folded && !p.allIn) {
         const toCall = this.currentBet - p.bet
-        const act = p.action(p.hand, this.community, toCall)
+        const act = p.action(p.hand, this.community)
         if (act === 'fold') {
           p.folded = true
           playersToAct--
-        } else if (act === 'raise') {
-          const raiseTo = toCall + this.blinds.big
-          const amount = Math.min(raiseTo, p.chips)
-          p.chips -= amount
-          p.bet += amount
-          p.totalBet += amount
-          this.pot += amount
-          if (p.chips === 0) {
-            p.allIn = true
-            playersToAct--
-          }
-          this.currentBet = p.bet
-          calls = 1
-        } else if (act === 'check' && toCall === 0) {
-          calls++
         } else {
           const amount = Math.min(toCall, p.chips)
           p.chips -= amount

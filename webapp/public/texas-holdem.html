@@ -24,7 +24,7 @@
       .seats{ position:absolute; inset:0; z-index:2 }
       .seat{ position:absolute; display:flex; flex-direction:column; align-items:center; gap:6px; width:clamp(120px, 28vw, 200px) }
       .seat.small{ --card-scale:.8; }
-      .avatar{ width:var(--avatar-size); height:var(--avatar-size); border-radius:50%; display:grid; place-items:center; background:radial-gradient(circle at 30% 30%, #fff, #ddd 40%, #bbb 60%, #999 100%); color:#111; font-size:28px; border:4px solid rgba(255,255,255,.65); box-shadow:0 8px 20px var(--shadow); overflow:hidden; position:relative }
+      .avatar{ width:var(--avatar-size); height:var(--avatar-size); border-radius:50%; display:grid; place-items:center; background:radial-gradient(circle at 30% 30%, #fff, #ddd 40%, #bbb 60%, #999 100%); color:#111; font-size:28px; border:4px solid rgba(255,255,255,.65); box-shadow:0 8px 20px var(--shadow); overflow:hidden }
       .avatar-wrap{ position:relative; width:var(--avatar-size); height:var(--avatar-size); display:grid; place-items:center; }
       .timer-ring{ position:absolute; inset:-6px; border-radius:50%; background:conic-gradient(#f5cc4e var(--progress,0deg), transparent 0); -webkit-mask:radial-gradient(farthest-side,transparent calc(100% - 6px),#000 calc(100% - 6px)); mask:radial-gradient(farthest-side,transparent calc(100% - 6px),#000 calc(100% - 6px)); pointer-events:none }
       .cards{ display:flex; gap:6px; flex-wrap:nowrap }
@@ -50,12 +50,6 @@
 
 .moving-card{position:absolute;transition:left .3s ease, top .3s ease;z-index:1000;pointer-events:none;}
 .avatar.turn{box-shadow:0 0 12px #facc15;border-color:#facc15;}
-
-.action-text{font-weight:700;text-shadow:0 1px 2px #000;min-height:1em}
-.action-text.fold{color:#dc2626}
-.action-text.call{color:#16a34a}
-.action-text.check{color:#facc15}
-.action-text.raise{color:#2563eb}
 
 .seat.bottom { bottom: 0.5%; left: 50%; transform: translateX(-50%); }
 
