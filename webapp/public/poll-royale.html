@@ -294,8 +294,8 @@
     </div>
 
     <div id="footer">
-      <div id="capP1">Guret e marra (P1): —</div>
-      <div id="capP2">Guret e marra (CPU): —</div>
+      <div id="totalPot">Total Pot: 0</div>
+      <div id="gameStatus">Waiting for break...</div>
     </div>
   </div>
 
@@ -337,8 +337,8 @@
     var ctx       = canvas.getContext('2d');
     var rightPanel= document.getElementById('rightPanel');
     var playBtn   = document.getElementById('play');
-    var capP1     = document.getElementById('capP1');
-    var capP2     = document.getElementById('capP2');
+    var totalPotEl = document.getElementById('totalPot');
+    var statusEl   = document.getElementById('gameStatus');
     var spinBox   = document.getElementById('spinBox');
     var spinDot   = document.getElementById('spinDot');
     var logoImg   = new Image();
@@ -356,8 +356,25 @@
     var pottedP1 = document.getElementById('p1Potted');
     var pottedP2 = document.getElementById('p2Potted');
     var cueHint  = document.getElementById('cueHint');
+    var cueHintTimer = null;
+    var cueHintVisible = false;
 
     var tg = window.Telegram?.WebApp;
+    var params    = new URLSearchParams(location.search);
+    var totalPot  = parseInt(params.get('amount'),10) || 0;
+    totalPotEl.textContent = 'Total Pot: ' + totalPot;
+    function setStatus(msg){ statusEl.textContent = msg; }
+    setStatus('Place the cue ball to break.');
+
+    function showCueBallHint(){
+      cueHintVisible = true;
+      showGuides = false;
+      clearTimeout(cueHintTimer);
+      cueHintTimer = setTimeout(function(){
+        cueHintVisible = false;
+        showGuides = true;
+      }, 2000);
+    }
     var userData = tg?.initDataUnsafe?.user;
     if (userData) {
       nameP1.textContent = [userData.first_name, userData.last_name].filter(Boolean).join(' ') || 'You';
@@ -474,29 +491,31 @@
       // Cue ball (center poshte vijes se bardhe)
       this.balls.push(new Ball(BALL_BY_N[0], TABLE_W/2, CUE_START_Y));
       cueBallFree = true;
+      this.aim = { x: TABLE_W/2, y: CUE_START_Y - BALL_R*10 };
+      showCueBallHint();
 
       // Trekendshi siper me 15 topa (8-shi ne qender rreshti 3)
       // Rrotulluar qe te shenje anen e majte dhe ngritur pak me lart
       var rowGap = BALL_R*1.95;
       var colGap = BALL_R*2.1;
-      var cx = TABLE_W/2 - rowGap*2;
+      var cx = TABLE_W/2 + rowGap*2;
       var cy = SPOT_Y;
 
       // Lista e numrave te tjere – do perdoren gradualisht
       var pool = []; for (i=1;i<=15;i++){ if(i!==1 && i!==2 && i!==8 && i!==11) pool.push(i); }
       var cursor = 0;
 
-      // 5 kolona (1..5) — trekendsh i rrotulluar majtas
+      // 5 kolona (5..1) — trekendsh i rrotulluar majtas
       for (var c=0; c<5; c++) {
-        var count = c+1;
+        var count = 5 - c;
         for (j=0; j<count; j++) {
-          var x = cx + c*rowGap;
+          var x = cx - c*rowGap;
           var y = cy - (count-1)*BALL_R*1.05 + j*colGap;
           var num;
-          if (c===0 && j===0) num = 1;            // yellow ne maje
+          if (c===4 && j===0) num = 1;            // yellow ne maje
           else if (c===2 && j===1) num = 8;       // qendra e kolonës 3
-          else if (c===4 && j===0) num = 2;       // qoshe solid (sipër)
-          else if (c===4 && j===4) num = 11;      // qoshe stripe (poshtë)
+          else if (c===0 && j===0) num = 2;       // qoshe solid (sipër)
+          else if (c===0 && j===4) num = 11;      // qoshe stripe (poshtë)
           else num = pool[cursor++];
           var info = BALL_BY_N[num];
           if (!info) { console.warn('Rack: numer i papercaktuar', num); continue; }
@@ -586,6 +605,7 @@
               scratch = true;
               cueBallFree = true;
               b2.p.x = TABLE_W/2; b2.p.y = CUE_START_Y; b2.v.x = 0; b2.v.y = 0;
+              showCueBallHint();
             } else {
               b2.pocketed = true;
               pocketedAny = true;
@@ -762,13 +782,14 @@
       }
       render(pottedP1, table.captured[1]);
       render(pottedP2, table.captured[2]);
-      capP1.textContent = 'Guret e marra (P1): ' + (table.captured[1].join(', ') || '—');
-      capP2.textContent = 'Guret e marra (CPU): ' + (table.captured[2].join(', ') || '—');
+      if (table.captured[1].length || table.captured[2].length) {
+        setStatus('P1 ' + table.captured[1].length + ' - CPU ' + table.captured[2].length);
+      }
     }
 
     function updateCueHint(){
       var cue = table.balls[0];
-      if (cueBallFree && cue && !cue.pocketed) {
+      if (cueHintVisible && cueBallFree && cue && !cue.pocketed) {
         cueHint.style.display = 'block';
         cueHint.style.left = (cue.p.x*sX + ballR) + 'px';
         cueHint.style.top  = (cue.p.y*sY - ballR*2) + 'px';
@@ -785,6 +806,7 @@
       pocketedAny = false;
       pocketedOwn = false;
       scratch = false;
+      setStatus('Player ' + table.turn + ' turn');
     }
 
     /* ==========================================================
@@ -833,6 +855,10 @@
         var minY = LINE_Y + BALL_R, maxY = TABLE_H - BORDER_BOTTOM - BALL_R;
         cue.p.x = clamp(t.x, minX, maxX);
         cue.p.y = clamp(t.y, minY, maxY);
+        table.aim = { x: cue.p.x, y: cue.p.y - BALL_R*10 };
+        cueHintVisible = false;
+        showGuides = true;
+        clearTimeout(cueHintTimer);
         return;
       }
       if (!aiming || !table.running) return; table.aim = t; placeAimGlow(t);
@@ -911,6 +937,7 @@
       cue.spin = { x:spinVec.x*10*p, y:spinVec.y*10*p };
       cueBallFree = false;
       setSpin(0,0); showGuides=false;
+      setStatus('Player ' + currentShooter + ' shoots');
     }
 
     /* ==========================================================
@@ -934,6 +961,7 @@
       pocketedAny=false; pocketedOwn=false; scratch=false;
       cue.v.x=d.x*cpuBase*(0.3+p);
       cue.v.y=d.y*cpuBase*(0.3+p);
+      setStatus('CPU shoots');
     }
 
     /* ==========================================================
