@@ -27,3 +27,14 @@ test('simulates a full hand and awards pot to best player', () => {
   assert.equal(game.players[0].chips, 110);
   assert.equal(game.players[1].chips, 90);
 });
+
+test('bettingRound handles raises correctly', () => {
+  const game = new TexasHoldemGame(2, { actions: [() => 'raise', () => 'call'] });
+  game.postBlinds();
+  game.bettingRound(0);
+  assert.equal(game.pot, 40);
+  assert.equal(game.players[0].chips, 80);
+  assert.equal(game.players[1].chips, 80);
+  assert.equal(game.players[0].totalBet, 20);
+  assert.equal(game.players[1].totalBet, 20);
+});
