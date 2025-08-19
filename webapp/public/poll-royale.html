@@ -88,10 +88,11 @@
       display: flex;
       overflow: hidden;
       /* Ensure background image covers the available space without
-         overlapping top or bottom elements. Extend only the bottom
-         edge by roughly half a ball's height for extra clearance. */
+         overlapping top or bottom elements. Extend the width slightly
+         so the thin green boundary line is fully visible while keeping
+         extra clearance at the bottom. */
       background: url('/assets/icons/64e79228-35e3-4fdc-b914-fca635a40220.webp')
-        top center/100% calc(100% + 24px) no-repeat;
+        top center/calc(100% + 8px) calc(100% + 24px) no-repeat;
     }
 
     :root { --rpw: min(20vw, 100px); }
