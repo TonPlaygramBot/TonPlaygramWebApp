@@ -320,7 +320,8 @@
     var BALL_R   = 23.5;    // rrezja baze e topave pak me e vogel
     var BORDER_TOP = BORDER + BALL_R * 2 - 4; // bordi i siperm pak me i holle per fushe me te gjate
     var BORDER_BOTTOM = BORDER;           // anet e tjera mbeten te pandryshuara
-    var SPOT_Y  = BORDER_TOP + (TABLE_H - BORDER_TOP - BORDER_BOTTOM) * 0.25; // pika per trekendshin siper
+      // Move the rack slightly upward on the table
+      var SPOT_Y  = BORDER_TOP + (TABLE_H - BORDER_TOP - BORDER_BOTTOM) * 0.25 - BALL_R * 0.5; // pika per trekendshin siper
     var LINE_Y  = BORDER_TOP + (TABLE_H - BORDER_TOP - BORDER_BOTTOM) * 0.75; // vija e bardhe poshte
     var CUE_START_Y = LINE_Y + (TABLE_H - BORDER_BOTTOM - LINE_Y - BALL_R*2) / 2; // pozicioni fillestar i cueball-it
 
@@ -475,29 +476,30 @@
       cueBallFree = true;
 
       // Trekendshi siper me 15 topa (8-shi ne qender rreshti 3)
-      var cx = TABLE_W/2;
-      var cy = SPOT_Y;
+      // Rrotulluar qe te shenje anen e majte dhe ngritur pak me lart
       var rowGap = BALL_R*1.95;
       var colGap = BALL_R*2.1;
+      var cx = TABLE_W/2 - rowGap*2;
+      var cy = SPOT_Y;
 
       // Lista e numrave te tjere – do perdoren gradualisht
       var pool = []; for (i=1;i<=15;i++){ if(i!==1 && i!==2 && i!==8 && i!==11) pool.push(i); }
       var cursor = 0;
 
-      // 5 rreshta (1..5) — ne total 15 topa
-      for (var r=0; r<5; r++) {
-        var count = r+1;
+      // 5 kolona (1..5) — trekendsh i rrotulluar majtas
+      for (var c=0; c<5; c++) {
+        var count = c+1;
         for (j=0; j<count; j++) {
-          var x = cx - (count-1)*BALL_R*1.05 + j*colGap;
-          var y = cy + r*rowGap;
+          var x = cx + c*rowGap;
+          var y = cy - (count-1)*BALL_R*1.05 + j*colGap;
           var num;
-          if (r===0 && j===0) num = 1;            // yellow ne maje
-          else if (r===2 && j===1) num = 8;       // qendra e rreshtit 3
-          else if (r===4 && j===0) num = 2;       // qoshe solid
-          else if (r===4 && j===4) num = 11;      // qoshe stripe
+          if (c===0 && j===0) num = 1;            // yellow ne maje
+          else if (c===2 && j===1) num = 8;       // qendra e kolonës 3
+          else if (c===4 && j===0) num = 2;       // qoshe solid (sipër)
+          else if (c===4 && j===4) num = 11;      // qoshe stripe (poshtë)
           else num = pool[cursor++];
           var info = BALL_BY_N[num];
-          if (!info) { console.warn('Rack: numer i pape rcaktuar', num); continue; }
+          if (!info) { console.warn('Rack: numer i papercaktuar', num); continue; }
           this.balls.push(new Ball(info, x, y));
         }
       }
@@ -602,14 +604,11 @@
 
     Table.prototype.render = function(){
       ctx.clearRect(0,0,canvas.width,canvas.height);
-      // Field outline
-      var x0 = BORDER * sX,
-          y0 = BORDER_TOP * sY,
-          w = (TABLE_W - 2 * BORDER) * sX,
-          h = (TABLE_H - BORDER_TOP - BORDER_BOTTOM) * sY;
-      ctx.strokeStyle = '#00ff00';
-      ctx.lineWidth = 4;
-      ctx.strokeRect(x0, y0, w, h);
+        // Field outline removed (previously green)
+        var x0 = BORDER * sX,
+            y0 = BORDER_TOP * sY,
+            w = (TABLE_W - 2 * BORDER) * sX,
+            h = (TABLE_H - BORDER_TOP - BORDER_BOTTOM) * sY;
 
       // Vija kufizuese e cueball-it dhe pika qendrore
       ctx.strokeStyle = '#fff';
@@ -623,15 +622,7 @@
       ctx.arc((TABLE_W/2)*sX, SPOT_Y*sY, 5*((sX+sY)/2), 0, Math.PI*2);
       ctx.fill();
 
-      // Pocket markers
-      ctx.lineWidth = 3;
-      for (var i=0;i<this.pockets.length;i++){
-        var pk = this.pockets[i];
-        ctx.beginPath();
-        ctx.arc(pk.x*sX, pk.y*sY, pocketR, 0, Math.PI*2);
-        ctx.strokeStyle = '#00ff00';
-        ctx.stroke();
-      }
+        // Pocket markers removed (previously green circles)
 
       // Topat
       for (var j=0;j<this.balls.length;j++){
