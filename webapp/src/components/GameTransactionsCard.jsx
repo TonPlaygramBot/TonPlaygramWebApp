@@ -7,7 +7,7 @@ export default function GameTransactionsCard() {
   const navigate = useNavigate();
 
   useEffect(() => {
-    getGameTransactions()
+    getGameTransactions(1000)
       .then((res) => setTransactions(res.transactions || []))
       .catch(() => setTransactions([]));
   }, []);

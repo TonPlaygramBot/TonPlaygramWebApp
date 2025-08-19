@@ -26,7 +26,7 @@ export default function GameTransactions() {
   const [transactions, setTransactions] = useState([]);
 
   useEffect(() => {
-    getGameTransactions()
+    getGameTransactions(1000)
       .then((res) => setTransactions(res.transactions || []))
       .catch(() => setTransactions([]));
   }, []);
@@ -34,9 +34,32 @@ export default function GameTransactions() {
   const formatValue = (v) =>
     Number(v).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
+  const games = transactions.filter((t) => t.game);
+  const totalGames = games.length;
+  const totalDeposited = games
+    .filter((t) => t.amount < 0)
+    .reduce((s, t) => s + Math.abs(t.amount || 0), 0);
+  const totalPayouts = games
+    .filter((t) => t.amount > 0)
+    .reduce((s, t) => s + Math.abs(t.amount || 0), 0);
+
   return (
     <div className="relative space-y-4 text-text">
       <h2 className="text-2xl font-bold text-center mt-4">Game Transactions</h2>
+      <div className="bg-surface border border-border rounded-xl p-4 shadow-lg space-y-1 text-sm">
+        <div className="flex justify-between">
+          <span>Total games played</span>
+          <span>{totalGames}</span>
+        </div>
+        <div className="flex justify-between">
+          <span>Total payouts</span>
+          <span>{formatValue(totalPayouts)}</span>
+        </div>
+        <div className="flex justify-between">
+          <span>Total deposited</span>
+          <span>{formatValue(totalDeposited)}</span>
+        </div>
+      </div>
       <div className="space-y-1 text-sm max-h-[40rem] overflow-y-auto border border-border rounded">
         {transactions.length === 0 && <div className="p-2">No transactions yet.</div>}
         {transactions.map((tx, i) => {
