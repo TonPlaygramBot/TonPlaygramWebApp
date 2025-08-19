@@ -22,6 +22,7 @@ import CrazyDiceLobby from './pages/Games/CrazyDiceLobby.jsx';
 import Lobby from './pages/Games/Lobby.jsx';
 import Games from './pages/Games.jsx';
 import GameTransactions from './pages/GameTransactions.jsx';
+import MiningTransactions from './pages/MiningTransactions.jsx';
 import SpinPage from './pages/spin.tsx';
 import FallingBall from './pages/Games/FallingBall.jsx';
 import FallingBallLobby from './pages/Games/FallingBallLobby.jsx';
@@ -61,6 +62,7 @@ export default function App() {
           <Routes>
             <Route path="/" element={<Home />} />
             <Route path="/mining" element={<Mining />} />
+            <Route path="/mining/transactions" element={<MiningTransactions />} />
             <Route path="/games" element={<Games />} />
             <Route path="/games/transactions" element={<GameTransactions />} />
             <Route path="/games/crazydice" element={<CrazyDiceDuel />} />
