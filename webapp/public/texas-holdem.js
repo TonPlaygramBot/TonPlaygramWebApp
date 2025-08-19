@@ -311,11 +311,11 @@ function setPlayerTurnIndicator(idx) {
 function showControls() {
   const controls = document.getElementById('controls');
   controls.innerHTML = '';
-  const baseActions = [{ id: 'fold', fn: playerFold }];
-  if (state.currentBet === 0) {
-    baseActions.push({ id: 'check', fn: playerCheck });
-  }
-  baseActions.push({ id: 'call', fn: playerCall });
+  const baseActions = [
+    { id: 'fold', fn: playerFold },
+    { id: 'check', fn: playerCheck },
+    { id: 'call', fn: playerCall },
+  ];
   baseActions.forEach((a) => {
     const btn = document.createElement('button');
     btn.id = a.id;
@@ -431,7 +431,6 @@ function playerFold() {
 }
 
 function playerCheck() {
-  if (state.currentBet > 0) return; // cannot check against a bet
   document.getElementById('status').textContent = 'You check';
   proceedStage();
 }
@@ -464,18 +463,8 @@ async function proceedStage() {
     setPlayerTurnIndicator(i);
     document.getElementById('status').textContent = `${p.name}...`;
     await new Promise((r) => setTimeout(r, 2500));
-    const action = aiChooseAction(
-      p.hand,
-      state.community.slice(0, stageCommunityCount()),
-      state.currentBet === 0
-    );
-    if (action === 'raise') {
-      const amount = Math.min(ANTE, state.maxPot - state.pot);
-      state.pot += amount;
-      state.currentBet += amount;
-      updatePotDisplay();
-      document.getElementById('status').textContent = `${p.name} raises ${amount} ${state.token}`;
-    } else if (action === 'call') {
+    const action = aiChooseAction(p.hand, state.community.slice(0, stageCommunityCount()));
+    if (action === 'call') {
       state.pot += state.currentBet;
       updatePotDisplay();
       document.getElementById('status').textContent = `${p.name} calls ${state.currentBet} ${state.token}`;
