@@ -176,6 +176,9 @@ function renderSeats() {
     const cards = document.createElement('div');
     cards.className = 'cards';
     cards.id = 'cards-' + i;
+    const action = document.createElement('div');
+    action.className = 'action-text';
+    action.id = 'action-' + i;
     const name = document.createElement('div');
     name.className = 'name';
     name.textContent = p.name;
@@ -189,15 +192,39 @@ function renderSeats() {
       const controls = document.createElement('div');
       controls.className = 'controls';
       controls.id = 'controls';
-      seat.append(cards, controls, wrap, name);
+      seat.append(cards, action, controls, wrap, name);
     } else {
       const timer = document.createElement('div');
       timer.className = 'timer';
       timer.id = 'timer-' + i;
-      if (positions[i] === 'top') seat.append(name, avatar, cards, timer);
-      else seat.append(avatar, cards, name, timer);
+      if (positions[i] === 'top') seat.append(name, avatar, cards, action, timer);
+      else seat.append(avatar, cards, action, name, timer);
     }
     seats.appendChild(seat);
+  });
+}
+
+function setActionText(idx, action) {
+  const el = document.getElementById('action-' + idx);
+  if (el) el.textContent = action ? action.charAt(0).toUpperCase() + action.slice(1) : '';
+}
+
+function showActionOverlay(idx, action) {
+  const avatar = document.getElementById('avatar-' + idx);
+  if (!avatar) return;
+  const existing = avatar.querySelector('.action-overlay');
+  if (existing) existing.remove();
+  const overlay = document.createElement('div');
+  overlay.className = 'action-overlay ' + action;
+  overlay.textContent = action;
+  avatar.appendChild(overlay);
+}
+
+function clearActionTexts() {
+  state.players.forEach((_, i) => {
+    setActionText(i, '');
+    const avatar = document.getElementById('avatar-' + i);
+    avatar?.querySelector('.action-overlay')?.remove();
   });
 }
 
@@ -311,11 +338,9 @@ function setPlayerTurnIndicator(idx) {
 function showControls() {
   const controls = document.getElementById('controls');
   controls.innerHTML = '';
-  const baseActions = [
-    { id: 'fold', fn: playerFold },
-    { id: 'check', fn: playerCheck },
-    { id: 'call', fn: playerCall },
-  ];
+  const baseActions = [{ id: 'fold', fn: playerFold }];
+  if (state.currentBet === 0) baseActions.push({ id: 'check', fn: playerCheck });
+  baseActions.push({ id: 'call', fn: playerCall });
   baseActions.forEach((a) => {
     const btn = document.createElement('button');
     btn.id = a.id;
@@ -426,11 +451,17 @@ function updateTimer() {
 function playerFold() {
   clearInterval(state.timerInterval);
   hideControls();
+  state.players[0].active = false;
   setPlayerTurnIndicator(null);
+  setActionText(0, 'fold');
+  showActionOverlay(0, 'fold');
   document.getElementById('status').textContent = 'You folded';
+  proceedStage();
 }
 
 function playerCheck() {
+  setActionText(0, 'check');
+  showActionOverlay(0, 'check');
   document.getElementById('status').textContent = 'You check';
   proceedStage();
 }
@@ -438,6 +469,8 @@ function playerCheck() {
 function playerCall() {
   state.pot += state.currentBet;
   updatePotDisplay();
+  setActionText(0, 'call');
+  showActionOverlay(0, 'call');
   document.getElementById('status').textContent = `You call ${state.currentBet} ${state.token}`;
   proceedStage();
 }
@@ -449,6 +482,8 @@ function playerRaise() {
   state.pot += amount;
   state.currentBet += amount;
   updatePotDisplay();
+  setActionText(0, 'raise');
+  showActionOverlay(0, 'raise');
   document.getElementById('status').textContent = `You raise ${amount} ${state.token}`;
   proceedStage();
 }
@@ -459,15 +494,16 @@ async function proceedStage() {
   hideControls();
   for (let i = 1; i < state.players.length; i++) {
     const p = state.players[i];
-    if (p.vacant) continue;
+    if (p.vacant || !p.active) continue;
     setPlayerTurnIndicator(i);
     document.getElementById('status').textContent = `${p.name}...`;
     await new Promise((r) => setTimeout(r, 2500));
-    const action = aiChooseAction(
+    let action = aiChooseAction(
       p.hand,
       state.community.slice(0, stageCommunityCount()),
       state.currentBet
     );
+    if (state.currentBet > 0 && action === 'check') action = 'call';
     if (action === 'raise') {
       const raiseBy = ANTE;
       const total = state.currentBet + raiseBy;
@@ -480,10 +516,13 @@ async function proceedStage() {
       updatePotDisplay();
       document.getElementById('status').textContent = `${p.name} calls ${state.currentBet} ${state.token}`;
     } else if (action === 'fold') {
+      p.active = false;
       document.getElementById('status').textContent = `${p.name} folds`;
     } else {
       document.getElementById('status').textContent = `${p.name} checks`;
     }
+    setActionText(i, action);
+    showActionOverlay(i, action);
   }
   setPlayerTurnIndicator(null);
   state.stage++;
@@ -530,29 +569,35 @@ function revealFlop() {
     if (comm.children[i]) comm.children[i].replaceWith(card);
     else comm.appendChild(card);
   }
-  startPlayerTurn();
+  clearActionTexts();
+  if (state.players[0].active) startPlayerTurn();
+  else proceedStage();
 }
 
 function revealTurn() {
   const comm = document.getElementById('community');
   comm.appendChild(cardEl(state.community[3]));
-  startPlayerTurn();
+  clearActionTexts();
+  if (state.players[0].active) startPlayerTurn();
+  else proceedStage();
 }
 
 function revealRiver() {
   const comm = document.getElementById('community');
   comm.appendChild(cardEl(state.community[4]));
-  startPlayerTurn();
+  clearActionTexts();
+  if (state.players[0].active) startPlayerTurn();
+  else proceedStage();
 }
 
 async function showdown() {
   state.players.forEach((p, i) => {
-    if (p.vacant) return;
+    if (p.vacant || !p.active) return;
     const cards = document.getElementById('cards-' + i);
     cards.innerHTML = '';
     p.hand.forEach((c) => cards.appendChild(cardEl(c)));
   });
-  const activePlayers = state.players.filter((p) => !p.vacant);
+  const activePlayers = state.players.filter((p) => !p.vacant && p.active);
   const winners = evaluateWinner(activePlayers, state.community);
   const pot = state.pot;
   const text = winners.length === 1
