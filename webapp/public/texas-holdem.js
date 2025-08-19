@@ -38,6 +38,39 @@ async function awardDevShare(total) {
   } catch {}
 }
 
+function playCallRaiseSound() {
+  const snd = document.getElementById('sndCallRaise');
+  if (snd) {
+    snd.currentTime = 0;
+    snd.play();
+  }
+}
+
+function playAllInSound() {
+  const snd = document.getElementById('sndAllIn');
+  if (snd) {
+    snd.currentTime = 0;
+    snd.play();
+  }
+}
+
+function playFlipSound() {
+  const snd = document.getElementById('sndFlip');
+  if (snd) {
+    snd.currentTime = 0;
+    snd.play();
+  }
+}
+
+function playKnockSound() {
+  const snd = document.getElementById('sndKnock');
+  if (snd) {
+    snd.currentTime = 1;
+    snd.play();
+    setTimeout(() => snd.pause(), 2000);
+  }
+}
+
 const SUIT_MAP = { H: '♥', D: '♦', C: '♣', S: '♠' };
 const CHIP_VALUES = [1000, 500, 200, 100, 50, 20, 10, 5, 1];
 const ANTE = 10;
@@ -297,6 +330,7 @@ function dealCardToPlayer(idx, card, showFace) {
     stage.appendChild(temp);
     const target = document.getElementById('cards-' + idx);
     const targetRect = target.getBoundingClientRect();
+    playFlipSound();
     requestAnimationFrame(() => {
       temp.style.left = targetRect.left - stageRect.left + 'px';
       temp.style.top = targetRect.top - stageRect.top + 'px';
@@ -399,6 +433,7 @@ function startPlayerTurn() {
   state.turn = 0;
   state.currentBet = 0;
   setPlayerTurnIndicator(0);
+  playKnockSound();
   showControls();
   startTurnTimer(() => {
     if (state.currentBet > 0) playerFold();
@@ -457,6 +492,8 @@ function playerCall() {
   updatePotDisplay();
   setActionText(0, 'call');
   document.getElementById('status').textContent = `You call ${state.currentBet} ${state.token}`;
+  if (state.pot >= state.maxPot) playAllInSound();
+  else playCallRaiseSound();
   proceedStage();
 }
 
@@ -469,6 +506,8 @@ function playerRaise() {
   updatePotDisplay();
   setActionText(0, 'raise');
   document.getElementById('status').textContent = `You raise ${amount} ${state.token}`;
+  if (state.pot >= state.maxPot) playAllInSound();
+  else playCallRaiseSound();
   proceedStage();
 }
 
@@ -495,10 +534,14 @@ async function proceedStage() {
       state.pot += total;
       updatePotDisplay();
       document.getElementById('status').textContent = `${p.name} raises to ${total} ${state.token}`;
+      if (state.pot >= state.maxPot) playAllInSound();
+      else playCallRaiseSound();
     } else if (action === 'call') {
       state.pot += state.currentBet;
       updatePotDisplay();
       document.getElementById('status').textContent = `${p.name} calls ${state.currentBet} ${state.token}`;
+      if (state.pot >= state.maxPot) playAllInSound();
+      else playCallRaiseSound();
     } else if (action === 'fold') {
       p.active = false;
       document.getElementById('status').textContent = `${p.name} folds`;
@@ -526,6 +569,7 @@ function movePotToWinner(idx) {
   const potEl = document.getElementById('pot');
   const stage = document.querySelector('.stage');
   if (!potEl || !stage) return;
+  playAllInSound();
   const stageRect = stage.getBoundingClientRect();
   const potRect = potEl.getBoundingClientRect();
   potEl.classList.add('moving-pot');
@@ -545,29 +589,35 @@ function movePotToWinner(idx) {
   });
 }
 
-function revealFlop() {
+async function revealFlop() {
   const comm = document.getElementById('community');
   for (let i = 0; i < 3; i++) {
     const card = cardEl(state.community[i]);
     if (comm.children[i]) comm.children[i].replaceWith(card);
     else comm.appendChild(card);
+    playFlipSound();
+    await new Promise((r) => setTimeout(r, 400));
   }
   clearActionTexts();
   if (state.players[0].active) startPlayerTurn();
   else proceedStage();
 }
 
-function revealTurn() {
+async function revealTurn() {
   const comm = document.getElementById('community');
   comm.appendChild(cardEl(state.community[3]));
+  playFlipSound();
+  await new Promise((r) => setTimeout(r, 400));
   clearActionTexts();
   if (state.players[0].active) startPlayerTurn();
   else proceedStage();
 }
 
-function revealRiver() {
+async function revealRiver() {
   const comm = document.getElementById('community');
   comm.appendChild(cardEl(state.community[4]));
+  playFlipSound();
+  await new Promise((r) => setTimeout(r, 400));
   clearActionTexts();
   if (state.players[0].active) startPlayerTurn();
   else proceedStage();
