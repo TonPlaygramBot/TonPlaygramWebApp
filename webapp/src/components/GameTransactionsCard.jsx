@@ -15,10 +15,10 @@ export default function GameTransactionsCard() {
   const games = transactions.filter((t) => t.game);
   const totalGames = games.length;
   const totalDeposited = games
-    .filter((t) => t.type === 'deposit')
+    .filter((t) => t.amount < 0)
     .reduce((s, t) => s + Math.abs(t.amount || 0), 0);
   const totalPayouts = games
-    .filter((t) => t.type === 'payout')
+    .filter((t) => t.amount > 0)
     .reduce((s, t) => s + Math.abs(t.amount || 0), 0);
 
   const formatValue = (v) =>
@@ -44,6 +44,7 @@ export default function GameTransactionsCard() {
           <span>{formatValue(totalDeposited)}</span>
         </div>
       </div>
+      <div className="mt-2 text-xs text-center text-subtext">More Details</div>
     </section>
   );
 }
