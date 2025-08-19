@@ -506,8 +506,8 @@ export function getAccountTransactions(accountId) {
   return post('/api/account/transactions', { accountId });
 }
 
-export function getGameTransactions() {
-  return get('/api/account/transactions/public');
+export function getGameTransactions(limit = 1000) {
+  return get(`/api/account/transactions/public?limit=${limit}`);
 }
 
 export function depositAccount(accountId, amount, extra = {}) {
