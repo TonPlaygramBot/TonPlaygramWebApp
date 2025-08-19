@@ -164,13 +164,13 @@
       width: 84px;
       height: 58%;
       border-radius: 14px;
-      background: linear-gradient(180deg, rgba(0,0,0,.18), rgba(0,0,0,.28));
-      box-shadow: inset 0 0 0 1px rgba(255,255,255,.05),
-                  0 8px 24px rgba(0,0,0,.35);
+      background: linear-gradient(to top, #ff0000, #ffff00);
+      box-shadow: none;
       display: flex;
       align-items: center;
       justify-content: center;
       padding: 8px;
+      transform: translate(4px, 8px);
     }
 
     #cueRail {
@@ -179,9 +179,9 @@
       transform: translateX(-50%);
       width: 10px;
       height: calc(100% - 24px);
-      background: #3a2a17;
+      background: none;
       border-radius: 8px;
-      box-shadow: inset 0 0 0 2px rgba(0,0,0,.15);
+      box-shadow: none;
     }
 
     #pullHandle {
@@ -208,7 +208,7 @@
       border-radius: 16px;
       position: relative;
       overflow: hidden;
-      box-shadow: inset 0 0 0 2px rgba(0,0,0,.25);
+      box-shadow: none;
     }
 
     #powerFill {
@@ -314,7 +314,7 @@
     var TABLE_H = 1216;     // lartesi logjike e felt-it
     var BORDER  = 57;       // korniza e drurit pak me e ngushte anash
     var POCKET_R = 42;      // rrezja baze e gropave
-    var BALL_R   = 23.5;    // rrezja baze e topave pak me e vogel
+    var BALL_R   = 22.5;    // rrezja baze e topave pak me e vogel
     var BORDER_TOP = BORDER + BALL_R * 2 - 4; // bordi i siperm pak me i holle per fushe me te gjate
     var BORDER_BOTTOM = BORDER;           // anet e tjera mbeten te pandryshuara
       // Move the rack slightly upward on the table
@@ -340,6 +340,8 @@
     var spinDot   = document.getElementById('spinDot');
     var logoImg   = new Image();
     logoImg.src   = '/assets/icons/pool-royale.svg';
+    var cueImg    = new Image();
+    cueImg.src    = '/assets/icons/file_0000000019d86243a2f7757076cd7869.webp';
     var pullArea   = document.getElementById('pullArea');
     var pullHandle = document.getElementById('pullHandle');
     var powerFill  = document.getElementById('powerFill');
@@ -522,6 +524,7 @@
       // Cue ball (center poshte vijes se bardhe)
       this.balls.push(new Ball(BALL_BY_N[0], TABLE_W/2, CUE_START_Y));
       cueBallFree = true;
+      cueHintTime = Date.now();
 
       // Trekendshi siper me 15 topa (8-shi ne qender rreshti 3)
       // Rrotulluar qe te shenje anen e majte dhe ngritur pak me lart
@@ -636,6 +639,7 @@
             if (b2.n === 0) {
               scratch = true;
               cueBallFree = true;
+              cueHintTime = Date.now();
               b2.p.x = TABLE_W/2; b2.p.y = CUE_START_Y; b2.v.x = 0; b2.v.y = 0;
             } else {
               b2.pocketed = true;
@@ -766,6 +770,7 @@
     var spinVec = { x:0, y:0 };// spini i zgjedhur
     var power = 0;             // fuqi [0..1]
     var cueBallFree = true;    // a mund te vendoset cueball
+    var cueHintTime = Date.now();
     var draggingCue = false;
     var shotInProgress = false;
     var currentShooter = 1;
@@ -816,7 +821,7 @@
 
     function updateCueHint(){
       var cue = table.balls[0];
-      if (cueBallFree && cue && !cue.pocketed) {
+      if (cueBallFree && cue && !cue.pocketed && Date.now() - cueHintTime < 2000) {
         cueHint.style.display = 'block';
         cueHint.style.left = (cue.p.x*sX + ballR) + 'px';
         cueHint.style.top  = (cue.p.y*sY - ballR*2) + 'px';
@@ -867,6 +872,8 @@
       var dist = Math.hypot(t.x - cue.p.x, t.y - cue.p.y);
       if (cueBallFree && dist <= BALL_R*1.5) {
         draggingCue = true;
+        cueHintTime = 0;
+        cueHint.style.display = 'none';
         return;
       }
       if (cueBallFree) return;
@@ -920,10 +927,18 @@
     function drawCueOnTable(cuePos, aim, pull){
       var d = norm(aim.x-cuePos.x, aim.y-cuePos.y);
       var start = { x: cuePos.x - d.x*(BALL_R*2), y: cuePos.y - d.y*(BALL_R*2) };
-      var end   = { x: start.x - d.x*(BALL_R*20 + pull), y: start.y - d.y*(BALL_R*20 + pull) };
-      ctx.strokeStyle = '#caa471'; ctx.lineWidth = BALL_R*0.5; ctx.lineCap = 'round';
-      ctx.beginPath(); ctx.moveTo(start.x*sX, start.y*sY); ctx.lineTo(end.x*sX, end.y*sY); ctx.stroke();
-      ctx.strokeStyle = '#5c3a21'; ctx.lineWidth = BALL_R*0.7; ctx.beginPath(); ctx.moveTo(start.x*sX, start.y*sY); ctx.lineTo((start.x-d.x*BALL_R*1.2)*sX, (start.y-d.y*BALL_R*1.2)*sY); ctx.stroke();
+      var length = BALL_R*20 + pull;
+      var angle = Math.atan2(d.y, d.x) + Math.PI;
+      if (cueImg.complete) {
+        var scale = (length * sX) / cueImg.width;
+        var drawW = cueImg.width * scale;
+        var drawH = cueImg.height * scale;
+        ctx.save();
+        ctx.translate(start.x*sX, start.y*sY);
+        ctx.rotate(angle);
+        ctx.drawImage(cueImg, 0, -drawH/2, drawW, drawH);
+        ctx.restore();
+      }
     }
 
     /* ==========================================================
@@ -960,6 +975,7 @@
     function updatePowerUI(){
       powerFill.style.height = Math.round(power*100)+'%';
       powerTxt.textContent = 'FORCA '+Math.round(power*100)+'%';
+      pullArea.style.background = 'linear-gradient(to top, #ff0000 0%, #ff0000 '+Math.round(power*100)+'%, #ffff00 '+Math.round(power*100)+'%, #ffff00 100%)';
       updatePullHandle();
     }
     function updateFromEvent(e){
