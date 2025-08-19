@@ -553,13 +553,14 @@ async function showdown() {
     p.hand.forEach((c) => cards.appendChild(cardEl(c)));
   });
   const activePlayers = state.players.filter((p) => !p.vacant);
-  const winner = evaluateWinner(activePlayers, state.community);
+  const winners = evaluateWinner(activePlayers, state.community);
   const pot = state.pot;
-  const text = winner
-    ? `${activePlayers[winner.index].name} wins with ${HAND_RANK_NAMES[winner.score.rank]}!`
+  const text = winners.length === 1
+    ? `${activePlayers[winners[0].index].name} wins with ${HAND_RANK_NAMES[winners[0].score.rank]}!`
     : 'Tie';
   document.getElementById('status').textContent = text;
-  if (winner) {
+  if (winners.length === 1) {
+    const winner = winners[0];
     const winning = winner.score.cards;
     const commEl = document.getElementById('community');
     state.community.forEach((c, idx) => {
