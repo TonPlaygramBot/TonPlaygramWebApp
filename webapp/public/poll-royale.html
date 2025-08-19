@@ -87,11 +87,6 @@
       flex: 1 1 auto;
       display: flex;
       overflow: hidden;
-      /* Ensure background image covers the available space without
-         overlapping top or bottom elements. Extend only the bottom
-         edge by roughly half a ball's height for extra clearance. */
-      background: url('/assets/icons/64e79228-35e3-4fdc-b914-fca635a40220.webp')
-        top center/100% calc(100% + 24px) no-repeat;
     }
 
     :root { --rpw: min(20vw, 100px); }
@@ -103,7 +98,6 @@
       left: 0;
       right: 0;
       bottom: 0;
-      transform: translateY(-4px);
       z-index: 4;
     }
 
@@ -343,6 +337,8 @@
     var spinDot   = document.getElementById('spinDot');
     var logoImg   = new Image();
     logoImg.src   = '/assets/icons/pool-royale.svg';
+    var tableImg  = new Image();
+    tableImg.src  = '/assets/icons/64e79228-35e3-4fdc-b914-fca635a40220.webp';
     var pullArea  = document.getElementById('pullArea');
     var cueStickEl= document.getElementById('cueStick');
     var cueTipEl  = document.getElementById('tip');
@@ -604,6 +600,7 @@
 
     Table.prototype.render = function(){
       ctx.clearRect(0,0,canvas.width,canvas.height);
+      ctx.drawImage(tableImg, 0, 0, canvas.width, canvas.height);
         // Field outline removed (previously green)
         var x0 = BORDER * sX,
             y0 = BORDER_TOP * sY,
@@ -711,6 +708,7 @@
        GJENDJE GLOBALE E LOJES
        ========================================================= */
     var table = new Table();
+    tableImg.onload = function(){ table.render(); };
     var last = 0;              // koha e frame te fundit
     var aiming = false;        // a po caktohet drejtimi
     var showGuides = false;    // a shfaqen pikat
