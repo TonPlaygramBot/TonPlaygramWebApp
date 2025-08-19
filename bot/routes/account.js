@@ -2,12 +2,15 @@ import { Router } from 'express';
 import { v4 as uuidv4 } from 'uuid';
 import User from '../models/User.js';
 import authenticate from '../middleware/auth.js';
-import { ensureTransactionArray, calculateBalance } from '../utils/userUtils.js';
+import {
+  ensureTransactionArray,
+  calculateBalance
+} from '../utils/userUtils.js';
 import bot from '../bot.js';
 import {
   sendTransferNotification,
   sendTPCNotification,
-  sendGiftNotification,
+  sendGiftNotification
 } from '../utils/notifications.js';
 import NFT_GIFTS from '../utils/nftGifts.js';
 
@@ -30,7 +33,7 @@ router.post('/create', async (req, res) => {
         accountId: uuidv4(),
         referralCode: String(telegramId),
         walletAddress: wallet.address,
-        walletPublicKey: wallet.publicKey,
+        walletPublicKey: wallet.publicKey
       });
       await user.save();
     } else {
@@ -54,12 +57,16 @@ router.post('/create', async (req, res) => {
       accountId: id,
       referralCode: id,
       walletAddress: wallet.address,
-      walletPublicKey: wallet.publicKey,
+      walletPublicKey: wallet.publicKey
     });
     await user.save();
   }
 
-  res.json({ accountId: user.accountId, balance: user.balance, walletAddress: user.walletAddress });
+  res.json({
+    accountId: user.accountId,
+    balance: user.balance,
+    walletAddress: user.walletAddress
+  });
 });
 
 // Get balance by account id
@@ -84,8 +91,7 @@ router.post('/balance', async (req, res) => {
 // Get full account info including gifts and transactions
 router.post('/info', async (req, res) => {
   const { accountId } = req.body;
-  if (!accountId)
-    return res.status(400).json({ error: 'accountId required' });
+  if (!accountId) return res.status(400).json({ error: 'accountId required' });
 
   const user = await User.findOne({ accountId });
   if (!user) return res.status(404).json({ error: 'account not found' });
@@ -112,7 +118,7 @@ router.post('/info', async (req, res) => {
     photo: user.photo,
     balance: user.balance,
     gifts: user.gifts,
-    transactions: user.transactions,
+    transactions: user.transactions
   });
 });
 
@@ -120,9 +126,12 @@ router.post('/info', async (req, res) => {
 router.post('/send', async (req, res) => {
   const { fromAccount, toAccount, amount, note } = req.body;
   if (!fromAccount || !toAccount || typeof amount !== 'number') {
-    return res.status(400).json({ error: 'fromAccount, toAccount and amount required' });
+    return res
+      .status(400)
+      .json({ error: 'fromAccount, toAccount and amount required' });
   }
-  if (amount <= 0) return res.status(400).json({ error: 'amount must be positive' });
+  if (amount <= 0)
+    return res.status(400).json({ error: 'amount must be positive' });
 
   const sender = await User.findOne({ accountId: fromAccount });
   if (!sender) return res.status(404).json({ error: 'sender not found' });
@@ -206,7 +215,7 @@ router.post('/send', async (req, res) => {
       status: 'delivered',
       date: txDate,
       fromAccount: fromAccount,
-      toAccount: target,
+      toAccount: target
     });
   }
   if (dev2 || devMain) {
@@ -218,7 +227,7 @@ router.post('/send', async (req, res) => {
       status: 'delivered',
       date: txDate,
       fromAccount: fromAccount,
-      toAccount: target,
+      toAccount: target
     });
   }
   sender.transactions.push(senderTx);
@@ -226,7 +235,8 @@ router.post('/send', async (req, res) => {
   for (const tx of devTxs) {
     if (dev1 && tx.toAccount === dev1Id) dev1.transactions.push(tx);
     else if (dev2 && tx.toAccount === dev2Id) dev2.transactions.push(tx);
-    else if (devMain && tx.toAccount === devMainId) devMain.transactions.push(tx);
+    else if (devMain && tx.toAccount === devMainId)
+      devMain.transactions.push(tx);
   }
 
   await sender.save();
@@ -238,12 +248,18 @@ router.post('/send', async (req, res) => {
   const devIds = [
     process.env.DEV_ACCOUNT_ID || process.env.VITE_DEV_ACCOUNT_ID,
     process.env.DEV_ACCOUNT_ID_1 || process.env.VITE_DEV_ACCOUNT_ID_1,
-    process.env.DEV_ACCOUNT_ID_2 || process.env.VITE_DEV_ACCOUNT_ID_2,
+    process.env.DEV_ACCOUNT_ID_2 || process.env.VITE_DEV_ACCOUNT_ID_2
   ].filter(Boolean);
 
   if (receiver.telegramId && !devIds.includes(toAccount)) {
     try {
-      await sendTransferNotification(bot, receiver.telegramId, fromAccount, amount, safeNote);
+      await sendTransferNotification(
+        bot,
+        receiver.telegramId,
+        fromAccount,
+        amount,
+        safeNote
+      );
     } catch (err) {
       console.error('Failed to send Telegram notification:', err.message);
     }
@@ -295,7 +311,7 @@ router.post('/gift', async (req, res) => {
     date: txDate,
     toAccount: String(toAccount),
     detail: gift,
-    category: String(g.tier),
+    category: String(g.tier)
   };
   sender.transactions.push(senderTx);
 
@@ -307,7 +323,7 @@ router.post('/gift', async (req, res) => {
     fromAccount: String(fromAccount),
     fromName: sender.nickname || sender.firstName || '',
     date: txDate,
-    nftTokenId,
+    nftTokenId
   };
   receiver.gifts.push(giftEntry);
 
@@ -321,7 +337,7 @@ router.post('/gift', async (req, res) => {
     fromName: sender.nickname || sender.firstName || '',
     giftId: giftEntry._id,
     detail: gift,
-    category: String(g.tier),
+    category: String(g.tier)
   };
   receiver.transactions.push(receiverTx);
 
@@ -335,7 +351,7 @@ router.post('/gift', async (req, res) => {
         receiver.telegramId,
         g,
         sender.nickname || sender.firstName || String(fromAccount),
-        txDate,
+        txDate
       );
     } catch (err) {
       console.error('Failed to send Telegram notification:', err.message);
@@ -377,7 +393,10 @@ router.post('/convert-gifts', async (req, res) => {
 
     for (const g of selected) {
       const pendingIndex = user.transactions.findIndex(
-        (t) => t.giftId === g._id && t.type === 'gift-receive' && t.status === 'pending'
+        (t) =>
+          t.giftId === g._id &&
+          t.type === 'gift-receive' &&
+          t.status === 'pending'
       );
       if (pendingIndex !== -1) {
         user.transactions.splice(pendingIndex, 1);
@@ -429,7 +448,10 @@ router.post('/convert-gifts', async (req, res) => {
   } else {
     for (const g of selected) {
       const pendingIndex = user.transactions.findIndex(
-        (t) => t.giftId === g._id && t.type === 'gift-receive' && t.status === 'pending'
+        (t) =>
+          t.giftId === g._id &&
+          t.type === 'gift-receive' &&
+          t.status === 'pending'
       );
       if (pendingIndex !== -1) {
         user.transactions.splice(pendingIndex, 1);
@@ -476,6 +498,27 @@ router.post('/transactions', async (req, res) => {
   res.json({ transactions: user.transactions });
 });
 
+// List all public game-related transactions
+router.get('/transactions/public', async (_req, res) => {
+  const transactions = await User.aggregate([
+    { $unwind: '$transactions' },
+    { $match: { 'transactions.game': { $exists: true } } },
+    {
+      $project: {
+        _id: 0,
+        accountId: '$accountId',
+        amount: '$transactions.amount',
+        type: '$transactions.type',
+        game: '$transactions.game',
+        date: '$transactions.date'
+      }
+    },
+    { $sort: { date: -1 } },
+    { $limit: 100 }
+  ]);
+  res.json({ transactions });
+});
+
 // Deposit rewards into account
 router.post('/deposit', authenticate, async (req, res) => {
   const { accountId, amount, game } = req.body;
@@ -483,17 +526,24 @@ router.post('/deposit', authenticate, async (req, res) => {
   const devIds = [
     process.env.DEV_ACCOUNT_ID || process.env.VITE_DEV_ACCOUNT_ID,
     process.env.DEV_ACCOUNT_ID_1 || process.env.VITE_DEV_ACCOUNT_ID_1,
-    process.env.DEV_ACCOUNT_ID_2 || process.env.VITE_DEV_ACCOUNT_ID_2,
+    process.env.DEV_ACCOUNT_ID_2 || process.env.VITE_DEV_ACCOUNT_ID_2
   ].filter(Boolean);
   if (!accountId || typeof amount !== 'number' || amount <= 0) {
-    return res.status(400).json({ error: 'accountId and positive amount required' });
+    return res
+      .status(400)
+      .json({ error: 'accountId and positive amount required' });
   }
   let user = await User.findOne({ accountId });
   if (!user) {
     user = new User({ accountId });
     if (authId && !devIds.includes(accountId)) user.telegramId = authId;
   }
-  if (!devIds.includes(accountId) && authId && user.telegramId && authId !== user.telegramId) {
+  if (
+    !devIds.includes(accountId) &&
+    authId &&
+    user.telegramId &&
+    authId !== user.telegramId
+  ) {
     return res.status(403).json({ error: 'forbidden' });
   }
   ensureTransactionArray(user);

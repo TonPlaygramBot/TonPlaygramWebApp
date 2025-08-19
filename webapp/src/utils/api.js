@@ -106,27 +106,19 @@ async function get(path, token) {
 }
 
 export function getMiningStatus(telegramId) {
-
   return post('/api/mining/status', { telegramId });
-
 }
 
 export function startMining(telegramId) {
-
   return post('/api/mining/start', { telegramId });
-
 }
 
 export function stopMining(telegramId) {
-
   return post('/api/mining/stop', { telegramId });
-
 }
 
 export function claimMining(telegramId) {
-
   return post('/api/mining/claim', { telegramId });
-
 }
 
 export function getLeaderboard(id) {
@@ -134,19 +126,15 @@ export function getLeaderboard(id) {
   if (typeof id === 'object') body = id;
   else if (typeof id === 'string' && id.includes('-')) body = { accountId: id };
   else body = { telegramId: id };
-  return post("/api/mining/leaderboard", body);
+  return post('/api/mining/leaderboard', body);
 }
 
 export function listTasks(telegramId) {
-
   return post('/api/tasks/list', { telegramId });
-
 }
 
 export function completeTask(telegramId, taskId) {
-
   return post('/api/tasks/complete', { telegramId, taskId });
-
 }
 
 export function verifyPost(telegramId, tweetUrl) {
@@ -154,7 +142,11 @@ export function verifyPost(telegramId, tweetUrl) {
 }
 
 export function verifyTelegramReaction(telegramId, messageId, threadId) {
-  return post('/api/tasks/verify-telegram-reaction', { telegramId, messageId, threadId });
+  return post('/api/tasks/verify-telegram-reaction', {
+    telegramId,
+    messageId,
+    threadId
+  });
 }
 
 export function adminListTasks() {
@@ -182,15 +174,11 @@ export function adminDeleteTask(id) {
 }
 
 export function listVideos(telegramId) {
-
   return post('/api/watch/list', { telegramId });
-
 }
 
 export function watchVideo(telegramId, videoId) {
-
   return post('/api/watch/watch', { telegramId, videoId });
-
 }
 
 export function getAdStatus(telegramId) {
@@ -244,28 +232,22 @@ export function verifyInfluencer(id, status, views) {
 }
 
 export function getProfile(telegramId) {
-
   return post('/api/profile/get', { telegramId });
-
 }
 
 export function updateProfile(data) {
-
   return post('/api/profile/update', data);
-
 }
 
 export function updateBalance(telegramId, balance) {
-
   return post('/api/profile/updateBalance', { telegramId, balance });
-
 }
 
 export function addTransaction(telegramId, amount, type, extra = {}) {
   const body = {
     amount,
     type,
-    ...extra,
+    ...extra
   };
   if (telegramId != null) body.telegramId = telegramId;
   return post('/api/profile/addTransaction', body);
@@ -276,21 +258,15 @@ export function getProfileByAccount(accountId) {
 }
 
 export function linkSocial(data) {
-
   return post('/api/profile/link-social', data);
-
 }
 
 export function fetchTelegramInfo(telegramId) {
-
   return post('/api/profile/telegram-info', { telegramId });
-
 }
 
 export function getWalletBalance(telegramId) {
-
   return post('/api/wallet/balance', { telegramId });
-
 }
 
 export function getTonBalance(address) {
@@ -301,16 +277,13 @@ export function getUsdtBalance(address) {
   return post('/api/wallet/usdt-balance', { address });
 }
 export function sendTpc(fromId, toId, amount, note) {
-
   const body = { fromId, toId, amount };
   if (note) body.note = note;
-  return post("/api/wallet/send", body);
+  return post('/api/wallet/send', body);
 }
 
 export function getTransactions(telegramId) {
-
   return post('/api/wallet/transactions', { telegramId });
-
 }
 
 export function getDepositAddress() {
@@ -330,31 +303,23 @@ export function claimExternal(telegramId, address, amount) {
 }
 
 export function getReferralInfo(telegramId) {
-
   return post('/api/referral/code', { telegramId });
-
 }
 
 export function claimReferral(telegramId, code) {
-
   return post('/api/referral/claim', { telegramId, code });
-
 }
 
 // ✅ Daily check-in (user-facing)
 
 export function dailyCheckIn(telegramId) {
-
   return post('/api/checkin/check-in', { telegramId });
-
 }
 
 // ✅ Admin-only airdrop grant
 
 export function grantAirdrop(token, telegramId, amount, reason = '') {
-
   return post('/api/airdrop/grant', { telegramId, amount, reason }, token);
-
 }
 
 export function grantAirdropAll(token, amount, reason = '') {
@@ -430,7 +395,11 @@ export function sendMessage(fromId, toId, text) {
 }
 
 export function sendGift(fromId, toId, gift) {
-  return post('/api/account/gift', { fromAccount: fromId, toAccount: toId, gift });
+  return post('/api/account/gift', {
+    fromAccount: fromId,
+    toAccount: toId,
+    gift
+  });
 }
 
 export function convertGifts(accountId, giftIds, action = 'burn', toAccount) {
@@ -507,7 +476,6 @@ export function resetTpcWallet(telegramId) {
   return post('/api/wallet/reset', { telegramId });
 }
 
-
 export function registerWalletPasskey(telegramId, passkeyId, publicKey) {
   return post('/api/wallet/passkey', { telegramId, passkeyId, publicKey });
 }
@@ -536,6 +504,10 @@ export function sendAccountTpc(fromAccount, toAccount, amount, note) {
 
 export function getAccountTransactions(accountId) {
   return post('/api/account/transactions', { accountId });
+}
+
+export function getGameTransactions() {
+  return get('/api/account/transactions/public');
 }
 
 export function depositAccount(accountId, amount, extra = {}) {
