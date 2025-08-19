@@ -98,34 +98,4 @@ router.post('/leaderboard', async (req, res) => {
   res.json({ users, rank });
 });
 
-router.get('/transactions', async (req, res) => {
-  const limitParam = Number(req.query.limit) || 100;
-  const limit = Math.min(Math.max(limitParam, 1), 1000);
-  const transactions = await User.aggregate([
-    { $unwind: '$transactions' },
-    {
-      $match: {
-        'transactions.type': { $in: ['daily', 'spin', 'lucky', 'task'] },
-        'transactions.amount': { $gt: 0 }
-      }
-    },
-    {
-      $project: {
-        _id: 0,
-        accountId: '$accountId',
-        amount: '$transactions.amount',
-        type: '$transactions.type',
-        date: '$transactions.date',
-        token: { $ifNull: ['$transactions.token', 'TPC'] },
-        fromAccount: '$accountId',
-        fromName: { $ifNull: ['$nickname', '$firstName'] },
-        fromPhoto: '$photo'
-      }
-    },
-    { $sort: { date: -1 } },
-    { $limit: limit }
-  ]);
-  res.json({ transactions });
-});
-
 export default router;

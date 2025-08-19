@@ -87,6 +87,11 @@
       flex: 1 1 auto;
       display: flex;
       overflow: hidden;
+      /* Ensure background image covers the available space without
+         overlapping top or bottom elements. Extend only the bottom
+         edge by roughly half a ball's height for extra clearance. */
+      background: url('/assets/icons/64e79228-35e3-4fdc-b914-fca635a40220.webp')
+        top center/100% calc(100% + 24px) no-repeat;
     }
 
     :root { --rpw: min(20vw, 100px); }
@@ -98,6 +103,7 @@
       left: 0;
       right: 0;
       bottom: 0;
+      transform: translateY(-4px);
       z-index: 4;
     }
 
@@ -121,7 +127,7 @@
       flex-direction: column;
       align-items: center;
       justify-content: space-between;
-      padding: 0 8px 12px;
+      padding: 12px 8px;
       z-index: 6;
     }
 
@@ -130,10 +136,7 @@
       height: 45px;
       border-radius: 50%;
       background: #f6f6f6;
-      position: absolute;
-      top: 8px;
-      left: 50%;
-      margin-left: -22.5px;
+      position: relative;
       box-shadow: 0 4px 10px rgba(0,0,0,.4) inset,
                   0 0 0 2px rgba(0,0,0,.15);
       transform-origin: center;
@@ -158,37 +161,45 @@
       background: linear-gradient(180deg, rgba(0,0,0,.18), rgba(0,0,0,.28));
       box-shadow: inset 0 0 0 1px rgba(255,255,255,.05),
                   0 8px 24px rgba(0,0,0,.35);
+      display: flex;
+      align-items: center;
+      justify-content: center;
       padding: 8px;
     }
 
-    #powerRail {
+    #cueRail {
       position: absolute;
       left: 50%;
-      top: 12px;
-      bottom: 12px;
+      transform: translateX(-50%);
       width: 10px;
-      margin-left: -5px;
+      height: calc(100% - 24px);
       background: #3a2a17;
       border-radius: 8px;
       box-shadow: inset 0 0 0 2px rgba(0,0,0,.15);
     }
 
-    #powerKnob {
+    #cueStick {
       position: absolute;
-      top: 0;
       left: 50%;
-      margin-left: -22.5px;
-      width: 45px;
-      height: 45px;
+      transform: translateX(-50%);
+      width: 8px;
+      height: 60%;
+      background: linear-gradient(#caa471, #9c7a4d);
+      border-radius: 6px;
+      box-shadow: 0 1px 0 rgba(255,255,255,.25) inset,
+                  0 4px 10px rgba(0,0,0,.35);
+    }
+
+    #tip {
+      position: absolute;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 12px;
+      height: 12px;
+      background: #5c3a21; /* ferrule */
       border-radius: 50%;
-      background: #fff;
-      box-shadow: 0 4px 10px rgba(0,0,0,.4) inset,
-                  0 0 0 2px rgba(0,0,0,.15);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      color: #111;
-      font-weight: 700;
+      top: calc(50% - 6px);
+      box-shadow: 0 0 0 2px rgba(0,0,0,.25);
     }
 
     #powerBox {
@@ -260,15 +271,17 @@
     <div id="wrap">
       <canvas id="table"></canvas>
       <div id="cueHint">✋️</div>
-      <div id="spinBox">
-        <div id="spinDot"></div>
-      </div>
 
-      <!-- Panel djathtas: vetem power slider -->
+      <!-- Panel djathtas: SPIN siper, STEKA poshte -->
       <aside id="rightPanel">
+        <div id="spinBox">
+          <div id="spinDot"></div>
+        </div>
+
         <div id="pullArea">
-          <div id="powerRail"></div>
-          <div id="powerKnob">Pull</div>
+          <div id="cueRail"></div>
+          <div id="cueStick"></div>
+          <div id="tip"></div>
         </div>
 
         <div style="display:flex;flex-direction:column;align-items:center;gap:6px;">
@@ -281,8 +294,8 @@
     </div>
 
     <div id="footer">
-      <div id="totalPot">Total Pot: 0</div>
-      <div id="gameStatus">Waiting for break...</div>
+      <div id="capP1">Guret e marra (P1): —</div>
+      <div id="capP2">Guret e marra (CPU): —</div>
     </div>
   </div>
 
@@ -300,23 +313,17 @@
     /* ==========================================================
        KONSTANTA TE LAYOUT-it DHE FIZIKES (sipas portrait)
        ========================================================= */
-    var BASE_W = 768;
-    var BASE_H = 1216;
-    var BASE_BORDER = 57;
-    var BASE_POCKET_R = 42;
-    var BASE_BALL_R = 23.5;
-    var BASE_BORDER_OFFSET = 4;
-
-    var TABLE_W = BASE_W;
-    var TABLE_H = BASE_H;
-    var BORDER  = BASE_BORDER;
-    var POCKET_R = BASE_POCKET_R;
-    var BALL_R   = BASE_BALL_R;
-    var BORDER_TOP = BORDER + BALL_R * 2 - BASE_BORDER_OFFSET;
-    var BORDER_BOTTOM = BORDER;
-    var SPOT_Y  = BORDER_TOP + (TABLE_H - BORDER_TOP - BORDER_BOTTOM) * 0.25 - BALL_R * 0.5;
-    var LINE_Y  = BORDER_TOP + (TABLE_H - BORDER_TOP - BORDER_BOTTOM) * 0.75;
-    var CUE_START_Y = LINE_Y + (TABLE_H - BORDER_BOTTOM - LINE_Y - BALL_R*2) / 2;
+    var TABLE_W = 768;      // gjeresi logjike e felt-it
+    var TABLE_H = 1216;     // lartesi logjike e felt-it
+    var BORDER  = 57;       // korniza e drurit pak me e ngushte anash
+    var POCKET_R = 42;      // rrezja baze e gropave
+    var BALL_R   = 23.5;    // rrezja baze e topave pak me e vogel
+    var BORDER_TOP = BORDER + BALL_R * 2 - 4; // bordi i siperm pak me i holle per fushe me te gjate
+    var BORDER_BOTTOM = BORDER;           // anet e tjera mbeten te pandryshuara
+      // Move the rack slightly upward on the table
+      var SPOT_Y  = BORDER_TOP + (TABLE_H - BORDER_TOP - BORDER_BOTTOM) * 0.25 - BALL_R * 0.5; // pika per trekendshin siper
+    var LINE_Y  = BORDER_TOP + (TABLE_H - BORDER_TOP - BORDER_BOTTOM) * 0.75; // vija e bardhe poshte
+    var CUE_START_Y = LINE_Y + (TABLE_H - BORDER_BOTTOM - LINE_Y - BALL_R*2) / 2; // pozicioni fillestar i cueball-it
 
     var FRICTION = 0.985;   // ferkimi linear
     var BOUNCE   = 0.98;    // koeficienti i rikthimit
@@ -330,35 +337,15 @@
     var ctx       = canvas.getContext('2d');
     var rightPanel= document.getElementById('rightPanel');
     var playBtn   = document.getElementById('play');
-    var totalPotEl = document.getElementById('totalPot');
-    var statusEl   = document.getElementById('gameStatus');
+    var capP1     = document.getElementById('capP1');
+    var capP2     = document.getElementById('capP2');
     var spinBox   = document.getElementById('spinBox');
     var spinDot   = document.getElementById('spinDot');
     var logoImg   = new Image();
     logoImg.src   = '/assets/icons/pool-royale.svg';
-    var tableImg  = new Image();
-    tableImg.onload = function(){
-      TABLE_W = tableImg.naturalWidth;
-      TABLE_H = tableImg.naturalHeight;
-      var scaleX = TABLE_W / BASE_W;
-      var scaleY = TABLE_H / BASE_H;
-      var scale = (scaleX + scaleY) / 2;
-      BORDER = BASE_BORDER * scale;
-      POCKET_R = BASE_POCKET_R * scale;
-      BALL_R = BASE_BALL_R * scale;
-      BORDER_TOP = BORDER + BALL_R * 2 - BASE_BORDER_OFFSET * scale;
-      BORDER_BOTTOM = BORDER;
-      SPOT_Y  = BORDER_TOP + (TABLE_H - BORDER_TOP - BORDER_BOTTOM) * 0.25 - BALL_R * 0.5;
-      LINE_Y  = BORDER_TOP + (TABLE_H - BORDER_TOP - BORDER_BOTTOM) * 0.75;
-      CUE_START_Y = LINE_Y + (TABLE_H - BORDER_BOTTOM - LINE_Y - BALL_R*2) / 2;
-      resize();
-      table = new Table();
-      table.render();
-      requestAnimationFrame(loop);
-    };
-    tableImg.src  = '/assets/icons/64e79228-35e3-4fdc-b914-fca635a40220.webp';
     var pullArea  = document.getElementById('pullArea');
-    var powerKnob = document.getElementById('powerKnob');
+    var cueStickEl= document.getElementById('cueStick');
+    var cueTipEl  = document.getElementById('tip');
     var powerFill = document.getElementById('powerFill');
     var powerTxt  = document.getElementById('powerTxt');
 
@@ -369,25 +356,8 @@
     var pottedP1 = document.getElementById('p1Potted');
     var pottedP2 = document.getElementById('p2Potted');
     var cueHint  = document.getElementById('cueHint');
-    var cueHintTimer = null;
-    var cueHintVisible = false;
 
     var tg = window.Telegram?.WebApp;
-    var params    = new URLSearchParams(location.search);
-    var totalPot  = parseInt(params.get('amount'),10) || 0;
-    totalPotEl.textContent = 'Total Pot: ' + totalPot;
-    function setStatus(msg){ statusEl.textContent = msg; }
-    setStatus('Place the cue ball to break.');
-
-    function showCueBallHint(){
-      cueHintVisible = true;
-      showGuides = false;
-      clearTimeout(cueHintTimer);
-      cueHintTimer = setTimeout(function(){
-        cueHintVisible = false;
-        showGuides = true;
-      }, 2000);
-    }
     var userData = tg?.initDataUnsafe?.user;
     if (userData) {
       nameP1.textContent = [userData.first_name, userData.last_name].filter(Boolean).join(' ') || 'You';
@@ -504,31 +474,29 @@
       // Cue ball (center poshte vijes se bardhe)
       this.balls.push(new Ball(BALL_BY_N[0], TABLE_W/2, CUE_START_Y));
       cueBallFree = true;
-      this.aim = { x: TABLE_W/2, y: CUE_START_Y - BALL_R*10 };
-      showCueBallHint();
 
       // Trekendshi siper me 15 topa (8-shi ne qender rreshti 3)
-      // Rrotulluar poshte ne menyre qe topi i verdhe te jete perballe cueball-it
+      // Rrotulluar qe te shenje anen e majte dhe ngritur pak me lart
       var rowGap = BALL_R*1.95;
       var colGap = BALL_R*2.1;
-      var cx = TABLE_W/2;
-      var cy = SPOT_Y - rowGap*4;
+      var cx = TABLE_W/2 - rowGap*2;
+      var cy = SPOT_Y;
 
       // Lista e numrave te tjere – do perdoren gradualisht
       var pool = []; for (i=1;i<=15;i++){ if(i!==1 && i!==2 && i!==8 && i!==11) pool.push(i); }
       var cursor = 0;
 
-      // 5 rreshta (5..1) — trekendsh i rrotulluar poshte
+      // 5 kolona (1..5) — trekendsh i rrotulluar majtas
       for (var c=0; c<5; c++) {
-        var count = 5 - c;
+        var count = c+1;
         for (j=0; j<count; j++) {
-          var x = cx - (count-1)*colGap/2 + j*colGap;
-          var y = cy + c*rowGap;
+          var x = cx + c*rowGap;
+          var y = cy - (count-1)*BALL_R*1.05 + j*colGap;
           var num;
-          if (c===4 && j===0) num = 1;            // yellow ne maje poshte
-          else if (c===2 && j===1) num = 8;       // qendra rreshti 3
-          else if (c===0 && j===0) num = 2;       // qoshe solid (majtas lart)
-          else if (c===0 && j===4) num = 11;      // qoshe stripe (djathtas lart)
+          if (c===0 && j===0) num = 1;            // yellow ne maje
+          else if (c===2 && j===1) num = 8;       // qendra e kolonës 3
+          else if (c===4 && j===0) num = 2;       // qoshe solid (sipër)
+          else if (c===4 && j===4) num = 11;      // qoshe stripe (poshtë)
           else num = pool[cursor++];
           var info = BALL_BY_N[num];
           if (!info) { console.warn('Rack: numer i papercaktuar', num); continue; }
@@ -618,7 +586,6 @@
               scratch = true;
               cueBallFree = true;
               b2.p.x = TABLE_W/2; b2.p.y = CUE_START_Y; b2.v.x = 0; b2.v.y = 0;
-              showCueBallHint();
             } else {
               b2.pocketed = true;
               pocketedAny = true;
@@ -637,7 +604,6 @@
 
     Table.prototype.render = function(){
       ctx.clearRect(0,0,canvas.width,canvas.height);
-      ctx.drawImage(tableImg, 0, 0, canvas.width, canvas.height);
         // Field outline removed (previously green)
         var x0 = BORDER * sX,
             y0 = BORDER_TOP * sY,
@@ -744,7 +710,7 @@
     /* ==========================================================
        GJENDJE GLOBALE E LOJES
        ========================================================= */
-    var table;
+    var table = new Table();
     var last = 0;              // koha e frame te fundit
     var aiming = false;        // a po caktohet drejtimi
     var showGuides = false;    // a shfaqen pikat
@@ -796,14 +762,13 @@
       }
       render(pottedP1, table.captured[1]);
       render(pottedP2, table.captured[2]);
-      if (table.captured[1].length || table.captured[2].length) {
-        setStatus('P1 ' + table.captured[1].length + ' - CPU ' + table.captured[2].length);
-      }
+      capP1.textContent = 'Guret e marra (P1): ' + (table.captured[1].join(', ') || '—');
+      capP2.textContent = 'Guret e marra (CPU): ' + (table.captured[2].join(', ') || '—');
     }
 
     function updateCueHint(){
       var cue = table.balls[0];
-      if (cueHintVisible && cueBallFree && cue && !cue.pocketed) {
+      if (cueBallFree && cue && !cue.pocketed) {
         cueHint.style.display = 'block';
         cueHint.style.left = (cue.p.x*sX + ballR) + 'px';
         cueHint.style.top  = (cue.p.y*sY - ballR*2) + 'px';
@@ -820,7 +785,6 @@
       pocketedAny = false;
       pocketedOwn = false;
       scratch = false;
-      setStatus('Player ' + table.turn + ' turn');
     }
 
     /* ==========================================================
@@ -838,6 +802,8 @@
       }
       requestAnimationFrame(loop);
     }
+    requestAnimationFrame(loop);
+
     /* ==========================================================
        INPUT – Aiming & Glow
        ========================================================= */
@@ -867,10 +833,6 @@
         var minY = LINE_Y + BALL_R, maxY = TABLE_H - BORDER_BOTTOM - BALL_R;
         cue.p.x = clamp(t.x, minX, maxX);
         cue.p.y = clamp(t.y, minY, maxY);
-        table.aim = { x: cue.p.x, y: cue.p.y - BALL_R*10 };
-        cueHintVisible = false;
-        showGuides = true;
-        clearTimeout(cueHintTimer);
         return;
       }
       if (!aiming || !table.running) return; table.aim = t; placeAimGlow(t);
@@ -930,38 +892,11 @@
     /* ==========================================================
        PULL & RELEASE – fuqi e goditjes
        ========================================================= */
-    var pulling=false;
-    function updatePowerUI(){
-      powerFill.style.height = Math.round(power*100)+'%';
-      powerTxt.textContent = 'FORCA '+Math.round(power*100)+'%';
-      var rect = pullArea.getBoundingClientRect();
-      var knobH = powerKnob.offsetHeight;
-      var maxTop = rect.height - knobH;
-      powerKnob.style.top = (maxTop * power) + 'px';
-    }
-
-    var pulling=false;
-    pullArea.addEventListener('pointerdown', function(e){
-      if (!table.running || table.isMoving()) return;
-      pulling=true;
-    });
-    pullArea.addEventListener('pointermove', function(e){
-      if (!pulling) return;
-      var rect=pullArea.getBoundingClientRect();
-      var knobH=powerKnob.offsetHeight;
-      power=clamp((e.clientY-rect.top-knobH/2)/(rect.height-knobH),0,1);
-      updatePowerUI();
-      cuePullVisual=power*(BALL_R*14);
-      placeAimGlow(table.aim);
-    });
-    pullArea.addEventListener('pointerup', function(){
-      if (!pulling) return;
-      pulling=false;
-      shoot(power);
-      power=0;
-      updatePowerUI();
-      cuePullVisual=0;
-    });
+    var pulling=false, pullStartY=0;
+    function updatePowerUI(){ powerFill.style.height = Math.round(power*100)+'%'; powerTxt.textContent = 'FORCA '+Math.round(power*100)+'%'; }
+    pullArea.addEventListener('pointerdown', function(e){ if (!table.running || table.isMoving()) return; pulling=true; pullStartY=e.clientY; power=0; updatePowerUI(); });
+    pullArea.addEventListener('pointermove', function(e){ if (!pulling) return; var rect=pullArea.getBoundingClientRect(); power=clamp((e.clientY-pullStartY)/(rect.height*0.9),0,1); updatePowerUI(); var minY=rect.top+12, maxY=rect.bottom-12, y=minY+(maxY-minY)*power; cueStickEl.style.height=(60+30*power)+'%'; cueTipEl.style.top=(y-rect.top-6)+'px'; cueStickEl.style.top=(y-rect.top-(cueStickEl.getBoundingClientRect().height-12)/2)+'px'; cuePullVisual=power*(BALL_R*14); placeAimGlow(table.aim); });
+    pullArea.addEventListener('pointerup', function(){ if (!pulling) return; pulling=false; shoot(power); power=0; updatePowerUI(); cuePullVisual=0; cueStickEl.style.height='60%'; });
 
     function shoot(p){
       if (!table.running || table.isMoving()) return;
@@ -976,7 +911,6 @@
       cue.spin = { x:spinVec.x*10*p, y:spinVec.y*10*p };
       cueBallFree = false;
       setSpin(0,0); showGuides=false;
-      setStatus('Player ' + currentShooter + ' shoots');
     }
 
     /* ==========================================================
@@ -1000,7 +934,6 @@
       pocketedAny=false; pocketedOwn=false; scratch=false;
       cue.v.x=d.x*cpuBase*(0.3+p);
       cue.v.y=d.y*cpuBase*(0.3+p);
-      setStatus('CPU shoots');
     }
 
     /* ==========================================================
