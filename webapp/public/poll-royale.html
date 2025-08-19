@@ -141,7 +141,7 @@
       background: #f6f6f6;
       position: absolute;
       left: 50%;
-      top: 50%;
+      top: 60%;
       transform: translate(-50%, -50%);
       box-shadow: 0 4px 10px rgba(0,0,0,.4) inset,
                   0 0 0 2px rgba(0,0,0,.15);
@@ -164,7 +164,7 @@
       width: 84px;
       height: 58%;
       border-radius: 14px;
-      background: linear-gradient(to top, #ff0000, #ffff00);
+      background: none;
       box-shadow: none;
       display: flex;
       align-items: center;
@@ -204,7 +204,7 @@
     #powerBox {
       width: 50px;
       height: 18%;
-      background: #333;
+      background: none;
       border-radius: 16px;
       position: relative;
       overflow: hidden;
@@ -217,7 +217,7 @@
       bottom: 0;
       width: 100%;
       height: 0%;
-      background: linear-gradient(#ffcc00, #ff4444);
+      background: #fff;
     }
 
     #powerTxt {
@@ -527,27 +527,28 @@
       cueHintTime = Date.now();
 
       // Trekendshi siper me 15 topa (8-shi ne qender rreshti 3)
-      // Rrotulluar qe te shenje anen e majte dhe ngritur pak me lart
-      var rowGap = BALL_R*1.95;
-      var colGap = BALL_R*2.1;
-      var cx = TABLE_W/2 - rowGap*2;
-      var cy = SPOT_Y;
+      // Rrotulluar qe topi i verdhe te jete perballe cue ball-it
+      var rowGap = BALL_R*2.1;
+      var colGap = BALL_R*1.95;
+      var cx = TABLE_W/2;
+      var cy = SPOT_Y - colGap*2;
 
       // Lista e numrave te tjere – do perdoren gradualisht
       var pool = []; for (i=1;i<=15;i++){ if(i!==1 && i!==2 && i!==8 && i!==11) pool.push(i); }
       var cursor = 0;
 
-      // 5 kolona (1..5) — trekendsh i rrotulluar majtas
-      for (var c=0; c<5; c++) {
-        var count = c+1;
+      // 5 rreshta nga lart poshte - trekendesh me maje poshte
+      for (var r=0; r<5; r++) {
+        var count = 5 - r;
+        var startX = cx - rowGap*(count-1)/2;
+        var y = cy + r*colGap;
         for (j=0; j<count; j++) {
-          var x = cx + c*rowGap;
-          var y = cy - (count-1)*BALL_R*1.05 + j*colGap;
+          var x = startX + j*rowGap;
           var num;
-          if (c===0 && j===0) num = 1;            // yellow ne maje
-          else if (c===2 && j===1) num = 8;       // qendra e kolonës 3
-          else if (c===4 && j===0) num = 2;       // qoshe solid (sipër)
-          else if (c===4 && j===4) num = 11;      // qoshe stripe (poshtë)
+          if (r===4 && j===0) num = 1;           // yellow ne maje (poshte)
+          else if (r===2 && j===1) num = 8;      // qender
+          else if (r===0 && j===0) num = 2;      // qoshe solid majtas
+          else if (r===0 && j===4) num = 11;     // qoshe stripe djathtas
           else num = pool[cursor++];
           var info = BALL_BY_N[num];
           if (!info) { console.warn('Rack: numer i papercaktuar', num); continue; }
@@ -591,8 +592,8 @@
         b.p.y += b.v.y * dt;
         b.v.x *= FRICTION; b.v.y *= FRICTION;
         if (b.spin) {
-          b.v.x += b.spin.x * 20 * dt;
-          b.v.y += b.spin.y * 20 * dt;
+          b.v.x += b.spin.x * 40 * dt;
+          b.v.y += b.spin.y * 40 * dt;
           b.spin.x *= 0.98;
           b.spin.y *= 0.98;
         }
@@ -894,7 +895,13 @@
     });
 
     canvas.addEventListener('pointerup', function(){
-      if (draggingCue) { draggingCue = false; return; }
+      if (draggingCue) {
+        draggingCue = false;
+        var cue = table.balls[0];
+        table.aim = { x: cue.p.x, y: cue.p.y - BALL_R*4 };
+        showGuides = true;
+        return;
+      }
       aiming = false;
     });
 
@@ -906,20 +913,30 @@
     function drawGuides(cue,aim){
       var dx = aim.x - cue.p.x, dy = aim.y - cue.p.y; var L = len(dx,dy) || 1; var dir = { x:dx/L, y:dy/L };
       var step = BALL_R * (.6 - .35*power + .05), dots = 60 + Math.round(power*60);
-      var x = cue.p.x, y = cue.p.y, target = null;
-      ctx.fillStyle = power<.33 ? 'rgba(255,255,255,.7)' : power<.66 ? 'rgba(255,255,255,.85)' : 'rgba(255,255,255,1)';
+      var x = cue.p.x, y = cue.p.y, target = null, hitStep = dots;
+
       for (var i=0;i<dots;i++){
+        x += dir.x * step; y += dir.y * step;
+        if (x < BORDER+BALL_R || x > TABLE_W-BORDER-BALL_R || y < BORDER_TOP+BALL_R || y > TABLE_H-BORDER_BOTTOM-BALL_R) { hitStep = i; break; }
+        for (var j=0;j<table.balls.length;j++){ var b=table.balls[j]; if (b===cue || b.pocketed) continue; if (d2({x:x,y:y}, b.p) < (BALL_R*2.05)*(BALL_R*2.05)) { target=b; hitStep = i; break; } }
+        if (target) break;
+      }
+
+      ctx.fillStyle = target ? 'rgba(255,255,0,1)' : (power<.33 ? 'rgba(255,255,255,.7)' : power<.66 ? 'rgba(255,255,255,.85)' : 'rgba(255,255,255,1)');
+      x = cue.p.x; y = cue.p.y;
+      for (var i=0;i<hitStep;i++){
         x += dir.x * step; y += dir.y * step;
         if (x < BORDER+BALL_R || x > TABLE_W-BORDER-BALL_R || y < BORDER_TOP+BALL_R || y > TABLE_H-BORDER_BOTTOM-BALL_R) break;
         ctx.beginPath(); ctx.arc(x*sX, y*sY, clamp(1.5+power*2.2, 1.5, 4), 0, Math.PI*2); ctx.fill();
-        for (var j=0;j<table.balls.length;j++){ var b=table.balls[j]; if (b===cue || b.pocketed) continue; if (d2({x:x,y:y}, b.p) < (BALL_R*2.05)*(BALL_R*2.05)) { target=b; i=dots; break; } }
       }
+
       if (target){
+        ctx.fillStyle = 'rgba(255,255,255,1)';
         var x2 = target.p.x, y2 = target.p.y;
         for (var k=0;k<dots;k++){
+          ctx.beginPath(); ctx.arc(x2*sX, y2*sY, clamp(1.2+power*2,1,3.5), 0, Math.PI*2); ctx.fill();
           x2 += dir.x * step; y2 += dir.y * step;
           if (x2 < BORDER+BALL_R || x2 > TABLE_W-BORDER-BALL_R || y2 < BORDER_TOP+BALL_R || y2 > TABLE_H-BORDER_BOTTOM-BALL_R) break;
-          ctx.beginPath(); ctx.arc(x2*sX, y2*sY, clamp(1.2+power*2,1,3.5), 0, Math.PI*2); ctx.fill();
         }
       }
     }
@@ -928,7 +945,7 @@
       var d = norm(aim.x-cuePos.x, aim.y-cuePos.y);
       var start = { x: cuePos.x - d.x*(BALL_R*2), y: cuePos.y - d.y*(BALL_R*2) };
       var length = BALL_R*20 + pull;
-      var angle = Math.atan2(d.y, d.x) + Math.PI;
+      var angle = Math.atan2(d.y, d.x) + Math.PI/2;
       if (cueImg.complete) {
         var scale = (length * sX) / cueImg.width;
         var drawW = cueImg.width * scale;
@@ -1011,9 +1028,9 @@
       currentShooter = table.turn;
       shotInProgress = true;
       pocketedAny = false; pocketedOwn = false; scratch = false;
-      cue.v.x = d.x*base*(0.25+0.75*p)+spinVec.x*260*4*p;
-      cue.v.y = d.y*base*(0.25+0.75*p)+spinVec.y*260*4*p;
-      cue.spin = { x:spinVec.x*10*p, y:spinVec.y*10*p };
+      cue.v.x = d.x*base*(0.25+0.75*p)+spinVec.x*260*8*p;
+      cue.v.y = d.y*base*(0.25+0.75*p)+spinVec.y*260*8*p;
+      cue.spin = { x:spinVec.x*20*p, y:spinVec.y*20*p };
       cueBallFree = false;
       setSpin(0,0); showGuides=false;
     }
