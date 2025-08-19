@@ -604,11 +604,14 @@
 
     Table.prototype.render = function(){
       ctx.clearRect(0,0,canvas.width,canvas.height);
-        // Field outline removed (previously green)
+        // Field outline
         var x0 = BORDER * sX,
             y0 = BORDER_TOP * sY,
             w = (TABLE_W - 2 * BORDER) * sX,
             h = (TABLE_H - BORDER_TOP - BORDER_BOTTOM) * sY;
+        ctx.strokeStyle = '#0f0';
+        ctx.lineWidth = 2;
+        ctx.strokeRect(x0, y0, w, h);
 
       // Vija kufizuese e cueball-it dhe pika qendrore
       ctx.strokeStyle = '#fff';
@@ -622,7 +625,22 @@
       ctx.arc((TABLE_W/2)*sX, SPOT_Y*sY, 5*((sX+sY)/2), 0, Math.PI*2);
       ctx.fill();
 
-        // Pocket markers removed (previously green circles)
+        // Pocket markers with numbers
+        for (var i=0;i<this.pockets.length;i++){
+          var p=this.pockets[i], px=p.x*sX, py=p.y*sY;
+          ctx.beginPath();
+          ctx.lineWidth=2;
+          ctx.strokeStyle='#0f0';
+          ctx.fillStyle='rgba(0,255,0,0.2)';
+          ctx.arc(px, py, pocketR, 0, Math.PI*2);
+          ctx.fill();
+          ctx.stroke();
+          ctx.fillStyle='#fff';
+          ctx.font=(pocketR*0.8)+'px system-ui,sans-serif';
+          ctx.textAlign='center';
+          ctx.textBaseline='middle';
+          ctx.fillText(String(i+1), px, py);
+        }
 
       // Topat
       for (var j=0;j<this.balls.length;j++){
