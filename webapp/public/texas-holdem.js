@@ -299,69 +299,6 @@ function updatePotDisplay() {
   if (textEl) textEl.textContent = `Total: ${state.pot} ${state.token}`;
 }
 
-function createChipPile(amount) {
-  const pile = document.createElement('div');
-  pile.className = 'chip-pile';
-  let remaining = amount;
-  CHIP_VALUES.forEach((val) => {
-    const count = Math.floor(remaining / val);
-    if (count > 0) {
-      remaining -= count * val;
-      for (let i = 0; i < count; i++) {
-        const chip = document.createElement('div');
-        chip.className = 'chip v' + val;
-        chip.textContent = val;
-        chip.style.top = -i * 4 + 'px';
-        pile.appendChild(chip);
-      }
-    }
-  });
-  return pile;
-}
-
-function animateBet(idx, amount) {
-  return new Promise((resolve) => {
-    const stage = document.querySelector('.stage');
-    const avatar = document.getElementById('avatar-' + idx);
-    const potWrap = document.getElementById('potWrap');
-    if (!stage || !avatar || !potWrap) {
-      resolve();
-      return;
-    }
-    const stageRect = stage.getBoundingClientRect();
-    const avatarRect = avatar.getBoundingClientRect();
-    const potRect = potWrap.getBoundingClientRect();
-
-    const container = document.createElement('div');
-    container.className = 'bet-move';
-    container.style.left = avatarRect.right - stageRect.left + 'px';
-    container.style.top = avatarRect.top - stageRect.top + 'px';
-
-    const pile = createChipPile(amount);
-    container.appendChild(pile);
-    const text = document.createElement('div');
-    text.className = 'bet-text';
-    text.textContent = amount + ' ' + state.token;
-    container.appendChild(text);
-    stage.appendChild(container);
-
-    requestAnimationFrame(() => {
-      container.style.left = potRect.left - stageRect.left + 'px';
-      container.style.top = potRect.top - stageRect.top + 'px';
-    });
-
-    container.addEventListener(
-      'transitionend',
-      () => {
-        text.remove();
-        stage.removeChild(container);
-        resolve();
-      },
-      { once: true }
-    );
-  });
-}
-
 async function dealInitialCards() {
   for (let r = 0; r < 2; r++) {
     for (let i = 0; i < state.players.length; i++) {
@@ -423,16 +360,13 @@ function setPlayerTurnIndicator(idx) {
 function showControls() {
   const controls = document.getElementById('controls');
   controls.innerHTML = '';
-  const baseActions = [
-    { id: 'fold', fn: playerFold },
-    { id: 'check', fn: playerCheck, disabled: state.currentBet > 0 },
-    { id: 'call', fn: playerCall, disabled: state.currentBet === 0 }
-  ];
+  const baseActions = [{ id: 'fold', fn: playerFold }];
+  if (state.currentBet === 0) baseActions.push({ id: 'check', fn: playerCheck });
+  baseActions.push({ id: 'call', fn: playerCall });
   baseActions.forEach((a) => {
     const btn = document.createElement('button');
     btn.id = a.id;
     btn.textContent = a.id;
-    if (a.disabled) btn.disabled = true;
     btn.addEventListener('click', a.fn);
     controls.appendChild(btn);
   });
@@ -553,23 +487,20 @@ function playerCheck() {
   proceedStage();
 }
 
-async function playerCall() {
-  const amount = state.currentBet;
-  await animateBet(0, amount);
-  state.pot += amount;
+function playerCall() {
+  state.pot += state.currentBet;
   updatePotDisplay();
   setActionText(0, 'call');
-  document.getElementById('status').textContent = `You call ${amount} ${state.token}`;
+  document.getElementById('status').textContent = `You call ${state.currentBet} ${state.token}`;
   if (state.pot >= state.maxPot) playAllInSound();
   else playCallRaiseSound();
   proceedStage();
 }
 
-async function playerRaise() {
+function playerRaise() {
   const maxAllowed = Math.min(state.stake, state.maxPot - state.pot);
   const amount = Math.min(state.raiseAmount, maxAllowed);
   if (amount <= 0) return;
-  await animateBet(0, amount);
   state.pot += amount;
   state.currentBet += amount;
   updatePotDisplay();
@@ -588,7 +519,6 @@ async function proceedStage() {
     const p = state.players[i];
     if (p.vacant || !p.active) continue;
     setPlayerTurnIndicator(i);
-    playKnockSound();
     document.getElementById('status').textContent = `${p.name}...`;
     await new Promise((r) => setTimeout(r, 2500));
     let action = aiChooseAction(
@@ -600,7 +530,6 @@ async function proceedStage() {
     if (action === 'raise') {
       const raiseBy = ANTE;
       const total = state.currentBet + raiseBy;
-      await animateBet(i, total);
       state.currentBet = total;
       state.pot += total;
       updatePotDisplay();
@@ -608,11 +537,9 @@ async function proceedStage() {
       if (state.pot >= state.maxPot) playAllInSound();
       else playCallRaiseSound();
     } else if (action === 'call') {
-      const amount = state.currentBet;
-      await animateBet(i, amount);
-      state.pot += amount;
+      state.pot += state.currentBet;
       updatePotDisplay();
-      document.getElementById('status').textContent = `${p.name} calls ${amount} ${state.token}`;
+      document.getElementById('status').textContent = `${p.name} calls ${state.currentBet} ${state.token}`;
       if (state.pot >= state.maxPot) playAllInSound();
       else playCallRaiseSound();
     } else if (action === 'fold') {
