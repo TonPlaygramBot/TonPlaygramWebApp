@@ -1,15 +1,11 @@
 import { useEffect, useState } from 'react';
-import { getAccountTransactions } from '../utils/api.js';
-
-const GAME_ACCOUNT =
-  import.meta.env.VITE_GAME_ACCOUNT_ID || import.meta.env.VITE_DEV_ACCOUNT_ID;
+import { getGameTransactions } from '../utils/api.js';
 
 export default function GameTransactionsCard() {
   const [transactions, setTransactions] = useState([]);
 
   useEffect(() => {
-    if (!GAME_ACCOUNT) return;
-    getAccountTransactions(GAME_ACCOUNT)
+    getGameTransactions()
       .then((res) => setTransactions(res.transactions || []))
       .catch(() => setTransactions([]));
   }, []);
@@ -28,12 +24,7 @@ export default function GameTransactionsCard() {
   return (
     <section className="relative bg-surface border border-border rounded-xl p-4 shadow-lg overflow-hidden wide-card">
       <h3 className="text-lg font-semibold text-center">Games Transactions</h3>
-      {GAME_ACCOUNT ? (
-        <Content />
-      ) : (
-        <p className="mt-2 text-sm text-center">Game account is not configured.</p>
-      )}
+      <Content />
     </section>
   );
 }
-
