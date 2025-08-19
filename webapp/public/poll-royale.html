@@ -123,9 +123,6 @@
       flex-direction: column;
       align-items: center;
       justify-content: space-between;
-
-      background: rgba(16,24,48,.76);
-      border-left: 2px solid #2c3d63;
       padding: 12px 8px;
       z-index: 6;
     }
@@ -316,8 +313,10 @@
     var BORDER  = 55;       // korniza e drurit e zgjeruar ~5%
     var POCKET_R = 42;      // rrezja baze e gropave
     var BALL_R   = 24.3;    // rrezja baze e topave (10% me e vegjel)
-    var HEAD_Y   = TABLE_H * 0.75; // vija e bardhe e kufirit te cueball-it
-    var CUE_START_Y = HEAD_Y + (TABLE_H - HEAD_Y - BORDER - BALL_R*2) / 2; // pozicioni fillestar i cueball-it
+    var BORDER_TOP = BORDER + BALL_R * 2; // topi anes se siperm shkurtohet me diametrin e topit
+    var BORDER_BOTTOM = BORDER;           // anet e tjera mbeten te pandryshuara
+    var HEAD_Y   = BORDER_TOP + (TABLE_H - BORDER_TOP - BORDER_BOTTOM) * 0.75; // vija e bardhe e kufirit te cueball-it
+    var CUE_START_Y = HEAD_Y + (TABLE_H - BORDER_BOTTOM - HEAD_Y - BALL_R*2) / 2; // pozicioni fillestar i cueball-it
 
     var FRICTION = 0.985;   // ferkimi linear
     var BOUNCE   = 0.98;    // koeficienti i rikthimit
@@ -470,7 +469,7 @@
 
       // Trekendshi siper me 15 topa (8-shi ne qender rreshti 3)
       var cx = TABLE_W/2;
-      var cy = BORDER + BALL_R*2.2;
+      var cy = BORDER_TOP + BALL_R*2.2;
       var rowGap = BALL_R*1.95;
       var colGap = BALL_R*2.1;
 
@@ -497,12 +496,12 @@
 
       // Pockets (4 qoshe + 2 te mesit anesore)
       this.pockets = [
-        new Pocket(BORDER, BORDER),
-        new Pocket(TABLE_W - BORDER, BORDER),
-        new Pocket(BORDER, TABLE_H/2),
-        new Pocket(TABLE_W - BORDER, TABLE_H/2),
-        new Pocket(BORDER, TABLE_H - BORDER),
-        new Pocket(TABLE_W - BORDER, TABLE_H - BORDER)
+        new Pocket(BORDER, BORDER_TOP),
+        new Pocket(TABLE_W - BORDER, BORDER_TOP),
+        new Pocket(BORDER, TABLE_H/2 + BALL_R),
+        new Pocket(TABLE_W - BORDER, TABLE_H/2 + BALL_R),
+        new Pocket(BORDER, TABLE_H - BORDER_BOTTOM),
+        new Pocket(TABLE_W - BORDER, TABLE_H - BORDER_BOTTOM)
       ];
 
       this.captured = { 1:[], 2:[] };
@@ -540,8 +539,8 @@
 
         var L = BORDER + BALL_R;
         var R = TABLE_W - BORDER - BALL_R;
-        var T = BORDER + BALL_R;
-        var B = TABLE_H - BORDER - BALL_R;
+        var T = BORDER_TOP + BALL_R;
+        var B = TABLE_H - BORDER_BOTTOM - BALL_R;
         if (b.p.x < L) { b.p.x = L; b.v.x *= -BOUNCE; }
         if (b.p.x > R) { b.p.x = R; b.v.x *= -BOUNCE; }
         if (b.p.y < T) { b.p.y = T; b.v.y *= -BOUNCE; }
@@ -596,7 +595,10 @@
     Table.prototype.render = function(){
       ctx.clearRect(0,0,canvas.width,canvas.height);
       // Field outline
-      var x0 = BORDER*sX, y0 = BORDER*sY, w = (TABLE_W-2*BORDER)*sX, h = (TABLE_H-2*BORDER)*sY;
+      var x0 = BORDER * sX,
+          y0 = BORDER_TOP * sY,
+          w = (TABLE_W - 2 * BORDER) * sX,
+          h = (TABLE_H - BORDER_TOP - BORDER_BOTTOM) * sY;
       ctx.strokeStyle = '#00ff00';
       ctx.lineWidth = 4;
       ctx.strokeRect(x0, y0, w, h);
@@ -784,7 +786,7 @@
         var dist = Math.hypot(t.x - cue.p.x, t.y - cue.p.y);
         if (dist > BALL_R*2) {
           var minX = BORDER + BALL_R, maxX = TABLE_W - BORDER - BALL_R;
-          var minY = HEAD_Y + BALL_R, maxY = TABLE_H - BORDER - BALL_R;
+          var minY = HEAD_Y + BALL_R, maxY = TABLE_H - BORDER_BOTTOM - BALL_R;
           cue.p.x = clamp(t.x, minX, maxX);
           cue.p.y = clamp(t.y, minY, maxY);
           return;
@@ -811,7 +813,7 @@
       ctx.fillStyle = power<.33 ? 'rgba(255,255,255,.7)' : power<.66 ? 'rgba(255,255,255,.85)' : 'rgba(255,255,255,1)';
       for (var i=0;i<dots;i++){
         x += dir.x * step; y += dir.y * step;
-        if (x < BORDER+BALL_R || x > TABLE_W-BORDER-BALL_R || y < BORDER+BALL_R || y > TABLE_H-BORDER-BALL_R) break;
+        if (x < BORDER+BALL_R || x > TABLE_W-BORDER-BALL_R || y < BORDER_TOP+BALL_R || y > TABLE_H-BORDER_BOTTOM-BALL_R) break;
         ctx.beginPath(); ctx.arc(x*sX, y*sY, clamp(1.5+power*2.2, 1.5, 4), 0, Math.PI*2); ctx.fill();
         for (var j=0;j<table.balls.length;j++){ var b=table.balls[j]; if (b===cue || b.pocketed) continue; if (d2({x:x,y:y}, b.p) < (BALL_R*2.05)*(BALL_R*2.05)) { target=b; i=dots; break; } }
       }
@@ -819,7 +821,7 @@
         var x2 = target.p.x, y2 = target.p.y;
         for (var k=0;k<dots;k++){
           x2 += dir.x * step; y2 += dir.y * step;
-          if (x2 < BORDER+BALL_R || x2 > TABLE_W-BORDER-BALL_R || y2 < BORDER+BALL_R || y2 > TABLE_H-BORDER-BALL_R) break;
+          if (x2 < BORDER+BALL_R || x2 > TABLE_W-BORDER-BALL_R || y2 < BORDER_TOP+BALL_R || y2 > TABLE_H-BORDER_BOTTOM-BALL_R) break;
           ctx.beginPath(); ctx.arc(x2*sX, y2*sY, clamp(1.2+power*2,1,3.5), 0, Math.PI*2); ctx.fill();
         }
       }
