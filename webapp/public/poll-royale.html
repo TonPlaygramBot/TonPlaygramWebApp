@@ -141,7 +141,7 @@
       background: #f6f6f6;
       position: absolute;
       left: 50%;
-      top: 60%;
+      top: 70%;
       transform: translate(-50%, -50%);
       box-shadow: 0 4px 10px rgba(0,0,0,.4) inset,
                   0 0 0 2px rgba(0,0,0,.15);
@@ -170,7 +170,7 @@
       align-items: center;
       justify-content: center;
       padding: 8px;
-      transform: translate(4px, 8px);
+      transform: translate(4px, 24px);
     }
 
     #cueRail {
@@ -524,6 +524,7 @@
       // Cue ball (center poshte vijes se bardhe)
       this.balls.push(new Ball(BALL_BY_N[0], TABLE_W/2, CUE_START_Y));
       cueBallFree = true;
+      aiming = false;
       cueHintTime = Date.now();
 
       // Trekendshi siper me 15 topa (8-shi ne qender rreshti 3)
@@ -640,6 +641,7 @@
             if (b2.n === 0) {
               scratch = true;
               cueBallFree = true;
+              aiming = false;
               cueHintTime = Date.now();
               b2.p.x = TABLE_W/2; b2.p.y = CUE_START_Y; b2.v.x = 0; b2.v.y = 0;
             } else {
@@ -992,7 +994,7 @@
     function updatePowerUI(){
       powerFill.style.height = Math.round(power*100)+'%';
       powerTxt.textContent = 'FORCA '+Math.round(power*100)+'%';
-      pullArea.style.background = 'linear-gradient(to top, #ff0000 0%, #ff0000 '+Math.round(power*100)+'%, #ffff00 '+Math.round(power*100)+'%, #ffff00 100%)';
+      pullArea.style.background = 'none';
       updatePullHandle();
     }
     function updateFromEvent(e){
