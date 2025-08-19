@@ -8,6 +8,7 @@ import DailyCheckIn from '../components/DailyCheckIn.jsx';
 import SpinGame from '../components/SpinGame.jsx';
 import MiningCard from '../components/MiningCard.tsx';
 import LuckyNumber from '../components/LuckyNumber.jsx';
+import MiningTransactionsCard from '../components/MiningTransactionsCard.jsx';
 import {
   getLeaderboard,
   getReferralInfo,
@@ -135,6 +136,7 @@ export default function Mining() {
     <SpinGame />
     <LuckyNumber />
     <MiningCard />
+    <MiningTransactionsCard />
 
       <div className="relative bg-surface border border-border rounded-xl p-4 space-y-4 text-text overflow-hidden wide-card">
       <img
