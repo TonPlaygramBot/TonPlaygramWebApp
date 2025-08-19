@@ -353,6 +353,58 @@
     var pottedP2 = document.getElementById('p2Potted');
     var cueHint  = document.getElementById('cueHint');
 
+    // --------------------------------------------------
+    // Audio setup
+    // --------------------------------------------------
+    var audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    var hitBuffer = null, pocketBuffer = null;
+
+    fetch('/assets/sounds/billiard-pool-hit-371618.mp3')
+      .then(function (r) { return r.arrayBuffer(); })
+      .then(function (b) { return audioCtx.decodeAudioData(b); })
+      .then(function (buf) { hitBuffer = buf; });
+
+    fetch('/assets/sounds/billiard-sound-6-288417.mp3')
+      .then(function (r) { return r.arrayBuffer(); })
+      .then(function (b) { return audioCtx.decodeAudioData(b); })
+      .then(function (buf) { pocketBuffer = buf; });
+
+    function playCueHit(vol) {
+      audioCtx.resume();
+      if (!hitBuffer) return;
+      var src = audioCtx.createBufferSource();
+      src.buffer = hitBuffer;
+      var gain = audioCtx.createGain();
+      gain.gain.value = clamp(vol, 0, 1);
+      src.connect(gain).connect(audioCtx.destination);
+      var half = hitBuffer.duration / 2;
+      src.start(0, 0, half);
+    }
+
+    function playBallHit(vol) {
+      audioCtx.resume();
+      if (!hitBuffer) return;
+      var src = audioCtx.createBufferSource();
+      src.buffer = hitBuffer;
+      var gain = audioCtx.createGain();
+      gain.gain.value = clamp(vol, 0, 1);
+      src.connect(gain).connect(audioCtx.destination);
+      var half = hitBuffer.duration / 2;
+      src.start(0, half, half);
+    }
+
+    function playPocket() {
+      audioCtx.resume();
+      if (!pocketBuffer) return;
+      var src = audioCtx.createBufferSource();
+      src.buffer = pocketBuffer;
+      var gain = audioCtx.createGain();
+      gain.gain.value = 1;
+      src.connect(gain).connect(audioCtx.destination);
+      var d = pocketBuffer.duration;
+      src.start(0, Math.max(0, d - 1), 1);
+    }
+
     var tg = window.Telegram?.WebApp;
     var userData = tg?.initDataUnsafe?.user;
     if (userData) {
@@ -564,8 +616,10 @@
           a.p.x -= nx*over; a.p.y -= ny*over; bb.p.x += nx*over; bb.p.y += ny*over;
           var rvx = bb.v.x - a.v.x, rvy = bb.v.y - a.v.y, vn = rvx*nx + rvy*ny;
           if (vn < 0) {
-            var imp = -vn; a.v.x -= imp*nx; a.v.y -= imp*ny; bb.v.x += imp*nx; bb.v.y += imp*ny;
+            var imp = -vn;
+            a.v.x -= imp*nx; a.v.y -= imp*ny; bb.v.x += imp*nx; bb.v.y += imp*ny;
             a.v.x *= BOUNCE; a.v.y *= BOUNCE; bb.v.x *= BOUNCE; bb.v.y *= BOUNCE;
+            playBallHit(clamp(imp/4000,0,1));
           }
         }
       }
@@ -578,6 +632,7 @@
           if (b2.pocketed) continue;
           var ddx = b2.p.x - p.x, ddy = b2.p.y - p.y;
           if (Math.hypot(ddx,ddy) < POCKET_R*0.9) {
+            playPocket();
             if (b2.n === 0) {
               scratch = true;
               cueBallFree = true;
@@ -936,6 +991,7 @@
       var cue = table.balls[0]; if (!cue || cue.pocketed) return;
       var d = norm(table.aim.x-cue.p.x, table.aim.y-cue.p.y);
       var base = 950*3*1.5; // force increased 150%
+      playCueHit(p);
       currentShooter = table.turn;
       shotInProgress = true;
       pocketedAny = false; pocketedOwn = false; scratch = false;
