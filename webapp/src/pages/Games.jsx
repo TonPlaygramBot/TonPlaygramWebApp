@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom';
 import useTelegramBackButton from '../hooks/useTelegramBackButton.js';
 import LeaderboardCard from '../components/LeaderboardCard.jsx';
+import GameTransactionsCard from '../components/GameTransactionsCard.jsx';
 
 export default function Games() {
   useTelegramBackButton();
@@ -157,6 +158,7 @@ export default function Games() {
             </div>
           </div>
         </div>
+        <GameTransactionsCard />
         <LeaderboardCard />
       </div>
   );
