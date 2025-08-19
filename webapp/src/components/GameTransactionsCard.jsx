@@ -1,30 +1,49 @@
 import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { getGameTransactions } from '../utils/api.js';
 
 export default function GameTransactionsCard() {
   const [transactions, setTransactions] = useState([]);
+  const navigate = useNavigate();
 
   useEffect(() => {
     getGameTransactions()
       .then((res) => setTransactions(res.transactions || []))
       .catch(() => setTransactions([]));
   }, []);
-  const Content = () => (
-    <ul className="mt-2 space-y-1 max-h-64 overflow-y-auto text-sm">
-      {transactions.length === 0 && <li>No transactions yet.</li>}
-      {transactions.map((t, i) => (
-        <li key={i} className="flex justify-between">
-          <span className="capitalize">{t.type}</span>
-          <span>{t.amount}</span>
-        </li>
-      ))}
-    </ul>
-  );
+
+  const games = transactions.filter((t) => t.game);
+  const totalGames = games.length;
+  const totalDeposited = games
+    .filter((t) => t.type === 'deposit')
+    .reduce((s, t) => s + Math.abs(t.amount || 0), 0);
+  const totalPayouts = games
+    .filter((t) => t.type === 'payout')
+    .reduce((s, t) => s + Math.abs(t.amount || 0), 0);
+
+  const formatValue = (v) =>
+    v.toLocaleString(undefined, { maximumFractionDigits: 2, minimumFractionDigits: 2 });
 
   return (
-    <section className="relative bg-surface border border-border rounded-xl p-4 shadow-lg overflow-hidden wide-card">
+    <section
+      className="relative bg-surface border border-border rounded-xl p-4 shadow-lg overflow-hidden wide-card cursor-pointer"
+      onClick={() => navigate('/games/transactions')}
+    >
       <h3 className="text-lg font-semibold text-center">Games Transactions</h3>
-      <Content />
+      <div className="mt-2 space-y-1 text-sm">
+        <div className="flex justify-between">
+          <span>Total games played</span>
+          <span>{totalGames}</span>
+        </div>
+        <div className="flex justify-between">
+          <span>Total payouts</span>
+          <span>{formatValue(totalPayouts)}</span>
+        </div>
+        <div className="flex justify-between">
+          <span>Total deposited</span>
+          <span>{formatValue(totalDeposited)}</span>
+        </div>
+      </div>
     </section>
   );
 }
