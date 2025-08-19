@@ -317,7 +317,7 @@
       // Move the rack slightly upward on the table
       var SPOT_Y  = BORDER_TOP + (TABLE_H - BORDER_TOP - BORDER_BOTTOM) * 0.25 - BALL_R * 0.5; // pika per trekendshin siper
     var LINE_Y  = BORDER_TOP + (TABLE_H - BORDER_TOP - BORDER_BOTTOM) * 0.75; // vija e bardhe poshte
-    var CUE_START_Y = SPOT_Y; // pozicioni fillestar i cueball-it ne qender lart
+    var CUE_START_Y = LINE_Y + (TABLE_H - BORDER_BOTTOM - LINE_Y - BALL_R*2) / 2; // pozicioni fillestar i cueball-it
 
     var FRICTION = 0.985;   // ferkimi linear
     var BOUNCE   = 0.98;    // koeficienti i rikthimit
@@ -484,34 +484,34 @@
       var i, j;
       this.balls = [];
 
-      // Cue ball (center i pozicionuar ne pikën e sipërme)
+      // Cue ball (center poshte vijes se bardhe)
       this.balls.push(new Ball(BALL_BY_N[0], TABLE_W/2, CUE_START_Y));
       cueBallFree = true;
-      this.aim = { x: TABLE_W/2, y: CUE_START_Y + BALL_R*10 };
+      this.aim = { x: TABLE_W/2, y: CUE_START_Y - BALL_R*10 };
       showCueBallHint();
 
       // Trekendshi siper me 15 topa (8-shi ne qender rreshti 3)
-      // Rrotulluar 90° majtas per orientim te sakte
-      var rowGap = BALL_R * 2.1;
-      var colGap = BALL_R * 1.95;
-      var cx = TABLE_W / 2 + colGap * 2;
+      // Rrotulluar qe te shenje anen e majte dhe ngritur pak me lart
+      var rowGap = BALL_R*1.95;
+      var colGap = BALL_R*2.1;
+      var cx = TABLE_W/2 + rowGap*2;
       var cy = SPOT_Y;
 
       // Lista e numrave te tjere – do perdoren gradualisht
-      var pool = []; for (i = 1; i <= 15; i++) { if (i !== 1 && i !== 2 && i !== 8 && i !== 11) pool.push(i); }
+      var pool = []; for (i=1;i<=15;i++){ if(i!==1 && i!==2 && i!==8 && i!==11) pool.push(i); }
       var cursor = 0;
 
       // 5 kolona (5..1) — trekendsh i rrotulluar majtas
-      for (var c = 0; c < 5; c++) {
+      for (var c=0; c<5; c++) {
         var count = 5 - c;
-        for (j = 0; j < count; j++) {
-          var x = cx - c * colGap;
-          var y = cy - (count - 1) * rowGap / 2 + j * rowGap;
+        for (j=0; j<count; j++) {
+          var x = cx - c*rowGap;
+          var y = cy - (count-1)*BALL_R*1.05 + j*colGap;
           var num;
-          if (c === 4 && j === 0) num = 1;            // yellow ne maje
-          else if (c === 2 && j === 1) num = 8;       // qendra e kolonës 3
-          else if (c === 0 && j === 0) num = 2;       // qoshe solid (sipër)
-          else if (c === 0 && j === 4) num = 11;      // qoshe stripe (poshtë)
+          if (c===4 && j===0) num = 1;            // yellow ne maje
+          else if (c===2 && j===1) num = 8;       // qendra e kolonës 3
+          else if (c===0 && j===0) num = 2;       // qoshe solid (sipër)
+          else if (c===0 && j===4) num = 11;      // qoshe stripe (poshtë)
           else num = pool[cursor++];
           var info = BALL_BY_N[num];
           if (!info) { console.warn('Rack: numer i papercaktuar', num); continue; }
