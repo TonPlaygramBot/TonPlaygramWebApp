@@ -314,14 +314,15 @@
        KONSTANTA TE LAYOUT-it DHE FIZIKES (sipas portrait)
        ========================================================= */
     var TABLE_W = 768;      // gjeresi logjike e felt-it
-    var TABLE_H = 1216;     // lartesi logjike e felt-it (5% me e shkurter poshte)
-    var BORDER  = 55;       // korniza e drurit e zgjeruar ~5%
+    var TABLE_H = 1216;     // lartesi logjike e felt-it
+    var BORDER  = 57;       // korniza e drurit pak me e ngushte anash
     var POCKET_R = 42;      // rrezja baze e gropave
-    var BALL_R   = 24.3;    // rrezja baze e topave (10% me e vegjel)
-    var BORDER_TOP = BORDER + BALL_R * 2; // topi anes se siperm shkurtohet me diametrin e topit
+    var BALL_R   = 23.5;    // rrezja baze e topave pak me e vogel
+    var BORDER_TOP = BORDER + BALL_R * 2 - 4; // bordi i siperm pak me i holle per fushe me te gjate
     var BORDER_BOTTOM = BORDER;           // anet e tjera mbeten te pandryshuara
-    var HEAD_Y   = BORDER_TOP + (TABLE_H - BORDER_TOP - BORDER_BOTTOM) * 0.25; // vija e bardhe e kufirit te cueball-it
-    var CUE_START_Y = HEAD_Y + (TABLE_H - BORDER_BOTTOM - HEAD_Y - BALL_R*2) / 2; // pozicioni fillestar i cueball-it
+    var SPOT_Y  = BORDER_TOP + (TABLE_H - BORDER_TOP - BORDER_BOTTOM) * 0.25; // pika per trekendshin siper
+    var LINE_Y  = BORDER_TOP + (TABLE_H - BORDER_TOP - BORDER_BOTTOM) * 0.75; // vija e bardhe poshte
+    var CUE_START_Y = LINE_Y + (TABLE_H - BORDER_BOTTOM - LINE_Y - BALL_R*2) / 2; // pozicioni fillestar i cueball-it
 
     var FRICTION = 0.985;   // ferkimi linear
     var BOUNCE   = 0.98;    // koeficienti i rikthimit
@@ -475,7 +476,7 @@
 
       // Trekendshi siper me 15 topa (8-shi ne qender rreshti 3)
       var cx = TABLE_W/2;
-      var cy = HEAD_Y;
+      var cy = SPOT_Y;
       var rowGap = BALL_R*1.95;
       var colGap = BALL_R*2.1;
 
@@ -614,12 +615,12 @@
       ctx.strokeStyle = '#fff';
       ctx.lineWidth = 2;
       ctx.beginPath();
-      ctx.moveTo(x0, HEAD_Y*sY);
-      ctx.lineTo(x0 + w, HEAD_Y*sY);
+      ctx.moveTo(x0, LINE_Y*sY);
+      ctx.lineTo(x0 + w, LINE_Y*sY);
       ctx.stroke();
       ctx.fillStyle = '#fff';
       ctx.beginPath();
-      ctx.arc((TABLE_W/2)*sX, HEAD_Y*sY, 5*((sX+sY)/2), 0, Math.PI*2);
+      ctx.arc((TABLE_W/2)*sX, SPOT_Y*sY, 5*((sX+sY)/2), 0, Math.PI*2);
       ctx.fill();
 
       // Pocket markers
@@ -838,7 +839,7 @@
       var cue = table.balls[0];
       if (draggingCue && cueBallFree) {
         var minX = BORDER + BALL_R, maxX = TABLE_W - BORDER - BALL_R;
-        var minY = HEAD_Y + BALL_R, maxY = TABLE_H - BORDER_BOTTOM - BALL_R;
+        var minY = LINE_Y + BALL_R, maxY = TABLE_H - BORDER_BOTTOM - BALL_R;
         cue.p.x = clamp(t.x, minX, maxX);
         cue.p.y = clamp(t.y, minY, maxY);
         return;
