@@ -300,24 +300,17 @@
     /* ==========================================================
        KONSTANTA TE LAYOUT-it DHE FIZIKES (sipas portrait)
        ========================================================= */
-    var BASE_W = 768;
-    var BASE_H = 1216;
-    var BASE_BORDER = 57;
-    var BASE_POCKET_R = 42;
-    var BASE_BALL_R = 23.5;
-    var BASE_BORDER_OFFSET = 4;
-
-    var TABLE_W = BASE_W;
-    var TABLE_H = BASE_H;
-    var BORDER  = BASE_BORDER;
-    var POCKET_R = BASE_POCKET_R;
-    var BALL_R   = BASE_BALL_R;
-    var BORDER_TOP = BORDER + BALL_R * 2 - BASE_BORDER_OFFSET;
-    var BORDER_BOTTOM = BORDER;
+    var TABLE_W = 768;      // gjeresi logjike e felt-it
+    var TABLE_H = 1216;     // lartesi logjike e felt-it
+    var BORDER  = 57;       // korniza e drurit pak me e ngushte anash
+    var POCKET_R = 42;      // rrezja baze e gropave
+    var BALL_R   = 23.5;    // rrezja baze e topave pak me e vogel
+    var BORDER_TOP = BORDER + BALL_R * 2 - 4; // bordi i siperm pak me i holle per fushe me te gjate
+    var BORDER_BOTTOM = BORDER;           // anet e tjera mbeten te pandryshuara
     // Move the rack slightly downward on the table
-    var SPOT_Y  = BORDER_TOP + (TABLE_H - BORDER_TOP - BORDER_BOTTOM) * 0.25 + BALL_R * 0.5;
-    var LINE_Y  = BORDER_TOP + (TABLE_H - BORDER_TOP - BORDER_BOTTOM) * 0.75;
-    var CUE_START_Y = LINE_Y + (TABLE_H - BORDER_BOTTOM - LINE_Y - BALL_R*2) / 2;
+    var SPOT_Y  = BORDER_TOP + (TABLE_H - BORDER_TOP - BORDER_BOTTOM) * 0.25 + BALL_R * 0.5; // move rack slightly downward
+    var LINE_Y  = BORDER_TOP + (TABLE_H - BORDER_TOP - BORDER_BOTTOM) * 0.75; // vija e bardhe poshte
+    var CUE_START_Y = LINE_Y + (TABLE_H - BORDER_BOTTOM - LINE_Y - BALL_R*2) / 2; // pozicioni fillestar i cueball-it
 
     var FRICTION = 0.985;   // ferkimi linear
     var BOUNCE   = 0.98;    // koeficienti i rikthimit
@@ -339,20 +332,6 @@
     logoImg.src   = '/assets/icons/pool-royale.svg';
     var tableImg  = new Image();
     tableImg.onload = function(){
-      TABLE_W = tableImg.naturalWidth;
-      TABLE_H = tableImg.naturalHeight;
-      var scaleX = TABLE_W / BASE_W;
-      var scaleY = TABLE_H / BASE_H;
-      var scale = (scaleX + scaleY) / 2;
-      BORDER = BASE_BORDER * scale;
-      POCKET_R = BASE_POCKET_R * scale;
-      BALL_R = BASE_BALL_R * scale;
-      BORDER_TOP = BORDER + BALL_R * 2 - BASE_BORDER_OFFSET * scale;
-      BORDER_BOTTOM = BORDER;
-      // Move the rack slightly downward on the table
-      SPOT_Y  = BORDER_TOP + (TABLE_H - BORDER_TOP - BORDER_BOTTOM) * 0.25 + BALL_R * 0.5;
-      LINE_Y  = BORDER_TOP + (TABLE_H - BORDER_TOP - BORDER_BOTTOM) * 0.75;
-      CUE_START_Y = LINE_Y + (TABLE_H - BORDER_BOTTOM - LINE_Y - BALL_R*2) / 2;
       resize();
       table = new Table();
       table.render();
