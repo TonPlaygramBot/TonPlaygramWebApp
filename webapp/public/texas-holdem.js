@@ -206,26 +206,14 @@ function renderSeats() {
 
 function setActionText(idx, action) {
   const el = document.getElementById('action-' + idx);
-  if (el) el.textContent = action ? action.charAt(0).toUpperCase() + action.slice(1) : '';
-}
-
-function showActionOverlay(idx, action) {
-  const avatar = document.getElementById('avatar-' + idx);
-  if (!avatar) return;
-  const existing = avatar.querySelector('.action-overlay');
-  if (existing) existing.remove();
-  const overlay = document.createElement('div');
-  overlay.className = 'action-overlay ' + action;
-  overlay.textContent = action;
-  avatar.appendChild(overlay);
+  if (!el) return;
+  el.textContent = action ? action.charAt(0).toUpperCase() + action.slice(1) : '';
+  el.className = 'action-text';
+  if (action) el.classList.add(action);
 }
 
 function clearActionTexts() {
-  state.players.forEach((_, i) => {
-    setActionText(i, '');
-    const avatar = document.getElementById('avatar-' + i);
-    avatar?.querySelector('.action-overlay')?.remove();
-  });
+  state.players.forEach((_, i) => setActionText(i, ''));
 }
 
 function cardEl(card) {
@@ -454,14 +442,12 @@ function playerFold() {
   state.players[0].active = false;
   setPlayerTurnIndicator(null);
   setActionText(0, 'fold');
-  showActionOverlay(0, 'fold');
   document.getElementById('status').textContent = 'You folded';
   proceedStage();
 }
 
 function playerCheck() {
   setActionText(0, 'check');
-  showActionOverlay(0, 'check');
   document.getElementById('status').textContent = 'You check';
   proceedStage();
 }
@@ -470,7 +456,6 @@ function playerCall() {
   state.pot += state.currentBet;
   updatePotDisplay();
   setActionText(0, 'call');
-  showActionOverlay(0, 'call');
   document.getElementById('status').textContent = `You call ${state.currentBet} ${state.token}`;
   proceedStage();
 }
@@ -483,7 +468,6 @@ function playerRaise() {
   state.currentBet += amount;
   updatePotDisplay();
   setActionText(0, 'raise');
-  showActionOverlay(0, 'raise');
   document.getElementById('status').textContent = `You raise ${amount} ${state.token}`;
   proceedStage();
 }
@@ -522,7 +506,6 @@ async function proceedStage() {
       document.getElementById('status').textContent = `${p.name} checks`;
     }
     setActionText(i, action);
-    showActionOverlay(i, action);
   }
   setPlayerTurnIndicator(null);
   state.stage++;
