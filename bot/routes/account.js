@@ -499,9 +499,7 @@ router.post('/transactions', async (req, res) => {
 });
 
 // List all public game-related transactions
-router.get('/transactions/public', async (req, res) => {
-  const limitParam = Number(req.query.limit) || 100;
-  const limit = Math.min(Math.max(limitParam, 1), 1000);
+router.get('/transactions/public', async (_req, res) => {
   const transactions = await User.aggregate([
     { $unwind: '$transactions' },
     { $match: { 'transactions.game': { $exists: true } } },
@@ -512,20 +510,11 @@ router.get('/transactions/public', async (req, res) => {
         amount: '$transactions.amount',
         type: '$transactions.type',
         game: '$transactions.game',
-        date: '$transactions.date',
-        token: '$transactions.token',
-        fromAccount: { $ifNull: ['$transactions.fromAccount', '$accountId'] },
-        fromName: {
-          $ifNull: [
-            '$transactions.fromName',
-            { $ifNull: ['$nickname', '$firstName'] }
-          ]
-        },
-        fromPhoto: { $ifNull: ['$transactions.fromPhoto', '$photo'] }
+        date: '$transactions.date'
       }
     },
     { $sort: { date: -1 } },
-    { $limit: limit }
+    { $limit: 100 }
   ]);
   res.json({ transactions });
 });
