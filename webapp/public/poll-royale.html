@@ -164,13 +164,14 @@
       width: 84px;
       height: 58%;
       border-radius: 14px;
-      background: linear-gradient(180deg, rgba(0,0,0,.18), rgba(0,0,0,.28));
-      box-shadow: inset 0 0 0 1px rgba(255,255,255,.05),
-                  0 8px 24px rgba(0,0,0,.35);
       display: flex;
       align-items: center;
       justify-content: center;
       padding: 8px;
+      top: 4px;
+      right: -4px;
+      background: none;
+      box-shadow: none;
     }
 
     #cueRail {
@@ -179,9 +180,9 @@
       transform: translateX(-50%);
       width: 10px;
       height: calc(100% - 24px);
-      background: #3a2a17;
+      background: linear-gradient(to bottom, #ffff00, #ff0000);
       border-radius: 8px;
-      box-shadow: inset 0 0 0 2px rgba(0,0,0,.15);
+      box-shadow: none;
     }
 
     #pullHandle {
@@ -314,7 +315,7 @@
     var TABLE_H = 1216;     // lartesi logjike e felt-it
     var BORDER  = 57;       // korniza e drurit pak me e ngushte anash
     var POCKET_R = 42;      // rrezja baze e gropave
-    var BALL_R   = 23.5;    // rrezja baze e topave pak me e vogel
+    var BALL_R   = 22;    // rrezja baze e topave pak me e vogel
     var BORDER_TOP = BORDER + BALL_R * 2 - 4; // bordi i siperm pak me i holle per fushe me te gjate
     var BORDER_BOTTOM = BORDER;           // anet e tjera mbeten te pandryshuara
       // Move the rack slightly upward on the table
@@ -352,6 +353,9 @@
     var pottedP1 = document.getElementById('p1Potted');
     var pottedP2 = document.getElementById('p2Potted');
     var cueHint  = document.getElementById('cueHint');
+    var cueHintTimer = null;
+    var cueImg = new Image();
+    cueImg.src = '/assets/icons/file_0000000019d86243a2f7757076cd7869.webp';
 
     // --------------------------------------------------
     // Audio setup
@@ -522,29 +526,30 @@
       // Cue ball (center poshte vijes se bardhe)
       this.balls.push(new Ball(BALL_BY_N[0], TABLE_W/2, CUE_START_Y));
       cueBallFree = true;
+      showCueHint();
 
       // Trekendshi siper me 15 topa (8-shi ne qender rreshti 3)
-      // Rrotulluar qe te shenje anen e majte dhe ngritur pak me lart
-      var rowGap = BALL_R*1.95;
-      var colGap = BALL_R*2.1;
-      var cx = TABLE_W/2 - rowGap*2;
+      // Rrotulluar qe te shenje poshte qe 1-shi te jete drejtuar nga cueball
+      var rowGap = BALL_R*2.1;  // distanca horizontale midis topave ne rresht
+      var colGap = BALL_R*1.95; // distanca vertikale midis rreshtave
+      var cx = TABLE_W/2;
       var cy = SPOT_Y;
 
       // Lista e numrave te tjere – do perdoren gradualisht
       var pool = []; for (i=1;i<=15;i++){ if(i!==1 && i!==2 && i!==8 && i!==11) pool.push(i); }
       var cursor = 0;
 
-      // 5 kolona (1..5) — trekendsh i rrotulluar majtas
-      for (var c=0; c<5; c++) {
-        var count = c+1;
+      // 5 rreshta (1..5) – trekendsh i orientuar poshte
+      for (var r=0; r<5; r++) {
+        var count = r+1;
         for (j=0; j<count; j++) {
-          var x = cx + c*rowGap;
-          var y = cy - (count-1)*BALL_R*1.05 + j*colGap;
+          var x = cx - (count-1)*BALL_R*1.05 + j*rowGap;
+          var y = cy + r*colGap;
           var num;
-          if (c===0 && j===0) num = 1;            // yellow ne maje
-          else if (c===2 && j===1) num = 8;       // qendra e kolonës 3
-          else if (c===4 && j===0) num = 2;       // qoshe solid (sipër)
-          else if (c===4 && j===4) num = 11;      // qoshe stripe (poshtë)
+          if (r===0 && j===0) num = 1;            // yellow ne maje (siper)
+          else if (r===2 && j===1) num = 8;       // qendra e rreshtit 3
+          else if (r===4 && j===0) num = 2;       // qoshe solid majtas
+          else if (r===4 && j===4) num = 11;      // qoshe stripe djathtas
           else num = pool[cursor++];
           var info = BALL_BY_N[num];
           if (!info) { console.warn('Rack: numer i papercaktuar', num); continue; }
@@ -637,6 +642,7 @@
               scratch = true;
               cueBallFree = true;
               b2.p.x = TABLE_W/2; b2.p.y = CUE_START_Y; b2.v.x = 0; b2.v.y = 0;
+              showCueHint();
             } else {
               b2.pocketed = true;
               pocketedAny = true;
@@ -814,14 +820,23 @@
       capP2.textContent = 'Guret e marra (CPU): ' + (table.captured[2].join(', ') || '—');
     }
 
-    function updateCueHint(){
+    function showCueHint(){
+      clearTimeout(cueHintTimer);
       var cue = table.balls[0];
-      if (cueBallFree && cue && !cue.pocketed) {
+      if (cue && !cue.pocketed) {
         cueHint.style.display = 'block';
         cueHint.style.left = (cue.p.x*sX + ballR) + 'px';
         cueHint.style.top  = (cue.p.y*sY - ballR*2) + 'px';
-      } else {
-        cueHint.style.display = 'none';
+        cueHintTimer = setTimeout(function(){ cueHint.style.display='none'; }, 2000);
+      }
+    }
+
+    function updateCueHint(){
+      if (cueHint.style.display !== 'block') return;
+      var cue = table.balls[0];
+      if (cue && !cue.pocketed) {
+        cueHint.style.left = (cue.p.x*sX + ballR) + 'px';
+        cueHint.style.top  = (cue.p.y*sY - ballR*2) + 'px';
       }
     }
 
@@ -886,8 +901,19 @@
       if (!aiming || !table.running) return; table.aim = t; placeAimGlow(t);
     });
 
-    canvas.addEventListener('pointerup', function(){
-      if (draggingCue) { draggingCue = false; return; }
+    canvas.addEventListener('pointerup', function(e){
+      if (draggingCue) {
+        var cue = table.balls[0];
+        var t = screenToTable(e.clientX,e.clientY);
+        var minX = BORDER + BALL_R, maxX = TABLE_W - BORDER - BALL_R;
+        var minY = LINE_Y + BALL_R, maxY = TABLE_H - BORDER_BOTTOM - BALL_R;
+        cue.p.x = clamp(t.x, minX, maxX);
+        cue.p.y = clamp(t.y, minY, maxY);
+        draggingCue = false;
+        cueHint.style.display='none';
+        clearTimeout(cueHintTimer);
+        return;
+      }
       aiming = false;
     });
 
@@ -918,12 +944,18 @@
     }
 
     function drawCueOnTable(cuePos, aim, pull){
+      if (!cueImg.complete) return;
       var d = norm(aim.x-cuePos.x, aim.y-cuePos.y);
       var start = { x: cuePos.x - d.x*(BALL_R*2), y: cuePos.y - d.y*(BALL_R*2) };
-      var end   = { x: start.x - d.x*(BALL_R*20 + pull), y: start.y - d.y*(BALL_R*20 + pull) };
-      ctx.strokeStyle = '#caa471'; ctx.lineWidth = BALL_R*0.5; ctx.lineCap = 'round';
-      ctx.beginPath(); ctx.moveTo(start.x*sX, start.y*sY); ctx.lineTo(end.x*sX, end.y*sY); ctx.stroke();
-      ctx.strokeStyle = '#5c3a21'; ctx.lineWidth = BALL_R*0.7; ctx.beginPath(); ctx.moveTo(start.x*sX, start.y*sY); ctx.lineTo((start.x-d.x*BALL_R*1.2)*sX, (start.y-d.y*BALL_R*1.2)*sY); ctx.stroke();
+      var length = BALL_R*20 + pull;
+      var angle = Math.atan2(-d.y, -d.x);
+      ctx.save();
+      ctx.translate(start.x*sX, start.y*sY);
+      ctx.rotate(angle);
+      var w = length*sX;
+      var h = BALL_R*1.2*sY;
+      ctx.drawImage(cueImg, -w, -h/2, w, h);
+      ctx.restore();
     }
 
     /* ==========================================================
