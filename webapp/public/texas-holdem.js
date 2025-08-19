@@ -28,12 +28,22 @@ const state = {
 let myAccountId = '';
 let myTelegramId;
 let devAccountId;
+let gameWalletId;
 
 async function awardDevShare(total) {
   if (!devAccountId || !window.fbApi) return;
   try {
     await window.fbApi.depositAccount(devAccountId, Math.round(total * 0.1), {
       game: 'texasholdem-dev',
+    });
+  } catch {}
+}
+
+async function fundAiBet(amount) {
+  if (!gameWalletId || !window.fbApi || amount <= 0) return;
+  try {
+    await window.fbApi.depositAccount(gameWalletId, amount, {
+      game: 'texasholdem-ai',
     });
   } catch {}
 }
@@ -76,6 +86,7 @@ function init() {
   state.stake = parseInt(params.get('amount'), 10) || 0;
   state.token = params.get('token') || 'TPC';
   devAccountId = params.get('dev');
+  gameWalletId = params.get('gameWallet');
   myAccountId = params.get('accountId') || '';
   try {
     if (!myAccountId) myAccountId = localStorage.getItem('accountId');
@@ -224,6 +235,8 @@ function setupFlopBacks() {
 function collectAntes() {
   const active = state.players.filter((p) => !p.vacant).length;
   state.pot += ANTE * active;
+  const aiCount = state.players.filter((p) => !p.vacant && !p.isHuman).length;
+  fundAiBet(ANTE * aiCount);
 }
 
 function updatePotDisplay() {
@@ -437,9 +450,10 @@ function playerCheck() {
 }
 
 function playerCall() {
-  state.pot += state.currentBet;
+  const amount = Math.min(state.currentBet, state.maxPot - state.pot);
+  state.pot += amount;
   updatePotDisplay();
-  document.getElementById('status').textContent = `You call ${state.currentBet} ${state.token}`;
+  document.getElementById('status').textContent = `You call ${amount} ${state.token}`;
   proceedStage();
 }
 
@@ -471,14 +485,17 @@ async function proceedStage() {
     );
     if (action === 'raise') {
       const amount = Math.min(ANTE, state.maxPot - state.pot);
+      await fundAiBet(amount);
       state.pot += amount;
       state.currentBet += amount;
       updatePotDisplay();
       document.getElementById('status').textContent = `${p.name} raises ${amount} ${state.token}`;
     } else if (action === 'call') {
-      state.pot += state.currentBet;
+      const amount = Math.min(state.currentBet, state.maxPot - state.pot);
+      await fundAiBet(amount);
+      state.pot += amount;
       updatePotDisplay();
-      document.getElementById('status').textContent = `${p.name} calls ${state.currentBet} ${state.token}`;
+      document.getElementById('status').textContent = `${p.name} calls ${amount} ${state.token}`;
     } else if (action === 'fold') {
       document.getElementById('status').textContent = `${p.name} folds`;
     } else {
