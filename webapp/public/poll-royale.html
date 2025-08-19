@@ -314,7 +314,8 @@
     var BALL_R   = BASE_BALL_R;
     var BORDER_TOP = BORDER + BALL_R * 2 - BASE_BORDER_OFFSET;
     var BORDER_BOTTOM = BORDER;
-    var SPOT_Y  = BORDER_TOP + (TABLE_H - BORDER_TOP - BORDER_BOTTOM) * 0.25 - BALL_R * 0.5;
+    // Move the rack slightly downward on the table
+    var SPOT_Y  = BORDER_TOP + (TABLE_H - BORDER_TOP - BORDER_BOTTOM) * 0.25 + BALL_R * 0.5;
     var LINE_Y  = BORDER_TOP + (TABLE_H - BORDER_TOP - BORDER_BOTTOM) * 0.75;
     var CUE_START_Y = LINE_Y + (TABLE_H - BORDER_BOTTOM - LINE_Y - BALL_R*2) / 2;
 
@@ -348,7 +349,8 @@
       BALL_R = BASE_BALL_R * scale;
       BORDER_TOP = BORDER + BALL_R * 2 - BASE_BORDER_OFFSET * scale;
       BORDER_BOTTOM = BORDER;
-      SPOT_Y  = BORDER_TOP + (TABLE_H - BORDER_TOP - BORDER_BOTTOM) * 0.25 - BALL_R * 0.5;
+      // Move the rack slightly downward on the table
+      SPOT_Y  = BORDER_TOP + (TABLE_H - BORDER_TOP - BORDER_BOTTOM) * 0.25 + BALL_R * 0.5;
       LINE_Y  = BORDER_TOP + (TABLE_H - BORDER_TOP - BORDER_BOTTOM) * 0.75;
       CUE_START_Y = LINE_Y + (TABLE_H - BORDER_BOTTOM - LINE_Y - BALL_R*2) / 2;
       resize();
