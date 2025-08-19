@@ -463,8 +463,19 @@ async function proceedStage() {
     setPlayerTurnIndicator(i);
     document.getElementById('status').textContent = `${p.name}...`;
     await new Promise((r) => setTimeout(r, 2500));
-    const action = aiChooseAction(p.hand, state.community.slice(0, stageCommunityCount()));
-    if (action === 'call') {
+    const action = aiChooseAction(
+      p.hand,
+      state.community.slice(0, stageCommunityCount()),
+      state.currentBet
+    );
+    if (action === 'raise') {
+      const raiseBy = ANTE;
+      const total = state.currentBet + raiseBy;
+      state.currentBet = total;
+      state.pot += total;
+      updatePotDisplay();
+      document.getElementById('status').textContent = `${p.name} raises to ${total} ${state.token}`;
+    } else if (action === 'call') {
       state.pot += state.currentBet;
       updatePotDisplay();
       document.getElementById('status').textContent = `${p.name} calls ${state.currentBet} ${state.token}`;

@@ -181,16 +181,28 @@ export function evaluateWinner(players, community){
   return winner;
 }
 
-export function aiChooseAction(hand, community=[]){
-  const stage=community.length; //0 preflop,3 flop,4 turn,5 river
-  const score=bestHand([...hand,...community]);
-  // very naive thresholds
-  if(stage<3){
-    // preflop
-    const hv=hand.map(c=>rankValue(c.rank)).sort((a,b)=>b-a);
-    if(hv[0]>=12 || hv[0]===hv[1]) return 'call';
+export function aiChooseAction (hand, community = [], toCall = 0) {
+  const stage = community.length; //0 preflop,3 flop,4 turn,5 river
+
+  if (stage < 3) {
+    const hv = hand.map((c) => rankValue(c.rank)).sort((a, b) => b - a);
+    if (toCall > 0) {
+      if (hv[0] === hv[1] && hv[0] >= 11) return 'raise';
+      if (hv[0] >= 12 || hv[0] === hv[1]) return 'call';
+      return 'fold';
+    }
+    if (hv[0] === hv[1] && hv[0] >= 12) return 'raise';
+    if (hv[0] >= 11) return 'check';
     return 'fold';
   }
-  if(score.rank>=1) return 'call';
+
+  const score = bestHand([...hand, ...community]);
+  if (toCall > 0) {
+    if (score && score.rank >= 5) return 'raise';
+    if (score && score.rank >= 2) return 'call';
+    return 'fold';
+  }
+  if (score && score.rank >= 4) return 'raise';
+  if (score && score.rank >= 1) return 'check';
   return 'fold';
 }
