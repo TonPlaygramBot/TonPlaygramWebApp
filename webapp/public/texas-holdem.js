@@ -230,8 +230,8 @@ function renderSeats() {
       const timer = document.createElement('div');
       timer.className = 'timer';
       timer.id = 'timer-' + i;
-      if (positions[i] === 'top') seat.append(name, avatar, cards, action, timer);
-      else seat.append(avatar, cards, action, name, timer);
+      if (positions[i] === 'top') seat.append(avatar, name, cards, action, timer);
+      else seat.append(avatar, name, cards, action, timer);
     }
     seats.appendChild(seat);
   });
