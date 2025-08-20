@@ -115,10 +115,14 @@
         background:rgba(0,0,0,0.2);
       }
     #raise{ padding:0; font-size:14px; border-radius:50%; }
+    .raise-btn{ width:var(--avatar-size); height:var(--avatar-size); padding:0; border:4px solid #000; border-radius:50%; background:#2563eb; color:#fff; font-weight:600; font-size:12px; display:flex; align-items:center; justify-content:center; }
     .raise-amount{ font-size:10px; margin-top:2px; }
     .chip-grid{ display:grid; grid-template-columns:repeat(3,1fr); gap:4px; }
     .raise-container .chip{ position:static; left:auto; top:auto; cursor:pointer; border:2px solid transparent; }
     .raise-container .chip.selected{ border-color:#0ea5e9; }
+    .slider-wrap{ width:100%; display:flex; flex-direction:column; align-items:center; gap:4px; }
+    .slider-wrap input[type=range]{ width:100%; }
+    #allIn{ background:#dc2626; padding:2px 8px; border:2px solid #000; border-radius:8px; font-weight:600; font-size:12px; }
     .tpc-total{ font-size:12px; display:flex; align-items:center; gap:4px; }
     .tpc-total img{ width:16px; height:16px; }
     #status{ position:absolute; top:43%; left:50%; transform:translate(-50%, -50%); z-index:2; font-weight:900; letter-spacing:.3px; color:#ff0; text-shadow:0 2px 6px #000; -webkit-text-stroke:1px #000 }
