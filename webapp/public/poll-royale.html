@@ -142,7 +142,7 @@
       background: #f6f6f6;
       position: absolute;
       left: 50%;
-      top: 86%;
+      top: 90%;
       transform: translate(-50%, -50%);
       box-shadow: 0 4px 10px rgba(0,0,0,.4) inset,
                   0 0 0 2px rgba(0,0,0,.15);
@@ -172,7 +172,7 @@
       align-items: center;
       justify-content: center;
       padding: 8px;
-      transform: translate(16px, 48px);
+      transform: translate(62px, 48px);
     }
 
     #cueRail {
@@ -328,6 +328,7 @@
     var BOUNCE   = 0.98;    // koeficienti i rikthimit
 
     var MIN_V = 0.08;       // shpejtesia min. qe konsiderohet "ne levizje"
+    var CUE_Y_SHIFT = BALL_R * 10; // move cue down by five ball diameters
 
     /* ==========================================================
        ELEMENTET DOM
@@ -959,7 +960,7 @@
       var offset = BALL_R * 2.2 + pull;
       var center = {
         x: cuePos.x - dir.x * offset,
-        y: cuePos.y - dir.y * offset
+        y: cuePos.y - dir.y * offset + CUE_Y_SHIFT
       };
 
       var length = BALL_R * 20;
