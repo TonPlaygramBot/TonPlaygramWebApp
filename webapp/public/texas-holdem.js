@@ -479,9 +479,11 @@ function showControls() {
     sliderRaise.id = 'sliderRaise';
     sliderRaise.textContent = 'raise';
     sliderRaise.className = 'raise-btn';
-    sliderRaise.addEventListener('click', () =>
-      playerRaise(parseInt(slider.value, 10))
-    );
+    sliderRaise.addEventListener('click', () => {
+      const sliderVal = parseInt(slider.value, 10);
+      const amount = state.raiseAmount > 0 ? state.raiseAmount : sliderVal;
+      playerRaise(amount);
+    });
     sliderWrap.appendChild(sliderRaise);
 
     const sliderAmt = document.createElement('div');
@@ -531,12 +533,6 @@ function showControls() {
       'Total: <span id="tpcTotal">0</span> <img src="assets/icons/ezgif-54c96d8a9b9236.webp" alt="TPC" />';
     raiseContainer.appendChild(totalDiv);
 
-    const raiseBtn = document.createElement('button');
-    raiseBtn.textContent = 'raise';
-    raiseBtn.id = 'raise';
-    raiseBtn.className = 'raise-btn';
-    raiseBtn.addEventListener('click', () => playerRaise());
-    raiseContainer.appendChild(raiseBtn);
 
     const amountText = document.createElement('div');
     amountText.id = 'raiseAmountText';
@@ -560,7 +556,7 @@ function showControls() {
     if (amt) amt.textContent = `0 ${state.token}`;
   }
 
-  ['fold', 'call', 'check', 'raise', 'sliderRaise', 'allIn'].forEach((id) => {
+  ['fold', 'call', 'check', 'sliderRaise', 'allIn'].forEach((id) => {
     const el = document.getElementById(id);
     if (el) el.disabled = false;
   });
@@ -573,7 +569,7 @@ function showControls() {
   if (checkBtn) checkBtn.disabled = state.currentBet > 0;
 
   const maxAllowed = Math.min(state.stake, state.maxPot - state.pot, state.tpcTotal);
-  ['raise', 'sliderRaise', 'allIn'].forEach((id) => {
+  ['sliderRaise', 'allIn'].forEach((id) => {
     const el = document.getElementById(id);
     if (el) el.disabled = maxAllowed <= 0;
   });
@@ -606,7 +602,7 @@ function updateSliderRange() {
   const maxAllowed = Math.min(state.stake, state.maxPot - state.pot, state.tpcTotal);
   slider.max = Math.max(0, maxAllowed);
   const disable = maxAllowed <= 0;
-  ['raise', 'sliderRaise', 'allIn'].forEach((id) => {
+  ['sliderRaise', 'allIn'].forEach((id) => {
     const el = document.getElementById(id);
     if (el) el.disabled = disable;
   });
@@ -617,7 +613,7 @@ function updateSliderRange() {
 }
 
 function hideControls() {
-  ['fold', 'call', 'check', 'raise', 'sliderRaise', 'allIn'].forEach((id) => {
+  ['fold', 'call', 'check', 'sliderRaise', 'allIn'].forEach((id) => {
     const el = document.getElementById(id);
     if (el) el.disabled = true;
   });
