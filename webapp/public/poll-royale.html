@@ -959,7 +959,8 @@
       // shift the entire cue downward by the height of six balls to
       // align better with the table.
       var offset = BALL_R * 2.2 + pull;
-      var cueYOffset = BALL_R * 12; // six ball diameters
+      // Move cue image down by six ball diameters (6 * 2 * BALL_R)
+      var cueYOffset = BALL_R * 2 * 6;
       var center = {
         x: cuePos.x - dir.x * offset,
         y: cuePos.y - dir.y * offset + cueYOffset
