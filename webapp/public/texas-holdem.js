@@ -86,7 +86,7 @@ async function loadAccountBalance() {
 }
 
 const SUIT_MAP = { H: '♥', D: '♦', C: '♣', S: '♠' };
-const CHIP_VALUES = [1000, 200, 100, 50, 20, 10, 5, 2, 1];
+const CHIP_VALUES = [1000, 500, 200, 50, 20, 10, 5, 2, 1];
 const ANTE = 10;
 const regionNames = new Intl.DisplayNames(['en'], { type: 'region' });
 function flagName(flag) {
@@ -399,7 +399,6 @@ function dealCardToPlayer(idx, card, showFace) {
     stage.appendChild(temp);
     const target = document.getElementById('cards-' + idx);
     const targetRect = target.getBoundingClientRect();
-    playFlipSound();
     requestAnimationFrame(() => {
       temp.style.left = targetRect.left - stageRect.left + 'px';
       temp.style.top = targetRect.top - stageRect.top + 'px';
