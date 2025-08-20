@@ -138,7 +138,11 @@ export class PowerSlider {
     const handleH = this.handle.offsetHeight;
     const y = ratio * (trackH - handleH);
     this.handle.style.transform = `translate(0, ${y}px)`;
-    this.handleImg.style.transform = `translate(0, ${y}px)`;
+    // The cue image is nested inside the handle, so translating the handle
+    // already moves the image. Applying the same transform to the image caused
+    // it to drift away from the handle, placing it below the expected pull
+    // position. Remove the extra translation so the cue stays aligned directly
+    // beneath the "Pull" text and matches the slider's bottom line.
     const ttH = this.tooltip.offsetHeight;
     this.tooltip.style.transform = `translate(0, ${y - ttH - 8}px)`;
     this._updateHandleColor(ratio);
