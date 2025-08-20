@@ -22,6 +22,7 @@ const state = {
   pot: 0,
   maxPot: 0,
   raiseAmount: 0,
+  tpcTotal: 0,
   seated: true,
 };
 
@@ -69,6 +70,18 @@ function playKnockSound() {
     snd.play();
     setTimeout(() => snd.pause(), 2000);
   }
+}
+
+async function loadAccountBalance() {
+  if (!myAccountId || !window.fbApi?.getAccountBalance) return;
+  try {
+    const res = await window.fbApi.getAccountBalance(myAccountId);
+    if (res && typeof res.balance === 'number') {
+      state.tpcTotal = res.balance;
+      const el = document.getElementById('tpcTotal');
+      if (el) el.textContent = res.balance;
+    }
+  } catch {}
 }
 
 const SUIT_MAP = { H: '♥', D: '♦', C: '♣', S: '♠' };
@@ -414,6 +427,7 @@ function setPlayerTurnIndicator(idx) {
 function showControls() {
   const controls = document.getElementById('controls');
   controls.innerHTML = '';
+  state.raiseAmount = 0;
 
   const foldBtn = document.createElement('button');
   foldBtn.id = 'fold';
@@ -436,18 +450,38 @@ function showControls() {
   const raiseContainer = document.createElement('div');
   raiseContainer.className = 'raise-container';
   raiseContainer.id = 'raiseContainer';
-  const panel = document.createElement('div');
-  panel.id = 'raisePanel';
-  panel.innerHTML =
-    '<div class="max-zone"><div class="max-label">MAX</div></div>' +
-    '<div id="raiseFill"></div><div id="raiseThumb"></div>';
-  raiseContainer.appendChild(panel);
+
+  const grid = document.createElement('div');
+  grid.className = 'chip-grid';
+  CHIP_VALUES.forEach((val) => {
+    const chip = document.createElement('div');
+    chip.className = 'chip v' + val;
+    chip.dataset.value = val;
+    chip.addEventListener('click', () => {
+      chip.classList.toggle('selected');
+      state.raiseAmount = Array.from(grid.querySelectorAll('.chip.selected')).reduce(
+        (sum, c) => sum + parseInt(c.dataset.value, 10),
+        0
+      );
+      updateRaiseAmount();
+    });
+    grid.appendChild(chip);
+  });
+  raiseContainer.appendChild(grid);
+
+  const totalDiv = document.createElement('div');
+  totalDiv.className = 'tpc-total';
+  totalDiv.innerHTML =
+    'Total: <span id="tpcTotal">0</span> <img src="assets/icons/ezgif-54c96d8a9b9236.webp" alt="TPC" />';
+  raiseContainer.appendChild(totalDiv);
+
   const raiseBtn = document.createElement('button');
   raiseBtn.textContent = 'raise';
   raiseBtn.id = 'raise';
   raiseBtn.addEventListener('click', playerRaise);
   if (state.pot >= state.maxPot) raiseBtn.disabled = true;
   raiseContainer.appendChild(raiseBtn);
+
   const amountText = document.createElement('div');
   amountText.id = 'raiseAmountText';
   amountText.className = 'raise-amount';
@@ -459,38 +493,17 @@ function showControls() {
   const stage = document.querySelector('.stage');
   if (stage) stage.appendChild(raiseContainer);
 
-  initRaiseSlider();
+  loadAccountBalance();
 }
 
-function initRaiseSlider() {
-  const panel = document.getElementById('raisePanel');
-  const fill = document.getElementById('raiseFill');
-  const thumb = document.getElementById('raiseThumb');
-  if (!panel || !fill || !thumb) return;
-  state.raiseAmount = 0;
-  function update(e) {
-    const rect = panel.getBoundingClientRect();
-    let pct = (rect.bottom - e.clientY) / rect.height;
-    pct = Math.max(0, Math.min(1, pct));
-    fill.style.height = pct * 100 + '%';
-    thumb.style.bottom = 'calc(12px + (100% - 24px) * ' + pct + ')';
-    const maxAllowed = Math.min(state.stake, state.maxPot - state.pot);
-    state.raiseAmount = Math.round(pct * maxAllowed);
-    const amtEl = document.getElementById('raiseAmountText');
-    if (amtEl) amtEl.textContent = `${state.raiseAmount} ${state.token}`;
-    const status = document.getElementById('status');
-    if (status) status.textContent = `Raise ${state.raiseAmount} ${state.token}`;
+function updateRaiseAmount() {
+  const amtEl = document.getElementById('raiseAmountText');
+  if (amtEl) amtEl.textContent = `${state.raiseAmount} ${state.token}`;
+  const status = document.getElementById('status');
+  if (status) {
+    status.textContent =
+      state.raiseAmount > 0 ? `Raise ${state.raiseAmount} ${state.token}` : '';
   }
-  panel.addEventListener('pointerdown', function (e) {
-    update(e);
-    panel.setPointerCapture(e.pointerId);
-  });
-  panel.addEventListener('pointermove', function (e) {
-    if (panel.hasPointerCapture(e.pointerId)) update(e);
-  });
-  panel.addEventListener('pointerup', function (e) {
-    panel.releasePointerCapture(e.pointerId);
-  });
 }
 
 function hideControls() {
@@ -498,6 +511,7 @@ function hideControls() {
   if (controls) controls.innerHTML = '';
   const raiseContainer = document.getElementById('raiseContainer');
   if (raiseContainer) raiseContainer.remove();
+  state.raiseAmount = 0;
 }
 
 function startPlayerTurn() {
