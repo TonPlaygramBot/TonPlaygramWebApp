@@ -292,7 +292,7 @@
   let goalDepth = 24;
   let paddleRadius = 34;
 
-  const puck = { x:0, y:0, r:24, vx:0, vy:0, max: 29, angle: 0, spin: 0 };
+  const puck = { x:0, y:0, r:24, vx:0, vy:0, max: 31, angle: 0, spin: 0 };
   const p1 = { x:0, y:0, r:34, vx:0, vy:0, max: 18, lastX:0, lastY:0 };
   const p2 = { x:0, y:0, r:34, vx:0, vy:0, max: 18, lastX:0, lastY:0 };
   const score = { p1:0, p2:0, target };
@@ -504,9 +504,9 @@
   }
   function getCSS(v){ return getComputedStyle(document.documentElement).getPropertyValue(v).trim(); }
 
-  const friction = 0.996;
-  const wallBounce = 1.05;
-  const minWallSpeed = 4;
+  const friction = 0.995;
+  const wallBounce = 1.08;
+  const minWallSpeed = 5;
   function constrainPaddle(p, bottom){
     const margin=12;
     const minX = rink.x + margin + p.r;
@@ -551,15 +551,18 @@
     const minX = rink.x + margin;
     const maxX = rink.x + rink.w - margin;
     const minY = rink.y + margin;
+    const maxY = centerY - p2.r - 8;
+    const defendY = minY + (maxY - minY) * 0.25;
     let tx = clamp(puck.x, minX, maxX);
-    let ty = centerY - p2.r - 8;
+    let ty = defendY;
     if (puck.y < centerY) {
-      ty = clamp(puck.y, minY, centerY - p2.r - 8);
+      // attack: chase puck when it's on AI side
+      ty = clamp(puck.y, minY, maxY);
     }
     // Pull the AI away from corners when the puck is far away
     if (puck.y >= centerY && (p2.x <= minX + 1 || p2.x >= maxX - 1 || p2.y <= minY + 1)) {
       tx = centerX;
-      ty = centerY - p2.r - 8;
+      ty = defendY;
     }
     // If puck and AI are stuck in a corner on the AI side, nudge the puck out
     const cornerZone = 30; // area from walls to consider a corner
@@ -567,8 +570,8 @@
     const puckInCorner = puck.y < minY + cornerZone && (puck.x < minX + cornerZone || puck.x > maxX - cornerZone);
     if (puck.y < centerY && puckInCorner && puckSpeed < 6) {
       const dir = puck.x < centerX ? 1 : -1;
-      const angle = 0.3 + Math.random() * 0.8; // 17°-66° downward
-      const power = 4 + Math.random() * 4;
+      const angle = 0.2 + Math.random() * 1.2; // wider range downward
+      const power = 6 + Math.random() * 6;
       puck.vx = Math.cos(angle) * dir * power;
       puck.vy = Math.sin(angle) * power;
       tx = centerX;
@@ -602,7 +605,7 @@
         const tangential = relVX*(-ny) + relVY*nx;
         puck.spin += tangential * 0.012;
         if (relAlongNormal <= 0){
-          const restitution = 1.06;
+          const restitution = 1.1;
           const impulse = -(1+restitution) * relAlongNormal;
           puck.vx += impulse * nx;
           puck.vy += impulse * ny;
