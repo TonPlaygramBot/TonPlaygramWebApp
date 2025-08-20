@@ -65,14 +65,14 @@
 
 .seat.right { left: 84%; top: 28%; transform: translate(-50%, -50%); }
 
-.seat.bottom-left { left: 16%; top: 63%; transform: translate(-50%, -50%); --card-scale: .85; }
+    .seat.bottom-left { left: 16%; top: 65%; transform: translate(-50%, -50%); --card-scale: .85; }
 
-    .seat.bottom-right { left: 84%; top: 63%; transform: translate(-50%, -50%); }
-    .seat:not(.bottom){ border:2px solid rgba(255,255,255,0.3); border-radius:12px; padding:4px; }
-    .seat:not(.bottom) .avatar{ box-shadow:0 0 0 2px rgba(255,255,255,0.4); }
-    .seat:not(.bottom) .name{ padding:2px 6px; border:1px solid rgba(255,255,255,0.4); border-radius:6px; }
-    .seat:not(.bottom) .cards{ padding:4px; border:1px solid rgba(255,255,255,0.4); border-radius:8px; }
-    .seat:not(.bottom) .card{ border:1px solid rgba(255,255,255,0.4); }
+    .seat.bottom-right { left: 84%; top: 65%; transform: translate(-50%, -50%); }
+    .seat-inner{ display:flex; flex-direction:column; align-items:center; gap:6px; border:2px solid rgba(255,255,255,0.3); border-radius:12px; padding:4px; }
+    .seat-inner .avatar{ box-shadow:0 0 0 2px rgba(255,255,255,0.4); }
+    .seat-inner .name{ padding:2px 6px; border:1px solid rgba(255,255,255,0.4); border-radius:6px; }
+    .seat-inner .cards{ padding:4px; border:1px solid rgba(255,255,255,0.4); border-radius:8px; }
+    .seat-inner .card{ border:1px solid rgba(255,255,255,0.4); }
       .seat.bottom .cards{ gap:0 }
       .timer{ font-weight:800; background:rgba(0,0,0,.5); padding:2px 6px; border-radius:8px; }
     .controls{ display:flex; gap:8px; margin-top:8px; align-items:flex-end; position:relative; justify-content:center; z-index:5; }
