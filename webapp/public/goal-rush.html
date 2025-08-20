@@ -123,7 +123,7 @@
   const oppParam = params.get('p2Avatar') || '';
   let p1Name = params.get('name') || 'P1';
   let p2Name = params.get('p2Name') || 'P2';
-  let fieldScaleX = 1, fieldScaleY = 1, fieldImgScaleX = 1, fieldImgScaleY = 1, puckScale = 1.0, goalWidthPct = 0.36, goalOffsetXPct = 0, goalOffsetYPct = 0, paddleScale = 0.95, speedMul = 1;
+  let fieldScaleX = 1, fieldScaleY = 1, fieldImgScaleX = 1, fieldImgScaleY = 1, puckScale = 1.0, goalWidthPct = 0.36, goalOffsetXPct = 0, goalOffsetYPct = 0, paddleScale = 0.95, speedMul = 0.95;
   try {
     const oldFieldScale = parseFloat(localStorage.getItem('fieldScale')) || 1;
     fieldScaleX = parseFloat(localStorage.getItem('fieldScaleX')) || oldFieldScale;
@@ -136,7 +136,7 @@
     goalOffsetXPct = parseFloat(localStorage.getItem('goalOffsetXPct')) || 0;
     goalOffsetYPct = parseFloat(localStorage.getItem('goalOffsetYPct')) || 0;
     paddleScale = parseFloat(localStorage.getItem('paddleScale')) || 0.95;
-    speedMul = parseFloat(localStorage.getItem('speedMul')) || 1;
+    speedMul = parseFloat(localStorage.getItem('speedMul')) || 0.95;
   } catch {}
   const FLAG_DATA = [
     { emoji:'🇺🇸', name:'USA' },
@@ -292,14 +292,14 @@
   let goalDepth = 24;
   let paddleRadius = 34;
 
-  const puck = { x:0, y:0, r:24, vx:0, vy:0, max: 31, angle: 0, spin: 0 };
-  const p1 = { x:0, y:0, r:34, vx:0, vy:0, max: 18, lastX:0, lastY:0 };
-  const p2 = { x:0, y:0, r:34, vx:0, vy:0, max: 18, lastX:0, lastY:0 };
+  const puck = { x:0, y:0, r:24, vx:0, vy:0, max: 30, angle: 0, spin: 0 };
+  const p1 = { x:0, y:0, r:34, vx:0, vy:0, max: 17, lastX:0, lastY:0 };
+  const p2 = { x:0, y:0, r:34, vx:0, vy:0, max: 17, lastX:0, lastY:0 };
   const score = { p1:0, p2:0, target };
   let running = true; let last = 0;
   let lastTouch = null;
-  const difficultySpeeds = { easy:16, normal:20, hard:26 };
-  p2.max = difficultySpeeds[difficulty] || 18;
+  const difficultySpeeds = { easy:15, normal:19, hard:25 };
+  p2.max = difficultySpeeds[difficulty] || 17;
 
   let audioEnabled = true;
   let audioStarted = false;
@@ -504,9 +504,9 @@
   }
   function getCSS(v){ return getComputedStyle(document.documentElement).getPropertyValue(v).trim(); }
 
-  const friction = 0.995;
-  const wallBounce = 1.08;
-  const minWallSpeed = 5;
+  const friction = 0.994;
+  const wallBounce = 1.06;
+  const minWallSpeed = 4.8;
   function constrainPaddle(p, bottom){
     const margin=12;
     const minX = rink.x + margin + p.r;
@@ -532,7 +532,7 @@
       }
     });
     if (best){
-      const ease = 1;
+      const ease = 0.95;
       const tx = best.x, ty = best.y;
       const nx = p.x + (tx - p.x) * ease;
       let ny = p.y + (ty - p.y) * ease;
@@ -546,7 +546,7 @@
   }
 
   function aiUpdate(){
-    const reaction = { easy: 0.07, normal: 0.12, hard: 0.2 }[difficulty] || 0.1;
+    const reaction = { easy: 0.066, normal: 0.114, hard: 0.19 }[difficulty] || 0.095;
     const margin = p2.r + 12;
     const minX = rink.x + margin;
     const maxX = rink.x + rink.w - margin;
