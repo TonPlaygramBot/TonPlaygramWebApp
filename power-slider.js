@@ -40,13 +40,14 @@ export class PowerSlider {
     this.handleText.className = 'ps-handle-text';
     this.handleText.textContent = 'Pull';
     this.handle.append(this.handleText);
-    this.el.appendChild(this.handle);
 
     this.cueImg = document.createElement('img');
     this.cueImg.className = 'ps-cue-img';
     this.cueImg.alt = '';
     if (cueSrc) this.cueImg.src = cueSrc;
-    this.el.appendChild(this.cueImg);
+    this.handle.append(this.cueImg);
+
+    this.el.appendChild(this.handle);
 
     this.tooltip = document.createElement('div');
     this.tooltip.className = 'ps-tooltip';
@@ -137,12 +138,11 @@ export class PowerSlider {
     const range = this.max - this.min || 1;
     const ratio = (this.value - this.min) / range;
     const trackH = this.el.clientHeight;
-    const imgH = this.cueImg.offsetHeight;
-    const y = ratio * (trackH - imgH);
-    this.cueImg.style.transform = `translate(0, ${y}px)`;
-    this.handle.style.transform = 'translate(0, 0)';
+    const handleH = this.handle.offsetHeight;
+    const y = ratio * (trackH - handleH);
+    this.handle.style.transform = `translate(0, ${y}px)`;
     const ttH = this.tooltip.offsetHeight;
-    this.tooltip.style.transform = `translate(0, ${-ttH - 8}px)`;
+    this.tooltip.style.transform = `translate(0, ${y - ttH - 8}px)`;
     this._updateHandleColor(ratio);
     this.tooltip.textContent = `${Math.round(this.value)}%`;
     this.el.setAttribute('aria-valuenow', String(Math.round(this.value)));
