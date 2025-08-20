@@ -172,7 +172,10 @@
       align-items: center;
       justify-content: center;
       padding: 8px;
-      transform: translate(16px, 48px);
+      /* Shift slightly right and allow the handle to overflow so
+         only half of it is visible */
+      transform: translate(20px, 48px);
+      overflow: visible;
     }
 
     #cueRail {
@@ -188,7 +191,8 @@
 
     #pullHandle {
       position: absolute;
-      left: 50%;
+      /* Position the pull button so that it's half outside the panel */
+      left: 100%;
       transform: translateX(-50%);
       width: 45px;
       height: 45px;
@@ -939,13 +943,19 @@
 
       if (target) {
         var tx = target.p.x, ty = target.p.y;
+        // Direction from cue ball to target ball at impact
+        var hitN = { x: tx - cue.p.x, y: ty - cue.p.y };
+        var nL = len(hitN.x, hitN.y) || 1;
+        hitN.x /= nL; hitN.y /= nL;
+
+        // Project the target ball's path along the line of centers
         var tMax = Infinity;
-        if (dir.x > 0) tMax = Math.min(tMax, (TABLE_W - BORDER - BALL_R - tx) / dir.x);
-        if (dir.x < 0) tMax = Math.min(tMax, (BORDER + BALL_R - tx) / dir.x);
-        if (dir.y > 0) tMax = Math.min(tMax, (TABLE_H - BORDER_BOTTOM - BALL_R - ty) / dir.y);
-        if (dir.y < 0) tMax = Math.min(tMax, (BORDER_TOP + BALL_R - ty) / dir.y);
-        var ex = tx + dir.x * tMax;
-        var ey = ty + dir.y * tMax;
+        if (hitN.x > 0) tMax = Math.min(tMax, (TABLE_W - BORDER - BALL_R - tx) / hitN.x);
+        if (hitN.x < 0) tMax = Math.min(tMax, (BORDER + BALL_R - tx) / hitN.x);
+        if (hitN.y > 0) tMax = Math.min(tMax, (TABLE_H - BORDER_BOTTOM - BALL_R - ty) / hitN.y);
+        if (hitN.y < 0) tMax = Math.min(tMax, (BORDER_TOP + BALL_R - ty) / hitN.y);
+        var ex = tx + hitN.x * tMax;
+        var ey = ty + hitN.y * tMax;
 
         ctx.save();
         ctx.strokeStyle = 'rgba(255,255,255,.3)';
@@ -956,9 +966,7 @@
         ctx.stroke();
         ctx.restore();
 
-        var hitN = { x: tx - cue.p.x, y: ty - cue.p.y };
-        var nL = len(hitN.x, hitN.y) || 1;
-        hitN.x /= nL; hitN.y /= nL;
+        // Calculate cue ball deflection direction
         var dot = dir.x*hitN.x + dir.y*hitN.y;
         var cbDir = { x: dir.x - hitN.x * dot, y: dir.y - hitN.y * dot };
         var cbL = len(cbDir.x, cbDir.y);
@@ -981,7 +989,7 @@
     }
 
     function drawCueOnTable(cuePos, aim, pull){
-      // Align the cue with the guideline and keep the tip touching the cue ball
+      // Align the cue with the guideline and pull it back based on the power slider
       var dx = aim.x - cuePos.x, dy = aim.y - cuePos.y;
       var len = Math.hypot(dx, dy) || 1;
       var dir = { x: dx / len, y: dy / len };
@@ -997,15 +1005,14 @@
         var drawW = cueImg.width * scale;
         var drawH = cueImg.height * scale;
         var shiftPx = cueShift * sX;
-        var pullPx = pull * sY;
 
         ctx.save();
-        // Place origin at cue ball and align with aim
-        ctx.translate(cuePos.x * sX, cuePos.y * sY);
+        // Move origin away from the cue ball to simulate pullback
+        ctx.translate((cuePos.x - dir.x * pull) * sX, (cuePos.y - dir.y * pull) * sY);
         ctx.rotate(angle);
-        // Shift the cue downward but keep the tip anchored
-        ctx.translate(shiftPx, -pullPx);
-        ctx.drawImage(cueImg, -drawW / 2 - shiftPx, pullPx, drawW, drawH);
+        // Offset the butt slightly downward
+        ctx.translate(shiftPx, 0);
+        ctx.drawImage(cueImg, -drawW / 2 - shiftPx, 0, drawW, drawH);
         ctx.restore();
       }
     }
@@ -1083,7 +1090,8 @@
       pocketedAny = false; pocketedOwn = false; scratch = false;
       cue.v.x = d.x*base*(0.25+0.75*p);
       cue.v.y = d.y*base*(0.25+0.75*p);
-      cue.spin = { x:spinVec.x*20*p, y:spinVec.y*20*p };
+      // Double the spin effect in all directions
+      cue.spin = { x:spinVec.x*40*p, y:spinVec.y*40*p };
       cue.spinApplied = false;
       cueBallFree = false;
       setSpin(0,0); showGuides=false;
