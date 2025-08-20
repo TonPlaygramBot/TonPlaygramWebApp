@@ -178,6 +178,15 @@ function init() {
   dealInitialCards();
 }
 
+function adjustNameSize(el) {
+  const base = 12;
+  const min = 8;
+  const len = el.textContent.length;
+  if (len > 10) {
+    el.style.fontSize = Math.max(min, base - (len - 10)) + 'px';
+  }
+}
+
 function renderSeats() {
   const seats = document.getElementById('seats');
   seats.innerHTML = '';
@@ -215,6 +224,7 @@ function renderSeats() {
     const name = document.createElement('div');
     name.className = 'name';
     name.textContent = p.name;
+    adjustNameSize(name);
     if (i === 0) {
       const wrap = document.createElement('div');
       wrap.className = 'avatar-wrap';
