@@ -139,10 +139,10 @@
 
       display: flex;
       flex-direction: column;
-      align-items: center;
+      align-items: flex-end;
       justify-content: flex-end;
       gap: 8px;
-      padding: 12px 8px;
+      padding: 12px 0 12px 8px;
       z-index: 10;
     }
 
@@ -183,9 +183,7 @@
       align-items: center;
       justify-content: center;
       padding: 8px;
-      /* Shift slightly right and allow the handle to overflow so
-         only half of it is visible */
-      transform: translateX(20px);
+      /* Allow the handle to overflow so only half of it is visible */
       overflow: visible;
       z-index: 7;
     }
@@ -253,6 +251,10 @@
       margin-top: 8px;
       font-size: 12px;
       opacity: .85;
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+      text-align: right;
     }
 
     #play {
@@ -313,10 +315,10 @@
           <div id="pullHandle">PULL</div>
         </div>
 
-        <div style="display:flex;flex-direction:column;align-items:center;gap:6px;">
-          <div id="powerBox"><div id="powerFill"></div></div>
-          <div id="powerTxt">Power 0%</div>
-        </div>
+          <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px;">
+            <div id="powerBox"><div id="powerFill"></div></div>
+            <div id="powerTxt"><div>Power</div><div id="powerPercent">0%</div></div>
+          </div>
       </aside>
 
       <button id="play">Play</button>
@@ -378,6 +380,7 @@
     var pullHandle = document.getElementById('pullHandle');
     var powerFill  = document.getElementById('powerFill');
     var powerTxt   = document.getElementById('powerTxt');
+    var powerPercent = document.getElementById('powerPercent');
     var powerCue   = document.getElementById('powerCue');
 
     var avatarP1 = document.querySelector('#header .player:first-child .avatar');
@@ -1118,11 +1121,11 @@
       powerCue.style.top=y+'px';
     }
     function updatePowerUI(){
-      powerFill.style.height = Math.round(power*100)+'%';
-      powerTxt.textContent = 'Power '+Math.round(power*100)+'%';
-      pullArea.style.background = 'none';
-      updatePullHandle();
-    }
+        powerFill.style.height = Math.round(power*100)+'%';
+        powerPercent.textContent = Math.round(power*100)+'%';
+        pullArea.style.background = 'none';
+        updatePullHandle();
+      }
     function updateFromEvent(e){
       var rect=pullArea.getBoundingClientRect();
       power=clamp((e.clientY-rect.top)/rect.height,0,1);
