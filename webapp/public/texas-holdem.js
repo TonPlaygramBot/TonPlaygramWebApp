@@ -435,6 +435,7 @@ function showControls() {
 
   const raiseContainer = document.createElement('div');
   raiseContainer.className = 'raise-container';
+  raiseContainer.id = 'raiseContainer';
   const panel = document.createElement('div');
   panel.id = 'raisePanel';
   panel.innerHTML =
@@ -455,7 +456,8 @@ function showControls() {
 
   controls.append(foldBtn, callBtn);
   if (checkBtn) controls.appendChild(checkBtn);
-  controls.appendChild(raiseContainer);
+  const stage = document.querySelector('.stage');
+  if (stage) stage.appendChild(raiseContainer);
 
   initRaiseSlider();
 }
@@ -494,6 +496,8 @@ function initRaiseSlider() {
 function hideControls() {
   const controls = document.getElementById('controls');
   if (controls) controls.innerHTML = '';
+  const raiseContainer = document.getElementById('raiseContainer');
+  if (raiseContainer) raiseContainer.remove();
 }
 
 function startPlayerTurn() {
