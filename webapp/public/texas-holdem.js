@@ -503,6 +503,12 @@ function showControls() {
 
     sliderContainer.appendChild(sliderWrap);
 
+    const totalDiv = document.createElement('div');
+    totalDiv.className = 'tpc-total';
+    totalDiv.innerHTML =
+      'Total: <span id="tpcTotal">0</span> <img src="assets/icons/ezgif-54c96d8a9b9236.webp" alt="TPC" />';
+    sliderContainer.appendChild(totalDiv);
+
     if (stage) stage.appendChild(sliderContainer);
   }
 
@@ -555,12 +561,6 @@ function showControls() {
     amountText.className = 'raise-amount';
     amountText.textContent = `0 ${state.token}`;
     infoRow.appendChild(amountText);
-
-    const totalDiv = document.createElement('div');
-    totalDiv.className = 'tpc-total';
-    totalDiv.innerHTML =
-      'Total: <span id="tpcTotal">0</span> <img src="assets/icons/ezgif-54c96d8a9b9236.webp" alt="TPC" />';
-    infoRow.appendChild(totalDiv);
 
     raiseContainer.appendChild(infoRow);
 
