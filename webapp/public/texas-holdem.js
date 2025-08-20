@@ -527,18 +527,17 @@ function showControls() {
     });
     raiseContainer.appendChild(grid);
 
-    const totalDiv = document.createElement('div');
-    totalDiv.className = 'tpc-total';
-    totalDiv.innerHTML =
-      'Total: <span id="tpcTotal">0</span> <img src="assets/icons/ezgif-54c96d8a9b9236.webp" alt="TPC" />';
-    raiseContainer.appendChild(totalDiv);
-
-
     const amountText = document.createElement('div');
     amountText.id = 'raiseAmountText';
     amountText.className = 'raise-amount';
     amountText.textContent = `0 ${state.token}`;
     raiseContainer.appendChild(amountText);
+
+    const totalDiv = document.createElement('div');
+    totalDiv.className = 'tpc-total';
+    totalDiv.innerHTML =
+      'Total: <span id="tpcTotal">0</span> <img src="assets/icons/ezgif-54c96d8a9b9236.webp" alt="TPC" />';
+    raiseContainer.appendChild(totalDiv);
 
     if (stage) stage.appendChild(raiseContainer);
   }
