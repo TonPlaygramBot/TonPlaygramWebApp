@@ -937,16 +937,7 @@
         ctx.beginPath(); ctx.arc(x*sX, y*sY, clamp(1.5+power*2.2, 1.5, 4), 0, Math.PI*2); ctx.fill();
       }
 
-      if (target){
-        ctx.fillStyle = 'rgba(255,255,255,1)';
-        var x2 = target.p.x, y2 = target.p.y;
-        var dir2 = norm(cue.p.x - target.p.x, cue.p.y - target.p.y);
-        for (var k=0;k<dots;k++){
-          ctx.beginPath(); ctx.arc(x2*sX, y2*sY, clamp(1.2+power*2,1,3.5), 0, Math.PI*2); ctx.fill();
-          x2 += dir2.x * step; y2 += dir2.y * step;
-          if (x2 < BORDER+BALL_R || x2 > TABLE_W-BORDER-BALL_R || y2 < BORDER_TOP+BALL_R || y2 > TABLE_H-BORDER_BOTTOM-BALL_R) break;
-        }
-      }
+      // Removed the secondary guideline that extended from the target ball.
     }
 
     function drawCueOnTable(cuePos, aim, pull){
@@ -1063,22 +1054,30 @@
        ========================================================= */
     function cpuTurn(){
       if (table.isMoving() || table.turn!==2) return;
-      var cue=table.balls[0];
-      var t=null,m=1e9;
-      for (var i=0;i<table.balls.length;i++){
-        var b=table.balls[i];
-        if (!b || b.n===0 || b.pocketed) continue;
-        var dd=d2(cue.p,b.p); if (dd<m){m=dd; t=b;}
+      var cue = table.balls[0];
+      var t = null, m = 1e9;
+      for (var i = 0; i < table.balls.length; i++) {
+        var b = table.balls[i];
+        if (!b || b.n === 0 || b.pocketed) continue;
+        var dd = d2(cue.p, b.p); if (dd < m) { m = dd; t = b; }
       }
-      if (!t){ table.turn=1; return; }
-      var d=norm(t.p.x-cue.p.x, t.p.y-cue.p.y);
-      var p=0.32+Math.random()*0.28;
-      var cpuBase=780*2;
-      currentShooter=2;
-      shotInProgress=true;
-      pocketedAny=false; pocketedOwn=false; scratch=false;
-      cue.v.x=d.x*cpuBase*(0.3+p);
-      cue.v.y=d.y*cpuBase*(0.3+p);
+      if (!t) { table.turn = 1; return; }
+
+      // Aim towards the selected target and show pullback based on power
+      var d = norm(t.p.x - cue.p.x, t.p.y - cue.p.y);
+      var p = 0.32 + Math.random() * 0.28;
+      table.aim = { x: t.p.x, y: t.p.y };
+      cuePullVisual = p * (BALL_R * 14);
+      shotInProgress = true;
+
+      setTimeout(function () {
+        var cpuBase = 780 * 2;
+        currentShooter = 2;
+        pocketedAny = false; pocketedOwn = false; scratch = false;
+        cue.v.x = d.x * cpuBase * (0.3 + p);
+        cue.v.y = d.y * cpuBase * (0.3 + p);
+        cuePullVisual = 0;
+      }, 400);
     }
 
     /* ==========================================================
