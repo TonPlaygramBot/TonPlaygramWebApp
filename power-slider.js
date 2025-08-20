@@ -1,0 +1,200 @@
+export class PowerSlider {
+  constructor(opts = {}) {
+    const {
+      mount,
+      value = 0,
+      min = 0,
+      max = 100,
+      step = 1,
+      cueSrc = '',
+      onChange,
+      onCommit,
+      theme = 'default',
+      labels = false
+    } = opts;
+
+    if (!mount) throw new Error('mount required');
+
+    this.min = min;
+    this.max = max;
+    this.step = step;
+    this.onChange = onChange;
+    this.onCommit = onCommit;
+    this.locked = false;
+
+    this.el = document.createElement('div');
+    this.el.className = `ps ps-theme-${theme}`;
+    this.el.tabIndex = 0;
+    this.el.setAttribute('role', 'slider');
+    this.el.setAttribute('aria-orientation', 'vertical');
+    this.el.setAttribute('aria-valuemin', String(this.min));
+    this.el.setAttribute('aria-valuemax', String(this.max));
+
+    this.track = document.createElement('div');
+    this.track.className = 'ps-track';
+    this.el.appendChild(this.track);
+
+    this.handle = document.createElement('img');
+    this.handle.className = 'ps-handle';
+    this.handle.alt = '';
+    if (cueSrc) this.handle.src = cueSrc;
+    this.el.appendChild(this.handle);
+
+    this.tooltip = document.createElement('div');
+    this.tooltip.className = 'ps-tooltip';
+    this.el.appendChild(this.tooltip);
+
+    if (labels) {
+      const wrap = document.createElement('div');
+      const l0 = document.createElement('span');
+      l0.className = 'ps-label ps-label-0';
+      l0.textContent = '0';
+      const l50 = document.createElement('span');
+      l50.className = 'ps-label ps-label-50';
+      l50.textContent = '50';
+      const l100 = document.createElement('span');
+      l100.className = 'ps-label ps-label-100';
+      l100.textContent = '100';
+      wrap.append(l0, l50, l100);
+      this.el.appendChild(wrap);
+    }
+
+    mount.appendChild(this.el);
+
+    this._onPointerDown = this._pointerDown.bind(this);
+    this._onPointerMove = this._pointerMove.bind(this);
+    this._onPointerUp = this._pointerUp.bind(this);
+    this._onWheel = this._wheel.bind(this);
+    this._onKeyDown = this._keyDown.bind(this);
+    this._onResize = () => this._update(false);
+
+    this.el.addEventListener('pointerdown', this._onPointerDown);
+    this.el.addEventListener('wheel', this._onWheel, { passive: false });
+    this.el.addEventListener('keydown', this._onKeyDown);
+    window.addEventListener('resize', this._onResize);
+
+    this.handle.addEventListener('load', () => this._update(false));
+
+    this.set(value);
+  }
+
+  get() {
+    return this.value;
+  }
+
+  set(v, { animate = false } = {}) {
+    const value = this._clamp(this._step(v));
+    this.value = value;
+    if (!animate) this.el.classList.add('ps-no-animate');
+    else this.el.classList.remove('ps-no-animate');
+    this._update(animate);
+    if (!animate) requestAnimationFrame(() => this.el.classList.remove('ps-no-animate'));
+    if (typeof this.onChange === 'function') this.onChange(value);
+  }
+
+  lock() {
+    this.locked = true;
+    this.el.classList.add('ps-locked');
+    this.el.tabIndex = -1;
+    this.el.setAttribute('aria-disabled', 'true');
+  }
+
+  unlock() {
+    this.locked = false;
+    this.el.classList.remove('ps-locked');
+    this.el.tabIndex = 0;
+    this.el.setAttribute('aria-disabled', 'false');
+  }
+
+  destroy() {
+    this.el.removeEventListener('pointerdown', this._onPointerDown);
+    this.el.removeEventListener('wheel', this._onWheel);
+    this.el.removeEventListener('keydown', this._onKeyDown);
+    window.removeEventListener('resize', this._onResize);
+    this.el.remove();
+  }
+
+  /* internal methods */
+  _clamp(v) {
+    return Math.min(this.max, Math.max(this.min, v));
+  }
+
+  _step(v) {
+    const s = this.step;
+    return Math.round((v - this.min) / s) * s + this.min;
+  }
+
+  _update(animate = true) {
+    const range = this.max - this.min || 1;
+    const ratio = (this.value - this.min) / range;
+    const trackH = this.el.clientHeight;
+    const handleH = this.handle.offsetHeight;
+    const y = (1 - ratio) * (trackH - handleH);
+    this.handle.style.transform = `translate(-50%, ${y}px)`;
+    const ttH = this.tooltip.offsetHeight;
+    this.tooltip.style.transform = `translate(-50%, ${y - ttH - 8}px)`;
+    this.tooltip.textContent = `${Math.round(this.value)}%`;
+    this.el.setAttribute('aria-valuenow', String(Math.round(this.value)));
+    if (ratio >= 0.9) this.el.classList.add('ps-hot');
+    else this.el.classList.remove('ps-hot');
+  }
+
+  _updateFromClientY(y) {
+    const rect = this.el.getBoundingClientRect();
+    const pos = (rect.bottom - y) / rect.height; // 0 at bottom, 1 at top
+    const ratio = Math.min(Math.max(pos, 0), 1);
+    const value = this.min + ratio * (this.max - this.min);
+    this.set(value);
+  }
+
+  _pointerDown(e) {
+    if (this.locked) return;
+    e.preventDefault();
+    this.dragging = true;
+    this.el.classList.add('ps-no-animate');
+    this.el.setPointerCapture(e.pointerId);
+    this._updateFromClientY(e.clientY);
+    this.el.addEventListener('pointermove', this._onPointerMove);
+    this.el.addEventListener('pointerup', this._onPointerUp);
+  }
+
+  _pointerMove(e) {
+    if (!this.dragging) return;
+    this._updateFromClientY(e.clientY);
+  }
+
+  _pointerUp(e) {
+    if (!this.dragging) return;
+    this.dragging = false;
+    this.el.releasePointerCapture(e.pointerId);
+    this.el.removeEventListener('pointermove', this._onPointerMove);
+    this.el.removeEventListener('pointerup', this._onPointerUp);
+    this.el.classList.remove('ps-no-animate');
+    if (typeof this.onCommit === 'function') this.onCommit(this.value);
+  }
+
+  _wheel(e) {
+    if (this.locked) return;
+    e.preventDefault();
+    const dir = e.deltaY < 0 ? 1 : -1;
+    this.set(this.value + dir * this.step, { animate: true });
+    if (typeof this.onCommit === 'function') this.onCommit(this.value);
+  }
+
+  _keyDown(e) {
+    if (this.locked) return;
+    let handled = false;
+    let inc = e.shiftKey ? this.step * 5 : this.step;
+    if (e.key === 'ArrowUp') {
+      this.set(this.value + inc);
+      handled = true;
+    } else if (e.key === 'ArrowDown') {
+      this.set(this.value - inc);
+      handled = true;
+    } else if (e.key === 'Enter') {
+      if (typeof this.onCommit === 'function') this.onCommit(this.value);
+      handled = true;
+    }
+    if (handled) e.preventDefault();
+  }
+}
