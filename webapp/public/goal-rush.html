@@ -281,7 +281,7 @@
     goalWidth = Math.round(W*goalWidthPct*fsx);
     const base = Math.max(24, Math.round(Math.min(W,H)*0.035*fieldScaleActual));
     paddleRadius = base*3.4*paddleScale;
-    puck.r = Math.max(22, Math.round(base*1.1*puckScale));
+    puck.r = Math.max(24, Math.round(base*1.2*puckScale));
     p1.r = paddleRadius; p2.r = paddleRadius;
   }
   window.addEventListener('resize', fit);
@@ -292,13 +292,13 @@
   let goalDepth = 24;
   let paddleRadius = 34;
 
-  const puck = { x:0, y:0, r:22, vx:0, vy:0, max: 29, angle: 0, spin: 0 };
+  const puck = { x:0, y:0, r:24, vx:0, vy:0, max: 29, angle: 0, spin: 0 };
   const p1 = { x:0, y:0, r:34, vx:0, vy:0, max: 18, lastX:0, lastY:0 };
   const p2 = { x:0, y:0, r:34, vx:0, vy:0, max: 18, lastX:0, lastY:0 };
   const score = { p1:0, p2:0, target };
   let running = true; let last = 0;
   let lastTouch = null;
-  const difficultySpeeds = { easy:14, normal:18, hard:24 };
+  const difficultySpeeds = { easy:16, normal:20, hard:26 };
   p2.max = difficultySpeeds[difficulty] || 18;
 
   let audioEnabled = true;
@@ -546,21 +546,20 @@
   }
 
   function aiUpdate(){
-    const reaction = { easy: 0.05, normal: 0.1, hard: 0.18 }[difficulty] || 0.1;
+    const reaction = { easy: 0.07, normal: 0.12, hard: 0.2 }[difficulty] || 0.1;
     const margin = p2.r + 12;
     const minX = rink.x + margin;
     const maxX = rink.x + rink.w - margin;
     const minY = rink.y + margin;
-    let tx = centerX;
-    let ty = rink.y + rink.h * 0.15;
+    let tx = clamp(puck.x, minX, maxX);
+    let ty = centerY - p2.r - 8;
     if (puck.y < centerY) {
-      tx = clamp(puck.x, minX, maxX);
       ty = clamp(puck.y, minY, centerY - p2.r - 8);
     }
     // Pull the AI away from corners when the puck is far away
     if (puck.y >= centerY && (p2.x <= minX + 1 || p2.x >= maxX - 1 || p2.y <= minY + 1)) {
       tx = centerX;
-      ty = rink.y + rink.h * 0.2;
+      ty = centerY - p2.r - 8;
     }
     // If puck and AI are stuck in a corner on the AI side, nudge the puck out
     const cornerZone = 30; // area from walls to consider a corner
@@ -601,7 +600,7 @@
         const relVY = puck.vy - p.vy;
         const relAlongNormal = relVX*nx + relVY*ny;
         const tangential = relVX*(-ny) + relVY*nx;
-        puck.spin += tangential * 0.008;
+        puck.spin += tangential * 0.012;
         if (relAlongNormal <= 0){
           const restitution = 1.06;
           const impulse = -(1+restitution) * relAlongNormal;
@@ -720,7 +719,7 @@
 
     puck.x += puck.vx * dt * 60;
     puck.y += puck.vy * dt * 60;
-    const mag = puck.spin * dt * 0.4;
+    const mag = puck.spin * dt * 0.6;
     const magVx = -puck.vy * mag;
     const magVy = puck.vx * mag;
     puck.vx += magVx;
