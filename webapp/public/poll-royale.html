@@ -23,6 +23,7 @@
       background: #0b1120; /* blu e errete, si sallon bilardoje */
       color: #fff;
       font-family: system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Cantarell,"Helvetica Neue",Arial,"Noto Sans";
+      overscroll-behavior: none;
     }
 
     #app {
@@ -318,6 +319,8 @@
   (function(){
     'use strict';
 
+    document.addEventListener('touchmove', function(e){ e.preventDefault(); }, { passive: false });
+
     /* ==========================================================
        KONSTANTA TE LAYOUT-it DHE FIZIKES (sipas portrait)
        ========================================================= */
@@ -332,7 +335,7 @@
       var SPOT_Y  = BORDER_TOP + (TABLE_H - BORDER_TOP - BORDER_BOTTOM) * 0.25 - BALL_R * 0.5; // pika per trekendshin siper
     var LINE_Y  = BORDER_TOP + (TABLE_H - BORDER_TOP - BORDER_BOTTOM) * 0.75; // vija e bardhe poshte
     var CUE_START_Y = LINE_Y + (TABLE_H - BORDER_BOTTOM - LINE_Y - BALL_R*2) / 2; // pozicioni fillestar i cueball-it
-    var CUE_START_X = TABLE_W/2; // poziciono cueball-in ne qender
+    var CUE_START_X = TABLE_W * 0.8; // vendos cueball-in pak me djathtas
 
     var FRICTION = 0.985;   // ferkimi linear
     var BOUNCE   = 0.98;    // koeficienti i rikthimit
@@ -996,12 +999,14 @@
     /* ==========================================================
        SPIN CONTROL – disk i bardhe me pike te kuqe
        ========================================================= */
-    var spinTimer = null, spinMoved = false;
+    var spinTimer = null, spinMoved = false, spinActive = false;
     function setSpin(nx,ny){ spinDot.style.left = (50+nx*50)+'%'; spinDot.style.top = (50+ny*50)+'%'; spinVec = { x:nx, y:ny }; }
     setSpin(0,0);
     function updateSpin(e){ var r=spinBox.getBoundingClientRect(); var x=(e.clientX-r.left)/r.width*2-1, y=(e.clientY-r.top)/r.height*2-1; var L=Math.hypot(x,y); x=(x/(L||1))*Math.min(1,L); y=(y/(L||1))*Math.min(1,L); setSpin(x,y); spinMoved=true; }
     spinBox.addEventListener('pointerdown', function(e){
       spinMoved=false;
+      spinActive = true;
+      spinBox.setPointerCapture(e.pointerId);
       spinBox.style.transform='translate(-50%, -50%) scale(1.4)';
       clearTimeout(spinTimer);
       updateSpin(e);
@@ -1009,8 +1014,10 @@
         if(!spinMoved) spinBox.style.transform='translate(-50%, -50%) scale(1)';
       }, 1500);
     });
-    spinBox.addEventListener('pointermove', updateSpin);
-    spinBox.addEventListener('pointerup', function(){
+    spinBox.addEventListener('pointermove', function(e){ if(!spinActive) return; updateSpin(e); });
+    spinBox.addEventListener('pointerup', function(e){
+      spinActive = false;
+      spinBox.releasePointerCapture(e.pointerId);
       clearTimeout(spinTimer);
       setTimeout(function(){ spinBox.style.transform='translate(-50%, -50%) scale(1)'; }, 50);
     });
