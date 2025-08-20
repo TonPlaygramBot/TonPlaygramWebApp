@@ -507,9 +507,11 @@ function showControls() {
     totalDiv.className = 'tpc-total';
     totalDiv.innerHTML =
       'Total: <span id="tpcTotal">0</span> <img src="assets/icons/ezgif-54c96d8a9b9236.webp" alt="TPC" />';
-    sliderContainer.appendChild(totalDiv);
 
-    if (stage) stage.appendChild(sliderContainer);
+    if (stage) {
+      stage.appendChild(totalDiv);
+      stage.appendChild(sliderContainer);
+    }
   }
 
   let raiseContainer = document.getElementById('raiseContainer');
