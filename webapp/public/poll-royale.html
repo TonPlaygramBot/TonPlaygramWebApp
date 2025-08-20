@@ -205,6 +205,7 @@
       font-weight: 700;
       box-shadow: 0 4px 10px rgba(0,0,0,.3);
       user-select: none;
+      opacity: 0.85;
     }
 
     #powerBox {
@@ -611,10 +612,10 @@
         var R = TABLE_W - BORDER - BALL_R;
         var T = BORDER_TOP + BALL_R;
         var B = TABLE_H - BORDER_BOTTOM - BALL_R;
-        if (b.p.x < L) { b.p.x = L; b.v.x *= -BOUNCE; b.spinApplied = true; }
-        if (b.p.x > R) { b.p.x = R; b.v.x *= -BOUNCE; b.spinApplied = true; }
-        if (b.p.y < T) { b.p.y = T; b.v.y *= -BOUNCE; b.spinApplied = true; }
-        if (b.p.y > B) { b.p.y = B; b.v.y *= -BOUNCE; b.spinApplied = true; }
+        if (b.p.x < L) { b.p.x = L; b.v.x *= -BOUNCE; if (b.n === 0) b.spinApplied = true; }
+        if (b.p.x > R) { b.p.x = R; b.v.x *= -BOUNCE; if (b.n === 0) b.spinApplied = true; }
+        if (b.p.y < T) { b.p.y = T; b.v.y *= -BOUNCE; if (b.n === 0) b.spinApplied = true; }
+        if (b.p.y > B) { b.p.y = B; b.v.y *= -BOUNCE; if (b.n === 0) b.spinApplied = true; }
       }
 
       // Perplasje ball-ball
@@ -632,8 +633,8 @@
             a.v.x -= imp*nx; a.v.y -= imp*ny; bb.v.x += imp*nx; bb.v.y += imp*ny;
             a.v.x *= BOUNCE; a.v.y *= BOUNCE; bb.v.x *= BOUNCE; bb.v.y *= BOUNCE;
             playBallHit(clamp(imp/4000,0,1));
-            a.spinApplied = true;
-            bb.spinApplied = true;
+            if (a.n === 0) a.spinApplied = true;
+            if (bb.n === 0) bb.spinApplied = true;
           }
         }
       }
@@ -923,7 +924,7 @@
        ========================================================= */
     function drawGuides(cue,aim){
       var dx = aim.x - cue.p.x, dy = aim.y - cue.p.y; var L = len(dx,dy) || 1; var dir = { x:dx/L, y:dy/L };
-      var step = BALL_R * (.6 - .35*power + .05), dots = 60 + Math.round(power*60);
+      var step = BALL_R * 0.65, dots = 60;
       var x = cue.p.x, y = cue.p.y, target = null, hitStep = dots;
 
       for (var i=0;i<dots;i++){
@@ -933,12 +934,12 @@
         if (target) break;
       }
 
-      ctx.fillStyle = target ? 'rgba(255,255,0,1)' : (power<.33 ? 'rgba(255,255,255,.7)' : power<.66 ? 'rgba(255,255,255,.85)' : 'rgba(255,255,255,1)');
+      ctx.fillStyle = target ? 'rgba(255,255,0,1)' : 'rgba(255,255,255,.7)';
       x = cue.p.x; y = cue.p.y;
       for (var i=0;i<hitStep;i++){
         x += dir.x * step; y += dir.y * step;
         if (x < BORDER+BALL_R || x > TABLE_W-BORDER-BALL_R || y < BORDER_TOP+BALL_R || y > TABLE_H-BORDER_BOTTOM-BALL_R) break;
-        ctx.beginPath(); ctx.arc(x*sX, y*sY, clamp(1.5+power*2.2, 1.5, 4), 0, Math.PI*2); ctx.fill();
+        ctx.beginPath(); ctx.arc(x*sX, y*sY, 2, 0, Math.PI*2); ctx.fill();
       }
 
       if (target) {
@@ -971,7 +972,7 @@
 
         ctx.save();
         ctx.strokeStyle = 'rgba(255,255,255,.3)';
-        ctx.lineWidth = clamp(1.5+power*1.5, 1.5, 3);
+        ctx.lineWidth = 2;
         ctx.beginPath();
         ctx.moveTo(tx*sX, ty*sY);
         ctx.lineTo(ex*sX, ey*sY);
@@ -987,8 +988,8 @@
           var cbEndX = impactCueX + cbDir.x * BALL_R * 4;
           var cbEndY = impactCueY + cbDir.y * BALL_R * 4;
           ctx.save();
-          ctx.strokeStyle = 'rgba(255,255,255,.5)';
-          ctx.lineWidth = clamp(1.5+power*1.5, 1.5, 3);
+            ctx.strokeStyle = 'rgba(255,255,255,.5)';
+            ctx.lineWidth = 2;
           ctx.beginPath();
           ctx.moveTo(impactCueX*sX, impactCueY*sY);
           ctx.lineTo(cbEndX*sX, cbEndY*sY);
