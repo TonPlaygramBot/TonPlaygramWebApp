@@ -34,10 +34,16 @@ export class PowerSlider {
     this.track.className = 'ps-track';
     this.el.appendChild(this.track);
 
-    this.handle = document.createElement('img');
+    this.handle = document.createElement('div');
     this.handle.className = 'ps-handle';
-    this.handle.alt = '';
-    if (cueSrc) this.handle.src = cueSrc;
+    this.handleText = document.createElement('span');
+    this.handleText.className = 'ps-handle-text';
+    this.handleText.textContent = 'Pull';
+    this.handleImg = document.createElement('img');
+    this.handleImg.className = 'ps-handle-img';
+    this.handleImg.alt = '';
+    if (cueSrc) this.handleImg.src = cueSrc;
+    this.handle.append(this.handleText, this.handleImg);
     this.el.appendChild(this.handle);
 
     this.tooltip = document.createElement('div');
@@ -73,7 +79,7 @@ export class PowerSlider {
     this.el.addEventListener('keydown', this._onKeyDown);
     window.addEventListener('resize', this._onResize);
 
-    this.handle.addEventListener('load', () => this._update(false));
+    this.handleImg.addEventListener('load', () => this._update(false));
 
     this.set(value);
   }
@@ -88,7 +94,8 @@ export class PowerSlider {
     if (!animate) this.el.classList.add('ps-no-animate');
     else this.el.classList.remove('ps-no-animate');
     this._update(animate);
-    if (!animate) requestAnimationFrame(() => this.el.classList.remove('ps-no-animate'));
+    if (!animate)
+      requestAnimationFrame(() => this.el.classList.remove('ps-no-animate'));
     if (typeof this.onChange === 'function') this.onChange(value);
   }
 
@@ -130,13 +137,23 @@ export class PowerSlider {
     const trackH = this.el.clientHeight;
     const handleH = this.handle.offsetHeight;
     const y = (1 - ratio) * (trackH - handleH);
-    this.handle.style.transform = `translate(-50%, ${y}px)`;
+    this.handle.style.transform = `translate(-100%, ${y}px)`;
     const ttH = this.tooltip.offsetHeight;
-    this.tooltip.style.transform = `translate(-50%, ${y - ttH - 8}px)`;
+    this.tooltip.style.transform = `translate(-100%, ${y - ttH - 8}px)`;
+    this._updateHandleColor(ratio);
     this.tooltip.textContent = `${Math.round(this.value)}%`;
     this.el.setAttribute('aria-valuenow', String(Math.round(this.value)));
     if (ratio >= 0.9) this.el.classList.add('ps-hot');
     else this.el.classList.remove('ps-hot');
+  }
+
+  _updateHandleColor(ratio) {
+    const low = { r: 255, g: 224, b: 102 }; // #ffe066
+    const high = { r: 255, g: 0, b: 51 }; // #ff0033
+    const r = Math.round(low.r + (high.r - low.r) * ratio);
+    const g = Math.round(low.g + (high.g - low.g) * ratio);
+    const b = Math.round(low.b + (high.b - low.b) * ratio);
+    this.handle.style.background = `rgb(${r},${g},${b})`;
   }
 
   _updateFromClientY(y) {
