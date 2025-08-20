@@ -79,8 +79,7 @@ async function loadAccountBalance() {
     const res = await window.fbApi.getAccountBalance(myAccountId);
     if (res && typeof res.balance === 'number') {
       state.tpcTotal = res.balance;
-      const el = document.getElementById('tpcTotal');
-      if (el) el.textContent = res.balance;
+      updateBalancePreview();
     }
   } catch {}
 }
@@ -99,6 +98,11 @@ const TPC_ICON_HTML =
 
 function formatAmount(amount) {
   return `${amount} ${TPC_ICON_HTML}`;
+}
+
+function updateBalancePreview(preview = 0) {
+  const el = document.getElementById('tpcTotal');
+  if (el) el.textContent = Math.max(0, state.tpcTotal - preview);
 }
 
 function setStatus(action, text) {
@@ -406,6 +410,7 @@ function dealCardToPlayer(idx, card, showFace) {
     if (!stage || !deck) {
       const target = document.getElementById('cards-' + idx);
       if (target) target.appendChild(showFace ? cardEl(card) : cardBackEl());
+      playFlipSound();
       resolve();
       return;
     }
@@ -430,6 +435,7 @@ function dealCardToPlayer(idx, card, showFace) {
         temp.style.top = '';
         temp.style.transition = '';
         target.appendChild(temp);
+        playFlipSound();
         resolve();
       },
       { once: true }
@@ -520,6 +526,9 @@ function showControls() {
         'raise',
         slider.value > 0 ? `Raise ${formatAmount(slider.value)}` : ''
       );
+      const preview =
+        state.raiseAmount > 0 ? state.raiseAmount : parseInt(slider.value, 10);
+      updateBalancePreview(preview);
     });
     sliderWrap.appendChild(slider);
 
@@ -663,6 +672,7 @@ function updateRaiseAmount() {
     'raise',
     state.raiseAmount > 0 ? `Raise ${formatAmount(state.raiseAmount)}` : ''
   );
+  updateBalancePreview(state.raiseAmount);
 }
 
 function updateSliderRange() {
@@ -670,6 +680,9 @@ function updateSliderRange() {
   if (!slider) return;
   const maxAllowed = Math.min(state.stake, state.maxPot - state.pot, state.tpcTotal);
   slider.max = Math.max(0, maxAllowed);
+  slider.value = Math.min(parseInt(slider.value, 10) || 0, slider.max);
+  const amt = document.getElementById('raiseSliderAmount');
+  if (amt) amt.innerHTML = formatAmount(slider.value);
   const disable = maxAllowed <= 0;
   ['sliderRaise', 'allIn'].forEach((id) => {
     const el = document.getElementById(id);
@@ -679,6 +692,9 @@ function updateSliderRange() {
   document
     .querySelectorAll('#raiseContainer .chip')
     .forEach((chip) => (chip.style.pointerEvents = disable ? 'none' : 'auto'));
+  const preview =
+    state.raiseAmount > 0 ? state.raiseAmount : parseInt(slider.value, 10);
+  updateBalancePreview(preview);
 }
 
 function hideControls() {
@@ -770,6 +786,9 @@ function playerCall() {
   setStatus('call', `You call ${formatAmount(state.currentBet)}`);
   if (state.pot >= state.maxPot) playAllInSound();
   else playCallRaiseSound();
+  state.tpcTotal = Math.max(0, state.tpcTotal - state.currentBet);
+  updateBalancePreview();
+  updateSliderRange();
   proceedStage();
 }
 
@@ -784,6 +803,9 @@ function playerRaise(amount = state.raiseAmount) {
   setStatus('raise', `You raise ${formatAmount(amount)}`);
   if (state.pot >= state.maxPot) playAllInSound();
   else playCallRaiseSound();
+  state.tpcTotal = Math.max(0, state.tpcTotal - amount);
+  updateBalancePreview();
+  updateSliderRange();
   proceedStage();
 }
 
