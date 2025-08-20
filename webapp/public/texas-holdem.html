@@ -116,17 +116,17 @@
     .pot{ display:flex; gap:6px; }
     .pot-total{ font-size:12px; }
     .chip-pile{ position:relative; width:calc(var(--avatar-size)/2); height:calc(var(--avatar-size)/2); }
-    .chip{ position:absolute; left:0; width:calc(var(--avatar-size)/2); height:calc(var(--avatar-size)/2); border-radius:50%; display:flex; align-items:center; justify-content:center; font-weight:700; font-size:calc(var(--avatar-size)/4); color:#000; box-shadow:0 2px 4px rgba(0,0,0,.4); }
-    .chip.v1{ background:#ffffff; }
-    .chip.v5{ background:#f87171; }
-    .chip.v10{ background:#fde047; }
-    .chip.v20{ background:#60a5fa; }
-    .chip.v50{ background:#34d399; }
-    .chip.v100{ background:#a78bfa; }
-    .chip.v200{ background:#f472b6; }
-    .chip.v500{ background:#fb923c; }
-    .chip.v1000{ background:#eab308; }
-    .moving-pot{ position:absolute; transition:left .5s ease, top .5s ease; }
+    .chip{ position:absolute; left:0; width:calc(var(--avatar-size)/2); height:calc(var(--avatar-size)/2); border-radius:50%; background-size:cover; background-position:center; background-repeat:no-repeat; box-shadow:0 2px 4px rgba(0,0,0,.4); }
+    .chip.v1{ background-image:url('assets/icons/1chips.webp'); }
+    .chip.v2{ background-image:url('assets/icons/20250820_071739.webp'); }
+    .chip.v5{ background-image:url('assets/icons/5chips.webp'); }
+    .chip.v10{ background-image:url('assets/icons/10chips.webp'); }
+    .chip.v20{ background-image:url('assets/icons/20chips.webp'); }
+    .chip.v50{ background-image:url('assets/icons/50chips.webp'); }
+    .chip.v100{ background-image:url('assets/icons/200chips.webp'); }
+    .chip.v200{ background-image:url('assets/icons/500chips.webp'); }
+    .chip.v1000{ background-image:url('assets/icons/1000chips.webp'); }
+    .moving-pot{ position:absolute; transition:left .5s ease, top .5s ease; display:flex; gap:6px; }
   </style>
 </head>
 <body>

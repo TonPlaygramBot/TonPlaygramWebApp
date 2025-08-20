@@ -72,7 +72,7 @@ function playKnockSound() {
 }
 
 const SUIT_MAP = { H: '♥', D: '♦', C: '♣', S: '♠' };
-const CHIP_VALUES = [1000, 500, 200, 100, 50, 20, 10, 5, 1];
+const CHIP_VALUES = [1000, 200, 100, 50, 20, 10, 5, 2, 1];
 const ANTE = 10;
 const regionNames = new Intl.DisplayNames(['en'], { type: 'region' });
 function flagName(flag) {
@@ -276,29 +276,67 @@ function collectAntes() {
   state.pot += ANTE * active;
 }
 
-function updatePotDisplay() {
-  const potEl = document.getElementById('pot');
-  if (!potEl) return;
-  potEl.innerHTML = '';
-  let amount = state.pot;
+function buildChipPiles(amount) {
+  const wrap = document.createElement('div');
+  wrap.style.display = 'flex';
+  wrap.style.gap = '6px';
+  let remaining = amount;
   CHIP_VALUES.forEach((val) => {
-    const count = Math.floor(amount / val);
+    const count = Math.floor(remaining / val);
     if (count > 0) {
-      amount -= count * val;
+      remaining -= count * val;
       const pile = document.createElement('div');
       pile.className = 'chip-pile';
       for (let i = 0; i < count; i++) {
         const chip = document.createElement('div');
         chip.className = 'chip v' + val;
-        chip.textContent = val;
         chip.style.top = -i * 4 + 'px';
         pile.appendChild(chip);
       }
-      potEl.appendChild(pile);
+      wrap.appendChild(pile);
     }
   });
+  return wrap;
+}
+
+function updatePotDisplay() {
+  const potEl = document.getElementById('pot');
+  if (!potEl) return;
+  potEl.innerHTML = '';
+  potEl.appendChild(buildChipPiles(state.pot));
   const textEl = document.getElementById('potTotal');
   if (textEl) textEl.textContent = `Total: ${state.pot} ${state.token}`;
+}
+
+function animateChipsFromPlayer(index, amount) {
+  const stage = document.querySelector('.stage');
+  const seats = document.querySelectorAll('#seats .seat');
+  const seat = seats[index];
+  const potWrap = document.getElementById('potWrap');
+  if (!stage || !seat || !potWrap) {
+    updatePotDisplay();
+    return;
+  }
+  const chips = buildChipPiles(amount);
+  chips.classList.add('moving-pot');
+  stage.appendChild(chips);
+  const seatRect = seat.getBoundingClientRect();
+  const stageRect = stage.getBoundingClientRect();
+  const potRect = potWrap.getBoundingClientRect();
+  chips.style.left =
+    seatRect.left + seatRect.width / 2 - stageRect.left - chips.offsetWidth / 2 + 'px';
+  chips.style.top =
+    seatRect.top + seatRect.height / 2 - stageRect.top - chips.offsetHeight / 2 + 'px';
+  requestAnimationFrame(() => {
+    chips.style.left =
+      potRect.left + potRect.width / 2 - stageRect.left - chips.offsetWidth / 2 + 'px';
+    chips.style.top =
+      potRect.top + potRect.height / 2 - stageRect.top - chips.offsetHeight / 2 + 'px';
+  });
+  setTimeout(() => {
+    chips.remove();
+    updatePotDisplay();
+  }, 500);
 }
 
 async function dealInitialCards() {
@@ -503,7 +541,7 @@ function playerCheck() {
 
 function playerCall() {
   state.pot += state.currentBet;
-  updatePotDisplay();
+  animateChipsFromPlayer(0, state.currentBet);
   setActionText(0, 'call');
   document.getElementById('status').textContent = `You call ${state.currentBet} ${state.token}`;
   if (state.pot >= state.maxPot) playAllInSound();
@@ -517,7 +555,7 @@ function playerRaise() {
   if (amount <= 0) return;
   state.pot += amount;
   state.currentBet += amount;
-  updatePotDisplay();
+  animateChipsFromPlayer(0, amount);
   setActionText(0, 'raise');
   document.getElementById('status').textContent = `You raise ${amount} ${state.token}`;
   if (state.pot >= state.maxPot) playAllInSound();
@@ -546,13 +584,13 @@ async function proceedStage() {
       const total = state.currentBet + raiseBy;
       state.currentBet = total;
       state.pot += total;
-      updatePotDisplay();
+      animateChipsFromPlayer(i, total);
       document.getElementById('status').textContent = `${p.name} raises to ${total} ${state.token}`;
       if (state.pot >= state.maxPot) playAllInSound();
       else playCallRaiseSound();
     } else if (action === 'call') {
       state.pot += state.currentBet;
-      updatePotDisplay();
+      animateChipsFromPlayer(i, state.currentBet);
       document.getElementById('status').textContent = `${p.name} calls ${state.currentBet} ${state.token}`;
       if (state.pot >= state.maxPot) playAllInSound();
       else playCallRaiseSound();
