@@ -22,6 +22,7 @@ const state = {
   pot: 0,
   maxPot: 0,
   raiseAmount: 0,
+  selectedChips: [],
   tpcTotal: 0,
   seated: true,
 };
@@ -172,6 +173,7 @@ function init() {
   state.turn = 0;
   state.currentBet = 0;
   state.raiseAmount = 0;
+  state.selectedChips = [];
   state.pot = 0;
   state.maxPot = state.stake * state.players.filter((p) => p.active).length;
   const potEl = document.getElementById('pot');
@@ -523,6 +525,7 @@ function showControls() {
           state.tpcTotal
         );
         if (state.raiseAmount + val <= maxAllowed) {
+          state.selectedChips.push(val);
           state.raiseAmount += val;
           updateRaiseAmount();
         }
@@ -531,22 +534,41 @@ function showControls() {
     });
     raiseContainer.appendChild(grid);
 
+    const infoRow = document.createElement('div');
+    infoRow.className = 'raise-info';
+
+    const undoBtn = document.createElement('button');
+    undoBtn.id = 'undoChip';
+    undoBtn.className = 'undo-chip';
+    undoBtn.textContent = '⌫';
+    undoBtn.addEventListener('click', () => {
+      const removed = state.selectedChips.pop();
+      if (removed) {
+        state.raiseAmount = Math.max(0, state.raiseAmount - removed);
+        updateRaiseAmount();
+      }
+    });
+    infoRow.appendChild(undoBtn);
+
     const amountText = document.createElement('div');
     amountText.id = 'raiseAmountText';
     amountText.className = 'raise-amount';
     amountText.textContent = `0 ${state.token}`;
-    raiseContainer.appendChild(amountText);
+    infoRow.appendChild(amountText);
 
     const totalDiv = document.createElement('div');
     totalDiv.className = 'tpc-total';
     totalDiv.innerHTML =
       'Total: <span id="tpcTotal">0</span> <img src="assets/icons/ezgif-54c96d8a9b9236.webp" alt="TPC" />';
-    raiseContainer.appendChild(totalDiv);
+    infoRow.appendChild(totalDiv);
+
+    raiseContainer.appendChild(infoRow);
 
     if (stage) stage.appendChild(raiseContainer);
   }
 
   state.raiseAmount = 0;
+  state.selectedChips = [];
   updateRaiseAmount();
 
   const slider = document.getElementById('raiseSlider');
@@ -628,6 +650,7 @@ function hideControls() {
       chip.style.pointerEvents = 'none';
     });
   state.raiseAmount = 0;
+  state.selectedChips = [];
   updateRaiseAmount();
   const amt = document.getElementById('raiseSliderAmount');
   if (amt) amt.textContent = `0 ${state.token}`;
