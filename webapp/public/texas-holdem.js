@@ -444,11 +444,13 @@ function showControls() {
     controls.append(foldBtn, callBtn, checkBtn);
   }
 
-  let raiseContainer = document.getElementById('raiseContainer');
-  if (!raiseContainer) {
-    raiseContainer = document.createElement('div');
-    raiseContainer.className = 'raise-container';
-    raiseContainer.id = 'raiseContainer';
+  const stage = document.querySelector('.stage');
+
+  let sliderContainer = document.getElementById('sliderContainer');
+  if (!sliderContainer) {
+    sliderContainer = document.createElement('div');
+    sliderContainer.className = 'slider-container';
+    sliderContainer.id = 'sliderContainer';
 
     const sliderWrap = document.createElement('div');
     sliderWrap.className = 'slider-wrap';
@@ -468,7 +470,8 @@ function showControls() {
       if (amt) amt.textContent = `${slider.value} ${state.token}`;
       const status = document.getElementById('status');
       if (status)
-        status.textContent = slider.value > 0 ? `Raise ${slider.value} ${state.token}` : '';
+        status.textContent =
+          slider.value > 0 ? `Raise ${slider.value} ${state.token}` : '';
     });
     sliderWrap.appendChild(slider);
 
@@ -494,7 +497,16 @@ function showControls() {
       playerRaise(max);
     });
 
-    raiseContainer.appendChild(sliderWrap);
+    sliderContainer.appendChild(sliderWrap);
+
+    if (stage) stage.appendChild(sliderContainer);
+  }
+
+  let raiseContainer = document.getElementById('raiseContainer');
+  if (!raiseContainer) {
+    raiseContainer = document.createElement('div');
+    raiseContainer.className = 'raise-container';
+    raiseContainer.id = 'raiseContainer';
 
     const grid = document.createElement('div');
     grid.className = 'chip-grid';
@@ -532,7 +544,6 @@ function showControls() {
     amountText.textContent = `0 ${state.token}`;
     raiseContainer.appendChild(amountText);
 
-    const stage = document.querySelector('.stage');
     if (stage) stage.appendChild(raiseContainer);
   }
 
