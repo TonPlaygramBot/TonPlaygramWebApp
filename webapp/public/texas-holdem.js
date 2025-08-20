@@ -108,8 +108,12 @@ function updateBalancePreview(preview = 0) {
 function setStatus(action, text) {
   const status = document.getElementById('status');
   if (!status) return;
-  status.className = action ? `action-text ${action}` : 'status-default';
-  status.innerHTML = text;
+  if (text && (text.includes('wins with') || text === 'Tie')) {
+    status.className = 'status-default';
+    status.innerHTML = text;
+  } else {
+    status.innerHTML = '';
+  }
 }
 
 function cardFaceEl(c) {
