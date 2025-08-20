@@ -136,10 +136,10 @@ export class PowerSlider {
     const ratio = (this.value - this.min) / range;
     const trackH = this.el.clientHeight;
     const handleH = this.handle.offsetHeight;
-    const y = (1 - ratio) * (trackH - handleH);
-    this.handle.style.transform = `translate(-100%, ${y}px)`;
+    const y = ratio * (trackH - handleH);
+    this.handle.style.transform = `translate(0, ${y}px)`;
     const ttH = this.tooltip.offsetHeight;
-    this.tooltip.style.transform = `translate(-100%, ${y - ttH - 8}px)`;
+    this.tooltip.style.transform = `translate(0, ${y - ttH - 8}px)`;
     this._updateHandleColor(ratio);
     this.tooltip.textContent = `${Math.round(this.value)}%`;
     this.el.setAttribute('aria-valuenow', String(Math.round(this.value)));
@@ -158,7 +158,7 @@ export class PowerSlider {
 
   _updateFromClientY(y) {
     const rect = this.el.getBoundingClientRect();
-    const pos = (rect.bottom - y) / rect.height; // 0 at bottom, 1 at top
+    const pos = (y - rect.top) / rect.height; // 0 at top, 1 at bottom
     const ratio = Math.min(Math.max(pos, 0), 1);
     const value = this.min + ratio * (this.max - this.min);
     this.set(value);
@@ -193,7 +193,7 @@ export class PowerSlider {
   _wheel(e) {
     if (this.locked) return;
     e.preventDefault();
-    const dir = e.deltaY < 0 ? 1 : -1;
+    const dir = e.deltaY > 0 ? 1 : -1;
     this.set(this.value + dir * this.step, { animate: true });
     if (typeof this.onCommit === 'function') this.onCommit(this.value);
   }
@@ -202,10 +202,10 @@ export class PowerSlider {
     if (this.locked) return;
     let handled = false;
     let inc = e.shiftKey ? this.step * 5 : this.step;
-    if (e.key === 'ArrowUp') {
+    if (e.key === 'ArrowDown') {
       this.set(this.value + inc);
       handled = true;
-    } else if (e.key === 'ArrowDown') {
+    } else if (e.key === 'ArrowUp') {
       this.set(this.value - inc);
       handled = true;
     } else if (e.key === 'Enter') {
