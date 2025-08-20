@@ -141,7 +141,7 @@
       background: #f6f6f6;
       position: absolute;
       left: 50%;
-      top: 80%;
+      top: 84%;
       transform: translate(-50%, -50%);
       box-shadow: 0 4px 10px rgba(0,0,0,.4) inset,
                   0 0 0 2px rgba(0,0,0,.15);
@@ -171,7 +171,7 @@
       align-items: center;
       justify-content: center;
       padding: 8px;
-      transform: translate(12px, 32px);
+      transform: translate(12px, 40px);
     }
 
     #cueRail {
@@ -504,6 +504,7 @@
       this.pocketed = false; // ne grope
       this.a = 0; // kendi per vizualizim rrotullimi
       this.spin = { x:0, y:0 }; // spin aktiv
+      this.spinApplied = false;
     }
 
     function Pocket(x,y){ this.x = x; this.y = y; }
@@ -593,7 +594,7 @@
         b.p.x += b.v.x * dt;
         b.p.y += b.v.y * dt;
         b.v.x *= FRICTION; b.v.y *= FRICTION;
-        if (b.spin) {
+        if (b.spin && b.spinApplied) {
           b.v.x += b.spin.x * 40 * dt;
           b.v.y += b.spin.y * 40 * dt;
           b.spin.x *= 0.98;
@@ -605,10 +606,10 @@
         var R = TABLE_W - BORDER - BALL_R;
         var T = BORDER_TOP + BALL_R;
         var B = TABLE_H - BORDER_BOTTOM - BALL_R;
-        if (b.p.x < L) { b.p.x = L; b.v.x *= -BOUNCE; }
-        if (b.p.x > R) { b.p.x = R; b.v.x *= -BOUNCE; }
-        if (b.p.y < T) { b.p.y = T; b.v.y *= -BOUNCE; }
-        if (b.p.y > B) { b.p.y = B; b.v.y *= -BOUNCE; }
+        if (b.p.x < L) { b.p.x = L; b.v.x *= -BOUNCE; b.spinApplied = true; }
+        if (b.p.x > R) { b.p.x = R; b.v.x *= -BOUNCE; b.spinApplied = true; }
+        if (b.p.y < T) { b.p.y = T; b.v.y *= -BOUNCE; b.spinApplied = true; }
+        if (b.p.y > B) { b.p.y = B; b.v.y *= -BOUNCE; b.spinApplied = true; }
       }
 
       // Perplasje ball-ball
@@ -626,6 +627,8 @@
             a.v.x -= imp*nx; a.v.y -= imp*ny; bb.v.x += imp*nx; bb.v.y += imp*ny;
             a.v.x *= BOUNCE; a.v.y *= BOUNCE; bb.v.x *= BOUNCE; bb.v.y *= BOUNCE;
             playBallHit(clamp(imp/4000,0,1));
+            a.spinApplied = true;
+            bb.spinApplied = true;
           }
         }
       }
@@ -936,22 +939,22 @@
       if (target){
         ctx.fillStyle = 'rgba(255,255,255,1)';
         var x2 = target.p.x, y2 = target.p.y;
+        var dir2 = norm(cue.p.x - target.p.x, cue.p.y - target.p.y);
         for (var k=0;k<dots;k++){
           ctx.beginPath(); ctx.arc(x2*sX, y2*sY, clamp(1.2+power*2,1,3.5), 0, Math.PI*2); ctx.fill();
-          x2 += dir.x * step; y2 += dir.y * step;
+          x2 += dir2.x * step; y2 += dir2.y * step;
           if (x2 < BORDER+BALL_R || x2 > TABLE_W-BORDER-BALL_R || y2 < BORDER_TOP+BALL_R || y2 > TABLE_H-BORDER_BOTTOM-BALL_R) break;
         }
       }
     }
 
     function drawCueOnTable(cuePos, aim, pull){
-      var d = norm(aim.x-cuePos.x, aim.y-cuePos.y);
       var start = {
-        x: cuePos.x - d.x * (BALL_R * 1.2 + pull),
-        y: cuePos.y - d.y * (BALL_R * 1.2 + pull)
+        x: cuePos.x,
+        y: cuePos.y + (BALL_R * 1.2 + pull)
       };
       var length = BALL_R * 20;
-      var angle = Math.atan2(d.y, d.x) + Math.PI / 2;
+      var angle = Math.PI / 2;
       if (cueImg.complete) {
         var scale = (length * sX) / cueImg.width;
         var drawW = cueImg.width * scale;
@@ -959,7 +962,7 @@
         ctx.save();
         ctx.translate(start.x * sX, start.y * sY);
         ctx.rotate(angle);
-        ctx.drawImage(cueImg, 0, -drawH / 2, drawW, drawH);
+        ctx.drawImage(cueImg, -drawW / 2, -drawH / 2, drawW, drawH);
         ctx.restore();
       }
     }
@@ -992,7 +995,8 @@
     var pulling=false;
     function updatePullHandle(){
       var rect=pullArea.getBoundingClientRect();
-      var minY=0, maxY=rect.height-pullHandle.offsetHeight;
+      var minY=-pullHandle.offsetHeight*0.6;
+      var maxY=rect.height-pullHandle.offsetHeight*0.4;
       pullHandle.style.top=(minY+(maxY-minY)*power)+'px';
     }
     function updatePowerUI(){
@@ -1034,9 +1038,10 @@
       currentShooter = table.turn;
       shotInProgress = true;
       pocketedAny = false; pocketedOwn = false; scratch = false;
-      cue.v.x = d.x*base*(0.25+0.75*p)+spinVec.x*260*8*p;
-      cue.v.y = d.y*base*(0.25+0.75*p)+spinVec.y*260*8*p;
+      cue.v.x = d.x*base*(0.25+0.75*p);
+      cue.v.y = d.y*base*(0.25+0.75*p);
       cue.spin = { x:spinVec.x*20*p, y:spinVec.y*20*p };
+      cue.spinApplied = false;
       cueBallFree = false;
       setSpin(0,0); showGuides=false;
     }
