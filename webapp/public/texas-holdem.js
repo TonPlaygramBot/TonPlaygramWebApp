@@ -230,8 +230,10 @@ function renderSeats() {
       const timer = document.createElement('div');
       timer.className = 'timer';
       timer.id = 'timer-' + i;
-      if (positions[i] === 'top') seat.append(avatar, name, cards, action, timer);
-      else seat.append(avatar, name, cards, action, timer);
+      const inner = document.createElement('div');
+      inner.className = 'seat-inner';
+      inner.append(avatar, name, cards, timer);
+      seat.append(inner, action);
     }
     seats.appendChild(seat);
   });
@@ -360,16 +362,13 @@ function setPlayerTurnIndicator(idx) {
 function showControls() {
   const controls = document.getElementById('controls');
   controls.innerHTML = '';
-  const baseActions = [{ id: 'fold', fn: playerFold }];
-  if (state.currentBet === 0) baseActions.push({ id: 'check', fn: playerCheck });
-  baseActions.push({ id: 'call', fn: playerCall });
-  baseActions.forEach((a) => {
-    const btn = document.createElement('button');
-    btn.id = a.id;
-    btn.textContent = a.id;
-    btn.addEventListener('click', a.fn);
-    controls.appendChild(btn);
-  });
+
+  const foldBtn = document.createElement('button');
+  foldBtn.id = 'fold';
+  foldBtn.textContent = 'fold';
+  foldBtn.addEventListener('click', playerFold);
+  controls.appendChild(foldBtn);
+
   const raiseContainer = document.createElement('div');
   raiseContainer.className = 'raise-container';
   const panel = document.createElement('div');
@@ -378,18 +377,33 @@ function showControls() {
     '<div class="max-zone"><div class="max-label">MAX</div></div>' +
     '<div id="raiseFill"></div><div id="raiseThumb"></div>';
   raiseContainer.appendChild(panel);
-  const btn = document.createElement('button');
-  btn.textContent = 'raise';
-  btn.id = 'raise';
-  btn.addEventListener('click', playerRaise);
-  if (state.pot >= state.maxPot) btn.disabled = true;
-  raiseContainer.appendChild(btn);
+  const raiseBtn = document.createElement('button');
+  raiseBtn.textContent = 'raise';
+  raiseBtn.id = 'raise';
+  raiseBtn.addEventListener('click', playerRaise);
+  if (state.pot >= state.maxPot) raiseBtn.disabled = true;
+  raiseContainer.appendChild(raiseBtn);
   const amountText = document.createElement('div');
   amountText.id = 'raiseAmountText';
   amountText.className = 'raise-amount';
   amountText.textContent = `0 ${state.token}`;
   raiseContainer.appendChild(amountText);
   controls.appendChild(raiseContainer);
+
+  const callBtn = document.createElement('button');
+  callBtn.id = 'call';
+  callBtn.textContent = 'call';
+  callBtn.addEventListener('click', playerCall);
+  controls.appendChild(callBtn);
+
+  if (state.currentBet === 0) {
+    const checkBtn = document.createElement('button');
+    checkBtn.id = 'check';
+    checkBtn.textContent = 'check';
+    checkBtn.addEventListener('click', playerCheck);
+    controls.appendChild(checkBtn);
+  }
+
   initRaiseSlider();
 }
 
