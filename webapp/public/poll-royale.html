@@ -140,7 +140,8 @@
       display: flex;
       flex-direction: column;
       align-items: center;
-      justify-content: space-between;
+      justify-content: flex-end;
+      gap: 8px;
       padding: 12px 8px;
       z-index: 10;
     }
@@ -184,7 +185,7 @@
       padding: 8px;
       /* Shift slightly right and allow the handle to overflow so
          only half of it is visible */
-      transform: translate(20px, 48px);
+      transform: translateX(20px);
       overflow: visible;
       z-index: 7;
     }
@@ -486,7 +487,7 @@
       pocketR = POCKET_R * ((sX + sY) / 2);
       ballR   = BALL_R   * ((sX + sY) / 2);
       powerCue.style.width = (BALL_R * 20 * sX) + 'px';
-      powerCue.style.top = (-pullHandle.offsetHeight * 0.6) + 'px';
+      updatePullHandle();
     }
     window.addEventListener('resize', resize);
 
@@ -1112,7 +1113,9 @@
       var rect=pullArea.getBoundingClientRect();
       var minY=-pullHandle.offsetHeight*0.6;
       var maxY=rect.height-pullHandle.offsetHeight*0.4;
-      pullHandle.style.top=(minY+(maxY-minY)*power)+'px';
+      var y=minY+(maxY-minY)*power;
+      pullHandle.style.top=y+'px';
+      powerCue.style.top=y+'px';
     }
     function updatePowerUI(){
       powerFill.style.height = Math.round(power*100)+'%';
