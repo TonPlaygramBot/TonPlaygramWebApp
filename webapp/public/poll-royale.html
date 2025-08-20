@@ -950,18 +950,27 @@
     }
 
     function drawCueOnTable(cuePos, aim, pull){
-      var start = {
-        x: cuePos.x,
-        y: cuePos.y + (BALL_R * 2.2 + pull)
+      // Align the cue with the guideline and keep the tip pointing toward the cue ball
+      var dx = aim.x - cuePos.x, dy = aim.y - cuePos.y;
+      var len = Math.hypot(dx, dy) || 1;
+      var dir = { x: dx / len, y: dy / len };
+
+      // Position the cue so its tip touches the cue ball
+      var offset = BALL_R * 2.2 + pull;
+      var center = {
+        x: cuePos.x - dir.x * offset,
+        y: cuePos.y - dir.y * offset
       };
+
       var length = BALL_R * 20;
       if (cueImg.complete) {
         var scale = (length * sX) / cueImg.width;
         var drawW = cueImg.width * scale;
         var drawH = cueImg.height * scale;
+
         ctx.save();
-        ctx.translate(start.x * sX, start.y * sY);
-        ctx.scale(1, -1);
+        ctx.translate(center.x * sX, center.y * sY);
+        ctx.rotate(Math.atan2(dir.y, dir.x) + Math.PI / 2);
         ctx.drawImage(cueImg, -drawW / 2, -drawH / 2, drawW, drawH);
         ctx.restore();
       }
