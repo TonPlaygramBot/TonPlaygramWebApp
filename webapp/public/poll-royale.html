@@ -174,7 +174,7 @@
       padding: 8px;
       /* Shift slightly right and allow the handle to overflow so
          only half of it is visible */
-      transform: translate(20px, 48px);
+      transform: translate(-20px, 48px);
       overflow: visible;
     }
 
@@ -192,7 +192,7 @@
     #pullHandle {
       position: absolute;
       /* Position the pull button so that it's half outside the panel */
-      left: 100%;
+      left: 0;
       transform: translateX(-50%);
       width: 45px;
       height: 45px;
@@ -943,10 +943,22 @@
 
       if (target) {
         var tx = target.p.x, ty = target.p.y;
+        var impactCueX = cue.p.x + dir.x * step * hitStep;
+        var impactCueY = cue.p.y + dir.y * step * hitStep;
         // Direction from cue ball to target ball at impact
-        var hitN = { x: tx - cue.p.x, y: ty - cue.p.y };
+        var hitN = { x: tx - impactCueX, y: ty - impactCueY };
         var nL = len(hitN.x, hitN.y) || 1;
         hitN.x /= nL; hitN.y /= nL;
+
+        // Draw contact spot on the target ball
+        var hitSpotX = tx - hitN.x * BALL_R;
+        var hitSpotY = ty - hitN.y * BALL_R;
+        ctx.save();
+        ctx.fillStyle = 'rgba(255,255,255,.8)';
+        ctx.beginPath();
+        ctx.arc(hitSpotX*sX, hitSpotY*sY, BALL_R*0.15, 0, Math.PI*2);
+        ctx.fill();
+        ctx.restore();
 
         // Project the target ball's path along the line of centers
         var tMax = Infinity;
@@ -972,15 +984,13 @@
         var cbL = len(cbDir.x, cbDir.y);
         if (cbL > 0.0001) {
           cbDir.x /= cbL; cbDir.y /= cbL;
-          var impactX = tx - hitN.x * BALL_R * 2;
-          var impactY = ty - hitN.y * BALL_R * 2;
-          var cbEndX = impactX + cbDir.x * BALL_R * 4;
-          var cbEndY = impactY + cbDir.y * BALL_R * 4;
+          var cbEndX = impactCueX + cbDir.x * BALL_R * 4;
+          var cbEndY = impactCueY + cbDir.y * BALL_R * 4;
           ctx.save();
           ctx.strokeStyle = 'rgba(255,255,255,.5)';
           ctx.lineWidth = clamp(1.5+power*1.5, 1.5, 3);
           ctx.beginPath();
-          ctx.moveTo(impactX*sX, impactY*sY);
+          ctx.moveTo(impactCueX*sX, impactCueY*sY);
           ctx.lineTo(cbEndX*sX, cbEndY*sY);
           ctx.stroke();
           ctx.restore();
