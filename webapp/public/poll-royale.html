@@ -23,6 +23,7 @@
       background: #0b1120; /* blu e errete, si sallon bilardoje */
       color: #fff;
       font-family: system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Cantarell,"Helvetica Neue",Arial,"Noto Sans";
+      overscroll-behavior: none;
     }
 
     #app {
@@ -951,17 +952,16 @@
     function drawCueOnTable(cuePos, aim, pull){
       var start = {
         x: cuePos.x,
-        y: cuePos.y + (BALL_R * 1.2 + pull)
+        y: cuePos.y + (BALL_R * 2.2 + pull)
       };
       var length = BALL_R * 20;
-      var angle = Math.PI;
       if (cueImg.complete) {
         var scale = (length * sX) / cueImg.width;
         var drawW = cueImg.width * scale;
         var drawH = cueImg.height * scale;
         ctx.save();
         ctx.translate(start.x * sX, start.y * sY);
-        ctx.rotate(angle);
+        ctx.scale(1, -1);
         ctx.drawImage(cueImg, -drawW / 2, -drawH / 2, drawW, drawH);
         ctx.restore();
       }
