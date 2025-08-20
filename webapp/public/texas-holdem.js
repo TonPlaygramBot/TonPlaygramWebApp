@@ -426,74 +426,157 @@ function setPlayerTurnIndicator(idx) {
 
 function showControls() {
   const controls = document.getElementById('controls');
-  controls.innerHTML = '';
-  state.raiseAmount = 0;
+  if (!controls) return;
 
-  const foldBtn = document.createElement('button');
-  foldBtn.id = 'fold';
-  foldBtn.textContent = 'fold';
-  foldBtn.addEventListener('click', playerFold);
-
-  const callBtn = document.createElement('button');
-  callBtn.id = 'call';
-  callBtn.textContent = 'call';
-  callBtn.addEventListener('click', playerCall);
-
-  let checkBtn = null;
-  if (state.currentBet === 0) {
-    checkBtn = document.createElement('button');
+  if (!document.getElementById('fold')) {
+    const foldBtn = document.createElement('button');
+    foldBtn.id = 'fold';
+    foldBtn.textContent = 'fold';
+    foldBtn.addEventListener('click', playerFold);
+    const callBtn = document.createElement('button');
+    callBtn.id = 'call';
+    callBtn.textContent = 'call';
+    callBtn.addEventListener('click', playerCall);
+    const checkBtn = document.createElement('button');
     checkBtn.id = 'check';
     checkBtn.textContent = 'check';
     checkBtn.addEventListener('click', playerCheck);
+    controls.append(foldBtn, callBtn, checkBtn);
   }
 
-  const raiseContainer = document.createElement('div');
-  raiseContainer.className = 'raise-container';
-  raiseContainer.id = 'raiseContainer';
+  let raiseContainer = document.getElementById('raiseContainer');
+  if (!raiseContainer) {
+    raiseContainer = document.createElement('div');
+    raiseContainer.className = 'raise-container';
+    raiseContainer.id = 'raiseContainer';
 
-  const grid = document.createElement('div');
-  grid.className = 'chip-grid';
-  CHIP_VALUES.forEach((val) => {
-    const chip = document.createElement('div');
-    chip.className = 'chip v' + val;
-    chip.dataset.value = val;
-    chip.addEventListener('click', () => {
-      chip.classList.toggle('selected');
-      state.raiseAmount = Array.from(grid.querySelectorAll('.chip.selected')).reduce(
-        (sum, c) => sum + parseInt(c.dataset.value, 10),
-        0
-      );
-      updateRaiseAmount();
+    const sliderWrap = document.createElement('div');
+    sliderWrap.className = 'slider-wrap';
+
+    const allInBtn = document.createElement('button');
+    allInBtn.id = 'allIn';
+    allInBtn.textContent = 'All in';
+    sliderWrap.appendChild(allInBtn);
+
+    const slider = document.createElement('input');
+    slider.type = 'range';
+    slider.id = 'raiseSlider';
+    slider.min = '0';
+    slider.value = '0';
+    slider.addEventListener('input', () => {
+      const amt = document.getElementById('raiseSliderAmount');
+      if (amt) amt.textContent = `${slider.value} ${state.token}`;
+      const status = document.getElementById('status');
+      if (status)
+        status.textContent = slider.value > 0 ? `Raise ${slider.value} ${state.token}` : '';
     });
-    grid.appendChild(chip);
+    sliderWrap.appendChild(slider);
+
+    const sliderRaise = document.createElement('button');
+    sliderRaise.id = 'sliderRaise';
+    sliderRaise.textContent = 'raise';
+    sliderRaise.className = 'raise-btn';
+    sliderRaise.addEventListener('click', () =>
+      playerRaise(parseInt(slider.value, 10))
+    );
+    sliderWrap.appendChild(sliderRaise);
+
+    const sliderAmt = document.createElement('div');
+    sliderAmt.id = 'raiseSliderAmount';
+    sliderAmt.className = 'raise-amount';
+    sliderAmt.textContent = `0 ${state.token}`;
+    sliderWrap.appendChild(sliderAmt);
+
+    allInBtn.addEventListener('click', () => {
+      const max = parseInt(slider.max, 10) || 0;
+      slider.value = max;
+      slider.dispatchEvent(new Event('input'));
+      playerRaise(max);
+    });
+
+    raiseContainer.appendChild(sliderWrap);
+
+    const grid = document.createElement('div');
+    grid.className = 'chip-grid';
+    CHIP_VALUES.forEach((val) => {
+      const chip = document.createElement('div');
+      chip.className = 'chip v' + val;
+      chip.dataset.value = val;
+      chip.addEventListener('click', () => {
+        chip.classList.toggle('selected');
+        state.raiseAmount = Array.from(
+          grid.querySelectorAll('.chip.selected')
+        ).reduce((sum, c) => sum + parseInt(c.dataset.value, 10), 0);
+        updateRaiseAmount();
+      });
+      grid.appendChild(chip);
+    });
+    raiseContainer.appendChild(grid);
+
+    const totalDiv = document.createElement('div');
+    totalDiv.className = 'tpc-total';
+    totalDiv.innerHTML =
+      'Total: <span id="tpcTotal">0</span> <img src="assets/icons/ezgif-54c96d8a9b9236.webp" alt="TPC" />';
+    raiseContainer.appendChild(totalDiv);
+
+    const raiseBtn = document.createElement('button');
+    raiseBtn.textContent = 'raise';
+    raiseBtn.id = 'raise';
+    raiseBtn.className = 'raise-btn';
+    raiseBtn.addEventListener('click', () => playerRaise());
+    raiseContainer.appendChild(raiseBtn);
+
+    const amountText = document.createElement('div');
+    amountText.id = 'raiseAmountText';
+    amountText.className = 'raise-amount';
+    amountText.textContent = `0 ${state.token}`;
+    raiseContainer.appendChild(amountText);
+
+    const stage = document.querySelector('.stage');
+    if (stage) stage.appendChild(raiseContainer);
+  }
+
+  document
+    .querySelectorAll('#raiseContainer .chip.selected')
+    .forEach((c) => c.classList.remove('selected'));
+  state.raiseAmount = 0;
+  updateRaiseAmount();
+
+  const slider = document.getElementById('raiseSlider');
+  if (slider) {
+    slider.value = '0';
+    const amt = document.getElementById('raiseSliderAmount');
+    if (amt) amt.textContent = `0 ${state.token}`;
+  }
+
+  ['fold', 'call', 'check', 'raise', 'sliderRaise', 'allIn'].forEach((id) => {
+    const el = document.getElementById(id);
+    if (el) el.disabled = false;
   });
-  raiseContainer.appendChild(grid);
+  if (slider) slider.disabled = false;
+  document
+    .querySelectorAll('#raiseContainer .chip')
+    .forEach((chip) => (chip.style.pointerEvents = 'auto'));
 
-  const totalDiv = document.createElement('div');
-  totalDiv.className = 'tpc-total';
-  totalDiv.innerHTML =
-    'Total: <span id="tpcTotal">0</span> <img src="assets/icons/ezgif-54c96d8a9b9236.webp" alt="TPC" />';
-  raiseContainer.appendChild(totalDiv);
+  const checkBtn = document.getElementById('check');
+  if (checkBtn) checkBtn.disabled = state.currentBet > 0;
 
-  const raiseBtn = document.createElement('button');
-  raiseBtn.textContent = 'raise';
-  raiseBtn.id = 'raise';
-  raiseBtn.addEventListener('click', playerRaise);
-  if (state.pot >= state.maxPot) raiseBtn.disabled = true;
-  raiseContainer.appendChild(raiseBtn);
+  const maxAllowed = Math.min(state.stake, state.maxPot - state.pot, state.tpcTotal);
+  ['raise', 'sliderRaise', 'allIn'].forEach((id) => {
+    const el = document.getElementById(id);
+    if (el) el.disabled = maxAllowed <= 0;
+  });
+  if (slider) {
+    slider.max = Math.max(0, maxAllowed);
+    slider.disabled = maxAllowed <= 0;
+  }
+  document
+    .querySelectorAll('#raiseContainer .chip')
+    .forEach((chip) => {
+      chip.style.pointerEvents = maxAllowed > 0 ? 'auto' : 'none';
+    });
 
-  const amountText = document.createElement('div');
-  amountText.id = 'raiseAmountText';
-  amountText.className = 'raise-amount';
-  amountText.textContent = `0 ${state.token}`;
-  raiseContainer.appendChild(amountText);
-
-  controls.append(foldBtn, callBtn);
-  if (checkBtn) controls.appendChild(checkBtn);
-  const stage = document.querySelector('.stage');
-  if (stage) stage.appendChild(raiseContainer);
-
-  loadAccountBalance();
+  loadAccountBalance().then(() => updateSliderRange());
 }
 
 function updateRaiseAmount() {
@@ -506,12 +589,44 @@ function updateRaiseAmount() {
   }
 }
 
+function updateSliderRange() {
+  const slider = document.getElementById('raiseSlider');
+  if (!slider) return;
+  const maxAllowed = Math.min(state.stake, state.maxPot - state.pot, state.tpcTotal);
+  slider.max = Math.max(0, maxAllowed);
+  const disable = maxAllowed <= 0;
+  ['raise', 'sliderRaise', 'allIn'].forEach((id) => {
+    const el = document.getElementById(id);
+    if (el) el.disabled = disable;
+  });
+  slider.disabled = disable;
+  document
+    .querySelectorAll('#raiseContainer .chip')
+    .forEach((chip) => (chip.style.pointerEvents = disable ? 'none' : 'auto'));
+}
+
 function hideControls() {
-  const controls = document.getElementById('controls');
-  if (controls) controls.innerHTML = '';
-  const raiseContainer = document.getElementById('raiseContainer');
-  if (raiseContainer) raiseContainer.remove();
+  ['fold', 'call', 'check', 'raise', 'sliderRaise', 'allIn'].forEach((id) => {
+    const el = document.getElementById(id);
+    if (el) el.disabled = true;
+  });
+  const slider = document.getElementById('raiseSlider');
+  if (slider) {
+    slider.disabled = true;
+    slider.value = '0';
+  }
+  document
+    .querySelectorAll('#raiseContainer .chip')
+    .forEach((chip) => {
+      chip.style.pointerEvents = 'none';
+      chip.classList.remove('selected');
+    });
   state.raiseAmount = 0;
+  updateRaiseAmount();
+  const amt = document.getElementById('raiseSliderAmount');
+  if (amt) amt.textContent = `0 ${state.token}`;
+  const status = document.getElementById('status');
+  if (status) status.textContent = '';
 }
 
 function startPlayerTurn() {
@@ -582,9 +697,9 @@ function playerCall() {
   proceedStage();
 }
 
-function playerRaise() {
+function playerRaise(amount = state.raiseAmount) {
   const maxAllowed = Math.min(state.stake, state.maxPot - state.pot);
-  const amount = Math.min(state.raiseAmount, maxAllowed);
+  amount = Math.min(amount, maxAllowed);
   if (amount <= 0) return;
   state.pot += amount;
   state.currentBet += amount;
