@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Power Slider Demo</title>
+  <link rel="stylesheet" href="./power-slider.css">
+  <style>
+    body {
+      margin: 0;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 20px;
+      background: #222;
+      color: #fff;
+      font-family: sans-serif;
+    }
+    #controls { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; }
+    button { padding: 4px 8px; }
+  </style>
+</head>
+<body>
+  <div id="power"></div>
+  <div id="readout">Power: 0%</div>
+  <div id="controls">
+    <button data-set="25">Set 25%</button>
+    <button data-set="50">Set 50%</button>
+    <button data-set="75">Set 75%</button>
+    <button data-set="100">Set 100%</button>
+    <button id="lock">Lock</button>
+    <button id="unlock" style="display:none;">Unlock</button>
+  </div>
+  <script type="module">
+    import { PowerSlider } from './power-slider.js';
+    const slider = new PowerSlider({
+      mount: document.getElementById('power'),
+      value: 60,
+      cueSrc: './assets/cue.png',
+      onChange: v => document.getElementById('readout').textContent = `Power: ${v}%`
+    });
+
+    document.querySelectorAll('[data-set]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        slider.set(parseInt(btn.dataset.set, 10), { animate: true });
+      });
+    });
+
+    document.getElementById('lock').addEventListener('click', () => {
+      slider.lock();
+      document.getElementById('lock').style.display = 'none';
+      document.getElementById('unlock').style.display = 'inline-block';
+    });
+    document.getElementById('unlock').addEventListener('click', () => {
+      slider.unlock();
+      document.getElementById('unlock').style.display = 'none';
+      document.getElementById('lock').style.display = 'inline-block';
+    });
+  </script>
+</body>
+</html>
