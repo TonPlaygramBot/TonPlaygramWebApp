@@ -955,11 +955,14 @@
       var len = Math.hypot(dx, dy) || 1;
       var dir = { x: dx / len, y: dy / len };
 
-      // Position the cue so its tip touches the cue ball
+      // Position the cue so its tip touches the cue ball and then
+      // shift the entire cue downward by the height of six balls to
+      // align better with the table.
       var offset = BALL_R * 2.2 + pull;
+      var cueYOffset = BALL_R * 12; // six ball diameters
       var center = {
         x: cuePos.x - dir.x * offset,
-        y: cuePos.y - dir.y * offset
+        y: cuePos.y - dir.y * offset + cueYOffset
       };
 
       var length = BALL_R * 20;
