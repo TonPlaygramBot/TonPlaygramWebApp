@@ -241,6 +241,10 @@
       background: #fff;
     }
 
+    #powerCue {
+      width: 60px;
+    }
+
     #powerTxt {
       margin-top: 8px;
       font-size: 12px;
@@ -306,7 +310,8 @@
 
         <div style="display:flex;flex-direction:column;align-items:center;gap:6px;">
           <div id="powerBox"><div id="powerFill"></div></div>
-          <div id="powerTxt">FORCA 0%</div>
+          <img id="powerCue" src="/assets/icons/file_0000000019d86243a2f7757076cd7869.webp" alt="Cue" />
+          <div id="powerTxt">Power 0%</div>
         </div>
       </aside>
 
@@ -1105,7 +1110,7 @@
     }
     function updatePowerUI(){
       powerFill.style.height = Math.round(power*100)+'%';
-      powerTxt.textContent = 'FORCA '+Math.round(power*100)+'%';
+      powerTxt.textContent = 'Power '+Math.round(power*100)+'%';
       pullArea.style.background = 'none';
       updatePullHandle();
     }
