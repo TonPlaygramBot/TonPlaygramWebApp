@@ -232,10 +232,13 @@ function renderSeats() {
       ring.className = 'timer-ring';
       ring.id = 'timer-' + i;
       wrap.append(ring, avatar);
+      const inner = document.createElement('div');
+      inner.className = 'seat-inner';
+      inner.append(wrap, name, cards);
       const controls = document.createElement('div');
       controls.className = 'controls';
       controls.id = 'controls';
-      seat.append(cards, action, controls, wrap, name);
+      seat.append(inner, action, controls);
     } else {
       const timer = document.createElement('div');
       timer.className = 'timer';
@@ -415,7 +418,19 @@ function showControls() {
   foldBtn.id = 'fold';
   foldBtn.textContent = 'fold';
   foldBtn.addEventListener('click', playerFold);
-  controls.appendChild(foldBtn);
+
+  const callBtn = document.createElement('button');
+  callBtn.id = 'call';
+  callBtn.textContent = 'call';
+  callBtn.addEventListener('click', playerCall);
+
+  let checkBtn = null;
+  if (state.currentBet === 0) {
+    checkBtn = document.createElement('button');
+    checkBtn.id = 'check';
+    checkBtn.textContent = 'check';
+    checkBtn.addEventListener('click', playerCheck);
+  }
 
   const raiseContainer = document.createElement('div');
   raiseContainer.className = 'raise-container';
@@ -436,21 +451,10 @@ function showControls() {
   amountText.className = 'raise-amount';
   amountText.textContent = `0 ${state.token}`;
   raiseContainer.appendChild(amountText);
+
+  controls.append(foldBtn, callBtn);
+  if (checkBtn) controls.appendChild(checkBtn);
   controls.appendChild(raiseContainer);
-
-  const callBtn = document.createElement('button');
-  callBtn.id = 'call';
-  callBtn.textContent = 'call';
-  callBtn.addEventListener('click', playerCall);
-  controls.appendChild(callBtn);
-
-  if (state.currentBet === 0) {
-    const checkBtn = document.createElement('button');
-    checkBtn.id = 'check';
-    checkBtn.textContent = 'check';
-    checkBtn.addEventListener('click', playerCheck);
-    controls.appendChild(checkBtn);
-  }
 
   initRaiseSlider();
 }
