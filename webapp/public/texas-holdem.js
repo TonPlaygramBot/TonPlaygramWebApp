@@ -517,11 +517,15 @@ function showControls() {
       chip.className = 'chip v' + val;
       chip.dataset.value = val;
       chip.addEventListener('click', () => {
-        chip.classList.toggle('selected');
-        state.raiseAmount = Array.from(
-          grid.querySelectorAll('.chip.selected')
-        ).reduce((sum, c) => sum + parseInt(c.dataset.value, 10), 0);
-        updateRaiseAmount();
+        const maxAllowed = Math.min(
+          state.stake,
+          state.maxPot - state.pot,
+          state.tpcTotal
+        );
+        if (state.raiseAmount + val <= maxAllowed) {
+          state.raiseAmount += val;
+          updateRaiseAmount();
+        }
       });
       grid.appendChild(chip);
     });
@@ -542,9 +546,6 @@ function showControls() {
     if (stage) stage.appendChild(raiseContainer);
   }
 
-  document
-    .querySelectorAll('#raiseContainer .chip.selected')
-    .forEach((c) => c.classList.remove('selected'));
   state.raiseAmount = 0;
   updateRaiseAmount();
 
@@ -625,7 +626,6 @@ function hideControls() {
     .querySelectorAll('#raiseContainer .chip')
     .forEach((chip) => {
       chip.style.pointerEvents = 'none';
-      chip.classList.remove('selected');
     });
   state.raiseAmount = 0;
   updateRaiseAmount();
