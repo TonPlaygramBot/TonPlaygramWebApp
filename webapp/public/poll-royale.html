@@ -812,7 +812,6 @@
     var pocketedOwn = false;
     var scratch = false;
     var assignedTypes = {1:null,2:null};
-    var aimTarget = null;      // desired aiming point for smooth movement
 
     function createMiniBall(n){
       var info = BALL_BY_N[n];
@@ -903,11 +902,6 @@
     function loop(t){
       var dt = (t - last) / 1000 || 0; last = t;
       if (table.running) {
-        if (aimTarget) {
-          table.aim.x += (aimTarget.x - table.aim.x) * 0.2;
-          table.aim.y += (aimTarget.y - table.aim.y) * 0.2;
-          if (aiming) placeAimGlow(table.aim);
-        }
         table.update(Math.min(dt, 0.033));
         table.render();
         updateCapturedUI();
@@ -938,13 +932,7 @@
         cueHint.style.display = 'none';
         return;
       }
-      var aimDist = Math.hypot(t.x - table.aim.x, t.y - table.aim.y);
-      if (aimDist <= BALL_R*2) {
-        aiming = true;
-        showGuides = true;
-        aimTarget = { x: table.aim.x, y: table.aim.y };
-        placeAimGlow(table.aim);
-      }
+      aiming = true; showGuides = true; table.aim = t; placeAimGlow(t);
     });
 
     canvas.addEventListener('pointermove', function(e){
@@ -957,8 +945,7 @@
         cue.p.y = clamp(t.y, minY, maxY);
         return;
       }
-      if (!aiming || !table.running) return;
-      aimTarget = t;
+      if (!aiming || !table.running) return; table.aim = t; placeAimGlow(t);
     });
 
     canvas.addEventListener('pointerup', function(){
@@ -970,7 +957,6 @@
         return;
       }
       aiming = false;
-      aimTarget = null;
     });
 
     function placeAimGlow(){ /* shadow removed */ }
