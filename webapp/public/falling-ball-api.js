@@ -44,6 +44,9 @@
       }
       return res;
     },
+    getAccountBalance(accountId) {
+      return post('/api/account/balance', { accountId });
+    },
     addTransaction(telegramId, amount, type, extra = {}) {
       const body = { amount, type, ...extra };
       if (telegramId != null) body.telegramId = telegramId;
