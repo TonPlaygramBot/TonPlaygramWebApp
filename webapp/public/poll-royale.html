@@ -242,6 +242,9 @@
     }
 
     #powerCue {
+      position: absolute;
+      top: 0;
+      right: -4px;
       width: 60px;
     }
 
@@ -304,13 +307,13 @@
       <!-- Panel djathtas: vetem slideri i fuqise -->
       <aside id="rightPanel">
         <div id="pullArea">
+          <img id="powerCue" src="/assets/icons/file_0000000019d86243a2f7757076cd7869.webp" alt="Cue" />
           <div id="cueRail"></div>
           <div id="pullHandle">PULL</div>
         </div>
 
         <div style="display:flex;flex-direction:column;align-items:center;gap:6px;">
           <div id="powerBox"><div id="powerFill"></div></div>
-          <img id="powerCue" src="/assets/icons/file_0000000019d86243a2f7757076cd7869.webp" alt="Cue" />
           <div id="powerTxt">Power 0%</div>
         </div>
       </aside>
@@ -374,6 +377,7 @@
     var pullHandle = document.getElementById('pullHandle');
     var powerFill  = document.getElementById('powerFill');
     var powerTxt   = document.getElementById('powerTxt');
+    var powerCue   = document.getElementById('powerCue');
 
     var avatarP1 = document.querySelector('#header .player:first-child .avatar');
     var nameP1   = document.querySelector('#header .player:first-child .name');
@@ -481,6 +485,8 @@
       sX = cw / TABLE_W; sY = ch / TABLE_H;
       pocketR = POCKET_R * ((sX + sY) / 2);
       ballR   = BALL_R   * ((sX + sY) / 2);
+      powerCue.style.width = (BALL_R * 20 * sX) + 'px';
+      powerCue.style.top = (-pullHandle.offsetHeight * 0.6) + 'px';
     }
     window.addEventListener('resize', resize);
 
