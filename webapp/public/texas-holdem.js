@@ -186,6 +186,10 @@ function init() {
   }
   const potText = document.getElementById('potTotal');
   if (potText) potText.textContent = '';
+  const folded = document.getElementById('foldedCards');
+  const foldedLabel = document.getElementById('foldedLabel');
+  if (folded) folded.innerHTML = '';
+  if (foldedLabel) foldedLabel.style.display = 'none';
   setupFlopBacks();
   renderSeats();
   collectAntes();
@@ -416,6 +420,44 @@ function dealCardToPlayer(idx, card, showFace) {
       { once: true }
     );
   });
+}
+
+function moveCardsToFolded(idx) {
+  const stage = document.querySelector('.stage');
+  const from = document.getElementById('cards-' + idx);
+  const dest = document.getElementById('foldedCards');
+  const label = document.getElementById('foldedLabel');
+  if (!stage || !from || !dest) return;
+  const stageRect = stage.getBoundingClientRect();
+  const destRect = dest.getBoundingClientRect();
+  const existing = dest.children.length;
+  const cards = Array.from(from.children);
+  cards.forEach((card, cardIdx) => {
+    const rect = card.getBoundingClientRect();
+    const temp = card.cloneNode(true);
+    temp.classList.add('moving-card');
+    temp.style.left = rect.left - stageRect.left + 'px';
+    temp.style.top = rect.top - stageRect.top + 'px';
+    stage.appendChild(temp);
+    from.removeChild(card);
+    requestAnimationFrame(() => {
+      temp.style.left =
+        destRect.left - stageRect.left + (existing + cardIdx) * (rect.width + 6) + 'px';
+      temp.style.top = destRect.top - stageRect.top + 'px';
+    });
+    temp.addEventListener(
+      'transitionend',
+      () => {
+        temp.classList.remove('moving-card');
+        temp.style.left = '';
+        temp.style.top = '';
+        dest.appendChild(temp);
+      },
+      { once: true }
+    );
+  });
+  if (label) label.style.display = 'block';
+  playFlipSound();
 }
 
 function setPlayerTurnIndicator(idx) {
@@ -708,6 +750,7 @@ function playerFold() {
   setPlayerTurnIndicator(null);
   setActionText(0, 'fold');
   document.getElementById('status').textContent = 'You folded';
+  moveCardsToFolded(0);
   proceedStage();
 }
 
@@ -775,6 +818,7 @@ async function proceedStage() {
     } else if (action === 'fold') {
       p.active = false;
       document.getElementById('status').textContent = `${p.name} folds`;
+      moveCardsToFolded(i);
     } else {
       document.getElementById('status').textContent = `${p.name} checks`;
     }
