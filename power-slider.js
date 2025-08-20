@@ -39,12 +39,14 @@ export class PowerSlider {
     this.handleText = document.createElement('span');
     this.handleText.className = 'ps-handle-text';
     this.handleText.textContent = 'Pull';
-    this.handleImg = document.createElement('img');
-    this.handleImg.className = 'ps-handle-img';
-    this.handleImg.alt = '';
-    if (cueSrc) this.handleImg.src = cueSrc;
-    this.handle.append(this.handleText, this.handleImg);
+    this.handle.append(this.handleText);
     this.el.appendChild(this.handle);
+
+    this.cueImg = document.createElement('img');
+    this.cueImg.className = 'ps-cue-img';
+    this.cueImg.alt = '';
+    if (cueSrc) this.cueImg.src = cueSrc;
+    this.el.appendChild(this.cueImg);
 
     this.tooltip = document.createElement('div');
     this.tooltip.className = 'ps-tooltip';
@@ -79,7 +81,7 @@ export class PowerSlider {
     this.el.addEventListener('keydown', this._onKeyDown);
     window.addEventListener('resize', this._onResize);
 
-    this.handleImg.addEventListener('load', () => this._update(false));
+    this.cueImg.addEventListener('load', () => this._update(false));
 
     this.set(value);
   }
@@ -135,16 +137,12 @@ export class PowerSlider {
     const range = this.max - this.min || 1;
     const ratio = (this.value - this.min) / range;
     const trackH = this.el.clientHeight;
-    const handleH = this.handle.offsetHeight;
-    const y = ratio * (trackH - handleH);
-    this.handle.style.transform = `translate(0, ${y}px)`;
-    // The cue image is nested inside the handle, so translating the handle
-    // already moves the image. Applying the same transform to the image caused
-    // it to drift away from the handle, placing it below the expected pull
-    // position. Remove the extra translation so the cue stays aligned directly
-    // beneath the "Pull" text and matches the slider's bottom line.
+    const imgH = this.cueImg.offsetHeight;
+    const y = ratio * (trackH - imgH);
+    this.cueImg.style.transform = `translate(0, ${y}px)`;
+    this.handle.style.transform = 'translate(0, 0)';
     const ttH = this.tooltip.offsetHeight;
-    this.tooltip.style.transform = `translate(0, ${y - ttH - 8}px)`;
+    this.tooltip.style.transform = `translate(0, ${-ttH - 8}px)`;
     this._updateHandleColor(ratio);
     this.tooltip.textContent = `${Math.round(this.value)}%`;
     this.el.setAttribute('aria-valuenow', String(Math.round(this.value)));
