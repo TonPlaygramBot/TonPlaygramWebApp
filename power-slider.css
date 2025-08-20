@@ -119,13 +119,9 @@
 }
 
 .ps-cue-img {
-  position: absolute;
-  top: 0;
-  left: 100%;
-  margin-left: 2px;
+  margin-top: 2px;
   width: 36px;
   height: auto;
-  transition: transform 0.15s ease;
 }
 
 .ps-tooltip {
@@ -153,8 +149,7 @@
 }
 
 .ps-no-animate .ps-handle,
-.ps-no-animate .ps-tooltip,
-.ps-no-animate .ps-cue-img {
+.ps-no-animate .ps-tooltip {
   transition: none !important;
 }
 
