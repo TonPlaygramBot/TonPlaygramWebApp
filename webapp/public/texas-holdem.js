@@ -476,10 +476,10 @@ function moveCardsToFolded(idx) {
 }
 
 function setPlayerTurnIndicator(idx) {
-  document.querySelectorAll('.avatar').forEach((a) => a.classList.remove('turn'));
+  document.querySelectorAll('.seat-inner .cards').forEach((c) => c.classList.remove('turn'));
   if (idx === null || idx === undefined || idx < 0) return;
-  const avatar = document.getElementById('avatar-' + idx);
-  if (avatar) avatar.classList.add('turn');
+  const cards = document.getElementById('cards-' + idx);
+  if (cards) cards.classList.add('turn');
 }
 
 function showControls() {
