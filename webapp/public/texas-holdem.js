@@ -234,11 +234,12 @@ function renderSeats() {
       wrap.append(ring, avatar);
       const inner = document.createElement('div');
       inner.className = 'seat-inner';
-      inner.append(wrap, name, cards);
+      // Move action text above the player's cards so the cards sit directly above the controls
+      inner.append(wrap, name, action, cards);
       const controls = document.createElement('div');
       controls.className = 'controls';
       controls.id = 'controls';
-      seat.append(inner, action, controls);
+      seat.append(inner, controls);
     } else {
       const timer = document.createElement('div');
       timer.className = 'timer';
