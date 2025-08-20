@@ -72,6 +72,16 @@
       align-items: center;
     }
 
+    .targetType {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 12px;
+      margin-top: 2px;
+    }
+
+    .targetType canvas { display: block; }
+
     .potted {
       display: flex;
       gap: 2px;
@@ -205,7 +215,8 @@
       font-weight: 700;
       box-shadow: 0 4px 10px rgba(0,0,0,.3);
       user-select: none;
-      opacity: 0.85;
+      opacity: 1;
+      visibility: visible;
     }
 
     #powerBox {
@@ -262,6 +273,7 @@
         <div class="avatar">A</div>
         <div class="info">
           <div class="name">Artur</div>
+          <div class="targetType" id="p1Target">Any</div>
           <div class="potted" id="p1Potted"></div>
         </div>
       </div>
@@ -271,6 +283,7 @@
       <div class="player">
         <div class="info">
           <div class="name">CPU</div>
+          <div class="targetType" id="p2Target">Any</div>
           <div class="potted" id="p2Potted"></div>
         </div>
         <div class="avatar">C</div>
@@ -360,6 +373,8 @@
     var nameCPU  = document.querySelector('#header .player:last-child .name');
     var pottedP1 = document.getElementById('p1Potted');
     var pottedP2 = document.getElementById('p2Potted');
+    var targetP1 = document.getElementById('p1Target');
+    var targetP2 = document.getElementById('p2Target');
     var cueHint  = document.getElementById('cueHint');
 
     // --------------------------------------------------
@@ -654,6 +669,10 @@
               aiming = false;
               cueHintTime = Date.now();
               b2.p.x = TABLE_W/2; b2.p.y = CUE_START_Y; b2.v.x = 0; b2.v.y = 0;
+            } else if (b2.n === 8) {
+              b2.pocketed = true;
+              pocketedAny = true;
+              handleEightBall();
             } else {
               b2.pocketed = true;
               pocketedAny = true;
@@ -830,6 +849,17 @@
       render(pottedP2, table.captured[2]);
       capP1.textContent = 'Guret e marra (P1): ' + (table.captured[1].join(', ') || '—');
       capP2.textContent = 'Guret e marra (CPU): ' + (table.captured[2].join(', ') || '—');
+
+      function setTarget(el, type){
+        el.innerHTML = type ? '' : 'Any';
+        if (!type) return;
+        var n = type === 'solid' ? 1 : 9;
+        el.appendChild(createMiniBall(n));
+        el.appendChild(document.createTextNode(type === 'solid' ? ' Solid' : ' Stripes'));
+      }
+
+      setTarget(targetP1, assignedTypes[1]);
+      setTarget(targetP2, assignedTypes[2]);
     }
 
     function updateCueHint(){
@@ -841,6 +871,17 @@
       } else {
         cueHint.style.display = 'none';
       }
+    }
+
+    function handleEightBall(){
+      var shooterType = assignedTypes[currentShooter];
+      var ownCount = shooterType ? table.captured[currentShooter].filter(function(n){ return BALL_BY_N[n].t === shooterType; }).length : 0;
+      if (shooterType && ownCount >= 7) {
+        alert((currentShooter===1 ? 'Player 1' : 'CPU') + ' wins!');
+      } else {
+        alert((currentShooter===1 ? 'Player 1' : 'CPU') + ' loses!');
+      }
+      table.running = false;
     }
 
     function endShot(){
@@ -889,7 +930,6 @@
         cueHint.style.display = 'none';
         return;
       }
-      if (cueBallFree) return;
       aiming = true; showGuides = true; table.aim = t; placeAimGlow(t);
     });
 
@@ -1114,27 +1154,31 @@
     function cpuTurn(){
       if (table.isMoving() || table.turn!==2) return;
       var cue = table.balls[0];
-      var t = null, m = 1e9;
-      for (var i = 0; i < table.balls.length; i++) {
+      var type = assignedTypes[2];
+      var targets = [];
+      for (var i=0;i<table.balls.length;i++){
         var b = table.balls[i];
-        if (!b || b.n === 0 || b.pocketed) continue;
-        var dd = d2(cue.p, b.p); if (dd < m) { m = dd; t = b; }
+        if (!b || b.n===0 || b.pocketed || b.n===8) continue;
+        if (type && BALL_BY_N[b.n].t !== type) continue;
+        targets.push(b);
       }
-      if (!t) { table.turn = 1; return; }
-
-      // Aim towards the selected target and show pullback based on power
-      var d = norm(t.p.x - cue.p.x, t.p.y - cue.p.y);
-      var p = 0.32 + Math.random() * 0.28;
-      table.aim = { x: t.p.x, y: t.p.y };
+      if (targets.length===0) { table.turn = 1; return; }
+      var t = targets[Math.floor(Math.random()*targets.length)];
+      var dir = norm(t.p.x - cue.p.x, t.p.y - cue.p.y);
+      var angle = (Math.random()-0.5)*0.2;
+      var cos = Math.cos(angle), sin = Math.sin(angle);
+      var nd = { x: dir.x*cos - dir.y*sin, y: dir.x*sin + dir.y*cos };
+      var p = 0.35 + Math.random()*0.3;
+      table.aim = { x: cue.p.x + nd.x*100, y: cue.p.y + nd.y*100 };
       cuePullVisual = p * (BALL_R * 14);
       shotInProgress = true;
 
-      setTimeout(function () {
+      setTimeout(function(){
         var cpuBase = 780 * 2;
         currentShooter = 2;
         pocketedAny = false; pocketedOwn = false; scratch = false;
-        cue.v.x = d.x * cpuBase * (0.3 + p);
-        cue.v.y = d.y * cpuBase * (0.3 + p);
+        cue.v.x = nd.x * cpuBase * (0.3 + p);
+        cue.v.y = nd.y * cpuBase * (0.3 + p);
         cuePullVisual = 0;
       }, 400);
     }
