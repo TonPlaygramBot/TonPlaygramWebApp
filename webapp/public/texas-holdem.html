@@ -51,11 +51,11 @@
 .moving-card{position:absolute;transition:left .4s ease, top .4s ease;z-index:1000;pointer-events:none;}
 .avatar.turn{box-shadow:0 0 12px #facc15;border-color:#facc15;}
 
-.action-text{font-weight:700;text-shadow:0 1px 2px #000;min-height:1em}
-.action-text.fold{color:#dc2626}
-.action-text.call{color:#16a34a}
-.action-text.check{color:#facc15}
-.action-text.raise{color:#2563eb}
+.action-text{font-weight:700;min-height:1em}
+.action-text.fold{color:#dc2626;text-shadow:-1px -1px 0 #fff,1px -1px 0 #fff,-1px 1px 0 #fff,1px 1px 0 #fff}
+.action-text.call{color:#16a34a;text-shadow:-1px -1px 0 #fff,1px -1px 0 #fff,-1px 1px 0 #fff,1px 1px 0 #fff}
+.action-text.check{color:#facc15;text-shadow:-1px -1px 0 #000,1px -1px 0 #000,-1px 1px 0 #000,1px 1px 0 #000}
+.action-text.raise{color:#2563eb;text-shadow:-1px -1px 0 #fff,1px -1px 0 #fff,-1px 1px 0 #fff,1px 1px 0 #fff}
 
 .seat.bottom { bottom: 0.5%; left: 50%; transform: translateX(-50%); }
 
@@ -164,11 +164,18 @@
     .chip.v500{ background-image:url('assets/icons/500chips.webp'); }
     .chip.v1000{ background-image:url('assets/icons/1000chips.webp'); }
     .moving-pot{ position:absolute; transition:left .5s ease, top .5s ease; display:flex; gap:6px; }
+    .folded-area{ position:absolute; left:50%; top:60%; transform:translate(-50%,0); display:flex; flex-direction:column; align-items:center; gap:4px; z-index:2; }
+    .folded-cards{ display:flex; gap:6px; }
+    .folded-label{ font-weight:700; color:#dc2626; text-shadow:-1px -1px 0 #fff,1px -1px 0 #fff,-1px 1px 0 #fff,1px 1px 0 #fff; }
   </style>
 </head>
 <body>
     <div class="stage">
       <div class="center community" id="community"></div>
+      <div class="folded-area" id="foldedArea">
+        <div id="foldedLabel" class="folded-label" style="display:none">Folded</div>
+        <div id="foldedCards" class="folded-cards"></div>
+      </div>
       <div class="pot-wrap" id="potWrap">
         <div class="pot" id="pot"></div>
         <div class="pot-total" id="potTotal"></div>
