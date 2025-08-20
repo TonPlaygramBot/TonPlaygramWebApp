@@ -951,18 +951,17 @@
     function drawCueOnTable(cuePos, aim, pull){
       var start = {
         x: cuePos.x,
-        // Move the cue further down while staying aligned with the guideline
-        y: cuePos.y + (BALL_R * 5 + pull)
+        y: cuePos.y + (BALL_R * 1.2 + pull)
       };
       var length = BALL_R * 20;
+      var angle = Math.PI;
       if (cueImg.complete) {
         var scale = (length * sX) / cueImg.width;
         var drawW = cueImg.width * scale;
         var drawH = cueImg.height * scale;
         ctx.save();
         ctx.translate(start.x * sX, start.y * sY);
-        // Flip vertically so the top becomes the bottom and vice versa
-        ctx.scale(1, -1);
+        ctx.rotate(angle);
         ctx.drawImage(cueImg, -drawW / 2, -drawH / 2, drawW, drawH);
         ctx.restore();
       }
