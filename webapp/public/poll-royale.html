@@ -950,32 +950,31 @@
     }
 
     function drawCueOnTable(cuePos, aim, pull){
-      // Align the cue with the guideline and keep the tip pointing toward the cue ball
+      // Align the cue with the guideline and keep the tip touching the cue ball
       var dx = aim.x - cuePos.x, dy = aim.y - cuePos.y;
       var len = Math.hypot(dx, dy) || 1;
       var dir = { x: dx / len, y: dy / len };
+      var angle = Math.atan2(dir.y, dir.x) + Math.PI / 2;
 
-      // Position the cue so its tip touches the cue ball and then
-      // shift the entire cue downward by the height of six balls to
-      // align better with the table.
-      var offset = BALL_R * 2.2 + pull;
-      // Move cue image down by six ball diameters (6 * 2 * BALL_R)
-      var cueYOffset = BALL_R * 2 * 6;
-      var center = {
-        x: cuePos.x - dir.x * offset,
-        y: cuePos.y - dir.y * offset + cueYOffset
-      };
+      // Cue dimensions and offset to position the butt slightly lower
+      var cueLength = BALL_R * 20;
+      // Move cue image down by a little more than six ball diameters
+      var cueShift = BALL_R * 2 * 6.3;
 
-      var length = BALL_R * 20;
       if (cueImg.complete) {
-        var scale = (length * sX) / cueImg.width;
+        var scale = (cueLength * sX) / cueImg.width;
         var drawW = cueImg.width * scale;
         var drawH = cueImg.height * scale;
+        var shiftPx = cueShift * sX;
+        var pullPx = pull * sY;
 
         ctx.save();
-        ctx.translate(center.x * sX, center.y * sY);
-        ctx.rotate(Math.atan2(dir.y, dir.x) + Math.PI / 2);
-        ctx.drawImage(cueImg, -drawW / 2, -drawH / 2, drawW, drawH);
+        // Place origin at cue ball and align with aim
+        ctx.translate(cuePos.x * sX, cuePos.y * sY);
+        ctx.rotate(angle);
+        // Shift the cue downward but keep the tip anchored
+        ctx.translate(shiftPx, -pullPx);
+        ctx.drawImage(cueImg, -drawW / 2 - shiftPx, pullPx, drawW, drawH);
         ctx.restore();
       }
     }
