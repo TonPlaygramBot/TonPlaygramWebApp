@@ -62,6 +62,12 @@
       display: grid;
       place-items: center;
       font-weight: 700;
+      border: 2px solid #000;
+    }
+
+    .avatar.turn {
+      box-shadow: 0 0 0 2px #facc15;
+      border-color: #facc15;
     }
 
     .name { font-weight: 700; }
@@ -353,8 +359,8 @@
     </div>
 
   <div id="footer">
-      <div id="capP1">Guret e marra (P1): —</div>
-      <div id="capP2">Guret e marra (CPU): —</div>
+      <div id="capP1"></div>
+      <div id="capP2"></div>
     </div>
   </div>
   <div id="winnerOverlay" class="winnerOverlay hidden"></div>
@@ -451,7 +457,7 @@
     // Audio setup
     // --------------------------------------------------
     var audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-    var hitBuffer = null, pocketBuffer = null;
+    var hitBuffer = null, pocketBuffer = null, knockBuffer = null;
 
     fetch('/assets/sounds/billiard-pool-hit-371618.mp3')
       .then(function (r) { return r.arrayBuffer(); })
@@ -462,6 +468,11 @@
       .then(function (r) { return r.arrayBuffer(); })
       .then(function (b) { return audioCtx.decodeAudioData(b); })
       .then(function (buf) { pocketBuffer = buf; });
+
+    fetch('/assets/sounds/wooden-door-knock-102902.mp3')
+      .then(function (r) { return r.arrayBuffer(); })
+      .then(function (b) { return audioCtx.decodeAudioData(b); })
+      .then(function (buf) { knockBuffer = buf; });
 
     function playCueHit(vol) {
       audioCtx.resume();
@@ -495,6 +506,17 @@
       src.connect(gain).connect(audioCtx.destination);
       var d = pocketBuffer.duration;
       src.start(0, Math.max(0, d - 1), 1);
+    }
+
+    function playTurnSound() {
+      audioCtx.resume();
+      if (!knockBuffer) return;
+      var src = audioCtx.createBufferSource();
+      src.buffer = knockBuffer;
+      var gain = audioCtx.createGain();
+      gain.gain.value = 1;
+      src.connect(gain).connect(audioCtx.destination);
+      src.start(0);
     }
 
     var tg = window.Telegram?.WebApp;
@@ -916,6 +938,8 @@
     var freeShots = {1:0,2:0};
     var firstHit = null;
     var hitOpponent = false;
+    var lastTurn = table.turn;
+    var cpuThinking = false;
 
     function createMiniBall(n){
       var info = BALL_BY_N[n];
@@ -953,8 +977,27 @@
       }
       render(pottedP1, table.captured[1]);
       render(pottedP2, table.captured[2]);
-      capP1.textContent = 'Guret e marra (P1): ' + (table.captured[1].join(', ') || '—');
-      capP2.textContent = 'Guret e marra (CPU): ' + (table.captured[2].join(', ') || '—');
+      function renderStatus(el, player){
+        var type = assignedTypes[player];
+        var parts = [];
+        if (type) {
+          parts.push(type === 'solid' ? 'Solids' : 'Stripes');
+          var remain = 0;
+          table.balls.forEach(function(b){
+            if (!b || b.n===0 || b.n===8 || b.pocketed) return;
+            if (BALL_BY_N[b.n].t === type) remain++;
+          });
+          parts.push(remain + ' left');
+        } else {
+          parts.push('Open');
+        }
+        if (cueBallFree && table.turn === player) parts.push('Ball in hand');
+        if (freeShots[player] > 0) parts.push(freeShots[player] + ' shot' + (freeShots[player] > 1 ? 's' : ''));
+        el.textContent = parts.join(' | ');
+      }
+
+      renderStatus(capP1, 1);
+      renderStatus(capP2, 2);
 
       function setTarget(el, type){
         el.innerHTML = type ? '' : 'Any';
@@ -966,6 +1009,15 @@
 
       setTarget(targetP1, assignedTypes[1]);
       setTarget(targetP2, assignedTypes[2]);
+    }
+
+    function updateTurnIndicator(force){
+      if (force || table.turn !== lastTurn){
+        avatarP1.classList.toggle('turn', table.turn === 1);
+        avatarCPU.classList.toggle('turn', table.turn === 2);
+        if (!force) playTurnSound();
+        lastTurn = table.turn;
+      }
     }
 
     function updateCueHint(){
@@ -1023,12 +1075,14 @@
         table.render();
         updateCapturedUI();
         updateCueHint();
+        updateTurnIndicator();
         if (shotInProgress && !table.isMoving()) endShot();
-        if (!table.isMoving() && table.turn===2 && !shotInProgress) setTimeout(cpuTurn, 400);
+        if (!table.isMoving() && table.turn===2 && !shotInProgress && !cpuThinking) setTimeout(cpuTurn, 400);
       }
       requestAnimationFrame(loop);
     }
     requestAnimationFrame(loop);
+    updateTurnIndicator(true);
 
     /* ==========================================================
        INPUT – Aiming & Glow
@@ -1274,6 +1328,7 @@
        ========================================================= */
     function cpuTurn(){
       if (table.isMoving() || table.turn!==2) return;
+      cpuThinking = true;
       var cue = table.balls[0];
       var type = assignedTypes[2];
       var targets = [];
@@ -1328,15 +1383,14 @@
       }
 
       table.aim = { x: cue.p.x + nd.x*100, y: cue.p.y + nd.y*100 };
+      var sx = (Math.random()*2-1)*0.5;
+      var sy = (Math.random()*2-1)*0.5;
+      setSpin(sx, sy);
       cuePullVisual = power * (BALL_R * 14);
-      shotInProgress = true;
 
       setTimeout(function(){
-        var cpuBase = 780 * 2;
-        currentShooter = 2;
-        pocketedAny = false; pocketedOwn = false; scratch = false; firstHit = null; hitOpponent = false;
-        cue.v.x = nd.x * cpuBase * (0.3 + power);
-        cue.v.y = nd.y * cpuBase * (0.3 + power);
+        cpuThinking = false;
+        shoot(power);
         cuePullVisual = 0;
       }, 400);
     }
