@@ -1,8 +1,14 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { io } from 'socket.io-client';
 import RoomSelector from '../../components/RoomSelector.jsx';
 import useTelegramBackButton from '../../hooks/useTelegramBackButton.js';
-import { ensureAccountId, getTelegramId, getTelegramPhotoUrl, getTelegramUsername } from '../../utils/telegram.js';
+import {
+  ensureAccountId,
+  getTelegramId,
+  getTelegramPhotoUrl,
+  getTelegramUsername
+} from '../../utils/telegram.js';
 import { getAccountBalance, addTransaction } from '../../utils/api.js';
 import { loadAvatar } from '../../utils/avatarUtils.js';
 
@@ -17,6 +23,7 @@ export default function TexasHoldemLobby() {
   const [stake, setStake] = useState({ token: 'TPC', amount: 100 });
   const [mode, setMode] = useState('local');
   const [avatar, setAvatar] = useState('');
+  const socketRef = useRef(null);
   const startBet = stake.amount / 100;
 
   useEffect(() => {
@@ -25,6 +32,17 @@ export default function TexasHoldemLobby() {
       setAvatar(saved || getTelegramPhotoUrl());
     } catch {}
   }, []);
+
+  useEffect(() => {
+    if (mode !== 'online') return;
+    const url = import.meta.env.VITE_TEXAS_LOBBY_URL || window.location.origin;
+    const socket = io(url, { transports: ['websocket'] });
+    socketRef.current = socket;
+    return () => {
+      socket.disconnect();
+      socketRef.current = null;
+    };
+  }, [mode]);
 
   const startGame = async () => {
     let tgId;
@@ -39,7 +57,7 @@ export default function TexasHoldemLobby() {
       tgId = getTelegramId();
       await addTransaction(tgId, -stake.amount, 'stake', {
         game: 'texasholdem',
-        accountId,
+        accountId
       });
     } catch {}
 
@@ -58,7 +76,22 @@ export default function TexasHoldemLobby() {
     if (DEV_ACCOUNT) params.set('dev', DEV_ACCOUNT);
     if (DEV_ACCOUNT_1) params.set('dev1', DEV_ACCOUNT_1);
     if (DEV_ACCOUNT_2) params.set('dev2', DEV_ACCOUNT_2);
-    navigate(`/games/texasholdem?${params.toString()}`);
+
+    if (mode === 'online') {
+      const socket = socketRef.current;
+      if (!socket) return;
+      socket.emit('joinLobby', {
+        accountId,
+        name: username || 'Player',
+        stake: stake.amount
+      });
+      socket.once('gameStart', ({ tableId }) => {
+        params.set('tableId', tableId);
+        navigate(`/games/texasholdem?${params.toString()}`);
+      });
+    } else {
+      navigate(`/games/texasholdem?${params.toString()}`);
+    }
   };
 
   return (
@@ -68,7 +101,8 @@ export default function TexasHoldemLobby() {
         <h3 className="font-semibold">Stake</h3>
         <RoomSelector selected={stake} onSelect={setStake} tokens={['TPC']} />
         <p className="text-sm text-center">
-          Start bet: {startBet.toLocaleString('en-US')} TPC • Pot max: {stake.amount.toLocaleString('en-US')} TPC
+          Start bet: {startBet.toLocaleString('en-US')} TPC • Pot max:{' '}
+          {stake.amount.toLocaleString('en-US')} TPC
         </p>
       </div>
       <div className="space-y-2">
@@ -76,7 +110,7 @@ export default function TexasHoldemLobby() {
         <div className="flex gap-2">
           {[
             { id: 'local', label: 'Local (AI)' },
-            { id: 'online', label: 'Online', disabled: true }
+            { id: 'online', label: 'Online' }
           ].map(({ id, label, disabled }) => (
             <div key={id} className="relative">
               <button
