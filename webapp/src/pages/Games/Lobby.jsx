@@ -93,9 +93,9 @@ export default function Lobby() {
     if (game === 'snake') {
       setTables([
         { id: 'single', label: 'Single Player vs AI', capacity: 1 },
-        { id: 'snake-2', label: 'Table 2 Players', capacity: 2 },
-        { id: 'snake-3', label: 'Table 3 Players', capacity: 3 },
-        { id: 'snake-4', label: 'Table 4 Players', capacity: 4 }
+        { id: 'snake-2', label: 'Table 2 Players', capacity: 2, disabled: true },
+        { id: 'snake-3', label: 'Table 3 Players', capacity: 3, disabled: true },
+        { id: 'snake-4', label: 'Table 4 Players', capacity: 4, disabled: true }
       ]);
     }
   }, [game]);

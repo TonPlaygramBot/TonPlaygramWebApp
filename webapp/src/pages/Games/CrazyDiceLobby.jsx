@@ -13,9 +13,9 @@ export default function CrazyDiceLobby() {
 
   const TABLES = [
     { id: 'single', label: 'Single Player vs AI', capacity: 1 },
-    { id: '2p', label: 'Table 2p', capacity: 2 },
-    { id: '3p', label: 'Table 3p', capacity: 3 },
-    { id: '4p', label: 'Table 4p', capacity: 4 },
+    { id: '2p', label: 'Table 2p', capacity: 2, disabled: true },
+    { id: '3p', label: 'Table 3p', capacity: 3, disabled: true },
+    { id: '4p', label: 'Table 4p', capacity: 4, disabled: true },
   ];
 
   const [table, setTable] = useState(TABLES[0]);
