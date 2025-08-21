@@ -88,8 +88,8 @@ function initSettingsMenu() {
     COLOR_OPTIONS.forEach((c) => {
       const opt = document.createElement('option');
       opt.value = c;
-      opt.textContent = '';
-      opt.style.backgroundColor = c;
+      opt.textContent = c;
+      opt.style.background = `linear-gradient(to right, ${c} 0 16px, #fff 16px)`;
       select.appendChild(opt);
     });
     select.value = value;
