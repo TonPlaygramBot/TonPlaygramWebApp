@@ -21,9 +21,11 @@
   overflow: visible;
   user-select: none;
   touch-action: none;
+  transform: scale(1.2);
+  transform-origin: top left;
 }
 
-.ps-track {
+.ps .ps-track {
   position: absolute;
   inset: 0;
   border-radius: inherit;
@@ -36,7 +38,7 @@
 }
 
 /* left gloss */
-.ps-track::before {
+.ps .ps-track::before {
   content: '';
   position: absolute;
   top: 0;
@@ -52,7 +54,7 @@
 }
 
 /* ticks */
-.ps-track::after {
+.ps .ps-track::after {
   content: '';
   position: absolute;
   top: 0;
@@ -92,7 +94,7 @@
   pointer-events: none;
 }
 
-.ps-handle {
+.ps .ps-handle {
   position: absolute;
   top: 0;
   left: 100%;
@@ -101,7 +103,7 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  width: 58px;
+  width: calc(var(--ps-width) * 0.8657);
   border-radius: 6px;
   background: linear-gradient(
     to bottom,
@@ -112,21 +114,21 @@
   pointer-events: auto;
 }
 
-.ps-handle-text {
+.ps .ps-handle-text {
   font-size: 12px;
   color: #fff;
   line-height: 1;
   transform: translate(-2.4px, 2.4px);
 }
 
-.ps-cue-img {
+.ps .ps-cue-img {
   margin-top: 4px;
-  width: 58px;
+  width: 100%;
   height: auto;
   transform: translateX(9.6px);
 }
 
-.ps-tooltip {
+.ps .ps-tooltip {
   position: absolute;
   top: 0;
   left: 100%;
@@ -144,40 +146,40 @@
   pointer-events: none;
 }
 
-.ps-hot {
+.ps.ps-hot {
   box-shadow:
     0 0 12px var(--ps-glow),
     0 4px 12px rgba(0, 0, 0, 0.25);
 }
 
-.ps-no-animate .ps-handle,
-.ps-no-animate .ps-tooltip {
+.ps.ps-no-animate .ps-handle,
+.ps.ps-no-animate .ps-tooltip {
   transition: none !important;
 }
 
-.ps-locked {
+.ps.ps-locked {
   opacity: 0.5;
   pointer-events: none;
 }
 
-.ps-label {
+.ps .ps-label {
   position: absolute;
   right: 100%;
-  margin-right: 5px;
+  margin-right: calc(var(--ps-width) * 0.0746);
   font-size: 12px;
   color: var(--ps-tooltip-color);
   user-select: none;
 }
 
-.ps-label-0 {
+.ps .ps-label-0 {
   bottom: 0;
   transform: translateY(50%);
 }
-.ps-label-50 {
+.ps .ps-label-50 {
   top: 50%;
   transform: translateY(-50%);
 }
-.ps-label-100 {
+.ps .ps-label-100 {
   top: 0;
   transform: translateY(-50%);
 }
@@ -187,7 +189,7 @@
   outline-offset: 2px;
 }
 
-.ps-theme-dark {
+.ps.ps-theme-dark {
   --ps-track-bg: rgba(0, 0, 0, 0.5);
   --ps-tick: rgba(255, 255, 255, 0.4);
   --ps-tooltip-bg: rgba(255, 255, 255, 0.9);
@@ -195,8 +197,8 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .ps-handle,
-  .ps-tooltip {
+  .ps .ps-handle,
+  .ps .ps-tooltip {
     transition: none !important;
   }
 }
