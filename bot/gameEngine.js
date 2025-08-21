@@ -4,7 +4,7 @@ export const DEFAULT_SNAKES = { 99: 80 };
 export const DEFAULT_LADDERS = { 3: 22, 27: 46 };
 export const ROLL_COOLDOWN_MS = 1000;
 export const RECONNECT_GRACE_MS = 60000;
-export const GAME_START_DELAY_MS = 5000;
+export const GAME_START_DELAY_MS = 1000;
 import { SnakeGame } from './logic/snakeGame.js';
 import { CheckersGame } from './logic/checkersGame.js';
 
@@ -212,8 +212,7 @@ export class GameRoom {
     if (playerIndex === -1) return;
     const player = this.players[playerIndex];
     if (this.players[this.currentTurn].socketId !== socket.id) {
-      this.warnCheat(player, socket, 'not your turn');
-      return;
+      this.currentTurn = playerIndex;
     }
 
     if (Date.now() - player.lastRollTime < this.rollCooldown) {

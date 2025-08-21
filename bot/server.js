@@ -206,10 +206,11 @@ function sendIndex(res) {
 let botLaunchTriggered = false;
 function launchBotWithDelay() {
   if (botLaunchTriggered) return;
-  botLaunchTriggered = true;
   if (!process.env.BOT_TOKEN || process.env.BOT_TOKEN === 'dummy') {
-    console.log('BOT_TOKEN not configured. Attempting to launch bot anyway');
+    console.log('BOT_TOKEN not configured. Skipping bot launch');
+    return;
   }
+  botLaunchTriggered = true;
   setTimeout(async () => {
     try {
       // Ensure no lingering webhook is configured when using polling
@@ -243,18 +244,27 @@ const pendingInvites = new Map();
 app.set('userSockets', userSockets);
 
 const tableWatchers = new Map();
-// Dynamic lobby tables grouped by game type and capacity
+// Dynamic lobby tables grouped by game type and stake
 const lobbyTables = {};
 const tableMap = new Map();
 const BUNDLE_TON_MAP = Object.fromEntries(
   Object.values(BUNDLES).map((b) => [b.label, b.ton])
 );
 
+function broadcastSeatList(gameType, stake) {
+  const key = `${gameType}-${stake}`;
+  const tables = (lobbyTables[key] || []).map((t) => ({
+    id: t.id,
+    players: t.players
+  }));
+  io.emit('seatList', { gameType, stake, tables });
+}
+
 function getAvailableTable(gameType, stake = 0, maxPlayers = 4) {
-  const key = `${gameType}-${maxPlayers}`;
+  const key = `${gameType}-${stake}`;
   if (!lobbyTables[key]) lobbyTables[key] = [];
   const open = lobbyTables[key].find(
-    (t) => t.stake === stake && t.players.length < t.maxPlayers
+    (t) => t.maxPlayers === maxPlayers && t.players.length < t.maxPlayers
   );
   if (open) return open;
   const table = {
@@ -271,6 +281,7 @@ function getAvailableTable(gameType, stake = 0, maxPlayers = 4) {
   console.log(
     `Created new table: ${table.id} (${gameType}, cap ${maxPlayers}, stake: ${stake})`
   );
+  broadcastSeatList(gameType, stake);
   return table;
 }
 
@@ -295,7 +306,7 @@ async function seatTableSocket(
 ) {
   if (!accountId) return null;
   console.log(
-    `Seating player ${playerName || accountId} at ${gameType}-${maxPlayers} (stake ${stake})`
+    `Seating player ${playerName || accountId} at ${gameType}-${stake} (cap ${maxPlayers})`
   );
   const table = getAvailableTable(gameType, stake, maxPlayers);
   const tableId = table.id;
@@ -350,6 +361,7 @@ async function seatTableSocket(
     currentTurn: table.currentTurn,
     ready: Array.from(table.ready)
   });
+  broadcastSeatList(table.gameType, table.stake);
   return table;
 }
 
@@ -369,10 +381,9 @@ function maybeStartGame(table) {
         stake: table.stake
       });
       tableSeats.delete(table.id);
-      const key = `${table.gameType}-${table.maxPlayers}`;
-      lobbyTables[key] = (lobbyTables[key] || []).filter(
-        (t) => t.id !== table.id
-      );
+      const key = `${table.gameType}-${table.stake}`;
+      lobbyTables[key] = (lobbyTables[key] || []).filter((t) => t.id !== table.id);
+      broadcastSeatList(table.gameType, table.stake);
       table.startTimeout = null;
     }, 1000);
   }
@@ -406,10 +417,9 @@ function unseatTableSocket(accountId, tableId, socketId) {
     }
     if (table.players.length === 0) {
       tableMap.delete(tableId);
-      const key = `${table.gameType}-${table.maxPlayers}`;
-      lobbyTables[key] = (lobbyTables[key] || []).filter(
-        (t) => t.id !== tableId
-      );
+      const key = `${table.gameType}-${table.stake}`;
+      lobbyTables[key] = (lobbyTables[key] || []).filter((t) => t.id !== tableId);
+      broadcastSeatList(table.gameType, table.stake);
       table.currentTurn = null;
     } else if (table.currentTurn === accountId) {
       const nextIndex = 0;
@@ -421,6 +431,7 @@ function unseatTableSocket(accountId, tableId, socketId) {
       currentTurn: table.currentTurn,
       ready: Array.from(table.ready || [])
     });
+    broadcastSeatList(table.gameType, table.stake);
     if (accountId && table.currentTurn && table.currentTurn !== accountId) {
       io.to(tableId).emit('turnUpdate', { currentTurn: table.currentTurn });
     }
@@ -517,7 +528,19 @@ app.post('/api/snake/table/seat', (req, res) => {
 app.post('/api/snake/table/unseat', (req, res) => {
   const { tableId, playerId, accountId } = req.body || {};
   const pid = playerId || accountId;
-  unseatTableSocket(pid, tableId);
+  if (tableId && pid) {
+    const [gameType, capStr] = tableId.split('-');
+    const cap = Number(capStr) || 4;
+    for (const [tid, table] of tableMap.entries()) {
+      if (
+        table.gameType === gameType &&
+        table.maxPlayers === cap &&
+        table.players.some((p) => p.id === pid)
+      ) {
+        unseatTableSocket(pid, tid);
+      }
+    }
+  }
   res.json({ success: true });
 });
 app.get('/api/snake/lobbies', async (req, res) => {
@@ -549,13 +572,20 @@ app.get('/api/snake/lobby/:id', async (req, res) => {
   const { id } = req.params;
   const match = /-(\d+)$/.exec(id);
   const cap = match ? Number(match[1]) : 4;
+  const gameType = id.split('-')[0];
   const room = await gameManager.getRoom(id, cap);
   const roomPlayers = room.players
     .filter((p) => !p.disconnected)
     .map((p) => ({ id: p.playerId, name: p.name, avatar: p.avatar }));
-  const lobbyPlayers = Array.from(tableSeats.get(id)?.values() || []).map(
-    (p) => ({ id: p.id, name: p.name, avatar: p.avatar })
-  );
+  const lobbyPlayers = [];
+  for (const [tid, map] of tableSeats.entries()) {
+    const t = tableMap.get(tid);
+    if (t && t.gameType === gameType && t.maxPlayers === cap) {
+      for (const info of map.values()) {
+        lobbyPlayers.push({ id: info.id, name: info.name, avatar: info.avatar });
+      }
+    }
+  }
   res.json({ id, capacity: cap, players: [...lobbyPlayers, ...roomPlayers] });
 });
 
