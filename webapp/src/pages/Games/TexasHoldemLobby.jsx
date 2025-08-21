@@ -2,7 +2,12 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import RoomSelector from '../../components/RoomSelector.jsx';
 import useTelegramBackButton from '../../hooks/useTelegramBackButton.js';
-import { ensureAccountId, getTelegramId, getTelegramPhotoUrl, getTelegramUsername } from '../../utils/telegram.js';
+import {
+  ensureAccountId,
+  getTelegramId,
+  getTelegramPhotoUrl,
+  getTelegramUsername
+} from '../../utils/telegram.js';
 import { getAccountBalance, addTransaction } from '../../utils/api.js';
 import { loadAvatar } from '../../utils/avatarUtils.js';
 
@@ -39,7 +44,7 @@ export default function TexasHoldemLobby() {
       tgId = getTelegramId();
       await addTransaction(tgId, -stake.amount, 'stake', {
         game: 'texasholdem',
-        accountId,
+        accountId
       });
     } catch {}
 
@@ -68,7 +73,8 @@ export default function TexasHoldemLobby() {
         <h3 className="font-semibold">Stake</h3>
         <RoomSelector selected={stake} onSelect={setStake} tokens={['TPC']} />
         <p className="text-sm text-center">
-          Start bet: {startBet.toLocaleString('en-US')} TPC • Pot max: {stake.amount.toLocaleString('en-US')} TPC
+          Start bet: {startBet.toLocaleString('en-US')} TPC • Pot max:{' '}
+          {stake.amount.toLocaleString('en-US')} TPC
         </p>
       </div>
       <div className="space-y-2">
@@ -76,7 +82,7 @@ export default function TexasHoldemLobby() {
         <div className="flex gap-2">
           {[
             { id: 'local', label: 'Local (AI)' },
-            { id: 'online', label: 'Online', disabled: true }
+            { id: 'online', label: 'Online' }
           ].map(({ id, label, disabled }) => (
             <div key={id} className="relative">
               <button
@@ -88,11 +94,6 @@ export default function TexasHoldemLobby() {
               >
                 {label}
               </button>
-              {disabled && (
-                <span className="absolute inset-0 flex items-center justify-center text-xs bg-black bg-opacity-50 text-background">
-                  Under development
-                </span>
-              )}
             </div>
           ))}
         </div>
