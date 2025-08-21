@@ -281,6 +281,30 @@
 
     /* Removed the round shadow from the aiming line */
     #aimGlow { display: none; }
+
+    .winnerOverlay {
+      position: fixed;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: rgba(0,0,0,0.6);
+      z-index: 60;
+    }
+    .winnerOverlay.hidden { display: none; }
+    .winnerOverlay img { width: 120px; height: 120px; border-radius: 50%; }
+    .coin-confetti {
+      position: fixed;
+      top: -40px;
+      width: 32px;
+      height: 32px;
+      pointer-events: none;
+      animation: coin-fall var(--duration,3s) linear forwards;
+    }
+    @keyframes coin-fall {
+      from { transform: translateY(-10vh) rotate(0deg); opacity: 1; }
+      to { transform: translateY(100vh) rotate(360deg); opacity: 0; }
+    }
   </style>
 </head>
 <body>
@@ -328,11 +352,12 @@
       <button id="play">Play</button>
     </div>
 
-    <div id="footer">
+  <div id="footer">
       <div id="capP1">Guret e marra (P1): —</div>
       <div id="capP2">Guret e marra (CPU): —</div>
     </div>
   </div>
+  <div id="winnerOverlay" class="winnerOverlay hidden"></div>
 
   <script src="/flag-emojis.js"></script>
 
@@ -396,6 +421,31 @@
     var targetP1 = document.getElementById('p1Target');
     var targetP2 = document.getElementById('p2Target');
     var cueHint  = document.getElementById('cueHint');
+
+    function coinConfetti(count, iconSrc){
+      count = count || 50;
+      iconSrc = iconSrc || '/assets/icons/ezgif-54c96d8a9b9236.webp';
+      for (var i=0;i<count;i++){
+        var img=document.createElement('img');
+        img.src=iconSrc;
+        img.className='coin-confetti';
+        img.style.left=(Math.random()*100)+'vw';
+        img.style.setProperty('--duration',(2+Math.random()*2)+'s');
+        document.body.appendChild(img);
+        setTimeout((function(el){return function(){el.remove();};})(img),3000);
+      }
+    }
+
+    function endGame(winner){
+      table.running = false;
+      shotInProgress = false;
+      var overlay = document.getElementById('winnerOverlay');
+      var avatar = winner===1 ? avatarP1 : avatarCPU;
+      if (avatar) overlay.innerHTML = avatar.outerHTML;
+      overlay.classList.remove('hidden');
+      coinConfetti(50);
+      setTimeout(function(){ location.href = '/games/pollroyale/lobby?winner=' + winner; },2000);
+    }
 
     // --------------------------------------------------
     // Audio setup
@@ -614,6 +664,8 @@
 
       this.captured = { 1:[], 2:[] };
       this.turn = 1;
+      freeShots = {1:0,2:0};
+      firstHit = null;
 
       // TESTE TE INTEGRITETIT (console.assert)
       runSelfTests(this);
@@ -670,6 +722,10 @@
             a.v.x -= imp*nx; a.v.y -= imp*ny; bb.v.x += imp*nx; bb.v.y += imp*ny;
             a.v.x *= BOUNCE; a.v.y *= BOUNCE; bb.v.x *= BOUNCE; bb.v.y *= BOUNCE;
             playBallHit(clamp(imp/4000,0,1));
+            if (!firstHit && (a.n===0 || bb.n===0)) {
+              var other = a.n===0 ? bb : a;
+              firstHit = BALL_BY_N[other.n];
+            }
             if (a.n === 0) a.spinApplied = true;
             if (bb.n === 0) bb.spinApplied = true;
           }
@@ -832,6 +888,8 @@
     var pocketedOwn = false;
     var scratch = false;
     var assignedTypes = {1:null,2:null};
+    var freeShots = {1:0,2:0};
+    var firstHit = null;
 
     function createMiniBall(n){
       var info = BALL_BY_N[n];
@@ -896,24 +954,35 @@
     }
 
     function handleEightBall(){
-      var shooterType = assignedTypes[currentShooter];
-      var ownCount = shooterType ? table.captured[currentShooter].filter(function(n){ return BALL_BY_N[n].t === shooterType; }).length : 0;
-      if (shooterType && ownCount >= 7) {
-        alert((currentShooter===1 ? 'Player 1' : 'CPU') + ' wins!');
-      } else {
-        alert((currentShooter===1 ? 'Player 1' : 'CPU') + ' loses!');
-      }
-      table.running = false;
+      var winner = currentShooter===1 ? 2 : 1;
+      endGame(winner);
     }
 
     function endShot(){
       shotInProgress = false;
-      if (scratch || !pocketedOwn) {
-        table.turn = table.turn===1 ? 2 : 1;
+      var opponent = currentShooter===1 ? 2 : 1;
+      var shooterType = assignedTypes[currentShooter];
+      var foul = false;
+      if (!firstHit || (shooterType && firstHit.t !== shooterType && firstHit.t !== 'eight')) foul = true;
+      if (scratch) foul = true;
+      if (foul) {
+        freeShots[opponent] = 2;
+        freeShots[currentShooter] = 0;
+        table.turn = opponent;
+      } else {
+        if (freeShots[currentShooter] > 0) {
+          freeShots[currentShooter]--;
+          if (freeShots[currentShooter] === 0 && !pocketedOwn) {
+            table.turn = opponent;
+          }
+        } else if (!pocketedOwn) {
+          table.turn = opponent;
+        }
       }
       pocketedAny = false;
       pocketedOwn = false;
       scratch = false;
+      firstHit = null;
     }
 
     /* ==========================================================
@@ -1162,7 +1231,7 @@
       playCueHit(p);
       currentShooter = table.turn;
       shotInProgress = true;
-      pocketedAny = false; pocketedOwn = false; scratch = false;
+      pocketedAny = false; pocketedOwn = false; scratch = false; firstHit = null;
       cue.v.x = d.x*base*(0.25+0.75*p);
       cue.v.y = d.y*base*(0.25+0.75*p);
       // Double the spin effect in all directions
@@ -1200,7 +1269,7 @@
       setTimeout(function(){
         var cpuBase = 780 * 2;
         currentShooter = 2;
-        pocketedAny = false; pocketedOwn = false; scratch = false;
+        pocketedAny = false; pocketedOwn = false; scratch = false; firstHit = null;
         cue.v.x = nd.x * cpuBase * (0.3 + p);
         cue.v.y = nd.y * cpuBase * (0.3 + p);
         cuePullVisual = 0;
