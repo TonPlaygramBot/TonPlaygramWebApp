@@ -78,15 +78,12 @@
       align-items: center;
     }
 
-    .targetType {
-      display: flex;
-      align-items: center;
-      gap: 4px;
-      font-size: 12px;
-      margin-top: 2px;
+    .score {
+      font-size: 18px;
+      font-weight: 700;
+      min-width: 32px;
+      text-align: center;
     }
-
-    .targetType canvas { display: block; }
 
     .potted {
       display: flex;
@@ -326,9 +323,9 @@
     <div id="header">
       <div class="player">
         <div class="avatar">A</div>
+        <div class="score" id="p1Score">0</div>
         <div class="info">
           <div class="name">Artur</div>
-          <div class="targetType" id="p1Target">Any</div>
           <div class="potted" id="p1Potted"></div>
         </div>
       </div>
@@ -338,9 +335,9 @@
       <div class="player">
         <div class="info">
           <div class="name">CPU</div>
-          <div class="targetType" id="p2Target">Any</div>
           <div class="potted" id="p2Potted"></div>
         </div>
+        <div class="score" id="p2Score">0</div>
         <div class="avatar">C</div>
       </div>
     </div>
@@ -443,8 +440,8 @@
     var nameCPU  = document.querySelector('#header .player:last-child .name');
     var pottedP1 = document.getElementById('p1Potted');
     var pottedP2 = document.getElementById('p2Potted');
-    var targetP1 = document.getElementById('p1Target');
-    var targetP2 = document.getElementById('p2Target');
+    var scoreP1  = document.getElementById('p1Score');
+    var scoreP2  = document.getElementById('p2Score');
     var cueHint  = document.getElementById('cueHint');
 
     function coinConfetti(count, iconSrc){
@@ -821,6 +818,9 @@
               b2.pocketed = true;
               pocketedAny = true;
               this.captured[currentShooter].push(b2.n);
+              scores[currentShooter] += b2.n;
+              updateScoresUI();
+              lastPocketedBall = b2.n;
               var tType = BALL_BY_N[b2.n].t;
               if (!assignedTypes[1] && tType !== 'eight') {
                 assignedTypes[currentShooter] = tType;
@@ -959,6 +959,8 @@
     var hitOpponent = false;
     var lastTurn = table.turn;
     var cpuThinking = false;
+    var scores = {1:0,2:0};
+    var lastPocketedBall = null;
 
     function createMiniBall(n){
       var info = BALL_BY_N[n];
@@ -996,17 +998,13 @@
       }
       render(pottedP1, table.captured[1]);
       render(pottedP2, table.captured[2]);
-      function setTarget(el, type){
-        el.innerHTML = type ? '' : 'Any';
-        if (!type) return;
-        var n = type === 'solid' ? 1 : 9;
-        el.appendChild(createMiniBall(n));
-        el.appendChild(document.createTextNode(type === 'solid' ? ' Solid' : ' Stripes'));
-      }
-
-      setTarget(targetP1, assignedTypes[1]);
-      setTarget(targetP2, assignedTypes[2]);
     }
+
+    function updateScoresUI(){
+      scoreP1.textContent = scores[1];
+      scoreP2.textContent = scores[2];
+    }
+    updateScoresUI();
 
     function updateFooter(player, msg){
       var srcAvatar = player===1 ? avatarP1 : avatarCPU;
@@ -1060,12 +1058,18 @@
       if (scratch) foul = true;
       if (shooterType && hitOpponent) foul = true;
       if (foul) {
-        var foulName = currentShooter===1 ? nameP1.textContent : nameCPU.textContent;
+        var highest = 0;
+        for (var j=1;j<table.balls.length;j++){
+          var bb=table.balls[j];
+          if (bb && !bb.pocketed && bb.n>highest) highest=bb.n;
+        }
+        scores[opponent] += highest;
+        updateScoresUI();
         freeShots[opponent] = isAmerican ? 1 : 2;
         freeShots[currentShooter] = 0;
         table.turn = opponent;
         if (isAmerican) cueBallFree = true;
-        updateFooter(opponent, foulName + ' committed a <span class="foul">Faul</span>');
+        updateFooter(opponent, "That\u2019s a foul – the cue ball went in, opponent gets " + highest + " points.");
         setTimeout(showShots, 300);
       } else {
         if (freeShots[currentShooter] > 0) {
@@ -1076,7 +1080,20 @@
         } else if (!pocketedOwn) {
           table.turn = opponent;
         }
-        showShots();
+        if (lastPocketedBall !== null) {
+          var total = scores[currentShooter];
+          var closing = 100 - total;
+          var msg = 'He sinks the ' + lastPocketedBall + '-ball, that\u2019s ' + lastPocketedBall + ' points on the scoreboard.';
+          if (total >= 63 && closing > 0) {
+            msg += ' Solid run — he\u2019s already at ' + total + ' points, just needs ' + closing + ' more to close the game.';
+          }
+          updateFooter(currentShooter, msg);
+          lastPocketedBall = null;
+          setTimeout(showShots, 300);
+        } else {
+          updateFooter(table.turn, 'Close call! The ball hit the cushion but nothing dropped, turn passes to the opponent.');
+          setTimeout(showShots, 300);
+        }
       }
       pocketedAny = false;
       pocketedOwn = false;
