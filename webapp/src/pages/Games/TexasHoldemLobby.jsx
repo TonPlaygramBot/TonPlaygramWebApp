@@ -122,6 +122,11 @@ export default function TexasHoldemLobby() {
               >
                 {label}
               </button>
+              {disabled && (
+                <span className="absolute inset-0 flex items-center justify-center text-xs bg-black bg-opacity-50 text-background">
+                  Under development
+                </span>
+              )}
             </div>
           ))}
         </div>
