@@ -1,12 +1,9 @@
 import {
-  createDeck,
-  shuffle,
-  dealHoleCards,
-  dealCommunity,
   evaluateWinner,
-  aiChooseAction,
   HAND_RANK_NAMES,
 } from './lib/texasHoldem.js';
+import { io } from 'https://cdn.socket.io/4.8.1/socket.io.esm.min.js';
+const socket = io(window.location.origin, { transports: ['websocket'] });
 const FLAG_EMOJIS = window.FLAG_EMOJIS || [];
 
 const state = {
@@ -205,7 +202,6 @@ async function loadAccountBalance() {
 
 const SUIT_MAP = { H: '♥', D: '♦', C: '♣', S: '♠' };
 const CHIP_VALUES = [1000, 500, 200, 50, 20, 10, 5, 2, 1];
-const ANTE = 10;
 const regionNames = new Intl.DisplayNames(['en'], { type: 'region' });
 function flagName(flag) {
   const codePoints = [...flag].map((c) => c.codePointAt(0) - 0x1f1e6 + 65);
@@ -300,32 +296,15 @@ function init() {
     }
   } catch {}
 
-  const deck = shuffle(createDeck());
-  const playerCount = state.seated ? 6 : 5;
-  const { hands, deck: rest } = dealHoleCards(deck, playerCount);
-  const flags = [...FLAG_EMOJIS]
-    .sort(() => 0.5 - Math.random())
-    .slice(0, playerCount - (state.seated ? 1 : 0));
-  state.players = [
-    state.seated
-      ? { name, avatar, hand: hands[0], isHuman: true, active: true }
-      : { name: '', avatar: '', hand: [], isHuman: false, active: false, vacant: true },
-    ...flags.map((f, idx) => ({
-      name: flagName(f),
-      avatar: f,
-      hand: hands[idx + (state.seated ? 1 : 0)],
-      active: true,
-    })),
-  ];
-  const comm = dealCommunity(rest);
-  state.community = comm.community;
+  state.players = [];
+  state.community = [];
   state.stage = 0;
   state.turn = 0;
   state.currentBet = 0;
   state.raiseAmount = 0;
   state.selectedChips = [];
   state.pot = 0;
-  state.maxPot = state.stake * state.players.filter((p) => p.active).length;
+  state.maxPot = 0;
   const potEl = document.getElementById('pot');
   const wrap = document.getElementById('potWrap');
   if (potEl && wrap) {
@@ -342,10 +321,79 @@ function init() {
   if (foldedLabel) foldedLabel.style.display = 'none';
   setupFlopBacks();
   renderSeats();
-  collectAntes();
   updatePotDisplay();
-  dealInitialCards();
   setStatus('', '');
+
+  socket.emit('joinGame', { name, avatar, stake: state.stake, token: state.token });
+}
+
+socket.on('connect', () => {
+  socket.emit('requestGameState');
+});
+
+socket.on('gameState', applyGameState);
+socket.on('playerJoined', applyGameState);
+socket.on('playerLeft', applyGameState);
+
+socket.on('holeCards', (cards) => {
+  if (state.players[0]) state.players[0].hand = cards;
+  renderSeats();
+});
+
+socket.on('communityCards', (cards) => {
+  state.community = cards;
+  if (cards.length === 3) revealFlop();
+  else if (cards.length === 4) revealTurn();
+  else if (cards.length === 5) revealRiver();
+});
+
+socket.on('playerAction', ({ playerIndex, action, amount, pot, currentBet, nextTurn }) => {
+  if (action === 'fold') {
+    state.players[playerIndex].active = false;
+    moveCardsToFolded(playerIndex);
+  } else if (action === 'call' || action === 'raise') {
+    if (amount) animateChipsFromPlayer(playerIndex, amount);
+  }
+  setActionText(playerIndex, action);
+  if (typeof pot === 'number') {
+    state.pot = pot;
+    updatePotDisplay();
+  }
+  if (typeof currentBet === 'number') state.currentBet = currentBet;
+  if (typeof nextTurn === 'number') {
+    state.turn = nextTurn;
+    setPlayerTurnIndicator(nextTurn);
+    if (nextTurn === 0) startPlayerTurn();
+    else hideControls();
+  }
+  const nameText = playerIndex === 0 ? 'You' : state.players[playerIndex]?.name || 'Player';
+  setStatus(action, amount ? `${nameText} ${action}s ${formatAmount(amount)}` : `${nameText} ${action}s`);
+});
+
+socket.on('showdown', showdown);
+
+function applyGameState(game) {
+  if (game.players) state.players = game.players;
+  if (game.community) state.community = game.community;
+  if (typeof game.pot === 'number') state.pot = game.pot;
+  if (typeof game.currentBet === 'number') state.currentBet = game.currentBet;
+  if (typeof game.stage === 'number') state.stage = game.stage;
+  if (typeof game.maxPot === 'number') state.maxPot = game.maxPot;
+  if (typeof game.turn === 'number') {
+    state.turn = game.turn;
+    setPlayerTurnIndicator(game.turn);
+    if (game.turn === 0) startPlayerTurn();
+    else hideControls();
+  } else {
+    setPlayerTurnIndicator(null);
+    hideControls();
+  }
+  renderSeats();
+  updatePotDisplay();
+  const count = state.community.length;
+  if (count === 3) revealFlop();
+  else if (count === 4) revealTurn();
+  else if (count === 5) revealRiver();
 }
 
 function adjustNameSize(el) {
@@ -455,11 +503,6 @@ function setupFlopBacks() {
   for (let i = 0; i < 3; i++) comm.appendChild(cardBackEl());
 }
 
-function collectAntes() {
-  const active = state.players.filter((p) => !p.vacant).length;
-  state.pot += ANTE * active;
-}
-
 function buildChipPiles(amount) {
   const wrap = document.createElement('div');
   wrap.style.display = 'flex';
@@ -532,7 +575,6 @@ async function dealInitialCards() {
     }
   }
   if (state.seated) startPlayerTurn();
-  else proceedStage();
 }
 
 function dealCardToPlayer(idx, card, showFace) {
@@ -864,8 +906,6 @@ function hideControls() {
 }
 
 function startPlayerTurn() {
-  state.turn = 0;
-  state.currentBet = 0;
   setPlayerTurnIndicator(0);
   playKnockSound();
   showControls();
@@ -909,103 +949,28 @@ function updateTimer() {
 function playerFold() {
   clearInterval(state.timerInterval);
   hideControls();
-  state.players[0].active = false;
-  setPlayerTurnIndicator(null);
-  setActionText(0, 'fold');
-  setStatus('fold', 'You folded');
-  moveCardsToFolded(0);
-  proceedStage();
+  socket.emit('action', { type: 'fold' });
 }
 
 function playerCheck() {
-  setActionText(0, 'check');
-  setStatus('check', 'You check');
-  proceedStage();
+  clearInterval(state.timerInterval);
+  hideControls();
+  socket.emit('action', { type: 'check' });
 }
 
 function playerCall() {
-  state.pot += state.currentBet;
-  animateChipsFromPlayer(0, state.currentBet);
-  setActionText(0, 'call');
-  setStatus('call', `You call ${formatAmount(state.currentBet)}`);
-  if (state.pot >= state.maxPot) playAllInSound();
-  else playCallRaiseSound();
-  state.tpcTotal = Math.max(0, state.tpcTotal - state.currentBet);
-  updateBalancePreview();
-  updateSliderRange();
-  proceedStage();
+  clearInterval(state.timerInterval);
+  hideControls();
+  socket.emit('action', { type: 'call' });
 }
 
 function playerRaise(amount = state.raiseAmount) {
   const maxAllowed = Math.min(state.stake, state.maxPot - state.pot);
   amount = Math.min(amount, maxAllowed);
   if (amount <= 0) return;
-  state.pot += amount;
-  state.currentBet += amount;
-  animateChipsFromPlayer(0, amount);
-  setActionText(0, 'raise');
-  setStatus('raise', `You raise ${formatAmount(amount)}`);
-  if (state.pot >= state.maxPot) playAllInSound();
-  else playCallRaiseSound();
-  state.tpcTotal = Math.max(0, state.tpcTotal - amount);
-  updateBalancePreview();
-  updateSliderRange();
-  proceedStage();
-}
-
-async function proceedStage() {
   clearInterval(state.timerInterval);
-  setPlayerTurnIndicator(null);
   hideControls();
-  for (let i = 1; i < state.players.length; i++) {
-    const p = state.players[i];
-    if (p.vacant || !p.active) continue;
-    setPlayerTurnIndicator(i);
-    setStatus('', `${p.name}...`);
-    await new Promise((r) => setTimeout(r, 2500));
-    let action = aiChooseAction(
-      p.hand,
-      state.community.slice(0, stageCommunityCount()),
-      state.currentBet
-    );
-    if (state.currentBet > 0 && action === 'check') action = 'call';
-    if (action === 'raise') {
-      const raiseBy = ANTE;
-      const total = state.currentBet + raiseBy;
-      state.currentBet = total;
-      state.pot += total;
-      animateChipsFromPlayer(i, total);
-      setStatus('raise', `${p.name} raises to ${formatAmount(total)}`);
-      if (state.pot >= state.maxPot) playAllInSound();
-      else playCallRaiseSound();
-    } else if (action === 'call') {
-      state.pot += state.currentBet;
-      animateChipsFromPlayer(i, state.currentBet);
-      setStatus('call', `${p.name} calls ${formatAmount(state.currentBet)}`);
-      if (state.pot >= state.maxPot) playAllInSound();
-      else playCallRaiseSound();
-    } else if (action === 'fold') {
-      p.active = false;
-      setStatus('fold', `${p.name} folds`);
-      moveCardsToFolded(i);
-    } else {
-      setStatus('check', `${p.name} checks`);
-    }
-    setActionText(i, action);
-  }
-  setPlayerTurnIndicator(null);
-  state.stage++;
-  if (state.stage === 1) revealFlop();
-  else if (state.stage === 2) revealTurn();
-  else if (state.stage === 3) revealRiver();
-  else await showdown();
-}
-
-function stageCommunityCount() {
-  if (state.stage === 0) return 0;
-  if (state.stage === 1) return 3;
-  if (state.stage === 2) return 4;
-  return 5;
+  socket.emit('action', { type: 'raise', amount });
 }
 
 function movePotToWinner(idx) {
@@ -1042,8 +1007,6 @@ async function revealFlop() {
     await new Promise((r) => setTimeout(r, 400));
   }
   clearActionTexts();
-  if (state.players[0].active) startPlayerTurn();
-  else proceedStage();
 }
 
 async function revealTurn() {
@@ -1052,8 +1015,6 @@ async function revealTurn() {
   playFlipSound();
   await new Promise((r) => setTimeout(r, 400));
   clearActionTexts();
-  if (state.players[0].active) startPlayerTurn();
-  else proceedStage();
 }
 
 async function revealRiver() {
@@ -1062,8 +1023,6 @@ async function revealRiver() {
   playFlipSound();
   await new Promise((r) => setTimeout(r, 400));
   clearActionTexts();
-  if (state.players[0].active) startPlayerTurn();
-  else proceedStage();
 }
 
 async function showdown() {
@@ -1132,5 +1091,5 @@ document.addEventListener('DOMContentLoaded', () => {
 
 function joinSeat() {
   state.seated = true;
-  init();
+  socket.emit('joinSeat');
 }
