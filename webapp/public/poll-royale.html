@@ -421,7 +421,7 @@
       var gain = audioCtx.createGain();
       gain.gain.value = clamp(vol, 0, 1);
       src.connect(gain).connect(audioCtx.destination);
-      var half = 0.5;
+      var half = hitBuffer.duration / 2;
       src.start(0, 0, half);
     }
 
@@ -433,17 +433,17 @@
       var gain = audioCtx.createGain();
       gain.gain.value = clamp(vol, 0, 1);
       src.connect(gain).connect(audioCtx.destination);
-      var half = 0.5;
+      var half = hitBuffer.duration / 2;
       src.start(0, half, half);
     }
 
-    function playPocket(vol) {
+    function playPocket() {
       audioCtx.resume();
       if (!pocketBuffer) return;
       var src = audioCtx.createBufferSource();
       src.buffer = pocketBuffer;
       var gain = audioCtx.createGain();
-      gain.gain.value = clamp(vol, 0, 1);
+      gain.gain.value = 1;
       src.connect(gain).connect(audioCtx.destination);
       var d = pocketBuffer.duration;
       src.start(0, Math.max(0, d - 1), 1);
@@ -649,34 +649,10 @@
         var R = TABLE_W - BORDER - BALL_R;
         var T = BORDER_TOP + BALL_R;
         var B = TABLE_H - BORDER_BOTTOM - BALL_R;
-        if (b.p.x < L) {
-          var spd = Math.hypot(b.v.x, b.v.y);
-          b.p.x = L;
-          b.v.x *= -BOUNCE;
-          if (b.n === 0) b.spinApplied = true;
-          playCueHit(clamp(spd / 4000, 0, 1) * 0.3);
-        }
-        if (b.p.x > R) {
-          var spd = Math.hypot(b.v.x, b.v.y);
-          b.p.x = R;
-          b.v.x *= -BOUNCE;
-          if (b.n === 0) b.spinApplied = true;
-          playCueHit(clamp(spd / 4000, 0, 1) * 0.3);
-        }
-        if (b.p.y < T) {
-          var spd = Math.hypot(b.v.x, b.v.y);
-          b.p.y = T;
-          b.v.y *= -BOUNCE;
-          if (b.n === 0) b.spinApplied = true;
-          playCueHit(clamp(spd / 4000, 0, 1) * 0.3);
-        }
-        if (b.p.y > B) {
-          var spd = Math.hypot(b.v.x, b.v.y);
-          b.p.y = B;
-          b.v.y *= -BOUNCE;
-          if (b.n === 0) b.spinApplied = true;
-          playCueHit(clamp(spd / 4000, 0, 1) * 0.3);
-        }
+        if (b.p.x < L) { b.p.x = L; b.v.x *= -BOUNCE; if (b.n === 0) b.spinApplied = true; }
+        if (b.p.x > R) { b.p.x = R; b.v.x *= -BOUNCE; if (b.n === 0) b.spinApplied = true; }
+        if (b.p.y < T) { b.p.y = T; b.v.y *= -BOUNCE; if (b.n === 0) b.spinApplied = true; }
+        if (b.p.y > B) { b.p.y = B; b.v.y *= -BOUNCE; if (b.n === 0) b.spinApplied = true; }
       }
 
       // Perplasje ball-ball
@@ -708,8 +684,7 @@
           if (b2.pocketed) continue;
           var ddx = b2.p.x - p.x, ddy = b2.p.y - p.y;
           if (Math.hypot(ddx,ddy) < POCKET_R*0.9) {
-            var spd = Math.hypot(b2.v.x, b2.v.y);
-            playPocket(clamp(spd/4000,0,1));
+            playPocket();
             if (b2.n === 0) {
               scratch = true;
               cueBallFree = true;
