@@ -744,12 +744,14 @@
             a.v.x -= imp*nx; a.v.y -= imp*ny; bb.v.x += imp*nx; bb.v.y += imp*ny;
             a.v.x *= BOUNCE; a.v.y *= BOUNCE; bb.v.x *= BOUNCE; bb.v.y *= BOUNCE;
             playBallHit(clamp(imp/4000,0,1));
-            if (!firstHit && (a.n===0 || bb.n===0)) {
+            if (a.n === 0 || bb.n === 0) {
               var other = a.n===0 ? bb : a;
-              firstHit = BALL_BY_N[other.n];
+              if (!firstHit) firstHit = BALL_BY_N[other.n];
+              var shooterType = assignedTypes[currentShooter];
+              if (shooterType && BALL_BY_N[other.n].t !== shooterType && BALL_BY_N[other.n].t !== 'eight') hitOpponent = true;
+              if (a.n === 0) a.spinApplied = true;
+              if (bb.n === 0) bb.spinApplied = true;
             }
-            if (a.n === 0) a.spinApplied = true;
-            if (bb.n === 0) bb.spinApplied = true;
           }
         }
       }
@@ -913,6 +915,7 @@
     var assignedTypes = {1:null,2:null};
     var freeShots = {1:0,2:0};
     var firstHit = null;
+    var hitOpponent = false;
 
     function createMiniBall(n){
       var info = BALL_BY_N[n];
@@ -988,6 +991,7 @@
       var foul = false;
       if (!firstHit || (shooterType && firstHit.t !== shooterType && firstHit.t !== 'eight')) foul = true;
       if (scratch) foul = true;
+      if (shooterType && hitOpponent) foul = true;
       if (foul) {
         freeShots[opponent] = 2;
         freeShots[currentShooter] = 0;
@@ -1006,6 +1010,7 @@
       pocketedOwn = false;
       scratch = false;
       firstHit = null;
+      hitOpponent = false;
     }
 
     /* ==========================================================
@@ -1254,7 +1259,7 @@
       playCueHit(p);
       currentShooter = table.turn;
       shotInProgress = true;
-      pocketedAny = false; pocketedOwn = false; scratch = false; firstHit = null;
+      pocketedAny = false; pocketedOwn = false; scratch = false; firstHit = null; hitOpponent = false;
       cue.v.x = d.x*base*(0.25+0.75*p);
       cue.v.y = d.y*base*(0.25+0.75*p);
       // Double the spin effect in all directions
@@ -1279,22 +1284,59 @@
         targets.push(b);
       }
       if (targets.length===0) { table.turn = 1; return; }
-      var t = targets[Math.floor(Math.random()*targets.length)];
-      var dir = norm(t.p.x - cue.p.x, t.p.y - cue.p.y);
-      var angle = (Math.random()-0.5)*0.2;
-      var cos = Math.cos(angle), sin = Math.sin(angle);
-      var nd = { x: dir.x*cos - dir.y*sin, y: dir.x*sin + dir.y*cos };
-      var p = 0.35 + Math.random()*0.3;
+
+      function pathClear(contact, target){
+        var dir = norm(contact.x - cue.p.x, contact.y - cue.p.y);
+        var dist = len(contact.x - cue.p.x, contact.y - cue.p.y);
+        for (var j=0;j<table.balls.length;j++){
+          var o = table.balls[j];
+          if (!o || o===cue || o===target || o.pocketed) continue;
+          var vx = o.p.x - cue.p.x, vy = o.p.y - cue.p.y;
+          var proj = vx*dir.x + vy*dir.y;
+          if (proj > 0 && proj < dist){
+            var px = cue.p.x + dir.x*proj, py = cue.p.y + dir.y*proj;
+            var off = Math.hypot(o.p.x - px, o.p.y - py);
+            if (off < BALL_R*2) return false;
+          }
+        }
+        return true;
+      }
+
+      var best = null;
+      for (var tIndex=0;tIndex<targets.length;tIndex++){
+        var t = targets[tIndex];
+        for (var pIndex=0;pIndex<table.pockets.length;pIndex++){
+          var pk = table.pockets[pIndex];
+          var toPocket = norm(pk.x - t.p.x, pk.y - t.p.y);
+          var contact = { x: t.p.x - toPocket.x*BALL_R*2, y: t.p.y - toPocket.y*BALL_R*2 };
+          if (!pathClear(contact, t)) continue;
+          var dist = len(contact.x - cue.p.x, contact.y - cue.p.y);
+          if (!best || dist < best.dist){
+            best = { nd: norm(contact.x - cue.p.x, contact.y - cue.p.y), dist: dist };
+          }
+        }
+      }
+
+      var nd, power;
+      if (best){
+        nd = best.nd;
+        power = 0.5;
+      } else {
+        var t = targets[Math.floor(Math.random()*targets.length)];
+        nd = norm(t.p.x - cue.p.x, t.p.y - cue.p.y);
+        power = 0.35 + Math.random()*0.3;
+      }
+
       table.aim = { x: cue.p.x + nd.x*100, y: cue.p.y + nd.y*100 };
-      cuePullVisual = p * (BALL_R * 14);
+      cuePullVisual = power * (BALL_R * 14);
       shotInProgress = true;
 
       setTimeout(function(){
         var cpuBase = 780 * 2;
         currentShooter = 2;
-        pocketedAny = false; pocketedOwn = false; scratch = false; firstHit = null;
-        cue.v.x = nd.x * cpuBase * (0.3 + p);
-        cue.v.y = nd.y * cpuBase * (0.3 + p);
+        pocketedAny = false; pocketedOwn = false; scratch = false; firstHit = null; hitOpponent = false;
+        cue.v.x = nd.x * cpuBase * (0.3 + power);
+        cue.v.y = nd.y * cpuBase * (0.3 + power);
         cuePullVisual = 0;
       }, 400);
     }
