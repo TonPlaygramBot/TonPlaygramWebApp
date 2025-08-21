@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import RoomSelector from '../../components/RoomSelector.jsx';
 import useTelegramBackButton from '../../hooks/useTelegramBackButton.js';
 import { ensureAccountId, getTelegramId, getTelegramPhotoUrl, getTelegramFirstName } from '../../utils/telegram.js';
@@ -8,6 +8,7 @@ import { loadAvatar } from '../../utils/avatarUtils.js';
 
 export default function PollRoyaleLobby() {
   const navigate = useNavigate();
+  const { search } = useLocation();
   useTelegramBackButton();
 
   const [stake, setStake] = useState({ token: 'TPC', amount: 100 });
@@ -59,8 +60,15 @@ export default function PollRoyaleLobby() {
     navigate(`/games/pollroyale?${params.toString()}`);
   };
 
+  const winnerParam = new URLSearchParams(search).get('winner');
+
   return (
     <div className="relative p-4 space-y-4 text-text min-h-screen tetris-grid-bg">
+      {winnerParam && (
+        <div className="text-center font-semibold">
+          {winnerParam === '1' ? 'You won!' : 'CPU won!'}
+        </div>
+      )}
       <h2 className="text-xl font-bold text-center">8 Poll Royale Lobby</h2>
       <div className="space-y-2">
         <h3 className="font-semibold">Mode</h3>
