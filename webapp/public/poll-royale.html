@@ -42,10 +42,39 @@
       background: linear-gradient(#15203a, #0b1120);
     }
 
-    #header { position: relative; }
+    #header { position: relative; border-bottom: 1px solid #24375f; }
 
-    #header { border-bottom: 1px solid #24375f; }
-    #footer { border-top: 1px solid #24375f; justify-content: center; }
+    #footer {
+      border-top: 1px solid #24375f;
+      justify-content: center;
+      flex-direction: column;
+      gap: 4px;
+      height: auto;
+      padding: 8px 12px;
+    }
+
+    #scoreboard {
+      position: absolute;
+      top: 8px;
+      left: 50%;
+      transform: translateX(-50%);
+      display: flex;
+      gap: 24px;
+      font-weight: 700;
+    }
+
+    #scoreboard .score {
+      font-size: 16px;
+    }
+
+    #infoLines {
+      list-style: none;
+      padding: 0;
+      font-size: 12px;
+      text-align: center;
+    }
+
+    #infoLines li { margin-top: 2px; }
 
     .player {
       display: flex;
@@ -332,6 +361,10 @@
           <div class="potted" id="p1Potted"></div>
         </div>
       </div>
+      <div id="scoreboard">
+        <div id="p1Score" class="score">0</div>
+        <div id="p2Score" class="score">0</div>
+      </div>
       <div id="spinBox">
         <div id="spinDot"></div>
       </div>
@@ -374,6 +407,15 @@
           <div id="statusMsg"></div>
         </div>
       </div>
+      <ul id="infoLines">
+        <li>He sinks the 7-ball, that’s 7 points on the scoreboard.</li>
+        <li>That’s a foul – the cue ball went in, opponent gets the highest ball’s points.</li>
+        <li>She’s aiming at the 12-ball… if it goes in, she jumps straight over 40 points.</li>
+        <li>Big mistake! Missed the shot, no points gained.</li>
+        <li>The 15-ball is still on the table, that’s the highest risk and reward right now.</li>
+        <li>Solid run — he’s already at 63 points, just needs 37 more to close the game.</li>
+        <li>Close call! The ball hit the cushion but nothing dropped, turn passes to the opponent.</li>
+      </ul>
     </div>
   </div>
   <div id="winnerOverlay" class="winnerOverlay hidden"></div>
