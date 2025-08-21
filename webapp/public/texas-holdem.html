@@ -27,7 +27,7 @@
       /* Community cards slightly larger */
       .center{ position:absolute; left:50%; top:44%; transform:translate(-50%,-50%); display:flex; gap:10px; z-index:2; --card-scale:1.083; --card-w: calc(clamp(44px, 9.6vw, 70px) * var(--card-scale)); --card-h: calc(var(--card-w)*1.45); }
       .seats{ position:absolute; inset:0; z-index:2 }
-      .seat{ position:absolute; display:flex; flex-direction:column; align-items:center; gap:6px; width:clamp(120px, 28vw, 200px); --card-scale:.567; --avatar-scale:.8; --card-w: calc(clamp(44px, 9.6vw, 70px) * var(--card-scale)); --card-h: calc(var(--card-w)*1.45); }
+      .seat{ position:absolute; display:flex; flex-direction:column; align-items:center; gap:6px; width:clamp(120px, 28vw, 200px); --card-scale:.567; --avatar-scale:.7; --card-w: calc(clamp(44px, 9.6vw, 70px) * var(--card-scale)); --card-h: calc(var(--card-w)*1.45); }
       .avatar{ width:var(--avatar-size); height:var(--avatar-size); border-radius:50%; display:grid; place-items:center; background:radial-gradient(circle at 30% 30%, #fff, #ddd 40%, #bbb 60%, #999 100%); color:#111; font-size:28px; border:2px solid #000; box-shadow:0 8px 20px var(--shadow); overflow:hidden; position:relative }
       .avatar-wrap{ position:relative; width:var(--avatar-size); height:var(--avatar-size); display:grid; place-items:center; }
       .timer-ring{ position:absolute; inset:-6px; border-radius:50%; background:conic-gradient(#f5cc4e var(--progress,0deg), transparent 0); -webkit-mask:radial-gradient(farthest-side,transparent calc(100% - 6px),#000 calc(100% - 6px)); mask:radial-gradient(farthest-side,transparent calc(100% - 6px),#000 calc(100% - 6px)); pointer-events:none }
@@ -92,7 +92,7 @@
       padding:2px 6px;
       border:2px solid #000;
       border-radius:6px;
-      font-size:12px;
+      font-size:11px;
       max-width:100%;
       white-space:nowrap;
       overflow:hidden;
@@ -102,8 +102,9 @@
       font-weight:700;
       text-shadow:-1px -1px 0 #fff,1px -1px 0 #fff,-1px 1px 0 #fff,1px 1px 0 #fff;
     }
-    .seat-inner .cards{ padding:4px; border:2px solid #000; border-radius:8px; background:#fef08a; }
-    .seat-inner .card{ border:2px solid #000; }
+    .seat.bottom .name{ font-size:12px; }
+    .seat-inner .cards{ padding:0; border:none; background:none; }
+    .seat-inner .card{ border:none; }
       .seat.bottom .cards{ gap:0 }
       .timer{ font-weight:800; background:rgba(0,0,0,.5); padding:2px 6px; border-radius:8px; }
       .controls{ display:flex; gap:8px; margin-top:8px; align-items:flex-end; justify-content:center; z-index:5; }
