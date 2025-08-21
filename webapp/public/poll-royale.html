@@ -1061,12 +1061,14 @@
         freeShots[currentShooter] = 0;
         table.turn = opponent;
         updateFooter(opponent, foulName + ' committed a <span class="foul">Faul</span>');
-        setTimeout(showShots, 300);
+        setTimeout(showShots, 2000);
       } else {
         if (freeShots[currentShooter] > 0) {
-          freeShots[currentShooter]--;
-          if (freeShots[currentShooter] === 0 && !pocketedOwn) {
-            table.turn = opponent;
+          if (!pocketedAny) {
+            freeShots[currentShooter]--;
+            if (freeShots[currentShooter] === 0 && !pocketedOwn) {
+              table.turn = opponent;
+            }
           }
         } else if (!pocketedOwn) {
           table.turn = opponent;
@@ -1163,6 +1165,12 @@
         if (target) break;
       }
 
+      if (target) {
+        var tx = target.p.x, ty = target.p.y;
+        var hitDist = len(tx - cue.p.x, ty - cue.p.y) - BALL_R*2;
+        hitStep = hitDist / step;
+      }
+
       ctx.fillStyle = target ? 'rgba(255,255,0,1)' : 'rgba(255,255,255,.7)';
       x = cue.p.x; y = cue.p.y;
       for (var i=0;i<hitStep;i++){
@@ -1173,12 +1181,12 @@
 
       if (target) {
         var tx = target.p.x, ty = target.p.y;
-        var impactCueX = cue.p.x + dir.x * step * hitStep;
-        var impactCueY = cue.p.y + dir.y * step * hitStep;
-        // Direction from cue ball to target ball at impact
-        var hitN = { x: tx - impactCueX, y: ty - impactCueY };
+        // Direction from cue ball to target ball
+        var hitN = { x: tx - cue.p.x, y: ty - cue.p.y };
         var nL = len(hitN.x, hitN.y) || 1;
         hitN.x /= nL; hitN.y /= nL;
+        var impactCueX = tx - hitN.x * BALL_R * 2;
+        var impactCueY = ty - hitN.y * BALL_R * 2;
 
         // Draw contact spot on the target ball
         var hitSpotX = tx - hitN.x * BALL_R;
