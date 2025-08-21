@@ -45,7 +45,7 @@
     #header { position: relative; }
 
     #header { border-bottom: 1px solid #24375f; }
-    #footer { border-top: 1px solid #24375f; }
+    #footer { border-top: 1px solid #24375f; justify-content: center; }
 
     .player {
       display: flex;
@@ -100,6 +100,13 @@
       border-radius: 50%;
       display: block;
     }
+
+    #statusMsg {
+      font-size: 12px;
+      margin-top: 2px;
+    }
+
+    .foul { color: red; }
 
     #wrap {
       position: relative;
@@ -180,7 +187,7 @@
 
     #pullArea {
       position: relative;
-      width: 84px;
+      width: 96px;
       height: 58%;
       border-radius: 14px;
       background: none;
@@ -210,8 +217,8 @@
       /* Position the pull button so that it's half outside the panel */
       left: calc(100% - 1px);
       transform: translateX(-50%);
-      width: 45px;
-      height: 45px;
+      width: 50px;
+      height: 50px;
       border-radius: 50%;
       background: #fff;
       color: #111;
@@ -219,6 +226,7 @@
       align-items: center;
       justify-content: center;
       font-weight: 700;
+      font-size: 14px;
       box-shadow: 0 4px 10px rgba(0,0,0,.3);
       user-select: none;
       opacity: 1;
@@ -227,8 +235,8 @@
     }
 
     #powerBox {
-      width: 8px;
-      height: 18%;
+      width: 10px;
+      height: 20%;
       background: rgba(0,0,0,.4);
       border-radius: 8px;
       position: relative;
@@ -259,7 +267,7 @@
 
     #powerTxt {
       margin-top: 8px;
-      font-size: 12px;
+      font-size: 13px;
       opacity: .85;
       display: flex;
       flex-direction: column;
@@ -337,7 +345,7 @@
       </div>
     </div>
 
-    <div id="wrap">
+  <div id="wrap">
       <canvas id="table"></canvas>
       <div id="cueHint">✋️</div>
 
@@ -359,8 +367,13 @@
     </div>
 
   <div id="footer">
-      <div id="capP1"></div>
-      <div id="capP2"></div>
+      <div id="turnPlayer" class="player">
+        <div class="avatar"></div>
+        <div class="info">
+          <div class="name"></div>
+          <div id="statusMsg"></div>
+        </div>
+      </div>
     </div>
   </div>
   <div id="winnerOverlay" class="winnerOverlay hidden"></div>
@@ -403,8 +416,10 @@
     var ctx       = canvas.getContext('2d');
     var rightPanel= document.getElementById('rightPanel');
     var playBtn   = document.getElementById('play');
-    var capP1     = document.getElementById('capP1');
-    var capP2     = document.getElementById('capP2');
+    var turnPlayer= document.getElementById('turnPlayer');
+    var footerAvatar = turnPlayer.querySelector('.avatar');
+    var footerName   = turnPlayer.querySelector('.name');
+    var statusMsg    = document.getElementById('statusMsg');
     var spinBox   = document.getElementById('spinBox');
     var spinDot   = document.getElementById('spinDot');
     var logoImg   = new Image();
@@ -977,28 +992,6 @@
       }
       render(pottedP1, table.captured[1]);
       render(pottedP2, table.captured[2]);
-      function renderStatus(el, player){
-        var type = assignedTypes[player];
-        var parts = [];
-        if (type) {
-          parts.push(type === 'solid' ? 'Solids' : 'Stripes');
-          var remain = 0;
-          table.balls.forEach(function(b){
-            if (!b || b.n===0 || b.n===8 || b.pocketed) return;
-            if (BALL_BY_N[b.n].t === type) remain++;
-          });
-          parts.push(remain + ' left');
-        } else {
-          parts.push('Open');
-        }
-        if (cueBallFree && table.turn === player) parts.push('Ball in hand');
-        if (freeShots[player] > 0) parts.push(freeShots[player] + ' shot' + (freeShots[player] > 1 ? 's' : ''));
-        el.textContent = parts.join(' | ');
-      }
-
-      renderStatus(capP1, 1);
-      renderStatus(capP2, 2);
-
       function setTarget(el, type){
         el.innerHTML = type ? '' : 'Any';
         if (!type) return;
@@ -1009,6 +1002,24 @@
 
       setTarget(targetP1, assignedTypes[1]);
       setTarget(targetP2, assignedTypes[2]);
+    }
+
+    function updateFooter(player, msg){
+      var srcAvatar = player===1 ? avatarP1 : avatarCPU;
+      footerAvatar.style.cssText = srcAvatar.style.cssText;
+      footerAvatar.textContent = srcAvatar.textContent;
+      footerName.textContent = player===1 ? nameP1.textContent : nameCPU.textContent;
+      statusMsg.innerHTML = msg || '';
+    }
+
+    function showShots(){
+      var shots = freeShots[table.turn];
+      var name = table.turn === 1 ? nameP1.textContent : nameCPU.textContent;
+      if (shots > 0){
+        updateFooter(table.turn, name + ' has ' + shots + ' shot' + (shots > 1 ? 's' : '') + ' remaining');
+      } else {
+        updateFooter(table.turn, '');
+      }
     }
 
     function updateTurnIndicator(force){
@@ -1045,9 +1056,12 @@
       if (scratch) foul = true;
       if (shooterType && hitOpponent) foul = true;
       if (foul) {
+        var foulName = currentShooter===1 ? nameP1.textContent : nameCPU.textContent;
         freeShots[opponent] = 2;
         freeShots[currentShooter] = 0;
         table.turn = opponent;
+        updateFooter(opponent, foulName + ' committed a <span class="foul">Faul</span>');
+        setTimeout(showShots, 300);
       } else {
         if (freeShots[currentShooter] > 0) {
           freeShots[currentShooter]--;
@@ -1057,6 +1071,7 @@
         } else if (!pocketedOwn) {
           table.turn = opponent;
         }
+        showShots();
       }
       pocketedAny = false;
       pocketedOwn = false;
@@ -1083,6 +1098,7 @@
     }
     requestAnimationFrame(loop);
     updateTurnIndicator(true);
+    showShots();
 
     /* ==========================================================
        INPUT – Aiming & Glow
@@ -1266,7 +1282,7 @@
     /* ==========================================================
        PULL & RELEASE – fuqi e goditjes
        ========================================================= */
-    var pulling=false;
+    var pulling=false, pullMoved=false;
     function updatePullHandle(){
       var rect=pullArea.getBoundingClientRect();
       var minY=-pullHandle.offsetHeight*0.6;
@@ -1288,16 +1304,17 @@
       cuePullVisual=power*(BALL_R*14);
       placeAimGlow(table.aim);
     }
-    pullArea.addEventListener('pointerdown', function(e){
+    pullHandle.addEventListener('pointerdown', function(e){
       if (!table.running || table.isMoving()) return;
       pulling=true;
+      pullMoved=false;
       updateFromEvent(e);
     });
-    pullArea.addEventListener('pointermove', function(e){ if (!pulling) return; updateFromEvent(e); });
+    pullArea.addEventListener('pointermove', function(e){ if (!pulling) return; pullMoved=true; updateFromEvent(e); });
     pullArea.addEventListener('pointerup', function(){
       if (!pulling) return;
       pulling=false;
-      shoot(power);
+      if (pullMoved) shoot(power);
       power=0;
       updatePowerUI();
       cuePullVisual=0;
@@ -1383,9 +1400,7 @@
       }
 
       table.aim = { x: cue.p.x + nd.x*100, y: cue.p.y + nd.y*100 };
-      var sx = (Math.random()*2-1)*0.5;
-      var sy = (Math.random()*2-1)*0.5;
-      setSpin(sx, sy);
+      setSpin(0, 0);
       cuePullVisual = power * (BALL_R * 14);
 
       setTimeout(function(){
