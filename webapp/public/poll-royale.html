@@ -121,16 +121,6 @@
       z-index: 4;
     }
 
-    /* Overlay SVG qe vizaton rrjetat e gropave mbi sfond */
-    #netOverlay {
-      position: absolute;
-      inset: 0;
-      width: 100%;
-      height: 100%;
-      pointer-events: none;
-      z-index: 3;
-    }
-
     #cueHint {
       position: absolute;
       z-index: 7;
@@ -318,103 +308,6 @@
     </div>
 
     <div id="wrap">
-      <svg id="netOverlay" viewBox="0 0 768 1216" preserveAspectRatio="xMidYMid slice">
-        <defs>
-          <pattern id="mesh" width="12" height="12" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
-            <line x1="0" y1="0" x2="12" y2="0" stroke="white" stroke-width="1.2" opacity="0.55" />
-            <path d="M0 0v12" stroke="white" stroke-width="1.2" opacity="0.55" />
-          </pattern>
-          <radialGradient id="shade" cx="50%" cy="50%" r="60%">
-            <stop offset="65%" stop-color="#000" stop-opacity=".18" />
-            <stop offset="100%" stop-color="#000" stop-opacity="0" />
-          </radialGradient>
-        </defs>
-        <g id="nets"></g>
-        <script>
-          (function () {
-            const TABLE_W = 768;
-            const TABLE_H = 1216;
-            const BORDER = 57;
-            const BALL_R = 22.5;
-            const BORDER_TOP = BORDER + BALL_R * 2 - 4;
-            const BORDER_BOTTOM = BORDER;
-            const RIM_R = 42;
-            const DEPTH = 50;
-            const pockets = [
-              { x: BORDER, y: BORDER_TOP },
-              { x: TABLE_W / 2, y: BORDER_TOP },
-              { x: TABLE_W - BORDER, y: BORDER_TOP },
-              { x: BORDER, y: TABLE_H - BORDER_BOTTOM },
-              { x: TABLE_W / 2, y: TABLE_H - BORDER_BOTTOM },
-              { x: TABLE_W - BORDER, y: TABLE_H - BORDER_BOTTOM },
-            ];
-
-            const svg = document.currentScript.ownerSVGElement;
-            const defs = svg.querySelector('defs');
-            const g = svg.getElementById('nets');
-            const el = (n, a = {}) => Object.assign(document.createElementNS('http://www.w3.org/2000/svg', n), a);
-
-            pockets.forEach(({ x, y }, i) => {
-              const m = el('mask', { id: `pocket-mask-${i}` });
-              m.append(el('circle', { cx: x, cy: y, r: RIM_R, fill: 'white' }));
-              defs.append(m);
-
-              const group = el('g');
-
-              group.append(el('circle', { cx: x + 3, cy: y + 3, r: RIM_R + 2, fill: 'black', opacity: 0.18 }));
-
-              group.append(
-                el('ellipse', {
-                  cx: x,
-                  cy: y + DEPTH * 0.35,
-                  rx: RIM_R * 0.85,
-                  ry: RIM_R * 0.55,
-                  fill: 'url(#mesh)',
-                  opacity: 0.85,
-                  mask: `url(#pocket-mask-${i})`,
-                }),
-              );
-
-              group.append(
-                el('circle', {
-                  cx: x,
-                  cy: y + DEPTH * 0.25,
-                  r: RIM_R * 0.95,
-                  fill: 'url(#shade)',
-                  mask: `url(#pocket-mask-${i})`,
-                }),
-              );
-
-              group.append(
-                el('circle', {
-                  cx: x,
-                  cy: y,
-                  r: RIM_R,
-                  fill: 'none',
-                  stroke: '#1a1a1a',
-                  'stroke-width': 6,
-                  opacity: 0.9,
-                }),
-              );
-
-              group.append(
-                el('circle', {
-                  cx: x,
-                  cy: y,
-                  r: RIM_R - 5,
-                  fill: 'none',
-                  stroke: '#c2a44b',
-                  'stroke-width': 3,
-                  opacity: 0.9,
-                }),
-              );
-
-              g.append(group);
-            });
-          })();
-        </script>
-      </svg>
-
       <canvas id="table"></canvas>
       <div id="cueHint">✋️</div>
 
