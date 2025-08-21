@@ -28,9 +28,12 @@
       .timer-ring{ position:absolute; inset:-6px; border-radius:50%; background:conic-gradient(#f5cc4e var(--progress,0deg), transparent 0); -webkit-mask:radial-gradient(farthest-side,transparent calc(100% - 6px),#000 calc(100% - 6px)); mask:radial-gradient(farthest-side,transparent calc(100% - 6px),#000 calc(100% - 6px)); pointer-events:none }
       .cards{ display:flex; gap:6px; flex-wrap:nowrap }
       .card{ width:var(--card-w); height:var(--card-h); border-radius:10px; position:relative; flex:0 0 auto; background:#fff; color:#111; font-weight:900; letter-spacing:.3px; box-shadow:0 10px 25px var(--shadow), inset 0 0 0 2px rgba(0,0,0,.08); touch-action:none }
-      .card .tl{ position:absolute; left:8px; top:6px; font-size:calc(var(--card-w)*0.28) }
-      .card .br{ position:absolute; right:8px; bottom:8px; font-size:calc(var(--card-w)*0.3) }
-      .card .big{ position:absolute; left:50%; top:50%; transform:translate(-50%,-50%); font-size:calc(var(--card-w)*0.52); opacity:.9 }
+      .card .corner{ position:absolute; display:flex; flex-direction:column; align-items:center }
+      .card .tl{ left:8px; top:6px }
+      .card .br{ right:8px; bottom:8px; transform:rotate(180deg) }
+      .card .corner .rank{ font-size:calc(var(--card-w)*0.28); line-height:1 }
+      .card .corner .suit{ font-size:calc(var(--card-w)*0.18); line-height:1 }
+      .card .big{ position:absolute; left:50%; top:50%; transform:translate(-50%,-50%); font-size:calc(var(--card-w)*0.52); opacity:.9; filter:drop-shadow(0 0 2px rgba(0,0,0,.4)) }
       .red{ color:#d12d2d }
       .joker{ background:repeating-linear-gradient(45deg,#eee,#eee 6px,#ddd 6px,#ddd 12px); }
       .selected{ outline:3px solid #0ea5e9; transform:translateY(-6px); }
@@ -75,8 +78,8 @@
       border:4px solid #000;
       border-radius:12px;
       padding:4px;
-      background:#14532d;
-      box-shadow:4px 4px 0 #0c2e16;
+      background:#f5f5dc;
+      box-shadow:4px 4px 0 #d4ccb3;
     }
     .seat-inner .avatar{ box-shadow:0 0 0 4px #000; }
     .seat-inner .name{
