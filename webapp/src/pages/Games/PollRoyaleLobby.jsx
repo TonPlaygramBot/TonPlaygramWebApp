@@ -14,6 +14,9 @@ export default function PollRoyaleLobby() {
   const [stake, setStake] = useState({ token: 'TPC', amount: 100 });
   const [mode, setMode] = useState('ai');
   const [avatar, setAvatar] = useState('');
+  const [variant, setVariant] = useState(
+    () => new URLSearchParams(search).get('variant') || 'uk'
+  );
 
   useEffect(() => {
     try {
@@ -42,6 +45,7 @@ export default function PollRoyaleLobby() {
 
     const params = new URLSearchParams();
     params.set('mode', mode);
+    params.set('variant', variant);
     const initData = window.Telegram?.WebApp?.initData;
     if (stake.token) params.set('token', stake.token);
     if (stake.amount) params.set('amount', stake.amount);
@@ -69,7 +73,7 @@ export default function PollRoyaleLobby() {
           {winnerParam === '1' ? 'You won!' : 'CPU won!'}
         </div>
       )}
-      <h2 className="text-xl font-bold text-center">8 Poll Royale Lobby</h2>
+      <h2 className="text-xl font-bold text-center">Pool Royale Lobby</h2>
       <div className="space-y-2">
         <h3 className="font-semibold">Mode</h3>
         <div className="flex gap-2">
@@ -93,6 +97,23 @@ export default function PollRoyaleLobby() {
                 </span>
               )}
             </div>
+          ))}
+        </div>
+      </div>
+      <div className="space-y-2">
+        <h3 className="font-semibold">Variant</h3>
+        <div className="flex gap-2">
+          {[
+            { id: 'uk', label: '8 Pool UK' },
+            { id: 'american', label: 'American Billiards' }
+          ].map(({ id, label }) => (
+            <button
+              key={id}
+              onClick={() => setVariant(id)}
+              className={`lobby-tile ${variant === id ? 'lobby-selected' : ''}`}
+            >
+              {label}
+            </button>
           ))}
         </div>
       </div>

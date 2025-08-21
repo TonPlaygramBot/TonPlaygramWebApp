@@ -389,6 +389,10 @@
   (function(){
     'use strict';
 
+    var params = new URLSearchParams(location.search);
+    var variant = params.get('variant') || 'uk';
+    var isAmerican = variant === 'american';
+
     /* ==========================================================
        KONSTANTA TE LAYOUT-it DHE FIZIKES (sipas portrait)
        ========================================================= */
@@ -465,7 +469,7 @@
       if (avatar) overlay.innerHTML = avatar.outerHTML;
       overlay.classList.remove('hidden');
       coinConfetti(50);
-      setTimeout(function(){ location.href = '/games/pollroyale/lobby?winner=' + winner; },2000);
+      setTimeout(function(){ location.href = '/games/pollroyale/lobby?winner=' + winner + '&variant=' + variant; },2000);
     }
 
     // --------------------------------------------------
@@ -1057,9 +1061,10 @@
       if (shooterType && hitOpponent) foul = true;
       if (foul) {
         var foulName = currentShooter===1 ? nameP1.textContent : nameCPU.textContent;
-        freeShots[opponent] = 2;
+        freeShots[opponent] = isAmerican ? 1 : 2;
         freeShots[currentShooter] = 0;
         table.turn = opponent;
+        if (isAmerican) cueBallFree = true;
         updateFooter(opponent, foulName + ' committed a <span class="foul">Faul</span>');
         setTimeout(showShots, 300);
       } else {
@@ -1127,7 +1132,8 @@
       var cue = table.balls[0];
       if (draggingCue && cueBallFree) {
         var minX = BORDER + BALL_R, maxX = TABLE_W - BORDER - BALL_R;
-        var minY = LINE_Y + BALL_R, maxY = TABLE_H - BORDER_BOTTOM - BALL_R;
+        var minY = (isAmerican ? BORDER_TOP : LINE_Y) + BALL_R,
+            maxY = TABLE_H - BORDER_BOTTOM - BALL_R;
         cue.p.x = clamp(t.x, minX, maxX);
         cue.p.y = clamp(t.y, minY, maxY);
         return;
