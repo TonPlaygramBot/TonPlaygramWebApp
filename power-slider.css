@@ -116,12 +116,14 @@
   font-size: 10px;
   color: #fff;
   line-height: 1;
+  transform: translateX(-1px);
 }
 
 .ps-cue-img {
   margin-top: 2px;
   width: 36px;
   height: auto;
+  transform: translateX(1px);
 }
 
 .ps-tooltip {
