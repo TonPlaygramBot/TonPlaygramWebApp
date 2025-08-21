@@ -643,6 +643,8 @@ function showControls() {
     slider.addEventListener('input', () => {
       const amt = document.getElementById('raiseSliderAmount');
       if (amt) amt.innerHTML = formatAmount(slider.value);
+      const text = document.getElementById('raiseAmountText');
+      if (text && state.raiseAmount === 0) text.innerHTML = formatAmount(slider.value);
       setStatus(
         'raise',
         slider.value > 0 ? `Raise ${formatAmount(slider.value)}` : ''
@@ -789,6 +791,12 @@ function showControls() {
 function updateRaiseAmount() {
   const amtEl = document.getElementById('raiseAmountText');
   if (amtEl) amtEl.innerHTML = formatAmount(state.raiseAmount);
+  const slider = document.getElementById('raiseSlider');
+  if (slider) {
+    slider.value = state.raiseAmount;
+    const sliderAmt = document.getElementById('raiseSliderAmount');
+    if (sliderAmt) sliderAmt.innerHTML = formatAmount(state.raiseAmount);
+  }
   setStatus(
     'raise',
     state.raiseAmount > 0 ? `Raise ${formatAmount(state.raiseAmount)}` : ''
