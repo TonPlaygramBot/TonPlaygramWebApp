@@ -244,9 +244,8 @@
       position: absolute;
       left: 50%;
       top: 0;
-      width: 60px;
-      transform: translate(-50%, 0) rotate(-90deg);
-      transform-origin: center;
+      transform: translate(-50%, 0);
+      transform-origin: top center;
       pointer-events: none;
       z-index: 6;
     }
@@ -1122,7 +1121,7 @@
       var maxY=rect.height-pullHandle.offsetHeight*0.4;
       var y=minY+(maxY-minY)*power;
       pullHandle.style.top=y+'px';
-      powerCue.style.top=y+'px';
+      powerCue.style.top=(y + pullHandle.offsetHeight)+'px';
     }
     function updatePowerUI(){
         powerFill.style.height = Math.round(power*100)+'%';
