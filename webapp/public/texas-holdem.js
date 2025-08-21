@@ -61,6 +61,8 @@ function applySettings() {
   if (callRaise) callRaise.volume = settings.muteChips ? 0 : settings.chipVolume;
   const allIn = document.getElementById('sndAllIn');
   if (allIn) allIn.volume = settings.muteChips ? 0 : settings.chipVolume;
+  const fold = document.getElementById('sndFold');
+  if (fold) fold.volume = settings.muteChips ? 0 : settings.chipVolume;
   const timer = document.getElementById('sndTimer');
   if (timer) timer.volume = settings.muteOthers ? 0 : 1;
   const knock = document.getElementById('sndKnock');
@@ -155,6 +157,15 @@ function playCallRaiseSound() {
 
 function playAllInSound() {
   const snd = document.getElementById('sndAllIn');
+  if (snd && !settings.muteChips) {
+    snd.volume = settings.chipVolume;
+    snd.currentTime = 0;
+    snd.play();
+  }
+}
+
+function playFoldSound() {
+  const snd = document.getElementById('sndFold');
   if (snd && !settings.muteChips) {
     snd.volume = settings.chipVolume;
     snd.currentTime = 0;
@@ -589,7 +600,7 @@ function moveCardsToFolded(idx) {
       { once: true }
     );
   });
-  playFlipSound();
+  playFoldSound();
 }
 
 function setPlayerTurnIndicator(idx) {
