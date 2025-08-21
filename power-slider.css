@@ -121,9 +121,9 @@
 
 .ps-cue-img {
   margin-top: 2px;
-  width: 36px;
+  width: 40px;
   height: auto;
-  transform: translateX(4px);
+  transform: translateX(6px);
 }
 
 .ps-tooltip {
