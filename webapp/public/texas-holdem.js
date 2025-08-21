@@ -35,7 +35,6 @@ const DEFAULT_SETTINGS = {
   chipVolume: 1,
   playerColor: '#f5f5dc',
   cardBackColor: '#233',
-  cardFrontColor: '#fff',
 };
 const COLOR_OPTIONS = ['#f5f5dc','#f87171','#60a5fa','#a78bfa','#34d399','#fbbf24','#c084fc','#f472b6','#4ade80','#94a3b8'];
 
@@ -56,7 +55,6 @@ function saveSettings() {
 function applySettings() {
   document.documentElement.style.setProperty('--seat-bg-color', settings.playerColor);
   document.documentElement.style.setProperty('--card-back-color', settings.cardBackColor);
-  document.documentElement.style.setProperty('--card-front-color', settings.cardFrontColor);
   const flip = document.getElementById('sndFlip');
   if (flip) flip.volume = settings.muteCards ? 0 : settings.cardVolume;
   const callRaise = document.getElementById('sndCallRaise');
@@ -83,13 +81,14 @@ function initSettingsMenu() {
   const muteOthers = document.getElementById('muteOthers');
   const playerColor = document.getElementById('playerColor');
   const cardBackColor = document.getElementById('cardBackColor');
-  const cardFrontColor = document.getElementById('cardFrontColor');
+  const saveBtn = document.getElementById('saveSettings');
+  const resetBtn = document.getElementById('resetSettings');
 
   function populate(select, value) {
     COLOR_OPTIONS.forEach((c) => {
       const opt = document.createElement('option');
       opt.value = c;
-      opt.textContent = c;
+      opt.textContent = '';
       opt.style.backgroundColor = c;
       select.appendChild(opt);
     });
@@ -98,22 +97,38 @@ function initSettingsMenu() {
 
   populate(playerColor, settings.playerColor);
   populate(cardBackColor, settings.cardBackColor);
-  populate(cardFrontColor, settings.cardFrontColor);
 
-  muteCards.checked = settings.muteCards;
-  cardVolume.value = settings.cardVolume;
-  muteChips.checked = settings.muteChips;
-  chipVolume.value = settings.chipVolume;
-  muteOthers.checked = settings.muteOthers;
+  function updateControls() {
+    muteCards.checked = settings.muteCards;
+    cardVolume.value = settings.cardVolume;
+    muteChips.checked = settings.muteChips;
+    chipVolume.value = settings.chipVolume;
+    muteOthers.checked = settings.muteOthers;
+    playerColor.value = settings.playerColor;
+    cardBackColor.value = settings.cardBackColor;
+  }
 
-  muteCards.addEventListener('change', (e) => { settings.muteCards = e.target.checked; saveSettings(); applySettings(); });
-  cardVolume.addEventListener('input', (e) => { settings.cardVolume = parseFloat(e.target.value); saveSettings(); applySettings(); });
-  muteChips.addEventListener('change', (e) => { settings.muteChips = e.target.checked; saveSettings(); applySettings(); });
-  chipVolume.addEventListener('input', (e) => { settings.chipVolume = parseFloat(e.target.value); saveSettings(); applySettings(); });
-  muteOthers.addEventListener('change', (e) => { settings.muteOthers = e.target.checked; saveSettings(); applySettings(); });
-  playerColor.addEventListener('change', (e) => { settings.playerColor = e.target.value; saveSettings(); applySettings(); });
-  cardBackColor.addEventListener('change', (e) => { settings.cardBackColor = e.target.value; saveSettings(); applySettings(); });
-  cardFrontColor.addEventListener('change', (e) => { settings.cardFrontColor = e.target.value; saveSettings(); applySettings(); });
+  updateControls();
+
+  muteCards.addEventListener('change', (e) => { settings.muteCards = e.target.checked; applySettings(); });
+  cardVolume.addEventListener('input', (e) => { settings.cardVolume = parseFloat(e.target.value); applySettings(); });
+  muteChips.addEventListener('change', (e) => { settings.muteChips = e.target.checked; applySettings(); });
+  chipVolume.addEventListener('input', (e) => { settings.chipVolume = parseFloat(e.target.value); applySettings(); });
+  muteOthers.addEventListener('change', (e) => { settings.muteOthers = e.target.checked; applySettings(); });
+  playerColor.addEventListener('change', (e) => { settings.playerColor = e.target.value; applySettings(); });
+  cardBackColor.addEventListener('change', (e) => { settings.cardBackColor = e.target.value; applySettings(); });
+
+  saveBtn?.addEventListener('click', () => {
+    saveSettings();
+    panel.classList.remove('active');
+  });
+
+  resetBtn?.addEventListener('click', () => {
+    settings = { ...DEFAULT_SETTINGS };
+    updateControls();
+    saveSettings();
+    applySettings();
+  });
 }
 
 let myAccountId = '';
@@ -1086,10 +1101,6 @@ async function showdown() {
 
 document.getElementById('lobbyIcon')?.addEventListener('click', () => {
   location.href = '/games/texasholdem/lobby';
-});
-document.getElementById('leaveSeatBtn')?.addEventListener('click', () => {
-  state.seated = false;
-  init();
 });
 document.addEventListener('DOMContentLoaded', () => {
   initSettingsMenu();
