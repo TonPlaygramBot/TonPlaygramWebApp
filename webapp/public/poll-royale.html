@@ -464,6 +464,8 @@
     function endGame(winner){
       table.running = false;
       shotInProgress = false;
+      clearInterval(timerId);
+      timerAudio.pause();
       var overlay = document.getElementById('winnerOverlay');
       var avatar = winner===1 ? avatarP1 : avatarCPU;
       if (avatar) overlay.innerHTML = avatar.outerHTML;
@@ -822,9 +824,8 @@
               pocketedAny = true;
               this.captured[currentShooter].push(b2.n);
               var tType = BALL_BY_N[b2.n].t;
-              if (!assignedTypes[1] && tType !== 'eight') {
-                assignedTypes[currentShooter] = tType;
-                assignedTypes[currentShooter===1?2:1] = (tType==='solid'?'stripe':'solid');
+              if (!assignedTypes[1] && (tType === 'solid' || tType === 'stripe')) {
+                pocketedTypes[tType] = true;
               }
               if (assignedTypes[currentShooter] === tType) pocketedOwn = true;
             }
@@ -954,11 +955,16 @@
     var pocketedOwn = false;
     var scratch = false;
     var assignedTypes = {1:null,2:null};
+    var pocketedTypes = { solid:false, stripe:false };
     var freeShots = {1:0,2:0};
     var firstHit = null;
     var hitOpponent = false;
     var lastTurn = table.turn;
     var cpuThinking = false;
+    var timerId = null;
+    var timeLeft = 0;
+    var timerAudio = new Audio('/assets/sounds/clock-ticking-60-second-countdown-118231.mp3');
+    timerAudio.loop = true;
 
     function createMiniBall(n){
       var info = BALL_BY_N[n];
@@ -1008,6 +1014,12 @@
       setTarget(targetP2, assignedTypes[2]);
     }
 
+    function assignTypes(choice, player){
+      assignedTypes[player] = choice;
+      assignedTypes[player===1?2:1] = (choice==='solid'?'stripe':'solid');
+      updateCapturedUI();
+    }
+
     function updateFooter(player, msg){
       var srcAvatar = player===1 ? avatarP1 : avatarCPU;
       footerAvatar.style.cssText = srcAvatar.style.cssText;
@@ -1026,12 +1038,37 @@
       }
     }
 
+    function startTurnTimer(player){
+      clearInterval(timerId);
+      timerAudio.pause();
+      timerAudio.currentTime = 0;
+      timeLeft = player===2 ? 2 : 30;
+      var name = player===1 ? nameP1.textContent : nameCPU.textContent;
+      updateFooter(player, name + ' - ' + timeLeft + 's');
+      timerId = setInterval(function(){
+        timeLeft--;
+        var nm = player===1 ? nameP1.textContent : nameCPU.textContent;
+        updateFooter(player, nm + ' - ' + timeLeft + 's');
+        if (timeLeft <=5 && timeLeft >0){ timerAudio.play().catch(function(){}); }
+        if (timeLeft <=0){
+          clearInterval(timerId);
+          timerAudio.pause(); timerAudio.currentTime = 0;
+          if (table.turn === player && !shotInProgress){
+            table.turn = player===1 ? 2 : 1;
+            showShots();
+            updateTurnIndicator(true);
+          }
+        }
+      },1000);
+    }
+
     function updateTurnIndicator(force){
       if (force || table.turn !== lastTurn){
         avatarP1.classList.toggle('turn', table.turn === 1);
         avatarCPU.classList.toggle('turn', table.turn === 2);
         if (!force) playTurnSound();
         lastTurn = table.turn;
+        startTurnTimer(table.turn);
       }
     }
 
@@ -1054,6 +1091,23 @@
     function endShot(){
       shotInProgress = false;
       var opponent = currentShooter===1 ? 2 : 1;
+      if (!assignedTypes[1] && pocketedAny){
+        if (pocketedTypes.solid && pocketedTypes.stripe){
+          updateFooter(currentShooter, 'Choose solids or stripes');
+          var choice;
+          if (currentShooter===1){
+            choice = prompt('Choose your type: solid or stripe', 'solid');
+            if (choice !== 'solid' && choice !== 'stripe') choice = 'solid';
+          } else {
+            choice = Math.random() < 0.5 ? 'solid' : 'stripe';
+          }
+          assignTypes(choice, currentShooter);
+        } else {
+          var c = pocketedTypes.solid ? 'solid' : (pocketedTypes.stripe ? 'stripe' : null);
+          if (c) assignTypes(c, currentShooter);
+        }
+        pocketedOwn = true;
+      }
       var shooterType = assignedTypes[currentShooter];
       var foul = false;
       if (!firstHit || (shooterType && firstHit.t !== shooterType && firstHit.t !== 'eight')) foul = true;
@@ -1083,6 +1137,8 @@
       scratch = false;
       firstHit = null;
       hitOpponent = false;
+      pocketedTypes = {solid:false,stripe:false};
+      startTurnTimer(table.turn);
     }
 
     /* ==========================================================
@@ -1336,7 +1392,10 @@
       playCueHit(p);
       currentShooter = table.turn;
       shotInProgress = true;
-      pocketedAny = false; pocketedOwn = false; scratch = false; firstHit = null; hitOpponent = false;
+      clearInterval(timerId);
+      timerAudio.pause();
+      timerAudio.currentTime = 0;
+      pocketedAny = false; pocketedOwn = false; scratch = false; firstHit = null; hitOpponent = false; pocketedTypes = {solid:false,stripe:false};
       cue.v.x = d.x*base*(0.25+0.75*p);
       cue.v.y = d.y*base*(0.25+0.75*p);
       // Double the spin effect in all directions
@@ -1406,7 +1465,8 @@
       }
 
       table.aim = { x: cue.p.x + nd.x*100, y: cue.p.y + nd.y*100 };
-      setSpin(0, 0);
+      var sx = -nd.y*0.3, sy = nd.x*0.3;
+      setSpin(sx, sy);
       cuePullVisual = power * (BALL_R * 14);
 
       setTimeout(function(){
