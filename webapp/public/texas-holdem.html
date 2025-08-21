@@ -11,6 +11,9 @@
       --card-w: calc(clamp(44px, 9.6vw, 70px) * var(--card-scale));
       --card-h: calc(var(--card-w)*1.45);
       --avatar-size: calc(54px * var(--avatar-scale));
+      --seat-bg-color:#f5f5dc;
+      --card-back-color:#233;
+      --card-front-color:#fff;
     }
     *{box-sizing:border-box}
     html,body{height:100%;margin:0}
@@ -28,7 +31,7 @@
       .avatar-wrap{ position:relative; width:var(--avatar-size); height:var(--avatar-size); display:grid; place-items:center; }
       .timer-ring{ position:absolute; inset:-6px; border-radius:50%; background:conic-gradient(#f5cc4e var(--progress,0deg), transparent 0); -webkit-mask:radial-gradient(farthest-side,transparent calc(100% - 6px),#000 calc(100% - 6px)); mask:radial-gradient(farthest-side,transparent calc(100% - 6px),#000 calc(100% - 6px)); pointer-events:none }
       .cards{ display:flex; gap:6px; flex-wrap:nowrap }
-      .card{ width:var(--card-w); height:var(--card-h); border-radius:10px; position:relative; flex:0 0 auto; background:#fff; color:#111; font-weight:900; letter-spacing:.3px; box-shadow:0 10px 25px var(--shadow), inset 0 0 0 2px rgba(0,0,0,.08); touch-action:none }
+      .card{ width:var(--card-w); height:var(--card-h); border-radius:10px; position:relative; flex:0 0 auto; background:var(--card-front-color); color:#111; font-weight:900; letter-spacing:.3px; box-shadow:0 10px 25px var(--shadow), inset 0 0 0 2px rgba(0,0,0,.08); touch-action:none }
       .card .corner{ position:absolute; display:flex; flex-direction:column; align-items:center }
       .card .tl{ left:8px; top:6px }
       .card .br{ right:8px; bottom:8px; transform:rotate(180deg) }
@@ -39,7 +42,7 @@
       .joker{ background:repeating-linear-gradient(45deg,#eee,#eee 6px,#ddd 6px,#ddd 12px); }
       .selected{ outline:3px solid #0ea5e9; transform:translateY(-6px); }
       .suggested{ outline:3px dashed #2563eb; }
-      .card.back{ background:url('assets/icons/file_00000000bc2862439eecffff3730bbe4.webp') center/90% no-repeat, repeating-linear-gradient(45deg,#233,#233 6px,#122 6px,#122 12px); border:2px solid rgba(255,255,255,.5); color:transparent; }
+      .card.back{ background:url('assets/icons/file_00000000bc2862439eecffff3730bbe4.webp') center/90% no-repeat, repeating-linear-gradient(45deg,var(--card-back-color),var(--card-back-color) 6px,#122 6px,#122 12px); border:2px solid rgba(255,255,255,.5); color:transparent; }
       .card.back::before{ content:""; position:absolute; inset:6px; border-radius:8px; border:2px dashed rgba(255,255,255,.35); }
 /* Winner highlight styles + seating layout */
 
@@ -79,7 +82,7 @@
       border:4px solid #000;
       border-radius:12px;
       padding:4px;
-      background:#f5f5dc;
+      background:var(--seat-bg-color);
       box-shadow:4px 4px 0 #d4ccb3;
     }
     .seat-inner .avatar{ box-shadow:0 0 0 4px #000; }
@@ -159,6 +162,11 @@
     .top-controls button img{width:24px;height:24px}
     .seat.vacant .vacant-seat{width:var(--avatar-size);height:var(--avatar-size);border-radius:50%;border:4px solid #000;background:#facc15;color:#16a34a;font-weight:700;display:flex;align-items:center;justify-content:center}
 
+    .settings-panel{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);background:#fff;color:#000;padding:16px;border:2px solid #000;border-radius:8px;z-index:20;display:none;min-width:200px;}
+    .settings-panel.active{display:block}
+    .settings-panel label{display:flex;align-items:center;gap:6px;margin-top:8px}
+    .settings-panel select,.settings-panel input[type=range]{margin-left:6px}
+
     .pot-wrap{ position:absolute; left:50%; top:33%; transform:translate(-50%,-50%); display:flex; flex-direction:column; align-items:center; gap:4px; z-index:2; }
     .pot{ display:flex; gap:4px; }
     .pot-total{ font-size:14px; }
@@ -197,8 +205,20 @@
   <audio id="sndFlip" src="assets/sounds/flipcard-91468.mp3"></audio>
   <audio id="sndKnock" src="assets/sounds/wooden-door-knock-102902.mp3"></audio>
   <div class="top-controls">
+    <button id="settingsBtn">⚙️</button>
     <button id="lobbyIcon"><img src="assets/icons/texas-holdem.svg" alt="Lobby"/></button>
     <button id="leaveSeatBtn">Leave</button>
+  </div>
+  <div id="settingsPanel" class="settings-panel">
+    <label><input type="checkbox" id="muteCards"/> Mute Cards</label>
+    <label>Card Volume<input type="range" id="cardVolume" min="0" max="1" step="0.1"/></label>
+    <label><input type="checkbox" id="muteChips"/> Mute Chips</label>
+    <label>Chip Volume<input type="range" id="chipVolume" min="0" max="1" step="0.1"/></label>
+    <label><input type="checkbox" id="muteOthers"/> Mute Other Sounds</label>
+    <label>Player Frame<select id="playerColor"></select></label>
+    <label>Card Back<select id="cardBackColor"></select></label>
+    <label>Card Front<select id="cardFrontColor"></select></label>
+    <button id="closeSettings">Close</button>
   </div>
     <script src="/flag-emojis.js"></script>
     <script src="/falling-ball-api.js"></script>
