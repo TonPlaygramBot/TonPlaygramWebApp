@@ -242,9 +242,13 @@
 
     #powerCue {
       position: absolute;
+      left: 50%;
       top: 0;
-      right: -4px;
       width: 60px;
+      transform: translate(-50%, 0) rotate(-90deg);
+      transform-origin: center;
+      pointer-events: none;
+      z-index: 6;
     }
 
     #powerTxt {
@@ -489,7 +493,7 @@
       sX = cw / TABLE_W; sY = ch / TABLE_H;
       pocketR = POCKET_R * ((sX + sY) / 2);
       ballR   = BALL_R   * ((sX + sY) / 2);
-      powerCue.style.width = (BALL_R * 20 * sX) + 'px';
+      powerCue.style.height = (BALL_R * 20 * sX) + 'px';
       updatePullHandle();
     }
     window.addEventListener('resize', resize);
