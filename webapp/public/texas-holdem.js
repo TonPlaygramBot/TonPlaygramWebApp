@@ -122,17 +122,34 @@ function cardFaceEl(c) {
     'card' +
     ((c.s === '♥' || c.s === '♦') ? ' red' : '') +
     ((c.r === 'RJ' || c.r === 'BJ') ? ' joker' : '');
+
+  const rankText = c.r === 'BJ' ? 'JB' : c.r === 'RJ' ? 'JR' : c.r;
+  const suitText = c.s === '🃏' ? '' : c.s;
+
   const tl = document.createElement('div');
-  tl.className = 'tl';
-  tl.textContent =
-    (c.r === 'BJ' ? 'JB' : c.r === 'RJ' ? 'JR' : c.r) +
-    (c.s === '🃏' ? '' : c.s);
+  tl.className = 'tl corner';
+  const tlRank = document.createElement('div');
+  tlRank.className = 'rank';
+  tlRank.textContent = rankText;
+  const tlSuit = document.createElement('div');
+  tlSuit.className = 'suit';
+  tlSuit.textContent = suitText;
+  tl.append(tlRank, tlSuit);
+
   const br = document.createElement('div');
-  br.className = 'br';
-  br.textContent = c.s === '🃏' ? '🃏' : c.s;
+  br.className = 'br corner';
+  const brRank = document.createElement('div');
+  brRank.className = 'rank';
+  brRank.textContent = rankText;
+  const brSuit = document.createElement('div');
+  brSuit.className = 'suit';
+  brSuit.textContent = suitText;
+  br.append(brRank, brSuit);
+
   const big = document.createElement('div');
   big.className = 'big';
   big.textContent = c.s === '🃏' ? '🃏' : c.s;
+
   d.append(tl, big, br);
   return d;
 }
