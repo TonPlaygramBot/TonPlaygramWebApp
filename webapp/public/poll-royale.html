@@ -1140,8 +1140,8 @@
         var tx = target.p.x, ty = target.p.y;
         var impactCueX = cue.p.x + dir.x * step * hitStep;
         var impactCueY = cue.p.y + dir.y * step * hitStep;
-        // Direction from cue ball to target ball at impact
-        var hitN = { x: tx - impactCueX, y: ty - impactCueY };
+        // Direction from cue ball to target ball
+        var hitN = { x: tx - cue.p.x, y: ty - cue.p.y };
         var nL = len(hitN.x, hitN.y) || 1;
         hitN.x /= nL; hitN.y /= nL;
 
