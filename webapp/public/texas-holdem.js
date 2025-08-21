@@ -27,6 +27,95 @@ const state = {
   seated: true,
 };
 
+const DEFAULT_SETTINGS = {
+  muteCards: false,
+  muteChips: false,
+  muteOthers: false,
+  cardVolume: 1,
+  chipVolume: 1,
+  playerColor: '#f5f5dc',
+  cardBackColor: '#233',
+  cardFrontColor: '#fff',
+};
+const COLOR_OPTIONS = ['#f5f5dc','#f87171','#60a5fa','#a78bfa','#34d399','#fbbf24','#c084fc','#f472b6','#4ade80','#94a3b8'];
+
+function loadSettings() {
+  try {
+    return { ...DEFAULT_SETTINGS, ...(JSON.parse(localStorage.getItem('thSettings')) || {}) };
+  } catch {
+    return { ...DEFAULT_SETTINGS };
+  }
+}
+
+let settings = loadSettings();
+
+function saveSettings() {
+  try { localStorage.setItem('thSettings', JSON.stringify(settings)); } catch {}
+}
+
+function applySettings() {
+  document.documentElement.style.setProperty('--seat-bg-color', settings.playerColor);
+  document.documentElement.style.setProperty('--card-back-color', settings.cardBackColor);
+  document.documentElement.style.setProperty('--card-front-color', settings.cardFrontColor);
+  const flip = document.getElementById('sndFlip');
+  if (flip) flip.volume = settings.muteCards ? 0 : settings.cardVolume;
+  const callRaise = document.getElementById('sndCallRaise');
+  if (callRaise) callRaise.volume = settings.muteChips ? 0 : settings.chipVolume;
+  const allIn = document.getElementById('sndAllIn');
+  if (allIn) allIn.volume = settings.muteChips ? 0 : settings.chipVolume;
+  const timer = document.getElementById('sndTimer');
+  if (timer) timer.volume = settings.muteOthers ? 0 : 1;
+  const knock = document.getElementById('sndKnock');
+  if (knock) knock.volume = settings.muteOthers ? 0 : 1;
+}
+
+function initSettingsMenu() {
+  const panel = document.getElementById('settingsPanel');
+  const btn = document.getElementById('settingsBtn');
+  const close = document.getElementById('closeSettings');
+  btn?.addEventListener('click', () => panel.classList.add('active'));
+  close?.addEventListener('click', () => panel.classList.remove('active'));
+
+  const muteCards = document.getElementById('muteCards');
+  const cardVolume = document.getElementById('cardVolume');
+  const muteChips = document.getElementById('muteChips');
+  const chipVolume = document.getElementById('chipVolume');
+  const muteOthers = document.getElementById('muteOthers');
+  const playerColor = document.getElementById('playerColor');
+  const cardBackColor = document.getElementById('cardBackColor');
+  const cardFrontColor = document.getElementById('cardFrontColor');
+
+  function populate(select, value) {
+    COLOR_OPTIONS.forEach((c) => {
+      const opt = document.createElement('option');
+      opt.value = c;
+      opt.textContent = c;
+      opt.style.backgroundColor = c;
+      select.appendChild(opt);
+    });
+    select.value = value;
+  }
+
+  populate(playerColor, settings.playerColor);
+  populate(cardBackColor, settings.cardBackColor);
+  populate(cardFrontColor, settings.cardFrontColor);
+
+  muteCards.checked = settings.muteCards;
+  cardVolume.value = settings.cardVolume;
+  muteChips.checked = settings.muteChips;
+  chipVolume.value = settings.chipVolume;
+  muteOthers.checked = settings.muteOthers;
+
+  muteCards.addEventListener('change', (e) => { settings.muteCards = e.target.checked; saveSettings(); applySettings(); });
+  cardVolume.addEventListener('input', (e) => { settings.cardVolume = parseFloat(e.target.value); saveSettings(); applySettings(); });
+  muteChips.addEventListener('change', (e) => { settings.muteChips = e.target.checked; saveSettings(); applySettings(); });
+  chipVolume.addEventListener('input', (e) => { settings.chipVolume = parseFloat(e.target.value); saveSettings(); applySettings(); });
+  muteOthers.addEventListener('change', (e) => { settings.muteOthers = e.target.checked; saveSettings(); applySettings(); });
+  playerColor.addEventListener('change', (e) => { settings.playerColor = e.target.value; saveSettings(); applySettings(); });
+  cardBackColor.addEventListener('change', (e) => { settings.cardBackColor = e.target.value; saveSettings(); applySettings(); });
+  cardFrontColor.addEventListener('change', (e) => { settings.cardFrontColor = e.target.value; saveSettings(); applySettings(); });
+}
+
 let myAccountId = '';
 let myTelegramId;
 let devAccountId;
@@ -42,7 +131,8 @@ async function awardDevShare(total) {
 
 function playCallRaiseSound() {
   const snd = document.getElementById('sndCallRaise');
-  if (snd) {
+  if (snd && !settings.muteChips) {
+    snd.volume = settings.chipVolume;
     snd.currentTime = 0;
     snd.play();
   }
@@ -50,7 +140,8 @@ function playCallRaiseSound() {
 
 function playAllInSound() {
   const snd = document.getElementById('sndAllIn');
-  if (snd) {
+  if (snd && !settings.muteChips) {
+    snd.volume = settings.chipVolume;
     snd.currentTime = 0;
     snd.play();
   }
@@ -58,7 +149,8 @@ function playAllInSound() {
 
 function playFlipSound() {
   const snd = document.getElementById('sndFlip');
-  if (snd) {
+  if (snd && !settings.muteCards) {
+    snd.volume = settings.cardVolume;
     snd.currentTime = 0;
     snd.play();
   }
@@ -66,7 +158,8 @@ function playFlipSound() {
 
 function playKnockSound() {
   const snd = document.getElementById('sndKnock');
-  if (snd) {
+  if (snd && !settings.muteOthers) {
+    snd.volume = 1;
     snd.currentTime = 1;
     snd.play();
     setTimeout(() => snd.pause(), 2000);
@@ -752,7 +845,8 @@ function startTurnTimer(onTimeout) {
   clearInterval(state.timerInterval);
   state.timerInterval = setInterval(() => {
     state.turnTime--;
-    if (state.turnTime <= 7 && state.turnTime > 0) {
+    if (state.turnTime <= 7 && state.turnTime > 0 && !settings.muteOthers) {
+      snd.volume = 1;
       snd.currentTime = 0;
       snd.play();
     }
@@ -997,7 +1091,11 @@ document.getElementById('leaveSeatBtn')?.addEventListener('click', () => {
   state.seated = false;
   init();
 });
-document.addEventListener('DOMContentLoaded', init);
+document.addEventListener('DOMContentLoaded', () => {
+  initSettingsMenu();
+  applySettings();
+  init();
+});
 
 function joinSeat() {
   state.seated = true;
