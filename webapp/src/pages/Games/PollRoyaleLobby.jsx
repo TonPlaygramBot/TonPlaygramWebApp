@@ -75,15 +75,24 @@ export default function PollRoyaleLobby() {
         <div className="flex gap-2">
           {[
             { id: 'ai', label: 'Vs AI' },
-            { id: 'online', label: '1v1 Online' }
-          ].map(({ id, label }) => (
-            <button
-              key={id}
-              onClick={() => setMode(id)}
-              className={`lobby-tile ${mode === id ? 'lobby-selected' : ''}`}
-            >
-              {label}
-            </button>
+            { id: 'online', label: '1v1 Online', disabled: true }
+          ].map(({ id, label, disabled }) => (
+            <div key={id} className="relative">
+              <button
+                onClick={() => !disabled && setMode(id)}
+                className={`lobby-tile ${mode === id ? 'lobby-selected' : ''} ${
+                  disabled ? 'opacity-50 cursor-not-allowed' : ''
+                }`}
+                disabled={disabled}
+              >
+                {label}
+              </button>
+              {disabled && (
+                <span className="absolute inset-0 flex items-center justify-center text-xs bg-black bg-opacity-50 text-background">
+                  Under development
+                </span>
+              )}
+            </div>
           ))}
         </div>
       </div>
