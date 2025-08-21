@@ -124,27 +124,19 @@ function cardFaceEl(c) {
     ((c.r === 'RJ' || c.r === 'BJ') ? ' joker' : '');
 
   const rankText = c.r === 'BJ' ? 'JB' : c.r === 'RJ' ? 'JR' : c.r;
-  const suitText = c.s === '🃏' ? '' : c.s;
-
   const tl = document.createElement('div');
   tl.className = 'tl corner';
   const tlRank = document.createElement('div');
   tlRank.className = 'rank';
   tlRank.textContent = rankText;
-  const tlSuit = document.createElement('div');
-  tlSuit.className = 'suit';
-  tlSuit.textContent = suitText;
-  tl.append(tlRank, tlSuit);
+  tl.append(tlRank);
 
   const br = document.createElement('div');
   br.className = 'br corner';
   const brRank = document.createElement('div');
   brRank.className = 'rank';
   brRank.textContent = rankText;
-  const brSuit = document.createElement('div');
-  brSuit.className = 'suit';
-  brSuit.textContent = suitText;
-  br.append(brRank, brSuit);
+  br.append(brRank);
 
   const big = document.createElement('div');
   big.className = 'big';
