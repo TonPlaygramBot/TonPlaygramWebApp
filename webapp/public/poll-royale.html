@@ -209,13 +209,13 @@
       }
 
       #spinBox {
-        width: 50px;
-        height: 50px;
+        width: 60px;
+        height: 60px;
         border-radius: 50%;
         background: #f6f6f6;
         position: absolute;
         left: 50%;
-        top: 88%;
+        top: 92%;
         transform: translate(-50%, -50%);
         box-shadow:
           0 4px 10px rgba(0, 0, 0, 0.4) inset,
@@ -265,8 +265,8 @@
       #pullHandle {
         position: absolute;
         /* Position the pull button so that it's half outside the panel */
-        left: calc(100% - 1px);
-        transform: translateX(-50%);
+        left: calc(100% - 3px);
+        transform: translate(-50%, -2px);
         width: 58px;
         height: 58px;
         border-radius: 50%;
@@ -277,7 +277,7 @@
         justify-content: center;
         font-weight: 700;
         font-size: 16px;
-        padding-left: 3px;
+        padding-left: 1px;
         box-shadow: none;
         user-select: none;
         opacity: 1;
@@ -308,7 +308,7 @@
       #powerCue {
         position: absolute;
         /* Align cue image with pull handle and power text along the right edge */
-        left: calc(100% - 1px);
+        left: calc(100% - 4px);
         top: 0;
         transform: translate(-50%, 0);
         transform-origin: top center;
@@ -841,7 +841,7 @@
           sY = ch / TABLE_H;
           pocketR = POCKET_R * ((sX + sY) / 2);
           ballR = BALL_R * ((sX + sY) / 2);
-          powerCue.style.height = BALL_R * 25 * sX + 'px';
+          powerCue.style.height = BALL_R * 28 * sX + 'px';
           updatePullHandle();
         }
         window.addEventListener('resize', resize);
@@ -2192,7 +2192,7 @@
           var cue = table.balls[0];
           if (!cue || cue.pocketed) return;
           var d = norm(table.aim.x - cue.p.x, table.aim.y - cue.p.y);
-          var base = 950 * 3 * 1.6; // slight power boost
+          var base = 950 * 3 * 1.6 * 1.5; // 50% power boost
           playCueHit(p);
           currentShooter = table.turn;
           if (isAmerican || isNineBall) currentTarget = lowestBallOnTable();
@@ -2323,7 +2323,7 @@
           }
 
           // apply 75–85% potting accuracy
-          var ACCURACY = 0.75 + Math.random() * 0.1;
+          var ACCURACY = 0.8 + Math.random() * 0.1;
           nd = {
             x: nd.x + (Math.random() - 0.5) * (1 - ACCURACY),
             y: nd.y + (Math.random() - 0.5) * (1 - ACCURACY)
@@ -2356,7 +2356,7 @@
             var toNext = norm(nxt.p.x - chosen.p.x, nxt.p.y - chosen.p.y);
             var dot = shotDir.x * toNext.x + shotDir.y * toNext.y;
             var cross = shotDir.x * toNext.y - shotDir.y * toNext.x;
-            var SPIN_SCALE = 0.15;
+            var SPIN_SCALE = 0.2;
             if (Math.abs(dot) > 0.75) spinY = SPIN_SCALE * dot;
             if (Math.abs(cross) > 0.25) spinX = SPIN_SCALE * cross;
           }
