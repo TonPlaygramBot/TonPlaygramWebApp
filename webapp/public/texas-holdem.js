@@ -349,11 +349,21 @@ function init() {
 }
 
 function adjustNameSize(el) {
+  let name = el.textContent;
+  if (name.length > 15) {
+    const parts = name.trim().split(/\s+/);
+    if (parts.length > 1) {
+      name = parts.map((p) => p[0]).join('').toUpperCase();
+    } else {
+      name = name.slice(0, 3).toUpperCase();
+    }
+    el.textContent = name;
+  }
   const base = 12;
   const min = 8;
-  const len = el.textContent.length;
-  if (len > 10) {
-    el.style.fontSize = Math.max(min, base - (len - 10)) + 'px';
+  const len = name.length;
+  if (len > 12) {
+    el.style.fontSize = Math.max(min, base - (len - 12)) + 'px';
   }
 }
 
@@ -463,7 +473,7 @@ function collectAntes() {
 function buildChipPiles(amount) {
   const wrap = document.createElement('div');
   wrap.style.display = 'flex';
-  wrap.style.gap = '6px';
+  wrap.style.gap = '4px';
   let remaining = amount;
   CHIP_VALUES.forEach((val) => {
     const count = Math.floor(remaining / val);
@@ -488,7 +498,7 @@ function updatePotDisplay() {
   potEl.innerHTML = '';
   potEl.appendChild(buildChipPiles(state.pot));
   const textEl = document.getElementById('potTotal');
-  if (textEl) textEl.innerHTML = `Total: ${formatAmount(state.pot)}`;
+  if (textEl) textEl.innerHTML = `<strong>Total:</strong> ${formatAmount(state.pot)}`;
 }
 
 function animateChipsFromPlayer(index, amount) {
