@@ -24,18 +24,18 @@
         z-index:0;
       }
       .seats { position:absolute; inset:0; z-index:2; }
-      .seat { position:absolute; display:flex; flex-direction:column; align-items:center; gap:6px; width:clamp(120px,28vw,200px); padding:6px; border:4px solid #000; border-radius:12px; background:var(--seat-bg-color); box-shadow:4px 4px 0 #d4ccb3; }
+      .seat { position:absolute; display:flex; flex-direction:column; align-items:center; gap:6px; width:clamp(120px,28vw,200px); padding:6px; border:2px solid var(--player-frame-color,#000); border-radius:8px; background:var(--seat-bg-color); box-shadow:0 8px 20px var(--shadow); }
       .avatar { width:var(--avatar-size); height:var(--avatar-size); border-radius:50%; display:grid; place-items:center; background:radial-gradient(circle at 30% 30%,#fff,#ddd 40%,#bbb 60%,#999 100%); color:#111; font-size:28px; border:2px solid var(--player-frame-color,#000); box-shadow:0 8px 20px var(--shadow); overflow:hidden; }
-      .frame-style-1 .avatar { border-style:solid; border-width:2px; }
-      .frame-style-2 .avatar { border-style:dashed; border-width:2px; }
-      .frame-style-3 .avatar { border-style:dotted; border-width:2px; }
-      .frame-style-4 .avatar { border-style:double; border-width:4px; }
-      .frame-style-5 .avatar { border-style:groove; border-width:4px; }
-      .frame-style-6 .avatar { border-style:ridge; border-width:4px; }
-      .frame-style-7 .avatar { border-style:inset; border-width:4px; }
-      .frame-style-8 .avatar { border-style:outset; border-width:4px; }
-      .frame-style-9 .avatar { border-style:solid; border-width:2px; box-shadow:0 8px 20px var(--shadow),0 0 0 2px var(--player-frame-color,#000); }
-      .frame-style-10 .avatar { border-style:dashed; border-width:2px; box-shadow:0 8px 20px var(--shadow),0 0 0 2px var(--player-frame-color,#000); }
+      .frame-style-1 .avatar, .frame-style-1 .seat { border-style:solid; border-width:2px; }
+      .frame-style-2 .avatar, .frame-style-2 .seat { border-style:dashed; border-width:2px; }
+      .frame-style-3 .avatar, .frame-style-3 .seat { border-style:dotted; border-width:2px; }
+      .frame-style-4 .avatar, .frame-style-4 .seat { border-style:double; border-width:4px; }
+      .frame-style-5 .avatar, .frame-style-5 .seat { border-style:groove; border-width:4px; }
+      .frame-style-6 .avatar, .frame-style-6 .seat { border-style:ridge; border-width:4px; }
+      .frame-style-7 .avatar, .frame-style-7 .seat { border-style:inset; border-width:4px; }
+      .frame-style-8 .avatar, .frame-style-8 .seat { border-style:outset; border-width:4px; }
+      .frame-style-9 .avatar, .frame-style-9 .seat { border-style:solid; border-width:2px; box-shadow:0 8px 20px var(--shadow),0 0 0 2px var(--player-frame-color,#000); }
+      .frame-style-10 .avatar, .frame-style-10 .seat { border-style:dashed; border-width:2px; box-shadow:0 8px 20px var(--shadow),0 0 0 2px var(--player-frame-color,#000); }
       .seat.active .avatar { outline:3px solid #f5cc4e; outline-offset:2px; }
       .seat.winner .card { box-shadow:0 0 10px 2px #facc15; }
       .seat.winner .avatar { outline:3px solid #facc15; outline-offset:2px; }
