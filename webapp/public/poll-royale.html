@@ -938,6 +938,8 @@
             playPocket(clamp(spd/4000,0,1));
             if (b2.n === 0) {
               scratch = true;
+              foulShown = true;
+              showCenterPopup('Foul', 'foul', 1300);
               cueBallFree = true;
               aiming = false;
               cueHintTime = Date.now();
@@ -1095,6 +1097,7 @@
     var pocketedAny = false;
     var pocketedOwn = false;
     var scratch = false;
+    var foulShown = false;
     var assignedTypes = {1:null,2:null};
     var freeShots = {1:0,2:0};
     var firstHit = null;
@@ -1182,6 +1185,9 @@
         avatarP1.classList.toggle('turn', table.turn === 1);
         avatarCPU.classList.toggle('turn', table.turn === 2);
         if (!force) playTurnSound();
+        if (!force && freeShots[table.turn] > 1) {
+          showCenterPopup('2 shots', 'shots', 1300);
+        }
         lastTurn = table.turn;
       }
     }
@@ -1247,12 +1253,14 @@
         } else {
           updateFooter(opponent, 'Foul – opponent gets two shots.');
         }
-        showCenterPopup('Foul', 'foul', 1300);
-        setTimeout(function(){ showCenterPopup('2 shots', 'shots', 1300); }, 1300);
+        if (!foulShown) {
+          showCenterPopup('Foul', 'foul', 1300);
+          foulShown = true;
+        }
         freeShots[opponent] = isAmerican ? 1 : 2;
         freeShots[currentShooter] = 0;
         table.turn = opponent;
-        setTimeout(showShots, 3000);
+        setTimeout(showShots, 4000);
       } else {
         if (freeShots[currentShooter] > 0) {
           freeShots[currentShooter]--;
@@ -1277,15 +1285,16 @@
           }
           updateFooter(currentShooter, msg);
           lastPocketedBall = null;
-          setTimeout(showShots, 3000);
+          setTimeout(showShots, 4000);
         } else {
           updateFooter(table.turn, 'Close call! The ball hit the cushion but nothing dropped, turn passes to the opponent.');
-          setTimeout(showShots, 3000);
+          setTimeout(showShots, 4000);
         }
       }
       pocketedAny = false;
       pocketedOwn = false;
       scratch = false;
+      foulShown = false;
       firstHit = null;
       currentTarget = null;
     }
