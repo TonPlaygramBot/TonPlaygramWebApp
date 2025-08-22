@@ -349,21 +349,12 @@ function init() {
 }
 
 function adjustNameSize(el) {
-  let name = el.textContent;
-  if (name.length > 15) {
-    const parts = name.trim().split(/\s+/);
-    if (parts.length > 1) {
-      name = parts.map((p) => p[0]).join('').toUpperCase();
-    } else {
-      name = name.slice(0, 3).toUpperCase();
-    }
-    el.textContent = name;
-  }
-  const base = 12;
+  const name = el.textContent;
+  const base = parseInt(getComputedStyle(el).fontSize) || 12;
   const min = 8;
   const len = name.length;
-  if (len > 12) {
-    el.style.fontSize = Math.max(min, base - (len - 12)) + 'px';
+  if (len > 10) {
+    el.style.fontSize = Math.max(min, base - (len - 10)) + 'px';
   }
 }
 
@@ -476,17 +467,21 @@ function buildChipPiles(amount) {
   wrap.style.gap = '4px';
   let remaining = amount;
   CHIP_VALUES.forEach((val) => {
-    const count = Math.floor(remaining / val);
+    let count = Math.floor(remaining / val);
     if (count > 0) {
       remaining -= count * val;
-      const pile = document.createElement('div');
-      pile.className = 'chip-pile';
-      for (let i = 0; i < count; i++) {
-        const chip = document.createElement('div');
-        chip.className = 'chip v' + val;
-        pile.appendChild(chip);
+      while (count > 0) {
+        const pile = document.createElement('div');
+        pile.className = 'chip-pile';
+        const pileCount = Math.min(count, 9);
+        for (let i = 0; i < pileCount; i++) {
+          const chip = document.createElement('div');
+          chip.className = 'chip v' + val;
+          pile.appendChild(chip);
+        }
+        wrap.appendChild(pile);
+        count -= pileCount;
       }
-      wrap.appendChild(pile);
     }
   });
   return wrap;
