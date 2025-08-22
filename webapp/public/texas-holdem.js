@@ -212,6 +212,10 @@ function flagName(flag) {
   return regionNames.of(String.fromCharCode(...codePoints));
 }
 
+function randomBalance() {
+  return Math.floor(Math.random() * 9000) + 1000;
+}
+
 const TPC_ICON_HTML =
   '<img src="assets/icons/ezgif-54c96d8a9b9236.webp" alt="TPC" class="tpc-inline-icon" />';
 
@@ -222,6 +226,10 @@ function formatAmount(amount) {
 function updateBalancePreview(preview = 0) {
   const el = document.getElementById('tpcTotal');
   if (el) el.textContent = Math.max(0, state.tpcTotal - preview);
+  if (state.players[0]) {
+    state.players[0].balance = state.tpcTotal;
+  }
+  updateBalances();
 }
 
 function setStatus(action, text) {
@@ -308,13 +316,15 @@ function init() {
     .slice(0, playerCount - (state.seated ? 1 : 0));
   state.players = [
     state.seated
-      ? { name, avatar, hand: hands[0], isHuman: true, active: true }
-      : { name: '', avatar: '', hand: [], isHuman: false, active: false, vacant: true },
+      ? { name, avatar, hand: hands[0], isHuman: true, active: true, balance: state.tpcTotal }
+      : { name: '', avatar: '', hand: [], isHuman: false, active: false, vacant: true, balance: 0 },
     ...flags.map((f, idx) => ({
       name: flagName(f),
       avatar: f,
       hand: hands[idx + (state.seated ? 1 : 0)],
       active: true,
+      isHuman: false,
+      balance: randomBalance(),
     })),
   ];
   const comm = dealCommunity(rest);
@@ -414,7 +424,11 @@ function renderSeats() {
       const controls = document.createElement('div');
       controls.className = 'controls';
       controls.id = 'controls';
-      seat.append(inner, controls);
+      const bal = document.createElement('div');
+      bal.className = 'seat-balance';
+      bal.id = 'balance-' + i;
+      bal.innerHTML = formatAmount(p.balance || 0);
+      seat.append(inner, bal, controls);
     } else {
       const timer = document.createElement('div');
       timer.className = 'timer';
@@ -422,9 +436,21 @@ function renderSeats() {
       const inner = document.createElement('div');
       inner.className = 'seat-inner';
       inner.append(avatar, name, cards, timer);
-      seat.append(inner, action);
+      const bal = document.createElement('div');
+      bal.className = 'seat-balance';
+      bal.id = 'balance-' + i;
+      bal.innerHTML = formatAmount(p.balance || 0);
+      seat.append(inner, bal, action);
     }
     seats.appendChild(seat);
+  });
+  updateBalances();
+}
+
+function updateBalances() {
+  state.players.forEach((p, i) => {
+    const el = document.getElementById('balance-' + i);
+    if (el) el.innerHTML = formatAmount(p.balance || 0);
   });
 }
 
@@ -463,6 +489,13 @@ function setupFlopBacks() {
 function collectAntes() {
   const active = state.players.filter((p) => !p.vacant).length;
   state.pot += ANTE * active;
+  state.players.forEach((p, idx) => {
+    if (!p.vacant) {
+      p.balance = Math.max(0, (p.balance || 0) - ANTE);
+      if (p.isHuman) state.tpcTotal = p.balance;
+    }
+  });
+  updateBalancePreview();
 }
 
 function buildChipPiles(amount) {
@@ -985,16 +1018,20 @@ async function proceedStage() {
       const total = state.currentBet + raiseBy;
       state.currentBet = total;
       state.pot += total;
+      p.balance = Math.max(0, (p.balance || 0) - total);
       animateChipsFromPlayer(i, total);
       setStatus('raise', `${p.name} raises to ${formatAmount(total)}`);
       if (state.pot >= state.maxPot) playAllInSound();
       else playCallRaiseSound();
+      updateBalances();
     } else if (action === 'call') {
       state.pot += state.currentBet;
+      p.balance = Math.max(0, (p.balance || 0) - state.currentBet);
       animateChipsFromPlayer(i, state.currentBet);
       setStatus('call', `${p.name} calls ${formatAmount(state.currentBet)}`);
       if (state.pot >= state.maxPot) playAllInSound();
       else playCallRaiseSound();
+      updateBalances();
     } else if (action === 'fold') {
       p.active = false;
       setStatus('fold', `${p.name} folds`);
@@ -1125,6 +1162,14 @@ async function showdown() {
             });
           }
         } catch {}
+      }
+      state.players[playerIndex].balance =
+        (state.players[playerIndex].balance || 0) + pot;
+      if (winnerPlayer.isHuman) {
+        state.tpcTotal = state.players[playerIndex].balance;
+        updateBalancePreview();
+      } else {
+        updateBalances();
       }
       state.pot = 0;
     }

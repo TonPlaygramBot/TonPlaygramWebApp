@@ -108,6 +108,8 @@
     .seat-inner .card{ border:none; }
       .seat.bottom .cards{ gap:0 }
       .timer{ font-weight:800; background:rgba(0,0,0,.5); padding:2px 6px; border-radius:8px; }
+      .seat-balance{ font-size:10px; color:#fff; display:flex; align-items:center; gap:2px; }
+      .seat-balance img{ width:12px; height:12px; }
       .controls{ display:flex; gap:8px; margin-top:8px; align-items:flex-end; justify-content:center; z-index:5; }
       .controls button{ width:var(--avatar-size); height:var(--avatar-size); padding:0; border:4px solid #000; border-radius:50%; background:#2563eb; color:#fff; font-weight:600; font-size:12px; display:flex; align-items:center; justify-content:center; }
       button:disabled{ background:#d1d5db !important; color:#9ca3af !important; }
@@ -181,10 +183,10 @@
       }
       .settings-actions{display:flex;gap:8px;justify-content:flex-end;margin-top:8px}
 
-    .pot-wrap{ position:absolute; left:50%; top:32%; transform:translate(-50%,-50%); display:flex; flex-direction:column; align-items:center; gap:4px; z-index:2; width:calc(clamp(44px, 9.6vw, 70px) * 1.083 * 3 + 20px); height:calc(clamp(44px, 9.6vw, 70px) * 1.083 * 1.45); }
+    .pot-wrap{ position:absolute; left:50%; top:28%; transform:translate(-50%,-50%); display:flex; flex-direction:column; align-items:center; gap:4px; z-index:2; width:calc(clamp(44px, 9.6vw, 70px) * 1.083 * 3 + 20px); height:calc(clamp(44px, 9.6vw, 70px) * 1.083 * 1.45); }
     .pot{ display:flex; gap:4px; flex-wrap:wrap; justify-content:center; width:100%; height:100%; overflow:hidden; }
     .pot-total{ font-size:16px; font-weight:700; }
-    .chip-pile{ position:relative; display:grid; grid-template-columns:repeat(3,calc(var(--avatar-size)/1.55)); grid-auto-rows:calc(var(--avatar-size)/1.55); gap:2px; }
+    .chip-pile{ position:relative; display:grid; grid-template-columns:repeat(3,calc(var(--avatar-size)/1.6)); grid-auto-rows:calc(var(--avatar-size)/1.6); gap:2px; }
     .chip{ position:relative; width:100%; height:100%; border-radius:50%; background-size:cover; background-position:center; background-repeat:no-repeat; box-shadow:0 2px 4px rgba(0,0,0,.4); }
     .chip.v1{ background-image:url('assets/icons/1chips.webp'); }
     .chip.v2{ background-image:url('assets/icons/20250820_071739.webp'); }
