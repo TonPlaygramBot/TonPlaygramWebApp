@@ -209,13 +209,13 @@
       }
 
       #spinBox {
-        width: 45px;
-        height: 45px;
+        width: 50px;
+        height: 50px;
         border-radius: 50%;
         background: #f6f6f6;
         position: absolute;
         left: 50%;
-        top: 86%;
+        top: 88%;
         transform: translate(-50%, -50%);
         box-shadow:
           0 4px 10px rgba(0, 0, 0, 0.4) inset,
@@ -277,7 +277,8 @@
         justify-content: center;
         font-weight: 700;
         font-size: 16px;
-        box-shadow: 0 5px 12px rgba(0, 0, 0, 0.3);
+        padding-left: 3px;
+        box-shadow: none;
         user-select: none;
         opacity: 1;
         visibility: visible;
@@ -840,7 +841,7 @@
           sY = ch / TABLE_H;
           pocketR = POCKET_R * ((sX + sY) / 2);
           ballR = BALL_R * ((sX + sY) / 2);
-          powerCue.style.height = BALL_R * 20 * sX + 'px';
+          powerCue.style.height = BALL_R * 25 * sX + 'px';
           updatePullHandle();
         }
         window.addEventListener('resize', resize);
@@ -1117,8 +1118,8 @@
             b.v.x *= FRICTION;
             b.v.y *= FRICTION;
             if (b.spin && b.spinApplied) {
-              b.v.x += b.spin.x * 40 * dt;
-              b.v.y += b.spin.y * 40 * dt;
+              b.v.x += b.spin.x * 60 * dt;
+              b.v.y += b.spin.y * 60 * dt;
               b.spin.x *= 0.98;
               b.spin.y *= 0.98;
             }
@@ -2125,7 +2126,7 @@
           var maxY = rect.height - pullHandle.offsetHeight * 0.4;
           var y = minY + (maxY - minY) * power;
           pullHandle.style.top = y + 'px';
-          powerCue.style.top = y + pullHandle.offsetHeight + 'px';
+          powerCue.style.top = y + pullHandle.offsetHeight + 10 + 'px';
         }
         function updatePowerUI() {
           powerFill.style.height = Math.round(power * 100) + '%';
@@ -2167,7 +2168,7 @@
           var cue = table.balls[0];
           if (!cue || cue.pocketed) return;
           var d = norm(table.aim.x - cue.p.x, table.aim.y - cue.p.y);
-          var base = 950 * 3 * 1.5; // force increased 150%
+          var base = 950 * 3 * 1.6; // slight power boost
           playCueHit(p);
           currentShooter = table.turn;
           if (isAmerican || isNineBall) currentTarget = lowestBallOnTable();
@@ -2180,8 +2181,8 @@
           nineBallPotted = false;
           cue.v.x = d.x * base * (0.25 + 0.75 * p);
           cue.v.y = d.y * base * (0.25 + 0.75 * p);
-          // Double the spin effect in all directions
-          cue.spin = { x: spinVec.x * 40 * p, y: spinVec.y * 40 * p };
+          // Increase the spin effect in all directions
+          cue.spin = { x: spinVec.x * 60 * p, y: spinVec.y * 60 * p };
           cue.spinApplied = false;
           cueBallFree = false;
           setSpin(0, 0);
@@ -2276,6 +2277,14 @@
             nd = norm(chosen.p.x - cue.p.x, chosen.p.y - cue.p.y);
             power = 0.35 + Math.random() * 0.3;
           }
+
+          // apply 75% potting accuracy
+          var ACCURACY = 0.75;
+          nd = {
+            x: nd.x + (Math.random() - 0.5) * (1 - ACCURACY),
+            y: nd.y + (Math.random() - 0.5) * (1 - ACCURACY)
+          };
+          nd = norm(nd.x, nd.y);
 
           function nextTarget(exclude) {
             var type = assignedTypes[2];
