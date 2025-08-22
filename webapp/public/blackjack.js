@@ -28,6 +28,13 @@ const CHIP_VALUES = [1000, 500, 200, 50, 20, 10, 5, 2, 1];
 let sndCallRaise;
 let sndFlip;
 
+const TPC_ICON_HTML =
+  '<img src="assets/icons/ezgif-54c96d8a9b9236.webp" alt="TPC" class="tpc-inline-icon" />';
+
+function formatAmount(amount) {
+  return `${amount} ${TPC_ICON_HTML}`;
+}
+
 const DEFAULT_SETTINGS = {
   muteCards: false,
   muteChips: false,
@@ -258,10 +265,11 @@ function render() {
     });
     const bal = document.createElement('div');
     bal.className = 'seat-balance';
-    bal.textContent = `${p.name} (${handValue(p.hand)})`;
+    bal.innerHTML = formatAmount(p.balance || 0);
     seat.append(avatar, cards, bal);
     if (i === state.turn && !p.stood && !p.bust) seat.classList.add('active');
     if (p.bust) seat.classList.add('folded');
+    if (p.winner) seat.classList.add('winner');
     seats.appendChild(seat);
   });
 }
@@ -333,13 +341,20 @@ function finish() {
   winners.forEach((i) => {
     const player = state.players[i];
     player.balance = (player.balance || 0) + share;
+    player.winner = true;
   });
   state.players.forEach((p) => (p.revealed = true));
   render();
-  showWinnerPopup(
-    winners.map((i) => state.players[i].name),
-    share
-  );
+  const status = document.getElementById('status');
+  if (status)
+    status.textContent = `Winner(s): ${winners
+      .map((i) => state.players[i].name)
+      .join(', ')}`;
+  setTimeout(() => {
+    state.players.forEach((p) => (p.winner = false));
+    if (status) status.textContent = '';
+    startNewRound();
+  }, 2200);
 }
 
 function renderPot() {
@@ -369,6 +384,44 @@ function commitRaise() {
   playCallRaise();
   state.raiseAmount = 0;
   updateRaiseAmount();
+}
+
+function startNewRound() {
+  state.turn = 0;
+  state.pot = state.stake * state.players.length;
+  state.raiseAmount = 0;
+  state.deck = shuffle(createDeck());
+  state.players.forEach((p) => {
+    p.hand = [];
+    p.stood = false;
+    p.bust = false;
+    p.revealed = false;
+  });
+
+  state.players.forEach((p, i) => {
+    const { card, deck: d1 } = hitCard(state.deck);
+    state.deck = d1;
+    p.hand.push(card);
+    p.revealed = i === 0;
+    playFlipSound();
+  });
+
+  render();
+
+  setTimeout(() => {
+    state.players.forEach((p) => {
+      const { card, deck: d2 } = hitCard(state.deck);
+      state.deck = d2;
+      p.hand.push(card);
+      playFlipSound();
+    });
+    render();
+    aiBettingRound();
+    const p0 = state.players[0];
+    if (!p0.isHuman) setTimeout(aiTurn, 500);
+  }, 500);
+
+  renderPot();
 }
 
 function init() {
@@ -468,51 +521,6 @@ function buildChipPiles(amount) {
   return wrap;
 }
 
-function coinConfetti(count = 50, iconSrc = '/assets/icons/ezgif-54c96d8a9b9236.webp') {
-  const container = document.createElement('div');
-  container.style.position = 'fixed';
-  container.style.top = '0';
-  container.style.left = '0';
-  container.style.width = '100%';
-  container.style.height = '0';
-  container.style.pointerEvents = 'none';
-  container.style.zIndex = '60';
-  container.style.overflow = 'visible';
-  document.body.appendChild(container);
-  for (let i = 0; i < count; i++) {
-    const img = document.createElement('img');
-    img.src = iconSrc;
-    img.alt = 'confetti';
-    img.className = 'coin-confetti';
-    const left = Math.random() * 100;
-    const delay = Math.random() * 0.2;
-    const duration = 2 + Math.random() * 2;
-    img.style.left = left + 'vw';
-    img.style.animationDelay = delay + 's';
-    img.style.setProperty('--duration', duration + 's');
-    container.appendChild(img);
-  }
-  setTimeout(() => container.remove(), 5000);
-}
-
-function showWinnerPopup(names, share) {
-  const popup = document.getElementById('winnerPopup');
-  const text = document.getElementById('winnerText');
-  if (!popup || !text) return;
-  const lines = names
-    .map(
-      (n) =>
-        `<div class="winner-row"><span>${n}</span><span class="amount">${share} ${state.token}</span></div>`
-    )
-    .join('');
-  text.innerHTML = lines;
-  popup.classList.remove('hidden');
-  coinConfetti();
-}
-
-document.getElementById('lobbyBtn')?.addEventListener('click', () => {
-  location.href = '/games/blackjack/lobby';
-});
 document.getElementById('lobbyIcon')?.addEventListener('click', () => {
   location.href = '/games/blackjack/lobby';
 });

@@ -24,19 +24,21 @@
         z-index:0;
       }
       .seats { position:absolute; inset:0; z-index:2; }
-      .seat { position:absolute; display:flex; flex-direction:column; align-items:center; gap:6px; width:clamp(120px,28vw,200px); }
+      .seat { position:absolute; display:flex; flex-direction:column; align-items:center; gap:6px; width:clamp(120px,28vw,200px); padding:6px; border:2px solid var(--player-frame-color,#000); border-radius:8px; background:var(--seat-bg-color); box-shadow:0 8px 20px var(--shadow); }
       .avatar { width:var(--avatar-size); height:var(--avatar-size); border-radius:50%; display:grid; place-items:center; background:radial-gradient(circle at 30% 30%,#fff,#ddd 40%,#bbb 60%,#999 100%); color:#111; font-size:28px; border:2px solid var(--player-frame-color,#000); box-shadow:0 8px 20px var(--shadow); overflow:hidden; }
-      .frame-style-1 .avatar { border-style:solid; border-width:2px; }
-      .frame-style-2 .avatar { border-style:dashed; border-width:2px; }
-      .frame-style-3 .avatar { border-style:dotted; border-width:2px; }
-      .frame-style-4 .avatar { border-style:double; border-width:4px; }
-      .frame-style-5 .avatar { border-style:groove; border-width:4px; }
-      .frame-style-6 .avatar { border-style:ridge; border-width:4px; }
-      .frame-style-7 .avatar { border-style:inset; border-width:4px; }
-      .frame-style-8 .avatar { border-style:outset; border-width:4px; }
-      .frame-style-9 .avatar { border-style:solid; border-width:2px; box-shadow:0 8px 20px var(--shadow),0 0 0 2px var(--player-frame-color,#000); }
-      .frame-style-10 .avatar { border-style:dashed; border-width:2px; box-shadow:0 8px 20px var(--shadow),0 0 0 2px var(--player-frame-color,#000); }
+      .frame-style-1 .avatar, .frame-style-1 .seat { border-style:solid; border-width:2px; }
+      .frame-style-2 .avatar, .frame-style-2 .seat { border-style:dashed; border-width:2px; }
+      .frame-style-3 .avatar, .frame-style-3 .seat { border-style:dotted; border-width:2px; }
+      .frame-style-4 .avatar, .frame-style-4 .seat { border-style:double; border-width:4px; }
+      .frame-style-5 .avatar, .frame-style-5 .seat { border-style:groove; border-width:4px; }
+      .frame-style-6 .avatar, .frame-style-6 .seat { border-style:ridge; border-width:4px; }
+      .frame-style-7 .avatar, .frame-style-7 .seat { border-style:inset; border-width:4px; }
+      .frame-style-8 .avatar, .frame-style-8 .seat { border-style:outset; border-width:4px; }
+      .frame-style-9 .avatar, .frame-style-9 .seat { border-style:solid; border-width:2px; box-shadow:0 8px 20px var(--shadow),0 0 0 2px var(--player-frame-color,#000); }
+      .frame-style-10 .avatar, .frame-style-10 .seat { border-style:dashed; border-width:2px; box-shadow:0 8px 20px var(--shadow),0 0 0 2px var(--player-frame-color,#000); }
       .seat.active .avatar { outline:3px solid #f5cc4e; outline-offset:2px; }
+      .seat.winner .card { box-shadow:0 0 10px 2px #facc15; }
+      .seat.winner .avatar { outline:3px solid #facc15; outline-offset:2px; }
       .cards { display:flex; gap:6px; }
       .card { width:var(--card-w); height:var(--card-h); border-radius:10px; position:relative; flex:0 0 auto; background:#fff; color:#111; font-weight:900; box-shadow:0 10px 25px var(--shadow), inset 0 0 0 2px rgba(0,0,0,0.08); }
       .seat.small .card { width:calc(var(--card-w)*0.72); height:calc(var(--card-h)*0.72); }
@@ -61,12 +63,12 @@
       .card .corner .suit { font-size:calc(var(--card-w)*0.18); line-height:1; }
       .card .big { position:absolute; left:50%; top:50%; transform:translate(-50%,-50%); font-size:calc(var(--card-w)*0.52); opacity:0.9; filter:drop-shadow(0 0 2px rgba(0,0,0,0.4)); }
       .red { color:#d00; }
-      .seat-balance { font-size:14px; text-shadow:0 1px 2px #000; }
+      .seat-balance { font-size:14px; text-shadow:0 1px 2px #000; display:flex; align-items:center; gap:2px; }
       .player-controls { position:absolute; bottom:20px; left:50%; transform:translateX(-50%); display:flex; gap:12px; z-index:3; }
       .player-controls button { padding:8px 16px; font-size:16px; border:none; border-radius:6px; cursor:pointer; }
       #status { position:absolute; top:10px; left:50%; transform:translateX(-50%); font-size:18px; font-weight:bold; z-index:3; text-shadow:0 2px 4px #000; }
       .folded { opacity:0.5; }
-      .pot-wrap { position:absolute; left:50%; top:50%; transform:translate(-50%,-50%); display:flex; flex-direction:column; align-items:center; gap:4px; z-index:3; }
+      .pot-wrap { position:absolute; left:50%; top:45%; transform:translate(-50%,-50%); display:flex; flex-direction:column; align-items:center; gap:4px; z-index:3; }
       .pot { display:flex; gap:4px; }
       .pot-total { font-size:16px; font-weight:700; }
       .chip { width:40px; height:40px; border-radius:50%; background-size:cover; background-position:center; background-repeat:no-repeat; box-shadow:0 2px 4px rgba(0,0,0,0.4); }
@@ -99,16 +101,7 @@
       .settings-panel select, .settings-panel input[type='range'] { margin-left:6px; }
       .settings-panel select option { color:#000; padding-left:24px; background-size:16px 100%; background-repeat:no-repeat; }
       .settings-actions { display:flex; gap:8px; justify-content:flex-end; margin-top:8px; }
-      .popup { position:absolute; inset:0; background:none; display:flex; align-items:center; justify-content:center; }
-      .popup.hidden { display:none; }
-      .popup .box { background:none; border:none; box-shadow:none; padding:20px; border-radius:12px; text-align:center; color:#fff; }
-      .btn { appearance:none; border:1px solid #facc15; background:rgba(0,0,0,.3); color:#facc15; padding:10px 14px; border-radius:14px; font-weight:600; font-size:14px; cursor:pointer; }
-      .btn.primary { background:#00f7ff; color:#fff; border:none; box-shadow:0 0 8px rgba(0,247,255,.5); }
-      .winner-row { display:flex; align-items:center; gap:8px; margin-bottom:6px; }
-      .winner-row:last-child { margin-bottom:0; }
-      .winner-row .amount { margin-left:auto; }
-      .coin-confetti { position:fixed; top:-40px; width:48px; height:48px; pointer-events:none; animation:coin-fall var(--duration,3s) linear forwards; }
-      @keyframes coin-fall { from { transform:translateY(-10vh) rotate(0deg); opacity:1; } to { transform:translateY(100vh) rotate(360deg); opacity:0; } }
+      .tpc-inline-icon { width:1.8em; height:1.8em; min-width:0; min-height:0; margin-left:2px; transform:translateY(2px); }
     </style>
   </head>
   <body class="frame-style-1">
@@ -146,12 +139,6 @@
       <div class="player-controls">
         <button onclick="hit()">Hit</button>
         <button onclick="stand()">Stand</button>
-      </div>
-      <div id="winnerPopup" class="popup hidden">
-        <div class="box">
-          <div id="winnerText"></div>
-          <button class="btn primary" id="lobbyBtn">Return Lobby</button>
-        </div>
       </div>
     </div>
     <div id="settingsPanel" class="settings-panel">
