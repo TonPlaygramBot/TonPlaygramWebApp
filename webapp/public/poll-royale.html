@@ -1259,11 +1259,11 @@
                   pocketedAny = true;
                   this.captured[currentShooter].push(b2.n);
                   if (isNineBall && b2.n === 9) {
+                    nineBallPotted = true;
                     lastPocketedBall = b2.n;
-                    endGame(currentShooter);
-                    return;
-                  }
-                  if (isAmerican || isNineBall) {
+                    pottedThisShot.push(b2.n);
+                    pocketedOwn = true;
+                  } else if (isAmerican || isNineBall) {
                     pottedThisShot.push(b2.n);
                     pocketedOwn = true;
                     lastPocketedBall = b2.n;
@@ -1491,6 +1491,7 @@
         var lastPocketedBall = null;
         var currentTarget = null;
         var pottedThisShot = [];
+        var nineBallPotted = false;
 
         function remainingPoints() {
           var sum = 0;
@@ -1753,11 +1754,19 @@
               showCenterPopup('Foul', 'foul', 1500);
               foulShown = true;
             }
+            if (nineBallPotted) {
+              endGame(opponent);
+              return;
+            }
             freeShots[opponent] = isAmerican || isNineBall ? 1 : 2;
             freeShots[currentShooter] = 0;
             table.turn = opponent;
             setTimeout(showTurnInfo, 1500);
           } else {
+            if (nineBallPotted) {
+              endGame(currentShooter);
+              return;
+            }
             if (shotPoints > 0 && isAmerican) {
               scores[currentShooter] += shotPoints;
               updateScoresUI();
@@ -1813,6 +1822,7 @@
           foulShown = false;
           firstHit = null;
           currentTarget = null;
+          nineBallPotted = false;
         }
 
         /* ==========================================================
@@ -2167,6 +2177,7 @@
           scratch = false;
           firstHit = null;
           pottedThisShot = [];
+          nineBallPotted = false;
           cue.v.x = d.x * base * (0.25 + 0.75 * p);
           cue.v.y = d.y * base * (0.25 + 0.75 * p);
           // Double the spin effect in all directions
