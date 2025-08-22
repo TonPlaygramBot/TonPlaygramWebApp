@@ -19,7 +19,7 @@ export default function PollRoyaleLobby() {
   const [stake, setStake] = useState({ token: 'TPC', amount: 100 });
   const [mode, setMode] = useState('ai');
   const [avatar, setAvatar] = useState('');
-  const variant = 'american';
+  const [variant, setVariant] = useState('american');
 
   useEffect(() => {
     try {
@@ -100,6 +100,23 @@ export default function PollRoyaleLobby() {
                 </span>
               )}
             </div>
+          ))}
+        </div>
+      </div>
+      <div className="space-y-2">
+        <h3 className="font-semibold">Variant</h3>
+        <div className="flex gap-2">
+          {[
+            { id: 'american', label: 'American' },
+            { id: '9ball', label: '9-Ball' }
+          ].map(({ id, label }) => (
+            <button
+              key={id}
+              onClick={() => setVariant(id)}
+              className={`lobby-tile ${variant === id ? 'lobby-selected' : ''}`}
+            >
+              {label}
+            </button>
           ))}
         </div>
       </div>
