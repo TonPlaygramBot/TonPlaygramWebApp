@@ -20,7 +20,6 @@
         --card-back-color: #233;
         --card-front-color: #fff;
         --player-frame-color: #000;
-        --player-frame-style: solid;
       }
       * {
         box-sizing: border-box;
@@ -115,12 +114,54 @@
         );
         color: #111;
         font-size: 28px;
-        border-width: 1px;
-        border-style: var(--player-frame-style, solid);
         border-color: var(--player-frame-color, #000);
         box-shadow: 0 8px 20px var(--shadow);
         overflow: hidden;
         position: relative;
+      }
+      .frame-style-1 .avatar {
+        border-style: solid;
+        border-width: 2px;
+      }
+      .frame-style-2 .avatar {
+        border-style: dashed;
+        border-width: 2px;
+      }
+      .frame-style-3 .avatar {
+        border-style: dotted;
+        border-width: 2px;
+      }
+      .frame-style-4 .avatar {
+        border-style: double;
+        border-width: 4px;
+      }
+      .frame-style-5 .avatar {
+        border-style: groove;
+        border-width: 4px;
+      }
+      .frame-style-6 .avatar {
+        border-style: ridge;
+        border-width: 4px;
+      }
+      .frame-style-7 .avatar {
+        border-style: inset;
+        border-width: 4px;
+      }
+      .frame-style-8 .avatar {
+        border-style: outset;
+        border-width: 4px;
+      }
+      .frame-style-9 .avatar {
+        border-style: solid;
+        border-width: 2px;
+        box-shadow: 0 8px 20px var(--shadow),
+          0 0 0 2px var(--player-frame-color, #000);
+      }
+      .frame-style-10 .avatar {
+        border-style: dashed;
+        border-width: 2px;
+        box-shadow: 0 8px 20px var(--shadow),
+          0 0 0 2px var(--player-frame-color, #000);
       }
       .avatar-wrap {
         position: relative;
@@ -413,6 +454,9 @@
         align-items: center;
         gap: 2px;
       }
+      .seat.bottom .seat-balance {
+        font-size: 12px;
+      }
       .seat-balance img {
         width: 12px;
         height: 12px;
@@ -699,35 +743,6 @@
         margin-top: 8px;
       }
 
-      .pot-wrap {
-        position: absolute;
-        left: 50%;
-        top: 32%;
-        transform: translate(-50%, -50%);
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        gap: 4px;
-        z-index: 1100;
-        pointer-events: none;
-        background: none;
-        width: calc(clamp(44px, 9.6vw, 70px) * 1.083 * 3 + 30px);
-        height: calc(clamp(44px, 9.6vw, 70px) * 1.083 * 1.45);
-      }
-      .pot {
-        display: flex;
-        gap: 4px;
-        flex-wrap: nowrap;
-        align-items: center;
-        justify-content: center;
-        width: 100%;
-        height: 100%;
-        overflow: hidden;
-      }
-      .pot-total {
-        font-size: 16px;
-        font-weight: 700;
-      }
       .chip {
         position: relative;
         width: calc(var(--avatar-size) / 1.6);
@@ -738,7 +753,6 @@
         background-repeat: no-repeat;
         box-shadow: 0 2px 4px rgba(0, 0, 0, 0.4);
       }
-      .pot .chip,
       .moving-pot .chip {
         width: calc(var(--avatar-size) / 1.7);
         height: calc(var(--avatar-size) / 1.7);
@@ -786,7 +800,7 @@
       }
     </style>
   </head>
-  <body>
+  <body class="frame-style-1">
     <div class="stage">
       <div class="center community" id="community"></div>
       <div class="folded-area" id="foldedArea">
@@ -794,10 +808,6 @@
           Folded
         </div>
         <div id="foldedCards" class="folded-cards"></div>
-      </div>
-      <div class="pot-wrap" id="potWrap">
-        <div class="pot" id="pot"></div>
-        <div class="pot-total" id="potTotal"></div>
       </div>
       <div id="status"></div>
       <div class="seats" id="seats"></div>
