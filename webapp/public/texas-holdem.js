@@ -5,7 +5,7 @@ import {
   dealCommunity,
   evaluateWinner,
   aiChooseAction,
-  HAND_RANK_NAMES,
+  HAND_RANK_NAMES
 } from './lib/texasHoldem.js';
 const FLAG_EMOJIS = window.FLAG_EMOJIS || [];
 
@@ -24,7 +24,7 @@ const state = {
   raiseAmount: 0,
   selectedChips: [],
   tpcTotal: 0,
-  seated: true,
+  seated: true
 };
 
 const DEFAULT_SETTINGS = {
@@ -34,13 +34,27 @@ const DEFAULT_SETTINGS = {
   cardVolume: 1,
   chipVolume: 1,
   playerColor: '#f5f5dc',
-  cardBackColor: '#233',
+  cardBackColor: '#233'
 };
-const COLOR_OPTIONS = ['#f5f5dc','#f87171','#60a5fa','#a78bfa','#34d399','#fbbf24','#c084fc','#f472b6','#4ade80','#94a3b8'];
+const COLOR_OPTIONS = [
+  '#f5f5dc',
+  '#f87171',
+  '#60a5fa',
+  '#a78bfa',
+  '#34d399',
+  '#fbbf24',
+  '#c084fc',
+  '#f472b6',
+  '#4ade80',
+  '#94a3b8'
+];
 
 function loadSettings() {
   try {
-    return { ...DEFAULT_SETTINGS, ...(JSON.parse(localStorage.getItem('thSettings')) || {}) };
+    return {
+      ...DEFAULT_SETTINGS,
+      ...(JSON.parse(localStorage.getItem('thSettings')) || {})
+    };
   } catch {
     return { ...DEFAULT_SETTINGS };
   }
@@ -49,16 +63,25 @@ function loadSettings() {
 let settings = loadSettings();
 
 function saveSettings() {
-  try { localStorage.setItem('thSettings', JSON.stringify(settings)); } catch {}
+  try {
+    localStorage.setItem('thSettings', JSON.stringify(settings));
+  } catch {}
 }
 
 function applySettings() {
-  document.documentElement.style.setProperty('--seat-bg-color', settings.playerColor);
-  document.documentElement.style.setProperty('--card-back-color', settings.cardBackColor);
+  document.documentElement.style.setProperty(
+    '--seat-bg-color',
+    settings.playerColor
+  );
+  document.documentElement.style.setProperty(
+    '--card-back-color',
+    settings.cardBackColor
+  );
   const flip = document.getElementById('sndFlip');
   if (flip) flip.volume = settings.muteCards ? 0 : settings.cardVolume;
   const callRaise = document.getElementById('sndCallRaise');
-  if (callRaise) callRaise.volume = settings.muteChips ? 0 : settings.chipVolume;
+  if (callRaise)
+    callRaise.volume = settings.muteChips ? 0 : settings.chipVolume;
   const allIn = document.getElementById('sndAllIn');
   if (allIn) allIn.volume = settings.muteChips ? 0 : settings.chipVolume;
   const fold = document.getElementById('sndFold');
@@ -112,13 +135,34 @@ function initSettingsMenu() {
 
   updateControls();
 
-  muteCards.addEventListener('change', (e) => { settings.muteCards = e.target.checked; applySettings(); });
-  cardVolume.addEventListener('input', (e) => { settings.cardVolume = parseFloat(e.target.value); applySettings(); });
-  muteChips.addEventListener('change', (e) => { settings.muteChips = e.target.checked; applySettings(); });
-  chipVolume.addEventListener('input', (e) => { settings.chipVolume = parseFloat(e.target.value); applySettings(); });
-  muteOthers.addEventListener('change', (e) => { settings.muteOthers = e.target.checked; applySettings(); });
-  playerColor.addEventListener('change', (e) => { settings.playerColor = e.target.value; applySettings(); });
-  cardBackColor.addEventListener('change', (e) => { settings.cardBackColor = e.target.value; applySettings(); });
+  muteCards.addEventListener('change', (e) => {
+    settings.muteCards = e.target.checked;
+    applySettings();
+  });
+  cardVolume.addEventListener('input', (e) => {
+    settings.cardVolume = parseFloat(e.target.value);
+    applySettings();
+  });
+  muteChips.addEventListener('change', (e) => {
+    settings.muteChips = e.target.checked;
+    applySettings();
+  });
+  chipVolume.addEventListener('input', (e) => {
+    settings.chipVolume = parseFloat(e.target.value);
+    applySettings();
+  });
+  muteOthers.addEventListener('change', (e) => {
+    settings.muteOthers = e.target.checked;
+    applySettings();
+  });
+  playerColor.addEventListener('change', (e) => {
+    settings.playerColor = e.target.value;
+    applySettings();
+  });
+  cardBackColor.addEventListener('change', (e) => {
+    settings.cardBackColor = e.target.value;
+    applySettings();
+  });
 
   saveBtn?.addEventListener('click', () => {
     saveSettings();
@@ -141,7 +185,7 @@ async function awardDevShare(total) {
   if (!devAccountId || !window.fbApi) return;
   try {
     await window.fbApi.depositAccount(devAccountId, Math.round(total * 0.1), {
-      game: 'texasholdem-dev',
+      game: 'texasholdem-dev'
     });
   } catch {}
 }
@@ -247,8 +291,8 @@ function cardFaceEl(c) {
   const d = document.createElement('div');
   d.className =
     'card' +
-    ((c.s === '♥' || c.s === '♦') ? ' red' : '') +
-    ((c.r === 'RJ' || c.r === 'BJ') ? ' joker' : '');
+    (c.s === '♥' || c.s === '♦' ? ' red' : '') +
+    (c.r === 'RJ' || c.r === 'BJ' ? ' joker' : '');
 
   const rankText = c.r === 'BJ' ? 'JB' : c.r === 'RJ' ? 'JR' : c.r;
   const tl = document.createElement('div');
@@ -291,7 +335,8 @@ function init() {
       localStorage.setItem('accountId', myAccountId);
     } catch {}
   }
-  myTelegramId = params.get('tgId') || window?.Telegram?.WebApp?.initDataUnsafe?.user?.id;
+  myTelegramId =
+    params.get('tgId') || window?.Telegram?.WebApp?.initDataUnsafe?.user?.id;
   try {
     if (!name) {
       const initParam = params.get('init');
@@ -316,16 +361,31 @@ function init() {
     .slice(0, playerCount - (state.seated ? 1 : 0));
   state.players = [
     state.seated
-      ? { name, avatar, hand: hands[0], isHuman: true, active: true, balance: state.tpcTotal }
-      : { name: '', avatar: '', hand: [], isHuman: false, active: false, vacant: true, balance: 0 },
+      ? {
+          name,
+          avatar,
+          hand: hands[0],
+          isHuman: true,
+          active: true,
+          balance: state.tpcTotal
+        }
+      : {
+          name: '',
+          avatar: '',
+          hand: [],
+          isHuman: false,
+          active: false,
+          vacant: true,
+          balance: 0
+        },
     ...flags.map((f, idx) => ({
       name: flagName(f),
       avatar: f,
       hand: hands[idx + (state.seated ? 1 : 0)],
       active: true,
       isHuman: false,
-      balance: randomBalance(),
-    })),
+      balance: randomBalance()
+    }))
   ];
   const comm = dealCommunity(rest);
   state.community = comm.community;
@@ -375,7 +435,14 @@ function adjustNameSize(el) {
 function renderSeats() {
   const seats = document.getElementById('seats');
   seats.innerHTML = '';
-  const positions = ['bottom', 'bottom-right', 'right', 'top', 'left', 'bottom-left'];
+  const positions = [
+    'bottom',
+    'bottom-right',
+    'right',
+    'top',
+    'left',
+    'bottom-left'
+  ];
   state.players.forEach((p, i) => {
     const seat = document.createElement('div');
     seat.className = 'seat ' + positions[i];
@@ -457,7 +524,9 @@ function updateBalances() {
 function setActionText(idx, action) {
   const el = document.getElementById('action-' + idx);
   if (!el) return;
-  el.textContent = action ? action.charAt(0).toUpperCase() + action.slice(1) : '';
+  el.textContent = action
+    ? action.charAt(0).toUpperCase() + action.slice(1)
+    : '';
   el.className = 'action-text';
   if (action) el.classList.add(action);
 }
@@ -469,7 +538,7 @@ function clearActionTexts() {
 function cardEl(card) {
   return cardFaceEl({
     r: card.rank === 'T' ? '10' : card.rank,
-    s: SUIT_MAP[card.suit] || card.suit,
+    s: SUIT_MAP[card.suit] || card.suit
   });
 }
 
@@ -502,26 +571,17 @@ function buildChipPiles(amount) {
   const wrap = document.createElement('div');
   wrap.style.display = 'flex';
   wrap.style.gap = '4px';
-  wrap.style.flexWrap = 'wrap';
+  wrap.style.flexWrap = 'nowrap';
   wrap.style.justifyContent = 'center';
-  wrap.style.width = '100%';
   let remaining = amount;
+  let chips = 0;
   CHIP_VALUES.forEach((val) => {
-    let count = Math.floor(remaining / val);
-    if (count > 0) {
-      remaining -= count * val;
-      while (count > 0) {
-        const pile = document.createElement('div');
-        pile.className = 'chip-pile';
-        const pileCount = Math.min(count, 9);
-        for (let i = 0; i < pileCount; i++) {
-          const chip = document.createElement('div');
-          chip.className = 'chip v' + val;
-          pile.appendChild(chip);
-        }
-        wrap.appendChild(pile);
-        count -= pileCount;
-      }
+    while (remaining >= val && chips < 5) {
+      remaining -= val;
+      const chip = document.createElement('div');
+      chip.className = 'chip v' + val;
+      wrap.appendChild(chip);
+      chips++;
     }
   });
   return wrap;
@@ -533,7 +593,8 @@ function updatePotDisplay() {
   potEl.innerHTML = '';
   potEl.appendChild(buildChipPiles(state.pot));
   const textEl = document.getElementById('potTotal');
-  if (textEl) textEl.innerHTML = `<strong>Total:</strong> ${formatAmount(state.pot)}`;
+  if (textEl)
+    textEl.innerHTML = `<strong>Total:</strong> ${formatAmount(state.pot)}`;
 }
 
 function animateChipsFromPlayer(index, amount) {
@@ -552,14 +613,30 @@ function animateChipsFromPlayer(index, amount) {
   const stageRect = stage.getBoundingClientRect();
   const potRect = potWrap.getBoundingClientRect();
   chips.style.left =
-    seatRect.left + seatRect.width / 2 - stageRect.left - chips.offsetWidth / 2 + 'px';
+    seatRect.left +
+    seatRect.width / 2 -
+    stageRect.left -
+    chips.offsetWidth / 2 +
+    'px';
   chips.style.top =
-    seatRect.top + seatRect.height / 2 - stageRect.top - chips.offsetHeight / 2 + 'px';
+    seatRect.top +
+    seatRect.height / 2 -
+    stageRect.top -
+    chips.offsetHeight / 2 +
+    'px';
   requestAnimationFrame(() => {
     chips.style.left =
-      potRect.left + potRect.width / 2 - stageRect.left - chips.offsetWidth / 2 + 'px';
+      potRect.left +
+      potRect.width / 2 -
+      stageRect.left -
+      chips.offsetWidth / 2 +
+      'px';
     chips.style.top =
-      potRect.top + potRect.height / 2 - stageRect.top - chips.offsetHeight / 2 + 'px';
+      potRect.top +
+      potRect.height / 2 -
+      stageRect.top -
+      chips.offsetHeight / 2 +
+      'px';
   });
   setTimeout(() => {
     chips.remove();
@@ -594,7 +671,8 @@ function dealCardToPlayer(idx, card, showFace) {
     const deckRect = deck.getBoundingClientRect();
     const temp = showFace ? cardEl(card) : cardBackEl();
     temp.classList.add('moving-card');
-    temp.style.left = deckRect.left + deckRect.width / 2 - stageRect.left + 'px';
+    temp.style.left =
+      deckRect.left + deckRect.width / 2 - stageRect.left + 'px';
     temp.style.top = deckRect.top + deckRect.height / 2 - stageRect.top + 'px';
     stage.appendChild(temp);
     const target = document.getElementById('cards-' + idx);
@@ -648,8 +726,12 @@ function moveCardsToFolded(idx) {
 }
 
 function setPlayerTurnIndicator(idx) {
-  document.querySelectorAll('.seat-inner .cards').forEach((c) => c.classList.remove('turn'));
-  document.querySelectorAll('.avatar').forEach((a) => a.classList.remove('turn'));
+  document
+    .querySelectorAll('.seat-inner .cards')
+    .forEach((c) => c.classList.remove('turn'));
+  document
+    .querySelectorAll('.avatar')
+    .forEach((a) => a.classList.remove('turn'));
   if (idx === null || idx === undefined || idx < 0) return;
   const cards = document.getElementById('cards-' + idx);
   if (cards) cards.classList.add('turn');
@@ -702,7 +784,8 @@ function showControls() {
       const amt = document.getElementById('raiseSliderAmount');
       if (amt) amt.innerHTML = formatAmount(slider.value);
       const text = document.getElementById('raiseAmountText');
-      if (text && state.raiseAmount === 0) text.innerHTML = formatAmount(slider.value);
+      if (text && state.raiseAmount === 0)
+        text.innerHTML = formatAmount(slider.value);
       setStatus(
         'raise',
         slider.value > 0 ? `Raise ${formatAmount(slider.value)}` : ''
@@ -828,7 +911,11 @@ function showControls() {
   const checkBtn = document.getElementById('check');
   if (checkBtn) checkBtn.disabled = state.currentBet > 0;
 
-  const maxAllowed = Math.min(state.stake, state.maxPot - state.pot, state.tpcTotal);
+  const maxAllowed = Math.min(
+    state.stake,
+    state.maxPot - state.pot,
+    state.tpcTotal
+  );
   ['sliderRaise', 'allIn'].forEach((id) => {
     const el = document.getElementById(id);
     if (el) el.disabled = maxAllowed <= 0;
@@ -837,11 +924,9 @@ function showControls() {
     slider.max = Math.max(0, maxAllowed);
     slider.disabled = maxAllowed <= 0;
   }
-  document
-    .querySelectorAll('#raiseContainer .chip')
-    .forEach((chip) => {
-      chip.style.pointerEvents = maxAllowed > 0 ? 'auto' : 'none';
-    });
+  document.querySelectorAll('#raiseContainer .chip').forEach((chip) => {
+    chip.style.pointerEvents = maxAllowed > 0 ? 'auto' : 'none';
+  });
 
   loadAccountBalance().then(() => updateSliderRange());
 }
@@ -865,7 +950,11 @@ function updateRaiseAmount() {
 function updateSliderRange() {
   const slider = document.getElementById('raiseSlider');
   if (!slider) return;
-  const maxAllowed = Math.min(state.stake, state.maxPot - state.pot, state.tpcTotal);
+  const maxAllowed = Math.min(
+    state.stake,
+    state.maxPot - state.pot,
+    state.tpcTotal
+  );
   slider.max = Math.max(0, maxAllowed);
   slider.value = Math.min(parseInt(slider.value, 10) || 0, slider.max);
   const amt = document.getElementById('raiseSliderAmount');
@@ -894,11 +983,9 @@ function hideControls() {
     slider.disabled = true;
     slider.value = '0';
   }
-  document
-    .querySelectorAll('#raiseContainer .chip')
-    .forEach((chip) => {
-      chip.style.pointerEvents = 'none';
-    });
+  document.querySelectorAll('#raiseContainer .chip').forEach((chip) => {
+    chip.style.pointerEvents = 'none';
+  });
   state.raiseAmount = 0;
   state.selectedChips = [];
   updateRaiseAmount();
@@ -1070,10 +1157,12 @@ function movePotToWinner(idx) {
   const cards = document.getElementById('cards-' + idx);
   if (!cards) return;
   const cardRect = cards.getBoundingClientRect();
-  const targetX = cardRect.left - stageRect.left + cardRect.width / 2 - potEl.offsetWidth / 2;
-  const targetY = idx === 0
-    ? cardRect.top - stageRect.top - potEl.offsetHeight - 10
-    : cardRect.bottom - stageRect.top + 10;
+  const targetX =
+    cardRect.left - stageRect.left + cardRect.width / 2 - potEl.offsetWidth / 2;
+  const targetY =
+    idx === 0
+      ? cardRect.top - stageRect.top - potEl.offsetHeight - 10
+      : cardRect.bottom - stageRect.top + 10;
   requestAnimationFrame(() => {
     potEl.style.left = targetX + 'px';
     potEl.style.top = targetY + 'px';
@@ -1152,13 +1241,13 @@ async function showdown() {
         const winAmt = Math.round(pot * 0.9);
         try {
           await window.fbApi.depositAccount(myAccountId, winAmt, {
-            game: 'texasholdem-win',
+            game: 'texasholdem-win'
           });
           if (myTelegramId) {
             window.fbApi.addTransaction(myTelegramId, 0, 'win', {
               game: 'texasholdem',
               players: activePlayers.length,
-              accountId: myAccountId,
+              accountId: myAccountId
             });
           }
         } catch {}
