@@ -1698,24 +1698,19 @@
           if (isAmerican || isNineBall) {
             return !firstHit || firstHit.n !== currentTarget || scratch;
           }
-          var shooterType = assignedTypes[currentShooter];
           if (!firstHit || scratch) return true;
-          if (shooterType && firstHit.t !== shooterType) {
-            var stillLeft = false;
+          var shooterType = assignedTypes[currentShooter];
+          function hasBallsLeft(type) {
             for (var k = 1; k < table.balls.length; k++) {
               var rb = table.balls[k];
-              if (
-                rb &&
-                !rb.pocketed &&
-                BALL_BY_N[rb.n].t === shooterType &&
-                rb.n !== firstHit.n
-              ) {
-                stillLeft = true;
-                break;
-              }
+              if (rb && !rb.pocketed && BALL_BY_N[rb.n].t === type) return true;
             }
-            if (stillLeft || firstHit.t !== 'eight') return true;
+            return false;
           }
+          if (firstHit.t === 'eight') {
+            return shooterType && hasBallsLeft(shooterType);
+          }
+          if (shooterType && firstHit.t !== shooterType) return true;
           return false;
         }
 
@@ -2229,6 +2224,11 @@
           if (table.isMoving() || table.turn !== 2) return;
           cpuThinking = true;
           var cue = table.balls[0];
+          if (cueBallFree) {
+            cue.p.x = TABLE_W / 2;
+            cue.p.y = CUE_START_Y;
+            cue.v.x = cue.v.y = 0;
+          }
           var targets = [];
           if (isAmerican || isNineBall) {
             var lowest = null;
@@ -2331,8 +2331,20 @@
             power = 0.35 + Math.random() * 0.3;
           }
 
-          // apply 85–90% potting accuracy
-          var ACCURACY = 0.85 + Math.random() * 0.05;
+          if (cueBallFree) {
+            cue.p.x = clamp(
+              chosen.p.x,
+              BORDER + BALL_R * 2,
+              TABLE_W - BORDER - BALL_R * 2
+            );
+            cue.p.y = CUE_START_Y;
+            cue.v.x = cue.v.y = 0;
+            cueBallFree = false;
+            nd = norm(chosen.p.x - cue.p.x, chosen.p.y - cue.p.y);
+          }
+
+          // apply improved potting accuracy
+          var ACCURACY = 0.95 + Math.random() * 0.03;
           nd = {
             x: nd.x + (Math.random() - 0.5) * (1 - ACCURACY),
             y: nd.y + (Math.random() - 0.5) * (1 - ACCURACY)
@@ -2373,12 +2385,14 @@
           table.aim = { x: cue.p.x + nd.x * 100, y: cue.p.y + nd.y * 100 };
           setSpin(spinX, spinY);
           cuePullVisual = power * (BALL_R * 14);
+          showGuides = true;
 
           setTimeout(function () {
             cpuThinking = false;
             shoot(power);
             cuePullVisual = 0;
-          }, 400);
+            showGuides = false;
+          }, 800);
         }
 
         /* ==========================================================
