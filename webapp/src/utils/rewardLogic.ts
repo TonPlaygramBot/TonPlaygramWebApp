@@ -1,5 +1,11 @@
 // Prize amounts available on the wheel.
-export type Segment = number | 'BONUS_X3' | 'FREE_SPIN' | 'BOMB';
+export type Segment =
+  | number
+  | 'BONUS_X3'
+  | 'FREE_SPIN'
+  | 'BOMB'
+  | 'JOKER_BLACK'
+  | 'JOKER_RED';
 
 export const segments: Segment[] = [
   400,
@@ -11,6 +17,8 @@ export const segments: Segment[] = [
   1600,
   'FREE_SPIN',
   'BONUS_X3',
+  'JOKER_BLACK',
+  'JOKER_RED',
   'BOMB',
   'BOMB',
 ];
@@ -54,6 +62,8 @@ export function getLuckyReward(): Segment {
   const r = secureRandom();
   if (r < 0.15) return 'BONUS_X3';
   if (r < 0.3) return 'FREE_SPIN';
+  if (r < 0.32) return 'JOKER_BLACK';
+  if (r < 0.34) return 'JOKER_RED';
   const idx = Math.floor(secureRandom() * numericSegments.length);
   return numericSegments[idx] as number;
 }

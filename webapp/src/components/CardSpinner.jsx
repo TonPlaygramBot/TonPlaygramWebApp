@@ -29,6 +29,22 @@ function PrizeItem({ value }) {
       </>
     );
   }
+  if (value === 'JOKER_BLACK') {
+    return (
+      <>
+        <span className="text-3xl">🃏</span>
+        <span className="font-bold text-black" style={{ WebkitTextStroke: '1px black' }}>5000</span>
+      </>
+    );
+  }
+  if (value === 'JOKER_RED') {
+    return (
+      <>
+        <span className="text-3xl text-red-500">🃏</span>
+        <span className="font-bold text-red-500" style={{ WebkitTextStroke: '1px black' }}>10000</span>
+      </>
+    );
+  }
   return (
     <>
       <img
@@ -63,7 +79,13 @@ export default function CardSpinner({ trigger = 0, onFinish }) {
 
   useEffect(() => {
     if (!trigger) return;
-    const base = [...numericSegments, 'FREE_SPIN', 'BONUS_X3'];
+    const base = [
+      ...numericSegments,
+      'FREE_SPIN',
+      'BONUS_X3',
+      'JOKER_BLACK',
+      'JOKER_RED',
+    ];
     const arr = [];
     for (let i = 0; i < 10; i++) {
       arr.push(base[Math.floor(Math.random() * base.length)]);
