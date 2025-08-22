@@ -1446,8 +1446,27 @@
             endGame(1);
           } else if (scores[2] >= 100 || scores[2] > scores[1] + rem) {
             endGame(2);
-          } else if (rem === 0 && scores[1] !== scores[2]) {
-            endGame(scores[1] > scores[2] ? 1 : 2);
+          } else if (rem === 0) {
+            if (scores[1] === scores[2]) {
+              table.captured[1] = table.captured[1].filter(function (n) {
+                return n !== 8;
+              });
+              table.captured[2] = table.captured[2].filter(function (n) {
+                return n !== 8;
+              });
+              table.balls.push(new Ball(BALL_BY_N[8], TABLE_W / 2, SPOT_Y));
+              cueBallFree = true;
+              cueHintTime = Date.now();
+              var cue = table.balls[0];
+              cue.p.x = TABLE_W / 2;
+              cue.p.y = CUE_START_Y;
+              cue.v.x = 0;
+              cue.v.y = 0;
+              updateCapturedUI();
+              updateFooter(table.turn, 'Shoot the 8-ball to win!');
+            } else {
+              endGame(scores[1] > scores[2] ? 1 : 2);
+            }
           }
         }
 
@@ -1646,6 +1665,13 @@
                   opponent,
                   'That\u2019s a foul – opponent gets ' + shotPoints + ' points.'
                 );
+                pottedThisShot.forEach(function (n) {
+                  var arr = table.captured[currentShooter];
+                  var idx = arr.indexOf(n);
+                  if (idx !== -1) arr.splice(idx, 1);
+                  table.captured[opponent].push(n);
+                });
+                updateCapturedUI();
               } else {
                 var foulMsg = scratch
                   ? 'the cue ball went in'
@@ -1780,7 +1806,7 @@
           if (draggingCue && cueBallFree) {
             var minX = BORDER + BALL_R,
               maxX = TABLE_W - BORDER - BALL_R;
-            var minY = (isAmerican ? BORDER_TOP : LINE_Y) + BALL_R,
+            var minY = LINE_Y + BALL_R,
               maxY = TABLE_H - BORDER_BOTTOM - BALL_R;
             cue.p.x = clamp(t.x, minX, maxX);
             cue.p.y = clamp(t.y, minY, maxY);
