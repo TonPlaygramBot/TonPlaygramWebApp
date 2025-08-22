@@ -46,6 +46,7 @@ import BlackJack from './pages/Games/BlackJack.jsx';
 import BlackJackLobby from './pages/Games/BlackJackLobby.jsx';
 import PollRoyale from './pages/Games/PollRoyale.jsx';
 import PollRoyaleLobby from './pages/Games/PollRoyaleLobby.jsx';
+import LuckyCard from './pages/Games/LuckyCard.jsx';
 
 import Layout from './components/Layout.jsx';
 import useTelegramAuth from './hooks/useTelegramAuth.js';
@@ -95,6 +96,7 @@ export default function App() {
             <Route path="/games/murlanroyale" element={<MurlanRoyale />} />
             <Route path="/games/pollroyale/lobby" element={<PollRoyaleLobby />} />
             <Route path="/games/pollroyale" element={<PollRoyale />} />
+            <Route path="/games/luckycard" element={<LuckyCard />} />
             <Route path="/spin" element={<SpinPage />} />
             <Route path="/admin/influencer" element={<InfluencerAdmin />} />
             <Route path="/tasks" element={<Tasks />} />
