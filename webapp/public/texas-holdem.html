@@ -69,9 +69,9 @@
 
 .seat.top { top: 1%; left: 50%; transform: translateX(-50%); }
 
-.seat.left { left: 16%; top: 26%; transform: translate(-50%, -50%); }
+  .seat.left { left: 16%; top: 24%; transform: translate(-50%, -50%); }
 
-.seat.right { left: 84%; top: 26%; transform: translate(-50%, -50%); }
+  .seat.right { left: 84%; top: 24%; transform: translate(-50%, -50%); }
 
     .seat.bottom-left { left: 16%; top: 64%; transform: translate(-50%, -50%); }
 
@@ -183,8 +183,8 @@
 
     .pot-wrap{ position:absolute; left:50%; top:33%; transform:translate(-50%,-50%); display:flex; flex-direction:column; align-items:center; gap:4px; z-index:2; }
     .pot{ display:flex; gap:4px; }
-    .pot-total{ font-size:14px; }
-    .chip-pile{ position:relative; display:grid; grid-template-columns:repeat(3,1fr); grid-template-rows:repeat(2,1fr); gap:2px; width:calc(var(--avatar-size)/1.2); height:calc(var(--avatar-size)/1.8); }
+    .pot-total{ font-size:16px; font-weight:700; }
+    .chip-pile{ position:relative; display:grid; grid-template-columns:repeat(3,calc(var(--avatar-size)/1.35)); grid-template-rows:repeat(2,calc(var(--avatar-size)/1.35)); gap:4px; }
     .chip{ position:relative; width:100%; height:100%; border-radius:50%; background-size:cover; background-position:center; background-repeat:no-repeat; box-shadow:0 2px 4px rgba(0,0,0,.4); }
     .chip.v1{ background-image:url('assets/icons/1chips.webp'); }
     .chip.v2{ background-image:url('assets/icons/20250820_071739.webp'); }
