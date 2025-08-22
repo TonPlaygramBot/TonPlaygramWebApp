@@ -2,43 +2,12 @@ import { useState, useEffect } from 'react';
 import DiceRoller from './DiceRoller.jsx';
 import RewardPopup from './RewardPopup.tsx';
 import AdModal from './AdModal.tsx';
-import { numericSegments } from '../utils/rewardLogic';
+import CardSpinner from './CardSpinner.jsx';
 import { getTelegramId } from '../utils/telegram.js';
 import LoginOptions from './LoginOptions.jsx';
 import { getWalletBalance, updateBalance, addTransaction } from '../utils/api.js';
 
-function shuffleRewards() {
-  const numbers = [];
-  for (let i = 0; i < 9; i++) {
-    numbers.push(numericSegments[i % numericSegments.length]);
-  }
-  const arr = [...numbers, 'FREE_SPIN', 'BONUS_X3'];
-  for (let i = arr.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [arr[i], arr[j]] = [arr[j], arr[i]];
-  }
-  return [100, ...arr];
-}
-
 const todayKey = () => new Date().toISOString().slice(0, 10);
-
-const CARD_VALUES = ['A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q'];
-
-function HeartCard({ rank }) {
-  return (
-    <div className="w-full h-full bg-white rounded-md border border-black relative flex items-center justify-center text-red-600 font-bold">
-      <div className="absolute left-1 top-1 flex flex-col items-center leading-none">
-        <span className="text-sm">{rank}</span>
-        <span className="text-xs">♥</span>
-      </div>
-      <div className="absolute right-1 bottom-1 flex flex-col items-center leading-none rotate-180">
-        <span className="text-sm">{rank}</span>
-        <span className="text-xs">♥</span>
-      </div>
-      <span className="text-3xl">♥</span>
-    </div>
-  );
-}
 
 export default function LuckyNumber() {
   let telegramId;
@@ -48,9 +17,10 @@ export default function LuckyNumber() {
     return <LoginOptions />;
   }
 
-  const [rewards, setRewards] = useState(() => shuffleRewards());
   const [selected, setSelected] = useState(null);
   const [reward, setReward] = useState(null);
+  const [cardPrize, setCardPrize] = useState(null);
+  const [spinTrigger, setSpinTrigger] = useState(0);
   const [canRoll, setCanRoll] = useState(false);
   const [rolling, setRolling] = useState(false);
   const [showAd, setShowAd] = useState(false);
@@ -81,12 +51,20 @@ export default function LuckyNumber() {
 
   const handleRollStart = () => setRolling(true);
 
-  const handleRollEnd = async (values) => {
+  const handleRollEnd = (values) => {
     setRolling(false);
     const sum = values.reduce((acc, v) => acc + v, 0);
-    const idx = Math.min(Math.max(0, sum - 1), rewards.length - 1);
-    const prize = rewards[idx];
+    const idx = Math.min(Math.max(0, sum - 1), 11);
     setSelected(idx);
+    setCardPrize(null);
+    setSpinTrigger((t) => t + 1);
+    localStorage.setItem('luckyRollTs', String(Date.now()));
+    setCanRoll(false);
+    setAdWatched(false);
+  };
+
+  const handleSpinFinish = async (prize) => {
+    setCardPrize(prize);
     if (typeof prize === 'number') {
       try {
         const balRes = await getWalletBalance(telegramId);
@@ -98,20 +76,13 @@ export default function LuckyNumber() {
       const fs = parseInt(localStorage.getItem('freeSpins') || '0', 10) + 2;
       localStorage.setItem('freeSpins', String(fs));
       window.dispatchEvent(new Event('freeSpinAwarded'));
-      document
-        .getElementById('spin-game')
-        ?.scrollIntoView({ behavior: 'smooth' });
+      document.getElementById('spin-game')?.scrollIntoView({ behavior: 'smooth' });
     } else if (prize === 'BONUS_X3') {
       localStorage.setItem('bonusX3', 'true');
       window.dispatchEvent(new Event('bonusX3Awarded'));
-      document
-        .getElementById('spin-game')
-        ?.scrollIntoView({ behavior: 'smooth' });
+      document.getElementById('spin-game')?.scrollIntoView({ behavior: 'smooth' });
     }
     setReward(prize);
-    localStorage.setItem('luckyRollTs', String(Date.now()));
-    setCanRoll(false);
-    setAdWatched(false);
   };
 
   const handleRollClick = () => {
@@ -129,7 +100,6 @@ export default function LuckyNumber() {
     setTrigger((t) => t + 1);
   };
 
-
   return (
     <div className="relative bg-surface border border-border rounded-xl p-4 space-y-2 text-center overflow-hidden wide-card">
       <img
@@ -141,51 +111,72 @@ export default function LuckyNumber() {
         }}
       />
       <h3 className="text-lg font-bold text-white">Lucky Card</h3>
-        <div className="grid grid-cols-3 gap-2 justify-items-center">
-          {rewards.map((val, i) => (
+      <div className="grid grid-cols-3 gap-2 justify-items-center">
+        {Array.from({ length: 12 }).map((_, i) => (
+          <div
+            key={i}
+            className={`board-style w-16 h-24 flex items-center justify-center rounded relative ${
+              selected === i ? 'border-4 border-brand-gold' : 'border-2 border-border'
+            }`}
+            style={{ perspective: '1000px' }}
+          >
             <div
-              key={i}
-              className={`board-style w-16 h-24 flex items-center justify-center rounded relative ${
-                selected === i ? 'border-4 border-brand-gold' : 'border-2 border-border'
-              }`}
+              className="relative w-full h-full transition-transform duration-500"
+              style={{
+                transform: selected === i ? 'rotateY(180deg)' : 'rotateY(0deg)',
+                transformStyle: 'preserve-3d',
+              }}
             >
-              <HeartCard rank={CARD_VALUES[i]} />
-              {(i === 0 || selected === i) && (
-                <div className="absolute inset-0 flex flex-col items-center justify-center bg-white rounded-md">
-                  {val === 'FREE_SPIN' ? (
-                    <>
-                      <img
-                        src="/assets/icons/file_00000000ae68620a96d269fe76d158e5_256x256.webp"
-                        alt="Free Spin"
-                        className="w-10 h-10"
-                      />
-                      <span className="font-bold text-white" style={{ WebkitTextStroke: '1px black' }}>+2</span>
-                    </>
-                  ) : val === 'BONUS_X3' ? (
-                    <>
-                      <img
-                        src="/assets/icons/file_000000009160620a96f728f463de1c3f.webp"
-                        alt="Bonus"
-                        className="w-10 h-10"
-                      />
-                      <span className="font-bold text-white" style={{ WebkitTextStroke: '1px black' }}>X3</span>
-                    </>
-                  ) : (
-                    <>
-                      <img
-                        src="/assets/icons/file_00000000bc2862439eecffff3730bbe4.webp"
-                        alt="TonPlaygram"
-                        className="w-10 h-10"
-                      />
-                      <span className="font-bold text-white" style={{ WebkitTextStroke: '1px black' }}>{val}</span>
-                      {i === 0 && <span className="text-red-500 text-xs">FREE</span>}
-                    </>
-                  )}
-                </div>
-              )}
+              <div
+                className="absolute inset-0 bg-white rounded-md flex items-center justify-center text-xl font-bold text-white"
+                style={{ backfaceVisibility: 'hidden', WebkitTextStroke: '1px black' }}
+              >
+                {i + 1}
+              </div>
+              <div
+                className="absolute inset-0 rounded-md flex items-center justify-center"
+                style={{ transform: 'rotateY(180deg)', backfaceVisibility: 'hidden' }}
+              >
+                {selected === i && !cardPrize && (
+                  <CardSpinner trigger={spinTrigger} onFinish={handleSpinFinish} />
+                )}
+                {selected === i && cardPrize && (
+                  <div className="flex flex-col items-center justify-center w-full h-full bg-white rounded-md">
+                    {cardPrize === 'FREE_SPIN' ? (
+                      <>
+                        <img
+                          src="/assets/icons/file_00000000ae68620a96d269fe76d158e5_256x256.webp"
+                          alt="Free Spin"
+                          className="w-10 h-10"
+                        />
+                        <span className="font-bold text-white" style={{ WebkitTextStroke: '1px black' }}>+2</span>
+                      </>
+                    ) : cardPrize === 'BONUS_X3' ? (
+                      <>
+                        <img
+                          src="/assets/icons/file_000000009160620a96f728f463de1c3f.webp"
+                          alt="Bonus"
+                          className="w-10 h-10"
+                        />
+                        <span className="font-bold text-white" style={{ WebkitTextStroke: '1px black' }}>X3</span>
+                      </>
+                    ) : (
+                      <>
+                        <img
+                          src="/assets/icons/file_00000000bc2862439eecffff3730bbe4.webp"
+                          alt="TonPlaygram"
+                          className="w-10 h-10"
+                        />
+                        <span className="font-bold text-white" style={{ WebkitTextStroke: '1px black' }}>{cardPrize}</span>
+                      </>
+                    )}
+                  </div>
+                )}
+              </div>
             </div>
-          ))}
-        </div>
+          </div>
+        ))}
+      </div>
       <div className="flex flex-col items-center space-y-2 mt-6">
         <div
           onClick={handleRollClick}
@@ -214,9 +205,10 @@ export default function LuckyNumber() {
         onClose={() => {
           setReward(null);
           setSelected(null);
-          setRewards(shuffleRewards());
+          setCardPrize(null);
         }}
       />
     </div>
   );
 }
+
