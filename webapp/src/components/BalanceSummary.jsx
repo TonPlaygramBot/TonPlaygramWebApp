@@ -22,8 +22,8 @@ export default function BalanceSummary({ className = '', showHeader = true }) {
       )}
       <div className="grid grid-cols-3 text-sm mt-4">
         <Token icon="/assets/icons/TON.webp" label="TON" value={tonBalance ?? '...'} />
-        <Token icon="/assets/icons/ezgif-54c96d8a9b9236.webp" label="TPC (App)" value={tpcBalance ?? 0} decimals={2} />
-        <Token icon="/assets/icons/ezgif-54c96d8a9b9236.webp" label="TPC" value={tpcWalletBalance ?? '...'} decimals={2} />
+        <Token icon="/assets/icons/ezgif-54c96d8a9b9236.webp" label="TPC (App)" value={tpcBalance ?? 0} decimals={2} iconClass="w-16 h-16" />
+        <Token icon="/assets/icons/ezgif-54c96d8a9b9236.webp" label="TPC" value={tpcWalletBalance ?? '...'} decimals={2} iconClass="w-16 h-16" />
       </div>
     </div>
   );
@@ -44,10 +44,10 @@ function formatValue(value, decimals = 4) {
   });
 }
 
-function Token({ icon, value, label, decimals }) {
+function Token({ icon, value, label, decimals, iconClass = 'w-8 h-8' }) {
   return (
     <div className="flex items-center justify-start space-x-1 w-full">
-      <img  src={icon} alt={label} className="w-8 h-8" />
+      <img src={icon} alt={label} className={iconClass} />
       <span>{formatValue(value, decimals)}</span>
     </div>
   );

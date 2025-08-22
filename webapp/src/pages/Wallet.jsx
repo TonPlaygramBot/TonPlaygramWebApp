@@ -290,7 +290,7 @@ export default function Wallet({ hideClaim = false }) {
           </span>
         </p>
         <div className="flex items-center space-x-1">
-          <img src="/assets/icons/ezgif-54c96d8a9b9236.webp" alt="TPC" className="w-8 h-8" />
+          <img src="/assets/icons/ezgif-54c96d8a9b9236.webp" alt="TPC" className="w-16 h-16" />
           <span className="text-lg font-medium text-white text-outline-black">
             TPC Balance
           </span>
