@@ -105,6 +105,28 @@
 
     .foul { color: red; }
 
+    #centerPopup {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      font-size: 32px;
+      font-weight: 700;
+      pointer-events: none;
+      z-index: 200;
+      display: none;
+    }
+
+    #centerPopup.foul {
+      color: red;
+      text-shadow: 2px 2px 0 #fff;
+    }
+
+    #centerPopup.shots {
+      color: #fff;
+      text-shadow: 2px 2px 0 #000;
+    }
+
     #wrap {
       position: relative;
       flex: 1 1 auto;
@@ -432,6 +454,7 @@
     </div>
   </div>
   <div id="winnerOverlay" class="winnerOverlay hidden"></div>
+  <div id="centerPopup"></div>
 
   <button id="rulesBtn" aria-label="Game rules">ℹ️</button>
   <div id="rulesModal" class="hidden" role="dialog" aria-modal="true">
@@ -495,6 +518,7 @@
     var footerAvatar = turnPlayer.querySelector('.avatar');
     var footerName   = turnPlayer.querySelector('.name');
     var statusMsg    = document.getElementById('statusMsg');
+    var centerPopup = document.getElementById('centerPopup');
     var spinBox   = document.getElementById('spinBox');
     var spinDot   = document.getElementById('spinDot');
     var logoImg   = new Image();
@@ -752,26 +776,49 @@
       var cx = TABLE_W/2;
       var cy = SPOT_Y - colGap*2;
 
-      // Lista e numrave te tjere – do perdoren gradualisht
-      var pool = []; for (i=1;i<=15;i++){ if(i!==1 && i!==2 && i!==8 && i!==11) pool.push(i); }
-      var cursor = 0;
+      if (isAmerican) {
+        // Lista e numrave te tjere – do perdoren gradualisht
+        var pool = []; for (i=1;i<=15;i++){ if(i!==1 && i!==2 && i!==8 && i!==11) pool.push(i); }
+        var cursor = 0;
 
-      // 5 rreshta nga lart poshte - trekendesh me maje poshte
-      for (var r=0; r<5; r++) {
-        var count = 5 - r;
-        var startX = cx - rowGap*(count-1)/2;
-        var y = cy + r*colGap;
-        for (j=0; j<count; j++) {
-          var x = startX + j*rowGap;
-          var num;
-          if (r===4 && j===0) num = 1;           // yellow ne maje (poshte)
-          else if (r===2 && j===1) num = 8;      // qender
-          else if (r===0 && j===0) num = 2;      // qoshe solid majtas
-          else if (r===0 && j===4) num = 11;     // qoshe stripe djathtas
-          else num = pool[cursor++];
-          var info = BALL_BY_N[num];
-          if (!info) { console.warn('Rack: numer i papercaktuar', num); continue; }
-          this.balls.push(new Ball(info, x, y));
+        // 5 rreshta nga lart poshte - trekendesh me maje poshte
+        for (var r=0; r<5; r++) {
+          var count = 5 - r;
+          var startX = cx - rowGap*(count-1)/2;
+          var y = cy + r*colGap;
+          for (j=0; j<count; j++) {
+            var x = startX + j*rowGap;
+            var num;
+            if (r===4 && j===0) num = 1;           // yellow ne maje (poshte)
+            else if (r===2 && j===1) num = 8;      // qender
+            else if (r===0 && j===0) num = 2;      // qoshe solid majtas
+            else if (r===0 && j===4) num = 11;     // qoshe stripe djathtas
+            else num = pool[cursor++];
+            var info = BALL_BY_N[num];
+            if (!info) { console.warn('Rack: numer i papercaktuar', num); continue; }
+            this.balls.push(new Ball(info, x, y));
+          }
+        }
+      } else {
+        // Rregullimi standart per 8-ball UK (red & yellow)
+        var pattern = [
+          [9,1,10,2,11],
+          [3,12,4,13],
+          [14,8,5],
+          [15,6],
+          [7]
+        ];
+        for (var r2=0; r2<pattern.length; r2++) {
+          var cnt = pattern[r2].length;
+          var startX2 = cx - rowGap*(cnt-1)/2;
+          var y2 = cy + r2*colGap;
+          for (var j2=0; j2<cnt; j2++) {
+            var x2 = startX2 + j2*rowGap;
+            var num2 = pattern[r2][j2];
+            var info2 = BALL_BY_N[num2];
+            if (!info2) { console.warn('Rack: numer i papercaktuar', num2); continue; }
+            this.balls.push(new Ball(info2, x2, y2));
+          }
         }
       }
 
@@ -913,9 +960,12 @@
                 if (!assignedTypes[1] && tType !== 'eight') {
                   assignedTypes[currentShooter] = tType;
                   assignedTypes[currentShooter===1?2:1] = (tType==='red'?'yellow':'red');
+                  pocketedOwn = true;
+                  updateFooter(currentShooter, 'He sinks a ' + tType + ' and is now ' + tType + '.');
+                } else {
+                  if (assignedTypes[currentShooter] === tType) pocketedOwn = true;
+                  updateFooter(currentShooter, 'He sinks a ' + tType + '.');
                 }
-                if (assignedTypes[currentShooter] === tType) pocketedOwn = true;
-                updateFooter(currentShooter, 'He sinks the ' + b2.n + '-ball.');
               }
               lastPocketedBall = b2.n;
             }
@@ -1147,6 +1197,13 @@
       }
     }
 
+    function showCenterPopup(text, cls, duration){
+      centerPopup.textContent = text;
+      centerPopup.className = cls;
+      centerPopup.style.display = 'block';
+      setTimeout(function(){ centerPopup.style.display = 'none'; }, duration);
+    }
+
     function handleEightBall(){
       var winner = currentShooter===1 ? 2 : 1;
       endGame(winner);
@@ -1190,10 +1247,12 @@
         } else {
           updateFooter(opponent, 'Foul – opponent gets two shots.');
         }
+        showCenterPopup('Foul', 'foul', 1300);
+        setTimeout(function(){ showCenterPopup('2 shots', 'shots', 1300); }, 1300);
         freeShots[opponent] = isAmerican ? 1 : 2;
         freeShots[currentShooter] = 0;
         table.turn = opponent;
-        setTimeout(showShots, 2000);
+        setTimeout(showShots, 3000);
       } else {
         if (freeShots[currentShooter] > 0) {
           freeShots[currentShooter]--;
@@ -1213,14 +1272,15 @@
               msg += ' Solid run — he\u2019s already at ' + total + ' points, just needs ' + closing + ' more to close the game.';
             }
           } else {
-            msg = 'He sinks the ' + lastPocketedBall + '-ball.';
+            var col = BALL_BY_N[lastPocketedBall].t;
+            msg = 'He sinks a ' + col + '.';
           }
           updateFooter(currentShooter, msg);
           lastPocketedBall = null;
-          setTimeout(showShots, 2000);
+          setTimeout(showShots, 3000);
         } else {
           updateFooter(table.turn, 'Close call! The ball hit the cushion but nothing dropped, turn passes to the opponent.');
-          setTimeout(showShots, 2000);
+          setTimeout(showShots, 3000);
         }
       }
       pocketedAny = false;
