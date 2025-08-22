@@ -20,6 +20,7 @@ const state = {
   pot: 0,
   raiseAmount: 0,
   community: [],
+  standNames: [],
 };
 
 let myAccountId = '';
@@ -254,6 +255,46 @@ function cardBackEl() {
   return div;
 }
 
+function dealCardToPlayer(idx, card, showFace) {
+  return new Promise((resolve) => {
+    const stage = document.querySelector('.stage');
+    const deck = document.getElementById('community');
+    if (!stage || !deck) {
+      const target = document.getElementById('cards-' + idx);
+      if (target) target.appendChild(showFace ? cardEl(card) : cardBackEl());
+      playFlipSound();
+      resolve();
+      return;
+    }
+    const stageRect = stage.getBoundingClientRect();
+    const deckRect = deck.getBoundingClientRect();
+    const temp = showFace ? cardEl(card) : cardBackEl();
+    temp.classList.add('moving-card');
+    temp.style.left = deckRect.left + deckRect.width / 2 - stageRect.left + 'px';
+    temp.style.top = deckRect.top + deckRect.height / 2 - stageRect.top + 'px';
+    stage.appendChild(temp);
+    const target = document.getElementById('cards-' + idx);
+    const targetRect = target.getBoundingClientRect();
+    requestAnimationFrame(() => {
+      temp.style.left = targetRect.left - stageRect.left + 'px';
+      temp.style.top = targetRect.top - stageRect.top + 'px';
+    });
+    temp.addEventListener(
+      'transitionend',
+      () => {
+        temp.classList.remove('moving-card');
+        temp.style.left = '';
+        temp.style.top = '';
+        temp.style.transition = '';
+        target.appendChild(temp);
+        playFlipSound();
+        resolve();
+      },
+      { once: true }
+    );
+  });
+}
+
 function render() {
   const seats = document.getElementById('seats');
   seats.innerHTML = '';
@@ -287,6 +328,7 @@ function render() {
 
     const cards = document.createElement('div');
     cards.className = 'cards';
+    cards.id = 'cards-' + i;
     p.hand.slice(0, 2).forEach((c) => {
       cards.appendChild(p.revealed || i === 0 ? cardEl(c) : cardBackEl());
     });
@@ -340,6 +382,14 @@ function render() {
       action.className = 'action-label';
       action.textContent = 'STAND';
       seat.appendChild(action);
+      const wrap = document.createElement('div');
+      wrap.className = 'stand-copy-wrapper';
+      wrap.appendChild(cardBackEl());
+      const nm = document.createElement('div');
+      nm.className = 'stand-name';
+      nm.textContent = p.name;
+      wrap.appendChild(nm);
+      seat.appendChild(wrap);
     }
     seats.appendChild(seat);
   });
@@ -375,11 +425,13 @@ function aiTurn() {
     if (isBust(p.hand)) {
       p.bust = true;
       p.stood = true;
+      if (!state.standNames.includes(p.name)) state.standNames.push(p.name);
     }
     render();
     setTimeout(aiTurn, 500);
   } else {
     p.stood = true;
+    if (!state.standNames.includes(p.name)) state.standNames.push(p.name);
     nextTurn();
   }
 }
@@ -395,6 +447,7 @@ window.hit = () => {
   if (isBust(p.hand) || handValue(p.hand) === 21) {
     p.bust = isBust(p.hand);
     p.stood = true;
+    if (!state.standNames.includes(p.name)) state.standNames.push(p.name);
     nextTurn();
   }
   render();
@@ -404,6 +457,7 @@ window.stand = () => {
   const p = state.players[state.turn];
   if (!p || !p.isHuman) return;
   p.stood = true;
+  if (!state.standNames.includes(p.name)) state.standNames.push(p.name);
   nextTurn();
 };
 
@@ -466,7 +520,22 @@ function renderCommunity() {
   if (!el) return;
   el.innerHTML = '';
   state.community.forEach((c) => {
-    el.appendChild(cardEl(c));
+    if (!c) {
+      const back = cardBackEl();
+      if (state.standNames.length) {
+        const names = document.createElement('div');
+        names.className = 'stand-names';
+        state.standNames.forEach((n) => {
+          const div = document.createElement('div');
+          div.textContent = n;
+          names.appendChild(div);
+        });
+        back.appendChild(names);
+      }
+      el.appendChild(back);
+    } else {
+      el.appendChild(cardEl(c));
+    }
   });
 }
 
@@ -495,6 +564,7 @@ function startNewRound() {
   state.raiseAmount = 0;
   state.deck = shuffle(createDeck());
   state.community = [];
+  state.standNames = [];
   state.players.forEach((p) => {
     p.hand = [];
     p.stood = false;
@@ -556,37 +626,34 @@ async function init() {
 
   state.deck = shuffle(createDeck());
 
-  // deal first card to each player sequentially
-  for (let i = 0; i < state.players.length; i++) {
-    const { card, deck: d1 } = hitCard(state.deck);
-    state.deck = d1;
-    const p = state.players[i];
-    p.hand.push(card);
-    p.revealed = i === 0;
-    playFlipSound();
-    await new Promise((res) => setTimeout(res, 200));
-  }
-
   render();
 
-  // deal second card after short delay, sequentially
-  setTimeout(async () => {
+  async function dealInitial() {
+    for (let i = 0; i < state.players.length; i++) {
+      const { card, deck: d1 } = hitCard(state.deck);
+      state.deck = d1;
+      const p = state.players[i];
+      p.hand.push(card);
+      p.revealed = i === 0;
+      await dealCardToPlayer(i, card, p.revealed);
+    }
     for (let i = 0; i < state.players.length; i++) {
       const { card, deck: d2 } = hitCard(state.deck);
       state.deck = d2;
       state.players[i].hand.push(card);
       if (i === 0) state.players[i].revealed = true;
-      playFlipSound();
-      await new Promise((res) => setTimeout(res, 200));
+      await dealCardToPlayer(i, card, state.players[i].revealed);
     }
+    state.community.push(null);
     render();
     aiBettingRound();
     const p0 = state.players[0];
     if (!p0.isHuman) setTimeout(aiTurn, 500);
-  }, 500);
+    state.pot = state.stake * state.players.length;
+    renderPot();
+  }
 
-  state.pot = state.stake * state.players.length;
-  renderPot();
+  dealInitial();
 
   document.querySelectorAll('#raiseContainer .chip').forEach((chip) => {
     chip.addEventListener('click', () => {
