@@ -2,7 +2,12 @@ import { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import RoomSelector from '../../components/RoomSelector.jsx';
 import useTelegramBackButton from '../../hooks/useTelegramBackButton.js';
-import { ensureAccountId, getTelegramId, getTelegramPhotoUrl, getTelegramFirstName } from '../../utils/telegram.js';
+import {
+  ensureAccountId,
+  getTelegramId,
+  getTelegramPhotoUrl,
+  getTelegramFirstName
+} from '../../utils/telegram.js';
 import { getAccountBalance, addTransaction } from '../../utils/api.js';
 import { loadAvatar } from '../../utils/avatarUtils.js';
 
@@ -14,9 +19,7 @@ export default function PollRoyaleLobby() {
   const [stake, setStake] = useState({ token: 'TPC', amount: 100 });
   const [mode, setMode] = useState('ai');
   const [avatar, setAvatar] = useState('');
-  const [variant, setVariant] = useState(
-    () => new URLSearchParams(search).get('variant') || 'uk'
-  );
+  const variant = 'american';
 
   useEffect(() => {
     try {
@@ -39,7 +42,7 @@ export default function PollRoyaleLobby() {
       await addTransaction(tgId, -stake.amount, 'stake', {
         game: 'pollroyale',
         players: 2,
-        accountId,
+        accountId
       });
     } catch {}
 
@@ -97,23 +100,6 @@ export default function PollRoyaleLobby() {
                 </span>
               )}
             </div>
-          ))}
-        </div>
-      </div>
-      <div className="space-y-2">
-        <h3 className="font-semibold">Variant</h3>
-        <div className="flex gap-2">
-          {[
-            { id: 'uk', label: '8 Pool UK' },
-            { id: 'american', label: 'American Billiards' }
-          ].map(({ id, label }) => (
-            <button
-              key={id}
-              onClick={() => setVariant(id)}
-              className={`lobby-tile ${variant === id ? 'lobby-selected' : ''}`}
-            >
-              {label}
-            </button>
           ))}
         </div>
       </div>
