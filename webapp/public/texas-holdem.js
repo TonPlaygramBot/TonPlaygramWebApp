@@ -474,7 +474,6 @@ function buildChipPiles(amount) {
       for (let i = 0; i < count; i++) {
         const chip = document.createElement('div');
         chip.className = 'chip v' + val;
-        chip.style.top = -i * 4 + 'px';
         pile.appendChild(chip);
       }
       wrap.appendChild(pile);
