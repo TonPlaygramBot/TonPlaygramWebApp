@@ -1944,7 +1944,8 @@
               railNormal = { x: 0, y: -1 };
             }
             if (railNormal) {
-              hitStep = i;
+              // include the collision step so the guide reaches impact
+              hitStep = i + 1;
               break;
             }
             for (var j = 0; j < table.balls.length; j++) {
@@ -1952,7 +1953,8 @@
               if (b === cue || b.pocketed) continue;
               if (d2({ x: x, y: y }, b.p) < BALL_R * 2.05 * (BALL_R * 2.05)) {
                 target = b;
-                hitStep = i;
+                // include the collision step so the guide reaches impact
+                hitStep = i + 1;
                 break;
               }
             }
@@ -2045,8 +2047,12 @@
             ctx.strokeStyle = 'rgba(255,255,255,.3)';
             ctx.lineWidth = 2;
             ctx.beginPath();
-            ctx.moveTo(tx * sX, ty * sY);
-            ctx.lineTo(ex * sX, ey * sY);
+            // start the target path from the contact point so it connects with the aim line
+            ctx.moveTo(hitSpotX * sX, hitSpotY * sY);
+            ctx.lineTo(
+              (ex - hitN.x * BALL_R) * sX,
+              (ey - hitN.y * BALL_R) * sY
+            );
             ctx.stroke();
             ctx.restore();
 
