@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no" />
+    <title>Black Jack</title>
+    <style>
+      :root {
+        --shadow: rgba(0,0,0,0.45);
+        --card-w: clamp(44px, 9.6vw, 70px);
+        --card-h: calc(var(--card-w)*1.45);
+      }
+      * { box-sizing: border-box; }
+      body, html { height:100%; margin:0; }
+      body { font-family: ui-sans-serif, system-ui; color:#fff; overflow:hidden; height:100vh; width:100vw; }
+      .stage { position:relative; width:100vw; height:100vh; display:grid; place-items:center; }
+      .stage::before {
+        content:''; position:absolute; top:0; bottom:0; left:1vw; right:1vw;
+        background:url('assets/icons/de2a24a7-922a-4400-8edc-027a1017224e.webp') center/cover no-repeat;
+        z-index:0;
+      }
+      .seats { position:absolute; inset:0; z-index:2; }
+      .seat { position:absolute; display:flex; flex-direction:column; align-items:center; gap:6px; width:clamp(120px,28vw,200px); }
+      .avatar { width:54px; height:54px; border-radius:50%; display:grid; place-items:center; background:#fff; color:#111; font-size:28px; border:2px solid #000; box-shadow:0 8px 20px var(--shadow); overflow:hidden; }
+      .cards { display:flex; gap:6px; }
+      .card { width:var(--card-w); height:var(--card-h); border-radius:10px; position:relative; flex:0 0 auto; background:#fff; color:#111; font-weight:900; box-shadow:0 10px 25px var(--shadow), inset 0 0 0 2px rgba(0,0,0,0.08); }
+      .card .corner { position:absolute; display:flex; flex-direction:column; align-items:center; }
+      .card .tl { left:8px; top:6px; }
+      .card .br { right:8px; bottom:8px; transform:rotate(180deg); }
+      .card .corner .rank { font-size:calc(var(--card-w)*0.28); line-height:1; }
+      .card .corner .suit { font-size:calc(var(--card-w)*0.18); line-height:1; }
+      .card .big { position:absolute; left:50%; top:50%; transform:translate(-50%,-50%); font-size:calc(var(--card-w)*0.52); opacity:0.9; filter:drop-shadow(0 0 2px rgba(0,0,0,0.4)); }
+      .red { color:#d00; }
+      .seat-balance { font-size:14px; text-shadow:0 1px 2px #000; }
+      .player-controls { position:absolute; bottom:20px; left:50%; transform:translateX(-50%); display:flex; gap:12px; z-index:3; }
+      .player-controls button { padding:8px 16px; font-size:16px; border:none; border-radius:6px; cursor:pointer; }
+      #status { position:absolute; top:10px; left:50%; transform:translateX(-50%); font-size:18px; font-weight:bold; z-index:3; text-shadow:0 2px 4px #000; }
+      .folded { opacity:0.5; }
+    </style>
+  </head>
+  <body>
+    <div class="stage">
+      <div id="status"></div>
+      <div class="seats" id="seats"></div>
+      <div class="player-controls">
+        <button onclick="hit()">Hit</button>
+        <button onclick="stand()">Stand</button>
+      </div>
+    </div>
+    <script type="module" src="blackjack.js"></script>
+  </body>
+</html>
