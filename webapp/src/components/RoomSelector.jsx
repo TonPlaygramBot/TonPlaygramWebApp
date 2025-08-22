@@ -24,7 +24,7 @@ export default function RoomSelector({ selected, onSelect, tokens: allowed }) {
             <button
               key={`${id}-${amt}`}
               onClick={() => onSelect({ token: id, amount: amt })}
-              className={`lobby-tile w-[3.6125rem] !px-[0.36125rem] !py-[0.180625rem] flex flex-col items-center space-y-1 cursor-pointer text-[0.7225rem] ${
+              className={`lobby-tile w-[2.89rem] !px-[0.289rem] !py-[0.1445rem] flex flex-col items-center space-y-1 cursor-pointer text-[0.578rem] ${
                 token === id && amount === amt
                   ? 'lobby-selected'
                   : ''
@@ -35,8 +35,8 @@ export default function RoomSelector({ selected, onSelect, tokens: allowed }) {
                 alt={id}
                 className={
                   id === 'TPC'
-                    ? 'w-[1.0115rem] h-[1.0115rem]'
-                    : 'w-[1.445rem] h-[1.445rem]'
+                    ? 'w-[0.8092rem] h-[0.8092rem]'
+                    : 'w-[1.156rem] h-[1.156rem]'
                 }
               />
               <span>{amt.toLocaleString('en-US')}</span>
