@@ -1251,7 +1251,7 @@
                   b2.p.y = CUE_START_Y;
                   b2.v.x = 0;
                   b2.v.y = 0;
-                } else if (b2.n === 8 && !isAmerican) {
+                } else if (b2.n === 8 && !isAmerican && !isNineBall) {
                   b2.pocketed = true;
                   pocketedAny = true;
                   handleEightBall();
@@ -1682,8 +1682,7 @@
         }
 
         function handleEightBall() {
-          var winner = currentShooter === 1 ? 2 : 1;
-          endGame(winner);
+          endGame(currentShooter);
         }
 
         function endShot() {
