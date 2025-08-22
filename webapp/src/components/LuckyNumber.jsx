@@ -3,17 +3,11 @@ import DiceRoller from './DiceRoller.jsx';
 import RewardPopup from './RewardPopup.tsx';
 import AdModal from './AdModal.tsx';
 import CardSpinner from './CardSpinner.jsx';
-import { getTelegramId, getPlayerId } from '../utils/telegram.js';
+import { getTelegramId } from '../utils/telegram.js';
 import LoginOptions from './LoginOptions.jsx';
 import { getWalletBalance, updateBalance, addTransaction } from '../utils/api.js';
 
 const todayKey = () => new Date().toISOString().slice(0, 10);
-
-const DEV_ACCOUNTS = [
-  import.meta.env.VITE_DEV_ACCOUNT_ID,
-  import.meta.env.VITE_DEV_ACCOUNT_ID_1,
-  import.meta.env.VITE_DEV_ACCOUNT_ID_2,
-].filter(Boolean);
 
 export default function LuckyNumber() {
   let telegramId;
@@ -22,9 +16,6 @@ export default function LuckyNumber() {
   } catch (err) {
     return <LoginOptions />;
   }
-
-  const accountId = getPlayerId();
-  const isDev = DEV_ACCOUNTS.includes(accountId);
 
   const [selected, setSelected] = useState(null);
   const [reward, setReward] = useState(null);
@@ -39,13 +30,9 @@ export default function LuckyNumber() {
   const COOLDOWN = 4 * 60 * 60 * 1000; // 4 hours
 
   useEffect(() => {
-    if (isDev) {
-      setCanRoll(true);
-      return;
-    }
     const last = parseInt(localStorage.getItem('luckyRollTs') || '0', 10);
     setCanRoll(Date.now() - last >= COOLDOWN);
-  }, [isDev]);
+  }, []);
 
   useEffect(() => {
     const claimed = localStorage.getItem('luckyCard1Claimed') === todayKey();
@@ -71,12 +58,8 @@ export default function LuckyNumber() {
     setSelected(idx);
     setCardPrize(null);
     setSpinTrigger((t) => t + 1);
-    if (!isDev) {
-      localStorage.setItem('luckyRollTs', String(Date.now()));
-      setCanRoll(false);
-    } else {
-      setCanRoll(true);
-    }
+    localStorage.setItem('luckyRollTs', String(Date.now()));
+    setCanRoll(false);
     setAdWatched(false);
   };
 
