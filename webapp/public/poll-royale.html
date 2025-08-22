@@ -872,10 +872,6 @@
             if (a.n === 0 || bb.n === 0) {
               var other = a.n===0 ? bb : a;
               if (!firstHit) firstHit = BALL_BY_N[other.n];
-              if (!isAmerican) {
-                var shooterType = assignedTypes[currentShooter];
-                if (shooterType && BALL_BY_N[other.n].t !== shooterType && BALL_BY_N[other.n].t !== 'eight') hitOpponent = true;
-              }
               if (a.n === 0) a.spinApplied = true;
               if (bb.n === 0) bb.spinApplied = true;
             }
@@ -911,6 +907,7 @@
                 scores[currentShooter] += b2.n;
                 updateScoresUI();
                 pocketedOwn = true;
+                updateFooter(currentShooter, 'He sinks the ' + b2.n + '-ball for ' + b2.n + ' points.');
               } else {
                 var tType = BALL_BY_N[b2.n].t;
                 if (!assignedTypes[1] && tType !== 'eight') {
@@ -918,6 +915,7 @@
                   assignedTypes[currentShooter===1?2:1] = (tType==='red'?'yellow':'red');
                 }
                 if (assignedTypes[currentShooter] === tType) pocketedOwn = true;
+                updateFooter(currentShooter, 'He sinks the ' + b2.n + '-ball.');
               }
               lastPocketedBall = b2.n;
             }
@@ -1050,7 +1048,6 @@
     var assignedTypes = {1:null,2:null};
     var freeShots = {1:0,2:0};
     var firstHit = null;
-    var hitOpponent = false;
     var lastTurn = table.turn;
     var cpuThinking = false;
     var scores = {1:0,2:0};
@@ -1164,7 +1161,6 @@
       } else {
         var shooterType = assignedTypes[currentShooter];
         if (!firstHit || (shooterType && firstHit.t !== shooterType && firstHit.t !== 'eight')) foul = true;
-        if (shooterType && hitOpponent) foul = true;
       }
       if (scratch) foul = true;
       if (foul) {
@@ -1184,7 +1180,7 @@
         freeShots[opponent] = isAmerican ? 1 : 2;
         freeShots[currentShooter] = 0;
         table.turn = opponent;
-        setTimeout(showShots, 300);
+        setTimeout(showShots, 2000);
       } else {
         if (freeShots[currentShooter] > 0) {
           freeShots[currentShooter]--;
@@ -1208,17 +1204,16 @@
           }
           updateFooter(currentShooter, msg);
           lastPocketedBall = null;
-          setTimeout(showShots, 300);
+          setTimeout(showShots, 2000);
         } else {
           updateFooter(table.turn, 'Close call! The ball hit the cushion but nothing dropped, turn passes to the opponent.');
-          setTimeout(showShots, 300);
+          setTimeout(showShots, 2000);
         }
       }
       pocketedAny = false;
       pocketedOwn = false;
       scratch = false;
       firstHit = null;
-      hitOpponent = false;
       currentTarget = null;
     }
 
@@ -1474,7 +1469,7 @@
       currentShooter = table.turn;
       if (isAmerican) currentTarget = lowestBallOnTable();
       shotInProgress = true;
-      pocketedAny = false; pocketedOwn = false; scratch = false; firstHit = null; hitOpponent = false;
+      pocketedAny = false; pocketedOwn = false; scratch = false; firstHit = null;
       cue.v.x = d.x*base*(0.25+0.75*p);
       cue.v.y = d.y*base*(0.25+0.75*p);
       // Double the spin effect in all directions
