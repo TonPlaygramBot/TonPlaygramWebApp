@@ -638,7 +638,7 @@
         var scoreP2 = document.getElementById('p2Score');
         var cueHint = document.getElementById('cueHint');
 
-        if (!isAmerican && !isNineBall) {
+        if (!isAmerican) {
           scoreP1.style.display = 'none';
           scoreP2.style.display = 'none';
         }
@@ -1610,7 +1610,7 @@
           scoreP2.textContent = scores[2];
           checkGameOver();
         }
-        if (isAmerican || isNineBall) updateScoresUI();
+        if (isAmerican) updateScoresUI();
 
         function updateFooter(player, msg) {
           var srcAvatar = player === 1 ? avatarP1 : avatarCPU;
@@ -1718,7 +1718,7 @@
             return a + b;
           }, 0);
           if (foul) {
-            if (isAmerican || isNineBall) {
+            if (isAmerican) {
               cueBallFree = true;
               if (shotPoints > 0) {
                 scores[opponent] += shotPoints;
@@ -1740,6 +1740,12 @@
                   : 'wrong first contact';
                 updateFooter(opponent, 'That\u2019s a foul – ' + foulMsg + '.');
               }
+            } else if (isNineBall) {
+              cueBallFree = true;
+              var foulMsg = scratch
+                ? 'the cue ball went in'
+                : 'wrong first contact';
+              updateFooter(opponent, 'That\u2019s a foul – ' + foulMsg + '.');
             } else {
               updateFooter(opponent, 'Foul – opponent gets two shots.');
             }
@@ -1752,7 +1758,7 @@
             table.turn = opponent;
             setTimeout(showTurnInfo, 1500);
           } else {
-            if (shotPoints > 0) {
+            if (shotPoints > 0 && isAmerican) {
               scores[currentShooter] += shotPoints;
               updateScoresUI();
             }
