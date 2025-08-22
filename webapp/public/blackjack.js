@@ -42,9 +42,9 @@ const DEFAULT_SETTINGS = {
   muteOthers: false,
   cardVolume: 1,
   chipVolume: 1,
-  playerColor: '#f5f5dc',
+  playerColor: '#fbbf24',
   cardBackColor: '#233',
-  playerFrameStyle: '1'
+  playerFrameStyle: '6'
 };
 const COLOR_OPTIONS = [
   '#f5f5dc',
