@@ -35,7 +35,7 @@ const DEFAULT_SETTINGS = {
   chipVolume: 1,
   playerColor: '#f5f5dc',
   cardBackColor: '#233',
-  playerFrameStyle: 'solid'
+  playerFrameStyle: '1'
 };
 const COLOR_OPTIONS = [
   '#f5f5dc',
@@ -49,18 +49,7 @@ const COLOR_OPTIONS = [
   '#4ade80',
   '#94a3b8'
 ];
-const FRAME_STYLE_OPTIONS = [
-  'solid',
-  'dashed',
-  'dotted',
-  'double',
-  'groove',
-  'ridge',
-  'inset',
-  'outset',
-  'dashed dotted',
-  'double solid'
-];
+const FRAME_STYLE_OPTIONS = Array.from({ length: 10 }, (_, i) => (i + 1).toString());
 
 function loadSettings() {
   try {
@@ -94,10 +83,10 @@ function applySettings() {
     '--player-frame-color',
     settings.playerColor
   );
-  document.documentElement.style.setProperty(
-    '--player-frame-style',
-    settings.playerFrameStyle
+  document.body.classList.remove(
+    ...FRAME_STYLE_OPTIONS.map((s) => `frame-style-${s}`)
   );
+  document.body.classList.add(`frame-style-${settings.playerFrameStyle}`);
   const flip = document.getElementById('sndFlip');
   if (flip) flip.volume = settings.muteCards ? 0 : settings.cardVolume;
   const callRaise = document.getElementById('sndCallRaise');
@@ -148,7 +137,7 @@ function initSettingsMenu() {
   FRAME_STYLE_OPTIONS.forEach((s) => {
     const opt = document.createElement('option');
     opt.value = s;
-    opt.textContent = s;
+    opt.textContent = `Style ${s}`;
     playerFrameStyle.appendChild(opt);
   });
   playerFrameStyle.value = settings.playerFrameStyle;
