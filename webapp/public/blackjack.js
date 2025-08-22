@@ -272,13 +272,27 @@ function render() {
     inner.className = 'seat-inner';
     const avatar = document.createElement('div');
     avatar.className = 'avatar';
-    avatar.textContent = p.avatar || p.name[0];
+    if (p.avatar && p.avatar.startsWith('http')) {
+      avatar.style.background = `url('${p.avatar}') center/cover no-repeat`;
+    } else if (p.avatar) {
+      avatar.textContent = p.avatar;
+    } else {
+      avatar.textContent = p.name[0] || '?';
+    }
     inner.appendChild(avatar);
     const name = document.createElement('div');
     name.className = 'name';
     name.textContent = p.name;
     inner.appendChild(name);
-    if (i === 0) {
+
+    const cards = document.createElement('div');
+    cards.className = 'cards';
+    p.hand.slice(0, 2).forEach((c) => {
+      cards.appendChild(p.revealed || i === 0 ? cardEl(c) : cardBackEl());
+    });
+    inner.appendChild(cards);
+
+    if (i === 0 && state.turn === 0 && !p.stood && !p.bust) {
       const hs = document.createElement('div');
       hs.className = 'hit-stand';
       const hitBtn = document.createElement('button');
@@ -295,8 +309,28 @@ function render() {
     const bal = document.createElement('div');
     bal.className = 'seat-balance';
     bal.innerHTML = formatAmount(p.balance || 0);
-    seat.append(inner, bal);
 
+    if (i === 0 && state.turn === 0 && !p.stood && !p.bust) {
+      const controls = document.createElement('div');
+      controls.className = 'controls';
+      controls.id = 'controls';
+      const foldBtn = document.createElement('button');
+      foldBtn.id = 'fold';
+      foldBtn.textContent = 'Fold';
+      foldBtn.addEventListener('click', playerFold);
+      const callBtn = document.createElement('button');
+      callBtn.id = 'call';
+      callBtn.textContent = 'Call';
+      callBtn.addEventListener('click', playerCall);
+      const checkBtn = document.createElement('button');
+      checkBtn.id = 'check';
+      checkBtn.textContent = 'Check';
+      checkBtn.addEventListener('click', playerCheck);
+      controls.append(foldBtn, callBtn, checkBtn);
+      seat.append(inner, bal, controls);
+    } else {
+      seat.append(inner, bal);
+    }
 
     if (i === state.turn && !p.stood && !p.bust) seat.classList.add('active');
     if (p.bust) seat.classList.add('folded');
@@ -372,6 +406,26 @@ window.stand = () => {
   p.stood = true;
   nextTurn();
 };
+
+function playerFold() {
+  const p = state.players[0];
+  p.bust = true;
+  p.stood = true;
+  render();
+  nextTurn();
+}
+
+function playerCheck() {
+  nextTurn();
+}
+
+function playerCall() {
+  state.pot += state.stake;
+  animateChipsFromPlayer(0, state.stake);
+  playCallRaise();
+  renderPot();
+  nextTurn();
+}
 
 function finish() {
   const winners = evaluateWinners(state.players);
@@ -521,6 +575,7 @@ async function init() {
       const { card, deck: d2 } = hitCard(state.deck);
       state.deck = d2;
       state.players[i].hand.push(card);
+      if (i === 0) state.players[i].revealed = true;
       playFlipSound();
       await new Promise((res) => setTimeout(res, 200));
     }
