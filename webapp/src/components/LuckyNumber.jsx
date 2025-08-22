@@ -22,6 +22,24 @@ function shuffleRewards() {
 
 const todayKey = () => new Date().toISOString().slice(0, 10);
 
+const CARD_VALUES = ['A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q'];
+
+function HeartCard({ rank }) {
+  return (
+    <div className="w-full h-full bg-white rounded-md border border-black relative flex items-center justify-center text-red-600 font-bold">
+      <div className="absolute left-1 top-1 flex flex-col items-center leading-none">
+        <span className="text-sm">{rank}</span>
+        <span className="text-xs">♥</span>
+      </div>
+      <div className="absolute right-1 bottom-1 flex flex-col items-center leading-none rotate-180">
+        <span className="text-sm">{rank}</span>
+        <span className="text-xs">♥</span>
+      </div>
+      <span className="text-3xl">♥</span>
+    </div>
+  );
+}
+
 export default function LuckyNumber() {
   let telegramId;
   try {
@@ -123,49 +141,51 @@ export default function LuckyNumber() {
         }}
       />
       <h3 className="text-lg font-bold text-white">Lucky Card</h3>
-      <div className="grid grid-cols-3 gap-2 justify-items-center">
-        {rewards.map((val, i) => (
-          <div
-            key={i}
-            className={`board-style w-24 h-24 flex flex-col items-center justify-center rounded relative ${selected === i ? 'border-4 border-brand-gold' : 'border-2 border-border'}`}
-          >
-            {(i !== 0 && selected !== i) ? (
-              <>
-                <img src="/assets/icons/file_00000000bc2862439eecffff3730bbe4.webp" alt="TonPlaygram" className="w-10 h-10" />
-                <span className="text-white text-xl font-bold" style={{ WebkitTextStroke: '1px black' }}>{i + 1}</span>
-              </>
-            ) : (
-              <>
-                {val === 'FREE_SPIN' ? (
-                  <>
-                    <img
-                      src="/assets/icons/file_00000000ae68620a96d269fe76d158e5_256x256.webp"
-                      alt="Free Spin"
-                      className="w-10 h-10"
-                    />
-                    <span className="font-bold text-white" style={{ WebkitTextStroke: '1px black' }}>+2</span>
-                  </>
-                ) : val === 'BONUS_X3' ? (
-                  <>
-                    <img
-                      src="/assets/icons/file_000000009160620a96f728f463de1c3f.webp"
-                      alt="Bonus"
-                      className="w-10 h-10"
-                    />
-                    <span className="font-bold text-white" style={{ WebkitTextStroke: '1px black' }}>X3</span>
-                  </>
-                ) : (
-                  <>
-                    <img src="/assets/icons/file_00000000bc2862439eecffff3730bbe4.webp" alt="TonPlaygram" className="w-10 h-10" />
-                    <span className="font-bold text-white" style={{ WebkitTextStroke: '1px black' }}>{val}</span>
-                    {i === 0 && <span className="text-red-500 text-xs">FREE</span>}
-                  </>
-                )}
-              </>
-            )}
-          </div>
-        ))}
-      </div>
+        <div className="grid grid-cols-3 gap-2 justify-items-center">
+          {rewards.map((val, i) => (
+            <div
+              key={i}
+              className={`board-style w-16 h-24 flex items-center justify-center rounded relative ${
+                selected === i ? 'border-4 border-brand-gold' : 'border-2 border-border'
+              }`}
+            >
+              <HeartCard rank={CARD_VALUES[i]} />
+              {(i === 0 || selected === i) && (
+                <div className="absolute inset-0 flex flex-col items-center justify-center bg-white rounded-md">
+                  {val === 'FREE_SPIN' ? (
+                    <>
+                      <img
+                        src="/assets/icons/file_00000000ae68620a96d269fe76d158e5_256x256.webp"
+                        alt="Free Spin"
+                        className="w-10 h-10"
+                      />
+                      <span className="font-bold text-white" style={{ WebkitTextStroke: '1px black' }}>+2</span>
+                    </>
+                  ) : val === 'BONUS_X3' ? (
+                    <>
+                      <img
+                        src="/assets/icons/file_000000009160620a96f728f463de1c3f.webp"
+                        alt="Bonus"
+                        className="w-10 h-10"
+                      />
+                      <span className="font-bold text-white" style={{ WebkitTextStroke: '1px black' }}>X3</span>
+                    </>
+                  ) : (
+                    <>
+                      <img
+                        src="/assets/icons/file_00000000bc2862439eecffff3730bbe4.webp"
+                        alt="TonPlaygram"
+                        className="w-10 h-10"
+                      />
+                      <span className="font-bold text-white" style={{ WebkitTextStroke: '1px black' }}>{val}</span>
+                      {i === 0 && <span className="text-red-500 text-xs">FREE</span>}
+                    </>
+                  )}
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
       <div className="flex flex-col items-center space-y-2 mt-6">
         <div
           onClick={handleRollClick}
