@@ -26,6 +26,12 @@ export default function LuckyNumber() {
   const [showAd, setShowAd] = useState(false);
   const [adWatched, setAdWatched] = useState(false);
   const [trigger, setTrigger] = useState(0);
+  const ranks = ['A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q'];
+  const suitTypes = ['hearts', 'spades', 'diamonds', 'clubs'];
+  const [cards] = useState(() =>
+    ranks.map((r) => ({ rank: r, suit: suitTypes[Math.floor(Math.random() * suitTypes.length)] }))
+  );
+  const [overlays, setOverlays] = useState([]);
 
   const COOLDOWN = 4 * 60 * 60 * 1000; // 4 hours
 
@@ -61,28 +67,49 @@ export default function LuckyNumber() {
     localStorage.setItem('luckyRollTs', String(Date.now()));
     setCanRoll(false);
     setAdWatched(false);
+    const items = ['DICE', 'FREE_SPIN', 'BONUS_X3'];
+    setOverlays(
+      items.map((type) => ({
+        type,
+        top: `${10 + Math.random() * 80}%`,
+        left: `${10 + Math.random() * 80}%`,
+      }))
+    );
   };
 
   const handleSpinFinish = async (prize) => {
-    setCardPrize(prize);
+    let finalPrize = prize;
     if (typeof prize === 'number') {
+      const suit = cards[selected]?.suit;
+      if (suit === 'hearts') finalPrize = prize * 2;
+      else if (suit === 'spades') finalPrize = Math.floor(prize * 0.5);
+      else if (suit === 'diamonds') finalPrize = Math.floor(prize * 1.5);
+      else if (suit === 'clubs') finalPrize = Math.floor(prize * 0.75);
+    } else if (prize === 'JOKER_BLACK') {
+      finalPrize = 5000;
+    } else if (prize === 'JOKER_RED') {
+      finalPrize = 10000;
+    }
+
+    setCardPrize(finalPrize);
+    if (typeof finalPrize === 'number') {
       try {
         const balRes = await getWalletBalance(telegramId);
-        const newBalance = (balRes.balance || 0) + prize;
+        const newBalance = (balRes.balance || 0) + finalPrize;
         await updateBalance(telegramId, newBalance);
-        await addTransaction(telegramId, prize, 'lucky');
+        await addTransaction(telegramId, finalPrize, 'lucky');
       } catch (e) {}
-    } else if (prize === 'FREE_SPIN') {
+    } else if (finalPrize === 'FREE_SPIN') {
       const fs = parseInt(localStorage.getItem('freeSpins') || '0', 10) + 2;
       localStorage.setItem('freeSpins', String(fs));
       window.dispatchEvent(new Event('freeSpinAwarded'));
       document.getElementById('spin-game')?.scrollIntoView({ behavior: 'smooth' });
-    } else if (prize === 'BONUS_X3') {
+    } else if (finalPrize === 'BONUS_X3') {
       localStorage.setItem('bonusX3', 'true');
       window.dispatchEvent(new Event('bonusX3Awarded'));
       document.getElementById('spin-game')?.scrollIntoView({ behavior: 'smooth' });
     }
-    setReward(prize);
+    setReward(finalPrize);
   };
 
   const handleRollClick = () => {
@@ -111,8 +138,8 @@ export default function LuckyNumber() {
         }}
       />
       <h3 className="text-lg font-bold text-white">Lucky Card</h3>
-      <div className="grid grid-cols-3 gap-2 justify-items-center">
-        {Array.from({ length: 12 }).map((_, i) => (
+      <div className="grid grid-cols-3 gap-2 justify-items-center relative">
+        {cards.map((card, i) => (
           <div
             key={i}
             className={`board-style w-16 h-24 flex items-center justify-center rounded relative ${
@@ -128,10 +155,27 @@ export default function LuckyNumber() {
               }}
             >
               <div
-                className="absolute inset-0 bg-white rounded-md flex items-center justify-center text-xl font-bold text-white"
-                style={{ backfaceVisibility: 'hidden', WebkitTextStroke: '1px black' }}
+                className="absolute inset-0 bg-white rounded-md flex flex-col items-center justify-center text-xl font-bold"
+                style={{ backfaceVisibility: 'hidden' }}
               >
-                {i + 1}
+                <span className={`${
+                  card.suit === 'hearts' || card.suit === 'diamonds'
+                    ? 'text-red-500'
+                    : 'text-black'
+                }`}>{card.rank}</span>
+                <span className={`text-2xl ${
+                  card.suit === 'hearts' || card.suit === 'diamonds'
+                    ? 'text-red-500'
+                    : 'text-black'
+                }`}>
+                  {card.suit === 'hearts'
+                    ? '♥'
+                    : card.suit === 'spades'
+                    ? '♠'
+                    : card.suit === 'diamonds'
+                    ? '♦'
+                    : '♣'}
+                </span>
               </div>
               <div
                 className="absolute inset-0 rounded-md flex items-center justify-center"
@@ -174,6 +218,29 @@ export default function LuckyNumber() {
                 )}
               </div>
             </div>
+          </div>
+        ))}
+        {overlays.map((o, idx) => (
+          <div
+            key={`ov-${idx}`}
+            className="absolute pointer-events-none"
+            style={{ top: o.top, left: o.left }}
+          >
+            {o.type === 'DICE' ? (
+              <span className="text-2xl">🎲</span>
+            ) : o.type === 'FREE_SPIN' ? (
+              <img
+                src="/assets/icons/file_00000000ae68620a96d269fe76d158e5_256x256.webp"
+                alt="Free Spin"
+                className="w-6 h-6"
+              />
+            ) : (
+              <img
+                src="/assets/icons/file_000000009160620a96f728f463de1c3f.webp"
+                alt="Bonus"
+                className="w-6 h-6"
+              />
+            )}
           </div>
         ))}
       </div>
