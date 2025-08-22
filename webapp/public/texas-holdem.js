@@ -679,7 +679,9 @@ async function dealInitialCards() {
     for (let i = 0; i < state.players.length; i++) {
       const p = state.players[i];
       if (p.vacant) continue;
-      await dealCardToPlayer(i, p.hand[r], !!p.isHuman);
+      // Only the human player (seat 0) should see their hole cards
+      const showFace = p.isHuman && i === 0;
+      await dealCardToPlayer(i, p.hand[r], showFace);
     }
   }
   if (state.seated) startPlayerTurn();
@@ -1288,7 +1290,8 @@ async function showdown() {
       state.pot = 0;
     }
   }
-  setTimeout(() => init(), 5000);
+  // Show winning cards briefly before starting a new hand
+  setTimeout(() => init(), 3000);
 }
 
 document.getElementById('lobbyIcon')?.addEventListener('click', () => {
