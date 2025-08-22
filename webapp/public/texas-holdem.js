@@ -349,13 +349,17 @@ function init() {
 }
 
 function adjustNameSize(el) {
-  const name = el.textContent;
-  const base = parseInt(getComputedStyle(el).fontSize) || 12;
-  const min = 8;
-  const len = name.length;
-  if (len > 10) {
-    el.style.fontSize = Math.max(min, base - (len - 10)) + 'px';
+  let name = el.textContent || '';
+  if (name.length > 12) {
+    const parts = name.split(/\s+/).filter(Boolean);
+    if (parts.length > 1) {
+      name = parts.map((p) => p[0].toUpperCase()).join('');
+    }
   }
+  if (name.length > 10) {
+    name = name.slice(0, 10);
+  }
+  el.textContent = name;
 }
 
 function renderSeats() {
@@ -465,6 +469,9 @@ function buildChipPiles(amount) {
   const wrap = document.createElement('div');
   wrap.style.display = 'flex';
   wrap.style.gap = '4px';
+  wrap.style.flexWrap = 'wrap';
+  wrap.style.justifyContent = 'center';
+  wrap.style.width = '100%';
   let remaining = amount;
   CHIP_VALUES.forEach((val) => {
     let count = Math.floor(remaining / val);
