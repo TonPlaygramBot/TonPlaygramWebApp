@@ -602,29 +602,6 @@
         font-size: 12px;
         margin-bottom: 4px;
       }
-      .tpc-total {
-        position: absolute;
-        top: 4px;
-        left: 8px;
-        font-size: 16px;
-        display: flex;
-        align-items: center;
-        gap: 4px;
-      }
-      .tpc-total img {
-        width: 32px;
-        height: 32px;
-        min-width: 32px;
-        min-height: 32px;
-        transform: translateY(2px);
-      }
-      .tpc-total.small {
-        font-size: 14px;
-      }
-      .tpc-total.small img {
-        width: 28px;
-        height: 28px;
-      }
       #status {
         position: absolute;
         top: 50%;
@@ -743,6 +720,26 @@
         margin-top: 8px;
       }
 
+      .pot-wrap {
+        position: absolute;
+        left: 50%;
+        top: 32%;
+        transform: translate(-50%, -50%);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 4px;
+        z-index: 3;
+      }
+      .pot {
+        display: flex;
+        gap: 4px;
+      }
+      .pot-total {
+        font-size: 16px;
+        font-weight: 700;
+      }
+
       .chip {
         position: relative;
         width: calc(var(--avatar-size) / 1.6);
@@ -803,6 +800,10 @@
   <body class="frame-style-1">
     <div class="stage">
       <div class="center community" id="community"></div>
+      <div class="pot-wrap" id="potWrap">
+        <div class="pot" id="pot"></div>
+        <div class="pot-total" id="potTotal"></div>
+      </div>
       <div class="folded-area" id="foldedArea">
         <div id="foldedLabel" class="folded-label" style="display: none">
           Folded
