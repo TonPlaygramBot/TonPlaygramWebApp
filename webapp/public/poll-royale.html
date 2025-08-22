@@ -1160,7 +1160,20 @@
         if (!firstHit || firstHit.n !== currentTarget) foul = true;
       } else {
         var shooterType = assignedTypes[currentShooter];
-        if (!firstHit || (shooterType && firstHit.t !== shooterType && firstHit.t !== 'eight')) foul = true;
+        if (!firstHit) {
+          foul = true;
+        } else if (shooterType) {
+          if (firstHit.t !== shooterType) {
+            var stillLeft = false;
+            for (var k=1;k<table.balls.length;k++){
+              var rb = table.balls[k];
+              if (rb && !rb.pocketed && BALL_BY_N[rb.n].t === shooterType && rb.n !== firstHit.n) {
+                stillLeft = true; break;
+              }
+            }
+            if (stillLeft || firstHit.t !== 'eight') foul = true;
+          }
+        }
       }
       if (scratch) foul = true;
       if (foul) {
@@ -1533,23 +1546,48 @@
           if (!pathClear(contact, t)) continue;
           var dist = len(contact.x - cue.p.x, contact.y - cue.p.y);
           if (!best || dist < best.dist){
-            best = { nd: norm(contact.x - cue.p.x, contact.y - cue.p.y), dist: dist };
+            best = { nd: norm(contact.x - cue.p.x, contact.y - cue.p.y), dist: dist, target: t };
           }
         }
       }
 
-      var nd, power;
+      var nd, power, chosen;
       if (best){
         nd = best.nd;
         power = 0.5;
+        chosen = best.target;
       } else {
-        var t = targets[Math.floor(Math.random()*targets.length)];
-        nd = norm(t.p.x - cue.p.x, t.p.y - cue.p.y);
+        chosen = targets[Math.floor(Math.random()*targets.length)];
+        nd = norm(chosen.p.x - cue.p.x, chosen.p.y - cue.p.y);
         power = 0.35 + Math.random()*0.3;
       }
 
+      function nextTarget(exclude){
+        var type = assignedTypes[2];
+        var bestBall = null, bestDist = Infinity;
+        for (var i=0;i<table.balls.length;i++){
+          var b = table.balls[i];
+          if (!b || b===exclude || b.n===0 || b.pocketed || b.n===8) continue;
+          if (type && BALL_BY_N[b.n].t !== type) continue;
+          var d = len(b.p.x - exclude.p.x, b.p.y - exclude.p.y);
+          if (d < bestDist){ bestDist = d; bestBall = b; }
+        }
+        return bestBall;
+      }
+
+      var spinX = 0, spinY = 0;
+      var nxt = nextTarget(chosen);
+      if (nxt){
+        var shotDir = norm(chosen.p.x - cue.p.x, chosen.p.y - cue.p.y);
+        var toNext = norm(nxt.p.x - chosen.p.x, nxt.p.y - chosen.p.y);
+        var dot = shotDir.x*toNext.x + shotDir.y*toNext.y;
+        var cross = shotDir.x*toNext.y - shotDir.y*toNext.x;
+        if (dot > 0.5) spinY = 0.5; else if (dot < -0.5) spinY = -0.5;
+        if (cross > 0.1) spinX = 0.5; else if (cross < -0.1) spinX = -0.5;
+      }
+
       table.aim = { x: cue.p.x + nd.x*100, y: cue.p.y + nd.y*100 };
-      setSpin(0, 0);
+      setSpin(spinX, spinY);
       cuePullVisual = power * (BALL_R * 14);
 
       setTimeout(function(){
