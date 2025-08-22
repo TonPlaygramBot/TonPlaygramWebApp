@@ -1206,29 +1206,9 @@
                   pocketedAny = true;
                   this.captured[currentShooter].push(b2.n);
                   if (isAmerican) {
-                    var opponent = currentShooter === 1 ? 2 : 1;
-                    if (b2.n === currentTarget) {
-                      scores[currentShooter] += b2.n;
-                      updateScoresUI();
-                      pocketedOwn = true;
-                      lastPocketedBall = b2.n;
-                    } else {
-                      scores[opponent] += b2.n;
-                      updateScoresUI();
-                      wrongBallPocketed = b2.n;
-                      if (!foulShown) {
-                        showCenterPopup('Foul', 'foul', 1500);
-                        foulShown = true;
-                        var opponent = currentShooter === 1 ? 2 : 1;
-                        updateFooter(
-                          opponent,
-                          isAmerican
-                            ? 'Foul!'
-                            : 'Foul – opponent gets two shots.'
-                        );
-                      }
-                      lastPocketedBall = null;
-                    }
+                    pottedThisShot.push(b2.n);
+                    pocketedOwn = true;
+                    lastPocketedBall = b2.n;
                   } else {
                     var tType = BALL_BY_N[b2.n].t;
                     if (!assignedTypes[1] && tType !== 'eight') {
@@ -1439,7 +1419,6 @@
         var pocketedAny = false;
         var pocketedOwn = false;
         var scratch = false;
-        var wrongBallPocketed = 0;
         var foulShown = false;
         var assignedTypes = { 1: null, 2: null };
         var freeShots = { 1: 0, 2: 0 };
@@ -1449,6 +1428,7 @@
         var scores = { 1: 0, 2: 0 };
         var lastPocketedBall = null;
         var currentTarget = null;
+        var pottedThisShot = [];
 
         function remainingPoints() {
           var sum = 0;
@@ -1629,7 +1609,6 @@
           var foul = false;
           if (isAmerican) {
             if (!firstHit || firstHit.n !== currentTarget) foul = true;
-            if (wrongBallPocketed) foul = true;
           } else {
             var shooterType = assignedTypes[currentShooter];
             if (!firstHit) {
@@ -1654,19 +1633,18 @@
             }
           }
           if (scratch) foul = true;
+          var shotPoints = pottedThisShot.reduce(function (a, b) {
+            return a + b;
+          }, 0);
           if (foul) {
             if (isAmerican) {
               cueBallFree = true;
-              if (wrongBallPocketed) {
-                scores[opponent] += wrongBallPocketed;
+              if (shotPoints > 0) {
+                scores[opponent] += shotPoints;
                 updateScoresUI();
                 updateFooter(
                   opponent,
-                  'That\u2019s a foul – the ' +
-                    wrongBallPocketed +
-                    '-ball was out of order. Opponent gets ' +
-                    wrongBallPocketed +
-                    ' points.'
+                  'That\u2019s a foul – opponent gets ' + shotPoints + ' points.'
                 );
               } else {
                 var foulMsg = scratch
@@ -1686,6 +1664,10 @@
             table.turn = opponent;
             setTimeout(showTurnInfo, 1500);
           } else {
+            if (shotPoints > 0) {
+              scores[currentShooter] += shotPoints;
+              updateScoresUI();
+            }
             if (freeShots[currentShooter] > 0) {
               freeShots[currentShooter]--;
               if (freeShots[currentShooter] === 0 && !pocketedOwn) {
@@ -1728,10 +1710,10 @@
               setTimeout(showTurnInfo, 1500);
             }
           }
+          pottedThisShot = [];
           pocketedAny = false;
           pocketedOwn = false;
           scratch = false;
-          wrongBallPocketed = 0;
           foulShown = false;
           firstHit = null;
           currentTarget = null;
@@ -2088,6 +2070,7 @@
           pocketedOwn = false;
           scratch = false;
           firstHit = null;
+          pottedThisShot = [];
           cue.v.x = d.x * base * (0.25 + 0.75 * p);
           cue.v.y = d.y * base * (0.25 + 0.75 * p);
           // Double the spin effect in all directions
