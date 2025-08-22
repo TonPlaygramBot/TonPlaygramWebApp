@@ -568,6 +568,7 @@
         var params = new URLSearchParams(location.search);
         var variant = params.get('variant') || 'uk';
         var isAmerican = variant === 'american';
+        var isNineBall = variant === '9ball';
 
         /* ==========================================================
        KONSTANTA TE LAYOUT-it DHE FIZIKES (sipas portrait)
@@ -637,7 +638,7 @@
         var scoreP2 = document.getElementById('p2Score');
         var cueHint = document.getElementById('cueHint');
 
-        if (!isAmerican) {
+        if (!isAmerican && !isNineBall) {
           scoreP1.style.display = 'none';
           scoreP2.style.display = 'none';
         }
@@ -898,6 +899,31 @@
             { n: 14, t: 'stripe', c: COL[6] },
             { n: 15, t: 'stripe', c: COL[7] }
           ];
+        } else if (isNineBall) {
+          COL = {
+            cue: '#f5f5f5',
+            1: '#f5c400',
+            2: '#2256ff',
+            3: '#d92d30',
+            4: '#7c3aed',
+            5: '#ff8c1a',
+            6: '#1faa4a',
+            7: '#7a2f2f',
+            8: '#111',
+            9: '#f5c400'
+          };
+          BALLS = [
+            { n: 0, t: 'cue', c: COL.cue },
+            { n: 1, t: 'solid', c: COL[1] },
+            { n: 2, t: 'solid', c: COL[2] },
+            { n: 3, t: 'solid', c: COL[3] },
+            { n: 4, t: 'solid', c: COL[4] },
+            { n: 5, t: 'solid', c: COL[5] },
+            { n: 6, t: 'solid', c: COL[6] },
+            { n: 7, t: 'solid', c: COL[7] },
+            { n: 8, t: 'solid', c: COL[8] },
+            { n: 9, t: 'stripe', c: COL[9] }
+          ];
         } else {
           COL = {
             cue: '#f5f5f5',
@@ -912,6 +938,7 @@
           for (var mm = 9; mm <= 15; mm++)
             BALLS.push({ n: mm, t: 'yellow', c: COL.yellow });
         }
+        var TOTAL_BALLS = BALLS.length;
 
         // Map i sigurt sipas numrit → shmang akses jashte indekseve
         var BALL_BY_N = {};
@@ -999,6 +1026,30 @@
                   continue;
                 }
                 this.balls.push(new Ball(info, x, y));
+              }
+            }
+          } else if (isNineBall) {
+            // Rregullimi per 9-ball (diamant)
+            var pattern9 = [
+              [1],
+              [2, 3],
+              [4, 9, 5],
+              [6, 7],
+              [8]
+            ];
+            for (var r9 = 0; r9 < pattern9.length; r9++) {
+              var cnt9 = pattern9[r9].length;
+              var startX9 = cx - (rowGap * (cnt9 - 1)) / 2;
+              var y9 = cy + r9 * colGap;
+              for (var j9 = 0; j9 < cnt9; j9++) {
+                var x9 = startX9 + j9 * rowGap;
+                var num9 = pattern9[r9][j9];
+                var info9 = BALL_BY_N[num9];
+                if (!info9) {
+                  console.warn('Rack: numer i papercaktuar', num9);
+                  continue;
+                }
+                this.balls.push(new Ball(info9, x9, y9));
               }
             }
           } else {
@@ -1144,8 +1195,8 @@
                     if (!firstHit) {
                       firstHit = BALL_BY_N[other.n];
                       if (
-                        (isAmerican && other.n !== currentTarget) ||
-                        (!isAmerican &&
+                        ((isAmerican || isNineBall) && other.n !== currentTarget) ||
+                        (!isAmerican && !isNineBall &&
                           assignedTypes[currentShooter] &&
                           BALL_BY_N[other.n].t !==
                             assignedTypes[currentShooter])
@@ -1156,7 +1207,7 @@
                           var opponent = currentShooter === 1 ? 2 : 1;
                           updateFooter(
                             opponent,
-                            isAmerican
+                            isAmerican || isNineBall
                               ? 'Foul!'
                               : 'Foul – opponent gets two shots.'
                           );
@@ -1188,7 +1239,9 @@
                   var opponent = currentShooter === 1 ? 2 : 1;
                   updateFooter(
                     opponent,
-                    isAmerican ? 'Foul!' : 'Foul – opponent gets two shots.'
+                    isAmerican || isNineBall
+                      ? 'Foul!'
+                      : 'Foul – opponent gets two shots.'
                   );
                   cueBallFree = true;
                   aiming = false;
@@ -1205,7 +1258,12 @@
                   b2.pocketed = true;
                   pocketedAny = true;
                   this.captured[currentShooter].push(b2.n);
-                  if (isAmerican) {
+                  if (isNineBall && b2.n === 9) {
+                    lastPocketedBall = b2.n;
+                    endGame(currentShooter);
+                    return;
+                  }
+                  if (isAmerican || isNineBall) {
                     pottedThisShot.push(b2.n);
                     pocketedOwn = true;
                     lastPocketedBall = b2.n;
@@ -1305,7 +1363,8 @@
             ctx.fill();
 
             // stripe nese duhet
-            var stripe = BALL_BY_N[b.n].t === 'stripe' && isAmerican;
+            var stripe =
+              BALL_BY_N[b.n].t === 'stripe' && (isAmerican || isNineBall);
             if (stripe) {
               ctx.save();
               ctx.beginPath();
@@ -1317,7 +1376,10 @@
             }
 
             // numri (vetem per varianten amerikane ose per topin e zi)
-            if (b.n !== 0 && (isAmerican || BALL_BY_N[b.n].t === 'eight')) {
+            if (
+              b.n !== 0 &&
+              (isAmerican || isNineBall || BALL_BY_N[b.n].t === 'eight')
+            ) {
               ctx.fillStyle = stripe ? BALL_BY_N[b.n].c : '#fff';
               ctx.beginPath();
               ctx.arc(0, 0, ballR * 0.52, 0, Math.PI * 2);
@@ -1356,10 +1418,10 @@
        TESTE – kapin gabime si "undefined .n" heret
        ========================================================= */
         function runSelfTests(tbl) {
-          // BALLS duhet te kete 16 elemente
+          // BALLS duhet te kete TOTAL_BALLS elemente
           console.assert(
-            Array.isArray(BALLS) && BALLS.length === 16,
-            'TEST FAIL: BALLS duhet 16'
+            Array.isArray(BALLS) && BALLS.length === TOTAL_BALLS,
+            'TEST FAIL: BALLS duhet ' + TOTAL_BALLS
           );
           for (var i = 0; i < BALLS.length; i++) {
             var it = BALLS[i];
@@ -1373,10 +1435,10 @@
           }
           // tavolina 16 topa (perfshi cue)
           console.assert(
-            tbl.balls.length === 16,
+            tbl.balls.length === TOTAL_BALLS,
             'TEST FAIL: tavolina ka',
             tbl.balls.length,
-            'topa (duhet 16)'
+            'topa (duhet ' + TOTAL_BALLS + ')'
           );
           // asnje top undefined
           for (var j = 0; j < tbl.balls.length; j++) {
@@ -1508,7 +1570,7 @@
           ctx.beginPath();
           ctx.arc(cx, cy, r, 0, Math.PI * 2);
           ctx.fill();
-          var stripe = info.t === 'stripe' && isAmerican;
+          var stripe = info.t === 'stripe' && (isAmerican || isNineBall);
           if (stripe) {
             ctx.save();
             ctx.beginPath();
@@ -1518,7 +1580,7 @@
             ctx.fillRect(cx - r, cy - r * 0.3, r * 2, r * 0.6);
             ctx.restore();
           }
-          if (n !== 0 && (isAmerican || info.t === 'eight')) {
+          if (n !== 0 && (isAmerican || isNineBall || info.t === 'eight')) {
             ctx.fillStyle = stripe ? info.c : '#fff';
             ctx.beginPath();
             ctx.arc(cx, cy, r * 0.52, 0, Math.PI * 2);
@@ -1548,7 +1610,7 @@
           scoreP2.textContent = scores[2];
           checkGameOver();
         }
-        if (isAmerican) updateScoresUI();
+        if (isAmerican || isNineBall) updateScoresUI();
 
         function updateFooter(player, msg) {
           var srcAvatar = player === 1 ? avatarP1 : avatarCPU;
@@ -1567,7 +1629,7 @@
 
         function showTurnInfo() {
           var msg;
-          if (isAmerican) {
+          if (isAmerican || isNineBall) {
             if (!currentTarget) currentTarget = lowestBallOnTable();
             msg = 'Pot the ' + currentTarget + '-ball';
           } else {
@@ -1626,7 +1688,7 @@
           shotInProgress = false;
           var opponent = currentShooter === 1 ? 2 : 1;
           var foul = false;
-          if (isAmerican) {
+          if (isAmerican || isNineBall) {
             if (!firstHit || firstHit.n !== currentTarget) foul = true;
           } else {
             var shooterType = assignedTypes[currentShooter];
@@ -1656,7 +1718,7 @@
             return a + b;
           }, 0);
           if (foul) {
-            if (isAmerican) {
+            if (isAmerican || isNineBall) {
               cueBallFree = true;
               if (shotPoints > 0) {
                 scores[opponent] += shotPoints;
@@ -1685,7 +1747,7 @@
               showCenterPopup('Foul', 'foul', 1500);
               foulShown = true;
             }
-            freeShots[opponent] = isAmerican ? 1 : 2;
+            freeShots[opponent] = isAmerican || isNineBall ? 1 : 2;
             freeShots[currentShooter] = 0;
             table.turn = opponent;
             setTimeout(showTurnInfo, 1500);
@@ -1721,6 +1783,8 @@
                     closing +
                     ' more to close the game.';
                 }
+              } else if (isNineBall) {
+                msg = 'He sinks the ' + lastPocketedBall + '-ball.';
               } else {
                 var col = BALL_BY_N[lastPocketedBall].t;
                 msg = 'He sinks a ' + col + '.';
@@ -2090,7 +2154,7 @@
           var base = 950 * 3 * 1.5; // force increased 150%
           playCueHit(p);
           currentShooter = table.turn;
-          if (isAmerican) currentTarget = lowestBallOnTable();
+          if (isAmerican || isNineBall) currentTarget = lowestBallOnTable();
           shotInProgress = true;
           pocketedAny = false;
           pocketedOwn = false;
@@ -2115,11 +2179,17 @@
           cpuThinking = true;
           var cue = table.balls[0];
           var targets = [];
-          if (isAmerican) {
+          if (isAmerican || isNineBall) {
             var lowest = null;
             for (var i = 0; i < table.balls.length; i++) {
               var b = table.balls[i];
-              if (!b || b.n === 0 || b.pocketed || b.n === 8) continue;
+              if (
+                !b ||
+                b.n === 0 ||
+                b.pocketed ||
+                (isAmerican && b.n === 8)
+              )
+                continue;
               if (!lowest || b.n < lowest.n) lowest = b;
             }
             if (lowest) targets.push(lowest);
