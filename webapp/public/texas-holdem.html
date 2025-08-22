@@ -71,7 +71,8 @@
         display: flex;
         gap: 10px;
         z-index: 2;
-        --card-scale: 1.083;
+        /* Make community cards a bit larger */
+        --card-scale: 1.2;
         --card-w: calc(clamp(44px, 9.6vw, 70px) * var(--card-scale));
         --card-h: calc(var(--card-w) * 1.45);
       }
@@ -470,11 +471,12 @@
         z-index: 5;
       }
       .controls button {
-        width: var(--avatar-size);
-        height: var(--avatar-size);
+        /* Slightly smaller but wider action buttons */
+        width: calc(var(--avatar-size) * 1.2);
+        height: calc(var(--avatar-size) * 0.8);
         padding: 0;
         border: 4px solid #000;
-        border-radius: 50%;
+        border-radius: 12px;
         background: #2563eb;
         color: #fff;
         font-weight: 600;
