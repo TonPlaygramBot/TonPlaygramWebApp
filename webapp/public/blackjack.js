@@ -24,6 +24,24 @@ const state = {
 let myAccountId = '';
 let myTelegramId;
 
+const CHIP_VALUES = [50, 20, 10, 5, 1];
+let sndCallRaise;
+let sndFlip;
+
+function playCallRaise() {
+  if (sndCallRaise) {
+    sndCallRaise.currentTime = 0;
+    sndCallRaise.play();
+  }
+}
+
+function playFlipSound() {
+  if (sndFlip) {
+    sndFlip.currentTime = 0;
+    sndFlip.play();
+  }
+}
+
 async function awardDevShare(total) {
   if (!state.devAccountId || !window.fbApi) return;
   try {
@@ -118,6 +136,7 @@ function aiTurn() {
     const { card, deck } = hitCard(state.deck);
     state.deck = deck;
     p.hand.push(card);
+    playFlipSound();
     if (isBust(p.hand)) {
       p.bust = true;
       p.stood = true;
@@ -136,6 +155,7 @@ window.hit = () => {
   const { card, deck } = hitCard(state.deck);
   state.deck = deck;
   p.hand.push(card);
+  playFlipSound();
   if (isBust(p.hand) || handValue(p.hand) === 21) {
     p.bust = isBust(p.hand);
     p.stood = true;
@@ -174,7 +194,10 @@ function finish() {
 function renderPot() {
   const potEl = document.getElementById('pot');
   const potTotal = document.getElementById('potTotal');
-  if (potEl) potEl.innerHTML = '';
+  if (potEl) {
+    potEl.innerHTML = '';
+    potEl.appendChild(buildChipPiles(state.pot));
+  }
   if (potTotal) potTotal.textContent = `${state.pot} ${state.token}`;
 }
 
@@ -189,10 +212,12 @@ function updateRaiseAmount() {
 
 function commitRaise() {
   if (state.raiseAmount <= 0) return;
-  state.pot += state.raiseAmount;
+  const amt = state.raiseAmount;
+  state.pot += amt;
+  animateChipsFromPlayer(state.turn, amt);
+  playCallRaise();
   state.raiseAmount = 0;
   updateRaiseAmount();
-  renderPot();
 }
 
 function init() {
@@ -222,6 +247,7 @@ function init() {
     state.deck = d1;
     p.hand.push(card);
     p.revealed = i === 0;
+    playFlipSound();
   });
 
   render();
@@ -232,8 +258,10 @@ function init() {
       const { card, deck: d2 } = hitCard(state.deck);
       state.deck = d2;
       p.hand.push(card);
+      playFlipSound();
     });
     render();
+    aiBettingRound();
     const p0 = state.players[0];
     if (!p0.isHuman) setTimeout(aiTurn, 500);
   }, 500);
@@ -266,6 +294,99 @@ function init() {
       state.raiseAmount = state.stake * 10;
       commitRaise();
     });
+  sndCallRaise = document.getElementById('sndCallRaise');
+  sndFlip = document.getElementById('sndFlip');
 }
 
 init();
+
+function buildChipPiles(amount) {
+  const wrap = document.createElement('div');
+  wrap.style.display = 'flex';
+  wrap.style.gap = '4px';
+  wrap.style.flexWrap = 'nowrap';
+  wrap.style.justifyContent = 'center';
+  let remaining = amount;
+  let chips = 0;
+  CHIP_VALUES.forEach((val) => {
+    while (remaining >= val && chips < 5) {
+      remaining -= val;
+      const chip = document.createElement('div');
+      chip.className = 'chip v' + val;
+      wrap.appendChild(chip);
+      chips++;
+    }
+  });
+  return wrap;
+}
+
+function animateChipsFromPlayer(index, amount) {
+  const stage = document.querySelector('.stage');
+  const seats = document.querySelectorAll('#seats .seat');
+  const seat = seats[index];
+  const potWrap = document.querySelector('.pot-wrap');
+  if (!stage || !seat || !potWrap) {
+    renderPot();
+    return;
+  }
+  const chips = buildChipPiles(amount);
+  chips.classList.add('moving-pot');
+  stage.appendChild(chips);
+  const seatRect = seat.getBoundingClientRect();
+  const stageRect = stage.getBoundingClientRect();
+  const potRect = potWrap.getBoundingClientRect();
+  chips.style.left =
+    seatRect.left +
+    seatRect.width / 2 -
+    stageRect.left -
+    chips.offsetWidth / 2 +
+    'px';
+  chips.style.top =
+    seatRect.top +
+    seatRect.height / 2 -
+    stageRect.top -
+    chips.offsetHeight / 2 +
+    'px';
+  requestAnimationFrame(() => {
+    chips.style.left =
+      potRect.left +
+      potRect.width / 2 -
+      stageRect.left -
+      chips.offsetWidth / 2 +
+      'px';
+    chips.style.top =
+      potRect.top +
+      potRect.height / 2 -
+      stageRect.top -
+      chips.offsetHeight / 2 +
+      'px';
+  });
+  setTimeout(() => {
+    chips.remove();
+    renderPot();
+  }, 500);
+}
+
+function aiBetAction(hand) {
+  const val = handValue(hand);
+  if (val >= 18) return 'raise';
+  if (val <= 11) return 'fold';
+  return 'call';
+}
+
+function aiBettingRound() {
+  state.players.forEach((p, i) => {
+    if (p.isHuman || p.bust) return;
+    const act = aiBetAction(p.hand);
+    if (act === 'raise') {
+      state.pot += state.stake;
+      animateChipsFromPlayer(i, state.stake);
+      playCallRaise();
+    } else if (act === 'fold') {
+      p.bust = true;
+      p.stood = true;
+    }
+  });
+  renderPot();
+  render();
+}
