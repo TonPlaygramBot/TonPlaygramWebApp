@@ -502,10 +502,10 @@
     var LINE_Y  = BORDER_TOP + (TABLE_H - BORDER_TOP - BORDER_BOTTOM) * 0.75; // vija e bardhe poshte
     var CUE_START_Y = LINE_Y + (TABLE_H - BORDER_BOTTOM - LINE_Y - BALL_R*2) / 2; // pozicioni fillestar i cueball-it
 
-    var FRICTION = 0.985;   // ferkimi linear
+    var FRICTION = 0.98;    // ferkimi linear, pak me i madh per te ndalur me shpejt
     var BOUNCE   = 0.98;    // koeficienti i rikthimit
 
-    var MIN_V = 0.08;       // shpejtesia min. qe konsiderohet "ne levizje"
+    var MIN_V = 0.12;       // shpejtesia min. qe konsiderohet "ne levizje"
 
     /* ==========================================================
        ELEMENTET DOM
@@ -518,6 +518,7 @@
     var footerAvatar = turnPlayer.querySelector('.avatar');
     var footerName   = turnPlayer.querySelector('.name');
     var statusMsg    = document.getElementById('statusMsg');
+    var footerTimeout = null;
     var centerPopup = document.getElementById('centerPopup');
     var spinBox   = document.getElementById('spinBox');
     var spinDot   = document.getElementById('spinDot');
@@ -918,7 +919,19 @@
             playBallHit(clamp(imp/4000,0,1));
             if (a.n === 0 || bb.n === 0) {
               var other = a.n===0 ? bb : a;
-              if (!firstHit) firstHit = BALL_BY_N[other.n];
+              if (!firstHit) {
+                firstHit = BALL_BY_N[other.n];
+                if ((isAmerican && other.n !== currentTarget) ||
+                    (!isAmerican && assignedTypes[currentShooter] &&
+                     BALL_BY_N[other.n].t !== assignedTypes[currentShooter])) {
+                  if (!foulShown) {
+                    showCenterPopup('Foul', 'foul', 1500);
+                    foulShown = true;
+                    var opponent = currentShooter===1 ? 2 : 1;
+                    updateFooter(opponent, isAmerican ? 'Foul!' : 'Foul – opponent gets two shots.');
+                  }
+                }
+              }
               if (a.n === 0) a.spinApplied = true;
               if (bb.n === 0) bb.spinApplied = true;
             }
@@ -939,7 +952,9 @@
             if (b2.n === 0) {
               scratch = true;
               foulShown = true;
-              showCenterPopup('Foul', 'foul', 1300);
+              showCenterPopup('Foul', 'foul', 1500);
+              var opponent = currentShooter===1 ? 2 : 1;
+              updateFooter(opponent, isAmerican ? 'Foul!' : 'Foul – opponent gets two shots.');
               cueBallFree = true;
               aiming = false;
               cueHintTime = Date.now();
@@ -963,6 +978,12 @@
                   scores[opponent] += b2.n;
                   updateScoresUI();
                   wrongBallPocketed = b2.n;
+                  if (!foulShown) {
+                    showCenterPopup('Foul', 'foul', 1500);
+                    foulShown = true;
+                    var opponent = currentShooter===1 ? 2 : 1;
+                    updateFooter(opponent, isAmerican ? 'Foul!' : 'Foul – opponent gets two shots.');
+                  }
                   lastPocketedBall = null;
                 }
               } else {
@@ -1177,16 +1198,23 @@
       footerAvatar.textContent = srcAvatar.textContent;
       footerName.textContent = player===1 ? nameP1.textContent : nameCPU.textContent;
       statusMsg.innerHTML = msg || '';
+      clearTimeout(footerTimeout);
+      if (msg) {
+        footerTimeout = setTimeout(function(){ statusMsg.innerHTML = ''; }, 1500);
+      }
     }
 
-    function showShots(){
-      var shots = freeShots[table.turn];
-      var name = table.turn === 1 ? nameP1.textContent : nameCPU.textContent;
-      if (shots > 0){
-        updateFooter(table.turn, name + ' has ' + shots + ' shot' + (shots > 1 ? 's' : '') + ' remaining');
+    function showTurnInfo(){
+      var msg;
+      if (!assignedTypes[table.turn]) {
+        msg = 'Choose a color';
+      } else if (isAmerican) {
+        if (!currentTarget) currentTarget = lowestBallOnTable();
+        msg = 'Pot the ' + currentTarget + '-ball';
       } else {
-        updateFooter(table.turn, '');
+        msg = 'Pot a ' + assignedTypes[table.turn];
       }
+      updateFooter(table.turn, msg);
     }
 
     function updateTurnIndicator(force){
@@ -1195,7 +1223,7 @@
         avatarCPU.classList.toggle('turn', table.turn === 2);
         if (!force) playTurnSound();
         if (!force && freeShots[table.turn] > 1) {
-          showCenterPopup('2 shots', 'shots', 1300);
+          showCenterPopup('2 shots', 'shots', 1500);
         }
         lastTurn = table.turn;
       }
@@ -1270,13 +1298,13 @@
           updateFooter(opponent, 'Foul – opponent gets two shots.');
         }
         if (!foulShown) {
-          showCenterPopup('Foul', 'foul', 1300);
+          showCenterPopup('Foul', 'foul', 1500);
           foulShown = true;
         }
         freeShots[opponent] = isAmerican ? 1 : 2;
         freeShots[currentShooter] = 0;
         table.turn = opponent;
-        setTimeout(showShots, 4000);
+        setTimeout(showTurnInfo, 1500);
       } else {
         if (freeShots[currentShooter] > 0) {
           freeShots[currentShooter]--;
@@ -1301,10 +1329,10 @@
           }
           updateFooter(currentShooter, msg);
           lastPocketedBall = null;
-          setTimeout(showShots, 4000);
+          setTimeout(showTurnInfo, 1500);
         } else {
           updateFooter(table.turn, 'Close call! The ball hit the cushion but nothing dropped, turn passes to the opponent.');
-          setTimeout(showShots, 4000);
+          setTimeout(showTurnInfo, 1500);
         }
       }
       pocketedAny = false;
@@ -1328,13 +1356,13 @@
         updateCueHint();
         updateTurnIndicator();
         if (shotInProgress && !table.isMoving()) endShot();
-        if (!table.isMoving() && table.turn===2 && !shotInProgress && !cpuThinking) setTimeout(cpuTurn, 400);
+        if (!table.isMoving() && table.turn===2 && !shotInProgress && !cpuThinking) setTimeout(cpuTurn, 200);
       }
       requestAnimationFrame(loop);
     }
     requestAnimationFrame(loop);
     updateTurnIndicator(true);
-    showShots();
+    showTurnInfo();
 
     /* ==========================================================
        INPUT – Aiming & Glow
