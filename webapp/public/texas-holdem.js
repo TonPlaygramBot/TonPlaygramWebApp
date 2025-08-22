@@ -855,6 +855,7 @@ function showControls() {
           state.selectedChips.push(val);
           state.raiseAmount += val;
           updateRaiseAmount();
+          playCallRaiseSound();
         }
       });
       grid.appendChild(chip);
