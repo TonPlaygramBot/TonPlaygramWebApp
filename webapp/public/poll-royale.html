@@ -1685,36 +1685,35 @@
           endGame(currentShooter);
         }
 
+        function isFoul(firstHit, scratch) {
+          if (isAmerican || isNineBall) {
+            return !firstHit || firstHit.n !== currentTarget || scratch;
+          }
+          var shooterType = assignedTypes[currentShooter];
+          if (!firstHit || scratch) return true;
+          if (shooterType && firstHit.t !== shooterType) {
+            var stillLeft = false;
+            for (var k = 1; k < table.balls.length; k++) {
+              var rb = table.balls[k];
+              if (
+                rb &&
+                !rb.pocketed &&
+                BALL_BY_N[rb.n].t === shooterType &&
+                rb.n !== firstHit.n
+              ) {
+                stillLeft = true;
+                break;
+              }
+            }
+            if (stillLeft || firstHit.t !== 'eight') return true;
+          }
+          return false;
+        }
+
         function endShot() {
           shotInProgress = false;
           var opponent = currentShooter === 1 ? 2 : 1;
-          var foul = false;
-          if (isAmerican || isNineBall) {
-            if (!firstHit || firstHit.n !== currentTarget) foul = true;
-          } else {
-            var shooterType = assignedTypes[currentShooter];
-            if (!firstHit) {
-              foul = true;
-            } else if (shooterType) {
-              if (firstHit.t !== shooterType) {
-                var stillLeft = false;
-                for (var k = 1; k < table.balls.length; k++) {
-                  var rb = table.balls[k];
-                  if (
-                    rb &&
-                    !rb.pocketed &&
-                    BALL_BY_N[rb.n].t === shooterType &&
-                    rb.n !== firstHit.n
-                  ) {
-                    stillLeft = true;
-                    break;
-                  }
-                }
-                if (stillLeft || firstHit.t !== 'eight') foul = true;
-              }
-            }
-          }
-          if (scratch) foul = true;
+          var foul = isFoul(firstHit, scratch);
           var shotPoints = pottedThisShot.reduce(function (a, b) {
             return a + b;
           }, 0);
@@ -1925,17 +1924,22 @@
           var x = cue.p.x,
             y = cue.p.y,
             target = null,
-            hitStep = dots;
+            hitStep = dots,
+            railNormal = null;
 
           for (var i = 0; i < dots; i++) {
             x += dir.x * step;
             y += dir.y * step;
-            if (
-              x < BORDER + BALL_R ||
-              x > TABLE_W - BORDER - BALL_R ||
-              y < BORDER_TOP + BALL_R ||
-              y > TABLE_H - BORDER_BOTTOM - BALL_R
-            ) {
+            if (x < BORDER + BALL_R) {
+              railNormal = { x: 1, y: 0 };
+            } else if (x > TABLE_W - BORDER - BALL_R) {
+              railNormal = { x: -1, y: 0 };
+            } else if (y < BORDER_TOP + BALL_R) {
+              railNormal = { x: 0, y: 1 };
+            } else if (y > TABLE_H - BORDER_BOTTOM - BALL_R) {
+              railNormal = { x: 0, y: -1 };
+            }
+            if (railNormal) {
               hitStep = i;
               break;
             }
@@ -1967,6 +1971,27 @@
             ctx.beginPath();
             ctx.arc(x * sX, y * sY, 2, 0, Math.PI * 2);
             ctx.fill();
+          }
+
+          if (!target && railNormal) {
+            var impactX = x,
+              impactY = y;
+            var dotIn = dir.x * railNormal.x + dir.y * railNormal.y;
+            var refl = {
+              x: dir.x - 2 * dotIn * railNormal.x,
+              y: dir.y - 2 * dotIn * railNormal.y
+            };
+            ctx.save();
+            ctx.strokeStyle = 'rgba(255,255,255,.5)';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.moveTo(impactX * sX, impactY * sY);
+            ctx.lineTo(
+              (impactX + refl.x * step * 10) * sX,
+              (impactY + refl.y * step * 10) * sY
+            );
+            ctx.stroke();
+            ctx.restore();
           }
 
           if (target) {
@@ -2277,8 +2302,8 @@
             power = 0.35 + Math.random() * 0.3;
           }
 
-          // apply 75% potting accuracy
-          var ACCURACY = 0.75;
+          // apply 75–85% potting accuracy
+          var ACCURACY = 0.75 + Math.random() * 0.1;
           nd = {
             x: nd.x + (Math.random() - 0.5) * (1 - ACCURACY),
             y: nd.y + (Math.random() - 0.5) * (1 - ACCURACY)
@@ -2311,10 +2336,9 @@
             var toNext = norm(nxt.p.x - chosen.p.x, nxt.p.y - chosen.p.y);
             var dot = shotDir.x * toNext.x + shotDir.y * toNext.y;
             var cross = shotDir.x * toNext.y - shotDir.y * toNext.x;
-            if (dot > 0.5) spinY = 0.5;
-            else if (dot < -0.5) spinY = -0.5;
-            if (cross > 0.1) spinX = 0.5;
-            else if (cross < -0.1) spinX = -0.5;
+            var SPIN_SCALE = 0.3;
+            if (Math.abs(dot) > 0.5) spinY = SPIN_SCALE * dot;
+            if (Math.abs(cross) > 0.1) spinX = SPIN_SCALE * cross;
           }
 
           table.aim = { x: cue.p.x + nd.x * 100, y: cue.p.y + nd.y * 100 };
