@@ -24,6 +24,20 @@
       .avatar { width:54px; height:54px; border-radius:50%; display:grid; place-items:center; background:#fff; color:#111; font-size:28px; border:2px solid #000; box-shadow:0 8px 20px var(--shadow); overflow:hidden; }
       .cards { display:flex; gap:6px; }
       .card { width:var(--card-w); height:var(--card-h); border-radius:10px; position:relative; flex:0 0 auto; background:#fff; color:#111; font-weight:900; box-shadow:0 10px 25px var(--shadow), inset 0 0 0 2px rgba(0,0,0,0.08); }
+      .card.back {
+        background:
+          url('assets/icons/file_00000000bc2862439eecffff3730bbe4.webp') center/90% no-repeat,
+          repeating-linear-gradient(45deg,#233,#233 6px,#122 6px,#122 12px);
+        border:2px solid rgba(255,255,255,0.5);
+        color:transparent;
+      }
+      .card.back::before {
+        content:'';
+        position:absolute;
+        inset:6px;
+        border-radius:8px;
+        border:2px dashed rgba(255,255,255,0.35);
+      }
       .card .corner { position:absolute; display:flex; flex-direction:column; align-items:center; }
       .card .tl { left:8px; top:6px; }
       .card .br { right:8px; bottom:8px; transform:rotate(180deg); }
@@ -36,12 +50,48 @@
       .player-controls button { padding:8px 16px; font-size:16px; border:none; border-radius:6px; cursor:pointer; }
       #status { position:absolute; top:10px; left:50%; transform:translateX(-50%); font-size:18px; font-weight:bold; z-index:3; text-shadow:0 2px 4px #000; }
       .folded { opacity:0.5; }
+      .pot-wrap { position:absolute; left:50%; top:32%; transform:translate(-50%,-50%); display:flex; flex-direction:column; align-items:center; gap:4px; z-index:3; }
+      .pot { display:flex; gap:4px; }
+      .pot-total { font-size:16px; font-weight:700; }
+      .chip { width:40px; height:40px; border-radius:50%; background-size:cover; background-position:center; }
+      .chip.v1 { background-image:url('assets/icons/1chips.webp'); }
+      .chip.v5 { background-image:url('assets/icons/5chips.webp'); }
+      .chip.v10 { background-image:url('assets/icons/10chips.webp'); }
+      .chip.v20 { background-image:url('assets/icons/20chips.webp'); }
+      .chip.v50 { background-image:url('assets/icons/50chips.webp'); }
+      .raise-container { position:absolute; bottom:0; left:2%; z-index:5; display:flex; flex-direction:column; align-items:flex-start; gap:8px; }
+      .chip-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:4px; }
+      .raise-container .chip { cursor:pointer; border:2px solid transparent; width:36px; height:36px; }
+      .raise-container .chip:active { border-color:#0ea5e9; }
+      .slider-container { position:absolute; bottom:4%; right:1%; z-index:5; display:flex; flex-direction:column; align-items:center; gap:8px; }
+      .raise-btn { width:54px; height:54px; padding:0; border:4px solid #000; border-radius:50%; background:#2563eb; color:#fff; font-weight:600; font-size:12px; display:flex; align-items:center; justify-content:center; }
+      .raise-amount { font-size:14px; }
     </style>
   </head>
   <body>
     <div class="stage">
       <div id="status"></div>
       <div class="seats" id="seats"></div>
+      <div class="pot-wrap">
+        <div class="pot" id="pot"></div>
+        <div class="pot-total" id="potTotal"></div>
+      </div>
+      <div class="raise-container" id="raiseContainer">
+        <div class="chip-grid">
+          <div class="chip v1" data-value="1"></div>
+          <div class="chip v5" data-value="5"></div>
+          <div class="chip v10" data-value="10"></div>
+          <div class="chip v20" data-value="20"></div>
+          <div class="chip v50" data-value="50"></div>
+        </div>
+        <div class="raise-amount" id="chipAmount">0</div>
+      </div>
+      <div class="slider-container">
+        <input type="range" id="raiseSlider" min="0" value="0" />
+        <div class="raise-amount" id="raiseSliderAmount">0</div>
+        <button class="raise-btn" id="raiseBtn">Raise</button>
+        <button class="raise-btn" id="allInBtn">All In</button>
+      </div>
       <div class="player-controls">
         <button onclick="hit()">Hit</button>
         <button onclick="stand()">Stand</button>

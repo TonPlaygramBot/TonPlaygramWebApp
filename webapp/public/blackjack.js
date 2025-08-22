@@ -1,7 +1,6 @@
 import {
   createDeck,
   shuffle,
-  dealInitial,
   hitCard,
   handValue,
   isBust,
@@ -18,6 +17,8 @@ const state = {
   stake: 0,
   token: 'TPC',
   devAccountId: '',
+  pot: 0,
+  raiseAmount: 0,
 };
 
 let myAccountId = '';
@@ -47,6 +48,12 @@ function cardEl(card) {
   });
 }
 
+function cardBackEl() {
+  const div = document.createElement('div');
+  div.className = 'card back';
+  return div;
+}
+
 function render() {
   const seats = document.getElementById('seats');
   seats.innerHTML = '';
@@ -70,7 +77,13 @@ function render() {
     avatar.textContent = p.avatar || p.name[0];
     const cards = document.createElement('div');
     cards.className = 'cards';
-    p.hand.forEach((c) => cards.appendChild(cardEl(c)));
+    p.hand.forEach((c, idx) => {
+      if (i === 0 || idx >= 2 || p.revealed) {
+        cards.appendChild(cardEl(c));
+      } else {
+        cards.appendChild(cardBackEl());
+      }
+    });
     const bal = document.createElement('div');
     bal.className = 'seat-balance';
     bal.textContent = `${p.name} (${handValue(p.hand)})`;
@@ -140,7 +153,7 @@ window.stand = () => {
 
 function finish() {
   const winners = evaluateWinners(state.players);
-  const pot = state.stake * state.players.length;
+  const pot = state.pot;
   awardDevShare(pot);
   const share = Math.floor((pot * 0.9) / winners.length);
   winners.forEach((i) => {
@@ -154,7 +167,32 @@ function finish() {
         ? `${state.players[winners[0]].name} wins!`
         : `Tie between ${winners.map((i) => state.players[i].name).join(', ')}`;
   }
+  state.players.forEach((p) => (p.revealed = true));
   render();
+}
+
+function renderPot() {
+  const potEl = document.getElementById('pot');
+  const potTotal = document.getElementById('potTotal');
+  if (potEl) potEl.innerHTML = '';
+  if (potTotal) potTotal.textContent = `${state.pot} ${state.token}`;
+}
+
+function updateRaiseAmount() {
+  const chipAmt = document.getElementById('chipAmount');
+  const sliderAmt = document.getElementById('raiseSliderAmount');
+  const slider = document.getElementById('raiseSlider');
+  if (chipAmt) chipAmt.textContent = state.raiseAmount.toString();
+  if (sliderAmt) sliderAmt.textContent = state.raiseAmount.toString();
+  if (slider) slider.value = state.raiseAmount.toString();
+}
+
+function commitRaise() {
+  if (state.raiseAmount <= 0) return;
+  state.pot += state.raiseAmount;
+  state.raiseAmount = 0;
+  updateRaiseAmount();
+  renderPot();
 }
 
 function init() {
@@ -176,12 +214,58 @@ function init() {
   }
 
   const deck = shuffle(createDeck());
-  const { hands, deck: d } = dealInitial(deck, state.players.length);
-  state.deck = d;
-  hands.forEach((h, i) => (state.players[i].hand = h));
+  state.deck = deck;
+
+  // deal first card to each player
+  state.players.forEach((p, i) => {
+    const { card, deck: d1 } = hitCard(state.deck);
+    state.deck = d1;
+    p.hand.push(card);
+    p.revealed = i === 0;
+  });
+
   render();
-  const p0 = state.players[0];
-  if (!p0.isHuman) setTimeout(aiTurn, 500);
+
+  // deal second card after short delay
+  setTimeout(() => {
+    state.players.forEach((p, i) => {
+      const { card, deck: d2 } = hitCard(state.deck);
+      state.deck = d2;
+      p.hand.push(card);
+    });
+    render();
+    const p0 = state.players[0];
+    if (!p0.isHuman) setTimeout(aiTurn, 500);
+  }, 500);
+
+  state.pot = state.stake * state.players.length;
+  renderPot();
+
+  document.querySelectorAll('#raiseContainer .chip').forEach((chip) => {
+    chip.addEventListener('click', () => {
+      const val = parseInt(chip.dataset.value || '0', 10);
+      state.raiseAmount += val;
+      updateRaiseAmount();
+    });
+  });
+
+  const slider = document.getElementById('raiseSlider');
+  if (slider) {
+    slider.max = (state.stake * 10).toString();
+    slider.addEventListener('input', () => {
+      state.raiseAmount = parseInt(slider.value, 10);
+      updateRaiseAmount();
+    });
+  }
+
+  const raiseBtn = document.getElementById('raiseBtn');
+  const allInBtn = document.getElementById('allInBtn');
+  if (raiseBtn) raiseBtn.addEventListener('click', commitRaise);
+  if (allInBtn)
+    allInBtn.addEventListener('click', () => {
+      state.raiseAmount = state.stake * 10;
+      commitRaise();
+    });
 }
 
 init();
