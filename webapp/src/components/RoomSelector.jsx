@@ -30,7 +30,11 @@ export default function RoomSelector({ selected, onSelect, tokens: allowed }) {
                   : ''
               }`}
             >
-              <img  src={icon} alt={id} className="w-8 h-8" />
+              <img
+                src={icon}
+                alt={id}
+                className={id === 'TPC' ? 'w-[1.4rem] h-[1.4rem]' : 'w-8 h-8'}
+              />
               <span>{amt.toLocaleString('en-US')}</span>
             </button>
           ))}
