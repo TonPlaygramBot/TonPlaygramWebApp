@@ -34,7 +34,8 @@ const DEFAULT_SETTINGS = {
   cardVolume: 1,
   chipVolume: 1,
   playerColor: '#f5f5dc',
-  cardBackColor: '#233'
+  cardBackColor: '#233',
+  playerFrameStyle: 'solid'
 };
 const COLOR_OPTIONS = [
   '#f5f5dc',
@@ -47,6 +48,18 @@ const COLOR_OPTIONS = [
   '#f472b6',
   '#4ade80',
   '#94a3b8'
+];
+const FRAME_STYLE_OPTIONS = [
+  'solid',
+  'dashed',
+  'dotted',
+  'double',
+  'groove',
+  'ridge',
+  'inset',
+  'outset',
+  'dashed dotted',
+  'double solid'
 ];
 
 function loadSettings() {
@@ -77,6 +90,14 @@ function applySettings() {
     '--card-back-color',
     settings.cardBackColor
   );
+  document.documentElement.style.setProperty(
+    '--player-frame-color',
+    settings.playerColor
+  );
+  document.documentElement.style.setProperty(
+    '--player-frame-style',
+    settings.playerFrameStyle
+  );
   const flip = document.getElementById('sndFlip');
   if (flip) flip.volume = settings.muteCards ? 0 : settings.cardVolume;
   const callRaise = document.getElementById('sndCallRaise');
@@ -104,6 +125,7 @@ function initSettingsMenu() {
   const muteChips = document.getElementById('muteChips');
   const chipVolume = document.getElementById('chipVolume');
   const muteOthers = document.getElementById('muteOthers');
+  const playerFrameStyle = document.getElementById('playerFrameStyle');
   const playerColor = document.getElementById('playerColor');
   const cardBackColor = document.getElementById('cardBackColor');
   const saveBtn = document.getElementById('saveSettings');
@@ -123,12 +145,21 @@ function initSettingsMenu() {
   populate(playerColor, settings.playerColor);
   populate(cardBackColor, settings.cardBackColor);
 
+  FRAME_STYLE_OPTIONS.forEach((s) => {
+    const opt = document.createElement('option');
+    opt.value = s;
+    opt.textContent = s;
+    playerFrameStyle.appendChild(opt);
+  });
+  playerFrameStyle.value = settings.playerFrameStyle;
+
   function updateControls() {
     muteCards.checked = settings.muteCards;
     cardVolume.value = settings.cardVolume;
     muteChips.checked = settings.muteChips;
     chipVolume.value = settings.chipVolume;
     muteOthers.checked = settings.muteOthers;
+    playerFrameStyle.value = settings.playerFrameStyle;
     playerColor.value = settings.playerColor;
     cardBackColor.value = settings.cardBackColor;
   }
@@ -153,6 +184,10 @@ function initSettingsMenu() {
   });
   muteOthers.addEventListener('change', (e) => {
     settings.muteOthers = e.target.checked;
+    applySettings();
+  });
+  playerFrameStyle.addEventListener('change', (e) => {
+    settings.playerFrameStyle = e.target.value;
     applySettings();
   });
   playerColor.addEventListener('change', (e) => {
@@ -269,7 +304,13 @@ function formatAmount(amount) {
 
 function updateBalancePreview(preview = 0) {
   const el = document.getElementById('tpcTotal');
-  if (el) el.textContent = Math.max(0, state.tpcTotal - preview);
+  const totalDiv = el ? el.closest('.tpc-total') : null;
+  const amount = Math.max(0, state.tpcTotal - preview);
+  if (el) el.textContent = amount;
+  if (totalDiv) {
+    if (amount >= 100000) totalDiv.classList.add('small');
+    else totalDiv.classList.remove('small');
+  }
   if (state.players[0]) {
     state.players[0].balance = state.tpcTotal;
   }
