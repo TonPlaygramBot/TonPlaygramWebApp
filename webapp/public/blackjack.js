@@ -235,22 +235,19 @@ function cardBackEl() {
 function render() {
   const seats = document.getElementById('seats');
   seats.innerHTML = '';
-  const POS = [
-    { left: '50%', top: '80%' },
-    { left: '80%', top: '60%' },
-    { left: '80%', top: '30%' },
-    { left: '50%', top: '10%' },
-    { left: '20%', top: '30%' },
-    { left: '20%', top: '60%' }
+  const positions = [
+    'bottom',
+    'bottom-right',
+    'right',
+    'top',
+    'left',
+    'bottom-left'
   ];
   state.players.forEach((p, i) => {
     const seat = document.createElement('div');
-    seat.className = 'seat';
-    if (i !== 0) seat.classList.add('small');
-    const pos = POS[i] || { left: '50%', top: '50%' };
-    seat.style.left = pos.left;
-    seat.style.top = pos.top;
-    seat.style.transform = 'translate(-50%, -50%)';
+    seat.className = 'seat ' + (positions[i] || 'bottom');
+    const inner = document.createElement('div');
+    inner.className = 'seat-inner';
     const avatar = document.createElement('div');
     avatar.className = 'avatar';
     avatar.textContent = p.avatar || p.name[0];
@@ -263,10 +260,19 @@ function render() {
         cards.appendChild(cardBackEl());
       }
     });
+    inner.append(avatar, cards);
     const bal = document.createElement('div');
     bal.className = 'seat-balance';
     bal.innerHTML = formatAmount(p.balance || 0);
-    seat.append(avatar, cards, bal);
+    seat.append(inner, bal);
+
+    const baseScale = i === 0 ? 1.083 : 0.567;
+    const maxCards = i === 0 ? 4 : 3;
+    const scale = p.hand.length > maxCards
+      ? (baseScale * maxCards) / p.hand.length
+      : baseScale;
+    seat.style.setProperty('--card-scale', scale);
+
     if (i === state.turn && !p.stood && !p.bust) seat.classList.add('active');
     if (p.bust) seat.classList.add('folded');
     if (p.winner) seat.classList.add('winner');
