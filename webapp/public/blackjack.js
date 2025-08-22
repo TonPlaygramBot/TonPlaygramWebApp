@@ -42,9 +42,9 @@ const DEFAULT_SETTINGS = {
   muteOthers: false,
   cardVolume: 1,
   chipVolume: 1,
-  playerColor: '#fbbf24',
+  playerColor: '#f5f5dc',
   cardBackColor: '#233',
-  playerFrameStyle: '6'
+  playerFrameStyle: '1'
 };
 const COLOR_OPTIONS = [
   '#f5f5dc',
@@ -383,7 +383,7 @@ function renderPot() {
 }
 
 function renderCommunity() {
-  const el = document.getElementById('communityCards');
+  const el = document.getElementById('community');
   if (!el) return;
   el.innerHTML = '';
   state.community.forEach((c) => {
@@ -513,23 +513,7 @@ function init() {
       state.raiseAmount = state.stake * 10;
       commitRaise();
     });
-  const checkBtn = document.getElementById('check');
-  const callBtn = document.getElementById('call');
-  const foldBtn = document.getElementById('fold');
   const statusEl = document.getElementById('status');
-  if (checkBtn)
-    checkBtn.addEventListener('click', () => {
-      if (state.pot > state.stake * state.players.length) return;
-      if (statusEl) statusEl.textContent = 'You check';
-    });
-  if (callBtn)
-    callBtn.addEventListener('click', () => {
-      if (statusEl) statusEl.textContent = 'You call';
-    });
-  if (foldBtn)
-    foldBtn.addEventListener('click', () => {
-      if (statusEl) statusEl.textContent = 'You fold';
-    });
   sndCallRaise = document.getElementById('sndCallRaise');
   sndFlip = document.getElementById('sndFlip');
 }
