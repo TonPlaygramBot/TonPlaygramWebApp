@@ -4,6 +4,7 @@ import TasksCard from '../components/TasksCard.jsx';
 import NftGiftCard from '../components/NftGiftCard.jsx';
 import ProjectAchievementsCard from '../components/ProjectAchievementsCard.jsx';
 import HomeGamesCard from '../components/HomeGamesCard.jsx';
+import DailyCheckIn from '../components/DailyCheckIn.jsx';
 
 import {
   FaArrowUp,
@@ -176,7 +177,7 @@ export default function Home() {
                   </div>
                 </Link>
                 <div className="flex flex-col items-center space-y-1">
-                  <img src="/assets/icons/ezgif-54c96d8a9b9236.webp" alt="TPC" className="w-[5.5rem] h-[5.5rem]" />
+              <img src="/assets/icons/ezgif-54c96d8a9b9236.webp" alt="TPC" className="w-[5rem] h-[5rem]" />
                   <span className="text-sm">{formatValue(tpcBalance ?? '...', 2)}</span>
                 </div>
                 <Link to="/wallet?mode=receive" className="flex items-center space-x-1 -mr-1 pt-1">
@@ -189,6 +190,7 @@ export default function Home() {
             </div>
           </div>
 
+          <DailyCheckIn />
           <NftGiftCard />
           <HomeGamesCard />
         </div>
