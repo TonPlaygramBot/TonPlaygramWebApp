@@ -215,7 +215,7 @@
         background: #f6f6f6;
         position: absolute;
         left: 50%;
-        top: 92%;
+        top: 95%;
         transform: translate(-50%, -50%);
         box-shadow:
           0 4px 10px rgba(0, 0, 0, 0.4) inset,
@@ -565,6 +565,14 @@
     <script type="text/javascript">
       (function () {
         'use strict';
+
+        document.addEventListener(
+          'touchmove',
+          function (e) {
+            e.preventDefault();
+          },
+          { passive: false }
+        );
 
         var params = new URLSearchParams(location.search);
         var variant = params.get('variant') || 'uk';
@@ -1118,8 +1126,8 @@
             b.v.x *= FRICTION;
             b.v.y *= FRICTION;
             if (b.spin && b.spinApplied) {
-              b.v.x += b.spin.x * 60 * dt;
-              b.v.y += b.spin.y * 60 * dt;
+              b.v.x += b.spin.x * 45 * dt;
+              b.v.y += b.spin.y * 45 * dt;
               b.spin.x *= 0.98;
               b.spin.y *= 0.98;
             }
@@ -1470,6 +1478,7 @@
         var table = new Table();
         var last = 0; // koha e frame te fundit
         var aiming = false; // a po caktohet drejtimi
+        var aimMoved = false; // a eshte levizur drejtimi gjate drag
         var showGuides = false; // a shfaqen pikat
         var cuePullVisual = 0; // shfaqje e terheqjes ne felt
         var spinVec = { x: 0, y: 0 }; // spini i zgjedhur
@@ -1874,9 +1883,8 @@
             return;
           }
           aiming = true;
+          aimMoved = false;
           showGuides = true;
-          table.aim = t;
-          placeAimGlow(t);
         });
 
         canvas.addEventListener('pointermove', function (e) {
@@ -1894,6 +1902,7 @@
           if (!aiming || !table.running) return;
           table.aim = t;
           placeAimGlow(t);
+          aimMoved = true;
         });
 
         canvas.addEventListener('pointerup', function () {
@@ -2192,7 +2201,7 @@
           var cue = table.balls[0];
           if (!cue || cue.pocketed) return;
           var d = norm(table.aim.x - cue.p.x, table.aim.y - cue.p.y);
-          var base = 950 * 3 * 1.6 * 1.5; // 50% power boost
+          var base = 950 * 3 * 1.6 * 1.5 * 0.75; // 25% reduced power
           playCueHit(p);
           currentShooter = table.turn;
           if (isAmerican || isNineBall) currentTarget = lowestBallOnTable();
@@ -2206,7 +2215,7 @@
           cue.v.x = d.x * base * (0.25 + 0.75 * p);
           cue.v.y = d.y * base * (0.25 + 0.75 * p);
           // Increase the spin effect in all directions
-          cue.spin = { x: spinVec.x * 60 * p, y: spinVec.y * 60 * p };
+          cue.spin = { x: spinVec.x * 45 * p, y: spinVec.y * 45 * p };
           cue.spinApplied = false;
           cueBallFree = false;
           setSpin(0, 0);
@@ -2322,8 +2331,8 @@
             power = 0.35 + Math.random() * 0.3;
           }
 
-          // apply 75–85% potting accuracy
-          var ACCURACY = 0.8 + Math.random() * 0.1;
+          // apply 85–90% potting accuracy
+          var ACCURACY = 0.85 + Math.random() * 0.05;
           nd = {
             x: nd.x + (Math.random() - 0.5) * (1 - ACCURACY),
             y: nd.y + (Math.random() - 0.5) * (1 - ACCURACY)
