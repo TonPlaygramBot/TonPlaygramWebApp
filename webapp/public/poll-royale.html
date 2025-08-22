@@ -2269,6 +2269,25 @@
             return true;
           }
 
+          function pocketPathClear(ball, pocket) {
+            var dir = norm(pocket.x - ball.p.x, pocket.y - ball.p.y);
+            var dist = len(pocket.x - ball.p.x, pocket.y - ball.p.y);
+            for (var j = 0; j < table.balls.length; j++) {
+              var o = table.balls[j];
+              if (!o || o === ball || o.pocketed) continue;
+              var vx = o.p.x - ball.p.x,
+                vy = o.p.y - ball.p.y;
+              var proj = vx * dir.x + vy * dir.y;
+              if (proj > 0 && proj < dist) {
+                var px = ball.p.x + dir.x * proj,
+                  py = ball.p.y + dir.y * proj;
+                var off = Math.hypot(o.p.x - px, o.p.y - py);
+                if (off < BALL_R * 2) return false;
+              }
+            }
+            return true;
+          }
+
           var best = null;
           for (var tIndex = 0; tIndex < targets.length; tIndex++) {
             var t = targets[tIndex];
@@ -2280,6 +2299,7 @@
                 y: t.p.y - toPocket.y * BALL_R * 2
               };
               if (!pathClear(contact, t)) continue;
+              if (!pocketPathClear(t, pk)) continue;
               var dist = len(contact.x - cue.p.x, contact.y - cue.p.y);
               if (!best || dist < best.dist) {
                 best = {
@@ -2336,9 +2356,9 @@
             var toNext = norm(nxt.p.x - chosen.p.x, nxt.p.y - chosen.p.y);
             var dot = shotDir.x * toNext.x + shotDir.y * toNext.y;
             var cross = shotDir.x * toNext.y - shotDir.y * toNext.x;
-            var SPIN_SCALE = 0.3;
-            if (Math.abs(dot) > 0.5) spinY = SPIN_SCALE * dot;
-            if (Math.abs(cross) > 0.1) spinX = SPIN_SCALE * cross;
+            var SPIN_SCALE = 0.15;
+            if (Math.abs(dot) > 0.75) spinY = SPIN_SCALE * dot;
+            if (Math.abs(cross) > 0.25) spinX = SPIN_SCALE * cross;
           }
 
           table.aim = { x: cue.p.x + nd.x * 100, y: cue.p.y + nd.y * 100 };
