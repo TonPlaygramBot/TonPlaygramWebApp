@@ -128,16 +128,20 @@ export default function DailyCheckIn() {
 
       <div
         key={i}
-        className={`board-style border-2 border-border w-20 p-2 flex flex-col items-center justify-center text-xs ${
+        className={`board-style border-2 border-border w-16 p-2 flex flex-col items-center justify-center text-xs ${
           i === streak - 1 ? 'border-4 border-brand-gold' : ''
         }`}
       >
 
         <span className="text-text">Day {i + 1}</span>
 
-        <span className="flex items-center">
+        <span className="flex flex-col items-center mt-1">
+          <img
+            src="/assets/icons/ezgif-54c96d8a9b9236.webp"
+            alt="TPC"
+            className="w-5 h-5 mb-0.5"
+          />
           {formatReward(REWARDS[i])}
-          <img  src="/assets/icons/ezgif-54c96d8a9b9236.webp" alt="TPC" className="w-7 h-7 -ml-1" />
         </span>
 
         {i === streak - 1 && showPopup && (
@@ -183,7 +187,7 @@ export default function DailyCheckIn() {
 
       <h3 className="text-lg font-bold text-white">Daily Streaks</h3>
 
-      <div className="flex space-x-2 overflow-x-auto justify-center">{progress}</div>
+      <div className="flex space-x-2 justify-center">{progress}</div>
 
       <p className="text-sm text-subtext">Check in each day for increasing rewards.</p>
 
