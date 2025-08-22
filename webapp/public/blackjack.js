@@ -9,11 +9,6 @@ import {
 } from './lib/blackjack.js';
 
 const FLAG_EMOJIS = window.FLAG_EMOJIS || [];
-const regionNames = new Intl.DisplayNames(['en'], { type: 'region' });
-function flagName(flag) {
-  const codePoints = [...flag].map((c) => c.codePointAt(0) - 0x1f1e6 + 65);
-  return regionNames.of(String.fromCharCode(...codePoints));
-}
 
 const state = {
   players: [],
@@ -242,11 +237,11 @@ function render() {
   seats.innerHTML = '';
   const POS = [
     { left: '50%', top: '80%' },
-    { left: '80%', top: '64%' },
-    { left: '80%', top: '26%' },
+    { left: '80%', top: '60%' },
+    { left: '80%', top: '30%' },
     { left: '50%', top: '10%' },
-    { left: '20%', top: '26%' },
-    { left: '20%', top: '64%' }
+    { left: '20%', top: '30%' },
+    { left: '20%', top: '60%' }
   ];
   state.players.forEach((p, i) => {
     const seat = document.createElement('div');
@@ -258,11 +253,7 @@ function render() {
     seat.style.transform = 'translate(-50%, -50%)';
     const avatar = document.createElement('div');
     avatar.className = 'avatar';
-    if (p.avatar && p.avatar.startsWith('http')) {
-      avatar.style.background = `url('${p.avatar}') center/cover no-repeat`;
-    } else {
-      avatar.textContent = p.avatar || p.name[0];
-    }
+    avatar.textContent = p.avatar || p.name[0];
     const cards = document.createElement('div');
     cards.className = 'cards';
     p.hand.forEach((c, idx) => {
@@ -440,31 +431,14 @@ function init() {
   state.devAccountId = params.get('dev') || '';
   myAccountId = params.get('accountId') || '';
   myTelegramId = params.get('tgId') || '';
-  let avatar = params.get('avatar') || '';
-  let username = params.get('username') || '';
-
-  try {
-    if (!username) {
-      const initParam = params.get('init');
-      if (initParam) {
-        const data = new URLSearchParams(decodeURIComponent(initParam));
-        const user = JSON.parse(data.get('user') || '{}');
-        username = user.username || user.first_name || 'You';
-        avatar = user.photo_url || avatar;
-      } else if (window.Telegram?.WebApp?.initDataUnsafe?.user) {
-        const u = window.Telegram.WebApp.initDataUnsafe.user;
-        username = u.username || u.first_name || 'You';
-        avatar = u.photo_url || avatar;
-      }
-    }
-  } catch {}
-  if (!username) username = 'You';
+  const avatar = params.get('avatar') || '';
+  const username = params.get('username') || 'You';
 
   const playerCount = 6;
   for (let i = 0; i < playerCount; i++) {
     const ai = i !== 0;
+    const name = ai ? `AI ${i}` : username;
     const av = ai ? FLAG_EMOJIS[i % FLAG_EMOJIS.length] : avatar;
-    const name = ai ? flagName(av) : username;
     state.players.push({ hand: [], stood: false, bust: false, name, avatar: av, isHuman: !ai });
   }
 
