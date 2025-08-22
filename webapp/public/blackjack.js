@@ -261,6 +261,20 @@ function render() {
       }
     });
     inner.append(avatar, cards);
+    if (i === 0) {
+      const hs = document.createElement('div');
+      hs.className = 'hit-stand';
+      const hitBtn = document.createElement('button');
+      hitBtn.id = 'hitBtn';
+      hitBtn.textContent = 'Hit';
+      hitBtn.addEventListener('click', () => window.hit());
+      const standBtn = document.createElement('button');
+      standBtn.id = 'standBtn';
+      standBtn.textContent = 'Stand';
+      standBtn.addEventListener('click', () => window.stand());
+      hs.append(hitBtn, standBtn);
+      inner.appendChild(hs);
+    }
     const bal = document.createElement('div');
     bal.className = 'seat-balance';
     bal.innerHTML = formatAmount(p.balance || 0);
@@ -504,6 +518,22 @@ function init() {
     allInBtn.addEventListener('click', () => {
       state.raiseAmount = state.stake * 10;
       commitRaise();
+    });
+  const checkBtn = document.getElementById('check');
+  const callBtn = document.getElementById('call');
+  const foldBtn = document.getElementById('fold');
+  const statusEl = document.getElementById('status');
+  if (checkBtn)
+    checkBtn.addEventListener('click', () => {
+      if (statusEl) statusEl.textContent = 'You check';
+    });
+  if (callBtn)
+    callBtn.addEventListener('click', () => {
+      if (statusEl) statusEl.textContent = 'You call';
+    });
+  if (foldBtn)
+    foldBtn.addEventListener('click', () => {
+      if (statusEl) statusEl.textContent = 'You fold';
     });
   sndCallRaise = document.getElementById('sndCallRaise');
   sndFlip = document.getElementById('sndFlip');
