@@ -316,6 +316,64 @@
       from { transform: translateY(-10vh) rotate(0deg); opacity: 1; }
       to { transform: translateY(100vh) rotate(360deg); opacity: 0; }
     }
+
+    .hidden { display: none; }
+
+    #rulesBtn {
+      position: fixed;
+      left: 12px;
+      bottom: 12px;
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      border: none;
+      background: rgba(0,0,0,0.5);
+      color: #fff;
+      font-size: 18px;
+      line-height: 28px;
+      text-align: center;
+      cursor: pointer;
+      z-index: 80;
+    }
+
+    #rulesModal {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.7);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 90;
+      padding: 16px;
+    }
+
+    #rulesModal.hidden { display: none; }
+
+    #rulesModal .rules-content {
+      position: relative;
+      background: #fff;
+      color: #000;
+      padding: 16px;
+      border-radius: 8px;
+      max-width: 90%;
+      max-height: 80%;
+      overflow-y: auto;
+      line-height: 1.4;
+    }
+
+    #rulesModal h2 {
+      margin-top: 0;
+    }
+
+    #closeRules {
+      position: absolute;
+      top: 8px;
+      right: 8px;
+      background: none;
+      border: none;
+      font-size: 18px;
+      cursor: pointer;
+    }
   </style>
 </head>
 <body>
@@ -374,6 +432,22 @@
     </div>
   </div>
   <div id="winnerOverlay" class="winnerOverlay hidden"></div>
+
+  <button id="rulesBtn" aria-label="Game rules">ℹ️</button>
+  <div id="rulesModal" class="hidden" role="dialog" aria-modal="true">
+    <div class="rules-content">
+      <button id="closeRules" aria-label="Close">✖</button>
+      <h2>8 Ball UK Rules</h2>
+      <ul>
+        <li>Rack with the black in the middle. A legal break pots a ball or drives two balls to cushions.</li>
+        <li>Groups (red or yellow) are claimed by the first player to pot a ball after the break.</li>
+        <li>On each shot hit one of your balls first and either pot a ball or make any ball reach a cushion.</li>
+        <li>Fouls—such as potting the cue ball, striking the opponent's ball first or no cushion contact—give the opponent two visits.</li>
+        <li>Clear your group then pot the black cleanly to win. Potting the black early or on a foul loses the frame.</li>
+      </ul>
+      <p class="rule-source">Rules based on World Eightball Pool Federation guidelines.</p>
+    </div>
+  </div>
 
   <script src="/flag-emojis.js"></script>
 
@@ -905,8 +979,8 @@
           ctx.restore();
         }
 
-        // numri (jo te cue)
-        if (b.n !== 0) {
+        // numri (vetem per varianten amerikane ose per topin e zi)
+        if (b.n !== 0 && (isAmerican || BALL_BY_N[b.n].t === 'eight')) {
           ctx.fillStyle = stripe ? BALL_BY_N[b.n].c : '#fff';
           ctx.beginPath(); ctx.arc(0,0,ballR*.52,0,Math.PI*2); ctx.fill();
           ctx.fillStyle = stripe ? '#fff' : '#111';
@@ -1010,7 +1084,7 @@
         ctx.save(); ctx.beginPath(); ctx.arc(cx,cy,r,0,Math.PI*2); ctx.clip();
         ctx.fillStyle = '#fff'; ctx.fillRect(cx-r, cy-r*0.3, r*2, r*0.6); ctx.restore();
       }
-      if (n !== 0) {
+      if (n !== 0 && (isAmerican || info.t === 'eight')) {
         ctx.fillStyle = stripe ? info.c : '#fff';
         ctx.beginPath(); ctx.arc(cx, cy, r*0.52, 0, Math.PI*2); ctx.fill();
         ctx.fillStyle = stripe ? '#fff' : '#111';
@@ -1498,6 +1572,26 @@
     table.render();
 
   })();
+  </script>
+
+  <script>
+    const rulesBtn = document.getElementById('rulesBtn');
+    const rulesModal = document.getElementById('rulesModal');
+    const closeRules = document.getElementById('closeRules');
+
+    rulesBtn.addEventListener('click', () => {
+      rulesModal.classList.remove('hidden');
+    });
+
+    closeRules.addEventListener('click', () => {
+      rulesModal.classList.add('hidden');
+    });
+
+    rulesModal.addEventListener('click', (e) => {
+      if (e.target === rulesModal) {
+        rulesModal.classList.add('hidden');
+      }
+    });
   </script>
 </body>
 </html>
