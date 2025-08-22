@@ -594,7 +594,7 @@ function updatePotDisplay() {
   potEl.appendChild(buildChipPiles(state.pot));
   const textEl = document.getElementById('potTotal');
   if (textEl)
-    textEl.innerHTML = `<strong>Total:</strong> ${formatAmount(state.pot)}`;
+    textEl.innerHTML = `<strong>Total Pot:</strong> ${formatAmount(state.pot)}`;
 }
 
 function animateChipsFromPlayer(index, amount) {
@@ -825,7 +825,7 @@ function showControls() {
     const totalDiv = document.createElement('div');
     totalDiv.className = 'tpc-total';
     totalDiv.innerHTML =
-      'Total: <span id="tpcTotal">0</span> <img src="assets/icons/ezgif-54c96d8a9b9236.webp" alt="TPC" />';
+      'Total Pot: <span id="tpcTotal">0</span> <img src="assets/icons/ezgif-54c96d8a9b9236.webp" alt="TPC" class="tpc-inline-icon" />';
 
     if (stage) {
       stage.appendChild(totalDiv);

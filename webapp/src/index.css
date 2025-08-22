@@ -1823,6 +1823,6 @@ input:focus {
 
 /* Ensure TPC icon appears slightly larger across the site */
 img[alt="TPC"] {
-  min-width: 1.5rem;
-  min-height: 1.5rem;
+  min-width: 3rem;
+  min-height: 3rem;
 }
