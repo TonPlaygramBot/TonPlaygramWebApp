@@ -19,6 +19,7 @@ const state = {
   devAccountId: '',
   pot: 0,
   raiseAmount: 0,
+  community: [],
 };
 
 let myAccountId = '';
@@ -251,16 +252,7 @@ function render() {
     const avatar = document.createElement('div');
     avatar.className = 'avatar';
     avatar.textContent = p.avatar || p.name[0];
-    const cards = document.createElement('div');
-    cards.className = 'cards';
-    p.hand.forEach((c, idx) => {
-      if (i === 0 || idx >= 2 || p.revealed) {
-        cards.appendChild(cardEl(c));
-      } else {
-        cards.appendChild(cardBackEl());
-      }
-    });
-    inner.append(avatar, cards);
+    inner.appendChild(avatar);
     if (i === 0) {
       const hs = document.createElement('div');
       hs.className = 'hit-stand';
@@ -280,18 +272,19 @@ function render() {
     bal.innerHTML = formatAmount(p.balance || 0);
     seat.append(inner, bal);
 
-    const baseScale = i === 0 ? 1.083 : 0.567;
-    const maxCards = i === 0 ? 4 : 3;
-    const scale = p.hand.length > maxCards
-      ? (baseScale * maxCards) / p.hand.length
-      : baseScale;
-    seat.style.setProperty('--card-scale', scale);
 
     if (i === state.turn && !p.stood && !p.bust) seat.classList.add('active');
     if (p.bust) seat.classList.add('folded');
     if (p.winner) seat.classList.add('winner');
+    if (p.stood && !p.bust) {
+      const action = document.createElement('div');
+      action.className = 'action-label';
+      action.textContent = 'STAND';
+      seat.appendChild(action);
+    }
     seats.appendChild(seat);
   });
+  renderCommunity();
 }
 
 function nextTurn() {
@@ -317,7 +310,8 @@ function aiTurn() {
   if (act === 'hit') {
     const { card, deck } = hitCard(state.deck);
     state.deck = deck;
-    p.hand.push(card);
+    state.community.push(card);
+    state.players.forEach((pl) => pl.hand.push(card));
     playFlipSound();
     if (isBust(p.hand)) {
       p.bust = true;
@@ -336,7 +330,8 @@ window.hit = () => {
   if (!p || !p.isHuman || p.stood || p.bust) return;
   const { card, deck } = hitCard(state.deck);
   state.deck = deck;
-  p.hand.push(card);
+  state.community.push(card);
+  state.players.forEach((pl) => pl.hand.push(card));
   playFlipSound();
   if (isBust(p.hand) || handValue(p.hand) === 21) {
     p.bust = isBust(p.hand);
@@ -387,6 +382,15 @@ function renderPot() {
   if (potTotal) potTotal.textContent = `${state.pot} ${state.token}`;
 }
 
+function renderCommunity() {
+  const el = document.getElementById('communityCards');
+  if (!el) return;
+  el.innerHTML = '';
+  state.community.forEach((c) => {
+    el.appendChild(cardEl(c));
+  });
+}
+
 function updateRaiseAmount() {
   const chipAmt = document.getElementById('chipAmount');
   const sliderAmt = document.getElementById('raiseSliderAmount');
@@ -411,35 +415,25 @@ function startNewRound() {
   state.pot = state.stake * state.players.length;
   state.raiseAmount = 0;
   state.deck = shuffle(createDeck());
+  state.community = [];
   state.players.forEach((p) => {
     p.hand = [];
     p.stood = false;
     p.bust = false;
     p.revealed = false;
   });
-
-  state.players.forEach((p, i) => {
-    const { card, deck: d1 } = hitCard(state.deck);
-    state.deck = d1;
-    p.hand.push(card);
-    p.revealed = i === 0;
+  for (let i = 0; i < 2; i++) {
+    const { card, deck: d } = hitCard(state.deck);
+    state.deck = d;
+    state.community.push(card);
+    state.players.forEach((pl) => pl.hand.push(card));
     playFlipSound();
-  });
+  }
 
   render();
-
-  setTimeout(() => {
-    state.players.forEach((p) => {
-      const { card, deck: d2 } = hitCard(state.deck);
-      state.deck = d2;
-      p.hand.push(card);
-      playFlipSound();
-    });
-    render();
-    aiBettingRound();
-    const p0 = state.players[0];
-    if (!p0.isHuman) setTimeout(aiTurn, 500);
-  }, 500);
+  aiBettingRound();
+  const p0 = state.players[0];
+  if (!p0.isHuman) setTimeout(aiTurn, 500);
 
   renderPot();
 }
@@ -525,6 +519,7 @@ function init() {
   const statusEl = document.getElementById('status');
   if (checkBtn)
     checkBtn.addEventListener('click', () => {
+      if (state.pot > state.stake * state.players.length) return;
       if (statusEl) statusEl.textContent = 'You check';
     });
   if (callBtn)
