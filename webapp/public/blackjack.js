@@ -19,7 +19,6 @@ const state = {
   devAccountId: '',
   pot: 0,
   raiseAmount: 0,
-  currentBet: 0,
 };
 
 let myAccountId = '';
@@ -386,40 +385,16 @@ function updateRaiseAmount() {
 function commitRaise() {
   if (state.raiseAmount <= 0) return;
   const amt = state.raiseAmount;
-  const player = state.players[0];
-  player.bet += amt;
   state.pot += amt;
-  state.currentBet = Math.max(state.currentBet, player.bet);
-  animateChipsFromPlayer(0, amt);
+  animateChipsFromPlayer(state.turn, amt);
   playCallRaise();
   state.raiseAmount = 0;
   updateRaiseAmount();
-  aiBettingRound(false, 0);
-}
-
-function callBet() {
-  const player = state.players[0];
-  const diff = state.currentBet - player.bet;
-  if (diff > 0) {
-    player.bet += diff;
-    state.pot += diff;
-    animateChipsFromPlayer(0, diff);
-    playCallRaise();
-  }
-  aiBettingRound(false, 0);
-}
-
-function foldBet() {
-  const player = state.players[0];
-  player.bust = true;
-  player.stood = true;
-  render();
 }
 
 function startNewRound() {
   state.turn = 0;
   state.pot = state.stake * state.players.length;
-  state.currentBet = state.stake;
   state.raiseAmount = 0;
   state.deck = shuffle(createDeck());
   state.players.forEach((p) => {
@@ -427,7 +402,6 @@ function startNewRound() {
     p.stood = false;
     p.bust = false;
     p.revealed = false;
-    p.bet = state.stake;
   });
 
   state.players.forEach((p, i) => {
@@ -448,7 +422,7 @@ function startNewRound() {
       playFlipSound();
     });
     render();
-      aiBettingRound(true);
+    aiBettingRound();
     const p0 = state.players[0];
     if (!p0.isHuman) setTimeout(aiTurn, 500);
   }, 500);
@@ -471,7 +445,7 @@ function init() {
     const ai = i !== 0;
     const name = ai ? `AI ${i}` : username;
     const av = ai ? FLAG_EMOJIS[i % FLAG_EMOJIS.length] : avatar;
-    state.players.push({ hand: [], stood: false, bust: false, name, avatar: av, isHuman: !ai, bet: state.stake });
+    state.players.push({ hand: [], stood: false, bust: false, name, avatar: av, isHuman: !ai });
   }
 
   const deck = shuffle(createDeck());
@@ -497,13 +471,12 @@ function init() {
       playFlipSound();
     });
     render();
-      aiBettingRound(true);
+    aiBettingRound();
     const p0 = state.players[0];
     if (!p0.isHuman) setTimeout(aiTurn, 500);
   }, 500);
 
   state.pot = state.stake * state.players.length;
-  state.currentBet = state.stake;
   renderPot();
 
   document.querySelectorAll('#raiseContainer .chip').forEach((chip) => {
@@ -526,16 +499,12 @@ function init() {
 
   const raiseBtn = document.getElementById('raiseBtn');
   const allInBtn = document.getElementById('allInBtn');
-  const callBtn = document.getElementById('callBtn');
-  const foldBtn = document.getElementById('foldBtn');
   if (raiseBtn) raiseBtn.addEventListener('click', commitRaise);
   if (allInBtn)
     allInBtn.addEventListener('click', () => {
       state.raiseAmount = state.stake * 10;
       commitRaise();
     });
-  if (callBtn) callBtn.addEventListener('click', callBet);
-  if (foldBtn) foldBtn.addEventListener('click', foldBet);
   sndCallRaise = document.getElementById('sndCallRaise');
   sndFlip = document.getElementById('sndFlip');
 }
@@ -621,44 +590,19 @@ function aiBetAction(hand) {
   return 'call';
 }
 
-function aiBettingRound(force = false, lastRaiser = -1) {
-  let newRaise = -1;
+function aiBettingRound() {
   state.players.forEach((p, i) => {
-    if (p.isHuman || p.bust || i === lastRaiser) return;
-    const diff = state.currentBet - p.bet;
-    if (diff > 0 || force) {
-      const act = aiBetAction(p.hand);
-      if (act === 'fold') {
-        p.bust = true;
-        p.stood = true;
-      } else if (act === 'call' && diff > 0) {
-        p.bet += diff;
-        state.pot += diff;
-        animateChipsFromPlayer(i, diff);
-        playCallRaise();
-      } else if (act === 'raise') {
-        const raiseAmt = diff + state.stake;
-        p.bet += raiseAmt;
-        state.pot += raiseAmt;
-        state.currentBet = p.bet;
-        animateChipsFromPlayer(i, raiseAmt);
-        playCallRaise();
-        newRaise = i;
-      }
+    if (p.isHuman || p.bust) return;
+    const act = aiBetAction(p.hand);
+    if (act === 'raise') {
+      state.pot += state.stake;
+      animateChipsFromPlayer(i, state.stake);
+      playCallRaise();
+    } else if (act === 'fold') {
+      p.bust = true;
+      p.stood = true;
     }
   });
   renderPot();
   render();
-  if (newRaise >= 0) {
-    aiBettingRound(false, newRaise);
-  } else {
-    const me = state.players[0];
-    const status = document.getElementById('status');
-    if (!me.bust && me.bet < state.currentBet) {
-      if (status)
-        status.textContent = `Bet is ${state.currentBet}. Your move: Call, Raise or Fold`;
-    } else if (status) {
-      status.textContent = '';
-    }
-  }
 }
