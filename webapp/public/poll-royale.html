@@ -444,6 +444,11 @@
     var scoreP2  = document.getElementById('p2Score');
     var cueHint  = document.getElementById('cueHint');
 
+    if (!isAmerican) {
+      scoreP1.style.display = 'none';
+      scoreP2.style.display = 'none';
+    }
+
     function coinConfetti(count, iconSrc){
       count = count || 50;
       iconSrc = iconSrc || '/assets/icons/ezgif-54c96d8a9b9236.webp';
@@ -595,27 +600,35 @@
     /* ==========================================================
        PALETA E NGJYRAVE DHE LISTA E TOPAVE
        ========================================================= */
-    var COL = { cue:'#f5f5f5', 1:'#f5c400', 2:'#2256ff', 3:'#d92d30', 4:'#7c3aed', 5:'#ff8c1a', 6:'#1faa4a', 7:'#7a2f2f', 8:'#111' };
-
-    // BALLS – 0..15 — cdo element ka { n, t, c }
-    var BALLS = [
-      { n:0,  t:'cue',    c:COL.cue },
-      { n:1,  t:'solid',  c:COL[1] },
-      { n:2,  t:'solid',  c:COL[2] },
-      { n:3,  t:'solid',  c:COL[3] },
-      { n:4,  t:'solid',  c:COL[4] },
-      { n:5,  t:'solid',  c:COL[5] },
-      { n:6,  t:'solid',  c:COL[6] },
-      { n:7,  t:'solid',  c:COL[7] },
-      { n:8,  t:'eight',  c:COL[8] },
-      { n:9,  t:'stripe', c:COL[1] },
-      { n:10, t:'stripe', c:COL[2] },
-      { n:11, t:'stripe', c:COL[3] },
-      { n:12, t:'stripe', c:COL[4] },
-      { n:13, t:'stripe', c:COL[5] },
-      { n:14, t:'stripe', c:COL[6] },
-      { n:15, t:'stripe', c:COL[7] }
-    ];
+    var COL, BALLS;
+    if (isAmerican) {
+      COL = { cue:'#f5f5f5', 1:'#f5c400', 2:'#2256ff', 3:'#d92d30', 4:'#7c3aed', 5:'#ff8c1a', 6:'#1faa4a', 7:'#7a2f2f', 8:'#111' };
+      // BALLS – 0..15 — cdo element ka { n, t, c }
+      BALLS = [
+        { n:0,  t:'cue',    c:COL.cue },
+        { n:1,  t:'solid',  c:COL[1] },
+        { n:2,  t:'solid',  c:COL[2] },
+        { n:3,  t:'solid',  c:COL[3] },
+        { n:4,  t:'solid',  c:COL[4] },
+        { n:5,  t:'solid',  c:COL[5] },
+        { n:6,  t:'solid',  c:COL[6] },
+        { n:7,  t:'solid',  c:COL[7] },
+        { n:8,  t:'eight',  c:COL[8] },
+        { n:9,  t:'stripe', c:COL[1] },
+        { n:10, t:'stripe', c:COL[2] },
+        { n:11, t:'stripe', c:COL[3] },
+        { n:12, t:'stripe', c:COL[4] },
+        { n:13, t:'stripe', c:COL[5] },
+        { n:14, t:'stripe', c:COL[6] },
+        { n:15, t:'stripe', c:COL[7] }
+      ];
+    } else {
+      COL = { cue:'#f5f5f5', red:'#d92d30', yellow:'#f5c400', eight:'#111' };
+      BALLS = [{ n:0, t:'cue', c:COL.cue }];
+      for (var nn=1; nn<=7; nn++) BALLS.push({ n:nn, t:'red', c:COL.red });
+      BALLS.push({ n:8, t:'eight', c:COL.eight });
+      for (var mm=9; mm<=15; mm++) BALLS.push({ n:mm, t:'yellow', c:COL.yellow });
+    }
 
     // Map i sigurt sipas numrit → shmang akses jashte indekseve
     var BALL_BY_N = {}; BALLS.forEach(function(b){ BALL_BY_N[b.n] = b; });
@@ -785,8 +798,10 @@
             if (a.n === 0 || bb.n === 0) {
               var other = a.n===0 ? bb : a;
               if (!firstHit) firstHit = BALL_BY_N[other.n];
-              var shooterType = assignedTypes[currentShooter];
-              if (shooterType && BALL_BY_N[other.n].t !== shooterType && BALL_BY_N[other.n].t !== 'eight') hitOpponent = true;
+              if (!isAmerican) {
+                var shooterType = assignedTypes[currentShooter];
+                if (shooterType && BALL_BY_N[other.n].t !== shooterType && BALL_BY_N[other.n].t !== 'eight') hitOpponent = true;
+              }
               if (a.n === 0) a.spinApplied = true;
               if (bb.n === 0) bb.spinApplied = true;
             }
@@ -810,7 +825,7 @@
               aiming = false;
               cueHintTime = Date.now();
               b2.p.x = TABLE_W/2; b2.p.y = CUE_START_Y; b2.v.x = 0; b2.v.y = 0;
-            } else if (b2.n === 8) {
+            } else if (b2.n === 8 && !isAmerican) {
               b2.pocketed = true;
               pocketedAny = true;
               handleEightBall();
@@ -818,15 +833,19 @@
               b2.pocketed = true;
               pocketedAny = true;
               this.captured[currentShooter].push(b2.n);
-              scores[currentShooter] += b2.n;
-              updateScoresUI();
-              lastPocketedBall = b2.n;
-              var tType = BALL_BY_N[b2.n].t;
-              if (!assignedTypes[1] && tType !== 'eight') {
-                assignedTypes[currentShooter] = tType;
-                assignedTypes[currentShooter===1?2:1] = (tType==='solid'?'stripe':'solid');
+              if (isAmerican) {
+                scores[currentShooter] += b2.n;
+                updateScoresUI();
+                pocketedOwn = true;
+              } else {
+                var tType = BALL_BY_N[b2.n].t;
+                if (!assignedTypes[1] && tType !== 'eight') {
+                  assignedTypes[currentShooter] = tType;
+                  assignedTypes[currentShooter===1?2:1] = (tType==='red'?'yellow':'red');
+                }
+                if (assignedTypes[currentShooter] === tType) pocketedOwn = true;
               }
-              if (assignedTypes[currentShooter] === tType) pocketedOwn = true;
+              lastPocketedBall = b2.n;
             }
           }
         }
@@ -875,7 +894,8 @@
         ctx.fillStyle = hl; ctx.beginPath(); ctx.arc(0,0,ballR,0,Math.PI*2); ctx.fill();
 
         // stripe nese duhet
-        if (BALL_BY_N[b.n].t === 'stripe') {
+        var stripe = (BALL_BY_N[b.n].t === 'stripe' && isAmerican);
+        if (stripe) {
           ctx.save();
           ctx.beginPath();
           ctx.arc(0,0,ballR,0,Math.PI*2);
@@ -887,9 +907,9 @@
 
         // numri (jo te cue)
         if (b.n !== 0) {
-          ctx.fillStyle = (BALL_BY_N[b.n].t==='stripe') ? BALL_BY_N[b.n].c : '#fff';
+          ctx.fillStyle = stripe ? BALL_BY_N[b.n].c : '#fff';
           ctx.beginPath(); ctx.arc(0,0,ballR*.52,0,Math.PI*2); ctx.fill();
-          ctx.fillStyle = (BALL_BY_N[b.n].t==='stripe') ? '#fff' : '#111';
+          ctx.fillStyle = stripe ? '#fff' : '#111';
           ctx.font = (ballR*.9) + 'px system-ui,sans-serif';
           ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
           ctx.fillText(String(b.n), 0, 0);
@@ -961,6 +981,17 @@
     var cpuThinking = false;
     var scores = {1:0,2:0};
     var lastPocketedBall = null;
+    var currentTarget = null;
+
+    function lowestBallOnTable(){
+      var lowest = null;
+      for (var i=1;i<table.balls.length;i++){
+        var bb = table.balls[i];
+        if (!bb || bb.pocketed || bb.n===0) continue;
+        if (lowest === null || bb.n < lowest) lowest = bb.n;
+      }
+      return lowest;
+    }
 
     function createMiniBall(n){
       var info = BALL_BY_N[n];
@@ -974,14 +1005,15 @@
       var hl = ctx.createRadialGradient(cx-r*0.4, cy-r*0.4, 2, cx-r*0.4, cy-r*0.4, r*1.2);
       hl.addColorStop(0,'rgba(255,255,255,.55)'); hl.addColorStop(1,'rgba(255,255,255,0)');
       ctx.fillStyle = hl; ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI*2); ctx.fill();
-      if (info.t === 'stripe') {
+      var stripe = (info.t === 'stripe' && isAmerican);
+      if (stripe) {
         ctx.save(); ctx.beginPath(); ctx.arc(cx,cy,r,0,Math.PI*2); ctx.clip();
         ctx.fillStyle = '#fff'; ctx.fillRect(cx-r, cy-r*0.3, r*2, r*0.6); ctx.restore();
       }
       if (n !== 0) {
-        ctx.fillStyle = (info.t==='stripe') ? info.c : '#fff';
+        ctx.fillStyle = stripe ? info.c : '#fff';
         ctx.beginPath(); ctx.arc(cx, cy, r*0.52, 0, Math.PI*2); ctx.fill();
-        ctx.fillStyle = (info.t==='stripe') ? '#fff' : '#111';
+        ctx.fillStyle = stripe ? '#fff' : '#111';
         ctx.font = '8px system-ui,sans-serif';
         ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
         ctx.fillText(String(n), cx, cy);
@@ -1004,7 +1036,7 @@
       scoreP1.textContent = scores[1];
       scoreP2.textContent = scores[2];
     }
-    updateScoresUI();
+    if (isAmerican) updateScoresUI();
 
     function updateFooter(player, msg){
       var srcAvatar = player===1 ? avatarP1 : avatarCPU;
@@ -1052,24 +1084,32 @@
     function endShot(){
       shotInProgress = false;
       var opponent = currentShooter===1 ? 2 : 1;
-      var shooterType = assignedTypes[currentShooter];
       var foul = false;
-      if (!firstHit || (shooterType && firstHit.t !== shooterType && firstHit.t !== 'eight')) foul = true;
+      if (isAmerican) {
+        if (!firstHit || firstHit.n !== currentTarget) foul = true;
+      } else {
+        var shooterType = assignedTypes[currentShooter];
+        if (!firstHit || (shooterType && firstHit.t !== shooterType && firstHit.t !== 'eight')) foul = true;
+        if (shooterType && hitOpponent) foul = true;
+      }
       if (scratch) foul = true;
-      if (shooterType && hitOpponent) foul = true;
       if (foul) {
         var highest = 0;
         for (var j=1;j<table.balls.length;j++){
           var bb=table.balls[j];
           if (bb && !bb.pocketed && bb.n>highest) highest=bb.n;
         }
-        scores[opponent] += highest;
-        updateScoresUI();
+        if (isAmerican) {
+          scores[opponent] += highest;
+          updateScoresUI();
+          cueBallFree = true;
+          updateFooter(opponent, "That\u2019s a foul – the cue ball went in, opponent gets " + highest + " points.");
+        } else {
+          updateFooter(opponent, 'Foul – opponent gets two shots.');
+        }
         freeShots[opponent] = isAmerican ? 1 : 2;
         freeShots[currentShooter] = 0;
         table.turn = opponent;
-        if (isAmerican) cueBallFree = true;
-        updateFooter(opponent, "That\u2019s a foul – the cue ball went in, opponent gets " + highest + " points.");
         setTimeout(showShots, 300);
       } else {
         if (freeShots[currentShooter] > 0) {
@@ -1081,11 +1121,16 @@
           table.turn = opponent;
         }
         if (lastPocketedBall !== null) {
-          var total = scores[currentShooter];
-          var closing = 100 - total;
-          var msg = 'He sinks the ' + lastPocketedBall + '-ball, that\u2019s ' + lastPocketedBall + ' points on the scoreboard.';
-          if (total >= 63 && closing > 0) {
-            msg += ' Solid run — he\u2019s already at ' + total + ' points, just needs ' + closing + ' more to close the game.';
+          var msg;
+          if (isAmerican) {
+            var total = scores[currentShooter];
+            var closing = 100 - total;
+            msg = 'He sinks the ' + lastPocketedBall + '-ball, that\u2019s ' + lastPocketedBall + ' points on the scoreboard.';
+            if (total >= 63 && closing > 0) {
+              msg += ' Solid run — he\u2019s already at ' + total + ' points, just needs ' + closing + ' more to close the game.';
+            }
+          } else {
+            msg = 'He sinks the ' + lastPocketedBall + '-ball.';
           }
           updateFooter(currentShooter, msg);
           lastPocketedBall = null;
@@ -1100,6 +1145,7 @@
       scratch = false;
       firstHit = null;
       hitOpponent = false;
+      currentTarget = null;
     }
 
     /* ==========================================================
@@ -1352,6 +1398,7 @@
       var base = 950*3*1.5; // force increased 150%
       playCueHit(p);
       currentShooter = table.turn;
+      if (isAmerican) currentTarget = lowestBallOnTable();
       shotInProgress = true;
       pocketedAny = false; pocketedOwn = false; scratch = false; firstHit = null; hitOpponent = false;
       cue.v.x = d.x*base*(0.25+0.75*p);
@@ -1370,15 +1417,25 @@
       if (table.isMoving() || table.turn!==2) return;
       cpuThinking = true;
       var cue = table.balls[0];
-      var type = assignedTypes[2];
       var targets = [];
-      for (var i=0;i<table.balls.length;i++){
-        var b = table.balls[i];
-        if (!b || b.n===0 || b.pocketed || b.n===8) continue;
-        if (type && BALL_BY_N[b.n].t !== type) continue;
-        targets.push(b);
+      if (isAmerican) {
+        var lowest = null;
+        for (var i=0;i<table.balls.length;i++){
+          var b = table.balls[i];
+          if (!b || b.n===0 || b.pocketed || b.n===8) continue;
+          if (!lowest || b.n < lowest.n) lowest = b;
+        }
+        if (lowest) targets.push(lowest);
+      } else {
+        var type = assignedTypes[2];
+        for (var i=0;i<table.balls.length;i++){
+          var b = table.balls[i];
+          if (!b || b.n===0 || b.pocketed || b.n===8) continue;
+          if (type && BALL_BY_N[b.n].t !== type) continue;
+          targets.push(b);
+        }
       }
-      if (targets.length===0) { table.turn = 1; return; }
+      if (targets.length===0) { table.turn = 1; cpuThinking=false; return; }
 
       function pathClear(contact, target){
         var dir = norm(contact.x - cue.p.x, contact.y - cue.p.y);
