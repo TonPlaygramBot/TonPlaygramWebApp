@@ -6,20 +6,28 @@
     <title>Black Jack</title>
     <style>
       :root {
-        --shadow: rgba(0,0,0,0.45);
+        --shadow: rgba(0, 0, 0, 0.45);
         --card-scale: 0.72;
         --avatar-scale: 1;
         --card-w: calc(clamp(44px, 9.6vw, 70px) * var(--card-scale));
         --card-h: calc(var(--card-w) * 1.45);
         --avatar-size: calc(54px * var(--avatar-scale));
-        --seat-bg-color: #fbbf24;
+        --seat-bg-color: #f5f5dc;
         --card-back-color: #233;
-        --player-frame-color: #fbbf24;
+        --card-front-color: #fff;
+        --player-frame-color: #000;
       }
       * { box-sizing: border-box; }
       body, html { height:100%; margin:0; }
       body { font-family: ui-sans-serif, system-ui; color:#fff; overflow:hidden; height:100vh; width:100vw; }
-      .stage { position:relative; width:100vw; height:100vh; display:grid; place-items:center; }
+      .stage {
+        position: relative;
+        width: 100vw;
+        height: 100vh;
+        display: grid;
+        place-items: center;
+        perspective: 1100px;
+      }
       .stage::before {
         content:''; position:absolute; top:0; bottom:0; left:1vw; right:1vw;
         background:url('assets/icons/de2a24a7-922a-4400-8edc-027a1017224e.webp') center/cover no-repeat;
@@ -77,18 +85,70 @@
       .seat.bottom .cards { gap:0; }
       .seat-balance { font-size:10px; color:#fff; display:flex; align-items:center; gap:2px; }
       .seat.bottom .seat-balance { font-size:12px; }
-      .controls { position:absolute; bottom:20px; left:50%; transform:translate(-50%, calc(var(--avatar-size) + 8px)); display:flex; flex-direction:column; gap:8px; align-items:center; justify-content:center; z-index:5; }
-      .controls button { width:var(--avatar-size); height:var(--avatar-size); padding:0; border:4px solid #000; border-radius:50%; background:#2563eb; color:#fff; font-weight:600; font-size:12px; display:flex; align-items:center; justify-content:center; }
-      #check { background:#facc15; }
-      #call { background:#16a34a; }
-      #fold { background:#dc2626; }
-      .hit-stand { display:flex; gap:12px; margin-top:8px; }
-      .hit-stand button { padding:8px 16px; font-size:16px; border:2px solid #000; border-radius:6px; cursor:pointer; color:#fff; }
-      #hitBtn { background:#16a34a; }
-      #standBtn { background:#dc2626; }
-      #status { position:absolute; top:10px; left:50%; transform:translateX(-50%); font-size:18px; font-weight:bold; z-index:3; text-shadow:0 2px 4px #000; }
-      .folded { opacity:0.5; }
-      .community-cards { position:absolute; left:50%; top:35%; transform:translateX(-50%); display:flex; gap:6px; z-index:3; }
+      .hit-stand {
+        display: flex;
+        gap: 8px;
+        margin-top: 8px;
+        align-items: flex-end;
+        justify-content: center;
+        z-index: 5;
+      }
+      .hit-stand button {
+        width: calc(var(--avatar-size) * 1.2);
+        height: calc(var(--avatar-size) * 0.8);
+        padding: 0;
+        border: 4px solid #000;
+        border-radius: 12px;
+        background: #2563eb;
+        color: #fff;
+        font-weight: 600;
+        font-size: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      .hit-stand button:disabled {
+        background: #d1d5db !important;
+        color: #9ca3af !important;
+      }
+      #hitBtn {
+        background: #16a34a;
+      }
+      #standBtn {
+        background: #dc2626;
+      }
+      #status {
+        position: absolute;
+        top: 10px;
+        left: 50%;
+        transform: translateX(-50%);
+        font-size: 18px;
+        font-weight: bold;
+        z-index: 3;
+        text-shadow: 0 2px 4px #000;
+      }
+      .folded {
+        opacity: 0.5;
+      }
+      .center {
+        position: absolute;
+        left: 50%;
+        top: 44%;
+        transform: translate(-50%, -50%);
+        display: flex;
+        gap: 10px;
+        z-index: 2;
+        --card-scale: 1.2;
+        --card-w: calc(clamp(44px, 9.6vw, 70px) * var(--card-scale));
+        --card-h: calc(var(--card-w) * 1.45);
+      }
+      .community {
+        padding: 4px;
+        border: 4px solid #000;
+        border-radius: 12px;
+        background: var(--seat-bg-color);
+        box-shadow: 4px 4px 0 #d4ccb3;
+      }
       .action-label { position:absolute; top:-10px; left:50%; transform:translateX(-50%); font-size:12px; font-weight:700; color:#f97316; -webkit-text-stroke:1px #000; }
       .pot-wrap { position:absolute; left:50%; top:45%; transform:translate(-50%,-50%); display:flex; flex-direction:column; align-items:center; gap:4px; z-index:3; }
       .pot { display:flex; gap:4px; }
@@ -128,7 +188,7 @@
       .tpc-inline-icon { width:1.8em; height:1.8em; min-width:0; min-height:0; margin-left:2px; transform:translateY(2px); }
     </style>
   </head>
-  <body class="frame-style-6">
+  <body class="frame-style-1">
     <div class="stage">
       <div class="top-controls">
         <button id="settingsBtn">⚙️</button>
@@ -136,7 +196,7 @@
       </div>
       <div id="status"></div>
       <div class="seats" id="seats"></div>
-      <div class="community-cards" id="communityCards"></div>
+      <div class="center community" id="community"></div>
       <div class="pot-wrap" id="potWrap">
         <div class="pot" id="pot"></div>
         <div class="pot-total" id="potTotal"></div>
@@ -162,11 +222,6 @@
           <button class="raise-btn" id="raiseBtn">Raise</button>
           <button class="raise-btn all-in-btn" id="allInBtn">All In</button>
         </div>
-      </div>
-      <div class="controls" id="controls">
-        <button id="check">check</button>
-        <button id="call">call</button>
-        <button id="fold">fold</button>
       </div>
     </div>
     <div id="settingsPanel" class="settings-panel">
