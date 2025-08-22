@@ -32,6 +32,27 @@ let sndFlip;
 const TPC_ICON_HTML =
   '<img src="assets/icons/ezgif-54c96d8a9b9236.webp" alt="TPC" class="tpc-inline-icon" />';
 
+const regionNames = new Intl.DisplayNames(['en'], { type: 'region' });
+function flagName(flag) {
+  const codePoints = [...flag].map((c) => c.codePointAt(0) - 0x1f1e6 + 65);
+  return regionNames.of(String.fromCharCode(...codePoints));
+}
+
+function randomBalance() {
+  return Math.floor(Math.random() * 9000) + 1000;
+}
+
+async function loadAccountBalance() {
+  if (!myAccountId || !window.fbApi?.getAccountBalance) return;
+  try {
+    const res = await window.fbApi.getAccountBalance(myAccountId);
+    if (res && typeof res.balance === 'number' && state.players[0]) {
+      state.players[0].balance = res.balance;
+      render();
+    }
+  } catch {}
+}
+
 function formatAmount(amount) {
   return `${amount} ${TPC_ICON_HTML}`;
 }
@@ -253,6 +274,10 @@ function render() {
     avatar.className = 'avatar';
     avatar.textContent = p.avatar || p.name[0];
     inner.appendChild(avatar);
+    const name = document.createElement('div');
+    name.className = 'name';
+    name.textContent = p.name;
+    inner.appendChild(name);
     if (i === 0) {
       const hs = document.createElement('div');
       hs.className = 'hit-stand';
@@ -438,46 +463,67 @@ function startNewRound() {
   renderPot();
 }
 
-function init() {
+async function init() {
   const params = new URLSearchParams(location.search);
   state.token = params.get('token') || 'TPC';
   state.stake = parseInt(params.get('amount') || '0', 10);
   state.devAccountId = params.get('dev') || '';
   myAccountId = params.get('accountId') || '';
   myTelegramId = params.get('tgId') || '';
-  const avatar = params.get('avatar') || '';
-  const username = params.get('username') || 'You';
+  let avatar = params.get('avatar') || '';
+  let username = params.get('username') || 'You';
+
+  try {
+    if (myAccountId && window.fbApi?.getUserInfo) {
+      const u = await window.fbApi.getUserInfo({ accountId: myAccountId, tgId: myTelegramId });
+      if (u) {
+        username = u.username || u.first_name || username;
+        avatar = u.photo_url || avatar;
+      }
+    }
+  } catch {}
 
   const playerCount = 6;
-  for (let i = 0; i < playerCount; i++) {
-    const ai = i !== 0;
-    const name = ai ? `AI ${i}` : username;
-    const av = ai ? FLAG_EMOJIS[i % FLAG_EMOJIS.length] : avatar;
-    state.players.push({ hand: [], stood: false, bust: false, name, avatar: av, isHuman: !ai });
-  }
+  const flags = [...FLAG_EMOJIS].sort(() => 0.5 - Math.random()).slice(0, playerCount - 1);
+  state.players = [
+    { hand: [], stood: false, bust: false, name: username, avatar, isHuman: true, balance: 0 },
+    ...flags.map((f) => ({
+      hand: [],
+      stood: false,
+      bust: false,
+      name: flagName(f),
+      avatar: f,
+      isHuman: false,
+      balance: randomBalance(),
+    })),
+  ];
 
-  const deck = shuffle(createDeck());
-  state.deck = deck;
+  await loadAccountBalance();
 
-  // deal first card to each player
-  state.players.forEach((p, i) => {
+  state.deck = shuffle(createDeck());
+
+  // deal first card to each player sequentially
+  for (let i = 0; i < state.players.length; i++) {
     const { card, deck: d1 } = hitCard(state.deck);
     state.deck = d1;
+    const p = state.players[i];
     p.hand.push(card);
     p.revealed = i === 0;
     playFlipSound();
-  });
+    await new Promise((res) => setTimeout(res, 200));
+  }
 
   render();
 
-  // deal second card after short delay
-  setTimeout(() => {
-    state.players.forEach((p, i) => {
+  // deal second card after short delay, sequentially
+  setTimeout(async () => {
+    for (let i = 0; i < state.players.length; i++) {
       const { card, deck: d2 } = hitCard(state.deck);
       state.deck = d2;
-      p.hand.push(card);
+      state.players[i].hand.push(card);
       playFlipSound();
-    });
+      await new Promise((res) => setTimeout(res, 200));
+    }
     render();
     aiBettingRound();
     const p0 = state.players[0];
