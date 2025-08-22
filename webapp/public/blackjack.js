@@ -24,9 +24,162 @@ const state = {
 let myAccountId = '';
 let myTelegramId;
 
-const CHIP_VALUES = [50, 20, 10, 5, 1];
+const CHIP_VALUES = [1000, 500, 200, 50, 20, 10, 5, 2, 1];
 let sndCallRaise;
 let sndFlip;
+
+const DEFAULT_SETTINGS = {
+  muteCards: false,
+  muteChips: false,
+  muteOthers: false,
+  cardVolume: 1,
+  chipVolume: 1,
+  playerColor: '#f5f5dc',
+  cardBackColor: '#233',
+  playerFrameStyle: '1'
+};
+const COLOR_OPTIONS = [
+  '#f5f5dc',
+  '#f87171',
+  '#60a5fa',
+  '#a78bfa',
+  '#34d399',
+  '#fbbf24',
+  '#c084fc',
+  '#f472b6',
+  '#4ade80',
+  '#94a3b8'
+];
+const FRAME_STYLE_OPTIONS = Array.from({ length: 10 }, (_, i) => (i + 1).toString());
+
+function loadSettings() {
+  try {
+    return {
+      ...DEFAULT_SETTINGS,
+      ...(JSON.parse(localStorage.getItem('bjSettings')) || {})
+    };
+  } catch {
+    return { ...DEFAULT_SETTINGS };
+  }
+}
+
+let settings = loadSettings();
+
+function saveSettings() {
+  try {
+    localStorage.setItem('bjSettings', JSON.stringify(settings));
+  } catch {}
+}
+
+function applySettings() {
+  document.documentElement.style.setProperty('--seat-bg-color', settings.playerColor);
+  document.documentElement.style.setProperty('--card-back-color', settings.cardBackColor);
+  document.documentElement.style.setProperty('--player-frame-color', settings.playerColor);
+  document.body.classList.remove(...FRAME_STYLE_OPTIONS.map((s) => `frame-style-${s}`));
+  document.body.classList.add(`frame-style-${settings.playerFrameStyle}`);
+  const flip = document.getElementById('sndFlip');
+  if (flip) flip.volume = settings.muteCards ? 0 : settings.cardVolume;
+  const callRaise = document.getElementById('sndCallRaise');
+  if (callRaise) callRaise.volume = settings.muteChips ? 0 : settings.chipVolume;
+}
+
+function initSettingsMenu() {
+  const panel = document.getElementById('settingsPanel');
+  const btn = document.getElementById('settingsBtn');
+  const close = document.getElementById('closeSettings');
+  btn?.addEventListener('click', () => panel.classList.add('active'));
+  close?.addEventListener('click', () => panel.classList.remove('active'));
+
+  const muteCards = document.getElementById('muteCards');
+  const cardVolume = document.getElementById('cardVolume');
+  const muteChips = document.getElementById('muteChips');
+  const chipVolume = document.getElementById('chipVolume');
+  const muteOthers = document.getElementById('muteOthers');
+  const playerFrameStyle = document.getElementById('playerFrameStyle');
+  const playerColor = document.getElementById('playerColor');
+  const cardBackColor = document.getElementById('cardBackColor');
+  const saveBtn = document.getElementById('saveSettings');
+  const resetBtn = document.getElementById('resetSettings');
+
+  function populate(select, value) {
+    COLOR_OPTIONS.forEach((c) => {
+      const opt = document.createElement('option');
+      opt.value = c;
+      opt.textContent = c;
+      opt.style.background = `linear-gradient(to right, ${c} 0 16px, #fff 16px)`;
+      select.appendChild(opt);
+    });
+    select.value = value;
+  }
+
+  populate(playerColor, settings.playerColor);
+  populate(cardBackColor, settings.cardBackColor);
+
+  FRAME_STYLE_OPTIONS.forEach((s) => {
+    const opt = document.createElement('option');
+    opt.value = s;
+    opt.textContent = `Style ${s}`;
+    playerFrameStyle.appendChild(opt);
+  });
+  playerFrameStyle.value = settings.playerFrameStyle;
+
+  function updateControls() {
+    muteCards.checked = settings.muteCards;
+    cardVolume.value = settings.cardVolume;
+    muteChips.checked = settings.muteChips;
+    chipVolume.value = settings.chipVolume;
+    muteOthers.checked = settings.muteOthers;
+    playerFrameStyle.value = settings.playerFrameStyle;
+    playerColor.value = settings.playerColor;
+    cardBackColor.value = settings.cardBackColor;
+  }
+
+  updateControls();
+
+  muteCards.addEventListener('change', (e) => {
+    settings.muteCards = e.target.checked;
+    applySettings();
+  });
+  cardVolume.addEventListener('input', (e) => {
+    settings.cardVolume = parseFloat(e.target.value);
+    applySettings();
+  });
+  muteChips.addEventListener('change', (e) => {
+    settings.muteChips = e.target.checked;
+    applySettings();
+  });
+  chipVolume.addEventListener('input', (e) => {
+    settings.chipVolume = parseFloat(e.target.value);
+    applySettings();
+  });
+  muteOthers.addEventListener('change', (e) => {
+    settings.muteOthers = e.target.checked;
+  });
+  playerFrameStyle.addEventListener('change', (e) => {
+    settings.playerFrameStyle = e.target.value;
+    applySettings();
+  });
+  playerColor.addEventListener('change', (e) => {
+    settings.playerColor = e.target.value;
+    applySettings();
+  });
+  cardBackColor.addEventListener('change', (e) => {
+    settings.cardBackColor = e.target.value;
+    applySettings();
+  });
+
+  saveBtn?.addEventListener('click', () => {
+    saveSettings();
+    panel.classList.remove('active');
+  });
+
+  resetBtn?.addEventListener('click', () => {
+    settings = { ...DEFAULT_SETTINGS };
+    updateControls();
+    saveSettings();
+    applySettings();
+  });
+}
 
 function playCallRaise() {
   if (sndCallRaise) {
@@ -86,6 +239,7 @@ function render() {
   state.players.forEach((p, i) => {
     const seat = document.createElement('div');
     seat.className = 'seat';
+    if (i !== 0) seat.classList.add('small');
     const pos = POS[i] || { left: '50%', top: '50%' };
     seat.style.left = pos.left;
     seat.style.top = pos.top;
@@ -180,15 +334,12 @@ function finish() {
     const player = state.players[i];
     player.balance = (player.balance || 0) + share;
   });
-  const status = document.getElementById('status');
-  if (status) {
-    status.textContent =
-      winners.length === 1
-        ? `${state.players[winners[0]].name} wins!`
-        : `Tie between ${winners.map((i) => state.players[i].name).join(', ')}`;
-  }
   state.players.forEach((p) => (p.revealed = true));
   render();
+  showWinnerPopup(
+    winners.map((i) => state.players[i].name),
+    share
+  );
 }
 
 function renderPot() {
@@ -274,6 +425,7 @@ function init() {
       const val = parseInt(chip.dataset.value || '0', 10);
       state.raiseAmount += val;
       updateRaiseAmount();
+      playCallRaise();
     });
   });
 
@@ -298,8 +450,6 @@ function init() {
   sndFlip = document.getElementById('sndFlip');
 }
 
-init();
-
 function buildChipPiles(amount) {
   const wrap = document.createElement('div');
   wrap.style.display = 'flex';
@@ -307,18 +457,70 @@ function buildChipPiles(amount) {
   wrap.style.flexWrap = 'nowrap';
   wrap.style.justifyContent = 'center';
   let remaining = amount;
-  let chips = 0;
   CHIP_VALUES.forEach((val) => {
-    while (remaining >= val && chips < 5) {
+    while (remaining >= val) {
       remaining -= val;
       const chip = document.createElement('div');
       chip.className = 'chip v' + val;
       wrap.appendChild(chip);
-      chips++;
     }
   });
   return wrap;
 }
+
+function coinConfetti(count = 50, iconSrc = '/assets/icons/ezgif-54c96d8a9b9236.webp') {
+  const container = document.createElement('div');
+  container.style.position = 'fixed';
+  container.style.top = '0';
+  container.style.left = '0';
+  container.style.width = '100%';
+  container.style.height = '0';
+  container.style.pointerEvents = 'none';
+  container.style.zIndex = '60';
+  container.style.overflow = 'visible';
+  document.body.appendChild(container);
+  for (let i = 0; i < count; i++) {
+    const img = document.createElement('img');
+    img.src = iconSrc;
+    img.alt = 'confetti';
+    img.className = 'coin-confetti';
+    const left = Math.random() * 100;
+    const delay = Math.random() * 0.2;
+    const duration = 2 + Math.random() * 2;
+    img.style.left = left + 'vw';
+    img.style.animationDelay = delay + 's';
+    img.style.setProperty('--duration', duration + 's');
+    container.appendChild(img);
+  }
+  setTimeout(() => container.remove(), 5000);
+}
+
+function showWinnerPopup(names, share) {
+  const popup = document.getElementById('winnerPopup');
+  const text = document.getElementById('winnerText');
+  if (!popup || !text) return;
+  const lines = names
+    .map(
+      (n) =>
+        `<div class="winner-row"><span>${n}</span><span class="amount">${share} ${state.token}</span></div>`
+    )
+    .join('');
+  text.innerHTML = lines;
+  popup.classList.remove('hidden');
+  coinConfetti();
+}
+
+document.getElementById('lobbyBtn')?.addEventListener('click', () => {
+  location.href = '/games/blackjack/lobby';
+});
+document.getElementById('lobbyIcon')?.addEventListener('click', () => {
+  location.href = '/games/blackjack/lobby';
+});
+document.addEventListener('DOMContentLoaded', () => {
+  initSettingsMenu();
+  applySettings();
+  init();
+});
 
 function animateChipsFromPlayer(index, amount) {
   const stage = document.querySelector('.stage');
