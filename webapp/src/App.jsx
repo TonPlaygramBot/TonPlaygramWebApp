@@ -42,6 +42,8 @@ import MurlanRoyale from './pages/Games/MurlanRoyale.jsx';
 import MurlanRoyaleLobby from './pages/Games/MurlanRoyaleLobby.jsx';
 import TexasHoldem from './pages/Games/TexasHoldem.jsx';
 import TexasHoldemLobby from './pages/Games/TexasHoldemLobby.jsx';
+import BlackJack from './pages/Games/BlackJack.jsx';
+import BlackJackLobby from './pages/Games/BlackJackLobby.jsx';
 import PollRoyale from './pages/Games/PollRoyale.jsx';
 import PollRoyaleLobby from './pages/Games/PollRoyaleLobby.jsx';
 
@@ -87,6 +89,8 @@ export default function App() {
             <Route path="/games/bubblesmashroyale" element={<BubbleSmashRoyale />} />
             <Route path="/games/texasholdem/lobby" element={<TexasHoldemLobby />} />
             <Route path="/games/texasholdem" element={<TexasHoldem />} />
+            <Route path="/games/blackjack/lobby" element={<BlackJackLobby />} />
+            <Route path="/games/blackjack" element={<BlackJack />} />
             <Route path="/games/murlanroyale/lobby" element={<MurlanRoyaleLobby />} />
             <Route path="/games/murlanroyale" element={<MurlanRoyale />} />
             <Route path="/games/pollroyale/lobby" element={<PollRoyaleLobby />} />
