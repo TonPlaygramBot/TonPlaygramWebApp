@@ -361,7 +361,7 @@ function render() {
     const cards = document.createElement('div');
     cards.className = 'cards';
     cards.id = 'cards-' + i;
-    p.hand.slice(0, 2).forEach((c) => {
+    p.hand.forEach((c) => {
       cards.appendChild(p.revealed || p.isHuman ? cardEl(c) : cardBackEl());
     });
     if (p.winner) {
@@ -534,8 +534,7 @@ function aiTurn() {
   if (act === 'hit') {
     const { card, deck } = hitCard(state.deck);
     state.deck = deck;
-    state.community.push(card);
-    state.players.forEach((pl) => pl.hand.push(card));
+    p.hand.push(card);
     playFlipSound();
     if (isBust(p.hand)) {
       p.bust = true;
@@ -554,8 +553,7 @@ window.hit = () => {
   if (!p || !p.isHuman || p.stood || p.bust) return;
   const { card, deck } = hitCard(state.deck);
   state.deck = deck;
-  state.community.push(card);
-  state.players.forEach((pl) => pl.hand.push(card));
+  p.hand.push(card);
   playFlipSound();
   if (isBust(p.hand) || handValue(p.hand) === 21) {
     p.bust = isBust(p.hand);
