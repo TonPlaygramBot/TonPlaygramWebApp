@@ -217,7 +217,7 @@
         background: #f6f6f6;
         position: absolute;
         left: 50%;
-        top: 98%;
+        top: 104%;
         transform: translate(-50%, -50%);
         box-shadow:
           0 4px 10px rgba(0, 0, 0, 0.4) inset,
@@ -241,7 +241,7 @@
 
       #pullArea {
         position: relative;
-        width: 60px;
+        width: 52px;
         height: 67%;
         border-radius: 16px;
         background: none;
@@ -302,12 +302,13 @@
 
       #pullLabel {
         position: absolute;
-        bottom: -20px;
-        left: 50%;
-        transform: translateX(-50%);
+        bottom: -16px;
+        right: 0;
+        left: auto;
+        transform: none;
         font-size: 12px;
         color: #fff;
-        text-align: center;
+        text-align: right;
         pointer-events: none;
       }
 
@@ -593,8 +594,8 @@
         var CUE_START_Y =
           LINE_Y + (TABLE_H - BORDER_BOTTOM - LINE_Y - BALL_R * 2) / 2; // pozicioni fillestar i cueball-it
 
-        var FRICTION = 0.98; // ferkimi linear, pak me i madh per te ndalur me shpejt
-        var BOUNCE = 0.98; // koeficienti i rikthimit
+        var FRICTION = 0.985; // ferkimi linear, pak me i vogel per te ruajtur shpejtesine
+        var BOUNCE = 0.99; // koeficienti i rikthimit pak me i madh
 
         var MIN_V = 0.12; // shpejtesia min. qe konsiderohet "ne levizje"
 
