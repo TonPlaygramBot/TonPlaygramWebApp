@@ -28,8 +28,24 @@
     .p1{background:var(--p1)}
     .p2{background:var(--p2)}
 
-    .canvasWrap{position:absolute;top:40px;bottom:20px;left:0;right:0;}
-    canvas{position:absolute;inset:0;width:100%;height:100%;display:block;touch-action:none}
+    .canvasWrap{
+      position:absolute;
+      top:40px;
+      bottom:20px;
+      left:0;
+      right:0;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+    }
+    canvas{
+      display:block;
+      touch-action:none;
+      width:100%;
+      height:auto;
+      max-height:100%;
+      aspect-ratio:720/1280;
+    }
 
 
     .hint{position:fixed;inset:0;display:none;align-items:center;justify-content:center;margin:auto;max-width:680px;background:rgba(10,16,34,.6);backdrop-filter:blur(6px);border:1px solid #1f2944;border-radius:12px;padding:8px 12px;text-align:center;font-size:.9rem}
@@ -248,11 +264,19 @@
 
   let W = 720, H = 1280, goalCenterX = 0, goalTopY = 0, goalBottomY = 0;
   function fit(){
-    W = canvas.width = Math.floor(window.innerWidth * devicePixelRatio);
-    const usableHeight = window.innerHeight - TOP_BAR - BOTTOM_GAP;
-    H = canvas.height = Math.floor(usableHeight * devicePixelRatio);
-    canvas.style.width = window.innerWidth + 'px';
-    canvas.style.height = usableHeight + 'px';
+    const ratio = 1280 / 720;
+    const maxWidth = window.innerWidth;
+    const maxHeight = window.innerHeight - TOP_BAR - BOTTOM_GAP;
+    let width = maxWidth;
+    let height = width * ratio;
+    if (height > maxHeight) {
+      height = maxHeight;
+      width = height / ratio;
+    }
+    W = canvas.width = Math.floor(width * devicePixelRatio);
+    H = canvas.height = Math.floor(height * devicePixelRatio);
+    canvas.style.width = width + 'px';
+    canvas.style.height = height + 'px';
     const baseW = W*0.88;
     const baseH = H*0.92;
     const maxFieldScaleX = W/baseW;
