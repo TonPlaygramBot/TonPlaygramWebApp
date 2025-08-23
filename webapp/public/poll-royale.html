@@ -1262,7 +1262,7 @@
                 } else if (b2.n === 8 && !isAmerican && !isNineBall) {
                   b2.pocketed = true;
                   pocketedAny = true;
-                  handleEightBall();
+                  eightBallPotted = true;
                 } else {
                   b2.pocketed = true;
                   pocketedAny = true;
@@ -1501,6 +1501,7 @@
         var lastPocketedBall = null;
         var currentTarget = null;
         var pottedThisShot = [];
+        var eightBallPotted = false;
         var nineBallPotted = false;
 
         function remainingPoints() {
@@ -1690,10 +1691,6 @@
           }, duration);
         }
 
-        function handleEightBall() {
-          endGame(currentShooter);
-        }
-
         function isFoul(firstHit, scratch) {
           if (isAmerican || isNineBall) {
             return !firstHit || firstHit.n !== currentTarget || scratch;
@@ -1710,6 +1707,8 @@
           if (firstHit.t === 'eight') {
             return shooterType && hasBallsLeft(shooterType);
           }
+          if (eightBallPotted && shooterType && hasBallsLeft(shooterType))
+            return true;
           if (shooterType && firstHit.t !== shooterType) return true;
           return false;
         }
@@ -1761,12 +1760,20 @@
               endGame(opponent);
               return;
             }
+            if (eightBallPotted) {
+              endGame(opponent);
+              return;
+            }
             freeShots[opponent] = isAmerican || isNineBall ? 1 : 2;
             freeShots[currentShooter] = 0;
             table.turn = opponent;
             setTimeout(showTurnInfo, 1500);
           } else {
             if (nineBallPotted) {
+              endGame(currentShooter);
+              return;
+            }
+            if (eightBallPotted) {
               endGame(currentShooter);
               return;
             }
@@ -1825,6 +1832,7 @@
           foulShown = false;
           firstHit = null;
           currentTarget = null;
+          eightBallPotted = false;
           nineBallPotted = false;
         }
 
@@ -2212,6 +2220,7 @@
           scratch = false;
           firstHit = null;
           pottedThisShot = [];
+          eightBallPotted = false;
           nineBallPotted = false;
           cue.v.x = d.x * base * (0.25 + 0.75 * p);
           cue.v.y = d.y * base * (0.25 + 0.75 * p);
