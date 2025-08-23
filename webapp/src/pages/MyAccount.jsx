@@ -26,6 +26,7 @@ import DevNotifyModal from '../components/DevNotifyModal.jsx';
 import InfluencerClaimsCard from '../components/InfluencerClaimsCard.jsx';
 import DevTasksModal from '../components/DevTasksModal.jsx';
 import Wallet from './Wallet.jsx';
+import LinkGoogleButton from '../components/LinkGoogleButton.jsx';
 
 import { FiCopy } from 'react-icons/fi';
 
@@ -35,12 +36,12 @@ function formatValue(value, decimals = 2) {
     if (isNaN(parsed)) return value;
     return parsed.toLocaleString(undefined, {
       minimumFractionDigits: decimals,
-      maximumFractionDigits: decimals,
+      maximumFractionDigits: decimals
     });
   }
   return value.toLocaleString(undefined, {
     minimumFractionDigits: decimals,
-    maximumFractionDigits: decimals,
+    maximumFractionDigits: decimals
   });
 }
 
@@ -76,6 +77,7 @@ export default function MyAccount() {
   const [twitterError, setTwitterError] = useState('');
   const [twitterLink, setTwitterLink] = useState('');
   const [unread, setUnread] = useState(0);
+  const [googleLinked, setGoogleLinked] = useState(!!googleId);
 
   useEffect(() => {
     async function load() {
@@ -94,10 +96,7 @@ export default function MyAccount() {
       const data = await getAccountInfo(acc.accountId);
       let finalProfile = data;
 
-      if (
-        telegramId &&
-        (!data.photo || !data.firstName || !data.lastName)
-      ) {
+      if (telegramId && (!data.photo || !data.firstName || !data.lastName)) {
         setAutoUpdating(true);
 
         try {
@@ -112,8 +111,7 @@ export default function MyAccount() {
             data.firstName || tg?.firstName || getTelegramFirstName();
           const lastName =
             data.lastName || tg?.lastName || getTelegramLastName();
-          const photo =
-            data.photo || tg?.photoUrl || getTelegramPhotoUrl();
+          const photo = data.photo || tg?.photoUrl || getTelegramPhotoUrl();
 
           const updated = await updateProfile({
             telegramId,
@@ -127,7 +125,7 @@ export default function MyAccount() {
           const mergedProfile = {
             ...data,
             ...updated,
-            photo: hasRealPhoto || getTelegramPhotoUrl(),
+            photo: hasRealPhoto || getTelegramPhotoUrl()
           };
 
           finalProfile = mergedProfile;
@@ -178,7 +176,6 @@ export default function MyAccount() {
 
   const photoToShow = photoUrl || getTelegramPhotoUrl();
 
-
   const handleDevTopup = async () => {
     const amt = Number(devTopup);
     if (!amt) return;
@@ -218,7 +215,6 @@ export default function MyAccount() {
     }
   };
 
-
   const handleConnectTwitter = async () => {
     setTwitterError('');
     try {
@@ -226,7 +222,7 @@ export default function MyAccount() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ telegramId })
-      }).then(r => r.json());
+      }).then((r) => r.json());
       if (res.url) {
         window.open(res.url, '_blank');
       } else if (res.error) {
@@ -299,7 +295,9 @@ export default function MyAccount() {
         }}
       />
       {autoUpdating && (
-        <div className="p-2 text-sm text-subtext">Updating with Telegram info...</div>
+        <div className="p-2 text-sm text-subtext">
+          Updating with Telegram info...
+        </div>
       )}
 
       <div className="flex items-center space-x-2">
@@ -308,7 +306,11 @@ export default function MyAccount() {
 
       <div className="flex items-center space-x-4">
         {photoToShow && (
-          <img src={getAvatarUrl(photoToShow)} alt="avatar" className="w-14 h-14 rounded-full object-cover" />
+          <img
+            src={getAvatarUrl(photoToShow)}
+            alt="avatar"
+            className="w-14 h-14 rounded-full object-cover"
+          />
         )}
         <div>
           <p className="font-semibold text-yellow-400 text-outline-black">
@@ -316,10 +318,14 @@ export default function MyAccount() {
           </p>
           <div className="text-sm flex items-center space-x-1">
             <span className="text-white-shadow">Account:</span>
-            <span className="text-yellow-400 text-outline-black">{profile.accountId}</span>
+            <span className="text-yellow-400 text-outline-black">
+              {profile.accountId}
+            </span>
             <FiCopy
               className="w-4 h-4 cursor-pointer"
-              onClick={() => navigator.clipboard.writeText(String(profile.accountId))}
+              onClick={() =>
+                navigator.clipboard.writeText(String(profile.accountId))
+              }
             />
           </div>
           <button
@@ -355,10 +361,21 @@ export default function MyAccount() {
               )}
             </a>
           </div>
+          {telegramId && !googleLinked && (
+            <div className="mt-2">
+              <p className="text-sm mb-1 text-white-shadow">
+                Link your Google account:
+              </p>
+              <LinkGoogleButton
+                telegramId={telegramId}
+                onLinked={() => setGoogleLinked(true)}
+              />
+            </div>
+          )}
           {profile.social?.twitter && (
             <p className="text-sm mt-2">
-              <span className="text-white text-outline-black">Linked X:</span>{' '}
-              @{profile.social.twitter}{' '}
+              <span className="text-white text-outline-black">Linked X:</span> @
+              {profile.social.twitter}{' '}
               <button
                 onClick={handleClearTwitter}
                 className="underline text-primary ml-1"
@@ -395,7 +412,9 @@ export default function MyAccount() {
       {profile && profile.accountId === DEV_ACCOUNT_ID && (
         <>
           <div className="prism-box p-4 mt-4 space-y-2 mx-auto wide-card">
-            <label className="block font-semibold text-center">Top Up Developer Account</label>
+            <label className="block font-semibold text-center">
+              Top Up Developer Account
+            </label>
             <input
               type="number"
               placeholder="Amount"
@@ -433,8 +452,6 @@ export default function MyAccount() {
           <InfluencerClaimsCard />
         </>
       )}
-
-
 
       {/* Wallet section */}
       <Wallet hideClaim />
