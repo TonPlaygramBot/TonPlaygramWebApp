@@ -366,6 +366,8 @@ function render() {
     });
     if (p.winner) {
       Array.from(cards.children).forEach((card) => card.classList.add('winning'));
+    }
+    if (p.isHuman || p.winner) {
       const total = document.createElement('div');
       total.className = 'hand-total';
       total.textContent = handValue(p.hand).toString();
@@ -723,11 +725,14 @@ function renderCommunity() {
   const el = document.getElementById('community');
   if (!el) return;
   el.innerHTML = '';
+  const highlight = state.players.some((p) => p.winner);
   state.community.forEach((c) => {
     if (!c) {
       el.appendChild(cardBackEl());
     } else {
-      el.appendChild(cardEl(c));
+      const card = cardEl(c);
+      if (highlight) card.classList.add('winning');
+      el.appendChild(card);
     }
   });
 }
