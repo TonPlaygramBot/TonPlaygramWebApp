@@ -496,6 +496,25 @@
         width: 12px;
         height: 12px;
       }
+      .tpc-total {
+        position: absolute;
+        top: 8px;
+        right: 8px;
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        background: rgba(0, 0, 0, 0.5);
+        padding: 4px 8px;
+        border-radius: 8px;
+        font-weight: 700;
+      }
+      .tpc-total.small {
+        font-size: 12px;
+      }
+      .tpc-total img {
+        width: 16px;
+        height: 16px;
+      }
       .controls {
         display: flex;
         gap: 8px;
@@ -910,6 +929,14 @@
           Folded
         </div>
         <div id="foldedCards" class="folded-cards"></div>
+      </div>
+      <div class="tpc-total">
+        <span id="tpcTotal">0</span>
+        <img
+          src="assets/icons/ezgif-54c96d8a9b9236.webp"
+          alt="TPC"
+          class="tpc-inline-icon"
+        />
       </div>
       <div id="status"></div>
       <div class="seats" id="seats"></div>
