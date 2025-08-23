@@ -298,21 +298,32 @@
         top: 0;
         transform: translate(-50%, 0);
         transform-origin: top center;
-        pointer-events: auto;
+        pointer-events: none;
         touch-action: none;
         z-index: 6;
       }
 
       #pullLabel {
         position: absolute;
-        bottom: 4px;
+        bottom: 36px;
         right: 4px;
         left: auto;
         transform: none;
         font-size: 12px;
         color: #fff;
-        text-align: right;
-        pointer-events: none;
+        text-align: center;
+        pointer-events: auto;
+        width: 44px;
+        height: 44px;
+        border: 2px solid #fff;
+        border-radius: 50%;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        background: none;
+        cursor: pointer;
+        touch-action: none;
       }
 
       #powerTxt {
@@ -626,6 +637,7 @@
         var powerTxt = document.getElementById('powerTxt');
         var powerPercent = document.getElementById('powerPercent');
         var powerCue = document.getElementById('powerCue');
+        var pullHandle = document.getElementById('pullLabel');
 
         var avatarP1 = document.querySelector(
           '#header .player:first-child .avatar'
@@ -1832,6 +1844,7 @@
           currentTarget = null;
           eightBallPotted = false;
           nineBallPotted = false;
+          lastPocketedBall = null;
         }
 
         /* ==========================================================
@@ -2219,18 +2232,18 @@
           cuePullVisual = power * (BALL_R * 14);
           placeAimGlow(table.aim);
         }
-        powerCue.addEventListener('pointerdown', function (e) {
+        pullHandle.addEventListener('pointerdown', function (e) {
           if (!table.running || table.isMoving() || table.turn !== 1) return;
           pulling = true;
           pullMoved = false;
-          powerCue.setPointerCapture(e.pointerId);
+          pullHandle.setPointerCapture(e.pointerId);
         });
-        powerCue.addEventListener('pointermove', function (e) {
+        pullHandle.addEventListener('pointermove', function (e) {
           if (!pulling || table.turn !== 1) return;
           pullMoved = true;
           updateFromEvent(e);
         });
-        powerCue.addEventListener('pointerup', function () {
+        pullHandle.addEventListener('pointerup', function () {
           if (!pulling || table.turn !== 1) return;
           pulling = false;
           if (pullMoved && power > 0) shoot(power);
@@ -2461,7 +2474,7 @@
           }
 
           // apply improved potting accuracy
-          var ACCURACY = 0.98;
+          var ACCURACY = 0.995;
           nd = {
             x: nd.x + (Math.random() - 0.5) * (1 - ACCURACY),
             y: nd.y + (Math.random() - 0.5) * (1 - ACCURACY)
