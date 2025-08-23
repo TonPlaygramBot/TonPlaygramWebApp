@@ -88,10 +88,6 @@ export default function LuckyNumber() {
       else if (suit === 'spades') finalPrize = Math.floor(prize * 0.5);
       else if (suit === 'diamonds') finalPrize = Math.floor(prize * 1.5);
       else if (suit === 'clubs') finalPrize = Math.floor(prize * 0.75);
-    } else if (prize === 'JOKER_BLACK') {
-      finalPrize = 5000;
-    } else if (prize === 'JOKER_RED') {
-      finalPrize = 10000;
     }
 
     setCardPrize(finalPrize);
@@ -286,17 +282,7 @@ export default function LuckyNumber() {
                             alt="Bonus"
                             className="w-4 h-4"
                           />
-                          <span className="ml-1">X3</span>
-                        </>
-                      ) : cardPrize === 'JOKER_BLACK' ? (
-                        <>
-                          <span>🃏</span>
-                          <span className="ml-1">5000</span>
-                        </>
-                      ) : cardPrize === 'JOKER_RED' ? (
-                        <>
-                          <span className="text-red-500">🃏</span>
-                          <span className="ml-1 text-red-500">10000</span>
+                      <span className="ml-1">X3</span>
                         </>
                       ) : (
                         <>
@@ -327,16 +313,6 @@ export default function LuckyNumber() {
                             className="w-4 h-4"
                           />
                           <span className="ml-1">X3</span>
-                        </>
-                      ) : cardPrize === 'JOKER_BLACK' ? (
-                        <>
-                          <span>🃏</span>
-                          <span className="ml-1">5000</span>
-                        </>
-                      ) : cardPrize === 'JOKER_RED' ? (
-                        <>
-                          <span className="text-red-500">🃏</span>
-                          <span className="ml-1 text-red-500">10000</span>
                         </>
                       ) : (
                         <>
