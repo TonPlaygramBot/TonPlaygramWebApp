@@ -1985,8 +1985,8 @@
             return;
           }
           if (!aiming || !table.running) return;
-          table.aim.x += (t.x - table.aim.x) * 0.2;
-          table.aim.y += (t.y - table.aim.y) * 0.2;
+          table.aim.x += (t.x - table.aim.x) * 0.1;
+          table.aim.y += (t.y - table.aim.y) * 0.1;
           placeAimGlow(calibrated(table.aim));
           aimMoved = true;
         });
@@ -2472,10 +2472,19 @@
               if (!pathClear(contact, t)) continue;
               if (!pocketPathClear(t, pk)) continue;
               var dist = len(contact.x - cue.p.x, contact.y - cue.p.y);
-              if (!best || dist < best.dist) {
+              var nxt = nextTarget(t);
+              var anglePenalty = 0;
+              if (nxt) {
+                var shotDir = norm(contact.x - cue.p.x, contact.y - cue.p.y);
+                var toNext = norm(nxt.p.x - t.p.x, nxt.p.y - t.p.y);
+                anglePenalty = Math.abs(shotDir.x * toNext.y - shotDir.y * toNext.x);
+              }
+              var score = dist + anglePenalty * 200;
+              if (!best || score < best.score) {
                 best = {
                   nd: norm(contact.x - cue.p.x, contact.y - cue.p.y),
                   dist: dist,
+                  score: score,
                   target: t
                 };
               }
