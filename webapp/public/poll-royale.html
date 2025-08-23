@@ -215,7 +215,7 @@
         background: #f6f6f6;
         position: absolute;
         left: 50%;
-        top: 95%;
+        top: 98%;
         transform: translate(-50%, -50%);
         box-shadow:
           0 4px 10px rgba(0, 0, 0, 0.4) inset,
@@ -262,29 +262,6 @@
         box-shadow: none;
       }
 
-      #pullHandle {
-        position: absolute;
-        /* Position the pull button so that it's half outside the panel */
-        left: calc(100% - 3px);
-        transform: translate(-50%, -2px);
-        width: 58px;
-        height: 58px;
-        border-radius: 50%;
-        background: #fff;
-        color: #111;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-weight: 700;
-        font-size: 16px;
-        padding-left: 1px;
-        box-shadow: none;
-        user-select: none;
-        opacity: 1;
-        visibility: visible;
-        z-index: 8;
-      }
-
       #powerBox {
         width: 12px;
         height: 23%;
@@ -308,11 +285,11 @@
       #powerCue {
         position: absolute;
         /* Align cue image with pull handle and power text along the right edge */
-        left: calc(100% - 4px);
+        left: calc(100% - 8px);
         top: 0;
         transform: translate(-50%, 0);
         transform-origin: top center;
-        pointer-events: none;
+        pointer-events: auto;
         z-index: 6;
       }
 
@@ -487,7 +464,6 @@
               alt="Cue"
             />
             <div id="cueRail"></div>
-            <div id="pullHandle">PULL</div>
           </div>
 
           <div
@@ -623,7 +599,6 @@
         var cueImg = new Image();
         cueImg.src = '/assets/icons/file_0000000019d86243a2f7757076cd7869.webp';
         var pullArea = document.getElementById('pullArea');
-        var pullHandle = document.getElementById('pullHandle');
         var powerFill = document.getElementById('powerFill');
         var powerTxt = document.getElementById('powerTxt');
         var powerPercent = document.getElementById('powerPercent');
@@ -1874,6 +1849,19 @@
           };
         }
 
+        function onAimLine(pt) {
+          var cue = table.balls[0];
+          var ax = table.aim.x - cue.p.x,
+            ay = table.aim.y - cue.p.y;
+          var len2 = ax * ax + ay * ay;
+          if (!len2) return false;
+          var t = ((pt.x - cue.p.x) * ax + (pt.y - cue.p.y) * ay) / len2;
+          if (t < 0 || t > 1) return false;
+          var px = cue.p.x + ax * t,
+            py = cue.p.y + ay * t;
+          return Math.hypot(pt.x - px, pt.y - py) <= BALL_R;
+        }
+
         canvas.addEventListener('pointerdown', function (e) {
           if (!table.running || table.isMoving()) return;
           var t = screenToTable(e.clientX, e.clientY);
@@ -1885,6 +1873,7 @@
             cueHint.style.display = 'none';
             return;
           }
+          if (!onAimLine(t)) return;
           aiming = true;
           aimMoved = false;
           showGuides = true;
@@ -2164,11 +2153,10 @@
           pullMoved = false;
         function updatePullHandle() {
           var rect = pullArea.getBoundingClientRect();
-          var minY = -pullHandle.offsetHeight * 0.6;
-          var maxY = rect.height - pullHandle.offsetHeight * 0.4;
+          var minY = -powerCue.offsetHeight * 0.6;
+          var maxY = rect.height - powerCue.offsetHeight * 0.4;
           var y = minY + (maxY - minY) * power;
-          pullHandle.style.top = y + 'px';
-          powerCue.style.top = y + pullHandle.offsetHeight + 10 + 'px';
+          powerCue.style.top = y + 'px';
         }
         function updatePowerUI() {
           powerFill.style.height = Math.round(power * 100) + '%';
@@ -2183,11 +2171,12 @@
           cuePullVisual = power * (BALL_R * 14);
           placeAimGlow(table.aim);
         }
-        pullHandle.addEventListener('pointerdown', function (e) {
+        powerCue.addEventListener('pointerdown', function (e) {
           if (!table.running || table.isMoving()) return;
           pulling = true;
           pullMoved = false;
           updateFromEvent(e);
+          pullArea.setPointerCapture(e.pointerId);
         });
         pullArea.addEventListener('pointermove', function (e) {
           if (!pulling) return;
@@ -2342,8 +2331,14 @@
             chosen = best.target;
           } else {
             chosen = targets[Math.floor(Math.random() * targets.length)];
-            nd = norm(chosen.p.x - cue.p.x, chosen.p.y - cue.p.y);
-            power = 0.35 + Math.random() * 0.3;
+            var pk = table.pockets[Math.floor(Math.random() * table.pockets.length)];
+            var toPocket = norm(pk.x - chosen.p.x, pk.y - chosen.p.y);
+            var contact = {
+              x: chosen.p.x - toPocket.x * BALL_R * 2,
+              y: chosen.p.y - toPocket.y * BALL_R * 2
+            };
+            nd = norm(contact.x - cue.p.x, contact.y - cue.p.y);
+            power = 0.45;
           }
 
           if (cueBallFree) {
