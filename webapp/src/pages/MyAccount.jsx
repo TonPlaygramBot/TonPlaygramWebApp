@@ -45,12 +45,16 @@ function formatValue(value, decimals = 2) {
 }
 
 export default function MyAccount() {
-  let telegramId;
+  let telegramId = null;
+  let googleId = null;
 
   try {
     telegramId = getTelegramId();
-  } catch (err) {
-    return <LoginOptions />;
+  } catch {}
+
+  if (!telegramId) {
+    googleId = localStorage.getItem('googleId');
+    if (!googleId) return <LoginOptions />;
   }
 
   const [profile, setProfile] = useState(null);
@@ -75,7 +79,7 @@ export default function MyAccount() {
 
   useEffect(() => {
     async function load() {
-      const acc = await createAccount(telegramId);
+      const acc = await createAccount(telegramId, googleId);
       if (acc?.error) {
         console.error('Failed to load account:', acc.error);
         return;
@@ -90,7 +94,10 @@ export default function MyAccount() {
       const data = await getAccountInfo(acc.accountId);
       let finalProfile = data;
 
-      if (!data.photo || !data.firstName || !data.lastName) {
+      if (
+        telegramId &&
+        (!data.photo || !data.firstName || !data.lastName)
+      ) {
         setAutoUpdating(true);
 
         try {
@@ -101,9 +108,12 @@ export default function MyAccount() {
             console.error('fetchTelegramInfo failed', err);
           }
 
-          const firstName = data.firstName || tg?.firstName || getTelegramFirstName();
-          const lastName = data.lastName || tg?.lastName || getTelegramLastName();
-          const photo = data.photo || tg?.photoUrl || getTelegramPhotoUrl();
+          const firstName =
+            data.firstName || tg?.firstName || getTelegramFirstName();
+          const lastName =
+            data.lastName || tg?.lastName || getTelegramLastName();
+          const photo =
+            data.photo || tg?.photoUrl || getTelegramPhotoUrl();
 
           const updated = await updateProfile({
             telegramId,
@@ -128,10 +138,13 @@ export default function MyAccount() {
 
       setProfile(finalProfile);
       setTwitterLink(finalProfile.social?.twitter || '');
-      setPhotoUrl(loadAvatar() || finalProfile.photo || getTelegramPhotoUrl());
+      const defaultPhoto = telegramId ? getTelegramPhotoUrl() : '';
+      setPhotoUrl(loadAvatar() || finalProfile.photo || defaultPhoto);
       try {
-        const res = await getUnreadCount(telegramId);
-        if (!res.error) setUnread(res.count);
+        if (telegramId) {
+          const res = await getUnreadCount(telegramId);
+          if (!res.error) setUnread(res.count);
+        }
       } catch {}
       if (!localStorage.getItem('avatarPromptShown')) {
         setShowAvatarPrompt(true);
@@ -143,9 +156,10 @@ export default function MyAccount() {
     return () => {
       if (timerRef.current) clearTimeout(timerRef.current);
     };
-  }, [telegramId]);
+  }, [telegramId, googleId]);
 
   useEffect(() => {
+    if (!telegramId) return;
     async function updatePhoto() {
       try {
         const info = await fetchTelegramInfo(telegramId);
