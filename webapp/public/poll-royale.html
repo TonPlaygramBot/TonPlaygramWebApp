@@ -1853,8 +1853,8 @@
           if (lastShotAim && lastPocketCenter) {
             var dx = lastPocketCenter.x - lastShotAim.x;
             var dy = lastPocketCenter.y - lastShotAim.y;
-            aimCalibration.x += dx * 0.1;
-            aimCalibration.y += dy * 0.1;
+            aimCalibration.x += dx;
+            aimCalibration.y += dy;
             shotsLog.push({
               aim: lastShotAim,
               pocket: lastPocketCenter,
