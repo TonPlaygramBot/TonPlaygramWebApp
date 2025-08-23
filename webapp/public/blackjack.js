@@ -545,7 +545,7 @@ function commitRaise() {
   updateRaiseAmount();
 }
 
-function startNewRound() {
+async function startNewRound() {
   state.turn = 0;
   state.pot = state.stake * state.players.length;
   state.raiseAmount = 0;
@@ -557,14 +557,31 @@ function startNewRound() {
     p.bust = false;
     p.revealed = false;
   });
-  for (let i = 0; i < 2; i++) {
-    const { card, deck: d } = hitCard(state.deck);
-    state.deck = d;
-    state.community.push(card);
-    state.players.forEach((pl) => pl.hand.push(card));
-    playFlipSound();
+
+  // show cleared table before dealing new cards
+  render();
+  renderPot();
+  await new Promise((r) => setTimeout(r, 500));
+
+  // deal cards to each player one by one
+  for (let i = 0; i < state.players.length; i++) {
+    const { card, deck: d1 } = hitCard(state.deck);
+    state.deck = d1;
+    const p = state.players[i];
+    p.hand.push(card);
+    p.revealed = i === 0;
+    await dealCardToPlayer(i, card, p.revealed);
+  }
+  for (let i = 0; i < state.players.length; i++) {
+    const { card, deck: d2 } = hitCard(state.deck);
+    state.deck = d2;
+    state.players[i].hand.push(card);
+    if (i === 0) state.players[i].revealed = true;
+    await dealCardToPlayer(i, card, state.players[i].revealed);
   }
 
+  // place deck back in the center
+  state.community.push(null);
   render();
   aiBettingRound();
   const p0 = state.players[0];
