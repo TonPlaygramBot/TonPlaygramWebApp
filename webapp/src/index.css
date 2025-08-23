@@ -216,6 +216,20 @@ input:focus {
   transform: translateY(90px) scale(1.2);
 }
 
+.lucky-card-back {
+  background:
+    url('/assets/icons/file_00000000bc2862439eecffff3730bbe4.webp')
+      center/90% no-repeat,
+    repeating-linear-gradient(
+      45deg,
+      #233,
+      #233 6px,
+      #122 6px,
+      #122 12px
+    );
+  border: 2px solid rgba(255, 255, 255, 0.5);
+}
+
 /* Adjusted placement for Crazy Dice Duel */
 .crazy-dice-bg {
   top: 0;

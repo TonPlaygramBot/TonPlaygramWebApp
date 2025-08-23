@@ -3,6 +3,7 @@ import DiceRoller from './DiceRoller.jsx';
 import RewardPopup from './RewardPopup.tsx';
 import AdModal from './AdModal.tsx';
 import CardSpinner from './CardSpinner.jsx';
+import WinningCardPopup from './WinningCardPopup.jsx';
 import { getTelegramId } from '../utils/telegram.js';
 import LoginOptions from './LoginOptions.jsx';
 import { getWalletBalance, updateBalance, addTransaction } from '../utils/api.js';
@@ -19,6 +20,8 @@ export default function LuckyNumber() {
 
   const [selected, setSelected] = useState(null);
   const [reward, setReward] = useState(null);
+  const [pendingPrize, setPendingPrize] = useState(null);
+  const [winningCard, setWinningCard] = useState(null);
   const [cardPrize, setCardPrize] = useState(null);
   const [spinTrigger, setSpinTrigger] = useState(0);
   const [canRoll, setCanRoll] = useState(false);
@@ -26,7 +29,7 @@ export default function LuckyNumber() {
   const [showAd, setShowAd] = useState(false);
   const [adWatched, setAdWatched] = useState(false);
   const [trigger, setTrigger] = useState(0);
-  const ranks = ['2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q'];
+  const ranks = ['A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J'];
   const suitTypes = ['hearts', 'spades', 'diamonds', 'clubs'];
   const [cards] = useState(() =>
     ranks.map((r) => ({ rank: r, suit: suitTypes[Math.floor(Math.random() * suitTypes.length)] }))
@@ -109,7 +112,13 @@ export default function LuckyNumber() {
       window.dispatchEvent(new Event('bonusX3Awarded'));
       document.getElementById('spin-game')?.scrollIntoView({ behavior: 'smooth' });
     }
-    setReward(finalPrize);
+    setPendingPrize(finalPrize);
+    setWinningCard(cards[selected]);
+  };
+
+  const handleWinningCardClose = () => {
+    setWinningCard(null);
+    setReward(pendingPrize);
   };
 
   const handleRollClick = () => {
@@ -155,15 +164,9 @@ export default function LuckyNumber() {
               }}
             >
               <div
-                className="absolute inset-0 bg-white rounded-md flex items-center justify-center"
+                className="absolute inset-0 lucky-card-back rounded-md"
                 style={{ backfaceVisibility: 'hidden' }}
-              >
-                <img
-                  src="/assets/icons/file_00000000bc2862439eecffff3730bbe4.webp"
-                  alt="Card Back"
-                  className="w-10 h-10"
-                />
-              </div>
+              ></div>
               <div
                 className="absolute inset-0 rounded-md flex items-center justify-center"
                 style={{ transform: 'rotateY(180deg)', backfaceVisibility: 'hidden' }}
@@ -306,12 +309,14 @@ export default function LuckyNumber() {
         onComplete={handleAdComplete}
         onClose={() => setShowAd(false)}
       />
+      <WinningCardPopup card={winningCard} onClose={handleWinningCardClose} />
       <RewardPopup
         reward={reward}
         onClose={() => {
           setReward(null);
           setSelected(null);
           setCardPrize(null);
+          setPendingPrize(null);
         }}
       />
     </div>
