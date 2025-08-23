@@ -2,8 +2,6 @@ import { useState, useEffect, useRef } from 'react';
 import { numericSegments, getLuckyReward } from '../utils/rewardLogic';
 import { getGameVolume } from '../utils/sound.js';
 
-const itemHeight = 96; // card height
-
 function PrizeItem({ value }) {
   if (value === 'FREE_SPIN') {
     return (
@@ -60,7 +58,9 @@ function PrizeItem({ value }) {
 export default function CardSpinner({ trigger = 0, onFinish }) {
   const [items, setItems] = useState([]);
   const [offset, setOffset] = useState(0);
+  const [itemHeight, setItemHeight] = useState(0);
   const spinSoundRef = useRef(null);
+  const containerRef = useRef(null);
 
   useEffect(() => {
     spinSoundRef.current = new Audio('/assets/sounds/spinning.mp3');
@@ -79,6 +79,8 @@ export default function CardSpinner({ trigger = 0, onFinish }) {
 
   useEffect(() => {
     if (!trigger) return;
+    const height = containerRef.current?.clientHeight || 0;
+    setItemHeight(height);
     const base = [
       ...numericSegments,
       'FREE_SPIN',
@@ -96,7 +98,7 @@ export default function CardSpinner({ trigger = 0, onFinish }) {
     setOffset(0);
     spinSoundRef.current?.play().catch(() => {});
     requestAnimationFrame(() => {
-      setOffset(-((arr.length - 1) * itemHeight));
+      setOffset(-((arr.length - 1) * height));
     });
     const timeout = setTimeout(() => {
       spinSoundRef.current?.pause();
@@ -106,7 +108,7 @@ export default function CardSpinner({ trigger = 0, onFinish }) {
   }, [trigger, onFinish]);
 
   return (
-    <div className="absolute inset-0 overflow-hidden rounded-md bg-white">
+    <div ref={containerRef} className="absolute inset-0 overflow-hidden rounded-md bg-white">
       <div
         className="transition-transform duration-[4000ms] ease-out flex flex-col"
         style={{ transform: `translateY(${offset}px)` }}
@@ -114,7 +116,7 @@ export default function CardSpinner({ trigger = 0, onFinish }) {
         {items.map((val, i) => (
           <div
             key={i}
-            className="h-24 w-full flex flex-col items-center justify-center"
+            className="w-full flex flex-col items-center justify-center"
             style={{ height: `${itemHeight}px` }}
           >
             <PrizeItem value={val} />
