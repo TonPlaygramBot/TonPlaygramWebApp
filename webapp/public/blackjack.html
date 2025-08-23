@@ -195,6 +195,24 @@
         display: flex;
         gap: 6px;
         flex-wrap: nowrap;
+        position: relative;
+      }
+      .hand-total {
+        position: absolute;
+        top: -8px;
+        right: -8px;
+        width: 24px;
+        height: 24px;
+        border-radius: 50%;
+        background: #ff0;
+        color: #000;
+        border: 2px solid #000;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 12px;
+        font-weight: 700;
+        z-index: 3;
       }
       .card {
         width: var(--card-w);

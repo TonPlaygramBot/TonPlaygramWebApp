@@ -20,6 +20,8 @@ const state = {
   pot: 0,
   raiseAmount: 0,
   community: [],
+  currentBet: 0,
+  awaitingCall: false,
 };
 
 let myAccountId = '';
@@ -28,6 +30,7 @@ let myTelegramId;
 const CHIP_VALUES = [1000, 500, 200, 50, 20, 10, 5, 2, 1];
 let sndCallRaise;
 let sndFlip;
+let callTimer;
 
 const TPC_ICON_HTML =
   '<img src="assets/icons/ezgif-54c96d8a9b9236.webp" alt="TPC" class="tpc-inline-icon" />';
@@ -333,6 +336,10 @@ function render() {
     });
     if (p.winner) {
       Array.from(cards.children).forEach((card) => card.classList.add('winning'));
+      const total = document.createElement('div');
+      total.className = 'hand-total';
+      total.textContent = handValue(p.hand).toString();
+      cards.appendChild(total);
     }
     inner.appendChild(cards);
 
@@ -366,11 +373,14 @@ function render() {
       callBtn.id = 'call';
       callBtn.textContent = 'Call';
       callBtn.addEventListener('click', playerCall);
-      const checkBtn = document.createElement('button');
-      checkBtn.id = 'check';
-      checkBtn.textContent = 'Check';
-      checkBtn.addEventListener('click', playerCheck);
-      controls.append(foldBtn, callBtn, checkBtn);
+      controls.append(foldBtn, callBtn);
+      if (!state.awaitingCall && state.currentBet === 0) {
+        const checkBtn = document.createElement('button');
+        checkBtn.id = 'check';
+        checkBtn.textContent = 'Check';
+        checkBtn.addEventListener('click', playerCheck);
+        controls.append(checkBtn);
+      }
       seat.append(inner, bal, controls);
     } else {
       seat.append(inner, bal);
@@ -398,6 +408,35 @@ function render() {
   renderCommunity();
 }
 
+function aiRespondToRaise() {
+  const p = state.players[state.turn];
+  const act = aiBetAction(p.hand);
+  if (act === 'fold') {
+    p.bust = true;
+    p.stood = true;
+    state.awaitingCall = false;
+    state.currentBet = 0;
+    render();
+    nextTurn();
+    return;
+  }
+  state.pot += state.currentBet;
+  animateChipsFromPlayer(state.turn, state.currentBet);
+  playCallRaise();
+  renderPot();
+  if (act === 'raise') {
+    state.currentBet *= 2;
+    state.awaitingCall = true;
+    state.turn = 0;
+    render();
+    startCallTimer();
+    return;
+  }
+  state.awaitingCall = false;
+  state.currentBet = 0;
+  nextTurn();
+}
+
 function nextTurn() {
   state.turn++;
   if (state.turn >= state.players.length) {
@@ -405,6 +444,15 @@ function nextTurn() {
     return;
   }
   const p = state.players[state.turn];
+  if (state.awaitingCall) {
+    if (p.isHuman) {
+      startCallTimer();
+      render();
+    } else {
+      setTimeout(aiRespondToRaise, 500);
+    }
+    return;
+  }
   if (!p.isHuman) {
     setTimeout(aiTurn, 500);
   }
@@ -463,6 +511,9 @@ function playerFold() {
   const p = state.players[0];
   p.bust = true;
   p.stood = true;
+  state.awaitingCall = false;
+  state.currentBet = 0;
+  clearCallTimer();
   render();
   nextTurn();
 }
@@ -472,9 +523,14 @@ function playerCheck() {
 }
 
 function playerCall() {
-  state.pot += state.stake;
-  animateChipsFromPlayer(0, state.stake);
-  playCallRaise();
+  if (state.currentBet > 0) {
+    state.pot += state.currentBet;
+    animateChipsFromPlayer(0, state.currentBet);
+    playCallRaise();
+  }
+  state.currentBet = 0;
+  state.awaitingCall = false;
+  clearCallTimer();
   renderPot();
   nextTurn();
 }
@@ -492,15 +548,46 @@ function finish() {
   state.players.forEach((p) => (p.revealed = true));
   render();
   const status = document.getElementById('status');
-  if (status)
-    status.textContent = `Winner(s): ${winners
+  let text = '';
+  if (winners.length === 1) {
+    const idx = winners[0];
+    const val = handValue(state.players[idx].hand);
+    text = `${state.players[idx].name} wins with ${val}!`;
+  } else {
+    text = `Winner(s): ${winners
       .map((i) => state.players[i].name)
       .join(', ')}`;
+  }
+  setStatus('', text);
   setTimeout(() => {
     state.players.forEach((p) => (p.winner = false));
-    if (status) status.textContent = '';
+    setStatus('', '');
     startNewRound();
   }, 5000);
+}
+
+function setStatus(action, text) {
+  const status = document.getElementById('status');
+  if (!status) return;
+  if (text && text !== '') {
+    status.className = 'status-default';
+    status.innerHTML = text;
+  } else {
+    status.innerHTML = '';
+  }
+}
+
+function startCallTimer() {
+  clearTimeout(callTimer);
+  callTimer = setTimeout(() => {
+    if (state.awaitingCall && state.turn === 0) {
+      playerFold();
+    }
+  }, 15000);
+}
+
+function clearCallTimer() {
+  clearTimeout(callTimer);
 }
 
 function renderPot() {
@@ -543,12 +630,19 @@ function commitRaise() {
   playCallRaise();
   state.raiseAmount = 0;
   updateRaiseAmount();
+  renderPot();
+  state.currentBet = amt;
+  state.awaitingCall = true;
+  nextTurn();
 }
 
 async function startNewRound() {
   state.turn = 0;
   state.pot = state.stake * state.players.length;
   state.raiseAmount = 0;
+  state.currentBet = 0;
+  state.awaitingCall = false;
+  clearCallTimer();
   state.deck = shuffle(createDeck());
   state.community = [];
   state.players.forEach((p) => {
@@ -771,18 +865,26 @@ function aiBetAction(hand) {
 }
 
 function aiBettingRound() {
-  state.players.forEach((p, i) => {
-    if (p.isHuman || p.bust) return;
+  for (let i = 0; i < state.players.length; i++) {
+    const p = state.players[i];
+    if (p.isHuman || p.bust) continue;
     const act = aiBetAction(p.hand);
     if (act === 'raise') {
       state.pot += state.stake;
       animateChipsFromPlayer(i, state.stake);
       playCallRaise();
+      state.currentBet = state.stake;
+      state.awaitingCall = true;
+      state.turn = 0;
+      renderPot();
+      render();
+      startCallTimer();
+      return;
     } else if (act === 'fold') {
       p.bust = true;
       p.stood = true;
     }
-  });
+  }
   renderPot();
   render();
 }
