@@ -206,8 +206,8 @@
         gap: 8px;
         padding: 12px 0 12px 8px;
         z-index: 10;
-        /* Allow clicks outside interactive elements to reach the table */
-        pointer-events: none;
+        /* Capture touches so shots aren't triggered from the panel */
+        pointer-events: auto;
       }
 
       #spinBox {
@@ -255,8 +255,8 @@
         /* Allow the handle to overflow so only half of it is visible */
         overflow: visible;
         z-index: 7;
-        pointer-events: none;
-        margin-right: -8px;
+        pointer-events: auto;
+        margin-right: 0;
       }
 
       #cueRail {
@@ -305,8 +305,8 @@
 
       #pullLabel {
         position: absolute;
-        bottom: 0;
-        right: -4px;
+        bottom: 4px;
+        right: 4px;
         left: auto;
         transform: none;
         font-size: 12px;
@@ -2434,9 +2434,10 @@
               chosen = bank.target;
             } else {
               chosen = targets[Math.floor(Math.random() * targets.length)];
-              var pk = table.pockets[
-                Math.floor(Math.random() * table.pockets.length)
-              ];
+              var pk = table.pockets.reduce(function (closest, p) {
+                var d = len(p.x - chosen.p.x, p.y - chosen.p.y);
+                return !closest || d < closest.dist ? { pocket: p, dist: d } : closest;
+              }, null).pocket;
               var toPocket = norm(pk.x - chosen.p.x, pk.y - chosen.p.y);
               var contact = {
                 x: chosen.p.x - toPocket.x * BALL_R * 2,
@@ -2460,7 +2461,7 @@
           }
 
           // apply improved potting accuracy
-          var ACCURACY = 0.95 + Math.random() * 0.03;
+          var ACCURACY = 0.98;
           nd = {
             x: nd.x + (Math.random() - 0.5) * (1 - ACCURACY),
             y: nd.y + (Math.random() - 0.5) * (1 - ACCURACY)
@@ -2501,25 +2502,16 @@
           var targetAim = { x: cue.p.x + nd.x * 100, y: cue.p.y + nd.y * 100 };
           setSpin(spinX, spinY);
           showGuides = true;
-          var startAim = { x: table.aim.x, y: table.aim.y };
-          var step = 0,
-            steps = 30;
-          var aimInterval = setInterval(function () {
-            step++;
-            table.aim.x = startAim.x + (targetAim.x - startAim.x) * (step / steps);
-            table.aim.y = startAim.y + (targetAim.y - startAim.y) * (step / steps);
-            placeAimGlow(table.aim);
-            if (step >= steps) {
-              clearInterval(aimInterval);
-              cuePullVisual = power * (BALL_R * 14);
-              setTimeout(function () {
-                cpuThinking = false;
-                shoot(power);
-                cuePullVisual = 0;
-                showGuides = false;
-              }, 500);
-            }
-          }, 50);
+          table.aim.x = targetAim.x;
+          table.aim.y = targetAim.y;
+          placeAimGlow(table.aim);
+          cuePullVisual = power * (BALL_R * 14);
+          setTimeout(function () {
+            cpuThinking = false;
+            shoot(power);
+            cuePullVisual = 0;
+            showGuides = false;
+          }, 1000);
         }
 
         /* ==========================================================
