@@ -20,7 +20,6 @@ const state = {
   pot: 0,
   raiseAmount: 0,
   community: [],
-  standNames: [],
 };
 
 let myAccountId = '';
@@ -332,6 +331,9 @@ function render() {
     p.hand.slice(0, 2).forEach((c) => {
       cards.appendChild(p.revealed || i === 0 ? cardEl(c) : cardBackEl());
     });
+    if (p.winner) {
+      Array.from(cards.children).forEach((card) => card.classList.add('winning'));
+    }
     inner.appendChild(cards);
 
     if (i === 0 && state.turn === 0 && !p.stood && !p.bust) {
@@ -425,13 +427,11 @@ function aiTurn() {
     if (isBust(p.hand)) {
       p.bust = true;
       p.stood = true;
-      if (!state.standNames.includes(p.name)) state.standNames.push(p.name);
     }
     render();
     setTimeout(aiTurn, 500);
   } else {
     p.stood = true;
-    if (!state.standNames.includes(p.name)) state.standNames.push(p.name);
     nextTurn();
   }
 }
@@ -447,7 +447,6 @@ window.hit = () => {
   if (isBust(p.hand) || handValue(p.hand) === 21) {
     p.bust = isBust(p.hand);
     p.stood = true;
-    if (!state.standNames.includes(p.name)) state.standNames.push(p.name);
     nextTurn();
   }
   render();
@@ -457,7 +456,6 @@ window.stand = () => {
   const p = state.players[state.turn];
   if (!p || !p.isHuman) return;
   p.stood = true;
-  if (!state.standNames.includes(p.name)) state.standNames.push(p.name);
   nextTurn();
 };
 
@@ -502,7 +500,7 @@ function finish() {
     state.players.forEach((p) => (p.winner = false));
     if (status) status.textContent = '';
     startNewRound();
-  }, 2200);
+  }, 5000);
 }
 
 function renderPot() {
@@ -521,18 +519,7 @@ function renderCommunity() {
   el.innerHTML = '';
   state.community.forEach((c) => {
     if (!c) {
-      const back = cardBackEl();
-      if (state.standNames.length) {
-        const names = document.createElement('div');
-        names.className = 'stand-names';
-        state.standNames.forEach((n) => {
-          const div = document.createElement('div');
-          div.textContent = n;
-          names.appendChild(div);
-        });
-        back.appendChild(names);
-      }
-      el.appendChild(back);
+      el.appendChild(cardBackEl());
     } else {
       el.appendChild(cardEl(c));
     }
@@ -564,7 +551,6 @@ function startNewRound() {
   state.raiseAmount = 0;
   state.deck = shuffle(createDeck());
   state.community = [];
-  state.standNames = [];
   state.players.forEach((p) => {
     p.hand = [];
     p.stood = false;
