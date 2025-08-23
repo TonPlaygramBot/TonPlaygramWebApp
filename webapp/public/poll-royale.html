@@ -211,32 +211,34 @@
       }
 
       #spinBox {
-        width: 60px;
-        height: 60px;
+        width: 70px;
+        height: 70px;
         border-radius: 50%;
         background: #f6f6f6;
         position: absolute;
         left: 50%;
-        top: 110%;
+        top: 120%;
         transform: translate(-50%, -50%);
         box-shadow:
           0 4px 10px rgba(0, 0, 0, 0.4) inset,
           0 0 0 2px rgba(0, 0, 0, 0.15);
         transform-origin: center;
-        z-index: 1;
+        z-index: 10;
         pointer-events: auto;
         touch-action: none;
+        cursor: pointer;
       }
 
       #spinDot {
         position: absolute;
-        width: 8px;
-        height: 8px;
+        width: 10px;
+        height: 10px;
         border-radius: 50%;
         background: #e63; /* pika e kuqe */
         left: 50%;
         top: 50%;
         transform: translate(-50%, -50%);
+        pointer-events: none;
       }
 
       #pullArea {
@@ -303,8 +305,8 @@
 
       #pullLabel {
         position: absolute;
-        bottom: -8px;
-        right: -8px;
+        bottom: 0;
+        right: -4px;
         left: auto;
         transform: none;
         font-size: 12px;
@@ -1884,7 +1886,7 @@
         }
 
         canvas.addEventListener('pointerdown', function (e) {
-          if (!table.running || table.isMoving()) return;
+          if (!table.running || table.isMoving() || table.turn === 2) return;
           var t = screenToTable(e.clientX, e.clientY);
           var cue = table.balls[0];
           var dist = Math.hypot(t.x - cue.p.x, t.y - cue.p.y);
@@ -1903,6 +1905,7 @@
         });
 
         canvas.addEventListener('pointermove', function (e) {
+          if (table.turn === 2) return;
           var t = screenToTable(e.clientX, e.clientY);
           var cue = table.balls[0];
           if (draggingCue && cueBallFree) {
@@ -1935,6 +1938,7 @@
         });
 
         canvas.addEventListener('pointerup', function () {
+          if (table.turn === 2) return;
           if (draggingCue) {
             draggingCue = false;
             var cue = table.balls[0];
@@ -2166,6 +2170,7 @@
           spinMoved = true;
         }
         spinBox.addEventListener('pointerdown', function (e) {
+          if (table.turn !== 1) return;
           spinMoved = false;
           spinBox.style.transform = 'translate(-50%, -50%) scale(1.4)';
           clearTimeout(spinTimer);
@@ -2177,10 +2182,11 @@
           }, 1500);
         });
         spinBox.addEventListener('pointermove', function (e) {
-          if (e.buttons !== 1) return;
+          if (table.turn !== 1 || e.buttons !== 1) return;
           updateSpin(e);
         });
         spinBox.addEventListener('pointerup', function () {
+          if (table.turn !== 1) return;
           clearTimeout(spinTimer);
           setTimeout(function () {
             spinBox.style.transform = 'translate(-50%, -50%) scale(1)';
@@ -2214,21 +2220,20 @@
           placeAimGlow(table.aim);
         }
         powerCue.addEventListener('pointerdown', function (e) {
-          if (!table.running || table.isMoving()) return;
+          if (!table.running || table.isMoving() || table.turn !== 1) return;
           pulling = true;
           pullMoved = false;
-          updateFromEvent(e);
           powerCue.setPointerCapture(e.pointerId);
         });
         powerCue.addEventListener('pointermove', function (e) {
-          if (!pulling) return;
+          if (!pulling || table.turn !== 1) return;
           pullMoved = true;
           updateFromEvent(e);
         });
         powerCue.addEventListener('pointerup', function () {
-          if (!pulling) return;
+          if (!pulling || table.turn !== 1) return;
           pulling = false;
-          if (pullMoved) shoot(power);
+          if (pullMoved && power > 0) shoot(power);
           power = 0;
           updatePowerUI();
           cuePullVisual = 0;
@@ -2493,17 +2498,28 @@
             if (Math.abs(cross) > 0.25) spinX = SPIN_SCALE * cross;
           }
 
-          table.aim = { x: cue.p.x + nd.x * 100, y: cue.p.y + nd.y * 100 };
+          var targetAim = { x: cue.p.x + nd.x * 100, y: cue.p.y + nd.y * 100 };
           setSpin(spinX, spinY);
-          cuePullVisual = power * (BALL_R * 14);
           showGuides = true;
-
-          setTimeout(function () {
-            cpuThinking = false;
-            shoot(power);
-            cuePullVisual = 0;
-            showGuides = false;
-          }, 7000);
+          var startAim = { x: table.aim.x, y: table.aim.y };
+          var step = 0,
+            steps = 30;
+          var aimInterval = setInterval(function () {
+            step++;
+            table.aim.x = startAim.x + (targetAim.x - startAim.x) * (step / steps);
+            table.aim.y = startAim.y + (targetAim.y - startAim.y) * (step / steps);
+            placeAimGlow(table.aim);
+            if (step >= steps) {
+              clearInterval(aimInterval);
+              cuePullVisual = power * (BALL_R * 14);
+              setTimeout(function () {
+                cpuThinking = false;
+                shoot(power);
+                cuePullVisual = 0;
+                showGuides = false;
+              }, 500);
+            }
+          }, 50);
         }
 
         /* ==========================================================
