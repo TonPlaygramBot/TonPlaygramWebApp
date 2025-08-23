@@ -296,7 +296,7 @@
         /* Align cue image with pull handle and power text along the right edge */
         left: calc(100% - 16px);
         top: 0;
-        transform: translate(-50%, 0);
+        transform: translate(-50%, 0) scaleY(1.2);
         transform-origin: top center;
         pointer-events: none;
         touch-action: none;
@@ -316,10 +316,10 @@
 
       #pullLabel {
         position: absolute;
-        top: 56%;
-        right: 4px;
+        right: 0;
         left: auto;
-        transform: translateY(-50%);
+        bottom: calc(100% + 8px);
+        transform: none;
         font-size: 12px;
         color: #fff;
         text-align: center;
