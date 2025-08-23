@@ -1,7 +1,10 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { linkGoogleAccount } from '../utils/api.js';
 
 export default function LinkGoogleButton({ telegramId, onLinked }) {
+  const [ready, setReady] = useState(false);
+  const initialized = useRef(false);
+
   useEffect(() => {
     function handleCredential(res) {
       try {
@@ -23,28 +26,46 @@ export default function LinkGoogleButton({ telegramId, onLinked }) {
       }
     }
 
-    function renderButton() {
-      if (window.google && import.meta.env.VITE_GOOGLE_CLIENT_ID) {
-        window.google.accounts.id.initialize({
-          client_id: import.meta.env.VITE_GOOGLE_CLIENT_ID,
-          callback: handleCredential
-        });
-        window.google.accounts.id.renderButton(
-          document.getElementById('link_google_button'),
-          { theme: 'outline', size: 'large' }
-        );
-        return true;
+    function init() {
+      if (
+        initialized.current ||
+        !window.google ||
+        !import.meta.env.VITE_GOOGLE_CLIENT_ID
+      ) {
+        return false;
       }
-      return false;
+      window.google.accounts.id.initialize({
+        client_id: import.meta.env.VITE_GOOGLE_CLIENT_ID,
+        callback: handleCredential,
+        ux_mode: 'popup'
+      });
+      initialized.current = true;
+      setReady(true);
+      return true;
     }
 
-    if (!renderButton()) {
+    if (!init()) {
       const id = setInterval(() => {
-        if (renderButton()) clearInterval(id);
+        if (init()) clearInterval(id);
       }, 500);
       return () => clearInterval(id);
     }
   }, [telegramId, onLinked]);
 
-  return <div id="link_google_button"></div>;
+  function handleClick() {
+    if (window.google && initialized.current) {
+      window.google.accounts.id.prompt();
+    }
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={handleClick}
+      disabled={!ready}
+      className="px-3 py-1 bg-white text-black rounded disabled:opacity-50"
+    >
+      Link Google
+    </button>
+  );
 }
