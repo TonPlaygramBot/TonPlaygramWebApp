@@ -24,7 +24,6 @@ const state = {
   currentBet: 0,
   awaitingCall: true,
   raiseInitiator: -1,
-  canRaise: false,
 };
 
 let myAccountId = '';
@@ -419,17 +418,6 @@ function render() {
     seats.appendChild(seat);
   });
   renderCommunity();
-
-  const raiseArea = document.getElementById('raiseContainer');
-  const sliderArea = document.querySelector('.slider-container');
-  const showRaise =
-    state.turn === 0 &&
-    state.awaitingCall &&
-    state.canRaise &&
-    raiseArea &&
-    sliderArea;
-  if (raiseArea) raiseArea.style.display = showRaise ? '' : 'none';
-  if (sliderArea) sliderArea.style.display = showRaise ? '' : 'none';
 }
 
 function aiRespondToRaise() {
@@ -559,7 +547,6 @@ function playerFold() {
   const p = state.players[0];
   p.bust = true;
   p.stood = true;
-  state.canRaise = false;
   clearCallTimer();
   render();
   nextTurn();
@@ -571,18 +558,9 @@ function playerCheck() {
 
 function playerCall() {
   clearCallTimer();
-  const p = state.players[state.turn];
-  const callAmt = Math.min(state.currentBet, p.balance || state.currentBet);
-  if (callAmt > 0) {
-    state.pot += callAmt;
-    p.balance -= callAmt;
-    animateChipsFromPlayer(state.turn, callAmt);
-    playCallRaise();
-    renderPot();
-  }
-  state.canRaise = true;
+  renderPot();
+  state.awaitingCall = false;
   render();
-  nextTurn();
 }
 
 function finish() {
@@ -675,7 +653,7 @@ function updateRaiseAmount() {
 }
 
 function commitRaise() {
-  if (!state.canRaise || state.raiseAmount <= 0) return;
+  if (state.raiseAmount <= 0) return;
   const p = state.players[state.turn];
   const raiseAmt = Math.min(state.raiseAmount, p.balance || state.raiseAmount);
   if (raiseAmt <= 0) return;
@@ -686,11 +664,8 @@ function commitRaise() {
   state.raiseAmount = 0;
   updateRaiseAmount();
   renderPot();
-  state.currentBet += raiseAmt;
-  state.raiseInitiator = state.turn;
-  state.awaitingCall = true;
-  state.canRaise = false;
-  nextTurn();
+  state.awaitingCall = false;
+  render();
 }
 
 async function startNewRound() {
@@ -700,7 +675,6 @@ async function startNewRound() {
   state.currentBet = 0;
   state.awaitingCall = true;
   state.raiseInitiator = -1;
-  state.canRaise = false;
   clearCallTimer();
   state.deck = shuffle(createDeck());
   state.community = [];
