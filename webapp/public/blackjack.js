@@ -390,7 +390,11 @@ function render() {
         callBtn.id = 'call';
         callBtn.textContent = 'Call';
         callBtn.addEventListener('click', playerCall);
-        controls.append(foldBtn, callBtn);
+        const raiseBtn = document.createElement('button');
+        raiseBtn.id = 'raise';
+        raiseBtn.textContent = 'Raise';
+        raiseBtn.addEventListener('click', commitRaise);
+        controls.append(foldBtn, callBtn, raiseBtn);
         seat.append(inner, bal, controls);
       } else {
         seat.append(inner, bal);
@@ -427,9 +431,6 @@ function aiRespondToRaise() {
   if (act === 'fold') {
     p.bust = true;
     p.stood = true;
-    state.awaitingCall = false;
-    state.currentBet = 0;
-    state.raiseInitiator = -1;
     render();
     nextTurn();
     return;
@@ -447,27 +448,36 @@ function aiRespondToRaise() {
     animateChipsFromPlayer(state.turn, raiseAmt);
     playCallRaise();
     state.currentBet = callAmt + raiseAmt;
-    state.awaitingCall = true;
     state.raiseInitiator = state.turn;
-    state.turn = 0;
     render();
-    startCallTimer();
+    nextTurn();
     return;
   }
-  state.awaitingCall = false;
-  state.currentBet = 0;
-  state.raiseInitiator = -1;
-  delay(aiTurn, 500);
+  render();
+  nextTurn();
 }
 
 function nextTurn() {
-  state.turn++;
-  if (state.turn >= state.players.length) {
-    finish();
-    return;
-  }
-  const p = state.players[state.turn];
   if (state.awaitingCall) {
+    do {
+      state.turn = (state.turn + 1) % state.players.length;
+      const p = state.players[state.turn];
+      if (!p.bust) break;
+    } while (state.turn !== state.raiseInitiator);
+
+    if (state.turn === state.raiseInitiator) {
+      state.awaitingCall = false;
+      state.currentBet = 0;
+      state.raiseInitiator = -1;
+      const p = state.players[state.turn];
+      if (!p.isHuman) {
+        delay(aiTurn, 500);
+      }
+      render();
+      return;
+    }
+
+    const p = state.players[state.turn];
     if (p.isHuman) {
       startCallTimer();
       render();
@@ -476,6 +486,13 @@ function nextTurn() {
     }
     return;
   }
+
+  state.turn++;
+  if (state.turn >= state.players.length) {
+    finish();
+    return;
+  }
+  const p = state.players[state.turn];
   if (!p.isHuman) {
     delay(aiTurn, 500);
   }
@@ -535,9 +552,6 @@ function playerFold() {
   const p = state.players[0];
   p.bust = true;
   p.stood = true;
-  state.awaitingCall = false;
-  state.currentBet = 0;
-  state.raiseInitiator = -1;
   clearCallTimer();
   render();
   nextTurn();
@@ -556,12 +570,10 @@ function playerCall() {
     animateChipsFromPlayer(state.turn, amt);
     playCallRaise();
   }
-  state.currentBet = 0;
-  state.awaitingCall = false;
-  state.raiseInitiator = -1;
   clearCallTimer();
   renderPot();
   render();
+  nextTurn();
 }
 
 function finish() {
@@ -694,6 +706,7 @@ function commitRaise() {
   state.raiseInitiator = state.turn;
   clearCallTimer();
   render();
+  nextTurn();
 }
 
 async function startNewRound() {
@@ -958,10 +971,10 @@ function aiBettingRound() {
       state.currentBet = amt;
       state.awaitingCall = true;
       state.raiseInitiator = i;
-      state.turn = 0;
+      state.turn = i;
       renderPot();
       render();
-      startCallTimer();
+      nextTurn();
       return;
     } else if (act === 'fold') {
       p.bust = true;
