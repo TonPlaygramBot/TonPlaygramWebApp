@@ -58,8 +58,9 @@ function PrizeItem({ value }) {
 export default function CardSpinner({ trigger = 0, onFinish }) {
   const [items, setItems] = useState([]);
   const [offset, setOffset] = useState(0);
-  const [itemWidth, setItemWidth] = useState(0);
+  const [itemHeight, setItemHeight] = useState(0);
   const spinSoundRef = useRef(null);
+  const successSoundRef = useRef(null);
   const containerRef = useRef(null);
 
   useEffect(() => {
@@ -67,8 +68,12 @@ export default function CardSpinner({ trigger = 0, onFinish }) {
     spinSoundRef.current.preload = 'auto';
     spinSoundRef.current.loop = true;
     spinSoundRef.current.volume = getGameVolume();
+    successSoundRef.current = new Audio('/assets/sounds/successful.mp3');
+    successSoundRef.current.preload = 'auto';
+    successSoundRef.current.volume = getGameVolume();
     const handler = () => {
       if (spinSoundRef.current) spinSoundRef.current.volume = getGameVolume();
+      if (successSoundRef.current) successSoundRef.current.volume = getGameVolume();
     };
     window.addEventListener('gameVolumeChanged', handler);
     return () => {
@@ -79,8 +84,8 @@ export default function CardSpinner({ trigger = 0, onFinish }) {
 
   useEffect(() => {
     if (!trigger) return;
-    const width = containerRef.current?.clientWidth || 0;
-    setItemWidth(width);
+    const height = containerRef.current?.clientHeight || 0;
+    setItemHeight(height);
     const base = [
       ...numericSegments,
       'FREE_SPIN',
@@ -98,30 +103,33 @@ export default function CardSpinner({ trigger = 0, onFinish }) {
     setOffset(0);
     spinSoundRef.current?.play().catch(() => {});
     requestAnimationFrame(() => {
-      setOffset(-((arr.length - 1) * width));
+      setOffset(-((arr.length - 1) * height));
     });
     const timeout = setTimeout(() => {
       spinSoundRef.current?.pause();
+      successSoundRef.current?.play().catch(() => {});
       onFinish(finalReward);
-    }, 4000);
+    }, 3000);
     return () => clearTimeout(timeout);
   }, [trigger, onFinish]);
 
   return (
-    <div ref={containerRef} className="absolute inset-0 overflow-hidden rounded-md bg-white">
-      <div
-        className="transition-transform duration-[4000ms] ease-out flex flex-row h-full"
-        style={{ transform: `translateX(${offset}px)` }}
-      >
-        {items.map((val, i) => (
-          <div
-            key={i}
-            className="h-full flex flex-col items-center justify-center"
-            style={{ width: `${itemWidth}px` }}
-          >
-            <PrizeItem value={val} />
-          </div>
-        ))}
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
+      <div ref={containerRef} className="overflow-hidden rounded-md bg-white" style={{ height: '160px', width: '80px' }}>
+        <div
+          className="transition-transform duration-[3000ms] ease-out flex flex-col"
+          style={{ transform: `translateY(${offset}px)` }}
+        >
+          {items.map((val, i) => (
+            <div
+              key={i}
+              className="flex flex-col items-center justify-center"
+              style={{ height: `${itemHeight}px` }}
+            >
+              <PrizeItem value={val} />
+            </div>
+          ))}
+        </div>
       </div>
     </div>
   );
