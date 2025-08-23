@@ -1,12 +1,12 @@
 import { useState, useEffect } from 'react';
 import DiceRoller from './DiceRoller.jsx';
-import RewardPopup from './RewardPopup.tsx';
 import AdModal from './AdModal.tsx';
 import CardSpinner from './CardSpinner.jsx';
-import WinningCardPopup from './WinningCardPopup.jsx';
 import { getTelegramId } from '../utils/telegram.js';
 import LoginOptions from './LoginOptions.jsx';
 import { getWalletBalance, updateBalance, addTransaction } from '../utils/api.js';
+import coinConfetti from '../utils/coinConfetti';
+import { getGameVolume } from '../utils/sound.js';
 
 const todayKey = () => new Date().toISOString().slice(0, 10);
 
@@ -19,9 +19,6 @@ export default function LuckyNumber() {
   }
 
   const [selected, setSelected] = useState(null);
-  const [reward, setReward] = useState(null);
-  const [pendingPrize, setPendingPrize] = useState(null);
-  const [winningCard, setWinningCard] = useState(null);
   const [cardPrize, setCardPrize] = useState(null);
   const [spinTrigger, setSpinTrigger] = useState(0);
   const [canRoll, setCanRoll] = useState(false);
@@ -108,13 +105,19 @@ export default function LuckyNumber() {
       window.dispatchEvent(new Event('bonusX3Awarded'));
       document.getElementById('spin-game')?.scrollIntoView({ behavior: 'smooth' });
     }
-    setPendingPrize(finalPrize);
-    setWinningCard(cards[selected]);
-  };
 
-  const handleWinningCardClose = () => {
-    setWinningCard(null);
-    setReward(pendingPrize);
+    let icon = '/assets/icons/ezgif-54c96d8a9b9236.webp';
+    if (finalPrize === 'BONUS_X3') {
+      icon = '/assets/icons/file_00000000ead061faa3b429466e006f48.webp';
+    } else if (finalPrize === 'FREE_SPIN') {
+      icon = '/assets/icons/file_00000000ae68620a96d269fe76d158e5_256x256.webp';
+    }
+    coinConfetti(50, icon);
+    const audio = new Audio(
+      '/assets/sounds/11l-victory_sound_with_t-1749487412779-357604.mp3'
+    );
+    audio.volume = getGameVolume();
+    audio.play().catch(() => {});
   };
 
   const handleRollClick = () => {
@@ -377,16 +380,6 @@ export default function LuckyNumber() {
         open={showAd}
         onComplete={handleAdComplete}
         onClose={() => setShowAd(false)}
-      />
-      <WinningCardPopup card={winningCard} onClose={handleWinningCardClose} />
-      <RewardPopup
-        reward={reward}
-        onClose={() => {
-          setReward(null);
-          setSelected(null);
-          setCardPrize(null);
-          setPendingPrize(null);
-        }}
       />
     </div>
   );
