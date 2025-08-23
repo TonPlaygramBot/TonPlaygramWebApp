@@ -393,26 +393,7 @@ function render() {
         controls.append(foldBtn, callBtn);
         seat.append(inner, bal, controls);
       } else {
-        const controls = document.createElement('div');
-        controls.className = 'controls';
-        controls.id = 'controls';
-        const foldBtn = document.createElement('button');
-        foldBtn.id = 'fold';
-        foldBtn.textContent = 'Fold';
-        foldBtn.addEventListener('click', playerFold);
-        const callBtn = document.createElement('button');
-        callBtn.id = 'call';
-        callBtn.textContent = 'Call';
-        callBtn.addEventListener('click', playerCall);
-        controls.append(foldBtn, callBtn);
-        if (!state.awaitingCall && state.currentBet === 0) {
-          const checkBtn = document.createElement('button');
-          checkBtn.id = 'check';
-          checkBtn.textContent = 'Check';
-          checkBtn.addEventListener('click', playerCheck);
-          controls.append(checkBtn);
-        }
-        seat.append(inner, bal, controls);
+        seat.append(inner, bal);
       }
     } else {
       seat.append(inner, bal);
