@@ -303,12 +303,23 @@
         z-index: 6;
       }
 
+      #powerBg {
+        position: absolute;
+        left: calc(100% - 16px);
+        top: 0;
+        transform: translate(-50%, 0);
+        background: linear-gradient(to bottom, #facc15, #dc2626);
+        border-radius: 6px;
+        pointer-events: none;
+        z-index: 5;
+      }
+
       #pullLabel {
         position: absolute;
-        bottom: 36px;
+        top: 52%;
         right: 4px;
         left: auto;
-        transform: none;
+        transform: translateY(-50%);
         font-size: 12px;
         color: #fff;
         text-align: center;
@@ -491,6 +502,7 @@
         <!-- Panel djathtas: vetem slideri i fuqise -->
         <aside id="rightPanel">
           <div id="pullArea">
+            <div id="powerBg"></div>
             <img
               id="powerCue"
               src="/assets/icons/file_0000000019d86243a2f7757076cd7869.webp"
@@ -637,6 +649,7 @@
         var powerTxt = document.getElementById('powerTxt');
         var powerPercent = document.getElementById('powerPercent');
         var powerCue = document.getElementById('powerCue');
+        var powerBg = document.getElementById('powerBg');
         var pullHandle = document.getElementById('pullLabel');
 
         var avatarP1 = document.querySelector(
@@ -1251,6 +1264,10 @@
               if (Math.hypot(ddx, ddy) < POCKET_R * 0.9) {
                 var spd = Math.hypot(b2.v.x, b2.v.y);
                 playPocket(clamp(spd / 4000, 0, 1));
+                if (!shotPocketRecorded) {
+                  lastPocketCenter = { x: p.x, y: p.y };
+                  shotPocketRecorded = true;
+                }
                 if (b2.n === 0) {
                   scratch = true;
                   foulShown = true;
@@ -1429,7 +1446,7 @@
           // Steka mbi felt + guida
           if (!this.isMoving() && this.balls[0] && !this.balls[0].pocketed) {
             drawCueOnTable(this.balls[0].p, this.aim, cuePullVisual);
-            if (showGuides) drawGuides(this.balls[0], this.aim);
+          if (showGuides) drawGuides(this.balls[0], calibrated(this.aim));
           }
         };
 
@@ -1513,6 +1530,15 @@
         var pottedThisShot = [];
         var eightBallPotted = false;
         var nineBallPotted = false;
+        var aimCalibration = { x: 0, y: 0 };
+        var lastShotAim = null;
+        var lastPocketCenter = null;
+        var shotPocketRecorded = false;
+        var shotsLog = [];
+
+        function calibrated(pt) {
+          return { x: pt.x + aimCalibration.x, y: pt.y + aimCalibration.y };
+        }
 
         function remainingPoints() {
           var sum = 0;
@@ -1835,6 +1861,20 @@
               setTimeout(showTurnInfo, 1500);
             }
           }
+          if (lastShotAim && lastPocketCenter) {
+            var dx = lastPocketCenter.x - lastShotAim.x;
+            var dy = lastPocketCenter.y - lastShotAim.y;
+            aimCalibration.x += dx * 0.1;
+            aimCalibration.y += dy * 0.1;
+            shotsLog.push({
+              aim: lastShotAim,
+              pocket: lastPocketCenter,
+              offset: { x: dx, y: dy }
+            });
+            console.log('Calibration update', aimCalibration);
+            lastShotAim = null;
+            lastPocketCenter = null;
+          }
           pottedThisShot = [];
           pocketedAny = false;
           pocketedOwn = false;
@@ -1914,7 +1954,7 @@
           aimMoved = false;
           showGuides = true;
           table.aim = t;
-          placeAimGlow(t);
+          placeAimGlow(calibrated(t));
         });
 
         canvas.addEventListener('pointermove', function (e) {
@@ -1946,7 +1986,7 @@
           if (!aiming || !table.running) return;
           table.aim.x += (t.x - table.aim.x) * 0.2;
           table.aim.y += (t.y - table.aim.y) * 0.2;
-          placeAimGlow(table.aim);
+          placeAimGlow(calibrated(table.aim));
           aimMoved = true;
         });
 
@@ -2218,6 +2258,9 @@
           var maxY = rect.height - powerCue.offsetHeight * 0.4;
           var y = minY + (maxY - minY) * power;
           powerCue.style.top = y + 'px';
+          powerBg.style.width = powerCue.offsetWidth + 'px';
+          powerBg.style.height = powerCue.offsetHeight + 'px';
+          powerBg.style.top = minY + 'px';
         }
         function updatePowerUI() {
           powerFill.style.height = Math.round(power * 100) + '%';
@@ -2230,7 +2273,7 @@
           power = clamp((e.clientY - rect.top) / rect.height, 0, 1);
           updatePowerUI();
           cuePullVisual = power * (BALL_R * 14);
-          placeAimGlow(table.aim);
+          placeAimGlow(calibrated(table.aim));
         }
         pullHandle.addEventListener('pointerdown', function (e) {
           if (!table.running || table.isMoving() || table.turn !== 1) return;
@@ -2258,7 +2301,10 @@
           if (!table.running || table.isMoving()) return;
           var cue = table.balls[0];
           if (!cue || cue.pocketed) return;
-          var d = norm(table.aim.x - cue.p.x, table.aim.y - cue.p.y);
+          var aimPoint = calibrated(table.aim);
+          var d = norm(aimPoint.x - cue.p.x, aimPoint.y - cue.p.y);
+          lastShotAim = { x: aimPoint.x, y: aimPoint.y };
+          shotPocketRecorded = false;
           var base = 950 * 3 * 1.6 * 1.5 * 0.75; // 25% reduced power
           playCueHit(p);
           currentShooter = table.turn;
@@ -2437,13 +2483,13 @@
           var nd, power, chosen;
           if (best) {
             nd = best.nd;
-            power = 0.5;
+            power = Math.min(0.8, Math.max(0.4, best.dist / 800));
             chosen = best.target;
           } else {
             var bank = findBankShot(targets);
             if (bank) {
               nd = bank.nd;
-              power = 0.5;
+              power = 0.55;
               chosen = bank.target;
             } else {
               chosen = targets[Math.floor(Math.random() * targets.length)];
@@ -2474,7 +2520,7 @@
           }
 
           // apply improved potting accuracy
-          var ACCURACY = 0.995;
+          var ACCURACY = 0.998;
           nd = {
             x: nd.x + (Math.random() - 0.5) * (1 - ACCURACY),
             y: nd.y + (Math.random() - 0.5) * (1 - ACCURACY)
@@ -2517,7 +2563,7 @@
           showGuides = true;
           table.aim.x = targetAim.x;
           table.aim.y = targetAim.y;
-          placeAimGlow(table.aim);
+          placeAimGlow(calibrated(table.aim));
           cuePullVisual = power * (BALL_R * 14);
           setTimeout(function () {
             cpuThinking = false;
