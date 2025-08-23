@@ -204,7 +204,7 @@
         align-items: flex-end;
         justify-content: flex-end;
         gap: 8px;
-        padding: 12px 0 12px 8px;
+        padding: 12px 0 0 8px;
         z-index: 10;
         /* Capture touches so shots aren't triggered from the panel */
         pointer-events: auto;
@@ -274,7 +274,7 @@
       #powerBox {
         width: 12px;
         height: 23%;
-        background: rgba(0, 0, 0, 0.4);
+        background: none;
         border-radius: 9px;
         position: relative;
         overflow: hidden;
@@ -308,7 +308,7 @@
         left: calc(100% - 16px);
         top: 0;
         transform: translate(-50%, 0);
-        background: linear-gradient(to bottom, #facc15, #dc2626);
+        background: none;
         border-radius: 6px;
         pointer-events: none;
         z-index: 5;
@@ -316,7 +316,7 @@
 
       #pullLabel {
         position: absolute;
-        top: 52%;
+        top: 56%;
         right: 4px;
         left: auto;
         transform: translateY(-50%);
@@ -335,10 +335,11 @@
         background: none;
         cursor: pointer;
         touch-action: none;
+        z-index: 8;
       }
 
       #powerTxt {
-        margin-top: 9px;
+        margin-top: 0;
         font-size: 15px;
         opacity: 0.85;
         display: flex;
@@ -2305,7 +2306,8 @@
           var d = norm(aimPoint.x - cue.p.x, aimPoint.y - cue.p.y);
           lastShotAim = { x: aimPoint.x, y: aimPoint.y };
           shotPocketRecorded = false;
-          var base = 950 * 3 * 1.6 * 1.5 * 0.75; // 25% reduced power
+          var base = 950 * 3 * 1.6 * 1.5;
+          base *= 0.75; // 25% reduced power
           playCueHit(p);
           currentShooter = table.turn;
           if (isAmerican || isNineBall) currentTarget = lowestBallOnTable();
