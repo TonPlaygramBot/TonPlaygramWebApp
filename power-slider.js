@@ -32,6 +32,9 @@ export class PowerSlider {
 
     this.track = document.createElement('div');
     this.track.className = 'ps-track';
+    this.trackFill = document.createElement('div');
+    this.trackFill.className = 'ps-track-fill';
+    this.track.appendChild(this.trackFill);
     this.el.appendChild(this.track);
 
     this.handle = document.createElement('div');
@@ -143,6 +146,8 @@ export class PowerSlider {
     this.handle.style.transform = `translate(0, ${y}px)`;
     const ttH = this.tooltip.offsetHeight;
     this.tooltip.style.transform = `translate(0, ${y - ttH - 8}px)`;
+    this.trackFill.style.height = `${ratio * 100}%`;
+    this.track.style.opacity = ratio > 0 ? 1 : 0;
     this._updateHandleColor(ratio);
     this.tooltip.textContent = `${Math.round(this.value)}%`;
     this.el.setAttribute('aria-valuenow', String(Math.round(this.value)));
@@ -157,10 +162,7 @@ export class PowerSlider {
     const g = Math.round(low.g + (high.g - low.g) * ratio);
     const b = Math.round(low.b + (high.b - low.b) * ratio);
     const color = `rgb(${r},${g},${b})`;
-    const lowColor = `rgb(${low.r},${low.g},${low.b})`;
-    const pct = ratio * 100;
     this.handle.style.background = color;
-    this.track.style.background = `linear-gradient(to bottom, ${lowColor} 0%, ${color} ${pct}%, var(--ps-track-bg) ${pct}%, var(--ps-track-bg) 100%)`;
   }
 
   _updateFromClientY(y) {
