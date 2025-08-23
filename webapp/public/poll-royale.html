@@ -206,6 +206,8 @@
         gap: 8px;
         padding: 12px 0 12px 8px;
         z-index: 10;
+        /* Allow clicks outside interactive elements to reach the table */
+        pointer-events: none;
       }
 
       #spinBox {
@@ -222,6 +224,7 @@
           0 0 0 2px rgba(0, 0, 0, 0.15);
         transform-origin: center;
         z-index: 1;
+        pointer-events: auto;
       }
 
       #spinDot {
@@ -237,7 +240,7 @@
 
       #pullArea {
         position: relative;
-        width: 110px;
+        width: 60px;
         height: 67%;
         border-radius: 16px;
         background: none;
@@ -245,16 +248,18 @@
         display: flex;
         align-items: center;
         justify-content: center;
-        padding: 9px;
+        padding: 9px 0;
         /* Allow the handle to overflow so only half of it is visible */
         overflow: visible;
         z-index: 7;
+        pointer-events: auto;
       }
 
       #cueRail {
         position: absolute;
-        left: 50%;
-        transform: translateX(-50%);
+        right: 8px;
+        left: auto;
+        transform: none;
         width: 12px;
         height: calc(100% - 28px);
         background: none;
@@ -1873,10 +1878,12 @@
             cueHint.style.display = 'none';
             return;
           }
-          if (!onAimLine(t)) return;
+          // Allow aiming by clicking anywhere on the table
           aiming = true;
           aimMoved = false;
           showGuides = true;
+          table.aim = t;
+          placeAimGlow(t);
         });
 
         canvas.addEventListener('pointermove', function (e) {
@@ -2153,7 +2160,8 @@
           pullMoved = false;
         function updatePullHandle() {
           var rect = pullArea.getBoundingClientRect();
-          var minY = -powerCue.offsetHeight * 0.6;
+          // Move the cue handle lower so it doesn't overlap the table
+          var minY = -powerCue.offsetHeight * 0.3;
           var maxY = rect.height - powerCue.offsetHeight * 0.4;
           var y = minY + (maxY - minY) * power;
           powerCue.style.top = y + 'px';
