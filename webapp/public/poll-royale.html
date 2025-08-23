@@ -551,32 +551,9 @@
     <div id="rulesModal" class="hidden" role="dialog" aria-modal="true">
       <div class="rules-content">
         <button id="closeRules" aria-label="Close">✖</button>
-        <h2>8 Ball UK Rules</h2>
-        <ul>
-          <li>
-            Rack with the black in the middle. A legal break pots a ball or
-            drives two balls to cushions.
-          </li>
-          <li>
-            Groups (red or yellow) are claimed by the first player to pot a ball
-            after the break.
-          </li>
-          <li>
-            On each shot hit one of your balls first and either pot a ball or
-            make any ball reach a cushion.
-          </li>
-          <li>
-            Fouls—such as potting the cue ball, striking the opponent's ball
-            first or no cushion contact—give the opponent two visits.
-          </li>
-          <li>
-            Clear your group then pot the black cleanly to win. Potting the
-            black early or on a foul loses the frame.
-          </li>
-        </ul>
-        <p class="rule-source">
-          Rules based on World Eightball Pool Federation guidelines.
-        </p>
+        <h2 id="rulesTitle"></h2>
+        <ul id="rulesList"></ul>
+        <p class="rule-source" id="rulesSource"></p>
       </div>
     </div>
 
@@ -2618,8 +2595,51 @@
       const rulesBtn = document.getElementById('rulesBtn');
       const rulesModal = document.getElementById('rulesModal');
       const closeRules = document.getElementById('closeRules');
+      const rulesTitle = document.getElementById('rulesTitle');
+      const rulesList = document.getElementById('rulesList');
+      const rulesSource = document.getElementById('rulesSource');
+
+      const ruleSets = {
+        uk: {
+          title: '8 Ball UK Rules',
+          items: [
+            'Rack with the black in the middle. A legal break pots a ball or drives two balls to cushions.',
+            'Groups (red or yellow) are claimed by the first player to pot a ball after the break.',
+            'On each shot hit one of your balls first and either pot a ball or make any ball reach a cushion.',
+            "Fouls—such as potting the cue ball, striking the opponent's ball first or no cushion contact—give the opponent two visits.",
+            'Clear your group then pot the black cleanly to win. Potting the black early or on a foul loses the frame.'
+          ],
+          source: 'Rules based on World Eightball Pool Federation guidelines.'
+        },
+        american: {
+          title: 'American 8-Ball Rules',
+          items: [
+            'Rack with the 8-ball in the center. A legal break pockets a ball or drives four balls to cushions.',
+            'Table is open after the break; groups are assigned when a player legally pots a ball.',
+            'Shoot your group first and either pocket a ball or drive any ball to a cushion.',
+            'Scratching or failing to hit your group first is a foul and gives ball-in-hand to the opponent.',
+            'After clearing your group, pot the 8-ball without fouling to win.'
+          ],
+          source: 'Simplified World Pool-Billiard Association 8-ball rules.'
+        },
+        '9ball': {
+          title: 'Nine Ball Rules',
+          items: [
+            'Balls are racked in a diamond with the 1 at the top and the 9 in the center.',
+            'Always strike the lowest numbered ball on the table first.',
+            'Combinations are allowed provided the lowest ball is struck first.',
+            'Legally pocketing the 9-ball at any time wins the rack.',
+            'Scratching gives the opponent ball-in-hand.'
+          ],
+          source: 'Based on World Pool-Billiard Association Nine-ball rules.'
+        }
+      };
 
       rulesBtn.addEventListener('click', () => {
+        const r = ruleSets[variant] || ruleSets.uk;
+        rulesTitle.textContent = r.title;
+        rulesList.innerHTML = r.items.map(i => `<li>${i}</li>`).join('');
+        rulesSource.textContent = r.source;
         rulesModal.classList.remove('hidden');
       });
 
