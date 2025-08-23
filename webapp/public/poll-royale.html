@@ -262,29 +262,6 @@
         box-shadow: none;
       }
 
-      #pullHandle {
-        position: absolute;
-        /* Position the pull button so that it's half outside the panel */
-        left: calc(100% - 5px);
-        transform: translate(-50%, -2px);
-        width: 58px;
-        height: 58px;
-        border-radius: 50%;
-        background: #fff;
-        color: #111;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-weight: 700;
-        font-size: 16px;
-        padding-left: 1px;
-        box-shadow: none;
-        user-select: none;
-        opacity: 1;
-        visibility: visible;
-        z-index: 8;
-      }
-
       #powerBox {
         width: 12px;
         height: 23%;
@@ -308,11 +285,11 @@
       #powerCue {
         position: absolute;
         /* Align cue image with pull handle and power text along the right edge */
-        left: calc(100% - 6px);
+        left: calc(100% - 8px);
         top: 0;
         transform: translate(-50%, 0);
         transform-origin: top center;
-        pointer-events: none;
+        pointer-events: auto;
         z-index: 6;
       }
 
@@ -487,7 +464,6 @@
               alt="Cue"
             />
             <div id="cueRail"></div>
-            <div id="pullHandle">PULL</div>
           </div>
 
           <div
@@ -627,7 +603,6 @@
         var powerTxt = document.getElementById('powerTxt');
         var powerPercent = document.getElementById('powerPercent');
         var powerCue = document.getElementById('powerCue');
-        var pullHandle = document.getElementById('pullHandle');
 
         var avatarP1 = document.querySelector(
           '#header .player:first-child .avatar'
@@ -2178,11 +2153,10 @@
           pullMoved = false;
         function updatePullHandle() {
           var rect = pullArea.getBoundingClientRect();
-          var minY = -pullHandle.offsetHeight * 0.6;
-          var maxY = rect.height - pullHandle.offsetHeight * 0.4;
+          var minY = -powerCue.offsetHeight * 0.6;
+          var maxY = rect.height - powerCue.offsetHeight * 0.4;
           var y = minY + (maxY - minY) * power;
-          pullHandle.style.top = y + 'px';
-          powerCue.style.top = y + pullHandle.offsetHeight + 10 + 'px';
+          powerCue.style.top = y + 'px';
         }
         function updatePowerUI() {
           powerFill.style.height = Math.round(power * 100) + '%';
@@ -2197,11 +2171,12 @@
           cuePullVisual = power * (BALL_R * 14);
           placeAimGlow(table.aim);
         }
-        pullHandle.addEventListener('pointerdown', function (e) {
+        powerCue.addEventListener('pointerdown', function (e) {
           if (!table.running || table.isMoving()) return;
           pulling = true;
           pullMoved = false;
           updateFromEvent(e);
+          pullArea.setPointerCapture(e.pointerId);
         });
         pullArea.addEventListener('pointermove', function (e) {
           if (!pulling) return;
