@@ -430,22 +430,25 @@ function aiRespondToRaise() {
     nextTurn();
     return;
   }
-  const callAmt = Math.min(state.currentBet, p.balance || state.currentBet);
-  state.pot += callAmt;
-  p.balance = (p.balance || 0) - callAmt;
-  animateChipsFromPlayer(state.turn, callAmt);
+  const callAmt = Math.max(0, state.currentBet - (p.bet || 0));
+  const callPay = Math.min(callAmt, p.balance || callAmt);
+  state.pot += callPay;
+  p.balance -= callPay;
+  p.bet = (p.bet || 0) + callPay;
+  animateChipsFromPlayer(state.turn, callPay);
   playCallRaise();
   renderPot();
   if (act === 'raise') {
-    const raiseAmt = Math.min(callAmt, p.balance || callAmt);
+    const raiseAmt = Math.min(state.currentBet, p.balance || state.currentBet);
     state.pot += raiseAmt;
     p.balance -= raiseAmt;
+    p.bet += raiseAmt;
+    state.currentBet = p.bet;
+    state.raiseInitiator = state.turn;
     animateChipsFromPlayer(state.turn, raiseAmt);
     playCallRaise();
-    state.currentBet = callAmt + raiseAmt;
-    state.raiseInitiator = state.turn;
-    render();
-    delay(aiTurn, 500);
+    renderPot();
+    nextTurn();
     return;
   }
   render();
@@ -558,6 +561,15 @@ function playerCheck() {
 
 function playerCall() {
   clearCallTimer();
+  const p = state.players[state.turn];
+  if (!p) return;
+  const callAmt = Math.max(0, state.currentBet - (p.bet || 0));
+  const pay = Math.min(callAmt, p.balance || callAmt);
+  state.pot += pay;
+  p.balance -= pay;
+  p.bet = (p.bet || 0) + pay;
+  animateChipsFromPlayer(state.turn, pay);
+  playCallRaise();
   renderPot();
   state.awaitingCall = false;
   render();
@@ -653,19 +665,24 @@ function updateRaiseAmount() {
 }
 
 function commitRaise() {
-  if (state.raiseAmount <= 0) return;
   const p = state.players[state.turn];
-  const raiseAmt = Math.min(state.raiseAmount, p.balance || state.raiseAmount);
-  if (raiseAmt <= 0) return;
-  state.pot += raiseAmt;
-  p.balance -= raiseAmt;
-  animateChipsFromPlayer(state.turn, raiseAmt);
+  if (!p) return;
+  const callAmt = Math.max(0, state.currentBet - (p.bet || 0));
+  const totalNeeded = callAmt + state.raiseAmount;
+  const pay = Math.min(totalNeeded, p.balance || totalNeeded);
+  if (pay <= 0) return;
+  state.pot += pay;
+  p.balance -= pay;
+  p.bet = (p.bet || 0) + pay;
+  state.currentBet = p.bet;
+  state.raiseInitiator = state.turn;
+  animateChipsFromPlayer(state.turn, pay);
   playCallRaise();
   state.raiseAmount = 0;
   updateRaiseAmount();
   renderPot();
-  state.awaitingCall = false;
-  render();
+  state.awaitingCall = true;
+  nextTurn();
 }
 
 async function startNewRound() {
@@ -683,12 +700,16 @@ async function startNewRound() {
     p.stood = false;
     p.bust = false;
     p.revealed = false;
+    p.bet = 0;
   });
 
   await loadAccountBalance();
   state.players.forEach((p) => {
     p.balance = (p.balance || 0) - state.stake;
+    p.bet = state.stake;
   });
+  state.currentBet = state.stake;
+  state.raiseInitiator = 0;
   state.pot = state.stake * state.players.length;
 
   // show cleared table before dealing new cards
@@ -758,7 +779,10 @@ async function init() {
   await loadAccountBalance();
   state.players.forEach((p) => {
     p.balance = (p.balance || 0) - state.stake;
+    p.bet = state.stake;
   });
+  state.currentBet = state.stake;
+  state.raiseInitiator = 0;
   state.pot = state.stake * state.players.length;
   state.deck = shuffle(createDeck());
 
