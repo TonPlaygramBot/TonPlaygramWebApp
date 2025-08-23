@@ -581,6 +581,8 @@ function cardBackEl() {
 function setupFlopBacks() {
   const comm = document.getElementById('community');
   if (!comm) return;
+  // ensure no residual text such as player names remain on the first community card
+  comm.textContent = '';
   comm.innerHTML = '';
   for (let i = 0; i < 3; i++) comm.appendChild(cardBackEl());
 }
@@ -936,7 +938,11 @@ function showControls() {
     .forEach((chip) => (chip.style.pointerEvents = 'auto'));
 
   const checkBtn = document.getElementById('check');
-  if (checkBtn) checkBtn.disabled = state.currentBet > 0;
+  if (checkBtn) {
+    const hide = state.currentBet > 0;
+    checkBtn.disabled = hide;
+    checkBtn.style.display = hide ? 'none' : '';
+  }
 
   const maxAllowed = Math.min(
     state.stake,
@@ -1076,6 +1082,8 @@ function playerFold() {
 }
 
 function playerCheck() {
+  // disallow checking when there is an outstanding bet
+  if (state.currentBet > 0) return;
   setActionText(0, 'check');
   setStatus('check', 'You check');
   proceedStage();
@@ -1291,7 +1299,7 @@ async function showdown() {
     }
   }
   // Show winning cards briefly before starting a new hand
-  setTimeout(() => init(), 3000);
+  setTimeout(() => init(), 5000);
 }
 
 document.getElementById('lobbyIcon')?.addEventListener('click', () => {
