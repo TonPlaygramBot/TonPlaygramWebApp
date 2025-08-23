@@ -70,12 +70,23 @@ async function loadAccountBalance() {
         if (p.isHuman) p.balance = res.balance;
       });
       render();
+      updateBalanceDisplay();
     }
   } catch {}
 }
 
 function formatAmount(amount) {
   return `${amount} ${TPC_ICON_HTML}`;
+}
+
+function updateBalanceDisplay() {
+  const el = document.getElementById('tpcTotal');
+  const totalDiv = el ? el.closest('.tpc-total') : null;
+  if (el) el.textContent = state.accountBalance;
+  if (totalDiv) {
+    if (state.accountBalance >= 100000) totalDiv.classList.add('small');
+    else totalDiv.classList.remove('small');
+  }
 }
 
 const DEFAULT_SETTINGS = {
@@ -429,6 +440,7 @@ function render() {
     }
     seats.appendChild(seat);
   });
+  updateBalanceDisplay();
   renderCommunity();
 }
 
