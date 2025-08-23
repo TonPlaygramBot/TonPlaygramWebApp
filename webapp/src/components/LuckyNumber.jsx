@@ -26,7 +26,7 @@ export default function LuckyNumber() {
   const [showAd, setShowAd] = useState(false);
   const [adWatched, setAdWatched] = useState(false);
   const [trigger, setTrigger] = useState(0);
-  const ranks = ['A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q'];
+  const ranks = ['2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q'];
   const suitTypes = ['hearts', 'spades', 'diamonds', 'clubs'];
   const [cards] = useState(() =>
     ranks.map((r) => ({ rank: r, suit: suitTypes[Math.floor(Math.random() * suitTypes.length)] }))
@@ -60,7 +60,7 @@ export default function LuckyNumber() {
   const handleRollEnd = (values) => {
     setRolling(false);
     const sum = values.reduce((acc, v) => acc + v, 0);
-    const idx = Math.min(Math.max(0, sum - 1), 11);
+    const idx = Math.min(Math.max(0, sum - 2), ranks.length - 1);
     setSelected(idx);
     setCardPrize(null);
     setSpinTrigger((t) => t + 1);
@@ -155,37 +155,76 @@ export default function LuckyNumber() {
               }}
             >
               <div
-                className="absolute inset-0 bg-white rounded-md flex flex-col items-center justify-center text-xl font-bold"
+                className="absolute inset-0 bg-white rounded-md flex items-center justify-center"
                 style={{ backfaceVisibility: 'hidden' }}
               >
-                <span className={`${
-                  card.suit === 'hearts' || card.suit === 'diamonds'
-                    ? 'text-red-500'
-                    : 'text-black'
-                }`}>{card.rank}</span>
-                <span className={`text-2xl ${
-                  card.suit === 'hearts' || card.suit === 'diamonds'
-                    ? 'text-red-500'
-                    : 'text-black'
-                }`}>
-                  {card.suit === 'hearts'
-                    ? '♥'
-                    : card.suit === 'spades'
-                    ? '♠'
-                    : card.suit === 'diamonds'
-                    ? '♦'
-                    : '♣'}
-                </span>
+                <img
+                  src="/assets/icons/file_00000000bc2862439eecffff3730bbe4.webp"
+                  alt="Card Back"
+                  className="w-10 h-10"
+                />
               </div>
               <div
                 className="absolute inset-0 rounded-md flex items-center justify-center"
                 style={{ transform: 'rotateY(180deg)', backfaceVisibility: 'hidden' }}
               >
+                <div className="absolute inset-0 flex flex-col items-center justify-center text-xl font-bold">
+                  <span
+                    className={`${
+                      card.suit === 'hearts' || card.suit === 'diamonds'
+                        ? 'text-red-500'
+                        : 'text-black'
+                    }`}
+                  >
+                    {card.rank}
+                  </span>
+                  <span
+                    className={`text-2xl ${
+                      card.suit === 'hearts' || card.suit === 'diamonds'
+                        ? 'text-red-500'
+                        : 'text-black'
+                    }`}
+                  >
+                    {card.suit === 'hearts'
+                      ? '♥'
+                      : card.suit === 'spades'
+                      ? '♠'
+                      : card.suit === 'diamonds'
+                      ? '♦'
+                      : '♣'}
+                  </span>
+                </div>
                 {selected === i && !cardPrize && (
                   <CardSpinner trigger={spinTrigger} onFinish={handleSpinFinish} />
                 )}
                 {selected === i && cardPrize && (
-                  <div className="flex flex-col items-center justify-center w-full h-full bg-white rounded-md">
+                  <div className="flex flex-col items-center justify-center w-full h-full bg-white rounded-md relative">
+                    <div className="absolute top-1 left-1 text-sm font-bold">
+                      <span
+                        className={`${
+                          card.suit === 'hearts' || card.suit === 'diamonds'
+                            ? 'text-red-500'
+                            : 'text-black'
+                        }`}
+                      >
+                        {card.rank}
+                      </span>
+                      <span
+                        className={`ml-1 ${
+                          card.suit === 'hearts' || card.suit === 'diamonds'
+                            ? 'text-red-500'
+                            : 'text-black'
+                        }`}
+                      >
+                        {card.suit === 'hearts'
+                          ? '♥'
+                          : card.suit === 'spades'
+                          ? '♠'
+                          : card.suit === 'diamonds'
+                          ? '♦'
+                          : '♣'}
+                      </span>
+                    </div>
                     {cardPrize === 'FREE_SPIN' ? (
                       <>
                         <img
