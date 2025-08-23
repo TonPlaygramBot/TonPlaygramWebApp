@@ -1529,6 +1529,8 @@
         var firstHit = null;
         var lastTurn = table.turn;
         var cpuThinking = false;
+        // Allow the CPU up to 10 seconds to take its shot
+        var CPU_SHOT_DELAY = 10000;
         var scores = { 1: 0, 2: 0 };
         var lastPocketedBall = null;
         var currentTarget = null;
@@ -2460,7 +2462,8 @@
                 ) {
                   return {
                     nd: norm(mir.x - cue.p.x, mir.y - cue.p.y),
-                    target: t
+                    target: t,
+                    aim: mir
                   };
                 }
               }
@@ -2494,23 +2497,26 @@
                   nd: norm(contact.x - cue.p.x, contact.y - cue.p.y),
                   dist: dist,
                   score: score,
-                  target: t
+                  target: t,
+                  aim: { x: contact.x, y: contact.y }
                 };
               }
             }
           }
 
-          var nd, power, chosen;
+          var nd, power, chosen, aimPoint;
           if (best) {
             nd = best.nd;
             power = Math.min(0.8, Math.max(0.4, best.dist / 800));
             chosen = best.target;
+            aimPoint = best.aim;
           } else {
             var bank = findBankShot(targets);
             if (bank) {
               nd = bank.nd;
               power = 0.55;
               chosen = bank.target;
+              aimPoint = bank.aim;
             } else {
               chosen = targets[Math.floor(Math.random() * targets.length)];
               var pk = table.pockets.reduce(function (closest, p) {
@@ -2524,6 +2530,7 @@
               };
               nd = norm(contact.x - cue.p.x, contact.y - cue.p.y);
               power = 0.45;
+              aimPoint = contact;
             }
           }
 
@@ -2578,7 +2585,7 @@
             if (Math.abs(cross) > 0.25) spinX = SPIN_SCALE * cross;
           }
 
-          var targetAim = { x: cue.p.x + nd.x * 100, y: cue.p.y + nd.y * 100 };
+          var targetAim = aimPoint || { x: cue.p.x + nd.x * 100, y: cue.p.y + nd.y * 100 };
           setSpin(spinX, spinY);
           showGuides = true;
           table.aim.x = targetAim.x;
@@ -2590,7 +2597,7 @@
             shoot(power);
             cuePullVisual = 0;
             showGuides = false;
-          }, 1000);
+          }, CPU_SHOT_DELAY);
         }
 
         /* ==========================================================
