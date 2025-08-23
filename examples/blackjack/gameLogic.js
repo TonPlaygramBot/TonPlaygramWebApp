@@ -33,17 +33,19 @@ export class BlackjackGame {
     this.stake = stake;
     this.maxPlayers = maxPlayers;
     this.maxCommunity = maxCommunity; // maximum community cards
-    this.players = []; // {id,name,hand:[],folded:false,stood:false,bet:stake}
+    this.players = []; // {id,name,hand:[],folded:false,stood:false,bet:stake, chips:0}
     this.pot = 0;
+    this.currentBet = stake;
     this.deck = [];
     this.community = [];
     this.phase = 'waiting';
+    this.lastShowdown = null;
   }
 
   addPlayer(id, name = 'Player') {
     if (this.phase !== 'waiting' || this.players.length >= this.maxPlayers) return null;
     if (this.players.find(p => p.id === id)) return null;
-    const player = { id, name, hand: [], folded: false, stood: false, bet: this.stake };
+    const player = { id, name, hand: [], folded: false, stood: false, bet: this.stake, chips: 0 };
     this.players.push(player);
     this.pot += this.stake;
     return player;
@@ -54,7 +56,10 @@ export class BlackjackGame {
     this.deck = shuffle(createDeck());
     for (const p of this.players) {
       p.hand = [this.draw(), this.draw()];
+      p.folded = false;
+      p.stood = false;
     }
+    this.currentBet = this.stake;
     this.phase = 'betting';
   }
 
@@ -63,11 +68,29 @@ export class BlackjackGame {
   }
 
   placeBet(id, amount) {
+    return this.raise(id, amount);
+  }
+
+  call(id) {
+    if (this.phase !== 'betting') return false;
+    const player = this.players.find(p => p.id === id && !p.folded);
+    if (!player) return false;
+    const diff = this.currentBet - player.bet;
+    if (diff <= 0) return false;
+    player.bet += diff;
+    this.pot += diff;
+    return true;
+  }
+
+  raise(id, amount) {
     if (this.phase !== 'betting') return false;
     const player = this.players.find(p => p.id === id && !p.folded);
     if (!player) return false;
     player.bet += amount;
     this.pot += amount;
+    if (player.bet > this.currentBet) {
+      this.currentBet = player.bet;
+    }
     return true;
   }
 
@@ -147,7 +170,31 @@ export class BlackjackGame {
       }
     }
     const share = winners.length ? this.pot / winners.length : 0;
-    return { winners, score: best, share };
+    const result = { winners, score: best, share };
+    this.lastShowdown = result;
+    return result;
+  }
+
+  finishRound() {
+    if (!this.lastShowdown) return null;
+    const { winners, share } = this.lastShowdown;
+    for (const id of winners) {
+      const player = this.players.find(p => p.id === id);
+      if (player) player.chips += share;
+    }
+    this.pot = 0;
+    this.community = [];
+    for (const p of this.players) {
+      p.hand = [];
+      p.folded = false;
+      p.stood = false;
+      p.bet = this.stake;
+    }
+    this.currentBet = this.stake;
+    this.pot = this.stake * this.players.length;
+    this.phase = 'waiting';
+    this.start();
+    return { winners, share };
   }
 
   getState() {
@@ -155,6 +202,7 @@ export class BlackjackGame {
       roomId: this.roomId,
       stake: this.stake,
       pot: this.pot,
+      currentBet: this.currentBet,
       players: this.players,
       community: this.community,
       phase: this.phase
