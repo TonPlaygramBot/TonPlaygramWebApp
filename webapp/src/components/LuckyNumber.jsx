@@ -29,7 +29,7 @@ export default function LuckyNumber() {
   const [showAd, setShowAd] = useState(false);
   const [adWatched, setAdWatched] = useState(false);
   const [trigger, setTrigger] = useState(0);
-  const ranks = ['A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J'];
+  const ranks = ['A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q'];
   const suitTypes = ['hearts', 'spades', 'diamonds', 'clubs'];
   const [cards] = useState(() =>
     ranks.map((r) => ({ rank: r, suit: suitTypes[Math.floor(Math.random() * suitTypes.length)] }))
@@ -201,8 +201,8 @@ export default function LuckyNumber() {
                   <CardSpinner trigger={spinTrigger} onFinish={handleSpinFinish} />
                 )}
                 {selected === i && cardPrize && (
-                  <div className="flex flex-col items-center justify-center w-full h-full bg-white rounded-md relative">
-                    <div className="absolute top-1 left-1 text-sm font-bold">
+                  <div className="w-full h-full bg-white rounded-md relative">
+                    <div className="absolute top-1 left-1 text-sm font-bold flex items-center">
                       <span
                         className={`${
                           card.suit === 'hearts' || card.suit === 'diamonds'
@@ -228,34 +228,127 @@ export default function LuckyNumber() {
                           : '♣'}
                       </span>
                     </div>
-                    {cardPrize === 'FREE_SPIN' ? (
-                      <>
-                        <img
-                          src="/assets/icons/file_00000000ae68620a96d269fe76d158e5_256x256.webp"
-                          alt="Free Spin"
-                          className="w-10 h-10"
-                        />
-                        <span className="font-bold text-white" style={{ WebkitTextStroke: '1px black' }}>+2</span>
-                      </>
-                    ) : cardPrize === 'BONUS_X3' ? (
-                      <>
-                        <img
-                          src="/assets/icons/file_000000009160620a96f728f463de1c3f.webp"
-                          alt="Bonus"
-                          className="w-10 h-10"
-                        />
-                        <span className="font-bold text-white" style={{ WebkitTextStroke: '1px black' }}>X3</span>
-                      </>
-                    ) : (
-                      <>
-                        <img
-                          src="/assets/icons/file_00000000bc2862439eecffff3730bbe4.webp"
-                          alt="TonPlaygram"
-                          className="w-10 h-10"
-                        />
-                        <span className="font-bold text-white" style={{ WebkitTextStroke: '1px black' }}>{cardPrize}</span>
-                      </>
-                    )}
+                    <div className="absolute bottom-1 right-1 text-sm font-bold flex items-center">
+                      <span
+                        className={`${
+                          card.suit === 'hearts' || card.suit === 'diamonds'
+                            ? 'text-red-500'
+                            : 'text-black'
+                        }`}
+                      >
+                        {card.rank}
+                      </span>
+                      <span
+                        className={`ml-1 ${
+                          card.suit === 'hearts' || card.suit === 'diamonds'
+                            ? 'text-red-500'
+                            : 'text-black'
+                        }`}
+                      >
+                        {card.suit === 'hearts'
+                          ? '♥'
+                          : card.suit === 'spades'
+                          ? '♠'
+                          : card.suit === 'diamonds'
+                          ? '♦'
+                          : '♣'}
+                      </span>
+                    </div>
+                    <div
+                      className={`absolute inset-0 flex items-center justify-center text-2xl ${
+                        card.suit === 'hearts' || card.suit === 'diamonds'
+                          ? 'text-red-500'
+                          : 'text-black'
+                      }`}
+                    >
+                      {card.suit === 'hearts'
+                        ? '♥'
+                        : card.suit === 'spades'
+                        ? '♠'
+                        : card.suit === 'diamonds'
+                        ? '♦'
+                        : '♣'}
+                    </div>
+                    <div className="absolute top-1 right-1 text-xs font-bold flex items-center">
+                      {cardPrize === 'FREE_SPIN' ? (
+                        <>
+                          <img
+                            src="/assets/icons/file_00000000ae68620a96d269fe76d158e5_256x256.webp"
+                            alt="Free Spin"
+                            className="w-4 h-4"
+                          />
+                          <span className="ml-1">+2</span>
+                        </>
+                      ) : cardPrize === 'BONUS_X3' ? (
+                        <>
+                          <img
+                            src="/assets/icons/file_000000009160620a96f728f463de1c3f.webp"
+                            alt="Bonus"
+                            className="w-4 h-4"
+                          />
+                          <span className="ml-1">X3</span>
+                        </>
+                      ) : cardPrize === 'JOKER_BLACK' ? (
+                        <>
+                          <span>🃏</span>
+                          <span className="ml-1">5000</span>
+                        </>
+                      ) : cardPrize === 'JOKER_RED' ? (
+                        <>
+                          <span className="text-red-500">🃏</span>
+                          <span className="ml-1 text-red-500">10000</span>
+                        </>
+                      ) : (
+                        <>
+                          <img
+                            src="/assets/icons/file_00000000bc2862439eecffff3730bbe4.webp"
+                            alt="TonPlaygram"
+                            className="w-4 h-4"
+                          />
+                          <span className="ml-1">{cardPrize}</span>
+                        </>
+                      )}
+                    </div>
+                    <div className="absolute bottom-1 left-1 text-xs font-bold flex items-center">
+                      {cardPrize === 'FREE_SPIN' ? (
+                        <>
+                          <img
+                            src="/assets/icons/file_00000000ae68620a96d269fe76d158e5_256x256.webp"
+                            alt="Free Spin"
+                            className="w-4 h-4"
+                          />
+                          <span className="ml-1">+2</span>
+                        </>
+                      ) : cardPrize === 'BONUS_X3' ? (
+                        <>
+                          <img
+                            src="/assets/icons/file_000000009160620a96f728f463de1c3f.webp"
+                            alt="Bonus"
+                            className="w-4 h-4"
+                          />
+                          <span className="ml-1">X3</span>
+                        </>
+                      ) : cardPrize === 'JOKER_BLACK' ? (
+                        <>
+                          <span>🃏</span>
+                          <span className="ml-1">5000</span>
+                        </>
+                      ) : cardPrize === 'JOKER_RED' ? (
+                        <>
+                          <span className="text-red-500">🃏</span>
+                          <span className="ml-1 text-red-500">10000</span>
+                        </>
+                      ) : (
+                        <>
+                          <img
+                            src="/assets/icons/file_00000000bc2862439eecffff3730bbe4.webp"
+                            alt="TonPlaygram"
+                            className="w-4 h-4"
+                          />
+                          <span className="ml-1">{cardPrize}</span>
+                        </>
+                      )}
+                    </div>
                   </div>
                 )}
               </div>
