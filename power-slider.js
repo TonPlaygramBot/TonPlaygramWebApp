@@ -156,7 +156,11 @@ export class PowerSlider {
     const r = Math.round(low.r + (high.r - low.r) * ratio);
     const g = Math.round(low.g + (high.g - low.g) * ratio);
     const b = Math.round(low.b + (high.b - low.b) * ratio);
-    this.handle.style.background = `rgb(${r},${g},${b})`;
+    const color = `rgb(${r},${g},${b})`;
+    const lowColor = `rgb(${low.r},${low.g},${low.b})`;
+    const pct = ratio * 100;
+    this.handle.style.background = color;
+    this.track.style.background = `linear-gradient(to bottom, ${lowColor} 0%, ${color} ${pct}%, var(--ps-track-bg) ${pct}%, var(--ps-track-bg) 100%)`;
   }
 
   _updateFromClientY(y) {
