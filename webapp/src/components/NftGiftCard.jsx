@@ -21,7 +21,10 @@ export default function NftGiftCard({ accountId: propAccountId }) {
       let id = propAccountId || localStorage.getItem('accountId');
       if (!id) {
         try {
-          const acc = await createAccount(getTelegramId());
+          const acc = await createAccount(
+            getTelegramId(),
+            localStorage.getItem('googleId')
+          );
           if (acc?.accountId) {
             id = acc.accountId;
             localStorage.setItem('accountId', id);
