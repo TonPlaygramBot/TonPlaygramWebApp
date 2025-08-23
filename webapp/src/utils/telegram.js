@@ -16,10 +16,16 @@ export function getTelegramId() {
     const urlId = params.get('tg') || params.get('telegramId');
     if (urlId) {
       localStorage.setItem('telegramId', urlId);
-      return Number(urlId);
+      const n = Number(urlId);
+      return Number.isNaN(n) ? urlId : n;
     }
     const stored = localStorage.getItem('telegramId');
-    if (stored) return Number(stored);
+    if (stored) {
+      const n = Number(stored);
+      return Number.isNaN(n) ? stored : n;
+    }
+    const acc = localStorage.getItem('accountId');
+    if (acc) return acc;
   }
   return null;
 }
