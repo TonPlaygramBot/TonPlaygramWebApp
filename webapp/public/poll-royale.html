@@ -225,6 +225,7 @@
         transform-origin: center;
         z-index: 1;
         pointer-events: auto;
+        touch-action: none;
       }
 
       #spinDot {
@@ -252,7 +253,7 @@
         /* Allow the handle to overflow so only half of it is visible */
         overflow: visible;
         z-index: 7;
-        pointer-events: auto;
+        pointer-events: none;
       }
 
       #cueRail {
@@ -295,7 +296,19 @@
         transform: translate(-50%, 0);
         transform-origin: top center;
         pointer-events: auto;
+        touch-action: none;
         z-index: 6;
+      }
+
+      #pullLabel {
+        position: absolute;
+        bottom: -20px;
+        left: 50%;
+        transform: translateX(-50%);
+        font-size: 12px;
+        color: #fff;
+        text-align: center;
+        pointer-events: none;
       }
 
       #powerTxt {
@@ -469,6 +482,7 @@
               alt="Cue"
             />
             <div id="cueRail"></div>
+            <div id="pullLabel">Pull<br />⬇</div>
           </div>
 
           <div
@@ -1894,8 +1908,21 @@
               maxX = TABLE_W - BORDER - BALL_R;
             var minY = LINE_Y + BALL_R,
               maxY = TABLE_H - BORDER_BOTTOM - BALL_R;
-            cue.p.x = clamp(t.x, minX, maxX);
-            cue.p.y = clamp(t.y, minY, maxY);
+            var nx = clamp(t.x, minX, maxX);
+            var ny = clamp(t.y, minY, maxY);
+            var valid = true;
+            for (var i = 1; i < table.balls.length; i++) {
+              var b = table.balls[i];
+              if (b.pocketed) continue;
+              if (Math.hypot(b.p.x - nx, b.p.y - ny) < BALL_R * 2) {
+                valid = false;
+                break;
+              }
+            }
+            if (valid) {
+              cue.p.x = nx;
+              cue.p.y = ny;
+            }
             return;
           }
           if (!aiming || !table.running) return;
@@ -2140,12 +2167,16 @@
           spinBox.style.transform = 'translate(-50%, -50%) scale(1.4)';
           clearTimeout(spinTimer);
           updateSpin(e);
+          spinBox.setPointerCapture(e.pointerId);
           spinTimer = setTimeout(function () {
             if (!spinMoved)
               spinBox.style.transform = 'translate(-50%, -50%) scale(1)';
           }, 1500);
         });
-        spinBox.addEventListener('pointermove', updateSpin);
+        spinBox.addEventListener('pointermove', function (e) {
+          if (e.buttons !== 1) return;
+          updateSpin(e);
+        });
         spinBox.addEventListener('pointerup', function () {
           clearTimeout(spinTimer);
           setTimeout(function () {
@@ -2184,14 +2215,14 @@
           pulling = true;
           pullMoved = false;
           updateFromEvent(e);
-          pullArea.setPointerCapture(e.pointerId);
+          powerCue.setPointerCapture(e.pointerId);
         });
-        pullArea.addEventListener('pointermove', function (e) {
+        powerCue.addEventListener('pointermove', function (e) {
           if (!pulling) return;
           pullMoved = true;
           updateFromEvent(e);
         });
-        pullArea.addEventListener('pointerup', function () {
+        powerCue.addEventListener('pointerup', function () {
           if (!pulling) return;
           pulling = false;
           if (pullMoved) shoot(power);
