@@ -69,3 +69,10 @@ export function evaluateWinners(players){
 export function aiAction(hand){
   return handValue(hand)<17? 'hit':'stand';
 }
+
+export function aiBetAction(hand){
+  const val=handValue(hand);
+  if(val>=18) return 'raise';
+  if(val<=11) return 'fold';
+  return 'call';
+}

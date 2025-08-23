@@ -5,7 +5,8 @@ import {
   handValue,
   isBust,
   evaluateWinners,
-  aiAction
+  aiAction,
+  aiBetAction
 } from './lib/blackjack.js';
 
 const FLAG_EMOJIS = window.FLAG_EMOJIS || [];
@@ -450,7 +451,7 @@ function aiRespondToRaise() {
     state.currentBet = callAmt + raiseAmt;
     state.raiseInitiator = state.turn;
     render();
-    nextTurn();
+    delay(aiTurn, 500);
     return;
   }
   render();
@@ -706,7 +707,6 @@ function commitRaise() {
   state.raiseInitiator = state.turn;
   clearCallTimer();
   render();
-  nextTurn();
 }
 
 async function startNewRound() {
@@ -950,13 +950,6 @@ function animateChipsFromPlayer(index, amount) {
   }, 500);
 }
 
-function aiBetAction(hand) {
-  const val = handValue(hand);
-  if (val >= 18) return 'raise';
-  if (val <= 11) return 'fold';
-  return 'call';
-}
-
 function aiBettingRound() {
   for (let i = 0; i < state.players.length; i++) {
     const p = state.players[i];
@@ -974,7 +967,7 @@ function aiBettingRound() {
       state.turn = i;
       renderPot();
       render();
-      nextTurn();
+      delay(aiTurn, 500);
       return;
     } else if (act === 'fold') {
       p.bust = true;
