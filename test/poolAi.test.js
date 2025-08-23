@@ -29,3 +29,28 @@ test('planShot returns a shot decision', () => {
   assert(decision.quality >= 0 && decision.quality <= 1);
   assert(decision.rationale.length > 0);
 });
+
+test('targets 8 ball after clearing group', () => {
+  const req = {
+    game: 'AMERICAN_BILLIARDS',
+    state: {
+      balls: [
+        { id: 0, x: 100, y: 100, vx: 0, vy: 0, pocketed: false },
+        { id: 8, x: 300, y: 100, vx: 0, vy: 0, pocketed: false }
+      ],
+      pockets: [
+        { x: 0, y: 0 }, { x: 500, y: 0 }, { x: 1000, y: 0 },
+        { x: 0, y: 500 }, { x: 500, y: 500 }, { x: 1000, y: 500 }
+      ],
+      width: 1000,
+      height: 500,
+      ballRadius: 10,
+      friction: 0.01,
+      myGroup: 'SOLIDS'
+    },
+    timeBudgetMs: 50,
+    rngSeed: 1
+  };
+  const decision = planShot(req);
+  assert.equal(decision.targetBallId, 8);
+});
