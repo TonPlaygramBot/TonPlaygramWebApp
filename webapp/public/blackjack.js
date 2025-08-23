@@ -527,6 +527,7 @@ window.stand = () => {
   const p = state.players[state.turn];
   if (!p || !p.isHuman) return;
   p.stood = true;
+  clearCallTimer();
   nextTurn();
 };
 
@@ -655,19 +656,43 @@ function updateRaiseAmount() {
 function commitRaise() {
   if (state.raiseAmount <= 0) return;
   const p = state.players[state.turn];
-  const maxBet = Math.min(state.stake, p.balance || state.stake);
-  const amt = Math.min(state.raiseAmount, maxBet);
-  if (amt <= 0) return;
-  state.pot += amt;
-  p.balance = (p.balance || 0) - amt;
-  animateChipsFromPlayer(state.turn, amt);
-  playCallRaise();
+
+  // When responding to an existing bet, call that amount first
+  let maxTotal = Math.min(state.stake, p.balance || state.stake);
+  let callAmt = 0;
+  if (state.awaitingCall && state.raiseInitiator !== state.turn) {
+    callAmt = Math.min(state.currentBet, maxTotal);
+    maxTotal -= callAmt;
+  }
+
+  const raiseAmt = Math.min(state.raiseAmount, maxTotal);
+  const total = callAmt + raiseAmt;
+  if (total <= 0) return;
+
+  // apply call
+  if (callAmt > 0) {
+    state.pot += callAmt;
+    p.balance = (p.balance || 0) - callAmt;
+    animateChipsFromPlayer(state.turn, callAmt);
+    playCallRaise();
+  }
+
+  // apply raise
+  if (raiseAmt > 0) {
+    state.pot += raiseAmt;
+    p.balance -= raiseAmt;
+    animateChipsFromPlayer(state.turn, raiseAmt);
+    playCallRaise();
+  }
+
   state.raiseAmount = 0;
   updateRaiseAmount();
   renderPot();
-  state.currentBet = amt;
+
+  state.currentBet = callAmt + raiseAmt;
   state.awaitingCall = true;
   state.raiseInitiator = state.turn;
+  clearCallTimer();
   render();
 }
 
