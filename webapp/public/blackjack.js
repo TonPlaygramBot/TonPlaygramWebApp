@@ -29,6 +29,7 @@ const state = {
 
 let myAccountId = '';
 let myTelegramId;
+const api = window.blackjackApi || window.fbApi;
 
 const CHIP_VALUES = [1000, 500, 200, 50, 20, 10, 5, 2, 1];
 let sndCallRaise;
@@ -61,9 +62,9 @@ function randomBalance() {
 }
 
 async function loadAccountBalance() {
-  if (!myAccountId || !window.fbApi?.getAccountBalance) return;
+  if (!myAccountId || !api?.getAccountBalance) return;
   try {
-    const res = await window.fbApi.getAccountBalance(myAccountId);
+    const res = await api.getAccountBalance(myAccountId);
     if (res && typeof res.balance === 'number') {
       state.accountBalance = res.balance;
       state.players.forEach((p) => {
@@ -257,9 +258,9 @@ function playFlipSound() {
 }
 
 async function awardDevShare(total) {
-  if (!state.devAccountId || !window.fbApi) return;
+  if (!state.devAccountId || !api) return;
   try {
-    await window.fbApi.depositAccount(state.devAccountId, Math.round(total * 0.1), {
+    await api.depositAccount(state.devAccountId, Math.round(total * 0.1), {
       game: 'blackjack-dev'
     });
   } catch {}
@@ -646,13 +647,13 @@ async function finish() {
     const player = state.players[i];
     player.balance = (player.balance || 0) + share;
     player.winner = true;
-    if (player.isHuman && myAccountId && window.fbApi) {
+    if (player.isHuman && myAccountId && api) {
       try {
-        await window.fbApi.depositAccount(myAccountId, share, {
+        await api.depositAccount(myAccountId, share, {
           game: 'blackjack-win'
         });
         if (myTelegramId) {
-          window.fbApi.addTransaction(myTelegramId, 0, 'win', {
+          api.addTransaction(myTelegramId, 0, 'win', {
             game: 'blackjack',
             accountId: myAccountId
           });
@@ -832,8 +833,8 @@ async function init() {
   let username = params.get('username') || 'You';
 
   try {
-    if (myAccountId && window.fbApi?.getUserInfo) {
-      const u = await window.fbApi.getUserInfo({ accountId: myAccountId, tgId: myTelegramId });
+    if (myAccountId && api?.getUserInfo) {
+      const u = await api.getUserInfo({ accountId: myAccountId, tgId: myTelegramId });
       if (u) {
         username = u.username || u.first_name || username;
         avatar = u.photo_url || avatar;
