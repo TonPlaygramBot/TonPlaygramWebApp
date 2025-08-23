@@ -15,10 +15,13 @@ following stages:
    betting round follows each reveal. Up to five community cards may appear.
 6. **Showdown** – private and community cards are evaluated using Blackjack
    rules. Whoever has 21 or the highest value below it wins the pot. Ties split
-   the pot.
+   the pot. After revealing the winners, call `finishRound()` to move the pot to
+   the winning player(s), clear all cards and immediately deal a new round.
 
 The core game logic lives in `gameLogic.js`. It manages the deck, betting
-state, community cards and winner calculation.
+state, community cards and winner calculation. It exposes helper methods for
+classic betting actions (`call`, `raise` and `fold`) as well as `finishRound()`
+for settling the pot and starting the next game.
 
 This example focuses on the game mechanics and is intentionally minimal. It can
 be paired with a Socket.IO server and React client similar to the other
