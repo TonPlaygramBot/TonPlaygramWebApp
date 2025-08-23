@@ -22,7 +22,7 @@ const state = {
   raiseAmount: 0,
   community: [],
   currentBet: 0,
-  awaitingCall: false,
+  awaitingCall: true,
   raiseInitiator: -1,
 };
 
@@ -358,7 +358,7 @@ function render() {
     inner.appendChild(cards);
 
     const isMyTurn = i === 0 && state.turn === 0 && !p.stood && !p.bust;
-    if (isMyTurn && (!state.awaitingCall || state.raiseInitiator === 0)) {
+    if (isMyTurn && !state.awaitingCall) {
       const hs = document.createElement('div');
       hs.className = 'hit-stand';
       const hitBtn = document.createElement('button');
@@ -377,9 +377,7 @@ function render() {
     bal.innerHTML = formatAmount(p.balance || 0);
 
     if (isMyTurn) {
-      if (state.awaitingCall && state.raiseInitiator === 0) {
-        seat.append(inner, bal);
-      } else if (state.awaitingCall && state.raiseInitiator !== 0) {
+      if (state.awaitingCall) {
         const controls = document.createElement('div');
         controls.className = 'controls';
         controls.id = 'controls';
@@ -391,11 +389,7 @@ function render() {
         callBtn.id = 'call';
         callBtn.textContent = 'Call';
         callBtn.addEventListener('click', playerCall);
-        const raiseBtn = document.createElement('button');
-        raiseBtn.id = 'raise';
-        raiseBtn.textContent = 'Raise';
-        raiseBtn.addEventListener('click', commitRaise);
-        controls.append(foldBtn, callBtn, raiseBtn);
+        controls.append(foldBtn, callBtn);
         seat.append(inner, bal, controls);
       } else {
         seat.append(inner, bal);
@@ -563,18 +557,10 @@ function playerCheck() {
 }
 
 function playerCall() {
-  if (state.currentBet > 0) {
-    const p = state.players[state.turn];
-    const amt = Math.min(state.currentBet, p.balance || state.currentBet);
-    state.pot += amt;
-    p.balance = (p.balance || 0) - amt;
-    animateChipsFromPlayer(state.turn, amt);
-    playCallRaise();
-  }
   clearCallTimer();
   renderPot();
+  state.awaitingCall = false;
   render();
-  nextTurn();
 }
 
 function finish() {
@@ -669,43 +655,16 @@ function updateRaiseAmount() {
 function commitRaise() {
   if (state.raiseAmount <= 0) return;
   const p = state.players[state.turn];
-
-  // When responding to an existing bet, call that amount first
-  let maxTotal = Math.min(state.stake, p.balance || state.stake);
-  let callAmt = 0;
-  if (state.awaitingCall && state.raiseInitiator !== state.turn) {
-    callAmt = Math.min(state.currentBet, maxTotal);
-    maxTotal -= callAmt;
-  }
-
-  const raiseAmt = Math.min(state.raiseAmount, maxTotal);
-  const total = callAmt + raiseAmt;
-  if (total <= 0) return;
-
-  // apply call
-  if (callAmt > 0) {
-    state.pot += callAmt;
-    p.balance = (p.balance || 0) - callAmt;
-    animateChipsFromPlayer(state.turn, callAmt);
-    playCallRaise();
-  }
-
-  // apply raise
-  if (raiseAmt > 0) {
-    state.pot += raiseAmt;
-    p.balance -= raiseAmt;
-    animateChipsFromPlayer(state.turn, raiseAmt);
-    playCallRaise();
-  }
-
+  const raiseAmt = Math.min(state.raiseAmount, p.balance || state.raiseAmount);
+  if (raiseAmt <= 0) return;
+  state.pot += raiseAmt;
+  p.balance -= raiseAmt;
+  animateChipsFromPlayer(state.turn, raiseAmt);
+  playCallRaise();
   state.raiseAmount = 0;
   updateRaiseAmount();
   renderPot();
-
-  state.currentBet = callAmt + raiseAmt;
-  state.awaitingCall = true;
-  state.raiseInitiator = state.turn;
-  clearCallTimer();
+  state.awaitingCall = false;
   render();
 }
 
@@ -714,7 +673,7 @@ async function startNewRound() {
   state.turn = 0;
   state.raiseAmount = 0;
   state.currentBet = 0;
-  state.awaitingCall = false;
+  state.awaitingCall = true;
   state.raiseInitiator = -1;
   clearCallTimer();
   state.deck = shuffle(createDeck());
@@ -756,11 +715,8 @@ async function startNewRound() {
 
   // place deck back in the center
   state.community.push(null);
+  state.awaitingCall = true;
   render();
-  aiBettingRound();
-  const p0 = state.players[0];
-  if (!p0.isHuman) delay(aiTurn, 500);
-
   renderPot();
 }
 
@@ -825,10 +781,8 @@ async function init() {
       await dealCardToPlayer(i, card, state.players[i].revealed);
     }
     state.community.push(null);
+    state.awaitingCall = true;
     render();
-    aiBettingRound();
-    const p0 = state.players[0];
-    if (!p0.isHuman) delay(aiTurn, 500);
     renderPot();
   }
 
@@ -853,13 +807,7 @@ async function init() {
   }
 
   const raiseBtn = document.getElementById('raiseBtn');
-  const allInBtn = document.getElementById('allInBtn');
   if (raiseBtn) raiseBtn.addEventListener('click', commitRaise);
-  if (allInBtn)
-    allInBtn.addEventListener('click', () => {
-      state.raiseAmount = state.stake;
-      commitRaise();
-    });
   const statusEl = document.getElementById('status');
   sndCallRaise = document.getElementById('sndCallRaise');
   sndFlip = document.getElementById('sndFlip');
