@@ -217,7 +217,7 @@
         background: #f6f6f6;
         position: absolute;
         left: 50%;
-        top: 104%;
+        top: 110%;
         transform: translate(-50%, -50%);
         box-shadow:
           0 4px 10px rgba(0, 0, 0, 0.4) inset,
@@ -254,11 +254,12 @@
         overflow: visible;
         z-index: 7;
         pointer-events: none;
+        margin-right: -8px;
       }
 
       #cueRail {
         position: absolute;
-        right: 8px;
+        right: -8px;
         left: auto;
         transform: none;
         width: 12px;
@@ -291,7 +292,7 @@
       #powerCue {
         position: absolute;
         /* Align cue image with pull handle and power text along the right edge */
-        left: calc(100% - 8px);
+        left: calc(100% - 16px);
         top: 0;
         transform: translate(-50%, 0);
         transform-origin: top center;
@@ -302,8 +303,8 @@
 
       #pullLabel {
         position: absolute;
-        bottom: -16px;
-        right: 0;
+        bottom: -8px;
+        right: -8px;
         left: auto;
         transform: none;
         font-size: 12px;
@@ -1927,8 +1928,9 @@
             return;
           }
           if (!aiming || !table.running) return;
-          table.aim = t;
-          placeAimGlow(t);
+          table.aim.x += (t.x - table.aim.x) * 0.2;
+          table.aim.y += (t.y - table.aim.y) * 0.2;
+          placeAimGlow(table.aim);
           aimMoved = true;
         });
 
@@ -2341,6 +2343,56 @@
             return true;
           }
 
+          function pathClearPoints(p1, p2, exclude) {
+            var dir = norm(p2.x - p1.x, p2.y - p1.y);
+            var dist = len(p2.x - p1.x, p2.y - p1.y);
+            for (var j = 0; j < table.balls.length; j++) {
+              var o = table.balls[j];
+              if (!o || o === exclude || o.pocketed) continue;
+              var vx = o.p.x - p1.x,
+                vy = o.p.y - p1.y;
+              var proj = vx * dir.x + vy * dir.y;
+              if (proj > 0 && proj < dist) {
+                var px = p1.x + dir.x * proj,
+                  py = p1.y + dir.y * proj;
+                var off = Math.hypot(o.p.x - px, o.p.y - py);
+                if (off < BALL_R * 2) return false;
+              }
+            }
+            return true;
+          }
+
+          function findBankShot(targets) {
+            for (var tIndex = 0; tIndex < targets.length; tIndex++) {
+              var t = targets[tIndex];
+              var mirrors = [
+                { x: t.p.x, y: (BORDER_TOP + BALL_R) * 2 - t.p.y },
+                {
+                  x: t.p.x,
+                  y: (TABLE_H - BORDER_BOTTOM - BALL_R) * 2 - t.p.y
+                },
+                { x: (BORDER + BALL_R) * 2 - t.p.x, y: t.p.y },
+                {
+                  x: (TABLE_W - BORDER - BALL_R) * 2 - t.p.x,
+                  y: t.p.y
+                }
+              ];
+              for (var m = 0; m < mirrors.length; m++) {
+                var mir = mirrors[m];
+                if (
+                  pathClearPoints(cue.p, mir, t) &&
+                  pathClearPoints(mir, t.p, t)
+                ) {
+                  return {
+                    nd: norm(mir.x - cue.p.x, mir.y - cue.p.y),
+                    target: t
+                  };
+                }
+              }
+            }
+            return null;
+          }
+
           var best = null;
           for (var tIndex = 0; tIndex < targets.length; tIndex++) {
             var t = targets[tIndex];
@@ -2370,15 +2422,24 @@
             power = 0.5;
             chosen = best.target;
           } else {
-            chosen = targets[Math.floor(Math.random() * targets.length)];
-            var pk = table.pockets[Math.floor(Math.random() * table.pockets.length)];
-            var toPocket = norm(pk.x - chosen.p.x, pk.y - chosen.p.y);
-            var contact = {
-              x: chosen.p.x - toPocket.x * BALL_R * 2,
-              y: chosen.p.y - toPocket.y * BALL_R * 2
-            };
-            nd = norm(contact.x - cue.p.x, contact.y - cue.p.y);
-            power = 0.45;
+            var bank = findBankShot(targets);
+            if (bank) {
+              nd = bank.nd;
+              power = 0.5;
+              chosen = bank.target;
+            } else {
+              chosen = targets[Math.floor(Math.random() * targets.length)];
+              var pk = table.pockets[
+                Math.floor(Math.random() * table.pockets.length)
+              ];
+              var toPocket = norm(pk.x - chosen.p.x, pk.y - chosen.p.y);
+              var contact = {
+                x: chosen.p.x - toPocket.x * BALL_R * 2,
+                y: chosen.p.y - toPocket.y * BALL_R * 2
+              };
+              nd = norm(contact.x - cue.p.x, contact.y - cue.p.y);
+              power = 0.45;
+            }
           }
 
           if (cueBallFree) {
@@ -2442,7 +2503,7 @@
             shoot(power);
             cuePullVisual = 0;
             showGuides = false;
-          }, 800);
+          }, 7000);
         }
 
         /* ==========================================================
