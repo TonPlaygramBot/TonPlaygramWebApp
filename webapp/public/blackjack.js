@@ -19,6 +19,7 @@ const state = {
   token: 'TPC',
   devAccountId: '',
   pot: 0,
+  accountBalance: 0,
   raiseAmount: 0,
   community: [],
   currentBet: 0,
@@ -63,8 +64,11 @@ async function loadAccountBalance() {
   if (!myAccountId || !window.fbApi?.getAccountBalance) return;
   try {
     const res = await window.fbApi.getAccountBalance(myAccountId);
-    if (res && typeof res.balance === 'number' && state.players[0]) {
-      state.players[0].balance = res.balance;
+    if (res && typeof res.balance === 'number') {
+      state.accountBalance = res.balance;
+      state.players.forEach((p) => {
+        if (p.isHuman) p.balance = res.balance;
+      });
       render();
     }
   } catch {}
@@ -346,7 +350,7 @@ function render() {
     cards.className = 'cards';
     cards.id = 'cards-' + i;
     p.hand.slice(0, 2).forEach((c) => {
-      cards.appendChild(p.revealed || i === 0 ? cardEl(c) : cardBackEl());
+      cards.appendChild(p.revealed || p.isHuman ? cardEl(c) : cardBackEl());
     });
     if (p.winner) {
       Array.from(cards.children).forEach((card) => card.classList.add('winning'));
@@ -357,7 +361,7 @@ function render() {
     }
     inner.appendChild(cards);
 
-    const isMyTurn = i === 0 && state.turn === 0 && !p.stood && !p.bust;
+    const isMyTurn = p.isHuman && state.turn === i && !p.stood && !p.bust;
     if (isMyTurn && !state.awaitingCall) {
       const hs = document.createElement('div');
       hs.className = 'hit-stand';
@@ -369,12 +373,20 @@ function render() {
       standBtn.id = 'standBtn';
       standBtn.textContent = 'Stand';
       standBtn.addEventListener('click', () => window.stand());
-      hs.append(hitBtn, standBtn);
+      if (canSplit(p)) {
+        const splitBtn = document.createElement('button');
+        splitBtn.id = 'splitBtn';
+        splitBtn.textContent = 'Split';
+        splitBtn.addEventListener('click', playerSplit);
+        hs.append(hitBtn, standBtn, splitBtn);
+      } else {
+        hs.append(hitBtn, standBtn);
+      }
       inner.appendChild(hs);
     }
     const bal = document.createElement('div');
     bal.className = 'seat-balance';
-    bal.innerHTML = formatAmount(p.balance || 0);
+    bal.innerHTML = formatAmount(p.isHuman ? state.accountBalance : p.balance || 0);
 
     if (isMyTurn) {
       if (state.awaitingCall) {
@@ -546,8 +558,11 @@ window.stand = () => {
   nextTurn();
 };
 
+window.split = playerSplit;
+
 function playerFold() {
-  const p = state.players[0];
+  const p = state.players[state.turn];
+  if (!p || !p.isHuman) return;
   p.bust = true;
   p.stood = true;
   clearCallTimer();
@@ -567,6 +582,7 @@ function playerCall() {
   const pay = Math.min(callAmt, p.balance || callAmt);
   state.pot += pay;
   p.balance -= pay;
+  if (p.isHuman) state.accountBalance -= pay;
   p.bet = (p.bet || 0) + pay;
   animateChipsFromPlayer(state.turn, pay);
   playCallRaise();
@@ -575,18 +591,67 @@ function playerCall() {
   render();
 }
 
-function finish() {
+function canSplit(p) {
+  return (
+    p &&
+    p.isHuman &&
+    p.hand &&
+    p.hand.length === 2 &&
+    p.hand[0].rank === p.hand[1].rank &&
+    p.balance >= state.stake
+  );
+}
+
+function playerSplit() {
+  const p = state.players[state.turn];
+  if (!canSplit(p)) return;
+  const second = p.hand.pop();
+  const newPlayer = {
+    hand: [second],
+    stood: false,
+    bust: false,
+    name: p.name,
+    avatar: p.avatar,
+    isHuman: true,
+    balance: p.balance - state.stake,
+    bet: state.stake,
+    revealed: true
+  };
+  p.balance -= state.stake;
+  state.accountBalance -= state.stake;
+  state.pot += state.stake;
+  state.players.splice(state.turn + 1, 0, newPlayer);
+  renderPot();
+  render();
+}
+
+async function finish() {
   const winners = evaluateWinners(state.players);
   const pot = state.pot;
   awardDevShare(pot);
   const share = Math.floor((pot * 0.9) / winners.length);
-  winners.forEach((i) => {
+  for (const i of winners) {
     const player = state.players[i];
     player.balance = (player.balance || 0) + share;
     player.winner = true;
-  });
-  loadAccountBalance();
+    if (player.isHuman && myAccountId && window.fbApi) {
+      try {
+        await window.fbApi.depositAccount(myAccountId, share, {
+          game: 'blackjack-win'
+        });
+        if (myTelegramId) {
+          window.fbApi.addTransaction(myTelegramId, 0, 'win', {
+            game: 'blackjack',
+            accountId: myAccountId
+          });
+        }
+        state.accountBalance += share;
+      } catch {}
+    }
+  }
+  await loadAccountBalance();
   state.players.forEach((p) => (p.revealed = true));
+  state.pot = 0;
   render();
   const status = document.getElementById('status');
   let text = '';
@@ -621,7 +686,7 @@ function setStatus(action, text) {
 function startCallTimer() {
   clearTimeout(callTimer);
   callTimer = setTimeout(() => {
-    if (state.awaitingCall && state.turn === 0) {
+    if (state.awaitingCall && state.players[state.turn]?.isHuman) {
       playerFold();
     }
   }, 15000);
@@ -673,6 +738,7 @@ function commitRaise() {
   if (pay <= 0) return;
   state.pot += pay;
   p.balance -= pay;
+  if (p.isHuman) state.accountBalance -= pay;
   p.bet = (p.bet || 0) + pay;
   state.currentBet = p.bet;
   state.raiseInitiator = state.turn;
@@ -687,6 +753,7 @@ function commitRaise() {
 
 async function startNewRound() {
   clearPendingTimers();
+  state.players = state.players.filter((p, i) => i === 0 || !p.isHuman);
   state.turn = 0;
   state.raiseAmount = 0;
   state.currentBet = 0;
@@ -707,6 +774,7 @@ async function startNewRound() {
   state.players.forEach((p) => {
     p.balance = (p.balance || 0) - state.stake;
     p.bet = state.stake;
+    if (p.isHuman) state.accountBalance -= state.stake;
   });
   state.currentBet = state.stake;
   state.raiseInitiator = 0;
@@ -723,14 +791,14 @@ async function startNewRound() {
     state.deck = d1;
     const p = state.players[i];
     p.hand.push(card);
-    p.revealed = i === 0;
+    p.revealed = p.isHuman;
     await dealCardToPlayer(i, card, p.revealed);
   }
   for (let i = 0; i < state.players.length; i++) {
     const { card, deck: d2 } = hitCard(state.deck);
     state.deck = d2;
     state.players[i].hand.push(card);
-    if (i === 0) state.players[i].revealed = true;
+    if (state.players[i].isHuman) state.players[i].revealed = true;
     await dealCardToPlayer(i, card, state.players[i].revealed);
   }
 
@@ -780,6 +848,7 @@ async function init() {
   state.players.forEach((p) => {
     p.balance = (p.balance || 0) - state.stake;
     p.bet = state.stake;
+    if (p.isHuman) state.accountBalance -= state.stake;
   });
   state.currentBet = state.stake;
   state.raiseInitiator = 0;
@@ -794,14 +863,14 @@ async function init() {
       state.deck = d1;
       const p = state.players[i];
       p.hand.push(card);
-      p.revealed = i === 0;
+      p.revealed = p.isHuman;
       await dealCardToPlayer(i, card, p.revealed);
     }
     for (let i = 0; i < state.players.length; i++) {
       const { card, deck: d2 } = hitCard(state.deck);
       state.deck = d2;
       state.players[i].hand.push(card);
-      if (i === 0) state.players[i].revealed = true;
+      if (state.players[i].isHuman) state.players[i].revealed = true;
       await dealCardToPlayer(i, card, state.players[i].revealed);
     }
     state.community.push(null);
