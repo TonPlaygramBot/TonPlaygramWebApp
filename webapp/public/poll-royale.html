@@ -1230,7 +1230,7 @@
                     if (!firstHit) {
                       firstHit = BALL_BY_N[other.n];
                       if (
-                        ((isAmerican || isNineBall) && other.n !== currentTarget) ||
+                        (isNineBall && other.n !== currentTarget) ||
                         (!isAmerican && !isNineBall &&
                           assignedTypes[currentShooter] &&
                           BALL_BY_N[other.n].t !==
@@ -1242,7 +1242,7 @@
                           var opponent = currentShooter === 1 ? 2 : 1;
                           updateFooter(
                             opponent,
-                            isAmerican || isNineBall
+                            isNineBall
                               ? 'Foul!'
                               : 'Foul – opponent gets two shots.'
                           );
@@ -1297,12 +1297,14 @@
                   b2.pocketed = true;
                   pocketedAny = true;
                   this.captured[currentShooter].push(b2.n);
-                  if (isNineBall && b2.n === 9) {
-                    nineBallPotted = true;
+                  if (isNineBall) {
+                    if (b2.n === 9) {
+                      nineBallPotted = true;
+                    }
                     lastPocketedBall = b2.n;
                     pottedThisShot.push(b2.n);
                     pocketedOwn = true;
-                  } else if (isAmerican || isNineBall) {
+                  } else if (isAmerican) {
                     pottedThisShot.push(b2.n);
                     pocketedOwn = true;
                     lastPocketedBall = b2.n;
@@ -1680,9 +1682,11 @@
 
         function showTurnInfo() {
           var msg;
-          if (isAmerican || isNineBall) {
+          if (isNineBall) {
             if (!currentTarget) currentTarget = lowestBallOnTable();
             msg = 'Pot the ' + currentTarget + '-ball';
+          } else if (isAmerican) {
+            msg = 'Pot any ball';
           } else {
             if (!assignedTypes[table.turn]) {
               msg = 'Choose a color';
@@ -1731,8 +1735,11 @@
         }
 
         function isFoul(firstHit, scratch) {
-          if (isAmerican || isNineBall) {
+          if (isNineBall) {
             return !firstHit || firstHit.n !== currentTarget || scratch;
+          }
+          if (isAmerican) {
+            return !firstHit || scratch;
           }
           if (!firstHit || scratch) return true;
           var shooterType = assignedTypes[currentShooter];
@@ -2312,7 +2319,7 @@
           base *= 0.75; // 25% reduced power
           playCueHit(p);
           currentShooter = table.turn;
-          if (isAmerican || isNineBall) currentTarget = lowestBallOnTable();
+          if (isNineBall) currentTarget = lowestBallOnTable();
           shotInProgress = true;
           pocketedAny = false;
           pocketedOwn = false;
@@ -2344,20 +2351,20 @@
             cue.v.x = cue.v.y = 0;
           }
           var targets = [];
-          if (isAmerican || isNineBall) {
+          if (isNineBall) {
             var lowest = null;
             for (var i = 0; i < table.balls.length; i++) {
               var b = table.balls[i];
-              if (
-                !b ||
-                b.n === 0 ||
-                b.pocketed ||
-                (isAmerican && b.n === 8)
-              )
-                continue;
+              if (!b || b.n === 0 || b.pocketed) continue;
               if (!lowest || b.n < lowest.n) lowest = b;
             }
             if (lowest) targets.push(lowest);
+          } else if (isAmerican) {
+            for (var i = 0; i < table.balls.length; i++) {
+              var b = table.balls[i];
+              if (!b || b.n === 0 || b.pocketed) continue;
+              targets.push(b);
+            }
           } else {
             var type = assignedTypes[2];
             for (var i = 0; i < table.balls.length; i++) {
@@ -2533,7 +2540,7 @@
           }
 
           // apply improved potting accuracy
-          var ACCURACY = 0.998;
+          var ACCURACY = 0.9995;
           nd = {
             x: nd.x + (Math.random() - 0.5) * (1 - ACCURACY),
             y: nd.y + (Math.random() - 0.5) * (1 - ACCURACY)
