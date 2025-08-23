@@ -15,7 +15,7 @@ export default function PollRoyale() {
         ? 'American Billiards'
         : '8 Pool UK';
   return (
-    <div className="relative w-full h-screen">
+    <div className="relative w-full h-[100dvh]">
       <iframe src={src} title={title} className="w-full h-full border-0" />
     </div>
   );
