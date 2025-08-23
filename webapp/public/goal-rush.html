@@ -139,8 +139,14 @@
   const oppParam = params.get('p2Avatar') || '';
   let p1Name = params.get('name') || 'P1';
   let p2Name = params.get('p2Name') || 'P2';
-  let fieldScaleX = 1, fieldScaleY = 1, puckScale = 1.0, goalWidthPct = 0.36, goalOffsetXPct = 0, goalOffsetYPct = 0, paddleScale = 0.95, speedMul = 0.95;
+  let fieldScaleX = 1, fieldScaleY = 1, fieldImgScaleX = 1, fieldImgScaleY = 1, puckScale = 1.0, goalWidthPct = 0.36, goalOffsetXPct = 0, goalOffsetYPct = 0, paddleScale = 0.95, speedMul = 0.95;
   try {
+    const oldFieldScale = parseFloat(localStorage.getItem('fieldScale')) || 1;
+    fieldScaleX = parseFloat(localStorage.getItem('fieldScaleX')) || oldFieldScale;
+    fieldScaleY = parseFloat(localStorage.getItem('fieldScaleY')) || oldFieldScale;
+    const oldImgScale = parseFloat(localStorage.getItem('fieldImgScale')) || 1;
+    fieldImgScaleX = parseFloat(localStorage.getItem('fieldImgScaleX')) || oldImgScale;
+    fieldImgScaleY = parseFloat(localStorage.getItem('fieldImgScaleY')) || oldImgScale;
     puckScale = parseFloat(localStorage.getItem('puckScale')) || 1.0;
     goalWidthPct = parseFloat(localStorage.getItem('goalWidthPct')) || 0.36;
     goalOffsetXPct = parseFloat(localStorage.getItem('goalOffsetXPct')) || 0;
@@ -429,7 +435,11 @@
   }
   function drawRink(){
     if (fieldImg.complete) {
-      ctx.drawImage(fieldImg, rink.x, rink.y, rink.w, rink.h);
+      const imgW = rink.w * fieldImgScaleX;
+      const imgH = rink.h * fieldImgScaleY;
+      const imgX = rink.x + (rink.w - imgW)/2;
+      const imgY = rink.y + (rink.h - imgH)/2;
+      ctx.drawImage(fieldImg, imgX, imgY, imgW, imgH);
     } else {
       rr(rink.x, rink.y, rink.w, rink.h, rink.r);
       ctx.fillStyle = getCSS('--ice'); ctx.fill();
