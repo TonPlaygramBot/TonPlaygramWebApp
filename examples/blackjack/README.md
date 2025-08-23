@@ -7,7 +7,9 @@ following stages:
 
 1. **Initial bet** – each player posts the stake into the pot.
 2. **Deal** – every player gets two private cards from a shuffled deck.
-3. **Betting round** – players may call, raise or fold.
+3. **Betting round** – players may call, raise or fold. When a player raises, all
+   remaining players must either call the new bet, re-raise or fold before the
+   round can end.
 4. **Hit / Stand** – active players choose to draw additional private cards or
    keep their current hand. Once a player stands or busts they cannot act
    again in this phase.
@@ -20,8 +22,9 @@ following stages:
 
 The core game logic lives in `gameLogic.js`. It manages the deck, betting
 state, community cards and winner calculation. It exposes helper methods for
-classic betting actions (`call`, `raise` and `fold`) as well as `finishRound()`
-for settling the pot and starting the next game.
+classic betting actions (`call`, `raise` and `fold`) as well as `allPlayersCalled()`
+to check whether everyone has matched the current bet, and `finishRound()` for
+settling the pot and starting the next game.
 
 This example focuses on the game mechanics and is intentionally minimal. It can
 be paired with a Socket.IO server and React client similar to the other

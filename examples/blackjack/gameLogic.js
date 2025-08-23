@@ -45,7 +45,7 @@ export class BlackjackGame {
   addPlayer(id, name = 'Player') {
     if (this.phase !== 'waiting' || this.players.length >= this.maxPlayers) return null;
     if (this.players.find(p => p.id === id)) return null;
-    const player = { id, name, hand: [], folded: false, stood: false, bet: this.stake, chips: 0 };
+    const player = { id, name, hand: [], folded: false, stood: false, bet: this.stake, chips: 0, acted: false };
     this.players.push(player);
     this.pot += this.stake;
     return player;
@@ -58,6 +58,7 @@ export class BlackjackGame {
       p.hand = [this.draw(), this.draw()];
       p.folded = false;
       p.stood = false;
+      p.acted = false;
     }
     this.currentBet = this.stake;
     this.phase = 'betting';
@@ -79,6 +80,7 @@ export class BlackjackGame {
     if (diff <= 0) return false;
     player.bet += diff;
     this.pot += diff;
+    player.acted = true;
     return true;
   }
 
@@ -90,7 +92,11 @@ export class BlackjackGame {
     this.pot += amount;
     if (player.bet > this.currentBet) {
       this.currentBet = player.bet;
+      for (const p of this.players) {
+        if (p.id !== id && !p.folded) p.acted = false;
+      }
     }
+    player.acted = true;
     return true;
   }
 
@@ -99,6 +105,7 @@ export class BlackjackGame {
     const player = this.players.find(p => p.id === id && !p.folded);
     if (!player) return false;
     player.folded = true;
+    player.acted = true;
     return true;
   }
 
@@ -189,6 +196,7 @@ export class BlackjackGame {
       p.folded = false;
       p.stood = false;
       p.bet = this.stake;
+      p.acted = false;
     }
     this.currentBet = this.stake;
     this.pot = this.stake * this.players.length;
@@ -207,6 +215,10 @@ export class BlackjackGame {
       community: this.community,
       phase: this.phase
     };
+  }
+
+  allPlayersCalled() {
+    return this.players.every(p => p.folded || (p.bet === this.currentBet && p.acted));
   }
 }
 
