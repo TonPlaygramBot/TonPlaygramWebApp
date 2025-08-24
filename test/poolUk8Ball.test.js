@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { UkPool } from '../lib/poolUk8Ball.js';
 
-test('scratch on break gives opponent two visits and free ball', () => {
+test('scratch on break gives opponent two visits without free ball', () => {
   const game = new UkPool();
   const res = game.shotTaken({
     contactOrder: ['red'],
@@ -14,12 +14,11 @@ test('scratch on break gives opponent two visits and free ball', () => {
   assert.equal(res.foul, true);
   assert.equal(res.nextPlayer, 'B');
   assert.equal(res.shotsRemainingNext, 2);
-  assert.equal(res.freeBallNext, true);
+  assert.equal(res.freeBallNext, false);
 });
 
-test('free ball allows any first contact and pots own color', () => {
+test('after foul player must hit a valid colour first', () => {
   const game = new UkPool();
-  // A scratches to give B free ball
   game.shotTaken({
     contactOrder: ['yellow'],
     potted: ['cue'],
@@ -28,16 +27,14 @@ test('free ball allows any first contact and pots own color', () => {
     placedFromHand: false
   });
   const res = game.shotTaken({
-    contactOrder: ['red', 'yellow'],
-    potted: ['yellow'],
+    contactOrder: ['black'],
+    potted: [],
     cueOffTable: false,
     noCushionAfterContact: false,
     placedFromHand: true
   });
-  assert.equal(res.foul, false);
-  assert.equal(res.nextPlayer, 'B');
-  assert.equal(res.shotsRemainingNext, 2);
-  assert.equal(res.freeBallNext, false);
+  assert.equal(res.foul, true);
+  assert.equal(res.reason, 'wrong first contact');
 });
 
 test('no pot and no cushion is foul', () => {
@@ -63,6 +60,7 @@ test('potting 8-ball before clearing group loses the frame', () => {
     noCushionAfterContact: false,
     placedFromHand: false
   });
+  game.state.currentPlayer = 'A';
   const res = game.shotTaken({
     contactOrder: ['black'],
     potted: ['black'],
@@ -112,6 +110,21 @@ test('two visits behaviour', () => {
   });
   assert.equal(res2.nextPlayer, 'B');
   assert.equal(res2.shotsRemainingNext, 2);
+});
+
+test('potting both colours on break requires choice', () => {
+  const game = new UkPool();
+  const res = game.shotTaken({
+    contactOrder: ['yellow'],
+    potted: ['yellow', 'red'],
+    cueOffTable: false,
+    noCushionAfterContact: false,
+    placedFromHand: false
+  });
+  assert.equal(res.foul, false);
+  assert.equal(res.choiceRequired, true);
+  game.chooseColor('A', 'yellow');
+  assert.equal(game.state.assignments.A, 'yellow');
 });
 
 test('potting 8-ball legally after clearing group wins', () => {
