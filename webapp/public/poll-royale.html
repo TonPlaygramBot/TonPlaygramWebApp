@@ -1594,14 +1594,15 @@
         var pottedThisShot = [];
         var eightBallPotted = false;
         var nineBallPotted = false;
-        var aimCalibration = { x: 0, y: 0 };
         var lastShotAim = null;
         var lastPocketCenter = null;
         var shotPocketRecorded = false;
         var shotsLog = [];
 
         function calibrated(pt) {
-          return { x: pt.x + aimCalibration.x, y: pt.y + aimCalibration.y };
+          // Aiming is now directly based on the raw point to ensure
+          // the guideline and the actual shot remain perfectly aligned.
+          return pt;
         }
 
         function remainingPoints() {
@@ -1933,14 +1934,11 @@
           if (lastShotAim && lastPocketCenter) {
             var dx = lastPocketCenter.x - lastShotAim.x;
             var dy = lastPocketCenter.y - lastShotAim.y;
-            aimCalibration.x += dx;
-            aimCalibration.y += dy;
             shotsLog.push({
               aim: lastShotAim,
               pocket: lastPocketCenter,
               offset: { x: dx, y: dy }
             });
-            console.log('Calibration update', aimCalibration);
             lastShotAim = null;
             lastPocketCenter = null;
           }
@@ -2016,7 +2014,7 @@
           placeAimGlow(calibrated(table.aim));
         });
 
-        canvas.addEventListener('pointermove', function (e) {
+        document.addEventListener('pointermove', function (e) {
           if (table.turn === 2) return;
           var t = screenToTable(e.clientX, e.clientY);
           var cue = table.balls[0];
@@ -2049,9 +2047,9 @@
           aimMoved = true;
         });
 
-        canvas.addEventListener('pointerup', function (e) {
+        document.addEventListener('pointerup', function (e) {
           if (table.turn === 2) return;
-          canvas.releasePointerCapture(e.pointerId);
+          canvas.releasePointerCapture && canvas.releasePointerCapture(e.pointerId);
           if (draggingCue) {
             draggingCue = false;
             var cue = table.balls[0];
@@ -2393,7 +2391,8 @@
           lastShotAim = { x: aimPoint.x, y: aimPoint.y };
           shotPocketRecorded = false;
           var base = 950 * 3 * 1.6 * 1.5;
-          base *= 0.75; // 25% reduced power
+          // Reduce the overall shot power by 50%
+          base *= 0.5;
           playCueHit(p);
           currentShooter = table.turn;
           if (isNineBall) currentTarget = lowestBallOnTable();
