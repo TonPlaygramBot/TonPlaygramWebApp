@@ -375,6 +375,15 @@
         display: none;
       }
 
+      .pocket-marker {
+        position: absolute;
+        width: 10px;
+        height: 10px;
+        transform: translate(-50%, -50%);
+        pointer-events: none;
+        opacity: 0;
+      }
+
       .winnerOverlay {
         position: fixed;
         inset: 0;
@@ -649,6 +658,20 @@
         var scoreP1 = document.getElementById('p1Score');
         var scoreP2 = document.getElementById('p2Score');
         var cueHint = document.getElementById('cueHint');
+
+        var pocketMarkers = [];
+        function createPocketMarkers(pockets) {
+          var wrap = document.getElementById('wrap');
+          pockets.forEach(function (p, idx) {
+            var m = document.createElement('div');
+            m.className = 'pocket-marker';
+            m.dataset.index = idx;
+            m.style.left = p.x + 'px';
+            m.style.top = p.y + 'px';
+            wrap.appendChild(m);
+            pocketMarkers.push(m);
+          });
+        }
 
         if (!isAmerican) {
           scoreP1.style.display = 'none';
@@ -1099,6 +1122,7 @@
             new Pocket(BORDER, TABLE_H - BORDER_BOTTOM),
             new Pocket(TABLE_W - BORDER, TABLE_H - BORDER_BOTTOM)
           ];
+          createPocketMarkers(this.pockets);
 
           this.captured = { 1: [], 2: [] };
           this.turn = 1;
@@ -1938,12 +1962,19 @@
             cueHint.style.display = 'none';
             return;
           }
-          // Allow aiming by clicking anywhere on the table
+          // Only allow aiming when clicking near the existing aim line
+          var aimVec = { x: table.aim.x - cue.p.x, y: table.aim.y - cue.p.y };
+          var lineLen = Math.hypot(aimVec.x, aimVec.y) || 1;
+          var distToLine =
+            Math.abs(aimVec.y * (t.x - cue.p.x) - aimVec.x * (t.y - cue.p.y)) /
+            lineLen;
+          var proj =
+            ((t.x - cue.p.x) * aimVec.x + (t.y - cue.p.y) * aimVec.y) /
+            lineLen;
+          if (distToLine > BALL_R || proj < -BALL_R) return;
           aiming = true;
           aimMoved = false;
           showGuides = true;
-          table.aim = t;
-          placeAimGlow(calibrated(t));
         });
 
         canvas.addEventListener('pointermove', function (e) {
@@ -2460,7 +2491,8 @@
               };
               if (!pathClear(contact, t)) continue;
               if (!pocketPathClear(t, pk)) continue;
-              var dist = len(contact.x - cue.p.x, contact.y - cue.p.y);
+              var cueToContact = len(contact.x - cue.p.x, contact.y - cue.p.y);
+              var ballToPocket = len(pk.x - t.p.x, pk.y - t.p.y);
               var nxt = nextTarget(t);
               var anglePenalty = 0;
               if (nxt) {
@@ -2468,11 +2500,11 @@
                 var toNext = norm(nxt.p.x - t.p.x, nxt.p.y - t.p.y);
                 anglePenalty = Math.abs(shotDir.x * toNext.y - shotDir.y * toNext.x);
               }
-              var score = dist + anglePenalty * 200;
+              var score = cueToContact + ballToPocket + anglePenalty * 200;
               if (!best || score < best.score) {
                 best = {
                   nd: norm(contact.x - cue.p.x, contact.y - cue.p.y),
-                  dist: dist,
+                  dist: cueToContact,
                   score: score,
                   target: t,
                   aim: { x: contact.x, y: contact.y }
