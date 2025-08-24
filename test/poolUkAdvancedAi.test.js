@@ -13,7 +13,7 @@ function makePockets() {
   ];
 }
 
-test('open table chooses easier colour', () => {
+test('open table selects higher EV colour', () => {
   const state = {
     balls: [
       { id: 0, colour: 'cue', x: 100, y: 100 },
@@ -29,7 +29,7 @@ test('open table chooses easier colour', () => {
     shotsRemaining: 1
   };
   const plan = selectShot(state, {});
-  assert.equal(plan.targetBall, 'yellow');
+  assert.equal(plan.targetBall, 'red');
   assert.equal(plan.actionType, 'pot');
 });
 
