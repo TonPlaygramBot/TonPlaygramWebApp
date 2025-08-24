@@ -1996,6 +1996,7 @@
 
         canvas.addEventListener('pointerdown', function (e) {
           if (!table.running || table.isMoving() || table.turn === 2) return;
+          canvas.setPointerCapture(e.pointerId);
           var t = screenToTable(e.clientX, e.clientY);
           var cue = table.balls[0];
           var dist = Math.hypot(t.x - cue.p.x, t.y - cue.p.y);
@@ -2048,8 +2049,9 @@
           aimMoved = true;
         });
 
-        canvas.addEventListener('pointerup', function () {
+        canvas.addEventListener('pointerup', function (e) {
           if (table.turn === 2) return;
+          canvas.releasePointerCapture(e.pointerId);
           if (draggingCue) {
             draggingCue = false;
             var cue = table.balls[0];
