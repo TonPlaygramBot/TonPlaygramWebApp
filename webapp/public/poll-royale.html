@@ -1508,9 +1508,15 @@
           }
 
           // Steka mbi felt + guida
-          if (!this.isMoving() && this.balls[0] && !this.balls[0].pocketed) {
+          if (
+            (cueStrike.active || !this.isMoving()) &&
+            this.balls[0] &&
+            !this.balls[0].pocketed &&
+            cueVisible
+          ) {
             drawCueOnTable(this.balls[0].p, calibrated(this.aim), cuePullVisual);
-            if (showGuides) drawGuides(this.balls[0], calibrated(this.aim));
+            if (!this.isMoving() && showGuides)
+              drawGuides(this.balls[0], calibrated(this.aim));
           }
         };
 
@@ -1572,6 +1578,8 @@
         var aimMoved = false; // a eshte levizur drejtimi gjate drag
         var showGuides = false; // a shfaqen pikat
         var cuePullVisual = 0; // shfaqje e terheqjes ne felt
+        var cueVisible = true; // a shfaqet steka gjate animimit
+        var cueStrike = { active: false, speed: 0 }; // animimi i goditjes se stekes
         var spinVec = { x: 0, y: 0 }; // spini i zgjedhur
         var power = 0; // fuqi [0..1]
         var cueBallFree = true; // a mund te vendoset cueball
@@ -1818,6 +1826,8 @@
 
         function endShot() {
           shotInProgress = false;
+          cueVisible = true;
+          cuePullVisual = 0;
           var opponent = currentShooter === 1 ? 2 : 1;
           var foul = isFoul(firstHit, scratch);
           var shotPoints = pottedThisShot.reduce(function (a, b) {
@@ -1958,6 +1968,7 @@
           var dt = (t - last) / 1000 || 0;
           last = t;
           if (table.running) {
+            animateCueStrike(dt);
             table.update(Math.min(dt, 0.033));
             table.render();
             updateCapturedUI();
@@ -2350,6 +2361,23 @@
           }
           updatePullHandle();
         }
+
+        function startCueStrikeAnimation(initialPull, p) {
+          cueVisible = true;
+          cueStrike.active = true;
+          cueStrike.speed = BALL_R * 120 * (0.25 + 0.75 * p);
+          cuePullVisual = initialPull;
+        }
+
+        function animateCueStrike(dt) {
+          if (!cueStrike.active) return;
+          cuePullVisual -= cueStrike.speed * dt;
+          if (cuePullVisual <= -BALL_R * 2) {
+            cueStrike.active = false;
+            cuePullVisual = 0;
+            cueVisible = false;
+          }
+        }
         function updateFromEvent(e) {
           var rect = pullArea.getBoundingClientRect();
           power = clamp((e.clientY - rect.top) / rect.height, 0, 1);
@@ -2371,10 +2399,12 @@
         pullHandle.addEventListener('pointerup', function () {
           if (!pulling || table.turn !== 1) return;
           pulling = false;
-          if (pullMoved && power > 0) shoot(power);
+          if (pullMoved && power > 0) {
+            startCueStrikeAnimation(cuePullVisual, power);
+            shoot(power);
+          }
           power = 0;
           updatePowerUI();
-          cuePullVisual = 0;
         });
 
         updatePowerUI();
@@ -2664,8 +2694,8 @@
           cuePullVisual = power * (BALL_R * 14);
           setTimeout(function () {
             cpuThinking = false;
+            startCueStrikeAnimation(cuePullVisual, power);
             shoot(power);
-            cuePullVisual = 0;
             showGuides = false;
           }, CPU_SHOT_DELAY);
         }
