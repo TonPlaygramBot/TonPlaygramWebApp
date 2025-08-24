@@ -94,6 +94,22 @@
   pointer-events: none;
 }
 
+.ps .ps-power-bar {
+  position: absolute;
+  background:
+    repeating-linear-gradient(
+      to bottom,
+      transparent 0 calc(10% - 1px),
+      var(--ps-tick) calc(10% - 1px) 10%
+    ),
+    linear-gradient(
+      to bottom,
+      var(--ps-gradient-low) 0%,
+      var(--ps-gradient-high) 100%
+    );
+  pointer-events: none;
+}
+
 .ps .ps-handle {
   position: absolute;
   top: 0;
@@ -112,6 +128,7 @@
   );
   padding: 7.2px 2.4px;
   pointer-events: auto;
+  z-index: 1;
 }
 
 .ps .ps-handle-text {
