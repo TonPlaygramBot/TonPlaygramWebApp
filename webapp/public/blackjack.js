@@ -557,6 +557,12 @@ function nextTurn() {
   }
 
   state.turn++;
+  while (
+    state.turn < state.players.length &&
+    (state.players[state.turn].bust || state.players[state.turn].stood)
+  ) {
+    state.turn++;
+  }
   if (state.turn >= state.players.length) {
     finish();
     return;
