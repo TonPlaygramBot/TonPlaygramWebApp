@@ -1938,19 +1938,6 @@
           };
         }
 
-        function onAimLine(pt) {
-          var cue = table.balls[0];
-          var ax = table.aim.x - cue.p.x,
-            ay = table.aim.y - cue.p.y;
-          var len2 = ax * ax + ay * ay;
-          if (!len2) return false;
-          var t = ((pt.x - cue.p.x) * ax + (pt.y - cue.p.y) * ay) / len2;
-          if (t < 0 || t > 1) return false;
-          var px = cue.p.x + ax * t,
-            py = cue.p.y + ay * t;
-          return Math.hypot(pt.x - px, pt.y - py) <= BALL_R;
-        }
-
         canvas.addEventListener('pointerdown', function (e) {
           if (!table.running || table.isMoving() || table.turn === 2) return;
           var t = screenToTable(e.clientX, e.clientY);
@@ -1962,19 +1949,13 @@
             cueHint.style.display = 'none';
             return;
           }
-          // Only allow aiming when clicking near the existing aim line
-          var aimVec = { x: table.aim.x - cue.p.x, y: table.aim.y - cue.p.y };
-          var lineLen = Math.hypot(aimVec.x, aimVec.y) || 1;
-          var distToLine =
-            Math.abs(aimVec.y * (t.x - cue.p.x) - aimVec.x * (t.y - cue.p.y)) /
-            lineLen;
-          var proj =
-            ((t.x - cue.p.x) * aimVec.x + (t.y - cue.p.y) * aimVec.y) /
-            lineLen;
-          if (distToLine > BALL_R || proj < -BALL_R) return;
+          // Allow aiming anywhere by clicking on the table
           aiming = true;
           aimMoved = false;
           showGuides = true;
+          table.aim.x = t.x;
+          table.aim.y = t.y;
+          placeAimGlow(calibrated(table.aim));
         });
 
         canvas.addEventListener('pointermove', function (e) {
