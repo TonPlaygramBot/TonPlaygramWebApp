@@ -285,17 +285,10 @@ export default function LuckyNumber() {
                             alt="Bonus"
                             className="w-4 h-4"
                           />
-                      <span className="ml-1">X3</span>
+                          <span className="ml-1">X3</span>
                         </>
                       ) : (
-                        <>
-                          <img
-                            src="/assets/icons/file_00000000bc2862439eecffff3730bbe4.webp"
-                            alt="TonPlaygram"
-                            className="w-4 h-4"
-                          />
-                          <span className="ml-1">{cardPrize}</span>
-                        </>
+                        <span>{cardPrize}</span>
                       )}
                     </div>
                     <div className="absolute bottom-1 left-1 text-xs font-bold flex items-center">
@@ -318,14 +311,7 @@ export default function LuckyNumber() {
                           <span className="ml-1">X3</span>
                         </>
                       ) : (
-                        <>
-                          <img
-                            src="/assets/icons/file_00000000bc2862439eecffff3730bbe4.webp"
-                            alt="TonPlaygram"
-                            className="w-4 h-4"
-                          />
-                          <span className="ml-1">{cardPrize}</span>
-                        </>
+                        <span>{cardPrize}</span>
                       )}
                     </div>
                   </div>
