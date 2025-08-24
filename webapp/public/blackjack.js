@@ -16,6 +16,7 @@ const state = {
   deck: [],
   turn: 0,
   stake: 0,
+  startBet: 0,
   token: 'TPC',
   devAccountId: '',
   pot: 0,
@@ -345,6 +346,7 @@ function dealCardToPlayer(idx, card, showFace) {
 }
 
 function render() {
+  updateRaiseAmount();
   const seats = document.getElementById('seats');
   seats.innerHTML = '';
   const positions = [
@@ -650,7 +652,7 @@ function canSplit(p) {
     p.hand &&
     p.hand.length === 2 &&
     p.hand[0].rank === p.hand[1].rank &&
-    p.balance >= state.stake
+    p.balance >= state.startBet
   );
 }
 
@@ -665,13 +667,13 @@ function playerSplit() {
     name: p.name,
     avatar: p.avatar,
     isHuman: true,
-    balance: p.balance - state.stake,
-    bet: state.stake,
+    balance: p.balance - state.startBet,
+    bet: state.startBet,
     revealed: true
   };
-  p.balance -= state.stake;
-  state.accountBalance -= state.stake;
-  state.pot += state.stake;
+  p.balance -= state.startBet;
+  state.accountBalance -= state.startBet;
+  state.pot += state.startBet;
   state.players.splice(state.turn + 1, 0, newPlayer);
   renderPot();
   render();
@@ -775,20 +777,25 @@ function renderCommunity() {
 }
 
 function updateRaiseAmount() {
-  if (state.raiseAmount > state.stake) state.raiseAmount = state.stake;
+  const maxRaise = Math.max(0, state.stake - state.currentBet);
+  if (state.raiseAmount > maxRaise) state.raiseAmount = maxRaise;
   const chipAmt = document.getElementById('chipAmount');
   const sliderAmt = document.getElementById('raiseSliderAmount');
   const slider = document.getElementById('raiseSlider');
   if (chipAmt) chipAmt.textContent = state.raiseAmount.toString();
   if (sliderAmt) sliderAmt.textContent = state.raiseAmount.toString();
-  if (slider) slider.value = state.raiseAmount.toString();
+  if (slider) {
+    slider.max = maxRaise.toString();
+    slider.value = state.raiseAmount.toString();
+  }
 }
 
 function commitRaise() {
   const p = state.players[state.turn];
   if (!p) return;
   const callAmt = Math.max(0, state.currentBet - (p.bet || 0));
-  const totalNeeded = callAmt + state.raiseAmount;
+  const maxPay = state.stake - (p.bet || 0);
+  const totalNeeded = Math.min(callAmt + state.raiseAmount, maxPay);
   const pay = Math.min(totalNeeded, p.balance || totalNeeded);
   if (pay <= 0) return;
   state.pot += pay;
@@ -827,13 +834,13 @@ async function startNewRound() {
 
   await loadAccountBalance();
   state.players.forEach((p) => {
-    p.balance = (p.balance || 0) - state.stake;
-    p.bet = state.stake;
-    if (p.isHuman) state.accountBalance -= state.stake;
+    p.balance = (p.balance || 0) - state.startBet;
+    p.bet = state.startBet;
+    if (p.isHuman) state.accountBalance -= state.startBet;
   });
-  state.currentBet = state.stake;
+  state.currentBet = state.startBet;
   state.raiseInitiator = 0;
-  state.pot = state.stake * state.players.length;
+  state.pot = state.startBet * state.players.length;
 
   // show cleared table before dealing new cards
   render();
@@ -868,6 +875,7 @@ async function init() {
   const params = new URLSearchParams(location.search);
   state.token = params.get('token') || 'TPC';
   state.stake = parseInt(params.get('amount') || '0', 10);
+  state.startBet = Math.max(1, Math.floor(state.stake / 100));
   state.devAccountId = params.get('dev') || '';
   myAccountId = params.get('accountId') || '';
   myTelegramId = params.get('tgId') || '';
@@ -901,13 +909,13 @@ async function init() {
 
   await loadAccountBalance();
   state.players.forEach((p) => {
-    p.balance = (p.balance || 0) - state.stake;
-    p.bet = state.stake;
-    if (p.isHuman) state.accountBalance -= state.stake;
+    p.balance = (p.balance || 0) - state.startBet;
+    p.bet = state.startBet;
+    if (p.isHuman) state.accountBalance -= state.startBet;
   });
-  state.currentBet = state.stake;
+  state.currentBet = state.startBet;
   state.raiseInitiator = 0;
-  state.pot = state.stake * state.players.length;
+  state.pot = state.startBet * state.players.length;
   state.deck = shuffle(createDeck());
 
   render();
@@ -947,7 +955,7 @@ async function init() {
 
   const slider = document.getElementById('raiseSlider');
   if (slider) {
-    slider.max = state.stake.toString();
+    slider.max = Math.max(0, state.stake - state.currentBet).toString();
     slider.addEventListener('input', () => {
       state.raiseAmount = parseInt(slider.value, 10);
       updateRaiseAmount();
@@ -1052,19 +1060,22 @@ function aiBettingRound() {
     if (p.isHuman || p.bust) continue;
     const act = aiBetAction(p.hand);
     if (act === 'raise') {
-      const amt = Math.min(state.stake, p.balance || state.stake);
-      state.pot += amt;
-      p.balance = (p.balance || 0) - amt;
-      animateChipsFromPlayer(i, amt);
-      playCallRaise();
-      state.currentBet = amt;
-      state.awaitingCall = true;
-      state.raiseInitiator = i;
-      state.turn = i;
-      renderPot();
-      render();
-      delay(aiTurn, 500);
-      return;
+      const maxAmt = Math.max(0, state.stake - state.currentBet);
+      const amt = Math.min(maxAmt, p.balance || maxAmt);
+      if (amt > 0) {
+        state.pot += amt;
+        p.balance = (p.balance || 0) - amt;
+        animateChipsFromPlayer(i, amt);
+        playCallRaise();
+        state.currentBet += amt;
+        state.awaitingCall = true;
+        state.raiseInitiator = i;
+        state.turn = i;
+        renderPot();
+        render();
+        delay(aiTurn, 500);
+        return;
+      }
     } else if (act === 'fold') {
       p.bust = true;
       p.stood = true;
