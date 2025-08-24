@@ -57,7 +57,7 @@
         content: '';
         position: absolute;
         top: 0;
-        bottom: 0;
+        bottom: 2%;
         left: 1vw;
         right: 1vw;
         background: url('assets/icons/de2a24a7-922a-4400-8edc-027a1017224e.webp')
@@ -511,25 +511,6 @@
         width: 12px;
         height: 12px;
       }
-      .tpc-total {
-        position: absolute;
-        top: 8px;
-        right: 8px;
-        display: flex;
-        align-items: center;
-        gap: 4px;
-        background: rgba(0, 0, 0, 0.5);
-        padding: 4px 8px;
-        border-radius: 8px;
-        font-weight: 700;
-      }
-      .tpc-total.small {
-        font-size: 12px;
-      }
-      .tpc-total img {
-        width: 16px;
-        height: 16px;
-      }
       .controls {
         display: flex;
         gap: 8px;
@@ -566,9 +547,9 @@
       #fold {
         background: #dc2626;
       }
-      .raise-container {
+        .raise-container {
         position: absolute;
-        bottom: 0;
+        bottom: 2%;
         left: 2%;
         z-index: 5;
         display: flex;
@@ -662,7 +643,10 @@
         gap: 4px;
       }
       .slider-wrap input[type='range'] {
-        width: 85%;
+        width: var(--avatar-size);
+        height: calc(var(--avatar-size) * 2.5);
+        writing-mode: bt-lr;
+        -webkit-appearance: slider-vertical;
       }
       #allIn {
         background: #dc2626;
@@ -938,25 +922,23 @@
         <div class="raise-amount" id="chipAmount">0</div>
       </div>
       <div class="slider-container">
-        <input type="range" id="raiseSlider" min="0" value="0" />
-        <div class="raise-amount" id="raiseSliderAmount">0</div>
-        <div class="raise-buttons">
-          <button class="raise-btn" id="raiseBtn">Raise</button>
+        <div class="slider-wrap">
+          <input
+            type="range"
+            id="raiseSlider"
+            min="0"
+            value="0"
+            orient="vertical"
+          />
+          <div class="raise-amount" id="raiseSliderAmount">0</div>
         </div>
+        <button class="raise-btn" id="raiseBtn">Raise</button>
       </div>
       <div class="folded-area" id="foldedArea">
         <div id="foldedLabel" class="folded-label" style="display: none">
           Folded
         </div>
         <div id="foldedCards" class="folded-cards"></div>
-      </div>
-      <div class="tpc-total">
-        <span id="tpcTotal">0</span>
-        <img
-          src="assets/icons/ezgif-54c96d8a9b9236.webp"
-          alt="TPC"
-          class="tpc-inline-icon"
-        />
       </div>
       <div id="status"></div>
       <div class="seats" id="seats"></div>
