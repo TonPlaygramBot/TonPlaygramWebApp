@@ -2372,7 +2372,7 @@
         function animateCueStrike(dt) {
           if (!cueStrike.active) return;
           cuePullVisual -= cueStrike.speed * dt;
-          if (cuePullVisual <= -BALL_R * 2) {
+          if (cuePullVisual <= 0) {
             cueStrike.active = false;
             cuePullVisual = 0;
             cueVisible = false;
