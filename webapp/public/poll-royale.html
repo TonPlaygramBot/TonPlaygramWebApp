@@ -2723,17 +2723,20 @@
           ],
           source: 'Based on traditional 15-ball rotation guidelines.'
         },
-        '9ball': {
-          title: 'Nine Ball Rules',
-          items: [
-            'Balls are racked in a diamond with the 1 at the top and the 9 in the center.',
-            'Always strike the lowest numbered ball on the table first.',
-            'Combinations are allowed provided the lowest ball is struck first.',
-            'Legally pocketing the 9-ball at any time wins the rack.',
-            'Scratching gives the opponent ball-in-hand.'
-          ],
-          source: 'Based on World Pool-Billiard Association Nine-ball rules.'
-        }
+          '9ball': {
+            title: '9-Ball Rules',
+            items: [
+              'Balls must be struck in numerical order from 1 to 9; failing to hit the next ball first is a foul.',
+              'Any ball pocketed after correctly contacting the lowest ball keeps the turn.',
+              'Pocketing the cue ball ends your turn and hands play to the opponent.',
+              'The cue ball may be moved only behind the head line at the start or after a foul.',
+              'Choose shots that favor balls near pockets or with clean angles.',
+              'The AI draws a helper line—direct or off a rail—to guarantee the next ball is contacted first.',
+              'On straight shots, the AI may use draw or spin to move other balls after the legal hit, prioritizing higher numbers when advantageous.',
+              'Example: if the 2-ball is the target and the 9-ball sits by a pocket, hit the 2 then use the cue ball to push the 9 in to win.'
+            ],
+            source: 'Custom Pool Royale 9-ball guidelines.'
+          }
       };
 
       rulesBtn.addEventListener('click', () => {
