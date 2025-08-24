@@ -1287,8 +1287,10 @@
                     if (!firstHit) {
                       firstHit = BALL_BY_N[other.n];
                       if (
-                        (isNineBall && other.n !== currentTarget) ||
-                        (!isAmerican && !isNineBall &&
+                        ((isNineBall || isAmerican) &&
+                          other.n !== currentTarget) ||
+                        (!isAmerican &&
+                          !isNineBall &&
                           assignedTypes[currentShooter] &&
                           BALL_BY_N[other.n].t !==
                             assignedTypes[currentShooter])
@@ -1740,22 +1742,20 @@
           }
         }
 
-        function showTurnInfo() {
-          var msg;
-          if (isNineBall) {
-            if (!currentTarget) currentTarget = lowestBallOnTable();
-            msg = 'Pot the ' + currentTarget + '-ball';
-          } else if (isAmerican) {
-            msg = 'Pot any ball';
-          } else {
-            if (!assignedTypes[table.turn]) {
-              msg = 'Choose a color';
+          function showTurnInfo() {
+            var msg;
+            if (isNineBall || isAmerican) {
+              if (!currentTarget) currentTarget = lowestBallOnTable();
+              msg = 'Pot the ' + currentTarget + '-ball';
             } else {
-              msg = 'Pot a ' + assignedTypes[table.turn];
+              if (!assignedTypes[table.turn]) {
+                msg = 'Choose a color';
+              } else {
+                msg = 'Pot a ' + assignedTypes[table.turn];
+              }
             }
+            updateFooter(table.turn, msg);
           }
-          updateFooter(table.turn, msg);
-        }
 
         function updateTurnIndicator(force) {
           if (force || table.turn !== lastTurn) {
@@ -1795,11 +1795,8 @@
         }
 
         function isFoul(firstHit, scratch) {
-          if (isNineBall) {
+          if (isNineBall || isAmerican) {
             return !firstHit || firstHit.n !== currentTarget || scratch;
-          }
-          if (isAmerican) {
-            return !firstHit || scratch;
           }
           if (!firstHit || scratch) return true;
           var shooterType = assignedTypes[currentShooter];
@@ -2395,7 +2392,8 @@
           base *= 0.5;
           playCueHit(p);
           currentShooter = table.turn;
-          if (isNineBall) currentTarget = lowestBallOnTable();
+            if (isNineBall || isAmerican)
+              currentTarget = lowestBallOnTable();
           shotInProgress = true;
           pocketedAny = false;
           pocketedOwn = false;
@@ -2427,7 +2425,7 @@
             cue.v.x = cue.v.y = 0;
           }
           var targets = [];
-          if (isNineBall) {
+          if (isNineBall || isAmerican) {
             var lowest = null;
             for (var i = 0; i < table.balls.length; i++) {
               var b = table.balls[i];
@@ -2435,12 +2433,6 @@
               if (!lowest || b.n < lowest.n) lowest = b;
             }
             if (lowest) targets.push(lowest);
-          } else if (isAmerican) {
-            for (var i = 0; i < table.balls.length; i++) {
-              var b = table.balls[i];
-              if (!b || b.n === 0 || b.pocketed) continue;
-              targets.push(b);
-            }
           } else {
             var type = assignedTypes[2];
             for (var i = 0; i < table.balls.length; i++) {
@@ -2714,17 +2706,17 @@
           ],
           source: 'Rules based on World Eightball Pool Federation guidelines.'
         },
-        american: {
-          title: 'American Billiards Rules',
-          items: [
-            'Balls must be struck in numerical order; failing to contact the lowest numbered ball first is a foul.',
-            'Pocketed balls score their face value, but points from a fouled shot go to the opponent.',
-            'Pocketing the cue ball awards any points from that shot to the opponent.',
-            'When in hand, the cue ball must remain behind the head string.',
-            'The 8-ball is a normal scoring ball with no special effect.'
-          ],
-          source: 'Based on traditional 15-ball rotation guidelines.'
-        },
+          american: {
+            title: 'American Billiards Rules',
+            items: [
+              'Balls must be struck in numerical order; failing to contact the lowest numbered ball first is a foul.',
+              'Pocketed balls score their face value, but points from a fouled shot go to the opponent.',
+              'Pocketing the cue ball awards any points from that shot to the opponent.',
+              'When in hand, the cue ball must remain behind the head string.',
+              'If scores are tied after all balls are potted, spot the 8-ball and place the cue ball behind the head string; the last scorer shoots first and whoever pots the 8-ball wins.'
+            ],
+            source: 'Based on traditional 15-ball rotation guidelines.'
+          },
           '9ball': {
             title: '9-Ball Rules',
             items: [
