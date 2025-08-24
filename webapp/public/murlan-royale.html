@@ -41,8 +41,8 @@
     .seat.active .avatar{ border-color:var(--ui2); box-shadow:0 0 10px var(--ui2); }
     .seat.left,
     .seat.right{ display:flex; flex-direction:column; align-items:center; }
-    .seat.left .cards{ transform:rotate(90deg); transform-origin:top left; }
-    .seat.right .cards{ transform:rotate(-90deg); transform-origin:top right; }
+    .seat.left .cards,
+    .seat.right .cards{ display:flex; flex-direction:column; align-items:center; }
     .seat.bottom .cards{ touch-action:none; transform:scale(var(--my-card-scale)); transform-origin:center bottom; gap:0; }
     .seat.bottom .cards .card:not(:first-child){ margin-left:calc(var(--card-w)*-0.3); }
 
@@ -323,6 +323,8 @@
         passBtn.addEventListener('click', ()=>{ toast('You pass'); state.passesSincePlay++; clearSelections(); advanceTurn(); });
         controls.append(av,passBtn);
         seat.append(controls,name,cards,timer);
+      }else if(side==='left' || side==='right'){
+        seat.append(av,cards,name,timer);
       }else{
         seat.append(av,name,cards,timer);
       }
