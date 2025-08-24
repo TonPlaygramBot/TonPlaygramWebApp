@@ -276,13 +276,18 @@
 
       #powerBox {
         width: 12px;
-        height: 23%;
+        height: 100%;
         background: none;
         border-radius: 9px;
-        position: relative;
+        position: absolute;
         overflow: hidden;
         border: 2px solid #fff;
         box-shadow: none;
+        left: calc(100% - 16px);
+        top: 0;
+        transform: translate(-50%, 0);
+        pointer-events: none;
+        z-index: 6;
       }
 
       #powerFill {
@@ -303,7 +308,7 @@
         transform-origin: top center;
         pointer-events: none;
         touch-action: none;
-        z-index: 6;
+        z-index: 7;
       }
 
       #powerBg {
@@ -516,6 +521,7 @@
         <aside id="rightPanel">
           <div id="pullArea">
             <div id="powerBg"></div>
+            <div id="powerBox"><div id="powerFill"></div></div>
             <img
               id="powerCue"
               src="/assets/icons/file_0000000019d86243a2f7757076cd7869.webp"
@@ -533,7 +539,6 @@
               gap: 6px;
             "
           >
-            <div id="powerBox"><div id="powerFill"></div></div>
             <div id="powerTxt">
               <div>Power</div>
               <div id="powerPercent">0%</div>
@@ -636,6 +641,7 @@
         cueImg.src = '/assets/icons/file_0000000019d86243a2f7757076cd7869.webp';
         var pullArea = document.getElementById('pullArea');
         var powerFill = document.getElementById('powerFill');
+        var powerBox = document.getElementById('powerBox');
         var powerTxt = document.getElementById('powerTxt');
         var powerPercent = document.getElementById('powerPercent');
         var powerCue = document.getElementById('powerCue');
@@ -2265,6 +2271,9 @@
           powerBg.style.width = powerCue.offsetWidth + 'px';
           powerBg.style.height = powerCue.offsetHeight + 'px';
           powerBg.style.top = minY + 'px';
+          powerBox.style.width = powerCue.offsetWidth + 'px';
+          powerBox.style.height = powerCue.offsetHeight + 'px';
+          powerBox.style.top = minY + 'px';
         }
         function updatePowerUI() {
           powerFill.style.height = Math.round(power * 100) + '%';
