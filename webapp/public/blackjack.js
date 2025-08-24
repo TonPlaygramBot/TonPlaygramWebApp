@@ -445,6 +445,13 @@ function render() {
     } else {
       seat.append(inner, bal);
     }
+    const actionText = document.createElement('div');
+    actionText.className = 'action-text';
+    if (p.action) {
+      actionText.classList.add(p.action.type);
+      actionText.innerHTML = p.action.text;
+    }
+    seat.appendChild(actionText);
 
     if (i === state.turn && !p.stood && !p.bust) seat.classList.add('active');
     if (p.bust) seat.classList.add('folded');
@@ -486,6 +493,7 @@ function aiRespondToRaise() {
   if (act === 'fold') {
     p.bust = true;
     p.stood = true;
+    p.action = { type: 'fold', text: `${p.name} folds` };
     render();
     nextTurn();
     return;
@@ -497,7 +505,6 @@ function aiRespondToRaise() {
   p.bet = (p.bet || 0) + callPay;
   animateChipsFromPlayer(state.turn, callPay);
   playCallRaise();
-  renderPot();
   if (act === 'raise') {
     const maxRaise = Math.max(0, state.stake - state.currentBet);
     const raiseAmt = Math.min(state.currentBet, p.balance || state.currentBet, maxRaise);
@@ -510,10 +517,14 @@ function aiRespondToRaise() {
       animateChipsFromPlayer(state.turn, raiseAmt);
       playCallRaise();
       renderPot();
+      p.action = { type: 'raise', text: `${p.name} raises to ${formatAmount(p.bet)}` };
+      render();
       nextTurn();
       return;
     }
   }
+  renderPot();
+  p.action = { type: 'call', text: `${p.name} calls ${formatAmount(callPay)}` };
   render();
   nextTurn();
 }
@@ -620,12 +631,17 @@ function playerFold() {
   if (!p || !p.isHuman) return;
   p.bust = true;
   p.stood = true;
+  p.action = { type: 'fold', text: `${p.name} folds` };
   clearCallTimer();
   render();
   nextTurn();
 }
 
 function playerCheck() {
+  const p = state.players[state.turn];
+  if (!p) return;
+  p.action = { type: 'check', text: `${p.name} checks` };
+  render();
   nextTurn();
 }
 
@@ -642,6 +658,7 @@ function playerCall() {
   animateChipsFromPlayer(state.turn, pay);
   playCallRaise();
   renderPot();
+  p.action = { type: 'call', text: `${p.name} calls ${formatAmount(pay)}` };
   state.awaitingCall = false;
   render();
 }
@@ -810,6 +827,8 @@ function commitRaise() {
   state.raiseAmount = 0;
   updateRaiseAmount();
   renderPot();
+  p.action = { type: 'raise', text: `${p.name} raises to ${formatAmount(p.bet)}` };
+  render();
   state.awaitingCall = true;
   nextTurn();
 }
@@ -831,6 +850,7 @@ async function startNewRound() {
     p.bust = false;
     p.revealed = false;
     p.bet = 0;
+    p.action = null;
   });
 
   await loadAccountBalance();
@@ -896,7 +916,16 @@ async function init() {
   const playerCount = 6;
   const flags = [...FLAG_EMOJIS].sort(() => 0.5 - Math.random()).slice(0, playerCount - 1);
   state.players = [
-    { hand: [], stood: false, bust: false, name: username, avatar, isHuman: true, balance: 0 },
+    {
+      hand: [],
+      stood: false,
+      bust: false,
+      name: username,
+      avatar,
+      isHuman: true,
+      balance: 0,
+      action: null,
+    },
     ...flags.map((f) => ({
       hand: [],
       stood: false,
@@ -905,6 +934,7 @@ async function init() {
       avatar: f,
       isHuman: false,
       balance: randomBalance(),
+      action: null,
     })),
   ];
 
@@ -1072,6 +1102,7 @@ function aiBettingRound() {
         state.awaitingCall = true;
         state.raiseInitiator = i;
         state.turn = i;
+        p.action = { type: 'raise', text: `${p.name} raises to ${formatAmount(state.currentBet)}` };
         renderPot();
         render();
         delay(aiTurn, 500);
@@ -1080,6 +1111,7 @@ function aiBettingRound() {
     } else if (act === 'fold') {
       p.bust = true;
       p.stood = true;
+      p.action = { type: 'fold', text: `${p.name} folds` };
     }
   }
   renderPot();
