@@ -377,6 +377,17 @@
           1px 1px 0 #fff;
       }
 
+      .seat .action-text {
+        position: absolute;
+        top: -1.2em;
+        left: 50%;
+        transform: translateX(-50%);
+        font-size: 10px;
+        white-space: nowrap;
+        text-align: center;
+        pointer-events: none;
+      }
+
       .seat.bottom {
         bottom: 0.5%;
         left: 50%;
@@ -802,6 +813,16 @@
         font-weight: 700;
       }
 
+      .pot-info {
+        position: absolute;
+        top: calc(100% + 2px);
+        left: 50%;
+        transform: translateX(-50%);
+        font-size: 10px;
+        white-space: nowrap;
+        text-align: center;
+      }
+
       .chip {
         position: relative;
         width: calc(var(--avatar-size) / 1.6);
@@ -913,6 +934,10 @@
       <div class="pot-wrap" id="potWrap">
         <div class="pot" id="pot"></div>
         <div class="pot-total" id="potTotal"></div>
+        <div class="pot-info" id="potInfo">
+          No dealer: players compete. Highest hand wins. Dealer takes 10% from the
+          winner.
+        </div>
       </div>
       <div class="raise-container" id="raiseContainer">
         <div class="chip-grid">
