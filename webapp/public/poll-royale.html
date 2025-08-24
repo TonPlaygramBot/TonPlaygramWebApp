@@ -1579,7 +1579,7 @@
         var showGuides = false; // a shfaqen pikat
         var cuePullVisual = 0; // shfaqje e terheqjes ne felt
         var cueVisible = true; // a shfaqet steka gjate animimit
-        var cueStrike = { active: false, speed: 0 }; // animimi i goditjes se stekes
+        var cueStrike = { active: false, speed: 0, stage: 'forward' }; // animimi i goditjes se stekes
         var spinVec = { x: 0, y: 0 }; // spini i zgjedhur
         var power = 0; // fuqi [0..1]
         var cueBallFree = true; // a mund te vendoset cueball
@@ -2366,16 +2366,43 @@
           cueVisible = true;
           cueStrike.active = true;
           cueStrike.speed = BALL_R * 120 * (0.25 + 0.75 * p);
+          cueStrike.stage = 'forward';
           cuePullVisual = initialPull;
         }
 
         function animateCueStrike(dt) {
           if (!cueStrike.active) return;
-          cuePullVisual -= cueStrike.speed * dt;
-          if (cuePullVisual <= 0) {
-            cueStrike.active = false;
-            cuePullVisual = 0;
-            cueVisible = false;
+          if (cueStrike.stage === 'forward') {
+            cuePullVisual -= cueStrike.speed * dt;
+            if (cuePullVisual <= 0) {
+              if (spinVec.y < -0.1) {
+                cuePullVisual = -BALL_R * 0.2; // small push for top spin
+                cueStrike.stage = 'recover';
+              } else if (spinVec.y > 0.1) {
+                cuePullVisual = BALL_R * 0.2; // slight pullback for back spin
+                cueStrike.stage = 'recover';
+              } else {
+                cuePullVisual = 0;
+                cueStrike.active = false;
+                cueVisible = false;
+              }
+            }
+          } else if (cueStrike.stage === 'recover') {
+            if (spinVec.y < -0.1) {
+              cuePullVisual += cueStrike.speed * dt;
+              if (cuePullVisual >= 0) {
+                cuePullVisual = 0;
+                cueStrike.active = false;
+                cueVisible = false;
+              }
+            } else if (spinVec.y > 0.1) {
+              cuePullVisual -= cueStrike.speed * dt;
+              if (cuePullVisual <= 0) {
+                cuePullVisual = 0;
+                cueStrike.active = false;
+                cueVisible = false;
+              }
+            }
           }
         }
         function updateFromEvent(e) {
