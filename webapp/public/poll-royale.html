@@ -318,9 +318,9 @@
 
       #pullLabel {
         position: absolute;
-        right: 0;
+        top: 0;
         left: auto;
-        bottom: calc(100% + 8px);
+        right: -2px;
         transform: none;
         font-size: 12px;
         color: #fff;
@@ -2259,6 +2259,7 @@
           var maxY = rect.height - powerCue.offsetHeight * 0.4;
           var y = minY + (maxY - minY) * power;
           powerCue.style.top = y + 'px';
+          pullHandle.style.top = y + 'px';
           powerBg.style.width = powerCue.offsetWidth + 'px';
           powerBg.style.height = powerCue.offsetHeight + 'px';
           powerBg.style.top = minY + 'px';
