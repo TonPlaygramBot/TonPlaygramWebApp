@@ -4,7 +4,7 @@ export default function GoalRush() {
   useTelegramBackButton();
   const { search } = useLocation();
   return (
-    <div className="relative w-full h-screen">
+    <div className="relative w-full h-[100dvh]">
       <iframe
         src={`/goal-rush.html${search}`}
         title="Goal Rush"
