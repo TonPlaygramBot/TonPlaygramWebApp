@@ -1180,8 +1180,8 @@
             b.v.x *= FRICTION;
             b.v.y *= FRICTION;
             if (b.spin && b.spinApplied) {
-              b.v.x += b.spin.x * 45 * dt;
-              b.v.y += b.spin.y * 45 * dt;
+              b.v.x += b.spin.x * 58.5 * dt;
+              b.v.y += b.spin.y * 58.5 * dt;
               b.spin.x *= 0.98;
               b.spin.y *= 0.98;
             }
@@ -1976,17 +1976,8 @@
             cueHint.style.display = 'none';
             return;
           }
-          // If a ball is tapped, aim at its center
-          for (var i = 1; i < table.balls.length; i++) {
-            var b = table.balls[i];
-            if (b.pocketed) continue;
-            if (Math.hypot(t.x - b.p.x, t.y - b.p.y) <= BALL_R) {
-              t.x = b.p.x;
-              t.y = b.p.y;
-              break;
-            }
-          }
           // Allow aiming anywhere by clicking on the table or balls
+          // (do not snap to ball center so players can target specific sides)
           aiming = true;
           aimMoved = false;
           showGuides = true;
@@ -2052,9 +2043,9 @@
             dy = aim.y - cue.p.y;
           var L = len(dx, dy) || 1;
           var dir = { x: dx / L, y: dy / L };
-          // Use a smaller step for more precise collision detection
-          var step = BALL_R * 0.5,
-            dots = 60;
+          // Use a smaller step for more precise collision detection and denser guide dots
+          var step = BALL_R * 0.3,
+            dots = 100;
           var x = cue.p.x,
             y = cue.p.y,
             target = null,
@@ -2118,6 +2109,12 @@
               x: dir.x - 2 * dotIn * railNormal.x,
               y: dir.y - 2 * dotIn * railNormal.y
             };
+            // adjust the reflection based on selected spin
+            refl.x += spinVec.x * 0.3;
+            refl.y += spinVec.y * 0.3;
+            var rL = Math.hypot(refl.x, refl.y) || 1;
+            refl.x /= rL;
+            refl.y /= rL;
             ctx.save();
             ctx.strokeStyle = 'rgba(255,255,255,.5)';
             ctx.lineWidth = 2;
@@ -2380,7 +2377,7 @@
           cue.v.x = d.x * base * (0.25 + 0.75 * p);
           cue.v.y = d.y * base * (0.25 + 0.75 * p);
           // Increase the spin effect in all directions
-          cue.spin = { x: spinVec.x * 45 * p, y: spinVec.y * 45 * p };
+          cue.spin = { x: spinVec.x * 58.5 * p, y: spinVec.y * 58.5 * p };
           cue.spinApplied = false;
           cueBallFree = false;
           setSpin(0, 0);
