@@ -1427,8 +1427,8 @@
 
           // Steka mbi felt + guida
           if (!this.isMoving() && this.balls[0] && !this.balls[0].pocketed) {
-            drawCueOnTable(this.balls[0].p, this.aim, cuePullVisual);
-          if (showGuides) drawGuides(this.balls[0], calibrated(this.aim));
+            drawCueOnTable(this.balls[0].p, calibrated(this.aim), cuePullVisual);
+            if (showGuides) drawGuides(this.balls[0], calibrated(this.aim));
           }
         };
 
@@ -1506,8 +1506,8 @@
         var firstHit = null;
         var lastTurn = table.turn;
         var cpuThinking = false;
-        // Allow the CPU up to 10 seconds to take its shot
-        var CPU_SHOT_DELAY = 10000;
+        // Allow the CPU up to 5 seconds to take its shot
+        var CPU_SHOT_DELAY = 5000;
         var scores = { 1: 0, 2: 0 };
         var lastPocketedBall = null;
         var currentTarget = null;
@@ -1973,8 +1973,8 @@
             return;
           }
           if (!aiming || !table.running) return;
-          table.aim.x += (t.x - table.aim.x) * 0.1;
-          table.aim.y += (t.y - table.aim.y) * 0.1;
+          table.aim.x = t.x;
+          table.aim.y = t.y;
           placeAimGlow(calibrated(table.aim));
           aimMoved = true;
         });
@@ -2495,7 +2495,10 @@
               chosen = bank.target;
               aimPoint = bank.aim;
             } else {
-              chosen = targets[Math.floor(Math.random() * targets.length)];
+              chosen = targets.reduce(function (closest, b) {
+                var d = len(b.p.x - cue.p.x, b.p.y - cue.p.y);
+                return !closest || d < closest.dist ? { ball: b, dist: d } : closest;
+              }, null).ball;
               var pk = table.pockets.reduce(function (closest, p) {
                 var d = len(p.x - chosen.p.x, p.y - chosen.p.y);
                 return !closest || d < closest.dist ? { pocket: p, dist: d } : closest;
