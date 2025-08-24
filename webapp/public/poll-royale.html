@@ -99,6 +99,9 @@
       .name {
         font-weight: 700;
       }
+      .name.small {
+        font-size: 12px;
+      }
 
       .player .info {
         display: flex;
@@ -386,6 +389,7 @@
         width: 44px;
         text-align: center;
         pointer-events: none;
+        z-index: 9;
       }
 
       #play {
@@ -680,6 +684,28 @@
         var nameCPU = document.querySelector(
           '#header .player:last-child .name'
         );
+
+        function formatPlayerName(name, el) {
+          el.classList.remove('small');
+          if (name.length > 15) {
+            var initials = name
+              .trim()
+              .split(/\s+/)
+              .map(function (part) {
+                return part.charAt(0);
+              })
+              .join('');
+            el.textContent = initials;
+          } else {
+            el.textContent = name;
+            if (name.length > 12) {
+              el.classList.add('small');
+            }
+          }
+        }
+
+        formatPlayerName(nameP1.textContent, nameP1);
+        formatPlayerName(nameCPU.textContent, nameCPU);
         var pottedP1 = document.getElementById('p1Potted');
         var pottedP2 = document.getElementById('p2Potted');
         var scoreP1 = document.getElementById('p1Score');
@@ -708,7 +734,9 @@
         var urlParams = new URLSearchParams(location.search);
         var avatarParam = urlParams.get('avatar');
         var nameParam = urlParams.get('name');
-        if (nameParam) nameP1.textContent = nameParam;
+        if (nameParam) {
+          formatPlayerName(nameParam, nameP1);
+        }
         if (avatarParam) {
           avatarP1.style.backgroundImage = 'url(' + avatarParam + ')';
           avatarP1.style.backgroundSize = 'cover';
@@ -843,10 +871,11 @@
         var userData = tg?.initDataUnsafe?.user;
         if (userData) {
           if (!nameParam) {
-            nameP1.textContent =
+            var fullName =
               [userData.first_name, userData.last_name]
                 .filter(Boolean)
                 .join(' ') || 'You';
+            formatPlayerName(fullName, nameP1);
           }
           if (!avatarParam) {
             if (userData.photo_url) {
@@ -875,7 +904,7 @@
         if (window.FLAG_EMOJIS) {
           var flag = FLAG_EMOJIS[(Math.random() * FLAG_EMOJIS.length) | 0];
           avatarCPU.textContent = flag;
-          nameCPU.textContent = flagToName(flag) || 'CPU';
+          formatPlayerName(flagToName(flag) || 'CPU', nameCPU);
         }
 
         /* ==========================================================
