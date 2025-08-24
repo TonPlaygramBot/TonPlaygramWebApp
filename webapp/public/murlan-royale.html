@@ -42,7 +42,7 @@
     .seat.left,
     .seat.right{ display:flex; flex-direction:column; align-items:center; }
     .seat.left .cards,
-    .seat.right .cards{ display:flex; flex-direction:column; align-items:center; }
+    .seat.right .cards{ display:flex; flex-direction:column; align-items:center; gap:0; }
     .seat.bottom .cards{ touch-action:none; transform:scale(var(--my-card-scale)); transform-origin:center bottom; gap:0; }
     .seat.bottom .cards .card:not(:first-child){ margin-left:calc(var(--card-w)*-0.3); }
 
@@ -61,6 +61,14 @@
     .back{ background:url('assets/icons/file_00000000bc2862439eecffff3730bbe4.webp') center/60% no-repeat, repeating-linear-gradient(45deg,#233,#233 6px,#122 6px,#122 12px); border:2px solid rgba(255,255,255,.5); color:transparent; }
     .back::before{ content:""; position:absolute; inset:6px; border-radius:8px; border:2px dashed rgba(255,255,255,.35); }
     .opp-fan .card{ margin-left:-30px; transform:rotateZ(var(--rot,0deg)) }
+
+    /* Left & right opponents: rotate and tighten card spacing */
+    .seat.left .opp-fan .card,
+    .seat.right .opp-fan .card{ margin-left:0; }
+    .seat.left .cards .card:not(:first-child),
+    .seat.right .cards .card:not(:first-child){ margin-top:calc(var(--card-w)*-0.3); }
+    .seat.left .opp-fan .card{ transform:rotate(calc(var(--rot,0deg) - 90deg)); }
+    .seat.right .opp-fan .card{ transform:rotate(calc(var(--rot,0deg) + 90deg)); }
 
     /* ICON CONTROLS */
     .icon-btn{ appearance:none; border:none; background:none; cursor:pointer; font-size:32px; color:#fff; text-shadow:0 2px 6px #000; }
