@@ -1,8 +1,6 @@
 import { useState } from 'react';
 import DiceRoller from '../../components/DiceRoller.jsx';
 import DicePopup from '../../components/DicePopup.jsx';
-import BottomLeftIcons from '../../components/BottomLeftIcons.jsx';
-import InfoPopup from '../../components/InfoPopup.jsx';
 import useTelegramBackButton from '../../hooks/useTelegramBackButton.js';
 
 export default function DiceDuel() {
@@ -12,7 +10,6 @@ export default function DiceDuel() {
   const [turn, setTurn] = useState(0); // 0 -> player1, 1 -> player2
   const [winner, setWinner] = useState(null);
   const [showDice, setShowDice] = useState(false);
-  const [showInfo, setShowInfo] = useState(false);
 
   const handleRoll = (values) => {
     const value = Array.isArray(values) ? values.reduce((a, b) => a + b, 0) : values;
@@ -52,17 +49,6 @@ export default function DiceDuel() {
         </button>
       )}
       <DicePopup open={showDice} onClose={() => setShowDice(false)} onRollEnd={handleRoll} />
-      <BottomLeftIcons
-        onInfo={() => setShowInfo(true)}
-        showChat={false}
-        showGift={false}
-      />
-      <InfoPopup
-        open={showInfo}
-        onClose={() => setShowInfo(false)}
-        title="Dice Duel"
-        info="Players take turns rolling a die and adding the result to their score. The first player to reach or exceed 20 points wins."
-      />
     </div>
   );
 }
