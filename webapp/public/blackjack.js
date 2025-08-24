@@ -434,7 +434,8 @@ function render() {
         foldBtn.addEventListener('click', playerFold);
         const callBtn = document.createElement('button');
         callBtn.id = 'call';
-        callBtn.textContent = 'Call';
+        const callAmt = Math.max(0, state.currentBet - (p.bet || 0));
+        callBtn.innerHTML = `Call ${formatAmount(callAmt)}`;
         callBtn.addEventListener('click', playerCall);
         controls.append(foldBtn, callBtn);
         seat.append(inner, bal, controls);
@@ -453,15 +454,6 @@ function render() {
       action.className = 'action-label';
       action.textContent = 'STAND';
       seat.appendChild(action);
-      const wrap = document.createElement('div');
-      wrap.className = 'stand-copy-wrapper';
-      wrap.appendChild(cardBackEl());
-      const nm = document.createElement('div');
-      nm.className = 'stand-name';
-      nm.textContent = p.name;
-      adjustNameSize(nm);
-      wrap.appendChild(nm);
-      seat.appendChild(wrap);
     }
     seats.appendChild(seat);
   });
