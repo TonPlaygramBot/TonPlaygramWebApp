@@ -72,7 +72,12 @@ export function aiAction(hand){
 
 export function aiBetAction(hand){
   const val=handValue(hand);
-  if(val>=18) return 'raise';
-  if(val<=11) return 'fold';
-  return 'call';
+  const bluff=Math.random()<0.1;
+  if(val>=19) return 'raise';
+  if(val>=15) return bluff? 'raise':'call';
+  if(val>=12){
+    if(bluff) return 'raise';
+    return Math.random()<0.5? 'call':'fold';
+  }
+  return bluff? 'raise':'fold';
 }
