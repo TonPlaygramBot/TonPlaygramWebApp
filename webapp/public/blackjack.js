@@ -507,17 +507,20 @@ function aiRespondToRaise() {
   playCallRaise();
   renderPot();
   if (act === 'raise') {
-    const raiseAmt = Math.min(state.currentBet, p.balance || state.currentBet);
-    state.pot += raiseAmt;
-    p.balance -= raiseAmt;
-    p.bet += raiseAmt;
-    state.currentBet = p.bet;
-    state.raiseInitiator = state.turn;
-    animateChipsFromPlayer(state.turn, raiseAmt);
-    playCallRaise();
-    renderPot();
-    nextTurn();
-    return;
+    const maxRaise = Math.max(0, state.stake - state.currentBet);
+    const raiseAmt = Math.min(state.currentBet, p.balance || state.currentBet, maxRaise);
+    if (raiseAmt > 0) {
+      state.pot += raiseAmt;
+      p.balance -= raiseAmt;
+      p.bet += raiseAmt;
+      state.currentBet = p.bet;
+      state.raiseInitiator = state.turn;
+      animateChipsFromPlayer(state.turn, raiseAmt);
+      playCallRaise();
+      renderPot();
+      nextTurn();
+      return;
+    }
   }
   render();
   nextTurn();
