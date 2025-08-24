@@ -90,7 +90,7 @@
 
 <script src="/falling-ball-api.js"></script>
 <script>
-(() => {
+(async () => {
   const canvas = document.getElementById('game');
   const ctx = canvas.getContext('2d');
   const s1El = document.getElementById('s1');
@@ -139,20 +139,48 @@
   const oppParam = params.get('p2Avatar') || '';
   let p1Name = params.get('name') || 'P1';
   let p2Name = params.get('p2Name') || 'P2';
-  let fieldScaleX = 1, fieldScaleY = 1, fieldImgScaleX = 1, fieldImgScaleY = 1, puckScale = 1.0, goalWidthPct = 0.36, goalOffsetXPct = 0, goalOffsetYPct = 0, paddleScale = 0.95, speedMul = 0.95;
+  let fieldScaleX = 1,
+    fieldScaleY = 1,
+    fieldImgScaleX = 1,
+    fieldImgScaleY = 1,
+    puckScale = 1.0,
+    goalWidthPct = 0.36,
+    goalOffsetXPct = 0,
+    goalOffsetYPct = 0,
+    paddleScale = 0.95,
+    speedMul = 0.95;
+
+  async function loadCalibration() {
+    try {
+      const res = await fetch('/goal-rush-calibration.json');
+      const cfg = await res.json();
+      fieldScaleX = cfg.fieldScaleX ?? fieldScaleX;
+      fieldScaleY = cfg.fieldScaleY ?? fieldScaleY;
+      fieldImgScaleX = cfg.fieldImgScaleX ?? fieldImgScaleX;
+      fieldImgScaleY = cfg.fieldImgScaleY ?? fieldImgScaleY;
+      puckScale = cfg.puckScale ?? puckScale;
+      goalWidthPct = cfg.goalWidthPct ?? goalWidthPct;
+      goalOffsetXPct = cfg.goalOffsetXPct ?? goalOffsetXPct;
+      goalOffsetYPct = cfg.goalOffsetYPct ?? goalOffsetYPct;
+      paddleScale = cfg.paddleScale ?? paddleScale;
+      speedMul = cfg.speedMul ?? speedMul;
+    } catch {}
+  }
+
+  await loadCalibration();
   try {
     const oldFieldScale = parseFloat(localStorage.getItem('fieldScale')) || 1;
-    fieldScaleX = parseFloat(localStorage.getItem('fieldScaleX')) || oldFieldScale;
-    fieldScaleY = parseFloat(localStorage.getItem('fieldScaleY')) || oldFieldScale;
+    fieldScaleX = parseFloat(localStorage.getItem('fieldScaleX')) || oldFieldScale || fieldScaleX;
+    fieldScaleY = parseFloat(localStorage.getItem('fieldScaleY')) || oldFieldScale || fieldScaleY;
     const oldImgScale = parseFloat(localStorage.getItem('fieldImgScale')) || 1;
-    fieldImgScaleX = parseFloat(localStorage.getItem('fieldImgScaleX')) || oldImgScale;
-    fieldImgScaleY = parseFloat(localStorage.getItem('fieldImgScaleY')) || oldImgScale;
-    puckScale = parseFloat(localStorage.getItem('puckScale')) || 1.0;
-    goalWidthPct = parseFloat(localStorage.getItem('goalWidthPct')) || 0.36;
-    goalOffsetXPct = parseFloat(localStorage.getItem('goalOffsetXPct')) || 0;
-    goalOffsetYPct = parseFloat(localStorage.getItem('goalOffsetYPct')) || 0;
-    paddleScale = parseFloat(localStorage.getItem('paddleScale')) || 0.95;
-    speedMul = parseFloat(localStorage.getItem('speedMul')) || 0.95;
+    fieldImgScaleX = parseFloat(localStorage.getItem('fieldImgScaleX')) || oldImgScale || fieldImgScaleX;
+    fieldImgScaleY = parseFloat(localStorage.getItem('fieldImgScaleY')) || oldImgScale || fieldImgScaleY;
+    puckScale = parseFloat(localStorage.getItem('puckScale')) || puckScale;
+    goalWidthPct = parseFloat(localStorage.getItem('goalWidthPct')) || goalWidthPct;
+    goalOffsetXPct = parseFloat(localStorage.getItem('goalOffsetXPct')) || goalOffsetXPct;
+    goalOffsetYPct = parseFloat(localStorage.getItem('goalOffsetYPct')) || goalOffsetYPct;
+    paddleScale = parseFloat(localStorage.getItem('paddleScale')) || paddleScale;
+    speedMul = parseFloat(localStorage.getItem('speedMul')) || speedMul;
   } catch {}
   const FLAG_DATA = [
     { emoji:'🇺🇸', name:'USA' },
