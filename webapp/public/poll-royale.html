@@ -211,8 +211,8 @@
         gap: 8px;
         padding: 12px 0 0 8px;
         z-index: 10;
-        /* Capture touches so shots aren't triggered from the panel */
-        pointer-events: auto;
+        /* Let table receive touches except on interactive elements */
+        pointer-events: none;
       }
 
       #spinBox {
