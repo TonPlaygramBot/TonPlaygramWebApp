@@ -163,3 +163,26 @@ test('after foul cue must be played from baulk', () => {
   assert.equal(res.foul, true);
   assert.equal(res.reason, 'must play from baulk');
 });
+
+test('shots after frame end are not fouls', () => {
+  const game = new UkPool();
+  game.state.assignments = { A: 'yellow', B: 'red' };
+  game.state.isOpenTable = false;
+  game.state.ballsOnTable.yellow.clear();
+  game.shotTaken({
+    contactOrder: ['black'],
+    potted: ['black'],
+    cueOffTable: false,
+    noCushionAfterContact: false,
+    placedFromHand: false
+  });
+  const res = game.shotTaken({
+    contactOrder: ['yellow'],
+    potted: [],
+    cueOffTable: false,
+    noCushionAfterContact: false,
+    placedFromHand: false
+  });
+  assert.equal(res.foul, false);
+  assert.equal(res.frameOver, true);
+});
