@@ -34,6 +34,10 @@ export class PowerSlider {
     this.track.className = 'ps-track';
     this.el.appendChild(this.track);
 
+    this.powerBar = document.createElement('div');
+    this.powerBar.className = 'ps-power-bar';
+    this.el.appendChild(this.powerBar);
+
     this.handle = document.createElement('div');
     this.handle.className = 'ps-handle';
     this.handleText = document.createElement('span');
@@ -75,14 +79,22 @@ export class PowerSlider {
     this._onPointerUp = this._pointerUp.bind(this);
     this._onWheel = this._wheel.bind(this);
     this._onKeyDown = this._keyDown.bind(this);
-    this._onResize = () => this._update(false);
+    this._onResize = () => {
+      this._setupPowerBar();
+      this._update(false);
+    };
 
     this.el.addEventListener('pointerdown', this._onPointerDown);
     this.el.addEventListener('wheel', this._onWheel, { passive: false });
     this.el.addEventListener('keydown', this._onKeyDown);
     window.addEventListener('resize', this._onResize);
 
-    this.cueImg.addEventListener('load', () => this._update(false));
+    this.cueImg.addEventListener('load', () => {
+      this._setupPowerBar();
+      this._update(false);
+    });
+
+    this._setupPowerBar();
 
     this.set(value);
   }
@@ -161,6 +173,33 @@ export class PowerSlider {
     const pct = ratio * 100;
     this.handle.style.background = color;
     this.track.style.background = `linear-gradient(to bottom, ${lowColor} 0%, ${color} ${pct}%, var(--ps-track-bg) ${pct}%, var(--ps-track-bg) 100%)`;
+  }
+
+  _setupPowerBar() {
+    if (!this.powerBar) return;
+    const uWidth = this._measureCharWidth('u');
+    this.powerBar.style.width = `${uWidth}px`;
+    const left = this.el.clientWidth + this.handle.offsetWidth / 2 - uWidth / 2;
+    const handleRect = this.handle.getBoundingClientRect();
+    const textRect = this.handleText.getBoundingClientRect();
+    const imgRect = this.cueImg.getBoundingClientRect();
+    const topOffset = textRect.bottom - handleRect.top;
+    const height = imgRect.bottom - textRect.bottom;
+    this.powerBar.style.left = `${left}px`;
+    this.powerBar.style.top = `${topOffset}px`;
+    this.powerBar.style.height = `${height}px`;
+  }
+
+  _measureCharWidth(ch) {
+    const span = document.createElement('span');
+    span.textContent = ch;
+    span.className = this.handleText.className;
+    span.style.visibility = 'hidden';
+    span.style.position = 'absolute';
+    this.el.appendChild(span);
+    const width = span.getBoundingClientRect().width;
+    span.remove();
+    return width;
   }
 
   _updateFromClientY(y) {
