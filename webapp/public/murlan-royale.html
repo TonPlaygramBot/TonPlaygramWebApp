@@ -39,8 +39,10 @@
     .name{ font-weight:800; text-shadow:0 2px 6px #000; font-size:14px }
     .timer{ font-weight:800; background:rgba(0,0,0,.5); padding:2px 6px; border-radius:8px; }
     .seat.active .avatar{ border-color:var(--ui2); box-shadow:0 0 10px var(--ui2); }
-    .seat.left .cards{ transform:rotate(90deg); transform-origin:center; }
-    .seat.right .cards{ transform:rotate(-90deg); transform-origin:center; }
+    .seat.left,
+    .seat.right{ display:flex; flex-direction:column; align-items:center; }
+    .seat.left .cards{ transform:rotate(90deg); transform-origin:top left; }
+    .seat.right .cards{ transform:rotate(-90deg); transform-origin:top right; }
     .seat.bottom .cards{ touch-action:none; transform:scale(var(--my-card-scale)); transform-origin:center bottom; gap:0; }
     .seat.bottom .cards .card:not(:first-child){ margin-left:calc(var(--card-w)*-0.3); }
 
@@ -62,7 +64,6 @@
 
     /* ICON CONTROLS */
     .icon-btn{ appearance:none; border:none; background:none; cursor:pointer; font-size:32px; color:#fff; text-shadow:0 2px 6px #000; }
-    .arrange-icon{ position:fixed; left:max(8px, env(safe-area-inset-left)); bottom:calc(var(--card-h) + var(--avatar-size)/2 + 16px); z-index:10 }
     .controls{ display:flex; align-items:center; gap:12px; }
     .pass-icon{ }
 
@@ -93,8 +94,6 @@
     <div id="seats" class="seats"></div>
 
     <!-- UI -->
-    <button id="arrange" class="icon-btn arrange-icon">🔧</button>
-
     <div id="toast" class="toast" style="display:none"></div>
   </div>
   <div id="winnerOverlay" class="winnerOverlay hidden"><div class="emoji"></div></div>
@@ -280,7 +279,7 @@
       }else if(side==='top'){
         seat.style.left='50%';
         seat.style.top='8px';
-        seat.style.transform='translateX(-50%)';
+        seat.style.transform='translateX(-55%)';
       }else if(side==='right'){
         seat.style.left=(x - area.left - 20)+'px';
         seat.style.top=(y - area.top)+'px';
@@ -615,10 +614,6 @@
   }
 
   // ===== UI HANDLERS =====
-  el('#arrange').addEventListener('click', ()=>{
-    state.arrangeMode = !state.arrangeMode; renderAll();
-    toast(state.arrangeMode? 'Drag your cards to reorder' : 'Manual arrange off');
-  });
 
   function startGame(){
     state.turn = 0;
