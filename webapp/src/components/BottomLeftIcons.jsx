@@ -1,5 +1,10 @@
 import { useState, useEffect } from 'react';
-import { AiOutlineInfoCircle, AiOutlineMessage } from 'react-icons/ai';
+import {
+  AiOutlineInfoCircle,
+  AiOutlineMessage,
+  AiOutlineAudio,
+  AiOutlineAudioMuted,
+} from 'react-icons/ai';
 import { isGameMuted, toggleGameMuted } from '../utils/sound.js';
 export default function BottomLeftIcons({
   onInfo,
@@ -46,7 +51,11 @@ export default function BottomLeftIcons({
       )}
       {showMute && (
         <button onClick={toggle} className="p-1 flex flex-col items-center">
-          <span className="text-lg">{muted ? '🔇' : '🔊'}</span>
+          {muted ? (
+            <AiOutlineAudioMuted className="text-xl text-red-500" />
+          ) : (
+            <AiOutlineAudio className="text-xl" />
+          )}
           <span className="text-xs">{muted ? 'Unmute' : 'Mute'}</span>
         </button>
       )}
