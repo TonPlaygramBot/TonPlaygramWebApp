@@ -1,658 +1,1190 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no" />
-  <title>Murlan Royale – Card Table with Jokers</title>
-  <style>
-    :root{
-      --shadow:rgba(0,0,0,.45);
-      --gold:#f5cc4e; --ui:#2563eb; --ui2:#0ea5e9;
-      --card-scale:1;
-      --avatar-scale:1;
-      --my-card-scale:1;
-      --card-w: calc(clamp(44px, 9.6vw, 70px) * var(--card-scale));
-      --card-h: calc(var(--card-w)*1.45);
-      --avatar-size: calc(54px * var(--avatar-scale));
-    }
-    *{box-sizing:border-box}
-    html,body{height:100%;margin:0}
-    body{
-      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial;
-      color:#fff; overflow:hidden; height:100vh; width:100vw;
-    }
-
-    /* TABLE */
-    .stage{ position:relative; width:100vw; height:100vh; display:grid; place-items:center; perspective:1100px; }
-    .stage::before{ content:""; position:absolute; inset:0; background: url('assets/icons/de2a24a7-922a-4400-8edc-027a1017224e.webp') center/cover no-repeat; z-index:0 }
-
-    /* CENTER: community pile + pot */
-    .center{ position:absolute; left:50%; top:50%; transform:translate(-50%,-50%); display:grid; gap:10px; place-items:center; z-index:2 }
-    .pile{ position:relative; width:var(--card-w); height:var(--card-h); }
-    .pile .card{ position:absolute; left:0; top:0; transform:scale(1.3); transform-origin:center; }
-    .pot{ font-weight:900; letter-spacing:.3px; color:#ffeaa7; background:rgba(0,0,0,.28); padding:6px 12px; border-radius:12px; border:1px solid rgba(255,255,255,.12); text-shadow:0 2px 6px #000 }
-
-    /* PLAYERS ON TABLE PERIMETER  (user fixed bottom) */
-    .seats{ position:absolute; inset:0; z-index:2 }
-    .seat{ position:absolute; display:grid; place-items:center; gap:6px; width:clamp(120px, 28vw, 200px) }
-    .avatar{ width:var(--avatar-size); height:var(--avatar-size); border-radius:50%; display:grid; place-items:center; background:radial-gradient(circle at 30% 30%, #fff, #ddd 40%, #bbb 60%, #999 100%); color:#111; font-size:28px; border:4px solid rgba(255,255,255,.65); box-shadow:0 8px 20px var(--shadow); }
-    .name{ font-weight:800; text-shadow:0 2px 6px #000; font-size:14px }
-    .timer{ font-weight:800; background:rgba(0,0,0,.5); padding:2px 6px; border-radius:8px; }
-    .seat.active .avatar{ border-color:var(--ui2); box-shadow:0 0 10px var(--ui2); }
-    .seat.left,
-    .seat.right{ display:flex; flex-direction:column; align-items:center; }
-    .seat.left .cards,
-    .seat.right .cards{ display:flex; flex-direction:column; align-items:center; gap:0; }
-    .seat.bottom .cards{ touch-action:none; transform:scale(var(--my-card-scale)); transform-origin:center bottom; gap:0; }
-    .seat.bottom .cards .card:not(:first-child){ margin-left:calc(var(--card-w)*-0.3); }
-
-    /* CARDS */
-    .cards{ display:flex; gap:6px; flex-wrap:nowrap }
-    .card{ width:var(--card-w); height:var(--card-h); border-radius:10px; position:relative; flex:0 0 auto; background:#fff; color:#111; font-weight:900; letter-spacing:.3px; box-shadow:0 10px 25px var(--shadow), inset 0 0 0 2px rgba(0,0,0,.08); touch-action:none }
-    .card .tl{ position:absolute; left:8px; top:6px; font-size:calc(var(--card-w)*0.28) }
-    .card .br{ position:absolute; right:8px; bottom:8px; font-size:calc(var(--card-w)*0.3) }
-    .card .big{ position:absolute; left:50%; top:50%; transform:translate(-50%,-50%); font-size:calc(var(--card-w)*0.52); opacity:.9 }
-    .red{ color:#d12d2d }
-    .joker{ background:repeating-linear-gradient(45deg,#eee,#eee 6px,#ddd 6px,#ddd 12px); }
-    .selected{ outline:3px solid var(--ui2); transform:translateY(-6px); }
-    .suggested{ outline:3px dashed var(--ui); }
-
-    /* Facedown backs for opponents */
-    .back{ background:url('assets/icons/file_00000000bc2862439eecffff3730bbe4.webp') center/60% no-repeat, repeating-linear-gradient(45deg,#233,#233 6px,#122 6px,#122 12px); border:2px solid rgba(255,255,255,.5); color:transparent; }
-    .back::before{ content:""; position:absolute; inset:6px; border-radius:8px; border:2px dashed rgba(255,255,255,.35); }
-    .opp-fan .card{ margin-left:-30px; transform:rotateZ(var(--rot,0deg)) }
-
-    /* Left & right opponents: rotate and tighten card spacing */
-    .seat.left .opp-fan .card,
-    .seat.right .opp-fan .card{ margin-left:0; }
-    .seat.left .cards .card:not(:first-child),
-    .seat.right .cards .card:not(:first-child){ margin-top:calc(var(--card-w)*-0.3); }
-    .seat.left .opp-fan .card{ transform:rotate(calc(var(--rot,0deg) - 90deg)); }
-    .seat.right .opp-fan .card{ transform:rotate(calc(var(--rot,0deg) + 90deg)); }
-
-    /* ICON CONTROLS */
-    .icon-btn{ appearance:none; border:none; background:none; cursor:pointer; font-size:32px; color:#fff; text-shadow:0 2px 6px #000; }
-    .controls{ display:flex; align-items:center; gap:12px; }
-    .pass-icon{ }
-
-    /* TOAST */
-    .toast{ position:fixed; left:50%; top:12%; transform:translateX(-50%); background:rgba(0,0,0,.6); border:1px solid rgba(255,255,255,.12); padding:8px 14px; border-radius:12px; font-weight:800; z-index:12 }
-
-    .combo-label{ position:absolute; top:-28px; left:50%; transform:translateX(-50%); font-size:32px; }
-    .winnerOverlay{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.6);z-index:60}
-    .winnerOverlay.hidden{display:none}
-    .winnerOverlay .emoji{font-size:96px}
-
-    .coin-confetti{ position:fixed; top:-40px; width:48px; height:48px; pointer-events:none; animation:coin-fall var(--duration,3s) linear forwards; }
-    @keyframes coin-fall{ from{ transform:translateY(-10vh) rotate(0deg); opacity:1; } to{ transform:translateY(100vh) rotate(360deg); opacity:0; } }
-
-    @media (max-width:900px){ .log{ display:none } }
-  </style>
-</head>
-<body>
-  <div class="stage">
-
-    <!-- Center play area -->
-    <div class="center">
-      <div id="pile" class="pile"></div>
-      <div id="pot" class="pot"></div>
-    </div>
-
-    <!-- Seats on perimeter -->
-    <div id="seats" class="seats"></div>
-
-    <!-- UI -->
-    <div id="toast" class="toast" style="display:none"></div>
-  </div>
-  <div id="winnerOverlay" class="winnerOverlay hidden"><div class="emoji"></div></div>
-
-  <!-- sounds -->
-  <audio id="sndChip" src="https://cdn.jsdelivr.net/gh/naptha/tiny-sound@master/sounds/click2.ogg"></audio>
-  <audio id="sndCard" src="https://cdn.jsdelivr.net/gh/naptha/tiny-sound@master/sounds/click4.ogg"></audio>
-  <audio id="sndTimer" src="https://cdn.jsdelivr.net/gh/naptha/tiny-sound@master/sounds/beep1.ogg"></audio>
-
-<script>
-(() => {
-  // ====== UTIL ======
-  const el = s => document.querySelector(s);
-  const pileEl = el('#pile');
-  const seatsEl = el('#seats');
-  const potEl = el('#pot');
-  const toastEl = el('#toast');
-  const sndChip = el('#sndChip');
-  const sndCard = el('#sndCard');
-  const sndTimer = el('#sndTimer');
-  const winnerOverlay = el('#winnerOverlay');
-
-  function coinConfetti(count=50, iconSrc='/assets/icons/ezgif-54c96d8a9b9236.webp'){
-    const container=document.createElement('div');
-    container.style.position='fixed';
-    container.style.top='0';
-    container.style.left='0';
-    container.style.width='100%';
-    container.style.height='0';
-    container.style.pointerEvents='none';
-    container.style.zIndex='60';
-    container.style.overflow='visible';
-    document.body.appendChild(container);
-    for(let i=0;i<count;i++){
-      const img=document.createElement('img');
-      img.src=iconSrc;
-      img.alt='confetti icon';
-      img.className='coin-confetti';
-      const left=Math.random()*100;
-      const delay=Math.random()*0.2;
-      const duration=2+Math.random()*2;
-      img.style.left=left+'vw';
-      img.style.animationDelay=delay+'s';
-      img.style.setProperty('--duration',duration+'s');
-      container.appendChild(img);
-    }
-    setTimeout(()=>container.remove(),5000);
-  }
-
-  function showWinnerOverlay(emoji){
-    if(!winnerOverlay) return;
-    const slot = winnerOverlay.querySelector('.emoji');
-    if(slot) slot.textContent = emoji || '🏆';
-    winnerOverlay.classList.remove('hidden');
-    setTimeout(()=>winnerOverlay.classList.add('hidden'),2000);
-  }
-
-  let userScale = 1;
-  let userAdjusted = false;
-  let pinchStartDist = null;
-  let pinchStartScale = 1;
-
-  function pinchDistance(touches){
-    const [a,b] = touches;
-    return Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY);
-  }
-
-  function setupZoom(){
-    const hand = document.querySelector('.seat.bottom .cards');
-    if(!hand) return;
-    hand.addEventListener('touchstart', e => {
-      if(e.touches.length === 2){
-        pinchStartDist = pinchDistance(e.touches);
-        pinchStartScale = userScale;
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no"
+    />
+    <title>Murlan Royale – Card Table with Jokers</title>
+    <style>
+      :root {
+        --shadow: rgba(0, 0, 0, 0.45);
+        --gold: #f5cc4e;
+        --ui: #2563eb;
+        --ui2: #0ea5e9;
+        --card-scale: 1;
+        --avatar-scale: 1;
+        --my-card-scale: 1;
+        --card-w: calc(clamp(44px, 9.6vw, 70px) * var(--card-scale));
+        --card-h: calc(var(--card-w) * 1.45);
+        --avatar-size: calc(54px * var(--avatar-scale));
       }
-    }, {passive:false});
-    hand.addEventListener('touchmove', e => {
-      if(e.touches.length === 2 && pinchStartDist){
-        e.preventDefault();
-        const dist = pinchDistance(e.touches);
-        let scale = pinchStartScale * (dist / pinchStartDist);
-        scale = Math.max(0.5, Math.min(scale, 3));
-        userScale = scale;
-        userAdjusted = true;
-        document.documentElement.style.setProperty('--my-card-scale', scale.toFixed(2));
+      * {
+        box-sizing: border-box;
       }
-    }, {passive:false});
-    hand.addEventListener('touchend', e => {
-      if(e.touches.length < 2){
-        pinchStartDist = null;
+      html,
+      body {
+        height: 100%;
+        margin: 0;
       }
-    });
-  }
-
-  function toast(msg){ toastEl.textContent = msg; toastEl.style.display='block'; setTimeout(()=> toastEl.style.display='none', 1400); }
-
-  // ====== DECK (with Jokers) ======
-  const SUITS = ['♠','♥','♦','♣'];
-  const RANKS = [3,4,5,6,7,8,9,10,'J','Q','K','A',2,'BJ','RJ']; // BJ < RJ (both above 2)
-  function makeDeck(){
-    const d = [];
-    for(const s of SUITS){ for(const r of [3,4,5,6,7,8,9,10,'J','Q','K','A',2]) d.push({r,s}); }
-    d.push({r:'BJ', s:'🃏'}); d.push({r:'RJ', s:'🃏'});
-    for(let i=d.length-1;i>0;i--){ const j = Math.floor(Math.random()*(i+1)); [d[i],d[j]]=[d[j],d[i]]; }
-    return d;
-  }
-  function rankValue(r){
-    if(r==='RJ') return 17;
-    if(r==='BJ') return 16;
-    if(r===2) return 15;
-    if(r==='A') return 14;
-    if(r==='K') return 13;
-    if(r==='Q') return 12;
-    if(r==='J') return 11;
-    return r;
-  }
-
-  // ====== STATE ======
-  const state = {
-    players: [], // {name,isHuman,hand:[],chips}
-    turn: 0,
-    turnTime: 15,
-    pile: [], // last played cards
-    arrangeMode: false,
-    lastPlayLen: 0,
-    lastPlayType: null,
-    pot: 0,
-    passesSincePlay: 0,
-    lastPlayerToPlay: 0,
-  };
-
-  // create 4 players (user bottom)
-  function initPlayers(){
-    state.players = [
-      {name:'You', isHuman:true, chips:1500, hand:[]},
-      {name:'Luna', chips:1200, hand:[]},
-      {name:'Rex', chips:1000, hand:[]},
-      {name:'Milo', chips:900, hand:[]},
-    ];
-  }
-
-  function deal(){
-    const deck = makeDeck();
-    for(let i=0;i<13;i++){
-      for(let p=0;p<state.players.length;p++){
-        state.players[p].hand.push(deck.pop());
-      }
-    }
-  }
-
-  // ===== RENDER =====
-  function cardFaceEl(c){
-    const d = document.createElement('div'); d.className='card'+((c.s==='♥'||c.s==='♦')?' red':'')+((c.r==='RJ'||c.r==='BJ')?' joker':'');
-    const tl=document.createElement('div'); tl.className='tl'; tl.textContent = (c.r==='BJ'?'JB': c.r==='RJ'?'JR': c.r) + (c.s==='🃏'?'':c.s);
-    const br=document.createElement('div'); br.className='br'; br.textContent = (c.s==='🃏'? '🃏' : c.s);
-    const big=document.createElement('div'); big.className='big'; big.textContent = (c.s==='🃏'? '🃏' : c.s);
-    d.append(tl,big,br);
-    return d;
-  }
-  function cardBackEl(){ const d=document.createElement('div'); d.className='card back'; return d; }
-
-  function posSeats(){
-    seatsEl.innerHTML='';
-    const tableRect = el('.stage').getBoundingClientRect();
-    const padX=24, padY=16; const x0=tableRect.left+padX, y0=tableRect.top+padY; const w=tableRect.width-padX*2, h=tableRect.height-padY*2;
-    const perim = 2*(w+h), step = perim/state.players.length;
-    let s0 = w + h + w/2; // bottom center for user (index 0)
-
-    state.players.forEach((p, i)=>{
-      const s = (s0 + i*step) % perim; let x,y,side;
-      if(s < w){ x=x0+s; y=y0; side='top'; }
-      else if(s < w+h){ x=x0+w; y=y0+(s-w); side='right'; }
-      else if(s < w+h+w){ x=x0+(w-(s-(w+h))); y=y0+h; side='bottom'; }
-      else { x=x0; y=y0+(h-(s-(w+h+w))); side='left'; }
-
-      const seat = document.createElement('div'); seat.className='seat '+side;
-      const area = el('.stage').getBoundingClientRect();
-      if(side==='bottom'){
-        seat.style.left='50%';
-        seat.style.bottom='8px';
-        seat.style.transform='translateX(-50%)';
-        seat.style.width='auto';
-      }else if(side==='top'){
-        seat.style.left='50%';
-        seat.style.top='8px';
-        seat.style.transform='translateX(-55%)';
-      }else if(side==='right'){
-        seat.style.left=(x - area.left - 20)+'px';
-        seat.style.top=(y - area.top)+'px';
-        seat.style.transform='translate(-50%,-50%)';
-      }else{
-        seat.style.left=(x - area.left)+'px';
-        seat.style.top=(y - area.top)+'px';
-        seat.style.transform='translate(-50%,-50%)';
+      body {
+        font-family:
+          ui-sans-serif,
+          system-ui,
+          -apple-system,
+          Segoe UI,
+          Roboto,
+          Helvetica,
+          Arial;
+        color: #fff;
+        overflow: hidden;
+        height: 100vh;
+        width: 100vw;
       }
 
-      const av = document.createElement('div'); av.className='avatar'; av.textContent = i===0?'🃏':'🐾';
-      const name = document.createElement('div'); name.className='name'; name.textContent = p.name;
-
-      const cards = document.createElement('div'); cards.className='cards';
-      if(p.isHuman){
-        // Show face-up cards (draggable when arrangeMode)
-        const sorted = [...p.hand];
-        sorted.forEach((c, idx)=> {
-          const face = cardFaceEl(c);
-          face.dataset.index = idx;
-          face.addEventListener('click', ()=>{ face.classList.toggle('selected'); sndChip.currentTime=0; sndChip.play(); });
-          if(state.arrangeMode){ enableDrag(face, cards, p); }
-          cards.appendChild(face);
-        });
-      } else {
-        // Opponents: facedown fanned stack
-        cards.classList.add('opp-fan');
-        const count = p.hand.length;
-        const show = Math.min(10, count); // cap visual
-        for(let k=0;k<show;k++){ const b = cardBackEl(); b.style.setProperty('--rot', ((k-show/2)*2)+'deg'); cards.appendChild(b); }
+      /* TABLE */
+      .stage {
+        position: relative;
+        width: 100vw;
+        height: 100vh;
+        display: grid;
+        place-items: center;
+        perspective: 1100px;
+      }
+      .stage::before {
+        content: '';
+        position: absolute;
+        inset: 0;
+        background: url('assets/icons/de2a24a7-922a-4400-8edc-027a1017224e.webp')
+          center/cover no-repeat;
+        z-index: 0;
       }
 
-      const timer=document.createElement('div'); timer.className='timer';
-
-      if(side==='bottom'){
-        const controls=document.createElement('div'); controls.className='controls';
-        av.addEventListener('click', confirmPlayAction); av.style.cursor='pointer';
-        const passBtn=document.createElement('button'); passBtn.id='passBtn'; passBtn.className='icon-btn pass-icon';
-        passBtn.innerHTML='👋<span style="font-size:14px;display:block">Pass</span>';
-        passBtn.style.display='flex'; passBtn.style.flexDirection='column'; passBtn.style.alignItems='center';
-        passBtn.addEventListener('click', ()=>{ toast('You pass'); state.passesSincePlay++; clearSelections(); advanceTurn(); });
-        controls.append(av,passBtn);
-        seat.append(controls,name,cards,timer);
-      }else if(side==='left' || side==='right'){
-        seat.append(av,cards,name,timer);
-      }else{
-        seat.append(av,name,cards,timer);
+      /* CENTER: community pile + pot */
+      .center {
+        position: absolute;
+        left: 50%;
+        top: 50%;
+        transform: translate(-50%, -50%);
+        display: grid;
+        gap: 10px;
+        place-items: center;
+        z-index: 2;
       }
-      seatsEl.appendChild(seat);
-    });
-  }
+      .pile {
+        position: relative;
+        width: var(--card-w);
+        height: var(--card-h);
+      }
+      .pile .card {
+        position: absolute;
+        left: 0;
+        top: 0;
+        transform: scale(1.3);
+        transform-origin: center;
+      }
+      .pot {
+        font-weight: 900;
+        letter-spacing: 0.3px;
+        color: #ffeaa7;
+        background: rgba(0, 0, 0, 0.28);
+        padding: 6px 12px;
+        border-radius: 12px;
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        text-shadow: 0 2px 6px #000;
+      }
 
-  // Drag-to-reorder (manual arrange for user)
-  let drag = {active:false, startX:0, fromIdx:-1, owner:null, container:null};
-  function enableDrag(elm, container, owner){
-    elm.style.touchAction = 'none';
-    elm.addEventListener('pointerdown', e=>{
-      if(!state.arrangeMode || !owner.isHuman) return;
-      drag.active=true; drag.startX=e.clientX; drag.fromIdx=Number(elm.dataset.index); drag.owner=owner; drag.container=container;
-      elm.setPointerCapture(e.pointerId);
-      elm.style.opacity=.7; sndChip.currentTime=0; sndChip.play();
-    });
-    elm.addEventListener('pointermove', e=>{
-      if(!drag.active) return; const dx = e.clientX - drag.startX; elm.style.transform = `translateX(${dx}px)`;
-    });
-    elm.addEventListener('pointerup', e=>{
-      if(!drag.active) return; elm.style.opacity=1; elm.style.transform='';
-      const rect = drag.container.getBoundingClientRect();
-      const relX = e.clientX - rect.left; // place by slot width
-      const slotW = rect.width / Math.max(1, drag.container.children.length);
-      let toIdx = Math.min(drag.container.children.length-1, Math.max(0, Math.floor(relX/slotW)));
-      reorderHand(drag.owner, drag.fromIdx, toIdx);
-      drag.active=false; renderAll();
-    });
-  }
-  function reorderHand(player, from, to){ if(from===to) return; const arr=player.hand; const [c]=arr.splice(from,1); arr.splice(to,0,c); }
+      /* PLAYERS ON TABLE PERIMETER  (user fixed bottom) */
+      .seats {
+        position: absolute;
+        inset: 0;
+        z-index: 2;
+      }
+      .seat {
+        position: absolute;
+        display: grid;
+        place-items: center;
+        gap: 6px;
+        width: clamp(120px, 28vw, 200px);
+      }
+      .avatar {
+        width: var(--avatar-size);
+        height: var(--avatar-size);
+        border-radius: 50%;
+        display: grid;
+        place-items: center;
+        background: radial-gradient(
+          circle at 30% 30%,
+          #fff,
+          #ddd 40%,
+          #bbb 60%,
+          #999 100%
+        );
+        color: #111;
+        font-size: 28px;
+        border: 4px solid rgba(255, 255, 255, 0.65);
+        box-shadow: 0 8px 20px var(--shadow);
+      }
+      .name {
+        font-weight: 800;
+        text-shadow: 0 2px 6px #000;
+        font-size: 14px;
+      }
+      .timer {
+        font-weight: 800;
+        background: rgba(0, 0, 0, 0.5);
+        padding: 2px 6px;
+        border-radius: 8px;
+      }
+      .seat.active .avatar {
+        border-color: var(--ui2);
+        box-shadow: 0 0 10px var(--ui2);
+      }
+      .seat.left,
+      .seat.right {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+      }
+      .seat.left .cards,
+      .seat.right .cards {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 0;
+      }
+      .seat.bottom .cards {
+        touch-action: none;
+        transform: scale(var(--my-card-scale));
+        transform-origin: center bottom;
+        gap: 0;
+      }
+      .seat.bottom .cards .card:not(:first-child) {
+        margin-left: calc(var(--card-w) * -0.3);
+      }
 
-  function renderPile(){
-    pileEl.innerHTML='';
-    if(!state.pile.length) return;
-    const cardW = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--card-w'));
-    const offset = cardW + 8; // all cards visible with small gap
-    pileEl.style.width = (cardW + (state.pile.length-1)*offset) + 'px';
-    state.pile.forEach((c,idx)=> {
-      const face = cardFaceEl(c);
-      face.style.left = (idx*offset)+'px';
-      face.style.top = '0';
-      face.style.zIndex = idx;
-      pileEl.appendChild(face);
-    });
-    const suit = state.pile[0].s;
-    if(state.pile.every(pc=> pc.s===suit)){
-      const lbl=document.createElement('div');
-      lbl.className='combo-label';
-      lbl.textContent=suit;
-      pileEl.appendChild(lbl);
-    }
-  }
+      /* CARDS */
+      .cards {
+        display: flex;
+        gap: 6px;
+        flex-wrap: nowrap;
+      }
+      .card {
+        width: var(--card-w);
+        height: var(--card-h);
+        border-radius: 10px;
+        position: relative;
+        flex: 0 0 auto;
+        background: #fff;
+        color: #111;
+        font-weight: 900;
+        letter-spacing: 0.3px;
+        box-shadow:
+          0 10px 25px var(--shadow),
+          inset 0 0 0 2px rgba(0, 0, 0, 0.08);
+        touch-action: none;
+      }
+      .card .tl {
+        position: absolute;
+        left: 8px;
+        top: 6px;
+        font-size: calc(var(--card-w) * 0.28);
+      }
+      .card .br {
+        position: absolute;
+        right: 8px;
+        bottom: 8px;
+        font-size: calc(var(--card-w) * 0.3);
+      }
+      .card .big {
+        position: absolute;
+        left: 50%;
+        top: 50%;
+        transform: translate(-50%, -50%);
+        font-size: calc(var(--card-w) * 0.52);
+        opacity: 0.9;
+      }
+      .red {
+        color: #d12d2d;
+      }
+      .joker {
+        background: repeating-linear-gradient(
+          45deg,
+          #eee,
+          #eee 6px,
+          #ddd 6px,
+          #ddd 12px
+        );
+      }
+      .selected {
+        outline: 3px solid var(--ui2);
+        transform: translateY(-6px);
+      }
+      .suggested {
+        outline: 3px dashed var(--ui);
+      }
 
-  function adjustHandScale(){
-    if(userAdjusted) return;
-    const hand = document.querySelector('.seat.bottom .cards');
-    if(!hand) return;
-    const screen = window.innerWidth - 20;
-    const natural = hand.scrollWidth;
-    if(natural > screen){
-      const scale = screen / natural;
-      userScale = scale;
-      document.documentElement.style.setProperty('--my-card-scale', scale.toFixed(2));
-    } else {
-      userScale = 1;
-      document.documentElement.style.setProperty('--my-card-scale', 1);
-    }
-  }
+      /* Facedown backs for opponents */
+      .back {
+        background:
+          url('assets/icons/file_00000000bc2862439eecffff3730bbe4.webp')
+            center/60% no-repeat,
+          repeating-linear-gradient(45deg, #233, #233 6px, #122 6px, #122 12px);
+        border: 2px solid rgba(255, 255, 255, 0.5);
+        color: transparent;
+      }
+      .back::before {
+        content: '';
+        position: absolute;
+        inset: 6px;
+        border-radius: 8px;
+        border: 2px dashed rgba(255, 255, 255, 0.35);
+      }
+      .opp-fan .card {
+        margin-left: -30px;
+        transform: rotateZ(var(--rot, 0deg));
+      }
 
-  function renderAll(){
-    posSeats();
-    renderPile();
-    potEl.textContent = comboLabel(state.lastPlayType);
-    updateTimerDisplay();
-    adjustHandScale();
-    setupZoom();
-  }
+      /* Left & right opponents: rotate and tighten card spacing */
+      .seat.left .opp-fan .card,
+      .seat.right .opp-fan .card {
+        margin-left: 0;
+      }
+      .seat.left .cards .card:not(:first-child),
+      .seat.right .cards .card:not(:first-child) {
+        margin-top: calc(var(--card-w) * -0.5);
+      }
+      .seat.left .opp-fan .card {
+        transform: rotate(calc(var(--rot, 0deg) - 90deg));
+      }
+      .seat.right .opp-fan .card {
+        transform: rotate(calc(var(--rot, 0deg) + 90deg));
+      }
 
-  let timerInterval;
-  function updateTimerDisplay(){
-    seatsEl.querySelectorAll('.seat').forEach((seat, idx)=>{
-      const t = seat.querySelector('.timer');
-      if(t){
-        if(idx===state.turn){
-          t.textContent = idx===0 ? 'play' : state.turnTime;
-        } else {
-          t.textContent = '';
+      /* ICON CONTROLS */
+      .icon-btn {
+        appearance: none;
+        border: none;
+        background: none;
+        cursor: pointer;
+        font-size: 32px;
+        color: #fff;
+        text-shadow: 0 2px 6px #000;
+      }
+      .controls {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+      }
+      .pass-icon {
+      }
+
+      /* TOAST */
+      .toast {
+        position: fixed;
+        left: 50%;
+        top: 12%;
+        transform: translateX(-50%);
+        background: rgba(0, 0, 0, 0.6);
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        padding: 8px 14px;
+        border-radius: 12px;
+        font-weight: 800;
+        z-index: 12;
+      }
+
+      .combo-label {
+        position: absolute;
+        top: -28px;
+        left: 50%;
+        transform: translateX(-50%);
+        font-size: 32px;
+      }
+      .winnerOverlay {
+        position: fixed;
+        inset: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: rgba(0, 0, 0, 0.6);
+        z-index: 60;
+      }
+      .winnerOverlay.hidden {
+        display: none;
+      }
+      .winnerOverlay .emoji {
+        font-size: 96px;
+      }
+
+      .coin-confetti {
+        position: fixed;
+        top: -40px;
+        width: 48px;
+        height: 48px;
+        pointer-events: none;
+        animation: coin-fall var(--duration, 3s) linear forwards;
+      }
+      @keyframes coin-fall {
+        from {
+          transform: translateY(-10vh) rotate(0deg);
+          opacity: 1;
+        }
+        to {
+          transform: translateY(100vh) rotate(360deg);
+          opacity: 0;
         }
       }
-      seat.classList.toggle('active', idx===state.turn);
-    });
-  }
-  function startTurnTimer(){
-    state.turnTime = 15;
-    updateTimerDisplay();
-    clearInterval(timerInterval);
-    timerInterval = setInterval(()=>{
-      state.turnTime--;
-      if(state.turnTime <=7 && state.turnTime >0){ sndTimer.currentTime=0; sndTimer.play(); }
-      updateTimerDisplay();
-      if(state.turnTime <=0){
-        clearInterval(timerInterval);
-        toast('Time up');
-        state.passesSincePlay++;
-        if(state.players[state.turn].isHuman) clearSelections();
-        advanceTurn();
+
+      @media (max-width: 900px) {
+        .log {
+          display: none;
+        }
       }
-    },1000);
-  }
+    </style>
+  </head>
+  <body>
+    <div class="stage">
+      <!-- Center play area -->
+      <div class="center">
+        <div id="pile" class="pile"></div>
+        <div id="pot" class="pot"></div>
+      </div>
 
-  // ===== GAME FLOW (singles/pairs + simple AI) =====
-  function collectSelected(){
-    const mySeat = seatsEl.querySelector('.seat .cards');
-    const faces = mySeat ? Array.from(mySeat.querySelectorAll('.card:not(.back)')) : [];
-    const sel = faces.filter(f=> f.classList.contains('selected')).map(f=> ({c: player(0).hand[Number(f.dataset.index)], idx:Number(f.dataset.index)}));
-    return sel;
-  }
-  function clearSelections(){ seatsEl.querySelectorAll('.card.selected').forEach(n=> n.classList.remove('selected')); }
-  function clearSuggestions(){ seatsEl.querySelectorAll('.card.suggested').forEach(n=> n.classList.remove('suggested')); }
+      <!-- Seats on perimeter -->
+      <div id="seats" class="seats"></div>
 
-  function player(i){ return state.players[i]; }
+      <!-- UI -->
+      <div id="toast" class="toast" style="display: none"></div>
+    </div>
+    <div id="winnerOverlay" class="winnerOverlay hidden">
+      <div class="emoji"></div>
+    </div>
 
-  function comboType(cards){
-    const ranks = cards.map(c=> rankValue(c.r)).sort((a,b)=>a-b);
-    const suits = cards.map(c=> c.s);
-    const uniqueRanks = new Set(ranks).size;
-    const uniqueSuits = new Set(suits).size;
-    const isSeq = ranks.length>=5 && ranks.every((v,i,arr)=> i===0 || v===arr[i-1]+1);
-    if(cards.length===1) return 'single';
-    if(cards.length===2 && uniqueRanks===1) return 'double';
-    if(cards.length===3 && uniqueRanks===1) return 'triple';
-    if(cards.length===4 && uniqueRanks===1) return 'four';
-    if(cards.length>=5 && uniqueSuits===1 && isSeq) return 'straight';
-    if(cards.length>=5 && uniqueSuits===1) return 'flush';
-    if(cards.length>=5 && isSeq) return 'straight';
-    return 'invalid';
-  }
+    <!-- sounds -->
+    <audio
+      id="sndChip"
+      src="https://cdn.jsdelivr.net/gh/naptha/tiny-sound@master/sounds/click2.ogg"
+    ></audio>
+    <audio
+      id="sndCard"
+      src="https://cdn.jsdelivr.net/gh/naptha/tiny-sound@master/sounds/click4.ogg"
+    ></audio>
+    <audio
+      id="sndTimer"
+      src="https://cdn.jsdelivr.net/gh/naptha/tiny-sound@master/sounds/beep1.ogg"
+    ></audio>
 
-  function higherThanPile(cards){
-    const combo = comboType(cards);
-    if(combo==='invalid') return false;
-    if(state.lastPlayLen===0) return true;
-    if(combo!==state.lastPlayType || cards.length!==state.lastPlayLen) return false;
-    const lastHigh = Math.max(...state.pile.map(c=> rankValue(c.r)));
-    const nowHigh = Math.max(...cards.map(c=> rankValue(c.r)));
-    return nowHigh > lastHigh;
-  }
+    <script>
+      (() => {
+        // ====== UTIL ======
+        const el = (s) => document.querySelector(s);
+        const pileEl = el('#pile');
+        const seatsEl = el('#seats');
+        const potEl = el('#pot');
+        const toastEl = el('#toast');
+        const sndChip = el('#sndChip');
+        const sndCard = el('#sndCard');
+        const sndTimer = el('#sndTimer');
+        const winnerOverlay = el('#winnerOverlay');
 
-  function comboLabel(type){
-    switch(type){
-      case 'single': return 'Single';
-      case 'double': return 'Double';
-      case 'triple': return 'Triple';
-      case 'four': return '4 of a kind';
-      case 'flush': return 'Flush';
-      case 'straight': return 'Straight';
-      default: return '';
-    }
-  }
+        function coinConfetti(
+          count = 50,
+          iconSrc = '/assets/icons/ezgif-54c96d8a9b9236.webp'
+        ) {
+          const container = document.createElement('div');
+          container.style.position = 'fixed';
+          container.style.top = '0';
+          container.style.left = '0';
+          container.style.width = '100%';
+          container.style.height = '0';
+          container.style.pointerEvents = 'none';
+          container.style.zIndex = '60';
+          container.style.overflow = 'visible';
+          document.body.appendChild(container);
+          for (let i = 0; i < count; i++) {
+            const img = document.createElement('img');
+            img.src = iconSrc;
+            img.alt = 'confetti icon';
+            img.className = 'coin-confetti';
+            const left = Math.random() * 100;
+            const delay = Math.random() * 0.2;
+            const duration = 2 + Math.random() * 2;
+            img.style.left = left + 'vw';
+            img.style.animationDelay = delay + 's';
+            img.style.setProperty('--duration', duration + 's');
+            container.appendChild(img);
+          }
+          setTimeout(() => container.remove(), 5000);
+        }
 
-  function canPlaySome(p){
-    // Check if player has any legal move (single/pair) vs current pile
-    const hand = p.hand;
-    // singles
-    if(state.lastPlayLen===0){ return hand.length>0; }
-    if(state.lastPlayLen===1){ return hand.some(c=> rankValue(c.r) > Math.max(...state.pile.map(pc=> rankValue(pc.r)))); }
-    if(state.lastPlayLen===2){
-      const counts = countByRank(hand);
-      const lastHigh = Math.max(...state.pile.map(pc=> rankValue(pc.r)));
-      return Object.entries(counts).some(([r,c])=> c>=2 && rankValue(parseRank(r))>lastHigh);
-    }
-    return false;
-  }
-  function parseRank(r){
-    return (
-      r==='11' ? 'J' :
-      r==='12' ? 'Q' :
-      r==='13' ? 'K' :
-      r==='14' ? 'A' :
-      r==='15' ? 2 :
-      r==='16' ? 'BJ' :
-      r==='17' ? 'RJ' :
-      isNaN(r) ? r : Number(r)
-    );
-  }
-  function countByRank(hand){ const m={}; hand.forEach(c=>{ const k=rankValue(c.r); m[k]=(m[k]||0)+1; }); return m; }
+        function showWinnerOverlay(emoji) {
+          if (!winnerOverlay) return;
+          const slot = winnerOverlay.querySelector('.emoji');
+          if (slot) slot.textContent = emoji || '🏆';
+          winnerOverlay.classList.remove('hidden');
+          setTimeout(() => winnerOverlay.classList.add('hidden'), 2000);
+        }
 
-  function aiChoose(p){
-    const hand=[...p.hand].sort((a,b)=> rankValue(a.r)-rankValue(b.r));
-    if(state.lastPlayLen===0){
-      // Start round: prefer lowest pair, else lowest single
-      const counts = countByRank(hand);
-      const pairRank = Object.keys(counts).map(Number).filter(k=> counts[k]>=2).sort((a,b)=>a-b)[0];
-      if(pairRank){ return hand.filter(c=> rankValue(c.r)===pairRank).slice(0,2); }
-      return [hand[0]];
-    }
-    if(state.lastPlayLen===1){
-      const lastHigh = Math.max(...state.pile.map(c=> rankValue(c.r)));
-      const cand = hand.find(c=> rankValue(c.r) > lastHigh);
-      return cand? [cand] : [];
-    }
-    if(state.lastPlayLen===2){
-      const counts = countByRank(hand);
-      const lastHigh = Math.max(...state.pile.map(c=> rankValue(c.r)));
-      const pair = Object.keys(counts).map(Number).filter(k=> counts[k]>=2 && k>lastHigh).sort((a,b)=>a-b)[0];
-      if(pair){ return hand.filter(c=> rankValue(c.r)===pair).slice(0,2); }
-      return [];
-    }
-    return [];
-  }
+        let userScale = 1;
+        let userAdjusted = false;
+        let pinchStartDist = null;
+        let pinchStartScale = 1;
 
-  function highlightSuggestions(){
-    const chosen = aiChoose(player(0));
-    const idxs = chosen.map(c=> player(0).hand.indexOf(c));
-    const faces = seatsEl.querySelectorAll('.seat.bottom .cards .card:not(.back)');
-    faces.forEach(f=>{
-      const idx=Number(f.dataset.index);
-      f.classList.toggle('suggested', idxs.includes(idx));
-    });
-  }
+        function pinchDistance(touches) {
+          const [a, b] = touches;
+          return Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY);
+        }
 
-  function playTurn(i){
-    clearSuggestions();
-    const p = player(i);
-    startTurnTimer();
-    if(p.isHuman){ toast('Your turn'+(state.lastPlayLen? ` • play ${comboLabel(state.lastPlayType)}`:'')); highlightSuggestions(); return; }
-    // AI with small delay
-    setTimeout(()=>{
-      let chosen = aiChoose(p);
-      if(chosen.length===0){
-        state.passesSincePlay++;
-        toast(p.name+' passes');
-        advanceTurn();
-        return;
-      }
-      // place if higher than pile
-      if(!higherThanPile(chosen)){
-        state.passesSincePlay++;
-        toast(p.name+' passes');
-        advanceTurn();
-        return;
-      }
-      // commit play
-      const combo = comboType(chosen);
-      state.pile = [];
-      chosen.forEach(c=> { const idx=p.hand.indexOf(c); if(idx>-1) p.hand.splice(idx,1); state.pile.push(c); });
-      state.lastPlayLen = chosen.length; state.lastPlayType = combo;
-      state.passesSincePlay = 0; state.lastPlayerToPlay = i;
-      sndCard.currentTime=0; sndCard.play();
-      renderAll();
-      advanceTurn();
-    }, 700);
-  }
+        function setupZoom() {
+          const hand = document.querySelector('.seat.bottom .cards');
+          if (!hand) return;
+          hand.addEventListener(
+            'touchstart',
+            (e) => {
+              if (e.touches.length === 2) {
+                pinchStartDist = pinchDistance(e.touches);
+                pinchStartScale = userScale;
+              }
+            },
+            { passive: false }
+          );
+          hand.addEventListener(
+            'touchmove',
+            (e) => {
+              if (e.touches.length === 2 && pinchStartDist) {
+                e.preventDefault();
+                const dist = pinchDistance(e.touches);
+                let scale = pinchStartScale * (dist / pinchStartDist);
+                scale = Math.max(0.5, Math.min(scale, 3));
+                userScale = scale;
+                userAdjusted = true;
+                document.documentElement.style.setProperty(
+                  '--my-card-scale',
+                  scale.toFixed(2)
+                );
+              }
+            },
+            { passive: false }
+          );
+          hand.addEventListener('touchend', (e) => {
+            if (e.touches.length < 2) {
+              pinchStartDist = null;
+            }
+          });
+        }
 
-  function advanceTurn(){
-    clearSuggestions();
-    // If everyone else passed since last play, clear pile and set turn to last player
-    if(state.passesSincePlay >= state.players.length-1){
-      state.pile = []; state.lastPlayLen=0; state.lastPlayType=null; state.passesSincePlay=0; state.turn = state.lastPlayerToPlay; renderAll(); toast('New round');
-    }
-    state.turn = (state.turn + 1) % state.players.length;
-    // If someone has no cards -> they win
-    const won = state.players.find(pl=> pl.hand.length===0);
-    if(won){
-      toast((won.isHuman? 'You' : won.name)+' won!');
-      clearInterval(timerInterval);
-      coinConfetti();
-      showWinnerOverlay(state.players.indexOf(won)===0 ? '🃏' : '🐾');
-      return;
-    }
-    playTurn(state.turn);
-  }
+        function toast(msg) {
+          toastEl.textContent = msg;
+          toastEl.style.display = 'block';
+          setTimeout(() => (toastEl.style.display = 'none'), 1400);
+        }
 
-  function confirmPlayAction(){
-    if(state.turn!==0){ return; }
-    const sel = collectSelected();
-    if(sel.length===0){ toast('Select cards first'); return; }
-    const cards = sel.map(s=> s.c);
-    const combo = comboType(cards);
-    if(combo==='invalid'){ toast('Invalid combo'); return; }
-    if(state.lastPlayLen && combo!==state.lastPlayType){ toast('Must play '+comboLabel(state.lastPlayType)); return; }
-    if(!higherThanPile(cards)){ toast('Play higher'); return; }
-    state.pile = [];
-    cards.forEach(c=>{ const idx = player(0).hand.indexOf(c); if(idx>-1) player(0).hand.splice(idx,1); state.pile.push(c); });
-    state.lastPlayLen = cards.length; state.lastPlayType = combo; state.passesSincePlay=0; state.lastPlayerToPlay=0; sndCard.currentTime=0; sndCard.play();
-    clearSelections(); clearSuggestions(); renderAll();
-    advanceTurn();
-  }
+        // ====== DECK (with Jokers) ======
+        const SUITS = ['♠', '♥', '♦', '♣'];
+        const RANKS = [
+          3,
+          4,
+          5,
+          6,
+          7,
+          8,
+          9,
+          10,
+          'J',
+          'Q',
+          'K',
+          'A',
+          2,
+          'BJ',
+          'RJ'
+        ]; // BJ < RJ (both above 2)
+        function makeDeck() {
+          const d = [];
+          for (const s of SUITS) {
+            for (const r of [3, 4, 5, 6, 7, 8, 9, 10, 'J', 'Q', 'K', 'A', 2])
+              d.push({ r, s });
+          }
+          d.push({ r: 'BJ', s: '🃏' });
+          d.push({ r: 'RJ', s: '🃏' });
+          for (let i = d.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [d[i], d[j]] = [d[j], d[i]];
+          }
+          return d;
+        }
+        function rankValue(r) {
+          if (r === 'RJ') return 17;
+          if (r === 'BJ') return 16;
+          if (r === 2) return 15;
+          if (r === 'A') return 14;
+          if (r === 'K') return 13;
+          if (r === 'Q') return 12;
+          if (r === 'J') return 11;
+          return r;
+        }
 
-  // ===== UI HANDLERS =====
+        // ====== STATE ======
+        const state = {
+          players: [], // {name,isHuman,hand:[],chips}
+          turn: 0,
+          turnTime: 15,
+          pile: [], // last played cards
+          arrangeMode: false,
+          lastPlayLen: 0,
+          lastPlayType: null,
+          pot: 0,
+          passesSincePlay: 0,
+          lastPlayerToPlay: 0
+        };
 
-  function startGame(){
-    state.turn = 0;
-    playTurn(state.turn);
-  }
+        // create 4 players (user bottom)
+        function initPlayers() {
+          state.players = [
+            { name: 'You', isHuman: true, chips: 1500, hand: [] },
+            { name: 'Luna', chips: 1200, hand: [] },
+            { name: 'Rex', chips: 1000, hand: [] },
+            { name: 'Milo', chips: 900, hand: [] }
+          ];
+        }
 
-  function startArrangePhase(){
-    state.arrangeMode = true;
-    let t = 30;
-    state.turn = 0;
-    state.turnTime = t;
-    renderAll();
-    toast('Arrange your cards');
-    const arrangeInterval = setInterval(()=>{
-      t--;
-      state.turnTime = t;
-      updateTimerDisplay();
-      if(t<=0){
-        clearInterval(arrangeInterval);
-        state.arrangeMode = false;
+        function deal() {
+          const deck = makeDeck();
+          for (let i = 0; i < 13; i++) {
+            for (let p = 0; p < state.players.length; p++) {
+              state.players[p].hand.push(deck.pop());
+            }
+          }
+        }
+
+        // ===== RENDER =====
+        function cardFaceEl(c) {
+          const d = document.createElement('div');
+          d.className =
+            'card' +
+            (c.s === '♥' || c.s === '♦' ? ' red' : '') +
+            (c.r === 'RJ' || c.r === 'BJ' ? ' joker' : '');
+          const tl = document.createElement('div');
+          tl.className = 'tl';
+          tl.textContent =
+            (c.r === 'BJ' ? 'JB' : c.r === 'RJ' ? 'JR' : c.r) +
+            (c.s === '🃏' ? '' : c.s);
+          const br = document.createElement('div');
+          br.className = 'br';
+          br.textContent = c.s === '🃏' ? '🃏' : c.s;
+          const big = document.createElement('div');
+          big.className = 'big';
+          big.textContent = c.s === '🃏' ? '🃏' : c.s;
+          d.append(tl, big, br);
+          return d;
+        }
+        function cardBackEl() {
+          const d = document.createElement('div');
+          d.className = 'card back';
+          return d;
+        }
+
+        function posSeats() {
+          seatsEl.innerHTML = '';
+          const tableRect = el('.stage').getBoundingClientRect();
+          const padX = 24,
+            padY = 16;
+          const x0 = tableRect.left + padX,
+            y0 = tableRect.top + padY;
+          const w = tableRect.width - padX * 2,
+            h = tableRect.height - padY * 2;
+          const perim = 2 * (w + h),
+            step = perim / state.players.length;
+          let s0 = w + h + w / 2; // bottom center for user (index 0)
+
+          state.players.forEach((p, i) => {
+            const s = (s0 + i * step) % perim;
+            let x, y, side;
+            if (s < w) {
+              x = x0 + s;
+              y = y0;
+              side = 'top';
+            } else if (s < w + h) {
+              x = x0 + w;
+              y = y0 + (s - w);
+              side = 'right';
+            } else if (s < w + h + w) {
+              x = x0 + (w - (s - (w + h)));
+              y = y0 + h;
+              side = 'bottom';
+            } else {
+              x = x0;
+              y = y0 + (h - (s - (w + h + w)));
+              side = 'left';
+            }
+
+            const seat = document.createElement('div');
+            seat.className = 'seat ' + side;
+            const area = el('.stage').getBoundingClientRect();
+            if (side === 'bottom') {
+              seat.style.left = '50%';
+              seat.style.bottom = '8px';
+              seat.style.transform = 'translateX(-50%)';
+              seat.style.width = 'auto';
+            } else if (side === 'top') {
+              seat.style.left = '50%';
+              seat.style.top = '8px';
+              seat.style.transform = 'translateX(-60%)';
+            } else if (side === 'right') {
+              seat.style.left = x - area.left - 20 + 'px';
+              seat.style.top = y - area.top + 'px';
+              seat.style.transform = 'translate(-50%,-50%)';
+            } else {
+              seat.style.left = x - area.left + 'px';
+              seat.style.top = y - area.top + 'px';
+              seat.style.transform = 'translate(-50%,-50%)';
+            }
+
+            const av = document.createElement('div');
+            av.className = 'avatar';
+            av.textContent = i === 0 ? '🃏' : '🐾';
+            const name = document.createElement('div');
+            name.className = 'name';
+            name.textContent = p.name;
+
+            const cards = document.createElement('div');
+            cards.className = 'cards';
+            if (p.isHuman) {
+              // Show face-up cards (draggable when arrangeMode)
+              const sorted = [...p.hand];
+              sorted.forEach((c, idx) => {
+                const face = cardFaceEl(c);
+                face.dataset.index = idx;
+                face.addEventListener('click', () => {
+                  face.classList.toggle('selected');
+                  sndChip.currentTime = 0;
+                  sndChip.play();
+                });
+                if (state.arrangeMode) {
+                  enableDrag(face, cards, p);
+                }
+                cards.appendChild(face);
+              });
+            } else {
+              // Opponents: facedown fanned stack
+              cards.classList.add('opp-fan');
+              const count = p.hand.length;
+              const show = Math.min(10, count); // cap visual
+              for (let k = 0; k < show; k++) {
+                const b = cardBackEl();
+                b.style.setProperty('--rot', (k - show / 2) * 2 + 'deg');
+                cards.appendChild(b);
+              }
+            }
+
+            const timer = document.createElement('div');
+            timer.className = 'timer';
+
+            if (side === 'bottom') {
+              const controls = document.createElement('div');
+              controls.className = 'controls';
+              av.addEventListener('click', confirmPlayAction);
+              av.style.cursor = 'pointer';
+              const passBtn = document.createElement('button');
+              passBtn.id = 'passBtn';
+              passBtn.className = 'icon-btn pass-icon';
+              passBtn.innerHTML =
+                '👋<span style="font-size:14px;display:block">Pass</span>';
+              passBtn.style.display = 'flex';
+              passBtn.style.flexDirection = 'column';
+              passBtn.style.alignItems = 'center';
+              passBtn.addEventListener('click', () => {
+                toast('You pass');
+                state.passesSincePlay++;
+                clearSelections();
+                advanceTurn();
+              });
+              controls.append(av, passBtn);
+              seat.append(controls, name, cards, timer);
+            } else if (side === 'left' || side === 'right') {
+              seat.append(av, cards, name, timer);
+            } else {
+              seat.append(av, name, cards, timer);
+            }
+            seatsEl.appendChild(seat);
+          });
+        }
+
+        // Drag-to-reorder (manual arrange for user)
+        let drag = {
+          active: false,
+          startX: 0,
+          fromIdx: -1,
+          owner: null,
+          container: null
+        };
+        function enableDrag(elm, container, owner) {
+          elm.style.touchAction = 'none';
+          elm.addEventListener('pointerdown', (e) => {
+            if (!state.arrangeMode || !owner.isHuman) return;
+            drag.active = true;
+            drag.startX = e.clientX;
+            drag.fromIdx = Number(elm.dataset.index);
+            drag.owner = owner;
+            drag.container = container;
+            elm.setPointerCapture(e.pointerId);
+            elm.style.opacity = 0.7;
+            sndChip.currentTime = 0;
+            sndChip.play();
+          });
+          elm.addEventListener('pointermove', (e) => {
+            if (!drag.active) return;
+            const dx = e.clientX - drag.startX;
+            elm.style.transform = `translateX(${dx}px)`;
+          });
+          elm.addEventListener('pointerup', (e) => {
+            if (!drag.active) return;
+            elm.style.opacity = 1;
+            elm.style.transform = '';
+            const rect = drag.container.getBoundingClientRect();
+            const relX = e.clientX - rect.left; // place by slot width
+            const slotW =
+              rect.width / Math.max(1, drag.container.children.length);
+            let toIdx = Math.min(
+              drag.container.children.length - 1,
+              Math.max(0, Math.floor(relX / slotW))
+            );
+            reorderHand(drag.owner, drag.fromIdx, toIdx);
+            drag.active = false;
+            renderAll();
+          });
+        }
+        function reorderHand(player, from, to) {
+          if (from === to) return;
+          const arr = player.hand;
+          const [c] = arr.splice(from, 1);
+          arr.splice(to, 0, c);
+        }
+
+        function renderPile() {
+          pileEl.innerHTML = '';
+          if (!state.pile.length) return;
+          const cardW = parseFloat(
+            getComputedStyle(document.documentElement).getPropertyValue(
+              '--card-w'
+            )
+          );
+          const gap = cardW * 0.3; // overlap similar to top opponent
+          pileEl.style.width = cardW + (state.pile.length - 1) * gap + 'px';
+          const startAngle = (-8 * (state.pile.length - 1)) / 2;
+          state.pile.forEach((c, idx) => {
+            const face = cardFaceEl(c);
+            const angle = startAngle + idx * 8; // slight rotation per card
+            face.style.left = idx * gap + 'px';
+            face.style.top = '0';
+            face.style.zIndex = idx;
+            face.style.transform = `scale(1.3) rotate(${angle}deg)`;
+            pileEl.appendChild(face);
+          });
+          const suit = state.pile[0].s;
+          if (state.pile.every((pc) => pc.s === suit)) {
+            const lbl = document.createElement('div');
+            lbl.className = 'combo-label';
+            lbl.textContent = suit;
+            pileEl.appendChild(lbl);
+          }
+        }
+
+        function adjustHandScale() {
+          if (userAdjusted) return;
+          const hand = document.querySelector('.seat.bottom .cards');
+          if (!hand) return;
+          const screen = window.innerWidth - 20;
+          const natural = hand.scrollWidth;
+          if (natural > screen) {
+            const scale = screen / natural;
+            userScale = scale;
+            document.documentElement.style.setProperty(
+              '--my-card-scale',
+              scale.toFixed(2)
+            );
+          } else {
+            userScale = 1;
+            document.documentElement.style.setProperty('--my-card-scale', 1);
+          }
+        }
+
+        function renderAll() {
+          posSeats();
+          renderPile();
+          potEl.textContent = comboLabel(state.lastPlayType);
+          updateTimerDisplay();
+          adjustHandScale();
+          setupZoom();
+        }
+
+        let timerInterval;
+        function updateTimerDisplay() {
+          seatsEl.querySelectorAll('.seat').forEach((seat, idx) => {
+            const t = seat.querySelector('.timer');
+            if (t) {
+              if (idx === state.turn) {
+                t.textContent = idx === 0 ? 'play' : state.turnTime;
+              } else {
+                t.textContent = '';
+              }
+            }
+            seat.classList.toggle('active', idx === state.turn);
+          });
+        }
+        function startTurnTimer() {
+          state.turnTime = 15;
+          updateTimerDisplay();
+          clearInterval(timerInterval);
+          timerInterval = setInterval(() => {
+            state.turnTime--;
+            if (state.turnTime <= 7 && state.turnTime > 0) {
+              sndTimer.currentTime = 0;
+              sndTimer.play();
+            }
+            updateTimerDisplay();
+            if (state.turnTime <= 0) {
+              clearInterval(timerInterval);
+              toast('Time up');
+              state.passesSincePlay++;
+              if (state.players[state.turn].isHuman) clearSelections();
+              advanceTurn();
+            }
+          }, 1000);
+        }
+
+        // ===== GAME FLOW (singles/pairs + simple AI) =====
+        function collectSelected() {
+          const mySeat = seatsEl.querySelector('.seat .cards');
+          const faces = mySeat
+            ? Array.from(mySeat.querySelectorAll('.card:not(.back)'))
+            : [];
+          const sel = faces
+            .filter((f) => f.classList.contains('selected'))
+            .map((f) => ({
+              c: player(0).hand[Number(f.dataset.index)],
+              idx: Number(f.dataset.index)
+            }));
+          return sel;
+        }
+        function clearSelections() {
+          seatsEl
+            .querySelectorAll('.card.selected')
+            .forEach((n) => n.classList.remove('selected'));
+        }
+        function clearSuggestions() {
+          seatsEl
+            .querySelectorAll('.card.suggested')
+            .forEach((n) => n.classList.remove('suggested'));
+        }
+
+        function player(i) {
+          return state.players[i];
+        }
+
+        function comboType(cards) {
+          const ranks = cards.map((c) => rankValue(c.r)).sort((a, b) => a - b);
+          const suits = cards.map((c) => c.s);
+          const uniqueRanks = new Set(ranks).size;
+          const uniqueSuits = new Set(suits).size;
+          const isSeq =
+            ranks.length >= 5 &&
+            ranks.every((v, i, arr) => i === 0 || v === arr[i - 1] + 1);
+          if (cards.length === 1) return 'single';
+          if (cards.length === 2 && uniqueRanks === 1) return 'double';
+          if (cards.length === 3 && uniqueRanks === 1) return 'triple';
+          if (cards.length === 4 && uniqueRanks === 1) return 'four';
+          if (cards.length >= 5 && uniqueSuits === 1 && isSeq)
+            return 'straight';
+          if (cards.length >= 5 && uniqueSuits === 1) return 'flush';
+          if (cards.length >= 5 && isSeq) return 'straight';
+          return 'invalid';
+        }
+
+        function higherThanPile(cards) {
+          const combo = comboType(cards);
+          if (combo === 'invalid') return false;
+          if (state.lastPlayLen === 0) return true;
+          if (
+            combo !== state.lastPlayType ||
+            cards.length !== state.lastPlayLen
+          )
+            return false;
+          const lastHigh = Math.max(...state.pile.map((c) => rankValue(c.r)));
+          const nowHigh = Math.max(...cards.map((c) => rankValue(c.r)));
+          return nowHigh > lastHigh;
+        }
+
+        function comboLabel(type) {
+          switch (type) {
+            case 'single':
+              return 'Single';
+            case 'double':
+              return 'Double';
+            case 'triple':
+              return 'Triple';
+            case 'four':
+              return '4 of a kind';
+            case 'flush':
+              return 'Flush';
+            case 'straight':
+              return 'Straight';
+            default:
+              return '';
+          }
+        }
+
+        function canPlaySome(p) {
+          // Check if player has any legal move (single/pair) vs current pile
+          const hand = p.hand;
+          // singles
+          if (state.lastPlayLen === 0) {
+            return hand.length > 0;
+          }
+          if (state.lastPlayLen === 1) {
+            return hand.some(
+              (c) =>
+                rankValue(c.r) >
+                Math.max(...state.pile.map((pc) => rankValue(pc.r)))
+            );
+          }
+          if (state.lastPlayLen === 2) {
+            const counts = countByRank(hand);
+            const lastHigh = Math.max(
+              ...state.pile.map((pc) => rankValue(pc.r))
+            );
+            return Object.entries(counts).some(
+              ([r, c]) => c >= 2 && rankValue(parseRank(r)) > lastHigh
+            );
+          }
+          return false;
+        }
+        function parseRank(r) {
+          return r === '11'
+            ? 'J'
+            : r === '12'
+              ? 'Q'
+              : r === '13'
+                ? 'K'
+                : r === '14'
+                  ? 'A'
+                  : r === '15'
+                    ? 2
+                    : r === '16'
+                      ? 'BJ'
+                      : r === '17'
+                        ? 'RJ'
+                        : isNaN(r)
+                          ? r
+                          : Number(r);
+        }
+        function countByRank(hand) {
+          const m = {};
+          hand.forEach((c) => {
+            const k = rankValue(c.r);
+            m[k] = (m[k] || 0) + 1;
+          });
+          return m;
+        }
+
+        function aiChoose(p) {
+          const hand = [...p.hand].sort(
+            (a, b) => rankValue(a.r) - rankValue(b.r)
+          );
+          if (state.lastPlayLen === 0) {
+            // Start round: prefer lowest pair, else lowest single
+            const counts = countByRank(hand);
+            const pairRank = Object.keys(counts)
+              .map(Number)
+              .filter((k) => counts[k] >= 2)
+              .sort((a, b) => a - b)[0];
+            if (pairRank) {
+              return hand
+                .filter((c) => rankValue(c.r) === pairRank)
+                .slice(0, 2);
+            }
+            return [hand[0]];
+          }
+          if (state.lastPlayLen === 1) {
+            const lastHigh = Math.max(...state.pile.map((c) => rankValue(c.r)));
+            const cand = hand.find((c) => rankValue(c.r) > lastHigh);
+            return cand ? [cand] : [];
+          }
+          if (state.lastPlayLen === 2) {
+            const counts = countByRank(hand);
+            const lastHigh = Math.max(...state.pile.map((c) => rankValue(c.r)));
+            const pair = Object.keys(counts)
+              .map(Number)
+              .filter((k) => counts[k] >= 2 && k > lastHigh)
+              .sort((a, b) => a - b)[0];
+            if (pair) {
+              return hand.filter((c) => rankValue(c.r) === pair).slice(0, 2);
+            }
+            return [];
+          }
+          return [];
+        }
+
+        function highlightSuggestions() {
+          const chosen = aiChoose(player(0));
+          const idxs = chosen.map((c) => player(0).hand.indexOf(c));
+          const faces = seatsEl.querySelectorAll(
+            '.seat.bottom .cards .card:not(.back)'
+          );
+          faces.forEach((f) => {
+            const idx = Number(f.dataset.index);
+            f.classList.toggle('suggested', idxs.includes(idx));
+          });
+        }
+
+        function playTurn(i) {
+          clearSuggestions();
+          const p = player(i);
+          startTurnTimer();
+          if (p.isHuman) {
+            toast(
+              'Your turn' +
+                (state.lastPlayLen
+                  ? ` • play ${comboLabel(state.lastPlayType)}`
+                  : '')
+            );
+            highlightSuggestions();
+            return;
+          }
+          // AI with small delay
+          setTimeout(() => {
+            let chosen = aiChoose(p);
+            if (chosen.length === 0) {
+              state.passesSincePlay++;
+              toast(p.name + ' passes');
+              advanceTurn();
+              return;
+            }
+            // place if higher than pile
+            if (!higherThanPile(chosen)) {
+              state.passesSincePlay++;
+              toast(p.name + ' passes');
+              advanceTurn();
+              return;
+            }
+            // commit play
+            const combo = comboType(chosen);
+            state.pile = [];
+            chosen.forEach((c) => {
+              const idx = p.hand.indexOf(c);
+              if (idx > -1) p.hand.splice(idx, 1);
+              state.pile.push(c);
+            });
+            state.lastPlayLen = chosen.length;
+            state.lastPlayType = combo;
+            state.passesSincePlay = 0;
+            state.lastPlayerToPlay = i;
+            sndCard.currentTime = 0;
+            sndCard.play();
+            renderAll();
+            advanceTurn();
+          }, 700);
+        }
+
+        function advanceTurn() {
+          clearSuggestions();
+          // If everyone else passed since last play, clear pile and set turn to last player
+          if (state.passesSincePlay >= state.players.length - 1) {
+            state.pile = [];
+            state.lastPlayLen = 0;
+            state.lastPlayType = null;
+            state.passesSincePlay = 0;
+            state.turn = state.lastPlayerToPlay;
+            renderAll();
+            toast('New round');
+          }
+          state.turn = (state.turn + 1) % state.players.length;
+          // If someone has no cards -> they win
+          const won = state.players.find((pl) => pl.hand.length === 0);
+          if (won) {
+            toast((won.isHuman ? 'You' : won.name) + ' won!');
+            clearInterval(timerInterval);
+            coinConfetti();
+            showWinnerOverlay(state.players.indexOf(won) === 0 ? '🃏' : '🐾');
+            return;
+          }
+          playTurn(state.turn);
+        }
+
+        function confirmPlayAction() {
+          if (state.turn !== 0) {
+            return;
+          }
+          const sel = collectSelected();
+          if (sel.length === 0) {
+            toast('Select cards first');
+            return;
+          }
+          const cards = sel.map((s) => s.c);
+          const combo = comboType(cards);
+          if (combo === 'invalid') {
+            toast('Invalid combo');
+            return;
+          }
+          if (state.lastPlayLen && combo !== state.lastPlayType) {
+            toast('Must play ' + comboLabel(state.lastPlayType));
+            return;
+          }
+          if (!higherThanPile(cards)) {
+            toast('Play higher');
+            return;
+          }
+          state.pile = [];
+          cards.forEach((c) => {
+            const idx = player(0).hand.indexOf(c);
+            if (idx > -1) player(0).hand.splice(idx, 1);
+            state.pile.push(c);
+          });
+          state.lastPlayLen = cards.length;
+          state.lastPlayType = combo;
+          state.passesSincePlay = 0;
+          state.lastPlayerToPlay = 0;
+          sndCard.currentTime = 0;
+          sndCard.play();
+          clearSelections();
+          clearSuggestions();
+          renderAll();
+          advanceTurn();
+        }
+
+        // ===== UI HANDLERS =====
+
+        function startGame() {
+          state.turn = 0;
+          playTurn(state.turn);
+        }
+
+        function startArrangePhase() {
+          state.arrangeMode = true;
+          let t = 30;
+          state.turn = 0;
+          state.turnTime = t;
+          renderAll();
+          toast('Arrange your cards');
+          const arrangeInterval = setInterval(() => {
+            t--;
+            state.turnTime = t;
+            updateTimerDisplay();
+            if (t <= 0) {
+              clearInterval(arrangeInterval);
+              state.arrangeMode = false;
+              renderAll();
+              startGame();
+            }
+          }, 1000);
+        }
+
+        // boot
+        initPlayers();
+        deal();
         renderAll();
-        startGame();
-      }
-    },1000);
-  }
-
-  // boot
-    initPlayers(); deal(); renderAll(); startArrangePhase();
-})();
-</script>
-</body>
+        startArrangePhase();
+      })();
+    </script>
+  </body>
 </html>
