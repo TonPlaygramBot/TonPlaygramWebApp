@@ -246,20 +246,15 @@
         transform: rotateZ(var(--rot, 0deg));
       }
 
-      /* Left & right opponents: rotate and tighten card spacing */
+      /* Left & right opponents: vertical stack like top opponent */
       .seat.left .opp-fan .card,
       .seat.right .opp-fan .card {
         margin-left: 0;
+        transform: rotateZ(var(--rot, 0deg));
       }
       .seat.left .cards .card:not(:first-child),
       .seat.right .cards .card:not(:first-child) {
         margin-top: calc(var(--card-w) * -0.5);
-      }
-      .seat.left .opp-fan .card {
-        transform: rotate(calc(var(--rot, 0deg) - 90deg));
-      }
-      .seat.right .opp-fan .card {
-        transform: rotate(calc(var(--rot, 0deg) + 90deg));
       }
 
       /* ICON CONTROLS */
@@ -772,9 +767,10 @@
           const gap = cardW * 0.3; // overlap similar to top opponent
           pileEl.style.width = cardW + (state.pile.length - 1) * gap + 'px';
           const startAngle = (-8 * (state.pile.length - 1)) / 2;
+          const baseRot = Math.random() * 10 - 5; // vary pile each play
           state.pile.forEach((c, idx) => {
             const face = cardFaceEl(c);
-            const angle = startAngle + idx * 8; // slight rotation per card
+            const angle = baseRot + startAngle + idx * 8; // slight rotation per card
             face.style.left = idx * gap + 'px';
             face.style.top = '0';
             face.style.zIndex = idx;
