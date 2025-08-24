@@ -143,3 +143,23 @@ test('potting 8-ball legally after clearing group wins', () => {
   assert.equal(res.frameOver, true);
   assert.equal(res.winner, 'A');
 });
+
+test('after foul cue must be played from baulk', () => {
+  const game = new UkPool();
+  game.shotTaken({
+    contactOrder: ['yellow'],
+    potted: ['cue'],
+    cueOffTable: false,
+    noCushionAfterContact: false,
+    placedFromHand: false
+  });
+  const res = game.shotTaken({
+    contactOrder: ['yellow'],
+    potted: [],
+    cueOffTable: false,
+    noCushionAfterContact: false,
+    placedFromHand: false
+  });
+  assert.equal(res.foul, true);
+  assert.equal(res.reason, 'must play from baulk');
+});
