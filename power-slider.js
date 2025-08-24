@@ -36,6 +36,9 @@ export class PowerSlider {
 
     this.powerBar = document.createElement('div');
     this.powerBar.className = 'ps-power-bar';
+    this.powerFill = document.createElement('div');
+    this.powerFill.className = 'ps-power-bar-fill';
+    this.powerBar.appendChild(this.powerFill);
     this.el.appendChild(this.powerBar);
 
     this.handle = document.createElement('div');
@@ -155,6 +158,7 @@ export class PowerSlider {
     this.handle.style.transform = `translate(0, ${y}px)`;
     const ttH = this.tooltip.offsetHeight;
     this.tooltip.style.transform = `translate(0, ${y - ttH - 8}px)`;
+    this.powerFill.style.height = `${ratio * 100}%`;
     this._updateHandleColor(ratio);
     this.tooltip.textContent = `${Math.round(this.value)}%`;
     this.el.setAttribute('aria-valuenow', String(Math.round(this.value)));
@@ -178,15 +182,16 @@ export class PowerSlider {
   _setupPowerBar() {
     if (!this.powerBar) return;
     const uWidth = this._measureCharWidth('u');
+    const pWidth = this._measureCharWidth('P');
     this.powerBar.style.width = `${uWidth}px`;
-    const left = this.el.clientWidth + this.handle.offsetWidth / 2 - uWidth / 2;
-    const handleRect = this.handle.getBoundingClientRect();
     const textRect = this.handleText.getBoundingClientRect();
     const imgRect = this.cueImg.getBoundingClientRect();
-    const topOffset = textRect.bottom - handleRect.top;
+    const elRect = this.el.getBoundingClientRect();
+    const left = textRect.left - elRect.left + pWidth;
+    const top = textRect.bottom - elRect.top;
     const height = imgRect.bottom - textRect.bottom;
     this.powerBar.style.left = `${left}px`;
-    this.powerBar.style.top = `${topOffset}px`;
+    this.powerBar.style.top = `${top}px`;
     this.powerBar.style.height = `${height}px`;
   }
 
