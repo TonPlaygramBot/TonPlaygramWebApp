@@ -275,13 +275,13 @@
       }
 
       #powerBox {
-        width: 12px;
+        width: 6px;
         height: 100%;
         background: none;
-        border-radius: 9px;
+        border-radius: 3px;
         position: absolute;
         overflow: hidden;
-        border: 2px solid #fff;
+        border: none;
         box-shadow: none;
         left: calc(100% - 16px);
         top: 0;
@@ -296,7 +296,18 @@
         bottom: 0;
         width: 100%;
         height: 0%;
-        background: #fff;
+        background:
+          repeating-linear-gradient(
+            to bottom,
+            transparent 0 calc(10% - 1px),
+            rgba(0, 0, 0, 0.6) calc(10% - 1px) 10%
+          ),
+          linear-gradient(
+            to bottom,
+            #fde047 0%,
+            #f97316 50%,
+            #dc2626 100%
+          );
       }
 
       #powerCue {
@@ -316,9 +327,23 @@
         left: calc(100% - 16px);
         top: 0;
         transform: translate(-50%, 0);
-        background: none;
-        border-radius: 6px;
+        width: 6px;
+        height: 100%;
+        background:
+          repeating-linear-gradient(
+            to bottom,
+            transparent 0 calc(10% - 1px),
+            rgba(0, 0, 0, 0.6) calc(10% - 1px) 10%
+          ),
+          linear-gradient(
+            to bottom,
+            #fde047 0%,
+            #f97316 50%,
+            #dc2626 100%
+          );
+        border-radius: 3px;
         pointer-events: none;
+        opacity: 0.25;
         z-index: 5;
       }
 
@@ -2268,10 +2293,11 @@
           var y = minY + (maxY - minY) * power;
           powerCue.style.top = y + 'px';
           pullHandle.style.top = y + 'px';
-          powerBg.style.width = powerCue.offsetWidth + 'px';
+          var barWidth = 6;
+          powerBg.style.width = barWidth + 'px';
           powerBg.style.height = powerCue.offsetHeight + 'px';
           powerBg.style.top = minY + 'px';
-          powerBox.style.width = powerCue.offsetWidth + 'px';
+          powerBox.style.width = barWidth + 'px';
           powerBox.style.height = powerCue.offsetHeight + 'px';
           powerBox.style.top = minY + 'px';
         }
