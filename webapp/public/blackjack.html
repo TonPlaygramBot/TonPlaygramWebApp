@@ -20,6 +20,8 @@
         --card-back-color: #233;
         --card-front-color: #fff;
         --player-frame-color: #000;
+        --ui-scale: 1;
+        --bottom-card-scale: 1.083;
       }
       * {
         box-sizing: border-box;
@@ -214,6 +216,10 @@
         font-weight: 700;
         z-index: 3;
       }
+      .hand-total.bust {
+        background: #dc2626;
+        color: #000;
+      }
       .card {
         width: var(--card-w);
         height: var(--card-h);
@@ -345,6 +351,9 @@
         margin-top: 2px;
         text-shadow: 0 0 2px #000;
       }
+      .stand-copy-wrapper .stand-name.small {
+        font-size: 8px;
+      }
       .seat-inner .cards.turn {
         box-shadow: 0 0 12px #facc15;
         border-color: #facc15;
@@ -391,7 +400,7 @@
         bottom: 0.5%;
         left: 50%;
         transform: translateX(-50%);
-        --card-scale: 1.083;
+        --card-scale: var(--bottom-card-scale);
         --avatar-scale: 1;
         --card-w: calc(clamp(44px, 9.6vw, 70px) * var(--card-scale));
         --card-h: calc(var(--card-w) * 1.45);
@@ -464,6 +473,12 @@
       }
       .seat.bottom .name {
         font-size: 12px;
+      }
+      .seat-inner .name.small {
+        font-size: 9px;
+      }
+      .seat.bottom .name.small {
+        font-size: 10px;
       }
       .seat-inner .cards {
         padding: 0;
@@ -567,6 +582,8 @@
         border: none;
         border-radius: 0;
         background: none;
+        transform: scale(var(--ui-scale));
+        transform-origin: bottom left;
       }
       .slider-container {
         position: absolute;
@@ -581,6 +598,8 @@
         border: none;
         border-radius: 0;
         background: none;
+        transform: scale(var(--ui-scale));
+        transform-origin: bottom right;
       }
       .raise-btn {
         width: var(--avatar-size);

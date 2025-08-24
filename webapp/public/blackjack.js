@@ -90,6 +90,23 @@ function updateBalanceDisplay() {
   }
 }
 
+function adjustNameSize(el) {
+  let name = el.textContent || '';
+  if (name.length > 12) {
+    const parts = name.split(/\s+/).filter(Boolean);
+    if (parts.length > 1) {
+      name = parts.map((p) => p[0].toUpperCase()).join('');
+    }
+  }
+  if (name.length > 10) {
+    el.classList.add('small');
+    name = name.slice(0, 10);
+  } else {
+    el.classList.remove('small');
+  }
+  el.textContent = name;
+}
+
 const DEFAULT_SETTINGS = {
   muteCards: false,
   muteChips: false,
@@ -356,6 +373,7 @@ function render() {
     const name = document.createElement('div');
     name.className = 'name';
     name.textContent = p.name;
+    adjustNameSize(name);
     inner.appendChild(name);
 
     const cards = document.createElement('div');
@@ -367,10 +385,11 @@ function render() {
     if (p.winner) {
       Array.from(cards.children).forEach((card) => card.classList.add('winning'));
     }
-    if (p.isHuman || p.winner) {
+    if (p.isHuman || p.winner || p.revealed) {
       const total = document.createElement('div');
       total.className = 'hand-total';
       total.textContent = handValue(p.hand).toString();
+      if (p.bust) total.classList.add('bust');
       cards.appendChild(total);
     }
     inner.appendChild(cards);
@@ -438,13 +457,33 @@ function render() {
       const nm = document.createElement('div');
       nm.className = 'stand-name';
       nm.textContent = p.name;
+      adjustNameSize(nm);
       wrap.appendChild(nm);
       seat.appendChild(wrap);
     }
     seats.appendChild(seat);
   });
+  adjustPlayerScaling();
   updateBalanceDisplay();
   renderCommunity();
+}
+
+function adjustPlayerScaling() {
+  const player = state.players[0];
+  if (!player) return;
+  const count = player.hand.length;
+  const baseCard = 1.083;
+  const baseUi = 1;
+  if (count <= 3) {
+    document.documentElement.style.setProperty('--bottom-card-scale', baseCard);
+    document.documentElement.style.setProperty('--ui-scale', '1');
+    return;
+  }
+  const extra = count - 3;
+  const cardScale = Math.max(0.6, baseCard - 0.1 * extra);
+  const uiScale = Math.max(0.6, baseUi - 0.1 * extra);
+  document.documentElement.style.setProperty('--bottom-card-scale', cardScale.toString());
+  document.documentElement.style.setProperty('--ui-scale', uiScale.toString());
 }
 
 function aiRespondToRaise() {
