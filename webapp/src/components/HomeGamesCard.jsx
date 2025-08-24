@@ -36,7 +36,7 @@ export default function HomeGamesCard() {
             className="h-20 w-20"
           />
           <h3 className="text-sm font-semibold text-center text-yellow-400">
-            Black Jack
+            Black Jack Multiplayer
           </h3>
         </Link>
         <Link

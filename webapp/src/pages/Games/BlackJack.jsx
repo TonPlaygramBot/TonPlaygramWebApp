@@ -8,7 +8,7 @@ export default function BlackJack() {
     <div className="relative w-full h-screen">
       <iframe
         src={`/blackjack.html${search}`}
-        title="Black Jack"
+        title="Black Jack Multiplayer"
         className="w-full h-full border-0"
       />
     </div>
