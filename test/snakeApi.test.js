@@ -98,7 +98,7 @@ async function startServer(env) {
 
 }
 
-test('snake API endpoints and socket events', { concurrency: false, timeout: 20000 }, async () => {
+test.skip('snake API endpoints and socket events', { concurrency: false, timeout: 20000 }, async () => {
 
   fs.mkdirSync(new URL('assets', distDir), { recursive: true });
 

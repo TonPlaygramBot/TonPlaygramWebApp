@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { UkPool } from '../lib/poolUk8Ball.js';
+import { selectShot } from '../lib/poolUkAdvancedAi.js';
 
 test('scratch on break gives opponent two visits without free ball', () => {
   const game = new UkPool();
@@ -185,4 +186,30 @@ test('shots after frame end are not fouls', () => {
   });
   assert.equal(res.foul, false);
   assert.equal(res.frameOver, true);
+});
+
+test('AI targets black when own balls cleared', () => {
+  const state = {
+    balls: [
+      { id: 0, colour: 'cue', x: 50, y: 50 },
+      { id: 1, colour: 'black', x: 200, y: 200 }
+    ],
+    pockets: [
+      { name: 'TL', x: 0, y: 0 },
+      { name: 'TR', x: 300, y: 0 },
+      { name: 'ML', x: 0, y: 150 },
+      { name: 'MR', x: 300, y: 150 },
+      { name: 'BL', x: 0, y: 300 },
+      { name: 'BR', x: 300, y: 300 }
+    ],
+    width: 300,
+    height: 300,
+    ballRadius: 5,
+    ballOn: 'yellow',
+    isOpenTable: false,
+    freeBallAvailable: false,
+    shotsRemaining: 1
+  };
+  const plan = selectShot(state);
+  assert.equal(plan.targetBall, 'black');
 });
