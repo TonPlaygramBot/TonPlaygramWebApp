@@ -1,6 +1,5 @@
 import { useLocation } from 'react-router-dom';
 import useTelegramBackButton from '../../hooks/useTelegramBackButton.js';
-import GameFrame from '../../components/GameFrame.jsx';
 
 export default function PollRoyale() {
   useTelegramBackButton();
@@ -15,11 +14,9 @@ export default function PollRoyale() {
       : variant === 'american'
         ? 'American Billiards'
         : '8 Pool UK';
-  const info =
-    variant === '9ball'
-      ? 'Pot the balls in order and finish with the 9-ball to win.'
-      : variant === 'american'
-        ? 'Pocket all your assigned balls, then sink the 8-ball to win.'
-        : 'Clearing your group of balls and then potting the black wins the frame.';
-  return <GameFrame src={src} title={title} info={info} />;
+  return (
+    <div className="relative w-full h-[100dvh]">
+      <iframe src={src} title={title} className="w-full h-full border-0" />
+    </div>
+  );
 }
