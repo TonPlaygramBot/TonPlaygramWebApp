@@ -360,7 +360,7 @@
         width: 44px;
         height: 44px;
         border-radius: 50%;
-        border: none;
+        border: 1px solid #fff;
         display: flex;
         flex-direction: column;
         align-items: center;
@@ -369,6 +369,12 @@
         cursor: pointer;
         touch-action: none;
         z-index: 8;
+      }
+
+      #pullLabel .pullArrow {
+        display: block;
+        /* shift arrow so it sits under the "u" in "Pull" */
+        transform: translateX(-4px);
       }
 
       #powerTxt {
@@ -555,7 +561,7 @@
             />
             <div id="cueRail"></div>
             <div id="powerTxt"><div id="powerPercent">0%</div></div>
-            <div id="pullLabel">Pull<br />⬇</div>
+            <div id="pullLabel">Pull<br /><span class="pullArrow">⬇</span></div>
           </div>
         </aside>
 
@@ -2046,7 +2052,8 @@
             dy = aim.y - cue.p.y;
           var L = len(dx, dy) || 1;
           var dir = { x: dx / L, y: dy / L };
-          var step = BALL_R * 0.65,
+          // Use a smaller step for more precise collision detection
+          var step = BALL_R * 0.5,
             dots = 60;
           var x = cue.p.x,
             y = cue.p.y,
@@ -2074,7 +2081,8 @@
             for (var j = 0; j < table.balls.length; j++) {
               var b = table.balls[j];
               if (b === cue || b.pocketed) continue;
-              if (d2({ x: x, y: y }, b.p) < BALL_R * 2.05 * (BALL_R * 2.05)) {
+              // Only register a hit when the guideline actually intersects the ball
+              if (d2({ x: x, y: y }, b.p) < (BALL_R * 2) * (BALL_R * 2)) {
                 target = b;
                 // include the collision step so the guide reaches impact
                 hitStep = i + 1;
@@ -2291,6 +2299,8 @@
           var y = minY + (maxY - minY) * power;
           powerCue.style.top = y + 'px';
           pullHandle.style.top = y + 'px';
+          // Keep the power percentage above the pull handle as it moves
+          powerTxt.style.top = y - 30 + 'px';
           var barWidth = 12;
           var barHeight = maxY - minY;
           powerBg.style.width = barWidth + 'px';
