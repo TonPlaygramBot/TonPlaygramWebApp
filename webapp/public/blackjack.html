@@ -379,13 +379,17 @@
 
       .seat .action-text {
         position: absolute;
-        top: -1.2em;
+        top: -1.4em;
         left: 50%;
         transform: translateX(-50%);
         font-size: 10px;
         white-space: nowrap;
         text-align: center;
         pointer-events: none;
+      }
+
+      .seat.top .action-text {
+        top: calc(100% + 0.2em);
       }
 
       .seat.bottom {
@@ -935,8 +939,7 @@
         <div class="pot" id="pot"></div>
         <div class="pot-total" id="potTotal"></div>
         <div class="pot-info" id="potInfo">
-          No dealer: players compete. Highest hand wins. Dealer takes 10% from the
-          winner.
+          No dealer: Highest hand wins. Dealer takes 10% from the winner.
         </div>
       </div>
       <div class="raise-container" id="raiseContainer">
