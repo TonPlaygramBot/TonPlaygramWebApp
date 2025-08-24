@@ -257,7 +257,7 @@
         /* Allow the handle to overflow so only half of it is visible */
         overflow: visible;
         z-index: 7;
-        pointer-events: auto;
+        pointer-events: none;
         margin-right: 0;
       }
 
@@ -271,6 +271,7 @@
         background: none;
         border-radius: 9px;
         box-shadow: none;
+        pointer-events: none;
       }
 
       #powerBox {
@@ -640,6 +641,7 @@
         var powerCue = document.getElementById('powerCue');
         var powerBg = document.getElementById('powerBg');
         var pullHandle = document.getElementById('pullLabel');
+        var cueRail = document.getElementById('cueRail');
 
         var avatarP1 = document.querySelector(
           '#header .player:first-child .avatar'
@@ -2268,6 +2270,17 @@
           powerFill.style.height = Math.round(power * 100) + '%';
           powerPercent.textContent = Math.round(power * 100) + '%';
           pullArea.style.background = 'none';
+          if (power > 0) {
+            var pct = Math.round(power * 100);
+            cueRail.style.background =
+              'linear-gradient(to bottom, rgba(255,255,255,0.6) 0%, rgba(255,255,255,0.6) ' +
+              pct +
+              '%, transparent ' +
+              pct +
+              '%, transparent 100%)';
+          } else {
+            cueRail.style.background = 'none';
+          }
           updatePullHandle();
         }
         function updateFromEvent(e) {
