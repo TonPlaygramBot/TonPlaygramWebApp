@@ -40,7 +40,7 @@ export default function Games() {
                 className="text-sm font-semibold text-center text-yellow-400"
                 style={{ WebkitTextStroke: '1px black' }}
               >
-                Black Jack
+                Black Jack Multiplayer
               </h3>
             </Link>
             <Link

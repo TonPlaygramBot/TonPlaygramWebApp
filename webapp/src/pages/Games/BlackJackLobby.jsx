@@ -63,7 +63,7 @@ export default function BlackJackLobby() {
 
   return (
     <div className="relative p-4 space-y-4 text-text min-h-screen tetris-grid-bg">
-      <h2 className="text-xl font-bold text-center">Black Jack Lobby</h2>
+      <h2 className="text-xl font-bold text-center">Black Jack Multiplayer Lobby</h2>
       <div className="space-y-2">
         <h3 className="font-semibold">Stake</h3>
         <RoomSelector selected={stake} onSelect={setStake} tokens={['TPC']} />
