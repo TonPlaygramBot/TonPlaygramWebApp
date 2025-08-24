@@ -346,7 +346,6 @@ function dealCardToPlayer(idx, card, showFace) {
 }
 
 function render() {
-  updateRaiseAmount();
   const seats = document.getElementById('seats');
   seats.innerHTML = '';
   const positions = [
@@ -436,7 +435,27 @@ function render() {
         callBtn.id = 'call';
         callBtn.textContent = 'Call';
         callBtn.addEventListener('click', playerCall);
-        controls.append(foldBtn, callBtn);
+        const raiseBtn = document.createElement('button');
+        raiseBtn.id = 'raise';
+        raiseBtn.textContent = 'Raise';
+        raiseBtn.addEventListener('click', commitRaise);
+        const sliderWrap = document.createElement('div');
+        sliderWrap.className = 'slider-wrap';
+        const slider = document.createElement('input');
+        slider.type = 'range';
+        slider.id = 'raiseSlider';
+        slider.min = '0';
+        slider.value = '0';
+        slider.setAttribute('orient', 'vertical');
+        slider.addEventListener('input', () => {
+          state.raiseAmount = parseInt(slider.value, 10);
+          updateRaiseAmount();
+        });
+        const sliderAmt = document.createElement('div');
+        sliderAmt.className = 'raise-amount';
+        sliderAmt.id = 'raiseSliderAmount';
+        sliderWrap.append(slider, sliderAmt);
+        controls.append(foldBtn, callBtn, raiseBtn, sliderWrap);
         seat.append(inner, bal, controls);
       } else {
         seat.append(inner, bal);
@@ -468,6 +487,7 @@ function render() {
   adjustPlayerScaling();
   updateBalanceDisplay();
   renderCommunity();
+  updateRaiseAmount();
 }
 
 function adjustPlayerScaling() {
@@ -952,18 +972,6 @@ async function init() {
       playCallRaise();
     });
   });
-
-  const slider = document.getElementById('raiseSlider');
-  if (slider) {
-    slider.max = Math.max(0, state.stake - state.currentBet).toString();
-    slider.addEventListener('input', () => {
-      state.raiseAmount = parseInt(slider.value, 10);
-      updateRaiseAmount();
-    });
-  }
-
-  const raiseBtn = document.getElementById('raiseBtn');
-  if (raiseBtn) raiseBtn.addEventListener('click', commitRaise);
   const statusEl = document.getElementById('status');
   sndCallRaise = document.getElementById('sndCallRaise');
   sndFlip = document.getElementById('sndFlip');
