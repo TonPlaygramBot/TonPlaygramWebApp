@@ -1,16 +1,15 @@
 import { useLocation } from 'react-router-dom';
 import useTelegramBackButton from '../../hooks/useTelegramBackButton.js';
+import GameFrame from '../../components/GameFrame.jsx';
 
 export default function TexasHoldem() {
   useTelegramBackButton();
   const { search } = useLocation();
   return (
-    <div className="relative w-full h-screen">
-      <iframe
-        src={`/texas-holdem.html${search}`}
-        title="Texas Hold'em"
-        className="w-full h-full border-0"
-      />
-    </div>
+    <GameFrame
+      src={`/texas-holdem.html${search}`}
+      title="Texas Hold'em"
+      info="Use two hole cards and five community cards to make the best hand. Bet through pre-flop, flop, turn and river rounds."
+    />
   );
 }

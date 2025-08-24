@@ -1,15 +1,15 @@
 import { useLocation } from 'react-router-dom';
 import useTelegramBackButton from '../../hooks/useTelegramBackButton.js';
+import GameFrame from '../../components/GameFrame.jsx';
+
 export default function BubbleSmashRoyale() {
   useTelegramBackButton();
   const { search } = useLocation();
   return (
-    <div className="relative w-full h-screen">
-      <iframe
-        src={`/bubble-smash-royale.html${search}`}
-        title="Bubble Smash Royale"
-        className="w-full h-full border-0"
-      />
-    </div>
+    <GameFrame
+      src={`/bubble-smash-royale.html${search}`}
+      title="Bubble Smash Royale"
+      info="Tap groups of matching bubbles to smash them. Clear the arena before time runs out."
+    />
   );
 }

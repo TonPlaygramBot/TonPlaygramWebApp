@@ -1,15 +1,15 @@
 import { useLocation } from 'react-router-dom';
 import useTelegramBackButton from '../../hooks/useTelegramBackButton.js';
+import GameFrame from '../../components/GameFrame.jsx';
+
 export default function BrickBreaker() {
   useTelegramBackButton();
   const { search } = useLocation();
   return (
-    <div className="relative w-full h-screen">
-      <iframe
-        src={`/brick-breaker.html${search}`}
-        title="Brick Breaker Royale"
-        className="w-full h-full border-0"
-      />
-    </div>
+    <GameFrame
+      src={`/brick-breaker.html${search}`}
+      title="Brick Breaker Royale"
+      info="Move the paddle to keep the ball in play and smash all bricks to clear the level."
+    />
   );
 }

@@ -75,6 +75,7 @@ export default function CrazyDiceDuel() {
   const navigate = useNavigate();
   const [showLobbyConfirm, setShowLobbyConfirm] = useState(false);
   const [showQuitInfo, setShowQuitInfo] = useState(true);
+  const [showInfo, setShowInfo] = useState(false);
   const handleBack = useCallback(() => setShowLobbyConfirm(true), []);
   useTelegramBackButton(handleBack);
   const [searchParams] = useSearchParams();
@@ -843,7 +844,7 @@ export default function CrazyDiceDuel() {
       ))}
       {playerCount === 2 ? null : (
         <BottomLeftIcons
-          onInfo={() => {}}
+          onInfo={() => setShowInfo(true)}
           onChat={() => setShowChat(true)}
           onGift={() => setShowGift(true)}
         />
@@ -923,6 +924,12 @@ export default function CrazyDiceDuel() {
         open={winner != null}
         ranking={ranking}
         onReturn={() => navigate('/games/crazydice/lobby')}
+      />
+      <InfoPopup
+        open={showInfo}
+        onClose={() => setShowInfo(false)}
+        title="Crazy Dice Duel"
+        info={`Roll up to ${maxRolls} dice each turn and add the total to your score. The player with the highest score at the end wins.`}
       />
       <InfoPopup
         open={showQuitInfo}
