@@ -66,7 +66,7 @@
       /* CENTER: community pile + pot */
       .center {
         position: absolute;
-        left: 50%;
+        left: 52%;
         top: 45%;
         transform: translate(-50%, -50%);
         display: flex;
@@ -608,6 +608,7 @@
         const el = (s) => document.querySelector(s);
         const pileEl = el('#pile');
         const pilePlayerEl = el('#pilePlayer');
+        const centerEl = el('.center');
         const seatsEl = el('#seats');
         const potEl = el('#pot');
         const toastEl = el('#toast');
@@ -918,7 +919,7 @@
             } else if (side === 'top') {
               seat.style.left = '50%';
               seat.style.top = '8px';
-              seat.style.transform = 'translateX(-55%)';
+              seat.style.transform = 'translateX(-60%)';
               seat.style.width = 'auto';
             } else if (side === 'right') {
               seat.style.left = x - area.left - 20 + 'px';
@@ -1100,9 +1101,25 @@
           }
         }
 
+        function updateCenterPosition() {
+          const count = state.pile.length;
+          if (count > 3) {
+            const topSeat = document.querySelector('.seat.top');
+            const stageRect = el('.stage').getBoundingClientRect();
+            const seatRect = topSeat ? topSeat.getBoundingClientRect() : { bottom: 0 };
+            const gap = 10;
+            centerEl.style.top = seatRect.bottom - stageRect.top + gap + 'px';
+            centerEl.style.transform = 'translate(-50%, 0)';
+          } else {
+            centerEl.style.top = '45%';
+            centerEl.style.transform = 'translate(-50%, -50%)';
+          }
+        }
+
         function renderPile() {
           pileEl.innerHTML = '';
           pilePlayerEl.innerHTML = '';
+          updateCenterPosition();
           if (!state.pile.length) return;
           const scale = state.pile.length > 6 ? 1.1 : 1.3;
           state.pile.forEach((c) => {
