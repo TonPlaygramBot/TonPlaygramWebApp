@@ -447,7 +447,7 @@
         align-items: center;
         justify-content: space-between;
         gap: 20px;
-        padding: 0 12px;
+        padding: 0 12px 0 4px;
       }
       .seat.top .seat-inner {
         padding-left: 20px;
@@ -496,8 +496,15 @@
         font-size: 10px;
         font-weight: 600;
       }
+      .auto-btn {
+        position: fixed;
+        left: 8px;
+        bottom: calc(var(--card-h) * var(--my-card-scale) + 8px);
+        z-index: 5;
+      }
       .lobby-btn {
         background: #22c55e;
+        margin-top: 16px;
       }
 
       /* TOAST */
@@ -525,8 +532,10 @@
         position: fixed;
         inset: 0;
         display: flex;
+        flex-direction: column;
         align-items: center;
         justify-content: center;
+        gap: 16px;
         background: rgba(0, 0, 0, 0.6);
         z-index: 60;
       }
@@ -696,7 +705,6 @@
           const slot = winnerOverlay.querySelector('.emoji');
           if (slot) slot.textContent = emoji || '🏆';
           winnerOverlay.classList.remove('hidden');
-          setTimeout(() => winnerOverlay.classList.add('hidden'), 2000);
         }
 
         let userScale = 1;
@@ -959,7 +967,7 @@
             } else if (side === 'top') {
               seat.style.left = '50%';
               seat.style.top = '8px';
-              seat.style.transform = 'translateX(-60%)';
+              seat.style.transform = 'translateX(-55%)';
               seat.style.width = 'auto';
             } else if (side === 'right') {
               seat.style.left = x - area.left - 20 + 'px';
@@ -1062,7 +1070,7 @@
               passBtn.style.flexDirection = 'column';
               passBtn.style.alignItems = 'center';
               passBtn.addEventListener('click', () => {
-                toast('You pass');
+                toast('Pass');
                 state.passesSincePlay++;
                 clearSelections();
                 advanceTurn();
@@ -1099,7 +1107,7 @@
                   window.location.href = '/games/murlanroyale/lobby';
                 }
               });
-              avatarWrap.appendChild(lobbyBtn);
+              winnerOverlay.appendChild(lobbyBtn);
 
               readyBtn.style.display = state.arrangeMode ? 'block' : 'none';
               playBtn.style.display = state.arrangeMode ? 'none' : 'block';
@@ -1566,14 +1574,14 @@
             let chosen = aiChoose(p);
             if (chosen.length === 0) {
               state.passesSincePlay++;
-              toast(p.name + ' passes');
+              toast('Pass');
               advanceTurn();
               return;
             }
             // place if higher than pile
             if (!higherThanPile(chosen)) {
               state.passesSincePlay++;
-              toast(p.name + ' passes');
+              toast('Pass');
               advanceTurn();
               return;
             }
