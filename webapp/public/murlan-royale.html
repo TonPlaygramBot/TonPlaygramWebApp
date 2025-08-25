@@ -67,7 +67,7 @@
       .center {
         position: absolute;
         left: 50%;
-        top: 50%;
+        top: 45%;
         transform: translate(-50%, -50%);
         display: flex;
         gap: 10px;
@@ -92,6 +92,9 @@
       }
       .pile .card {
         transform: scale(1.3);
+      }
+      .pile .card:not(:first-child) {
+        margin-left: calc(var(--card-w) * -0.6);
       }
       .pile-player {
         display: flex;
@@ -439,13 +442,13 @@
       .seat.top .top-row {
         display: flex;
         align-items: center;
-        gap: 4px;
+        gap: 6px;
       }
       .seat.top .cards {
         gap: 0;
       }
       .seat.top .cards .card:not(:first-child) {
-        margin-left: calc(var(--card-w) * -0.4);
+        margin-left: calc(var(--card-w) * -0.6);
       }
 
       /* ICON CONTROLS */
@@ -805,7 +808,8 @@
           pot: 0,
           passesSincePlay: 0,
           lastPlayerToPlay: 0,
-          startPlayer: 0
+          startPlayer: 0,
+          selectedIndices: []
         };
 
         // create 4 players (user bottom)
@@ -835,7 +839,7 @@
 
         function findStartPlayer() {
           return state.players.findIndex((p) =>
-            p.hand.some((c) => c.r === 3 && c.s === '♣')
+            p.hand.some((c) => c.r === 3 && c.s === '♠')
           );
         }
 
@@ -962,8 +966,19 @@
               sorted.forEach((c, idx) => {
                 const face = cardFaceEl(c);
                 face.dataset.index = idx;
+                if (state.selectedIndices.includes(idx)) {
+                  face.classList.add('selected');
+                }
                 face.addEventListener('click', () => {
-                  face.classList.toggle('selected');
+                  const i = Number(face.dataset.index);
+                  const pos = state.selectedIndices.indexOf(i);
+                  if (pos > -1) {
+                    state.selectedIndices.splice(pos, 1);
+                    face.classList.remove('selected');
+                  } else {
+                    state.selectedIndices.push(i);
+                    face.classList.add('selected');
+                  }
                   sndChip.currentTime = 0;
                   sndChip.play();
                 });
@@ -1075,6 +1090,14 @@
           const arr = player.hand;
           const [c] = arr.splice(from, 1);
           arr.splice(to, 0, c);
+          if (player.isHuman) {
+            state.selectedIndices = state.selectedIndices.map((i) => {
+              if (i === from) return to;
+              if (from < to && i > from && i <= to) return i - 1;
+              if (from > to && i >= to && i < from) return i + 1;
+              return i;
+            });
+          }
         }
 
         function renderPile() {
@@ -1173,19 +1196,13 @@
 
         // ===== GAME FLOW (singles/pairs + simple AI) =====
         function collectSelected() {
-          const mySeat = seatsEl.querySelector('.seat.bottom .cards');
-          const faces = mySeat
-            ? Array.from(mySeat.querySelectorAll('.card:not(.back)'))
-            : [];
-          const sel = faces
-            .filter((f) => f.classList.contains('selected'))
-            .map((f) => ({
-              c: player(0).hand[Number(f.dataset.index)],
-              idx: Number(f.dataset.index)
-            }));
-          return sel;
+          return state.selectedIndices.map((i) => ({
+            c: player(0).hand[i],
+            idx: i
+          }));
         }
         function clearSelections() {
+          state.selectedIndices = [];
           seatsEl
             .querySelectorAll('.card.selected')
             .forEach((n) => n.classList.remove('selected'));

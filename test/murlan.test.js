@@ -53,7 +53,7 @@ test('straight rules', () => {
     card('K', '♦'),
     card('A', '♥'),
     card('2', '♠'),
-    card('3', '♣')
+    card('3', '♠')
   ], config);
   assert.equal(wrap, null);
 });
@@ -66,11 +66,11 @@ test('compare same type/size', () => {
   assert.equal(canBeat(cand2, table, DEFAULT_CONFIG), false);
 });
 
-test('starting player must open with 3♣', () => {
+test('starting player must open with 3♠', () => {
   const state = {
     players: [
-      { hand: [card('3', '♣'), card('7', '♦')], finished: false },
-      { hand: [card('4', '♣')], finished: false }
+      { hand: [card('3', '♠'), card('7', '♦')], finished: false },
+      { hand: [card('4', '♠')], finished: false }
     ],
     turn: { activePlayer: 0, currentCombo: null, passesInRow: 0 },
     config: DEFAULT_CONFIG,
@@ -80,17 +80,17 @@ test('starting player must open with 3♣', () => {
   assert.throws(() =>
     playTurn(state, { type: 'PLAY', cards: [card('7', '♦')] })
   );
-  playTurn(state, { type: 'PLAY', cards: [card('3', '♣')] });
+  playTurn(state, { type: 'PLAY', cards: [card('3', '♠')] });
   assert.equal(state.firstMove, false);
 });
 
 test('dealPlayers marks starting player', () => {
   const deck = [
-    card('3', '♣'), card('4', '♦'), card('5', '♠'), card('6', '♣')
+    card('3', '♠'), card('4', '♦'), card('5', '♠'), card('6', '♣')
   ];
   const players = dealPlayers(2, deck);
   const idx = players.findIndex((p) =>
-    p.hand.some((c) => c.rank === '3' && c.suit === '♣')
+    p.hand.some((c) => c.rank === '3' && c.suit === '♠')
   );
   assert.equal(players.startingPlayer, idx);
 });
@@ -98,8 +98,8 @@ test('dealPlayers marks starting player', () => {
 test('round closes after passes', () => {
   const state = {
     players: [
-      { hand: [card('3', '♣'), card('7', '♣')], finished: false },
-      { hand: [card('4', '♣')], finished: false },
+      { hand: [card('3', '♠'), card('7', '♣')], finished: false },
+      { hand: [card('4', '♠')], finished: false },
       { hand: [card('5', '♣')], finished: false },
       { hand: [card('6', '♣')], finished: false }
     ],
@@ -107,7 +107,7 @@ test('round closes after passes', () => {
     config: DEFAULT_CONFIG,
     lastWinner: 0
   };
-  playTurn(state, { type: 'PLAY', cards: [card('3', '♣')] });
+  playTurn(state, { type: 'PLAY', cards: [card('3', '♠')] });
   playTurn(state, { type: 'PASS' });
   playTurn(state, { type: 'PASS' });
   playTurn(state, { type: 'PASS' });
@@ -117,7 +117,7 @@ test('round closes after passes', () => {
 
 test('aiChooseAction avoids breaking bomb', () => {
   const hand = [
-    card('3', '♣'),
+    card('3', '♠'),
     card('4', '♦'),
     card('5', '♥'),
     card('9', '♣'),
@@ -142,7 +142,7 @@ test('bomb closes round immediately', () => {
           card('K', '♦'),
           card('K', '♥'),
           card('K', '♠'),
-          card('3', '♣')
+          card('3', '♠')
         ],
         finished: false
       },
