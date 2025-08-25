@@ -127,7 +127,7 @@
   const devAccount = params.get('dev');
   const devAccount1 = params.get('dev1');
   const devAccount2 = params.get('dev2');
-  if (devAccount === myAccountId) {
+  if (devAccount || devAccount1 || devAccount2) {
     saveCalibBtn.style.display = 'block';
     saveCalibBtn.addEventListener('click', saveCalibration);
   }
