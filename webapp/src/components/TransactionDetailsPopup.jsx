@@ -21,7 +21,11 @@ const GAME_NAME_MAP = {
   fruitslice: 'Fruit Slice Royale',
   brickbreaker: 'Brick Breaker Royale',
   fallingball: 'Falling Ball',
-  poll: '8 Poll Royale'
+  poll: '8 Poll Royale',
+  texas: "Texas Hold'em",
+  blackjack: 'Black Jack Multiplayer',
+  penaltykick: 'Penalty Kick',
+  murlan: 'Murlan Royale'
 };
 
 function getGameName(slug = '') {

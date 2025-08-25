@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import useTelegramBackButton from '../hooks/useTelegramBackButton.js';
 import { getMiningTransactions } from '../utils/api.js';
 import { getAvatarUrl } from '../utils/avatarUtils.js';
+import { MINING_REWARDS_WALLET } from '../utils/constants.js';
 
 const TYPE_NAME_MAP = {
   daily: 'Daily Streak',
@@ -37,6 +38,9 @@ export default function MiningTransactions() {
   return (
     <div className="relative space-y-4 text-text">
       <h2 className="text-2xl font-bold text-center mt-4">Mining Transactions</h2>
+      <div className="bg-surface border border-border rounded-xl p-4 shadow-lg text-xs break-all">
+        Mining rewards wallet: {MINING_REWARDS_WALLET}
+      </div>
       <div className="bg-surface border border-border rounded-xl p-4 shadow-lg space-y-1 text-sm">
         <div className="flex justify-between">
           <span>Total payouts</span>

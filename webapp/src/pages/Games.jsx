@@ -8,6 +8,7 @@ export default function Games() {
   return (
     <div className="relative space-y-4 text-text">
       <h2 className="text-2xl font-bold text-center mt-4">Games</h2>
+      <p className="text-center text-sm text-subtext">Online games are under construction and will be available soon.</p>
       <div className="space-y-4">
         <div className="relative bg-surface border border-border rounded-xl p-4 shadow-lg overflow-hidden wide-card">
           <div className="flex overflow-x-auto space-x-4 items-center pb-2">
