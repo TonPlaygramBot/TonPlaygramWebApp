@@ -623,6 +623,13 @@
           display: none;
         }
       }
+
+      .moving-card {
+        position: absolute;
+        transition: left 0.4s ease, top 0.4s ease, transform 0.4s ease;
+        z-index: 1000;
+        pointer-events: none;
+      }
     </style>
   </head>
   <body class="frame-style-1">
@@ -653,7 +660,7 @@
     ></audio>
     <audio
       id="sndCard"
-      src="https://cdn.jsdelivr.net/gh/naptha/tiny-sound@master/sounds/click4.ogg"
+      src="assets/sounds/flipcard-91468.mp3"
     ></audio>
     <audio
       id="sndTimer"
@@ -989,11 +996,17 @@
           ];
         }
 
-        function deal() {
+        async function deal() {
           const deck = makeDeck();
           for (let i = 0; i < 13; i++) {
             for (let p = 0; p < state.players.length; p++) {
               state.players[p].hand.push(deck.pop());
+              renderAll();
+              if (sndCard) {
+                sndCard.currentTime = 0;
+                sndCard.play();
+              }
+              await new Promise((r) => setTimeout(r, 120));
             }
           }
         }
@@ -1321,7 +1334,7 @@
             const topSeat = document.querySelector('.seat.top');
             const stageRect = el('.stage').getBoundingClientRect();
             const seatRect = topSeat ? topSeat.getBoundingClientRect() : { bottom: 0 };
-            const gap = 10;
+            const gap = 40;
             centerEl.style.top = seatRect.bottom - stageRect.top + gap + 'px';
             centerEl.style.transform = 'translate(-50%, 0)';
           } else {
@@ -1391,6 +1404,49 @@
           if (state.arrangeMode || state.turn === 0) {
             highlightCombos();
           }
+        }
+
+        function animateCardsFromAvatar(idx, cards) {
+          return new Promise((resolve) => {
+            const stage = el('.stage');
+            const seat = seatsEl.querySelectorAll('.seat')[idx];
+            const avatar = seat ? seat.querySelector('.avatar') : null;
+            if (!stage || !avatar) {
+              resolve();
+              return;
+            }
+            const stageRect = stage.getBoundingClientRect();
+            const avatarRect = avatar.getBoundingClientRect();
+            const centerRect = centerEl.getBoundingClientRect();
+            let remaining = cards.length;
+            cards.forEach((c, i) => {
+              const card = cardFaceEl(c);
+              card.classList.add('moving-card');
+              stage.appendChild(card);
+              const cardRect = card.getBoundingClientRect();
+              const scale = avatarRect.width / cardRect.width;
+              card.style.left =
+                avatarRect.left - stageRect.left + avatarRect.width / 2 + 'px';
+              card.style.top =
+                avatarRect.top - stageRect.top + avatarRect.height / 2 + 'px';
+              card.style.transform = `translate(-50%, -50%) scale(${scale})`;
+              requestAnimationFrame(() => {
+                card.style.left =
+                  centerRect.left - stageRect.left + i * (cardRect.width * 0.3) + 'px';
+                card.style.top = centerRect.top - stageRect.top + 'px';
+                card.style.transform = 'translate(-50%, -50%) scale(1)';
+              });
+              card.addEventListener(
+                'transitionend',
+                () => {
+                  card.remove();
+                  remaining--;
+                  if (remaining === 0) resolve();
+                },
+                { once: true }
+              );
+            });
+          });
         }
 
         let timerInterval;
@@ -1714,7 +1770,7 @@
             return;
           }
           // AI with small delay
-          setTimeout(() => {
+          setTimeout(async () => {
             let chosen = aiChoose(p);
             if (chosen.length === 0) {
               state.passesSincePlay++;
@@ -1735,8 +1791,10 @@
             chosen.forEach((c) => {
               const idx = p.hand.indexOf(c);
               if (idx > -1) p.hand.splice(idx, 1);
-              state.pile.push(c);
             });
+            renderAll();
+            await animateCardsFromAvatar(i, chosen);
+            state.pile.push(...chosen);
             state.lastPlayLen = chosen.length;
             state.lastPlayType = combo;
             state.passesSincePlay = 0;
@@ -1778,7 +1836,7 @@
           playTurn(state.turn);
         }
 
-        function confirmPlayAction() {
+        async function confirmPlayAction() {
           if (state.turn !== 0) {
             return;
           }
@@ -1805,16 +1863,18 @@
           cards.forEach((c) => {
             const idx = player(0).hand.indexOf(c);
             if (idx > -1) player(0).hand.splice(idx, 1);
-            state.pile.push(c);
           });
+          clearSelections();
+          clearSuggestions();
+          renderAll();
+          await animateCardsFromAvatar(0, cards);
+          state.pile.push(...cards);
           state.lastPlayLen = cards.length;
           state.lastPlayType = combo;
           state.passesSincePlay = 0;
           state.lastPlayerToPlay = 0;
           sndCard.currentTime = 0;
           sndCard.play();
-          clearSelections();
-          clearSuggestions();
           renderAll();
           advanceTurn();
         }
@@ -1849,7 +1909,7 @@
 
         // boot
         initPlayers();
-        deal();
+        await deal();
         autoArrangeHand(state.players[0].hand);
         state.startPlayer = findStartPlayer();
         if (state.startPlayer < 0) state.startPlayer = 0;
