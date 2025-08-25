@@ -20,7 +20,7 @@
 
   /* ===== HUD ===== */
   .hud{position:fixed;left:env(safe-area-inset-left,12px);right:env(safe-area-inset-right,12px);
-    top:env(safe-area-inset-top,10px);z-index:100;display:grid;grid-template-columns:1fr auto 1fr;gap:10px;align-items:center}
+    z-index:100;display:grid;grid-template-columns:1fr auto 1fr;gap:10px;align-items:center}
   .panel{background:var(--panel);border:1px solid var(--panel-b);backdrop-filter:blur(8px);
     border-radius:14px;padding:8px 12px;display:flex;align-items:center;justify-content:space-between;gap:10px}
   .score{font-weight:900;font-size:20px}
@@ -33,15 +33,15 @@
 
   /* ===== Rivals row ===== */
   .previews{position:fixed;left:env(safe-area-inset-left,12px);right:env(safe-area-inset-right,12px);
-    top:calc(env(safe-area-inset-top,10px) + 70px);z-index:90;display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+    top:env(safe-area-inset-top,10px);z-index:90;display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
   .pcard{background:var(--panel);border:1px solid var(--panel-b);border-radius:18px;padding:10px;min-height:120px;display:grid;gap:8px}
-  .phead{display:flex;align-items:center;justify-content:space-between;font-weight:800}
+  .phead{display:flex;align-items:center;justify-content:space-between;font-weight:800;gap:6px}
+  .phead .avatar{width:20px;height:14px;border-radius:2px;object-fit:cover}
   .ppts{color:var(--pts);font-weight:900}
   .pcard canvas{display:block;width:100%;height:auto;border-radius:12px}
 
   /* ===== Player bar ===== */
   .pbar{position:fixed;left:env(safe-area-inset-left,12px);right:env(safe-area-inset-right,12px);
-    top:calc(env(safe-area-inset-top,10px) + 70px + 128px + 16px);
     z-index:95;display:flex;align-items:center;gap:12px;background:var(--panel);
     border:1px solid var(--panel-b);border-radius:16px;padding:10px 12px}
   .avatar{width:28px;height:28px;border-radius:50%;background:linear-gradient(135deg,#22c55e,#2563eb);box-shadow:0 0 0 2px #081027 inset}
@@ -74,6 +74,39 @@
 </style>
 </head>
 <body>
+  <div class="previews" id="previews">
+    <div class="pcard" id="pv0">
+      <div class="phead">
+        <div style="display:flex;align-items:center;gap:4px">
+          <img id="pv0avatar" class="avatar" alt="" />
+          <span id="pv0name"></span>
+        </div>
+        <div class="ppts" id="pv0pts">0</div>
+      </div>
+      <canvas width="240" height="120"></canvas>
+    </div>
+    <div class="pcard" id="pv1">
+      <div class="phead">
+        <div style="display:flex;align-items:center;gap:4px">
+          <img id="pv1avatar" class="avatar" alt="" />
+          <span id="pv1name"></span>
+        </div>
+        <div class="ppts" id="pv1pts">0</div>
+      </div>
+      <canvas width="240" height="120"></canvas>
+    </div>
+    <div class="pcard" id="pv2">
+      <div class="phead">
+        <div style="display:flex;align-items:center;gap:4px">
+          <img id="pv2avatar" class="avatar" alt="" />
+          <span id="pv2name"></span>
+        </div>
+        <div class="ppts" id="pv2pts">0</div>
+      </div>
+      <canvas width="240" height="120"></canvas>
+    </div>
+  </div>
+
   <div class="hud" id="hud">
     <div class="panel"><div><div class="meta">You</div><div class="meta" id="time">Time: 00:30</div></div><div class="score" id="myScore">0</div></div>
     <div class="panel">
@@ -88,14 +121,8 @@
     <div class="panel"><div class="meta">Leader</div><div class="score" id="leaderScore">0</div></div>
   </div>
 
-  <div class="previews" id="previews">
-    <div class="pcard" id="pv0"><div class="phead"><div>🇨🇦 Canada</div><div class="ppts" id="pv0pts">0</div></div><canvas width="240" height="120"></canvas></div>
-    <div class="pcard" id="pv1"><div class="phead"><div>🇫🇷 France</div><div class="ppts" id="pv1pts">0</div></div><canvas width="240" height="120"></canvas></div>
-    <div class="pcard" id="pv2"><div class="phead"><div>🇩🇪 Germany</div><div class="ppts" id="pv2pts">0</div></div><canvas width="240" height="120"></canvas></div>
-  </div>
-
   <div class="pbar" id="pbar">
-    <div style="display:flex;align-items:center;gap:10px"><div class="avatar"></div><div>You</div></div>
+    <div style="display:flex;align-items:center;gap:10px"><img class="avatar" id="userAvatar" alt="" /><div id="username">You</div></div>
     <div class="badge hearts">❤❤❤</div>
     <div class="badge">Time <span id="timeShort">30</span>s</div>
     <div class="badge">Pot <span class="pot">400</span></div>
@@ -121,7 +148,7 @@
     W = Math.floor(window.innerWidth); H = Math.floor(window.innerHeight);
     canvas.width = Math.floor(W*DPR); canvas.height = Math.floor(H*DPR);
     ctx.setTransform(DPR,0,0,DPR,0,0);
-    layout(); positionPreviews(); drawStaticOnce();
+    layout(); positionLayout(); drawStaticOnce();
   }
   addEventListener('resize', resize);
 
@@ -138,13 +165,59 @@
   const btnAim    = document.getElementById('aimBtn');
   const btnPause  = document.getElementById('pauseBtn');
   const hudEl     = document.getElementById('hud');
+  const previewsEl= document.getElementById('previews');
+  const userAvatarEl = document.getElementById('userAvatar');
+  const usernameEl = document.getElementById('username');
+  const pvAvatars = [document.getElementById('pv0avatar'), document.getElementById('pv1avatar'), document.getElementById('pv2avatar')];
+  const pvNames   = [document.getElementById('pv0name'), document.getElementById('pv1name'), document.getElementById('pv2name')];
   const testbar   = document.getElementById('testbar');
 
-  function positionPreviews(){
-    const r = hudEl.getBoundingClientRect();
-    document.getElementById('previews').style.top = (r.bottom + 8) + 'px';
-    document.getElementById('pbar').style.top = (r.bottom + 8 + 128 + 16) + 'px';
+  function positionLayout(){
+    const pr = previewsEl.getBoundingClientRect();
+    hudEl.style.top = (pr.bottom + 8) + 'px';
+    const hr = hudEl.getBoundingClientRect();
+    document.getElementById('pbar').style.top = (hr.bottom + 16) + 'px';
+    document.querySelector('.stage').style.top = (hr.bottom + 16 + 56 + 10) + 'px';
   }
+
+  const params = new URLSearchParams(location.search);
+  const avatarParam = params.get('avatar') || '';
+  let userName = params.get('name') || params.get('username') || '';
+
+  function emojiToDataUri(flag){
+    return `data:image/svg+xml,${encodeURIComponent(`<svg xmlns='http://www.w3.org/2000/svg' width='64' height='64'><text x='50%' y='50%' font-size='48' text-anchor='middle' dominant-baseline='central'>${flag}</text></svg>`)}`;
+  }
+  const regionNames = new Intl.DisplayNames(['en'], { type: 'region' });
+  function flagName(flag){
+    const pts = [...flag].map(c=>c.codePointAt(0)-127397);
+    const code = String.fromCharCode(...pts);
+    return regionNames.of(code) || flag;
+  }
+
+  if(!userName){
+    const userData = window?.Telegram?.WebApp?.initDataUnsafe?.user;
+    userName = userData?.username || [userData?.first_name, userData?.last_name].filter(Boolean).join(' ') || 'Player';
+  }
+  usernameEl.textContent = userName;
+  const hudNameEl = document.querySelector('#hud .panel .meta');
+  if(hudNameEl) hudNameEl.textContent = userName;
+
+  let userAvatar = avatarParam;
+  const initUser = window?.Telegram?.WebApp?.initDataUnsafe?.user;
+  if(!userAvatar && initUser?.photo_url){ userAvatar = initUser.photo_url; }
+  if(!userAvatar){ userAvatar = 'assets/icons/profile.svg'; }
+  else if(!(userAvatar.startsWith('http')||userAvatar.startsWith('/')||userAvatar.startsWith('data:'))){
+    userAvatar = emojiToDataUri(userAvatar);
+  }
+  userAvatarEl.src = userAvatar;
+
+  const flags = ['🇨🇦','🇫🇷','🇩🇪','🇪🇸','🇧🇷','🇯🇵','🇺🇸','🇬🇧'];
+  for(let i=0;i<3;i++){
+    const flag = flags[(Math.random()*flags.length)|0];
+    if(pvAvatars[i]) pvAvatars[i].src = emojiToDataUri(flag);
+    if(pvNames[i]) pvNames[i].textContent = flagName(flag);
+  }
+  positionLayout();
 
   // ===== Geometry =====
   const geom = { goal:{x:0,y:0,w:0,h:0,post:12}, spot:{x:0,y:0}, scale:1 };
