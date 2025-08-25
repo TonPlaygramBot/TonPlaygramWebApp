@@ -114,6 +114,9 @@
 
   const puckImg = new Image();
   puckImg.src = '/assets/icons/file_0000000061d4620aaf506adfa605e1f3.webp';
+  let puckImgLoaded = false;
+  puckImg.onload = () => { puckImgLoaded = true; };
+  puckImg.onerror = () => { puckImgLoaded = false; };
 
   const params = new URLSearchParams(location.search);
   const stake = Number(params.get('amount')) || 0;
@@ -563,7 +566,7 @@
     ctx.save();
     ctx.translate(puck.x, puck.y);
     ctx.rotate(puck.angle);
-    if (puckImg.complete) {
+    if (puckImgLoaded && puckImg.complete && puckImg.naturalWidth > 0) {
       ctx.drawImage(puckImg, -r, -r, r * 2, r * 2);
       ctx.restore();
       return;
@@ -928,6 +931,42 @@
   canvas.addEventListener('pointercancel', e=>{
     clearTouch(e.pointerId);
   });
+
+  if (!window.PointerEvent) {
+    canvas.addEventListener('touchstart', e => {
+      e.preventDefault();
+      const now = performance.now();
+      for (const t of e.changedTouches) {
+        const p = posFromEvent(t);
+        touches.set(t.identifier, { x: p.x, y: p.y, vx: 0, vy: 0, t: now });
+      }
+      initAudio();
+    }, { passive: false });
+
+    canvas.addEventListener('touchmove', e => {
+      e.preventDefault();
+      const now = performance.now();
+      for (const t of e.changedTouches) {
+        if (!touches.has(t.identifier)) continue;
+        const p = posFromEvent(t);
+        const last = touches.get(t.identifier);
+        const dt = Math.max(1, now - last.t);
+        const vx = (p.x - last.x) / dt * 16.67;
+        const vy = (p.y - last.y) / dt * 16.67;
+        touches.set(t.identifier, { x: p.x, y: p.y, vx, vy, t: now });
+        const d1 = dist(p1.x, p1.y, p.x, p.y);
+        const d2 = dist(p2.x, p2.y, p.x, p.y);
+        if (p.y > centerY && d1 < d2) { p1.vx = vx; p1.vy = vy; }
+        else if (p.y < centerY && d2 <= d1) { p2.vx = vx; p2.vy = vy; }
+      }
+    }, { passive: false });
+
+    const removeTouches = e => {
+      for (const t of e.changedTouches) clearTouch(t.identifier);
+    };
+    canvas.addEventListener('touchend', removeTouches);
+    canvas.addEventListener('touchcancel', removeTouches);
+  }
 
   function checkOrientation(){ landscapeBlock.style.display = (window.matchMedia('(orientation: landscape)').matches ? 'flex' : 'none'); }
   window.addEventListener('orientationchange', checkOrientation);
