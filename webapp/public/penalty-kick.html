@@ -47,7 +47,7 @@
   .avatar{width:28px;height:28px;border-radius:50%;background:linear-gradient(135deg,#22c55e,#2563eb);box-shadow:0 0 0 2px #081027 inset}
   .badge{background:#0f1a3a;border:1px solid var(--panel-b);color:var(--txt);padding:6px 10px;border-radius:12px;font-weight:800;font-size:12px}
   .hearts{color:#ff4d6d;letter-spacing:2px}
-  .pot{color:var(--pts);font-size:18px}
+  .scoreVal{color:var(--pts);font-size:18px}
 
   /* ===== Stage label area (visual only) ===== */
   .stage{position:fixed;left:env(safe-area-inset-left,12px);right:env(safe-area-inset-right,12px);
@@ -109,7 +109,7 @@
     <div style="display:flex;align-items:center;gap:10px"><img class="avatar" id="userAvatar" alt="" /><div id="username">You</div></div>
     <div class="badge hearts">❤❤❤</div>
       <div class="badge">Time <span id="timeShort">17</span>s</div>
-    <div class="badge">Pot <span class="pot">400</span></div>
+    <div class="badge">Score <span id="playerScore" class="scoreVal">0</span></div>
   </div>
 
   <div class="stage"><div class="frame"></div><div class="label">Score: <span id="scoreLabel">0</span></div></div>
@@ -197,10 +197,10 @@
   // ===== Geometry =====
   const geom = { goal:{x:0,y:0,w:0,h:0,post:12}, spot:{x:0,y:0}, scale:1 };
   function layout(){
-    const goalW = Math.min(W*0.86, 900);
-    const goalH = Math.min(H*0.36, 320);
+    const goalW = Math.min(W*0.92, 950);
+    const goalH = Math.min(H*0.32, 300);
     const pbarBottom = document.getElementById('pbar').getBoundingClientRect().bottom;
-    geom.goal = { x:(W-goalW)/2, y:pbarBottom + 8, w:goalW, h:goalH, post:12 };
+    geom.goal = { x:(W-goalW)/2, y:pbarBottom + 20, w:goalW, h:goalH, post:12 };
     geom.spot = { x:W/2, y:H - Math.min(100, H*0.10) };
     geom.scale = goalW / 860;
   }
@@ -211,15 +211,17 @@
   let myScore = 0;
 
   const BALL_R = 32;
-  const ball = { x:0,y:0,r:BALL_R, vx:0,vy:0, moving:false, trail:[], spin:0, angle:0 };
+  const ball = { x:0,y:0,r:BALL_R, vx:0,vy:0, moving:false, trail:[], spin:0, angle:0, netSounded:false };
+  const ballImg = new Image();
+  ballImg.src = '/assets/icons/file_0000000061d4620aaf506adfa605e1f3.webp';
 
   let holes=[]; let banners=[]; let cameras=[];
   const aimOn = true;
 
   const rivals=[
-    { i:0, wrap:document.querySelector('#pv0'), ptsEl:document.querySelector('#pv0pts'), cvs:null, ctx:null, score:0, next:0, acc:0.68, rate:[520,900] },
-    { i:1, wrap:document.querySelector('#pv1'), ptsEl:document.querySelector('#pv1pts'), cvs:null, ctx:null, score:0, next:0, acc:0.62, rate:[560,980] },
-    { i:2, wrap:document.querySelector('#pv2'), ptsEl:document.querySelector('#pv2pts'), cvs:null, ctx:null, score:0, next:0, acc:0.58, rate:[600,1050] },
+    { i:0, wrap:document.querySelector('#pv0'), ptsEl:document.querySelector('#pv0pts'), cvs:null, ctx:null, score:0, next:0, acc:0.68, rate:[780,1350] },
+    { i:1, wrap:document.querySelector('#pv1'), ptsEl:document.querySelector('#pv1pts'), cvs:null, ctx:null, score:0, next:0, acc:0.62, rate:[840,1470] },
+    { i:2, wrap:document.querySelector('#pv2'), ptsEl:document.querySelector('#pv2pts'), cvs:null, ctx:null, score:0, next:0, acc:0.58, rate:[900,1575] },
   ];
   const miniHolesCache=[[],[],[]];
   for(const r of rivals){ r.cvs = r.wrap.querySelector('canvas'); r.ctx = r.cvs.getContext('2d'); }
@@ -315,7 +317,6 @@
   // ===== Goal, net, cameras, targets =====
   function drawGoal(){
     const g=geom.goal;
-    ctx.fillStyle='#0f1530'; ctx.fillRect(g.x-4,g.y-4,g.w+8,g.h+8);
     ctx.save(); ctx.beginPath(); ctx.rect(g.x,g.y,g.w,g.h); ctx.clip();
     const netColor=getComputedStyle(document.documentElement).getPropertyValue('--net')||'#e6e6e6';
     ctx.strokeStyle=netColor; ctx.lineWidth=1.2;
@@ -346,15 +347,11 @@
   function drawBall(){
     ball.r=Math.max(BALL_R*geom.scale*1.08,22);
     ctx.globalAlpha=0.10; for(const t of ball.trail){ ctx.beginPath(); ctx.arc(t.x,t.y,ball.r*0.72,0,Math.PI*2); ctx.fillStyle='#fff'; ctx.fill(); } ctx.globalAlpha=1;
-    ctx.fillStyle='#fff'; ctx.beginPath(); ctx.arc(ball.x,ball.y,ball.r,0,Math.PI*2); ctx.fill();
-    ctx.strokeStyle='rgba(0,0,0,.28)'; ctx.lineWidth=1.6; ctx.stroke();
     ctx.save();
     ctx.translate(ball.x,ball.y);
     ctx.rotate(ball.angle);
-    ctx.fillStyle='#222';
-    const hex=r=>{ ctx.beginPath(); for(let i=0;i<6;i++){ const a=Math.PI/3*i; const x=r*Math.cos(a), y=r*Math.sin(a); if(i===0) ctx.moveTo(x,y); else ctx.lineTo(x,y); } ctx.closePath(); };
-    hex(ball.r*0.45); ctx.fill();
-    for(let i=0;i<6;i++){ ctx.save(); ctx.rotate(i*Math.PI/3); ctx.translate(0,ball.r*0.9); hex(ball.r*0.2); ctx.fill(); ctx.restore(); }
+    const size = ball.r*2;
+    ctx.drawImage(ballImg, -size/2, -size/2, size, size);
     ctx.restore();
   }
   const FRICTION=0.991, AIR_DRAG=0.0015, GRAVITY=0.20;
@@ -369,6 +366,7 @@
     if(ball.x>g.x && ball.x<g.x+g.w && ball.y>g.y && ball.y<g.y+g.h){
       for(const h of holes){ if(Math.hypot(h.x-ball.x,h.y-ball.y) <= Math.max(2,h.r-ball.r*0.6)){ h.hit=true; endShot(true,h.points); setTimeout(()=>replaceHole(h),200); return; } }
       ball.vx*=0.86; ball.vy*=0.74;
+      if(!ball.netSounded){ sfxNet(); ball.netSounded=true; }
     }
     const nearL=Math.abs(ball.x-g.x)<8, nearR=Math.abs(ball.x-(g.x+g.w))<8, nearB=Math.abs(ball.y-g.y)<8;
     if((nearL||nearR) && ball.y>g.y-8 && ball.y<g.y+g.h+8) ball.vx*=-0.8;
@@ -393,8 +391,28 @@
   }
 
   // ===== Round / scoring =====
-function endShot(hit,pts){ ball.moving=false; if(hit){ myScore += pts; status('GOAL! +' + pts); sfxGoal(); vibrate(25);} else { status('Missed.'); sfxMiss(); vibrate(12);} updateHUD(); setTimeout(resetBall, 100); }
-  function updateHUD(){ scoreLbl.textContent = myScore; timeShort.textContent = Math.ceil(timeLeft/1000); }
+function endShot(hit,pts){
+  ball.moving=false;
+  if(hit){
+    myScore += pts;
+    status('GOAL! +' + pts);
+    sfxGoal();
+    sfxReward();
+    vibrate(25);
+  } else {
+    status('Missed.');
+    sfxMiss();
+    vibrate(12);
+  }
+  updateHUD();
+  setTimeout(resetBall, 100);
+}
+  function updateHUD(){
+    scoreLbl.textContent = myScore;
+    const ps = document.getElementById('playerScore');
+    if(ps) ps.textContent = myScore;
+    timeShort.textContent = Math.ceil(timeLeft/1000);
+  }
   function fmtTime(ms){ const s=Math.max(0, Math.ceil(ms/1000)); const m=Math.floor(s/60); const ss=String(s%60).padStart(2,'0'); return `${m}:${ss}`; }
   function finish(){ running=false; ended=true; sfxEnd(); }
   function status(msg){ /* no-op */ }
@@ -441,7 +459,7 @@ function endShot(hit,pts){ ball.moving=false; if(hit){ myScore += pts; status('G
   // ===== Controls =====
   // controls removed
 
-function resetBall(){ ball.x=geom.spot.x; ball.y=geom.spot.y; ball.vx=ball.vy=ball.spin=0; ball.angle=0; ball.moving=false; ball.trail=[]; }
+function resetBall(){ ball.x=geom.spot.x; ball.y=geom.spot.y; ball.vx=ball.vy=ball.spin=0; ball.angle=0; ball.moving=false; ball.netSounded=false; ball.trail=[]; }
   function startGame(){ running=true; paused=false; ended=false; roundStart=performance.now(); timeLeft=ROUND_TIME; myScore=0; for(const r of rivals){ r.score=0; r.next=0; } resetBall(); generateHoles(); drawMiniBoards(true); updateHUD(); ensureAudio(); sfxStart(); status('Go! Score as many as you can.'); }
 
   // ===== WebAudio SFX (no files) =====
@@ -453,6 +471,10 @@ function resetBall(){ ball.x=geom.spot.x; ball.y=geom.spot.y; ball.vx=ball.vy=ba
   const sfxRival= ()=>tone(520,0.06,'triangle',0.18);
   const sfxStart= ()=>{tone(500,0.08,'triangle',0.25); setTimeout(()=>tone(650,0.08,'triangle',0.22),80);};
   const sfxEnd  = ()=>{tone(300,0.12,'sine',0.18); setTimeout(()=>tone(220,0.16,'sine',0.16),60);};
+  const netHitSound = new Audio('/assets/sounds/a-football-hits-the-net-goal-313216.mp3');
+  const rewardSound = new Audio('https://cdn.pixabay.com/audio/2022/03/15/audio_1d8839a382.mp3');
+  const sfxNet = ()=>{ try{ netHitSound.currentTime = 0; netHitSound.play(); }catch{} };
+  const sfxReward = ()=>{ try{ rewardSound.currentTime = 0; rewardSound.play(); }catch{} };
   function vibrate(ms){ if(navigator.vibrate) try{ navigator.vibrate(ms); }catch{} }
 
   // ===== Static draw & tests =====
