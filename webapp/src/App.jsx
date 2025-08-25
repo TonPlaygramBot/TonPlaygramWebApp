@@ -48,6 +48,8 @@ import BlackJack from './pages/Games/BlackJack.jsx';
 import BlackJackLobby from './pages/Games/BlackJackLobby.jsx';
 import PollRoyale from './pages/Games/PollRoyale.jsx';
 import PollRoyaleLobby from './pages/Games/PollRoyaleLobby.jsx';
+import PingPong from './pages/Games/PingPong.jsx';
+import PingPongLobby from './pages/Games/PingPongLobby.jsx';
 
 import Layout from './components/Layout.jsx';
 import useTelegramAuth from './hooks/useTelegramAuth.js';
@@ -91,6 +93,8 @@ export default function App() {
             <Route path="/games/bubblepoproyale" element={<BubblePopRoyale />} />
             <Route path="/games/bubblesmashroyale/lobby" element={<BubbleSmashRoyaleLobby />} />
             <Route path="/games/bubblesmashroyale" element={<BubbleSmashRoyale />} />
+            <Route path="/games/pingpong/lobby" element={<PingPongLobby />} />
+            <Route path="/games/pingpong" element={<PingPong />} />
             <Route path="/games/texasholdem/lobby" element={<TexasHoldemLobby />} />
             <Route path="/games/texasholdem" element={<TexasHoldem />} />
             <Route path="/games/blackjack/lobby" element={<BlackJackLobby />} />
