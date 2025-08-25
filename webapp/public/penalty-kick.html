@@ -206,7 +206,7 @@
     keeper.w = 40*geom.scale*4;
     keeper.h = 100*geom.scale*4;
     keeper.x = geom.goal.x + (geom.goal.w-keeper.w)/2;
-    keeper.y = geom.goal.y + geom.goal.h - keeper.h - geom.goal.h*0.02;
+    keeper.y = geom.goal.y + geom.goal.h - keeper.h - geom.goal.h*0.01;
     keeper.baseY = keeper.y;
     keeper.baseX = keeper.x;
   }
@@ -224,7 +224,7 @@
 
   let holes=[]; let banners=[]; let cameras=[]; let fragments=[];
   let netHit={x:0,y:0,t:0,shake:0};
-  const keeper={x:0,y:0,w:40,h:100,vx:0,vy:0,active:false,save:false,a:0,side:1,baseY:0,baseX:0};
+  const keeper={x:0,y:0,w:40,h:100,vx:0,vy:0,active:false,save:false,a:0,side:1,baseY:0,baseX:0,dive:0};
   const keeperImg = new Image();
   keeperImg.src = '/assets/icons/file_00000000945461f8bb9a2974fb9ee402.webp';
   const aimOn = false;
@@ -421,7 +421,7 @@
     ctx.save();
     ctx.translate(k.x + k.w/2, k.y + k.h);
     ctx.rotate(k.a||0);
-    ctx.translate(-k.w/2, -k.h);
+    ctx.translate(-k.w/2, -k.h + k.dive);
     ctx.drawImage(keeperImg, 0, 0, k.w, k.h);
     ctx.restore();
   }
@@ -454,6 +454,7 @@
       }
       ball.vx*=0.86; ball.vy*=0.74; netHit={x:ball.x,y:ball.y,t:1,shake:1};
       if(!ball.netSounded){ sfxNet(); ball.netSounded=true; }
+      endShot(true,0); return;
     }
     if(keeper.save && ballHitsKeeper()){
       keeper.save=false; endShot(false,0); return;
@@ -477,17 +478,27 @@
 
   function stepKeeper(){
     if(!ball.moving){
-      keeper.a *= 0.9; keeper.save=false; return;
+      keeper.a *= 0.9;
+      keeper.x += (keeper.baseX - keeper.x) * 0.1;
+      keeper.dive *= 0.9;
+      keeper.save=false;
+      return;
     }
     const t = ball.vy !== 0 ? (keeper.y - ball.y) / ball.vy : Infinity;
     if(t > 0 && t < 120){
       const predicted = ball.x + ball.vx * t;
-      const diff = predicted - (keeper.x + keeper.w/2);
+      const diff = predicted - (keeper.baseX + keeper.w/2);
       const targetA = clamp(diff / 200, -0.8, 0.8);
-      keeper.a += (targetA - keeper.a) * 0.15;
+      keeper.a += (targetA - keeper.a) * 0.2;
+      const targetX = clamp(diff * 0.05, -keeper.w*0.3, keeper.w*0.3);
+      keeper.x += (keeper.baseX + targetX - keeper.x) * 0.2;
       keeper.save = Math.abs(diff) < keeper.w*0.6;
+      const targetDive = keeper.save ? 12 : 0;
+      keeper.dive += (targetDive - keeper.dive) * 0.2;
     } else {
       keeper.a *= 0.9;
+      keeper.x += (keeper.baseX - keeper.x) * 0.1;
+      keeper.dive *= 0.9;
       keeper.save=false;
     }
   }
@@ -578,7 +589,7 @@ function endShot(hit,pts){
   // ===== Controls =====
   // controls removed
 
-  function resetBall(){ ball.x=geom.spot.x; ball.y=geom.spot.y; ball.vx=ball.vy=ball.spin=0; ball.angle=0; ball.moving=false; ball.netSounded=false; ball.trail=[]; ball.firstContact=false; netHit={x:0,y:0,t:0,shake:0}; keeper.save=false; keeper.vx=0; keeper.vy=0; keeper.a=0; keeper.x = keeper.baseX; keeper.y = keeper.baseY; }
+  function resetBall(){ ball.x=geom.spot.x; ball.y=geom.spot.y; ball.vx=ball.vy=ball.spin=0; ball.angle=0; ball.moving=false; ball.netSounded=false; ball.trail=[]; ball.firstContact=false; netHit={x:0,y:0,t:0,shake:0}; keeper.save=false; keeper.vx=0; keeper.vy=0; keeper.a=0; keeper.dive=0; keeper.x = keeper.baseX; keeper.y = keeper.baseY; }
   function startGame(){ running=true; paused=false; ended=false; roundStart=performance.now(); timeLeft=ROUND_TIME; myScore=0; for(const r of rivals){ r.score=0; r.next=0; r.shots=[]; } resetBall(); generateHoles(); drawMiniBoards(true); updateHUD(); ensureAudio(); sfxStart(); status('Go! Score as many as you can.'); }
 
   // ===== WebAudio SFX (no files) =====
