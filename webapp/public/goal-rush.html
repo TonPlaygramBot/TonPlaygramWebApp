@@ -10,8 +10,8 @@
   <style>
     :root{
       --bg:#050812;
-      --ice:#0f1730;
-      --line:#67a6ff;
+      --field:#228B22;
+      --line:#ffffff;
       --goal:#fff;
       --p1:#22c55e;
       --p2:#f59e0b;
@@ -112,8 +112,6 @@
   const GOAL_PAUSE = 1500; // pause after a goal
   let fieldScaleActual = 1;
 
-  const fieldImg = new Image();
-  fieldImg.src = '/assets/icons/file_00000000becc620a8755badc01cfefca.webp';
   const puckImg = new Image();
   puckImg.src = '/assets/icons/file_0000000061d4620aaf506adfa605e1f3.webp';
 
@@ -146,8 +144,6 @@
   let p2Name = params.get('p2Name') || 'P2';
   let fieldScaleX = 1,
     fieldScaleY = 1,
-    fieldImgScaleX = 1,
-    fieldImgScaleY = 1,
     puckScale = 1.0,
     goalWidthPct = 0.36,
     goalOffsetXPct = 0,
@@ -161,8 +157,6 @@
       const cfg = await res.json();
       fieldScaleX = cfg.fieldScaleX ?? fieldScaleX;
       fieldScaleY = cfg.fieldScaleY ?? fieldScaleY;
-      fieldImgScaleX = cfg.fieldImgScaleX ?? fieldImgScaleX;
-      fieldImgScaleY = cfg.fieldImgScaleY ?? fieldImgScaleY;
       puckScale = cfg.puckScale ?? puckScale;
       goalWidthPct = cfg.goalWidthPct ?? goalWidthPct;
       goalOffsetXPct = cfg.goalOffsetXPct ?? goalOffsetXPct;
@@ -454,27 +448,19 @@
     ctx.closePath();
   }
   function drawRink(){
-    if (fieldImg.complete) {
-      const imgW = rink.w * fieldImgScaleX;
-      const imgH = rink.h * fieldImgScaleY;
-      const imgX = rink.x + (rink.w - imgW)/2;
-      const imgY = rink.y + (rink.h - imgH)/2;
-      ctx.drawImage(fieldImg, imgX, imgY, imgW, imgH);
-    } else {
-      rr(rink.x, rink.y, rink.w, rink.h, rink.r);
-      ctx.fillStyle = getCSS('--ice'); ctx.fill();
-      ctx.lineWidth = Math.max(2, W*0.003);
-      ctx.strokeStyle = getCSS('--line');
-      ctx.beginPath(); ctx.moveTo(rink.x+10, centerY); ctx.lineTo(rink.x+rink.w-10, centerY); ctx.stroke();
-      ctx.beginPath(); ctx.arc(centerX, centerY, Math.min(W,H)*0.11, 0, Math.PI*2); ctx.stroke();
-      ctx.beginPath();
-      ctx.arc(centerX, H*0.25, Math.min(W,H)*0.09, 0, Math.PI*2);
-      ctx.moveTo(centerX + Math.min(W,H)*0.09, H*0.75);
-      ctx.arc(centerX, H*0.75, Math.min(W,H)*0.09, 0, Math.PI*2);
-      ctx.stroke();
-      drawGoal(goalCenterX, goalTopY, goalWidth, goalDepth, -1);
-      drawGoal(goalCenterX, goalBottomY, goalWidth, goalDepth, 1);
-    }
+    rr(rink.x, rink.y, rink.w, rink.h, rink.r);
+    ctx.fillStyle = getCSS('--field'); ctx.fill();
+    ctx.lineWidth = Math.max(2, W*0.003);
+    ctx.strokeStyle = getCSS('--line');
+    ctx.beginPath(); ctx.moveTo(rink.x+10, centerY); ctx.lineTo(rink.x+rink.w-10, centerY); ctx.stroke();
+    ctx.beginPath(); ctx.arc(centerX, centerY, Math.min(W,H)*0.11, 0, Math.PI*2); ctx.stroke();
+    ctx.beginPath();
+    ctx.arc(centerX, H*0.25, Math.min(W,H)*0.09, 0, Math.PI*2);
+    ctx.moveTo(centerX + Math.min(W,H)*0.09, H*0.75);
+    ctx.arc(centerX, H*0.75, Math.min(W,H)*0.09, 0, Math.PI*2);
+    ctx.stroke();
+    drawGoal(goalCenterX, goalTopY, goalWidth, goalDepth, -1);
+    drawGoal(goalCenterX, goalBottomY, goalWidth, goalDepth, 1);
   }
   function drawGoal(cx, y, w, d, dir){
     ctx.save();
@@ -489,16 +475,26 @@
     ctx.moveTo(-w/2, 0); ctx.lineTo(-w/2, d);
     ctx.moveTo(w/2, 0); ctx.lineTo(w/2, d);
     ctx.stroke();
-    const spacing = Math.max(8, w/10);
-    ctx.beginPath();
-    for(let i=-w/2+spacing;i<w/2;i+=spacing){
-      ctx.moveTo(i,0); ctx.lineTo(i,d);
+    // draw hexagonal net
+    const size = Math.max(6, w/15);
+    const hexH = Math.sqrt(3) * size;
+    ctx.strokeStyle = 'rgba(255,255,255,0.6)';
+    ctx.lineWidth = Math.max(1, w*0.005);
+    for(let row = 0; row < d/(hexH/2); row++){
+      const yOff = row * (hexH/2);
+      for(let col = -w/2; col < w/2 + size; col += 1.5*size){
+        const xOff = col + (row % 2 ? 0.75*size : 0);
+        ctx.beginPath();
+        ctx.moveTo(xOff, yOff - hexH/2);
+        ctx.lineTo(xOff + size/2, yOff - hexH/4);
+        ctx.lineTo(xOff + size/2, yOff + hexH/4);
+        ctx.lineTo(xOff, yOff + hexH/2);
+        ctx.lineTo(xOff - size/2, yOff + hexH/4);
+        ctx.lineTo(xOff - size/2, yOff - hexH/4);
+        ctx.closePath();
+        ctx.stroke();
+      }
     }
-    for(let j=spacing;j<d;j+=spacing){
-      ctx.moveTo(-w/2,j); ctx.lineTo(w/2,j);
-    }
-    ctx.strokeStyle = 'rgba(255,255,255,0.4)';
-    ctx.stroke();
     ctx.restore();
   }
   function drawPaddle(p, color, img, emoji){
