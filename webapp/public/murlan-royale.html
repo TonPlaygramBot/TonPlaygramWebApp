@@ -74,6 +74,12 @@
         place-items: center;
         z-index: 2;
       }
+      .pile-area {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 4px;
+      }
       .pile {
         display: flex;
         gap: 6px;
@@ -81,9 +87,21 @@
         border: 4px solid #000;
         border-radius: 12px;
         background: var(--seat-bg-color);
+        box-shadow: 4px 4px 0 #d4ccb3;
       }
       .pile .card {
         transform: scale(1.3);
+      }
+      .pile-player {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 4px;
+      }
+      .pile-player .avatar {
+        width: calc(var(--avatar-size) * 0.7);
+        height: calc(var(--avatar-size) * 0.7);
+        border: 2px solid rgba(255, 255, 255, 0.65);
       }
       .pot {
         font-weight: 900;
@@ -108,6 +126,49 @@
         place-items: center;
         gap: 6px;
         width: clamp(120px, 28vw, 200px);
+      }
+      .seat-inner {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 6px;
+        border: 4px solid #000;
+        border-radius: 12px;
+        padding: 4px;
+        background: var(--seat-bg-color);
+        box-shadow: 4px 4px 0 #d4ccb3;
+      }
+      .seat-inner .avatar {
+        box-shadow: 0 0 0 2px #000;
+      }
+      .seat-inner .name {
+        padding: 2px 6px;
+        border: 2px solid #000;
+        border-radius: 6px;
+        font-size: 11px;
+        max-width: 100%;
+        white-space: nowrap;
+        overflow: hidden;
+        text-align: center;
+        background: #fff;
+        color: #000;
+        font-weight: 700;
+        text-shadow:
+          -1px -1px 0 #fff,
+          1px -1px 0 #fff,
+          -1px 1px 0 #fff,
+          1px 1px 0 #fff;
+      }
+      .seat.bottom .name {
+        font-size: 12px;
+      }
+      .seat-inner .cards {
+        padding: 0;
+        border: none;
+        background: none;
+      }
+      .seat-inner .card {
+        border: none;
       }
       .avatar {
         width: var(--avatar-size);
@@ -249,6 +310,7 @@
         transform: scale(var(--my-card-scale));
         transform-origin: center bottom;
         gap: 0;
+        transition: transform 0.3s ease;
       }
       .seat.bottom .cards .card:not(:first-child) {
         margin-left: calc(var(--card-w) * -0.3);
@@ -437,7 +499,10 @@
     <div class="stage">
       <!-- Center play area -->
       <div class="center">
-        <div id="pile" class="pile"></div>
+        <div class="pile-area">
+          <div id="pile" class="pile"></div>
+          <div id="pilePlayer" class="pile-player"></div>
+        </div>
         <div id="pot" class="pot"></div>
       </div>
 
@@ -505,6 +570,7 @@
         // ====== UTIL ======
         const el = (s) => document.querySelector(s);
         const pileEl = el('#pile');
+        const pilePlayerEl = el('#pilePlayer');
         const seatsEl = el('#seats');
         const potEl = el('#pot');
         const toastEl = el('#toast');
@@ -704,7 +770,8 @@
           lastPlayType: null,
           pot: 0,
           passesSincePlay: 0,
-          lastPlayerToPlay: 0
+          lastPlayerToPlay: 0,
+          startPlayer: 0
         };
 
         // create 4 players (user bottom)
@@ -730,6 +797,12 @@
               state.players[p].hand.push(deck.pop());
             }
           }
+        }
+
+        function findStartPlayer() {
+          return state.players.findIndex((p) =>
+            p.hand.some((c) => c.r === 3 && c.s === '♣')
+          );
         }
 
         // ===== RENDER =====
@@ -799,7 +872,7 @@
             if (side === 'bottom') {
               seat.style.left = '50%';
               seat.style.bottom = '8px';
-              seat.style.transform = 'translateX(-60%)';
+              seat.style.transform = 'translateX(-45%)';
               seat.style.width = 'auto';
             } else if (side === 'top') {
               seat.style.left = '50%';
@@ -807,13 +880,16 @@
               seat.style.transform = 'translateX(-60%)';
             } else if (side === 'right') {
               seat.style.left = x - area.left - 20 + 'px';
-              seat.style.top = y - area.top + 'px';
+              seat.style.top = y - area.top + 20 + 'px';
               seat.style.transform = 'translate(-50%,-50%)';
             } else {
               seat.style.left = x - area.left + 20 + 'px';
-              seat.style.top = y - area.top + 'px';
+              seat.style.top = y - area.top + 20 + 'px';
               seat.style.transform = 'translate(-50%,-50%)';
             }
+
+            const seatInner = document.createElement('div');
+            seatInner.className = 'seat-inner';
 
             const av = document.createElement('div');
             av.className = 'avatar';
@@ -889,12 +965,13 @@
                 advanceTurn();
               });
               controls.append(av, playBtn, passBtn);
-              seat.append(controls, name, cards, timer);
+              seatInner.append(controls, name, cards, timer);
             } else if (side === 'left' || side === 'right') {
-              seat.append(av, cards, name, timer);
+              seatInner.append(av, cards, name, timer);
             } else {
-              seat.append(av, name, cards, timer);
+              seatInner.append(av, name, cards, timer);
             }
+            seat.appendChild(seatInner);
             seatsEl.appendChild(seat);
           });
         }
@@ -952,12 +1029,33 @@
 
         function renderPile() {
           pileEl.innerHTML = '';
+          pilePlayerEl.innerHTML = '';
           if (!state.pile.length) return;
+          const scale = state.pile.length > 6 ? 1.1 : 1.3;
           state.pile.forEach((c) => {
             const face = cardFaceEl(c);
-            face.style.transform = 'scale(1.3)';
+            face.style.transform = `scale(${scale})`;
             pileEl.appendChild(face);
           });
+          const lp = state.players[state.lastPlayerToPlay];
+          if (lp) {
+            const av = document.createElement('div');
+            av.className = 'avatar';
+            if (lp.avatar && lp.avatar.startsWith('http')) {
+              const img = document.createElement('img');
+              img.src = lp.avatar;
+              img.style.width = '100%';
+              img.style.height = '100%';
+              img.style.borderRadius = '50%';
+              av.appendChild(img);
+            } else {
+              av.textContent = lp.avatar || (lp.isHuman ? '🃏' : '🐾');
+            }
+            const name = document.createElement('div');
+            name.className = 'name';
+            name.textContent = lp.name;
+            pilePlayerEl.append(av, name);
+          }
         }
 
         function adjustHandScale() {
@@ -1325,7 +1423,7 @@
         // ===== UI HANDLERS =====
 
         function startGame() {
-          state.turn = 0;
+          state.turn = state.startPlayer;
           playTurn(state.turn);
         }
 
@@ -1352,6 +1450,8 @@
         // boot
         initPlayers();
         deal();
+        state.startPlayer = findStartPlayer();
+        if (state.startPlayer < 0) state.startPlayer = 0;
         renderAll();
         startArrangePhase();
       })();
