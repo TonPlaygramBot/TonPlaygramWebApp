@@ -8,5 +8,10 @@
   "goalOffsetXPct": 0,
   "goalOffsetYPct": 0,
   "paddleScale": 0.95,
-  "speedMul": 0.95
+  "speedMul": 0.95,
+  "rinkX": 43,
+  "rinkY": 51,
+  "goalCenterX": 360,
+  "goalTopY": 51,
+  "goalBottomY": 1229
 }
