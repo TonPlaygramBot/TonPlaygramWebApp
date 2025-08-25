@@ -40,7 +40,7 @@ import WatchRecord from './models/WatchRecord.js';
 import ActiveConnection from './models/ActiveConnection.js';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { existsSync } from 'fs';
+import { existsSync, writeFileSync } from 'fs';
 import { execSync } from 'child_process';
 import { randomUUID } from 'crypto';
 import compression from 'compression';
@@ -149,6 +149,40 @@ app.use('/api/social', socialRoutes);
 app.use('/api/broadcast', broadcastRoutes);
 app.use('/api/store', storeRoutes);
 app.use('/api/online', onlineRoutes);
+
+app.post('/api/goal-rush/calibration', (req, res) => {
+  const { accountId, calibration } = req.body || {};
+  const devAccounts = [
+    process.env.DEV_ACCOUNT_ID || process.env.VITE_DEV_ACCOUNT_ID,
+    process.env.DEV_ACCOUNT_ID_1 || process.env.VITE_DEV_ACCOUNT_ID_1,
+    process.env.DEV_ACCOUNT_ID_2 || process.env.VITE_DEV_ACCOUNT_ID_2
+  ].filter(Boolean);
+  if (!accountId || !devAccounts.includes(accountId)) {
+    return res.status(403).json({ error: 'unauthorized' });
+  }
+  if (!calibration || typeof calibration !== 'object') {
+    return res.status(400).json({ error: 'invalid calibration' });
+  }
+  try {
+    const data = JSON.stringify(calibration, null, 2);
+    const pubPath = path.join(
+      __dirname,
+      '../webapp/public/goal-rush-calibration.json'
+    );
+    writeFileSync(pubPath, data);
+    try {
+      const distPath = path.join(
+        __dirname,
+        '../webapp/dist/goal-rush-calibration.json'
+      );
+      writeFileSync(distPath, data);
+    } catch {}
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('save calibration failed:', err.message);
+    res.status(500).json({ error: 'failed to save calibration' });
+  }
+});
 
 // Serve the built React app
 const webappPath = path.join(__dirname, '../webapp/dist');
