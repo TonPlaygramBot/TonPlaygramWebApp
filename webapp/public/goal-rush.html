@@ -78,6 +78,7 @@
       </div>
     </div>
     <button id="muteBtn" class="mute-btn" aria-label="Toggle sound">🔊</button>
+    <button id="saveCalib" style="display:none">Save Calib</button>
     <div class="canvasWrap">
       <canvas id="game" width="720" height="1280" aria-label="Goal Rush Field"></canvas>
     </div>
@@ -100,6 +101,7 @@
   const startHint = document.getElementById('startHint');
   const landscapeBlock = document.querySelector('.landscape-block');
   const muteBtn = document.getElementById('muteBtn');
+  const saveCalibBtn = document.getElementById('saveCalib');
   const goalText = document.getElementById('goalText');
   const postText = document.getElementById('postText');
   const TOP_BAR = 40; // height of scoreboard bar
@@ -125,6 +127,10 @@
   const devAccount = params.get('dev');
   const devAccount1 = params.get('dev1');
   const devAccount2 = params.get('dev2');
+  if (devAccount === myAccountId) {
+    saveCalibBtn.style.display = 'block';
+    saveCalibBtn.addEventListener('click', saveCalibration);
+  }
   const tgId = params.get('tgId');
   const initParam = params.get('init');
   if (initParam && !window.Telegram) {
@@ -165,6 +171,39 @@
       paddleScale = cfg.paddleScale ?? paddleScale;
       speedMul = cfg.speedMul ?? speedMul;
     } catch {}
+  }
+
+  async function saveCalibration() {
+    const calibration = {
+      fieldScaleX,
+      fieldScaleY,
+      fieldImgScaleX,
+      fieldImgScaleY,
+      puckScale,
+      goalWidthPct,
+      goalOffsetXPct,
+      goalOffsetYPct,
+      paddleScale,
+      speedMul,
+      rinkX: rink.x,
+      rinkY: rink.y,
+      goalCenterX,
+      goalTopY,
+      goalBottomY
+    };
+    try {
+      const res = await fetch('/api/goal-rush/calibration', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ accountId: myAccountId, calibration })
+      });
+      if (!res.ok) throw new Error('fail');
+      alert('Calibration saved');
+      await loadCalibration();
+      fit();
+    } catch (err) {
+      alert('Failed to save calibration');
+    }
   }
 
   await loadCalibration();
