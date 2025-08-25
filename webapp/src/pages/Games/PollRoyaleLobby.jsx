@@ -109,8 +109,7 @@ export default function PollRoyaleLobby() {
           {[
             { id: 'uk', label: '8 Pool UK' },
             { id: 'american', label: 'American' },
-            { id: '9ball', label: '9-Ball' },
-            { id: 'snooker', label: 'Snooker' }
+            { id: '9ball', label: '9-Ball' }
           ].map(({ id, label }) => (
             <button
               key={id}
