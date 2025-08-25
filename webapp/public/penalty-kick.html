@@ -221,9 +221,9 @@
 
   let holes=[]; let banners=[]; let cameras=[]; let fragments=[];
   let netHit={x:0,y:0,t:0,shake:0};
-  const keeper={x:0,y:0,w:40,h:100,vx:0,vy:0,active:false,save:false,a:0,side:1,baseY:0,face:'👨'};
-  const keeperFaces=['👨','👩','🧑','👱‍♂️','👱‍♀️'];
-  keeper.face = keeperFaces[(Math.random()*keeperFaces.length)|0];
+  const keeper={x:0,y:0,w:40,h:100,vx:0,vy:0,active:false,save:false,a:0,side:1,baseY:0};
+  const keeperImg = new Image();
+  keeperImg.src = '/assets/icons/file_00000000945461f8bb9a2974fb9ee402.webp';
   const aimOn = false;
 
   const rivals=[
@@ -370,28 +370,7 @@
     ctx.translate(k.x + k.w/2, k.y + k.h/2);
     ctx.rotate(k.a||0);
     ctx.translate(-k.w/2, -k.h/2);
-    const torsoW = k.w*0.35;
-    const torsoX = (k.w-torsoW)/2;
-    const torsoH = k.h*0.5;
-    ctx.fillStyle='#2563eb';
-    ctx.fillRect(torsoX,k.h*0.25,torsoW,torsoH);
-    const armY = k.h*0.35;
-    const armW = k.w*0.12;
-    const armLen = k.w*0.45;
-    ctx.fillRect(torsoX - armLen,armY,armLen,armW);
-    ctx.fillRect(torsoX + torsoW,armY,armLen,armW);
-    ctx.font = `${armW*2}px sans-serif`;
-    ctx.textAlign='center';
-    ctx.textBaseline='middle';
-    ctx.fillText('✋️', torsoX - armLen, armY + armW/2);
-    ctx.fillText('🤚', torsoX + torsoW + armLen, armY + armW/2);
-    const legW = k.w*0.12;
-    const legH = k.h*0.25;
-    const legY = k.h*0.25 + torsoH;
-    ctx.fillRect(torsoX,legY,legW,legH);
-    ctx.fillRect(torsoX + torsoW - legW,legY,legW,legH);
-    ctx.font = `${k.w*0.3}px sans-serif`;
-    ctx.fillText(k.face, k.w/2, k.h*0.15);
+    ctx.drawImage(keeperImg, 0, 0, k.w, k.h);
     ctx.restore();
   }
 
