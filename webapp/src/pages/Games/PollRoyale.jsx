@@ -13,7 +13,9 @@ export default function PollRoyale() {
       ? '9-Ball'
       : variant === 'american'
         ? 'American Billiards'
-        : '8 Pool UK';
+        : variant === 'snooker'
+          ? 'Snooker'
+          : '8 Pool UK';
   return (
     <div className="relative w-full h-[100dvh]">
       <iframe src={src} title={title} className="w-full h-full border-0" />

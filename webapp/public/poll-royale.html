@@ -618,6 +618,7 @@
         var variant = params.get('variant') || 'uk';
         var isAmerican = variant === 'american';
         var isNineBall = variant === '9ball';
+        var isSnooker = variant === 'snooker';
 
         /* ==========================================================
        KONSTANTA TE LAYOUT-it DHE FIZIKES (sipas portrait)
@@ -1015,6 +1016,26 @@
             { n: 8, t: 'solid', c: COL[8] },
             { n: 9, t: 'stripe', c: COL[9] }
           ];
+        } else if (isSnooker) {
+          COL = {
+            cue: '#f5f5f5',
+            red: '#d92d30',
+            yellow: '#f5c400',
+            green: '#1faa4a',
+            brown: '#7a2f2f',
+            blue: '#2256ff',
+            pink: '#ff7f9a',
+            black: '#111'
+          };
+          BALLS = [{ n: 0, t: 'cue', c: COL.cue }];
+          for (var rr = 1; rr <= 15; rr++)
+            BALLS.push({ n: rr, t: 'red', c: COL.red });
+          BALLS.push({ n: 16, t: 'yellow', c: COL.yellow });
+          BALLS.push({ n: 17, t: 'green', c: COL.green });
+          BALLS.push({ n: 18, t: 'brown', c: COL.brown });
+          BALLS.push({ n: 19, t: 'blue', c: COL.blue });
+          BALLS.push({ n: 20, t: 'pink', c: COL.pink });
+          BALLS.push({ n: 21, t: 'black', c: COL.black });
         } else {
           COL = {
             cue: '#f5f5f5',
@@ -1143,6 +1164,42 @@
                 this.balls.push(new Ball(info9, x9, y9));
               }
             }
+          } else if (isSnooker) {
+            var idxSn = 1;
+            for (var rs = 0; rs < 5; rs++) {
+              var countSn = 5 - rs;
+              var startSn = cx - (rowGap * (countSn - 1)) / 2;
+              var ySn = cy + rs * colGap;
+              for (var js = 0; js < countSn; js++) {
+                var numSn = idxSn++;
+                this.balls.push(
+                  new Ball(BALL_BY_N[numSn], startSn + js * rowGap, ySn)
+                );
+              }
+            }
+            // colored balls
+            this.balls.push(
+              new Ball(BALL_BY_N[16], BORDER + BALL_R * 4, LINE_Y)
+            );
+            this.balls.push(
+              new Ball(
+                BALL_BY_N[17],
+                TABLE_W - BORDER - BALL_R * 4,
+                LINE_Y
+              )
+            );
+            this.balls.push(
+              new Ball(BALL_BY_N[18], TABLE_W / 2, LINE_Y)
+            );
+            this.balls.push(
+              new Ball(BALL_BY_N[19], TABLE_W / 2, TABLE_H / 2)
+            );
+            this.balls.push(
+              new Ball(BALL_BY_N[20], TABLE_W / 2, SPOT_Y + colGap * 2)
+            );
+            this.balls.push(
+              new Ball(BALL_BY_N[21], TABLE_W / 2, SPOT_Y - colGap * 3)
+            );
           } else {
             // Rregullimi standart per 8-ball UK (red & yellow)
             var pattern = [
@@ -1406,6 +1463,12 @@
           ctx.moveTo(x0, LINE_Y * sY);
           ctx.lineTo(x0 + w, LINE_Y * sY);
           ctx.stroke();
+          if (isSnooker) {
+            ctx.beginPath();
+            var rD = BALL_R * 4 * ((sX + sY) / 2);
+            ctx.arc((TABLE_W / 2) * sX, LINE_Y * sY, rD, Math.PI, 0);
+            ctx.stroke();
+          }
           ctx.fillStyle = '#fff';
           ctx.beginPath();
           ctx.arc(
@@ -2789,6 +2852,16 @@
               'Example: if the 2-ball is the target and the 9-ball sits by a pocket, hit the 2 then use the cue ball to push the 9 in to win.'
             ],
             source: 'Custom Pool Royale 9-ball guidelines.'
+          },
+          snooker: {
+            title: 'Snooker Rules',
+            items: [
+              'Fifteen reds form a triangle with six colored balls on their spots.',
+              'Players alternate potting a red then a color; colors are respotted until all reds are cleared.',
+              'Points follow ball values: red (1), yellow (2), green (3), brown (4), blue (5), pink (6), black (7).',
+              'After the reds are gone, pot the colors in order from yellow to black to finish the frame.'
+            ],
+            source: 'Simplified snooker rules for Pool Royale.'
           }
       };
 
