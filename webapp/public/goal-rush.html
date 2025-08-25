@@ -320,7 +320,7 @@
     goalWidth = Math.round(W*goalWidthPct*fsx);
     const base = Math.max(24, Math.round(Math.min(W,H)*0.035*fieldScaleActual));
     paddleRadius = base*3.4*paddleScale;
-    puck.r = Math.max(24, Math.round(base*1.2*puckScale));
+    puck.r = Math.max(24, Math.round(base*1.3*puckScale));
     p1.r = paddleRadius; p2.r = paddleRadius;
   }
   window.addEventListener('resize', fit);
@@ -648,17 +648,17 @@
       ty = defendY;
     }
     // If puck and AI are stuck in a corner on the AI side, nudge the puck out
-    const cornerZone = 30; // area from walls to consider a corner
+    const cornerZone = 40; // expanded area from walls to consider a corner
     const puckSpeed = Math.hypot(puck.vx, puck.vy);
     const puckInCorner = puck.y < minY + cornerZone && (puck.x < minX + cornerZone || puck.x > maxX - cornerZone);
-    if (puck.y < centerY && puckInCorner && puckSpeed < 6) {
+    if (puck.y < centerY && puckInCorner && puckSpeed < 8) {
       const dir = puck.x < centerX ? 1 : -1;
-      const angle = 0.2 + Math.random() * 1.2; // wider range downward
-      const power = 6 + Math.random() * 6;
+      const angle = 0.2 + Math.random() * 1.1; // kick downward toward center
+      const power = 8 + Math.random() * 4;
       puck.vx = Math.cos(angle) * dir * power;
       puck.vy = Math.sin(angle) * power;
       tx = centerX;
-      ty = rink.y + rink.h * 0.25;
+      ty = rink.y + rink.h * 0.3;
     }
     p2.x += (tx - p2.x) * reaction;
     p2.y += (ty - p2.y) * reaction;
