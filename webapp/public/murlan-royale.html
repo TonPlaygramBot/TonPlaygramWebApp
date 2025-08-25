@@ -19,6 +19,8 @@
         --card-w: calc(clamp(44px, 9.6vw, 70px) * var(--card-scale));
         --card-h: calc(var(--card-w) * 1.45);
         --avatar-size: calc(54px * var(--avatar-scale));
+        --seat-bg-color: #f5f5dc;
+        --player-frame-color: #000;
       }
       * {
         box-sizing: border-box;
@@ -67,22 +69,21 @@
         left: 50%;
         top: 50%;
         transform: translate(-50%, -50%);
-        display: grid;
+        display: flex;
         gap: 10px;
         place-items: center;
         z-index: 2;
       }
       .pile {
-        position: relative;
-        width: var(--card-w);
-        height: var(--card-h);
+        display: flex;
+        gap: 6px;
+        padding: 4px;
+        border: 4px solid #000;
+        border-radius: 12px;
+        background: var(--seat-bg-color);
       }
       .pile .card {
-        position: absolute;
-        left: 0;
-        top: 0;
         transform: scale(1.3);
-        transform-origin: center;
       }
       .pot {
         font-weight: 900;
@@ -125,6 +126,95 @@
         font-size: 28px;
         border: 4px solid rgba(255, 255, 255, 0.65);
         box-shadow: 0 8px 20px var(--shadow);
+        overflow: hidden;
+      }
+      .play-btn {
+        width: var(--avatar-size);
+        height: var(--avatar-size);
+        border-radius: 50%;
+        background: #22c55e;
+        border: 3px solid #000;
+        color: #fff;
+        font-weight: 700;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+
+      .top-controls {
+        position: absolute;
+        top: 4px;
+        right: 8px;
+        display: flex;
+        gap: 4px;
+        z-index: 10;
+      }
+      .top-controls button {
+        width: 32px;
+        height: 32px;
+        padding: 0;
+        border: 2px solid #000;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: #2563eb;
+        color: #fff;
+        font-weight: 600;
+        font-size: 14px;
+        line-height: 1;
+      }
+      .settings-panel {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        background: #fff;
+        color: #000;
+        padding: 16px;
+        border: 2px solid #000;
+        border-radius: 8px;
+        z-index: 20;
+        display: none;
+        min-width: 200px;
+      }
+      .settings-panel.active {
+        display: block;
+      }
+      .settings-panel label {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        margin-top: 8px;
+      }
+      .settings-panel select {
+        margin-left: 6px;
+      }
+      .settings-actions {
+        display: flex;
+        gap: 8px;
+        justify-content: flex-end;
+        margin-top: 8px;
+      }
+
+      .frame-style-1 .avatar { border-style: solid; border-width: 2px; }
+      .frame-style-2 .avatar { border-style: dashed; border-width: 2px; }
+      .frame-style-3 .avatar { border-style: dotted; border-width: 2px; }
+      .frame-style-4 .avatar { border-style: double; border-width: 4px; }
+      .frame-style-5 .avatar { border-style: groove; border-width: 4px; }
+      .frame-style-6 .avatar { border-style: ridge; border-width: 4px; }
+      .frame-style-7 .avatar { border-style: inset; border-width: 4px; }
+      .frame-style-8 .avatar { border-style: outset; border-width: 4px; }
+      .frame-style-9 .avatar {
+        border-style: solid;
+        border-width: 2px;
+        box-shadow: 0 8px 20px var(--shadow), 0 0 0 2px var(--player-frame-color, #000);
+      }
+      .frame-style-10 .avatar {
+        border-style: dashed;
+        border-width: 2px;
+        box-shadow: 0 8px 20px var(--shadow), 0 0 0 2px var(--player-frame-color, #000);
       }
       .name {
         font-weight: 800;
@@ -343,7 +433,7 @@
       }
     </style>
   </head>
-  <body>
+  <body class="frame-style-1">
     <div class="stage">
       <!-- Center play area -->
       <div class="center">
@@ -375,8 +465,43 @@
       src="https://cdn.jsdelivr.net/gh/naptha/tiny-sound@master/sounds/beep1.ogg"
     ></audio>
 
+    <div class="top-controls">
+      <button id="settingsBtn">⚙️</button>
+    </div>
+    <div id="settingsPanel" class="settings-panel">
+      <label>Frame Style<select id="playerFrameStyle"></select></label>
+      <label>Frame Color<select id="playerColor"></select></label>
+      <div class="settings-actions">
+        <button id="saveSettings">Save</button>
+        <button id="closeSettings">Close</button>
+      </div>
+    </div>
+
+    <script src="/flag-emojis.js"></script>
+    <script src="/falling-ball-api.js"></script>
     <script>
-      (() => {
+      (async () => {
+        const FLAG_EMOJIS = window.FLAG_EMOJIS || [];
+        const api = window.fbApi || {};
+        const regionNames = new Intl.DisplayNames(['en'], { type: 'region' });
+        function flagName(flag) {
+          const codePoints = [...flag].map((c) => c.codePointAt(0) - 0x1f1e6 + 65);
+          return regionNames.of(String.fromCharCode(...codePoints));
+        }
+        const params = new URLSearchParams(location.search);
+        let myAccountId = params.get('accountId') || '';
+        let myTelegramId = params.get('tgId') || '';
+        let avatar = params.get('avatar') || '';
+        let username = params.get('username') || 'You';
+        try {
+          if (myAccountId && api.getUserInfo) {
+            const u = await api.getUserInfo({ accountId: myAccountId, tgId: myTelegramId });
+            if (u) {
+              username = u.username || u.first_name || username;
+              avatar = u.photo_url || avatar;
+            }
+          }
+        } catch {}
         // ====== UTIL ======
         const el = (s) => document.querySelector(s);
         const pileEl = el('#pile');
@@ -387,6 +512,12 @@
         const sndCard = el('#sndCard');
         const sndTimer = el('#sndTimer');
         const winnerOverlay = el('#winnerOverlay');
+        const settingsBtn = el('#settingsBtn');
+        const settingsPanel = el('#settingsPanel');
+        const styleSelect = el('#playerFrameStyle');
+        const colorSelect = el('#playerColor');
+        const saveSettingsBtn = el('#saveSettings');
+        const closeSettingsBtn = el('#closeSettings');
 
         function coinConfetti(
           count = 50,
@@ -480,6 +611,44 @@
           setTimeout(() => (toastEl.style.display = 'none'), 1400);
         }
 
+        function applyFrameSettings() {
+          document.body.className = document.body.className.replace(/frame-style-\d+/g, '');
+          document.body.classList.add('frame-style-' + styleSelect.value);
+          document.documentElement.style.setProperty(
+            '--player-frame-color',
+            colorSelect.value
+          );
+        }
+        if (settingsBtn) {
+          settingsBtn.addEventListener('click', () => settingsPanel.classList.add('active'));
+          closeSettingsBtn.addEventListener('click', () => settingsPanel.classList.remove('active'));
+          saveSettingsBtn.addEventListener('click', () => {
+            applyFrameSettings();
+            localStorage.setItem('murlanFrameStyle', styleSelect.value);
+            localStorage.setItem('murlanFrameColor', colorSelect.value);
+            settingsPanel.classList.remove('active');
+          });
+          for (let i = 1; i <= 10; i++) {
+            const opt = document.createElement('option');
+            opt.value = i;
+            opt.textContent = 'Style ' + i;
+            styleSelect.appendChild(opt);
+          }
+          ['#000', '#f00', '#0f0', '#00f', '#ff0', '#f0f', '#0ff', '#fff'].forEach(
+            (c) => {
+              const opt = document.createElement('option');
+              opt.value = c;
+              opt.textContent = c;
+              colorSelect.appendChild(opt);
+            }
+          );
+          const savedStyle = localStorage.getItem('murlanFrameStyle');
+          const savedColor = localStorage.getItem('murlanFrameColor');
+          if (savedStyle) styleSelect.value = savedStyle;
+          if (savedColor) colorSelect.value = savedColor;
+          applyFrameSettings();
+        }
+
         // ====== DECK (with Jokers) ======
         const SUITS = ['♠', '♥', '♦', '♣'];
         const RANKS = [
@@ -540,11 +709,17 @@
 
         // create 4 players (user bottom)
         function initPlayers() {
+          const flags = [...FLAG_EMOJIS]
+            .sort(() => 0.5 - Math.random())
+            .slice(0, 3);
           state.players = [
-            { name: 'You', isHuman: true, chips: 1500, hand: [] },
-            { name: 'Luna', chips: 1200, hand: [] },
-            { name: 'Rex', chips: 1000, hand: [] },
-            { name: 'Milo', chips: 900, hand: [] }
+            { name: username, avatar, isHuman: true, chips: 1500, hand: [] },
+            ...flags.map((f, i) => ({
+              name: flagName(f),
+              avatar: f,
+              chips: 1200 - i * 100,
+              hand: []
+            }))
           ];
         }
 
@@ -624,7 +799,7 @@
             if (side === 'bottom') {
               seat.style.left = '50%';
               seat.style.bottom = '8px';
-              seat.style.transform = 'translateX(-50%)';
+              seat.style.transform = 'translateX(-60%)';
               seat.style.width = 'auto';
             } else if (side === 'top') {
               seat.style.left = '50%';
@@ -635,14 +810,23 @@
               seat.style.top = y - area.top + 'px';
               seat.style.transform = 'translate(-50%,-50%)';
             } else {
-              seat.style.left = x - area.left + 'px';
+              seat.style.left = x - area.left + 20 + 'px';
               seat.style.top = y - area.top + 'px';
               seat.style.transform = 'translate(-50%,-50%)';
             }
 
             const av = document.createElement('div');
             av.className = 'avatar';
-            av.textContent = i === 0 ? '🃏' : '🐾';
+            if (p.avatar && p.avatar.startsWith('http')) {
+              const img = document.createElement('img');
+              img.src = p.avatar;
+              img.style.width = '100%';
+              img.style.height = '100%';
+              img.style.borderRadius = '50%';
+              av.appendChild(img);
+            } else {
+              av.textContent = p.avatar || (p.isHuman ? '🃏' : '🐾');
+            }
             const name = document.createElement('div');
             name.className = 'name';
             name.textContent = p.name;
@@ -683,8 +867,13 @@
             if (side === 'bottom') {
               const controls = document.createElement('div');
               controls.className = 'controls';
-              av.addEventListener('click', confirmPlayAction);
-              av.style.cursor = 'pointer';
+              controls.style.display = 'flex';
+              controls.style.alignItems = 'center';
+              controls.style.gap = '8px';
+              const playBtn = document.createElement('button');
+              playBtn.className = 'play-btn';
+              playBtn.textContent = 'Play';
+              playBtn.addEventListener('click', confirmPlayAction);
               const passBtn = document.createElement('button');
               passBtn.id = 'passBtn';
               passBtn.className = 'icon-btn pass-icon';
@@ -699,7 +888,7 @@
                 clearSelections();
                 advanceTurn();
               });
-              controls.append(av, passBtn);
+              controls.append(av, playBtn, passBtn);
               seat.append(controls, name, cards, timer);
             } else if (side === 'left' || side === 'right') {
               seat.append(av, cards, name, timer);
@@ -764,30 +953,11 @@
         function renderPile() {
           pileEl.innerHTML = '';
           if (!state.pile.length) return;
-          const cardW = parseFloat(
-            getComputedStyle(document.documentElement).getPropertyValue(
-              '--card-w'
-            )
-          );
-          const gap = cardW * 0.15; // tightly overlap like top player's stack
-          pileEl.style.width = cardW + (state.pile.length - 1) * gap + 'px';
-          const startAngle = (-8 * (state.pile.length - 1)) / 2;
-          state.pile.forEach((c, idx) => {
+          state.pile.forEach((c) => {
             const face = cardFaceEl(c);
-            const angle = startAngle + idx * 8; // slight rotation per card
-            face.style.left = idx * gap + 'px';
-            face.style.top = '0';
-            face.style.zIndex = idx;
-            face.style.transform = `scale(1.3) rotate(${angle}deg)`;
+            face.style.transform = 'scale(1.3)';
             pileEl.appendChild(face);
           });
-          const suit = state.pile[0].s;
-          if (state.pile.every((pc) => pc.s === suit)) {
-            const lbl = document.createElement('div');
-            lbl.className = 'combo-label';
-            lbl.textContent = suit;
-            pileEl.appendChild(lbl);
-          }
         }
 
         function adjustHandScale() {
