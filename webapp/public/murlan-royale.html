@@ -398,7 +398,17 @@
         transform: translateY(-6px);
       }
       .suggested {
-        outline: 3px dashed var(--ui);
+        outline: none;
+        box-shadow: inset 0 0 0 3px var(--ui);
+      }
+      .highlight-straight {
+        box-shadow: inset 0 0 0 9999px rgba(14, 165, 233, 0.35);
+      }
+      .highlight-triple {
+        box-shadow: inset 0 0 0 9999px rgba(239, 68, 68, 0.35);
+      }
+      .highlight-highest {
+        box-shadow: inset 0 0 0 9999px rgba(34, 197, 94, 0.35);
       }
 
       /* Facedown backs for opponents */
@@ -442,7 +452,12 @@
       .seat.top .top-row {
         display: flex;
         align-items: center;
-        gap: 6px;
+        gap: 8px;
+        padding: 0 6px;
+      }
+      .seat.top .seat-inner {
+        padding-left: 8px;
+        padding-right: 8px;
       }
       .seat.top .cards {
         gap: 0;
@@ -813,6 +828,8 @@
           selectedIndices: []
         };
 
+        let arrangeInterval;
+
         // create 4 players (user bottom)
         function initPlayers() {
           const flags = [...FLAG_EMOJIS]
@@ -1027,7 +1044,20 @@
                 clearSelections();
                 advanceTurn();
               });
-              controls.append(av, playBtn, passBtn);
+              const readyBtn = document.createElement('button');
+              readyBtn.id = 'readyBtn';
+              readyBtn.className = 'play-btn';
+              readyBtn.textContent = 'Ready';
+              readyBtn.addEventListener('click', () => {
+                clearInterval(arrangeInterval);
+                state.arrangeMode = false;
+                renderAll();
+                startGame();
+              });
+              readyBtn.style.display = state.arrangeMode ? 'block' : 'none';
+              playBtn.style.display = state.arrangeMode ? 'none' : 'block';
+              passBtn.style.display = state.arrangeMode ? 'none' : 'flex';
+              controls.append(av, readyBtn, playBtn, passBtn);
               seatInner.append(controls, name, cards, timer);
             } else if (side === 'left' || side === 'right') {
               seatInner.append(av, cards, name, timer);
@@ -1174,6 +1204,9 @@
           updateTimerDisplay();
           adjustHandScale();
           setupZoom();
+          if (state.arrangeMode || state.turn === 0) {
+            highlightCombos();
+          }
         }
 
         let timerInterval;
@@ -1182,7 +1215,11 @@
             const t = seat.querySelector('.timer');
             if (t) {
               if (idx === state.turn) {
-                t.textContent = idx === 0 ? 'play' : state.turnTime;
+                if (idx === 0 && !state.arrangeMode) {
+                  t.textContent = 'play';
+                } else {
+                  t.textContent = state.turnTime;
+                }
               } else {
                 t.textContent = '';
               }
@@ -1191,7 +1228,7 @@
           });
         }
         function startTurnTimer() {
-          state.turnTime = 15;
+          state.turnTime = state.players[state.turn].isHuman ? 20 : 5;
           updateTimerDisplay();
           clearInterval(timerInterval);
           timerInterval = setInterval(() => {
@@ -1226,8 +1263,17 @@
         }
         function clearSuggestions() {
           seatsEl
-            .querySelectorAll('.card.suggested')
-            .forEach((n) => n.classList.remove('suggested'));
+            .querySelectorAll(
+              '.card.suggested, .card.highlight-straight, .card.highlight-triple, .card.highlight-highest'
+            )
+            .forEach((n) =>
+              n.classList.remove(
+                'suggested',
+                'highlight-straight',
+                'highlight-triple',
+                'highlight-highest'
+              )
+            );
         }
 
         function player(i) {
@@ -1377,16 +1423,62 @@
           return [];
         }
 
-        function highlightSuggestions() {
-          const chosen = aiChoose(player(0));
-          const idxs = chosen.map((c) => player(0).hand.indexOf(c));
+        function highlightCombos() {
           const faces = seatsEl.querySelectorAll(
             '.seat.bottom .cards .card:not(.back)'
           );
-          faces.forEach((f) => {
-            const idx = Number(f.dataset.index);
-            f.classList.toggle('suggested', idxs.includes(idx));
+          faces.forEach((f) =>
+            f.classList.remove(
+              'highlight-straight',
+              'highlight-triple',
+              'highlight-highest'
+            )
+          );
+          const hand = player(0).hand;
+          if (!hand.length) return;
+          const highest = Math.max(...hand.map((c) => rankValue(c.r)));
+          hand.forEach((c, idx) => {
+            if (rankValue(c.r) === highest)
+              faces[idx].classList.add('highlight-highest');
           });
+          const counts = {};
+          hand.forEach((c) => (counts[c.r] = (counts[c.r] || 0) + 1));
+          Object.entries(counts).forEach(([r, cnt]) => {
+            if (cnt >= 3) {
+              hand.forEach((c, idx) => {
+                if (c.r === r) faces[idx].classList.add('highlight-triple');
+              });
+            }
+          });
+          const sorted = [...hand].sort(
+            (a, b) => rankValue(a.r) - rankValue(b.r)
+          );
+          let seq = [sorted[0]];
+          for (let i = 1; i < sorted.length; i++) {
+            const prevVal = rankValue(sorted[i - 1].r);
+            const currVal = rankValue(sorted[i].r);
+            if (currVal === prevVal) continue;
+            if (currVal === prevVal + 1) {
+              seq.push(sorted[i]);
+            } else {
+              if (seq.length >= 5)
+                seq.forEach((card) => {
+                  const idx = hand.indexOf(card);
+                  if (idx > -1)
+                    faces[idx].classList.add('highlight-straight');
+                });
+              seq = [sorted[i]];
+            }
+          }
+          if (seq.length >= 5)
+            seq.forEach((card) => {
+              const idx = hand.indexOf(card);
+              if (idx > -1) faces[idx].classList.add('highlight-straight');
+            });
+        }
+
+        function highlightSuggestions() {
+          highlightCombos();
         }
 
         function playTurn(i) {
@@ -1435,11 +1527,12 @@
             sndCard.play();
             renderAll();
             advanceTurn();
-          }, 700);
+          }, 1000);
         }
 
         function advanceTurn() {
           clearSuggestions();
+          let newRound = false;
           // If everyone else passed since last play, clear pile and set turn to last player
           if (state.passesSincePlay >= state.players.length - 1) {
             state.pile = [];
@@ -1449,8 +1542,11 @@
             state.turn = state.lastPlayerToPlay;
             renderAll();
             toast('New round');
+            newRound = true;
           }
-          state.turn = (state.turn + 1) % state.players.length;
+          if (!newRound) {
+            state.turn = (state.turn + 1) % state.players.length;
+          }
           // If someone has no cards -> they win
           const won = state.players.find((pl) => pl.hand.length === 0);
           if (won) {
@@ -1513,12 +1609,13 @@
 
         function startArrangePhase() {
           state.arrangeMode = true;
-          let t = 30;
+          let t = 60;
           state.turn = 0;
           state.turnTime = t;
           renderAll();
+          highlightCombos();
           toast('Arrange your cards');
-          const arrangeInterval = setInterval(() => {
+          arrangeInterval = setInterval(() => {
             t--;
             state.turnTime = t;
             updateTimerDisplay();
