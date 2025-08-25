@@ -446,12 +446,12 @@
         display: flex;
         align-items: center;
         justify-content: space-between;
-        gap: 12px;
-        padding: 0 6px;
+        gap: 20px;
+        padding: 0 12px;
       }
       .seat.top .seat-inner {
-        padding-left: 12px;
-        padding-right: 12px;
+        padding-left: 20px;
+        padding-right: 20px;
       }
       .seat.top .cards {
         gap: 0;
@@ -476,6 +476,28 @@
         gap: 12px;
       }
       .pass-icon {
+      }
+
+      .avatar-wrap {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 4px;
+      }
+      .auto-btn,
+      .lobby-btn {
+        width: 32px;
+        height: 24px;
+        padding: 0;
+        border: 2px solid #000;
+        border-radius: 6px;
+        background: #2563eb;
+        color: #fff;
+        font-size: 10px;
+        font-weight: 600;
+      }
+      .lobby-btn {
+        background: #22c55e;
       }
 
       /* TOAST */
@@ -636,6 +658,8 @@
         const colorSelect = el('#playerColor');
         const saveSettingsBtn = el('#saveSettings');
         const closeSettingsBtn = el('#closeSettings');
+        let lobbyBtn;
+        let arrangeVariant = 0;
 
         function coinConfetti(
           count = 50,
@@ -1053,10 +1077,34 @@
                 renderAll();
                 startGame();
               });
+
+              const avatarWrap = document.createElement('div');
+              avatarWrap.className = 'avatar-wrap';
+              avatarWrap.appendChild(av);
+
+              const autoBtn = document.createElement('button');
+              autoBtn.className = 'auto-btn';
+              autoBtn.textContent = 'Auto';
+              autoBtn.addEventListener('click', autoArrange);
+              avatarWrap.appendChild(autoBtn);
+
+              lobbyBtn = document.createElement('button');
+              lobbyBtn.className = 'lobby-btn';
+              lobbyBtn.textContent = 'Lobby';
+              lobbyBtn.style.display = 'none';
+              lobbyBtn.addEventListener('click', () => {
+                if (window.parent && window.parent !== window) {
+                  window.parent.location.href = '/games/murlanroyale/lobby';
+                } else {
+                  window.location.href = '/games/murlanroyale/lobby';
+                }
+              });
+              avatarWrap.appendChild(lobbyBtn);
+
               readyBtn.style.display = state.arrangeMode ? 'block' : 'none';
               playBtn.style.display = state.arrangeMode ? 'none' : 'block';
               passBtn.style.display = state.arrangeMode ? 'none' : 'flex';
-              controls.append(av, readyBtn, playBtn, passBtn);
+              controls.append(avatarWrap, readyBtn, playBtn, passBtn);
               seatInner.append(controls, name, cards, timer);
             } else if (side === 'left' || side === 'right') {
               seatInner.append(av, cards, name, timer);
@@ -1386,6 +1434,23 @@
           return m;
         }
 
+        function autoArrangeHand(hand) {
+          arrangeVariant = (arrangeVariant + 1) % 2;
+          const sorted = [...hand].sort((a, b) => {
+            const r = rankValue(a.r) - rankValue(b.r);
+            if (r !== 0) return r;
+            return arrangeVariant === 0
+              ? a.s.localeCompare(b.s)
+              : b.s.localeCompare(a.s);
+          });
+          hand.splice(0, hand.length, ...sorted);
+        }
+
+        function autoArrange() {
+          autoArrangeHand(state.players[0].hand);
+          renderAll();
+        }
+
         function aiChoose(p) {
           const hand = [...p.hand].sort(
             (a, b) => rankValue(a.r) - rankValue(b.r)
@@ -1555,6 +1620,7 @@
             clearInterval(timerInterval);
             coinConfetti();
             showWinnerOverlay(state.players.indexOf(won) === 0 ? '🃏' : '🐾');
+            if (lobbyBtn) lobbyBtn.style.display = 'block';
             return;
           }
           playTurn(state.turn);
@@ -1632,6 +1698,7 @@
         // boot
         initPlayers();
         deal();
+        autoArrangeHand(state.players[0].hand);
         state.startPlayer = findStartPlayer();
         if (state.startPlayer < 0) state.startPlayer = 0;
         renderAll();
