@@ -31,7 +31,7 @@
     .canvasWrap{
       position:absolute;
       top:40px;
-      bottom:20px;
+      bottom:0;
       left:0;
       right:0;
       display:flex;
@@ -45,7 +45,12 @@
       height:auto;
       max-height:100%;
       aspect-ratio:720/1280;
+      transform-origin:center;
+      transform:scale(0);
+      transition:transform .5s ease,width .3s ease,height .3s ease;
     }
+
+    body.loaded canvas{transform:scale(1)}
 
 
     .hint{position:fixed;inset:0;display:none;align-items:center;justify-content:center;margin:auto;max-width:680px;background:rgba(10,16,34,.6);backdrop-filter:blur(6px);border:1px solid #1f2944;border-radius:12px;padding:8px 12px;text-align:center;font-size:.9rem}
@@ -103,7 +108,7 @@
   const goalText = document.getElementById('goalText');
   const postText = document.getElementById('postText');
   const TOP_BAR = 40; // height of scoreboard bar
-  const BOTTOM_GAP = 20; // gap below rink
+  const BOTTOM_GAP = 0; // gap below rink
   const GOAL_PAUSE = 1500; // pause after a goal
   let fieldScaleActual = 1;
 
@@ -865,7 +870,9 @@
   function checkOrientation(){ landscapeBlock.style.display = (window.matchMedia('(orientation: landscape)').matches ? 'flex' : 'none'); }
   window.addEventListener('orientationchange', checkOrientation);
 
-  fit(); checkOrientation(); resetPositions(); updateScore(); playWhistle(); requestAnimationFrame(loop);
+  fit(); checkOrientation(); resetPositions(); updateScore(); playWhistle();
+  document.body.classList.add('loaded');
+  requestAnimationFrame(loop);
   })();
 </script>
 </body>
