@@ -2,7 +2,6 @@ import { useEffect, useState } from 'react';
 import useTelegramBackButton from '../hooks/useTelegramBackButton.js';
 import { getGameTransactions } from '../utils/api.js';
 import { getAvatarUrl } from '../utils/avatarUtils.js';
-import { GAME_TX_WALLET_1, GAME_TX_WALLET_2 } from '../utils/constants.js';
 
 const GAME_NAME_MAP = {
   snake: 'Snake & Ladder',
@@ -51,10 +50,6 @@ export default function GameTransactions() {
   return (
     <div className="relative space-y-4 text-text">
       <h2 className="text-2xl font-bold text-center mt-4">Game Transactions</h2>
-      <div className="bg-surface border border-border rounded-xl p-4 shadow-lg text-xs space-y-1 break-all">
-        <div>Public wallet 1: {GAME_TX_WALLET_1}</div>
-        <div>Public wallet 2: {GAME_TX_WALLET_2}</div>
-      </div>
       <div className="bg-surface border border-border rounded-xl p-4 shadow-lg space-y-1 text-sm">
         <div className="flex justify-between">
           <span>Total games played</span>
