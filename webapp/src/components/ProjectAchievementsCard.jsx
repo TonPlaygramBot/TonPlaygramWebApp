@@ -1,5 +1,3 @@
-import { GAME_TX_WALLET_1, GAME_TX_WALLET_2, MINING_REWARDS_WALLET } from '../utils/constants.js';
-
 export default function ProjectAchievementsCard() {
   const achievements = [
     '🧾 Wallet transaction history works',
@@ -28,9 +26,8 @@ export default function ProjectAchievementsCard() {
     '🎡 Spin & Win wheel',
     '🍀 Lucky Card prizes',
     '🎁 NFT Gifts marketplace',
-    `🏦 Game transactions wallet 1: ${GAME_TX_WALLET_1}`,
-    `🏦 Game transactions wallet 2: ${GAME_TX_WALLET_2}`,
-    `⛏️ Mining rewards wallet: ${MINING_REWARDS_WALLET}`,
+    '🏦 Game transactions are public',
+    '⛏️ Mining transactions are public',
   ];
 
   return (
