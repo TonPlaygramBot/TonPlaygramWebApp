@@ -203,9 +203,10 @@
     geom.goal = { x:(W-goalW)/2, y:pbarBottom + 20, w:goalW, h:goalH, post:12 };
     geom.spot = { x:W/2, y:H - Math.min(100, H*0.10) };
     geom.scale = goalW / 860;
-    keeper.w = 60*geom.scale; keeper.h = 80*geom.scale;
+    keeper.w = 60*geom.scale*4; keeper.h = 80*geom.scale*4;
     keeper.x = geom.goal.x + (geom.goal.w-keeper.w)/2;
-    keeper.y = geom.goal.y + geom.goal.h - keeper.h;
+    keeper.y = geom.goal.y + geom.goal.h - keeper.h - geom.goal.h*0.10;
+    keeper.baseY = keeper.y;
   }
 
   // ===== Game state =====
@@ -220,13 +221,15 @@
 
   let holes=[]; let banners=[]; let cameras=[]; let fragments=[];
   let netHit={x:0,y:0,t:0,shake:0};
-  const keeper={x:0,y:0,w:60,h:80,vx:0,vy:0,targetX:0,active:false,save:false};
+  const keeper={x:0,y:0,w:60,h:80,vx:0,vy:0,active:false,save:false,a:0,side:1,baseY:0,face:'👨'};
+  const keeperFaces=['👨','👩','🧑','👱‍♂️','👱‍♀️'];
+  keeper.face = keeperFaces[(Math.random()*keeperFaces.length)|0];
   const aimOn = false;
 
   const rivals=[
-    { i:0, wrap:document.querySelector('#pv0'), ptsEl:document.querySelector('#pv0pts'), cvs:null, ctx:null, score:0, next:0, acc:0.68, rate:[950,1750], shots:[] },
-    { i:1, wrap:document.querySelector('#pv1'), ptsEl:document.querySelector('#pv1pts'), cvs:null, ctx:null, score:0, next:0, acc:0.62, rate:[1020,1890], shots:[] },
-    { i:2, wrap:document.querySelector('#pv2'), ptsEl:document.querySelector('#pv2pts'), cvs:null, ctx:null, score:0, next:0, acc:0.58, rate:[1080,2010], shots:[] },
+    { i:0, wrap:document.querySelector('#pv0'), ptsEl:document.querySelector('#pv0pts'), cvs:null, ctx:null, score:0, next:0, acc:0.68, rate:[1180,2180], shots:[] },
+    { i:1, wrap:document.querySelector('#pv1'), ptsEl:document.querySelector('#pv1pts'), cvs:null, ctx:null, score:0, next:0, acc:0.62, rate:[1275,2360], shots:[] },
+    { i:2, wrap:document.querySelector('#pv2'), ptsEl:document.querySelector('#pv2pts'), cvs:null, ctx:null, score:0, next:0, acc:0.58, rate:[1350,2510], shots:[] },
   ];
   const miniHolesCache=[[],[],[]];
   for(const r of rivals){ r.cvs = r.wrap.querySelector('canvas'); r.ctx = r.cvs.getContext('2d'); }
@@ -355,22 +358,31 @@
     ctx.lineTo(g.x+g.w, g.y+g.h);
     ctx.stroke();
     for(const c of cameras){ ctx.fillStyle='#111'; ctx.fillRect(c.x,c.y,c.w,c.h); ctx.fillStyle='#e10600'; ctx.beginPath(); ctx.arc(c.x+8,c.y+6,3,0,Math.PI*2); ctx.fill(); }
-    drawKeeper();
     for(const h of holes){ if(h.hit) continue; ctx.fillStyle='rgba(225,6,0,.9)'; ctx.beginPath(); ctx.arc(h.x,h.y,h.r,0,Math.PI*2); ctx.fill();
       ctx.fillStyle='#ffd400'; ctx.font=`800 ${Math.max(12,h.r*0.9)}px system-ui`; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText(h.points,h.x,h.y); }
     for(const f of fragments){ ctx.save(); ctx.translate(f.x,f.y); ctx.rotate(f.a); ctx.fillStyle='#ffd400'; ctx.fillRect(-4,-2,8,4); ctx.restore(); }
+    drawKeeper();
   }
 
   function drawKeeper(){
     const k=keeper;
     ctx.save();
-    ctx.translate(k.x,k.y);
+    ctx.translate(k.x + k.w/2, k.y + k.h/2);
+    ctx.rotate(k.a||0);
+    ctx.translate(-k.w/2, -k.h/2);
     ctx.fillStyle='#2563eb';
     ctx.fillRect(0,k.h*0.25,k.w,k.h*0.75);
-    ctx.fillStyle='#ffdbac';
-    ctx.beginPath(); ctx.arc(k.w/2,k.h*0.15,k.w*0.25,0,Math.PI*2); ctx.fill();
-    ctx.fillStyle='#2563eb';
-    ctx.fillRect(-k.w*0.2,k.h*0.35,k.w*1.4,k.h*0.15);
+    const armY = k.h*0.35;
+    const armLen = k.w*0.7;
+    ctx.fillRect(-armLen,armY,armLen,k.h*0.15);
+    ctx.fillRect(k.w,armY,armLen,k.h*0.15);
+    ctx.font = `${k.w*0.3}px sans-serif`;
+    ctx.textAlign='center';
+    ctx.textBaseline='middle';
+    ctx.fillText('✋️', -armLen, armY + k.h*0.075);
+    ctx.fillText('🤚', k.w + armLen, armY + k.h*0.075);
+    ctx.font = `${k.w*0.4}px sans-serif`;
+    ctx.fillText(k.face, k.w/2, k.h*0.15);
     ctx.restore();
   }
 
@@ -422,11 +434,12 @@
 
   function stepKeeper(){
     if(!keeper.active) return;
-    keeper.x += (keeper.targetX-keeper.x)*0.2;
-    keeper.y += keeper.vy; keeper.vy += 0.6;
-    if(keeper.y >= geom.goal.y + geom.goal.h - keeper.h){
-      keeper.y = geom.goal.y + geom.goal.h - keeper.h; keeper.vy=0; keeper.active=false; keeper.save=false;
+    keeper.x += keeper.vx;
+    keeper.y += keeper.vy; keeper.vy += 0.6; keeper.vx *= 0.95;
+    if(keeper.y >= keeper.baseY){
+      keeper.y = keeper.baseY; keeper.vy=0; keeper.vx=0; keeper.a=0; keeper.active=false; keeper.save=false;
     }
+    keeper.x = clamp(keeper.x, geom.goal.x, geom.goal.x+geom.goal.w-keeper.w);
   }
 
   // ===== Aim guide =====
@@ -459,7 +472,7 @@ function endShot(hit,pts){
     vibrate(12);
   }
   updateHUD();
-  setTimeout(resetBall, 100);
+  resetBall();
 }
   function updateHUD(){
     scoreLbl.textContent = myScore;
@@ -476,8 +489,8 @@ function endShot(hit,pts){
   function pos(e){ const r=canvas.getBoundingClientRect(); return {x:(e.clientX-r.left)*(W/r.width), y:(e.clientY-r.top)*(H/r.height)}; }
   function onDown(e){ if(!running||ended||paused) return; if(pointer.active) return; pointer.active=true; pointer.id=e.pointerId; const p=pos(e); pointer.path=[p]; pointer.t0=performance.now(); pointer.t1=pointer.t0; pointer.armed = Math.hypot(p.x-ball.x,p.y-ball.y) <= ball.r*1.25 && !ball.moving; if(pointer.armed){ status('Swipe upward. Curve for spin.'); sfxKick(); } }
   function onMove(e){ if(!pointer.active||e.pointerId!==pointer.id) return; pointer.path.push(pos(e)); pointer.t1=performance.now();
-    if(pointer.armed && aimOn && pointer.path.length>2){ const a=pointer.path[0], b=pointer.path[pointer.path.length-1]; const dx=b.x-a.x, dy=b.y-a.y, dt=Math.max(16,(pointer.t1-pointer.t0)); const dist=Math.hypot(dx,dy), power=clamp(dist/dt, 0.55, 3.0); const len=Math.max(1,Math.hypot(dx,dy)); const dirx=dx/len, diry=dy/len; let spin=0; for(let i=2;i<pointer.path.length;i++){ const u=pointer.path[i-2], v=pointer.path[i-1], w=pointer.path[i]; spin += (v.x-u.x)*(w.y-v.y) - (v.y-u.y)*(w.x-v.x); } spin = clamp(spin/(dist*40), -2.6, 2.6); const SPEED=36; drawAimPath(dirx*SPEED*power, diry*SPEED*power, spin); } }
-  function onUp(e){ if(!pointer.active||e.pointerId!==pointer.id) return; pointer.active=false; if(!pointer.armed||ball.moving||!running||paused){ pointer.path=[]; return; } const path=pointer.path; pointer.path=[]; if(path.length<3){ status('Swipe longer/faster.'); return; } const dt=Math.max(16,(pointer.t1-pointer.t0)), a=path[0], b=path[path.length-1]; const dx=b.x-a.x, dy=b.y-a.y; if(dy>-10){ status('Swipe upward.'); return; } const dist=Math.hypot(dx,dy), power=clamp(dist/dt, 0.55, 3.0); const len=Math.max(1,Math.hypot(dx,dy)); const dirx=dx/len, diry=dy/len; let spin=0; for(let i=2;i<path.length;i++){ const u=path[i-2], v=path[i-1], w=path[i]; spin += (v.x-u.x)*(w.y-v.y) - (v.y-u.y)*(w.x-v.x); } spin = clamp(spin/(dist*40), -2.6, 2.6); const SPEED=36; ball.vx=dirx*SPEED*power; ball.vy=diry*SPEED*power; ball.spin=spin; ball.moving=true; keeper.active=true; keeper.save=Math.random()<0.5; keeper.targetX = keeper.save ? clamp(ball.x-keeper.w/2, geom.goal.x, geom.goal.x+geom.goal.w-keeper.w) : keeper.x; keeper.vy=-8; powerBar.style.height = Math.round(clamp(power/3.0,0,1)*100)+'%'; }
+    if(pointer.armed && aimOn && pointer.path.length>2){ const a=pointer.path[0], b=pointer.path[pointer.path.length-1]; const dx=b.x-a.x, dy=b.y-a.y, dt=Math.max(16,(pointer.t1-pointer.t0)); const dist=Math.hypot(dx,dy), power=clamp(dist/dt, 0.55, 3.0); const len=Math.max(1,Math.hypot(dx,dy)); const dirx=dx/len, diry=dy/len; let spin=0; for(let i=2;i<pointer.path.length;i++){ const u=pointer.path[i-2], v=pointer.path[i-1], w=pointer.path[i]; spin += (v.x-u.x)*(w.y-v.y) - (v.y-u.y)*(w.x-v.x); } spin = clamp(spin/(dist*40), -2.6, 2.6); const SPEED=45; drawAimPath(dirx*SPEED*power, diry*SPEED*power, spin); } }
+  function onUp(e){ if(!pointer.active||e.pointerId!==pointer.id) return; pointer.active=false; if(!pointer.armed||ball.moving||!running||paused){ pointer.path=[]; return; } const path=pointer.path; pointer.path=[]; if(path.length<3){ status('Swipe longer/faster.'); return; } const dt=Math.max(16,(pointer.t1-pointer.t0)), a=path[0], b=path[path.length-1]; const dx=b.x-a.x, dy=b.y-a.y; if(dy>-10){ status('Swipe upward.'); return; } const dist=Math.hypot(dx,dy), power=clamp(dist/dt, 0.55, 3.0); const len=Math.max(1,Math.hypot(dx,dy)); const dirx=dx/len, diry=dy/len; let spin=0; for(let i=2;i<path.length;i++){ const u=path[i-2], v=path[i-1], w=path[i]; spin += (v.x-u.x)*(w.y-v.y) - (v.y-u.y)*(w.x-v.x); } spin = clamp(spin/(dist*40), -2.6, 2.6); const SPEED=45; ball.vx=dirx*SPEED*power; ball.vy=diry*SPEED*power; ball.spin=spin; ball.moving=true; keeper.save=Math.random()<0.5; keeper.active=keeper.save; if(keeper.save){ const target=clamp(ball.x-keeper.w/2, geom.goal.x, geom.goal.x+geom.goal.w-keeper.w); keeper.side=Math.sign(target-keeper.x)||1; keeper.vx=keeper.side*12; keeper.vy=-6; keeper.a=keeper.side*-0.3; } else { keeper.vx=0; keeper.vy=0; keeper.a=0; } powerBar.style.height = Math.round(clamp(power/3.0,0,1)*100)+'%'; }
   canvas.addEventListener('pointerdown', onDown, {passive:true});
   canvas.addEventListener('pointermove', onMove, {passive:true});
   addEventListener('pointerup', onUp, {passive:true}); addEventListener('pointercancel', onUp, {passive:true});
@@ -515,7 +528,7 @@ function endShot(hit,pts){
   // ===== Controls =====
   // controls removed
 
-  function resetBall(){ ball.x=geom.spot.x; ball.y=geom.spot.y; ball.vx=ball.vy=ball.spin=0; ball.angle=0; ball.moving=false; ball.netSounded=false; ball.trail=[]; netHit={x:0,y:0,t:0,shake:0}; keeper.active=false; keeper.save=false; }
+  function resetBall(){ ball.x=geom.spot.x; ball.y=geom.spot.y; ball.vx=ball.vy=ball.spin=0; ball.angle=0; ball.moving=false; ball.netSounded=false; ball.trail=[]; netHit={x:0,y:0,t:0,shake:0}; keeper.active=false; keeper.save=false; keeper.vx=0; keeper.vy=0; keeper.a=0; keeper.x = geom.goal.x + (geom.goal.w-keeper.w)/2; keeper.y = keeper.baseY; }
   function startGame(){ running=true; paused=false; ended=false; roundStart=performance.now(); timeLeft=ROUND_TIME; myScore=0; for(const r of rivals){ r.score=0; r.next=0; r.shots=[]; } resetBall(); generateHoles(); drawMiniBoards(true); updateHUD(); ensureAudio(); sfxStart(); status('Go! Score as many as you can.'); }
 
   // ===== WebAudio SFX (no files) =====
