@@ -65,7 +65,6 @@
   .ribbon{background:var(--panel);border:1px solid var(--panel-b);border-radius:12px;padding:8px 12px;text-align:center;font-size:14px}
 
   /* tests */
-  .testbar{position:fixed;right:12px;bottom:12px;z-index:120;background:#0f172acc;color:#bfe1ff;border:1px solid #1c244a;border-radius:10px;padding:6px 10px;font:12px/1.2 monospace;max-width:64vw}
 
   @media (max-width: 420px){
     .hud{grid-template-columns:1fr}
@@ -107,20 +106,6 @@
     </div>
   </div>
 
-  <div class="hud" id="hud">
-    <div class="panel"><div><div class="meta">You</div><div class="meta" id="time">Time: 00:30</div></div><div class="score" id="myScore">0</div></div>
-    <div class="panel">
-      <div><div class="meta">Arcade • 30s</div><div class="meta">Hold ball & flick upward. Curve adds spin.</div></div>
-      <div class="btns">
-        <button id="startBtn">Start</button>
-        <button class="ghost" id="regen">New Targets</button>
-        <button class="ghost" id="aimBtn">Aim: ON</button>
-        <button class="warn" id="pauseBtn">Pause</button>
-      </div>
-    </div>
-    <div class="panel"><div class="meta">Leader</div><div class="score" id="leaderScore">0</div></div>
-  </div>
-
   <div class="pbar" id="pbar">
     <div style="display:flex;align-items:center;gap:10px"><img class="avatar" id="userAvatar" alt="" /><div id="username">You</div></div>
     <div class="badge hearts">❤❤❤</div>
@@ -129,11 +114,7 @@
   </div>
 
   <div class="stage"><div class="frame"></div><div class="label">Score: <span id="scoreLabel">0</span></div></div>
-
-  <div class="bottom"><div class="ribbon" id="status">Tap & hold the ball. Flick upward to shoot. Curve your swipe for spin. Highest score in 30s wins.</div></div>
   <div class="power" aria-hidden="true"><div class="bar" id="powerBar"></div></div>
-
-  <div class="testbar" id="testbar">tests: (pending)</div>
 
   <canvas id="game" aria-label="Penalty field"></canvas>
 
@@ -153,36 +134,27 @@
   addEventListener('resize', resize);
 
   // ===== UI refs =====
-  const myScoreEl = document.getElementById('myScore');
-  const leaderEl  = document.getElementById('leaderScore');
-  const timeEl    = document.getElementById('time');
   const timeShort = document.getElementById('timeShort');
   const scoreLbl  = document.getElementById('scoreLabel');
-  const statusEl  = document.getElementById('status');
   const powerBar  = document.getElementById('powerBar');
-  const btnStart  = document.getElementById('startBtn');
-  const btnRegen  = document.getElementById('regen');
-  const btnAim    = document.getElementById('aimBtn');
-  const btnPause  = document.getElementById('pauseBtn');
-  const hudEl     = document.getElementById('hud');
   const previewsEl= document.getElementById('previews');
   const userAvatarEl = document.getElementById('userAvatar');
   const usernameEl = document.getElementById('username');
   const pvAvatars = [document.getElementById('pv0avatar'), document.getElementById('pv1avatar'), document.getElementById('pv2avatar')];
   const pvNames   = [document.getElementById('pv0name'), document.getElementById('pv1name'), document.getElementById('pv2name')];
-  const testbar   = document.getElementById('testbar');
 
   function positionLayout(){
     const pr = previewsEl.getBoundingClientRect();
-    hudEl.style.top = (pr.bottom + 8) + 'px';
-    const hr = hudEl.getBoundingClientRect();
-    document.getElementById('pbar').style.top = (hr.bottom + 16) + 'px';
-    document.querySelector('.stage').style.top = (hr.bottom + 16 + 56 + 10) + 'px';
+    const pbar = document.getElementById('pbar');
+    pbar.style.top = (pr.bottom + 16) + 'px';
+    document.querySelector('.stage').style.top = (pbar.getBoundingClientRect().bottom + 16) + 'px';
   }
 
   const params = new URLSearchParams(location.search);
   const avatarParam = params.get('avatar') || '';
   let userName = params.get('name') || params.get('username') || '';
+  const durationParam = parseInt(params.get('duration')) || 30;
+  timeShort.textContent = durationParam;
 
   function emojiToDataUri(flag){
     return `data:image/svg+xml,${encodeURIComponent(`<svg xmlns='http://www.w3.org/2000/svg' width='64' height='64'><text x='50%' y='50%' font-size='48' text-anchor='middle' dominant-baseline='central'>${flag}</text></svg>`)}`;
@@ -230,7 +202,7 @@
   }
 
   // ===== Game state =====
-  const ROUND_TIME = 30_000;
+  const ROUND_TIME = durationParam * 1000;
   let roundStart = 0; let timeLeft = ROUND_TIME; let running=false; let paused=false; let ended=false;
   let myScore = 0;
 
@@ -238,6 +210,7 @@
   const ball = { x:0,y:0,r:BALL_R, vx:0,vy:0, moving:false, trail:[], spin:0 };
 
   let holes=[]; let banners=[]; let cameras=[];
+  const aimOn = true;
 
   const rivals=[
     { i:0, wrap:document.querySelector('#pv0'), ptsEl:document.querySelector('#pv0pts'), cvs:null, ctx:null, score:0, next:0, acc:0.68, rate:[520,900] },
@@ -359,7 +332,7 @@
   }
 
   // ===== Aim guide =====
-  let aimOn=true; btnAim.addEventListener('click', ()=>{ aimOn=!aimOn; btnAim.textContent = `Aim: ${aimOn?'ON':'OFF'}`; });
+  // aiming controls removed
   function drawAimPath(vx,vy,spin){
     if(!aimOn) return;
     const steps=28; let x=ball.x, y=ball.y, vx1=vx, vy1=vy;
@@ -375,10 +348,10 @@
 
   // ===== Round / scoring =====
   function endShot(hit,pts){ ball.moving=false; if(hit){ myScore += pts; status('GOAL! +' + pts); sfxGoal(); vibrate(25);} else { status('Missed.'); sfxMiss(); vibrate(12);} updateHUD(); setTimeout(resetBall, 200); }
-  function updateHUD(){ myScoreEl.textContent = myScore; scoreLbl.textContent = myScore; const lead = Math.max(myScore, ...rivals.map(r=>r.score)); leaderEl.textContent = lead; timeEl.textContent = `Time: ${fmtTime(timeLeft)}`; timeShort.textContent = Math.ceil(timeLeft/1000); }
+  function updateHUD(){ scoreLbl.textContent = myScore; timeShort.textContent = Math.ceil(timeLeft/1000); }
   function fmtTime(ms){ const s=Math.max(0, Math.ceil(ms/1000)); const m=Math.floor(s/60); const ss=String(s%60).padStart(2,'0'); return `${m}:${ss}`; }
-  function finish(){ running=false; ended=true; const all=[{n:'You',s:myScore},{n:'Canada',s:rivals[0].score},{n:'France',s:rivals[1].score},{n:'Germany',s:rivals[2].score}].sort((a,b)=>b.s-a.s); status(`Winner: ${all[0].n} with ${all[0].s} pts. Tap Start to play again.`); sfxEnd(); }
-  function status(msg){ statusEl.textContent = msg; }
+  function finish(){ running=false; ended=true; sfxEnd(); }
+  function status(msg){ /* no-op */ }
 
   // ===== Input (swipe/flick + spin) =====
   let pointer={id:null,path:[],active:false,armed:false,t0:0,t1:0};
@@ -416,13 +389,11 @@
   function stepRivals(now){ if(!running||paused) return; const t = 1 - (timeLeft/ROUND_TIME); for(let i=0;i<rivals.length;i++){ const r=rivals[i]; if(now>r.next){ r.next = now + rnd(r.rate[0], r.rate[1]) * (1 - 0.45*t); const list = Array.isArray(miniHolesCache[i]) ? miniHolesCache[i] : []; if(list.length===0){ genMiniHolesForCard(i); continue; } const target = Math.random()<0.35 ? list.slice().sort((a,b)=>a.r-b.r)[0] : list[Math.floor(Math.random()*list.length)]; const acc = clamp(r.acc * (0.9 + 0.5*t), 0, 0.98); const chance = acc * (22/Math.max(10,target.r)); if(Math.random() < chance){ r.score += Math.max(5, Math.round(target.p)); sfxRival(); } } r.ptsEl.textContent = r.score; } }
 
   // ===== Timer + loop =====
-  function tick(now){ if(!running||paused) return; if(!roundStart) roundStart=now; timeLeft = Math.max(0, ROUND_TIME - (now - roundStart)); timeEl.textContent = `Time: ${fmtTime(timeLeft)}`; timeShort.textContent = Math.ceil(timeLeft/1000); if(timeLeft<=0){ finish(); } }
+  function tick(now){ if(!running||paused) return; if(!roundStart) roundStart=now; timeLeft = Math.max(0, ROUND_TIME - (now - roundStart)); timeShort.textContent = Math.ceil(timeLeft/1000); if(timeLeft<=0){ finish(); } }
   function loop(now){ requestAnimationFrame(loop); drawField(); drawAds(); drawGoal(); drawBall(); stepBall(); tick(now||performance.now()); stepRivals(now||performance.now()); updateHUD(); }
 
   // ===== Controls =====
-  btnStart.addEventListener('click', ()=> startGame());
-  btnRegen.addEventListener('click', ()=>{ generateHoles(); status('Targets regenerated.'); drawMiniBoards(true); });
-  btnPause.addEventListener('click', ()=>{ if(!running) return; paused=!paused; btnPause.textContent = paused? 'Resume' : 'Pause'; status(paused? 'Paused' : 'Go!'); });
+  // controls removed
 
   function resetBall(){ ball.x=geom.spot.x; ball.y=geom.spot.y; ball.vx=ball.vy=ball.spin=0; ball.moving=false; ball.trail=[]; }
   function startGame(){ running=true; paused=false; ended=false; roundStart=performance.now(); timeLeft=ROUND_TIME; myScore=0; for(const r of rivals){ r.score=0; r.next=0; } resetBall(); generateHoles(); drawMiniBoards(true); updateHUD(); ensureAudio(); sfxStart(); status('Go! Score as many as you can.'); }
@@ -440,10 +411,41 @@
 
   // ===== Static draw & tests =====
   function drawStaticOnce(){ drawField(); drawAds(); drawGoal(); resetBall(); drawBall(); drawMiniBoards(true); }
-  function runSmokeTests(){ const T=[]; const ok=(n,c)=>T.push(`${c?'✅':'❌'} ${n}`); ok('canvas present', !!canvas); ok('rivals length=3', rivals.length===3); ok('mini caches arrays', Array.isArray(miniHolesCache[0])&&Array.isArray(miniHolesCache[1])&&Array.isArray(miniHolesCache[2])); generateHoles(); ok('holes count >=6', holes.length>=6); ok('startGame sets running', (function(){ startGame(); return running; })()); ok('ball at spot', Math.abs(ball.x-geom.spot.x)<1 && Math.abs(ball.y-geom.spot.y)<1); document.getElementById('testbar').textContent = 'tests: ' + T.join('  |  '); }
 
   // ===== Boot =====
-  function boot(){ resize(); initBanners(); initCameras(); drawStaticOnce(); requestAnimationFrame(loop); canvas.addEventListener('pointerdown', ()=>{ if(!running||ended) startGame(); ensureAudio(); }, {once:false}); runSmokeTests(); }
+  function startCountdown(n){
+    const el=document.createElement('div');
+    el.style.position='fixed';
+    el.style.inset='0';
+    el.style.display='flex';
+    el.style.alignItems='center';
+    el.style.justifyContent='center';
+    el.style.fontSize='72px';
+    el.style.fontWeight='800';
+    el.style.background='rgba(0,0,0,0.4)';
+    el.style.color='#fff';
+    document.body.appendChild(el);
+    const tick=()=>{
+      if(n>0){
+        el.textContent=n;
+        setTimeout(()=>{ n--; tick(); },1000);
+      } else {
+        document.body.removeChild(el);
+        startGame();
+      }
+    };
+    tick();
+  }
+
+  function boot(){
+    resize();
+    initBanners();
+    initCameras();
+    drawStaticOnce();
+    requestAnimationFrame(loop);
+    canvas.addEventListener('pointerdown', ()=>{ if(!running||ended) startCountdown(3); ensureAudio(); }, {once:false});
+    startCountdown(3);
+  }
   boot();
 })();
 </script>
