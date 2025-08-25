@@ -56,21 +56,6 @@
     .coin-confetti{position:fixed;top:-40px;width:32px;height:32px;pointer-events:none;animation:coin-fall var(--duration,3s) linear forwards}
     @keyframes coin-fall{from{transform:translateY(-10vh) rotate(0deg);opacity:1}to{transform:translateY(100vh) rotate(360deg);opacity:0}}
 
-    #saveCalib{
-      position:absolute;
-      top:50%;
-      left:50%;
-      transform:translate(-50%,-50%);
-      display:block;
-      padding:8px 16px;
-      background:#00f7ff;
-      color:#fff;
-      border:none;
-      border-radius:8px;
-      font-size:14px;
-      z-index:10;
-    }
-
       .goal-text{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);font-size:48px;font-weight:800;color:var(--goal);text-align:center;display:none;pointer-events:none;line-height:1.1;-webkit-text-stroke:2px #000;text-shadow:-2px -2px 0 #000,2px -2px 0 #000,-2px 2px 0 #000,2px 2px 0 #000}
       .goal-text.own-goal{color:#ff0000;-webkit-text-stroke:2px #fff;text-shadow:-2px -2px 0 #fff,2px -2px 0 #fff,-2px 2px 0 #fff,2px 2px 0 #fff}
       .goal-text .score-line{display:block;font-size:32px;font-weight:600}
@@ -93,7 +78,6 @@
       </div>
     </div>
     <button id="muteBtn" class="mute-btn" aria-label="Toggle sound">🔊</button>
-    <button id="saveCalib">Save Calib</button>
     <div class="canvasWrap">
       <canvas id="game" width="720" height="1280" aria-label="Goal Rush Field"></canvas>
     </div>
@@ -116,7 +100,6 @@
   const startHint = document.getElementById('startHint');
   const landscapeBlock = document.querySelector('.landscape-block');
   const muteBtn = document.getElementById('muteBtn');
-  const saveCalibBtn = document.getElementById('saveCalib');
   const goalText = document.getElementById('goalText');
   const postText = document.getElementById('postText');
   const TOP_BAR = 40; // height of scoreboard bar
@@ -142,7 +125,6 @@
   const devAccount = params.get('dev');
   const devAccount1 = params.get('dev1');
   const devAccount2 = params.get('dev2');
-  saveCalibBtn.addEventListener('click', saveCalibration);
   const tgId = params.get('tgId');
   const initParam = params.get('init');
   if (initParam && !window.Telegram) {
@@ -185,54 +167,8 @@
     } catch {}
   }
 
-  async function saveCalibration() {
-    const calibration = {
-      fieldScaleX,
-      fieldScaleY,
-      fieldImgScaleX,
-      fieldImgScaleY,
-      puckScale,
-      goalWidthPct,
-      goalOffsetXPct,
-      goalOffsetYPct,
-      paddleScale,
-      speedMul,
-      rinkX: rink.x,
-      rinkY: rink.y,
-      goalCenterX,
-      goalTopY,
-      goalBottomY
-    };
-    try {
-      const res = await fetch('/api/goal-rush/calibration', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ accountId: myAccountId, calibration })
-      });
-      if (!res.ok) throw new Error('fail');
-      alert('Calibration saved');
-      await loadCalibration();
-      fit();
-    } catch (err) {
-      alert('Failed to save calibration');
-    }
-  }
-
   await loadCalibration();
-  try {
-    const oldFieldScale = parseFloat(localStorage.getItem('fieldScale')) || 1;
-    fieldScaleX = parseFloat(localStorage.getItem('fieldScaleX')) || oldFieldScale || fieldScaleX;
-    fieldScaleY = parseFloat(localStorage.getItem('fieldScaleY')) || oldFieldScale || fieldScaleY;
-    const oldImgScale = parseFloat(localStorage.getItem('fieldImgScale')) || 1;
-    fieldImgScaleX = parseFloat(localStorage.getItem('fieldImgScaleX')) || oldImgScale || fieldImgScaleX;
-    fieldImgScaleY = parseFloat(localStorage.getItem('fieldImgScaleY')) || oldImgScale || fieldImgScaleY;
-    puckScale = parseFloat(localStorage.getItem('puckScale')) || puckScale;
-    goalWidthPct = parseFloat(localStorage.getItem('goalWidthPct')) || goalWidthPct;
-    goalOffsetXPct = parseFloat(localStorage.getItem('goalOffsetXPct')) || goalOffsetXPct;
-    goalOffsetYPct = parseFloat(localStorage.getItem('goalOffsetYPct')) || goalOffsetYPct;
-    paddleScale = parseFloat(localStorage.getItem('paddleScale')) || paddleScale;
-    speedMul = parseFloat(localStorage.getItem('speedMul')) || speedMul;
-  } catch {}
+
   const FLAG_DATA = [
     { emoji:'🇺🇸', name:'USA' },
     { emoji:'🇬🇧', name:'UK' },
