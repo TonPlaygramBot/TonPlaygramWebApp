@@ -337,6 +337,7 @@
   const score = { p1:0, p2:0, target };
   let running = true; let last = 0;
   let lastTouch = null;
+  let cornerEscapeFrames = 0;
   const difficultySpeeds = { easy:15, normal:19, hard:25 };
   p2.max = difficultySpeeds[difficulty] || 17;
 
@@ -629,7 +630,8 @@
   }
 
   function aiUpdate(){
-    const reaction = { easy: 0.066, normal: 0.114, hard: 0.19 }[difficulty] || 0.095;
+    const baseReaction = { easy: 0.066, normal: 0.114, hard: 0.19 }[difficulty] || 0.095;
+    let reaction = baseReaction;
     const margin = p2.r + 12;
     const minX = rink.x + margin;
     const maxX = rink.x + rink.w - margin;
@@ -642,23 +644,31 @@
       // attack: chase puck when it's on AI side
       ty = clamp(puck.y, minY, maxY);
     }
-    // Pull the AI away from corners when the puck is far away
-    if (puck.y >= centerY && (p2.x <= minX + 1 || p2.x >= maxX - 1 || p2.y <= minY + 1)) {
-      tx = centerX;
-      ty = defendY;
-    }
-    // If puck and AI are stuck in a corner on the AI side, nudge the puck out
-    const cornerZone = 40; // expanded area from walls to consider a corner
-    const puckSpeed = Math.hypot(puck.vx, puck.vy);
-    const puckInCorner = puck.y < minY + cornerZone && (puck.x < minX + cornerZone || puck.x > maxX - cornerZone);
-    if (puck.y < centerY && puckInCorner && puckSpeed < 8) {
-      const dir = puck.x < centerX ? 1 : -1;
-      const angle = 0.2 + Math.random() * 1.1; // kick downward toward center
-      const power = 8 + Math.random() * 4;
-      puck.vx = Math.cos(angle) * dir * power;
-      puck.vy = Math.sin(angle) * power;
+    if (cornerEscapeFrames > 0) {
+      cornerEscapeFrames--;
+      reaction *= 2;
       tx = centerX;
       ty = rink.y + rink.h * 0.3;
+    } else {
+      // Pull the AI away from corners when the puck is far away
+      if (puck.y >= centerY && (p2.x <= minX + 1 || p2.x >= maxX - 1 || p2.y <= minY + 1)) {
+        tx = centerX;
+        ty = defendY;
+      }
+      // If puck and AI are stuck in a corner on the AI side, nudge the puck out
+      const cornerZone = 40; // expanded area from walls to consider a corner
+      const puckSpeed = Math.hypot(puck.vx, puck.vy);
+      const puckInCorner = puck.y < minY + cornerZone && (puck.x < minX + cornerZone || puck.x > maxX - cornerZone);
+      if (puck.y < centerY && puckInCorner && puckSpeed < 8) {
+        const dir = puck.x < centerX ? 1 : -1;
+        const angle = 0.3 + Math.random() * 1.0; // kick downward toward center
+        const power = 10 + Math.random() * 6;
+        puck.vx = Math.cos(angle) * dir * power;
+        puck.vy = Math.sin(angle) * power;
+        tx = centerX;
+        ty = rink.y + rink.h * 0.3;
+        cornerEscapeFrames = 25;
+      }
     }
     p2.x += (tx - p2.x) * reaction;
     p2.y += (ty - p2.y) * reaction;
@@ -705,6 +715,16 @@
         const v = Math.hypot(puck.vx,puck.vy); const maxV = puck.max*speedMul*1.25;
         if (v>maxV){ const s=maxV/v; puck.vx*=s; puck.vy*=s; }
         lastTouch = (p === p1) ? 'p1' : 'p2';
+        if (p === p2) {
+          const aimX = centerX;
+          const aimY = goalBottomY - 20;
+          const dx = aimX - puck.x;
+          const dy = aimY - puck.y;
+          const len = Math.hypot(dx, dy) || 1;
+          const shotSpeed = Math.max(Math.hypot(puck.vx, puck.vy), 10);
+          puck.vx = (dx / len) * shotSpeed;
+          puck.vy = (dy / len) * shotSpeed;
+        }
         if (p === p1 || mode !== 'ai') sfx.hit();
       }
     });
