@@ -157,7 +157,10 @@ app.post('/api/goal-rush/calibration', (req, res) => {
     process.env.DEV_ACCOUNT_ID_1 || process.env.VITE_DEV_ACCOUNT_ID_1,
     process.env.DEV_ACCOUNT_ID_2 || process.env.VITE_DEV_ACCOUNT_ID_2
   ].filter(Boolean);
-  if (!accountId || !devAccounts.includes(accountId)) {
+  if (
+    devAccounts.length &&
+    (!accountId || !devAccounts.includes(accountId))
+  ) {
     return res.status(403).json({ error: 'unauthorized' });
   }
   if (!calibration || typeof calibration !== 'object') {
