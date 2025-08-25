@@ -12,6 +12,7 @@ export default function PenaltyKickLobby() {
   const [stake, setStake] = useState({ token: 'TPC', amount: 100 });
   const [mode, setMode] = useState('ai');
   const [players, setPlayers] = useState(2);
+  const [duration, setDuration] = useState(30);
 
   const startGame = async () => {
     let tgId;
@@ -38,6 +39,7 @@ export default function PenaltyKickLobby() {
     }
     if (stake.token) params.set('token', stake.token);
     if (stake.amount) params.set('amount', stake.amount);
+    if (duration) params.set('duration', duration);
     if (tgId) params.set('tgId', tgId);
     if (accountId) params.set('accountId', accountId);
     navigate(`/games/penaltykick?${params.toString()}`);
@@ -79,6 +81,20 @@ export default function PenaltyKickLobby() {
           </div>
         </div>
       )}
+      <div className="space-y-2">
+        <h3 className="font-semibold">Duration</h3>
+        <div className="flex gap-2">
+          {[30, 60, 180].map((t) => (
+            <button
+              key={t}
+              onClick={() => setDuration(t)}
+              className={`lobby-tile ${duration === t ? 'lobby-selected' : ''}`}
+            >
+              {t === 30 ? '30s' : t === 60 ? '1m' : '3m'}
+            </button>
+          ))}
+        </div>
+      </div>
       <div className="space-y-2">
         <h3 className="font-semibold">Stake</h3>
         <RoomSelector selected={stake} onSelect={setStake} tokens={['TPC']} />
