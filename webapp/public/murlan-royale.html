@@ -253,7 +253,7 @@
       }
       .seat.left .cards .card:not(:first-child),
       .seat.right .cards .card:not(:first-child) {
-        margin-top: calc(var(--card-w) * -0.5);
+        margin-top: calc(var(--card-h) * -0.88);
       }
       .seat.left .opp-fan .card {
         transform: rotate(calc(var(--rot, 0deg) - 90deg));
@@ -769,7 +769,7 @@
               '--card-w'
             )
           );
-          const gap = cardW * 0.3; // overlap similar to top opponent
+          const gap = cardW * 0.15; // tightly overlap like top player's stack
           pileEl.style.width = cardW + (state.pile.length - 1) * gap + 'px';
           const startAngle = (-8 * (state.pile.length - 1)) / 2;
           state.pile.forEach((c, idx) => {
