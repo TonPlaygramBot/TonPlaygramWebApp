@@ -643,6 +643,9 @@
     if (puck.y < centerY) {
       // attack: chase puck when it's on AI side
       ty = clamp(puck.y, minY, maxY);
+    } else {
+      // defend: react a bit slower to make AI less perfect
+      reaction *= 0.85;
     }
     if (cornerEscapeFrames > 0) {
       cornerEscapeFrames--;
