@@ -297,8 +297,9 @@
     H = canvas.height = Math.floor(height * devicePixelRatio);
     canvas.style.width = width + 'px';
     canvas.style.height = height + 'px';
-    const baseW = W*0.88;
-    const baseH = H*0.92;
+    // expand field by reducing canvas margins ~5% on each side
+    const baseW = W * 0.98;
+    const baseH = H * 0.98;
     const maxFieldScaleX = W/baseW;
     const maxFieldScaleY = H/baseH;
     const fsx = Math.min(fieldScaleX, maxFieldScaleX);
@@ -448,17 +449,59 @@
     ctx.closePath();
   }
   function drawRink(){
+    // base field
     rr(rink.x, rink.y, rink.w, rink.h, rink.r);
-    ctx.fillStyle = getCSS('--field'); ctx.fill();
-    ctx.lineWidth = Math.max(2, W*0.003);
+    ctx.fillStyle = getCSS('--field');
+    ctx.fill();
+
+    // vertical shadow stripes
+    ctx.save();
+    rr(rink.x, rink.y, rink.w, rink.h, rink.r);
+    ctx.clip();
+    const stripeW = rink.w / 10;
+    ctx.fillStyle = 'rgba(255,255,255,0.05)';
+    for (let i = 1; i < 10; i += 2) {
+      ctx.fillRect(rink.x + i * stripeW, rink.y, stripeW, rink.h);
+    }
+    ctx.restore();
+
+    // thick white markings
+    ctx.lineWidth = Math.max(4, W * 0.006);
     ctx.strokeStyle = getCSS('--line');
-    ctx.beginPath(); ctx.moveTo(rink.x+10, centerY); ctx.lineTo(rink.x+rink.w-10, centerY); ctx.stroke();
-    ctx.beginPath(); ctx.arc(centerX, centerY, Math.min(W,H)*0.11, 0, Math.PI*2); ctx.stroke();
-    ctx.beginPath();
-    ctx.arc(centerX, H*0.25, Math.min(W,H)*0.09, 0, Math.PI*2);
-    ctx.moveTo(centerX + Math.min(W,H)*0.09, H*0.75);
-    ctx.arc(centerX, H*0.75, Math.min(W,H)*0.09, 0, Math.PI*2);
+    ctx.lineJoin = 'round';
+    ctx.lineCap = 'round';
+
+    // outer boundary
+    rr(rink.x, rink.y, rink.w, rink.h, rink.r);
     ctx.stroke();
+
+    // center line
+    ctx.beginPath();
+    ctx.moveTo(rink.x, centerY);
+    ctx.lineTo(rink.x + rink.w, centerY);
+    ctx.stroke();
+
+    // center circle
+    ctx.beginPath();
+    ctx.arc(centerX, centerY, Math.min(W, H) * 0.11, 0, Math.PI * 2);
+    ctx.stroke();
+
+    // penalty areas
+    const penW = rink.w * 0.4;
+    const penH = rink.h * 0.16;
+    ctx.beginPath();
+    ctx.rect(centerX - penW / 2, rink.y, penW, penH);
+    ctx.rect(centerX - penW / 2, rink.y + rink.h - penH, penW, penH);
+    ctx.stroke();
+
+    // penalty spots
+    const spotR = Math.min(W, H) * 0.01;
+    ctx.fillStyle = getCSS('--line');
+    ctx.beginPath();
+    ctx.arc(centerX, rink.y + penH * 0.7, spotR, 0, Math.PI * 2);
+    ctx.arc(centerX, rink.y + rink.h - penH * 0.7, spotR, 0, Math.PI * 2);
+    ctx.fill();
+
     drawGoal(goalCenterX, goalTopY, goalWidth, goalDepth, -1);
     drawGoal(goalCenterX, goalBottomY, goalWidth, goalDepth, 1);
   }
