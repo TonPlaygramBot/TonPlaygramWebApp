@@ -1493,6 +1493,9 @@
 
             // pika e spin-it te cue
             if (b.n === 0) {
+              ctx.save();
+              // Undo ball rotation so the spin indicator matches the controller
+              ctx.rotate(-b.a);
               ctx.fillStyle = '#e63';
               ctx.beginPath();
               ctx.arc(
@@ -1503,6 +1506,7 @@
                 Math.PI * 2
               );
               ctx.fill();
+              ctx.restore();
             }
             ctx.restore();
           }
