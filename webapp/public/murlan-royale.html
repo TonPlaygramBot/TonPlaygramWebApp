@@ -67,7 +67,7 @@
       .center {
         position: absolute;
         left: 50%;
-        top: 36%;
+        top: 50%;
         transform: translate(-50%, -50%);
         display: flex;
         gap: 10px;
@@ -334,7 +334,7 @@
         transition: transform 0.3s ease;
       }
       .seat.bottom .cards .card:not(:first-child) {
-        margin-left: calc(var(--card-w) * -0.3);
+        margin-left: calc(var(--card-w) * -0.4);
       }
 
       /* CARDS */
@@ -445,7 +445,7 @@
         gap: 0;
       }
       .seat.top .cards .card:not(:first-child) {
-        margin-left: calc(var(--card-w) * -0.3);
+        margin-left: calc(var(--card-w) * -0.4);
       }
 
       /* ICON CONTROLS */
@@ -909,12 +909,13 @@
             if (side === 'bottom') {
               seat.style.left = '50%';
               seat.style.bottom = '8px';
-              seat.style.transform = 'translateX(-45%)';
+              seat.style.transform = 'translateX(-50%)';
               seat.style.width = 'auto';
             } else if (side === 'top') {
               seat.style.left = '50%';
               seat.style.top = '8px';
-              seat.style.transform = 'translateX(-50%)';
+              seat.style.transform = 'translateX(-55%)';
+              seat.style.width = 'auto';
             } else if (side === 'right') {
               seat.style.left = x - area.left - 20 + 'px';
               seat.style.top = y - area.top + 20 + 'px';
