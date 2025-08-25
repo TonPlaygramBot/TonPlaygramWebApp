@@ -21,6 +21,13 @@
         --avatar-size: calc(54px * var(--avatar-scale));
         --seat-bg-color: #f5f5dc;
         --player-frame-color: #000;
+        --highlight-straight: rgba(14, 165, 233, 0.35);
+        --highlight-double: rgba(59, 130, 246, 0.35);
+        --highlight-triple: rgba(239, 68, 68, 0.35);
+        --highlight-lowest: rgba(234, 179, 8, 0.35);
+        --highlight-highest: rgba(34, 197, 94, 0.35);
+        --highlight-quad: rgba(147, 51, 234, 0.35);
+        --highlight-bomb: rgba(244, 63, 94, 0.35);
       }
       * {
         box-sizing: border-box;
@@ -173,6 +180,10 @@
       }
       .seat.bottom .name {
         font-size: 12px;
+      }
+      .seat.bottom .seat-inner {
+        padding-bottom: 0;
+        gap: 4px;
       }
       .seat-inner .cards {
         padding: 0;
@@ -396,13 +407,25 @@
         box-shadow: inset 0 0 0 3px var(--ui);
       }
       .highlight-straight {
-        box-shadow: inset 0 0 0 9999px rgba(14, 165, 233, 0.35);
+        box-shadow: inset 0 0 0 9999px var(--highlight-straight);
+      }
+      .highlight-double {
+        box-shadow: inset 0 0 0 9999px var(--highlight-double);
       }
       .highlight-triple {
-        box-shadow: inset 0 0 0 9999px rgba(239, 68, 68, 0.35);
+        box-shadow: inset 0 0 0 9999px var(--highlight-triple);
+      }
+      .highlight-quad {
+        box-shadow: inset 0 0 0 9999px var(--highlight-quad);
       }
       .highlight-highest {
-        box-shadow: inset 0 0 0 9999px rgba(34, 197, 94, 0.35);
+        box-shadow: inset 0 0 0 9999px var(--highlight-highest);
+      }
+      .highlight-lowest {
+        box-shadow: inset 0 0 0 9999px var(--highlight-lowest);
+      }
+      .highlight-bomb {
+        box-shadow: inset 0 0 0 9999px var(--highlight-bomb);
       }
 
       /* Facedown backs for opponents */
@@ -507,6 +530,7 @@
         gap: 4px;
       }
       .auto-btn,
+      .config-btn,
       .lobby-btn {
         width: 32px;
         height: 24px;
@@ -521,8 +545,15 @@
       .auto-btn {
         position: fixed;
         left: 8px;
-        bottom: calc(var(--card-h) * var(--my-card-scale) + 24px);
+        bottom: calc(var(--card-h) * var(--my-card-scale) + 60px);
         z-index: 5;
+      }
+      .config-btn {
+        position: fixed;
+        left: 44px;
+        bottom: calc(var(--card-h) * var(--my-card-scale) + 60px);
+        z-index: 5;
+        font-size: 12px;
       }
       .lobby-btn {
         background: #22c55e;
@@ -644,6 +675,19 @@
         <button id="closeSettings">Close</button>
       </div>
     </div>
+    <div id="highlightPanel" class="settings-panel">
+      <label>Straight<input type="color" id="straightColor" value="#0ea5e9" /></label>
+      <label>Double<input type="color" id="doubleColor" value="#3b82f6" /></label>
+      <label>Triple<input type="color" id="tripleColor" value="#ef4444" /></label>
+      <label>Lowest<input type="color" id="lowestColor" value="#eab308" /></label>
+      <label>Highest<input type="color" id="highestColor" value="#22c55e" /></label>
+      <label>4 of Kind<input type="color" id="quadColor" value="#9333ea" /></label>
+      <label>Bomb<input type="color" id="bombColor" value="#f43f5e" /></label>
+      <div class="settings-actions">
+        <button id="saveHighlight">Save</button>
+        <button id="closeHighlight">Close</button>
+      </div>
+    </div>
 
     <script src="/flag-emojis.js"></script>
     <script src="/falling-ball-api.js"></script>
@@ -655,6 +699,52 @@
         function flagName(flag) {
           const codePoints = [...flag].map((c) => c.codePointAt(0) - 0x1f1e6 + 65);
           return regionNames.of(String.fromCharCode(...codePoints));
+        }
+        const highlightPanel = document.getElementById('highlightPanel');
+        const saveHighlight = document.getElementById('saveHighlight');
+        const closeHighlight = document.getElementById('closeHighlight');
+        saveHighlight.addEventListener('click', () => {
+          const root = document.documentElement;
+          root.style.setProperty(
+            '--highlight-straight',
+            hexToRgba(document.getElementById('straightColor').value, 0.35)
+          );
+          root.style.setProperty(
+            '--highlight-double',
+            hexToRgba(document.getElementById('doubleColor').value, 0.35)
+          );
+          root.style.setProperty(
+            '--highlight-triple',
+            hexToRgba(document.getElementById('tripleColor').value, 0.35)
+          );
+          root.style.setProperty(
+            '--highlight-lowest',
+            hexToRgba(document.getElementById('lowestColor').value, 0.35)
+          );
+          root.style.setProperty(
+            '--highlight-highest',
+            hexToRgba(document.getElementById('highestColor').value, 0.35)
+          );
+          root.style.setProperty(
+            '--highlight-quad',
+            hexToRgba(document.getElementById('quadColor').value, 0.35)
+          );
+          root.style.setProperty(
+            '--highlight-bomb',
+            hexToRgba(document.getElementById('bombColor').value, 0.35)
+          );
+          highlightPanel.classList.remove('active');
+        });
+        closeHighlight.addEventListener('click', () =>
+          highlightPanel.classList.remove('active')
+        );
+
+        function hexToRgba(hex, alpha = 0.35) {
+          const bigint = parseInt(hex.slice(1), 16);
+          const r = (bigint >> 16) & 255;
+          const g = (bigint >> 8) & 255;
+          const b = bigint & 255;
+          return `rgba(${r}, ${g}, ${b}, ${alpha})`;
         }
         const params = new URLSearchParams(location.search);
         let myAccountId = params.get('accountId') || '';
@@ -1072,6 +1162,11 @@
               countEl.className = 'card-count';
               countEl.textContent = count;
               cards.appendChild(countEl);
+              if (side === 'top' && count > 3) {
+                cards.style.marginTop = '8px';
+              } else if (side === 'top') {
+                cards.style.marginTop = '';
+              }
             }
 
             const timer = document.createElement('div');
@@ -1122,6 +1217,14 @@
               autoBtn.addEventListener('click', autoArrange);
               avatarWrap.appendChild(autoBtn);
 
+              const configBtn = document.createElement('button');
+              configBtn.className = 'config-btn';
+              configBtn.textContent = '⚙️';
+              configBtn.addEventListener('click', () => {
+                highlightPanel.classList.add('active');
+              });
+              avatarWrap.appendChild(configBtn);
+
               lobbyBtn = document.createElement('button');
               lobbyBtn.className = 'lobby-btn';
               lobbyBtn.textContent = 'Lobby';
@@ -1139,7 +1242,7 @@
               playBtn.style.display = state.arrangeMode ? 'none' : 'block';
               passBtn.style.display = state.arrangeMode ? 'none' : 'flex';
               controls.append(avatarWrap, readyBtn, playBtn, passBtn);
-              seatInner.append(controls, name, cards, timer);
+              seatInner.append(controls, cards, timer, name);
             } else if (side === 'left' || side === 'right') {
               seatInner.append(av, cards, name, timer);
             } else if (side === 'top') {
@@ -1347,14 +1450,18 @@
         function clearSuggestions() {
           seatsEl
             .querySelectorAll(
-              '.card.suggested, .card.highlight-straight, .card.highlight-triple, .card.highlight-highest'
+              '.card.suggested, .card.highlight-straight, .card.highlight-double, .card.highlight-triple, .card.highlight-quad, .card.highlight-highest, .card.highlight-lowest, .card.highlight-bomb'
             )
             .forEach((n) =>
               n.classList.remove(
                 'suggested',
                 'highlight-straight',
+                'highlight-double',
                 'highlight-triple',
-                'highlight-highest'
+                'highlight-quad',
+                'highlight-highest',
+                'highlight-lowest',
+                'highlight-bomb'
               )
             );
         }
@@ -1530,25 +1637,36 @@
           faces.forEach((f) =>
             f.classList.remove(
               'highlight-straight',
+              'highlight-double',
               'highlight-triple',
-              'highlight-highest'
+              'highlight-quad',
+              'highlight-highest',
+              'highlight-lowest',
+              'highlight-bomb'
             )
           );
           const hand = player(0).hand;
           if (!hand.length) return;
           const highest = Math.max(...hand.map((c) => rankValue(c.r)));
+          const lowest = Math.min(...hand.map((c) => rankValue(c.r)));
           hand.forEach((c, idx) => {
-            if (rankValue(c.r) === highest)
-              faces[idx].classList.add('highlight-highest');
+            const val = rankValue(c.r);
+            if (val === highest) faces[idx].classList.add('highlight-highest');
+            if (val === lowest) faces[idx].classList.add('highlight-lowest');
           });
           const counts = {};
           hand.forEach((c) => (counts[c.r] = (counts[c.r] || 0) + 1));
           Object.entries(counts).forEach(([r, cnt]) => {
-            if (cnt >= 3) {
-              hand.forEach((c, idx) => {
-                if (c.r === r) faces[idx].classList.add('highlight-triple');
-              });
-            }
+            hand.forEach((c, idx) => {
+              if (c.r === r) {
+                if (cnt >= 4)
+                  faces[idx].classList.add('highlight-quad', 'highlight-bomb');
+                else if (cnt === 3)
+                  faces[idx].classList.add('highlight-triple');
+                else if (cnt === 2)
+                  faces[idx].classList.add('highlight-double');
+              }
+            });
           });
           const sorted = [...hand].sort(
             (a, b) => rankValue(a.r) - rankValue(b.r)
