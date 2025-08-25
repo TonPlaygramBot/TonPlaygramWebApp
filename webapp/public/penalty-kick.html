@@ -203,9 +203,9 @@
     geom.goal = { x:(W-goalW)/2, y:pbarBottom + 20, w:goalW, h:goalH, post:12 };
     geom.spot = { x:W/2, y:H - Math.min(100, H*0.10) };
     geom.scale = goalW / 860;
-    keeper.w = 40*geom.scale*4; keeper.h = 100*geom.scale*4;
+    keeper.w = 40*geom.scale*4*1.1; keeper.h = 100*geom.scale*4*1.1;
     keeper.x = geom.goal.x + (geom.goal.w-keeper.w)/2;
-    keeper.y = geom.goal.y + geom.goal.h - keeper.h - geom.goal.h*0.10;
+    keeper.y = geom.goal.y + geom.goal.h - keeper.h - geom.goal.h*0.05;
     keeper.baseY = keeper.y;
   }
 
@@ -214,8 +214,8 @@
   let roundStart = 0; let timeLeft = ROUND_TIME; let running=false; let paused=false; let ended=false;
   let myScore = 0;
 
-  const BALL_R = 32;
-  const ball = { x:0,y:0,r:BALL_R, vx:0,vy:0, moving:false, trail:[], spin:0, angle:0, netSounded:false };
+  const BALL_R = 36;
+  const ball = { x:0,y:0,r:BALL_R, vx:0,vy:0, moving:false, trail:[], spin:0, angle:0, netSounded:false, firstContact:false };
   const ballImg = new Image();
   ballImg.src = '/assets/icons/file_0000000061d4620aaf506adfa605e1f3.webp';
 
@@ -302,7 +302,9 @@
     const vg=ctx.createRadialGradient(W/2,H,10,W/2,H,H/1.12); vg.addColorStop(0,'rgba(0,0,0,0)'); vg.addColorStop(1,'rgba(0,0,0,0.26)'); ctx.fillStyle=vg; ctx.fillRect(0,0,W,H);
 
     const g=geom.goal; ctx.strokeStyle='#fff'; ctx.lineJoin='round';
-    const gl=g.y+g.h+2; ctx.lineWidth=2; ctx.beginPath(); ctx.moveTo(0,gl); ctx.lineTo(W,gl); ctx.stroke();
+    const gl=g.y+g.h+2;
+    // Removed middle lane in front of the goal
+    // ctx.lineWidth=2; ctx.beginPath(); ctx.moveTo(0,gl); ctx.lineTo(W,gl); ctx.stroke();
     ctx.lineWidth=4;
 
     const paDepth=Math.min(320*geom.scale,H*0.34), pad=Math.max(120*geom.scale,(W-g.w)/4);
@@ -389,7 +391,7 @@
   function stepBall(){
     if(!ball.moving) return;
     ball.trail.push({x:ball.x,y:ball.y}); if(ball.trail.length>10) ball.trail.shift();
-    const speed=Math.hypot(ball.vx,ball.vy); const drag = 1 - AIR_DRAG*speed; const curve = ball.spin*0.085;
+    const speed=Math.hypot(ball.vx,ball.vy); const drag = 1 - AIR_DRAG*speed; const curve = ball.spin*0.06;
     ball.vx = (ball.vx + curve)*FRICTION*drag; ball.vy = (ball.vy + GRAVITY)*FRICTION*drag;
     ball.x += ball.vx; ball.y += ball.vy; ball.angle += ball.spin*0.15;
 
@@ -412,6 +414,7 @@
     if((nearL||nearR) && ball.y>g.y-8 && ball.y<g.y+g.h+8) ball.vx*=-0.8;
     if(nearB && ball.x>g.x-8 && ball.x<g.x+g.w+8) ball.vy*=-0.7;
 
+    if(!ball.firstContact && ball.y >= geom.spot.y && ball.vy > 0){ ball.firstContact=true; endShot(false,0); return; }
     if(ball.y < -80 || ball.x < -80 || ball.x > W+80 || ball.y > H+80 || Math.hypot(ball.vx,ball.vy)<0.3){ endShot(false,0); }
   }
 
@@ -491,8 +494,8 @@ function endShot(hit,pts){
   function pos(e){ const r=canvas.getBoundingClientRect(); return {x:(e.clientX-r.left)*(W/r.width), y:(e.clientY-r.top)*(H/r.height)}; }
   function onDown(e){ if(!running||ended||paused) return; if(pointer.active) return; pointer.active=true; pointer.id=e.pointerId; const p=pos(e); pointer.path=[p]; pointer.t0=performance.now(); pointer.t1=pointer.t0; pointer.armed = Math.hypot(p.x-ball.x,p.y-ball.y) <= ball.r*1.25 && !ball.moving; if(pointer.armed){ status('Swipe upward. Curve for spin.'); sfxKick(); } }
   function onMove(e){ if(!pointer.active||e.pointerId!==pointer.id) return; pointer.path.push(pos(e)); pointer.t1=performance.now();
-    if(pointer.armed && aimOn && pointer.path.length>2){ const a=pointer.path[0], b=pointer.path[pointer.path.length-1]; const dx=b.x-a.x, dy=b.y-a.y, dt=Math.max(16,(pointer.t1-pointer.t0)); const dist=Math.hypot(dx,dy), power=clamp(dist/dt, 0.55, 3.0); const len=Math.max(1,Math.hypot(dx,dy)); const dirx=dx/len, diry=dy/len; let spin=0; for(let i=2;i<pointer.path.length;i++){ const u=pointer.path[i-2], v=pointer.path[i-1], w=pointer.path[i]; spin += (v.x-u.x)*(w.y-v.y) - (v.y-u.y)*(w.x-v.x); } spin = clamp(spin/(dist*40), -2.6, 2.6); const SPEED=45; drawAimPath(dirx*SPEED*power, diry*SPEED*power, spin); } }
-  function onUp(e){ if(!pointer.active||e.pointerId!==pointer.id) return; pointer.active=false; if(!pointer.armed||ball.moving||!running||paused){ pointer.path=[]; return; } const path=pointer.path; pointer.path=[]; if(path.length<3){ status('Swipe longer/faster.'); return; } const dt=Math.max(16,(pointer.t1-pointer.t0)), a=path[0], b=path[path.length-1]; const dx=b.x-a.x, dy=b.y-a.y; if(dy>-10){ status('Swipe upward.'); return; } const dist=Math.hypot(dx,dy), power=clamp(dist/dt, 0.55, 3.0); const len=Math.max(1,Math.hypot(dx,dy)); const dirx=dx/len, diry=dy/len; let spin=0; for(let i=2;i<path.length;i++){ const u=path[i-2], v=path[i-1], w=path[i]; spin += (v.x-u.x)*(w.y-v.y) - (v.y-u.y)*(w.x-v.x); } spin = clamp(spin/(dist*40), -2.6, 2.6); const SPEED=45; ball.vx=dirx*SPEED*power; ball.vy=diry*SPEED*power; ball.spin=spin; ball.moving=true; keeper.save=false; keeper.active=false; powerBar.style.height = Math.round(clamp(power/3.0,0,1)*100)+'%'; }
+    if(pointer.armed && aimOn && pointer.path.length>2){ const a=pointer.path[0], b=pointer.path[pointer.path.length-1]; const dx=b.x-a.x, dy=b.y-a.y, dt=Math.max(16,(pointer.t1-pointer.t0)); const dist=Math.hypot(dx,dy), power=clamp(dist/dt, 0.55, 3.0); const len=Math.max(1,Math.hypot(dx,dy)); const dirx=dx/len, diry=dy/len; let spin=0; for(let i=2;i<pointer.path.length;i++){ const u=pointer.path[i-2], v=pointer.path[i-1], w=pointer.path[i]; spin += (v.x-u.x)*(w.y-v.y) - (v.y-u.y)*(w.x-v.x); } spin = clamp(spin/(dist*40), -1.5, 1.5); const SPEED=45; drawAimPath(dirx*SPEED*power, diry*SPEED*power, spin); } }
+  function onUp(e){ if(!pointer.active||e.pointerId!==pointer.id) return; pointer.active=false; if(!pointer.armed||ball.moving||!running||paused){ pointer.path=[]; return; } const path=pointer.path; pointer.path=[]; if(path.length<3){ status('Swipe longer/faster.'); return; } const dt=Math.max(16,(pointer.t1-pointer.t0)), a=path[0], b=path[path.length-1]; const dx=b.x-a.x, dy=b.y-a.y; if(dy>-10){ status('Swipe upward.'); return; } const dist=Math.hypot(dx,dy), power=clamp(dist/dt, 0.55, 3.0); const len=Math.max(1,Math.hypot(dx,dy)); const dirx=dx/len, diry=dy/len; let spin=0; for(let i=2;i<path.length;i++){ const u=path[i-2], v=path[i-1], w=path[i]; spin += (v.x-u.x)*(w.y-v.y) - (v.y-u.y)*(w.x-v.x); } spin = clamp(spin/(dist*40), -1.5, 1.5); const SPEED=45; ball.vx=dirx*SPEED*power; ball.vy=diry*SPEED*power; ball.spin=spin; ball.moving=true; keeper.save=false; keeper.active=false; powerBar.style.height = Math.round(clamp(power/3.0,0,1)*100)+'%'; }
   canvas.addEventListener('pointerdown', onDown, {passive:true});
   canvas.addEventListener('pointermove', onMove, {passive:true});
   addEventListener('pointerup', onUp, {passive:true}); addEventListener('pointercancel', onUp, {passive:true});
@@ -530,7 +533,7 @@ function endShot(hit,pts){
   // ===== Controls =====
   // controls removed
 
-  function resetBall(){ ball.x=geom.spot.x; ball.y=geom.spot.y; ball.vx=ball.vy=ball.spin=0; ball.angle=0; ball.moving=false; ball.netSounded=false; ball.trail=[]; netHit={x:0,y:0,t:0,shake:0}; keeper.active=false; keeper.save=false; keeper.vx=0; keeper.vy=0; keeper.a=0; keeper.x = geom.goal.x + (geom.goal.w-keeper.w)/2; keeper.y = keeper.baseY; }
+  function resetBall(){ ball.x=geom.spot.x; ball.y=geom.spot.y; ball.vx=ball.vy=ball.spin=0; ball.angle=0; ball.moving=false; ball.netSounded=false; ball.trail=[]; ball.firstContact=false; netHit={x:0,y:0,t:0,shake:0}; keeper.active=false; keeper.save=false; keeper.vx=0; keeper.vy=0; keeper.a=0; keeper.x = geom.goal.x + (geom.goal.w-keeper.w)/2; keeper.y = keeper.baseY; }
   function startGame(){ running=true; paused=false; ended=false; roundStart=performance.now(); timeLeft=ROUND_TIME; myScore=0; for(const r of rivals){ r.score=0; r.next=0; r.shots=[]; } resetBall(); generateHoles(); drawMiniBoards(true); updateHUD(); ensureAudio(); sfxStart(); status('Go! Score as many as you can.'); }
 
   // ===== WebAudio SFX (no files) =====
