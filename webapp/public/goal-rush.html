@@ -144,7 +144,7 @@
   let p2Name = params.get('p2Name') || 'P2';
   let fieldScaleX = 1,
     fieldScaleY = 1,
-    puckScale = 1.0,
+    puckScale = 1.1,
     goalWidthPct = 0.36,
     goalOffsetXPct = 0,
     goalOffsetYPct = 0,
@@ -672,7 +672,7 @@
     }
     p2.x += (tx - p2.x) * reaction;
     p2.y += (ty - p2.y) * reaction;
-    const maxStep = p2.max * speedMul;
+    const maxStep = p2.max * speedMul * 0.9;
     const vx = p2.x - p2.lastX;
     const vy = p2.y - p2.lastY;
     const v = Math.hypot(vx, vy);
@@ -716,7 +716,8 @@
         if (v>maxV){ const s=maxV/v; puck.vx*=s; puck.vy*=s; }
         lastTouch = (p === p1) ? 'p1' : 'p2';
         if (p === p2) {
-          const aimX = centerX;
+          const side = [-1, 0, 1][Math.floor(Math.random() * 3)];
+          const aimX = goalCenterX + side * goalWidth * 0.25;
           const aimY = goalBottomY - 20;
           const dx = aimX - puck.x;
           const dy = aimY - puck.y;
