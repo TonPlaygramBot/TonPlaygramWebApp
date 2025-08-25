@@ -203,7 +203,7 @@
     geom.goal = { x:(W-goalW)/2, y:pbarBottom + 20, w:goalW, h:goalH, post:12 };
     geom.spot = { x:W/2, y:H - Math.min(100, H*0.10) };
     geom.scale = goalW / 860;
-    keeper.w = 60*geom.scale*4; keeper.h = 80*geom.scale*4;
+    keeper.w = 40*geom.scale*4; keeper.h = 100*geom.scale*4;
     keeper.x = geom.goal.x + (geom.goal.w-keeper.w)/2;
     keeper.y = geom.goal.y + geom.goal.h - keeper.h - geom.goal.h*0.10;
     keeper.baseY = keeper.y;
@@ -221,7 +221,7 @@
 
   let holes=[]; let banners=[]; let cameras=[]; let fragments=[];
   let netHit={x:0,y:0,t:0,shake:0};
-  const keeper={x:0,y:0,w:60,h:80,vx:0,vy:0,active:false,save:false,a:0,side:1,baseY:0,face:'👨'};
+  const keeper={x:0,y:0,w:40,h:100,vx:0,vy:0,active:false,save:false,a:0,side:1,baseY:0,face:'👨'};
   const keeperFaces=['👨','👩','🧑','👱‍♂️','👱‍♀️'];
   keeper.face = keeperFaces[(Math.random()*keeperFaces.length)|0];
   const aimOn = false;
@@ -370,18 +370,27 @@
     ctx.translate(k.x + k.w/2, k.y + k.h/2);
     ctx.rotate(k.a||0);
     ctx.translate(-k.w/2, -k.h/2);
+    const torsoW = k.w*0.35;
+    const torsoX = (k.w-torsoW)/2;
+    const torsoH = k.h*0.5;
     ctx.fillStyle='#2563eb';
-    ctx.fillRect(0,k.h*0.25,k.w,k.h*0.75);
+    ctx.fillRect(torsoX,k.h*0.25,torsoW,torsoH);
     const armY = k.h*0.35;
-    const armLen = k.w*0.7;
-    ctx.fillRect(-armLen,armY,armLen,k.h*0.15);
-    ctx.fillRect(k.w,armY,armLen,k.h*0.15);
-    ctx.font = `${k.w*0.3}px sans-serif`;
+    const armW = k.w*0.12;
+    const armLen = k.w*0.45;
+    ctx.fillRect(torsoX - armLen,armY,armLen,armW);
+    ctx.fillRect(torsoX + torsoW,armY,armLen,armW);
+    ctx.font = `${armW*2}px sans-serif`;
     ctx.textAlign='center';
     ctx.textBaseline='middle';
-    ctx.fillText('✋️', -armLen, armY + k.h*0.075);
-    ctx.fillText('🤚', k.w + armLen, armY + k.h*0.075);
-    ctx.font = `${k.w*0.4}px sans-serif`;
+    ctx.fillText('✋️', torsoX - armLen, armY + armW/2);
+    ctx.fillText('🤚', torsoX + torsoW + armLen, armY + armW/2);
+    const legW = k.w*0.12;
+    const legH = k.h*0.25;
+    const legY = k.h*0.25 + torsoH;
+    ctx.fillRect(torsoX,legY,legW,legH);
+    ctx.fillRect(torsoX + torsoW - legW,legY,legW,legH);
+    ctx.font = `${k.w*0.3}px sans-serif`;
     ctx.fillText(k.face, k.w/2, k.h*0.15);
     ctx.restore();
   }
@@ -433,6 +442,20 @@
   }
 
   function stepKeeper(){
+    if(ball.moving && !keeper.active){
+      const t = ball.vy !== 0 ? (keeper.y - ball.y) / ball.vy : Infinity;
+      if(t > 0 && t < 120){
+        const predicted = ball.x + ball.vx * t;
+        const target = clamp(predicted - keeper.w/2, geom.goal.x, geom.goal.x+geom.goal.w-keeper.w);
+        const dist = target - keeper.x;
+        keeper.side = Math.sign(dist) || 1;
+        keeper.vx = clamp(dist / t, -12, 12);
+        keeper.vy = -7;
+        keeper.a = keeper.side * -0.3;
+        keeper.active = true;
+        keeper.save = true;
+      }
+    }
     if(!keeper.active) return;
     keeper.x += keeper.vx;
     keeper.y += keeper.vy; keeper.vy += 0.6; keeper.vx *= 0.95;
@@ -490,7 +513,7 @@ function endShot(hit,pts){
   function onDown(e){ if(!running||ended||paused) return; if(pointer.active) return; pointer.active=true; pointer.id=e.pointerId; const p=pos(e); pointer.path=[p]; pointer.t0=performance.now(); pointer.t1=pointer.t0; pointer.armed = Math.hypot(p.x-ball.x,p.y-ball.y) <= ball.r*1.25 && !ball.moving; if(pointer.armed){ status('Swipe upward. Curve for spin.'); sfxKick(); } }
   function onMove(e){ if(!pointer.active||e.pointerId!==pointer.id) return; pointer.path.push(pos(e)); pointer.t1=performance.now();
     if(pointer.armed && aimOn && pointer.path.length>2){ const a=pointer.path[0], b=pointer.path[pointer.path.length-1]; const dx=b.x-a.x, dy=b.y-a.y, dt=Math.max(16,(pointer.t1-pointer.t0)); const dist=Math.hypot(dx,dy), power=clamp(dist/dt, 0.55, 3.0); const len=Math.max(1,Math.hypot(dx,dy)); const dirx=dx/len, diry=dy/len; let spin=0; for(let i=2;i<pointer.path.length;i++){ const u=pointer.path[i-2], v=pointer.path[i-1], w=pointer.path[i]; spin += (v.x-u.x)*(w.y-v.y) - (v.y-u.y)*(w.x-v.x); } spin = clamp(spin/(dist*40), -2.6, 2.6); const SPEED=45; drawAimPath(dirx*SPEED*power, diry*SPEED*power, spin); } }
-  function onUp(e){ if(!pointer.active||e.pointerId!==pointer.id) return; pointer.active=false; if(!pointer.armed||ball.moving||!running||paused){ pointer.path=[]; return; } const path=pointer.path; pointer.path=[]; if(path.length<3){ status('Swipe longer/faster.'); return; } const dt=Math.max(16,(pointer.t1-pointer.t0)), a=path[0], b=path[path.length-1]; const dx=b.x-a.x, dy=b.y-a.y; if(dy>-10){ status('Swipe upward.'); return; } const dist=Math.hypot(dx,dy), power=clamp(dist/dt, 0.55, 3.0); const len=Math.max(1,Math.hypot(dx,dy)); const dirx=dx/len, diry=dy/len; let spin=0; for(let i=2;i<path.length;i++){ const u=path[i-2], v=path[i-1], w=path[i]; spin += (v.x-u.x)*(w.y-v.y) - (v.y-u.y)*(w.x-v.x); } spin = clamp(spin/(dist*40), -2.6, 2.6); const SPEED=45; ball.vx=dirx*SPEED*power; ball.vy=diry*SPEED*power; ball.spin=spin; ball.moving=true; keeper.save=Math.random()<0.5; keeper.active=keeper.save; if(keeper.save){ const target=clamp(ball.x-keeper.w/2, geom.goal.x, geom.goal.x+geom.goal.w-keeper.w); keeper.side=Math.sign(target-keeper.x)||1; keeper.vx=keeper.side*12; keeper.vy=-6; keeper.a=keeper.side*-0.3; } else { keeper.vx=0; keeper.vy=0; keeper.a=0; } powerBar.style.height = Math.round(clamp(power/3.0,0,1)*100)+'%'; }
+  function onUp(e){ if(!pointer.active||e.pointerId!==pointer.id) return; pointer.active=false; if(!pointer.armed||ball.moving||!running||paused){ pointer.path=[]; return; } const path=pointer.path; pointer.path=[]; if(path.length<3){ status('Swipe longer/faster.'); return; } const dt=Math.max(16,(pointer.t1-pointer.t0)), a=path[0], b=path[path.length-1]; const dx=b.x-a.x, dy=b.y-a.y; if(dy>-10){ status('Swipe upward.'); return; } const dist=Math.hypot(dx,dy), power=clamp(dist/dt, 0.55, 3.0); const len=Math.max(1,Math.hypot(dx,dy)); const dirx=dx/len, diry=dy/len; let spin=0; for(let i=2;i<path.length;i++){ const u=path[i-2], v=path[i-1], w=path[i]; spin += (v.x-u.x)*(w.y-v.y) - (v.y-u.y)*(w.x-v.x); } spin = clamp(spin/(dist*40), -2.6, 2.6); const SPEED=45; ball.vx=dirx*SPEED*power; ball.vy=diry*SPEED*power; ball.spin=spin; ball.moving=true; keeper.save=false; keeper.active=false; powerBar.style.height = Math.round(clamp(power/3.0,0,1)*100)+'%'; }
   canvas.addEventListener('pointerdown', onDown, {passive:true});
   canvas.addEventListener('pointermove', onMove, {passive:true});
   addEventListener('pointerup', onUp, {passive:true}); addEventListener('pointercancel', onUp, {passive:true});
