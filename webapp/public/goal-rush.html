@@ -338,8 +338,8 @@
   let running = true; let last = 0;
   let lastTouch = null;
   let cornerEscapeFrames = 0;
-  const difficultySpeeds = { easy:15, normal:18, hard:25 };
-  p2.max = difficultySpeeds[difficulty] || 17;
+  const difficultySpeeds = { easy:14, normal:17, hard:24 };
+  p2.max = difficultySpeeds[difficulty] || 16;
 
   let audioEnabled = true;
   let audioStarted = false;
@@ -630,7 +630,7 @@
   }
 
   function aiUpdate(){
-    const baseReaction = { easy: 0.066, normal: 0.105, hard: 0.19 }[difficulty] || 0.095;
+    const baseReaction = { easy: 0.056, normal: 0.095, hard: 0.18 }[difficulty] || 0.085;
     let reaction = baseReaction;
     const margin = p2.r + 12;
     const minX = rink.x + margin;
