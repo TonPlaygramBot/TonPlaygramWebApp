@@ -410,6 +410,14 @@
     ctx.lineTo(g.x+g.w, g.y);
     ctx.lineTo(g.x+g.w, g.y+g.h);
     ctx.stroke();
+    const innerW=g.w*0.8, innerH=g.h*0.8; const ix=g.x+(g.w-innerW)/2, iy=g.y+(g.h-innerH)/2;
+    ctx.strokeStyle='rgba(255,255,255,0.5)'; ctx.lineWidth=6;
+    ctx.beginPath();
+    ctx.moveTo(ix, iy+innerH);
+    ctx.lineTo(ix, iy);
+    ctx.lineTo(ix+innerW, iy);
+    ctx.lineTo(ix+innerW, iy+innerH);
+    ctx.stroke();
     for(const c of cameras){ ctx.fillStyle='#111'; ctx.fillRect(c.x,c.y,c.w,c.h); ctx.fillStyle='#e10600'; ctx.beginPath(); ctx.arc(c.x+8,c.y+6,3,0,Math.PI*2); ctx.fill(); }
     for(const h of holes){ if(h.hit) continue; ctx.fillStyle='rgba(225,6,0,.9)'; ctx.beginPath(); ctx.arc(h.x,h.y,h.r,0,Math.PI*2); ctx.fill();
       ctx.fillStyle='#ffd400'; ctx.font=`800 ${Math.max(12,h.r*0.9)}px system-ui`; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText(h.points,h.x,h.y); }
@@ -447,7 +455,7 @@
   function stepBall(){
     if(!ball.moving) return;
     ball.trail.push({x:ball.x,y:ball.y}); if(ball.trail.length>15) ball.trail.shift();
-    const speed=Math.hypot(ball.vx,ball.vy); const drag = 1 - AIR_DRAG*speed; const curve = ball.spin*0.11;
+    const speed=Math.hypot(ball.vx,ball.vy); const drag = 1 - AIR_DRAG*speed; const curve = ball.spin*0.18;
     ball.vx = (ball.vx + curve)*FRICTION*drag; ball.vy = (ball.vy + GRAVITY)*FRICTION*drag;
     ball.x += ball.vx; ball.y += ball.vy; ball.angle += ball.spin;
 
@@ -463,7 +471,7 @@
       endShot(true,0); return;
     }
     if(keeper.save && ballHitsKeeper()){
-      keeper.save=false; endShot(false,0); return;
+      keeper.save=false; ball.moving=false; setTimeout(()=>endShot(false,0),400); return;
     }
     const postR = g.post;
     const left={x:g.x, y:g.y+g.h}, right={x:g.x+g.w, y:g.y+g.h};
@@ -494,14 +502,14 @@
     if(t > 0 && t < 120){
       const predicted = ball.x + ball.vx * t;
       const diff = predicted - (keeper.baseX + keeper.w/2);
-      const targetA = clamp(diff / 200, -0.8, 0.8);
-      keeper.a += (targetA - keeper.a) * 0.1;
-      const targetX = clamp(diff * 0.05, -keeper.w*0.3, keeper.w*0.3);
-      keeper.x += (keeper.baseX + targetX - keeper.x) * 0.1;
-      // keeper only saves about half the shots
-      keeper.save = Math.abs(diff) < keeper.w*0.45 && Math.random() < 0.5;
-      const targetDive = keeper.save ? 12 : 0;
-      keeper.dive += (targetDive - keeper.dive) * 0.1;
+      const targetA = clamp(diff / 240, -0.8, 0.8);
+      keeper.a += (targetA - keeper.a) * 0.08;
+      const targetX = clamp(diff * 0.04, -keeper.w*0.25, keeper.w*0.25);
+      keeper.x += (keeper.baseX + targetX - keeper.x) * 0.08;
+      // keeper only saves about a third of the shots and reacts slower
+      keeper.save = Math.abs(diff) < keeper.w*0.35 && Math.random() < 0.35;
+      const targetDive = keeper.save ? 10 : 0;
+      keeper.dive += (targetDive - keeper.dive) * 0.08;
     } else {
       keeper.a *= 0.9;
       keeper.x += (keeper.baseX - keeper.x) * 0.1;
@@ -518,7 +526,7 @@
     ctx.beginPath();
     for(let i=0;i<steps;i++){
       const speed=Math.hypot(vx1,vy1); const drag=1-AIR_DRAG*speed;
-      vx1=(vx1+spin*0.11)*FRICTION*drag; vy1=(vy1+GRAVITY)*FRICTION*drag;
+      vx1=(vx1+spin*0.18)*FRICTION*drag; vy1=(vy1+GRAVITY)*FRICTION*drag;
       x+=vx1; y+=vy1; if(i===0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
       if(y<geom.goal.y-40) break;
     }
@@ -554,7 +562,7 @@ function endShot(hit,pts){
   // ===== Input (swipe/flick + spin) =====
   let pointer={id:null,path:[],active:false,armed:false,t0:0,t1:0};
   function pos(e){ const r=canvas.getBoundingClientRect(); return {x:(e.clientX-r.left)*(W/r.width), y:(e.clientY-r.top)*(H/r.height)}; }
-  function onDown(e){ if(!running||ended||paused) return; if(pointer.active) return; pointer.active=true; pointer.id=e.pointerId; const p=pos(e); pointer.path=[p]; pointer.t0=performance.now(); pointer.t1=pointer.t0; pointer.armed = Math.hypot(p.x-ball.x,p.y-ball.y) <= ball.r*1.8 && !ball.moving; if(pointer.armed){ status('Swipe upward. Curve for spin.'); sfxKick(); } }
+  function onDown(e){ if(!running||ended||paused) return; if(pointer.active) return; pointer.active=true; pointer.id=e.pointerId; const p=pos(e); pointer.path=[p]; pointer.t0=performance.now(); pointer.t1=pointer.t0; pointer.armed = Math.hypot(p.x-ball.x,p.y-ball.y) <= ball.r*2.4 && !ball.moving; if(pointer.armed){ status('Swipe upward. Curve for spin.'); sfxKick(); } }
   function onMove(e){ if(!pointer.active||e.pointerId!==pointer.id) return; pointer.path.push(pos(e)); pointer.t1=performance.now();
     if(pointer.armed && aimOn && pointer.path.length>1){
       const path = pointer.path;
@@ -573,7 +581,7 @@ function endShot(hit,pts){
       drawAimPath(dirx*SHOT_SPEED*power*0.9, diry*SHOT_SPEED*power*0.9, spin);
     }
   }
-  function onUp(e){ if(!pointer.active||e.pointerId!==pointer.id) return; pointer.active=false; if(!pointer.armed||ball.moving||!running||paused){ pointer.path=[]; return; } const path=pointer.path; pointer.path=[]; if(path.length<3){ status('Swipe longer/faster.'); return; } const dt=Math.max(16,(pointer.t1-pointer.t0)), a=path[0], b=path[path.length-1]; const totalDx=b.x-a.x, totalDy=b.y-a.y; if(totalDy>-10){ status('Swipe upward.'); return; } const dist=Math.hypot(totalDx,totalDy), power=clamp(dist/dt, 0.55, 3.0); const len=Math.max(1,dist); const dirx=totalDx/len, diry=totalDy/len; let curve=0; for(let i=2;i<path.length;i++){ const p0=path[i-2], p1=path[i-1], p2=path[i]; curve+=Math.atan2(p2.y-p1.y,p2.x-p1.x)-Math.atan2(p1.y-p0.y,p1.x-p0.x); } const spin = clamp((ball.x - a.x)/ball.r + curve*0.5, -2, 2); ball.vx=dirx*SHOT_SPEED*power*0.9; ball.vy=diry*SHOT_SPEED*power*0.9; ball.spin=spin; ball.moving=true; keeper.save=false; powerBar.style.height = Math.round(clamp(power/3.0,0,1)*100)+'%'; }
+  function onUp(e){ if(!pointer.active||e.pointerId!==pointer.id) return; pointer.active=false; if(!pointer.armed||ball.moving||!running||paused){ pointer.path=[]; return; } const path=pointer.path; pointer.path=[]; if(path.length<3){ status('Swipe longer/faster.'); return; } const dt=Math.max(16,(pointer.t1-pointer.t0)), a=path[0], b=path[path.length-1]; const totalDx=b.x-a.x, totalDy=b.y-a.y; if(totalDy>-10){ status('Swipe upward.'); return; } const endDx=b.x-ball.x, endDy=b.y-ball.y; const dist=Math.hypot(endDx,endDy), power=clamp(dist/dt, 0.55, 3.0); let dirx=endDx/dist, diry=endDy/dist; const contactY=clamp((ball.y-a.y)/ball.r,-1,1); diry-=contactY*0.4; const norm=Math.hypot(dirx,diry)||1; dirx/=norm; diry/=norm; let curve=0; for(let i=2;i<path.length;i++){ const p0=path[i-2], p1=path[i-1], p2=path[i]; curve+=Math.atan2(p2.y-p1.y,p2.x-p1.x)-Math.atan2(p1.y-p0.y,p1.x-p0.x); } const spin = clamp((ball.x - a.x)/ball.r + curve*0.5, -3, 3); ball.vx=dirx*SHOT_SPEED*power*0.9; ball.vy=diry*SHOT_SPEED*power*0.9; ball.spin=spin; ball.moving=true; keeper.save=false; powerBar.style.height = Math.round(clamp(power/3.0,0,1)*100)+'%'; }
   canvas.addEventListener('pointerdown', onDown, {passive:true});
   canvas.addEventListener('pointermove', onMove, {passive:true});
   addEventListener('pointerup', onUp, {passive:true}); addEventListener('pointercancel', onUp, {passive:true});
