@@ -223,7 +223,7 @@
 
   let holes=[]; let banners=[]; let cameras=[]; let fragments=[];
   let netHit={x:0,y:0,t:0,shake:0};
-  const keeper={x:0,y:0,w:40,h:100,vx:0,vy:0,active:false,save:false,a:0,side:1,baseY:0,baseX:0,dive:0,liftX:0,bottomTilt:0};
+  const keeper={x:0,y:0,w:40,h:100,vx:0,vy:0,active:false,save:false,a:0,side:1,baseY:0,baseX:0,dive:0};
   const keeperImg = new Image();
   keeperImg.src = '/assets/icons/file_00000000945461f8bb9a2974fb9ee402.webp';
   const aimOn = false;
@@ -457,21 +457,11 @@
 
   function drawKeeper(){
     const k=keeper;
-    const split = k.h * 0.55;
-    const bottomH = k.h - split;
-    // bottom half with additional tilt and lift
     ctx.save();
-    ctx.translate(k.x + k.w/2 + k.liftX, k.y + k.h + k.dive);
-    ctx.rotate((k.a||0) + (k.bottomTilt||0));
-    ctx.translate(-k.w/2, -bottomH);
-    ctx.drawImage(keeperImg, 0, split, k.w, bottomH, 0, 0, k.w, bottomH);
-    ctx.restore();
-    // top half follows main body angle
-    ctx.save();
-    ctx.translate(k.x + k.w/2 + k.liftX, k.y + split + k.dive);
+    ctx.translate(k.x + k.w/2, k.y + k.h);
     ctx.rotate(k.a||0);
-    ctx.translate(-k.w/2, -split);
-    ctx.drawImage(keeperImg, 0, 0, k.w, split, 0, 0, k.w, split);
+    ctx.translate(-k.w/2, -k.h + k.dive);
+    ctx.drawImage(keeperImg, 0, 0, k.w, k.h);
     ctx.restore();
   }
 
@@ -555,8 +545,6 @@
       keeper.a *= 0.9;
       keeper.x += (keeper.baseX - keeper.x) * 0.1;
       keeper.dive *= 0.9;
-      keeper.liftX *= 0.9;
-      keeper.bottomTilt *= 0.9;
       keeper.save=false;
       return;
     }
@@ -570,21 +558,12 @@
       keeper.x += (keeper.baseX + targetX - keeper.x) * 0.08;
       // keeper only saves about a third of the shots and reacts slower
       keeper.save = Math.abs(diff) < keeper.w*0.35 && Math.random() < 0.35;
-      const side = diff>=0 ? 1 : -1;
-      const g = geom.goal;
-      const heightNorm = ball.ty ? clamp((g.y + g.h - ball.ty) / g.h, 0, 1) : 0;
-      const targetDive = keeper.save ? -(4 + 8*heightNorm) : 0;
-      const targetLiftX = keeper.save ? side * (8 - 4*heightNorm) : 0;
+      const targetDive = keeper.save ? 10 : 0;
       keeper.dive += (targetDive - keeper.dive) * 0.08;
-      keeper.liftX += (targetLiftX - keeper.liftX) * 0.08;
-      const targetBottomTilt = keeper.save ? -side * 0.2 * (1 - heightNorm) : 0;
-      keeper.bottomTilt += (targetBottomTilt - keeper.bottomTilt) * 0.08;
     } else {
       keeper.a *= 0.9;
       keeper.x += (keeper.baseX - keeper.x) * 0.1;
       keeper.dive *= 0.9;
-      keeper.liftX *= 0.9;
-      keeper.bottomTilt *= 0.9;
       keeper.save=false;
     }
   }
@@ -742,7 +721,7 @@ function endShot(hit,pts){
   // ===== Controls =====
   // controls removed
 
-  function resetBall(){ ball.x=geom.spot.x; ball.y=geom.spot.y; ball.vx=ball.vy=ball.spin=0; ball.angle=0; ball.moving=false; ball.netSounded=false; ball.trail=[]; ball.firstContact=false; ball.tx=ball.ty=0; ball.prevDist=0; netHit={x:0,y:0,t:0,shake:0}; keeper.save=false; keeper.vx=0; keeper.vy=0; keeper.a=0; keeper.dive=0; keeper.liftX=0; keeper.bottomTilt=0; keeper.x = keeper.baseX; keeper.y = keeper.baseY; }
+  function resetBall(){ ball.x=geom.spot.x; ball.y=geom.spot.y; ball.vx=ball.vy=ball.spin=0; ball.angle=0; ball.moving=false; ball.netSounded=false; ball.trail=[]; ball.firstContact=false; ball.tx=ball.ty=0; ball.prevDist=0; netHit={x:0,y:0,t:0,shake:0}; keeper.save=false; keeper.vx=0; keeper.vy=0; keeper.a=0; keeper.dive=0; keeper.x = keeper.baseX; keeper.y = keeper.baseY; }
   function startGame(){ running=true; paused=false; ended=false; roundStart=performance.now(); timeLeft=ROUND_TIME; myScore=0; for(const r of rivals){ r.score=0; r.next=0; r.shots=[]; } resetBall(); generateHoles(); drawMiniBoards(true); updateHUD(); ensureAudio(); sfxStart(); status('Go! Score as many as you can.'); }
 
   // ===== WebAudio SFX (no files) =====
