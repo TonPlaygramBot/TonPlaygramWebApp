@@ -266,7 +266,13 @@
     let x=-W*0.5;
     for(let i=0;i<10;i++){ const w=rnd(240,320); banners.push({x,y:trackY,w,h:trackH,speed:rnd(0.6,1.1),hue:Math.floor(rnd(200,320)),text:texts[i%texts.length]}); x+=w+rnd(80,140); }
   }
-  function initCameras(){ const g=geom.goal,cw=36,ch=24; cameras=[{x:g.x-cw-12,y:g.y+g.h-ch-6,w:cw,h:ch},{x:g.x+g.w+12,y:g.y+g.h-ch-6,w:cw,h:ch}]; }
+  function initCameras(){
+    const g = geom.goal, cw = 36, ch = 24;
+    cameras = [
+      { x: g.x - cw - 6, y: g.y + g.h - ch - 14, w: cw, h: ch },
+      { x: g.x + g.w + 6, y: g.y + g.h - ch - 14, w: cw, h: ch }
+    ];
+  }
 
   // ===== Targets =====
   function generateHoles(){
@@ -371,15 +377,17 @@
     const g=geom.goal;
     const innerW=g.w*0.8, innerH=g.h*0.8;
     const ix=g.x+(g.w-innerW)/2, iy=g.y+(g.h-innerH)/2;
-    ctx.save(); ctx.beginPath(); ctx.rect(g.x,g.y,g.w,g.h); ctx.clip();
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(ix,iy,innerW,innerH);
+    ctx.clip();
     const netColor=getComputedStyle(document.documentElement).getPropertyValue('--net')||'#e6e6e6';
     ctx.strokeStyle=netColor; ctx.lineWidth=1.2;
     const size=18; const h=size*Math.sqrt(3)/2;
-    for(let y=g.y-h; y<g.y+g.h+h; y+=h){
-      for(let x=g.x-size; x<g.x+g.w+size; x+=size*1.5){
-        const off = ((Math.round((y-g.y)/h))%2)*size*0.75;
+    for(let y=iy-h; y<iy+innerH+h; y+=h){
+      for(let x=ix-size; x<ix+innerW+size; x+=size*1.5){
+        const off = ((Math.round((y-iy)/h))%2)*size*0.75;
         const cx=x+off, cy=y;
-        if(cy>=iy+innerH && cx>ix && cx<ix+innerW) continue;
         ctx.beginPath();
         for(let i=0;i<6;i++){
           const a=Math.PI/3*i; let px=cx+size*Math.cos(a); let py=cy+size*Math.sin(a);
@@ -398,8 +406,14 @@
     ctx.lineTo(ix, iy+innerH);
     ctx.moveTo(g.x+g.w, g.y+g.h);
     ctx.lineTo(ix+innerW, iy+innerH);
+    ctx.moveTo(g.x, g.y);
+    ctx.lineTo(ix, iy);
+    ctx.moveTo(g.x+g.w, g.y);
+    ctx.lineTo(ix+innerW, iy);
     ctx.moveTo(ix, iy+innerH);
     ctx.lineTo(ix+innerW, iy+innerH);
+    ctx.moveTo(ix, iy);
+    ctx.lineTo(ix+innerW, iy);
     ctx.stroke();
     ctx.strokeStyle='#fff'; ctx.lineWidth=12;
     ctx.beginPath();
