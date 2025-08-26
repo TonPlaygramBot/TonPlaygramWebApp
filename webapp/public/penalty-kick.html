@@ -215,9 +215,9 @@
   let myScore = 0;
 
   const BALL_R = 42;
-  // speed up shot slightly for snappier gameplay
-  const SHOT_SPEED = 25;
-  const ball = { x:0,y:0,r:BALL_R, vx:0,vy:0, moving:false, trail:[], spin:0, angle:0, netSounded:false, firstContact:false, tx:0, ty:0, prevDist:0, afterNet:0 };
+  // increase shot speed for snappier gameplay
+  const SHOT_SPEED = 20;
+  const ball = { x:0,y:0,r:BALL_R, vx:0,vy:0, moving:false, trail:[], spin:0, angle:0, netSounded:false, firstContact:false, tx:0, ty:0, prevDist:0 };
   const ballImg = new Image();
   ballImg.src = '/assets/icons/file_0000000061d4620aaf506adfa605e1f3.webp';
 
@@ -499,15 +499,6 @@
     ball.vx = (ball.vx + curve)*FRICTION*drag; ball.vy = (ball.vy + GRAVITY)*FRICTION*drag;
     ball.x += ball.vx; ball.y += ball.vy; ball.angle += ball.spin;
 
-    if(ball.afterNet){
-      const ground=geom.spot.y;
-      if(ball.afterNet===1 && ball.y>=ground){
-        ball.y=ground; ball.vy*=-0.5; ball.afterNet=2;
-      } else if(ball.afterNet===2 && ball.vy>0 && ball.y>=ground){
-        ball.afterNet=0; ball.moving=false; setTimeout(()=>endShot(true,0),300); return;
-      }
-    }
-
     const g=geom.goal;
     if(ball.x>g.x && ball.x<g.x+g.w && ball.y>g.y && ball.y<g.y+g.h){
       for(const h of holes){
@@ -515,9 +506,9 @@
           h.hit=true; createFragments(h); netHit={x:ball.x,y:ball.y,t:1,shake:1}; sfxBreak(); ball.moving=false; replaceHole(h); endShot(true,h.points); return;
         }
       }
-      ball.vx*=0.2; ball.vy=3; ball.tx=0; ball.ty=0; ball.afterNet=1; netHit={x:ball.x,y:ball.y,t:1,shake:1};
+      ball.vx*=0.86; ball.vy*=0.74; netHit={x:ball.x,y:ball.y,t:1,shake:1};
       if(!ball.netSounded){ sfxNet(); ball.netSounded=true; }
-      return;
+      ball.moving=false; setTimeout(()=>endShot(true,0),600); return;
     }
     if(keeper.save && ballHitsKeeper()){
       keeper.save=false; ball.moving=false; setTimeout(()=>endShot(false,0),600); return;
@@ -540,7 +531,7 @@
       ball.prevDist = dToTarget;
     }
 
-    if(!ball.afterNet && !ball.firstContact && ball.y >= geom.spot.y && ball.vy > 0){ ball.firstContact=true; ball.moving=false; setTimeout(()=>endShot(false,0),600); return; }
+    if(!ball.firstContact && ball.y >= geom.spot.y && ball.vy > 0){ ball.firstContact=true; ball.moving=false; setTimeout(()=>endShot(false,0),600); return; }
     if(ball.y < -80 || ball.x < -80 || ball.x > W+80 || ball.y > H+80 || Math.hypot(ball.vx,ball.vy)<0.3){ ball.moving=false; setTimeout(()=>endShot(false,0),600); }
   }
 
@@ -737,7 +728,7 @@ function endShot(hit,pts){
   // ===== Controls =====
   // controls removed
 
-  function resetBall(){ ball.x=geom.spot.x; ball.y=geom.spot.y; ball.vx=ball.vy=ball.spin=0; ball.angle=0; ball.moving=false; ball.netSounded=false; ball.trail=[]; ball.firstContact=false; ball.tx=ball.ty=0; ball.prevDist=0; ball.afterNet=0; netHit={x:0,y:0,t:0,shake:0}; keeper.save=false; keeper.vx=0; keeper.vy=0; keeper.a=0; keeper.dive=0; keeper.liftX=0; keeper.x = keeper.baseX; keeper.y = keeper.baseY; }
+  function resetBall(){ ball.x=geom.spot.x; ball.y=geom.spot.y; ball.vx=ball.vy=ball.spin=0; ball.angle=0; ball.moving=false; ball.netSounded=false; ball.trail=[]; ball.firstContact=false; ball.tx=ball.ty=0; ball.prevDist=0; netHit={x:0,y:0,t:0,shake:0}; keeper.save=false; keeper.vx=0; keeper.vy=0; keeper.a=0; keeper.dive=0; keeper.liftX=0; keeper.x = keeper.baseX; keeper.y = keeper.baseY; }
   function startGame(){ running=true; paused=false; ended=false; roundStart=performance.now(); timeLeft=ROUND_TIME; myScore=0; for(const r of rivals){ r.score=0; r.next=0; r.shots=[]; } resetBall(); generateHoles(); drawMiniBoards(true); updateHUD(); ensureAudio(); sfxStart(); status('Go! Score as many as you can.'); }
 
   // ===== WebAudio SFX (no files) =====
@@ -759,7 +750,7 @@ function endShot(hit,pts){
     const src=audioCtx.createBufferSource();
     src.buffer=goalSoundBuf;
     const half=goalSoundBuf.duration/2;
-    if(part==='first') src.start(0,0,half); else src.start(0,half,Math.max(0,goalSoundBuf.duration-half-0.2));
+    if(part==='first') src.start(0,0,half); else src.start(0,half);
     src.connect(masterGain);
   }
   const sfxKick = ()=>playGoalSound('first');
