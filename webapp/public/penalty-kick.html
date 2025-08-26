@@ -710,7 +710,7 @@ function endShot(hit,pts){
     const src=audioCtx.createBufferSource();
     src.buffer=goalSoundBuf;
     const half=goalSoundBuf.duration/2;
-    if(part==='first') src.start(0,0,half); else src.start(0,half);
+    if(part==='first') src.start(0,0,half); else src.start(0,half,goalSoundBuf.duration-half-0.2);
     src.connect(masterGain);
   }
   const sfxKick = ()=>playGoalSound('first');
