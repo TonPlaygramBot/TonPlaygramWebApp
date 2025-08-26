@@ -287,7 +287,7 @@
       const x=rnd(g.x+pad+r, g.x+g.w-pad-r);
       const y=rnd(g.y+pad+r, g.y+g.h-pad-r);
       if(holes.every(h=>Math.hypot(h.x-x,h.y-y)>h.r+r+12)){
-        const points = 10 + Math.floor(Math.random() * 3);
+        const points=Math.max(10,Math.round(((maxR/r)*70)/5)*5);
         holes.push({x,y,r,points});
       }
     }
@@ -306,7 +306,7 @@
       const x=rnd(g.x+pad+r,g.x+g.w-pad-r);
       const y=rnd(g.y+pad+r,g.y+g.h-pad-r);
       if(holes.every(h=>h===old||Math.hypot(h.x-x,h.y-y)>h.r+r+12)){
-        const points = 10 + Math.floor(Math.random() * 3);
+        const points=Math.max(10,Math.round(((maxR/r)*70)/5)*5);
         holes[idx]={x,y,r,points};
         break;
       }
@@ -442,10 +442,8 @@
   function drawKeeper(){
     const k=keeper;
     ctx.save();
-    ctx.translate(k.x + k.w/2 + k.liftX, k.y + k.h);
+    ctx.translate(k.x + k.w/2 + k.liftX, k.y + k.h + k.dive);
     ctx.rotate(k.a||0);
-    const scaleY = 1 + k.dive / k.h;
-    ctx.scale(1, Math.max(0.5, scaleY));
     ctx.translate(-k.w/2, -k.h);
     ctx.drawImage(keeperImg, 0, 0, k.w, k.h);
     ctx.restore();
@@ -617,34 +615,16 @@ function endShot(hit,pts){
       const dist = Math.hypot(totalDx, totalDy), power = clamp(dist / dt, 0.3, 3.0);
       const len = Math.max(1, dist);
       const dirx = totalDx / len, diry = totalDy / len;
-      const spin = 0;
+      let curve = 0;
+      for(let i = 2; i < path.length; i++){
+        const p0 = path[i-2], p1 = path[i-1], p2 = path[i];
+        curve += Math.atan2(p2.y - p1.y, p2.x - p1.x) - Math.atan2(p1.y - p0.y, p1.x - p0.x);
+      }
+      const spin = clamp((ball.x - a.x)/ball.r + curve*0.5, -2, 2);
       drawAimPath(dirx*SHOT_SPEED*power, diry*SHOT_SPEED*power, spin);
     }
   }
-  function onUp(e){
-    if(!pointer.active || e.pointerId !== pointer.id) return;
-    pointer.active = false;
-    if(!pointer.armed || ball.moving || !running || paused){ pointer.path = []; return; }
-    const path = pointer.path; pointer.path = [];
-    if(path.length < 3){ status('Swipe longer/faster.'); return; }
-    const dt = Math.max(16, (pointer.t1 - pointer.t0));
-    const b = path[path.length - 1];
-    const endDx = b.x - ball.x, endDy = b.y - ball.y;
-    const dist = Math.hypot(endDx, endDy);
-    const power = clamp(dist / dt, 0.3, 6.0);
-    let dirx = endDx / dist, diry = endDy / dist;
-    const norm = Math.hypot(dirx, diry) || 1; dirx /= norm; diry /= norm;
-    const spin = 0;
-    ball.vx = dirx * SHOT_SPEED * power;
-    ball.vy = diry * SHOT_SPEED * power;
-    ball.tx = b.x; ball.ty = b.y;
-    ball.prevDist = Math.hypot(ball.tx - ball.x, ball.ty - ball.y);
-    ball.spin = spin;
-    ball.moving = true;
-    sfxKick();
-    keeper.save = false;
-    powerBar.style.height = Math.round(clamp(power/3.0,0,1)*100)+'%';
-  }
+  function onUp(e){ if(!pointer.active||e.pointerId!==pointer.id) return; pointer.active=false; if(!pointer.armed||ball.moving||!running||paused){ pointer.path=[]; return; } const path=pointer.path; pointer.path=[]; if(path.length<3){ status('Swipe longer/faster.'); return; } const dt=Math.max(16,(pointer.t1-pointer.t0)), a=path[0], b=path[path.length-1]; const totalDx=b.x-a.x, totalDy=b.y-a.y; if(totalDy>-10){ status('Swipe upward.'); return; } const endDx=b.x-ball.x, endDy=b.y-ball.y; const dist=Math.hypot(endDx,endDy), power=clamp(dist/dt, 0.3, 6.0); let dirx=endDx/dist, diry=endDy/dist; const norm=Math.hypot(dirx,diry)||1; dirx/=norm; diry/=norm; let curve=0; for(let i=2;i<path.length;i++){ const p0=path[i-2], p1=path[i-1], p2=path[i]; curve+=Math.atan2(p2.y-p1.y,p2.x-p1.x)-Math.atan2(p1.y-p0.y,p1.x-p0.x); } const spin = clamp((ball.x - a.x)/ball.r + curve*0.5, -3, 3); ball.vx=dirx*SHOT_SPEED*power; ball.vy=diry*SHOT_SPEED*power; ball.tx=b.x; ball.ty=b.y; ball.prevDist=Math.hypot(ball.tx-ball.x, ball.ty-ball.y); ball.spin=spin; ball.moving=true; sfxKick(); keeper.save=false; powerBar.style.height = Math.round(clamp(power/3.0,0,1)*100)+'%'; }
   canvas.addEventListener('pointerdown', onDown, {passive:true});
   canvas.addEventListener('pointermove', onMove, {passive:true});
   addEventListener('pointerup', onUp, {passive:true}); addEventListener('pointercancel', onUp, {passive:true});
