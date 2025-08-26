@@ -270,17 +270,26 @@ window.__TETRIS_ROYALE__ = true;
   function cloneBoard(board){ return board.map(row=>row.slice()); }
   function evaluate(board, lines){
     const heights = Array(COLS).fill(0);
-    let aggregateHeight = 0, holes = 0;
+    let aggregateHeight = 0, holes = 0, maxHeight = 0, wellSum = 0;
     for(let x=0;x<COLS;x++){
       let y=0;
       while(y<ROWS && !board[y][x]) y++;
-      heights[x] = ROWS - y;
-      aggregateHeight += heights[x];
+      const h = ROWS - y;
+      heights[x] = h;
+      aggregateHeight += h;
+      if(h > maxHeight) maxHeight = h;
       for(let yy=y+1;yy<ROWS;yy++) if(!board[yy][x]) holes++;
     }
     let bumpiness = 0;
     for(let x=0;x<COLS-1;x++){ bumpiness += Math.abs(heights[x]-heights[x+1]); }
-    return lines*100 - aggregateHeight*1 - holes*45 - bumpiness*5;
+    for(let x=0;x<COLS;x++){
+      const left = heights[x-1] ?? ROWS;
+      const right = heights[x+1] ?? ROWS;
+      if(heights[x] < left && heights[x] < right){
+        wellSum += Math.min(left, right) - heights[x];
+      }
+    }
+    return lines*120 - aggregateHeight*1 - holes*50 - bumpiness*5 - maxHeight*2 - wellSum*3;
   }
   function bestMove(game){
     let best = null;
