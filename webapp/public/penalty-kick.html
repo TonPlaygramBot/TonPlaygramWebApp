@@ -206,7 +206,7 @@
     keeper.w = 40*geom.scale*4;
     keeper.h = 100*geom.scale*4;
     keeper.x = geom.goal.x + (geom.goal.w-keeper.w)/2;
-    keeper.y = geom.goal.y + geom.goal.h - keeper.h - geom.goal.h*0.005;
+    keeper.y = geom.goal.y + geom.goal.h - keeper.h + geom.goal.h*0.005;
     keeper.baseY = keeper.y;
     keeper.baseX = keeper.x;
   }
@@ -217,7 +217,7 @@
   let myScore = 0;
 
   const BALL_R = 36;
-  const SHOT_SPEED = 30;
+  const SHOT_SPEED = 26;
   const ball = { x:0,y:0,r:BALL_R, vx:0,vy:0, moving:false, trail:[], spin:0, angle:0, netSounded:false, firstContact:false };
   const ballImg = new Image();
   ballImg.src = '/assets/icons/file_0000000061d4620aaf506adfa605e1f3.webp';
@@ -256,7 +256,8 @@
     const dx=ball.x-px, dy=ball.y-py;
     const lx=dx*cos - dy*sin;
     const ly=dx*sin + dy*cos;
-    return lx>-k.w/2-ball.r && lx<k.w/2+ball.r && ly>-k.h-ball.r && ly<ball.r;
+    const w=k.w*0.9, h=k.h*0.9;
+    return lx>-w/2-ball.r && lx<w/2+ball.r && ly>-h-ball.r && ly<ball.r;
   }
 
   // ===== Ads & Cameras =====
@@ -429,12 +430,16 @@
 
   // ===== Ball & physics =====
   function drawBall(){
-    ball.r=Math.max(BALL_R*geom.scale*1.08,22);
-    ctx.globalAlpha=0.10; for(const t of ball.trail){ ctx.beginPath(); ctx.arc(t.x,t.y,ball.r*0.72,0,Math.PI*2); ctx.fillStyle='#fff'; ctx.fill(); } ctx.globalAlpha=1;
+    const baseR=Math.max(BALL_R*geom.scale*1.08,22);
+    ball.r=baseR;
+    const goalY=geom.goal.y+geom.goal.h;
+    const progress = ball.moving ? clamp((ball.y-goalY)/(geom.spot.y-goalY),0,1) : 1;
+    const drawR=baseR*(1+progress);
+    ctx.globalAlpha=0.10; for(const t of ball.trail){ ctx.beginPath(); ctx.arc(t.x,t.y,drawR*0.72,0,Math.PI*2); ctx.fillStyle='#fff'; ctx.fill(); } ctx.globalAlpha=1;
     ctx.save();
     ctx.translate(ball.x,ball.y);
     ctx.rotate(ball.angle);
-    const size = ball.r*2;
+    const size = drawR*2;
     ctx.drawImage(ballImg, -size/2, -size/2, size, size);
     ctx.restore();
   }
@@ -493,7 +498,7 @@
       keeper.a += (targetA - keeper.a) * 0.2;
       const targetX = clamp(diff * 0.05, -keeper.w*0.3, keeper.w*0.3);
       keeper.x += (keeper.baseX + targetX - keeper.x) * 0.2;
-      keeper.save = Math.abs(diff) < keeper.w*0.5;
+      keeper.save = Math.abs(diff) < keeper.w*0.45;
       const targetDive = keeper.save ? 12 : 0;
       keeper.dive += (targetDive - keeper.dive) * 0.2;
     } else {
@@ -551,8 +556,8 @@ function endShot(hit,pts){
   function pos(e){ const r=canvas.getBoundingClientRect(); return {x:(e.clientX-r.left)*(W/r.width), y:(e.clientY-r.top)*(H/r.height)}; }
   function onDown(e){ if(!running||ended||paused) return; if(pointer.active) return; pointer.active=true; pointer.id=e.pointerId; const p=pos(e); pointer.path=[p]; pointer.t0=performance.now(); pointer.t1=pointer.t0; pointer.armed = Math.hypot(p.x-ball.x,p.y-ball.y) <= ball.r*1.25 && !ball.moving; if(pointer.armed){ status('Swipe upward. Curve for spin.'); sfxKick(); } }
   function onMove(e){ if(!pointer.active||e.pointerId!==pointer.id) return; pointer.path.push(pos(e)); pointer.t1=performance.now();
-    if(pointer.armed && aimOn && pointer.path.length>2){ const a=pointer.path[0], b=pointer.path[pointer.path.length-1]; const dx=b.x-a.x, dy=b.y-a.y, dt=Math.max(16,(pointer.t1-pointer.t0)); const dist=Math.hypot(dx,dy), power=clamp(dist/dt, 0.55, 3.0); const len=Math.max(1,Math.hypot(dx,dy)); const dirx=dx/len, diry=dy/len; let spin=0; for(let i=2;i<pointer.path.length;i++){ const u=pointer.path[i-2], v=pointer.path[i-1], w=pointer.path[i]; spin += (v.x-u.x)*(w.y-v.y) - (v.y-u.y)*(w.x-v.x); } spin = clamp(spin/(dist*40), -1.5, 1.5); drawAimPath(dirx*SHOT_SPEED*power, diry*SHOT_SPEED*power, spin*1.2); } }
-  function onUp(e){ if(!pointer.active||e.pointerId!==pointer.id) return; pointer.active=false; if(!pointer.armed||ball.moving||!running||paused){ pointer.path=[]; return; } const path=pointer.path; pointer.path=[]; if(path.length<3){ status('Swipe longer/faster.'); return; } const dt=Math.max(16,(pointer.t1-pointer.t0)), a=path[0], b=path[path.length-1]; const dx=b.x-a.x, dy=b.y-a.y; if(dy>-10){ status('Swipe upward.'); return; } const dist=Math.hypot(dx,dy), power=clamp(dist/dt, 0.55, 3.0); const len=Math.max(1,Math.hypot(dx,dy)); const dirx=dx/len, diry=dy/len; let spin=0; for(let i=2;i<path.length;i++){ const u=path[i-2], v=path[i-1], w=path[i]; spin += (v.x-u.x)*(w.y-v.y) - (v.y-u.y)*(w.x-v.x); } spin = clamp(spin/(dist*40), -1.5, 1.5); ball.vx=dirx*SHOT_SPEED*power; ball.vy=diry*SHOT_SPEED*power; ball.spin=spin*1.2; ball.moving=true; keeper.save=false; powerBar.style.height = Math.round(clamp(power/3.0,0,1)*100)+'%'; }
+    if(pointer.armed && aimOn && pointer.path.length>1){ const a=pointer.path[0], b=pointer.path[pointer.path.length-1]; const dx=b.x-a.x, dy=b.y-a.y, dt=Math.max(16,(pointer.t1-pointer.t0)); const dist=Math.hypot(dx,dy), power=clamp(dist/dt, 0.55, 3.0); const len=Math.max(1,Math.hypot(dx,dy)); const dirx=dx/len, diry=dy/len; const spin = clamp((ball.x - a.x)/ball.r, -1.5, 1.5); drawAimPath(dirx*SHOT_SPEED*power, diry*SHOT_SPEED*power, spin); } }
+  function onUp(e){ if(!pointer.active||e.pointerId!==pointer.id) return; pointer.active=false; if(!pointer.armed||ball.moving||!running||paused){ pointer.path=[]; return; } const path=pointer.path; pointer.path=[]; if(path.length<3){ status('Swipe longer/faster.'); return; } const dt=Math.max(16,(pointer.t1-pointer.t0)), a=path[0], b=path[path.length-1]; const dx=b.x-a.x, dy=b.y-a.y; if(dy>-10){ status('Swipe upward.'); return; } const dist=Math.hypot(dx,dy), power=clamp(dist/dt, 0.55, 3.0); const len=Math.max(1,Math.hypot(dx,dy)); const dirx=dx/len, diry=dy/len; const spin = clamp((ball.x - a.x)/ball.r, -1.5, 1.5); ball.vx=dirx*SHOT_SPEED*power; ball.vy=diry*SHOT_SPEED*power; ball.spin=spin; ball.moving=true; keeper.save=false; powerBar.style.height = Math.round(clamp(power/3.0,0,1)*100)+'%'; }
   canvas.addEventListener('pointerdown', onDown, {passive:true});
   canvas.addEventListener('pointermove', onMove, {passive:true});
   addEventListener('pointerup', onUp, {passive:true}); addEventListener('pointercancel', onUp, {passive:true});
