@@ -1609,18 +1609,10 @@
         var shotPocketRecorded = false;
         var shotsLog = [];
 
-        var AIM_CALIBRATION_RAD = -0.03; // rotate slightly right to correct aim
         function calibrated(pt) {
-          // Rotate aim around cue ball to align guide with true shot
-          var cue = table.balls[0];
-          var dx = pt.x - cue.p.x;
-          var dy = pt.y - cue.p.y;
-          var cosA = Math.cos(AIM_CALIBRATION_RAD);
-          var sinA = Math.sin(AIM_CALIBRATION_RAD);
-          return {
-            x: cue.p.x + dx * cosA - dy * sinA,
-            y: cue.p.y + dx * sinA + dy * cosA
-          };
+          // Aiming is now directly based on the raw point to ensure
+          // the guideline and the actual shot remain perfectly aligned.
+          return pt;
         }
 
         function remainingPoints() {
@@ -2641,20 +2633,14 @@
               if (!pocketPathClear(t, pk)) continue;
               var cueToContact = len(contact.x - cue.p.x, contact.y - cue.p.y);
               var ballToPocket = len(pk.x - t.p.x, pk.y - t.p.y);
-              var cueAfter = {
-                x: t.p.x + toPocket.x * BALL_R * 4,
-                y: t.p.y + toPocket.y * BALL_R * 4
-              };
               var nxt = nextTarget(t);
               var anglePenalty = 0;
-              var posPenalty = 0;
               if (nxt) {
                 var shotDir = norm(contact.x - cue.p.x, contact.y - cue.p.y);
                 var toNext = norm(nxt.p.x - t.p.x, nxt.p.y - t.p.y);
                 anglePenalty = Math.abs(shotDir.x * toNext.y - shotDir.y * toNext.x);
-                posPenalty = len(cueAfter.x - nxt.p.x, cueAfter.y - nxt.p.y);
               }
-              var score = cueToContact + ballToPocket + anglePenalty * 200 + posPenalty * 0.5;
+              var score = cueToContact + ballToPocket + anglePenalty * 200;
               if (!best || score < best.score) {
                 best = {
                   nd: norm(contact.x - cue.p.x, contact.y - cue.p.y),
@@ -2713,7 +2699,7 @@
           }
 
           // apply improved potting accuracy
-          var ACCURACY = 0.99995;
+          var ACCURACY = 0.9995;
           nd = {
             x: nd.x + (Math.random() - 0.5) * (1 - ACCURACY),
             y: nd.y + (Math.random() - 0.5) * (1 - ACCURACY)
