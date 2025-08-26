@@ -748,20 +748,35 @@ function endShot(hit,pts){
   // ===== WebAudio SFX (no files) =====
   let audioCtx=null, masterGain=null; function ensureAudio(){ if(audioCtx) return; try{ const AC = window.AudioContext || window.webkitAudioContext; audioCtx = new AC(); masterGain = audioCtx.createGain(); masterGain.gain.value = 0.18; masterGain.connect(audioCtx.destination); }catch{} }
   function tone(freq=440, dur=0.08, type='sine', gain=0.22){ if(!audioCtx) return; const o=audioCtx.createOscillator(); const g=audioCtx.createGain(); o.type=type; o.frequency.value=freq; o.connect(g); g.connect(masterGain); g.gain.setValueAtTime(gain, audioCtx.currentTime); g.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime+dur); o.start(); o.stop(audioCtx.currentTime+dur); }
-  const netSound = new Audio('/assets/sounds/football-game-sound-effects-359284.mp3');
-  const kickSound = new Audio('/assets/sounds/billiard-pool-hit-371618.mp3');
-  const sfxKick = ()=>{ try{ kickSound.currentTime=0; kickSound.play(); }catch{} };
+  let goalSoundBuf=null;
+  async function loadGoalSound(){
+    try{
+      const res=await fetch('/assets/sounds/a-football-hits-the-net-goal-313216-[AudioTrimmer.com].mp3');
+      const arr=await res.arrayBuffer();
+      ensureAudio(); if(!audioCtx) return;
+      goalSoundBuf = await audioCtx.decodeAudioData(arr);
+    }catch{}
+  }
+  loadGoalSound();
+  function playGoalSound(part){
+    ensureAudio();
+    if(!audioCtx || !goalSoundBuf) return;
+    const src=audioCtx.createBufferSource();
+    src.buffer=goalSoundBuf;
+    const half=goalSoundBuf.duration/2;
+    if(part==='first') src.start(0,0,half); else src.start(0,half);
+    src.connect(masterGain);
+  }
+  const sfxKick = ()=>playGoalSound('first');
     const sfxGoal = ()=>{tone(660,0.10,'triangle',0.30); setTimeout(()=>tone(880,0.12,'triangle',0.28),60);};
     const sfxMiss = ()=>tone(160,0.10,'square',0.25);
     const sfxRival= ()=>tone(520,0.06,'triangle',0.18);
     const sfxBreak = ()=>{ if(!audioCtx) return; const len=audioCtx.sampleRate*0.25; const buf=audioCtx.createBuffer(1,len,audioCtx.sampleRate); const data=buf.getChannelData(0); for(let i=0;i<len;i++){ data[i]=(Math.random()*2-1)*(1-i/len); } const src=audioCtx.createBufferSource(); src.buffer=buf; const g=audioCtx.createGain(); g.gain.value=0.6; src.connect(g); g.connect(masterGain); src.start(); };
     const sfxStart= ()=>{tone(500,0.08,'triangle',0.25); setTimeout(()=>tone(650,0.08,'triangle',0.22),80);};
   const sfxEnd  = ()=>{tone(300,0.12,'sine',0.18); setTimeout(()=>tone(220,0.16,'sine',0.16),60);};
-  const rewardSound = new Audio('https://cdn.pixabay.com/audio/2022/03/15/audio_1d8839a382.mp3');
-  const woodSound = new Audio('https://actions.google.com/sounds/v1/impacts/crash.ogg');
-  const sfxNet = ()=>{ try{ netSound.currentTime = 0; netSound.play(); }catch{} };
-  const sfxReward = ()=>{ try{ rewardSound.currentTime = 0; rewardSound.play(); }catch{} };
-  const sfxWoodwork = ()=>{ try{ woodSound.currentTime = 0; woodSound.play(); }catch{} };
+  const sfxNet = ()=>playGoalSound('second');
+  const sfxReward = ()=>playGoalSound('first');
+  const sfxWoodwork = ()=>playGoalSound('first');
   function vibrate(ms){ if(navigator.vibrate) try{ navigator.vibrate(ms); }catch{} }
 
   // ===== Static draw & tests =====
