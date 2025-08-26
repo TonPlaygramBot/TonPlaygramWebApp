@@ -216,7 +216,7 @@
 
   const BALL_R = 42;
   // speed up shot slightly for snappier gameplay
-  const SHOT_SPEED = 30;
+  const SHOT_SPEED = 25;
   const ball = { x:0,y:0,r:BALL_R, vx:0,vy:0, moving:false, trail:[], spin:0, angle:0, netSounded:false, firstContact:false, tx:0, ty:0, prevDist:0, afterNet:0 };
   const ballImg = new Image();
   ballImg.src = '/assets/icons/file_0000000061d4620aaf506adfa605e1f3.webp';
@@ -279,17 +279,20 @@
     const g=geom.goal; holes=[];
     const minR=Math.max(ball.r*1.05,22*geom.scale); const maxR=Math.max(minR+6,50*geom.scale);
     const pad=18;
-    let attempts=0;
-    while(holes.length<4 && attempts<600){
-      attempts++;
-      const r=rnd(minR,maxR);
-      const x=rnd(g.x+pad+r, g.x+g.w-pad-r);
-      const y=rnd(g.y+pad+r, g.y+g.h-pad-r);
-      if(holes.every(h=>Math.hypot(h.x-x,h.y-y)>h.r+r+12)){
-        const points=Math.max(10,Math.round(((maxR/r)*70)/5)*5);
-        holes.push({x,y,r,points});
-      }
-    }
+    const corners=[
+      {x:g.x+pad+minR,y:g.y+pad+minR},
+      {x:g.x+g.w-pad-minR,y:g.y+pad+minR},
+      {x:g.x+pad+minR,y:g.y+g.h-pad-minR},
+      {x:g.x+g.w-pad-minR,y:g.y+g.h-pad-minR}
+    ];
+    const usedR=[];
+    corners.forEach((c,i)=>{
+      let r;
+      do{ r=rnd(minR,maxR); }while(usedR.some(v=>Math.abs(v-r)<1));
+      usedR.push(r);
+      const points=Math.max(10,Math.round(((maxR/r)*70)/5)*5);
+      holes.push({x:c.x,y:c.y,r,points,corner:i});
+    });
     for(let i=0;i<3;i++){ const cv=rivals[i].cvs; const g2={x:12,y:12,w:cv.width-24,h:cv.height-30}; miniHolesCache[i]=genMiniHoles(g2); }
   }
   function replaceHole(old){
@@ -298,11 +301,25 @@
     const g=geom.goal;
     const minR=Math.max(ball.r*1.05,22*geom.scale); const maxR=Math.max(minR+6,50*geom.scale);
     const pad=18;
+    if(old.corner!==undefined){
+      const corners=[
+        {x:g.x+pad+minR,y:g.y+pad+minR},
+        {x:g.x+g.w-pad-minR,y:g.y+pad+minR},
+        {x:g.x+pad+minR,y:g.y+g.h-pad-minR},
+        {x:g.x+g.w-pad-minR,y:g.y+g.h-pad-minR}
+      ];
+      const used=holes.filter(h=>h.corner!==undefined && h!==old).map(h=>h.r);
+      let r;
+      do{ r=rnd(minR,maxR); }while(used.some(v=>Math.abs(v-r)<1));
+      const points=Math.max(10,Math.round(((maxR/r)*70)/5)*5);
+      holes[idx]={x:corners[old.corner].x,y:corners[old.corner].y,r,points,corner:old.corner};
+      return;
+    }
     let tries=0;
     while(tries<600){
       tries++;
       const r=rnd(minR,maxR);
-      const x=rnd(g.x+pad+r,g.x+g.w-pad-r);
+      let x=rnd(g.x+pad+r,g.x+g.w-pad-r);
       const y=rnd(g.y+pad+r,g.y+g.h-pad-r);
       if(holes.every(h=>h===old||Math.hypot(h.x-x,h.y-y)>h.r+r+12)){
         const points=Math.max(10,Math.round(((maxR/r)*70)/5)*5);
@@ -482,42 +499,49 @@
     ball.vx = (ball.vx + curve)*FRICTION*drag; ball.vy = (ball.vy + GRAVITY)*FRICTION*drag;
     ball.x += ball.vx; ball.y += ball.vy; ball.angle += ball.spin;
 
+    if(ball.afterNet){
+      const ground=geom.spot.y;
+      if(ball.afterNet===1 && ball.y>=ground){
+        ball.y=ground; ball.vy*=-0.5; ball.afterNet=2;
+      } else if(ball.afterNet===2 && ball.vy>0 && ball.y>=ground){
+        ball.afterNet=0; ball.moving=false; setTimeout(()=>endShot(true,0),300); return;
+      }
+    }
+
     const g=geom.goal;
     if(ball.x>g.x && ball.x<g.x+g.w && ball.y>g.y && ball.y<g.y+g.h){
       for(const h of holes){
         if(Math.hypot(h.x-ball.x,h.y-ball.y) <= Math.max(2,h.r-ball.r*0.6)){
-          h.hit=true; createFragments(h); netHit={x:ball.x,y:ball.y,t:1,shake:1}; sfxBreak(); ball.moving=false; replaceHole(h); setTimeout(()=>endShot(true,h.points),200); return;
+          h.hit=true; createFragments(h); netHit={x:ball.x,y:ball.y,t:1,shake:1}; sfxBreak(); ball.moving=false; replaceHole(h); endShot(true,h.points); return;
         }
       }
-      netHit={x:ball.x,y:ball.y,t:1,shake:1};
+      ball.vx*=0.2; ball.vy=3; ball.tx=0; ball.ty=0; ball.afterNet=1; netHit={x:ball.x,y:ball.y,t:1,shake:1};
       if(!ball.netSounded){ sfxNet(); ball.netSounded=true; }
-      ball.moving=false; ball.vx=ball.vy=ball.spin=0;
-      setTimeout(()=>endShot(true,0),200);
       return;
     }
     if(keeper.save && ballHitsKeeper()){
-      keeper.save=false; ball.moving=false; setTimeout(()=>endShot(false,0),200); return;
+      keeper.save=false; ball.moving=false; setTimeout(()=>endShot(false,0),600); return;
     }
     const postR = g.post;
     const left={x:g.x, y:g.y+g.h}, right={x:g.x+g.w, y:g.y+g.h};
     let d=Math.hypot(ball.x-left.x, ball.y-left.y);
-    if(d < ball.r + postR){ sfxReward(); ball.moving=false; ball.vx=ball.vy=0; setTimeout(()=>endShot(false,0),200); return; }
+    if(d < ball.r + postR){ const nx=(ball.x-left.x)/d, ny=(ball.y-left.y)/d; reflectBall(nx,ny); sfxReward(); }
     d=Math.hypot(ball.x-right.x, ball.y-right.y);
-    if(d < ball.r + postR){ sfxReward(); ball.moving=false; ball.vx=ball.vy=0; setTimeout(()=>endShot(false,0),200); return; }
-    if(ball.y - ball.r <= g.y && ball.x > g.x - postR && ball.x < g.x + g.w + postR){ if(ball.vy < 0){ sfxReward(); ball.moving=false; ball.vx=ball.vy=0; ball.y = g.y + ball.r; setTimeout(()=>endShot(false,0),200); return; }}
+    if(d < ball.r + postR){ const nx=(ball.x-right.x)/d, ny=(ball.y-right.y)/d; reflectBall(nx,ny); sfxReward(); }
+    if(ball.y - ball.r <= g.y && ball.x > g.x - postR && ball.x < g.x + g.w + postR){ if(ball.vy < 0){ reflectBall(0,1); ball.y = g.y + ball.r; sfxReward(); }}
 
     if(ball.tx || ball.ty){
       const dToTarget = Math.hypot(ball.tx - ball.x, ball.ty - ball.y);
       if(dToTarget < ball.r || dToTarget > ball.prevDist){
         ball.x = ball.tx; ball.y = ball.ty;
         ball.vx = ball.vy = ball.spin = 0; ball.moving = false;
-        setTimeout(()=>endShot(false,0),200); return;
+        setTimeout(()=>endShot(false,0),600); return;
       }
       ball.prevDist = dToTarget;
     }
 
-    if(!ball.afterNet && !ball.firstContact && ball.y >= geom.spot.y && ball.vy > 0){ ball.firstContact=true; ball.moving=false; setTimeout(()=>endShot(false,0),200); return; }
-    if(ball.y < -80 || ball.x < -80 || ball.x > W+80 || ball.y > H+80 || Math.hypot(ball.vx,ball.vy)<0.3){ ball.moving=false; setTimeout(()=>endShot(false,0),200); }
+    if(!ball.afterNet && !ball.firstContact && ball.y >= geom.spot.y && ball.vy > 0){ ball.firstContact=true; ball.moving=false; setTimeout(()=>endShot(false,0),600); return; }
+    if(ball.y < -80 || ball.x < -80 || ball.x > W+80 || ball.y > H+80 || Math.hypot(ball.vx,ball.vy)<0.3){ ball.moving=false; setTimeout(()=>endShot(false,0),600); }
   }
 
   function stepFragments(){
