@@ -2085,9 +2085,12 @@
           // matches the simulated ball path even on glancing shots.
           var step = BALL_R * 0.05,
             dots = 600;
-          // precompute ball diameter squared for collision checks
-          var r = BALL_R * 2,
-            r2 = r * r;
+          // Use a slightly smaller radius when checking for contact so the
+          // guideline only turns yellow once a hit is guaranteed. This keeps
+          // near-miss shots from being shown as collisions.
+          var actualR = BALL_R * 2;
+          var detectR = actualR - BALL_R * 0.1;
+          var r2 = detectR * detectR;
           var x = cue.p.x,
             y = cue.p.y,
             target = null,
@@ -2122,7 +2125,8 @@
                 var dPrev2 = d2({ x: prevX, y: prevY }, b.p);
                 var dPrev = Math.sqrt(dPrev2);
                 var dCurr = Math.sqrt(dCurr2);
-                var tHit = (dPrev - r) / (dPrev - dCurr);
+                // compute impact position using the true collision radius
+                var tHit = (dPrev - actualR) / (dPrev - dCurr);
                 hitStep = i + tHit;
                 target = b;
                 break;
