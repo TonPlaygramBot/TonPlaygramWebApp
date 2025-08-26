@@ -2204,19 +2204,21 @@
             // Draw marker circle with a plus at the contact point
             var hitSpotX = tx - hitN.x * BALL_R;
             var hitSpotY = ty - hitN.y * BALL_R;
-            var markerR = BALL_R;
+            var canvasHitX = hitSpotX * sX;
+            var canvasHitY = hitSpotY * sY;
+            var markerR = ballR;
             ctx.save();
             ctx.strokeStyle = 'rgba(255,255,255,.8)';
             ctx.lineWidth = 1;
             ctx.beginPath();
-            ctx.arc(hitSpotX * sX, hitSpotY * sY, markerR, 0, Math.PI * 2);
+            ctx.arc(canvasHitX, canvasHitY, markerR, 0, Math.PI * 2);
             ctx.stroke();
             // plus sign
             ctx.beginPath();
-            ctx.moveTo((hitSpotX - markerR / 2) * sX, hitSpotY * sY);
-            ctx.lineTo((hitSpotX + markerR / 2) * sX, hitSpotY * sY);
-            ctx.moveTo(hitSpotX * sX, (hitSpotY - markerR / 2) * sY);
-            ctx.lineTo(hitSpotX * sX, (hitSpotY + markerR / 2) * sY);
+            ctx.moveTo(canvasHitX - markerR / 2, canvasHitY);
+            ctx.lineTo(canvasHitX + markerR / 2, canvasHitY);
+            ctx.moveTo(canvasHitX, canvasHitY - markerR / 2);
+            ctx.lineTo(canvasHitX, canvasHitY + markerR / 2);
             ctx.stroke();
             ctx.restore();
 
