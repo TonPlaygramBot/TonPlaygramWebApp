@@ -206,7 +206,7 @@
     keeper.w = 40*geom.scale*4;
     keeper.h = 100*geom.scale*4;
     keeper.x = geom.goal.x + (geom.goal.w-keeper.w)/2;
-    keeper.y = geom.goal.y + geom.goal.h - keeper.h - geom.goal.h*0.01;
+    keeper.y = geom.goal.y + geom.goal.h - keeper.h - geom.goal.h*0.005;
     keeper.baseY = keeper.y;
     keeper.baseX = keeper.x;
   }
@@ -217,7 +217,7 @@
   let myScore = 0;
 
   const BALL_R = 36;
-  const SHOT_SPEED = 38;
+  const SHOT_SPEED = 30;
   const ball = { x:0,y:0,r:BALL_R, vx:0,vy:0, moving:false, trail:[], spin:0, angle:0, netSounded:false, firstContact:false };
   const ballImg = new Image();
   ballImg.src = '/assets/icons/file_0000000061d4620aaf506adfa605e1f3.webp';
@@ -346,7 +346,8 @@
     const paDepth=Math.min(320*geom.scale,H*0.34), pad=Math.max(120*geom.scale,(W-g.w)/4);
     ctx.strokeRect(g.x-pad,gl,g.w+pad*2,paDepth);
     const sixDepth=Math.min(120*geom.scale,paDepth*0.45), sixPad=Math.max(140*geom.scale,pad*0.7);
-    ctx.strokeRect(g.x-sixPad,gl,g.w+sixPad*2,sixDepth);
+    // Removed goal-area line close to the net
+    // ctx.strokeRect(g.x-sixPad,gl,g.w+sixPad*2,sixDepth);
 
     // removed penalty arc and spot circle
   }
@@ -492,7 +493,7 @@
       keeper.a += (targetA - keeper.a) * 0.2;
       const targetX = clamp(diff * 0.05, -keeper.w*0.3, keeper.w*0.3);
       keeper.x += (keeper.baseX + targetX - keeper.x) * 0.2;
-      keeper.save = Math.abs(diff) < keeper.w*0.6;
+      keeper.save = Math.abs(diff) < keeper.w*0.5;
       const targetDive = keeper.save ? 12 : 0;
       keeper.dive += (targetDive - keeper.dive) * 0.2;
     } else {
