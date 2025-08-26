@@ -276,24 +276,26 @@
 
   // ===== Targets =====
   function generateHoles(){
-    const g=geom.goal; holes=[];
+    const g=geom.goal; holes=[]; const cnt=6+Math.floor(Math.random()*7);
     const minR=Math.max(ball.r*1.05,22*geom.scale); const maxR=Math.max(minR+6,50*geom.scale);
-    const pad=18;
-    const corners=[
-      {corner:'tl', bx:g.x+pad, by:g.y+pad},
-      {corner:'tr', bx:g.x+g.w-pad, by:g.y+pad},
-      {corner:'bl', bx:g.x+pad, by:g.y+g.h-pad},
-      {corner:'br', bx:g.x+g.w-pad, by:g.y+g.h-pad}
-    ];
-    const radii=[];
-    for(const c of corners){
-      let r;
-      do{ r=rnd(minR,maxR); }while(radii.some(x=>Math.abs(x-r)<3));
-      radii.push(r);
-      const x = c.corner[1]==='l' ? c.bx+r : c.bx-r;
-      const y = c.corner[0]==='t' ? c.by+r : c.by-r;
-      const points=Math.max(10,Math.round(((maxR/r)*70)/5)*5);
-      holes.push({x,y,r,points,corner:c.corner});
+    const pad=18; let tries=0;
+    while(holes.length<cnt && tries<1600){
+      tries++;
+      const r=rnd(minR,maxR);
+      let x;
+      if(Math.random() < 0.6){
+        const side = Math.random() < 0.5 ? 'l' : 'r';
+        const range = g.w * 0.2;
+        if(side === 'l') x = rnd(g.x+pad+r, g.x+pad+range);
+        else x = rnd(g.x+g.w-pad-range, g.x+g.w-pad-r);
+      } else {
+        x = rnd(g.x+pad+r,g.x+g.w-pad-r);
+      }
+      const y=rnd(g.y+pad+r,g.y+g.h-pad-r);
+      if(holes.every(h=>Math.hypot(h.x-x,h.y-y)>h.r+r+12)){
+        const points=Math.max(10,Math.round(((maxR/r)*70)/5)*5);
+        holes.push({x,y,r,points});
+      }
     }
     for(let i=0;i<3;i++){ const cv=rivals[i].cvs; const g2={x:12,y:12,w:cv.width-24,h:cv.height-30}; miniHolesCache[i]=genMiniHoles(g2); }
   }
@@ -302,18 +304,26 @@
     if(idx===-1) return;
     const g=geom.goal;
     const minR=Math.max(ball.r*1.05,22*geom.scale); const maxR=Math.max(minR+6,50*geom.scale);
-    const pad=18;
-    let r;
-    do{ r=rnd(minR,maxR); }while(holes.some((h,i)=>i!==idx && Math.abs(h.r-r)<3));
-    let x,y;
-    switch(old.corner){
-      case 'tl': x=g.x+pad+r; y=g.y+pad+r; break;
-      case 'tr': x=g.x+g.w-pad-r; y=g.y+pad+r; break;
-      case 'bl': x=g.x+pad+r; y=g.y+g.h-pad-r; break;
-      default:   x=g.x+g.w-pad-r; y=g.y+g.h-pad-r;
+    const pad=18; let tries=0;
+    while(tries<600){
+      tries++;
+      const r=rnd(minR,maxR);
+      let x;
+      if(Math.random() < 0.6){
+        const side = Math.random() < 0.5 ? 'l' : 'r';
+        const range = g.w * 0.2;
+        if(side === 'l') x = rnd(g.x+pad+r, g.x+pad+range);
+        else x = rnd(g.x+g.w-pad-range, g.x+g.w-pad-r);
+      } else {
+        x = rnd(g.x+pad+r,g.x+g.w-pad-r);
+      }
+      const y=rnd(g.y+pad+r,g.y+g.h-pad-r);
+      if(holes.every(h=>h===old||Math.hypot(h.x-x,h.y-y)>h.r+r+12)){
+        const points=Math.max(10,Math.round(((maxR/r)*70)/5)*5);
+        holes[idx]={x,y,r,points};
+        break;
+      }
     }
-    const points=Math.max(10,Math.round(((maxR/r)*70)/5)*5);
-    holes[idx]={x,y,r,points,corner:old.corner};
   }
   function genMiniHoles(g){ const out=[]; const cnt=6+Math.floor(Math.random()*7); let tries=0;
     while(out.length<cnt && tries<600){ tries++; const r=8+Math.random()*14; const x=g.x+12+r+Math.random()*(g.w-24-2*r); const y=g.y+12+r+Math.random()*(g.h-24-2*r);
@@ -390,25 +400,6 @@
       }
     }
     ctx.restore();
-    ctx.strokeStyle=netColor; ctx.lineWidth=1;
-    for(let i=0;i<=8;i++){
-      const t=i/8;
-      ctx.beginPath();
-      ctx.moveTo(g.x, g.y+g.h*t);
-      ctx.lineTo(ix, iy+innerH*t);
-      ctx.stroke();
-      ctx.beginPath();
-      ctx.moveTo(g.x+g.w, g.y+g.h*t);
-      ctx.lineTo(ix+innerW, iy+innerH*t);
-      ctx.stroke();
-    }
-    for(let i=0;i<=10;i++){
-      const t=i/10;
-      ctx.beginPath();
-      ctx.moveTo(g.x + g.w*t, g.y);
-      ctx.lineTo(ix + innerW*t, iy);
-      ctx.stroke();
-    }
     ctx.strokeStyle='#fff'; ctx.lineWidth=4;
     ctx.beginPath();
     ctx.moveTo(g.x, g.y+g.h);
@@ -460,19 +451,7 @@
     const baseR=Math.max(BALL_R*geom.scale*1.08,22);
     ball.r=baseR;
     const drawR = baseR;
-    ctx.save();
-    ctx.globalAlpha=0.2;
-    ctx.strokeStyle='#fff';
-    ctx.lineWidth=drawR*0.8;
-    ctx.lineCap='round';
-    ctx.lineJoin='round';
-    ctx.beginPath();
-    for(let i=0;i<ball.trail.length;i++){
-      const t=ball.trail[i];
-      if(i===0) ctx.moveTo(t.x,t.y); else ctx.lineTo(t.x,t.y);
-    }
-    ctx.stroke();
-    ctx.restore();
+    ctx.globalAlpha=0.25; for(const t of ball.trail){ ctx.beginPath(); ctx.arc(t.x,t.y,drawR*0.9,0,Math.PI*2); ctx.fillStyle='#fff'; ctx.fill(); } ctx.globalAlpha=1;
     ctx.save();
     ctx.translate(ball.x,ball.y);
     ctx.rotate(ball.angle);
@@ -492,7 +471,7 @@
     if(ball.x>g.x && ball.x<g.x+g.w && ball.y>g.y && ball.y<g.y+g.h){
       for(const h of holes){
         if(Math.hypot(h.x-ball.x,h.y-ball.y) <= Math.max(2,h.r-ball.r*0.6)){
-          h.hit=true; createFragments(h); netHit={x:ball.x,y:ball.y,t:1,shake:1}; sfxBreak(); replaceHole(h); ball.moving=false; setTimeout(()=>{endShot(true,h.points);},600); return;
+          h.hit=true; createFragments(h); netHit={x:ball.x,y:ball.y,t:1,shake:1}; sfxBreak(); ball.moving=false; setTimeout(()=>{endShot(true,h.points); replaceHole(h);},600); return;
         }
       }
       ball.vx*=0.86; ball.vy*=0.74; netHit={x:ball.x,y:ball.y,t:1,shake:1};
@@ -505,10 +484,10 @@
     const postR = g.post;
     const left={x:g.x, y:g.y+g.h}, right={x:g.x+g.w, y:g.y+g.h};
     let d=Math.hypot(ball.x-left.x, ball.y-left.y);
-    if(d < ball.r + postR){ const nx=(ball.x-left.x)/d, ny=(ball.y-left.y)/d; reflectBall(nx,ny); sfxReward(); }
+    if(d < ball.r + postR){ const nx=(ball.x-left.x)/d, ny=(ball.y-left.y)/d; reflectBall(nx,ny); sfxWoodwork(); }
     d=Math.hypot(ball.x-right.x, ball.y-right.y);
-    if(d < ball.r + postR){ const nx=(ball.x-right.x)/d, ny=(ball.y-right.y)/d; reflectBall(nx,ny); sfxReward(); }
-    if(ball.y - ball.r <= g.y && ball.x > g.x - postR && ball.x < g.x + g.w + postR){ if(ball.vy < 0){ reflectBall(0,1); ball.y = g.y + ball.r; sfxReward(); }}
+    if(d < ball.r + postR){ const nx=(ball.x-right.x)/d, ny=(ball.y-right.y)/d; reflectBall(nx,ny); sfxWoodwork(); }
+    if(ball.y - ball.r <= g.y && ball.x > g.x - postR && ball.x < g.x + g.w + postR){ if(ball.vy < 0){ reflectBall(0,1); ball.y = g.y + ball.r; sfxWoodwork(); }}
 
     if(ball.tx || ball.ty){
       const dToTarget = Math.hypot(ball.tx - ball.x, ball.ty - ball.y);
@@ -579,7 +558,7 @@ function endShot(hit,pts){
     myScore += pts;
     status('GOAL! +' + pts);
     sfxGoal();
-    sfxWoodwork();
+    sfxReward();
     vibrate(25);
   } else {
     status('Missed.');
@@ -716,35 +695,17 @@ function endShot(hit,pts){
   // ===== WebAudio SFX (no files) =====
   let audioCtx=null, masterGain=null; function ensureAudio(){ if(audioCtx) return; try{ const AC = window.AudioContext || window.webkitAudioContext; audioCtx = new AC(); masterGain = audioCtx.createGain(); masterGain.gain.value = 0.18; masterGain.connect(audioCtx.destination); }catch{} }
   function tone(freq=440, dur=0.08, type='sine', gain=0.22){ if(!audioCtx) return; const o=audioCtx.createOscillator(); const g=audioCtx.createGain(); o.type=type; o.frequency.value=freq; o.connect(g); g.connect(masterGain); g.gain.setValueAtTime(gain, audioCtx.currentTime); g.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime+dur); o.start(); o.stop(audioCtx.currentTime+dur); }
-  const netSoundSrc = '/assets/sounds/a-football-hits-the-net-goal-313216.mp3';
-  const netKickSound = new Audio(netSoundSrc);
-  const netHitSound = new Audio(netSoundSrc);
-  function playSegment(audio,startFrac,endFrac){
-    try{
-      const play=()=>{
-        const dur=audio.duration||1;
-        audio.currentTime=dur*startFrac;
-        audio.play();
-        if(endFrac<1){
-          const stopTime=dur*endFrac;
-          const stop=()=>{ if(audio.currentTime>=stopTime){ audio.pause(); audio.removeEventListener('timeupdate',stop); } };
-          audio.addEventListener('timeupdate',stop);
-        }
-      };
-      if(audio.readyState>=1) play();
-      else audio.addEventListener('loadedmetadata',play,{once:true});
-    }catch{}
-  }
-  const sfxKick = ()=>playSegment(netKickSound,0,0.5);
+  const sfxKick = ()=>tone(220,0.04,'sawtooth',0.25);
     const sfxGoal = ()=>{tone(660,0.10,'triangle',0.30); setTimeout(()=>tone(880,0.12,'triangle',0.28),60);};
     const sfxMiss = ()=>tone(160,0.10,'square',0.25);
     const sfxRival= ()=>tone(520,0.06,'triangle',0.18);
     const sfxBreak = ()=>{ if(!audioCtx) return; const len=audioCtx.sampleRate*0.25; const buf=audioCtx.createBuffer(1,len,audioCtx.sampleRate); const data=buf.getChannelData(0); for(let i=0;i<len;i++){ data[i]=(Math.random()*2-1)*(1-i/len); } const src=audioCtx.createBufferSource(); src.buffer=buf; const g=audioCtx.createGain(); g.gain.value=0.6; src.connect(g); g.connect(masterGain); src.start(); };
     const sfxStart= ()=>{tone(500,0.08,'triangle',0.25); setTimeout(()=>tone(650,0.08,'triangle',0.22),80);};
   const sfxEnd  = ()=>{tone(300,0.12,'sine',0.18); setTimeout(()=>tone(220,0.16,'sine',0.16),60);};
+  const netHitSound = new Audio('/assets/sounds/a-football-hits-the-net-goal-313216.mp3');
   const rewardSound = new Audio('https://cdn.pixabay.com/audio/2022/03/15/audio_1d8839a382.mp3');
   const woodSound = new Audio('https://actions.google.com/sounds/v1/impacts/crash.ogg');
-  const sfxNet = ()=>playSegment(netHitSound,0.5,1);
+  const sfxNet = ()=>{ try{ netHitSound.currentTime = 0; netHitSound.play(); }catch{} };
   const sfxReward = ()=>{ try{ rewardSound.currentTime = 0; rewardSound.play(); }catch{} };
   const sfxWoodwork = ()=>{ try{ woodSound.currentTime = 0; woodSound.play(); }catch{} };
   function vibrate(ms){ if(navigator.vibrate) try{ navigator.vibrate(ms); }catch{} }
