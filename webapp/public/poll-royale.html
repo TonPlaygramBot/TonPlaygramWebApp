@@ -2081,8 +2081,10 @@
           var L = len(dx, dy) || 1;
           var dir = { x: dx / L, y: dy / L };
           // Use a smaller step and more dots for denser and more precise guides
-          var step = BALL_R * 0.15,
-            dots = 200;
+          // Use a much finer step and more dots so the guideline closely
+          // matches the simulated ball path even on glancing shots.
+          var step = BALL_R * 0.05,
+            dots = 600;
           // precompute ball diameter squared for collision checks
           var r = BALL_R * 2,
             r2 = r * r;
