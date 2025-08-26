@@ -215,8 +215,8 @@
   let myScore = 0;
 
   const BALL_R = 42;
-  // slower shot speed for more realistic ball travel
-  const SHOT_SPEED = 24;
+  // much slower initial shot speed for clearer ball travel
+  const SHOT_SPEED = 12;
   const ball = { x:0,y:0,r:BALL_R, vx:0,vy:0, moving:false, trail:[], spin:0, angle:0, netSounded:false, firstContact:false };
   const ballImg = new Image();
   ballImg.src = '/assets/icons/file_0000000061d4620aaf506adfa605e1f3.webp';
@@ -373,10 +373,12 @@
     const netColor=getComputedStyle(document.documentElement).getPropertyValue('--net')||'#e6e6e6';
     ctx.strokeStyle=netColor; ctx.lineWidth=1.2;
     const size=18; const h=size*Math.sqrt(3)/2;
+    const cut=g.h*0.1;
     for(let y=g.y-h; y<g.y+g.h+h; y+=h){
       for(let x=g.x-size; x<g.x+g.w+size; x+=size*1.5){
         const off = ((Math.round((y-g.y)/h))%2)*size*0.75;
         const cx=x+off, cy=y;
+        if(cy>g.y+g.h-cut) continue;
         ctx.beginPath();
         for(let i=0;i<6;i++){
           const a=Math.PI/3*i; let px=cx+size*Math.cos(a); let py=cy+size*Math.sin(a);
@@ -389,19 +391,15 @@
       }
     }
     ctx.restore();
-    const depth = g.h*0.35;
-    ctx.strokeStyle='rgba(255,255,255,0.4)'; ctx.lineWidth=4;
+    const innerW=g.w*0.8, innerH=g.h*0.8; const ix=g.x+(g.w-innerW)/2, iy=g.y+(g.h-innerH)/2;
+    ctx.strokeStyle='#fff'; ctx.lineWidth=4;
     ctx.beginPath();
-    ctx.moveTo(g.x, g.y);
-    ctx.lineTo(g.x - depth, g.y - depth*0.1);
-    ctx.lineTo(g.x - depth, g.y+g.h - depth*0.1);
-    ctx.lineTo(g.x, g.y+g.h);
-    ctx.moveTo(g.x+g.w, g.y);
-    ctx.lineTo(g.x+g.w+depth, g.y - depth*0.1);
-    ctx.lineTo(g.x+g.w+depth, g.y+g.h - depth*0.1);
-    ctx.lineTo(g.x+g.w, g.y+g.h);
-    ctx.moveTo(g.x - depth, g.y+g.h - depth*0.1);
-    ctx.lineTo(g.x+g.w+depth, g.y+g.h - depth*0.1);
+    ctx.moveTo(g.x, g.y+g.h);
+    ctx.lineTo(ix, iy+innerH);
+    ctx.moveTo(g.x+g.w, g.y+g.h);
+    ctx.lineTo(ix+innerW, iy+innerH);
+    ctx.moveTo(ix, iy+innerH);
+    ctx.lineTo(ix+innerW, iy+innerH);
     ctx.stroke();
     ctx.strokeStyle='#fff'; ctx.lineWidth=12;
     ctx.beginPath();
@@ -410,7 +408,6 @@
     ctx.lineTo(g.x+g.w, g.y);
     ctx.lineTo(g.x+g.w, g.y+g.h);
     ctx.stroke();
-    const innerW=g.w*0.8, innerH=g.h*0.8; const ix=g.x+(g.w-innerW)/2, iy=g.y+(g.h-innerH)/2;
     ctx.strokeStyle='rgba(255,255,255,0.5)'; ctx.lineWidth=6;
     ctx.beginPath();
     ctx.moveTo(ix, iy+innerH);
@@ -451,7 +448,7 @@
     ctx.drawImage(ballImg, -size/2, -size/2, size, size);
     ctx.restore();
   }
-  const FRICTION=0.992, AIR_DRAG=0.0015, GRAVITY=0.20;
+  const FRICTION=0.985, AIR_DRAG=0.0015, GRAVITY=0.20;
   function stepBall(){
     if(!ball.moving) return;
     ball.trail.push({x:ball.x,y:ball.y}); if(ball.trail.length>15) ball.trail.shift();
@@ -463,15 +460,15 @@
     if(ball.x>g.x && ball.x<g.x+g.w && ball.y>g.y && ball.y<g.y+g.h){
       for(const h of holes){
         if(Math.hypot(h.x-ball.x,h.y-ball.y) <= Math.max(2,h.r-ball.r*0.6)){
-          h.hit=true; createFragments(h); netHit={x:ball.x,y:ball.y,t:1,shake:1}; sfxBreak(); endShot(true,h.points); setTimeout(()=>replaceHole(h),400); return;
+          h.hit=true; createFragments(h); netHit={x:ball.x,y:ball.y,t:1,shake:1}; sfxBreak(); ball.moving=false; setTimeout(()=>{endShot(true,h.points); replaceHole(h);},600); return;
         }
       }
       ball.vx*=0.86; ball.vy*=0.74; netHit={x:ball.x,y:ball.y,t:1,shake:1};
       if(!ball.netSounded){ sfxNet(); ball.netSounded=true; }
-      endShot(true,0); return;
+      ball.moving=false; setTimeout(()=>endShot(true,0),600); return;
     }
     if(keeper.save && ballHitsKeeper()){
-      keeper.save=false; ball.moving=false; setTimeout(()=>endShot(false,0),400); return;
+      keeper.save=false; ball.moving=false; setTimeout(()=>endShot(false,0),600); return;
     }
     const postR = g.post;
     const left={x:g.x, y:g.y+g.h}, right={x:g.x+g.w, y:g.y+g.h};
@@ -481,8 +478,8 @@
     if(d < ball.r + postR){ const nx=(ball.x-right.x)/d, ny=(ball.y-right.y)/d; reflectBall(nx,ny); sfxWoodwork(); }
     if(ball.y - ball.r <= g.y && ball.x > g.x - postR && ball.x < g.x + g.w + postR){ if(ball.vy < 0){ reflectBall(0,1); ball.y = g.y + ball.r; sfxWoodwork(); }}
 
-    if(!ball.firstContact && ball.y >= geom.spot.y && ball.vy > 0){ ball.firstContact=true; endShot(false,0); return; }
-    if(ball.y < -80 || ball.x < -80 || ball.x > W+80 || ball.y > H+80 || Math.hypot(ball.vx,ball.vy)<0.3){ endShot(false,0); }
+    if(!ball.firstContact && ball.y >= geom.spot.y && ball.vy > 0){ ball.firstContact=true; ball.moving=false; setTimeout(()=>endShot(false,0),600); return; }
+    if(ball.y < -80 || ball.x < -80 || ball.x > W+80 || ball.y > H+80 || Math.hypot(ball.vx,ball.vy)<0.3){ ball.moving=false; setTimeout(()=>endShot(false,0),600); }
   }
 
   function stepFragments(){
@@ -569,7 +566,7 @@ function endShot(hit,pts){
       const a = path[0], b = path[path.length - 1];
       const totalDx = b.x - a.x, totalDy = b.y - a.y;
       const dt = Math.max(16, (pointer.t1 - pointer.t0));
-      const dist = Math.hypot(totalDx, totalDy), power = clamp(dist / dt, 0.55, 3.0);
+      const dist = Math.hypot(totalDx, totalDy), power = clamp(dist / dt, 0.55, 2.0);
       const len = Math.max(1, dist);
       const dirx = totalDx / len, diry = totalDy / len;
       let curve = 0;
@@ -581,7 +578,7 @@ function endShot(hit,pts){
       drawAimPath(dirx*SHOT_SPEED*power*0.9, diry*SHOT_SPEED*power*0.9, spin);
     }
   }
-  function onUp(e){ if(!pointer.active||e.pointerId!==pointer.id) return; pointer.active=false; if(!pointer.armed||ball.moving||!running||paused){ pointer.path=[]; return; } const path=pointer.path; pointer.path=[]; if(path.length<3){ status('Swipe longer/faster.'); return; } const dt=Math.max(16,(pointer.t1-pointer.t0)), a=path[0], b=path[path.length-1]; const totalDx=b.x-a.x, totalDy=b.y-a.y; if(totalDy>-10){ status('Swipe upward.'); return; } const endDx=b.x-ball.x, endDy=b.y-ball.y; const dist=Math.hypot(endDx,endDy), power=clamp(dist/dt, 0.55, 3.0); let dirx=endDx/dist, diry=endDy/dist; const contactY=clamp((ball.y-a.y)/ball.r,-1,1); diry-=contactY*0.4; const norm=Math.hypot(dirx,diry)||1; dirx/=norm; diry/=norm; let curve=0; for(let i=2;i<path.length;i++){ const p0=path[i-2], p1=path[i-1], p2=path[i]; curve+=Math.atan2(p2.y-p1.y,p2.x-p1.x)-Math.atan2(p1.y-p0.y,p1.x-p0.x); } const spin = clamp((ball.x - a.x)/ball.r + curve*0.5, -3, 3); ball.vx=dirx*SHOT_SPEED*power*0.9; ball.vy=diry*SHOT_SPEED*power*0.9; ball.spin=spin; ball.moving=true; keeper.save=false; powerBar.style.height = Math.round(clamp(power/3.0,0,1)*100)+'%'; }
+  function onUp(e){ if(!pointer.active||e.pointerId!==pointer.id) return; pointer.active=false; if(!pointer.armed||ball.moving||!running||paused){ pointer.path=[]; return; } const path=pointer.path; pointer.path=[]; if(path.length<3){ status('Swipe longer/faster.'); return; } const dt=Math.max(16,(pointer.t1-pointer.t0)), a=path[0], b=path[path.length-1]; const totalDx=b.x-a.x, totalDy=b.y-a.y; if(totalDy>-10){ status('Swipe upward.'); return; } const endDx=b.x-ball.x, endDy=b.y-ball.y; const dist=Math.hypot(endDx,endDy), power=clamp(dist/dt, 0.55, 2.0); let dirx=endDx/dist, diry=endDy/dist; const contactY=clamp((ball.y-a.y)/ball.r,-1,1); diry-=contactY*0.4; const norm=Math.hypot(dirx,diry)||1; dirx/=norm; diry/=norm; let curve=0; for(let i=2;i<path.length;i++){ const p0=path[i-2], p1=path[i-1], p2=path[i]; curve+=Math.atan2(p2.y-p1.y,p2.x-p1.x)-Math.atan2(p1.y-p0.y,p1.x-p0.x); } const spin = clamp((ball.x - a.x)/ball.r + curve*0.5, -3, 3); ball.vx=dirx*SHOT_SPEED*power*0.9; ball.vy=diry*SHOT_SPEED*power*0.9; ball.spin=spin; ball.moving=true; keeper.save=false; powerBar.style.height = Math.round(clamp(power/2.0,0,1)*100)+'%'; }
   canvas.addEventListener('pointerdown', onDown, {passive:true});
   canvas.addEventListener('pointermove', onMove, {passive:true});
   addEventListener('pointerup', onUp, {passive:true}); addEventListener('pointercancel', onUp, {passive:true});
