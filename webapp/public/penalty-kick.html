@@ -217,7 +217,7 @@
   const BALL_R = 42;
   // much slower initial shot speed for clearer ball travel
   const SHOT_SPEED = 12;
-  const ball = { x:0,y:0,r:BALL_R, vx:0,vy:0, moving:false, trail:[], spin:0, angle:0, netSounded:false, firstContact:false };
+  const ball = { x:0,y:0,r:BALL_R, vx:0,vy:0, moving:false, trail:[], spin:0, angle:0, netSounded:false, firstContact:false, tx:0, ty:0, prevDist:0 };
   const ballImg = new Image();
   ballImg.src = '/assets/icons/file_0000000061d4620aaf506adfa605e1f3.webp';
 
@@ -369,16 +369,17 @@
   // ===== Goal, net, cameras, targets =====
   function drawGoal(){
     const g=geom.goal;
+    const innerW=g.w*0.8, innerH=g.h*0.8;
+    const ix=g.x+(g.w-innerW)/2, iy=g.y+(g.h-innerH)/2;
     ctx.save(); ctx.beginPath(); ctx.rect(g.x,g.y,g.w,g.h); ctx.clip();
     const netColor=getComputedStyle(document.documentElement).getPropertyValue('--net')||'#e6e6e6';
     ctx.strokeStyle=netColor; ctx.lineWidth=1.2;
     const size=18; const h=size*Math.sqrt(3)/2;
-    const cut=g.h*0.1;
     for(let y=g.y-h; y<g.y+g.h+h; y+=h){
       for(let x=g.x-size; x<g.x+g.w+size; x+=size*1.5){
         const off = ((Math.round((y-g.y)/h))%2)*size*0.75;
         const cx=x+off, cy=y;
-        if(cy>g.y+g.h-cut) continue;
+        if(cy>=iy+innerH && cx>ix && cx<ix+innerW) continue;
         ctx.beginPath();
         for(let i=0;i<6;i++){
           const a=Math.PI/3*i; let px=cx+size*Math.cos(a); let py=cy+size*Math.sin(a);
@@ -391,7 +392,6 @@
       }
     }
     ctx.restore();
-    const innerW=g.w*0.8, innerH=g.h*0.8; const ix=g.x+(g.w-innerW)/2, iy=g.y+(g.h-innerH)/2;
     ctx.strokeStyle='#fff'; ctx.lineWidth=4;
     ctx.beginPath();
     ctx.moveTo(g.x, g.y+g.h);
@@ -477,6 +477,16 @@
     d=Math.hypot(ball.x-right.x, ball.y-right.y);
     if(d < ball.r + postR){ const nx=(ball.x-right.x)/d, ny=(ball.y-right.y)/d; reflectBall(nx,ny); sfxWoodwork(); }
     if(ball.y - ball.r <= g.y && ball.x > g.x - postR && ball.x < g.x + g.w + postR){ if(ball.vy < 0){ reflectBall(0,1); ball.y = g.y + ball.r; sfxWoodwork(); }}
+
+    if(ball.tx || ball.ty){
+      const dToTarget = Math.hypot(ball.tx - ball.x, ball.ty - ball.y);
+      if(dToTarget < ball.r || dToTarget > ball.prevDist){
+        ball.x = ball.tx; ball.y = ball.ty;
+        ball.vx = ball.vy = ball.spin = 0; ball.moving = false;
+        setTimeout(()=>endShot(false,0),600); return;
+      }
+      ball.prevDist = dToTarget;
+    }
 
     if(!ball.firstContact && ball.y >= geom.spot.y && ball.vy > 0){ ball.firstContact=true; ball.moving=false; setTimeout(()=>endShot(false,0),600); return; }
     if(ball.y < -80 || ball.x < -80 || ball.x > W+80 || ball.y > H+80 || Math.hypot(ball.vx,ball.vy)<0.3){ ball.moving=false; setTimeout(()=>endShot(false,0),600); }
@@ -578,7 +588,7 @@ function endShot(hit,pts){
       drawAimPath(dirx*SHOT_SPEED*power*0.9, diry*SHOT_SPEED*power*0.9, spin);
     }
   }
-  function onUp(e){ if(!pointer.active||e.pointerId!==pointer.id) return; pointer.active=false; if(!pointer.armed||ball.moving||!running||paused){ pointer.path=[]; return; } const path=pointer.path; pointer.path=[]; if(path.length<3){ status('Swipe longer/faster.'); return; } const dt=Math.max(16,(pointer.t1-pointer.t0)), a=path[0], b=path[path.length-1]; const totalDx=b.x-a.x, totalDy=b.y-a.y; if(totalDy>-10){ status('Swipe upward.'); return; } const endDx=b.x-ball.x, endDy=b.y-ball.y; const dist=Math.hypot(endDx,endDy), power=clamp(dist/dt, 0.55, 2.0); let dirx=endDx/dist, diry=endDy/dist; const contactY=clamp((ball.y-a.y)/ball.r,-1,1); diry-=contactY*0.4; const norm=Math.hypot(dirx,diry)||1; dirx/=norm; diry/=norm; let curve=0; for(let i=2;i<path.length;i++){ const p0=path[i-2], p1=path[i-1], p2=path[i]; curve+=Math.atan2(p2.y-p1.y,p2.x-p1.x)-Math.atan2(p1.y-p0.y,p1.x-p0.x); } const spin = clamp((ball.x - a.x)/ball.r + curve*0.5, -3, 3); ball.vx=dirx*SHOT_SPEED*power*0.9; ball.vy=diry*SHOT_SPEED*power*0.9; ball.spin=spin; ball.moving=true; keeper.save=false; powerBar.style.height = Math.round(clamp(power/2.0,0,1)*100)+'%'; }
+  function onUp(e){ if(!pointer.active||e.pointerId!==pointer.id) return; pointer.active=false; if(!pointer.armed||ball.moving||!running||paused){ pointer.path=[]; return; } const path=pointer.path; pointer.path=[]; if(path.length<3){ status('Swipe longer/faster.'); return; } const dt=Math.max(16,(pointer.t1-pointer.t0)), a=path[0], b=path[path.length-1]; const totalDx=b.x-a.x, totalDy=b.y-a.y; if(totalDy>-10){ status('Swipe upward.'); return; } const endDx=b.x-ball.x, endDy=b.y-ball.y; const dist=Math.hypot(endDx,endDy), power=clamp(dist/dt, 0.55, 2.0); let dirx=endDx/dist, diry=endDy/dist; const contactY=clamp((ball.y-a.y)/ball.r,-1,1); diry-=contactY*0.4; const norm=Math.hypot(dirx,diry)||1; dirx/=norm; diry/=norm; let curve=0; for(let i=2;i<path.length;i++){ const p0=path[i-2], p1=path[i-1], p2=path[i]; curve+=Math.atan2(p2.y-p1.y,p2.x-p1.x)-Math.atan2(p1.y-p0.y,p1.x-p0.x); } const spin = clamp((ball.x - a.x)/ball.r + curve*0.5, -3, 3); ball.vx=dirx*SHOT_SPEED*power*0.9; ball.vy=diry*SHOT_SPEED*power*0.9; ball.tx=b.x; ball.ty=b.y; ball.prevDist=Math.hypot(ball.tx-ball.x, ball.ty-ball.y); ball.spin=spin; ball.moving=true; keeper.save=false; powerBar.style.height = Math.round(clamp(power/2.0,0,1)*100)+'%'; }
   canvas.addEventListener('pointerdown', onDown, {passive:true});
   canvas.addEventListener('pointermove', onMove, {passive:true});
   addEventListener('pointerup', onUp, {passive:true}); addEventListener('pointercancel', onUp, {passive:true});
@@ -668,7 +678,7 @@ function endShot(hit,pts){
   // ===== Controls =====
   // controls removed
 
-  function resetBall(){ ball.x=geom.spot.x; ball.y=geom.spot.y; ball.vx=ball.vy=ball.spin=0; ball.angle=0; ball.moving=false; ball.netSounded=false; ball.trail=[]; ball.firstContact=false; netHit={x:0,y:0,t:0,shake:0}; keeper.save=false; keeper.vx=0; keeper.vy=0; keeper.a=0; keeper.dive=0; keeper.x = keeper.baseX; keeper.y = keeper.baseY; }
+  function resetBall(){ ball.x=geom.spot.x; ball.y=geom.spot.y; ball.vx=ball.vy=ball.spin=0; ball.angle=0; ball.moving=false; ball.netSounded=false; ball.trail=[]; ball.firstContact=false; ball.tx=ball.ty=0; ball.prevDist=0; netHit={x:0,y:0,t:0,shake:0}; keeper.save=false; keeper.vx=0; keeper.vy=0; keeper.a=0; keeper.dive=0; keeper.x = keeper.baseX; keeper.y = keeper.baseY; }
   function startGame(){ running=true; paused=false; ended=false; roundStart=performance.now(); timeLeft=ROUND_TIME; myScore=0; for(const r of rivals){ r.score=0; r.next=0; r.shots=[]; } resetBall(); generateHoles(); drawMiniBoards(true); updateHUD(); ensureAudio(); sfxStart(); status('Go! Score as many as you can.'); }
 
   // ===== WebAudio SFX (no files) =====
