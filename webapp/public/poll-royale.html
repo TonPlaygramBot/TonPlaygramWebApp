@@ -2081,8 +2081,8 @@
           var L = len(dx, dy) || 1;
           var dir = { x: dx / L, y: dy / L };
           // Use a smaller step and more dots for denser and more precise guides
-          var step = BALL_R * 0.15,
-            dots = 200;
+          var step = BALL_R * 0.1,
+            dots = 300;
           // precompute ball diameter squared for collision checks
           var r = BALL_R * 2,
             r2 = r * r;
@@ -2144,7 +2144,7 @@
             )
               break;
             ctx.beginPath();
-            ctx.arc(x * sX, y * sY, 2, 0, Math.PI * 2);
+            ctx.arc(x * sX, y * sY, 1.5, 0, Math.PI * 2);
             ctx.fill();
           }
           var frac = hitStep - fullSteps;
@@ -2158,7 +2158,7 @@
               y <= TABLE_H - BORDER_BOTTOM - BALL_R
             ) {
               ctx.beginPath();
-              ctx.arc(x * sX, y * sY, 2, 0, Math.PI * 2);
+              ctx.arc(x * sX, y * sY, 1.5, 0, Math.PI * 2);
               ctx.fill();
             }
           }
@@ -2179,7 +2179,7 @@
             refl.y /= rL;
             ctx.save();
             ctx.strokeStyle = 'rgba(255,255,255,.5)';
-            ctx.lineWidth = 2;
+            ctx.lineWidth = 1;
             ctx.beginPath();
             ctx.moveTo(impactX * sX, impactY * sY);
             ctx.lineTo(
@@ -2201,20 +2201,23 @@
             hitN.x /= nL;
             hitN.y /= nL;
 
-            // Draw contact spot on the target ball
+            // Draw marker circle with a plus at the contact point
             var hitSpotX = tx - hitN.x * BALL_R;
             var hitSpotY = ty - hitN.y * BALL_R;
+            var markerR = BALL_R * 0.4;
             ctx.save();
-            ctx.fillStyle = 'rgba(255,255,255,.8)';
+            ctx.strokeStyle = 'rgba(255,255,255,.8)';
+            ctx.lineWidth = 1;
             ctx.beginPath();
-            ctx.arc(
-              hitSpotX * sX,
-              hitSpotY * sY,
-              BALL_R * 0.15,
-              0,
-              Math.PI * 2
-            );
-            ctx.fill();
+            ctx.arc(hitSpotX * sX, hitSpotY * sY, markerR, 0, Math.PI * 2);
+            ctx.stroke();
+            // plus sign
+            ctx.beginPath();
+            ctx.moveTo((hitSpotX - markerR / 2) * sX, hitSpotY * sY);
+            ctx.lineTo((hitSpotX + markerR / 2) * sX, hitSpotY * sY);
+            ctx.moveTo(hitSpotX * sX, (hitSpotY - markerR / 2) * sY);
+            ctx.lineTo(hitSpotX * sX, (hitSpotY + markerR / 2) * sY);
+            ctx.stroke();
             ctx.restore();
 
             // Project the target ball's path along the line of centers
@@ -2235,9 +2238,9 @@
 
             ctx.save();
             ctx.strokeStyle = 'rgba(255,255,255,.3)';
-            ctx.lineWidth = 2;
+            ctx.lineWidth = 1;
             ctx.beginPath();
-            // start the target path from the contact point so it connects with the aim line
+            // start the target path from the marker so it connects with the aim line
             ctx.moveTo(hitSpotX * sX, hitSpotY * sY);
             ctx.lineTo(
               (ex - hitN.x * BALL_R) * sX,
@@ -2257,7 +2260,7 @@
               var cbEndY = impactCueY + cbDir.y * BALL_R * 4;
               ctx.save();
               ctx.strokeStyle = 'rgba(255,255,255,.5)';
-              ctx.lineWidth = 2;
+              ctx.lineWidth = 1;
               ctx.beginPath();
               ctx.moveTo(impactCueX * sX, impactCueY * sY);
               ctx.lineTo(cbEndX * sX, cbEndY * sY);
