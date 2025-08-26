@@ -2080,9 +2080,12 @@
             dy = aim.y - cue.p.y;
           var L = len(dx, dy) || 1;
           var dir = { x: dx / L, y: dy / L };
-          // Use a smaller step for more precise collision detection and denser guide dots
-          var step = BALL_R * 0.3,
-            dots = 100;
+          // Use a smaller step and more dots for denser and more precise guides
+          var step = BALL_R * 0.15,
+            dots = 200;
+          // precompute ball diameter squared for collision checks
+          var r = BALL_R * 2,
+            r2 = r * r;
           var x = cue.p.x,
             y = cue.p.y,
             target = null,
@@ -2090,6 +2093,8 @@
             railNormal = null;
 
           for (var i = 0; i < dots; i++) {
+            var prevX = x,
+              prevY = y;
             x += dir.x * step;
             y += dir.y * step;
             if (x < BORDER + BALL_R) {
@@ -2109,11 +2114,15 @@
             for (var j = 0; j < table.balls.length; j++) {
               var b = table.balls[j];
               if (b === cue || b.pocketed) continue;
-              // Only register a hit when the guideline actually intersects the ball
-              if (d2({ x: x, y: y }, b.p) < (BALL_R * 2) * (BALL_R * 2)) {
+              // Detect precise impact by interpolating between steps
+              var dCurr2 = d2({ x: x, y: y }, b.p);
+              if (dCurr2 < r2) {
+                var dPrev2 = d2({ x: prevX, y: prevY }, b.p);
+                var dPrev = Math.sqrt(dPrev2);
+                var dCurr = Math.sqrt(dCurr2);
+                var tHit = (dPrev - r) / (dPrev - dCurr);
+                hitStep = i + tHit;
                 target = b;
-                // include the collision step so the guide reaches impact
-                hitStep = i + 1;
                 break;
               }
             }
@@ -2123,7 +2132,8 @@
           ctx.fillStyle = target ? 'rgba(255,255,0,1)' : 'rgba(255,255,255,.7)';
           x = cue.p.x;
           y = cue.p.y;
-          for (var i = 0; i < hitStep; i++) {
+          var fullSteps = Math.floor(hitStep);
+          for (var i = 0; i < fullSteps; i++) {
             x += dir.x * step;
             y += dir.y * step;
             if (
@@ -2136,6 +2146,21 @@
             ctx.beginPath();
             ctx.arc(x * sX, y * sY, 2, 0, Math.PI * 2);
             ctx.fill();
+          }
+          var frac = hitStep - fullSteps;
+          if (frac > 0) {
+            x += dir.x * step * frac;
+            y += dir.y * step * frac;
+            if (
+              x >= BORDER + BALL_R &&
+              x <= TABLE_W - BORDER - BALL_R &&
+              y >= BORDER_TOP + BALL_R &&
+              y <= TABLE_H - BORDER_BOTTOM - BALL_R
+            ) {
+              ctx.beginPath();
+              ctx.arc(x * sX, y * sY, 2, 0, Math.PI * 2);
+              ctx.fill();
+            }
           }
 
           if (!target && railNormal) {
