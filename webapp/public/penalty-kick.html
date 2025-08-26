@@ -204,7 +204,7 @@
     keeper.w = 40*geom.scale*4*0.85;
     keeper.h = 100*geom.scale*4*0.85;
     keeper.x = geom.goal.x + (geom.goal.w-keeper.w)/2;
-    keeper.y = geom.goal.y + geom.goal.h - keeper.h + geom.goal.h*0.05;
+    keeper.y = geom.goal.y + geom.goal.h - keeper.h - geom.goal.h*0.02;
     keeper.baseY = keeper.y;
     keeper.baseX = keeper.x;
   }
@@ -279,8 +279,9 @@
     const g=geom.goal; holes=[];
     const minR=Math.max(ball.r*1.05,22*geom.scale); const maxR=Math.max(minR+6,50*geom.scale);
     const pad=18;
+    const holeCount = Math.floor(rnd(5,8));
     let attempts=0;
-    while(holes.length<4 && attempts<600){
+    while(holes.length<holeCount && attempts<600){
       attempts++;
       const r=rnd(minR,maxR);
       const x=rnd(g.x+pad+r, g.x+g.w-pad-r);
@@ -474,7 +475,7 @@
     ctx.drawImage(ballImg, -size/2, -size/2, size, size);
     ctx.restore();
   }
-  const FRICTION=0.985, AIR_DRAG=0.0015, GRAVITY=0.20;
+  const FRICTION=0.985, AIR_DRAG=0.0015, GRAVITY=0.12;
   function stepBall(){
     if(!ball.moving) return;
     ball.trail.push({x:ball.x,y:ball.y}); if(ball.trail.length>20) ball.trail.shift();
@@ -623,7 +624,7 @@ function endShot(hit,pts){
       drawAimPath(dirx*SHOT_SPEED*power, diry*SHOT_SPEED*power, spin);
     }
   }
-  function onUp(e){ if(!pointer.active||e.pointerId!==pointer.id) return; pointer.active=false; if(!pointer.armed||ball.moving||!running||paused){ pointer.path=[]; return; } const path=pointer.path; pointer.path=[]; if(path.length<3){ status('Swipe longer/faster.'); return; } const dt=Math.max(16,(pointer.t1-pointer.t0)), a=path[0], b=path[path.length-1]; const totalDx=b.x-a.x, totalDy=b.y-a.y; if(totalDy>-10){ status('Swipe upward.'); return; } const endDx=b.x-ball.x, endDy=b.y-ball.y; const dist=Math.hypot(endDx,endDy), power=clamp(dist/dt, 0.3, 3.0); let dirx=endDx/dist, diry=endDy/dist; const norm=Math.hypot(dirx,diry)||1; dirx/=norm; diry/=norm; let curve=0; for(let i=2;i<path.length;i++){ const p0=path[i-2], p1=path[i-1], p2=path[i]; curve+=Math.atan2(p2.y-p1.y,p2.x-p1.x)-Math.atan2(p1.y-p0.y,p1.x-p0.x); } const spin = clamp((ball.x - a.x)/ball.r + curve*0.5, -3, 3); ball.vx=dirx*SHOT_SPEED*power; ball.vy=diry*SHOT_SPEED*power; ball.tx=b.x; ball.ty=b.y; ball.prevDist=Math.hypot(ball.tx-ball.x, ball.ty-ball.y); ball.spin=spin; ball.moving=true; sfxKick(); keeper.save=false; powerBar.style.height = Math.round(clamp(power/3.0,0,1)*100)+'%'; }
+  function onUp(e){ if(!pointer.active||e.pointerId!==pointer.id) return; pointer.active=false; if(!pointer.armed||ball.moving||!running||paused){ pointer.path=[]; return; } const path=pointer.path; pointer.path=[]; if(path.length<3){ status('Swipe longer/faster.'); return; } const dt=Math.max(16,(pointer.t1-pointer.t0)), a=path[0], b=path[path.length-1]; const totalDx=b.x-a.x, totalDy=b.y-a.y; if(totalDy>-10){ status('Swipe upward.'); return; } const endDx=b.x-ball.x, endDy=b.y-ball.y; const dist=Math.hypot(endDx,endDy), power=clamp(dist/dt, 0.3, 6.0); let dirx=endDx/dist, diry=endDy/dist; const norm=Math.hypot(dirx,diry)||1; dirx/=norm; diry/=norm; let curve=0; for(let i=2;i<path.length;i++){ const p0=path[i-2], p1=path[i-1], p2=path[i]; curve+=Math.atan2(p2.y-p1.y,p2.x-p1.x)-Math.atan2(p1.y-p0.y,p1.x-p0.x); } const spin = clamp((ball.x - a.x)/ball.r + curve*0.5, -3, 3); ball.vx=dirx*SHOT_SPEED*power; ball.vy=diry*SHOT_SPEED*power; ball.tx=b.x; ball.ty=b.y; ball.prevDist=Math.hypot(ball.tx-ball.x, ball.ty-ball.y); ball.spin=spin; ball.moving=true; sfxKick(); keeper.save=false; powerBar.style.height = Math.round(clamp(power/3.0,0,1)*100)+'%'; }
   canvas.addEventListener('pointerdown', onDown, {passive:true});
   canvas.addEventListener('pointermove', onMove, {passive:true});
   addEventListener('pointerup', onUp, {passive:true}); addEventListener('pointercancel', onUp, {passive:true});
@@ -741,7 +742,7 @@ function endShot(hit,pts){
   const sfxKick = ()=>playGoalSound('first');
     const sfxGoal = ()=>{tone(660,0.10,'triangle',0.30); setTimeout(()=>tone(880,0.12,'triangle',0.28),60);};
     const sfxMiss = ()=>tone(160,0.10,'square',0.25);
-    const sfxRival= ()=>tone(520,0.06,'triangle',0.18);
+    const sfxRival= ()=>{};
     const sfxBreak = ()=>{ if(!audioCtx) return; const len=audioCtx.sampleRate*0.25; const buf=audioCtx.createBuffer(1,len,audioCtx.sampleRate); const data=buf.getChannelData(0); for(let i=0;i<len;i++){ data[i]=(Math.random()*2-1)*(1-i/len); } const src=audioCtx.createBufferSource(); src.buffer=buf; const g=audioCtx.createGain(); g.gain.value=0.6; src.connect(g); g.connect(masterGain); src.start(); };
     const sfxStart= ()=>{tone(500,0.08,'triangle',0.25); setTimeout(()=>tone(650,0.08,'triangle',0.22),80);};
   const sfxEnd  = ()=>{tone(300,0.12,'sine',0.18); setTimeout(()=>tone(220,0.16,'sine',0.16),60);};
