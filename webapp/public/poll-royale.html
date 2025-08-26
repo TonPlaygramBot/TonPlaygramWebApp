@@ -2080,17 +2080,14 @@
             dy = aim.y - cue.p.y;
           var L = len(dx, dy) || 1;
           var dir = { x: dx / L, y: dy / L };
-          // Use a smaller step and more dots for denser and more precise guides
           // Use a much finer step and more dots so the guideline closely
           // matches the simulated ball path even on glancing shots.
-          var step = BALL_R * 0.05,
-            dots = 600;
-          // Use a slightly smaller radius when checking for contact so the
-          // guideline only turns yellow once a hit is guaranteed. This keeps
-          // near-miss shots from being shown as collisions.
+          var step = BALL_R * 0.02,
+            dots = 1500;
+          // Detect collisions using the true ball diameter. Using the exact
+          // radius avoids late detection that could skew the guideline.
           var actualR = BALL_R * 2;
-          var detectR = actualR - BALL_R * 0.1;
-          var r2 = detectR * detectR;
+          var r2 = actualR * actualR;
           var x = cue.p.x,
             y = cue.p.y,
             target = null,
