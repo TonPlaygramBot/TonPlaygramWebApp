@@ -626,7 +626,7 @@
         var TABLE_H = 1216; // lartesi logjike e felt-it
         var BORDER = 57; // korniza e drurit pak me e ngushte anash
         var POCKET_R = 42; // rrezja baze e gropave
-        var BALL_R = 21; // rrezja baze e topave pak me e vogel
+        var BALL_R = 22.5; // rrezja baze e topave pak me e vogel
         var BORDER_TOP = BORDER + BALL_R * 2 - 4; // bordi i siperm pak me i holle per fushe me te gjate
         var BORDER_BOTTOM = BORDER; // anet e tjera mbeten te pandryshuara
         // Move the rack slightly upward on the table
@@ -2080,14 +2080,17 @@
             dy = aim.y - cue.p.y;
           var L = len(dx, dy) || 1;
           var dir = { x: dx / L, y: dy / L };
+          // Use a smaller step and more dots for denser and more precise guides
           // Use a much finer step and more dots so the guideline closely
           // matches the simulated ball path even on glancing shots.
-          var step = BALL_R * 0.02,
-            dots = 1500;
-          // Detect collisions using the true ball diameter. Using the exact
-          // radius avoids late detection that could skew the guideline.
+          var step = BALL_R * 0.05,
+            dots = 600;
+          // Use a slightly smaller radius when checking for contact so the
+          // guideline only turns yellow once a hit is guaranteed. This keeps
+          // near-miss shots from being shown as collisions.
           var actualR = BALL_R * 2;
-          var r2 = actualR * actualR;
+          var detectR = actualR - BALL_R * 0.1;
+          var r2 = detectR * detectR;
           var x = cue.p.x,
             y = cue.p.y,
             target = null,
