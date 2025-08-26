@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { UkPool } from '../lib/poolUk8Ball.js';
-import { selectShot } from '../lib/poolUkAdvancedAi.js';
+import { selectShot, recordShotOutcome, __resetShotMemory } from '../lib/poolUkAdvancedAi.js';
 
 test('scratch on break gives opponent two visits without free ball', () => {
   const game = new UkPool();
@@ -189,6 +189,7 @@ test('shots after frame end are not fouls', () => {
 });
 
 test('AI targets black when own balls cleared', () => {
+  __resetShotMemory();
   const state = {
     balls: [
       { id: 0, colour: 'cue', x: 50, y: 50 },
@@ -212,4 +213,34 @@ test('AI targets black when own balls cleared', () => {
   };
   const plan = selectShot(state);
   assert.equal(plan.targetBall, 'black');
+});
+
+test('AI increases EV after learning from success', () => {
+  __resetShotMemory();
+  const state = {
+    balls: [
+      { id: 0, colour: 'cue', x: 200, y: 20 },
+      { id: 1, colour: 'yellow', x: 260, y: 20 }
+    ],
+    pockets: [
+      { name: 'TL', x: 0, y: 0 },
+      { name: 'TR', x: 300, y: 0 },
+      { name: 'ML', x: 0, y: 150 },
+      { name: 'MR', x: 300, y: 150 },
+      { name: 'BL', x: 0, y: 300 },
+      { name: 'BR', x: 300, y: 300 }
+    ],
+    width: 300,
+    height: 300,
+    ballRadius: 5,
+    ballOn: 'yellow',
+    isOpenTable: false,
+    freeBallAvailable: false,
+    shotsRemaining: 1
+  };
+  const plan1 = selectShot(state);
+  const ev1 = plan1.EV;
+  recordShotOutcome(plan1, true);
+  const plan2 = selectShot(state);
+  assert.ok(plan2.EV >= ev1);
 });
