@@ -93,3 +93,44 @@ test('prioritizes straight pots', () => {
   assert.equal(plan.aimPoint.y, 250);
 });
 
+test('prefers near-pocket shots when no straight option', () => {
+  const state = {
+    balls: [
+      { id: 0, colour: 'cue', x: 400, y: 250 },
+      { id: 1, colour: 'yellow', x: 950, y: 260 }, // near pocket, small angle
+      { id: 2, colour: 'yellow', x: 500, y: 400 } // farther thin cut
+    ],
+    pockets: makePockets(),
+    width: 1000,
+    height: 500,
+    ballRadius: 10,
+    ballOn: 'yellow',
+    isOpenTable: false,
+    shotsRemaining: 1
+  };
+  const plan = selectShot(state, {});
+  assert.equal(plan.targetBall, 'yellow');
+  assert.equal(plan.aimPoint.x, 950);
+  assert.equal(plan.aimPoint.y, 260);
+});
+
+test('avoids very thin shots and plays safety', () => {
+  const state = {
+    balls: [
+      { id: 0, colour: 'cue', x: 100, y: 250 },
+      { id: 1, colour: 'yellow', x: 200, y: 150 },
+      { id: 2, colour: 'red', x: 500, y: 188 }, // blocks path to MR
+      { id: 3, colour: 'red', x: 500, y: 90 } // blocks path to TR
+    ],
+    pockets: makePockets(),
+    width: 1000,
+    height: 500,
+    ballRadius: 10,
+    ballOn: 'yellow',
+    isOpenTable: false,
+    shotsRemaining: 1
+  };
+  const plan = selectShot(state, {});
+  assert.equal(plan.actionType, 'safety');
+});
+
