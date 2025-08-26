@@ -72,3 +72,24 @@ test('uses free ball when available', () => {
   assert.equal(plan.actionType, 'freeBallPot');
 });
 
+test('prioritizes straight pots', () => {
+  const state = {
+    balls: [
+      { id: 0, colour: 'cue', x: 100, y: 250 },
+      { id: 1, colour: 'yellow', x: 800, y: 250 }, // straight shot
+      { id: 2, colour: 'yellow', x: 200, y: 300 } // angled shot
+    ],
+    pockets: makePockets(),
+    width: 1000,
+    height: 500,
+    ballRadius: 10,
+    ballOn: 'yellow',
+    isOpenTable: false,
+    shotsRemaining: 1
+  };
+  const plan = selectShot(state, {});
+  assert.equal(plan.targetBall, 'yellow');
+  assert.equal(plan.aimPoint.x, 800);
+  assert.equal(plan.aimPoint.y, 250);
+});
+
