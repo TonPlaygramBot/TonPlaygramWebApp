@@ -223,6 +223,7 @@
   let holes=[]; let banners=[]; let cameras=[]; let fragments=[]; let looseBalls=[]; let punchEffects=[];
   let netHit={x:0,y:0,t:0,shake:0};
   let goalFlash=0;
+  let missFlash=0;
   const NET_DECAY = 0.94; // decay factor for net pullback and shake
   const keeper={x:0,y:0,w:40,h:100,vx:0,vy:0,a:0,baseY:0,baseX:0,dive:0};
   const keeperImg = new Image();
@@ -378,7 +379,7 @@
     const g=geom.goal;
     const innerW=g.w*0.8, innerH=g.h*0.8;
     const ix=g.x+(g.w-innerW)/2, iy=g.y+(g.h-innerH)/2;
-    const netColor=goalFlash>0?'#ffd400':(getComputedStyle(document.documentElement).getPropertyValue('--net')||'#e6e6e6');
+    const netColor=(goalFlash>0||missFlash>0)?'#ffd400':(getComputedStyle(document.documentElement).getPropertyValue('--net')||'#e6e6e6');
     const size=18; const h=size*Math.sqrt(3)/2;
     function drawNetMesh(){
       ctx.strokeStyle=netColor; ctx.lineWidth=1.2;
@@ -483,6 +484,19 @@
       ctx.fillText('GOAL',ix+innerW/2,iy+innerH/2);
       ctx.restore();
     }
+    if(missFlash>0){
+      ctx.save();
+      ctx.globalAlpha=missFlash;
+      ctx.font=`900 ${Math.min(innerH*0.8,120)}px system-ui`;
+      ctx.textAlign='center';
+      ctx.textBaseline='middle';
+      ctx.lineWidth=8;
+      ctx.strokeStyle='#000';
+      ctx.fillStyle='#ef4444';
+      ctx.strokeText('MISSED',ix+innerW/2,iy+innerH/2);
+      ctx.fillText('MISSED',ix+innerW/2,iy+innerH/2);
+      ctx.restore();
+    }
     for(const c of cameras){ ctx.fillStyle='#111'; ctx.fillRect(c.x,c.y,c.w,c.h); ctx.fillStyle='#e10600'; ctx.beginPath(); ctx.arc(c.x+8,c.y+6,3,0,Math.PI*2); ctx.fill(); }
     for(const h of holes){ if(h.hit) continue; ctx.fillStyle='rgba(225,6,0,.9)'; ctx.beginPath(); ctx.arc(h.x,h.y,h.r,0,Math.PI*2); ctx.fill();
       ctx.fillStyle='#ffd400'; ctx.font=`800 ${Math.max(12,h.r*0.9)}px system-ui`; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText(h.points,h.x,h.y); }
@@ -568,7 +582,9 @@
       reflectBall(kHit.nx,1,0.6);
       ball.spin *= 0.5;
       ball.y = keeper.y + keeper.h + ball.r;
-      if(kHit.center){ endShot(false,0); return; }
+      missFlash=1;
+      endShot(false,0);
+      return;
     }
     const postR = g.post;
     const left={x:g.x, y:g.y+g.h}, right={x:g.x+g.w, y:g.y+g.h};
@@ -839,7 +855,7 @@ function onUp(e){ if(!pointer.active||e.pointerId!==pointer.id) return; pointer.
 
   // ===== Timer + loop =====
   function tick(now){ if(!running||paused) return; if(!roundStart) roundStart=now; timeLeft = Math.max(0, ROUND_TIME - (now - roundStart)); timeShort.textContent = Math.ceil(timeLeft/1000); if(timeLeft<=0){ finish(); } }
-  function loop(now){ requestAnimationFrame(loop); drawField(); drawAds(); drawGoal(); drawBall(); drawPunchEffects(); stepBall(); stepLooseBalls(); stepFragments(); stepKeeper(); drawMiniBoards(); tick(now||performance.now()); stepRivals(now||performance.now()); updateHUD(); netHit.t*=NET_DECAY; netHit.shake*=NET_DECAY; goalFlash*=0.92; }
+function loop(now){ requestAnimationFrame(loop); drawField(); drawAds(); drawGoal(); drawBall(); drawPunchEffects(); stepBall(); stepLooseBalls(); stepFragments(); stepKeeper(); drawMiniBoards(); tick(now||performance.now()); stepRivals(now||performance.now()); updateHUD(); netHit.t*=NET_DECAY; netHit.shake*=NET_DECAY; goalFlash*=0.92; missFlash*=0.92; }
 
   // ===== Controls =====
   // controls removed
