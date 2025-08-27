@@ -216,7 +216,7 @@
   // slightly faster initial shot speed
   const SHOT_SPEED = 14;
   const MIN_GOAL_POINTS = 5;
-  const ball = { x:0,y:0,r:BALL_R, vx:0,vy:0, moving:false, trail:[], spin:0, angle:0, netSounded:false, firstContact:false, target:null, prevDist:null, points:0, scored:false };
+  const ball = { x:0,y:0,r:BALL_R, vx:0,vy:0, moving:false, trail:[], spin:0, angle:0, netSounded:false, firstContact:false, target:null, prevDist:null, points:0 };
   const ballImg = new Image();
   ballImg.src = '/assets/icons/file_0000000061d4620aaf506adfa605e1f3.webp';
 
@@ -255,7 +255,7 @@
     const dx=ball.x-px, dy=ball.y-py;
     const lx=dx*cos - dy*sin;
     const ly=dx*sin + dy*cos;
-    const w=k.w, h=k.h;
+    const w=k.w*0.9, h=k.h*0.9;
     return lx>-w/2-ball.r && lx<w/2+ball.r && ly>-h-ball.r && ly<ball.r;
   }
   function ballScale(y){
@@ -588,13 +588,6 @@
         return;
       }
     }
-    const goalLine = g.y + g.h;
-    if(!ball.scored && ball.x > g.x && ball.x < g.x + g.w && ball.y <= goalLine){
-      ball.scored = true;
-      triggerNetHit(ball.x, ball.y);
-      endShot(true, ball.points);
-      return;
-    }
     if(ball.target){
       const dx=ball.target.x-ball.x, dy=ball.target.y-ball.y;
       const dist=Math.hypot(dx,dy);
@@ -848,7 +841,7 @@ function endShot(hit,pts){
   // ===== Controls =====
   // controls removed
 
-  function resetBall(){ ball.x=geom.spot.x; ball.y=geom.spot.y; ball.vx=ball.vy=ball.spin=0; ball.angle=0; ball.moving=false; ball.netSounded=false; ball.trail=[]; ball.firstContact=false; ball.target=null; ball.prevDist=null; ball.points=0; ball.scored=false; netHit={x:0,y:0,t:0,shake:0}; keeper.save=false; keeper.vx=0; keeper.vy=0; keeper.a=0; keeper.dive=0; keeper.x = keeper.baseX; keeper.y = keeper.baseY; }
+  function resetBall(){ ball.x=geom.spot.x; ball.y=geom.spot.y; ball.vx=ball.vy=ball.spin=0; ball.angle=0; ball.moving=false; ball.netSounded=false; ball.trail=[]; ball.firstContact=false; ball.target=null; ball.prevDist=null; ball.points=0; netHit={x:0,y:0,t:0,shake:0}; keeper.save=false; keeper.vx=0; keeper.vy=0; keeper.a=0; keeper.dive=0; keeper.x = keeper.baseX; keeper.y = keeper.baseY; }
   function startGame(){ running=true; paused=false; ended=false; roundStart=performance.now(); timeLeft=ROUND_TIME; myScore=0; looseBalls=[]; for(const r of rivals){ r.score=0; r.next=0; r.shots=[]; } resetBall(); generateHoles(); drawMiniBoards(true); updateHUD(); ensureAudio(); status('Go! Score as many as you can.'); }
 
   // ===== WebAudio SFX =====
