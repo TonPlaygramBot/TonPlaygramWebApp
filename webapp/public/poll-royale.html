@@ -618,7 +618,9 @@
         var SIDE_POCKET_R = 36; // gropat anesore edhe me te vogla nga brenda
         var BALL_R = 21.5; // rrezja baze e topave akoma pak me e vogel
         var BORDER_TOP = BORDER + BALL_R * 2 - 4; // bordi i siperm pak me i holle per fushe me te gjate
-        var BORDER_BOTTOM = BORDER; // anet e tjera mbeten te pandryshuara
+        // Lift the bottom field line slightly so only the lower boundary moves
+        // up by roughly the thickness of three green side markings.
+        var BORDER_BOTTOM = BORDER + 6; // anet e tjera mbeten te pandryshuara
         // Move the rack slightly upward on the table
         var SPOT_Y =
           BORDER_TOP +
