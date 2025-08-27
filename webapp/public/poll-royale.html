@@ -1154,10 +1154,11 @@
           this.pockets = [
             new Pocket(BORDER, BORDER_TOP, POCKET_R),
             new Pocket(TABLE_W - BORDER, BORDER_TOP, POCKET_R),
-            new Pocket(BORDER - 2, TABLE_H / 2 + BALL_R - 2, SIDE_POCKET_R),
+            // Lift middle pockets slightly to align with field markings
+            new Pocket(BORDER - 2, TABLE_H / 2 + BALL_R - 10, SIDE_POCKET_R),
             new Pocket(
               TABLE_W - BORDER + 2,
-              TABLE_H / 2 + BALL_R - 2,
+              TABLE_H / 2 + BALL_R - 10,
               SIDE_POCKET_R
             ),
             new Pocket(BORDER, TABLE_H - BORDER_BOTTOM, POCKET_R),
