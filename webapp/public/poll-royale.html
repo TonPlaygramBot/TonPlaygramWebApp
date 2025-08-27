@@ -421,7 +421,10 @@
         height: 10px;
         transform: translate(-50%, -50%);
         pointer-events: none;
-        opacity: 0;
+        /* Ensure pocket markers are visible above table canvas */
+        background: #333;
+        border-radius: 50%;
+        z-index: 5;
       }
 
       .winnerOverlay {
