@@ -2071,7 +2071,6 @@
             dy = aim.y - cue.p.y;
           var L = len(dx, dy) || 1;
           var dir = { x: dx / L, y: dy / L };
-          var step = BALL_R * 0.1;
           var tHit = Infinity;
           var target = null;
           var railNormal = null;
@@ -2121,32 +2120,21 @@
             }
           }
 
-          var x = cue.p.x,
-            y = cue.p.y;
-          var steps = Math.floor(tHit / step);
+          var impactX = cue.p.x + dir.x * tHit,
+            impactY = cue.p.y + dir.y * tHit;
           const guaranteedHit = target && !railNormal;
-          ctx.fillStyle = guaranteedHit
+          ctx.save();
+          ctx.strokeStyle = guaranteedHit
             ? 'rgba(255,255,0,1)'
             : 'rgba(255,255,255,.7)';
-          for (var i = 0; i < steps; i++) {
-            x += dir.x * step;
-            y += dir.y * step;
-            ctx.beginPath();
-            ctx.arc(x * sX, y * sY, 1.5, 0, Math.PI * 2);
-            ctx.fill();
-          }
-          var remaining = tHit - steps * step;
-          if (remaining > 0) {
-            x += dir.x * remaining;
-            y += dir.y * remaining;
-            ctx.beginPath();
-            ctx.arc(x * sX, y * sY, 1.5, 0, Math.PI * 2);
-            ctx.fill();
-          }
+          ctx.lineWidth = 2;
+          ctx.beginPath();
+          ctx.moveTo(cue.p.x * sX, cue.p.y * sY);
+          ctx.lineTo(impactX * sX, impactY * sY);
+          ctx.stroke();
+          ctx.restore();
 
           if (!target && railNormal) {
-            var impactX = cue.p.x + dir.x * tHit,
-              impactY = cue.p.y + dir.y * tHit;
             var dotIn = dir.x * railNormal.x + dir.y * railNormal.y;
             var refl = {
               x: dir.x - 2 * dotIn * railNormal.x,
@@ -2164,8 +2152,8 @@
             ctx.beginPath();
             ctx.moveTo(impactX * sX, impactY * sY);
             ctx.lineTo(
-              (impactX + refl.x * step * 10) * sX,
-              (impactY + refl.y * step * 10) * sY
+              (impactX + refl.x * BALL_R * 4) * sX,
+              (impactY + refl.y * BALL_R * 4) * sY
             );
             ctx.stroke();
             ctx.restore();
@@ -2174,8 +2162,8 @@
           if (target) {
             var tx = target.p.x,
               ty = target.p.y;
-            var impactCueX = cue.p.x + dir.x * tHit;
-            var impactCueY = cue.p.y + dir.y * tHit;
+            var impactCueX = impactX,
+              impactCueY = impactY;
             // Direction from cue ball to target ball at impact
             var hitN = { x: tx - impactCueX, y: ty - impactCueY };
             var nL = len(hitN.x, hitN.y) || 1;
