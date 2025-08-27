@@ -1806,11 +1806,10 @@
             }
             return false;
           }
-          if (firstHit.t === 'eight') {
-            return shooterType && hasBallsLeft(shooterType);
+          var ownLeft = shooterType && hasBallsLeft(shooterType);
+          if (firstHit.t === 'eight' || eightBallPotted) {
+            return ownLeft;
           }
-          if (eightBallPotted && shooterType && hasBallsLeft(shooterType))
-            return true;
           if (shooterType && firstHit.t !== shooterType) return true;
           return false;
         }
