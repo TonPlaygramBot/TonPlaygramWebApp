@@ -2129,7 +2129,11 @@
             if (target) break;
           }
 
-          ctx.fillStyle = target ? 'rgba(255,255,0,1)' : 'rgba(255,255,255,.7)';
+          // Only highlight the aiming line when a collision with a ball is guaranteed
+          const guaranteedHit = target && !railNormal;
+          ctx.fillStyle = guaranteedHit
+            ? 'rgba(255,255,0,1)'
+            : 'rgba(255,255,255,.7)';
           x = cue.p.x;
           y = cue.p.y;
           var fullSteps = Math.floor(hitStep);
@@ -2242,8 +2246,8 @@
             ctx.strokeStyle = 'rgba(255,255,255,.3)';
             ctx.lineWidth = 1;
             ctx.beginPath();
-            // start the target path from the marker so it connects with the aim line
-            ctx.moveTo(hitSpotX * sX, hitSpotY * sY);
+            // start the target path from the center of the marker so it connects with the aim line
+            ctx.moveTo(canvasHitX, canvasHitY);
             ctx.lineTo(
               (ex - hitN.x * BALL_R) * sX,
               (ey - hitN.y * BALL_R) * sY
