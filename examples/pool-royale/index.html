@@ -23,21 +23,7 @@
     <img class="bg" src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxMDAwIDE1MDAiPjxyZWN0IHdpZHRoPSIxMDAlIiBoZWlnaHQ9IjEwMCUiIGZpbGw9IiMwMDgwMDAiLz48L3N2Zz4=" alt="Pool table" />
     <!-- Vector-only overlay for nets -->
     <svg class="overlay" viewBox="0 0 1000 1500" preserveAspectRatio="xMidYMid slice">
-      <defs>
-        <!-- Diamond mesh pattern built with both <line> and <path> elements -->
-        <pattern id="mesh" width="12" height="12" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
-          <!-- Horizontal line drawn with <line> -->
-          <line x1="0" y1="0" x2="12" y2="0" stroke="white" stroke-width="1.2" opacity="0.55"/>
-          <!-- Vertical line drawn with <path> to satisfy element variety -->
-          <path d="M0 0v12" stroke="white" stroke-width="1.2" opacity="0.55"/>
-        </pattern>
-
-        <!-- Soft vignette to make the net look deep -->
-        <radialGradient id="shade" cx="50%" cy="50%" r="60%">
-          <stop offset="65%" stop-color="#000" stop-opacity=".18"/>
-          <stop offset="100%" stop-color="#000" stop-opacity="0"/>
-        </radialGradient>
-      </defs>
+      <defs></defs>
 
       <g id="nets"></g>
 
@@ -73,25 +59,8 @@
           // Subtle drop shadow under rim
           group.append(el('circle', {cx: x+3, cy: y+3, r: RIM_R+2, fill: 'black', opacity: 0.18}));
 
-          // Mesh funnel: approximate by scaling a circle down to mimic depth
-          group.append(el('ellipse', {
-            cx: x,
-            cy: y + DEPTH * 0.35,
-            rx: RIM_R * 0.85,
-            ry: RIM_R * 0.55,
-            fill: 'url(#mesh)',
-            opacity: 0.85,
-            mask: `url(#pocket-mask-${i})`
-          }));
-
-          // Inner shade for depth
-          group.append(el('circle', {
-            cx: x,
-            cy: y + DEPTH * 0.25,
-            r: RIM_R * 0.95,
-            fill: 'url(#shade)',
-            mask: `url(#pocket-mask-${i})`
-          }));
+          // Dark grey pocket interior
+          group.append(el('circle', {cx: x, cy: y, r: RIM_R, fill: '#333'}));
 
           // Rim
           group.append(el('circle', {cx: x, cy: y, r: RIM_R, fill: 'none', stroke: '#1a1a1a', 'stroke-width': 8, opacity: 0.9}));
