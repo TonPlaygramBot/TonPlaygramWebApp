@@ -256,6 +256,12 @@
     const w=k.w*0.9, h=k.h*0.9;
     return lx>-w/2-ball.r && lx<w/2+ball.r && ly>-h-ball.r && ly<ball.r;
   }
+  function ballScale(y){
+    const g=geom.goal;
+    const goalBottom=g.y+g.h;
+    const progress=clamp((goalBottom - y)/g.h,0,1);
+    return 1 - 0.15*progress;
+  }
 
   // ===== Ads & Cameras =====
   function initBanners(){
@@ -475,15 +481,15 @@
 
   // ===== Ball & physics =====
   function drawBall(){
-    const baseR=Math.max(BALL_R*geom.scale*1.08,22);
+    const baseR=Math.max(BALL_R*geom.scale,22);
     ball.r=baseR;
-    const drawR = baseR * (ball.y > geom.penaltySpot.y ? 1.05 : 1);
+    const drawR = baseR * ballScale(ball.y);
     // draw any loose balls continuing to fall
     for(const b of looseBalls){
       ctx.save();
       ctx.translate(b.x,b.y);
       ctx.rotate(b.angle||0);
-      const sizeL = baseR*2*(b.y > geom.penaltySpot.y ? 1.05 : 1);
+      const sizeL = baseR*2*ballScale(b.y);
       ctx.drawImage(ballImg, -sizeL/2, -sizeL/2, sizeL, sizeL);
       ctx.restore();
     }
@@ -524,6 +530,7 @@
       for(const h of holes){
         if(Math.hypot(h.x-ball.x,h.y-ball.y) <= Math.max(2,h.r-ball.r*0.6)){
           h.hit=true; createFragments(h); netHit={x:ball.x,y:ball.y,t:1,shake:1};
+          sfxPost();
           ball.vx=0; ball.vy=0;
           endShot(true,h.points); setTimeout(()=>{replaceHole(h);},600); return;
         }
@@ -537,10 +544,22 @@
     const postR = g.post;
     const left={x:g.x, y:g.y+g.h}, right={x:g.x+g.w, y:g.y+g.h};
     let d=Math.hypot(ball.x-left.x, ball.y-left.y);
-    if(d < ball.r + postR){ const nx=(ball.x-left.x)/d, ny=(ball.y-left.y)/d; reflectBall(nx,ny); }
+    if(d < ball.r + postR){
+      const nx=(ball.x-left.x)/d, ny=(ball.y-left.y)/d;
+      reflectBall(nx,ny);
+      const overlap=ball.r+postR-d; ball.x+=nx*overlap; ball.y+=ny*overlap;
+      sfxPost();
+    }
     d=Math.hypot(ball.x-right.x, ball.y-right.y);
-    if(d < ball.r + postR){ const nx=(ball.x-right.x)/d, ny=(ball.y-right.y)/d; reflectBall(nx,ny); }
-    if(ball.y - ball.r <= g.y && ball.x > g.x - postR && ball.x < g.x + g.w + postR){ if(ball.vy < 0){ reflectBall(0,1); ball.y = g.y + ball.r; }}
+    if(d < ball.r + postR){
+      const nx=(ball.x-right.x)/d, ny=(ball.y-right.y)/d;
+      reflectBall(nx,ny);
+      const overlap=ball.r+postR-d; ball.x+=nx*overlap; ball.y+=ny*overlap;
+      sfxPost();
+    }
+    if(ball.y - ball.r <= g.y && ball.x > g.x - postR && ball.x < g.x + g.w + postR){
+      if(ball.vy < 0){ reflectBall(0,1); ball.y = g.y + ball.r; sfxPost(); }
+    }
     if(ball.target){
       const dx=ball.target.x-ball.x, dy=ball.target.y-ball.y;
       const dist=Math.hypot(dx,dy);
@@ -618,8 +637,8 @@
       keeper.a += (targetA - keeper.a) * 0.05;
       const targetX = clamp(diff * 0.04, -keeper.w*0.25, keeper.w*0.25);
       keeper.x += (keeper.baseX + targetX - keeper.x) * 0.05;
-      // keeper reacts a bit slower and saves less often
-      keeper.save = Math.abs(diff) < keeper.w*0.30 && Math.random() < 0.15;
+      // keeper save probability between 40% and 65%
+      keeper.save = Math.abs(diff) < keeper.w*0.30 && Math.random() < rnd(0.40,0.65);
       const targetDive = keeper.save ? 10 : 0;
       keeper.dive += (targetDive - keeper.dive) * 0.05;
     } else {
@@ -808,6 +827,25 @@ function endShot(hit,pts){
     src.connect(masterGain);
   }
   const sfxReward = playRewardSound;
+  let postSoundBuf=null;
+  async function loadPostSound(){
+    try{
+      const res=await fetch('/assets/sounds/billiard-pool-hit-371618.mp3');
+      const arr=await res.arrayBuffer();
+      ensureAudio(); if(!audioCtx) return;
+      postSoundBuf = await audioCtx.decodeAudioData(arr);
+    }catch{}
+  }
+  loadPostSound();
+  function playPostSound(){
+    ensureAudio();
+    if(!audioCtx || !postSoundBuf) return;
+    const src=audioCtx.createBufferSource();
+    src.buffer=postSoundBuf;
+    src.connect(masterGain);
+    src.start(0);
+  }
+  const sfxPost = playPostSound;
   function vibrate(ms){ if(navigator.vibrate) try{ navigator.vibrate(ms); }catch{} }
 
   // ===== Static draw & tests =====
