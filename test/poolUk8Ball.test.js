@@ -215,6 +215,35 @@ test('AI targets black when own balls cleared', () => {
   assert.equal(plan.targetBall, 'black');
 });
 
+test('AI uses cushions to reach own ball when blocked', () => {
+  __resetShotMemory();
+  const state = {
+    balls: [
+      { id: 0, colour: 'cue', x: 50, y: 150 },
+      { id: 1, colour: 'yellow', x: 250, y: 150 },
+      { id: 2, colour: 'red', x: 150, y: 150 }
+    ],
+    pockets: [
+      { name: 'TL', x: 0, y: 0 },
+      { name: 'TR', x: 300, y: 0 },
+      { name: 'ML', x: 0, y: 150 },
+      { name: 'MR', x: 300, y: 150 },
+      { name: 'BL', x: 0, y: 300 },
+      { name: 'BR', x: 300, y: 300 }
+    ],
+    width: 300,
+    height: 300,
+    ballRadius: 5,
+    ballOn: 'yellow',
+    isOpenTable: false,
+    freeBallAvailable: false,
+    shotsRemaining: 1
+  };
+  const plan = selectShot(state);
+  assert.equal(plan.targetBall, 'yellow');
+  assert.notEqual(plan.aimPoint.x, state.balls[1].x);
+});
+
 test('AI increases EV after learning from success', () => {
   __resetShotMemory();
   const state = {
