@@ -69,7 +69,8 @@ public class BilliardsSolver
     /// <summary>Runs CCD to predict cue-ball path until first impact.</summary>
     public Preview PreviewShot(Vec2 cueStart, Vec2 dir, double speed, List<Ball> others)
     {
-        Vec2 velocity = dir * speed;
+        var nDir = dir.Normalized();
+        Vec2 velocity = nDir * speed;
         double bestT = double.PositiveInfinity;
         Ball hitBall = null;
         Vec2 hitNormal = new Vec2();
@@ -109,7 +110,7 @@ public class BilliardsSolver
 
         if (ballHit && hitBall != null)
         {
-            Collision.ResolveBallBall(contact - dir * PhysicsConstants.BallRadius, velocity, hitBall.Position, new Vec2(0, 0), out cuePost, out var target);
+            Collision.ResolveBallBall(contact - nDir * PhysicsConstants.BallRadius, velocity, hitBall.Position, new Vec2(0, 0), out cuePost, out var target);
             targetPost = target;
             path.Add(contact + cuePost.Normalized() * PhysicsConstants.BallRadius);
         }
@@ -125,7 +126,8 @@ public class BilliardsSolver
     /// <summary>Deterministic stepper simulation to validate preview.</summary>
     public Impact SimulateFirstImpact(Vec2 cueStart, Vec2 dir, double speed, List<Ball> others)
     {
-        var cue = new Ball { Position = cueStart, Velocity = dir * speed };
+        var nDir = dir.Normalized();
+        var cue = new Ball { Position = cueStart, Velocity = nDir * speed };
         var balls = new List<Ball>(others) { cue };
         double time = 0;
         while (time < PhysicsConstants.MaxPreviewTime)

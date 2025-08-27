@@ -72,3 +72,17 @@ public class DeterminismTests
         Assert.That((a.ContactPoint - b.ContactPoint).Length, Is.LessThan(1e-9));
     }
 }
+
+public class DirectionNormalizationTests
+{
+    [Test]
+    public void PreviewShotNormalizesDirection()
+    {
+        var solver = new BilliardsSolver();
+        var start = new Vec2(0.2, 0.5);
+        double speed = 2.0;
+        var p1 = solver.PreviewShot(start, new Vec2(1, 0), speed, new List<BilliardsSolver.Ball>());
+        var p2 = solver.PreviewShot(start, new Vec2(2, 0), speed, new List<BilliardsSolver.Ball>());
+        Assert.That((p1.Path[1] - p2.Path[1]).Length, Is.LessThan(1e-9));
+    }
+}
