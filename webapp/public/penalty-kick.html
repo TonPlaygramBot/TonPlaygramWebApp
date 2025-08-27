@@ -866,7 +866,32 @@ function endShot(hit,pts){
     src.start(0);
   }
   const sfxPrize = playPrizeSound;
-  const sfxPost = () => {};
+  let postHitSoundBuf=null;
+  let postHitSource=null;
+  async function loadPostHitSound(){
+    try{
+      // Uses post-hit.mp3 from webapp/public/assets/sounds
+      const res=await fetch('/assets/sounds/post-hit.mp3');
+      const arr=await res.arrayBuffer();
+      ensureAudio(); if(!audioCtx) return;
+      postHitSoundBuf=await audioCtx.decodeAudioData(arr);
+    }catch{}
+  }
+  loadPostHitSound();
+  function playPostHitSound(){
+    ensureAudio();
+    if(!audioCtx || !postHitSoundBuf) return;
+    if(postHitSource){
+      try{ postHitSource.stop(); }catch{}
+    }
+    const src=audioCtx.createBufferSource();
+    src.buffer=postHitSoundBuf;
+    src.connect(masterGain);
+    src.start(0);
+    postHitSource=src;
+    src.onended=()=>{ if(postHitSource===src) postHitSource=null; };
+  }
+  const sfxPost = playPostHitSound;
   let keeperSaveSoundBuf=null;
   async function loadKeeperSaveSound(){
       try{
