@@ -33,9 +33,9 @@
         const DEPTH = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--net-depth'));
 
         const pockets = [
-          {x: 60,   y: 60},      // top-left corner
+          {x: 60,   y: 56},      // top-left corner (slightly raised)
           {x: 500,  y: 60},      // top-middle
-          {x: 940,  y: 60},      // top-right corner
+          {x: 940,  y: 56},      // top-right corner (slightly raised)
           {x: 60,   y: 1440},    // bottom-left corner
           {x: 500,  y: 1440},    // bottom-middle
           {x: 940,  y: 1440},    // bottom-right corner
@@ -67,6 +67,28 @@
           group.append(el('circle', {cx: x, cy: y, r: RIM_R-5, fill: 'none', stroke: '#c2a44b', 'stroke-width': 3, opacity: 0.9}));
 
           g.append(group);
+        });
+
+        // Straight-cut edge guides highlighted with thin yellow lines
+        const edgesG = el('g');
+        svg.append(edgesG);
+
+        const [tl, tm, tr, bl, bm, br] = pockets;
+        const edgePaths = [
+          // Corner pocket cuts
+          `M0 ${tl.y - RIM_R} L${tl.x - RIM_R} 0`,
+          `M1000 ${tr.y - RIM_R} L${tr.x + RIM_R} 0`,
+          `M0 ${bl.y + RIM_R} L${bl.x - RIM_R} 1500`,
+          `M1000 ${br.y + RIM_R} L${br.x + RIM_R} 1500`,
+          // Side pocket cuts
+          `M${tm.x - RIM_R} 0 L${tm.x - RIM_R} ${tm.y - RIM_R}`,
+          `M${tm.x + RIM_R} 0 L${tm.x + RIM_R} ${tm.y - RIM_R}`,
+          `M${bm.x - RIM_R} 1500 L${bm.x - RIM_R} ${bm.y + RIM_R}`,
+          `M${bm.x + RIM_R} 1500 L${bm.x + RIM_R} ${bm.y + RIM_R}`,
+        ];
+
+        edgePaths.forEach(d => {
+          edgesG.append(el('path', { d, stroke: 'yellow', 'stroke-width': 2, fill: 'none' }));
         });
       </script>
     </svg>
