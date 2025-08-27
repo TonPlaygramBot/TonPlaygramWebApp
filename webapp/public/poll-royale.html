@@ -614,7 +614,8 @@
         var TABLE_W = 768; // gjeresi logjike e felt-it
         var TABLE_H = 1216; // lartesi logjike e felt-it
         var BORDER = 57; // korniza e drurit pak me e ngushte anash
-        var POCKET_R = 42; // rrezja baze e gropave
+        var POCKET_R = 40; // rrezja baze e gropave pak me e vogel
+        var SIDE_POCKET_R = 36; // gropat anesore edhe me te vogla nga brenda
         var BALL_R = 21.5; // rrezja baze e topave akoma pak me e vogel
         var BORDER_TOP = BORDER + BALL_R * 2 - 4; // bordi i siperm pak me i holle per fushe me te gjate
         var BORDER_BOTTOM = BORDER; // anet e tjera mbeten te pandryshuara
@@ -887,7 +888,7 @@
        ========================================================= */
         var sX = 1,
           sY = 1,
-          pocketR = POCKET_R,
+          scaleFactor = 1,
           ballR = BALL_R;
         function resize() {
           var wrap = document.getElementById('wrap');
@@ -906,8 +907,8 @@
           canvas.style.top = (h - ch) / 2 + 'px';
           sX = cw / TABLE_W;
           sY = ch / TABLE_H;
-          pocketR = POCKET_R * ((sX + sY) / 2);
-          ballR = BALL_R * ((sX + sY) / 2);
+          scaleFactor = (sX + sY) / 2;
+          ballR = BALL_R * scaleFactor;
           powerCue.style.height = BALL_R * 28 * sX + 'px';
           updatePullHandle();
         }
@@ -1031,9 +1032,10 @@
           this.spinApplied = false;
         }
 
-        function Pocket(x, y) {
+        function Pocket(x, y, r) {
           this.x = x;
           this.y = y;
+          this.r = r || POCKET_R;
         }
 
         function Table() {
@@ -1148,12 +1150,20 @@
 
           // Pockets (4 qoshe + 2 te mesit anesore)
           this.pockets = [
-            new Pocket(BORDER, BORDER_TOP),
-            new Pocket(TABLE_W - BORDER, BORDER_TOP),
-            new Pocket(BORDER, TABLE_H / 2 + BALL_R),
-            new Pocket(TABLE_W - BORDER, TABLE_H / 2 + BALL_R),
-            new Pocket(BORDER, TABLE_H - BORDER_BOTTOM),
-            new Pocket(TABLE_W - BORDER, TABLE_H - BORDER_BOTTOM)
+            new Pocket(BORDER, BORDER_TOP, POCKET_R),
+            new Pocket(TABLE_W - BORDER, BORDER_TOP, POCKET_R),
+            new Pocket(BORDER, TABLE_H / 2 + BALL_R, SIDE_POCKET_R),
+            new Pocket(
+              TABLE_W - BORDER,
+              TABLE_H / 2 + BALL_R,
+              SIDE_POCKET_R
+            ),
+            new Pocket(BORDER, TABLE_H - BORDER_BOTTOM, POCKET_R),
+            new Pocket(
+              TABLE_W - BORDER,
+              TABLE_H - BORDER_BOTTOM,
+              POCKET_R
+            )
           ];
           this.captured = { 1: [], 2: [] };
           this.turn = 1;
@@ -1298,7 +1308,7 @@
               if (b2.pocketed) continue;
               var ddx = b2.p.x - p.x,
                 ddy = b2.p.y - p.y;
-              if (Math.hypot(ddx, ddy) < POCKET_R * 0.9) {
+              if (Math.hypot(ddx, ddy) < p.r * 0.9) {
                 var spd = Math.hypot(b2.v.x, b2.v.y);
                 playPocket(clamp(spd / 4000, 0, 1));
                 if (!shotPocketRecorded) {
@@ -1374,12 +1384,17 @@
             w = (TABLE_W - 2 * BORDER) * sX,
             h = (TABLE_H - BORDER_TOP - BORDER_BOTTOM) * sY;
 
-          // Draw pockets
+          // Draw field boundary lines
+          ctx.strokeStyle = '#0a0';
+          ctx.lineWidth = 2;
+          ctx.strokeRect(x0, y0, w, h);
+
+          // Draw pockets above the field boundary
           ctx.fillStyle = '#333';
           for (var i = 0; i < this.pockets.length; i++) {
             var pk = this.pockets[i];
             ctx.beginPath();
-            ctx.arc(pk.x * sX, pk.y * sY, pocketR, 0, Math.PI * 2);
+            ctx.arc(pk.x * sX, pk.y * sY, pk.r * scaleFactor, 0, Math.PI * 2);
             ctx.fill();
           }
 
