@@ -198,7 +198,7 @@
     geom.paDepth = Math.min(320*geom.scale, H*0.34);
     geom.penaltySpot = { x:W/2, y: geom.goal.y + geom.goal.h + geom.paDepth * (11/16.5) };
     // position the ball a bit higher near the bottom edge
-    geom.spot = { x: W/2, y: H - BALL_R*geom.scale*1.5 };
+    geom.spot = { x: W/2, y: H - BALL_R*geom.scale*1.8 };
     keeper.w = 40*geom.scale*4*0.85;
     keeper.h = 100*geom.scale*4*0.85;
     keeper.x = geom.goal.x + (geom.goal.w-keeper.w)/2;
@@ -501,11 +501,11 @@
   function drawPunchEffects(){
     for(const p of punchEffects){
       ctx.globalAlpha=p.life;
-      ctx.font=`${32*geom.scale}px system-ui`;
+      ctx.font=`${42*geom.scale}px system-ui`;
       ctx.textAlign='center';
       ctx.textBaseline='middle';
       ctx.fillText('🥊',p.x,p.y);
-      p.life-=0.02;
+      p.life-=0.01;
     }
     ctx.globalAlpha=1;
     punchEffects=punchEffects.filter(p=>p.life>0);
@@ -559,16 +559,21 @@
   }
 
   function stepLooseBalls(){
-    const ground=geom.spot.y;
     const r=Math.max(BALL_R*geom.scale*1.08,22);
+    const fieldGround=geom.spot.y;
+    const goalGround=geom.goal.y + geom.goal.h;
     for(const b of looseBalls){
       b.vy += GRAVITY;
       b.vx *= 0.98;
       b.x += b.vx;
       b.y += b.vy;
+      const ground = b.insideGoal ? goalGround : fieldGround;
       if(b.y + r > ground){
         b.y = ground - r;
-        if(!b.bounced){
+        if(b.insideGoal){
+          b.vy = 0;
+          b.vx = 0;
+        } else if(!b.bounced){
           b.vy *= -0.25;
           b.bounced=true;
         } else {
@@ -603,13 +608,13 @@
       const predicted = ball.x + ball.vx * t;
       const diff = predicted - (keeper.baseX + keeper.w/2);
       const targetA = clamp(diff / 240, -0.8, 0.8);
-      keeper.a += (targetA - keeper.a) * 0.08;
+      keeper.a += (targetA - keeper.a) * 0.06;
       const targetX = clamp(diff * 0.04, -keeper.w*0.25, keeper.w*0.25);
-      keeper.x += (keeper.baseX + targetX - keeper.x) * 0.08;
-      // keeper saves slightly fewer shots and reacts a bit slower
-      keeper.save = Math.abs(diff) < keeper.w*0.30 && Math.random() < 0.25;
+      keeper.x += (keeper.baseX + targetX - keeper.x) * 0.06;
+      // keeper reacts a bit slower and saves less often
+      keeper.save = Math.abs(diff) < keeper.w*0.30 && Math.random() < 0.20;
       const targetDive = keeper.save ? 10 : 0;
-      keeper.dive += (targetDive - keeper.dive) * 0.08;
+      keeper.dive += (targetDive - keeper.dive) * 0.06;
     } else {
       keeper.a *= 0.9;
       keeper.x += (keeper.baseX - keeper.x) * 0.1;
@@ -636,7 +641,7 @@
   // ===== Round / scoring =====
 function endShot(hit,pts){
   // keep current ball falling while spawning the next one
-  looseBalls.push({x:ball.x,y:ball.y,vx:ball.vx,vy:ball.vy,angle:ball.angle,bounced:false});
+  looseBalls.push({x:ball.x,y:ball.y,vx:ball.vx,vy:ball.vy,angle:ball.angle,bounced:false,insideGoal:hit});
   ball.moving=false;
   if(hit){
     myScore += pts;
