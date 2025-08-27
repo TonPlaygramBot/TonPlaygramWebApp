@@ -415,18 +415,6 @@
         display: none;
       }
 
-      .pocket-marker {
-        position: absolute;
-        width: 10px;
-        height: 10px;
-        transform: translate(-50%, -50%);
-        pointer-events: none;
-        /* Ensure pocket markers are visible above table canvas */
-        background: #333;
-        border-radius: 50%;
-        z-index: 5;
-      }
-
       .winnerOverlay {
         position: fixed;
         inset: 0;
@@ -712,20 +700,6 @@
         var scoreP1 = document.getElementById('p1Score');
         var scoreP2 = document.getElementById('p2Score');
         var cueHint = document.getElementById('cueHint');
-
-        var pocketMarkers = [];
-        function createPocketMarkers(pockets) {
-          var wrap = document.getElementById('wrap');
-          pockets.forEach(function (p, idx) {
-            var m = document.createElement('div');
-            m.className = 'pocket-marker';
-            m.dataset.index = idx;
-            m.style.left = p.x + 'px';
-            m.style.top = p.y + 'px';
-            wrap.appendChild(m);
-            pocketMarkers.push(m);
-          });
-        }
 
         if (!isAmerican) {
           scoreP1.style.display = 'none';
@@ -1181,8 +1155,6 @@
             new Pocket(BORDER, TABLE_H - BORDER_BOTTOM),
             new Pocket(TABLE_W - BORDER, TABLE_H - BORDER_BOTTOM)
           ];
-          createPocketMarkers(this.pockets);
-
           this.captured = { 1: [], 2: [] };
           this.turn = 1;
           freeShots = { 1: 0, 2: 0 };
@@ -1401,6 +1373,15 @@
             y0 = BORDER_TOP * sY,
             w = (TABLE_W - 2 * BORDER) * sX,
             h = (TABLE_H - BORDER_TOP - BORDER_BOTTOM) * sY;
+
+          // Draw pockets
+          ctx.fillStyle = '#333';
+          for (var i = 0; i < this.pockets.length; i++) {
+            var pk = this.pockets[i];
+            ctx.beginPath();
+            ctx.arc(pk.x * sX, pk.y * sY, pocketR, 0, Math.PI * 2);
+            ctx.fill();
+          }
 
           // Vija kufizuese e cueball-it dhe pika qendrore
           ctx.strokeStyle = '#fff';
