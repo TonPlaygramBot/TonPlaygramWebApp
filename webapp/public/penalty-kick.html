@@ -369,28 +369,62 @@
     const g=geom.goal;
     const innerW=g.w*0.8, innerH=g.h*0.8;
     const ix=g.x+(g.w-innerW)/2, iy=g.y+(g.h-innerH)/2;
-    ctx.save(); ctx.beginPath(); ctx.rect(g.x,g.y,g.w,g.h); ctx.clip();
     const netColor=getComputedStyle(document.documentElement).getPropertyValue('--net')||'#e6e6e6';
-    ctx.strokeStyle=netColor; ctx.lineWidth=1.2;
     const size=18; const h=size*Math.sqrt(3)/2;
-    for(let y=g.y-h; y<g.y+g.h+h; y+=h){
-      for(let x=g.x-size; x<g.x+g.w+size; x+=size*1.5){
-        const off = ((Math.round((y-g.y)/h))%2)*size*0.75;
-        const cx=x+off, cy=y;
-        // skip drawing net near the ground behind the keeper's feet
-        if(cy > g.y + g.h - 8) continue;
-        ctx.beginPath();
-        for(let i=0;i<6;i++){
-          const a=Math.PI/3*i; let px=cx+size*Math.cos(a); let py=cy+size*Math.sin(a);
-          const dx=netHit.x-px, dy=netHit.y-py; const dist=Math.hypot(dx,dy);
-          if(netHit.t>0){ const pull=Math.exp(-dist/80)*14*netHit.t; px+=dx/dist*pull; py+=dy/dist*pull; }
-          if(netHit.shake>0){ py+=Math.sin((px+py+i)*0.3+performance.now()*0.02)*netHit.shake*3; }
-          if(i===0) ctx.moveTo(px,py); else ctx.lineTo(px,py);
+    function drawNetMesh(){
+      ctx.strokeStyle=netColor; ctx.lineWidth=1.2;
+      for(let y=g.y-h; y<g.y+g.h+h; y+=h){
+        for(let x=g.x-size; x<g.x+g.w+size; x+=size*1.5){
+          const off = ((Math.round((y-g.y)/h))%2)*size*0.75;
+          let cx=x+off, cy=y;
+          // skip drawing net near the ground behind the keeper's feet
+          if(cy > g.y + g.h - 8) continue;
+          ctx.beginPath();
+          for(let i=0;i<6;i++){
+            const a=Math.PI/3*i; let px=cx+size*Math.cos(a); let py=cy+size*Math.sin(a);
+            const dx=netHit.x-px, dy=netHit.y-py; const dist=Math.hypot(dx,dy);
+            if(netHit.t>0){ const pull=Math.exp(-dist/80)*14*netHit.t; px+=dx/dist*pull; py+=dy/dist*pull; }
+            if(netHit.shake>0){ py+=Math.sin((px+py+i)*0.3+performance.now()*0.02)*netHit.shake*3; }
+            if(i===0) ctx.moveTo(px,py); else ctx.lineTo(px,py);
+          }
+          ctx.closePath(); ctx.stroke();
         }
-        ctx.closePath(); ctx.stroke();
       }
     }
-    ctx.restore();
+    function drawNetPanel(pathFn){
+      ctx.save();
+      ctx.beginPath();
+      pathFn();
+      ctx.clip();
+      drawNetMesh();
+      ctx.restore();
+    }
+    // back panel
+    drawNetPanel(() => { ctx.rect(ix, iy, innerW, innerH); });
+    // left side
+    drawNetPanel(() => {
+      ctx.moveTo(g.x, g.y);
+      ctx.lineTo(ix, iy);
+      ctx.lineTo(ix, iy + innerH);
+      ctx.lineTo(g.x, g.y + g.h);
+      ctx.closePath();
+    });
+    // right side
+    drawNetPanel(() => {
+      ctx.moveTo(g.x + g.w, g.y);
+      ctx.lineTo(ix + innerW, iy);
+      ctx.lineTo(ix + innerW, iy + innerH);
+      ctx.lineTo(g.x + g.w, g.y + g.h);
+      ctx.closePath();
+    });
+    // top
+    drawNetPanel(() => {
+      ctx.moveTo(g.x, g.y);
+      ctx.lineTo(g.x + g.w, g.y);
+      ctx.lineTo(ix + innerW, iy);
+      ctx.lineTo(ix, iy);
+      ctx.closePath();
+    });
     ctx.strokeStyle='#fff'; ctx.lineWidth=2;
     ctx.beginPath();
     ctx.moveTo(g.x, g.y);
