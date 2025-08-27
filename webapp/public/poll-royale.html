@@ -1388,19 +1388,7 @@
             w = (TABLE_W - 2 * BORDER) * sX,
             h = (TABLE_H - BORDER_TOP - BORDER_BOTTOM) * sY;
 
-          // Draw field boundary lines
-          ctx.strokeStyle = '#0a0';
-          ctx.lineWidth = 2;
-          ctx.strokeRect(x0, y0, w, h);
-
-          // Draw pockets above the field boundary
-          ctx.fillStyle = '#333';
-          for (var i = 0; i < this.pockets.length; i++) {
-            var pk = this.pockets[i];
-            ctx.beginPath();
-            ctx.arc(pk.x * sX, pk.y * sY, pk.r * scaleFactor, 0, Math.PI * 2);
-            ctx.fill();
-          }
+          // Field boundary lines and pocket visuals removed
 
           // Vija kufizuese e cueball-it dhe pika qendrore
           ctx.strokeStyle = '#fff';
