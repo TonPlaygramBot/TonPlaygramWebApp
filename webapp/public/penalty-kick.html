@@ -852,27 +852,9 @@ function endShot(hit,pts){
     src.start(0);
   }
   const sfxPrize = playPrizeSound;
-  let postSoundBuf=null;
-  async function loadPostSound(){
-    try{
-      const res=await fetch('/assets/sounds/billiard-pool-hit-371618.mp3');
-      const arr=await res.arrayBuffer();
-      ensureAudio(); if(!audioCtx) return;
-      postSoundBuf = await audioCtx.decodeAudioData(arr);
-    }catch{}
-  }
-  loadPostSound();
-  function playPostSound(){
-    ensureAudio();
-    if(!audioCtx || !postSoundBuf) return;
-    const src=audioCtx.createBufferSource();
-    src.buffer=postSoundBuf;
-    src.connect(masterGain);
-    src.start(0);
-  }
-    const sfxPost = playPostSound;
-    let keeperSaveSoundBuf=null;
-    async function loadKeeperSaveSound(){
+  const sfxPost = () => {};
+  let keeperSaveSoundBuf=null;
+  async function loadKeeperSaveSound(){
       try{
         const res=await fetch('/assets/sounds/punch-03-352040.mp3');
         const arr=await res.arrayBuffer();
