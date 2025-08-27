@@ -544,6 +544,7 @@
     }
     if(keeper.save && ballHitsKeeper()){
       keeper.save=false; punchEffects.push({x:ball.x,y:ball.y,life:1});
+      playKeeperSaveSound();
       reflectBall(0,1,0.6);
       ball.spin *= 0.5;
       ball.y = keeper.y + keeper.h + ball.r;
@@ -884,8 +885,26 @@ function endShot(hit,pts){
     src.connect(masterGain);
     src.start(0);
   }
-  const sfxPost = playPostSound;
-  let kickNetSoundBuf=null;
+    const sfxPost = playPostSound;
+    let keeperSaveSoundBuf=null;
+    async function loadKeeperSaveSound(){
+      try{
+        const res=await fetch('/assets/sounds/punch-03-352040.mp3');
+        const arr=await res.arrayBuffer();
+        ensureAudio(); if(!audioCtx) return;
+        keeperSaveSoundBuf = await audioCtx.decodeAudioData(arr);
+      }catch{}
+    }
+    loadKeeperSaveSound();
+    function playKeeperSaveSound(){
+      ensureAudio();
+      if(!audioCtx || !keeperSaveSoundBuf) return;
+      const src=audioCtx.createBufferSource();
+      src.buffer=keeperSaveSoundBuf;
+      src.connect(masterGain);
+      src.start(0);
+    }
+    let kickNetSoundBuf=null;
   async function loadKickNetSound(){
     try{
       const res=await fetch('/assets/sounds/a-football-hits-the-net-goal-313216-[AudioTrimmer.com].mp3');
