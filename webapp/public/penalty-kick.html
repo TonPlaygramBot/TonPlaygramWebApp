@@ -222,6 +222,7 @@
 
   let holes=[]; let banners=[]; let cameras=[]; let fragments=[]; let looseBalls=[]; let punchEffects=[];
   let netHit={x:0,y:0,t:0,shake:0};
+  let goalFlash=0;
   const NET_DECAY = 0.94; // decay factor for net pullback and shake
   const keeper={x:0,y:0,w:40,h:100,vx:0,vy:0,active:false,save:false,a:0,side:1,baseY:0,baseX:0,dive:0};
   const keeperImg = new Image();
@@ -377,7 +378,7 @@
     const g=geom.goal;
     const innerW=g.w*0.8, innerH=g.h*0.8;
     const ix=g.x+(g.w-innerW)/2, iy=g.y+(g.h-innerH)/2;
-    const netColor=getComputedStyle(document.documentElement).getPropertyValue('--net')||'#e6e6e6';
+    const netColor=goalFlash>0?'#ffd400':(getComputedStyle(document.documentElement).getPropertyValue('--net')||'#e6e6e6');
     const size=18; const h=size*Math.sqrt(3)/2;
     function drawNetMesh(){
       ctx.strokeStyle=netColor; ctx.lineWidth=1.2;
@@ -469,6 +470,19 @@
     ctx.lineTo(g.x+g.w, g.y);
     ctx.lineTo(g.x+g.w, g.y+g.h);
     ctx.stroke();
+    if(goalFlash>0){
+      ctx.save();
+      ctx.globalAlpha=goalFlash;
+      ctx.font=`900 ${Math.min(innerH*0.8,120)}px system-ui`;
+      ctx.textAlign='center';
+      ctx.textBaseline='middle';
+      ctx.lineWidth=8;
+      ctx.strokeStyle='#000';
+      ctx.fillStyle='#fff';
+      ctx.strokeText('GOAL',ix+innerW/2,iy+innerH/2);
+      ctx.fillText('GOAL',ix+innerW/2,iy+innerH/2);
+      ctx.restore();
+    }
     for(const c of cameras){ ctx.fillStyle='#111'; ctx.fillRect(c.x,c.y,c.w,c.h); ctx.fillStyle='#e10600'; ctx.beginPath(); ctx.arc(c.x+8,c.y+6,3,0,Math.PI*2); ctx.fill(); }
     for(const h of holes){ if(h.hit) continue; ctx.fillStyle='rgba(225,6,0,.9)'; ctx.beginPath(); ctx.arc(h.x,h.y,h.r,0,Math.PI*2); ctx.fill();
       ctx.fillStyle='#ffd400'; ctx.font=`800 ${Math.max(12,h.r*0.9)}px system-ui`; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText(h.points,h.x,h.y); }
@@ -527,10 +541,10 @@
   function stepBall(){
     if(!ball.moving) return;
     ball.trail.push({x:ball.x,y:ball.y}); if(ball.trail.length>15) ball.trail.shift();
-    const speed=Math.hypot(ball.vx,ball.vy); const drag = 1 - AIR_DRAG*speed; const curve = ball.spin*0.35;
+    const speed=Math.hypot(ball.vx,ball.vy); const drag = 1 - AIR_DRAG*speed; const curve = ball.spin*0.5;
     const knuckle = Math.abs(ball.spin) < 0.1 ? (Math.random()-0.5)*0.3 : 0;
     ball.vx = (ball.vx + curve + knuckle)*FRICTION*drag; ball.vy = (ball.vy + GRAVITY)*FRICTION*drag;
-    ball.x += ball.vx; ball.y += ball.vy; ball.angle += ball.spin;
+    ball.x += ball.vx; ball.y += ball.vy; ball.angle += ball.spin*0.3;
 
     const g=geom.goal;
     if(ball.x>g.x && ball.x<g.x+g.w && ball.y>g.y && ball.y<g.y+g.h){
@@ -713,6 +727,7 @@ function endShot(hit,pts){
     myScore += score;
     status('GOAL! +' + score);
     vibrate(25);
+    goalFlash=1;
   } else {
     status('Missed.');
     vibrate(12);
@@ -746,13 +761,13 @@ function endShot(hit,pts){
         const p0 = path[i-2], p1 = path[i-1], p2 = path[i];
         curve += Math.atan2(p2.y - p1.y, p2.x - p1.x) - Math.atan2(p1.y - p0.y, p1.x - p0.x);
       }
-      const spin = clamp((ball.x - a.x)/ball.r + curve*0.5, -6, 6);
+      const spin = clamp((ball.x - a.x)/ball.r + curve*0.8, -10, 10);
       const adjDx = endDx - spin * 0.125 * t * t;
       const vx = adjDx / t, vy = (endDy - 0.5 * GRAVITY * t * t) / t;
       drawAimPath(vx, vy, spin);
     }
   }
-  function onUp(e){ if(!pointer.active||e.pointerId!==pointer.id) return; pointer.active=false; if(!pointer.armed||ball.moving||!running||paused){ pointer.path=[]; return; } const path=pointer.path; pointer.path=[]; if(path.length<3){ status('Swipe longer/faster.'); return; } const a=path[0], b=path[path.length-1]; const totalDy=b.y-a.y; if(totalDy>-10){ status('Swipe upward.'); return; } const endDx=b.x-ball.x, endDy=b.y-ball.y; const dist=Math.hypot(endDx,endDy), power=clamp(dist/150, 0.4, 3.0); const speed=SHOT_SPEED*power; const t=dist/speed; let curve=0; for(let i=2;i<path.length;i++){ const p0=path[i-2], p1=path[i-1], p2=path[i]; curve+=Math.atan2(p2.y-p1.y,p2.x-p1.x)-Math.atan2(p1.y-p0.y,p1.x-p0.x); } const spin = clamp((ball.x - a.x)/ball.r + curve*0.5, -12, 12); const adjDx=endDx - spin*0.125*t*t; ball.vx=adjDx/t; ball.vy=(endDy - 0.5*GRAVITY*t*t)/t; ball.spin=spin; ball.moving=true; playKickSound(); ball.target={x:b.x,y:b.y}; ball.prevDist=Infinity; keeper.save=false; }
+  function onUp(e){ if(!pointer.active||e.pointerId!==pointer.id) return; pointer.active=false; if(!pointer.armed||ball.moving||!running||paused){ pointer.path=[]; return; } const path=pointer.path; pointer.path=[]; if(path.length<3){ status('Swipe longer/faster.'); return; } const a=path[0], b=path[path.length-1]; const totalDy=b.y-a.y; if(totalDy>-10){ status('Swipe upward.'); return; } const endDx=b.x-ball.x, endDy=b.y-ball.y; const dist=Math.hypot(endDx,endDy), power=clamp(dist/150, 0.4, 3.0); const speed=SHOT_SPEED*power; const t=dist/speed; let curve=0; for(let i=2;i<path.length;i++){ const p0=path[i-2], p1=path[i-1], p2=path[i]; curve+=Math.atan2(p2.y-p1.y,p2.x-p1.x)-Math.atan2(p1.y-p0.y,p1.x-p0.x); } const spin = clamp((ball.x - a.x)/ball.r + curve*0.8, -20, 20); const adjDx=endDx - spin*0.125*t*t; ball.vx=adjDx/t; ball.vy=(endDy - 0.5*GRAVITY*t*t)/t; ball.spin=spin; ball.moving=true; playKickSound(); ball.target={x:b.x,y:b.y}; ball.prevDist=Infinity; keeper.save=false; }
   canvas.addEventListener('pointerdown', onDown, {passive:true});
   canvas.addEventListener('pointermove', onMove, {passive:true});
   addEventListener('pointerup', onUp, {passive:true}); addEventListener('pointercancel', onUp, {passive:true});
@@ -836,7 +851,7 @@ function endShot(hit,pts){
 
   // ===== Timer + loop =====
   function tick(now){ if(!running||paused) return; if(!roundStart) roundStart=now; timeLeft = Math.max(0, ROUND_TIME - (now - roundStart)); timeShort.textContent = Math.ceil(timeLeft/1000); if(timeLeft<=0){ finish(); } }
-  function loop(now){ requestAnimationFrame(loop); drawField(); drawAds(); drawGoal(); drawBall(); drawPunchEffects(); stepBall(); stepLooseBalls(); stepFragments(); stepKeeper(); drawMiniBoards(); tick(now||performance.now()); stepRivals(now||performance.now()); updateHUD(); netHit.t*=NET_DECAY; netHit.shake*=NET_DECAY; }
+  function loop(now){ requestAnimationFrame(loop); drawField(); drawAds(); drawGoal(); drawBall(); drawPunchEffects(); stepBall(); stepLooseBalls(); stepFragments(); stepKeeper(); drawMiniBoards(); tick(now||performance.now()); stepRivals(now||performance.now()); updateHUD(); netHit.t*=NET_DECAY; netHit.shake*=NET_DECAY; goalFlash*=0.92; }
 
   // ===== Controls =====
   // controls removed
