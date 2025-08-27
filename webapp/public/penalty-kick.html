@@ -215,7 +215,7 @@
   const BALL_R = 40;
   // slightly faster initial shot speed
   const SHOT_SPEED = 14;
-  const ball = { x:0,y:0,r:BALL_R, vx:0,vy:0, moving:false, trail:[], spin:0, angle:0, netSounded:false, firstContact:false, target:null, prevDist:null };
+  const ball = { x:0,y:0,r:BALL_R, vx:0,vy:0, moving:false, trail:[], spin:0, angle:0, netSounded:false, firstContact:false, target:null, prevDist:null, points:0 };
   const ballImg = new Image();
   ballImg.src = '/assets/icons/file_0000000061d4620aaf506adfa605e1f3.webp';
 
@@ -533,12 +533,14 @@
     const g=geom.goal;
     if(ball.x>g.x && ball.x<g.x+g.w && ball.y>g.y && ball.y<g.y+g.h){
       for(const h of holes){
+        if(h.hit) continue;
         if(Math.hypot(h.x-ball.x,h.y-ball.y) <= Math.max(2,h.r-ball.r*0.6)){
-          h.hit=true; createFragments(h); netHit={x:ball.x,y:ball.y,t:1,shake:1};
+          h.hit=true; createFragments(h);
+          ball.points += h.points;
           sfxPrize();
-          if(!ball.netSounded){ ball.netSounded=true; playNetSound(); }
           ball.spin *= 0.6;
-          endShot(true,h.points); setTimeout(()=>{replaceHole(h);},600); return;
+          setTimeout(()=>{replaceHole(h);},600);
+          break;
         }
       }
     }
@@ -557,21 +559,21 @@
       netHit={x:ball.x,y:ball.y,t:1,shake:1};
       if(!ball.netSounded){ ball.netSounded=true; playNetSound(); }
       sfxPost();
-      endShot(true,0); return;
+      endShot(true,ball.points); return;
     }
     d=Math.hypot(ball.x-right.x, ball.y-right.y);
     if(d < ball.r + postR){
       netHit={x:ball.x,y:ball.y,t:1,shake:1};
       if(!ball.netSounded){ ball.netSounded=true; playNetSound(); }
       sfxPost();
-      endShot(true,0); return;
+      endShot(true,ball.points); return;
     }
     if(ball.y - ball.r <= g.y && ball.x > g.x - postR && ball.x < g.x + g.w + postR){
       if(ball.vy < 0){
         netHit={x:ball.x,y:ball.y,t:1,shake:1};
         if(!ball.netSounded){ ball.netSounded=true; playNetSound(); }
         sfxPost();
-        endShot(true,0); return;
+        endShot(true,ball.points); return;
       }
     }
     if(ball.target){
@@ -582,7 +584,7 @@
         ball.vx*=0.2; ball.vy=Math.max(0,ball.vy)*0.2; ball.spin*=0.2;
         netHit={x:ball.x,y:ball.y,t:1,shake:1};
         if(!ball.netSounded){ ball.netSounded=true; playNetSound(); }
-        endShot(true,0); ball.target=null; ball.prevDist=null; return;
+        endShot(true,ball.points); ball.target=null; ball.prevDist=null; return;
       }
       ball.prevDist=dist;
     }
@@ -732,13 +734,13 @@ function endShot(hit,pts){
         const p0 = path[i-2], p1 = path[i-1], p2 = path[i];
         curve += Math.atan2(p2.y - p1.y, p2.x - p1.x) - Math.atan2(p1.y - p0.y, p1.x - p0.x);
       }
-      const spin = clamp((ball.x - a.x)/ball.r + curve*0.5, -2, 2);
+      const spin = clamp((ball.x - a.x)/ball.r + curve*0.5, -4, 4);
       const adjDx = endDx - spin * 0.125 * t * t;
       const vx = adjDx / t, vy = (endDy - 0.5 * GRAVITY * t * t) / t;
       drawAimPath(vx, vy, spin);
     }
   }
-  function onUp(e){ if(!pointer.active||e.pointerId!==pointer.id) return; pointer.active=false; if(!pointer.armed||ball.moving||!running||paused){ pointer.path=[]; return; } const path=pointer.path; pointer.path=[]; if(path.length<3){ status('Swipe longer/faster.'); return; } const a=path[0], b=path[path.length-1]; const totalDy=b.y-a.y; if(totalDy>-10){ status('Swipe upward.'); return; } const endDx=b.x-ball.x, endDy=b.y-ball.y; const dist=Math.hypot(endDx,endDy), power=clamp(dist/150, 0.4, 3.0); const speed=SHOT_SPEED*power; const t=dist/speed; let curve=0; for(let i=2;i<path.length;i++){ const p0=path[i-2], p1=path[i-1], p2=path[i]; curve+=Math.atan2(p2.y-p1.y,p2.x-p1.x)-Math.atan2(p1.y-p0.y,p1.x-p0.x); } const spin = clamp((ball.x - a.x)/ball.r + curve*0.5, -5, 5); const adjDx=endDx - spin*0.125*t*t; ball.vx=adjDx/t; ball.vy=(endDy - 0.5*GRAVITY*t*t)/t; ball.spin=spin; ball.moving=true; playKickSound(); ball.target={x:b.x,y:b.y}; ball.prevDist=Infinity; keeper.save=false; }
+  function onUp(e){ if(!pointer.active||e.pointerId!==pointer.id) return; pointer.active=false; if(!pointer.armed||ball.moving||!running||paused){ pointer.path=[]; return; } const path=pointer.path; pointer.path=[]; if(path.length<3){ status('Swipe longer/faster.'); return; } const a=path[0], b=path[path.length-1]; const totalDy=b.y-a.y; if(totalDy>-10){ status('Swipe upward.'); return; } const endDx=b.x-ball.x, endDy=b.y-ball.y; const dist=Math.hypot(endDx,endDy), power=clamp(dist/150, 0.4, 3.0); const speed=SHOT_SPEED*power; const t=dist/speed; let curve=0; for(let i=2;i<path.length;i++){ const p0=path[i-2], p1=path[i-1], p2=path[i]; curve+=Math.atan2(p2.y-p1.y,p2.x-p1.x)-Math.atan2(p1.y-p0.y,p1.x-p0.x); } const spin = clamp((ball.x - a.x)/ball.r + curve*0.5, -8, 8); const adjDx=endDx - spin*0.125*t*t; ball.vx=adjDx/t; ball.vy=(endDy - 0.5*GRAVITY*t*t)/t; ball.spin=spin; ball.moving=true; playKickSound(); ball.target={x:b.x,y:b.y}; ball.prevDist=Infinity; keeper.save=false; }
   canvas.addEventListener('pointerdown', onDown, {passive:true});
   canvas.addEventListener('pointermove', onMove, {passive:true});
   addEventListener('pointerup', onUp, {passive:true}); addEventListener('pointercancel', onUp, {passive:true});
@@ -827,7 +829,7 @@ function endShot(hit,pts){
   // ===== Controls =====
   // controls removed
 
-  function resetBall(){ ball.x=geom.spot.x; ball.y=geom.spot.y; ball.vx=ball.vy=ball.spin=0; ball.angle=0; ball.moving=false; ball.netSounded=false; ball.trail=[]; ball.firstContact=false; ball.target=null; ball.prevDist=null; netHit={x:0,y:0,t:0,shake:0}; keeper.save=false; keeper.vx=0; keeper.vy=0; keeper.a=0; keeper.dive=0; keeper.x = keeper.baseX; keeper.y = keeper.baseY; }
+  function resetBall(){ ball.x=geom.spot.x; ball.y=geom.spot.y; ball.vx=ball.vy=ball.spin=0; ball.angle=0; ball.moving=false; ball.netSounded=false; ball.trail=[]; ball.firstContact=false; ball.target=null; ball.prevDist=null; ball.points=0; netHit={x:0,y:0,t:0,shake:0}; keeper.save=false; keeper.vx=0; keeper.vy=0; keeper.a=0; keeper.dive=0; keeper.x = keeper.baseX; keeper.y = keeper.baseY; }
   function startGame(){ running=true; paused=false; ended=false; roundStart=performance.now(); timeLeft=ROUND_TIME; myScore=0; looseBalls=[]; for(const r of rivals){ r.score=0; r.next=0; r.shots=[]; } resetBall(); generateHoles(); drawMiniBoards(true); updateHUD(); ensureAudio(); status('Go! Score as many as you can.'); }
 
   // ===== WebAudio SFX =====
@@ -874,7 +876,7 @@ function endShot(hit,pts){
     let kickNetSoundBuf=null;
   async function loadKickNetSound(){
     try{
-      const res=await fetch('/assets/sounds/a-football-hits-the-net-goal-313216-[AudioTrimmer.com].mp3');
+      const res=await fetch('/assets/sounds/a-football-hits-the-net-goal-313216.mp3');
       const arr=await res.arrayBuffer();
       ensureAudio(); if(!audioCtx) return;
       kickNetSoundBuf = await audioCtx.decodeAudioData(arr);
