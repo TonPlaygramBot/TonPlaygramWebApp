@@ -221,6 +221,7 @@
 
   let holes=[]; let banners=[]; let cameras=[]; let fragments=[]; let looseBalls=[]; let punchEffects=[];
   let netHit={x:0,y:0,t:0,shake:0};
+  const NET_DECAY = 0.94; // decay factor for net pullback and shake
   const keeper={x:0,y:0,w:40,h:100,vx:0,vy:0,active:false,save:false,a:0,side:1,baseY:0,baseX:0,dive:0};
   const keeperImg = new Image();
   keeperImg.src = '/assets/icons/file_00000000945461f8bb9a2974fb9ee402.webp';
@@ -820,7 +821,7 @@ function endShot(hit,pts){
 
   // ===== Timer + loop =====
   function tick(now){ if(!running||paused) return; if(!roundStart) roundStart=now; timeLeft = Math.max(0, ROUND_TIME - (now - roundStart)); timeShort.textContent = Math.ceil(timeLeft/1000); if(timeLeft<=0){ finish(); } }
-  function loop(now){ requestAnimationFrame(loop); drawField(); drawAds(); drawGoal(); drawBall(); drawPunchEffects(); stepBall(); stepLooseBalls(); stepFragments(); stepKeeper(); drawMiniBoards(); tick(now||performance.now()); stepRivals(now||performance.now()); updateHUD(); netHit.t*=0.94; netHit.shake*=0.94; }
+  function loop(now){ requestAnimationFrame(loop); drawField(); drawAds(); drawGoal(); drawBall(); drawPunchEffects(); stepBall(); stepLooseBalls(); stepFragments(); stepKeeper(); drawMiniBoards(); tick(now||performance.now()); stepRivals(now||performance.now()); updateHUD(); netHit.t*=NET_DECAY; netHit.shake*=NET_DECAY; }
 
   // ===== Controls =====
   // controls removed
@@ -910,7 +911,9 @@ function endShot(hit,pts){
 
   function triggerNetHit(x, y){
     // Pull the net back and add a brief shake on impact.
-    netHit = {x, y, t:1, shake:1.2};
+    netHit.x = x; netHit.y = y;
+    netHit.t = Math.max(netHit.t, 1);
+    netHit.shake = Math.max(netHit.shake, 1.2);
     if(!ball.netSounded){ ball.netSounded=true; playNetSound(); }
   }
   function vibrate(ms){ if(navigator.vibrate) try{ navigator.vibrate(ms); }catch{} }
