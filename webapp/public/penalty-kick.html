@@ -873,34 +873,38 @@ function endShot(hit,pts){
       src.connect(masterGain);
       src.start(0);
     }
-    let kickNetSoundBuf=null;
+    let kickNetSoundBuf = null;
   async function loadKickNetSound(){
-    try{
-      const res=await fetch('/assets/sounds/a-football-hits-the-net-goal-313216.mp3');
-      const arr=await res.arrayBuffer();
+    try {
+      const res = await fetch('/assets/sounds/a-football-hits-the-net-goal-313216.mp3');
+      const arr = await res.arrayBuffer();
       ensureAudio(); if(!audioCtx) return;
       kickNetSoundBuf = await audioCtx.decodeAudioData(arr);
-    }catch{}
+    } catch {}
   }
   loadKickNetSound();
+
   function playKickSound(){
     ensureAudio();
     if(!audioCtx || !kickNetSoundBuf) return;
-    const src=audioCtx.createBufferSource();
-    src.buffer=kickNetSoundBuf;
-    const half=kickNetSoundBuf.duration/2;
+    const src = audioCtx.createBufferSource();
+    src.buffer = kickNetSoundBuf;
+    const half = kickNetSoundBuf.duration / 2;
     src.connect(masterGain);
-    src.start(0,0,half);
+    // play only the first half of the clip for the kick
+    src.start(0, 0, half);
   }
+
   function playNetSound(){
     ensureAudio();
     if(!audioCtx || !kickNetSoundBuf) return;
-    const src=audioCtx.createBufferSource();
-    src.buffer=kickNetSoundBuf;
-    const half=kickNetSoundBuf.duration/2;
-    const end=Math.max(half, kickNetSoundBuf.duration-0.2);
+    const src = audioCtx.createBufferSource();
+    src.buffer = kickNetSoundBuf;
+    const half = kickNetSoundBuf.duration / 2;
+    // second half trimmed by last 0.2s for net impact
+    const duration = Math.max(0, kickNetSoundBuf.duration - half - 0.2);
     src.connect(masterGain);
-    src.start(0,half,end-half);
+    src.start(0, half, duration);
   }
   function vibrate(ms){ if(navigator.vibrate) try{ navigator.vibrate(ms); }catch{} }
 
