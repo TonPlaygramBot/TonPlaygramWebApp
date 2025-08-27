@@ -170,7 +170,7 @@
          so the thin green boundary line is fully visible while keeping
          extra clearance at the bottom. */
         background: url('/assets/icons/64e79228-35e3-4fdc-b914-fca635a40220.webp')
-          top center/calc(100% + 8px) calc(100% + 24px) no-repeat;
+          top center/calc(100% + 8px) calc(100% + 20px) no-repeat;
       }
 
       :root {
@@ -182,7 +182,7 @@
         position: absolute;
         top: 0;
         left: 0;
-        transform: translateY(-4px);
+        transform: translateY(-2px);
         z-index: 4;
       }
 
@@ -1152,10 +1152,10 @@
           this.pockets = [
             new Pocket(BORDER, BORDER_TOP, POCKET_R),
             new Pocket(TABLE_W - BORDER, BORDER_TOP, POCKET_R),
-            new Pocket(BORDER, TABLE_H / 2 + BALL_R, SIDE_POCKET_R),
+            new Pocket(BORDER - 2, TABLE_H / 2 + BALL_R - 2, SIDE_POCKET_R),
             new Pocket(
-              TABLE_W - BORDER,
-              TABLE_H / 2 + BALL_R,
+              TABLE_W - BORDER + 2,
+              TABLE_H / 2 + BALL_R - 2,
               SIDE_POCKET_R
             ),
             new Pocket(BORDER, TABLE_H - BORDER_BOTTOM, POCKET_R),
