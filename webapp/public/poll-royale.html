@@ -182,8 +182,6 @@
         position: absolute;
         top: 0;
         left: 0;
-        right: 0;
-        bottom: 0;
         transform: translateY(-4px);
         z-index: 4;
       }
@@ -925,8 +923,10 @@
           else ch = cw / ar;
           canvas.width = cw;
           canvas.height = ch;
-          canvas.style.top = '0px';
-          canvas.style.left = '0px';
+          canvas.style.width = cw + 'px';
+          canvas.style.height = ch + 'px';
+          canvas.style.left = (w - cw) / 2 + 'px';
+          canvas.style.top = (h - ch) / 2 + 'px';
           sX = cw / TABLE_W;
           sY = ch / TABLE_H;
           pocketR = POCKET_R * ((sX + sY) / 2);
