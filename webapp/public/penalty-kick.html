@@ -212,9 +212,9 @@
   let roundStart = 0; let timeLeft = ROUND_TIME; let running=false; let paused=false; let ended=false;
   let myScore = 0;
 
-  const BALL_R = 40;
+  const BALL_R = 36;
   // slightly faster initial shot speed
-  const SHOT_SPEED = 14;
+  const SHOT_SPEED = 16;
   const MIN_GOAL_POINTS = 5;
   const ball = { x:0,y:0,r:BALL_R, vx:0,vy:0, moving:false, trail:[], spin:0, angle:0, netSounded:false, firstContact:false, target:null, prevDist:null, points:0 };
   const ballImg = new Image();
@@ -555,7 +555,7 @@
   function stepBall(){
     if(!ball.moving) return;
     ball.trail.push({x:ball.x,y:ball.y}); if(ball.trail.length>15) ball.trail.shift();
-    const speed=Math.hypot(ball.vx,ball.vy); const drag = 1 - AIR_DRAG*speed; const curve = ball.spin*0.5;
+    const speed=Math.hypot(ball.vx,ball.vy); const drag = 1 - AIR_DRAG*speed; const curve = ball.spin*0.6;
     const knuckle = Math.abs(ball.spin) < 0.1 ? (Math.random()-0.5)*0.3 : 0;
     ball.vx = (ball.vx + curve + knuckle)*FRICTION*drag; ball.vy = (ball.vy + GRAVITY)*FRICTION*drag;
     ball.x += ball.vx; ball.y += ball.vy; ball.angle += ball.spin*0.3;
@@ -587,28 +587,25 @@
       return;
     }
     const postR = g.post;
-    const left={x:g.x, y:g.y+g.h}, right={x:g.x+g.w, y:g.y+g.h};
-    let d=Math.hypot(ball.x-left.x, ball.y-left.y);
-    if(d < ball.r + postR){
-      triggerNetHit(ball.x, ball.y);
-      if(!ball.netSounded) stopKickSound();
-      sfxPost();
-      const nx=(ball.x-left.x)/d, ny=(ball.y-left.y)/d;
-      reflectBall(nx,ny,0.85);
-      const overlap=ball.r+postR-d;
-      ball.x+=nx*overlap; ball.y+=ny*overlap;
-      return;
+    if(ball.x - ball.r <= g.x && ball.y > g.y - postR && ball.y < g.y + g.h + postR){
+      if(ball.vx < 0){
+        triggerNetHit(ball.x, ball.y);
+        if(!ball.netSounded) stopKickSound();
+        sfxPost();
+        reflectBall(1,0,0.85);
+        ball.x = g.x + ball.r;
+        return;
+      }
     }
-    d=Math.hypot(ball.x-right.x, ball.y-right.y);
-    if(d < ball.r + postR){
-      triggerNetHit(ball.x, ball.y);
-      if(!ball.netSounded) stopKickSound();
-      sfxPost();
-      const nx=(ball.x-right.x)/d, ny=(ball.y-right.y)/d;
-      reflectBall(nx,ny,0.85);
-      const overlap=ball.r+postR-d;
-      ball.x+=nx*overlap; ball.y+=ny*overlap;
-      return;
+    if(ball.x + ball.r >= g.x + g.w && ball.y > g.y - postR && ball.y < g.y + g.h + postR){
+      if(ball.vx > 0){
+        triggerNetHit(ball.x, ball.y);
+        if(!ball.netSounded) stopKickSound();
+        sfxPost();
+        reflectBall(-1,0,0.85);
+        ball.x = g.x + g.w - ball.r;
+        return;
+      }
     }
     if(ball.y - ball.r <= g.y && ball.x > g.x - postR && ball.x < g.x + g.w + postR){
       if(ball.vy < 0){
@@ -623,7 +620,7 @@
     if(ball.target){
       const dx=ball.target.x-ball.x, dy=ball.target.y-ball.y;
       const dist=Math.hypot(dx,dy);
-      if(dist < ball.r*0.8 || (ball.prevDist && dist>ball.prevDist)){
+      if(dist < ball.r*0.5 || (ball.prevDist && dist>ball.prevDist)){
         ball.x=ball.target.x; ball.y=ball.target.y;
         ball.vx*=0.2; ball.vy=Math.max(0,ball.vy)*0.2; ball.spin*=0.2;
         triggerNetHit(ball.x, ball.y);
@@ -712,7 +709,7 @@
     ctx.beginPath();
     for(let i=0;i<steps;i++){
       const speed=Math.hypot(vx1,vy1); const drag=1-AIR_DRAG*speed;
-      vx1=(vx1+spin*0.25)*FRICTION*drag; vy1=(vy1+GRAVITY)*FRICTION*drag;
+      vx1=(vx1+spin*0.3)*FRICTION*drag; vy1=(vy1+GRAVITY)*FRICTION*drag;
       x+=vx1; y+=vy1; if(i===0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
       if(y<geom.goal.y-40) break;
     }
@@ -726,6 +723,7 @@ function endShot(hit,pts){
   ball.moving=false;
   if(hit){
     ball.netSounded=true;
+    triggerNetHit(ball.x, ball.y);
     const score=Math.max(pts,MIN_GOAL_POINTS);
     myScore += score;
     status('GOAL! +' + score);
@@ -765,13 +763,13 @@ function endShot(hit,pts){
         const p0 = path[i-2], p1 = path[i-1], p2 = path[i];
         curve += Math.atan2(p2.y - p1.y, p2.x - p1.x) - Math.atan2(p1.y - p0.y, p1.x - p0.x);
       }
-      const spin = clamp((ball.x - a.x)/ball.r + curve*0.8, -10, 10);
+      const spin = clamp((ball.x - a.x)/ball.r + curve*0.8, -15, 15);
       const adjDx = endDx - spin * 0.125 * t * t;
       const vx = adjDx / t, vy = (endDy - 0.5 * GRAVITY * t * t) / t;
       drawAimPath(vx, vy, spin);
     }
   }
-function onUp(e){ if(!pointer.active||e.pointerId!==pointer.id) return; pointer.active=false; if(!pointer.armed||ball.moving||!running||paused){ pointer.path=[]; return; } const path=pointer.path; pointer.path=[]; if(path.length<3){ status('Swipe longer/faster.'); return; } const a=path[0], b=path[path.length-1]; const totalDy=b.y-a.y; if(totalDy>-10){ status('Swipe upward.'); return; } const endDx=b.x-ball.x, endDy=b.y-ball.y; const dist=Math.hypot(endDx,endDy), power=clamp(dist/150, 0.4, 3.0); const speed=SHOT_SPEED*power; const t=dist/speed; let curve=0; for(let i=2;i<path.length;i++){ const p0=path[i-2], p1=path[i-1], p2=path[i]; curve+=Math.atan2(p2.y-p1.y,p2.x-p1.x)-Math.atan2(p1.y-p0.y,p1.x-p0.x); } const spin = clamp((ball.x - a.x)/ball.r + curve*0.8, -20, 20); const adjDx=endDx - spin*0.125*t*t; ball.vx=adjDx/t; ball.vy=(endDy - 0.5*GRAVITY*t*t)/t; ball.spin=spin; ball.moving=true; playKickSound(); ball.target={x:b.x,y:b.y}; ball.prevDist=Infinity; }
+function onUp(e){ if(!pointer.active||e.pointerId!==pointer.id) return; pointer.active=false; if(!pointer.armed||ball.moving||!running||paused){ pointer.path=[]; return; } const path=pointer.path; pointer.path=[]; if(path.length<3){ status('Swipe longer/faster.'); return; } const a=path[0], b=path[path.length-1]; const totalDy=b.y-a.y; if(totalDy>-10){ status('Swipe upward.'); return; } const endDx=b.x-ball.x, endDy=b.y-ball.y; const dist=Math.hypot(endDx,endDy), power=clamp(dist/150, 0.4, 3.0); const speed=SHOT_SPEED*power; const t=dist/speed; let curve=0; for(let i=2;i<path.length;i++){ const p0=path[i-2], p1=path[i-1], p2=path[i]; curve+=Math.atan2(p2.y-p1.y,p2.x-p1.x)-Math.atan2(p1.y-p0.y,p1.x-p0.x); } const spin = clamp((ball.x - a.x)/ball.r + curve*0.8, -30, 30); const adjDx=endDx - spin*0.125*t*t; ball.vx=adjDx/t; ball.vy=(endDy - 0.5*GRAVITY*t*t)/t; ball.spin=spin; ball.moving=true; playKickSound(); ball.target={x:b.x,y:b.y}; ball.prevDist=Infinity; }
   canvas.addEventListener('pointerdown', onDown, {passive:true});
   canvas.addEventListener('pointermove', onMove, {passive:true});
   addEventListener('pointerup', onUp, {passive:true}); addEventListener('pointercancel', onUp, {passive:true});
