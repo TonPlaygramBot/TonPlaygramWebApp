@@ -556,22 +556,19 @@
     const left={x:g.x, y:g.y+g.h}, right={x:g.x+g.w, y:g.y+g.h};
     let d=Math.hypot(ball.x-left.x, ball.y-left.y);
     if(d < ball.r + postR){
-      netHit={x:ball.x,y:ball.y,t:1,shake:1};
-      if(!ball.netSounded){ ball.netSounded=true; playNetSound(); }
+      triggerNetHit(ball.x, ball.y);
       sfxPost();
       endShot(true,ball.points); return;
     }
     d=Math.hypot(ball.x-right.x, ball.y-right.y);
     if(d < ball.r + postR){
-      netHit={x:ball.x,y:ball.y,t:1,shake:1};
-      if(!ball.netSounded){ ball.netSounded=true; playNetSound(); }
+      triggerNetHit(ball.x, ball.y);
       sfxPost();
       endShot(true,ball.points); return;
     }
     if(ball.y - ball.r <= g.y && ball.x > g.x - postR && ball.x < g.x + g.w + postR){
       if(ball.vy < 0){
-        netHit={x:ball.x,y:ball.y,t:1,shake:1};
-        if(!ball.netSounded){ ball.netSounded=true; playNetSound(); }
+        triggerNetHit(ball.x, ball.y);
         sfxPost();
         endShot(true,ball.points); return;
       }
@@ -582,8 +579,7 @@
       if(dist < ball.r*0.8 || (ball.prevDist && dist>ball.prevDist)){
         ball.x=ball.target.x; ball.y=ball.target.y;
         ball.vx*=0.2; ball.vy=Math.max(0,ball.vy)*0.2; ball.spin*=0.2;
-        netHit={x:ball.x,y:ball.y,t:1,shake:1};
-        if(!ball.netSounded){ ball.netSounded=true; playNetSound(); }
+        triggerNetHit(ball.x, ball.y);
         endShot(true,ball.points); ball.target=null; ball.prevDist=null; return;
       }
       ball.prevDist=dist;
@@ -833,7 +829,7 @@ function endShot(hit,pts){
   function startGame(){ running=true; paused=false; ended=false; roundStart=performance.now(); timeLeft=ROUND_TIME; myScore=0; looseBalls=[]; for(const r of rivals){ r.score=0; r.next=0; r.shots=[]; } resetBall(); generateHoles(); drawMiniBoards(true); updateHUD(); ensureAudio(); status('Go! Score as many as you can.'); }
 
   // ===== WebAudio SFX =====
-  let audioCtx=null, masterGain=null; function ensureAudio(){ if(audioCtx) return; try{ const AC = window.AudioContext || window.webkitAudioContext; audioCtx = new AC(); masterGain = audioCtx.createGain(); masterGain.gain.value = 0.18; masterGain.connect(audioCtx.destination); }catch{} }
+  let audioCtx=null, masterGain=null; function ensureAudio(){ if(audioCtx) return; try{ const AC = window.AudioContext || window.webkitAudioContext; audioCtx = new AC(); masterGain = audioCtx.createGain(); masterGain.gain.value = 0.18; masterGain.connect(audioCtx.destination); decodeKickNetSound(); }catch{} }
   // Prize break sound
   let prizeSoundBuf=null;
   async function loadPrizeSound(){
@@ -873,19 +869,25 @@ function endShot(hit,pts){
       src.connect(masterGain);
       src.start(0);
     }
+    const KICK_NET_SOUND = '/assets/sounds/a-football-hits-the-net-goal-313216.mp3';
+    let kickNetSoundArr = null;
     let kickNetSoundBuf = null;
   async function loadKickNetSound(){
     try {
-      const res = await fetch('/assets/sounds/a-football-hits-the-net-goal-313216.mp3');
-      const arr = await res.arrayBuffer();
-      ensureAudio(); if(!audioCtx) return;
-      kickNetSoundBuf = await audioCtx.decodeAudioData(arr);
+      const res = await fetch(KICK_NET_SOUND);
+      kickNetSoundArr = await res.arrayBuffer();
+      decodeKickNetSound();
     } catch {}
+  }
+  function decodeKickNetSound(){
+    if(!audioCtx || !kickNetSoundArr || kickNetSoundBuf) return;
+    audioCtx.decodeAudioData(kickNetSoundArr.slice(0)).then(b=>kickNetSoundBuf=b).catch(()=>{});
   }
   loadKickNetSound();
 
   function playKickSound(){
     ensureAudio();
+    decodeKickNetSound();
     if(!audioCtx || !kickNetSoundBuf) return;
     const src = audioCtx.createBufferSource();
     src.buffer = kickNetSoundBuf;
@@ -897,6 +899,7 @@ function endShot(hit,pts){
 
   function playNetSound(){
     ensureAudio();
+    decodeKickNetSound();
     if(!audioCtx || !kickNetSoundBuf) return;
     const src = audioCtx.createBufferSource();
     src.buffer = kickNetSoundBuf;
@@ -905,6 +908,10 @@ function endShot(hit,pts){
     const duration = Math.max(0, kickNetSoundBuf.duration - half - 0.2);
     src.connect(masterGain);
     src.start(0, half, duration);
+  }
+  function triggerNetHit(x, y){
+    netHit = {x, y, t:1, shake:1};
+    if(!ball.netSounded){ ball.netSounded=true; playNetSound(); }
   }
   function vibrate(ms){ if(navigator.vibrate) try{ navigator.vibrate(ms); }catch{} }
 
