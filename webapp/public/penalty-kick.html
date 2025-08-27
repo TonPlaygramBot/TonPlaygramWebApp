@@ -389,7 +389,12 @@
           for(let i=0;i<6;i++){
             const a=Math.PI/3*i; let px=cx+size*Math.cos(a); let py=cy+size*Math.sin(a);
             const dx=netHit.x-px, dy=netHit.y-py; const dist=Math.hypot(dx,dy);
-            if(netHit.t>0){ const pull=Math.exp(-dist/80)*14*netHit.t; px+=dx/dist*pull; py+=dy/dist*pull; }
+            if(netHit.t>0 && dist>0){
+              const impact=Math.exp(-dist/40)*12*netHit.t;
+              const ripple=0.3*netHit.t;
+              const pull=impact+ripple;
+              px+=dx/dist*pull; py+=dy/dist*pull;
+            }
             if(netHit.shake>0){ py+=Math.sin((px+py+i)*0.3+performance.now()*0.02)*netHit.shake*3; }
             if(i===0) ctx.moveTo(px,py); else ctx.lineTo(px,py);
           }
@@ -567,6 +572,7 @@
       const dist=Math.hypot(dx,dy);
       if(dist < ball.r*0.8 || (ball.prevDist && dist>ball.prevDist)){
         ball.x=ball.target.x; ball.y=ball.target.y;
+        ball.vx*=0.2; ball.vy=Math.max(0,ball.vy)*0.2; ball.spin*=0.2;
         netHit={x:ball.x,y:ball.y,t:1,shake:1};
         if(!ball.netSounded){ ball.netSounded=true; }
         endShot(true,0); ball.target=null; ball.prevDist=null; return;
