@@ -253,9 +253,12 @@
     const px=k.x+k.w/2, py=k.y+k.h;
     const cos=Math.cos(-k.a), sin=Math.sin(-k.a);
     const dx=ball.x-px, dy=ball.y-py;
-    const lx=dx*cos - dy*sin;
-    const ly=dx*sin + dy*cos;
-    const w=k.w*0.9, h=k.h*0.9;
+    const rx=dx*cos - dy*sin;
+    const ry=dx*sin + dy*cos;
+    const shear=k.dive*0.05*k.side;
+    const lx=rx - shear*ry;
+    const ly=ry;
+    const w=k.w, h=k.h;
     return lx>-w/2-ball.r && lx<w/2+ball.r && ly>-h-ball.r && ly<ball.r;
   }
   function ballScale(y){
@@ -481,6 +484,8 @@
     ctx.save();
     ctx.translate(k.x + k.w/2, k.y + k.h);
     ctx.rotate(k.a||0);
+    const shear=k.dive*0.05*k.side;
+    ctx.transform(1,0,shear,1,0,0);
     ctx.translate(-k.w/2, -k.h + k.dive);
     ctx.drawImage(keeperImg, 0, 0, k.w, k.h);
     ctx.restore();
@@ -564,7 +569,9 @@
       triggerNetHit(ball.x, ball.y);
       sfxPost();
       const nx=(ball.x-left.x)/d, ny=(ball.y-left.y)/d;
-      reflectBall(nx,ny,0.6);
+      const damp=clamp(0.4+speed/60,0.4,0.85);
+      reflectBall(nx,ny,damp);
+      ball.spin*=0.5;
       const overlap=ball.r+postR-d;
       ball.x+=nx*overlap; ball.y+=ny*overlap;
       return;
@@ -574,7 +581,9 @@
       triggerNetHit(ball.x, ball.y);
       sfxPost();
       const nx=(ball.x-right.x)/d, ny=(ball.y-right.y)/d;
-      reflectBall(nx,ny,0.6);
+      const damp=clamp(0.4+speed/60,0.4,0.85);
+      reflectBall(nx,ny,damp);
+      ball.spin*=0.5;
       const overlap=ball.r+postR-d;
       ball.x+=nx*overlap; ball.y+=ny*overlap;
       return;
@@ -583,10 +592,18 @@
       if(ball.vy < 0){
         triggerNetHit(ball.x, ball.y);
         sfxPost();
-        reflectBall(0,1,0.6);
+        const damp=clamp(0.4+speed/60,0.4,0.85);
+        reflectBall(0,1,damp);
+        ball.spin*=0.5;
         ball.y = g.y + ball.r;
         return;
       }
+    }
+    if(ball.y <= g.y + g.h - ball.r && ball.x > g.x + postR && ball.x < g.x + g.w - postR){
+      triggerNetHit(ball.x, ball.y);
+      ball.vx*=0.3; ball.vy*=0.3; ball.spin*=0.3;
+      endShot(true,ball.points);
+      return;
     }
     if(ball.target){
       const dx=ball.target.x-ball.x, dy=ball.target.y-ball.y;
@@ -666,6 +683,7 @@
       keeper.x += (keeper.baseX - keeper.x) * 0.1;
       keeper.dive *= 0.9;
       keeper.save=false;
+      keeper.side=1;
       return;
     }
     const t = ball.vy !== 0 ? (keeper.y - ball.y) / ball.vy : Infinity;
@@ -677,14 +695,16 @@
       const targetX = clamp(diff * 0.04, -keeper.w*0.25, keeper.w*0.25);
       keeper.x += (keeper.baseX + targetX - keeper.x) * 0.05;
       // keeper save probability between 40% and 65%
-      keeper.save = Math.abs(diff) < keeper.w*0.30 && Math.random() < rnd(0.40,0.65);
-      const targetDive = keeper.save ? 10 : 0;
+       keeper.save = Math.abs(diff) < keeper.w*0.30 && Math.random() < rnd(0.40,0.65);
+       keeper.side = diff < 0 ? -1 : 1;
+       const targetDive = keeper.save ? 22 : 0;
       keeper.dive += (targetDive - keeper.dive) * 0.05;
     } else {
       keeper.a *= 0.9;
       keeper.x += (keeper.baseX - keeper.x) * 0.1;
       keeper.dive *= 0.9;
       keeper.save=false;
+      keeper.side=1;
     }
   }
 
