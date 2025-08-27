@@ -190,15 +190,15 @@
   // ===== Geometry =====
   const geom = { goal:{x:0,y:0,w:0,h:0,post:12}, spot:{x:0,y:0}, penaltySpot:{x:0,y:0}, scale:1, paDepth:0 };
   function layout(){
-    const goalW = Math.min(W*0.92, 950);
-    const goalH = Math.min(H*0.28, 260) * 0.95;
+    const goalW = Math.min(W*0.92, 950) * 0.97;
+    const goalH = Math.min(H*0.28, 260) * 0.92;
     const pbarBottom = document.getElementById('pbar').getBoundingClientRect().bottom;
     geom.goal = { x:(W-goalW)/2, y:pbarBottom + 10, w:goalW, h:goalH, post:12 };
     geom.scale = goalW / 860;
     geom.paDepth = Math.min(320*geom.scale, H*0.34);
     geom.penaltySpot = { x:W/2, y: geom.goal.y + geom.goal.h + geom.paDepth * (11/16.5) };
-    // position the ball closer to the bottom edge
-    geom.spot = { x: W/2, y: H - BALL_R*geom.scale*1.2 };
+    // position the ball a bit higher near the bottom edge
+    geom.spot = { x: W/2, y: H - BALL_R*geom.scale*1.5 };
     keeper.w = 40*geom.scale*4*0.85;
     keeper.h = 100*geom.scale*4*0.85;
     keeper.x = geom.goal.x + (geom.goal.w-keeper.w)/2;
@@ -219,7 +219,7 @@
   const ballImg = new Image();
   ballImg.src = '/assets/icons/file_0000000061d4620aaf506adfa605e1f3.webp';
 
-  let holes=[]; let banners=[]; let cameras=[]; let fragments=[]; let looseBalls=[];
+  let holes=[]; let banners=[]; let cameras=[]; let fragments=[]; let looseBalls=[]; let punchEffects=[];
   let netHit={x:0,y:0,t:0,shake:0};
   const keeper={x:0,y:0,w:40,h:100,vx:0,vy:0,active:false,save:false,a:0,side:1,baseY:0,baseX:0,dive:0};
   const keeperImg = new Image();
@@ -477,23 +477,38 @@
   function drawBall(){
     const baseR=Math.max(BALL_R*geom.scale*1.08,22);
     ball.r=baseR;
-    const drawR = baseR;
+    const drawR = baseR * (ball.y > geom.penaltySpot.y ? 1.05 : 1);
     // draw any loose balls continuing to fall
     for(const b of looseBalls){
       ctx.save();
       ctx.translate(b.x,b.y);
       ctx.rotate(b.angle||0);
-      const sizeL = drawR*2;
+      const sizeL = baseR*2*(b.y > geom.penaltySpot.y ? 1.05 : 1);
       ctx.drawImage(ballImg, -sizeL/2, -sizeL/2, sizeL, sizeL);
       ctx.restore();
     }
-    ctx.globalAlpha=0.25; for(const t of ball.trail){ ctx.beginPath(); ctx.arc(t.x,t.y,drawR*0.9,0,Math.PI*2); ctx.fillStyle='#fff'; ctx.fill(); } ctx.globalAlpha=1;
+    ctx.globalAlpha=0.25;
+    for(const t of ball.trail){ ctx.beginPath(); ctx.arc(t.x,t.y,drawR*0.9,0,Math.PI*2); ctx.fillStyle='#fff'; ctx.fill(); }
+    ctx.globalAlpha=1;
     ctx.save();
     ctx.translate(ball.x,ball.y);
     ctx.rotate(ball.angle);
     const size = drawR*2;
     ctx.drawImage(ballImg, -size/2, -size/2, size, size);
     ctx.restore();
+  }
+
+  function drawPunchEffects(){
+    for(const p of punchEffects){
+      ctx.globalAlpha=p.life;
+      ctx.font=`${32*geom.scale}px system-ui`;
+      ctx.textAlign='center';
+      ctx.textBaseline='middle';
+      ctx.fillText('🥊',p.x,p.y);
+      p.life-=0.02;
+    }
+    ctx.globalAlpha=1;
+    punchEffects=punchEffects.filter(p=>p.life>0);
   }
   const FRICTION=0.985, AIR_DRAG=0.0015, GRAVITY=0.20;
   function stepBall(){
@@ -509,12 +524,14 @@
       for(const h of holes){
         if(Math.hypot(h.x-ball.x,h.y-ball.y) <= Math.max(2,h.r-ball.r*0.6)){
           h.hit=true; createFragments(h); netHit={x:ball.x,y:ball.y,t:1,shake:1};
+          ball.vx=0; ball.vy=0;
           endShot(true,h.points); setTimeout(()=>{replaceHole(h);},600); return;
         }
       }
     }
     if(keeper.save && ballHitsKeeper()){
-      keeper.save=false; ball.y = keeper.y + keeper.h - ball.r;
+      keeper.save=false; punchEffects.push({x:ball.x,y:ball.y,life:1});
+      ball.vx=0; ball.vy=0; ball.y = keeper.y + keeper.h - ball.r;
       endShot(false,0); return;
     }
     const postR = g.post;
@@ -529,7 +546,7 @@
       const dist=Math.hypot(dx,dy);
       if(dist < ball.r*0.8 || (ball.prevDist && dist>ball.prevDist)){
         ball.x=ball.target.x; ball.y=ball.target.y;
-        ball.vx*=0.86; ball.vy*=0.74; netHit={x:ball.x,y:ball.y,t:1,shake:1};
+        ball.vx=0; ball.vy=0; netHit={x:ball.x,y:ball.y,t:1,shake:1};
         if(!ball.netSounded){ ball.netSounded=true; }
         endShot(true,0); ball.target=null; ball.prevDist=null; return;
       }
@@ -546,12 +563,13 @@
     const r=Math.max(BALL_R*geom.scale*1.08,22);
     for(const b of looseBalls){
       b.vy += GRAVITY;
+      b.vx *= 0.98;
       b.x += b.vx;
       b.y += b.vy;
       if(b.y + r > ground){
         b.y = ground - r;
         if(!b.bounced){
-          b.vy *= -0.35;
+          b.vy *= -0.25;
           b.bounced=true;
         } else {
           b.remove=true;
@@ -585,13 +603,13 @@
       const predicted = ball.x + ball.vx * t;
       const diff = predicted - (keeper.baseX + keeper.w/2);
       const targetA = clamp(diff / 240, -0.8, 0.8);
-      keeper.a += (targetA - keeper.a) * 0.10;
+      keeper.a += (targetA - keeper.a) * 0.08;
       const targetX = clamp(diff * 0.04, -keeper.w*0.25, keeper.w*0.25);
-      keeper.x += (keeper.baseX + targetX - keeper.x) * 0.10;
-      // keeper only saves about a third of the shots and reacts slower
-      keeper.save = Math.abs(diff) < keeper.w*0.35 && Math.random() < 0.35;
+      keeper.x += (keeper.baseX + targetX - keeper.x) * 0.08;
+      // keeper saves slightly fewer shots and reacts a bit slower
+      keeper.save = Math.abs(diff) < keeper.w*0.30 && Math.random() < 0.25;
       const targetDive = keeper.save ? 10 : 0;
-      keeper.dive += (targetDive - keeper.dive) * 0.10;
+      keeper.dive += (targetDive - keeper.dive) * 0.08;
     } else {
       keeper.a *= 0.9;
       keeper.x += (keeper.baseX - keeper.x) * 0.1;
@@ -748,7 +766,7 @@ function endShot(hit,pts){
 
   // ===== Timer + loop =====
   function tick(now){ if(!running||paused) return; if(!roundStart) roundStart=now; timeLeft = Math.max(0, ROUND_TIME - (now - roundStart)); timeShort.textContent = Math.ceil(timeLeft/1000); if(timeLeft<=0){ finish(); } }
-  function loop(now){ requestAnimationFrame(loop); drawField(); drawAds(); drawGoal(); drawBall(); stepBall(); stepLooseBalls(); stepFragments(); stepKeeper(); drawMiniBoards(); tick(now||performance.now()); stepRivals(now||performance.now()); updateHUD(); netHit.t*=0.94; netHit.shake*=0.94; }
+  function loop(now){ requestAnimationFrame(loop); drawField(); drawAds(); drawGoal(); drawBall(); drawPunchEffects(); stepBall(); stepLooseBalls(); stepFragments(); stepKeeper(); drawMiniBoards(); tick(now||performance.now()); stepRivals(now||performance.now()); updateHUD(); netHit.t*=0.94; netHit.shake*=0.94; }
 
   // ===== Controls =====
   // controls removed
