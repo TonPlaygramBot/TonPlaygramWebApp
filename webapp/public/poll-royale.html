@@ -1388,7 +1388,20 @@
             w = (TABLE_W - 2 * BORDER) * sX,
             h = (TABLE_H - BORDER_TOP - BORDER_BOTTOM) * sY;
 
-          // Field boundary lines and pocket visuals removed
+          // Green boundary lines around the playing field
+          ctx.strokeStyle = '#22c55e';
+          ctx.lineWidth = 4 * scaleFactor;
+          ctx.strokeRect(x0, y0, w, h);
+
+          // Red circles marking the six pockets
+          ctx.strokeStyle = '#ff0000';
+          ctx.lineWidth = 3 * scaleFactor;
+          for (var i = 0; i < this.pockets.length; i++) {
+            var p = this.pockets[i];
+            ctx.beginPath();
+            ctx.arc(p.x * sX, p.y * sY, p.r * scaleFactor, 0, Math.PI * 2);
+            ctx.stroke();
+          }
 
           // Vija kufizuese e cueball-it dhe pika qendrore
           ctx.strokeStyle = '#fff';
