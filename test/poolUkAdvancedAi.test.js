@@ -93,3 +93,53 @@ test('prioritizes straight pots', () => {
   assert.equal(plan.aimPoint.y, 250);
 });
 
+test('avoids pockets on line to target', () => {
+  const state = {
+    balls: [
+      { id: 0, colour: 'cue', x: 50, y: 100 },
+      { id: 1, colour: 'yellow', x: 250, y: 100 },
+      { id: 2, colour: 'red', x: 150, y: 150 }
+    ],
+    pockets: [
+      { x: 150, y: 100, name: 'M' },
+      { x: 0, y: 0, name: 'TL' },
+      { x: 300, y: 0, name: 'TR' },
+      { x: 0, y: 200, name: 'BL' },
+      { x: 300, y: 200, name: 'BR' }
+    ],
+    width: 300,
+    height: 200,
+    ballRadius: 10,
+    ballOn: 'yellow',
+    isOpenTable: false,
+    shotsRemaining: 1
+  };
+  const plan = selectShot(state, {});
+  assert.equal(plan.actionType, 'safety');
+});
+
+test('avoids clustered targets', () => {
+  const state = {
+    balls: [
+      { id: 0, colour: 'cue', x: 50, y: 50 },
+      { id: 1, colour: 'yellow', x: 200, y: 100 },
+      { id: 3, colour: 'yellow', x: 215, y: 105 },
+      { id: 2, colour: 'red', x: 150, y: 150 }
+    ],
+    pockets: [
+      { x: 0, y: 0, name: 'TL' },
+      { x: 300, y: 0, name: 'TR' },
+      { x: 0, y: 200, name: 'BL' },
+      { x: 300, y: 200, name: 'BR' }
+    ],
+    width: 300,
+    height: 200,
+    ballRadius: 10,
+    ballOn: 'yellow',
+    isOpenTable: false,
+    shotsRemaining: 1
+  };
+  const plan = selectShot(state, {});
+  assert.equal(plan.actionType, 'safety');
+});
+
