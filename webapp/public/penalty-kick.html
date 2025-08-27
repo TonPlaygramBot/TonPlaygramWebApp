@@ -508,7 +508,7 @@
     if(ball.x>g.x && ball.x<g.x+g.w && ball.y>g.y && ball.y<g.y+g.h){
       for(const h of holes){
         if(Math.hypot(h.x-ball.x,h.y-ball.y) <= Math.max(2,h.r-ball.r*0.6)){
-          h.hit=true; createFragments(h); netHit={x:ball.x,y:ball.y,t:1,shake:1}; sfxBreak();
+          h.hit=true; createFragments(h); netHit={x:ball.x,y:ball.y,t:1,shake:1};
           endShot(true,h.points); setTimeout(()=>{replaceHole(h);},600); return;
         }
       }
@@ -520,17 +520,17 @@
     const postR = g.post;
     const left={x:g.x, y:g.y+g.h}, right={x:g.x+g.w, y:g.y+g.h};
     let d=Math.hypot(ball.x-left.x, ball.y-left.y);
-    if(d < ball.r + postR){ const nx=(ball.x-left.x)/d, ny=(ball.y-left.y)/d; reflectBall(nx,ny); sfxWoodwork(); }
+    if(d < ball.r + postR){ const nx=(ball.x-left.x)/d, ny=(ball.y-left.y)/d; reflectBall(nx,ny); }
     d=Math.hypot(ball.x-right.x, ball.y-right.y);
-    if(d < ball.r + postR){ const nx=(ball.x-right.x)/d, ny=(ball.y-right.y)/d; reflectBall(nx,ny); sfxWoodwork(); }
-    if(ball.y - ball.r <= g.y && ball.x > g.x - postR && ball.x < g.x + g.w + postR){ if(ball.vy < 0){ reflectBall(0,1); ball.y = g.y + ball.r; sfxWoodwork(); }}
+    if(d < ball.r + postR){ const nx=(ball.x-right.x)/d, ny=(ball.y-right.y)/d; reflectBall(nx,ny); }
+    if(ball.y - ball.r <= g.y && ball.x > g.x - postR && ball.x < g.x + g.w + postR){ if(ball.vy < 0){ reflectBall(0,1); ball.y = g.y + ball.r; }}
     if(ball.target){
       const dx=ball.target.x-ball.x, dy=ball.target.y-ball.y;
       const dist=Math.hypot(dx,dy);
       if(dist < ball.r*0.8 || (ball.prevDist && dist>ball.prevDist)){
         ball.x=ball.target.x; ball.y=ball.target.y;
         ball.vx*=0.86; ball.vy*=0.74; netHit={x:ball.x,y:ball.y,t:1,shake:1};
-        if(!ball.netSounded){ sfxNet(); ball.netSounded=true; }
+        if(!ball.netSounded){ ball.netSounded=true; }
         endShot(true,0); ball.target=null; ball.prevDist=null; return;
       }
       ball.prevDist=dist;
@@ -623,12 +623,10 @@ function endShot(hit,pts){
   if(hit){
     myScore += pts;
     status('GOAL! +' + pts);
-    sfxGoal();
     sfxReward();
     vibrate(25);
   } else {
     status('Missed.');
-    sfxMiss();
     vibrate(12);
   }
   updateHUD();
@@ -640,7 +638,7 @@ function endShot(hit,pts){
     timeShort.textContent = Math.ceil(timeLeft/1000);
   }
   function fmtTime(ms){ const s=Math.max(0, Math.ceil(ms/1000)); const m=Math.floor(s/60); const ss=String(s%60).padStart(2,'0'); return `${m}:${ss}`; }
-  function finish(){ running=false; ended=true; sfxEnd(); }
+  function finish(){ running=false; ended=true; }
   function status(msg){ /* no-op */ }
 
   // ===== Input (swipe/flick + spin) =====
@@ -740,7 +738,6 @@ function endShot(hit,pts){
         if(Math.random() < chance){
           const saved = Math.random() < 0.5;
           if(!saved){ r.score += Math.max(5, Math.round(target.p)); }
-          sfxRival();
           const cv=r.cvs; const g={x:12,y:12,w:cv.width-24,h:cv.height-30};
           r.shots.push({x:g.x+g.w/2,y:g.y+g.h,vx:(target.x-(g.x+g.w/2))/15,vy:(target.y-(g.y+g.h))/15,life:1,saved});
         }
@@ -757,39 +754,30 @@ function endShot(hit,pts){
   // controls removed
 
   function resetBall(){ ball.x=geom.spot.x; ball.y=geom.spot.y; ball.vx=ball.vy=ball.spin=0; ball.angle=0; ball.moving=false; ball.netSounded=false; ball.trail=[]; ball.firstContact=false; ball.target=null; ball.prevDist=null; netHit={x:0,y:0,t:0,shake:0}; keeper.save=false; keeper.vx=0; keeper.vy=0; keeper.a=0; keeper.dive=0; keeper.x = keeper.baseX; keeper.y = keeper.baseY; }
-  function startGame(){ running=true; paused=false; ended=false; roundStart=performance.now(); timeLeft=ROUND_TIME; myScore=0; looseBalls=[]; for(const r of rivals){ r.score=0; r.next=0; r.shots=[]; } resetBall(); generateHoles(); drawMiniBoards(true); updateHUD(); ensureAudio(); sfxStart(); status('Go! Score as many as you can.'); }
+  function startGame(){ running=true; paused=false; ended=false; roundStart=performance.now(); timeLeft=ROUND_TIME; myScore=0; looseBalls=[]; for(const r of rivals){ r.score=0; r.next=0; r.shots=[]; } resetBall(); generateHoles(); drawMiniBoards(true); updateHUD(); ensureAudio(); status('Go! Score as many as you can.'); }
 
-  // ===== WebAudio SFX (no files) =====
+  // ===== WebAudio SFX =====
   let audioCtx=null, masterGain=null; function ensureAudio(){ if(audioCtx) return; try{ const AC = window.AudioContext || window.webkitAudioContext; audioCtx = new AC(); masterGain = audioCtx.createGain(); masterGain.gain.value = 0.18; masterGain.connect(audioCtx.destination); }catch{} }
-  function tone(freq=440, dur=0.08, type='sine', gain=0.22){ if(!audioCtx) return; const o=audioCtx.createOscillator(); const g=audioCtx.createGain(); o.type=type; o.frequency.value=freq; o.connect(g); g.connect(masterGain); g.gain.setValueAtTime(gain, audioCtx.currentTime); g.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime+dur); o.start(); o.stop(audioCtx.currentTime+dur); }
-  let goalSoundBuf=null;
-  async function loadGoalSound(){
+  let rewardSoundBuf=null;
+  async function loadRewardSound(){
     try{
       const res=await fetch('/assets/sounds/a-football-hits-the-net-goal-313216-[AudioTrimmer.com].mp3');
       const arr=await res.arrayBuffer();
       ensureAudio(); if(!audioCtx) return;
-      goalSoundBuf = await audioCtx.decodeAudioData(arr);
+      rewardSoundBuf = await audioCtx.decodeAudioData(arr);
     }catch{}
   }
-  loadGoalSound();
-  function playGoalSound(part){
+  loadRewardSound();
+  function playRewardSound(){
     ensureAudio();
-    if(!audioCtx || !goalSoundBuf) return;
+    if(!audioCtx || !rewardSoundBuf) return;
     const src=audioCtx.createBufferSource();
-    src.buffer=goalSoundBuf;
-    const half=goalSoundBuf.duration/2;
-    if(part==='first') src.start(0,0,half); else src.start(0,half,goalSoundBuf.duration-half-0.2);
+    src.buffer=rewardSoundBuf;
+    const half=rewardSoundBuf.duration/2;
+    src.start(0,0,half);
     src.connect(masterGain);
   }
-    const sfxGoal = ()=>{tone(660,0.10,'triangle',0.30); setTimeout(()=>tone(880,0.12,'triangle',0.28),60);};
-    const sfxMiss = ()=>tone(160,0.10,'square',0.25);
-    const sfxRival= ()=>tone(520,0.06,'triangle',0.18);
-    const sfxBreak = ()=>{ if(!audioCtx) return; const len=audioCtx.sampleRate*0.25; const buf=audioCtx.createBuffer(1,len,audioCtx.sampleRate); const data=buf.getChannelData(0); for(let i=0;i<len;i++){ data[i]=(Math.random()*2-1)*(1-i/len); } const src=audioCtx.createBufferSource(); src.buffer=buf; const g=audioCtx.createGain(); g.gain.value=0.6; src.connect(g); g.connect(masterGain); src.start(); };
-    const sfxStart= ()=>{tone(500,0.08,'triangle',0.25); setTimeout(()=>tone(650,0.08,'triangle',0.22),80);};
-  const sfxEnd  = ()=>{tone(300,0.12,'sine',0.18); setTimeout(()=>tone(220,0.16,'sine',0.16),60);};
-  const sfxNet = ()=>playGoalSound('second');
-  const sfxReward = ()=>playGoalSound('first');
-  const sfxWoodwork = ()=>{};
+  const sfxReward = playRewardSound;
   function vibrate(ms){ if(navigator.vibrate) try{ navigator.vibrate(ms); }catch{} }
 
   // ===== Static draw & tests =====
