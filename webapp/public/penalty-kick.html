@@ -869,8 +869,12 @@ function endShot(hit,pts){
       src.connect(masterGain);
       src.start(0);
     }
+    // Shared sound effect for kicking the ball and net impact.
+    // Place "a-football-hits-the-net-goal-313216.mp3" in webapp/public/assets/sounds.
     const KICK_NET_SOUND = '/assets/sounds/a-football-hits-the-net-goal-313216.mp3';
+    const NET_END_TRIM = 0.2; // seconds trimmed from the end when playing the net hit
     let kickNetSoundBuf = null;
+
   async function loadKickNetSound(){
     try {
       const res = await fetch(KICK_NET_SOUND);
@@ -888,7 +892,7 @@ function endShot(hit,pts){
     src.buffer = kickNetSoundBuf;
     const half = kickNetSoundBuf.duration / 2;
     src.connect(masterGain);
-    // play only the first half of the clip for the kick
+    // Play only the first half of the clip for the kick.
     src.start(0, 0, half);
   }
 
@@ -898,13 +902,15 @@ function endShot(hit,pts){
     const src = audioCtx.createBufferSource();
     src.buffer = kickNetSoundBuf;
     const half = kickNetSoundBuf.duration / 2;
-    // second half trimmed by last 0.2s for net impact
-    const duration = Math.max(0, kickNetSoundBuf.duration - half - 0.2);
+    // Use the last half of the clip, but trim the final NET_END_TRIM seconds.
+    const duration = Math.max(0, half - NET_END_TRIM);
     src.connect(masterGain);
     src.start(0, half, duration);
   }
+
   function triggerNetHit(x, y){
-    netHit = {x, y, t:1, shake:1};
+    // Pull the net back and add a brief shake on impact.
+    netHit = {x, y, t:1, shake:1.2};
     if(!ball.netSounded){ ball.netSounded=true; playNetSound(); }
   }
   function vibrate(ms){ if(navigator.vibrate) try{ navigator.vibrate(ms); }catch{} }
