@@ -554,20 +554,25 @@
     const left={x:g.x, y:g.y+g.h}, right={x:g.x+g.w, y:g.y+g.h};
     let d=Math.hypot(ball.x-left.x, ball.y-left.y);
     if(d < ball.r + postR){
-      const nx=(ball.x-left.x)/d, ny=(ball.y-left.y)/d;
-      reflectBall(nx,ny);
-      const overlap=ball.r+postR-d; ball.x+=nx*overlap; ball.y+=ny*overlap;
+      netHit={x:ball.x,y:ball.y,t:1,shake:1};
+      if(!ball.netSounded){ ball.netSounded=true; playNetSound(); }
       sfxPost();
+      endShot(true,0); return;
     }
     d=Math.hypot(ball.x-right.x, ball.y-right.y);
     if(d < ball.r + postR){
-      const nx=(ball.x-right.x)/d, ny=(ball.y-right.y)/d;
-      reflectBall(nx,ny);
-      const overlap=ball.r+postR-d; ball.x+=nx*overlap; ball.y+=ny*overlap;
+      netHit={x:ball.x,y:ball.y,t:1,shake:1};
+      if(!ball.netSounded){ ball.netSounded=true; playNetSound(); }
       sfxPost();
+      endShot(true,0); return;
     }
     if(ball.y - ball.r <= g.y && ball.x > g.x - postR && ball.x < g.x + g.w + postR){
-      if(ball.vy < 0){ reflectBall(0,1); ball.y = g.y + ball.r; sfxPost(); }
+      if(ball.vy < 0){
+        netHit={x:ball.x,y:ball.y,t:1,shake:1};
+        if(!ball.netSounded){ ball.netSounded=true; playNetSound(); }
+        sfxPost();
+        endShot(true,0); return;
+      }
     }
     if(ball.target){
       const dx=ball.target.x-ball.x, dy=ball.target.y-ball.y;
@@ -693,7 +698,6 @@ function endShot(hit,pts){
   if(hit){
     myScore += pts;
     status('GOAL! +' + pts);
-    if(pts>0) sfxReward();
     vibrate(25);
   } else {
     status('Missed.');
@@ -828,26 +832,7 @@ function endShot(hit,pts){
 
   // ===== WebAudio SFX =====
   let audioCtx=null, masterGain=null; function ensureAudio(){ if(audioCtx) return; try{ const AC = window.AudioContext || window.webkitAudioContext; audioCtx = new AC(); masterGain = audioCtx.createGain(); masterGain.gain.value = 0.18; masterGain.connect(audioCtx.destination); }catch{} }
-  let rewardSoundBuf=null;
-  async function loadRewardSound(){
-    try{
-      const res=await fetch('/assets/sounds/billiard-sound-05-288416.mp3');
-      const arr=await res.arrayBuffer();
-      ensureAudio(); if(!audioCtx) return;
-      rewardSoundBuf = await audioCtx.decodeAudioData(arr);
-    }catch{}
-  }
-  loadRewardSound();
-  function playRewardSound(){
-    ensureAudio();
-    if(!audioCtx || !rewardSoundBuf) return;
-    const src=audioCtx.createBufferSource();
-    src.buffer=rewardSoundBuf;
-    const half=rewardSoundBuf.duration/2;
-    src.start(0,0,half);
-    src.connect(masterGain);
-  }
-  const sfxReward = playRewardSound;
+  // Prize break sound
   let prizeSoundBuf=null;
   async function loadPrizeSound(){
     try{
