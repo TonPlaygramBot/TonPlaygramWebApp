@@ -212,7 +212,7 @@
   let roundStart = 0; let timeLeft = ROUND_TIME; let running=false; let paused=false; let ended=false;
   let myScore = 0;
 
-  const BALL_R = 42;
+  const BALL_R = 40;
   // slightly faster initial shot speed
   const SHOT_SPEED = 14;
   const ball = { x:0,y:0,r:BALL_R, vx:0,vy:0, moving:false, trail:[], spin:0, angle:0, netSounded:false, firstContact:false, target:null, prevDist:null };
@@ -562,6 +562,7 @@
     const r=Math.max(BALL_R*geom.scale*1.08,22);
     const fieldGround=geom.spot.y;
     const goalGround=geom.goal.y + geom.goal.h;
+    const now = performance.now();
     for(const b of looseBalls){
       b.vy += GRAVITY;
       b.vx *= 0.98;
@@ -573,12 +574,18 @@
         if(b.insideGoal){
           b.vy = 0;
           b.vx = 0;
+          if(!b.landedAt) b.landedAt = now;
         } else if(!b.bounced){
           b.vy *= -0.25;
           b.bounced=true;
         } else {
-          b.remove=true;
+          b.vy = 0;
+          b.vx = 0;
+          if(!b.landedAt) b.landedAt = now;
         }
+      }
+      if(b.landedAt && now - b.landedAt > 1000){
+        b.remove=true;
       }
     }
     looseBalls = looseBalls.filter(b=>!b.remove);
@@ -608,13 +615,13 @@
       const predicted = ball.x + ball.vx * t;
       const diff = predicted - (keeper.baseX + keeper.w/2);
       const targetA = clamp(diff / 240, -0.8, 0.8);
-      keeper.a += (targetA - keeper.a) * 0.06;
+      keeper.a += (targetA - keeper.a) * 0.05;
       const targetX = clamp(diff * 0.04, -keeper.w*0.25, keeper.w*0.25);
-      keeper.x += (keeper.baseX + targetX - keeper.x) * 0.06;
+      keeper.x += (keeper.baseX + targetX - keeper.x) * 0.05;
       // keeper reacts a bit slower and saves less often
-      keeper.save = Math.abs(diff) < keeper.w*0.30 && Math.random() < 0.20;
+      keeper.save = Math.abs(diff) < keeper.w*0.30 && Math.random() < 0.15;
       const targetDive = keeper.save ? 10 : 0;
-      keeper.dive += (targetDive - keeper.dive) * 0.06;
+      keeper.dive += (targetDive - keeper.dive) * 0.05;
     } else {
       keeper.a *= 0.9;
       keeper.x += (keeper.baseX - keeper.x) * 0.1;
@@ -641,12 +648,12 @@
   // ===== Round / scoring =====
 function endShot(hit,pts){
   // keep current ball falling while spawning the next one
-  looseBalls.push({x:ball.x,y:ball.y,vx:ball.vx,vy:ball.vy,angle:ball.angle,bounced:false,insideGoal:hit});
+  looseBalls.push({x:ball.x,y:ball.y,vx:ball.vx,vy:ball.vy,angle:ball.angle,bounced:false,insideGoal:hit,landedAt:null});
   ball.moving=false;
   if(hit){
     myScore += pts;
     status('GOAL! +' + pts);
-    sfxReward();
+    if(pts>0) sfxReward();
     vibrate(25);
   } else {
     status('Missed.');
