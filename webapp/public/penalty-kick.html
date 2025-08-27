@@ -531,14 +531,16 @@
         if(Math.hypot(h.x-ball.x,h.y-ball.y) <= Math.max(2,h.r-ball.r*0.6)){
           h.hit=true; createFragments(h); netHit={x:ball.x,y:ball.y,t:1,shake:1};
           sfxPost();
-          ball.vx=0; ball.vy=0;
+          ball.spin *= 0.6;
           endShot(true,h.points); setTimeout(()=>{replaceHole(h);},600); return;
         }
       }
     }
     if(keeper.save && ballHitsKeeper()){
       keeper.save=false; punchEffects.push({x:ball.x,y:ball.y,life:1});
-      ball.vx=0; ball.vy=0; ball.y = keeper.y + keeper.h - ball.r;
+      reflectBall(0,1,0.6);
+      ball.spin *= 0.5;
+      ball.y = keeper.y + keeper.h + ball.r;
       endShot(false,0); return;
     }
     const postR = g.post;
@@ -565,7 +567,7 @@
       const dist=Math.hypot(dx,dy);
       if(dist < ball.r*0.8 || (ball.prevDist && dist>ball.prevDist)){
         ball.x=ball.target.x; ball.y=ball.target.y;
-        ball.vx=0; ball.vy=0; netHit={x:ball.x,y:ball.y,t:1,shake:1};
+        netHit={x:ball.x,y:ball.y,t:1,shake:1};
         if(!ball.netSounded){ ball.netSounded=true; }
         endShot(true,0); ball.target=null; ball.prevDist=null; return;
       }
@@ -585,25 +587,36 @@
     for(const b of looseBalls){
       b.vy += GRAVITY;
       b.vx *= 0.98;
+      b.spin *= 0.98;
       b.x += b.vx;
       b.y += b.vy;
+      b.angle += b.spin;
       const ground = b.insideGoal ? goalGround : fieldGround;
       if(b.y + r > ground){
         b.y = ground - r;
         if(b.insideGoal){
-          b.vy = 0;
-          b.vx = 0;
-          if(!b.landedAt) b.landedAt = now;
+          if(!b.bounced){
+            b.vy *= -0.25;
+            b.spin *= 0.5;
+            b.bounced=true;
+          } else {
+            b.vy = 0;
+            b.vx *= 0.92;
+            b.spin *= 0.8;
+            if(Math.hypot(b.vx,b.vy)<0.2 && !b.landedAt) b.landedAt = now;
+          }
         } else if(!b.bounced){
           b.vy *= -0.25;
+          b.spin *= 0.5;
           b.bounced=true;
         } else {
           b.vy = 0;
-          b.vx = 0;
-          if(!b.landedAt) b.landedAt = now;
+          b.vx *= 0.92;
+          b.spin *= 0.8;
+          if(Math.hypot(b.vx,b.vy)<0.2 && !b.landedAt) b.landedAt = now;
         }
       }
-      if(b.landedAt && now - b.landedAt > 1000){
+      if(b.landedAt && now - b.landedAt > 3000){
         b.remove=true;
       }
     }
@@ -667,7 +680,7 @@
   // ===== Round / scoring =====
 function endShot(hit,pts){
   // keep current ball falling while spawning the next one
-  looseBalls.push({x:ball.x,y:ball.y,vx:ball.vx,vy:ball.vy,angle:ball.angle,bounced:false,insideGoal:hit,landedAt:null});
+  looseBalls.push({x:ball.x,y:ball.y,vx:ball.vx,vy:ball.vy,angle:ball.angle,spin:ball.spin,bounced:false,insideGoal:hit,landedAt:null});
   ball.moving=false;
   if(hit){
     myScore += pts;
@@ -810,7 +823,7 @@ function endShot(hit,pts){
   let rewardSoundBuf=null;
   async function loadRewardSound(){
     try{
-      const res=await fetch('/assets/sounds/a-football-hits-the-net-goal-313216-[AudioTrimmer.com].mp3');
+      const res=await fetch('/assets/sounds/billiard-sound-05-288416.mp3');
       const arr=await res.arrayBuffer();
       ensureAudio(); if(!audioCtx) return;
       rewardSoundBuf = await audioCtx.decodeAudioData(arr);
