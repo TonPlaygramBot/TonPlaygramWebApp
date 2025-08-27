@@ -417,43 +417,11 @@
 
       .pocket-marker {
         position: absolute;
-        width: 0;
-        height: 0;
+        width: 10px;
+        height: 10px;
         transform: translate(-50%, -50%);
         pointer-events: none;
-        z-index: 5;
-      }
-
-      .pocket-marker::after {
-        content: '';
-        position: absolute;
-        width: 16px;
-        height: 8px;
-        background: #4b2e1a;
-        border-top-left-radius: 8px;
-        border-top-right-radius: 8px;
-        left: 50%;
-        top: 50%;
-        transform-origin: 50% 100%;
-      }
-
-      .pocket-marker[data-index='0']::after {
-        transform: translate(-50%, -100%) rotate(135deg);
-      }
-      .pocket-marker[data-index='1']::after {
-        transform: translate(-50%, -100%) rotate(225deg);
-      }
-      .pocket-marker[data-index='2']::after {
-        transform: translate(-50%, -100%) rotate(90deg);
-      }
-      .pocket-marker[data-index='3']::after {
-        transform: translate(-50%, -100%) rotate(270deg);
-      }
-      .pocket-marker[data-index='4']::after {
-        transform: translate(-50%, -100%) rotate(45deg);
-      }
-      .pocket-marker[data-index='5']::after {
-        transform: translate(-50%, -100%) rotate(315deg);
+        opacity: 0;
       }
 
       .winnerOverlay {
