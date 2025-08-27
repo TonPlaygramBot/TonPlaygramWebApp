@@ -85,3 +85,25 @@ test('ball in hand aims for straight shot', () => {
   const diff = Math.abs(angle1 - angle2);
   assert(diff < 0.2);
 });
+
+test('avoids pocket with blocking ball at entrance', () => {
+  const req = {
+    game: 'AMERICAN_BILLIARDS',
+    state: {
+      balls: [
+        { id: 0, x: 50, y: 100, vx: 0, vy: 0, pocketed: false },
+        { id: 1, x: 220, y: 80, vx: 0, vy: 0, pocketed: false },
+        { id: 2, x: 285, y: 15, vx: 0, vy: 0, pocketed: false }
+      ],
+      pockets: [ { x: 300, y: 0 } ],
+      width: 300,
+      height: 200,
+      ballRadius: 10,
+      friction: 0.01
+    },
+    timeBudgetMs: 50,
+    rngSeed: 3
+  };
+  const decision = planShot(req);
+  assert.equal(decision.quality, 0);
+});
