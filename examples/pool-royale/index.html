@@ -73,15 +73,6 @@
           // Subtle drop shadow under rim
           group.append(el('circle', {cx: x+3, cy: y+3, r: RIM_R+2, fill: 'black', opacity: 0.18}));
 
-          // Dark pocket base for visibility
-          group.append(el('circle', {
-            cx: x,
-            cy: y,
-            r: RIM_R,
-            fill: '#3a3a3a',
-            mask: `url(#pocket-mask-${i})`
-          }));
-
           // Mesh funnel: approximate by scaling a circle down to mimic depth
           group.append(el('ellipse', {
             cx: x,
