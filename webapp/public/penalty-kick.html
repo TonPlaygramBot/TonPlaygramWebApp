@@ -745,6 +745,7 @@ function endShot(hit,pts){
   if(hit){
     ball.netSounded=true;
     triggerNetHit(ball.x, ball.y);
+    playGoalSound();
     const score=Math.max(pts,MIN_GOAL_POINTS);
     myScore += score;
     status('GOAL! +' + score);
@@ -790,7 +791,7 @@ function endShot(hit,pts){
       drawAimPath(vx, vy, spin);
     }
   }
-function onUp(e){ if(!pointer.active||e.pointerId!==pointer.id) return; pointer.active=false; if(!pointer.armed||ball.moving||!running||paused){ pointer.path=[]; return; } const path=pointer.path; pointer.path=[]; if(path.length<3){ status('Swipe longer/faster.'); return; } const a=path[0], b=path[path.length-1]; const totalDy=b.y-a.y; if(totalDy>-10){ status('Swipe upward.'); return; } const endDx=b.x-ball.x, endDy=b.y-ball.y; const dist=Math.hypot(endDx,endDy), power=clamp(dist/150, 0.4, 3.0); const speed=SHOT_SPEED*power; const t=dist/speed; let curve=0; for(let i=2;i<path.length;i++){ const p0=path[i-2], p1=path[i-1], p2=path[i]; curve+=Math.atan2(p2.y-p1.y,p2.x-p1.x)-Math.atan2(p1.y-p0.y,p1.x-p0.x); } const spin = clamp((ball.x - a.x)/ball.r + curve*1.2, -45, 45); const adjDx=endDx - spin*0.125*t*t; ball.vx=adjDx/t; ball.vy=(endDy - 0.5*GRAVITY*t*t)/t; ball.spin=spin; ball.moving=true; playKickSound(); ball.target={x:b.x,y:b.y}; ball.prevDist=Infinity; }
+function onUp(e){ if(!pointer.active||e.pointerId!==pointer.id) return; pointer.active=false; if(!pointer.armed||ball.moving||!running||paused){ pointer.path=[]; return; } const path=pointer.path; pointer.path=[]; if(path.length<3){ status('Swipe longer/faster.'); return; } const a=path[0], b=path[path.length-1]; const totalDy=b.y-a.y; if(totalDy>-10){ status('Swipe upward.'); return; } const endDx=b.x-ball.x, endDy=b.y-ball.y; const dist=Math.hypot(endDx,endDy), power=clamp(dist/150, 0.4, 3.0); const speed=SHOT_SPEED*power; const t=dist/speed; let curve=0; for(let i=2;i<path.length;i++){ const p0=path[i-2], p1=path[i-1], p2=path[i]; curve+=Math.atan2(p2.y-p1.y,p2.x-p1.x)-Math.atan2(p1.y-p0.y,p1.x-p0.x); } const spin = clamp((ball.x - a.x)/ball.r + curve*1.2, -45, 45); const adjDx=endDx - spin*0.125*t*t; ball.vx=adjDx/t; ball.vy=(endDy - 0.5*GRAVITY*t*t)/t; ball.spin=spin; ball.moving=true; ball.target={x:b.x,y:b.y}; ball.prevDist=Infinity; }
   canvas.addEventListener('pointerdown', onDown, {passive:true});
   canvas.addEventListener('pointermove', onMove, {passive:true});
   addEventListener('pointerup', onUp, {passive:true}); addEventListener('pointercancel', onUp, {passive:true});
@@ -948,7 +949,7 @@ function loop(now){ requestAnimationFrame(loop); drawField(); drawAds(); drawGoa
       src.connect(masterGain);
       src.start(0);
     }
-    // Shared sound effect for kicking the ball and net impact.
+    // Sound effect for net impact when a goal is scored. Only the second half is played.
     // Place "a-football-hits-the-net-goal-313216.mp3" in webapp/public/assets/sounds.
     const KICK_NET_SOUND = '/assets/sounds/a-football-hits-the-net-goal-313216.mp3';
     let kickNetSoundBuf = null;
@@ -964,14 +965,15 @@ function loop(now){ requestAnimationFrame(loop); drawField(); drawAds(); drawGoa
   }
   loadKickNetSound();
 
-  function playKickSound(){
+  function playGoalSound(){
     ensureAudio();
     if(!audioCtx || !kickNetSoundBuf) return;
     stopKickSound();
     const src = audioCtx.createBufferSource();
     src.buffer = kickNetSoundBuf;
     src.connect(masterGain);
-    src.start(0);
+    const startAt = kickNetSoundBuf.duration/2;
+    src.start(0, startAt);
     kickNetSource = src;
     src.onended = ()=>{ if(kickNetSource===src) kickNetSource=null; };
   }
