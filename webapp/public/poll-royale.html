@@ -636,6 +636,15 @@
 
         var MIN_V = 0.12; // shpejtesia min. qe konsiderohet "ne levizje"
 
+        var POCKET_DIRS = [
+          { x: 1, y: 1 },
+          { x: -1, y: 1 },
+          { x: 1, y: 0 },
+          { x: -1, y: 0 },
+          { x: 1, y: -1 },
+          { x: -1, y: -1 }
+        ];
+
         /* ==========================================================
        ELEMENTET DOM
        ========================================================= */
@@ -1152,20 +1161,21 @@
           }
 
           // Pockets (4 qoshe + 2 te mesit anesore)
-          // Zhvendosur pak drejt qendres per perputhje me fushe
           this.pockets = [
-            new Pocket(BORDER + 4, BORDER_TOP + 4, POCKET_R),
-            new Pocket(TABLE_W - BORDER - 4, BORDER_TOP + 4, POCKET_R),
-            new Pocket(BORDER - 4, TABLE_H / 2 + BALL_R - 12, SIDE_POCKET_R),
+            new Pocket(BORDER, BORDER_TOP, POCKET_R),
+            new Pocket(TABLE_W - BORDER, BORDER_TOP, POCKET_R),
+            // Lift middle pockets a touch more to align with the shifted field
+            // boundary, matching the green marking thickness.
+            new Pocket(BORDER - 8, TABLE_H / 2 + BALL_R - 12, SIDE_POCKET_R),
             new Pocket(
-              TABLE_W - BORDER + 4,
+              TABLE_W - BORDER + 8,
               TABLE_H / 2 + BALL_R - 12,
               SIDE_POCKET_R
             ),
-            new Pocket(BORDER + 4, TABLE_H - BORDER_BOTTOM - 4, POCKET_R),
+            new Pocket(BORDER, TABLE_H - BORDER_BOTTOM, POCKET_R),
             new Pocket(
-              TABLE_W - BORDER - 4,
-              TABLE_H - BORDER_BOTTOM - 4,
+              TABLE_W - BORDER,
+              TABLE_H - BORDER_BOTTOM,
               POCKET_R
             )
           ];
@@ -1501,6 +1511,16 @@
           ctx.strokeStyle = '#facc15';
           ctx.lineWidth = 4 * scaleFactor;
           ctx.strokeRect(x0, y0, w, h);
+          ctx.strokeStyle = '#ff0000';
+          ctx.lineWidth = 3 * scaleFactor;
+          for (var i = 0; i < this.pockets.length; i++) {
+            var p = this.pockets[i];
+            var dir = POCKET_DIRS[i];
+            var angle = Math.atan2(dir.y, dir.x) - Math.PI / 2;
+            drawUPocket(ctx, p.x, p.y, p.r, angle);
+            // Mirror the U pocket on the opposite side with minimal side lines
+            drawUPocket(ctx, p.x, p.y, p.r, angle + Math.PI, true);
+          }
           ctx.restore();
 
           // Steka mbi felt + guida
@@ -2276,6 +2296,25 @@
             ctx.drawImage(cueImg, -drawW / 2 - shiftPx, 0, drawW, drawH);
             ctx.restore();
           }
+        }
+
+        function drawUPocket(ctx, x, y, r, angle, shortSides) {
+          ctx.save();
+          ctx.translate(x * sX, y * sY);
+          ctx.rotate(angle);
+          var R = r * scaleFactor;
+          var archR = R * 1.1; // slightly wider arch reaching table sides
+          var raise = R * 0.2; // lift arch a bit above pocket centre
+          // Leave a small opening so U edges connect with yellow lines
+          var gap = shortSides ? -archR + archR * 0.05 : -raise;
+          var centerY = -R - raise;
+          ctx.beginPath();
+          ctx.moveTo(-archR, gap);
+          ctx.lineTo(-archR, centerY);
+          ctx.arc(0, centerY, archR, Math.PI, 0);
+          ctx.lineTo(archR, gap);
+          ctx.stroke();
+          ctx.restore();
         }
 
         /* ==========================================================
