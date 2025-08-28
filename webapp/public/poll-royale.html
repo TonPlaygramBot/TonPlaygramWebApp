@@ -2303,9 +2303,8 @@
           ctx.translate(x * sX, y * sY);
           ctx.rotate(angle);
           var R = r * scaleFactor;
-          // Bring the arch closer above the pocket by narrowing the opening
-          // while keeping mirrored pockets with minimal side lines.
-          var gap = shortSides ? -R + R * 0.05 : -R * 0.05;
+          // Leave a small opening so U edges connect with yellow lines
+          var gap = shortSides ? -R + R * 0.05 : R * 0.25;
           ctx.beginPath();
           ctx.moveTo(-R, gap);
           ctx.lineTo(-R, -R);
