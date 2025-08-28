@@ -950,9 +950,9 @@ function loop(now){ requestAnimationFrame(loop); drawField(); drawAds(); drawGoa
       src.start(0);
     }
     // Sound effect for the ball hitting the net when a goal is scored.
-    // Uses the existing “a-football-hits-the-net-goal-313216.mp3” asset in
-    // webapp/public/assets/sounds and plays only the second half of the clip.
-    const KICK_NET_SOUND = '/assets/sounds/a-football-hits-the-net-goal-313216.mp3';
+    // Uses the existing “a-football-hits-the-net-goal-313216-[AudioTrimmer.com].mp3”
+    // asset in webapp/public/assets/sounds and plays only the second half of the clip.
+    const KICK_NET_SOUND = encodeURI('/assets/sounds/a-football-hits-the-net-goal-313216-[AudioTrimmer.com].mp3');
     let kickNetSoundBuf = null;
     let kickNetSource = null;
 

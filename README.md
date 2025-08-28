@@ -172,6 +172,10 @@ The Wall also features a **Trending** section showing the most liked posts from 
 
 Bricks are pre-rendered to off-screen canvases and reused during board drawing, minimizing repeated `fillRect` calls for smoother gameplay.
 
+### Penalty Kick goal sound
+
+The **Penalty Kick** game uses the `webapp/public/assets/sounds/a-football-hits-the-net-goal-313216-[AudioTrimmer.com].mp3` clip when a shot scores. Only the second half of the audio (~0.5 s) is played so players hear just the net impact.
+
 ### Using an HTTPS proxy
 
 If your server requires a proxy to reach external services like Tonkeeper,
