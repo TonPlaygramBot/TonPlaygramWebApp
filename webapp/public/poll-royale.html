@@ -1528,82 +1528,68 @@
             ctx.restore();
           }
 
-          // Yellow boundary lines that guide balls smoothly into pockets
+          // Yellow boundary lines broken around pockets so each pocket
+          // connects the rails without being overdrawn.
           ctx.save();
           ctx.strokeStyle = '#facc15';
           ctx.lineWidth = 4 * scaleFactor;
           ctx.beginPath();
 
+          // Top rail
           var pTL = this.pockets[0];
           var pTR = this.pockets[1];
-          var pML = this.pockets[2];
-          var pMR = this.pockets[3];
+          var topLeftX =
+            pTL.x + Math.sqrt(pTL.r * pTL.r - Math.pow(BORDER_TOP - pTL.y, 2));
+          var topRightX =
+            pTR.x - Math.sqrt(pTR.r * pTR.r - Math.pow(BORDER_TOP - pTR.y, 2));
+          ctx.moveTo(topLeftX * sX, y0);
+          ctx.lineTo(topRightX * sX, y0);
+
+          // Bottom rail
           var pBL = this.pockets[4];
           var pBR = this.pockets[5];
-
-          var leftX = BORDER;
-          var rightX = TABLE_W - BORDER;
-          var topY = BORDER_TOP;
           var bottomY = TABLE_H - BORDER_BOTTOM;
+          var bottomLeftX =
+            pBL.x +
+            Math.sqrt(pBL.r * pBL.r - Math.pow(pBL.y - bottomY, 2));
+          var bottomRightX =
+            pBR.x -
+            Math.sqrt(pBR.r * pBR.r - Math.pow(pBR.y - bottomY, 2));
+          ctx.moveTo(bottomLeftX * sX, y0 + h);
+          ctx.lineTo(bottomRightX * sX, y0 + h);
 
-          var topLeftX =
-            pTL.x + Math.sqrt(pTL.r * pTL.r - Math.pow(topY - pTL.y, 2));
-          var topRightX =
-            pTR.x - Math.sqrt(pTR.r * pTR.r - Math.pow(topY - pTR.y, 2));
+          // Left rail segments (between pockets)
+          var pML = this.pockets[2];
+          var leftX = BORDER;
           var topLeftY =
             pTL.y + Math.sqrt(pTL.r * pTL.r - Math.pow(leftX - pTL.x, 2));
-          var topRightY =
-            pTR.y + Math.sqrt(pTR.r * pTR.r - Math.pow(pTR.x - rightX, 2));
-          var bottomLeftX =
-            pBL.x + Math.sqrt(pBL.r * pBL.r - Math.pow(pBL.y - bottomY, 2));
-          var bottomRightX =
-            pBR.x - Math.sqrt(pBR.r * pBR.r - Math.pow(pBR.y - bottomY, 2));
-          var bottomLeftY =
-            pBL.y - Math.sqrt(pBL.r * pBL.r - Math.pow(leftX - pBL.x, 2));
-          var bottomRightY =
-            pBR.y - Math.sqrt(pBR.r * pBR.r - Math.pow(pBR.x - rightX, 2));
           var midLeftTopY =
             pML.y - Math.sqrt(pML.r * pML.r - Math.pow(leftX - pML.x, 2));
           var midLeftBottomY =
             pML.y + Math.sqrt(pML.r * pML.r - Math.pow(leftX - pML.x, 2));
+          var bottomLeftY =
+            pBL.y - Math.sqrt(pBL.r * pBL.r - Math.pow(leftX - pBL.x, 2));
+          ctx.moveTo(x0, topLeftY * sY);
+          ctx.lineTo(x0, midLeftTopY * sY);
+          ctx.moveTo(x0, midLeftBottomY * sY);
+          ctx.lineTo(x0, bottomLeftY * sY);
+
+          // Right rail segments (between pockets)
+          var pMR = this.pockets[3];
+          var rightX = TABLE_W - BORDER;
+          var topRightY =
+            pTR.y + Math.sqrt(pTR.r * pTR.r - Math.pow(pTR.x - rightX, 2));
           var midRightTopY =
             pMR.y - Math.sqrt(pMR.r * pMR.r - Math.pow(pMR.x - rightX, 2));
           var midRightBottomY =
             pMR.y + Math.sqrt(pMR.r * pMR.r - Math.pow(pMR.x - rightX, 2));
-
-          function drawRailArc(p, sx, sy, ex, ey) {
-            var start = Math.atan2(sy - p.y, sx - p.x);
-            var end = Math.atan2(ey - p.y, ex - p.x);
-            var diff = end - start;
-            var anticlockwise = false;
-            if (diff < 0) {
-              diff = -diff;
-              anticlockwise = true;
-            }
-            if (diff > Math.PI) anticlockwise = !anticlockwise;
-            ctx.arc(
-              p.x * sX,
-              p.y * sY,
-              p.r * scaleFactor,
-              start,
-              end,
-              anticlockwise
-            );
-          }
-
-          ctx.moveTo(topLeftX * sX, y0);
-          ctx.lineTo(topRightX * sX, y0);
-          drawRailArc(pTR, topRightX, topY, rightX, topRightY);
+          var bottomRightY =
+            pBR.y - Math.sqrt(pBR.r * pBR.r - Math.pow(pBR.x - rightX, 2));
+          ctx.moveTo(x0 + w, topRightY * sY);
           ctx.lineTo(x0 + w, midRightTopY * sY);
-          drawRailArc(pMR, rightX, midRightTopY, rightX, midRightBottomY);
+          ctx.moveTo(x0 + w, midRightBottomY * sY);
           ctx.lineTo(x0 + w, bottomRightY * sY);
-          drawRailArc(pBR, rightX, bottomRightY, bottomRightX, bottomY);
-          ctx.lineTo(bottomLeftX * sX, y0 + h);
-          drawRailArc(pBL, bottomLeftX, bottomY, leftX, bottomLeftY);
-          ctx.lineTo(x0, midLeftBottomY * sY);
-          drawRailArc(pML, leftX, midLeftBottomY, leftX, midLeftTopY);
-          ctx.lineTo(x0, topLeftY * sY);
-          drawRailArc(pTL, leftX, topLeftY, topLeftX, topY);
+
           ctx.stroke();
 
           // Pocket markers
