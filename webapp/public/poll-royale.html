@@ -2303,16 +2303,20 @@
           ctx.translate(x * sX, y * sY);
           ctx.rotate(angle);
           var R = r * scaleFactor;
-          var archR = R * 1.1; // slightly wider arch reaching table sides
-          var raise = R * 0.2; // lift arch a bit above pocket centre
-          // Leave a small opening so U edges connect with yellow lines
-          var gap = shortSides ? -archR + archR * 0.05 : -raise;
-          var centerY = -R - raise;
+          var halfHeight = R; // distance to straight short sides
+          var halfWidth = R * 1.1; // width of rounded long sides
+          // when mirroring, keep the short sides very small
+          var w = shortSides ? halfWidth * 0.1 : halfWidth;
           ctx.beginPath();
-          ctx.moveTo(-archR, gap);
-          ctx.lineTo(-archR, centerY);
-          ctx.arc(0, centerY, archR, Math.PI, 0);
-          ctx.lineTo(archR, gap);
+          // Top straight edge
+          ctx.moveTo(-w, -halfHeight);
+          ctx.lineTo(w, -halfHeight);
+          // Rounded right side
+          ctx.arc(w, 0, halfHeight, -Math.PI / 2, Math.PI / 2);
+          // Bottom straight edge
+          ctx.lineTo(-w, halfHeight);
+          // Rounded left side
+          ctx.arc(-w, 0, halfHeight, Math.PI / 2, -Math.PI / 2);
           ctx.stroke();
           ctx.restore();
         }

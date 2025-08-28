@@ -74,8 +74,8 @@
             group.append(el('line', {x1: x, y1: y - innerR, x2: x, y2: y + innerR, stroke: 'yellow', 'stroke-width': 2}));
           }
 
-          // Rim built from two U-shaped arcs forming an O
-          const rimPath = `M${x - RIM_R} ${y} A ${RIM_R} ${RIM_R} 0 0 1 ${x + RIM_R} ${y} A ${RIM_R} ${RIM_R} 0 0 1 ${x - RIM_R} ${y}`;
+          // Rim shaped like a U: rounded long sides, straight short sides
+          const rimPath = `M${x - RIM_R} ${y - RIM_R} L${x + RIM_R} ${y - RIM_R} A ${RIM_R} ${RIM_R} 0 0 1 ${x + RIM_R} ${y + RIM_R} L${x - RIM_R} ${y + RIM_R} A ${RIM_R} ${RIM_R} 0 0 1 ${x - RIM_R} ${y - RIM_R}`;
           group.append(el('path', {d: rimPath, fill: 'none', stroke: '#1a1a1a', 'stroke-width': 8, opacity: 0.9}));
           group.append(el('path', {d: rimPath, fill: 'none', stroke: '#c2a44b', 'stroke-width': 3, opacity: 0.9}));
 
