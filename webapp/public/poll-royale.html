@@ -622,6 +622,7 @@
         // Raise only the bottom field line by the thickness of one green side
         // marking so the table's lower boundary sits slightly higher.
         var BORDER_BOTTOM = BORDER + 14; // anet e tjera mbeten te pandryshuara
+        var POCKET_INSET = 5; // shtyn gropat pak drejt qendres se fushes
         // Move the rack slightly upward on the table
         var SPOT_Y =
           BORDER_TOP +
@@ -1162,20 +1163,28 @@
 
           // Pockets (4 qoshe + 2 te mesit anesore)
           this.pockets = [
-            new Pocket(BORDER, BORDER_TOP, POCKET_R),
-            new Pocket(TABLE_W - BORDER, BORDER_TOP, POCKET_R),
+            new Pocket(BORDER + POCKET_INSET, BORDER_TOP + POCKET_INSET, POCKET_R),
+            new Pocket(
+              TABLE_W - BORDER - POCKET_INSET,
+              BORDER_TOP + POCKET_INSET,
+              POCKET_R
+            ),
             // Lift middle pockets a touch more to align with the shifted field
             // boundary, matching the green marking thickness.
-            new Pocket(BORDER - 8, TABLE_H / 2 + BALL_R - 12, SIDE_POCKET_R),
+            new Pocket(BORDER - 3, TABLE_H / 2 + BALL_R - 12, SIDE_POCKET_R),
             new Pocket(
-              TABLE_W - BORDER + 8,
+              TABLE_W - BORDER + 3,
               TABLE_H / 2 + BALL_R - 12,
               SIDE_POCKET_R
             ),
-            new Pocket(BORDER, TABLE_H - BORDER_BOTTOM, POCKET_R),
             new Pocket(
-              TABLE_W - BORDER,
-              TABLE_H - BORDER_BOTTOM,
+              BORDER + POCKET_INSET,
+              TABLE_H - BORDER_BOTTOM - POCKET_INSET,
+              POCKET_R
+            ),
+            new Pocket(
+              TABLE_W - BORDER - POCKET_INSET,
+              TABLE_H - BORDER_BOTTOM - POCKET_INSET,
               POCKET_R
             )
           ];
@@ -1518,8 +1527,8 @@
             var dir = POCKET_DIRS[i];
             var angle = Math.atan2(dir.y, dir.x) - Math.PI / 2;
             drawUPocket(ctx, p.x, p.y, p.r, angle);
-            // Mirror the U pocket on the opposite side with minimal side lines
-            drawUPocket(ctx, p.x, p.y, p.r, angle + Math.PI, true);
+            // Mirror the U pocket on the opposite side
+            drawUPocket(ctx, p.x, p.y, p.r, angle + Math.PI);
           }
           ctx.restore();
 
@@ -2298,21 +2307,13 @@
           }
         }
 
-        function drawUPocket(ctx, x, y, r, angle, shortSides) {
+        function drawUPocket(ctx, x, y, r, angle) {
           ctx.save();
           ctx.translate(x * sX, y * sY);
           ctx.rotate(angle);
           var R = r * scaleFactor;
-          var archR = R * 1.1; // slightly wider arch reaching table sides
-          var raise = R * 0.2; // lift arch a bit above pocket centre
-          // Leave a small opening so U edges connect with yellow lines
-          var gap = shortSides ? -archR + archR * 0.05 : -raise;
-          var centerY = -R - raise;
           ctx.beginPath();
-          ctx.moveTo(-archR, gap);
-          ctx.lineTo(-archR, centerY);
-          ctx.arc(0, centerY, archR, Math.PI, 0);
-          ctx.lineTo(archR, gap);
+          ctx.arc(0, 0, R, Math.PI, 0, true); // gropa ne forme U pa hark shtese mbi fushe
           ctx.stroke();
           ctx.restore();
         }
