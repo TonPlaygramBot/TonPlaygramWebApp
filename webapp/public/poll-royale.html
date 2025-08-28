@@ -1541,9 +1541,12 @@
           ctx.save();
           ctx.strokeStyle = '#facc15';
           ctx.lineWidth = 4 * scaleFactor;
+          ctx.lineCap = 'butt';
           ctx.beginPath();
-          // gaps between rails should match the pocket openings exactly
-          var margin = 0; // stop lines precisely at pocket edges
+          // Shorten rail lines by half the stroke width so they
+          // terminate exactly at the pocket edge without drawing
+          // inside the hole.
+          var margin = (ctx.lineWidth / scaleFactor) / 2;
 
           // Top rail
           var pTL = this.pockets[0];
