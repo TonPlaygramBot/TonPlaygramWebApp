@@ -1528,20 +1528,80 @@
             ctx.restore();
           }
 
-          // Yellow boundary lines and pocket markers above the table image
+          // Yellow boundary lines broken around pockets so each pocket
+          // connects the rails without being overdrawn.
           ctx.save();
           ctx.strokeStyle = '#facc15';
           ctx.lineWidth = 4 * scaleFactor;
-          ctx.strokeRect(x0, y0, w, h);
+          ctx.beginPath();
+
+          // Top rail
+          var pTL = this.pockets[0];
+          var pTR = this.pockets[1];
+          var topLeftX =
+            pTL.x + Math.sqrt(pTL.r * pTL.r - Math.pow(BORDER_TOP - pTL.y, 2));
+          var topRightX =
+            pTR.x - Math.sqrt(pTR.r * pTR.r - Math.pow(BORDER_TOP - pTR.y, 2));
+          ctx.moveTo(topLeftX * sX, y0);
+          ctx.lineTo(topRightX * sX, y0);
+
+          // Bottom rail
+          var pBL = this.pockets[4];
+          var pBR = this.pockets[5];
+          var bottomY = TABLE_H - BORDER_BOTTOM;
+          var bottomLeftX =
+            pBL.x +
+            Math.sqrt(pBL.r * pBL.r - Math.pow(pBL.y - bottomY, 2));
+          var bottomRightX =
+            pBR.x -
+            Math.sqrt(pBR.r * pBR.r - Math.pow(pBR.y - bottomY, 2));
+          ctx.moveTo(bottomLeftX * sX, y0 + h);
+          ctx.lineTo(bottomRightX * sX, y0 + h);
+
+          // Left rail segments (between pockets)
+          var pML = this.pockets[2];
+          var leftX = BORDER;
+          var topLeftY =
+            pTL.y + Math.sqrt(pTL.r * pTL.r - Math.pow(leftX - pTL.x, 2));
+          var midLeftTopY =
+            pML.y - Math.sqrt(pML.r * pML.r - Math.pow(leftX - pML.x, 2));
+          var midLeftBottomY =
+            pML.y + Math.sqrt(pML.r * pML.r - Math.pow(leftX - pML.x, 2));
+          var bottomLeftY =
+            pBL.y - Math.sqrt(pBL.r * pBL.r - Math.pow(leftX - pBL.x, 2));
+          ctx.moveTo(x0, topLeftY * sY);
+          ctx.lineTo(x0, midLeftTopY * sY);
+          ctx.moveTo(x0, midLeftBottomY * sY);
+          ctx.lineTo(x0, bottomLeftY * sY);
+
+          // Right rail segments (between pockets)
+          var pMR = this.pockets[3];
+          var rightX = TABLE_W - BORDER;
+          var topRightY =
+            pTR.y + Math.sqrt(pTR.r * pTR.r - Math.pow(pTR.x - rightX, 2));
+          var midRightTopY =
+            pMR.y - Math.sqrt(pMR.r * pMR.r - Math.pow(pMR.x - rightX, 2));
+          var midRightBottomY =
+            pMR.y + Math.sqrt(pMR.r * pMR.r - Math.pow(pMR.x - rightX, 2));
+          var bottomRightY =
+            pBR.y - Math.sqrt(pBR.r * pBR.r - Math.pow(pBR.x - rightX, 2));
+          ctx.moveTo(x0 + w, topRightY * sY);
+          ctx.lineTo(x0 + w, midRightTopY * sY);
+          ctx.moveTo(x0 + w, midRightBottomY * sY);
+          ctx.lineTo(x0 + w, bottomRightY * sY);
+
+          ctx.stroke();
+
+          // Pocket markers
           ctx.strokeStyle = '#ff0000';
           ctx.lineWidth = 3 * scaleFactor;
-            for (var i = 0; i < this.pockets.length; i++) {
-              var p = this.pockets[i];
-              var dir = POCKET_DIRS[i];
-              // Rotate so the rounded side faces the table interior
-              var angle = Math.atan2(dir.y, dir.x);
-              drawUPocket(ctx, p.x, p.y, p.r, angle);
-            }
+          for (var i = 0; i < this.pockets.length; i++) {
+            var p = this.pockets[i];
+            var dir = POCKET_DIRS[i];
+            // Rotate so the rounded side faces the table interior
+            var angle = Math.atan2(dir.y, dir.x);
+            drawUPocket(ctx, p.x, p.y, p.r, angle);
+          }
           ctx.restore();
 
           // Steka mbi felt + guida
