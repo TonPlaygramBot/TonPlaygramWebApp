@@ -691,7 +691,8 @@
 
   function stepKeeper(){
     const g=geom.goal;
-    const speed=5*geom.scale;
+    // Increase horizontal movement speed so the keeper can cover more ground
+    const speed=8*geom.scale;
     if(!ball.moving){
       keeper.x += (keeper.baseX - keeper.x) * 0.1;
       return;
