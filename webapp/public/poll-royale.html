@@ -1518,7 +1518,7 @@
             var dir = POCKET_DIRS[i];
             var angle = Math.atan2(dir.y, dir.x) - Math.PI / 2;
             drawUPocket(ctx, p.x, p.y, p.r, angle);
-            // Mirror the U pocket on the opposite side with minimal side lines
+            // Mirror the U pocket on the opposite side and extend its sides so the pair forms a single hole
             drawUPocket(ctx, p.x, p.y, p.r, angle + Math.PI, true);
           }
           ctx.restore();
@@ -2305,8 +2305,8 @@
           var R = r * scaleFactor;
           var halfHeight = R; // distance to straight short sides
           var halfWidth = R * 1.1; // width of rounded long sides
-          // when mirroring, keep the short sides very small
-          var w = shortSides ? halfWidth * 0.1 : halfWidth;
+          // when mirroring, only slightly shorten the sides so both U's join at the centre
+          var w = shortSides ? halfWidth * 0.9 : halfWidth;
           ctx.beginPath();
           // Top straight edge
           ctx.moveTo(-w, -halfHeight);
@@ -2856,11 +2856,11 @@
         }
       });
 
-      // Rotate all holes to the left once all six are present
+      // Rotate all holes 45° to the left once all six are present
       const allHoles = document.querySelectorAll('.hole');
       if (allHoles.length === 6) {
         allHoles.forEach((hole) => {
-          hole.style.transform = 'rotate(-90deg)';
+          hole.style.transform = 'rotate(-45deg)';
         });
       }
     </script>
