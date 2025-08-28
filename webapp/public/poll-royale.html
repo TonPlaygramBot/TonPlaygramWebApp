@@ -2855,6 +2855,14 @@
           rulesModal.classList.add('hidden');
         }
       });
+
+      // Rotate all holes to the left once all six are present
+      const allHoles = document.querySelectorAll('.hole');
+      if (allHoles.length === 6) {
+        allHoles.forEach((hole) => {
+          hole.style.transform = 'rotate(-90deg)';
+        });
+      }
     </script>
   </body>
 </html>
