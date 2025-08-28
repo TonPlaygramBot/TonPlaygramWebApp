@@ -1534,7 +1534,9 @@
           ctx.strokeStyle = '#facc15';
           ctx.lineWidth = 4 * scaleFactor;
           ctx.beginPath();
-          var margin = 2 * scaleFactor; // small gap so yellow lines don't enter pockets
+          // leave a slightly larger gap so yellow rails stop at the pocket edge
+          // and never bleed into the red pocket markers
+          var margin = ctx.lineWidth; // gap equals stroke width for a clean edge
 
           // Top rail
           var pTL = this.pockets[0];
