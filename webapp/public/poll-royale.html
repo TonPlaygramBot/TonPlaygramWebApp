@@ -1505,8 +1505,39 @@
           ctx.lineWidth = 3 * scaleFactor;
           for (var i = 0; i < this.pockets.length; i++) {
             var p = this.pockets[i];
+            var px = p.x * sX;
+            var py = p.y * sY;
+            var r = p.r * scaleFactor;
             ctx.beginPath();
-            ctx.arc(p.x * sX, p.y * sY, p.r * scaleFactor, 0, Math.PI * 2);
+            if (i === 2 || i === 3) {
+              // Side pockets: open the inner edge slightly to help guide balls
+              var gap = r * 0.2;
+              if (i === 2) {
+                // left middle pocket, opening faces right
+                ctx.moveTo(px, py - r);
+                ctx.lineTo(px + r - gap, py - r);
+                ctx.arc(px + r - gap, py, r, -Math.PI / 2, Math.PI / 2, false);
+                ctx.lineTo(px, py + r);
+              } else {
+                // right middle pocket, opening faces left
+                ctx.moveTo(px, py - r);
+                ctx.lineTo(px - r + gap, py - r);
+                ctx.arc(px - r + gap, py, r, -Math.PI / 2, Math.PI / 2, true);
+                ctx.lineTo(px, py + r);
+              }
+            } else if (i < 2) {
+              // Top corner pockets – draw a U that opens downward
+              ctx.moveTo(px - r, py);
+              ctx.lineTo(px - r, py + r);
+              ctx.arc(px, py + r, r, Math.PI, 0, false);
+              ctx.lineTo(px + r, py);
+            } else {
+              // Bottom corner pockets – draw a U that opens upward
+              ctx.moveTo(px - r, py);
+              ctx.lineTo(px - r, py - r);
+              ctx.arc(px, py - r, r, Math.PI, 0, true);
+              ctx.lineTo(px + r, py);
+            }
             ctx.stroke();
           }
           ctx.restore();
