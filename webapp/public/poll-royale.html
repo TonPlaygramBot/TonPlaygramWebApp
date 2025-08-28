@@ -1437,6 +1437,14 @@
             Math.PI * 2
           );
           ctx.fill();
+          // Draw pocket interiors before balls so they appear beneath them
+          ctx.fillStyle = '#333';
+          for (var i = 0; i < this.pockets.length; i++) {
+            var p = this.pockets[i];
+            ctx.beginPath();
+            ctx.arc(p.x * sX, p.y * sY, p.r * scaleFactor, 0, Math.PI * 2);
+            ctx.fill();
+          }
           // Topat
           for (var j = 0; j < this.balls.length; j++) {
             var b = this.balls[j];
@@ -1534,9 +1542,8 @@
           ctx.strokeStyle = '#facc15';
           ctx.lineWidth = 4 * scaleFactor;
           ctx.beginPath();
-          // leave a wider gap so yellow rails stop at the pocket edge and never
-          // bleed into the red pocket markers, keeping pocket entrances clear
-          var margin = ctx.lineWidth * 2; // generous gap ensures unobstructed holes
+          // gaps between rails should match the pocket openings exactly
+          var margin = 0; // stop lines precisely at pocket edges
 
           // Top rail
           var pTL = this.pockets[0];
