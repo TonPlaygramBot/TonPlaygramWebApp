@@ -614,7 +614,8 @@
         var TABLE_W = 768; // gjeresi logjike e felt-it
         var TABLE_H = 1216; // lartesi logjike e felt-it
         var BORDER = 57; // korniza e drurit pak me e ngushte anash
-        var POCKET_R = 40; // rrezja baze e gropave pak me e vogel
+        // Slightly reduce corner pocket radius to tighten top/bottom holes
+        var POCKET_R = 38; // rrezja baze e gropave pak me e vogel
         var SIDE_POCKET_R = 36; // gropat anesore edhe me te vogla nga brenda
         var BALL_R = 22; // rrezja baze e topave pak me e madhe
         var BORDER_TOP = BORDER + BALL_R * 2 - 4; // bordi i siperm pak me i holle per fushe me te gjate
@@ -2300,7 +2301,8 @@
           ctx.translate(x * sX, y * sY);
           ctx.rotate(angle);
           var R = r * scaleFactor;
-          var gap = guide ? R * 0.3 : 0;
+          // Leave a small opening on guided pockets so U edges connect with yellow lines
+          var gap = guide ? R * 0.25 : 0;
           ctx.beginPath();
           ctx.moveTo(-R, gap);
           ctx.lineTo(-R, -R);
