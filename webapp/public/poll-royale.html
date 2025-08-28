@@ -2303,11 +2303,8 @@
           ctx.translate(x * sX, y * sY);
           ctx.rotate(angle);
           var R = r * scaleFactor;
-          // When drawing the mirrored arch, lift it slightly so it sits just above
-          // the pocket "U" and bring both styles closer to the side lines so they
-          // visually connect with the table edges.
-          if (shortSides) ctx.translate(0, -R * 0.1);
-          var gap = shortSides ? -R + R * 0.05 : R * 0.1;
+          // Leave a small opening so U edges connect with yellow lines
+          var gap = shortSides ? -R + R * 0.05 : R * 0.25;
           ctx.beginPath();
           ctx.moveTo(-R, gap);
           ctx.lineTo(-R, -R);
