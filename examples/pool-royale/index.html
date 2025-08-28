@@ -31,7 +31,11 @@
         // Configurable pocket centers in the SVG viewBox coordinate space (1000x1500)
         const RIM_R = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--pocket-r'));
         const DEPTH = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--net-depth'));
-        const GUIDE_MARGIN = 3; // small gap so yellow guides don't enter pockets
+        // Leave a small buffer so yellow guides never overlap the pocket rims
+        const GUIDE_STROKE = 2;
+        const RIM_STROKE = 3;
+        const EDGE_BUFFER = 1; // extra gap to keep guides out of the pockets
+        const GUIDE_MARGIN = GUIDE_STROKE / 2 + RIM_STROKE / 2 + EDGE_BUFFER;
 
         const pockets = [
           {x: 60,   y: 56},      // top-left corner (slightly raised)
@@ -70,11 +74,11 @@
           // Rim shaped like a U: rounded long sides, straight short sides
           const rimPath = `M${x - RIM_R} ${y - RIM_R} L${x + RIM_R} ${y - RIM_R} A ${RIM_R} ${RIM_R} 0 0 1 ${x + RIM_R} ${y + RIM_R} L${x - RIM_R} ${y + RIM_R} A ${RIM_R} ${RIM_R} 0 0 1 ${x - RIM_R} ${y - RIM_R}`;
           group.append(el('path', { d: rimPath, fill: 'none', stroke: '#1a1a1a', 'stroke-width': 8, opacity: 0.9 }));
-          group.append(el('path', { d: rimPath, fill: 'none', stroke: '#c2a44b', 'stroke-width': 3, opacity: 0.9 }));
+          group.append(el('path', { d: rimPath, fill: 'none', stroke: '#c2a44b', 'stroke-width': RIM_STROKE, opacity: 0.9 }));
           // Yellow guide following the pocket opening so balls can enter, offset slightly from rim
           const guideR = RIM_R + GUIDE_MARGIN;
           const guidePath = `M${x - guideR} ${y - guideR} L${x + guideR} ${y - guideR} A ${guideR} ${guideR} 0 0 1 ${x + guideR} ${y + guideR} L${x - guideR} ${y + guideR} A ${guideR} ${guideR} 0 0 1 ${x - guideR} ${y - guideR}`;
-          group.append(el('path', { d: guidePath, fill: 'none', stroke: 'yellow', 'stroke-width': 2 }));
+          group.append(el('path', { d: guidePath, fill: 'none', stroke: 'yellow', 'stroke-width': GUIDE_STROKE }));
 
           g.append(group);
         });
@@ -99,7 +103,7 @@
         ];
 
         edgePaths.forEach(d => {
-          edgesG.append(el('path', { d, stroke: 'yellow', 'stroke-width': 2, fill: 'none', 'stroke-linecap': 'round' }));
+          edgesG.append(el('path', { d, stroke: 'yellow', 'stroke-width': GUIDE_STROKE, fill: 'none', 'stroke-linecap': 'round' }));
         });
       </script>
     </svg>

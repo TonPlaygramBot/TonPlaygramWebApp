@@ -1532,9 +1532,13 @@
           // connects the rails without being overdrawn.
           ctx.save();
           ctx.strokeStyle = '#facc15';
-          ctx.lineWidth = 4 * scaleFactor;
+          const yellowWidth = 4 * scaleFactor;
+          ctx.lineWidth = yellowWidth;
           ctx.beginPath();
-          var margin = 2 * scaleFactor; // small gap so yellow lines don't enter pockets
+          // leave a small buffer so yellow rails stop at the pocket edge
+          // without bleeding into the red pocket markers
+          const pocketMarkerWidth = 3 * scaleFactor;
+          var margin = yellowWidth / 2 + pocketMarkerWidth / 2 + scaleFactor;
 
           // Top rail
           var pTL = this.pockets[0];
