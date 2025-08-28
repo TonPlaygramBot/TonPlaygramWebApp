@@ -1534,14 +1534,15 @@
           ctx.strokeStyle = '#facc15';
           ctx.lineWidth = 4 * scaleFactor;
           ctx.beginPath();
+          var margin = 2 * scaleFactor; // small gap so yellow lines don't enter pockets
 
           // Top rail
           var pTL = this.pockets[0];
           var pTR = this.pockets[1];
           var topLeftX =
-            pTL.x + Math.sqrt(pTL.r * pTL.r - Math.pow(BORDER_TOP - pTL.y, 2));
+            pTL.x + Math.sqrt(pTL.r * pTL.r - Math.pow(BORDER_TOP - pTL.y, 2)) + margin;
           var topRightX =
-            pTR.x - Math.sqrt(pTR.r * pTR.r - Math.pow(BORDER_TOP - pTR.y, 2));
+            pTR.x - Math.sqrt(pTR.r * pTR.r - Math.pow(BORDER_TOP - pTR.y, 2)) - margin;
           ctx.moveTo(topLeftX * sX, y0);
           ctx.lineTo(topRightX * sX, y0);
 
@@ -1551,10 +1552,10 @@
           var bottomY = TABLE_H - BORDER_BOTTOM;
           var bottomLeftX =
             pBL.x +
-            Math.sqrt(pBL.r * pBL.r - Math.pow(pBL.y - bottomY, 2));
+            Math.sqrt(pBL.r * pBL.r - Math.pow(pBL.y - bottomY, 2)) + margin;
           var bottomRightX =
             pBR.x -
-            Math.sqrt(pBR.r * pBR.r - Math.pow(pBR.y - bottomY, 2));
+            Math.sqrt(pBR.r * pBR.r - Math.pow(pBR.y - bottomY, 2)) - margin;
           ctx.moveTo(bottomLeftX * sX, y0 + h);
           ctx.lineTo(bottomRightX * sX, y0 + h);
 
@@ -1562,13 +1563,13 @@
           var pML = this.pockets[2];
           var leftX = BORDER;
           var topLeftY =
-            pTL.y + Math.sqrt(pTL.r * pTL.r - Math.pow(leftX - pTL.x, 2));
+            pTL.y + Math.sqrt(pTL.r * pTL.r - Math.pow(leftX - pTL.x, 2)) + margin;
           var midLeftTopY =
-            pML.y - Math.sqrt(pML.r * pML.r - Math.pow(leftX - pML.x, 2));
+            pML.y - Math.sqrt(pML.r * pML.r - Math.pow(leftX - pML.x, 2)) - margin;
           var midLeftBottomY =
-            pML.y + Math.sqrt(pML.r * pML.r - Math.pow(leftX - pML.x, 2));
+            pML.y + Math.sqrt(pML.r * pML.r - Math.pow(leftX - pML.x, 2)) + margin;
           var bottomLeftY =
-            pBL.y - Math.sqrt(pBL.r * pBL.r - Math.pow(leftX - pBL.x, 2));
+            pBL.y - Math.sqrt(pBL.r * pBL.r - Math.pow(leftX - pBL.x, 2)) - margin;
           ctx.moveTo(x0, topLeftY * sY);
           ctx.lineTo(x0, midLeftTopY * sY);
           ctx.moveTo(x0, midLeftBottomY * sY);
@@ -1578,13 +1579,13 @@
           var pMR = this.pockets[3];
           var rightX = TABLE_W - BORDER;
           var topRightY =
-            pTR.y + Math.sqrt(pTR.r * pTR.r - Math.pow(pTR.x - rightX, 2));
+            pTR.y + Math.sqrt(pTR.r * pTR.r - Math.pow(pTR.x - rightX, 2)) + margin;
           var midRightTopY =
-            pMR.y - Math.sqrt(pMR.r * pMR.r - Math.pow(pMR.x - rightX, 2));
+            pMR.y - Math.sqrt(pMR.r * pMR.r - Math.pow(pMR.x - rightX, 2)) - margin;
           var midRightBottomY =
-            pMR.y + Math.sqrt(pMR.r * pMR.r - Math.pow(pMR.x - rightX, 2));
+            pMR.y + Math.sqrt(pMR.r * pMR.r - Math.pow(pMR.x - rightX, 2)) + margin;
           var bottomRightY =
-            pBR.y - Math.sqrt(pBR.r * pBR.r - Math.pow(pBR.x - rightX, 2));
+            pBR.y - Math.sqrt(pBR.r * pBR.r - Math.pow(pBR.x - rightX, 2)) - margin;
           ctx.moveTo(x0 + w, topRightY * sY);
           ctx.lineTo(x0 + w, midRightTopY * sY);
           ctx.moveTo(x0 + w, midRightBottomY * sY);
