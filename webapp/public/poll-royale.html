@@ -1543,10 +1543,9 @@
           ctx.lineWidth = 4 * scaleFactor;
           ctx.lineCap = 'butt';
           ctx.beginPath();
-          // Shorten rail lines by half the stroke width so they
-          // terminate exactly at the pocket edge without drawing
-          // inside the hole.
-          var margin = (ctx.lineWidth / scaleFactor) / 2;
+          // Shorten rail lines by half the stroke width plus a small
+          // buffer so they stop just before reaching the pocket edge.
+          var margin = (ctx.lineWidth / scaleFactor) / 2 + 2;
 
           // Top rail
           var pTL = this.pockets[0];
