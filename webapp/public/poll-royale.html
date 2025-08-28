@@ -1519,7 +1519,16 @@
             var angle = Math.atan2(dir.y, dir.x) - Math.PI / 2;
             drawUPocket(ctx, p.x, p.y, p.r, angle);
             // Mirror the U pocket on the opposite side with minimal side lines
-            drawUPocket(ctx, p.x, p.y, p.r, angle + Math.PI, true);
+            // and nudge the arch slightly toward the pocket so edges meet
+            drawUPocket(
+              ctx,
+              p.x,
+              p.y,
+              p.r,
+              angle + Math.PI,
+              true,
+              -p.r * scaleFactor * 0.1
+            );
           }
           ctx.restore();
 
@@ -2298,13 +2307,15 @@
           }
         }
 
-        function drawUPocket(ctx, x, y, r, angle, shortSides) {
+        function drawUPocket(ctx, x, y, r, angle, shortSides, offsetY = 0) {
           ctx.save();
           ctx.translate(x * sX, y * sY);
           ctx.rotate(angle);
+          // Allow slight vertical adjustments so mirrored arches can meet the U
+          ctx.translate(0, offsetY);
           var R = r * scaleFactor;
-          // Leave a small opening so U edges connect with yellow lines
-          var gap = shortSides ? -R + R * 0.05 : R * 0.25;
+          // Bring arches closer to pockets so their sides touch the U
+          var gap = shortSides ? -R + R * 0.05 : R * 0.05;
           ctx.beginPath();
           ctx.moveTo(-R, gap);
           ctx.lineTo(-R, -R);
