@@ -1532,44 +1532,16 @@
           ctx.save();
           ctx.strokeStyle = '#facc15';
           ctx.lineWidth = 4 * scaleFactor;
-          var gap = ctx.lineWidth * 3;
-          var pocketsScaled = this.pockets.map(function (p) {
-            return {
-              x: p.x * sX,
-              y: p.y * sY,
-              r: p.r * ((sX + sY) / 2)
-            };
-          });
-          var tl = pocketsScaled[0];
-          var tr = pocketsScaled[1];
-          var ml = pocketsScaled[2];
-          var mr = pocketsScaled[3];
-          var bl = pocketsScaled[4];
-          var br = pocketsScaled[5];
-          ctx.beginPath();
-          ctx.moveTo(x0 + gap, y0);
-          ctx.lineTo(x0 + w - gap, y0);
-          ctx.arc(tr.x, tr.y, tr.r, -Math.PI / 2, 0);
-          ctx.lineTo(x0 + w, mr.y - mr.r - gap);
-          ctx.arc(mr.x, mr.y, mr.r, -Math.PI / 2, Math.PI / 2);
-          ctx.lineTo(x0 + w, y0 + h - gap);
-          ctx.arc(br.x, br.y, br.r, 0, Math.PI / 2);
-          ctx.lineTo(x0 + gap, y0 + h);
-          ctx.arc(bl.x, bl.y, bl.r, Math.PI / 2, Math.PI);
-          ctx.lineTo(x0, ml.y + ml.r + gap);
-          ctx.arc(ml.x, ml.y, ml.r, Math.PI / 2, -Math.PI / 2, true);
-          ctx.lineTo(x0, y0 + gap);
-          ctx.arc(tl.x, tl.y, tl.r, Math.PI, Math.PI * 1.5);
-          ctx.stroke();
+          ctx.strokeRect(x0, y0, w, h);
           ctx.strokeStyle = '#ff0000';
           ctx.lineWidth = 3 * scaleFactor;
-          for (var i = 0; i < this.pockets.length; i++) {
-            var p = this.pockets[i];
-            var dir = POCKET_DIRS[i];
-            // Rotate so the rounded side faces the table interior
-            var angle = Math.atan2(dir.y, dir.x);
-            drawUPocket(ctx, p.x, p.y, p.r, angle);
-          }
+            for (var i = 0; i < this.pockets.length; i++) {
+              var p = this.pockets[i];
+              var dir = POCKET_DIRS[i];
+              // Rotate so the rounded side faces the table interior
+              var angle = Math.atan2(dir.y, dir.x);
+              drawUPocket(ctx, p.x, p.y, p.r, angle);
+            }
           ctx.restore();
 
           // Steka mbi felt + guida
