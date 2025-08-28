@@ -771,6 +771,20 @@ function endShot(hit,pts){
   // ===== Input (swipe/flick + spin) =====
   let pointer={id:null,path:[],active:false,armed:false,t0:0,t1:0};
   function pos(e){ const r=canvas.getBoundingClientRect(); return {x:(e.clientX-r.left)*(W/r.width), y:(e.clientY-r.top)*(H/r.height)}; }
+  function calcShot(dx,dy,curve,power){
+    const spin = clamp(curve*1.2, -45, 45);
+    const speed = SHOT_SPEED * power;
+    let t = Math.max(0.1, Math.hypot(dx,dy) / speed);
+    for(let i=0;i<5;i++){
+      const adjDx = dx - spin*0.125*t*t;
+      const vx = adjDx / t;
+      const vy = (dy - 0.5*GRAVITY*t*t)/t;
+      const curSpeed = Math.hypot(vx,vy);
+      t *= curSpeed / speed;
+    }
+    const adjDx = dx - spin*0.125*t*t;
+    return { vx: adjDx/t, vy: (dy - 0.5*GRAVITY*t*t)/t, spin };
+  }
   function onDown(e){ if(!running||ended||paused) return; if(pointer.active) return; pointer.active=true; pointer.id=e.pointerId; const p=pos(e); pointer.path=[p]; pointer.t0=performance.now(); pointer.t1=pointer.t0; pointer.armed = Math.hypot(p.x-ball.x,p.y-ball.y) <= ball.r*2.4 && !ball.moving; if(pointer.armed){ status('Swipe upward. Curve for spin.'); } }
   function onMove(e){ if(!pointer.active||e.pointerId!==pointer.id) return; pointer.path.push(pos(e)); pointer.t1=performance.now();
     if(pointer.armed && aimOn && pointer.path.length>1){
@@ -778,16 +792,12 @@ function endShot(hit,pts){
       const a = path[0], b = path[path.length - 1];
       const dx = b.x - a.x, dy = b.y - a.y;
       const dist = Math.hypot(dx, dy), power = clamp(dist / 150, 0.4, 5.0);
-      const speed = SHOT_SPEED * power;
-      const t = dist / speed;
       let curve = 0;
       for(let i = 2; i < path.length; i++){
         const p0 = path[i-2], p1 = path[i-1], p2 = path[i];
         curve += Math.atan2(p2.y - p1.y, p2.x - p1.x) - Math.atan2(p1.y - p0.y, p1.x - p0.x);
       }
-      const spin = clamp(curve*1.2, -25, 25);
-      const adjDx = dx - spin * 0.125 * t * t;
-      const vx = adjDx / t, vy = (dy - 0.5 * GRAVITY * t * t) / t;
+      const { vx, vy, spin } = calcShot(dx, dy, curve, power);
       drawAimPath(vx, vy, spin);
     }
   }
@@ -802,18 +812,15 @@ function onUp(e){
   if(totalDy>-10){ status('Swipe upward.'); return; }
   const dx=b.x-a.x, dy=b.y-a.y;
   const dist=Math.hypot(dx,dy), power=clamp(dist/150, 0.4, 5.0);
-  const speed=SHOT_SPEED*power;
-  const t=dist/speed;
   let curve=0;
   for(let i=2;i<path.length;i++){
     const p0=path[i-2], p1=path[i-1], p2=path[i];
     curve+=Math.atan2(p2.y-p1.y,p2.x-p1.x)-Math.atan2(p1.y-p0.y,p1.x-p0.x);
   }
-  const spin = clamp(curve*1.2, -45, 45);
-  const adjDx=dx - spin*0.125*t*t;
-  ball.vx=adjDx/t;
-  ball.vy=(dy - 0.5*GRAVITY*t*t)/t;
-  ball.spin=spin;
+  const shot = calcShot(dx, dy, curve, power);
+  ball.vx=shot.vx;
+  ball.vy=shot.vy;
+  ball.spin=shot.spin;
   ball.moving=true;
   ball.target={x:ball.x+dx,y:ball.y+dy};
   ball.prevDist=Infinity;
