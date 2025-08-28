@@ -617,7 +617,7 @@
         // Make all pockets slightly smaller so openings sit closer to the field
         var POCKET_R = 36; // rrezja baze e gropave pak me e vogel
         var SIDE_POCKET_R = 34; // gropat anesore edhe me te vogla nga brenda
-        var POCKET_SHORTEN = 4; // sa zhvendosen gropat jashte per t'i ngushtuar hapjet e drejta
+        var POCKET_SHORTEN = 6; // sa zhvendosen gropat jashte per t'i ngushtuar hapjet e drejta
         var BALL_R = 22; // rrezja baze e topave pak me e madhe
         var BORDER_TOP = BORDER + BALL_R * 2 - 4; // bordi i siperm pak me i holle per fushe me te gjate
         // Raise only the bottom field line by the thickness of one green side
@@ -1179,12 +1179,12 @@
             // boundary, matching the green marking thickness, and nudge them
             // slightly farther from center.
             new Pocket(
-              BORDER - 12 - POCKET_SHORTEN,
+              BORDER - 16 - POCKET_SHORTEN,
               TABLE_H / 2 + BALL_R - 12,
               SIDE_POCKET_R
             ),
             new Pocket(
-              TABLE_W - BORDER + 12 + POCKET_SHORTEN,
+              TABLE_W - BORDER + 16 + POCKET_SHORTEN,
               TABLE_H / 2 + BALL_R - 12,
               SIDE_POCKET_R
             ),
