@@ -1518,6 +1518,8 @@
             var dir = POCKET_DIRS[i];
             var angle = Math.atan2(dir.y, dir.x) - Math.PI / 2;
             drawUPocket(ctx, p.x, p.y, p.r, angle);
+            // Mirror the U pocket on the opposite side with minimal side lines
+            drawUPocket(ctx, p.x, p.y, p.r, angle + Math.PI, true);
           }
           ctx.restore();
 
@@ -2296,13 +2298,13 @@
           }
         }
 
-        function drawUPocket(ctx, x, y, r, angle) {
+        function drawUPocket(ctx, x, y, r, angle, shortSides) {
           ctx.save();
           ctx.translate(x * sX, y * sY);
           ctx.rotate(angle);
           var R = r * scaleFactor;
           // Leave a small opening so U edges connect with yellow lines
-          var gap = R * 0.25;
+          var gap = shortSides ? -R + R * 0.05 : R * 0.25;
           ctx.beginPath();
           ctx.moveTo(-R, gap);
           ctx.lineTo(-R, -R);
