@@ -62,9 +62,22 @@
           // Dark grey pocket interior
           group.append(el('circle', {cx: x, cy: y, r: RIM_R, fill: '#333'}));
 
-          // Rim
-          group.append(el('circle', {cx: x, cy: y, r: RIM_R, fill: 'none', stroke: '#1a1a1a', 'stroke-width': 8, opacity: 0.9}));
-          group.append(el('circle', {cx: x, cy: y, r: RIM_R-5, fill: 'none', stroke: '#c2a44b', 'stroke-width': 3, opacity: 0.9}));
+          const innerR = RIM_R - 5;
+
+          // Yellow center guides inside the pocket
+          if (i === 1 || i === 4) {
+            // Middle pockets have a single vertical guide
+            group.append(el('line', {x1: x, y1: y - innerR, x2: x, y2: y + innerR, stroke: 'yellow', 'stroke-width': 2}));
+          } else {
+            // Corner pockets have crossing guides
+            group.append(el('line', {x1: x - innerR, y1: y, x2: x + innerR, y2: y, stroke: 'yellow', 'stroke-width': 2}));
+            group.append(el('line', {x1: x, y1: y - innerR, x2: x, y2: y + innerR, stroke: 'yellow', 'stroke-width': 2}));
+          }
+
+          // Rim built from two U-shaped arcs forming an O
+          const rimPath = `M${x - RIM_R} ${y} A ${RIM_R} ${RIM_R} 0 0 1 ${x + RIM_R} ${y} A ${RIM_R} ${RIM_R} 0 0 1 ${x - RIM_R} ${y}`;
+          group.append(el('path', {d: rimPath, fill: 'none', stroke: '#1a1a1a', 'stroke-width': 8, opacity: 0.9}));
+          group.append(el('path', {d: rimPath, fill: 'none', stroke: '#c2a44b', 'stroke-width': 3, opacity: 0.9}));
 
           g.append(group);
         });
