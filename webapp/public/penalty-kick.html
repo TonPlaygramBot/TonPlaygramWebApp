@@ -983,8 +983,8 @@ function loop(now){ requestAnimationFrame(loop); drawField(); drawAds(); drawGoa
     const src = audioCtx.createBufferSource();
     src.buffer = ballKickSoundBuf;
     src.connect(masterGain);
-    // Play only the first 0.003 seconds of the sound
-    src.start(0, 0, 0.003);
+    // Play only the first 0.01 seconds of the sound
+    src.start(0, 0, 0.01);
   }
   const sfxKick = playBallKickSound;
   let keeperSaveSoundBuf=null;
