@@ -617,7 +617,7 @@
         // Make all pockets slightly smaller so openings sit closer to the field
         var POCKET_R = 36; // rrezja baze e gropave pak me e vogel
         var SIDE_POCKET_R = 34; // gropat anesore edhe me te vogla nga brenda
-        var POCKET_SHORTEN = 12; // sa zhvendosen gropat jashte per t'i ngushtuar me shume hapjet e drejta
+        var POCKET_SHORTEN = 8; // sa zhvendosen gropat jashte per t'i ngushtuar me shume hapjet e drejta
         var BALL_R = 22; // rrezja baze e topave pak me e madhe
         var BORDER_TOP = BORDER + BALL_R * 2 - 4; // bordi i siperm pak me i holle per fushe me te gjate
         // Raise only the bottom field line by the thickness of one green side
@@ -1531,27 +1531,15 @@
           ctx.strokeStyle = '#facc15';
           ctx.lineWidth = 4 * scaleFactor;
           ctx.strokeRect(x0, y0, w, h);
-
-          // Clear yellow lines that run inside the pocket openings
-          ctx.globalCompositeOperation = 'destination-out';
-          ctx.lineWidth = 4 * scaleFactor;
-          for (var i = 0; i < this.pockets.length; i++) {
-            var p = this.pockets[i];
-            ctx.beginPath();
-            ctx.arc(p.x * sX, p.y * sY, p.r * scaleFactor, 0, Math.PI * 2);
-            ctx.stroke();
-          }
-          ctx.globalCompositeOperation = 'source-over';
-
           ctx.strokeStyle = '#ff0000';
           ctx.lineWidth = 3 * scaleFactor;
-          for (var i = 0; i < this.pockets.length; i++) {
-            var p = this.pockets[i];
-            var dir = POCKET_DIRS[i];
-            // Rotate so the rounded side faces the table interior
-            var angle = Math.atan2(dir.y, dir.x);
-            drawUPocket(ctx, p.x, p.y, p.r, angle);
-          }
+            for (var i = 0; i < this.pockets.length; i++) {
+              var p = this.pockets[i];
+              var dir = POCKET_DIRS[i];
+              // Rotate so the rounded side faces the table interior
+              var angle = Math.atan2(dir.y, dir.x);
+              drawUPocket(ctx, p.x, p.y, p.r, angle);
+            }
           ctx.restore();
 
           // Steka mbi felt + guida
@@ -2336,7 +2324,7 @@
           var R = r * scaleFactor;
           var halfHeight = R; // distance to straight short sides
           var halfWidth = R * 1.1; // width of rounded long sides
-          var w = halfWidth * 0.5; // shorten straight edges slightly more
+          var w = halfWidth * 0.6; // shorten straight edges slightly more
           ctx.beginPath();
           // Top straight edge
           ctx.moveTo(-w, -halfHeight);
