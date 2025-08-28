@@ -2303,13 +2303,16 @@
           ctx.translate(x * sX, y * sY);
           ctx.rotate(angle);
           var R = r * scaleFactor;
+          var archR = R * 1.1; // slightly wider arch reaching table sides
+          var raise = R * 0.2; // lift arch a bit above pocket centre
           // Leave a small opening so U edges connect with yellow lines
-          var gap = shortSides ? -R + R * 0.05 : R * 0.25;
+          var gap = shortSides ? -archR + archR * 0.05 : -raise;
+          var centerY = -R - raise;
           ctx.beginPath();
-          ctx.moveTo(-R, gap);
-          ctx.lineTo(-R, -R);
-          ctx.arc(0, -R, R, Math.PI, 0);
-          ctx.lineTo(R, gap);
+          ctx.moveTo(-archR, gap);
+          ctx.lineTo(-archR, centerY);
+          ctx.arc(0, centerY, archR, Math.PI, 0);
+          ctx.lineTo(archR, gap);
           ctx.stroke();
           ctx.restore();
         }
