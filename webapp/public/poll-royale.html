@@ -1517,9 +1517,8 @@
             var p = this.pockets[i];
             var dir = POCKET_DIRS[i];
             var angle = Math.atan2(dir.y, dir.x) - Math.PI / 2;
-            drawUPocket(ctx, p.x, p.y, p.r, angle);
-            // Mirror the U pocket on the opposite side with minimal side lines
-            drawUPocket(ctx, p.x, p.y, p.r, angle + Math.PI, true);
+            // Draw pocket rotated to the opposite side only
+            drawUPocket(ctx, p.x, p.y, p.r, angle + Math.PI);
           }
           ctx.restore();
 
