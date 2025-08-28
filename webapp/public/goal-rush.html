@@ -350,6 +350,7 @@
   crowdSound.loop = true;
   const whistleSound = new Audio('/assets/sounds/metal-whistle-6121.mp3');
   const goalNetSound = new Audio('/assets/sounds/a-football-hits-the-net-goal-313216.mp3');
+  const postHitSound = new Audio('/assets/sounds/frying-pan-over-the-head-89303.mp3');
   const crowdBaseVolume = 0.5;
   crowdSound.volume = crowdBaseVolume;
   let pendingWhistle = false;
@@ -391,6 +392,15 @@
       setTimeout(()=>{ snd.pause(); },700);
     },
     wall(){},
+    post(){
+      if(!audioEnabled) return;
+      postHitSound.currentTime = 0;
+      postHitSound.play().catch(()=>{});
+      setTimeout(()=>{
+        postHitSound.pause();
+        postHitSound.currentTime = 0;
+      },1000);
+    },
     goal(){
       if(!audioEnabled) return;
       goalNetSound.currentTime = 0;
@@ -437,6 +447,7 @@
   }
 
   function showPostMessage(){
+    sfx.post();
     postText.textContent = 'HIT THE POST';
     postText.style.display = 'block';
     setTimeout(()=>{ postText.style.display='none'; }, 1000);
