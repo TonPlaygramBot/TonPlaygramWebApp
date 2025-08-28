@@ -31,7 +31,8 @@
         // Configurable pocket centers in the SVG viewBox coordinate space (1000x1500)
         const RIM_R = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--pocket-r'));
         const DEPTH = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--net-depth'));
-        const GUIDE_MARGIN = 3; // small gap so yellow guides don't enter pockets
+        // widen the offset so the yellow guides stop right at the pocket rims
+        const GUIDE_MARGIN = 5; // gap large enough to keep guides out of the red pockets
 
         const pockets = [
           {x: 60,   y: 56},      // top-left corner (slightly raised)
