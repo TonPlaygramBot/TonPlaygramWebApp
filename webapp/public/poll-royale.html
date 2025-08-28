@@ -635,6 +635,15 @@
 
         var MIN_V = 0.12; // shpejtesia min. qe konsiderohet "ne levizje"
 
+        var POCKET_DIRS = [
+          { x: 1, y: 1 },
+          { x: -1, y: 1 },
+          { x: 1, y: 0 },
+          { x: -1, y: 0 },
+          { x: 1, y: -1 },
+          { x: -1, y: -1 }
+        ];
+
         /* ==========================================================
        ELEMENTET DOM
        ========================================================= */
@@ -1505,9 +1514,9 @@
           ctx.lineWidth = 3 * scaleFactor;
           for (var i = 0; i < this.pockets.length; i++) {
             var p = this.pockets[i];
-            ctx.beginPath();
-            ctx.arc(p.x * sX, p.y * sY, p.r * scaleFactor, 0, Math.PI * 2);
-            ctx.stroke();
+            var dir = POCKET_DIRS[i];
+            var angle = Math.atan2(dir.y, dir.x) - Math.PI / 2;
+            drawUPocket(ctx, p.x, p.y, p.r, angle, i === 2 || i === 3);
           }
           ctx.restore();
 
@@ -2284,6 +2293,21 @@
             ctx.drawImage(cueImg, -drawW / 2 - shiftPx, 0, drawW, drawH);
             ctx.restore();
           }
+        }
+
+        function drawUPocket(ctx, x, y, r, angle, guide) {
+          ctx.save();
+          ctx.translate(x * sX, y * sY);
+          ctx.rotate(angle);
+          var R = r * scaleFactor;
+          var gap = guide ? R * 0.3 : 0;
+          ctx.beginPath();
+          ctx.moveTo(-R, gap);
+          ctx.lineTo(-R, -R);
+          ctx.arc(0, -R, R, Math.PI, 0);
+          ctx.lineTo(R, gap);
+          ctx.stroke();
+          ctx.restore();
         }
 
         /* ==========================================================
