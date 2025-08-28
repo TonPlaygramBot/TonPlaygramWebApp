@@ -578,7 +578,7 @@
     if(kHit){
       punchEffects.push({x:ball.x,y:ball.y,life:1});
       playKeeperSaveSound();
-      if(!ball.netSounded) stopKickSound();
+      if(!ball.netSounded) stopGoalSound();
       reflectBall(kHit.nx,1,0.6);
       ball.spin *= 0.5;
       ball.y = keeper.y + keeper.h + ball.r;
@@ -590,7 +590,7 @@
     if(ball.x - ball.r <= g.x && ball.y > g.y - postR && ball.y < g.y + g.h + postR){
       if(ball.vx < 0){
         triggerNetHit(ball.x, ball.y);
-        if(!ball.netSounded) stopKickSound();
+        if(!ball.netSounded) stopGoalSound();
         sfxPost();
         reflectBall(1,0,0.85);
         ball.x = g.x + ball.r;
@@ -600,7 +600,7 @@
     if(ball.x + ball.r >= g.x + g.w && ball.y > g.y - postR && ball.y < g.y + g.h + postR){
       if(ball.vx > 0){
         triggerNetHit(ball.x, ball.y);
-        if(!ball.netSounded) stopKickSound();
+        if(!ball.netSounded) stopGoalSound();
         sfxPost();
         reflectBall(-1,0,0.85);
         ball.x = g.x + g.w - ball.r;
@@ -610,7 +610,7 @@
     if(ball.y - ball.r <= g.y && ball.x > g.x - postR && ball.x < g.x + g.w + postR){
       if(ball.vy < 0){
         triggerNetHit(ball.x, ball.y);
-        if(!ball.netSounded) stopKickSound();
+        if(!ball.netSounded) stopGoalSound();
         sfxPost();
         reflectBall(0,1,0.85);
         ball.y = g.y + ball.r;
@@ -752,7 +752,7 @@ function endShot(hit,pts){
     vibrate(25);
     goalFlash=1;
   } else {
-    stopKickSound();
+    stopGoalSound();
     status('Missed.');
     vibrate(12);
   }
@@ -983,39 +983,38 @@ function loop(now){ requestAnimationFrame(loop); drawField(); drawAds(); drawGoa
       src.start(0);
     }
     // Sound effect for the ball hitting the net when a goal is scored.
-    // Uses the existing “a-football-hits-the-net-goal-313216-[AudioTrimmer.com].mp3”
-    // asset in webapp/public/assets/sounds and plays only the second half of the clip.
-    const KICK_NET_SOUND = encodeURI('/assets/sounds/a-football-hits-the-net-goal-313216-[AudioTrimmer.com].mp3');
-    let kickNetSoundBuf = null;
-    let kickNetSource = null;
+    // Uses the new "net sound goal ..mp3" asset in webapp/public/assets/sounds.
+    const GOAL_SOUND = encodeURI('/assets/sounds/net sound goal ..mp3');
+    let goalSoundBuf = null;
+    let goalSoundSource = null;
 
-  async function loadKickNetSound(){
+  async function loadGoalSound(){
     try {
-      const res = await fetch(KICK_NET_SOUND);
+      const res = await fetch(GOAL_SOUND);
       const arr = await res.arrayBuffer();
       ensureAudio(); if(!audioCtx) return;
-      kickNetSoundBuf = await audioCtx.decodeAudioData(arr);
+      goalSoundBuf = await audioCtx.decodeAudioData(arr);
     } catch {}
   }
-  loadKickNetSound();
+  loadGoalSound();
 
   function playGoalSound(){
     ensureAudio();
-    if(!audioCtx || !kickNetSoundBuf) return;
-    stopKickSound();
+    if(!audioCtx || !goalSoundBuf) return;
+    stopGoalSound();
     const src = audioCtx.createBufferSource();
-    src.buffer = kickNetSoundBuf;
+    src.buffer = goalSoundBuf;
     src.connect(masterGain);
-    const startAt = kickNetSoundBuf.duration/2;
+    const startAt = goalSoundBuf.duration/2;
     src.start(0, startAt);
-    kickNetSource = src;
-    src.onended = ()=>{ if(kickNetSource===src) kickNetSource=null; };
+    goalSoundSource = src;
+    src.onended = ()=>{ if(goalSoundSource===src) goalSoundSource=null; };
   }
 
-  function stopKickSound(){
-    if(kickNetSource){
-      try{ kickNetSource.stop(); }catch{}
-      kickNetSource=null;
+  function stopGoalSound(){
+    if(goalSoundSource){
+      try{ goalSoundSource.stop(); }catch{}
+      goalSoundSource=null;
     }
   }
 
