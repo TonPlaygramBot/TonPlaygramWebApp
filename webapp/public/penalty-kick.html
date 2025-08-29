@@ -976,7 +976,9 @@ function loop(now){ requestAnimationFrame(loop); drawField(); drawAds(); drawGoa
     if(!audioCtx || !postHitSoundBuf) return;
     const src=audioCtx.createBufferSource();
     src.buffer=postHitSoundBuf;
-    src.connect(masterGain);
+    const gain=audioCtx.createGain();
+    gain.gain.value=0.9; // slightly lower volume on post/crossbar hits
+    src.connect(gain).connect(masterGain);
     // Skip initial silence so the sound starts at 0.3 seconds
     src.start(0, 0.3);
   }
@@ -998,7 +1000,9 @@ function loop(now){ requestAnimationFrame(loop); drawField(); drawAds(); drawGoa
     if(!audioCtx || !ballKickSoundBuf) return;
     const src = audioCtx.createBufferSource();
     src.buffer = ballKickSoundBuf;
-    src.connect(masterGain);
+    const gain = audioCtx.createGain();
+    gain.gain.value = 1.1; // boost volume slightly on kick
+    src.connect(gain).connect(masterGain);
     // Play only the first 0.03 seconds of the sound
     src.start(0, 0, 0.03);
   }
@@ -1018,7 +1022,9 @@ function loop(now){ requestAnimationFrame(loop); drawField(); drawAds(); drawGoa
       if(!audioCtx || !keeperSaveSoundBuf) return;
       const src=audioCtx.createBufferSource();
       src.buffer=keeperSaveSoundBuf;
-      src.connect(masterGain);
+      const gain=audioCtx.createGain();
+      gain.gain.value=0.9; // lower volume slightly on keeper saves
+      src.connect(gain).connect(masterGain);
       src.start(0);
     }
     // Sound effect for the ball hitting the net when a goal is scored.
@@ -1045,7 +1051,9 @@ function loop(now){ requestAnimationFrame(loop); drawField(); drawAds(); drawGoa
     }
     const src = audioCtx.createBufferSource();
     src.buffer = goalSoundBuf;
-    src.connect(masterGain);
+    const gain = audioCtx.createGain();
+    gain.gain.value = 1.5; // goal sound 50% louder
+    src.connect(gain).connect(masterGain);
     const startAt = goalSoundBuf.duration/2;
     src.start(0, startAt);
   }
