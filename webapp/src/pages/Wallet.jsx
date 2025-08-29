@@ -56,6 +56,7 @@ export default function Wallet({ hideClaim = false }) {
     telegramId = undefined;
   }
   const googleId = telegramId ? null : localStorage.getItem('googleId');
+  const email = telegramId ? null : localStorage.getItem('email');
 
   const [accountId, setAccountId] = useState('');
   const [tpcBalance, setTpcBalance] = useState(null);
@@ -97,7 +98,10 @@ export default function Wallet({ hideClaim = false }) {
     if (id) {
       acc = { accountId: id };
     } else {
-      acc = await createAccount(telegramId, googleId);
+      if (!telegramId && !email) {
+        return null;
+      }
+      acc = await createAccount(telegramId, googleId, email);
       if (acc?.error) {
         console.error('Failed to load account:', acc.error);
         return null;
