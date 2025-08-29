@@ -943,8 +943,8 @@ function loop(now){ requestAnimationFrame(loop); drawField(); drawAds(); drawGoa
   let postHitSource=null;
   async function loadPostHitSound(){
     try{
-      // Uses post-hit.mp3 from webapp/public/assets/sounds
-      const res=await fetch('/assets/sounds/post-hit.mp3');
+      // Uses frying-pan-over-the-head-89303.mp3 from webapp/public/assets/sounds
+      const res=await fetch('/assets/sounds/frying-pan-over-the-head-89303.mp3');
       const arr=await res.arrayBuffer();
       ensureAudio(); if(!audioCtx) return;
       postHitSoundBuf=await audioCtx.decodeAudioData(arr);
