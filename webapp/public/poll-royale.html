@@ -1598,30 +1598,34 @@
           var margin = BALL_R * 1.3 + lineWidth;
           // widen corner pockets slightly so their gap matches the side pockets
           // with a slightly tighter bend toward the rails
-          var cornerMargin = margin + BALL_R * 0.45; // extra gap for corner pockets
+          // Separate corner margins so the bottom rail gap matches side pockets
+          var topCornerMargin = margin + BALL_R * 0.45; // extra gap for top corner pockets
+          var bottomCornerMargin = margin; // bottom gaps align with side pocket spacing
 
           // Top rail
           var pTL = this.pockets[0];
           var pTR = this.pockets[1];
           var topLeftX =
-            pTL.x + Math.sqrt(pTL.r * pTL.r - Math.pow(BORDER_TOP - pTL.y, 2)) + cornerMargin;
+            pTL.x + Math.sqrt(pTL.r * pTL.r - Math.pow(BORDER_TOP - pTL.y, 2)) + topCornerMargin;
           var topRightX =
-            pTR.x - Math.sqrt(pTR.r * pTR.r - Math.pow(BORDER_TOP - pTR.y, 2)) - cornerMargin;
+            pTR.x - Math.sqrt(pTR.r * pTR.r - Math.pow(BORDER_TOP - pTR.y, 2)) - topCornerMargin;
           ctx.moveTo(topLeftX * sX, y0);
           ctx.lineTo(topRightX * sX, y0);
 
           // Bottom rail
           var pBL = this.pockets[4];
           var pBR = this.pockets[5];
-          var bottomY = TABLE_H - BORDER_BOTTOM;
+          var bottomBase = TABLE_H - BORDER_BOTTOM;
+          // Shift the bottom rail slightly downward so edges sit lower on the table
+          var bottomY = bottomBase + lineWidth / 2;
           var bottomLeftX =
             pBL.x +
-            Math.sqrt(pBL.r * pBL.r - Math.pow(pBL.y - bottomY, 2)) + cornerMargin;
+            Math.sqrt(pBL.r * pBL.r - Math.pow(pBL.y - bottomBase, 2)) + bottomCornerMargin;
           var bottomRightX =
             pBR.x -
-            Math.sqrt(pBR.r * pBR.r - Math.pow(pBR.y - bottomY, 2)) - cornerMargin;
-          ctx.moveTo(bottomLeftX * sX, y0 + h);
-          ctx.lineTo(bottomRightX * sX, y0 + h);
+            Math.sqrt(pBR.r * pBR.r - Math.pow(pBR.y - bottomBase, 2)) - bottomCornerMargin;
+          ctx.moveTo(bottomLeftX * sX, bottomY * sY);
+          ctx.lineTo(bottomRightX * sX, bottomY * sY);
 
           // Left rail segments (between pockets)
           var pML = this.pockets[2];
