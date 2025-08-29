@@ -3,11 +3,10 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { socket } from '../utils/socket.js';
 import { pingOnline } from '../utils/api.js';
-import { getPlayerId, isTelegramWebView } from '../utils/telegram.js';
+import { getPlayerId } from '../utils/telegram.js';
 import { isGameMuted, getGameVolume } from '../utils/sound.js';
 import { chatBeep as inviteBeep } from '../assets/soundData.js';
 import InvitePopup from './InvitePopup.jsx';
-import EmailPopup from './EmailPopup.jsx';
 
 import Navbar from './Navbar.jsx';
 
@@ -18,16 +17,7 @@ export default function Layout({ children }) {
   const location = useLocation();
   const navigate = useNavigate();
   const [invite, setInvite] = useState(null);
-  const [requireEmail, setRequireEmail] = useState(false);
   const inviteSoundRef = useRef(null);
-
-  useEffect(() => {
-    try {
-      if (!isTelegramWebView() && !localStorage.getItem('email')) {
-        setRequireEmail(true);
-      }
-    } catch {}
-  }, []);
 
   useEffect(() => {
     inviteSoundRef.current = new Audio(inviteBeep);
@@ -163,8 +153,6 @@ export default function Layout({ children }) {
         }}
         onReject={() => setInvite(null)}
       />
-
-      <EmailPopup open={requireEmail} onSave={() => setRequireEmail(false)} />
 
     </div>
   );
