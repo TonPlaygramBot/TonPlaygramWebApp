@@ -1636,7 +1636,8 @@
           ctx.lineTo(x0 + w, bottomRightY * sY);
 
           // Add small guide edges that bend toward the center of each pocket.
-          var guideLen = (ctx.lineWidth / scaleFactor) * 3;
+          // Keep them short so they stop before reaching the pocket rim.
+          var guideLen = Math.max(margin - 1, 0);
           function drawGuide(x1, y1, pocket) {
             var dx = pocket.x - x1;
             var dy = pocket.y - y1;
