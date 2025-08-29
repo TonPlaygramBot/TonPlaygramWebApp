@@ -80,23 +80,24 @@
           g.append(group);
         });
 
-        // Straight-cut edge guides highlighted with thin yellow lines
+        // Edge guides highlighted with thin yellow lines that bend before the pockets
         const edgesG = el('g');
         svg.append(edgesG);
 
         const [tl, tm, tr, bl, bm, br] = pockets;
         const cutR = RIM_R - GUIDE_MARGIN;
+        const TURN = 6; // bend radius = 3 * stroke width
         const edgePaths = [
           // Corner pocket cuts
-          `M0 ${tl.y - cutR} L${tl.x - cutR} 0`,
-          `M1000 ${tr.y - cutR} L${tr.x + cutR} 0`,
-          `M0 ${bl.y + cutR} L${bl.x - cutR} 1500`,
-          `M1000 ${br.y + cutR} L${br.x + cutR} 1500`,
+          `M0 ${tl.y - cutR} H${tl.x - cutR - TURN} A${TURN} ${TURN} 0 0 1 ${tl.x - cutR} ${tl.y - cutR - TURN} V0`,
+          `M1000 ${tr.y - cutR} H${tr.x + cutR + TURN} A${TURN} ${TURN} 0 0 0 ${tr.x + cutR} ${tr.y - cutR - TURN} V0`,
+          `M0 ${bl.y + cutR} H${bl.x - cutR - TURN} A${TURN} ${TURN} 0 0 1 ${bl.x - cutR} ${bl.y + cutR + TURN} V1500`,
+          `M1000 ${br.y + cutR} H${br.x + cutR + TURN} A${TURN} ${TURN} 0 0 0 ${br.x + cutR} ${br.y + cutR + TURN} V1500`,
           // Side pocket cuts
-          `M${tm.x - cutR} 0 L${tm.x - cutR} ${tm.y - cutR}`,
-          `M${tm.x + cutR} 0 L${tm.x + cutR} ${tm.y - cutR}`,
-          `M${bm.x - cutR} 1500 L${bm.x - cutR} ${bm.y + cutR}`,
-          `M${bm.x + cutR} 1500 L${bm.x + cutR} ${bm.y + cutR}`,
+          `M${tm.x - cutR} 0 V${tm.y - cutR - TURN} A${TURN} ${TURN} 0 0 1 ${tm.x - cutR - TURN} ${tm.y - cutR}`,
+          `M${tm.x + cutR} 0 V${tm.y - cutR - TURN} A${TURN} ${TURN} 0 0 0 ${tm.x + cutR + TURN} ${tm.y - cutR}`,
+          `M${bm.x - cutR} 1500 V${bm.y + cutR + TURN} A${TURN} ${TURN} 0 0 0 ${bm.x - cutR - TURN} ${bm.y + cutR}`,
+          `M${bm.x + cutR} 1500 V${bm.y + cutR + TURN} A${TURN} ${TURN} 0 0 1 ${bm.x + cutR + TURN} ${bm.y + cutR}`,
         ];
 
         edgePaths.forEach(d => {
