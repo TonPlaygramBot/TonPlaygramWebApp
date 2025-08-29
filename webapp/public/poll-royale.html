@@ -1590,15 +1590,15 @@
           ctx.lineWidth = lineWidth;
           ctx.lineCap = 'butt';
           ctx.beginPath();
-          // Shorten rail lines and leave a gap roughly 30% wider than the
+          // Shorten rail lines and leave a gap 30% wider than the
           // ball diameter so pockets stay easy to enter. Include one
           // yellow line's width so rail edges start slightly farther out
           // for a more open pocket shape. The margin scales from the ball
           // radius to keep proportions consistent across different table sizes.
-          var margin = BALL_R * 1.65 + lineWidth;
+          var margin = BALL_R * 1.3 + lineWidth;
           // widen corner pockets slightly so their gap matches the side pockets
           // with a slightly tighter bend toward the rails
-          var cornerMargin = BALL_R * 2.1 + lineWidth; // extra gap for corner pockets
+          var cornerMargin = margin + BALL_R * 0.45; // extra gap for corner pockets
 
           // Top rail
           var pTL = this.pockets[0];
