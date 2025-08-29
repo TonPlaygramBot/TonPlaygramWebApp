@@ -1477,7 +1477,6 @@
           ctx.lineWidth = 2;
           ctx.beginPath();
           var gap = 2;
-          var guide = ctx.lineWidth * 3;
           var tl = this.pockets[0];
           var tr = this.pockets[1];
           var ml = this.pockets[2];
@@ -1485,39 +1484,40 @@
           var bl = this.pockets[4];
           var br = this.pockets[5];
           // top edge
-          ctx.moveTo((tl.x + tl.r) * sX - gap, y0);
-          ctx.lineTo((tr.x - tr.r) * sX + gap, y0);
+          ctx.moveTo((tl.x + tl.r) * sX + gap, y0);
+          ctx.lineTo((tr.x - tr.r) * sX - gap, y0);
           // bottom edge
-          ctx.moveTo((bl.x + bl.r) * sX - gap, y0 + h);
-          ctx.lineTo((br.x - br.r) * sX + gap, y0 + h);
+          ctx.moveTo((bl.x + bl.r) * sX + gap, y0 + h);
+          ctx.lineTo((br.x - br.r) * sX - gap, y0 + h);
           // left edge - top segment
-          ctx.moveTo(x0, (tl.y + tl.r) * sY - gap);
-          ctx.lineTo(x0, (ml.y - ml.r) * sY + gap);
+          ctx.moveTo(x0, (tl.y + tl.r) * sY + gap);
+          ctx.lineTo(x0, (ml.y - ml.r) * sY - gap);
           // left edge - bottom segment
-          ctx.moveTo(x0, (ml.y + ml.r) * sY - gap);
-          ctx.lineTo(x0, (bl.y - bl.r) * sY + gap);
+          ctx.moveTo(x0, (ml.y + ml.r) * sY + gap);
+          ctx.lineTo(x0, (bl.y - bl.r) * sY - gap);
           // right edge - top segment
-          ctx.moveTo(x0 + w, (tr.y + tr.r) * sY - gap);
-          ctx.lineTo(x0 + w, (mr.y - mr.r) * sY + gap);
+          ctx.moveTo(x0 + w, (tr.y + tr.r) * sY + gap);
+          ctx.lineTo(x0 + w, (mr.y - mr.r) * sY - gap);
           // right edge - bottom segment
-          ctx.moveTo(x0 + w, (mr.y + mr.r) * sY - gap);
-          ctx.lineTo(x0 + w, (br.y - br.r) * sY + gap);
+          ctx.moveTo(x0 + w, (mr.y + mr.r) * sY + gap);
+          ctx.lineTo(x0 + w, (br.y - br.r) * sY - gap);
           // add pocket guides that bend toward pocket centers
           function pocketGuide(startX, startY, px, py) {
-            var angle = Math.atan2(py - startY, px - startX);
-            var endX = startX + Math.cos(angle) * guide;
-            var endY = startY + Math.sin(angle) * guide;
+            var endX = startX + (px - startX) * 0.3;
+            var endY = startY + (py - startY) * 0.3;
+            var ctrlX = startX + (px - startX) * 0.6;
+            var ctrlY = startY + (py - startY) * 0.6;
             ctx.moveTo(startX, startY);
-            ctx.lineTo(endX, endY);
+            ctx.quadraticCurveTo(ctrlX, ctrlY, endX, endY);
           }
-          pocketGuide((tl.x + tl.r) * sX - gap, y0, tl.x * sX, tl.y * sY);
-          pocketGuide((tr.x - tr.r) * sX + gap, y0, tr.x * sX, tr.y * sY);
-          pocketGuide((bl.x + bl.r) * sX - gap, y0 + h, bl.x * sX, bl.y * sY);
-          pocketGuide((br.x - br.r) * sX + gap, y0 + h, br.x * sX, br.y * sY);
-          pocketGuide(x0, (ml.y - ml.r) * sY + gap, ml.x * sX, ml.y * sY);
-          pocketGuide(x0, (ml.y + ml.r) * sY - gap, ml.x * sX, ml.y * sY);
-          pocketGuide(x0 + w, (mr.y - mr.r) * sY + gap, mr.x * sX, mr.y * sY);
-          pocketGuide(x0 + w, (mr.y + mr.r) * sY - gap, mr.x * sX, mr.y * sY);
+          pocketGuide((tl.x + tl.r) * sX + gap, y0, tl.x * sX, tl.y * sY);
+          pocketGuide((tr.x - tr.r) * sX - gap, y0, tr.x * sX, tr.y * sY);
+          pocketGuide((bl.x + bl.r) * sX + gap, y0 + h, bl.x * sX, bl.y * sY);
+          pocketGuide((br.x - br.r) * sX - gap, y0 + h, br.x * sX, br.y * sY);
+          pocketGuide(x0, (ml.y - ml.r) * sY - gap, ml.x * sX, ml.y * sY);
+          pocketGuide(x0, (ml.y + ml.r) * sY + gap, ml.x * sX, ml.y * sY);
+          pocketGuide(x0 + w, (mr.y - mr.r) * sY - gap, mr.x * sX, mr.y * sY);
+          pocketGuide(x0 + w, (mr.y + mr.r) * sY + gap, mr.x * sX, mr.y * sY);
           ctx.stroke();
 
           // Outline pockets with a thin red line
