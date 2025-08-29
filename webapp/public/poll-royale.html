@@ -1471,8 +1471,20 @@
             Math.PI * 2
           );
           ctx.fill();
-          // Pockets and field markings removed; skip drawing red pocket interiors
-          // and outlines so the table renders without visual hole markers.
+          // Draw a thin yellow line along the cushions
+          ctx.strokeStyle = '#facc15';
+          ctx.lineWidth = 2;
+          ctx.strokeRect(x0, y0, w, h);
+
+          // Outline pockets with a thin red line
+          ctx.strokeStyle = '#ff0000';
+          ctx.lineWidth = 2;
+          for (var i = 0; i < this.pockets.length; i++) {
+            var p = this.pockets[i];
+            ctx.beginPath();
+            ctx.arc(p.x * sX, p.y * sY, p.r * scaleFactor, 0, Math.PI * 2);
+            ctx.stroke();
+          }
           // Topat
           for (var j = 0; j < this.balls.length; j++) {
             var b = this.balls[j];
