@@ -168,8 +168,8 @@
           const [tl, tm, tr, bl, bm, br] = pockets;
           const cutR = RIM_R - GUIDE_MARGIN;
           // Smaller values create a tighter bend so the guides tuck closer to the pocket rims
-          const TURN_CORNER = 7;
-          const TURN_MIDDLE = 6; // top and bottom centre pockets bend slightly more
+          const TURN_CORNER = 4;
+          const TURN_MIDDLE = 5; // side pockets bend slightly less
           const edgePaths = [
             // Corner pocket cuts
             `M0 ${tl.y - cutR} H${tl.x - cutR - TURN_CORNER} A${TURN_CORNER} ${TURN_CORNER} 0 0 1 ${tl.x - cutR} ${tl.y - cutR - TURN_CORNER} V0`,
