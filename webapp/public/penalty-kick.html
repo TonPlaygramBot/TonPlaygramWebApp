@@ -621,7 +621,6 @@
       if(dist < ball.r*0.5 || (ball.prevDist && dist>ball.prevDist)){
         ball.x=ball.target.x; ball.y=ball.target.y;
         ball.vx*=0.2; ball.vy=Math.max(0,ball.vy)*0.2; ball.spin*=0.2;
-        triggerNetHit(ball.x, ball.y);
         endShot(true,ball.points); ball.target=null; ball.prevDist=null; return;
       }
       ball.prevDist=dist;
@@ -762,8 +761,7 @@ function endShot(hit,pts){
   ball.moving=false;
   if(hit){
     ball.netSounded=true;
-    triggerNetHit(ball.x, ball.y);
-    playGoalSound();
+    celebrateGoal(ball.x, ball.y);
     const score=Math.max(pts,MIN_GOAL_POINTS);
     myScore += score;
     status('GOAL! +' + score);
@@ -1048,6 +1046,11 @@ function loop(now){ requestAnimationFrame(loop); drawField(); drawAds(); drawGoa
     netHit.t = Math.max(netHit.t, 1);
     netHit.shake = Math.max(netHit.shake, 1.2);
   }
+  function celebrateGoal(x, y){
+    triggerNetHit(x, y);
+    playGoalSound();
+  }
+  window.celebrateGoal = celebrateGoal;
   function vibrate(ms){ if(navigator.vibrate) try{ navigator.vibrate(ms); }catch{} }
 
   // ===== Static draw & tests =====
