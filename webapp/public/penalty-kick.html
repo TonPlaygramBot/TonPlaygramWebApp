@@ -938,7 +938,7 @@ function loop(now){ requestAnimationFrame(loop); drawField(); drawAds(); drawGoa
   // ===== Controls =====
   // controls removed
 
-  function resetBall(){ ball.x=geom.spot.x; ball.y=geom.spot.y; ball.vx=ball.vy=ball.spin=0; ball.angle=0; ball.moving=false; ball.netSounded=false; ball.goalSounded=false; ball.trail=[]; ball.firstContact=false; ball.target=null; ball.prevDist=null; ball.points=0; netHit={x:0,y:0,t:0,shake:0}; keeper.vx=0; keeper.vy=0; keeper.a=0; keeper.dive=0; keeper.jumping=false; keeper.x = keeper.baseX; keeper.y = keeper.baseY; }
+  function resetBall(){ ball.x=geom.spot.x; ball.y=geom.spot.y; ball.vx=ball.vy=ball.spin=0; ball.angle=0; ball.moving=false; ball.netSounded=false; ball.goalSounded=false; ball.trail=[]; ball.firstContact=false; ball.target=null; ball.prevDist=null; ball.points=0; keeper.vx=0; keeper.vy=0; keeper.a=0; keeper.dive=0; keeper.jumping=false; keeper.x = keeper.baseX; keeper.y = keeper.baseY; }
   function startGame(){ running=true; paused=false; ended=false; roundStart=performance.now(); timeLeft=ROUND_TIME; myScore=0; looseBalls=[]; for(const r of rivals){ r.score=0; r.next=0; r.shots=[]; } resetBall(); generateHoles(); drawMiniBoards(true); updateHUD(); ensureAudio(); crowdSound.play().catch(()=>{}); status('Go! Score as many as you can.'); }
 
   // ===== WebAudio SFX =====
