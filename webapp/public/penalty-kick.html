@@ -566,7 +566,6 @@
     // Predict collisions with goal posts or crossbar so the sound plays exactly on impact.
     if(nextX - ball.r <= g.x && nextY > g.y - postR && nextY < g.y + g.h + postR && ball.vx < 0){
       triggerNetHit(nextX, nextY);
-      if(!ball.netSounded) stopGoalSound();
       sfxPost();
       reflectBall(1,0,0.85);
       ball.x = g.x + ball.r;
@@ -575,7 +574,6 @@
     }
     if(nextX + ball.r >= g.x + g.w && nextY > g.y - postR && nextY < g.y + g.h + postR && ball.vx > 0){
       triggerNetHit(nextX, nextY);
-      if(!ball.netSounded) stopGoalSound();
       sfxPost();
       reflectBall(-1,0,0.85);
       ball.x = g.x + g.w - ball.r;
@@ -584,7 +582,6 @@
     }
     if(nextY - ball.r <= g.y && nextX > g.x - postR && nextX < g.x + g.w + postR && ball.vy < 0){
       triggerNetHit(nextX, nextY);
-      if(!ball.netSounded) stopGoalSound();
       sfxPost();
       reflectBall(0,1,0.85);
       ball.y = g.y + ball.r;
@@ -611,7 +608,6 @@
     if(kHit){
       punchEffects.push({x:ball.x,y:ball.y,life:1});
       playKeeperSaveSound();
-      if(!ball.netSounded) stopGoalSound();
       reflectBall(kHit.nx,1,0.6);
       ball.spin *= 0.5;
       ball.y = keeper.y + keeper.h + ball.r;
@@ -774,7 +770,6 @@ function endShot(hit,pts){
     vibrate(25);
     goalFlash=1;
   } else {
-    stopGoalSound();
     status('Missed.');
     vibrate(12);
   }
@@ -962,7 +957,6 @@ function loop(now){ requestAnimationFrame(loop); drawField(); drawAds(); drawGoa
   }
   const sfxPrize = playPrizeSound;
   let postHitSoundBuf=null;
-  let postHitSource=null;
   async function loadPostHitSound(){
     try{
       // Uses frying-pan-over-the-head-89303.mp3 from webapp/public/assets/sounds
@@ -976,16 +970,11 @@ function loop(now){ requestAnimationFrame(loop); drawField(); drawAds(); drawGoa
   function playPostHitSound(){
     ensureAudio();
     if(!audioCtx || !postHitSoundBuf) return;
-    if(postHitSource){
-      try{ postHitSource.stop(); }catch{}
-    }
     const src=audioCtx.createBufferSource();
     src.buffer=postHitSoundBuf;
     src.connect(masterGain);
     // Skip initial silence so the sound starts at 0.3 seconds
     src.start(0, 0.3);
-    postHitSource=src;
-    src.onended=()=>{ if(postHitSource===src) postHitSource=null; };
   }
   const sfxPost = playPostHitSound;
   // Ball kick sound
@@ -1032,7 +1021,6 @@ function loop(now){ requestAnimationFrame(loop); drawField(); drawAds(); drawGoa
     // Uses the "goal net.mp3" asset in webapp/public/assets/sounds.
     const GOAL_SOUND = encodeURI('/assets/sounds/goal net.mp3');
     let goalSoundBuf = null;
-    let goalSoundSource = null;
 
   async function loadGoalSound(){
     try {
@@ -1047,21 +1035,11 @@ function loop(now){ requestAnimationFrame(loop); drawField(); drawAds(); drawGoa
   function playGoalSound(){
     ensureAudio();
     if(!audioCtx || !goalSoundBuf) return;
-    stopGoalSound();
     const src = audioCtx.createBufferSource();
     src.buffer = goalSoundBuf;
     src.connect(masterGain);
     const startAt = goalSoundBuf.duration/2;
     src.start(0, startAt);
-    goalSoundSource = src;
-    src.onended = ()=>{ if(goalSoundSource===src) goalSoundSource=null; };
-  }
-
-  function stopGoalSound(){
-    if(goalSoundSource){
-      try{ goalSoundSource.stop(); }catch{}
-      goalSoundSource=null;
-    }
   }
 
   function triggerNetHit(x, y){
