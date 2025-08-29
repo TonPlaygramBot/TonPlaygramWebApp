@@ -1265,7 +1265,10 @@
             var nearPocket = false;
             for (var k = 0; k < this.pockets.length; k++) {
               var pk = this.pockets[k];
-              if (Math.hypot(b.p.x - pk.x, b.p.y - pk.y) < pk.r + BALL_R) {
+              if (
+                Math.hypot(b.p.x - pk.x, b.p.y - pk.y) <
+                pk.r + BALL_R + 2
+              ) {
                 nearPocket = true;
                 break;
               }
@@ -1375,7 +1378,7 @@
               if (b2.pocketed) continue;
               var ddx = b2.p.x - p.x,
                 ddy = b2.p.y - p.y;
-              if (Math.hypot(ddx, ddy) < p.r * 0.9) {
+              if (Math.hypot(ddx, ddy) < p.r - BALL_R * 0.1) {
                 var spd = Math.hypot(b2.v.x, b2.v.y);
                 playPocket(clamp(spd / 4000, 0, 1));
                 if (!shotPocketRecorded) {
@@ -1650,7 +1653,7 @@
           // Add small guide edges that bend toward the center of each pocket.
           // Keep them short so they stop before reaching the pocket rim even
           // with the wider margin.
-          var guideLen = Math.max(margin - 1, 0);
+          var guideLen = Math.max(margin, 0);
           function drawGuide(x1, y1, pocket) {
             var dx = pocket.x - x1;
             var dy = pocket.y - y1;
@@ -1661,7 +1664,7 @@
               pocket === pTR ||
               pocket === pBL ||
               pocket === pBR
-                ? 2
+                ? 3
                 : 1;
             var g = Math.min(guideLen + extra, dist - pocket.r - 1);
             if (g <= 0) return;
