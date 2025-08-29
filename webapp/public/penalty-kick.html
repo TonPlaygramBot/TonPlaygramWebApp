@@ -591,6 +591,14 @@
 
     ball.x = nextX; ball.y = nextY; ball.angle += ball.spin*0.3;
 
+    // Trigger goal celebration once the ball crosses inside the goal area.
+    // This ensures that deflections off posts or the crossbar that still
+    // result in a goal properly shake the net and play the goal sound.
+    if(!ball.netSounded && ball.x>g.x && ball.x<g.x+g.w && ball.y>g.y && ball.y<g.y+g.h){
+      celebrateGoal(ball.x, ball.y);
+      ball.netSounded = true;
+    }
+
     if(ball.x>g.x && ball.x<g.x+g.w && ball.y>g.y && ball.y<g.y+g.h){
       for(const h of holes){
         if(h.hit) continue;
@@ -760,8 +768,8 @@ function endShot(hit,pts){
   looseBalls.push({x:ball.x,y:ball.y,vx:ball.vx,vy:ball.vy,angle:ball.angle,spin:ball.spin,bounced:false,insideGoal:hit,landedAt:null});
   ball.moving=false;
   if(hit){
+    if(!ball.netSounded) celebrateGoal(ball.x, ball.y);
     ball.netSounded=true;
-    celebrateGoal(ball.x, ball.y);
     const score=Math.max(pts,MIN_GOAL_POINTS);
     myScore += score;
     status('GOAL! +' + score);
