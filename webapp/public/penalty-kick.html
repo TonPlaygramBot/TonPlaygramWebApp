@@ -985,8 +985,8 @@ function loop(now){ requestAnimationFrame(loop); drawField(); drawAds(); drawGoa
     const gain=audioCtx.createGain();
     gain.gain.value=0.7; // 30% lower volume on post/crossbar hits
     src.connect(gain).connect(masterGain);
-    // Skip ~0.15s of initial silence so the clang matches contact
-    src.start(0, 0.15);
+    // Skip ~0.3s of initial silence so the clang matches contact
+    src.start(0, 0.3);
   }
   const sfxPost = playPostHitSound;
   // Ball kick sound
@@ -1058,7 +1058,7 @@ function loop(now){ requestAnimationFrame(loop); drawField(); drawAds(); drawGoa
     const src = audioCtx.createBufferSource();
     src.buffer = goalSoundBuf;
     const gain = audioCtx.createGain();
-    gain.gain.value = 1.8; // goal sound 80% louder
+    gain.gain.value = 2.16; // goal sound volume increased by 20%
     src.connect(gain).connect(masterGain);
     // Play the goal sound from the start of the clip so the net swoosh is always heard
     // regardless of the file's duration. Starting mid‑clip occasionally skipped the
