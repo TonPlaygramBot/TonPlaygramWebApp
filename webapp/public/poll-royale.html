@@ -1471,26 +1471,8 @@
             Math.PI * 2
           );
           ctx.fill();
-          // Draw pocket interiors before balls so they appear beneath them
-          ctx.fillStyle = '#ff0000';
-          ctx.strokeStyle = '#ff0000';
-          ctx.lineWidth = 3 * scaleFactor;
-          for (var i = 0; i < this.pockets.length; i++) {
-            var p = this.pockets[i];
-            var dir = POCKET_DIRS[i];
-            // Rotate so the rounded side faces the table interior
-            var angle = Math.atan2(dir.y, dir.x);
-            drawUPocket(ctx, p.x, p.y, p.r, angle, true);
-          }
-          // Add a thin black outline around each pocket
-          ctx.strokeStyle = '#000';
-          ctx.lineWidth = 1 * scaleFactor;
-          for (var i = 0; i < this.pockets.length; i++) {
-            var p = this.pockets[i];
-            var dir = POCKET_DIRS[i];
-            var angle = Math.atan2(dir.y, dir.x);
-            drawUPocket(ctx, p.x, p.y, p.r, angle, false);
-          }
+          // Pockets and field markings removed; skip drawing red pocket interiors
+          // and outlines so the table renders without visual hole markers.
           // Topat
           for (var j = 0; j < this.balls.length; j++) {
             var b = this.balls[j];
@@ -1582,130 +1564,8 @@
             ctx.restore();
           }
 
-          // Yellow boundary lines broken around pockets so each pocket
-          // connects the rails without being overdrawn.
-          ctx.save();
-          ctx.strokeStyle = '#facc15';
-          var lineWidth = 3 * scaleFactor;
-          ctx.lineWidth = lineWidth;
-          ctx.lineCap = 'butt';
-          ctx.beginPath();
-          // Shorten rail lines and leave a gap 30% wider than the
-          // ball diameter so pockets stay easy to enter. Include one
-          // yellow line's width so rail edges start slightly farther out
-          // for a more open pocket shape. The margin scales from the ball
-          // radius to keep proportions consistent across different table sizes.
-          var margin = BALL_R * 1.3 + lineWidth;
-          // widen corner pockets slightly so their gap matches the side pockets
-          // with a slightly tighter bend toward the rails
-          // Separate corner margins so the bottom rail gap matches side pockets
-          var topCornerMargin = margin + BALL_R * 0.45; // extra gap for top corner pockets
-          var bottomCornerMargin = margin; // bottom gaps align with side pocket spacing
-
-          // Top rail
-          var pTL = this.pockets[0];
-          var pTR = this.pockets[1];
-          var topLeftX =
-            pTL.x + Math.sqrt(pTL.r * pTL.r - Math.pow(BORDER_TOP - pTL.y, 2)) + topCornerMargin;
-          var topRightX =
-            pTR.x - Math.sqrt(pTR.r * pTR.r - Math.pow(BORDER_TOP - pTR.y, 2)) - topCornerMargin;
-          ctx.moveTo(topLeftX * sX, y0);
-          ctx.lineTo(topRightX * sX, y0);
-
-          // Bottom rail
-          var pBL = this.pockets[4];
-          var pBR = this.pockets[5];
-          var bottomBase = TABLE_H - BORDER_BOTTOM;
-          // Shift the bottom rail slightly downward so edges sit lower on the table
-          var bottomY = bottomBase + lineWidth / 2;
-          var bottomLeftX =
-            pBL.x +
-            Math.sqrt(pBL.r * pBL.r - Math.pow(pBL.y - bottomBase, 2)) + bottomCornerMargin;
-          var bottomRightX =
-            pBR.x -
-            Math.sqrt(pBR.r * pBR.r - Math.pow(pBR.y - bottomBase, 2)) - bottomCornerMargin;
-          ctx.moveTo(bottomLeftX * sX, bottomY * sY);
-          ctx.lineTo(bottomRightX * sX, bottomY * sY);
-
-          // Left rail segments (between pockets)
-          var pML = this.pockets[2];
-          var leftX = BORDER;
-          var topLeftY =
-            pTL.y + Math.sqrt(pTL.r * pTL.r - Math.pow(leftX - pTL.x, 2)) + margin;
-          var midLeftTopY =
-            pML.y - Math.sqrt(pML.r * pML.r - Math.pow(leftX - pML.x, 2)) - margin;
-          var midLeftBottomY =
-            pML.y + Math.sqrt(pML.r * pML.r - Math.pow(leftX - pML.x, 2)) + margin;
-          var bottomLeftY =
-            pBL.y - Math.sqrt(pBL.r * pBL.r - Math.pow(leftX - pBL.x, 2)) - margin;
-          ctx.moveTo(x0, topLeftY * sY);
-          ctx.lineTo(x0, midLeftTopY * sY);
-          ctx.moveTo(x0, midLeftBottomY * sY);
-          ctx.lineTo(x0, bottomLeftY * sY);
-
-          // Right rail segments (between pockets)
-          var pMR = this.pockets[3];
-          var rightX = TABLE_W - BORDER;
-          var topRightY =
-            pTR.y + Math.sqrt(pTR.r * pTR.r - Math.pow(pTR.x - rightX, 2)) + margin;
-          var midRightTopY =
-            pMR.y - Math.sqrt(pMR.r * pMR.r - Math.pow(pMR.x - rightX, 2)) - margin;
-          var midRightBottomY =
-            pMR.y + Math.sqrt(pMR.r * pMR.r - Math.pow(pMR.x - rightX, 2)) + margin;
-          var bottomRightY =
-            pBR.y - Math.sqrt(pBR.r * pBR.r - Math.pow(pBR.x - rightX, 2)) - margin;
-          ctx.moveTo(x0 + w, topRightY * sY);
-          ctx.lineTo(x0 + w, midRightTopY * sY);
-          ctx.moveTo(x0 + w, midRightBottomY * sY);
-          ctx.lineTo(x0 + w, bottomRightY * sY);
-
-          // Add small guide edges that bend toward the center of each pocket.
-          // Keep them short so they stop before reaching the pocket rim even
-          // with the wider margin.
-          var guideLen = Math.max(margin, 0);
-          function drawGuide(x1, y1, pocket) {
-            var dx = pocket.x - x1;
-            var dy = pocket.y - y1;
-            var dist = Math.hypot(dx, dy);
-            if (dist === 0) return;
-            // Corner pockets get a little more guide length so their edges appear more open.
-            // Extend corner guides by two line widths and side guides by one line width
-            // to bring the bends slightly closer to the pocket rims.
-            var extra =
-              pocket === pTL ||
-              pocket === pTR ||
-              pocket === pBL ||
-              pocket === pBR
-                ? 12 + lineWidth * 2
-                : 1 + lineWidth;
-            var g = Math.min(guideLen + extra, dist - pocket.r - 1);
-            if (g <= 0) return;
-            var x2 = x1 + (dx / dist) * g;
-            var y2 = y1 + (dy / dist) * g;
-            ctx.moveTo(x1 * sX, y1 * sY);
-            ctx.lineTo(x2 * sX, y2 * sY);
-          }
-
-          // Guides from top rail
-          drawGuide(topLeftX, BORDER_TOP, pTL);
-          drawGuide(topRightX, BORDER_TOP, pTR);
-          // Guides from bottom rail
-          drawGuide(bottomLeftX, bottomY, pBL);
-          drawGuide(bottomRightX, bottomY, pBR);
-          // Guides from left rail segments
-          drawGuide(leftX, topLeftY, pTL);
-          drawGuide(leftX, midLeftTopY, pML);
-          drawGuide(leftX, midLeftBottomY, pML);
-          drawGuide(leftX, bottomLeftY, pBL);
-          // Guides from right rail segments
-          drawGuide(rightX, topRightY, pTR);
-          drawGuide(rightX, midRightTopY, pMR);
-          drawGuide(rightX, midRightBottomY, pMR);
-          drawGuide(rightX, bottomRightY, pBR);
-
-          ctx.stroke();
-
-          ctx.restore();
+          // Field markings removed; skip drawing yellow boundary lines
+          // so the felt displays without rail or pocket guides.
 
           // Steka mbi felt + guida
           if (
