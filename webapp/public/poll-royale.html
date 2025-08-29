@@ -1594,7 +1594,8 @@
           // from the ball radius to keep proportions consistent across
           // different table sizes.
           var margin = BALL_R * 1.5;
-          var cornerMargin = BALL_R * 1.8; // extra gap for corner pockets
+          // widen corner pockets slightly more so their gap matches the side pockets
+          var cornerMargin = BALL_R * 2.1; // extra gap for corner pockets
 
           // Top rail
           var pTL = this.pockets[0];
@@ -1666,7 +1667,7 @@
               pocket === pTR ||
               pocket === pBL ||
               pocket === pBR
-                ? 8
+                ? 12
                 : 1;
             var g = Math.min(guideLen + extra, dist - pocket.r - 1);
             if (g <= 0) return;
