@@ -167,7 +167,7 @@
 
           const [tl, tm, tr, bl, bm, br] = pockets;
           const cutR = RIM_R - GUIDE_MARGIN;
-          const TURN = 6; // bend radius = 3 * stroke width
+          const TURN = 8; // bend radius = 4 * stroke width
           const edgePaths = [
             // Corner pocket cuts
             `M0 ${tl.y - cutR} H${tl.x - cutR - TURN} A${TURN} ${TURN} 0 0 1 ${tl.x - cutR} ${tl.y - cutR - TURN} V0`,
