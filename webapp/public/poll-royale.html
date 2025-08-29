@@ -1166,41 +1166,62 @@
           // Pockets (4 qoshe + 2 te mesit anesore)
           // Shift all pockets pak jashte per t'i bere hapjet e drejta me te shkurtra,
           // dhe gropat anesore shtyhen edhe pak me shume majtas/djathtas.
-          this.pockets = [
-            new Pocket(
-              BORDER - POCKET_SHORTEN + 4,
-              BORDER_TOP - POCKET_SHORTEN,
-              POCKET_R
-            ),
-            new Pocket(
-              TABLE_W - BORDER + POCKET_SHORTEN - 4,
-              BORDER_TOP - POCKET_SHORTEN,
-              POCKET_R
-            ),
-            // Lift middle pockets a touch more to align with the shifted field
-            // boundary, matching the green marking thickness, and nudge them
-            // slightly farther from center.
-            new Pocket(
-              BORDER - 16 - POCKET_SHORTEN,
-              TABLE_H / 2 + BALL_R - 14,
-              SIDE_POCKET_R
-            ),
-            new Pocket(
-              TABLE_W - BORDER + 16 + POCKET_SHORTEN,
-              TABLE_H / 2 + BALL_R - 14,
-              SIDE_POCKET_R
-            ),
-            new Pocket(
-              BORDER - POCKET_SHORTEN,
-              TABLE_H - BORDER_BOTTOM + POCKET_SHORTEN,
-              POCKET_R
-            ),
-            new Pocket(
-              TABLE_W - BORDER + POCKET_SHORTEN,
-              TABLE_H - BORDER_BOTTOM + POCKET_SHORTEN,
-              POCKET_R
-            )
-          ];
+          var holeEls = document.querySelectorAll('.hole');
+          if (holeEls.length === 6) {
+            var wrapRect = document
+              .getElementById('wrap')
+              .getBoundingClientRect();
+            this.pockets = Array.prototype.map.call(
+              holeEls,
+              function (el) {
+                var r = el.getBoundingClientRect();
+                var cx =
+                  ((r.left + r.width / 2 - wrapRect.left) / wrapRect.width) *
+                  TABLE_W;
+                var cy =
+                  ((r.top + r.height / 2 - wrapRect.top) / wrapRect.height) *
+                  TABLE_H;
+                var pr = (r.width / 2 / wrapRect.width) * TABLE_W;
+                return new Pocket(cx, cy, pr);
+              }
+            );
+          } else {
+            this.pockets = [
+              new Pocket(
+                BORDER - POCKET_SHORTEN + 4,
+                BORDER_TOP - POCKET_SHORTEN,
+                POCKET_R
+              ),
+              new Pocket(
+                TABLE_W - BORDER + POCKET_SHORTEN - 4,
+                BORDER_TOP - POCKET_SHORTEN,
+                POCKET_R
+              ),
+              // Lift middle pockets a touch more to align with the shifted field
+              // boundary, matching the green marking thickness, and nudge them
+              // slightly farther from center.
+              new Pocket(
+                BORDER - 16 - POCKET_SHORTEN,
+                TABLE_H / 2 + BALL_R - 14,
+                SIDE_POCKET_R
+              ),
+              new Pocket(
+                TABLE_W - BORDER + 16 + POCKET_SHORTEN,
+                TABLE_H / 2 + BALL_R - 14,
+                SIDE_POCKET_R
+              ),
+              new Pocket(
+                BORDER - POCKET_SHORTEN,
+                TABLE_H - BORDER_BOTTOM + POCKET_SHORTEN,
+                POCKET_R
+              ),
+              new Pocket(
+                TABLE_W - BORDER + POCKET_SHORTEN,
+                TABLE_H - BORDER_BOTTOM + POCKET_SHORTEN,
+                POCKET_R
+              )
+            ];
+          }
           this.captured = { 1: [], 2: [] };
           this.turn = 1;
           freeShots = { 1: 0, 2: 0 };
