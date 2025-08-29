@@ -1459,12 +1459,15 @@
           );
           ctx.fill();
           // Draw pocket interiors before balls so they appear beneath them
-          ctx.fillStyle = '#333';
+          ctx.fillStyle = '#ff0000';
+          ctx.strokeStyle = '#ff0000';
+          ctx.lineWidth = 3 * scaleFactor;
           for (var i = 0; i < this.pockets.length; i++) {
             var p = this.pockets[i];
-            ctx.beginPath();
-            ctx.arc(p.x * sX, p.y * sY, p.r * scaleFactor, 0, Math.PI * 2);
-            ctx.fill();
+            var dir = POCKET_DIRS[i];
+            // Rotate so the rounded side faces the table interior
+            var angle = Math.atan2(dir.y, dir.x);
+            drawUPocket(ctx, p.x, p.y, p.r, angle, true);
           }
           // Topat
           for (var j = 0; j < this.balls.length; j++) {
@@ -1625,16 +1628,6 @@
 
           ctx.stroke();
 
-          // Pocket markers
-          ctx.strokeStyle = '#ff0000';
-          ctx.lineWidth = 3 * scaleFactor;
-          for (var i = 0; i < this.pockets.length; i++) {
-            var p = this.pockets[i];
-            var dir = POCKET_DIRS[i];
-            // Rotate so the rounded side faces the table interior
-            var angle = Math.atan2(dir.y, dir.x);
-            drawUPocket(ctx, p.x, p.y, p.r, angle);
-          }
           ctx.restore();
 
           // Steka mbi felt + guida
@@ -2412,7 +2405,7 @@
           }
         }
 
-        function drawUPocket(ctx, x, y, r, angle) {
+        function drawUPocket(ctx, x, y, r, angle, fill) {
           ctx.save();
           ctx.translate(x * sX, y * sY);
           ctx.rotate(angle);
@@ -2430,6 +2423,8 @@
           ctx.lineTo(-w, halfHeight);
           // Rounded left side
           ctx.arc(-w, 0, halfHeight, Math.PI / 2, -Math.PI / 2);
+          ctx.closePath();
+          if (fill) ctx.fill();
           ctx.stroke();
           ctx.restore();
         }
