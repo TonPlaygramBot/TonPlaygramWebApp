@@ -1438,12 +1438,11 @@
           );
           ctx.fill();
           // Draw pocket interiors before balls so they appear beneath them
-          ctx.fillStyle = 'red';
+          ctx.fillStyle = '#333';
           for (var i = 0; i < this.pockets.length; i++) {
             var p = this.pockets[i];
             ctx.beginPath();
-            // Use the ball radius so pocket markers match the red aim marker
-            ctx.arc(p.x * sX, p.y * sY, ballR, 0, Math.PI * 2);
+            ctx.arc(p.x * sX, p.y * sY, p.r * scaleFactor, 0, Math.PI * 2);
             ctx.fill();
           }
           // Topat
