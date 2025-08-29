@@ -1057,8 +1057,10 @@ function loop(now){ requestAnimationFrame(loop); drawField(); drawAds(); drawGoa
     const gain = audioCtx.createGain();
     gain.gain.value = 1.5; // goal sound 50% louder
     src.connect(gain).connect(masterGain);
-    const startAt = goalSoundBuf.duration/2;
-    src.start(0, startAt);
+    // Play the goal sound from the start of the clip so the net swoosh is always heard
+    // regardless of the file's duration. Starting mid‑clip occasionally skipped the
+    // audible portion, resulting in no sound on successful goals.
+    src.start(0);
   }
 
   function triggerNetHit(x, y){
