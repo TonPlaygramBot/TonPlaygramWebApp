@@ -7,21 +7,14 @@ export default function LoginOptions() {
     (async () => {
       const accountId = await ensureAccountId();
       try {
-        const email = localStorage.getItem('email');
-        if (email) {
-          const res = await createAccount(
-            undefined,
-            localStorage.getItem('googleId'),
-            email
-          );
-          if (res?.accountId) {
-            localStorage.setItem('accountId', res.accountId);
-          } else if (accountId) {
-            localStorage.setItem('accountId', accountId);
-          }
-          if (res?.walletAddress) {
-            localStorage.setItem('walletAddress', res.walletAddress);
-          }
+        const res = await createAccount(undefined, localStorage.getItem('googleId'));
+        if (res?.accountId) {
+          localStorage.setItem('accountId', res.accountId);
+        } else if (accountId) {
+          localStorage.setItem('accountId', accountId);
+        }
+        if (res?.walletAddress) {
+          localStorage.setItem('walletAddress', res.walletAddress);
         }
       } catch (err) {
         console.error('Account setup failed', err);

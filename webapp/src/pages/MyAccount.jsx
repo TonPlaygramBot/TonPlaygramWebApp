@@ -15,6 +15,7 @@ import {
   getTelegramLastName,
   getTelegramPhotoUrl
 } from '../utils/telegram.js';
+import LoginOptions from '../components/LoginOptions.jsx';
 import { DEV_INFO } from '../utils/constants.js';
 import BalanceSummary from '../components/BalanceSummary.jsx';
 import AvatarPickerModal from '../components/AvatarPickerModal.jsx';
@@ -54,38 +55,7 @@ export default function MyAccount() {
 
   if (!telegramId) {
     googleId = localStorage.getItem('googleId');
-  }
-
-  const [email, setEmail] = useState(localStorage.getItem('email') || '');
-  const [emailInput, setEmailInput] = useState('');
-  const [savingEmail, setSavingEmail] = useState(false);
-
-  if (!telegramId && !email) {
-    const handleSaveEmail = () => {
-      if (!emailInput) return;
-      setSavingEmail(true);
-      localStorage.setItem('email', emailInput);
-      setEmail(emailInput);
-      setSavingEmail(false);
-    };
-    return (
-      <div className="p-4 text-text space-y-2">
-        <input
-          type="email"
-          placeholder="Email address"
-          value={emailInput}
-          onChange={(e) => setEmailInput(e.target.value)}
-          className="w-full px-3 py-2 border border-border rounded bg-background"
-        />
-        <button
-          onClick={handleSaveEmail}
-          disabled={!emailInput || savingEmail}
-          className="px-4 py-2 bg-primary hover:bg-primary-hover rounded text-white-shadow disabled:opacity-50"
-        >
-          Save
-        </button>
-      </div>
-    );
+    if (!googleId) return <LoginOptions />;
   }
 
   const [profile, setProfile] = useState(null);
@@ -111,7 +81,7 @@ export default function MyAccount() {
 
   useEffect(() => {
     async function load() {
-      const acc = await createAccount(telegramId, googleId, email);
+      const acc = await createAccount(telegramId, googleId);
       if (acc?.error) {
         console.error('Failed to load account:', acc.error);
         return;
@@ -125,12 +95,6 @@ export default function MyAccount() {
 
       const data = await getAccountInfo(acc.accountId);
       let finalProfile = data;
-      if (email && data.email !== email) {
-        try {
-          await updateProfile({ accountId: acc.accountId, email });
-          finalProfile = { ...finalProfile, email };
-        } catch {}
-      }
 
       if (telegramId && (!data.photo || !data.firstName || !data.lastName)) {
         setAutoUpdating(true);
@@ -171,7 +135,6 @@ export default function MyAccount() {
       }
 
       setProfile(finalProfile);
-      setEmail(finalProfile.email || email);
       setTwitterLink(finalProfile.social?.twitter || '');
       const defaultPhoto = telegramId ? getTelegramPhotoUrl() : '';
       setPhotoUrl(loadAvatar() || finalProfile.photo || defaultPhoto);
@@ -191,7 +154,7 @@ export default function MyAccount() {
     return () => {
       if (timerRef.current) clearTimeout(timerRef.current);
     };
-  }, [telegramId, googleId, email]);
+  }, [telegramId, googleId]);
 
   useEffect(() => {
     if (!telegramId) return;
@@ -227,19 +190,6 @@ export default function MyAccount() {
     } finally {
       setDevTopup('');
       setDevTopupSending(false);
-    }
-  };
-
-  const handleEmailSave = async () => {
-    if (!email) return;
-    try {
-      await updateProfile({ accountId: profile.accountId, email });
-      setShowSaved(true);
-      localStorage.setItem('email', email);
-      if (timerRef.current) clearTimeout(timerRef.current);
-      timerRef.current = setTimeout(() => setShowSaved(false), 1500);
-    } catch (err) {
-      console.error('save email failed', err);
     }
   };
 
@@ -378,24 +328,6 @@ export default function MyAccount() {
               }
             />
           </div>
-          {!telegramId && (
-            <div className="mt-2 flex items-center space-x-2">
-              <input
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="flex-grow px-3 py-2 border border-border rounded bg-background"
-                placeholder="Email address"
-              />
-              <button
-                onClick={handleEmailSave}
-                disabled={!email}
-                className="px-3 py-1 bg-primary hover:bg-primary-hover rounded text-white-shadow disabled:opacity-50"
-              >
-                Save
-              </button>
-            </div>
-          )}
           <button
             onClick={() => setShowAvatarPicker(true)}
             className="mt-2 px-2 py-1 bg-primary hover:bg-primary-hover rounded text-sm text-white-shadow"
