@@ -767,13 +767,12 @@ function endShot(hit,pts){
   looseBalls.push({x:ball.x,y:ball.y,vx:ball.vx,vy:ball.vy,angle:ball.angle,spin:ball.spin,bounced:false,insideGoal:hit,landedAt:null});
   ball.moving=false;
   if(hit){
-    celebrateGoal(ball.x, ball.y);
+    showGoal(ball.x, ball.y);
     ball.netSounded=true;
     const score=Math.max(pts,MIN_GOAL_POINTS);
     myScore += score;
     status('GOAL! +' + score);
     vibrate(25);
-    goalFlash=1;
   } else {
     status('Missed.');
     vibrate(12);
@@ -1057,7 +1056,14 @@ function loop(now){ requestAnimationFrame(loop); drawField(); drawAds(); drawGoa
     triggerNetHit(x, y);
     playGoalSound();
   }
+  function showGoal(x, y){
+    goalFlash = 1;
+    const gx = x ?? geom.goal.x + geom.goal.w / 2;
+    const gy = y ?? geom.goal.y + geom.goal.h / 2;
+    celebrateGoal(gx, gy);
+  }
   window.celebrateGoal = celebrateGoal;
+  window.showGoal = showGoal;
   function vibrate(ms){ if(navigator.vibrate) try{ navigator.vibrate(ms); }catch{} }
 
   // ===== Static draw & tests =====
