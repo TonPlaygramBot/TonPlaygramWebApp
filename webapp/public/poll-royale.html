@@ -1626,6 +1626,36 @@
           ctx.moveTo(x0 + w, midRightBottomY * sY);
           ctx.lineTo(x0 + w, bottomRightY * sY);
 
+          // Add small guide edges that bend toward the center of each pocket.
+          var guideLen = (ctx.lineWidth / scaleFactor) * 3;
+          function drawGuide(x1, y1, pocket) {
+            var dx = pocket.x - x1;
+            var dy = pocket.y - y1;
+            var dist = Math.hypot(dx, dy);
+            if (dist === 0) return;
+            var x2 = x1 + (dx / dist) * guideLen;
+            var y2 = y1 + (dy / dist) * guideLen;
+            ctx.moveTo(x1 * sX, y1 * sY);
+            ctx.lineTo(x2 * sX, y2 * sY);
+          }
+
+          // Guides from top rail
+          drawGuide(topLeftX, BORDER_TOP, pTL);
+          drawGuide(topRightX, BORDER_TOP, pTR);
+          // Guides from bottom rail
+          drawGuide(bottomLeftX, bottomY, pBL);
+          drawGuide(bottomRightX, bottomY, pBR);
+          // Guides from left rail segments
+          drawGuide(leftX, topLeftY, pTL);
+          drawGuide(leftX, midLeftTopY, pML);
+          drawGuide(leftX, midLeftBottomY, pML);
+          drawGuide(leftX, bottomLeftY, pBL);
+          // Guides from right rail segments
+          drawGuide(rightX, topRightY, pTR);
+          drawGuide(rightX, midRightTopY, pMR);
+          drawGuide(rightX, midRightBottomY, pMR);
+          drawGuide(rightX, bottomRightY, pBR);
+
           ctx.stroke();
 
           ctx.restore();
