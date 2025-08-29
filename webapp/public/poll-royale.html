@@ -1594,14 +1594,15 @@
           // from the ball radius to keep proportions consistent across
           // different table sizes.
           var margin = BALL_R * 1.5;
+          var cornerMargin = BALL_R * 1.8; // extra gap for corner pockets
 
           // Top rail
           var pTL = this.pockets[0];
           var pTR = this.pockets[1];
           var topLeftX =
-            pTL.x + Math.sqrt(pTL.r * pTL.r - Math.pow(BORDER_TOP - pTL.y, 2)) + margin;
+            pTL.x + Math.sqrt(pTL.r * pTL.r - Math.pow(BORDER_TOP - pTL.y, 2)) + cornerMargin;
           var topRightX =
-            pTR.x - Math.sqrt(pTR.r * pTR.r - Math.pow(BORDER_TOP - pTR.y, 2)) - margin;
+            pTR.x - Math.sqrt(pTR.r * pTR.r - Math.pow(BORDER_TOP - pTR.y, 2)) - cornerMargin;
           ctx.moveTo(topLeftX * sX, y0);
           ctx.lineTo(topRightX * sX, y0);
 
@@ -1611,10 +1612,10 @@
           var bottomY = TABLE_H - BORDER_BOTTOM;
           var bottomLeftX =
             pBL.x +
-            Math.sqrt(pBL.r * pBL.r - Math.pow(pBL.y - bottomY, 2)) + margin;
+            Math.sqrt(pBL.r * pBL.r - Math.pow(pBL.y - bottomY, 2)) + cornerMargin;
           var bottomRightX =
             pBR.x -
-            Math.sqrt(pBR.r * pBR.r - Math.pow(pBR.y - bottomY, 2)) - margin;
+            Math.sqrt(pBR.r * pBR.r - Math.pow(pBR.y - bottomY, 2)) - cornerMargin;
           ctx.moveTo(bottomLeftX * sX, y0 + h);
           ctx.lineTo(bottomRightX * sX, y0 + h);
 
@@ -1665,7 +1666,7 @@
               pocket === pTR ||
               pocket === pBL ||
               pocket === pBR
-                ? 5
+                ? 8
                 : 1;
             var g = Math.min(guideLen + extra, dist - pocket.r - 1);
             if (g <= 0) return;
