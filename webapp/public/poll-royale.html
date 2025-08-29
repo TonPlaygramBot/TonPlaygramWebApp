@@ -1469,6 +1469,15 @@
             var angle = Math.atan2(dir.y, dir.x);
             drawUPocket(ctx, p.x, p.y, p.r, angle, true);
           }
+          // Add a thin black outline around each pocket
+          ctx.strokeStyle = '#000';
+          ctx.lineWidth = 1 * scaleFactor;
+          for (var i = 0; i < this.pockets.length; i++) {
+            var p = this.pockets[i];
+            var dir = POCKET_DIRS[i];
+            var angle = Math.atan2(dir.y, dir.x);
+            drawUPocket(ctx, p.x, p.y, p.r, angle, false);
+          }
           // Topat
           for (var j = 0; j < this.balls.length; j++) {
             var b = this.balls[j];
