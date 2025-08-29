@@ -1576,9 +1576,11 @@
           ctx.lineWidth = 4 * scaleFactor;
           ctx.lineCap = 'butt';
           ctx.beginPath();
-          // Shorten rail lines by half the stroke width plus a small
-          // buffer so they stop just before reaching the pocket edge.
-          var margin = (ctx.lineWidth / scaleFactor) / 2 + 2;
+          // Shorten rail lines and leave a gap roughly 20% wider than the
+          // ball diameter so pockets stay easy to enter.  The margin scales
+          // from the ball radius to keep proportions consistent across
+          // different table sizes.
+          var margin = BALL_R * 1.5;
 
           // Top rail
           var pTL = this.pockets[0];
@@ -1636,15 +1638,18 @@
           ctx.lineTo(x0 + w, bottomRightY * sY);
 
           // Add small guide edges that bend toward the center of each pocket.
-          // Keep them short so they stop before reaching the pocket rim.
+          // Keep them short so they stop before reaching the pocket rim even
+          // with the wider margin.
           var guideLen = Math.max(margin - 1, 0);
           function drawGuide(x1, y1, pocket) {
             var dx = pocket.x - x1;
             var dy = pocket.y - y1;
             var dist = Math.hypot(dx, dy);
             if (dist === 0) return;
-            var x2 = x1 + (dx / dist) * guideLen;
-            var y2 = y1 + (dy / dist) * guideLen;
+            var g = Math.min(guideLen, dist - pocket.r - 1);
+            if (g <= 0) return;
+            var x2 = x1 + (dx / dist) * g;
+            var y2 = y1 + (dy / dist) * g;
             ctx.moveTo(x1 * sX, y1 * sY);
             ctx.lineTo(x2 * sX, y2 * sY);
           }
