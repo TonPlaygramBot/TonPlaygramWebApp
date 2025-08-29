@@ -983,7 +983,7 @@ function loop(now){ requestAnimationFrame(loop); drawField(); drawAds(); drawGoa
     const src=audioCtx.createBufferSource();
     src.buffer=postHitSoundBuf;
     const gain=audioCtx.createGain();
-    gain.gain.value=0.7; // 30% lower volume on post/crossbar hits
+    gain.gain.value=0.5; // 50% lower volume on post/crossbar hits
     src.connect(gain).connect(masterGain);
     // Skip initial silence so the sound starts at 0.3 seconds
     src.start(0, 0.3);
@@ -1029,7 +1029,7 @@ function loop(now){ requestAnimationFrame(loop); drawField(); drawAds(); drawGoa
       const src=audioCtx.createBufferSource();
       src.buffer=keeperSaveSoundBuf;
       const gain=audioCtx.createGain();
-      gain.gain.value=0.7; // 30% lower volume for keeper saves
+      gain.gain.value=0.5; // 50% lower volume for keeper saves
       src.connect(gain).connect(masterGain);
       src.start(0);
     }
@@ -1058,7 +1058,7 @@ function loop(now){ requestAnimationFrame(loop); drawField(); drawAds(); drawGoa
     const src = audioCtx.createBufferSource();
     src.buffer = goalSoundBuf;
     const gain = audioCtx.createGain();
-    gain.gain.value = 1.5; // goal sound 50% louder
+    gain.gain.value = 1.8; // goal sound 80% louder
     src.connect(gain).connect(masterGain);
     // Play the goal sound from the start of the clip so the net swoosh is always heard
     // regardless of the file's duration. Starting mid‑clip occasionally skipped the
