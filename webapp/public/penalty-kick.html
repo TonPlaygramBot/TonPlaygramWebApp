@@ -591,11 +591,10 @@
 
     ball.x = nextX; ball.y = nextY; ball.angle += ball.spin*0.3;
 
-    // Trigger goal celebration once the ball crosses inside the goal area.
-    // This ensures that deflections off posts or the crossbar that still
-    // result in a goal properly shake the net and play the goal sound.
+    // Trigger net animation once the ball crosses inside the goal area.
+    // Sound playback occurs later when the goal is confirmed.
     if(!ball.netSounded && ball.x>g.x && ball.x<g.x+g.w && ball.y>g.y && ball.y<g.y+g.h){
-      celebrateGoal(ball.x, ball.y);
+      triggerNetHit(ball.x, ball.y);
       ball.netSounded = true;
     }
 
@@ -768,7 +767,7 @@ function endShot(hit,pts){
   looseBalls.push({x:ball.x,y:ball.y,vx:ball.vx,vy:ball.vy,angle:ball.angle,spin:ball.spin,bounced:false,insideGoal:hit,landedAt:null});
   ball.moving=false;
   if(hit){
-    if(!ball.netSounded) celebrateGoal(ball.x, ball.y);
+    celebrateGoal(ball.x, ball.y);
     ball.netSounded=true;
     const score=Math.max(pts,MIN_GOAL_POINTS);
     myScore += score;
@@ -941,7 +940,7 @@ function loop(now){ requestAnimationFrame(loop); drawField(); drawAds(); drawGoa
   function startGame(){ running=true; paused=false; ended=false; roundStart=performance.now(); timeLeft=ROUND_TIME; myScore=0; looseBalls=[]; for(const r of rivals){ r.score=0; r.next=0; r.shots=[]; } resetBall(); generateHoles(); drawMiniBoards(true); updateHUD(); ensureAudio(); status('Go! Score as many as you can.'); }
 
   // ===== WebAudio SFX =====
-  let audioCtx=null, masterGain=null; function ensureAudio(){ if(audioCtx) return; try{ const AC = window.AudioContext || window.webkitAudioContext; audioCtx = new AC(); masterGain = audioCtx.createGain(); masterGain.gain.value = 0.18; masterGain.connect(audioCtx.destination); }catch{} }
+  let audioCtx=null, masterGain=null; function ensureAudio(){ try{ if(!audioCtx){ const AC = window.AudioContext || window.webkitAudioContext; audioCtx = new AC(); masterGain = audioCtx.createGain(); masterGain.gain.value = 0.18; masterGain.connect(audioCtx.destination); } if(audioCtx.state==='suspended') audioCtx.resume(); }catch{} }
   // Prize break sound
   let prizeSoundBuf=null;
   async function loadPrizeSound(){
