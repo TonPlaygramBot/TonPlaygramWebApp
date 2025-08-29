@@ -983,7 +983,7 @@ function loop(now){ requestAnimationFrame(loop); drawField(); drawAds(); drawGoa
     const src=audioCtx.createBufferSource();
     src.buffer=postHitSoundBuf;
     const gain=audioCtx.createGain();
-    gain.gain.value=0.5; // 50% lower volume on post/crossbar hits
+    gain.gain.value=0.7; // 30% lower volume on post/crossbar hits
     src.connect(gain).connect(masterGain);
     // Skip initial silence so the sound starts at 0.3 seconds
     src.start(0, 0.3);
