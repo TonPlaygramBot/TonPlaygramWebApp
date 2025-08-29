@@ -558,9 +558,42 @@
     const speed=Math.hypot(ball.vx,ball.vy); const drag = 1 - AIR_DRAG*speed; const curve = ball.spin*0.8;
     const knuckle = Math.abs(ball.spin) < 0.1 ? (Math.random()-0.5)*0.3 : 0;
     ball.vx = (ball.vx + curve + knuckle)*FRICTION*drag; ball.vy = (ball.vy + GRAVITY)*FRICTION*drag;
-    ball.x += ball.vx; ball.y += ball.vy; ball.angle += ball.spin*0.3;
-
     const g=geom.goal;
+    const postR = g.post;
+    const nextX = ball.x + ball.vx;
+    const nextY = ball.y + ball.vy;
+
+    // Predict collisions with goal posts or crossbar so the sound plays exactly on impact.
+    if(nextX - ball.r <= g.x && nextY > g.y - postR && nextY < g.y + g.h + postR && ball.vx < 0){
+      triggerNetHit(nextX, nextY);
+      if(!ball.netSounded) stopGoalSound();
+      sfxPost();
+      reflectBall(1,0,0.85);
+      ball.x = g.x + ball.r;
+      ball.y = nextY;
+      return;
+    }
+    if(nextX + ball.r >= g.x + g.w && nextY > g.y - postR && nextY < g.y + g.h + postR && ball.vx > 0){
+      triggerNetHit(nextX, nextY);
+      if(!ball.netSounded) stopGoalSound();
+      sfxPost();
+      reflectBall(-1,0,0.85);
+      ball.x = g.x + g.w - ball.r;
+      ball.y = nextY;
+      return;
+    }
+    if(nextY - ball.r <= g.y && nextX > g.x - postR && nextX < g.x + g.w + postR && ball.vy < 0){
+      triggerNetHit(nextX, nextY);
+      if(!ball.netSounded) stopGoalSound();
+      sfxPost();
+      reflectBall(0,1,0.85);
+      ball.y = g.y + ball.r;
+      ball.x = nextX;
+      return;
+    }
+
+    ball.x = nextX; ball.y = nextY; ball.angle += ball.spin*0.3;
+
     if(ball.x>g.x && ball.x<g.x+g.w && ball.y>g.y && ball.y<g.y+g.h){
       for(const h of holes){
         if(h.hit) continue;
@@ -585,37 +618,6 @@
       missFlash=1;
       endShot(false,0);
       return;
-    }
-    const postR = g.post;
-    if(ball.x - ball.r <= g.x && ball.y > g.y - postR && ball.y < g.y + g.h + postR){
-      if(ball.vx < 0){
-        triggerNetHit(ball.x, ball.y);
-        if(!ball.netSounded) stopGoalSound();
-        sfxPost();
-        reflectBall(1,0,0.85);
-        ball.x = g.x + ball.r;
-        return;
-      }
-    }
-    if(ball.x + ball.r >= g.x + g.w && ball.y > g.y - postR && ball.y < g.y + g.h + postR){
-      if(ball.vx > 0){
-        triggerNetHit(ball.x, ball.y);
-        if(!ball.netSounded) stopGoalSound();
-        sfxPost();
-        reflectBall(-1,0,0.85);
-        ball.x = g.x + g.w - ball.r;
-        return;
-      }
-    }
-    if(ball.y - ball.r <= g.y && ball.x > g.x - postR && ball.x < g.x + g.w + postR){
-      if(ball.vy < 0){
-        triggerNetHit(ball.x, ball.y);
-        if(!ball.netSounded) stopGoalSound();
-        sfxPost();
-        reflectBall(0,1,0.85);
-        ball.y = g.y + ball.r;
-        return;
-      }
     }
     if(ball.target){
       const dx=ball.target.x-ball.x, dy=ball.target.y-ball.y;
