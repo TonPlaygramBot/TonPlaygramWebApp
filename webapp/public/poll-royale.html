@@ -1503,38 +1503,6 @@
           ctx.lineTo(x0 + w, (br.y - br.r) * sY + gap);
           ctx.stroke();
 
-          // Add small guidance bends toward each pocket
-          ctx.strokeStyle = '#facc15';
-          ctx.lineWidth = 2;
-          function drawBend (sx, sy, px, py) {
-            var dx = (px - sx) / 3;
-            var dy = (py - sy) / 3;
-            ctx.beginPath();
-            ctx.moveTo(sx, sy);
-            ctx.lineTo(sx + dx, sy + dy);
-            ctx.lineTo(sx + 2 * dx, sy + 2 * dy);
-            ctx.lineTo(px, py);
-            ctx.stroke();
-          }
-
-          drawBend((tl.x + tl.r) * sX - gap, y0, tl.x * sX, tl.y * sY);
-          drawBend(x0, (tl.y + tl.r) * sY - gap, tl.x * sX, tl.y * sY);
-
-          drawBend((tr.x - tr.r) * sX + gap, y0, tr.x * sX, tr.y * sY);
-          drawBend(x0 + w, (tr.y + tr.r) * sY - gap, tr.x * sX, tr.y * sY);
-
-          drawBend(x0, (ml.y - ml.r) * sY + gap, ml.x * sX, ml.y * sY);
-          drawBend(x0, (ml.y + ml.r) * sY - gap, ml.x * sX, ml.y * sY);
-
-          drawBend(x0 + w, (mr.y - mr.r) * sY + gap, mr.x * sX, mr.y * sY);
-          drawBend(x0 + w, (mr.y + mr.r) * sY - gap, mr.x * sX, mr.y * sY);
-
-          drawBend((bl.x + bl.r) * sX - gap, y0 + h, bl.x * sX, bl.y * sY);
-          drawBend(x0, (bl.y - bl.r) * sY + gap, bl.x * sX, bl.y * sY);
-
-          drawBend((br.x - br.r) * sX + gap, y0 + h, br.x * sX, br.y * sY);
-          drawBend(x0 + w, (br.y - br.r) * sY + gap, br.x * sX, br.y * sY);
-
           // Outline pockets with a thin red line
           ctx.strokeStyle = '#ff0000';
           ctx.lineWidth = 2;
