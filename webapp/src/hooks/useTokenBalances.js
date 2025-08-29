@@ -11,7 +11,6 @@ export default function useTokenBalances() {
     telegramId = undefined;
   }
   const googleId = telegramId ? null : localStorage.getItem('googleId');
-  const email = telegramId ? null : localStorage.getItem('email');
 
   const [tpcBalance, setTpcBalance] = useState(null);
   const [tonBalance, setTonBalance] = useState(null);
@@ -21,9 +20,9 @@ export default function useTokenBalances() {
 
   useEffect(() => {
     async function loadTpc() {
-      if (!telegramId && !email) return;
+      if (!telegramId && !googleId) return;
       try {
-        const acc = await createAccount(telegramId, googleId, email);
+        const acc = await createAccount(telegramId, googleId);
         if (acc?.error) throw new Error(acc.error);
         if (acc.walletAddress) {
           localStorage.setItem('walletAddress', acc.walletAddress);

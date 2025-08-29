@@ -20,21 +20,19 @@ export default function NftGiftCard({ accountId: propAccountId }) {
     async function ensureAccount() {
       let id = propAccountId || localStorage.getItem('accountId');
       if (!id) {
-        const tgId = getTelegramId();
-        const googleId = localStorage.getItem('googleId');
-        const email = tgId ? null : localStorage.getItem('email');
-        if (tgId || email) {
-          try {
-            const acc = await createAccount(tgId, googleId, email);
-            if (acc?.accountId) {
-              id = acc.accountId;
-              localStorage.setItem('accountId', id);
-              if (acc.walletAddress) {
-                localStorage.setItem('walletAddress', acc.walletAddress);
-              }
+        try {
+          const acc = await createAccount(
+            getTelegramId(),
+            localStorage.getItem('googleId')
+          );
+          if (acc?.accountId) {
+            id = acc.accountId;
+            localStorage.setItem('accountId', id);
+            if (acc.walletAddress) {
+              localStorage.setItem('walletAddress', acc.walletAddress);
             }
-          } catch {}
-        }
+          }
+        } catch {}
       }
       if (id) setAccountId(id);
     }
