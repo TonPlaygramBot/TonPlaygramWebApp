@@ -1586,16 +1586,18 @@
           // connects the rails without being overdrawn.
           ctx.save();
           ctx.strokeStyle = '#facc15';
-          ctx.lineWidth = 4 * scaleFactor;
+          var lineWidth = 4 * scaleFactor;
+          ctx.lineWidth = lineWidth;
           ctx.lineCap = 'butt';
           ctx.beginPath();
           // Shorten rail lines and leave a gap roughly 20% wider than the
-          // ball diameter so pockets stay easy to enter.  The margin scales
-          // from the ball radius to keep proportions consistent across
-          // different table sizes.
-          var margin = BALL_R * 1.5;
+          // ball diameter so pockets stay easy to enter.  Include one
+          // yellow line's width so rail edges start slightly farther out
+          // for a more open pocket shape. The margin scales from the ball
+          // radius to keep proportions consistent across different table sizes.
+          var margin = BALL_R * 1.5 + lineWidth;
           // widen corner pockets slightly more so their gap matches the side pockets
-          var cornerMargin = BALL_R * 2.1; // extra gap for corner pockets
+          var cornerMargin = BALL_R * 2.1 + lineWidth; // extra gap for corner pockets
 
           // Top rail
           var pTL = this.pockets[0];
