@@ -1503,6 +1503,39 @@
           ctx.lineTo(x0 + w, (br.y - br.r) * sY + gap);
           ctx.stroke();
 
+          // Bend each yellow line into its pocket with short guide edges
+          ctx.beginPath();
+          var guide = ctx.lineWidth * 3;
+          // top pockets
+          ctx.moveTo((tl.x + tl.r) * sX - gap, y0);
+          ctx.lineTo((tl.x + tl.r) * sX - gap, y0 + guide);
+          ctx.moveTo((tr.x - tr.r) * sX + gap, y0);
+          ctx.lineTo((tr.x - tr.r) * sX + gap, y0 + guide);
+          // bottom pockets
+          ctx.moveTo((bl.x + bl.r) * sX - gap, y0 + h);
+          ctx.lineTo((bl.x + bl.r) * sX - gap, y0 + h - guide);
+          ctx.moveTo((br.x - br.r) * sX + gap, y0 + h);
+          ctx.lineTo((br.x - br.r) * sX + gap, y0 + h - guide);
+          // left side pockets and corners
+          ctx.moveTo(x0, (tl.y + tl.r) * sY - gap);
+          ctx.lineTo(x0 + guide, (tl.y + tl.r) * sY - gap);
+          ctx.moveTo(x0, (ml.y - ml.r) * sY + gap);
+          ctx.lineTo(x0 + guide, (ml.y - ml.r) * sY + gap);
+          ctx.moveTo(x0, (ml.y + ml.r) * sY - gap);
+          ctx.lineTo(x0 + guide, (ml.y + ml.r) * sY - gap);
+          ctx.moveTo(x0, (bl.y - bl.r) * sY + gap);
+          ctx.lineTo(x0 + guide, (bl.y - bl.r) * sY + gap);
+          // right side pockets and corners
+          ctx.moveTo(x0 + w, (tr.y + tr.r) * sY - gap);
+          ctx.lineTo(x0 + w - guide, (tr.y + tr.r) * sY - gap);
+          ctx.moveTo(x0 + w, (mr.y - mr.r) * sY + gap);
+          ctx.lineTo(x0 + w - guide, (mr.y - mr.r) * sY + gap);
+          ctx.moveTo(x0 + w, (mr.y + mr.r) * sY - gap);
+          ctx.lineTo(x0 + w - guide, (mr.y + mr.r) * sY - gap);
+          ctx.moveTo(x0 + w, (br.y - br.r) * sY + gap);
+          ctx.lineTo(x0 + w - guide, (br.y - br.r) * sY + gap);
+          ctx.stroke();
+
           // Outline pockets with a thin red line
           ctx.strokeStyle = '#ff0000';
           ctx.lineWidth = 2;
