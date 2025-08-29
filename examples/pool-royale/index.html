@@ -167,18 +167,20 @@
 
           const [tl, tm, tr, bl, bm, br] = pockets;
           const cutR = RIM_R - GUIDE_MARGIN;
-          const TURN = 8; // bend radius = 4 * stroke width
+          // Smaller values create a tighter bend so the guides tuck closer to the pocket rims
+          const TURN_CORNER = 7;
+          const TURN_MIDDLE = 6; // top and bottom centre pockets bend slightly more
           const edgePaths = [
             // Corner pocket cuts
-            `M0 ${tl.y - cutR} H${tl.x - cutR - TURN} A${TURN} ${TURN} 0 0 1 ${tl.x - cutR} ${tl.y - cutR - TURN} V0`,
-            `M1000 ${tr.y - cutR} H${tr.x + cutR + TURN} A${TURN} ${TURN} 0 0 0 ${tr.x + cutR} ${tr.y - cutR - TURN} V0`,
-            `M0 ${bl.y + cutR} H${bl.x - cutR - TURN} A${TURN} ${TURN} 0 0 1 ${bl.x - cutR} ${bl.y + cutR + TURN} V1500`,
-            `M1000 ${br.y + cutR} H${br.x + cutR + TURN} A${TURN} ${TURN} 0 0 0 ${br.x + cutR} ${br.y + cutR + TURN} V1500`,
+            `M0 ${tl.y - cutR} H${tl.x - cutR - TURN_CORNER} A${TURN_CORNER} ${TURN_CORNER} 0 0 1 ${tl.x - cutR} ${tl.y - cutR - TURN_CORNER} V0`,
+            `M1000 ${tr.y - cutR} H${tr.x + cutR + TURN_CORNER} A${TURN_CORNER} ${TURN_CORNER} 0 0 0 ${tr.x + cutR} ${tr.y - cutR - TURN_CORNER} V0`,
+            `M0 ${bl.y + cutR} H${bl.x - cutR - TURN_CORNER} A${TURN_CORNER} ${TURN_CORNER} 0 0 1 ${bl.x - cutR} ${bl.y + cutR + TURN_CORNER} V1500`,
+            `M1000 ${br.y + cutR} H${br.x + cutR + TURN_CORNER} A${TURN_CORNER} ${TURN_CORNER} 0 0 0 ${br.x + cutR} ${br.y + cutR + TURN_CORNER} V1500`,
             // Side pocket cuts
-            `M${tm.x - cutR} 0 V${tm.y - cutR - TURN} A${TURN} ${TURN} 0 0 1 ${tm.x - cutR - TURN} ${tm.y - cutR}`,
-            `M${tm.x + cutR} 0 V${tm.y - cutR - TURN} A${TURN} ${TURN} 0 0 0 ${tm.x + cutR + TURN} ${tm.y - cutR}`,
-            `M${bm.x - cutR} 1500 V${bm.y + cutR + TURN} A${TURN} ${TURN} 0 0 0 ${bm.x - cutR - TURN} ${bm.y + cutR}`,
-            `M${bm.x + cutR} 1500 V${bm.y + cutR + TURN} A${TURN} ${TURN} 0 0 1 ${bm.x + cutR + TURN} ${bm.y + cutR}`,
+            `M${tm.x - cutR} 0 V${tm.y - cutR - TURN_MIDDLE} A${TURN_MIDDLE} ${TURN_MIDDLE} 0 0 1 ${tm.x - cutR - TURN_MIDDLE} ${tm.y - cutR}`,
+            `M${tm.x + cutR} 0 V${tm.y - cutR - TURN_MIDDLE} A${TURN_MIDDLE} ${TURN_MIDDLE} 0 0 0 ${tm.x + cutR + TURN_MIDDLE} ${tm.y - cutR}`,
+            `M${bm.x - cutR} 1500 V${bm.y + cutR + TURN_MIDDLE} A${TURN_MIDDLE} ${TURN_MIDDLE} 0 0 0 ${bm.x - cutR - TURN_MIDDLE} ${bm.y + cutR}`,
+            `M${bm.x + cutR} 1500 V${bm.y + cutR + TURN_MIDDLE} A${TURN_MIDDLE} ${TURN_MIDDLE} 0 0 1 ${bm.x + cutR + TURN_MIDDLE} ${bm.y + cutR}`,
             // Rail connectors between pockets
             `M${tl.x - cutR} 0 H${tm.x - cutR}`,
             `M${tm.x + cutR} 0 H${tr.x + cutR}`,
