@@ -86,3 +86,16 @@ public class DirectionNormalizationTests
         Assert.That((p1.Path[1] - p2.Path[1]).Length, Is.LessThan(1e-9));
     }
 }
+
+public class CushionStepTests
+{
+    [Test]
+    public void BallReflectsWithoutCrossingBoundary()
+    {
+        var solver = new BilliardsSolver();
+        var ball = new BilliardsSolver.Ball { Position = new Vec2(0.2, 0.5), Velocity = new Vec2(-5, 0) };
+        solver.Step(new List<BilliardsSolver.Ball> { ball }, 0.1);
+        Assert.That(ball.Position.X, Is.GreaterThanOrEqualTo(PhysicsConstants.BallRadius - 1e-9));
+        Assert.That(ball.Velocity.X, Is.GreaterThan(0));
+    }
+}

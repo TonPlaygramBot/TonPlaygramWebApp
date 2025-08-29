@@ -32,35 +32,35 @@ public class BilliardsSolver
     {
         foreach (var b in balls)
         {
-            if (b.Velocity.Length > 0)
+            if (b.Velocity.Length <= 0)
+                continue;
+
+            double remaining = dt;
+            while (remaining > PhysicsConstants.Epsilon && b.Velocity.Length > 0)
             {
-                b.Position += b.Velocity * dt;
-                // simple friction
-                var speed = b.Velocity.Length;
-                var newSpeed = Math.Max(0, speed - PhysicsConstants.Mu * dt);
-                b.Velocity = b.Velocity.Normalized() * newSpeed;
-                // cushion
                 Vec2 min = new Vec2(0, 0);
                 Vec2 max = new Vec2(PhysicsConstants.TableWidth, PhysicsConstants.TableHeight);
-                if (b.Position.X < min.X + PhysicsConstants.BallRadius)
+
+                if (Ccd.CircleAabb(b.Position, b.Velocity, PhysicsConstants.BallRadius, min, max, out double tHit, out Vec2 normal) && tHit <= remaining)
                 {
-                    b.Position = new Vec2(min.X + PhysicsConstants.BallRadius, b.Position.Y);
-                    b.Velocity = Collision.Reflect(b.Velocity, new Vec2(1, 0));
+                    // advance to impact point
+                    b.Position += b.Velocity * tHit;
+                    // apply friction over travelled time
+                    var speed = b.Velocity.Length;
+                    var newSpeed = Math.Max(0, speed - PhysicsConstants.Mu * tHit);
+                    b.Velocity = newSpeed > 0 ? b.Velocity.Normalized() * newSpeed : new Vec2(0, 0);
+                    // reflect off cushion and continue with remaining time
+                    b.Velocity = Collision.Reflect(b.Velocity, normal);
+                    remaining -= tHit;
                 }
-                else if (b.Position.X > max.X - PhysicsConstants.BallRadius)
+                else
                 {
-                    b.Position = new Vec2(max.X - PhysicsConstants.BallRadius, b.Position.Y);
-                    b.Velocity = Collision.Reflect(b.Velocity, new Vec2(-1, 0));
-                }
-                if (b.Position.Y < min.Y + PhysicsConstants.BallRadius)
-                {
-                    b.Position = new Vec2(b.Position.X, min.Y + PhysicsConstants.BallRadius);
-                    b.Velocity = Collision.Reflect(b.Velocity, new Vec2(0, 1));
-                }
-                else if (b.Position.Y > max.Y - PhysicsConstants.BallRadius)
-                {
-                    b.Position = new Vec2(b.Position.X, max.Y - PhysicsConstants.BallRadius);
-                    b.Velocity = Collision.Reflect(b.Velocity, new Vec2(0, -1));
+                    // no collision within remaining step
+                    b.Position += b.Velocity * remaining;
+                    var speed = b.Velocity.Length;
+                    var newSpeed = Math.Max(0, speed - PhysicsConstants.Mu * remaining);
+                    b.Velocity = newSpeed > 0 ? b.Velocity.Normalized() * newSpeed : new Vec2(0, 0);
+                    break;
                 }
             }
         }
