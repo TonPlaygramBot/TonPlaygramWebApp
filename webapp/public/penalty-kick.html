@@ -962,7 +962,8 @@ function loop(now){ requestAnimationFrame(loop); drawField(); drawAds(); drawGoa
     const src=audioCtx.createBufferSource();
     src.buffer=postHitSoundBuf;
     src.connect(masterGain);
-    src.start(0);
+    // Skip initial silence so the sound starts at 0.3 seconds
+    src.start(0, 0.3);
     postHitSource=src;
     src.onended=()=>{ if(postHitSource===src) postHitSource=null; };
   }
