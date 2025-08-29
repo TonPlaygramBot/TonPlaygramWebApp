@@ -1,126 +1,222 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>SVG Billiards Pocket Nets Overlay</title>
-  <style>
-    :root{
-      /* Tweakables */
-      --pocket-r: 50;       /* rim radius in px at 1000px width */
-      --net-depth: 56;      /* how far the net funnels inward */
-    }
-    body{margin:0;background:#0c1020;display:grid;place-items:center;height:100vh}
-    .stage{position:relative;max-width:min(92vw, 760px);box-shadow:0 20px 60px rgba(0,0,0,.35);border-radius:12px;overflow:hidden}
-    .bg{display:block;width:100%;height:auto}
-    svg.overlay{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
-    .aim-line{position:absolute;top:50%;left:50%;width:2px;height:0;background:#fff;transform-origin:top center;transform:translate(-50%,-100%) rotate(0);pointer-events:none}
-  </style>
-</head>
-<body>
-  <div class="stage">
-    <!-- Embedded green table background as inline SVG to keep this file standalone -->
-    <img class="bg" src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxMDAwIDE1MDAiPjxyZWN0IHdpZHRoPSIxMDAlIiBoZWlnaHQ9IjEwMCUiIGZpbGw9IiMwMDgwMDAiLz48L3N2Zz4=" alt="Pool table" />
-    <!-- Vector-only overlay for nets -->
-    <svg class="overlay" viewBox="0 0 1000 1500" preserveAspectRatio="xMidYMid slice">
-      <defs></defs>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>SVG Billiards Pocket Nets Overlay</title>
+    <style>
+      :root {
+        /* Tweakables */
+        --pocket-r: 50; /* rim radius in px at 1000px width */
+        --net-depth: 56; /* how far the net funnels inward */
+      }
+      body {
+        margin: 0;
+        background: #0c1020;
+        display: grid;
+        place-items: center;
+        height: 100vh;
+      }
+      .stage {
+        position: relative;
+        max-width: min(92vw, 760px);
+        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.35);
+        border-radius: 12px;
+        overflow: hidden;
+      }
+      .bg {
+        display: block;
+        width: 100%;
+        height: auto;
+      }
+      svg.overlay {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        pointer-events: none;
+      }
+      .aim-line {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        width: 2px;
+        height: 0;
+        background: #fff;
+        transform-origin: top center;
+        transform: translate(-50%, -100%) rotate(0);
+        pointer-events: none;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="stage">
+      <!-- Embedded green table background as inline SVG to keep this file standalone -->
+      <img
+        class="bg"
+        src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxMDAwIDE1MDAiPjxyZWN0IHdpZHRoPSIxMDAlIiBoZWlnaHQ9IjEwMCUiIGZpbGw9IiMwMDgwMDAiLz48L3N2Zz4="
+        alt="Pool table"
+      />
+      <!-- Vector-only overlay for nets -->
+      <svg
+        class="overlay"
+        viewBox="0 0 1000 1500"
+        preserveAspectRatio="xMidYMid slice"
+      >
+        <defs></defs>
 
-      <g id="nets"></g>
+        <g id="nets"></g>
 
-      <script>
-        // Configurable pocket centers in the SVG viewBox coordinate space (1000x1500)
-        const RIM_R = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--pocket-r'));
-        const DEPTH = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--net-depth'));
-        // widen the offset so the yellow guides stop right at the pocket rims
-        const GUIDE_MARGIN = 5; // gap large enough to keep guides out of the red pockets
-
-        const pockets = [
-          {x: 60,   y: 56},      // top-left corner (slightly raised)
-          {x: 500,  y: 60},      // top-middle
-          {x: 940,  y: 56},      // top-right corner (slightly raised)
-          {x: 60,   y: 1440},    // bottom-left corner
-          {x: 500,  y: 1440},    // bottom-middle
-          {x: 940,  y: 1440},    // bottom-right corner
-        ];
-
-        const svg = document.currentScript.ownerSVGElement;
-        const defs = svg.querySelector('defs');
-        const g   = svg.getElementById('nets');
-
-        // Helper to create elements
-        const el = (name, attrs = {}) =>
-          Object.assign(
-            document.createElementNS('http://www.w3.org/2000/svg', name),
-            attrs
+        <script>
+          // Configurable pocket centers in the SVG viewBox coordinate space (1000x1500)
+          const RIM_R = parseFloat(
+            getComputedStyle(document.documentElement).getPropertyValue(
+              '--pocket-r'
+            )
           );
+          const DEPTH = parseFloat(
+            getComputedStyle(document.documentElement).getPropertyValue(
+              '--net-depth'
+            )
+          );
+          // widen the offset so the yellow guides stop right at the pocket rims
+          const GUIDE_MARGIN = 5; // gap large enough to keep guides out of the red pockets
 
-        pockets.forEach(({x,y}, i) => {
-          // Mask to clip funnel contents to the pocket rim
-          const m = el('mask', { id: `pocket-mask-${i}` });
-          m.append(el('circle', { cx: x, cy: y, r: RIM_R, fill: 'white' }));
-          defs.append(m);
+          const pockets = [
+            { x: 60, y: 56 }, // top-left corner (slightly raised)
+            { x: 500, y: 60 }, // top-middle
+            { x: 940, y: 56 }, // top-right corner (slightly raised)
+            { x: 60, y: 1440 }, // bottom-left corner
+            { x: 500, y: 1440 }, // bottom-middle
+            { x: 940, y: 1440 } // bottom-right corner
+          ];
 
-          const group = el('g');
+          const svg = document.currentScript.ownerSVGElement;
+          const defs = svg.querySelector('defs');
+          const g = svg.getElementById('nets');
 
-          // Subtle drop shadow under rim
-          group.append(el('circle', {cx: x+3, cy: y+3, r: RIM_R+2, fill: 'black', opacity: 0.18}));
+          // Helper to create elements
+          const el = (name, attrs = {}) =>
+            Object.assign(
+              document.createElementNS('http://www.w3.org/2000/svg', name),
+              attrs
+            );
 
-          // Dark grey pocket interior
-          group.append(el('circle', {cx: x, cy: y, r: RIM_R, fill: '#333'}));
+          pockets.forEach(({ x, y }, i) => {
+            // Mask to clip funnel contents to the pocket rim
+            const m = el('mask', { id: `pocket-mask-${i}` });
+            m.append(el('circle', { cx: x, cy: y, r: RIM_R, fill: 'white' }));
+            defs.append(m);
 
-          // Rim shaped like a U: rounded long sides, straight short sides
-          const rimPath = `M${x - RIM_R} ${y - RIM_R} L${x + RIM_R} ${y - RIM_R} A ${RIM_R} ${RIM_R} 0 0 1 ${x + RIM_R} ${y + RIM_R} L${x - RIM_R} ${y + RIM_R} A ${RIM_R} ${RIM_R} 0 0 1 ${x - RIM_R} ${y - RIM_R}`;
-          group.append(el('path', { d: rimPath, fill: 'none', stroke: '#1a1a1a', 'stroke-width': 8, opacity: 0.9 }));
-          group.append(el('path', { d: rimPath, fill: 'none', stroke: '#c2a44b', 'stroke-width': 3, opacity: 0.9 }));
-          // Yellow guide following the pocket opening so balls can enter, offset slightly from rim
-          const guideR = RIM_R + GUIDE_MARGIN;
-          const guidePath = `M${x - guideR} ${y - guideR} L${x + guideR} ${y - guideR} A ${guideR} ${guideR} 0 0 1 ${x + guideR} ${y + guideR} L${x - guideR} ${y + guideR} A ${guideR} ${guideR} 0 0 1 ${x - guideR} ${y - guideR}`;
-          group.append(el('path', { d: guidePath, fill: 'none', stroke: 'yellow', 'stroke-width': 2 }));
+            const group = el('g');
 
-          g.append(group);
-        });
+            // Subtle drop shadow under rim
+            group.append(
+              el('circle', {
+                cx: x + 3,
+                cy: y + 3,
+                r: RIM_R + 2,
+                fill: 'black',
+                opacity: 0.18
+              })
+            );
 
-        // Edge guides highlighted with thin yellow lines that bend before the pockets
-        const edgesG = el('g');
-        svg.append(edgesG);
+            // Dark grey pocket interior
+            group.append(
+              el('circle', { cx: x, cy: y, r: RIM_R, fill: '#333' })
+            );
 
-        const [tl, tm, tr, bl, bm, br] = pockets;
-        const cutR = RIM_R - GUIDE_MARGIN;
-        const TURN = 6; // bend radius = 3 * stroke width
-        const edgePaths = [
-          // Corner pocket cuts
-          `M0 ${tl.y - cutR} H${tl.x - cutR - TURN} A${TURN} ${TURN} 0 0 1 ${tl.x - cutR} ${tl.y - cutR - TURN} V0`,
-          `M1000 ${tr.y - cutR} H${tr.x + cutR + TURN} A${TURN} ${TURN} 0 0 0 ${tr.x + cutR} ${tr.y - cutR - TURN} V0`,
-          `M0 ${bl.y + cutR} H${bl.x - cutR - TURN} A${TURN} ${TURN} 0 0 1 ${bl.x - cutR} ${bl.y + cutR + TURN} V1500`,
-          `M1000 ${br.y + cutR} H${br.x + cutR + TURN} A${TURN} ${TURN} 0 0 0 ${br.x + cutR} ${br.y + cutR + TURN} V1500`,
-          // Side pocket cuts
-          `M${tm.x - cutR} 0 V${tm.y - cutR - TURN} A${TURN} ${TURN} 0 0 1 ${tm.x - cutR - TURN} ${tm.y - cutR}`,
-          `M${tm.x + cutR} 0 V${tm.y - cutR - TURN} A${TURN} ${TURN} 0 0 0 ${tm.x + cutR + TURN} ${tm.y - cutR}`,
-          `M${bm.x - cutR} 1500 V${bm.y + cutR + TURN} A${TURN} ${TURN} 0 0 0 ${bm.x - cutR - TURN} ${bm.y + cutR}`,
-          `M${bm.x + cutR} 1500 V${bm.y + cutR + TURN} A${TURN} ${TURN} 0 0 1 ${bm.x + cutR + TURN} ${bm.y + cutR}`,
-        ];
+            // Rim shaped like a U: rounded long sides, straight short sides
+            const rimPath = `M${x - RIM_R} ${y - RIM_R} L${x + RIM_R} ${y - RIM_R} A ${RIM_R} ${RIM_R} 0 0 1 ${x + RIM_R} ${y + RIM_R} L${x - RIM_R} ${y + RIM_R} A ${RIM_R} ${RIM_R} 0 0 1 ${x - RIM_R} ${y - RIM_R}`;
+            group.append(
+              el('path', {
+                d: rimPath,
+                fill: 'none',
+                stroke: '#1a1a1a',
+                'stroke-width': 8,
+                opacity: 0.9
+              })
+            );
+            group.append(
+              el('path', {
+                d: rimPath,
+                fill: 'none',
+                stroke: '#c2a44b',
+                'stroke-width': 3,
+                opacity: 0.9
+              })
+            );
+            // Yellow guide following the pocket opening so balls can enter, offset slightly from rim
+            const guideR = RIM_R + GUIDE_MARGIN;
+            const guidePath = `M${x - guideR} ${y - guideR} L${x + guideR} ${y - guideR} A ${guideR} ${guideR} 0 0 1 ${x + guideR} ${y + guideR} L${x - guideR} ${y + guideR} A ${guideR} ${guideR} 0 0 1 ${x - guideR} ${y - guideR}`;
+            group.append(
+              el('path', {
+                d: guidePath,
+                fill: 'none',
+                stroke: 'yellow',
+                'stroke-width': 2
+              })
+            );
 
-        edgePaths.forEach(d => {
-          edgesG.append(el('path', { d, stroke: 'yellow', 'stroke-width': 2, fill: 'none', 'stroke-linecap': 'round' }));
-        });
-      </script>
-    </svg>
-    <div id="aim-line" class="aim-line"></div>
-  </div>
-  <script>
-    const stage = document.querySelector('.stage');
-    const aimLine = document.getElementById('aim-line');
-    stage.addEventListener('click', (e) => {
-      const rect = stage.getBoundingClientRect();
-      const cx = rect.left + rect.width / 2;
-      const cy = rect.top + rect.height / 2;
-      const dx = e.clientX - cx;
-      const dy = e.clientY - cy;
-      const angle = Math.atan2(dy, dx) * 180 / Math.PI + 90;
-      const length = Math.hypot(dx, dy);
-      aimLine.style.height = `${length}px`;
-      aimLine.style.transform = `translate(-50%,-100%) rotate(${angle}deg)`;
-    });
-  </script>
-</body>
+            g.append(group);
+          });
+
+          // Edge guides highlighted with thin yellow lines that bend before the pockets
+          const edgesG = el('g');
+          svg.append(edgesG);
+
+          const [tl, tm, tr, bl, bm, br] = pockets;
+          const cutR = RIM_R - GUIDE_MARGIN;
+          const TURN = 6; // bend radius = 3 * stroke width
+          const edgePaths = [
+            // Corner pocket cuts
+            `M0 ${tl.y - cutR} H${tl.x - cutR - TURN} A${TURN} ${TURN} 0 0 1 ${tl.x - cutR} ${tl.y - cutR - TURN} V0`,
+            `M1000 ${tr.y - cutR} H${tr.x + cutR + TURN} A${TURN} ${TURN} 0 0 0 ${tr.x + cutR} ${tr.y - cutR - TURN} V0`,
+            `M0 ${bl.y + cutR} H${bl.x - cutR - TURN} A${TURN} ${TURN} 0 0 1 ${bl.x - cutR} ${bl.y + cutR + TURN} V1500`,
+            `M1000 ${br.y + cutR} H${br.x + cutR + TURN} A${TURN} ${TURN} 0 0 0 ${br.x + cutR} ${br.y + cutR + TURN} V1500`,
+            // Side pocket cuts
+            `M${tm.x - cutR} 0 V${tm.y - cutR - TURN} A${TURN} ${TURN} 0 0 1 ${tm.x - cutR - TURN} ${tm.y - cutR}`,
+            `M${tm.x + cutR} 0 V${tm.y - cutR - TURN} A${TURN} ${TURN} 0 0 0 ${tm.x + cutR + TURN} ${tm.y - cutR}`,
+            `M${bm.x - cutR} 1500 V${bm.y + cutR + TURN} A${TURN} ${TURN} 0 0 0 ${bm.x - cutR - TURN} ${bm.y + cutR}`,
+            `M${bm.x + cutR} 1500 V${bm.y + cutR + TURN} A${TURN} ${TURN} 0 0 1 ${bm.x + cutR + TURN} ${bm.y + cutR}`,
+            // Rail connectors between pockets
+            `M${tl.x - cutR} 0 H${tm.x - cutR}`,
+            `M${tm.x + cutR} 0 H${tr.x + cutR}`,
+            `M${bl.x - cutR} 1500 H${bm.x - cutR}`,
+            `M${bm.x + cutR} 1500 H${br.x + cutR}`,
+            `M0 ${tl.y - cutR} V${bl.y + cutR}`,
+            `M1000 ${tr.y - cutR} V${br.y + cutR}`
+          ];
+
+          edgePaths.forEach((d) => {
+            edgesG.append(
+              el('path', {
+                d,
+                stroke: 'yellow',
+                'stroke-width': 2,
+                fill: 'none',
+                'stroke-linecap': 'round'
+              })
+            );
+          });
+        </script>
+      </svg>
+      <div id="aim-line" class="aim-line"></div>
+    </div>
+    <script>
+      const stage = document.querySelector('.stage');
+      const aimLine = document.getElementById('aim-line');
+      stage.addEventListener('click', (e) => {
+        const rect = stage.getBoundingClientRect();
+        const cx = rect.left + rect.width / 2;
+        const cy = rect.top + rect.height / 2;
+        const dx = e.clientX - cx;
+        const dy = e.clientY - cy;
+        const angle = (Math.atan2(dy, dx) * 180) / Math.PI + 90;
+        const length = Math.hypot(dx, dy);
+        aimLine.style.height = `${length}px`;
+        aimLine.style.transform = `translate(-50%,-100%) rotate(${angle}deg)`;
+      });
+    </script>
+  </body>
 </html>
