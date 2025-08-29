@@ -1503,10 +1503,13 @@
           ctx.lineTo(x0 + w, (br.y - br.r) * sY - gap);
           // add pocket guides that bend toward pocket centers
           function pocketGuide(startX, startY, px, py) {
-            var endX = startX + (px - startX) * 0.3;
-            var endY = startY + (py - startY) * 0.3;
-            var ctrlX = startX + (px - startX) * 0.6;
-            var ctrlY = startY + (py - startY) * 0.6;
+            // Extend the guide slightly farther toward the pocket and
+            // pull the control point deeper into the pocket to increase
+            // the curvature of the guideline along its current direction.
+            var endX = startX + (px - startX) * 0.35;
+            var endY = startY + (py - startY) * 0.35;
+            var ctrlX = startX + (px - startX) * 0.7;
+            var ctrlY = startY + (py - startY) * 0.7;
             ctx.moveTo(startX, startY);
             ctx.quadraticCurveTo(ctrlX, ctrlY, endX, endY);
           }
