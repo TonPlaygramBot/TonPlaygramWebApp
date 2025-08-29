@@ -1659,12 +1659,13 @@
             var dy = pocket.y - y1;
             var dist = Math.hypot(dx, dy);
             if (dist === 0) return;
+            // Corner pockets get a little more guide length so their edges appear more open
             var extra =
               pocket === pTL ||
               pocket === pTR ||
               pocket === pBL ||
               pocket === pBR
-                ? 3
+                ? 5
                 : 1;
             var g = Math.min(guideLen + extra, dist - pocket.r - 1);
             if (g <= 0) return;
