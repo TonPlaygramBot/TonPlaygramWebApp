@@ -985,8 +985,8 @@ function loop(now){ requestAnimationFrame(loop); drawField(); drawAds(); drawGoa
     const gain=audioCtx.createGain();
     gain.gain.value=0.7; // 30% lower volume on post/crossbar hits
     src.connect(gain).connect(masterGain);
-    // Skip initial silence so the sound starts at 0.3 seconds
-    src.start(0, 0.3);
+    // Skip ~0.15s of initial silence so the clang matches contact
+    src.start(0, 0.15);
   }
   const sfxPost = playPostHitSound;
   // Ball kick sound
