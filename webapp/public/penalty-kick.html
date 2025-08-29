@@ -637,16 +637,36 @@
   }
 
   function stepLooseBalls(){
-    const r=Math.max(BALL_R*geom.scale*1.08,22);
-    const fieldGround=geom.spot.y;
-    const goalGround=geom.goal.y + geom.goal.h;
+    const r = Math.max(BALL_R*geom.scale*1.08,22);
+    const fieldGround = geom.spot.y;
+    const goalGround = geom.goal.y + geom.goal.h;
+    const g = geom.goal;
+    const postR = g.post;
     const now = performance.now();
     for(const b of looseBalls){
       b.vy += GRAVITY;
       b.vx *= 0.98;
       b.spin *= 0.98;
-      b.x += b.vx;
-      b.y += b.vy;
+      let nextX = b.x + b.vx;
+      let nextY = b.y + b.vy;
+      if(b.insideGoal){
+        if(nextX - r <= g.x && nextY > g.y - postR && nextY < g.y + g.h + postR && b.vx < 0){
+          sfxPost();
+          b.vx *= -0.6;
+          nextX = g.x + r;
+        } else if(nextX + r >= g.x + g.w && nextY > g.y - postR && nextY < g.y + g.h + postR && b.vx > 0){
+          sfxPost();
+          b.vx *= -0.6;
+          nextX = g.x + g.w - r;
+        }
+        if(nextY - r <= g.y && nextX > g.x - postR && nextX < g.x + g.w + postR && b.vy < 0){
+          sfxPost();
+          b.vy *= -0.6;
+          nextY = g.y + r;
+        }
+      }
+      b.x = nextX;
+      b.y = nextY;
       b.angle += b.spin;
       const ground = b.insideGoal ? goalGround : fieldGround;
       if(b.y + r > ground){
@@ -655,29 +675,29 @@
           if(!b.bounced){
             b.vy *= -0.25;
             b.spin *= 0.5;
-            b.bounced=true;
+            b.bounced = true;
           } else {
             b.vy = 0;
             b.vx *= 0.92;
             b.spin *= 0.8;
-            if(Math.hypot(b.vx,b.vy)<0.2 && !b.landedAt) b.landedAt = now;
+            if(Math.hypot(b.vx,b.vy) < 0.2 && !b.landedAt) b.landedAt = now;
           }
         } else if(!b.bounced){
           b.vy *= -0.25;
           b.spin *= 0.5;
-          b.bounced=true;
+          b.bounced = true;
         } else {
           b.vy = 0;
           b.vx *= 0.92;
           b.spin *= 0.8;
-          if(Math.hypot(b.vx,b.vy)<0.2 && !b.landedAt) b.landedAt = now;
+          if(Math.hypot(b.vx,b.vy) < 0.2 && !b.landedAt) b.landedAt = now;
         }
       }
       if(b.landedAt && now - b.landedAt > 3000){
-        b.remove=true;
+        b.remove = true;
       }
     }
-    looseBalls = looseBalls.filter(b=>!b.remove);
+    looseBalls = looseBalls.filter(b => !b.remove);
   }
 
   function stepFragments(){
