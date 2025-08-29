@@ -1471,10 +1471,36 @@
             Math.PI * 2
           );
           ctx.fill();
-          // Draw a thin yellow line along the cushions
+          // Draw a thin yellow line along the cushions, stopping before each pocket
           ctx.strokeStyle = '#facc15';
           ctx.lineWidth = 2;
-          ctx.strokeRect(x0, y0, w, h);
+          ctx.beginPath();
+          var gap = 2;
+          var tl = this.pockets[0];
+          var tr = this.pockets[1];
+          var ml = this.pockets[2];
+          var mr = this.pockets[3];
+          var bl = this.pockets[4];
+          var br = this.pockets[5];
+          // top edge
+          ctx.moveTo((tl.x + tl.r) * sX - gap, y0);
+          ctx.lineTo((tr.x - tr.r) * sX + gap, y0);
+          // bottom edge
+          ctx.moveTo((bl.x + bl.r) * sX - gap, y0 + h);
+          ctx.lineTo((br.x - br.r) * sX + gap, y0 + h);
+          // left edge - top segment
+          ctx.moveTo(x0, (tl.y + tl.r) * sY - gap);
+          ctx.lineTo(x0, (ml.y - ml.r) * sY + gap);
+          // left edge - bottom segment
+          ctx.moveTo(x0, (ml.y + ml.r) * sY - gap);
+          ctx.lineTo(x0, (bl.y - bl.r) * sY + gap);
+          // right edge - top segment
+          ctx.moveTo(x0 + w, (tr.y + tr.r) * sY - gap);
+          ctx.lineTo(x0 + w, (mr.y - mr.r) * sY + gap);
+          // right edge - bottom segment
+          ctx.moveTo(x0 + w, (mr.y + mr.r) * sY - gap);
+          ctx.lineTo(x0 + w, (br.y - br.r) * sY + gap);
+          ctx.stroke();
 
           // Outline pockets with a thin red line
           ctx.strokeStyle = '#ff0000';
@@ -1576,8 +1602,7 @@
             ctx.restore();
           }
 
-          // Field markings removed; skip drawing yellow boundary lines
-          // so the felt displays without rail or pocket guides.
+            // Yellow boundary lines stop before each pocket; no additional field guides.
 
           // Steka mbi felt + guida
           if (
