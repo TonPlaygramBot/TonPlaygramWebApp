@@ -351,6 +351,7 @@
   const whistleSound = new Audio('/assets/sounds/metal-whistle-6121.mp3');
   const goalNetSound = new Audio('/assets/sounds/a-football-hits-the-net-goal-313216.mp3');
   const postHitSound = new Audio('/assets/sounds/frying-pan-over-the-head-89303.mp3');
+  postHitSound.volume = 0.7; // 30% lower volume on post/crossbar hits
   const crowdBaseVolume = 0.5;
   crowdSound.volume = crowdBaseVolume;
   let pendingWhistle = false;
@@ -394,11 +395,12 @@
     wall(){},
     post(){
       if(!audioEnabled) return;
-      postHitSound.currentTime = 0;
+      // Skip ~0.15s of initial silence so the clang matches contact
+      postHitSound.currentTime = 0.15;
       postHitSound.play().catch(()=>{});
       setTimeout(()=>{
         postHitSound.pause();
-        postHitSound.currentTime = 0;
+        postHitSound.currentTime = 0.15;
       },1000);
     },
     goal(){
