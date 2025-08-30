@@ -599,7 +599,7 @@
       ball.trail.push({x:ball.x,y:ball.y});
       if(ball.trail.length>20) ball.trail.shift();
     }
-    const speed=Math.hypot(ball.vx,ball.vy); const drag = 1 - AIR_DRAG*speed; const curve = ball.spin*0.8;
+    const speed=Math.hypot(ball.vx,ball.vy); const drag = 1 - AIR_DRAG*speed; const curve = ball.spin*1.1;
     const knuckle = 0;
     ball.vx = (ball.vx + curve + knuckle)*FRICTION*drag; ball.vy = (ball.vy + GRAVITY)*FRICTION*drag;
     const g=geom.goal;
@@ -634,7 +634,7 @@
       return;
     }
 
-    ball.x = nextX; ball.y = nextY; ball.angle += ball.spin*0.3;
+    ball.x = nextX; ball.y = nextY; ball.angle += ball.spin*0.15;
 
     const dHit = ballHitsDefenders();
     if(dHit){
@@ -837,18 +837,19 @@ function endShot(hit,pts){
   // ===== Input (swipe/flick + spin) =====
   let pointer={id:null,path:[],active:false,armed:false,t0:0,t1:0};
   function pos(e){ const r=canvas.getBoundingClientRect(); return {x:(e.clientX-r.left)*(W/r.width), y:(e.clientY-r.top)*(H/r.height)}; }
+  // compute initial velocity and spin so shots track swipe path closely
   function calcShot(dx,dy,curve,power){
-    const spin = clamp(curve*0.5, -30, 30); // reduce spin for straighter shots
+    const spin = clamp(curve*0.35, -20, 20); // lower spin for better control; curve scales ~95% of swipe
     const speed = SHOT_SPEED * power;
     let t = Math.max(0.1, Math.hypot(dx,dy) / speed);
-    for(let i=0;i<5;i++){
-      const adjDx = dx - spin*0.125*t*t;
+    for(let i=0;i<7;i++){ // extra iterations for swipe precision
+      const adjDx = dx - spin*0.1*t*t;
       const vx = adjDx / t;
       const vy = (dy - 0.5*GRAVITY*t*t)/t;
       const curSpeed = Math.hypot(vx,vy);
       t *= curSpeed / speed;
     }
-    const adjDx = dx - spin*0.125*t*t;
+    const adjDx = dx - spin*0.1*t*t;
     return { vx: adjDx/t, vy: (dy - 0.5*GRAVITY*t*t)/t, spin };
   }
   function onDown(e){ if(!running||ended||paused) return; if(pointer.active) return; pointer.active=true; pointer.id=e.pointerId; const p=pos(e); pointer.path=[p]; pointer.t0=performance.now(); pointer.t1=pointer.t0; pointer.armed = Math.hypot(p.x-ball.x,p.y-ball.y) <= ball.r*2.4 && !ball.moving; if(pointer.armed){ status('Swipe upward. Curve for spin.'); } }
