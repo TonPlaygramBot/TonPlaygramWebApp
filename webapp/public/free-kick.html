@@ -238,7 +238,7 @@
   const defenders={x:0,y:0,w:40,h:100,baseY:0,vy:0,jumping:false};
   const defendersImg = new Image();
   defendersImg.src = '/assets/icons/file_0000000091b0624395c9e8d8acf66e69.webp';
-  const aimOn = false;
+  const aimOn = true;
 
   const rivals=[
     { i:0, wrap:document.querySelector('#pv0'), ptsEl:document.querySelector('#pv0pts'), cvs:null, ctx:null, score:0, next:0, acc:0.68, rate:[1180,2180], shots:[], kx:0 },
@@ -370,6 +370,7 @@
     ctx.strokeStyle = '#fff';
     ctx.lineWidth = 4;
     ctx.beginPath();
+    ctx.lineJoin='round'; ctx.lineCap='round';
     ctx.moveTo(0, kickerLineY);
     ctx.lineTo(W, kickerLineY);
     ctx.stroke();
@@ -639,13 +640,15 @@
     const dHit = ballHitsDefenders();
     if(dHit){
       ball.trailStopped = true;
-      reflectBall(dHit.nx, dHit.ny, 0.7);
+      reflectBall(dHit.nx, dHit.ny, 0.9);
       if(dHit.ny < 0){
         ball.y = defenders.y - ball.r;
       } else {
         ball.x = dHit.nx < 0 ? defenders.x - ball.r : defenders.x + defenders.w + ball.r;
       }
+      ball.vy = Math.abs(ball.vy) + 4*geom.scale;
       missFlash = 1;
+      endShot(false,0,1000);
       return;
     }
 
@@ -794,7 +797,7 @@
   // aiming controls removed
   function drawAimPath(vx,vy,spin){
     if(!aimOn) return;
-    const steps=28; let x=ball.x, y=ball.y, vx1=vx, vy1=vy;
+    const steps=40; let x=ball.x, y=ball.y, vx1=vx, vy1=vy;
     ctx.beginPath();
     for(let i=0;i<steps;i++){
       const speed=Math.hypot(vx1,vy1); const drag=1-AIR_DRAG*speed;
@@ -806,7 +809,7 @@
   }
 
   // ===== Round / scoring =====
-function endShot(hit,pts){
+function endShot(hit,pts,delay=0){
   // keep current ball falling while spawning the next one
   looseBalls.push({x:ball.x,y:ball.y,vx:ball.vx,vy:ball.vy,angle:ball.angle,spin:ball.spin,bounced:false,insideGoal:hit,landedAt:null});
   ball.moving=false;
@@ -823,7 +826,11 @@ function endShot(hit,pts){
     vibrate(12);
   }
   updateHUD();
-  resetBall();
+  if(delay>0){
+    setTimeout(()=>{ resetBall(); }, delay);
+  } else {
+    resetBall();
+  }
 }
   function updateHUD(){
     const ps = document.getElementById('playerScore');
@@ -839,10 +846,10 @@ function endShot(hit,pts){
   function pos(e){ const r=canvas.getBoundingClientRect(); return {x:(e.clientX-r.left)*(W/r.width), y:(e.clientY-r.top)*(H/r.height)}; }
   // compute initial velocity and spin so shots track swipe path closely
   function calcShot(dx,dy,curve,power){
-    const spin = clamp(curve*0.35, -20, 20); // lower spin for better control; curve scales ~95% of swipe
+    const spin = clamp(curve, -20, 20); // use full swipe curve for spin
     const speed = SHOT_SPEED * power;
     let t = Math.max(0.1, Math.hypot(dx,dy) / speed);
-    for(let i=0;i<7;i++){ // extra iterations for swipe precision
+    for(let i=0;i<12;i++){ // more iterations for swipe precision
       const adjDx = dx - spin*0.1*t*t;
       const vx = adjDx / t;
       const vy = (dy - 0.5*GRAVITY*t*t)/t;
