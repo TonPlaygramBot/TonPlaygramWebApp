@@ -1499,6 +1499,61 @@
           // right edge - bottom segment
           ctx.moveTo(x0 + w, (mr.y + mr.r) * sY + gap);
           ctx.lineTo(x0 + w, (br.y - br.r) * sY - gap);
+          // Connect the gaps at each pocket with decorative geometry
+          // The four corner pockets get a U shaped connector and the side
+          // pockets receive a simple V connector.  The yellow guide lines
+          // stay in their original positions – these shapes merely bridge the
+          // empty space left near the pockets.
+          var rScale = (sX + sY) / 2;
+
+          // corner pocket connectors (U)
+          var connectR = (tl.r + gap) * rScale;
+          ctx.moveTo(tl.x * sX - connectR, y0);
+          ctx.lineTo(tl.x * sX - connectR, y0 - connectR);
+          ctx.arc(tl.x * sX, y0 - connectR, connectR, Math.PI, 0, false);
+          ctx.lineTo(tl.x * sX + connectR, y0);
+
+          connectR = (tr.r + gap) * rScale;
+          ctx.moveTo(tr.x * sX - connectR, y0);
+          ctx.lineTo(tr.x * sX - connectR, y0 - connectR);
+          ctx.arc(tr.x * sX, y0 - connectR, connectR, Math.PI, 0, false);
+          ctx.lineTo(tr.x * sX + connectR, y0);
+
+          connectR = (bl.r + gap) * rScale;
+          ctx.moveTo(bl.x * sX - connectR, y0 + h);
+          ctx.lineTo(bl.x * sX - connectR, y0 + h + connectR);
+          ctx.arc(
+            bl.x * sX,
+            y0 + h + connectR,
+            connectR,
+            Math.PI,
+            0,
+            true
+          );
+          ctx.lineTo(bl.x * sX + connectR, y0 + h);
+
+          connectR = (br.r + gap) * rScale;
+          ctx.moveTo(br.x * sX - connectR, y0 + h);
+          ctx.lineTo(br.x * sX - connectR, y0 + h + connectR);
+          ctx.arc(
+            br.x * sX,
+            y0 + h + connectR,
+            connectR,
+            Math.PI,
+            0,
+            true
+          );
+          ctx.lineTo(br.x * sX + connectR, y0 + h);
+
+          // side pocket connectors (V)
+          ctx.moveTo(x0, (ml.y - ml.r) * sY - gap);
+          ctx.lineTo(ml.x * sX, ml.y * sY);
+          ctx.lineTo(x0, (ml.y + ml.r) * sY + gap);
+
+          ctx.moveTo(x0 + w, (mr.y - mr.r) * sY - gap);
+          ctx.lineTo(mr.x * sX, mr.y * sY);
+          ctx.lineTo(x0 + w, (mr.y + mr.r) * sY + gap);
+
           ctx.stroke();
 
           // Outline pockets with a thin red line
