@@ -1523,12 +1523,35 @@
               mx + r * Math.cos(mid2) - centerX,
               my + r * Math.sin(mid2) - centerY
             );
+            var lineLen = 4;
             ctx.moveTo(x1, y1);
+            if (Math.abs(y1 - y0) < 0.1) {
+              ctx.lineTo(x1, y1 + lineLen);
+              ctx.moveTo(x1, y1);
+            } else if (Math.abs(y1 - (y0 + h)) < 0.1) {
+              ctx.lineTo(x1, y1 - lineLen);
+              ctx.moveTo(x1, y1);
+            } else if (Math.abs(x1 - x0) < 0.1) {
+              ctx.lineTo(x1 + lineLen, y1);
+              ctx.moveTo(x1, y1);
+            } else if (Math.abs(x1 - (x0 + w)) < 0.1) {
+              ctx.lineTo(x1 - lineLen, y1);
+              ctx.moveTo(x1, y1);
+            }
             // Invert the arc direction so the rounded portion of the U
             // sits behind the pocket rather than spilling onto the table.
             // Using the midpoint that lies farther from the table centre
             // ensures the connector curves outward around the pocket.
             ctx.arc(mx, my, r, sa, ea, dist2 > dist1);
+            if (Math.abs(x2 - x0) < 0.1) {
+              ctx.lineTo(x2 + lineLen, y2);
+            } else if (Math.abs(x2 - (x0 + w)) < 0.1) {
+              ctx.lineTo(x2 - lineLen, y2);
+            } else if (Math.abs(y2 - y0) < 0.1) {
+              ctx.lineTo(x2, y2 + lineLen);
+            } else if (Math.abs(y2 - (y0 + h)) < 0.1) {
+              ctx.lineTo(x2, y2 - lineLen);
+            }
           }
 
           // corner pocket connectors (U)
