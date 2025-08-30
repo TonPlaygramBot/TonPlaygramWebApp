@@ -71,6 +71,7 @@
         justify-content: center;
         height: calc(56px + env(safe-area-inset-bottom));
         padding-bottom: env(safe-area-inset-bottom);
+        position: relative;
       }
 
       .player {
@@ -88,7 +89,7 @@
         display: grid;
         place-items: center;
         font-weight: 700;
-        border: 2px solid #000;
+        border: 2px solid var(--player-frame-color, #000);
       }
 
       .avatar.turn {
@@ -175,6 +176,7 @@
 
       :root {
         --rpw: min(23vw, 115px);
+        --player-frame-color: #000;
       }
 
       /* Canvas i tavolines (mbulon gjithcka, pervec panelit djathtas) */
@@ -244,6 +246,16 @@
         pointer-events: none;
       }
 
+      #turnTimerText {
+        position: absolute;
+        left: 50%;
+        top: 50%;
+        transform: translate(-50%, -50%);
+        font-weight: 700;
+        pointer-events: none;
+        -webkit-text-stroke: 1px #000;
+      }
+
       #pullArea {
         position: relative;
         width: 52px;
@@ -260,6 +272,64 @@
         z-index: 7;
         pointer-events: none;
         margin-right: 0;
+      }
+
+      #settingsBtn {
+        position: absolute;
+        right: 8px;
+        bottom: 8px;
+        background: none;
+        border: none;
+        font-size: 24px;
+        color: #fff;
+        cursor: pointer;
+      }
+
+      .settings-panel {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        background: #fff;
+        color: #000;
+        padding: 16px;
+        border: 2px solid #000;
+        border-radius: 8px;
+        z-index: 200;
+        display: none;
+        min-width: 200px;
+      }
+      .settings-panel.active {
+        display: block;
+      }
+      .settings-panel label {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        margin-top: 8px;
+      }
+      .settings-panel select,
+      .settings-panel input[type='range'] {
+        margin-left: 6px;
+      }
+      .settings-panel select option {
+        color: #000;
+      }
+      .settings-actions {
+        margin-top: 12px;
+        display: flex;
+        justify-content: flex-end;
+        gap: 8px;
+      }
+
+      body.frame-style-1 .avatar {
+        border-style: solid;
+      }
+      body.frame-style-2 .avatar {
+        border-style: dashed;
+      }
+      body.frame-style-3 .avatar {
+        border-style: dotted;
       }
 
       #cueRail {
@@ -527,6 +597,7 @@
         </div>
         <div id="spinBox">
           <div id="spinDot"></div>
+          <div id="turnTimerText"></div>
         </div>
         <div class="player">
           <div class="info">
@@ -569,6 +640,7 @@
             <div id="statusMsg"></div>
           </div>
         </div>
+        <button id="settingsBtn">🎛️</button>
       </div>
     </div>
     <div id="winnerOverlay" class="winnerOverlay hidden"></div>
@@ -581,6 +653,33 @@
         <h2 id="rulesTitle"></h2>
         <ul id="rulesList"></ul>
         <p class="rule-source" id="rulesSource"></p>
+      </div>
+    </div>
+
+    <div id="settingsPanel" class="settings-panel">
+      <label
+        >Crowd Volume<input
+          type="range"
+          id="crowdVolume"
+          min="0"
+          max="1"
+          step="0.1"
+      /></label>
+      <label
+        >Pocket Volume<input
+          type="range"
+          id="pocketVolume"
+          min="0"
+          max="1"
+          step="0.1"
+      /></label>
+      <label>Frame Style<select id="playerFrameStyle"></select></label>
+      <label
+        >Frame Color<select id="playerFrameColor" class="color-select"></select
+      ></label>
+      <div class="settings-actions">
+        <button id="saveSettings">Save</button>
+        <button id="closeSettings">Close</button>
       </div>
     </div>
 
@@ -662,6 +761,7 @@
         var centerPopup = document.getElementById('centerPopup');
         var spinBox = document.getElementById('spinBox');
         var spinDot = document.getElementById('spinDot');
+        var timerDisplay = document.getElementById('turnTimerText');
         var logoImg = new Image();
         logoImg.src = '/assets/icons/pool-royale.svg';
         var cueImg = new Image();
@@ -675,6 +775,14 @@
         var powerBg = document.getElementById('powerBg');
         var pullHandle = document.getElementById('pullLabel');
         var cueRail = document.getElementById('cueRail');
+        var settingsBtn = document.getElementById('settingsBtn');
+        var settingsPanel = document.getElementById('settingsPanel');
+        var crowdVolumeInput = document.getElementById('crowdVolume');
+        var pocketVolumeInput = document.getElementById('pocketVolume');
+        var frameStyleSelect = document.getElementById('playerFrameStyle');
+        var frameColorSelect = document.getElementById('playerFrameColor');
+        var saveSettingsBtn = document.getElementById('saveSettings');
+        var closeSettingsBtn = document.getElementById('closeSettings');
 
         var avatarP1 = document.querySelector(
           '#header .player:first-child .avatar'
@@ -688,6 +796,83 @@
         var nameCPU = document.querySelector(
           '#header .player:last-child .name'
         );
+
+        var crowdVolume =
+          parseFloat(localStorage.getItem('poolCrowdVol')) || 1;
+        var pocketVolume =
+          parseFloat(localStorage.getItem('poolPocketVol')) || 1;
+        var frameStyleSetting =
+          localStorage.getItem('poolFrameStyle') || '1';
+        var frameColorSetting =
+          localStorage.getItem('poolFrameColor') || '#000';
+
+        document.body.classList.add('frame-style-' + frameStyleSetting);
+        document.documentElement.style.setProperty(
+          '--player-frame-color',
+          frameColorSetting
+        );
+
+        if (frameStyleSelect) {
+          for (var fs = 1; fs <= 3; fs++) {
+            var opt = document.createElement('option');
+            opt.value = fs;
+            opt.textContent = 'Style ' + fs;
+            frameStyleSelect.appendChild(opt);
+          }
+          frameStyleSelect.value = frameStyleSetting;
+        }
+
+        if (frameColorSelect) {
+          ['#000', '#f00', '#0f0', '#00f', '#ff0', '#f0f', '#0ff', '#fff'].forEach(
+            function (c) {
+              var opt = document.createElement('option');
+              opt.value = c;
+              opt.textContent = c;
+              opt.style.background =
+                'linear-gradient(to right, ' + c + ' 0 16px, #fff 16px)';
+              frameColorSelect.appendChild(opt);
+            }
+          );
+          frameColorSelect.value = frameColorSetting;
+        }
+
+        if (crowdVolumeInput) crowdVolumeInput.value = crowdVolume;
+        if (pocketVolumeInput) pocketVolumeInput.value = pocketVolume;
+
+        function applySettings() {
+          crowdVolume = parseFloat(crowdVolumeInput.value || crowdVolume);
+          pocketVolume = parseFloat(pocketVolumeInput.value || pocketVolume);
+          document.body.className = document.body.className.replace(
+            /frame-style-\d+/g,
+            ''
+          );
+          document.body.classList.add(
+            'frame-style-' + frameStyleSelect.value
+          );
+          document.documentElement.style.setProperty(
+            '--player-frame-color',
+            frameColorSelect.value
+          );
+        }
+
+        if (settingsBtn) {
+          settingsBtn.addEventListener('click', function () {
+            settingsPanel.classList.add('active');
+          });
+          closeSettingsBtn.addEventListener('click', function () {
+            settingsPanel.classList.remove('active');
+          });
+          saveSettingsBtn.addEventListener('click', function () {
+            localStorage.setItem('poolCrowdVol', crowdVolumeInput.value);
+            localStorage.setItem('poolPocketVol', pocketVolumeInput.value);
+            localStorage.setItem('poolFrameStyle', frameStyleSelect.value);
+            localStorage.setItem('poolFrameColor', frameColorSelect.value);
+            applySettings();
+            settingsPanel.classList.remove('active');
+          });
+        }
+
+        applySettings();
 
         function formatPlayerName(name, el) {
           el.classList.remove('small');
@@ -886,7 +1071,7 @@
           var src = audioCtx.createBufferSource();
           src.buffer = pocketBuffer;
           var gain = audioCtx.createGain();
-          gain.gain.value = clamp(vol * 0.8, 0, 1);
+          gain.gain.value = clamp(vol * pocketVolume * 0.8, 0, 1);
           src.connect(gain).connect(audioCtx.destination);
           var d = pocketBuffer.duration;
           src.start(0, Math.max(0, d - 1), 1);
@@ -910,7 +1095,7 @@
             var src = audioCtx.createBufferSource();
             src.buffer = cheerBuffer;
             var gain = audioCtx.createGain();
-            gain.gain.value = clamp(vol, 0, 1);
+            gain.gain.value = clamp(vol * crowdVolume, 0, 1);
             src.connect(gain).connect(audioCtx.destination);
             src.start(0);
             activeSound = src;
@@ -924,7 +1109,7 @@
           var src = audioCtx.createBufferSource();
           src.buffer = shockBuffer;
           var gain = audioCtx.createGain();
-          gain.gain.value = clamp(vol, 0, 1);
+          gain.gain.value = clamp(vol * crowdVolume, 0, 1);
           src.connect(gain).connect(audioCtx.destination);
           src.start(0);
           activeSound = src;
@@ -1369,7 +1554,7 @@
                 if (i === 0 && shotInProgress && !firstHit) cueHitCushion = true;
                 var diffY = nearest ? Math.abs(b.p.y - nearest.y) : Infinity;
                 if (
-                  b === firstHit &&
+                  (b === firstHit || (!firstHit && b.n === 0)) &&
                   nearPocket &&
                   diffY <= BALL_R * 2 &&
                   !nearPocketEdgeHit &&
@@ -1388,7 +1573,7 @@
                 if (i === 0 && shotInProgress && !firstHit) cueHitCushion = true;
                 var diffY2 = nearest ? Math.abs(b.p.y - nearest.y) : Infinity;
                 if (
-                  b === firstHit &&
+                  (b === firstHit || (!firstHit && b.n === 0)) &&
                   nearPocket &&
                   diffY2 <= BALL_R * 2 &&
                   !nearPocketEdgeHit &&
@@ -1407,7 +1592,7 @@
                 if (i === 0 && shotInProgress && !firstHit) cueHitCushion = true;
                 var diffX = nearest ? Math.abs(b.p.x - nearest.x) : Infinity;
                 if (
-                  b === firstHit &&
+                  (b === firstHit || (!firstHit && b.n === 0)) &&
                   nearPocket &&
                   diffX <= BALL_R * 2 &&
                   !nearPocketEdgeHit &&
@@ -1426,7 +1611,7 @@
                 if (i === 0 && shotInProgress && !firstHit) cueHitCushion = true;
                 var diffX2 = nearest ? Math.abs(b.p.x - nearest.x) : Infinity;
                 if (
-                  b === firstHit &&
+                  (b === firstHit || (!firstHit && b.n === 0)) &&
                   nearPocket &&
                   diffX2 <= BALL_R * 2 &&
                   !nearPocketEdgeHit &&
@@ -1808,6 +1993,8 @@
         // Track timers for the human player's turn
         var turnTimer = null;
         var warnTimer = null;
+        var countdownInterval = null;
+        var countdownRemaining = 0;
         var scores = { 1: 0, 2: 0 };
         var lastPocketedBall = null;
         var currentTarget = null;
@@ -1974,13 +2161,30 @@
           function clearTurnTimer() {
             if (turnTimer) clearTimeout(turnTimer);
             if (warnTimer) clearTimeout(warnTimer);
+            if (countdownInterval) clearInterval(countdownInterval);
             turnTimer = null;
             warnTimer = null;
+            countdownInterval = null;
+            countdownRemaining = 0;
+            if (timerDisplay) timerDisplay.textContent = '';
           }
 
           function startTurnTimer() {
             clearTurnTimer();
             if (table.turn !== 1) return;
+            countdownRemaining = 15;
+            if (timerDisplay) {
+              timerDisplay.style.color = '#facc15';
+              timerDisplay.textContent = countdownRemaining;
+            }
+            countdownInterval = setInterval(function () {
+              countdownRemaining--;
+              if (timerDisplay) timerDisplay.textContent = countdownRemaining;
+              if (countdownRemaining <= 0) {
+                clearInterval(countdownInterval);
+                countdownInterval = null;
+              }
+            }, 1000);
             warnTimer = setTimeout(function () {
               playTurnSound();
             }, 10000);
@@ -1991,6 +2195,23 @@
               showTurnInfo();
               cpuTurn();
             }, 15000);
+          }
+
+          function startCpuTimer() {
+            clearTurnTimer();
+            countdownRemaining = Math.ceil(CPU_SHOT_DELAY / 1000);
+            if (timerDisplay) {
+              timerDisplay.style.color = '#fff';
+              timerDisplay.textContent = countdownRemaining;
+            }
+            countdownInterval = setInterval(function () {
+              countdownRemaining--;
+              if (timerDisplay) timerDisplay.textContent = countdownRemaining;
+              if (countdownRemaining <= 0) {
+                clearInterval(countdownInterval);
+                countdownInterval = null;
+              }
+            }, 1000);
           }
 
           function showTurnInfo() {
@@ -2755,6 +2976,7 @@
         function cpuTurn() {
           if (table.isMoving() || table.turn !== 2) return;
           cpuThinking = true;
+          startCpuTimer();
           var cue = table.balls[0];
           if (cueBallFree) {
             cue.p.x = TABLE_W / 2;
@@ -2782,6 +3004,7 @@
           if (targets.length === 0) {
             table.turn = 1;
             cpuThinking = false;
+            clearTurnTimer();
             return;
           }
 
@@ -3001,6 +3224,7 @@
           cuePullVisual = power * (BALL_R * 14);
           setTimeout(function () {
             cpuThinking = false;
+            clearTurnTimer();
             startCueStrikeAnimation(cuePullVisual, power);
             shoot(power);
             showGuides = false;
