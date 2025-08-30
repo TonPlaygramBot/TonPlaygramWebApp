@@ -654,9 +654,14 @@
       triggerNetHit(nextX, nextY);
       sfxPost();
       reflectBall(1,0,0.85);
+      if(nextY - ball.r <= g.y && ball.vy < 0){
+        ball.vy *= -1;
+        ball.y = g.y + ball.r + 1;
+      } else {
+        ball.y = nextY;
+      }
       ball.spin *= -0.5;
       ball.x = g.x + ball.r + 1;
-      ball.y = nextY;
       ball.path = null;
       ball.pathIndex = 0;
       ball.pathSpeed = 0;
@@ -666,9 +671,14 @@
       triggerNetHit(nextX, nextY);
       sfxPost();
       reflectBall(-1,0,0.85);
+      if(nextY - ball.r <= g.y && ball.vy < 0){
+        ball.vy *= -1;
+        ball.y = g.y + ball.r + 1;
+      } else {
+        ball.y = nextY;
+      }
       ball.spin *= -0.5;
       ball.x = g.x + g.w - ball.r - 1;
-      ball.y = nextY;
       ball.path = null;
       ball.pathIndex = 0;
       ball.pathSpeed = 0;
@@ -679,9 +689,17 @@
       sfxPost();
       if(!ball.goalSounded){ playGoalSound(); ball.goalSounded = true; }
       reflectBall(0,1,0.85);
+      if(nextX - ball.r <= g.x && ball.vx < 0){
+        ball.vx *= -1;
+        ball.x = g.x + ball.r + 1;
+      } else if(nextX + ball.r >= g.x + g.w && ball.vx > 0){
+        ball.vx *= -1;
+        ball.x = g.x + g.w - ball.r - 1;
+      } else {
+        ball.x = nextX;
+      }
       ball.spin *= 0.5;
       ball.y = g.y + ball.r + 1;
-      ball.x = nextX;
       ball.path = null;
       ball.pathIndex = 0;
       ball.pathSpeed = 0;
