@@ -265,7 +265,7 @@
     const g=geom.goal;
     const goalBottom=g.y+g.h;
     const progress=clamp((goalBottom - y)/g.h,0,1);
-    return 1 - 0.15*progress;
+    return 1 - 0.25*progress;
   }
 
   // ===== Ads & Cameras =====
@@ -354,7 +354,7 @@
     ctx.lineTo(W, kickerLineY);
     ctx.stroke();
     ctx.beginPath();
-    ctx.arc(W/2, kickerLineY, 60*geom.scale, 0, Math.PI, true);
+    ctx.arc(W/2, kickerLineY, 180*geom.scale, 0, Math.PI);
     ctx.stroke();
 
     const g=geom.goal; ctx.strokeStyle='#fff'; ctx.lineJoin='round';
@@ -368,8 +368,12 @@
     const sixDepth=Math.min(120*geom.scale,paDepth*0.45), sixPad=Math.max(140*geom.scale,pad*0.7);
     // Removed goal-area line close to the net
     // ctx.strokeRect(g.x-sixPad,gl,g.w+sixPad*2,sixDepth);
+    ctx.fillStyle = '#fff';
+    ctx.beginPath();
+    ctx.arc(geom.penaltySpot.x, geom.penaltySpot.y, ctx.lineWidth, 0, Math.PI*2);
+    ctx.fill();
 
-    // Removed penalty arc and spot for simplified field
+    // Penalty arc omitted for simplified field
   }
 
   // ===== Ads behind goal =====
