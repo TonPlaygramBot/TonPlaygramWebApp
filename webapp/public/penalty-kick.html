@@ -965,7 +965,9 @@ function loop(now){ requestAnimationFrame(loop); drawField(); drawAds(); drawGoa
     if(!audioCtx || !prizeSoundBuf) return;
     const src=audioCtx.createBufferSource();
     src.buffer=prizeSoundBuf;
-    src.connect(masterGain);
+    const gain=audioCtx.createGain();
+    gain.gain.value=0.7; // slightly lower volume for point prize sound
+    src.connect(gain).connect(masterGain);
     src.start(0);
   }
   const sfxPrize = playPrizeSound;
@@ -986,7 +988,7 @@ function loop(now){ requestAnimationFrame(loop); drawField(); drawAds(); drawGoa
     const src=audioCtx.createBufferSource();
     src.buffer=postHitSoundBuf;
     const gain=audioCtx.createGain();
-    gain.gain.value=0.7; // 30% lower volume on post/crossbar hits
+    gain.gain.value=0.6; // 40% lower volume on post/crossbar hits
     src.connect(gain).connect(masterGain);
     // Skip ~0.4s of initial silence so the clang matches contact
     src.start(0, 0.4);
@@ -1032,7 +1034,7 @@ function loop(now){ requestAnimationFrame(loop); drawField(); drawAds(); drawGoa
       const src=audioCtx.createBufferSource();
       src.buffer=keeperSaveSoundBuf;
       const gain=audioCtx.createGain();
-      gain.gain.value=0.5; // 50% lower volume for keeper saves
+      gain.gain.value=0.4; // slightly lower volume for keeper saves
       src.connect(gain).connect(masterGain);
       src.start(0);
     }
@@ -1061,7 +1063,7 @@ function loop(now){ requestAnimationFrame(loop); drawField(); drawAds(); drawGoa
     const src = audioCtx.createBufferSource();
     src.buffer = goalSoundBuf;
     const gain = audioCtx.createGain();
-    gain.gain.value = 2.16; // goal sound volume increased by 20%
+    gain.gain.value = 2.4; // goal sound volume boosted further
     src.connect(gain).connect(masterGain);
     // Play the goal sound from the start of the clip so the net swoosh is always heard
     // regardless of the file's duration. Starting mid‑clip occasionally skipped the
