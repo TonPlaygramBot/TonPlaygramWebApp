@@ -773,10 +773,6 @@
       b.spin *= 0.98;
       let nextX = b.x + b.vx;
       let nextY = b.y + b.vy;
-      if(!b.insideGoal && nextY + r >= fieldGround){
-        b.remove = true;
-        continue;
-      }
       if(b.insideGoal){
         const innerW = g.w * 0.8;
         const innerH = g.h * 0.8;
@@ -837,7 +833,7 @@
           if(Math.hypot(b.vx,b.vy) < 0.2 && !b.landedAt) b.landedAt = now;
         }
       }
-      if(b.landedAt && now - b.landedAt > (b.insideGoal ? 2000 : 0)){
+      if(b.landedAt && now - b.landedAt > 1000){
         b.remove = true;
       }
     }
@@ -953,6 +949,14 @@ function onUp(e){
   ball.pathSpeed = SHOT_SPEED * power;
   ball.vx = 0; ball.vy = 0; ball.spin = 0;
   ball.moving = true;
+  // when shot starts, keeper shuffles slightly opposite his current side
+  const goalCenter = geom.goal.x + geom.goal.w / 2;
+  const shift = keeper.w * 0.1;
+  if (keeper.x < goalCenter) {
+    keeper.x += shift;
+  } else {
+    keeper.x -= shift;
+  }
   if(!defenders.jumping){
     defenders.vy = -10*geom.scale;
     defenders.jumping = true;
