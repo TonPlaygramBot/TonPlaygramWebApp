@@ -778,7 +778,8 @@
         var hitBuffer = null,
           ballHitBuffer = null,
           pocketBuffer = null,
-          knockBuffer = null;
+          knockBuffer = null,
+          cheerBuffer = null;
 
         fetch('/assets/sounds/billiard-pool-hit-371618.mp3')
           .then(function (r) {
@@ -824,6 +825,17 @@
             knockBuffer = buf;
           });
 
+        fetch('/assets/sounds/crowd-cheering-383111.mp3')
+          .then(function (r) {
+            return r.arrayBuffer();
+          })
+          .then(function (b) {
+            return audioCtx.decodeAudioData(b);
+          })
+          .then(function (buf) {
+            cheerBuffer = buf;
+          });
+
         function playCueHit(vol) {
           audioCtx.resume();
           if (!hitBuffer) return;
@@ -865,6 +877,17 @@
           src.buffer = knockBuffer;
           var gain = audioCtx.createGain();
           gain.gain.value = 1;
+          src.connect(gain).connect(audioCtx.destination);
+          src.start(0);
+        }
+
+        function playCheer(vol) {
+          audioCtx.resume();
+          if (!cheerBuffer) return;
+          var src = audioCtx.createBufferSource();
+          src.buffer = cheerBuffer;
+          var gain = audioCtx.createGain();
+          gain.gain.value = clamp(vol, 0, 1);
           src.connect(gain).connect(audioCtx.destination);
           src.start(0);
         }
@@ -1305,6 +1328,7 @@
                 b.v.x *= -BOUNCE;
                 if (b.n === 0) b.spinApplied = true;
                 playCueHit(clamp(sx / 4000, 0, 1) * 0.5);
+                if (i === 0 && shotInProgress && !firstHit) cueHitCushion = true;
               }
               if (b.p.x > R) {
                 b.p.x = R;
@@ -1312,6 +1336,7 @@
                 b.v.x *= -BOUNCE;
                 if (b.n === 0) b.spinApplied = true;
                 playCueHit(clamp(sx2 / 4000, 0, 1) * 0.5);
+                if (i === 0 && shotInProgress && !firstHit) cueHitCushion = true;
               }
               if (b.p.y < T) {
                 b.p.y = T;
@@ -1319,6 +1344,7 @@
                 b.v.y *= -BOUNCE;
                 if (b.n === 0) b.spinApplied = true;
                 playCueHit(clamp(sy / 4000, 0, 1) * 0.5);
+                if (i === 0 && shotInProgress && !firstHit) cueHitCushion = true;
               }
               if (b.p.y > B) {
                 b.p.y = B;
@@ -1326,6 +1352,7 @@
                 b.v.y *= -BOUNCE;
                 if (b.n === 0) b.spinApplied = true;
                 playCueHit(clamp(sy2 / 4000, 0, 1) * 0.5);
+                if (i === 0 && shotInProgress && !firstHit) cueHitCushion = true;
               }
             }
           }
@@ -1698,6 +1725,8 @@
         var lastPocketCenter = null;
         var shotPocketRecorded = false;
         var shotsLog = [];
+        var lastCueStart = null;
+        var cueHitCushion = false;
 
         function calibrated(pt) {
           // Aiming is now directly based on the raw point to ensure
@@ -2027,6 +2056,21 @@
               setTimeout(showTurnInfo, 1500);
             }
           }
+          if (!foul && pottedThisShot.length >= 2) {
+            var vol = 0.7;
+            var firstType = BALL_BY_N[pottedThisShot[0]].t;
+            var sameColor = pottedThisShot.every(function (n) {
+              return BALL_BY_N[n].t === firstType;
+            });
+            if (sameColor) vol *= 1.3;
+            if (lastCueStart && lastShotAim) {
+              var dxShot = lastShotAim.x - lastCueStart.x;
+              var dyShot = lastShotAim.y - lastCueStart.y;
+              if (Math.hypot(dxShot, dyShot) > TABLE_H * 0.5) vol *= 1.3;
+            }
+            if (cueHitCushion) vol *= 1.5;
+            playCheer(vol);
+          }
           if (lastShotAim && lastPocketCenter) {
             var dx = lastPocketCenter.x - lastShotAim.x;
             var dy = lastPocketCenter.y - lastShotAim.y;
@@ -2044,6 +2088,8 @@
           scratch = false;
           foulShown = false;
           firstHit = null;
+          lastCueStart = null;
+          cueHitCushion = false;
           currentTarget = null;
           eightBallPotted = false;
           nineBallPotted = false;
@@ -2565,7 +2611,9 @@
           var aimPoint = calibrated(table.aim);
           var d = lastGuideDir;
           lastShotAim = { x: aimPoint.x, y: aimPoint.y };
+          lastCueStart = { x: cue.p.x, y: cue.p.y };
           shotPocketRecorded = false;
+          cueHitCushion = false;
           var base = 950 * 3 * 1.6 * 1.5;
           // Reduce the overall shot power by 50%
           base *= 0.5;
