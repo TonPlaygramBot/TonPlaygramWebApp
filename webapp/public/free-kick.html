@@ -207,8 +207,8 @@
     keeper.y = geom.goal.y + geom.goal.h - keeper.h + geom.goal.h*0.05;
     keeper.baseY = keeper.y;
     keeper.baseX = keeper.x;
-    defenders.w = keeper.w * 2.6;
-    defenders.h = keeper.h * 2.0;
+    defenders.w = keeper.w * 3.0;
+    defenders.h = keeper.h * 1.6;
     defenders.x = (W - defenders.w)/2;
     defenders.y = geom.penaltySpot.y + STRIPE/2 - STRIPE*7.5;
     defenders.baseY = defenders.y;
@@ -651,6 +651,7 @@
 
     // Predict collisions with goal posts or crossbar slightly early so the sound lines up.
     if(soundX - ball.r <= g.x && soundY > g.y - postR && soundY < g.y + g.h + postR && ball.vx < 0){
+      triggerNetHit(nextX, nextY);
       sfxPost();
       reflectBall(1,0,0.85);
       ball.spin *= -0.5;
@@ -662,6 +663,7 @@
       return;
     }
     if(soundX + ball.r >= g.x + g.w && soundY > g.y - postR && soundY < g.y + g.h + postR && ball.vx > 0){
+      triggerNetHit(nextX, nextY);
       sfxPost();
       reflectBall(-1,0,0.85);
       ball.spin *= -0.5;
@@ -691,15 +693,15 @@
     const dHit = ballHitsDefenders();
     if(dHit){
       ball.trailStopped = true;
-      reflectBall(dHit.nx, dHit.ny, 0.9);
+      reflectBall(dHit.nx, dHit.ny, 0.85);
       if(dHit.ny < 0){
         ball.y = defenders.y - ball.r;
       } else {
         ball.x = dHit.nx < 0 ? defenders.x - ball.r : defenders.x + defenders.w + ball.r;
       }
-      ball.vy = Math.abs(ball.vy) + 4*geom.scale;
-      missFlash = 1;
-      endShot(false,0,1000);
+      ball.path = null;
+      ball.pathIndex = 0;
+      ball.pathSpeed = 0;
       return;
     }
 
