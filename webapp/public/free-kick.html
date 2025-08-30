@@ -223,7 +223,26 @@
   // faster initial shot speed for wider coverage
   const SHOT_SPEED = 20;
   const MIN_GOAL_POINTS = 5;
-  const ball = { x:0,y:0,r:BALL_R, vx:0,vy:0, moving:false, trail:[], spin:0, angle:0, netSounded:false, goalSounded:false, trailStopped:false, target:null, prevDist:null, points:0 };
+  const ball = {
+    x: 0,
+    y: 0,
+    r: BALL_R,
+    vx: 0,
+    vy: 0,
+    moving: false,
+    trail: [],
+    spin: 0,
+    angle: 0,
+    netSounded: false,
+    goalSounded: false,
+    trailStopped: false,
+    target: null,
+    prevDist: null,
+    points: 0,
+    path: null,
+    pathIndex: 0,
+    pathSpeed: 0
+  };
   const ballImg = new Image();
   ballImg.src = '/assets/icons/file_0000000061d4620aaf506adfa605e1f3.webp';
 
@@ -600,16 +619,35 @@
       ball.trail.push({x:ball.x,y:ball.y});
       if(ball.trail.length>20) ball.trail.shift();
     }
-    const speed=Math.hypot(ball.vx,ball.vy); const drag = 1 - AIR_DRAG*speed; const curve = ball.spin*1.1;
-    const knuckle = 0;
-    ball.vx = (ball.vx + curve + knuckle)*FRICTION*drag; ball.vy = (ball.vy + GRAVITY)*FRICTION*drag;
     const g=geom.goal;
     const postR = g.post;
-    const nextX = ball.x + ball.vx;
-    const nextY = ball.y + ball.vy;
-    const soundLead = 0.7; // trigger post sounds when ~70% of the way to impact
-    const soundX = ball.x + ball.vx * soundLead;
-    const soundY = ball.y + ball.vy * soundLead;
+    let nextX, nextY, soundX, soundY;
+    if(ball.path){
+      const targetPoint = ball.path[ball.pathIndex] || ball.target;
+      const dxp = targetPoint.x - ball.x;
+      const dyp = targetPoint.y - ball.y;
+      const dist = Math.hypot(dxp, dyp);
+      const step = Math.min(ball.pathSpeed, dist);
+      const t = dist === 0 ? 0 : step / dist;
+      nextX = ball.x + dxp * t;
+      nextY = ball.y + dyp * t;
+      ball.vx = nextX - ball.x;
+      ball.vy = nextY - ball.y;
+      soundX = nextX;
+      soundY = nextY;
+      if(dist <= step && ball.pathIndex < ball.path.length-1){
+        ball.pathIndex++;
+      }
+    } else {
+      const speed=Math.hypot(ball.vx,ball.vy); const drag = 1 - AIR_DRAG*speed; const curve = ball.spin*1.1;
+      const knuckle = 0;
+      ball.vx = (ball.vx + curve + knuckle)*FRICTION*drag; ball.vy = (ball.vy + GRAVITY)*FRICTION*drag;
+      nextX = ball.x + ball.vx;
+      nextY = ball.y + ball.vy;
+      const soundLead = 0.7; // trigger post sounds when ~70% of the way to impact
+      soundX = ball.x + ball.vx * soundLead;
+      soundY = ball.y + ball.vy * soundLead;
+    }
 
     // Predict collisions with goal posts or crossbar slightly early so the sound lines up.
     if(soundX - ball.r <= g.x && soundY > g.y - postR && soundY < g.y + g.h + postR && ball.vx < 0){
@@ -795,17 +833,18 @@
 
   // ===== Aim guide =====
   // aiming controls removed
-  function drawAimPath(vx,vy,spin){
-    if(!aimOn) return;
-    const steps=40; let x=ball.x, y=ball.y, vx1=vx, vy1=vy;
+  function drawSwipePath(path){
+    if(!aimOn || path.length < 2) return;
     ctx.beginPath();
-    for(let i=0;i<steps;i++){
-      const speed=Math.hypot(vx1,vy1); const drag=1-AIR_DRAG*speed;
-      vx1=(vx1+spin*0.4)*FRICTION*drag; vy1=(vy1+GRAVITY)*FRICTION*drag;
-      x+=vx1; y+=vy1; if(i===0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
-      if(y<geom.goal.y-40) break;
+    ctx.moveTo(path[0].x, path[0].y);
+    for(let i=1;i<path.length;i++){
+      ctx.lineTo(path[i].x, path[i].y);
     }
-    ctx.strokeStyle='rgba(125,211,252,.9)'; ctx.lineWidth=2; ctx.setLineDash([6,8]); ctx.stroke(); ctx.setLineDash([]);
+    ctx.strokeStyle='rgba(125,211,252,.9)';
+    ctx.lineWidth=2;
+    ctx.setLineDash([6,8]);
+    ctx.stroke();
+    ctx.setLineDash([]);
   }
 
   // ===== Round / scoring =====
@@ -814,6 +853,9 @@ function endShot(hit,pts,delay=0){
   looseBalls.push({x:ball.x,y:ball.y,vx:ball.vx,vy:ball.vy,angle:ball.angle,spin:ball.spin,bounced:false,insideGoal:hit,landedAt:null});
   ball.moving=false;
   ball.trailStopped = true;
+  ball.path = null;
+  ball.pathIndex = 0;
+  ball.pathSpeed = 0;
   if(hit){
     showGoal(ball.x, ball.y);
     ball.netSounded=true;
@@ -844,63 +886,37 @@ function endShot(hit,pts,delay=0){
   // ===== Input (swipe/flick + spin) =====
   let pointer={id:null,path:[],active:false,armed:false,t0:0,t1:0};
   function pos(e){ const r=canvas.getBoundingClientRect(); return {x:(e.clientX-r.left)*(W/r.width), y:(e.clientY-r.top)*(H/r.height)}; }
-  // compute initial velocity and spin so shots track swipe path closely
-  function calcShot(dx,dy,curve,power){
-    const spin = clamp(curve, -20, 20); // use full swipe curve for spin
-    const speed = SHOT_SPEED * power;
-    let t = Math.max(0.1, Math.hypot(dx,dy) / speed);
-    for(let i=0;i<12;i++){ // more iterations for swipe precision
-      const adjDx = dx - spin*0.1*t*t;
-      const vx = adjDx / t;
-      const vy = (dy - 0.5*GRAVITY*t*t)/t;
-      const curSpeed = Math.hypot(vx,vy);
-      t *= curSpeed / speed;
-    }
-    const adjDx = dx - spin*0.1*t*t;
-    return { vx: adjDx/t, vy: (dy - 0.5*GRAVITY*t*t)/t, spin };
-  }
   function onDown(e){ if(!running||ended||paused) return; if(pointer.active) return; pointer.active=true; pointer.id=e.pointerId; const p=pos(e); pointer.path=[p]; pointer.t0=performance.now(); pointer.t1=pointer.t0; pointer.armed = Math.hypot(p.x-ball.x,p.y-ball.y) <= ball.r*2.4 && !ball.moving; if(pointer.armed){ status('Swipe upward. Curve for spin.'); } }
-  function onMove(e){ if(!pointer.active||e.pointerId!==pointer.id) return; pointer.path.push(pos(e)); pointer.t1=performance.now();
-    if(pointer.armed && aimOn && pointer.path.length>1){
-      const path = pointer.path;
-      const a = path[0], b = path[path.length - 1];
-      const dx = b.x - a.x, dy = b.y - a.y;
-      const dist = Math.hypot(dx, dy), power = clamp(dist / 150, 0.4, 5.0);
-      let curve = 0;
-      for(let i = 2; i < path.length; i++){
-        const p0 = path[i-2], p1 = path[i-1], p2 = path[i];
-        curve += Math.atan2(p2.y - p1.y, p2.x - p1.x) - Math.atan2(p1.y - p0.y, p1.x - p0.x);
-      }
-      const { vx, vy, spin } = calcShot(dx, dy, curve, power);
-      drawAimPath(vx, vy, spin);
+  function onMove(e){
+    if(!pointer.active || e.pointerId !== pointer.id) return;
+    pointer.path.push(pos(e));
+    pointer.t1 = performance.now();
+    if(pointer.armed && aimOn && pointer.path.length > 1){
+      drawSwipePath(pointer.path);
     }
   }
 function onUp(e){
-  if(!pointer.active||e.pointerId!==pointer.id) return;
-  pointer.active=false;
-  if(!pointer.armed||ball.moving||!running||paused){ pointer.path=[]; return; }
-  const path=pointer.path; pointer.path=[];
-  if(path.length<3){ status('Swipe longer/faster.'); return; }
-  const a=path[0], b=path[path.length-1];
-  const dx=b.x-a.x, dy=b.y-a.y;
-  const dist=Math.hypot(dx,dy), power=clamp(dist/150, 0.4, 5.0);
-  let curve=0;
-  for(let i=2;i<path.length;i++){
-    const p0=path[i-2], p1=path[i-1], p2=path[i];
-    curve+=Math.atan2(p2.y-p1.y,p2.x-p1.x)-Math.atan2(p1.y-p0.y,p1.x-p0.x);
-  }
-  const shot = calcShot(dx, dy, curve, power);
-  ball.vx=shot.vx;
-  ball.vy=shot.vy;
-  ball.spin=shot.spin;
-  ball.moving=true;
+  if(!pointer.active || e.pointerId !== pointer.id) return;
+  pointer.active = false;
+  if(!pointer.armed || ball.moving || !running || paused){ pointer.path = []; return; }
+  const path = pointer.path;
+  pointer.path = [];
+  if(path.length < 3){ status('Swipe longer/faster.'); return; }
+  path[0] = { x: ball.x, y: ball.y };
+  const totalDist = path.reduce((sum, p, i) => i ? sum + Math.hypot(p.x - path[i-1].x, p.y - path[i-1].y) : 0, 0);
+  const power = clamp(totalDist / 150, 0.4, 5.0);
+  ball.path = path.slice(1);
+  ball.pathIndex = 0;
+  ball.pathSpeed = SHOT_SPEED * power;
+  ball.vx = 0; ball.vy = 0; ball.spin = 0;
+  ball.moving = true;
   if(!defenders.jumping){
     defenders.vy = -10*geom.scale;
     defenders.jumping = true;
   }
   playBallKickSound();
-  ball.target={x:ball.x+dx,y:ball.y+dy};
-  ball.prevDist=Infinity;
+  ball.target = path[path.length-1];
+  ball.prevDist = Infinity;
 }
   canvas.addEventListener('pointerdown', onDown, {passive:true});
   canvas.addEventListener('pointermove', onMove, {passive:true});
@@ -1010,6 +1026,9 @@ function loop(now){ requestAnimationFrame(loop); drawField(); drawAds(); drawGoa
     ball.target = null;
     ball.prevDist = null;
     ball.points = 0;
+    ball.path = null;
+    ball.pathIndex = 0;
+    ball.pathSpeed = 0;
     defenders.x = clamp(ball.x - defenders.w/2, 0, W - defenders.w);
     defenders.y = defenders.baseY;
     defenders.vy = 0;
