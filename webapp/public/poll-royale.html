@@ -1557,10 +1557,8 @@
             if (!nearPocket || !approaching) {
               if (b.p.x < L) {
                 b.p.x = L;
-                var sx = Math.abs(b.v.x);
                 b.v.x *= -BOUNCE;
                 if (b.n === 0) b.spinApplied = true;
-                playCueHit(clamp(sx / 4000, 0, 1) * 0.5);
                 if (i === 0 && shotInProgress && !firstHit) cueHitCushion = true;
                 var diffY = nearest ? Math.abs(b.p.y - nearest.y) : Infinity;
                 if (
@@ -1575,10 +1573,8 @@
               }
               if (b.p.x > R) {
                 b.p.x = R;
-                var sx2 = Math.abs(b.v.x);
                 b.v.x *= -BOUNCE;
                 if (b.n === 0) b.spinApplied = true;
-                playCueHit(clamp(sx2 / 4000, 0, 1) * 0.5);
                 if (i === 0 && shotInProgress && !firstHit) cueHitCushion = true;
                 var diffY2 = nearest ? Math.abs(b.p.y - nearest.y) : Infinity;
                 if (
@@ -1593,10 +1589,8 @@
               }
               if (b.p.y < T) {
                 b.p.y = T;
-                var sy = Math.abs(b.v.y);
                 b.v.y *= -BOUNCE;
                 if (b.n === 0) b.spinApplied = true;
-                playCueHit(clamp(sy / 4000, 0, 1) * 0.5);
                 if (i === 0 && shotInProgress && !firstHit) cueHitCushion = true;
                 var diffX = nearest ? Math.abs(b.p.x - nearest.x) : Infinity;
                 if (
@@ -1611,10 +1605,8 @@
               }
               if (b.p.y > B) {
                 b.p.y = B;
-                var sy2 = Math.abs(b.v.y);
                 b.v.y *= -BOUNCE;
                 if (b.n === 0) b.spinApplied = true;
-                playCueHit(clamp(sy2 / 4000, 0, 1) * 0.5);
                 if (i === 0 && shotInProgress && !firstHit) cueHitCushion = true;
                 var diffX2 = nearest ? Math.abs(b.p.x - nearest.x) : Infinity;
                 if (
@@ -1671,7 +1663,7 @@
                       // Scale collision volume by both impact impulse and the
                       // power of the shot that initiated the turn.
                       var vol =
-                        clamp(imp / 4000, 0, 1) * lastShotPower * 0.5;
+                        clamp(imp / 4000, 0, 1) * Math.min(lastShotPower, 0.39) * 0.5;
                       playBallHit(vol);
                     }
                   if (a.n === 0 || bb.n === 0) {
