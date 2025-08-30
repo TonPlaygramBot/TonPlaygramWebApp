@@ -1803,8 +1803,11 @@
         var firstHit = null;
         var lastTurn = table.turn;
         var cpuThinking = false;
-        // Allow the CPU up to 5 seconds to take its shot
-        var CPU_SHOT_DELAY = 5000;
+        // Allow the CPU up to 4 seconds to take its shot
+        var CPU_SHOT_DELAY = 3500;
+        // Track timers for the human player's turn
+        var turnTimer = null;
+        var warnTimer = null;
         var scores = { 1: 0, 2: 0 };
         var lastPocketedBall = null;
         var currentTarget = null;
@@ -1960,6 +1963,36 @@
           }
         }
 
+          function hasBallsLeft(type) {
+            for (var k = 1; k < table.balls.length; k++) {
+              var rb = table.balls[k];
+              if (rb && !rb.pocketed && BALL_BY_N[rb.n].t === type) return true;
+            }
+            return false;
+          }
+
+          function clearTurnTimer() {
+            if (turnTimer) clearTimeout(turnTimer);
+            if (warnTimer) clearTimeout(warnTimer);
+            turnTimer = null;
+            warnTimer = null;
+          }
+
+          function startTurnTimer() {
+            clearTurnTimer();
+            if (table.turn !== 1) return;
+            warnTimer = setTimeout(function () {
+              playTurnSound();
+            }, 10000);
+            turnTimer = setTimeout(function () {
+              updateFooter(2, "Time's up! Turn passes to the opponent.");
+              table.turn = 2;
+              updateTurnIndicator(true);
+              showTurnInfo();
+              cpuTurn();
+            }, 15000);
+          }
+
           function showTurnInfo() {
             var msg;
             if (isNineBall || isAmerican) {
@@ -1968,6 +2001,8 @@
             } else {
               if (!assignedTypes[table.turn]) {
                 msg = 'Choose a color';
+              } else if (!hasBallsLeft(assignedTypes[table.turn])) {
+                msg = 'Shoot the 8-ball to win!';
               } else {
                 msg = 'Pot a ' + assignedTypes[table.turn];
               }
@@ -1979,7 +2014,7 @@
           if (force || table.turn !== lastTurn) {
             avatarP1.classList.toggle('turn', table.turn === 1);
             avatarCPU.classList.toggle('turn', table.turn === 2);
-            if (!force) playTurnSound();
+            if (table.turn === 1) startTurnTimer(); else clearTurnTimer();
             if (!force && freeShots[table.turn] > 1) {
               showCenterPopup('2 shots', 'shots', 1500);
             }
@@ -2019,13 +2054,6 @@
           }
           if (!firstHit || scratch) return true;
           var shooterType = assignedTypes[currentShooter];
-          function hasBallsLeft(type) {
-            for (var k = 1; k < table.balls.length; k++) {
-              var rb = table.balls[k];
-              if (rb && !rb.pocketed && BALL_BY_N[rb.n].t === type) return true;
-            }
-            return false;
-          }
           var ownLeft = shooterType && hasBallsLeft(shooterType);
           if (firstHit.t === 'eight' || eightBallPotted) {
             return ownLeft;
@@ -2150,6 +2178,7 @@
               setTimeout(showTurnInfo, 1500);
             }
           }
+          if (table.turn === currentShooter) startTurnTimer();
           if (lastShotAim && lastPocketCenter) {
             var dx = lastPocketCenter.x - lastShotAim.x;
             var dy = lastPocketCenter.y - lastShotAim.y;
@@ -2686,6 +2715,7 @@
 
         function shoot(p) {
           if (!table.running || table.isMoving()) return;
+          clearTurnTimer();
           var cue = table.balls[0];
           if (!cue || cue.pocketed) return;
           var aimPoint = calibrated(table.aim);
@@ -2712,8 +2742,7 @@
           nineBallPotted = false;
           cue.v.x = d.x * base * (0.25 + 0.75 * p);
           cue.v.y = d.y * base * (0.25 + 0.75 * p);
-          // Remove spin influence for a straighter shot
-          cue.spin = { x: 0, y: 0 };
+          cue.spin = { x: spinVec.x, y: spinVec.y };
           cue.spinApplied = false;
           cueBallFree = false;
           setSpin(0, 0);
@@ -3011,7 +3040,7 @@
             'Hitting an opponent ball first is a foul and gives the opponent two shots.',
             'Failing to contact your colour, or the black when none remain, is a foul awarding two shots to the opponent.',
             'On the black 8, even after a foul, only one shot is allowed.',
-            'You must clear all of your coloured balls before potting the black to win.',
+            'Once your coloured balls are gone, pot the black 8 to win — it\'s not a foul.',
             'After a foul the incoming player may place the cue ball behind the line and aim anywhere.'
           ],
           source: 'Custom 8 Ball UK rules for Pool Royale.'
