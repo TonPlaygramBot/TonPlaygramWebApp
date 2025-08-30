@@ -1245,6 +1245,8 @@
           for (i = 0; i < this.balls.length; i++) {
             var b = this.balls[i];
             if (b.pocketed) continue;
+            var prevX = b.p.x,
+              prevY = b.p.y;
             b.p.x += b.v.x * dt;
             b.p.y += b.v.y * dt;
             b.v.x *= FRICTION;
@@ -1261,18 +1263,22 @@
             var R = TABLE_W - BORDER - BALL_R;
             var T = BORDER_TOP + BALL_R;
             var B = TABLE_H - BORDER_BOTTOM - BALL_R;
-            var nearPocket = false;
+            var nearest = null,
+              prevDist = Infinity;
             for (var k = 0; k < this.pockets.length; k++) {
               var pk = this.pockets[k];
-              if (
-                Math.hypot(b.p.x - pk.x, b.p.y - pk.y) <
-                pk.r + BALL_R + 2
-              ) {
-                nearPocket = true;
-                break;
+              var dPrev = Math.hypot(prevX - pk.x, prevY - pk.y);
+              if (dPrev < prevDist) {
+                prevDist = dPrev;
+                nearest = pk;
               }
             }
-            if (!nearPocket) {
+            var newDist = nearest
+              ? Math.hypot(b.p.x - nearest.x, b.p.y - nearest.y)
+              : Infinity;
+            var nearPocket = nearest && newDist < nearest.r + BALL_R + 2;
+            var approaching = nearest && newDist < prevDist;
+            if (!nearPocket || !approaching) {
               if (b.p.x < L) {
                 b.p.x = L;
                 var sx = Math.abs(b.v.x);
