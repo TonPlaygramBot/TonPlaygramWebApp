@@ -1363,9 +1363,9 @@
                   a.v.y *= BOUNCE;
                   bb.v.x *= BOUNCE;
                   bb.v.y *= BOUNCE;
-                  if (!this.prevCollisions.has(pairId)) {
-                    playBallHit(clamp(imp / 4000, 0, 1));
-                  }
+                    if (!this.prevCollisions.has(pairId)) {
+                      playBallHit(clamp(imp / 4000, 0, 1) * 0.5);
+                    }
                   if (a.n === 0 || bb.n === 0) {
                     var other = a.n === 0 ? bb : a;
                     if (!firstHit) {
@@ -2569,8 +2569,8 @@
           var base = 950 * 3 * 1.6 * 1.5;
           // Reduce the overall shot power by 50%
           base *= 0.5;
-          playCueHit(p);
-          currentShooter = table.turn;
+            playCueHit(p * 0.5);
+            currentShooter = table.turn;
             if (isNineBall || isAmerican)
               currentTarget = lowestBallOnTable();
           shotInProgress = true;
