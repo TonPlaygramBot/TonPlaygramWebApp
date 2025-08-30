@@ -1367,7 +1367,14 @@
                 if (b.n === 0) b.spinApplied = true;
                 playCueHit(clamp(sx / 4000, 0, 1) * 0.5);
                 if (i === 0 && shotInProgress && !firstHit) cueHitCushion = true;
-                if (b === firstHit && nearPocket && !nearPocketEdgeHit && !pocketedAny) {
+                var diffY = nearest ? Math.abs(b.p.y - nearest.y) : Infinity;
+                if (
+                  b === firstHit &&
+                  nearPocket &&
+                  diffY <= BALL_R * 2 &&
+                  !nearPocketEdgeHit &&
+                  !pocketedAny
+                ) {
                   nearPocketEdgeHit = true;
                   playShock(1);
                 }
@@ -1379,7 +1386,14 @@
                 if (b.n === 0) b.spinApplied = true;
                 playCueHit(clamp(sx2 / 4000, 0, 1) * 0.5);
                 if (i === 0 && shotInProgress && !firstHit) cueHitCushion = true;
-                if (b === firstHit && nearPocket && !nearPocketEdgeHit && !pocketedAny) {
+                var diffY2 = nearest ? Math.abs(b.p.y - nearest.y) : Infinity;
+                if (
+                  b === firstHit &&
+                  nearPocket &&
+                  diffY2 <= BALL_R * 2 &&
+                  !nearPocketEdgeHit &&
+                  !pocketedAny
+                ) {
                   nearPocketEdgeHit = true;
                   playShock(1);
                 }
@@ -1391,7 +1405,14 @@
                 if (b.n === 0) b.spinApplied = true;
                 playCueHit(clamp(sy / 4000, 0, 1) * 0.5);
                 if (i === 0 && shotInProgress && !firstHit) cueHitCushion = true;
-                if (b === firstHit && nearPocket && !nearPocketEdgeHit && !pocketedAny) {
+                var diffX = nearest ? Math.abs(b.p.x - nearest.x) : Infinity;
+                if (
+                  b === firstHit &&
+                  nearPocket &&
+                  diffX <= BALL_R * 2 &&
+                  !nearPocketEdgeHit &&
+                  !pocketedAny
+                ) {
                   nearPocketEdgeHit = true;
                   playShock(1);
                 }
@@ -1403,7 +1424,14 @@
                 if (b.n === 0) b.spinApplied = true;
                 playCueHit(clamp(sy2 / 4000, 0, 1) * 0.5);
                 if (i === 0 && shotInProgress && !firstHit) cueHitCushion = true;
-                if (b === firstHit && nearPocket && !nearPocketEdgeHit && !pocketedAny) {
+                var diffX2 = nearest ? Math.abs(b.p.x - nearest.x) : Infinity;
+                if (
+                  b === firstHit &&
+                  nearPocket &&
+                  diffX2 <= BALL_R * 2 &&
+                  !nearPocketEdgeHit &&
+                  !pocketedAny
+                ) {
                   nearPocketEdgeHit = true;
                   playShock(1);
                 }
