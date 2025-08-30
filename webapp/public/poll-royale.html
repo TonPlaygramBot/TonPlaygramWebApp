@@ -779,7 +779,8 @@
           ballHitBuffer = null,
           pocketBuffer = null,
           knockBuffer = null,
-          cheerBuffer = null;
+          cheerBuffer = null,
+          shockBuffer = null;
 
         fetch('/assets/sounds/billiard-pool-hit-371618.mp3')
           .then(function (r) {
@@ -836,6 +837,17 @@
             cheerBuffer = buf;
           });
 
+        fetch('/assets/sounds/crowd-shocked-reaction-352766.mp3')
+          .then(function (r) {
+            return r.arrayBuffer();
+          })
+          .then(function (b) {
+            return audioCtx.decodeAudioData(b);
+          })
+          .then(function (buf) {
+            shockBuffer = buf;
+          });
+
         function playCueHit(vol) {
           audioCtx.resume();
           if (!hitBuffer) return;
@@ -886,6 +898,17 @@
           if (!cheerBuffer) return;
           var src = audioCtx.createBufferSource();
           src.buffer = cheerBuffer;
+          var gain = audioCtx.createGain();
+          gain.gain.value = clamp(vol, 0, 1);
+          src.connect(gain).connect(audioCtx.destination);
+          src.start(0);
+        }
+
+        function playShock(vol) {
+          audioCtx.resume();
+          if (!shockBuffer) return;
+          var src = audioCtx.createBufferSource();
+          src.buffer = shockBuffer;
           var gain = audioCtx.createGain();
           gain.gain.value = clamp(vol, 0, 1);
           src.connect(gain).connect(audioCtx.destination);
@@ -1922,6 +1945,7 @@
           centerPopup.textContent = text;
           centerPopup.className = cls;
           centerPopup.style.display = 'block';
+          if (cls === 'foul') playShock(1);
           setTimeout(function () {
             centerPopup.style.display = 'none';
           }, duration);
@@ -2061,6 +2085,7 @@
                 table.turn,
                 'Close call! The ball hit the cushion but nothing dropped, turn passes to the opponent.'
               );
+              playShock(1);
               setTimeout(showTurnInfo, 1500);
             }
           }
