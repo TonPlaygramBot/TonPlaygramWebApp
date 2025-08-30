@@ -1542,7 +1542,7 @@
             var newDist = nearest
               ? Math.hypot(b.p.x - nearest.x, b.p.y - nearest.y)
               : Infinity;
-            var nearPocket = nearest && newDist < nearest.r + BALL_R + 2;
+            var nearPocket = nearest && newDist < nearest.r + BALL_R + 5;
             var approaching = nearest && newDist < prevDist;
             if (
               nearPocket &&
@@ -1566,7 +1566,7 @@
                 if (
                   (b === firstHit || (!firstHit && b.n === 0)) &&
                   nearPocket &&
-                  diffY <= BALL_R * 2 &&
+                  diffY <= BALL_R * 2.5 &&
                   !nearPocketEdgeHit &&
                   !pocketedAny
                 ) {
@@ -1585,7 +1585,7 @@
                 if (
                   (b === firstHit || (!firstHit && b.n === 0)) &&
                   nearPocket &&
-                  diffY2 <= BALL_R * 2 &&
+                  diffY2 <= BALL_R * 2.5 &&
                   !nearPocketEdgeHit &&
                   !pocketedAny
                 ) {
@@ -1604,7 +1604,7 @@
                 if (
                   (b === firstHit || (!firstHit && b.n === 0)) &&
                   nearPocket &&
-                  diffX <= BALL_R * 2 &&
+                  diffX <= BALL_R * 2.5 &&
                   !nearPocketEdgeHit &&
                   !pocketedAny
                 ) {
@@ -1623,7 +1623,7 @@
                 if (
                   (b === firstHit || (!firstHit && b.n === 0)) &&
                   nearPocket &&
-                  diffX2 <= BALL_R * 2 &&
+                  diffX2 <= BALL_R * 2.5 &&
                   !nearPocketEdgeHit &&
                   !pocketedAny
                 ) {
@@ -2025,9 +2025,24 @@
         var nearPocketEdgeHit = false;
 
         function calibrated(pt) {
-          // Aiming is now directly based on the raw point to ensure
-          // the guideline and the actual shot remain perfectly aligned.
-          return pt;
+          // Compute average offset between aimed point and actual pocket
+          // centers from previous shots to correct future aiming. This
+          // gradually calibrates the guideline so it matches the true
+          // ball trajectory with high precision.
+          if (!shotsLog.length) return pt;
+          var sumX = 0,
+            sumY = 0;
+          for (var i = 0; i < shotsLog.length; i++) {
+            sumX += shotsLog[i].offset.x;
+            sumY += shotsLog[i].offset.y;
+          }
+          var avgX = sumX / shotsLog.length;
+          var avgY = sumY / shotsLog.length;
+          var maxOffset = BALL_R; // prevent extreme corrections
+          return {
+            x: pt.x + clamp(avgX, -maxOffset, maxOffset),
+            y: pt.y + clamp(avgY, -maxOffset, maxOffset)
+          };
         }
 
         function remainingPoints() {
@@ -2423,6 +2438,7 @@
               pocket: lastPocketCenter,
               offset: { x: dx, y: dy }
             });
+            if (shotsLog.length > 20) shotsLog.shift();
             lastShotAim = null;
             lastPocketCenter = null;
           }
