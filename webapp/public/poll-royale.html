@@ -2064,20 +2064,19 @@
               setTimeout(showTurnInfo, 1500);
             }
           }
-          if (!foul && pottedThisShot.length >= 2) {
-            var vol = 0.7;
-            var firstType = BALL_BY_N[pottedThisShot[0]].t;
-            var sameColor = pottedThisShot.every(function (n) {
-              return BALL_BY_N[n].t === firstType;
-            });
-            if (sameColor) vol *= 1.3;
-            if (lastCueStart && lastShotAim) {
-              var dxShot = lastShotAim.x - lastCueStart.x;
-              var dyShot = lastShotAim.y - lastCueStart.y;
-              if (Math.hypot(dxShot, dyShot) > TABLE_H * 0.5) vol *= 1.3;
+          if (!foul) {
+            var pottedCount = pottedThisShot.length + (eightBallPotted ? 1 : 0);
+            if (pottedCount >= 1) {
+              var vol = 0.7;
+              if (pottedCount >= 2) vol *= 1.3;
+              if (lastCueStart && lastShotAim) {
+                var dxShot = lastShotAim.x - lastCueStart.x;
+                var dyShot = lastShotAim.y - lastCueStart.y;
+                if (Math.hypot(dxShot, dyShot) > TABLE_H * 0.5) vol *= 1.3;
+              }
+              if (cueHitCushion) vol *= 1.5;
+              playCheer(vol);
             }
-            if (cueHitCushion) vol *= 1.5;
-            playCheer(vol);
           }
           if (lastShotAim && lastPocketCenter) {
             var dx = lastPocketCenter.x - lastShotAim.x;
