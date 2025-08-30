@@ -639,7 +639,7 @@
         ball.pathIndex++;
       }
     } else {
-      const speed=Math.hypot(ball.vx,ball.vy); const drag = 1 - AIR_DRAG*speed; const curve = ball.spin*1.1;
+      const speed=Math.hypot(ball.vx,ball.vy); const drag = 1 - AIR_DRAG*speed; const curve = ball.spin*0.9;
       const knuckle = 0;
       ball.vx = (ball.vx + curve + knuckle)*FRICTION*drag; ball.vy = (ball.vy + GRAVITY)*FRICTION*drag;
       nextX = ball.x + ball.vx;
@@ -660,7 +660,7 @@
       } else {
         ball.y = nextY;
       }
-      ball.spin *= -0.5;
+      ball.spin *= -0.3;
       ball.x = g.x + ball.r + 1;
       ball.path = null;
       ball.pathIndex = 0;
@@ -677,7 +677,7 @@
       } else {
         ball.y = nextY;
       }
-      ball.spin *= -0.5;
+      ball.spin *= -0.3;
       ball.x = g.x + g.w - ball.r - 1;
       ball.path = null;
       ball.pathIndex = 0;
@@ -698,7 +698,7 @@
       } else {
         ball.x = nextX;
       }
-      ball.spin *= 0.5;
+      ball.spin *= 0.3;
       ball.y = g.y + ball.r + 1;
       ball.path = null;
       ball.pathIndex = 0;
@@ -706,7 +706,7 @@
       return;
     }
 
-    ball.x = nextX; ball.y = nextY; ball.angle += ball.spin*0.15;
+    ball.x = nextX; ball.y = nextY; ball.angle += ball.spin*0.15; ball.spin *= 0.98;
 
     const dHit = ballHitsDefenders();
     if(dHit){
