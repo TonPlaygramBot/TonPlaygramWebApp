@@ -232,9 +232,9 @@
   const aimOn = false;
 
   const rivals=[
-    { i:0, wrap:document.querySelector('#pv0'), ptsEl:document.querySelector('#pv0pts'), cvs:null, ctx:null, score:0, next:0, acc:0.68, rate:[1180,2180], shots:[] },
-    { i:1, wrap:document.querySelector('#pv1'), ptsEl:document.querySelector('#pv1pts'), cvs:null, ctx:null, score:0, next:0, acc:0.62, rate:[1275,2360], shots:[] },
-    { i:2, wrap:document.querySelector('#pv2'), ptsEl:document.querySelector('#pv2pts'), cvs:null, ctx:null, score:0, next:0, acc:0.58, rate:[1350,2510], shots:[] },
+    { i:0, wrap:document.querySelector('#pv0'), ptsEl:document.querySelector('#pv0pts'), cvs:null, ctx:null, score:0, next:0, acc:0.68, rate:[1180,2180], shots:[], kx:0 },
+    { i:1, wrap:document.querySelector('#pv1'), ptsEl:document.querySelector('#pv1pts'), cvs:null, ctx:null, score:0, next:0, acc:0.62, rate:[1275,2360], shots:[], kx:0 },
+    { i:2, wrap:document.querySelector('#pv2'), ptsEl:document.querySelector('#pv2pts'), cvs:null, ctx:null, score:0, next:0, acc:0.58, rate:[1350,2510], shots:[], kx:0 },
   ];
   const miniHolesCache=[[],[],[]];
   for(const r of rivals){ r.cvs = r.wrap.querySelector('canvas'); r.ctx = r.cvs.getContext('2d'); }
@@ -529,8 +529,8 @@
       ctx.drawImage(ballImg, -sizeL/2, -sizeL/2, sizeL, sizeL);
       ctx.restore();
     }
-    ctx.globalAlpha=0.25;
-    for(const t of ball.trail){ ctx.beginPath(); ctx.arc(t.x,t.y,drawR*0.9,0,Math.PI*2); ctx.fillStyle='#fff'; ctx.fill(); }
+    ctx.globalAlpha=0.4;
+    for(const t of ball.trail){ ctx.beginPath(); ctx.arc(t.x,t.y,drawR,0,Math.PI*2); ctx.fillStyle='#fff'; ctx.fill(); }
     ctx.globalAlpha=1;
     ctx.save();
     ctx.translate(ball.x,ball.y);
@@ -555,9 +555,9 @@
   const FRICTION=0.985, AIR_DRAG=0.0015, GRAVITY=0.20;
   function stepBall(){
     if(!ball.moving) return;
-    ball.trail.push({x:ball.x,y:ball.y}); if(ball.trail.length>15) ball.trail.shift();
+    ball.trail.push({x:ball.x,y:ball.y}); if(ball.trail.length>20) ball.trail.shift();
     const speed=Math.hypot(ball.vx,ball.vy); const drag = 1 - AIR_DRAG*speed; const curve = ball.spin*0.8;
-    const knuckle = Math.abs(ball.spin) < 0.1 ? (Math.random()-0.5)*0.3 : 0;
+    const knuckle = Math.abs(ball.spin) < 0.1 ? (Math.random()-0.5)*0.1 : 0;
     ball.vx = (ball.vx + curve + knuckle)*FRICTION*drag; ball.vy = (ball.vy + GRAVITY)*FRICTION*drag;
     const g=geom.goal;
     const postR = g.post;
@@ -569,21 +569,13 @@
 
     // Predict collisions with goal posts or crossbar slightly early so the sound lines up.
     if(soundX - ball.r <= g.x && soundY > g.y - postR && soundY < g.y + g.h + postR && ball.vx < 0){
-      triggerNetHit(nextX, nextY);
       sfxPost();
-      if(!ball.goalSounded){ playGoalSound(); ball.goalSounded = true; }
-      reflectBall(1,0,0.85);
-      ball.x = g.x + ball.r;
-      ball.y = nextY;
+      ball.x = nextX; ball.y = nextY;
       return;
     }
     if(soundX + ball.r >= g.x + g.w && soundY > g.y - postR && soundY < g.y + g.h + postR && ball.vx > 0){
-      triggerNetHit(nextX, nextY);
       sfxPost();
-      if(!ball.goalSounded){ playGoalSound(); ball.goalSounded = true; }
-      reflectBall(-1,0,0.85);
-      ball.x = g.x + g.w - ball.r;
-      ball.y = nextY;
+      ball.x = nextX; ball.y = nextY;
       return;
     }
     if(soundY - ball.r <= g.y && soundX > g.x - postR && soundX < g.x + g.w + postR && ball.vy < 0){
@@ -872,7 +864,11 @@ function onUp(e){
       c.restore();
       c.strokeStyle='#fff'; c.lineWidth=6; roundRect(c,g.x,g.y,g.w,g.h,6,false,true);
       const kw = g.w * 0.16, kh = kw * 2.5;
-      const kx = g.x + (g.w - kw) / 2, ky = g.y + g.h - kh + g.h * 0.05;
+      const centerX = g.x + (g.w - kw) / 2, ky = g.y + g.h - kh + g.h * 0.05;
+      if(init){ r.kx = centerX; }
+      const active = r.shots[0];
+      const targetX = active ? clamp(active.x - kw/2, g.x, g.x + g.w - kw) : centerX;
+      r.kx += (targetX - r.kx) * 0.2;
       const local = Array.isArray(miniHolesCache[i]) ? miniHolesCache[i] : [];
       if(init && !local.length){ miniHolesCache[i]=genMiniHoles(g); }
       const list = Array.isArray(miniHolesCache[i]) ? miniHolesCache[i] : [];
@@ -905,7 +901,7 @@ function onUp(e){
           for(const f of s.fragments){ f.x+=f.vx; f.y+=f.vy; f.life-=0.03; c.fillRect(f.x,f.y,2,2); }
         }
       }
-      c.drawImage(keeperImg, kx, ky, kw, kh);
+      c.drawImage(keeperImg, r.kx, ky, kw, kh);
       r.shots = r.shots.filter(s=>s.life>0);
       r.ptsEl.textContent = r.score;
     }
