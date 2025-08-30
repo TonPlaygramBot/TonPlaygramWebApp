@@ -1523,12 +1523,18 @@
               mx + r * Math.cos(mid2) - centerX,
               my + r * Math.sin(mid2) - centerY
             );
+            var ccw = dist2 > dist1;
+            var normal = ccw ? mid2 : mid1;
+            // Shift the arc's centre outward a bit so the U connector
+            // rises higher without altering the gap width.
+            var off = r * 0.2;
+            var cx = mx + Math.cos(normal) * off;
+            var cy = my + Math.sin(normal) * off;
+            var R = Math.hypot(x1 - cx, y1 - cy);
+            sa = Math.atan2(y1 - cy, x1 - cx);
+            ea = Math.atan2(y2 - cy, x2 - cx);
             ctx.moveTo(x1, y1);
-            // Invert the arc direction so the rounded portion of the U
-            // sits behind the pocket rather than spilling onto the table.
-            // Using the midpoint that lies farther from the table centre
-            // ensures the connector curves outward around the pocket.
-            ctx.arc(mx, my, r, sa, ea, dist2 > dist1);
+            ctx.arc(cx, cy, R, sa, ea, ccw);
           }
 
           // corner pocket connectors (U)
