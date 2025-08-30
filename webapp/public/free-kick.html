@@ -783,24 +783,11 @@
   }
 
   function stepKeeper(){
-    const g=geom.goal;
-    const speed=12*geom.scale;
+    // Keeper stays fixed; position is set in resetBall based on wall placement
     keeper.a = 0;
-    keeper.x += speed * keeper.dir;
-    if(keeper.x <= g.x || keeper.x >= g.x + g.w - keeper.w){
-      keeper.x = clamp(keeper.x, g.x, g.x+g.w-keeper.w);
-      keeper.dir *= -1;
-    }
-    if(!keeper.jumping){
-      keeper.vy = -10*geom.scale;
-      keeper.jumping = true;
-    }
-    keeper.vy += GRAVITY*0.5;
-    keeper.dive += keeper.vy;
-    if(keeper.dive >= 0){
-      keeper.dive = 0;
-      keeper.jumping = false;
-    }
+    keeper.vx = 0;
+    keeper.vy = 0;
+    keeper.dive = 0;
   }
 
   // ===== Aim guide =====
@@ -851,7 +838,7 @@ function endShot(hit,pts){
   let pointer={id:null,path:[],active:false,armed:false,t0:0,t1:0};
   function pos(e){ const r=canvas.getBoundingClientRect(); return {x:(e.clientX-r.left)*(W/r.width), y:(e.clientY-r.top)*(H/r.height)}; }
   function calcShot(dx,dy,curve,power){
-    const spin = clamp(curve*2.0, -90, 90);
+    const spin = clamp(curve*0.5, -30, 30); // reduce spin for straighter shots
     const speed = SHOT_SPEED * power;
     let t = Math.max(0.1, Math.hypot(dx,dy) / speed);
     for(let i=0;i<5;i++){
@@ -1024,9 +1011,25 @@ function loop(now){ requestAnimationFrame(loop); drawField(); drawAds(); drawGoa
     keeper.a = 0;
     keeper.dive = 0;
     keeper.jumping = false;
-    keeper.x = keeper.baseX;
-    keeper.y = keeper.baseY;
     keeper.dir = 1;
+
+    // Position keeper on the side opposite the wall
+    const goal = geom.goal;
+    const wallCenter = defenders.x + defenders.w / 2;
+    const goalCenter = goal.x + goal.w / 2;
+    const gap = goal.w * 0.02;
+    if (wallCenter < goalCenter - goal.w * 0.1) {
+      // Wall on left, keeper covers right
+      keeper.x = goal.x + goal.w - keeper.w - gap;
+    } else if (wallCenter > goalCenter + goal.w * 0.1) {
+      // Wall on right, keeper covers left
+      keeper.x = goal.x + gap;
+    } else {
+      // Wall centered, choose a side near the post with a small gap
+      keeper.x = Math.random() < 0.5 ? goal.x + gap : goal.x + goal.w - keeper.w - gap;
+    }
+    keeper.y = keeper.baseY;
+    keeper.baseX = keeper.x;
   }
   function startGame(){ running=true; paused=false; ended=false; roundStart=performance.now(); timeLeft=ROUND_TIME; myScore=0; looseBalls=[]; for(const r of rivals){ r.score=0; r.next=0; r.shots=[]; } resetBall(); generateHoles(); drawMiniBoards(true); updateHUD(); ensureAudio(); crowdSound.play().catch(()=>{}); status('Go! Score as many as you can.'); }
 
