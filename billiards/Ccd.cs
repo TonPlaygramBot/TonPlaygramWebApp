@@ -67,4 +67,33 @@ public static class Ccd
         }
         return hit;
     }
+
+    /// <summary>Time of impact between moving circle and line segment with given normal.
+    /// The normal should point into the playable area.</summary>
+    public static bool CircleSegment(Vec2 p, Vec2 v, double r, Vec2 a, Vec2 b, Vec2 normal, out double toi)
+    {
+        toi = double.PositiveInfinity;
+        var n = normal.Normalized();
+        double denom = Vec2.Dot(v, n);
+        if (denom >= -PhysicsConstants.Epsilon)
+            return false;
+
+        double dist = Vec2.Dot(p - a, n);
+        double t = (r - dist) / denom;
+        if (t < 0 || t > PhysicsConstants.MaxPreviewTime)
+            return false;
+
+        var hitPoint = p + v * t - n * r;
+        var seg = b - a;
+        double len = seg.Length;
+        if (len < PhysicsConstants.Epsilon)
+            return false;
+        var dir = seg / len;
+        double proj = Vec2.Dot(hitPoint - a, dir);
+        if (proj < 0 || proj > len)
+            return false;
+
+        toi = t;
+        return true;
+    }
 }

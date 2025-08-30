@@ -5,12 +5,18 @@ namespace Billiards;
 /// <summary>Post-impact velocity computations.</summary>
 public static class Collision
 {
-    /// <summary>Reflect velocity on a surface with given normal.</summary>
-    public static Vec2 Reflect(Vec2 v, Vec2 normal)
+    /// <summary>Reflect velocity on a surface with given normal and restitution.</summary>
+    public static Vec2 Reflect(Vec2 v, Vec2 normal, double restitution)
     {
         var n = normal.Normalized();
         var dot = Vec2.Dot(v, n);
-        return v - n * (1 + PhysicsConstants.Restitution) * dot;
+        return v - n * (1 + restitution) * dot;
+    }
+
+    /// <summary>Reflect velocity on a surface with default table restitution.</summary>
+    public static Vec2 Reflect(Vec2 v, Vec2 normal)
+    {
+        return Reflect(v, normal, PhysicsConstants.Restitution);
     }
 
     /// <summary>Resolve elastic collision between two equal-mass balls.</summary>
