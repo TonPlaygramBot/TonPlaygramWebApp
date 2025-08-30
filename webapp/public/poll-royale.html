@@ -1501,6 +1501,47 @@
           ctx.lineTo(x0 + w, (br.y - br.r) * sY - gap);
           ctx.stroke();
 
+          // Connect cushions to pockets using U/V shapes
+          ctx.beginPath();
+
+          function drawCorner (p, xEdge, yEdge, hDir, vDir) {
+            var cx = p.x * sX,
+              cy = p.y * sY,
+              r = p.r * scaleFactor;
+            var dyH = yEdge / sY - p.y;
+            var dxH = Math.sqrt(p.r * p.r - dyH * dyH) * hDir;
+            var hx = (p.x + dxH) * sX,
+              hy = yEdge;
+            var dxV = xEdge / sX - p.x;
+            var dyV = Math.sqrt(p.r * p.r - dxV * dxV) * vDir;
+            var vx = xEdge,
+              vy = (p.y + dyV) * sY;
+            var startA = Math.atan2(dyH, dxH);
+            var endA = Math.atan2(dyV, dxV);
+            ctx.moveTo(hx + gap * hDir, hy);
+            ctx.lineTo(hx, hy);
+            ctx.arc(cx, cy, r, startA, endA, startA > endA);
+            ctx.lineTo(vx, vy + gap * vDir);
+          }
+
+          function drawSide (p, xEdge, hDir) {
+            var topY = (p.y - p.r) * sY,
+              botY = (p.y + p.r) * sY;
+            var apexX = (p.x + p.r * hDir) * sX,
+              apexY = p.y * sY;
+            ctx.moveTo(xEdge, topY - gap);
+            ctx.lineTo(apexX, apexY);
+            ctx.lineTo(xEdge, botY + gap);
+          }
+
+          drawCorner(tl, x0, y0, 1, 1);
+          drawCorner(tr, x0 + w, y0, -1, 1);
+          drawCorner(bl, x0, y0 + h, 1, -1);
+          drawCorner(br, x0 + w, y0 + h, -1, -1);
+          drawSide(ml, x0, 1);
+          drawSide(mr, x0 + w, -1);
+          ctx.stroke();
+
           // Outline pockets with a thin red line
           ctx.strokeStyle = '#ff0000';
           ctx.lineWidth = 2;
