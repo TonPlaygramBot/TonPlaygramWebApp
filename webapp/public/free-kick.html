@@ -652,27 +652,24 @@
     // Predict collisions with goal posts or crossbar slightly early so the sound lines up.
     if(soundX - ball.r <= g.x && soundY > g.y - postR && soundY < g.y + g.h + postR && ball.vx < 0){
       sfxPost();
-      ball.trailStopped = true;
       reflectBall(1,0,0.85);
-      ball.x = g.x + ball.r;
+      ball.x = g.x + ball.r + 1;
       ball.y = nextY;
       return;
     }
     if(soundX + ball.r >= g.x + g.w && soundY > g.y - postR && soundY < g.y + g.h + postR && ball.vx > 0){
       sfxPost();
-      ball.trailStopped = true;
-      reflectBall(1,0,0.85);
-      ball.x = g.x + g.w - ball.r;
+      reflectBall(-1,0,0.85);
+      ball.x = g.x + g.w - ball.r - 1;
       ball.y = nextY;
       return;
     }
     if(soundY - ball.r <= g.y && soundX > g.x - postR && soundX < g.x + g.w + postR && ball.vy < 0){
-      ball.trailStopped = true;
       triggerNetHit(nextX, nextY);
       sfxPost();
       if(!ball.goalSounded){ playGoalSound(); ball.goalSounded = true; }
       reflectBall(0,1,0.85);
-      ball.y = g.y + ball.r;
+      ball.y = g.y + ball.r + 1;
       ball.x = nextX;
       return;
     }
@@ -705,7 +702,6 @@
       for(const h of holes){
         if(h.hit) continue;
         if(Math.hypot(h.x-ball.x,h.y-ball.y) <= Math.max(2,h.r-ball.r*0.6)){
-          ball.trailStopped = true;
           h.hit=true; createFragments(h);
           ball.points += h.points;
           sfxPrize();
@@ -755,19 +751,35 @@
       let nextX = b.x + b.vx;
       let nextY = b.y + b.vy;
       if(b.insideGoal){
+        const innerW = g.w * 0.8;
+        const innerH = g.h * 0.8;
+        const ix = g.x + (g.w - innerW) / 2;
+        const iy = g.y + (g.h - innerH) / 2;
         if(nextX - r <= g.x && nextY > g.y - postR && nextY < g.y + g.h + postR && b.vx < 0){
           sfxPost();
           b.vx *= -0.6;
-          nextX = g.x + r;
+          nextX = g.x + r + 1;
         } else if(nextX + r >= g.x + g.w && nextY > g.y - postR && nextY < g.y + g.h + postR && b.vx > 0){
           sfxPost();
           b.vx *= -0.6;
-          nextX = g.x + g.w - r;
+          nextX = g.x + g.w - r - 1;
+        } else if(nextX - r <= ix && nextY > iy && nextY < iy + innerH && b.vx < 0){
+          sfxPost();
+          b.vx *= -0.6;
+          nextX = ix + r + 1;
+        } else if(nextX + r >= ix + innerW && nextY > iy && nextY < iy + innerH && b.vx > 0){
+          sfxPost();
+          b.vx *= -0.6;
+          nextX = ix + innerW - r - 1;
         }
         if(nextY - r <= g.y && nextX > g.x - postR && nextX < g.x + g.w + postR && b.vy < 0){
           sfxPost();
           b.vy *= -0.6;
-          nextY = g.y + r;
+          nextY = g.y + r + 1;
+        } else if(nextY - r <= iy && nextX > ix && nextX < ix + innerW && b.vy < 0){
+          sfxPost();
+          b.vy *= -0.6;
+          nextY = iy + r + 1;
         }
       }
       b.x = nextX;
