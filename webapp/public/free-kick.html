@@ -653,6 +653,7 @@
     if(soundX - ball.r <= g.x && soundY > g.y - postR && soundY < g.y + g.h + postR && ball.vx < 0){
       sfxPost();
       reflectBall(1,0,0.85);
+      ball.spin *= -0.5;
       ball.x = g.x + ball.r + 1;
       ball.y = nextY;
       return;
@@ -660,6 +661,7 @@
     if(soundX + ball.r >= g.x + g.w && soundY > g.y - postR && soundY < g.y + g.h + postR && ball.vx > 0){
       sfxPost();
       reflectBall(-1,0,0.85);
+      ball.spin *= -0.5;
       ball.x = g.x + g.w - ball.r - 1;
       ball.y = nextY;
       return;
@@ -669,6 +671,7 @@
       sfxPost();
       if(!ball.goalSounded){ playGoalSound(); ball.goalSounded = true; }
       reflectBall(0,1,0.85);
+      ball.spin *= 0.5;
       ball.y = g.y + ball.r + 1;
       ball.x = nextX;
       return;
@@ -754,6 +757,10 @@
       b.spin *= 0.98;
       let nextX = b.x + b.vx;
       let nextY = b.y + b.vy;
+      if(!b.insideGoal && nextY + r >= fieldGround){
+        b.remove = true;
+        continue;
+      }
       if(b.insideGoal){
         const innerW = g.w * 0.8;
         const innerH = g.h * 0.8;
@@ -814,7 +821,7 @@
           if(Math.hypot(b.vx,b.vy) < 0.2 && !b.landedAt) b.landedAt = now;
         }
       }
-      if(b.landedAt && now - b.landedAt > 3000){
+      if(b.landedAt && now - b.landedAt > (b.insideGoal ? 2000 : 0)){
         b.remove = true;
       }
     }
