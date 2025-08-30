@@ -1499,38 +1499,6 @@
           // right edge - bottom segment
           ctx.moveTo(x0 + w, (mr.y + mr.r) * sY + gap);
           ctx.lineTo(x0 + w, (br.y - br.r) * sY - gap);
-
-          // connect cushions to pocket edges
-          // top-left pocket
-          ctx.moveTo((tl.x + tl.r) * sX, y0);
-          ctx.lineTo((tl.x + tl.r) * sX + gap, y0);
-          ctx.moveTo(x0, (tl.y + tl.r) * sY);
-          ctx.lineTo(x0, (tl.y + tl.r) * sY + gap);
-          // top-right pocket
-          ctx.moveTo((tr.x - tr.r) * sX, y0);
-          ctx.lineTo((tr.x - tr.r) * sX - gap, y0);
-          ctx.moveTo(x0 + w, (tr.y + tr.r) * sY);
-          ctx.lineTo(x0 + w, (tr.y + tr.r) * sY + gap);
-          // middle-left pocket
-          ctx.moveTo(x0, (ml.y - ml.r) * sY - gap);
-          ctx.lineTo(x0, (ml.y - ml.r) * sY);
-          ctx.moveTo(x0, (ml.y + ml.r) * sY);
-          ctx.lineTo(x0, (ml.y + ml.r) * sY + gap);
-          // middle-right pocket
-          ctx.moveTo(x0 + w, (mr.y - mr.r) * sY - gap);
-          ctx.lineTo(x0 + w, (mr.y - mr.r) * sY);
-          ctx.moveTo(x0 + w, (mr.y + mr.r) * sY);
-          ctx.lineTo(x0 + w, (mr.y + mr.r) * sY + gap);
-          // bottom-left pocket
-          ctx.moveTo((bl.x + bl.r) * sX, y0 + h);
-          ctx.lineTo((bl.x + bl.r) * sX + gap, y0 + h);
-          ctx.moveTo(x0, (bl.y - bl.r) * sY - gap);
-          ctx.lineTo(x0, (bl.y - bl.r) * sY);
-          // bottom-right pocket
-          ctx.moveTo((br.x - br.r) * sX, y0 + h);
-          ctx.lineTo((br.x - br.r) * sX - gap, y0 + h);
-          ctx.moveTo(x0 + w, (br.y - br.r) * sY - gap);
-          ctx.lineTo(x0 + w, (br.y - br.r) * sY);
           ctx.stroke();
 
           // Outline pockets with a thin red line
