@@ -90,7 +90,7 @@ public static class Ccd
             return false;
         var dir = seg / len;
         double proj = Vec2.Dot(hitPoint - a, dir);
-        if (proj < 0 || proj > len)
+        if (proj < -PhysicsConstants.Epsilon || proj > len + PhysicsConstants.Epsilon)
             return false;
 
         toi = t;

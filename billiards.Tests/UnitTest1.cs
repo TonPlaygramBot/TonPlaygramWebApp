@@ -28,6 +28,19 @@ public class CcdRegressionTests
     }
 
     [Test]
+    public void CircleSegmentEndpointTolerance()
+    {
+        // construct a scenario where the impact point lies marginally beyond the segment end
+        var p = new Vec2(0.22020557697951237, 0.12020557556529882);
+        var v = new Vec2(-1, -1);
+        var a = new Vec2(0, 0.1);
+        var b = new Vec2(0.1, 0);
+        var n = new Vec2(1, 1);
+        Assert.IsTrue(Ccd.CircleSegment(p, v, PhysicsConstants.BallRadius, a, b, n, out double t));
+        Assert.Greater(t, 0);
+    }
+
+    [Test]
     public void NearParallelCushion()
     {
         var p0 = new Vec2(0.5, 0.5);
