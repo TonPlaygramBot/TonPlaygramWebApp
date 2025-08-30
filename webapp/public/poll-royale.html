@@ -1470,120 +1470,7 @@
             Math.PI * 2
           );
           ctx.fill();
-          // Draw a thin yellow line along the cushions, stopping before each pocket
-          ctx.strokeStyle = '#facc15';
-          ctx.lineWidth = 2;
-          ctx.beginPath();
-          var gap = 6;
-          var tl = this.pockets[0];
-          var tr = this.pockets[1];
-          var ml = this.pockets[2];
-          var mr = this.pockets[3];
-          var bl = this.pockets[4];
-          var br = this.pockets[5];
-          // top edge
-          ctx.moveTo((tl.x + tl.r) * sX + gap, y0);
-          ctx.lineTo((tr.x - tr.r) * sX - gap, y0);
-          // bottom edge
-          ctx.moveTo((bl.x + bl.r) * sX + gap, y0 + h);
-          ctx.lineTo((br.x - br.r) * sX - gap, y0 + h);
-          // left edge - top segment
-          ctx.moveTo(x0, (tl.y + tl.r) * sY + gap);
-          ctx.lineTo(x0, (ml.y - ml.r) * sY - gap);
-          // left edge - bottom segment
-          ctx.moveTo(x0, (ml.y + ml.r) * sY + gap);
-          ctx.lineTo(x0, (bl.y - bl.r) * sY - gap);
-          // right edge - top segment
-          ctx.moveTo(x0 + w, (tr.y + tr.r) * sY + gap);
-          ctx.lineTo(x0 + w, (mr.y - mr.r) * sY - gap);
-          // right edge - bottom segment
-          ctx.moveTo(x0 + w, (mr.y + mr.r) * sY + gap);
-          ctx.lineTo(x0 + w, (br.y - br.r) * sY - gap);
-          // Connect the gaps at each pocket with decorative geometry
-          // The four corner pockets get a U shaped connector and the side
-          // pockets receive a simple V connector.  The yellow guide lines
-          // stay in their original positions – these shapes merely bridge the
-          // empty space left near the pockets.
-          var rScale = (sX + sY) / 2;
-          function drawCornerConnector(x1, y1, x2, y2) {
-            var mx = (x1 + x2) / 2;
-            var my = (y1 + y2) / 2;
-            var r = Math.hypot(x1 - x2, y1 - y2) / 2;
-            var sa = Math.atan2(y1 - my, x1 - mx);
-            var ea = sa + Math.PI;
-            var mid1 = sa + Math.PI / 2;
-            var mid2 = sa - Math.PI / 2;
-            var centerX = x0 + w / 2;
-            var centerY = y0 + h / 2;
-            var dist1 = Math.hypot(
-              mx + r * Math.cos(mid1) - centerX,
-              my + r * Math.sin(mid1) - centerY
-            );
-            var dist2 = Math.hypot(
-              mx + r * Math.cos(mid2) - centerX,
-              my + r * Math.sin(mid2) - centerY
-            );
-            var ccw = dist2 > dist1;
-            var normal = ccw ? mid2 : mid1;
-            // Shift the arc's centre outward a bit so the U connector
-            // rises higher without altering the gap width.
-            var off = r * 0.2;
-            var cx = mx + Math.cos(normal) * off;
-            var cy = my + Math.sin(normal) * off;
-            var R = Math.hypot(x1 - cx, y1 - cy);
-            sa = Math.atan2(y1 - cy, x1 - cx);
-            ea = Math.atan2(y2 - cy, x2 - cx);
-            ctx.moveTo(x1, y1);
-            ctx.arc(cx, cy, R, sa, ea, ccw);
-          }
-
-          // corner pocket connectors (U)
-          drawCornerConnector(
-            (tl.x + tl.r) * sX + gap,
-            y0,
-            x0,
-            (tl.y + tl.r) * sY + gap
-          );
-          drawCornerConnector(
-            (tr.x - tr.r) * sX - gap,
-            y0,
-            x0 + w,
-            (tr.y + tr.r) * sY + gap
-          );
-          drawCornerConnector(
-            (bl.x + bl.r) * sX + gap,
-            y0 + h,
-            x0,
-            (bl.y - bl.r) * sY - gap
-          );
-          drawCornerConnector(
-            (br.x - br.r) * sX - gap,
-            y0 + h,
-            x0 + w,
-            (br.y - br.r) * sY - gap
-          );
-
-          // side pocket connectors (V)
-          var vOffset = (ml.r + gap) * rScale;
-          ctx.moveTo(x0, (ml.y - ml.r) * sY - gap);
-          ctx.lineTo(ml.x * sX - vOffset, ml.y * sY);
-          ctx.lineTo(x0, (ml.y + ml.r) * sY + gap);
-
-          ctx.moveTo(x0 + w, (mr.y - mr.r) * sY - gap);
-          ctx.lineTo(mr.x * sX + vOffset, mr.y * sY);
-          ctx.lineTo(x0 + w, (mr.y + mr.r) * sY + gap);
-
-          ctx.stroke();
-
-          // Outline pockets with a thin red line
-          ctx.strokeStyle = '#ff0000';
-          ctx.lineWidth = 2;
-          for (var i = 0; i < this.pockets.length; i++) {
-            var p = this.pockets[i];
-            ctx.beginPath();
-            ctx.arc(p.x * sX, p.y * sY, p.r * scaleFactor, 0, Math.PI * 2);
-            ctx.stroke();
-          }
+          // Cushion and pocket guidelines removed
           // Topat
           for (var j = 0; j < this.balls.length; j++) {
             var b = this.balls[j];
@@ -1751,6 +1638,7 @@
         var cueVisible = true; // a shfaqet steka gjate animimit
         var cueStrike = { active: false, speed: 0, stage: 'forward' }; // animimi i goditjes se stekes
         var spinVec = { x: 0, y: 0 }; // spini i zgjedhur
+        var lastGuideDir = { x: 0, y: -1 }; // drejtimi i fundit i guides
         var power = 0; // fuqi [0..1]
         var cueBallFree = true; // a mund te vendoset cueball
         var cueHintTime = Date.now();
@@ -2249,6 +2137,7 @@
             dy = aim.y - cue.p.y;
           var L = len(dx, dy) || 1;
           var dir = { x: dx / L, y: dy / L };
+          lastGuideDir = dir;
           var tHit = Infinity;
           var target = null;
           var railNormal = null;
@@ -2642,7 +2531,7 @@
           var cue = table.balls[0];
           if (!cue || cue.pocketed) return;
           var aimPoint = calibrated(table.aim);
-          var d = norm(aimPoint.x - cue.p.x, aimPoint.y - cue.p.y);
+          var d = lastGuideDir;
           lastShotAim = { x: aimPoint.x, y: aimPoint.y };
           shotPocketRecorded = false;
           var base = 950 * 3 * 1.6 * 1.5;
@@ -2662,8 +2551,8 @@
           nineBallPotted = false;
           cue.v.x = d.x * base * (0.25 + 0.75 * p);
           cue.v.y = d.y * base * (0.25 + 0.75 * p);
-          // Increase the spin effect in all directions
-          cue.spin = { x: spinVec.x * 58.5 * p, y: spinVec.y * 58.5 * p };
+          // Remove spin influence for a straighter shot
+          cue.spin = { x: 0, y: 0 };
           cue.spinApplied = false;
           cueBallFree = false;
           setSpin(0, 0);
