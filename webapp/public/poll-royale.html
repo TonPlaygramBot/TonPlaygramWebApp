@@ -1499,41 +1499,6 @@
           // right edge - bottom segment
           ctx.moveTo(x0 + w, (mr.y + mr.r) * sY + gap);
           ctx.lineTo(x0 + w, (br.y - br.r) * sY - gap);
-
-          // connect cushions to pockets with U and V shapes
-          var r;
-          // top-left pocket (U)
-          r = tl.r * scaleFactor;
-          ctx.moveTo((tl.x + tl.r) * sX + gap, y0);
-          ctx.lineTo((tl.x + tl.r) * sX, tl.y * sY);
-          ctx.arc(tl.x * sX, tl.y * sY, r, 0, Math.PI / 2);
-          ctx.lineTo(x0, (tl.y + tl.r) * sY + gap);
-          // top-right pocket (U)
-          r = tr.r * scaleFactor;
-          ctx.moveTo((tr.x - tr.r) * sX - gap, y0);
-          ctx.lineTo((tr.x - tr.r) * sX, tr.y * sY);
-          ctx.arc(tr.x * sX, tr.y * sY, r, Math.PI, Math.PI / 2, true);
-          ctx.lineTo(x0 + w, (tr.y + tr.r) * sY + gap);
-          // bottom-left pocket (U)
-          r = bl.r * scaleFactor;
-          ctx.moveTo(x0, (bl.y - bl.r) * sY - gap);
-          ctx.lineTo(bl.x * sX, (bl.y - bl.r) * sY);
-          ctx.arc(bl.x * sX, bl.y * sY, r, Math.PI * 1.5, Math.PI * 2);
-          ctx.lineTo((bl.x + bl.r) * sX + gap, y0 + h);
-          // bottom-right pocket (U)
-          r = br.r * scaleFactor;
-          ctx.moveTo(x0 + w, (br.y - br.r) * sY - gap);
-          ctx.lineTo(br.x * sX, (br.y - br.r) * sY);
-          ctx.arc(br.x * sX, br.y * sY, r, Math.PI * 1.5, Math.PI, true);
-          ctx.lineTo((br.x - br.r) * sX - gap, y0 + h);
-          // middle-left pocket (V)
-          ctx.moveTo(x0, (ml.y - ml.r) * sY - gap);
-          ctx.lineTo(ml.x * sX, ml.y * sY);
-          ctx.lineTo(x0, (ml.y + ml.r) * sY + gap);
-          // middle-right pocket (V)
-          ctx.moveTo(x0 + w, (mr.y - mr.r) * sY - gap);
-          ctx.lineTo(mr.x * sX, mr.y * sY);
-          ctx.lineTo(x0 + w, (mr.y + mr.r) * sY + gap);
           ctx.stroke();
 
           // Outline pockets with a thin red line
