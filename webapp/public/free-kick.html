@@ -207,8 +207,8 @@
     keeper.y = geom.goal.y + geom.goal.h - keeper.h + geom.goal.h*0.05;
     keeper.baseY = keeper.y;
     keeper.baseX = keeper.x;
-    defenders.w = keeper.w * 2.8;
-    defenders.h = keeper.h * 2.1;
+    defenders.w = keeper.w * 2.6;
+    defenders.h = keeper.h * 2.0;
     defenders.x = (W - defenders.w)/2;
     defenders.y = geom.penaltySpot.y + STRIPE/2 - STRIPE*7.5;
     defenders.baseY = defenders.y;
@@ -734,7 +734,11 @@
       }
       ball.prevDist=dist;
     }
-    if(ball.y < -80 || ball.x < -80 || ball.x > W+80 || ball.y > H+80 || Math.hypot(ball.vx,ball.vy)<0.3){ ball.trailStopped = true; endShot(false,0); }
+    if(ball.y < -80 || ball.x < -80 || ball.x > W+80 || ball.y > H+80 || Math.hypot(ball.vx,ball.vy)<0.3){
+      ball.trailStopped = true;
+      const insideGoal = ball.x > g.x && ball.x < g.x + g.w && ball.y > g.y && ball.y < g.y + g.h;
+      endShot(insideGoal, insideGoal ? Math.max(ball.points, MIN_GOAL_POINTS) : 0);
+    }
   }
 
   function stepLooseBalls(){
