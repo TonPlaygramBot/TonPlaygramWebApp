@@ -780,7 +780,8 @@
           pocketBuffer = null,
           knockBuffer = null,
           cheerBuffer = null,
-          shockBuffer = null;
+          shockBuffer = null,
+          activeSound = null;
 
         fetch('/assets/sounds/billiard-pool-hit-371618.mp3')
           .then(function (r) {
@@ -848,6 +849,15 @@
             shockBuffer = buf;
           });
 
+        function stopActiveSound() {
+          if (activeSound) {
+            try {
+              activeSound.stop();
+            } catch (e) {}
+            activeSound = null;
+          }
+        }
+
         function playCueHit(vol) {
           audioCtx.resume();
           if (!hitBuffer) return;
@@ -896,24 +906,28 @@
         function playCheer(vol) {
           if (!cheerBuffer) return;
           audioCtx.resume().then(function () {
+            stopActiveSound();
             var src = audioCtx.createBufferSource();
             src.buffer = cheerBuffer;
             var gain = audioCtx.createGain();
             gain.gain.value = clamp(vol, 0, 1);
             src.connect(gain).connect(audioCtx.destination);
             src.start(0);
+            activeSound = src;
           });
         }
 
         function playShock(vol) {
           audioCtx.resume();
           if (!shockBuffer) return;
+          stopActiveSound();
           var src = audioCtx.createBufferSource();
           src.buffer = shockBuffer;
           var gain = audioCtx.createGain();
           gain.gain.value = clamp(vol, 0, 1);
           src.connect(gain).connect(audioCtx.destination);
           src.start(0);
+          activeSound = src;
         }
 
         var tg = window.Telegram?.WebApp;
@@ -1490,6 +1504,7 @@
                   b2.pocketed = true;
                   pocketedAny = true;
                   eightBallPotted = true;
+                  if (!foulShown) playCheer(1);
                 } else {
                   b2.pocketed = true;
                   pocketedAny = true;
@@ -1523,6 +1538,7 @@
                     }
                     lastPocketedBall = b2.n;
                   }
+                  if (!foulShown) playCheer(1);
                 }
               }
             }
@@ -2088,28 +2104,6 @@
               );
               playShock(1);
               setTimeout(showTurnInfo, 1500);
-            }
-          }
-          if (!foul) {
-            var pottedCount = pottedThisShot.length + (eightBallPotted ? 1 : 0);
-            if (pottedCount >= 1) {
-              var vol = 0.7;
-              var colourCount = {};
-              pottedThisShot.forEach(function (n) {
-                var t = BALL_BY_N[n].t;
-                colourCount[t] = (colourCount[t] || 0) + 1;
-              });
-              var sameColour = Object.values(colourCount).some(function (c) {
-                return c >= 2;
-              });
-              if (sameColour) vol *= 1.3;
-              if (lastCueStart && lastShotAim) {
-                var dxShot = lastShotAim.x - lastCueStart.x;
-                var dyShot = lastShotAim.y - lastCueStart.y;
-                if (Math.hypot(dxShot, dyShot) > TABLE_H * 0.5) vol *= 1.3;
-              }
-              if (cueHitCushion) vol *= 1.5;
-              playCheer(vol);
             }
           }
           if (lastShotAim && lastPocketCenter) {
