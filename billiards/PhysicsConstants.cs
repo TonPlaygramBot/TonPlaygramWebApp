@@ -5,7 +5,7 @@ public static class PhysicsConstants
 {
     public const double BallRadius = 0.028575;        // metres (57.15 mm diameter)
     public const double Restitution = 0.98;            // elastic coefficient
-    public const double PocketRestitution = Restitution * 0.2; // 80% less bounce on pocket edges
+    public const double PocketRestitution = 0;              // no bounce on pocket edges
     public const double Mu = 0.2;                      // linear damping (m/s^2)
     public const double TableWidth = 2.84;             // 9ft table internal size
     public const double TableHeight = 1.42;
