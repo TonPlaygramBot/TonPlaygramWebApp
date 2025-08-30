@@ -199,18 +199,19 @@
     geom.scale = goalW / 860;
     geom.paDepth = Math.min(320*geom.scale, H*0.34) * goalScale;
     geom.penaltySpot = { x:W/2, y: geom.goal.y + geom.goal.h + geom.paDepth * (11/16.5) + STRIPE*3 };
-    // position the ball a bit higher near the bottom edge
-    geom.spot = { x: W/2, y: H - BALL_R*geom.scale*1.8 };
+    // position the ball a bit higher near the bottom edge and move it one stripe up
+    geom.spot = { x: W/2, y: H - BALL_R*geom.scale*1.8 - STRIPE };
     keeper.w = 40*geom.scale*4*0.85;
     keeper.h = 100*geom.scale*4*0.85;
     keeper.x = geom.goal.x + (geom.goal.w-keeper.w)/2;
     keeper.y = geom.goal.y + geom.goal.h - keeper.h + geom.goal.h*0.05;
     keeper.baseY = keeper.y;
     keeper.baseX = keeper.x;
-    defenders.w = keeper.w;
-    defenders.h = keeper.h;
+    defenders.w = keeper.w * 3;
+    defenders.h = keeper.h * 3;
     defenders.x = (W - defenders.w)/2;
-    defenders.y = geom.penaltySpot.y + STRIPE/2;
+    defenders.y = geom.penaltySpot.y + STRIPE/2 - STRIPE*2;
+    defenders.baseY = defenders.y;
   }
 
   // ===== Game state =====
@@ -234,7 +235,7 @@
   const keeper={x:0,y:0,w:40,h:100,vx:0,vy:0,a:0,baseY:0,baseX:0,dive:0,jumping:false,dir:1};
   const keeperImg = new Image();
   keeperImg.src = '/assets/icons/file_00000000945461f8bb9a2974fb9ee402.webp';
-  const defenders={x:0,y:0,w:40,h:100};
+  const defenders={x:0,y:0,w:40,h:100,baseY:0,vy:0,jumping:false};
   const defendersImg = new Image();
   defendersImg.src = '/assets/icons/file_0000000091b0624395c9e8d8acf66e69.webp';
   const aimOn = false;
@@ -746,6 +747,17 @@
     fragments = fragments.filter(f=>f.life>0);
   }
 
+  function stepDefenders(){
+    if(!defenders.jumping) return;
+    defenders.vy += GRAVITY*0.5;
+    defenders.y += defenders.vy;
+    if(defenders.y >= defenders.baseY){
+      defenders.y = defenders.baseY;
+      defenders.vy = 0;
+      defenders.jumping = false;
+    }
+  }
+
   function stepKeeper(){
     const g=geom.goal;
     const speed=12*geom.scale;
@@ -863,6 +875,10 @@ function onUp(e){
   ball.vy=shot.vy;
   ball.spin=shot.spin;
   ball.moving=true;
+  if(!defenders.jumping){
+    defenders.vy = -10*geom.scale;
+    defenders.jumping = true;
+  }
   playBallKickSound();
   ball.target={x:ball.x+dx,y:ball.y+dy};
   ball.prevDist=Infinity;
@@ -954,12 +970,40 @@ function onUp(e){
 
   // ===== Timer + loop =====
   function tick(now){ if(!running||paused) return; if(!roundStart) roundStart=now; timeLeft = Math.max(0, ROUND_TIME - (now - roundStart)); timeShort.textContent = Math.ceil(timeLeft/1000); if(timeLeft<=0){ finish(); } }
-function loop(now){ requestAnimationFrame(loop); drawField(); drawAds(); drawGoal(); drawDefenders(); drawBall(); drawPunchEffects(); stepBall(); stepLooseBalls(); stepFragments(); stepKeeper(); drawMiniBoards(); tick(now||performance.now()); stepRivals(now||performance.now()); updateHUD(); netHit.t*=NET_DECAY; netHit.shake*=NET_DECAY; goalFlash*=0.92; missFlash*=0.92; }
+function loop(now){ requestAnimationFrame(loop); drawField(); drawAds(); drawGoal(); drawDefenders(); drawBall(); drawPunchEffects(); stepBall(); stepLooseBalls(); stepFragments(); stepDefenders(); stepKeeper(); drawMiniBoards(); tick(now||performance.now()); stepRivals(now||performance.now()); updateHUD(); netHit.t*=NET_DECAY; netHit.shake*=NET_DECAY; goalFlash*=0.92; missFlash*=0.92; }
 
   // ===== Controls =====
   // controls removed
 
-  function resetBall(){ ball.x=geom.spot.x; ball.y=geom.spot.y; ball.vx=ball.vy=ball.spin=0; ball.angle=0; ball.moving=false; ball.netSounded=false; ball.goalSounded=false; ball.trail=[]; ball.trailStopped=false; ball.target=null; ball.prevDist=null; ball.points=0; keeper.vx=0; keeper.vy=0; keeper.a=0; keeper.dive=0; keeper.jumping=false; keeper.x = keeper.baseX; keeper.y = keeper.baseY; keeper.dir=1; }
+  function resetBall(){
+    const margin = BALL_R*geom.scale*2;
+    const minX = margin + defenders.w/2;
+    const maxX = W - margin - defenders.w/2;
+    ball.x = minX + Math.random() * (maxX - minX);
+    ball.y = geom.spot.y;
+    ball.vx = ball.vy = ball.spin = 0;
+    ball.angle = 0;
+    ball.moving = false;
+    ball.netSounded = false;
+    ball.goalSounded = false;
+    ball.trail = [];
+    ball.trailStopped = false;
+    ball.target = null;
+    ball.prevDist = null;
+    ball.points = 0;
+    defenders.x = clamp(ball.x - defenders.w/2, 0, W - defenders.w);
+    defenders.y = defenders.baseY;
+    defenders.vy = 0;
+    defenders.jumping = false;
+    keeper.vx = 0;
+    keeper.vy = 0;
+    keeper.a = 0;
+    keeper.dive = 0;
+    keeper.jumping = false;
+    keeper.x = keeper.baseX;
+    keeper.y = keeper.baseY;
+    keeper.dir = 1;
+  }
   function startGame(){ running=true; paused=false; ended=false; roundStart=performance.now(); timeLeft=ROUND_TIME; myScore=0; looseBalls=[]; for(const r of rivals){ r.score=0; r.next=0; r.shots=[]; } resetBall(); generateHoles(); drawMiniBoards(true); updateHUD(); ensureAudio(); crowdSound.play().catch(()=>{}); status('Go! Score as many as you can.'); }
 
   // ===== WebAudio SFX =====
@@ -1111,7 +1155,7 @@ function loop(now){ requestAnimationFrame(loop); drawField(); drawAds(); drawGoa
   function vibrate(ms){ if(navigator.vibrate) try{ navigator.vibrate(ms); }catch{} }
 
   // ===== Static draw & tests =====
-function drawStaticOnce(){ drawField(); drawAds(); drawGoal(); drawDefenders(); resetBall(); drawBall(); drawMiniBoards(true); }
+function drawStaticOnce(){ drawField(); drawAds(); drawGoal(); resetBall(); drawDefenders(); drawBall(); drawMiniBoards(true); }
 
   // ===== Boot =====
   function startCountdown(n){
