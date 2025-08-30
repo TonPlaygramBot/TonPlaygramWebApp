@@ -1542,12 +1542,12 @@
             var newDist = nearest
               ? Math.hypot(b.p.x - nearest.x, b.p.y - nearest.y)
               : Infinity;
-            var nearPocket = nearest && newDist < nearest.r + BALL_R + 5;
+            // Detect when a ball just grazes a pocket to trigger a crowd reaction
+            var nearPocket = nearest && newDist < nearest.r + BALL_R + 15;
             var approaching = nearest && newDist < prevDist;
             if (
               nearPocket &&
               !approaching &&
-              (b === firstHit || (!firstHit && b.n === 0)) &&
               !nearPocketEdgeHit &&
               !pocketedAny
             ) {
@@ -1564,9 +1564,8 @@
                 if (i === 0 && shotInProgress && !firstHit) cueHitCushion = true;
                 var diffY = nearest ? Math.abs(b.p.y - nearest.y) : Infinity;
                 if (
-                  (b === firstHit || (!firstHit && b.n === 0)) &&
                   nearPocket &&
-                  diffY <= BALL_R * 2.5 &&
+                  diffY <= BALL_R * 3 &&
                   !nearPocketEdgeHit &&
                   !pocketedAny
                 ) {
@@ -1583,9 +1582,8 @@
                 if (i === 0 && shotInProgress && !firstHit) cueHitCushion = true;
                 var diffY2 = nearest ? Math.abs(b.p.y - nearest.y) : Infinity;
                 if (
-                  (b === firstHit || (!firstHit && b.n === 0)) &&
                   nearPocket &&
-                  diffY2 <= BALL_R * 2.5 &&
+                  diffY2 <= BALL_R * 3 &&
                   !nearPocketEdgeHit &&
                   !pocketedAny
                 ) {
@@ -1602,9 +1600,8 @@
                 if (i === 0 && shotInProgress && !firstHit) cueHitCushion = true;
                 var diffX = nearest ? Math.abs(b.p.x - nearest.x) : Infinity;
                 if (
-                  (b === firstHit || (!firstHit && b.n === 0)) &&
                   nearPocket &&
-                  diffX <= BALL_R * 2.5 &&
+                  diffX <= BALL_R * 3 &&
                   !nearPocketEdgeHit &&
                   !pocketedAny
                 ) {
@@ -1621,9 +1618,8 @@
                 if (i === 0 && shotInProgress && !firstHit) cueHitCushion = true;
                 var diffX2 = nearest ? Math.abs(b.p.x - nearest.x) : Infinity;
                 if (
-                  (b === firstHit || (!firstHit && b.n === 0)) &&
                   nearPocket &&
-                  diffX2 <= BALL_R * 2.5 &&
+                  diffX2 <= BALL_R * 3 &&
                   !nearPocketEdgeHit &&
                   !pocketedAny
                 ) {
@@ -2025,20 +2021,22 @@
         var nearPocketEdgeHit = false;
 
         function calibrated(pt) {
-          // Compute average offset between aimed point and actual pocket
-          // centers from previous shots to correct future aiming. This
-          // gradually calibrates the guideline so it matches the true
-          // ball trajectory with high precision.
+          // Weighted average offset between aimed point and actual pocket
+          // centers from previous shots. Recent shots count more so the
+          // guideline quickly adapts for maximum precision.
           if (!shotsLog.length) return pt;
           var sumX = 0,
-            sumY = 0;
+            sumY = 0,
+            weightSum = 0;
           for (var i = 0; i < shotsLog.length; i++) {
-            sumX += shotsLog[i].offset.x;
-            sumY += shotsLog[i].offset.y;
+            var w = i + 1; // later shots carry more weight
+            sumX += shotsLog[i].offset.x * w;
+            sumY += shotsLog[i].offset.y * w;
+            weightSum += w;
           }
-          var avgX = sumX / shotsLog.length;
-          var avgY = sumY / shotsLog.length;
-          var maxOffset = BALL_R; // prevent extreme corrections
+          var avgX = sumX / weightSum;
+          var avgY = sumY / weightSum;
+          var maxOffset = BALL_R * 0.8; // prevent extreme corrections
           return {
             x: pt.x + clamp(avgX, -maxOffset, maxOffset),
             y: pt.y + clamp(avgY, -maxOffset, maxOffset)
