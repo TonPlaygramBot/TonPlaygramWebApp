@@ -28,8 +28,8 @@ import FallingBall from './pages/Games/FallingBall.jsx';
 import FallingBallLobby from './pages/Games/FallingBallLobby.jsx';
 import GoalRush from './pages/Games/GoalRush.jsx';
 import GoalRushLobby from './pages/Games/GoalRushLobby.jsx';
-import PenaltyKick from './pages/Games/PenaltyKick.jsx';
-import PenaltyKickLobby from './pages/Games/PenaltyKickLobby.jsx';
+import FreeKick from './pages/Games/FreeKick.jsx';
+import FreeKickLobby from './pages/Games/FreeKickLobby.jsx';
 import BrickBreaker from './pages/Games/BrickBreaker.jsx';
 import BrickBreakerLobby from './pages/Games/BrickBreakerLobby.jsx';
 import TetrisRoyale from './pages/Games/TetrisRoyale.jsx';
@@ -79,8 +79,8 @@ export default function App() {
             <Route path="/games/fallingball" element={<FallingBall />} />
             <Route path="/games/goalrush/lobby" element={<GoalRushLobby />} />
             <Route path="/games/goalrush" element={<GoalRush />} />
-            <Route path="/games/penaltykick/lobby" element={<PenaltyKickLobby />} />
-            <Route path="/games/penaltykick" element={<PenaltyKick />} />
+            <Route path="/games/freekick/lobby" element={<FreeKickLobby />} />
+            <Route path="/games/freekick" element={<FreeKick />} />
             <Route path="/games/brickbreaker/lobby" element={<BrickBreakerLobby />} />
             <Route path="/games/brickbreaker" element={<BrickBreaker />} />
             <Route path="/games/tetrisroyale/lobby" element={<TetrisRoyaleLobby />} />

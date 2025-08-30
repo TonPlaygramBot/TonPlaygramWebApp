@@ -16,7 +16,7 @@ const GAME_NAME_MAP = {
   poll: '8 Poll Royale',
   texas: "Texas Hold'em",
   blackjack: 'Black Jack Multiplayer',
-  penaltykick: 'Penalty Kick',
+  freekick: 'Free Kick',
   murlan: 'Murlan Royale',
 };
 

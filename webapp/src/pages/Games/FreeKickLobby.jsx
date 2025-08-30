@@ -5,7 +5,7 @@ import useTelegramBackButton from '../../hooks/useTelegramBackButton.js';
 import { ensureAccountId, getTelegramId } from '../../utils/telegram.js';
 import { getAccountBalance, addTransaction } from '../../utils/api.js';
 
-export default function PenaltyKickLobby() {
+export default function FreeKickLobby() {
   const navigate = useNavigate();
   useTelegramBackButton();
 
@@ -26,7 +26,7 @@ export default function PenaltyKickLobby() {
       }
       tgId = getTelegramId();
       await addTransaction(tgId, -stake.amount, 'stake', {
-        game: 'penaltykick',
+        game: 'freekick',
         players: mode === 'ai' ? 1 : players,
         accountId,
       });
@@ -42,12 +42,12 @@ export default function PenaltyKickLobby() {
     if (duration) params.set('duration', duration);
     if (tgId) params.set('tgId', tgId);
     if (accountId) params.set('accountId', accountId);
-    navigate(`/games/penaltykick?${params.toString()}`);
+    navigate(`/games/freekick?${params.toString()}`);
   };
 
   return (
     <div className="relative p-4 space-y-4 text-text min-h-screen tetris-grid-bg">
-      <h2 className="text-xl font-bold text-center">Penalty Kick Lobby</h2>
+      <h2 className="text-xl font-bold text-center">Free Kick Lobby</h2>
       <div className="space-y-2">
         <h3 className="font-semibold">Mode</h3>
         <div className="flex gap-2">
