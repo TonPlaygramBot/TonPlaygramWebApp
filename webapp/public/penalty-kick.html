@@ -190,12 +190,13 @@
   // ===== Geometry =====
   const geom = { goal:{x:0,y:0,w:0,h:0,post:12}, spot:{x:0,y:0}, penaltySpot:{x:0,y:0}, scale:1, paDepth:0 };
   function layout(){
-    const goalW = Math.min(W*0.92, 950) * 0.97;
-    const goalH = Math.min(H*0.28, 260) * 0.92;
+    const goalScale = 0.85;
+    const goalW = Math.min(W*0.92, 950) * 0.97 * goalScale;
+    const goalH = Math.min(H*0.28, 260) * 0.92 * goalScale;
     const pbarBottom = document.getElementById('pbar').getBoundingClientRect().bottom;
     geom.goal = { x:(W-goalW)/2, y:pbarBottom + 10, w:goalW, h:goalH, post:12 };
     geom.scale = goalW / 860;
-    geom.paDepth = Math.min(320*geom.scale, H*0.34);
+    geom.paDepth = Math.min(320*geom.scale, H*0.34) * goalScale;
     geom.penaltySpot = { x:W/2, y: geom.goal.y + geom.goal.h + geom.paDepth * (11/16.5) };
     // position the ball a bit higher near the bottom edge
     geom.spot = { x: W/2, y: H - BALL_R*geom.scale*1.8 };
