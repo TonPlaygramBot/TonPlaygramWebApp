@@ -57,7 +57,26 @@
         src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxMDAwIDE1MDAiPjxyZWN0IHdpZHRoPSIxMDAlIiBoZWlnaHQ9IjEwMCUiIGZpbGw9IiMwMDgwMDAiLz48L3N2Zz4="
         alt="Pool table"
       />
-      <!-- Overlay removed to eliminate pocket and field markings -->
+      <!-- Color-coded overlay showing field, edges and pockets -->
+      <svg class="overlay" viewBox="0 0 1000 1500">
+        <!-- Playing field -->
+        <rect x="80" y="80" width="840" height="1340"
+          fill="rgba(0,255,0,0.15)"
+          stroke="rgba(0,255,0,0.9)"
+          stroke-width="20" />
+        <!-- Table edges -->
+        <rect x="20" y="20" width="960" height="1460"
+          fill="none"
+          stroke="rgba(255,0,0,0.7)"
+          stroke-width="40" />
+        <!-- Pockets -->
+        <circle cx="40" cy="40" r="40" fill="rgba(0,0,255,0.9)" />
+        <circle cx="960" cy="40" r="40" fill="rgba(255,0,255,0.9)" />
+        <circle cx="40" cy="750" r="40" fill="rgba(255,255,0,0.9)" />
+        <circle cx="960" cy="750" r="40" fill="rgba(0,255,255,0.9)" />
+        <circle cx="40" cy="1460" r="40" fill="rgba(0,128,255,0.9)" />
+        <circle cx="960" cy="1460" r="40" fill="rgba(255,128,0,0.9)" />
+      </svg>
       <div id="aim-line" class="aim-line"></div>
     </div>
     <script>
