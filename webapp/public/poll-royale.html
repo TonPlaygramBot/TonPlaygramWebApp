@@ -894,14 +894,15 @@
         }
 
         function playCheer(vol) {
-          audioCtx.resume();
           if (!cheerBuffer) return;
-          var src = audioCtx.createBufferSource();
-          src.buffer = cheerBuffer;
-          var gain = audioCtx.createGain();
-          gain.gain.value = clamp(vol, 0, 1);
-          src.connect(gain).connect(audioCtx.destination);
-          src.start(0);
+          audioCtx.resume().then(function () {
+            var src = audioCtx.createBufferSource();
+            src.buffer = cheerBuffer;
+            var gain = audioCtx.createGain();
+            gain.gain.value = clamp(vol, 0, 1);
+            src.connect(gain).connect(audioCtx.destination);
+            src.start(0);
+          });
         }
 
         function playShock(vol) {
@@ -2093,7 +2094,15 @@
             var pottedCount = pottedThisShot.length + (eightBallPotted ? 1 : 0);
             if (pottedCount >= 1) {
               var vol = 0.7;
-              if (pottedCount >= 2) vol *= 1.3;
+              var colourCount = {};
+              pottedThisShot.forEach(function (n) {
+                var t = BALL_BY_N[n].t;
+                colourCount[t] = (colourCount[t] || 0) + 1;
+              });
+              var sameColour = Object.values(colourCount).some(function (c) {
+                return c >= 2;
+              });
+              if (sameColour) vol *= 1.3;
               if (lastCueStart && lastShotAim) {
                 var dxShot = lastShotAim.x - lastCueStart.x;
                 var dyShot = lastShotAim.y - lastCueStart.y;
