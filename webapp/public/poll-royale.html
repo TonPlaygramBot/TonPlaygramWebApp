@@ -1364,7 +1364,10 @@
                   bb.v.x *= BOUNCE;
                   bb.v.y *= BOUNCE;
                     if (!this.prevCollisions.has(pairId)) {
-                      playBallHit(clamp(imp / 4000, 0, 1) * 0.5);
+                      // Scale collision volume by both impact impulse and the
+                      // power of the shot that initiated the turn.
+                      var vol = clamp(imp / 4000, 0, 1) * lastShotPower * 0.5;
+                      playBallHit(vol);
                     }
                   if (a.n === 0 || bb.n === 0) {
                     var other = a.n === 0 ? bb : a;
@@ -1672,6 +1675,9 @@
         var spinVec = { x: 0, y: 0 }; // spini i zgjedhur
         var lastGuideDir = { x: 0, y: -1 }; // drejtimi i fundit i guides
         var power = 0; // fuqi [0..1]
+        // Track the power of the most recent shot so collision volume can
+        // be scaled based on how hard the cue was struck.
+        var lastShotPower = 0;
         var cueBallFree = true; // a mund te vendoset cueball
         var cueHintTime = Date.now();
         var draggingCue = false;
@@ -1915,6 +1921,8 @@
 
         function endShot() {
           shotInProgress = false;
+          // Reset shot power so stray collisions don't carry over volume.
+          lastShotPower = 0;
           cueVisible = true;
           cuePullVisual = 0;
           var opponent = currentShooter === 1 ? 2 : 1;
@@ -2570,6 +2578,7 @@
           // Reduce the overall shot power by 50%
           base *= 0.5;
             playCueHit(p * 0.5);
+            lastShotPower = p;
             currentShooter = table.turn;
             if (isNineBall || isAmerican)
               currentTarget = lowestBallOnTable();
