@@ -656,6 +656,9 @@
       ball.spin *= -0.5;
       ball.x = g.x + ball.r + 1;
       ball.y = nextY;
+      ball.path = null;
+      ball.pathIndex = 0;
+      ball.pathSpeed = 0;
       return;
     }
     if(soundX + ball.r >= g.x + g.w && soundY > g.y - postR && soundY < g.y + g.h + postR && ball.vx > 0){
@@ -664,6 +667,9 @@
       ball.spin *= -0.5;
       ball.x = g.x + g.w - ball.r - 1;
       ball.y = nextY;
+      ball.path = null;
+      ball.pathIndex = 0;
+      ball.pathSpeed = 0;
       return;
     }
     if(soundY - ball.r <= g.y && soundX > g.x - postR && soundX < g.x + g.w + postR && ball.vy < 0){
@@ -674,6 +680,9 @@
       ball.spin *= 0.5;
       ball.y = g.y + ball.r + 1;
       ball.x = nextX;
+      ball.path = null;
+      ball.pathIndex = 0;
+      ball.pathSpeed = 0;
       return;
     }
 
@@ -699,6 +708,11 @@
     if(!ball.netSounded && ball.x>g.x && ball.x<g.x+g.w && ball.y>g.y && ball.y<g.y+g.h){
       triggerNetHit(ball.x, ball.y);
       ball.netSounded = true;
+      ball.path = null;
+      ball.pathIndex = 0;
+      ball.pathSpeed = 0;
+      ball.vx *= 0.6;
+      ball.vy *= 0.6;
     }
 
     if(ball.x>g.x && ball.x<g.x+g.w && ball.y>g.y && ball.y<g.y+g.h){
