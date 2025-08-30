@@ -1071,12 +1071,17 @@
           this.turn = 1; // 1: P1, 2: CPU
           this.captured = { 1: [], 2: [] };
           this.aim = { x: TABLE_W / 2, y: TABLE_H / 3 };
+          // Track ball pairs that are currently colliding to avoid
+          // triggering the collision sound more than once for a single
+          // contact event.
+          this.prevCollisions = new Set();
           this.reset();
         }
 
         Table.prototype.reset = function () {
           var i, j;
           this.balls = [];
+          this.prevCollisions.clear();
 
           // Cue ball (center poshte vijes se bardhe)
           this.balls.push(new Ball(BALL_BY_N[0], TABLE_W / 2, CUE_START_Y));
@@ -1253,6 +1258,9 @@
 
         Table.prototype.update = function (dt) {
           var i, j;
+          // Track collisions in this frame so that audio for each
+          // pair of balls is played only once per contact.
+          var newCollisions = new Set();
           // Levizje + ferkim + kufij
           for (i = 0; i < this.balls.length; i++) {
             var b = this.balls[i];
@@ -1333,6 +1341,8 @@
                 dy = bb.p.y - a.p.y,
                 d = Math.hypot(dx, dy);
               if (d < BALL_R * 2) {
+                var pairId = i + '-' + j;
+                newCollisions.add(pairId);
                 var nx = dx / (d || 1),
                   ny = dy / (d || 1),
                   over = (BALL_R * 2 - d) / 2;
@@ -1353,7 +1363,9 @@
                   a.v.y *= BOUNCE;
                   bb.v.x *= BOUNCE;
                   bb.v.y *= BOUNCE;
-                  playBallHit(clamp(imp / 4000, 0, 1));
+                  if (!this.prevCollisions.has(pairId)) {
+                    playBallHit(clamp(imp / 4000, 0, 1));
+                  }
                   if (a.n === 0 || bb.n === 0) {
                     var other = a.n === 0 ? bb : a;
                     if (!firstHit) {
@@ -1461,6 +1473,8 @@
               }
             }
           }
+          // Update collision state for next frame.
+          this.prevCollisions = newCollisions;
         };
 
         Table.prototype.render = function () {
