@@ -16,7 +16,7 @@ export default function ProjectAchievementsCard() {
     '🎱 8 Poll Royale',
     "🃏 Texas Hold'em",
     '🃏 Black Jack Multiplayer',
-    '⚽ Penalty Kick',
+    '⚽ Free Kick',
     '🂠 Murlan Royale',
     '🔄 Daily Check-In rewards',
     '⛏️ Mining system active',
