@@ -653,13 +653,17 @@
     if(soundX - ball.r <= g.x && soundY > g.y - postR && soundY < g.y + g.h + postR && ball.vx < 0){
       sfxPost();
       ball.trailStopped = true;
-      ball.x = nextX; ball.y = nextY;
+      reflectBall(1,0,0.85);
+      ball.x = g.x + ball.r;
+      ball.y = nextY;
       return;
     }
     if(soundX + ball.r >= g.x + g.w && soundY > g.y - postR && soundY < g.y + g.h + postR && ball.vx > 0){
       sfxPost();
       ball.trailStopped = true;
-      ball.x = nextX; ball.y = nextY;
+      reflectBall(1,0,0.85);
+      ball.x = g.x + g.w - ball.r;
+      ball.y = nextY;
       return;
     }
     if(soundY - ball.r <= g.y && soundX > g.x - postR && soundX < g.x + g.w + postR && ball.vy < 0){
