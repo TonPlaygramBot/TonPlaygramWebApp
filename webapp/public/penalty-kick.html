@@ -217,7 +217,7 @@
   // faster initial shot speed for wider coverage
   const SHOT_SPEED = 20;
   const MIN_GOAL_POINTS = 5;
-  const ball = { x:0,y:0,r:BALL_R, vx:0,vy:0, moving:false, trail:[], spin:0, angle:0, netSounded:false, goalSounded:false, firstContact:false, target:null, prevDist:null, points:0 };
+  const ball = { x:0,y:0,r:BALL_R, vx:0,vy:0, moving:false, trail:[], spin:0, angle:0, netSounded:false, goalSounded:false, trailStopped:false, target:null, prevDist:null, points:0 };
   const ballImg = new Image();
   ballImg.src = '/assets/icons/file_0000000061d4620aaf506adfa605e1f3.webp';
 
@@ -555,7 +555,10 @@
   const FRICTION=0.985, AIR_DRAG=0.0015, GRAVITY=0.20;
   function stepBall(){
     if(!ball.moving) return;
-    ball.trail.push({x:ball.x,y:ball.y}); if(ball.trail.length>20) ball.trail.shift();
+    if(!ball.trailStopped){
+      ball.trail.push({x:ball.x,y:ball.y});
+      if(ball.trail.length>20) ball.trail.shift();
+    }
     const speed=Math.hypot(ball.vx,ball.vy); const drag = 1 - AIR_DRAG*speed; const curve = ball.spin*0.8;
     const knuckle = Math.abs(ball.spin) < 0.1 ? (Math.random()-0.5)*0.1 : 0;
     ball.vx = (ball.vx + curve + knuckle)*FRICTION*drag; ball.vy = (ball.vy + GRAVITY)*FRICTION*drag;
@@ -570,15 +573,18 @@
     // Predict collisions with goal posts or crossbar slightly early so the sound lines up.
     if(soundX - ball.r <= g.x && soundY > g.y - postR && soundY < g.y + g.h + postR && ball.vx < 0){
       sfxPost();
+      ball.trailStopped = true;
       ball.x = nextX; ball.y = nextY;
       return;
     }
     if(soundX + ball.r >= g.x + g.w && soundY > g.y - postR && soundY < g.y + g.h + postR && ball.vx > 0){
       sfxPost();
+      ball.trailStopped = true;
       ball.x = nextX; ball.y = nextY;
       return;
     }
     if(soundY - ball.r <= g.y && soundX > g.x - postR && soundX < g.x + g.w + postR && ball.vy < 0){
+      ball.trailStopped = true;
       triggerNetHit(nextX, nextY);
       sfxPost();
       if(!ball.goalSounded){ playGoalSound(); ball.goalSounded = true; }
@@ -601,6 +607,7 @@
       for(const h of holes){
         if(h.hit) continue;
         if(Math.hypot(h.x-ball.x,h.y-ball.y) <= Math.max(2,h.r-ball.r*0.6)){
+          ball.trailStopped = true;
           h.hit=true; createFragments(h);
           ball.points += h.points;
           sfxPrize();
@@ -612,6 +619,7 @@
     }
     const kHit = ballHitsKeeper();
     if(kHit){
+      ball.trailStopped = true;
       punchEffects.push({x:ball.x,y:ball.y,life:1});
       playKeeperSaveSound();
       reflectBall(kHit.nx,1,0.6);
@@ -627,14 +635,12 @@
       if(dist < ball.r*0.5 || (ball.prevDist && dist>ball.prevDist)){
         ball.x=ball.target.x; ball.y=ball.target.y;
         ball.vx*=0.2; ball.vy=Math.max(0,ball.vy)*0.2; ball.spin*=0.2;
+        ball.trailStopped = true;
         endShot(true,ball.points); ball.target=null; ball.prevDist=null; return;
       }
       ball.prevDist=dist;
     }
-
-
-    if(!ball.firstContact && ball.y >= geom.spot.y && ball.vy > 0){ ball.firstContact=true; endShot(false,0); return; }
-    if(ball.y < -80 || ball.x < -80 || ball.x > W+80 || ball.y > H+80 || Math.hypot(ball.vx,ball.vy)<0.3){ endShot(false,0); }
+    if(ball.y < -80 || ball.x < -80 || ball.x > W+80 || ball.y > H+80 || Math.hypot(ball.vx,ball.vy)<0.3){ ball.trailStopped = true; endShot(false,0); }
   }
 
   function stepLooseBalls(){
@@ -765,6 +771,7 @@ function endShot(hit,pts){
   // keep current ball falling while spawning the next one
   looseBalls.push({x:ball.x,y:ball.y,vx:ball.vx,vy:ball.vy,angle:ball.angle,spin:ball.spin,bounced:false,insideGoal:hit,landedAt:null});
   ball.moving=false;
+  ball.trailStopped = true;
   if(hit){
     showGoal(ball.x, ball.y);
     ball.netSounded=true;
@@ -828,8 +835,6 @@ function onUp(e){
   const path=pointer.path; pointer.path=[];
   if(path.length<3){ status('Swipe longer/faster.'); return; }
   const a=path[0], b=path[path.length-1];
-  const totalDy=b.y-a.y;
-  if(totalDy>-10){ status('Swipe upward.'); return; }
   const dx=b.x-a.x, dy=b.y-a.y;
   const dist=Math.hypot(dx,dy), power=clamp(dist/150, 0.4, 5.0);
   let curve=0;
@@ -938,7 +943,7 @@ function loop(now){ requestAnimationFrame(loop); drawField(); drawAds(); drawGoa
   // ===== Controls =====
   // controls removed
 
-  function resetBall(){ ball.x=geom.spot.x; ball.y=geom.spot.y; ball.vx=ball.vy=ball.spin=0; ball.angle=0; ball.moving=false; ball.netSounded=false; ball.goalSounded=false; ball.trail=[]; ball.firstContact=false; ball.target=null; ball.prevDist=null; ball.points=0; keeper.vx=0; keeper.vy=0; keeper.a=0; keeper.dive=0; keeper.jumping=false; keeper.x = keeper.baseX; keeper.y = keeper.baseY; }
+  function resetBall(){ ball.x=geom.spot.x; ball.y=geom.spot.y; ball.vx=ball.vy=ball.spin=0; ball.angle=0; ball.moving=false; ball.netSounded=false; ball.goalSounded=false; ball.trail=[]; ball.trailStopped=false; ball.target=null; ball.prevDist=null; ball.points=0; keeper.vx=0; keeper.vy=0; keeper.a=0; keeper.dive=0; keeper.jumping=false; keeper.x = keeper.baseX; keeper.y = keeper.baseY; }
   function startGame(){ running=true; paused=false; ended=false; roundStart=performance.now(); timeLeft=ROUND_TIME; myScore=0; looseBalls=[]; for(const r of rivals){ r.score=0; r.next=0; r.shots=[]; } resetBall(); generateHoles(); drawMiniBoards(true); updateHUD(); ensureAudio(); crowdSound.play().catch(()=>{}); status('Go! Score as many as you can.'); }
 
   // ===== WebAudio SFX =====
@@ -1073,6 +1078,7 @@ function loop(now){ requestAnimationFrame(loop); drawField(); drawAds(); drawGoa
     netHit.x = x; netHit.y = y;
     netHit.t = Math.max(netHit.t, 1);
     netHit.shake = Math.max(netHit.shake, 1.2);
+    ball.trailStopped = true;
   }
   function celebrateGoal(x, y){
     triggerNetHit(x, y);
