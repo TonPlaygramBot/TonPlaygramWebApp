@@ -145,6 +145,22 @@ test('potting 8-ball legally after clearing group wins', () => {
   assert.equal(res.winner, 'A');
 });
 
+test('potting black when one colour cleared on open table is legal', () => {
+  const game = new UkPool();
+  game.state.ballsOnTable.yellow.clear();
+  game.state.isOpenTable = true;
+  const res = game.shotTaken({
+    contactOrder: ['black'],
+    potted: ['black'],
+    cueOffTable: false,
+    noCushionAfterContact: false,
+    placedFromHand: false
+  });
+  assert.equal(res.foul, false);
+  assert.equal(res.frameOver, true);
+  assert.equal(res.winner, 'A');
+});
+
 test('after foul cue must be played from baulk', () => {
   const game = new UkPool();
   game.shotTaken({
