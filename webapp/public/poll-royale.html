@@ -1524,7 +1524,11 @@
               my + r * Math.sin(mid2) - centerY
             );
             ctx.moveTo(x1, y1);
-            ctx.arc(mx, my, r, sa, ea, dist2 < dist1);
+            // Invert the arc direction so the rounded portion of the U
+            // sits behind the pocket rather than spilling onto the table.
+            // Using the midpoint that lies farther from the table centre
+            // ensures the connector curves outward around the pocket.
+            ctx.arc(mx, my, r, sa, ea, dist2 > dist1);
           }
 
           // corner pocket connectors (U)
