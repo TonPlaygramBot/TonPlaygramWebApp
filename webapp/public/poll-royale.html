@@ -1367,6 +1367,10 @@
                 if (b.n === 0) b.spinApplied = true;
                 playCueHit(clamp(sx / 4000, 0, 1) * 0.5);
                 if (i === 0 && shotInProgress && !firstHit) cueHitCushion = true;
+                if (b === firstHit && nearPocket && !nearPocketEdgeHit && !pocketedAny) {
+                  nearPocketEdgeHit = true;
+                  playShock(1);
+                }
               }
               if (b.p.x > R) {
                 b.p.x = R;
@@ -1375,6 +1379,10 @@
                 if (b.n === 0) b.spinApplied = true;
                 playCueHit(clamp(sx2 / 4000, 0, 1) * 0.5);
                 if (i === 0 && shotInProgress && !firstHit) cueHitCushion = true;
+                if (b === firstHit && nearPocket && !nearPocketEdgeHit && !pocketedAny) {
+                  nearPocketEdgeHit = true;
+                  playShock(1);
+                }
               }
               if (b.p.y < T) {
                 b.p.y = T;
@@ -1383,6 +1391,10 @@
                 if (b.n === 0) b.spinApplied = true;
                 playCueHit(clamp(sy / 4000, 0, 1) * 0.5);
                 if (i === 0 && shotInProgress && !firstHit) cueHitCushion = true;
+                if (b === firstHit && nearPocket && !nearPocketEdgeHit && !pocketedAny) {
+                  nearPocketEdgeHit = true;
+                  playShock(1);
+                }
               }
               if (b.p.y > B) {
                 b.p.y = B;
@@ -1391,6 +1403,10 @@
                 if (b.n === 0) b.spinApplied = true;
                 playCueHit(clamp(sy2 / 4000, 0, 1) * 0.5);
                 if (i === 0 && shotInProgress && !firstHit) cueHitCushion = true;
+                if (b === firstHit && nearPocket && !nearPocketEdgeHit && !pocketedAny) {
+                  nearPocketEdgeHit = true;
+                  playShock(1);
+                }
               }
             }
           }
@@ -1773,6 +1789,7 @@
         var shotsLog = [];
         var lastCueStart = null;
         var cueHitCushion = false;
+        var nearPocketEdgeHit = false;
 
         function calibrated(pt) {
           // Aiming is now directly based on the raw point to ensure
@@ -2102,7 +2119,6 @@
                 table.turn,
                 'Close call! The ball hit the cushion but nothing dropped, turn passes to the opponent.'
               );
-              playShock(1);
               setTimeout(showTurnInfo, 1500);
             }
           }
@@ -2125,6 +2141,7 @@
           firstHit = null;
           lastCueStart = null;
           cueHitCushion = false;
+          nearPocketEdgeHit = false;
           currentTarget = null;
           eightBallPotted = false;
           nineBallPotted = false;
