@@ -1544,6 +1544,16 @@
               : Infinity;
             var nearPocket = nearest && newDist < nearest.r + BALL_R + 2;
             var approaching = nearest && newDist < prevDist;
+            if (
+              nearPocket &&
+              !approaching &&
+              (b === firstHit || (!firstHit && b.n === 0)) &&
+              !nearPocketEdgeHit &&
+              !pocketedAny
+            ) {
+              nearPocketEdgeHit = true;
+              playShock(1);
+            }
             if (!nearPocket || !approaching) {
               if (b.p.x < L) {
                 b.p.x = L;
@@ -1636,6 +1646,7 @@
                 d = Math.hypot(dx, dy);
               if (d < BALL_R * 2) {
                 var pairId = i + '-' + j;
+                var firstPairCollision = !newCollisions.has(pairId);
                 newCollisions.add(pairId);
                 var nx = dx / (d || 1),
                   ny = dy / (d || 1),
@@ -1657,10 +1668,14 @@
                   a.v.y *= BOUNCE;
                   bb.v.x *= BOUNCE;
                   bb.v.y *= BOUNCE;
-                    if (!this.prevCollisions.has(pairId)) {
+                    if (
+                      firstPairCollision &&
+                      !this.prevCollisions.has(pairId)
+                    ) {
                       // Scale collision volume by both impact impulse and the
                       // power of the shot that initiated the turn.
-                      var vol = clamp(imp / 4000, 0, 1) * lastShotPower * 0.5;
+                      var vol =
+                        clamp(imp / 4000, 0, 1) * lastShotPower * 0.5;
                       playBallHit(vol);
                     }
                   if (a.n === 0 || bb.n === 0) {
@@ -2172,7 +2187,7 @@
           function startTurnTimer() {
             clearTurnTimer();
             if (table.turn !== 1) return;
-            countdownRemaining = 15;
+            countdownRemaining = 30;
             if (timerDisplay) {
               timerDisplay.style.color = '#facc15';
               timerDisplay.textContent = countdownRemaining;
@@ -2187,14 +2202,14 @@
             }, 1000);
             warnTimer = setTimeout(function () {
               playTurnSound();
-            }, 10000);
+            }, 25000);
             turnTimer = setTimeout(function () {
               updateFooter(2, "Time's up! Turn passes to the opponent.");
               table.turn = 2;
               updateTurnIndicator(true);
               showTurnInfo();
               cpuTurn();
-            }, 15000);
+            }, 30000);
           }
 
           function startCpuTimer() {
