@@ -562,9 +562,12 @@
     const postR = g.post;
     const nextX = ball.x + ball.vx;
     const nextY = ball.y + ball.vy;
+    const soundLead = 0.7; // trigger post sounds when ~70% of the way to impact
+    const soundX = ball.x + ball.vx * soundLead;
+    const soundY = ball.y + ball.vy * soundLead;
 
-    // Predict collisions with goal posts or crossbar so the sound plays exactly on impact.
-    if(nextX - ball.r <= g.x && nextY > g.y - postR && nextY < g.y + g.h + postR && ball.vx < 0){
+    // Predict collisions with goal posts or crossbar slightly early so the sound lines up.
+    if(soundX - ball.r <= g.x && soundY > g.y - postR && soundY < g.y + g.h + postR && ball.vx < 0){
       triggerNetHit(nextX, nextY);
       sfxPost();
       if(!ball.goalSounded){ playGoalSound(); ball.goalSounded = true; }
@@ -573,7 +576,7 @@
       ball.y = nextY;
       return;
     }
-    if(nextX + ball.r >= g.x + g.w && nextY > g.y - postR && nextY < g.y + g.h + postR && ball.vx > 0){
+    if(soundX + ball.r >= g.x + g.w && soundY > g.y - postR && soundY < g.y + g.h + postR && ball.vx > 0){
       triggerNetHit(nextX, nextY);
       sfxPost();
       if(!ball.goalSounded){ playGoalSound(); ball.goalSounded = true; }
@@ -582,7 +585,7 @@
       ball.y = nextY;
       return;
     }
-    if(nextY - ball.r <= g.y && nextX > g.x - postR && nextX < g.x + g.w + postR && ball.vy < 0){
+    if(soundY - ball.r <= g.y && soundX > g.x - postR && soundX < g.x + g.w + postR && ball.vy < 0){
       triggerNetHit(nextX, nextY);
       sfxPost();
       if(!ball.goalSounded){ playGoalSound(); ball.goalSounded = true; }
