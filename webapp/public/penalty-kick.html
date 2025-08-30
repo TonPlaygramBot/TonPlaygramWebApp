@@ -226,7 +226,7 @@
   let goalFlash=0;
   let missFlash=0;
   const NET_DECAY = 0.94; // decay factor for net pullback and shake
-  const keeper={x:0,y:0,w:40,h:100,vx:0,vy:0,a:0,baseY:0,baseX:0,dive:0,jumping:false};
+  const keeper={x:0,y:0,w:40,h:100,vx:0,vy:0,a:0,baseY:0,baseX:0,dive:0,jumping:false,dir:1};
   const keeperImg = new Image();
   keeperImg.src = '/assets/icons/file_00000000945461f8bb9a2974fb9ee402.webp';
   const aimOn = false;
@@ -345,6 +345,17 @@
       ctx.fillStyle=(Math.floor(y/stripe)%2?getComputedStyle(document.documentElement).getPropertyValue('--turf2')||'#0a6c1d':'#0c7a23'); ctx.fillRect(0,y,W,stripe);
     }
     const vg=ctx.createRadialGradient(W/2,H,10,W/2,H,H/1.12); vg.addColorStop(0,'rgba(0,0,0,0)'); vg.addColorStop(1,'rgba(0,0,0,0.26)'); ctx.fillStyle=vg; ctx.fillRect(0,0,W,H);
+
+    const kickerLineY = H - stripe*3;
+    ctx.strokeStyle = '#fff';
+    ctx.lineWidth = 4;
+    ctx.beginPath();
+    ctx.moveTo(0, kickerLineY);
+    ctx.lineTo(W, kickerLineY);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.arc(W/2, kickerLineY, 60*geom.scale, 0, Math.PI, true);
+    ctx.stroke();
 
     const g=geom.goal; ctx.strokeStyle='#fff'; ctx.lineJoin='round';
     const gl=g.y+g.h+2;
@@ -721,33 +732,21 @@
   function stepKeeper(){
     const g=geom.goal;
     const speed=12*geom.scale;
-    if(!ball.moving){
-      keeper.x += (keeper.baseX - keeper.x) * 0.1;
-      keeper.dive += (0 - keeper.dive) * 0.2;
-      keeper.a += (0 - keeper.a) * 0.2;
-      keeper.jumping=false;
-      return;
+    keeper.a = 0;
+    keeper.x += speed * keeper.dir;
+    if(keeper.x <= g.x || keeper.x >= g.x + g.w - keeper.w){
+      keeper.x = clamp(keeper.x, g.x, g.x+g.w-keeper.w);
+      keeper.dir *= -1;
     }
-    const center = keeper.x + keeper.w/2;
     if(!keeper.jumping){
-      if(ball.x > center){ keeper.x = Math.min(g.x+g.w-keeper.w, keeper.x + speed); }
-      else if(ball.x < center){ keeper.x = Math.max(g.x, keeper.x - speed); }
-      if(ball.y < keeper.y + keeper.h*0.6){
-        const dir = ball.x > center ? 1 : (ball.x < center ? -1 : 0);
-        keeper.vy = -10*geom.scale;
-        keeper.vx = dir * 6*geom.scale;
-        keeper.jumping=true;
-        keeper.a = dir * Math.PI/10;
-      }
-    }else{
-      keeper.vy += GRAVITY*0.5;
-      keeper.dive += keeper.vy;
-      keeper.x = clamp(keeper.x + keeper.vx, g.x, g.x+g.w-keeper.w);
-      if(keeper.dive >= 0){
-        keeper.dive = 0;
-        keeper.jumping=false;
-        keeper.vx=0; keeper.vy=0; keeper.a=0;
-      }
+      keeper.vy = -10*geom.scale;
+      keeper.jumping = true;
+    }
+    keeper.vy += GRAVITY*0.5;
+    keeper.dive += keeper.vy;
+    if(keeper.dive >= 0){
+      keeper.dive = 0;
+      keeper.jumping = false;
     }
   }
 
@@ -943,7 +942,7 @@ function loop(now){ requestAnimationFrame(loop); drawField(); drawAds(); drawGoa
   // ===== Controls =====
   // controls removed
 
-  function resetBall(){ ball.x=geom.spot.x; ball.y=geom.spot.y; ball.vx=ball.vy=ball.spin=0; ball.angle=0; ball.moving=false; ball.netSounded=false; ball.goalSounded=false; ball.trail=[]; ball.trailStopped=false; ball.target=null; ball.prevDist=null; ball.points=0; keeper.vx=0; keeper.vy=0; keeper.a=0; keeper.dive=0; keeper.jumping=false; keeper.x = keeper.baseX; keeper.y = keeper.baseY; }
+  function resetBall(){ ball.x=geom.spot.x; ball.y=geom.spot.y; ball.vx=ball.vy=ball.spin=0; ball.angle=0; ball.moving=false; ball.netSounded=false; ball.goalSounded=false; ball.trail=[]; ball.trailStopped=false; ball.target=null; ball.prevDist=null; ball.points=0; keeper.vx=0; keeper.vy=0; keeper.a=0; keeper.dive=0; keeper.jumping=false; keeper.x = keeper.baseX; keeper.y = keeper.baseY; keeper.dir=1; }
   function startGame(){ running=true; paused=false; ended=false; roundStart=performance.now(); timeLeft=ROUND_TIME; myScore=0; looseBalls=[]; for(const r of rivals){ r.score=0; r.next=0; r.shots=[]; } resetBall(); generateHoles(); drawMiniBoards(true); updateHUD(); ensureAudio(); crowdSound.play().catch(()=>{}); status('Go! Score as many as you can.'); }
 
   // ===== WebAudio SFX =====
