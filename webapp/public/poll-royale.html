@@ -1505,53 +1505,62 @@
           // stay in their original positions – these shapes merely bridge the
           // empty space left near the pockets.
           var rScale = (sX + sY) / 2;
+          function drawCornerConnector(x1, y1, x2, y2) {
+            var mx = (x1 + x2) / 2;
+            var my = (y1 + y2) / 2;
+            var r = Math.hypot(x1 - x2, y1 - y2) / 2;
+            var sa = Math.atan2(y1 - my, x1 - mx);
+            var ea = sa + Math.PI;
+            var mid1 = sa + Math.PI / 2;
+            var mid2 = sa - Math.PI / 2;
+            var centerX = x0 + w / 2;
+            var centerY = y0 + h / 2;
+            var dist1 = Math.hypot(
+              mx + r * Math.cos(mid1) - centerX,
+              my + r * Math.sin(mid1) - centerY
+            );
+            var dist2 = Math.hypot(
+              mx + r * Math.cos(mid2) - centerX,
+              my + r * Math.sin(mid2) - centerY
+            );
+            ctx.moveTo(x1, y1);
+            ctx.arc(mx, my, r, sa, ea, dist2 < dist1);
+          }
 
           // corner pocket connectors (U)
-          var connectR = (tl.r + gap) * rScale;
-          ctx.moveTo(tl.x * sX - connectR, y0);
-          ctx.lineTo(tl.x * sX - connectR, y0 - connectR);
-          ctx.arc(tl.x * sX, y0 - connectR, connectR, Math.PI, 0, false);
-          ctx.lineTo(tl.x * sX + connectR, y0);
-
-          connectR = (tr.r + gap) * rScale;
-          ctx.moveTo(tr.x * sX - connectR, y0);
-          ctx.lineTo(tr.x * sX - connectR, y0 - connectR);
-          ctx.arc(tr.x * sX, y0 - connectR, connectR, Math.PI, 0, false);
-          ctx.lineTo(tr.x * sX + connectR, y0);
-
-          connectR = (bl.r + gap) * rScale;
-          ctx.moveTo(bl.x * sX - connectR, y0 + h);
-          ctx.lineTo(bl.x * sX - connectR, y0 + h + connectR);
-          ctx.arc(
-            bl.x * sX,
-            y0 + h + connectR,
-            connectR,
-            Math.PI,
-            0,
-            true
+          drawCornerConnector(
+            (tl.x + tl.r) * sX + gap,
+            y0,
+            x0,
+            (tl.y + tl.r) * sY + gap
           );
-          ctx.lineTo(bl.x * sX + connectR, y0 + h);
-
-          connectR = (br.r + gap) * rScale;
-          ctx.moveTo(br.x * sX - connectR, y0 + h);
-          ctx.lineTo(br.x * sX - connectR, y0 + h + connectR);
-          ctx.arc(
-            br.x * sX,
-            y0 + h + connectR,
-            connectR,
-            Math.PI,
-            0,
-            true
+          drawCornerConnector(
+            (tr.x - tr.r) * sX - gap,
+            y0,
+            x0 + w,
+            (tr.y + tr.r) * sY + gap
           );
-          ctx.lineTo(br.x * sX + connectR, y0 + h);
+          drawCornerConnector(
+            (bl.x + bl.r) * sX + gap,
+            y0 + h,
+            x0,
+            (bl.y - bl.r) * sY - gap
+          );
+          drawCornerConnector(
+            (br.x - br.r) * sX - gap,
+            y0 + h,
+            x0 + w,
+            (br.y - br.r) * sY - gap
+          );
 
           // side pocket connectors (V)
+          var vOffset = (ml.r + gap) * rScale;
           ctx.moveTo(x0, (ml.y - ml.r) * sY - gap);
-          ctx.lineTo(ml.x * sX, ml.y * sY);
+          ctx.lineTo(ml.x * sX - vOffset, ml.y * sY);
           ctx.lineTo(x0, (ml.y + ml.r) * sY + gap);
 
           ctx.moveTo(x0 + w, (mr.y - mr.r) * sY - gap);
-          ctx.lineTo(mr.x * sX, mr.y * sY);
+          ctx.lineTo(mr.x * sX + vOffset, mr.y * sY);
           ctx.lineTo(x0 + w, (mr.y + mr.r) * sY + gap);
 
           ctx.stroke();
