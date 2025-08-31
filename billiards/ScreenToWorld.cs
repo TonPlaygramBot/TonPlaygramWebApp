@@ -16,7 +16,7 @@ public static class ScreenToWorld
     public static Vec2 Ortho(Vec2 screen, double screenWidth, double screenHeight)
     {
         double x = screen.X / screenWidth * PhysicsConstants.TableWidth;
-        double y = screen.Y / screenHeight * PhysicsConstants.TableHeight;
+        double y = (screenHeight - screen.Y) / screenHeight * PhysicsConstants.TableHeight;
         return new Vec2(x, y);
     }
 }
