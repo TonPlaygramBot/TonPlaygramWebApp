@@ -456,6 +456,29 @@
     c.beginPath(); c.arc(g.x+g.w/2, kickerY, stripe*4, 0, Math.PI); c.stroke();
   }
 
+  function drawMiniGoal(c, g){
+    c.strokeStyle = '#fff';
+    c.lineWidth = 3;
+    c.strokeRect(g.x, g.y, g.w, g.h);
+    const netColor = getComputedStyle(document.documentElement).getPropertyValue('--net') || '#ececec';
+    c.strokeStyle = netColor;
+    c.lineWidth = 1;
+    const stepY = g.h / 5;
+    for(let y = g.y + stepY; y < g.y + g.h; y += stepY){
+      c.beginPath();
+      c.moveTo(g.x, y);
+      c.lineTo(g.x + g.w, y);
+      c.stroke();
+    }
+    const stepX = g.w / 8;
+    for(let x = g.x + stepX; x < g.x + g.w; x += stepX){
+      c.beginPath();
+      c.moveTo(x, g.y);
+      c.lineTo(x, g.y + g.h);
+      c.stroke();
+    }
+  }
+
   // ===== Ads behind goal =====
   function drawAds(){
     const g=geom.goal, trackH=58, trackY=g.y+g.h-trackH-18;
@@ -1054,33 +1077,39 @@ function onUp(e){
   // ===== Rivals (mini boards + scoring) =====
   function drawMiniBoards(init=false){
     for(let i=0;i<rivals.length;i++){
-      const r=rivals[i], c=r.ctx, cv=r.cvs, g={x:12,y:12,w:cv.width-24,h:cv.height-40};
+      const r=rivals[i], c=r.ctx, cv=r.cvs;
+      const field={x:12,y:12,w:cv.width-24,h:cv.height-40};
       c.clearRect(0,0,cv.width,cv.height);
-      c.fillStyle='#0e1430'; c.fillRect(g.x,g.y+g.h+4,g.w,14);
-      roundRect(c,g.x-2,g.y-2,g.w+4,g.h+4,8,true,false,'#0f1530');
-      c.save(); c.beginPath(); c.rect(g.x,g.y,g.w,g.h); c.clip();
-      drawMiniField(c,g);
+      c.fillStyle='#0e1430'; c.fillRect(field.x,field.y+field.h+4,field.w,14);
+      roundRect(c,field.x-2,field.y-2,field.w+4,field.h+4,8,true,false,'#0f1530');
+      c.save();
+      c.beginPath(); c.rect(field.x,field.y,field.w,field.h); c.clip();
+      drawMiniField(c,field);
+      const goalW=field.w*0.8, goalH=field.h*0.26;
+      const gx=field.x+(field.w-goalW)/2, gy=field.y+field.h*0.05;
+      const goal={x:gx,y:gy,w:goalW,h:goalH};
+      drawMiniGoal(c,goal);
       c.restore();
-      c.strokeStyle='#fff'; c.lineWidth=6; roundRect(c,g.x,g.y,g.w,g.h,6,false,true);
-      const kw = g.w * 0.14, kh = kw * 2.2;
+      c.strokeStyle='#fff'; c.lineWidth=6; roundRect(c,field.x,field.y,field.w,field.h,6,false,true);
+      const kw = goal.w * 0.14, kh = kw * 2.2;
       const dw = kw, dh = kh;
-      const centerX = g.x + (g.w - kw) / 2, ky = g.y + g.h - kh + g.h * 0.05;
-      const dy = ky + kh * 0.1;
+      const centerX = goal.x + (goal.w - kw) / 2;
+      const ky = goal.y + goal.h - kh + goal.h * 0.05;
+      const dy = ky + kh * 0.8;
       if(init){
         r.kx = centerX;
-        r.kw = kw; r.kh = kh; r.g = g;
+        r.kw = kw; r.kh = kh; r.g = goal;
         r.def = {x:centerX - dw/2, y:dy, w:dw, h:dh, baseY:dy, vy:0, jumping:false};
+        if(!Array.isArray(miniHolesCache[i])||!miniHolesCache[i].length){ miniHolesCache[i]=genMiniHoles(goal); }
       }
       const active = r.shots[0];
-      const targetX = active ? clamp(active.x - kw/2, g.x, g.x + g.w - kw) : centerX;
+      const targetX = active ? clamp(active.x - kw/2, goal.x, goal.x + goal.w - kw) : centerX;
       r.kx += (targetX - r.kx) * 0.2;
       const d = r.def;
       if(d){
         if(d.jumping){ d.vy += GRAVITY*0.5; d.y += d.vy; if(d.y >= d.baseY){ d.y = d.baseY; d.vy = 0; d.jumping = false; } }
         c.drawImage(defendersImg, d.x, d.y, d.w, d.h);
       }
-      const local = Array.isArray(miniHolesCache[i]) ? miniHolesCache[i] : [];
-      if(init && !local.length){ miniHolesCache[i]=genMiniHoles(g); }
       const list = Array.isArray(miniHolesCache[i]) ? miniHolesCache[i] : [];
       for(const h of list){
         c.fillStyle='rgba(225,6,0,.9)';
@@ -1116,7 +1145,12 @@ function onUp(e){
       r.ptsEl.textContent = r.score;
     }
   }
-  function genMiniHolesForCard(i){ const cv=rivals[i].cvs; const g={x:12,y:12,w:cv.width-24,h:cv.height-30}; miniHolesCache[i]=genMiniHoles(g); }
+  function genMiniHolesForCard(i){
+    const cv=rivals[i].cvs;
+    const field={x:12,y:12,w:cv.width-24,h:cv.height-40};
+    const goal={x:field.x+(field.w*0.2),y:field.y+field.h*0.05,w:field.w*0.8,h:field.h*0.26};
+    miniHolesCache[i]=genMiniHoles(goal);
+  }
   function roundRect(c,x,y,w,h,r,fill,stroke,fillColor){ c.beginPath(); c.moveTo(x+r,y); c.arcTo(x+w,y,x+w,y+h,r); c.arcTo(x+w,y+h,x,y+h,r); c.arcTo(x,y+h,x,y,r); c.arcTo(x,y,x+w,y,r); if(fill){ if(fillColor){ const old=c.fillStyle; c.fillStyle=fillColor; c.fill(); c.fillStyle=old; } else c.fill(); } if(stroke) c.stroke(); }
     function stepRivals(now){
     if(!running||paused) return;
