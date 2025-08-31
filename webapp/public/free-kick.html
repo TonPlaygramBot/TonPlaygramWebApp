@@ -34,7 +34,7 @@
   /* ===== Rivals row ===== */
   .previews{position:fixed;left:env(safe-area-inset-left,12px);right:env(safe-area-inset-right,12px);
     top:env(safe-area-inset-top,10px);z-index:90;display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
-  .pcard{background:var(--panel);border:1px solid var(--panel-b);border-radius:18px;padding:6px;min-height:80px;display:grid;gap:6px}
+  .pcard{background:var(--panel);border:1px solid var(--panel-b);border-radius:18px;padding:6px;min-height:120px;display:grid;gap:6px}
   .phead{display:flex;align-items:center;justify-content:space-between;font-weight:800;gap:6px}
   .phead .avatar{width:20px;height:14px;border-radius:2px;object-fit:cover}
   .ppts{color:var(--pts);font-weight:900}
@@ -42,7 +42,7 @@
 
   /* ===== Player bar ===== */
   .pbar{position:fixed;left:env(safe-area-inset-left,12px);right:env(safe-area-inset-right,12px);
-    z-index:95;display:flex;align-items:center;gap:8px;background:var(--panel);
+    bottom:env(safe-area-inset-bottom,0);z-index:95;display:flex;align-items:center;gap:8px;background:var(--panel);
     border:1px solid var(--panel-b);border-radius:16px;padding:10px 12px}
   .avatar{width:28px;height:28px;border-radius:50%;background:linear-gradient(135deg,#22c55e,#2563eb);box-shadow:0 0 0 2px #081027 inset}
   .badge{background:#0f1a3a;border:1px solid var(--panel-b);color:var(--txt);padding:6px 10px;border-radius:12px;font-weight:800;font-size:12px}
@@ -85,7 +85,7 @@
         </div>
         <div class="ppts" id="pv0pts">0</div>
       </div>
-      <canvas width="240" height="120"></canvas>
+      <canvas width="240" height="160"></canvas>
     </div>
     <div class="pcard" id="pv1">
       <div class="phead">
@@ -95,7 +95,7 @@
         </div>
         <div class="ppts" id="pv1pts">0</div>
       </div>
-      <canvas width="240" height="120"></canvas>
+      <canvas width="240" height="160"></canvas>
     </div>
     <div class="pcard" id="pv2">
       <div class="phead">
@@ -105,7 +105,7 @@
         </div>
         <div class="ppts" id="pv2pts">0</div>
       </div>
-      <canvas width="240" height="120"></canvas>
+      <canvas width="240" height="160"></canvas>
     </div>
   </div>
 
@@ -158,8 +158,10 @@
   function positionLayout(){
     const pr = previewsEl.getBoundingClientRect();
     const pbar = document.getElementById('pbar');
-    pbar.style.top = (pr.bottom + 8) + 'px';
-    document.querySelector('.stage').style.top = (pbar.getBoundingClientRect().bottom + 16) + 'px';
+    const stage = document.querySelector('.stage');
+    const pbarRect = pbar.getBoundingClientRect();
+    stage.style.top = (pr.bottom + 16) + 'px';
+    stage.style.bottom = (window.innerHeight - pbarRect.top + 16) + 'px';
   }
 
   const params = new URLSearchParams(location.search);
