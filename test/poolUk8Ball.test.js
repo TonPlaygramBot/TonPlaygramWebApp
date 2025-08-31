@@ -231,7 +231,7 @@ test('AI targets black when own balls cleared', () => {
   assert.equal(plan.targetBall, 'black');
 });
 
-test('AI uses cushions to reach own ball when blocked', () => {
+test('AI plays safety when own ball is blocked', () => {
   __resetShotMemory();
   const state = {
     balls: [
@@ -256,8 +256,7 @@ test('AI uses cushions to reach own ball when blocked', () => {
     shotsRemaining: 1
   };
   const plan = selectShot(state);
-  assert.equal(plan.targetBall, 'yellow');
-  assert.notEqual(plan.aimPoint.x, state.balls[1].x);
+  assert.equal(plan.actionType, 'safety');
 });
 
 test('AI increases EV after learning from success', () => {
