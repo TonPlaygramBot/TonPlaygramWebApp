@@ -286,6 +286,20 @@
     const field={x:12,y:12,w:cv.width-24,h:cv.height-40};
     return {x:field.x+MINI_GOAL_PAD,y:field.y+MINI_GOAL_PAD,w:field.w-2*MINI_GOAL_PAD,h:field.h-2*MINI_GOAL_PAD};
   }
+  function syncMiniHoles(){
+    for(let i=0;i<rivals.length;i++){
+      const cv=rivals[i].cvs;
+      const goal=miniGoalRect(cv);
+      const scaleX=goal.w/geom.goal.w;
+      const scaleY=goal.h/geom.goal.h;
+      miniHolesCache[i]=holes.map(h=>({
+        x:goal.x+(h.x-geom.goal.x)*scaleX,
+        y:goal.y+(h.y-geom.goal.y)*scaleY,
+        r:h.r*scaleX,
+        p:h.points
+      }));
+    }
+  }
 
   // ===== Helpers =====
   const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
@@ -371,7 +385,7 @@
         holes.push({x,y,r,points});
       }
     }
-    for(let i=0;i<3;i++){ const cv=rivals[i].cvs; const g2=miniGoalRect(cv); miniHolesCache[i]=genMiniHoles(g2); }
+    syncMiniHoles();
   }
   function replaceHole(old){
     const idx=holes.indexOf(old);
@@ -398,11 +412,8 @@
         break;
       }
     }
+    syncMiniHoles();
   }
-  function genMiniHoles(g){ const out=[]; const cnt=6+Math.floor(Math.random()*7); let tries=0;
-    while(out.length<cnt && tries<600){ tries++; const r=8+Math.random()*14; const x=g.x+12+r+Math.random()*(g.w-24-2*r); const y=g.y+12+r+Math.random()*(g.h-24-2*r);
-      if(out.every(h=>Math.hypot(h.x-x,h.y-y)>h.r+r+8)){ out.push({x,y,r,p:Math.max(5,Math.round((22/r)*30))}); } }
-    return out; }
 
   function createFragments(h){
     for(let i=0;i<8;i++){
@@ -448,27 +459,52 @@
     // Free-kick arc omitted for simplified field
   }
 
-  function drawMiniGoal(c, g){
-    c.strokeStyle = '#fff';
-    c.lineWidth = 3;
-    c.strokeRect(g.x, g.y, g.w, g.h);
-    const netColor = getComputedStyle(document.documentElement).getPropertyValue('--net') || '#ececec';
-    c.strokeStyle = netColor;
-    c.lineWidth = 1;
-    const stepY = g.h / 5;
-    for(let y = g.y + stepY; y < g.y + g.h; y += stepY){
-      c.beginPath();
-      c.moveTo(g.x, y);
-      c.lineTo(g.x + g.w, y);
-      c.stroke();
+  function drawMiniGoal(c,g){
+    const innerW=g.w*0.8, innerH=g.h*0.8;
+    const ix=g.x+(g.w-innerW)/2, iy=g.y+(g.h-innerH)/2;
+    const scale=g.w/geom.goal.w;
+    const netColor=getComputedStyle(document.documentElement).getPropertyValue('--net')||'#e6e6e6';
+    const size=18*scale; const h=size*Math.sqrt(3)/2;
+    c.strokeStyle=netColor; c.lineWidth=Math.max(0.5,1.2*scale);
+    for(let y=g.y-h; y<g.y+g.h+h; y+=h){
+      for(let x=g.x-size; x<g.x+g.w+size; x+=size*1.5){
+        const off=((Math.round((y-g.y)/h))%2)*size*0.75;
+        let cx=x+off, cy=y;
+        c.beginPath();
+        for(let i=0;i<6;i++){
+          const a=Math.PI/3*i;
+          const px=cx+size*Math.cos(a);
+          const py=cy+size*Math.sin(a);
+          if(i===0) c.moveTo(px,py); else c.lineTo(px,py);
+        }
+        c.closePath();
+        c.stroke();
+      }
     }
-    const stepX = g.w / 8;
-    for(let x = g.x + stepX; x < g.x + g.w; x += stepX){
-      c.beginPath();
-      c.moveTo(x, g.y);
-      c.lineTo(x, g.y + g.h);
-      c.stroke();
-    }
+    c.strokeStyle='#fff';
+    c.lineWidth=2*scale;
+    c.beginPath();
+    c.moveTo(g.x,g.y); c.lineTo(ix,iy);
+    c.moveTo(g.x+g.w,g.y); c.lineTo(ix+innerW,iy);
+    c.moveTo(g.x,g.y+g.h); c.lineTo(ix,iy+innerH);
+    c.moveTo(g.x+g.w,g.y+g.h); c.lineTo(ix+innerW,iy+innerH);
+    c.stroke();
+    c.strokeStyle='#fff';
+    c.lineWidth=4*scale;
+    c.beginPath();
+    c.moveTo(g.x,g.y+g.h); c.lineTo(ix,iy+innerH);
+    c.moveTo(g.x+g.w,g.y+g.h); c.lineTo(ix+innerW,iy+innerH);
+    c.moveTo(ix,iy+innerH); c.lineTo(ix+innerW,iy+innerH);
+    c.moveTo(ix,iy+innerH); c.lineTo(ix,iy); c.lineTo(ix+innerW,iy); c.lineTo(ix+innerW,iy+innerH);
+    c.stroke();
+    c.strokeStyle='#fff';
+    c.lineWidth=12*scale;
+    c.beginPath();
+    c.moveTo(g.x,g.y+g.h);
+    c.lineTo(g.x,g.y);
+    c.lineTo(g.x+g.w,g.y);
+    c.lineTo(g.x+g.w,g.y+g.h);
+    c.stroke();
   }
 
   // ===== Ads behind goal =====
@@ -1078,13 +1114,13 @@ function onUp(e){
       const goal = miniGoalRect(cv);
       drawMiniGoal(c,goal);
       c.restore();
-      const kw = goal.w * 0.14, kh = kw * 2.2;
+      const scale = goal.w/geom.goal.w;
+      const kw = keeper.w*scale, kh = keeper.h*scale;
       const centerX = goal.x + (goal.w - kw) / 2;
-      const ky = goal.y + goal.h - kh;
+      const ky = goal.y + goal.h - kh + goal.h*0.05;
       if(init){
         r.kx = centerX;
         r.kw = kw; r.kh = kh; r.g = goal;
-        if(!Array.isArray(miniHolesCache[i])||!miniHolesCache[i].length){ miniHolesCache[i]=genMiniHoles(goal); }
       }
       const active = r.shots[0];
       const targetX = active ? clamp(active.x - kw/2, goal.x, goal.x + goal.w - kw) : centerX;
@@ -1124,11 +1160,6 @@ function onUp(e){
       r.ptsEl.textContent = r.score;
     }
   }
-  function genMiniHolesForCard(i){
-    const cv=rivals[i].cvs;
-    const goal=miniGoalRect(cv);
-    miniHolesCache[i]=genMiniHoles(goal);
-  }
   function roundRect(c,x,y,w,h,r,fill,stroke,fillColor){ c.beginPath(); c.moveTo(x+r,y); c.arcTo(x+w,y,x+w,y+h,r); c.arcTo(x+w,y+h,x,y+h,r); c.arcTo(x,y+h,x,y,r); c.arcTo(x,y,x+w,y,r); if(fill){ if(fillColor){ const old=c.fillStyle; c.fillStyle=fillColor; c.fill(); c.fillStyle=old; } else c.fill(); } if(stroke) c.stroke(); }
   function stepRivals(now){
     if(!running||paused) return;
@@ -1138,7 +1169,7 @@ function onUp(e){
       if(now>r.next){
         r.next = now + rnd(r.rate[0], r.rate[1]) * (1 - 0.45*t);
         const list = Array.isArray(miniHolesCache[i]) ? miniHolesCache[i] : [];
-        if(list.length===0){ genMiniHolesForCard(i); continue; }
+        if(list.length===0){ syncMiniHoles(); continue; }
         const target = Math.random()<0.35 ? list.slice().sort((a,b)=>a.r-b.r)[0] : list[Math.floor(Math.random()*list.length)];
         const acc = clamp(r.acc * (0.9 + 0.5*t),0, 0.98);
         const chance = acc * (22/Math.max(10,target.r));
