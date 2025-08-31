@@ -222,6 +222,8 @@
     keeper.y = geom.goal.y + geom.goal.h - keeper.h + geom.goal.h*0.05;
     keeper.baseY = keeper.y;
     keeper.baseX = keeper.x;
+    keeper.targetX = keeper.x;
+    keeper.targetY = keeper.y;
     defenders.w = keeper.w * 2.8;
     defenders.h = keeper.h * 1.5;
     defenders.x = (W - defenders.w)/2;
@@ -266,7 +268,7 @@
   let goalFlash=0;
   let missFlash=0;
   const NET_DECAY = 0.94; // decay factor for net pullback and shake
-  const keeper={x:0,y:0,w:40,h:100,vx:0,vy:0,a:0,baseY:0,baseX:0,dive:0,jumping:false,dir:1};
+  const keeper={x:0,y:0,w:40,h:100,vx:0,vy:0,a:0,baseY:0,baseX:0,dive:0,jumping:false,dir:1,targetX:0,targetY:0};
   const keeperImg = new Image();
   keeperImg.src = '/assets/icons/file_00000000945461f8bb9a2974fb9ee402.webp';
   const defenders={x:0,y:0,w:40,h:100,baseY:0,vy:0,jumping:false};
@@ -283,7 +285,7 @@
   const miniHolesCache=[[],[],[]];
   const MINI_GOAL_PAD = 8;
   function miniGoalRect(cv){
-    const field={x:12,y:12,w:cv.width-24,h:cv.height-40};
+    const field={x:12,y:12,w:cv.width-24,h:cv.height-32};
     return {x:field.x+MINI_GOAL_PAD,y:field.y+MINI_GOAL_PAD,w:field.w-2*MINI_GOAL_PAD,h:field.h-2*MINI_GOAL_PAD};
   }
   function syncMiniHoles(){
@@ -991,11 +993,9 @@
   }
 
   function stepKeeper(){
-    // Keeper stays fixed; position is set in resetBall based on wall placement
-    keeper.a = 0;
-    keeper.vx = 0;
-    keeper.vy = 0;
-    keeper.dive = 0;
+    // Smoothly move keeper toward target position
+    keeper.x += (keeper.targetX - keeper.x) * 0.1;
+    keeper.y += (keeper.targetY - keeper.y) * 0.1;
   }
 
   // ===== Aim guide =====
@@ -1092,9 +1092,10 @@ function onUp(e){
   ball.pathSpeed = SHOT_SPEED * power;
   ball.vx = 0; ball.vy = 0; ball.spin = 0;
   ball.moving = true;
-  // when shot starts, move keeper toward the center of the goal
+  // when shot starts, move keeper toward the center of the goal smoothly
   const centerX = geom.goal.x + (geom.goal.w - keeper.w) / 2;
-  keeper.x += (centerX - keeper.x) * 0.9;
+  keeper.targetX = centerX;
+  keeper.targetY = keeper.baseY + geom.goal.h * 0.02;
   if(!defenders.jumping){
     defenders.vy = -6*geom.scale;
     defenders.jumping = true;
@@ -1111,7 +1112,7 @@ function onUp(e){
   function drawMiniBoards(init=false){
     for(let i=0;i<rivals.length;i++){
       const r=rivals[i], c=r.ctx, cv=r.cvs;
-      const field={x:12,y:12,w:cv.width-24,h:cv.height-40};
+      const field={x:12,y:12,w:cv.width-24,h:cv.height-32};
       c.clearRect(0,0,cv.width,cv.height);
 
       // turf background replicating main field
@@ -1137,27 +1138,28 @@ function onUp(e){
 
       // goal and defenders
       drawMiniGoal(c,goal,r.flash>0?'#ffd400':undefined);
-      const dw=defenders.w*scale, dh=defenders.h*scale;
+      const dw=defenders.w*scale, dh=(defenders.h*scale)/2;
       const dx=goal.x+(defenders.x-geom.goal.x)*scale;
       const dy=goal.y+(defenders.y-geom.goal.y)*scale;
       c.save();
       c.beginPath();
       c.rect(field.x,field.y,field.w,field.h);
       c.clip();
-      c.drawImage(defendersImg,dx,dy,dw,dh);
+      c.drawImage(defendersImg,0,0,defendersImg.width,defendersImg.height/2,dx,dy,dw,dh);
       c.restore();
+      const dRect={x:dx,y:dy,w:dw,h:dh};
 
       // keeper setup
       const kw = keeper.w*scale, kh = keeper.h*scale;
       const centerX = goal.x + (goal.w - kw) / 2;
-      const ky = goal.y + goal.h - kh + goal.h*0.05;
+      const ky = goal.y + goal.h - kh + goal.h*0.07;
       if(init){
         r.kx = centerX;
         r.kw = kw; r.kh = kh; r.g = goal;
       }
       const active = r.shots[0];
       const targetX = active ? clamp(active.x - kw/2, goal.x, goal.x + goal.w - kw) : centerX;
-      r.kx += (targetX - r.kx) * 0.2;
+      r.kx += (targetX - r.kx) * 0.1;
 
       // holes
       const list = Array.isArray(miniHolesCache[i]) ? miniHolesCache[i] : [];
@@ -1176,6 +1178,10 @@ function onUp(e){
       // rival shots
       for(const s of r.shots){
         s.x+=s.vx; s.y+=s.vy; s.vy+=0.25; s.life-=0.02;
+        if(!s.saved && s.x>=dRect.x && s.x<=dRect.x+dRect.w && s.y>=dRect.y && s.y<=dRect.y+dRect.h){
+          s.saved = true;
+          s.life = 0;
+        }
         if(s.saved && s.y <= ky + kh * 0.2){ s.life = 0; }
         if(s.life<=0){
           if(!s.done){ r.result = s.saved ? 'MISSED' : 'GOAL'; r.flash = 1; s.done = true; }
@@ -1298,6 +1304,8 @@ function loop(now){ requestAnimationFrame(loop); drawField(); drawAds(); drawGoa
     }
     keeper.y = keeper.baseY;
     keeper.baseX = keeper.x;
+    keeper.targetX = keeper.x;
+    keeper.targetY = keeper.y;
   }
   function startGame(){
     playWhistle();
