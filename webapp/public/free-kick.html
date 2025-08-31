@@ -463,7 +463,8 @@
     const innerW=g.w*0.8, innerH=g.h*0.8;
     const ix=g.x+(g.w-innerW)/2, iy=g.y+(g.h-innerH)/2;
     const scale=g.w/geom.goal.w;
-    const netColor=getComputedStyle(document.documentElement).getPropertyValue('--net')||'#e6e6e6';
+    const goalColor=getComputedStyle(document.documentElement).getPropertyValue('--goal')||'#fff';
+    const netColor=goalColor;
     const size=18*scale; const h=size*Math.sqrt(3)/2;
     c.strokeStyle=netColor; c.lineWidth=Math.max(0.5,1.2*scale);
     for(let y=g.y-h; y<g.y+g.h+h; y+=h){
@@ -497,13 +498,14 @@
     c.moveTo(ix,iy+innerH); c.lineTo(ix+innerW,iy+innerH);
     c.moveTo(ix,iy+innerH); c.lineTo(ix,iy); c.lineTo(ix+innerW,iy); c.lineTo(ix+innerW,iy+innerH);
     c.stroke();
-    c.strokeStyle='#fff';
+    c.strokeStyle=goalColor;
     c.lineWidth=12*scale;
     c.beginPath();
     c.moveTo(g.x,g.y+g.h);
     c.lineTo(g.x,g.y);
     c.lineTo(g.x+g.w,g.y);
     c.lineTo(g.x+g.w,g.y+g.h);
+    c.lineTo(g.x,g.y+g.h);
     c.stroke();
   }
 
@@ -523,10 +525,13 @@
 
   // ===== Goal, net, cameras, targets =====
   function drawGoal(){
-    const g=geom.goal;
-    const innerW=g.w*0.8, innerH=g.h*0.8;
-    const ix=g.x+(g.w-innerW)/2, iy=g.y+(g.h-innerH)/2;
-    const netColor=(goalFlash>0||missFlash>0)?'#ffd400':(getComputedStyle(document.documentElement).getPropertyValue('--net')||'#e6e6e6');
+    const g = geom.goal;
+    const post = g.post || 12;
+    const innerW = g.w - post * 2;
+    const innerH = g.h - post * 2;
+    const ix = g.x + post, iy = g.y + post;
+    const goalColor = getComputedStyle(document.documentElement).getPropertyValue('--goal') || '#fff';
+    const netColor = (goalFlash > 0 || missFlash > 0) ? '#ffd400' : goalColor;
     const size=18; const h=size*Math.sqrt(3)/2;
     function drawNetMesh(){
       ctx.strokeStyle=netColor; ctx.lineWidth=1.2;
@@ -565,24 +570,24 @@
     drawNetPanel(() => { ctx.rect(ix, iy, innerW, innerH); });
     // left side
     drawNetPanel(() => {
-      ctx.moveTo(g.x, g.y);
+      ctx.moveTo(g.x + post, g.y + post);
       ctx.lineTo(ix, iy);
       ctx.lineTo(ix, iy + innerH);
-      ctx.lineTo(g.x, g.y + g.h);
+      ctx.lineTo(g.x + post, g.y + g.h - post);
       ctx.closePath();
     });
     // right side
     drawNetPanel(() => {
-      ctx.moveTo(g.x + g.w, g.y);
+      ctx.moveTo(g.x + g.w - post, g.y + post);
       ctx.lineTo(ix + innerW, iy);
       ctx.lineTo(ix + innerW, iy + innerH);
-      ctx.lineTo(g.x + g.w, g.y + g.h);
+      ctx.lineTo(g.x + g.w - post, g.y + g.h - post);
       ctx.closePath();
     });
     // top
     drawNetPanel(() => {
-      ctx.moveTo(g.x, g.y);
-      ctx.lineTo(g.x + g.w, g.y);
+      ctx.moveTo(g.x + post, g.y + post);
+      ctx.lineTo(g.x + g.w - post, g.y + post);
       ctx.lineTo(ix + innerW, iy);
       ctx.lineTo(ix, iy);
       ctx.closePath();
@@ -611,12 +616,13 @@
     ctx.lineTo(ix+innerW, iy);
     ctx.lineTo(ix+innerW, iy+innerH);
     ctx.stroke();
-    ctx.strokeStyle='#fff'; ctx.lineWidth=12;
+    ctx.strokeStyle = goalColor; ctx.lineWidth = 12;
     ctx.beginPath();
-    ctx.moveTo(g.x, g.y+g.h);
+    ctx.moveTo(g.x, g.y + g.h);
     ctx.lineTo(g.x, g.y);
-    ctx.lineTo(g.x+g.w, g.y);
-    ctx.lineTo(g.x+g.w, g.y+g.h);
+    ctx.lineTo(g.x + g.w, g.y);
+    ctx.lineTo(g.x + g.w, g.y + g.h);
+    ctx.lineTo(g.x, g.y + g.h);
     ctx.stroke();
     if(goalFlash>0){
       ctx.save();
@@ -626,7 +632,7 @@
       ctx.textBaseline='middle';
       ctx.lineWidth=8;
       ctx.strokeStyle='#000';
-      ctx.fillStyle='#fff';
+      ctx.fillStyle=goalColor;
       ctx.strokeText('GOAL',ix+innerW/2,iy+innerH/2);
       ctx.fillText('GOAL',ix+innerW/2,iy+innerH/2);
       ctx.restore();
@@ -639,7 +645,7 @@
       ctx.textBaseline='middle';
       ctx.lineWidth=8;
       ctx.strokeStyle='#000';
-      ctx.fillStyle='#ef4444';
+      ctx.fillStyle=goalColor;
       ctx.strokeText('MISSED',ix+innerW/2,iy+innerH/2);
       ctx.fillText('MISSED',ix+innerW/2,iy+innerH/2);
       ctx.restore();
