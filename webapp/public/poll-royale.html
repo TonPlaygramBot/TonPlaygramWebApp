@@ -27,7 +27,7 @@
       body {
         margin: 0;
         height: 100%;
-        background: #0b1120; /* blu e errete, si sallon bilardoje */
+        background: #1a2b4d; /* blu me e ndritshme per kontrast me te mire */
         color: #fff;
         font-family:
           system-ui,
@@ -56,7 +56,7 @@
         align-items: center;
         justify-content: space-between;
         padding: 0 12px;
-        background: linear-gradient(#15203a, #0b1120);
+        background: linear-gradient(#20345a, #1a2b4d);
       }
 
       #header {
@@ -706,6 +706,7 @@
         var variant = params.get('variant') || 'uk';
         var isAmerican = variant === 'american';
         var isNineBall = variant === '9ball';
+        const planShotPromise = import('/lib/poolAi.js');
 
         /* ==========================================================
        KONSTANTA TE LAYOUT-it DHE FIZIKES (sipas portrait)
@@ -2994,260 +2995,60 @@
         /* ==========================================================
        CPU – turn i thjeshte (normal skill)
        ========================================================= */
-        function cpuTurn() {
+        async function cpuTurn() {
           if (table.isMoving() || table.turn !== 2) return;
           cpuThinking = true;
           startCpuTimer();
+          const { default: planShot } = await planShotPromise;
           var cue = table.balls[0];
           if (cueBallFree) {
             cue.p.x = TABLE_W / 2;
             cue.p.y = CUE_START_Y;
             cue.v.x = cue.v.y = 0;
           }
-          var targets = [];
-          if (isNineBall || isAmerican) {
-            var lowest = null;
-            for (var i = 0; i < table.balls.length; i++) {
-              var b = table.balls[i];
-              if (!b || b.n === 0 || b.pocketed) continue;
-              if (!lowest || b.n < lowest.n) lowest = b;
+          const balls = table.balls
+            .filter(Boolean)
+            .map(b => ({ id: b.n, x: b.p.x, y: b.p.y, vx: b.v.x, vy: b.v.y, pocketed: !!b.pocketed }));
+          const pockets = table.pockets.map(p => ({ x: p.x, y: p.y }));
+          const req = {
+            game: isNineBall ? 'NINE_BALL' : isAmerican ? 'AMERICAN_BILLIARDS' : 'EIGHT_POOL_UK',
+            state: {
+              balls,
+              pockets,
+              width: TABLE_W,
+              height: TABLE_H,
+              ballRadius: BALL_R,
+              friction: 0.015,
+              ballOn: assignedTypes[2] || null,
+              ballInHand: cueBallFree
             }
-            if (lowest) targets.push(lowest);
-          } else {
-            var type = assignedTypes[2];
-            for (var i = 0; i < table.balls.length; i++) {
-              var b = table.balls[i];
-              if (!b || b.n === 0 || b.pocketed || b.n === 8) continue;
-              if (type && BALL_BY_N[b.n].t !== type) continue;
-              targets.push(b);
-            }
-          }
-          if (targets.length === 0) {
+          };
+          const shot = planShot(req);
+          if (!shot) {
             table.turn = 1;
             cpuThinking = false;
             clearTurnTimer();
             return;
           }
-
-          function pathClear(contact, target) {
-            var dir = norm(contact.x - cue.p.x, contact.y - cue.p.y);
-            var dist = len(contact.x - cue.p.x, contact.y - cue.p.y);
-            for (var j = 0; j < table.balls.length; j++) {
-              var o = table.balls[j];
-              if (!o || o === cue || o === target || o.pocketed) continue;
-              var vx = o.p.x - cue.p.x,
-                vy = o.p.y - cue.p.y;
-              var proj = vx * dir.x + vy * dir.y;
-              if (proj > 0 && proj < dist) {
-                var px = cue.p.x + dir.x * proj,
-                  py = cue.p.y + dir.y * proj;
-                var off = Math.hypot(o.p.x - px, o.p.y - py);
-                if (off < BALL_R * 2) return false;
-              }
-            }
-            return true;
-          }
-
-          function pocketPathClear(ball, pocket) {
-            var dir = norm(pocket.x - ball.p.x, pocket.y - ball.p.y);
-            var dist = len(pocket.x - ball.p.x, pocket.y - ball.p.y);
-            for (var j = 0; j < table.balls.length; j++) {
-              var o = table.balls[j];
-              if (!o || o === ball || o.pocketed) continue;
-              var vx = o.p.x - ball.p.x,
-                vy = o.p.y - ball.p.y;
-              var proj = vx * dir.x + vy * dir.y;
-              if (proj > 0 && proj < dist) {
-                var px = ball.p.x + dir.x * proj,
-                  py = ball.p.y + dir.y * proj;
-                var off = Math.hypot(o.p.x - px, o.p.y - py);
-                if (off < BALL_R * 2) return false;
-              }
-            }
-            return true;
-          }
-
-          function pathClearPoints(p1, p2, exclude) {
-            var dir = norm(p2.x - p1.x, p2.y - p1.y);
-            var dist = len(p2.x - p1.x, p2.y - p1.y);
-            for (var j = 0; j < table.balls.length; j++) {
-              var o = table.balls[j];
-              if (!o || o === exclude || o.pocketed) continue;
-              var vx = o.p.x - p1.x,
-                vy = o.p.y - p1.y;
-              var proj = vx * dir.x + vy * dir.y;
-              if (proj > 0 && proj < dist) {
-                var px = p1.x + dir.x * proj,
-                  py = p1.y + dir.y * proj;
-                var off = Math.hypot(o.p.x - px, o.p.y - py);
-                if (off < BALL_R * 2) return false;
-              }
-            }
-            return true;
-          }
-
-          function findBankShot(targets) {
-            for (var tIndex = 0; tIndex < targets.length; tIndex++) {
-              var t = targets[tIndex];
-              var mirrors = [
-                { x: t.p.x, y: (BORDER_TOP + BALL_R) * 2 - t.p.y },
-                {
-                  x: t.p.x,
-                  y: (TABLE_H - BORDER_BOTTOM - BALL_R) * 2 - t.p.y
-                },
-                { x: (BORDER + BALL_R) * 2 - t.p.x, y: t.p.y },
-                {
-                  x: (TABLE_W - BORDER - BALL_R) * 2 - t.p.x,
-                  y: t.p.y
-                }
-              ];
-              for (var m = 0; m < mirrors.length; m++) {
-                var mir = mirrors[m];
-                if (
-                  pathClearPoints(cue.p, mir, t) &&
-                  pathClearPoints(mir, t.p, t)
-                ) {
-                  return {
-                    nd: norm(mir.x - cue.p.x, mir.y - cue.p.y),
-                    target: t,
-                    aim: mir
-                  };
-                }
-              }
-            }
-            return null;
-          }
-
-          var best = null;
-          for (var tIndex = 0; tIndex < targets.length; tIndex++) {
-            var t = targets[tIndex];
-            for (var pIndex = 0; pIndex < table.pockets.length; pIndex++) {
-              var pk = table.pockets[pIndex];
-              var toPocket = norm(pk.x - t.p.x, pk.y - t.p.y);
-              var contact = {
-                x: t.p.x - toPocket.x * BALL_R * 2,
-                y: t.p.y - toPocket.y * BALL_R * 2
-              };
-              if (!pathClear(contact, t)) continue;
-              if (!pocketPathClear(t, pk)) continue;
-              var cueToContact = len(contact.x - cue.p.x, contact.y - cue.p.y);
-              var ballToPocket = len(pk.x - t.p.x, pk.y - t.p.y);
-              var nxt = nextTarget(t);
-              var anglePenalty = 0;
-              if (nxt) {
-                var shotDir = norm(contact.x - cue.p.x, contact.y - cue.p.y);
-                var toNext = norm(nxt.p.x - t.p.x, nxt.p.y - t.p.y);
-                anglePenalty = Math.abs(shotDir.x * toNext.y - shotDir.y * toNext.x);
-              }
-              var score = cueToContact + ballToPocket + anglePenalty * 200;
-              if (!best || score < best.score) {
-                best = {
-                  nd: norm(contact.x - cue.p.x, contact.y - cue.p.y),
-                  dist: cueToContact,
-                  score: score,
-                  target: t,
-                  aim: { x: contact.x, y: contact.y }
-                };
-              }
-            }
-          }
-
-          var nd, power, chosen, aimPoint;
-          if (best) {
-            nd = best.nd;
-            power = Math.min(0.8, Math.max(0.4, best.dist / 800));
-            chosen = best.target;
-            aimPoint = best.aim;
-          } else {
-            var bank = findBankShot(targets);
-            if (bank) {
-              nd = bank.nd;
-              power = 0.55;
-              chosen = bank.target;
-              aimPoint = bank.aim;
-            } else {
-              chosen = targets.reduce(function (closest, b) {
-                var d = len(b.p.x - cue.p.x, b.p.y - cue.p.y);
-                return !closest || d < closest.dist ? { ball: b, dist: d } : closest;
-              }, null).ball;
-              var pk = table.pockets.reduce(function (closest, p) {
-                var d = len(p.x - chosen.p.x, p.y - chosen.p.y);
-                return !closest || d < closest.dist ? { pocket: p, dist: d } : closest;
-              }, null).pocket;
-              var toPocket = norm(pk.x - chosen.p.x, pk.y - chosen.p.y);
-              var contact = {
-                x: chosen.p.x - toPocket.x * BALL_R * 2,
-                y: chosen.p.y - toPocket.y * BALL_R * 2
-              };
-              nd = norm(contact.x - cue.p.x, contact.y - cue.p.y);
-              power = 0.45;
-              aimPoint = contact;
-            }
-          }
-
-          if (cueBallFree) {
-            cue.p.x = clamp(
-              chosen.p.x,
-              BORDER + BALL_R * 2,
-              TABLE_W - BORDER - BALL_R * 2
-            );
-            cue.p.y = CUE_START_Y;
+          if (shot.cueBallPosition) {
+            cue.p.x = shot.cueBallPosition.x;
+            cue.p.y = shot.cueBallPosition.y;
             cue.v.x = cue.v.y = 0;
             cueBallFree = false;
-            nd = norm(chosen.p.x - cue.p.x, chosen.p.y - cue.p.y);
           }
-
-          // apply improved potting accuracy
-          var ACCURACY = 0.9995;
-          nd = {
-            x: nd.x + (Math.random() - 0.5) * (1 - ACCURACY),
-            y: nd.y + (Math.random() - 0.5) * (1 - ACCURACY)
-          };
-          nd = norm(nd.x, nd.y);
-
-          function nextTarget(exclude) {
-            var type = assignedTypes[2];
-            var bestBall = null,
-              bestDist = Infinity;
-            for (var i = 0; i < table.balls.length; i++) {
-              var b = table.balls[i];
-              if (!b || b === exclude || b.n === 0 || b.pocketed || b.n === 8)
-                continue;
-              if (type && BALL_BY_N[b.n].t !== type) continue;
-              var d = len(b.p.x - exclude.p.x, b.p.y - exclude.p.y);
-              if (d < bestDist) {
-                bestDist = d;
-                bestBall = b;
-              }
-            }
-            return bestBall;
-          }
-
-          var spinX = 0,
-            spinY = 0;
-          var nxt = nextTarget(chosen);
-          if (nxt) {
-            var shotDir = norm(chosen.p.x - cue.p.x, chosen.p.y - cue.p.y);
-            var toNext = norm(nxt.p.x - chosen.p.x, nxt.p.y - chosen.p.y);
-            var dot = shotDir.x * toNext.x + shotDir.y * toNext.y;
-            var cross = shotDir.x * toNext.y - shotDir.y * toNext.x;
-            var SPIN_SCALE = 0.2;
-            if (Math.abs(dot) > 0.75) spinY = SPIN_SCALE * dot;
-            if (Math.abs(cross) > 0.25) spinX = SPIN_SCALE * cross;
-          }
-
-          var targetAim = aimPoint || { x: cue.p.x + nd.x * 100, y: cue.p.y + nd.y * 100 };
-          setSpin(spinX, spinY);
+          var nd = { x: Math.cos(shot.angleRad), y: Math.sin(shot.angleRad) };
+          var aimPoint = shot.aimPoint || { x: cue.p.x + nd.x * 100, y: cue.p.y + nd.y * 100 };
+          setSpin(shot.spin.side, shot.spin.top - shot.spin.back);
           showGuides = true;
-          table.aim.x = targetAim.x;
-          table.aim.y = targetAim.y;
+          table.aim.x = aimPoint.x;
+          table.aim.y = aimPoint.y;
           placeAimGlow(calibrated(table.aim));
-          cuePullVisual = power * (BALL_R * 14);
+          cuePullVisual = shot.power * (BALL_R * 14);
           setTimeout(function () {
             cpuThinking = false;
             clearTurnTimer();
-            startCueStrikeAnimation(cuePullVisual, power);
-            shoot(power);
+            startCueStrikeAnimation(cuePullVisual, shot.power);
+            shoot(shot.power);
             showGuides = false;
           }, CPU_SHOT_DELAY);
         }
