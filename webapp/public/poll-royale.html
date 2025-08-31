@@ -1906,9 +1906,9 @@
             !this.balls[0].pocketed &&
             cueVisible
           ) {
-            drawCueOnTable(this.balls[0].p, calibrated(this.aim), cuePullVisual);
-            if (!this.isMoving() && showGuides)
-              drawGuides(this.balls[0], calibrated(this.aim));
+            const aim = this.aim;
+            drawCueOnTable(this.balls[0].p, aim, cuePullVisual);
+            if (!this.isMoving() && showGuides) drawGuides(this.balls[0], aim);
           }
         };
 
@@ -2008,43 +2008,9 @@
         var lastShotAim = null;
         var lastPocketCenter = null;
         var shotPocketRecorded = false;
-        var shotsLog = [];
         var lastCueStart = null;
         var cueHitCushion = false;
         var nearPocketEdgeHit = false;
-
-        function calibrated(pt) {
-          // Weighted average correction of both directional angle and offset
-          // between aimed point and actual pocket centers from previous shots.
-          // Recent shots carry more weight so the guideline quickly adapts.
-          if (!shotsLog.length) return pt;
-          var sumX = 0,
-            sumY = 0,
-            sumA = 0,
-            weightSum = 0;
-          for (var i = 0; i < shotsLog.length; i++) {
-            var w = i + 1; // later shots carry more weight
-            sumX += shotsLog[i].offset.x * w;
-            sumY += shotsLog[i].offset.y * w;
-            sumA += shotsLog[i].angle * w;
-            weightSum += w;
-          }
-          var avgX = sumX / weightSum;
-          var avgY = sumY / weightSum;
-          var avgA = sumA / weightSum;
-          var cue = table.balls[0];
-          var dx = pt.x - cue.p.x;
-          var dy = pt.y - cue.p.y;
-          var cos = Math.cos(avgA);
-          var sin = Math.sin(avgA);
-          var rotX = dx * cos - dy * sin;
-          var rotY = dx * sin + dy * cos;
-          var maxOffset = BALL_R * 0.8; // prevent extreme corrections
-          return {
-            x: cue.p.x + rotX + clamp(avgX, -maxOffset, maxOffset),
-            y: cue.p.y + rotY + clamp(avgY, -maxOffset, maxOffset)
-          };
-        }
 
         function remainingPoints() {
           var sum = 0;
@@ -2431,28 +2397,9 @@
             }
           }
           if (table.turn === currentShooter) startTurnTimer();
-          if (lastShotAim && lastPocketCenter && lastCueStart) {
-            var dx = lastPocketCenter.x - lastShotAim.x;
-            var dy = lastPocketCenter.y - lastShotAim.y;
-            var intended = Math.atan2(
-              lastShotAim.y - lastCueStart.y,
-              lastShotAim.x - lastCueStart.x
-            );
-            var actual = Math.atan2(
-              lastPocketCenter.y - lastCueStart.y,
-              lastPocketCenter.x - lastCueStart.x
-            );
-            shotsLog.push({
-              aim: lastShotAim,
-              pocket: lastPocketCenter,
-              offset: { x: dx, y: dy },
-              angle: actual - intended
-            });
-            if (shotsLog.length > 20) shotsLog.shift();
-            lastShotAim = null;
-            lastPocketCenter = null;
-            lastCueStart = null;
-          }
+          lastShotAim = null;
+          lastPocketCenter = null;
+          lastCueStart = null;
           pottedThisShot = [];
           pocketedAny = false;
           pocketedOwn = false;
@@ -2526,7 +2473,7 @@
           showGuides = true;
           table.aim.x = t.x;
           table.aim.y = t.y;
-          placeAimGlow(calibrated(table.aim));
+          placeAimGlow(table.aim);
         });
 
         document.addEventListener('pointermove', function (e) {
@@ -2558,7 +2505,7 @@
           if (!aiming || !table.running) return;
           table.aim.x = t.x;
           table.aim.y = t.y;
-          placeAimGlow(calibrated(table.aim));
+          placeAimGlow(table.aim);
           aimMoved = true;
         });
 
@@ -2950,7 +2897,7 @@
           power = clamp((e.clientY - rect.top) / rect.height, 0, 1);
           updatePowerUI();
           cuePullVisual = power * (BALL_R * 14);
-          placeAimGlow(calibrated(table.aim));
+          placeAimGlow(table.aim);
         }
         pullHandle.addEventListener('pointerdown', function (e) {
           if (!table.running || table.isMoving() || table.turn !== 1) return;
@@ -2981,7 +2928,7 @@
           clearTurnTimer();
           var cue = table.balls[0];
           if (!cue || cue.pocketed) return;
-          var aimPoint = calibrated(table.aim);
+          var aimPoint = table.aim;
           var dx = aimPoint.x - cue.p.x;
           var dy = aimPoint.y - cue.p.y;
           var L = Math.hypot(dx, dy) || 1;
@@ -3143,7 +3090,7 @@
           showGuides = true;
           table.aim.x = aimPoint.x;
           table.aim.y = aimPoint.y;
-          placeAimGlow(calibrated(table.aim));
+          placeAimGlow(table.aim);
           cuePullVisual = shot.power * (BALL_R * 14);
           setTimeout(function () {
             cpuThinking = false;
