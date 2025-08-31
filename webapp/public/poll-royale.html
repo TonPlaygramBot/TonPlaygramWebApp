@@ -2014,25 +2014,35 @@
         var nearPocketEdgeHit = false;
 
         function calibrated(pt) {
-          // Weighted average offset between aimed point and actual pocket
-          // centers from previous shots. Recent shots count more so the
-          // guideline quickly adapts for maximum precision.
+          // Weighted average correction of both directional angle and offset
+          // between aimed point and actual pocket centers from previous shots.
+          // Recent shots carry more weight so the guideline quickly adapts.
           if (!shotsLog.length) return pt;
           var sumX = 0,
             sumY = 0,
+            sumA = 0,
             weightSum = 0;
           for (var i = 0; i < shotsLog.length; i++) {
             var w = i + 1; // later shots carry more weight
             sumX += shotsLog[i].offset.x * w;
             sumY += shotsLog[i].offset.y * w;
+            sumA += shotsLog[i].angle * w;
             weightSum += w;
           }
           var avgX = sumX / weightSum;
           var avgY = sumY / weightSum;
+          var avgA = sumA / weightSum;
+          var cue = table.balls[0];
+          var dx = pt.x - cue.p.x;
+          var dy = pt.y - cue.p.y;
+          var cos = Math.cos(avgA);
+          var sin = Math.sin(avgA);
+          var rotX = dx * cos - dy * sin;
+          var rotY = dx * sin + dy * cos;
           var maxOffset = BALL_R * 0.8; // prevent extreme corrections
           return {
-            x: pt.x + clamp(avgX, -maxOffset, maxOffset),
-            y: pt.y + clamp(avgY, -maxOffset, maxOffset)
+            x: cue.p.x + rotX + clamp(avgX, -maxOffset, maxOffset),
+            y: cue.p.y + rotY + clamp(avgY, -maxOffset, maxOffset)
           };
         }
 
@@ -2421,17 +2431,27 @@
             }
           }
           if (table.turn === currentShooter) startTurnTimer();
-          if (lastShotAim && lastPocketCenter) {
+          if (lastShotAim && lastPocketCenter && lastCueStart) {
             var dx = lastPocketCenter.x - lastShotAim.x;
             var dy = lastPocketCenter.y - lastShotAim.y;
+            var intended = Math.atan2(
+              lastShotAim.y - lastCueStart.y,
+              lastShotAim.x - lastCueStart.x
+            );
+            var actual = Math.atan2(
+              lastPocketCenter.y - lastCueStart.y,
+              lastPocketCenter.x - lastCueStart.x
+            );
             shotsLog.push({
               aim: lastShotAim,
               pocket: lastPocketCenter,
-              offset: { x: dx, y: dy }
+              offset: { x: dx, y: dy },
+              angle: actual - intended
             });
             if (shotsLog.length > 20) shotsLog.shift();
             lastShotAim = null;
             lastPocketCenter = null;
+            lastCueStart = null;
           }
           pottedThisShot = [];
           pocketedAny = false;
@@ -3011,7 +3031,13 @@
             .map(b => ({ id: b.n, x: b.p.x, y: b.p.y, vx: b.v.x, vy: b.v.y, pocketed: !!b.pocketed }));
           const pockets = table.pockets.map(p => ({ x: p.x, y: p.y }));
           const req = {
-            game: isNineBall ? 'NINE_BALL' : isAmerican ? 'AMERICAN_BILLIARDS' : 'EIGHT_POOL_UK',
+            game: isNineBall
+              ? 'NINE_BALL'
+              : isAmerican
+              ? 'AMERICAN_BILLIARDS'
+              : 'EIGHT_POOL_UK',
+            maxCutAngle: Math.PI / 6,
+            minViewScore: 0.5,
             state: {
               balls,
               pockets,
@@ -3020,6 +3046,12 @@
               ballRadius: BALL_R,
               friction: 0.015,
               ballOn: assignedTypes[2] || null,
+              myGroup:
+                assignedTypes[2] === 'yellow'
+                  ? 'SOLIDS'
+                  : assignedTypes[2] === 'red'
+                  ? 'STRIPES'
+                  : 'UNASSIGNED',
               ballInHand: cueBallFree
             }
           };
