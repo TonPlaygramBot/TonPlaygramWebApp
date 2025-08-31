@@ -1052,9 +1052,9 @@ function onUp(e){
       c.restore();
       c.strokeStyle='#fff'; c.lineWidth=6; roundRect(c,g.x,g.y,g.w,g.h,6,false,true);
       const kw = g.w * 0.14, kh = kw * 2.2;
-      const dw = kw * 2.8, dh = kh * 1.2;
+      const dw = kw, dh = kh;
       const centerX = g.x + (g.w - kw) / 2, ky = g.y + g.h - kh + g.h * 0.05;
-      const dy = ky - dh - g.h * 0.02;
+      const dy = ky;
       if(init){
         r.kx = centerX;
         r.kw = kw; r.kh = kh; r.g = g;
