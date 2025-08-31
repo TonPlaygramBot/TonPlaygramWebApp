@@ -1092,10 +1092,10 @@ function onUp(e){
       c.restore();
       c.strokeStyle='#fff'; c.lineWidth=6; roundRect(c,field.x,field.y,field.w,field.h,6,false,true);
       const kw = goal.w * 0.14, kh = kw * 2.2;
-      const dw = kw, dh = kh;
+      const dw = kw, dh = kh / 2;
       const centerX = goal.x + (goal.w - kw) / 2;
       const ky = goal.y + goal.h - kh + goal.h * 0.05;
-      const dy = ky + kh * 0.8;
+      const dy = field.y + field.h - dh;
       if(init){
         r.kx = centerX;
         r.kw = kw; r.kh = kh; r.g = goal;
@@ -1108,7 +1108,7 @@ function onUp(e){
       const d = r.def;
       if(d){
         if(d.jumping){ d.vy += GRAVITY*0.5; d.y += d.vy; if(d.y >= d.baseY){ d.y = d.baseY; d.vy = 0; d.jumping = false; } }
-        c.drawImage(defendersImg, d.x, d.y, d.w, d.h);
+        c.drawImage(defendersImg, 0, 0, defendersImg.width, defendersImg.height/2, d.x, d.y, d.w, d.h);
       }
       const list = Array.isArray(miniHolesCache[i]) ? miniHolesCache[i] : [];
       for(const h of list){
