@@ -132,3 +132,24 @@ test('respects group assignment in eight-ball', () => {
   const decision = planShot(req);
   assert.equal(decision.targetBallId, 1);
 });
+
+test('prefers target with smallest cut angle', () => {
+  const req = {
+    game: 'AMERICAN_BILLIARDS',
+    state: {
+      balls: [
+        { id: 0, x: 100, y: 250, vx: 0, vy: 0, pocketed: false },
+        { id: 1, x: 600, y: 250, vx: 0, vy: 0, pocketed: false },
+        { id: 2, x: 600, y: 150, vx: 0, vy: 0, pocketed: false }
+      ],
+      pockets: [ { x: 1000, y: 250 } ],
+      width: 1000,
+      height: 500,
+      ballRadius: 10,
+      friction: 0.01
+    },
+    timeBudgetMs: 50
+  };
+  const decision = planShot(req);
+  assert.equal(decision.targetBallId, 1);
+});
