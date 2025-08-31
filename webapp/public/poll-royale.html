@@ -2982,7 +2982,10 @@
           var cue = table.balls[0];
           if (!cue || cue.pocketed) return;
           var aimPoint = calibrated(table.aim);
-          var d = lastGuideDir;
+          var dx = aimPoint.x - cue.p.x;
+          var dy = aimPoint.y - cue.p.y;
+          var L = Math.hypot(dx, dy) || 1;
+          var d = { x: dx / L, y: dy / L };
           lastShotAim = { x: aimPoint.x, y: aimPoint.y };
           lastCueStart = { x: cue.p.x, y: cue.p.y };
           shotPocketRecorded = false;
@@ -3055,7 +3058,73 @@
               ballInHand: cueBallFree
             }
           };
-          const shot = planShot(req);
+          let shot = planShot(req);
+          if (!shot && !isNineBall && !isAmerican) {
+            const { default: selectShot } = await import('/lib/poolUkAdvancedAi.js');
+            const advState = {
+              balls: balls.map(b => ({
+                id: b.id,
+                colour:
+                  b.id === 0
+                    ? 'cue'
+                    : b.id === 8
+                    ? 'black'
+                    : b.id >= 1 && b.id <= 7
+                    ? 'yellow'
+                    : 'red',
+                x: b.x,
+                y: b.y,
+                pocketed: b.pocketed
+              })),
+              pockets: table.pockets.map((p, i) => ({
+                x: p.x,
+                y: p.y,
+                name: ['TL', 'TR', 'ML', 'MR', 'BL', 'BR'][i]
+              })),
+              width: TABLE_W,
+              height: TABLE_H,
+              ballRadius: BALL_R,
+              ballOn:
+                assignedTypes[2] === 'yellow'
+                  ? 'yellow'
+                  : assignedTypes[2] === 'red'
+                  ? 'red'
+                  : null,
+              isOpenTable: !assignedTypes[2],
+              freeBallAvailable: cueBallFree,
+              shotsRemaining: 1,
+              mustPlayFromBaulk: cueBallFree,
+              baulkLineX: TABLE_W / 2
+            };
+            const plan = selectShot(advState);
+            if (plan) {
+              const angleRad = Math.atan2(
+                plan.aimPoint.y - cue.p.y,
+                plan.aimPoint.x - cue.p.x
+              );
+              const power =
+                plan.cueParams.speed === 'soft'
+                  ? 0.3
+                  : plan.cueParams.speed === 'med'
+                  ? 0.6
+                  : 0.9;
+              const spinMap = {
+                stun: { top: 0, back: 0, side: 0 },
+                followS: { top: 0.5, back: 0, side: 0 },
+                followL: { top: 1, back: 0, side: 0 },
+                drawS: { top: 0, back: 0.5, side: 0 },
+                drawL: { top: 0, back: 1, side: 0 },
+                sideL: { top: 0, back: 0, side: -0.5 },
+                sideR: { top: 0, back: 0, side: 0.5 }
+              };
+              shot = {
+                angleRad,
+                power,
+                spin: spinMap[plan.cueParams.spin] || { top: 0, back: 0, side: 0 },
+                aimPoint: plan.aimPoint
+              };
+            }
+          }
           if (!shot) {
             table.turn = 1;
             cpuThinking = false;
