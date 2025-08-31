@@ -225,7 +225,7 @@
     defenders.w = keeper.w * 2.8;
     defenders.h = keeper.h * 1.5;
     defenders.x = (W - defenders.w)/2;
-    defenders.y = geom.penaltySpot.y + STRIPE/2 - STRIPE*6;
+    defenders.y = geom.penaltySpot.y + STRIPE/2 - STRIPE*5;
     defenders.baseY = defenders.y;
   }
 
@@ -441,6 +441,19 @@
     ctx.fill();
 
     // Free-kick arc omitted for simplified field
+  }
+
+  function drawMiniField(c,g){
+    const stripe = 14;
+    for(let y=g.y; y<g.y+g.h; y+=stripe){
+      c.fillStyle = (Math.floor((y-g.y)/stripe)%2 ? getComputedStyle(document.documentElement).getPropertyValue('--turf2')||'#0a6c1d' : getComputedStyle(document.documentElement).getPropertyValue('--turf1')||'#0c7a23');
+      c.fillRect(g.x, y, g.w, stripe);
+    }
+    const kickerY = g.y + g.h - stripe*3;
+    c.strokeStyle = '#fff';
+    c.lineWidth = 2;
+    c.beginPath(); c.moveTo(g.x, kickerY); c.lineTo(g.x+g.w, kickerY); c.stroke();
+    c.beginPath(); c.arc(g.x+g.w/2, kickerY, stripe*4, 0, Math.PI); c.stroke();
   }
 
   // ===== Ads behind goal =====
@@ -1027,7 +1040,7 @@ function onUp(e){
   const centerX = geom.goal.x + (geom.goal.w - keeper.w) / 2;
   keeper.x += (centerX - keeper.x) * 0.9;
   if(!defenders.jumping){
-    defenders.vy = -10*geom.scale;
+    defenders.vy = -6*geom.scale;
     defenders.jumping = true;
   }
   playBallKickSound();
@@ -1046,15 +1059,13 @@ function onUp(e){
       c.fillStyle='#0e1430'; c.fillRect(g.x,g.y+g.h+4,g.w,14);
       roundRect(c,g.x-2,g.y-2,g.w+4,g.h+4,8,true,false,'#0f1530');
       c.save(); c.beginPath(); c.rect(g.x,g.y,g.w,g.h); c.clip();
-      c.strokeStyle='#e6e6e6'; c.lineWidth=1;
-      for(let x=g.x;x<=g.x+g.w;x+=14){ c.beginPath(); c.moveTo(x,g.y); c.lineTo(x,g.y+g.h); c.stroke(); }
-      for(let y=g.y;y<=g.y+g.h;y+=14){ c.beginPath(); c.moveTo(g.x,y); c.lineTo(g.x+g.w,y); c.stroke(); }
+      drawMiniField(c,g);
       c.restore();
       c.strokeStyle='#fff'; c.lineWidth=6; roundRect(c,g.x,g.y,g.w,g.h,6,false,true);
       const kw = g.w * 0.14, kh = kw * 2.2;
       const dw = kw, dh = kh;
       const centerX = g.x + (g.w - kw) / 2, ky = g.y + g.h - kh + g.h * 0.05;
-      const dy = ky;
+      const dy = ky + kh * 0.1;
       if(init){
         r.kx = centerX;
         r.kw = kw; r.kh = kh; r.g = g;
@@ -1127,7 +1138,7 @@ function onUp(e){
           const startX = rnd(g.x + d.w/2, g.x + g.w - d.w/2);
           d.x = clamp(startX - d.w/2, g.x, g.x + g.w - d.w);
           d.y = d.baseY; d.vy = 0; d.jumping = Math.random() < 0.5;
-          if(d.jumping){ d.vy = -5; }
+          if(d.jumping){ d.vy = -3; }
           const wallCenter = d.x + d.w/2;
           const goalCenter = g.x + g.w/2;
           const gap = g.w * 0.02;
