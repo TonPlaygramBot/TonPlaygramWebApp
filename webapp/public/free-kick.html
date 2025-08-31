@@ -210,7 +210,7 @@
     defenders.w = keeper.w * 2.8;
     defenders.h = keeper.h * 1.5;
     defenders.x = (W - defenders.w)/2;
-    defenders.y = geom.penaltySpot.y + STRIPE/2 - STRIPE*7.5;
+    defenders.y = geom.penaltySpot.y + STRIPE/2 - STRIPE*6;
     defenders.baseY = defenders.y;
   }
 
@@ -219,9 +219,9 @@
   let roundStart = 0; let timeLeft = ROUND_TIME; let running=false; let paused=false; let ended=false;
   let myScore = 0;
 
-  const BALL_R = 32;
+  const BALL_R = 28;
   // faster initial shot speed for wider coverage
-  const SHOT_SPEED = 20;
+  const SHOT_SPEED = 24;
   const MIN_GOAL_POINTS = 5;
   const ball = {
     x: 0,
@@ -612,7 +612,7 @@
     ctx.globalAlpha=1;
     punchEffects=punchEffects.filter(p=>p.life>0);
   }
-  const FRICTION=0.985, AIR_DRAG=0.0015, GRAVITY=0.20;
+  const FRICTION=0.99, AIR_DRAG=0.001, GRAVITY=0.20;
   function stepBall(){
     if(!ball.moving) return;
     if(!ball.trailStopped){
@@ -639,7 +639,7 @@
         ball.pathIndex++;
       }
     } else {
-      const speed=Math.hypot(ball.vx,ball.vy); const drag = 1 - AIR_DRAG*speed; const curve = ball.spin*0.9;
+      const speed=Math.hypot(ball.vx,ball.vy); const drag = 1 - AIR_DRAG*speed; const curve = ball.spin*0.5;
       const knuckle = 0;
       ball.vx = (ball.vx + curve + knuckle)*FRICTION*drag; ball.vy = (ball.vy + GRAVITY)*FRICTION*drag;
       nextX = ball.x + ball.vx;
