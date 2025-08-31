@@ -281,6 +281,11 @@
   ];
   for(let i=0;i<rivals.length;i++){ rivals[i].cvs = rivals[i].wrap.querySelector('canvas'); rivals[i].ctx = rivals[i].cvs.getContext('2d'); rivals[i].avatar = pvAvatars[i]?.src || ''; }
   const miniHolesCache=[[],[],[]];
+  const MINI_GOAL_PAD = 8;
+  function miniGoalRect(cv){
+    const field={x:12,y:12,w:cv.width-24,h:cv.height-40};
+    return {x:field.x+MINI_GOAL_PAD,y:field.y+MINI_GOAL_PAD,w:field.w-2*MINI_GOAL_PAD,h:field.h-2*MINI_GOAL_PAD};
+  }
 
   // ===== Helpers =====
   const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
@@ -366,7 +371,7 @@
         holes.push({x,y,r,points});
       }
     }
-    for(let i=0;i<3;i++){ const cv=rivals[i].cvs; const g2={x:12,y:12,w:cv.width-24,h:cv.height-30}; miniHolesCache[i]=genMiniHoles(g2); }
+    for(let i=0;i<3;i++){ const cv=rivals[i].cvs; const g2=miniGoalRect(cv); miniHolesCache[i]=genMiniHoles(g2); }
   }
   function replaceHole(old){
     const idx=holes.indexOf(old);
@@ -441,19 +446,6 @@
     ctx.fill();
 
     // Free-kick arc omitted for simplified field
-  }
-
-  function drawMiniField(c,g){
-    const stripe = 14;
-    for(let y=g.y; y<g.y+g.h; y+=stripe){
-      c.fillStyle = (Math.floor((y-g.y)/stripe)%2 ? getComputedStyle(document.documentElement).getPropertyValue('--turf2')||'#0a6c1d' : getComputedStyle(document.documentElement).getPropertyValue('--turf1')||'#0c7a23');
-      c.fillRect(g.x, y, g.w, stripe);
-    }
-    const kickerY = g.y + g.h - stripe*3;
-    c.strokeStyle = '#fff';
-    c.lineWidth = 2;
-    c.beginPath(); c.moveTo(g.x, kickerY); c.lineTo(g.x+g.w, kickerY); c.stroke();
-    c.beginPath(); c.arc(g.x+g.w/2, kickerY, stripe*4, 0, Math.PI); c.stroke();
   }
 
   function drawMiniGoal(c, g){
@@ -1080,20 +1072,15 @@ function onUp(e){
       const r=rivals[i], c=r.ctx, cv=r.cvs;
       const field={x:12,y:12,w:cv.width-24,h:cv.height-40};
       c.clearRect(0,0,cv.width,cv.height);
-      c.fillStyle='#0e1430'; c.fillRect(field.x,field.y+field.h+4,field.w,14);
       roundRect(c,field.x-2,field.y-2,field.w+4,field.h+4,8,true,false,'#0f1530');
       c.save();
       c.beginPath(); c.rect(field.x,field.y,field.w,field.h); c.clip();
-      drawMiniField(c,field);
-      const goalW=field.w*0.8, goalH=field.h*0.26;
-      const gx=field.x+(field.w-goalW)/2, gy=field.y+field.h*0.05;
-      const goal={x:gx,y:gy,w:goalW,h:goalH};
+      const goal = miniGoalRect(cv);
       drawMiniGoal(c,goal);
       c.restore();
-      c.strokeStyle='#fff'; c.lineWidth=6; roundRect(c,field.x,field.y,field.w,field.h,6,false,true);
       const kw = goal.w * 0.14, kh = kw * 2.2;
       const centerX = goal.x + (goal.w - kw) / 2;
-      const ky = goal.y + goal.h - kh + goal.h * 0.05;
+      const ky = goal.y + goal.h - kh;
       if(init){
         r.kx = centerX;
         r.kw = kw; r.kh = kh; r.g = goal;
@@ -1139,8 +1126,7 @@ function onUp(e){
   }
   function genMiniHolesForCard(i){
     const cv=rivals[i].cvs;
-    const field={x:12,y:12,w:cv.width-24,h:cv.height-40};
-    const goal={x:field.x+(field.w*0.2),y:field.y+field.h*0.05,w:field.w*0.8,h:field.h*0.26};
+    const goal=miniGoalRect(cv);
     miniHolesCache[i]=genMiniHoles(goal);
   }
   function roundRect(c,x,y,w,h,r,fill,stroke,fillColor){ c.beginPath(); c.moveTo(x+r,y); c.arcTo(x+w,y,x+w,y+h,r); c.arcTo(x+w,y+h,x,y+h,r); c.arcTo(x,y+h,x,y,r); c.arcTo(x,y,x+w,y,r); if(fill){ if(fillColor){ const old=c.fillStyle; c.fillStyle=fillColor; c.fill(); c.fillStyle=old; } else c.fill(); } if(stroke) c.stroke(); }
