@@ -33,7 +33,7 @@
 
   /* ===== Rivals row ===== */
   .previews{position:fixed;left:env(safe-area-inset-left,12px);right:env(safe-area-inset-right,12px);
-    top:env(safe-area-inset-top,10px);z-index:90;display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+    top:calc(env(safe-area-inset-top,10px) + 12px);z-index:110;display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
   .pcard{background:var(--panel);border:1px solid var(--panel-b);border-radius:18px;padding:6px;min-height:80px;display:grid;gap:6px}
   .phead{display:flex;align-items:center;justify-content:space-between;font-weight:800;gap:6px}
   .phead .avatar{width:20px;height:14px;border-radius:2px;object-fit:cover}
@@ -298,7 +298,8 @@
         x:goal.x+(h.x-geom.goal.x)*scaleX,
         y:goal.y+(h.y-geom.goal.y)*scaleY,
         r:h.r*scaleX,
-        p:h.points
+        p:h.points,
+        t:h.timer?1:0
       }));
     }
   }
@@ -387,11 +388,32 @@
         holes.push({x,y,r,points});
       }
     }
+    generateTimerHole();
     syncMiniHoles();
+  }
+  function generateTimerHole(){
+    const g=geom.goal; const minR=Math.max(ball.r*1.05,22*geom.scale); const maxR=Math.max(minR+6,50*geom.scale);
+    const pad=18; let tries=0;
+    while(tries<600){
+      tries++;
+      const r=rnd(minR,maxR);
+      const x=rnd(g.x+pad+r,g.x+g.w-pad-r);
+      const y=rnd(g.y+pad+r,g.y+g.h-pad-r);
+      if(holes.every(h=>Math.hypot(h.x-x,h.y-y)>h.r+r+12)){
+        holes.push({x,y,r,points:0,timer:true});
+        break;
+      }
+    }
   }
   function replaceHole(old){
     const idx=holes.indexOf(old);
     if(idx===-1) return;
+    if(old.timer){
+      holes.splice(idx,1);
+      generateTimerHole();
+      syncMiniHoles();
+      return;
+    }
     const g=geom.goal;
     const minR=Math.max(ball.r*1.05,22*geom.scale); const maxR=Math.max(minR+6,50*geom.scale);
     const pad=18; let tries=0;
@@ -653,7 +675,7 @@
     }
     for(const c of cameras){ ctx.fillStyle='#111'; ctx.fillRect(c.x,c.y,c.w,c.h); ctx.fillStyle='#e10600'; ctx.beginPath(); ctx.arc(c.x+8,c.y+6,3,0,Math.PI*2); ctx.fill(); }
     for(const h of holes){ if(h.hit) continue; ctx.fillStyle='rgba(225,6,0,.9)'; ctx.beginPath(); ctx.arc(h.x,h.y,h.r,0,Math.PI*2); ctx.fill();
-      ctx.fillStyle='#ffd400'; ctx.font=`800 ${Math.max(12,h.r*0.9)}px system-ui`; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText(h.points,h.x,h.y); }
+      ctx.fillStyle='#ffd400'; ctx.font=`800 ${Math.max(12,h.r*0.9)}px system-ui`; ctx.textAlign='center'; ctx.textBaseline='middle'; if(h.timer) ctx.fillText('⏱️',h.x,h.y); else ctx.fillText(h.points,h.x,h.y); }
     for(const f of fragments){ ctx.save(); ctx.translate(f.x,f.y); ctx.rotate(f.a); ctx.fillStyle='#ffd400'; ctx.fillRect(-4,-2,8,4); ctx.restore(); }
     drawKeeper();
   }
@@ -852,7 +874,13 @@
         if(h.hit) continue;
         if(Math.hypot(h.x-ball.x,h.y-ball.y) <= Math.max(2,h.r-ball.r*0.6)){
           h.hit=true; createFragments(h);
-          ball.points += h.points;
+          if(h.timer){
+            roundStart -= 10000;
+            timeLeft += 10000;
+            updateHUD();
+          } else {
+            ball.points += h.points;
+          }
           sfxPrize();
           ball.spin *= 0.6;
           setTimeout(()=>{replaceHole(h);},600);
@@ -1136,18 +1164,34 @@ function onUp(e){
       c.fillRect(field.x,field.y,field.w,field.h);
       c.restore();
 
-      // goal and defenders
+      // goal and prize holes
       drawMiniGoal(c,goal,r.flash>0?'#ffd400':undefined);
       const dw=defenders.w*scale, dh=(defenders.h*scale)/2;
       const dx=goal.x+(defenders.x-geom.goal.x)*scale;
-      const dy=goal.y+goal.h-dh;
+      const dy=goal.y+goal.h-dh+4*scale;
+      const dRect={x:dx,y:dy,w:dw,h:dh};
+
+      const list = Array.isArray(miniHolesCache[i]) ? miniHolesCache[i] : [];
+      for(const h of list){
+        c.fillStyle='rgba(225,6,0,.9)';
+        c.beginPath();
+        c.arc(h.x,h.y,h.r,0,Math.PI*2);
+        c.fill();
+        c.fillStyle='#ffd400';
+        c.font='bold 12px system-ui';
+        c.textAlign='center';
+        c.textBaseline='middle';
+        if(h.t) c.fillText('⏱️',h.x,h.y);
+        else c.fillText(h.p,h.x,h.y);
+      }
+
+      // defenders on top
       c.save();
       c.beginPath();
       c.rect(field.x,field.y,field.w,field.h);
       c.clip();
       c.drawImage(defendersImg,0,0,defendersImg.width,defendersImg.height/2,dx,dy,dw,dh);
       c.restore();
-      const dRect={x:dx,y:dy,w:dw,h:dh};
 
       // keeper setup
       const kw = keeper.w*scale, kh = keeper.h*scale;
@@ -1160,20 +1204,6 @@ function onUp(e){
       const active = r.shots[0];
       const targetX = active ? clamp(active.x - kw/2, goal.x, goal.x + goal.w - kw) : centerX;
       r.kx += (targetX - r.kx) * 0.1;
-
-      // holes
-      const list = Array.isArray(miniHolesCache[i]) ? miniHolesCache[i] : [];
-      for(const h of list){
-        c.fillStyle='rgba(225,6,0,.9)';
-        c.beginPath();
-        c.arc(h.x,h.y,h.r,0,Math.PI*2);
-        c.fill();
-        c.fillStyle='#ffd400';
-        c.font='bold 12px system-ui';
-        c.textAlign='center';
-        c.textBaseline='middle';
-        c.fillText(h.p,h.x,h.y);
-      }
 
       // rival shots
       for(const s of r.shots){
@@ -1238,7 +1268,7 @@ function onUp(e){
         const chance = acc * (22/Math.max(10,target.r));
         if(Math.random() < chance){
           const saved = Math.random() < 0.5;
-          if(!saved){ r.score += Math.max(5, Math.round(target.p)); }
+          if(!saved && !target.t){ r.score += Math.max(5, Math.round(target.p)); }
           const g=r.g, kw=r.kw;
           const startX = rnd(g.x, g.x + g.w);
           const vx = (target.x - startX) / 15;
