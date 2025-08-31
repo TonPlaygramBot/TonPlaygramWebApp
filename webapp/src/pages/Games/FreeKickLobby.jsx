@@ -12,7 +12,7 @@ export default function FreeKickLobby() {
   const [stake, setStake] = useState({ token: 'TPC', amount: 100 });
   const [mode, setMode] = useState('ai');
   const [players, setPlayers] = useState(2);
-  const [duration, setDuration] = useState(30);
+  const [duration, setDuration] = useState(60);
 
   const startGame = async () => {
     let tgId;
@@ -84,13 +84,13 @@ export default function FreeKickLobby() {
       <div className="space-y-2">
         <h3 className="font-semibold">Duration</h3>
         <div className="flex gap-2">
-          {[30, 60, 180].map((t) => (
+          {[60, 120, 180].map((t) => (
             <button
               key={t}
               onClick={() => setDuration(t)}
               className={`lobby-tile ${duration === t ? 'lobby-selected' : ''}`}
             >
-              {t === 30 ? '30s' : t === 60 ? '1m' : '3m'}
+              {t === 60 ? '1m' : t === 120 ? '2m' : '3m'}
             </button>
           ))}
         </div>
