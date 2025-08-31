@@ -105,6 +105,7 @@ test('avoids pocket with blocking ball at entrance', () => {
     rngSeed: 3
   };
   const decision = planShot(req);
+  assert.equal(decision.rationale, 'safety');
   assert.equal(decision.quality, 0);
 });
 
