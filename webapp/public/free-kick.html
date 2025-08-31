@@ -1108,13 +1108,36 @@ function onUp(e){
       const r=rivals[i], c=r.ctx, cv=r.cvs;
       const field={x:12,y:12,w:cv.width-24,h:cv.height-40};
       c.clearRect(0,0,cv.width,cv.height);
-      roundRect(c,field.x-2,field.y-2,field.w+4,field.h+4,8,true,false,'#0f1530');
-      c.save();
-      c.beginPath(); c.rect(field.x,field.y,field.w,field.h); c.clip();
+
+      // turf background replicating main field
       const goal = miniGoalRect(cv);
-      drawMiniGoal(c,goal);
-      c.restore();
       const scale = goal.w/geom.goal.w;
+      const stripe = STRIPE*scale;
+      c.save();
+      c.beginPath();
+      c.rect(field.x,field.y,field.w,field.h);
+      c.clip();
+      for(let y=field.y;y<field.y+field.h;y+=stripe){
+        c.fillStyle=(Math.floor((y-field.y)/stripe)%2?
+          getComputedStyle(document.documentElement).getPropertyValue('--turf2')||'#0a6c1d':
+          getComputedStyle(document.documentElement).getPropertyValue('--turf1')||'#0c7a23');
+        c.fillRect(field.x,y,field.w,stripe);
+      }
+      const vg=c.createRadialGradient(field.x+field.w/2,field.y+field.h,10,field.x+field.w/2,field.y+field.h,field.h/1.12);
+      vg.addColorStop(0,'rgba(0,0,0,0)');
+      vg.addColorStop(1,'rgba(0,0,0,0.26)');
+      c.fillStyle=vg;
+      c.fillRect(field.x,field.y,field.w,field.h);
+      c.restore();
+
+      // goal and defenders
+      drawMiniGoal(c,goal);
+      const dw=defenders.w*scale, dh=defenders.h*scale;
+      const dx=goal.x+(defenders.x-geom.goal.x)*scale;
+      const dy=goal.y+(defenders.y-geom.goal.y)*scale;
+      c.drawImage(defendersImg,dx,dy,dw,dh);
+
+      // keeper setup
       const kw = keeper.w*scale, kh = keeper.h*scale;
       const centerX = goal.x + (goal.w - kw) / 2;
       const ky = goal.y + goal.h - kh + goal.h*0.05;
@@ -1125,6 +1148,8 @@ function onUp(e){
       const active = r.shots[0];
       const targetX = active ? clamp(active.x - kw/2, goal.x, goal.x + goal.w - kw) : centerX;
       r.kx += (targetX - r.kx) * 0.2;
+
+      // holes
       const list = Array.isArray(miniHolesCache[i]) ? miniHolesCache[i] : [];
       for(const h of list){
         c.fillStyle='rgba(225,6,0,.9)';
@@ -1137,6 +1162,8 @@ function onUp(e){
         c.textBaseline='middle';
         c.fillText(h.p,h.x,h.y);
       }
+
+      // rival shots
       for(const s of r.shots){
         s.x+=s.vx; s.y+=s.vy; s.vy+=0.25; s.life-=0.02;
         // if keeper saves, stop the shot when it reaches the keeper
@@ -1155,6 +1182,8 @@ function onUp(e){
           for(const f of s.fragments){ f.x+=f.vx; f.y+=f.vy; f.life-=0.03; c.fillRect(f.x,f.y,2,2); }
         }
       }
+
+      // keeper in front
       c.drawImage(keeperImg, r.kx, ky, kw, kh);
       r.shots = r.shots.filter(s=>s.life>0);
       r.ptsEl.textContent = r.score;
