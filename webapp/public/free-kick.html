@@ -60,6 +60,14 @@
     bottom:env(safe-area-inset-bottom,10px);z-index:96}
   .ribbon{background:var(--panel);border:1px solid var(--panel-b);border-radius:12px;padding:8px 12px;text-align:center;font-size:14px}
 
+  /* ===== Winner overlay & celebration ===== */
+  .winnerOverlay{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.6);z-index:200}
+  .winnerOverlay.hidden{display:none}
+  .winnerOverlay img{width:120px;height:120px;border-radius:50%;display:block;margin:0 auto}
+  .winnerOverlay button{margin-top:16px;padding:10px 16px;font-weight:800;border:0;border-radius:12px;background:var(--accent);color:#fff}
+  .coin-confetti{position:fixed;top:-40px;width:32px;height:32px;pointer-events:none;animation:coin-fall var(--duration,3s) linear forwards;z-index:210}
+  @keyframes coin-fall{from{transform:translateY(-10vh) rotate(0deg);opacity:1}to{transform:translateY(100vh) rotate(360deg);opacity:0}}
+
   /* tests */
 
   @media (max-width: 420px){
@@ -111,6 +119,13 @@
   <div class="stage"><div class="frame"></div></div>
 
   <canvas id="game" aria-label="Free kick field"></canvas>
+
+  <div id="winnerOverlay" class="winnerOverlay hidden">
+    <div style="text-align:center">
+      <img id="winnerAvatar" alt="winner" />
+      <button id="lobbyBtn">Return Home</button>
+    </div>
+  </div>
 
 <script>
 (()=> {
@@ -260,17 +275,29 @@
   const aimOn = true;
 
   const rivals=[
-    { i:0, wrap:document.querySelector('#pv0'), ptsEl:document.querySelector('#pv0pts'), cvs:null, ctx:null, score:0, next:0, acc:0.68, rate:[1180,2180], shots:[], kx:0 },
-    { i:1, wrap:document.querySelector('#pv1'), ptsEl:document.querySelector('#pv1pts'), cvs:null, ctx:null, score:0, next:0, acc:0.62, rate:[1275,2360], shots:[], kx:0 },
-    { i:2, wrap:document.querySelector('#pv2'), ptsEl:document.querySelector('#pv2pts'), cvs:null, ctx:null, score:0, next:0, acc:0.58, rate:[1350,2510], shots:[], kx:0 },
+    { i:0, wrap:document.querySelector('#pv0'), ptsEl:document.querySelector('#pv0pts'), cvs:null, ctx:null, score:0, next:0, acc:0.68, rate:[1180,2180], shots:[], kx:0, kw:0, kh:0, def:null, g:null, avatar:'' },
+    { i:1, wrap:document.querySelector('#pv1'), ptsEl:document.querySelector('#pv1pts'), cvs:null, ctx:null, score:0, next:0, acc:0.62, rate:[1275,2360], shots:[], kx:0, kw:0, kh:0, def:null, g:null, avatar:'' },
+    { i:2, wrap:document.querySelector('#pv2'), ptsEl:document.querySelector('#pv2pts'), cvs:null, ctx:null, score:0, next:0, acc:0.58, rate:[1350,2510], shots:[], kx:0, kw:0, kh:0, def:null, g:null, avatar:'' },
   ];
+  for(let i=0;i<rivals.length;i++){ rivals[i].cvs = rivals[i].wrap.querySelector('canvas'); rivals[i].ctx = rivals[i].cvs.getContext('2d'); rivals[i].avatar = pvAvatars[i]?.src || ''; }
   const miniHolesCache=[[],[],[]];
-  for(const r of rivals){ r.cvs = r.wrap.querySelector('canvas'); r.ctx = r.cvs.getContext('2d'); }
 
   // ===== Helpers =====
   const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
   const rnd=(a,b)=>a+Math.random()*(b-a);
   function roundedRect(x,y,w,h,r){ ctx.beginPath(); ctx.moveTo(x+r,y); ctx.arcTo(x+w,y,x+w,y+h,r); ctx.arcTo(x+w,y+h,x,y+h,r); ctx.arcTo(x,y+h,x,y,r); ctx.arcTo(x,y,x+w,y,r); ctx.closePath(); }
+
+  function coinConfetti(count=50, iconSrc='/assets/icons/ezgif-54c96d8a9b9236.webp'){
+    for(let i=0;i<count;i++){
+      const img=document.createElement('img');
+      img.src=iconSrc;
+      img.className='coin-confetti';
+      img.style.left=Math.random()*100+'vw';
+      img.style.setProperty('--duration',(2+Math.random()*2)+'s');
+      document.body.appendChild(img);
+      setTimeout(()=>img.remove(),3000);
+    }
+  }
 
   function reflectBall(nx,ny,damp=0.8){
     const dot = ball.vx*nx + ball.vy*ny;
@@ -951,7 +978,22 @@ function endShot(hit,pts,delay=0){
     timeShort.textContent = Math.ceil(timeLeft/1000);
   }
   function fmtTime(ms){ const s=Math.max(0, Math.ceil(ms/1000)); const m=Math.floor(s/60); const ss=String(s%60).padStart(2,'0'); return `${m}:${ss}`; }
-  function finish(){ running=false; ended=true; crowdSound.pause(); crowdSound.currentTime=0; }
+  function finish(){
+    if(!running) return;
+    running=false; ended=true;
+    crowdSound.pause(); crowdSound.currentTime=0;
+    playWhistle();
+    const scores=[{score:myScore,avatar:userAvatar}];
+    for(const r of rivals){ scores.push({score:r.score,avatar:r.avatar}); }
+    const max=Math.max(...scores.map(s=>s.score));
+    const winner=scores.find(s=>s.score===max);
+    const overlay=document.getElementById('winnerOverlay');
+    const img=document.getElementById('winnerAvatar');
+    if(img) img.src=winner.avatar;
+    overlay.classList.remove('hidden');
+    coinConfetti(50);
+    cheerSound.currentTime=0; cheerSound.play().catch(()=>{});
+  }
   function status(msg){ /* no-op */ }
 
   // ===== Input (swipe/flick + spin) =====
@@ -999,7 +1041,7 @@ function onUp(e){
   // ===== Rivals (mini boards + scoring) =====
   function drawMiniBoards(init=false){
     for(let i=0;i<rivals.length;i++){
-      const r=rivals[i], c=r.ctx, cv=r.cvs, g={x:12,y:12,w:cv.width-24,h:cv.height-30};
+      const r=rivals[i], c=r.ctx, cv=r.cvs, g={x:12,y:12,w:cv.width-24,h:cv.height-40};
       c.clearRect(0,0,cv.width,cv.height);
       c.fillStyle='#0e1430'; c.fillRect(g.x,g.y+g.h+4,g.w,14);
       roundRect(c,g.x-2,g.y-2,g.w+4,g.h+4,8,true,false,'#0f1530');
@@ -1009,12 +1051,23 @@ function onUp(e){
       for(let y=g.y;y<=g.y+g.h;y+=14){ c.beginPath(); c.moveTo(g.x,y); c.lineTo(g.x+g.w,y); c.stroke(); }
       c.restore();
       c.strokeStyle='#fff'; c.lineWidth=6; roundRect(c,g.x,g.y,g.w,g.h,6,false,true);
-      const kw = g.w * 0.16, kh = kw * 2.5;
+      const kw = g.w * 0.14, kh = kw * 2.2;
+      const dw = kw * 2.8, dh = kh * 1.2;
       const centerX = g.x + (g.w - kw) / 2, ky = g.y + g.h - kh + g.h * 0.05;
-      if(init){ r.kx = centerX; }
+      const dy = ky - dh - g.h * 0.02;
+      if(init){
+        r.kx = centerX;
+        r.kw = kw; r.kh = kh; r.g = g;
+        r.def = {x:centerX - dw/2, y:dy, w:dw, h:dh, baseY:dy, vy:0, jumping:false};
+      }
       const active = r.shots[0];
       const targetX = active ? clamp(active.x - kw/2, g.x, g.x + g.w - kw) : centerX;
       r.kx += (targetX - r.kx) * 0.2;
+      const d = r.def;
+      if(d){
+        if(d.jumping){ d.vy += GRAVITY*0.5; d.y += d.vy; if(d.y >= d.baseY){ d.y = d.baseY; d.vy = 0; d.jumping = false; } }
+        c.drawImage(defendersImg, d.x, d.y, d.w, d.h);
+      }
       const local = Array.isArray(miniHolesCache[i]) ? miniHolesCache[i] : [];
       if(init && !local.length){ miniHolesCache[i]=genMiniHoles(g); }
       const list = Array.isArray(miniHolesCache[i]) ? miniHolesCache[i] : [];
@@ -1069,8 +1122,19 @@ function onUp(e){
         if(Math.random() < chance){
           const saved = Math.random() < 0.5;
           if(!saved){ r.score += Math.max(5, Math.round(target.p)); }
-          const cv=r.cvs; const g={x:12,y:12,w:cv.width-24,h:cv.height-30};
-          r.shots.push({x:g.x+g.w/2,y:g.y+g.h,vx:(target.x-(g.x+g.w/2))/15,vy:(target.y-(g.y+g.h))/15,life:1,saved});
+          const g=r.g, kw=r.kw;
+          const d=r.def;
+          const startX = rnd(g.x + d.w/2, g.x + g.w - d.w/2);
+          d.x = clamp(startX - d.w/2, g.x, g.x + g.w - d.w);
+          d.y = d.baseY; d.vy = 0; d.jumping = Math.random() < 0.5;
+          if(d.jumping){ d.vy = -5; }
+          const wallCenter = d.x + d.w/2;
+          const goalCenter = g.x + g.w/2;
+          const gap = g.w * 0.02;
+          if(wallCenter < goalCenter - g.w*0.1) r.kx = g.x + g.w - kw - gap;
+          else if(wallCenter > goalCenter + g.w*0.1) r.kx = g.x + gap;
+          else r.kx = Math.random() < 0.5 ? g.x + gap : g.x + g.w - kw - gap;
+          r.shots.push({x:startX,y:g.y+g.h,vx:(target.x-startX)/15,vy:(target.y-(g.y+g.h))/15,life:1,saved});
         }
       }
       r.ptsEl.textContent = r.score;
@@ -1157,6 +1221,7 @@ function loop(now){ requestAnimationFrame(loop); drawField(); drawAds(); drawGoa
   crowdSound.loop = true;
   crowdSound.volume = 0.5;
   const whistleSound = new Audio('/assets/sounds/metal-whistle-6121.mp3');
+  const cheerSound = new Audio('/assets/sounds/man-cheering-in-victory-epic-stock-media-1-00-01.mp3');
   function playWhistle(){
     ensureAudio();
     whistleSound.currentTime = 0;
@@ -1180,7 +1245,7 @@ function loop(now){ requestAnimationFrame(loop); drawField(); drawAds(); drawGoa
     const src=audioCtx.createBufferSource();
     src.buffer=prizeSoundBuf;
     const gain=audioCtx.createGain();
-    gain.gain.value=0.7; // slightly lower volume for point prize sound
+    gain.gain.value=1.0; // boosted volume for point prize sound
     src.connect(gain).connect(masterGain);
     src.start(0);
   }
@@ -1341,6 +1406,7 @@ function drawStaticOnce(){ drawField(); drawAds(); drawGoal(); resetBall(); draw
     startCountdown(3);
   }
   boot();
+  document.getElementById('lobbyBtn').addEventListener('click', ()=>{ location.href='/games/freekick/lobby'; });
 })();
 </script>
 </body>
