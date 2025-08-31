@@ -275,9 +275,9 @@
   const aimOn = true;
 
   const rivals=[
-    { i:0, wrap:document.querySelector('#pv0'), ptsEl:document.querySelector('#pv0pts'), cvs:null, ctx:null, score:0, next:0, acc:0.68, rate:[1180,2180], shots:[], kx:0, kw:0, kh:0, g:null, avatar:'' },
-    { i:1, wrap:document.querySelector('#pv1'), ptsEl:document.querySelector('#pv1pts'), cvs:null, ctx:null, score:0, next:0, acc:0.62, rate:[1275,2360], shots:[], kx:0, kw:0, kh:0, g:null, avatar:'' },
-    { i:2, wrap:document.querySelector('#pv2'), ptsEl:document.querySelector('#pv2pts'), cvs:null, ctx:null, score:0, next:0, acc:0.58, rate:[1350,2510], shots:[], kx:0, kw:0, kh:0, g:null, avatar:'' },
+    { i:0, wrap:document.querySelector('#pv0'), ptsEl:document.querySelector('#pv0pts'), cvs:null, ctx:null, score:0, next:0, acc:0.68, rate:[1180,2180], shots:[], kx:0, kw:0, kh:0, g:null, avatar:'', flash:0, result:'' },
+    { i:1, wrap:document.querySelector('#pv1'), ptsEl:document.querySelector('#pv1pts'), cvs:null, ctx:null, score:0, next:0, acc:0.62, rate:[1275,2360], shots:[], kx:0, kw:0, kh:0, g:null, avatar:'', flash:0, result:'' },
+    { i:2, wrap:document.querySelector('#pv2'), ptsEl:document.querySelector('#pv2pts'), cvs:null, ctx:null, score:0, next:0, acc:0.58, rate:[1350,2510], shots:[], kx:0, kw:0, kh:0, g:null, avatar:'', flash:0, result:'' },
   ];
   for(let i=0;i<rivals.length;i++){ rivals[i].cvs = rivals[i].wrap.querySelector('canvas'); rivals[i].ctx = rivals[i].cvs.getContext('2d'); rivals[i].avatar = pvAvatars[i]?.src || ''; }
   const miniHolesCache=[[],[],[]];
@@ -459,12 +459,16 @@
     // Free-kick arc omitted for simplified field
   }
 
-  function drawMiniGoal(c,g){
+  function drawMiniGoal(c,g,netOverride){
     const innerW=g.w*0.8, innerH=g.h*0.8;
     const ix=g.x+(g.w-innerW)/2, iy=g.y+(g.h-innerH)/2;
     const scale=g.w/geom.goal.w;
-    const netColor=getComputedStyle(document.documentElement).getPropertyValue('--net')||'#e6e6e6';
+    const netColor=netOverride||getComputedStyle(document.documentElement).getPropertyValue('--net')||'#e6e6e6';
     const size=18*scale; const h=size*Math.sqrt(3)/2;
+    c.save();
+    c.beginPath();
+    c.rect(ix,iy,innerW,innerH);
+    c.clip();
     c.strokeStyle=netColor; c.lineWidth=Math.max(0.5,1.2*scale);
     for(let y=g.y-h; y<g.y+g.h+h; y+=h){
       for(let x=g.x-size; x<g.x+g.w+size; x+=size*1.5){
@@ -481,6 +485,7 @@
         c.stroke();
       }
     }
+    c.restore();
     c.strokeStyle='#fff';
     c.lineWidth=2*scale;
     c.beginPath();
@@ -1131,11 +1136,16 @@ function onUp(e){
       c.restore();
 
       // goal and defenders
-      drawMiniGoal(c,goal);
+      drawMiniGoal(c,goal,r.flash>0?'#ffd400':undefined);
       const dw=defenders.w*scale, dh=defenders.h*scale;
       const dx=goal.x+(defenders.x-geom.goal.x)*scale;
       const dy=goal.y+(defenders.y-geom.goal.y)*scale;
+      c.save();
+      c.beginPath();
+      c.rect(field.x,field.y,field.w,field.h);
+      c.clip();
       c.drawImage(defendersImg,dx,dy,dw,dh);
+      c.restore();
 
       // keeper setup
       const kw = keeper.w*scale, kh = keeper.h*scale;
@@ -1166,8 +1176,11 @@ function onUp(e){
       // rival shots
       for(const s of r.shots){
         s.x+=s.vx; s.y+=s.vy; s.vy+=0.25; s.life-=0.02;
-        // if keeper saves, stop the shot when it reaches the keeper
-        if(s.saved && s.y <= ky + kh * 0.2){ s.life = 0; continue; }
+        if(s.saved && s.y <= ky + kh * 0.2){ s.life = 0; }
+        if(s.life<=0){
+          if(!s.done){ r.result = s.saved ? 'MISSED' : 'GOAL'; r.flash = 1; s.done = true; }
+          continue;
+        }
         c.fillStyle='#fff';
         c.beginPath();
         c.arc(s.x,s.y,4,0,Math.PI*2);
@@ -1185,6 +1198,21 @@ function onUp(e){
 
       // keeper in front
       c.drawImage(keeperImg, r.kx, ky, kw, kh);
+      if(r.flash>0){
+        c.save();
+        c.globalAlpha=r.flash;
+        const txt=r.result;
+        c.font=`900 ${Math.min(goal.h*0.5,40)}px system-ui`;
+        c.textAlign='center';
+        c.textBaseline='middle';
+        c.lineWidth=4;
+        c.strokeStyle='#000';
+        c.fillStyle=txt==='GOAL'?'#fff':'#ef4444';
+        c.strokeText(txt,goal.x+goal.w/2,goal.y+goal.h/2);
+        c.fillText(txt,goal.x+goal.w/2,goal.y+goal.h/2);
+        c.restore();
+        r.flash*=0.92;
+      }
       r.shots = r.shots.filter(s=>s.life>0);
       r.ptsEl.textContent = r.score;
     }
