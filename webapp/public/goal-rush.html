@@ -511,6 +511,21 @@
     ctx.rect(centerX - penW / 2, rink.y + rink.h - penH, penW, penH);
     ctx.stroke();
 
+    // goal areas (6-yard boxes)
+    const goalAreaW = rink.w * 0.2;
+    const goalAreaH = rink.h * 0.06;
+    ctx.beginPath();
+    ctx.rect(centerX - goalAreaW / 2, rink.y, goalAreaW, goalAreaH);
+    ctx.rect(centerX - goalAreaW / 2, rink.y + rink.h - goalAreaH, goalAreaW, goalAreaH);
+    ctx.stroke();
+
+    // penalty arcs
+    const arcR = penW * 0.32;
+    ctx.beginPath();
+    ctx.arc(centerX, rink.y + penH, arcR, Math.PI * 1.1, Math.PI * 1.9);
+    ctx.arc(centerX, rink.y + rink.h - penH, arcR, Math.PI * 0.1, Math.PI * 0.9);
+    ctx.stroke();
+
     // penalty spots
     const spotR = Math.min(W, H) * 0.01;
     ctx.fillStyle = getCSS('--line');
@@ -519,8 +534,25 @@
     ctx.arc(centerX, rink.y + rink.h - penH * 0.7, spotR, 0, Math.PI * 2);
     ctx.fill();
 
+    // advertising billboards behind goals
+    const billboardH = goalDepth * 1.2;
+    drawBillboard(goalCenterX, goalTopY - goalDepth - billboardH, goalWidth, billboardH);
+    drawBillboard(goalCenterX, goalBottomY + goalDepth, goalWidth, billboardH);
+
     drawGoal(goalCenterX, goalTopY, goalWidth, goalDepth, -1);
     drawGoal(goalCenterX, goalBottomY, goalWidth, goalDepth, 1);
+  }
+  function drawBillboard(cx, y, w, h){
+    ctx.save();
+    ctx.translate(cx, y);
+    ctx.fillStyle = '#222';
+    ctx.fillRect(-w/2, 0, w, h);
+    ctx.fillStyle = '#fff';
+    ctx.font = `${h*0.6}px sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('AD', 0, h/2);
+    ctx.restore();
   }
   function drawGoal(cx, y, w, d, dir){
     ctx.save();
@@ -555,6 +587,13 @@
         ctx.stroke();
       }
     }
+    // camera lenses on posts
+    const camR = lw * 1.5;
+    ctx.fillStyle = '#000';
+    ctx.beginPath();
+    ctx.arc(-w/2, 0, camR, 0, Math.PI*2);
+    ctx.arc(w/2, 0, camR, 0, Math.PI*2);
+    ctx.fill();
     ctx.restore();
   }
   function drawPaddle(p, color, img, emoji){
