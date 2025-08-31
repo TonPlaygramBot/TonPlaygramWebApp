@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { planShot } from '../lib/poolAi.js';
+import { planShot, estimateCueAfterShot } from '../lib/poolAi.js';
 
 test('planShot targets lowest numbered ball', () => {
   const req = {
@@ -152,4 +152,26 @@ test('prefers target with smallest cut angle', () => {
   };
   const decision = planShot(req);
   assert.equal(decision.targetBallId, 1);
+});
+
+test('cue ball remains within table bounds for varied power and spin', () => {
+  const cue = { id: 0, x: 500, y: 250, vx: 0, vy: 0, pocketed: false };
+  const target = { id: 1, x: 600, y: 250, vx: 0, vy: 0, pocketed: false };
+  const pocket = { x: 1000, y: 250 };
+  const table = { width: 1000, height: 500 };
+  const powers = [0.5, 1];
+  const spins = [
+    { top: 0, side: -1, back: 0 },
+    { top: 0, side: 0, back: 0 },
+    { top: 0, side: 1, back: 0 },
+    { top: 0.3, side: 0.5, back: -0.3 }
+  ];
+
+  for (const power of powers) {
+    for (const spin of spins) {
+      const next = estimateCueAfterShot(cue, target, pocket, power, spin, table);
+      assert(next.x >= 0 && next.x <= table.width, `x out of bounds: ${next.x}`);
+      assert(next.y >= 0 && next.y <= table.height, `y out of bounds: ${next.y}`);
+    }
+  }
 });
