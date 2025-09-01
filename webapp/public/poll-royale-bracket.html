@@ -1,0 +1,446 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Canvas Bracket (8 / 16 / 24)</title>
+<style>
+  :root{
+    --bg:#0b1020;
+    --panel:#11172a;
+    --ink:#dbe7ff;
+    --accent:#2563eb;
+    --accent-2:#f97316;
+    --accent-3:#a855f7;
+    --muted:#8aa0d1;
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%}
+  body{
+    margin:0;
+    font-family:system-ui,Segoe UI,Roboto,Arial,Helvetica,sans-serif;
+    background: radial-gradient(80% 60% at 50% 0%, #0f1735 0%, var(--bg) 60%);
+    color:var(--ink);
+    display:flex; flex-direction:column; gap:10px;
+  }
+  header{
+    position:sticky; top:0; z-index:2;
+    background:linear-gradient(180deg, rgba(17,23,42,.95) 0%, rgba(17,23,42,.85) 100%);
+    backdrop-filter: blur(8px);
+    border-bottom:1px solid rgba(255,255,255,.06);
+  }
+  .wrap{
+    max-width:1100px;
+    margin:0 auto;
+    padding:10px 12px;
+    display:flex; gap:10px; align-items:center; flex-wrap:wrap;
+  }
+  .title{font-weight:700; letter-spacing:.6px; margin-right:auto}
+  select,button,textarea,input{
+    background:var(--panel);
+    color:var(--ink);
+    border:1px solid rgba(255,255,255,.08);
+    border-radius:10px;
+    padding:10px 12px;
+    outline:none;
+  }
+  select,button{height:40px}
+  button{cursor:pointer}
+  button:hover{filter:brightness(1.05)}
+  .toolbar{display:flex; gap:10px; align-items:center; flex-wrap:wrap}
+  .notes{font-size:.86rem; color:var(--muted)}
+  .canvas-wrap{
+    position:relative;
+    overflow:auto; /* allow horizontal scroll on phones */
+    border-top:1px solid rgba(255,255,255,.06);
+    border-bottom:1px solid rgba(255,255,255,.06);
+    background:
+      radial-gradient(1000px 300px at 50% -50px, rgba(37,99,235,.25), transparent 70%),
+      radial-gradient(800px 300px at 50% 100%, rgba(249,115,22,.15), transparent 70%);
+  }
+  canvas{ display:block; margin:0 auto; }
+  .footer-note{padding:8px 12px; text-align:center; color:var(--muted); font-size:.85rem}
+  details{margin-left:auto}
+  summary{cursor:pointer}
+  .pill {
+    display:inline-flex; align-items:center; gap:8px; padding:4px 8px; border-radius:999px;
+    background:rgba(37,99,235,.15); border:1px solid rgba(37,99,235,.35); color:#cfe0ff;
+    font-size:.8rem;
+  }
+</style>
+</head>
+<body>
+<header>
+  <div class="wrap">
+    <div class="title">🏆 Canvas Bracket</div>
+    <div class="toolbar">
+      <label for="size">Teams:</label>
+      <select id="size">
+        <option value="8" selected>8</option>
+        <option value="16">16</option>
+        <option value="24">24</option>
+      </select>
+      <button id="gen">Generate</button>
+      <button id="shuffle" title="Shuffle seeded teams">Random</button>
+      <span class="pill">Mobile: horizontal scroll</span>
+    </div>
+  </div>
+</header>
+
+<div class="wrap" style="gap:16px">
+  <details>
+    <summary>📋 Enter team names (optional)</summary>
+    <div style="display:flex; gap:10px; flex-wrap:wrap; margin-top:8px">
+      <textarea id="names" rows="4" cols="40" placeholder="One team per line. If fewer than selected size, the rest will be BYE."></textarea>
+      <button id="apply">Apply names</button>
+    </div>
+  </details>
+  <div class="notes">Tip: Tap a team box in the first round to rename it. The entire bracket is drawn with <strong>Canvas</strong> only.</div>
+</div>
+
+<div class="canvas-wrap">
+  <canvas id="board" width="1200" height="800" aria-label="Tournament bracket canvas"></canvas>
+</div>
+
+<div class="footer-note">© Canvas Bracket — no images / no binary files — responsive &lt;canvas&gt;.</div>
+
+<script>
+(function(){
+  const DPR = Math.max(1, Math.min(2, window.devicePixelRatio || 1));
+  const canvas = document.getElementById('board');
+  const ctx = canvas.getContext('2d');
+  const sizeSel = document.getElementById('size');
+  const genBtn = document.getElementById('gen');
+  const shuffleBtn = document.getElementById('shuffle');
+  const applyBtn = document.getElementById('apply');
+  const namesTA = document.getElementById('names');
+
+  const theme = {
+    bg:'#0b1020',
+    panel:'#11172a',
+    ink:'#dbe7ff',
+    muted:'#8aa0d1',
+    neonA:'#2563eb',
+    neonB:'#f97316',
+    neonC:'#a855f7',
+    line:'#233155'
+  };
+
+  let hitRegions = []; // {round, match, slot, x,y,w,h}
+
+  let state = {
+    teams: [],
+    N: 8,
+    bracketN: 8,
+    rounds: [],
+    seedToName: {}
+  };
+
+  function nextPow2(n){ let p=1; while(p<n) p<<=1; return p; }
+
+  function seedOrder(N){
+    if(N===2) return [1,2];
+    const prev = seedOrder(N/2);
+    const mirror = prev.map(x => N + 1 - x);
+    return prev.concat(mirror);
+  }
+
+  function round0PairsFromSeeds(N){
+    const order = seedOrder(N);
+    const pairs = [];
+    for(let i=0;i<N;i+=2){
+      pairs.push([order[i], order[i+1]]);
+    }
+    return pairs;
+  }
+
+  function createBracket(Nrequested, names){
+    const pow2 = nextPow2(Nrequested);
+    state.N = Nrequested;
+    state.bracketN = pow2;
+    const namesTrim = (names || []).map(s=>s.trim()).filter(Boolean);
+    const seedToName = {};
+    for(let s=1; s<=pow2; s++){
+      if(s<=Nrequested && namesTrim[s-1]) seedToName[s]=namesTrim[s-1];
+      else if(s<=Nrequested) seedToName[s] = 'Team '+s;
+      else seedToName[s]='BYE';
+    }
+    state.seedToName = seedToName;
+
+    const r0 = round0PairsFromSeeds(pow2);
+    state.rounds = [r0];
+    let matches = r0.length;
+    while(matches>1){
+      matches = Math.ceil(matches/2);
+      state.rounds.push(Array.from({length:matches}, _=>[0,0]));
+    }
+    layoutAndDraw();
+  }
+
+  function layoutAndDraw(){
+    const rounds = state.rounds.length;
+    const colW = 220;
+    const colGap = 64;
+    const padX = 24;
+    const padY = 24;
+    const widthCSS = padX*2 + rounds*colW + (rounds-1)*colGap;
+
+    const matches0 = state.rounds[0].length;
+
+    const boxH = 56;
+    const slotH = boxH/2;
+    const baseGap = 28;
+
+    const centers = [];
+    centers[0] = Array.from({length:matches0}, (_,i)=> padY + (boxH/2) + i*(boxH + baseGap));
+    for(let r=1; r<rounds; r++){
+      const prev = centers[r-1];
+      const arr=[];
+      for(let i=0;i<Math.ceil(prev.length/2);i++){
+        const c = (prev[2*i] + prev[2*i+1]) / 2;
+        arr.push(c);
+      }
+      centers[r]=arr;
+    }
+
+    const lastCenter = centers[rounds-1][0] || padY + boxH/2;
+    const heightCSS = Math.max(600, lastCenter + padY + boxH/2);
+
+    canvas.style.width = widthCSS + 'px';
+    canvas.style.height = heightCSS + 'px';
+    canvas.width = Math.floor(widthCSS * DPR);
+    canvas.height = Math.floor(heightCSS * DPR);
+    ctx.setTransform(DPR,0,0,DPR,0,0);
+
+    ctx.clearRect(0,0,widthCSS,heightCSS);
+    drawBackground(widthCSS, heightCSS);
+
+    hitRegions = [];
+    for(let r=0;r<rounds;r++){
+      const x = padX + r*(colW + colGap);
+      drawRoundTitle(r, x, 6 + (r==0? 10:0));
+
+      const matchesR = state.rounds[r].length;
+      for(let m=0;m<matchesR;m++){
+        const yCenter = centers[r][m];
+        drawMatchBox(r, m, x, yCenter - boxH/2, colW, boxH, slotH);
+      }
+
+      if(r>0){
+        const xPrev = padX + (r-1)*(colW + colGap) + colW;
+        const xConn = xPrev + 18;
+        ctx.lineWidth = 2;
+        ctx.strokeStyle = theme.line;
+        ctx.beginPath();
+        for(let m=0;m<state.rounds[r].length;m++){
+          const cy = centers[r][m];
+          const top = centers[r-1][2*m];
+          const bot = centers[r-1][2*m+1];
+          ctx.moveTo(xPrev, top);
+          ctx.lineTo(xConn, top);
+          ctx.moveTo(xPrev, bot);
+          ctx.lineTo(xConn, bot);
+          ctx.moveTo(xConn, top);
+          ctx.lineTo(xConn, bot);
+          ctx.moveTo(xConn, cy);
+          ctx.lineTo(x, cy);
+        }
+        ctx.stroke();
+      }
+    }
+
+    drawCenterLabels(widthCSS);
+  }
+
+  function drawBackground(w,h){
+    const g = ctx.createLinearGradient(0,0,w,0);
+    g.addColorStop(0,'rgba(168,85,247,.08)');
+    g.addColorStop(.5,'rgba(37,99,235,.10)');
+    g.addColorStop(1,'rgba(249,115,22,.08)');
+    ctx.fillStyle = g;
+    ctx.fillRect(0,0,w,h);
+  }
+
+  function drawRoundTitle(r, x, topPad){
+    ctx.save();
+    ctx.fillStyle = '#bcd0ff';
+    ctx.font = '600 12px system-ui,Segoe UI,Roboto,Arial';
+    ctx.textAlign = 'left';
+    let label = '';
+    const rounds = state.rounds.length;
+    if(r === 0) label = 'ROUND OF ' + state.bracketN;
+    else if(r === rounds-1) label = 'FINAL';
+    else if(r === rounds-2) label = 'SEMIFINAL';
+    else label = 'QUARTER / R' + (r+1);
+    ctx.fillText(label, x, topPad + 10);
+    ctx.restore();
+  }
+
+  function slotColor(r, slot){
+    const palettes = [theme.neonC, theme.neonA, theme.neonB];
+    const base = palettes[r % palettes.length];
+    const alpha = .22;
+    return hexToRgba(base, alpha);
+  }
+
+  function drawMatchBox(r, m, x, y, w, h, slotH){
+    const radius = 12;
+    roundRect(ctx, x, y, w, h, radius);
+    const grad = ctx.createLinearGradient(x, y, x, y+h);
+    grad.addColorStop(0, 'rgba(255,255,255,.04)');
+    grad.addColorStop(1, 'rgba(0,0,0,.25)');
+    ctx.fillStyle = grad;
+    ctx.fill();
+
+    ctx.fillStyle = slotColor(r,0);
+    roundRect(ctx, x+4, y+4, w-8, slotH-6, 8);
+    ctx.fill();
+    ctx.fillStyle = slotColor(r,1);
+    roundRect(ctx, x+4, y+slotH+2, w-8, slotH-6, 8);
+    ctx.fill();
+
+    ctx.strokeStyle = 'rgba(255,255,255,.06)';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(x+8, y+slotH);
+    ctx.lineTo(x+w-8, y+slotH);
+    ctx.stroke();
+
+    ctx.fillStyle = '#e7efff';
+    ctx.font = '600 13px system-ui,Segoe UI,Roboto,Arial';
+    ctx.textAlign = 'left';
+
+    const names = matchNames(r,m);
+    ctx.fillText(names[0], x+12, y+slotH/2+4);
+    ctx.fillText(names[1], x+12, y+slotH + slotH/2+4);
+
+    hitRegions.push({round:r, match:m, slot:0, x:x+4, y:y+4, w:w-8, h:slotH-6});
+    hitRegions.push({round:r, match:m, slot:1, x:x+4, y:y+slotH+2, w:w-8, h:slotH-6});
+  }
+
+  function matchNames(r,m){
+    if(r===0){
+      const [sA, sB] = state.rounds[0][m];
+      return [state.seedToName[sA], state.seedToName[sB]];
+    }
+    const nameA = 'Winner '+labelForSource(r-1, 2*m);
+    const nameB = 'Winner '+labelForSource(r-1, 2*m+1);
+    return [nameA, nameB];
+  }
+
+  function labelForSource(r,m){
+    if(r===0){
+      const [sA,sB]=state.rounds[0][m];
+      return `(${seedShort(sA)} vs ${seedShort(sB)})`;
+    }else{
+      return `R${r+1}-M${m+1}`;
+    }
+  }
+
+  function seedShort(s){
+    const n = state.seedToName[s];
+    if(n==='BYE') return 'BYE';
+    if(/^Team \d+$/i.test(n)) return n.replace('Team ', '#');
+    return n.length>10? n.slice(0,10)+'…': n;
+  }
+
+  function drawCenterLabels(w){
+    ctx.save();
+    ctx.textAlign = 'center';
+    ctx.font = '700 20px system-ui,Segoe UI,Roboto,Arial';
+    ctx.fillStyle = '#e8f0ff';
+    ctx.fillText('THE PLAYOFFS', w/2, 34);
+    ctx.font = '600 12px system-ui,Segoe UI,Roboto,Arial';
+    ctx.fillStyle = '#9fb3de';
+    ctx.fillText('WORLD CHAMPIONSHIP', w/2, 54);
+    ctx.restore();
+  }
+
+  function hexToRgba(hex, a){
+    let c = hex.replace('#','');
+    if(c.length===3){ c = c.split('').map(x=>x+x).join(''); }
+    const num = parseInt(c,16);
+    const r = (num>>16)&255, g=(num>>8)&255, b=num&255;
+    return `rgba(${r},${g},${b},${a})`;
+  }
+
+  function roundRect(ctx, x, y, w, h, r){
+    const rr = Math.min(r, w/2, h/2);
+    ctx.beginPath();
+    ctx.moveTo(x+rr, y);
+    ctx.lineTo(x+w-rr, y);
+    ctx.quadraticCurveTo(x+w, y, x+w, y+rr);
+    ctx.lineTo(x+w, y+h-rr);
+    ctx.quadraticCurveTo(x+w, y+h, x+w-rr, y+h);
+    ctx.lineTo(x+rr, y+h);
+    ctx.quadraticCurveTo(x, y+h, x, y+h-rr);
+    ctx.lineTo(x, y+rr);
+    ctx.quadraticCurveTo(x, y, x+rr, y);
+    ctx.closePath();
+  }
+
+  canvas.addEventListener('click', (ev)=>{
+    const rect = canvas.getBoundingClientRect();
+    const x = (ev.clientX - rect.left);
+    const y = (ev.clientY - rect.top);
+    for(const reg of hitRegions){
+      if(x>=reg.x && x<=reg.x+reg.w && y>=reg.y && y<=reg.y+reg.h){
+        const nm = prompt('Enter team name:', getNameAt(reg.round, reg.match, reg.slot));
+        if(nm && nm.trim()){
+          setNameAt(reg.round, reg.match, reg.slot, nm.trim());
+          layoutAndDraw();
+        }
+        break;
+      }
+    }
+  });
+
+  function getNameAt(r,m,slot){
+    const [a,b] = matchNames(r,m);
+    return slot===0? a:b;
+  }
+
+  function setNameAt(r,m,slot,newName){
+    if(r===0){
+      const seed = state.rounds[0][m][slot];
+      state.seedToName[seed] = newName;
+    }else{
+      alert('Names in this round are auto-filled from previous matches.');
+    }
+  }
+
+  genBtn.addEventListener('click', ()=>{
+    const N = parseInt(sizeSel.value,10);
+    createBracket(N, state.teams);
+  });
+
+  shuffleBtn.addEventListener('click', ()=>{
+    const N = state.N;
+    const arr = [];
+    for(let s=1; s<=N; s++){
+      arr.push(state.seedToName[s]);
+    }
+    for(let i=arr.length-1;i>0;i--){
+      const j = Math.floor(Math.random()*(i+1));
+      [arr[i], arr[j]] = [arr[j], arr[i]];
+    }
+    for(let s=1; s<=state.bracketN; s++){
+      if(s<=N) state.seedToName[s]=arr[s-1];
+      else state.seedToName[s]='BYE';
+    }
+    layoutAndDraw();
+  });
+
+  applyBtn.addEventListener('click', ()=>{
+    const lines = (namesTA.value || '').split(/\r?\n/).map(s=>s.trim()).filter(Boolean);
+    state.teams = lines;
+    const N = parseInt(sizeSel.value,10);
+    createBracket(N, lines);
+  });
+
+  createBracket(8, []);
+  window.addEventListener('resize', ()=> layoutAndDraw());
+})();
+</script>
+</body>
+</html>
