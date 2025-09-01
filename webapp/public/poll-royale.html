@@ -446,20 +446,20 @@
 
       #cueOptions {
         position: absolute;
-        /* Move cue controls down by the height of two buttons (72px) */
-        bottom: calc(env(safe-area-inset-bottom) - 12px);
+        /* Slightly raise the cue controls */
+        bottom: calc(env(safe-area-inset-bottom) + 2px);
         left: 50%;
         transform: translateX(-50%);
         display: flex;
         flex-direction: row;
         align-items: center;
-        gap: 0;
-        z-index: 8;
+        gap: 6px;
+        z-index: 20;
         pointer-events: auto;
       }
       #cueOptions .cue-label {
         font-size: 10px;
-        margin: 0 4px 0 0;
+        margin: 0;
       }
       #cueOptions .cue-btn {
         width: 36px;
@@ -622,72 +622,20 @@
       #tournamentOverlay {
         position: fixed;
         inset: 0;
-        background: rgba(0, 0, 0, 0.8);
-        color: #fff;
+        background: #111;
         display: flex;
-        flex-direction: column;
-        align-items: center;
         justify-content: center;
+        align-items: center;
         z-index: 400;
       }
       #tournamentOverlay.hidden {
         display: none;
       }
-      .tournament-bracket {
-        display: flex;
-        align-items: center;
-        gap: 32px;
-      }
-      .tournament-bracket ul {
-        list-style: none;
-        padding: 0;
-        margin: 0;
-      }
-      .tournament-bracket ul.left {
-        border-right: 2px solid #fff;
-        padding-right: 8px;
-      }
-      .tournament-bracket ul.right {
-        border-left: 2px solid #fff;
-        padding-left: 8px;
-      }
-      .tournament-bracket li {
-        padding: 0;
-        border: none;
-        margin-bottom: 8px;
-      }
-      .tournament-bracket .match {
-        border: 1px solid #fff;
-        padding: 4px;
-      }
-      .tournament-bracket .player {
-        display: flex;
-        align-items: center;
-        gap: 4px;
-        font-size: 12px;
-      }
-      .tournament-bracket .player img {
-        width: 16px;
-        height: 16px;
-        border-radius: 50%;
-      }
-      .tournament-pot {
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        gap: 4px;
-      }
-      .tournament-pot img {
-        width: 40px;
-      }
-      #tournamentStart,
-      #tournamentLobby {
-        margin-top: 16px;
-        padding: 8px 16px;
-        border: 1px solid #fff;
-        background: #20345a;
-        color: #fff;
-        border-radius: 4px;
+      #tournamentOverlay canvas {
+        background: #fff;
+        width: 95vw;
+        height: 95vh;
+        border: 1px solid #000;
       }
 
       #rulesModal {
@@ -3652,16 +3600,7 @@
     </div>
 
     <div id="tournamentOverlay" class="hidden">
-      <div class="tournament-bracket">
-        <ul id="tLeft" class="left"></ul>
-        <div class="tournament-pot">
-          <img src="/assets/icons/ezgif-54c96d8a9b9236.webp" alt="TPC" />
-          <div id="tPotAmount"></div>
-        </div>
-        <ul id="tRight" class="right"></ul>
-      </div>
-      <button id="tournamentStart">Start Match</button>
-      <button id="tournamentLobby" class="hidden">Return Lobby</button>
+      <canvas id="bracket"></canvas>
     </div>
 
     <script>
@@ -3760,91 +3699,75 @@
 
       if (params.get('type') === 'tournament') {
         const overlay = document.getElementById('tournamentOverlay');
-        const startBtn = document.getElementById('tournamentStart');
-        const lobbyBtn = document.getElementById('tournamentLobby');
-        const leftList = document.getElementById('tLeft');
-        const rightList = document.getElementById('tRight');
-        const potEl = document.getElementById('tPotAmount');
-        const totalPlayers = window.tournamentPlayers || 8;
-        const userName = window.playerName || 'You';
-        const userAvatar = avatarParam || '/assets/icons/profile.svg';
-        function emojiToDataUri(flag) {
-          return `data:image/svg+xml,${encodeURIComponent(`<svg xmlns='http://www.w3.org/2000/svg' width='32' height='32'><text x='50%' y='50%' font-size='24' text-anchor='middle' dominant-baseline='central'>${flag}</text></svg>`)}`;
+        const canvas = document.getElementById('bracket');
+        const ctx = canvas.getContext('2d');
+        const players = Array.from({ length: window.tournamentPlayers || 16 }, (_, i) => `Team ${i + 1}`);
+        const totalPot = window.potAmount || 0;
+
+        function resizeCanvas() {
+          canvas.width = window.innerWidth * 0.95;
+          canvas.height = window.innerHeight * 0.95;
+          drawBracket();
         }
-        const aiFlags = [...FLAG_EMOJIS].sort(() => 0.5 - Math.random());
-        let bracket = Array.from({ length: totalPlayers }, (_, i) => {
-          if (i === 0) return { name: userName, avatar: userAvatar };
-          const flag = aiFlags[i - 1];
-          return { name: flagToName(flag), avatar: emojiToDataUri(flag) };
-        });
-        window.tournamentData = { bracket: [bracket], round: 0 };
-        function renderMatches(arr) {
-          let html = '';
-          for (let i = 0; i < arr.length; i += 2) {
-            const a = arr[i];
-            const b = arr[i + 1];
-            if (b) {
-              html += `<li><div class="match"><div class="player"><img src="${a.avatar}" alt="" />${a.name}</div><div class="player"><img src="${b.avatar}" alt="" />${b.name}</div></div></li>`;
-            } else {
-              html += `<li><div class="match"><div class="player"><img src="${a.avatar}" alt="" />${a.name}</div></div></li>`;
-            }
+
+        window.addEventListener('resize', resizeCanvas);
+
+        function drawBracket() {
+          ctx.clearRect(0, 0, canvas.width, canvas.height);
+          ctx.strokeStyle = '#000';
+          ctx.lineWidth = 2;
+          ctx.font = '14px Arial';
+          ctx.textBaseline = 'middle';
+
+          let size = players.length;
+          if (![8, 16, 24].includes(size)) {
+            ctx.fillText('Only 8, 16 or 24 players supported', 20, 20);
+            return;
           }
-          return html;
+
+          let effectivePlayers = [...players];
+          if (size === 24) {
+            effectivePlayers = players.slice(0, 16).concat(players.slice(16).map(p => p + ' (BYE)'));
+            size = 16;
+          }
+
+          const rounds = Math.log2(size);
+          const colWidth = canvas.width / (rounds * 2);
+          const rowHeight = canvas.height / effectivePlayers.length;
+
+          for (let i = 0; i < effectivePlayers.length / 2; i++) {
+            let y = rowHeight * (i * 2 + 1);
+            ctx.strokeRect(10, y - 12, colWidth - 20, 24);
+            ctx.fillText(effectivePlayers[i], 15, y);
+            ctx.beginPath();
+            ctx.moveTo(colWidth - 10, y);
+            ctx.lineTo(colWidth, y);
+            ctx.stroke();
+          }
+
+          for (let i = effectivePlayers.length / 2; i < effectivePlayers.length; i++) {
+            let idx = i - effectivePlayers.length / 2;
+            let y = rowHeight * (idx * 2 + 1);
+            ctx.strokeRect(canvas.width - colWidth + 10, y - 12, colWidth - 20, 24);
+            ctx.fillText(effectivePlayers[i], canvas.width - colWidth + 15, y);
+            ctx.beginPath();
+            ctx.moveTo(canvas.width - colWidth, y);
+            ctx.lineTo(canvas.width - colWidth + 10, y);
+            ctx.stroke();
+          }
+
+          ctx.beginPath();
+          ctx.arc(canvas.width / 2, canvas.height / 2, 40, 0, 2 * Math.PI);
+          ctx.stroke();
+
+          ctx.font = '16px Arial';
+          ctx.textAlign = 'center';
+          ctx.fillText(`POT: ${totalPot} TPC`, canvas.width / 2, canvas.height / 2 + 60);
+          ctx.textAlign = 'left';
         }
-        function render(list) {
-          if (list.length === 1) {
-            leftList.innerHTML = '';
-            rightList.innerHTML = renderMatches(list);
-          } else {
-            const half = list.length / 2;
-            leftList.innerHTML = renderMatches(list.slice(0, half));
-            rightList.innerHTML = renderMatches(list.slice(half));
-          }
-          potEl.textContent = (window.potAmount || 0) + ' TPC';
-        }
-        function showOverlay() {
-          render(window.tournamentData.bracket[window.tournamentData.round]);
-          startBtn.classList.remove('hidden');
-          lobbyBtn.classList.add('hidden');
-          overlay.classList.remove('hidden');
-        }
-        startBtn.addEventListener('click', () => {
-          overlay.classList.add('hidden');
-          document.getElementById('play').click();
-        });
-        lobbyBtn.addEventListener('click', () => {
-          location.href = '/games/pollroyale/lobby';
-        });
-        window.handleTournamentResult = function (winner) {
-          const data = window.tournamentData;
-          const current = data.bracket[data.round];
-          const next = [];
-          for (let i = 0; i < current.length; i += 2) {
-            const a = current[i];
-            const b = current[i + 1];
-            let w;
-            if (a.name === userName || b?.name === userName) {
-              w = winner === 1 ? (a.name === userName ? a : b) : (a.name === userName ? b : a);
-            } else {
-              w = a;
-            }
-            next.push(w);
-          }
-          data.round++;
-          data.bracket.push(next);
-          if (next.length === 1) {
-            render(next);
-            startBtn.classList.add('hidden');
-            lobbyBtn.classList.remove('hidden');
-            overlay.classList.remove('hidden');
-          } else {
-            render(next);
-            startBtn.classList.remove('hidden');
-            lobbyBtn.classList.add('hidden');
-            overlay.classList.remove('hidden');
-          }
-        };
-        showOverlay();
+
+        resizeCanvas();
+        overlay.classList.remove('hidden');
       }
 
       // Rotate corner holes diagonally; keep side holes horizontal
