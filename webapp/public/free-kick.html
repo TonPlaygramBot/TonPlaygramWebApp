@@ -970,7 +970,8 @@
     if(ball.x>g.x && ball.x<g.x+g.w && ball.y>g.y && ball.y<g.y+g.h){
       for(const h of holes){
         if(h.hit) continue;
-        if(Math.hypot(h.x-ball.x,h.y-ball.y) <= Math.max(2,h.r-ball.r*0.6)){
+        // break a prize once the ball overlaps roughly 30% of its radius
+        if(Math.hypot(h.x-ball.x,h.y-ball.y) <= Math.max(2, h.r + ball.r * 0.3)){
           h.hit=true; createFragments(h);
           if(h.timer){
             roundStart -= 10000;
@@ -1016,10 +1017,13 @@
       const dx=ball.target.x-ball.x, dy=ball.target.y-ball.y;
       const dist=Math.hypot(dx,dy);
       if(dist < ball.r*0.15 || (ball.prevDist && dist>ball.prevDist)){
-        ball.x=ball.target.x; ball.y=ball.target.y;
-        ball.vx*=0.2; ball.vy=Math.max(0,ball.vy)*0.2; ball.spin*=0.2;
-        ball.trailStopped = true;
-        endShot(true,ball.points); ball.target=null; ball.prevDist=null; return;
+        ball.x = ball.target.x;
+        ball.y = ball.target.y;
+        // keep velocity so loose ball keeps moving after scoring
+        endShot(true, ball.points);
+        ball.target = null;
+        ball.prevDist = null;
+        return;
       }
       ball.prevDist=dist;
     }
