@@ -574,6 +574,37 @@
         z-index: 80;
       }
 
+      #trainingMenuWrapper {
+        position: fixed;
+        left: 12px;
+        bottom: 60px;
+        z-index: 300;
+      }
+      #trainingMenuButton {
+        width: 40px;
+        height: 40px;
+        border-radius: 8px;
+        border: 1px solid #24375f;
+        background: #20345a;
+        color: #fff;
+      }
+      #trainingMenu {
+        margin-top: 8px;
+        background: #20345a;
+        padding: 8px;
+        border-radius: 8px;
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+      }
+      #trainingMenu button {
+        background: #1a2b4d;
+        border: 1px solid #24375f;
+        color: #fff;
+        padding: 4px 8px;
+        border-radius: 4px;
+      }
+
       #rulesModal {
         position: fixed;
         inset: 0;
@@ -3455,6 +3486,15 @@
       })();
     </script>
 
+    <div id="trainingMenuWrapper" class="hidden">
+      <button id="trainingMenuButton">☰</button>
+      <div id="trainingMenu" class="hidden">
+        <button id="practiceSolo">Practice Solo</button>
+        <button id="practiceAi">Practice vs AI</button>
+        <button id="restartTraining">New Game</button>
+      </div>
+    </div>
+
     <script>
       const rulesBtn = document.getElementById('rulesBtn');
       const rulesModal = document.getElementById('rulesModal');
@@ -3523,6 +3563,32 @@
           rulesModal.classList.add('hidden');
         }
       });
+
+      const params = new URLSearchParams(window.location.search);
+      if (params.get('type') === 'training') {
+        const wrapper = document.getElementById('trainingMenuWrapper');
+        const menuBtn = document.getElementById('trainingMenuButton');
+        const menu = document.getElementById('trainingMenu');
+        wrapper.classList.remove('hidden');
+        menuBtn.addEventListener('click', () => {
+          menu.classList.toggle('hidden');
+        });
+        document.getElementById('practiceSolo').addEventListener('click', () => {
+          console.log('Practice solo');
+          menu.classList.add('hidden');
+        });
+        document
+          .getElementById('practiceAi')
+          .addEventListener('click', () => {
+            console.log('Practice vs AI');
+            menu.classList.add('hidden');
+          });
+        document
+          .getElementById('restartTraining')
+          .addEventListener('click', () => {
+            window.location.reload();
+          });
+      }
 
       // Rotate corner holes diagonally; keep side holes horizontal
       const allHoles = document.querySelectorAll('.hole');

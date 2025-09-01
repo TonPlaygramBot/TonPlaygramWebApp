@@ -7,6 +7,8 @@ export default function PollRoyale() {
   const params = new URLSearchParams(search);
   const variant = params.get('variant') || 'uk';
   params.set('variant', variant);
+  const type = params.get('type') || 'regular';
+  params.set('type', type);
   const src = `/poll-royale.html?${params.toString()}`;
   const title =
     variant === '9ball'
