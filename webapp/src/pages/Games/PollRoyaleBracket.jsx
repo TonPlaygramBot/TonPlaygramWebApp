@@ -50,15 +50,34 @@ export default function PollRoyaleBracket() {
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     }
 
+    const avatarCache = new Map();
+
     function nodeText(str) {
       const trimmed = (str || '').toString();
       const max = 16;
-      return trimmed.length > max
-        ? trimmed.slice(0, max - 1) + '…'
-        : trimmed.padEnd(Math.min(max, 16), ' ');
+      return trimmed.length > max ? trimmed.slice(0, max - 1) + '…' : trimmed;
     }
 
-    function drawAvatar(x, y, size, label) {
+    function drawAvatar(x, y, size, player) {
+      if (player?.avatar) {
+        let img = avatarCache.get(player.avatar);
+        if (!img) {
+          img = new Image();
+          img.src = player.avatar;
+          avatarCache.set(player.avatar, img);
+          img.onload = () => render();
+        }
+        if (img.complete && img.naturalWidth) {
+          ctx.save();
+          ctx.beginPath();
+          ctx.arc(x + size / 2, y, size / 2, 0, Math.PI * 2);
+          ctx.closePath();
+          ctx.clip();
+          ctx.drawImage(img, x, y - size / 2, size, size);
+          ctx.restore();
+          return;
+        }
+      }
       ctx.fillStyle = '#ccc';
       ctx.beginPath();
       ctx.arc(x + size / 2, y, size / 2, 0, Math.PI * 2);
@@ -67,7 +86,11 @@ export default function PollRoyaleBracket() {
       ctx.font = '10px system-ui, sans-serif';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
-      ctx.fillText((label || '?').charAt(0).toUpperCase(), x + size / 2, y);
+      ctx.fillText(
+        (player?.name || '?').charAt(0).toUpperCase(),
+        x + size / 2,
+        y
+      );
     }
 
     function drawBox(x, y, w, h, player, alignLeft = true) {
@@ -79,7 +102,7 @@ export default function PollRoyaleBracket() {
       if (player) {
         const size = 18;
         const ax = alignLeft ? x + 8 : x + w - 8 - size;
-        drawAvatar(ax, y, size, player.name);
+        drawAvatar(ax, y, size, player);
         const tx = alignLeft ? ax + size + 4 : ax - 4;
         ctx.fillStyle = theme.ink;
         ctx.font =
