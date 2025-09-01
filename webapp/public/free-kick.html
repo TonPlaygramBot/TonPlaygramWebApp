@@ -1431,15 +1431,16 @@ function onUp(e){
           target = { x: rnd(g.x, g.x + g.w), y: rnd(g.y, g.y + g.h), r: 40*r.scale, p: 0, t: 0 };
         }
         const acc = clamp(r.acc * (0.9 + 0.5*t),0, 0.98);
-        const chance = acc * (22/Math.max(10,target.r)) * 0.8;
+        const chance = acc * (22/Math.max(10,target.r));
         if(Math.random() < chance){
-          const saved = Math.random() < 0.5;
           const startX = rnd(g.x, g.x + g.w);
           r.defX = clamp(startX - r.defW/2, g.x, g.x + g.w - r.defW);
           if(!r.defJump){ r.defVy = -2*r.scale; r.defJump = true; }
-          const vx = (target.x - startX) / 15;
-          const vy = (target.y - (g.y + g.h)) / 15;
-          r.shots.push({x:startX,y:g.y+g.h,vx,vy,life:1,saved,target});
+          const frames = 15;
+          const gravity = 0.25;
+          const vx = (target.x - startX) / frames;
+          const vy = (target.y - (g.y + g.h) - 0.5*gravity*frames*frames) / frames;
+          r.shots.push({x:startX,y:g.y+g.h,vx,vy,life:1,saved:false,target});
         }
       }
       r.ptsEl.textContent = r.score;
