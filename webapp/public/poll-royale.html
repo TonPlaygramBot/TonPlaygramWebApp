@@ -2586,6 +2586,19 @@
 
           var impactX = cue.p.x + dir.x * tHit,
             impactY = cue.p.y + dir.y * tHit;
+          var contactX = impactX,
+            contactY = impactY,
+            hitN = null;
+          if (target) {
+            var tx0 = target.p.x,
+              ty0 = target.p.y;
+            hitN = { x: tx0 - impactX, y: ty0 - impactY };
+            var nL0 = len(hitN.x, hitN.y) || 1;
+            hitN.x /= nL0;
+            hitN.y /= nL0;
+            contactX = tx0 - hitN.x * BALL_R;
+            contactY = ty0 - hitN.y * BALL_R;
+          }
           const guaranteedHit = target && !railNormal;
           ctx.save();
           ctx.strokeStyle = guaranteedHit
@@ -2594,7 +2607,7 @@
           ctx.lineWidth = 2;
           ctx.beginPath();
           ctx.moveTo(cue.p.x * sX, cue.p.y * sY);
-          ctx.lineTo(impactX * sX, impactY * sY);
+          ctx.lineTo(contactX * sX, contactY * sY);
           ctx.stroke();
           ctx.restore();
 
@@ -2628,11 +2641,7 @@
               ty = target.p.y;
             var impactCueX = impactX,
               impactCueY = impactY;
-            // Direction from cue ball to target ball at impact
-            var hitN = { x: tx - impactCueX, y: ty - impactCueY };
-            var nL = len(hitN.x, hitN.y) || 1;
-            hitN.x /= nL;
-            hitN.y /= nL;
+            // hitN already normalized above when computing contactX/contactY
 
             // Draw marker circle with a plus at the contact point
             var hitSpotX = tx - hitN.x * BALL_R;
