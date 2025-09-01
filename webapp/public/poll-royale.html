@@ -466,8 +466,9 @@
         border: 1px solid #fff;
         background: none;
         color: #fff;
-        font-size: 10px;
+        font-size: 8px;
         cursor: pointer;
+        margin-left: -6px;
       }
       #cueOptions .cue-btn.active {
         background: #facc15;
@@ -589,7 +590,18 @@
         color: #fff;
       }
       #trainingMenu {
-        margin-top: 8px;
+        position: fixed;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.7);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 400;
+      }
+      #trainingMenu.hidden {
+        display: none;
+      }
+      #trainingMenuInner {
         background: #20345a;
         padding: 8px;
         border-radius: 8px;
@@ -597,11 +609,69 @@
         flex-direction: column;
         gap: 4px;
       }
-      #trainingMenu button {
+      #trainingMenuInner button {
         background: #1a2b4d;
         border: 1px solid #24375f;
         color: #fff;
         padding: 4px 8px;
+        border-radius: 4px;
+      }
+
+      #tournamentOverlay {
+        position: fixed;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.8);
+        color: #fff;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        z-index: 400;
+      }
+      #tournamentOverlay.hidden {
+        display: none;
+      }
+      .tournament-bracket {
+        display: flex;
+        align-items: center;
+        gap: 32px;
+      }
+      .tournament-bracket ul {
+        list-style: none;
+        padding: 0;
+        margin: 0;
+      }
+      .tournament-bracket ul.left {
+        border-right: 2px solid #fff;
+        padding-right: 8px;
+      }
+      .tournament-bracket ul.right {
+        border-left: 2px solid #fff;
+        padding-left: 8px;
+      }
+      .tournament-bracket li {
+        padding: 4px 8px;
+        border-bottom: 1px solid #fff;
+      }
+      .tournament-bracket li:last-child {
+        border-bottom: none;
+      }
+      .tournament-pot {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 4px;
+      }
+      .tournament-pot img {
+        width: 40px;
+      }
+      #tournamentStart,
+      #tournamentLobby {
+        margin-top: 16px;
+        padding: 8px 16px;
+        border: 1px solid #fff;
+        background: #20345a;
+        color: #fff;
         border-radius: 4px;
       }
 
@@ -877,6 +947,13 @@
         var variant = params.get('variant') || 'uk';
         var isAmerican = variant === 'american';
         var isNineBall = variant === '9ball';
+        var playType = params.get('type') || 'regular';
+        window.trainingMode = playType === 'training';
+        window.tournamentMode = playType === 'tournament';
+        window.trainingSolo = false;
+        window.tournamentPlayers = parseInt(params.get('players') || '0', 10);
+        window.potAmount = parseInt(params.get('amount') || '0', 10);
+        window.playerName = params.get('name') || 'Player';
         const planShotPromise = import('/lib/poolAi.js');
 
         /* ==========================================================
@@ -1152,6 +1229,10 @@
         function endGame(winner) {
           table.running = false;
           shotInProgress = false;
+          if (window.tournamentMode && typeof window.handleTournamentResult === 'function') {
+            window.handleTournamentResult(winner);
+            return;
+          }
           var overlay = document.getElementById('winnerOverlay');
           var avatar = winner === 1 ? avatarP1 : avatarCPU;
           if (avatar) overlay.innerHTML = avatar.outerHTML;
@@ -2439,6 +2520,7 @@
           }
 
         function updateTurnIndicator(force) {
+          if (window.trainingMode && window.trainingSolo) table.turn = 1;
           if (force || table.turn !== lastTurn) {
             avatarP1.classList.toggle('turn', table.turn === 1);
             avatarCPU.classList.toggle('turn', table.turn === 2);
@@ -2496,6 +2578,26 @@
           lastShotPower = 0;
           cueVisible = true;
           cuePullVisual = 0;
+          if (window.trainingMode && window.trainingSolo) {
+            table.turn = 1;
+            updateTurnIndicator(true);
+            lastShotAim = null;
+            lastPocketCenter = null;
+            lastCueStart = null;
+            pottedThisShot = [];
+            pocketedAny = false;
+            pocketedOwn = false;
+            scratch = false;
+            foulShown = false;
+            firstHit = null;
+            cueHitCushion = false;
+            nearPocketEdgeHit = false;
+            currentTarget = null;
+            eightBallPotted = false;
+            nineBallPotted = false;
+            lastPocketedBall = null;
+            return;
+          }
           var opponent = currentShooter === 1 ? 2 : 1;
           var foul = isFoul(firstHit, scratch);
           var shotPoints = pottedThisShot.reduce(function (a, b) {
@@ -3188,6 +3290,7 @@
        CPU – turn i thjeshte (normal skill)
        ========================================================= */
         async function cpuTurn() {
+          if (window.trainingMode && window.trainingSolo) return;
           if (table.isMoving() || table.turn !== 2) return;
           cpuThinking = true;
           startCpuTimer();
@@ -3479,7 +3582,16 @@
           table.running = true;
           resize();
           table.render();
-          startDiceRoll();
+          if (window.trainingMode && window.trainingSolo) {
+            var cpuPlayer = document.querySelector('#header .player:last-child');
+            if (cpuPlayer) cpuPlayer.style.display = 'none';
+            table.turn = 1;
+            isBreakShot = true;
+            updateTurnIndicator(true);
+            showTurnInfo();
+          } else {
+            startDiceRoll();
+          }
         });
         resize();
         table.render();
@@ -3488,11 +3600,26 @@
 
     <div id="trainingMenuWrapper" class="hidden">
       <button id="trainingMenuButton">☰</button>
-      <div id="trainingMenu" class="hidden">
+    </div>
+    <div id="trainingMenu" class="hidden">
+      <div id="trainingMenuInner">
         <button id="practiceSolo">Practice Solo</button>
         <button id="practiceAi">Practice vs AI</button>
         <button id="restartTraining">New Game</button>
       </div>
+    </div>
+
+    <div id="tournamentOverlay" class="hidden">
+      <div class="tournament-bracket">
+        <ul id="tLeft" class="left"></ul>
+        <div class="tournament-pot">
+          <img src="/assets/icons/ezgif-54c96d8a9b9236.webp" alt="TPC" />
+          <div id="tPotAmount"></div>
+        </div>
+        <ul id="tRight" class="right"></ul>
+      </div>
+      <button id="tournamentStart">Start Match</button>
+      <button id="tournamentLobby" class="hidden">Return Lobby</button>
     </div>
 
     <script>
@@ -3571,23 +3698,92 @@
         const menu = document.getElementById('trainingMenu');
         wrapper.classList.remove('hidden');
         menuBtn.addEventListener('click', () => {
-          menu.classList.toggle('hidden');
+          menu.classList.remove('hidden');
+        });
+        menu.addEventListener('click', (e) => {
+          if (e.target === menu) menu.classList.add('hidden');
         });
         document.getElementById('practiceSolo').addEventListener('click', () => {
-          console.log('Practice solo');
+          window.trainingSolo = true;
           menu.classList.add('hidden');
         });
-        document
-          .getElementById('practiceAi')
-          .addEventListener('click', () => {
-            console.log('Practice vs AI');
-            menu.classList.add('hidden');
-          });
-        document
-          .getElementById('restartTraining')
-          .addEventListener('click', () => {
-            window.location.reload();
-          });
+        document.getElementById('practiceAi').addEventListener('click', () => {
+          window.trainingSolo = false;
+          menu.classList.add('hidden');
+        });
+        document.getElementById('restartTraining').addEventListener('click', () => {
+          window.location.reload();
+        });
+      }
+
+      if (params.get('type') === 'tournament') {
+        const overlay = document.getElementById('tournamentOverlay');
+        const startBtn = document.getElementById('tournamentStart');
+        const lobbyBtn = document.getElementById('tournamentLobby');
+        const leftList = document.getElementById('tLeft');
+        const rightList = document.getElementById('tRight');
+        const potEl = document.getElementById('tPotAmount');
+        const totalPlayers = window.tournamentPlayers || 8;
+        const userName = window.playerName || 'You';
+        let bracket = Array.from({ length: totalPlayers }, (_, i) =>
+          i === 0 ? userName : 'CPU ' + i
+        );
+        window.tournamentData = { bracket: [bracket], round: 0 };
+        function render(list) {
+          const half = list.length / 2;
+          leftList.innerHTML = list
+            .slice(0, half)
+            .map(p => `<li>${p}</li>`)
+            .join('');
+          rightList.innerHTML = list
+            .slice(half)
+            .map(p => `<li>${p}</li>`)
+            .join('');
+          potEl.textContent = (window.potAmount || 0) + ' TPC';
+        }
+        function showOverlay() {
+          render(window.tournamentData.bracket[window.tournamentData.round]);
+          startBtn.classList.remove('hidden');
+          lobbyBtn.classList.add('hidden');
+          overlay.classList.remove('hidden');
+        }
+        startBtn.addEventListener('click', () => {
+          overlay.classList.add('hidden');
+          document.getElementById('play').click();
+        });
+        lobbyBtn.addEventListener('click', () => {
+          location.href = '/games/pollroyale/lobby';
+        });
+        window.handleTournamentResult = function (winner) {
+          const data = window.tournamentData;
+          const current = data.bracket[data.round];
+          const next = [];
+          for (let i = 0; i < current.length; i += 2) {
+            const a = current[i];
+            const b = current[i + 1];
+            let w;
+            if (a === userName || b === userName) {
+              w = winner === 1 ? userName : a === userName ? b : a;
+            } else {
+              w = a;
+            }
+            next.push(w);
+          }
+          data.round++;
+          data.bracket.push(next);
+          if (next.length === 1) {
+            render(next);
+            startBtn.classList.add('hidden');
+            lobbyBtn.classList.remove('hidden');
+            overlay.classList.remove('hidden');
+          } else {
+            render(next);
+            startBtn.classList.remove('hidden');
+            lobbyBtn.classList.add('hidden');
+            overlay.classList.remove('hidden');
+          }
+        };
+        showOverlay();
       }
 
       // Rotate corner holes diagonally; keep side holes horizontal
