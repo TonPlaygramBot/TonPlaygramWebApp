@@ -446,18 +446,19 @@
 
       #cueOptions {
         position: absolute;
-        top: 15%;
-        left: 0;
+        bottom: calc(56px + env(safe-area-inset-bottom) + 4px);
+        left: 50%;
+        transform: translateX(-50%);
         display: flex;
-        flex-direction: column;
-        align-items: flex-start;
-        gap: 4px;
+        flex-direction: row;
+        align-items: center;
+        gap: 0;
         z-index: 8;
         pointer-events: auto;
       }
       #cueOptions .cue-label {
         font-size: 10px;
-        margin-bottom: 2px;
+        margin: 0 4px 0 0;
       }
       #cueOptions .cue-btn {
         width: 36px;
@@ -468,7 +469,7 @@
         color: #fff;
         font-size: 8px;
         cursor: pointer;
-        margin-left: -6px;
+        margin: 0;
       }
       #cueOptions .cue-btn.active {
         background: #facc15;
