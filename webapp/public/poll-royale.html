@@ -582,6 +582,37 @@
         font-size: 18px;
         cursor: pointer;
       }
+
+      #diceOverlay {
+        position: absolute;
+        inset: 0;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        background: rgba(0, 0, 0, 0.7);
+        z-index: 100;
+      }
+      #diceOverlay.hidden {
+        display: none;
+      }
+      #diceOverlay .dice-row {
+        display: flex;
+        gap: 20px;
+        margin-bottom: 20px;
+      }
+      #diceOverlay .die {
+        width: 60px;
+        height: 60px;
+        background: #fff;
+        color: #000;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 32px;
+        border-radius: 8px;
+        user-select: none;
+      }
     </style>
   </head>
   <body>
@@ -645,6 +676,8 @@
     </div>
     <div id="winnerOverlay" class="winnerOverlay hidden"></div>
     <div id="centerPopup"></div>
+
+    <div id="diceOverlay" class="hidden"></div>
 
     <button id="rulesBtn" aria-label="Game rules">ℹ️</button>
     <div id="rulesModal" class="hidden" role="dialog" aria-modal="true">
@@ -1315,7 +1348,7 @@
           this.balls = [];
           this.pockets = [];
           this.running = false;
-          this.turn = 1; // 1: P1, 2: CPU
+          this.turn = 0; // 0: waiting for dice, 1: P1, 2: CPU
           this.captured = { 1: [], 2: [] };
           this.aim = { x: TABLE_W / 2, y: TABLE_H / 3 };
           // Track ball pairs that are currently colliding to avoid
@@ -2455,7 +2488,7 @@
         }
 
         canvas.addEventListener('pointerdown', function (e) {
-          if (!table.running || table.isMoving() || table.turn === 2) return;
+          if (!table.running || table.isMoving() || table.turn !== 1) return;
           canvas.setPointerCapture(e.pointerId);
           var t = screenToTable(e.clientX, e.clientY);
           var cue = table.balls[0];
@@ -2477,7 +2510,7 @@
         });
 
         document.addEventListener('pointermove', function (e) {
-          if (table.turn === 2) return;
+          if (table.turn !== 1) return;
           var t = screenToTable(e.clientX, e.clientY);
           var cue = table.balls[0];
           if (draggingCue && cueBallFree) {
@@ -2510,7 +2543,7 @@
         });
 
         document.addEventListener('pointerup', function (e) {
-          if (table.turn === 2) return;
+          if (table.turn !== 1) return;
           canvas.releasePointerCapture && canvas.releasePointerCapture(e.pointerId);
           if (draggingCue) {
             draggingCue = false;
@@ -3011,7 +3044,9 @@
                   : assignedTypes[2] === 'yellow'
                   ? 'STRIPES'
                   : 'UNASSIGNED',
-              ballInHand: cueBallFree
+              ballInHand: cueBallFree,
+              mustPlayFromBaulk: cueBallFree,
+              baulkLineY: LINE_Y + BALL_R
             }
           };
           let shot = planShot(req);
@@ -3050,7 +3085,8 @@
               freeBallAvailable: cueBallFree,
               shotsRemaining: 1,
               mustPlayFromBaulk: cueBallFree,
-              baulkLineX: TABLE_W / 2
+              baulkLineX: TABLE_W / 2,
+              baulkLineY: LINE_Y + BALL_R
             };
             const plan = selectShot(advState);
             if (plan) {
@@ -3088,8 +3124,18 @@
             return;
           }
           if (shot.cueBallPosition) {
-            cue.p.x = shot.cueBallPosition.x;
-            cue.p.y = shot.cueBallPosition.y;
+            var nx = clamp(
+              shot.cueBallPosition.x,
+              BORDER + BALL_R,
+              TABLE_W - BORDER - BALL_R
+            );
+            var ny = clamp(
+              shot.cueBallPosition.y,
+              LINE_Y + BALL_R,
+              TABLE_H - BORDER_BOTTOM - BALL_R
+            );
+            cue.p.x = nx;
+            cue.p.y = ny;
             cue.v.x = cue.v.y = 0;
             cueBallFree = false;
           }
@@ -3113,11 +3159,65 @@
         /* ==========================================================
        START / RESIZE / RENDER fillestar
        ========================================================= */
+        function startDiceRoll() {
+          var overlay = document.getElementById('diceOverlay');
+          overlay.classList.remove('hidden');
+          overlay.innerHTML =
+            '<div class="dice-row"><div id="playerDie" class="die">-</div><div id="cpuDie" class="die">-</div></div>' +
+            '<div id="diceMsg">Tap your die to roll</div>';
+          var playerDie = document.getElementById('playerDie');
+          var cpuDie = document.getElementById('cpuDie');
+          var diceMsg = document.getElementById('diceMsg');
+          var playerRoll = null;
+          var cpuRoll = null;
+          function rollDie(el) {
+            var v = Math.floor(Math.random() * 6) + 1;
+            el.textContent = v;
+            return v;
+          }
+          function checkResult() {
+            if (playerRoll !== null && cpuRoll !== null) {
+              if (playerRoll === cpuRoll) {
+                diceMsg.textContent = 'Tie! Rolling again...';
+                setTimeout(startDiceRoll, 1000);
+                return;
+              }
+              var playerStarts = playerRoll > cpuRoll;
+              diceMsg.textContent = playerStarts
+                ? 'You break first'
+                : 'CPU breaks first';
+              setTimeout(function () {
+                overlay.classList.add('hidden');
+                table.turn = playerStarts ? 1 : 2;
+                updateTurnIndicator(true);
+                showTurnInfo();
+                if (table.turn === 2) cpuTurn();
+              }, 1000);
+            }
+          }
+          function rollPlayer() {
+            if (playerRoll !== null) return;
+            playerRoll = rollDie(playerDie);
+            checkResult();
+          }
+          function rollCpu() {
+            if (cpuRoll !== null) return;
+            cpuRoll = rollDie(cpuDie);
+            checkResult();
+          }
+          playerDie.addEventListener('click', rollPlayer);
+          setTimeout(rollCpu, 2000);
+          setTimeout(function () {
+            if (playerRoll === null) rollPlayer();
+          }, 5000);
+        }
+
         playBtn.addEventListener('click', function () {
           playBtn.style.display = 'none';
           table.running = true;
           resize();
           table.render();
+          startDiceRoll();
         });
         resize();
         table.render();
