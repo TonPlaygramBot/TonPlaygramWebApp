@@ -16,7 +16,6 @@ test('scratch on break gives opponent two visits without free ball', () => {
   assert.equal(res.foul, true);
   assert.equal(res.nextPlayer, 'B');
   assert.equal(res.shotsRemainingNext, 2);
-  assert.equal(res.freeBallNext, false);
 });
 
 test('after foul player must hit a valid colour first', () => {
@@ -50,6 +49,21 @@ test('no pot and no cushion is foul', () => {
   });
   assert.equal(res.foul, true);
   assert.equal(res.reason, 'no cushion');
+});
+
+test('potting opponent ball is foul', () => {
+  const game = new UkPool();
+  game.state.assignments = { A: 'yellow', B: 'red' };
+  game.state.isOpenTable = false;
+  const res = game.shotTaken({
+    contactOrder: ['yellow'],
+    potted: ['red'],
+    cueOffTable: false,
+    noCushionAfterContact: false,
+    placedFromHand: false
+  });
+  assert.equal(res.foul, true);
+  assert.equal(res.reason, 'potted opponent ball');
 });
 
 test('potting 8-ball before clearing group loses the frame', () => {
@@ -179,6 +193,21 @@ test('potting 8-ball legally after clearing group wins', () => {
   assert.equal(res.winner, 'A');
 });
 
+test('hitting black after clearing group without pot is legal', () => {
+  const game = new UkPool();
+  game.state.assignments = { A: 'yellow', B: 'red' };
+  game.state.isOpenTable = false;
+  game.state.ballsOnTable.yellow.clear();
+  const res = game.shotTaken({
+    contactOrder: ['black'],
+    potted: [],
+    cueOffTable: false,
+    noCushionAfterContact: false,
+    placedFromHand: false
+  });
+  assert.equal(res.foul, false);
+});
+
 test('potting black when one colour cleared on open table is legal', () => {
   const game = new UkPool();
   game.state.ballsOnTable.yellow.clear();
@@ -258,7 +287,6 @@ test('AI targets black when own balls cleared', () => {
     ballRadius: 5,
     ballOn: 'yellow',
     isOpenTable: false,
-    freeBallAvailable: false,
     shotsRemaining: 1
   };
   const plan = selectShot(state);
@@ -286,7 +314,6 @@ test('AI plays safety when own ball is blocked', () => {
     ballRadius: 5,
     ballOn: 'yellow',
     isOpenTable: false,
-    freeBallAvailable: false,
     shotsRemaining: 1
   };
   const plan = selectShot(state);
@@ -313,7 +340,6 @@ test('AI increases EV after learning from success', () => {
     ballRadius: 5,
     ballOn: 'yellow',
     isOpenTable: false,
-    freeBallAvailable: false,
     shotsRemaining: 1
   };
   const plan1 = selectShot(state);

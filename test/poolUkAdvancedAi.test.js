@@ -52,24 +52,29 @@ test('falls back to safety when pot not viable', () => {
   assert.equal(plan.actionType, 'safety');
 });
 
-test('uses free ball when available', () => {
+test('uses cushion escapes when direct path blocked', () => {
   const state = {
     balls: [
       { id: 0, colour: 'cue', x: 50, y: 50 },
-      { id: 1, colour: 'yellow', x: 400, y: 250 },
-      { id: 2, colour: 'red', x: 300, y: 250 }
+      { id: 1, colour: 'yellow', x: 250, y: 50 },
+      { id: 2, colour: 'red', x: 150, y: 50 }
     ],
-    pockets: makePockets(),
-    width: 1000,
-    height: 500,
-    ballRadius: 10,
+    pockets: [
+      { x: 0, y: 0, name: 'TL' },
+      { x: 300, y: 0, name: 'TR' },
+      { x: 0, y: 100, name: 'BL' },
+      { x: 300, y: 100, name: 'BR' }
+    ],
+    width: 300,
+    height: 100,
+    ballRadius: 5,
     ballOn: 'yellow',
     isOpenTable: false,
-    freeBallAvailable: true,
     shotsRemaining: 1
   };
   const plan = selectShot(state, {});
-  assert.equal(plan.actionType, 'freeBallPot');
+  assert.equal(plan.actionType, 'safety');
+  assert.ok(plan.aimPoint.x === 0 || plan.aimPoint.x === state.width || plan.aimPoint.y === 0 || plan.aimPoint.y === state.height);
 });
 
 test('prioritizes straight pots', () => {
