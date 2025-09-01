@@ -20,6 +20,8 @@ export default function PollRoyaleLobby() {
   const [mode, setMode] = useState('ai');
   const [avatar, setAvatar] = useState('');
   const [variant, setVariant] = useState('uk');
+  const [playType, setPlayType] = useState('regular');
+  const [players, setPlayers] = useState(8);
 
   useEffect(() => {
     try {
@@ -31,27 +33,38 @@ export default function PollRoyaleLobby() {
   const startGame = async () => {
     let tgId;
     let accountId;
-    try {
-      accountId = await ensureAccountId();
-      const balRes = await getAccountBalance(accountId);
-      if ((balRes.balance || 0) < stake.amount) {
-        alert('Insufficient balance');
-        return;
-      }
-      tgId = getTelegramId();
-      await addTransaction(tgId, -stake.amount, 'stake', {
-        game: 'pollroyale',
-        players: 2,
-        accountId
-      });
-    } catch {}
+    if (playType !== 'training') {
+      try {
+        accountId = await ensureAccountId();
+        const balRes = await getAccountBalance(accountId);
+        if ((balRes.balance || 0) < stake.amount) {
+          alert('Insufficient balance');
+          return;
+        }
+        tgId = getTelegramId();
+        await addTransaction(tgId, -stake.amount, 'stake', {
+          game: 'pollroyale',
+          players: playType === 'tournament' ? players : 2,
+          accountId
+        });
+      } catch {}
+    } else {
+      try {
+        tgId = getTelegramId();
+        accountId = await ensureAccountId();
+      } catch {}
+    }
 
     const params = new URLSearchParams();
-    params.set('mode', mode);
     params.set('variant', variant);
+    params.set('type', playType);
+    if (playType !== 'training') params.set('mode', mode);
+    if (playType === 'tournament') params.set('players', players);
     const initData = window.Telegram?.WebApp?.initData;
-    if (stake.token) params.set('token', stake.token);
-    if (stake.amount) params.set('amount', stake.amount);
+    if (playType !== 'training') {
+      if (stake.token) params.set('token', stake.token);
+      if (stake.amount) params.set('amount', stake.amount);
+    }
     if (avatar) params.set('avatar', avatar);
     if (tgId) params.set('tgId', tgId);
     if (accountId) params.set('accountId', accountId);
@@ -78,31 +91,51 @@ export default function PollRoyaleLobby() {
       )}
       <h2 className="text-xl font-bold text-center">Pool Royale Lobby</h2>
       <div className="space-y-2">
-        <h3 className="font-semibold">Mode</h3>
+        <h3 className="font-semibold">Type</h3>
         <div className="flex gap-2">
           {[
-            { id: 'ai', label: 'Vs AI' },
-            { id: 'online', label: '1v1 Online', disabled: true }
-          ].map(({ id, label, disabled }) => (
-            <div key={id} className="relative">
-              <button
-                onClick={() => !disabled && setMode(id)}
-                className={`lobby-tile ${mode === id ? 'lobby-selected' : ''} ${
-                  disabled ? 'opacity-50 cursor-not-allowed' : ''
-                }`}
-                disabled={disabled}
-              >
-                {label}
-              </button>
-              {disabled && (
-                <span className="absolute inset-0 flex items-center justify-center text-xs bg-black bg-opacity-50 text-background">
-                  Under development
-                </span>
-              )}
-            </div>
+            { id: 'regular', label: 'Regular' },
+            { id: 'training', label: 'Training' },
+            { id: 'tournament', label: 'Tournament' }
+          ].map(({ id, label }) => (
+            <button
+              key={id}
+              onClick={() => setPlayType(id)}
+              className={`lobby-tile ${playType === id ? 'lobby-selected' : ''}`}
+            >
+              {label}
+            </button>
           ))}
         </div>
       </div>
+      {playType !== 'training' && (
+        <div className="space-y-2">
+          <h3 className="font-semibold">Mode</h3>
+          <div className="flex gap-2">
+            {[
+              { id: 'ai', label: 'Vs AI' },
+              { id: 'online', label: '1v1 Online', disabled: true }
+            ].map(({ id, label, disabled }) => (
+              <div key={id} className="relative">
+                <button
+                  onClick={() => !disabled && setMode(id)}
+                  className={`lobby-tile ${mode === id ? 'lobby-selected' : ''} ${
+                    disabled ? 'opacity-50 cursor-not-allowed' : ''
+                  }`}
+                  disabled={disabled}
+                >
+                  {label}
+                </button>
+                {disabled && (
+                  <span className="absolute inset-0 flex items-center justify-center text-xs bg-black bg-opacity-50 text-background">
+                    Under development
+                  </span>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
       <div className="space-y-2">
         <h3 className="font-semibold">Variant</h3>
         <div className="flex gap-2">
@@ -121,10 +154,29 @@ export default function PollRoyaleLobby() {
           ))}
         </div>
       </div>
-      <div className="space-y-2">
-        <h3 className="font-semibold">Stake</h3>
-        <RoomSelector selected={stake} onSelect={setStake} tokens={['TPC']} />
-      </div>
+      {playType === 'tournament' && (
+        <div className="space-y-2">
+          <h3 className="font-semibold">Players</h3>
+          <div className="flex gap-2">
+            {[8, 16, 24].map((p) => (
+              <button
+                key={p}
+                onClick={() => setPlayers(p)}
+                className={`lobby-tile ${players === p ? 'lobby-selected' : ''}`}
+              >
+                {p}
+              </button>
+            ))}
+          </div>
+          <p className="text-xs">Winner takes pot minus 10% developer fee.</p>
+        </div>
+      )}
+      {playType !== 'training' && (
+        <div className="space-y-2">
+          <h3 className="font-semibold">Stake</h3>
+          <RoomSelector selected={stake} onSelect={setStake} tokens={['TPC']} />
+        </div>
+      )}
       <button
         onClick={startGame}
         className="px-4 py-2 w-full bg-primary hover:bg-primary-hover text-background rounded"
