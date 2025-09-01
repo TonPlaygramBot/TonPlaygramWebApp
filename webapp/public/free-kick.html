@@ -240,7 +240,7 @@
 
   const BALL_R = 28;
   // slower initial shot speed for finer precision
-  const SHOT_SPEED = 20;
+  const SHOT_SPEED = 15;
   const MIN_GOAL_POINTS = 5;
   const ball = {
     x: 0,
@@ -260,7 +260,8 @@
     points: 0,
     path: null,
     pathIndex: 0,
-    pathSpeed: 0
+    pathSpeed: 0,
+    exploded: false
   };
   const ballImg = new Image();
   ballImg.src = '/assets/icons/file_0000000061d4620aaf506adfa605e1f3.webp';
@@ -491,6 +492,18 @@
     for(let i=0;i<8;i++){
       fragments.push({x:h.x,y:h.y,vx:rnd(-4,4),vy:rnd(-7,-2),a:rnd(0,Math.PI*2),va:rnd(-0.1,0.1),life:1});
     }
+  }
+
+  function explodeBall(){
+    for(let i=0;i<12;i++){
+      fragments.push({x:ball.x,y:ball.y,vx:rnd(-6,6),vy:rnd(-8,-3),a:rnd(0,Math.PI*2),va:rnd(-0.2,0.2),life:1});
+    }
+    ball.exploded = true;
+    ball.moving = false;
+    ball.path = null;
+    ball.pathIndex = 0;
+    ball.pathSpeed = 0;
+    ball.trail = [];
   }
 
   // ===== Drawing: Field & lines =====
@@ -757,6 +770,7 @@
       ctx.drawImage(ballImg, -sizeL/2, -sizeL/2, sizeL, sizeL);
       ctx.restore();
     }
+    if(ball.exploded) return;
     ctx.save();
     for(let i=0;i<ball.trail.length;i++){
       const t=ball.trail[i];
@@ -937,6 +951,7 @@
             timeLeft += 10000;
             updateHUD();
             popupText('+10',h.x,h.y,timeShort,'#22c55e');
+            sfxPrize();
           } else if(h.bomb){
             roundStart += 15000;
             timeLeft = Math.max(0,timeLeft-15000);
@@ -944,15 +959,19 @@
             updateHUD();
             popupText('-15',h.x,h.y,timeShort,'#ef4444');
             popupText('-50',h.x,h.y,playerScoreEl,'#ef4444');
+            sfxExplosion();
+            explodeBall();
+            setTimeout(()=>{ resetBall(); generateHoles(); }, 700);
           } else {
             ball.points += h.points;
+            sfxPrize();
           }
-          sfxPrize();
           ball.spin *= 0.6;
           break;
         }
       }
     }
+    if(ball.exploded) return;
     const kHit = ballHitsKeeper();
     if(kHit){
       ball.trailStopped = true;
@@ -1087,8 +1106,8 @@
 
   function stepKeeper(){
     // Smoothly move keeper toward target position
-    keeper.x += (keeper.targetX - keeper.x) * 0.1;
-    keeper.y += (keeper.targetY - keeper.y) * 0.1;
+    keeper.x += (keeper.targetX - keeper.x) * 0.05;
+    keeper.y += (keeper.targetY - keeper.y) * 0.05;
   }
 
   // ===== Aim guide =====
@@ -1408,6 +1427,7 @@ function loop(now){ requestAnimationFrame(loop); drawField(); drawAds(); drawGoa
     ball.path = null;
     ball.pathIndex = 0;
     ball.pathSpeed = 0;
+    ball.exploded = false;
     defenders.x = clamp(ball.x - defenders.w/2, 0, W - defenders.w);
     defenders.y = defenders.baseY;
     defenders.vy = 0;
@@ -1516,6 +1536,27 @@ function loop(now){ requestAnimationFrame(loop); drawField(); drawAds(); drawGoa
     src.start(0, 0.4);
   }
   const sfxPost = playPostHitSound;
+  let bombSoundBuf=null;
+  async function loadBombSound(){
+    try{
+      const res=await fetch('/assets/sounds/a-bomb-139689.mp3');
+      const arr=await res.arrayBuffer();
+      ensureAudio(); if(!audioCtx) return;
+      bombSoundBuf = await audioCtx.decodeAudioData(arr);
+    }catch{}
+  }
+  loadBombSound();
+  function playBombSound(){
+    ensureAudio();
+    if(!audioCtx || !bombSoundBuf) return;
+    const src=audioCtx.createBufferSource();
+    src.buffer=bombSoundBuf;
+    const gain=audioCtx.createGain();
+    gain.gain.value=0.7;
+    src.connect(gain).connect(masterGain);
+    src.start(0);
+  }
+  const sfxExplosion = playBombSound;
   // Ball kick sound
   const BALL_KICK_SOUND = encodeURI('/assets/sounds/ball kick .mp3');
   let ballKickSoundBuf = null;
