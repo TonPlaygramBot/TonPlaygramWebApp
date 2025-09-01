@@ -239,8 +239,8 @@
   let myScore = 0;
 
   const BALL_R = 28;
-  // slower initial shot speed for finer precision
-  const SHOT_SPEED = 22; // slightly faster initial shot for smoother kicks
+  // slightly faster initial shot for a snappier feel
+  const SHOT_SPEED = 24; // previously 22
   const MIN_GOAL_POINTS = 5;
   const ball = {
     x: 0,
@@ -757,8 +757,8 @@
     for(const c of cameras){ ctx.fillStyle='#111'; ctx.fillRect(c.x,c.y,c.w,c.h); ctx.fillStyle='#e10600'; ctx.beginPath(); ctx.arc(c.x+8,c.y+6,3,0,Math.PI*2); ctx.fill(); }
     for(const h of holes){ if(h.hit) continue; ctx.fillStyle='rgba(225,6,0,.9)'; ctx.beginPath(); ctx.arc(h.x,h.y,h.r,0,Math.PI*2); ctx.fill();
       ctx.fillStyle='#ffd400'; ctx.font=`800 ${Math.max(12,h.r*0.9)}px system-ui`; ctx.textAlign='center'; ctx.textBaseline='middle';
-      if(h.timer) ctx.fillText('⏳️ ' + h.points, h.x, h.y);
-      else if(h.bomb) ctx.fillText('💣 ' + h.points, h.x, h.y);
+      if(h.timer) ctx.fillText('⏳️ +30', h.x, h.y);
+      else if(h.bomb) ctx.fillText('💣 ' + (h.points * 3), h.x, h.y);
       else ctx.fillText(h.points, h.x, h.y);
     }
     for(const f of fragments){ ctx.save(); ctx.translate(f.x,f.y); ctx.rotate(f.a); ctx.fillStyle='#ffd400'; ctx.fillRect(-4,-2,8,4); ctx.restore(); }
@@ -976,6 +976,8 @@
             updateHUD();
             popupText('+10',h.x,h.y,timeShort,'#22c55e');
             sfxPrize();
+            const maxRival = Math.max(...rivals.map(r=>r.score));
+            if(myScore >= maxRival) finish();
           } else if(h.bomb){
             roundStart += 15000;
             timeLeft = Math.max(0,timeLeft-15000);
@@ -1086,7 +1088,6 @@
             b.vy = 0;
             b.vx *= 0.92;
             b.spin *= 0.8;
-            if(Math.hypot(b.vx,b.vy) < 0.2 && !b.landedAt) b.landedAt = now;
           }
         } else if(!b.bounced){
           b.vy *= -0.25;
@@ -1096,10 +1097,9 @@
           b.vy = 0;
           b.vx *= 0.92;
           b.spin *= 0.8;
-          if(Math.hypot(b.vx,b.vy) < 0.2 && !b.landedAt) b.landedAt = now;
         }
       }
-      if(b.landedAt && now - b.landedAt > 1000){
+      if(now - b.landedAt > 1500){
         b.remove = true;
       }
     }
@@ -1153,7 +1153,7 @@
   // ===== Round / scoring =====
 function endShot(hit,pts,delay=0){
   // keep current ball falling while spawning the next one
-  looseBalls.push({x:ball.x,y:ball.y,vx:ball.vx,vy:ball.vy,angle:ball.angle,spin:ball.spin,bounced:false,insideGoal:hit,landedAt:null});
+  looseBalls.push({x:ball.x,y:ball.y,vx:ball.vx,vy:ball.vy,angle:ball.angle,spin:ball.spin,bounced:false,insideGoal:hit,landedAt:performance.now()});
   ball.moving=false;
   ball.trailStopped = true;
   ball.path = null;
@@ -1399,11 +1399,17 @@ function onUp(e){
         const g = r.g;
         const list = Array.isArray(miniHolesCache[i]) ? miniHolesCache[i] : [];
         if(list.length===0){ generateMiniHoles(); continue; }
+        const bombs = list.filter(h=>h.b);
+        const timers = list.filter(h=>h.t);
         let target;
         const rand = Math.random();
-        if(rand < 0.3){
+        if(rand < 0.2 && timers.length){
+          target = timers[Math.floor(Math.random()*timers.length)];
+        } else if(rand < 0.4 && bombs.length){
+          target = bombs[Math.floor(Math.random()*bombs.length)];
+        } else if(rand < 0.7){
           target = list.slice().sort((a,b)=>a.r-b.r)[0];
-        } else if(rand < 0.6){
+        } else if(rand < 0.9){
           target = list[Math.floor(Math.random()*list.length)];
         } else {
           target = { x: rnd(g.x, g.x + g.w), y: rnd(g.y, g.y + g.h), r: 40*r.scale, p: 0, t: 0 };
