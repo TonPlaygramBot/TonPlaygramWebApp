@@ -27,6 +27,7 @@
         display: block;
         width: 100%;
         height: auto;
+        filter: brightness(110%);
       }
       svg.overlay {
         position: absolute;
@@ -155,9 +156,13 @@
     </div>
     <button id="config-btn" class="config-btn">⚙️</button>
     <div id="config-panel" class="config-panel hidden">
-      <label>Volume:
+      <label>Ball Volume:
         <input id="volume" type="range" min="0" max="100" value="50" />
         <span id="volume-value">50%</span>
+      </label>
+      <label>Brightness:
+        <input id="brightness" type="range" min="50" max="150" value="110" />
+        <span id="brightness-value">110%</span>
       </label>
       <label>Frame Style:
         <select id="frame-select">
@@ -188,6 +193,9 @@
       const configPanel = document.getElementById('config-panel');
       const volumeSlider = document.getElementById('volume');
       const volumeValue = document.getElementById('volume-value');
+      const brightnessSlider = document.getElementById('brightness');
+      const brightnessValue = document.getElementById('brightness-value');
+      const bgImage = document.querySelector('.bg');
       const frameSelect = document.getElementById('frame-select');
       const frameColorInput = document.getElementById('frame-color');
       const cardColorInput = document.getElementById('card-color');
@@ -195,6 +203,14 @@
       const frameSvg = document.getElementById('frame');
 
       let ballVolume = volumeSlider.value / 100;
+      bgImage.style.filter = `brightness(${brightnessSlider.value}%)`;
+
+      brightnessValue.textContent = `${brightnessSlider.value}%`;
+      brightnessSlider.addEventListener('input', () => {
+        const val = brightnessSlider.value;
+        brightnessValue.textContent = `${val}%`;
+        bgImage.style.filter = `brightness(${val}%)`;
+      });
 
       function renderFrame() {
         const color = frameColorInput.value;
