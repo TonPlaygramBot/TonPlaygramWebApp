@@ -269,7 +269,7 @@
   const ballImg = new Image();
   ballImg.src = '/assets/icons/file_0000000061d4620aaf506adfa605e1f3.webp';
 
-  let holes=[]; let banners=[]; let cameras=[]; let looseBalls=[]; let punchEffects=[];
+  let holes=[]; let banners=[]; let cameras=[]; let looseBalls=[]; let punchEffects=[]; let prizePieces=[];
   let netHit={x:0,y:0,t:0,shake:0};
   let goalFlash=0;
   let missFlash=0;
@@ -908,6 +908,30 @@
     ctx.globalAlpha=1;
     punchEffects=punchEffects.filter(p=>p.life>0);
   }
+
+  function drawPrizePieces(){
+    for(const p of prizePieces){
+      ctx.save();
+      ctx.globalAlpha=p.life;
+      ctx.fillStyle='#ffd400';
+      const size=4*geom.scale;
+      ctx.fillRect(p.x-size/2,p.y-size/2,size,size);
+      ctx.restore();
+      p.x+=p.vx;
+      p.y+=p.vy;
+      p.vy+=GRAVITY*0.3;
+      p.life-=0.02;
+    }
+    prizePieces=prizePieces.filter(p=>p.life>0);
+  }
+
+  function spawnPrizePieces(x,y){
+    for(let i=0;i<8;i++){
+      const a=Math.random()*Math.PI*2;
+      const s=(Math.random()*2+1)*geom.scale;
+      prizePieces.push({x,y,vx:Math.cos(a)*s,vy:Math.sin(a)*s,life:1});
+    }
+  }
   const FRICTION=0.995, AIR_DRAG=0.0006, GRAVITY=0.20; // reduce drag for smoother motion
   function stepBall(){
     if(!ball.moving) return;
@@ -1074,6 +1098,7 @@
             ball.points += h.points;
             sfxPrize();
           }
+          spawnPrizePieces(h.x,h.y);
           ball.spin *= 0.6;
           break;
         }
@@ -1194,7 +1219,7 @@
 
   function stepDefenders(){
     if(!defenders.jumping) return;
-    defenders.vy += GRAVITY*0.5;
+    defenders.vy += GRAVITY*0.75;
     defenders.y += defenders.vy;
     if(defenders.y >= defenders.baseY){
       defenders.y = defenders.baseY;
@@ -1205,8 +1230,8 @@
 
   function stepKeeper(){
     // Smoothly move keeper toward target position
-    keeper.x += (keeper.targetX - keeper.x) * 0.05;
-    keeper.y += (keeper.targetY - keeper.y) * 0.05;
+    keeper.x += (keeper.targetX - keeper.x) * 0.075;
+    keeper.y += (keeper.targetY - keeper.y) * 0.075;
   }
 
   // ===== Aim guide =====
@@ -1308,7 +1333,7 @@ function onUp(e){
   keeper.targetX = centerX;
   keeper.targetY = keeper.baseY + geom.goal.h * 0.02;
   if(!defenders.jumping){
-    defenders.vy = -3*geom.scale;
+    defenders.vy = -4.5*geom.scale;
     defenders.jumping = true;
   }
   playBallKickSound();
@@ -1520,7 +1545,7 @@ function onUp(e){
 
   // ===== Timer + loop =====
   function tick(now){ if(!running||paused) return; if(!roundStart) roundStart=now; timeLeft = Math.max(0, ROUND_TIME - (now - roundStart)); timeShort.textContent = Math.ceil(timeLeft/1000); if(timeLeft<=0){ finish(); } }
-  function loop(now){ requestAnimationFrame(loop); drawField(); drawAds(); drawGoal(); drawBall(); drawDefenders(); drawPunchEffects(); stepBall(); stepLooseBalls(); stepDefenders(); stepKeeper(); drawMiniBoards(); tick(now||performance.now()); stepRivals(now||performance.now()); updateHUD(); netHit.t*=NET_DECAY; netHit.shake*=NET_DECAY; goalFlash*=0.92; missFlash*=0.92; }
+  function loop(now){ requestAnimationFrame(loop); drawField(); drawAds(); drawGoal(); drawBall(); drawDefenders(); drawPrizePieces(); drawPunchEffects(); stepBall(); stepLooseBalls(); stepDefenders(); stepKeeper(); drawMiniBoards(); tick(now||performance.now()); stepRivals(now||performance.now()); updateHUD(); netHit.t*=NET_DECAY; netHit.shake*=NET_DECAY; goalFlash*=0.92; missFlash*=0.92; }
 
   // ===== Controls =====
   // controls removed
@@ -1647,7 +1672,7 @@ function onUp(e){
     const src=audioCtx.createBufferSource();
     src.buffer=postHitSoundBuf;
     const gain=audioCtx.createGain();
-    gain.gain.value=0.35; // further reduce volume on post/crossbar hits
+    gain.gain.value=0.45; // slightly louder on post/crossbar hits
     src.connect(gain).connect(masterGain);
     // Skip ~0.4s of initial silence so the clang matches contact
     src.start(0, 0.4);
