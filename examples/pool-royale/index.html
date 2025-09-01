@@ -89,9 +89,46 @@
         left: 10px;
         color: #fff;
         font-family: sans-serif;
+        background: rgba(0,0,0,0.3);
+        padding: 6px;
+        border-radius: 8px;
       }
       #controls input[type="range"] {
         width: 120px;
+      }
+
+      .config-btn {
+        position: fixed;
+        bottom: 10px;
+        right: 10px;
+        width: 40px;
+        height: 40px;
+        border: none;
+        border-radius: 50%;
+        background: rgba(255,255,255,0.3);
+        cursor: pointer;
+      }
+
+      .config-panel {
+        position: fixed;
+        bottom: 60px;
+        right: 10px;
+        background: rgba(0,0,0,0.8);
+        color: #fff;
+        padding: 10px;
+        border-radius: 8px;
+        font-family: sans-serif;
+        width: 200px;
+      }
+
+      .config-panel label {
+        display: block;
+        margin-bottom: 8px;
+        font-size: 14px;
+      }
+
+      .hidden {
+        display: none;
       }
     </style>
   </head>
@@ -102,22 +139,7 @@
         src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxMDAwIDE1MDAiPjxyZWN0IHdpZHRoPSIxMDAlIiBoZWlnaHQ9IjEwMCUiIGZpbGw9IiMwMDgwMDAiLz48L3N2Zz4="
         alt="Pool table"
       />
-      <svg class="overlay" viewBox="0 0 1000 1500">
-        <rect x="80" y="80" width="840" height="1340"
-          fill="rgba(0,255,0,0.15)"
-          stroke="rgba(0,255,0,0.9)"
-          stroke-width="20" />
-        <rect x="20" y="20" width="960" height="1460"
-          fill="none"
-          stroke="rgba(255,0,0,0.7)"
-          stroke-width="40" />
-        <circle cx="40" cy="40" r="40" fill="rgba(0,0,255,0.9)" />
-        <circle cx="960" cy="40" r="40" fill="rgba(255,0,255,0.9)" />
-        <circle cx="40" cy="750" r="40" fill="rgba(255,255,0,0.9)" />
-        <circle cx="960" cy="750" r="40" fill="rgba(0,255,255,0.9)" />
-        <circle cx="40" cy="1460" r="40" fill="rgba(0,128,255,0.9)" />
-        <circle cx="960" cy="1460" r="40" fill="rgba(255,128,0,0.9)" />
-      </svg>
+      <svg id="frame" class="overlay" viewBox="0 0 1000 1500"></svg>
       <div id="aim-line" class="aim-line"></div>
       <div id="cue-ball" class="ball">
         <div id="cue-spin-dot" class="spin-dot"></div>
@@ -131,6 +153,27 @@
         <div id="spin-controller-dot" class="spin-dot"></div>
       </div>
     </div>
+    <button id="config-btn" class="config-btn">⚙️</button>
+    <div id="config-panel" class="config-panel hidden">
+      <label>Volume:
+        <input id="volume" type="range" min="0" max="100" value="50" />
+        <span id="volume-value">50%</span>
+      </label>
+      <label>Frame Style:
+        <select id="frame-select">
+          <option value="classic">Classic</option>
+          <option value="minimal">Minimal</option>
+          <option value="neon">Neon</option>
+          <option value="retro">Retro</option>
+        </select>
+      </label>
+      <label>Frame Color:
+        <input id="frame-color" type="color" value="#ff0000" />
+      </label>
+      <label>Card Color:
+        <input id="card-color" type="color" value="#000000" />
+      </label>
+    </div>
     <script>
       const stage = document.querySelector('.stage');
       const aimLine = document.getElementById('aim-line');
@@ -141,6 +184,51 @@
       const spinController = document.getElementById('spin-controller');
       const spinControllerDot = document.getElementById('spin-controller-dot');
       const cueSpinDot = document.getElementById('cue-spin-dot');
+      const configBtn = document.getElementById('config-btn');
+      const configPanel = document.getElementById('config-panel');
+      const volumeSlider = document.getElementById('volume');
+      const volumeValue = document.getElementById('volume-value');
+      const frameSelect = document.getElementById('frame-select');
+      const frameColorInput = document.getElementById('frame-color');
+      const cardColorInput = document.getElementById('card-color');
+      const controls = document.getElementById('controls');
+      const frameSvg = document.getElementById('frame');
+
+      let ballVolume = volumeSlider.value / 100;
+
+      function renderFrame() {
+        const color = frameColorInput.value;
+        const style = frameSelect.value;
+        const templates = {
+          classic: `
+        <rect x="80" y="80" width="840" height="1340" fill="rgba(0,255,0,0.15)" stroke="${color}" stroke-width="20" />
+        <rect x="20" y="20" width="960" height="1460" fill="none" stroke="${color}" stroke-width="40" />`,
+          minimal: `
+        <rect x="40" y="40" width="920" height="1420" fill="none" stroke="${color}" stroke-width="20" />`,
+          neon: `
+        <rect x="60" y="60" width="880" height="1380" fill="none" stroke="${color}" stroke-width="25" stroke-dasharray="10 5" />`,
+          retro: `
+        <rect x="30" y="30" width="940" height="1440" fill="none" stroke="${color}" stroke-width="30" />`
+        };
+        frameSvg.innerHTML = templates[style];
+      }
+
+      renderFrame();
+
+      configBtn.addEventListener('click', () => {
+        configPanel.classList.toggle('hidden');
+      });
+
+      volumeSlider.addEventListener('input', () => {
+        ballVolume = volumeSlider.value / 100;
+        volumeValue.textContent = `${volumeSlider.value}%`;
+      });
+
+      frameSelect.addEventListener('change', renderFrame);
+      frameColorInput.addEventListener('input', renderFrame);
+      cardColorInput.addEventListener('input', () => {
+        controls.style.background = cardColorInput.value;
+      });
 
       let shotDir = { x: 0, y: -1 };
       let shotLength = 0;
@@ -192,7 +280,8 @@
         const osc = ctx.createOscillator();
         const gain = ctx.createGain();
         osc.frequency.value = 400;
-        gain.gain.value = power > 0.4 ? 0.3 : 0.8;
+        const volume = ballVolume * (power > 0.4 ? 0.3 : 0.8);
+        gain.gain.value = volume;
         osc.connect(gain).connect(ctx.destination);
         osc.start();
         osc.stop(ctx.currentTime + 0.1);
