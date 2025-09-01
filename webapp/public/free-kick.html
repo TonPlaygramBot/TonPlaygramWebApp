@@ -271,6 +271,7 @@
   let goalFlash=0;
   let missFlash=0;
   const NET_DECAY = 0.94; // decay factor for net pullback and shake
+  const SHOT_RESET_DELAY = 300; // delay before resetting after a shot (ms)
   const keeper={x:0,y:0,w:40,h:100,vx:0,vy:0,a:0,baseY:0,baseX:0,dive:0,jumping:false,dir:1,targetX:0,targetY:0};
   const keeperImg = new Image();
   keeperImg.src = '/assets/icons/file_00000000945461f8bb9a2974fb9ee402.webp';
@@ -365,8 +366,8 @@
         list.push({x,y,r,points});
       }
     }
-    const timer=createTimerHole(goal,scale,list); if(timer) list.push(timer);
-    const bomb=createBombHole(goal,scale,list); if(bomb) list.push(bomb);
+    for(let i=0;i<3;i++){ const timer=createTimerHole(goal,scale,list); if(timer) list.push(timer); }
+    for(let i=0;i<3;i++){ const bomb=createBombHole(goal,scale,list); if(bomb) list.push(bomb); }
     return list;
   }
   function generateMiniHoles(){
@@ -515,8 +516,9 @@
   }
 
   function explodeBall(){
-    for(let i=0;i<12;i++){
-      fragments.push({x:ball.x,y:ball.y,vx:rnd(-6,6),vy:rnd(-8,-3),a:rnd(0,Math.PI*2),va:rnd(-0.2,0.2),life:1});
+    const pieces=5;
+    for(let i=0;i<pieces;i++){
+      fragments.push({x:ball.x,y:ball.y-20,vx:rnd(-10,10),vy:rnd(-12,-6),a:rnd(0,Math.PI*2),va:rnd(-0.3,0.3),life:1,big:true});
     }
     ball.exploded = true;
     ball.moving = false;
@@ -761,7 +763,7 @@
       else if(h.bomb) ctx.fillText('💣 ' + (h.points * 3), h.x, h.y);
       else ctx.fillText(h.points, h.x, h.y);
     }
-    for(const f of fragments){ ctx.save(); ctx.translate(f.x,f.y); ctx.rotate(f.a); ctx.fillStyle='#ffd400'; ctx.fillRect(-4,-2,8,4); ctx.restore(); }
+    for(const f of fragments){ ctx.save(); ctx.translate(f.x,f.y); ctx.rotate(f.a); ctx.fillStyle='#ffd400'; if(f.big) ctx.fillRect(-6,-3,12,6); else ctx.fillRect(-4,-2,8,4); ctx.restore(); }
     drawKeeper();
   }
 
@@ -1007,7 +1009,7 @@
       ball.spin *= 0.5;
       ball.y = keeper.y + keeper.h + ball.r;
       missFlash=1;
-      endShot(false,0);
+      endShot(false,0,SHOT_RESET_DELAY);
       return;
     }
     if(ball.target){
@@ -1151,7 +1153,7 @@
   }
 
   // ===== Round / scoring =====
-function endShot(hit,pts,delay=0){
+function endShot(hit,pts,delay=SHOT_RESET_DELAY){
   // keep current ball falling while spawning the next one
   looseBalls.push({x:ball.x,y:ball.y,vx:ball.vx,vy:ball.vy,angle:ball.angle,spin:ball.spin,bounced:false,insideGoal:hit,landedAt:performance.now()});
   ball.moving=false;
