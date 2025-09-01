@@ -315,7 +315,9 @@
       }
       const y=rnd(goal.y+pad+r,goal.y+goal.h-pad-r);
       if(existing.every(h=>Math.hypot(h.x-x,h.y-y)>h.r+r+12*scale)){
-        return {x,y,r,points:0,timer:true};
+        const values=[10,15,20];
+        const tVal=values[Math.floor(Math.random()*values.length)];
+        return {x,y,r,points:0,timer:tVal};
       }
     }
     return null;
@@ -369,8 +371,8 @@
         list.push({x,y,r,points});
       }
     }
-    for(let i=0;i<15;i++){ const timer=createTimerHole(goal,scale,list); if(timer) list.push(timer); }
-    for(let i=0;i<15;i++){ const bomb=createBombHole(goal,scale,list); if(bomb) list.push(bomb); }
+    for(let i=0;i<18;i++){ const timer=createTimerHole(goal,scale,list); if(timer) list.push(timer); }
+    for(let i=0;i<18;i++){ const bomb=createBombHole(goal,scale,list); if(bomb) list.push(bomb); }
     return list;
   }
   function generateMiniHoles(){
@@ -379,7 +381,7 @@
       const goal=miniGoalRect(cv);
       const scale=goal.w/geom.goal.w;
       const set=createHoleSet(goal,scale);
-      miniHolesCache[i]=set.map(h=>({x:h.x,y:h.y,r:h.r,p:h.points,t:h.timer?1:0,b:h.bomb?1:0}));
+      miniHolesCache[i]=set.map(h=>({x:h.x,y:h.y,r:h.r,p:h.points,t:h.timer||0,b:h.bomb?1:0}));
     }
   }
 
@@ -762,7 +764,7 @@
     for(const c of cameras){ ctx.fillStyle='#111'; ctx.fillRect(c.x,c.y,c.w,c.h); ctx.fillStyle='#e10600'; ctx.beginPath(); ctx.arc(c.x+8,c.y+6,3,0,Math.PI*2); ctx.fill(); }
     for(const h of holes){ if(h.hit) continue; ctx.fillStyle='rgba(225,6,0,.9)'; ctx.beginPath(); ctx.arc(h.x,h.y,h.r,0,Math.PI*2); ctx.fill();
       ctx.fillStyle='#ffd400'; ctx.font=`800 ${Math.max(12,h.r*0.9)}px system-ui`; ctx.textAlign='center'; ctx.textBaseline='middle';
-      if(h.timer) ctx.fillText('⏳️ +30', h.x, h.y);
+      if(h.timer) ctx.fillText(`⏳️ +${h.timer}`, h.x, h.y);
       else if(h.bomb) ctx.fillText('💣 ' + (h.points * 3), h.x, h.y);
       else ctx.fillText(h.points, h.x, h.y);
     }
@@ -976,13 +978,12 @@
         if(Math.hypot(h.x-ball.x,h.y-ball.y) <= Math.max(2, h.r + ball.r * 0.3)){
           h.hit=true;
           if(h.timer){
-            roundStart -= 10000;
-            timeLeft += 10000;
+            const extra=h.timer*1000;
+            roundStart -= extra;
+            timeLeft += extra;
             updateHUD();
-            popupText('+10s',h.x,h.y,timeShort,'#22c55e');
+            popupText(`+${h.timer}s`,h.x,h.y,timeShort,'#22c55e');
             sfxTimer();
-            const maxRival = Math.max(...rivals.map(r=>r.score));
-            if(myScore >= maxRival) finish();
           } else if(h.bomb){
             roundStart += 15000;
             timeLeft = Math.max(0,timeLeft-15000);
@@ -1304,7 +1305,7 @@ function onUp(e){
         c.font='bold 12px system-ui';
         c.textAlign='center';
         c.textBaseline='middle';
-        if(h.t) c.fillText('⏳️',h.x,h.y);
+        if(h.t) c.fillText(`⏳️ +${h.t}`,h.x,h.y);
         else if(h.b) c.fillText('💣',h.x,h.y);
         else c.fillText(h.p,h.x,h.y);
       }
@@ -1330,7 +1331,25 @@ function onUp(e){
         }
         if(s.saved && s.y <= ky + kh * 0.2){ s.life = 0; }
         if(s.life<=0){
-          if(!s.done){ r.result = s.saved ? 'MISSED' : 'GOAL'; r.flash = 1; s.done = true; }
+          if(!s.done){
+            r.result = s.saved ? 'MISSED' : 'GOAL';
+            r.flash = 1;
+            if(!s.saved){
+              if(s.target?.t){
+                roundStart -= s.target.t*1000;
+                timeLeft += s.target.t*1000;
+                updateHUD();
+              } else if(s.target?.b){
+                roundStart += 15000;
+                timeLeft = Math.max(0,timeLeft-15000);
+                r.score = Math.max(0, r.score + Math.round(s.target.p));
+                updateHUD();
+              } else if(s.target?.p){
+                r.score = Math.max(0, r.score + Math.round(s.target.p));
+              }
+            }
+            s.done = true;
+          }
           continue;
         }
         c.fillStyle='#fff';
@@ -1416,13 +1435,12 @@ function onUp(e){
         const chance = acc * (22/Math.max(10,target.r)) * 0.8;
         if(Math.random() < chance){
           const saved = Math.random() < 0.5;
-          if(!saved && !target.t && target.p){ r.score += Math.max(5, Math.round(target.p)); }
           const startX = rnd(g.x, g.x + g.w);
           r.defX = clamp(startX - r.defW/2, g.x, g.x + g.w - r.defW);
           if(!r.defJump){ r.defVy = -2*r.scale; r.defJump = true; }
           const vx = (target.x - startX) / 15;
           const vy = (target.y - (g.y + g.h)) / 15;
-          r.shots.push({x:startX,y:g.y+g.h,vx,vy,life:1,saved});
+          r.shots.push({x:startX,y:g.y+g.h,vx,vy,life:1,saved,target});
         }
       }
       r.ptsEl.textContent = r.score;
