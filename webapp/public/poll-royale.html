@@ -590,8 +590,9 @@
         flex-direction: column;
         align-items: center;
         justify-content: center;
-        background: rgba(0, 0, 0, 0.7);
+        background: none;
         z-index: 100;
+        pointer-events: none;
       }
       #diceOverlay.hidden {
         display: none;
@@ -600,18 +601,69 @@
         display: flex;
         gap: 20px;
         margin-bottom: 20px;
+        pointer-events: auto;
       }
-      #diceOverlay .die {
-        width: 60px;
-        height: 60px;
-        background: #fff;
-        color: #000;
+      /* Dice styling copied from main app for consistent look */
+      @keyframes roll {
+        0% {
+          transform: rotateX(0) rotateY(0) rotateZ(0) translateY(0);
+        }
+        50% {
+          transform: rotateX(360deg) rotateY(360deg) rotateZ(360deg) translateY(-10px);
+        }
+        100% {
+          transform: rotateX(720deg) rotateY(720deg) rotateZ(720deg) translateY(0);
+        }
+      }
+      .animate-roll {
+        animation: roll 0.5s ease-in-out;
+      }
+      .dice-container {
+        width: 80px;
+        height: 80px;
+        perspective: 600px;
+      }
+      .dice-cube {
+        position: relative;
+        width: 100%;
+        height: 100%;
+        transform-style: preserve-3d;
+        transition: transform 0.5s;
+      }
+      .dice-face {
+        position: absolute;
+        width: 100%;
+        height: 100%;
         display: flex;
         align-items: center;
         justify-content: center;
-        font-size: 32px;
-        border-radius: 8px;
-        user-select: none;
+        background: #fff;
+        border-radius: 12px;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+      }
+      .dice-face .dot {
+        width: 8px;
+        height: 8px;
+        background: #000;
+        border-radius: 50%;
+      }
+      .dice-face--front {
+        transform: rotateY(0deg) translateZ(40px);
+      }
+      .dice-face--back {
+        transform: rotateY(180deg) translateZ(40px);
+      }
+      .dice-face--right {
+        transform: rotateY(90deg) translateZ(40px);
+      }
+      .dice-face--left {
+        transform: rotateY(-90deg) translateZ(40px);
+      }
+      .dice-face--top {
+        transform: rotateX(90deg) translateZ(40px);
+      }
+      .dice-face--bottom {
+        transform: rotateX(-90deg) translateZ(40px);
       }
     </style>
   </head>
@@ -3160,21 +3212,95 @@
        START / RESIZE / RENDER fillestar
        ========================================================= */
         function startDiceRoll() {
-          var overlay = document.getElementById('diceOverlay');
+          const overlay = document.getElementById('diceOverlay');
           overlay.classList.remove('hidden');
-          overlay.innerHTML =
-            '<div class="dice-row"><div id="playerDie" class="die">-</div><div id="cpuDie" class="die">-</div></div>' +
-            '<div id="diceMsg">Tap your die to roll</div>';
-          var playerDie = document.getElementById('playerDie');
-          var cpuDie = document.getElementById('cpuDie');
-          var diceMsg = document.getElementById('diceMsg');
-          var playerRoll = null;
-          var cpuRoll = null;
-          function rollDie(el) {
-            var v = Math.floor(Math.random() * 6) + 1;
-            el.textContent = v;
-            return v;
+          overlay.innerHTML = '<div class="dice-row" id="diceRow"></div><div id="diceMsg">Tap your die to roll</div>';
+
+          const diceFaces = {
+            1: [[0, 0, 0], [0, 1, 0], [0, 0, 0]],
+            2: [[1, 0, 0], [0, 0, 0], [0, 0, 1]],
+            3: [[1, 0, 0], [0, 1, 0], [0, 0, 1]],
+            4: [[1, 0, 1], [0, 0, 0], [1, 0, 1]],
+            5: [[1, 0, 1], [0, 1, 0], [1, 0, 1]],
+            6: [[1, 0, 1], [1, 0, 1], [1, 0, 1]],
+          };
+
+          function createFace(value, className) {
+            const face = document.createElement('div');
+            face.className = 'dice-face ' + className;
+            const grid = document.createElement('div');
+            grid.style.display = 'grid';
+            grid.style.gridTemplateColumns = 'repeat(3, 1fr)';
+            grid.style.gridTemplateRows = 'repeat(3, 1fr)';
+            grid.style.gap = '2px';
+            diceFaces[value].flat().forEach((dot) => {
+              const cell = document.createElement('div');
+              cell.style.display = 'flex';
+              cell.style.alignItems = 'center';
+              cell.style.justifyContent = 'center';
+              if (dot) {
+                const d = document.createElement('div');
+                d.className = 'dot';
+                cell.appendChild(d);
+              }
+              grid.appendChild(cell);
+            });
+            face.appendChild(grid);
+            return face;
           }
+
+          function createDie(id) {
+            const container = document.createElement('div');
+            container.className = 'dice-container';
+            container.id = id;
+            const cube = document.createElement('div');
+            cube.className = 'dice-cube';
+            cube.style.transform = 'rotateX(-35deg) rotateY(45deg)';
+            container.appendChild(cube);
+            // initial faces
+            cube.appendChild(createFace(2, 'dice-face--front'));
+            cube.appendChild(createFace(5, 'dice-face--back'));
+            cube.appendChild(createFace(3, 'dice-face--right'));
+            cube.appendChild(createFace(4, 'dice-face--left'));
+            cube.appendChild(createFace(1, 'dice-face--top'));
+            cube.appendChild(createFace(6, 'dice-face--bottom'));
+            return container;
+          }
+
+          function setDieValue(container, value) {
+            const cube = container.querySelector('.dice-cube');
+            const top = cube.querySelector('.dice-face--top');
+            const bottom = cube.querySelector('.dice-face--bottom');
+            top.replaceWith(createFace(value, 'dice-face--top'));
+            bottom.replaceWith(createFace(7 - value, 'dice-face--bottom'));
+          }
+
+          function rollDie(container, cb) {
+            const cube = container.querySelector('.dice-cube');
+            cube.classList.add('animate-roll');
+            const id = setInterval(() => {
+              const v = Math.floor(Math.random() * 6) + 1;
+              setDieValue(container, v);
+            }, 50);
+            setTimeout(() => {
+              clearInterval(id);
+              const final = Math.floor(Math.random() * 6) + 1;
+              setDieValue(container, final);
+              cube.classList.remove('animate-roll');
+              cb(final);
+            }, 1000);
+          }
+
+          const diceRow = document.getElementById('diceRow');
+          const playerDie = createDie('playerDie');
+          const cpuDie = createDie('cpuDie');
+          diceRow.appendChild(playerDie);
+          diceRow.appendChild(cpuDie);
+
+          const diceMsg = document.getElementById('diceMsg');
+          let playerRoll = null;
+          let cpuRoll = null;
+
           function checkResult() {
             if (playerRoll !== null && cpuRoll !== null) {
               if (playerRoll === cpuRoll) {
@@ -3182,11 +3308,9 @@
                 setTimeout(startDiceRoll, 1000);
                 return;
               }
-              var playerStarts = playerRoll > cpuRoll;
-              diceMsg.textContent = playerStarts
-                ? 'You break first'
-                : 'CPU breaks first';
-              setTimeout(function () {
+              const playerStarts = playerRoll > cpuRoll;
+              diceMsg.textContent = playerStarts ? 'You break first' : 'CPU breaks first';
+              setTimeout(() => {
                 overlay.classList.add('hidden');
                 table.turn = playerStarts ? 1 : 2;
                 updateTurnIndicator(true);
@@ -3195,19 +3319,25 @@
               }, 1000);
             }
           }
+
           function rollPlayer() {
             if (playerRoll !== null) return;
-            playerRoll = rollDie(playerDie);
-            checkResult();
+            rollDie(playerDie, (v) => {
+              playerRoll = v;
+              checkResult();
+            });
           }
           function rollCpu() {
             if (cpuRoll !== null) return;
-            cpuRoll = rollDie(cpuDie);
-            checkResult();
+            rollDie(cpuDie, (v) => {
+              cpuRoll = v;
+              checkResult();
+            });
           }
+
           playerDie.addEventListener('click', rollPlayer);
           setTimeout(rollCpu, 2000);
-          setTimeout(function () {
+          setTimeout(() => {
             if (playerRoll === null) rollPlayer();
           }, 5000);
         }
