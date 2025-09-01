@@ -446,7 +446,8 @@
 
       #cueOptions {
         position: absolute;
-        bottom: calc(56px + env(safe-area-inset-bottom) + 4px);
+        /* Move cue controls down by the height of two buttons (72px) */
+        bottom: calc(env(safe-area-inset-bottom) - 12px);
         left: 50%;
         transform: translateX(-50%);
         display: flex;
