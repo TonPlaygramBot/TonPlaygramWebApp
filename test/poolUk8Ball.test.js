@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { UkPool } from '../lib/poolUk8Ball.js';
 import { selectShot, recordShotOutcome, __resetShotMemory } from '../lib/poolUkAdvancedAi.js';
+import planShot from '../lib/poolAi.js';
 
 test('scratch on break gives opponent two visits without free ball', () => {
   const game = new UkPool();
@@ -320,4 +321,34 @@ test('AI increases EV after learning from success', () => {
   recordShotOutcome(plan1, true);
   const plan2 = selectShot(state);
   assert.ok(plan2.EV >= ev1);
+});
+
+test('basic AI targets its assigned colour', () => {
+  const req = {
+    game: 'EIGHT_POOL_UK',
+    state: {
+      balls: [
+        { id: 0, x: 50, y: 150, vx: 0, vy: 0, pocketed: false },
+        { id: 1, x: 150, y: 150, vx: 0, vy: 0, pocketed: false },
+        { id: 9, x: 250, y: 150, vx: 0, vy: 0, pocketed: false }
+      ],
+      pockets: [
+        { x: 0, y: 0 },
+        { x: 300, y: 0 },
+        { x: 0, y: 150 },
+        { x: 300, y: 150 },
+        { x: 0, y: 300 },
+        { x: 300, y: 300 }
+      ],
+      width: 300,
+      height: 300,
+      ballRadius: 5,
+      friction: 0.015,
+      ballOn: 'red',
+      myGroup: 'UNASSIGNED',
+      ballInHand: false
+    }
+  };
+  const shot = planShot(req);
+  assert.ok(shot && shot.targetBallId >= 1 && shot.targetBallId <= 7);
 });

@@ -2997,9 +2997,9 @@
               friction: 0.015,
               ballOn: assignedTypes[2] || null,
               myGroup:
-                assignedTypes[2] === 'yellow'
+                assignedTypes[2] === 'red'
                   ? 'SOLIDS'
-                  : assignedTypes[2] === 'red'
+                  : assignedTypes[2] === 'yellow'
                   ? 'STRIPES'
                   : 'UNASSIGNED',
               ballInHand: cueBallFree
@@ -3017,8 +3017,8 @@
                     : b.id === 8
                     ? 'black'
                     : b.id >= 1 && b.id <= 7
-                    ? 'yellow'
-                    : 'red',
+                    ? 'red'
+                    : 'yellow',
                 x: b.x,
                 y: b.y,
                 pocketed: b.pocketed
