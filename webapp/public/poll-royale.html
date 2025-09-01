@@ -1220,6 +1220,8 @@
                 state.finished = true;
                 if (winner !== 1) state.humanLost = true;
               }
+              delete state.currentMatch;
+              delete state.nextMatch;
               localStorage.setItem('poolTournament', JSON.stringify(state));
             }
             location.href = '/poll-royale-bracket.html';
@@ -3735,7 +3737,7 @@
         });
       }
 
-      if (params.get('type') === 'tournament') {
+      if (params.get('type') === 'tournament' && !params.get('round')) {
         const overlay = document.getElementById('tournamentOverlay');
         const canvas = document.getElementById('bracket');
         const ctx = canvas.getContext('2d');
