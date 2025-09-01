@@ -650,11 +650,24 @@
         padding-left: 8px;
       }
       .tournament-bracket li {
-        padding: 4px 8px;
-        border-bottom: 1px solid #fff;
+        padding: 0;
+        border: none;
+        margin-bottom: 8px;
       }
-      .tournament-bracket li:last-child {
-        border-bottom: none;
+      .tournament-bracket .match {
+        border: 1px solid #fff;
+        padding: 4px;
+      }
+      .tournament-bracket .player {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        font-size: 12px;
+      }
+      .tournament-bracket .player img {
+        width: 16px;
+        height: 16px;
+        border-radius: 50%;
       }
       .tournament-pot {
         display: flex;
@@ -834,6 +847,7 @@
           <button class="cue-btn" data-cue="short">Short</button>
           <button class="cue-btn" data-cue="medium">Medium</button>
           <button class="cue-btn" data-cue="long">Long</button>
+          <button class="cue-btn" data-cue="auto">Auto</button>
         </div>
 
         <!-- Panel djathtas: vetem slideri i fuqise -->
@@ -1039,15 +1053,39 @@
         var closeSettingsBtn = document.getElementById('closeSettings');
 
         var currentCue = 'short';
-        function setCueVariant(v) {
-          currentCue = v;
+        var autoCue = false;
+        function setCueVariant(v, fromAuto) {
+          if (v === 'auto') {
+            autoCue = true;
+          } else {
+            currentCue = v;
+            if (!fromAuto) autoCue = false;
+          }
           cueButtons.forEach(function (b) {
-            b.classList.toggle('active', b.dataset.cue === v);
+            if (b.dataset.cue === 'auto') {
+              b.classList.toggle('active', autoCue);
+            } else {
+              b.classList.toggle('active', b.dataset.cue === currentCue);
+            }
           });
+        }
+        function updateAutoCue() {
+          if (!autoCue || !table) return;
+          var cue = table.balls[0];
+          var aim = table.aim;
+          var dist = Math.hypot(aim.x - cue.p.x, aim.y - cue.p.y);
+          var bucket =
+            dist <= SHORT_DIST ? 'short' : dist <= MED_DIST ? 'medium' : 'long';
+          setCueVariant(bucket, true);
         }
         cueButtons.forEach(function (b) {
           b.addEventListener('click', function () {
-            setCueVariant(b.dataset.cue);
+            if (b.dataset.cue === 'auto') {
+              autoCue = true;
+              updateAutoCue();
+            } else {
+              setCueVariant(b.dataset.cue);
+            }
           });
         });
         setCueVariant(currentCue);
@@ -2786,6 +2824,7 @@
           table.aim.x = t.x;
           table.aim.y = t.y;
           placeAimGlow(table.aim);
+          updateAutoCue();
         });
 
         document.addEventListener('pointermove', function (e) {
@@ -2819,6 +2858,7 @@
           table.aim.y = t.y;
           placeAimGlow(table.aim);
           aimMoved = true;
+          updateAutoCue();
         });
 
         document.addEventListener('pointerup', function (e) {
@@ -3725,20 +3765,39 @@
         const potEl = document.getElementById('tPotAmount');
         const totalPlayers = window.tournamentPlayers || 8;
         const userName = window.playerName || 'You';
-        let bracket = Array.from({ length: totalPlayers }, (_, i) =>
-          i === 0 ? userName : 'CPU ' + i
-        );
+        const userAvatar = avatarParam || '/assets/icons/profile.svg';
+        function emojiToDataUri(flag) {
+          return `data:image/svg+xml,${encodeURIComponent(`<svg xmlns='http://www.w3.org/2000/svg' width='32' height='32'><text x='50%' y='50%' font-size='24' text-anchor='middle' dominant-baseline='central'>${flag}</text></svg>`)}`;
+        }
+        const aiFlags = [...FLAG_EMOJIS].sort(() => 0.5 - Math.random());
+        let bracket = Array.from({ length: totalPlayers }, (_, i) => {
+          if (i === 0) return { name: userName, avatar: userAvatar };
+          const flag = aiFlags[i - 1];
+          return { name: flagToName(flag), avatar: emojiToDataUri(flag) };
+        });
         window.tournamentData = { bracket: [bracket], round: 0 };
+        function renderMatches(arr) {
+          let html = '';
+          for (let i = 0; i < arr.length; i += 2) {
+            const a = arr[i];
+            const b = arr[i + 1];
+            if (b) {
+              html += `<li><div class="match"><div class="player"><img src="${a.avatar}" alt="" />${a.name}</div><div class="player"><img src="${b.avatar}" alt="" />${b.name}</div></div></li>`;
+            } else {
+              html += `<li><div class="match"><div class="player"><img src="${a.avatar}" alt="" />${a.name}</div></div></li>`;
+            }
+          }
+          return html;
+        }
         function render(list) {
-          const half = list.length / 2;
-          leftList.innerHTML = list
-            .slice(0, half)
-            .map(p => `<li>${p}</li>`)
-            .join('');
-          rightList.innerHTML = list
-            .slice(half)
-            .map(p => `<li>${p}</li>`)
-            .join('');
+          if (list.length === 1) {
+            leftList.innerHTML = '';
+            rightList.innerHTML = renderMatches(list);
+          } else {
+            const half = list.length / 2;
+            leftList.innerHTML = renderMatches(list.slice(0, half));
+            rightList.innerHTML = renderMatches(list.slice(half));
+          }
           potEl.textContent = (window.potAmount || 0) + ' TPC';
         }
         function showOverlay() {
@@ -3762,8 +3821,8 @@
             const a = current[i];
             const b = current[i + 1];
             let w;
-            if (a === userName || b === userName) {
-              w = winner === 1 ? userName : a === userName ? b : a;
+            if (a.name === userName || b?.name === userName) {
+              w = winner === 1 ? (a.name === userName ? a : b) : (a.name === userName ? b : a);
             } else {
               w = a;
             }
