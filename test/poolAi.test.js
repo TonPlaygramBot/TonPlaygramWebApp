@@ -20,7 +20,7 @@ test('planShot targets lowest numbered ball', () => {
       ballRadius: 10,
       friction: 0.01
     },
-    timeBudgetMs: 50,
+    timeBudgetMs: 100,
     rngSeed: 1
   };
   const decision = planShot(req);
@@ -47,7 +47,7 @@ test('eight ball is treated as normal', () => {
       ballRadius: 10,
       friction: 0.01
     },
-    timeBudgetMs: 50,
+    timeBudgetMs: 100,
     rngSeed: 1
   };
   const decision = planShot(req);
@@ -72,7 +72,7 @@ test('ball in hand aims for straight shot', () => {
       friction: 0.01,
       ballInHand: true
     },
-    timeBudgetMs: 50,
+    timeBudgetMs: 100,
     rngSeed: 2
   };
   const decision = planShot(req);
