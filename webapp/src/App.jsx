@@ -48,6 +48,7 @@ import BlackJack from './pages/Games/BlackJack.jsx';
 import BlackJackLobby from './pages/Games/BlackJackLobby.jsx';
 import PollRoyale from './pages/Games/PollRoyale.jsx';
 import PollRoyaleLobby from './pages/Games/PollRoyaleLobby.jsx';
+import PollRoyaleBracket from './pages/Games/PollRoyaleBracket.jsx';
 
 import Layout from './components/Layout.jsx';
 import useTelegramAuth from './hooks/useTelegramAuth.js';
@@ -66,7 +67,10 @@ export default function App() {
           <Routes>
             <Route path="/" element={<Home />} />
             <Route path="/mining" element={<Mining />} />
-            <Route path="/mining/transactions" element={<MiningTransactions />} />
+            <Route
+              path="/mining/transactions"
+              element={<MiningTransactions />}
+            />
             <Route path="/games" element={<Games />} />
             <Route path="/games/transactions" element={<GameTransactions />} />
             <Route path="/games/crazydice" element={<CrazyDiceDuel />} />
@@ -75,30 +79,70 @@ export default function App() {
             <Route path="/games/snake" element={<SnakeAndLadder />} />
             <Route path="/games/snake/mp" element={<SnakeMultiplayer />} />
             <Route path="/games/snake/results" element={<SnakeResults />} />
-            <Route path="/games/fallingball/lobby" element={<FallingBallLobby />} />
+            <Route
+              path="/games/fallingball/lobby"
+              element={<FallingBallLobby />}
+            />
             <Route path="/games/fallingball" element={<FallingBall />} />
             <Route path="/games/goalrush/lobby" element={<GoalRushLobby />} />
             <Route path="/games/goalrush" element={<GoalRush />} />
             <Route path="/games/freekick/lobby" element={<FreeKickLobby />} />
             <Route path="/games/freekick" element={<FreeKick />} />
-            <Route path="/games/brickbreaker/lobby" element={<BrickBreakerLobby />} />
+            <Route
+              path="/games/brickbreaker/lobby"
+              element={<BrickBreakerLobby />}
+            />
             <Route path="/games/brickbreaker" element={<BrickBreaker />} />
-            <Route path="/games/tetrisroyale/lobby" element={<TetrisRoyaleLobby />} />
+            <Route
+              path="/games/tetrisroyale/lobby"
+              element={<TetrisRoyaleLobby />}
+            />
             <Route path="/games/tetrisroyale" element={<TetrisRoyale />} />
-            <Route path="/games/fruitsliceroyale/lobby" element={<FruitSliceRoyaleLobby />} />
-            <Route path="/games/fruitsliceroyale" element={<FruitSliceRoyale />} />
-            <Route path="/games/bubblepoproyale/lobby" element={<BubblePopRoyaleLobby />} />
-            <Route path="/games/bubblepoproyale" element={<BubblePopRoyale />} />
-            <Route path="/games/bubblesmashroyale/lobby" element={<BubbleSmashRoyaleLobby />} />
-            <Route path="/games/bubblesmashroyale" element={<BubbleSmashRoyale />} />
-            <Route path="/games/texasholdem/lobby" element={<TexasHoldemLobby />} />
+            <Route
+              path="/games/fruitsliceroyale/lobby"
+              element={<FruitSliceRoyaleLobby />}
+            />
+            <Route
+              path="/games/fruitsliceroyale"
+              element={<FruitSliceRoyale />}
+            />
+            <Route
+              path="/games/bubblepoproyale/lobby"
+              element={<BubblePopRoyaleLobby />}
+            />
+            <Route
+              path="/games/bubblepoproyale"
+              element={<BubblePopRoyale />}
+            />
+            <Route
+              path="/games/bubblesmashroyale/lobby"
+              element={<BubbleSmashRoyaleLobby />}
+            />
+            <Route
+              path="/games/bubblesmashroyale"
+              element={<BubbleSmashRoyale />}
+            />
+            <Route
+              path="/games/texasholdem/lobby"
+              element={<TexasHoldemLobby />}
+            />
             <Route path="/games/texasholdem" element={<TexasHoldem />} />
             <Route path="/games/blackjack/lobby" element={<BlackJackLobby />} />
             <Route path="/games/blackjack" element={<BlackJack />} />
-            <Route path="/games/murlanroyale/lobby" element={<MurlanRoyaleLobby />} />
+            <Route
+              path="/games/murlanroyale/lobby"
+              element={<MurlanRoyaleLobby />}
+            />
             <Route path="/games/murlanroyale" element={<MurlanRoyale />} />
-            <Route path="/games/pollroyale/lobby" element={<PollRoyaleLobby />} />
+            <Route
+              path="/games/pollroyale/lobby"
+              element={<PollRoyaleLobby />}
+            />
             <Route path="/games/pollroyale" element={<PollRoyale />} />
+            <Route
+              path="/games/pollroyale/bracket"
+              element={<PollRoyaleBracket />}
+            />
             <Route path="/spin" element={<SpinPage />} />
             <Route path="/admin/influencer" element={<InfluencerAdmin />} />
             <Route path="/tasks" element={<Tasks />} />
