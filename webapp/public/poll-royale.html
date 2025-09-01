@@ -619,8 +619,8 @@
         animation: roll 0.5s ease-in-out;
       }
       .dice-container {
-        width: 80px;
-        height: 80px;
+        width: 40px;
+        height: 40px;
         perspective: 600px;
       }
       .dice-cube {
@@ -638,32 +638,32 @@
         align-items: center;
         justify-content: center;
         background: #fff;
-        border-radius: 12px;
+        border-radius: 6px;
         box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
       }
       .dice-face .dot {
-        width: 8px;
-        height: 8px;
+        width: 6px;
+        height: 6px;
         background: #000;
         border-radius: 50%;
       }
       .dice-face--front {
-        transform: rotateY(0deg) translateZ(40px);
+        transform: rotateY(0deg) translateZ(20px);
       }
       .dice-face--back {
-        transform: rotateY(180deg) translateZ(40px);
+        transform: rotateY(180deg) translateZ(20px);
       }
       .dice-face--right {
-        transform: rotateY(90deg) translateZ(40px);
+        transform: rotateY(90deg) translateZ(20px);
       }
       .dice-face--left {
-        transform: rotateY(-90deg) translateZ(40px);
+        transform: rotateY(-90deg) translateZ(20px);
       }
       .dice-face--top {
-        transform: rotateX(90deg) translateZ(40px);
+        transform: rotateX(90deg) translateZ(20px);
       }
       .dice-face--bottom {
-        transform: rotateX(-90deg) translateZ(40px);
+        transform: rotateX(-90deg) translateZ(20px);
       }
     </style>
   </head>
@@ -3017,8 +3017,10 @@
 
         updatePowerUI();
 
+        let diceRolling = false;
+
         function shoot(p) {
-          if (!table.running || table.isMoving()) return;
+          if (!table.running || table.isMoving() || diceRolling) return;
           clearTurnTimer();
           var cue = table.balls[0];
           if (!cue || cue.pocketed) return;
@@ -3212,9 +3214,11 @@
        START / RESIZE / RENDER fillestar
        ========================================================= */
         function startDiceRoll() {
+          table.turn = 0;
+          diceRolling = true;
           const overlay = document.getElementById('diceOverlay');
           overlay.classList.remove('hidden');
-          overlay.innerHTML = '<div class="dice-row" id="diceRow"></div><div id="diceMsg">Tap your die to roll</div>';
+          overlay.innerHTML = '<div class="dice-row" id="diceRow"></div><div id="diceMsg">Tap to roll dice</div>';
 
           const diceFaces = {
             1: [[0, 0, 0], [0, 1, 0], [0, 0, 0]],
@@ -3300,6 +3304,7 @@
           const diceMsg = document.getElementById('diceMsg');
           let playerRoll = null;
           let cpuRoll = null;
+          let rolled = false;
 
           function checkResult() {
             if (playerRoll !== null && cpuRoll !== null) {
@@ -3312,6 +3317,7 @@
               diceMsg.textContent = playerStarts ? 'You break first' : 'CPU breaks first';
               setTimeout(() => {
                 overlay.classList.add('hidden');
+                diceRolling = false;
                 table.turn = playerStarts ? 1 : 2;
                 updateTurnIndicator(true);
                 showTurnInfo();
@@ -3320,26 +3326,21 @@
             }
           }
 
-          function rollPlayer() {
-            if (playerRoll !== null) return;
+          function rollBoth() {
+            if (rolled) return;
+            rolled = true;
             rollDie(playerDie, (v) => {
               playerRoll = v;
               checkResult();
             });
-          }
-          function rollCpu() {
-            if (cpuRoll !== null) return;
             rollDie(cpuDie, (v) => {
               cpuRoll = v;
               checkResult();
             });
           }
 
-          playerDie.addEventListener('click', rollPlayer);
-          setTimeout(rollCpu, 2000);
-          setTimeout(() => {
-            if (playerRoll === null) rollPlayer();
-          }, 5000);
+          diceRow.addEventListener('click', rollBoth);
+          setTimeout(rollBoth, 5000);
         }
 
         playBtn.addEventListener('click', function () {
