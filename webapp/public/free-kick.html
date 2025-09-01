@@ -65,7 +65,7 @@
   .winnerOverlay.hidden{display:none}
   .winnerOverlay img{width:120px;height:120px;border-radius:50%;display:block;margin:0 auto}
   .winnerOverlay button{margin-top:16px;padding:10px 16px;font-weight:800;border:0;border-radius:12px;background:var(--accent);color:#fff}
-  .coin-confetti{position:fixed;top:-40px;width:32px;height:32px;pointer-events:none;animation:coin-fall var(--duration,3s) linear forwards;z-index:210}
+  .coin-confetti{position:fixed;top:0;width:48px;height:48px;pointer-events:none;animation:coin-fall var(--duration,3s) linear forwards;z-index:210}
   @keyframes coin-fall{from{transform:translateY(-10vh) rotate(0deg);opacity:1}to{transform:translateY(100vh) rotate(360deg);opacity:0}}
 
   .bomb-explosion{position:fixed;transform:translate(-50%,-50%) scale(1);font-size:64px;pointer-events:none;z-index:200;animation:bomb-pop 1s forwards}
@@ -979,7 +979,7 @@
             roundStart -= 10000;
             timeLeft += 10000;
             updateHUD();
-            popupText('+10',h.x,h.y,timeShort,'#22c55e');
+            popupText('+10s',h.x,h.y,timeShort,'#22c55e');
             sfxTimer();
             const maxRival = Math.max(...rivals.map(r=>r.score));
             if(myScore >= maxRival) finish();
@@ -1192,7 +1192,7 @@ function endShot(hit,pts,delay=SHOT_RESET_DELAY){
     const winner=scores.find(s=>s.score===max);
     const overlay=document.getElementById('winnerOverlay');
     const img=document.getElementById('winnerAvatar');
-    if(img) img.src=winner.avatar;
+    if(img) img.src=winner.avatar || userAvatar;
     overlay.classList.remove('hidden');
     coinConfetti(50);
     cheerSound.currentTime=0; cheerSound.play().catch(()=>{});
@@ -1580,7 +1580,7 @@ function onUp(e){
     const src=audioCtx.createBufferSource();
     src.buffer=bombSoundBuf;
     const gain=audioCtx.createGain();
-    gain.gain.value=0.7;
+    gain.gain.value=1.2;
     src.connect(gain).connect(masterGain);
     src.start(0);
   }
@@ -1601,7 +1601,7 @@ function onUp(e){
     const src=audioCtx.createBufferSource();
     src.buffer=timerSoundBuf;
     const gain=audioCtx.createGain();
-    gain.gain.value=1.0;
+    gain.gain.value=1.4;
     src.connect(gain).connect(masterGain);
     src.start(0);
   }
