@@ -150,6 +150,7 @@
 
   // ===== UI refs =====
   const timeShort = document.getElementById('timeShort');
+  const playerScoreEl = document.getElementById('playerScore');
   const previewsEl= document.getElementById('previews');
   const userAvatarEl = document.getElementById('userAvatar');
   const usernameEl = document.getElementById('username');
@@ -238,8 +239,8 @@
   let myScore = 0;
 
   const BALL_R = 28;
-  // faster initial shot speed for wider coverage
-  const SHOT_SPEED = 24;
+  // slower initial shot speed for finer precision
+  const SHOT_SPEED = 20;
   const MIN_GOAL_POINTS = 5;
   const ball = {
     x: 0,
@@ -305,6 +306,21 @@
     }
     return null;
   }
+  function createBombHole(goal, scale, existing=[]){
+    const minR=Math.max(ball.r*1.05*scale,22*geom.scale*scale);
+    const maxR=Math.max(minR+6*scale,50*geom.scale*scale);
+    const pad=18*scale; let tries=0;
+    while(tries<600){
+      tries++;
+      const r=rnd(minR,maxR);
+      const x=rnd(goal.x+pad+r,goal.x+goal.w-pad-r);
+      const y=rnd(goal.y+pad+r,goal.y+goal.h-pad-r);
+      if(existing.every(h=>Math.hypot(h.x-x,h.y-y)>h.r+r+12*scale)){
+        return {x,y,r,points:-50,bomb:true};
+      }
+    }
+    return null;
+  }
   function createHoleSet(goal, scale){
     const list=[]; const cnt=6+Math.floor(Math.random()*7);
     const minR=Math.max(ball.r*1.05*scale,22*geom.scale*scale);
@@ -329,6 +345,7 @@
       }
     }
     const timer=createTimerHole(goal,scale,list); if(timer) list.push(timer);
+    const bomb=createBombHole(goal,scale,list); if(bomb) list.push(bomb);
     return list;
   }
   function generateMiniHoles(){
@@ -337,7 +354,7 @@
       const goal=miniGoalRect(cv);
       const scale=goal.w/geom.goal.w;
       const set=createHoleSet(goal,scale);
-      miniHolesCache[i]=set.map(h=>({x:h.x,y:h.y,r:h.r,p:h.points,t:h.timer?1:0}));
+      miniHolesCache[i]=set.map(h=>({x:h.x,y:h.y,r:h.r,p:h.points,t:h.timer?1:0,b:h.bomb?1:0}));
     }
   }
 
@@ -356,6 +373,34 @@
       document.body.appendChild(img);
       setTimeout(()=>img.remove(),3000);
     }
+  }
+
+  function popupText(text,x,y,targetEl,color){
+    if(!targetEl) return;
+    const rect=canvas.getBoundingClientRect();
+    const startX=rect.left + (x/W)*rect.width;
+    const startY=rect.top + (y/H)*rect.height;
+    const tRect=targetEl.getBoundingClientRect();
+    const el=document.createElement('div');
+    el.textContent=text;
+    el.style.position='fixed';
+    el.style.left=startX+'px';
+    el.style.top=startY+'px';
+    el.style.fontSize='32px';
+    el.style.fontWeight='900';
+    el.style.color=color;
+    el.style.webkitTextStroke='2px #fff';
+    el.style.pointerEvents='none';
+    el.style.transition='transform 0.8s ease, opacity 0.8s ease';
+    el.style.zIndex=150;
+    document.body.appendChild(el);
+    requestAnimationFrame(()=>{
+      const dx=tRect.left + tRect.width/2 - startX;
+      const dy=tRect.top + tRect.height/2 - startY;
+      el.style.transform=`translate(${dx}px,${dy}px) scale(0.5)`;
+      el.style.opacity='0';
+    });
+    setTimeout(()=>{ el.remove(); },800);
   }
 
   function reflectBall(nx,ny,damp=0.8){
@@ -678,7 +723,7 @@
     }
     for(const c of cameras){ ctx.fillStyle='#111'; ctx.fillRect(c.x,c.y,c.w,c.h); ctx.fillStyle='#e10600'; ctx.beginPath(); ctx.arc(c.x+8,c.y+6,3,0,Math.PI*2); ctx.fill(); }
     for(const h of holes){ if(h.hit) continue; ctx.fillStyle='rgba(225,6,0,.9)'; ctx.beginPath(); ctx.arc(h.x,h.y,h.r,0,Math.PI*2); ctx.fill();
-      ctx.fillStyle='#ffd400'; ctx.font=`800 ${Math.max(12,h.r*0.9)}px system-ui`; ctx.textAlign='center'; ctx.textBaseline='middle'; if(h.timer) ctx.fillText('⏳️',h.x,h.y); else ctx.fillText(h.points,h.x,h.y); }
+      ctx.fillStyle='#ffd400'; ctx.font=`800 ${Math.max(12,h.r*0.9)}px system-ui`; ctx.textAlign='center'; ctx.textBaseline='middle'; if(h.timer) ctx.fillText('⏳️',h.x,h.y); else if(h.bomb) ctx.fillText('💣',h.x,h.y); else ctx.fillText(h.points,h.x,h.y); }
     for(const f of fragments){ ctx.save(); ctx.translate(f.x,f.y); ctx.rotate(f.a); ctx.fillStyle='#ffd400'; ctx.fillRect(-4,-2,8,4); ctx.restore(); }
     drawKeeper();
   }
@@ -712,9 +757,17 @@
       ctx.drawImage(ballImg, -sizeL/2, -sizeL/2, sizeL, sizeL);
       ctx.restore();
     }
-    ctx.globalAlpha=0.4;
-    for(const t of ball.trail){ ctx.beginPath(); ctx.arc(t.x,t.y,drawR,0,Math.PI*2); ctx.fillStyle='#fff'; ctx.fill(); }
-    ctx.globalAlpha=1;
+    ctx.save();
+    for(let i=0;i<ball.trail.length;i++){
+      const t=ball.trail[i];
+      const a=(i+1)/ball.trail.length*0.4;
+      ctx.globalAlpha=a;
+      ctx.beginPath();
+      ctx.arc(t.x,t.y,drawR,0,Math.PI*2);
+      ctx.fillStyle='#fff';
+      ctx.fill();
+    }
+    ctx.restore();
     ctx.save();
     ctx.translate(ball.x,ball.y);
     ctx.rotate(ball.angle);
@@ -741,6 +794,8 @@
     if(!ball.trailStopped){
       ball.trail.push({x:ball.x,y:ball.y});
       if(ball.trail.length>20) ball.trail.shift();
+    } else if(ball.trail.length>0){
+      ball.trail.shift();
     }
     const g=geom.goal;
     const postR = g.post;
@@ -881,12 +936,19 @@
             roundStart -= 10000;
             timeLeft += 10000;
             updateHUD();
+            popupText('+10',h.x,h.y,timeShort,'#22c55e');
+          } else if(h.bomb){
+            roundStart += 15000;
+            timeLeft = Math.max(0,timeLeft-15000);
+            myScore = Math.max(0,myScore-50);
+            updateHUD();
+            popupText('-15',h.x,h.y,timeShort,'#ef4444');
+            popupText('-50',h.x,h.y,playerScoreEl,'#ef4444');
           } else {
             ball.points += h.points;
           }
           sfxPrize();
           ball.spin *= 0.6;
-          setTimeout(()=>{replaceHole(h);},600);
           break;
         }
       }
@@ -906,7 +968,7 @@
     if(ball.target){
       const dx=ball.target.x-ball.x, dy=ball.target.y-ball.y;
       const dist=Math.hypot(dx,dy);
-      if(dist < ball.r*0.5 || (ball.prevDist && dist>ball.prevDist)){
+      if(dist < ball.r*0.3 || (ball.prevDist && dist>ball.prevDist)){
         ball.x=ball.target.x; ball.y=ball.target.y;
         ball.vx*=0.2; ball.vy=Math.max(0,ball.vy)*0.2; ball.spin*=0.2;
         ball.trailStopped = true;
@@ -1067,14 +1129,14 @@ function endShot(hit,pts,delay=0){
   }
   updateHUD();
   if(delay>0){
-    setTimeout(()=>{ resetBall(); }, delay);
+    setTimeout(()=>{ resetBall(); generateHoles(); }, delay);
   } else {
     resetBall();
+    generateHoles();
   }
 }
   function updateHUD(){
-    const ps = document.getElementById('playerScore');
-    if(ps) ps.textContent = myScore;
+    if(playerScoreEl) playerScoreEl.textContent = myScore;
     timeShort.textContent = Math.ceil(timeLeft/1000);
   }
   function fmtTime(ms){ const s=Math.max(0, Math.ceil(ms/1000)); const m=Math.floor(s/60); const ss=String(s%60).padStart(2,'0'); return `${m}:${ss}`; }
@@ -1202,6 +1264,7 @@ function onUp(e){
         c.textAlign='center';
         c.textBaseline='middle';
         if(h.t) c.fillText('⏳️',h.x,h.y);
+        else if(h.b) c.fillText('💣',h.x,h.y);
         else c.fillText(h.p,h.x,h.y);
       }
 
