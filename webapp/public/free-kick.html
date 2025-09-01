@@ -736,7 +736,11 @@
     }
     for(const c of cameras){ ctx.fillStyle='#111'; ctx.fillRect(c.x,c.y,c.w,c.h); ctx.fillStyle='#e10600'; ctx.beginPath(); ctx.arc(c.x+8,c.y+6,3,0,Math.PI*2); ctx.fill(); }
     for(const h of holes){ if(h.hit) continue; ctx.fillStyle='rgba(225,6,0,.9)'; ctx.beginPath(); ctx.arc(h.x,h.y,h.r,0,Math.PI*2); ctx.fill();
-      ctx.fillStyle='#ffd400'; ctx.font=`800 ${Math.max(12,h.r*0.9)}px system-ui`; ctx.textAlign='center'; ctx.textBaseline='middle'; if(h.timer) ctx.fillText('⏳️',h.x,h.y); else if(h.bomb) ctx.fillText('💣',h.x,h.y); else ctx.fillText(h.points,h.x,h.y); }
+      ctx.fillStyle='#ffd400'; ctx.font=`800 ${Math.max(12,h.r*0.9)}px system-ui`; ctx.textAlign='center'; ctx.textBaseline='middle';
+      if(h.timer) ctx.fillText('⏳️ ' + h.points, h.x, h.y);
+      else if(h.bomb) ctx.fillText('💣 ' + h.points, h.x, h.y);
+      else ctx.fillText(h.points, h.x, h.y);
+    }
     for(const f of fragments){ ctx.save(); ctx.translate(f.x,f.y); ctx.rotate(f.a); ctx.fillStyle='#ffd400'; ctx.fillRect(-4,-2,8,4); ctx.restore(); }
     drawKeeper();
   }
