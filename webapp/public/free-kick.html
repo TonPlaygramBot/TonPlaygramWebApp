@@ -284,9 +284,9 @@
   const aimOn = true;
 
   const rivals=[
-    { i:0, wrap:document.querySelector('#pv0'), ptsEl:document.querySelector('#pv0pts'), cvs:null, ctx:null, score:0, next:0, acc:0.68, rate:[1180,2180], shots:[], kx:0, kw:0, kh:0, g:null, avatar:'', flash:0, result:'', defX:0, defY:0, defBaseY:0, defVy:0, defJump:false, defW:0, scale:1 },
-    { i:1, wrap:document.querySelector('#pv1'), ptsEl:document.querySelector('#pv1pts'), cvs:null, ctx:null, score:0, next:0, acc:0.62, rate:[1275,2360], shots:[], kx:0, kw:0, kh:0, g:null, avatar:'', flash:0, result:'', defX:0, defY:0, defBaseY:0, defVy:0, defJump:false, defW:0, scale:1 },
-    { i:2, wrap:document.querySelector('#pv2'), ptsEl:document.querySelector('#pv2pts'), cvs:null, ctx:null, score:0, next:0, acc:0.58, rate:[1350,2510], shots:[], kx:0, kw:0, kh:0, g:null, avatar:'', flash:0, result:'', defX:0, defY:0, defBaseY:0, defVy:0, defJump:false, defW:0, scale:1 },
+    { i:0, wrap:document.querySelector('#pv0'), ptsEl:document.querySelector('#pv0pts'), cvs:null, ctx:null, score:0, next:0, acc:0.78, rate:[1180,2180], shots:[], kx:0, kw:0, kh:0, g:null, avatar:'', flash:0, result:'', defX:0, defY:0, defBaseY:0, defVy:0, defJump:false, defW:0, scale:1 },
+    { i:1, wrap:document.querySelector('#pv1'), ptsEl:document.querySelector('#pv1pts'), cvs:null, ctx:null, score:0, next:0, acc:0.72, rate:[1275,2360], shots:[], kx:0, kw:0, kh:0, g:null, avatar:'', flash:0, result:'', defX:0, defY:0, defBaseY:0, defVy:0, defJump:false, defW:0, scale:1 },
+    { i:2, wrap:document.querySelector('#pv2'), ptsEl:document.querySelector('#pv2pts'), cvs:null, ctx:null, score:0, next:0, acc:0.68, rate:[1350,2510], shots:[], kx:0, kw:0, kh:0, g:null, avatar:'', flash:0, result:'', defX:0, defY:0, defBaseY:0, defVy:0, defJump:false, defW:0, scale:1 },
   ];
   for(let i=0;i<rivals.length;i++){ rivals[i].cvs = rivals[i].wrap.querySelector('canvas'); rivals[i].ctx = rivals[i].cvs.getContext('2d'); rivals[i].avatar = pvAvatars[i]?.src || ''; }
   const miniHolesCache=[[],[],[]];
@@ -1420,21 +1420,21 @@ function onUp(e){
         const timers = list.filter(h=>h.t);
         let target;
         const rand = Math.random();
-        if(rand < 0.2 && timers.length){
+        if(rand < 0.3 && timers.length){
           target = timers[Math.floor(Math.random()*timers.length)];
-        } else if(rand < 0.4 && bombs.length){
+        } else if(rand < 0.6 && bombs.length){
           target = bombs[Math.floor(Math.random()*bombs.length)];
-        } else if(rand < 0.7){
+        } else if(rand < 0.85){
           target = list.slice().sort((a,b)=>a.r-b.r)[0];
-        } else if(rand < 0.9){
+        } else if(rand < 0.95){
           target = list[Math.floor(Math.random()*list.length)];
         } else {
           target = { x: rnd(g.x, g.x + g.w), y: rnd(g.y, g.y + g.h), r: 40*r.scale, p: 0, t: 0 };
         }
-        const acc = clamp(r.acc * (0.9 + 0.5*t),0, 0.98);
-        const chance = acc * (22/Math.max(10,target.r)) * 0.8;
+        const acc = clamp(r.acc * (0.9 + 0.5*t),0, 0.99);
+        const chance = acc * (25/Math.max(10,target.r));
         if(Math.random() < chance){
-          const saved = Math.random() < 0.5;
+          const saved = Math.random() < 0.35;
           const startX = rnd(g.x, g.x + g.w);
           r.defX = clamp(startX - r.defW/2, g.x, g.x + g.w - r.defW);
           if(!r.defJump){ r.defVy = -2*r.scale; r.defJump = true; }
