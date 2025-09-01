@@ -269,7 +269,7 @@
   const ballImg = new Image();
   ballImg.src = '/assets/icons/file_0000000061d4620aaf506adfa605e1f3.webp';
 
-  let holes=[]; let banners=[]; let cameras=[]; let looseBalls=[]; let punchEffects=[];
+  let holes=[]; let banners=[]; let cameras=[]; let looseBalls=[]; let punchEffects=[]; let prizePieces=[]; let ballPieces=[];
   let netHit={x:0,y:0,t:0,shake:0};
   let goalFlash=0;
   let missFlash=0;
@@ -293,8 +293,8 @@
       score:0,
       next:0,
       acc:0.68,
-      // shoot faster than before
-      rate:[800,1650],
+      // base shot interval (50% faster)
+      rate:[533,1100],
       shots:[],
       kx:0,
       kw:0,
@@ -320,7 +320,7 @@
       score:0,
       next:0,
       acc:0.62,
-      rate:[885,1805],
+      rate:[590,1203],
       shots:[],
       kx:0,
       kw:0,
@@ -346,7 +346,7 @@
       score:0,
       next:0,
       acc:0.58,
-      rate:[950,1935],
+      rate:[633,1290],
       shots:[],
       kx:0,
       kw:0,
@@ -591,6 +591,7 @@
   }
 
   function explodeBall(){
+    spawnBallPieces(ball.x, ball.y);
     const rect=canvas.getBoundingClientRect();
     const x=rect.left + (ball.x/W)*rect.width;
     const y=rect.top + (ball.y/H)*rect.height;
@@ -908,6 +909,32 @@
     ctx.globalAlpha=1;
     punchEffects=punchEffects.filter(p=>p.life>0);
   }
+
+  function drawPrizePieces(){
+    ctx.save();
+    for(const p of prizePieces){
+      ctx.globalAlpha=p.life;
+      ctx.fillStyle='#ffd400';
+      ctx.beginPath();
+      ctx.arc(p.x,p.y,p.r,0,Math.PI*2);
+      ctx.fill();
+    }
+    ctx.restore();
+    ctx.globalAlpha=1;
+  }
+
+  function drawBallPieces(){
+    ctx.save();
+    for(const p of ballPieces){
+      ctx.globalAlpha=p.life;
+      ctx.fillStyle='#fff';
+      ctx.beginPath();
+      ctx.arc(p.x,p.y,p.r,0,Math.PI*2);
+      ctx.fill();
+    }
+    ctx.restore();
+    ctx.globalAlpha=1;
+  }
   const FRICTION=0.995, AIR_DRAG=0.0006, GRAVITY=0.20; // reduce drag for smoother motion
   function stepBall(){
     if(!ball.moving) return;
@@ -1053,6 +1080,7 @@
         // break a prize once the ball overlaps roughly 30% of its radius
         if(Math.hypot(h.x-ball.x,h.y-ball.y) <= Math.max(2, h.r + ball.r * 0.3)){
           h.hit=true;
+          spawnPrizePieces(h.x,h.y,h.r);
           if(h.timer){
             const extra=h.timer*1000;
             roundStart -= extra;
@@ -1190,7 +1218,42 @@
     }
     looseBalls = looseBalls.filter(b => !b.remove);
   }
+  function stepPrizePieces(){
+    for(const p of prizePieces){
+      p.vy += GRAVITY*0.4;
+      p.x += p.vx;
+      p.y += p.vy;
+      p.life -= 0.02;
+    }
+    prizePieces = prizePieces.filter(p=>p.life>0);
+  }
 
+  function stepBallPieces(){
+    for(const p of ballPieces){
+      p.vy += GRAVITY*0.4;
+      p.x += p.vx;
+      p.y += p.vy;
+      p.life -= 0.02;
+    }
+    ballPieces = ballPieces.filter(p=>p.life>0);
+  }
+
+  function spawnPrizePieces(x,y,r){
+    for(let i=0;i<8;i++){
+      const ang=Math.random()*Math.PI*2;
+      const speed=rnd(1,4);
+      prizePieces.push({x,y,r:r*0.2,vx:Math.cos(ang)*speed,vy:Math.sin(ang)*speed-1,life:1});
+    }
+  }
+
+  function spawnBallPieces(x,y){
+    const baseR=Math.max(BALL_R*geom.scale,22)*0.3;
+    for(let i=0;i<10;i++){
+      const ang=Math.random()*Math.PI*2;
+      const speed=rnd(2,5);
+      ballPieces.push({x,y,r:baseR,vx:Math.cos(ang)*speed,vy:Math.sin(ang)*speed-1,life:1});
+    }
+  }
 
   function stepDefenders(){
     if(!defenders.jumping) return;
@@ -1509,8 +1572,8 @@ function onUp(e){
           const startX = rnd(g.x, g.x + g.w);
           r.defX = clamp(startX - r.defW/2, g.x, g.x + g.w - r.defW);
           if(!r.defJump){ r.defVy = -2*r.scale; r.defJump = true; }
-          const vx = (target.x - startX) / 15;
-          const vy = (target.y - (g.y + g.h)) / 15;
+          const vx = (target.x - startX) / 10;
+          const vy = (target.y - (g.y + g.h)) / 10;
           r.shots.push({x:startX,y:g.y+g.h,vx,vy,life:1,saved});
         }
       }
@@ -1520,7 +1583,7 @@ function onUp(e){
 
   // ===== Timer + loop =====
   function tick(now){ if(!running||paused) return; if(!roundStart) roundStart=now; timeLeft = Math.max(0, ROUND_TIME - (now - roundStart)); timeShort.textContent = Math.ceil(timeLeft/1000); if(timeLeft<=0){ finish(); } }
-  function loop(now){ requestAnimationFrame(loop); drawField(); drawAds(); drawGoal(); drawBall(); drawDefenders(); drawPunchEffects(); stepBall(); stepLooseBalls(); stepDefenders(); stepKeeper(); drawMiniBoards(); tick(now||performance.now()); stepRivals(now||performance.now()); updateHUD(); netHit.t*=NET_DECAY; netHit.shake*=NET_DECAY; goalFlash*=0.92; missFlash*=0.92; }
+function loop(now){ requestAnimationFrame(loop); drawField(); drawAds(); drawGoal(); drawBall(); drawDefenders(); drawPunchEffects(); drawPrizePieces(); drawBallPieces(); stepBall(); stepLooseBalls(); stepPrizePieces(); stepBallPieces(); stepDefenders(); stepKeeper(); drawMiniBoards(); tick(now||performance.now()); stepRivals(now||performance.now()); updateHUD(); netHit.t*=NET_DECAY; netHit.shake*=NET_DECAY; goalFlash*=0.92; missFlash*=0.92; }
 
   // ===== Controls =====
   // controls removed
@@ -1545,6 +1608,7 @@ function onUp(e){
     ball.pathIndex = 0;
     ball.pathSpeed = 0;
     ball.exploded = false;
+    ballPieces=[];
     defenders.x = clamp(ball.x - defenders.w/2, 0, W - defenders.w);
     defenders.y = defenders.baseY;
     defenders.vy = 0;
@@ -1585,6 +1649,8 @@ function onUp(e){
     timeLeft=ROUND_TIME;
     myScore=0;
     looseBalls=[];
+    prizePieces=[];
+    ballPieces=[];
     for(const r of rivals){ r.score=0; r.next=0; r.shots=[]; }
     resetBall();
     generateHoles();
@@ -1647,7 +1713,7 @@ function onUp(e){
     const src=audioCtx.createBufferSource();
     src.buffer=postHitSoundBuf;
     const gain=audioCtx.createGain();
-    gain.gain.value=0.35; // further reduce volume on post/crossbar hits
+    gain.gain.value=0.45; // slightly louder on post/crossbar hits
     src.connect(gain).connect(masterGain);
     // Skip ~0.4s of initial silence so the clang matches contact
     src.start(0, 0.4);
