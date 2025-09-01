@@ -48,7 +48,6 @@ import BlackJack from './pages/Games/BlackJack.jsx';
 import BlackJackLobby from './pages/Games/BlackJackLobby.jsx';
 import PollRoyale from './pages/Games/PollRoyale.jsx';
 import PollRoyaleLobby from './pages/Games/PollRoyaleLobby.jsx';
-import PollRoyaleBracket from './pages/Games/PollRoyaleBracket.jsx';
 
 import Layout from './components/Layout.jsx';
 import useTelegramAuth from './hooks/useTelegramAuth.js';
@@ -139,10 +138,6 @@ export default function App() {
               element={<PollRoyaleLobby />}
             />
             <Route path="/games/pollroyale" element={<PollRoyale />} />
-            <Route
-              path="/games/pollroyale/bracket"
-              element={<PollRoyaleBracket />}
-            />
             <Route path="/spin" element={<SpinPage />} />
             <Route path="/admin/influencer" element={<InfluencerAdmin />} />
             <Route path="/tasks" element={<Tasks />} />

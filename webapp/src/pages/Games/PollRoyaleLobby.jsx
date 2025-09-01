@@ -78,7 +78,7 @@ export default function PollRoyaleLobby() {
     if (devAcc2) params.set('dev2', devAcc2);
     if (initData) params.set('init', encodeURIComponent(initData));
     if (playType === 'tournament') {
-      navigate(`/games/pollroyale/bracket?${params.toString()}`);
+      window.location.href = `/poll-royale-bracket.html?${params.toString()}`;
     } else {
       navigate(`/games/pollroyale?${params.toString()}`);
     }
