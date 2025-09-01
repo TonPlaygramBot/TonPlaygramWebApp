@@ -240,7 +240,7 @@
 
   const BALL_R = 28;
   // slower initial shot speed for finer precision
-  const SHOT_SPEED = 15;
+  const SHOT_SPEED = 22; // slightly faster initial shot for smoother kicks
   const MIN_GOAL_POINTS = 5;
   const ball = {
     x: 0,
@@ -294,12 +294,21 @@
 
   function createTimerHole(goal, scale, existing=[]){
     const minR=Math.max(ball.r*1.05*scale,22*geom.scale*scale);
-    const maxR=Math.max(minR+6*scale,50*geom.scale*scale);
+    const maxR=Math.max(minR+12*scale,60*geom.scale*scale);
     const pad=18*scale; let tries=0;
     while(tries<600){
       tries++;
       const r=rnd(minR,maxR);
-      const x=rnd(goal.x+pad+r,goal.x+goal.w-pad-r);
+      let x;
+      // bias timers toward goal sides
+      if(Math.random()<0.8){
+        const side=Math.random()<0.5?'l':'r';
+        const range=goal.w*0.25;
+        if(side==='l') x=rnd(goal.x+pad+r,goal.x+pad+range);
+        else x=rnd(goal.x+goal.w-pad-range,goal.x+goal.w-pad-r);
+      }else{
+        x=rnd(goal.x+pad+r,goal.x+goal.w-pad-r);
+      }
       const y=rnd(goal.y+pad+r,goal.y+goal.h-pad-r);
       if(existing.every(h=>Math.hypot(h.x-x,h.y-y)>h.r+r+12*scale)){
         return {x,y,r,points:0,timer:true};
@@ -309,15 +318,26 @@
   }
   function createBombHole(goal, scale, existing=[]){
     const minR=Math.max(ball.r*1.05*scale,22*geom.scale*scale);
-    const maxR=Math.max(minR+6*scale,50*geom.scale*scale);
+    const maxR=Math.max(minR+12*scale,60*geom.scale*scale);
     const pad=18*scale; let tries=0;
+    const keeperCenter=keeper.x+keeper.w/2;
+    const goalMid=goal.x+goal.w/2;
+    const preferSide=keeperCenter<goalMid?'r':'l';
     while(tries<600){
       tries++;
       const r=rnd(minR,maxR);
-      const x=rnd(goal.x+pad+r,goal.x+goal.w-pad-r);
+      let x;
+      // place bombs near sides, mostly opposite goalkeeper
+      if(Math.random()<0.9){
+        const range=goal.w*0.25;
+        if(preferSide==='l') x=rnd(goal.x+pad+r,goal.x+pad+range);
+        else x=rnd(goal.x+goal.w-pad-range,goal.x+goal.w-pad-r);
+      }else{
+        x=rnd(goal.x+pad+r,goal.x+goal.w-pad-r);
+      }
       const y=rnd(goal.y+pad+r,goal.y+goal.h-pad-r);
       if(existing.every(h=>Math.hypot(h.x-x,h.y-y)>h.r+r+12*scale)){
-        return {x,y,r,points:-50,bomb:true};
+        return {x,y,r:r*1.2,points:-50,bomb:true};
       }
     }
     return null;
@@ -325,7 +345,7 @@
   function createHoleSet(goal, scale){
     const list=[]; const cnt=6+Math.floor(Math.random()*7);
     const minR=Math.max(ball.r*1.05*scale,22*geom.scale*scale);
-    const maxR=Math.max(minR+6*scale,50*geom.scale*scale);
+    const maxR=Math.max(minR+12*scale,60*geom.scale*scale);
     const pad=18*scale; let tries=0;
     while(list.length<cnt && tries<1600){
       tries++;
@@ -806,7 +826,7 @@
     ctx.globalAlpha=1;
     punchEffects=punchEffects.filter(p=>p.life>0);
   }
-  const FRICTION=0.99, AIR_DRAG=0.001, GRAVITY=0.20;
+  const FRICTION=0.995, AIR_DRAG=0.0006, GRAVITY=0.20; // reduce drag for smoother motion
   function stepBall(){
     if(!ball.moving) return;
     if(!ball.trailStopped){
@@ -991,7 +1011,7 @@
     if(ball.target){
       const dx=ball.target.x-ball.x, dy=ball.target.y-ball.y;
       const dist=Math.hypot(dx,dy);
-      if(dist < ball.r*0.3 || (ball.prevDist && dist>ball.prevDist)){
+      if(dist < ball.r*0.15 || (ball.prevDist && dist>ball.prevDist)){
         ball.x=ball.target.x; ball.y=ball.target.y;
         ball.vx*=0.2; ball.vy=Math.max(0,ball.vy)*0.2; ball.spin*=0.2;
         ball.trailStopped = true;
