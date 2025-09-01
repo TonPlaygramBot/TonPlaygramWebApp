@@ -128,6 +128,39 @@ test('potting both colours on break requires choice', () => {
   assert.equal(game.state.assignments.A, 'yellow');
 });
 
+test('cross pot on break is legal', () => {
+  const game = new UkPool();
+  const res = game.shotTaken({
+    contactOrder: ['yellow'],
+    potted: ['red'],
+    cueOffTable: false,
+    noCushionAfterContact: false,
+    placedFromHand: false
+  });
+  assert.equal(res.foul, false);
+  assert.equal(game.state.assignments.A, 'red');
+});
+
+test('cross pot on open table after break is foul', () => {
+  const game = new UkPool();
+  game.shotTaken({
+    contactOrder: ['yellow'],
+    potted: [],
+    cueOffTable: false,
+    noCushionAfterContact: false,
+    placedFromHand: false
+  });
+  const res = game.shotTaken({
+    contactOrder: ['red'],
+    potted: ['yellow'],
+    cueOffTable: false,
+    noCushionAfterContact: false,
+    placedFromHand: false
+  });
+  assert.equal(res.foul, true);
+  assert.equal(res.reason, 'wrong ball potted');
+});
+
 test('potting 8-ball legally after clearing group wins', () => {
   const game = new UkPool();
   game.state.assignments = { A: 'yellow', B: 'red' };
