@@ -447,7 +447,7 @@
       #cueOptions {
         position: absolute;
         top: 15%;
-        left: 0;
+        left: -4px;
         display: flex;
         flex-direction: column;
         align-items: flex-start;
@@ -460,13 +460,15 @@
         margin-bottom: 2px;
       }
       #cueOptions .cue-btn {
-        width: 36px;
-        height: 36px;
+        width: 44px;
+        height: 44px;
         border-radius: 50%;
         border: 1px solid #fff;
         background: none;
         color: #fff;
-        font-size: 10px;
+        font-size: 8px;
+        line-height: 44px;
+        text-align: center;
         cursor: pointer;
       }
       #cueOptions .cue-btn.active {
@@ -588,8 +590,19 @@
         background: #20345a;
         color: #fff;
       }
+      #trainingOverlay {
+        position: fixed;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.6);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 400;
+      }
+      #trainingOverlay.hidden {
+        display: none;
+      }
       #trainingMenu {
-        margin-top: 8px;
         background: #20345a;
         padding: 8px;
         border-radius: 8px;
@@ -877,6 +890,8 @@
         var variant = params.get('variant') || 'uk';
         var isAmerican = variant === 'american';
         var isNineBall = variant === '9ball';
+        var isTraining = params.get('type') === 'training';
+        var trainingSolo = true;
         const planShotPromise = import('/lib/poolAi.js');
 
         /* ==========================================================
@@ -2397,10 +2412,16 @@
             }, 25000);
             turnTimer = setTimeout(function () {
               updateFooter(2, "Time's up! Turn passes to the opponent.");
-              table.turn = 2;
-              updateTurnIndicator(true);
-              showTurnInfo();
-              cpuTurn();
+              if (trainingSolo) {
+                table.turn = 1;
+                updateTurnIndicator(true);
+                showTurnInfo();
+              } else {
+                table.turn = 2;
+                updateTurnIndicator(true);
+                showTurnInfo();
+                cpuTurn();
+              }
             }, 30000);
           }
 
@@ -2547,7 +2568,7 @@
             }
             freeShots[opponent] = isAmerican || isNineBall ? 1 : 2;
             freeShots[currentShooter] = 0;
-            table.turn = opponent;
+            table.turn = trainingSolo ? 1 : opponent;
             setTimeout(showTurnInfo, 1500);
           } else {
             if (nineBallPotted) {
@@ -2565,10 +2586,10 @@
             if (freeShots[currentShooter] > 0) {
               freeShots[currentShooter]--;
               if (freeShots[currentShooter] === 0 && !pocketedOwn) {
-                table.turn = opponent;
+                table.turn = trainingSolo ? 1 : opponent;
               }
             } else if (!pocketedOwn) {
-              table.turn = opponent;
+              table.turn = trainingSolo ? 1 : opponent;
             }
             if (lastPocketedBall !== null) {
               var msg;
@@ -2643,7 +2664,8 @@
               !table.isMoving() &&
               table.turn === 2 &&
               !shotInProgress &&
-              !cpuThinking
+              !cpuThinking &&
+              !trainingSolo
             )
               setTimeout(cpuTurn, 200);
           }
@@ -3449,10 +3471,10 @@
               setTimeout(() => {
                 overlay.classList.add('hidden');
                 diceRolling = false;
-                table.turn = playerStarts ? 1 : 2;
+                table.turn = trainingSolo ? 1 : playerStarts ? 1 : 2;
                 updateTurnIndicator(true);
                 showTurnInfo();
-                if (table.turn === 2) cpuTurn();
+                if (!trainingSolo && table.turn === 2) cpuTurn();
               }, 1000);
             }
           }
@@ -3479,7 +3501,9 @@
           table.running = true;
           resize();
           table.render();
-          startDiceRoll();
+          if (!isTraining) {
+            startDiceRoll();
+          }
         });
         resize();
         table.render();
@@ -3488,7 +3512,9 @@
 
     <div id="trainingMenuWrapper" class="hidden">
       <button id="trainingMenuButton">☰</button>
-      <div id="trainingMenu" class="hidden">
+    </div>
+    <div id="trainingOverlay" class="hidden">
+      <div id="trainingMenu">
         <button id="practiceSolo">Practice Solo</button>
         <button id="practiceAi">Practice vs AI</button>
         <button id="restartTraining">New Game</button>
@@ -3564,30 +3590,42 @@
         }
       });
 
-      const params = new URLSearchParams(window.location.search);
-      if (params.get('type') === 'training') {
+      if (isTraining) {
         const wrapper = document.getElementById('trainingMenuWrapper');
         const menuBtn = document.getElementById('trainingMenuButton');
+        const overlay = document.getElementById('trainingOverlay');
         const menu = document.getElementById('trainingMenu');
         wrapper.classList.remove('hidden');
         menuBtn.addEventListener('click', () => {
-          menu.classList.toggle('hidden');
+          overlay.classList.remove('hidden');
         });
+        overlay.addEventListener('click', (e) => {
+          if (e.target === overlay) overlay.classList.add('hidden');
+        });
+        function startSoloGame() {
+          table.reset();
+          table.turn = 1;
+          updateTurnIndicator(true);
+          showTurnInfo();
+        }
+        function startAiGame() {
+          table.reset();
+          startDiceRoll();
+        }
         document.getElementById('practiceSolo').addEventListener('click', () => {
-          console.log('Practice solo');
-          menu.classList.add('hidden');
+          trainingSolo = true;
+          overlay.classList.add('hidden');
+          startSoloGame();
         });
-        document
-          .getElementById('practiceAi')
-          .addEventListener('click', () => {
-            console.log('Practice vs AI');
-            menu.classList.add('hidden');
-          });
-        document
-          .getElementById('restartTraining')
-          .addEventListener('click', () => {
-            window.location.reload();
-          });
+        document.getElementById('practiceAi').addEventListener('click', () => {
+          trainingSolo = false;
+          overlay.classList.add('hidden');
+          startAiGame();
+        });
+        document.getElementById('restartTraining').addEventListener('click', () => {
+          overlay.classList.add('hidden');
+          if (trainingSolo) startSoloGame(); else startAiGame();
+        });
       }
 
       // Rotate corner holes diagonally; keep side holes horizontal
