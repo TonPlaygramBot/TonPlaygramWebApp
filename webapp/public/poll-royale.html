@@ -652,24 +652,9 @@
       .tournament-bracket li {
         padding: 4px 8px;
         border-bottom: 1px solid #fff;
-        display: flex;
-        align-items: center;
-        gap: 4px;
       }
       .tournament-bracket li:last-child {
         border-bottom: none;
-      }
-      .tournament-bracket .t-avatar {
-        width: 20px;
-        height: 20px;
-        border-radius: 50%;
-        background-size: cover;
-        background-position: center;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 12px;
-        overflow: hidden;
       }
       .tournament-pot {
         display: flex;
@@ -849,7 +834,6 @@
           <button class="cue-btn" data-cue="short">Short</button>
           <button class="cue-btn" data-cue="medium">Medium</button>
           <button class="cue-btn" data-cue="long">Long</button>
-          <button id="cueAuto" class="cue-btn">Auto</button>
         </div>
 
         <!-- Panel djathtas: vetem slideri i fuqise -->
@@ -1042,8 +1026,7 @@
         var powerBg = document.getElementById('powerBg');
         var pullHandle = document.getElementById('pullLabel');
         var cueRail = document.getElementById('cueRail');
-        var cueButtons = document.querySelectorAll('#cueOptions .cue-btn[data-cue]');
-        var autoCueBtn = document.getElementById('cueAuto');
+        var cueButtons = document.querySelectorAll('#cueOptions .cue-btn');
         var settingsBtn = document.getElementById('settingsBtn');
         var settingsPanel = document.getElementById('settingsPanel');
         var crowdVolumeInput = document.getElementById('crowdVolume');
@@ -1066,15 +1049,6 @@
           b.addEventListener('click', function () {
             setCueVariant(b.dataset.cue);
           });
-        });
-        autoCueBtn.addEventListener('click', function () {
-          if (!table || !table.balls) return;
-          var cueBall = table.balls[0];
-          var dx = table.aim.x - cueBall.p.x;
-          var dy = table.aim.y - cueBall.p.y;
-          var dist = Math.hypot(dx, dy);
-          var bucket = dist <= SHORT_DIST ? 'short' : dist <= MED_DIST ? 'medium' : 'long';
-          setCueVariant(bucket);
         });
         setCueVariant(currentCue);
 
@@ -3751,25 +3725,20 @@
         const potEl = document.getElementById('tPotAmount');
         const totalPlayers = window.tournamentPlayers || 8;
         const userName = window.playerName || 'You';
-        const userAvatar = avatarParam || '';
-        let bracket = Array.from({ length: totalPlayers }, (_, i) => {
-          if (i === 0) {
-            return { name: userName, avatar: userAvatar };
-          }
-          const flag = FLAG_EMOJIS[(Math.random() * FLAG_EMOJIS.length) | 0];
-          return { name: flagToName(flag) || 'AI', avatar: flag };
-        });
+        let bracket = Array.from({ length: totalPlayers }, (_, i) =>
+          i === 0 ? userName : 'CPU ' + i
+        );
         window.tournamentData = { bracket: [bracket], round: 0 };
-        function playerItem(p) {
-          const av = p.avatar && p.avatar.startsWith('http')
-            ? `<div class="t-avatar" style="background-image:url('${p.avatar}')"></div>`
-            : `<div class="t-avatar">${p.avatar || ''}</div>`;
-          return `<li>${av}<span class="t-name">${p.name}</span></li>`;
-        }
         function render(list) {
           const half = list.length / 2;
-          leftList.innerHTML = list.slice(0, half).map(playerItem).join('');
-          rightList.innerHTML = list.slice(half).map(playerItem).join('');
+          leftList.innerHTML = list
+            .slice(0, half)
+            .map(p => `<li>${p}</li>`)
+            .join('');
+          rightList.innerHTML = list
+            .slice(half)
+            .map(p => `<li>${p}</li>`)
+            .join('');
           potEl.textContent = (window.potAmount || 0) + ' TPC';
         }
         function showOverlay() {
@@ -3793,8 +3762,8 @@
             const a = current[i];
             const b = current[i + 1];
             let w;
-            if (a.name === userName || b.name === userName) {
-              w = winner === 1 ? (a.name === userName ? a : b) : (a.name === userName ? b : a);
+            if (a === userName || b === userName) {
+              w = winner === 1 ? userName : a === userName ? b : a;
             } else {
               w = a;
             }
