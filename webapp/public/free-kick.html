@@ -1416,18 +1416,17 @@ function onUp(e){
         const g = r.g;
         const list = Array.isArray(miniHolesCache[i]) ? miniHolesCache[i] : [];
         if(list.length===0){ generateMiniHoles(); continue; }
+        const positives = list.filter(h=>!h.b && !h.t);
         const bombs = list.filter(h=>h.b);
         const timers = list.filter(h=>h.t);
         let target;
         const rand = Math.random();
-        if(rand < 0.2 && timers.length){
+        if(rand < 0.1 && timers.length){
           target = timers[Math.floor(Math.random()*timers.length)];
-        } else if(rand < 0.4 && bombs.length){
+        } else if(rand < 0.2 && bombs.length){
           target = bombs[Math.floor(Math.random()*bombs.length)];
-        } else if(rand < 0.7){
-          target = list.slice().sort((a,b)=>a.r-b.r)[0];
-        } else if(rand < 0.9){
-          target = list[Math.floor(Math.random()*list.length)];
+        } else if(positives.length){
+          target = positives[Math.floor(Math.random()*positives.length)];
         } else {
           target = { x: rnd(g.x, g.x + g.w), y: rnd(g.y, g.y + g.h), r: 40*r.scale, p: 0, t: 0 };
         }
