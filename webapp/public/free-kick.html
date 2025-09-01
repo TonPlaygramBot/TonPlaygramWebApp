@@ -68,6 +68,9 @@
   .coin-confetti{position:fixed;top:-40px;width:32px;height:32px;pointer-events:none;animation:coin-fall var(--duration,3s) linear forwards;z-index:210}
   @keyframes coin-fall{from{transform:translateY(-10vh) rotate(0deg);opacity:1}to{transform:translateY(100vh) rotate(360deg);opacity:0}}
 
+  .bomb-explosion{position:fixed;transform:translate(-50%,-50%) scale(1);font-size:64px;pointer-events:none;z-index:200;animation:bomb-pop 1s forwards}
+  @keyframes bomb-pop{to{transform:translate(-50%,-50%) scale(3);opacity:0}}
+
   /* tests */
 
   @media (max-width: 420px){
@@ -266,7 +269,7 @@
   const ballImg = new Image();
   ballImg.src = '/assets/icons/file_0000000061d4620aaf506adfa605e1f3.webp';
 
-  let holes=[]; let banners=[]; let cameras=[]; let fragments=[]; let looseBalls=[]; let punchEffects=[];
+  let holes=[]; let banners=[]; let cameras=[]; let looseBalls=[]; let punchEffects=[];
   let netHit={x:0,y:0,t:0,shake:0};
   let goalFlash=0;
   let missFlash=0;
@@ -366,8 +369,8 @@
         list.push({x,y,r,points});
       }
     }
-    for(let i=0;i<3;i++){ const timer=createTimerHole(goal,scale,list); if(timer) list.push(timer); }
-    for(let i=0;i<3;i++){ const bomb=createBombHole(goal,scale,list); if(bomb) list.push(bomb); }
+    for(let i=0;i<15;i++){ const timer=createTimerHole(goal,scale,list); if(timer) list.push(timer); }
+    for(let i=0;i<15;i++){ const bomb=createBombHole(goal,scale,list); if(bomb) list.push(bomb); }
     return list;
   }
   function generateMiniHoles(){
@@ -509,17 +512,17 @@
     generateMiniHoles();
   }
 
-  function createFragments(h){
-    for(let i=0;i<8;i++){
-      fragments.push({x:h.x,y:h.y,vx:rnd(-4,4),vy:rnd(-7,-2),a:rnd(0,Math.PI*2),va:rnd(-0.1,0.1),life:1});
-    }
-  }
-
   function explodeBall(){
-    const pieces=5;
-    for(let i=0;i<pieces;i++){
-      fragments.push({x:ball.x,y:ball.y-20,vx:rnd(-10,10),vy:rnd(-12,-6),a:rnd(0,Math.PI*2),va:rnd(-0.3,0.3),life:1,big:true});
-    }
+    const rect=canvas.getBoundingClientRect();
+    const x=rect.left + (ball.x/W)*rect.width;
+    const y=rect.top + (ball.y/H)*rect.height;
+    const el=document.createElement('div');
+    el.textContent='💥';
+    el.className='bomb-explosion';
+    el.style.left=x+'px';
+    el.style.top=y+'px';
+    document.body.appendChild(el);
+    setTimeout(()=>el.remove(),1000);
     ball.exploded = true;
     ball.moving = false;
     ball.path = null;
@@ -763,7 +766,6 @@
       else if(h.bomb) ctx.fillText('💣 ' + (h.points * 3), h.x, h.y);
       else ctx.fillText(h.points, h.x, h.y);
     }
-    for(const f of fragments){ ctx.save(); ctx.translate(f.x,f.y); ctx.rotate(f.a); ctx.fillStyle='#ffd400'; if(f.big) ctx.fillRect(-6,-3,12,6); else ctx.fillRect(-4,-2,8,4); ctx.restore(); }
     drawKeeper();
   }
 
@@ -972,13 +974,13 @@
         if(h.hit) continue;
         // break a prize once the ball overlaps roughly 30% of its radius
         if(Math.hypot(h.x-ball.x,h.y-ball.y) <= Math.max(2, h.r + ball.r * 0.3)){
-          h.hit=true; createFragments(h);
+          h.hit=true;
           if(h.timer){
             roundStart -= 10000;
             timeLeft += 10000;
             updateHUD();
             popupText('+10',h.x,h.y,timeShort,'#22c55e');
-            sfxPrize();
+            sfxTimer();
             const maxRival = Math.max(...rivals.map(r=>r.score));
             if(myScore >= maxRival) finish();
           } else if(h.bomb){
@@ -1112,16 +1114,6 @@
     looseBalls = looseBalls.filter(b => !b.remove);
   }
 
-  function stepFragments(){
-    for(const f of fragments){
-      f.x+=f.vx; f.y+=f.vy; f.vy+=0.3; f.a+=f.va; f.life-=0.02;
-      const g=geom.goal;
-      if(f.y>g.y && f.y<g.y+g.h && f.x>g.x && f.x<g.x+g.w){
-        netHit = {x:f.x, y:f.y, t:Math.max(netHit.t,0.3), shake:Math.max(netHit.shake,0.3)};
-      }
-    }
-    fragments = fragments.filter(f=>f.life>0);
-  }
 
   function stepDefenders(){
     if(!defenders.jumping) return;
@@ -1439,7 +1431,7 @@ function onUp(e){
 
   // ===== Timer + loop =====
   function tick(now){ if(!running||paused) return; if(!roundStart) roundStart=now; timeLeft = Math.max(0, ROUND_TIME - (now - roundStart)); timeShort.textContent = Math.ceil(timeLeft/1000); if(timeLeft<=0){ finish(); } }
-function loop(now){ requestAnimationFrame(loop); drawField(); drawAds(); drawGoal(); drawBall(); drawDefenders(); drawPunchEffects(); stepBall(); stepLooseBalls(); stepFragments(); stepDefenders(); stepKeeper(); drawMiniBoards(); tick(now||performance.now()); stepRivals(now||performance.now()); updateHUD(); netHit.t*=NET_DECAY; netHit.shake*=NET_DECAY; goalFlash*=0.92; missFlash*=0.92; }
+  function loop(now){ requestAnimationFrame(loop); drawField(); drawAds(); drawGoal(); drawBall(); drawDefenders(); drawPunchEffects(); stepBall(); stepLooseBalls(); stepDefenders(); stepKeeper(); drawMiniBoards(); tick(now||performance.now()); stepRivals(now||performance.now()); updateHUD(); netHit.t*=NET_DECAY; netHit.shake*=NET_DECAY; goalFlash*=0.92; missFlash*=0.92; }
 
   // ===== Controls =====
   // controls removed
@@ -1593,6 +1585,27 @@ function loop(now){ requestAnimationFrame(loop); drawField(); drawAds(); drawGoa
     src.start(0);
   }
   const sfxExplosion = playBombSound;
+  let timerSoundBuf=null;
+  async function loadTimerSound(){
+    try{
+      const res=await fetch('/assets/sounds/clock-ticking-60-second-countdown-118231.mp3');
+      const arr=await res.arrayBuffer();
+      ensureAudio(); if(!audioCtx) return;
+      timerSoundBuf = await audioCtx.decodeAudioData(arr);
+    }catch{}
+  }
+  loadTimerSound();
+  function playTimerSound(){
+    ensureAudio();
+    if(!audioCtx || !timerSoundBuf) return;
+    const src=audioCtx.createBufferSource();
+    src.buffer=timerSoundBuf;
+    const gain=audioCtx.createGain();
+    gain.gain.value=1.0;
+    src.connect(gain).connect(masterGain);
+    src.start(0);
+  }
+  const sfxTimer = playTimerSound;
   // Ball kick sound
   const BALL_KICK_SOUND = encodeURI('/assets/sounds/ball kick .mp3');
   let ballKickSoundBuf = null;
