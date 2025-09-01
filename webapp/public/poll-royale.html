@@ -172,11 +172,13 @@
          extra clearance at the bottom. */
         background: url('/assets/icons/64e79228-35e3-4fdc-b914-fca635a40220.webp')
           top center/calc(100% + 8px) calc(100% + 20px) no-repeat;
+        filter: brightness(var(--table-brightness));
       }
 
       :root {
         --rpw: min(23vw, 115px);
         --player-frame-color: #000;
+        --table-brightness: 1.1;
       }
 
       /* Canvas i tavolines (mbulon gjithcka, pervec panelit djathtas) */
@@ -442,6 +444,29 @@
         z-index: 8;
       }
 
+      #cueOptions {
+        position: absolute;
+        top: 0;
+        left: 0;
+        display: flex;
+        gap: 4px;
+        z-index: 8;
+      }
+      #cueOptions .cue-btn {
+        width: 44px;
+        height: 44px;
+        border-radius: 50%;
+        border: 1px solid #fff;
+        background: none;
+        color: #fff;
+        font-size: 12px;
+        cursor: pointer;
+      }
+      #cueOptions .cue-btn.active {
+        background: #facc15;
+        color: #000;
+      }
+
       #pullLabel .pullArrow {
         display: block;
         /* shift arrow so it sits under the "u" in "Pull" */
@@ -699,6 +724,11 @@
         <!-- Panel djathtas: vetem slideri i fuqise -->
         <aside id="rightPanel">
           <div id="pullArea">
+            <div id="cueOptions">
+              <button class="cue-btn" data-cue="short">Short</button>
+              <button class="cue-btn" data-cue="medium">Medium</button>
+              <button class="cue-btn" data-cue="long">Long</button>
+            </div>
             <div id="powerBg"></div>
             <div id="powerBox"><div id="powerFill"></div></div>
             <img
@@ -758,6 +788,22 @@
           max="1"
           step="0.1"
       /></label>
+      <label
+        >Ball Volume<input
+          type="range"
+          id="ballVolume"
+          min="0"
+          max="1"
+          step="0.1"
+      /></label>
+      <label
+        >Table Brightness<input
+          type="range"
+          id="tableBrightness"
+          min="0.5"
+          max="1.5"
+          step="0.1"
+      /></label>
       <label>Frame Style<select id="playerFrameStyle"></select></label>
       <label
         >Frame Color<select id="playerFrameColor" class="color-select"></select
@@ -805,6 +851,8 @@
         // move pockets slightly closer to the center of the table
         var POCKET_SHORTEN = 4; // gropat zhvendosen pak me brenda per te ruajtur anen e brendshme
         var BALL_R = 22; // rrezja baze e topave pak me e vogel
+        var SHORT_DIST = BALL_R * 28;
+        var MED_DIST = BALL_R * 56;
         var BORDER_TOP = BORDER + BALL_R * 2 - 4; // bordi i siperm pak me i holle per fushe me te gjate
         // Raise only the bottom field line by the thickness of one green side
         // marking so the table's lower boundary sits slightly higher.
@@ -861,14 +909,31 @@
         var powerBg = document.getElementById('powerBg');
         var pullHandle = document.getElementById('pullLabel');
         var cueRail = document.getElementById('cueRail');
+        var cueButtons = document.querySelectorAll('#cueOptions .cue-btn');
         var settingsBtn = document.getElementById('settingsBtn');
         var settingsPanel = document.getElementById('settingsPanel');
         var crowdVolumeInput = document.getElementById('crowdVolume');
         var pocketVolumeInput = document.getElementById('pocketVolume');
+        var ballVolumeInput = document.getElementById('ballVolume');
+        var brightnessInput = document.getElementById('tableBrightness');
         var frameStyleSelect = document.getElementById('playerFrameStyle');
         var frameColorSelect = document.getElementById('playerFrameColor');
         var saveSettingsBtn = document.getElementById('saveSettings');
         var closeSettingsBtn = document.getElementById('closeSettings');
+
+        var currentCue = 'short';
+        function setCueVariant(v) {
+          currentCue = v;
+          cueButtons.forEach(function (b) {
+            b.classList.toggle('active', b.dataset.cue === v);
+          });
+        }
+        cueButtons.forEach(function (b) {
+          b.addEventListener('click', function () {
+            setCueVariant(b.dataset.cue);
+          });
+        });
+        setCueVariant(currentCue);
 
         var avatarP1 = document.querySelector(
           '#header .player:first-child .avatar'
@@ -887,6 +952,10 @@
           parseFloat(localStorage.getItem('poolCrowdVol')) || 1;
         var pocketVolume =
           parseFloat(localStorage.getItem('poolPocketVol')) || 1;
+        var ballVolume =
+          parseFloat(localStorage.getItem('poolBallVol')) || 1;
+        var tableBrightness =
+          parseFloat(localStorage.getItem('poolBrightness')) || 1.1;
         var frameStyleSetting =
           localStorage.getItem('poolFrameStyle') || '1';
         var frameColorSetting =
@@ -924,10 +993,19 @@
 
         if (crowdVolumeInput) crowdVolumeInput.value = crowdVolume;
         if (pocketVolumeInput) pocketVolumeInput.value = pocketVolume;
+        if (ballVolumeInput) ballVolumeInput.value = ballVolume;
+        if (brightnessInput) brightnessInput.value = tableBrightness;
+
+        document.documentElement.style.setProperty(
+          '--table-brightness',
+          tableBrightness
+        );
 
         function applySettings() {
           crowdVolume = parseFloat(crowdVolumeInput.value || crowdVolume);
           pocketVolume = parseFloat(pocketVolumeInput.value || pocketVolume);
+          ballVolume = parseFloat(ballVolumeInput.value || ballVolume);
+          tableBrightness = parseFloat(brightnessInput.value || tableBrightness);
           document.body.className = document.body.className.replace(
             /frame-style-\d+/g,
             ''
@@ -938,6 +1016,10 @@
           document.documentElement.style.setProperty(
             '--player-frame-color',
             frameColorSelect.value
+          );
+          document.documentElement.style.setProperty(
+            '--table-brightness',
+            tableBrightness
           );
         }
 
@@ -951,6 +1033,8 @@
           saveSettingsBtn.addEventListener('click', function () {
             localStorage.setItem('poolCrowdVol', crowdVolumeInput.value);
             localStorage.setItem('poolPocketVol', pocketVolumeInput.value);
+            localStorage.setItem('poolBallVol', ballVolumeInput.value);
+            localStorage.setItem('poolBrightness', brightnessInput.value);
             localStorage.setItem('poolFrameStyle', frameStyleSelect.value);
             localStorage.setItem('poolFrameColor', frameColorSelect.value);
             applySettings();
@@ -1146,7 +1230,7 @@
           var src = audioCtx.createBufferSource();
           src.buffer = ballHitBuffer;
           var gain = audioCtx.createGain();
-          gain.gain.value = clamp(vol * 0.6, 0, 1);
+          gain.gain.value = clamp(vol * ballVolume * 0.72, 0, 1);
           src.connect(gain).connect(audioCtx.destination);
           src.start(0);
         }
@@ -2063,6 +2147,7 @@
         // Track the power of the most recent shot so collision volume can
         // be scaled based on how hard the cue was struck.
         var lastShotPower = 0;
+        var isBreakShot = true;
         var cueBallFree = true; // a mund te vendoset cueball
         var cueHintTime = Date.now();
         var draggingCue = false;
@@ -3024,6 +3109,7 @@
           clearTurnTimer();
           var cue = table.balls[0];
           if (!cue || cue.pocketed) return;
+          isBreakShot = false;
           var aimPoint = table.aim;
           var dx = aimPoint.x - cue.p.x;
           var dy = aimPoint.y - cue.p.y;
@@ -3195,6 +3281,10 @@
           }
           var nd = { x: Math.cos(shot.angleRad), y: Math.sin(shot.angleRad) };
           var aimPoint = shot.aimPoint || { x: cue.p.x + nd.x * 100, y: cue.p.y + nd.y * 100 };
+          var dist = Math.hypot(aimPoint.x - cue.p.x, aimPoint.y - cue.p.y);
+          var bucket = dist <= SHORT_DIST ? 'short' : dist <= MED_DIST ? 'medium' : 'long';
+          setCueVariant(bucket);
+          if (isBreakShot) shot.power = 1;
           setSpin(shot.spin.side, shot.spin.top - shot.spin.back);
           showGuides = true;
           table.aim.x = aimPoint.x;
@@ -3216,6 +3306,7 @@
         function startDiceRoll() {
           table.turn = 0;
           diceRolling = true;
+          isBreakShot = true;
           const overlay = document.getElementById('diceOverlay');
           overlay.classList.remove('hidden');
           overlay.innerHTML = '<div class="dice-row" id="diceRow"></div><div id="diceMsg">Tap to roll dice</div>';
