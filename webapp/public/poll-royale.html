@@ -446,20 +446,27 @@
 
       #cueOptions {
         position: absolute;
-        top: 0;
-        left: 0;
+        top: 15%;
+        left: 8px;
         display: flex;
+        flex-direction: column;
+        align-items: center;
         gap: 4px;
         z-index: 8;
+        pointer-events: auto;
+      }
+      #cueOptions .cue-label {
+        font-size: 10px;
+        margin-bottom: 2px;
       }
       #cueOptions .cue-btn {
-        width: 44px;
-        height: 44px;
+        width: 36px;
+        height: 36px;
         border-radius: 50%;
         border: 1px solid #fff;
         background: none;
         color: #fff;
-        font-size: 12px;
+        font-size: 10px;
         cursor: pointer;
       }
       #cueOptions .cue-btn.active {
@@ -721,14 +728,16 @@
         <canvas id="table"></canvas>
         <div id="cueHint">✋️</div>
 
+        <div id="cueOptions">
+          <div class="cue-label">Cue Distances</div>
+          <button class="cue-btn" data-cue="short">Short</button>
+          <button class="cue-btn" data-cue="medium">Medium</button>
+          <button class="cue-btn" data-cue="long">Long</button>
+        </div>
+
         <!-- Panel djathtas: vetem slideri i fuqise -->
         <aside id="rightPanel">
           <div id="pullArea">
-            <div id="cueOptions">
-              <button class="cue-btn" data-cue="short">Short</button>
-              <button class="cue-btn" data-cue="medium">Medium</button>
-              <button class="cue-btn" data-cue="long">Long</button>
-            </div>
             <div id="powerBg"></div>
             <div id="powerBox"><div id="powerFill"></div></div>
             <img
