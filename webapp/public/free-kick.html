@@ -1331,25 +1331,7 @@ function onUp(e){
         }
         if(s.saved && s.y <= ky + kh * 0.2){ s.life = 0; }
         if(s.life<=0){
-          if(!s.done){
-            r.result = s.saved ? 'MISSED' : 'GOAL';
-            r.flash = 1;
-            if(!s.saved){
-              if(s.target?.t){
-                roundStart -= s.target.t*1000;
-                timeLeft += s.target.t*1000;
-                updateHUD();
-              } else if(s.target?.b){
-                roundStart += 15000;
-                timeLeft = Math.max(0,timeLeft-15000);
-                r.score = Math.max(0, r.score + Math.round(s.target.p));
-                updateHUD();
-              } else if(s.target?.p){
-                r.score = Math.max(0, r.score + Math.round(s.target.p));
-              }
-            }
-            s.done = true;
-          }
+          if(!s.done){ r.result = s.saved ? 'MISSED' : 'GOAL'; r.flash = 1; s.done = true; }
           continue;
         }
         c.fillStyle='#fff';
@@ -1416,17 +1398,11 @@ function onUp(e){
         const g = r.g;
         const list = Array.isArray(miniHolesCache[i]) ? miniHolesCache[i] : [];
         if(list.length===0){ generateMiniHoles(); continue; }
-        const bombs = list.filter(h=>h.b);
-        const timers = list.filter(h=>h.t);
         let target;
         const rand = Math.random();
-        if(rand < 0.2 && timers.length){
-          target = timers[Math.floor(Math.random()*timers.length)];
-        } else if(rand < 0.4 && bombs.length){
-          target = bombs[Math.floor(Math.random()*bombs.length)];
-        } else if(rand < 0.7){
+        if(rand < 0.3){
           target = list.slice().sort((a,b)=>a.r-b.r)[0];
-        } else if(rand < 0.9){
+        } else if(rand < 0.6){
           target = list[Math.floor(Math.random()*list.length)];
         } else {
           target = { x: rnd(g.x, g.x + g.w), y: rnd(g.y, g.y + g.h), r: 40*r.scale, p: 0, t: 0 };
@@ -1435,12 +1411,13 @@ function onUp(e){
         const chance = acc * (22/Math.max(10,target.r)) * 0.8;
         if(Math.random() < chance){
           const saved = Math.random() < 0.5;
+          if(!saved && !target.t && target.p){ r.score += Math.max(5, Math.round(target.p)); }
           const startX = rnd(g.x, g.x + g.w);
           r.defX = clamp(startX - r.defW/2, g.x, g.x + g.w - r.defW);
           if(!r.defJump){ r.defVy = -2*r.scale; r.defJump = true; }
           const vx = (target.x - startX) / 15;
           const vy = (target.y - (g.y + g.h)) / 15;
-          r.shots.push({x:startX,y:g.y+g.h,vx,vy,life:1,saved,target});
+          r.shots.push({x:startX,y:g.y+g.h,vx,vy,life:1,saved});
         }
       }
       r.ptsEl.textContent = r.score;
