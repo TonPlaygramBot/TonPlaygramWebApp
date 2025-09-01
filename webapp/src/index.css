@@ -1539,6 +1539,9 @@ input:focus {
   width: 100vw;
   height: 100vh;
   overflow: hidden;
+  /* Move the entire board down a bit so overlays align with the
+     new background while keeping their original sizes */
+  transform: translateY(10vh);
   /* Ensure the entire board image is visible */
 }
 .crazy-dice-board .board-bg {
