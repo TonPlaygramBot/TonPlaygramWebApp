@@ -295,8 +295,8 @@
       const scaleX=goal.w/geom.goal.w;
       const scaleY=goal.h/geom.goal.h;
       miniHolesCache[i]=holes.map(h=>({
-        x:goal.x+(h.x-geom.goal.x)*scaleX,
-        y:goal.y+(h.y-geom.goal.y)*scaleY,
+        x:goal.x+(h.x-geom.goal.x)*scaleX + rnd(-goal.w*0.1, goal.w*0.1),
+        y:goal.y+(h.y-geom.goal.y)*scaleY + rnd(-goal.h*0.1, goal.h*0.1),
         r:h.r*scaleX,
         p:h.points,
         t:h.timer?1:0
@@ -675,7 +675,7 @@
     }
     for(const c of cameras){ ctx.fillStyle='#111'; ctx.fillRect(c.x,c.y,c.w,c.h); ctx.fillStyle='#e10600'; ctx.beginPath(); ctx.arc(c.x+8,c.y+6,3,0,Math.PI*2); ctx.fill(); }
     for(const h of holes){ if(h.hit) continue; ctx.fillStyle='rgba(225,6,0,.9)'; ctx.beginPath(); ctx.arc(h.x,h.y,h.r,0,Math.PI*2); ctx.fill();
-      ctx.fillStyle='#ffd400'; ctx.font=`800 ${Math.max(12,h.r*0.9)}px system-ui`; ctx.textAlign='center'; ctx.textBaseline='middle'; if(h.timer) ctx.fillText('⏱️',h.x,h.y); else ctx.fillText(h.points,h.x,h.y); }
+      ctx.fillStyle='#ffd400'; ctx.font=`800 ${Math.max(12,h.r*0.9)}px system-ui`; ctx.textAlign='center'; ctx.textBaseline='middle'; if(h.timer) ctx.fillText('⏳️',h.x,h.y); else ctx.fillText(h.points,h.x,h.y); }
     for(const f of fragments){ ctx.save(); ctx.translate(f.x,f.y); ctx.rotate(f.a); ctx.fillStyle='#ffd400'; ctx.fillRect(-4,-2,8,4); ctx.restore(); }
     drawKeeper();
   }
@@ -1166,9 +1166,18 @@ function onUp(e){
 
       // goal and prize holes
       drawMiniGoal(c,goal,r.flash>0?'#ffd400':undefined);
+      // goal line across mini field
+      c.strokeStyle='#fff';
+      c.lineWidth=2*scale;
+      c.beginPath();
+      c.moveTo(field.x,goal.y+goal.h);
+      c.lineTo(field.x+field.w,goal.y+goal.h);
+      c.stroke();
+
       const dw=defenders.w*scale, dh=(defenders.h*scale)/2;
-      const dx=goal.x+(defenders.x-geom.goal.x)*scale;
-      const dy=goal.y+goal.h-dh+4*scale;
+      if(init){ r.defX = goal.x + Math.random()*(goal.w - dw); }
+      const dx=r.defX;
+      const dy=goal.y+goal.h-dh+8*scale;
       const dRect={x:dx,y:dy,w:dw,h:dh};
 
       const list = Array.isArray(miniHolesCache[i]) ? miniHolesCache[i] : [];
@@ -1181,17 +1190,9 @@ function onUp(e){
         c.font='bold 12px system-ui';
         c.textAlign='center';
         c.textBaseline='middle';
-        if(h.t) c.fillText('⏱️',h.x,h.y);
+        if(h.t) c.fillText('⏳️',h.x,h.y);
         else c.fillText(h.p,h.x,h.y);
       }
-
-      // defenders on top
-      c.save();
-      c.beginPath();
-      c.rect(field.x,field.y,field.w,field.h);
-      c.clip();
-      c.drawImage(defendersImg,0,0,defendersImg.width,defendersImg.height/2,dx,dy,dw,dh);
-      c.restore();
 
       // keeper setup
       const kw = keeper.w*scale, kh = keeper.h*scale;
@@ -1232,8 +1233,16 @@ function onUp(e){
         }
       }
 
-      // keeper in front
+      // keeper behind defenders
       c.drawImage(keeperImg, r.kx, ky, kw, kh);
+
+      // defenders in front
+      c.save();
+      c.beginPath();
+      c.rect(field.x,field.y,field.w,field.h);
+      c.clip();
+      c.drawImage(defendersImg,0,0,defendersImg.width,defendersImg.height/2,dx,dy,dw,dh);
+      c.restore();
       if(r.flash>0){
         c.save();
         c.globalAlpha=r.flash;
