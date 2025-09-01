@@ -202,3 +202,25 @@ test('cue ball remains within table bounds for varied power and spin', () => {
     }
   }
 });
+
+test('avoids unnecessary spin when natural position is good', () => {
+  const req = {
+    game: 'AMERICAN_BILLIARDS',
+    state: {
+      balls: [
+        { id: 0, x: 200, y: 250, vx: 0, vy: 0, pocketed: false },
+        { id: 1, x: 400, y: 250, vx: 0, vy: 0, pocketed: false },
+        { id: 2, x: 700, y: 350, vx: 0, vy: 0, pocketed: false }
+      ],
+      pockets: [{ x: 1000, y: 250 }],
+      width: 1000,
+      height: 500,
+      ballRadius: 10,
+      friction: 0.01
+    },
+    timeBudgetMs: 50
+  };
+  const decision = planShot(req);
+  assert.equal(decision.power, 0.5);
+  assert.deepEqual(decision.spin, { top: 0, side: 0, back: 0 });
+});
