@@ -50,6 +50,8 @@
   <canvas id="board" width="1200" height="800" aria-label="Tournament bracket canvas"></canvas>
 </div>
 
+<button id="continueBtn" style="position:fixed;bottom:20px;left:50%;transform:translateX(-50%);padding:8px 16px;border:none;border-radius:6px;background:var(--accent);color:var(--ink);">Continue</button>
+
 <script>
 (function(){
   const DPR = Math.max(1, Math.min(2, window.devicePixelRatio || 1));
@@ -74,7 +76,11 @@
     bracketN: 0,
     rounds: [],
     seedToPlayer: {},
-    pot: 0
+    pot: 0,
+    userSeed: 1,
+    currentRound: 0,
+    championSeed: 0,
+    complete: false
   };
 
   function nextPow2(n){ let p=1; while(p<n) p<<=1; return p; }
@@ -259,13 +265,10 @@
   }
 
   function matchPlayers(r,m){
-    if(r===0){
-      const [sA, sB] = state.rounds[0][m];
-      return [state.seedToPlayer[sA], state.seedToPlayer[sB]];
-    }
-    const nameA = { name: 'Winner '+labelForSource(r-1, 2*m) };
-    const nameB = { name: 'Winner '+labelForSource(r-1, 2*m+1) };
-    return [nameA, nameB];
+    const [sA, sB] = state.rounds[r][m] || [];
+    const playerA = state.seedToPlayer[sA] || { name: 'TBD' };
+    const playerB = state.seedToPlayer[sB] || { name: 'TBD' };
+    return [playerA, playerB];
   }
 
   function renderPlayer(player, x, y, slotH){
@@ -341,20 +344,8 @@
     ctx.closePath();
   }
 
-  canvas.addEventListener('click', (ev)=>{
-    const rect = canvas.getBoundingClientRect();
-    const x = (ev.clientX - rect.left);
-    const y = (ev.clientY - rect.top);
-    for(const reg of hitRegions){
-      if(x>=reg.x && x<=reg.x+reg.w && y>=reg.y && y<=reg.y+reg.h){
-        const nm = prompt('Enter team name:', getNameAt(reg.round, reg.match, reg.slot));
-        if(nm && nm.trim()){
-          setNameAt(reg.round, reg.match, reg.slot, nm.trim());
-          layoutAndDraw();
-        }
-        break;
-      }
-    }
+  canvas.addEventListener('click', ()=>{
+    // Name editing disabled in tournament view
   });
 
   function getNameAt(r,m,slot){
@@ -371,20 +362,126 @@
     }
   }
 
+  function simulateRoundAI(st, round){
+    const next = st.rounds[round+1];
+    const userSeed = st.userSeed;
+    st.rounds[round].forEach((pair, idx) => {
+      if(pair.includes(userSeed)) return;
+      if(next && next[Math.floor(idx/2)][idx%2]) return;
+      const s1 = pair[0];
+      const s2 = pair[1];
+      const p1 = st.seedToPlayer[s1];
+      const p2 = st.seedToPlayer[s2];
+      let w;
+      if(p1 && p1.name==='BYE') w = s2;
+      else if(p2 && p2.name==='BYE') w = s1;
+      else w = Math.random() < 0.5 ? s1 : s2;
+      if(next) next[Math.floor(idx/2)][idx%2] = w;
+      else { st.championSeed = w; st.complete = true; }
+    });
+  }
+
+  function getUserMatch(st){
+    const r = st.currentRound || 0;
+    const userSeed = st.userSeed;
+    const roundMatches = st.rounds[r] || [];
+    for(let i=0;i<roundMatches.length;i++){
+      const pair = roundMatches[i];
+      const next = st.rounds[r+1] && st.rounds[r+1][Math.floor(i/2)][i%2];
+      if(next) continue;
+      if(pair[0]===userSeed || pair[1]===userSeed){
+        const oppSeed = pair[0]===userSeed? pair[1]:pair[0];
+        const opp = st.seedToPlayer[oppSeed];
+        if(opp && opp.name==='BYE'){
+          if(st.rounds[r+1]) st.rounds[r+1][Math.floor(i/2)][i%2]=userSeed;
+          simulateRoundAI(st, r);
+          if(st.rounds[r].every((p,idx)=> st.rounds[r+1][Math.floor(idx/2)][idx%2])){
+            st.currentRound++;
+          }
+          localStorage.setItem('tournamentState', JSON.stringify(st));
+          layoutAndDraw();
+          return null;
+        }
+        return {round:r, match:i, pair};
+      }
+    }
+    return null;
+  }
+
+  function startNextMatch(){
+    const st = state;
+    const info = getUserMatch(st);
+    if(!info) return;
+    st.pendingMatch = info;
+    const opponentSeed = info.pair[0] === st.userSeed ? info.pair[1] : info.pair[0];
+    localStorage.setItem('tournamentOpponent', JSON.stringify(st.seedToPlayer[opponentSeed]));
+    localStorage.setItem('tournamentState', JSON.stringify(st));
+    window.location.href = '/poll-royale.html' + window.location.search;
+  }
+
   (function init(){
-    const players = window.tournamentPlayers || [
-      { name: 'Player 1' },
-      { name: 'Player 2' },
-      { name: 'Player 3' },
-      { name: 'Player 4' },
-      { name: 'Player 5' },
-      { name: 'Player 6' },
-      { name: 'USA', flag: '🇺🇸' },
-      { name: 'UK', flag: '🇬🇧' }
-    ];
-    state.players = players;
-    createBracket(players);
+    const params = new URLSearchParams(window.location.search);
+    const totalPlayers = parseInt(params.get('players') || '8', 10);
+    const saved = localStorage.getItem('tournamentState');
+    if(saved){
+      state = JSON.parse(saved);
+    } else {
+      const userName = params.get('name') || 'You';
+      const aiPool = [
+        { name: 'USA', flag: '🇺🇸' },
+        { name: 'UK', flag: '🇬🇧' },
+        { name: 'Germany', flag: '🇩🇪' },
+        { name: 'Brazil', flag: '🇧🇷' },
+        { name: 'Japan', flag: '🇯🇵' },
+        { name: 'France', flag: '🇫🇷' },
+        { name: 'Spain', flag: '🇪🇸' },
+        { name: 'Italy', flag: '🇮🇹' },
+        { name: 'Canada', flag: '🇨🇦' },
+        { name: 'India', flag: '🇮🇳' },
+        { name: 'China', flag: '🇨🇳' },
+        { name: 'Mexico', flag: '🇲🇽' },
+        { name: 'Australia', flag: '🇦🇺' },
+        { name: 'Russia', flag: '🇷🇺' },
+        { name: 'Netherlands', flag: '🇳🇱' },
+        { name: 'Sweden', flag: '🇸🇪' },
+        { name: 'Norway', flag: '🇳🇴' },
+        { name: 'Denmark', flag: '🇩🇰' },
+        { name: 'Poland', flag: '🇵🇱' },
+        { name: 'Switzerland', flag: '🇨🇭' },
+        { name: 'Greece', flag: '🇬🇷' },
+        { name: 'Turkey', flag: '🇹🇷' },
+        { name: 'Portugal', flag: '🇵🇹' },
+        { name: 'Belgium', flag: '🇧🇪' }
+      ];
+      const players = [{ name: userName, flag: params.get('flag') || '🏳️' }];
+      players.push(...aiPool.slice(0, totalPlayers - 1));
+      state.players = players;
+      createBracket(players);
+      state.userSeed = 1;
+      state.currentRound = 0;
+      state.championSeed = 0;
+      state.complete = false;
+      localStorage.setItem('tournamentState', JSON.stringify(state));
+    }
+    layoutAndDraw();
     window.addEventListener('resize', ()=> layoutAndDraw());
+
+    const btn = document.getElementById('continueBtn');
+    if(state.complete){
+      const champ = state.seedToPlayer[state.championSeed] || {};
+      const info = document.createElement('div');
+      info.style.textAlign = 'center';
+      info.textContent = `Winner: ${champ.flag? champ.flag+' ' : ''}${champ.name || ''}`;
+      document.body.appendChild(info);
+      btn.textContent = 'Close';
+      btn.addEventListener('click', ()=>{
+        localStorage.removeItem('tournamentState');
+        localStorage.removeItem('tournamentOpponent');
+        window.location.href = '/games/pollroyale/lobby';
+      });
+    }else{
+      btn.addEventListener('click', startNextMatch);
+    }
   })();
 })();
 </script>
