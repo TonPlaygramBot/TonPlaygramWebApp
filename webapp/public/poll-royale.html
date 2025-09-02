@@ -3736,11 +3736,15 @@
             var oppSeed = st.pendingMatch.pair[0] === st.userSeed ? st.pendingMatch.pair[1] : st.pendingMatch.pair[0];
             var winnerSeed = winner === 1 ? st.userSeed : oppSeed;
             var next = st.rounds[r + 1];
-            if (next) {
-              next[Math.floor(m / 2)][m % 2] = winnerSeed;
-            } else {
+            if (!next && r < st.rounds.length - 1) {
+              st.rounds[r + 1] = Array.from({ length: Math.ceil(st.rounds[r].length / 2) }, () => [0, 0]);
+              next = st.rounds[r + 1];
+            }
+            if (r >= st.rounds.length - 1) {
               st.championSeed = winnerSeed;
               st.complete = true;
+            } else if (next) {
+              next[Math.floor(m / 2)][m % 2] = winnerSeed;
             }
             if (winnerSeed !== st.userSeed) {
               simulateRemaining(st, r);
