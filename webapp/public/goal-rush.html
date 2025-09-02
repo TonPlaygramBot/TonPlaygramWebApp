@@ -527,15 +527,15 @@
     ctx.stroke();
 
     // penalty areas
-    const penW = rink.w * 0.4;
-    const penH = rink.h * 0.16;
+    const penW = rink.w * 0.44;
+    const penH = rink.h * 0.18;
     ctx.beginPath();
     ctx.rect(centerX - penW / 2, rink.y, penW, penH);
     ctx.rect(centerX - penW / 2, rink.y + rink.h - penH, penW, penH);
     ctx.stroke();
 
     // goal areas (6-yard boxes)
-    const goalAreaW = rink.w * 0.2;
+    const goalAreaW = goalWidth * 1.1;
     const goalAreaH = rink.h * 0.06;
     ctx.beginPath();
     ctx.rect(centerX - goalAreaW / 2, rink.y, goalAreaW, goalAreaH);
@@ -544,9 +544,17 @@
 
     // penalty arcs
     const arcR = penW * 0.32;
+    const arcD = penH * 0.3;
+    const arcAngle = Math.asin(arcD / arcR);
+
+    // top penalty arc
     ctx.beginPath();
-    ctx.arc(centerX, rink.y + penH, arcR, Math.PI * 1.1, Math.PI * 1.9);
-    ctx.arc(centerX, rink.y + rink.h - penH, arcR, Math.PI * 0.1, Math.PI * 0.9);
+    ctx.arc(centerX, rink.y + penH * 0.7, arcR, arcAngle, Math.PI - arcAngle);
+    ctx.stroke();
+
+    // bottom penalty arc
+    ctx.beginPath();
+    ctx.arc(centerX, rink.y + rink.h - penH * 0.7, arcR, Math.PI + arcAngle, Math.PI * 2 - arcAngle);
     ctx.stroke();
 
     // penalty spots
