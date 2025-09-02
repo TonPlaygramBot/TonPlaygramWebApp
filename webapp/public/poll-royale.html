@@ -3734,7 +3734,8 @@
             var r = st.pendingMatch.round;
             var m = st.pendingMatch.match;
             var oppSeed = st.pendingMatch.pair[0] === st.userSeed ? st.pendingMatch.pair[1] : st.pendingMatch.pair[0];
-            var winnerSeed = winner === 1 ? st.userSeed : oppSeed;
+            var winNum = Number(winner);
+            var winnerSeed = winNum === 1 ? st.userSeed : oppSeed;
             var next = st.rounds[r + 1];
             if (next) {
               next[Math.floor(m / 2)][m % 2] = winnerSeed;
@@ -3742,7 +3743,7 @@
               st.championSeed = winnerSeed;
               st.complete = true;
             }
-            if (winnerSeed !== st.userSeed) {
+            if (winNum !== 1) {
               simulateRemaining(st, r);
             } else {
               simulateRoundAI(st, r);
@@ -3750,22 +3751,22 @@
                 st.currentRound++;
               }
             }
-            if (st.complete && winnerSeed === st.userSeed && stake > 0 && accountId) {
-            const total = stake * window.tournamentPlayers;
-            const prize = Math.round(total * 0.91);
-            try {
-              await prApi.depositAccount(accountId, prize, { game: 'pollroyale-win' });
-              if (tgId) await prApi.addTransaction(tgId, 0, 'win', { game: 'pollroyale', players: window.tournamentPlayers, accountId });
-              const ops = [];
-              if (devAccount1 || devAccount2) {
-                if (devAccount) ops.push(prApi.depositAccount(devAccount, Math.round(total*0.09), { game: 'pollroyale-dev' }));
-                if (devAccount1) ops.push(prApi.depositAccount(devAccount1, Math.round(total*0.01), { game: 'pollroyale-dev1' }));
-                if (devAccount2) ops.push(prApi.depositAccount(devAccount2, Math.round(total*0.02), { game: 'pollroyale-dev2' }));
-              } else if (devAccount) {
-                ops.push(prApi.depositAccount(devAccount, Math.round(total*0.1), { game: 'pollroyale-dev' }));
-              }
-              if (ops.length) await Promise.all(ops);
-            } catch {}
+            if (st.complete && winNum === 1 && stake > 0 && accountId) {
+              const total = stake * window.tournamentPlayers;
+              const prize = Math.round(total * 0.91);
+              try {
+                await prApi.depositAccount(accountId, prize, { game: 'pollroyale-win' });
+                if (tgId) await prApi.addTransaction(tgId, 0, 'win', { game: 'pollroyale', players: window.tournamentPlayers, accountId });
+                const ops = [];
+                if (devAccount1 || devAccount2) {
+                  if (devAccount) ops.push(prApi.depositAccount(devAccount, Math.round(total * 0.09), { game: 'pollroyale-dev' }));
+                  if (devAccount1) ops.push(prApi.depositAccount(devAccount1, Math.round(total * 0.01), { game: 'pollroyale-dev1' }));
+                  if (devAccount2) ops.push(prApi.depositAccount(devAccount2, Math.round(total * 0.02), { game: 'pollroyale-dev2' }));
+                } else if (devAccount) {
+                  ops.push(prApi.depositAccount(devAccount, Math.round(total * 0.1), { game: 'pollroyale-dev' }));
+                }
+                if (ops.length) await Promise.all(ops);
+              } catch {}
             }
             delete st.pendingMatch;
             localStorage.setItem(STATE_KEY, JSON.stringify(st));
