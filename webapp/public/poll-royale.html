@@ -627,24 +627,6 @@
         border-radius: 4px;
       }
 
-      #tournamentOverlay {
-        position: fixed;
-        inset: 0;
-        background: #111;
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        z-index: 400;
-      }
-      #tournamentOverlay.hidden {
-        display: none;
-      }
-      #tournamentOverlay canvas {
-        background: #fff;
-        width: 95vw;
-        height: 95vh;
-        border: 1px solid #000;
-      }
 
       #rulesModal {
         position: fixed;
@@ -3624,10 +3606,6 @@
         <button id="practiceAi">Practice vs AI</button>
         <button id="restartTraining">New Game</button>
       </div>
-    </div>
-
-    <div id="tournamentOverlay" class="hidden">
-      <canvas id="bracket"></canvas>
     </div>
 
     <script>
