@@ -15,6 +15,7 @@ import TransactionDetailsPopup from '../components/TransactionDetailsPopup.jsx';
 import NftGiftCard from '../components/NftGiftCard.jsx';
 import { AiOutlineCalendar } from 'react-icons/ai';
 import useTelegramBackButton from '../hooks/useTelegramBackButton.js';
+import LoginOptions from '../components/LoginOptions.jsx';
 
 const urlParams = new URLSearchParams(window.location.search);
 const DEV_ACCOUNT_ID =
@@ -55,7 +56,10 @@ export default function Wallet({ hideClaim = false }) {
   } catch (err) {
     telegramId = undefined;
   }
-  const googleId = telegramId ? null : localStorage.getItem('googleId');
+
+  if (!telegramId) {
+    return <LoginOptions />;
+  }
 
   const [accountId, setAccountId] = useState('');
   const [tpcBalance, setTpcBalance] = useState(null);
@@ -97,7 +101,7 @@ export default function Wallet({ hideClaim = false }) {
     if (id) {
       acc = { accountId: id };
     } else {
-      acc = await createAccount(telegramId, googleId);
+      acc = await createAccount(telegramId);
       if (acc?.error) {
         console.error('Failed to load account:', acc.error);
         return null;
