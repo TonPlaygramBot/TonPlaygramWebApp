@@ -38,6 +38,9 @@ import PostRecord from './models/PostRecord.js';
 import Task from './models/Task.js';
 import WatchRecord from './models/WatchRecord.js';
 import ActiveConnection from './models/ActiveConnection.js';
+import orchestratorRoutes from './routes/orchestrator.js';
+import { MatchmakingOrchestrator } from './orchestrator/orchestrator.js';
+import { initOrchestratorSocket } from './orchestrator/socket.js';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { existsSync, writeFileSync } from 'fs';
@@ -106,6 +109,8 @@ const io = initSocket(httpServer, {
   pingInterval: 25000,
   pingTimeout: 60000
 });
+const orchestrator = new MatchmakingOrchestrator();
+initOrchestratorSocket(io, orchestrator);
 const gameManager = new GameRoomManager(io);
 
 // Expose socket.io instance and userSockets map for routes
@@ -149,6 +154,8 @@ app.use('/api/social', socialRoutes);
 app.use('/api/broadcast', broadcastRoutes);
 app.use('/api/store', storeRoutes);
 app.use('/api/online', onlineRoutes);
+app.use('/api/orchestrator', orchestratorRoutes(orchestrator));
+app.get('/healthz', (req, res) => res.json({ status: 'ok' }));
 
 app.post('/api/goal-rush/calibration', (req, res) => {
   const { accountId, calibration } = req.body || {};
