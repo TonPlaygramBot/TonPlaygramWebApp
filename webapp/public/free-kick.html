@@ -188,6 +188,36 @@
   const durationParam = parseInt(params.get('duration')) || 60;
   timeShort.textContent = durationParam;
 
+  const tg = window.Telegram?.WebApp;
+  if (tg) {
+    tg.BackButton.show();
+    tg.onEvent('backButtonClicked', showExitPopup);
+  }
+
+  function showExitPopup() {
+    const overlay = document.createElement('div');
+    overlay.style.position = 'fixed';
+    overlay.style.inset = '0';
+    overlay.style.background = 'rgba(0,0,0,0.6)';
+    overlay.style.display = 'flex';
+    overlay.style.alignItems = 'center';
+    overlay.style.justifyContent = 'center';
+    overlay.innerHTML = `<div style="background:#11172a;padding:20px;border-radius:8px;text-align:center;"><p style="margin-bottom:12px;">If you quit the tournament your funds will be lost.</p><div style="display:flex;gap:8px;justify-content:center;"><button id="quitTournament">Quit Tournament</button><button id="returnLobby">Return Lobby</button></div></div>`;
+    document.body.appendChild(overlay);
+    document.getElementById('quitTournament').onclick = () => {
+      try {
+        localStorage.removeItem(STATE_KEY);
+        localStorage.removeItem(OPP_KEY);
+      } catch {}
+      tg.BackButton.hide();
+      window.location.href = '/games/freekick/lobby';
+    };
+    document.getElementById('returnLobby').onclick = () => {
+      tg.BackButton.hide();
+      window.location.href = '/games/freekick/lobby';
+    };
+  }
+
   let currentRound = 0;
   if(window.tournamentMode){
     try{ const st = JSON.parse(localStorage.getItem(STATE_KEY) || '{}'); currentRound = st.currentRound || 0; }catch{}
