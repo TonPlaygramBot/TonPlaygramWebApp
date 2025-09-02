@@ -223,7 +223,7 @@
     ctx.textAlign = 'left';
     let label = '';
     const rounds = state.rounds.length;
-    if(r === 0) label = 'ROUND OF ' + state.bracketN;
+    if(r === 0) label = 'ROUND OF ' + state.N;
     else if(r === rounds-1){
       label = 'FINAL 🏆 ';
       ctx.fillText(label, x, topPad + 10);
@@ -309,6 +309,7 @@
   }
 
   function renderPlayer(player, x, y, slotH){
+    if(player.name === 'BYE') return;
     const avatarSize = 20;
     if(player.flag){
       ctx.fillText(player.flag, x, y+1);
