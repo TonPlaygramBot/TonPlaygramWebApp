@@ -61,20 +61,7 @@
   const canvas = document.getElementById('board');
   const ctx = canvas.getContext('2d');
   const params = new URLSearchParams(window.location.search);
-  let tgId =
-    params.get("tgId") ||
-    localStorage.getItem("pollRoyaleTgId") ||
-    "anon";
-  if (!params.get("tgId")) {
-    params.set("tgId", tgId);
-    window.history.replaceState(
-      null,
-      "",
-      `${location.pathname}?${params.toString()}`
-    );
-  }
-  localStorage.setItem("pollRoyaleTgId", tgId);
-  const tgKey = tgId;
+  const tgKey = params.get("tgId") || "anon";
   const STATE_KEY = `pollRoyaleTournamentState_${tgKey}`;
   const OPP_KEY = `pollRoyaleTournamentOpponent_${tgKey}`;
   const theme = {
