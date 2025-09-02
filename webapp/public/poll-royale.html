@@ -166,12 +166,6 @@
         flex: 1 1 auto;
         display: flex;
         overflow: hidden;
-      }
-
-      #wrap::before {
-        content: '';
-        position: absolute;
-        inset: 0;
         /* Ensure background image covers the available space without
          overlapping top or bottom elements. Extend the width slightly
          so the thin green boundary line is fully visible while keeping
@@ -179,7 +173,6 @@
         background: url('/assets/icons/64e79228-35e3-4fdc-b914-fca635a40220.webp')
           top center/calc(100% + 8px) calc(100% + 20px) no-repeat;
         filter: brightness(var(--table-brightness));
-        z-index: 0;
       }
 
       :root {
@@ -587,12 +580,12 @@
       #trainingMenuWrapper {
         position: fixed;
         left: 12px;
-        bottom: 48px;
+        bottom: 60px;
         z-index: 300;
       }
       #trainingMenuButton {
-        width: 36px;
-        height: 36px;
+        width: 40px;
+        height: 40px;
         border-radius: 8px;
         border: 1px solid #24375f;
         background: #20345a;
@@ -1200,32 +1193,6 @@
           avatarP1.textContent = '';
         }
 
-        if (window.tournamentMode) {
-          window.handleTournamentResult = function (winner) {
-            var round = parseInt(urlParams.get('round') || '0', 10);
-            var match = parseInt(urlParams.get('match') || '0', 10);
-            var state = JSON.parse(localStorage.getItem('poolTournament') || '{}');
-            if (state.rounds && state.rounds[round]) {
-              var pair = state.rounds[round][match];
-              var winnerSeed = winner === 1 ? pair[0] : pair[1];
-              var nextRound = state.rounds[round + 1];
-              if (nextRound) {
-                var idx = Math.floor(match / 2);
-                var pos = match % 2;
-                nextRound[idx][pos] = winnerSeed;
-                if (winner === 1) state.humanSeed = winnerSeed;
-                else state.humanLost = true;
-              } else {
-                state.champion = winnerSeed;
-                state.finished = true;
-                if (winner !== 1) state.humanLost = true;
-              }
-              localStorage.setItem('poolTournament', JSON.stringify(state));
-            }
-            location.href = '/poll-royale-bracket.html';
-          };
-        }
-
         function coinConfetti(count, iconSrc) {
           count = count || 50;
           iconSrc = iconSrc || '/assets/icons/ezgif-54c96d8a9b9236.webp';
@@ -1461,12 +1428,7 @@
             return 'AI';
           }
         }
-        var oppFlag = urlParams.get('flag');
-        var oppName = urlParams.get('opponent');
-        if (oppFlag && oppName) {
-          avatarCPU.textContent = oppFlag;
-          formatPlayerName(oppName, nameCPU);
-        } else if (window.FLAG_EMOJIS) {
+        if (window.FLAG_EMOJIS) {
           var flag = FLAG_EMOJIS[(Math.random() * FLAG_EMOJIS.length) | 0];
           avatarCPU.textContent = flag;
           formatPlayerName(flagToName(flag) || 'CPU', nameCPU);

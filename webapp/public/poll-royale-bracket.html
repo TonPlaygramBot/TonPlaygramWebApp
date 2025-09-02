@@ -43,24 +43,12 @@
     background:rgba(37,99,235,.15); border:1px solid rgba(37,99,235,.35); color:#cfe0ff;
     font-size:.8rem;
   }
-
-  #continueBtn {
-    margin:8px auto 16px;
-    padding:8px 16px;
-    background:var(--accent);
-    color:#fff;
-    border:none;
-    border-radius:4px;
-    display:block;
-  }
 </style>
 </head>
 <body>
 <div class="canvas-wrap">
   <canvas id="board" width="1200" height="800" aria-label="Tournament bracket canvas"></canvas>
 </div>
-
-<button id="continueBtn">Continue</button>
 
 <script>
 (function(){
@@ -88,42 +76,6 @@
     seedToPlayer: {},
     pot: 0
   };
-
-  const STORAGE_KEY = 'poolTournament';
-  const AI_PLAYERS = [
-    { name: 'USA', flag: '🇺🇸' },
-    { name: 'UK', flag: '🇬🇧' },
-    { name: 'Brazil', flag: '🇧🇷' },
-    { name: 'France', flag: '🇫🇷' },
-    { name: 'Germany', flag: '🇩🇪' },
-    { name: 'Japan', flag: '🇯🇵' },
-    { name: 'Canada', flag: '🇨🇦' },
-    { name: 'Italy', flag: '🇮🇹' },
-    { name: 'Spain', flag: '🇪🇸' },
-    { name: 'Mexico', flag: '🇲🇽' },
-    { name: 'China', flag: '🇨🇳' },
-    { name: 'India', flag: '🇮🇳' },
-    { name: 'Australia', flag: '🇦🇺' },
-    { name: 'Russia', flag: '🇷🇺' },
-    { name: 'South Korea', flag: '🇰🇷' },
-    { name: 'Argentina', flag: '🇦🇷' },
-    { name: 'Netherlands', flag: '🇳🇱' },
-    { name: 'Sweden', flag: '🇸🇪' },
-    { name: 'Norway', flag: '🇳🇴' },
-    { name: 'Denmark', flag: '🇩🇰' },
-    { name: 'Belgium', flag: '🇧🇪' },
-    { name: 'Portugal', flag: '🇵🇹' },
-    { name: 'Poland', flag: '🇵🇱' },
-    { name: 'Turkey', flag: '🇹🇷' },
-    { name: 'Greece', flag: '🇬🇷' },
-    { name: 'Iran', flag: '🇮🇷' },
-    { name: 'Iraq', flag: '🇮🇶' },
-    { name: 'Egypt', flag: '🇪🇬' },
-    { name: 'South Africa', flag: '🇿🇦' },
-    { name: 'Nigeria', flag: '🇳🇬' },
-    { name: 'Kenya', flag: '🇰🇪' },
-    { name: 'Chile', flag: '🇨🇱' }
-  ];
 
   function nextPow2(n){ let p=1; while(p<n) p<<=1; return p; }
 
@@ -307,10 +259,13 @@
   }
 
   function matchPlayers(r,m){
-    const pair = state.rounds[r][m];
-    const pA = state.seedToPlayer[pair[0]] || { name: 'TBD' };
-    const pB = state.seedToPlayer[pair[1]] || { name: 'TBD' };
-    return [pA, pB];
+    if(r===0){
+      const [sA, sB] = state.rounds[0][m];
+      return [state.seedToPlayer[sA], state.seedToPlayer[sB]];
+    }
+    const nameA = { name: 'Winner '+labelForSource(r-1, 2*m) };
+    const nameB = { name: 'Winner '+labelForSource(r-1, 2*m+1) };
+    return [nameA, nameB];
   }
 
   function renderPlayer(player, x, y, slotH){
@@ -333,6 +288,22 @@
       ctx.font = '600 13px system-ui,Segoe UI,Roboto,Arial';
       ctx.fillText(player.name, x+avatarSize+6, y);
     }
+  }
+
+  function labelForSource(r,m){
+    if(r===0){
+      const [sA,sB]=state.rounds[0][m];
+      return `(${seedShort(sA)} vs ${seedShort(sB)})`;
+    }else{
+      return `R${r+1}-M${m+1}`;
+    }
+  }
+
+  function seedShort(s){
+    const n = state.seedToPlayer[s].name;
+    if(n==='BYE') return 'BYE';
+    if(/^Team \d+$/i.test(n)) return n.replace('Team ', '#');
+    return n.length>10? n.slice(0,10)+'…': n;
   }
 
   function drawCenterLabels(w){
@@ -370,99 +341,50 @@
     ctx.closePath();
   }
 
+  canvas.addEventListener('click', (ev)=>{
+    const rect = canvas.getBoundingClientRect();
+    const x = (ev.clientX - rect.left);
+    const y = (ev.clientY - rect.top);
+    for(const reg of hitRegions){
+      if(x>=reg.x && x<=reg.x+reg.w && y>=reg.y && y<=reg.y+reg.h){
+        const nm = prompt('Enter team name:', getNameAt(reg.round, reg.match, reg.slot));
+        if(nm && nm.trim()){
+          setNameAt(reg.round, reg.match, reg.slot, nm.trim());
+          layoutAndDraw();
+        }
+        break;
+      }
+    }
+  });
+
   function getNameAt(r,m,slot){
     const [a,b] = matchPlayers(r,m);
     return slot===0? a.name : b.name;
   }
 
   function setNameAt(r,m,slot,newName){
-    const seed = state.rounds[0][m][slot];
-    state.seedToPlayer[seed].name = newName;
-  }
-
-  function findNextMatch(){
-    for(let r=0; r<state.rounds.length-1; r++){
-      for(let m=0; m<state.rounds[r].length; m++){
-        const [sA,sB] = state.rounds[r][m];
-        if(sA===state.humanSeed || sB===state.humanSeed){
-          const nextRound = state.rounds[r+1];
-          const idx = Math.floor(m/2);
-          const pos = m%2;
-          if(nextRound[idx][pos] === 0){
-            return {round:r, match:m, opponentSeed: sA===state.humanSeed? sB : sA};
-          }
-        }
-      }
+    if(r===0){
+      const seed = state.rounds[0][m][slot];
+      state.seedToPlayer[seed].name = newName;
+    }else{
+      alert('Names in this round are auto-filled from previous matches.');
     }
-    return null;
-  }
-
-  function simulateRemaining(){
-    for(let r=0; r<state.rounds.length-1; r++){
-      for(let m=0; m<state.rounds[r].length; m++){
-        const nextRound = state.rounds[r+1];
-        const idx = Math.floor(m/2);
-        const pos = m%2;
-        if(nextRound[idx][pos] === 0){
-          const [sA,sB] = state.rounds[r][m];
-          const win = Math.random() < 0.5 ? sA : sB;
-          nextRound[idx][pos] = win;
-        }
-      }
-    }
-    const finalRound = state.rounds[state.rounds.length-1];
-    state.champion = finalRound[0][0];
-    state.finished = true;
-  }
-
-  function updateButton(){
-    const btn = document.getElementById('continueBtn');
-    if(state.finished){
-      btn.disabled = true;
-      btn.textContent = 'Tournament Finished';
-      return;
-    }
-    const next = findNextMatch();
-    state.nextMatch = next;
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-    if(!next){
-      btn.disabled = true;
-      btn.textContent = 'Tournament Finished';
-    }
-  }
-
-  function continueTournament(){
-    const next = state.nextMatch || findNextMatch();
-    if(!next) return;
-    state.currentMatch = next;
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-    const opponent = state.seedToPlayer[next.opponentSeed];
-    const human = state.seedToPlayer[state.humanSeed];
-    location.href = `/poll-royale.html?type=tournament&round=${next.round}&match=${next.match}&players=${state.N}&name=${encodeURIComponent(human.name)}&opponent=${encodeURIComponent(opponent.name)}&flag=${encodeURIComponent(opponent.flag||'')}`;
   }
 
   (function init(){
-    const saved = localStorage.getItem(STORAGE_KEY);
-    if(saved){
-      Object.assign(state, JSON.parse(saved));
-      if(state.humanLost && !state.finished){
-        simulateRemaining();
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-      }
-      layoutAndDraw();
-    }else{
-      const params = new URLSearchParams(location.search);
-      const num = parseInt(params.get('players') || '8',10);
-      const playerName = params.get('name') || 'Player';
-      const ai = AI_PLAYERS.slice(0, Math.max(0, num-1));
-      state.players = [{ name: playerName }].concat(ai);
-      createBracket(state.players);
-      state.humanSeed = 1;
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-    }
+    const players = window.tournamentPlayers || [
+      { name: 'Player 1' },
+      { name: 'Player 2' },
+      { name: 'Player 3' },
+      { name: 'Player 4' },
+      { name: 'Player 5' },
+      { name: 'Player 6' },
+      { name: 'USA', flag: '🇺🇸' },
+      { name: 'UK', flag: '🇬🇧' }
+    ];
+    state.players = players;
+    createBracket(players);
     window.addEventListener('resize', ()=> layoutAndDraw());
-    document.getElementById('continueBtn').addEventListener('click', continueTournament);
-    updateButton();
   })();
 })();
 </script>
