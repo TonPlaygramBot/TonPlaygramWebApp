@@ -43,6 +43,8 @@
     background:rgba(37,99,235,.15); border:1px solid rgba(37,99,235,.35); color:#cfe0ff;
     font-size:.8rem;
   }
+  .coin-confetti{position:fixed;top:-40px;width:32px;height:32px;pointer-events:none;animation:coin-fall var(--duration,3s) linear forwards}
+  @keyframes coin-fall{from{transform:translateY(-10vh) rotate(0deg);opacity:1}to{transform:translateY(100vh) rotate(360deg);opacity:0}}
 </style>
 </head>
 <body>
@@ -71,6 +73,8 @@
     neonC:'#a855f7',
     line:'#233155'
   };
+  const tpcImg = new Image();
+  tpcImg.src = '/assets/icons/ezgif-54c96d8a9b9236.webp';
 
   let hitRegions = []; // {round, match, slot, x,y,w,h}
 
@@ -219,7 +223,18 @@
     let label = '';
     const rounds = state.rounds.length;
     if(r === 0) label = 'ROUND OF ' + state.bracketN;
-    else if(r === rounds-1) label = 'FINAL 🏆 🪙' + state.pot;
+    else if(r === rounds-1){
+      label = 'FINAL 🏆 ';
+      ctx.fillText(label, x, topPad + 10);
+      let imgX = x + ctx.measureText(label).width + 2;
+      if (tpcImg.complete){
+        ctx.drawImage(tpcImg, imgX, topPad, 12, 12);
+        imgX += 16;
+      }
+      ctx.fillText(String(state.pot), imgX, topPad + 10);
+      ctx.restore();
+      return;
+    }
     else if(r === rounds-2) label = 'SEMIFINAL';
     else label = 'QUARTER / R' + (r+1);
     ctx.fillText(label, x, topPad + 10);
@@ -273,6 +288,23 @@
     const playerA = state.seedToPlayer[sA] || { name: 'TBD' };
     const playerB = state.seedToPlayer[sB] || { name: 'TBD' };
     return [playerA, playerB];
+  }
+
+  function coinConfetti(count=20){
+    const container=document.createElement('div');
+    container.style.position='fixed';container.style.top='0';container.style.left='0';
+    container.style.width='100%';container.style.height='0';container.style.pointerEvents='none';
+    container.style.zIndex='100';container.style.overflow='visible';
+    document.body.appendChild(container);
+    for(let i=0;i<count;i++){
+      const img=document.createElement('img');
+      img.src='/assets/icons/ezgif-54c96d8a9b9236.webp';
+      img.className='coin-confetti';
+      const left=Math.random()*100; const delay=Math.random()*3; const duration=2+Math.random()*2;
+      img.style.left=left+'vw'; img.style.animationDelay=delay+'s'; img.style.setProperty('--duration',duration+'s');
+      container.appendChild(img);
+    }
+    setTimeout(()=>container.remove(),5000);
   }
 
   function renderPlayer(player, x, y, slotH){
@@ -472,17 +504,40 @@
     const btn = document.getElementById('continueBtn');
     if(state.complete){
       const champ = state.seedToPlayer[state.championSeed] || {};
-      const info = document.createElement('div');
-      info.style.textAlign = 'center';
-      info.textContent = `Winner: ${champ.flag? champ.flag+' ' : ''}${champ.name || ''}`;
-      document.body.appendChild(info);
-      btn.textContent = 'Close';
+      coinConfetti(30);
+      const overlay=document.createElement('div');
+      overlay.style.position='fixed';overlay.style.inset='0';overlay.style.display='flex';overlay.style.flexDirection='column';
+      overlay.style.alignItems='center';overlay.style.justifyContent='center';overlay.style.background='rgba(0,0,0,0.6)';
+      const av=document.createElement('div');
+      av.style.width='120px';av.style.height='120px';av.style.borderRadius='50%';av.style.background='#fff';av.style.display='flex';
+      av.style.alignItems='center';av.style.justifyContent='center';av.style.fontSize='64px';
+      av.textContent=champ.flag||'';overlay.appendChild(av);
+      const last=JSON.parse(localStorage.getItem(`pollRoyaleLastResult_${tgKey}`)||'{}');
+      if(last.variant==='american'){
+        const res=document.createElement('div');res.style.color='#fff';res.style.marginTop='8px';res.textContent=`${last.scores?.[1]||0}-${last.scores?.[2]||0}`;
+        overlay.appendChild(res);
+      } else {
+        const img=document.createElement('img');img.style.width='40px';img.style.height='40px';img.style.marginTop='8px';
+        img.src = last.variant==='9ball'?'/assets/icons/Yellowball.webp':'/assets/icons/BlackBall.webp';
+        overlay.appendChild(img);
+      }
+      const prize=document.createElement('div');
+      prize.style.display='flex';prize.style.alignItems='center';prize.style.gap='4px';prize.style.marginTop='8px';
+      const icon=document.createElement('img');icon.src='/assets/icons/ezgif-54c96d8a9b9236.webp';icon.style.width='24px';icon.style.height='24px';
+      prize.appendChild(icon);
+      const amt=document.createElement('span');amt.textContent=String(state.pot);prize.appendChild(amt);
+      overlay.appendChild(prize);
+      btn.textContent='Return to Lobby';
+      btn.style.marginTop='12px';
       btn.addEventListener('click', ()=>{
         localStorage.removeItem(STATE_KEY);
         localStorage.removeItem(OPP_KEY);
-        window.location.href = '/games/pollroyale/lobby';
+        localStorage.removeItem(`pollRoyaleLastResult_${tgKey}`);
+        window.location.href='/games/pollroyale/lobby';
       });
-    }else{
+      overlay.appendChild(btn);
+      document.body.appendChild(overlay);
+    } else {
       btn.addEventListener('click', startNextMatch);
     }
   })();

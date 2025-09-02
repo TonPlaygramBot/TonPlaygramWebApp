@@ -1236,6 +1236,7 @@
           table.running = false;
           shotInProgress = false;
           if (window.tournamentMode && typeof window.handleTournamentResult === 'function') {
+            try{localStorage.setItem(`pollRoyaleLastResult_${tgKey}`, JSON.stringify({scores, variant}));}catch{}
             window.handleTournamentResult(winner);
             return;
           }

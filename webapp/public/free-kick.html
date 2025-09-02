@@ -188,6 +188,11 @@
   const durationParam = parseInt(params.get('duration')) || 60;
   timeShort.textContent = durationParam;
 
+  let currentRound = 0;
+  if(window.tournamentMode){
+    try{ const st = JSON.parse(localStorage.getItem(STATE_KEY) || '{}'); currentRound = st.currentRound || 0; }catch{}
+  }
+
   function emojiToDataUri(flag){
     return `data:image/svg+xml,${encodeURIComponent(`<svg xmlns='http://www.w3.org/2000/svg' width='64' height='64'><text x='50%' y='50%' font-size='48' text-anchor='middle' dominant-baseline='central'>${flag}</text></svg>`)}`;
   }
@@ -393,6 +398,9 @@
     },
   ];
   for(let i=0;i<rivals.length;i++){ rivals[i].cvs = rivals[i].wrap.querySelector('canvas'); rivals[i].ctx = rivals[i].cvs.getContext('2d'); rivals[i].avatar = pvAvatars[i]?.src || ''; }
+  if(window.tournamentMode && currentRound){
+    for(const r of rivals){ r.rate = r.rate.map(t=>Math.max(300, t - currentRound*50)); }
+  }
   const miniHolesCache=[[],[],[]];
   const MINI_GOAL_PAD = 8;
   function miniGoalRect(cv){
@@ -1297,12 +1305,20 @@ function endShot(hit,pts,delay=SHOT_RESET_DELAY){
     const winner=scores.find(s=>s.score===max);
     const winIdx = scores.indexOf(winner) === 0 ? 1 : 2;
     if(window.tournamentMode && typeof window.handleTournamentResult === 'function'){
+      try{localStorage.setItem(`freeKickLastResult_${tgKey}`, JSON.stringify({p1: myScore, p2: rivals[0]?.score || 0}));}catch{}
       window.handleTournamentResult(winIdx);
       return;
     }
     const overlay=document.getElementById('winnerOverlay');
     const img=document.getElementById('winnerAvatar');
     if(img) img.src=winner.avatar || userAvatar;
+    const container=overlay.firstElementChild;
+    if(container){
+      const scoreEl=document.createElement('div');
+      scoreEl.style.marginTop='8px';scoreEl.style.color='#fff';
+      scoreEl.textContent=`${myScore}-${rivals[0]?.score||0}`;
+      container.insertBefore(scoreEl, container.lastElementChild);
+    }
     overlay.classList.remove('hidden');
     coinConfetti(50);
     cheerSound.currentTime=0; cheerSound.play().catch(()=>{});
