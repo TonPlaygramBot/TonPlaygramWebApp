@@ -131,6 +131,7 @@
   </div>
 
 <script src="/free-kick-api.js"></script>
+<script src="/flag-emojis.js"></script>
 <script>
 (()=> {
   // ===== Canvas =====
@@ -220,7 +221,9 @@
   }
   userAvatarEl.src = userAvatar;
 
-  const flags = ['🇨🇦','🇫🇷','🇩🇪','🇪🇸','🇧🇷','🇯🇵','🇺🇸','🇬🇧'];
+  function shuffle(arr){ for(let i=arr.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [arr[i],arr[j]]=[arr[j],arr[i]]; } }
+  const flags = [...(window.FLAG_EMOJIS || [])];
+  shuffle(flags);
   if(window.tournamentMode){
     try{
       const opp = JSON.parse(localStorage.getItem(OPP_KEY) || '{}');
@@ -228,13 +231,13 @@
       if(pvNames[0]) pvNames[0].textContent = opp.name || flagName(opp.flag);
     }catch{}
     for(let i=1;i<3;i++){
-      const flag = flags[(Math.random()*flags.length)|0];
+      const flag = flags[i];
       if(pvAvatars[i]) pvAvatars[i].src = emojiToDataUri(flag);
       if(pvNames[i]) pvNames[i].textContent = flagName(flag);
     }
   } else {
     for(let i=0;i<3;i++){
-      const flag = flags[(Math.random()*flags.length)|0];
+      const flag = flags[i];
       if(pvAvatars[i]) pvAvatars[i].src = emojiToDataUri(flag);
       if(pvNames[i]) pvNames[i].textContent = flagName(flag);
     }
