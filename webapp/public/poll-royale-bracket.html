@@ -419,22 +419,6 @@
     });
   }
 
-  function recalcCurrentRound(st){
-    const userSeed = st.userSeed;
-    for(let r=0;r<st.rounds.length;r++){
-      const round = st.rounds[r] || [];
-      for(let i=0;i<round.length;i++){
-        const pair = round[i];
-        const next = st.rounds[r+1] && st.rounds[r+1][Math.floor(i/2)][i%2];
-        if((pair[0]===userSeed || pair[1]===userSeed) && !next){
-          st.currentRound = r;
-          return;
-        }
-      }
-    }
-    st.currentRound = st.rounds.length-1;
-  }
-
   function getUserMatch(st){
     const r = st.currentRound || 0;
     const userSeed = st.userSeed;
@@ -449,7 +433,7 @@
         if(opp && opp.name==='BYE'){
           if(st.rounds[r+1]) st.rounds[r+1][Math.floor(i/2)][i%2]=userSeed;
           simulateRoundAI(st, r);
-          if(st.rounds[r].every((p,idx)=> st.rounds[r+1][Math.floor(idx/2)][idx%2])){
+          if(st.rounds[r].every(function(p,idx){ return st.rounds[r+1][Math.floor(idx/2)][idx%2]; })){
             st.currentRound++;
           }
           localStorage.setItem(STATE_KEY, JSON.stringify(st));
@@ -477,13 +461,7 @@
     const totalPlayers = parseInt(params.get('players') || '8', 10);
     const saved = localStorage.getItem(STATE_KEY);
     if(saved){
-      try{
-        const parsed = JSON.parse(saved);
-        if(parsed.N === totalPlayers){
-          state = parsed;
-          recalcCurrentRound(state);
-        }
-      }catch{}
+      state = JSON.parse(saved);
     }
     if(!state.rounds.length){
       const userName = params.get('name') || 'You';
