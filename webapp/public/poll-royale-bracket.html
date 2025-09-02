@@ -417,17 +417,6 @@
         }
       }
     }
-    // handle final round (no next round exists)
-    const finalIdx = state.rounds.length - 1;
-    if(finalIdx >= 0 && !state.finished){
-      const finalMatch = state.rounds[finalIdx][0];
-      if(finalMatch){
-        const [sA, sB] = finalMatch;
-        if(sA === state.humanSeed || sB === state.humanSeed){
-          return {round: finalIdx, match: 0, opponentSeed: sA === state.humanSeed ? sB : sA};
-        }
-      }
-    }
     return null;
   }
 
