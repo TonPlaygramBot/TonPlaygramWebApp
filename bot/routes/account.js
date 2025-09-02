@@ -19,73 +19,37 @@ import { generateWalletAddress } from '../utils/wallet.js';
 
 const router = Router();
 
-// Create or fetch account for a user
+// Create or fetch account for a Telegram user
 router.post('/create', async (req, res) => {
-  const { telegramId, googleId } = req.body;
+  const { telegramId } = req.body;
+  if (!telegramId) {
+    return res.status(400).json({ error: 'telegramId required' });
+  }
 
-  let user;
-  if (telegramId) {
-    user = await User.findOne({ telegramId });
-    if (!user) {
-      const wallet = await generateWalletAddress();
-      user = new User({
-        telegramId,
-        accountId: uuidv4(),
-        referralCode: String(telegramId),
-        walletAddress: wallet.address,
-        walletPublicKey: wallet.publicKey
-      });
-      await user.save();
-    } else {
-      let updated = false;
-      if (!user.accountId) {
-        user.accountId = uuidv4();
-        updated = true;
-      }
-      if (!user.walletAddress) {
-        const wallet = await generateWalletAddress();
-        user.walletAddress = wallet.address;
-        user.walletPublicKey = wallet.publicKey;
-        updated = true;
-      }
-      if (updated) await user.save();
-    }
-  } else if (googleId) {
-    user = await User.findOne({ googleId });
-    if (!user) {
-      const wallet = await generateWalletAddress();
-      user = new User({
-        googleId,
-        accountId: uuidv4(),
-        referralCode: googleId,
-        walletAddress: wallet.address,
-        walletPublicKey: wallet.publicKey
-      });
-      await user.save();
-    } else {
-      let updated = false;
-      if (!user.accountId) {
-        user.accountId = uuidv4();
-        updated = true;
-      }
-      if (!user.walletAddress) {
-        const wallet = await generateWalletAddress();
-        user.walletAddress = wallet.address;
-        user.walletPublicKey = wallet.publicKey;
-        updated = true;
-      }
-      if (updated) await user.save();
-    }
-  } else {
+  let user = await User.findOne({ telegramId });
+  if (!user) {
     const wallet = await generateWalletAddress();
-    const id = uuidv4();
     user = new User({
-      accountId: id,
-      referralCode: id,
+      telegramId,
+      accountId: uuidv4(),
+      referralCode: String(telegramId),
       walletAddress: wallet.address,
       walletPublicKey: wallet.publicKey
     });
     await user.save();
+  } else {
+    let updated = false;
+    if (!user.accountId) {
+      user.accountId = uuidv4();
+      updated = true;
+    }
+    if (!user.walletAddress) {
+      const wallet = await generateWalletAddress();
+      user.walletAddress = wallet.address;
+      user.walletPublicKey = wallet.publicKey;
+      updated = true;
+    }
+    if (updated) await user.save();
   }
 
   res.json({
