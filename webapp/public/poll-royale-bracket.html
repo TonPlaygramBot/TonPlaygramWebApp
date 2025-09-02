@@ -447,9 +447,7 @@
   }
 
   function startNextMatch(){
-    const st = JSON.parse(localStorage.getItem(STATE_KEY) || '{}');
-    if(!st.rounds || !st.rounds.length) return;
-    state = st;
+    const st = state;
     const info = getUserMatch(st);
     if(!info) return;
     st.pendingMatch = info;
@@ -465,7 +463,12 @@
     const totalPlayers = parseInt(params.get('players') || '8', 10);
     const saved = localStorage.getItem(STATE_KEY);
     if(saved){
-      state = JSON.parse(saved);
+      try{
+        const parsed = JSON.parse(saved);
+        if(parsed.N === totalPlayers){
+          state = parsed;
+        }
+      }catch{}
     }
     if(!state.rounds.length){
       const userName = params.get('name') || 'You';
@@ -525,8 +528,6 @@
     window.addEventListener('popstate', (e)=>{ e.preventDefault(); showExitPopup(); history.pushState(null,'',location.href); });
 
     const btn = document.getElementById('continueBtn');
-    const savedState = JSON.parse(localStorage.getItem(STATE_KEY) || '{}');
-    if(savedState.rounds && savedState.rounds.length) state = savedState;
     if(state.complete){
       const champ = state.seedToPlayer[state.championSeed] || {};
       coinConfetti(30);
