@@ -917,12 +917,24 @@
         );
 
         var params = new URLSearchParams(location.search);
-        var tgKey = params.get("tgId") || "anon";
+        var tgId =
+          params.get("tgId") ||
+          localStorage.getItem("pollRoyaleTgId") ||
+          "anon";
+        if (!params.get("tgId")) {
+          params.set("tgId", tgId);
+          window.history.replaceState(
+            null,
+            "",
+            `${location.pathname}?${params.toString()}`
+          );
+        }
+        localStorage.setItem("pollRoyaleTgId", tgId);
+        var tgKey = tgId;
         var STATE_KEY = `pollRoyaleTournamentState_${tgKey}`;
         var OPP_KEY = `pollRoyaleTournamentOpponent_${tgKey}`;
         var stake = parseInt(params.get("amount") || "0", 10);
         var accountId = params.get("accountId");
-        var tgId = params.get("tgId");
         var devAccount = params.get("dev");
         var devAccount1 = params.get("dev1");
         var devAccount2 = params.get("dev2");
@@ -3728,7 +3740,12 @@
           try {
             var st = JSON.parse(localStorage.getItem(STATE_KEY) || '{}');
             if (!st.pendingMatch) {
-              window.location.href = '/poll-royale-bracket.html?' + window.location.search.slice(1);
+              console.warn('handleTournamentResult: pendingMatch missing', {
+                stateKey: STATE_KEY,
+                state: st
+              });
+              window.location.href =
+                '/poll-royale-bracket.html?' + window.location.search.slice(1);
               return;
             }
             var r = st.pendingMatch.round;
