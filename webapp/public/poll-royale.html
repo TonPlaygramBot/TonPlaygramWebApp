@@ -627,6 +627,24 @@
         border-radius: 4px;
       }
 
+      #tournamentOverlay {
+        position: fixed;
+        inset: 0;
+        background: #111;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        z-index: 400;
+      }
+      #tournamentOverlay.hidden {
+        display: none;
+      }
+      #tournamentOverlay canvas {
+        background: #fff;
+        width: 95vw;
+        height: 95vh;
+        border: 1px solid #000;
+      }
 
       #rulesModal {
         position: fixed;
@@ -879,7 +897,6 @@
     </div>
 
     <script src="/flag-emojis.js"></script>
-    <script src="/tournament.js"></script>
 
     <!--
     Shenim: Perdorim script me type="text/javascript" per te shmangur
@@ -909,19 +926,6 @@
         window.tournamentPlayers = parseInt(params.get('players') || '0', 10);
         window.potAmount = parseInt(params.get('amount') || '0', 10);
         window.playerName = params.get('name') || 'Player';
-        var tournamentState, currentMatchInfo;
-        if (window.tournamentMode) {
-          tournamentState = Tournament.load();
-          currentMatchInfo = Tournament.getNextUserMatch(tournamentState);
-          Tournament.save(tournamentState);
-          if (!currentMatchInfo) {
-            location.href = '/poll-royale-bracket.html?' + params.toString();
-            return;
-          }
-          var match = tournamentState.rounds[currentMatchInfo.round][currentMatchInfo.match];
-          var oppSeed = match.p1 === tournamentState.userIndex ? match.p2 : match.p1;
-          window.currentMatch = { round: currentMatchInfo.round, match: currentMatchInfo.match, opponent: oppSeed };
-        }
         const planShotPromise = import('/lib/poolAi.js');
 
         /* ==========================================================
@@ -1432,11 +1436,7 @@
             return 'AI';
           }
         }
-        if (window.tournamentMode) {
-          var opp = tournamentState.players[window.currentMatch.opponent];
-          avatarCPU.textContent = opp.flag || '';
-          formatPlayerName(opp.name || 'AI', nameCPU);
-        } else if (window.FLAG_EMOJIS) {
+        if (window.FLAG_EMOJIS) {
           var flag = FLAG_EMOJIS[(Math.random() * FLAG_EMOJIS.length) | 0];
           avatarCPU.textContent = flag;
           formatPlayerName(flagToName(flag) || 'CPU', nameCPU);
@@ -3607,6 +3607,10 @@
       </div>
     </div>
 
+    <div id="tournamentOverlay" class="hidden">
+      <canvas id="bracket"></canvas>
+    </div>
+
     <script>
       const rulesBtn = document.getElementById('rulesBtn');
       const rulesModal = document.getElementById('rulesModal');
@@ -3701,20 +3705,127 @@
         });
       }
 
-        if (params.get('type') === 'tournament') {
-          window.handleTournamentResult = function (winner) {
-            var state = Tournament.load();
-            var info = window.currentMatch;
-            var winSeed = winner === 1 ? state.userIndex : info.opponent;
-            Tournament.propagateWinner(state, info.round, info.match, winSeed);
-            Tournament.simulateRound(state, info.round);
-            if (winner !== 1) {
-              Tournament.simulateRemaining(state, info.round + 1);
-            }
-            Tournament.save(state);
-            location.href = '/poll-royale-bracket.html?' + params.toString();
-          };
+      if (params.get('type') === 'tournament') {
+        const overlay = document.getElementById('tournamentOverlay');
+        const canvas = document.getElementById('bracket');
+        const ctx = canvas.getContext('2d');
+        // Generate AI player names with country flags
+        const totalPlayers = window.tournamentPlayers || 16;
+        const aiPool = [
+          { name: 'USA', flag: '🇺🇸' },
+          { name: 'UK', flag: '🇬🇧' },
+          { name: 'Germany', flag: '🇩🇪' },
+          { name: 'Brazil', flag: '🇧🇷' },
+          { name: 'Japan', flag: '🇯🇵' },
+          { name: 'France', flag: '🇫🇷' },
+          { name: 'Spain', flag: '🇪🇸' },
+          { name: 'Italy', flag: '🇮🇹' },
+          { name: 'Canada', flag: '🇨🇦' },
+          { name: 'India', flag: '🇮🇳' },
+          { name: 'China', flag: '🇨🇳' },
+          { name: 'Mexico', flag: '🇲🇽' },
+          { name: 'Australia', flag: '🇦🇺' },
+          { name: 'Russia', flag: '🇷🇺' },
+          { name: 'Netherlands', flag: '🇳🇱' },
+          { name: 'Sweden', flag: '🇸🇪' },
+          { name: 'Norway', flag: '🇳🇴' },
+          { name: 'Denmark', flag: '🇩🇰' },
+          { name: 'Poland', flag: '🇵🇱' },
+          { name: 'Switzerland', flag: '🇨🇭' },
+          { name: 'Greece', flag: '🇬🇷' },
+          { name: 'Turkey', flag: '🇹🇷' },
+          { name: 'Portugal', flag: '🇵🇹' },
+          { name: 'Belgium', flag: '🇧🇪' }
+        ];
+        const players = aiPool.slice(0, totalPlayers - 1);
+        players.unshift({ name: 'You', flag: '🏳️' });
+        while (players.length < totalPlayers) {
+          players.push({ name: `AI ${players.length + 1}`, flag: '🏳️' });
         }
+        const playerNames = players.map(p => `${p.flag} ${p.name}`);
+        const totalPot = window.potAmount || 0;
+
+        function resizeCanvas() {
+          canvas.width = window.innerWidth * 0.95;
+          canvas.height = window.innerHeight * 0.95;
+          drawBracket();
+        }
+
+        window.addEventListener('resize', resizeCanvas);
+
+        function drawBracket() {
+          ctx.clearRect(0, 0, canvas.width, canvas.height);
+          ctx.strokeStyle = '#000';
+          ctx.lineWidth = 2;
+          ctx.font = '14px Arial';
+          ctx.textBaseline = 'middle';
+
+          let size = playerNames.length;
+          if (![8, 16, 24].includes(size)) {
+            ctx.fillText('Only 8, 16 or 24 players supported', 20, 20);
+            return;
+          }
+
+          let effectivePlayers = [...playerNames];
+          if (size === 24) {
+            effectivePlayers = playerNames
+              .slice(0, 16)
+              .concat(playerNames.slice(16).map(p => p + ' (BYE)'));
+            size = 16;
+          }
+
+          const rounds = Math.log2(size);
+          const colWidth = canvas.width / (rounds * 2);
+          const rowHeight = canvas.height / effectivePlayers.length;
+
+          for (let i = 0; i < effectivePlayers.length / 2; i++) {
+            let y = rowHeight * (i * 2 + 1);
+            ctx.strokeRect(10, y - 12, colWidth - 20, 24);
+            ctx.fillText(effectivePlayers[i], 15, y);
+            ctx.beginPath();
+            ctx.moveTo(colWidth - 10, y);
+            ctx.lineTo(colWidth, y);
+            ctx.stroke();
+          }
+
+          for (let i = effectivePlayers.length / 2; i < effectivePlayers.length; i++) {
+            let idx = i - effectivePlayers.length / 2;
+            let y = rowHeight * (idx * 2 + 1);
+            ctx.strokeRect(canvas.width - colWidth + 10, y - 12, colWidth - 20, 24);
+            ctx.fillText(effectivePlayers[i], canvas.width - colWidth + 15, y);
+            ctx.beginPath();
+            ctx.moveTo(canvas.width - colWidth, y);
+            ctx.lineTo(canvas.width - colWidth + 10, y);
+            ctx.stroke();
+          }
+
+          ctx.beginPath();
+          ctx.arc(canvas.width / 2, canvas.height / 2, 40, 0, 2 * Math.PI);
+          ctx.stroke();
+
+          ctx.font = '16px Arial';
+          ctx.textAlign = 'center';
+          ctx.fillText(`POT: ${totalPot} TPC`, canvas.width / 2, canvas.height / 2 + 60);
+          ctx.textAlign = 'left';
+        }
+
+        resizeCanvas();
+        const continueBtn = document.createElement('button');
+        continueBtn.textContent = 'Continue';
+        continueBtn.style.position = 'absolute';
+        continueBtn.style.bottom = '20px';
+        continueBtn.style.left = '50%';
+        continueBtn.style.transform = 'translateX(-50%)';
+        overlay.appendChild(continueBtn);
+        continueBtn.addEventListener('click', () => {
+          overlay.classList.add('hidden');
+        });
+        window.handleTournamentResult = function () {
+          overlay.classList.remove('hidden');
+          drawBracket();
+        };
+        overlay.classList.remove('hidden');
+      }
 
       // Rotate corner holes diagonally; keep side holes horizontal
       const allHoles = document.querySelectorAll('.hole');
