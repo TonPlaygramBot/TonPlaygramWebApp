@@ -168,6 +168,11 @@
   }
 
   const params = new URLSearchParams(location.search);
+  const playType = params.get('type') || 'regular';
+  window.tournamentMode = playType === 'tournament';
+  window.tournamentPlayers = window.tournamentMode
+    ? parseInt(params.get('players') || '0', 10)
+    : 0;
   const avatarParam = params.get('avatar') || '';
   let userName = params.get('name') || params.get('username') || '';
   const durationParam = parseInt(params.get('duration')) || 60;
@@ -201,10 +206,23 @@
   userAvatarEl.src = userAvatar;
 
   const flags = ['🇨🇦','🇫🇷','🇩🇪','🇪🇸','🇧🇷','🇯🇵','🇺🇸','🇬🇧'];
-  for(let i=0;i<3;i++){
-    const flag = flags[(Math.random()*flags.length)|0];
-    if(pvAvatars[i]) pvAvatars[i].src = emojiToDataUri(flag);
-    if(pvNames[i]) pvNames[i].textContent = flagName(flag);
+  if(window.tournamentMode){
+    try{
+      const opp = JSON.parse(localStorage.getItem('tournamentOpponent') || '{}');
+      if(pvAvatars[0] && opp.flag) pvAvatars[0].src = emojiToDataUri(opp.flag);
+      if(pvNames[0]) pvNames[0].textContent = opp.name || flagName(opp.flag);
+    }catch{}
+    for(let i=1;i<3;i++){
+      const flag = flags[(Math.random()*flags.length)|0];
+      if(pvAvatars[i]) pvAvatars[i].src = emojiToDataUri(flag);
+      if(pvNames[i]) pvNames[i].textContent = flagName(flag);
+    }
+  } else {
+    for(let i=0;i<3;i++){
+      const flag = flags[(Math.random()*flags.length)|0];
+      if(pvAvatars[i]) pvAvatars[i].src = emojiToDataUri(flag);
+      if(pvNames[i]) pvNames[i].textContent = flagName(flag);
+    }
   }
   positionLayout();
 
@@ -1267,6 +1285,11 @@ function endShot(hit,pts,delay=SHOT_RESET_DELAY){
     for(const r of rivals){ scores.push({score:r.score,avatar:r.avatar}); }
     const max=Math.max(...scores.map(s=>s.score));
     const winner=scores.find(s=>s.score===max);
+    const winIdx = scores.indexOf(winner) === 0 ? 1 : 2;
+    if(window.tournamentMode && typeof window.handleTournamentResult === 'function'){
+      window.handleTournamentResult(winIdx);
+      return;
+    }
     const overlay=document.getElementById('winnerOverlay');
     const img=document.getElementById('winnerAvatar');
     if(img) img.src=winner.avatar || userAvatar;
@@ -1827,6 +1850,76 @@ function drawStaticOnce(){ drawField(); drawAds(); drawGoal(); resetBall(); draw
     canvas.addEventListener('pointerdown', ()=>{ if(!running||ended) startCountdown(3); ensureAudio(); crowdSound.play().catch(()=>{}); }, {once:false});
     startCountdown(3);
   }
+
+  if (params.get('type') === 'tournament') {
+    window.handleTournamentResult = function (winner) {
+      try {
+        var st = JSON.parse(localStorage.getItem('tournamentState') || '{}');
+        if (!st.pendingMatch) {
+          window.location.href = '/free-kick-bracket.html?' + window.location.search.slice(1);
+          return;
+        }
+        var r = st.pendingMatch.round;
+        var m = st.pendingMatch.match;
+        var oppSeed = st.pendingMatch.pair[0] === st.userSeed ? st.pendingMatch.pair[1] : st.pendingMatch.pair[0];
+        var winnerSeed = winner === 1 ? st.userSeed : oppSeed;
+        var next = st.rounds[r + 1];
+        if (next) {
+          next[Math.floor(m / 2)][m % 2] = winnerSeed;
+        } else {
+          st.championSeed = winnerSeed;
+          st.complete = true;
+        }
+        if (winnerSeed !== st.userSeed) {
+          simulateRemaining(st, r);
+        } else {
+          simulateRoundAI(st, r);
+          if (next && st.rounds[r].every(function(p, idx){ return next[Math.floor(idx/2)][idx%2]; })) {
+            st.currentRound++;
+          }
+        }
+        delete st.pendingMatch;
+        localStorage.setItem('tournamentState', JSON.stringify(st));
+        localStorage.removeItem('tournamentOpponent');
+      } catch (err) {
+        console.error(err);
+      }
+      window.location.href = '/free-kick-bracket.html?' + window.location.search.slice(1);
+    };
+
+    function simulateRoundAI(st, round){
+      var next = st.rounds[round + 1];
+      var userSeed = st.userSeed;
+      st.rounds[round].forEach(function(pair, idx){
+        if(pair.includes(userSeed)) return;
+        if(next && next[Math.floor(idx/2)][idx%2]) return;
+        var s1 = pair[0];
+        var s2 = pair[1];
+        var p1 = st.seedToPlayer[s1];
+        var p2 = st.seedToPlayer[s2];
+        var w;
+        if(p1 && p1.name === 'BYE') w = s2;
+        else if(p2 && p2.name === 'BYE') w = s1;
+        else w = Math.random() < 0.5 ? s1 : s2;
+        if(next){
+          next[Math.floor(idx/2)][idx%2] = w;
+        } else {
+          st.championSeed = w;
+          st.complete = true;
+        }
+      });
+    }
+
+    function simulateRemaining(st, startRound){
+      for(var r = startRound; r < st.rounds.length; r++){
+        simulateRoundAI(st, r);
+        if(st.complete) break;
+      }
+      st.currentRound = st.rounds.length - 1;
+      st.complete = true;
+    }
+  }
+
   boot();
   document.getElementById('lobbyBtn').addEventListener('click', ()=>{ location.href='/games/freekick/lobby'; });
 })();
