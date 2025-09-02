@@ -447,14 +447,18 @@
   }
 
   function startNextMatch(){
-    const st = state;
+    const st = JSON.parse(localStorage.getItem(STATE_KEY) || '{}');
+    if(!st.rounds || !st.rounds.length) return;
+    state = st;
     const info = getUserMatch(st);
     if(!info) return;
     st.pendingMatch = info;
     const opponentSeed = info.pair[0] === st.userSeed ? info.pair[1] : info.pair[0];
     localStorage.setItem(OPP_KEY, JSON.stringify(st.seedToPlayer[opponentSeed]));
     localStorage.setItem(STATE_KEY, JSON.stringify(st));
-    window.location.href = '/poll-royale.html' + window.location.search;
+    const search = new URLSearchParams(window.location.search);
+    search.set('type', 'tournament');
+    window.location.href = '/poll-royale.html?' + search.toString();
   }
 
   (function init(){
@@ -521,6 +525,8 @@
     window.addEventListener('popstate', (e)=>{ e.preventDefault(); showExitPopup(); history.pushState(null,'',location.href); });
 
     const btn = document.getElementById('continueBtn');
+    const savedState = JSON.parse(localStorage.getItem(STATE_KEY) || '{}');
+    if(savedState.rounds && savedState.rounds.length) state = savedState;
     if(state.complete){
       const champ = state.seedToPlayer[state.championSeed] || {};
       coinConfetti(30);
