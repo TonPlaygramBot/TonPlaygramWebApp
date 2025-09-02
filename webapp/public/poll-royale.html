@@ -896,7 +896,6 @@
     </div>
 
     <script src="/flag-emojis.js"></script>
-    <script src="/falling-ball-api.js"></script>
 
     <!--
     Shenim: Perdorim script me type="text/javascript" per te shmangur
@@ -1202,7 +1201,7 @@
         }
 
         if (window.tournamentMode) {
-          window.handleTournamentResult = async function (winner) {
+          window.handleTournamentResult = function (winner) {
             var round = parseInt(urlParams.get('round') || '0', 10);
             var match = parseInt(urlParams.get('match') || '0', 10);
             var state = JSON.parse(localStorage.getItem('poolTournament') || '{}');
@@ -1216,15 +1215,6 @@
                 nextRound[idx][pos] = winnerSeed;
                 if (winner === 1) state.humanSeed = winnerSeed;
                 else state.humanLost = true;
-                for (var m = 0; m < state.rounds[round].length; m++) {
-                  var idx2 = Math.floor(m / 2);
-                  var pos2 = m % 2;
-                  if (nextRound[idx2][pos2] === 0) {
-                    var pair2 = state.rounds[round][m];
-                    var win = Math.random() < 0.5 ? pair2[0] : pair2[1];
-                    nextRound[idx2][pos2] = win;
-                  }
-                }
               } else {
                 state.champion = winnerSeed;
                 state.finished = true;
@@ -1233,53 +1223,6 @@
               delete state.currentMatch;
               delete state.nextMatch;
               localStorage.setItem('poolTournament', JSON.stringify(state));
-              if (state.finished) {
-                try {
-                  var gross = (state.amount || 0) * (state.N || 0);
-                  var fee = Math.round(gross * 0.1);
-                  var net = gross - fee;
-                  var ops = [];
-                  if (state.dev1 || state.dev2) {
-                    if (state.dev)
-                      ops.push(
-                        fbApi.depositAccount(state.dev, Math.round(gross * 0.09), {
-                          game: 'pollroyale-dev',
-                        })
-                      );
-                    if (state.dev1)
-                      ops.push(
-                        fbApi.depositAccount(state.dev1, Math.round(gross * 0.01), {
-                          game: 'pollroyale-dev1',
-                        })
-                      );
-                    if (state.dev2)
-                      ops.push(
-                        fbApi.depositAccount(state.dev2, Math.round(gross * 0.02), {
-                          game: 'pollroyale-dev2',
-                        })
-                      );
-                  } else if (state.dev) {
-                    ops.push(
-                      fbApi.depositAccount(state.dev, Math.round(gross * 0.1), {
-                        game: 'pollroyale-dev',
-                      })
-                    );
-                  }
-                  if (winner === 1 && state.accountId)
-                    ops.push(
-                      fbApi.depositAccount(state.accountId, net, {
-                        game: 'pollroyale-win',
-                      })
-                    );
-                  await Promise.all(ops);
-                  if (winner === 1 && state.tgId)
-                    await fbApi.addTransaction(state.tgId, 0, 'win', {
-                      game: 'pollroyale',
-                      players: state.N,
-                      accountId: state.accountId,
-                    });
-                } catch (e) {}
-              }
             }
             location.href = '/poll-royale-bracket.html';
           };

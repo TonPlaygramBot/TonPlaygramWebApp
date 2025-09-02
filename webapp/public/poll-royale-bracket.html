@@ -53,16 +53,6 @@
     border-radius:4px;
     display:block;
   }
-  .hidden{display:none}
-  #championOverlay{
-    position:fixed;top:0;left:0;width:100%;height:100%;
-    background:rgba(0,0,0,.8);display:flex;flex-direction:column;
-    align-items:center;justify-content:center;gap:12px;z-index:1000;
-  }
-  #championOverlay img{width:120px;height:120px;border-radius:50%}
-  #championOverlay button{padding:8px 16px;background:var(--accent);color:#fff;border:none;border-radius:4px}
-  .coin-confetti{position:fixed;top:-40px;width:32px;height:32px;pointer-events:none;animation:coin-fall var(--duration,3s) linear forwards;z-index:999}
-  @keyframes coin-fall{from{transform:translateY(-10vh) rotate(0deg);opacity:1}to{transform:translateY(100vh) rotate(360deg);opacity:0}}
 </style>
 </head>
 <body>
@@ -71,12 +61,6 @@
 </div>
 
 <button id="continueBtn">Continue</button>
-
-<div id="championOverlay" class="hidden">
-  <img id="championAvatar" alt="winner" />
-  <div id="championName"></div>
-  <button id="lobbyBtn">Return to Lobby</button>
-</div>
 
 <script>
 (function(){
@@ -102,14 +86,7 @@
     bracketN: 0,
     rounds: [],
     seedToPlayer: {},
-    pot: 0,
-    amount: 0,
-    token: 'TPC',
-    tgId: null,
-    accountId: null,
-    dev: null,
-    dev1: null,
-    dev2: null
+    pot: 0
   };
 
   const STORAGE_KEY = 'poolTournament';
@@ -443,7 +420,6 @@
     if(state.finished){
       btn.disabled = true;
       btn.textContent = 'Tournament Finished';
-      showChampion();
       return;
     }
     const next = findNextMatch();
@@ -462,8 +438,7 @@
     localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
     const opponent = state.seedToPlayer[next.opponentSeed];
     const human = state.seedToPlayer[state.humanSeed];
-    const avatar = human.avatar ? `&avatar=${encodeURIComponent(human.avatar)}` : '';
-    location.href = `/poll-royale.html?type=tournament&round=${next.round}&match=${next.match}&players=${state.N}&name=${encodeURIComponent(human.name)}&opponent=${encodeURIComponent(opponent.name)}&flag=${encodeURIComponent(opponent.flag||'')}${avatar}`;
+    location.href = `/poll-royale.html?type=tournament&round=${next.round}&match=${next.match}&players=${state.N}&name=${encodeURIComponent(human.name)}&opponent=${encodeURIComponent(opponent.name)}&flag=${encodeURIComponent(opponent.flag||'')}`;
   }
 
   (function init(){
@@ -479,59 +454,16 @@
       const params = new URLSearchParams(location.search);
       const num = parseInt(params.get('players') || '8',10);
       const playerName = params.get('name') || 'Player';
-      const avatar = params.get('avatar');
-      const amount = parseInt(params.get('amount') || '0',10);
-      state.amount = amount;
-      state.token = params.get('token') || 'TPC';
-      state.tgId = params.get('tgId');
-      state.accountId = params.get('accountId');
-      state.dev = params.get('dev');
-      state.dev1 = params.get('dev1');
-      state.dev2 = params.get('dev2');
       const ai = AI_PLAYERS.slice(0, Math.max(0, num-1));
-      state.players = [{ name: playerName, avatar }].concat(ai);
+      state.players = [{ name: playerName }].concat(ai);
       createBracket(state.players);
       state.humanSeed = 1;
-      const gross = amount * num;
-      state.pot = gross - Math.round(gross * 0.10);
       localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
     }
     window.addEventListener('resize', ()=> layoutAndDraw());
     document.getElementById('continueBtn').addEventListener('click', continueTournament);
     updateButton();
   })();
-
-  function coinConfetti(count, iconSrc){
-    count = count || 50;
-    iconSrc = iconSrc || '/assets/icons/ezgif-54c96d8a9b9236.webp';
-    for(let i=0;i<count;i++){
-      const img = document.createElement('img');
-      img.src = iconSrc;
-      img.className = 'coin-confetti';
-      img.style.left = Math.random()*100 + 'vw';
-      img.style.setProperty('--duration', 2 + Math.random()*2 + 's');
-      document.body.appendChild(img);
-      setTimeout(()=>img.remove(),3000);
-    }
-  }
-
-  function showChampion(){
-    const overlay = document.getElementById('championOverlay');
-    if(!state.champion) return;
-    const champ = state.seedToPlayer[state.champion] || {};
-    const img = document.getElementById('championAvatar');
-    const nameEl = document.getElementById('championName');
-    if(champ.avatar){ img.src = champ.avatar; img.classList.remove('hidden'); }
-    else if(champ.flag){ img.src = ''; img.classList.add('hidden'); nameEl.textContent = champ.flag + ' ' + (champ.name||''); }
-    else { img.src = ''; img.classList.add('hidden'); nameEl.textContent = champ.name || ''; }
-    if(img.src) nameEl.textContent = champ.name || '';
-    overlay.classList.remove('hidden');
-    coinConfetti(80);
-    const lobbyBtn = document.getElementById('lobbyBtn');
-    const win = state.champion === state.humanSeed;
-    const lobbyUrl = win ? '/games/pollroyale/lobby?winner=1' : '/games/pollroyale/lobby?winner=0';
-    lobbyBtn.onclick = ()=>{ location.href = lobbyUrl; };
-  }
 })();
 </script>
 </body>
