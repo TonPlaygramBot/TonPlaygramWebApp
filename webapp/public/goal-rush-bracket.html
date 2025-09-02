@@ -488,6 +488,7 @@
         { name: 'Portugal', flag: '🇵🇹' },
         { name: 'Belgium', flag: '🇧🇪' }
       ];
+      aiPool.sort(() => Math.random() - 0.5);
       const players = [{ name: userName, flag: params.get('flag') || '🏳️' }];
       players.push(...aiPool.slice(0, totalPlayers - 1));
       state.players = players;
@@ -500,6 +501,36 @@
     }
     layoutAndDraw();
     window.addEventListener('resize', ()=> layoutAndDraw());
+
+    const tg = window.Telegram?.WebApp;
+    if (tg) {
+      tg.BackButton.show();
+      tg.onEvent('backButtonClicked', showExitPopup);
+    }
+
+    function showExitPopup() {
+      const overlay = document.createElement('div');
+      overlay.style.position = 'fixed';
+      overlay.style.inset = '0';
+      overlay.style.background = 'rgba(0,0,0,0.6)';
+      overlay.style.display = 'flex';
+      overlay.style.alignItems = 'center';
+      overlay.style.justifyContent = 'center';
+      overlay.innerHTML = `<div style="background:#11172a;padding:20px;border-radius:8px;text-align:center;"><p style="margin-bottom:12px;">If you quit the tournament your funds will be lost.</p><div style="display:flex;gap:8px;justify-content:center;"><button id="quitTournament">Quit Tournament</button><button id="returnLobby">Return Lobby</button></div></div>`;
+      document.body.appendChild(overlay);
+      document.getElementById('quitTournament').onclick = () => {
+        try {
+          localStorage.removeItem(STATE_KEY);
+          localStorage.removeItem(OPP_KEY);
+        } catch {}
+        tg.BackButton.hide();
+        window.location.href = '/games/goalrush/lobby';
+      };
+      document.getElementById('returnLobby').onclick = () => {
+        tg.BackButton.hide();
+        window.location.href = '/games/goalrush/lobby';
+      };
+    }
 
     const btn = document.getElementById('continueBtn');
     if(state.complete){
