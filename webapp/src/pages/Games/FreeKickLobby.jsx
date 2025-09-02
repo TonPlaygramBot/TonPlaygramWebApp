@@ -71,14 +71,6 @@ export default function FreeKickLobby() {
     if (accountId) params.set('accountId', accountId);
     const name = getTelegramFirstName();
     if (name) params.set('name', name);
-    const initData = window.Telegram?.WebApp?.initData;
-    const devAcc = import.meta.env.VITE_DEV_ACCOUNT_ID;
-    const devAcc1 = import.meta.env.VITE_DEV_ACCOUNT_ID_1;
-    const devAcc2 = import.meta.env.VITE_DEV_ACCOUNT_ID_2;
-    if (devAcc) params.set('dev', devAcc);
-    if (devAcc1) params.set('dev1', devAcc1);
-    if (devAcc2) params.set('dev2', devAcc2);
-    if (initData) params.set('init', encodeURIComponent(initData));
     if (playType === 'tournament') {
       window.location.href = `/free-kick-bracket.html?${params.toString()}`;
     } else {
