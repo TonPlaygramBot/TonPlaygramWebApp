@@ -357,15 +357,15 @@
   let goalDepth = 24;
   let paddleRadius = 34;
 
-  const puck = { x:0, y:0, r:24, vx:0, vy:0, max: 30, angle: 0, spin: 0 };
+  const puck = { x:0, y:0, r:26, vx:0, vy:0, max: 30, angle: 0, spin: 0 };
   const p1 = { x:0, y:0, r:34, vx:0, vy:0, max: 17, lastX:0, lastY:0 };
   const p2 = { x:0, y:0, r:34, vx:0, vy:0, max: 17, lastX:0, lastY:0 };
   const score = { p1:0, p2:0, target };
   let running = true; let last = 0;
   let lastTouch = null;
   let cornerEscapeFrames = 0;
-  const difficultySpeeds = { easy:14, normal:17, hard:24 };
-  p2.max = (difficultySpeeds[difficulty] || 16) + currentRound * 2;
+  const difficultySpeeds = { easy:13, normal:16, hard:22 };
+  p2.max = (difficultySpeeds[difficulty] || 15) + currentRound * 2;
 
   let audioEnabled = true;
   let audioStarted = false;
@@ -527,7 +527,7 @@
     ctx.stroke();
 
     // penalty areas
-    const penW = rink.w * 0.5;
+    const penW = rink.w * 0.55;
     const penH = rink.h * 0.18;
     ctx.beginPath();
     ctx.rect(centerX - penW / 2, rink.y, penW, penH);
@@ -700,9 +700,9 @@
   }
   function getCSS(v){ return getComputedStyle(document.documentElement).getPropertyValue(v).trim(); }
 
-  const friction = 0.994;
-  const wallBounce = 1.06;
-  const minWallSpeed = 4.8;
+  const friction = 0.995;
+  const wallBounce = 1.08;
+  const minWallSpeed = 5;
   function constrainPaddle(p, bottom){
     const margin=12;
     const minX = rink.x + margin + p.r;
@@ -742,7 +742,7 @@
   }
 
   function aiUpdate(){
-    const baseReaction = { easy: 0.056, normal: 0.095, hard: 0.18 }[difficulty] || 0.085;
+    const baseReaction = { easy: 0.05, normal: 0.085, hard: 0.16 }[difficulty] || 0.075;
     let reaction = baseReaction;
     const margin = p2.r + 12;
     const minX = rink.x + margin;
@@ -811,9 +811,9 @@
         const relVY = puck.vy - p.vy;
         const relAlongNormal = relVX*nx + relVY*ny;
         const tangential = relVX*(-ny) + relVY*nx;
-        puck.spin += tangential * 0.012;
+        puck.spin += tangential * 0.015;
         if (relAlongNormal <= 0){
-          const restitution = 1.1;
+          const restitution = 1.15;
           const impulse = -(1+restitution) * relAlongNormal;
           puck.vx += impulse * nx;
           puck.vy += impulse * ny;
@@ -940,7 +940,7 @@
 
     puck.x += puck.vx * dt * 60;
     puck.y += puck.vy * dt * 60;
-    const mag = puck.spin * dt * 0.6;
+    const mag = puck.spin * dt * 0.7;
     const magVx = -puck.vy * mag;
     const magVy = puck.vx * mag;
     puck.vx += magVx;
@@ -948,8 +948,8 @@
     puck.vx *= Math.pow(friction, dt*60);
     puck.vy *= Math.pow(friction, dt*60);
     puck.angle += Math.hypot(puck.vx, puck.vy) * dt * 0.1;
-    puck.angle += puck.spin * dt * 12;
-    puck.spin *= Math.pow(0.99, dt*60);
+    puck.angle += puck.spin * dt * 15;
+    puck.spin *= Math.pow(0.992, dt*60);
 
     handleCollisions();
 
