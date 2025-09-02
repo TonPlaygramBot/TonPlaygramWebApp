@@ -464,7 +464,6 @@
 
   function startNextMatch(){
     const st = state;
-    recalcCurrentRound(st);
     const info = getUserMatch(st);
     if(!info) return;
     st.pendingMatch = info;
