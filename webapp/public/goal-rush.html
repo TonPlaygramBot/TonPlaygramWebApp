@@ -94,6 +94,7 @@
 
 
 <script src="/goal-rush-api.js"></script>
+<script src="/flag-emojis.js"></script>
 <script>
 (async () => {
   const canvas = document.getElementById('game');
@@ -188,23 +189,19 @@
     speedMul += currentRound * 0.05;
   }
 
-  const FLAG_DATA = [
-    { emoji:'🇺🇸', name:'USA' },
-    { emoji:'🇬🇧', name:'UK' },
-    { emoji:'🇫🇷', name:'France' },
-    { emoji:'🇩🇪', name:'Germany' },
-    { emoji:'🇨🇦', name:'Canada' },
-    { emoji:'🇯🇵', name:'Japan' },
-    { emoji:'🇮🇳', name:'India' },
-    { emoji:'🇰🇷', name:'South Korea' },
-    { emoji:'🇧🇷', name:'Brazil' },
-    { emoji:'🇲🇽', name:'Mexico' },
-    { emoji:'🇨🇳', name:'China' },
-    { emoji:'🇦🇺', name:'Australia' },
-    { emoji:'🇮🇹', name:'Italy' },
-    { emoji:'🇪🇸', name:'Spain' },
-    { emoji:'🇷🇺', name:'Russia' }
-  ];
+  const regionNames = new Intl.DisplayNames(['en'], { type: 'region' });
+  function flagToName(flag){
+    try{
+      const codes = Array.from(flag).map(c => c.codePointAt(0) - 0x1F1E6 + 65);
+      return regionNames.of(String.fromCharCode(...codes)) || 'CPU';
+    }catch{
+      return 'CPU';
+    }
+  }
+  const FLAG_DATA = (window.FLAG_EMOJIS || []).map(f => ({
+    emoji: f,
+    name: flagToName(f)
+  }));
 
   let p1AvatarImg=null, p1AvatarEmoji=null;
   if(avatarParam){
@@ -225,7 +222,7 @@
   }
 
   if(mode==='ai'){
-    const ai = FLAG_DATA[Math.floor(Math.random()*FLAG_DATA.length)];
+    const ai = FLAG_DATA[Math.floor(Math.random()*FLAG_DATA.length)] || { emoji: '🤖', name: 'CPU' };
     p2AvatarImg = null;
     p2AvatarEmoji = ai.emoji;
     p2Name = ai.name;
