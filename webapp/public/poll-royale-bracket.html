@@ -419,6 +419,22 @@
     });
   }
 
+  function recalcCurrentRound(st){
+    const userSeed = st.userSeed;
+    for(let r=0;r<st.rounds.length;r++){
+      const round = st.rounds[r] || [];
+      for(let i=0;i<round.length;i++){
+        const pair = round[i];
+        const next = st.rounds[r+1] && st.rounds[r+1][Math.floor(i/2)][i%2];
+        if((pair[0]===userSeed || pair[1]===userSeed) && !next){
+          st.currentRound = r;
+          return;
+        }
+      }
+    }
+    st.currentRound = st.rounds.length-1;
+  }
+
   function getUserMatch(st){
     const r = st.currentRound || 0;
     const userSeed = st.userSeed;
@@ -448,6 +464,7 @@
 
   function startNextMatch(){
     const st = state;
+    recalcCurrentRound(st);
     const info = getUserMatch(st);
     if(!info) return;
     st.pendingMatch = info;
@@ -465,6 +482,7 @@
         const parsed = JSON.parse(saved);
         if(parsed.N === totalPlayers){
           state = parsed;
+          recalcCurrentRound(state);
         }
       }catch{}
     }
