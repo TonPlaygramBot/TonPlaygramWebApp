@@ -156,7 +156,7 @@
   let p2Name = params.get('p2Name') || 'P2';
   let fieldScaleX = 1,
     fieldScaleY = 1,
-    puckScale = 1.0,
+    puckScale = 1.05,
     goalWidthPct = 0.36,
     goalOffsetXPct = 0,
     goalOffsetYPct = 0,
@@ -357,7 +357,7 @@
   let goalDepth = 24;
   let paddleRadius = 34;
 
-  const puck = { x:0, y:0, r:26, vx:0, vy:0, max: 30, angle: 0, spin: 0 };
+  const puck = { x:0, y:0, r:26, vx:0, vy:0, max: 32, angle: 0, spin: 0 };
   const p1 = { x:0, y:0, r:34, vx:0, vy:0, max: 17, lastX:0, lastY:0 };
   const p2 = { x:0, y:0, r:34, vx:0, vy:0, max: 17, lastX:0, lastY:0 };
   const score = { p1:0, p2:0, target };
@@ -527,7 +527,7 @@
     ctx.stroke();
 
     // penalty areas
-    const penW = rink.w * 0.55;
+    const penW = rink.w * 0.58;
     const penH = rink.h * 0.18;
     ctx.beginPath();
     ctx.rect(centerX - penW / 2, rink.y, penW, penH);
@@ -700,8 +700,8 @@
   }
   function getCSS(v){ return getComputedStyle(document.documentElement).getPropertyValue(v).trim(); }
 
-  const friction = 0.995;
-  const wallBounce = 1.08;
+  const friction = 0.996;
+  const wallBounce = 1.12;
   const minWallSpeed = 5;
   function constrainPaddle(p, bottom){
     const margin=12;
@@ -811,7 +811,7 @@
         const relVY = puck.vy - p.vy;
         const relAlongNormal = relVX*nx + relVY*ny;
         const tangential = relVX*(-ny) + relVY*nx;
-        puck.spin += tangential * 0.015;
+        puck.spin += tangential * 0.012;
         if (relAlongNormal <= 0){
           const restitution = 1.15;
           const impulse = -(1+restitution) * relAlongNormal;
@@ -940,7 +940,7 @@
 
     puck.x += puck.vx * dt * 60;
     puck.y += puck.vy * dt * 60;
-    const mag = puck.spin * dt * 0.7;
+    const mag = puck.spin * dt * 0.6;
     const magVx = -puck.vy * mag;
     const magVy = puck.vx * mag;
     puck.vx += magVx;
@@ -948,8 +948,8 @@
     puck.vx *= Math.pow(friction, dt*60);
     puck.vy *= Math.pow(friction, dt*60);
     puck.angle += Math.hypot(puck.vx, puck.vy) * dt * 0.1;
-    puck.angle += puck.spin * dt * 15;
-    puck.spin *= Math.pow(0.992, dt*60);
+    puck.angle += puck.spin * dt * 13;
+    puck.spin *= Math.pow(0.991, dt*60);
 
     handleCollisions();
 
