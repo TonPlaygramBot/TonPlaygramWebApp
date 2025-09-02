@@ -461,8 +461,14 @@
     const totalPlayers = parseInt(params.get('players') || '8', 10);
     const saved = localStorage.getItem(STATE_KEY);
     if(saved){
-      state = JSON.parse(saved);
-    } else {
+      try{
+        const parsed = JSON.parse(saved);
+        if(parsed.N === totalPlayers){
+          state = parsed;
+        }
+      }catch{}
+    }
+    if(!state.rounds.length){
       const userName = params.get('name') || 'You';
       const regionNames = new Intl.DisplayNames(['en'], { type: 'region' });
       function flagToName(flag){
