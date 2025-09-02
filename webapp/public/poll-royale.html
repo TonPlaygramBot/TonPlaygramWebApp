@@ -3734,7 +3734,7 @@
             var r = st.pendingMatch.round;
             var m = st.pendingMatch.match;
             var oppSeed = st.pendingMatch.pair[0] === st.userSeed ? st.pendingMatch.pair[1] : st.pendingMatch.pair[0];
-            var winnerSeed = Number(winner) === 1 ? st.userSeed : oppSeed;
+            var winnerSeed = winner === 1 ? st.userSeed : oppSeed;
             var next = st.rounds[r + 1];
             if (next) {
               next[Math.floor(m / 2)][m % 2] = winnerSeed;
