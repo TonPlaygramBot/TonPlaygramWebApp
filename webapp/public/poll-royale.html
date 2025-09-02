@@ -169,10 +169,18 @@
         /* Ensure background image covers the available space without
          overlapping top or bottom elements. Extend the width slightly
          so the thin green boundary line is fully visible while keeping
-         extra clearance at the bottom. */
+         extra clearance at the bottom. The brightness filter is applied
+         to a pseudo-element so the balls and other children remain
+         unaffected. */
+      }
+      #wrap::before {
+        content: '';
+        position: absolute;
+        inset: 0;
         background: url('/assets/icons/64e79228-35e3-4fdc-b914-fca635a40220.webp')
           top center/calc(100% + 8px) calc(100% + 20px) no-repeat;
         filter: brightness(var(--table-brightness));
+        z-index: -1;
       }
 
       :root {
@@ -580,12 +588,12 @@
       #trainingMenuWrapper {
         position: fixed;
         left: 12px;
-        bottom: 60px;
+        bottom: 40px;
         z-index: 300;
       }
       #trainingMenuButton {
-        width: 40px;
-        height: 40px;
+        width: 32px;
+        height: 32px;
         border-radius: 8px;
         border: 1px solid #24375f;
         background: #20345a;
@@ -3701,7 +3709,40 @@
         const overlay = document.getElementById('tournamentOverlay');
         const canvas = document.getElementById('bracket');
         const ctx = canvas.getContext('2d');
-        const players = Array.from({ length: window.tournamentPlayers || 16 }, (_, i) => `Team ${i + 1}`);
+        // Generate AI player names with country flags
+        const totalPlayers = window.tournamentPlayers || 16;
+        const aiPool = [
+          { name: 'USA', flag: '🇺🇸' },
+          { name: 'UK', flag: '🇬🇧' },
+          { name: 'Germany', flag: '🇩🇪' },
+          { name: 'Brazil', flag: '🇧🇷' },
+          { name: 'Japan', flag: '🇯🇵' },
+          { name: 'France', flag: '🇫🇷' },
+          { name: 'Spain', flag: '🇪🇸' },
+          { name: 'Italy', flag: '🇮🇹' },
+          { name: 'Canada', flag: '🇨🇦' },
+          { name: 'India', flag: '🇮🇳' },
+          { name: 'China', flag: '🇨🇳' },
+          { name: 'Mexico', flag: '🇲🇽' },
+          { name: 'Australia', flag: '🇦🇺' },
+          { name: 'Russia', flag: '🇷🇺' },
+          { name: 'Netherlands', flag: '🇳🇱' },
+          { name: 'Sweden', flag: '🇸🇪' },
+          { name: 'Norway', flag: '🇳🇴' },
+          { name: 'Denmark', flag: '🇩🇰' },
+          { name: 'Poland', flag: '🇵🇱' },
+          { name: 'Switzerland', flag: '🇨🇭' },
+          { name: 'Greece', flag: '🇬🇷' },
+          { name: 'Turkey', flag: '🇹🇷' },
+          { name: 'Portugal', flag: '🇵🇹' },
+          { name: 'Belgium', flag: '🇧🇪' }
+        ];
+        const players = aiPool.slice(0, totalPlayers - 1);
+        players.unshift({ name: 'You', flag: '🏳️' });
+        while (players.length < totalPlayers) {
+          players.push({ name: `AI ${players.length + 1}`, flag: '🏳️' });
+        }
+        const playerNames = players.map(p => `${p.flag} ${p.name}`);
         const totalPot = window.potAmount || 0;
 
         function resizeCanvas() {
@@ -3719,15 +3760,17 @@
           ctx.font = '14px Arial';
           ctx.textBaseline = 'middle';
 
-          let size = players.length;
+          let size = playerNames.length;
           if (![8, 16, 24].includes(size)) {
             ctx.fillText('Only 8, 16 or 24 players supported', 20, 20);
             return;
           }
 
-          let effectivePlayers = [...players];
+          let effectivePlayers = [...playerNames];
           if (size === 24) {
-            effectivePlayers = players.slice(0, 16).concat(players.slice(16).map(p => p + ' (BYE)'));
+            effectivePlayers = playerNames
+              .slice(0, 16)
+              .concat(playerNames.slice(16).map(p => p + ' (BYE)'));
             size = 16;
           }
 
@@ -3767,6 +3810,20 @@
         }
 
         resizeCanvas();
+        const continueBtn = document.createElement('button');
+        continueBtn.textContent = 'Continue';
+        continueBtn.style.position = 'absolute';
+        continueBtn.style.bottom = '20px';
+        continueBtn.style.left = '50%';
+        continueBtn.style.transform = 'translateX(-50%)';
+        overlay.appendChild(continueBtn);
+        continueBtn.addEventListener('click', () => {
+          overlay.classList.add('hidden');
+        });
+        window.handleTournamentResult = function () {
+          overlay.classList.remove('hidden');
+          drawBracket();
+        };
         overlay.classList.remove('hidden');
       }
 
