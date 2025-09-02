@@ -119,6 +119,11 @@
   puckImg.onerror = () => { puckImgLoaded = false; };
 
   const params = new URLSearchParams(location.search);
+  const playType = params.get('type') || 'regular';
+  window.tournamentMode = playType === 'tournament';
+  window.tournamentPlayers = window.tournamentMode
+    ? parseInt(params.get('players') || '0', 10)
+    : 0;
   const stake = Number(params.get('amount')) || 0;
   let myAccountId = params.get('accountId');
   if (!myAccountId) {
@@ -198,6 +203,13 @@
   if(oppParam){
     if(oppParam.startsWith('http') || oppParam.startsWith('/')){ p2AvatarImg = new Image(); p2AvatarImg.src = oppParam; p2AvatarEmoji=null; }
     else { p2AvatarEmoji = oppParam; }
+  }
+  if(window.tournamentMode){
+    try{
+      const opp = JSON.parse(localStorage.getItem('tournamentOpponent') || '{}');
+      if(opp.flag) p2AvatarEmoji = opp.flag;
+      if(opp.name) p2Name = opp.name;
+    }catch{}
   }
 
   if(mode==='ai'){
@@ -927,6 +939,10 @@
         recordWin(tgId, myAccountId);
       }
       if(stake>0) awardDevShare(pot);
+      if(window.tournamentMode && typeof window.handleTournamentResult === 'function'){
+        window.handleTournamentResult(1);
+        return;
+      }
       celebrate(p1Name, p1AvatarImg, p1AvatarEmoji);
     }
     if (score.p2>=score.target){
@@ -938,6 +954,10 @@
         recordWin(oppTgId, oppAccountId);
       }
       if(stake>0) awardDevShare(pot);
+      if(window.tournamentMode && typeof window.handleTournamentResult === 'function'){
+        window.handleTournamentResult(2);
+        return;
+      }
       celebrate(p2Name, p2AvatarImg, p2AvatarEmoji);
     }
   }
@@ -1022,6 +1042,75 @@
 
   function checkOrientation(){ landscapeBlock.style.display = (window.matchMedia('(orientation: landscape)').matches ? 'flex' : 'none'); }
   window.addEventListener('orientationchange', checkOrientation);
+
+  if (params.get('type') === 'tournament') {
+    window.handleTournamentResult = function (winner) {
+      try {
+        var st = JSON.parse(localStorage.getItem('tournamentState') || '{}');
+        if (!st.pendingMatch) {
+          window.location.href = '/goal-rush-bracket.html?' + window.location.search.slice(1);
+          return;
+        }
+        var r = st.pendingMatch.round;
+        var m = st.pendingMatch.match;
+        var oppSeed = st.pendingMatch.pair[0] === st.userSeed ? st.pendingMatch.pair[1] : st.pendingMatch.pair[0];
+        var winnerSeed = winner === 1 ? st.userSeed : oppSeed;
+        var next = st.rounds[r + 1];
+        if (next) {
+          next[Math.floor(m / 2)][m % 2] = winnerSeed;
+        } else {
+          st.championSeed = winnerSeed;
+          st.complete = true;
+        }
+        if (winnerSeed !== st.userSeed) {
+          simulateRemaining(st, r);
+        } else {
+          simulateRoundAI(st, r);
+          if (next && st.rounds[r].every(function (p, idx) { return next[Math.floor(idx / 2)][idx % 2]; })) {
+            st.currentRound++;
+          }
+        }
+        delete st.pendingMatch;
+        localStorage.setItem('tournamentState', JSON.stringify(st));
+        localStorage.removeItem('tournamentOpponent');
+      } catch (err) {
+        console.error(err);
+      }
+      window.location.href = '/goal-rush-bracket.html?' + window.location.search.slice(1);
+    };
+
+    function simulateRoundAI(st, round) {
+      var next = st.rounds[round + 1];
+      var userSeed = st.userSeed;
+      st.rounds[round].forEach(function (pair, idx) {
+        if (pair.includes(userSeed)) return;
+        if (next && next[Math.floor(idx / 2)][idx % 2]) return;
+        var s1 = pair[0];
+        var s2 = pair[1];
+        var p1 = st.seedToPlayer[s1];
+        var p2 = st.seedToPlayer[s2];
+        var w;
+        if (p1 && p1.name === 'BYE') w = s2;
+        else if (p2 && p2.name === 'BYE') w = s1;
+        else w = Math.random() < 0.5 ? s1 : s2;
+        if (next) {
+          next[Math.floor(idx / 2)][idx % 2] = w;
+        } else {
+          st.championSeed = w;
+          st.complete = true;
+        }
+      });
+    }
+
+    function simulateRemaining(st, startRound) {
+      for (var r = startRound; r < st.rounds.length; r++) {
+        simulateRoundAI(st, r);
+        if (st.complete) break;
+      }
+      st.currentRound = st.rounds.length - 1;
+      st.complete = true;
+    }
+  }
 
   fit(); checkOrientation(); resetPositions(); updateScore(); playWhistle();
   document.body.classList.add('loaded');
