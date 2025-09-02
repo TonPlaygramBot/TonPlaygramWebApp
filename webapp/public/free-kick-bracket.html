@@ -228,7 +228,7 @@
       label = 'FINAL 🏆 ';
       ctx.fillText(label, x, topPad + 10);
       let imgX = x + ctx.measureText(label).width + 2;
-      if (tpcImg.complete) {
+      if (tpcImg.complete){
         ctx.drawImage(tpcImg, imgX, topPad, 12, 12);
         imgX += 16;
       }
@@ -284,6 +284,13 @@
     hitRegions.push({round:r, match:m, slot:1, x:x+4, y:y+slotH+2, w:w-8, h:slotH-6});
   }
 
+  function matchPlayers(r,m){
+    const [sA, sB] = state.rounds[r][m] || [];
+    const playerA = state.seedToPlayer[sA] || { name: 'TBD' };
+    const playerB = state.seedToPlayer[sB] || { name: 'TBD' };
+    return [playerA, playerB];
+  }
+
   function coinConfetti(count=20){
     const container=document.createElement('div');
     container.style.position='fixed';container.style.top='0';container.style.left='0';
@@ -299,13 +306,6 @@
       container.appendChild(img);
     }
     setTimeout(()=>container.remove(),5000);
-  }
-
-  function matchPlayers(r,m){
-    const [sA, sB] = state.rounds[r][m] || [];
-    const playerA = state.seedToPlayer[sA] || { name: 'TBD' };
-    const playerB = state.seedToPlayer[sB] || { name: 'TBD' };
-    return [playerA, playerB];
   }
 
   function renderPlayer(player, x, y, slotH){
