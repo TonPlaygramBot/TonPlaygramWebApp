@@ -26,6 +26,7 @@ import DevNotifyModal from '../components/DevNotifyModal.jsx';
 import InfluencerClaimsCard from '../components/InfluencerClaimsCard.jsx';
 import DevTasksModal from '../components/DevTasksModal.jsx';
 import Wallet from './Wallet.jsx';
+import LinkGoogleButton from '../components/LinkGoogleButton.jsx';
 
 import { FiCopy } from 'react-icons/fi';
 
@@ -46,13 +47,15 @@ function formatValue(value, decimals = 2) {
 
 export default function MyAccount() {
   let telegramId = null;
+  let googleId = null;
 
   try {
     telegramId = getTelegramId();
   } catch {}
 
   if (!telegramId) {
-    return <LoginOptions />;
+    googleId = localStorage.getItem('googleId');
+    if (!googleId) return <LoginOptions />;
   }
 
   const [profile, setProfile] = useState(null);
@@ -74,9 +77,11 @@ export default function MyAccount() {
   const [twitterError, setTwitterError] = useState('');
   const [twitterLink, setTwitterLink] = useState('');
   const [unread, setUnread] = useState(0);
+  const [googleLinked, setGoogleLinked] = useState(!!googleId);
+
   useEffect(() => {
     async function load() {
-      const acc = await createAccount(telegramId);
+      const acc = await createAccount(telegramId, googleId);
       if (acc?.error) {
         console.error('Failed to load account:', acc.error);
         return;
@@ -149,7 +154,7 @@ export default function MyAccount() {
     return () => {
       if (timerRef.current) clearTimeout(timerRef.current);
     };
-  }, [telegramId]);
+  }, [telegramId, googleId]);
 
   useEffect(() => {
     if (!telegramId) return;
@@ -356,6 +361,17 @@ export default function MyAccount() {
               )}
             </a>
           </div>
+          {telegramId && !googleLinked && (
+            <div className="mt-2">
+              <p className="text-sm mb-1 text-white-shadow">
+                Link your Google account:
+              </p>
+              <LinkGoogleButton
+                telegramId={telegramId}
+                onLinked={() => setGoogleLinked(true)}
+              />
+            </div>
+          )}
           {profile.social?.twitter && (
             <p className="text-sm mt-2">
               <span className="text-white text-outline-black">Linked X:</span> @

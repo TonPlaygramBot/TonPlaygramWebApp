@@ -10,13 +10,25 @@ export default function useTelegramAuth() {
     if (user?.id) {
       localStorage.setItem('telegramId', user.id);
       socket.emit('register', { playerId: acc || user.id });
-      createAccount(user.id).catch((err) => {
+      createAccount(user.id).catch(err => {
         console.error('Failed to create account', err);
       });
     } else {
       (async () => {
         const accountId = acc || (await ensureAccountId());
         socket.emit('register', { playerId: accountId });
+        const googleId = localStorage.getItem('googleId');
+        try {
+          const res = await createAccount(undefined, googleId);
+          if (res?.accountId) {
+            localStorage.setItem('accountId', res.accountId);
+          }
+          if (res?.walletAddress) {
+            localStorage.setItem('walletAddress', res.walletAddress);
+          }
+        } catch (err) {
+          console.error('Failed to create account', err);
+        }
       })();
     }
     if (user?.username) {
