@@ -57,6 +57,10 @@
   const DPR = Math.max(1, Math.min(2, window.devicePixelRatio || 1));
   const canvas = document.getElementById('board');
   const ctx = canvas.getContext('2d');
+  const params = new URLSearchParams(window.location.search);
+  const tgKey = params.get("tgId") || "anon";
+  const STATE_KEY = `pollRoyaleTournamentState_${tgKey}`;
+  const OPP_KEY = `pollRoyaleTournamentOpponent_${tgKey}`;
   const theme = {
     bg:'#0b1020',
     panel:'#11172a',
@@ -398,7 +402,7 @@
           if(st.rounds[r].every((p,idx)=> st.rounds[r+1][Math.floor(idx/2)][idx%2])){
             st.currentRound++;
           }
-          localStorage.setItem('tournamentState', JSON.stringify(st));
+          localStorage.setItem(STATE_KEY, JSON.stringify(st));
           layoutAndDraw();
           return null;
         }
@@ -414,15 +418,14 @@
     if(!info) return;
     st.pendingMatch = info;
     const opponentSeed = info.pair[0] === st.userSeed ? info.pair[1] : info.pair[0];
-    localStorage.setItem('tournamentOpponent', JSON.stringify(st.seedToPlayer[opponentSeed]));
-    localStorage.setItem('tournamentState', JSON.stringify(st));
+    localStorage.setItem(OPP_KEY, JSON.stringify(st.seedToPlayer[opponentSeed]));
+    localStorage.setItem(STATE_KEY, JSON.stringify(st));
     window.location.href = '/poll-royale.html' + window.location.search;
   }
 
   (function init(){
-    const params = new URLSearchParams(window.location.search);
     const totalPlayers = parseInt(params.get('players') || '8', 10);
-    const saved = localStorage.getItem('tournamentState');
+    const saved = localStorage.getItem(STATE_KEY);
     if(saved){
       state = JSON.parse(saved);
     } else {
@@ -461,7 +464,7 @@
       state.currentRound = 0;
       state.championSeed = 0;
       state.complete = false;
-      localStorage.setItem('tournamentState', JSON.stringify(state));
+      localStorage.setItem(STATE_KEY, JSON.stringify(state));
     }
     layoutAndDraw();
     window.addEventListener('resize', ()=> layoutAndDraw());
@@ -475,8 +478,8 @@
       document.body.appendChild(info);
       btn.textContent = 'Close';
       btn.addEventListener('click', ()=>{
-        localStorage.removeItem('tournamentState');
-        localStorage.removeItem('tournamentOpponent');
+        localStorage.removeItem(STATE_KEY);
+        localStorage.removeItem(OPP_KEY);
         window.location.href = '/games/pollroyale/lobby';
       });
     }else{

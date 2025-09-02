@@ -897,6 +897,7 @@
     </div>
 
     <script src="/flag-emojis.js"></script>
+    <script src="/poll-royale-api.js"></script>
 
     <!--
     Shenim: Perdorim script me type="text/javascript" per te shmangur
@@ -916,6 +917,15 @@
         );
 
         var params = new URLSearchParams(location.search);
+        var tgKey = params.get("tgId") || "anon";
+        var STATE_KEY = `pollRoyaleTournamentState_${tgKey}`;
+        var OPP_KEY = `pollRoyaleTournamentOpponent_${tgKey}`;
+        var stake = parseInt(params.get("amount") || "0", 10);
+        var accountId = params.get("accountId");
+        var tgId = params.get("tgId");
+        var devAccount = params.get("dev");
+        var devAccount1 = params.get("dev1");
+        var devAccount2 = params.get("dev2");
         var variant = params.get('variant') || 'uk';
         var isAmerican = variant === 'american';
         var isNineBall = variant === '9ball';
@@ -1438,7 +1448,7 @@
         }
         if (window.tournamentMode) {
           try {
-            var opp = JSON.parse(localStorage.getItem('tournamentOpponent') || '{}');
+            var opp = JSON.parse(localStorage.getItem(OPP_KEY) || '{}');
             if (opp.flag) avatarCPU.textContent = opp.flag;
             formatPlayerName(opp.name || 'CPU', nameCPU);
           } catch (e) {
@@ -3688,7 +3698,6 @@
         }
       });
 
-      const params = new URLSearchParams(window.location.search);
       if (params.get('type') === 'training') {
         const wrapper = document.getElementById('trainingMenuWrapper');
         const menuBtn = document.getElementById('trainingMenuButton');
@@ -3714,9 +3723,9 @@
       }
 
       if (params.get('type') === 'tournament') {
-        window.handleTournamentResult = function (winner) {
+        window.handleTournamentResult = async function (winner) {
           try {
-            var st = JSON.parse(localStorage.getItem('tournamentState') || '{}');
+            var st = JSON.parse(localStorage.getItem(STATE_KEY) || '{}');
             if (!st.pendingMatch) {
               window.location.href = '/poll-royale-bracket.html?' + window.location.search.slice(1);
               return;
@@ -3740,9 +3749,26 @@
                 st.currentRound++;
               }
             }
+            if (st.complete && winnerSeed === st.userSeed && stake > 0 && accountId) {
+            const total = stake * window.tournamentPlayers;
+            const prize = Math.round(total * 0.91);
+            try {
+              await prApi.depositAccount(accountId, prize, { game: 'pollroyale-win' });
+              if (tgId) await prApi.addTransaction(tgId, 0, 'win', { game: 'pollroyale', players: window.tournamentPlayers, accountId });
+              const ops = [];
+              if (devAccount1 || devAccount2) {
+                if (devAccount) ops.push(prApi.depositAccount(devAccount, Math.round(total*0.09), { game: 'pollroyale-dev' }));
+                if (devAccount1) ops.push(prApi.depositAccount(devAccount1, Math.round(total*0.01), { game: 'pollroyale-dev1' }));
+                if (devAccount2) ops.push(prApi.depositAccount(devAccount2, Math.round(total*0.02), { game: 'pollroyale-dev2' }));
+              } else if (devAccount) {
+                ops.push(prApi.depositAccount(devAccount, Math.round(total*0.1), { game: 'pollroyale-dev' }));
+              }
+              if (ops.length) await Promise.all(ops);
+            } catch {}
+            }
             delete st.pendingMatch;
-            localStorage.setItem('tournamentState', JSON.stringify(st));
-            localStorage.removeItem('tournamentOpponent');
+            localStorage.setItem(STATE_KEY, JSON.stringify(st));
+            localStorage.removeItem(OPP_KEY);
           } catch (err) {
             console.error(err);
           }
