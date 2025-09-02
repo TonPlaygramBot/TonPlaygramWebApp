@@ -54,6 +54,7 @@
 
 <button id="continueBtn" style="position:fixed;bottom:20px;left:50%;transform:translateX(-50%);padding:8px 16px;border:none;border-radius:6px;background:var(--accent);color:var(--ink);">Continue</button>
 
+<script src="/flag-emojis.js"></script>
 <script>
 (function(){
   const DPR = Math.max(1, Math.min(2, window.devicePixelRatio || 1));
@@ -462,34 +463,19 @@
       state = JSON.parse(saved);
     } else {
       const userName = params.get('name') || 'You';
-      const aiPool = [
-        { name: 'USA', flag: '🇺🇸' },
-        { name: 'UK', flag: '🇬🇧' },
-        { name: 'Germany', flag: '🇩🇪' },
-        { name: 'Brazil', flag: '🇧🇷' },
-        { name: 'Japan', flag: '🇯🇵' },
-        { name: 'France', flag: '🇫🇷' },
-        { name: 'Spain', flag: '🇪🇸' },
-        { name: 'Italy', flag: '🇮🇹' },
-        { name: 'Canada', flag: '🇨🇦' },
-        { name: 'India', flag: '🇮🇳' },
-        { name: 'China', flag: '🇨🇳' },
-        { name: 'Mexico', flag: '🇲🇽' },
-        { name: 'Australia', flag: '🇦🇺' },
-        { name: 'Russia', flag: '🇷🇺' },
-        { name: 'Netherlands', flag: '🇳🇱' },
-        { name: 'Sweden', flag: '🇸🇪' },
-        { name: 'Norway', flag: '🇳🇴' },
-        { name: 'Denmark', flag: '🇩🇰' },
-        { name: 'Poland', flag: '🇵🇱' },
-        { name: 'Switzerland', flag: '🇨🇭' },
-        { name: 'Greece', flag: '🇬🇷' },
-        { name: 'Turkey', flag: '🇹🇷' },
-        { name: 'Portugal', flag: '🇵🇹' },
-        { name: 'Belgium', flag: '🇧🇪' }
-      ];
+      const regionNames = new Intl.DisplayNames(['en'], { type: 'region' });
+      function flagToName(flag){
+        const codes = Array.from(flag).map(c => c.codePointAt(0) - 0x1F1E6 + 65);
+        return regionNames.of(String.fromCharCode(...codes)) || 'CPU';
+      }
+      function shuffle(arr){ for(let i=arr.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [arr[i],arr[j]]=[arr[j],arr[i]]; } }
+      const flags = [...(window.FLAG_EMOJIS || [])];
+      shuffle(flags);
       const players = [{ name: userName, flag: params.get('flag') || '🏳️' }];
-      players.push(...aiPool.slice(0, totalPlayers - 1));
+      for(let i=0;i<totalPlayers-1;i++){
+        const f = flags[i];
+        players.push({ name: flagToName(f), flag: f });
+      }
       state.players = players;
       createBracket(players);
       state.userSeed = 1;
@@ -500,6 +486,37 @@
     }
     layoutAndDraw();
     window.addEventListener('resize', ()=> layoutAndDraw());
+
+    function showExitPopup(){
+      if(document.getElementById('tournExit')) return;
+      const tg = window.Telegram?.WebApp;
+      const overlay=document.createElement('div');
+      overlay.id='tournExit';
+      overlay.style.position='fixed';overlay.style.inset='0';
+      overlay.style.background='rgba(0,0,0,0.6)';
+      overlay.style.display='flex';overlay.style.flexDirection='column';
+      overlay.style.alignItems='center';overlay.style.justifyContent='center';
+      const box=document.createElement('div');
+      box.style.background='#11172a';box.style.padding='20px';box.style.borderRadius='8px';box.style.textAlign='center';box.style.maxWidth='90%';box.style.color='#dbe7ff';
+      box.innerHTML='<p style="margin-bottom:12px;">If you quit the tournament, your funds will be lost.</p>';
+      const quit=document.createElement('button');
+      quit.textContent='Quit Tournament';
+      quit.style.margin='4px';quit.style.padding='8px 12px';
+      quit.style.background='#f97316';quit.style.border='none';
+      quit.style.borderRadius='4px';quit.style.color='#fff';
+      const ret=document.createElement('button');
+      ret.textContent='Return to Lobby';
+      ret.style.margin='4px';ret.style.padding='8px 12px';
+      ret.style.background='#2563eb';ret.style.border='none';
+      ret.style.borderRadius='4px';ret.style.color='#fff';
+      box.appendChild(quit);box.appendChild(ret);overlay.appendChild(box);document.body.appendChild(overlay);
+      quit.onclick=()=>{localStorage.removeItem(STATE_KEY);localStorage.removeItem(OPP_KEY);if(tg) tg.BackButton.hide();window.location.href='/games/pollroyale/lobby';};
+      ret.onclick=()=>{document.body.removeChild(overlay);if(tg) tg.BackButton.show();};
+    }
+    const tg = window.Telegram?.WebApp;
+    if(tg){ tg.BackButton.show(); tg.onEvent('backButtonClicked', showExitPopup); }
+    history.pushState(null,'',location.href);
+    window.addEventListener('popstate', (e)=>{ e.preventDefault(); showExitPopup(); history.pushState(null,'',location.href); });
 
     const btn = document.getElementById('continueBtn');
     if(state.complete){
