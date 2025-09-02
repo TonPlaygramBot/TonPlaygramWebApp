@@ -130,6 +130,7 @@
     </div>
   </div>
 
+<script src="/free-kick-api.js"></script>
 <script>
 (()=> {
   // ===== Canvas =====
@@ -168,6 +169,15 @@
   }
 
   const params = new URLSearchParams(location.search);
+  const tgKey = params.get("tgId") || "anon";
+  const STATE_KEY = `freeKickTournamentState_${tgKey}`;
+  const OPP_KEY = `freeKickTournamentOpponent_${tgKey}`;
+  const stake = Number(params.get("amount") || "0");
+  const accountId = params.get("accountId");
+  const tgId = params.get("tgId");
+  const devAccount = params.get("dev");
+  const devAccount1 = params.get("dev1");
+  const devAccount2 = params.get("dev2");
   const playType = params.get('type') || 'regular';
   window.tournamentMode = playType === 'tournament';
   window.tournamentPlayers = window.tournamentMode
@@ -208,7 +218,7 @@
   const flags = ['🇨🇦','🇫🇷','🇩🇪','🇪🇸','🇧🇷','🇯🇵','🇺🇸','🇬🇧'];
   if(window.tournamentMode){
     try{
-      const opp = JSON.parse(localStorage.getItem('tournamentOpponent') || '{}');
+      const opp = JSON.parse(localStorage.getItem(OPP_KEY) || '{}');
       if(pvAvatars[0] && opp.flag) pvAvatars[0].src = emojiToDataUri(opp.flag);
       if(pvNames[0]) pvNames[0].textContent = opp.name || flagName(opp.flag);
     }catch{}
@@ -1852,9 +1862,9 @@ function drawStaticOnce(){ drawField(); drawAds(); drawGoal(); resetBall(); draw
   }
 
   if (params.get('type') === 'tournament') {
-    window.handleTournamentResult = function (winner) {
+    window.handleTournamentResult = async function (winner) {
       try {
-        var st = JSON.parse(localStorage.getItem('tournamentState') || '{}');
+        var st = JSON.parse(localStorage.getItem(STATE_KEY) || '{}');
         if (!st.pendingMatch) {
           window.location.href = '/free-kick-bracket.html?' + window.location.search.slice(1);
           return;
@@ -1878,9 +1888,26 @@ function drawStaticOnce(){ drawField(); drawAds(); drawGoal(); resetBall(); draw
             st.currentRound++;
           }
         }
+        if (st.complete && winnerSeed === st.userSeed && stake > 0 && accountId) {
+        const total = stake * window.tournamentPlayers;
+        const prize = Math.round(total * 0.91);
+        try {
+          await fkApi.depositAccount(accountId, prize, { game: 'freekick-win' });
+          if (tgId) await fkApi.addTransaction(tgId, 0, 'win', { game: 'freekick', players: window.tournamentPlayers, accountId });
+          const ops = [];
+          if (devAccount1 || devAccount2) {
+            if (devAccount) ops.push(fkApi.depositAccount(devAccount, Math.round(total*0.09), { game: 'freekick-dev' }));
+            if (devAccount1) ops.push(fkApi.depositAccount(devAccount1, Math.round(total*0.01), { game: 'freekick-dev1' }));
+            if (devAccount2) ops.push(fkApi.depositAccount(devAccount2, Math.round(total*0.02), { game: 'freekick-dev2' }));
+          } else if (devAccount) {
+            ops.push(fkApi.depositAccount(devAccount, Math.round(total*0.1), { game: 'freekick-dev' }));
+          }
+          if (ops.length) await Promise.all(ops);
+        } catch {}
+        }
         delete st.pendingMatch;
-        localStorage.setItem('tournamentState', JSON.stringify(st));
-        localStorage.removeItem('tournamentOpponent');
+        localStorage.setItem(STATE_KEY, JSON.stringify(st));
+        localStorage.removeItem(OPP_KEY);
       } catch (err) {
         console.error(err);
       }

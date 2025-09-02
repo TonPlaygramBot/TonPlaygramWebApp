@@ -93,7 +93,7 @@
   <div class="landscape-block" style="display:none">Please hold your phone in <b>portrait</b> for the best experience.</div>
 
 
-<script src="/falling-ball-api.js"></script>
+<script src="/goal-rush-api.js"></script>
 <script>
 (async () => {
   const canvas = document.getElementById('game');
@@ -119,6 +119,9 @@
   puckImg.onerror = () => { puckImgLoaded = false; };
 
   const params = new URLSearchParams(location.search);
+  const tgKey = params.get("tgId") || "anon";
+  const TOURN_STATE_KEY = `goalRushTournamentState_${tgKey}`;
+  const TOURN_OPP_KEY = `goalRushTournamentOpponent_${tgKey}`;
   const playType = params.get('type') || 'regular';
   window.tournamentMode = playType === 'tournament';
   window.tournamentPlayers = window.tournamentMode
@@ -206,7 +209,7 @@
   }
   if(window.tournamentMode){
     try{
-      const opp = JSON.parse(localStorage.getItem('tournamentOpponent') || '{}');
+      const opp = JSON.parse(localStorage.getItem(TOURN_OPP_KEY) || '{}');
       if(opp.flag) p2AvatarEmoji = opp.flag;
       if(opp.name) p2Name = opp.name;
     }catch{}
@@ -223,23 +226,23 @@
 
   async function awardTpc(accountId, amount){
     try{
-      await fbApi.depositAccount(accountId, amount, { game: 'goalrush-win' });
+      await grApi.depositAccount(accountId, amount, { game: 'goalrush-win' });
     }catch(err){ console.warn('Failed to award TPC',err); }
   }
   async function recordWin(tgId, accountId){
     if(!tgId) return;
     try{
-      await fbApi.addTransaction(tgId, 0, 'win', { game:'goalrush', players:2, accountId });
+      await grApi.addTransaction(tgId, 0, 'win', { game:'goalrush', players:2, accountId });
     }catch{}
   }
   async function awardDevShare(total){
     const ops=[];
     if(devAccount1||devAccount2){
-      if(devAccount) ops.push(fbApi.depositAccount(devAccount, Math.round(total*0.09), {game:'goalrush-dev'}));
-      if(devAccount1) ops.push(fbApi.depositAccount(devAccount1, Math.round(total*0.01), {game:'goalrush-dev1'}));
-      if(devAccount2) ops.push(fbApi.depositAccount(devAccount2, Math.round(total*0.02), {game:'goalrush-dev2'}));
+      if(devAccount) ops.push(grApi.depositAccount(devAccount, Math.round(total*0.09), {game:'goalrush-dev'}));
+      if(devAccount1) ops.push(grApi.depositAccount(devAccount1, Math.round(total*0.01), {game:'goalrush-dev1'}));
+      if(devAccount2) ops.push(grApi.depositAccount(devAccount2, Math.round(total*0.02), {game:'goalrush-dev2'}));
     }else if(devAccount){
-      ops.push(fbApi.depositAccount(devAccount, Math.round(total*0.1), {game:'goalrush-dev'}));
+      ops.push(grApi.depositAccount(devAccount, Math.round(total*0.1), {game:'goalrush-dev'}));
     }
     if(ops.length){ try{ await Promise.all(ops); }catch{} }
   }
@@ -263,7 +266,7 @@
   async function chargeStake(){
     if(!tgId || stake<=0) return;
     try{
-      await fbApi.addTransaction(tgId, -stake, 'stake', { game:'goalrush', players:2, accountId: myAccountId });
+      await grApi.addTransaction(tgId, -stake, 'stake', { game:'goalrush', players:2, accountId: myAccountId });
     }catch{}
   }
 
@@ -933,12 +936,15 @@
     if (score.p1>=score.target){
       running=false;
       const pot = stake*2;
-      if (stake>0 && myAccountId){
-        const prize = Math.round(pot*0.91);
-        awardTpc(myAccountId, prize);
-        recordWin(tgId, myAccountId);
+      if(!window.tournamentMode){
+        if (stake>0 && myAccountId){
+          const prize = Math.round(pot*0.91);
+          awardTpc(myAccountId, prize);
+          recordWin(tgId, myAccountId);
+        }
+        if(stake>0) awardDevShare(pot);
       }
-      if(stake>0) awardDevShare(pot);
+
       if(window.tournamentMode && typeof window.handleTournamentResult === 'function'){
         window.handleTournamentResult(1);
         return;
@@ -948,12 +954,15 @@
     if (score.p2>=score.target){
       running=false;
       const pot = stake*2;
-      if(stake>0 && oppAccountId){
-        const prize = Math.round(pot*0.91);
-        awardTpc(oppAccountId, prize);
-        recordWin(oppTgId, oppAccountId);
+      if(!window.tournamentMode){
+        if(stake>0 && oppAccountId){
+          const prize = Math.round(pot*0.91);
+          awardTpc(oppAccountId, prize);
+          recordWin(oppTgId, oppAccountId);
+        }
+        if(stake>0) awardDevShare(pot);
       }
-      if(stake>0) awardDevShare(pot);
+
       if(window.tournamentMode && typeof window.handleTournamentResult === 'function'){
         window.handleTournamentResult(2);
         return;
@@ -1044,9 +1053,9 @@
   window.addEventListener('orientationchange', checkOrientation);
 
   if (params.get('type') === 'tournament') {
-    window.handleTournamentResult = function (winner) {
+    window.handleTournamentResult = async function (winner) {
       try {
-        var st = JSON.parse(localStorage.getItem('tournamentState') || '{}');
+        var st = JSON.parse(localStorage.getItem(TOURN_STATE_KEY) || '{}');
         if (!st.pendingMatch) {
           window.location.href = '/goal-rush-bracket.html?' + window.location.search.slice(1);
           return;
@@ -1070,9 +1079,18 @@
             st.currentRound++;
           }
         }
+        if (st.complete && winnerSeed === st.userSeed && stake > 0 && myAccountId) {
+          const total = stake * window.tournamentPlayers;
+          const prize = Math.round(total * 0.91);
+          try {
+            await awardTpc(myAccountId, prize);
+            if (tgId) await recordWin(tgId, myAccountId);
+            await awardDevShare(total);
+          } catch {}
+        }
         delete st.pendingMatch;
-        localStorage.setItem('tournamentState', JSON.stringify(st));
-        localStorage.removeItem('tournamentOpponent');
+        localStorage.setItem(TOURN_STATE_KEY, JSON.stringify(st));
+        localStorage.removeItem(TOURN_OPP_KEY);
       } catch (err) {
         console.error(err);
       }
