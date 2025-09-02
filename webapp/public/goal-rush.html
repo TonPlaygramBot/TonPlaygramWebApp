@@ -179,6 +179,15 @@
 
   await loadCalibration();
 
+  let currentRound = 0;
+  if(window.tournamentMode){
+    try{
+      const st = JSON.parse(localStorage.getItem(TOURN_STATE_KEY) || '{}');
+      currentRound = st.currentRound || 0;
+    }catch{}
+    speedMul += currentRound * 0.05;
+  }
+
   const FLAG_DATA = [
     { emoji:'🇺🇸', name:'USA' },
     { emoji:'🇬🇧', name:'UK' },
@@ -285,9 +294,11 @@
     av.style.alignItems='center';av.style.justifyContent='center';av.style.borderRadius='50%';av.style.background='#fff';
     if(avatarImg && avatarImg.complete){av.style.backgroundImage=`url(${avatarImg.src})`;av.style.backgroundSize='cover';av.textContent='';}
     else{av.textContent=avatarEmoji||'';}
+    const scoreLine=document.createElement('div');
+    scoreLine.textContent=`${score.p1}-${score.p2}`;scoreLine.style.color='#fff';scoreLine.style.marginTop='12px';scoreLine.style.fontSize='1.5rem';
     const txt=document.createElement('div');
-    txt.textContent=`${winner} Wins!`;txt.style.color='#fff';txt.style.fontSize='2rem';txt.style.marginTop='16px';txt.style.fontWeight='bold';
-    overlay.appendChild(av);overlay.appendChild(txt);document.body.appendChild(overlay);
+    txt.textContent=`${winner} Wins!`;txt.style.color='#fff';txt.style.fontSize='2rem';txt.style.marginTop='8px';txt.style.fontWeight='bold';
+    overlay.appendChild(av);overlay.appendChild(scoreLine);overlay.appendChild(txt);document.body.appendChild(overlay);
     setTimeout(()=>{overlay.remove();showEndPopup();if(audio) audio.pause();},2500);
   }
 
@@ -357,7 +368,7 @@
   let lastTouch = null;
   let cornerEscapeFrames = 0;
   const difficultySpeeds = { easy:14, normal:17, hard:24 };
-  p2.max = difficultySpeeds[difficulty] || 16;
+  p2.max = (difficultySpeeds[difficulty] || 16) + currentRound * 2;
 
   let audioEnabled = true;
   let audioStarted = false;
@@ -946,6 +957,7 @@
       }
 
       if(window.tournamentMode && typeof window.handleTournamentResult === 'function'){
+        try{localStorage.setItem(`goalRushLastResult_${tgKey}`, JSON.stringify({p1: score.p1, p2: score.p2}));}catch{}
         window.handleTournamentResult(1);
         return;
       }
@@ -964,6 +976,7 @@
       }
 
       if(window.tournamentMode && typeof window.handleTournamentResult === 'function'){
+        try{localStorage.setItem(`goalRushLastResult_${tgKey}`, JSON.stringify({p1: score.p1, p2: score.p2}));}catch{}
         window.handleTournamentResult(2);
         return;
       }
