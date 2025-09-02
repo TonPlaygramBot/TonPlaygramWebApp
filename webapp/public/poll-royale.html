@@ -1437,9 +1437,12 @@
           }
         }
         if (window.FLAG_EMOJIS) {
-          var flag = FLAG_EMOJIS[(Math.random() * FLAG_EMOJIS.length) | 0];
+          var oppFlag = params.get('oppFlag');
+          var oppNameParam = params.get('oppName');
+          var flag = oppFlag || FLAG_EMOJIS[(Math.random() * FLAG_EMOJIS.length) | 0];
           avatarCPU.textContent = flag;
-          formatPlayerName(flagToName(flag) || 'CPU', nameCPU);
+          var oppName = oppNameParam || flagToName(flag) || 'CPU';
+          formatPlayerName(oppName, nameCPU);
         }
 
         /* ==========================================================
@@ -3706,125 +3709,13 @@
       }
 
       if (params.get('type') === 'tournament') {
-        const overlay = document.getElementById('tournamentOverlay');
-        const canvas = document.getElementById('bracket');
-        const ctx = canvas.getContext('2d');
-        // Generate AI player names with country flags
-        const totalPlayers = window.tournamentPlayers || 16;
-        const aiPool = [
-          { name: 'USA', flag: '🇺🇸' },
-          { name: 'UK', flag: '🇬🇧' },
-          { name: 'Germany', flag: '🇩🇪' },
-          { name: 'Brazil', flag: '🇧🇷' },
-          { name: 'Japan', flag: '🇯🇵' },
-          { name: 'France', flag: '🇫🇷' },
-          { name: 'Spain', flag: '🇪🇸' },
-          { name: 'Italy', flag: '🇮🇹' },
-          { name: 'Canada', flag: '🇨🇦' },
-          { name: 'India', flag: '🇮🇳' },
-          { name: 'China', flag: '🇨🇳' },
-          { name: 'Mexico', flag: '🇲🇽' },
-          { name: 'Australia', flag: '🇦🇺' },
-          { name: 'Russia', flag: '🇷🇺' },
-          { name: 'Netherlands', flag: '🇳🇱' },
-          { name: 'Sweden', flag: '🇸🇪' },
-          { name: 'Norway', flag: '🇳🇴' },
-          { name: 'Denmark', flag: '🇩🇰' },
-          { name: 'Poland', flag: '🇵🇱' },
-          { name: 'Switzerland', flag: '🇨🇭' },
-          { name: 'Greece', flag: '🇬🇷' },
-          { name: 'Turkey', flag: '🇹🇷' },
-          { name: 'Portugal', flag: '🇵🇹' },
-          { name: 'Belgium', flag: '🇧🇪' }
-        ];
-        const players = aiPool.slice(0, totalPlayers - 1);
-        players.unshift({ name: 'You', flag: '🏳️' });
-        while (players.length < totalPlayers) {
-          players.push({ name: `AI ${players.length + 1}`, flag: '🏳️' });
-        }
-        const playerNames = players.map(p => `${p.flag} ${p.name}`);
-        const totalPot = window.potAmount || 0;
-
-        function resizeCanvas() {
-          canvas.width = window.innerWidth * 0.95;
-          canvas.height = window.innerHeight * 0.95;
-          drawBracket();
-        }
-
-        window.addEventListener('resize', resizeCanvas);
-
-        function drawBracket() {
-          ctx.clearRect(0, 0, canvas.width, canvas.height);
-          ctx.strokeStyle = '#000';
-          ctx.lineWidth = 2;
-          ctx.font = '14px Arial';
-          ctx.textBaseline = 'middle';
-
-          let size = playerNames.length;
-          if (![8, 16, 24].includes(size)) {
-            ctx.fillText('Only 8, 16 or 24 players supported', 20, 20);
-            return;
-          }
-
-          let effectivePlayers = [...playerNames];
-          if (size === 24) {
-            effectivePlayers = playerNames
-              .slice(0, 16)
-              .concat(playerNames.slice(16).map(p => p + ' (BYE)'));
-            size = 16;
-          }
-
-          const rounds = Math.log2(size);
-          const colWidth = canvas.width / (rounds * 2);
-          const rowHeight = canvas.height / effectivePlayers.length;
-
-          for (let i = 0; i < effectivePlayers.length / 2; i++) {
-            let y = rowHeight * (i * 2 + 1);
-            ctx.strokeRect(10, y - 12, colWidth - 20, 24);
-            ctx.fillText(effectivePlayers[i], 15, y);
-            ctx.beginPath();
-            ctx.moveTo(colWidth - 10, y);
-            ctx.lineTo(colWidth, y);
-            ctx.stroke();
-          }
-
-          for (let i = effectivePlayers.length / 2; i < effectivePlayers.length; i++) {
-            let idx = i - effectivePlayers.length / 2;
-            let y = rowHeight * (idx * 2 + 1);
-            ctx.strokeRect(canvas.width - colWidth + 10, y - 12, colWidth - 20, 24);
-            ctx.fillText(effectivePlayers[i], canvas.width - colWidth + 15, y);
-            ctx.beginPath();
-            ctx.moveTo(canvas.width - colWidth, y);
-            ctx.lineTo(canvas.width - colWidth + 10, y);
-            ctx.stroke();
-          }
-
-          ctx.beginPath();
-          ctx.arc(canvas.width / 2, canvas.height / 2, 40, 0, 2 * Math.PI);
-          ctx.stroke();
-
-          ctx.font = '16px Arial';
-          ctx.textAlign = 'center';
-          ctx.fillText(`POT: ${totalPot} TPC`, canvas.width / 2, canvas.height / 2 + 60);
-          ctx.textAlign = 'left';
-        }
-
-        resizeCanvas();
-        const continueBtn = document.createElement('button');
-        continueBtn.textContent = 'Continue';
-        continueBtn.style.position = 'absolute';
-        continueBtn.style.bottom = '20px';
-        continueBtn.style.left = '50%';
-        continueBtn.style.transform = 'translateX(-50%)';
-        overlay.appendChild(continueBtn);
-        continueBtn.addEventListener('click', () => {
-          overlay.classList.add('hidden');
-        });
-        window.handleTournamentResult = function () {
-          overlay.classList.remove('hidden');
-          drawBracket();
+        window.handleTournamentResult = function (winner) {
+          try {
+            localStorage.setItem('pollRoyaleLastResult', JSON.stringify({ winner }));
+          } catch {}
+          const params = new URLSearchParams(window.location.search);
+          window.location.href = '/poll-royale-bracket.html?' + params.toString();
         };
-        overlay.classList.remove('hidden');
       }
 
       // Rotate corner holes diagonally; keep side holes horizontal
