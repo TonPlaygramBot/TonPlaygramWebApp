@@ -66,9 +66,7 @@ export default function PollRoyaleLobby() {
       if (stake.amount) params.set('amount', stake.amount);
     }
     if (avatar) params.set('avatar', avatar);
-    const tgIdParam = tgId || localStorage.getItem('pollRoyaleTgId') || 'anon';
-    params.set('tgId', tgIdParam);
-    localStorage.setItem('pollRoyaleTgId', tgIdParam);
+    if (tgId) params.set('tgId', tgId);
     if (accountId) params.set('accountId', accountId);
     const name = getTelegramFirstName();
     if (name) params.set('name', name);
