@@ -1148,5 +1148,38 @@
   requestAnimationFrame(loop);
   })();
 </script>
+<script>
+if(window.tournamentMode){
+  const tg = window.Telegram?.WebApp;
+  function showExitPopup(){
+    if(document.getElementById('tournExit')) return;
+    const overlay=document.createElement('div');
+    overlay.id='tournExit';
+    overlay.style.position='fixed';overlay.style.inset='0';
+    overlay.style.background='rgba(0,0,0,0.6)';
+    overlay.style.display='flex';overlay.style.flexDirection='column';
+    overlay.style.alignItems='center';overlay.style.justifyContent='center';
+    const box=document.createElement('div');
+    box.style.background='#11172a';box.style.padding='20px';box.style.borderRadius='8px';box.style.textAlign='center';box.style.maxWidth='90%';box.style.color='#dbe7ff';
+    box.innerHTML='<p style="margin-bottom:12px;">If you quit the tournament, your funds will be lost.</p>';
+    const quit=document.createElement('button');
+    quit.textContent='Quit Tournament';
+    quit.style.margin='4px';quit.style.padding='8px 12px';
+    quit.style.background='#f97316';quit.style.border='none';
+    quit.style.borderRadius='4px';quit.style.color='#fff';
+    const ret=document.createElement('button');
+    ret.textContent='Return to Lobby';
+    ret.style.margin='4px';ret.style.padding='8px 12px';
+    ret.style.background='#2563eb';ret.style.border='none';
+    ret.style.borderRadius='4px';ret.style.color='#fff';
+    box.appendChild(quit);box.appendChild(ret);overlay.appendChild(box);document.body.appendChild(overlay);
+    quit.onclick=()=>{localStorage.removeItem(TOURN_STATE_KEY);localStorage.removeItem(TOURN_OPP_KEY);if(tg) tg.BackButton.hide();window.location.href='/games/goalrush/lobby';};
+    ret.onclick=()=>{if(tg) tg.BackButton.show();window.location.href='/goal-rush-bracket.html'+window.location.search;};
+  }
+  if(tg){ tg.BackButton.show(); tg.onEvent('backButtonClicked', showExitPopup); }
+  history.pushState(null,'',location.href);
+  window.addEventListener('popstate',(e)=>{ e.preventDefault(); showExitPopup(); history.pushState(null,'',location.href); });
+}
+</script>
 </body>
 </html>
