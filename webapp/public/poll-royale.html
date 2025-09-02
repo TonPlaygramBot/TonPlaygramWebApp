@@ -938,36 +938,6 @@
         window.playerName = params.get('name') || 'Player';
         const planShotPromise = import('/lib/poolAi.js');
 
-        var tg = window.Telegram?.WebApp;
-        if (tg) {
-          tg.BackButton.show();
-          tg.onEvent('backButtonClicked', showExitPopup);
-        }
-
-        function showExitPopup() {
-          var overlay = document.createElement('div');
-          overlay.style.position = 'fixed';
-          overlay.style.inset = '0';
-          overlay.style.background = 'rgba(0,0,0,0.6)';
-          overlay.style.display = 'flex';
-          overlay.style.alignItems = 'center';
-          overlay.style.justifyContent = 'center';
-          overlay.innerHTML = '<div style="background:#11172a;padding:20px;border-radius:8px;text-align:center;"><p style="margin-bottom:12px;">If you quit the tournament your funds will be lost.</p><div style="display:flex;gap:8px;justify-content:center;"><button id="quitTournament">Quit Tournament</button><button id="returnLobby">Return Lobby</button></div></div>';
-          document.body.appendChild(overlay);
-          document.getElementById('quitTournament').onclick = function () {
-            try {
-              localStorage.removeItem(STATE_KEY);
-              localStorage.removeItem(OPP_KEY);
-            } catch {}
-            tg.BackButton.hide();
-            window.location.href = '/games/pollroyale/lobby';
-          };
-          document.getElementById('returnLobby').onclick = function () {
-            tg.BackButton.hide();
-            window.location.href = '/games/pollroyale/lobby';
-          };
-        }
-
         /* ==========================================================
        KONSTANTA TE LAYOUT-it DHE FIZIKES (sipas portrait)
        ========================================================= */
