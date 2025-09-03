@@ -1242,6 +1242,142 @@
           }, 2000);
         }
 
+        if (window.tournamentMode) {
+          async function awardDevShare(total) {
+            const ops = [];
+            if (devAccount1 || devAccount2) {
+              if (devAccount)
+                ops.push(
+                  prApi.depositAccount(devAccount, Math.round(total * 0.09), {
+                    game: 'poolroyale-dev'
+                  })
+                );
+              if (devAccount1)
+                ops.push(
+                  prApi.depositAccount(devAccount1, Math.round(total * 0.01), {
+                    game: 'poolroyale-dev1'
+                  })
+                );
+              if (devAccount2)
+                ops.push(
+                  prApi.depositAccount(devAccount2, Math.round(total * 0.02), {
+                    game: 'poolroyale-dev2'
+                  })
+                );
+            } else if (devAccount) {
+              ops.push(
+                prApi.depositAccount(devAccount, Math.round(total * 0.1), {
+                  game: 'poolroyale-dev'
+                })
+              );
+            }
+            if (ops.length) {
+              try {
+                await Promise.all(ops);
+              } catch {}
+            }
+          }
+
+          window.handleTournamentResult = async function (winner) {
+            try {
+              const st = JSON.parse(localStorage.getItem(STATE_KEY) || '{}');
+              if (!st.pendingMatch) {
+                window.location.href =
+                  '/pool-royale-bracket.html?' + window.location.search.slice(1);
+                return;
+              }
+              const r = st.pendingMatch.round;
+              const m = st.pendingMatch.match;
+              const oppSeed =
+                st.pendingMatch.pair[0] === st.userSeed
+                  ? st.pendingMatch.pair[1]
+                  : st.pendingMatch.pair[0];
+              const winnerSeed = winner === 1 ? st.userSeed : oppSeed;
+              const next = st.rounds[r + 1];
+              if (next) {
+                next[Math.floor(m / 2)][m % 2] = winnerSeed;
+              } else {
+                st.championSeed = winnerSeed;
+                st.complete = true;
+              }
+              if (winnerSeed !== st.userSeed) {
+                simulateRemaining(st, r);
+              } else {
+                simulateRoundAI(st, r);
+                if (
+                  next &&
+                  st.rounds[r].every(function (p, idx) {
+                    return next[Math.floor(idx / 2)][idx % 2];
+                  })
+                ) {
+                  st.currentRound++;
+                  simulateRoundAI(st, st.currentRound);
+                }
+              }
+              if (
+                st.complete &&
+                winnerSeed === st.userSeed &&
+                stake > 0 &&
+                accountId
+              ) {
+                const total = stake * window.tournamentPlayers;
+                const prize = Math.round(total * 0.91);
+                try {
+                  await prApi.depositAccount(accountId, prize, {
+                    game: 'poolroyale-win'
+                  });
+                  if (tgId)
+                    await prApi.addTransaction(tgId, 0, 'win', {
+                      game: 'poolroyale',
+                      players: window.tournamentPlayers,
+                      accountId
+                    });
+                  await awardDevShare(total);
+                } catch {}
+              }
+              delete st.pendingMatch;
+              localStorage.setItem(STATE_KEY, JSON.stringify(st));
+              localStorage.removeItem(OPP_KEY);
+            } catch (err) {
+              console.error(err);
+            }
+            window.location.href =
+              '/pool-royale-bracket.html?' + window.location.search.slice(1);
+          };
+
+          function simulateRoundAI(st, round) {
+            const next = st.rounds[round + 1];
+            const userSeed = st.userSeed;
+            st.rounds[round].forEach(function (pair, idx) {
+              if (pair.includes(userSeed)) return;
+              if (next && next[Math.floor(idx / 2)][idx % 2]) return;
+              const s1 = pair[0];
+              const s2 = pair[1];
+              const p1 = st.seedToPlayer[s1];
+              const p2 = st.seedToPlayer[s2];
+              let w;
+              if (p1 && p1.name === 'BYE') w = s2;
+              else if (p2 && p2.name === 'BYE') w = s1;
+              else w = Math.random() < 0.5 ? s1 : s2;
+              if (next) {
+                next[Math.floor(idx / 2)][idx % 2] = w;
+              } else {
+                st.championSeed = w;
+                st.complete = true;
+              }
+            });
+          }
+
+          function simulateRemaining(st, startRound) {
+            for (let rr = startRound; rr < st.rounds.length; rr++) {
+              simulateRoundAI(st, rr);
+              if (st.complete) break;
+            }
+            st.currentRound = st.rounds.length - 1;
+            st.complete = true;
+          }
+        }
+
         // --------------------------------------------------
         // Audio setup
         // --------------------------------------------------
@@ -1812,8 +1948,8 @@
             b.v.x *= FRICTION;
             b.v.y *= FRICTION;
             if (b.spin && b.spinApplied) {
-              b.v.x += b.spin.x * 58.5 * dt;
-              b.v.y += b.spin.y * 58.5 * dt;
+              b.v.x += b.spin.x * 65 * dt;
+              b.v.y += b.spin.y * 65 * dt;
               b.spin.x *= 0.98;
               b.spin.y *= 0.98;
             }
@@ -2936,8 +3072,8 @@
               y: dir.y - 2 * dotIn * railNormal.y
             };
             // adjust the reflection based on selected spin
-            refl.x += spinVec.x * 0.3;
-            refl.y += spinVec.y * 0.3;
+            refl.x += spinVec.x * 0.4;
+            refl.y += spinVec.y * 0.4;
             var rL = Math.hypot(refl.x, refl.y) || 1;
             refl.x /= rL;
             refl.y /= rL;
