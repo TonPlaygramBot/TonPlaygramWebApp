@@ -3790,7 +3790,6 @@
           var userSeed = st.userSeed;
           st.rounds[round].forEach(function (pair, idx) {
             if (pair.includes(userSeed)) return;
-            if (next && next[Math.floor(idx / 2)][idx % 2]) return;
             var s1 = pair[0];
             var s2 = pair[1];
             var p1 = st.seedToPlayer[s1];
@@ -3799,11 +3798,16 @@
             if (p1 && p1.name === 'BYE') w = s2;
             else if (p2 && p2.name === 'BYE') w = s1;
             else w = Math.random() < 0.5 ? s1 : s2;
-            if (next) {
-              next[Math.floor(idx / 2)][idx % 2] = w;
-            } else {
+
+            if (round === st.rounds.length - 1) {
               st.championSeed = w;
               st.complete = true;
+            } else {
+              if (!next) {
+                var matches = Math.ceil(st.rounds[round].length / 2);
+                next = st.rounds[round + 1] = Array.from({ length: matches }, () => [0, 0]);
+              }
+              next[Math.floor(idx / 2)][idx % 2] = w;
             }
           });
         }
