@@ -147,6 +147,7 @@
         display: block;
       }
       .seat-inner {
+        position: relative;
         display: flex;
         flex-direction: column;
         align-items: center;
@@ -156,6 +157,19 @@
         padding: 4px;
         background: var(--seat-bg-color);
         box-shadow: 4px 4px 0 #d4ccb3;
+      }
+      .score-box {
+        position: absolute;
+        top: -18px;
+        left: 50%;
+        transform: translateX(-50%);
+        background: rgba(0, 0, 0, 0.6);
+        color: #fff;
+        padding: 2px 4px;
+        border-radius: 4px;
+        font-size: 12px;
+        font-weight: 700;
+        white-space: nowrap;
       }
       .seat-inner .avatar {
         box-shadow: 0 0 0 2px #000;
@@ -758,6 +772,8 @@
         let myTelegramId = params.get('tgId') || '';
         let avatar = params.get('avatar') || '';
         let username = params.get('username') || 'You';
+        const gameType = params.get('game') || 'single';
+        const pointsTarget = Number(params.get('points') || 0);
         try {
           if (myAccountId && api.getUserInfo) {
             const u = await api.getUserInfo({ accountId: myAccountId, tgId: myTelegramId });
@@ -964,7 +980,7 @@
 
         // ====== STATE ======
         const state = {
-          players: [], // {name,isHuman,hand:[],chips}
+          players: [], // {name,isHuman,hand:[],chips,points,finished}
           turn: 0,
           turnTime: 15,
           pile: [], // last played cards
@@ -975,7 +991,11 @@
           passesSincePlay: 0,
           lastPlayerToPlay: 0,
           startPlayer: 0,
-          selectedIndices: []
+          selectedIndices: [],
+          finishedOrder: [],
+          round: 1,
+          playMode: gameType,
+          pointsTarget
         };
 
         let arrangeInterval;
@@ -986,12 +1006,22 @@
             .sort(() => 0.5 - Math.random())
             .slice(0, 3);
           state.players = [
-            { name: username, avatar, isHuman: true, chips: 1500, hand: [] },
+            {
+              name: username,
+              avatar,
+              isHuman: true,
+              chips: 1500,
+              hand: [],
+              points: 0,
+              finished: false
+            },
             ...flags.map((f, i) => ({
               name: flagName(f),
               avatar: f,
               chips: 1200 - i * 100,
-              hand: []
+              hand: [],
+              points: 0,
+              finished: false
             }))
           ];
         }
@@ -1106,6 +1136,11 @@
 
             const seatInner = document.createElement('div');
             seatInner.className = 'seat-inner';
+
+            const scoreEl = document.createElement('div');
+            scoreEl.className = 'score-box';
+            scoreEl.textContent = 'Score: ' + (p.points || 0);
+            seatInner.appendChild(scoreEl);
 
             const av = document.createElement('div');
             av.className = 'avatar';
@@ -1758,6 +1793,10 @@
         function playTurn(i) {
           clearSuggestions();
           const p = player(i);
+          if (p.finished) {
+            advanceTurn();
+            return;
+          }
           startTurnTimer();
           if (p.isHuman) {
             toast(
@@ -1809,31 +1848,113 @@
         function advanceTurn() {
           clearSuggestions();
           let newRound = false;
-          // If everyone else passed since last play, clear pile and set turn to last player
-          if (state.passesSincePlay >= state.players.length - 1) {
+          const activeCount = state.players.filter((p) => !p.finished).length;
+          // If everyone else passed since last play, clear pile and set turn to next player after last player
+          if (state.passesSincePlay >= activeCount - 1) {
             state.pile = [];
             state.lastPlayLen = 0;
             state.lastPlayType = null;
             state.passesSincePlay = 0;
-            state.turn = state.lastPlayerToPlay;
+            let next = (state.lastPlayerToPlay + 1) % state.players.length;
+            while (state.players[next].finished) {
+              next = (next + 1) % state.players.length;
+            }
+            state.turn = next;
             renderAll();
             toast('New round');
             newRound = true;
           }
           if (!newRound) {
-            state.turn = (state.turn + 1) % state.players.length;
+            let next = (state.turn + 1) % state.players.length;
+            while (state.players[next].finished) {
+              next = (next + 1) % state.players.length;
+            }
+            state.turn = next;
           }
-          // If someone has no cards -> they win
-          const won = state.players.find((pl) => pl.hand.length === 0);
-          if (won) {
-            toast((won.isHuman ? 'You' : won.name) + ' won!');
-            clearInterval(timerInterval);
-            coinConfetti();
-            showWinnerOverlay(state.players.indexOf(won) === 0 ? '🃏' : '🐾');
-            if (lobbyBtn) lobbyBtn.style.display = 'block';
-            return;
+          // check if last player finished
+          const lp = state.players[state.lastPlayerToPlay];
+          if (lp && lp.hand.length === 0 && !lp.finished) {
+            lp.finished = true;
+            state.finishedOrder.push(state.lastPlayerToPlay);
+            if (state.playMode === 'single') {
+              toast((lp.isHuman ? 'You' : lp.name) + ' won!');
+              clearInterval(timerInterval);
+              coinConfetti();
+              showWinnerOverlay(state.lastPlayerToPlay === 0 ? '🃏' : '🐾');
+              if (lobbyBtn) lobbyBtn.style.display = 'block';
+              return;
+            } else {
+              if (state.finishedOrder.length === state.players.length - 1) {
+                const lastIdx = state.players.findIndex((p) => !p.finished);
+                state.players[lastIdx].finished = true;
+                state.finishedOrder.push(lastIdx);
+              }
+              if (state.finishedOrder.length === state.players.length) {
+                endRound();
+                return;
+              }
+            }
           }
           playTurn(state.turn);
+        }
+
+        async function endRound() {
+          const pointsMap = [3, 2, 1, 0];
+          state.finishedOrder.forEach((idx, pos) => {
+            state.players[idx].points = (state.players[idx].points || 0) + (pointsMap[pos] || 0);
+          });
+          renderAll();
+          if (state.playMode === 'points' && state.pointsTarget > 0) {
+            const maxPts = Math.max(...state.players.map((p) => p.points));
+            if (maxPts >= state.pointsTarget) {
+              const winnerIdx = state.players.findIndex((p) => p.points === maxPts);
+              toast((state.players[winnerIdx].isHuman ? 'You' : state.players[winnerIdx].name) + ' win the match!');
+              coinConfetti();
+              showWinnerOverlay(winnerIdx === 0 ? '🃏' : '🐾');
+              if (lobbyBtn) lobbyBtn.style.display = 'block';
+              return;
+            }
+          }
+          const winnerIdx = state.finishedOrder[0];
+          const loserIdx = state.finishedOrder[state.finishedOrder.length - 1];
+          state.round += 1;
+          state.finishedOrder = [];
+          state.pile = [];
+          state.lastPlayLen = 0;
+          state.lastPlayType = null;
+          state.passesSincePlay = 0;
+          state.players.forEach((p) => {
+            p.hand = [];
+            p.finished = false;
+          });
+          await deal();
+          autoArrangeHand(state.players[0].hand);
+          // Card exchange
+          if (winnerIdx != null && loserIdx != null && winnerIdx !== loserIdx) {
+            const loserHand = state.players[loserIdx].hand;
+            if (loserHand.length > 0) {
+              let hi = 0;
+              for (let i = 1; i < loserHand.length; i++) {
+                if (rankValue(loserHand[i].r) > rankValue(loserHand[hi].r)) hi = i;
+              }
+              const highCard = loserHand.splice(hi, 1)[0];
+              const winnerHand = state.players[winnerIdx].hand;
+              const valid = winnerHand.filter((c) => rankValue(c.r) >= 3 && rankValue(c.r) <= rankValue('K'));
+              if (valid.length > 0) {
+                let low = valid[0];
+                for (const c of valid) if (rankValue(c.r) < rankValue(low.r)) low = c;
+                const idx = winnerHand.indexOf(low);
+                winnerHand.splice(idx, 1);
+                loserHand.push(low);
+              }
+              winnerHand.push(highCard);
+              loserHand.sort((a, b) => rankValue(a.r) - rankValue(b.r));
+              winnerHand.sort((a, b) => rankValue(a.r) - rankValue(b.r));
+            }
+          }
+          state.startPlayer = loserIdx;
+          renderAll();
+          startArrangePhase();
         }
 
         async function confirmPlayAction() {
