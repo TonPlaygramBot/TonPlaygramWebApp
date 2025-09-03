@@ -1964,26 +1964,27 @@
                     var other = a.n === 0 ? bb : a;
                     if (!firstHit) {
                       firstHit = BALL_BY_N[other.n];
-                      if (
-                        ((isNineBall || isAmerican) &&
-                          other.n !== currentTarget) ||
-                        (!isAmerican &&
-                          !isNineBall &&
-                          assignedTypes[currentShooter] &&
-                          BALL_BY_N[other.n].t !==
-                            assignedTypes[currentShooter])
-                      ) {
-                        if (!foulShown) {
-                          showCenterPopup('Foul', 'foul', 1500);
-                          foulShown = true;
-                          var opponent = currentShooter === 1 ? 2 : 1;
-                          updateFooter(
-                            opponent,
-                            isNineBall
-                              ? 'Foul!'
-                              : 'Foul – opponent gets two shots.'
-                          );
-                        }
+                      var shooterType = assignedTypes[currentShooter];
+                      var ownLeft = shooterType && hasBallsLeft(shooterType);
+                      var targetType = BALL_BY_N[other.n].t;
+                      var illegal = false;
+                      if (isNineBall || isAmerican) {
+                        illegal = other.n !== currentTarget;
+                      } else if (shooterType) {
+                        illegal =
+                          targetType !== shooterType &&
+                          !(targetType === 'eight' && !ownLeft);
+                      }
+                      if (illegal && !foulShown) {
+                        showCenterPopup('Foul', 'foul', 1500);
+                        foulShown = true;
+                        var opponent = currentShooter === 1 ? 2 : 1;
+                        updateFooter(
+                          opponent,
+                          isNineBall
+                            ? 'Foul!'
+                            : 'Foul – opponent gets two shots.'
+                        );
                       }
                     }
                     if (a.n === 0) a.spinApplied = true;
@@ -3744,6 +3745,8 @@
             var next = st.rounds[r + 1];
             if (next) {
               next[Math.floor(m / 2)][m % 2] = winnerSeed;
+              st.championSeed = 0;
+              st.complete = false;
             } else {
               st.championSeed = winnerSeed;
               st.complete = true;
@@ -3752,13 +3755,8 @@
               simulateRemaining(st, r);
             } else {
               simulateRoundAI(st, r);
-              if (
-                next &&
-                st.rounds[r].every(function (p, idx) {
-                  return next[Math.floor(idx / 2)][idx % 2];
-                })
-              ) {
-                st.currentRound++;
+              if (next) {
+                st.currentRound = r + 1;
               }
             }
             if (st.complete && winnerSeed === userSeedNum && stake > 0 && accountId) {
