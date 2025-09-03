@@ -3739,6 +3739,7 @@
               ) {
                 st.currentRound++;
               }
+              simulateUntilUser(st, st.currentRound);
             }
             if (st.complete && winnerSeed === st.userSeed && stake > 0 && accountId) {
               const total = stake * window.tournamentPlayers;
@@ -3796,6 +3797,31 @@
           }
           st.currentRound = st.rounds.length - 1;
           st.complete = true;
+        }
+
+        function simulateUntilUser(st, startRound) {
+          for (var r = startRound; r < st.rounds.length; r++) {
+            var roundPairs = st.rounds[r];
+            var userSeed = st.userSeed;
+            if (
+              roundPairs.some(function (pair) {
+                return pair.includes(userSeed);
+              })
+            ) {
+              break;
+            }
+            simulateRoundAI(st, r);
+            var next = st.rounds[r + 1];
+            if (
+              next &&
+              roundPairs.every(function (p, idx) {
+                return next[Math.floor(idx / 2)][idx % 2];
+              })
+            ) {
+              st.currentRound = r + 1;
+            }
+            if (!next || st.complete) break;
+          }
         }
       }
 
