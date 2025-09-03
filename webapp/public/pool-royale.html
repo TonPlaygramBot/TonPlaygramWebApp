@@ -2245,41 +2245,39 @@
             var px = b.p.x * sX,
               py = b.p.y * sY;
 
-            // hije eliptike 2.5D
-            ctx.fillStyle = 'rgba(0,0,0,.35)';
+            // hije eliptike 2.5D sipas stilit te trajnimit snooker
+            ctx.save();
+            ctx.globalAlpha = 0.28;
+            ctx.fillStyle = '#000';
             ctx.beginPath();
             ctx.ellipse(
               px,
-              py + ballR * 0.35,
-              ballR * 1.05,
-              ballR * 0.45,
+              py + ballR * 0.6,
+              ballR * 1.2,
+              ballR * 0.5,
               0,
               0,
               Math.PI * 2
             );
             ctx.fill();
+            ctx.restore();
 
-            // trup i topit
+            // trup i topit me gradient 2.5D
             ctx.save();
             ctx.translate(px, py);
             ctx.rotate(b.a);
-            ctx.fillStyle = BALL_BY_N[b.n].c;
-            ctx.beginPath();
-            ctx.arc(0, 0, ballR, 0, Math.PI * 2);
-            ctx.fill();
-
-            // highlight
-            var hl = ctx.createRadialGradient(
+            var grad = ctx.createRadialGradient(
               -ballR * 0.4,
-              -ballR * 0.4,
-              2,
-              -ballR * 0.4,
-              -ballR * 0.4,
+              -ballR * 0.6,
+              ballR * 0.2,
+              0,
+              0,
               ballR * 1.2
             );
-            hl.addColorStop(0, 'rgba(255,255,255,.55)');
-            hl.addColorStop(1, 'rgba(255,255,255,0)');
-            ctx.fillStyle = hl;
+            grad.addColorStop(0, 'rgba(255,255,255,0.6)');
+            grad.addColorStop(0.6, BALL_BY_N[b.n].c);
+            grad.addColorStop(1, 'rgba(0,0,0,0.35)');
+            ctx.fillStyle = grad;
             ctx.beginPath();
             ctx.arc(0, 0, ballR, 0, Math.PI * 2);
             ctx.fill();
@@ -2292,7 +2290,18 @@
               ctx.beginPath();
               ctx.arc(0, 0, ballR, 0, Math.PI * 2);
               ctx.clip();
-              ctx.fillStyle = '#fff';
+              var stripeGrad = ctx.createRadialGradient(
+                -ballR * 0.4,
+                -ballR * 0.6,
+                ballR * 0.2,
+                0,
+                0,
+                ballR * 1.2
+              );
+              stripeGrad.addColorStop(0, 'rgba(255,255,255,0.6)');
+              stripeGrad.addColorStop(0.6, '#fff');
+              stripeGrad.addColorStop(1, 'rgba(0,0,0,0.35)');
+              ctx.fillStyle = stripeGrad;
               ctx.fillRect(-ballR, -ballR * 0.3, ballR * 2, ballR * 0.6);
               ctx.restore();
             }
