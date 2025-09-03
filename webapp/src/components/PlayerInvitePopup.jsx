@@ -216,7 +216,7 @@ export default function PlayerInvitePopup({
                 {
                   id: 'pollroyale',
                   src: '/assets/icons/pool-royale.svg',
-                  alt: '8 Poll Royale',
+                  alt: 'Pool Royale',
                 },
               ].map((g) => (
                 <img

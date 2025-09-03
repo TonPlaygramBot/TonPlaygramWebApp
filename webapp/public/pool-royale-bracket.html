@@ -54,6 +54,7 @@
 
 <button id="continueBtn" style="position:fixed;bottom:20px;left:50%;transform:translateX(-50%);padding:8px 16px;border:none;border-radius:6px;background:var(--accent);color:var(--ink);">Continue</button>
 
+<script src="/flag-emojis.js"></script>
 <script>
 (function(){
   const DPR = Math.max(1, Math.min(2, window.devicePixelRatio || 1));
@@ -61,8 +62,8 @@
   const ctx = canvas.getContext('2d');
   const params = new URLSearchParams(window.location.search);
   const tgKey = params.get("tgId") || "anon";
-  const STATE_KEY = `pollRoyaleTournamentState_${tgKey}`;
-  const OPP_KEY = `pollRoyaleTournamentOpponent_${tgKey}`;
+  const STATE_KEY = `poolRoyaleTournamentState_${tgKey}`;
+  const OPP_KEY = `poolRoyaleTournamentOpponent_${tgKey}`;
   const theme = {
     bg:'#0b1020',
     panel:'#11172a',
@@ -452,7 +453,7 @@
     const opponentSeed = info.pair[0] === st.userSeed ? info.pair[1] : info.pair[0];
     localStorage.setItem(OPP_KEY, JSON.stringify(st.seedToPlayer[opponentSeed]));
     localStorage.setItem(STATE_KEY, JSON.stringify(st));
-    window.location.href = '/poll-royale.html' + window.location.search;
+    window.location.href = '/pool-royale.html' + window.location.search;
   }
 
   (function init(){
@@ -543,7 +544,7 @@
       av.style.width='120px';av.style.height='120px';av.style.borderRadius='50%';av.style.background='#fff';av.style.display='flex';
       av.style.alignItems='center';av.style.justifyContent='center';av.style.fontSize='64px';
       av.textContent=champ.flag||'';overlay.appendChild(av);
-      const last=JSON.parse(localStorage.getItem(`pollRoyaleLastResult_${tgKey}`)||'{}');
+      const last=JSON.parse(localStorage.getItem(`poolRoyaleLastResult_${tgKey}`)||'{}');
       if(last.variant==='american'){
         const res=document.createElement('div');res.style.color='#fff';res.style.marginTop='8px';res.textContent=`${last.scores?.[1]||0}-${last.scores?.[2]||0}`;
         overlay.appendChild(res);
@@ -563,7 +564,7 @@
       btn.addEventListener('click', ()=>{
         localStorage.removeItem(STATE_KEY);
         localStorage.removeItem(OPP_KEY);
-        localStorage.removeItem(`pollRoyaleLastResult_${tgKey}`);
+        localStorage.removeItem(`poolRoyaleLastResult_${tgKey}`);
         window.location.href='/games/pollroyale/lobby';
       });
       overlay.appendChild(btn);

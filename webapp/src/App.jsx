@@ -46,8 +46,8 @@ import TexasHoldem from './pages/Games/TexasHoldem.jsx';
 import TexasHoldemLobby from './pages/Games/TexasHoldemLobby.jsx';
 import BlackJack from './pages/Games/BlackJack.jsx';
 import BlackJackLobby from './pages/Games/BlackJackLobby.jsx';
-import PollRoyale from './pages/Games/PollRoyale.jsx';
-import PollRoyaleLobby from './pages/Games/PollRoyaleLobby.jsx';
+import PoolRoyale from './pages/Games/PoolRoyale.jsx';
+import PoolRoyaleLobby from './pages/Games/PoolRoyaleLobby.jsx';
 
 import Layout from './components/Layout.jsx';
 import useTelegramAuth from './hooks/useTelegramAuth.js';
@@ -135,9 +135,9 @@ export default function App() {
             <Route path="/games/murlanroyale" element={<MurlanRoyale />} />
             <Route
               path="/games/pollroyale/lobby"
-              element={<PollRoyaleLobby />}
+              element={<PoolRoyaleLobby />}
             />
-            <Route path="/games/pollroyale" element={<PollRoyale />} />
+            <Route path="/games/pollroyale" element={<PoolRoyale />} />
             <Route path="/spin" element={<SpinPage />} />
             <Route path="/admin/influencer" element={<InfluencerAdmin />} />
             <Route path="/tasks" element={<Tasks />} />

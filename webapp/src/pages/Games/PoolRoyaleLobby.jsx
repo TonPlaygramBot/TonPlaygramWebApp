@@ -11,7 +11,7 @@ import {
 import { getAccountBalance, addTransaction } from '../../utils/api.js';
 import { loadAvatar } from '../../utils/avatarUtils.js';
 
-export default function PollRoyaleLobby() {
+export default function PoolRoyaleLobby() {
   const navigate = useNavigate();
   const { search } = useLocation();
   useTelegramBackButton();
@@ -43,7 +43,7 @@ export default function PollRoyaleLobby() {
         }
         tgId = getTelegramId();
         await addTransaction(tgId, -stake.amount, 'stake', {
-          game: 'pollroyale',
+          game: 'poolroyale',
           players: playType === 'tournament' ? players : 2,
           accountId
         });
@@ -78,7 +78,7 @@ export default function PollRoyaleLobby() {
     if (devAcc2) params.set('dev2', devAcc2);
     if (initData) params.set('init', encodeURIComponent(initData));
     if (playType === 'tournament') {
-      window.location.href = `/poll-royale-bracket.html?${params.toString()}`;
+      window.location.href = `/pool-royale-bracket.html?${params.toString()}`;
     } else {
       navigate(`/games/pollroyale?${params.toString()}`);
     }

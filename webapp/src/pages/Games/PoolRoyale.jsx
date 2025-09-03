@@ -1,7 +1,7 @@
 import { useLocation } from 'react-router-dom';
 import useTelegramBackButton from '../../hooks/useTelegramBackButton.js';
 
-export default function PollRoyale() {
+export default function PoolRoyale() {
   useTelegramBackButton();
   const { search } = useLocation();
   const params = new URLSearchParams(search);
@@ -9,7 +9,7 @@ export default function PollRoyale() {
   params.set('variant', variant);
   const type = params.get('type') || 'regular';
   params.set('type', type);
-  const src = `/poll-royale.html?${params.toString()}`;
+  const src = `/pool-royale.html?${params.toString()}`;
   const title =
     variant === '9ball'
       ? '9-Ball'

@@ -879,7 +879,7 @@
     </div>
 
 <script src="/flag-emojis.js"></script>
-    <script src="/poll-royale-api.js"></script>
+    <script src="/pool-royale-api.js"></script>
 
     <!--
     Shenim: Perdorim script me type="text/javascript" per te shmangur
@@ -900,8 +900,8 @@
 
         var params = new URLSearchParams(location.search);
         var tgKey = params.get("tgId") || "anon";
-        var STATE_KEY = `pollRoyaleTournamentState_${tgKey}`;
-        var OPP_KEY = `pollRoyaleTournamentOpponent_${tgKey}`;
+        var STATE_KEY = `poolRoyaleTournamentState_${tgKey}`;
+        var OPP_KEY = `poolRoyaleTournamentOpponent_${tgKey}`;
         var stake = parseInt(params.get("amount") || "0", 10);
         var accountId = params.get("accountId");
         var tgId = params.get("tgId");
@@ -1218,7 +1218,7 @@
           table.running = false;
           shotInProgress = false;
           if (window.tournamentMode && typeof window.handleTournamentResult === 'function') {
-            try{localStorage.setItem(`pollRoyaleLastResult_${tgKey}`, JSON.stringify({scores, variant}));}catch{}
+            try{localStorage.setItem(`poolRoyaleLastResult_${tgKey}`, JSON.stringify({scores, variant}));}catch{}
             window.handleTournamentResult(winner);
             return;
           }
@@ -3706,7 +3706,7 @@
           try {
             var st = JSON.parse(localStorage.getItem(STATE_KEY) || '{}');
             if (!st.pendingMatch) {
-              window.location.href = '/poll-royale-bracket.html?' + window.location.search.slice(1);
+              window.location.href = '/pool-royale-bracket.html?' + window.location.search.slice(1);
               return;
             }
             var r = st.pendingMatch.round;
@@ -3736,15 +3736,15 @@
               const total = stake * window.tournamentPlayers;
               const prize = Math.round(total * 0.91);
               try {
-                await prApi.depositAccount(accountId, prize, { game: 'pollroyale-win' });
-                if (tgId) await prApi.addTransaction(tgId, 0, 'win', { game: 'pollroyale', players: window.tournamentPlayers, accountId });
+                await prApi.depositAccount(accountId, prize, { game: 'poolroyale-win' });
+                if (tgId) await prApi.addTransaction(tgId, 0, 'win', { game: 'poolroyale', players: window.tournamentPlayers, accountId });
                 const ops = [];
                 if (devAccount1 || devAccount2) {
-                  if (devAccount) ops.push(prApi.depositAccount(devAccount, Math.round(total * 0.09), { game: 'pollroyale-dev' }));
-                  if (devAccount1) ops.push(prApi.depositAccount(devAccount1, Math.round(total * 0.01), { game: 'pollroyale-dev1' }));
-                  if (devAccount2) ops.push(prApi.depositAccount(devAccount2, Math.round(total * 0.02), { game: 'pollroyale-dev2' }));
+                  if (devAccount) ops.push(prApi.depositAccount(devAccount, Math.round(total * 0.09), { game: 'poolroyale-dev' }));
+                  if (devAccount1) ops.push(prApi.depositAccount(devAccount1, Math.round(total * 0.01), { game: 'poolroyale-dev1' }));
+                  if (devAccount2) ops.push(prApi.depositAccount(devAccount2, Math.round(total * 0.02), { game: 'poolroyale-dev2' }));
                 } else if (devAccount) {
-                  ops.push(prApi.depositAccount(devAccount, Math.round(total * 0.1), { game: 'pollroyale-dev' }));
+                  ops.push(prApi.depositAccount(devAccount, Math.round(total * 0.1), { game: 'poolroyale-dev' }));
                 }
                 if (ops.length) await Promise.all(ops);
               } catch {}
@@ -3755,7 +3755,7 @@
           } catch (err) {
             console.error(err);
           }
-          window.location.href = '/poll-royale-bracket.html?' + window.location.search.slice(1);
+          window.location.href = '/pool-royale-bracket.html?' + window.location.search.slice(1);
         };
 
         function simulateRoundAI(st, round) {
@@ -3829,7 +3829,7 @@ if(window.tournamentMode){
     ret.style.borderRadius='4px';ret.style.color='#fff';
     box.appendChild(quit);box.appendChild(ret);overlay.appendChild(box);document.body.appendChild(overlay);
     quit.onclick=()=>{localStorage.removeItem(STATE_KEY);localStorage.removeItem(OPP_KEY);if(tg) tg.BackButton.hide();window.location.href='/games/pollroyale/lobby';};
-    ret.onclick=()=>{if(tg) tg.BackButton.show();window.location.href='/poll-royale-bracket.html'+window.location.search;};
+    ret.onclick=()=>{if(tg) tg.BackButton.show();window.location.href='/pool-royale-bracket.html'+window.location.search;};
   }
   if(tg){ tg.BackButton.show(); tg.onEvent('backButtonClicked', showExitPopup); }
   history.pushState(null,'',location.href);

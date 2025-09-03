@@ -13,7 +13,7 @@ export default function ProjectAchievementsCard() {
     '🫧 Bubble Pop Royale',
     '💥 Bubble Smash Royale',
     '🧩 Tetris Royale',
-    '🎱 8 Poll Royale',
+    '🎱 Pool Royale',
     "🃏 Texas Hold'em",
     '🃏 Black Jack Multiplayer',
     '⚽ Free Kick',
