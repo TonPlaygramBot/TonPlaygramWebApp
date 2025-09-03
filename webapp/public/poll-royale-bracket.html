@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Pool Royale Bracket</title>
+<title>Goal Rush Bracket</title>
 <style>
   :root{
     --bg:#0b1020;
@@ -54,6 +54,7 @@
 
 <button id="continueBtn" style="position:fixed;bottom:20px;left:50%;transform:translateX(-50%);padding:8px 16px;border:none;border-radius:6px;background:var(--accent);color:var(--ink);">Continue</button>
 
+<script src="/flag-emojis.js"></script>
 <script>
 (function(){
   const DPR = Math.max(1, Math.min(2, window.devicePixelRatio || 1));
@@ -61,8 +62,8 @@
   const ctx = canvas.getContext('2d');
   const params = new URLSearchParams(window.location.search);
   const tgKey = params.get("tgId") || "anon";
-  const STATE_KEY = `pollRoyaleTournamentState_${tgKey}`;
-  const OPP_KEY = `pollRoyaleTournamentOpponent_${tgKey}`;
+  const STATE_KEY = `goalRushTournamentState_${tgKey}`;
+  const OPP_KEY = `goalRushTournamentOpponent_${tgKey}`;
   const theme = {
     bg:'#0b1020',
     panel:'#11172a',
@@ -222,12 +223,12 @@
     ctx.textAlign = 'left';
     let label = '';
     const rounds = state.rounds.length;
-    if(r === 0) label = 'ROUND OF ' + state.bracketN;
+    if(r === 0) label = 'ROUND OF ' + state.N;
     else if(r === rounds-1){
       label = 'FINAL 🏆 ';
       ctx.fillText(label, x, topPad + 10);
       let imgX = x + ctx.measureText(label).width + 2;
-      if (tpcImg.complete){
+      if (tpcImg.complete) {
         ctx.drawImage(tpcImg, imgX, topPad, 12, 12);
         imgX += 16;
       }
@@ -283,13 +284,6 @@
     hitRegions.push({round:r, match:m, slot:1, x:x+4, y:y+slotH+2, w:w-8, h:slotH-6});
   }
 
-  function matchPlayers(r,m){
-    const [sA, sB] = state.rounds[r][m] || [];
-    const playerA = state.seedToPlayer[sA] || { name: 'TBD' };
-    const playerB = state.seedToPlayer[sB] || { name: 'TBD' };
-    return [playerA, playerB];
-  }
-
   function coinConfetti(count=20){
     const container=document.createElement('div');
     container.style.position='fixed';container.style.top='0';container.style.left='0';
@@ -307,7 +301,15 @@
     setTimeout(()=>container.remove(),5000);
   }
 
+  function matchPlayers(r,m){
+    const [sA, sB] = state.rounds[r][m] || [];
+    const playerA = state.seedToPlayer[sA] || { name: 'TBD' };
+    const playerB = state.seedToPlayer[sB] || { name: 'TBD' };
+    return [playerA, playerB];
+  }
+
   function renderPlayer(player, x, y, slotH){
+    if(player.name === 'BYE') return;
     const avatarSize = 20;
     if(player.flag){
       ctx.fillText(player.flag, x, y+1);
@@ -452,7 +454,7 @@
     const opponentSeed = info.pair[0] === st.userSeed ? info.pair[1] : info.pair[0];
     localStorage.setItem(OPP_KEY, JSON.stringify(st.seedToPlayer[opponentSeed]));
     localStorage.setItem(STATE_KEY, JSON.stringify(st));
-    window.location.href = '/poll-royale.html' + window.location.search;
+    window.location.href = '/goal-rush.html' + window.location.search;
   }
 
   (function init(){
@@ -462,35 +464,19 @@
       state = JSON.parse(saved);
     } else {
       const userName = params.get('name') || 'You';
-      const aiPool = [
-        { name: 'USA', flag: '🇺🇸' },
-        { name: 'UK', flag: '🇬🇧' },
-        { name: 'Germany', flag: '🇩🇪' },
-        { name: 'Brazil', flag: '🇧🇷' },
-        { name: 'Japan', flag: '🇯🇵' },
-        { name: 'France', flag: '🇫🇷' },
-        { name: 'Spain', flag: '🇪🇸' },
-        { name: 'Italy', flag: '🇮🇹' },
-        { name: 'Canada', flag: '🇨🇦' },
-        { name: 'India', flag: '🇮🇳' },
-        { name: 'China', flag: '🇨🇳' },
-        { name: 'Mexico', flag: '🇲🇽' },
-        { name: 'Australia', flag: '🇦🇺' },
-        { name: 'Russia', flag: '🇷🇺' },
-        { name: 'Netherlands', flag: '🇳🇱' },
-        { name: 'Sweden', flag: '🇸🇪' },
-        { name: 'Norway', flag: '🇳🇴' },
-        { name: 'Denmark', flag: '🇩🇰' },
-        { name: 'Poland', flag: '🇵🇱' },
-        { name: 'Switzerland', flag: '🇨🇭' },
-        { name: 'Greece', flag: '🇬🇷' },
-        { name: 'Turkey', flag: '🇹🇷' },
-        { name: 'Portugal', flag: '🇵🇹' },
-        { name: 'Belgium', flag: '🇧🇪' }
-      ];
-      aiPool.sort(() => Math.random() - 0.5);
+      const regionNames = new Intl.DisplayNames(['en'], { type: 'region' });
+      function flagToName(flag){
+        const codes = Array.from(flag).map(c => c.codePointAt(0) - 0x1F1E6 + 65);
+        return regionNames.of(String.fromCharCode(...codes)) || 'CPU';
+      }
+      function shuffle(arr){ for(let i=arr.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [arr[i],arr[j]]=[arr[j],arr[i]]; } }
+      const flags = [...(window.FLAG_EMOJIS || [])];
+      shuffle(flags);
       const players = [{ name: userName, flag: params.get('flag') || '🏳️' }];
-      players.push(...aiPool.slice(0, totalPlayers - 1));
+      for(let i=0;i<totalPlayers-1;i++){
+        const f=flags[i];
+        players.push({ name: flagToName(f), flag: f });
+      }
       state.players = players;
       createBracket(players);
       state.userSeed = 1;
@@ -502,35 +488,36 @@
     layoutAndDraw();
     window.addEventListener('resize', ()=> layoutAndDraw());
 
+    function showExitPopup(){
+      if(document.getElementById('tournExit')) return;
+      const tg = window.Telegram?.WebApp;
+      const overlay=document.createElement('div');
+      overlay.id='tournExit';
+      overlay.style.position='fixed';overlay.style.inset='0';
+      overlay.style.background='rgba(0,0,0,0.6)';
+      overlay.style.display='flex';overlay.style.flexDirection='column';
+      overlay.style.alignItems='center';overlay.style.justifyContent='center';
+      const box=document.createElement('div');
+      box.style.background='#11172a';box.style.padding='20px';box.style.borderRadius='8px';box.style.textAlign='center';box.style.maxWidth='90%';box.style.color='#dbe7ff';
+      box.innerHTML='<p style="margin-bottom:12px;">If you quit the tournament, your funds will be lost.</p>';
+      const quit=document.createElement('button');
+      quit.textContent='Quit Tournament';
+      quit.style.margin='4px';quit.style.padding='8px 12px';
+      quit.style.background='#f97316';quit.style.border='none';
+      quit.style.borderRadius='4px';quit.style.color='#fff';
+      const ret=document.createElement('button');
+      ret.textContent='Return to Lobby';
+      ret.style.margin='4px';ret.style.padding='8px 12px';
+      ret.style.background='#2563eb';ret.style.border='none';
+      ret.style.borderRadius='4px';ret.style.color='#fff';
+      box.appendChild(quit);box.appendChild(ret);overlay.appendChild(box);document.body.appendChild(overlay);
+      quit.onclick=()=>{localStorage.removeItem(STATE_KEY);localStorage.removeItem(OPP_KEY);if(tg) tg.BackButton.hide();window.location.href='/games/goalrush/lobby';};
+      ret.onclick=()=>{document.body.removeChild(overlay);if(tg) tg.BackButton.show();};
+    }
     const tg = window.Telegram?.WebApp;
-    if (tg) {
-      tg.BackButton.show();
-      tg.onEvent('backButtonClicked', showExitPopup);
-    }
-
-    function showExitPopup() {
-      const overlay = document.createElement('div');
-      overlay.style.position = 'fixed';
-      overlay.style.inset = '0';
-      overlay.style.background = 'rgba(0,0,0,0.6)';
-      overlay.style.display = 'flex';
-      overlay.style.alignItems = 'center';
-      overlay.style.justifyContent = 'center';
-      overlay.innerHTML = `<div style="background:#11172a;padding:20px;border-radius:8px;text-align:center;"><p style="margin-bottom:12px;">If you quit the tournament your funds will be lost.</p><div style="display:flex;gap:8px;justify-content:center;"><button id="quitTournament">Quit Tournament</button><button id="returnLobby">Return Lobby</button></div></div>`;
-      document.body.appendChild(overlay);
-      document.getElementById('quitTournament').onclick = () => {
-        try {
-          localStorage.removeItem(STATE_KEY);
-          localStorage.removeItem(OPP_KEY);
-        } catch {}
-        tg.BackButton.hide();
-        window.location.href = '/games/pollroyale/lobby';
-      };
-      document.getElementById('returnLobby').onclick = () => {
-        tg.BackButton.hide();
-        window.location.href = '/games/pollroyale/lobby';
-      };
-    }
+    if(tg){ tg.BackButton.show(); tg.onEvent('backButtonClicked', showExitPopup); }
+    history.pushState(null,'',location.href);
+    window.addEventListener('popstate', (e)=>{ e.preventDefault(); showExitPopup(); history.pushState(null,'',location.href); });
 
     const btn = document.getElementById('continueBtn');
     if(state.complete){
@@ -543,14 +530,10 @@
       av.style.width='120px';av.style.height='120px';av.style.borderRadius='50%';av.style.background='#fff';av.style.display='flex';
       av.style.alignItems='center';av.style.justifyContent='center';av.style.fontSize='64px';
       av.textContent=champ.flag||'';overlay.appendChild(av);
-      const last=JSON.parse(localStorage.getItem(`pollRoyaleLastResult_${tgKey}`)||'{}');
-      if(last.variant==='american'){
-        const res=document.createElement('div');res.style.color='#fff';res.style.marginTop='8px';res.textContent=`${last.scores?.[1]||0}-${last.scores?.[2]||0}`;
+      const last=JSON.parse(localStorage.getItem(`goalRushLastResult_${tgKey}`)||'{}');
+      if(last.p1!=null && last.p2!=null){
+        const res=document.createElement('div');res.style.color='#fff';res.style.marginTop='8px';res.textContent=`${last.p1}-${last.p2}`;
         overlay.appendChild(res);
-      } else {
-        const img=document.createElement('img');img.style.width='40px';img.style.height='40px';img.style.marginTop='8px';
-        img.src = last.variant==='9ball'?'/assets/icons/Yellowball.webp':'/assets/icons/BlackBall.webp';
-        overlay.appendChild(img);
       }
       const prize=document.createElement('div');
       prize.style.display='flex';prize.style.alignItems='center';prize.style.gap='4px';prize.style.marginTop='8px';
@@ -563,8 +546,8 @@
       btn.addEventListener('click', ()=>{
         localStorage.removeItem(STATE_KEY);
         localStorage.removeItem(OPP_KEY);
-        localStorage.removeItem(`pollRoyaleLastResult_${tgKey}`);
-        window.location.href='/games/pollroyale/lobby';
+        localStorage.removeItem(`goalRushLastResult_${tgKey}`);
+        window.location.href='/games/goalrush/lobby';
       });
       overlay.appendChild(btn);
       document.body.appendChild(overlay);
