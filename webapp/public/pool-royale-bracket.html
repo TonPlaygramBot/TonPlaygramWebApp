@@ -401,11 +401,10 @@
   }
 
   function simulateRoundAI(st, round){
-    const next = st.rounds[round+1];
+    let next = st.rounds[round+1];
     const userSeed = st.userSeed;
     st.rounds[round].forEach((pair, idx) => {
       if(pair.includes(userSeed)) return;
-      if(next && next[Math.floor(idx/2)][idx%2]) return;
       const s1 = pair[0];
       const s2 = pair[1];
       const p1 = st.seedToPlayer[s1];
@@ -414,8 +413,17 @@
       if(p1 && p1.name==='BYE') w = s2;
       else if(p2 && p2.name==='BYE') w = s1;
       else w = Math.random() < 0.5 ? s1 : s2;
-      if(next) next[Math.floor(idx/2)][idx%2] = w;
-      else { st.championSeed = w; st.complete = true; }
+
+      if(round === st.rounds.length - 1){
+        st.championSeed = w;
+        st.complete = true;
+      } else {
+        if(!next){
+          const matches = Math.ceil(st.rounds[round].length / 2);
+          next = st.rounds[round+1] = Array.from({length:matches}, () => [0,0]);
+        }
+        next[Math.floor(idx/2)][idx%2] = w;
+      }
     });
   }
 
