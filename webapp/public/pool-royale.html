@@ -1637,8 +1637,8 @@
 
         function applySpinImpulse(ball) {
           if (!ball.spin) return;
-          ball.v.x += ball.spin.x * 65;
-          ball.v.y += ball.spin.y * 65;
+          ball.v.x += ball.spin.x * 80;
+          ball.v.y += ball.spin.y * 80;
           ball.spin.x *= 0.9;
           ball.spin.y *= 0.9;
         }
@@ -1739,6 +1739,7 @@
           this.pocketed = false; // ne grope
           this.a = 0; // kendi per vizualizim rrotullimi
           this.spin = { x: 0, y: 0 }; // spin aktiv
+          this.roll = { x: 0, y: 0 }; // offsets for texture rolling
         }
 
         function Pocket(x, y, r) {
@@ -1956,6 +1957,8 @@
             b.v.y *= FRICTION;
             // spin is applied directly during collisions
             b.a += (Math.hypot(b.v.x, b.v.y) * dt) / (BALL_R * 0.6);
+            b.roll.x += (b.v.y * dt) / BALL_R;
+            b.roll.y += (-b.v.x * dt) / BALL_R;
 
             var L = BORDER + BALL_R;
             var R = TABLE_W - BORDER - BALL_R;
@@ -2269,7 +2272,7 @@
             var grad = ctx.createRadialGradient(
               -ballR * 0.4,
               -ballR * 0.6,
-              ballR * 0.2,
+              ballR * 0.1,
               0,
               0,
               ballR * 1.2
@@ -2282,6 +2285,9 @@
             ctx.arc(0, 0, ballR, 0, Math.PI * 2);
             ctx.fill();
 
+            var tx = Math.sin(b.roll.y) * ballR * 0.6;
+            var ty = -Math.sin(b.roll.x) * ballR * 0.6;
+
             // stripe nese duhet
             var stripe =
               BALL_BY_N[b.n].t === 'stripe' && (isAmerican || isNineBall);
@@ -2290,10 +2296,11 @@
               ctx.beginPath();
               ctx.arc(0, 0, ballR, 0, Math.PI * 2);
               ctx.clip();
+              ctx.translate(tx, ty);
               var stripeGrad = ctx.createRadialGradient(
                 -ballR * 0.4,
                 -ballR * 0.6,
-                ballR * 0.2,
+                ballR * 0.1,
                 0,
                 0,
                 ballR * 1.2
@@ -2306,11 +2313,12 @@
               ctx.restore();
             }
 
-            // numri (vetem per varianten amerikane ose per topin e zi)
             if (
               b.n !== 0 &&
               (isAmerican || isNineBall || BALL_BY_N[b.n].t === 'eight')
             ) {
+              ctx.save();
+              ctx.translate(tx, ty);
               ctx.fillStyle = stripe ? BALL_BY_N[b.n].c : '#fff';
               ctx.beginPath();
               ctx.arc(0, 0, ballR * 0.52, 0, Math.PI * 2);
@@ -2320,10 +2328,12 @@
               ctx.textAlign = 'center';
               ctx.textBaseline = 'middle';
               ctx.fillText(String(b.n), 0, 0);
+              ctx.restore();
             }
 
-            // pika e spin-it te cue
             if (b.n === 0) {
+              ctx.save();
+              ctx.translate(tx, ty);
               ctx.fillStyle = '#e63';
               ctx.beginPath();
               ctx.arc(
@@ -2334,6 +2344,7 @@
                 Math.PI * 2
               );
               ctx.fill();
+              ctx.restore();
             }
             ctx.restore();
           }
