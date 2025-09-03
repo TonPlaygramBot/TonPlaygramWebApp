@@ -1956,6 +1956,7 @@
             b.v.y *= FRICTION;
             // spin is applied directly during collisions
             b.a += (Math.hypot(b.v.x, b.v.y) * dt) / (BALL_R * 0.6);
+            b.a += Math.hypot(b.spin.x, b.spin.y) * dt;
 
             var L = BORDER + BALL_R;
             var R = TABLE_W - BORDER - BALL_R;
@@ -2245,9 +2246,9 @@
             var px = b.p.x * sX,
               py = b.p.y * sY;
 
-            // hije eliptike 2.5D sipas stilit te trajnimit snooker
+            // hije eliptike 2.5D
             ctx.save();
-            ctx.globalAlpha = 0.28;
+            ctx.globalAlpha = 0.24;
             ctx.fillStyle = '#000';
             ctx.beginPath();
             ctx.ellipse(
@@ -2276,7 +2277,7 @@
             );
             grad.addColorStop(0, 'rgba(255,255,255,0.6)');
             grad.addColorStop(0.6, BALL_BY_N[b.n].c);
-            grad.addColorStop(1, 'rgba(0,0,0,0.35)');
+            grad.addColorStop(1, 'rgba(0,0,0,0.25)');
             ctx.fillStyle = grad;
             ctx.beginPath();
             ctx.arc(0, 0, ballR, 0, Math.PI * 2);
@@ -2300,7 +2301,7 @@
               );
               stripeGrad.addColorStop(0, 'rgba(255,255,255,0.6)');
               stripeGrad.addColorStop(0.6, '#fff');
-              stripeGrad.addColorStop(1, 'rgba(0,0,0,0.35)');
+              stripeGrad.addColorStop(1, 'rgba(0,0,0,0.25)');
               ctx.fillStyle = stripeGrad;
               ctx.fillRect(-ballR, -ballR * 0.3, ballR * 2, ballR * 0.6);
               ctx.restore();
