@@ -1519,9 +1519,9 @@
             moving.addEventListener(
               'transitionend',
               (e) => {
-                if (e.propertyName === 'top') {
+                if (e.propertyName === 'left' || e.propertyName === 'top') {
                   moving.style.transform =
-                    'translate(-50%, -50%) rotateY(90deg)';
+                    'translate(-50%, -50%) rotateY(180deg)';
                   moving.addEventListener(
                     'transitionend',
                     () => {
