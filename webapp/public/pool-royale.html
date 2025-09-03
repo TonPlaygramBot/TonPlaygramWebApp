@@ -1218,8 +1218,13 @@
           table.running = false;
           shotInProgress = false;
           if (window.tournamentMode && typeof window.handleTournamentResult === 'function') {
-            try{localStorage.setItem(`poolRoyaleLastResult_${tgKey}`, JSON.stringify({scores, variant}));}catch{}
-            window.handleTournamentResult(winner);
+            try {
+              localStorage.setItem(
+                `poolRoyaleLastResult_${tgKey}`,
+                JSON.stringify({ scores, variant })
+              );
+            } catch {}
+            window.handleTournamentResult(Number(winner));
             return;
           }
           var overlay = document.getElementById('winnerOverlay');
@@ -3704,6 +3709,7 @@
       if (params.get('type') === 'tournament') {
         window.handleTournamentResult = async function (winner) {
           try {
+            winner = Number(winner);
             var st = JSON.parse(localStorage.getItem(STATE_KEY) || '{}');
             if (!st.pendingMatch) {
               window.location.href = '/pool-royale-bracket.html?' + window.location.search.slice(1);
@@ -3711,7 +3717,10 @@
             }
             var r = st.pendingMatch.round;
             var m = st.pendingMatch.match;
-            var oppSeed = st.pendingMatch.pair[0] === st.userSeed ? st.pendingMatch.pair[1] : st.pendingMatch.pair[0];
+            var oppSeed =
+              st.pendingMatch.pair[0] === st.userSeed
+                ? st.pendingMatch.pair[1]
+                : st.pendingMatch.pair[0];
             var winnerSeed = winner === 1 ? st.userSeed : oppSeed;
             var next = st.rounds[r + 1];
             if (next) {
@@ -3720,11 +3729,16 @@
               st.championSeed = winnerSeed;
               st.complete = true;
             }
-            if (winnerSeed !== st.userSeed) {
+            if (Number(winnerSeed) !== Number(st.userSeed)) {
               simulateRemaining(st, r);
             } else {
               simulateRoundAI(st, r);
-              if (next && st.rounds[r].every(function (p, idx) { return next[Math.floor(idx / 2)][idx % 2]; })) {
+              if (
+                next &&
+                st.rounds[r].every(function (p, idx) {
+                  return next[Math.floor(idx / 2)][idx % 2];
+                })
+              ) {
                 st.currentRound++;
               }
             }
