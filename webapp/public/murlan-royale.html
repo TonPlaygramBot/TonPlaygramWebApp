@@ -643,6 +643,8 @@
         transition: left 0.4s ease, top 0.4s ease, transform 0.4s ease;
         z-index: 1000;
         pointer-events: none;
+        transform-style: preserve-3d;
+        backface-visibility: hidden;
       }
     </style>
   </head>
@@ -1484,6 +1486,57 @@
           });
         }
 
+        function animateCardTransfer(fromIdx, toIdx, card) {
+          return new Promise((resolve) => {
+            const stage = el('.stage');
+            const seats = seatsEl.querySelectorAll('.seat');
+            const fromSeat = seats[fromIdx];
+            const toSeat = seats[toIdx];
+            if (!stage || !fromSeat || !toSeat) {
+              resolve();
+              return;
+            }
+            const stageRect = stage.getBoundingClientRect();
+            const fromRect = fromSeat.getBoundingClientRect();
+            const toRect = toSeat.getBoundingClientRect();
+            const moving = cardFaceEl(card);
+            moving.classList.add('moving-card');
+            stage.appendChild(moving);
+            moving.style.left =
+              fromRect.left - stageRect.left + fromRect.width / 2 + 'px';
+            moving.style.top =
+              fromRect.top - stageRect.top + fromRect.height / 2 + 'px';
+            moving.style.transform = 'translate(-50%, -50%) rotateY(-90deg)';
+            requestAnimationFrame(() => {
+              moving.style.transform = 'translate(-50%, -50%) rotateY(0deg)';
+            });
+            setTimeout(() => {
+              moving.style.left =
+                toRect.left - stageRect.left + toRect.width / 2 + 'px';
+              moving.style.top =
+                toRect.top - stageRect.top + toRect.height / 2 + 'px';
+            }, 400);
+            moving.addEventListener(
+              'transitionend',
+              (e) => {
+                if (e.propertyName === 'top') {
+                  moving.style.transform =
+                    'translate(-50%, -50%) rotateY(90deg)';
+                  moving.addEventListener(
+                    'transitionend',
+                    () => {
+                      moving.remove();
+                      resolve();
+                    },
+                    { once: true }
+                  );
+                }
+              },
+              { once: true }
+            );
+          });
+        }
+
         let timerInterval;
         function updateTimerDisplay() {
           seatsEl.querySelectorAll('.seat').forEach((seat, idx) => {
@@ -1849,15 +1902,18 @@
           clearSuggestions();
           let newRound = false;
           const activeCount = state.players.filter((p) => !p.finished).length;
-          // If everyone else passed since last play, clear pile and set turn to next player after last player
+          // If everyone else passed since last play, clear pile and give turn back to last player (or next alive if finished)
           if (state.passesSincePlay >= activeCount - 1) {
             state.pile = [];
             state.lastPlayLen = 0;
             state.lastPlayType = null;
             state.passesSincePlay = 0;
-            let next = (state.lastPlayerToPlay + 1) % state.players.length;
-            while (state.players[next].finished) {
+            let next = state.lastPlayerToPlay;
+            if (state.players[next].finished) {
               next = (next + 1) % state.players.length;
+              while (state.players[next].finished) {
+                next = (next + 1) % state.players.length;
+              }
             }
             state.turn = next;
             renderAll();
@@ -1929,22 +1985,36 @@
           });
           await deal();
           autoArrangeHand(state.players[0].hand);
-          // Card exchange
-          if (winnerIdx != null && loserIdx != null && winnerIdx !== loserIdx) {
+          // Card exchange with animation (points mode, rounds 2+)
+          if (
+            state.playMode === 'points' &&
+            state.round >= 2 &&
+            winnerIdx != null &&
+            loserIdx != null &&
+            winnerIdx !== loserIdx
+          ) {
             const loserHand = state.players[loserIdx].hand;
+            const winnerHand = state.players[winnerIdx].hand;
             if (loserHand.length > 0) {
               let hi = 0;
               for (let i = 1; i < loserHand.length; i++) {
                 if (rankValue(loserHand[i].r) > rankValue(loserHand[hi].r)) hi = i;
               }
               const highCard = loserHand.splice(hi, 1)[0];
-              const winnerHand = state.players[winnerIdx].hand;
-              const valid = winnerHand.filter((c) => rankValue(c.r) >= 3 && rankValue(c.r) <= rankValue('K'));
+              renderAll();
+              await animateCardTransfer(loserIdx, winnerIdx, highCard);
+              const valid = winnerHand.filter(
+                (c) => rankValue(c.r) >= 3 && rankValue(c.r) <= rankValue('K')
+              );
+              let low = null;
               if (valid.length > 0) {
-                let low = valid[0];
-                for (const c of valid) if (rankValue(c.r) < rankValue(low.r)) low = c;
+                low = valid[0];
+                for (const c of valid)
+                  if (rankValue(c.r) < rankValue(low.r)) low = c;
                 const idx = winnerHand.indexOf(low);
                 winnerHand.splice(idx, 1);
+                renderAll();
+                await animateCardTransfer(winnerIdx, loserIdx, low);
                 loserHand.push(low);
               }
               winnerHand.push(highCard);
