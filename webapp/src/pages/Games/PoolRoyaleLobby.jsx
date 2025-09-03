@@ -21,7 +21,6 @@ export default function PoolRoyaleLobby() {
   const [avatar, setAvatar] = useState('');
   const [variant, setVariant] = useState('uk');
   const [playType, setPlayType] = useState('regular');
-  const [players, setPlayers] = useState(8);
 
   useEffect(() => {
     try {
@@ -44,7 +43,7 @@ export default function PoolRoyaleLobby() {
         tgId = getTelegramId();
         await addTransaction(tgId, -stake.amount, 'stake', {
           game: 'poolroyale',
-          players: playType === 'tournament' ? players : 2,
+          players: 2,
           accountId
         });
       } catch {}
@@ -59,7 +58,6 @@ export default function PoolRoyaleLobby() {
     params.set('variant', variant);
     params.set('type', playType);
     if (playType !== 'training') params.set('mode', mode);
-    if (playType === 'tournament') params.set('players', players);
     const initData = window.Telegram?.WebApp?.initData;
     if (playType !== 'training') {
       if (stake.token) params.set('token', stake.token);
@@ -77,11 +75,7 @@ export default function PoolRoyaleLobby() {
     if (devAcc1) params.set('dev1', devAcc1);
     if (devAcc2) params.set('dev2', devAcc2);
     if (initData) params.set('init', encodeURIComponent(initData));
-    if (playType === 'tournament') {
-      window.location.href = `/pool-royale-bracket.html?${params.toString()}`;
-    } else {
-      navigate(`/games/pollroyale?${params.toString()}`);
-    }
+    navigate(`/games/pollroyale?${params.toString()}`);
   };
 
   const winnerParam = new URLSearchParams(search).get('winner');
@@ -99,8 +93,7 @@ export default function PoolRoyaleLobby() {
         <div className="flex gap-2">
           {[
             { id: 'regular', label: 'Regular' },
-            { id: 'training', label: 'Training' },
-            { id: 'tournament', label: 'Tournament' }
+            { id: 'training', label: 'Training' }
           ].map(({ id, label }) => (
             <button
               key={id}
@@ -158,23 +151,7 @@ export default function PoolRoyaleLobby() {
           ))}
         </div>
       </div>
-      {playType === 'tournament' && (
-        <div className="space-y-2">
-          <h3 className="font-semibold">Players</h3>
-          <div className="flex gap-2">
-            {[8, 16, 24].map((p) => (
-              <button
-                key={p}
-                onClick={() => setPlayers(p)}
-                className={`lobby-tile ${players === p ? 'lobby-selected' : ''}`}
-              >
-                {p}
-              </button>
-            ))}
-          </div>
-          <p className="text-xs">Winner takes pot minus 10% developer fee.</p>
-        </div>
-      )}
+      {/* Tournament mode removed */}
       {playType !== 'training' && (
         <div className="space-y-2">
           <h3 className="font-semibold">Stake</h3>
