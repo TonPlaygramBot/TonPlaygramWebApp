@@ -3709,7 +3709,116 @@
       }
 
       if (params.get('type') === 'tournament') {
-        // Tournament utilities loaded below
+        window.handleTournamentResult = async function (winner) {
+          try {
+            winner = Number(winner) === 1 ? 1 : 2;
+            var st = JSON.parse(localStorage.getItem(STATE_KEY) || '{}');
+            if (!st.pendingMatch) {
+              window.location.href = '/pool-royale-bracket.html?' + window.location.search.slice(1);
+              return;
+            }
+            var r = Number(st.pendingMatch.round);
+            var m = Number(st.pendingMatch.match);
+            if (
+              typeof st.currentRound === 'number' &&
+              st.currentRound !== r
+            ) {
+              window.location.href = '/pool-royale-bracket.html?' + window.location.search.slice(1);
+              return;
+            }
+            var pair = st.rounds && st.rounds[r] && st.rounds[r][m];
+            if (
+              !pair ||
+              Number(pair[0]) !== Number(st.pendingMatch.pair[0]) ||
+              Number(pair[1]) !== Number(st.pendingMatch.pair[1])
+            ) {
+              window.location.href = '/pool-royale-bracket.html?' + window.location.search.slice(1);
+              return;
+            }
+            var userSeedNum = Number(st.userSeed);
+            var oppSeed = Number(
+              st.pendingMatch.pair[0] === st.userSeed
+                ? st.pendingMatch.pair[1]
+                : st.pendingMatch.pair[0]
+            );
+            var winnerSeed = winner === 1 ? userSeedNum : oppSeed;
+            var next = st.rounds[r + 1];
+            if (next) {
+              next[Math.floor(m / 2)][m % 2] = winnerSeed;
+            } else {
+              st.championSeed = winnerSeed;
+              st.complete = true;
+            }
+            if (winnerSeed !== userSeedNum) {
+              simulateRemaining(st, r);
+            } else {
+              simulateRoundAI(st, r);
+              if (
+                next &&
+                st.rounds[r].every(function (p, idx) {
+                  return next[Math.floor(idx / 2)][idx % 2];
+                })
+              ) {
+                st.currentRound++;
+              }
+            }
+            if (st.complete && winnerSeed === userSeedNum && stake > 0 && accountId) {
+              const total = stake * window.tournamentPlayers;
+              const prize = Math.round(total * 0.91);
+              try {
+                await prApi.depositAccount(accountId, prize, { game: 'poolroyale-win' });
+                if (tgId) await prApi.addTransaction(tgId, 0, 'win', { game: 'poolroyale', players: window.tournamentPlayers, accountId });
+                const ops = [];
+                if (devAccount1 || devAccount2) {
+                  if (devAccount) ops.push(prApi.depositAccount(devAccount, Math.round(total * 0.09), { game: 'poolroyale-dev' }));
+                  if (devAccount1) ops.push(prApi.depositAccount(devAccount1, Math.round(total * 0.01), { game: 'poolroyale-dev1' }));
+                  if (devAccount2) ops.push(prApi.depositAccount(devAccount2, Math.round(total * 0.02), { game: 'poolroyale-dev2' }));
+                } else if (devAccount) {
+                  ops.push(prApi.depositAccount(devAccount, Math.round(total * 0.1), { game: 'poolroyale-dev' }));
+                }
+                if (ops.length) await Promise.all(ops);
+              } catch {}
+            }
+            delete st.pendingMatch;
+            localStorage.setItem(STATE_KEY, JSON.stringify(st));
+            localStorage.removeItem(OPP_KEY);
+          } catch (err) {
+            console.error(err);
+          }
+          window.location.href = '/pool-royale-bracket.html?' + window.location.search.slice(1);
+        };
+
+        function simulateRoundAI(st, round) {
+          var next = st.rounds[round + 1];
+          var userSeed = st.userSeed;
+          st.rounds[round].forEach(function (pair, idx) {
+            if (pair.includes(userSeed)) return;
+            if (next && next[Math.floor(idx / 2)][idx % 2]) return;
+            var s1 = pair[0];
+            var s2 = pair[1];
+            var p1 = st.seedToPlayer[s1];
+            var p2 = st.seedToPlayer[s2];
+            var w;
+            if (p1 && p1.name === 'BYE') w = s2;
+            else if (p2 && p2.name === 'BYE') w = s1;
+            else w = Math.random() < 0.5 ? s1 : s2;
+            if (next) {
+              next[Math.floor(idx / 2)][idx % 2] = w;
+            } else {
+              st.championSeed = w;
+              st.complete = true;
+            }
+          });
+        }
+
+        function simulateRemaining(st, startRound) {
+          for (var r = startRound; r < st.rounds.length; r++) {
+            simulateRoundAI(st, r);
+            if (st.complete) break;
+          }
+          st.currentRound = st.rounds.length - 1;
+          st.complete = true;
+        }
       }
 
       // Rotate corner holes diagonally; keep side holes horizontal
@@ -3723,60 +3832,6 @@
           }
         });
       }
-</script>
-<script type="module">
-import { handleTournamentResult } from './tournament-utils.js';
-if (window.tournamentMode) {
-  window.handleTournamentResult = (winner) =>
-    handleTournamentResult(winner, {
-      stateKey: STATE_KEY,
-      oppKey: OPP_KEY,
-      bracketPage: '/pool-royale-bracket.html',
-      stake: window.stake,
-      players: window.tournamentPlayers,
-      accountId: window.accountId,
-      awardPrize: async (total) => {
-        const prize = Math.round(total * 0.91);
-        try {
-          await prApi.depositAccount(window.accountId, prize, { game: 'poolroyale-win' });
-          if (tgId)
-            await prApi.addTransaction(tgId, 0, 'win', {
-              game: 'poolroyale',
-              players: window.tournamentPlayers,
-              accountId: window.accountId
-            });
-          const ops = [];
-          if (devAccount1 || devAccount2) {
-            if (devAccount)
-              ops.push(
-                prApi.depositAccount(devAccount, Math.round(total * 0.09), {
-                  game: 'poolroyale-dev'
-                })
-              );
-            if (devAccount1)
-              ops.push(
-                prApi.depositAccount(devAccount1, Math.round(total * 0.01), {
-                  game: 'poolroyale-dev1'
-                })
-              );
-            if (devAccount2)
-              ops.push(
-                prApi.depositAccount(devAccount2, Math.round(total * 0.02), {
-                  game: 'poolroyale-dev2'
-                })
-              );
-          } else if (devAccount) {
-            ops.push(
-              prApi.depositAccount(devAccount, Math.round(total * 0.1), {
-                game: 'poolroyale-dev'
-              })
-            );
-          }
-          if (ops.length) await Promise.all(ops);
-        } catch {}
-      }
-    });
-}
 </script>
 <script>
 if(window.tournamentMode){
