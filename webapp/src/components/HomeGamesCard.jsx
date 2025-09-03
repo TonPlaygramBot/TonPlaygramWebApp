@@ -49,7 +49,7 @@ export default function HomeGamesCard() {
             className="h-20 w-20"
           />
           <h3 className="text-sm font-semibold text-center text-yellow-400">
-            8 Poll Royale
+            Pool Royale
           </h3>
         </Link>
         <Link
