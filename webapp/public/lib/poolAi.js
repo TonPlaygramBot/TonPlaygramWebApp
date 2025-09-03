@@ -203,16 +203,27 @@ export function estimateCueAfterShot (cue, target, pocket, power, spin, table) {
   const toPocket = { x: pocket.x - target.x, y: pocket.y - target.y }
   const dir = { x: toTarget.x - toPocket.x, y: toTarget.y - toPocket.y }
   const len = Math.hypot(dir.x, dir.y) || 1
-  let scale = (power * 120) / len
-  // very rough spin model – top/back alter distance, side imparts lateral offset
-  scale *= 1 + spin.top - spin.back
-  const perp = { x: -dir.y / len, y: dir.x / len }
+
+  // Base travel after striking the target – no spin influence yet so the cue
+  // ball runs straight regardless of power.
+  const baseDist = (power * 120) / len
+  const result = {
+    x: target.x + dir.x * baseDist,
+    y: target.y + dir.y * baseDist
+  }
+
+  // Spin effects applied after impact.
+  const distScale = 1 + spin.top - spin.back
+  result.x += dir.x * baseDist * (distScale - 1)
+  result.y += dir.y * baseDist * (distScale - 1)
+
   const tableScale = Math.max(table.width, table.height) * 0.04
   const sideOffset = spin.side * power * tableScale
-  return {
-    x: target.x + dir.x * scale + perp.x * sideOffset,
-    y: target.y + dir.y * scale + perp.y * sideOffset
-  }
+  const perp = { x: -dir.y / len, y: dir.x / len }
+  result.x += perp.x * sideOffset
+  result.y += perp.y * sideOffset
+
+  return result
 }
 
 

@@ -203,6 +203,19 @@ test('cue ball remains within table bounds for varied power and spin', () => {
   }
 });
 
+test('straight shots stay on line regardless of power', () => {
+  const cue = { id: 0, x: 500, y: 250, vx: 0, vy: 0, pocketed: false };
+  const target = { id: 1, x: 600, y: 250, vx: 0, vy: 0, pocketed: false };
+  const pocket = { x: 1000, y: 250 };
+  const table = { width: 1000, height: 500 };
+  const powers = [0.2, 0.5, 1];
+
+  for (const power of powers) {
+    const next = estimateCueAfterShot(cue, target, pocket, power, { top: 0, side: 0, back: 0 }, table);
+    assert.equal(next.y, target.y);
+  }
+});
+
 test('avoids unnecessary spin when natural position is good', () => {
   const req = {
     game: 'AMERICAN_BILLIARDS',
