@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Pool Royale Bracket</title>
+<title>Goal Rush Bracket</title>
 <style>
   :root{
     --bg:#0b1020;
@@ -62,8 +62,8 @@
   const ctx = canvas.getContext('2d');
   const params = new URLSearchParams(window.location.search);
   const tgKey = params.get("tgId") || "anon";
-  const STATE_KEY = `pollRoyaleTournamentState_${tgKey}`;
-  const OPP_KEY = `pollRoyaleTournamentOpponent_${tgKey}`;
+  const STATE_KEY = `goalRushTournamentState_${tgKey}`;
+  const OPP_KEY = `goalRushTournamentOpponent_${tgKey}`;
   const theme = {
     bg:'#0b1020',
     panel:'#11172a',
@@ -454,7 +454,7 @@
     const opponentSeed = info.pair[0] === st.userSeed ? info.pair[1] : info.pair[0];
     localStorage.setItem(OPP_KEY, JSON.stringify(st.seedToPlayer[opponentSeed]));
     localStorage.setItem(STATE_KEY, JSON.stringify(st));
-      window.location.href = '/poll-royale.html' + window.location.search;
+    window.location.href = '/goal-rush.html' + window.location.search;
   }
 
   (function init(){
@@ -511,7 +511,7 @@
       ret.style.background='#2563eb';ret.style.border='none';
       ret.style.borderRadius='4px';ret.style.color='#fff';
       box.appendChild(quit);box.appendChild(ret);overlay.appendChild(box);document.body.appendChild(overlay);
-        quit.onclick=()=>{localStorage.removeItem(STATE_KEY);localStorage.removeItem(OPP_KEY);if(tg) tg.BackButton.hide();window.location.href='/games/pollroyale/lobby';};
+      quit.onclick=()=>{localStorage.removeItem(STATE_KEY);localStorage.removeItem(OPP_KEY);if(tg) tg.BackButton.hide();window.location.href='/games/goalrush/lobby';};
       ret.onclick=()=>{document.body.removeChild(overlay);if(tg) tg.BackButton.show();};
     }
     const tg = window.Telegram?.WebApp;
@@ -530,7 +530,7 @@
       av.style.width='120px';av.style.height='120px';av.style.borderRadius='50%';av.style.background='#fff';av.style.display='flex';
       av.style.alignItems='center';av.style.justifyContent='center';av.style.fontSize='64px';
       av.textContent=champ.flag||'';overlay.appendChild(av);
-        const last=JSON.parse(localStorage.getItem(`pollRoyaleLastResult_${tgKey}`)||'{}');
+      const last=JSON.parse(localStorage.getItem(`goalRushLastResult_${tgKey}`)||'{}');
       if(last.p1!=null && last.p2!=null){
         const res=document.createElement('div');res.style.color='#fff';res.style.marginTop='8px';res.textContent=`${last.p1}-${last.p2}`;
         overlay.appendChild(res);
@@ -546,8 +546,8 @@
       btn.addEventListener('click', ()=>{
         localStorage.removeItem(STATE_KEY);
         localStorage.removeItem(OPP_KEY);
-          localStorage.removeItem(`pollRoyaleLastResult_${tgKey}`);
-          window.location.href='/games/pollroyale/lobby';
+        localStorage.removeItem(`goalRushLastResult_${tgKey}`);
+        window.location.href='/games/goalrush/lobby';
       });
       overlay.appendChild(btn);
       document.body.appendChild(overlay);
