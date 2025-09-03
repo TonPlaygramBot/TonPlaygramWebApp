@@ -3731,12 +3731,7 @@
               simulateRemaining(st, r);
             } else {
               simulateRoundAI(st, r);
-              if (
-                next &&
-                st.rounds[r].every(function (p, idx) {
-                  return next[Math.floor(idx / 2)][idx % 2];
-                })
-              ) {
+              if (next && st.rounds[r].every(function (p, idx) { return next[Math.floor(idx / 2)][idx % 2]; })) {
                 st.currentRound++;
               }
               simulateUntilUser(st, st.currentRound);
