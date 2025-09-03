@@ -1537,6 +1537,27 @@
           });
         }
 
+        function waitForUserLowCard(winnerIdx) {
+          return new Promise((resolve) => {
+            const seat = seatsEl.querySelectorAll('.seat')[winnerIdx];
+            const cardEls = seat ? seat.querySelectorAll('.cards .card') : [];
+            function handler(e) {
+              const idx = Number(e.currentTarget.dataset.index);
+              const card = state.players[winnerIdx].hand[idx];
+              if (
+                rankValue(card.r) >= 3 &&
+                rankValue(card.r) <= rankValue('K')
+              ) {
+                cardEls.forEach((el) => el.removeEventListener('click', handler));
+                resolve({ card, idx });
+              } else {
+                toast('Card must be between 3 and K');
+              }
+            }
+            cardEls.forEach((el) => el.addEventListener('click', handler));
+          });
+        }
+
         let timerInterval;
         function updateTimerDisplay() {
           seatsEl.querySelectorAll('.seat').forEach((seat, idx) => {
@@ -2001,24 +2022,42 @@
                 if (rankValue(loserHand[i].r) > rankValue(loserHand[hi].r)) hi = i;
               }
               const highCard = loserHand.splice(hi, 1)[0];
+              loserHand.sort((a, b) => rankValue(a.r) - rankValue(b.r));
               renderAll();
               await animateCardTransfer(loserIdx, winnerIdx, highCard);
-              const valid = winnerHand.filter(
-                (c) => rankValue(c.r) >= 3 && rankValue(c.r) <= rankValue('K')
-              );
+              winnerHand.push(highCard);
+              winnerHand.sort((a, b) => rankValue(a.r) - rankValue(b.r));
+              renderAll();
               let low = null;
-              if (valid.length > 0) {
-                low = valid[0];
-                for (const c of valid)
-                  if (rankValue(c.r) < rankValue(low.r)) low = c;
-                const idx = winnerHand.indexOf(low);
-                winnerHand.splice(idx, 1);
+              if (winnerIdx === 0) {
+                clearSelections();
+                toast('You have to give a lower card to the loser (3-K)');
+                const choice = await waitForUserLowCard(winnerIdx);
+                if (choice) {
+                  low = choice.card;
+                  winnerHand.splice(choice.idx, 1);
+                }
+                clearSelections();
+              } else {
+                const valid = winnerHand.filter(
+                  (c) =>
+                    rankValue(c.r) >= 3 &&
+                    rankValue(c.r) <= rankValue('K')
+                );
+                if (valid.length > 0) {
+                  low = valid.reduce((a, c) =>
+                    rankValue(c.r) < rankValue(a.r) ? c : a
+                  );
+                  const idx = winnerHand.indexOf(low);
+                  winnerHand.splice(idx, 1);
+                }
+              }
+              if (low) {
                 renderAll();
                 await animateCardTransfer(winnerIdx, loserIdx, low);
                 loserHand.push(low);
+                loserHand.sort((a, b) => rankValue(a.r) - rankValue(b.r));
               }
-              winnerHand.push(highCard);
-              loserHand.sort((a, b) => rankValue(a.r) - rankValue(b.r));
               winnerHand.sort((a, b) => rankValue(a.r) - rankValue(b.r));
             }
           }
