@@ -2026,7 +2026,7 @@ if(window.tournamentMode){
     overlay.style.alignItems='center';overlay.style.justifyContent='center';
     const box=document.createElement('div');
     box.style.background='#11172a';box.style.padding='20px';box.style.borderRadius='8px';box.style.textAlign='center';box.style.maxWidth='90%';box.style.color='#dbe7ff';
-    box.innerHTML='<p style="margin-bottom:12px;">If you quit the tournament, your funds will be lost.</p>';
+    box.innerHTML='<p style="margin-bottom:12px;">If you quit the tournament, your funds will be lost and you will be placed last.</p>';
     const quit=document.createElement('button');
     quit.textContent='Quit Tournament';
     quit.style.margin='4px';quit.style.padding='8px 12px';
@@ -2041,7 +2041,7 @@ if(window.tournamentMode){
     quit.onclick=()=>{localStorage.removeItem(STATE_KEY);localStorage.removeItem(OPP_KEY);if(tg) tg.BackButton.hide();window.location.href='/games/freekick/lobby';};
     ret.onclick=()=>{if(tg) tg.BackButton.show();window.location.href='/free-kick-bracket.html'+window.location.search;};
   }
-  if(tg){ tg.BackButton.show(); tg.onEvent('backButtonClicked', showExitPopup); }
+  if(tg){ tg.BackButton.show(); tg.onEvent('backButtonClicked', showExitPopup); tg.onEvent('close', showExitPopup); }
   history.pushState(null,'',location.href);
   window.addEventListener('popstate',(e)=>{ e.preventDefault(); showExitPopup(); history.pushState(null,'',location.href); });
 }
