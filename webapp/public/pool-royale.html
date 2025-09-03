@@ -3745,8 +3745,6 @@
             var next = st.rounds[r + 1];
             if (next) {
               next[Math.floor(m / 2)][m % 2] = winnerSeed;
-              st.championSeed = 0;
-              st.complete = false;
             } else {
               st.championSeed = winnerSeed;
               st.complete = true;
@@ -3755,8 +3753,13 @@
               simulateRemaining(st, r);
             } else {
               simulateRoundAI(st, r);
-              if (next) {
-                st.currentRound = r + 1;
+              if (
+                next &&
+                st.rounds[r].every(function (p, idx) {
+                  return next[Math.floor(idx / 2)][idx % 2];
+                })
+              ) {
+                st.currentRound++;
               }
             }
             if (st.complete && winnerSeed === userSeedNum && stake > 0 && accountId) {
@@ -3790,6 +3793,7 @@
           var userSeed = st.userSeed;
           st.rounds[round].forEach(function (pair, idx) {
             if (pair.includes(userSeed)) return;
+            if (next && next[Math.floor(idx / 2)][idx % 2]) return;
             var s1 = pair[0];
             var s2 = pair[1];
             var p1 = st.seedToPlayer[s1];
@@ -3798,16 +3802,11 @@
             if (p1 && p1.name === 'BYE') w = s2;
             else if (p2 && p2.name === 'BYE') w = s1;
             else w = Math.random() < 0.5 ? s1 : s2;
-
-            if (round === st.rounds.length - 1) {
+            if (next) {
+              next[Math.floor(idx / 2)][idx % 2] = w;
+            } else {
               st.championSeed = w;
               st.complete = true;
-            } else {
-              if (!next) {
-                var matches = Math.ceil(st.rounds[round].length / 2);
-                next = st.rounds[round + 1] = Array.from({ length: matches }, () => [0, 0]);
-              }
-              next[Math.floor(idx / 2)][idx % 2] = w;
             }
           });
         }
