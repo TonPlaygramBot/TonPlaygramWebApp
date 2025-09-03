@@ -31,6 +31,10 @@ export default function PoolRoyaleLobby() {
   }, []);
 
   const startGame = async () => {
+    if (playType === 'training' && variant === 'snooker') {
+      window.location.href = '/snooker-training.html';
+      return;
+    }
     let tgId;
     let accountId;
     if (playType !== 'training') {
@@ -146,7 +150,10 @@ export default function PoolRoyaleLobby() {
           {[
             { id: 'uk', label: '8 Pool UK' },
             { id: 'american', label: 'American' },
-            { id: '9ball', label: '9-Ball' }
+            { id: '9ball', label: '9-Ball' },
+            ...(playType === 'training'
+              ? [{ id: 'snooker', label: 'Snooker' }]
+              : [])
           ].map(({ id, label }) => (
             <button
               key={id}
