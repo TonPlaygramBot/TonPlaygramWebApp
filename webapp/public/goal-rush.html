@@ -1097,35 +1097,87 @@
   window.addEventListener('orientationchange', checkOrientation);
 
   if (params.get('type') === 'tournament') {
-    // Tournament utilities loaded below
+    window.handleTournamentResult = async function (winner) {
+      try {
+        var st = JSON.parse(localStorage.getItem(TOURN_STATE_KEY) || '{}');
+        if (!st.pendingMatch) {
+          window.location.href = '/goal-rush-bracket.html?' + window.location.search.slice(1);
+          return;
+        }
+        var r = st.pendingMatch.round;
+        var m = st.pendingMatch.match;
+        var oppSeed = st.pendingMatch.pair[0] === st.userSeed ? st.pendingMatch.pair[1] : st.pendingMatch.pair[0];
+        var winnerSeed = winner === 1 ? st.userSeed : oppSeed;
+        var next = st.rounds[r + 1];
+        if (next) {
+          next[Math.floor(m / 2)][m % 2] = winnerSeed;
+        } else {
+          st.championSeed = winnerSeed;
+          st.complete = true;
+        }
+        if (winnerSeed !== st.userSeed) {
+          simulateRemaining(st, r);
+        } else {
+          simulateRoundAI(st, r);
+          if (next && st.rounds[r].every(function (p, idx) { return next[Math.floor(idx / 2)][idx % 2]; })) {
+            st.currentRound++;
+          }
+        }
+        if (st.complete && winnerSeed === st.userSeed && stake > 0 && myAccountId) {
+          const total = stake * window.tournamentPlayers;
+          const prize = Math.round(total * 0.91);
+          try {
+            await awardTpc(myAccountId, prize);
+            if (tgId) await recordWin(tgId, myAccountId);
+            await awardDevShare(total);
+          } catch {}
+        }
+        delete st.pendingMatch;
+        localStorage.setItem(TOURN_STATE_KEY, JSON.stringify(st));
+        localStorage.removeItem(TOURN_OPP_KEY);
+      } catch (err) {
+        console.error(err);
+      }
+      window.location.href = '/goal-rush-bracket.html?' + window.location.search.slice(1);
+    };
+
+    function simulateRoundAI(st, round) {
+      var next = st.rounds[round + 1];
+      var userSeed = st.userSeed;
+      st.rounds[round].forEach(function (pair, idx) {
+        if (pair.includes(userSeed)) return;
+        if (next && next[Math.floor(idx / 2)][idx % 2]) return;
+        var s1 = pair[0];
+        var s2 = pair[1];
+        var p1 = st.seedToPlayer[s1];
+        var p2 = st.seedToPlayer[s2];
+        var w;
+        if (p1 && p1.name === 'BYE') w = s2;
+        else if (p2 && p2.name === 'BYE') w = s1;
+        else w = Math.random() < 0.5 ? s1 : s2;
+        if (next) {
+          next[Math.floor(idx / 2)][idx % 2] = w;
+        } else {
+          st.championSeed = w;
+          st.complete = true;
+        }
+      });
+    }
+
+    function simulateRemaining(st, startRound) {
+      for (var r = startRound; r < st.rounds.length; r++) {
+        simulateRoundAI(st, r);
+        if (st.complete) break;
+      }
+      st.currentRound = st.rounds.length - 1;
+      st.complete = true;
+    }
   }
 
   fit(); checkOrientation(); resetPositions(); updateScore(); playWhistle();
   document.body.classList.add('loaded');
   requestAnimationFrame(loop);
   })();
-</script>
-<script type="module">
-import { handleTournamentResult } from './tournament-utils.js';
-if (window.tournamentMode) {
-  window.handleTournamentResult = (winner) =>
-    handleTournamentResult(winner, {
-      stateKey: TOURN_STATE_KEY,
-      oppKey: TOURN_OPP_KEY,
-      bracketPage: '/goal-rush-bracket.html',
-      stake: window.stake,
-      players: window.tournamentPlayers,
-      accountId: myAccountId,
-      awardPrize: async (total) => {
-        const prize = Math.round(total * 0.91);
-        try {
-          await awardTpc(myAccountId, prize);
-          if (tgId) await recordWin(tgId, myAccountId);
-          await awardDevShare(total);
-        } catch {}
-      }
-    });
-}
 </script>
 <script>
 if(window.tournamentMode){

@@ -1923,70 +1923,98 @@ function drawStaticOnce(){ drawField(); drawAds(); drawGoal(); resetBall(); draw
     startCountdown(3);
   }
 
-    if (params.get('type') === 'tournament') {
-      // Tournament utilities loaded below
+  if (params.get('type') === 'tournament') {
+    window.handleTournamentResult = async function (winner) {
+      try {
+        var st = JSON.parse(localStorage.getItem(STATE_KEY) || '{}');
+        if (!st.pendingMatch) {
+          window.location.href = '/free-kick-bracket.html?' + window.location.search.slice(1);
+          return;
+        }
+        var r = st.pendingMatch.round;
+        var m = st.pendingMatch.match;
+        var oppSeed = st.pendingMatch.pair[0] === st.userSeed ? st.pendingMatch.pair[1] : st.pendingMatch.pair[0];
+        var winnerSeed = winner === 1 ? st.userSeed : oppSeed;
+        var next = st.rounds[r + 1];
+        if (next) {
+          next[Math.floor(m / 2)][m % 2] = winnerSeed;
+        } else {
+          st.championSeed = winnerSeed;
+          st.complete = true;
+        }
+        if (winnerSeed !== st.userSeed) {
+          simulateRemaining(st, r);
+        } else {
+          simulateRoundAI(st, r);
+          if (next && st.rounds[r].every(function(p, idx){ return next[Math.floor(idx/2)][idx%2]; })) {
+            st.currentRound++;
+          }
+        }
+        if (st.complete && winnerSeed === st.userSeed && stake > 0 && accountId) {
+        const total = stake * window.tournamentPlayers;
+        const prize = Math.round(total * 0.91);
+        try {
+          await fkApi.depositAccount(accountId, prize, { game: 'freekick-win' });
+          if (tgId) await fkApi.addTransaction(tgId, 0, 'win', { game: 'freekick', players: window.tournamentPlayers, accountId });
+          const ops = [];
+          if (devAccount1 || devAccount2) {
+            if (devAccount) ops.push(fkApi.depositAccount(devAccount, Math.round(total*0.09), { game: 'freekick-dev' }));
+            if (devAccount1) ops.push(fkApi.depositAccount(devAccount1, Math.round(total*0.01), { game: 'freekick-dev1' }));
+            if (devAccount2) ops.push(fkApi.depositAccount(devAccount2, Math.round(total*0.02), { game: 'freekick-dev2' }));
+          } else if (devAccount) {
+            ops.push(fkApi.depositAccount(devAccount, Math.round(total*0.1), { game: 'freekick-dev' }));
+          }
+          if (ops.length) await Promise.all(ops);
+        } catch {}
+        }
+        delete st.pendingMatch;
+        localStorage.setItem(STATE_KEY, JSON.stringify(st));
+        localStorage.removeItem(OPP_KEY);
+      } catch (err) {
+        console.error(err);
+      }
+      window.location.href = '/free-kick-bracket.html?' + window.location.search.slice(1);
+    };
+
+    function simulateRoundAI(st, round){
+      var next = st.rounds[round + 1];
+      var userSeed = st.userSeed;
+      st.rounds[round].forEach(function(pair, idx){
+        if(pair.includes(userSeed)) return;
+        if(next && next[Math.floor(idx/2)][idx%2]) return;
+        var s1 = pair[0];
+        var s2 = pair[1];
+        var p1 = st.seedToPlayer[s1];
+        var p2 = st.seedToPlayer[s2];
+        var w;
+        if(p1 && p1.name === 'BYE') w = s2;
+        else if(p2 && p2.name === 'BYE') w = s1;
+        else w = Math.random() < 0.5 ? s1 : s2;
+        if(next){
+          next[Math.floor(idx/2)][idx%2] = w;
+        } else {
+          st.championSeed = w;
+          st.complete = true;
+        }
+      });
     }
+
+    function simulateRemaining(st, startRound){
+      for(var r = startRound; r < st.rounds.length; r++){
+        simulateRoundAI(st, r);
+        if(st.complete) break;
+      }
+      st.currentRound = st.rounds.length - 1;
+      st.complete = true;
+    }
+  }
 
   boot();
   document.getElementById('lobbyBtn').addEventListener('click', ()=>{ location.href='/games/freekick/lobby'; });
 })();
-  </script>
-  <script type="module">
-  import { handleTournamentResult } from './tournament-utils.js';
-  if (window.tournamentMode) {
-    window.handleTournamentResult = (winner) =>
-      handleTournamentResult(winner, {
-        stateKey: STATE_KEY,
-        oppKey: OPP_KEY,
-        bracketPage: '/free-kick-bracket.html',
-        stake: window.stake,
-        players: window.tournamentPlayers,
-        accountId: accountId,
-        awardPrize: async (total) => {
-          const prize = Math.round(total * 0.91);
-          try {
-            await fkApi.depositAccount(accountId, prize, { game: 'freekick-win' });
-            if (tgId)
-              await fkApi.addTransaction(tgId, 0, 'win', {
-                game: 'freekick',
-                players: window.tournamentPlayers,
-                accountId
-              });
-            const ops = [];
-            if (devAccount1 || devAccount2) {
-              if (devAccount)
-                ops.push(
-                  fkApi.depositAccount(devAccount, Math.round(total * 0.09), {
-                    game: 'freekick-dev'
-                  })
-                );
-              if (devAccount1)
-                ops.push(
-                  fkApi.depositAccount(devAccount1, Math.round(total * 0.01), {
-                    game: 'freekick-dev1'
-                  })
-                );
-              if (devAccount2)
-                ops.push(
-                  fkApi.depositAccount(devAccount2, Math.round(total * 0.02), {
-                    game: 'freekick-dev2'
-                  })
-                );
-            } else if (devAccount) {
-              ops.push(
-                fkApi.depositAccount(devAccount, Math.round(total * 0.1), {
-                  game: 'freekick-dev'
-                })
-              );
-            }
-            if (ops.length) await Promise.all(ops);
-          } catch {}
-        }
-      });
-  }
-  </script>
-  <script>
-  if(window.tournamentMode){
+</script>
+<script>
+if(window.tournamentMode){
   const tg = window.Telegram?.WebApp;
   function showExitPopup(){
     if(document.getElementById('tournExit')) return;
