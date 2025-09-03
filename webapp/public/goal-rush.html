@@ -154,14 +154,14 @@
   const oppParam = params.get('p2Avatar') || '';
   let p1Name = params.get('name') || 'P1';
   let p2Name = params.get('p2Name') || 'P2';
-  let fieldScaleX = 1,
-    fieldScaleY = 1,
-    puckScale = 1.05,
-    goalWidthPct = 0.36,
-    goalOffsetXPct = 0,
-    goalOffsetYPct = 0,
-    paddleScale = 0.95,
-    speedMul = 0.95;
+    let fieldScaleX = 1,
+      fieldScaleY = 1,
+      puckScale = 1.1,
+      goalWidthPct = 0.36,
+      goalOffsetXPct = 0,
+      goalOffsetYPct = 0,
+      paddleScale = 0.9,
+      speedMul = 0.95;
 
   async function loadCalibration() {
     try {
@@ -364,7 +364,7 @@
   let running = true; let last = 0;
   let lastTouch = null;
   let cornerEscapeFrames = 0;
-  const difficultySpeeds = { easy:13, normal:16, hard:22 };
+  const difficultySpeeds = { easy:11, normal:14, hard:20 };
   p2.max = (difficultySpeeds[difficulty] || 15) + currentRound * 2;
 
   let audioEnabled = true;
