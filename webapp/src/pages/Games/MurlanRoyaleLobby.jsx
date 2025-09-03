@@ -17,6 +17,8 @@ export default function MurlanRoyaleLobby() {
   const [stake, setStake] = useState({ token: 'TPC', amount: 100 });
   const [mode, setMode] = useState('local');
   const [avatar, setAvatar] = useState('');
+  const [gameType, setGameType] = useState('single');
+  const [targetPoints, setTargetPoints] = useState(11);
 
   useEffect(() => {
     try {
@@ -44,6 +46,8 @@ export default function MurlanRoyaleLobby() {
 
     const params = new URLSearchParams();
     params.set('mode', mode);
+    params.set('game', gameType);
+    if (gameType === 'points') params.set('points', targetPoints);
     if (stake.token) params.set('token', stake.token);
     if (stake.amount) params.set('amount', stake.amount);
     if (avatar) params.set('avatar', avatar);
@@ -90,6 +94,36 @@ export default function MurlanRoyaleLobby() {
             </div>
           ))}
         </div>
+      </div>
+      <div className="space-y-2">
+        <h3 className="font-semibold">Game Type</h3>
+        <div className="flex gap-2">
+          {[
+            { id: 'single', label: 'Single Game' },
+            { id: 'points', label: 'Points' }
+          ].map(({ id, label }) => (
+            <button
+              key={id}
+              onClick={() => setGameType(id)}
+              className={`lobby-tile ${gameType === id ? 'lobby-selected' : ''}`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+        {gameType === 'points' && (
+          <div className="flex gap-2">
+            {[11, 21, 31].map((pts) => (
+              <button
+                key={pts}
+                onClick={() => setTargetPoints(pts)}
+                className={`lobby-tile ${targetPoints === pts ? 'lobby-selected' : ''}`}
+              >
+                {pts} pts
+              </button>
+            ))}
+          </div>
+        )}
       </div>
       <button
         onClick={startGame}
