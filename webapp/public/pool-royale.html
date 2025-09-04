@@ -1721,15 +1721,33 @@
           ctx.lineWidth = BORDER * 0.3 * sX;
           ctx.stroke();
 
-          drawPocket(BORDER, BORDER_TOP, POCKET_R);
-          drawPocket(TABLE_W - BORDER, BORDER_TOP, POCKET_R);
-          drawPocket(BORDER, TABLE_H - BORDER_BOTTOM, POCKET_R);
-          drawPocket(TABLE_W - BORDER, TABLE_H - BORDER_BOTTOM, POCKET_R);
-          drawPocket(BORDER, TABLE_H / 2 + BALL_R - 14, SIDE_POCKET_R);
-          drawPocket(TABLE_W - BORDER, TABLE_H / 2 + BALL_R - 14, SIDE_POCKET_R);
+          drawPocket(BORDER, BORDER_TOP, POCKET_R, 1, 1);
+          drawPocket(TABLE_W - BORDER, BORDER_TOP, POCKET_R, -1, 1);
+          drawPocket(BORDER, TABLE_H - BORDER_BOTTOM, POCKET_R, 1, -1);
+          drawPocket(
+            TABLE_W - BORDER,
+            TABLE_H - BORDER_BOTTOM,
+            POCKET_R,
+            -1,
+            -1
+          );
+          drawPocket(
+            BORDER,
+            TABLE_H / 2 + BALL_R - 14,
+            SIDE_POCKET_R,
+            1,
+            0
+          );
+          drawPocket(
+            TABLE_W - BORDER,
+            TABLE_H / 2 + BALL_R - 14,
+            SIDE_POCKET_R,
+            -1,
+            0
+          );
         }
 
-        function drawPocket(x, y, r) {
+        function drawPocket(x, y, r, dirX, dirY) {
           var px = x * sX;
           var py = y * sY;
           var pr = r * sX;
@@ -1752,6 +1770,25 @@
           ctx.beginPath();
           ctx.arc(px, py, pr * 0.86, 0, Math.PI * 2);
           ctx.stroke();
+
+          // draw dark triangular cut on the rail
+          ctx.fillStyle = '#000';
+          if (dirY === 0) {
+            // side pockets: mirror vertically for symmetry
+            ctx.beginPath();
+            ctx.moveTo(px, py);
+            ctx.lineTo(px + dirX * pr * 1.2, py - pr * 0.6);
+            ctx.lineTo(px + dirX * pr * 1.2, py + pr * 0.6);
+            ctx.closePath();
+            ctx.fill();
+          } else {
+            ctx.beginPath();
+            ctx.moveTo(px, py);
+            ctx.lineTo(px + dirX * pr * 1.2, py);
+            ctx.lineTo(px, py + dirY * pr * 1.2);
+            ctx.closePath();
+            ctx.fill();
+          }
         }
 
         /* ==========================================================
