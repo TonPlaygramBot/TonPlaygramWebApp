@@ -198,6 +198,20 @@
         z-index: 4;
       }
 
+      #snookerBg {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        border: 0;
+        z-index: 3;
+      }
+
+      #wrap.snooker-training::before {
+        background: none;
+      }
+
       #cueHint {
         position: absolute;
         z-index: 7;
@@ -770,6 +784,11 @@
       </div>
 
       <div id="wrap">
+        <iframe
+          id="snookerBg"
+          class="hidden"
+          src="/snooker-training-table.html"
+        ></iframe>
         <canvas id="table"></canvas>
         <div id="cueHint">✋️</div>
 
@@ -961,6 +980,12 @@
        ========================================================= */
         var canvas = document.getElementById('table');
         var ctx = canvas.getContext('2d');
+        var wrapEl = document.getElementById('wrap');
+        var snookerBg = document.getElementById('snookerBg');
+        if (isSnooker && playType === 'training') {
+          wrapEl.classList.add('snooker-training');
+          snookerBg.classList.remove('hidden');
+        }
         var rightPanel = document.getElementById('rightPanel');
         var playBtn = document.getElementById('play');
         var turnPlayer = document.getElementById('turnPlayer');
@@ -2001,13 +2026,11 @@
           // Track collisions in this frame so that audio for each
           // pair of balls is played only once per contact.
           var newCollisions = new Set();
-          // Defer spin impulses until after all collisions to keep target
-          // ball trajectories accurate regardless of cue spin or power
-          var spinQueue = new Set();
           // Levizje + ferkim + kufij
           for (i = 0; i < this.balls.length; i++) {
             var b = this.balls[i];
             if (b.pocketed) continue;
+            applySpinImpulse(b);
             var prevX = b.p.x,
               prevY = b.p.y;
             b.p.x += b.v.x * dt;
@@ -2048,15 +2071,10 @@
             }
             if (!nearPocket || !approaching) {
               if (b.n === 0) {
-                if (b.p.x - L < BALL_R * 1.5 && b.v.x < 0) spinQueue.add(b);
-                if (R - b.p.x < BALL_R * 1.5 && b.v.x > 0) spinQueue.add(b);
-                if (b.p.y - T < BALL_R * 1.5 && b.v.y < 0) spinQueue.add(b);
-                if (B - b.p.y < BALL_R * 1.5 && b.v.y > 0) spinQueue.add(b);
               }
               if (b.p.x < L) {
                 b.p.x = L;
                 b.v.x *= -BOUNCE;
-                if (b.n === 0) spinQueue.add(b);
                 if (i === 0 && shotInProgress && !firstHit)
                   cueHitCushion = true;
                 var diffY = nearest ? Math.abs(b.p.y - nearest.y) : Infinity;
@@ -2073,7 +2091,6 @@
               if (b.p.x > R) {
                 b.p.x = R;
                 b.v.x *= -BOUNCE;
-                if (b.n === 0) spinQueue.add(b);
                 if (i === 0 && shotInProgress && !firstHit)
                   cueHitCushion = true;
                 var diffY2 = nearest ? Math.abs(b.p.y - nearest.y) : Infinity;
@@ -2090,7 +2107,6 @@
               if (b.p.y < T) {
                 b.p.y = T;
                 b.v.y *= -BOUNCE;
-                if (b.n === 0) spinQueue.add(b);
                 if (i === 0 && shotInProgress && !firstHit)
                   cueHitCushion = true;
                 var diffX = nearest ? Math.abs(b.p.x - nearest.x) : Infinity;
@@ -2107,7 +2123,6 @@
               if (b.p.y > B) {
                 b.p.y = B;
                 b.v.y *= -BOUNCE;
-                if (b.n === 0) spinQueue.add(b);
                 if (i === 0 && shotInProgress && !firstHit)
                   cueHitCushion = true;
                 var diffX2 = nearest ? Math.abs(b.p.x - nearest.x) : Infinity;
@@ -2135,7 +2150,6 @@
                 dy = bb.p.y - a.p.y,
                 d = Math.hypot(dx, dy);
               if ((a.n === 0 || bb.n === 0) && d < BALL_R * 2.5) {
-                spinQueue.add(a.n === 0 ? a : bb);
               }
               if (d < BALL_R * 2) {
                 var pairId = i + '-' + j;
@@ -2197,15 +2211,10 @@
                         );
                       }
                     }
-                    if (a.n === 0) spinQueue.add(a);
-                    if (bb.n === 0) spinQueue.add(bb);
                   }
                 }
               }
             }
-
-          // Apply accumulated spin impulses after all collisions
-          spinQueue.forEach(applySpinImpulse);
 
           // Kontroll i gropave
           for (i = 0; i < this.pockets.length; i++) {
