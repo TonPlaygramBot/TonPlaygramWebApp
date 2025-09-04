@@ -1716,8 +1716,8 @@
           drawPocket(TABLE_W - BORDER, BORDER_TOP, POCKET_R);
           drawPocket(BORDER, TABLE_H - BORDER_BOTTOM, POCKET_R);
           drawPocket(TABLE_W - BORDER, TABLE_H - BORDER_BOTTOM, POCKET_R);
-          drawPocket(TABLE_W / 2, BORDER_TOP, SIDE_POCKET_R);
-          drawPocket(TABLE_W / 2, TABLE_H - BORDER_BOTTOM, SIDE_POCKET_R);
+          drawPocket(BORDER, TABLE_H / 2 + BALL_R - 14, SIDE_POCKET_R);
+          drawPocket(TABLE_W - BORDER, TABLE_H / 2 + BALL_R - 14, SIDE_POCKET_R);
         }
 
         function drawPocket(x, y, r) {
