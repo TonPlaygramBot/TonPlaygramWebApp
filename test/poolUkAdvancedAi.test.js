@@ -17,7 +17,7 @@ test('open table selects higher EV colour', () => {
   const state = {
     balls: [
       { id: 0, colour: 'cue', x: 100, y: 100 },
-      { id: 1, colour: 'yellow', x: 200, y: 100 },
+      { id: 1, colour: 'blue', x: 200, y: 100 },
       { id: 2, colour: 'red', x: 800, y: 400 }
     ],
     pockets: makePockets(),
@@ -37,14 +37,14 @@ test('falls back to safety when pot not viable', () => {
   const state = {
     balls: [
       { id: 0, colour: 'cue', x: 100, y: 250 },
-      { id: 1, colour: 'yellow', x: 200, y: 250 },
+      { id: 1, colour: 'blue', x: 200, y: 250 },
       { id: 2, colour: 'red', x: 150, y: 250 }
     ],
     pockets: makePockets(),
     width: 1000,
     height: 500,
     ballRadius: 10,
-    ballOn: 'yellow',
+    ballOn: 'blue',
     isOpenTable: false,
     shotsRemaining: 1
   };
@@ -56,7 +56,7 @@ test('uses cushion escapes when direct path blocked', () => {
   const state = {
     balls: [
       { id: 0, colour: 'cue', x: 50, y: 50 },
-      { id: 1, colour: 'yellow', x: 250, y: 50 },
+      { id: 1, colour: 'blue', x: 250, y: 50 },
       { id: 2, colour: 'red', x: 150, y: 50 }
     ],
     pockets: [
@@ -68,7 +68,7 @@ test('uses cushion escapes when direct path blocked', () => {
     width: 300,
     height: 100,
     ballRadius: 5,
-    ballOn: 'yellow',
+    ballOn: 'blue',
     isOpenTable: false,
     shotsRemaining: 1
   };
@@ -81,19 +81,19 @@ test('prioritizes straight pots', () => {
   const state = {
     balls: [
       { id: 0, colour: 'cue', x: 100, y: 250 },
-      { id: 1, colour: 'yellow', x: 800, y: 250 }, // straight shot
-      { id: 2, colour: 'yellow', x: 200, y: 300 } // angled shot
+      { id: 1, colour: 'blue', x: 800, y: 250 }, // straight shot
+      { id: 2, colour: 'blue', x: 200, y: 300 } // angled shot
     ],
     pockets: makePockets(),
     width: 1000,
     height: 500,
     ballRadius: 10,
-    ballOn: 'yellow',
+    ballOn: 'blue',
     isOpenTable: false,
     shotsRemaining: 1
   };
   const plan = selectShot(state, {});
-  assert.equal(plan.targetBall, 'yellow');
+  assert.equal(plan.targetBall, 'blue');
   assert.equal(plan.aimPoint.x, 800);
   assert.equal(plan.aimPoint.y, 250);
 });
@@ -102,7 +102,7 @@ test('avoids pockets on line to target', () => {
   const state = {
     balls: [
       { id: 0, colour: 'cue', x: 50, y: 100 },
-      { id: 1, colour: 'yellow', x: 250, y: 100 },
+      { id: 1, colour: 'blue', x: 250, y: 100 },
       { id: 2, colour: 'red', x: 150, y: 150 }
     ],
     pockets: [
@@ -115,7 +115,7 @@ test('avoids pockets on line to target', () => {
     width: 300,
     height: 200,
     ballRadius: 10,
-    ballOn: 'yellow',
+    ballOn: 'blue',
     isOpenTable: false,
     shotsRemaining: 1
   };
@@ -127,8 +127,8 @@ test('avoids clustered targets', () => {
   const state = {
     balls: [
       { id: 0, colour: 'cue', x: 50, y: 50 },
-      { id: 1, colour: 'yellow', x: 200, y: 100 },
-      { id: 3, colour: 'yellow', x: 215, y: 105 },
+      { id: 1, colour: 'blue', x: 200, y: 100 },
+      { id: 3, colour: 'blue', x: 215, y: 105 },
       { id: 2, colour: 'red', x: 150, y: 150 }
     ],
     pockets: [
@@ -140,7 +140,7 @@ test('avoids clustered targets', () => {
     width: 300,
     height: 200,
     ballRadius: 10,
-    ballOn: 'yellow',
+    ballOn: 'blue',
     isOpenTable: false,
     shotsRemaining: 1
   };

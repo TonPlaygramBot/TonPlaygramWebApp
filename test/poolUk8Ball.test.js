@@ -21,7 +21,7 @@ test('scratch on break gives opponent two visits without free ball', () => {
 test('after foul player must hit a valid colour first', () => {
   const game = new UkPool();
   game.shotTaken({
-    contactOrder: ['yellow'],
+    contactOrder: ['blue'],
     potted: ['cue'],
     cueOffTable: false,
     noCushionAfterContact: false,
@@ -41,7 +41,7 @@ test('after foul player must hit a valid colour first', () => {
 test('no pot and no cushion is foul', () => {
   const game = new UkPool();
   const res = game.shotTaken({
-    contactOrder: ['yellow'],
+    contactOrder: ['blue'],
     potted: [],
     cueOffTable: false,
     noCushionAfterContact: true,
@@ -53,10 +53,10 @@ test('no pot and no cushion is foul', () => {
 
 test('potting opponent ball is foul', () => {
   const game = new UkPool();
-  game.state.assignments = { A: 'yellow', B: 'red' };
+  game.state.assignments = { A: 'blue', B: 'red' };
   game.state.isOpenTable = false;
   const res = game.shotTaken({
-    contactOrder: ['yellow'],
+    contactOrder: ['blue'],
     potted: ['red'],
     cueOffTable: false,
     noCushionAfterContact: false,
@@ -68,10 +68,10 @@ test('potting opponent ball is foul', () => {
 
 test('potting 8-ball before clearing group loses the frame', () => {
   const game = new UkPool();
-  // assign groups by potting one yellow
+  // assign groups by potting one blue
   game.shotTaken({
-    contactOrder: ['yellow'],
-    potted: ['yellow'],
+    contactOrder: ['blue'],
+    potted: ['blue'],
     cueOffTable: false,
     noCushionAfterContact: false,
     placedFromHand: false
@@ -93,14 +93,14 @@ test('two visits behaviour', () => {
   const game = new UkPool();
   // foul to give B two visits
   game.shotTaken({
-    contactOrder: ['yellow'],
+    contactOrder: ['blue'],
     potted: ['cue'],
     cueOffTable: false,
     noCushionAfterContact: false,
     placedFromHand: false
   });
   const res1 = game.shotTaken({
-    contactOrder: ['yellow'],
+    contactOrder: ['blue'],
     potted: [],
     cueOffTable: false,
     noCushionAfterContact: false,
@@ -111,15 +111,15 @@ test('two visits behaviour', () => {
 
   const game2 = new UkPool();
   game2.shotTaken({
-    contactOrder: ['yellow'],
+    contactOrder: ['blue'],
     potted: ['cue'],
     cueOffTable: false,
     noCushionAfterContact: false,
     placedFromHand: false
   });
   const res2 = game2.shotTaken({
-    contactOrder: ['yellow'],
-    potted: ['yellow'],
+    contactOrder: ['blue'],
+    potted: ['blue'],
     cueOffTable: false,
     noCushionAfterContact: false,
     placedFromHand: true
@@ -131,22 +131,22 @@ test('two visits behaviour', () => {
 test('potting both colours on break requires choice', () => {
   const game = new UkPool();
   const res = game.shotTaken({
-    contactOrder: ['yellow'],
-    potted: ['yellow', 'red'],
+    contactOrder: ['blue'],
+    potted: ['blue', 'red'],
     cueOffTable: false,
     noCushionAfterContact: false,
     placedFromHand: false
   });
   assert.equal(res.foul, false);
   assert.equal(res.choiceRequired, true);
-  game.chooseColor('A', 'yellow');
-  assert.equal(game.state.assignments.A, 'yellow');
+  game.chooseColor('A', 'blue');
+  assert.equal(game.state.assignments.A, 'blue');
 });
 
 test('cross pot on break is legal', () => {
   const game = new UkPool();
   const res = game.shotTaken({
-    contactOrder: ['yellow'],
+    contactOrder: ['blue'],
     potted: ['red'],
     cueOffTable: false,
     noCushionAfterContact: false,
@@ -159,7 +159,7 @@ test('cross pot on break is legal', () => {
 test('cross pot on open table after break is foul', () => {
   const game = new UkPool();
   game.shotTaken({
-    contactOrder: ['yellow'],
+    contactOrder: ['blue'],
     potted: [],
     cueOffTable: false,
     noCushionAfterContact: false,
@@ -167,7 +167,7 @@ test('cross pot on open table after break is foul', () => {
   });
   const res = game.shotTaken({
     contactOrder: ['red'],
-    potted: ['yellow'],
+    potted: ['blue'],
     cueOffTable: false,
     noCushionAfterContact: false,
     placedFromHand: false
@@ -178,9 +178,9 @@ test('cross pot on open table after break is foul', () => {
 
 test('potting 8-ball legally after clearing group wins', () => {
   const game = new UkPool();
-  game.state.assignments = { A: 'yellow', B: 'red' };
+  game.state.assignments = { A: 'blue', B: 'red' };
   game.state.isOpenTable = false;
-  game.state.ballsOnTable.yellow.clear();
+  game.state.ballsOnTable.blue.clear();
   const res = game.shotTaken({
     contactOrder: ['black'],
     potted: ['black'],
@@ -195,9 +195,9 @@ test('potting 8-ball legally after clearing group wins', () => {
 
 test('hitting black after clearing group without pot is legal', () => {
   const game = new UkPool();
-  game.state.assignments = { A: 'yellow', B: 'red' };
+  game.state.assignments = { A: 'blue', B: 'red' };
   game.state.isOpenTable = false;
-  game.state.ballsOnTable.yellow.clear();
+  game.state.ballsOnTable.blue.clear();
   const res = game.shotTaken({
     contactOrder: ['black'],
     potted: [],
@@ -210,7 +210,7 @@ test('hitting black after clearing group without pot is legal', () => {
 
 test('potting black when one colour cleared on open table is legal', () => {
   const game = new UkPool();
-  game.state.ballsOnTable.yellow.clear();
+  game.state.ballsOnTable.blue.clear();
   game.state.isOpenTable = true;
   const res = game.shotTaken({
     contactOrder: ['black'],
@@ -227,14 +227,14 @@ test('potting black when one colour cleared on open table is legal', () => {
 test('after foul cue must be played from baulk', () => {
   const game = new UkPool();
   game.shotTaken({
-    contactOrder: ['yellow'],
+    contactOrder: ['blue'],
     potted: ['cue'],
     cueOffTable: false,
     noCushionAfterContact: false,
     placedFromHand: false
   });
   const res = game.shotTaken({
-    contactOrder: ['yellow'],
+    contactOrder: ['blue'],
     potted: [],
     cueOffTable: false,
     noCushionAfterContact: false,
@@ -246,9 +246,9 @@ test('after foul cue must be played from baulk', () => {
 
 test('shots after frame end are not fouls', () => {
   const game = new UkPool();
-  game.state.assignments = { A: 'yellow', B: 'red' };
+  game.state.assignments = { A: 'blue', B: 'red' };
   game.state.isOpenTable = false;
-  game.state.ballsOnTable.yellow.clear();
+  game.state.ballsOnTable.blue.clear();
   game.shotTaken({
     contactOrder: ['black'],
     potted: ['black'],
@@ -257,7 +257,7 @@ test('shots after frame end are not fouls', () => {
     placedFromHand: false
   });
   const res = game.shotTaken({
-    contactOrder: ['yellow'],
+    contactOrder: ['blue'],
     potted: [],
     cueOffTable: false,
     noCushionAfterContact: false,
@@ -285,7 +285,7 @@ test('AI targets black when own balls cleared', () => {
     width: 300,
     height: 300,
     ballRadius: 5,
-    ballOn: 'yellow',
+    ballOn: 'blue',
     isOpenTable: false,
     shotsRemaining: 1
   };
@@ -298,7 +298,7 @@ test('AI plays safety when own ball is blocked', () => {
   const state = {
     balls: [
       { id: 0, colour: 'cue', x: 50, y: 150 },
-      { id: 1, colour: 'yellow', x: 250, y: 150 },
+      { id: 1, colour: 'blue', x: 250, y: 150 },
       { id: 2, colour: 'red', x: 150, y: 150 }
     ],
     pockets: [
@@ -312,7 +312,7 @@ test('AI plays safety when own ball is blocked', () => {
     width: 300,
     height: 300,
     ballRadius: 5,
-    ballOn: 'yellow',
+    ballOn: 'blue',
     isOpenTable: false,
     shotsRemaining: 1
   };
@@ -325,7 +325,7 @@ test('AI increases EV after learning from success', () => {
   const state = {
     balls: [
       { id: 0, colour: 'cue', x: 200, y: 20 },
-      { id: 1, colour: 'yellow', x: 260, y: 20 }
+      { id: 1, colour: 'blue', x: 260, y: 20 }
     ],
     pockets: [
       { name: 'TL', x: 0, y: 0 },
@@ -338,7 +338,7 @@ test('AI increases EV after learning from success', () => {
     width: 300,
     height: 300,
     ballRadius: 5,
-    ballOn: 'yellow',
+    ballOn: 'blue',
     isOpenTable: false,
     shotsRemaining: 1
   };
