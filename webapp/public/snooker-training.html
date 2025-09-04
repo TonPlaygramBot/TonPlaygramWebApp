@@ -24,8 +24,6 @@
     .panel{background:#0b1224d0;border:1px solid #233261;border-radius:16px;padding:20px;width:min(520px,92%);box-shadow:0 20px 60px #000a, inset 0 0 0 1px #ffffff10}
     .panel h1{margin:0 0 6px;font-size:22px}
     .panel p{margin:6px 0 12px;color:#c7d2fe}
-    .bar{position:relative;width:140px;height:10px;background:#0a1226;border:1px solid #1e2a55;border-radius:999px;overflow:hidden}
-    .bar>i{position:absolute;inset:0;width:0;background:linear-gradient(90deg,#6ee7ff,#60a5fa);box-shadow:0 0 20px #60a5fa55 inset}
     #psContainer{position:fixed;top:50%;right:12px;transform:translateY(-50%);pointer-events:auto}
     #spinBox{position:fixed;top:60px;left:50%;transform:translate(-50%,-50%);width:70px;height:70px;border-radius:50%;background:#f6f6f6;box-shadow:0 4px 10px rgba(0,0,0,0.4) inset,0 0 0 2px rgba(0,0,0,0.15);pointer-events:auto;touch-action:none;z-index:20;cursor:pointer}
     #spinDot{position:absolute;width:10px;height:10px;border-radius:50%;background:#e63;left:50%;top:50%;transform:translate(-50%,-50%);pointer-events:none}
@@ -605,28 +603,114 @@
 
     function drawGuides(){
       if(!game.aiming || anyBallsMoving() || game.placingCue) return;
-      const c = cueBall(); if(!c || !c.active) return;
-      if(drag.active){
-        const dx = c.x - drag.x, dy = c.y - drag.y; // pull-back direction
-        const ang = Math.atan2(dy, dx);
-        const len = Math.min(Math.hypot(dx,dy), geom.ballR*10);
-        // cue line
+      const c = cueBall(); if(!c || !c.active || !drag.active) return;
+      const aim = {x:drag.x, y:drag.y};
+      const dx = aim.x - c.x, dy = aim.y - c.y;
+      const L = Math.hypot(dx, dy) || 1;
+      const dir = {x:dx/L, y:dy/L};
+      let tHit = Infinity;
+      let target = null;
+      let railNormal = null;
+      function checkRail(t, normal){ if(t>=0 && t<tHit){ tHit=t; railNormal=normal; target=null; } }
+      const I = table.inner;
+      const ballR = geom.ballR;
+      if(dir.x < 0) checkRail((I.x + ballR - c.x) / dir.x, {x:1, y:0});
+      if(dir.x > 0) checkRail((I.x + I.w - ballR - c.x) / dir.x, {x:-1, y:0});
+      if(dir.y < 0) checkRail((I.y + ballR - c.y) / dir.y, {x:0, y:1});
+      if(dir.y > 0) checkRail((I.y + I.h - ballR - c.y) / dir.y, {x:0, y:-1});
+      const diam = ballR * 2, diam2 = diam * diam;
+      for(const b of balls){
+        if(b === c || !b.active) continue;
+        const v = {x:b.x - c.x, y:b.y - c.y};
+        const proj = v.x*dir.x + v.y*dir.y;
+        if(proj <= 0) continue;
+        const perp2 = v.x*v.x + v.y*v.y - proj*proj;
+        if(perp2 > diam2) continue;
+        const thc = Math.sqrt(diam2 - perp2);
+        const t = proj - thc;
+        if(t >= 0 && t < tHit){ tHit = t; target = b; railNormal = null; }
+      }
+      const impactX = c.x + dir.x * tHit;
+      const impactY = c.y + dir.y * tHit;
+      let contactX = impactX, contactY = impactY, hitN = null;
+      if(target){
+        hitN = {x: target.x - impactX, y: target.y - impactY};
+        const nL0 = Math.hypot(hitN.x, hitN.y) || 1;
+        hitN.x /= nL0; hitN.y /= nL0;
+        contactX = target.x - hitN.x * ballR;
+        contactY = target.y - hitN.y * ballR;
+      }
+      const guaranteedHit = target && !railNormal;
+      ctx.save();
+      ctx.strokeStyle = guaranteedHit ? 'rgba(255,255,0,1)' : 'rgba(255,255,255,.7)';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(c.x, c.y);
+      ctx.lineTo(contactX, contactY);
+      ctx.stroke();
+      ctx.restore();
+      if(!target && railNormal){
+        let dotIn = dir.x*railNormal.x + dir.y*railNormal.y;
+        let refl = {x:dir.x - 2*dotIn*railNormal.x, y:dir.y - 2*dotIn*railNormal.y};
+        refl.x += spinVec.x * 0.4;
+        refl.y += spinVec.y * 0.4;
+        const rL = Math.hypot(refl.x, refl.y) || 1;
+        refl.x /= rL; refl.y /= rL;
         ctx.save();
-        ctx.strokeStyle = 'rgba(255,255,255,0.7)';
-        ctx.lineWidth = Math.max(1.5*state.dpr, 2);
-        ctx.setLineDash([]);
+        ctx.strokeStyle = 'rgba(255,255,255,.5)';
+        ctx.lineWidth = 1;
         ctx.beginPath();
-        const gx = c.x + Math.cos(ang) * (c.r + 6);
-        const gy = c.y + Math.sin(ang) * (c.r + 6);
-        ctx.moveTo(gx, gy);
-        ctx.lineTo(gx + Math.cos(ang) * len, gy + Math.sin(ang) * len);
-        ctx.stroke();
-        // arrow
-        ctx.beginPath();
-        ctx.moveTo(gx + Math.cos(ang) * len, gy + Math.sin(ang) * len);
-        ctx.lineTo(gx + Math.cos(ang) * (len+14), gy + Math.sin(ang) * (len+14));
+        ctx.moveTo(impactX, impactY);
+        ctx.lineTo(impactX + refl.x * ballR * 4, impactY + refl.y * ballR * 4);
         ctx.stroke();
         ctx.restore();
+      }
+      if(target){
+        const hitSpotX = target.x - hitN.x * ballR;
+        const hitSpotY = target.y - hitN.y * ballR;
+        const markerR = ballR;
+        ctx.save();
+        ctx.strokeStyle = 'rgba(255,255,255,.8)';
+        ctx.lineWidth = 1;
+        ctx.beginPath(); ctx.arc(hitSpotX, hitSpotY, markerR, 0, Math.PI*2); ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(hitSpotX - markerR/2, hitSpotY);
+        ctx.lineTo(hitSpotX + markerR/2, hitSpotY);
+        ctx.moveTo(hitSpotX, hitSpotY - markerR/2);
+        ctx.lineTo(hitSpotX, hitSpotY + markerR/2);
+        ctx.stroke();
+        ctx.restore();
+        let tMax = Infinity;
+        if(hitN.x > 0) tMax = Math.min(tMax, (I.x + I.w - ballR - target.x) / hitN.x);
+        if(hitN.x < 0) tMax = Math.min(tMax, (I.x + ballR - target.x) / hitN.x);
+        if(hitN.y > 0) tMax = Math.min(tMax, (I.y + I.h - ballR - target.y) / hitN.y);
+        if(hitN.y < 0) tMax = Math.min(tMax, (I.y + ballR - target.y) / hitN.y);
+        const ex = target.x + hitN.x * tMax;
+        const ey = target.y + hitN.y * tMax;
+        ctx.save();
+        ctx.strokeStyle = 'rgba(255,255,255,.3)';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(hitSpotX, hitSpotY);
+        ctx.lineTo(ex - hitN.x * ballR, ey - hitN.y * ballR);
+        ctx.stroke();
+        ctx.restore();
+        const dot = dir.x*hitN.x + dir.y*hitN.y;
+        const cbDir = {x:dir.x - hitN.x*dot, y:dir.y - hitN.y*dot};
+        const cbL = Math.hypot(cbDir.x, cbDir.y);
+        if(cbL > 0.0001){
+          cbDir.x /= cbL; cbDir.y /= cbL;
+          const cbEndX = impactX + cbDir.x * ballR * 4;
+          const cbEndY = impactY + cbDir.y * ballR * 4;
+          ctx.save();
+          ctx.strokeStyle = 'rgba(255,255,255,.5)';
+          ctx.lineWidth = 1;
+          ctx.beginPath();
+          ctx.moveTo(impactX, impactY);
+          ctx.lineTo(cbEndX, cbEndY);
+          ctx.stroke();
+          ctx.restore();
+        }
       }
     }
 
