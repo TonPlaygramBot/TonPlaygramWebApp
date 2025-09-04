@@ -31,10 +31,6 @@ export default function PoolRoyaleLobby() {
   }, []);
 
   const startGame = async () => {
-    if (playType === 'training' && variant === 'snooker') {
-      window.location.href = '/snooker-training.html';
-      return;
-    }
     let tgId;
     let accountId;
     if (playType !== 'training') {
