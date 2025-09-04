@@ -2297,7 +2297,7 @@
             // Brighten with a smaller, solid highlight
             grad.addColorStop(0, '#fff');
             grad.addColorStop(0.6, brighten(BALL_BY_N[b.n].c, 0.05));
-            grad.addColorStop(1, 'rgba(0,0,0,0.15)');
+            grad.addColorStop(1, 'rgba(0,0,0,0.35)');
 
             // stripe nese duhet
             var stripe =
@@ -2315,7 +2315,7 @@
               // Brighten stripe with a smaller, solid highlight
               stripeGrad.addColorStop(0, '#fff');
               stripeGrad.addColorStop(0.6, '#fff');
-              stripeGrad.addColorStop(1, 'rgba(0,0,0,0.15)');
+              stripeGrad.addColorStop(1, 'rgba(0,0,0,0.35)');
             }
 
             // draw base shading without rotation so shadow stays fixed
@@ -3487,16 +3487,14 @@
             cue.p.y = CUE_START_Y;
             cue.v.x = cue.v.y = 0;
           }
-          const balls = table.balls
-            .filter(Boolean)
-            .map((b) => ({
-              id: b.n,
-              x: b.p.x,
-              y: b.p.y,
-              vx: b.v.x,
-              vy: b.v.y,
-              pocketed: !!b.pocketed
-            }));
+          const balls = table.balls.filter(Boolean).map((b) => ({
+            id: b.n,
+            x: b.p.x,
+            y: b.p.y,
+            vx: b.v.x,
+            vy: b.v.y,
+            pocketed: !!b.pocketed
+          }));
           const pockets = table.pockets.map((p) => ({ x: p.x, y: p.y }));
           const req = {
             game: isNineBall
