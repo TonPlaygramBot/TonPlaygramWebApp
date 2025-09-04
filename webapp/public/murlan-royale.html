@@ -2118,6 +2118,7 @@
                   loserHand.sort(
                     (a, b) => rankValue(a.r) - rankValue(b.r)
                   );
+                  renderAll();
                 }
                 winnerHand.sort((a, b) => rankValue(a.r) - rankValue(b.r));
               }
