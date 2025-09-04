@@ -195,6 +195,16 @@
         z-index: 4;
       }
 
+      #tableFrame {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        z-index: 5;
+        pointer-events: none;
+      }
+
       #cueHint {
         position: absolute;
         z-index: 7;
@@ -768,6 +778,11 @@
 
       <div id="wrap">
         <canvas id="table"></canvas>
+        <img
+          id="tableFrame"
+          src="/assets/icons/file_00000000b79061f8832e85ac1a2680f3.webp"
+          alt="Table frame"
+        />
         <img
           id="tableLogo"
           src="/assets/icons/file_00000000bc2862439eecffff3730bbe4.webp"
@@ -1690,15 +1705,9 @@
           ctx.closePath();
         }
 
-        // Render the wooden rails, felt and pockets on the table canvas
+        // Render the felt and pockets on the table canvas
         function drawTable() {
-          var railW = TABLE_W * sX;
-          var railH = TABLE_H * sY;
-          var wood = ctx.createLinearGradient(0, 0, 0, railH);
-          wood.addColorStop(0, '#4a3522');
-          wood.addColorStop(1, '#2c2117');
-          ctx.fillStyle = wood;
-          ctx.fillRect(0, 0, railW, railH);
+          ctx.clearRect(0, 0, canvas.width, canvas.height);
 
           var fx = BORDER * sX;
           var fy = BORDER_TOP * sY;
@@ -1711,15 +1720,6 @@
           felt.addColorStop(1, '#0c5034');
           ctx.fillStyle = felt;
           ctx.fill();
-
-          // draw darker green cushions around the field
-          pathRoundedRect(fx, fy, fw, fh, BORDER * 0.4 * sX);
-          var cushion = ctx.createLinearGradient(fx, fy, fx, fy + fh);
-          cushion.addColorStop(0, '#0d5a38');
-          cushion.addColorStop(1, '#094f30');
-          ctx.strokeStyle = cushion;
-          ctx.lineWidth = BORDER * 0.3 * sX;
-          ctx.stroke();
 
           drawPocket(BORDER, BORDER_TOP, POCKET_R, 1, 1);
           drawPocket(TABLE_W - BORDER, BORDER_TOP, POCKET_R, -1, 1);
@@ -1771,17 +1771,9 @@
           ctx.arc(px, py, pr * 0.86, 0, Math.PI * 2);
           ctx.stroke();
 
-          // draw dark triangular cut on the rail
+          // draw dark triangular cut on the rail only for corner pockets
           ctx.fillStyle = '#000';
-          if (dirY === 0) {
-            // side pockets: mirror vertically for symmetry
-            ctx.beginPath();
-            ctx.moveTo(px, py);
-            ctx.lineTo(px + dirX * pr * 1.2, py - pr * 0.6);
-            ctx.lineTo(px + dirX * pr * 1.2, py + pr * 0.6);
-            ctx.closePath();
-            ctx.fill();
-          } else {
+          if (dirY !== 0) {
             ctx.beginPath();
             ctx.moveTo(px, py);
             ctx.lineTo(px + dirX * pr * 1.2, py);
