@@ -177,10 +177,22 @@
         content: '';
         position: absolute;
         inset: 0;
-        background: url('/assets/icons/64e79228-35e3-4fdc-b914-fca635a40220.webp')
+        background: url('/assets/icons/Pool table .webp')
           top center/calc(100% + 8px) calc(100% + 20px) no-repeat;
         filter: brightness(var(--table-brightness));
         z-index: -1;
+      }
+
+      #tableLogo {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        width: 25%;
+        opacity: 0.2;
+        filter: grayscale(1);
+        z-index: 3;
+        pointer-events: none;
       }
 
       :root {
@@ -771,6 +783,11 @@
 
       <div id="wrap">
         <canvas id="table"></canvas>
+        <img
+          id="tableLogo"
+          src="/assets/icons/file_00000000bc2862439eecffff3730bbe4.webp"
+          alt="TonPlaygram logo"
+        />
         <div id="cueHint">✋️</div>
 
         <div id="cueOptions">
