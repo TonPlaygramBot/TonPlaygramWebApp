@@ -4,248 +4,389 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
   <title>Snooker 2.5D — Mobile Portrait</title>
-    <link rel="stylesheet" href="./power-slider.css" />
   <style>
-    :root{--bg:#0b0f1c;--felt:#105a3b;--rail:#3a2a1a;--rail2:#2c2117;--line:#e8f0ff;--hud:#0b1224cc;--hud-b:#21305f;--text:#e5e7eb}
+    :root{
+      --bg:#0b0f1c;--felt:#105a3b;--felt-dark:#0d4a31;--rail:#3a2a1a;--cushion:#0f7a4a;--line:#d9e3f0;--ring:#1a1a1a;--ring2:#333;--hud:#0b1224cc;--hud-border:#21305f;--accent:#6ee7ff;--text:#e5e7eb;--muted:#a0aec0
+    }
     *{box-sizing:border-box}
-    body{margin:0;background:#1a2b4d url('/assets/icons/64e79228-35e3-4fdc-b914-fca635a40220.webp') top center/cover no-repeat;touch-action:none;overscroll-behavior:none;overflow:hidden;font-family:system-ui,Segoe UI,Roboto,Helvetica,Arial}
-    canvas{width:100vw;height:100dvh;display:block;background:transparent}
-    .hud{position:fixed;bottom:0;left:0;right:0;display:flex;justify-content:center;align-items:center;padding:10px 12px;background:rgba(0,0,0,0.4);color:var(--text)}
-    .btn{background:#1f2b4d;border:1px solid #3a5599;color:#e5e7eb;border-radius:10px;padding:10px 14px;font-weight:600;cursor:pointer}
-    .overlay{position:fixed;inset:0;display:grid;place-items:center;background:rgba(0,0,0,0.5)}
-    .panel{background:#101827;border:1px solid #26385f;color:#e5e7eb;padding:16px 18px;border-radius:12px;box-shadow:0 12px 40px #000a;text-align:center}
-    #header{position:fixed;top:0;left:0;right:0;height:56px;display:flex;align-items:center;justify-content:space-between;padding:0 12px;background:rgba(0,0,0,0.6);color:#fff;z-index:10}
-    .player{display:flex;align-items:center;gap:8px}
-    .avatar{width:36px;height:36px;border-radius:50%;background:#fff;color:#222;display:grid;place-items:center;font-weight:700}
-    .name{font-weight:700}
-    .score{font-size:18px;font-weight:700;min-width:32px;text-align:center}
-    #power{position:fixed;top:50%;right:20px;transform:translateY(-50%);z-index:10}
-    #spinBox{position:fixed;top:80px;left:50%;width:80px;height:80px;transform:translateX(-50%);background:rgba(0,0,0,0.4);border:2px solid #fff;border-radius:50%;touch-action:none;z-index:10}
-    #spinDot{position:absolute;width:12px;height:12px;border-radius:50%;background:#fff;top:50%;left:50%;transform:translate(-50%,-50%)}
+    html,body{height:100%;margin:0;background:radial-gradient(1200px 700px at 70% 10%,#0f1733,var(--bg));color:var(--text);font-family:Inter,ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial}
+    body{touch-action:none;overscroll-behavior:none}
+    .wrap{position:fixed;inset:0;display:grid;place-items:center}
+    /* use dynamic viewport for mobile chrome */
+    canvas{width:100vw;height:100dvh;display:block}
+    .hud{position:fixed;inset:0;pointer-events:none;display:flex;justify-content:space-between;align-items:flex-start;padding:12px}
+    .pill{pointer-events:auto;background:var(--hud);border:1px solid var(--hud-border);border-radius:999px;padding:8px 12px;box-shadow:0 6px 24px #0009, inset 0 0 0 1px #ffffff12;backdrop-filter:blur(6px);font-size:13px}
+    .stack{display:flex;gap:8px;align-items:center}
+    .btn{pointer-events:auto;user-select:none;cursor:pointer;background:linear-gradient(180deg,#1b2350,#12183b);border:1px solid #2b3a73;border-radius:12px;padding:8px 12px;color:var(--text);font-weight:600;box-shadow:0 8px 24px #0008, inset 0 0 0 1px #ffffff12}
+    .btn.ghost{background:transparent}
+    .centerOverlay{position:fixed;inset:0;display:none;place-items:center;background:linear-gradient(180deg,#0c102099,#0c102099);backdrop-filter:blur(4px)}
+    .panel{background:#0b1224d0;border:1px solid #233261;border-radius:16px;padding:20px;width:min(520px,92%);box-shadow:0 20px 60px #000a, inset 0 0 0 1px #ffffff10}
+    .panel h1{margin:0 0 6px;font-size:22px}
+    .panel p{margin:6px 0 12px;color:#c7d2fe}
+    .bar{position:relative;width:140px;height:10px;background:#0a1226;border:1px solid #1e2a55;border-radius:999px;overflow:hidden}
+    .bar>i{position:absolute;inset:0;width:0;background:linear-gradient(90deg,#6ee7ff,#60a5fa);box-shadow:0 0 20px #60a5fa55 inset}
+    .hint{position:fixed;left:50%;transform:translateX(-50%);top:54px;font-size:12px;color:var(--muted)}
   </style>
 </head>
 <body>
-  <div id="header">
-    <div class="player">
-      <div class="avatar" id="userAvatar">U</div>
-      <div class="info">
-        <div class="name" id="userName">Player 🇺🇸</div>
-        <div class="score" id="score">0</div>
-      </div>
-    </div>
-    <div class="player">
-      <div class="info">
-        <div class="name" id="aiName">CPU 🇬🇧</div>
-        <div class="score" id="aiScore">0</div>
-      </div>
-      <div class="avatar">🤖</div>
-    </div>
+  <div class="wrap">
+    <canvas id="game"></canvas>
   </div>
-  <canvas id="game"></canvas>
-  <div id="spinBox"><div id="spinDot"></div></div>
-  <div id="power"></div>
   <div class="hud">
-    <button id="reset" class="btn">New Rack</button>
-  </div>
-  <div class="overlay" id="overlay">
-    <div class="panel">
-      <h3 style="margin:0 0 6px">Snooker 2.5D — Mobile Portrait</h3>
-      <p style="margin:0 0 12px;font-size:14px">Tërhiq nga topi i bardhë për të marrë shenjë. Rregullo fuqinë me slider. Lësho për të goditur.</p>
-      <button id="startBtn" class="btn">Start</button>
+    <div class="stack">
+      <div class="pill">Score: <b id="score">0</b></div>
+      <div class="pill">Mode: <b>Practice</b></div>
+    </div>
+    <div class="stack">
+      <div class="pill">Power
+        <span class="bar"><i id="powerFill"></i></span>
+      </div>
+      <button class="btn" id="resetBtn">New Rack</button>
+      <button class="btn ghost" id="helpBtn">Help</button>
     </div>
   </div>
-  <script type="module">
-    import { PowerSlider } from './power-slider.js';
-  ;(()=>{
-    const canvas=document.getElementById('game');
-    const ctx=canvas.getContext('2d');
-    const overlay=document.getElementById('overlay');
-    const startBtn=document.getElementById('startBtn');
-    const powerMount=document.getElementById('power');
-    const spinBox=document.getElementById('spinBox');
-    const spinDot=document.getElementById('spinDot');
+  <div class="centerOverlay" id="overlay">
+    <div class="panel">
+      <h1>Snooker 2.5D — Mobile Portrait</h1>
+      <p>Pull back from the cue ball to aim and set power, then release to strike. Full‑screen vertical, touch controls. Practice mode: reds disappear when potted, colours respawn on their spots.</p>
+      <div class="stack" style="margin-top:10px">
+        <button class="btn" id="startBtn">Start</button>
+        <button class="btn ghost" id="howBtn">How to Play</button>
+      </div>
+      <p style="font-size:12px;color:#9aa7d7;margin-top:10px">Tip: If the cue ball is potted, tap inside the baulk area to place it (in‑hand).</p>
+    </div>
+  </div>
+  <div class="hint" id="hint">Pull back to aim • Release to shoot</div>
 
-    let W,H;function resize(){W=canvas.width=window.innerWidth;H=canvas.height=window.innerHeight;}resize();window.addEventListener('resize',resize);
+  <script>
+  ;(() => {
+    const canvas = document.getElementById('game');
+    const ctx = canvas.getContext('2d');
+    const overlay = document.getElementById('overlay');
+    const startBtn = document.getElementById('startBtn');
+    const howBtn = document.getElementById('howBtn');
+    const helpBtn = document.getElementById('helpBtn');
+    const resetBtn = document.getElementById('resetBtn');
+    const scoreEl = document.getElementById('score');
+    const powerFill = document.getElementById('powerFill');
 
-    // Table frame + inner play area (do NOT move table center)
-    let FR=Math.round(Math.min(W,H)*0.04); // frame thickness
-    const balls=[];const pockets=[];const R=22;let score=0;let running=false;
+    // --- DPI / Resize ------------------------------------------------------
+    const state = { w: 0, h: 0, dpr: 1 };
+    const table = { x:0, y:0, w:0, h:0, rail:0, inner:{} };
 
-    const scoreEl=document.getElementById('score');
+    function resize(){
+      state.dpr = Math.min(window.devicePixelRatio || 1, 2);
+      state.w = Math.floor(window.innerWidth * state.dpr);
+      state.h = Math.floor(window.innerHeight * state.dpr);
+      canvas.width = state.w; canvas.height = state.h;
+      canvas.style.width = window.innerWidth + 'px';
+      canvas.style.height = window.innerHeight + 'px';
+      layoutTable();
+    }
 
-    const table={get ix(){return FR},get iy(){return FR},get iw(){return W-FR*2},get ih(){return H-FR*2}};
+    function layoutTable(){
+      const margin = Math.floor(Math.min(state.w, state.h) * 0.04);
+      // PORTRAIT-FIRST: make the table long vertically (H ~ 2x W)
+      const playRatio = 0.5; // w:h = 1:2 (portrait snooker look)
+      let innerH = state.h - margin*2;    // fill HEIGHT first
+      let innerW = innerH * playRatio;    // then derive WIDTH
+      if(innerW > state.w - margin*2){    // if too wide, fallback to fit width
+        innerW = state.w - margin*2;
+        innerH = innerW / playRatio;
+      }
+      const rail = Math.floor(Math.min(innerW, innerH) * 0.04); // visual rail thickness
+      table.x = Math.floor((state.w - innerW) / 2);
+      table.y = Math.floor((state.h - innerH) / 2);
+      table.w = Math.floor(innerW);
+      table.h = Math.floor(innerH);
+      table.rail = rail;
+      table.inner = {
+        x: table.x + rail,
+        y: table.y + rail,
+        w: table.w - rail*2,
+        h: table.h - rail*2
+      };
+      computeGeometry();
+    }
 
-    const powerSlider = new PowerSlider({
-      mount: powerMount,
-      value: 55,
-      cueSrc: '/assets/icons/file_0000000019d86243a2f7757076cd7869.webp'
-    });
-    let spinVec = { x: 0, y: 0 };
+    // --- Table geometry & spots -------------------------------------------
+    const geom = { pockets:[], spots:{}, baulkY:0, dRadius:0, ballR:0 };
 
-    function makeBall(x,y,color,type){return{x,y,vx:0,vy:0,r:R,color,active:true,type,spinX:0,spinY:0}};
+    function computeGeometry(){
+      const I = table.inner;
+      const W = I.w, H = I.h;
+      geom.ballR = Math.floor(Math.min(W,H) / 35); // scale ball size to table
+      const pr = Math.floor(geom.ballR * 2.15); // pocket radius
+
+      // pocket centers
+      geom.pockets = [
+        {x:I.x, y:I.y, r:pr},
+        {x:I.x + W/2, y:I.y, r:pr},
+        {x:I.x + W, y:I.y, r:pr},
+        {x:I.x, y:I.y + H, r:pr},
+        {x:I.x + W/2, y:I.y + H, r:pr},
+        {x:I.x + W, y:I.y + H, r:pr},
+      ];
+
+      // baulk line & D
+      geom.baulkY = I.y + H * 0.78; // approximate
+      geom.dRadius = W * 0.18; // approximate D radius
+
+      // spots (approximate, proportionate)
+      const cx = I.x + W/2;
+      geom.spots = {
+        black: { x: cx, y: I.y + H * 0.12 },
+        pink:  { x: cx, y: I.y + H * 0.28 },
+        blue:  { x: cx, y: I.y + H * 0.50 },
+        brown: { x: cx, y: geom.baulkY },
+        green: { x: I.x + W * 0.25, y: geom.baulkY },
+        yellow:{ x: I.x + W * 0.75, y: geom.baulkY },
+      };
+
+      // build initial rack when geometry changes
+      if(game.initialized) rack();
+    }
+
+    // --- Game objects ------------------------------------------------------
+    const balls = [];
+
+    const game = {
+      running:false,
+      placingCue:false,
+      aiming:false,
+      drag:{active:false, sx:0, sy:0, x:0, y:0, power:0},
+      score:0,
+      initialized:false
+    };
+
+    function makeBall(x,y,color,value,type,spot){
+      return {x,y,vx:0,vy:0,r:geom.ballR,color,value,type,active:true,spot, id:Math.random().toString(36).slice(2)}
+    }
 
     function rack(){
-      balls.length=0; score=0; scoreEl.textContent=score;
-      // cue ball near baulk (bottom side)
-      balls.push(makeBall(W/2, table.iy + table.ih*0.78, '#fff', 'cue'));
+      balls.length = 0;
+      game.score = 0;
+      updateScore();
+      const s = geom.spots;
+      const r = geom.ballR;
+      // colours on spots
+      balls.push(makeBall(s.yellow.x, s.yellow.y, '#f5d10a', 2, 'color', 'yellow'));
+      balls.push(makeBall(s.green.x,  s.green.y,  '#1f7a2e', 3, 'color', 'green'));
+      balls.push(makeBall(s.brown.x,  s.brown.y,  '#6b4f2e', 4, 'color', 'brown'));
+      balls.push(makeBall(s.blue.x,   s.blue.y,   '#1e58b8', 5, 'color', 'blue'));
+      balls.push(makeBall(s.pink.x,   s.pink.y,   '#f19cc4', 6, 'color', 'pink'));
+      balls.push(makeBall(s.black.x,  s.black.y,  '#0d0d0d', 7, 'color', 'black'));
 
-      // === Reds triangle (ROTATED as requested) ===
-      // Apex should be closer to the PINK (towards bottom). That means rows shrink towards bottom.
-      const gap=R*2.05;
-      const apexY = table.iy + table.ih*0.32 + gap*4; // apex near pink/bottom side of pack
-      const cx = W/2;
+      // reds triangle with apex near pink (toward baulk)
+      const startY = s.pink.y + r*3.6;
+      const cx = s.pink.x;
+      const gap = r*2.05;
       for(let row=0; row<5; row++){
-        const n = 5 - row; // 5,4,3,2,1 (apex at bottom)
-        const y = apexY - row*gap; // building upward
+        const y = startY + row*gap;
+        const n = row+1;
         const offsetX = cx - (n-1)*gap/2;
-        for(let i=0;i<n;i++) balls.push(makeBall(offsetX + i*gap, y, '#b11a1a','red'));
+        for(let i=0;i<n;i++) balls.push(makeBall(offsetX + i*gap, y, '#b11a1a', 1, 'red', null));
       }
 
-      // colours (kept same spots, portrait proportions)
-      balls.push(makeBall(W/2, table.iy + table.ih*0.14, '#0d0d0d','black'));
-      balls.push(makeBall(W/2, table.iy + table.ih*0.24, '#f19cc4','pink'));
-      balls.push(makeBall(W/2, table.iy + table.ih*0.50, '#1e58b8','blue'));
-      balls.push(makeBall(W/2, table.iy + table.ih*0.78, '#6b4f2e','brown'));
-      balls.push(makeBall(table.ix + table.iw*0.35, table.iy + table.ih*0.78, '#1f7a2e','green'));
-      balls.push(makeBall(table.ix + table.iw*0.65, table.iy + table.ih*0.78, '#f5d10a','yellow'));
+      // cue ball in hand (start placed near baulk)
+      const cueStart = { x: s.brown.x, y: geom.baulkY + (table.inner.h - (geom.baulkY - table.inner.y)) * 0.15 };
+      const cue = makeBall(cueStart.x, cueStart.y, '#ffffff', 0, 'cue', null);
+      balls.push(cue);
+
+      game.placingCue = false; // start with placed cue
+      game.aiming = true;
+      game.initialized = true;
     }
+    function updateScore(){ scoreEl.textContent = game.score.toString(); }
 
-    function setupPockets(){
-      pockets.length=0;
-      // 6 pockets on the LONG SIDES: 3 left rail, 3 right rail
-      const pr = R*1.7;
-      const Lx = table.ix; const Rx = table.ix + table.iw;
-      const topY = table.iy; const midY = table.iy + table.ih/2; const botY = table.iy + table.ih;
-      pockets.push({x:Lx, y:topY, r:pr});
-      pockets.push({x:Lx, y:midY, r:pr});
-      pockets.push({x:Lx, y:botY, r:pr});
-      pockets.push({x:Rx, y:topY, r:pr});
-      pockets.push({x:Rx, y:midY, r:pr});
-      pockets.push({x:Rx, y:botY, r:pr});
-    }
+    // --- Physics -----------------------------------------------------------
+    const phys = {
+      fric: 0.992,           // velocity retained per frame at 60fps
+      minSpeed: 2e-3,        // threshold to stop
+      cushionRest: 0.92,
+    };
 
-    function handleSpin(e){
-      const rect = spinBox.getBoundingClientRect();
-      const x = e.clientX - rect.left;
-      const y = e.clientY - rect.top;
-      const nx = Math.min(Math.max((x / rect.width) * 2 - 1, -1), 1);
-      const ny = Math.min(Math.max((y / rect.height) * 2 - 1, -1), 1);
-      spinVec = { x: nx, y: ny };
-      spinDot.style.left = 50 + nx * 50 + '%';
-      spinDot.style.top = 50 + ny * 50 + '%';
-    }
-    spinBox.addEventListener('pointerdown', e => {
-      spinBox.setPointerCapture(e.pointerId);
-      handleSpin(e);
-      spinBox.addEventListener('pointermove', handleSpin);
-      spinBox.addEventListener('pointerup', () => {
-        spinBox.releasePointerCapture(e.pointerId);
-        spinBox.removeEventListener('pointermove', handleSpin);
-      }, { once: true });
-    });
-
-    // Physics
-    const FRIC = 0.99, STOP=0.05, REST=0.92;
-
-    function physics(){
-      // integrate & cushions & pockets
-      for(const b of balls){ if(!b.active) continue;
-        b.x+=b.vx; b.y+=b.vy;
-        b.vx*=FRIC; b.vy*=FRIC;
-        if(b.type==='cue'){ b.vx+=b.spinX*0.05; b.vy+=b.spinY*0.05; b.spinX*=0.98; b.spinY*=0.98; }
-        if(Math.hypot(b.vx,b.vy) < STOP){ b.vx=b.vy=0; }
-        // cushions inside frame
-        const L = table.ix + R*0.05, T = table.iy + R*0.05, Rr = table.ix+table.iw - R*0.05, Bb = table.iy+table.ih - R*0.05;
-        if(b.x - b.r < L){ b.x=L + b.r; b.vx = Math.abs(b.vx)*REST; }
-        if(b.x + b.r > Rr){ b.x=Rr - b.r; b.vx = -Math.abs(b.vx)*REST; }
-        if(b.y - b.r < T){ b.y=T + b.r; b.vy = Math.abs(b.vy)*REST; }
-        if(b.y + b.r > Bb){ b.y=Bb - b.r; b.vy = -Math.abs(b.vy)*REST; }
-        // pockets on rails
-        for(const p of pockets){
-          const dx=b.x-p.x, dy=b.y-p.y; const rad=p.r*0.85; if(dx*dx+dy*dy < rad*rad){ b.active=false; b.vx=b.vy=0; if(b.type==='red'){ score++; scoreEl.textContent=score; } }
-        }
+    function step(dt){
+      // integrate
+      for(const b of balls){
+        if(!b.active) continue;
+        b.x += b.vx * dt;
+        b.y += b.vy * dt;
+        // friction
+        b.vx *= Math.pow(phys.fric, dt*60);
+        b.vy *= Math.pow(phys.fric, dt*60);
+        if(Math.hypot(b.vx,b.vy) < phys.minSpeed){ b.vx = b.vy = 0; }
       }
-      // collisions elastic equal mass
+
+      // ball-ball collisions (naive O(n^2))
       for(let i=0;i<balls.length;i++){
-        const a=balls[i]; if(!a.active) continue;
+        const a = balls[i]; if(!a.active) continue;
         for(let j=i+1;j<balls.length;j++){
-          const b=balls[j]; if(!b.active) continue;
-          let dx=b.x-a.x, dy=b.y-a.y; let dist=Math.hypot(dx,dy);
-          const min = a.r + b.r; if(dist===0){dist=0.001; dx=min; dy=0;}
-          if(dist < min){
-            const nx = dx / dist, ny = dy / dist;
-            // separate
-            const overlap = (min - dist) / 2; a.x -= nx*overlap; a.y -= ny*overlap; b.x += nx*overlap; b.y += ny*overlap;
-            // relative velocity along normal
-            const rvx = a.vx - b.vx, rvy = a.vy - b.vy; const vn = rvx*nx + rvy*ny; if(vn>0) continue;
-            const impulse = -(1.0)*vn;
-            a.vx -= impulse*nx; a.vy -= impulse*ny;
-            b.vx += impulse*nx; b.vy += impulse*ny;
+          const b = balls[j]; if(!b.active) continue;
+          resolveCollision(a,b);
+        }
+      }
+
+      // cushion collisions & pockets
+      for(const b of balls){
+        if(!b.active) continue;
+        cushionCollision(b);
+        checkPocket(b);
+      }
+    }
+
+    function resolveCollision(a,b){
+      const dx = b.x - a.x, dy = b.y - a.y;
+      const r = a.r + b.r;
+      const dist2 = dx*dx + dy*dy;
+      if(dist2 === 0) return;
+      if(dist2 < r*r){
+        const dist = Math.sqrt(dist2) || r;
+        const nx = dx / dist, ny = dy / dist;
+        // separate
+        const overlap = r - dist;
+        const total = (Math.hypot(a.vx,a.vy) + Math.hypot(b.vx,b.vy) + 0.01);
+        const wa = (Math.hypot(b.vx,b.vy)+0.01) / total;
+        const wb = 1 - wa;
+        a.x -= nx * overlap * wa;
+        a.y -= ny * overlap * wa;
+        b.x += nx * overlap * wb;
+        b.y += ny * overlap * wb;
+        // velocities (equal mass elastic)
+        const dvx = a.vx - b.vx, dvy = a.vy - b.vy;
+        const p = dvx*nx + dvy*ny;
+        if(p > 0) return;
+        const k = -p; // coefficient 1
+        a.vx -= nx * k; a.vy -= ny * k;
+        b.vx += nx * k; b.vy += ny * k;
+      }
+    }
+
+    function cushionCollision(b){
+      const I = table.inner;
+      // simple rectangular cushions
+      if(b.x - b.r < I.x){ b.x = I.x + b.r; b.vx = Math.abs(b.vx) * phys.cushionRest; }
+      if(b.x + b.r > I.x + I.w){ b.x = I.x + I.w - b.r; b.vx = -Math.abs(b.vx) * phys.cushionRest; }
+      if(b.y - b.r < I.y){ b.y = I.y + b.r; b.vy = Math.abs(b.vy) * phys.cushionRest; }
+      if(b.y + b.r > I.y + I.h){ b.y = I.y + I.h - b.r; b.vy = -Math.abs(b.vy) * phys.cushionRest; }
+    }
+
+    function checkPocket(b){
+      if(!b.active) return;
+      for(const p of geom.pockets){
+        const dx = b.x - p.x, dy = b.y - p.y;
+        if(dx*dx + dy*dy < (p.r*0.9) * (p.r*0.9)){
+          // potted
+          b.active = false; b.vx = b.vy = 0;
+          if(b.type === 'cue'){
+            game.placingCue = true; game.aiming = false;
+          } else if(b.type === 'red'){
+            game.score += 1; updateScore();
+          } else if(b.type === 'color'){
+            game.score += b.value; updateScore();
+            // respot colour
+            respotColor(b);
           }
+          break;
         }
       }
     }
 
-    // Drawing
-    function draw(){
-      ctx.clearRect(0,0,W,H);
-      const drawables = balls.filter(b=>b.active).sort((a,b)=>a.y-b.y);
-      for(const b of drawables){ drawBall(b); }
-      if(aiming && cue && cue.active){
-        drawAim();
+    function respotColor(b){
+      const target = geom.spots[b.spot];
+      if(!target){return}
+      // try original spot, then spiral search
+      const step = geom.ballR * 0.6;
+      for(let r=0;r<20;r++){
+        const ang = (r*137.5) * Math.PI/180; // golden angle
+        const rad = r*step;
+        const x = target.x + Math.cos(ang)*rad;
+        const y = target.y + Math.sin(ang)*rad;
+        if(inBoundsForBall(x,y) && !overlapsAny(x,y,geom.ballR)){
+          b.x = x; b.y = y; b.active = true; return;
+        }
       }
+      // if no space, keep it off the table
+      b.active = false;
     }
 
-    function drawBall(b){
-      // shadow
-      ctx.save(); ctx.globalAlpha=0.28; ctx.fillStyle='#000'; ctx.beginPath(); ctx.ellipse(b.x, b.y + b.r*0.6, b.r*1.2, b.r*0.5, 0, 0, Math.PI*2); ctx.fill(); ctx.restore();
-      // body
-      const grad = ctx.createRadialGradient(b.x-b.r*0.4, b.y-b.r*0.6, b.r*0.2, b.x, b.y, b.r*1.2);
-      grad.addColorStop(0, 'rgba(255,255,255,0.6)'); grad.addColorStop(0.6, b.color); grad.addColorStop(1, 'rgba(0,0,0,0.35)');
-      ctx.fillStyle=grad; ctx.beginPath(); ctx.arc(b.x,b.y,b.r,0,Math.PI*2); ctx.fill();
+    function inBoundsForBall(x,y){
+      const I = table.inner; const r = geom.ballR;
+      return (x-r>I.x && x+r<I.x+I.w && y-r>I.y && y+r<I.y+I.h);
     }
 
-    function drawAim(){
-      // pull-back direction from cue -> pointer
-      ctx.setLineDash([6,6]); ctx.strokeStyle='rgba(255,255,255,0.9)'; ctx.lineWidth=2;
-      ctx.beginPath(); ctx.moveTo(cue.x, cue.y); ctx.lineTo(aimX, aimY); ctx.stroke(); ctx.setLineDash([]);
-      // target point
-      ctx.beginPath(); ctx.arc(aimX,aimY,6,0,Math.PI*2); ctx.strokeStyle='#ff4d4f'; ctx.lineWidth=2; ctx.stroke();
+    function overlapsAny(x,y,r){
+      for(const o of balls){ if(!o.active) continue; const dx=o.x-x, dy=o.y-y; if(dx*dx+dy*dy < (o.r+r)*(o.r+r)) return true; }
+      return false;
     }
-
-    // Loop
-    function loop(){ if(running){ physics(); } draw(); requestAnimationFrame(loop); }
-
-    // Pointer helpers
-    function getXY(ev){
-      let cx, cy; const rect = canvas.getBoundingClientRect();
-      if(ev.touches && ev.touches.length){ cx = ev.touches[0].clientX; cy = ev.touches[0].clientY; }
-      else if(ev.changedTouches && ev.changedTouches.length){ cx = ev.changedTouches[0].clientX; cy = ev.changedTouches[0].clientY; }
-      else { cx = ev.clientX; cy = ev.clientY; }
-      const x = (cx - rect.left) * (canvas.width / rect.width);
-      const y = (cy - rect.top) * (canvas.height / rect.height);
+    // --- Input (Touch / Mouse) --------------------------------------------
+    function getXY(e){
+      let clientX, clientY;
+      if(e.touches && e.touches.length){
+        const t = e.touches[0]; clientX = t.clientX; clientY = t.clientY;
+        
+      } else if (e.changedTouches && e.changedTouches.length){
+        const t = e.changedTouches[0]; clientX = t.clientX; clientY = t.clientY;
+      } else {
+        clientX = e.clientX; clientY = e.clientY;
+      }
+      const rect = canvas.getBoundingClientRect();
+      const x = (clientX - rect.left) * (canvas.width / rect.width);
+      const y = (clientY - rect.top) * (canvas.height / rect.height);
       return {x,y};
     }
 
-    let aiming=false, aimX=0, aimY=0; let cue=null;
+    function anyBallsMoving(){
+      return balls.some(b => b.active && (Math.abs(b.vx)>0.01 || Math.abs(b.vy)>0.01));
+    }
 
-    function onDown(e){ e.preventDefault(); if(!running) return; cue = balls.find(b=>b.type==='cue' && b.active); if(!cue) return; const {x,y}=getXY(e); aiming=true; aimX=x; aimY=y; }
-    function onMove(e){ if(!aiming) return; const {x,y}=getXY(e); aimX=x; aimY=y; }
+    function cueBall(){ return balls.find(b => b.type==='cue'); }
+
+    const drag = {active:false, sx:0, sy:0, x:0, y:0, power:0};
+
+    function onDown(e){
+      e.preventDefault();
+      const {x,y} = getXY(e);
+      if(game.placingCue){
+        // place cue in baulk area
+        if(inBaulk(x,y) && !overlapsAny(x,y,geom.ballR)){
+          const c = cueBall(); c.x=x; c.y=y; c.vx=c.vy=0; c.active=true; game.placingCue=false; game.aiming=true;
+        }
+        return;
+      }
+      if(anyBallsMoving()) return;
+      const c = cueBall();
+      if(!c || !c.active) return;
+      drag.active = true; drag.sx = drag.x = x; drag.sy = drag.y = y; drag.power = 0; game.aiming = true;
+    }
+
+    function onMove(e){
+      if(!drag.active) return;
+      const {x,y} = getXY(e);
+      drag.x = x; drag.y = y;
+      const c = cueBall();
+      const dist = Math.hypot(c.x - x, c.y - y); // pulling back increases power
+      const maxPull = geom.ballR * 10;
+      drag.power = Math.min(1, dist / maxPull);
+      powerFill.style.width = (drag.power*100).toFixed(1)+'%';
+    }
+
     function onUp(e){
-      if(!aiming) return;
-      aiming=false;
-      if(!cue||!cue.active) return;
-      const {x,y}=getXY(e);
-      const dx = cue.x - x;
-      const dy = cue.y - y;
-      const pow = powerSlider.get()/50;
-      cue.vx = dx * 0.25 * pow;
-      cue.vy = dy * 0.25 * pow;
-      cue.spinX = spinVec.x;
-      cue.spinY = spinVec.y;
-      spinVec = { x: 0, y: 0 };
-      spinDot.style.left = '50%';
-      spinDot.style.top = '50%';
+      if(!drag.active) return;
+      const c = cueBall();
+      // Strike in the opposite direction of the drag (pull-back mechanic)
+      const dirx = c.x - drag.x, diry = c.y - drag.y;
+      const len = Math.hypot(dirx, diry) || 1;
+      const aimX = dirx/len, aimY = diry/len;
+      const power = drag.power;
+      const maxSpeed = geom.ballR * 28; // a tad faster
+      c.vx = aimX * maxSpeed * power;
+      c.vy = aimY * maxSpeed * power;
+      drag.active = false; game.aiming = false; powerFill.style.width = '0%';
+    }
+
+    function inBaulk(x,y){
+      return y > geom.baulkY && x > table.inner.x && x < table.inner.x + table.inner.w;
     }
 
     canvas.addEventListener('touchstart', onDown, {passive:false});
@@ -255,12 +396,184 @@
     canvas.addEventListener('mousemove', onMove);
     window.addEventListener('mouseup', onUp);
 
-    document.getElementById('reset').onclick = ()=>{ rack(); };
+    // --- Render ------------------------------------------------------------
+    function draw(){
+      ctx.clearRect(0,0,state.w,state.h);
+      drawBackground();
+      drawTable();
+      drawGuides();
+      drawBalls();
+      drawVignette();
+    }
 
-    startBtn.addEventListener('click', ()=>{ overlay.style.display='none'; running=true; });
+    function drawBackground(){
+      const g = ctx.createLinearGradient(0,0,0,state.h);
+      g.addColorStop(0,'#0e1430');
+      g.addColorStop(1,'#0a1024');
+      ctx.fillStyle = g; ctx.fillRect(0,0,state.w,state.h);
+    }
 
-    // init
-    setupPockets(); rack(); loop();
+    function pathRoundedRect(x,y,w,h,r){
+      const rr = Math.min(r, w/2, h/2);
+      ctx.beginPath();
+      ctx.moveTo(x+rr,y);
+      ctx.arcTo(x+w,y,x+w,y+h,rr);
+      ctx.arcTo(x+w,y+h,x,y+h,rr);
+      ctx.arcTo(x,y+h,x,y,rr);
+      ctx.arcTo(x,y,x+w,y,rr);
+      ctx.closePath();
+    }
+
+    function drawTable(){
+      const T = table; const I = table.inner; const r = T.rail;
+      // wood rail
+      pathRoundedRect(T.x, T.y, T.w, T.h, r*0.8);
+      const wood = ctx.createLinearGradient(T.x, T.y, T.x, T.y+T.h);
+      wood.addColorStop(0,'#4a3522'); wood.addColorStop(1,'#2c2117');
+      ctx.fillStyle = wood; ctx.fill();
+      // inner shadow for rail
+      ctx.strokeStyle = '#00000055'; ctx.lineWidth = r*0.6; ctx.stroke();
+
+      // felt
+      pathRoundedRect(I.x, I.y, I.w, I.h, r*0.4);
+      const felt = ctx.createLinearGradient(I.x, I.y, I.x, I.y+I.h);
+      felt.addColorStop(0, '#0f6a43');
+      felt.addColorStop(0.6, '#0f5f3e');
+      felt.addColorStop(1, '#0c5034');
+      ctx.fillStyle = felt; ctx.fill();
+
+      // cushions glow
+      ctx.save();
+      ctx.globalAlpha = 0.35;
+      ctx.strokeStyle = '#14b86b44'; ctx.lineWidth = r*0.35;
+      pathRoundedRect(I.x, I.y, I.w, I.h, r*0.4); ctx.stroke();
+      ctx.restore();
+
+      // baulk line
+      ctx.strokeStyle = '#e9f2ffaa'; ctx.lineWidth = Math.max(1, state.dpr);
+      ctx.beginPath(); ctx.moveTo(I.x, geom.baulkY); ctx.lineTo(I.x+I.w, geom.baulkY); ctx.stroke();
+      // D semicircle
+      ctx.beginPath();
+      ctx.arc(I.x+I.w/2, geom.baulkY, geom.dRadius, Math.PI, 0);
+      ctx.stroke();
+
+      // spots
+      const s = geom.spots;
+      ctx.fillStyle = '#e9f2ffcc';
+      for(const k of Object.keys(s)){
+        ctx.beginPath(); ctx.arc(s[k].x, s[k].y, Math.max(1.2*state.dpr, geom.ballR*0.15), 0, Math.PI*2); ctx.fill();
+      }
+
+      // pockets (rings)
+      for(const p of geom.pockets){
+        // dark hole
+        const hole = ctx.createRadialGradient(p.x-6, p.y-6, 4, p.x, p.y, p.r);
+        hole.addColorStop(0,'#000'); hole.addColorStop(1,'#0008');
+        ctx.fillStyle = hole; ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, Math.PI*2); ctx.fill();
+        // ring
+        ctx.strokeStyle = '#111'; ctx.lineWidth = Math.max(2, p.r*0.18);
+        ctx.beginPath(); ctx.arc(p.x, p.y, p.r*0.86, 0, Math.PI*2); ctx.stroke();
+      }
+    }
+
+    function drawBalls(){
+      // depth sort by y for subtle 2.5D look
+      const drawables = balls.slice().sort((a,b)=>a.y-b.y);
+      for(const b of drawables){ if(!b.active) continue; drawBall(b); }
+    }
+    function drawBall(b){
+      // shadow
+      ctx.save();
+      ctx.globalAlpha = 0.28;
+      ctx.fillStyle = '#000';
+      ctx.beginPath();
+      ctx.ellipse(b.x, b.y + b.r*0.65, b.r*1.2, b.r*0.5, 0, 0, Math.PI*2);
+      ctx.fill();
+      ctx.restore();
+      // body gradient (light from top-left)
+      const grad = ctx.createRadialGradient(b.x - b.r*0.4, b.y - b.r*0.6, b.r*0.2, b.x, b.y, b.r*1.2);
+      grad.addColorStop(0, shadeColor(b.color, 40));
+      grad.addColorStop(0.6, b.color);
+      grad.addColorStop(1, shadeColor(b.color, -40));
+      ctx.fillStyle = grad;
+      ctx.beginPath(); ctx.arc(b.x, b.y, b.r, 0, Math.PI*2); ctx.fill();
+      // specular
+      ctx.fillStyle = 'rgba(255,255,255,0.65)';
+      ctx.beginPath(); ctx.ellipse(b.x - b.r*0.45, b.y - b.r*0.55, b.r*0.22, b.r*0.12, -0.5, 0, Math.PI*2); ctx.fill();
+      // cue ball seam hint
+      if(b.type==='cue'){
+        ctx.strokeStyle = 'rgba(0,0,0,0.08)'; ctx.lineWidth = Math.max(1, state.dpr);
+        ctx.beginPath(); ctx.arc(b.x, b.y, b.r*0.88, 0.2, Math.PI-0.2); ctx.stroke();
+      }
+    }
+
+    function shadeColor(hex, amt){
+      const c = hex.replace('#','');
+      const n = parseInt(c.length===3 ? c.split('').map(ch=>ch+ch).join('') : c, 16);
+      let r=(n>>16)&255, g=(n>>8)&255, b=n&255;
+      r = clamp(r + amt, 0, 255); g = clamp(g + amt, 0, 255); b = clamp(b + amt, 0, 255);
+      return `rgb(${r},${g},${b})`;
+    }
+
+    function drawGuides(){
+      if(!game.aiming || anyBallsMoving() || game.placingCue) return;
+      const c = cueBall(); if(!c || !c.active) return;
+      if(drag.active){
+        const dx = c.x - drag.x, dy = c.y - drag.y; // pull-back direction
+        const ang = Math.atan2(dy, dx);
+        const len = Math.min(Math.hypot(dx,dy), geom.ballR*10);
+        // cue line
+        ctx.save();
+        ctx.strokeStyle = 'rgba(230,240,255,0.65)';
+        ctx.lineWidth = Math.max(1.5*state.dpr, 2);
+        ctx.setLineDash([state.dpr*6, state.dpr*6]);
+        ctx.beginPath();
+        const gx = c.x + Math.cos(ang) * (c.r + 6);
+        const gy = c.y + Math.sin(ang) * (c.r + 6);
+        ctx.moveTo(gx, gy);
+        ctx.lineTo(gx + Math.cos(ang) * len, gy + Math.sin(ang) * len);
+        ctx.stroke();
+        ctx.setLineDash([]);
+        // arrow
+        ctx.beginPath();
+        ctx.moveTo(gx + Math.cos(ang) * len, gy + Math.sin(ang) * len);
+        ctx.lineTo(gx + Math.cos(ang) * (len+14), gy + Math.sin(ang) * (len+14));
+        ctx.stroke();
+        ctx.restore();
+      }
+    }
+
+    function drawVignette(){
+      const g = ctx.createRadialGradient(state.w/2, state.h*0.45, Math.min(state.w,state.h)*0.4, state.w/2, state.h*0.5, Math.max(state.w,state.h)*0.8);
+      g.addColorStop(0,'transparent'); g.addColorStop(1,'#0007');
+      ctx.fillStyle = g; ctx.fillRect(0,0,state.w,state.h);
+    }
+
+    function clamp(v,a,b){ return Math.max(a, Math.min(b, v)); }
+
+    // --- Game Loop ---------------------------------------------------------
+    let last = 0; let rafId = 0;
+    function loop(t){
+      rafId = requestAnimationFrame(loop);
+      const dt = Math.min((t - last) / 16.6667, 2); // ~60fps units
+      last = t;
+      if(game.running){ step(dt); }
+      draw();
+    }
+
+    // --- Controls / Overlay -----------------------------------------------
+    startBtn && startBtn.addEventListener('click', () => { overlay.style.display='none'; game.running=true; });
+    howBtn && howBtn.addEventListener('click', () => alert('Pull back from the cue ball to aim and set power, then release to strike.\n\nPractice mode:\n• Reds score 1 and disappear.\n• Colours respawn on their spots and score their values.\n• Cue ball in pocket: tap inside the baulk area to place it.'));
+    helpBtn && helpBtn.addEventListener('click', () => alert('Controls (touch):\nPull back from the cue ball to aim.\nRelease to shoot.\n\nIf the cue is potted, tap inside the baulk area to place it.'));
+    resetBtn && resetBtn.addEventListener('click', () => { rack(); });
+
+    // Init
+    resize();
+    window.addEventListener('resize', resize);
+    rack();
+    overlay.style.display = 'grid';
+    requestAnimationFrame(loop);
+
   })();
   </script>
 </body>
