@@ -59,7 +59,7 @@
       <p style="font-size:12px;color:#9aa7d7;margin-top:10px">Tip: If the cue ball is potted, tap inside the baulk area to place it (in‑hand).</p>
     </div>
   </div>
-  <div class="hint" id="hint">Pull back to aim • Release to shoot</div>
+  <div class="hint" id="hint">Pull back to aim • Release slider to shoot</div>
 
   <script type="module">
   import { PowerSlider } from './power-slider.js';
@@ -76,7 +76,8 @@
     const ps = new PowerSlider({
       mount: document.getElementById('psContainer'),
       cueSrc: '/assets/icons/file_0000000019d86243a2f7757076cd7869.webp',
-      onChange: v => { sliderPower = v / 100; }
+      onChange: v => { sliderPower = v / 100; },
+      onCommit: shoot
     });
     const spinBox = document.getElementById('spinBox');
     const spinDot = document.getElementById('spinDot');
@@ -390,7 +391,7 @@
 
     function cueBall(){ return balls.find(b => b.type==='cue'); }
 
-    const drag = {active:false, sx:0, sy:0, x:0, y:0, power:0};
+    const drag = {active:false, sx:0, sy:0, x:0, y:0, power:0, aimX:0, aimY:0};
 
     function onDown(e){
       e.preventDefault();
@@ -413,22 +414,36 @@
       const {x,y} = getXY(e);
       drag.x = x; drag.y = y;
       drag.power = sliderPower;
+      const c = cueBall();
+      const dirx = c.x - drag.x, diry = c.y - drag.y;
+      const len = Math.hypot(dirx, diry) || 1;
+      drag.aimX = dirx/len;
+      drag.aimY = diry/len;
     }
 
     function onUp(e){
       if(!drag.active) return;
       const c = cueBall();
-      // Strike in the opposite direction of the drag (pull-back mechanic)
       const dirx = c.x - drag.x, diry = c.y - drag.y;
       const len = Math.hypot(dirx, diry) || 1;
-      const aimX = dirx/len, aimY = diry/len;
-      const power = drag.power;
+      drag.aimX = dirx/len;
+      drag.aimY = diry/len;
+      drag.active = false; game.aiming = false;
+    }
+
+    function shoot(){
+      if(anyBallsMoving()) return;
+      const c = cueBall();
+      if(!c || !c.active) return;
+      const aimX = drag.aimX, aimY = drag.aimY;
+      if(aimX === undefined || aimY === undefined) return;
+      const power = sliderPower;
       const maxSpeed = geom.ballR * 28; // a tad faster
       c.vx = aimX * maxSpeed * power;
       c.vy = aimY * maxSpeed * power;
       c.spin = {x:spinVec.x, y:spinVec.y};
       setSpin(0,0);
-      drag.active = false; game.aiming = false;
+      game.aiming = false;
     }
 
     function inBaulk(x,y){
@@ -635,8 +650,8 @@
 
     // --- Controls / Overlay -----------------------------------------------
     startBtn && startBtn.addEventListener('click', () => { overlay.style.display='none'; game.running=true; });
-    howBtn && howBtn.addEventListener('click', () => alert('Pull back from the cue ball to aim and set power, then release to strike.\n\nPractice mode:\n• Reds score 1 and disappear.\n• Colours respawn on their spots and score their values.\n• Cue ball in pocket: tap inside the baulk area to place it.'));
-    helpBtn && helpBtn.addEventListener('click', () => alert('Controls (touch):\nPull back from the cue ball to aim.\nRelease to shoot.\n\nIf the cue is potted, tap inside the baulk area to place it.'));
+    howBtn && howBtn.addEventListener('click', () => alert('Pull back from the cue ball to aim, then use the slider to set power and release to strike.\n\nPractice mode:\n• Reds score 1 and disappear.\n• Colours respawn on their spots and score their values.\n• Cue ball in pocket: tap inside the baulk area to place it.'));
+    helpBtn && helpBtn.addEventListener('click', () => alert('Controls (touch):\nPull back from the cue ball to aim.\nRelease the slider to shoot.\n\nIf the cue is potted, tap inside the baulk area to place it.'));
     resetBtn && resetBtn.addEventListener('click', () => { rack(); });
 
     // Init

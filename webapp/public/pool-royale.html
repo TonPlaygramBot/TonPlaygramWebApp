@@ -1740,7 +1740,8 @@
           COL = {
             cue: '#f5f5f5',
             red: '#d92d30',
-            blue: '#1e58b8',
+            // UK variant uses yellow balls instead of blue
+            blue: '#f2d24b',
             eight: '#111'
           };
           BALLS = [{ n: 0, t: 'cue', c: COL.cue }];
@@ -2358,6 +2359,15 @@
               ctx.clip();
               ctx.fillStyle = stripeGrad;
               ctx.fillRect(-ballR, -ballR * 0.3, ballR * 2, ballR * 0.6);
+              // thin black lines at stripe edges
+              ctx.strokeStyle = '#000';
+              ctx.lineWidth = ballR * 0.06;
+              ctx.beginPath();
+              ctx.moveTo(-ballR, -ballR * 0.3);
+              ctx.lineTo(ballR, -ballR * 0.3);
+              ctx.moveTo(-ballR, ballR * 0.3);
+              ctx.lineTo(ballR, ballR * 0.3);
+              ctx.stroke();
               ctx.restore();
             }
 
@@ -2372,6 +2382,9 @@
               ctx.beginPath();
               ctx.arc(0, 0, ballR * 0.52, 0, Math.PI * 2);
               ctx.fill();
+              ctx.lineWidth = ballR * 0.05;
+              ctx.strokeStyle = '#000';
+              ctx.stroke();
               ctx.fillStyle = stripe ? '#fff' : '#111';
               ctx.font = ballR * 0.9 + 'px system-ui,sans-serif';
               ctx.textAlign = 'center';
@@ -2607,6 +2620,14 @@
             ctx.clip();
             ctx.fillStyle = '#fff';
             ctx.fillRect(cx - r, cy - r * 0.3, r * 2, r * 0.6);
+            ctx.strokeStyle = '#000';
+            ctx.lineWidth = r * 0.15;
+            ctx.beginPath();
+            ctx.moveTo(cx - r, cy - r * 0.3);
+            ctx.lineTo(cx + r, cy - r * 0.3);
+            ctx.moveTo(cx - r, cy + r * 0.3);
+            ctx.lineTo(cx + r, cy + r * 0.3);
+            ctx.stroke();
             ctx.restore();
           }
           if (n !== 0 && (isAmerican || isNineBall || info.t === 'eight')) {
@@ -2614,6 +2635,9 @@
             ctx.beginPath();
             ctx.arc(cx, cy, r * 0.52, 0, Math.PI * 2);
             ctx.fill();
+            ctx.lineWidth = r * 0.1;
+            ctx.strokeStyle = '#000';
+            ctx.stroke();
             ctx.fillStyle = stripe ? '#fff' : '#111';
             ctx.font = '8px system-ui,sans-serif';
             ctx.textAlign = 'center';
