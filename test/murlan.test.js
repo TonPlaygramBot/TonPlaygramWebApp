@@ -186,3 +186,24 @@ test('bomb finishing hand passes lead', () => {
   assert.equal(state.turn.activePlayer, 1);
 });
 
+test('ai avoids single when opponent has one card', () => {
+  const hand = [card('3', '♠'), card('3', '♥'), card('5', '♣')];
+  const opponents = [{ hand: [card('7', '♦')] }];
+  const action = aiChooseAction(hand, null, DEFAULT_CONFIG, { opponents });
+  const ranks = action.cards.map((c) => c.rank);
+  assert.equal(ranks.length, 2);
+  assert(ranks.every((r) => r === '3'));
+});
+
+test('ai saves two until jokers out', () => {
+  const hand = [card('2', '♠')];
+  const onTable = detectCombo([card('A', '♣')], DEFAULT_CONFIG);
+  let action = aiChooseAction(hand, onTable, DEFAULT_CONFIG, { playedCards: [] });
+  assert.equal(action.type, 'PASS');
+  action = aiChooseAction(hand, onTable, DEFAULT_CONFIG, {
+    playedCards: [card('JR'), card('JB')]
+  });
+  assert.equal(action.type, 'PLAY');
+  assert.equal(action.cards[0].rank, '2');
+});
+
