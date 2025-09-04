@@ -1712,6 +1712,15 @@
           ctx.fillStyle = felt;
           ctx.fill();
 
+          // draw darker green cushions around the field
+          pathRoundedRect(fx, fy, fw, fh, BORDER * 0.4 * sX);
+          var cushion = ctx.createLinearGradient(fx, fy, fx, fy + fh);
+          cushion.addColorStop(0, '#0d5a38');
+          cushion.addColorStop(1, '#094f30');
+          ctx.strokeStyle = cushion;
+          ctx.lineWidth = BORDER * 0.3 * sX;
+          ctx.stroke();
+
           drawPocket(BORDER, BORDER_TOP, POCKET_R);
           drawPocket(TABLE_W - BORDER, BORDER_TOP, POCKET_R);
           drawPocket(BORDER, TABLE_H - BORDER_BOTTOM, POCKET_R);
