@@ -383,12 +383,7 @@
             transparent 0 calc(10% - 1px),
             rgba(0, 0, 0, 0.6) calc(10% - 1px) 10%
           ),
-          linear-gradient(
-            to bottom,
-            #fde047 0%,
-            #f97316 50%,
-            #dc2626 100%
-          );
+          linear-gradient(to bottom, #fde047 0%, #f97316 50%, #dc2626 100%);
       }
 
       #powerCue {
@@ -416,12 +411,7 @@
             transparent 0 calc(10% - 1px),
             rgba(0, 0, 0, 0.6) calc(10% - 1px) 10%
           ),
-          linear-gradient(
-            to bottom,
-            #fde047 0%,
-            #f97316 50%,
-            #dc2626 100%
-          );
+          linear-gradient(to bottom, #fde047 0%, #f97316 50%, #dc2626 100%);
         border-radius: 6px;
         pointer-events: none;
         opacity: 0.25;
@@ -627,7 +617,6 @@
         border-radius: 4px;
       }
 
-
       #rulesModal {
         position: fixed;
         inset: 0;
@@ -695,10 +684,12 @@
           transform: rotateX(0) rotateY(0) rotateZ(0) translateY(0);
         }
         50% {
-          transform: rotateX(360deg) rotateY(360deg) rotateZ(360deg) translateY(-10px);
+          transform: rotateX(360deg) rotateY(360deg) rotateZ(360deg)
+            translateY(-10px);
         }
         100% {
-          transform: rotateX(720deg) rotateY(720deg) rotateZ(720deg) translateY(0);
+          transform: rotateX(720deg) rotateY(720deg) rotateZ(720deg)
+            translateY(0);
         }
       }
       .animate-roll {
@@ -802,7 +793,9 @@
             />
             <div id="cueRail"></div>
             <div id="powerTxt"><div id="powerPercent">0%</div></div>
-            <div id="pullLabel">Pull<br /><span class="pullArrow">⬇</span></div>
+            <div id="pullLabel">
+              Pull<br /><span class="pullArrow">⬇</span>
+            </div>
           </div>
         </aside>
 
@@ -878,7 +871,7 @@
       </div>
     </div>
 
-<script src="/flag-emojis.js"></script>
+    <script src="/flag-emojis.js"></script>
     <script src="/pool-royale-api.js"></script>
 
     <!--
@@ -899,15 +892,15 @@
         );
 
         var params = new URLSearchParams(location.search);
-        var tgKey = params.get("tgId") || "anon";
+        var tgKey = params.get('tgId') || 'anon';
         var STATE_KEY = `poolRoyaleTournamentState_${tgKey}`;
         var OPP_KEY = `poolRoyaleTournamentOpponent_${tgKey}`;
-        var stake = parseInt(params.get("amount") || "0", 10);
-        var accountId = params.get("accountId");
-        var tgId = params.get("tgId");
-        var devAccount = params.get("dev");
-        var devAccount1 = params.get("dev1");
-        var devAccount2 = params.get("dev2");
+        var stake = parseInt(params.get('amount') || '0', 10);
+        var accountId = params.get('accountId');
+        var tgId = params.get('tgId');
+        var devAccount = params.get('dev');
+        var devAccount1 = params.get('dev1');
+        var devAccount2 = params.get('dev2');
         var variant = params.get('variant') || 'uk';
         var isAmerican = variant === 'american';
         var isNineBall = variant === '9ball';
@@ -1053,16 +1046,13 @@
           '#header .player:last-child .name'
         );
 
-        var crowdVolume =
-          parseFloat(localStorage.getItem('poolCrowdVol')) || 1;
+        var crowdVolume = parseFloat(localStorage.getItem('poolCrowdVol')) || 1;
         var pocketVolume =
           parseFloat(localStorage.getItem('poolPocketVol')) || 1;
-        var ballVolume =
-          parseFloat(localStorage.getItem('poolBallVol')) || 1;
+        var ballVolume = parseFloat(localStorage.getItem('poolBallVol')) || 1;
         var tableBrightness =
           parseFloat(localStorage.getItem('poolBrightness')) || 1.1;
-        var frameStyleSetting =
-          localStorage.getItem('poolFrameStyle') || '1';
+        var frameStyleSetting = localStorage.getItem('poolFrameStyle') || '1';
         var frameColorSetting =
           localStorage.getItem('poolFrameColor') || '#000';
 
@@ -1083,16 +1073,23 @@
         }
 
         if (frameColorSelect) {
-          ['#000', '#f00', '#0f0', '#00f', '#ff0', '#f0f', '#0ff', '#fff'].forEach(
-            function (c) {
-              var opt = document.createElement('option');
-              opt.value = c;
-              opt.textContent = c;
-              opt.style.background =
-                'linear-gradient(to right, ' + c + ' 0 16px, #fff 16px)';
-              frameColorSelect.appendChild(opt);
-            }
-          );
+          [
+            '#000',
+            '#f00',
+            '#0f0',
+            '#00f',
+            '#ff0',
+            '#f0f',
+            '#0ff',
+            '#fff'
+          ].forEach(function (c) {
+            var opt = document.createElement('option');
+            opt.value = c;
+            opt.textContent = c;
+            opt.style.background =
+              'linear-gradient(to right, ' + c + ' 0 16px, #fff 16px)';
+            frameColorSelect.appendChild(opt);
+          });
           frameColorSelect.value = frameColorSetting;
         }
 
@@ -1110,14 +1107,14 @@
           crowdVolume = parseFloat(crowdVolumeInput.value || crowdVolume);
           pocketVolume = parseFloat(pocketVolumeInput.value || pocketVolume);
           ballVolume = parseFloat(ballVolumeInput.value || ballVolume);
-          tableBrightness = parseFloat(brightnessInput.value || tableBrightness);
+          tableBrightness = parseFloat(
+            brightnessInput.value || tableBrightness
+          );
           document.body.className = document.body.className.replace(
             /frame-style-\d+/g,
             ''
           );
-          document.body.classList.add(
-            'frame-style-' + frameStyleSelect.value
-          );
+          document.body.classList.add('frame-style-' + frameStyleSelect.value);
           document.documentElement.style.setProperty(
             '--player-frame-color',
             frameColorSelect.value
@@ -1217,7 +1214,10 @@
         function endGame(winner) {
           table.running = false;
           shotInProgress = false;
-          if (window.tournamentMode && typeof window.handleTournamentResult === 'function') {
+          if (
+            window.tournamentMode &&
+            typeof window.handleTournamentResult === 'function'
+          ) {
             try {
               localStorage.setItem(
                 `poolRoyaleLastResult_${tgKey}`,
@@ -1283,7 +1283,8 @@
               const st = JSON.parse(localStorage.getItem(STATE_KEY) || '{}');
               if (!st.pendingMatch) {
                 window.location.href =
-                  '/pool-royale-bracket.html?' + window.location.search.slice(1);
+                  '/pool-royale-bracket.html?' +
+                  window.location.search.slice(1);
                 return;
               }
               const r = st.pendingMatch.round;
@@ -1637,7 +1638,13 @@
 
         function brighten(hex, amt) {
           var c = hex.slice(1);
-          if (c.length === 3) c = c.split('').map(function (ch) { return ch + ch; }).join('');
+          if (c.length === 3)
+            c = c
+              .split('')
+              .map(function (ch) {
+                return ch + ch;
+              })
+              .join('');
           var num = parseInt(c, 16);
           var r = num >> 16;
           var g = (num >> 8) & 0xff;
@@ -1645,9 +1652,7 @@
           r = Math.min(255, Math.round(r * (1 + amt)));
           g = Math.min(255, Math.round(g * (1 + amt)));
           b = Math.min(255, Math.round(b * (1 + amt)));
-          return (
-            '#' + ((r << 16) | (g << 8) | b).toString(16).padStart(6, '0')
-          );
+          return '#' + ((r << 16) | (g << 8) | b).toString(16).padStart(6, '0');
         }
 
         function applySpinImpulse(ball) {
@@ -1830,13 +1835,7 @@
             }
           } else if (isNineBall) {
             // Rregullimi per 9-ball (diamant), i rrotulluar qe topi i verdhe te jete perballe cue ball-it
-            var pattern9 = [
-              [8],
-              [7, 6],
-              [5, 9, 4],
-              [3, 2],
-              [1]
-            ];
+            var pattern9 = [[8], [7, 6], [5, 9, 4], [3, 2], [1]];
             for (var r9 = 0; r9 < pattern9.length; r9++) {
               var cnt9 = pattern9[r9].length;
               var startX9 = cx - (rowGap * (cnt9 - 1)) / 2;
@@ -1886,20 +1885,17 @@
             var wrapRect = document
               .getElementById('wrap')
               .getBoundingClientRect();
-            this.pockets = Array.prototype.map.call(
-              holeEls,
-              function (el) {
-                var r = el.getBoundingClientRect();
-                var cx =
-                  ((r.left + r.width / 2 - wrapRect.left) / wrapRect.width) *
-                  TABLE_W;
-                var cy =
-                  ((r.top + r.height / 2 - wrapRect.top) / wrapRect.height) *
-                  TABLE_H;
-                var pr = (r.width / 2 / wrapRect.width) * TABLE_W;
-                return new Pocket(cx, cy, pr);
-              }
-            );
+            this.pockets = Array.prototype.map.call(holeEls, function (el) {
+              var r = el.getBoundingClientRect();
+              var cx =
+                ((r.left + r.width / 2 - wrapRect.left) / wrapRect.width) *
+                TABLE_W;
+              var cy =
+                ((r.top + r.height / 2 - wrapRect.top) / wrapRect.height) *
+                TABLE_H;
+              var pr = (r.width / 2 / wrapRect.width) * TABLE_W;
+              return new Pocket(cx, cy, pr);
+            });
           } else {
             this.pockets = [
               new Pocket(
@@ -2010,7 +2006,8 @@
                 b.p.x = L;
                 b.v.x *= -BOUNCE;
                 if (b.n === 0) spinQueue.add(b);
-                if (i === 0 && shotInProgress && !firstHit) cueHitCushion = true;
+                if (i === 0 && shotInProgress && !firstHit)
+                  cueHitCushion = true;
                 var diffY = nearest ? Math.abs(b.p.y - nearest.y) : Infinity;
                 if (
                   nearPocket &&
@@ -2026,7 +2023,8 @@
                 b.p.x = R;
                 b.v.x *= -BOUNCE;
                 if (b.n === 0) spinQueue.add(b);
-                if (i === 0 && shotInProgress && !firstHit) cueHitCushion = true;
+                if (i === 0 && shotInProgress && !firstHit)
+                  cueHitCushion = true;
                 var diffY2 = nearest ? Math.abs(b.p.y - nearest.y) : Infinity;
                 if (
                   nearPocket &&
@@ -2042,7 +2040,8 @@
                 b.p.y = T;
                 b.v.y *= -BOUNCE;
                 if (b.n === 0) spinQueue.add(b);
-                if (i === 0 && shotInProgress && !firstHit) cueHitCushion = true;
+                if (i === 0 && shotInProgress && !firstHit)
+                  cueHitCushion = true;
                 var diffX = nearest ? Math.abs(b.p.x - nearest.x) : Infinity;
                 if (
                   nearPocket &&
@@ -2058,7 +2057,8 @@
                 b.p.y = B;
                 b.v.y *= -BOUNCE;
                 if (b.n === 0) spinQueue.add(b);
-                if (i === 0 && shotInProgress && !firstHit) cueHitCushion = true;
+                if (i === 0 && shotInProgress && !firstHit)
+                  cueHitCushion = true;
                 var diffX2 = nearest ? Math.abs(b.p.x - nearest.x) : Infinity;
                 if (
                   nearPocket &&
@@ -2107,16 +2107,15 @@
                   a.v.y *= BOUNCE;
                   bb.v.x *= BOUNCE;
                   bb.v.y *= BOUNCE;
-                    if (
-                      firstPairCollision &&
-                      !this.prevCollisions.has(pairId)
-                    ) {
-                      // Scale collision volume by both impact impulse and the
-                      // power of the shot that initiated the turn.
-                      var vol =
-                        clamp(imp / 4000, 0, 1) * Math.min(lastShotPower, 0.39) * 0.5;
-                      playBallHit(vol);
-                    }
+                  if (firstPairCollision && !this.prevCollisions.has(pairId)) {
+                    // Scale collision volume by both impact impulse and the
+                    // power of the shot that initiated the turn.
+                    var vol =
+                      clamp(imp / 4000, 0, 1) *
+                      Math.min(lastShotPower, 0.39) *
+                      0.5;
+                    playBallHit(vol);
+                  }
                   if (a.n === 0 || bb.n === 0) {
                     var other = a.n === 0 ? bb : a;
                     if (!firstHit) {
@@ -2146,9 +2145,9 @@
                     }
                     if (a.n === 0) spinQueue.add(a);
                     if (bb.n === 0) spinQueue.add(bb);
+                  }
                 }
               }
-            }
             }
 
           // Apply accumulated spin impulses after all collisions
@@ -2287,44 +2286,52 @@
             // trup i topit me gradient 2.5D
             ctx.save();
             ctx.translate(px, py);
-            ctx.rotate(b.a);
             var grad = ctx.createRadialGradient(
               -ballR * 0.4,
               -ballR * 0.6,
               ballR * 0.15,
               0,
               0,
-              ballR * 1.1
+              ballR * 1.3
             );
             // Brighten with a smaller, solid highlight
             grad.addColorStop(0, '#fff');
-            grad.addColorStop(0.45, brighten(BALL_BY_N[b.n].c, 0.05));
-            grad.addColorStop(1, 'rgba(0,0,0,0.2)');
-            ctx.fillStyle = grad;
-            ctx.beginPath();
-            ctx.arc(0, 0, ballR, 0, Math.PI * 2);
-            ctx.fill();
+            grad.addColorStop(0.6, brighten(BALL_BY_N[b.n].c, 0.05));
+            grad.addColorStop(1, 'rgba(0,0,0,0.15)');
 
             // stripe nese duhet
             var stripe =
               BALL_BY_N[b.n].t === 'stripe' && (isAmerican || isNineBall);
+            var stripeGrad;
             if (stripe) {
-              ctx.save();
-              ctx.beginPath();
-              ctx.arc(0, 0, ballR, 0, Math.PI * 2);
-              ctx.clip();
-              var stripeGrad = ctx.createRadialGradient(
+              stripeGrad = ctx.createRadialGradient(
                 -ballR * 0.4,
                 -ballR * 0.6,
                 ballR * 0.15,
                 0,
                 0,
-                ballR * 1.1
+                ballR * 1.3
               );
               // Brighten stripe with a smaller, solid highlight
               stripeGrad.addColorStop(0, '#fff');
-              stripeGrad.addColorStop(0.45, '#fff');
-              stripeGrad.addColorStop(1, 'rgba(0,0,0,0.2)');
+              stripeGrad.addColorStop(0.6, '#fff');
+              stripeGrad.addColorStop(1, 'rgba(0,0,0,0.15)');
+            }
+
+            // draw base shading without rotation so shadow stays fixed
+            ctx.fillStyle = grad;
+            ctx.beginPath();
+            ctx.arc(0, 0, ballR, 0, Math.PI * 2);
+            ctx.fill();
+
+            // features following ball rotation
+            ctx.save();
+            ctx.rotate(b.a);
+            if (stripe) {
+              ctx.save();
+              ctx.beginPath();
+              ctx.arc(0, 0, ballR, 0, Math.PI * 2);
+              ctx.clip();
               ctx.fillStyle = stripeGrad;
               ctx.fillRect(-ballR, -ballR * 0.3, ballR * 2, ballR * 0.6);
               ctx.restore();
@@ -2335,7 +2342,9 @@
               b.n !== 0 &&
               (isAmerican || isNineBall || BALL_BY_N[b.n].t === 'eight')
             ) {
-              ctx.fillStyle = stripe ? brighten(BALL_BY_N[b.n].c, 0.05) : '#fff';
+              ctx.fillStyle = stripe
+                ? brighten(BALL_BY_N[b.n].c, 0.05)
+                : '#fff';
               ctx.beginPath();
               ctx.arc(0, 0, ballR * 0.52, 0, Math.PI * 2);
               ctx.fill();
@@ -2360,9 +2369,10 @@
               ctx.fill();
             }
             ctx.restore();
+            ctx.restore();
           }
 
-            // Yellow boundary lines stop before each pocket; no additional field guides.
+          // Yellow boundary lines stop before each pocket; no additional field guides.
 
           // Steka mbi felt + guida
           if (
@@ -2613,93 +2623,94 @@
           }
         }
 
-          function hasBallsLeft(type) {
-            for (var k = 1; k < table.balls.length; k++) {
-              var rb = table.balls[k];
-              if (rb && !rb.pocketed && BALL_BY_N[rb.n].t === type) return true;
+        function hasBallsLeft(type) {
+          for (var k = 1; k < table.balls.length; k++) {
+            var rb = table.balls[k];
+            if (rb && !rb.pocketed && BALL_BY_N[rb.n].t === type) return true;
+          }
+          return false;
+        }
+
+        function clearTurnTimer() {
+          if (turnTimer) clearTimeout(turnTimer);
+          if (warnTimer) clearTimeout(warnTimer);
+          if (countdownInterval) clearInterval(countdownInterval);
+          turnTimer = null;
+          warnTimer = null;
+          countdownInterval = null;
+          countdownRemaining = 0;
+          if (timerDisplay) timerDisplay.textContent = '';
+        }
+
+        function startTurnTimer() {
+          clearTurnTimer();
+          if (table.turn !== 1) return;
+          countdownRemaining = 30;
+          if (timerDisplay) {
+            timerDisplay.style.color = '#facc15';
+            timerDisplay.textContent = countdownRemaining;
+          }
+          countdownInterval = setInterval(function () {
+            countdownRemaining--;
+            if (timerDisplay) timerDisplay.textContent = countdownRemaining;
+            if (countdownRemaining <= 0) {
+              clearInterval(countdownInterval);
+              countdownInterval = null;
             }
-            return false;
-          }
+          }, 1000);
+          warnTimer = setTimeout(function () {
+            playTurnSound();
+          }, 25000);
+          turnTimer = setTimeout(function () {
+            updateFooter(2, "Time's up! Turn passes to the opponent.");
+            table.turn = 2;
+            updateTurnIndicator(true);
+            showTurnInfo();
+            cpuTurn();
+          }, 30000);
+        }
 
-          function clearTurnTimer() {
-            if (turnTimer) clearTimeout(turnTimer);
-            if (warnTimer) clearTimeout(warnTimer);
-            if (countdownInterval) clearInterval(countdownInterval);
-            turnTimer = null;
-            warnTimer = null;
-            countdownInterval = null;
-            countdownRemaining = 0;
-            if (timerDisplay) timerDisplay.textContent = '';
+        function startCpuTimer() {
+          clearTurnTimer();
+          countdownRemaining = Math.ceil(CPU_SHOT_DELAY / 1000);
+          if (timerDisplay) {
+            timerDisplay.style.color = '#fff';
+            timerDisplay.textContent = countdownRemaining;
           }
-
-          function startTurnTimer() {
-            clearTurnTimer();
-            if (table.turn !== 1) return;
-            countdownRemaining = 30;
-            if (timerDisplay) {
-              timerDisplay.style.color = '#facc15';
-              timerDisplay.textContent = countdownRemaining;
+          countdownInterval = setInterval(function () {
+            countdownRemaining--;
+            if (timerDisplay) timerDisplay.textContent = countdownRemaining;
+            if (countdownRemaining <= 0) {
+              clearInterval(countdownInterval);
+              countdownInterval = null;
             }
-            countdownInterval = setInterval(function () {
-              countdownRemaining--;
-              if (timerDisplay) timerDisplay.textContent = countdownRemaining;
-              if (countdownRemaining <= 0) {
-                clearInterval(countdownInterval);
-                countdownInterval = null;
-              }
-            }, 1000);
-            warnTimer = setTimeout(function () {
-              playTurnSound();
-            }, 25000);
-            turnTimer = setTimeout(function () {
-              updateFooter(2, "Time's up! Turn passes to the opponent.");
-              table.turn = 2;
-              updateTurnIndicator(true);
-              showTurnInfo();
-              cpuTurn();
-            }, 30000);
-          }
+          }, 1000);
+        }
 
-          function startCpuTimer() {
-            clearTurnTimer();
-            countdownRemaining = Math.ceil(CPU_SHOT_DELAY / 1000);
-            if (timerDisplay) {
-              timerDisplay.style.color = '#fff';
-              timerDisplay.textContent = countdownRemaining;
-            }
-            countdownInterval = setInterval(function () {
-              countdownRemaining--;
-              if (timerDisplay) timerDisplay.textContent = countdownRemaining;
-              if (countdownRemaining <= 0) {
-                clearInterval(countdownInterval);
-                countdownInterval = null;
-              }
-            }, 1000);
-          }
-
-          function showTurnInfo() {
-            var msg;
-            if (isNineBall || isAmerican) {
-              if (!currentTarget) currentTarget = lowestBallOnTable();
-              msg = 'Pot the ' + currentTarget + '-ball';
+        function showTurnInfo() {
+          var msg;
+          if (isNineBall || isAmerican) {
+            if (!currentTarget) currentTarget = lowestBallOnTable();
+            msg = 'Pot the ' + currentTarget + '-ball';
+          } else {
+            if (!assignedTypes[table.turn]) {
+              msg = 'Choose a color';
+            } else if (!hasBallsLeft(assignedTypes[table.turn])) {
+              msg = 'Shoot the 8-ball to win!';
             } else {
-              if (!assignedTypes[table.turn]) {
-                msg = 'Choose a color';
-              } else if (!hasBallsLeft(assignedTypes[table.turn])) {
-                msg = 'Shoot the 8-ball to win!';
-              } else {
-                msg = 'Pot a ' + assignedTypes[table.turn];
-              }
+              msg = 'Pot a ' + assignedTypes[table.turn];
             }
-            updateFooter(table.turn, msg);
           }
+          updateFooter(table.turn, msg);
+        }
 
         function updateTurnIndicator(force) {
           if (window.trainingMode && window.trainingSolo) table.turn = 1;
           if (force || table.turn !== lastTurn) {
             avatarP1.classList.toggle('turn', table.turn === 1);
             avatarCPU.classList.toggle('turn', table.turn === 2);
-            if (table.turn === 1) startTurnTimer(); else clearTurnTimer();
+            if (table.turn === 1) startTurnTimer();
+            else clearTurnTimer();
             if (!force && freeShots[table.turn] > 1) {
               showCenterPopup('2 shots', 'shots', 1500);
             }
@@ -2786,7 +2797,9 @@
                 updateScoresUI();
                 updateFooter(
                   opponent,
-                  'That\u2019s a foul – opponent gets ' + shotPoints + ' points.'
+                  'That\u2019s a foul – opponent gets ' +
+                    shotPoints +
+                    ' points.'
                 );
                 pottedThisShot.forEach(function (n) {
                   var arr = table.captured[currentShooter];
@@ -3000,7 +3013,8 @@
 
         document.addEventListener('pointerup', function (e) {
           if (table.turn !== 1) return;
-          canvas.releasePointerCapture && canvas.releasePointerCapture(e.pointerId);
+          canvas.releasePointerCapture &&
+            canvas.releasePointerCapture(e.pointerId);
           if (draggingCue) {
             draggingCue = false;
             var cue = table.balls[0];
@@ -3039,20 +3053,17 @@
           if (dir.x < 0)
             checkRail((BORDER + BALL_R - cue.p.x) / dir.x, { x: 1, y: 0 });
           if (dir.x > 0)
-            checkRail(
-              (TABLE_W - BORDER - BALL_R - cue.p.x) / dir.x,
-              { x: -1, y: 0 }
-            );
+            checkRail((TABLE_W - BORDER - BALL_R - cue.p.x) / dir.x, {
+              x: -1,
+              y: 0
+            });
           if (dir.y < 0)
-            checkRail(
-              (BORDER_TOP + BALL_R - cue.p.y) / dir.y,
-              { x: 0, y: 1 }
-            );
+            checkRail((BORDER_TOP + BALL_R - cue.p.y) / dir.y, { x: 0, y: 1 });
           if (dir.y > 0)
-            checkRail(
-              (TABLE_H - BORDER_BOTTOM - BALL_R - cue.p.y) / dir.y,
-              { x: 0, y: -1 }
-            );
+            checkRail((TABLE_H - BORDER_BOTTOM - BALL_R - cue.p.y) / dir.y, {
+              x: 0,
+              y: -1
+            });
 
           var diam = BALL_R * 2;
           var diam2 = diam * diam;
@@ -3441,11 +3452,10 @@
           var base = 950 * 3 * 1.6 * 1.5;
           // Reduce the overall shot power by 50%
           base *= 0.5;
-            playCueHit(p * 0.5);
-            lastShotPower = p;
-            currentShooter = table.turn;
-            if (isNineBall || isAmerican)
-              currentTarget = lowestBallOnTable();
+          playCueHit(p * 0.5);
+          lastShotPower = p;
+          currentShooter = table.turn;
+          if (isNineBall || isAmerican) currentTarget = lowestBallOnTable();
           shotInProgress = true;
           pocketedAny = false;
           pocketedOwn = false;
@@ -3479,14 +3489,21 @@
           }
           const balls = table.balls
             .filter(Boolean)
-            .map(b => ({ id: b.n, x: b.p.x, y: b.p.y, vx: b.v.x, vy: b.v.y, pocketed: !!b.pocketed }));
-          const pockets = table.pockets.map(p => ({ x: p.x, y: p.y }));
+            .map((b) => ({
+              id: b.n,
+              x: b.p.x,
+              y: b.p.y,
+              vx: b.v.x,
+              vy: b.v.y,
+              pocketed: !!b.pocketed
+            }));
+          const pockets = table.pockets.map((p) => ({ x: p.x, y: p.y }));
           const req = {
             game: isNineBall
               ? 'NINE_BALL'
               : isAmerican
-              ? 'AMERICAN_BILLIARDS'
-              : 'EIGHT_POOL_UK',
+                ? 'AMERICAN_BILLIARDS'
+                : 'EIGHT_POOL_UK',
             maxCutAngle: Math.PI / 6,
             minViewScore: 0.5,
             state: {
@@ -3501,8 +3518,8 @@
                 assignedTypes[2] === 'red'
                   ? 'SOLIDS'
                   : assignedTypes[2] === 'yellow'
-                  ? 'STRIPES'
-                  : 'UNASSIGNED',
+                    ? 'STRIPES'
+                    : 'UNASSIGNED',
               ballInHand: cueBallFree,
               mustPlayFromBaulk: cueBallFree,
               baulkLineY: LINE_Y + BALL_R
@@ -3510,18 +3527,20 @@
           };
           let shot = planShot(req);
           if (!shot && !isNineBall && !isAmerican) {
-            const { default: selectShot } = await import('/lib/poolUkAdvancedAi.js');
+            const { default: selectShot } = await import(
+              '/lib/poolUkAdvancedAi.js'
+            );
             const advState = {
-              balls: balls.map(b => ({
+              balls: balls.map((b) => ({
                 id: b.id,
                 colour:
                   b.id === 0
                     ? 'cue'
                     : b.id === 8
-                    ? 'black'
-                    : b.id >= 1 && b.id <= 7
-                    ? 'red'
-                    : 'yellow',
+                      ? 'black'
+                      : b.id >= 1 && b.id <= 7
+                        ? 'red'
+                        : 'yellow',
                 x: b.x,
                 y: b.y,
                 pocketed: b.pocketed
@@ -3538,8 +3557,8 @@
                 assignedTypes[2] === 'yellow'
                   ? 'yellow'
                   : assignedTypes[2] === 'red'
-                  ? 'red'
-                  : null,
+                    ? 'red'
+                    : null,
               isOpenTable: !assignedTypes[2],
               freeBallAvailable: cueBallFree,
               shotsRemaining: 1,
@@ -3557,8 +3576,8 @@
                 plan.cueParams.speed === 'soft'
                   ? 0.3
                   : plan.cueParams.speed === 'med'
-                  ? 0.6
-                  : 0.9;
+                    ? 0.6
+                    : 0.9;
               const spinMap = {
                 stun: { top: 0, back: 0, side: 0 },
                 followS: { top: 0.5, back: 0, side: 0 },
@@ -3571,7 +3590,11 @@
               shot = {
                 angleRad,
                 power,
-                spin: spinMap[plan.cueParams.spin] || { top: 0, back: 0, side: 0 },
+                spin: spinMap[plan.cueParams.spin] || {
+                  top: 0,
+                  back: 0,
+                  side: 0
+                },
                 aimPoint: plan.aimPoint
               };
             }
@@ -3599,9 +3622,13 @@
             cueBallFree = false;
           }
           var nd = { x: Math.cos(shot.angleRad), y: Math.sin(shot.angleRad) };
-          var aimPoint = shot.aimPoint || { x: cue.p.x + nd.x * 100, y: cue.p.y + nd.y * 100 };
+          var aimPoint = shot.aimPoint || {
+            x: cue.p.x + nd.x * 100,
+            y: cue.p.y + nd.y * 100
+          };
           var dist = Math.hypot(aimPoint.x - cue.p.x, aimPoint.y - cue.p.y);
-          var bucket = dist <= SHORT_DIST ? 'short' : dist <= MED_DIST ? 'medium' : 'long';
+          var bucket =
+            dist <= SHORT_DIST ? 'short' : dist <= MED_DIST ? 'medium' : 'long';
           setCueVariant(bucket);
           if (isBreakShot) shot.power = 1;
           setSpin(shot.spin.side, shot.spin.top - shot.spin.back);
@@ -3628,15 +3655,40 @@
           isBreakShot = true;
           const overlay = document.getElementById('diceOverlay');
           overlay.classList.remove('hidden');
-          overlay.innerHTML = '<div class="dice-row" id="diceRow"></div><div id="diceMsg">Tap to roll dice</div>';
+          overlay.innerHTML =
+            '<div class="dice-row" id="diceRow"></div><div id="diceMsg">Tap to roll dice</div>';
 
           const diceFaces = {
-            1: [[0, 0, 0], [0, 1, 0], [0, 0, 0]],
-            2: [[1, 0, 0], [0, 0, 0], [0, 0, 1]],
-            3: [[1, 0, 0], [0, 1, 0], [0, 0, 1]],
-            4: [[1, 0, 1], [0, 0, 0], [1, 0, 1]],
-            5: [[1, 0, 1], [0, 1, 0], [1, 0, 1]],
-            6: [[1, 0, 1], [1, 0, 1], [1, 0, 1]],
+            1: [
+              [0, 0, 0],
+              [0, 1, 0],
+              [0, 0, 0]
+            ],
+            2: [
+              [1, 0, 0],
+              [0, 0, 0],
+              [0, 0, 1]
+            ],
+            3: [
+              [1, 0, 0],
+              [0, 1, 0],
+              [0, 0, 1]
+            ],
+            4: [
+              [1, 0, 1],
+              [0, 0, 0],
+              [1, 0, 1]
+            ],
+            5: [
+              [1, 0, 1],
+              [0, 1, 0],
+              [1, 0, 1]
+            ],
+            6: [
+              [1, 0, 1],
+              [1, 0, 1],
+              [1, 0, 1]
+            ]
           };
 
           function createFace(value, className) {
@@ -3724,7 +3776,9 @@
                 return;
               }
               const playerStarts = playerRoll > cpuRoll;
-              diceMsg.textContent = playerStarts ? 'You break first' : 'CPU breaks first';
+              diceMsg.textContent = playerStarts
+                ? 'You break first'
+                : 'CPU breaks first';
               setTimeout(() => {
                 overlay.classList.add('hidden');
                 diceRolling = false;
@@ -3759,7 +3813,9 @@
           resize();
           table.render();
           if (window.trainingMode && window.trainingSolo) {
-            var cpuPlayer = document.querySelector('#header .player:last-child');
+            var cpuPlayer = document.querySelector(
+              '#header .player:last-child'
+            );
             if (cpuPlayer) cpuPlayer.style.display = 'none';
             table.turn = 1;
             isBreakShot = true;
@@ -3800,46 +3856,46 @@
             'On the break, any potted balls count for the breaker. If a single colour is potted, continue with that colour.',
             'Potting both colours on the break lets the breaker choose which colour to play.',
             'Potting on the break keeps the turn until a miss.',
-            'Potting an opponent\'s ball is a foul that grants the opponent two shots.',
+            "Potting an opponent's ball is a foul that grants the opponent two shots.",
             'Hitting an opponent ball first is a foul and gives the opponent two shots.',
             'Failing to contact your colour, or the black when none remain, is a foul awarding two shots to the opponent.',
             'On the black 8, even after a foul, only one shot is allowed.',
-            'Once your coloured balls are gone, pot the black 8 to win — it\'s not a foul.',
+            "Once your coloured balls are gone, pot the black 8 to win — it's not a foul.",
             'After a foul the incoming player may place the cue ball behind the line and aim anywhere.'
           ],
           source: 'Custom 8 Ball UK rules for Pool Royale.'
         },
-          american: {
-            title: 'American Billiards Rules',
-            items: [
-              'Balls must be struck in numerical order; failing to contact the lowest numbered ball first is a foul.',
-              'Pocketed balls score their face value, but points from a fouled shot go to the opponent.',
-              'Pocketing the cue ball awards any points from that shot to the opponent.',
-              'When in hand, the cue ball must remain behind the head string.',
-              'If scores are tied after all balls are potted, spot the 8-ball and place the cue ball behind the head string; the last scorer shoots first and whoever pots the 8-ball wins.'
-            ],
-            source: 'Based on traditional 15-ball rotation guidelines.'
-          },
-          '9ball': {
-            title: '9-Ball Rules',
-            items: [
-              'Balls must be struck in numerical order from 1 to 9; failing to hit the next ball first is a foul.',
-              'Any ball pocketed after correctly contacting the lowest ball keeps the turn.',
-              'Pocketing the cue ball ends your turn and hands play to the opponent.',
-              'The cue ball may be moved only behind the head line at the start or after a foul.',
-              'Choose shots that favor balls near pockets or with clean angles.',
-              'The AI draws a helper line—direct or off a rail—to guarantee the next ball is contacted first.',
-              'On straight shots, the AI may use draw or spin to move other balls after the legal hit, prioritizing higher numbers when advantageous.',
-              'Example: if the 2-ball is the target and the 9-ball sits by a pocket, hit the 2 then use the cue ball to push the 9 in to win.'
-            ],
-            source: 'Custom Pool Royale 9-ball guidelines.'
-          }
+        american: {
+          title: 'American Billiards Rules',
+          items: [
+            'Balls must be struck in numerical order; failing to contact the lowest numbered ball first is a foul.',
+            'Pocketed balls score their face value, but points from a fouled shot go to the opponent.',
+            'Pocketing the cue ball awards any points from that shot to the opponent.',
+            'When in hand, the cue ball must remain behind the head string.',
+            'If scores are tied after all balls are potted, spot the 8-ball and place the cue ball behind the head string; the last scorer shoots first and whoever pots the 8-ball wins.'
+          ],
+          source: 'Based on traditional 15-ball rotation guidelines.'
+        },
+        '9ball': {
+          title: '9-Ball Rules',
+          items: [
+            'Balls must be struck in numerical order from 1 to 9; failing to hit the next ball first is a foul.',
+            'Any ball pocketed after correctly contacting the lowest ball keeps the turn.',
+            'Pocketing the cue ball ends your turn and hands play to the opponent.',
+            'The cue ball may be moved only behind the head line at the start or after a foul.',
+            'Choose shots that favor balls near pockets or with clean angles.',
+            'The AI draws a helper line—direct or off a rail—to guarantee the next ball is contacted first.',
+            'On straight shots, the AI may use draw or spin to move other balls after the legal hit, prioritizing higher numbers when advantageous.',
+            'Example: if the 2-ball is the target and the 9-ball sits by a pocket, hit the 2 then use the cue ball to push the 9 in to win.'
+          ],
+          source: 'Custom Pool Royale 9-ball guidelines.'
+        }
       };
 
       rulesBtn.addEventListener('click', () => {
         const r = ruleSets[variant] || ruleSets.uk;
         rulesTitle.textContent = r.title;
-        rulesList.innerHTML = r.items.map(i => `<li>${i}</li>`).join('');
+        rulesList.innerHTML = r.items.map((i) => `<li>${i}</li>`).join('');
         rulesSource.textContent = r.source;
         rulesModal.classList.remove('hidden');
       });
@@ -3865,17 +3921,21 @@
         menu.addEventListener('click', (e) => {
           if (e.target === menu) menu.classList.add('hidden');
         });
-        document.getElementById('practiceSolo').addEventListener('click', () => {
-          window.trainingSolo = true;
-          menu.classList.add('hidden');
-        });
+        document
+          .getElementById('practiceSolo')
+          .addEventListener('click', () => {
+            window.trainingSolo = true;
+            menu.classList.add('hidden');
+          });
         document.getElementById('practiceAi').addEventListener('click', () => {
           window.trainingSolo = false;
           menu.classList.add('hidden');
         });
-        document.getElementById('restartTraining').addEventListener('click', () => {
-          window.location.reload();
-        });
+        document
+          .getElementById('restartTraining')
+          .addEventListener('click', () => {
+            window.location.reload();
+          });
       }
 
       // Tournament mode removed
@@ -3891,39 +3951,74 @@
           }
         });
       }
-</script>
-<script>
-if(window.tournamentMode){
-  const tg = window.Telegram?.WebApp;
-  function showExitPopup(){
-    if(document.getElementById('tournExit')) return;
-    const overlay=document.createElement('div');
-    overlay.id='tournExit';
-    overlay.style.position='fixed';overlay.style.inset='0';
-    overlay.style.background='rgba(0,0,0,0.6)';
-    overlay.style.display='flex';overlay.style.flexDirection='column';
-    overlay.style.alignItems='center';overlay.style.justifyContent='center';
-    const box=document.createElement('div');
-    box.style.background='#11172a';box.style.padding='20px';box.style.borderRadius='8px';box.style.textAlign='center';box.style.maxWidth='90%';box.style.color='#dbe7ff';
-    box.innerHTML='<p style="margin-bottom:12px;">If you quit the tournament, your funds will be lost and you will be placed last.</p>';
-    const quit=document.createElement('button');
-    quit.textContent='Quit Tournament';
-    quit.style.margin='4px';quit.style.padding='8px 12px';
-    quit.style.background='#f97316';quit.style.border='none';
-    quit.style.borderRadius='4px';quit.style.color='#fff';
-    const ret=document.createElement('button');
-    ret.textContent='Return to Lobby';
-    ret.style.margin='4px';ret.style.padding='8px 12px';
-    ret.style.background='#2563eb';ret.style.border='none';
-    ret.style.borderRadius='4px';ret.style.color='#fff';
-    box.appendChild(quit);box.appendChild(ret);overlay.appendChild(box);document.body.appendChild(overlay);
-    quit.onclick=()=>{localStorage.removeItem(STATE_KEY);localStorage.removeItem(OPP_KEY);if(tg) tg.BackButton.hide();window.location.href='/games/pollroyale/lobby';};
-    ret.onclick=()=>{if(tg) tg.BackButton.show();window.location.href='/pool-royale-bracket.html'+window.location.search;};
-  }
-  if(tg){ tg.BackButton.show(); tg.onEvent('backButtonClicked', showExitPopup); tg.onEvent('close', showExitPopup); }
-  history.pushState(null,'',location.href);
-  window.addEventListener('popstate',(e)=>{ e.preventDefault(); showExitPopup(); history.pushState(null,'',location.href); });
-}
-</script>
-</body>
+    </script>
+    <script>
+      if (window.tournamentMode) {
+        const tg = window.Telegram?.WebApp;
+        function showExitPopup() {
+          if (document.getElementById('tournExit')) return;
+          const overlay = document.createElement('div');
+          overlay.id = 'tournExit';
+          overlay.style.position = 'fixed';
+          overlay.style.inset = '0';
+          overlay.style.background = 'rgba(0,0,0,0.6)';
+          overlay.style.display = 'flex';
+          overlay.style.flexDirection = 'column';
+          overlay.style.alignItems = 'center';
+          overlay.style.justifyContent = 'center';
+          const box = document.createElement('div');
+          box.style.background = '#11172a';
+          box.style.padding = '20px';
+          box.style.borderRadius = '8px';
+          box.style.textAlign = 'center';
+          box.style.maxWidth = '90%';
+          box.style.color = '#dbe7ff';
+          box.innerHTML =
+            '<p style="margin-bottom:12px;">If you quit the tournament, your funds will be lost and you will be placed last.</p>';
+          const quit = document.createElement('button');
+          quit.textContent = 'Quit Tournament';
+          quit.style.margin = '4px';
+          quit.style.padding = '8px 12px';
+          quit.style.background = '#f97316';
+          quit.style.border = 'none';
+          quit.style.borderRadius = '4px';
+          quit.style.color = '#fff';
+          const ret = document.createElement('button');
+          ret.textContent = 'Return to Lobby';
+          ret.style.margin = '4px';
+          ret.style.padding = '8px 12px';
+          ret.style.background = '#2563eb';
+          ret.style.border = 'none';
+          ret.style.borderRadius = '4px';
+          ret.style.color = '#fff';
+          box.appendChild(quit);
+          box.appendChild(ret);
+          overlay.appendChild(box);
+          document.body.appendChild(overlay);
+          quit.onclick = () => {
+            localStorage.removeItem(STATE_KEY);
+            localStorage.removeItem(OPP_KEY);
+            if (tg) tg.BackButton.hide();
+            window.location.href = '/games/pollroyale/lobby';
+          };
+          ret.onclick = () => {
+            if (tg) tg.BackButton.show();
+            window.location.href =
+              '/pool-royale-bracket.html' + window.location.search;
+          };
+        }
+        if (tg) {
+          tg.BackButton.show();
+          tg.onEvent('backButtonClicked', showExitPopup);
+          tg.onEvent('close', showExitPopup);
+        }
+        history.pushState(null, '', location.href);
+        window.addEventListener('popstate', (e) => {
+          e.preventDefault();
+          showExitPopup();
+          history.pushState(null, '', location.href);
+        });
+      }
+    </script>
+  </body>
 </html>
