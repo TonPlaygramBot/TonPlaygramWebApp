@@ -2281,9 +2281,9 @@
               0,
               ballR * 1.2
             );
-            // Slightly soften internal highlights and shadows
-            grad.addColorStop(0, 'rgba(255,255,255,0.5)');
-            grad.addColorStop(0.6, BALL_BY_N[b.n].c);
+            // Brighten with a smaller, solid highlight
+            grad.addColorStop(0, '#fff');
+            grad.addColorStop(0.5, BALL_BY_N[b.n].c);
             grad.addColorStop(1, 'rgba(0,0,0,0.25)');
             ctx.fillStyle = grad;
             ctx.beginPath();
@@ -2306,9 +2306,9 @@
                 0,
                 ballR * 1.2
               );
-              // Slightly soften internal highlights and shadows of stripe
-              stripeGrad.addColorStop(0, 'rgba(255,255,255,0.5)');
-              stripeGrad.addColorStop(0.6, '#fff');
+              // Brighten stripe with a smaller, solid highlight
+              stripeGrad.addColorStop(0, '#fff');
+              stripeGrad.addColorStop(0.5, '#fff');
               stripeGrad.addColorStop(1, 'rgba(0,0,0,0.25)');
               ctx.fillStyle = stripeGrad;
               ctx.fillRect(-ballR, -ballR * 0.3, ballR * 2, ballR * 0.6);
