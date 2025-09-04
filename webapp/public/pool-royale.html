@@ -2383,7 +2383,7 @@
               ctx.arc(0, 0, ballR * 0.52, 0, Math.PI * 2);
               ctx.fill();
               ctx.lineWidth = ballR * 0.05;
-              ctx.strokeStyle = '#000';
+              ctx.strokeStyle = stripe ? '#fff' : '#000';
               ctx.stroke();
               ctx.fillStyle = stripe ? '#fff' : '#111';
               ctx.font = ballR * 0.9 + 'px system-ui,sans-serif';
@@ -2636,7 +2636,7 @@
             ctx.arc(cx, cy, r * 0.52, 0, Math.PI * 2);
             ctx.fill();
             ctx.lineWidth = r * 0.1;
-            ctx.strokeStyle = '#000';
+            ctx.strokeStyle = stripe ? '#fff' : '#000';
             ctx.stroke();
             ctx.fillStyle = stripe ? '#fff' : '#111';
             ctx.font = '8px system-ui,sans-serif';
