@@ -926,7 +926,7 @@
         var SIDE_POCKET_R = 30; // gropat anesore gjithashtu pak me te vogla
         // move pockets slightly closer to the center of the table
         var POCKET_SHORTEN = 4; // gropat zhvendosen pak me brenda per te ruajtur anen e brendshme
-        var BALL_R = isSnooker && playType === 'training' ? 20 : 22; // snooker training uses smaller balls
+        var BALL_R = isSnooker && playType === 'training' ? 18 : 22; // snooker training uses smaller balls
         var SHORT_DIST = BALL_R * 28;
         var MED_DIST = BALL_R * 56;
         var BORDER_TOP = BORDER + BALL_R * 2 - 4; // bordi i siperm pak me i holle per fushe me te gjate
@@ -1896,6 +1896,36 @@
                 this.balls.push(new Ball(info9, x9, y9));
               }
             }
+          } else if (isSnooker) {
+            // Snooker layout with 15 reds and 6 colour balls
+            rowGap = BALL_R * 2;
+            colGap = BALL_R * 1.8;
+            var redStartY = SPOT_Y;
+            var idx = 1;
+            for (var rS = 0; rS < 5; rS++) {
+              var cntS = rS + 1;
+              var startXS = cx - (rowGap * (cntS - 1)) / 2;
+              var yS = redStartY - rS * colGap;
+              for (var jS = 0; jS < cntS; jS++) {
+                var infoS = BALL_BY_N[idx++];
+                if (infoS) this.balls.push(new Ball(infoS, startXS + jS * rowGap, yS));
+              }
+            }
+            // place the six colour balls on their spots
+            this.balls.push(
+              new Ball(BALL_BY_N[16], TABLE_W / 2 - BALL_R * 6, LINE_Y)
+            );
+            this.balls.push(
+              new Ball(BALL_BY_N[17], TABLE_W / 2 + BALL_R * 6, LINE_Y)
+            );
+            this.balls.push(new Ball(BALL_BY_N[18], TABLE_W / 2, LINE_Y));
+            this.balls.push(new Ball(BALL_BY_N[19], TABLE_W / 2, TABLE_H / 2));
+            this.balls.push(
+              new Ball(BALL_BY_N[20], TABLE_W / 2, SPOT_Y + colGap * 2)
+            );
+            this.balls.push(
+              new Ball(BALL_BY_N[21], TABLE_W / 2, redStartY - colGap * 4)
+            );
           } else {
             // Rregullimi standart per 8-ball UK (red & blue)
             var pattern = [
