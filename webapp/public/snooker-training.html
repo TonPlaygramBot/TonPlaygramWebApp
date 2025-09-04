@@ -28,17 +28,6 @@
     #spinBox{position:fixed;top:60px;left:50%;transform:translate(-50%,-50%);width:70px;height:70px;border-radius:50%;background:#f6f6f6;box-shadow:0 4px 10px rgba(0,0,0,0.4) inset,0 0 0 2px rgba(0,0,0,0.15);pointer-events:auto;touch-action:none;z-index:20;cursor:pointer}
     #spinDot{position:absolute;width:10px;height:10px;border-radius:50%;background:#e63;left:50%;top:50%;transform:translate(-50%,-50%);pointer-events:none}
     .hint{position:fixed;left:50%;transform:translateX(-50%);top:54px;font-size:12px;color:var(--muted)}
-    #header,#footer{position:fixed;left:0;right:0;height:56px;display:flex;align-items:center;justify-content:space-between;padding:0 12px;background:linear-gradient(#20345a,#1a2b4d);}
-    #header{top:0;border-bottom:1px solid #24375f;}
-    #footer{bottom:0;border-top:1px solid #24375f;justify-content:center;height:calc(56px + env(safe-area-inset-bottom));padding-bottom:env(safe-area-inset-bottom);}
-    .player{display:flex;align-items:center;gap:8px;}
-    .avatar{width:36px;height:36px;border-radius:50%;background:#fff;color:#222;display:grid;place-items:center;font-weight:700;border:2px solid var(--player-frame-color,#000);}
-    .name{font-weight:700;}
-    .player .info{display:flex;flex-direction:column;align-items:center;}
-    .score{font-size:18px;font-weight:700;min-width:32px;text-align:center;}
-    .potted{display:flex;gap:2px;margin-top:2px;}
-    .potted .ball{width:14px;height:14px;border-radius:50%;display:block;}
-    #statusMsg{font-size:12px;margin-top:2px;}
   </style>
 </head>
 <body>
@@ -47,34 +36,40 @@
   </div>
   <div id="psContainer"></div>
   <div id="spinBox"><div id="spinDot"></div></div>
-  <div id="header">
-    <div class="player">
-      <div class="avatar">P</div>
-      <div class="info">
-        <div class="name" id="playerName">Player</div>
-        <div class="potted" id="potted"></div>
-      </div>
-      <div class="score" id="playerScore">0</div>
+  <div class="hud">
+    <div class="stack">
+      <div class="pill">Score: <b id="score">0</b></div>
+      <div class="pill">Mode: <b>Practice</b></div>
+    </div>
+    <div class="stack">
+      <button class="btn" id="resetBtn">New Rack</button>
+      <button class="btn ghost" id="helpBtn">Help</button>
     </div>
   </div>
-  <div id="footer">
-    <div id="turnPlayer" class="player">
-      <div class="avatar"></div>
-      <div class="info">
-        <div class="name"></div>
-        <div id="statusMsg"></div>
+  <div class="centerOverlay" id="overlay">
+    <div class="panel">
+      <h1>Snooker 2.5D — Mobile Portrait</h1>
+      <p>Pull back from the cue ball to aim and set power, then release to strike. Full‑screen vertical, touch controls. Practice mode: reds disappear when potted, colours respawn on their spots.</p>
+      <div class="stack" style="margin-top:10px">
+        <button class="btn" id="startBtn">Start</button>
+        <button class="btn ghost" id="howBtn">How to Play</button>
       </div>
+      <p style="font-size:12px;color:#9aa7d7;margin-top:10px">Tip: If the cue ball is potted, tap inside the baulk area to place it (in‑hand).</p>
     </div>
   </div>
+  <div class="hint" id="hint">Pull back to aim • Release slider to shoot</div>
 
   <script type="module">
   import { PowerSlider } from './power-slider.js';
   ;(() => {
     const canvas = document.getElementById('game');
     const ctx = canvas.getContext('2d');
-    const scoreEl = document.getElementById('playerScore');
-    const pottedEl = document.getElementById('potted');
-    const statusMsg = document.getElementById('statusMsg');
+    const overlay = document.getElementById('overlay');
+    const startBtn = document.getElementById('startBtn');
+    const howBtn = document.getElementById('howBtn');
+    const helpBtn = document.getElementById('helpBtn');
+    const resetBtn = document.getElementById('resetBtn');
+    const scoreEl = document.getElementById('score');
     let sliderPower = 0;
     const ps = new PowerSlider({
       mount: document.getElementById('psContainer'),
@@ -214,8 +209,6 @@
       balls.length = 0;
       game.score = 0;
       updateScore();
-      pottedEl.innerHTML = '';
-      statusMsg.textContent = '';
       const s = geom.spots;
       const r = geom.ballR;
       // colours on spots
@@ -247,12 +240,6 @@
       game.initialized = true;
     }
     function updateScore(){ scoreEl.textContent = game.score.toString(); }
-    function addPotted(color){
-      const el = document.createElement('div');
-      el.className = 'ball';
-      el.style.background = color;
-      pottedEl.appendChild(el);
-    }
 
     // --- Physics -----------------------------------------------------------
     const phys = {
@@ -342,15 +329,10 @@
           b.active = false; b.vx = b.vy = 0;
           if(b.type === 'cue'){
             game.placingCue = true; game.aiming = false;
-            statusMsg.textContent = 'Cue ball potted';
           } else if(b.type === 'red'){
             game.score += 1; updateScore();
-            addPotted(b.color);
-            statusMsg.textContent = 'Red potted';
           } else if(b.type === 'color'){
             game.score += b.value; updateScore();
-            addPotted(b.color);
-            statusMsg.textContent = b.spot + ' potted';
             // respot colour
             respotColor(b);
           }
@@ -752,11 +734,17 @@
       draw();
     }
 
-    // --- Init -------------------------------------------------------------
+    // --- Controls / Overlay -----------------------------------------------
+    startBtn && startBtn.addEventListener('click', () => { overlay.style.display='none'; game.running=true; });
+    howBtn && howBtn.addEventListener('click', () => alert('Pull back from the cue ball to aim, then use the slider to set power and release to strike.\n\nPractice mode:\n• Reds score 1 and disappear.\n• Colours respawn on their spots and score their values.\n• Cue ball in pocket: tap inside the baulk area to place it.'));
+    helpBtn && helpBtn.addEventListener('click', () => alert('Controls (touch):\nPull back from the cue ball to aim.\nRelease the slider to shoot.\n\nIf the cue is potted, tap inside the baulk area to place it.'));
+    resetBtn && resetBtn.addEventListener('click', () => { rack(); });
+
+    // Init
     resize();
     window.addEventListener('resize', resize);
     rack();
-    game.running = true;
+    overlay.style.display = 'grid';
     requestAnimationFrame(loop);
 
   })();
