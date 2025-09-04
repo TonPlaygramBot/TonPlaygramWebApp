@@ -904,10 +904,12 @@
         var variant = params.get('variant') || 'uk';
         var isAmerican = variant === 'american';
         var isNineBall = variant === '9ball';
+        var isSnooker = variant === 'snooker';
         var playType = params.get('type') || 'regular';
         window.trainingMode = playType === 'training';
         window.tournamentMode = playType === 'tournament';
         window.trainingSolo = false;
+        window.trainingRules = true;
         window.tournamentPlayers = parseInt(params.get('players') || '0', 10);
         window.potAmount = parseInt(params.get('amount') || '0', 10);
         window.playerName = params.get('name') || 'Player';
@@ -1669,11 +1671,11 @@
 
         function applySpinImpulse(ball) {
           if (!ball.spin) return;
-          // Increase spin impulse by 50% for more pronounced effects
-          ball.v.x += ball.spin.x * 97.5;
-          ball.v.y += ball.spin.y * 97.5;
-          ball.spin.x *= 0.9;
-          ball.spin.y *= 0.9;
+          // Further boost spin impulse and reduce damping for stronger, longer spin
+          ball.v.x += ball.spin.x * 120;
+          ball.v.y += ball.spin.y * 120;
+          ball.spin.x *= 0.95;
+          ball.spin.y *= 0.95;
         }
 
         /* ==========================================================
@@ -1736,6 +1738,32 @@
             { n: 8, t: 'solid', c: COL[8] },
             { n: 9, t: 'stripe', c: COL[9] }
           ];
+        } else if (isSnooker) {
+          COL = {
+            cue: '#f5f5f5',
+            red: '#d92d30',
+            yellow: '#f2d24b',
+            green: '#1faa4a',
+            brown: '#7a2f2f',
+            blue: '#2256ff',
+            pink: '#ff8c1a',
+            black: '#111'
+          };
+          BALLS = [{ n: 0, t: 'cue', c: COL.cue }];
+          for (var nn = 1; nn <= 7; nn++)
+            BALLS.push({ n: nn, t: 'red', c: COL.red });
+          BALLS.push({ n: 8, t: 'black', c: COL.black });
+          var snookerColors = [
+            COL.yellow,
+            COL.green,
+            COL.brown,
+            COL.blue,
+            COL.pink,
+            COL.black,
+            COL.yellow
+          ];
+          for (var sm = 0; sm < snookerColors.length; sm++)
+            BALLS.push({ n: 9 + sm, t: 'color', c: snookerColors[sm] });
         } else {
           COL = {
             cue: '#f5f5f5',
@@ -2802,6 +2830,7 @@
         }
 
         function isFoul(firstHit, scratch) {
+          if (window.trainingMode && !window.trainingRules) return false;
           if (isNineBall || isAmerican) {
             return !firstHit || firstHit.n !== currentTarget || scratch;
           }
@@ -3175,8 +3204,8 @@
               y: dir.y - 2 * dotIn * railNormal.y
             };
             // adjust the reflection based on selected spin
-            refl.x += spinVec.x * 0.4;
-            refl.y += spinVec.y * 0.4;
+            refl.x += spinVec.x * 0.6;
+            refl.y += spinVec.y * 0.6;
             var rL = Math.hypot(refl.x, refl.y) || 1;
             refl.x /= rL;
             refl.y /= rL;
@@ -3892,6 +3921,8 @@
       <div id="trainingMenuInner">
         <button id="practiceSolo">Practice Solo</button>
         <button id="practiceAi">Practice vs AI</button>
+        <button id="enableRules">With Rules</button>
+        <button id="disableRules">No Rules</button>
         <button id="restartTraining">New Game</button>
       </div>
     </div>
@@ -3984,6 +4015,14 @@
           });
         document.getElementById('practiceAi').addEventListener('click', () => {
           window.trainingSolo = false;
+          menu.classList.add('hidden');
+        });
+        document.getElementById('enableRules').addEventListener('click', () => {
+          window.trainingRules = true;
+          menu.classList.add('hidden');
+        });
+        document.getElementById('disableRules').addEventListener('click', () => {
+          window.trainingRules = false;
           menu.classList.add('hidden');
         });
         document
