@@ -1175,7 +1175,7 @@
         var scoreP2 = document.getElementById('p2Score');
         var cueHint = document.getElementById('cueHint');
 
-        if (!isAmerican) {
+        if (!isAmerican && !isSnooker) {
           scoreP1.style.display = 'none';
           scoreP2.style.display = 'none';
         }
@@ -1749,21 +1749,25 @@
             pink: '#ff8c1a',
             black: '#111'
           };
-          BALLS = [{ n: 0, t: 'cue', c: COL.cue }];
-          for (var nn = 1; nn <= 7; nn++)
-            BALLS.push({ n: nn, t: 'red', c: COL.red });
-          BALLS.push({ n: 8, t: 'black', c: COL.black });
-          var snookerColors = [
-            COL.yellow,
-            COL.green,
-            COL.brown,
-            COL.blue,
-            COL.pink,
-            COL.black,
-            COL.yellow
+          BALLS = [{ n: 0, t: 'cue', c: COL.cue, p: 0 }];
+          for (var nn = 1; nn <= 15; nn++)
+            BALLS.push({ n: nn, t: 'red', c: COL.red, p: 1 });
+          var colors = [
+            { t: 'yellow', c: COL.yellow, p: 2 },
+            { t: 'green', c: COL.green, p: 3 },
+            { t: 'brown', c: COL.brown, p: 4 },
+            { t: 'blue', c: COL.blue, p: 5 },
+            { t: 'pink', c: COL.pink, p: 6 },
+            { t: 'black', c: COL.black, p: 7 }
           ];
-          for (var sm = 0; sm < snookerColors.length; sm++)
-            BALLS.push({ n: 9 + sm, t: 'color', c: snookerColors[sm] });
+          colors.forEach(function (col, idx) {
+            BALLS.push({
+              n: 15 + idx + 1,
+              t: col.t,
+              c: col.c,
+              p: col.p
+            });
+          });
         } else {
           COL = {
             cue: '#f5f5f5',
@@ -2043,6 +2047,12 @@
               playShock(1);
             }
             if (!nearPocket || !approaching) {
+              if (b.n === 0) {
+                if (b.p.x - L < BALL_R * 1.5 && b.v.x < 0) spinQueue.add(b);
+                if (R - b.p.x < BALL_R * 1.5 && b.v.x > 0) spinQueue.add(b);
+                if (b.p.y - T < BALL_R * 1.5 && b.v.y < 0) spinQueue.add(b);
+                if (B - b.p.y < BALL_R * 1.5 && b.v.y > 0) spinQueue.add(b);
+              }
               if (b.p.x < L) {
                 b.p.x = L;
                 b.v.x *= -BOUNCE;
@@ -2124,6 +2134,9 @@
               var dx = bb.p.x - a.p.x,
                 dy = bb.p.y - a.p.y,
                 d = Math.hypot(dx, dy);
+              if ((a.n === 0 || bb.n === 0) && d < BALL_R * 2.5) {
+                spinQueue.add(a.n === 0 ? a : bb);
+              }
               if (d < BALL_R * 2) {
                 var pairId = i + '-' + j;
                 var firstPairCollision = !newCollisions.has(pairId);
@@ -2245,6 +2258,11 @@
                     pocketedOwn = true;
                   } else if (isAmerican) {
                     pottedThisShot.push(b2.n);
+                    pocketedOwn = true;
+                    lastPocketedBall = b2.n;
+                  } else if (isSnooker) {
+                    var infoSn = BALL_BY_N[b2.n];
+                    pottedThisShot.push(infoSn.p);
                     pocketedOwn = true;
                     lastPocketedBall = b2.n;
                   } else {
@@ -2551,6 +2569,7 @@
         var countdownRemaining = 0;
         var scores = { 1: 0, 2: 0 };
         var lastPocketedBall = null;
+        var snookerExpectColor = false;
         var currentTarget = null;
         var pottedThisShot = [];
         var eightBallPotted = false;
@@ -2691,7 +2710,7 @@
           scoreP2.textContent = scores[2];
           checkGameOver();
         }
-        if (isAmerican) updateScoresUI();
+        if (isAmerican || isSnooker) updateScoresUI();
 
         function updateFooter(player, msg) {
           var srcAvatar = player === 1 ? avatarP1 : avatarCPU;
@@ -2833,6 +2852,11 @@
           if (window.trainingMode && !window.trainingRules) return false;
           if (isNineBall || isAmerican) {
             return !firstHit || firstHit.n !== currentTarget || scratch;
+          } else if (isSnooker) {
+            if (!firstHit || scratch) return true;
+            if (snookerExpectColor && firstHit.t === 'red') return true;
+            if (!snookerExpectColor && firstHit.t !== 'red') return true;
+            return false;
           }
           if (!firstHit || scratch) return true;
           var shooterType = assignedTypes[currentShooter];
@@ -2868,6 +2892,7 @@
             eightBallPotted = false;
             nineBallPotted = false;
             lastPocketedBall = null;
+            snookerExpectColor = false;
             return;
           }
           var opponent = currentShooter === 1 ? 2 : 1;
@@ -2906,6 +2931,16 @@
                 ? 'the cue ball went in'
                 : 'wrong first contact';
               updateFooter(opponent, 'That\u2019s a foul – ' + foulMsg + '.');
+            } else if (isSnooker) {
+              var penalty = Math.max(firstHit ? firstHit.p : 0, 4);
+              scores[opponent] += penalty;
+              updateScoresUI();
+              updateFooter(
+                opponent,
+                'That\u2019s a foul – opponent gets ' +
+                  penalty +
+                  ' points.'
+              );
             } else {
               updateFooter(opponent, 'Foul – opponent gets two shots.');
             }
@@ -2934,9 +2969,12 @@
               endGame(currentShooter);
               return;
             }
-            if (shotPoints > 0 && isAmerican) {
+            if (shotPoints > 0 && (isAmerican || isSnooker)) {
               scores[currentShooter] += shotPoints;
               updateScoresUI();
+            }
+            if (isSnooker && pocketedAny) {
+              snookerExpectColor = firstHit && firstHit.t === 'red';
             }
             if (freeShots[currentShooter] > 0) {
               freeShots[currentShooter]--;
