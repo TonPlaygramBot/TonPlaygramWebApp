@@ -166,7 +166,33 @@
         flex: 1 1 auto;
         display: flex;
         overflow: hidden;
-        /* Background graphics removed so the table canvas is fully visible */
+        /* Ensure background image covers the available space without
+         overlapping top or bottom elements. Extend the width slightly
+         so the thin green boundary line is fully visible while keeping
+         extra clearance at the bottom. The brightness filter is applied
+         to a pseudo-element so the balls and other children remain
+         unaffected. */
+      }
+      #wrap::before {
+        content: '';
+        position: absolute;
+        inset: 0;
+        background: url('/assets/icons/Pool%20table%20.webp')
+          top center/calc(100% + 8px) calc(100% + 20px) no-repeat;
+        filter: brightness(var(--table-brightness));
+        z-index: -2;
+      }
+
+      #wrap::after {
+        content: '';
+        position: absolute;
+        inset: 0;
+        background: url('/assets/icons/file_00000000bc2862439eecffff3730bbe4.webp')
+          center/30% no-repeat;
+        opacity: 0.2;
+        mix-blend-mode: multiply;
+        z-index: -1;
+        pointer-events: none;
       }
 
       :root {
