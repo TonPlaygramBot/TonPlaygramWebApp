@@ -27,6 +27,8 @@
     .bar{position:relative;width:140px;height:10px;background:#0a1226;border:1px solid #1e2a55;border-radius:999px;overflow:hidden}
     .bar>i{position:absolute;inset:0;width:0;background:linear-gradient(90deg,#6ee7ff,#60a5fa);box-shadow:0 0 20px #60a5fa55 inset}
     #psContainer{position:fixed;top:50%;right:12px;transform:translateY(-50%);pointer-events:auto}
+    #spinBox{position:fixed;top:60px;left:50%;transform:translate(-50%,-50%);width:70px;height:70px;border-radius:50%;background:#f6f6f6;box-shadow:0 4px 10px rgba(0,0,0,0.4) inset,0 0 0 2px rgba(0,0,0,0.15);pointer-events:auto;touch-action:none;z-index:20;cursor:pointer}
+    #spinDot{position:absolute;width:10px;height:10px;border-radius:50%;background:#e63;left:50%;top:50%;transform:translate(-50%,-50%);pointer-events:none}
     .hint{position:fixed;left:50%;transform:translateX(-50%);top:54px;font-size:12px;color:var(--muted)}
   </style>
 </head>
@@ -35,6 +37,7 @@
     <canvas id="game"></canvas>
   </div>
   <div id="psContainer"></div>
+  <div id="spinBox"><div id="spinDot"></div></div>
   <div class="hud">
     <div class="stack">
       <div class="pill">Score: <b id="score">0</b></div>
@@ -75,6 +78,37 @@
       cueSrc: '/assets/icons/file_0000000019d86243a2f7757076cd7869.webp',
       onChange: v => { sliderPower = v / 100; }
     });
+    const spinBox = document.getElementById('spinBox');
+    const spinDot = document.getElementById('spinDot');
+    let spinVec = {x:0, y:0};
+    function setSpin(nx, ny){
+      spinDot.style.left = 50 + nx*50 + '%';
+      spinDot.style.top = 50 + ny*50 + '%';
+      spinVec = {x:nx, y:ny};
+    }
+    function updateSpin(e){
+      const r = spinBox.getBoundingClientRect();
+      const nx = ((e.clientX - r.left)/r.width - 0.5) * 2;
+      const ny = ((e.clientY - r.top)/r.height - 0.5) * 2;
+      const l = Math.hypot(nx, ny) || 1;
+      const cl = Math.min(l,1);
+      setSpin((nx/l)*cl, (ny/l)*cl);
+    }
+    spinBox.addEventListener('pointerdown', e=>{
+      spinBox.setPointerCapture(e.pointerId);
+      spinBox.style.transform='translate(-50%,-50%) scale(1.4)';
+      updateSpin(e);
+    });
+    spinBox.addEventListener('pointermove', e=>{
+      if(!spinBox.hasPointerCapture(e.pointerId)) return;
+      updateSpin(e);
+    });
+    spinBox.addEventListener('pointerup', e=>{
+      spinBox.releasePointerCapture(e.pointerId);
+      spinBox.style.transform='translate(-50%,-50%) scale(1)';
+    });
+    const cueImg = new Image();
+    cueImg.src = '/assets/icons/file_0000000019d86243a2f7757076cd7869.webp';
 
     // --- DPI / Resize ------------------------------------------------------
     const state = { w: 0, h: 0, dpr: 1 };
@@ -167,7 +201,7 @@
     };
 
     function makeBall(x,y,color,value,type,spot){
-      return {x,y,vx:0,vy:0,r:geom.ballR,color,value,type,active:true,spot, id:Math.random().toString(36).slice(2)}
+      return {x,y,vx:0,vy:0,r:geom.ballR,color,value,type,active:true,spot,spin:{x:0,y:0}, id:Math.random().toString(36).slice(2)}
     }
 
     function rack(){
@@ -211,6 +245,8 @@
       fric: 0.992,           // velocity retained per frame at 60fps
       minSpeed: 2e-3,        // threshold to stop
       cushionRest: 0.92,
+      spin: 30,              // spin impulse strength
+      spinFric: 0.9          // spin decay per frame at 60fps
     };
 
     function step(dt){
@@ -219,6 +255,11 @@
         if(!b.active) continue;
         b.x += b.vx * dt;
         b.y += b.vy * dt;
+        // apply spin impulse
+        b.vx += b.spin.x * phys.spin * dt;
+        b.vy += b.spin.y * phys.spin * dt;
+        b.spin.x *= Math.pow(phys.spinFric, dt*60);
+        b.spin.y *= Math.pow(phys.spinFric, dt*60);
         // friction
         b.vx *= Math.pow(phys.fric, dt*60);
         b.vy *= Math.pow(phys.fric, dt*60);
@@ -385,6 +426,8 @@
       const maxSpeed = geom.ballR * 28; // a tad faster
       c.vx = aimX * maxSpeed * power;
       c.vy = aimY * maxSpeed * power;
+      c.spin = {x:spinVec.x, y:spinVec.y};
+      setSpin(0,0);
       drag.active = false; game.aiming = false;
     }
 
@@ -405,6 +448,7 @@
       drawBackground();
       drawTable();
       drawGuides();
+      drawCue();
       drawBalls();
       drawVignette();
     }
@@ -510,6 +554,32 @@
       }
     }
 
+    function drawCue(){
+      if(!game.aiming || anyBallsMoving() || game.placingCue) return;
+      const c = cueBall(); if(!c || !c.active) return;
+      const pull = Math.min(Math.hypot(c.x - drag.x, c.y - drag.y), geom.ballR*10);
+      drawCueOnTable({x:c.x,y:c.y}, {x:drag.x,y:drag.y}, pull);
+    }
+
+    function drawCueOnTable(cuePos, aim, pull){
+      const dx = aim.x - cuePos.x, dy = aim.y - cuePos.y;
+      const len = Math.hypot(dx, dy) || 1;
+      const dir = {x:dx/len, y:dy/len};
+      const angle = Math.atan2(dir.y, dir.x) + Math.PI/2;
+      const cueLength = geom.ballR * 20;
+      const cueShift = geom.ballR * 2 * 6.3;
+      if(!cueImg.complete) return;
+      const scale = cueLength / cueImg.width;
+      const drawW = cueImg.width * scale;
+      const drawH = cueImg.height * scale;
+      ctx.save();
+      ctx.translate(cuePos.x - dir.x * pull, cuePos.y - dir.y * pull);
+      ctx.rotate(angle);
+      ctx.translate(cueShift,0);
+      ctx.drawImage(cueImg, -drawW/2 - cueShift, 0, drawW, drawH);
+      ctx.restore();
+    }
+
     function shadeColor(hex, amt){
       const c = hex.replace('#','');
       const n = parseInt(c.length===3 ? c.split('').map(ch=>ch+ch).join('') : c, 16);
@@ -527,16 +597,15 @@
         const len = Math.min(Math.hypot(dx,dy), geom.ballR*10);
         // cue line
         ctx.save();
-        ctx.strokeStyle = 'rgba(230,240,255,0.65)';
+        ctx.strokeStyle = 'rgba(255,255,255,0.7)';
         ctx.lineWidth = Math.max(1.5*state.dpr, 2);
-        ctx.setLineDash([state.dpr*6, state.dpr*6]);
+        ctx.setLineDash([]);
         ctx.beginPath();
         const gx = c.x + Math.cos(ang) * (c.r + 6);
         const gy = c.y + Math.sin(ang) * (c.r + 6);
         ctx.moveTo(gx, gy);
         ctx.lineTo(gx + Math.cos(ang) * len, gy + Math.sin(ang) * len);
         ctx.stroke();
-        ctx.setLineDash([]);
         // arrow
         ctx.beginPath();
         ctx.moveTo(gx + Math.cos(ang) * len, gy + Math.sin(ang) * len);
