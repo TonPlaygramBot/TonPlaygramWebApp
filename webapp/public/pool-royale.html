@@ -1635,6 +1635,21 @@
           return dx * dx + dy * dy;
         }
 
+        function brighten(hex, amt) {
+          var c = hex.slice(1);
+          if (c.length === 3) c = c.split('').map(function (ch) { return ch + ch; }).join('');
+          var num = parseInt(c, 16);
+          var r = num >> 16;
+          var g = (num >> 8) & 0xff;
+          var b = num & 0xff;
+          r = Math.min(255, Math.round(r * (1 + amt)));
+          g = Math.min(255, Math.round(g * (1 + amt)));
+          b = Math.min(255, Math.round(b * (1 + amt)));
+          return (
+            '#' + ((r << 16) | (g << 8) | b).toString(16).padStart(6, '0')
+          );
+        }
+
         function applySpinImpulse(ball) {
           if (!ball.spin) return;
           // Increase spin impulse by 50% for more pronounced effects
@@ -2260,8 +2275,8 @@
             ctx.ellipse(
               px,
               py + ballR * 0.6,
-              ballR * 1.2,
-              ballR * 0.5,
+              ballR * 1.1,
+              ballR * 0.45,
               0,
               0,
               Math.PI * 2
@@ -2276,15 +2291,15 @@
             var grad = ctx.createRadialGradient(
               -ballR * 0.4,
               -ballR * 0.6,
-              ballR * 0.2,
+              ballR * 0.15,
               0,
               0,
-              ballR * 1.2
+              ballR * 1.1
             );
             // Brighten with a smaller, solid highlight
             grad.addColorStop(0, '#fff');
-            grad.addColorStop(0.5, BALL_BY_N[b.n].c);
-            grad.addColorStop(1, 'rgba(0,0,0,0.25)');
+            grad.addColorStop(0.45, brighten(BALL_BY_N[b.n].c, 0.05));
+            grad.addColorStop(1, 'rgba(0,0,0,0.2)');
             ctx.fillStyle = grad;
             ctx.beginPath();
             ctx.arc(0, 0, ballR, 0, Math.PI * 2);
@@ -2301,15 +2316,15 @@
               var stripeGrad = ctx.createRadialGradient(
                 -ballR * 0.4,
                 -ballR * 0.6,
-                ballR * 0.2,
+                ballR * 0.15,
                 0,
                 0,
-                ballR * 1.2
+                ballR * 1.1
               );
               // Brighten stripe with a smaller, solid highlight
               stripeGrad.addColorStop(0, '#fff');
-              stripeGrad.addColorStop(0.5, '#fff');
-              stripeGrad.addColorStop(1, 'rgba(0,0,0,0.25)');
+              stripeGrad.addColorStop(0.45, '#fff');
+              stripeGrad.addColorStop(1, 'rgba(0,0,0,0.2)');
               ctx.fillStyle = stripeGrad;
               ctx.fillRect(-ballR, -ballR * 0.3, ballR * 2, ballR * 0.6);
               ctx.restore();
@@ -2320,7 +2335,7 @@
               b.n !== 0 &&
               (isAmerican || isNineBall || BALL_BY_N[b.n].t === 'eight')
             ) {
-              ctx.fillStyle = stripe ? BALL_BY_N[b.n].c : '#fff';
+              ctx.fillStyle = stripe ? brighten(BALL_BY_N[b.n].c, 0.05) : '#fff';
               ctx.beginPath();
               ctx.arc(0, 0, ballR * 0.52, 0, Math.PI * 2);
               ctx.fill();
