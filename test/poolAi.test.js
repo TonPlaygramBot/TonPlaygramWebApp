@@ -126,7 +126,7 @@ test('respects group assignment in eight-ball', () => {
       height: 500,
       ballRadius: 10,
       friction: 0.01,
-      ballOn: 'yellow'
+      ballOn: 'blue'
     },
     timeBudgetMs: 50
   };

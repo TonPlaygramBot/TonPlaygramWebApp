@@ -17,7 +17,7 @@
 /**
  * @typedef {Object} AimRequest
  * @property {GameType} game
- * @property {{balls:Ball[],pockets:Pocket[],width:number,height:number,ballRadius:number,friction:number,myGroup?:'SOLIDS'|'STRIPES'|'UNASSIGNED',ballOn?:'yellow'|'red'|null,ballInHand?:boolean}} state
+ * @property {{balls:Ball[],pockets:Pocket[],width:number,height:number,ballRadius:number,friction:number,myGroup?:'SOLIDS'|'STRIPES'|'UNASSIGNED',ballOn?:'blue'|'red'|null,ballInHand?:boolean}} state
  * @property {number} [timeBudgetMs]
  * @property {number} [rngSeed]
  * @property {number} [maxCutAngle] maximum allowed cut angle in radians for a shot candidate
@@ -77,7 +77,7 @@ function pocketEntry (pocket, radius, width, height) {
 function currentGroup (state) {
   const g = state.myGroup ?? state.ballOn
   if (!g) return undefined
-  if (g === 'yellow') return 'SOLIDS'
+  if (g === 'blue') return 'SOLIDS'
   if (g === 'red') return 'STRIPES'
   return g
 }

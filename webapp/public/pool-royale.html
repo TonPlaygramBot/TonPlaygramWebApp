@@ -1623,6 +1623,18 @@
         function clamp(v, a, b) {
           return Math.max(a, Math.min(b, v));
         }
+        function shadeColor(hex, amt) {
+          var c = hex.replace('#', '');
+          if (c.length === 3) c = c.split('').map(function (ch) { return ch + ch; }).join('');
+          var n = parseInt(c, 16);
+          var r = (n >> 16) & 255,
+            g = (n >> 8) & 255,
+            b = n & 255;
+          r = clamp(r + amt, 0, 255);
+          g = clamp(g + amt, 0, 255);
+          b = clamp(b + amt, 0, 255);
+          return 'rgb(' + r + ',' + g + ',' + b + ')';
+        }
         function len(x, y) {
           return Math.hypot(x, y);
         }
@@ -1728,7 +1740,7 @@
           COL = {
             cue: '#f5f5f5',
             red: '#d92d30',
-            yellow: '#f5c400',
+            blue: '#1e58b8',
             eight: '#111'
           };
           BALLS = [{ n: 0, t: 'cue', c: COL.cue }];
@@ -1736,7 +1748,7 @@
             BALLS.push({ n: nn, t: 'red', c: COL.red });
           BALLS.push({ n: 8, t: 'eight', c: COL.eight });
           for (var mm = 9; mm <= 15; mm++)
-            BALLS.push({ n: mm, t: 'yellow', c: COL.yellow });
+            BALLS.push({ n: mm, t: 'blue', c: COL.blue });
         }
         var TOTAL_BALLS = BALLS.length;
 
@@ -1852,7 +1864,7 @@
               }
             }
           } else {
-            // Rregullimi standart per 8-ball UK (red & yellow)
+            // Rregullimi standart per 8-ball UK (red & blue)
             var pattern = [
               [9, 1, 10, 2, 11],
               [3, 12, 4, 13],
@@ -2211,7 +2223,7 @@
                     if (!assignedTypes[1] && tType !== 'eight') {
                       assignedTypes[currentShooter] = tType;
                       assignedTypes[currentShooter === 1 ? 2 : 1] =
-                        tType === 'red' ? 'yellow' : 'red';
+                        tType === 'red' ? 'blue' : 'red';
                       pocketedOwn = true;
                       updateFooter(
                         currentShooter,
@@ -2294,10 +2306,9 @@
               0,
               ballR * 1.2
             );
-            // Brighten with a smaller, solid highlight
-            grad.addColorStop(0, '#fff');
+            grad.addColorStop(0, shadeColor(BALL_BY_N[b.n].c, 40));
             grad.addColorStop(0.6, BALL_BY_N[b.n].c);
-            grad.addColorStop(1, 'rgba(0,0,0,0.35)');
+            grad.addColorStop(1, shadeColor(BALL_BY_N[b.n].c, -40));
 
             // stripe nese duhet
             var stripe =
@@ -2312,16 +2323,29 @@
                 0,
                 ballR * 1.2
               );
-              // Brighten stripe with a smaller, solid highlight
-              stripeGrad.addColorStop(0, '#fff');
+              stripeGrad.addColorStop(0, shadeColor('#fff', 40));
               stripeGrad.addColorStop(0.6, '#fff');
-              stripeGrad.addColorStop(1, 'rgba(0,0,0,0.35)');
+              stripeGrad.addColorStop(1, shadeColor('#fff', -40));
             }
 
             // draw base shading without rotation so shadow stays fixed
             ctx.fillStyle = grad;
             ctx.beginPath();
             ctx.arc(0, 0, ballR, 0, Math.PI * 2);
+            ctx.fill();
+
+            // specular highlight
+            ctx.fillStyle = 'rgba(255,255,255,0.65)';
+            ctx.beginPath();
+            ctx.ellipse(
+              -ballR * 0.45,
+              -ballR * 0.55,
+              ballR * 0.22,
+              ballR * 0.12,
+              -0.5,
+              0,
+              Math.PI * 2
+            );
             ctx.fill();
 
             // features following ball rotation
@@ -2353,6 +2377,15 @@
               ctx.textAlign = 'center';
               ctx.textBaseline = 'middle';
               ctx.fillText(String(b.n), 0, 0);
+            }
+
+            // cue ball seam hint
+            if (b.n === 0) {
+              ctx.strokeStyle = 'rgba(0,0,0,0.08)';
+              ctx.lineWidth = Math.max(1, ballR * 0.1);
+              ctx.beginPath();
+              ctx.arc(0, 0, ballR * 0.88, 0.2, Math.PI - 0.2);
+              ctx.stroke();
             }
 
             // pika e spin-it te cue
@@ -3515,7 +3548,7 @@
               myGroup:
                 assignedTypes[2] === 'red'
                   ? 'SOLIDS'
-                  : assignedTypes[2] === 'yellow'
+                  : assignedTypes[2] === 'blue'
                     ? 'STRIPES'
                     : 'UNASSIGNED',
               ballInHand: cueBallFree,
@@ -3538,7 +3571,7 @@
                       ? 'black'
                       : b.id >= 1 && b.id <= 7
                         ? 'red'
-                        : 'yellow',
+                        : 'blue',
                 x: b.x,
                 y: b.y,
                 pocketed: b.pocketed
@@ -3552,8 +3585,8 @@
               height: TABLE_H,
               ballRadius: BALL_R,
               ballOn:
-                assignedTypes[2] === 'yellow'
-                  ? 'yellow'
+                assignedTypes[2] === 'blue'
+                  ? 'blue'
                   : assignedTypes[2] === 'red'
                     ? 'red'
                     : null,

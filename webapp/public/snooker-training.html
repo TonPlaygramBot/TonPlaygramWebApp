@@ -4,6 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
   <title>Snooker 2.5D — Mobile Portrait</title>
+  <link rel="stylesheet" href="power-slider.css" />
   <style>
     :root{
       --bg:#0b0f1c;--felt:#105a3b;--felt-dark:#0d4a31;--rail:#3a2a1a;--cushion:#0f7a4a;--line:#d9e3f0;--ring:#1a1a1a;--ring2:#333;--hud:#0b1224cc;--hud-border:#21305f;--accent:#6ee7ff;--text:#e5e7eb;--muted:#a0aec0
@@ -25,6 +26,7 @@
     .panel p{margin:6px 0 12px;color:#c7d2fe}
     .bar{position:relative;width:140px;height:10px;background:#0a1226;border:1px solid #1e2a55;border-radius:999px;overflow:hidden}
     .bar>i{position:absolute;inset:0;width:0;background:linear-gradient(90deg,#6ee7ff,#60a5fa);box-shadow:0 0 20px #60a5fa55 inset}
+    #psContainer{position:fixed;top:50%;right:12px;transform:translateY(-50%);pointer-events:auto}
     .hint{position:fixed;left:50%;transform:translateX(-50%);top:54px;font-size:12px;color:var(--muted)}
   </style>
 </head>
@@ -32,15 +34,13 @@
   <div class="wrap">
     <canvas id="game"></canvas>
   </div>
+  <div id="psContainer"></div>
   <div class="hud">
     <div class="stack">
       <div class="pill">Score: <b id="score">0</b></div>
       <div class="pill">Mode: <b>Practice</b></div>
     </div>
     <div class="stack">
-      <div class="pill">Power
-        <span class="bar"><i id="powerFill"></i></span>
-      </div>
       <button class="btn" id="resetBtn">New Rack</button>
       <button class="btn ghost" id="helpBtn">Help</button>
     </div>
@@ -58,7 +58,8 @@
   </div>
   <div class="hint" id="hint">Pull back to aim • Release to shoot</div>
 
-  <script>
+  <script type="module">
+  import { PowerSlider } from './power-slider.js';
   ;(() => {
     const canvas = document.getElementById('game');
     const ctx = canvas.getContext('2d');
@@ -68,7 +69,12 @@
     const helpBtn = document.getElementById('helpBtn');
     const resetBtn = document.getElementById('resetBtn');
     const scoreEl = document.getElementById('score');
-    const powerFill = document.getElementById('powerFill');
+    let sliderPower = 0;
+    const ps = new PowerSlider({
+      mount: document.getElementById('psContainer'),
+      cueSrc: '/assets/icons/file_0000000019d86243a2f7757076cd7869.webp',
+      onChange: v => { sliderPower = v / 100; }
+    });
 
     // --- DPI / Resize ------------------------------------------------------
     const state = { w: 0, h: 0, dpr: 1 };
@@ -95,7 +101,8 @@
         innerH = innerW / playRatio;
       }
       const rail = Math.floor(Math.min(innerW, innerH) * 0.04); // visual rail thickness
-      table.x = Math.floor((state.w - innerW) / 2);
+      const shift = Math.floor(80 * state.dpr);
+      table.x = Math.max(0, Math.floor((state.w - innerW) / 2) - shift);
       table.y = Math.floor((state.h - innerH) / 2);
       table.w = Math.floor(innerW);
       table.h = Math.floor(innerH);
@@ -121,10 +128,10 @@
       // pocket centers
       geom.pockets = [
         {x:I.x, y:I.y, r:pr},
-        {x:I.x + W/2, y:I.y, r:pr},
+        {x:I.x, y:I.y + H/2, r:pr},
         {x:I.x + W, y:I.y, r:pr},
         {x:I.x, y:I.y + H, r:pr},
-        {x:I.x + W/2, y:I.y + H, r:pr},
+        {x:I.x + W, y:I.y + H/2, r:pr},
         {x:I.x + W, y:I.y + H, r:pr},
       ];
 
@@ -357,18 +364,14 @@
       if(anyBallsMoving()) return;
       const c = cueBall();
       if(!c || !c.active) return;
-      drag.active = true; drag.sx = drag.x = x; drag.sy = drag.y = y; drag.power = 0; game.aiming = true;
+      drag.active = true; drag.sx = drag.x = x; drag.sy = drag.y = y; drag.power = sliderPower; game.aiming = true;
     }
 
     function onMove(e){
       if(!drag.active) return;
       const {x,y} = getXY(e);
       drag.x = x; drag.y = y;
-      const c = cueBall();
-      const dist = Math.hypot(c.x - x, c.y - y); // pulling back increases power
-      const maxPull = geom.ballR * 10;
-      drag.power = Math.min(1, dist / maxPull);
-      powerFill.style.width = (drag.power*100).toFixed(1)+'%';
+      drag.power = sliderPower;
     }
 
     function onUp(e){
@@ -382,7 +385,7 @@
       const maxSpeed = geom.ballR * 28; // a tad faster
       c.vx = aimX * maxSpeed * power;
       c.vy = aimY * maxSpeed * power;
-      drag.active = false; game.aiming = false; powerFill.style.width = '0%';
+      drag.active = false; game.aiming = false;
     }
 
     function inBaulk(x,y){
