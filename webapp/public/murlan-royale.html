@@ -986,7 +986,6 @@
           turn: 0,
           turnTime: 15,
           pile: [], // last played cards
-          playedCards: [], // all cards placed on the table
           arrangeMode: false,
           lastPlayLen: 0,
           lastPlayType: null,
@@ -1031,18 +1030,14 @@
 
         async function deal() {
           const deck = makeDeck();
-          state.playedCards = [];
-          renderAll();
           for (let i = 0; i < 13; i++) {
             for (let p = 0; p < state.players.length; p++) {
-              const card = deck.pop();
+              state.players[p].hand.push(deck.pop());
+              renderAll();
               if (sndCard) {
                 sndCard.currentTime = 0;
                 sndCard.play();
               }
-              await animateDealCard(p, card);
-              state.players[p].hand.push(card);
-              renderAll();
               await new Promise((r) => setTimeout(r, 120));
             }
           }
@@ -1448,41 +1443,6 @@
           }
         }
 
-        function animateDealCard(toIdx, card) {
-          return new Promise((resolve) => {
-            const stage = el('.stage');
-            const seats = seatsEl.querySelectorAll('.seat');
-            const toSeat = seats[toIdx];
-            if (!stage || !toSeat) {
-              resolve();
-              return;
-            }
-            const stageRect = stage.getBoundingClientRect();
-            const toRect = toSeat.getBoundingClientRect();
-            const centerRect = centerEl.getBoundingClientRect();
-            const moving = cardBackEl();
-            moving.classList.add('moving-card');
-            stage.appendChild(moving);
-            moving.style.left = centerRect.left - stageRect.left + 'px';
-            moving.style.top = centerRect.top - stageRect.top + 'px';
-            moving.style.transform = 'translate(-50%, -50%)';
-            requestAnimationFrame(() => {
-              moving.style.left =
-                toRect.left - stageRect.left + toRect.width / 2 + 'px';
-              moving.style.top =
-                toRect.top - stageRect.top + toRect.height / 2 + 'px';
-            });
-            moving.addEventListener(
-              'transitionend',
-              () => {
-                moving.remove();
-                resolve();
-              },
-              { once: true }
-            );
-          });
-        }
-
         function animateCardsFromAvatar(idx, cards) {
           return new Promise((resolve) => {
             const stage = el('.stage');
@@ -1843,31 +1803,14 @@
           const hand = [...p.hand].sort(
             (a, b) => rankValue(a.r) - rankValue(b.r)
           );
-          const myIdx = state.players.indexOf(p);
-          const oppSingle = state.players.some(
-            (pl, idx) => idx !== myIdx && !pl.finished && pl.hand.length === 1
-          );
-          const playedRanks = state.playedCards.map((c) => c.r);
-          const jokersOut =
-            playedRanks.includes('JB') && playedRanks.includes('JR');
-          const counts = countByRank(hand);
           if (state.lastPlayLen === 0) {
-            if (oppSingle) {
-              const pairRank = Object.keys(counts)
-                .map(Number)
-                .filter((k) => counts[k] >= 2)
-                .sort((a, b) => a - b)[0];
-              if (pairRank !== undefined) {
-                return hand
-                  .filter((c) => rankValue(c.r) === pairRank)
-                  .slice(0, 2);
-              }
-            }
+            // Start round: prefer lowest pair, else lowest single
+            const counts = countByRank(hand);
             const pairRank = Object.keys(counts)
               .map(Number)
               .filter((k) => counts[k] >= 2)
               .sort((a, b) => a - b)[0];
-            if (pairRank !== undefined) {
+            if (pairRank) {
               return hand
                 .filter((c) => rankValue(c.r) === pairRank)
                 .slice(0, 2);
@@ -1875,38 +1818,19 @@
             return [hand[0]];
           }
           if (state.lastPlayLen === 1) {
-            const lastHigh = Math.max(
-              ...state.pile.map((c) => rankValue(c.r))
-            );
-            let cands = hand.filter((c) => rankValue(c.r) > lastHigh);
-            if (!jokersOut) {
-              cands = cands.filter((c) => c.r !== '2');
-            }
-            if (cands.length === 0 && jokersOut) {
-              const two = hand.find((c) => c.r === '2');
-              return two ? [two] : [];
-            }
-            return cands.length ? [cands[0]] : [];
+            const lastHigh = Math.max(...state.pile.map((c) => rankValue(c.r)));
+            const cand = hand.find((c) => rankValue(c.r) > lastHigh);
+            return cand ? [cand] : [];
           }
           if (state.lastPlayLen === 2) {
-            const lastHigh = Math.max(
-              ...state.pile.map((c) => rankValue(c.r))
-            );
-            let pairRanks = Object.keys(counts)
+            const counts = countByRank(hand);
+            const lastHigh = Math.max(...state.pile.map((c) => rankValue(c.r)));
+            const pair = Object.keys(counts)
               .map(Number)
               .filter((k) => counts[k] >= 2 && k > lastHigh)
-              .sort((a, b) => a - b);
-            if (!jokersOut) {
-              pairRanks = pairRanks.filter((k) => k !== rankValue('2'));
-            }
-            if (pairRanks.length === 0 && jokersOut && counts[rankValue('2')] >= 2) {
-              return hand.filter((c) => c.r === '2').slice(0, 2);
-            }
-            if (pairRanks.length > 0) {
-              const r = pairRanks[0];
-              return hand
-                .filter((c) => rankValue(c.r) === r)
-                .slice(0, 2);
+              .sort((a, b) => a - b)[0];
+            if (pair) {
+              return hand.filter((c) => rankValue(c.r) === pair).slice(0, 2);
             }
             return [];
           }
@@ -2026,7 +1950,6 @@
             renderAll();
             await animateCardsFromAvatar(i, chosen);
             state.pile.push(...chosen);
-            state.playedCards.push(...chosen);
             state.lastPlayLen = chosen.length;
             state.lastPlayType = combo;
             state.passesSincePlay = 0;
@@ -2195,7 +2118,6 @@
                   loserHand.sort(
                     (a, b) => rankValue(a.r) - rankValue(b.r)
                   );
-                  renderAll();
                 }
                 winnerHand.sort((a, b) => rankValue(a.r) - rankValue(b.r));
               }

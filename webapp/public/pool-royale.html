@@ -166,18 +166,21 @@
         flex: 1 1 auto;
         display: flex;
         overflow: hidden;
+        /* Ensure background image covers the available space without
+         overlapping top or bottom elements. Extend the width slightly
+         so the thin green boundary line is fully visible while keeping
+         extra clearance at the bottom. The brightness filter is applied
+         to a pseudo-element so the balls and other children remain
+         unaffected. */
       }
-
-      #tableLogo {
+      #wrap::before {
+        content: '';
         position: absolute;
-        top: 50%;
-        left: 50%;
-        transform: translate(-50%, -50%);
-        width: 25%;
-        opacity: 0.2;
-        filter: grayscale(1);
-        z-index: 3;
-        pointer-events: none;
+        inset: 0;
+        background: url('/assets/icons/64e79228-35e3-4fdc-b914-fca635a40220.webp')
+          top center/calc(100% + 8px) calc(100% + 20px) no-repeat;
+        filter: brightness(var(--table-brightness));
+        z-index: -1;
       }
 
       :root {
@@ -768,11 +771,6 @@
 
       <div id="wrap">
         <canvas id="table"></canvas>
-        <img
-          id="tableLogo"
-          src="/assets/icons/file_00000000bc2862439eecffff3730bbe4.webp"
-          alt="TonPlaygram logo"
-        />
         <div id="cueHint">✋️</div>
 
         <div id="cueOptions">
@@ -1678,119 +1676,6 @@
           ball.spin.y *= 0.9;
         }
 
-        // Draw a rounded rectangle path helper
-        function pathRoundedRect(x, y, w, h, r) {
-          var rr = Math.min(r, w / 2, h / 2);
-          ctx.beginPath();
-          ctx.moveTo(x + rr, y);
-          ctx.arcTo(x + w, y, x + w, y + h, rr);
-          ctx.arcTo(x + w, y + h, x, y + h, rr);
-          ctx.arcTo(x, y + h, x, y, rr);
-          ctx.arcTo(x, y, x + w, y, rr);
-          ctx.closePath();
-        }
-
-        // Render the wooden rails, felt and pockets on the table canvas
-        function drawTable() {
-          var railW = TABLE_W * sX;
-          var railH = TABLE_H * sY;
-          var wood = ctx.createLinearGradient(0, 0, 0, railH);
-          wood.addColorStop(0, '#4a3522');
-          wood.addColorStop(1, '#2c2117');
-          ctx.fillStyle = wood;
-          ctx.fillRect(0, 0, railW, railH);
-
-          var fx = BORDER * sX;
-          var fy = BORDER_TOP * sY;
-          var fw = (TABLE_W - BORDER * 2) * sX;
-          var fh = (TABLE_H - BORDER_TOP - BORDER_BOTTOM) * sY;
-          pathRoundedRect(fx, fy, fw, fh, BORDER * 0.4 * sX);
-          var felt = ctx.createLinearGradient(fx, fy, fx, fy + fh);
-          felt.addColorStop(0, '#0f6a43');
-          felt.addColorStop(0.6, '#0f5f3e');
-          felt.addColorStop(1, '#0c5034');
-          ctx.fillStyle = felt;
-          ctx.fill();
-
-          // draw darker green cushions around the field
-          pathRoundedRect(fx, fy, fw, fh, BORDER * 0.4 * sX);
-          var cushion = ctx.createLinearGradient(fx, fy, fx, fy + fh);
-          cushion.addColorStop(0, '#0d5a38');
-          cushion.addColorStop(1, '#094f30');
-          ctx.strokeStyle = cushion;
-          ctx.lineWidth = BORDER * 0.3 * sX;
-          ctx.stroke();
-
-          drawPocket(BORDER, BORDER_TOP, POCKET_R, 1, 1);
-          drawPocket(TABLE_W - BORDER, BORDER_TOP, POCKET_R, -1, 1);
-          drawPocket(BORDER, TABLE_H - BORDER_BOTTOM, POCKET_R, 1, -1);
-          drawPocket(
-            TABLE_W - BORDER,
-            TABLE_H - BORDER_BOTTOM,
-            POCKET_R,
-            -1,
-            -1
-          );
-          drawPocket(
-            BORDER,
-            TABLE_H / 2 + BALL_R - 14,
-            SIDE_POCKET_R,
-            1,
-            0
-          );
-          drawPocket(
-            TABLE_W - BORDER,
-            TABLE_H / 2 + BALL_R - 14,
-            SIDE_POCKET_R,
-            -1,
-            0
-          );
-        }
-
-        function drawPocket(x, y, r, dirX, dirY) {
-          var px = x * sX;
-          var py = y * sY;
-          var pr = r * sX;
-          var hole = ctx.createRadialGradient(
-            px - pr * 0.2,
-            py - pr * 0.2,
-            pr * 0.1,
-            px,
-            py,
-            pr
-          );
-          hole.addColorStop(0, '#000');
-          hole.addColorStop(1, '#0008');
-          ctx.fillStyle = hole;
-          ctx.beginPath();
-          ctx.arc(px, py, pr, 0, Math.PI * 2);
-          ctx.fill();
-          ctx.strokeStyle = '#111';
-          ctx.lineWidth = Math.max(2, pr * 0.18);
-          ctx.beginPath();
-          ctx.arc(px, py, pr * 0.86, 0, Math.PI * 2);
-          ctx.stroke();
-
-          // draw dark triangular cut on the rail
-          ctx.fillStyle = '#000';
-          if (dirY === 0) {
-            // side pockets: mirror vertically for symmetry
-            ctx.beginPath();
-            ctx.moveTo(px, py);
-            ctx.lineTo(px + dirX * pr * 1.2, py - pr * 0.6);
-            ctx.lineTo(px + dirX * pr * 1.2, py + pr * 0.6);
-            ctx.closePath();
-            ctx.fill();
-          } else {
-            ctx.beginPath();
-            ctx.moveTo(px, py);
-            ctx.lineTo(px + dirX * pr * 1.2, py);
-            ctx.lineTo(px, py + dirY * pr * 1.2);
-            ctx.closePath();
-            ctx.fill();
-          }
-        }
-
         /* ==========================================================
        PALETA E NGJYRAVE DHE LISTA E TOPAVE
        ========================================================= */
@@ -2363,7 +2248,6 @@
 
         Table.prototype.render = function () {
           ctx.clearRect(0, 0, canvas.width, canvas.height);
-          drawTable();
           // Field dimensions
           var x0 = BORDER * sX,
             y0 = BORDER_TOP * sY,
