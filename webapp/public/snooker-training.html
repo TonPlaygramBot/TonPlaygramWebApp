@@ -125,15 +125,16 @@
 
     function layoutTable(){
       const margin = Math.floor(Math.min(state.w, state.h) * 0.04);
-      // PORTRAIT-FIRST: make the table long vertically (H ~ 2x W)
-      const playRatio = 0.5; // w:h = 1:2 (portrait snooker look)
+      // Keep geometry aligned with Pool Royale (768×1216 playing field)
+      const playRatio = 768 / 1216; // w:h matches Pool Royale table ratio
       let innerH = state.h - margin*2;    // fill HEIGHT first
       let innerW = innerH * playRatio;    // then derive WIDTH
       if(innerW > state.w - margin*2){    // if too wide, fallback to fit width
         innerW = state.w - margin*2;
         innerH = innerW / playRatio;
       }
-      const rail = Math.floor(Math.min(innerW, innerH) * 0.04); // visual rail thickness
+      // Border thickness uses same proportion as Pool Royale (57/768)
+      const rail = Math.floor(innerW * (57 / 768));
       const shift = Math.floor(80 * state.dpr);
       table.x = Math.max(0, Math.floor((state.w - innerW) / 2) - shift);
       table.y = Math.floor((state.h - innerH) / 2);
@@ -156,16 +157,17 @@
       const I = table.inner;
       const W = I.w, H = I.h;
       geom.ballR = Math.floor(Math.min(W,H) / 35); // scale ball size to table
-      const pr = Math.floor(geom.ballR * 2.15); // pocket radius
+      // Pocket radius mirrors Pool Royale's ratio (32/22)
+      const pr = Math.floor(geom.ballR * (32 / 22));
 
-      // pocket centers
+      // pocket centers follow the same layout as Pool Royale
       geom.pockets = [
-        {x:I.x, y:I.y, r:pr},
-        {x:I.x, y:I.y + H/2, r:pr},
-        {x:I.x + W, y:I.y, r:pr},
-        {x:I.x, y:I.y + H, r:pr},
-        {x:I.x + W, y:I.y + H/2, r:pr},
-        {x:I.x + W, y:I.y + H, r:pr},
+        {x:I.x,         y:I.y,         r:pr}, // top-left
+        {x:I.x + W/2,   y:I.y,         r:pr}, // top-middle
+        {x:I.x + W,     y:I.y,         r:pr}, // top-right
+        {x:I.x,         y:I.y + H,     r:pr}, // bottom-left
+        {x:I.x + W/2,   y:I.y + H,     r:pr}, // bottom-middle
+        {x:I.x + W,     y:I.y + H,     r:pr}, // bottom-right
       ];
 
       // baulk line & D
