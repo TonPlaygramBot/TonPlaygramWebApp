@@ -175,7 +175,7 @@
          extra clearance at the bottom. The brightness filter is applied
          to a pseudo-element so the balls and other children remain
          unaffected. */
-      }
+      } 
       #wrap::before {
         content: '';
         position: absolute;
@@ -184,6 +184,11 @@
           top center/calc(100% + 8px) calc(100% + 20px) no-repeat;
         filter: brightness(var(--table-brightness));
         z-index: -1;
+      }
+
+      /* Hide background table when Snooker training is active */
+      #wrap.snooker-training::before {
+        background: none;
       }
 
       :root {
@@ -917,6 +922,9 @@
         window.tournamentPlayers = parseInt(params.get('players') || '0', 10);
         window.potAmount = parseInt(params.get('amount') || '0', 10);
         window.playerName = params.get('name') || 'Player';
+        if (isSnooker && playType === 'training') {
+          document.getElementById('wrap').classList.add('snooker-training');
+        }
         const planShotPromise = import('/lib/poolAi.js');
 
         /* ==========================================================
@@ -2376,6 +2384,30 @@
             y0 = BORDER_TOP * sY,
             w = (TABLE_W - 2 * BORDER) * sX,
             h = (TABLE_H - BORDER_TOP - BORDER_BOTTOM) * sY;
+
+          if (!isSnooker) {
+            ctx.save();
+            ctx.fillStyle = 'rgba(255,255,0,0.05)';
+            ctx.fillRect(x0, y0, w, h);
+            ctx.strokeStyle = 'rgba(0,255,0,0.8)';
+            ctx.lineWidth = 2;
+            ctx.strokeRect(x0, y0, w, h);
+            ctx.strokeStyle = 'rgba(255,0,0,0.8)';
+            if (this.pockets) {
+              this.pockets.forEach(function (p) {
+                ctx.beginPath();
+                ctx.arc(
+                  p.x * sX,
+                  p.y * sY,
+                  p.r * ((sX + sY) / 2),
+                  0,
+                  Math.PI * 2
+                );
+                ctx.stroke();
+              });
+            }
+            ctx.restore();
+          }
 
           // Vija kufizuese e cueball-it dhe pika qendrore
           ctx.strokeStyle = '#fff';
