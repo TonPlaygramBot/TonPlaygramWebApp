@@ -1684,7 +1684,7 @@
         function applySpinImpulse(ball) {
           if (!ball.spin) return;
           // Apply stronger, immediate spin influence
-          var SPIN_STRENGTH = 100;
+          var SPIN_STRENGTH = 120;
           var SPIN_DECAY = 0.9;
           ball.v.x += ball.spin.x * SPIN_STRENGTH;
           ball.v.y += ball.spin.y * SPIN_STRENGTH;
@@ -2392,19 +2392,14 @@
             ctx.strokeStyle = 'rgba(0,255,0,0.8)';
             ctx.lineWidth = 2;
             ctx.strokeRect(x0, y0, w, h);
-            ctx.strokeStyle = 'rgba(255,0,0,0.8)';
             if (this.pockets) {
-              this.pockets.forEach(function (p) {
-                ctx.beginPath();
-                ctx.arc(
-                  p.x * sX,
-                  p.y * sY,
-                  p.r * ((sX + sY) / 2),
-                  0,
-                  Math.PI * 2
-                );
-                ctx.stroke();
-              });
+              ctx.strokeStyle = '#ff0';
+              drawVPocketGuide(this.pockets[2], 1);
+              drawVPocketGuide(this.pockets[3], -1);
+              drawUPocketGuide(this.pockets[0], 1, 1);
+              drawUPocketGuide(this.pockets[1], -1, 1);
+              drawUPocketGuide(this.pockets[4], 1, -1);
+              drawUPocketGuide(this.pockets[5], -1, -1);
             }
             ctx.restore();
           }
@@ -3556,6 +3551,36 @@
           ctx.restore();
         }
 
+        function drawVPocketGuide(p, dir) {
+          var R = p.r * ((sX + sY) / 2) * 1.1;
+          var x = p.x * sX;
+          var y = p.y * sY;
+          var dx = R * dir;
+          var dy = R;
+          ctx.beginPath();
+          ctx.moveTo(x + dx, y - dy);
+          ctx.lineTo(x - dx, y);
+          ctx.lineTo(x + dx, y + dy);
+          ctx.stroke();
+        }
+
+        function drawUPocketGuide(p, sx, sy) {
+          var R = p.r * ((sX + sY) / 2) * 1.1;
+          var x = p.x * sX;
+          var y = p.y * sY;
+          ctx.save();
+          ctx.translate(x, y);
+          ctx.scale(sx, sy);
+          ctx.beginPath();
+          ctx.arc(0, 0, R, Math.PI, 0);
+          ctx.moveTo(-R, 0);
+          ctx.lineTo(-R, -R);
+          ctx.moveTo(R, 0);
+          ctx.lineTo(R, -R);
+          ctx.stroke();
+          ctx.restore();
+        }
+
         /* ==========================================================
        SPIN CONTROL – disk i bardhe me pike te kuqe
        ========================================================= */
@@ -3735,9 +3760,9 @@
           shotPocketRecorded = false;
           cueHitCushion = false;
           var base = 950 * 3 * 1.6 * 1.5;
-          // Reduce the overall shot power by about 55% to better match gameplay
-          base *= 0.45;
-          playCueHit(p * 0.45);
+          // Reduce the overall shot power but keep it slightly stronger
+          base *= 0.5;
+          playCueHit(p * 0.5);
           lastShotPower = p;
           currentShooter = table.turn;
           if (isNineBall || isAmerican) currentTarget = lowestBallOnTable();
