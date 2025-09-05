@@ -972,6 +972,7 @@
         var FRICTION = 0.985; // ferkimi linear, pak me i vogel per te ruajtur shpejtesine
         var BOUNCE = 0.99; // koeficienti i rikthimit pak me i madh
         var EDGE_BOUNCE = BOUNCE * 0.15; // skajet e gropave rikthejne 85% me pak
+        var CONNECTOR_SLIDE_SPEED = 50; // shpejtesia njesoj me shume e ulet per te lejuar rreshqitjen ne konektore
         var INV_SQRT2 = 1 / Math.SQRT2;
 
         var MIN_V = 0.12; // shpejtesia min. qe konsiderohet "ne levizje"
@@ -1695,7 +1696,14 @@
           var pen = limit - dist;
           b.p.x += nx * pen;
           b.p.y += ny * pen;
-          reflectVelocity(b.v, nx, ny, BOUNCE);
+          var speed = Math.hypot(b.v.x, b.v.y);
+          if (speed < CONNECTOR_SLIDE_SPEED) {
+            var vn = b.v.x * nx + b.v.y * ny;
+            b.v.x -= vn * nx;
+            b.v.y -= vn * ny;
+          } else {
+            reflectVelocity(b.v, nx, ny, BOUNCE);
+          }
           if (b.n === 0) {
             b.impacted = true;
             applySpinImpulse(b);
