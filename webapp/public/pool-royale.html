@@ -2415,7 +2415,7 @@
               if (b2.pocketed) continue;
               var ddx = b2.p.x - p.x,
                 ddy = b2.p.y - p.y;
-              if (Math.hypot(ddx, ddy) < p.r - BALL_R * 0.1) {
+              if (Math.hypot(ddx, ddy) < p.r + BALL_R * 0.1) {
                 var spd = Math.hypot(b2.v.x, b2.v.y);
                 playPocket(clamp(spd / 4000, 0, 1));
                 if (!shotPocketRecorded) {
