@@ -1,0 +1,10 @@
+[
+  [
+    {"type":"HIT","firstContact":"RED"},
+    {"type":"POTTED","ball":"RED","pocket":"TR"}
+  ],
+  [
+    {"type":"HIT","firstContact":"BLACK"},
+    {"type":"POTTED","ball":"BLACK","pocket":"TR"}
+  ]
+]
