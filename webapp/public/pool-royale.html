@@ -971,7 +971,7 @@
 
         var FRICTION = 0.985; // ferkimi linear, pak me i vogel per te ruajtur shpejtesine
         var BOUNCE = 0.99; // koeficienti i rikthimit pak me i madh
-        var EDGE_BOUNCE = BOUNCE * 0.2; // skajet e gropave rikthejne 80% me pak
+        var EDGE_BOUNCE = BOUNCE * 0.05; // skajet e gropave rikthejne 95% me pak
 
         var MIN_V = 0.12; // shpejtesia min. qe konsiderohet "ne levizje"
 
@@ -1678,6 +1678,12 @@
           return dx * dx + dy * dy;
         }
 
+        function reflectVelocity(v, nx, ny, bounce) {
+          var dot = v.x * nx + v.y * ny;
+          v.x = (v.x - 2 * dot * nx) * bounce;
+          v.y = (v.y - 2 * dot * ny) * bounce;
+        }
+
         function brighten(hex, amt) {
           var c = hex.slice(1);
           if (c.length === 3)
@@ -2130,9 +2136,14 @@
               if (b.p.x < L) {
                 b.p.x = L;
                 var diffY = nearest ? Math.abs(b.p.y - nearest.y) : Infinity;
-                var bounce = BOUNCE;
-                if (nearPocket && diffY <= BALL_R * 3) bounce = EDGE_BOUNCE;
-                b.v.x *= -bounce;
+                if (nearPocket && diffY <= BALL_R * 3) {
+                  var nx = b.p.x - nearest.x;
+                  var ny = b.p.y - nearest.y;
+                  var nL = Math.hypot(nx, ny) || 1;
+                  reflectVelocity(b.v, nx / nL, ny / nL, EDGE_BOUNCE);
+                } else {
+                  reflectVelocity(b.v, 1, 0, BOUNCE);
+                }
                 if (b.n === 0) {
                   b.impacted = true;
                   applySpinImpulse(b);
@@ -2152,9 +2163,14 @@
               if (b.p.x > R) {
                 b.p.x = R;
                 var diffY2 = nearest ? Math.abs(b.p.y - nearest.y) : Infinity;
-                var bounce2 = BOUNCE;
-                if (nearPocket && diffY2 <= BALL_R * 3) bounce2 = EDGE_BOUNCE;
-                b.v.x *= -bounce2;
+                if (nearPocket && diffY2 <= BALL_R * 3) {
+                  var nx2 = b.p.x - nearest.x;
+                  var ny2 = b.p.y - nearest.y;
+                  var nL2 = Math.hypot(nx2, ny2) || 1;
+                  reflectVelocity(b.v, nx2 / nL2, ny2 / nL2, EDGE_BOUNCE);
+                } else {
+                  reflectVelocity(b.v, -1, 0, BOUNCE);
+                }
                 if (b.n === 0) {
                   b.impacted = true;
                   applySpinImpulse(b);
@@ -2174,9 +2190,14 @@
               if (b.p.y < T) {
                 b.p.y = T;
                 var diffX = nearest ? Math.abs(b.p.x - nearest.x) : Infinity;
-                var bounce3 = BOUNCE;
-                if (nearPocket && diffX <= BALL_R * 3) bounce3 = EDGE_BOUNCE;
-                b.v.y *= -bounce3;
+                if (nearPocket && diffX <= BALL_R * 3) {
+                  var nx3 = b.p.x - nearest.x;
+                  var ny3 = b.p.y - nearest.y;
+                  var nL3 = Math.hypot(nx3, ny3) || 1;
+                  reflectVelocity(b.v, nx3 / nL3, ny3 / nL3, EDGE_BOUNCE);
+                } else {
+                  reflectVelocity(b.v, 0, 1, BOUNCE);
+                }
                 if (b.n === 0) {
                   b.impacted = true;
                   applySpinImpulse(b);
@@ -2196,9 +2217,14 @@
               if (b.p.y > B) {
                 b.p.y = B;
                 var diffX2 = nearest ? Math.abs(b.p.x - nearest.x) : Infinity;
-                var bounce4 = BOUNCE;
-                if (nearPocket && diffX2 <= BALL_R * 3) bounce4 = EDGE_BOUNCE;
-                b.v.y *= -bounce4;
+                if (nearPocket && diffX2 <= BALL_R * 3) {
+                  var nx4 = b.p.x - nearest.x;
+                  var ny4 = b.p.y - nearest.y;
+                  var nL4 = Math.hypot(nx4, ny4) || 1;
+                  reflectVelocity(b.v, nx4 / nL4, ny4 / nL4, EDGE_BOUNCE);
+                } else {
+                  reflectVelocity(b.v, 0, -1, BOUNCE);
+                }
                 if (b.n === 0) {
                   b.impacted = true;
                   applySpinImpulse(b);
@@ -3617,10 +3643,12 @@
           var y = p.y * sY;
           var dx = R * 1.1 * dir;
           var dy = R * 1.25;
+          var trim = R * 0.1;
           ctx.beginPath();
-          ctx.moveTo(x + dx, y - dy);
-          ctx.lineTo(x - dx, y);
-          ctx.lineTo(x + dx, y + dy);
+          ctx.moveTo(x - dx, y);
+          ctx.lineTo(x + dx, y - dy + trim);
+          ctx.moveTo(x - dx, y);
+          ctx.lineTo(x + dx, y + dy - trim);
           ctx.stroke();
         }
 
@@ -3635,9 +3663,10 @@
           ctx.beginPath();
           ctx.arc(0, 0, R, Math.PI, 0);
           var lineLen = R * 1.2;
-          ctx.moveTo(-R, 0);
+          var lineStart = R * 0.1;
+          ctx.moveTo(-R, lineStart);
           ctx.lineTo(-R, lineLen);
-          ctx.moveTo(R, 0);
+          ctx.moveTo(R, lineStart);
           ctx.lineTo(R, lineLen);
           ctx.stroke();
           ctx.restore();
