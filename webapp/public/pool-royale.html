@@ -970,8 +970,9 @@
           LINE_Y + (TABLE_H - BORDER_BOTTOM - LINE_Y - BALL_R * 2) / 2; // pozicioni fillestar i cueball-it
 
         var FRICTION = 0.985; // ferkimi linear, pak me i vogel per te ruajtur shpejtesine
-        var BOUNCE = 0.99; // koeficienti i rikthimit pak me i madh
-        var EDGE_BOUNCE = BOUNCE * 0.05; // skajet e gropave rikthejne 95% me pak
+        var BOUNCE = 1.02; // slightly higher bounce for more lively rails
+        var EDGE_BOUNCE = BOUNCE * 0.25; // pocket edges return far less energy
+        var GRAVITY = 9.81; // simple downward acceleration
 
         var MIN_V = 0.12; // shpejtesia min. qe konsiderohet "ne levizje"
 
@@ -2094,6 +2095,7 @@
             b.p.y += b.v.y * dt;
             b.v.x *= FRICTION;
             b.v.y *= FRICTION;
+            b.v.y += GRAVITY * dt;
             // spin is applied directly during collisions
             b.a += (Math.hypot(b.v.x, b.v.y) * dt) / (BALL_R * 0.6);
 
@@ -2133,7 +2135,7 @@
                 if (b.p.y - T < BALL_R * 1.5 && b.v.y < 0) applySpinImpulse(b);
                 if (B - b.p.y < BALL_R * 1.5 && b.v.y > 0) applySpinImpulse(b);
               }
-                if (b.p.x < L) {
+                if (b.p.x <= L) {
                   b.p.x = L;
                   var diffY = nearest ? Math.abs(b.p.y - nearest.y) : Infinity;
                   if (nearPocket && diffY <= BALL_R * 3) {
@@ -2159,7 +2161,7 @@
                     playShock(1);
                   }
                 }
-                if (b.p.x > R) {
+                if (b.p.x >= R) {
                   b.p.x = R;
                   var diffY2 = nearest ? Math.abs(b.p.y - nearest.y) : Infinity;
                   if (nearPocket && diffY2 <= BALL_R * 3) {
@@ -2185,7 +2187,7 @@
                     playShock(1);
                   }
                 }
-                if (b.p.y < T) {
+                if (b.p.y <= T) {
                   b.p.y = T;
                   var diffX = nearest ? Math.abs(b.p.x - nearest.x) : Infinity;
                   if (nearPocket && diffX <= BALL_R * 3) {
@@ -2211,7 +2213,7 @@
                     playShock(1);
                   }
                 }
-                if (b.p.y > B) {
+                if (b.p.y >= B) {
                   b.p.y = B;
                   var diffX2 = nearest ? Math.abs(b.p.x - nearest.x) : Infinity;
                   if (nearPocket && diffX2 <= BALL_R * 3) {
@@ -2483,6 +2485,12 @@
                 drawUPocketGuide(this.pockets[1], -1, 1);
                 drawUPocketGuide(this.pockets[4], 1, -1);
                 drawUPocketGuide(this.pockets[5], -1, -1);
+                ctx.fillStyle = '#f00';
+                p.forEach(function (pk) {
+                  ctx.beginPath();
+                  ctx.arc(pk.x * sX, pk.y * sY, 4 * ((sX + sY) / 2), 0, Math.PI * 2);
+                  ctx.fill();
+                });
               } else {
                 ctx.strokeRect(x0, y0, w, h);
               }
@@ -3643,11 +3651,12 @@
           var dx = R * 1.1 * dir;
           var dy = R * 1.25;
           var trim = R * 0.1;
+          var ctrlX = x + dx * 0.3;
           ctx.beginPath();
           ctx.moveTo(x - dx, y);
-          ctx.lineTo(x + dx, y - dy + trim);
+          ctx.quadraticCurveTo(ctrlX, y - dy * 0.5, x + dx, y - dy + trim);
           ctx.moveTo(x - dx, y);
-          ctx.lineTo(x + dx, y + dy - trim);
+          ctx.quadraticCurveTo(ctrlX, y + dy * 0.5, x + dx, y + dy - trim);
           ctx.stroke();
         }
 
