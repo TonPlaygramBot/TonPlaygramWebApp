@@ -16,12 +16,12 @@
       --line:#e8f7e9;
       --pocket:#141414;
     }
-    html,body{height:100%;margin:0;background:#0b0f1a}
-    #table{width:100vw;height:100vh;display:block;border-radius:22px}
+    html,body{height:100%;margin:0;background:#0b0f1a;display:grid;place-items:center}
+    #snookerTable{width:min(92vw,760px);height:auto;aspect-ratio:768/1216;display:block;border-radius:22px}
   </style>
 </head>
 <body>
-  <canvas id="table"></canvas>
+  <canvas id="snookerTable"></canvas>
   <script>
     const CONFIG = {
       rail: 48,
@@ -39,7 +39,7 @@
       sideCurve: 34
     };
 
-    const canvas = document.getElementById('table');
+    const canvas = document.getElementById('snookerTable');
     const ctx = canvas.getContext('2d');
 
     function resize(){
