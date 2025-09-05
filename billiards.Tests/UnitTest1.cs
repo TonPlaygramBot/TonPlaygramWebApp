@@ -137,3 +137,22 @@ public class PocketEdgeTests
         Assert.That(ball.Velocity.Length, Is.InRange(preSpeed * 0.4, preSpeed * 0.7));
     }
 }
+
+public class PocketEntryTests
+{
+    [Test]
+    public void BallCanEnterPocketWithoutReflection()
+    {
+        var solver = new BilliardsSolver();
+        solver.PocketEdges.Add(new BilliardsSolver.Edge
+        {
+            A = new Vec2(0, 0.1),
+            B = new Vec2(0.1, 0),
+            Normal = new Vec2(1, 1).Normalized()
+        });
+        var ball = new BilliardsSolver.Ball { Position = new Vec2(0.2, 0.2), Velocity = new Vec2(-2, -2) };
+        solver.Step(new List<BilliardsSolver.Ball> { ball }, 0.4);
+        Assert.That(ball.Position.X, Is.LessThan(0));
+        Assert.That(ball.Position.Y, Is.LessThan(0));
+    }
+}
