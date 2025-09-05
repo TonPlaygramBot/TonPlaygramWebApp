@@ -36,61 +36,97 @@ public class BilliardsSolver
         public Vec2? TargetVelocity;
     }
 
+    private static void ClampToTable(Ball b)
+    {
+        double minX = PhysicsConstants.BallRadius;
+        double maxX = PhysicsConstants.TableWidth - PhysicsConstants.BallRadius;
+        double minY = PhysicsConstants.BallRadius;
+        double maxY = PhysicsConstants.TableHeight - PhysicsConstants.BallRadius;
+
+        if (b.Position.X < minX)
+        {
+            b.Position = new Vec2(minX, b.Position.Y);
+            if (b.Velocity.X < 0)
+                b.Velocity = new Vec2(-b.Velocity.X * PhysicsConstants.CushionRestitution, b.Velocity.Y);
+        }
+        else if (b.Position.X > maxX)
+        {
+            b.Position = new Vec2(maxX, b.Position.Y);
+            if (b.Velocity.X > 0)
+                b.Velocity = new Vec2(-b.Velocity.X * PhysicsConstants.CushionRestitution, b.Velocity.Y);
+        }
+
+        if (b.Position.Y < minY)
+        {
+            b.Position = new Vec2(b.Position.X, minY);
+            if (b.Velocity.Y < 0)
+                b.Velocity = new Vec2(b.Velocity.X, -b.Velocity.Y * PhysicsConstants.CushionRestitution);
+        }
+        else if (b.Position.Y > maxY)
+        {
+            b.Position = new Vec2(b.Position.X, maxY);
+            if (b.Velocity.Y > 0)
+                b.Velocity = new Vec2(b.Velocity.X, -b.Velocity.Y * PhysicsConstants.CushionRestitution);
+        }
+    }
+
     /// <summary>Integrates positions and handles cushion reflections for one step.</summary>
     public void Step(List<Ball> balls, double dt)
     {
         foreach (var b in balls)
         {
-            if (b.Velocity.Length <= 0)
-                continue;
-
-            double remaining = dt;
-            while (remaining > PhysicsConstants.Epsilon && b.Velocity.Length > 0)
+            if (b.Velocity.Length > 0)
             {
-                Vec2 min = new Vec2(0, 0);
-                Vec2 max = new Vec2(PhysicsConstants.TableWidth, PhysicsConstants.TableHeight);
-
-                double tHit = double.PositiveInfinity;
-                Vec2 normal = new Vec2();
-                double restitution = PhysicsConstants.Restitution;
-                bool hit = false;
-
-                if (Ccd.CircleAabb(b.Position, b.Velocity, PhysicsConstants.BallRadius, min, max, out double tBox, out Vec2 nBox) && tBox <= remaining)
+                double remaining = dt;
+                while (remaining > PhysicsConstants.Epsilon && b.Velocity.Length > 0)
                 {
-                    tHit = tBox;
-                    normal = nBox;
-                    hit = true;
-                }
+                    Vec2 min = new Vec2(0, 0);
+                    Vec2 max = new Vec2(PhysicsConstants.TableWidth, PhysicsConstants.TableHeight);
 
-                foreach (var e in PocketEdges)
-                {
-                    if (Ccd.CircleSegment(b.Position, b.Velocity, PhysicsConstants.BallRadius, e.A, e.B, e.Normal, out double tEdge) && tEdge <= remaining && tEdge < tHit)
+                    double tHit = double.PositiveInfinity;
+                    Vec2 normal = new Vec2();
+                    double restitution = PhysicsConstants.Restitution;
+                    bool hit = false;
+
+                    if (Ccd.CircleAabb(b.Position, b.Velocity, PhysicsConstants.BallRadius, min, max, out double tBox, out Vec2 nBox) && tBox <= remaining)
                     {
-                        tHit = tEdge;
-                        normal = e.Normal;
-                        restitution = PhysicsConstants.PocketRestitution;
+                        tHit = tBox;
+                        normal = nBox;
+                        restitution = PhysicsConstants.CushionRestitution;
                         hit = true;
                     }
-                }
 
-                if (hit)
-                {
-                    b.Position += b.Velocity * tHit;
-                    var speed = b.Velocity.Length;
-                    var newSpeed = Math.Max(0, speed - PhysicsConstants.Mu * tHit);
-                    b.Velocity = newSpeed > 0 ? b.Velocity.Normalized() * newSpeed : new Vec2(0, 0);
-                    b.Velocity = Collision.Reflect(b.Velocity, normal, restitution);
-                    remaining -= tHit;
-                }
-                else
-                {
-                    b.Position += b.Velocity * remaining;
-                    var speed = b.Velocity.Length;
-                    var newSpeed = Math.Max(0, speed - PhysicsConstants.Mu * remaining);
-                    b.Velocity = newSpeed > 0 ? b.Velocity.Normalized() * newSpeed : new Vec2(0, 0);
-                    break;
+                    foreach (var e in PocketEdges)
+                    {
+                        if (Ccd.CircleSegment(b.Position, b.Velocity, PhysicsConstants.BallRadius, e.A, e.B, e.Normal, out double tEdge) && tEdge <= remaining && tEdge < tHit)
+                        {
+                            tHit = tEdge;
+                            normal = e.Normal;
+                            restitution = PhysicsConstants.PocketRestitution;
+                            hit = true;
+                        }
+                    }
+
+                    if (hit)
+                    {
+                        b.Position += b.Velocity * tHit;
+                        var speed = b.Velocity.Length;
+                        var newSpeed = Math.Max(0, speed - PhysicsConstants.Mu * tHit);
+                        b.Velocity = newSpeed > 0 ? b.Velocity.Normalized() * newSpeed : new Vec2(0, 0);
+                        b.Velocity = Collision.Reflect(b.Velocity, normal, restitution);
+                        remaining -= tHit;
+                    }
+                    else
+                    {
+                        b.Position += b.Velocity * remaining;
+                        var speed = b.Velocity.Length;
+                        var newSpeed = Math.Max(0, speed - PhysicsConstants.Mu * remaining);
+                        b.Velocity = newSpeed > 0 ? b.Velocity.Normalized() * newSpeed : new Vec2(0, 0);
+                        break;
+                    }
                 }
             }
+            ClampToTable(b);
         }
     }
 
