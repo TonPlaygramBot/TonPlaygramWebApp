@@ -313,7 +313,7 @@
       function shoot() {
         const power = Number(powerInput.value) / 100;
         playHit(power);
-        const speed = 2 + power * 4;
+        const speed = 4 + power * 8;
         let cuePos = { x: center.x, y: center.y };
         let cueVel = { x: shotDir.x * speed, y: shotDir.y * speed };
         let targetPos = {
