@@ -12,14 +12,14 @@ public class BilliardsSolver
         public Vec2 Velocity;
     }
 
-    public struct Edge
+    public struct Jaw
     {
         public Vec2 A;
         public Vec2 B;
         public Vec2 Normal;
     }
 
-    public List<Edge> PocketEdges { get; } = new List<Edge>();
+    public List<Jaw> PocketJaws { get; } = new List<Jaw>();
 
     public struct Preview
     {
@@ -96,13 +96,13 @@ public class BilliardsSolver
                         hit = true;
                     }
 
-                    foreach (var e in PocketEdges)
+                    foreach (var j in PocketJaws)
                     {
-                        if (Ccd.CircleSegment(b.Position, b.Velocity, PhysicsConstants.BallRadius, e.A, e.B, e.Normal, out double tEdge) && tEdge <= remaining && tEdge < tHit)
+                        if (Ccd.CircleSegment(b.Position, b.Velocity, PhysicsConstants.BallRadius, j.A, j.B, j.Normal, out double tJaw) && tJaw <= remaining && tJaw < tHit)
                         {
-                            tHit = tEdge;
-                            normal = e.Normal;
-                            restitution = PhysicsConstants.PocketRestitution;
+                            tHit = tJaw;
+                            normal = j.Normal;
+                            restitution = PhysicsConstants.JawRestitution;
                             hit = true;
                         }
                     }
@@ -113,7 +113,14 @@ public class BilliardsSolver
                         var speed = b.Velocity.Length;
                         var newSpeed = Math.Max(0, speed - PhysicsConstants.Mu * tHit);
                         b.Velocity = newSpeed > 0 ? b.Velocity.Normalized() * newSpeed : new Vec2(0, 0);
-                        b.Velocity = Collision.Reflect(b.Velocity, normal, restitution);
+                        if (restitution == PhysicsConstants.JawRestitution)
+                        {
+                            b.Velocity = Collision.ReflectWithFriction(b.Velocity, normal, PhysicsConstants.JawRestitution, PhysicsConstants.JawFriction, PhysicsConstants.JawDrag);
+                        }
+                        else
+                        {
+                            b.Velocity = Collision.Reflect(b.Velocity, normal, restitution);
+                        }
                         remaining -= tHit;
                     }
                     else
@@ -162,13 +169,13 @@ public class BilliardsSolver
             }
         }
 
-        foreach (var e in PocketEdges)
+        foreach (var j in PocketJaws)
         {
-            if (Ccd.CircleSegment(cueStart, velocity, PhysicsConstants.BallRadius, e.A, e.B, e.Normal, out double te))
+            if (Ccd.CircleSegment(cueStart, velocity, PhysicsConstants.BallRadius, j.A, j.B, j.Normal, out double te))
             {
                 if (te < bestT)
                 {
-                    bestT = te; hitNormal = e.Normal; ballHit = false; pocketHit = true;
+                    bestT = te; hitNormal = j.Normal; ballHit = false; pocketHit = true;
                 }
             }
         }
@@ -192,8 +199,10 @@ public class BilliardsSolver
         }
         else
         {
-            var rest = pocketHit ? PhysicsConstants.PocketRestitution : PhysicsConstants.Restitution;
-            cuePost = Collision.Reflect(velocity, hitNormal, rest);
+            if (pocketHit)
+                cuePost = Collision.ReflectWithFriction(velocity, hitNormal, PhysicsConstants.JawRestitution, PhysicsConstants.JawFriction, PhysicsConstants.JawDrag);
+            else
+                cuePost = Collision.Reflect(velocity, hitNormal, PhysicsConstants.Restitution);
             path.Add(contact + cuePost.Normalized() * PhysicsConstants.BallRadius);
         }
 
@@ -222,12 +231,12 @@ public class BilliardsSolver
                     }
                 }
             }
-            foreach (var e in PocketEdges)
+            foreach (var j in PocketJaws)
             {
-                if (Ccd.CircleSegment(cue.Position, cue.Velocity, PhysicsConstants.BallRadius, e.A, e.B, e.Normal, out double te) && te <= PhysicsConstants.FixedDt)
+                if (Ccd.CircleSegment(cue.Position, cue.Velocity, PhysicsConstants.BallRadius, j.A, j.B, j.Normal, out double te) && te <= PhysicsConstants.FixedDt)
                 {
                     cue.Position += cue.Velocity * te;
-                    var postEdge = Collision.Reflect(cue.Velocity, e.Normal, PhysicsConstants.PocketRestitution);
+                    var postEdge = Collision.ReflectWithFriction(cue.Velocity, j.Normal, PhysicsConstants.JawRestitution, PhysicsConstants.JawFriction, PhysicsConstants.JawDrag);
                     return new Impact { Point = cue.Position, CueVelocity = postEdge };
                 }
             }
