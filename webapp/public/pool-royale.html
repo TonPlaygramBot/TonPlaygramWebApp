@@ -3568,7 +3568,7 @@
 
         function drawVPocketGuide(p, dir) {
           var R = p.r * ((sX + sY) / 2) * 1.1;
-          var x = p.x * sX - R * 0.2 * dir;
+          var x = p.x * sX + R * 0.1 * dir;
           var y = p.y * sY;
           var dx = R * dir;
           var dy = R * 1.05;
@@ -3590,11 +3590,10 @@
           ctx.beginPath();
           ctx.arc(0, 0, R, Math.PI, 0);
           var lineLen = R * 1.2;
-          var lineInset = R * 0.25;
-          ctx.moveTo(-R + lineInset, 0);
-          ctx.lineTo(-R + lineInset, -lineLen);
-          ctx.moveTo(R - lineInset, 0);
-          ctx.lineTo(R - lineInset, -lineLen);
+          ctx.moveTo(-R, 0);
+          ctx.lineTo(-R, -lineLen);
+          ctx.moveTo(R, 0);
+          ctx.lineTo(R, -lineLen);
           ctx.stroke();
           ctx.restore();
         }
