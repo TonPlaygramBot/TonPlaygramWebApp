@@ -2046,9 +2046,7 @@
           // Track collisions in this frame so that audio for each
           // pair of balls is played only once per contact.
           var newCollisions = new Set();
-          // Defer spin impulses until after all collisions to keep target
-          // ball trajectories accurate regardless of cue spin or power
-          var spinQueue = new Set();
+          // Apply spin impulses immediately on collisions for more natural response
           // Levizje + ferkim + kufij
           for (i = 0; i < this.balls.length; i++) {
             var b = this.balls[i];
@@ -2093,15 +2091,15 @@
             }
             if (!nearPocket || !approaching) {
               if (b.n === 0) {
-                if (b.p.x - L < BALL_R * 1.5 && b.v.x < 0) spinQueue.add(b);
-                if (R - b.p.x < BALL_R * 1.5 && b.v.x > 0) spinQueue.add(b);
-                if (b.p.y - T < BALL_R * 1.5 && b.v.y < 0) spinQueue.add(b);
-                if (B - b.p.y < BALL_R * 1.5 && b.v.y > 0) spinQueue.add(b);
+                if (b.p.x - L < BALL_R * 1.5 && b.v.x < 0) applySpinImpulse(b);
+                if (R - b.p.x < BALL_R * 1.5 && b.v.x > 0) applySpinImpulse(b);
+                if (b.p.y - T < BALL_R * 1.5 && b.v.y < 0) applySpinImpulse(b);
+                if (B - b.p.y < BALL_R * 1.5 && b.v.y > 0) applySpinImpulse(b);
               }
               if (b.p.x < L) {
                 b.p.x = L;
                 b.v.x *= -BOUNCE;
-                if (b.n === 0) spinQueue.add(b);
+                if (b.n === 0) applySpinImpulse(b);
                 if (i === 0 && shotInProgress && !firstHit)
                   cueHitCushion = true;
                 var diffY = nearest ? Math.abs(b.p.y - nearest.y) : Infinity;
@@ -2118,7 +2116,7 @@
               if (b.p.x > R) {
                 b.p.x = R;
                 b.v.x *= -BOUNCE;
-                if (b.n === 0) spinQueue.add(b);
+                if (b.n === 0) applySpinImpulse(b);
                 if (i === 0 && shotInProgress && !firstHit)
                   cueHitCushion = true;
                 var diffY2 = nearest ? Math.abs(b.p.y - nearest.y) : Infinity;
@@ -2135,7 +2133,7 @@
               if (b.p.y < T) {
                 b.p.y = T;
                 b.v.y *= -BOUNCE;
-                if (b.n === 0) spinQueue.add(b);
+                if (b.n === 0) applySpinImpulse(b);
                 if (i === 0 && shotInProgress && !firstHit)
                   cueHitCushion = true;
                 var diffX = nearest ? Math.abs(b.p.x - nearest.x) : Infinity;
@@ -2152,7 +2150,7 @@
               if (b.p.y > B) {
                 b.p.y = B;
                 b.v.y *= -BOUNCE;
-                if (b.n === 0) spinQueue.add(b);
+                if (b.n === 0) applySpinImpulse(b);
                 if (i === 0 && shotInProgress && !firstHit)
                   cueHitCushion = true;
                 var diffX2 = nearest ? Math.abs(b.p.x - nearest.x) : Infinity;
@@ -2180,7 +2178,7 @@
                 dy = bb.p.y - a.p.y,
                 d = Math.hypot(dx, dy);
               if ((a.n === 0 || bb.n === 0) && d < BALL_R * 2.5) {
-                spinQueue.add(a.n === 0 ? a : bb);
+                applySpinImpulse(a.n === 0 ? a : bb);
               }
               if (d < BALL_R * 2) {
                 var pairId = i + '-' + j;
@@ -2242,15 +2240,13 @@
                         );
                       }
                     }
-                    if (a.n === 0) spinQueue.add(a);
-                    if (bb.n === 0) spinQueue.add(bb);
+                    if (a.n === 0) applySpinImpulse(a);
+                    if (bb.n === 0) applySpinImpulse(bb);
                   }
                 }
               }
             }
 
-          // Apply accumulated spin impulses after all collisions
-          spinQueue.forEach(applySpinImpulse);
 
           // Kontroll i gropave
           for (i = 0; i < this.pockets.length; i++) {
