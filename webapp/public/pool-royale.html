@@ -1694,6 +1694,10 @@
           var rx = b.p.x - pk.x;
           var ry = b.p.y - pk.y;
           if (!cond(rx, ry)) return;
+          // Allow the ball to pass into the pocket once its center
+          // reaches the pocket circle. This avoids balls getting
+          // stuck halfway through the connector edge.
+          if (Math.hypot(rx, ry) <= pk.r) return;
           var limit = pk.r + BALL_R;
           var dist = rx * nx + ry * ny;
           if (dist >= limit) return;
