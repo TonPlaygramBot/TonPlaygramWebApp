@@ -283,10 +283,14 @@
         spinControllerDot.style.left = pos(sx);
         spinControllerDot.style.top = pos(sy);
         cueSpinDot.style.left = pos(sx);
+        // move the cue ball's spin indicator to mirror controller input
         cueSpinDot.style.top = pos(sy);
       }
 
-      spinController.addEventListener('click', (e) => {
+      // update spin both on click and while dragging for better precision
+      let spinning = false;
+      function setSpin (e) {
+        if (e.type === 'pointermove' && !spinning) return;
         const r = spinController.getBoundingClientRect();
         const cx = r.width / 2;
         const cy = r.height / 2;
@@ -294,8 +298,19 @@
         const dy = e.clientY - r.top - cy;
         const nx = Math.max(Math.min(dx / cx, 1), -1);
         const ny = Math.max(Math.min(dy / cy, 1), -1);
-        spin = { x: nx, y: ny };
+        // invert the vertical component so positive y is top spin
+        spin = { x: nx, y: -ny };
         updateSpinDots(nx, ny);
+      }
+      spinController.addEventListener('pointerdown', (e) => {
+        spinning = true;
+        spinController.setPointerCapture(e.pointerId);
+        setSpin(e);
+      });
+      spinController.addEventListener('pointermove', setSpin);
+      spinController.addEventListener('pointerup', (e) => {
+        spinning = false;
+        spinController.releasePointerCapture(e.pointerId);
       });
 
       function playHit(power) {
@@ -335,9 +350,9 @@
             if (Math.hypot(dx, dy) <= 40) {
               collided = true;
               // apply spin to cue ball after collision
-              const forward = -spin.y; // top spin is negative y
+              const forward = spin.y; // top spin is positive
               const side = spin.x;
-              const spinScale = speed * 0.6;
+              const spinScale = speed; // stronger influence for clearer draw/follow
               cueVel = {
                 x: shotDir.x * forward * spinScale + -shotDir.y * side * spinScale,
                 y: shotDir.y * forward * spinScale + shotDir.x * side * spinScale
