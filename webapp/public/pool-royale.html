@@ -1670,10 +1670,10 @@
         }
 
         function applySpinImpulse(ball) {
-          if (!ball.spin || !ball.impacted) return;
-          // Calibrated spin transfer for more natural motion
-          var SPIN_STRENGTH = 60;
-          var SPIN_DECAY = 0.92;
+          if (!ball.spin) return;
+          // Apply stronger, immediate spin influence
+          var SPIN_STRENGTH = 250;
+          var SPIN_DECAY = 0.9;
           ball.v.x += ball.spin.x * SPIN_STRENGTH;
           ball.v.y += ball.spin.y * SPIN_STRENGTH;
           ball.spin.x *= SPIN_DECAY;
@@ -2093,7 +2093,7 @@
               playShock(1);
             }
             if (!nearPocket || !approaching) {
-              if (b.n === 0 && b.impacted) {
+              if (b.n === 0) {
                 if (b.p.x - L < BALL_R * 1.5 && b.v.x < 0) applySpinImpulse(b);
                 if (R - b.p.x < BALL_R * 1.5 && b.v.x > 0) applySpinImpulse(b);
                 if (b.p.y - T < BALL_R * 1.5 && b.v.y < 0) applySpinImpulse(b);
