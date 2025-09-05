@@ -1676,7 +1676,7 @@
         function applySpinImpulse(ball) {
           if (!ball.spin) return;
           // Apply stronger, immediate spin influence
-          var SPIN_STRENGTH = 200;
+          var SPIN_STRENGTH = 150;
           var SPIN_DECAY = 0.9;
           ball.v.x += ball.spin.x * SPIN_STRENGTH;
           ball.v.y += ball.spin.y * SPIN_STRENGTH;
