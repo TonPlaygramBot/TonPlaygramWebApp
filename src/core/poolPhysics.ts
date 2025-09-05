@@ -17,11 +17,19 @@ export interface Ball {
   omega: number
 }
 
+export interface Jaw {
+  center: Vec2
+  radius: number
+  startAngle: number
+  endAngle: number
+}
+
 export interface Pocket {
   center: Vec2
   uPocket: Vec2 // unit vector into pocket
   mouthWidth: number
   funnelDepth: number
+  jaws: Jaw[]
 }
 
 export interface JawParams {
@@ -31,6 +39,8 @@ export interface JawParams {
   dragJaw: number
   captureSpeedMin: number
   reboundThreshold: number
+  lipOutAngle: number
+  lipOutSpeed: number
 }
 
 export function reflectWithFrictionAndSpin(v: Vec2, n: Vec2, eJaw: number, muJaw: number, dragJaw: number, omega: number) {
@@ -43,23 +53,47 @@ export function reflectWithFrictionAndSpin(v: Vec2, n: Vec2, eJaw: number, muJaw
   return { v: vPrime, omega: omegaPrime }
 }
 
-export function resolveJawCollision(ball: Ball, normal: Vec2, params: JawParams, _time: number) {
-  const res = reflectWithFrictionAndSpin(ball.velocity, normal, params.eJaw, params.muJaw, params.dragJaw, ball.omega)
-  ball.velocity = res.v
-  ball.omega = res.omega
+export function closestPointOnArc(p: Vec2, jaw: Jaw): Vec2 {
+  const rel = sub(p, jaw.center)
+  const angle = Math.atan2(rel.y, rel.x)
+  const clamped = Math.min(Math.max(angle, jaw.startAngle), jaw.endAngle)
+  return {
+    x: jaw.center.x + Math.cos(clamped) * jaw.radius,
+    y: jaw.center.y + Math.sin(clamped) * jaw.radius,
+  }
 }
 
-export function centerPathIntersectsFunnel(ball: Ball, pocket: Pocket, params: JawParams): boolean {
+export function normalAt(jaw: Jaw, p: Vec2): Vec2 {
+  return normalize(sub(p, jaw.center))
+}
+
+export function resolveJawCollision(ball: Ball, jaw: Jaw, params: JawParams, _time: number): boolean {
+  const pClosest = closestPointOnArc(ball.position, jaw)
+  const dist = length(sub(ball.position, pClosest))
+  if (dist <= params.ballRadius) {
+    const n = normalAt(jaw, pClosest)
+    const res = reflectWithFrictionAndSpin(ball.velocity, n, params.eJaw, params.muJaw, params.dragJaw, ball.omega)
+    ball.velocity = res.v
+    ball.omega = res.omega
+    return true
+  }
+  return false
+}
+
+export function centerPathIntersectsFunnel(ball: Ball, pocket: Pocket, params: JawParams, tolerance = 0.0001): boolean {
   const dir = normalize(ball.velocity)
   if (length(dir) === 0) return false
   const toCenter = sub(pocket.center, ball.position)
   const dist = Math.abs(crossZ(toCenter, dir))
-  return dist < pocket.mouthWidth / 2 - params.ballRadius
+  return dist < pocket.mouthWidth / 2 - params.ballRadius + tolerance
 }
 
 export function willEnterPocket(vPrime: Vec2, pocket: Pocket, params: JawParams): boolean {
   const speed = length(vPrime)
   const toPocket = dot(vPrime, pocket.uPocket)
+  const cos = toPocket / (speed || 1)
+  const angle = Math.acos(Math.min(1, Math.max(-1, cos))) * (180 / Math.PI)
+  if (angle > params.lipOutAngle && speed > params.lipOutSpeed) return false
   if (toPocket > params.captureSpeedMin) return true
   if (speed < params.reboundThreshold) return true
   return false
