@@ -100,6 +100,9 @@
       .name {
         font-weight: 700;
       }
+      .name.turn {
+        color: #facc15;
+      }
       .name.small {
         font-size: 12px;
       }
@@ -259,9 +262,10 @@
       #turnTimerText {
         position: absolute;
         left: 50%;
-        top: -10px;
+        top: -20px;
         transform: translateX(-50%);
         font-weight: 700;
+        font-size: 20px;
         pointer-events: none;
         -webkit-text-stroke: 1px #000;
       }
@@ -1672,7 +1676,7 @@
         function applySpinImpulse(ball) {
           if (!ball.spin) return;
           // Apply stronger, immediate spin influence
-          var SPIN_STRENGTH = 250;
+          var SPIN_STRENGTH = 200;
           var SPIN_DECAY = 0.9;
           ball.v.x += ball.spin.x * SPIN_STRENGTH;
           ball.v.y += ball.spin.y * SPIN_STRENGTH;
@@ -1919,8 +1923,8 @@
             }
             // place the six colour balls on their spots
             snookerSpots = {
-              yellow: { x: TABLE_W / 2 - BALL_R * 6, y: LINE_Y },
-              green: { x: TABLE_W / 2 + BALL_R * 6, y: LINE_Y },
+              yellow: { x: TABLE_W / 2 - BALL_R * 7, y: LINE_Y },
+              green: { x: TABLE_W / 2 + BALL_R * 7, y: LINE_Y },
               brown: { x: TABLE_W / 2, y: LINE_Y },
               blue: { x: TABLE_W / 2, y: TABLE_H / 2 },
               pink: { x: TABLE_W / 2, y: SPOT_Y + colGap * 2 },
@@ -2390,6 +2394,21 @@
             Math.PI * 2
           );
           ctx.fill();
+          if (isSnooker && playType === 'training') {
+            ctx.fillStyle = '#fff';
+            ['yellow', 'green', 'brown', 'blue', 'pink', 'black'].forEach(function (k) {
+              var sp = snookerSpots[k];
+              if (!sp) return;
+              ctx.beginPath();
+              ctx.arc(sp.x * sX, sp.y * sY, 3 * ((sX + sY) / 2), 0, Math.PI * 2);
+              ctx.fill();
+            });
+            ctx.strokeStyle = '#fff';
+            ctx.beginPath();
+            var dR = BALL_R * 11 * ((sX + sY) / 2);
+            ctx.arc((TABLE_W / 2) * sX, LINE_Y * sY, dR, Math.PI, 0);
+            ctx.stroke();
+          }
           // Cushion and pocket guidelines removed
           // Topat
           for (var j = 0; j < this.balls.length; j++) {
@@ -2887,6 +2906,8 @@
           if (force || table.turn !== lastTurn) {
             avatarP1.classList.toggle('turn', table.turn === 1);
             avatarCPU.classList.toggle('turn', table.turn === 2);
+            nameP1.classList.toggle('turn', table.turn === 1);
+            nameCPU.classList.toggle('turn', table.turn === 2);
             if (table.turn === 1) startTurnTimer();
             else clearTurnTimer();
             if (!force && freeShots[table.turn] > 1) {
@@ -2916,7 +2937,10 @@
           centerPopup.textContent = text;
           centerPopup.className = cls;
           centerPopup.style.display = 'block';
-          if (cls === 'foul') playShock(1);
+          if (cls === 'foul') {
+            playShock(1);
+            updateFooter(currentShooter === 1 ? 2 : 1, text);
+          }
           setTimeout(function () {
             centerPopup.style.display = 'none';
           }, duration);
