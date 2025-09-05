@@ -942,8 +942,7 @@
         var CUE_START_Y =
           LINE_Y + (TABLE_H - BORDER_BOTTOM - LINE_Y - BALL_R * 2) / 2; // pozicioni fillestar i cueball-it
 
-        var STATIC_FRICTION = 40; // koeficienti i fërkimit statik
-        var ROLLING_FRICTION = 0.995; // koeficienti i fërkimit rrotullues
+        var FRICTION = 0.985; // ferkimi linear, pak me i vogel per te ruajtur shpejtesine
         var BOUNCE = 0.99; // koeficienti i rikthimit pak me i madh
 
         var MIN_V = 0.12; // shpejtesia min. qe konsiderohet "ne levizje"
@@ -1670,31 +1669,15 @@
           return '#' + ((r << 16) | (g << 8) | b).toString(16).padStart(6, '0');
         }
 
-        function updateBallPhysics(ball, dt) {
-          if (!ball.spin) return;
-          var R = BALL_R;
-          var omegaX = ball.spin.x || 0;
-          var omegaY = ball.spin.y || 0;
-          // Velocity of the contact point: v + (omega × r)
-          var surfaceVx = ball.v.x - omegaY * R;
-          var surfaceVy = ball.v.y + omegaX * R;
-          var slipSpeed = Math.hypot(surfaceVx, surfaceVy);
-          if (slipSpeed > 0.001) {
-            var sx = surfaceVx / slipSpeed;
-            var sy = surfaceVy / slipSpeed;
-            var reduce = Math.min(slipSpeed, STATIC_FRICTION * dt);
-            ball.v.x -= sx * reduce;
-            ball.v.y -= sy * reduce;
-            omegaX += sy * reduce / R;
-            omegaY -= sx * reduce / R;
-          }
-          var rf = Math.pow(ROLLING_FRICTION, dt * 60);
-          ball.v.x *= rf;
-          ball.v.y *= rf;
-          omegaX *= rf;
-          omegaY *= rf;
-          ball.spin.x = omegaX;
-          ball.spin.y = omegaY;
+        function applySpinImpulse(ball) {
+          if (!ball.spin || !ball.impacted) return;
+          // Calibrated spin transfer for more natural motion
+          var SPIN_STRENGTH = 60;
+          var SPIN_DECAY = 0.92;
+          ball.v.x += ball.spin.x * SPIN_STRENGTH;
+          ball.v.y += ball.spin.y * SPIN_STRENGTH;
+          ball.spin.x *= SPIN_DECAY;
+          ball.spin.y *= SPIN_DECAY;
         }
 
         /* ==========================================================
@@ -2066,15 +2049,18 @@
           // Track collisions in this frame so that audio for each
           // pair of balls is played only once per contact.
           var newCollisions = new Set();
-          // Levizje + simulim i spin-it + kufij
+          // Apply spin impulses immediately on collisions for more natural response
+          // Levizje + ferkim + kufij
           for (i = 0; i < this.balls.length; i++) {
             var b = this.balls[i];
             if (b.pocketed) continue;
             var prevX = b.p.x,
               prevY = b.p.y;
-            updateBallPhysics(b, dt);
             b.p.x += b.v.x * dt;
             b.p.y += b.v.y * dt;
+            b.v.x *= FRICTION;
+            b.v.y *= FRICTION;
+            // spin is applied directly during collisions
             b.a += (Math.hypot(b.v.x, b.v.y) * dt) / (BALL_R * 0.6);
 
             var L = BORDER + BALL_R;
@@ -2107,15 +2093,19 @@
               playShock(1);
             }
             if (!nearPocket || !approaching) {
+              if (b.n === 0 && b.impacted) {
+                if (b.p.x - L < BALL_R * 1.5 && b.v.x < 0) applySpinImpulse(b);
+                if (R - b.p.x < BALL_R * 1.5 && b.v.x > 0) applySpinImpulse(b);
+                if (b.p.y - T < BALL_R * 1.5 && b.v.y < 0) applySpinImpulse(b);
+                if (B - b.p.y < BALL_R * 1.5 && b.v.y > 0) applySpinImpulse(b);
+              }
               if (b.p.x < L) {
                 b.p.x = L;
                 b.v.x *= -BOUNCE;
-                if (b.spin) {
-                  b.v.y += b.spin.x * BALL_R;
-                  b.spin.x *= 0.8;
-                  b.spin.y *= -0.8;
+                if (b.n === 0) {
+                  b.impacted = true;
+                  applySpinImpulse(b);
                 }
-                if (b.n === 0) b.impacted = true;
                 if (i === 0 && shotInProgress && !firstHit)
                   cueHitCushion = true;
                 var diffY = nearest ? Math.abs(b.p.y - nearest.y) : Infinity;
@@ -2132,12 +2122,10 @@
               if (b.p.x > R) {
                 b.p.x = R;
                 b.v.x *= -BOUNCE;
-                if (b.spin) {
-                  b.v.y += b.spin.x * BALL_R;
-                  b.spin.x *= 0.8;
-                  b.spin.y *= -0.8;
+                if (b.n === 0) {
+                  b.impacted = true;
+                  applySpinImpulse(b);
                 }
-                if (b.n === 0) b.impacted = true;
                 if (i === 0 && shotInProgress && !firstHit)
                   cueHitCushion = true;
                 var diffY2 = nearest ? Math.abs(b.p.y - nearest.y) : Infinity;
@@ -2154,12 +2142,10 @@
               if (b.p.y < T) {
                 b.p.y = T;
                 b.v.y *= -BOUNCE;
-                if (b.spin) {
-                  b.v.x -= b.spin.y * BALL_R;
-                  b.spin.y *= 0.8;
-                  b.spin.x *= -0.8;
+                if (b.n === 0) {
+                  b.impacted = true;
+                  applySpinImpulse(b);
                 }
-                if (b.n === 0) b.impacted = true;
                 if (i === 0 && shotInProgress && !firstHit)
                   cueHitCushion = true;
                 var diffX = nearest ? Math.abs(b.p.x - nearest.x) : Infinity;
@@ -2176,12 +2162,10 @@
               if (b.p.y > B) {
                 b.p.y = B;
                 b.v.y *= -BOUNCE;
-                if (b.spin) {
-                  b.v.x -= b.spin.y * BALL_R;
-                  b.spin.y *= 0.8;
-                  b.spin.x *= -0.8;
+                if (b.n === 0) {
+                  b.impacted = true;
+                  applySpinImpulse(b);
                 }
-                if (b.n === 0) b.impacted = true;
                 if (i === 0 && shotInProgress && !firstHit)
                   cueHitCushion = true;
                 var diffX2 = nearest ? Math.abs(b.p.x - nearest.x) : Infinity;
@@ -2208,6 +2192,12 @@
               var dx = bb.p.x - a.p.x,
                 dy = bb.p.y - a.p.y,
                 d = Math.hypot(dx, dy);
+              if (a.n === 0 || bb.n === 0) {
+                var cueBall = a.n === 0 ? a : bb;
+                if (cueBall.impacted && d < BALL_R * 2.5) {
+                  applySpinImpulse(cueBall);
+                }
+              }
               if (d < BALL_R * 2) {
                 var pairId = i + '-' + j;
                 var firstPairCollision = !newCollisions.has(pairId);
@@ -2219,12 +2209,8 @@
                 a.p.y -= ny * over;
                 bb.p.x += nx * over;
                 bb.p.y += ny * over;
-                var avx = a.v.x - (a.spin ? a.spin.y * BALL_R : 0),
-                  avy = a.v.y + (a.spin ? a.spin.x * BALL_R : 0),
-                  bbvx = bb.v.x - (bb.spin ? bb.spin.y * BALL_R : 0),
-                  bbvy = bb.v.y + (bb.spin ? bb.spin.x * BALL_R : 0),
-                  rvx = bbvx - avx,
-                  rvy = bbvy - avy,
+                var rvx = bb.v.x - a.v.x,
+                  rvy = bb.v.y - a.v.y,
                   vn = rvx * nx + rvy * ny;
                 if (vn < 0) {
                   var imp = -vn;
@@ -2236,14 +2222,6 @@
                   a.v.y *= BOUNCE;
                   bb.v.x *= BOUNCE;
                   bb.v.y *= BOUNCE;
-                  if (a.spin) {
-                    a.spin.x -= ny * imp / BALL_R;
-                    a.spin.y += nx * imp / BALL_R;
-                  }
-                  if (bb.spin) {
-                    bb.spin.x += ny * imp / BALL_R;
-                    bb.spin.y -= nx * imp / BALL_R;
-                  }
                   if (firstPairCollision && !this.prevCollisions.has(pairId)) {
                     // Scale collision volume by both impact impulse and the
                     // power of the shot that initiated the turn.
@@ -2280,8 +2258,14 @@
                         );
                       }
                     }
-                    if (a.n === 0) a.impacted = true;
-                    if (bb.n === 0) bb.impacted = true;
+                    if (a.n === 0) {
+                      a.impacted = true;
+                      applySpinImpulse(a);
+                    }
+                    if (bb.n === 0) {
+                      bb.impacted = true;
+                      applySpinImpulse(bb);
+                    }
                   }
                 }
               }
