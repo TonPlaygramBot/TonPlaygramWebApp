@@ -3586,7 +3586,7 @@
           ctx.save();
           ctx.translate(x, y);
           ctx.scale(sx, sy);
-          ctx.rotate(-sx * sy * Math.PI / 4);
+          ctx.rotate(-Math.PI / 4);
           ctx.beginPath();
           ctx.arc(0, 0, R, Math.PI, 0);
           var lineLen = R * 1.2;
