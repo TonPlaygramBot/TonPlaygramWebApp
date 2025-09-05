@@ -1,19 +1,19 @@
-import { FrameState, ShotEvent, BallColor } from '../types';
+import { FrameState, ShotEvent, BallColor, Ball } from '../types';
 import { SnookerRules } from '../rules/SnookerRules';
 
 export class Referee {
   constructor(private rules: SnookerRules = new SnookerRules()) {}
 
-  snapshot(state: FrameState): any {
+  snapshot(state: FrameState): FrameState {
     return JSON.parse(JSON.stringify(state));
   }
 
-  restore(snapshot: any): FrameState {
+  restore(snapshot: FrameState): FrameState {
     return JSON.parse(JSON.stringify(snapshot));
   }
 
   applyShot(state: FrameState, events: ShotEvent[]): FrameState {
-    let newState = this.snapshot(state);
+    let newState: FrameState = this.snapshot(state);
     newState.foul = undefined;
     let scored = 0;
 
@@ -25,7 +25,7 @@ export class Referee {
     const values = this.rules.getBallValues();
 
     if (!this.rules.isBallOn(newState, first)) {
-      const valOn = Math.max(...newState.ballOn.map((c) => values[c]));
+      const valOn = Math.max(...newState.ballOn.map((c: BallColor) => values[c]));
       const valFirst = first ? values[first] : 0;
       const pts = Math.max(4, valOn, valFirst);
       return this.awardFoul(newState, pts, 'wrong ball first');
@@ -34,8 +34,8 @@ export class Referee {
     for (const ev of events) {
       if (ev.type === 'POTTED') {
         if (newState.freeBall) {
-          scored += values[newState.ballOn[0]];
-          const ball = newState.balls.find((b) => b.color === ev.ball);
+          scored += values[newState.ballOn[0] as BallColor];
+          const ball = newState.balls.find((b: Ball) => b.color === ev.ball);
           if (ball) {
             ball.onTable = true;
             ball.potted = false;
@@ -45,13 +45,13 @@ export class Referee {
           continue;
         }
         if (!newState.ballOn.includes(ev.ball)) {
-          const valOn = Math.max(...newState.ballOn.map((c) => values[c]));
+          const valOn = Math.max(...newState.ballOn.map((c: BallColor) => values[c]));
           const valPot = values[ev.ball];
           const pts = Math.max(4, valOn, valPot);
           return this.awardFoul(newState, pts, 'wrong ball potted');
         }
         scored += values[ev.ball];
-        const ball = newState.balls.find((b) => b.color === ev.ball && b.onTable);
+        const ball = newState.balls.find((b: Ball) => b.color === ev.ball && b.onTable);
         if (ev.ball === 'RED') {
           if (ball) {
             ball.onTable = false;
@@ -98,8 +98,9 @@ export class Referee {
     }
 
     if (newState.phase === 'COLORS_ORDER') {
-      const remaining = ['YELLOW', 'GREEN', 'BROWN', 'BLUE', 'PINK', 'BLACK'].some((c) =>
-        newState.balls.find((b) => b.color === c && b.onTable)
+      const colourSeq: BallColor[] = ['YELLOW', 'GREEN', 'BROWN', 'BLUE', 'PINK', 'BLACK'];
+      const remaining = colourSeq.some((c: BallColor) =>
+        newState.balls.find((b: Ball) => b.color === c && b.onTable)
       );
       if (!remaining) {
         newState.frameOver = true;
