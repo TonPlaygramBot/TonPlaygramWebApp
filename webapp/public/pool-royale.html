@@ -971,6 +971,7 @@
 
         var FRICTION = 0.985; // ferkimi linear, pak me i vogel per te ruajtur shpejtesine
         var BOUNCE = 0.99; // koeficienti i rikthimit pak me i madh
+        var EDGE_BOUNCE = BOUNCE * 0.1; // skajet e gropave rikthejne 90% me pak
 
         var MIN_V = 0.12; // shpejtesia min. qe konsiderohet "ne levizje"
 
@@ -2128,14 +2129,16 @@
               }
               if (b.p.x < L) {
                 b.p.x = L;
-                b.v.x *= -BOUNCE;
+                var diffY = nearest ? Math.abs(b.p.y - nearest.y) : Infinity;
+                var bounce = BOUNCE;
+                if (nearPocket && diffY <= BALL_R * 3) bounce = EDGE_BOUNCE;
+                b.v.x *= -bounce;
                 if (b.n === 0) {
                   b.impacted = true;
                   applySpinImpulse(b);
                 }
                 if (i === 0 && shotInProgress && !firstHit)
                   cueHitCushion = true;
-                var diffY = nearest ? Math.abs(b.p.y - nearest.y) : Infinity;
                 if (
                   nearPocket &&
                   diffY <= BALL_R * 3 &&
@@ -2148,14 +2151,16 @@
               }
               if (b.p.x > R) {
                 b.p.x = R;
-                b.v.x *= -BOUNCE;
+                var diffY2 = nearest ? Math.abs(b.p.y - nearest.y) : Infinity;
+                var bounce2 = BOUNCE;
+                if (nearPocket && diffY2 <= BALL_R * 3) bounce2 = EDGE_BOUNCE;
+                b.v.x *= -bounce2;
                 if (b.n === 0) {
                   b.impacted = true;
                   applySpinImpulse(b);
                 }
                 if (i === 0 && shotInProgress && !firstHit)
                   cueHitCushion = true;
-                var diffY2 = nearest ? Math.abs(b.p.y - nearest.y) : Infinity;
                 if (
                   nearPocket &&
                   diffY2 <= BALL_R * 3 &&
@@ -2168,14 +2173,16 @@
               }
               if (b.p.y < T) {
                 b.p.y = T;
-                b.v.y *= -BOUNCE;
+                var diffX = nearest ? Math.abs(b.p.x - nearest.x) : Infinity;
+                var bounce3 = BOUNCE;
+                if (nearPocket && diffX <= BALL_R * 3) bounce3 = EDGE_BOUNCE;
+                b.v.y *= -bounce3;
                 if (b.n === 0) {
                   b.impacted = true;
                   applySpinImpulse(b);
                 }
                 if (i === 0 && shotInProgress && !firstHit)
                   cueHitCushion = true;
-                var diffX = nearest ? Math.abs(b.p.x - nearest.x) : Infinity;
                 if (
                   nearPocket &&
                   diffX <= BALL_R * 3 &&
@@ -2188,14 +2195,16 @@
               }
               if (b.p.y > B) {
                 b.p.y = B;
-                b.v.y *= -BOUNCE;
+                var diffX2 = nearest ? Math.abs(b.p.x - nearest.x) : Infinity;
+                var bounce4 = BOUNCE;
+                if (nearPocket && diffX2 <= BALL_R * 3) bounce4 = EDGE_BOUNCE;
+                b.v.y *= -bounce4;
                 if (b.n === 0) {
                   b.impacted = true;
                   applySpinImpulse(b);
                 }
                 if (i === 0 && shotInProgress && !firstHit)
                   cueHitCushion = true;
-                var diffX2 = nearest ? Math.abs(b.p.x - nearest.x) : Infinity;
                 if (
                   nearPocket &&
                   diffX2 <= BALL_R * 3 &&
@@ -2406,8 +2415,62 @@
             ctx.fillRect(x0, y0, w, h);
             ctx.strokeStyle = 'rgba(0,255,0,0.8)';
             ctx.lineWidth = 2;
-            ctx.strokeRect(x0, y0, w, h);
             if (this.pockets) {
+              var p = this.pockets;
+              ctx.beginPath();
+              // top boundary
+              var topY = y0;
+              var dyTL = BORDER_TOP - p[0].y;
+              var dxTL = Math.sqrt(Math.max(0, p[0].r * p[0].r - dyTL * dyTL));
+              var topStart = (p[0].x + dxTL) * sX;
+              var dyTR = BORDER_TOP - p[1].y;
+              var dxTR = Math.sqrt(Math.max(0, p[1].r * p[1].r - dyTR * dyTR));
+              var topEnd = (p[1].x - dxTR) * sX;
+              ctx.moveTo(topStart, topY);
+              ctx.lineTo(topEnd, topY);
+              // bottom boundary
+              var bottomY = (TABLE_H - BORDER_BOTTOM) * sY;
+              var dyBL = p[4].y - (TABLE_H - BORDER_BOTTOM);
+              var dxBL = Math.sqrt(Math.max(0, p[4].r * p[4].r - dyBL * dyBL));
+              var bottomStart = (p[4].x + dxBL) * sX;
+              var dyBR = p[5].y - (TABLE_H - BORDER_BOTTOM);
+              var dxBR = Math.sqrt(Math.max(0, p[5].r * p[5].r - dyBR * dyBR));
+              var bottomEnd = (p[5].x - dxBR) * sX;
+              ctx.moveTo(bottomStart, bottomY);
+              ctx.lineTo(bottomEnd, bottomY);
+              // left boundary with side pocket
+              var xLeft = x0;
+              var dxTL2 = BORDER - p[0].x;
+              var dyTL2 = Math.sqrt(Math.max(0, p[0].r * p[0].r - dxTL2 * dxTL2));
+              var leftTop = (p[0].y + dyTL2) * sY;
+              var dxSL = BORDER - p[2].x;
+              var dySL = Math.sqrt(Math.max(0, p[2].r * p[2].r - dxSL * dxSL));
+              var leftMidTop = (p[2].y - dySL) * sY;
+              var leftMidBottom = (p[2].y + dySL) * sY;
+              var dxBL2 = BORDER - p[4].x;
+              var dyBL2 = Math.sqrt(Math.max(0, p[4].r * p[4].r - dxBL2 * dxBL2));
+              var leftBottom = (p[4].y - dyBL2) * sY;
+              ctx.moveTo(xLeft, leftTop);
+              ctx.lineTo(xLeft, leftMidTop);
+              ctx.moveTo(xLeft, leftMidBottom);
+              ctx.lineTo(xLeft, leftBottom);
+              // right boundary with side pocket
+              var xRight = (TABLE_W - BORDER) * sX;
+              var dxTR2 = p[1].x - (TABLE_W - BORDER);
+              var dyTR2 = Math.sqrt(Math.max(0, p[1].r * p[1].r - dxTR2 * dxTR2));
+              var rightTop = (p[1].y + dyTR2) * sY;
+              var dxSR = p[3].x - (TABLE_W - BORDER);
+              var dySR = Math.sqrt(Math.max(0, p[3].r * p[3].r - dxSR * dxSR));
+              var rightMidTop = (p[3].y - dySR) * sY;
+              var rightMidBottom = (p[3].y + dySR) * sY;
+              var dxBR2 = p[5].x - (TABLE_W - BORDER);
+              var dyBR2 = Math.sqrt(Math.max(0, p[5].r * p[5].r - dxBR2 * dxBR2));
+              var rightBottom = (p[5].y - dyBR2) * sY;
+              ctx.moveTo(xRight, rightTop);
+              ctx.lineTo(xRight, rightMidTop);
+              ctx.moveTo(xRight, rightMidBottom);
+              ctx.lineTo(xRight, rightBottom);
+              ctx.stroke();
               ctx.strokeStyle = '#ff0';
               drawVPocketGuide(this.pockets[2], 1);
               drawVPocketGuide(this.pockets[3], -1);
@@ -2415,6 +2478,8 @@
               drawUPocketGuide(this.pockets[1], -1, 1);
               drawUPocketGuide(this.pockets[4], 1, -1);
               drawUPocketGuide(this.pockets[5], -1, -1);
+            } else {
+              ctx.strokeRect(x0, y0, w, h);
             }
             ctx.restore();
           }
