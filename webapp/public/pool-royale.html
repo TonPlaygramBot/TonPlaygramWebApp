@@ -181,7 +181,7 @@
         position: absolute;
         inset: 0;
         background: url('/assets/icons/64e79228-35e3-4fdc-b914-fca635a40220.webp')
-          top center/calc(100% + 8px) calc(100% + 20px) no-repeat;
+          top center/100% 100% no-repeat;
         filter: brightness(var(--table-brightness));
         z-index: -1;
       }
@@ -216,7 +216,6 @@
         position: absolute;
         top: 0;
         left: 0;
-        transform: translateY(-2px);
         z-index: 4;
       }
 
@@ -4183,7 +4182,7 @@
             bottom.replaceWith(createFace(7 - value, 'dice-face--bottom'));
           }
 
-          function rollDie(container, cb) {
+          function rollDie(container, cb, avoidValue) {
             const cube = container.querySelector('.dice-cube');
             cube.classList.add('animate-roll');
             const id = setInterval(() => {
@@ -4192,7 +4191,11 @@
             }, 50);
             setTimeout(() => {
               clearInterval(id);
-              const final = Math.floor(Math.random() * 6) + 1;
+              const avoid = typeof avoidValue === 'function' ? avoidValue() : avoidValue;
+              let final = Math.floor(Math.random() * 6) + 1;
+              if (avoid !== undefined && final === avoid) {
+                final = Math.floor(Math.random() * 6) + 1;
+              }
               setDieValue(container, final);
               cube.classList.remove('animate-roll');
               cb(final);
@@ -4237,11 +4240,10 @@
             rolled = true;
             rollDie(playerDie, (v) => {
               playerRoll = v;
-              checkResult();
-            });
-            rollDie(cpuDie, (v) => {
-              cpuRoll = v;
-              checkResult();
+              rollDie(cpuDie, (cv) => {
+                cpuRoll = cv;
+                checkResult();
+              }, v);
             });
           }
 
