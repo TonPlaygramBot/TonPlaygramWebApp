@@ -106,10 +106,14 @@ public class BilliardsSolver
 
                     if (Ccd.CircleAabb(b.Position, b.Velocity, PhysicsConstants.BallRadius, min, max, out double tBox, out Vec2 nBox) && tBox <= remaining)
                     {
-                        tHit = tBox;
-                        normal = nBox;
-                        restitution = PhysicsConstants.CushionRestitution;
-                        hit = true;
+                        var candidate = b.Position + b.Velocity * tBox;
+                        if (!IsBeyondPocketEdges(candidate))
+                        {
+                            tHit = tBox;
+                            normal = nBox;
+                            restitution = PhysicsConstants.CushionRestitution;
+                            hit = true;
+                        }
                     }
 
                     foreach (var e in PocketEdges)
@@ -172,7 +176,8 @@ public class BilliardsSolver
         Vec2 max = new Vec2(PhysicsConstants.TableWidth, PhysicsConstants.TableHeight);
         if (Ccd.CircleAabb(cueStart, velocity, PhysicsConstants.BallRadius, min, max, out double tc, out Vec2 n))
         {
-            if (tc < bestT)
+            var candidate = cueStart + velocity * tc;
+            if (tc < bestT && !IsBeyondPocketEdges(candidate))
             {
                 bestT = tc; hitNormal = n; ballHit = false; pocketHit = false;
             }
@@ -249,9 +254,13 @@ public class BilliardsSolver
             }
             if (Ccd.CircleAabb(cue.Position, cue.Velocity, PhysicsConstants.BallRadius, new Vec2(0, 0), new Vec2(PhysicsConstants.TableWidth, PhysicsConstants.TableHeight), out double tc, out Vec2 n) && tc <= PhysicsConstants.FixedDt)
             {
-                cue.Position += cue.Velocity * tc;
-                var post = Collision.Reflect(cue.Velocity, n);
-                return new Impact { Point = cue.Position, CueVelocity = post };
+                var candidate = cue.Position + cue.Velocity * tc;
+                if (!IsBeyondPocketEdges(candidate))
+                {
+                    cue.Position += cue.Velocity * tc;
+                    var post = Collision.Reflect(cue.Velocity, n);
+                    return new Impact { Point = cue.Position, CueVelocity = post };
+                }
             }
             Step(balls, PhysicsConstants.FixedDt);
             time += PhysicsConstants.FixedDt;
