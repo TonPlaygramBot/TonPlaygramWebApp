@@ -26,7 +26,7 @@ const visibleRows = 7; // Always display 7 rows
 
 const winningRow = 2;  // Index of the row that marks the winner (3rd row)
 
-const loops = 8;       // How many times the list repeats while spinning
+const loops = 6;       // How many times the list repeats while spinning
 const maxSpins = 50;    // Pre-generated spins to allow continuous play
 
 export default forwardRef<SpinWheelHandle, SpinWheelProps>(function SpinWheel(

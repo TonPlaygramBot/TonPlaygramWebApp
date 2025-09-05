@@ -259,8 +259,8 @@
       #turnTimerText {
         position: absolute;
         left: 50%;
-        top: 50%;
-        transform: translate(-50%, -50%);
+        top: -10px;
+        transform: translateX(-50%);
         font-weight: 700;
         pointer-events: none;
         -webkit-text-stroke: 1px #000;
@@ -2343,6 +2343,7 @@
                       assignedTypes[currentShooter] = tType;
                       assignedTypes[currentShooter === 1 ? 2 : 1] =
                         tType === 'red' ? 'blue' : 'red';
+                      assignedThisShot = true;
                       pocketedOwn = true;
                       updateFooter(
                         currentShooter,
@@ -2628,6 +2629,7 @@
         var scratch = false;
         var foulShown = false;
         var assignedTypes = { 1: null, 2: null };
+        var assignedThisShot = false;
         var freeShots = { 1: 0, 2: 0 };
         var firstHit = null;
         var lastTurn = table.turn;
@@ -2927,7 +2929,12 @@
           } else if (isSnooker) {
             if (!firstHit || scratch) return true;
             if (snookerExpectColor && firstHit.t === 'red') return true;
-            if (!snookerExpectColor && firstHit.t !== 'red') return true;
+            if (!snookerExpectColor && firstHit.t !== 'red') {
+              var redLeft = table.balls.some(function (bb, idx) {
+                return idx > 0 && bb && !bb.pocketed && BALL_BY_N[bb.n].t === 'red';
+              });
+              if (redLeft) return true;
+            }
             return false;
           }
           if (!firstHit || scratch) return true;
@@ -2936,7 +2943,7 @@
           if (firstHit.t === 'eight' || eightBallPotted) {
             return ownLeft;
           }
-          if (shooterType && firstHit.t !== shooterType) return true;
+          if (shooterType && firstHit.t !== shooterType && !assignedThisShot) return true;
           return false;
         }
 
@@ -3684,6 +3691,7 @@
           scratch = false;
           firstHit = null;
           pottedThisShot = [];
+          assignedThisShot = false;
           eightBallPotted = false;
           nineBallPotted = false;
           cue.v.x = d.x * base * (0.25 + 0.75 * p);
