@@ -2137,9 +2137,16 @@
                   b.p.x = L;
                   var diffY = nearest ? Math.abs(b.p.y - nearest.y) : Infinity;
                   if (nearPocket && diffY <= BALL_R * 3) {
-                    var ny = b.p.y < nearest.y ? -1 : 1;
-                    var inv = 1 / Math.SQRT2;
-                    reflectVelocity(b.v, inv, ny * inv, EDGE_BOUNCE);
+                    var speed = Math.hypot(b.v.x, b.v.y);
+                    if (diffY <= BALL_R * 1.5) {
+                      var dir = norm(nearest.x - b.p.x, nearest.y - b.p.y);
+                      b.v.x = dir.x * speed;
+                      b.v.y = dir.y * speed;
+                    } else {
+                      var ny = b.p.y < nearest.y ? -1 : 1;
+                      var inv = 1 / Math.SQRT2;
+                      reflectVelocity(b.v, inv, ny * inv, EDGE_BOUNCE);
+                    }
                   } else {
                     reflectVelocity(b.v, 1, 0, BOUNCE);
                   }
@@ -2163,9 +2170,16 @@
                   b.p.x = R;
                   var diffY2 = nearest ? Math.abs(b.p.y - nearest.y) : Infinity;
                   if (nearPocket && diffY2 <= BALL_R * 3) {
-                    var ny2 = b.p.y < nearest.y ? -1 : 1;
-                    var inv2 = 1 / Math.SQRT2;
-                    reflectVelocity(b.v, -inv2, ny2 * inv2, EDGE_BOUNCE);
+                    var speed2 = Math.hypot(b.v.x, b.v.y);
+                    if (diffY2 <= BALL_R * 1.5) {
+                      var dir2 = norm(nearest.x - b.p.x, nearest.y - b.p.y);
+                      b.v.x = dir2.x * speed2;
+                      b.v.y = dir2.y * speed2;
+                    } else {
+                      var ny2 = b.p.y < nearest.y ? -1 : 1;
+                      var inv2 = 1 / Math.SQRT2;
+                      reflectVelocity(b.v, -inv2, ny2 * inv2, EDGE_BOUNCE);
+                    }
                   } else {
                     reflectVelocity(b.v, -1, 0, BOUNCE);
                   }
@@ -2189,9 +2203,16 @@
                   b.p.y = T;
                   var diffX = nearest ? Math.abs(b.p.x - nearest.x) : Infinity;
                   if (nearPocket && diffX <= BALL_R * 3) {
-                    var nx = nearest.x < TABLE_W / 2 ? 1 : -1;
-                    var inv3 = 1 / Math.SQRT2;
-                    reflectVelocity(b.v, nx * inv3, inv3, EDGE_BOUNCE);
+                    var speed3 = Math.hypot(b.v.x, b.v.y);
+                    if (diffX <= BALL_R * 1.5) {
+                      var dir3 = norm(nearest.x - b.p.x, nearest.y - b.p.y);
+                      b.v.x = dir3.x * speed3;
+                      b.v.y = dir3.y * speed3;
+                    } else {
+                      var nx = nearest.x < TABLE_W / 2 ? 1 : -1;
+                      var inv3 = 1 / Math.SQRT2;
+                      reflectVelocity(b.v, nx * inv3, inv3, EDGE_BOUNCE);
+                    }
                   } else {
                     reflectVelocity(b.v, 0, 1, BOUNCE);
                   }
@@ -2215,9 +2236,16 @@
                   b.p.y = B;
                   var diffX2 = nearest ? Math.abs(b.p.x - nearest.x) : Infinity;
                   if (nearPocket && diffX2 <= BALL_R * 3) {
-                    var nx2 = nearest.x < TABLE_W / 2 ? 1 : -1;
-                    var inv4 = 1 / Math.SQRT2;
-                    reflectVelocity(b.v, nx2 * inv4, -inv4, EDGE_BOUNCE);
+                    var speed4 = Math.hypot(b.v.x, b.v.y);
+                    if (diffX2 <= BALL_R * 1.5) {
+                      var dir4 = norm(nearest.x - b.p.x, nearest.y - b.p.y);
+                      b.v.x = dir4.x * speed4;
+                      b.v.y = dir4.y * speed4;
+                    } else {
+                      var nx2 = nearest.x < TABLE_W / 2 ? 1 : -1;
+                      var inv4 = 1 / Math.SQRT2;
+                      reflectVelocity(b.v, nx2 * inv4, -inv4, EDGE_BOUNCE);
+                    }
                   } else {
                     reflectVelocity(b.v, 0, -1, BOUNCE);
                   }
@@ -2483,6 +2511,14 @@
                 drawUPocketGuide(this.pockets[1], -1, 1);
                 drawUPocketGuide(this.pockets[4], 1, -1);
                 drawUPocketGuide(this.pockets[5], -1, -1);
+                ctx.strokeStyle = 'red';
+                ctx.lineWidth = 2;
+                var rScale = (sX + sY) / 2;
+                this.pockets.forEach(function(pk) {
+                  ctx.beginPath();
+                  ctx.arc(pk.x * sX, pk.y * sY, pk.r * rScale, 0, Math.PI * 2);
+                  ctx.stroke();
+                });
               } else {
                 ctx.strokeRect(x0, y0, w, h);
               }

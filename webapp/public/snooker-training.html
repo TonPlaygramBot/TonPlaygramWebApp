@@ -87,7 +87,8 @@
       drawWoodRail(W, H, R);
       drawCushions(ix, iy, iw, ih, R, C);
       drawFelt(ix, iy, iw, ih);
-      drawPockets(W, H, R, C);
+      const pockets = drawPockets(W, H, R, C);
+      drawPocketGuides(pockets, ix, iy, iw, ih);
       drawRailSights(W, H, R);
       drawSnookerMarkings(ix, iy, iw, ih);
 
@@ -187,14 +188,19 @@
       ctx.fillStyle = getVar('--pocket');
       const midY = iy + ih / 2;
       const pockets = [
-        { x: ix - 6, y: iy - 6 },
-        { x: ix + iw + 6, y: iy - 6 },
-        { x: ix - 6, y: iy + ih + 6 },
-        { x: ix + iw + 6, y: iy + ih + 6 },
-        { x: ix - 6, y: midY },
-        { x: ix + iw + 6, y: midY }
+        { x: ix - 6, y: iy - 6, r: pr },
+        { x: ix + iw + 6, y: iy - 6, r: pr },
+        { x: ix - 6, y: iy + ih + 6, r: pr },
+        { x: ix + iw + 6, y: iy + ih + 6, r: pr },
+        { x: ix - 6, y: midY, r: pr },
+        { x: ix + iw + 6, y: midY, r: pr }
       ];
-      pockets.forEach(p => { ctx.beginPath(); ctx.arc(p.x, p.y, pr, 0, Math.PI * 2); ctx.fill(); });
+      pockets.forEach(p => {
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+        ctx.fill();
+      });
+      return pockets;
     }
 
     function drawRailSights(W, H, R) {
@@ -211,21 +217,74 @@
     }
 
     function drawSnookerMarkings(ix, iy, iw, ih) {
-      ctx.strokeStyle = getVar('--line');
-      ctx.fillStyle = getVar('--line');
-      ctx.lineWidth = CONFIG.lineWidth;
-      const fromTop = f => iy + ih * f; const cx = ix + iw / 2;
-      const baulkY = fromTop(CONFIG.baulkFromCushion);
-      const blueY = iy + ih / 2;
-      const pinkY = iy + ih * CONFIG.pinkFromTop;
-      const blackY = iy + ih * CONFIG.blackFromTop;
+      // Snooker-specific markings are omitted to match the pool-style field
+    }
 
-      ctx.beginPath(); ctx.moveTo(ix, baulkY); ctx.lineTo(ix + iw, baulkY); ctx.stroke();
-      const Dr = iw * 0.18; ctx.beginPath(); ctx.arc(cx, baulkY, Dr, Math.PI, 2 * Math.PI, false); ctx.stroke();
+    function drawPocketGuides(pockets, ix, iy, iw, ih) {
+      ctx.strokeStyle = 'rgba(0,255,0,0.8)';
+      ctx.lineWidth = 2;
+      const cornerGap = ctx.lineWidth * 4;
+      const sideGap = ctx.lineWidth * 2;
+      const topY = iy;
+      const bottomY = iy + ih;
+      const xLeft = ix;
+      const xRight = ix + iw;
+      ctx.beginPath();
+      ctx.moveTo(pockets[0].x + pockets[0].r + cornerGap, topY);
+      ctx.lineTo(pockets[1].x - pockets[1].r - cornerGap, topY);
+      ctx.moveTo(pockets[2].x + pockets[2].r + cornerGap, bottomY);
+      ctx.lineTo(pockets[3].x - pockets[3].r - cornerGap, bottomY);
+      ctx.moveTo(xLeft, pockets[0].y + pockets[0].r + cornerGap);
+      ctx.lineTo(xLeft, pockets[4].y - pockets[4].r - sideGap);
+      ctx.moveTo(xLeft, pockets[4].y + pockets[4].r + sideGap);
+      ctx.lineTo(xLeft, pockets[2].y - pockets[2].r - cornerGap);
+      ctx.moveTo(xRight, pockets[1].y + pockets[1].r + cornerGap);
+      ctx.lineTo(xRight, pockets[5].y - pockets[5].r - sideGap);
+      ctx.moveTo(xRight, pockets[5].y + pockets[5].r + sideGap);
+      ctx.lineTo(xRight, pockets[3].y - pockets[3].r - cornerGap);
+      ctx.stroke();
+      ctx.strokeStyle = '#ff0';
+      drawVPocketGuide(pockets[4], 1);
+      drawVPocketGuide(pockets[5], -1);
+      drawUPocketGuide(pockets[0], 1, 1);
+      drawUPocketGuide(pockets[1], -1, 1);
+      drawUPocketGuide(pockets[2], 1, -1);
+      drawUPocketGuide(pockets[3], -1, -1);
+      ctx.strokeStyle = 'red';
+      pockets.forEach(p => { ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2); ctx.stroke(); });
+    }
 
-      const gy = baulkY; const greenX = ix + iw * 0.25, brownX = cx, yellowX = ix + iw * 0.75;
-      [[greenX, gy], [brownX, gy], [yellowX, gy]].forEach(([sx, sy]) => { ctx.beginPath(); ctx.arc(sx, sy, CONFIG.spotRadius, 0, Math.PI * 2); ctx.fill(); });
-      [[cx, blueY], [cx, pinkY], [cx, blackY]].forEach(([sx, sy]) => { ctx.beginPath(); ctx.arc(sx, sy, CONFIG.spotRadius, 0, Math.PI * 2); ctx.fill(); });
+    function drawVPocketGuide(p, dir) {
+      const R = p.r * 1.2;
+      const x = p.x - R * 0.5 * dir;
+      const y = p.y;
+      const dx = R * 1.1 * dir;
+      const dy = R * 1.25;
+      const trim = R * 0.1;
+      ctx.beginPath();
+      ctx.moveTo(x - dx, y);
+      ctx.lineTo(x + dx, y - dy + trim);
+      ctx.moveTo(x - dx, y);
+      ctx.lineTo(x + dx, y + dy - trim);
+      ctx.stroke();
+    }
+
+    function drawUPocketGuide(p, sx, sy) {
+      const R = p.r * 1.1;
+      ctx.save();
+      ctx.translate(p.x, p.y);
+      ctx.scale(sx, sy);
+      ctx.rotate(-Math.PI / 4);
+      ctx.beginPath();
+      ctx.arc(0, 0, R, Math.PI, 0);
+      const lineLen = R * 1.2;
+      const lineStart = R * 0.1;
+      ctx.moveTo(-R, lineStart);
+      ctx.lineTo(-R, lineLen);
+      ctx.moveTo(R, lineStart);
+      ctx.lineTo(R, lineLen);
+      ctx.stroke();
+      ctx.restore();
     }
 
     function roundRect(c, x, y, w, h, r) {
