@@ -23,9 +23,9 @@
 <body>
   <canvas id="table"></canvas>
   <script>
-    const CONFIG = {
-      rail: 48,
-      cushion: 22,
+      const CONFIG = {
+        rail: 16,
+        cushion: 16,
       pocketRadius: 26,
       sightSpacing: 120,
       sightRadius: 3.5,
@@ -189,19 +189,7 @@
     }
 
     function drawSnookerMarkings(ix,iy,iw,ih){
-      ctx.strokeStyle = getVar('--line'); ctx.fillStyle = getVar('--line'); ctx.lineWidth = CONFIG.lineWidth;
-      const fromTop = (f)=> iy + ih*f; const cx = ix + iw/2;
-      const baulkY = fromTop(CONFIG.baulkFromCushion);
-      const blueY  = iy + ih/2;
-      const pinkY  = iy + ih*CONFIG.pinkFromTop;
-      const blackY = iy + ih*CONFIG.blackFromTop;
-
-      ctx.beginPath(); ctx.moveTo(ix, baulkY); ctx.lineTo(ix+iw, baulkY); ctx.stroke();
-      const Dr = iw*0.18; ctx.beginPath(); ctx.arc(cx, baulkY, Dr, Math.PI, 2*Math.PI, false); ctx.stroke();
-
-      const gy = baulkY; const greenX = ix + iw*0.25, brownX = cx, yellowX = ix + iw*0.75;
-      [[greenX,gy],[brownX,gy],[yellowX,gy]].forEach(([sx,sy])=>{ctx.beginPath();ctx.arc(sx,sy,CONFIG.spotRadius,0,Math.PI*2);ctx.fill();});
-      [[cx,blueY],[cx,pinkY],[cx,blackY]].forEach(([sx,sy])=>{ctx.beginPath();ctx.arc(sx,sy,CONFIG.spotRadius,0,Math.PI*2);ctx.fill();});
+      // Removed snooker-specific markings to match the pool field
     }
 
     function roundRect(c, x,y,w,h,r){
