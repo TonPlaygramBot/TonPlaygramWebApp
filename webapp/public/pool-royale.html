@@ -3703,9 +3703,9 @@
           shotPocketRecorded = false;
           cueHitCushion = false;
           var base = 950 * 3 * 1.6 * 1.5;
-          // Reduce the overall shot power by 60% to better match gameplay
-          base *= 0.4;
-          playCueHit(p * 0.4);
+          // Reduce the overall shot power by about 55% to better match gameplay
+          base *= 0.45;
+          playCueHit(p * 0.45);
           lastShotPower = p;
           currentShooter = table.turn;
           if (isNineBall || isAmerican) currentTarget = lowestBallOnTable();
