@@ -169,26 +169,24 @@
         flex: 1 1 auto;
         display: flex;
         overflow: hidden;
-        /* Ensure background image covers the available space without
-         overlapping top or bottom elements. Extend the width slightly
-         so the thin green boundary line is fully visible while keeping
-         extra clearance at the bottom. The brightness filter is applied
-         to a pseudo-element so the balls and other children remain
-         unaffected. */
-      } 
+        /* Ensure the background image fills the available space so its
+         edges align with the screen and sit directly between the header
+         and footer. The brightness filter is applied to a pseudo-element
+         so the balls and other children remain unaffected. */
+      }
       #wrap::before {
         content: '';
         position: absolute;
         inset: 0;
         background: url('/assets/icons/64e79228-35e3-4fdc-b914-fca635a40220.webp')
-          top center/calc(100% + 8px) calc(100% + 20px) no-repeat;
+          top center/100% 100% no-repeat;
         filter: brightness(var(--table-brightness));
         z-index: -1;
       }
 
       #wrap.snooker::before {
         background: url('/assets/icons/file_0000000010bc61f9923523eadfcfcf37.webp')
-          top center/calc(100% + 8px) calc(100% + 20px) no-repeat;
+          top center/100% 100% no-repeat;
       }
 
 
