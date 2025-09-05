@@ -8,8 +8,9 @@
     "prestart": "npm run build",
     "start": "node bot/server.js",
     "install-all": "npm install && npm install --prefix bot && npm install --prefix webapp",
-    "build": "npm --prefix webapp run build",
-    "test": "node --test",
+    "build": "tsc -p tsconfig.snooker.json",
+    "test": "jest",
+    "demo": "node dist/demo.js demo/demo.json",
     "lint": "eslint .",
     "format": "prettier --write .",
     "recalculate-balances": "node bot/scripts/recalculateBalances.js",
@@ -47,6 +48,10 @@
     "eslint-plugin-react-hooks": "^5.2.0",
     "prettier": "^3.6.2",
     "mongodb-memory-server": "^10.1.4",
-    "vitest": "^1.5.0"
+    "vitest": "^1.5.0",
+    "typescript": "^5.6.3",
+    "jest": "^29.7.0",
+    "ts-jest": "^29.2.5",
+    "@types/jest": "^29.5.11"
   }
 }
