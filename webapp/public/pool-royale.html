@@ -169,26 +169,27 @@
         flex: 1 1 auto;
         display: flex;
         overflow: hidden;
-        /* Ensure the background image fills the available space so its
-         edges align with the screen and sit directly between the header
-         and footer. The brightness filter is applied to a pseudo-element
-         so the balls and other children remain unaffected. */
-      }
+        /* Ensure background image covers the available space without
+         overlapping top or bottom elements. Extend the width slightly
+         so the thin green boundary line is fully visible while keeping
+         extra clearance at the bottom. The brightness filter is applied
+         to a pseudo-element so the balls and other children remain
+         unaffected. */
+      } 
       #wrap::before {
         content: '';
         position: absolute;
         inset: 0;
         background: url('/assets/icons/64e79228-35e3-4fdc-b914-fca635a40220.webp')
-          top center/100% 100% no-repeat;
+          top center/calc(100% + 8px) calc(100% + 20px) no-repeat;
         filter: brightness(var(--table-brightness));
         z-index: -1;
       }
 
-      #wrap.snooker::before {
-        background: url('/assets/icons/file_0000000010bc61f9923523eadfcfcf37.webp')
-          top center/100% 100% no-repeat;
+      /* Hide background table when Snooker training is active */
+      #wrap.snooker-training::before {
+        background: none;
       }
-
 
       #snookerTable {
         position: absolute;
@@ -938,9 +939,6 @@
         window.playerName = params.get('name') || 'Player';
         if (isSnooker && playType === 'training') {
           document.getElementById('wrap').classList.add('snooker-training');
-        }
-        if (isSnooker) {
-          document.getElementById('wrap').classList.add('snooker');
         }
         const planShotPromise = import('/lib/poolAi.js');
 
@@ -1692,10 +1690,6 @@
           var rx = b.p.x - pk.x;
           var ry = b.p.y - pk.y;
           if (!cond(rx, ry)) return;
-          // Allow the ball to pass into the pocket once its center
-          // reaches the pocket circle. This avoids balls getting
-          // stuck halfway through the connector edge.
-          if (Math.hypot(rx, ry) <= pk.r) return;
           var limit = pk.r + BALL_R;
           var dist = rx * nx + ry * ny;
           if (dist >= limit) return;
@@ -2145,12 +2139,12 @@
                 nearest = pk;
               }
             }
+            var newDist = nearest
+              ? Math.hypot(b.p.x - nearest.x, b.p.y - nearest.y)
+              : Infinity;
             // Detect when a ball just grazes a pocket to trigger a crowd reaction
-            var nearPocket = nearest && prevDist < nearest.r + BALL_R + 15;
-            var toPocketX = nearest ? nearest.x - prevX : 0;
-            var toPocketY = nearest ? nearest.y - prevY : 0;
-            var approaching =
-              nearest && toPocketX * b.v.x + toPocketY * b.v.y > 0;
+            var nearPocket = nearest && newDist < nearest.r + BALL_R + 15;
+            var approaching = nearest && newDist < prevDist;
             if (
               nearPocket &&
               !approaching &&
@@ -2160,139 +2154,145 @@
               nearPocketEdgeHit = true;
               playShock(1);
             }
-            if (b.n === 0 && (!nearPocket || !approaching)) {
-              if (b.p.x - L < BALL_R * 1.5 && b.v.x < 0) applySpinImpulse(b);
-              if (R - b.p.x < BALL_R * 1.5 && b.v.x > 0) applySpinImpulse(b);
-              if (b.p.y - T < BALL_R * 1.5 && b.v.y < 0) applySpinImpulse(b);
-              if (B - b.p.y < BALL_R * 1.5 && b.v.y > 0) applySpinImpulse(b);
-            }
-            if (b.p.x < L) {
-              b.p.x = L;
-              var diffY = nearest ? Math.abs(b.p.y - nearest.y) : Infinity;
-              if (nearPocket && diffY <= BALL_R * 3) {
-                var speed = Math.hypot(b.v.x, b.v.y);
-                if (approaching && diffY <= BALL_R * 1.5) {
-                  var dir = norm(nearest.x - b.p.x, nearest.y - b.p.y);
-                  b.v.x = dir.x * speed;
-                  b.v.y = dir.y * speed;
-                } else {
-                  var ny = b.p.y < nearest.y ? -1 : 1;
-                  var inv = 1 / Math.SQRT2;
-                  reflectVelocity(b.v, inv, ny * inv, EDGE_BOUNCE);
+            if (!nearPocket || !approaching) {
+              if (b.n === 0) {
+                if (b.p.x - L < BALL_R * 1.5 && b.v.x < 0) applySpinImpulse(b);
+                if (R - b.p.x < BALL_R * 1.5 && b.v.x > 0) applySpinImpulse(b);
+                if (b.p.y - T < BALL_R * 1.5 && b.v.y < 0) applySpinImpulse(b);
+                if (B - b.p.y < BALL_R * 1.5 && b.v.y > 0) applySpinImpulse(b);
+              }
+                if (b.p.x < L) {
+                  b.p.x = L;
+                  var diffY = nearest ? Math.abs(b.p.y - nearest.y) : Infinity;
+                  if (nearPocket && diffY <= BALL_R * 3) {
+                    var speed = Math.hypot(b.v.x, b.v.y);
+                    if (diffY <= BALL_R * 1.5) {
+                      var dir = norm(nearest.x - b.p.x, nearest.y - b.p.y);
+                      b.v.x = dir.x * speed;
+                      b.v.y = dir.y * speed;
+                    } else {
+                      var ny = b.p.y < nearest.y ? -1 : 1;
+                      var inv = 1 / Math.SQRT2;
+                      reflectVelocity(b.v, inv, ny * inv, EDGE_BOUNCE);
+                    }
+                  } else {
+                    reflectVelocity(b.v, 1, 0, BOUNCE);
+                  }
+                  if (b.n === 0) {
+                    b.impacted = true;
+                    applySpinImpulse(b);
+                  }
+                  if (i === 0 && shotInProgress && !firstHit)
+                    cueHitCushion = true;
+                  if (
+                    nearPocket &&
+                    diffY <= BALL_R * 3 &&
+                    !nearPocketEdgeHit &&
+                    !pocketedAny
+                  ) {
+                    nearPocketEdgeHit = true;
+                    playShock(1);
+                  }
                 }
-              } else {
-                reflectVelocity(b.v, 1, 0, BOUNCE);
-              }
-              if (b.n === 0 && (!nearPocket || diffY > BALL_R * 3)) {
-                b.impacted = true;
-                applySpinImpulse(b);
-              }
-              if (i === 0 && shotInProgress && !firstHit) cueHitCushion = true;
-              if (
-                nearPocket &&
-                diffY <= BALL_R * 3 &&
-                !nearPocketEdgeHit &&
-                !pocketedAny
-              ) {
-                nearPocketEdgeHit = true;
-                playShock(1);
-              }
-            }
-            if (b.p.x > R) {
-              b.p.x = R;
-              var diffY2 = nearest ? Math.abs(b.p.y - nearest.y) : Infinity;
-              if (nearPocket && diffY2 <= BALL_R * 3) {
-                var speed2 = Math.hypot(b.v.x, b.v.y);
-                if (approaching && diffY2 <= BALL_R * 1.5) {
-                  var dir2 = norm(nearest.x - b.p.x, nearest.y - b.p.y);
-                  b.v.x = dir2.x * speed2;
-                  b.v.y = dir2.y * speed2;
-                } else {
-                  var ny2 = b.p.y < nearest.y ? -1 : 1;
-                  var inv2 = 1 / Math.SQRT2;
-                  reflectVelocity(b.v, -inv2, ny2 * inv2, EDGE_BOUNCE);
+                if (b.p.x > R) {
+                  b.p.x = R;
+                  var diffY2 = nearest ? Math.abs(b.p.y - nearest.y) : Infinity;
+                  if (nearPocket && diffY2 <= BALL_R * 3) {
+                    var speed2 = Math.hypot(b.v.x, b.v.y);
+                    if (diffY2 <= BALL_R * 1.5) {
+                      var dir2 = norm(nearest.x - b.p.x, nearest.y - b.p.y);
+                      b.v.x = dir2.x * speed2;
+                      b.v.y = dir2.y * speed2;
+                    } else {
+                      var ny2 = b.p.y < nearest.y ? -1 : 1;
+                      var inv2 = 1 / Math.SQRT2;
+                      reflectVelocity(b.v, -inv2, ny2 * inv2, EDGE_BOUNCE);
+                    }
+                  } else {
+                    reflectVelocity(b.v, -1, 0, BOUNCE);
+                  }
+                  if (b.n === 0) {
+                    b.impacted = true;
+                    applySpinImpulse(b);
+                  }
+                  if (i === 0 && shotInProgress && !firstHit)
+                    cueHitCushion = true;
+                  if (
+                    nearPocket &&
+                    diffY2 <= BALL_R * 3 &&
+                    !nearPocketEdgeHit &&
+                    !pocketedAny
+                  ) {
+                    nearPocketEdgeHit = true;
+                    playShock(1);
+                  }
                 }
-              } else {
-                reflectVelocity(b.v, -1, 0, BOUNCE);
-              }
-              if (b.n === 0 && (!nearPocket || diffY2 > BALL_R * 3)) {
-                b.impacted = true;
-                applySpinImpulse(b);
-              }
-              if (i === 0 && shotInProgress && !firstHit) cueHitCushion = true;
-              if (
-                nearPocket &&
-                diffY2 <= BALL_R * 3 &&
-                !nearPocketEdgeHit &&
-                !pocketedAny
-              ) {
-                nearPocketEdgeHit = true;
-                playShock(1);
-              }
-            }
-            if (b.p.y < T) {
-              b.p.y = T;
-              var diffX = nearest ? Math.abs(b.p.x - nearest.x) : Infinity;
-              if (nearPocket && diffX <= BALL_R * 3) {
-                var speed3 = Math.hypot(b.v.x, b.v.y);
-                if (approaching && diffX <= BALL_R * 1.5) {
-                  var dir3 = norm(nearest.x - b.p.x, nearest.y - b.p.y);
-                  b.v.x = dir3.x * speed3;
-                  b.v.y = dir3.y * speed3;
-                } else {
-                  var nx = nearest.x < TABLE_W / 2 ? 1 : -1;
-                  var inv3 = 1 / Math.SQRT2;
-                  reflectVelocity(b.v, nx * inv3, inv3, EDGE_BOUNCE);
+                if (b.p.y < T) {
+                  b.p.y = T;
+                  var diffX = nearest ? Math.abs(b.p.x - nearest.x) : Infinity;
+                  if (nearPocket && diffX <= BALL_R * 3) {
+                    var speed3 = Math.hypot(b.v.x, b.v.y);
+                    if (diffX <= BALL_R * 1.5) {
+                      var dir3 = norm(nearest.x - b.p.x, nearest.y - b.p.y);
+                      b.v.x = dir3.x * speed3;
+                      b.v.y = dir3.y * speed3;
+                    } else {
+                      var nx = nearest.x < TABLE_W / 2 ? 1 : -1;
+                      var inv3 = 1 / Math.SQRT2;
+                      reflectVelocity(b.v, nx * inv3, inv3, EDGE_BOUNCE);
+                    }
+                  } else {
+                    reflectVelocity(b.v, 0, 1, BOUNCE);
+                  }
+                  if (b.n === 0) {
+                    b.impacted = true;
+                    applySpinImpulse(b);
+                  }
+                  if (i === 0 && shotInProgress && !firstHit)
+                    cueHitCushion = true;
+                  if (
+                    nearPocket &&
+                    diffX <= BALL_R * 3 &&
+                    !nearPocketEdgeHit &&
+                    !pocketedAny
+                  ) {
+                    nearPocketEdgeHit = true;
+                    playShock(1);
+                  }
                 }
-              } else {
-                reflectVelocity(b.v, 0, 1, BOUNCE);
-              }
-              if (b.n === 0 && (!nearPocket || diffX > BALL_R * 3)) {
-                b.impacted = true;
-                applySpinImpulse(b);
-              }
-              if (i === 0 && shotInProgress && !firstHit) cueHitCushion = true;
-              if (
-                nearPocket &&
-                diffX <= BALL_R * 3 &&
-                !nearPocketEdgeHit &&
-                !pocketedAny
-              ) {
-                nearPocketEdgeHit = true;
-                playShock(1);
-              }
-            }
-            if (b.p.y > B) {
-              b.p.y = B;
-              var diffX2 = nearest ? Math.abs(b.p.x - nearest.x) : Infinity;
-              if (nearPocket && diffX2 <= BALL_R * 3) {
-                var speed4 = Math.hypot(b.v.x, b.v.y);
-                if (approaching && diffX2 <= BALL_R * 1.5) {
-                  var dir4 = norm(nearest.x - b.p.x, nearest.y - b.p.y);
-                  b.v.x = dir4.x * speed4;
-                  b.v.y = dir4.y * speed4;
-                } else {
-                  var nx2 = nearest.x < TABLE_W / 2 ? 1 : -1;
-                  var inv4 = 1 / Math.SQRT2;
-                  reflectVelocity(b.v, nx2 * inv4, -inv4, EDGE_BOUNCE);
+                if (b.p.y > B) {
+                  b.p.y = B;
+                  var diffX2 = nearest ? Math.abs(b.p.x - nearest.x) : Infinity;
+                  if (nearPocket && diffX2 <= BALL_R * 3) {
+                    var speed4 = Math.hypot(b.v.x, b.v.y);
+                    if (diffX2 <= BALL_R * 1.5) {
+                      var dir4 = norm(nearest.x - b.p.x, nearest.y - b.p.y);
+                      b.v.x = dir4.x * speed4;
+                      b.v.y = dir4.y * speed4;
+                    } else {
+                      var nx2 = nearest.x < TABLE_W / 2 ? 1 : -1;
+                      var inv4 = 1 / Math.SQRT2;
+                      reflectVelocity(b.v, nx2 * inv4, -inv4, EDGE_BOUNCE);
+                    }
+                  } else {
+                    reflectVelocity(b.v, 0, -1, BOUNCE);
+                  }
+                  if (b.n === 0) {
+                    b.impacted = true;
+                    applySpinImpulse(b);
+                  }
+                  if (i === 0 && shotInProgress && !firstHit)
+                    cueHitCushion = true;
+                  if (
+                    nearPocket &&
+                    diffX2 <= BALL_R * 3 &&
+                    !nearPocketEdgeHit &&
+                    !pocketedAny
+                  ) {
+                    nearPocketEdgeHit = true;
+                    playShock(1);
+                  }
                 }
-              } else {
-                reflectVelocity(b.v, 0, -1, BOUNCE);
-              }
-              if (b.n === 0 && (!nearPocket || diffX2 > BALL_R * 3)) {
-                b.impacted = true;
-                applySpinImpulse(b);
-              }
-              if (i === 0 && shotInProgress && !firstHit) cueHitCushion = true;
-              if (
-                nearPocket &&
-                diffX2 <= BALL_R * 3 &&
-                !nearPocketEdgeHit &&
-                !pocketedAny
-              ) {
-                nearPocketEdgeHit = true;
-                playShock(1);
-              }
             }
           }
 
@@ -2421,7 +2421,7 @@
               if (b2.pocketed) continue;
               var ddx = b2.p.x - p.x,
                 ddy = b2.p.y - p.y;
-              if (Math.hypot(ddx, ddy) < p.r + BALL_R * 0.1) {
+              if (Math.hypot(ddx, ddy) < p.r - BALL_R * 0.1) {
                 var spd = Math.hypot(b2.v.x, b2.v.y);
                 playPocket(clamp(spd / 4000, 0, 1));
                 if (!shotPocketRecorded) {
