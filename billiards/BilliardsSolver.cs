@@ -36,12 +36,28 @@ public class BilliardsSolver
         public Vec2? TargetVelocity;
     }
 
-    private static void ClampToTable(Ball b)
+    private bool IsBeyondPocketEdges(Vec2 position)
+    {
+        foreach (var e in PocketEdges)
+        {
+            var n = e.Normal.Normalized();
+            double dist = Vec2.Dot(position - e.A, n);
+            if (dist < -PhysicsConstants.BallRadius)
+                return true;
+        }
+        return false;
+    }
+
+    private void ClampToTable(Ball b)
     {
         double minX = PhysicsConstants.BallRadius;
         double maxX = PhysicsConstants.TableWidth - PhysicsConstants.BallRadius;
         double minY = PhysicsConstants.BallRadius;
         double maxY = PhysicsConstants.TableHeight - PhysicsConstants.BallRadius;
+
+        bool outOfBounds = b.Position.X < minX || b.Position.X > maxX || b.Position.Y < minY || b.Position.Y > maxY;
+        if (outOfBounds && IsBeyondPocketEdges(b.Position))
+            return;
 
         if (b.Position.X < minX)
         {
