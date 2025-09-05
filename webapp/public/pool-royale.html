@@ -3334,9 +3334,11 @@
             };
             // rotate spin into table coordinates and adjust reflection
             var perp = { x: -dir.y, y: dir.x };
+            var forward = -spinVec.y;
+            var side = spinVec.x;
             var spinWorld = {
-              x: spinVec.x * perp.x + spinVec.y * dir.x,
-              y: spinVec.x * perp.y + spinVec.y * dir.y
+              x: side * perp.x + forward * dir.x,
+              y: side * perp.y + forward * dir.y
             };
             refl.x += spinWorld.x * 0.6;
             refl.y += spinWorld.y * 0.6;
@@ -3687,9 +3689,11 @@
           cue.v.x = d.x * base * (0.25 + 0.75 * p);
           cue.v.y = d.y * base * (0.25 + 0.75 * p);
           var perp = { x: -d.y, y: d.x };
+          var forward = -spinVec.y;
+          var side = spinVec.x;
           cue.spin = {
-            x: spinVec.x * perp.x + spinVec.y * d.x,
-            y: spinVec.x * perp.y + spinVec.y * d.y
+            x: side * perp.x + forward * d.x,
+            y: side * perp.y + forward * d.y
           };
           cue.impacted = false;
           cueBallFree = false;
