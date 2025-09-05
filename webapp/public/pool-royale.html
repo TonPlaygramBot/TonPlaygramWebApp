@@ -972,6 +972,7 @@
         var FRICTION = 0.985; // ferkimi linear, pak me i vogel per te ruajtur shpejtesine
         var BOUNCE = 0.99; // koeficienti i rikthimit pak me i madh
         var EDGE_BOUNCE = BOUNCE * 0.15; // skajet e gropave rikthejne 85% me pak
+        var INV_SQRT2 = 1 / Math.SQRT2;
 
         var MIN_V = 0.12; // shpejtesia min. qe konsiderohet "ne levizje"
 
@@ -1684,6 +1685,25 @@
           v.y = (v.y - 2 * dot * ny) * bounce;
         }
 
+        function handleConnectorCollision(tbl, b, pk, nx, ny, cond) {
+          var rx = b.p.x - pk.x;
+          var ry = b.p.y - pk.y;
+          if (!cond(rx, ry)) return;
+          var limit = pk.r + BALL_R;
+          var dist = rx * nx + ry * ny;
+          if (dist >= limit) return;
+          var pen = limit - dist;
+          b.p.x += nx * pen;
+          b.p.y += ny * pen;
+          reflectVelocity(b.v, nx, ny, BOUNCE);
+          if (b.n === 0) {
+            b.impacted = true;
+            applySpinImpulse(b);
+          }
+          if (b === tbl.balls[0] && shotInProgress && !firstHit)
+            cueHitCushion = true;
+        }
+
         function brighten(hex, amt) {
           var c = hex.slice(1);
           if (c.length === 3)
@@ -2267,6 +2287,33 @@
                 }
             }
           }
+
+          var pk = this.pockets;
+          var inv = INV_SQRT2;
+          handleConnectorCollision(this, b, pk[0], inv, inv, function (rx, ry) {
+            return rx > 0 && ry > 0;
+          });
+          handleConnectorCollision(this, b, pk[1], -inv, inv, function (rx, ry) {
+            return rx < 0 && ry > 0;
+          });
+          handleConnectorCollision(this, b, pk[4], inv, -inv, function (rx, ry) {
+            return rx > 0 && ry < 0;
+          });
+          handleConnectorCollision(this, b, pk[5], -inv, -inv, function (rx, ry) {
+            return rx < 0 && ry < 0;
+          });
+          handleConnectorCollision(this, b, pk[2], inv, inv, function (rx, ry) {
+            return rx > 0 && ry < 0;
+          });
+          handleConnectorCollision(this, b, pk[2], inv, -inv, function (rx, ry) {
+            return rx > 0 && ry > 0;
+          });
+          handleConnectorCollision(this, b, pk[3], -inv, inv, function (rx, ry) {
+            return rx < 0 && ry < 0;
+          });
+          handleConnectorCollision(this, b, pk[3], -inv, -inv, function (rx, ry) {
+            return rx < 0 && ry > 0;
+          });
 
           // Perplasje ball-ball
           var N = this.balls.length;
