@@ -1682,6 +1682,8 @@
        PALETA E NGJYRAVE DHE LISTA E TOPAVE
        ========================================================= */
         var COL, BALLS;
+        var snookerSpots = {};
+        var snookerPottedColors = [];
         if (isAmerican) {
           COL = {
             cue: '#f5f5f5',
@@ -1746,7 +1748,7 @@
             green: '#1faa4a',
             brown: '#7a2f2f',
             blue: '#2256ff',
-            pink: '#ff8c1a',
+            pink: '#ff69b4',
             black: '#111'
           };
           BALLS = [{ n: 0, t: 'cue', c: COL.cue, p: 0 }];
@@ -1831,6 +1833,7 @@
           var i, j;
           this.balls = [];
           this.prevCollisions.clear();
+          snookerPottedColors = [];
 
           // Cue ball (center poshte vijes se bardhe)
           this.balls.push(new Ball(BALL_BY_N[0], TABLE_W / 2, CUE_START_Y));
@@ -1912,19 +1915,31 @@
               }
             }
             // place the six colour balls on their spots
+            snookerSpots = {
+              yellow: { x: TABLE_W / 2 - BALL_R * 6, y: LINE_Y },
+              green: { x: TABLE_W / 2 + BALL_R * 6, y: LINE_Y },
+              brown: { x: TABLE_W / 2, y: LINE_Y },
+              blue: { x: TABLE_W / 2, y: TABLE_H / 2 },
+              pink: { x: TABLE_W / 2, y: SPOT_Y + colGap * 2 },
+              black: { x: TABLE_W / 2, y: redStartY - colGap * 4 }
+            };
             this.balls.push(
-              new Ball(BALL_BY_N[16], TABLE_W / 2 - BALL_R * 6, LINE_Y)
+              new Ball(BALL_BY_N[16], snookerSpots.yellow.x, snookerSpots.yellow.y)
             );
             this.balls.push(
-              new Ball(BALL_BY_N[17], TABLE_W / 2 + BALL_R * 6, LINE_Y)
-            );
-            this.balls.push(new Ball(BALL_BY_N[18], TABLE_W / 2, LINE_Y));
-            this.balls.push(new Ball(BALL_BY_N[19], TABLE_W / 2, TABLE_H / 2));
-            this.balls.push(
-              new Ball(BALL_BY_N[20], TABLE_W / 2, SPOT_Y + colGap * 2)
+              new Ball(BALL_BY_N[17], snookerSpots.green.x, snookerSpots.green.y)
             );
             this.balls.push(
-              new Ball(BALL_BY_N[21], TABLE_W / 2, redStartY - colGap * 4)
+              new Ball(BALL_BY_N[18], snookerSpots.brown.x, snookerSpots.brown.y)
+            );
+            this.balls.push(
+              new Ball(BALL_BY_N[19], snookerSpots.blue.x, snookerSpots.blue.y)
+            );
+            this.balls.push(
+              new Ball(BALL_BY_N[20], snookerSpots.pink.x, snookerSpots.pink.y)
+            );
+            this.balls.push(
+              new Ball(BALL_BY_N[21], snookerSpots.black.x, snookerSpots.black.y)
             );
           } else {
             // Rregullimi standart per 8-ball UK (red & blue)
@@ -2278,8 +2293,8 @@
                 } else {
                   b2.pocketed = true;
                   pocketedAny = true;
-                  this.captured[currentShooter].push(b2.n);
                   if (isNineBall) {
+                    this.captured[currentShooter].push(b2.n);
                     if (b2.n === 9) {
                       nineBallPotted = true;
                     }
@@ -2287,6 +2302,7 @@
                     pottedThisShot.push(b2.n);
                     pocketedOwn = true;
                   } else if (isAmerican) {
+                    this.captured[currentShooter].push(b2.n);
                     pottedThisShot.push(b2.n);
                     pocketedOwn = true;
                     lastPocketedBall = b2.n;
@@ -2295,7 +2311,13 @@
                     pottedThisShot.push(infoSn.p);
                     pocketedOwn = true;
                     lastPocketedBall = b2.n;
+                    if (infoSn.t === 'red') {
+                      this.captured[currentShooter].push(b2.n);
+                    } else {
+                      snookerPottedColors.push(b2);
+                    }
                   } else {
+                    this.captured[currentShooter].push(b2.n);
                     var tType = BALL_BY_N[b2.n].t;
                     if (!assignedTypes[1] && tType !== 'eight') {
                       assignedTypes[currentShooter] = tType;
@@ -2986,7 +3008,9 @@
               endGame(opponent);
               return;
             }
-            freeShots[opponent] = isAmerican || isNineBall ? 1 : 2;
+            if (!isSnooker) {
+              freeShots[opponent] = isAmerican || isNineBall ? 1 : 2;
+            }
             freeShots[currentShooter] = 0;
             table.turn = opponent;
             setTimeout(showTurnInfo, 1500);
@@ -3049,6 +3073,23 @@
               );
               setTimeout(showTurnInfo, 1500);
             }
+          }
+          if (isSnooker && snookerPottedColors.length > 0) {
+            var redsLeft = hasBallsLeft('red');
+            snookerPottedColors.forEach(function (ball) {
+              if (redsLeft) {
+                var spot = snookerSpots[BALL_BY_N[ball.n].t];
+                ball.pocketed = false;
+                ball.p.x = spot.x;
+                ball.p.y = spot.y;
+                ball.v.x = 0;
+                ball.v.y = 0;
+              } else {
+                table.captured[currentShooter].push(ball.n);
+              }
+            });
+            snookerPottedColors = [];
+            updateCapturedUI();
           }
           if (table.turn === currentShooter) startTurnTimer();
           lastShotAim = null;
