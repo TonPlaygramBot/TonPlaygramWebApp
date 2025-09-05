@@ -17,11 +17,16 @@
       --pocket:#141414;
     }
     html,body{height:100%;margin:0;background:#0b0f1a}
-    #table{width:100vw;height:100vh;display:block;border-radius:22px}
+    .stage{position:relative;width:100vw;height:100vh}
+    #table,#markings{position:absolute;inset:0;width:100%;height:100%;display:block;border-radius:22px}
+    #markings{pointer-events:none}
   </style>
 </head>
 <body>
-  <canvas id="table"></canvas>
+  <div class="stage">
+    <canvas id="table"></canvas>
+    <canvas id="markings"></canvas>
+  </div>
   <script>
       const CONFIG = {
         rail: 16,
@@ -40,6 +45,8 @@
 
     const canvas = document.getElementById('table');
     const ctx = canvas.getContext('2d');
+    const markCanvas = document.getElementById('markings');
+    const markCtx = markCanvas.getContext('2d');
     const BALL_R = 18;
     const POCKET_SHORTEN = 4;
     const POCKET_R = BALL_R * 0.65; // half-size pockets for snooker training
@@ -51,7 +58,10 @@
       const h = canvas.clientHeight;
       canvas.width  = Math.floor(w * dpr);
       canvas.height = Math.floor(h * dpr);
+      markCanvas.width  = Math.floor(w * dpr);
+      markCanvas.height = Math.floor(h * dpr);
       ctx.setTransform(dpr,0,0,dpr,0,0);
+      markCtx.setTransform(dpr,0,0,dpr,0,0);
       draw();
     }
 
@@ -60,11 +70,16 @@
       let H = canvas.clientHeight;
 
       ctx.save();
+      markCtx.save();
       ctx.translate(W, H);
+      markCtx.translate(W, H);
       ctx.rotate(Math.PI);
+      markCtx.rotate(Math.PI);
       if(CONFIG.rotate90){
         ctx.translate(W,0);
+        markCtx.translate(W,0);
         ctx.rotate(Math.PI/2);
+        markCtx.rotate(Math.PI/2);
         const tmp = W; W = H; H = tmp;
       }
 
@@ -76,6 +91,7 @@
       const ih = H - 2*(R + C);
 
       ctx.clearRect(0,0,W,H);
+      markCtx.clearRect(0,0,W,H);
       drawShadow(W,H);
       drawWoodRail(W,H,R);
       drawCushions(ix, iy, iw, ih, R, C);
@@ -84,6 +100,7 @@
       drawRailSights(W,H,R);
       drawSnookerMarkings(ix, iy, iw, ih);
 
+      markCtx.restore();
       ctx.restore();
     }
 
@@ -195,7 +212,24 @@
     }
 
     function drawSnookerMarkings(ix,iy,iw,ih){
-      // Removed snooker-specific markings to match the pool field
+      markCtx.strokeStyle = getVar('--line');
+      markCtx.lineWidth = CONFIG.lineWidth;
+      markCtx.strokeRect(ix, iy, iw, ih);
+
+      const midY = iy + ih / 2;
+      const pockets = [
+        { x: ix - POCKET_SHORTEN + 4, y: iy - POCKET_SHORTEN, r: POCKET_R },
+        { x: ix + iw + POCKET_SHORTEN - 4, y: iy - POCKET_SHORTEN, r: POCKET_R },
+        { x: ix - 16 - POCKET_SHORTEN, y: midY + BALL_R - 14, r: SIDE_POCKET_R },
+        { x: ix + iw + 16 + POCKET_SHORTEN, y: midY + BALL_R - 14, r: SIDE_POCKET_R },
+        { x: ix - POCKET_SHORTEN, y: iy + ih + POCKET_SHORTEN, r: POCKET_R },
+        { x: ix + iw + POCKET_SHORTEN, y: iy + ih + POCKET_SHORTEN, r: POCKET_R }
+      ];
+      pockets.forEach(p => {
+        markCtx.beginPath();
+        markCtx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+        markCtx.stroke();
+      });
     }
 
     function roundRect(c, x,y,w,h,r){
