@@ -3567,11 +3567,11 @@
         }
 
         function drawVPocketGuide(p, dir) {
-          var R = p.r * ((sX + sY) / 2) * 1.1;
-          var x = p.x * sX + R * 0.1 * dir;
+          var R = p.r * ((sX + sY) / 2) * 1.2;
+          var x = p.x * sX + R * 0.15 * dir;
           var y = p.y * sY;
-          var dx = R * dir;
-          var dy = R * 1.05;
+          var dx = R * 1.1 * dir;
+          var dy = R * 1.25;
           ctx.beginPath();
           ctx.moveTo(x + dx, y - dy);
           ctx.lineTo(x - dx, y);
@@ -3590,10 +3590,11 @@
           ctx.beginPath();
           ctx.arc(0, 0, R, Math.PI, 0);
           var lineLen = R * 1.2;
+          var sign = sx === sy ? 1 : -1;
           ctx.moveTo(-R, 0);
-          ctx.lineTo(-R, -lineLen);
+          ctx.lineTo(-R, sign * lineLen);
           ctx.moveTo(R, 0);
-          ctx.lineTo(R, -lineLen);
+          ctx.lineTo(R, sign * lineLen);
           ctx.stroke();
           ctx.restore();
         }
@@ -3778,8 +3779,8 @@
           cueHitCushion = false;
           var base = 950 * 3 * 1.6 * 1.5;
           // Reduce the overall shot power but keep it slightly stronger
-          base *= 0.5;
-          playCueHit(p * 0.5);
+          base *= 0.6;
+          playCueHit(p * 0.6);
           lastShotPower = p;
           currentShooter = table.turn;
           if (isNineBall || isAmerican) currentTarget = lowestBallOnTable();
