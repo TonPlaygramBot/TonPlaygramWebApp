@@ -15,8 +15,6 @@ export interface Ball {
   position: Vec2
   velocity: Vec2
   omega: number
-  rattleCount: number
-  lastJawHitTime: number
 }
 
 export interface Pocket {
@@ -33,9 +31,6 @@ export interface JawParams {
   dragJaw: number
   captureSpeedMin: number
   reboundThreshold: number
-  lipOutAngle: number
-  lipOutSpeed: number
-  rattleTimeWindow: number
 }
 
 export function reflectWithFrictionAndSpin(v: Vec2, n: Vec2, eJaw: number, muJaw: number, dragJaw: number, omega: number) {
@@ -48,18 +43,10 @@ export function reflectWithFrictionAndSpin(v: Vec2, n: Vec2, eJaw: number, muJaw
   return { v: vPrime, omega: omegaPrime }
 }
 
-export function resolveJawCollision(ball: Ball, normal: Vec2, params: JawParams, time: number) {
-  let e = params.eJaw
-  if (time - ball.lastJawHitTime <= params.rattleTimeWindow) {
-    ball.rattleCount += 1
-    e *= Math.pow(0.95, ball.rattleCount)
-  } else {
-    ball.rattleCount = 0
-  }
-  const res = reflectWithFrictionAndSpin(ball.velocity, normal, e, params.muJaw, params.dragJaw, ball.omega)
+export function resolveJawCollision(ball: Ball, normal: Vec2, params: JawParams, _time: number) {
+  const res = reflectWithFrictionAndSpin(ball.velocity, normal, params.eJaw, params.muJaw, params.dragJaw, ball.omega)
   ball.velocity = res.v
   ball.omega = res.omega
-  ball.lastJawHitTime = time
 }
 
 export function centerPathIntersectsFunnel(ball: Ball, pocket: Pocket, params: JawParams): boolean {
@@ -73,9 +60,6 @@ export function centerPathIntersectsFunnel(ball: Ball, pocket: Pocket, params: J
 export function willEnterPocket(vPrime: Vec2, pocket: Pocket, params: JawParams): boolean {
   const speed = length(vPrime)
   const toPocket = dot(vPrime, pocket.uPocket)
-  const cosAng = toPocket / (speed || 1)
-  const ang = Math.acos(Math.min(Math.max(cosAng, -1), 1)) * 180 / Math.PI
-  if (ang > params.lipOutAngle && speed > params.lipOutSpeed) return false
   if (toPocket > params.captureSpeedMin) return true
   if (speed < params.reboundThreshold) return true
   return false
