@@ -26,7 +26,7 @@
       const CONFIG = {
         rail: 16,
         cushion: 16,
-      pocketRadius: 26,
+      pocketRadius: 20,
       sightSpacing: 120,
       sightRadius: 3.5,
       lineWidth: 2,
@@ -165,12 +165,12 @@
       ctx.fillStyle = getVar('--pocket');
       const midY = iy + ih/2;
       const pockets=[
-        {x: ix-6,    y: iy-6},
-        {x: ix+iw+6, y: iy-6},
-        {x: ix-6,    y: iy+ih+6},
-        {x: ix+iw+6, y: iy+ih+6},
-        {x: ix-6,    y: midY},
-        {x: ix+iw+6, y: midY}
+        {x: ix,       y: iy},
+        {x: ix+iw,    y: iy},
+        {x: ix,       y: iy+ih},
+        {x: ix+iw,    y: iy+ih},
+        {x: ix,       y: midY},
+        {x: ix+iw,    y: midY}
       ];
       pockets.forEach(p=>{ ctx.beginPath(); ctx.arc(p.x,p.y, pr, 0, Math.PI*2); ctx.fill(); });
     }
