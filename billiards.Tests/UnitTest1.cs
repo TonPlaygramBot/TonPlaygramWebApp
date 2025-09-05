@@ -134,6 +134,6 @@ public class PocketEdgeTests
         double dist = Vec2.Dot(ball.Position, n) - c;
         Assert.That(dist, Is.GreaterThanOrEqualTo(PhysicsConstants.BallRadius - 1e-6));
         Assert.That(Vec2.Dot(ball.Velocity, n), Is.GreaterThan(0));
-        Assert.That(ball.Velocity.Length, Is.LessThan(preSpeed * 0.2));
+        Assert.That(ball.Velocity.Length, Is.InRange(preSpeed * 0.4, preSpeed * 0.7));
     }
 }
