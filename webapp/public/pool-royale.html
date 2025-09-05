@@ -186,6 +186,11 @@
         z-index: -1;
       }
 
+      #wrap.snooker::before {
+        background: url('/assets/icons/file_0000000010bc61f9923523eadfcfcf37.webp')
+          top center/calc(100% + 8px) calc(100% + 20px) no-repeat;
+      }
+
       /* Hide background table when Snooker training is active */
       #wrap.snooker-training::before {
         background: none;
@@ -939,6 +944,9 @@
         window.playerName = params.get('name') || 'Player';
         if (isSnooker && playType === 'training') {
           document.getElementById('wrap').classList.add('snooker-training');
+        }
+        if (isSnooker) {
+          document.getElementById('wrap').classList.add('snooker');
         }
         const planShotPromise = import('/lib/poolAi.js');
 
