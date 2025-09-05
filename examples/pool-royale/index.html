@@ -62,10 +62,10 @@
       }
       .spin-dot {
         position: absolute;
-        width: 6px;
-        height: 6px;
+        width: 4px;
+        height: 4px;
         border-radius: 50%;
-        background: #000;
+        background: #f00;
         top: 50%;
         left: 50%;
         transform: translate(-50%, -50%);
@@ -277,6 +277,15 @@
         targetBall.style.top = `${tby}px`;
       });
 
+      function updateSpinDots (sx, sy) {
+        const max = 40; // percentage offset inside parent
+        const pos = (val) => `${50 + val * max}%`;
+        spinControllerDot.style.left = pos(sx);
+        spinControllerDot.style.top = pos(sy);
+        cueSpinDot.style.left = pos(sx);
+        cueSpinDot.style.top = pos(sy);
+      }
+
       spinController.addEventListener('click', (e) => {
         const r = spinController.getBoundingClientRect();
         const cx = r.width / 2;
@@ -286,9 +295,7 @@
         const nx = Math.max(Math.min(dx / cx, 1), -1);
         const ny = Math.max(Math.min(dy / cy, 1), -1);
         spin = { x: nx, y: ny };
-        const translate = (sx, sy) => `translate(${sx * 50 - 50}%, ${sy * 50 - 50}%)`;
-        spinControllerDot.style.transform = translate(nx, ny);
-        cueSpinDot.style.transform = translate(nx, ny);
+        updateSpinDots(nx, ny);
       });
 
       function playHit(power) {
@@ -308,32 +315,51 @@
         playHit(power);
         const speed = 4 + power * 8;
         let cuePos = { x: center.x, y: center.y };
+        let cueVel = { x: shotDir.x * speed, y: shotDir.y * speed };
         let targetPos = {
           x: parseFloat(targetBall.style.left),
           y: parseFloat(targetBall.style.top)
         };
+        let targetVel = { x: 0, y: 0 };
         let collided = false;
         let targetTravel = 0;
 
         function frame() {
           if (!collided) {
-            cuePos.x += shotDir.x * speed;
-            cuePos.y += shotDir.y * speed;
+            cuePos.x += cueVel.x;
+            cuePos.y += cueVel.y;
             cueBall.style.left = `${cuePos.x}px`;
             cueBall.style.top = `${cuePos.y}px`;
             const dx = cuePos.x - targetPos.x;
             const dy = cuePos.y - targetPos.y;
             if (Math.hypot(dx, dy) <= 40) {
               collided = true;
+              // apply spin to cue ball after collision
+              const forward = -spin.y; // top spin is negative y
+              const side = spin.x;
+              const spinScale = speed * 0.6;
+              cueVel = {
+                x: shotDir.x * forward * spinScale + -shotDir.y * side * spinScale,
+                y: shotDir.y * forward * spinScale + shotDir.x * side * spinScale
+              };
+              targetVel = { x: shotDir.x * speed, y: shotDir.y * speed };
             }
-          } else if (targetTravel < 200) {
-            targetPos.x += shotDir.x * speed;
-            targetPos.y += shotDir.y * speed;
-            targetBall.style.left = `${targetPos.x}px`;
-            targetBall.style.top = `${targetPos.y}px`;
-            targetTravel += speed;
           } else {
-            return;
+            cuePos.x += cueVel.x;
+            cuePos.y += cueVel.y;
+            cueVel.x *= 0.96;
+            cueVel.y *= 0.96;
+            cueBall.style.left = `${cuePos.x}px`;
+            cueBall.style.top = `${cuePos.y}px`;
+            if (targetTravel < 200) {
+              targetPos.x += targetVel.x;
+              targetPos.y += targetVel.y;
+              targetBall.style.left = `${targetPos.x}px`;
+              targetBall.style.top = `${targetPos.y}px`;
+              targetTravel += speed;
+            } else if (Math.hypot(cueVel.x, cueVel.y) < 0.1) {
+              return;
+            }
           }
           requestAnimationFrame(frame);
         }
