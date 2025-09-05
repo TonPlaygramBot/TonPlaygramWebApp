@@ -198,7 +198,8 @@
         height: 100%;
         border: 0;
         display: none;
-        z-index: 1;
+        z-index: 10;
+        pointer-events: none;
       }
 
       #wrap.snooker-training #snookerTable {
@@ -971,7 +972,7 @@
 
         var FRICTION = 0.985; // ferkimi linear, pak me i vogel per te ruajtur shpejtesine
         var BOUNCE = 0.99; // koeficienti i rikthimit pak me i madh
-        var EDGE_BOUNCE = BOUNCE * 0.15; // skajet e gropave rikthejne 85% me pak
+        var CONNECTOR_BOUNCE = BOUNCE * 0.15; // yellow connectors rikthejne me pak per te udhezuar topin
 
         var MIN_V = 0.12; // shpejtesia min. qe konsiderohet "ne levizje"
 
@@ -2145,7 +2146,7 @@
                     } else {
                       var ny = b.p.y < nearest.y ? -1 : 1;
                       var inv = 1 / Math.SQRT2;
-                      reflectVelocity(b.v, inv, ny * inv, EDGE_BOUNCE);
+                      reflectVelocity(b.v, inv, ny * inv, CONNECTOR_BOUNCE);
                     }
                   } else {
                     reflectVelocity(b.v, 1, 0, BOUNCE);
@@ -2178,7 +2179,7 @@
                     } else {
                       var ny2 = b.p.y < nearest.y ? -1 : 1;
                       var inv2 = 1 / Math.SQRT2;
-                      reflectVelocity(b.v, -inv2, ny2 * inv2, EDGE_BOUNCE);
+                      reflectVelocity(b.v, -inv2, ny2 * inv2, CONNECTOR_BOUNCE);
                     }
                   } else {
                     reflectVelocity(b.v, -1, 0, BOUNCE);
@@ -2211,7 +2212,7 @@
                     } else {
                       var nx = nearest.x < TABLE_W / 2 ? 1 : -1;
                       var inv3 = 1 / Math.SQRT2;
-                      reflectVelocity(b.v, nx * inv3, inv3, EDGE_BOUNCE);
+                      reflectVelocity(b.v, nx * inv3, inv3, CONNECTOR_BOUNCE);
                     }
                   } else {
                     reflectVelocity(b.v, 0, 1, BOUNCE);
@@ -2244,7 +2245,7 @@
                     } else {
                       var nx2 = nearest.x < TABLE_W / 2 ? 1 : -1;
                       var inv4 = 1 / Math.SQRT2;
-                      reflectVelocity(b.v, nx2 * inv4, -inv4, EDGE_BOUNCE);
+                      reflectVelocity(b.v, nx2 * inv4, -inv4, CONNECTOR_BOUNCE);
                     }
                   } else {
                     reflectVelocity(b.v, 0, -1, BOUNCE);
@@ -2366,8 +2367,12 @@
               if (b2.pocketed) continue;
               var ddx = b2.p.x - p.x,
                 ddy = b2.p.y - p.y;
-              if (Math.hypot(ddx, ddy) < p.r - BALL_R * 0.1) {
-                var spd = Math.hypot(b2.v.x, b2.v.y);
+              var dist = Math.hypot(ddx, ddy);
+              var spd = Math.hypot(b2.v.x, b2.v.y);
+              if (
+                dist < p.r - BALL_R * 0.1 ||
+                (dist < p.r + BALL_R * 0.5 && spd < 50)
+              ) {
                 playPocket(clamp(spd / 4000, 0, 1));
                 if (!shotPocketRecorded) {
                   lastPocketCenter = { x: p.x, y: p.y };
