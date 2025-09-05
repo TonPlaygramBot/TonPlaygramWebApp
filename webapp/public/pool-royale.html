@@ -1671,11 +1671,13 @@
 
         function applySpinImpulse(ball) {
           if (!ball.spin || !ball.impacted) return;
-          // Slightly reduced spin impulse for more realistic motion
-          ball.v.x += ball.spin.x * 90;
-          ball.v.y += ball.spin.y * 90;
-          ball.spin.x *= 0.95;
-          ball.spin.y *= 0.95;
+          // Calibrated spin transfer for more natural motion
+          var SPIN_STRENGTH = 60;
+          var SPIN_DECAY = 0.92;
+          ball.v.x += ball.spin.x * SPIN_STRENGTH;
+          ball.v.y += ball.spin.y * SPIN_STRENGTH;
+          ball.spin.x *= SPIN_DECAY;
+          ball.spin.y *= SPIN_DECAY;
         }
 
         /* ==========================================================
@@ -3330,9 +3332,14 @@
               x: dir.x - 2 * dotIn * railNormal.x,
               y: dir.y - 2 * dotIn * railNormal.y
             };
-            // adjust the reflection based on selected spin
-            refl.x += spinVec.x * 0.6;
-            refl.y += spinVec.y * 0.6;
+            // rotate spin into table coordinates and adjust reflection
+            var perp = { x: -dir.y, y: dir.x };
+            var spinWorld = {
+              x: spinVec.x * perp.x + spinVec.y * dir.x,
+              y: spinVec.x * perp.y + spinVec.y * dir.y
+            };
+            refl.x += spinWorld.x * 0.6;
+            refl.y += spinWorld.y * 0.6;
             var rL = Math.hypot(refl.x, refl.y) || 1;
             refl.x /= rL;
             refl.y /= rL;
@@ -3679,7 +3686,11 @@
           nineBallPotted = false;
           cue.v.x = d.x * base * (0.25 + 0.75 * p);
           cue.v.y = d.y * base * (0.25 + 0.75 * p);
-          cue.spin = { x: spinVec.x, y: spinVec.y };
+          var perp = { x: -d.y, y: d.x };
+          cue.spin = {
+            x: spinVec.x * perp.x + spinVec.y * d.x,
+            y: spinVec.x * perp.y + spinVec.y * d.y
+          };
           cue.impacted = false;
           cueBallFree = false;
           setSpin(0, 0);
