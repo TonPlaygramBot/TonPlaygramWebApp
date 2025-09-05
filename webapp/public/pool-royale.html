@@ -3568,7 +3568,7 @@
 
         function drawVPocketGuide(p, dir) {
           var R = p.r * ((sX + sY) / 2) * 1.2;
-          var x = p.x * sX - R * 0.15 * dir;
+          var x = p.x * sX - R * 0.25 * dir;
           var y = p.y * sY;
           var dx = R * 1.1 * dir;
           var dy = R * 1.25;
@@ -4284,14 +4284,12 @@
 
       // Tournament mode removed
 
-      // Rotate corner holes diagonally; keep side holes horizontal
+      // Rotate corner holes diagonally in the same direction; keep side holes horizontal
       const allHoles = document.querySelectorAll('.hole');
       if (allHoles.length === 6) {
         allHoles.forEach((hole, idx) => {
-          if (idx === 0 || idx === 5) {
+          if (idx === 0 || idx === 1 || idx === 4 || idx === 5) {
             hole.style.transform = 'rotate(-45deg)';
-          } else if (idx === 1 || idx === 4) {
-            hole.style.transform = 'rotate(45deg)';
           } else {
             hole.style.transform = 'rotate(0deg)';
           }
