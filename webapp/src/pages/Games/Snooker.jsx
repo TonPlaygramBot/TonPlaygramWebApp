@@ -279,7 +279,8 @@ export default function Snooker() {
     }
     function up(e) {
       if (!aiming) return; aiming = false; const dir = norm(sub(aimStart, aimCurrent));
-      const speed = 720 * shotPower;
+      const baseSpeed = 950 * 3 * 1.6 * 1.5 * 0.6;
+      const speed = baseSpeed * (0.25 + 0.75 * shotPower);
       cueBall.v = add(cueBall.v, mul(dir, speed / 60));
       if (shotPower > 0.02) { shotCount++; document.getElementById('shotCount').textContent = shotCount; }
       shotPower = 0; updatePowerBar();
@@ -318,7 +319,7 @@ export default function Snooker() {
           <button id="resetBtn" className="snooker-btn">Re-Spot Cue</button>
         </div>
       </div>
-      <canvas id="table" width="980" height="520"></canvas>
+      <canvas id="table" width="480" height="960"></canvas>
     </div>
   );
 }
