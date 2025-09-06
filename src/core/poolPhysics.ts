@@ -33,36 +33,21 @@ export interface JawParams {
   reboundThreshold: number
 }
 
-export function reflectWithFrictionAndSpin(v: Vec2, n: Vec2, eJaw: number, muJaw: number, dragJaw: number, omega: number) {
-  const nN = normalize(n)
-  const vn = dot(v, nN)
-  const vt = sub(v, scale(nN, vn))
-  let vPrime = sub(scale(vt, 1 - muJaw), scale(nN, eJaw * vn))
-  vPrime = scale(vPrime, 1 - dragJaw)
-  const omegaPrime = omega + muJaw * vn
-  return { v: vPrime, omega: omegaPrime }
+// Jaw physics has been disabled; collisions with pocket openings are ignored.
+// These helpers now act as no-ops or unconditional passes so that balls do not
+// bounce off invisible pocket jaws.
+export function resolveJawCollision(_ball: Ball, _normal: Vec2, _params: JawParams, _time: number) {
+  // no-op: allow the ball to continue on its path
 }
 
-export function resolveJawCollision(ball: Ball, normal: Vec2, params: JawParams, _time: number) {
-  const res = reflectWithFrictionAndSpin(ball.velocity, normal, params.eJaw, params.muJaw, params.dragJaw, ball.omega)
-  ball.velocity = res.v
-  ball.omega = res.omega
+export function centerPathIntersectsFunnel(_ball: Ball, _pocket: Pocket, _params: JawParams): boolean {
+  // without jaws, any trajectory is considered valid for pocket entry
+  return true
 }
 
-export function centerPathIntersectsFunnel(ball: Ball, pocket: Pocket, params: JawParams): boolean {
-  const dir = normalize(ball.velocity)
-  if (length(dir) === 0) return false
-  const toCenter = sub(pocket.center, ball.position)
-  const dist = Math.abs(crossZ(toCenter, dir))
-  return dist < pocket.mouthWidth / 2 - params.ballRadius
-}
-
-export function willEnterPocket(vPrime: Vec2, pocket: Pocket, params: JawParams): boolean {
-  const speed = length(vPrime)
-  const toPocket = dot(vPrime, pocket.uPocket)
-  if (toPocket > params.captureSpeedMin) return true
-  if (speed < params.reboundThreshold) return true
-  return false
+export function willEnterPocket(_vPrime: Vec2, _pocket: Pocket, _params: JawParams): boolean {
+  // without jaws, balls always enter the pocket once inside the mouth
+  return true
 }
 
 export function sinkIntoPocket(ball: Ball) {
