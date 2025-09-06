@@ -2449,7 +2449,8 @@
                 ctx.stroke();
                 ctx.strokeStyle = 'orange';
                 ctx.beginPath();
-                var seal = lineW * 2;
+                // shorten orange joint markers slightly
+                var seal = lineW * 1.25;
                 // horizontal joints
                 ctx.moveTo(topStart - seal, topY);
                 ctx.lineTo(topStart + seal, topY);
