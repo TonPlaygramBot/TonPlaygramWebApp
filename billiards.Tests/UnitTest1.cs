@@ -116,7 +116,7 @@ public class CushionStepTests
 public class PocketEdgeTests
 {
     [Test]
-    public void BallReflectsWithReducedBounceAtPocketEdge()
+    public void BallFallsIntoPocket()
     {
         var solver = new BilliardsSolver();
         solver.PocketEdges.Add(new BilliardsSolver.Edge
@@ -127,13 +127,9 @@ public class PocketEdgeTests
         });
         var v = new Vec2(-1, -1).Normalized();
         var ball = new BilliardsSolver.Ball { Position = new Vec2(0.2, 0.2), Velocity = v };
-        double preSpeed = ball.Velocity.Length;
-        solver.Step(new List<BilliardsSolver.Ball> { ball }, 0.3);
-        var n = new Vec2(1, 1).Normalized();
-        double c = Vec2.Dot(new Vec2(0, 0.1), n);
-        double dist = Vec2.Dot(ball.Position, n) - c;
-        Assert.That(dist, Is.GreaterThanOrEqualTo(PhysicsConstants.BallRadius - 1e-6));
-        Assert.That(Vec2.Dot(ball.Velocity, n), Is.GreaterThan(0));
-        Assert.That(ball.Velocity.Length, Is.InRange(preSpeed * 0.2, preSpeed * 0.3));
+        var balls = new List<BilliardsSolver.Ball> { ball };
+        solver.Step(balls, 0.3);
+        Assert.That(ball.Pocketed, Is.True);
+        Assert.That(balls, Is.Empty);
     }
 }

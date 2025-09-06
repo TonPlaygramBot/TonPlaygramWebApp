@@ -10,6 +10,7 @@ public class BilliardsSolver
     {
         public Vec2 Position;
         public Vec2 Velocity;
+        public bool Pocketed;
     }
 
     public struct Edge
@@ -44,7 +45,7 @@ public class BilliardsSolver
             if (b.Velocity.Length > 0)
             {
                 double remaining = dt;
-                while (remaining > PhysicsConstants.Epsilon && b.Velocity.Length > 0)
+                while (remaining > PhysicsConstants.Epsilon && b.Velocity.Length > 0 && !b.Pocketed)
                 {
                     Vec2 min = new Vec2(0, 0);
                     Vec2 max = new Vec2(PhysicsConstants.TableWidth, PhysicsConstants.TableHeight);
@@ -53,6 +54,7 @@ public class BilliardsSolver
                     Vec2 normal = new Vec2();
                     double restitution = PhysicsConstants.Restitution;
                     bool hit = false;
+                    bool pocket = false;
 
                     if (Ccd.CircleAabb(b.Position, b.Velocity, PhysicsConstants.BallRadius, min, max, out double tBox, out Vec2 nBox) && tBox <= remaining)
                     {
@@ -68,8 +70,8 @@ public class BilliardsSolver
                         {
                             tHit = tEdge;
                             normal = e.Normal;
-                            restitution = PhysicsConstants.PocketRestitution;
                             hit = true;
+                            pocket = true;
                         }
                     }
 
@@ -79,6 +81,11 @@ public class BilliardsSolver
                         var speed = b.Velocity.Length;
                         var newSpeed = Math.Max(0, speed - PhysicsConstants.Mu * tHit);
                         b.Velocity = newSpeed > 0 ? b.Velocity.Normalized() * newSpeed : new Vec2(0, 0);
+                        if (pocket)
+                        {
+                            b.Pocketed = true;
+                            break;
+                        }
                         b.Velocity = Collision.Reflect(b.Velocity, normal, restitution);
                         remaining -= tHit;
                     }
@@ -93,6 +100,7 @@ public class BilliardsSolver
                 }
             }
         }
+        balls.RemoveAll(ball => ball.Pocketed);
     }
 
     /// <summary>Runs CCD to predict cue-ball path until first impact.</summary>
@@ -157,9 +165,15 @@ public class BilliardsSolver
         }
         else
         {
-            var rest = pocketHit ? PhysicsConstants.PocketRestitution : PhysicsConstants.Restitution;
-            cuePost = Collision.Reflect(velocity, hitNormal, rest);
-            path.Add(contact + cuePost.Normalized() * PhysicsConstants.BallRadius);
+            if (pocketHit)
+            {
+                cuePost = new Vec2(0, 0);
+            }
+            else
+            {
+                cuePost = Collision.Reflect(velocity, hitNormal, PhysicsConstants.Restitution);
+                path.Add(contact + cuePost.Normalized() * PhysicsConstants.BallRadius);
+            }
         }
 
         return new Preview { Path = path, ContactPoint = contact, CuePostVelocity = cuePost, TargetPostVelocity = targetPost };
@@ -192,8 +206,7 @@ public class BilliardsSolver
                 if (Ccd.CircleSegment(cue.Position, cue.Velocity, PhysicsConstants.BallRadius, e.A, e.B, e.Normal, out double te) && te <= PhysicsConstants.FixedDt)
                 {
                     cue.Position += cue.Velocity * te;
-                    var postEdge = Collision.Reflect(cue.Velocity, e.Normal, PhysicsConstants.PocketRestitution);
-                    return new Impact { Point = cue.Position, CueVelocity = postEdge };
+                    return new Impact { Point = cue.Position, CueVelocity = new Vec2(0, 0) };
                 }
             }
             if (Ccd.CircleAabb(cue.Position, cue.Velocity, PhysicsConstants.BallRadius, new Vec2(0, 0), new Vec2(PhysicsConstants.TableWidth, PhysicsConstants.TableHeight), out double tc, out Vec2 n) && tc <= PhysicsConstants.FixedDt)
