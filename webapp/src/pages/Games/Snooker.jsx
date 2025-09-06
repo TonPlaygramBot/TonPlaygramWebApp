@@ -182,7 +182,15 @@ export default function Snooker3D() {
 
     // Balls
     const makeBall = (color) => {
-      const mesh = new THREE.Mesh(new THREE.SphereGeometry(BALL_R, 32, 32), new THREE.MeshStandardMaterial({ color, roughness: 0.35, metalness: 0.05 }));
+      // glossy snooker-style material: bright clearcoat and subtle metalness
+      const mat = new THREE.MeshPhysicalMaterial({
+        color,
+        metalness: 0.6,
+        roughness: 0.2,
+        clearcoat: 1,
+        clearcoatRoughness: 0
+      });
+      const mesh = new THREE.Mesh(new THREE.SphereGeometry(BALL_R, 32, 32), mat);
       mesh.position.y = BALL_R; scene.add(mesh); return mesh;
     };
 
@@ -266,9 +274,23 @@ export default function Snooker3D() {
     window.addEventListener('pointerup', onPointerUp);
 
     // Physics: walls reflect; balls collide; pocket capture
+    const pocketCenters = [
+      new THREE.Vector2(-TABLE.W / 2, -TABLE.H / 2),
+      new THREE.Vector2(0, -TABLE.H / 2),
+      new THREE.Vector2(TABLE.W / 2, -TABLE.H / 2),
+      new THREE.Vector2(-TABLE.W / 2, TABLE.H / 2),
+      new THREE.Vector2(0, TABLE.H / 2),
+      new THREE.Vector2(TABLE.W / 2, TABLE.H / 2),
+    ];
+
     const reflectWalls = (b) => {
       const limX = TABLE.W / 2 - BALL_R - TABLE.WALL;
       const limY = TABLE.H / 2 - BALL_R - TABLE.WALL;
+
+      // if the ball center is already inside a pocket opening,
+      // let it pass without bouncing on the rails
+      if (pocketCenters.some(p => b.pos.distanceTo(p) < POCKET_R)) return;
+
       if (b.pos.x < -limX && b.vel.x < 0) { b.pos.x = -limX; b.vel.x *= -1; }
       if (b.pos.x > limX && b.vel.x > 0) { b.pos.x = limX; b.vel.x *= -1; }
       if (b.pos.y < -limY && b.vel.y < 0) { b.pos.y = -limY; b.vel.y *= -1; }
@@ -294,20 +316,12 @@ export default function Snooker3D() {
       }
     };
 
-    const pocketCenters = [
-      new THREE.Vector2(-TABLE.W / 2, -TABLE.H / 2),
-      new THREE.Vector2(0, -TABLE.H / 2),
-      new THREE.Vector2(TABLE.W / 2, -TABLE.H / 2),
-      new THREE.Vector2(-TABLE.W / 2, TABLE.H / 2),
-      new THREE.Vector2(0, TABLE.H / 2),
-      new THREE.Vector2(TABLE.W / 2, TABLE.H / 2),
-    ];
-
     const pocketsCheck = () => {
       balls.forEach(b => {
         if (!b.active) return;
         for (const p of pocketCenters) {
-          if (b.pos.distanceTo(p) < POCKET_R * 0.95) {
+          // pocket only when most of the ball is over the hole
+          if (b.pos.distanceTo(p) < POCKET_R - BALL_R * 0.5) {
             b.active = false; b.mesh.visible = false; b.vel.set(0, 0);
             setUi(s => ({ ...s, score: s.score + 1 }));
             break;
