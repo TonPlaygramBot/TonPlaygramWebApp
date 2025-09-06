@@ -1,456 +1,325 @@
-import React, { useRef, useEffect, useState } from "react";
-import * as THREE from "three";
-import { PowerSlider } from "../../snooker/PowerSlider.js";
-import "../../snooker/power-slider.css";
-import "../../snooker/ui.css";
+import React, { useEffect } from "react";
+import "../../snooker/snooker-table.css";
 
-/**
- * Snooker 3D – Pro Table Look + Proper Pockets + Spin UI
- * ------------------------------------------------------
- * What’s new (per request):
- *  - Pockets shaped like a "0":
- *      • Corners = elliptical rings rotated 45° (diagonal)
- *      • Middles = elliptical rings aligned horizontally
- *  - Cushions cut at angles to form pocket jaws/guides
- *  - Luxury table look (darker rails, light-wood legs)
- *  - Aiming line + target tick
- *  - Thin power bar: click/drag to set, release to shoot
- *  - Spin controller: draggable red dot on a white ball UI
- */
-
-// Scene scale (arbitrary units tuned for look)
-const TABLE = { W: 100, H: 50, WALL: 2.5 };
-const BALL_R = 2;
-const POCKET_R = 4.1; // visual ring radius (ellipse scales applied)
-const FRICTION = 0.9925;
-const STOP_EPS = 0.02;
-
-const COLORS = {
-  cloth: 0x0b5d39,
-  rail: 0x083220, // darker than cloth
-  wood: 0xcaa677, // light brown wood legs
-  cue: 0xffffff,
-  red: 0xb00000,
-  yellow: 0xfacc15,
-  green: 0x22c55e,
-  brown: 0x8b5e3c,
-  blue: 0x3b82f6,
-  pink: 0xec4899,
-  black: 0x111827,
-};
-
-export default function Snooker3D() {
-  const mountRef = useRef(null);
-  const rafRef = useRef(null);
-  const cueIdxRef = useRef(0);
-  const ballsRef = useRef([]);
-  const aimRef = useRef({ active: false, dir: new THREE.Vector2(1, 0) });
-  const sphRef = useRef(new THREE.Spherical(120, Math.PI / 3.2, Math.PI / 6));
-  const updateCamRef = useRef(() => {});
-  const powerRef = useRef(null);
-  const spinRef = useRef(null);
-  const [ui, setUi] = useState({ score: 0, power: 0, spinX: 0, spinY: 0 });
-  const [timer, setTimer] = useState(60);
-  const [cueVariant, setCueVariant] = useState("auto");
-
+export default function Snooker() {
   useEffect(() => {
-    const id = setInterval(() => setTimer((t) => (t > 0 ? t - 1 : 0)), 1000);
-    return () => clearInterval(id);
-  }, []);
+    // --- Utility --------------------------------------------------------------
+    const rand = (a, b) => a + Math.random() * (b - a);
+    const clamp = (v, min, max) => Math.max(min, Math.min(max, v));
+    function vec(x = 0, y = 0) { return { x, y }; }
+    function add(a, b) { return { x: a.x + b.x, y: a.y + b.y }; }
+    function sub(a, b) { return { x: a.x - b.x, y: a.y - b.y }; }
+    function mul(a, s) { return { x: a.x * s, y: a.y * s }; }
+    function dot(a, b) { return a.x * b.x + a.y * b.y; }
+    function len(a) { return Math.hypot(a.x, a.y); }
+    function norm(a) { const l = len(a) || 1; return { x: a.x / l, y: a.y / l }; }
 
-  const formatTime = (t) => {
-    const m = Math.floor(t / 60);
-    const s = t % 60;
-    return `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
-  };
+    // --- Table & Physics ------------------------------------------------------
+    const canvas = document.getElementById('table');
+    const ctx = canvas.getContext('2d');
+    const W = canvas.width, H = canvas.height;
 
-  useEffect(() => {
-    const container = mountRef.current;
-    if (!container) return;
+    const rail = 26;
+    const pocketR = 24;
+    const ballR = 9.5;
+    const cushionRestitution = 0.92;
+    const friction = 0.992;
+    const stopEps = 0.02;
 
-    // THREE setup
-    const scene = new THREE.Scene();
-    scene.background = new THREE.Color(0x0a0a0a);
+    const tableRect = { x: rail, y: rail, w: W - rail * 2, h: H - rail * 2 };
 
-    const renderer = new THREE.WebGLRenderer({ antialias: true });
-    renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
-    renderer.setSize(container.clientWidth, container.clientHeight);
-    container.appendChild(renderer.domElement);
-
-    const camera = new THREE.PerspectiveCamera(45, container.clientWidth / container.clientHeight, 0.1, 1000);
-    const target = new THREE.Vector3(0, 0, 0);
-    const sph = sphRef.current;
-    const updateCam = () => { camera.position.setFromSpherical(sph).add(target); camera.lookAt(target); };
-    updateCamRef.current = updateCam;
-    updateCam();
-
-    // Minimal orbit controls
-    const state = { drag: false, lastX: 0, lastY: 0 };
-    const onDown = (e) => { state.drag = true; state.lastX = e.clientX || e.touches?.[0].clientX || 0; state.lastY = e.clientY || e.touches?.[0].clientY || 0; };
-    const onMove = (e) => { if (!state.drag) return; const x = e.clientX || e.touches?.[0].clientX || state.lastX; const y = e.clientY || e.touches?.[0].clientY || state.lastY; const dx = x - state.lastX, dy = y - state.lastY; state.lastX = x; state.lastY = y; sph.theta -= dx * 0.005; sph.phi = Math.min(Math.max(0.35, sph.phi + dy * 0.005), Math.PI / 2); updateCam(); };
-    const onUp = () => { state.drag = false; };
-    const onWheel = (e) => { sph.radius = THREE.MathUtils.clamp(sph.radius + e.deltaY * 0.05, 70, 180); updateCam(); };
-
-    const dom = renderer.domElement;
-    dom.addEventListener('mousedown', onDown); dom.addEventListener('mousemove', onMove); window.addEventListener('mouseup', onUp);
-    dom.addEventListener('touchstart', onDown, { passive: true }); dom.addEventListener('touchmove', onMove, { passive: true }); window.addEventListener('touchend', onUp);
-    dom.addEventListener('wheel', onWheel, { passive: true });
-
-    // Lights
-    scene.add(new THREE.HemisphereLight(0xffffff, 0x222233, 0.9));
-    const key = new THREE.DirectionalLight(0xffffff, 1.0); key.position.set(-40, 60, 30); key.castShadow = true; scene.add(key);
-
-    // Cloth (lux finish)
-    const cloth = new THREE.Mesh(
-      new THREE.BoxGeometry(TABLE.W, 2, TABLE.H),
-      new THREE.MeshStandardMaterial({ color: COLORS.cloth, roughness: 0.95 })
-    );
-    cloth.position.y = -1; cloth.receiveShadow = true; scene.add(cloth);
-
-    // Rails (darker), plus beveled jaws wedges at pockets
-    const railMat = new THREE.MeshStandardMaterial({ color: COLORS.rail, metalness: 0.15, roughness: 0.7 });
-    const railTop = new THREE.Mesh(new THREE.BoxGeometry(TABLE.W + 8, 4, 4), railMat); railTop.position.set(0, 0, TABLE.H / 2 + 2);
-    const railBot = railTop.clone(); railBot.position.z = -TABLE.H / 2 - 2;
-    const railL = new THREE.Mesh(new THREE.BoxGeometry(4, 4, TABLE.H + 8), railMat); railL.position.set(-TABLE.W / 2 - 2, 0, 0);
-    const railR = railL.clone(); railR.position.x = TABLE.W / 2 + 2;
-    scene.add(railTop, railBot, railL, railR);
-
-    // Pocket jaws (angled guides): two wedges per pocket
-    const addJaws = (x, z, angleRad) => {
-      const jawMat = railMat;
-      const w = 7, h = 4, d = 2.2;
-      const left = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), jawMat);
-      const right = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), jawMat);
-      left.position.set(x, 0, z); right.position.set(x, 0, z);
-      left.rotation.y = angleRad; right.rotation.y = angleRad + Math.PI / 2;
-      // offset outwards a touch to create the mouth
-      left.position.x += Math.cos(angleRad) * 3; left.position.z += Math.sin(angleRad) * 3;
-      right.position.x += Math.cos(angleRad + Math.PI / 2) * 3; right.position.z += Math.sin(angleRad + Math.PI / 2) * 3;
-      scene.add(left, right);
-    };
-
-    // Pockets: elliptical rings (corner diagonal, middle horizontal)
-    const pocketRing = new THREE.RingGeometry(POCKET_R * 0.55, POCKET_R, 48);
-    const pocketMat = new THREE.MeshStandardMaterial({ color: 0x000000, side: THREE.DoubleSide, metalness: 0.05, roughness: 0.4 });
-
-    // Corner pockets (ellipse rotated 45°): TL, TR, BL, BR
-    const corners = [
-      [-TABLE.W / 2, -TABLE.H / 2], [TABLE.W / 2, -TABLE.H / 2],
-      [-TABLE.W / 2, TABLE.H / 2], [TABLE.W / 2, TABLE.H / 2]
+    const pockets = [
+      vec(tableRect.x, tableRect.y),
+      vec(tableRect.x + tableRect.w / 2, tableRect.y - 2),
+      vec(tableRect.x + tableRect.w, tableRect.y),
+      vec(tableRect.x, tableRect.y + tableRect.h),
+      vec(tableRect.x + tableRect.w / 2, tableRect.y + tableRect.h + 2),
+      vec(tableRect.x + tableRect.w, tableRect.y + tableRect.h)
     ];
-    corners.forEach(([x, z]) => {
-      const ring = new THREE.Mesh(pocketRing, pocketMat);
-      ring.rotation.x = -Math.PI / 2; // lie flat
-      ring.scale.set(1.25, 1.0, 1);   // ellipse (major axis ~diagonal after yaw)
-      ring.position.set(x, -0.9, z);
-      // rotate ellipse 45° within plane via yaw
-      ring.rotation.y = Math.PI / 4;
-      scene.add(ring);
-      // Jaws for corners, angle to diagonals (~45°)
-      addJaws(x + Math.sign(x) * 2, z + Math.sign(z) * 2, Math.atan2(z, x) + Math.PI / 4);
-    });
 
-    // Middle pockets (ellipse horizontal, long axis along X)
-    const middles = [[0, -TABLE.H / 2], [0, TABLE.H / 2]];
-    middles.forEach(([x, z]) => {
-      const ring = new THREE.Mesh(pocketRing, pocketMat);
-      ring.rotation.x = -Math.PI / 2; // flat
-      ring.position.set(x, -0.9, z);
-      ring.scale.set(1.35, 0.95, 1);  // slightly wider horizontally
-      // horizontal (no yaw) for a clean, modern look
-      scene.add(ring);
-      // Jaws facing across table (guide towards pocket)
-      addJaws(x, z, 0);
-    });
-
-    // Legs – light-wood, beveled tops for luxury feel
-    const legMat = new THREE.MeshStandardMaterial({ color: COLORS.wood, roughness: 0.45, metalness: 0.05 });
-    const leg = () => new THREE.Mesh(new THREE.CylinderGeometry(2.3, 2.3, 30, 20), legMat);
-    [[-TABLE.W / 2 - 3, -TABLE.H / 2 - 3], [TABLE.W / 2 + 3, -TABLE.H / 2 - 3], [-TABLE.W / 2 - 3, TABLE.H / 2 + 3], [TABLE.W / 2 + 3, TABLE.H / 2 + 3]].forEach(([x, z]) => {
-      const l = leg(); l.position.set(x, -16, z); scene.add(l);
-      const cap = new THREE.Mesh(new THREE.ConeGeometry(2.5, 2.2, 20), legMat); cap.rotation.x = Math.PI; cap.position.set(x, -1, z); scene.add(cap);
-    });
-
-    // Aiming line (primary) + target tick (small line at the end)
-    const aimMat = new THREE.LineDashedMaterial({ color: 0xffffff, dashSize: 2, gapSize: 1, transparent: true, opacity: 0.9 });
-    const aimGeom = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(), new THREE.Vector3()]);
-    const aimLine = new THREE.Line(aimGeom, aimMat); aimLine.computeLineDistances(); scene.add(aimLine);
-
-    const tickGeom = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(), new THREE.Vector3()]);
-    const tickMat = new THREE.LineBasicMaterial({ color: 0xffffff });
-    const tick = new THREE.Line(tickGeom, tickMat); scene.add(tick);
-
-    // Balls
-    const makeBall = (color) => {
-      const mesh = new THREE.Mesh(new THREE.SphereGeometry(BALL_R, 32, 32), new THREE.MeshStandardMaterial({ color, roughness: 0.35, metalness: 0.05 }));
-      mesh.position.y = BALL_R; scene.add(mesh); return mesh;
+    const colors = {
+      cue: '#ffffff',
+      red: '#b00000',
+      yellow: '#facc15',
+      green: '#22c55e',
+      brown: '#8b5e3c',
+      blue: '#3b82f6',
+      pink: '#ec4899',
+      black: '#111827'
     };
 
-    const balls = [];
-    // cue
-    balls.push({ mesh: makeBall(COLORS.cue), pos: new THREE.Vector2(-TABLE.W * 0.3, 0), vel: new THREE.Vector2(), active: true, id: 'cue' });
-    cueIdxRef.current = 0;
-
-    // reds triangle (15)
-    let id = 0; const sx = TABLE.W * 0.1; const sy = 0;
-    for (let r = 0; r < 5; r++) {
-      for (let c = 0; c <= r; c++) {
-        const x = sx + r * (BALL_R * 2 + 0.6);
-        const y = sy - r * BALL_R + c * (BALL_R * 2 + 0.2);
-        balls.push({ mesh: makeBall(COLORS.red), pos: new THREE.Vector2(x, y), vel: new THREE.Vector2(), active: true, id: `red_${id++}` });
+    class Ball {
+      constructor(x, y, color, number) {
+        this.p = vec(x, y);
+        this.v = vec(0, 0);
+        this.color = color; this.number = number;
+        this.alive = true;
+      }
+      step(dt) {
+        if (!this.alive) return;
+        this.p = add(this.p, mul(this.v, dt));
+        this.v = mul(this.v, Math.pow(friction, 60 * dt));
+        if (len(this.v) < stopEps) this.v = vec(0, 0);
       }
     }
-    // colours
-    const addColor = (id, color, x, y) => balls.push({ mesh: makeBall(color), pos: new THREE.Vector2(x, y), vel: new THREE.Vector2(), active: true, id });
-    addColor('yellow', COLORS.yellow, -TABLE.W * 0.38, TABLE.H * 0.22);
-    addColor('green', COLORS.green, -TABLE.W * 0.38, -TABLE.H * 0.22);
-    addColor('brown', COLORS.brown, -TABLE.W * 0.3, 0);
-    addColor('blue', COLORS.blue, 0, 0);
-    addColor('pink', COLORS.pink, TABLE.W * 0.06, 0);
-    addColor('black', COLORS.black, TABLE.W * 0.32, 0);
 
-    balls.forEach(b => b.mesh.position.set(b.pos.x, BALL_R, b.pos.y));
-    ballsRef.current = balls;
+    let balls = [];
+    let cueBall;
+    let aiming = false; let aimStart = null; let aimCurrent = null; let shotPower = 0;
+    let sunkCount = 0, shotCount = 0;
 
-    // Helpers
-    const isRest = () => balls.every(b => b.vel.length() < STOP_EPS);
-    const cueBall = () => balls[cueIdxRef.current];
+    function placeRack() {
+      balls = []; sunkCount = 0; document.getElementById('sunkCount').textContent = sunkCount;
+      const centerX = tableRect.x + tableRect.w * 0.5;
+      const centerY = tableRect.y + tableRect.h * 0.5;
 
-    // Pointer-to-table projection
-    const pointer = new THREE.Vector2();
-    const raycaster = new THREE.Raycaster();
-    const plane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
-    const screenToPoint = (event) => {
-      const rect = dom.getBoundingClientRect();
-      const cx = (event.clientX - rect.left) / rect.width * 2 - 1;
-      const cy = -(event.clientY - rect.top) / rect.height * 2 + 1;
-      pointer.set(cx, cy); raycaster.setFromCamera(pointer, camera);
-      const pt = new THREE.Vector3(); raycaster.ray.intersectPlane(plane, pt);
-      return new THREE.Vector2(pt.x, pt.z);
-    };
+      cueBall = new Ball(tableRect.x + tableRect.w * 0.25, centerY, colors.cue);
+      balls.push(cueBall);
 
-    // Input: aiming and shooting (powered by thin power bar drag)
-    let pendingShot = false; // set when mouse down on power bar
-
-    const onPointerDown = (e) => {
-      if (!isRest()) return;
-      const cb = cueBall(); if (!cb?.active) return;
-      const hit = screenToPoint(e);
-      if (hit.distanceTo(cb.pos) < 15) {
-        aimRef.current.active = true;
+      const startX = tableRect.x + tableRect.w * 0.6;
+      const startY = centerY;
+      const spacing = ballR * 2 + 1.5;
+      let count = 0;
+      for (let row = 0; row < 5; row++) {
+        for (let i = 0; i <= row; i++) {
+          const x = startX + row * spacing;
+          const y = startY + (i - row / 2) * spacing;
+          balls.push(new Ball(x, y, colors.red));
+          if (++count >= 15) break;
+        }
+        if (count >= 15) break;
       }
-    };
-    const onPointerMove = (e) => {
-      if (!aimRef.current.active) return;
-      const cb = cueBall(); if (!cb) return;
-      const hit = screenToPoint(e);
-      const dir = cb.pos.clone().sub(hit); if (dir.length() > 0.0001) aimRef.current.dir.copy(dir.normalize());
-    };
-    const doShot = () => {
-      const cb = cueBall(); if (!cb) return;
-      // velocity = power * dir + spin lateral (red dot UI => ui.spinX/Y)
-      const base = aimRef.current.dir.clone().multiplyScalar(1.8 * (0.6 + ui.power * 1.4));
-      const lateral = new THREE.Vector2(-ui.spinY, ui.spinX).multiplyScalar(0.6 * ui.power);
-      cb.vel.copy(base.add(lateral));
-    };
-    const onPointerUp = () => {
-      if (aimRef.current.active && pendingShot) {
-        doShot();
+
+      const addColor = (xp, yp, color) => {
+        const x = tableRect.x + tableRect.w * (0.5 + xp);
+        const y = tableRect.y + tableRect.h * (0.5 + yp);
+        balls.push(new Ball(x, y, color));
+      };
+      addColor(-0.38, 0.22, colors.yellow);
+      addColor(-0.38, -0.22, colors.green);
+      addColor(-0.30, 0, colors.brown);
+      addColor(0, 0, colors.blue);
+      addColor(0.06, 0, colors.pink);
+      addColor(0.32, 0, colors.black);
+    }
+
+    function allSleeping() {
+      return balls.every(b => !b.alive || (b.v.x === 0 && b.v.y === 0));
+    }
+
+    function collideBalls(a, b) {
+      if (!a.alive || !b.alive) return;
+      const d = sub(b.p, a.p);
+      const dist = len(d);
+      const minDist = ballR * 2;
+      if (dist > 0 && dist < minDist) {
+        const n = mul(d, 1 / dist);
+        const overlap = (minDist - dist) / 2;
+        a.p = add(a.p, mul(n, -overlap));
+        b.p = add(b.p, mul(n, overlap));
+        const rv = sub(b.v, a.v);
+        const vn = dot(rv, n);
+        if (vn > 0) return;
+        const e = 0.98;
+        const j = -(1 + e) * vn / 2;
+        const impulse = mul(n, j);
+        a.v = sub(a.v, impulse);
+        b.v = add(b.v, impulse);
       }
-      aimRef.current.active = false;
-      pendingShot = false;
-    };
+    }
 
-    dom.addEventListener('pointerdown', onPointerDown);
-    dom.addEventListener('pointermove', onPointerMove);
-    window.addEventListener('pointerup', onPointerUp);
+    function collideWalls(b) {
+      if (!b.alive) return;
+      const L = tableRect.x + ballR, R = tableRect.x + tableRect.w - ballR;
+      const T = tableRect.y + ballR, B = tableRect.y + tableRect.h - ballR;
+      if (b.p.x < L) { b.p.x = L; b.v.x = -b.v.x * cushionRestitution; }
+      if (b.p.x > R) { b.p.x = R; b.v.x = -b.v.x * cushionRestitution; }
+      if (b.p.y < T) { b.p.y = T; b.v.y = -b.v.y * cushionRestitution; }
+      if (b.p.y > B) { b.p.y = B; b.v.y = -b.v.y * cushionRestitution; }
+    }
 
-    // Physics: walls reflect; balls collide; pocket capture
-    const reflectWalls = (b) => {
-      const limX = TABLE.W / 2 - BALL_R - TABLE.WALL;
-      const limY = TABLE.H / 2 - BALL_R - TABLE.WALL;
-      if (b.pos.x < -limX && b.vel.x < 0) { b.pos.x = -limX; b.vel.x *= -1; }
-      if (b.pos.x > limX && b.vel.x > 0) { b.pos.x = limX; b.vel.x *= -1; }
-      if (b.pos.y < -limY && b.vel.y < 0) { b.pos.y = -limY; b.vel.y *= -1; }
-      if (b.pos.y > limY && b.vel.y > 0) { b.pos.y = limY; b.vel.y *= -1; }
-    };
-
-    const collideBalls = () => {
-      for (let i = 0; i < balls.length; i++) {
-        for (let j = i + 1; j < balls.length; j++) {
-          const a = balls[i], b = balls[j]; if (!a.active || !b.active) continue;
-          const dx = b.pos.x - a.pos.x, dy = b.pos.y - a.pos.y;
-          const dist2 = dx * dx + dy * dy; const min = (BALL_R * 2) * (BALL_R * 2);
-          if (dist2 > 0 && dist2 < min) {
-            const dist = Math.sqrt(dist2) || 0.0001; const nx = dx / dist, ny = dy / dist;
-            const overlap = (BALL_R * 2 - dist) / 2; a.pos.x -= nx * overlap; a.pos.y -= ny * overlap; b.pos.x += nx * overlap; b.pos.y += ny * overlap;
-            const avn = a.vel.x * nx + a.vel.y * ny; const bvn = b.vel.x * nx + b.vel.y * ny;
-            const at = a.vel.clone().sub(new THREE.Vector2(nx, ny).multiplyScalar(avn));
-            const bt = b.vel.clone().sub(new THREE.Vector2(nx, ny).multiplyScalar(bvn));
-            a.vel.copy(at.add(new THREE.Vector2(nx, ny).multiplyScalar(bvn)));
-            b.vel.copy(bt.add(new THREE.Vector2(nx, ny).multiplyScalar(avn)));
+    function checkPockets(b) {
+      if (!b.alive) return;
+      for (const p of pockets) {
+        const d = Math.hypot(b.p.x - p.x, b.p.y - p.y);
+        if (d < pocketR - 2) {
+          b.alive = false;
+          b.v = vec(0, 0);
+          if (b === cueBall) {
+            setTimeout(() => { if (allSleeping()) respotCue(); }, 200);
+          } else {
+            sunkCount++; document.getElementById('sunkCount').textContent = sunkCount;
           }
+          return;
         }
       }
-    };
+    }
 
-    const pocketCenters = [
-      new THREE.Vector2(-TABLE.W / 2, -TABLE.H / 2),
-      new THREE.Vector2(0, -TABLE.H / 2),
-      new THREE.Vector2(TABLE.W / 2, -TABLE.H / 2),
-      new THREE.Vector2(-TABLE.W / 2, TABLE.H / 2),
-      new THREE.Vector2(0, TABLE.H / 2),
-      new THREE.Vector2(TABLE.W / 2, TABLE.H / 2),
-    ];
-
-    const pocketsCheck = () => {
-      balls.forEach(b => {
-        if (!b.active) return;
-        for (const p of pocketCenters) {
-          if (b.pos.distanceTo(p) < POCKET_R * 0.95) {
-            b.active = false; b.mesh.visible = false; b.vel.set(0, 0);
-            setUi(s => ({ ...s, score: s.score + 1 }));
-            break;
-          }
-        }
-      });
-    };
-
-    // Main loop (also updates aim line + target tick)
-    const step = () => {
-      const cb = cueBall();
-      if (aimRef.current.active && cb?.active) {
-        const start = new THREE.Vector3(cb.pos.x, BALL_R, cb.pos.y);
-        const end2D = cb.pos.clone().add(aimRef.current.dir.clone().multiplyScalar(20 + 60 * ui.power));
-        const end = new THREE.Vector3(end2D.x, BALL_R, end2D.y);
-        aimGeom.setFromPoints([start, end]); aimLine.visible = true; aimLine.computeLineDistances();
-        // target tick perpendicular at tip
-        const dir3 = new THREE.Vector3(end.x - start.x, 0, end.z - start.z).normalize();
-        const perp = new THREE.Vector3(-dir3.z, 0, dir3.x);
-        const t1 = end.clone().add(perp.clone().multiplyScalar(1.2));
-        const t2 = end.clone().add(perp.clone().multiplyScalar(-1.2));
-        tickGeom.setFromPoints([t1, t2]); tick.visible = true;
-      } else { aimLine.visible = false; tick.visible = false; }
-
-      balls.forEach(b => {
-        if (!b.active) return;
-        b.pos.add(b.vel);
-        b.vel.multiplyScalar(FRICTION);
-        if (b.vel.length() < STOP_EPS) b.vel.set(0, 0);
-        reflectWalls(b);
-        b.mesh.position.set(b.pos.x, BALL_R, b.pos.y);
-      });
-
-      collideBalls();
-      pocketsCheck();
-
-      renderer.render(scene, camera);
-      rafRef.current = requestAnimationFrame(step);
-    };
-    step();
-
-    // Hook up HUD interop (power bar shot commit)
-    const handleShotCommit = () => { pendingShot = true; }; // will fire on pointerup if aiming
-    (window).__snk_commitShot = handleShotCommit;
-
-    return () => {
-      cancelAnimationFrame(rafRef.current);
-      delete (window).__snk_commitShot;
-    };
-  }, [ui.power, ui.spinX, ui.spinY]);
-
-  // --- HUD CONTROLS ---
-  // Power slider (imported from Pool Royale but copied locally for Snooker)
-  useEffect(() => {
-    const mount = powerRef.current;
-    if (!mount) return;
-    const slider = new PowerSlider({
-      mount,
-      value: 0,
-      onChange: (v) => setUi((s) => ({ ...s, power: v / 100 })),
-      onCommit: () => {
-        if ((window).__snk_commitShot) (window).__snk_commitShot();
+    function respotCue() {
+      const start = vec(tableRect.x + tableRect.w * 0.28, tableRect.y + tableRect.h * 0.5);
+      let p = { ...start };
+      let safe = false; let attempts = 0;
+      while (!safe && attempts < 200) {
+        safe = balls.every(b => (b === cueBall || !b.alive) || Math.hypot(b.p.x - p.x, b.p.y - p.y) > ballR * 2.1);
+        if (!safe) { p.y += (attempts % 2 ? 1 : -1) * (ballR * 2.2); if (p.y < tableRect.y + ballR) p.y = start.y; if (p.y > tableRect.y + tableRect.h - ballR) p.y = start.y; attempts++; }
       }
-    });
-    return () => slider.destroy();
-  }, []);
+      cueBall.alive = true; cueBall.p = p; cueBall.v = vec(0, 0);
+    }
 
-  // Spin controller: white ball with red dot (copied from Pool Royale)
-  useEffect(() => {
-    const root = spinRef.current; if (!root) return;
-    const dot = root.querySelector('.snk-spin-dot');
-    let dragging = false;
-    const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
-    const setFromClient = (clientX, clientY) => {
-      const rect = root.getBoundingClientRect();
-      const cx = rect.left + rect.width / 2; const cy = rect.top + rect.height / 2; const r = rect.width / 2 - 6;
-      const dx = clientX - cx; const dy = clientY - cy;
-      const len = Math.hypot(dx, dy);
-      const sx = clamp(dx / r, -1, 1); const sy = clamp(dy / r, -1, 1);
-      setUi(s => ({ ...s, spinX: -sy, spinY: sx })); // up is +spinX
-      const k = len > r ? r / len : 1;
-      dot.style.transform = `translate(${dx * k}px, ${dy * k}px)`;
-    };
-    const onDown = (e) => { dragging = true; setFromClient(e.clientX || e.touches?.[0].clientX || 0, e.clientY || e.touches?.[0].clientY || 0); };
-    const onMove = (e) => { if (!dragging) return; setFromClient(e.clientX || e.touches?.[0].clientX || 0, e.clientY || e.touches?.[0].clientY || 0); };
-    const onUp = () => { dragging = false; };
-    root.addEventListener('pointerdown', onDown); window.addEventListener('pointermove', onMove); window.addEventListener('pointerup', onUp);
-    root.addEventListener('touchstart', onDown, { passive: true }); window.addEventListener('touchmove', onMove, { passive: true }); window.addEventListener('touchend', onUp);
-    return () => {
-      root.removeEventListener('pointerdown', onDown); window.removeEventListener('pointermove', onMove); window.removeEventListener('pointerup', onUp);
-      root.removeEventListener('touchstart', onDown); window.removeEventListener('touchmove', onMove); window.removeEventListener('touchend', onUp);
-    };
+    let lastTs = 0;
+    function loop(ts) {
+      const dt = Math.min(1 / 30, (ts - lastTs) / 1000 || 0); lastTs = ts;
+      update(dt); draw(); requestAnimationFrame(loop);
+    }
+
+    function update(dt) {
+      for (const b of balls) { b.step(dt); collideWalls(b); checkPockets(b); }
+      for (let i = 0; i < balls.length; i++) for (let j = i + 1; j < balls.length; j++) collideBalls(balls[i], balls[j]);
+    }
+
+    function draw() {
+      ctx.clearRect(0, 0, W, H);
+
+      ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--rail');
+      roundRect(ctx, 6, 6, W - 12, H - 12, 18, true);
+
+      ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--felt');
+      roundRect(ctx, tableRect.x, tableRect.y, tableRect.w, tableRect.h, 14, true);
+
+      for (const p of pockets) {
+        const grd = ctx.createRadialGradient(p.x - 4, p.y - 4, 3, p.x, p.y, pocketR);
+        grd.addColorStop(0, '#000'); grd.addColorStop(1, '#111');
+        ctx.fillStyle = grd;
+        ctx.beginPath(); ctx.arc(p.x, p.y, pocketR, 0, Math.PI * 2); ctx.fill();
+      }
+
+      if (aiming && cueBall.alive) {
+        ctx.save();
+        const a = aimStart, c = aimCurrent;
+        const dir = sub(a, c);
+        const n = norm(dir);
+        ctx.globalAlpha = 0.8; ctx.lineWidth = 2; ctx.setLineDash([6, 6]);
+        ctx.strokeStyle = '#e7ecf7';
+        ctx.beginPath();
+        ctx.moveTo(cueBall.p.x, cueBall.p.y);
+        ctx.lineTo(cueBall.p.x + n.x * 200, cueBall.p.y + n.y * 200);
+        ctx.stroke();
+        ctx.setLineDash([]);
+        ctx.lineWidth = 6; ctx.strokeStyle = '#d2a56b';
+        ctx.beginPath();
+        ctx.moveTo(cueBall.p.x - n.x * ballR * 1.6, cueBall.p.y - n.y * ballR * 1.6);
+        ctx.lineTo(cueBall.p.x - n.x * (ballR * 1.6 + 120 * shotPower), cueBall.p.y - n.y * (ballR * 1.6 + 120 * shotPower));
+        ctx.stroke();
+        ctx.restore();
+      }
+
+      for (const b of balls) { if (!b.alive) continue; drawBall(b); }
+
+      ctx.strokeStyle = '#0b4a2a'; ctx.lineWidth = 2;
+      roundRect(ctx, tableRect.x + 1, tableRect.y + 1, tableRect.w - 2, tableRect.h - 2, 13, false, true);
+    }
+
+    function drawBall(b) {
+      ctx.save();
+      ctx.fillStyle = 'rgba(0,0,0,.35)';
+      ctx.beginPath(); ctx.ellipse(b.p.x + 2, b.p.y + 3, ballR * 0.9, ballR * 0.6, 0, 0, Math.PI * 2); ctx.fill();
+      const g = ctx.createRadialGradient(b.p.x - 5, b.p.y - 5, 2, b.p.x, b.p.y, ballR);
+      g.addColorStop(0, '#fff'); g.addColorStop(0.15, '#fff'); g.addColorStop(0.16, b.color); g.addColorStop(1, shade(b.color, -0.45));
+      ctx.fillStyle = g;
+      ctx.beginPath(); ctx.arc(b.p.x, b.p.y, ballR, 0, Math.PI * 2); ctx.fill();
+      if (b.number) {
+        ctx.fillStyle = 'rgba(255,255,255,.92)';
+        ctx.beginPath(); ctx.arc(b.p.x, b.p.y, ballR * 0.55, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = '#1a1d27'; ctx.font = `${ballR * 0.95}px system-ui, sans-serif`;
+        ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+        ctx.fillText(b.number, b.p.x, b.p.y);
+      }
+      ctx.restore();
+    }
+
+    function roundRect(ctx, x, y, w, h, r, fill = true, stroke = false) {
+      ctx.beginPath();
+      ctx.moveTo(x + r, y);
+      ctx.arcTo(x + w, y, x + w, y + h, r);
+      ctx.arcTo(x + w, y + h, x, y + h, r);
+      ctx.arcTo(x, y + h, x, y, r);
+      ctx.arcTo(x, y, x + w, y, r);
+      if (fill) ctx.fill();
+      if (stroke) ctx.stroke();
+    }
+
+    function shade(hex, pct) {
+      const c = hex.replace('#', '');
+      const num = parseInt(c, 16);
+      let r = (num >> 16) & 255, g = (num >> 8) & 255, b = num & 255;
+      r = Math.round(r * (1 + pct)); g = Math.round(g * (1 + pct)); b = Math.round(b * (1 + pct));
+      return `rgb(${clamp(r, 0, 255)},${clamp(g, 0, 255)},${clamp(b, 0, 255)})`;
+    }
+
+    function screenToTable(e) {
+      const rect = canvas.getBoundingClientRect();
+      const x = (e.touches ? e.touches[0].clientX : e.clientX) - rect.left;
+      const y = (e.touches ? e.touches[0].clientY : e.clientY) - rect.top;
+      return vec(x, y);
+    }
+
+    function down(e) {
+      const m = screenToTable(e);
+      if (!allSleeping()) return;
+      if (cueBall.alive && Math.hypot(m.x - cueBall.p.x, m.y - cueBall.p.y) <= ballR + 12) {
+        aiming = true; aimStart = m; aimCurrent = m; shotPower = 0; updatePowerBar();
+        e.preventDefault();
+      }
+    }
+    function move(e) {
+      if (!aiming) return; const m = screenToTable(e); aimCurrent = m;
+      const drag = len(sub(aimStart, aimCurrent));
+      shotPower = clamp(drag / 160, 0, 1);
+      updatePowerBar();
+    }
+    function up(e) {
+      if (!aiming) return; aiming = false; const dir = norm(sub(aimStart, aimCurrent));
+      const speed = 720 * shotPower;
+      cueBall.v = add(cueBall.v, mul(dir, speed / 60));
+      if (shotPower > 0.02) { shotCount++; document.getElementById('shotCount').textContent = shotCount; }
+      shotPower = 0; updatePowerBar();
+    }
+    function updatePowerBar() {
+      document.getElementById('powerFill').style.width = (shotPower * 100).toFixed(0) + "%";
+    }
+
+    canvas.addEventListener('mousedown', down);
+    canvas.addEventListener('mousemove', move);
+    window.addEventListener('mouseup', up);
+    canvas.addEventListener('touchstart', down, { passive: false });
+    canvas.addEventListener('touchmove', move, { passive: false });
+    window.addEventListener('touchend', up);
+
+    document.getElementById('newRackBtn').onclick = () => { if (allSleeping()) placeRack(); };
+    document.getElementById('resetBtn').onclick = () => { if (allSleeping()) respotCue(); };
+
+    placeRack();
+    requestAnimationFrame(loop);
   }, []);
 
   return (
-    <div className="relative w-full h-[100dvh] overflow-hidden">
-      {/* 3D Canvas Mount */}
-      <div ref={mountRef} className="absolute inset-0" />
-
-      {/* Top card with player info and spin */}
-      <div className="snk-header">
-        <div className="snk-player">
-          <div className="snk-avatar">U</div>
-          <div className="snk-score">{ui.score}</div>
-          <div className="snk-info">
-            <div className="snk-name">Player</div>
-          </div>
+    <div className="snooker-wrap">
+      <div className="snooker-hud">
+        <div className="snooker-left">
+          <span className="snooker-pill">HTML5 Snooker • Practice</span>
+          <span className="snooker-pill">Sunk: <span id="sunkCount">0</span></span>
+          <span className="snooker-pill">Shots: <span id="shotCount">0</span></span>
+          <div className="snooker-powerbar"><div id="powerFill" className="snooker-powerfill" style={{ width: '0%' }}></div></div>
         </div>
-        <div ref={spinRef} className="snk-spin-box">
-          <div className="snk-spin-dot" style={{ transform: `translate(${ui.spinY * 35}px, ${-ui.spinX * 35}px)` }} />
-          <div className="snk-timer">{formatTime(timer)}</div>
+        <div className="snooker-right" style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+          <span className="snooker-note">Drag from the cue ball to aim & set power • Release to shoot</span>
+          <span className="snooker-mobile">Tip: pinch to zoom the page if needed</span>
+          <button id="newRackBtn" className="snooker-btn">New Rack</button>
+          <button id="resetBtn" className="snooker-btn">Re-Spot Cue</button>
         </div>
       </div>
-
-      {/* Power slider */}
-      <div ref={powerRef} className="absolute right-3 top-1/2 -translate-y-1/2"></div>
-
-      {/* Cue variants card */}
-      <div className="snk-cue-options">
-        <div className="snk-cue-label">Cue</div>
-        {['short', 'medium', 'long', 'auto'].map((opt) => (
-          <button
-            key={opt}
-            className={`snk-cue-btn${cueVariant === opt ? ' active' : ''}`}
-            onClick={() => setCueVariant(opt)}
-          >
-            {opt.charAt(0).toUpperCase() + opt.slice(1)}
-          </button>
-        ))}
-      </div>
-
-      {/* Top view button */}
-      <button
-        onClick={() => {
-          sphRef.current.phi = 0.35;
-          sphRef.current.theta = 0;
-          updateCamRef.current();
-        }}
-        className="absolute top-20 right-16 w-12 h-12 rounded-full border border-white text-white bg-transparent"
-        aria-label="Top view"
-      >
-        ⬆️
-      </button>
+      <canvas id="table" width="980" height="520"></canvas>
     </div>
   );
 }
+
