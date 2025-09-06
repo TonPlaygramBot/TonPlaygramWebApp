@@ -7,7 +7,7 @@
 }
 .snooker-wrap{display:grid;place-items:center;gap:16px;padding:14px}
 .snooker-wrap canvas{background:var(--felt);display:block;border-radius:18px;box-shadow:0 20px 50px rgba(0,0,0,.45)}
-.snooker-hud{width:min(980px,95vw);display:flex;flex-wrap:wrap;gap:8px;justify-content:space-between;align-items:center}
+.snooker-hud{width:min(480px,95vw);display:flex;flex-wrap:wrap;gap:8px;justify-content:space-between;align-items:center}
 .snooker-left{display:flex;align-items:center;gap:12px}
 .snooker-pill{background:#131a33;border:1px solid #263159;color:#cfe3ff;padding:8px 12px;border-radius:999px;font-size:14px}
 .snooker-btn{all:unset;background:linear-gradient(180deg,#2a335c,#1d2442);padding:10px 14px;border-radius:12px;border:1px solid #2f3c71;cursor:pointer;color:#fff}
