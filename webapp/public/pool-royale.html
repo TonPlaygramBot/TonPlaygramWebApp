@@ -1692,15 +1692,6 @@
             cueHitCushion = true;
         }
 
-        function inConnectorRange(b, pk, nx, ny, cond) {
-          var rx = b.p.x - pk.x;
-          var ry = b.p.y - pk.y;
-          if (!cond(rx, ry)) return false;
-          var limit = pk.r + BALL_R;
-          var dist = rx * nx + ry * ny;
-          return dist < limit;
-        }
-
         function brighten(hex, amt) {
           var c = hex.slice(1);
           if (c.length === 3)
@@ -2116,64 +2107,24 @@
               var R = TABLE_W - BORDER - BALL_R;
               var T = BORDER_TOP + BALL_R;
               var B = TABLE_H - BORDER_BOTTOM - BALL_R;
-              var pk = this.pockets;
-              var inv = INV_SQRT2;
 
-              var nearLeft =
-                inConnectorRange(b, pk[0], inv, inv, function (rx, ry) {
-                  return rx > 0 && ry > 0;
-                }) ||
-                inConnectorRange(b, pk[4], inv, -inv, function (rx, ry) {
-                  return rx > 0 && ry < 0;
-                }) ||
-                inConnectorRange(b, pk[2], inv, inv, function (rx, ry) {
-                  return rx > 0 && ry < 0;
-                }) ||
-                inConnectorRange(b, pk[2], inv, -inv, function (rx, ry) {
-                  return rx > 0 && ry > 0;
-                });
-
-              var nearRight =
-                inConnectorRange(b, pk[1], -inv, inv, function (rx, ry) {
-                  return rx < 0 && ry > 0;
-                }) ||
-                inConnectorRange(b, pk[5], -inv, -inv, function (rx, ry) {
-                  return rx < 0 && ry < 0;
-                }) ||
-                inConnectorRange(b, pk[3], -inv, inv, function (rx, ry) {
-                  return rx < 0 && ry < 0;
-                }) ||
-                inConnectorRange(b, pk[3], -inv, -inv, function (rx, ry) {
-                  return rx < 0 && ry > 0;
-                });
-
-              var nearTop =
-                inConnectorRange(b, pk[0], inv, inv, function (rx, ry) {
-                  return rx > 0 && ry > 0;
-                }) ||
-                inConnectorRange(b, pk[1], -inv, inv, function (rx, ry) {
-                  return rx < 0 && ry > 0;
-                }) ||
-                inConnectorRange(b, pk[2], inv, inv, function (rx, ry) {
-                  return rx > 0 && ry < 0;
-                }) ||
-                inConnectorRange(b, pk[3], -inv, inv, function (rx, ry) {
-                  return rx < 0 && ry < 0;
-                });
-
-              var nearBottom =
-                inConnectorRange(b, pk[4], inv, -inv, function (rx, ry) {
-                  return rx > 0 && ry < 0;
-                }) ||
-                inConnectorRange(b, pk[5], -inv, -inv, function (rx, ry) {
-                  return rx < 0 && ry < 0;
-                }) ||
-                inConnectorRange(b, pk[2], inv, -inv, function (rx, ry) {
-                  return rx > 0 && ry > 0;
-                }) ||
-                inConnectorRange(b, pk[3], -inv, -inv, function (rx, ry) {
-                  return rx < 0 && ry > 0;
-                });
+              // Determine whether the ball is in the vicinity of any pocket.
+              var nearLeft = false,
+                nearRight = false,
+                nearTop = false,
+                nearBottom = false;
+              for (var pkIdx = 0; pkIdx < this.pockets.length; pkIdx++) {
+                var pp = this.pockets[pkIdx];
+                var thresh = pp.r + BALL_R;
+                if (Math.abs(b.p.y - pp.y) < thresh) {
+                  if (pp.x < L) nearLeft = true;
+                  if (pp.x > R) nearRight = true;
+                }
+                if (Math.abs(b.p.x - pp.x) < thresh) {
+                  if (pp.y < T) nearTop = true;
+                  if (pp.y > B) nearBottom = true;
+                }
+              }
 
               if (b.n === 0) {
                 if (b.p.x - L < BALL_R * 1.5 && b.v.x < 0) applySpinImpulse(b);
@@ -2223,6 +2174,8 @@
               }
           }
 
+          var pk = this.pockets;
+          var inv = INV_SQRT2;
           handleConnectorCollision(this, b, pk[0], inv, inv, function (rx, ry) {
             return rx > 0 && ry > 0;
           });
