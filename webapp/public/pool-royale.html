@@ -3619,6 +3619,26 @@
           ctx.moveTo(x - dx, y);
           ctx.lineTo(x + dx, y + dy - trim);
           if (stroke) ctx.stroke();
+
+          // orange guides that curve outward from the field edge
+          var baseX = x - dx;
+          var guideR = R * 0.3;
+          ctx.save();
+          ctx.strokeStyle = 'orange';
+          ctx.beginPath();
+          if (dir > 0) {
+            // left side pocket
+            ctx.arc(baseX - guideR, y - guideR, guideR, 0, Math.PI / 2);
+            ctx.moveTo(baseX, y + guideR);
+            ctx.arc(baseX - guideR, y + guideR, guideR, 0, -Math.PI / 2, true);
+          } else {
+            // right side pocket
+            ctx.arc(baseX + guideR, y - guideR, guideR, Math.PI, Math.PI / 2, true);
+            ctx.moveTo(baseX, y + guideR);
+            ctx.arc(baseX + guideR, y + guideR, guideR, Math.PI, 3 * Math.PI / 2);
+          }
+          ctx.stroke();
+          ctx.restore();
         }
 
         function drawUPocketGuide(p, sx, sy, stroke = true) {
@@ -3639,6 +3659,15 @@
           ctx.moveTo(R, lineStart);
           ctx.lineTo(R, lineLen);
           if (stroke) ctx.stroke();
+
+          // add small orange curves bending outside the field
+          var guideR2 = R * 0.3;
+          ctx.strokeStyle = 'orange';
+          ctx.beginPath();
+          ctx.arc(-R - guideR2, lineStart, guideR2, 0, Math.PI / 2);
+          ctx.moveTo(R, lineStart);
+          ctx.arc(R + guideR2, lineStart, guideR2, Math.PI / 2, Math.PI);
+          ctx.stroke();
           ctx.restore();
         }
 
