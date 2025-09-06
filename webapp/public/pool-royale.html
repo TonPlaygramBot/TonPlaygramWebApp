@@ -969,7 +969,7 @@
         var CUE_START_Y =
           LINE_Y + (TABLE_H - BORDER_BOTTOM - LINE_Y - BALL_R * 2) / 2; // pozicioni fillestar i cueball-it
 
-        var FRICTION = 0.985; // ferkimi linear, pak me i vogel per te ruajtur shpejtesine
+        var FRICTION = 0.999; // ferkimi linear, pak me i vogel per te ruajtur shpejtesine
         var BOUNCE = 0.99; // koeficienti i rikthimit pak me i madh
         var EDGE_BOUNCE = BOUNCE * 0.15; // skajet e gropave rikthejne 85% me pak
         var CONNECTOR_SLIDE_SPEED = 50; // shpejtesia njesoj me shume e ulet per te lejuar rreshqitjen ne konektore
@@ -2700,8 +2700,8 @@
               ctx.clip();
               ctx.fillStyle = stripeGrad;
               ctx.fillRect(-ballR, -ballR * 0.3, ballR * 2, ballR * 0.6);
-              // thin black lines at stripe edges
-              ctx.strokeStyle = '#000';
+              // thin white lines at stripe edges
+              ctx.strokeStyle = '#fff';
               ctx.lineWidth = ballR * 0.06;
               ctx.beginPath();
               ctx.moveTo(-ballR, -ballR * 0.3);
@@ -2963,7 +2963,7 @@
             ctx.clip();
             ctx.fillStyle = '#fff';
             ctx.fillRect(cx - r, cy - r * 0.3, r * 2, r * 0.6);
-            ctx.strokeStyle = '#000';
+            ctx.strokeStyle = '#fff';
             ctx.lineWidth = r * 0.15;
             ctx.beginPath();
             ctx.moveTo(cx - r, cy - r * 0.3);
@@ -4009,7 +4009,7 @@
               width: TABLE_W,
               height: TABLE_H,
               ballRadius: BALL_R,
-              friction: 0.015,
+              friction: 0.001,
               ballOn: assignedTypes[2] || null,
               myGroup:
                 assignedTypes[2] === 'red'
