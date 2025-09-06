@@ -2467,16 +2467,6 @@
                 drawUPocketGuide(p[4], 1, -1, false);
                 drawUPocketGuide(p[5], -1, -1, false);
                 ctx.stroke();
-                // highlight pocket connector curves
-                ctx.strokeStyle = 'orange';
-                ctx.lineWidth = 2;
-                drawVPocketGuide(p[2], 1);
-                drawVPocketGuide(p[3], -1);
-                drawUPocketGuide(p[0], 1, 1);
-                drawUPocketGuide(p[1], -1, 1);
-                drawUPocketGuide(p[4], 1, -1);
-                drawUPocketGuide(p[5], -1, -1);
-                // draw pocket outlines
                 ctx.strokeStyle = 'red';
                 ctx.lineWidth = 2;
                 var rScale = (sX + sY) / 2;
@@ -3646,15 +3636,10 @@
           var dx = R * 1.1 * dir;
           var dy = R * 1.25;
           var trim = R * 0.1;
-          var curve = R * 0.25;
           if (stroke) ctx.beginPath();
-          // upper connector with small curve
-          ctx.moveTo(x - dx, y - curve);
-          ctx.arcTo(x - dx, y, x + dx, y - dy + trim, curve);
+          ctx.moveTo(x - dx, y);
           ctx.lineTo(x + dx, y - dy + trim);
-          // lower connector with small curve
-          ctx.moveTo(x - dx, y + curve);
-          ctx.arcTo(x - dx, y, x + dx, y + dy - trim, curve);
+          ctx.moveTo(x - dx, y);
           ctx.lineTo(x + dx, y + dy - trim);
           if (stroke) ctx.stroke();
         }
@@ -3672,15 +3657,10 @@
           ctx.arc(0, 0, R, Math.PI, 0);
           var lineLen = R * 1.2;
           var lineStart = R * 0.1;
-          var curve = R * 0.25;
-          // left connector with curve
           ctx.moveTo(-R, lineStart);
-          ctx.lineTo(-R, lineLen - curve);
-          ctx.arcTo(-R, lineLen, -R + curve, lineLen, curve);
-          // right connector with curve
+          ctx.lineTo(-R, lineLen);
           ctx.moveTo(R, lineStart);
-          ctx.lineTo(R, lineLen - curve);
-          ctx.arcTo(R, lineLen, R - curve, lineLen, curve);
+          ctx.lineTo(R, lineLen);
           if (stroke) ctx.stroke();
           ctx.restore();
         }
