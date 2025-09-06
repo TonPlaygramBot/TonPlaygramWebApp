@@ -952,7 +952,6 @@
 
         var FRICTION = 0.985; // ferkimi linear, pak me i vogel per te ruajtur shpejtesine
         var BOUNCE = 0.99; // koeficienti i rikthimit pak me i madh
-        var EDGE_BOUNCE = BOUNCE * 0.15; // skajet e gropave rikthejne 85% me pak
         var CONNECTOR_SLIDE_SPEED = 50; // shpejtesia njesoj me shume e ulet per te lejuar rreshqitjen ne konektore
         var INV_SQRT2 = 1 / Math.SQRT2;
 
@@ -2097,184 +2096,64 @@
           for (i = 0; i < this.balls.length; i++) {
             var b = this.balls[i];
             if (b.pocketed) continue;
-            var prevX = b.p.x,
-              prevY = b.p.y;
-            b.p.x += b.v.x * dt;
-            b.p.y += b.v.y * dt;
-            b.v.x *= FRICTION;
-            b.v.y *= FRICTION;
-            // spin is applied directly during collisions
-            b.a += (Math.hypot(b.v.x, b.v.y) * dt) / (BALL_R * 0.6);
+              b.p.x += b.v.x * dt;
+              b.p.y += b.v.y * dt;
+              b.v.x *= FRICTION;
+              b.v.y *= FRICTION;
+              // spin is applied directly during collisions
+              b.a += (Math.hypot(b.v.x, b.v.y) * dt) / (BALL_R * 0.6);
 
-            var L = BORDER + BALL_R;
-            var R = TABLE_W - BORDER - BALL_R;
-            var T = BORDER_TOP + BALL_R;
-            var B = TABLE_H - BORDER_BOTTOM - BALL_R;
-            var nearest = null,
-              prevDist = Infinity;
-            for (var k = 0; k < this.pockets.length; k++) {
-              var pk = this.pockets[k];
-              var dPrev = Math.hypot(prevX - pk.x, prevY - pk.y);
-              if (dPrev < prevDist) {
-                prevDist = dPrev;
-                nearest = pk;
-              }
-            }
-            var newDist = nearest
-              ? Math.hypot(b.p.x - nearest.x, b.p.y - nearest.y)
-              : Infinity;
-            // Detect when a ball just grazes a pocket to trigger a crowd reaction
-            var nearPocket = nearest && newDist < nearest.r + BALL_R + 15;
-            var approaching = nearest && newDist < prevDist;
-            if (
-              nearPocket &&
-              !approaching &&
-              !nearPocketEdgeHit &&
-              !pocketedAny
-            ) {
-              nearPocketEdgeHit = true;
-              playShock(1);
-            }
-            if (!nearPocket || !approaching) {
+              var L = BORDER + BALL_R;
+              var R = TABLE_W - BORDER - BALL_R;
+              var T = BORDER_TOP + BALL_R;
+              var B = TABLE_H - BORDER_BOTTOM - BALL_R;
+
               if (b.n === 0) {
                 if (b.p.x - L < BALL_R * 1.5 && b.v.x < 0) applySpinImpulse(b);
                 if (R - b.p.x < BALL_R * 1.5 && b.v.x > 0) applySpinImpulse(b);
                 if (b.p.y - T < BALL_R * 1.5 && b.v.y < 0) applySpinImpulse(b);
                 if (B - b.p.y < BALL_R * 1.5 && b.v.y > 0) applySpinImpulse(b);
               }
-                if (b.p.x < L) {
-                  b.p.x = L;
-                  var diffY = nearest ? Math.abs(b.p.y - nearest.y) : Infinity;
-                  if (nearPocket && diffY <= BALL_R * 3) {
-                    var speed = Math.hypot(b.v.x, b.v.y);
-                    if (diffY <= BALL_R * 1.5) {
-                      var dir = norm(nearest.x - b.p.x, nearest.y - b.p.y);
-                      b.v.x = dir.x * speed;
-                      b.v.y = dir.y * speed;
-                    } else {
-                      var ny = b.p.y < nearest.y ? -1 : 1;
-                      var inv = 1 / Math.SQRT2;
-                      reflectVelocity(b.v, inv, ny * inv, EDGE_BOUNCE);
-                    }
-                  } else {
-                    reflectVelocity(b.v, 1, 0, BOUNCE);
-                  }
-                  if (b.n === 0) {
-                    b.impacted = true;
-                    applySpinImpulse(b);
-                  }
-                  if (i === 0 && shotInProgress && !firstHit)
-                    cueHitCushion = true;
-                  if (
-                    nearPocket &&
-                    diffY <= BALL_R * 3 &&
-                    !nearPocketEdgeHit &&
-                    !pocketedAny
-                  ) {
-                    nearPocketEdgeHit = true;
-                    playShock(1);
-                  }
+              if (b.p.x < L) {
+                b.p.x = L;
+                reflectVelocity(b.v, 1, 0, BOUNCE);
+                if (b.n === 0) {
+                  b.impacted = true;
+                  applySpinImpulse(b);
                 }
-                if (b.p.x > R) {
-                  b.p.x = R;
-                  var diffY2 = nearest ? Math.abs(b.p.y - nearest.y) : Infinity;
-                  if (nearPocket && diffY2 <= BALL_R * 3) {
-                    var speed2 = Math.hypot(b.v.x, b.v.y);
-                    if (diffY2 <= BALL_R * 1.5) {
-                      var dir2 = norm(nearest.x - b.p.x, nearest.y - b.p.y);
-                      b.v.x = dir2.x * speed2;
-                      b.v.y = dir2.y * speed2;
-                    } else {
-                      var ny2 = b.p.y < nearest.y ? -1 : 1;
-                      var inv2 = 1 / Math.SQRT2;
-                      reflectVelocity(b.v, -inv2, ny2 * inv2, EDGE_BOUNCE);
-                    }
-                  } else {
-                    reflectVelocity(b.v, -1, 0, BOUNCE);
-                  }
-                  if (b.n === 0) {
-                    b.impacted = true;
-                    applySpinImpulse(b);
-                  }
-                  if (i === 0 && shotInProgress && !firstHit)
-                    cueHitCushion = true;
-                  if (
-                    nearPocket &&
-                    diffY2 <= BALL_R * 3 &&
-                    !nearPocketEdgeHit &&
-                    !pocketedAny
-                  ) {
-                    nearPocketEdgeHit = true;
-                    playShock(1);
-                  }
+                if (i === 0 && shotInProgress && !firstHit)
+                  cueHitCushion = true;
+              }
+              if (b.p.x > R) {
+                b.p.x = R;
+                reflectVelocity(b.v, -1, 0, BOUNCE);
+                if (b.n === 0) {
+                  b.impacted = true;
+                  applySpinImpulse(b);
                 }
-                if (b.p.y < T) {
-                  b.p.y = T;
-                  var diffX = nearest ? Math.abs(b.p.x - nearest.x) : Infinity;
-                  if (nearPocket && diffX <= BALL_R * 3) {
-                    var speed3 = Math.hypot(b.v.x, b.v.y);
-                    if (diffX <= BALL_R * 1.5) {
-                      var dir3 = norm(nearest.x - b.p.x, nearest.y - b.p.y);
-                      b.v.x = dir3.x * speed3;
-                      b.v.y = dir3.y * speed3;
-                    } else {
-                      var nx = nearest.x < TABLE_W / 2 ? 1 : -1;
-                      var inv3 = 1 / Math.SQRT2;
-                      reflectVelocity(b.v, nx * inv3, inv3, EDGE_BOUNCE);
-                    }
-                  } else {
-                    reflectVelocity(b.v, 0, 1, BOUNCE);
-                  }
-                  if (b.n === 0) {
-                    b.impacted = true;
-                    applySpinImpulse(b);
-                  }
-                  if (i === 0 && shotInProgress && !firstHit)
-                    cueHitCushion = true;
-                  if (
-                    nearPocket &&
-                    diffX <= BALL_R * 3 &&
-                    !nearPocketEdgeHit &&
-                    !pocketedAny
-                  ) {
-                    nearPocketEdgeHit = true;
-                    playShock(1);
-                  }
+                if (i === 0 && shotInProgress && !firstHit)
+                  cueHitCushion = true;
+              }
+              if (b.p.y < T) {
+                b.p.y = T;
+                reflectVelocity(b.v, 0, 1, BOUNCE);
+                if (b.n === 0) {
+                  b.impacted = true;
+                  applySpinImpulse(b);
                 }
-                if (b.p.y > B) {
-                  b.p.y = B;
-                  var diffX2 = nearest ? Math.abs(b.p.x - nearest.x) : Infinity;
-                  if (nearPocket && diffX2 <= BALL_R * 3) {
-                    var speed4 = Math.hypot(b.v.x, b.v.y);
-                    if (diffX2 <= BALL_R * 1.5) {
-                      var dir4 = norm(nearest.x - b.p.x, nearest.y - b.p.y);
-                      b.v.x = dir4.x * speed4;
-                      b.v.y = dir4.y * speed4;
-                    } else {
-                      var nx2 = nearest.x < TABLE_W / 2 ? 1 : -1;
-                      var inv4 = 1 / Math.SQRT2;
-                      reflectVelocity(b.v, nx2 * inv4, -inv4, EDGE_BOUNCE);
-                    }
-                  } else {
-                    reflectVelocity(b.v, 0, -1, BOUNCE);
-                  }
-                  if (b.n === 0) {
-                    b.impacted = true;
-                    applySpinImpulse(b);
-                  }
-                  if (i === 0 && shotInProgress && !firstHit)
-                    cueHitCushion = true;
-                  if (
-                    nearPocket &&
-                    diffX2 <= BALL_R * 3 &&
-                    !nearPocketEdgeHit &&
-                    !pocketedAny
-                  ) {
-                    nearPocketEdgeHit = true;
-                    playShock(1);
-                  }
+                if (i === 0 && shotInProgress && !firstHit)
+                  cueHitCushion = true;
+              }
+              if (b.p.y > B) {
+                b.p.y = B;
+                reflectVelocity(b.v, 0, -1, BOUNCE);
+                if (b.n === 0) {
+                  b.impacted = true;
+                  applySpinImpulse(b);
                 }
-            }
+                if (i === 0 && shotInProgress && !firstHit)
+                  cueHitCushion = true;
+              }
           }
 
           var pk = this.pockets;
@@ -2796,7 +2675,6 @@
         var shotPocketRecorded = false;
         var lastCueStart = null;
         var cueHitCushion = false;
-        var nearPocketEdgeHit = false;
 
         function remainingPoints() {
           var sum = 0;
@@ -3114,7 +2992,6 @@
             foulShown = false;
             firstHit = null;
             cueHitCushion = false;
-            nearPocketEdgeHit = false;
             currentTarget = null;
             eightBallPotted = false;
             nineBallPotted = false;
@@ -3278,7 +3155,6 @@
           firstHit = null;
           lastCueStart = null;
           cueHitCushion = false;
-          nearPocketEdgeHit = false;
           currentTarget = null;
           eightBallPotted = false;
           nineBallPotted = false;
