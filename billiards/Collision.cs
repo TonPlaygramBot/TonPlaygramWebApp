@@ -28,7 +28,8 @@ public static class Collision
     {
         var n = normal.Normalized();
         var vn = Vec2.Dot(v, n);
-        var vt = v - vn * n;
+        // project velocity onto tangent by subtracting normal component
+        var vt = v - n * vn;
         var result = vt * (1 - mu) - n * (restitution * vn);
         return result * (1 - drag);
     }
