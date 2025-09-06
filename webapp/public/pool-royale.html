@@ -937,7 +937,8 @@
         var POCKET_SHORTEN = isSnooker ? 2 : 4; // gropat snooker pak me brenda
         var SHORT_DIST = BALL_R * 28;
         var MED_DIST = BALL_R * 56;
-        var BORDER_TOP = BORDER + BALL_R * 2 - 4; // bordi i siperm pak me i holle per fushe me te gjate
+        var BORDER_TOP =
+          BORDER + BALL_R * 2 - 4 - 14; // extend field upward by two green lines
         // Raise only the bottom field line by the thickness of one green side
         // marking so the table's lower boundary sits slightly higher.
         var BORDER_BOTTOM = BORDER + 14; // anet e tjera mbeten te pandryshuara
@@ -3622,7 +3623,7 @@
         }
 
         function drawUPocketGuide(p, sx, sy, stroke = true) {
-          var R = p.r * ((sX + sY) / 2) * 1.1;
+          var R = p.r * ((sX + sY) / 2);
           var x = p.x * sX;
           var y = p.y * sY;
           ctx.save();
