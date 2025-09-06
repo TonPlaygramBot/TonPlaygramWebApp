@@ -2,7 +2,7 @@ import React, { useRef, useEffect, useState } from "react";
 import * as THREE from "three";
 import { PowerSlider } from "../../snooker/PowerSlider.js";
 import "../../snooker/power-slider.css";
-import "../../snooker/spin.css";
+import "../../snooker/ui.css";
 
 /**
  * Snooker 3D – Pro Table Look + Proper Pockets + Spin UI
@@ -50,6 +50,19 @@ export default function Snooker3D() {
   const powerRef = useRef(null);
   const spinRef = useRef(null);
   const [ui, setUi] = useState({ score: 0, power: 0, spinX: 0, spinY: 0 });
+  const [timer, setTimer] = useState(60);
+  const [cueVariant, setCueVariant] = useState("auto");
+
+  useEffect(() => {
+    const id = setInterval(() => setTimer((t) => (t > 0 ? t - 1 : 0)), 1000);
+    return () => clearInterval(id);
+  }, []);
+
+  const formatTime = (t) => {
+    const m = Math.floor(t / 60);
+    const s = t % 60;
+    return `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
+  };
 
   useEffect(() => {
     const container = mountRef.current;
@@ -394,21 +407,46 @@ export default function Snooker3D() {
       {/* 3D Canvas Mount */}
       <div ref={mountRef} className="absolute inset-0" />
 
-      {/* HUD: Score */}
-      <div className="absolute left-2 top-2 bg-black/50 text-white text-xs rounded-lg p-2">Score: <b>{ui.score}</b></div>
+      {/* Top card with player info and spin */}
+      <div className="snk-header">
+        <div className="snk-player">
+          <div className="snk-avatar">U</div>
+          <div className="snk-score">{ui.score}</div>
+          <div className="snk-info">
+            <div className="snk-name">Player</div>
+          </div>
+        </div>
+        <div ref={spinRef} className="snk-spin-box">
+          <div className="snk-spin-dot" style={{ transform: `translate(${ui.spinY * 35}px, ${-ui.spinX * 35}px)` }} />
+          <div className="snk-timer">{formatTime(timer)}</div>
+        </div>
+      </div>
 
       {/* Power slider */}
       <div ref={powerRef} className="absolute right-3 top-1/2 -translate-y-1/2"></div>
 
-      {/* Spin controller */}
-      <div ref={spinRef} className="snk-spin-box absolute left-1/2 top-16 -translate-x-1/2">
-        <div className="snk-spin-dot" style={{ transform: `translate(${ui.spinY*35}px, ${-ui.spinX*35}px)` }} />
+      {/* Cue variants card */}
+      <div className="snk-cue-options">
+        <div className="snk-cue-label">Cue</div>
+        {['short', 'medium', 'long', 'auto'].map((opt) => (
+          <button
+            key={opt}
+            className={`snk-cue-btn${cueVariant === opt ? ' active' : ''}`}
+            onClick={() => setCueVariant(opt)}
+          >
+            {opt.charAt(0).toUpperCase() + opt.slice(1)}
+          </button>
+        ))}
       </div>
 
       {/* Top view button */}
       <button
-        onClick={() => { sphRef.current.phi = 0.35; sphRef.current.theta = 0; updateCamRef.current(); }}
-        className="absolute top-3 right-16 w-12 h-12 rounded-full border border-white text-white bg-transparent"
+        onClick={() => {
+          sphRef.current.phi = 0.35;
+          sphRef.current.theta = 0;
+          updateCamRef.current();
+        }}
+        className="absolute top-20 right-16 w-12 h-12 rounded-full border border-white text-white bg-transparent"
         aria-label="Top view"
       >
         ⬆️
