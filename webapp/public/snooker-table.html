@@ -46,94 +46,9 @@
       const H = canvas.clientHeight;
       ctx.clearRect(0, 0, W, H);
 
-      const pockets = [
-        { x: BORDER - POCKET_SHORTEN + 4, y: BORDER_TOP - POCKET_SHORTEN, r: POCKET_R },
-        { x: TABLE_W - BORDER + POCKET_SHORTEN - 4, y: BORDER_TOP - POCKET_SHORTEN, r: POCKET_R },
-        { x: BORDER - 16 - POCKET_SHORTEN, y: TABLE_H / 2 + BALL_R - 14, r: SIDE_POCKET_R },
-        { x: TABLE_W - BORDER + 16 + POCKET_SHORTEN, y: TABLE_H / 2 + BALL_R - 14, r: SIDE_POCKET_R },
-        { x: BORDER - POCKET_SHORTEN, y: TABLE_H - BORDER_BOTTOM + POCKET_SHORTEN, r: POCKET_R },
-        { x: TABLE_W - BORDER + POCKET_SHORTEN, y: TABLE_H - BORDER_BOTTOM + POCKET_SHORTEN, r: POCKET_R }
-      ];
-
-      drawPocketGuides(pockets, W / TABLE_W, H / TABLE_H);
+      // Removed pocket guide overlays so balls can move freely
     }
 
-    function drawPocketGuides(pockets, sX, sY) {
-      ctx.lineWidth = 2;
-      ctx.strokeStyle = 'rgba(0,255,0,0.8)';
-      const cornerGap = ctx.lineWidth * 4;
-      const sideGap = ctx.lineWidth * 2;
-      const topY = BORDER_TOP * sY;
-      const bottomY = (TABLE_H - BORDER_BOTTOM) * sY;
-      const xLeft = BORDER * sX;
-      const xRight = (TABLE_W - BORDER) * sX;
-
-      ctx.beginPath();
-      ctx.moveTo((pockets[0].x + pockets[0].r) * sX + cornerGap, topY);
-      ctx.lineTo((pockets[1].x - pockets[1].r) * sX - cornerGap, topY);
-      ctx.moveTo((pockets[4].x + pockets[4].r) * sX + cornerGap, bottomY);
-      ctx.lineTo((pockets[5].x - pockets[5].r) * sX - cornerGap, bottomY);
-      ctx.moveTo(xLeft, (pockets[0].y + pockets[0].r) * sY + cornerGap);
-      ctx.lineTo(xLeft, (pockets[2].y - pockets[2].r) * sY - sideGap);
-      ctx.moveTo(xLeft, (pockets[2].y + pockets[2].r) * sY + sideGap);
-      ctx.lineTo(xLeft, (pockets[4].y - pockets[4].r) * sY - cornerGap);
-      ctx.moveTo(xRight, (pockets[1].y + pockets[1].r) * sY + cornerGap);
-      ctx.lineTo(xRight, (pockets[3].y - pockets[3].r) * sY - sideGap);
-      ctx.moveTo(xRight, (pockets[3].y + pockets[3].r) * sY + sideGap);
-      ctx.lineTo(xRight, (pockets[5].y - pockets[5].r) * sY - cornerGap);
-      ctx.stroke();
-
-      ctx.strokeStyle = '#ff0';
-      drawVPocketGuide(pockets[2], sX, sY, 1);
-      drawVPocketGuide(pockets[3], sX, sY, -1);
-      drawUPocketGuide(pockets[0], sX, sY, 1, 1);
-      drawUPocketGuide(pockets[1], sX, sY, -1, 1);
-      drawUPocketGuide(pockets[4], sX, sY, 1, -1);
-      drawUPocketGuide(pockets[5], sX, sY, -1, -1);
-
-      ctx.strokeStyle = 'red';
-      const rScale = (sX + sY) / 2;
-      pockets.forEach(p => {
-        ctx.beginPath();
-        ctx.arc(p.x * sX, p.y * sY, p.r * rScale, 0, Math.PI * 2);
-        ctx.stroke();
-      });
-    }
-
-    function drawVPocketGuide(p, sX, sY, dir) {
-      const R = p.r * ((sX + sY) / 2) * 1.2;
-      const x = p.x * sX - R * 0.5 * dir;
-      const y = p.y * sY;
-      const dx = R * 1.1 * dir;
-      const dy = R * 1.25;
-      const trim = R * 0.1;
-      ctx.beginPath();
-      ctx.moveTo(x - dx, y);
-      ctx.lineTo(x + dx, y - dy + trim);
-      ctx.moveTo(x - dx, y);
-      ctx.lineTo(x + dx, y + dy - trim);
-      ctx.stroke();
-    }
-
-    function drawUPocketGuide(p, sX, sY, sx, sy) {
-      const R = p.r * ((sX + sY) / 2) * 1.1;
-      const x = p.x * sX;
-      const y = p.y * sY;
-      ctx.save();
-      ctx.translate(x, y);
-      ctx.scale(sx, sy);
-      ctx.rotate(-Math.PI / 4);
-      ctx.beginPath();
-      ctx.arc(0, 0, R, Math.PI, 0);
-      const lineLen = R * 1.2;
-      const lineStart = R * 0.1;
-      ctx.moveTo(-R, lineStart);
-      ctx.lineTo(-R, lineLen);
-      ctx.moveTo(R, lineStart);
-      ctx.lineTo(R, lineLen);
-      ctx.stroke();
-      ctx.restore();
-    }
 
     resize();
     window.addEventListener('resize', resize);
