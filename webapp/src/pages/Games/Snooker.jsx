@@ -28,14 +28,14 @@ export default function Snooker() {
 
     const tableRect = { x: rail, y: rail, w: W - rail * 2, h: H - rail * 2 };
 
-    const pockets = [
-      vec(tableRect.x, tableRect.y),
-      vec(tableRect.x + tableRect.w / 2, tableRect.y - 2),
-      vec(tableRect.x + tableRect.w, tableRect.y),
-      vec(tableRect.x, tableRect.y + tableRect.h),
-      vec(tableRect.x + tableRect.w / 2, tableRect.y + tableRect.h + 2),
-      vec(tableRect.x + tableRect.w, tableRect.y + tableRect.h)
-    ];
+      const pockets = [
+        vec(tableRect.x, tableRect.y),
+        vec(tableRect.x + tableRect.w, tableRect.y),
+        vec(tableRect.x, tableRect.y + tableRect.h),
+        vec(tableRect.x + tableRect.w, tableRect.y + tableRect.h),
+        vec(tableRect.x - 2, tableRect.y + tableRect.h / 2),
+        vec(tableRect.x + tableRect.w + 2, tableRect.y + tableRect.h / 2)
+      ];
 
     const colors = {
       cue: '#ffffff',
@@ -279,8 +279,8 @@ export default function Snooker() {
     }
     function up(e) {
       if (!aiming) return; aiming = false; const dir = norm(sub(aimStart, aimCurrent));
-      const baseSpeed = 950 * 3 * 1.6 * 1.5 * 0.6;
-      const speed = baseSpeed * (0.25 + 0.75 * shotPower);
+        const baseSpeed = 950 * 3 * 1.6 * 1.5 * 0.6;
+        const speed = baseSpeed * (0.25 + 0.75 * shotPower) * 2;
       cueBall.v = add(cueBall.v, mul(dir, speed / 60));
       if (shotPower > 0.02) { shotCount++; document.getElementById('shotCount').textContent = shotCount; }
       shotPower = 0; updatePowerBar();
@@ -319,7 +319,7 @@ export default function Snooker() {
           <button id="resetBtn" className="snooker-btn">Re-Spot Cue</button>
         </div>
       </div>
-      <canvas id="table" width="480" height="960"></canvas>
+        <canvas id="table" width="360" height="720"></canvas>
     </div>
   );
 }
