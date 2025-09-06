@@ -2446,6 +2446,37 @@
                 drawUPocketGuide(p[4], 1, -1, false);
                 drawUPocketGuide(p[5], -1, -1, false);
                 ctx.stroke();
+                ctx.strokeStyle = 'orange';
+                ctx.beginPath();
+                var seal = lineW * 2;
+                // horizontal joints
+                ctx.moveTo(topStart - seal, topY);
+                ctx.lineTo(topStart + seal, topY);
+                ctx.moveTo(topEnd - seal, topY);
+                ctx.lineTo(topEnd + seal, topY);
+                ctx.moveTo(bottomStart - seal, bottomY);
+                ctx.lineTo(bottomStart + seal, bottomY);
+                ctx.moveTo(bottomEnd - seal, bottomY);
+                ctx.lineTo(bottomEnd + seal, bottomY);
+                // left vertical joints
+                ctx.moveTo(xLeft, leftTop - seal);
+                ctx.lineTo(xLeft, leftTop + seal);
+                ctx.moveTo(xLeft, leftMidTop - seal);
+                ctx.lineTo(xLeft, leftMidTop + seal);
+                ctx.moveTo(xLeft, leftMidBottom - seal);
+                ctx.lineTo(xLeft, leftMidBottom + seal);
+                ctx.moveTo(xLeft, leftBottom - seal);
+                ctx.lineTo(xLeft, leftBottom + seal);
+                // right vertical joints
+                ctx.moveTo(xRight, rightTop - seal);
+                ctx.lineTo(xRight, rightTop + seal);
+                ctx.moveTo(xRight, rightMidTop - seal);
+                ctx.lineTo(xRight, rightMidTop + seal);
+                ctx.moveTo(xRight, rightMidBottom - seal);
+                ctx.lineTo(xRight, rightMidBottom + seal);
+                ctx.moveTo(xRight, rightBottom - seal);
+                ctx.lineTo(xRight, rightBottom + seal);
+                ctx.stroke();
                 ctx.strokeStyle = 'red';
                 ctx.lineWidth = 2;
                 var rScale = (sX + sY) / 2;
