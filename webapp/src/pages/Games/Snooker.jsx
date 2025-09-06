@@ -1,5 +1,8 @@
 import React, { useRef, useEffect, useState } from "react";
 import * as THREE from "three";
+import { PowerSlider } from "../../snooker/PowerSlider.js";
+import "../../snooker/power-slider.css";
+import "../../snooker/spin.css";
 
 /**
  * Snooker 3D – Pro Table Look + Proper Pockets + Spin UI
@@ -42,7 +45,11 @@ export default function Snooker3D() {
   const cueIdxRef = useRef(0);
   const ballsRef = useRef([]);
   const aimRef = useRef({ active: false, dir: new THREE.Vector2(1, 0) });
-  const [ui, setUi] = useState({ score: 0, power: 0.6, spinX: 0, spinY: 0 });
+  const sphRef = useRef(new THREE.Spherical(120, Math.PI / 3.2, Math.PI / 6));
+  const updateCamRef = useRef(() => {});
+  const powerRef = useRef(null);
+  const spinRef = useRef(null);
+  const [ui, setUi] = useState({ score: 0, power: 0, spinX: 0, spinY: 0 });
 
   useEffect(() => {
     const container = mountRef.current;
@@ -59,14 +66,15 @@ export default function Snooker3D() {
 
     const camera = new THREE.PerspectiveCamera(45, container.clientWidth / container.clientHeight, 0.1, 1000);
     const target = new THREE.Vector3(0, 0, 0);
-    const sph = new THREE.Spherical(120, Math.PI / 3.2, Math.PI / 6);
+    const sph = sphRef.current;
     const updateCam = () => { camera.position.setFromSpherical(sph).add(target); camera.lookAt(target); };
+    updateCamRef.current = updateCam;
     updateCam();
 
     // Minimal orbit controls
     const state = { drag: false, lastX: 0, lastY: 0 };
     const onDown = (e) => { state.drag = true; state.lastX = e.clientX || e.touches?.[0].clientX || 0; state.lastY = e.clientY || e.touches?.[0].clientY || 0; };
-    const onMove = (e) => { if (!state.drag) return; const x = e.clientX || e.touches?.[0].clientX || state.lastX; const y = e.clientY || e.touches?.[0].clientY || state.lastY; const dx = x - state.lastX, dy = y - state.lastY; state.lastX = x; state.lastY = y; sph.theta -= dx * 0.005; sph.phi = Math.min(Math.max(0.35, sph.phi + dy * 0.005), Math.PI - 0.2); updateCam(); };
+    const onMove = (e) => { if (!state.drag) return; const x = e.clientX || e.touches?.[0].clientX || state.lastX; const y = e.clientY || e.touches?.[0].clientY || state.lastY; const dx = x - state.lastX, dy = y - state.lastY; state.lastX = x; state.lastY = y; sph.theta -= dx * 0.005; sph.phi = Math.min(Math.max(0.35, sph.phi + dy * 0.005), Math.PI / 2); updateCam(); };
     const onUp = () => { state.drag = false; };
     const onWheel = (e) => { sph.radius = THREE.MathUtils.clamp(sph.radius + e.deltaY * 0.05, 70, 180); updateCam(); };
 
@@ -339,34 +347,25 @@ export default function Snooker3D() {
   }, [ui.power, ui.spinX, ui.spinY]);
 
   // --- HUD CONTROLS ---
-  // Power bar: thin vertical bar that you drag to set [0..1]; on mouseup => commit
-  const powerBarRef = useRef(null);
+  // Power slider (imported from Pool Royale but copied locally for Snooker)
   useEffect(() => {
-    const el = powerBarRef.current; if (!el) return;
-    const knob = el.querySelector('.knob');
-    let dragging = false;
-    const setFromY = (clientY) => {
-      const rect = el.getBoundingClientRect();
-      const t = 1 - (clientY - rect.top) / rect.height; // 0..1
-      const v = Math.min(1, Math.max(0, t));
-      setUi(s => ({ ...s, power: v }));
-    };
-    const onDown = (e) => { dragging = true; setFromY(e.clientY || e.touches?.[0].clientY || 0); };
-    const onMove = (e) => { if (!dragging) return; setFromY(e.clientY || e.touches?.[0].clientY || 0); };
-    const onUp = () => { if (dragging && (window).__snk_commitShot) (window).__snk_commitShot(); dragging = false; };
-    el.addEventListener('pointerdown', onDown); window.addEventListener('pointermove', onMove); window.addEventListener('pointerup', onUp);
-    el.addEventListener('touchstart', onDown, { passive: true }); window.addEventListener('touchmove', onMove, { passive: true }); window.addEventListener('touchend', onUp);
-    return () => {
-      el.removeEventListener('pointerdown', onDown); window.removeEventListener('pointermove', onMove); window.removeEventListener('pointerup', onUp);
-      el.removeEventListener('touchstart', onDown); window.removeEventListener('touchmove', onMove); window.removeEventListener('touchend', onUp);
-    };
+    const mount = powerRef.current;
+    if (!mount) return;
+    const slider = new PowerSlider({
+      mount,
+      value: 0,
+      onChange: (v) => setUi((s) => ({ ...s, power: v / 100 })),
+      onCommit: () => {
+        if ((window).__snk_commitShot) (window).__snk_commitShot();
+      }
+    });
+    return () => slider.destroy();
   }, []);
 
-  // Spin controller: white-ball circle with draggable red dot => spinX (up/down), spinY (left/right)
-  const spinRef = useRef(null);
+  // Spin controller: white ball with red dot (copied from Pool Royale)
   useEffect(() => {
     const root = spinRef.current; if (!root) return;
-    const dot = root.querySelector('.dot');
+    const dot = root.querySelector('.snk-spin-dot');
     let dragging = false;
     const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
     const setFromClient = (clientX, clientY) => {
@@ -391,35 +390,29 @@ export default function Snooker3D() {
   }, []);
 
   return (
-    <div className="w-full flex flex-col items-center gap-3 p-3">
-      <h1 className="text-xl font-semibold">Snooker 3D – Pro Table (Pockets • Jaws • Spin • Power)</h1>
+    <div className="relative w-full h-[100dvh] overflow-hidden">
+      {/* 3D Canvas Mount */}
+      <div ref={mountRef} className="absolute inset-0" />
 
-      <div className="w-full max-w-[1100px] aspect-[16/9] border border-gray-700 rounded-xl overflow-hidden relative">
-        {/* 3D Canvas Mount */}
-        <div ref={mountRef} className="absolute inset-0" />
+      {/* HUD: Score */}
+      <div className="absolute left-2 top-2 bg-black/50 text-white text-xs rounded-lg p-2">Score: <b>{ui.score}</b></div>
 
-        {/* HUD: Score */}
-        <div className="absolute left-2 top-2 bg-black/50 text-white text-xs rounded-lg p-2">Score: <b>{ui.score}</b></div>
+      {/* Power slider */}
+      <div ref={powerRef} className="absolute right-3 top-1/2 -translate-y-1/2"></div>
 
-        {/* HUD: Thin vertical power bar */}
-        <div ref={powerBarRef} className="absolute right-3 top-1/2 -translate-y-1/2 h-[70%] w-[10px] bg-white/15 rounded-full cursor-pointer">
-          <div className="knob absolute left-1/2 -translate-x-1/2 w-[14px] h-[2px] bg-white rounded" style={{ top: `${(1-ui.power)*100}%` }} />
-          <div className="absolute left-1/2 -translate-x-1/2 w-[2px] bg-white/40" style={{ top: 0, height: `${(1-ui.power)*100}%` }} />
-          <div className="absolute left-1/2 -translate-x-1/2 w-[2px] bg-white" style={{ top: `${(1-ui.power)*100}%`, height: `${ui.power*100}%` }} />
-          <div className="absolute -bottom-6 left-1/2 -translate-x-1/2 text-[10px] text-white/70">Power</div>
-        </div>
-
-        {/* HUD: Spin controller (white ball with red dot) */}
-        <div ref={spinRef} className="absolute left-2 bottom-2 w-[90px] h-[90px] rounded-full bg-white shadow-inner shadow-black/40 flex items-center justify-center select-none cursor-pointer">
-          <div className="dot w-3 h-3 rounded-full bg-red-600" style={{ transform: `translate(${ui.spinY*35}px, ${-ui.spinX*35}px)` }} />
-        </div>
-        <div className="absolute left-2 bottom-0 translate-y-[-6px] text-[10px] text-white/70">Spin</div>
-
-        {/* Shot helper: tap power bar to commit on release */}
-        <button onMouseDown={() => (window).__snk_commitShot && (window).__snk_commitShot()} className="hidden" aria-hidden="true" />
+      {/* Spin controller */}
+      <div ref={spinRef} className="snk-spin-box absolute left-1/2 top-16 -translate-x-1/2">
+        <div className="snk-spin-dot" style={{ transform: `translate(${ui.spinY*35}px, ${-ui.spinX*35}px)` }} />
       </div>
 
-      <p className="text-xs opacity-70 text-center max-w-[1100px]">Aim by dragging from the cue ball (dashed line shows direction + target tick). Set power with the thin bar (drag & release to shoot). Set spin by dragging the red dot on the white ball.</p>
+      {/* Top view button */}
+      <button
+        onClick={() => { sphRef.current.phi = 0.35; sphRef.current.theta = 0; updateCamRef.current(); }}
+        className="absolute top-3 right-16 w-12 h-12 rounded-full border border-white text-white bg-transparent"
+        aria-label="Top view"
+      >
+        ⬆️
+      </button>
     </div>
   );
 }
