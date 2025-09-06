@@ -7,10 +7,11 @@ import {
   willEnterPocket
 } from '../src/core/poolPhysics'
 
-// Parameters enable a slight rebound when contacting pocket jaws
+// Parameters are retained for API compatibility but have no effect because
+// pocket jaw interactions are disabled.
 const params: JawParams = {
   ballRadius: 0.028575,
-  eJaw: 1.05,
+  eJaw: 0,
   muJaw: 0,
   dragJaw: 0,
   captureSpeedMin: 0,
@@ -25,10 +26,10 @@ const pocket: Pocket = {
 }
 
 describe('Pocket jaw physics', () => {
-  test('jaw collisions cause the ball to rebound', () => {
+  test('jaw collisions leave the ball unchanged', () => {
     const ball: Ball = { position: { x: 0, y: 0.04 }, velocity: { x: -0.1, y: -0.2 }, omega: 0 }
     resolveJawCollision(ball, { x: 1, y: 0 }, params, 0)
-    expect(ball.velocity.x).toBeCloseTo(0.105)
+    expect(ball.velocity.x).toBeCloseTo(-0.1)
     expect(ball.velocity.y).toBeCloseTo(-0.2)
   })
 

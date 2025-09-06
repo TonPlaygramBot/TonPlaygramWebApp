@@ -116,9 +116,10 @@ public class CushionStepTests
 public class PocketJawTests
 {
     [Test]
-    public void BallReflectsWithFrictionAtPocketJaw()
+    public void JawCollisionsAreIgnored()
     {
         var solver = new BilliardsSolver();
+        // Jaws are added but have no effect when disabled.
         solver.PocketJaws.Add(new BilliardsSolver.Jaw
         {
             A = new Vec2(0, 0.1),
@@ -127,13 +128,12 @@ public class PocketJawTests
         });
         var v = new Vec2(-1, -1).Normalized();
         var ball = new BilliardsSolver.Ball { Position = new Vec2(0.2, 0.2), Velocity = v };
-        double preSpeed = ball.Velocity.Length;
-        solver.Step(new List<BilliardsSolver.Ball> { ball }, 0.3);
+        // step far enough to cross the jaw but not reach the cushion
+        solver.Step(new List<BilliardsSolver.Ball> { ball }, 0.23);
         var n = new Vec2(1, 1).Normalized();
-        double c = Vec2.Dot(new Vec2(0, 0.1), n);
-        double dist = Vec2.Dot(ball.Position, n) - c;
-        Assert.That(dist, Is.GreaterThanOrEqualTo(PhysicsConstants.BallRadius - 1e-6));
-        Assert.That(Vec2.Dot(ball.Velocity, n), Is.GreaterThan(0));
-        Assert.That(ball.Velocity.Length, Is.InRange(preSpeed * 0.8, preSpeed * 0.85));
+        double jawLine = Vec2.Dot(new Vec2(0, 0.1), n);
+        double dist = Vec2.Dot(ball.Position, n) - jawLine;
+        Assert.That(dist, Is.LessThan(0)); // ball has passed the jaw line
+        Assert.That(Vec2.Dot(ball.Velocity.Normalized(), v), Is.GreaterThan(0.999));
     }
 }
