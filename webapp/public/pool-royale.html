@@ -2108,13 +2108,31 @@
               var T = BORDER_TOP + BALL_R;
               var B = TABLE_H - BORDER_BOTTOM - BALL_R;
 
+              // Determine whether the ball is in the vicinity of any pocket.
+              var nearLeft = false,
+                nearRight = false,
+                nearTop = false,
+                nearBottom = false;
+              for (var pkIdx = 0; pkIdx < this.pockets.length; pkIdx++) {
+                var pp = this.pockets[pkIdx];
+                var thresh = pp.r + BALL_R;
+                if (Math.abs(b.p.y - pp.y) < thresh) {
+                  if (pp.x < L) nearLeft = true;
+                  if (pp.x > R) nearRight = true;
+                }
+                if (Math.abs(b.p.x - pp.x) < thresh) {
+                  if (pp.y < T) nearTop = true;
+                  if (pp.y > B) nearBottom = true;
+                }
+              }
+
               if (b.n === 0) {
                 if (b.p.x - L < BALL_R * 1.5 && b.v.x < 0) applySpinImpulse(b);
                 if (R - b.p.x < BALL_R * 1.5 && b.v.x > 0) applySpinImpulse(b);
                 if (b.p.y - T < BALL_R * 1.5 && b.v.y < 0) applySpinImpulse(b);
                 if (B - b.p.y < BALL_R * 1.5 && b.v.y > 0) applySpinImpulse(b);
               }
-              if (b.p.x < L) {
+              if (b.p.x < L && !nearLeft) {
                 b.p.x = L;
                 reflectVelocity(b.v, 1, 0, BOUNCE);
                 if (b.n === 0) {
@@ -2124,7 +2142,7 @@
                 if (i === 0 && shotInProgress && !firstHit)
                   cueHitCushion = true;
               }
-              if (b.p.x > R) {
+              if (b.p.x > R && !nearRight) {
                 b.p.x = R;
                 reflectVelocity(b.v, -1, 0, BOUNCE);
                 if (b.n === 0) {
@@ -2134,7 +2152,7 @@
                 if (i === 0 && shotInProgress && !firstHit)
                   cueHitCushion = true;
               }
-              if (b.p.y < T) {
+              if (b.p.y < T && !nearTop) {
                 b.p.y = T;
                 reflectVelocity(b.v, 0, 1, BOUNCE);
                 if (b.n === 0) {
@@ -2144,7 +2162,7 @@
                 if (i === 0 && shotInProgress && !firstHit)
                   cueHitCushion = true;
               }
-              if (b.p.y > B) {
+              if (b.p.y > B && !nearBottom) {
                 b.p.y = B;
                 reflectVelocity(b.v, 0, -1, BOUNCE);
                 if (b.n === 0) {
@@ -2440,17 +2458,18 @@
             // trup i topit me gradient 2.5D
             ctx.save();
             ctx.translate(px, py);
+            // Snooker-style shading: subtle light on top-left and darker rim
             var grad = ctx.createRadialGradient(
-              -ballR * 0.4,
-              -ballR * 0.6,
-              ballR * 0.2,
+              -ballR * 0.3,
+              -ballR * 0.3,
+              ballR * 0.1,
               0,
               0,
-              ballR * 1.2
+              ballR * 1.05
             );
-            grad.addColorStop(0, shadeColor(BALL_BY_N[b.n].c, 40));
-            grad.addColorStop(0.6, BALL_BY_N[b.n].c);
-            grad.addColorStop(1, shadeColor(BALL_BY_N[b.n].c, -40));
+            grad.addColorStop(0, shadeColor(BALL_BY_N[b.n].c, 35));
+            grad.addColorStop(0.5, BALL_BY_N[b.n].c);
+            grad.addColorStop(1, shadeColor(BALL_BY_N[b.n].c, -45));
 
             // stripe nese duhet
             var stripe =
@@ -2458,16 +2477,16 @@
             var stripeGrad;
             if (stripe) {
               stripeGrad = ctx.createRadialGradient(
-                -ballR * 0.4,
-                -ballR * 0.6,
-                ballR * 0.2,
+                -ballR * 0.3,
+                -ballR * 0.3,
+                ballR * 0.1,
                 0,
                 0,
-                ballR * 1.2
+                ballR * 1.05
               );
-              stripeGrad.addColorStop(0, shadeColor('#fff', 40));
-              stripeGrad.addColorStop(0.6, '#fff');
-              stripeGrad.addColorStop(1, shadeColor('#fff', -40));
+              stripeGrad.addColorStop(0, shadeColor('#fff', 35));
+              stripeGrad.addColorStop(0.5, '#fff');
+              stripeGrad.addColorStop(1, shadeColor('#fff', -45));
             }
 
             // draw base shading without rotation so shadow stays fixed
@@ -2475,15 +2494,18 @@
             ctx.beginPath();
             ctx.arc(0, 0, ballR, 0, Math.PI * 2);
             ctx.fill();
+            ctx.strokeStyle = shadeColor(BALL_BY_N[b.n].c, -60);
+            ctx.lineWidth = ballR * 0.05;
+            ctx.stroke();
 
             // specular highlight
             ctx.fillStyle = 'rgba(255,255,255,0.65)';
             ctx.beginPath();
             ctx.ellipse(
-              -ballR * 0.45,
-              -ballR * 0.55,
-              ballR * 0.22,
-              ballR * 0.12,
+              -ballR * 0.35,
+              -ballR * 0.35,
+              ballR * 0.25,
+              ballR * 0.15,
               -0.5,
               0,
               Math.PI * 2
