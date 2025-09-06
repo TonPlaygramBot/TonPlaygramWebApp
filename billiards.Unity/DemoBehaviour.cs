@@ -12,6 +12,7 @@ public class DemoBehaviour : MonoBehaviour
 
     private void Start()
     {
+        solver.InitStandardTable();
         Line.positionCount = 0;
     }
 
