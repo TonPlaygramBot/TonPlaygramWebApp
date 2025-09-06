@@ -36,16 +36,16 @@ import * as THREE from "three";
 // Table nominal footprint (12' x 6' look, in scene units). We keep a slightly compact footprint
 // for mobile portrait while preserving ratio.
 const TABLE = {
-  W: 132,       // cloth inner width (~long side)
-  H: 66,        // cloth inner height (~short side)
-  WALL: 2.6,    // rail collision margin
-  THICK: 2,     // cloth thickness for fallback geom
+  W: 121.6,    // cloth inner width (~long side) matching Pool Royale ratio
+  H: 76.8,     // cloth inner height (~short side)
+  WALL: 2.6,   // rail collision margin
+  THICK: 2,    // cloth thickness for fallback geom
 };
 
 // Ball/pocket/physics setup
-const BALL_R = 2;                 // radius of balls
-const POCKET_R = 4.15;            // visual ring radius (physics sink radius handled separately)
-const POCKET_SINK_R = 3.9;        // slightly smaller than ring for fair capture
+const BALL_R = 2.2;                // radius of balls
+const POCKET_R = 3.2;              // visual ring radius (physics sink radius handled separately)
+const POCKET_SINK_R = 3.0;         // slightly smaller than ring for fair capture
 const FRICTION = 0.9925;          // linear friction per frame
 const STOP_EPS = 0.02;            // threshold to consider a ball stopped
 
@@ -371,7 +371,8 @@ export default function Snooker3D() {
       const camera = new THREE.PerspectiveCamera(CAMERA.fov, container.clientWidth / container.clientHeight, CAMERA.near, CAMERA.far);
       const target = new THREE.Vector3(0, 0, 0);
       // Baulk side view => theta = -90° (looking +Z), pitch around middle-high to see full table
-      const sph = new THREE.Spherical(180, Math.PI / 2.5, -Math.PI / 2);
+      // Slightly offset the camera toward the right for a better view
+      const sph = new THREE.Spherical(180, Math.PI / 2.5, -Math.PI / 2 + 0.2);
 
       const updateCamFit = () => {
         camera.aspect = container.clientWidth / container.clientHeight;
@@ -480,8 +481,8 @@ export default function Snooker3D() {
       };
 
       // Cue ball
-      pushBall('cue', COLORS.cue, -TABLE.W * 0.3, 0);
-      cueIdxRef.current = 0;
+      const cueBall = pushBall('cue', COLORS.cue, -TABLE.W * 0.3, 0);
+      cueIdxRef.current = balls.indexOf(cueBall);
 
       // Reds triangle (base near pink)
       let rid = 0; const sx = TABLE.W * 0.1; const sy = 0;
@@ -656,6 +657,7 @@ export default function Snooker3D() {
     const onUp = () => {
       if (dragging && pulledDown && (window).__snk_commitShot) (window).__snk_commitShot();
       dragging = false; pulledDown = false;
+      setUi(s => ({ ...s, power: 0 }));
     };
 
     el.addEventListener('pointerdown', onDown);
