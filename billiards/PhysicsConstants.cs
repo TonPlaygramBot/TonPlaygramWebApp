@@ -7,7 +7,8 @@ public static class PhysicsConstants
     public const double Restitution = 0.98;            // elastic coefficient
     // cushions should return a bit of energy for a natural feel without amplifying speed
     public const double CushionRestitution = Restitution * 0.9; // slight bounce for table edges
-    public const double JawRestitution = 0.85;          // pocket jaw elasticity
+    // pocket jaws bounce with 75% less energy than cushions
+    public const double JawRestitution = CushionRestitution * 0.25;          // pocket jaw elasticity
     public const double JawFriction = 0.12;             // tangential friction at jaws
     public const double JawDrag = 0.02;                 // additional energy loss on contact
     // reduced damping so balls can travel freely across the table

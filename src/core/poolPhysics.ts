@@ -33,10 +33,28 @@ export interface JawParams {
   reboundThreshold: number
 }
 
-// Pocket jaw interactions are disabled. The function remains for API
-// compatibility but intentionally leaves the ball's velocity unchanged so that
-// balls travel directly into the pocket without rebounding.
-export function resolveJawCollision(_ball: Ball, _normal: Vec2, _params: JawParams, _time: number) {}
+// Reflect the ball off a pocket jaw with a reduced restitution. The normal
+// component of the velocity is inverted and scaled by `params.eJaw`, while the
+// tangential component is dampened by `params.muJaw` and `params.dragJaw`.
+export function resolveJawCollision(ball: Ball, normal: Vec2, params: JawParams, _time: number) {
+  const vn = dot(ball.velocity, normal)
+  if (vn >= 0) return // moving away from the jaw
+
+  const vNormal = scale(normal, vn)
+  const vTangent = sub(ball.velocity, vNormal)
+
+  const vNormalAfter = scale(normal, -vn * params.eJaw)
+  const vTangentAfter = scale(vTangent, 1 - params.muJaw)
+  let vPrime = add(vNormalAfter, vTangentAfter)
+  vPrime = scale(vPrime, 1 - params.dragJaw)
+
+  // Capture slow balls so they drop into the pocket instead of rebounding
+  if (length(vPrime) < params.reboundThreshold) {
+    vPrime = { x: 0, y: 0 }
+  }
+
+  ball.velocity = vPrime
+}
 
 export function centerPathIntersectsFunnel(_ball: Ball, _pocket: Pocket, _params: JawParams): boolean {
   // simplified: any trajectory is considered valid for pocket entry
