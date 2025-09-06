@@ -33,6 +33,15 @@ export interface JawParams {
   reboundThreshold: number
 }
 
+export const DEFAULT_JAW_PARAMS: JawParams = {
+  ballRadius: 0.028575,
+  eJaw: 0.25,
+  muJaw: 0,
+  dragJaw: 0.75,
+  captureSpeedMin: 0,
+  reboundThreshold: 0
+}
+
 // Reflect the ball off a pocket jaw with a reduced restitution. The normal
 // component of the velocity is inverted and scaled by `params.eJaw`, while the
 // tangential component is dampened by `params.muJaw` and `params.dragJaw`.
