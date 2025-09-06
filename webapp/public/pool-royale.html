@@ -3641,9 +3641,9 @@
 
         function drawVPocketGuide(p, dir, stroke = true) {
           var R = p.r * ((sX + sY) / 2) * 1.2;
-          var x = p.x * sX - R * 0.5 * dir;
+          var x = p.x * sX + R * 0.5 * dir;
           var y = p.y * sY;
-          var dx = R * 1.1 * dir;
+          var dx = -R * 1.1 * dir;
           var dy = R * 1.25;
           var trim = R * 0.1;
           var curve = R * 0.25;
@@ -3676,11 +3676,11 @@
           // left connector with curve
           ctx.moveTo(-R, lineStart);
           ctx.lineTo(-R, lineLen - curve);
-          ctx.arcTo(-R, lineLen, -R + curve, lineLen, curve);
+          ctx.arcTo(-R, lineLen, -R - curve, lineLen, curve);
           // right connector with curve
           ctx.moveTo(R, lineStart);
           ctx.lineTo(R, lineLen - curve);
-          ctx.arcTo(R, lineLen, R - curve, lineLen, curve);
+          ctx.arcTo(R, lineLen, R + curve, lineLen, curve);
           if (stroke) ctx.stroke();
           ctx.restore();
         }
