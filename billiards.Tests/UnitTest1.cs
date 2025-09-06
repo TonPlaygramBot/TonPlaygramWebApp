@@ -136,3 +136,24 @@ public class PocketJawTests
         Assert.That(Vec2.Dot(ball.Velocity, n), Is.GreaterThan(0));
     }
 }
+
+public class PocketEntryTests
+{
+    [Test]
+    public void BallEntersCornerPocket()
+    {
+        var solver = new BilliardsSolver();
+        solver.InitStandardTable();
+        var ball = new BilliardsSolver.Ball
+        {
+            Position = new Vec2(0.05, 0.05),
+            Velocity = new Vec2(-1, -1)
+        };
+        // step long enough for the ball to clear the pocket mouth
+        solver.Step(new List<BilliardsSolver.Ball> { ball }, 0.2);
+        Assert.That(ball.Position.X, Is.LessThan(0));
+        Assert.That(ball.Position.Y, Is.LessThan(0));
+        Assert.That(ball.Velocity.X, Is.LessThan(0));
+        Assert.That(ball.Velocity.Y, Is.LessThan(0));
+    }
+}

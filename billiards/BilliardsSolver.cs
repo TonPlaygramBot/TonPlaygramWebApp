@@ -21,6 +21,68 @@ public class BilliardsSolver
 
     public List<Jaw> PocketJaws { get; } = new List<Jaw>();
 
+    /// <summary>
+    /// Populate <see cref="PocketJaws"/> with the standard six-pocket table
+    /// geometry. Normals point toward the table interior so a ball striking a
+    /// jaw is reflected back onto the cloth. The layout approximates a 9ft
+    /// table in metres.
+    /// </summary>
+    public void InitStandardTable()
+    {
+        PocketJaws.Clear();
+        double w = PhysicsConstants.TableWidth;
+        double h = PhysicsConstants.TableHeight;
+
+        // Pocket dimensions (metres)
+        const double cornerWidth = 0.11;   // opening along each rail
+        const double cornerDepth = 0.2;    // depth of cut into the pocket
+        const double sideWidth = 0.14;     // gap along the long rail
+        const double sideDepth = 0.1;      // depth for side pockets
+        double mid = w * 0.5;
+
+        void AddJaw(Vec2 a, Vec2 b, Vec2 interior)
+        {
+            var v = b - a;
+            var n = new Vec2(-v.Y, v.X);
+            if (Vec2.Dot(n, interior) < 0)
+                n = new Vec2(v.Y, -v.X);
+            PocketJaws.Add(new Jaw { A = a, B = b, Normal = n.Normalized() });
+        }
+
+        // Corner pockets
+        Vec2 p;
+
+        // bottom-left
+        p = new Vec2(cornerDepth, cornerDepth);
+        AddJaw(new Vec2(0, cornerWidth), p, new Vec2(1, 1));
+        AddJaw(new Vec2(cornerWidth, 0), p, new Vec2(1, 1));
+
+        // bottom-right
+        p = new Vec2(w - cornerDepth, cornerDepth);
+        AddJaw(new Vec2(w - cornerWidth, 0), p, new Vec2(-1, 1));
+        AddJaw(new Vec2(w, cornerWidth), p, new Vec2(-1, 1));
+
+        // top-left
+        p = new Vec2(cornerDepth, h - cornerDepth);
+        AddJaw(new Vec2(0, h - cornerWidth), p, new Vec2(1, -1));
+        AddJaw(new Vec2(cornerWidth, h), p, new Vec2(1, -1));
+
+        // top-right
+        p = new Vec2(w - cornerDepth, h - cornerDepth);
+        AddJaw(new Vec2(w - cornerWidth, h), p, new Vec2(-1, -1));
+        AddJaw(new Vec2(w, h - cornerWidth), p, new Vec2(-1, -1));
+
+        // Side pockets (bottom)
+        p = new Vec2(mid, sideDepth);
+        AddJaw(new Vec2(mid - sideWidth / 2, 0), p, new Vec2(0, 1));
+        AddJaw(new Vec2(mid + sideWidth / 2, 0), p, new Vec2(0, 1));
+
+        // Side pockets (top)
+        p = new Vec2(mid, h - sideDepth);
+        AddJaw(new Vec2(mid - sideWidth / 2, h), p, new Vec2(0, -1));
+        AddJaw(new Vec2(mid + sideWidth / 2, h), p, new Vec2(0, -1));
+    }
+
     public struct Preview
     {
         public List<Vec2> Path;
