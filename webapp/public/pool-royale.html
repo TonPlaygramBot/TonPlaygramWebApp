@@ -2177,28 +2177,28 @@
           var pk = this.pockets;
           var inv = INV_SQRT2;
           handleConnectorCollision(this, b, pk[0], inv, inv, function (rx, ry) {
-            return rx > 0 && ry > 0;
+            return rx >= 0 && ry >= 0;
           });
           handleConnectorCollision(this, b, pk[1], -inv, inv, function (rx, ry) {
-            return rx < 0 && ry > 0;
+            return rx <= 0 && ry >= 0;
           });
           handleConnectorCollision(this, b, pk[4], inv, -inv, function (rx, ry) {
-            return rx > 0 && ry < 0;
+            return rx >= 0 && ry <= 0;
           });
           handleConnectorCollision(this, b, pk[5], -inv, -inv, function (rx, ry) {
-            return rx < 0 && ry < 0;
+            return rx <= 0 && ry <= 0;
           });
           handleConnectorCollision(this, b, pk[2], inv, inv, function (rx, ry) {
-            return rx > 0 && ry < 0;
+            return rx >= 0 && ry <= 0;
           });
           handleConnectorCollision(this, b, pk[2], inv, -inv, function (rx, ry) {
-            return rx > 0 && ry > 0;
+            return rx >= 0 && ry >= 0;
           });
           handleConnectorCollision(this, b, pk[3], -inv, inv, function (rx, ry) {
-            return rx < 0 && ry < 0;
+            return rx <= 0 && ry <= 0;
           });
           handleConnectorCollision(this, b, pk[3], -inv, -inv, function (rx, ry) {
-            return rx < 0 && ry > 0;
+            return rx <= 0 && ry >= 0;
           });
 
           // Perplasje ball-ball
@@ -2436,14 +2436,14 @@
                 ctx.lineTo(xRight, rightMidTop);
                 ctx.moveTo(xRight, rightMidBottom);
                 ctx.lineTo(xRight, rightBottom);
+                // pocket connectors integrated into the boundary
+                drawVPocketGuide(p[2], 1, false);
+                drawVPocketGuide(p[3], -1, false);
+                drawUPocketGuide(p[0], 1, 1, false);
+                drawUPocketGuide(p[1], -1, 1, false);
+                drawUPocketGuide(p[4], 1, -1, false);
+                drawUPocketGuide(p[5], -1, -1, false);
                 ctx.stroke();
-                ctx.strokeStyle = '#ff0';
-                drawVPocketGuide(this.pockets[2], 1);
-                drawVPocketGuide(this.pockets[3], -1);
-                drawUPocketGuide(this.pockets[0], 1, 1);
-                drawUPocketGuide(this.pockets[1], -1, 1);
-                drawUPocketGuide(this.pockets[4], 1, -1);
-                drawUPocketGuide(this.pockets[5], -1, -1);
                 ctx.strokeStyle = 'red';
                 ctx.lineWidth = 2;
                 var rScale = (sX + sY) / 2;
@@ -3606,22 +3606,22 @@
           ctx.restore();
         }
 
-        function drawVPocketGuide(p, dir) {
+        function drawVPocketGuide(p, dir, stroke = true) {
           var R = p.r * ((sX + sY) / 2) * 1.2;
           var x = p.x * sX - R * 0.5 * dir;
           var y = p.y * sY;
           var dx = R * 1.1 * dir;
           var dy = R * 1.25;
           var trim = R * 0.1;
-          ctx.beginPath();
+          if (stroke) ctx.beginPath();
           ctx.moveTo(x - dx, y);
           ctx.lineTo(x + dx, y - dy + trim);
           ctx.moveTo(x - dx, y);
           ctx.lineTo(x + dx, y + dy - trim);
-          ctx.stroke();
+          if (stroke) ctx.stroke();
         }
 
-        function drawUPocketGuide(p, sx, sy) {
+        function drawUPocketGuide(p, sx, sy, stroke = true) {
           var R = p.r * ((sX + sY) / 2) * 1.1;
           var x = p.x * sX;
           var y = p.y * sY;
@@ -3629,7 +3629,8 @@
           ctx.translate(x, y);
           ctx.scale(sx, sy);
           ctx.rotate(-Math.PI / 4);
-          ctx.beginPath();
+          if (stroke) ctx.beginPath();
+          ctx.moveTo(-R, 0);
           ctx.arc(0, 0, R, Math.PI, 0);
           var lineLen = R * 1.2;
           var lineStart = R * 0.1;
@@ -3637,7 +3638,7 @@
           ctx.lineTo(-R, lineLen);
           ctx.moveTo(R, lineStart);
           ctx.lineTo(R, lineLen);
-          ctx.stroke();
+          if (stroke) ctx.stroke();
           ctx.restore();
         }
 
