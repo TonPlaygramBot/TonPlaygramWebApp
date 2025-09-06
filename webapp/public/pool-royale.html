@@ -2401,8 +2401,8 @@
               if (this.pockets) {
                 var p = this.pockets;
                 var lineW = ctx.lineWidth;
-                var cornerGap = 0;
-                var sideGap = 0;
+                var cornerGap = lineW * 4;
+                var sideGap = lineW * 2;
                 ctx.beginPath();
                 // top boundary
                 var topY = y0;
@@ -3614,9 +3614,9 @@
           var dy = R * 1.25;
           var trim = R * 0.1;
           if (stroke) ctx.beginPath();
-          if (stroke) ctx.moveTo(x - dx, y); else ctx.lineTo(x - dx, y);
+          ctx.moveTo(x - dx, y);
           ctx.lineTo(x + dx, y - dy + trim);
-          if (stroke) ctx.moveTo(x - dx, y); else ctx.lineTo(x - dx, y);
+          ctx.moveTo(x - dx, y);
           ctx.lineTo(x + dx, y + dy - trim);
           if (stroke) ctx.stroke();
         }
@@ -3630,13 +3630,13 @@
           ctx.scale(sx, sy);
           ctx.rotate(-Math.PI / 4);
           if (stroke) ctx.beginPath();
-          if (stroke) ctx.moveTo(-R, 0); else ctx.lineTo(-R, 0);
+          ctx.moveTo(-R, 0);
           ctx.arc(0, 0, R, Math.PI, 0);
           var lineLen = R * 1.2;
           var lineStart = R * 0.1;
-          if (stroke) ctx.moveTo(-R, lineStart); else ctx.lineTo(-R, lineStart);
+          ctx.moveTo(-R, lineStart);
           ctx.lineTo(-R, lineLen);
-          if (stroke) ctx.moveTo(R, lineStart); else ctx.lineTo(R, lineStart);
+          ctx.moveTo(R, lineStart);
           ctx.lineTo(R, lineLen);
           if (stroke) ctx.stroke();
           ctx.restore();
