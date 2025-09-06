@@ -179,10 +179,7 @@
       #wrap::before {
         content: '';
         position: absolute;
-        top: 8px;
-        left: 0;
-        right: 0;
-        bottom: -20px;
+        inset: 0;
         background: url('/assets/icons/64e79228-35e3-4fdc-b914-fca635a40220.webp')
           top center/calc(100% + 8px) calc(100% + 20px) no-repeat;
         filter: brightness(var(--table-brightness));
@@ -3625,7 +3622,7 @@
         }
 
         function drawUPocketGuide(p, sx, sy, stroke = true) {
-          var R = p.r * ((sX + sY) / 2) * 1.05;
+          var R = p.r * ((sX + sY) / 2) * 1.1;
           var x = p.x * sX;
           var y = p.y * sY;
           ctx.save();
@@ -3635,7 +3632,7 @@
           if (stroke) ctx.beginPath();
           ctx.moveTo(-R, 0);
           ctx.arc(0, 0, R, Math.PI, 0);
-          var lineLen = R * 1.15;
+          var lineLen = R * 1.2;
           var lineStart = R * 0.1;
           ctx.moveTo(-R, lineStart);
           ctx.lineTo(-R, lineLen);
