@@ -33,20 +33,30 @@ export interface JawParams {
   reboundThreshold: number
 }
 
-// Jaw physics has been disabled; collisions with pocket openings are ignored.
-// These helpers now act as no-ops or unconditional passes so that balls do not
-// bounce off invisible pocket jaws.
-export function resolveJawCollision(_ball: Ball, _normal: Vec2, _params: JawParams, _time: number) {
-  // no-op: allow the ball to continue on its path
+// Basic jaw collision handling to provide visible rebound when a ball strikes
+// the pocket opening. The normal component of the velocity is reflected and
+// scaled by the supplied restitution coefficient (eJaw). A small amount of
+// tangential damping (muJaw) and overall drag (dragJaw) may also be applied.
+// Time parameter is currently unused but kept for API compatibility.
+export function resolveJawCollision(ball: Ball, normal: Vec2, params: JawParams, _time: number) {
+  const vDotN = dot(ball.velocity, normal)
+  // Only reflect if the ball is moving into the jaw
+  if (vDotN >= 0) return
+
+  const vNormal = scale(normal, vDotN)
+  const vTangent = sub(ball.velocity, vNormal)
+  const bouncedNormal = scale(normal, -params.eJaw * vDotN)
+  const dampedTangent = scale(vTangent, 1 - params.muJaw)
+  ball.velocity = scale(add(bouncedNormal, dampedTangent), 1 - params.dragJaw)
 }
 
 export function centerPathIntersectsFunnel(_ball: Ball, _pocket: Pocket, _params: JawParams): boolean {
-  // without jaws, any trajectory is considered valid for pocket entry
+  // simplified: any trajectory is considered valid for pocket entry
   return true
 }
 
 export function willEnterPocket(_vPrime: Vec2, _pocket: Pocket, _params: JawParams): boolean {
-  // without jaws, balls always enter the pocket once inside the mouth
+  // simplified: balls always enter the pocket once inside the mouth
   return true
 }
 
