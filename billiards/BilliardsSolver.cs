@@ -96,31 +96,14 @@ public class BilliardsSolver
                         hit = true;
                     }
 
-                    foreach (var j in PocketJaws)
-                    {
-                        if (Ccd.CircleSegment(b.Position, b.Velocity, PhysicsConstants.BallRadius, j.A, j.B, j.Normal, out double tJaw) && tJaw <= remaining && tJaw < tHit)
-                        {
-                            tHit = tJaw;
-                            normal = j.Normal;
-                            restitution = PhysicsConstants.JawRestitution;
-                            hit = true;
-                        }
-                    }
-
+                    // Pocket jaw collisions are ignored, so only cushion interactions are considered.
                     if (hit)
                     {
                         b.Position += b.Velocity * tHit;
                         var speed = b.Velocity.Length;
                         var newSpeed = Math.Max(0, speed - PhysicsConstants.Mu * tHit);
                         b.Velocity = newSpeed > 0 ? b.Velocity.Normalized() * newSpeed : new Vec2(0, 0);
-                        if (restitution == PhysicsConstants.JawRestitution)
-                        {
-                            b.Velocity = Collision.ReflectWithFriction(b.Velocity, normal, PhysicsConstants.JawRestitution, PhysicsConstants.JawFriction, PhysicsConstants.JawDrag);
-                        }
-                        else
-                        {
-                            b.Velocity = Collision.Reflect(b.Velocity, normal, restitution);
-                        }
+                        b.Velocity = Collision.Reflect(b.Velocity, normal, restitution);
                         remaining -= tHit;
                     }
                     else
@@ -146,7 +129,6 @@ public class BilliardsSolver
         Ball hitBall = null;
         Vec2 hitNormal = new Vec2();
         bool ballHit = false;
-        bool pocketHit = false;
 
         foreach (var b in others)
         {
@@ -165,18 +147,7 @@ public class BilliardsSolver
         {
             if (tc < bestT)
             {
-                bestT = tc; hitNormal = n; ballHit = false; pocketHit = false;
-            }
-        }
-
-        foreach (var j in PocketJaws)
-        {
-            if (Ccd.CircleSegment(cueStart, velocity, PhysicsConstants.BallRadius, j.A, j.B, j.Normal, out double te))
-            {
-                if (te < bestT)
-                {
-                    bestT = te; hitNormal = j.Normal; ballHit = false; pocketHit = true;
-                }
+                bestT = tc; hitNormal = n; ballHit = false;
             }
         }
 
@@ -199,10 +170,7 @@ public class BilliardsSolver
         }
         else
         {
-            if (pocketHit)
-                cuePost = Collision.ReflectWithFriction(velocity, hitNormal, PhysicsConstants.JawRestitution, PhysicsConstants.JawFriction, PhysicsConstants.JawDrag);
-            else
-                cuePost = Collision.Reflect(velocity, hitNormal, PhysicsConstants.Restitution);
+            cuePost = Collision.Reflect(velocity, hitNormal, PhysicsConstants.Restitution);
             path.Add(contact + cuePost.Normalized() * PhysicsConstants.BallRadius);
         }
 
@@ -229,15 +197,6 @@ public class BilliardsSolver
                         Collision.ResolveBallBall(cue.Position, cue.Velocity, b.Position, new Vec2(0, 0), out var cuePost, out var targetPost);
                         return new Impact { Point = cue.Position, CueVelocity = cuePost, TargetVelocity = targetPost };
                     }
-                }
-            }
-            foreach (var j in PocketJaws)
-            {
-                if (Ccd.CircleSegment(cue.Position, cue.Velocity, PhysicsConstants.BallRadius, j.A, j.B, j.Normal, out double te) && te <= PhysicsConstants.FixedDt)
-                {
-                    cue.Position += cue.Velocity * te;
-                    var postEdge = Collision.ReflectWithFriction(cue.Velocity, j.Normal, PhysicsConstants.JawRestitution, PhysicsConstants.JawFriction, PhysicsConstants.JawDrag);
-                    return new Impact { Point = cue.Position, CueVelocity = postEdge };
                 }
             }
             if (Ccd.CircleAabb(cue.Position, cue.Velocity, PhysicsConstants.BallRadius, new Vec2(0, 0), new Vec2(PhysicsConstants.TableWidth, PhysicsConstants.TableHeight), out double tc, out Vec2 n) && tc <= PhysicsConstants.FixedDt)

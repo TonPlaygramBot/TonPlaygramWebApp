@@ -33,22 +33,10 @@ export interface JawParams {
   reboundThreshold: number
 }
 
-// Basic jaw collision handling to provide visible rebound when a ball strikes
-// the pocket opening. The normal component of the velocity is reflected and
-// scaled by the supplied restitution coefficient (eJaw). A small amount of
-// tangential damping (muJaw) and overall drag (dragJaw) may also be applied.
-// Time parameter is currently unused but kept for API compatibility.
-export function resolveJawCollision(ball: Ball, normal: Vec2, params: JawParams, _time: number) {
-  const vDotN = dot(ball.velocity, normal)
-  // Only reflect if the ball is moving into the jaw
-  if (vDotN >= 0) return
-
-  const vNormal = scale(normal, vDotN)
-  const vTangent = sub(ball.velocity, vNormal)
-  const bouncedNormal = scale(normal, -params.eJaw * vDotN)
-  const dampedTangent = scale(vTangent, 1 - params.muJaw)
-  ball.velocity = scale(add(bouncedNormal, dampedTangent), 1 - params.dragJaw)
-}
+// Pocket jaw interactions are disabled. The function remains for API
+// compatibility but intentionally leaves the ball's velocity unchanged so that
+// balls travel directly into the pocket without rebounding.
+export function resolveJawCollision(_ball: Ball, _normal: Vec2, _params: JawParams, _time: number) {}
 
 export function centerPathIntersectsFunnel(_ball: Ball, _pocket: Pocket, _params: JawParams): boolean {
   // simplified: any trajectory is considered valid for pocket entry
