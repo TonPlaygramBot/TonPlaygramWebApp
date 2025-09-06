@@ -2393,9 +2393,69 @@
             h = (TABLE_H - BORDER_TOP - BORDER_BOTTOM) * sY;
 
           if (!isSnooker) {
-            // Previously, the table boundaries, pocket connectors, and pocket
-            // outlines were rendered here for debugging purposes. These visual
-            // guides have been removed to keep the table clean during gameplay.
+            ctx.save();
+              ctx.fillStyle = 'rgba(255,255,0,0.05)';
+              ctx.fillRect(x0, y0, w, h);
+              ctx.strokeStyle = 'rgba(0,255,0,0.8)';
+              ctx.lineWidth = 2;
+              if (this.pockets) {
+                var p = this.pockets;
+                var lineW = ctx.lineWidth;
+                var cornerGap = lineW * 4;
+                var sideGap = lineW * 2;
+                ctx.beginPath();
+                // top boundary
+                var topY = y0;
+                var topStart = (p[0].x + p[0].r) * sX + cornerGap;
+                var topEnd = (p[1].x - p[1].r) * sX - cornerGap;
+                ctx.moveTo(topStart, topY);
+                ctx.lineTo(topEnd, topY);
+                // bottom boundary
+                var bottomY = (TABLE_H - BORDER_BOTTOM) * sY;
+                var bottomStart = (p[4].x + p[4].r) * sX + cornerGap;
+                var bottomEnd = (p[5].x - p[5].r) * sX - cornerGap;
+                ctx.moveTo(bottomStart, bottomY);
+                ctx.lineTo(bottomEnd, bottomY);
+                // left boundary with side pocket
+                var xLeft = x0;
+                var leftTop = (p[0].y + p[0].r) * sY + cornerGap;
+                var leftMidTop = (p[2].y - p[2].r) * sY - sideGap;
+                var leftMidBottom = (p[2].y + p[2].r) * sY + sideGap;
+                var leftBottom = (p[4].y - p[4].r) * sY - cornerGap;
+                ctx.moveTo(xLeft, leftTop);
+                ctx.lineTo(xLeft, leftMidTop);
+                ctx.moveTo(xLeft, leftMidBottom);
+                ctx.lineTo(xLeft, leftBottom);
+                // right boundary with side pocket
+                var xRight = (TABLE_W - BORDER) * sX;
+                var rightTop = (p[1].y + p[1].r) * sY + cornerGap;
+                var rightMidTop = (p[3].y - p[3].r) * sY - sideGap;
+                var rightMidBottom = (p[3].y + p[3].r) * sY + sideGap;
+                var rightBottom = (p[5].y - p[5].r) * sY - cornerGap;
+                ctx.moveTo(xRight, rightTop);
+                ctx.lineTo(xRight, rightMidTop);
+                ctx.moveTo(xRight, rightMidBottom);
+                ctx.lineTo(xRight, rightBottom);
+                ctx.stroke();
+                ctx.strokeStyle = '#ff0';
+                drawVPocketGuide(this.pockets[2], 1);
+                drawVPocketGuide(this.pockets[3], -1);
+                drawUPocketGuide(this.pockets[0], 1, 1);
+                drawUPocketGuide(this.pockets[1], -1, 1);
+                drawUPocketGuide(this.pockets[4], 1, -1);
+                drawUPocketGuide(this.pockets[5], -1, -1);
+                ctx.strokeStyle = 'red';
+                ctx.lineWidth = 2;
+                var rScale = (sX + sY) / 2;
+                this.pockets.forEach(function(pk) {
+                  ctx.beginPath();
+                  ctx.arc(pk.x * sX, pk.y * sY, pk.r * rScale, 0, Math.PI * 2);
+                  ctx.stroke();
+                });
+              } else {
+                ctx.strokeRect(x0, y0, w, h);
+              }
+              ctx.restore();
           }
 
           // Vija kufizuese e cueball-it dhe pika qendrore
