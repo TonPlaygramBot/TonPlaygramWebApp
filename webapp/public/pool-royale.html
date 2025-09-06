@@ -2444,6 +2444,13 @@
                 drawUPocketGuide(p[4], 1, -1, false);
                 drawUPocketGuide(p[5], -1, -1, false);
                 ctx.stroke();
+                // add small orange curves outside the field as guides
+                drawVPocketGuide(p[2], 1, false, true);
+                drawVPocketGuide(p[3], -1, false, true);
+                drawUPocketGuide(p[0], 1, 1, false, true);
+                drawUPocketGuide(p[1], -1, 1, false, true);
+                drawUPocketGuide(p[4], 1, -1, false, true);
+                drawUPocketGuide(p[5], -1, -1, false, true);
                 ctx.strokeStyle = 'red';
                 ctx.lineWidth = 2;
                 var rScale = (sX + sY) / 2;
@@ -3606,7 +3613,7 @@
           ctx.restore();
         }
 
-        function drawVPocketGuide(p, dir, stroke = true) {
+        function drawVPocketGuide(p, dir, stroke = true, curve = false) {
           var R = p.r * ((sX + sY) / 2) * 1.2;
           var x = p.x * sX - R * 0.5 * dir;
           var y = p.y * sY;
@@ -3619,9 +3626,32 @@
           ctx.moveTo(x - dx, y);
           ctx.lineTo(x + dx, y + dy - trim);
           if (stroke) ctx.stroke();
+          if (curve) {
+            var curveOffset = R * 0.2;
+            ctx.save();
+            ctx.strokeStyle = '#ffa500';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.moveTo(x - dx, y);
+            ctx.quadraticCurveTo(
+              x + dx + curveOffset * dir,
+              y - dy + trim,
+              x + dx,
+              y - dy + trim
+            );
+            ctx.moveTo(x - dx, y);
+            ctx.quadraticCurveTo(
+              x + dx + curveOffset * dir,
+              y + dy - trim,
+              x + dx,
+              y + dy - trim
+            );
+            ctx.stroke();
+            ctx.restore();
+          }
         }
 
-        function drawUPocketGuide(p, sx, sy, stroke = true) {
+        function drawUPocketGuide(p, sx, sy, stroke = true, curve = false) {
           var R = p.r * ((sX + sY) / 2) * 1.1;
           var x = p.x * sX;
           var y = p.y * sY;
@@ -3639,6 +3669,14 @@
           ctx.moveTo(R, lineStart);
           ctx.lineTo(R, lineLen);
           if (stroke) ctx.stroke();
+          if (curve) {
+            var edgeOffset = R * 0.2;
+            ctx.beginPath();
+            ctx.strokeStyle = '#ffa500';
+            ctx.lineWidth = 2;
+            ctx.arc(0, 0, R + edgeOffset, Math.PI, 0);
+            ctx.stroke();
+          }
           ctx.restore();
         }
 
