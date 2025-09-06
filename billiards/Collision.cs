@@ -19,21 +19,6 @@ public static class Collision
         return Reflect(v, normal, PhysicsConstants.Restitution);
     }
 
-    /// <summary>
-    /// Reflect velocity on a surface while applying tangential friction and
-    /// energy loss used for pocket jaw interactions.
-    /// </summary>
-    public static Vec2 ReflectWithFriction(Vec2 v, Vec2 normal,
-        double restitution, double mu, double drag)
-    {
-        var n = normal.Normalized();
-        var vn = Vec2.Dot(v, n);
-        // project velocity onto tangent by subtracting normal component
-        var vt = v - n * vn;
-        var result = vt * (1 - mu) - n * (restitution * vn);
-        return result * (1 - drag);
-    }
-
     /// <summary>Resolve elastic collision between two equal-mass balls.</summary>
     public static void ResolveBallBall(Vec2 p0, Vec2 v0, Vec2 p1, Vec2 v1, out Vec2 v0Out, out Vec2 v1Out)
     {

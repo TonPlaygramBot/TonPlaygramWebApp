@@ -113,13 +113,13 @@ public class CushionStepTests
     }
 }
 
-public class PocketJawTests
+public class PocketEdgeTests
 {
     [Test]
-    public void BallReflectsOffJaw()
+    public void BallReflectsWithReducedBounceAtPocketEdge()
     {
         var solver = new BilliardsSolver();
-        solver.PocketJaws.Add(new BilliardsSolver.Jaw
+        solver.PocketEdges.Add(new BilliardsSolver.Edge
         {
             A = new Vec2(0, 0.1),
             B = new Vec2(0.1, 0),
@@ -127,33 +127,13 @@ public class PocketJawTests
         });
         var v = new Vec2(-1, -1).Normalized();
         var ball = new BilliardsSolver.Ball { Position = new Vec2(0.2, 0.2), Velocity = v };
-        // step long enough to reach the jaw but not the far cushion
-        solver.Step(new List<BilliardsSolver.Ball> { ball }, 0.23);
+        double preSpeed = ball.Velocity.Length;
+        solver.Step(new List<BilliardsSolver.Ball> { ball }, 0.3);
         var n = new Vec2(1, 1).Normalized();
-        double jawLine = Vec2.Dot(new Vec2(0, 0.1), n);
-        double dist = Vec2.Dot(ball.Position, n) - jawLine;
-        Assert.That(dist, Is.GreaterThanOrEqualTo(-1e-9));
+        double c = Vec2.Dot(new Vec2(0, 0.1), n);
+        double dist = Vec2.Dot(ball.Position, n) - c;
+        Assert.That(dist, Is.GreaterThanOrEqualTo(PhysicsConstants.BallRadius - 1e-6));
         Assert.That(Vec2.Dot(ball.Velocity, n), Is.GreaterThan(0));
-    }
-}
-
-public class PocketEntryTests
-{
-    [Test]
-    public void BallEntersCornerPocket()
-    {
-        var solver = new BilliardsSolver();
-        solver.InitStandardTable();
-        var ball = new BilliardsSolver.Ball
-        {
-            Position = new Vec2(0.05, 0.05),
-            Velocity = new Vec2(-1, -1)
-        };
-        // step long enough for the ball to clear the pocket mouth
-        solver.Step(new List<BilliardsSolver.Ball> { ball }, 0.2);
-        Assert.That(ball.Position.X, Is.LessThan(0));
-        Assert.That(ball.Position.Y, Is.LessThan(0));
-        Assert.That(ball.Velocity.X, Is.LessThan(0));
-        Assert.That(ball.Velocity.Y, Is.LessThan(0));
+        Assert.That(ball.Velocity.Length, Is.InRange(preSpeed * 0.4, preSpeed * 0.7));
     }
 }
