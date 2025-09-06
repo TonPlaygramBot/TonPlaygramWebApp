@@ -7,11 +7,13 @@
   <style>
     html,body{height:100%;margin:0;background:transparent}
     .stage{position:relative;width:100vw;height:100vh}
+    #tableWrapper{position:absolute;inset:0;background:url('/assets/icons/64e79228-35e3-4fdc-b914-fca635a40220.webp') top center/calc(100% + 8px) calc(100% + 20px) no-repeat;pointer-events:none;z-index:-1}
     #markings{position:absolute;inset:0;width:100%;height:100%;display:block;pointer-events:none}
   </style>
 </head>
 <body>
   <div class="stage">
+    <div id="tableWrapper"></div>
     <canvas id="markings"></canvas>
   </div>
   <script>
@@ -44,57 +46,13 @@
       const H = canvas.clientHeight;
       ctx.clearRect(0, 0, W, H);
 
-      const scale = Math.min(W / TABLE_W, H / TABLE_H);
-      const offsetX = (W - TABLE_W * scale) / 2;
-      const offsetY = (H - TABLE_H * scale) / 2;
-
-      const ix = offsetX + BORDER * scale;
-      const iy = offsetY + BORDER_TOP * scale;
-      const iw = (TABLE_W - BORDER * 2) * scale;
-      const ih = (TABLE_H - BORDER_TOP - BORDER_BOTTOM) * scale;
-
-      ctx.lineWidth = 2 * scale;
-
-      // table boundary in green
-      ctx.strokeStyle = 'green';
-      ctx.strokeRect(ix, iy, iw, ih);
-
-      // pocket outlines in red
-      const midY = iy + ih / 2;
-      const pockets = [
-        { x: ix - POCKET_SHORTEN * scale, y: iy - POCKET_SHORTEN * scale, r: POCKET_R * scale },
-        { x: ix + iw + POCKET_SHORTEN * scale, y: iy - POCKET_SHORTEN * scale, r: POCKET_R * scale },
-        { x: ix - 16 * scale - POCKET_SHORTEN * scale, y: midY + BALL_R * scale - 14 * scale, r: SIDE_POCKET_R * scale },
-        { x: ix + iw + 16 * scale + POCKET_SHORTEN * scale, y: midY + BALL_R * scale - 14 * scale, r: SIDE_POCKET_R * scale },
-        { x: ix - POCKET_SHORTEN * scale, y: iy + ih + POCKET_SHORTEN * scale, r: POCKET_R * scale },
-        { x: ix + iw + POCKET_SHORTEN * scale, y: iy + ih + POCKET_SHORTEN * scale, r: POCKET_R * scale }
-      ];
-      ctx.strokeStyle = 'red';
-      pockets.forEach(p => {
-        ctx.beginPath();
-        ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
-        ctx.stroke();
-      });
-
-      // connectors in yellow
-      const inset = iw * 0.1;
-      ctx.strokeStyle = 'yellow';
-      ctx.beginPath();
-      ctx.moveTo(ix + inset, iy);
-      ctx.lineTo(ix + inset, iy + ih);
-      ctx.lineTo(ix + iw - inset, iy + ih);
-      ctx.lineTo(ix + iw - inset, iy);
-      ctx.stroke();
-
-      ctx.beginPath();
-      ctx.moveTo(ix + inset, iy + ih);
-      ctx.lineTo(ix + iw / 2, iy + inset);
-      ctx.lineTo(ix + iw - inset, iy + ih);
-      ctx.stroke();
+      // Removed pocket guide overlays so balls can move freely
     }
+
 
     resize();
     window.addEventListener('resize', resize);
   </script>
 </body>
 </html>
+
