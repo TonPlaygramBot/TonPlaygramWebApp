@@ -131,6 +131,10 @@
       .hidden {
         display: none;
       }
+
+      .debug-marker {
+        visibility: hidden;
+      }
     </style>
   </head>
   <body>
@@ -140,18 +144,18 @@
         src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxMDAwIDE1MDAiPjxyZWN0IHdpZHRoPSIxMDAlIiBoZWlnaHQ9IjEwMCUiIGZpbGw9IiMwMDgwMDAiLz48L3N2Zz4="
         alt="Pool table"
       />
-      <svg id="frame" class="overlay" viewBox="0 0 1000 1500"></svg>
-      <div id="aim-line" class="aim-line"></div>
+      <svg id="frame" class="overlay debug-marker" viewBox="0 0 1000 1500"></svg>
+      <div id="aim-line" class="aim-line debug-marker"></div>
       <div id="cue-ball" class="ball">
-        <div id="cue-spin-dot" class="spin-dot"></div>
+        <div id="cue-spin-dot" class="spin-dot debug-marker"></div>
       </div>
-      <div id="target-ball" class="ball target-ball"></div>
+      <div id="target-ball" class="ball target-ball debug-marker"></div>
       <div id="controls">
         <input id="power" type="range" min="0" max="100" value="40" />
         <button id="shoot">Shoot</button>
       </div>
       <div id="spin-controller">
-        <div id="spin-controller-dot" class="spin-dot"></div>
+        <div id="spin-controller-dot" class="spin-dot debug-marker"></div>
       </div>
     </div>
     <button id="config-btn" class="config-btn">⚙️</button>
@@ -382,6 +386,15 @@
       }
 
       shootBtn.addEventListener('click', shoot);
+
+      function setDebugVisible (visible) {
+        document.querySelectorAll('.debug-marker').forEach((el) => {
+          el.style.visibility = visible ? 'visible' : 'hidden';
+        });
+      }
+      window.showDebugMarkers = () => setDebugVisible(true);
+      window.hideDebugMarkers = () => setDebugVisible(false);
+      setDebugVisible(false);
     </script>
   </body>
 </html>
