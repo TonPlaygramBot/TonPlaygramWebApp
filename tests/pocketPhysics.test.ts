@@ -7,11 +7,11 @@ import {
   willEnterPocket
 } from '../src/core/poolPhysics'
 
-// Parameters are retained for API compatibility but have no effect because
-// pocket jaw interactions are disabled.
+// Parameters configure pocket jaw physics. Jaws bounce with 75% less
+// restitution than cushions, so the eJaw coefficient is low.
 const params: JawParams = {
   ballRadius: 0.028575,
-  eJaw: 0,
+  eJaw: 0.25,
   muJaw: 0,
   dragJaw: 0,
   captureSpeedMin: 0,
@@ -26,10 +26,10 @@ const pocket: Pocket = {
 }
 
 describe('Pocket jaw physics', () => {
-  test('jaw collisions leave the ball unchanged', () => {
+  test('jaw collisions reflect velocity with reduced restitution', () => {
     const ball: Ball = { position: { x: 0, y: 0.04 }, velocity: { x: -0.1, y: -0.2 }, omega: 0 }
     resolveJawCollision(ball, { x: 1, y: 0 }, params, 0)
-    expect(ball.velocity.x).toBeCloseTo(-0.1)
+    expect(ball.velocity.x).toBeCloseTo(0.025)
     expect(ball.velocity.y).toBeCloseTo(-0.2)
   })
 
