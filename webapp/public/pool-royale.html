@@ -2091,6 +2091,8 @@
           // Track collisions in this frame so that audio for each
           // pair of balls is played only once per contact.
           var newCollisions = new Set();
+          var pk = this.pockets;
+          var inv = INV_SQRT2;
           // Apply spin impulses immediately on collisions for more natural response
           // Levizje + ferkim + kufij
           for (i = 0; i < this.balls.length; i++) {
@@ -2172,34 +2174,32 @@
                 if (i === 0 && shotInProgress && !firstHit)
                   cueHitCushion = true;
               }
-          }
 
-          var pk = this.pockets;
-          var inv = INV_SQRT2;
-          handleConnectorCollision(this, b, pk[0], inv, inv, function (rx, ry) {
-            return rx >= 0 && ry >= 0;
-          });
-          handleConnectorCollision(this, b, pk[1], -inv, inv, function (rx, ry) {
-            return rx <= 0 && ry >= 0;
-          });
-          handleConnectorCollision(this, b, pk[4], inv, -inv, function (rx, ry) {
-            return rx >= 0 && ry <= 0;
-          });
-          handleConnectorCollision(this, b, pk[5], -inv, -inv, function (rx, ry) {
-            return rx <= 0 && ry <= 0;
-          });
-          handleConnectorCollision(this, b, pk[2], inv, inv, function (rx, ry) {
-            return rx >= 0 && ry <= 0;
-          });
-          handleConnectorCollision(this, b, pk[2], inv, -inv, function (rx, ry) {
-            return rx >= 0 && ry >= 0;
-          });
-          handleConnectorCollision(this, b, pk[3], -inv, inv, function (rx, ry) {
-            return rx <= 0 && ry <= 0;
-          });
-          handleConnectorCollision(this, b, pk[3], -inv, -inv, function (rx, ry) {
-            return rx <= 0 && ry >= 0;
-          });
+              handleConnectorCollision(this, b, pk[0], inv, inv, function (rx, ry) {
+                return rx >= 0 && ry >= 0;
+              });
+              handleConnectorCollision(this, b, pk[1], -inv, inv, function (rx, ry) {
+                return rx <= 0 && ry >= 0;
+              });
+              handleConnectorCollision(this, b, pk[4], inv, -inv, function (rx, ry) {
+                return rx >= 0 && ry <= 0;
+              });
+              handleConnectorCollision(this, b, pk[5], -inv, -inv, function (rx, ry) {
+                return rx <= 0 && ry <= 0;
+              });
+              handleConnectorCollision(this, b, pk[2], inv, inv, function (rx, ry) {
+                return rx >= 0 && ry <= 0;
+              });
+              handleConnectorCollision(this, b, pk[2], inv, -inv, function (rx, ry) {
+                return rx >= 0 && ry >= 0;
+              });
+              handleConnectorCollision(this, b, pk[3], -inv, inv, function (rx, ry) {
+                return rx <= 0 && ry <= 0;
+              });
+              handleConnectorCollision(this, b, pk[3], -inv, -inv, function (rx, ry) {
+                return rx <= 0 && ry >= 0;
+              });
+          }
 
           // Perplasje ball-ball
           var N = this.balls.length;
@@ -2378,6 +2378,29 @@
                   if (!foulShown) playCheer(1);
                 }
               }
+            }
+          }
+          // Final safeguard: keep balls within the green boundary
+          var L = BORDER + BALL_R,
+            R = TABLE_W - BORDER - BALL_R,
+            T = BORDER_TOP + BALL_R,
+            B = TABLE_H - BORDER_BOTTOM - BALL_R;
+          for (i = 0; i < this.balls.length; i++) {
+            var cb = this.balls[i];
+            if (cb.pocketed) continue;
+            if (cb.p.x < L) {
+              cb.p.x = L;
+              cb.v.x = Math.abs(cb.v.x) * BOUNCE;
+            } else if (cb.p.x > R) {
+              cb.p.x = R;
+              cb.v.x = -Math.abs(cb.v.x) * BOUNCE;
+            }
+            if (cb.p.y < T) {
+              cb.p.y = T;
+              cb.v.y = Math.abs(cb.v.y) * BOUNCE;
+            } else if (cb.p.y > B) {
+              cb.p.y = B;
+              cb.v.y = -Math.abs(cb.v.y) * BOUNCE;
             }
           }
           // Update collision state for next frame.
