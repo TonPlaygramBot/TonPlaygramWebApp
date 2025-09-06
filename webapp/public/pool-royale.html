@@ -962,9 +962,10 @@
         var POCKET_OFFSET = isSnooker ? 4 : 0;
         var SHORT_DIST = BALL_R * 28;
         var MED_DIST = BALL_R * 56;
-        // Use uniform borders so balls can travel freely to every cushion.
-        var BORDER_TOP = BORDER;
-        var BORDER_BOTTOM = BORDER;
+        var BORDER_TOP = BORDER + BALL_R * 2 - 4; // bordi i siperm pak me i holle per fushe me te gjate
+        // Raise only the bottom field line by the thickness of one green side
+        // marking so the table's lower boundary sits slightly higher.
+        var BORDER_BOTTOM = BORDER + 14; // anet e tjera mbeten te pandryshuara
         // Move the rack slightly upward on the table
         var SPOT_Y =
           BORDER_TOP +
@@ -2068,15 +2069,17 @@
                 BORDER_TOP - POCKET_SHORTEN + POCKET_OFFSET,
                 POCKET_R
               ),
-              // Middle pockets centered on the table
+              // Lift middle pockets a touch more to align with the shifted field
+              // boundary, matching the green marking thickness, and nudge them
+              // slightly farther from center.
               new Pocket(
                 BORDER - 16 - POCKET_SHORTEN + POCKET_OFFSET,
-                TABLE_H / 2,
+                TABLE_H / 2 + BALL_R - 14,
                 SIDE_POCKET_R
               ),
               new Pocket(
                 TABLE_W - BORDER + 16 + POCKET_SHORTEN - POCKET_OFFSET,
-                TABLE_H / 2,
+                TABLE_H / 2 + BALL_R - 14,
                 SIDE_POCKET_R
               ),
               new Pocket(
@@ -2703,8 +2706,8 @@
               ctx.clip();
               ctx.fillStyle = stripeGrad;
               ctx.fillRect(-ballR, -ballR * 0.3, ballR * 2, ballR * 0.6);
-              // thin white lines at stripe edges
-              ctx.strokeStyle = '#fff';
+              // thin black lines at stripe edges
+              ctx.strokeStyle = '#000';
               ctx.lineWidth = ballR * 0.06;
               ctx.beginPath();
               ctx.moveTo(-ballR, -ballR * 0.3);
