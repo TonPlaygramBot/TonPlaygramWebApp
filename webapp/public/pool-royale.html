@@ -1674,10 +1674,11 @@
           var limit = pk.r + BALL_R;
           var dist = rx * nx + ry * ny;
           if (dist >= limit) return;
+          var vn = b.v.x * nx + b.v.y * ny;
+          if (vn <= 0) return;
           var pen = limit - dist;
           b.p.x -= nx * pen;
           b.p.y -= ny * pen;
-          var vn = b.v.x * nx + b.v.y * ny;
           b.v.x -= vn * nx;
           b.v.y -= vn * ny;
           b.v.x *= POCKET_JAW_DAMPING;
