@@ -952,7 +952,8 @@
 
         var FRICTION = 0.985; // ferkimi linear, pak me i vogel per te ruajtur shpejtesine
         var BOUNCE = 0.99; // koeficienti i rikthimit pak me i madh
-        var CONNECTOR_SLIDE_SPEED = 50; // shpejtesia njesoj me shume e ulet per te lejuar rreshqitjen ne konektore
+        var POCKET_JAW_DAMPING = 0.3; // gropat ulin shpejtesine me rreth 70%
+        var POCKET_JAW_POWER = 0.25; // energjia e mbetur pas prekje se gropes
         var INV_SQRT2 = 1 / Math.SQRT2;
 
         var MIN_V = 0.12; // shpejtesia min. qe konsiderohet "ne levizje"
@@ -1674,16 +1675,14 @@
           var dist = rx * nx + ry * ny;
           if (dist >= limit) return;
           var pen = limit - dist;
-          b.p.x += nx * pen;
-          b.p.y += ny * pen;
-          var speed = Math.hypot(b.v.x, b.v.y);
-          if (speed < CONNECTOR_SLIDE_SPEED) {
-            var vn = b.v.x * nx + b.v.y * ny;
-            b.v.x -= vn * nx;
-            b.v.y -= vn * ny;
-          } else {
-            reflectVelocity(b.v, nx, ny, BOUNCE);
-          }
+          b.p.x -= nx * pen;
+          b.p.y -= ny * pen;
+          var vn = b.v.x * nx + b.v.y * ny;
+          b.v.x -= vn * nx;
+          b.v.y -= vn * ny;
+          b.v.x *= POCKET_JAW_DAMPING;
+          b.v.y *= POCKET_JAW_DAMPING;
+          lastShotPower *= POCKET_JAW_POWER;
           if (b.n === 0) {
             b.impacted = true;
             applySpinImpulse(b);
