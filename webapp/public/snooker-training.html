@@ -188,12 +188,12 @@
       ctx.fillStyle = getVar('--pocket');
       const midY = iy + ih / 2;
       const pockets = [
-        { x: ix - 6, y: iy - 6, r: pr },
-        { x: ix + iw + 6, y: iy - 6, r: pr },
-        { x: ix - 6, y: iy + ih + 6, r: pr },
-        { x: ix + iw + 6, y: iy + ih + 6, r: pr },
-        { x: ix - 6, y: midY, r: pr },
-        { x: ix + iw + 6, y: midY, r: pr }
+        { x: ix - 4, y: iy - 4, r: pr },
+        { x: ix + iw + 4, y: iy - 4, r: pr },
+        { x: ix - 4, y: iy + ih + 4, r: pr },
+        { x: ix + iw + 4, y: iy + ih + 4, r: pr },
+        { x: ix - 4, y: midY, r: pr },
+        { x: ix + iw + 4, y: midY, r: pr }
       ];
       pockets.forEach(p => {
         ctx.beginPath();
