@@ -36,40 +36,6 @@ public class BilliardsSolver
         public Vec2? TargetVelocity;
     }
 
-    private static void ClampToTable(Ball b)
-    {
-        double minX = PhysicsConstants.BallRadius;
-        double maxX = PhysicsConstants.TableWidth - PhysicsConstants.BallRadius;
-        double minY = PhysicsConstants.BallRadius;
-        double maxY = PhysicsConstants.TableHeight - PhysicsConstants.BallRadius;
-
-        if (b.Position.X < minX)
-        {
-            b.Position = new Vec2(minX, b.Position.Y);
-            if (b.Velocity.X < 0)
-                b.Velocity = new Vec2(-b.Velocity.X * PhysicsConstants.CushionRestitution, b.Velocity.Y);
-        }
-        else if (b.Position.X > maxX)
-        {
-            b.Position = new Vec2(maxX, b.Position.Y);
-            if (b.Velocity.X > 0)
-                b.Velocity = new Vec2(-b.Velocity.X * PhysicsConstants.CushionRestitution, b.Velocity.Y);
-        }
-
-        if (b.Position.Y < minY)
-        {
-            b.Position = new Vec2(b.Position.X, minY);
-            if (b.Velocity.Y < 0)
-                b.Velocity = new Vec2(b.Velocity.X, -b.Velocity.Y * PhysicsConstants.CushionRestitution);
-        }
-        else if (b.Position.Y > maxY)
-        {
-            b.Position = new Vec2(b.Position.X, maxY);
-            if (b.Velocity.Y > 0)
-                b.Velocity = new Vec2(b.Velocity.X, -b.Velocity.Y * PhysicsConstants.CushionRestitution);
-        }
-    }
-
     /// <summary>Integrates positions and handles cushion reflections for one step.</summary>
     public void Step(List<Ball> balls, double dt)
     {
@@ -116,7 +82,6 @@ public class BilliardsSolver
                     }
                 }
             }
-            ClampToTable(b);
         }
     }
 
