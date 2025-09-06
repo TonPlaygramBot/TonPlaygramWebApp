@@ -61,6 +61,22 @@ export default function Games() {
               </h3>
             </Link>
             <Link
+              to="/games/snooker"
+              className="flex flex-col items-center space-y-1 border border-border rounded-lg p-2 flex-shrink-0 tetris-grid-bg"
+            >
+              <img
+                src="/assets/icons/white_ball.svg"
+                alt=""
+                className="h-20 w-20"
+              />
+              <h3
+                className="text-sm font-semibold text-center text-yellow-400"
+                style={{ WebkitTextStroke: '1px black' }}
+              >
+                Snooker
+              </h3>
+            </Link>
+            <Link
               to="/games/goalrush/lobby"
               className="flex flex-col items-center space-y-1 border border-border rounded-lg p-2 flex-shrink-0 tetris-grid-bg"
             >

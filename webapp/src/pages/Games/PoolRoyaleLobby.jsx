@@ -143,13 +143,10 @@ export default function PoolRoyaleLobby() {
       <div className="space-y-2">
         <h3 className="font-semibold">Variant</h3>
         <div className="flex gap-2">
-          {[
+            {[ 
             { id: 'uk', label: '8 Pool UK' },
             { id: 'american', label: 'American' },
-            { id: '9ball', label: '9-Ball' },
-            ...(playType === 'training'
-              ? [{ id: 'snooker', label: 'Snooker' }]
-              : [])
+            { id: '9ball', label: '9-Ball' }
           ].map(({ id, label }) => (
             <button
               key={id}

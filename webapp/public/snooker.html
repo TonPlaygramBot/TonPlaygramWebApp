@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Canvas Pool – Practice Mode</title>
+  <link rel="stylesheet" href="power-slider.css" />
+  <style>
+    :root {
+      --felt:#0b5;
+      --rail:#2b2b2b;
+      --wood:#5a3b1e;
+      --ui:#0e1116;
+      --text:#eaf2ff;
+      --accent:#68d391;
+    }
+    html, body { height: 100%; }
+    body {
+      margin: 0;
+      background: #0b0f14;
+      color: var(--text);
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, 'Helvetica Neue', Helvetica, Arial, sans-serif;
+      display: grid;
+      grid-template-rows: auto 1fr auto;
+    }
+    header, footer {
+      padding: .6rem .9rem;
+      background: linear-gradient(180deg, #0f141b, #0a0d12);
+      border-bottom: 1px solid #151a21;
+    }
+    footer { border-top: 1px solid #151a21; border-bottom: none; }
+    .wrap { position: relative; display: grid; place-items: center; background:#0a0d12; }
+    #game { width: min(96vw, 1200px); height: auto; aspect-ratio: 2/1; display:block; border-radius: 18px; box-shadow: 0 20px 60px rgba(0,0,0,.6); }
+    .overlay { position:absolute; inset: 0; pointer-events: none; display:flex; align-items:flex-start; justify-content:space-between; padding: .75rem; }
+    .hud { display:flex; gap:.5rem; flex-wrap:wrap; }
+    .tag { pointer-events:auto; background:#0f1520; color:var(--text); border:1px solid #1b2330; padding:.45rem .6rem; border-radius: 10px; font-size:.9rem; }
+    .tag b{ color:var(--accent); }
+    .btns { display:flex; gap:.5rem; }
+    button { pointer-events:auto; background:#111827; color:var(--text); border:1px solid #1f2937; padding:.55rem .8rem; border-radius: 12px; cursor:pointer; font-weight:600; }
+    button:hover{ filter:brightness(1.1); }
+    .hint { opacity:.8; font-size:.9rem; }
+    #powerMount { position:absolute; right:0.5rem; top:50%; transform:translateY(-50%); }
+    #spinBox { position:absolute; right:5.5rem; top:50%; width:80px; height:80px; border-radius:50%; background:#0f1520; border:1px solid #1b2330; transform:translateY(-50%); pointer-events:auto; }
+    #spinDot { position:absolute; width:14px; height:14px; border-radius:50%; background:var(--accent); left:50%; top:50%; transform:translate(-50%,-50%); }
+  </style>
+</head>
+<body>
+  <header>
+    <div style="display:flex; align-items:center; gap:.75rem;">
+      <div style="width:10px;height:10px;border-radius:50%;background:var(--accent);"></div>
+      <strong>Canvas Pool – Billiards Simulator (Practice)</strong>
+    </div>
+  </header>
+  <div class="wrap">
+    <canvas id="game"></canvas>
+    <div class="overlay">
+      <div class="hud">
+        <div class="tag">Sunk: <b id="pottedCount">0</b></div>
+        <div class="tag">Shots: <b id="shotCount">0</b></div>
+        <div class="tag hint">Aim: drag from the cue ball • Power slider sets shot strength • Tap anywhere to place cue ball after scratch</div>
+      </div>
+      <div class="btns">
+        <button id="rackBtn">Re‑Rack</button>
+        <button id="resetBtn">Reset</button>
+        <button id="slowBtn" title="Toggle slow‑mo when balls are moving">Slow‑Mo</button>
+      </div>
+    </div>
+    <div id="powerMount"></div>
+    <div id="spinBox"><div id="spinDot"></div></div>
+  </div>
+  <footer>
+    <small>Pure HTML5 Canvas • 2D physics, cushions, 6 pockets, mouse/touch controls. Not affiliated with Pool Stars.</small>
+  </footer>
+
+  <script type="module">
+  import { PowerSlider } from './power-slider.js';
+  (()=>{
+    const canvas = document.getElementById('game');
+    const ctx = canvas.getContext('2d');
+
+    const slider = new PowerSlider({
+      mount: document.getElementById('powerMount'),
+      onChange: v => currentPower = v / 100
+    });
+    let currentPower = 0.5;
+    let spinVec = { x: 0, y: 0 };
+
+    const spinBox = document.getElementById('spinBox');
+    const spinDot = document.getElementById('spinDot');
+    function updateSpin(e){
+      const r = spinBox.getBoundingClientRect();
+      let x = (e.clientX - r.left)/r.width - 0.5;
+      let y = (e.clientY - r.top)/r.height - 0.5;
+      const dist = Math.hypot(x,y);
+      if(dist>0.5){ x*=0.5/dist; y*=0.5/dist; }
+      spinVec = { x:x*2, y:y*2 };
+      spinDot.style.left = 50 + spinVec.x*25 + '%';
+      spinDot.style.top = 50 + spinVec.y*25 + '%';
+    }
+    spinBox.addEventListener('pointerdown', e=>{
+      spinBox.setPointerCapture(e.pointerId);
+      updateSpin(e);
+      spinBox.addEventListener('pointermove', updateSpin);
+    });
+    spinBox.addEventListener('pointerup', e=>{
+      spinBox.releasePointerCapture(e.pointerId);
+      spinBox.removeEventListener('pointermove', updateSpin);
+    });
+
+    function fitCanvas(){
+      const w = canvas.clientWidth, h = canvas.clientHeight;
+      canvas.width = Math.floor(w * devicePixelRatio);
+      canvas.height = Math.floor(h * devicePixelRatio);
+      ctx.setTransform(devicePixelRatio,0,0,devicePixelRatio,0,0);
+    }
+    new ResizeObserver(fitCanvas).observe(canvas);
+
+    const TABLE = {
+      width: 1000,
+      height: 500,
+      rail: 28,
+      pocketR: 22,
+      friction: 0.9925,
+      minSpeed: 0.02,
+      cushionRestitution: 0.985,
+    };
+
+    function scale(){
+      const s = Math.min((canvas.width/devicePixelRatio)/TABLE.width, (canvas.height/devicePixelRatio)/TABLE.height);
+      const ox = ((canvas.width/devicePixelRatio)-TABLE.width*s)/2;
+      const oy = ((canvas.height/devicePixelRatio)-TABLE.height*s)/2;
+      return {s,ox,oy};
+    }
+
+    function toScreen(x,y){ const {s,ox,oy}=scale(); return {x:ox+x*s, y:oy+y*s}; }
+    function toWorld(px,py){ const {s,ox,oy}=scale(); return {x:(px-ox)/s, y:(py-oy)/s}; }
+
+    class Ball{
+      constructor(x,y,color='#fff',number=0){
+        this.x=x;this.y=y;this.vx=0;this.vy=0;this.r=10.5;this.color=color;this.number=number;this.potted=false;this.isCue=false;
+        this.spinX=0;this.spinY=0;
+      }
+      speed(){ return Math.hypot(this.vx,this.vy); }
+      step(){
+        if(this.potted) return;
+        this.x+=this.vx; this.y+=this.vy;
+        this.vx*=TABLE.friction; this.vy*=TABLE.friction;
+        this.vx+=this.spinX; this.vy+=this.spinY;
+        this.spinX*=TABLE.friction; this.spinY*=TABLE.friction;
+        if(this.speed()<TABLE.minSpeed){ this.vx=0; this.vy=0; this.spinX=0; this.spinY=0; }
+      }
+      draw(){
+        if(this.potted) return;
+        const {x,y} = toScreen(this.x,this.y);
+        const r = this.r*scale().s;
+        ctx.save();
+        ctx.globalAlpha=.25; ctx.fillStyle='#000'; ctx.beginPath(); ctx.ellipse(x, y+r*.6, r*1.05, r*.45, 0, 0, Math.PI*2); ctx.fill(); ctx.restore();
+        ctx.beginPath(); ctx.fillStyle=this.color; ctx.arc(x,y,r,0,Math.PI*2); ctx.fill();
+        ctx.beginPath(); ctx.fillStyle='white'; ctx.arc(x,y,r*0.5,0,Math.PI*2); ctx.fill();
+        ctx.fillStyle='#111'; ctx.font=`${Math.max(10,r*0.9)}px system-ui`;
+        ctx.textAlign='center'; ctx.textBaseline='middle';
+        ctx.fillText(this.number||'C',x,y+0);
+      }
+    }
+
+    const COLORS = [
+      '#fbbf24','#3b82f6','#ef4444','#8b5cf6','#22c55e','#fbbf24','#3b82f6','#ef4444','#8b5cf6','#22c55e','#f59e0b','#06b6d4','#e11d48','#84cc16','#a855f7'
+    ];
+
+    let balls=[], cueBall, pockets=[], shots=0, sunk=0, placingCue=false, slowMo=false;
+
+    function makePockets(){
+      const r=TABLE.pocketR; const W=TABLE.width, H=TABLE.height, t=TABLE.rail;
+      pockets=[
+        {x:t,y:t,r}, {x:W/2,y:0+t*.8,r}, {x:W-t,y:t,r},
+        {x:t,y:H-t,r}, {x:W/2,y:H-t*.8,r}, {x:W-t,y:H-t,r},
+      ];
+    }
+
+    function rack(){
+      balls=[]; sunk=0; shots=0; updateHud();
+      makePockets();
+      cueBall = new Ball(TABLE.width*0.25, TABLE.height*0.5, '#ffffff', 0); cueBall.isCue=true; balls.push(cueBall);
+      const startX = TABLE.width*0.70, startY = TABLE.height*0.5; const gap = 22;
+      let n=1;
+      for(let r=0;r<5;r++){
+        for(let c=0;c<=r;c++){
+          const bx = startX + r*gap;
+          const by = startY - r*gap/2 + c*gap;
+          const b = new Ball(bx,by, COLORS[(n-1)%COLORS.length], n);
+          balls.push(b); n++;
+        }
+      }
+      placingCue=false;
+    }
+
+    function reset(){ rack(); }
+
+    function collideBallCushion(b){
+      const t = TABLE.rail + b.r*0.85;
+      const W=TABLE.width, H=TABLE.height;
+      if(b.x < t){ b.x = t; b.vx = Math.abs(b.vx) * TABLE.cushionRestitution; }
+      if(b.x > W - t){ b.x = W - t; b.vx = -Math.abs(b.vx) * TABLE.cushionRestitution; }
+      if(b.y < t){ b.y = t; b.vy = Math.abs(b.vy) * TABLE.cushionRestitution; }
+      if(b.y > H - t){ b.y = H - t; b.vy = -Math.abs(b.vy) * TABLE.cushionRestitution; }
+    }
+
+    function tryPocket(b){
+      if(b.potted) return;
+      for(const p of pockets){
+        const dx=b.x-p.x, dy=b.y-p.y, d2=dx*dx+dy*dy, R=(p.r+2);
+        if(d2 <= R*R){
+          b.potted = true; b.vx=b.vy=0; b.spinX=b.spinY=0; sunk++;
+          if(b.isCue){
+            placingCue = true; sunk--;
+          }
+          updateHud();
+          return;
+        }
+      }
+    }
+
+    function collideBalls(a,b){
+      if(a.potted||b.potted) return;
+      const dx=b.x-a.x, dy=b.y-a.y; const dist = Math.hypot(dx,dy);
+      const minDist = a.r + b.r;
+      if(dist>0 && dist < minDist){
+        const overlap = (minDist - dist);
+        const nx = dx/dist, ny = dy/dist;
+        a.x -= nx*overlap/2; a.y -= ny*overlap/2;
+        b.x += nx*overlap/2; b.y += ny*overlap/2;
+        const rvx = b.vx - a.vx; const rvy = b.vy - a.vy;
+        const rel = rvx*nx + rvy*ny;
+        if(rel < 0){
+          const e = 0.98;
+          const j = -(1+e)*rel/2;
+          const ix = j*nx, iy = j*ny;
+          a.vx -= ix; a.vy -= iy; b.vx += ix; b.vy += iy;
+        }
+      }
+    }
+
+    function anyMoving(){ return balls.some(b=>!b.potted && (Math.abs(b.vx)>TABLE.minSpeed || Math.abs(b.vy)>TABLE.minSpeed)); }
+
+    function drawTable(){
+      const {s,ox,oy} = scale();
+      const W=TABLE.width, H=TABLE.height, t=TABLE.rail;
+      ctx.fillStyle= '#3b2919';
+      ctx.fillRect(ox-28, oy-28, W*s+56, H*s+56);
+      ctx.fillStyle= getComputedStyle(document.documentElement).getPropertyValue('--rail');
+      ctx.fillRect(ox, oy, W*s, H*s);
+      ctx.fillStyle= getComputedStyle(document.documentElement).getPropertyValue('--felt');
+      ctx.fillRect(ox+t*s, oy+t*s, (W-2*t)*s, (H-2*t)*s);
+      ctx.fillStyle = '#0a0a0a';
+      for(const p of pockets){
+        const ps = toScreen(p.x,p.y); const r = p.r*s*1.15;
+        ctx.beginPath(); ctx.arc(ps.x, ps.y, r, 0, Math.PI*2); ctx.fill();
+      }
+      ctx.strokeStyle='rgba(255,255,255,.15)'; ctx.lineWidth=2;
+      const hx = toScreen(TABLE.width*0.33,0).x;
+      ctx.beginPath(); ctx.moveTo(hx, oy+t*s); ctx.lineTo(hx, oy+(H-t)*s); ctx.stroke();
+    }
+
+    let aim = {active:false, start:{x:0,y:0}, end:{x:0,y:0}};
+
+    function drawCue(){
+      if(anyMoving()) return;
+      if(cueBall.potted) return;
+      const cb = toScreen(cueBall.x,cueBall.y);
+      const mx = aim.end.x, my = aim.end.y;
+      const dx = mx - cb.x, dy = my - cb.y; const dist = Math.hypot(dx,dy);
+      const dirx = dx/(dist||1), diry = dy/(dist||1);
+
+      ctx.save();
+      ctx.globalAlpha=.7; ctx.lineWidth=2;
+      ctx.setLineDash([8,8]);
+      ctx.beginPath(); ctx.strokeStyle='rgba(255,255,255,.7)';
+      ctx.moveTo(cb.x,cb.y); ctx.lineTo(cb.x+dirx*400, cb.y+diry*400); ctx.stroke();
+      ctx.setLineDash([]);
+
+      const back = Math.min(180, dist);
+      const bx = cb.x - dirx * (cueBall.r*2 + back);
+      const by = cb.y - diry * (cueBall.r*2 + back);
+      ctx.lineWidth=6; ctx.strokeStyle='#c8a266';
+      ctx.beginPath(); ctx.moveTo(bx,by); ctx.lineTo(bx+dirx*140, by+diry*140); ctx.stroke();
+      ctx.restore();
+    }
+
+    function pointerPos(e){
+      const rect = canvas.getBoundingClientRect();
+      const px = (e.touches?e.touches[0].clientX:e.clientX) - rect.left;
+      const py = (e.touches?e.touches[0].clientY:e.clientY) - rect.top;
+      return {x:px, y:py};
+    }
+
+    function onDown(e){
+      e.preventDefault();
+      if(anyMoving()) return;
+
+      if(placingCue){
+        const p = toWorld(...Object.values(pointerPos(e)));
+        const head = TABLE.width*0.33;
+        cueBall.potted=false; cueBall.vx=cueBall.vy=0; cueBall.spinX=cueBall.spinY=0;
+        cueBall.x=Math.max(TABLE.rail+cueBall.r, Math.min(head-4, p.x));
+        cueBall.y=Math.max(TABLE.rail+cueBall.r, Math.min(TABLE.height-TABLE.rail-cueBall.r, p.y));
+        placingCue=false;
+        return;
+      }
+
+      aim.active=true; const cb = toScreen(cueBall.x, cueBall.y); aim.start={x:cb.x,y:cb.y};
+      const pos=pointerPos(e); aim.end=pos;
+    }
+
+    function onMove(e){
+      const pos = pointerPos(e);
+      aim.end=pos;
+    }
+
+    function onUp(e){
+      if(!aim.active) return; aim.active=false;
+      const cb = toScreen(cueBall.x, cueBall.y);
+      const dx = cb.x - aim.end.x; const dy = cb.y - aim.end.y;
+      const dist = Math.hypot(dx,dy);
+      const dir = {x: dx/(dist||1), y: dy/(dist||1)};
+      const kick = 9.5 * currentPower;
+      cueBall.vx += dir.x * kick;
+      cueBall.vy += dir.y * kick;
+      cueBall.spinX = spinVec.x * 0.3;
+      cueBall.spinY = spinVec.y * 0.3;
+      spinVec = {x:0,y:0};
+      spinDot.style.left = '50%'; spinDot.style.top = '50%';
+      shots++; updateHud();
+    }
+
+    canvas.addEventListener('mousedown', onDown); canvas.addEventListener('mousemove', onMove); window.addEventListener('mouseup', onUp);
+    canvas.addEventListener('touchstart', onDown, {passive:false}); canvas.addEventListener('touchmove', onMove, {passive:false}); canvas.addEventListener('touchend', onUp);
+
+    document.getElementById('rackBtn').onclick = rack;
+    document.getElementById('resetBtn').onclick = reset;
+    document.getElementById('slowBtn').onclick = ()=>{ slowMo=!slowMo; document.getElementById('slowBtn').style.outline = slowMo? '2px solid var(--accent)':'none'; };
+
+    function updateHud(){
+      document.getElementById('pottedCount').textContent = sunk;
+      document.getElementById('shotCount').textContent = shots;
+    }
+
+    let sliderLocked=false;
+    function physicsStep(){
+      const sub = slowMo && anyMoving()? 2 : 1;
+      for(let si=0; si<sub; si++){
+        for(const b of balls){ b.step(); collideBallCushion(b); tryPocket(b); }
+        for(let i=0;i<balls.length;i++) for(let j=i+1;j<balls.length;j++) collideBalls(balls[i],balls[j]);
+      }
+      const moving=anyMoving();
+      if(moving && !sliderLocked){ slider.lock(); sliderLocked=true; }
+      if(!moving && sliderLocked){ slider.unlock(); sliderLocked=false; }
+    }
+
+    function draw(){
+      ctx.clearRect(0,0,canvas.width,canvas.height);
+      drawTable();
+      for(const b of balls) b.draw();
+      drawCue();
+    }
+
+    function loop(){ physicsStep(); draw(); requestAnimationFrame(loop); }
+
+    fitCanvas(); rack(); loop();
+  })();
+  </script>
+</body>
+</html>
+
