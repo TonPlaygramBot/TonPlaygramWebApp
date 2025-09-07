@@ -106,7 +106,7 @@ export class PowerSlider {
     return this.value;
   }
 
-  set(v, { animate = false, silent = false } = {}) {
+  set(v, { animate = false } = {}) {
     const value = this._clamp(this._step(v));
     this.value = value;
     if (!animate) this.el.classList.add('ps-no-animate');
@@ -114,7 +114,7 @@ export class PowerSlider {
     this._update(animate);
     if (!animate)
       requestAnimationFrame(() => this.el.classList.remove('ps-no-animate'));
-    if (!silent && typeof this.onChange === 'function') this.onChange(value);
+    if (typeof this.onChange === 'function') this.onChange(value);
   }
 
   lock() {
@@ -213,7 +213,7 @@ export class PowerSlider {
     const pos = (y - rect.top) / rect.height; // 0 at top, 1 at bottom
     const ratio = Math.min(Math.max(pos, 0), 1);
     const value = this.min + ratio * (this.max - this.min);
-    this.set(value, { silent: this.dragging });
+    this.set(value);
   }
 
   _pointerDown(e) {
@@ -239,7 +239,6 @@ export class PowerSlider {
     this.el.removeEventListener('pointermove', this._onPointerMove);
     this.el.removeEventListener('pointerup', this._onPointerUp);
     this.el.classList.remove('ps-no-animate');
-    if (typeof this.onChange === 'function') this.onChange(this.value);
     if (typeof this.onCommit === 'function') this.onCommit(this.value);
   }
 
