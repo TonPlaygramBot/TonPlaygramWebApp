@@ -1,8 +1,9 @@
 /* Power Slider component styles */
 .ps {
-  --ps-width: 67px;
+  /* slimmer slider to match pool game styling */
+  --ps-width: 46px;
   --ps-height: 576px;
-  --ps-radius: 34px;
+  --ps-radius: 23px;
   --ps-track-bg: rgba(255, 255, 255, 0.15);
   --ps-gradient-low: #ffe066;
   --ps-gradient-mid: #ff8c00;
@@ -21,7 +22,8 @@
   overflow: visible;
   user-select: none;
   touch-action: none;
-  transform: scale(1.2);
+  /* removed extra scale so dimensions match pool game */
+  transform: scale(1);
   transform-origin: top left;
 }
 
