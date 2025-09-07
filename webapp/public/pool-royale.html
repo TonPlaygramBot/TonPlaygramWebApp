@@ -2433,8 +2433,9 @@
                 var p = this.pockets;
                 var lineW = ctx.lineWidth;
                 // Slightly extend the green boundary lines closer to the pockets
-                var cornerGap = lineW * 3.5;
-                var sideGap = lineW * 1.5;
+                // Align boundary expansion exactly with pocket connectors
+                var cornerGap = lineW * 0.5;
+                var sideGap = lineW * 0.5;
                 ctx.beginPath();
                 // top boundary
                 var topY = y0;
@@ -3685,8 +3686,8 @@
           var y = p.y * sY;
           var dx = R * 1.1 * dir;
           var dy = R * 1.25;
-          // Shorten the straight segments slightly to keep them within the green boundary
-          var trim = R * 0.15;
+          // Remove trimming so lines meet the table boundary without gaps
+          var trim = 0;
           if (stroke) ctx.beginPath();
           ctx.moveTo(x - dx, y);
           ctx.lineTo(x + dx, y - dy + trim);
@@ -3706,9 +3707,9 @@
           if (stroke) ctx.beginPath();
           ctx.moveTo(-R, 0);
           ctx.arc(0, 0, R, Math.PI, 0);
-          // Slightly reduce straight leg length so U connector doesn't overlap boundary
-          var lineLen = R * 1.15;
-          var lineStart = R * 0.1;
+          // Extend legs to meet the boundary without gaps
+          var lineLen = R * 1.25;
+          var lineStart = 0;
           ctx.moveTo(-R, lineStart);
           ctx.lineTo(-R, lineLen);
           ctx.moveTo(R, lineStart);
