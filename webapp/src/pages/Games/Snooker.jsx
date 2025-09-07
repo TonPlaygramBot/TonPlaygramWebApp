@@ -39,8 +39,8 @@ const CAPTURE_R = POCKET_R; // pocket capture radius
 
 // slightly brighter colors for table and balls
 const COLORS = Object.freeze({
-  cloth: 0x0d6d43,
-  rail: 0x123a24,
+  cloth: 0x147d3a,
+  rail: 0x7b4a26,
   cue: 0xffffff,
   red: 0xcc0000,
   yellow: 0xffdd33,
@@ -122,10 +122,10 @@ function calcTarget(cue, dir, balls) {
       targetBall = null;
     }
   };
-  if (dir.x < 0) checkRail(((-limX - cuePos.x) / dir.x), new THREE.Vector2(1, 0));
-  if (dir.x > 0) checkRail(((limX - cuePos.x) / dir.x), new THREE.Vector2(-1, 0));
-  if (dir.y < 0) checkRail(((-limY - cuePos.y) / dir.y), new THREE.Vector2(0, 1));
-  if (dir.y > 0) checkRail(((limY - cuePos.y) / dir.y), new THREE.Vector2(0, -1));
+  if (dir.x < 0) checkRail((-limX - cuePos.x) / dir.x, new THREE.Vector2(1, 0));
+  if (dir.x > 0) checkRail((limX - cuePos.x) / dir.x, new THREE.Vector2(-1, 0));
+  if (dir.y < 0) checkRail((-limY - cuePos.y) / dir.y, new THREE.Vector2(0, 1));
+  if (dir.y > 0) checkRail((limY - cuePos.y) / dir.y, new THREE.Vector2(0, -1));
 
   const diam = BALL_R * 2;
   const diam2 = diam * diam;
@@ -151,7 +151,10 @@ function calcTarget(cue, dir, balls) {
     afterDir = targetBall.pos.clone().sub(impact).normalize();
   } else if (railNormal) {
     const n = railNormal.clone().normalize();
-    afterDir = dir.clone().sub(n.clone().multiplyScalar(2 * dir.dot(n))).normalize();
+    afterDir = dir
+      .clone()
+      .sub(n.clone().multiplyScalar(2 * dir.dot(n)))
+      .normalize();
   }
   return { impact, afterDir };
 }
@@ -242,10 +245,10 @@ function Table3D(scene) {
   // Pocket rings (vizuale sipërfaqe)
   const ringGeo = new THREE.RingGeometry(POCKET_R_VIS * 0.6, POCKET_R_VIS, 48);
   const ringMat = new THREE.MeshStandardMaterial({
-    color: 0x000000,
+    color: 0x111111,
     side: THREE.DoubleSide,
-    metalness: 0.05,
-    roughness: 0.4,
+    metalness: 0.3,
+    roughness: 0.6,
     depthTest: false
   });
   pocketCenters().forEach((p) => {
@@ -451,7 +454,11 @@ export default function NewSnookerGame() {
         CAMERA.far
       );
       // Start behind baulk colours
-      const sph = new THREE.Spherical(180 * TABLE_SCALE, 1.05 /*phi ~60°*/, Math.PI);
+      const sph = new THREE.Spherical(
+        180 * TABLE_SCALE,
+        1.05 /*phi ~60°*/,
+        Math.PI
+      );
       const fit = (m = 1.1) => {
         camera.aspect = host.clientWidth / host.clientHeight;
         sph.radius = fitRadius(camera, m);
@@ -632,8 +639,9 @@ export default function NewSnookerGame() {
       // Aiming visuals
       const aimMat = new THREE.LineDashedMaterial({
         color: 0xffffff,
-        dashSize: 2,
-        gapSize: 1,
+        dashSize: 0.5,
+        gapSize: 0.5,
+        linewidth: 2,
         transparent: true,
         opacity: 0.9
       });

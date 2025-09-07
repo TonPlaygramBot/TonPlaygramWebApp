@@ -1,9 +1,9 @@
 /* Power Slider component styles */
 .ps {
-  /* slimmer slider to match pool game styling */
-  --ps-width: 46px;
-  --ps-height: 576px;
-  --ps-radius: 23px;
+  /* resized to better match reference snooker slider */
+  --ps-width: 32px;
+  --ps-height: 480px;
+  --ps-radius: 16px;
   --ps-track-bg: rgba(255, 255, 255, 0.15);
   --ps-gradient-low: #ffe066;
   --ps-gradient-mid: #ff8c00;
@@ -134,7 +134,7 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  width: calc(var(--ps-width) * 0.8657);
+  width: calc(var(--ps-width) * 0.8);
   border-radius: 6px;
   background: linear-gradient(
     to bottom,
@@ -157,7 +157,7 @@
   margin-top: 12px;
   width: 100%;
   height: auto;
-  transform: translateX(9.6px);
+  transform: translateX(6px);
 }
 
 .ps .ps-tooltip {
