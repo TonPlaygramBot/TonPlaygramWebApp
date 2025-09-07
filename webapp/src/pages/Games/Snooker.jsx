@@ -1,7 +1,5 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import * as THREE from "three";
-import { PowerSlider } from "/power-slider.js";
-import "/power-slider.css";
 
 /**
  * NEW SNOOKER GAME — fresh build (keep ONLY Guret for balls)
@@ -35,8 +33,8 @@ const COLORS = Object.freeze({
   mark: 0xffffff,
 });
 
-// Kamera: lejojmë ulje dhe ngritje më të lirë (phi më i gjerë)
-const CAMERA = { fov: 44, near: 0.1, far: 4000, minR: 105, maxR: 420, minPhi: 0.1, phiMargin: 0.1 };
+// Kamera: lejojmë ulje më të madhe (phi më i vogël), por mos shko kurrë krejt në nivel (limit ~0.5rad)
+const CAMERA = { fov: 44, near: 0.1, far: 4000, minR: 105, maxR: 420, minPhi: 0.5, phiMargin: 0.4 };
 const clamp = (v,a,b)=> Math.max(a, Math.min(b, v));
 
 // --------------------------------------------------
@@ -238,24 +236,18 @@ export default function NewSnookerGame(){
   }, [hud.power, hud.inHand, hud.over]);
 
   // --------------------------------------------------
-    // Power Slider (shared component): drag down to set power, release to fire
-    // --------------------------------------------------
-    const sliderRef = useRef(null);
-  useEffect(() => {
-    const mount = sliderRef.current;
-    if (!mount) return;
-    const slider = new PowerSlider({
-      mount,
-      value: hud.power * 100,
-      cueSrc: "/assets/icons/file_0000000019d86243a2f7757076cd7869.webp",
-      onChange: (v) => setHud((s) => ({ ...s, power: v / 100 })),
-      onCommit: () => fireRef.current?.(),
-    });
-    return () => {
-      window.removeEventListener("resize", slider._onResize);
-      slider.el.remove();
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+  // NEW Big Pull Slider (right side): drag DOWN to set power, releases → fire()
+  // --------------------------------------------------
+  const sliderRef = useRef(null);
+  useEffect(()=>{
+    const el=sliderRef.current; if(!el) return; let dragging=false, lastY=0, pulled=false;
+    const setFromClientY=(y)=>{ const r=el.getBoundingClientRect(); const v=(y - r.top)/r.height; const val=clamp(v, 0, 1); setHud(s=>({ ...s, power: val })); };
+    const onDown=(e)=>{ dragging=true; const y=e.touches?.[0]?.clientY ?? e.clientY ?? 0; lastY=y; pulled=false; setFromClientY(y); e.preventDefault?.(); };
+    const onMove=(e)=>{ if(!dragging) return; const y=e.touches?.[0]?.clientY ?? e.clientY ?? lastY; if(y>lastY+1) pulled=true; lastY=y; setFromClientY(y); };
+    const onUp=()=>{ if(dragging && pulled) fireRef.current?.(); dragging=false; pulled=false; };
+    el.addEventListener('pointerdown', onDown); window.addEventListener('pointermove', onMove, { passive:true }); window.addEventListener('pointerup', onUp);
+    el.addEventListener('touchstart', onDown, { passive:false }); window.addEventListener('touchmove', onMove, { passive:true }); window.addEventListener('touchend', onUp);
+    return ()=>{ el.removeEventListener('pointerdown', onDown); window.removeEventListener('pointermove', onMove); window.removeEventListener('pointerup', onUp); el.removeEventListener('touchstart', onDown); window.removeEventListener('touchmove', onMove); window.removeEventListener('touchend', onUp); };
   }, []);
 
   return (
@@ -273,9 +265,17 @@ export default function NewSnookerGame(){
         {hud.inHand && <div className="px-2 py-0.5 rounded bg-red-600/80">Cue in hand: vendose në baulk</div>}
       </div>
 
-      {/* Power Slider (shared component) */}
-      <div className="absolute right-4 top-1/2 -translate-y-1/2">
-        <div ref={sliderRef} />
+      {/* BIG Pull Slider — right side */}
+      <div className="absolute right-4 top-1/2 -translate-y-1/2 h-[78%] w-[36px]">
+        <div ref={sliderRef} className="relative h-full w-full rounded-full bg-white/15 cursor-pointer">
+          {/* Track fill */}
+          <div className="absolute left-1/2 -translate-x-1/2 w-[4px] bg-white" style={{ top: `${hud.power*100}%`, height: `${hud.power*100}%` }} />
+          {/* Knob */}
+          <div className="absolute left-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white text-white text-[13px] font-semibold px-2 py-1 select-none"
+               style={{ top: `${hud.power*100}%`, background: 'rgba(255,255,255,0.08)' }}>
+            PULL
+          </div>
+        </div>
       </div>
 
       {/* Help */}
