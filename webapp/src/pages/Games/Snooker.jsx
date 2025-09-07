@@ -58,6 +58,15 @@ const CAMERA = {
   phiMargin: 0.4
 };
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+const fitRadius = (camera, margin = 1.1) => {
+  const a = camera.aspect,
+    f = THREE.MathUtils.degToRad(camera.fov);
+  const halfW = (TABLE.W / 2) * margin,
+    halfH = (TABLE.H / 2) * margin;
+  const dzH = halfH / Math.tan(f / 2);
+  const dzW = halfW / (Math.tan(f / 2) * a);
+  return clamp(Math.max(dzH, dzW), CAMERA.minR, CAMERA.maxR);
+};
 
 // --------------------------------------------------
 // Utilities
@@ -255,6 +264,7 @@ export default function NewSnookerGame() {
   const fireRef = useRef(() => {}); // set from effect so slider can trigger fire()
   const cameraRef = useRef(null);
   const sphRef = useRef(null);
+  const last3DRef = useRef({ phi: 1.05, theta: Math.PI });
   const fitRef = useRef(() => {});
   const topViewRef = useRef(false);
   const [topView, setTopView] = useState(false);
@@ -280,23 +290,45 @@ export default function NewSnookerGame() {
   });
 
   const toggleView = () => {
-    setTopView((v) => {
-      const next = !v;
-      topViewRef.current = next;
-      const cam = cameraRef.current;
-      const sph = sphRef.current;
-      if (cam && sph) {
-        if (next) {
-          // fit entire table before switching to top view
-          fitRef.current?.(1.02);
-          cam.position.set(0, sph.radius, 0);
-          cam.lookAt(0, 0, 0);
-        } else {
-          fitRef.current?.();
-        }
+    const cam = cameraRef.current;
+    const sph = sphRef.current;
+    const fit = fitRef.current;
+    if (!cam || !sph || !fit) return;
+    const next = !topViewRef.current;
+    const start = {
+      radius: sph.radius,
+      phi: sph.phi,
+      theta: sph.theta
+    };
+    if (next) last3DRef.current = { phi: sph.phi, theta: sph.theta };
+    const targetMargin = next
+      ? 1.02
+      : window.innerHeight > window.innerWidth
+        ? 1.4
+        : 1.1;
+    const target = {
+      radius: fitRadius(cam, targetMargin),
+      phi: next ? 0.0001 : last3DRef.current.phi,
+      theta: next ? sph.theta : last3DRef.current.theta
+    };
+    const duration = 600;
+    const t0 = performance.now();
+    function anim(t) {
+      const k = Math.min(1, (t - t0) / duration);
+      const ease = k * (2 - k);
+      sph.radius = start.radius + (target.radius - start.radius) * ease;
+      sph.phi = start.phi + (target.phi - start.phi) * ease;
+      sph.theta = start.theta + (target.theta - start.theta) * ease;
+      cam.position.setFromSpherical(sph);
+      cam.lookAt(0, 0, 0);
+      if (k < 1) requestAnimationFrame(anim);
+      else {
+        topViewRef.current = next;
+        setTopView(next);
+        fit(targetMargin);
       }
-      return next;
-    });
+    }
+    requestAnimationFrame(anim);
   };
 
   useEffect(() => {
@@ -350,13 +382,7 @@ export default function NewSnookerGame() {
       const sph = new THREE.Spherical(180 * SCALE, 1.05 /*phi ~60°*/, Math.PI);
       const fit = (m = 1.1) => {
         camera.aspect = host.clientWidth / host.clientHeight;
-        const a = camera.aspect,
-          f = THREE.MathUtils.degToRad(camera.fov);
-        const halfW = (TABLE.W / 2) * m,
-          halfH = (TABLE.H / 2) * m;
-        const dzH = halfH / Math.tan(f / 2);
-        const dzW = halfW / (Math.tan(f / 2) * a);
-        sph.radius = clamp(Math.max(dzH, dzW), CAMERA.minR, CAMERA.maxR);
+        sph.radius = fitRadius(camera, m);
         const phiCap = Math.acos(
           THREE.MathUtils.clamp(-0.95 / sph.radius, -1, 1)
         );
@@ -467,6 +493,27 @@ export default function NewSnookerGame() {
       dom.addEventListener('touchmove', move, { passive: true });
       window.addEventListener('touchend', up);
       dom.addEventListener('wheel', wheel, { passive: true });
+      const keyRot = (e) => {
+        if (topViewRef.current) return;
+        const step = e.shiftKey ? 0.12 : 0.06;
+        if (e.code === 'ArrowLeft') sph.theta += step;
+        else if (e.code === 'ArrowRight') sph.theta -= step;
+        else if (e.code === 'ArrowUp')
+          sph.phi = clamp(
+            sph.phi - step,
+            CAMERA.minPhi,
+            Math.PI - CAMERA.phiMargin
+          );
+        else if (e.code === 'ArrowDown')
+          sph.phi = clamp(
+            sph.phi + step,
+            CAMERA.minPhi,
+            Math.PI - CAMERA.phiMargin
+          );
+        else return;
+        fit(window.innerHeight > window.innerWidth ? 1.4 : 1.1);
+      };
+      window.addEventListener('keydown', keyRot);
 
       // Lights
       scene.add(new THREE.HemisphereLight(0xffffff, 0x222233, 0.95));
@@ -849,6 +896,7 @@ export default function NewSnookerGame() {
         dom.removeEventListener('touchmove', move);
         window.removeEventListener('touchend', up);
         dom.removeEventListener('wheel', wheel);
+        window.removeEventListener('keydown', keyRot);
         dom.removeEventListener('pointermove', onAimMove);
         dom.removeEventListener('pointerdown', onPlace);
       };
