@@ -616,6 +616,13 @@
         z-index: 80;
       }
 
+      #header .avatar,
+      #footer .avatar,
+      #settingsBtn,
+      #rulesBtn {
+        display: none;
+      }
+
       #trainingMenuWrapper {
         position: fixed;
         left: 12px;
@@ -974,6 +981,7 @@
         var BORDER = 57; // korniza e drurit pak me e ngushte anash
         var BALL_R = isSnooker && playType === 'training' ? 17 : 21; // snooker training uses smaller balls
         var GREEN_LINE = 14; // thickness of the green boundary lines
+        var FIELD_BORDER = BORDER + GREEN_LINE; // kufiri real i fushes
         // Gropat pak me te vogla per t'u mbyllur me shume dhe jo per t'u zgjeruar
         var POCKET_R = isSnooker && playType === 'training' ? BALL_R * 0.65 : 32; // rrezja baze e gropave pak me e vogel nga jashte
         var SIDE_POCKET_R = isSnooker && playType === 'training' ? POCKET_R : 30; // gropat anesore gjithashtu pak me te vogla
@@ -981,11 +989,8 @@
         var POCKET_SHORTEN = isSnooker ? 2 : 4; // gropat snooker pak me brenda
         var SHORT_DIST = BALL_R * 28;
         var MED_DIST = BALL_R * 56;
-        var BORDER_TOP =
-          BORDER + BALL_R * 2 - 4 - GREEN_LINE; // extend field upward by two green lines
-        // Raise only the bottom field line by the thickness of one green side
-        // marking so the table's lower boundary sits slightly higher.
-        var BORDER_BOTTOM = BORDER + GREEN_LINE; // anet e tjera mbeten te pandryshuara
+        var BORDER_TOP = FIELD_BORDER;
+        var BORDER_BOTTOM = FIELD_BORDER;
         // Move the rack slightly upward on the table
         var SPOT_Y =
           BORDER_TOP +
@@ -2148,8 +2153,8 @@
               // spin is applied directly during collisions
               b.a += (Math.hypot(b.v.x, b.v.y) * dt) / (BALL_R * 0.6);
 
-                var L = BORDER + BALL_R;
-                var R = TABLE_W - BORDER - BALL_R;
+                var L = FIELD_BORDER + BALL_R;
+                var R = TABLE_W - FIELD_BORDER - BALL_R;
                 var T = BORDER_TOP + BALL_R;
                 var B = TABLE_H - BORDER_BOTTOM - BALL_R;
 
@@ -2432,9 +2437,9 @@
         Table.prototype.render = function () {
           ctx.clearRect(0, 0, canvas.width, canvas.height);
           // Field dimensions
-          var x0 = BORDER * sX,
+          var x0 = FIELD_BORDER * sX,
             y0 = BORDER_TOP * sY,
-            w = (TABLE_W - 2 * BORDER) * sX,
+            w = (TABLE_W - 2 * FIELD_BORDER) * sX,
             h = (TABLE_H - BORDER_TOP - BORDER_BOTTOM) * sY;
 
           if (!isSnooker) {
@@ -2473,7 +2478,7 @@
                 ctx.moveTo(xLeft, leftMidBottom);
                 ctx.lineTo(xLeft, leftBottom);
                 // right boundary with side pocket
-                var xRight = (TABLE_W - BORDER) * sX;
+                var xRight = (TABLE_W - FIELD_BORDER) * sX;
                 var rightTop = (p[1].y + p[1].r) * sY + cornerGap;
                 var rightMidTop = (p[3].y - p[3].r) * sY - sideGap;
                 var rightMidBottom = (p[3].y + p[3].r) * sY + sideGap;
@@ -3388,8 +3393,8 @@
           var t = screenToTable(e.clientX, e.clientY);
           var cue = table.balls[0];
           if (draggingCue && cueBallFree) {
-            var minX = BORDER + BALL_R,
-              maxX = TABLE_W - BORDER - BALL_R;
+            var minX = FIELD_BORDER + BALL_R,
+              maxX = TABLE_W - FIELD_BORDER - BALL_R;
             var minY = LINE_Y + BALL_R,
               maxY = TABLE_H - BORDER_BOTTOM - BALL_R;
             var nx = clamp(t.x, minX, maxX);
@@ -3457,12 +3462,12 @@
           }
 
           if (dir.x < 0)
-            checkRail((BORDER + BALL_R - cue.p.x) / dir.x, {
+            checkRail((FIELD_BORDER + BALL_R - cue.p.x) / dir.x, {
               x: 1,
               y: 0
             });
           if (dir.x > 0)
-            checkRail((TABLE_W - BORDER - BALL_R - cue.p.x) / dir.x, {
+            checkRail((TABLE_W - FIELD_BORDER - BALL_R - cue.p.x) / dir.x, {
               x: -1,
               y: 0
             });
@@ -3585,12 +3590,12 @@
             if (hitN.x > 0)
               tMax = Math.min(
                 tMax,
-                (TABLE_W - BORDER - BALL_R - tx) / hitN.x
+                (TABLE_W - FIELD_BORDER - BALL_R - tx) / hitN.x
               );
             if (hitN.x < 0)
               tMax = Math.min(
                 tMax,
-                (BORDER + BALL_R - tx) / hitN.x
+                (FIELD_BORDER + BALL_R - tx) / hitN.x
               );
             if (hitN.y > 0)
               tMax = Math.min(
@@ -4076,8 +4081,8 @@
           if (shot.cueBallPosition) {
             var nx = clamp(
               shot.cueBallPosition.x,
-              BORDER + BALL_R,
-              TABLE_W - BORDER - BALL_R
+              FIELD_BORDER + BALL_R,
+              TABLE_W - FIELD_BORDER - BALL_R
             );
             var ny = clamp(
               shot.cueBallPosition.y,
