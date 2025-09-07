@@ -49,6 +49,17 @@ public class CcdRegressionTests
         Assert.Greater(t, 0);
         Assert.That(Math.Abs(n.Y - (-1)), Is.LessThan(1e-6));
     }
+
+    [Test]
+    public void CornerCushionReflection()
+    {
+        var start = new Vec2(PhysicsConstants.BallRadius + 0.1, PhysicsConstants.BallRadius + 0.1);
+        var vel = new Vec2(-1, -1);
+        Assert.IsTrue(Ccd.CircleAabb(start, vel, PhysicsConstants.BallRadius, new Vec2(0, 0), new Vec2(1, 1), out double t, out Vec2 n));
+        Assert.Greater(t, 0);
+        Assert.That(Math.Abs(n.X - n.Y), Is.LessThan(1e-6));
+        Assert.That(n.X, Is.GreaterThan(0));
+    }
 }
 
 public class PreviewRuntimeTests
@@ -110,6 +121,19 @@ public class CushionStepTests
         solver.Step(new List<BilliardsSolver.Ball> { ball }, 0.1);
         Assert.That(ball.Position.X, Is.GreaterThanOrEqualTo(PhysicsConstants.BallRadius - 1e-9));
         Assert.That(ball.Velocity.X, Is.GreaterThan(0));
+    }
+
+    [Test]
+    public void BallReflectsInCornerWithoutCrossing()
+    {
+        var solver = new BilliardsSolver();
+        var start = new Vec2(PhysicsConstants.BallRadius + 0.1, PhysicsConstants.BallRadius + 0.1);
+        var ball = new BilliardsSolver.Ball { Position = start, Velocity = new Vec2(-5, -5) };
+        solver.Step(new List<BilliardsSolver.Ball> { ball }, 0.1);
+        Assert.That(ball.Position.X, Is.GreaterThanOrEqualTo(PhysicsConstants.BallRadius - 1e-9));
+        Assert.That(ball.Position.Y, Is.GreaterThanOrEqualTo(PhysicsConstants.BallRadius - 1e-9));
+        Assert.That(ball.Velocity.X, Is.GreaterThan(0));
+        Assert.That(ball.Velocity.Y, Is.GreaterThan(0));
     }
 }
 

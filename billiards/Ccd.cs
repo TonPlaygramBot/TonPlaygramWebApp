@@ -65,6 +65,28 @@ public static class Ccd
                 }
             }
         }
+
+        // handle corner impacts where neither vertical nor horizontal checks apply
+        // treat corners as stationary circles with radius equal to the ball radius
+        Vec2[] corners = new Vec2[]
+        {
+            new Vec2(min.X + r, min.Y + r),
+            new Vec2(max.X - r, min.Y + r),
+            new Vec2(min.X + r, max.Y - r),
+            new Vec2(max.X - r, max.Y - r)
+        };
+        foreach (var c in corners)
+        {
+            if (CircleCircle(p, v, 0, c, r, out double tCorner) && tCorner < toi)
+            {
+                toi = tCorner;
+                hit = true;
+                // normal points from corner center to impact point
+                var contact = p + v * tCorner;
+                normal = (contact - c).Normalized();
+            }
+        }
+
         return hit;
     }
 
