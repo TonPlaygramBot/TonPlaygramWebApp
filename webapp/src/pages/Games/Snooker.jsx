@@ -221,28 +221,50 @@ function Table3D(scene) {
   cloth.position.y = -TABLE.THICK;
   cloth.receiveShadow = true;
   scene.add(cloth);
-  // Rails
+  // Rails carved around pockets
   const railMat = new THREE.MeshStandardMaterial({
     color: COLORS.rail,
     metalness: 0.12,
     roughness: 0.7
   });
-  const railTop = new THREE.Mesh(
-    new THREE.BoxGeometry(TABLE.W + 8, 4, 4),
-    railMat
-  );
-  railTop.position.set(0, 0, halfH + 2);
-  const railBot = railTop.clone();
-  railBot.position.z = -halfH - 2;
-  const railL = new THREE.Mesh(
-    new THREE.BoxGeometry(4, 4, TABLE.H + 8),
-    railMat
-  );
-  railL.position.set(-halfW - 2, 0, 0);
-  const railR = railL.clone();
-  railR.position.x = halfW + 2;
-  scene.add(railTop, railBot, railL, railR);
-  // Pocket rings (vizuale sipërfaqe)
+  const railShape = new THREE.Shape();
+  railShape.moveTo(-halfW - TABLE.WALL, -halfH - TABLE.WALL);
+  railShape.lineTo(halfW + TABLE.WALL, -halfH - TABLE.WALL);
+  railShape.lineTo(halfW + TABLE.WALL, halfH + TABLE.WALL);
+  railShape.lineTo(-halfW - TABLE.WALL, halfH + TABLE.WALL);
+  railShape.lineTo(-halfW - TABLE.WALL, -halfH - TABLE.WALL);
+
+  const inner = new THREE.Path();
+  inner.moveTo(-halfW, -halfH);
+  inner.lineTo(halfW, -halfH);
+  inner.lineTo(halfW, halfH);
+  inner.lineTo(-halfW, halfH);
+  inner.lineTo(-halfW, -halfH);
+  railShape.holes.push(inner);
+  pocketCenters().forEach((p) => {
+    const h = new THREE.Path();
+    h.absellipse(
+      p.x,
+      p.y,
+      POCKET_R_VIS,
+      POCKET_R_VIS,
+      0,
+      Math.PI * 2,
+      false,
+      0
+    );
+    railShape.holes.push(h);
+  });
+  const railGeo = new THREE.ExtrudeGeometry(railShape, {
+    depth: TABLE.THICK + 4,
+    bevelEnabled: false
+  });
+  const rails = new THREE.Mesh(railGeo, railMat);
+  rails.rotation.x = -Math.PI / 2;
+  rails.position.y = -TABLE.THICK - 2;
+  rails.receiveShadow = true;
+  scene.add(rails);
+  // Pocket rings (visual rim)
   const ringGeo = new THREE.RingGeometry(POCKET_R_VIS * 0.6, POCKET_R_VIS, 48);
   const ringMat = new THREE.MeshStandardMaterial({
     color: 0x111111,
