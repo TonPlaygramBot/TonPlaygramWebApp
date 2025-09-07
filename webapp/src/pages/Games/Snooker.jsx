@@ -22,8 +22,9 @@ import { SnookerRules } from '../../../../src/rules/SnookerRules.ts';
 // Config
 // --------------------------------------------------
 // separate scales for table and balls
-const BALL_SCALE = 0.65; // keep balls same size
-const TABLE_SCALE = BALL_SCALE * 1.2; // table 20% larger
+// Dimensions aligned with Pool Royale for consistent feel
+const BALL_SCALE = 1;
+const TABLE_SCALE = 1;
 const TABLE = {
   W: 66 * TABLE_SCALE,
   H: 132 * TABLE_SCALE,
@@ -1027,7 +1028,7 @@ export default function NewSnookerGame() {
     const slider = new PowerSlider({
       mount,
       value: powerRef.current * 100,
-      cueSrc: '/assets/cue.png',
+      cueSrc: '/assets/icons/file_0000000019d86243a2f7757076cd7869.webp',
       onChange: (v) => setHud((s) => ({ ...s, power: v / 100 })),
       onCommit: () => fireRef.current?.()
     });
