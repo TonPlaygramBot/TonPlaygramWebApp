@@ -481,8 +481,7 @@ export default function Snooker3D() {
       };
 
       // Cue ball
-      const cueStart = new THREE.Vector2(-TABLE.W * 0.3, 0);
-      const cueBall = pushBall('cue', COLORS.cue, cueStart.x, cueStart.y);
+      const cueBall = pushBall('cue', COLORS.cue, -TABLE.W * 0.3, 0);
       cueIdxRef.current = balls.indexOf(cueBall);
 
       // Reds triangle (base near pink)
@@ -572,18 +571,8 @@ export default function Snooker3D() {
         });
         collideBalls(balls);
         pocketsCheck(balls, pocketCenters, (ball) => {
-          if (ball.id === 'cue') {
-            ball.active = true;
-            ball.mesh.visible = true;
-            ball.pos.copy(cueStart);
-            ball.vel.set(0, 0);
-            ball.mesh.position.set(ball.pos.x, BALL_R, ball.pos.y);
-          } else {
-            ball.active = false;
-            ball.mesh.visible = false;
-            ball.vel.set(0, 0);
-            setUi((s) => ({ ...s, score: s.score + 1 }));
-          }
+          ball.active = false; ball.mesh.visible = false; ball.vel.set(0, 0);
+          setUi(s => ({ ...s, score: s.score + 1 }));
         });
 
         renderer.render(scene, camera);
@@ -615,26 +604,54 @@ export default function Snooker3D() {
   }, [ui.power, ui.spinX, ui.spinY, pocketCenters]);
 
   // ===================================================================================
-  // HUD: Power Slider (shared component used in Pool Royale)
+  // HUD: Power Slider (pull‑down to charge, release to shoot)
   // ===================================================================================
-  const sliderRef = useRef(null);
+  const powerBarRef = useRef(null);
   useEffect(() => {
-    const mount = sliderRef.current;
-    if (!mount) return;
-    let slider;
-    import('/power-slider.js').then(({ PowerSlider }) => {
-      slider = new PowerSlider({
-        mount,
-        value: 0,
-        onChange: (v) => setUi((s) => ({ ...s, power: v / 100 })),
-        onCommit: () => {
-          if (window.__snk_commitShot) window.__snk_commitShot();
-          slider.set(0);
-          setUi((s) => ({ ...s, power: 0 }));
-        }
-      });
-    });
-    return () => slider?.destroy();
+    const el = powerBarRef.current; if (!el) return;
+    let dragging = false; let lastY = 0; let pulledDown = false;
+
+    const safeClientY = (ev) => (typeof ev?.clientY === 'number') ? ev.clientY : (ev?.touches && ev.touches[0]?.clientY) || (ev?.changedTouches && ev.changedTouches[0]?.clientY) || null;
+
+    const setFromY = (clientY) => {
+      if (clientY == null) return;
+      const rect = el.getBoundingClientRect();
+      const v = (clientY - rect.top) / rect.height; // 0..1 (top..bottom)
+      const val = Math.min(1, Math.max(0, v));
+      setUi(s => ({ ...s, power: val }));
+    };
+
+    const onDown = (e) => {
+      dragging = true; const y = safeClientY(e); lastY = y ?? 0; pulledDown = false; setFromY(y);
+      // prevent scroll + passive listener issues on mobile
+      e.preventDefault?.();
+    };
+    const onMove = (e) => {
+      if (!dragging) return; const y = safeClientY(e); if (y == null) return;
+      if (y > lastY + 1) pulledDown = true; lastY = y; setFromY(y);
+    };
+    const onUp = () => {
+      if (dragging && pulledDown && (window).__snk_commitShot) (window).__snk_commitShot();
+      dragging = false; pulledDown = false;
+      setUi(s => ({ ...s, power: 0 }));
+    };
+
+    el.addEventListener('pointerdown', onDown);
+    window.addEventListener('pointermove', onMove, { passive: true });
+    window.addEventListener('pointerup', onUp);
+
+    el.addEventListener('touchstart', onDown, { passive: false });
+    window.addEventListener('touchmove', onMove, { passive: true });
+    window.addEventListener('touchend', onUp);
+
+    return () => {
+      el.removeEventListener('pointerdown', onDown);
+      window.removeEventListener('pointermove', onMove);
+      window.removeEventListener('pointerup', onUp);
+      el.removeEventListener('touchstart', onDown);
+      window.removeEventListener('touchmove', onMove);
+      window.removeEventListener('touchend', onUp);
+    };
   }, []);
 
   // ===================================================================================
@@ -644,7 +661,7 @@ export default function Snooker3D() {
     <div className="w-full h-[100vh] flex flex-col items-stretch overflow-hidden">
       <div className="relative flex-1">
         {/* 3D Stage fills the whole viewport height */}
-        <div ref={mountRef} className="absolute inset-0" />
+        <div ref={mountRef} className="absolute top-0 bottom-0 left-0 right-[40px]" />
 
         {/* Error overlay if init fails */}
         {initError && (
@@ -656,8 +673,15 @@ export default function Snooker3D() {
         {/* HUD: score */}
         <div className="absolute left-3 top-3 bg-black/50 text-white text-xs rounded-lg px-2 py-1">Score: <b>{ui.score}</b></div>
 
-        {/* HUD: power slider (shared with Pool Royale) */}
-        <div ref={sliderRef} className="absolute right-5 top-1/2 -translate-y-1/2" />
+        {/* HUD: thin power bar on right (SLIGHTLY LEFT NUDGE) – pull DOWN & RELEASE to shoot */}
+        <div ref={powerBarRef} className="absolute right-5 top-1/2 -translate-y-1/2 h-[70%] w-[16px] bg-white/15 rounded-full cursor-pointer select-none">
+          {/* track */}
+          <div className="absolute left-1/2 -translate-x-1/2 w-[3px] bg-white/40" style={{ top: 0, height: `${(1-ui.power)*100}%` }} />
+          <div className="absolute left-1/2 -translate-x-1/2 w-[3px] bg-white" style={{ top: `${(1-ui.power)*100}%`, height: `${ui.power*100}%` }} />
+          {/* circular PULL label following the knob */}
+          <div className="absolute left-1/2 -translate-x-1/2 -translate-y-1/2 border-2 border-white rounded-full text-white text-[16px] font-semibold px-2 py-1 select-none"
+               style={{ top: `${(ui.power)*100}%` }}>PULL</div>
+        </div>
 
         {/* HUD: spin controller top-center */}
         <SpinHUD ui={ui} setUi={setUi} />
