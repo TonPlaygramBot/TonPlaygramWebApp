@@ -255,9 +255,11 @@ function Table3D(scene) {
     scene.add(m);
   });
   // Markings: baulk, D, spots
-  const BAULK_RATIO_FROM_LEFT = 0.2014;
-  const D_R = (11.5 / 72) * TABLE.H;
-  const baulkX = -halfW + BAULK_RATIO_FROM_LEFT * TABLE.W;
+  // Baulk line is measured from the bottom cushion along table length
+  const BAULK_RATIO_FROM_BOTTOM = 0.2014;
+  // D radius is based on table width (short side)
+  const D_R = (11.5 / 72) * TABLE.W;
+  const baulkZ = -halfH + BAULK_RATIO_FROM_BOTTOM * TABLE.H;
   const markMat = new THREE.LineBasicMaterial({
     color: COLORS.mark,
     transparent: true,
@@ -266,15 +268,15 @@ function Table3D(scene) {
     depthWrite: false
   });
   const lineGeo = new THREE.BufferGeometry().setFromPoints([
-    new THREE.Vector3(baulkX, 0.01, -halfH),
-    new THREE.Vector3(baulkX, 0.01, halfH)
+    new THREE.Vector3(-halfW, 0.01, baulkZ),
+    new THREE.Vector3(halfW, 0.01, baulkZ)
   ]);
   scene.add(new THREE.Line(lineGeo, markMat));
   const dPts = [];
   for (let i = 0; i <= 64; i++) {
     const t = Math.PI * (i / 64);
     dPts.push(
-      new THREE.Vector3(baulkX + Math.cos(t) * D_R, 0.01, Math.sin(t) * D_R)
+      new THREE.Vector3(Math.sin(t) * D_R, 0.01, baulkZ + Math.cos(t) * D_R)
     );
   }
   scene.add(
@@ -293,13 +295,15 @@ function Table3D(scene) {
     r.position.set(x, 0.01, z);
     scene.add(r);
   };
-  spot(baulkX, 0);
-  spot(baulkX, TABLE.H * 0.22);
-  spot(baulkX, -TABLE.H * 0.22);
+  // yellow, brown, green on baulk line
+  spot(-TABLE.W * 0.22, baulkZ);
+  spot(0, baulkZ);
+  spot(TABLE.W * 0.22, baulkZ);
+  // blue, pink, black along table center line
   spot(0, 0);
-  spot(TABLE.W * 0.25, 0);
-  spot(halfW - TABLE.W * 0.09, 0);
-  return { centers: pocketCenters(), baulkX };
+  spot(0, TABLE.H * 0.25);
+  spot(0, halfH - TABLE.H * 0.09);
+  return { centers: pocketCenters(), baulkZ };
 }
 
 // --------------------------------------------------
@@ -591,37 +595,38 @@ export default function NewSnookerGame() {
       scene.add(key);
 
       // Table
-      const { centers, baulkX } = Table3D(scene);
+      const { centers, baulkZ } = Table3D(scene);
 
       // Balls (ONLY Guret)
       const balls = [];
-      const add = (id, color, x, y) => {
-        const b = Guret(scene, id, color, x, y);
+      const add = (id, color, x, z) => {
+        const b = Guret(scene, id, color, x, z);
         balls.push(b);
         return b;
       };
-      let cue = add('cue', COLORS.cue, baulkX - BALL_R * 2, 0);
+      let cue = add('cue', COLORS.cue, -BALL_R * 2, baulkZ);
       // reds triangle toward top side
       let rid = 0;
-      const bx = TABLE.W * 0.25,
-        by = 0;
+      const bz = TABLE.H * 0.25,
+        bx = 0;
       for (let r = 0; r < 5; r++)
         for (let c = 0; c <= r; c++) {
-          const x = bx + r * (BALL_R * 2 + 0.6);
-          const y = by - r * BALL_R + c * (BALL_R * 2 + 0.2);
-          add(`red_${rid++}`, COLORS.red, x, y);
+          const z = bz + r * (BALL_R * 2 + 0.6);
+          const x = bx - r * BALL_R + c * (BALL_R * 2 + 0.2);
+          add(`red_${rid++}`, COLORS.red, x, z);
         }
       // colours
+      const halfH = TABLE.H / 2;
       const SPOTS = {
-        yellow: [baulkX, TABLE.H * 0.22],
-        green: [baulkX, -TABLE.H * 0.22],
-        brown: [baulkX, 0],
+        yellow: [-TABLE.W * 0.22, baulkZ],
+        green: [TABLE.W * 0.22, baulkZ],
+        brown: [0, baulkZ],
         blue: [0, 0],
-        pink: [TABLE.W * 0.25, 0],
-        black: [TABLE.W / 2 - TABLE.W * 0.09, 0]
+        pink: [0, TABLE.H * 0.25],
+        black: [0, halfH - TABLE.H * 0.09]
       };
       const colors = Object.fromEntries(
-        Object.entries(SPOTS).map(([k, [x, y]]) => [k, add(k, COLORS[k], x, y)])
+        Object.entries(SPOTS).map(([k, [x, z]]) => [k, add(k, COLORS[k], x, z)])
       );
 
       // Aiming visuals
@@ -729,8 +734,8 @@ export default function NewSnookerGame() {
         if (!hud.inHand) return;
         const p = project(e);
         if (
-          p.x <= baulkX &&
-          Math.abs(p.y) <= TABLE.H / 2 - BALL_R * 2 &&
+          p.y <= baulkZ &&
+          Math.abs(p.x) <= TABLE.W / 2 - BALL_R * 2 &&
           free(p.x, p.y)
         ) {
           cue.active = true;
@@ -1029,6 +1034,7 @@ export default function NewSnookerGame() {
       mount,
       value: powerRef.current * 100,
       cueSrc: '/assets/icons/file_0000000019d86243a2f7757076cd7869.webp',
+      labels: true,
       onChange: (v) => setHud((s) => ({ ...s, power: v / 100 })),
       onCommit: () => fireRef.current?.()
     });
