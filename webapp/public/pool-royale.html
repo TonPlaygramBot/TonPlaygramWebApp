@@ -181,7 +181,7 @@
         position: absolute;
         inset: 0;
         background: url('/assets/icons/64e79228-35e3-4fdc-b914-fca635a40220.webp')
-          top center/calc(100% + 16px) calc(100% + 24px) no-repeat;
+          top center/calc(100% + 8px) calc(100% + 20px) no-repeat;
         filter: brightness(var(--table-brightness));
         z-index: -1;
       }
@@ -190,52 +190,16 @@
       :root {
         --rpw: min(23vw, 115px);
         --player-frame-color: #000;
-        --table-brightness: 1;
+        --table-brightness: 1.1;
       }
 
       /* Canvas i tavolines (mbulon gjithcka, pervec panelit djathtas) */
       #table {
         position: absolute;
-        top: -4px;
-        left: -4px;
+        top: 0;
+        left: 0;
+        transform: translateY(-2px);
         z-index: 4;
-      }
-
-      /* Visual pocket markers */
-      .pocket {
-        position: absolute;
-        width: 32px;
-        height: 32px;
-        border-radius: 50%;
-        background: #000;
-        pointer-events: none;
-        z-index: 5;
-      }
-      .pocket.tl {
-        top: -16px;
-        left: -14px;
-      }
-      .pocket.tm {
-        top: -18px;
-        left: 50%;
-        transform: translateX(-50%);
-      }
-      .pocket.tr {
-        top: -16px;
-        right: -14px;
-      }
-      .pocket.bl {
-        bottom: -16px;
-        left: -14px;
-      }
-      .pocket.bm {
-        bottom: -14px;
-        left: 50%;
-        transform: translateX(-50%);
-      }
-      .pocket.br {
-        bottom: -16px;
-        right: -14px;
       }
 
       #cueHint {
@@ -812,13 +776,6 @@
 
       <div id="wrap">
         <canvas id="table"></canvas>
-        <!-- visual pocket elements -->
-        <div class="pocket tl"></div>
-        <div class="pocket tm"></div>
-        <div class="pocket tr"></div>
-        <div class="pocket bl"></div>
-        <div class="pocket bm"></div>
-        <div class="pocket br"></div>
         <div id="cueHint">✋️</div>
 
         <div id="cueOptions">
@@ -972,13 +929,16 @@
         var TABLE_W = 768; // gjeresi logjike e felt-it
         var TABLE_H = 1216; // lartesi logjike e felt-it
         var BORDER = 57; // korniza e drurit pak me e ngushte anash
-        var BALL_R = isSnooker && playType === 'training' ? 17 : 21; // snooker training uses smaller balls
+        var BALL_R = isSnooker && playType === 'training' ? 18 : 22; // snooker training uses smaller balls
         var GREEN_LINE = 14; // thickness of the green boundary lines
         // Gropat pak me te vogla per t'u mbyllur me shume dhe jo per t'u zgjeruar
-        var POCKET_R = isSnooker && playType === 'training' ? BALL_R * 0.65 : 32; // rrezja baze e gropave pak me e vogel nga jashte
-        var SIDE_POCKET_R = isSnooker && playType === 'training' ? POCKET_R : 30; // gropat anesore gjithashtu pak me te vogla
+        var POCKET_R =
+          isSnooker && playType === 'training' ? BALL_R * 0.68 : 34; // pockets slightly larger
+        var SIDE_POCKET_R =
+          isSnooker && playType === 'training' ? POCKET_R : 32; // side pockets also a touch larger
         // move pockets slightly closer to the center of the table
         var POCKET_SHORTEN = isSnooker ? 2 : 4; // gropat snooker pak me brenda
+        var POCKET_INSET = 2; // additional inward shift for all pockets
         var SHORT_DIST = BALL_R * 28;
         var MED_DIST = BALL_R * 56;
         var BORDER_TOP =
@@ -1716,7 +1676,7 @@
           var rx = b.p.x - pk.x;
           var ry = b.p.y - pk.y;
           if (!cond(rx, ry)) return;
-          var limit = pk.r + BALL_R - GREEN_LINE; // keep collisions within green boundary
+          var limit = pk.r + BALL_R - GREEN_LINE;
           var dist = rx * nx + ry * ny;
           if (dist >= limit) return;
           var vn = b.v.x * nx + b.v.y * ny;
@@ -1775,8 +1735,8 @@
         var snookerPottedColors = [];
         if (isAmerican) {
           COL = {
-            cue: '#ffffff',
-            1: '#e9ba00',
+            cue: '#f5f5f5',
+            1: '#f5c400',
             2: '#2256ff',
             3: '#d92d30',
             4: '#7c3aed',
@@ -1806,8 +1766,8 @@
           ];
         } else if (isNineBall) {
           COL = {
-            cue: '#ffffff',
-            1: '#e9ba00',
+            cue: '#f5f5f5',
+            1: '#f5c400',
             2: '#2256ff',
             3: '#d92d30',
             4: '#7c3aed',
@@ -1815,7 +1775,7 @@
             6: '#1faa4a',
             7: '#7a2f2f',
             8: '#111',
-            9: '#e9ba00'
+            9: '#f5c400'
           };
           BALLS = [
             { n: 0, t: 'cue', c: COL.cue },
@@ -1831,9 +1791,9 @@
           ];
         } else if (isSnooker) {
           COL = {
-            cue: '#ffffff',
+            cue: '#f5f5f5',
             red: '#d92d30',
-            yellow: '#e5c747',
+            yellow: '#f2d24b',
             green: '#1faa4a',
             brown: '#7a2f2f',
             blue: '#2256ff',
@@ -1861,10 +1821,10 @@
           });
         } else {
           COL = {
-            cue: '#ffffff',
+            cue: '#f5f5f5',
             red: '#d92d30',
             // UK variant uses yellow balls instead of blue
-            blue: '#e5c747',
+            blue: '#f2d24b',
             eight: '#111'
           };
           BALLS = [{ n: 0, t: 'cue', c: COL.cue }];
@@ -1917,6 +1877,19 @@
           // contact event.
           this.prevCollisions = new Set();
           this.reset();
+        }
+
+        function insetPockets(pockets, inset) {
+          pockets[0].x += inset;
+          pockets[0].y += inset;
+          pockets[1].x -= inset;
+          pockets[1].y += inset;
+          pockets[2].x += inset;
+          pockets[3].x -= inset;
+          pockets[4].x += inset;
+          pockets[4].y -= inset;
+          pockets[5].x -= inset;
+          pockets[5].y -= inset;
         }
 
         Table.prototype.reset = function () {
@@ -2065,7 +2038,7 @@
             var wrapRect = document
               .getElementById('wrap')
               .getBoundingClientRect();
-            this.pockets = Array.prototype.map.call(holeEls, function (el) {
+            var pockets = Array.prototype.map.call(holeEls, function (el) {
               var r = el.getBoundingClientRect();
               var cx =
                 ((r.left + r.width / 2 - wrapRect.left) / wrapRect.width) *
@@ -2073,45 +2046,53 @@
               var cy =
                 ((r.top + r.height / 2 - wrapRect.top) / wrapRect.height) *
                 TABLE_H;
-              var pr = (r.width / 2 / wrapRect.width) * TABLE_W;
+              var pr = (r.width / 2 / wrapRect.width) * TABLE_W + 2;
               return new Pocket(cx, cy, pr);
             });
+            // Adjust specific pocket positions slightly
+            pockets[2].y -= 2; // lift left middle pocket
+            pockets[4].y += 2; // lower bottom pockets
+            pockets[5].y += 2;
+            insetPockets(pockets, POCKET_INSET);
+            this.pockets = pockets;
           } else {
-            this.pockets = [
-              new Pocket(
-                BORDER - POCKET_SHORTEN + 4,
-                BORDER_TOP - POCKET_SHORTEN,
-                POCKET_R
-              ),
-              new Pocket(
-                TABLE_W - BORDER + POCKET_SHORTEN - 4,
-                BORDER_TOP - POCKET_SHORTEN,
-                POCKET_R
-              ),
-              // Lift middle pockets a touch more to align with the shifted field
-              // boundary and keep the V connectors in sync, nudging them slightly
-              // farther from center.
-              new Pocket(
-                BORDER - 14 - POCKET_SHORTEN,
-                TABLE_H / 2 + BALL_R - 20,
-                SIDE_POCKET_R
-              ),
-              new Pocket(
-                TABLE_W - BORDER + 14 + POCKET_SHORTEN,
-                TABLE_H / 2 + BALL_R - 20,
-                SIDE_POCKET_R
-              ),
+            var pockets = [
               new Pocket(
                 BORDER - POCKET_SHORTEN + 2,
-                TABLE_H - BORDER_BOTTOM + POCKET_SHORTEN,
+                BORDER_TOP - POCKET_SHORTEN,
                 POCKET_R
               ),
               new Pocket(
                 TABLE_W - BORDER + POCKET_SHORTEN - 2,
-                TABLE_H - BORDER_BOTTOM + POCKET_SHORTEN,
+                BORDER_TOP - POCKET_SHORTEN,
+                POCKET_R
+              ),
+              // Lift middle pockets a touch more to align with the shifted field
+              // boundary, matching the green marking thickness, and nudge them
+              // slightly farther from center.
+              new Pocket(
+                BORDER - 16 - POCKET_SHORTEN,
+                TABLE_H / 2 + BALL_R - 16,
+                SIDE_POCKET_R
+              ),
+              new Pocket(
+                TABLE_W - BORDER + 16 + POCKET_SHORTEN,
+                TABLE_H / 2 + BALL_R - 14,
+                SIDE_POCKET_R
+              ),
+              new Pocket(
+                BORDER - POCKET_SHORTEN,
+                TABLE_H - BORDER_BOTTOM + POCKET_SHORTEN + 2,
+                POCKET_R
+              ),
+              new Pocket(
+                TABLE_W - BORDER + POCKET_SHORTEN,
+                TABLE_H - BORDER_BOTTOM + POCKET_SHORTEN + 2,
                 POCKET_R
               )
             ];
+            insetPockets(pockets, POCKET_INSET);
+            this.pockets = pockets;
           }
           this.captured = { 1: [], 2: [] };
           this.turn = 1;
@@ -2148,8 +2129,8 @@
               // spin is applied directly during collisions
               b.a += (Math.hypot(b.v.x, b.v.y) * dt) / (BALL_R * 0.6);
 
-                var L = BORDER + BALL_R;
-                var R = TABLE_W - BORDER - BALL_R;
+                var L = BORDER + GREEN_LINE + BALL_R;
+                var R = TABLE_W - BORDER - GREEN_LINE - BALL_R;
                 var T = BORDER_TOP + BALL_R;
                 var B = TABLE_H - BORDER_BOTTOM - BALL_R;
 
@@ -2160,7 +2141,7 @@
                 nearBottom = false;
               for (var pkIdx = 0; pkIdx < this.pockets.length; pkIdx++) {
                 var pp = this.pockets[pkIdx];
-                var thresh = pp.r + BALL_R;
+                var thresh = pp.r + BALL_R - GREEN_LINE;
                 if (Math.abs(b.p.y - pp.y) < thresh) {
                   if (pp.x < L) nearLeft = true;
                   if (pp.x > R) nearRight = true;
@@ -2439,9 +2420,9 @@
 
           if (!isSnooker) {
             ctx.save();
-              ctx.fillStyle = 'rgba(255,255,0,0)';
+              ctx.fillStyle = 'rgba(255,255,0,0.05)';
               ctx.fillRect(x0, y0, w, h);
-              ctx.strokeStyle = 'rgba(0,255,0,0)';
+              ctx.strokeStyle = 'rgba(0,255,0,0.8)';
               ctx.lineWidth = 2;
               if (this.pockets) {
                 var p = this.pockets;
@@ -2490,7 +2471,7 @@
                 drawUPocketGuide(p[4], 1, -1, false);
                 drawUPocketGuide(p[5], -1, -1, false);
                 ctx.stroke();
-                ctx.strokeStyle = 'rgba(255,165,0,0)';
+                ctx.strokeStyle = 'orange';
                 ctx.beginPath();
                 // further shorten orange pocket joint markers
                 var seal = lineW * 0.5;
@@ -2522,7 +2503,7 @@
                 ctx.moveTo(xRight, rightBottom - seal);
                 ctx.lineTo(xRight, rightBottom + seal);
                 ctx.stroke();
-                ctx.strokeStyle = 'rgba(255,0,0,0)';
+                ctx.strokeStyle = 'red';
                 ctx.lineWidth = 2;
                 var rScale = (sX + sY) / 2;
                 this.pockets.forEach(function(pk) {
@@ -3388,8 +3369,8 @@
           var t = screenToTable(e.clientX, e.clientY);
           var cue = table.balls[0];
           if (draggingCue && cueBallFree) {
-            var minX = BORDER + BALL_R,
-              maxX = TABLE_W - BORDER - BALL_R;
+            var minX = BORDER + GREEN_LINE + BALL_R,
+              maxX = TABLE_W - BORDER - GREEN_LINE - BALL_R;
             var minY = LINE_Y + BALL_R,
               maxY = TABLE_H - BORDER_BOTTOM - BALL_R;
             var nx = clamp(t.x, minX, maxX);
@@ -3457,12 +3438,12 @@
           }
 
           if (dir.x < 0)
-            checkRail((BORDER + BALL_R - cue.p.x) / dir.x, {
+            checkRail((BORDER + GREEN_LINE + BALL_R - cue.p.x) / dir.x, {
               x: 1,
               y: 0
             });
           if (dir.x > 0)
-            checkRail((TABLE_W - BORDER - BALL_R - cue.p.x) / dir.x, {
+            checkRail((TABLE_W - BORDER - GREEN_LINE - BALL_R - cue.p.x) / dir.x, {
               x: -1,
               y: 0
             });
@@ -3585,12 +3566,12 @@
             if (hitN.x > 0)
               tMax = Math.min(
                 tMax,
-                (TABLE_W - BORDER - BALL_R - tx) / hitN.x
+                (TABLE_W - BORDER - GREEN_LINE - BALL_R - tx) / hitN.x
               );
             if (hitN.x < 0)
               tMax = Math.min(
                 tMax,
-                (BORDER + BALL_R - tx) / hitN.x
+                (BORDER + GREEN_LINE + BALL_R - tx) / hitN.x
               );
             if (hitN.y > 0)
               tMax = Math.min(
@@ -3870,14 +3851,12 @@
         }
         pullHandle.addEventListener('pointerdown', function (e) {
           if (!table.running || table.isMoving() || table.turn !== 1) return;
-          e.preventDefault();
           pulling = true;
           pullMoved = false;
           pullHandle.setPointerCapture(e.pointerId);
         });
         pullHandle.addEventListener('pointermove', function (e) {
           if (!pulling || table.turn !== 1) return;
-          e.preventDefault();
           pullMoved = true;
           updateFromEvent(e);
         });
@@ -4076,8 +4055,8 @@
           if (shot.cueBallPosition) {
             var nx = clamp(
               shot.cueBallPosition.x,
-              BORDER + BALL_R,
-              TABLE_W - BORDER - BALL_R
+              BORDER + GREEN_LINE + BALL_R,
+              TABLE_W - BORDER - GREEN_LINE - BALL_R
             );
             var ny = clamp(
               shot.cueBallPosition.y,

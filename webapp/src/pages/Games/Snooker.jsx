@@ -604,30 +604,6 @@ export default function Snooker3D() {
   }, [ui.power, ui.spinX, ui.spinY, pocketCenters]);
 
   // ===================================================================================
-  // HUD: Spin Control (white ball with red dot)
-  // ===================================================================================
-  const spinRef = useRef(null);
-  useEffect(() => {
-    const root = spinRef.current; if (!root) return; const dot = root.querySelector('.dot');
-    let dragging = false;
-    const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
-    const setFromClient = (clientX, clientY) => {
-      const rect = root.getBoundingClientRect();
-      const cx = rect.left + rect.width / 2; const cy = rect.top + rect.height / 2; const r = rect.width / 2 - 6;
-      const dx = clientX - cx; const dy = clientY - cy; const len = Math.hypot(dx, dy);
-      const sx = clamp(dx / r, -1, 1); const sy = clamp(dy / r, -1, 1);
-      setUi(s => ({ ...s, spinX: -sy, spinY: sx }));
-      const k = len > r ? r / len : 1; dot.style.transform = `translate(${dx * k}px, ${dy * k}px)`;
-    };
-    const onDown = (e) => { dragging = true; const t = e.touches?.[0]; setFromClient((t?.clientX ?? e.clientX ?? 0), (t?.clientY ?? e.clientY ?? 0)); };
-    const onMove = (e) => { if (!dragging) return; const t = e.touches?.[0]; setFromClient((t?.clientX ?? e.clientX ?? 0), (t?.clientY ?? e.clientY ?? 0)); };
-    const onUp = () => { dragging = false; };
-    root.addEventListener('pointerdown', onDown); window.addEventListener('pointermove', onMove); window.addEventListener('pointerup', onUp);
-    root.addEventListener('touchstart', onDown, { passive: true }); window.addEventListener('touchmove', onMove, { passive: true }); window.addEventListener('touchend', onUp);
-    return () => { root.removeEventListener('pointerdown', onDown); window.removeEventListener('pointermove', onMove); window.removeEventListener('pointerup', onUp); root.removeEventListener('touchstart', onDown); window.removeEventListener('touchmove', onMove); window.removeEventListener('touchend', onUp); };
-  }, []);
-
-  // ===================================================================================
   // HUD: Power Slider (pull‑down to charge, release to shoot)
   // ===================================================================================
   const powerBarRef = useRef(null);
@@ -685,7 +661,7 @@ export default function Snooker3D() {
     <div className="w-full h-[100vh] flex flex-col items-stretch overflow-hidden">
       <div className="relative flex-1">
         {/* 3D Stage fills the whole viewport height */}
-        <div ref={mountRef} className="absolute inset-0" />
+        <div ref={mountRef} className="absolute top-0 bottom-0 left-0 right-[40px]" />
 
         {/* Error overlay if init fails */}
         {initError && (
@@ -703,11 +679,11 @@ export default function Snooker3D() {
           <div className="absolute left-1/2 -translate-x-1/2 w-[3px] bg-white/40" style={{ top: 0, height: `${(1-ui.power)*100}%` }} />
           <div className="absolute left-1/2 -translate-x-1/2 w-[3px] bg-white" style={{ top: `${(1-ui.power)*100}%`, height: `${ui.power*100}%` }} />
           {/* circular PULL label following the knob */}
-          <div className="absolute left-1/2 -translate-x-1/2 -translate-y-1/2 border-2 border-white rounded-full text-white text-[14px] font-semibold px-2 py-1 select-none"
+          <div className="absolute left-1/2 -translate-x-1/2 -translate-y-1/2 border-2 border-white rounded-full text-white text-[16px] font-semibold px-2 py-1 select-none"
                style={{ top: `${(ui.power)*100}%` }}>PULL</div>
         </div>
 
-        {/* HUD: spin controller bottom-left */}
+        {/* HUD: spin controller top-center */}
         <SpinHUD ui={ui} setUi={setUi} />
       </div>
 
@@ -746,7 +722,7 @@ function SpinHUD({ ui, setUi }){
   }, [setUi]);
 
   return (
-    <div ref={spinRef} className="absolute left-3 bottom-3 w-[88px] h-[88px] rounded-full bg-white shadow-inner shadow-black/40 flex items-center justify-center select-none cursor-pointer">
+    <div ref={spinRef} className="absolute top-3 left-1/2 -translate-x-1/2 w-[88px] h-[88px] rounded-full bg-white shadow-inner shadow-black/40 flex items-center justify-center select-none cursor-pointer">
       <div className="dot w-3 h-3 rounded-full bg-red-600" style={{ transform: `translate(${ui.spinY*34}px, ${-ui.spinX*34}px)` }} />
       <div className="absolute -bottom-5 left-1/2 -translate-x-1/2 text-[10px] text-white/70">Spin</div>
     </div>
