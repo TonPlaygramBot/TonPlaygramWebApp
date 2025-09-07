@@ -1716,7 +1716,7 @@
           var rx = b.p.x - pk.x;
           var ry = b.p.y - pk.y;
           if (!cond(rx, ry)) return;
-          var limit = pk.r + BALL_R;
+          var limit = pk.r + BALL_R - GREEN_LINE; // keep collisions within green boundary
           var dist = rx * nx + ry * ny;
           if (dist >= limit) return;
           var vn = b.v.x * nx + b.v.y * ny;
