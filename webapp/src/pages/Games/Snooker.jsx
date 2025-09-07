@@ -21,7 +21,8 @@ import { FLAG_EMOJIS } from '../../utils/flagEmojis.js';
 // Config
 // --------------------------------------------------
 // shrink table and balls uniformly
-const SCALE = 0.6;
+// Slightly larger playing area per latest design request
+const SCALE = 0.65;
 const TABLE = {
   W: 66 * SCALE,
   H: 132 * SCALE,
@@ -129,7 +130,7 @@ function Guret(scene, id, color, x, y) {
 function Table3D(scene) {
   const halfW = TABLE.W / 2,
     halfH = TABLE.H / 2;
-  const POCKET_R_VIS = 3.4 * SCALE;
+  const POCKET_R_VIS = 3.6 * SCALE; // slightly larger pocket visuals
   // Cloth me 6 vrima rrethore (holes)
   const shape = new THREE.Shape();
   shape.moveTo(-halfW, -halfH);
@@ -205,7 +206,7 @@ function Table3D(scene) {
   const markMat = new THREE.LineBasicMaterial({
     color: COLORS.mark,
     transparent: true,
-    opacity: 0.65
+    opacity: 0.75
   });
   const lineGeo = new THREE.BufferGeometry().setFromPoints([
     new THREE.Vector3(baulkX, -0.98, -halfH),
@@ -534,10 +535,10 @@ export default function NewSnookerGame() {
         balls.push(b);
         return b;
       };
-      let cue = add('cue', COLORS.cue, -TABLE.W * 0.32, 0);
-      // reds triangle
+      let cue = add('cue', COLORS.cue, -TABLE.W * 0.34, 0);
+      // reds triangle (nudged a bit towards black to match new table size)
       let rid = 0;
-      const bx = TABLE.W * 0.1,
+      const bx = TABLE.W * 0.12,
         by = 0;
       for (let r = 0; r < 5; r++)
         for (let c = 0; c <= r; c++) {
