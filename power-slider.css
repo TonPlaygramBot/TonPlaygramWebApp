@@ -1,7 +1,7 @@
 /* Power Slider component styles */
 .ps {
   /* slimmer slider to match pool game styling */
-  --ps-width: 40px;
+  --ps-width: 46px;
   --ps-height: 576px;
   --ps-radius: 23px;
   --ps-track-bg: rgba(255, 255, 255, 0.15);
@@ -102,7 +102,6 @@
   box-sizing: border-box;
   overflow: hidden;
   pointer-events: none;
-  z-index: 0;
 }
 
 .ps .ps-power-bar-fill {
@@ -144,11 +143,11 @@
   );
   padding: 7.2px 2.4px;
   pointer-events: auto;
-  z-index: 2;
+  z-index: 1;
 }
 
 .ps .ps-handle-text {
-  font-size: 16px;
+  font-size: 14px;
   color: #fff;
   line-height: 1;
   transform: translate(-1px, 0px);
