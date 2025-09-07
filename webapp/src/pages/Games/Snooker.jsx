@@ -1,7 +1,9 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import * as THREE from "three";
 import { PowerSlider } from "../../../../power-slider.js";
 import "../../../../power-slider.css";
+import { getTelegramUsername, getTelegramPhotoUrl } from "../../utils/telegram.js";
+import { FLAG_EMOJIS } from "../../utils/flagEmojis.js";
 
 /**
  * NEW SNOOKER GAME — fresh build (keep ONLY Guret for balls)
@@ -117,6 +119,18 @@ export default function NewSnookerGame(){
   const fitRef = useRef(()=>{});
   const topViewRef = useRef(false);
   const [topView,setTopView] = useState(false);
+  const aimDirRef = useRef(new THREE.Vector2(0,1));
+  const [timer,setTimer] = useState(60);
+  const timerRef = useRef(null);
+  const [player,setPlayer] = useState({ name:"", avatar:"" });
+  useEffect(()=>{ setPlayer({ name: getTelegramUsername() || "Player", avatar: getTelegramPhotoUrl() }); },[]);
+  const aiFlag = useMemo(()=> FLAG_EMOJIS[Math.floor(Math.random()*FLAG_EMOJIS.length)], []);
+  const aiShoot = useRef(()=>{
+    aimDirRef.current.set(Math.random()-0.5, Math.random()-0.5).normalize();
+    powerRef.current = 0.5;
+    setHud(s=>({ ...s, power:0.5 }));
+    fireRef.current?.();
+  });
 
   const toggleView = () => {
     setTopView(v => {
@@ -135,6 +149,29 @@ export default function NewSnookerGame(){
       return next;
     });
   };
+
+  useEffect(()=>{
+    if(hud.over) return;
+    const playerTurn = hud.turn;
+    const duration = playerTurn === 0 ? 60 : 5;
+    setTimer(duration);
+    clearInterval(timerRef.current);
+    timerRef.current = setInterval(()=>{
+      setTimer(t=>{
+        if(t<=1){
+          clearInterval(timerRef.current);
+          if(playerTurn===0){
+            setHud(s=>({ ...s, turn:1-s.turn }));
+          } else {
+            aiShoot.current();
+          }
+          return 0;
+        }
+        return t-1;
+      });
+    },1000);
+    return ()=> clearInterval(timerRef.current);
+  }, [hud.turn, hud.over]);
 
   useEffect(()=>{
     const host=mountRef.current; if(!host) return;
@@ -187,8 +224,8 @@ export default function NewSnookerGame(){
       const project=(ev)=>{ const r=dom.getBoundingClientRect(); const cx=(((ev.clientX??ev.touches?.[0]?.clientX??0)-r.left)/r.width)*2-1; const cy=-((((ev.clientY??ev.touches?.[0]?.clientY??0)-r.top)/r.height)*2-1); pointer.set(cx,cy); ray.setFromCamera(pointer,camera); const pt=new THREE.Vector3(); ray.ray.intersectPlane(plane,pt); return new THREE.Vector2(pt.x, pt.z); };
 
       // Aim direction
-      let aimDir=new THREE.Vector2(0,1);
-      const onAimMove=(e)=>{ if(hud.inHand||hud.over) return; if(!allStopped(balls)) return; const hit=project(e); const dir=cue.pos.clone().sub(hit); if(dir.length()>1e-3){ aimDir.copy(dir.normalize()); } };
+      const aimDir = aimDirRef.current;
+      const onAimMove=(e)=>{ if(hud.inHand||hud.over) return; if(!allStopped(balls)) return; const hit=project(e); const dir=cue.pos.clone().sub(hit); if(dir.length()>1e-3){ aimDir.set(dir.x, dir.y).normalize(); } };
       dom.addEventListener('pointermove', onAimMove, { passive:true });
 
       // In-hand placement
@@ -202,7 +239,7 @@ export default function NewSnookerGame(){
       const isRedId=(id)=> id.startsWith('red'); const val=(id)=> isRedId(id)? 1 : ({yellow:2,green:3,brown:4,blue:5,pink:6,black:7}[id]||0);
 
       // Fire (slider e thërret në release)
-      const fire=()=>{ if(!cue?.active || hud.inHand || !allStopped(balls) || hud.over) return; shooting=true; potted=[]; foul=false; firstHit=null; const base=aimDir.clone().multiplyScalar(4.2*(0.48 + powerRef.current*1.52)); cue.vel.copy(base); };
+      const fire=()=>{ if(!cue?.active || hud.inHand || !allStopped(balls) || hud.over) return; shooting=true; potted=[]; foul=false; firstHit=null; clearInterval(timerRef.current); const base=aimDir.clone().multiplyScalar(4.2*(0.48 + powerRef.current*1.52)); cue.vel.copy(base); };
       fireRef.current = fire;
 
       // Resolve shot
@@ -285,14 +322,32 @@ export default function NewSnookerGame(){
       <div ref={mountRef} className="absolute inset-0" />
 
       {err && (<div className="absolute inset-0 bg-black/80 text-white text-xs flex items-center justify-center p-4 z-50">Init error: {String(err)}</div>)}
-
-      {/* HUD: Scores / Turn / Next */}
-      <div className="absolute left-3 top-3 bg-black/50 text-white text-xs rounded-lg px-2 py-1 flex gap-3 items-center">
-        <div>A: <b>{hud.A}</b> · B: <b>{hud.B}</b></div>
-        <div>Turn: <b>{hud.turn===0? 'A':'B'}</b></div>
-        <div>Phase: <b>{hud.phase}</b></div>
-        <div>Next: <b>{hud.next}</b></div>
-        {hud.inHand && <div className="px-2 py-0.5 rounded bg-red-600/80">Cue in hand: vendose në baulk</div>}
+      <div className="absolute inset-x-0 top-2 flex items-center justify-between px-4 text-xs">
+        <div className="flex items-center gap-2">
+          <div
+            className={`w-9 h-9 rounded-full bg-gray-600 flex items-center justify-center overflow-hidden ${hud.turn===0?'ring-2 ring-yellow-400':''}`}
+            style={player.avatar?{backgroundImage:`url(${player.avatar})`,backgroundSize:"cover"}:undefined}
+          >
+            {!player.avatar && player.name?.[0]}
+          </div>
+          <div className="text-left">
+            <div className="font-bold leading-none">{player.name}</div>
+            <div className="leading-none">{hud.A}</div>
+          </div>
+        </div>
+        <div className="relative flex items-center justify-center">
+          <div id="spinBox" className="w-16 h-16 rounded-full bg-black/60 flex items-center justify-center">
+            <div id="spinDot" className="w-2 h-2 rounded-full bg-white"></div>
+          </div>
+          <div id="turnTimerText" className="absolute top-1 left-0 right-0 text-center text-sm font-bold">{timer}</div>
+        </div>
+        <div className="flex items-center gap-2">
+          <div className="text-right">
+            <div className="font-bold leading-none">AI</div>
+            <div className="leading-none">{hud.B}</div>
+          </div>
+          <div className={`w-9 h-9 rounded-full bg-gray-600 flex items-center justify-center ${hud.turn===1?'ring-2 ring-yellow-400':''}`}>{aiFlag}</div>
+        </div>
       </div>
 
       {/* Power Slider */}
