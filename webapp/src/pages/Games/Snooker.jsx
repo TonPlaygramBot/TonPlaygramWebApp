@@ -366,7 +366,9 @@ export default function NewSnookerGame() {
         powerPreference: 'high-performance'
       });
       renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
-      renderer.setSize(host.clientWidth, host.clientHeight, false);
+      // Ensure the canvas fills the host element so the table is centered and
+      // scaled correctly on all view modes.
+      renderer.setSize(host.clientWidth, host.clientHeight);
       host.appendChild(renderer.domElement);
 
       // Scene & Camera
@@ -872,7 +874,9 @@ export default function NewSnookerGame() {
 
       // Resize
       const onResize = () => {
-        renderer.setSize(host.clientWidth, host.clientHeight, false);
+        // Update canvas dimensions when the window size changes so the table
+        // remains fully visible.
+        renderer.setSize(host.clientWidth, host.clientHeight);
         fit(
           topViewRef.current
             ? 1.15
