@@ -16,8 +16,7 @@ const LINE_MIN_Y = BALL_RADIUS;
 const LINE_MAX_Y = TABLE_HEIGHT - BALL_RADIUS;
 
 // pocket centers moved slightly toward the table center
-// moved a touch further inward for tighter pocket alignment
-const POCKET_INSET = 0.04;
+const POCKET_INSET = 0.03;
 const POCKETS = [
   [POCKET_INSET, POCKET_INSET],
   [TABLE_WIDTH / 2, POCKET_INSET],
