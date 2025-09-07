@@ -2477,6 +2477,46 @@
                 drawUPocketGuide(p[4], 1, -1, false);
                 drawUPocketGuide(p[5], -1, -1, false);
                 ctx.stroke();
+                ctx.strokeStyle = 'orange';
+                ctx.beginPath();
+                // further shorten orange pocket joint markers
+                var seal = lineW * 0.5;
+                // horizontal joints
+                ctx.moveTo(topStart - seal, topY);
+                ctx.lineTo(topStart + seal, topY);
+                ctx.moveTo(topEnd - seal, topY);
+                ctx.lineTo(topEnd + seal, topY);
+                ctx.moveTo(bottomStart - seal, bottomY);
+                ctx.lineTo(bottomStart + seal, bottomY);
+                ctx.moveTo(bottomEnd - seal, bottomY);
+                ctx.lineTo(bottomEnd + seal, bottomY);
+                // left vertical joints
+                ctx.moveTo(xLeft, leftTop - seal);
+                ctx.lineTo(xLeft, leftTop + seal);
+                ctx.moveTo(xLeft, leftMidTop - seal);
+                ctx.lineTo(xLeft, leftMidTop + seal);
+                ctx.moveTo(xLeft, leftMidBottom - seal);
+                ctx.lineTo(xLeft, leftMidBottom + seal);
+                ctx.moveTo(xLeft, leftBottom - seal);
+                ctx.lineTo(xLeft, leftBottom + seal);
+                // right vertical joints
+                ctx.moveTo(xRight, rightTop - seal);
+                ctx.lineTo(xRight, rightTop + seal);
+                ctx.moveTo(xRight, rightMidTop - seal);
+                ctx.lineTo(xRight, rightMidTop + seal);
+                ctx.moveTo(xRight, rightMidBottom - seal);
+                ctx.lineTo(xRight, rightMidBottom + seal);
+                ctx.moveTo(xRight, rightBottom - seal);
+                ctx.lineTo(xRight, rightBottom + seal);
+                ctx.stroke();
+                ctx.strokeStyle = 'red';
+                ctx.lineWidth = 2;
+                var rScale = (sX + sY) / 2;
+                this.pockets.forEach(function(pk) {
+                  ctx.beginPath();
+                  ctx.arc(pk.x * sX, pk.y * sY, pk.r * rScale, 0, Math.PI * 2);
+                  ctx.stroke();
+                });
               } else {
                 ctx.strokeRect(x0, y0, w, h);
               }
@@ -3645,8 +3685,7 @@
           var x = p.x * sX - R * 0.5 * dir;
           var y = p.y * sY;
           var dx = R * 1.1 * dir;
-          // extend connectors to meet side lines exactly
-          var dy = R * 1.25 + ctx.lineWidth * 0.5;
+          var dy = R * 1.25;
           // Remove trimming so lines meet the table boundary without gaps
           var trim = 0;
           if (stroke) ctx.beginPath();
@@ -3669,7 +3708,7 @@
           ctx.moveTo(-R, 0);
           ctx.arc(0, 0, R, Math.PI, 0);
           // Extend legs to meet the boundary without gaps
-          var lineLen = R * 1.25 + ctx.lineWidth * 0.5;
+          var lineLen = R * 1.25;
           var lineStart = 0;
           ctx.moveTo(-R, lineStart);
           ctx.lineTo(-R, lineLen);
