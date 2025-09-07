@@ -112,6 +112,29 @@ export default function NewSnookerGame(){
   useEffect(()=>{ powerRef.current = hud.power; }, [hud.power]);
   const [err,setErr]=useState(null);
   const fireRef = useRef(()=>{}); // set from effect so slider can trigger fire()
+  const cameraRef = useRef(null);
+  const sphRef = useRef(null);
+  const fitRef = useRef(()=>{});
+  const topViewRef = useRef(false);
+  const [topView,setTopView] = useState(false);
+
+  const toggleView = () => {
+    setTopView(v => {
+      const next = !v;
+      topViewRef.current = next;
+      const cam = cameraRef.current;
+      const sph = sphRef.current;
+      if (cam && sph) {
+        if (next) {
+          cam.position.set(0, sph.radius, 0);
+          cam.lookAt(0,0,0);
+        } else {
+          fitRef.current?.();
+        }
+      }
+      return next;
+    });
+  };
 
   useEffect(()=>{
     const host=mountRef.current; if(!host) return;
@@ -123,15 +146,16 @@ export default function NewSnookerGame(){
       // Scene & Camera
       const scene=new THREE.Scene(); scene.background=new THREE.Color(0x050505);
       const camera=new THREE.PerspectiveCamera(CAMERA.fov, host.clientWidth/host.clientHeight, CAMERA.near, CAMERA.far);
-      // Start nga ana e majtë, pak i ulët (si njeri pranë tavolinës)
-      const sph=new THREE.Spherical(180, 1.05 /*phi ~60°*/, -Math.PI/6 /*-30° nga krahu i majtë*/);
+      // Start behind baulk colours
+      const sph=new THREE.Spherical(180, 1.05 /*phi ~60°*/, Math.PI);
       const fit=(m=1.1)=>{ camera.aspect=host.clientWidth/host.clientHeight; const a=camera.aspect, f=THREE.MathUtils.degToRad(camera.fov); const halfW=(TABLE.W/2)*m, halfH=(TABLE.H/2)*m; const dzH=halfH/Math.tan(f/2); const dzW=halfW/(Math.tan(f/2)*a); sph.radius=clamp(Math.max(dzH,dzW), CAMERA.minR, CAMERA.maxR); const phiCap=Math.acos(THREE.MathUtils.clamp(-0.95/sph.radius, -1,1)); sph.phi=clamp(sph.phi, CAMERA.minPhi, Math.min(phiCap, Math.PI-CAMERA.phiMargin)); const target=new THREE.Vector3(0,0,0); camera.position.setFromSpherical(sph).add(target); camera.lookAt(target); camera.updateProjectionMatrix(); };
+      cameraRef.current = camera; sphRef.current = sph; fitRef.current = fit;
       fit();
-      const dom=renderer.domElement; const drag={on:false,x:0,y:0};
-      const down=e=>{ drag.on=true; drag.x=e.clientX||e.touches?.[0]?.clientX||0; drag.y=e.clientY||e.touches?.[0]?.clientY||0; };
-      const move=e=>{ if(!drag.on) return; const x=e.clientX||e.touches?.[0]?.clientX||drag.x; const y=e.clientY||e.touches?.[0]?.clientY||drag.y; const dx=x-drag.x, dy=y-drag.y; drag.x=x; drag.y=y; sph.theta-=dx*0.005; sph.phi=clamp(sph.phi+dy*0.0038, CAMERA.minPhi, Math.PI-CAMERA.phiMargin);
-        fit(); };
-      const up=()=>{ drag.on=false; }; const wheel=e=>{ sph.radius=clamp(sph.radius + e.deltaY*0.12, CAMERA.minR, CAMERA.maxR); fit(); };
+      const dom=renderer.domElement; const drag={on:false,x:0,y:0}; const pinch={active:false,dist:0};
+      const down=e=>{ if(topViewRef.current) return; if(e.touches?.length===2){ const [t1,t2]=e.touches; pinch.active=true; pinch.dist=Math.hypot(t1.clientX-t2.clientX,t1.clientY-t2.clientY); return;} drag.on=true; drag.x=e.clientX||e.touches?.[0]?.clientX||0; drag.y=e.clientY||e.touches?.[0]?.clientY||0; };
+      const move=e=>{ if(topViewRef.current) return; if(pinch.active && e.touches?.length===2){ const [t1,t2]=e.touches; const d=Math.hypot(t1.clientX-t2.clientX,t1.clientY-t2.clientY); const delta=pinch.dist-d; sph.radius=clamp(sph.radius + delta*0.5, CAMERA.minR, CAMERA.maxR); pinch.dist=d; fit(); return;} if(!drag.on) return; const x=e.clientX||e.touches?.[0]?.clientX||drag.x; const y=e.clientY||e.touches?.[0]?.clientY||drag.y; const dx=x-drag.x, dy=y-drag.y; drag.x=x; drag.y=y; sph.theta-=dx*0.005; sph.phi=clamp(sph.phi+dy*0.0038, CAMERA.minPhi, Math.PI-CAMERA.phiMargin); fit(); };
+      const up=()=>{ drag.on=false; pinch.active=false; };
+      const wheel=e=>{ if(topViewRef.current) return; sph.radius=clamp(sph.radius + e.deltaY*0.12, CAMERA.minR, CAMERA.maxR); fit(); };
       dom.addEventListener('mousedown',down); dom.addEventListener('mousemove',move); window.addEventListener('mouseup',up);
       dom.addEventListener('touchstart',down,{passive:true}); dom.addEventListener('touchmove',move,{passive:true}); window.addEventListener('touchend',up);
       dom.addEventListener('wheel',wheel,{passive:true});
@@ -249,7 +273,7 @@ export default function NewSnookerGame(){
     const slider = new PowerSlider({
       mount,
       value: powerRef.current*100,
-      cueSrc: "/assets/icons/WhiteBall.webp",
+      cueSrc: "/assets/cue.png",
       onChange: v => setHud(s=>({ ...s, power: v/100 })),
       onCommit: () => fireRef.current?.()
     });
@@ -273,6 +297,9 @@ export default function NewSnookerGame(){
 
       {/* Power Slider */}
       <div ref={sliderRef} className="absolute right-4 top-1/2 -translate-y-1/2" />
+
+      {/* View toggle */}
+      <button onClick={toggleView} className="absolute bottom-3 right-3 w-12 h-12 rounded-full bg-white text-black text-sm font-bold flex items-center justify-center z-50">{topView ? '3D' : '2D'}</button>
 
       {/* Help */}
       <div className="absolute left-3 bottom-2 text-[11px] text-white/70 pr-4 max-w-[80%]">Rrotullo ekranin si njeri pranë tavolinës (drag). Tërhiq slider‑in e madh në të djathtë POSHTË për fuqi dhe lësho për të gjuajtur. 6 gropat janë të prera dhe guret bien brenda.</div>
