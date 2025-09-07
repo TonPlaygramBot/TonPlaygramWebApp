@@ -938,6 +938,7 @@
           isSnooker && playType === 'training' ? POCKET_R : 32; // side pockets also a touch larger
         // move pockets slightly closer to the center of the table
         var POCKET_SHORTEN = isSnooker ? 2 : 4; // gropat snooker pak me brenda
+        var POCKET_INSET = 2; // additional inward shift for all pockets
         var SHORT_DIST = BALL_R * 28;
         var MED_DIST = BALL_R * 56;
         var BORDER_TOP =
@@ -1878,6 +1879,19 @@
           this.reset();
         }
 
+        function insetPockets(pockets, inset) {
+          pockets[0].x += inset;
+          pockets[0].y += inset;
+          pockets[1].x -= inset;
+          pockets[1].y += inset;
+          pockets[2].x += inset;
+          pockets[3].x -= inset;
+          pockets[4].x += inset;
+          pockets[4].y -= inset;
+          pockets[5].x -= inset;
+          pockets[5].y -= inset;
+        }
+
         Table.prototype.reset = function () {
           var i, j;
           this.balls = [];
@@ -2039,9 +2053,10 @@
             pockets[2].y -= 2; // lift left middle pocket
             pockets[4].y += 2; // lower bottom pockets
             pockets[5].y += 2;
+            insetPockets(pockets, POCKET_INSET);
             this.pockets = pockets;
           } else {
-            this.pockets = [
+            var pockets = [
               new Pocket(
                 BORDER - POCKET_SHORTEN + 2,
                 BORDER_TOP - POCKET_SHORTEN,
@@ -2076,6 +2091,8 @@
                 POCKET_R
               )
             ];
+            insetPockets(pockets, POCKET_INSET);
+            this.pockets = pockets;
           }
           this.captured = { 1: [], 2: [] };
           this.turn = 1;
