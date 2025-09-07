@@ -21,7 +21,7 @@ import { FLAG_EMOJIS } from '../../utils/flagEmojis.js';
 // Config
 // --------------------------------------------------
 // shrink table and balls uniformly
-const SCALE = 0.75;
+const SCALE = 0.6;
 const TABLE = {
   W: 66 * SCALE,
   H: 132 * SCALE,
@@ -302,7 +302,7 @@ export default function NewSnookerGame() {
     };
     if (next) last3DRef.current = { phi: sph.phi, theta: sph.theta };
     const targetMargin = next
-      ? 1.02
+      ? 1.15
       : window.innerHeight > window.innerWidth
         ? 1.4
         : 1.1;
@@ -406,7 +406,7 @@ export default function NewSnookerGame() {
       fitRef.current = fit;
       fit(
         topViewRef.current
-          ? 1.02
+          ? 1.15
           : window.innerHeight > window.innerWidth
             ? 1.4
             : 1.1
@@ -446,7 +446,7 @@ export default function NewSnookerGame() {
           pinch.dist = d;
           fit(
             topViewRef.current
-              ? 1.02
+              ? 1.15
               : window.innerHeight > window.innerWidth
                 ? 1.4
                 : 1.1
@@ -480,7 +480,7 @@ export default function NewSnookerGame() {
         );
         fit(
           topViewRef.current
-            ? 1.02
+            ? 1.15
             : window.innerHeight > window.innerWidth
               ? 1.4
               : 1.1
@@ -875,7 +875,7 @@ export default function NewSnookerGame() {
         renderer.setSize(host.clientWidth, host.clientHeight, false);
         fit(
           topViewRef.current
-            ? 1.02
+            ? 1.15
             : window.innerHeight > window.innerWidth
               ? 1.4
               : 1.1
@@ -928,7 +928,7 @@ export default function NewSnookerGame() {
 
   return (
     <div className="w-full h-[100vh] bg-black text-white overflow-hidden select-none">
-      <div ref={mountRef} className="absolute inset-0" />
+      <div ref={mountRef} className="absolute inset-y-0 left-0 w-[75%]" />
 
       {err && (
         <div className="absolute inset-0 bg-black/80 text-white text-xs flex items-center justify-center p-4 z-50">
@@ -985,7 +985,7 @@ export default function NewSnookerGame() {
       {/* Power Slider */}
       <div
         ref={sliderRef}
-        className="absolute right-[25%] top-1/2 -translate-y-1/2"
+        className="absolute right-3 top-1/2 -translate-y-1/2"
       />
 
       {/* View toggle */}
