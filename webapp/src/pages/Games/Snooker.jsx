@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import * as THREE from 'three';
-import { PowerSlider } from '../../../../power-slider.js';
-import '../../../../power-slider.css';
+import { PowerSlider } from './SnookerPowerSlider.js';
+import './SnookerPowerSlider.css';
 import {
   getTelegramUsername,
   getTelegramPhotoUrl
@@ -20,31 +20,32 @@ import { FLAG_EMOJIS } from '../../utils/flagEmojis.js';
 // --------------------------------------------------
 // Config
 // --------------------------------------------------
-// shrink table and balls uniformly
-// Slightly larger playing area per latest design request
-const SCALE = 0.65;
+// separate scales for table and balls
+const BALL_SCALE = 0.65; // keep balls same size
+const TABLE_SCALE = BALL_SCALE * 1.25; // table 25% larger
 const TABLE = {
-  W: 66 * SCALE,
-  H: 132 * SCALE,
-  THICK: 1.8 * SCALE,
-  WALL: 2.6 * SCALE
+  W: 66 * TABLE_SCALE,
+  H: 132 * TABLE_SCALE,
+  THICK: 1.8 * TABLE_SCALE,
+  WALL: 2.6 * TABLE_SCALE
 };
-const BALL_R = 2 * SCALE;
+const BALL_R = 2 * BALL_SCALE;
 const FRICTION = 0.9925;
 const STOP_EPS = 0.02;
-const CAPTURE_R = 3.1 * SCALE; // pocket capture radius aligned with Pool Royale
+const CAPTURE_R = 3.1 * TABLE_SCALE; // pocket capture radius aligned with Pool Royale
 
+// slightly brighter colors for table and balls
 const COLORS = Object.freeze({
-  cloth: 0x0b5d39,
-  rail: 0x10301f,
+  cloth: 0x0d6d43,
+  rail: 0x123a24,
   cue: 0xffffff,
-  red: 0xb00000,
-  yellow: 0xfacc15,
-  green: 0x22c55e,
-  brown: 0x8b5e3c,
-  blue: 0x3b82f6,
-  pink: 0xec4899,
-  black: 0x111827,
+  red: 0xcc0000,
+  yellow: 0xffdd33,
+  green: 0x32d570,
+  brown: 0x9c6e4a,
+  blue: 0x4b92ff,
+  pink: 0xff58ab,
+  black: 0x1a2233,
   mark: 0xffffff
 });
 
@@ -53,8 +54,8 @@ const CAMERA = {
   fov: 44,
   near: 0.1,
   far: 4000,
-  minR: 105 * SCALE,
-  maxR: 420 * SCALE,
+  minR: 105 * TABLE_SCALE,
+  maxR: 420 * TABLE_SCALE,
   minPhi: 0.5,
   phiMargin: 0.4
 };
@@ -102,6 +103,56 @@ function reflectRails(ball) {
   }
 }
 
+// calculate impact point and post-collision direction for aiming guide
+function calcTarget(cue, dir, balls) {
+  const cuePos = cue.pos.clone();
+  let tHit = Infinity;
+  let targetBall = null;
+  let railNormal = null;
+
+  const limX = TABLE.W / 2 - BALL_R - TABLE.WALL;
+  const limY = TABLE.H / 2 - BALL_R - TABLE.WALL;
+  const checkRail = (t, normal) => {
+    if (t >= 0 && t < tHit) {
+      tHit = t;
+      railNormal = normal;
+      targetBall = null;
+    }
+  };
+  if (dir.x < 0) checkRail(((-limX - cuePos.x) / dir.x), new THREE.Vector2(1, 0));
+  if (dir.x > 0) checkRail(((limX - cuePos.x) / dir.x), new THREE.Vector2(-1, 0));
+  if (dir.y < 0) checkRail(((-limY - cuePos.y) / dir.y), new THREE.Vector2(0, 1));
+  if (dir.y > 0) checkRail(((limY - cuePos.y) / dir.y), new THREE.Vector2(0, -1));
+
+  const diam = BALL_R * 2;
+  const diam2 = diam * diam;
+  balls.forEach((b) => {
+    if (!b.active || b === cue) return;
+    const v = b.pos.clone().sub(cuePos);
+    const proj = v.dot(dir);
+    if (proj <= 0) return;
+    const perp2 = v.lengthSq() - proj * proj;
+    if (perp2 > diam2) return;
+    const thc = Math.sqrt(diam2 - perp2);
+    const t = proj - thc;
+    if (t >= 0 && t < tHit) {
+      tHit = t;
+      targetBall = b;
+      railNormal = null;
+    }
+  });
+
+  const impact = cuePos.clone().add(dir.clone().multiplyScalar(tHit));
+  let afterDir = null;
+  if (targetBall) {
+    afterDir = targetBall.pos.clone().sub(impact).normalize();
+  } else if (railNormal) {
+    const n = railNormal.clone().normalize();
+    afterDir = dir.clone().sub(n.clone().multiplyScalar(2 * dir.dot(n))).normalize();
+  }
+  return { impact, afterDir };
+}
+
 // --------------------------------------------------
 // ONLY kept component: Guret (balls factory)
 // --------------------------------------------------
@@ -130,7 +181,7 @@ function Guret(scene, id, color, x, y) {
 function Table3D(scene) {
   const halfW = TABLE.W / 2,
     halfH = TABLE.H / 2;
-  const POCKET_R_VIS = 3.6 * SCALE; // slightly larger pocket visuals
+  const POCKET_R_VIS = 3.6 * TABLE_SCALE; // slightly larger pocket visuals
   // Cloth me 6 vrima rrethore (holes)
   const shape = new THREE.Shape();
   shape.moveTo(-halfW, -halfH);
@@ -382,7 +433,7 @@ export default function NewSnookerGame() {
         CAMERA.far
       );
       // Start behind baulk colours
-      const sph = new THREE.Spherical(180 * SCALE, 1.05 /*phi ~60°*/, Math.PI);
+      const sph = new THREE.Spherical(180 * TABLE_SCALE, 1.05 /*phi ~60°*/, Math.PI);
       const fit = (m = 1.1) => {
         camera.aspect = host.clientWidth / host.clientHeight;
         sph.radius = fitRadius(camera, m);
@@ -586,6 +637,24 @@ export default function NewSnookerGame() {
       tick.visible = false;
       scene.add(tick);
 
+      const targetGeom = new THREE.BufferGeometry().setFromPoints([
+        new THREE.Vector3(),
+        new THREE.Vector3()
+      ]);
+      const target = new THREE.Line(
+        targetGeom,
+        new THREE.LineDashedMaterial({
+          color: 0xffffff,
+          dashSize: 1,
+          gapSize: 1,
+          transparent: true,
+          opacity: 0.5
+        })
+      );
+      target.visible = false;
+      target.computeLineDistances();
+      scene.add(target);
+
       // Pointer → XZ plane
       const pointer = new THREE.Vector2();
       const ray = new THREE.Raycaster();
@@ -608,9 +677,11 @@ export default function NewSnookerGame() {
         return new THREE.Vector2(pt.x, pt.z);
       };
 
-      // Aim direction
+      // Aim direction controlled via drag like Pool Royale
       const aimDir = aimDirRef.current;
+      let aiming = false;
       const onAimMove = (e) => {
+        if (!aiming) return;
         if (hud.inHand || hud.over) return;
         if (!allStopped(balls)) return;
         const hit = project(e);
@@ -619,7 +690,18 @@ export default function NewSnookerGame() {
           aimDir.set(dir.x, dir.y).normalize();
         }
       };
+      const onAimStart = (e) => {
+        if (hud.inHand || hud.over) return;
+        if (!allStopped(balls)) return;
+        aiming = true;
+        onAimMove(e);
+      };
+      const onAimEnd = () => {
+        aiming = false;
+      };
+      dom.addEventListener('pointerdown', onAimStart);
       dom.addEventListener('pointermove', onAimMove, { passive: true });
+      window.addEventListener('pointerup', onAimEnd);
 
       // In-hand placement
       const free = (x, z) =>
@@ -781,11 +863,9 @@ export default function NewSnookerGame() {
       const step = () => {
         // Aiming vizual
         if (allStopped(balls) && !hud.inHand && cue?.active && !hud.over) {
+          const { impact, afterDir } = calcTarget(cue, aimDir, balls);
           const start = new THREE.Vector3(cue.pos.x, BALL_R, cue.pos.y);
-          const end2 = cue.pos
-            .clone()
-            .add(aimDir.clone().multiplyScalar(26 + 80 * powerRef.current));
-          const end = new THREE.Vector3(end2.x, BALL_R, end2.y);
+          const end = new THREE.Vector3(impact.x, BALL_R, impact.y);
           aimGeom.setFromPoints([start, end]);
           aim.visible = true;
           aim.computeLineDistances();
@@ -800,9 +880,22 @@ export default function NewSnookerGame() {
             end.clone().add(perp.clone().multiplyScalar(-1.4))
           ]);
           tick.visible = true;
+          if (afterDir) {
+            const tEnd = new THREE.Vector3(
+              end.x + afterDir.x * 30,
+              BALL_R,
+              end.z + afterDir.y * 30
+            );
+            targetGeom.setFromPoints([end, tEnd]);
+            target.visible = true;
+            target.computeLineDistances();
+          } else {
+            target.visible = false;
+          }
         } else {
           aim.visible = false;
           tick.visible = false;
+          target.visible = false;
         }
 
         // Fizika
@@ -902,7 +995,9 @@ export default function NewSnookerGame() {
         window.removeEventListener('touchend', up);
         dom.removeEventListener('wheel', wheel);
         window.removeEventListener('keydown', keyRot);
+        dom.removeEventListener('pointerdown', onAimStart);
         dom.removeEventListener('pointermove', onAimMove);
+        window.removeEventListener('pointerup', onAimEnd);
         dom.removeEventListener('pointerdown', onPlace);
       };
     } catch (e) {
