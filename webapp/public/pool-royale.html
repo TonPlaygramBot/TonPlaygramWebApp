@@ -181,7 +181,7 @@
         position: absolute;
         inset: 0;
         background: url('/assets/icons/64e79228-35e3-4fdc-b914-fca635a40220.webp')
-          top center/calc(100% + 8px) calc(100% + 20px) no-repeat;
+          top center/calc(100% + 16px) calc(100% + 24px) no-repeat;
         filter: brightness(var(--table-brightness));
         z-index: -1;
       }
@@ -190,7 +190,7 @@
       :root {
         --rpw: min(23vw, 115px);
         --player-frame-color: #000;
-        --table-brightness: 1.1;
+        --table-brightness: 1;
       }
 
       /* Canvas i tavolines (mbulon gjithcka, pervec panelit djathtas) */
@@ -1776,7 +1776,7 @@
         if (isAmerican) {
           COL = {
             cue: '#ffffff',
-            1: '#f5c400',
+            1: '#e9ba00',
             2: '#2256ff',
             3: '#d92d30',
             4: '#7c3aed',
@@ -1807,7 +1807,7 @@
         } else if (isNineBall) {
           COL = {
             cue: '#ffffff',
-            1: '#f5c400',
+            1: '#e9ba00',
             2: '#2256ff',
             3: '#d92d30',
             4: '#7c3aed',
@@ -1815,7 +1815,7 @@
             6: '#1faa4a',
             7: '#7a2f2f',
             8: '#111',
-            9: '#f5c400'
+            9: '#e9ba00'
           };
           BALLS = [
             { n: 0, t: 'cue', c: COL.cue },
@@ -1833,7 +1833,7 @@
           COL = {
             cue: '#ffffff',
             red: '#d92d30',
-            yellow: '#f2d24b',
+            yellow: '#e5c747',
             green: '#1faa4a',
             brown: '#7a2f2f',
             blue: '#2256ff',
@@ -1864,7 +1864,7 @@
             cue: '#ffffff',
             red: '#d92d30',
             // UK variant uses yellow balls instead of blue
-            blue: '#f2d24b',
+            blue: '#e5c747',
             eight: '#111'
           };
           BALLS = [{ n: 0, t: 'cue', c: COL.cue }];
