@@ -20,11 +20,18 @@ import { FLAG_EMOJIS } from '../../utils/flagEmojis.js';
 // --------------------------------------------------
 // Config
 // --------------------------------------------------
-const TABLE = { W: 66, H: 132, THICK: 1.8, WALL: 2.6 };
-const BALL_R = 2;
+// shrink table and balls uniformly
+const SCALE = 0.75;
+const TABLE = {
+  W: 66 * SCALE,
+  H: 132 * SCALE,
+  THICK: 1.8 * SCALE,
+  WALL: 2.6 * SCALE
+};
+const BALL_R = 2 * SCALE;
 const FRICTION = 0.9925;
 const STOP_EPS = 0.02;
-const CAPTURE_R = 3.1; // pocket capture radius aligned with Pool Royale
+const CAPTURE_R = 3.1 * SCALE; // pocket capture radius aligned with Pool Royale
 
 const COLORS = Object.freeze({
   cloth: 0x0b5d39,
@@ -45,8 +52,8 @@ const CAMERA = {
   fov: 44,
   near: 0.1,
   far: 4000,
-  minR: 105,
-  maxR: 420,
+  minR: 105 * SCALE,
+  maxR: 420 * SCALE,
   minPhi: 0.5,
   phiMargin: 0.4
 };
@@ -113,7 +120,7 @@ function Guret(scene, id, color, x, y) {
 function Table3D(scene) {
   const halfW = TABLE.W / 2,
     halfH = TABLE.H / 2;
-  const POCKET_R_VIS = 3.4;
+  const POCKET_R_VIS = 3.4 * SCALE;
   // Cloth me 6 vrima rrethore (holes)
   const shape = new THREE.Shape();
   shape.moveTo(-halfW, -halfH);
@@ -280,6 +287,8 @@ export default function NewSnookerGame() {
       const sph = sphRef.current;
       if (cam && sph) {
         if (next) {
+          // fit entire table before switching to top view
+          fitRef.current?.(1.02);
           cam.position.set(0, sph.radius, 0);
           cam.lookAt(0, 0, 0);
         } else {
@@ -338,7 +347,7 @@ export default function NewSnookerGame() {
         CAMERA.far
       );
       // Start behind baulk colours
-      const sph = new THREE.Spherical(180, 1.05 /*phi ~60°*/, Math.PI);
+      const sph = new THREE.Spherical(180 * SCALE, 1.05 /*phi ~60°*/, Math.PI);
       const fit = (m = 1.1) => {
         camera.aspect = host.clientWidth / host.clientHeight;
         const a = camera.aspect,
@@ -357,20 +366,30 @@ export default function NewSnookerGame() {
           Math.min(phiCap, Math.PI - CAMERA.phiMargin)
         );
         const target = new THREE.Vector3(0, 0, 0);
-        camera.position.setFromSpherical(sph).add(target);
-        camera.lookAt(target);
+        if (topViewRef.current) {
+          camera.position.set(0, sph.radius, 0);
+          camera.lookAt(target);
+        } else {
+          camera.position.setFromSpherical(sph).add(target);
+          camera.lookAt(target);
+        }
         camera.updateProjectionMatrix();
       };
       cameraRef.current = camera;
       sphRef.current = sph;
       fitRef.current = fit;
-      fit(window.innerHeight > window.innerWidth ? 1.4 : 1.1);
+      fit(
+        topViewRef.current
+          ? 1.02
+          : window.innerHeight > window.innerWidth
+            ? 1.4
+            : 1.1
+      );
       const dom = renderer.domElement;
       dom.style.touchAction = 'none';
       const drag = { on: false, x: 0, y: 0 };
       const pinch = { active: false, dist: 0 };
       const down = (e) => {
-        if (topViewRef.current) return;
         if (e.touches?.length === 2) {
           const [t1, t2] = e.touches;
           pinch.active = true;
@@ -380,12 +399,12 @@ export default function NewSnookerGame() {
           );
           return;
         }
+        if (topViewRef.current) return;
         drag.on = true;
         drag.x = e.clientX || e.touches?.[0]?.clientX || 0;
         drag.y = e.clientY || e.touches?.[0]?.clientY || 0;
       };
       const move = (e) => {
-        if (topViewRef.current) return;
         if (pinch.active && e.touches?.length === 2) {
           const [t1, t2] = e.touches;
           const d = Math.hypot(
@@ -399,10 +418,16 @@ export default function NewSnookerGame() {
             CAMERA.maxR
           );
           pinch.dist = d;
-          fit();
+          fit(
+            topViewRef.current
+              ? 1.02
+              : window.innerHeight > window.innerWidth
+                ? 1.4
+                : 1.1
+          );
           return;
         }
-        if (!drag.on) return;
+        if (topViewRef.current || !drag.on) return;
         const x = e.clientX || e.touches?.[0]?.clientX || drag.x;
         const y = e.clientY || e.touches?.[0]?.clientY || drag.y;
         const dx = x - drag.x,
@@ -415,20 +440,25 @@ export default function NewSnookerGame() {
           CAMERA.minPhi,
           Math.PI - CAMERA.phiMargin
         );
-        fit();
+        fit(window.innerHeight > window.innerWidth ? 1.4 : 1.1);
       };
       const up = () => {
         drag.on = false;
         pinch.active = false;
       };
       const wheel = (e) => {
-        if (topViewRef.current) return;
         sph.radius = clamp(
           sph.radius + e.deltaY * 0.12,
           CAMERA.minR,
           CAMERA.maxR
         );
-        fit();
+        fit(
+          topViewRef.current
+            ? 1.02
+            : window.innerHeight > window.innerWidth
+              ? 1.4
+              : 1.1
+        );
       };
       dom.addEventListener('mousedown', down);
       dom.addEventListener('mousemove', move);
@@ -796,7 +826,13 @@ export default function NewSnookerGame() {
       // Resize
       const onResize = () => {
         renderer.setSize(host.clientWidth, host.clientHeight, false);
-        fit();
+        fit(
+          topViewRef.current
+            ? 1.02
+            : window.innerHeight > window.innerWidth
+              ? 1.4
+              : 1.1
+        );
       };
       window.addEventListener('resize', onResize);
 
