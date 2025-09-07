@@ -926,14 +926,16 @@
         /* ==========================================================
        KONSTANTA TE LAYOUT-it DHE FIZIKES (sipas portrait)
        ========================================================= */
-        var TABLE_W = isSnooker ? 768 * 1.2 : 768; // gjeresi logjike e felt-it
-        var TABLE_H = isSnooker ? 1216 * 1.2 : 1216; // lartesi logjike e felt-it
+        var TABLE_W = 768; // gjeresi logjike e felt-it
+        var TABLE_H = 1216; // lartesi logjike e felt-it
         var BORDER = 57; // korniza e drurit pak me e ngushte anash
         var BALL_R = isSnooker && playType === 'training' ? 18 : 22; // snooker training uses smaller balls
         var GREEN_LINE = 16; // thickness of the green boundary lines
-        // Pockets twice the ball size for snooker
-        var POCKET_R = isSnooker ? BALL_R * 2 : 34; // pockets twice the ball radius
-        var SIDE_POCKET_R = isSnooker ? POCKET_R : 32; // side pockets also match size
+        // Gropat pak me te vogla per t'u mbyllur me shume dhe jo per t'u zgjeruar
+        var POCKET_R =
+          isSnooker && playType === 'training' ? BALL_R * 0.68 : 34; // pockets slightly larger
+        var SIDE_POCKET_R =
+          isSnooker && playType === 'training' ? POCKET_R : 32; // side pockets also a touch larger
         // move pockets slightly closer to the center of the table
         var POCKET_SHORTEN = isSnooker ? 2 : 4; // gropat snooker pak me brenda
         var POCKET_INSET = 5; // additional inward shift for all pockets
