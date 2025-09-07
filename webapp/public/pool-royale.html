@@ -213,29 +213,29 @@
       }
       .pocket.tl {
         top: -16px;
-        left: -16px;
+        left: -14px;
       }
       .pocket.tm {
-        top: -16px;
+        top: -18px;
         left: 50%;
         transform: translateX(-50%);
       }
       .pocket.tr {
         top: -16px;
-        right: -16px;
+        right: -14px;
       }
       .pocket.bl {
         bottom: -16px;
-        left: -16px;
+        left: -14px;
       }
       .pocket.bm {
-        bottom: -16px;
+        bottom: -14px;
         left: 50%;
         transform: translateX(-50%);
       }
       .pocket.br {
         bottom: -16px;
-        right: -16px;
+        right: -14px;
       }
 
       #cueHint {
@@ -972,7 +972,7 @@
         var TABLE_W = 768; // gjeresi logjike e felt-it
         var TABLE_H = 1216; // lartesi logjike e felt-it
         var BORDER = 57; // korniza e drurit pak me e ngushte anash
-        var BALL_R = isSnooker && playType === 'training' ? 18 : 22; // snooker training uses smaller balls
+        var BALL_R = isSnooker && playType === 'training' ? 17 : 21; // snooker training uses smaller balls
         var GREEN_LINE = 14; // thickness of the green boundary lines
         // Gropat pak me te vogla per t'u mbyllur me shume dhe jo per t'u zgjeruar
         var POCKET_R = isSnooker && playType === 'training' ? BALL_R * 0.65 : 32; // rrezja baze e gropave pak me e vogel nga jashte
@@ -2079,12 +2079,12 @@
           } else {
             this.pockets = [
               new Pocket(
-                BORDER - POCKET_SHORTEN + 2,
+                BORDER - POCKET_SHORTEN + 4,
                 BORDER_TOP - POCKET_SHORTEN,
                 POCKET_R
               ),
               new Pocket(
-                TABLE_W - BORDER + POCKET_SHORTEN - 2,
+                TABLE_W - BORDER + POCKET_SHORTEN - 4,
                 BORDER_TOP - POCKET_SHORTEN,
                 POCKET_R
               ),
@@ -2092,22 +2092,22 @@
               // boundary, matching the green marking thickness, and nudge them
               // slightly farther from center.
               new Pocket(
-                BORDER - 16 - POCKET_SHORTEN,
-                TABLE_H / 2 + BALL_R - 14,
+                BORDER - 14 - POCKET_SHORTEN,
+                TABLE_H / 2 + BALL_R - 16,
                 SIDE_POCKET_R
               ),
               new Pocket(
-                TABLE_W - BORDER + 16 + POCKET_SHORTEN,
-                TABLE_H / 2 + BALL_R - 14,
+                TABLE_W - BORDER + 14 + POCKET_SHORTEN,
+                TABLE_H / 2 + BALL_R - 16,
                 SIDE_POCKET_R
               ),
               new Pocket(
-                BORDER - POCKET_SHORTEN,
+                BORDER - POCKET_SHORTEN + 2,
                 TABLE_H - BORDER_BOTTOM + POCKET_SHORTEN,
                 POCKET_R
               ),
               new Pocket(
-                TABLE_W - BORDER + POCKET_SHORTEN,
+                TABLE_W - BORDER + POCKET_SHORTEN - 2,
                 TABLE_H - BORDER_BOTTOM + POCKET_SHORTEN,
                 POCKET_R
               )
