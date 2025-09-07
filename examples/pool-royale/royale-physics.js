@@ -15,17 +15,16 @@ const LINE_MAX_X = TABLE_WIDTH - BALL_RADIUS;
 const LINE_MIN_Y = BALL_RADIUS;
 const LINE_MAX_Y = TABLE_HEIGHT - BALL_RADIUS;
 
-// pocket centers
+// pocket centers moved slightly toward the table center
+const POCKET_INSET = 0.03;
 const POCKETS = [
-  [0, 0],
-  [TABLE_WIDTH / 2, 0],
-  [TABLE_WIDTH, 0],
-  [0, TABLE_HEIGHT],
-  [TABLE_WIDTH / 2, TABLE_HEIGHT],
-  [TABLE_WIDTH, TABLE_HEIGHT]
+  [POCKET_INSET, POCKET_INSET],
+  [TABLE_WIDTH / 2, POCKET_INSET],
+  [TABLE_WIDTH - POCKET_INSET, POCKET_INSET],
+  [POCKET_INSET, TABLE_HEIGHT - POCKET_INSET],
+  [TABLE_WIDTH / 2, TABLE_HEIGHT - POCKET_INSET],
+  [TABLE_WIDTH - POCKET_INSET, TABLE_HEIGHT - POCKET_INSET]
 ];
-const CONNECTOR_RADIUS = 0.09; // ~9 cm
-const CONNECTOR_RESTITUTION = -0.25; // keep 25% energy
 
 class Ball {
   constructor(x, y, vx, vy) {
@@ -41,7 +40,6 @@ class Ball {
     this.y += this.vy * dt;
     this.checkCushion();
     this.checkLine();
-    this.checkConnector();
   }
 
   checkCushion() {
@@ -95,18 +93,6 @@ class Ball {
     }
   }
 
-  checkConnector() {
-    for (const [px, py] of POCKETS) {
-      const dx = this.x - px;
-      const dy = this.y - py;
-      if (dx * dx + dy * dy <= CONNECTOR_RADIUS * CONNECTOR_RADIUS) {
-        this.vx *= CONNECTOR_RESTITUTION;
-        this.vy *= CONNECTOR_RESTITUTION;
-        this.touchedCushion = false;
-        break;
-      }
-    }
-  }
 }
 
 function simulate(balls, steps, dt) {
