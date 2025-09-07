@@ -40,6 +40,7 @@ const COLORS = Object.freeze({
 // Kamera: lejojmë ulje më të madhe (phi më i vogël), por mos shko kurrë krejt në nivel (limit ~0.5rad)
 const CAMERA = { fov: 44, near: 0.1, far: 4000, minR: 105, maxR: 420, minPhi: 0.5, phiMargin: 0.4 };
 const clamp = (v,a,b)=> Math.max(a, Math.min(b, v));
+const FIT_MARGIN = 1.2;
 
 // --------------------------------------------------
 // Utilities
@@ -136,16 +137,7 @@ export default function NewSnookerGame(){
     setTopView(v => {
       const next = !v;
       topViewRef.current = next;
-      const cam = cameraRef.current;
-      const sph = sphRef.current;
-      if (cam && sph) {
-        if (next) {
-          cam.position.set(0, sph.radius, 0);
-          cam.lookAt(0,0,0);
-        } else {
-          fitRef.current?.();
-        }
-      }
+      fitRef.current?.();
       return next;
     });
   };
@@ -185,14 +177,34 @@ export default function NewSnookerGame(){
       const camera=new THREE.PerspectiveCamera(CAMERA.fov, host.clientWidth/host.clientHeight, CAMERA.near, CAMERA.far);
       // Start behind baulk colours
       const sph=new THREE.Spherical(180, 1.05 /*phi ~60°*/, Math.PI);
-      const fit=(m=1.1)=>{ camera.aspect=host.clientWidth/host.clientHeight; const a=camera.aspect, f=THREE.MathUtils.degToRad(camera.fov); const halfW=(TABLE.W/2)*m, halfH=(TABLE.H/2)*m; const dzH=halfH/Math.tan(f/2); const dzW=halfW/(Math.tan(f/2)*a); sph.radius=clamp(Math.max(dzH,dzW), CAMERA.minR, CAMERA.maxR); const phiCap=Math.acos(THREE.MathUtils.clamp(-0.95/sph.radius, -1,1)); sph.phi=clamp(sph.phi, CAMERA.minPhi, Math.min(phiCap, Math.PI-CAMERA.phiMargin)); const target=new THREE.Vector3(0,0,0); camera.position.setFromSpherical(sph).add(target); camera.lookAt(target); camera.updateProjectionMatrix(); };
+      const fit=(m=FIT_MARGIN)=>{
+        camera.aspect=host.clientWidth/host.clientHeight;
+        const a=camera.aspect;
+        const f=THREE.MathUtils.degToRad(camera.fov);
+        const halfW=(TABLE.W/2)*m, halfH=(TABLE.H/2)*m;
+        const dzH=halfH/Math.tan(f/2);
+        const dzW=halfW/(Math.tan(f/2)*a);
+        sph.radius=clamp(Math.max(dzH,dzW), CAMERA.minR, CAMERA.maxR);
+        const phiCap=Math.acos(THREE.MathUtils.clamp(-0.95/sph.radius, -1,1));
+        if(!topViewRef.current){
+          sph.phi=clamp(sph.phi, CAMERA.minPhi, Math.min(phiCap, Math.PI-CAMERA.phiMargin));
+          const target=new THREE.Vector3(0,0,0);
+          camera.position.setFromSpherical(sph).add(target);
+          camera.lookAt(target);
+        } else {
+          const target=new THREE.Vector3(0,0,0);
+          camera.position.set(0, sph.radius, 0);
+          camera.lookAt(target);
+        }
+        camera.updateProjectionMatrix();
+      };
       cameraRef.current = camera; sphRef.current = sph; fitRef.current = fit;
       fit();
       const dom=renderer.domElement; const drag={on:false,x:0,y:0}; const pinch={active:false,dist:0};
-      const down=e=>{ if(topViewRef.current) return; if(e.touches?.length===2){ const [t1,t2]=e.touches; pinch.active=true; pinch.dist=Math.hypot(t1.clientX-t2.clientX,t1.clientY-t2.clientY); return;} drag.on=true; drag.x=e.clientX||e.touches?.[0]?.clientX||0; drag.y=e.clientY||e.touches?.[0]?.clientY||0; };
-      const move=e=>{ if(topViewRef.current) return; if(pinch.active && e.touches?.length===2){ const [t1,t2]=e.touches; const d=Math.hypot(t1.clientX-t2.clientX,t1.clientY-t2.clientY); const delta=pinch.dist-d; sph.radius=clamp(sph.radius + delta*0.5, CAMERA.minR, CAMERA.maxR); pinch.dist=d; fit(); return;} if(!drag.on) return; const x=e.clientX||e.touches?.[0]?.clientX||drag.x; const y=e.clientY||e.touches?.[0]?.clientY||drag.y; const dx=x-drag.x, dy=y-drag.y; drag.x=x; drag.y=y; sph.theta-=dx*0.005; sph.phi=clamp(sph.phi+dy*0.0038, CAMERA.minPhi, Math.PI-CAMERA.phiMargin); fit(); };
+      const down=e=>{ if(e.touches?.length===2){ const [t1,t2]=e.touches; pinch.active=true; pinch.dist=Math.hypot(t1.clientX-t2.clientX,t1.clientY-t2.clientY); return;} if(topViewRef.current) return; drag.on=true; drag.x=e.clientX||e.touches?.[0]?.clientX||0; drag.y=e.clientY||e.touches?.[0]?.clientY||0; };
+      const move=e=>{ if(pinch.active && e.touches?.length===2){ const [t1,t2]=e.touches; const d=Math.hypot(t1.clientX-t2.clientX,t1.clientY-t2.clientY); const delta=pinch.dist-d; sph.radius=clamp(sph.radius + delta*0.5, CAMERA.minR, CAMERA.maxR); pinch.dist=d; fit(); return;} if(topViewRef.current) return; if(!drag.on) return; const x=e.clientX||e.touches?.[0]?.clientX||drag.x; const y=e.clientY||e.touches?.[0]?.clientY||drag.y; const dx=x-drag.x, dy=y-drag.y; drag.x=x; drag.y=y; sph.theta-=dx*0.005; sph.phi=clamp(sph.phi+dy*0.0038, CAMERA.minPhi, Math.PI-CAMERA.phiMargin); fit(); };
       const up=()=>{ drag.on=false; pinch.active=false; };
-      const wheel=e=>{ if(topViewRef.current) return; sph.radius=clamp(sph.radius + e.deltaY*0.12, CAMERA.minR, CAMERA.maxR); fit(); };
+      const wheel=e=>{ sph.radius=clamp(sph.radius + e.deltaY*0.12, CAMERA.minR, CAMERA.maxR); fit(); };
       dom.addEventListener('mousedown',down); dom.addEventListener('mousemove',move); window.addEventListener('mouseup',up);
       dom.addEventListener('touchstart',down,{passive:true}); dom.addEventListener('touchmove',move,{passive:true}); window.addEventListener('touchend',up);
       dom.addEventListener('wheel',wheel,{passive:true});
