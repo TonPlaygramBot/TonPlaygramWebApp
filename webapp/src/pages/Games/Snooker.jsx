@@ -1,5 +1,7 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import * as THREE from "three";
+import { PowerSlider } from "../../../../power-slider.js";
+import "../../../../power-slider.css";
 
 /**
  * NEW SNOOKER GAME — fresh build (keep ONLY Guret for balls)
@@ -13,11 +15,11 @@ import * as THREE from "three";
 // --------------------------------------------------
 // Config
 // --------------------------------------------------
-const TABLE = { W: 132, H: 66, THICK: 1.8, WALL: 2.6 };
+const TABLE = { W: 66, H: 132, THICK: 1.8, WALL: 2.6 };
 const BALL_R = 2;
 const FRICTION = 0.9925;
 const STOP_EPS = 0.02;
-const CAPTURE_R = 3.9; // pocket capture radius
+const CAPTURE_R = 3.1; // pocket capture radius aligned with Pool Royale
 
 const COLORS = Object.freeze({
   cloth: 0x0b5d39,
@@ -70,7 +72,7 @@ function Guret(scene, id, color, x, y){
 // Table with CUT pockets + markings (fresh)
 // --------------------------------------------------
 function Table3D(scene){
-  const halfW=TABLE.W/2, halfH=TABLE.H/2; const POCKET_R_VIS=4.2;
+  const halfW=TABLE.W/2, halfH=TABLE.H/2; const POCKET_R_VIS=3.4;
   // Cloth me 6 vrima rrethore (holes)
   const shape = new THREE.Shape();
   shape.moveTo(-halfW,-halfH); shape.lineTo(halfW,-halfH); shape.lineTo(halfW,halfH); shape.lineTo(-halfW,halfH); shape.lineTo(-halfW,-halfH);
@@ -106,6 +108,8 @@ function Table3D(scene){
 export default function NewSnookerGame(){
   const mountRef=useRef(null); const rafRef=useRef(null);
   const [hud,setHud]=useState({ power:0.65, A:0, B:0, turn:0, phase:'reds', next:'red', inHand:false, over:false });
+  const powerRef = useRef(hud.power);
+  useEffect(()=>{ powerRef.current = hud.power; }, [hud.power]);
   const [err,setErr]=useState(null);
   const fireRef = useRef(()=>{}); // set from effect so slider can trigger fire()
 
@@ -125,7 +129,7 @@ export default function NewSnookerGame(){
       fit();
       const dom=renderer.domElement; const drag={on:false,x:0,y:0};
       const down=e=>{ drag.on=true; drag.x=e.clientX||e.touches?.[0]?.clientX||0; drag.y=e.clientY||e.touches?.[0]?.clientY||0; };
-      const move=e=>{ if(!drag.on) return; const x=e.clientX||e.touches?.[0]?.clientX||drag.x; const y=e.clientY||e.touches?.[0]?.clientY||drag.y; const dx=x-drag.x, dy=y-drag.y; drag.x=x; drag.y=y; sph.theta-=dx*0.005; sph.phi+=dy*0.0038; // pak më ngadalë në vertikal
+      const move=e=>{ if(!drag.on) return; const x=e.clientX||e.touches?.[0]?.clientX||drag.x; const y=e.clientY||e.touches?.[0]?.clientY||drag.y; const dx=x-drag.x, dy=y-drag.y; drag.x=x; drag.y=y; sph.theta-=dx*0.005; sph.phi=clamp(sph.phi+dy*0.0038, CAMERA.minPhi, Math.PI-CAMERA.phiMargin);
         fit(); };
       const up=()=>{ drag.on=false; }; const wheel=e=>{ sph.radius=clamp(sph.radius + e.deltaY*0.12, CAMERA.minR, CAMERA.maxR); fit(); };
       dom.addEventListener('mousedown',down); dom.addEventListener('mousemove',move); window.addEventListener('mouseup',up);
@@ -174,7 +178,7 @@ export default function NewSnookerGame(){
       const isRedId=(id)=> id.startsWith('red'); const val=(id)=> isRedId(id)? 1 : ({yellow:2,green:3,brown:4,blue:5,pink:6,black:7}[id]||0);
 
       // Fire (slider e thërret në release)
-      const fire=()=>{ if(!cue?.active || hud.inHand || !allStopped(balls) || hud.over) return; shooting=true; potted=[]; foul=false; firstHit=null; const base=aimDir.clone().multiplyScalar(4.2*(0.48 + hud.power*1.52)); cue.vel.copy(base); };
+      const fire=()=>{ if(!cue?.active || hud.inHand || !allStopped(balls) || hud.over) return; shooting=true; potted=[]; foul=false; firstHit=null; const base=aimDir.clone().multiplyScalar(4.2*(0.48 + powerRef.current*1.52)); cue.vel.copy(base); };
       fireRef.current = fire;
 
       // Resolve shot
@@ -203,7 +207,7 @@ export default function NewSnookerGame(){
       const step=()=>{
         // Aiming vizual
         if(allStopped(balls) && !hud.inHand && cue?.active && !hud.over){
-          const start=new THREE.Vector3(cue.pos.x,BALL_R,cue.pos.y); const end2=cue.pos.clone().add(aimDir.clone().multiplyScalar(26+80*hud.power)); const end=new THREE.Vector3(end2.x,BALL_R,end2.y);
+          const start=new THREE.Vector3(cue.pos.x,BALL_R,cue.pos.y); const end2=cue.pos.clone().add(aimDir.clone().multiplyScalar(26+80*powerRef.current)); const end=new THREE.Vector3(end2.x,BALL_R,end2.y);
           aimGeom.setFromPoints([start,end]); aim.visible=true; aim.computeLineDistances(); const dir=new THREE.Vector3(end.x-start.x,0,end.z-start.z).normalize(); const perp=new THREE.Vector3(-dir.z,0,dir.x); tickGeom.setFromPoints([ end.clone().add(perp.clone().multiplyScalar(1.4)), end.clone().add(perp.clone().multiplyScalar(-1.4)) ]); tick.visible=true;
         } else { aim.visible=false; tick.visible=false; }
 
@@ -233,21 +237,23 @@ export default function NewSnookerGame(){
         dom.removeEventListener('pointermove', onAimMove); dom.removeEventListener('pointerdown', onPlace);
       };
     }catch(e){ console.error(e); setErr(e?.message||String(e)); }
-  }, [hud.power, hud.inHand, hud.over]);
+  }, [hud.inHand, hud.over]);
 
   // --------------------------------------------------
   // NEW Big Pull Slider (right side): drag DOWN to set power, releases → fire()
   // --------------------------------------------------
   const sliderRef = useRef(null);
   useEffect(()=>{
-    const el=sliderRef.current; if(!el) return; let dragging=false, lastY=0, pulled=false;
-    const setFromClientY=(y)=>{ const r=el.getBoundingClientRect(); const v=(y - r.top)/r.height; const val=clamp(v, 0, 1); setHud(s=>({ ...s, power: val })); };
-    const onDown=(e)=>{ dragging=true; const y=e.touches?.[0]?.clientY ?? e.clientY ?? 0; lastY=y; pulled=false; setFromClientY(y); e.preventDefault?.(); };
-    const onMove=(e)=>{ if(!dragging) return; const y=e.touches?.[0]?.clientY ?? e.clientY ?? lastY; if(y>lastY+1) pulled=true; lastY=y; setFromClientY(y); };
-    const onUp=()=>{ if(dragging && pulled) fireRef.current?.(); dragging=false; pulled=false; };
-    el.addEventListener('pointerdown', onDown); window.addEventListener('pointermove', onMove, { passive:true }); window.addEventListener('pointerup', onUp);
-    el.addEventListener('touchstart', onDown, { passive:false }); window.addEventListener('touchmove', onMove, { passive:true }); window.addEventListener('touchend', onUp);
-    return ()=>{ el.removeEventListener('pointerdown', onDown); window.removeEventListener('pointermove', onMove); window.removeEventListener('pointerup', onUp); el.removeEventListener('touchstart', onDown); window.removeEventListener('touchmove', onMove); window.removeEventListener('touchend', onUp); };
+    const mount = sliderRef.current;
+    if(!mount) return;
+    const slider = new PowerSlider({
+      mount,
+      value: powerRef.current*100,
+      cueSrc: "/assets/icons/WhiteBall.webp",
+      onChange: v => setHud(s=>({ ...s, power: v/100 })),
+      onCommit: () => fireRef.current?.()
+    });
+    return ()=>{ mount.innerHTML=""; slider.el?.remove?.(); };
   }, []);
 
   return (
@@ -265,18 +271,8 @@ export default function NewSnookerGame(){
         {hud.inHand && <div className="px-2 py-0.5 rounded bg-red-600/80">Cue in hand: vendose në baulk</div>}
       </div>
 
-      {/* BIG Pull Slider — right side */}
-      <div className="absolute right-4 top-1/2 -translate-y-1/2 h-[78%] w-[36px]">
-        <div ref={sliderRef} className="relative h-full w-full rounded-full bg-white/15 cursor-pointer">
-          {/* Track fill */}
-          <div className="absolute left-1/2 -translate-x-1/2 w-[4px] bg-white" style={{ top: `${hud.power*100}%`, height: `${hud.power*100}%` }} />
-          {/* Knob */}
-          <div className="absolute left-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white text-white text-[13px] font-semibold px-2 py-1 select-none"
-               style={{ top: `${hud.power*100}%`, background: 'rgba(255,255,255,0.08)' }}>
-            PULL
-          </div>
-        </div>
-      </div>
+      {/* Power Slider */}
+      <div ref={sliderRef} className="absolute right-4 top-1/2 -translate-y-1/2" />
 
       {/* Help */}
       <div className="absolute left-3 bottom-2 text-[11px] text-white/70 pr-4 max-w-[80%]">Rrotullo ekranin si njeri pranë tavolinës (drag). Tërhiq slider‑in e madh në të djathtë POSHTË për fuqi dhe lësho për të gjuajtur. 6 gropat janë të prera dhe guret bien brenda.</div>
