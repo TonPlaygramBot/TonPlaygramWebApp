@@ -196,10 +196,46 @@
       /* Canvas i tavolines (mbulon gjithcka, pervec panelit djathtas) */
       #table {
         position: absolute;
-        top: 0;
-        left: 0;
-        transform: translateY(-2px);
+        top: -4px;
+        left: -4px;
         z-index: 4;
+      }
+
+      /* Visual pocket markers */
+      .pocket {
+        position: absolute;
+        width: 32px;
+        height: 32px;
+        border-radius: 50%;
+        background: #000;
+        pointer-events: none;
+        z-index: 5;
+      }
+      .pocket.tl {
+        top: -16px;
+        left: -16px;
+      }
+      .pocket.tm {
+        top: -16px;
+        left: 50%;
+        transform: translateX(-50%);
+      }
+      .pocket.tr {
+        top: -16px;
+        right: -16px;
+      }
+      .pocket.bl {
+        bottom: -16px;
+        left: -16px;
+      }
+      .pocket.bm {
+        bottom: -16px;
+        left: 50%;
+        transform: translateX(-50%);
+      }
+      .pocket.br {
+        bottom: -16px;
+        right: -16px;
       }
 
       #cueHint {
@@ -776,6 +812,13 @@
 
       <div id="wrap">
         <canvas id="table"></canvas>
+        <!-- visual pocket elements -->
+        <div class="pocket tl"></div>
+        <div class="pocket tm"></div>
+        <div class="pocket tr"></div>
+        <div class="pocket bl"></div>
+        <div class="pocket bm"></div>
+        <div class="pocket br"></div>
         <div id="cueHint">✋️</div>
 
         <div id="cueOptions">
@@ -1734,7 +1777,7 @@
         var snookerPottedColors = [];
         if (isAmerican) {
           COL = {
-            cue: '#f5f5f5',
+            cue: '#ffffff',
             1: '#f5c400',
             2: '#2256ff',
             3: '#d92d30',
@@ -1765,7 +1808,7 @@
           ];
         } else if (isNineBall) {
           COL = {
-            cue: '#f5f5f5',
+            cue: '#ffffff',
             1: '#f5c400',
             2: '#2256ff',
             3: '#d92d30',
@@ -1790,7 +1833,7 @@
           ];
         } else if (isSnooker) {
           COL = {
-            cue: '#f5f5f5',
+            cue: '#ffffff',
             red: '#d92d30',
             yellow: '#f2d24b',
             green: '#1faa4a',
@@ -1820,7 +1863,7 @@
           });
         } else {
           COL = {
-            cue: '#f5f5f5',
+            cue: '#ffffff',
             red: '#d92d30',
             // UK variant uses yellow balls instead of blue
             blue: '#f2d24b',
@@ -3834,12 +3877,14 @@
         }
         pullHandle.addEventListener('pointerdown', function (e) {
           if (!table.running || table.isMoving() || table.turn !== 1) return;
+          e.preventDefault();
           pulling = true;
           pullMoved = false;
           pullHandle.setPointerCapture(e.pointerId);
         });
         pullHandle.addEventListener('pointermove', function (e) {
           if (!pulling || table.turn !== 1) return;
+          e.preventDefault();
           pullMoved = true;
           updateFromEvent(e);
         });
