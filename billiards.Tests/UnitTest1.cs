@@ -133,3 +133,27 @@ public class PocketEdgeTests
         Assert.That(balls, Is.Empty);
     }
 }
+
+public class ConnectorEdgeTests
+{
+    [Test]
+    public void BallBouncesOffConnectorWithReducedSpeed()
+    {
+        var solver = new BilliardsSolver();
+        solver.ConnectorEdges.Add(new BilliardsSolver.Edge
+        {
+            A = new Vec2(0, 0.1),
+            B = new Vec2(0.1, 0),
+            Normal = new Vec2(1, 1).Normalized()
+        });
+        var v = new Vec2(-1, -1).Normalized();
+        var ball = new BilliardsSolver.Ball { Position = new Vec2(0.2, 0.2), Velocity = v };
+        var balls = new List<BilliardsSolver.Ball> { ball };
+        solver.Step(balls, 0.3);
+        Assert.That(ball.Pocketed, Is.False);
+        Assert.That(balls, Has.Count.EqualTo(1));
+        Assert.That(ball.Velocity.X, Is.GreaterThan(0));
+        Assert.That(ball.Velocity.Y, Is.GreaterThan(0));
+        Assert.That(ball.Velocity.Length, Is.LessThan(0.5));
+    }
+}

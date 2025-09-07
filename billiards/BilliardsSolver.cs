@@ -20,6 +20,7 @@ public class BilliardsSolver
         public Vec2 Normal;
     }
 
+    public List<Edge> ConnectorEdges { get; } = new List<Edge>();
     public List<Edge> PocketEdges { get; } = new List<Edge>();
 
     public struct Preview
@@ -62,6 +63,17 @@ public class BilliardsSolver
                         normal = nBox;
                         restitution = PhysicsConstants.CushionRestitution;
                         hit = true;
+                    }
+
+                    foreach (var e in ConnectorEdges)
+                    {
+                        if (Ccd.CircleSegment(b.Position, b.Velocity, PhysicsConstants.BallRadius, e.A, e.B, e.Normal, out double tEdge) && tEdge <= remaining && tEdge < tHit)
+                        {
+                            tHit = tEdge;
+                            normal = e.Normal;
+                            restitution = PhysicsConstants.ConnectorRestitution;
+                            hit = true;
+                        }
                     }
 
                     foreach (var e in PocketEdges)
@@ -113,6 +125,7 @@ public class BilliardsSolver
         Vec2 hitNormal = new Vec2();
         bool ballHit = false;
         bool pocketHit = false;
+        bool connectorHit = false;
 
         foreach (var b in others)
         {
@@ -135,13 +148,24 @@ public class BilliardsSolver
             }
         }
 
+        foreach (var e in ConnectorEdges)
+        {
+            if (Ccd.CircleSegment(cueStart, velocity, PhysicsConstants.BallRadius, e.A, e.B, e.Normal, out double te))
+            {
+                if (te < bestT)
+                {
+                    bestT = te; hitNormal = e.Normal; ballHit = false; pocketHit = false; connectorHit = true;
+                }
+            }
+        }
+
         foreach (var e in PocketEdges)
         {
             if (Ccd.CircleSegment(cueStart, velocity, PhysicsConstants.BallRadius, e.A, e.B, e.Normal, out double te))
             {
                 if (te < bestT)
                 {
-                    bestT = te; hitNormal = e.Normal; ballHit = false; pocketHit = true;
+                    bestT = te; hitNormal = e.Normal; ballHit = false; pocketHit = true; connectorHit = false;
                 }
             }
         }
@@ -168,6 +192,11 @@ public class BilliardsSolver
             if (pocketHit)
             {
                 cuePost = new Vec2(0, 0);
+            }
+            else if (connectorHit)
+            {
+                cuePost = Collision.Reflect(velocity, hitNormal, PhysicsConstants.ConnectorRestitution);
+                path.Add(contact + cuePost.Normalized() * PhysicsConstants.BallRadius);
             }
             else
             {
@@ -201,6 +230,16 @@ public class BilliardsSolver
                     }
                 }
             }
+            foreach (var e in ConnectorEdges)
+            {
+                if (Ccd.CircleSegment(cue.Position, cue.Velocity, PhysicsConstants.BallRadius, e.A, e.B, e.Normal, out double te) && te <= PhysicsConstants.FixedDt)
+                {
+                    cue.Position += cue.Velocity * te;
+                    var post = Collision.Reflect(cue.Velocity, e.Normal, PhysicsConstants.ConnectorRestitution);
+                    return new Impact { Point = cue.Position, CueVelocity = post };
+                }
+            }
+
             foreach (var e in PocketEdges)
             {
                 if (Ccd.CircleSegment(cue.Position, cue.Velocity, PhysicsConstants.BallRadius, e.A, e.B, e.Normal, out double te) && te <= PhysicsConstants.FixedDt)
