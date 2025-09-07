@@ -78,11 +78,11 @@ const fitRadius = (camera, margin = 1.1) => {
 // --------------------------------------------------
 const pocketCenters = () => [
   new THREE.Vector2(-TABLE.W / 2, -TABLE.H / 2),
-  new THREE.Vector2(0, -TABLE.H / 2),
   new THREE.Vector2(TABLE.W / 2, -TABLE.H / 2),
   new THREE.Vector2(-TABLE.W / 2, TABLE.H / 2),
-  new THREE.Vector2(0, TABLE.H / 2),
-  new THREE.Vector2(TABLE.W / 2, TABLE.H / 2)
+  new THREE.Vector2(TABLE.W / 2, TABLE.H / 2),
+  new THREE.Vector2(-TABLE.W / 2, 0),
+  new THREE.Vector2(TABLE.W / 2, 0)
 ];
 const allStopped = (balls) => balls.every((b) => b.vel.length() < STOP_EPS);
 function reflectRails(ball) {
@@ -276,7 +276,7 @@ function Table3D(scene) {
   for (let i = 0; i <= 64; i++) {
     const t = Math.PI * (i / 64);
     dPts.push(
-      new THREE.Vector3(Math.sin(t) * D_R, 0.01, baulkZ + Math.cos(t) * D_R)
+      new THREE.Vector3(Math.cos(t) * D_R, 0.01, baulkZ - Math.sin(t) * D_R)
     );
   }
   scene.add(
