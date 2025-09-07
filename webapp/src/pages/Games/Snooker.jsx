@@ -131,7 +131,6 @@ function Table3D(scene) {
   const halfW = TABLE.W / 2,
     halfH = TABLE.H / 2;
   const POCKET_R_VIS = 3.6 * SCALE; // slightly larger pocket visuals
-  const pockets = pocketCenters();
   // Cloth me 6 vrima rrethore (holes)
   const shape = new THREE.Shape();
   shape.moveTo(-halfW, -halfH);
@@ -139,7 +138,7 @@ function Table3D(scene) {
   shape.lineTo(halfW, halfH);
   shape.lineTo(-halfW, halfH);
   shape.lineTo(-halfW, -halfH);
-  pockets.forEach((p) => {
+  pocketCenters().forEach((p) => {
     const h = new THREE.Path();
     h.absellipse(
       p.x,
@@ -165,45 +164,27 @@ function Table3D(scene) {
   cloth.position.y = -TABLE.THICK;
   cloth.receiveShadow = true;
   scene.add(cloth);
-  // Rails as a ring me prerje ne gropat
+  // Rails
   const railMat = new THREE.MeshStandardMaterial({
     color: COLORS.rail,
     metalness: 0.12,
     roughness: 0.7
   });
-  const railShape = new THREE.Shape();
-  railShape.moveTo(-halfW - TABLE.WALL, -halfH - TABLE.WALL);
-  railShape.lineTo(halfW + TABLE.WALL, -halfH - TABLE.WALL);
-  railShape.lineTo(halfW + TABLE.WALL, halfH + TABLE.WALL);
-  railShape.lineTo(-halfW - TABLE.WALL, halfH + TABLE.WALL);
-  railShape.lineTo(-halfW - TABLE.WALL, -halfH - TABLE.WALL);
-  const inner = new THREE.Path();
-  inner.moveTo(-halfW, -halfH);
-  inner.lineTo(halfW, -halfH);
-  inner.lineTo(halfW, halfH);
-  inner.lineTo(-halfW, halfH);
-  inner.lineTo(-halfW, -halfH);
-  railShape.holes.push(inner);
-  pockets.forEach((p) => {
-    const h = new THREE.Path();
-    h.absellipse(
-      p.x,
-      p.y,
-      POCKET_R_VIS * 0.85,
-      POCKET_R_VIS * 0.85,
-      0,
-      Math.PI * 2,
-      true,
-      0
-    );
-    railShape.holes.push(h);
-  });
-  const rails = new THREE.Mesh(
-    new THREE.ExtrudeGeometry(railShape, { depth: 4, bevelEnabled: false }),
+  const railTop = new THREE.Mesh(
+    new THREE.BoxGeometry(TABLE.W + 8, 4, 4),
     railMat
   );
-  rails.rotation.x = -Math.PI / 2;
-  scene.add(rails);
+  railTop.position.set(0, 0, halfH + 2);
+  const railBot = railTop.clone();
+  railBot.position.z = -halfH - 2;
+  const railL = new THREE.Mesh(
+    new THREE.BoxGeometry(4, 4, TABLE.H + 8),
+    railMat
+  );
+  railL.position.set(-halfW - 2, 0, 0);
+  const railR = railL.clone();
+  railR.position.x = halfW + 2;
+  scene.add(railTop, railBot, railL, railR);
   // Pocket rings (vizuale sipërfaqe)
   const ringGeo = new THREE.RingGeometry(POCKET_R_VIS * 0.6, POCKET_R_VIS, 48);
   const ringMat = new THREE.MeshStandardMaterial({
@@ -212,7 +193,7 @@ function Table3D(scene) {
     metalness: 0.05,
     roughness: 0.4
   });
-  pockets.forEach((p) => {
+  pocketCenters().forEach((p) => {
     const m = new THREE.Mesh(ringGeo, ringMat);
     m.rotation.x = -Math.PI / 2;
     m.position.set(p.x, -0.99, p.y);
@@ -257,7 +238,7 @@ function Table3D(scene) {
   spot(0, 0);
   spot(TABLE.W * 0.25, 0);
   spot(halfW - TABLE.W * 0.09, 0);
-  return { centers: pockets, baulkX };
+  return { centers: pocketCenters(), baulkX };
 }
 
 // --------------------------------------------------
