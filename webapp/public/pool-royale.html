@@ -2427,7 +2427,7 @@
             ctx.save();
               ctx.fillStyle = 'rgba(255,255,0,0.05)';
               ctx.fillRect(x0, y0, w, h);
-              ctx.strokeStyle = 'rgba(0,255,0,0.8)';
+              ctx.strokeStyle = 'rgba(0,255,0,0)';
               ctx.lineWidth = 3;
               if (this.pockets) {
                 var p = this.pockets;
@@ -2468,7 +2468,7 @@
                 ctx.moveTo(xRight, rightMidBottom);
                 ctx.lineTo(xRight, rightBottom);
                 ctx.stroke();
-                ctx.strokeStyle = 'red';
+                ctx.strokeStyle = 'rgba(255,0,0,0)';
                 ctx.lineWidth = 2;
                 var rScale = (sX + sY) / 2;
                 this.pockets.forEach(function(pk) {
