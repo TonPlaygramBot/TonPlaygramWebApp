@@ -2439,9 +2439,9 @@
 
           if (!isSnooker) {
             ctx.save();
-              ctx.fillStyle = 'rgba(255,255,0,0.05)';
+              ctx.fillStyle = 'rgba(255,255,0,0)';
               ctx.fillRect(x0, y0, w, h);
-              ctx.strokeStyle = 'rgba(0,255,0,0.8)';
+              ctx.strokeStyle = 'rgba(0,255,0,0)';
               ctx.lineWidth = 2;
               if (this.pockets) {
                 var p = this.pockets;
@@ -2490,7 +2490,7 @@
                 drawUPocketGuide(p[4], 1, -1, false);
                 drawUPocketGuide(p[5], -1, -1, false);
                 ctx.stroke();
-                ctx.strokeStyle = 'orange';
+                ctx.strokeStyle = 'rgba(255,165,0,0)';
                 ctx.beginPath();
                 // further shorten orange pocket joint markers
                 var seal = lineW * 0.5;
