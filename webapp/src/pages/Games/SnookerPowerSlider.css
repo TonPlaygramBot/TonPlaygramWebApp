@@ -1,9 +1,8 @@
 /* Power Slider component styles */
 .ps {
-  /* slimmer slider to match pool game styling */
-  --ps-width: 46px;
+  --ps-width: 67px;
   --ps-height: 576px;
-  --ps-radius: 23px;
+  --ps-radius: 34px;
   --ps-track-bg: rgba(255, 255, 255, 0.15);
   --ps-gradient-low: #ffe066;
   --ps-gradient-mid: #ff8c00;
@@ -22,12 +21,9 @@
   overflow: visible;
   user-select: none;
   touch-action: none;
-  /* removed extra scale so dimensions match pool game */
-  transform: scale(1);
-  transform-origin: top left;
 }
 
-.ps .ps-track {
+.ps-track {
   position: absolute;
   inset: 0;
   border-radius: inherit;
@@ -40,7 +36,7 @@
 }
 
 /* left gloss */
-.ps .ps-track::before {
+.ps-track::before {
   content: '';
   position: absolute;
   top: 0;
@@ -56,7 +52,7 @@
 }
 
 /* ticks */
-.ps .ps-track::after {
+.ps-track::after {
   content: '';
   position: absolute;
   top: 0;
@@ -96,36 +92,7 @@
   pointer-events: none;
 }
 
-.ps .ps-power-bar {
-  position: absolute;
-  border: 1px solid #000;
-  box-sizing: border-box;
-  overflow: hidden;
-  pointer-events: none;
-}
-
-.ps .ps-power-bar-fill {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  clip-path: inset(0 0 100% 0);
-  background:
-    repeating-linear-gradient(
-      to bottom,
-      transparent 0 calc(10% - 1px),
-      #000 calc(10% - 1px) 10%
-    ),
-    linear-gradient(
-      to bottom,
-      var(--ps-gradient-low) 0%,
-      var(--ps-gradient-high) 100%
-    );
-  pointer-events: none;
-}
-
-.ps .ps-handle {
+.ps-handle {
   position: absolute;
   top: 0;
   left: 100%;
@@ -134,7 +101,7 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  width: calc(var(--ps-width) * 0.8657);
+  width: 58px;
   border-radius: 6px;
   background: linear-gradient(
     to bottom,
@@ -143,24 +110,23 @@
   );
   padding: 7.2px 2.4px;
   pointer-events: auto;
-  z-index: 1;
 }
 
-.ps .ps-handle-text {
-  font-size: 14px;
+.ps-handle-text {
+  font-size: 12px;
   color: #fff;
   line-height: 1;
-  transform: translate(-1px, 0px);
+  transform: translate(-2.4px, 2.4px);
 }
 
-.ps .ps-cue-img {
-  margin-top: 12px;
-  width: 100%;
+.ps-cue-img {
+  margin-top: 4px;
+  width: 58px;
   height: auto;
   transform: translateX(9.6px);
 }
 
-.ps .ps-tooltip {
+.ps-tooltip {
   position: absolute;
   top: 0;
   left: 100%;
@@ -178,40 +144,40 @@
   pointer-events: none;
 }
 
-.ps.ps-hot {
+.ps-hot {
   box-shadow:
     0 0 12px var(--ps-glow),
     0 4px 12px rgba(0, 0, 0, 0.25);
 }
 
-.ps.ps-no-animate .ps-handle,
-.ps.ps-no-animate .ps-tooltip {
+.ps-no-animate .ps-handle,
+.ps-no-animate .ps-tooltip {
   transition: none !important;
 }
 
-.ps.ps-locked {
+.ps-locked {
   opacity: 0.5;
   pointer-events: none;
 }
 
-.ps .ps-label {
+.ps-label {
   position: absolute;
   right: 100%;
-  margin-right: calc(var(--ps-width) * 0.0746);
+  margin-right: 5px;
   font-size: 12px;
   color: var(--ps-tooltip-color);
   user-select: none;
 }
 
-.ps .ps-label-0 {
+.ps-label-0 {
   bottom: 0;
   transform: translateY(50%);
 }
-.ps .ps-label-50 {
+.ps-label-50 {
   top: 50%;
   transform: translateY(-50%);
 }
-.ps .ps-label-100 {
+.ps-label-100 {
   top: 0;
   transform: translateY(-50%);
 }
@@ -221,7 +187,7 @@
   outline-offset: 2px;
 }
 
-.ps.ps-theme-dark {
+.ps-theme-dark {
   --ps-track-bg: rgba(0, 0, 0, 0.5);
   --ps-tick: rgba(255, 255, 255, 0.4);
   --ps-tooltip-bg: rgba(255, 255, 255, 0.9);
@@ -229,8 +195,8 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .ps .ps-handle,
-  .ps .ps-tooltip {
+  .ps-handle,
+  .ps-tooltip {
     transition: none !important;
   }
 }
