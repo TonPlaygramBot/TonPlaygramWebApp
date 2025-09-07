@@ -22,7 +22,7 @@ import { FLAG_EMOJIS } from '../../utils/flagEmojis.js';
 // --------------------------------------------------
 // separate scales for table and balls
 const BALL_SCALE = 0.65; // keep balls same size
-const TABLE_SCALE = BALL_SCALE * 1.25; // table 25% larger
+const TABLE_SCALE = BALL_SCALE * 1.2; // table 20% larger
 const TABLE = {
   W: 66 * TABLE_SCALE,
   H: 132 * TABLE_SCALE,
@@ -30,9 +30,10 @@ const TABLE = {
   WALL: 2.6 * TABLE_SCALE
 };
 const BALL_R = 2 * BALL_SCALE;
+const POCKET_R = BALL_R * 2; // pockets twice the ball radius
 const FRICTION = 0.9925;
 const STOP_EPS = 0.02;
-const CAPTURE_R = 3.1 * TABLE_SCALE; // pocket capture radius aligned with Pool Royale
+const CAPTURE_R = POCKET_R; // pocket capture radius
 
 // slightly brighter colors for table and balls
 const COLORS = Object.freeze({
@@ -181,7 +182,7 @@ function Guret(scene, id, color, x, y) {
 function Table3D(scene) {
   const halfW = TABLE.W / 2,
     halfH = TABLE.H / 2;
-  const POCKET_R_VIS = 3.6 * TABLE_SCALE; // slightly larger pocket visuals
+  const POCKET_R_VIS = POCKET_R / 0.85; // visual radius so holes are POCKET_R
   // Cloth me 6 vrima rrethore (holes)
   const shape = new THREE.Shape();
   shape.moveTo(-halfW, -halfH);
