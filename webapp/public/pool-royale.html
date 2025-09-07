@@ -2093,12 +2093,12 @@
               // slightly farther from center.
               new Pocket(
                 BORDER - 14 - POCKET_SHORTEN,
-                TABLE_H / 2 + BALL_R - 16,
+                TABLE_H / 2 + BALL_R - 18,
                 SIDE_POCKET_R
               ),
               new Pocket(
                 TABLE_W - BORDER + 14 + POCKET_SHORTEN,
-                TABLE_H / 2 + BALL_R - 16,
+                TABLE_H / 2 + BALL_R - 18,
                 SIDE_POCKET_R
               ),
               new Pocket(
@@ -3697,8 +3697,8 @@
           var R = p.r * ((sX + sY) / 2) * 1.2;
           var x = p.x * sX - R * 0.5 * dir;
           var y = p.y * sY;
-          var dx = R * 1.1 * dir;
-          var dy = R * 1.25;
+          var dx = R * 1.2 * dir;
+          var dy = R * 1.2;
           // Shorten the straight segments slightly to keep them within the green boundary
           var trim = R * 0.15;
           if (stroke) ctx.beginPath();
