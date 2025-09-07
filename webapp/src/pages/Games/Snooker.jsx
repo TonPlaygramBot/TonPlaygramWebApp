@@ -7,6 +7,7 @@ import {
   getTelegramPhotoUrl
 } from '../../utils/telegram.js';
 import { FLAG_EMOJIS } from '../../utils/flagEmojis.js';
+import { SnookerRules } from '../../../../src/rules/SnookerRules.ts';
 
 /**
  * NEW SNOOKER GAME — fresh build (keep ONLY Guret for balls)
@@ -243,12 +244,13 @@ function Table3D(scene) {
     color: 0x000000,
     side: THREE.DoubleSide,
     metalness: 0.05,
-    roughness: 0.4
+    roughness: 0.4,
+    depthTest: false
   });
   pocketCenters().forEach((p) => {
     const m = new THREE.Mesh(ringGeo, ringMat);
     m.rotation.x = -Math.PI / 2;
-    m.position.set(p.x, -0.99, p.y);
+    m.position.set(p.x, 0.01, p.y);
     scene.add(m);
   });
   // Markings: baulk, D, spots
@@ -258,18 +260,20 @@ function Table3D(scene) {
   const markMat = new THREE.LineBasicMaterial({
     color: COLORS.mark,
     transparent: true,
-    opacity: 0.75
+    opacity: 0.75,
+    depthTest: false,
+    depthWrite: false
   });
   const lineGeo = new THREE.BufferGeometry().setFromPoints([
-    new THREE.Vector3(baulkX, -0.98, -halfH),
-    new THREE.Vector3(baulkX, -0.98, halfH)
+    new THREE.Vector3(baulkX, 0.01, -halfH),
+    new THREE.Vector3(baulkX, 0.01, halfH)
   ]);
   scene.add(new THREE.Line(lineGeo, markMat));
   const dPts = [];
   for (let i = 0; i <= 64; i++) {
     const t = Math.PI * (i / 64);
     dPts.push(
-      new THREE.Vector3(baulkX + Math.cos(t) * D_R, -0.98, Math.sin(t) * D_R)
+      new THREE.Vector3(baulkX + Math.cos(t) * D_R, 0.01, Math.sin(t) * D_R)
     );
   }
   scene.add(
@@ -278,10 +282,14 @@ function Table3D(scene) {
   const spot = (x, z) => {
     const r = new THREE.Mesh(
       new THREE.RingGeometry(0.6, 1.0, 24),
-      new THREE.MeshBasicMaterial({ color: COLORS.mark })
+      new THREE.MeshBasicMaterial({
+        color: COLORS.mark,
+        depthTest: false,
+        depthWrite: false
+      })
     );
     r.rotation.x = -Math.PI / 2;
-    r.position.set(x, -0.99, z);
+    r.position.set(x, 0.01, z);
     scene.add(r);
   };
   spot(baulkX, 0);
@@ -299,6 +307,7 @@ function Table3D(scene) {
 export default function NewSnookerGame() {
   const mountRef = useRef(null);
   const rafRef = useRef(null);
+  const rules = useMemo(() => new SnookerRules(), []);
   const [hud, setHud] = useState({
     power: 0.65,
     A: 0,
@@ -325,6 +334,9 @@ export default function NewSnookerGame() {
   const [timer, setTimer] = useState(60);
   const timerRef = useRef(null);
   const [player, setPlayer] = useState({ name: '', avatar: '' });
+  useEffect(() => {
+    document.title = '3D Snooker';
+  }, []);
   useEffect(() => {
     setPlayer({
       name: getTelegramUsername() || 'Player',
@@ -587,10 +599,10 @@ export default function NewSnookerGame() {
         balls.push(b);
         return b;
       };
-      let cue = add('cue', COLORS.cue, -TABLE.W * 0.34, 0);
-      // reds triangle (nudged a bit towards black to match new table size)
+      let cue = add('cue', COLORS.cue, baulkX - BALL_R * 2, 0);
+      // reds triangle toward top side
       let rid = 0;
-      const bx = TABLE.W * 0.12,
+      const bx = TABLE.W * 0.25,
         by = 0;
       for (let r = 0; r < 5; r++)
         for (let c = 0; c <= r; c++) {
@@ -600,9 +612,9 @@ export default function NewSnookerGame() {
         }
       // colours
       const SPOTS = {
-        yellow: [-TABLE.W * 0.38, TABLE.H * 0.22],
-        green: [-TABLE.W * 0.38, -TABLE.H * 0.22],
-        brown: [-TABLE.W * 0.3, 0],
+        yellow: [baulkX, TABLE.H * 0.22],
+        green: [baulkX, -TABLE.H * 0.22],
+        brown: [baulkX, 0],
         blue: [0, 0],
         pink: [TABLE.W * 0.25, 0],
         black: [TABLE.W / 2 - TABLE.W * 0.09, 0]
@@ -741,11 +753,9 @@ export default function NewSnookerGame() {
             : 'colour'
           : hud.next;
       const isRedId = (id) => id.startsWith('red');
+      const values = rules.getBallValues();
       const val = (id) =>
-        isRedId(id)
-          ? 1
-          : { yellow: 2, green: 3, brown: 4, blue: 5, pink: 6, black: 7 }[id] ||
-            0;
+        isRedId(id) ? values.RED : values[id.toUpperCase()] || 0;
 
       // Fire (slider e thërret në release)
       const fire = () => {

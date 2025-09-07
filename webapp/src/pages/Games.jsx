@@ -73,7 +73,7 @@ export default function Games() {
                 className="text-sm font-semibold text-center text-yellow-400"
                 style={{ WebkitTextStroke: '1px black' }}
               >
-                Snooker
+                3D Snooker
               </h3>
             </Link>
             <Link
