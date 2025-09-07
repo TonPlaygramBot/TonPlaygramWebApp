@@ -1676,7 +1676,9 @@
           var rx = b.p.x - pk.x;
           var ry = b.p.y - pk.y;
           if (!cond(rx, ry)) return;
-          var limit = pk.r + BALL_R - GREEN_LINE;
+          // Allow the ball to reach the cushion before bouncing
+          // by removing the green line offset from the collision limit.
+          var limit = pk.r + BALL_R;
           var dist = rx * nx + ry * ny;
           if (dist >= limit) return;
           var vn = b.v.x * nx + b.v.y * ny;
@@ -2129,8 +2131,11 @@
               // spin is applied directly during collisions
               b.a += (Math.hypot(b.v.x, b.v.y) * dt) / (BALL_R * 0.6);
 
-                var L = BORDER + GREEN_LINE + BALL_R;
-                var R = TABLE_W - BORDER - GREEN_LINE - BALL_R;
+                // Let balls travel up to the table border instead of
+                // bouncing before the side lines by removing the
+                // GREEN_LINE offset from the rail limits.
+                var L = BORDER + BALL_R;
+                var R = TABLE_W - BORDER - BALL_R;
                 var T = BORDER_TOP + BALL_R;
                 var B = TABLE_H - BORDER_BOTTOM - BALL_R;
 
@@ -2141,7 +2146,7 @@
                 nearBottom = false;
               for (var pkIdx = 0; pkIdx < this.pockets.length; pkIdx++) {
                 var pp = this.pockets[pkIdx];
-                var thresh = pp.r + BALL_R - GREEN_LINE;
+                var thresh = pp.r + BALL_R;
                 if (Math.abs(b.p.y - pp.y) < thresh) {
                   if (pp.x < L) nearLeft = true;
                   if (pp.x > R) nearRight = true;
@@ -3369,8 +3374,8 @@
           var t = screenToTable(e.clientX, e.clientY);
           var cue = table.balls[0];
           if (draggingCue && cueBallFree) {
-            var minX = BORDER + GREEN_LINE + BALL_R,
-              maxX = TABLE_W - BORDER - GREEN_LINE - BALL_R;
+            var minX = BORDER + BALL_R,
+              maxX = TABLE_W - BORDER - BALL_R;
             var minY = LINE_Y + BALL_R,
               maxY = TABLE_H - BORDER_BOTTOM - BALL_R;
             var nx = clamp(t.x, minX, maxX);
@@ -3438,12 +3443,12 @@
           }
 
           if (dir.x < 0)
-            checkRail((BORDER + GREEN_LINE + BALL_R - cue.p.x) / dir.x, {
+            checkRail((BORDER + BALL_R - cue.p.x) / dir.x, {
               x: 1,
               y: 0
             });
           if (dir.x > 0)
-            checkRail((TABLE_W - BORDER - GREEN_LINE - BALL_R - cue.p.x) / dir.x, {
+            checkRail((TABLE_W - BORDER - BALL_R - cue.p.x) / dir.x, {
               x: -1,
               y: 0
             });
@@ -3566,12 +3571,12 @@
             if (hitN.x > 0)
               tMax = Math.min(
                 tMax,
-                (TABLE_W - BORDER - GREEN_LINE - BALL_R - tx) / hitN.x
+                (TABLE_W - BORDER - BALL_R - tx) / hitN.x
               );
             if (hitN.x < 0)
               tMax = Math.min(
                 tMax,
-                (BORDER + GREEN_LINE + BALL_R - tx) / hitN.x
+                (BORDER + BALL_R - tx) / hitN.x
               );
             if (hitN.y > 0)
               tMax = Math.min(
@@ -4055,8 +4060,8 @@
           if (shot.cueBallPosition) {
             var nx = clamp(
               shot.cueBallPosition.x,
-              BORDER + GREEN_LINE + BALL_R,
-              TABLE_W - BORDER - GREEN_LINE - BALL_R
+              BORDER + BALL_R,
+              TABLE_W - BORDER - BALL_R
             );
             var ny = clamp(
               shot.cueBallPosition.y,
