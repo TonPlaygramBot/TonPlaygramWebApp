@@ -29,7 +29,8 @@ const TABLE = {
   W: 66 * TABLE_SCALE,
   H: 132 * TABLE_SCALE,
   THICK: 1.8 * TABLE_SCALE,
-  WALL: 2.6 * TABLE_SCALE
+  // narrower rail width (~0.012 m after scaling)
+  WALL: 0.33 * TABLE_SCALE
 };
 const PLAY_W = TABLE.W - 2 * TABLE.WALL;
 const PLAY_H = TABLE.H - 2 * TABLE.WALL;
@@ -280,8 +281,7 @@ function Table3D(scene) {
   const railW = TABLE.WALL;
   const railY = -TABLE.THICK + RAIL_LIFT;
   // Outer wooden frame around rails at same height
-  // Make the side frame thicker so it lines up with the base
-  const FRAME_W = railW * 2.5; // wider wooden frame
+  const FRAME_W = 0; // remove extra frame so base is flush
   const outerHalfW = halfW + 2 * railW + FRAME_W;
   const outerHalfH = halfH + 2 * railW + FRAME_W;
   const frameShape = new THREE.Shape();
@@ -351,10 +351,10 @@ function Table3D(scene) {
   addRail(leftX, halfH - POCKET_VIS_R - vertSeg / 2, vertSeg, false);
   addRail(rightX, -halfH + POCKET_VIS_R + vertSeg / 2, vertSeg, false);
   addRail(rightX, halfH - POCKET_VIS_R - vertSeg / 2, vertSeg, false);
-  // Base slab under the rails (keeps original footprint while top grew 20%)
+  // Base slab under the rails (now flush with outer frame)
   const baseH = TABLE.THICK * 3.5;
-  const baseW = TABLE.W / TABLE_SCALE + 2 * (railW + FRAME_W);
-  const baseD = TABLE.H / TABLE_SCALE + 2 * (railW + FRAME_W);
+  const baseW = TABLE.W + 2 * (railW + FRAME_W);
+  const baseD = TABLE.H + 2 * (railW + FRAME_W);
   const base = new THREE.Mesh(
     new THREE.BoxGeometry(baseW, baseH, baseD),
     railMat
