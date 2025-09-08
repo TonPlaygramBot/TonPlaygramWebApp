@@ -97,11 +97,13 @@ const feltTopY=Dim.tableH-Dim.slateT+Dim.feltT/2;meshes.push(new Mesh(xform(box(
 
 // --------------------- Rails ---------------------
 {
+  // lift side rails and frames by half a ball height (~26 mm)
+  const railLift=0.026;
   const rx=Dim.playX/2+Dim.railW/2,rz=Dim.playZ/2+Dim.railW/2;
-  meshes.push(new Mesh(xform(box(Dim.playX+Dim.railW*1.25,Dim.railH,Dim.railW),M.trans(0,Dim.tableH-0.05,rz)),Col.wood));
-  meshes.push(new Mesh(xform(box(Dim.playX+Dim.railW*1.25,Dim.railH,Dim.railW),M.trans(0,Dim.tableH-0.05,-rz)),Col.wood));
-  meshes.push(new Mesh(xform(box(Dim.railW,Dim.railH,Dim.playZ+Dim.railW*1.25),M.trans(rx,Dim.tableH-0.05,0)),Col.wood));
-  meshes.push(new Mesh(xform(box(Dim.railW,Dim.railH,Dim.playZ+Dim.railW*1.25),M.trans(-rx,Dim.tableH-0.05,0)),Col.wood));
+  meshes.push(new Mesh(xform(box(Dim.playX+Dim.railW*1.25,Dim.railH,Dim.railW),M.trans(0,Dim.tableH-0.05+railLift,rz)),Col.wood));
+  meshes.push(new Mesh(xform(box(Dim.playX+Dim.railW*1.25,Dim.railH,Dim.railW),M.trans(0,Dim.tableH-0.05+railLift,-rz)),Col.wood));
+  meshes.push(new Mesh(xform(box(Dim.railW,Dim.railH,Dim.playZ+Dim.railW*1.25),M.trans(rx,Dim.tableH-0.05+railLift,0)),Col.wood));
+  meshes.push(new Mesh(xform(box(Dim.railW,Dim.railH,Dim.playZ+Dim.railW*1.25),M.trans(-rx,Dim.tableH-0.05+railLift,0)),Col.wood));
 }
 
 // --------------------- Cushions REMOVED per request ---------------------
