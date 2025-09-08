@@ -42,8 +42,8 @@ const FRICTION = 0.9925;
 const STOP_EPS = 0.02;
 const CAPTURE_R = POCKET_R; // pocket capture radius
 const TABLE_Y = -2; // vertical offset to lower entire table
-// raise side rails and frames slightly (half a ball height)
-const RAIL_LIFT = BALL_R / 2;
+// raise side rails and frames slightly higher than before
+const RAIL_LIFT = BALL_R * 0.6;
 
 // slightly brighter colors for table and balls
 const COLORS = Object.freeze({
@@ -366,7 +366,7 @@ function Table3D(scene) {
 
   // Legs supporting the table (cylindrical, tucked under base)
   const legH = baseH * 4;
-  const legR = (TABLE.WALL * 0.8) / 4; // legs four times thinner
+  const legR = ((TABLE.WALL * 0.8) / 4) * 8; // legs eight times wider
   const legGeo = new THREE.CylinderGeometry(legR, legR, legH, 24);
   const legY = -TABLE.THICK - baseH - legH / 2;
   const legOffsetX = baseW / 2 - legR * 1.2;
@@ -424,8 +424,8 @@ function Table3D(scene) {
     const ad = new THREE.Mesh(new THREE.PlaneGeometry(w, wallH / 2), adMat);
     ad.position.y = -wallH / 4;
     g.add(top, ad);
-    // drop walls below the floor level
-    g.position.y = floor.position.y - wallH / 2;
+    // place walls on top of the floor so they are visible
+    g.position.y = floor.position.y + wallH / 2;
     return g;
   };
 
