@@ -1,7 +1,7 @@
 /* Power Slider component styles */
 .ps {
   /* further slimmed slider for more table space */
-  --ps-width: 24px;
+  --ps-width: 20px;
   --ps-height: 480px;
   --ps-radius: 12px;
   --ps-track-bg: rgba(255, 255, 255, 0.15);
@@ -147,14 +147,17 @@
 }
 
 .ps .ps-handle-text {
+  position: absolute;
+  top: -20px;
+  left: 50%;
+  transform: translateX(-50%);
   font-size: 14px;
   color: #fff;
   line-height: 1;
-  transform: translate(-1px, 0px);
 }
 
 .ps .ps-cue-img {
-  margin-top: 12px;
+  margin-top: 0;
   width: 100%;
   height: auto;
   transform: translateX(4px);
