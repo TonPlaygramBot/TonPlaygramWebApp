@@ -277,7 +277,7 @@ function Table3D(scene) {
     metalness: 0.2,
     roughness: 0.9
   });
-  const railH = TABLE.THICK;
+  const railH = TABLE.THICK * 1.4; // slightly taller rails
   const railW = TABLE.WALL * 0.5; // thinner side rails
   // Outer wooden frame around rails at same height
   // Make the side frame thicker so it lines up with the base
@@ -337,9 +337,9 @@ function Table3D(scene) {
     wood.receiveShadow = true;
     group.add(wood);
     const clothGeo = railGeometry(len);
-    clothGeo.scale(1, 0.5, 0.6);
+    clothGeo.scale(1, 0.7, 0.7); // beefier cushion
     const cloth = new THREE.Mesh(clothGeo, cushionMat);
-    cloth.position.y = railH * 0.5;
+    cloth.position.y = railH * 0.6;
     group.add(cloth);
     group.position.set(x, -TABLE.THICK + RAIL_LIFT, z);
     if (!horizontal) group.rotation.y = Math.PI / 2;
@@ -351,14 +351,39 @@ function Table3D(scene) {
   addRail(leftX, halfH - POCKET_VIS_R - vertSeg / 2, vertSeg, false);
   addRail(rightX, -halfH + POCKET_VIS_R + vertSeg / 2, vertSeg, false);
   addRail(rightX, halfH - POCKET_VIS_R - vertSeg / 2, vertSeg, false);
+  // fillers behind pockets to close side gaps
+  const fillerGeo = new THREE.BoxGeometry(railW, railH, railW);
+  [
+    [leftX, bottomZ],
+    [rightX, bottomZ],
+    [leftX, topZ],
+    [rightX, topZ],
+    [0, bottomZ],
+    [0, topZ]
+  ].forEach(([x, z]) => {
+    const f = new THREE.Mesh(fillerGeo, railMat);
+    f.position.set(x, -TABLE.THICK + RAIL_LIFT, z);
+    f.castShadow = true;
+    f.receiveShadow = true;
+    table.add(f);
+  });
   // Base slab under the rails (keeps original footprint while top grew 20%)
   const baseH = TABLE.THICK * 3.5;
-  const baseW = TABLE.W / TABLE_SCALE + 2 * (railW + FRAME_W);
-  const baseD = TABLE.H / TABLE_SCALE + 2 * (railW + FRAME_W);
-  const base = new THREE.Mesh(
-    new THREE.BoxGeometry(baseW, baseH, baseD),
-    railMat
-  );
+  const baseTopW = outerHalfW * 2;
+  const baseTopD = outerHalfH * 2;
+  const legBaseW = TABLE.W / TABLE_SCALE + 2 * (railW + FRAME_W);
+  const legBaseD = TABLE.H / TABLE_SCALE + 2 * (railW + FRAME_W);
+  const baseGeo = new THREE.BoxGeometry(baseTopW, baseH, baseTopD);
+  const posAttr = baseGeo.attributes.position;
+  const halfBaseH = baseH / 2;
+  for (let i = 0; i < posAttr.count; i++) {
+    if (posAttr.getY(i) === -halfBaseH) {
+      posAttr.setX(i, posAttr.getX(i) * 2);
+      posAttr.setZ(i, posAttr.getZ(i) * 2);
+    }
+  }
+  baseGeo.computeVertexNormals();
+  const base = new THREE.Mesh(baseGeo, railMat);
   base.position.y = -TABLE.THICK - baseH / 2;
   base.castShadow = true;
   base.receiveShadow = true;
@@ -369,8 +394,8 @@ function Table3D(scene) {
   const legR = ((TABLE.WALL * 0.8) / 4) * 8; // legs eight times wider
   const legGeo = new THREE.CylinderGeometry(legR, legR, legH, 24);
   const legY = -TABLE.THICK - baseH - legH / 2;
-  const legOffsetX = baseW / 2 - legR * 1.2;
-  const legOffsetZ = baseD / 2 - legR * 1.2;
+  const legOffsetX = legBaseW / 2 - legR * 1.2;
+  const legOffsetZ = legBaseD / 2 - legR * 1.2;
   [
     [-legOffsetX, -legOffsetZ],
     [legOffsetX, -legOffsetZ],
@@ -404,7 +429,7 @@ function Table3D(scene) {
   const wallMat = new THREE.MeshStandardMaterial({
     color: 0x111111,
     roughness: 0.8,
-    side: THREE.BackSide
+    side: THREE.FrontSide
   });
   const adTex = new THREE.TextureLoader().load(
     '/assets/icons/goal_rush_card_1200x675.webp'
@@ -413,19 +438,21 @@ function Table3D(scene) {
   adTex.repeat.set(2, 1);
   const adMat = new THREE.MeshBasicMaterial({
     map: adTex,
-    side: THREE.BackSide
+    side: THREE.FrontSide
   });
   adTextures.push(adTex);
 
   const makeWall = (w) => {
     const g = new THREE.Group();
-    const top = new THREE.Mesh(new THREE.PlaneGeometry(w, wallH / 2), wallMat);
-    top.position.y = wallH / 4;
+    const wall = new THREE.Mesh(new THREE.PlaneGeometry(w, wallH), wallMat);
+    wall.position.y = wallH / 2;
+    g.add(wall);
     const ad = new THREE.Mesh(new THREE.PlaneGeometry(w, wallH / 2), adMat);
-    ad.position.y = -wallH / 4;
-    g.add(top, ad);
-    // place walls on top of the floor so they are visible
-    g.position.y = floor.position.y + wallH / 2;
+    ad.position.y = wallH / 2;
+    ad.position.z = 0.01; // billboard slightly in front
+    ad.lookAt(0, wallH / 2, 0); // face table centre
+    g.add(ad);
+    g.position.y = floor.position.y; // stand directly on carpet
     return g;
   };
 
