@@ -24,13 +24,15 @@ import { SnookerRules } from '../../../../src/rules/SnookerRules.ts';
 // separate scales for table and balls
 // Dimensions aligned with Pool Royale for consistent feel
 const BALL_SCALE = 1;
-const TABLE_SCALE = 1;
+const TABLE_SCALE = 1.15;
 const TABLE = {
   W: 66 * TABLE_SCALE,
   H: 132 * TABLE_SCALE,
   THICK: 1.8 * TABLE_SCALE,
   WALL: 2.6 * TABLE_SCALE
 };
+const PLAY_W = TABLE.W - 2 * TABLE.WALL;
+const PLAY_H = TABLE.H - 2 * TABLE.WALL;
 const BALL_R = 2 * BALL_SCALE;
 const POCKET_R = BALL_R * 2; // pockets twice the ball radius
 // slightly larger visual radius so rails align with pocket rings
@@ -79,12 +81,12 @@ const fitRadius = (camera, margin = 1.1) => {
 // Utilities
 // --------------------------------------------------
 const pocketCenters = () => [
-  new THREE.Vector2(-TABLE.W / 2, -TABLE.H / 2),
-  new THREE.Vector2(TABLE.W / 2, -TABLE.H / 2),
-  new THREE.Vector2(-TABLE.W / 2, TABLE.H / 2),
-  new THREE.Vector2(TABLE.W / 2, TABLE.H / 2),
-  new THREE.Vector2(-TABLE.W / 2, 0),
-  new THREE.Vector2(TABLE.W / 2, 0)
+  new THREE.Vector2(-PLAY_W / 2, -PLAY_H / 2),
+  new THREE.Vector2(PLAY_W / 2, -PLAY_H / 2),
+  new THREE.Vector2(-PLAY_W / 2, PLAY_H / 2),
+  new THREE.Vector2(PLAY_W / 2, PLAY_H / 2),
+  new THREE.Vector2(-PLAY_W / 2, 0),
+  new THREE.Vector2(PLAY_W / 2, 0)
 ];
 const allStopped = (balls) => balls.every((b) => b.vel.length() < STOP_EPS);
 function reflectRails(ball) {
@@ -192,8 +194,8 @@ function Guret(scene, id, color, x, y) {
 // Table with CUT pockets + markings (fresh)
 // --------------------------------------------------
 function Table3D(scene) {
-  const halfW = TABLE.W / 2,
-    halfH = TABLE.H / 2;
+  const halfW = PLAY_W / 2,
+    halfH = PLAY_H / 2;
   // Cloth me 6 vrima rrethore (holes)
   const shape = new THREE.Shape();
   shape.moveTo(-halfW, -halfH);
@@ -255,12 +257,12 @@ function Table3D(scene) {
   });
   const railH = TABLE.THICK;
   const railW = TABLE.WALL;
-  const horizLen = TABLE.W - 2 * POCKET_VIS_R;
-  const vertSeg = TABLE.H / 2 - 2 * POCKET_VIS_R;
-  const bottomZ = -halfH + railW / 2;
-  const topZ = halfH - railW / 2;
-  const leftX = -halfW + railW / 2;
-  const rightX = halfW - railW / 2;
+  const horizLen = PLAY_W - 2 * POCKET_VIS_R;
+  const vertSeg = PLAY_H / 2 - 2 * POCKET_VIS_R;
+  const bottomZ = -halfH - railW / 2;
+  const topZ = halfH + railW / 2;
+  const leftX = -halfW - railW / 2;
+  const rightX = halfW + railW / 2;
   const railGeometry = (len) => {
     const half = len / 2;
     const shape = new THREE.Shape();
@@ -304,8 +306,8 @@ function Table3D(scene) {
   // Baulk line is measured from the bottom cushion along table length
   const BAULK_RATIO_FROM_BOTTOM = 0.2014;
   // D radius is based on table width (short side)
-  const D_R = (11.5 / 72) * TABLE.W;
-  const baulkZ = -halfH + BAULK_RATIO_FROM_BOTTOM * TABLE.H;
+  const D_R = (11.5 / 72) * PLAY_W;
+  const baulkZ = -halfH + BAULK_RATIO_FROM_BOTTOM * PLAY_H;
   const markMat = new THREE.LineBasicMaterial({
     color: COLORS.mark,
     transparent: true,
@@ -342,13 +344,13 @@ function Table3D(scene) {
     scene.add(r);
   };
   // yellow, brown, green on baulk line
-  spot(-TABLE.W * 0.22, baulkZ);
+  spot(-PLAY_W * 0.22, baulkZ);
   spot(0, baulkZ);
-  spot(TABLE.W * 0.22, baulkZ);
+  spot(PLAY_W * 0.22, baulkZ);
   // blue, pink, black along table center line
   spot(0, 0);
-  spot(0, TABLE.H * 0.25);
-  spot(0, halfH - TABLE.H * 0.09);
+  spot(0, PLAY_H * 0.25);
+  spot(0, halfH - PLAY_H * 0.09);
   return { centers: pocketCenters(), baulkZ };
 }
 
@@ -657,7 +659,7 @@ export default function NewSnookerGame() {
       let cue = add('cue', COLORS.cue, -BALL_R * 2, baulkZ);
       // reds triangle toward top side
       let rid = 0;
-      const bz = TABLE.H * 0.25,
+      const bz = PLAY_H * 0.25,
         bx = 0;
       for (let r = 0; r < 5; r++)
         for (let c = 0; c <= r; c++) {
@@ -666,14 +668,14 @@ export default function NewSnookerGame() {
           add(`red_${rid++}`, COLORS.red, x, z);
         }
       // colours
-      const halfH = TABLE.H / 2;
+      const halfH = PLAY_H / 2;
       const SPOTS = {
-        yellow: [-TABLE.W * 0.22, baulkZ],
-        green: [TABLE.W * 0.22, baulkZ],
+        yellow: [-PLAY_W * 0.22, baulkZ],
+        green: [PLAY_W * 0.22, baulkZ],
         brown: [0, baulkZ],
         blue: [0, 0],
-        pink: [0, TABLE.H * 0.25],
-        black: [0, halfH - TABLE.H * 0.09]
+        pink: [0, PLAY_H * 0.25],
+        black: [0, halfH - PLAY_H * 0.09]
       };
       const colors = Object.fromEntries(
         Object.entries(SPOTS).map(([k, [x, z]]) => [k, add(k, COLORS[k], x, z)])
@@ -786,7 +788,7 @@ export default function NewSnookerGame() {
         const p = project(e);
         if (
           p.y <= baulkZ &&
-          Math.abs(p.x) <= TABLE.W / 2 - BALL_R * 2 &&
+          Math.abs(p.x) <= PLAY_W / 2 - BALL_R * 2 &&
           free(p.x, p.y)
         ) {
           cue.active = true;
