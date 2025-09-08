@@ -392,6 +392,53 @@ function Table3D(scene) {
   floor.position.y = legY - legH / 2 - 1;
   floor.receiveShadow = true;
   table.add(floor);
+
+  // Arena walls with scrolling advertisement boards
+  const adTextures = [];
+  const arena = new THREE.Group();
+  const arenaW = TABLE.W * 6;
+  const arenaD = TABLE.H * 6;
+  const wallH = TABLE.H * 0.6;
+  const wallMat = new THREE.MeshStandardMaterial({
+    color: 0x111111,
+    roughness: 0.8,
+    side: THREE.BackSide
+  });
+  const adTex = new THREE.TextureLoader().load(
+    '/assets/icons/goal_rush_card_1200x675.webp'
+  );
+  adTex.wrapS = THREE.RepeatWrapping;
+  adTex.repeat.set(2, 1);
+  const adMat = new THREE.MeshBasicMaterial({
+    map: adTex,
+    side: THREE.BackSide
+  });
+  adTextures.push(adTex);
+
+  const makeWall = (w) => {
+    const g = new THREE.Group();
+    const top = new THREE.Mesh(new THREE.PlaneGeometry(w, wallH / 2), wallMat);
+    top.position.y = wallH / 4;
+    const ad = new THREE.Mesh(new THREE.PlaneGeometry(w, wallH / 2), adMat);
+    ad.position.y = -wallH / 4;
+    g.add(top, ad);
+    g.position.y = floor.position.y + wallH / 2;
+    return g;
+  };
+
+  const north = makeWall(arenaW);
+  north.position.z = -arenaD / 2;
+  const south = makeWall(arenaW);
+  south.position.z = arenaD / 2;
+  south.rotation.y = Math.PI;
+  const west = makeWall(arenaD);
+  west.position.x = -arenaW / 2;
+  west.rotation.y = Math.PI / 2;
+  const east = makeWall(arenaD);
+  east.position.x = arenaW / 2;
+  east.rotation.y = -Math.PI / 2;
+  arena.add(north, south, east, west);
+  table.add(arena);
   // Markings: baulk, D, spots
   // Baulk line is measured from the bottom cushion along table length
   const BAULK_RATIO_FROM_BOTTOM = 0.2014;
@@ -443,7 +490,7 @@ function Table3D(scene) {
   spot(0, halfH - PLAY_H * 0.09);
   scene.add(table);
   table.position.y = TABLE_Y;
-  return { centers: pocketCenters(), baulkZ, group: table };
+  return { centers: pocketCenters(), baulkZ, group: table, ads: adTextures };
 }
 
 // --------------------------------------------------
@@ -576,6 +623,8 @@ export default function NewSnookerGame() {
         powerPreference: 'high-performance'
       });
       renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
+      renderer.shadowMap.enabled = true;
+      renderer.shadowMap.type = THREE.PCFSoftShadowMap;
       // Ensure the canvas fills the host element so the table is centered and
       // scaled correctly on all view modes.
       renderer.setSize(host.clientWidth, host.clientHeight);
@@ -736,10 +785,23 @@ export default function NewSnookerGame() {
       const key = new THREE.DirectionalLight(0xffffff, 1.05);
       key.position.set(-60, 90, 40);
       key.castShadow = true;
+      key.shadow.mapSize.set(2048, 2048);
+      key.shadow.camera.near = 10;
+      key.shadow.camera.far = 400;
+      const d = 200;
+      key.shadow.camera.left = -d;
+      key.shadow.camera.right = d;
+      key.shadow.camera.top = d;
+      key.shadow.camera.bottom = -d;
       scene.add(key);
 
       // Table
-      const { centers, baulkZ, group: table } = Table3D(scene);
+      const {
+        centers,
+        baulkZ,
+        group: table,
+        ads: adTextures
+      } = Table3D(scene);
 
       // Balls (ONLY Guret)
       const balls = [];
@@ -1122,7 +1184,9 @@ export default function NewSnookerGame() {
           const any = balls.some((b) => b.active && b.vel.length() >= STOP_EPS);
           if (!any) resolve();
         }
-
+        adTextures.forEach((t) => {
+          t.offset.x -= 0.01;
+        });
         renderer.render(scene, camera);
         rafRef.current = requestAnimationFrame(step);
       };
