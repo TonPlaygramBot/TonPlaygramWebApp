@@ -355,7 +355,7 @@ function Table3D(scene) {
   const baseW = TABLE.W / TABLE_SCALE + 2 * (railW + FRAME_W);
   const baseD = TABLE.H / TABLE_SCALE + 2 * (railW + FRAME_W);
   const base = new THREE.Mesh(
-    new THREE.BoxGeometry(baseW, baseH, baseD),
+    new THREE.BoxGeometry(baseW * 2, baseH, baseD * 2),
     railMat
   );
   base.position.y = -TABLE.THICK - baseH / 2;
@@ -363,13 +363,43 @@ function Table3D(scene) {
   base.receiveShadow = true;
   table.add(base);
 
+  // Block gaps behind pockets created by the frame and cushions
+  const fillerY = -TABLE.THICK + RAIL_LIFT;
+  const fillerH = TABLE.THICK;
+  pocketCenters().forEach((p) => {
+    const signX = Math.sign(p.x);
+    const signZ = Math.sign(p.y);
+    if (signX !== 0) {
+      const fx = p.x + signX * (POCKET_VIS_R / 2 + railW / 2);
+      const fillX = new THREE.Mesh(
+        new THREE.BoxGeometry(railW, fillerH, POCKET_VIS_R),
+        railMat
+      );
+      fillX.position.set(fx, fillerY, p.y);
+      fillX.castShadow = true;
+      fillX.receiveShadow = true;
+      table.add(fillX);
+    }
+    if (signZ !== 0) {
+      const fz = p.y + signZ * (POCKET_VIS_R / 2 + railW / 2);
+      const fillZ = new THREE.Mesh(
+        new THREE.BoxGeometry(POCKET_VIS_R, fillerH, railW),
+        railMat
+      );
+      fillZ.position.set(p.x, fillerY, fz);
+      fillZ.castShadow = true;
+      fillZ.receiveShadow = true;
+      table.add(fillZ);
+    }
+  });
+
   // Legs supporting the table (cylindrical, tucked under base)
   const legH = baseH * 4;
-  const legR = TABLE.WALL * 0.8;
+  const legR = TABLE.WALL * 0.8 * 3;
   const legGeo = new THREE.CylinderGeometry(legR, legR, legH, 24);
   const legY = -TABLE.THICK - baseH - legH / 2;
-  const legOffsetX = baseW / 2 - legR * 1.2;
-  const legOffsetZ = baseD / 2 - legR * 1.2;
+  const legOffsetX = baseW / 2 - legR * 2;
+  const legOffsetZ = baseD / 2 - legR * 2;
   [
     [-legOffsetX, -legOffsetZ],
     [legOffsetX, -legOffsetZ],
