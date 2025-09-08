@@ -81,8 +81,8 @@ const pocketCenters = () => [
   new THREE.Vector2(TABLE.W / 2, -TABLE.H / 2),
   new THREE.Vector2(-TABLE.W / 2, TABLE.H / 2),
   new THREE.Vector2(TABLE.W / 2, TABLE.H / 2),
-  new THREE.Vector2(0, -TABLE.H / 2),
-  new THREE.Vector2(0, TABLE.H / 2)
+  new THREE.Vector2(-TABLE.W / 2, 0),
+  new THREE.Vector2(TABLE.W / 2, 0)
 ];
 const allStopped = (balls) => balls.every((b) => b.vel.length() < STOP_EPS);
 function reflectRails(ball) {
@@ -247,30 +247,58 @@ function Table3D(scene) {
     metalness: 0.3,
     roughness: 0.8
   });
+  const cushionMat = new THREE.MeshStandardMaterial({
+    color: 0x0e6b39,
+    metalness: 0.2,
+    roughness: 0.9
+  });
   const railH = TABLE.THICK;
   const railW = TABLE.WALL;
-  const horizLen = TABLE.W / 2 - 2 * POCKET_R;
-  const vertLen = TABLE.H - 2 * POCKET_R;
+  const horizLen = TABLE.W - 2 * POCKET_R;
+  const vertSeg = TABLE.H / 2 - 2 * POCKET_R;
   const bottomZ = -halfH + railW / 2;
   const topZ = halfH - railW / 2;
-  const addRail = (x, z, horizontal) => {
-    const geo = new THREE.BoxGeometry(
-      horizontal ? horizLen : railW,
-      railH,
-      horizontal ? railW : vertLen
-    );
-    const mesh = new THREE.Mesh(geo, railMat);
-    mesh.position.set(x, railH / 2, z);
-    mesh.castShadow = true;
-    mesh.receiveShadow = true;
-    scene.add(mesh);
+  const leftX = -halfW + railW / 2;
+  const rightX = halfW - railW / 2;
+  const railGeometry = (len) => {
+    const half = len / 2;
+    const shape = new THREE.Shape();
+    shape.moveTo(-half, 0);
+    shape.lineTo(-half + railW / 2, -railW / 2);
+    shape.lineTo(half - railW / 2, -railW / 2);
+    shape.lineTo(half, 0);
+    shape.lineTo(half - railW / 2, railW / 2);
+    shape.lineTo(-half + railW / 2, railW / 2);
+    shape.lineTo(-half, 0);
+    const geo = new THREE.ExtrudeGeometry(shape, {
+      depth: railH,
+      bevelEnabled: false
+    });
+    geo.rotateX(-Math.PI / 2);
+    geo.translate(0, railH / 2, 0);
+    return geo;
   };
-  addRail(-halfW + POCKET_R + horizLen / 2, bottomZ, true);
-  addRail(halfW - POCKET_R - horizLen / 2, bottomZ, true);
-  addRail(-halfW + POCKET_R + horizLen / 2, topZ, true);
-  addRail(halfW - POCKET_R - horizLen / 2, topZ, true);
-  addRail(-halfW + railW / 2, 0, false);
-  addRail(halfW - railW / 2, 0, false);
+  const addRail = (x, z, len, horizontal) => {
+    const group = new THREE.Group();
+    const wood = new THREE.Mesh(railGeometry(len), railMat);
+    wood.castShadow = true;
+    wood.receiveShadow = true;
+    group.add(wood);
+    const clothGeo = railGeometry(len);
+    clothGeo.scale(1, 0.5, 0.6);
+    const cloth = new THREE.Mesh(clothGeo, cushionMat);
+    cloth.position.y = railH * 0.25;
+    group.add(cloth);
+    group.position.set(x, 0, z);
+    if (!horizontal) group.rotation.y = Math.PI / 2;
+    scene.add(group);
+  };
+  addRail(0, bottomZ, horizLen, true);
+  addRail(0, topZ, horizLen, true);
+  addRail(leftX, -halfH + POCKET_R + vertSeg / 2, vertSeg, false);
+  addRail(leftX, halfH - POCKET_R - vertSeg / 2, vertSeg, false);
+  addRail(rightX, -halfH + POCKET_R + vertSeg / 2, vertSeg, false);
+  addRail(rightX, halfH - POCKET_R - vertSeg / 2, vertSeg, false);
   // Markings: baulk, D, spots
   // Baulk line is measured from the bottom cushion along table length
   const BAULK_RATIO_FROM_BOTTOM = 0.2014;
