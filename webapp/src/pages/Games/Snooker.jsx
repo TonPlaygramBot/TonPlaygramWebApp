@@ -241,7 +241,7 @@ function Table3D(scene) {
   pocketCenters().forEach((p) => {
     const m = new THREE.Mesh(ringGeo, ringMat);
     m.rotation.x = -Math.PI / 2;
-    m.position.set(p.x, 0.01, p.y);
+    m.position.set(p.x, 0.001, p.y);
     scene.add(m);
   });
   // Pocket sleeves for depth perception
@@ -276,7 +276,7 @@ function Table3D(scene) {
   const railW = TABLE.WALL;
   // Outer wooden frame around rails at same height
   // Make the side frame thicker so it lines up with the base
-  const FRAME_W = railW * 2; // wider wooden frame
+  const FRAME_W = railW * 2.5; // wider wooden frame
   const frameShape = new THREE.Shape();
   frameShape.moveTo(-halfW - railW - FRAME_W, -halfH - railW - FRAME_W);
   frameShape.lineTo(halfW + railW + FRAME_W, -halfH - railW - FRAME_W);
@@ -321,7 +321,6 @@ function Table3D(scene) {
       bevelEnabled: false
     });
     geo.rotateX(-Math.PI / 2);
-    geo.translate(0, railH / 2, 0);
     return geo;
   };
   const addRail = (x, z, len, horizontal) => {
@@ -333,7 +332,7 @@ function Table3D(scene) {
     const clothGeo = railGeometry(len);
     clothGeo.scale(1, 0.5, 0.6);
     const cloth = new THREE.Mesh(clothGeo, cushionMat);
-    cloth.position.y = railH * 0.25;
+    cloth.position.y = railH * 0.5;
     group.add(cloth);
     group.position.set(x, 0, z);
     if (!horizontal) group.rotation.y = Math.PI / 2;
@@ -346,7 +345,7 @@ function Table3D(scene) {
   addRail(rightX, -halfH + POCKET_VIS_R + vertSeg / 2, vertSeg, false);
   addRail(rightX, halfH - POCKET_VIS_R - vertSeg / 2, vertSeg, false);
   // Base slab under the rails
-  const baseH = TABLE.THICK * 3;
+  const baseH = TABLE.THICK * 3.5;
   // Base extends to match the wider frame dimensions
   const baseW = TABLE.W + 2 * (railW + FRAME_W);
   const baseD = TABLE.H + 2 * (railW + FRAME_W);
@@ -361,7 +360,7 @@ function Table3D(scene) {
   // Legs supporting the table
   const legH = baseH * 4;
   // Square, chunkier legs for a sturdier look
-  const legSize = TABLE.WALL * 1.2;
+  const legSize = TABLE.WALL * 1.6;
   const legGeo = new THREE.BoxGeometry(legSize, legH, legSize);
   const legY = -TABLE.THICK - baseH - legH / 2;
   const legOffsetX = baseW / 2 - legSize / 2;
@@ -401,15 +400,15 @@ function Table3D(scene) {
     depthWrite: false
   });
   const lineGeo = new THREE.BufferGeometry().setFromPoints([
-    new THREE.Vector3(-halfW, 0.01, baulkZ),
-    new THREE.Vector3(halfW, 0.01, baulkZ)
+    new THREE.Vector3(-halfW, 0.001, baulkZ),
+    new THREE.Vector3(halfW, 0.001, baulkZ)
   ]);
   scene.add(new THREE.Line(lineGeo, markMat));
   const dPts = [];
   for (let i = 0; i <= 64; i++) {
     const t = Math.PI * (i / 64);
     dPts.push(
-      new THREE.Vector3(Math.cos(t) * D_R, 0.01, baulkZ - Math.sin(t) * D_R)
+      new THREE.Vector3(Math.cos(t) * D_R, 0.001, baulkZ - Math.sin(t) * D_R)
     );
   }
   scene.add(
@@ -425,7 +424,7 @@ function Table3D(scene) {
       })
     );
     r.rotation.x = -Math.PI / 2;
-    r.position.set(x, 0.01, z);
+    r.position.set(x, 0.001, z);
     scene.add(r);
   };
   // yellow, brown, green on baulk line
