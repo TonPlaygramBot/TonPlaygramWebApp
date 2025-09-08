@@ -232,10 +232,10 @@ function Table3D(scene) {
   // Pocket rings (visual rim)
   const ringGeo = new THREE.RingGeometry(POCKET_VIS_R * 0.6, POCKET_VIS_R, 48);
   const ringMat = new THREE.MeshStandardMaterial({
-    color: 0x111111,
+    color: 0x000000,
     side: THREE.DoubleSide,
-    metalness: 0.3,
-    roughness: 0.6,
+    metalness: 0.4,
+    roughness: 0.5,
     depthTest: false
   });
   pocketCenters().forEach((p) => {
@@ -243,6 +243,23 @@ function Table3D(scene) {
     m.rotation.x = -Math.PI / 2;
     m.position.set(p.x, 0.01, p.y);
     scene.add(m);
+  });
+  // Pocket sleeves for depth perception
+  const pocketGeo = new THREE.CylinderGeometry(
+    POCKET_VIS_R * 0.85,
+    POCKET_VIS_R * 0.85,
+    TABLE.THICK,
+    32
+  );
+  const pocketMat = new THREE.MeshStandardMaterial({
+    color: 0x000000,
+    metalness: 0.6,
+    roughness: 0.4
+  });
+  pocketCenters().forEach((p) => {
+    const pocket = new THREE.Mesh(pocketGeo, pocketMat);
+    pocket.position.set(p.x, -TABLE.THICK / 2, p.y);
+    scene.add(pocket);
   });
   // Rails / cushions between pockets
   const railMat = new THREE.MeshStandardMaterial({
@@ -257,6 +274,30 @@ function Table3D(scene) {
   });
   const railH = TABLE.THICK;
   const railW = TABLE.WALL;
+  // Outer wooden frame
+  const frameShape = new THREE.Shape();
+  frameShape.moveTo(-halfW - railW, -halfH - railW);
+  frameShape.lineTo(halfW + railW, -halfH - railW);
+  frameShape.lineTo(halfW + railW, halfH + railW);
+  frameShape.lineTo(-halfW - railW, halfH + railW);
+  frameShape.lineTo(-halfW - railW, -halfH - railW);
+  const innerRect = new THREE.Path();
+  innerRect.moveTo(-halfW, -halfH);
+  innerRect.lineTo(halfW, -halfH);
+  innerRect.lineTo(halfW, halfH);
+  innerRect.lineTo(-halfW, halfH);
+  innerRect.lineTo(-halfW, -halfH);
+  frameShape.holes.push(innerRect);
+  const frameGeo = new THREE.ExtrudeGeometry(frameShape, {
+    depth: TABLE.THICK,
+    bevelEnabled: false
+  });
+  const frame = new THREE.Mesh(frameGeo, railMat);
+  frame.rotation.x = -Math.PI / 2;
+  frame.position.y = -TABLE.THICK;
+  frame.castShadow = true;
+  frame.receiveShadow = true;
+  scene.add(frame);
   const horizLen = PLAY_W - 2 * POCKET_VIS_R;
   const vertSeg = PLAY_H / 2 - 2 * POCKET_VIS_R;
   const bottomZ = -halfH - railW / 2;
