@@ -70,7 +70,22 @@ function hex(hex){return[(hex>>16&255)/255,(hex>>8&255)/255,(hex&255)/255];}
 class Mesh{constructor(geom,color){this.geom=geom;this.color=hex(color);this.v=vbo(geom.pos);this.n=vbo(geom.nrm);this.i=ibo(geom.idx);this.count=geom.idx.length;this.model=M.ident();}draw(){attr(this.v,0,3);attr(this.n,1,3);gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER,this.i);gl.uniformMatrix4fv(U.model,false,this.model);gl.uniform3fv(U.col,new Float32Array(this.color));gl.drawElements(gl.TRIANGLES,this.count,gl.UNSIGNED_SHORT,0);}}
 
 // --------------------- Dimensions & palette ---------------------
-const Dim={playX:3.569,playZ:1.778,slateT:0.06,feltT:0.016,railW:0.12,railH:0.12,cushionH:0.06,cushionD:0.06,baseH:0.22,legH:0.82,legR:0.13,tableH:0.90,pocketR:0.105,pocketDepth:0.12};
+const Dim={
+  playX:3.569,
+  playZ:1.778,
+  slateT:0.06,
+  feltT:0.016,
+  railW:0.06,
+  railH:0.06,
+  cushionH:0.06,
+  cushionD:0.06,
+  baseH:0.44,
+  legH:0.82,
+  legR:0.39,
+  tableH:0.90,
+  pocketR:0.105,
+  pocketDepth:0.12
+};
 const UPPER_Y_OFFSET=0.30;
 const Col={wood:0x704523,slate:0x3a3a3a,felt:0x148245,cushion:0x1b6c3f,pocket:0x0c0e12,rim:0xb8c4d6,floor:0x121938,line:0xffffff};
 
@@ -101,6 +116,12 @@ const feltTopY=Dim.tableH-Dim.slateT+Dim.feltT/2;meshes.push(new Mesh(xform(box(
   meshes.push(new Mesh(xform(box(Dim.playX+Dim.railW*1.25,Dim.railH,Dim.railW),M.trans(0,y,-rz)),Col.wood));
   meshes.push(new Mesh(xform(box(Dim.railW,Dim.railH,Dim.playZ+Dim.railW*1.25),M.trans(rx,y,0)),Col.wood));
   meshes.push(new Mesh(xform(box(Dim.railW,Dim.railH,Dim.playZ+Dim.railW*1.25),M.trans(-rx,y,0)),Col.wood));
+  // fill gaps behind pockets
+  const filler=box(Dim.railW,Dim.railH,Dim.railW);
+  const fx=Dim.playX/2+Dim.railW/2,fz=Dim.playZ/2+Dim.railW/2;
+  [[fx,fz],[-fx,fz],[fx,-fz],[-fx,-fz],[0,fz],[0,-fz]].forEach(([x,z])=>{
+    meshes.push(new Mesh(xform(filler,M.trans(x,y,z)),Col.wood));
+  });
 }
 
 // --------------------- Cushions REMOVED per request ---------------------
@@ -136,7 +157,8 @@ const feltTopY=Dim.tableH-Dim.slateT+Dim.feltT/2;meshes.push(new Mesh(xform(box(
   const topX=Dim.playX*FactorTop, topZ=Dim.playZ*FactorTop;
   const baseX=Dim.playX+0.24, baseZ=Dim.playZ+0.24;
   meshes.push(new Mesh(xform(box(baseX,Dim.baseH,baseZ),M.trans(0,Dim.tableH-Dim.slateT-(Dim.baseH/2)-0.02,0)),Col.wood));
-  const offX=(baseX/2-0.25), offZ=(baseZ/2-0.25);
+  const margin=0.25;
+  const offX=baseX/2-(Dim.legR+margin), offZ=baseZ/2-(Dim.legR+margin);
   const leg=cylinder(Dim.legR,Dim.legH,48);
   [[-offX,-offZ],[offX,-offZ],[-offX,offZ],[offX,offZ]].forEach(([x,z])=>{
     meshes.push(new Mesh(xform(leg,M.trans(x,Dim.tableH-Dim.slateT-0.41,z)),Col.wood));
@@ -144,7 +166,7 @@ const feltTopY=Dim.tableH-Dim.slateT+Dim.feltT/2;meshes.push(new Mesh(xform(box(
   const feltTopY2=Dim.tableH-Dim.slateT+Dim.feltT/2;
   meshes.push(new Mesh(xform(box(topX,Dim.slateT,topZ),M.trans(0,Dim.tableH-Dim.slateT/2,0)),Col.slate));
   meshes.push(new Mesh(xform(box(topX,Dim.feltT,topZ),M.trans(0,feltTopY2,0)),Col.felt));
-  const railH2=0.08;
+  const railH2=0.04;
   const rx=topX/2+Dim.railW/2, rz=topZ/2+Dim.railW/2;
   const long=box(topX+Dim.railW*1.0,railH2,Dim.railW);
   const short=box(Dim.railW,railH2,topZ+Dim.railW*1.0);
@@ -152,6 +174,10 @@ const feltTopY=Dim.tableH-Dim.slateT+Dim.feltT/2;meshes.push(new Mesh(xform(box(
   meshes.push(new Mesh(xform(long,M.trans(0,Dim.tableH-0.03,-rz)),Col.wood));
   meshes.push(new Mesh(xform(short,M.trans(rx,Dim.tableH-0.03,0)),Col.wood));
   meshes.push(new Mesh(xform(short,M.trans(-rx,Dim.tableH-0.03,0)),Col.wood));
+  const filler2=box(Dim.railW,railH2,Dim.railW);
+  [[rx,rz],[-rx,rz],[rx,-rz],[-rx,-rz],[0,rz],[0,-rz]].forEach(([x,z])=>{
+    meshes.push(new Mesh(xform(filler2,M.trans(x,Dim.tableH-0.03,z)),Col.wood));
+  });
   const cone=coneFrustum(Dim.pocketR*0.95,Dim.pocketR*1.28,Dim.pocketDepth,64);
   const rim=cylinder(Dim.pocketR*1.08,0.012,56);
   const y2=feltTopY2-Dim.pocketDepth*0.35;
