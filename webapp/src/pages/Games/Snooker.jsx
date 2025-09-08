@@ -289,6 +289,21 @@ function Table3D(scene) {
   innerRect.lineTo(-halfW - railW, halfH + railW);
   innerRect.lineTo(-halfW - railW, -halfH - railW);
   frameShape.holes.push(innerRect);
+  // carve arcs in wooden frame around each pocket
+  pocketCenters().forEach((p) => {
+    const cut = new THREE.Path();
+    cut.absellipse(
+      p.x,
+      p.y,
+      POCKET_VIS_R + railW,
+      POCKET_VIS_R + railW,
+      0,
+      Math.PI * 2,
+      true,
+      0
+    );
+    frameShape.holes.push(cut);
+  });
   const frameGeo = new THREE.ExtrudeGeometry(frameShape, {
     depth: railH,
     bevelEnabled: false
@@ -320,7 +335,9 @@ function Table3D(scene) {
       bevelEnabled: false
     });
     geo.rotateX(-Math.PI / 2);
-    geo.translate(0, railH / 2, 0);
+    // center the rail so its top aligns with the wooden frame
+    // (previously translated upward, making cushions too high)
+    geo.translate(0, 0, 0);
     return geo;
   };
   const addRail = (x, z, len, horizontal) => {
