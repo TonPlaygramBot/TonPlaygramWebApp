@@ -344,6 +344,48 @@ function Table3D(scene) {
   addRail(leftX, halfH - POCKET_VIS_R - vertSeg / 2, vertSeg, false);
   addRail(rightX, -halfH + POCKET_VIS_R + vertSeg / 2, vertSeg, false);
   addRail(rightX, halfH - POCKET_VIS_R - vertSeg / 2, vertSeg, false);
+  // Base slab under the rails
+  const baseH = TABLE.THICK * 3;
+  const base = new THREE.Mesh(
+    new THREE.BoxGeometry(
+      TABLE.W + TABLE.WALL * 4,
+      baseH,
+      TABLE.H + TABLE.WALL * 4
+    ),
+    railMat
+  );
+  base.position.y = -TABLE.THICK - baseH / 2;
+  base.castShadow = true;
+  base.receiveShadow = true;
+  scene.add(base);
+  // Legs supporting the table
+  const legH = baseH * 4;
+  const legR = TABLE.WALL * 0.6;
+  const legGeo = new THREE.CylinderGeometry(legR, legR, legH, 24);
+  const legY = -TABLE.THICK - baseH - legH / 2;
+  const legOffsetX = (TABLE.W + TABLE.WALL * 2) / 2 - legR;
+  const legOffsetZ = (TABLE.H + TABLE.WALL * 2) / 2 - legR;
+  [
+    [-legOffsetX, -legOffsetZ],
+    [legOffsetX, -legOffsetZ],
+    [-legOffsetX, legOffsetZ],
+    [legOffsetX, legOffsetZ]
+  ].forEach(([x, z]) => {
+    const leg = new THREE.Mesh(legGeo, railMat);
+    leg.position.set(x, legY, z);
+    leg.castShadow = true;
+    leg.receiveShadow = true;
+    scene.add(leg);
+  });
+  // Simple floor below everything
+  const floor = new THREE.Mesh(
+    new THREE.PlaneGeometry(TABLE.W * 6, TABLE.H * 6),
+    new THREE.MeshStandardMaterial({ color: 0x121938, roughness: 0.9 })
+  );
+  floor.rotation.x = -Math.PI / 2;
+  floor.position.y = legY - legH / 2 - 1;
+  floor.receiveShadow = true;
+  scene.add(floor);
   // Markings: baulk, D, spots
   // Baulk line is measured from the bottom cushion along table length
   const BAULK_RATIO_FROM_BOTTOM = 0.2014;
