@@ -109,6 +109,9 @@ meshes.push(new Mesh(xform(box(Dim.playX,Dim.slateT,Dim.playZ),M.trans(0,Dim.tab
 const feltTopY=Dim.tableH-Dim.slateT+Dim.feltT/2;meshes.push(new Mesh(xform(box(Dim.playX,Dim.feltT,Dim.playZ),M.trans(0,feltTopY+UPPER_Y_OFFSET,0)),Col.felt));
 
 // --------------------- Rails ---------------------
+/*
+  Original top rails were kept for reference but are no longer rendered
+  after the table expansion below.
 {
   const rx=Dim.playX/2+Dim.railW/2,rz=Dim.playZ/2+Dim.railW/2;
   const y=Dim.tableH-Dim.slateT-0.02+Dim.railH/2+UPPER_Y_OFFSET;
@@ -124,6 +127,7 @@ const feltTopY=Dim.tableH-Dim.slateT+Dim.feltT/2;meshes.push(new Mesh(xform(box(
     meshes.push(new Mesh(xform(filler,M.trans(x,y,z)),Col.wood));
   });
 }
+*/
 
 // --------------------- Cushions REMOVED per request ---------------------
 // (No cushion meshes rendered; frame, felt, pockets remain.)
@@ -154,24 +158,37 @@ const feltTopY=Dim.tableH-Dim.slateT+Dim.feltT/2;meshes.push(new Mesh(xform(box(
 
 // --------------------- Lower table with legs (underlay) ---------------------
 {
-  const FactorTop=1.20;
+  const FactorTop=1.35;
   const topX=Dim.playX*FactorTop, topZ=Dim.playZ*FactorTop;
-  const baseX=Dim.playX+0.24, baseZ=Dim.playZ+0.24;
+  const baseX=Dim.playX*FactorTop+0.24, baseZ=Dim.playZ*FactorTop+0.24;
   meshes.push(new Mesh(xform(box(baseX,Dim.baseH,baseZ),M.trans(0,Dim.tableH-Dim.slateT-(Dim.baseH/2)-0.02,0)),Col.wood));
   const margin=0.30;
-  const offX=baseX/2-(Dim.legR+margin), offZ=baseZ/2-(Dim.legR+margin);
-  const leg=cylinder(Dim.legR,Dim.legH,48);
+  const legRadius=Dim.legR*3;
+  const offX=baseX/2-(legRadius+margin), offZ=baseZ/2-(legRadius+margin);
+  const leg=cylinder(legRadius,Dim.legH,48);
   [[-offX,-offZ],[offX,-offZ],[-offX,offZ],[offX,offZ]].forEach(([x,z])=>{
     meshes.push(new Mesh(xform(leg,M.trans(x,Dim.tableH-Dim.slateT-0.41,z)),Col.wood));
   });
   const feltTopY2=Dim.tableH-Dim.slateT+Dim.feltT/2;
   meshes.push(new Mesh(xform(box(topX,Dim.slateT,topZ),M.trans(0,Dim.tableH-Dim.slateT/2,0)),Col.slate));
   meshes.push(new Mesh(xform(box(topX,Dim.feltT,topZ),M.trans(0,feltTopY2,0)),Col.felt));
-  const railH2=0.08;
+  // small wooden rails around enlarged top (matching cushion thickness)
+  const rxTop=topX/2+Dim.railW/2, rzTop=topZ/2+Dim.railW/2;
+  const railY=Dim.tableH-Dim.slateT-0.02+Dim.railH/2;
+  meshes.push(new Mesh(xform(box(topX+Dim.railW,Dim.railH,Dim.railW),M.trans(0,railY,rzTop)),Col.wood));
+  meshes.push(new Mesh(xform(box(topX+Dim.railW,Dim.railH,Dim.railW),M.trans(0,railY,-rzTop)),Col.wood));
+  meshes.push(new Mesh(xform(box(Dim.railW,Dim.railH,topZ+Dim.railW),M.trans(rxTop,railY,0)),Col.wood));
+  meshes.push(new Mesh(xform(box(Dim.railW,Dim.railH,topZ+Dim.railW),M.trans(-rxTop,railY,0)),Col.wood));
+  const fillerTop=box(Dim.railW,Dim.railH,Dim.railW);
+  const fxTop=topX/2+Dim.railW/2,fzTop=topZ/2+Dim.railW/2;
+  [[fxTop,fzTop],[-fxTop,fzTop],[fxTop,-fzTop],[-fxTop,-fzTop],[0,fzTop],[0,-fzTop]].forEach(([x,z])=>{
+    meshes.push(new Mesh(xform(fillerTop,M.trans(x,railY,z)),Col.wood));
+  });
+  const railH2=0.16;
   const rx=topX/2+Dim.railW/2, rz=topZ/2+Dim.railW/2;
   const long=box(topX+Dim.railW*1.0,railH2,Dim.railW);
   const short=box(Dim.railW,railH2,topZ+Dim.railW*1.0);
-  const underY=Dim.tableH-0.05;
+  const underY=Dim.tableH-0.09;
   meshes.push(new Mesh(xform(long,M.trans(0,underY,rz)),Col.wood));
   meshes.push(new Mesh(xform(long,M.trans(0,underY,-rz)),Col.wood));
   meshes.push(new Mesh(xform(short,M.trans(rx,underY,0)),Col.wood));
