@@ -2051,9 +2051,10 @@
               var pr = (r.width / 2 / wrapRect.width) * TABLE_W + 2;
               return new Pocket(cx, cy, pr);
             });
-            // Adjust specific pocket positions slightly
-            pockets[2].y -= 2; // lift left middle pocket
-            pockets[4].y += 2; // lower bottom pockets
+            // Adjust specific pocket positions slightly (symmetrically)
+            pockets[2].y -= 2;
+            pockets[3].y -= 2;
+            pockets[4].y += 2;
             pockets[5].y += 2;
             insetPockets(pockets, POCKET_INSET);
             this.pockets = pockets;
@@ -2079,7 +2080,7 @@
               ),
               new Pocket(
                 TABLE_W - BORDER + 16 + POCKET_SHORTEN,
-                TABLE_H / 2 + BALL_R - 14,
+                TABLE_H / 2 + BALL_R - 16,
                 SIDE_POCKET_R
               ),
               new Pocket(
