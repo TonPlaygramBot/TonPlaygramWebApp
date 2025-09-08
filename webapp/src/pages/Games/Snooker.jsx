@@ -241,7 +241,7 @@ function Table3D(scene) {
     m.position.set(p.x, 0.01, p.y);
     scene.add(m);
   });
-  // Wood frame and cushions (continuous, pockets cut out)
+  // Rails / cushions between pockets
   const railMat = new THREE.MeshStandardMaterial({
     color: COLORS.rail,
     metalness: 0.3,
@@ -254,74 +254,51 @@ function Table3D(scene) {
   });
   const railH = TABLE.THICK;
   const railW = TABLE.WALL;
-  // Outer wood frame (with pockets)
-  const frameShape = new THREE.Shape();
-  frameShape.moveTo(-halfW - railW, -halfH - railW);
-  frameShape.lineTo(halfW + railW, -halfH - railW);
-  frameShape.lineTo(halfW + railW, halfH + railW);
-  frameShape.lineTo(-halfW - railW, halfH + railW);
-  frameShape.lineTo(-halfW - railW, -halfH - railW);
-  // inner cloth area becomes a hole
-  const inner = new THREE.Path();
-  inner.moveTo(-halfW, -halfH);
-  inner.lineTo(halfW, -halfH);
-  inner.lineTo(halfW, halfH);
-  inner.lineTo(-halfW, halfH);
-  inner.lineTo(-halfW, -halfH);
-  frameShape.holes.push(inner);
-  pocketCenters().forEach((p) => {
-    const h = new THREE.Path();
-    h.absellipse(
-      p.x,
-      p.y,
-      POCKET_R_VIS * 0.85,
-      POCKET_R_VIS * 0.85,
-      0,
-      Math.PI * 2,
-      false,
-      0
-    );
-    frameShape.holes.push(h);
-  });
-  const frameGeo = new THREE.ExtrudeGeometry(frameShape, {
-    depth: railH,
-    bevelEnabled: false
-  });
-  frameGeo.rotateX(-Math.PI / 2);
-  frameGeo.translate(0, railH / 2, 0);
-  const frame = new THREE.Mesh(frameGeo, railMat);
-  frame.castShadow = true;
-  frame.receiveShadow = true;
-  scene.add(frame);
-  // Cushions lining the inside of the rails
-  const cushionShape = new THREE.Shape();
-  cushionShape.moveTo(-halfW, -halfH);
-  cushionShape.lineTo(halfW, -halfH);
-  cushionShape.lineTo(halfW, halfH);
-  cushionShape.lineTo(-halfW, halfH);
-  cushionShape.lineTo(-halfW, -halfH);
-  pocketCenters().forEach((p) => {
-    const h = new THREE.Path();
-    h.absellipse(
-      p.x,
-      p.y,
-      POCKET_R_VIS * 0.85,
-      POCKET_R_VIS * 0.85,
-      0,
-      Math.PI * 2,
-      false,
-      0
-    );
-    cushionShape.holes.push(h);
-  });
-  const cushionGeo = new THREE.ExtrudeGeometry(cushionShape, {
-    depth: railH * 0.5,
-    bevelEnabled: false
-  });
-  cushionGeo.rotateX(-Math.PI / 2);
-  cushionGeo.translate(0, railH, 0);
-  const cushion = new THREE.Mesh(cushionGeo, cushionMat);
-  scene.add(cushion);
+  const horizLen = TABLE.W - 2 * POCKET_R;
+  const vertSeg = TABLE.H / 2 - 2 * POCKET_R;
+  const bottomZ = -halfH + railW / 2;
+  const topZ = halfH - railW / 2;
+  const leftX = -halfW + railW / 2;
+  const rightX = halfW - railW / 2;
+  const railGeometry = (len) => {
+    const half = len / 2;
+    const shape = new THREE.Shape();
+    shape.moveTo(-half, 0);
+    shape.lineTo(-half + railW / 2, -railW / 2);
+    shape.lineTo(half - railW / 2, -railW / 2);
+    shape.lineTo(half, 0);
+    shape.lineTo(half - railW / 2, railW / 2);
+    shape.lineTo(-half + railW / 2, railW / 2);
+    shape.lineTo(-half, 0);
+    const geo = new THREE.ExtrudeGeometry(shape, {
+      depth: railH,
+      bevelEnabled: false
+    });
+    geo.rotateX(-Math.PI / 2);
+    geo.translate(0, railH / 2, 0);
+    return geo;
+  };
+  const addRail = (x, z, len, horizontal) => {
+    const group = new THREE.Group();
+    const wood = new THREE.Mesh(railGeometry(len), railMat);
+    wood.castShadow = true;
+    wood.receiveShadow = true;
+    group.add(wood);
+    const clothGeo = railGeometry(len);
+    clothGeo.scale(1, 0.5, 0.6);
+    const cloth = new THREE.Mesh(clothGeo, cushionMat);
+    cloth.position.y = railH * 0.25;
+    group.add(cloth);
+    group.position.set(x, 0, z);
+    if (!horizontal) group.rotation.y = Math.PI / 2;
+    scene.add(group);
+  };
+  addRail(0, bottomZ, horizLen, true);
+  addRail(0, topZ, horizLen, true);
+  addRail(leftX, -halfH + POCKET_R + vertSeg / 2, vertSeg, false);
+  addRail(leftX, halfH - POCKET_R - vertSeg / 2, vertSeg, false);
+  addRail(rightX, -halfH + POCKET_R + vertSeg / 2, vertSeg, false);
+  addRail(rightX, halfH - POCKET_R - vertSeg / 2, vertSeg, false);
   // Markings: baulk, D, spots
   // Baulk line is measured from the bottom cushion along table length
   const BAULK_RATIO_FROM_BOTTOM = 0.2014;
