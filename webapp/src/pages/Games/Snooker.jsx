@@ -44,6 +44,7 @@ const COLORS = Object.freeze({
   cue: 0xffffff,
   red: 0xcc0000,
   yellow: 0xffdd33,
+  green: 0x32d570,
   brown: 0x9c6e4a,
   blue: 0x4b92ff,
   pink: 0xff58ab,
@@ -279,13 +280,9 @@ function Table3D(scene) {
     scene.add(m);
   });
   // Sloped pocket walls (bottom wider than top)
-  // CylinderGeometry takes top radius then bottom radius. Previously these
-  // were flipped which caused the pockets to taper the wrong way and made
-  // balls bounce out instead of falling in. Swap the radii so the opening at
-  // the cloth is wider than the base, matching a real table pocket.
   const pocketGeo = new THREE.CylinderGeometry(
-    POCKET_R_VIS,
     POCKET_R_VIS * 0.6,
+    POCKET_R_VIS,
     TABLE.THICK + 2,
     24,
     1,
@@ -301,43 +298,6 @@ function Table3D(scene) {
     c.position.set(p.x, -TABLE.THICK / 2, p.y);
     scene.add(c);
   });
-  // Table skirt around rails
-  const skirtMat = new THREE.MeshStandardMaterial({
-    color: 0x8b5a2b,
-    metalness: 0.2,
-    roughness: 0.8
-  });
-  const skirtHeight = TABLE.THICK;
-  const skirtThick = TABLE.WALL;
-  const skirtY = -TABLE.THICK - skirtHeight / 2;
-  const skirtFront = new THREE.Mesh(
-    new THREE.BoxGeometry(TABLE.W + 2 * skirtThick, skirtHeight, skirtThick),
-    skirtMat
-  );
-  skirtFront.position.set(0, skirtY, -halfH - skirtThick / 2);
-  scene.add(skirtFront);
-  const skirtBack = skirtFront.clone();
-  skirtBack.position.z = halfH + skirtThick / 2;
-  scene.add(skirtBack);
-  const skirtLeft = new THREE.Mesh(
-    new THREE.BoxGeometry(skirtThick, skirtHeight, TABLE.H),
-    skirtMat
-  );
-  skirtLeft.position.set(-halfW - skirtThick / 2, skirtY, 0);
-  scene.add(skirtLeft);
-  const skirtRight = skirtLeft.clone();
-  skirtRight.position.x = halfW + skirtThick / 2;
-  scene.add(skirtRight);
-
-  // Floor under the table similar to reference screenshot
-  const floor = new THREE.Mesh(
-    new THREE.PlaneGeometry(TABLE.W * 6, TABLE.H * 6),
-    new THREE.MeshStandardMaterial({ color: 0x909480 })
-  );
-  floor.rotation.x = -Math.PI / 2;
-  floor.position.y = -TABLE.THICK - skirtHeight;
-  floor.receiveShadow = true;
-  scene.add(floor);
   // Baulk line position used for gameplay (not rendered)
   const BAULK_RATIO_FROM_BOTTOM = 0.2014;
   const baulkZ = -halfH + BAULK_RATIO_FROM_BOTTOM * TABLE.H;
@@ -631,57 +591,13 @@ export default function NewSnookerGame() {
 
       // Lights
       scene.add(new THREE.HemisphereLight(0xffffff, 0x222233, 0.95));
-      // Soft ambient to brighten shadows
-      scene.add(new THREE.AmbientLight(0xffffff, 0.25));
       const key = new THREE.DirectionalLight(0xffffff, 1.05);
       key.position.set(-60, 90, 40);
       key.castShadow = true;
       scene.add(key);
 
-      // Table and surrounding environment
+      // Table
       const { centers, baulkZ } = Table3D(scene);
-
-      // Simple billboards with scrolling ads around the table
-      const billboards = [];
-      function addBillboard(x, z, rot) {
-        const canvas = document.createElement('canvas');
-        canvas.width = 256;
-        canvas.height = 128;
-        const ctx = canvas.getContext('2d');
-        const tex = new THREE.CanvasTexture(canvas);
-        const mat = new THREE.MeshBasicMaterial({
-          map: tex,
-          side: THREE.DoubleSide,
-          transparent: true
-        });
-        const geo = new THREE.PlaneGeometry(40, 10);
-        const mesh = new THREE.Mesh(geo, mat);
-        mesh.position.set(x, -TABLE.THICK, z);
-        mesh.rotation.y = rot;
-        scene.add(mesh);
-        billboards.push({ ctx, tex, offset: 0 });
-      }
-      const distZ = TABLE.H / 2 + TABLE.WALL + 10;
-      const distX = TABLE.W / 2 + TABLE.WALL + 10;
-      addBillboard(0, -distZ, 0);
-      addBillboard(0, distZ, Math.PI);
-      addBillboard(-distX, 0, Math.PI / 2);
-      addBillboard(distX, 0, -Math.PI / 2);
-      function animateAds() {
-        billboards.forEach((b) => {
-          b.offset = (b.offset + 2) % 256;
-          const { ctx, tex, offset } = b;
-          ctx.fillStyle = '#003366';
-          ctx.fillRect(0, 0, 256, 128);
-          ctx.fillStyle = '#ffffff';
-          ctx.font = '48px sans-serif';
-          ctx.fillText('AD', 256 - offset, 80);
-          ctx.fillText('AD', -offset, 80);
-          tex.needsUpdate = true;
-        });
-        billboardAnim = requestAnimationFrame(animateAds);
-      }
-      let billboardAnim = requestAnimationFrame(animateAds);
 
       // Balls (ONLY Guret)
       const balls = [];
@@ -705,6 +621,7 @@ export default function NewSnookerGame() {
       const halfH = TABLE.H / 2;
       const SPOTS = {
         yellow: [-TABLE.W * 0.22, baulkZ],
+        green: [TABLE.W * 0.22, baulkZ],
         brown: [0, baulkZ],
         blue: [0, 0],
         pink: [0, TABLE.H * 0.25],
@@ -924,7 +841,7 @@ export default function NewSnookerGame() {
             !foul
           ) {
             gain += val(hud.next);
-            const order = ['yellow', 'brown', 'blue', 'pink', 'black'];
+            const order = ['yellow', 'green', 'brown', 'blue', 'pink', 'black'];
             const idx = order.indexOf(hud.next);
             const nxt = order[idx + 1];
             if (nxt) {
@@ -1102,7 +1019,6 @@ export default function NewSnookerGame() {
         dom.removeEventListener('pointermove', onAimMove);
         window.removeEventListener('pointerup', onAimEnd);
         dom.removeEventListener('pointerdown', onPlace);
-        cancelAnimationFrame(billboardAnim);
       };
     } catch (e) {
       console.error(e);
