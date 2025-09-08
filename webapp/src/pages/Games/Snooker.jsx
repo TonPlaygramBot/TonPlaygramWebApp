@@ -88,6 +88,11 @@ const allStopped = (balls) => balls.every((b) => b.vel.length() < STOP_EPS);
 function reflectRails(ball) {
   const limX = TABLE.W / 2 - BALL_R - TABLE.WALL;
   const limY = TABLE.H / 2 - BALL_R - TABLE.WALL;
+  // If the ball is near any pocket, skip rail reflections so it can drop in
+  const nearPocket = pocketCenters().some(
+    (c) => ball.pos.distanceTo(c) < POCKET_R + BALL_R
+  );
+  if (nearPocket) return;
   if (ball.pos.x < -limX && ball.vel.x < 0) {
     ball.pos.x = -limX;
     ball.vel.x *= -1;
@@ -221,49 +226,6 @@ function Table3D(scene) {
   cloth.position.y = -TABLE.THICK;
   cloth.receiveShadow = true;
   scene.add(cloth);
-  // Rails carved around pockets
-  const railMat = new THREE.MeshStandardMaterial({
-    color: COLORS.rail,
-    metalness: 0.12,
-    roughness: 0.7
-  });
-  const railShape = new THREE.Shape();
-  railShape.moveTo(-halfW - TABLE.WALL, -halfH - TABLE.WALL);
-  railShape.lineTo(halfW + TABLE.WALL, -halfH - TABLE.WALL);
-  railShape.lineTo(halfW + TABLE.WALL, halfH + TABLE.WALL);
-  railShape.lineTo(-halfW - TABLE.WALL, halfH + TABLE.WALL);
-  railShape.lineTo(-halfW - TABLE.WALL, -halfH - TABLE.WALL);
-
-  const inner = new THREE.Path();
-  inner.moveTo(-halfW, -halfH);
-  inner.lineTo(halfW, -halfH);
-  inner.lineTo(halfW, halfH);
-  inner.lineTo(-halfW, halfH);
-  inner.lineTo(-halfW, -halfH);
-  railShape.holes.push(inner);
-  pocketCenters().forEach((p) => {
-    const h = new THREE.Path();
-    h.absellipse(
-      p.x,
-      p.y,
-      POCKET_R_VIS,
-      POCKET_R_VIS,
-      0,
-      Math.PI * 2,
-      false,
-      0
-    );
-    railShape.holes.push(h);
-  });
-  const railGeo = new THREE.ExtrudeGeometry(railShape, {
-    depth: TABLE.THICK + 4,
-    bevelEnabled: false
-  });
-  const rails = new THREE.Mesh(railGeo, railMat);
-  rails.rotation.x = -Math.PI / 2;
-  rails.position.y = -TABLE.THICK - 2;
-  rails.receiveShadow = true;
-  scene.add(rails);
   // Pocket rings (visual rim)
   const ringGeo = new THREE.RingGeometry(POCKET_R_VIS * 0.6, POCKET_R_VIS, 48);
   const ringMat = new THREE.MeshStandardMaterial({
