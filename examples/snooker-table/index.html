@@ -112,10 +112,11 @@ const feltTopY=Dim.tableH-Dim.slateT+Dim.feltT/2;meshes.push(new Mesh(xform(box(
 {
   const rx=Dim.playX/2+Dim.railW/2,rz=Dim.playZ/2+Dim.railW/2;
   const y=Dim.tableH-Dim.slateT-0.02+Dim.railH/2+UPPER_Y_OFFSET;
-  meshes.push(new Mesh(xform(box(Dim.playX+Dim.railW*1.25,Dim.railH,Dim.railW),M.trans(0,y,rz)),Col.wood));
-  meshes.push(new Mesh(xform(box(Dim.playX+Dim.railW*1.25,Dim.railH,Dim.railW),M.trans(0,y,-rz)),Col.wood));
-  meshes.push(new Mesh(xform(box(Dim.railW,Dim.railH,Dim.playZ+Dim.railW*1.25),M.trans(rx,y,0)),Col.wood));
-  meshes.push(new Mesh(xform(box(Dim.railW,Dim.railH,Dim.playZ+Dim.railW*1.25),M.trans(-rx,y,0)),Col.wood));
+  // shorten wooden frame on all sides by half without moving rails
+  meshes.push(new Mesh(xform(box(Dim.playX+Dim.railW*0.625,Dim.railH,Dim.railW),M.trans(0,y,rz)),Col.wood));
+  meshes.push(new Mesh(xform(box(Dim.playX+Dim.railW*0.625,Dim.railH,Dim.railW),M.trans(0,y,-rz)),Col.wood));
+  meshes.push(new Mesh(xform(box(Dim.railW,Dim.railH,Dim.playZ+Dim.railW*0.625),M.trans(rx,y,0)),Col.wood));
+  meshes.push(new Mesh(xform(box(Dim.railW,Dim.railH,Dim.playZ+Dim.railW*0.625),M.trans(-rx,y,0)),Col.wood));
   // fill gaps behind pockets
   const filler=box(Dim.railW,Dim.railH,Dim.railW);
   const fx=Dim.playX/2+Dim.railW/2,fz=Dim.playZ/2+Dim.railW/2;
