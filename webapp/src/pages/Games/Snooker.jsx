@@ -40,7 +40,7 @@ const CAPTURE_R = POCKET_R; // pocket capture radius
 // slightly brighter colors for table and balls
 const COLORS = Object.freeze({
   cloth: 0x147d3a,
-  rail: 0x147d3a,
+  rail: 0x7b4a26,
   cue: 0xffffff,
   red: 0xcc0000,
   yellow: 0xffdd33,
@@ -279,28 +279,55 @@ function Table3D(scene) {
     m.position.set(p.x, 0.01, p.y);
     scene.add(m);
   });
-  // Sloped pocket walls (bottom wider than top)
-  const pocketGeo = new THREE.CylinderGeometry(
-    POCKET_R_VIS * 0.6,
-    POCKET_R_VIS,
-    TABLE.THICK + 2,
-    24,
-    1,
-    true
-  );
-  const pocketMat = new THREE.MeshStandardMaterial({
-    color: COLORS.cloth,
-    side: THREE.DoubleSide,
-    roughness: 0.95
-  });
-  pocketCenters().forEach((p) => {
-    const c = new THREE.Mesh(pocketGeo, pocketMat);
-    c.position.set(p.x, -TABLE.THICK / 2, p.y);
-    scene.add(c);
-  });
-  // Baulk line position used for gameplay (not rendered)
+  // Markings: baulk, D, spots
+  // Baulk line is measured from the bottom cushion along table length
   const BAULK_RATIO_FROM_BOTTOM = 0.2014;
+  // D radius is based on table width (short side)
+  const D_R = (11.5 / 72) * TABLE.W;
   const baulkZ = -halfH + BAULK_RATIO_FROM_BOTTOM * TABLE.H;
+  const markMat = new THREE.LineBasicMaterial({
+    color: COLORS.mark,
+    transparent: true,
+    opacity: 0.75,
+    depthTest: false,
+    depthWrite: false
+  });
+  const lineGeo = new THREE.BufferGeometry().setFromPoints([
+    new THREE.Vector3(-halfW, 0.01, baulkZ),
+    new THREE.Vector3(halfW, 0.01, baulkZ)
+  ]);
+  scene.add(new THREE.Line(lineGeo, markMat));
+  const dPts = [];
+  for (let i = 0; i <= 64; i++) {
+    const t = Math.PI * (i / 64);
+    dPts.push(
+      new THREE.Vector3(Math.cos(t) * D_R, 0.01, baulkZ - Math.sin(t) * D_R)
+    );
+  }
+  scene.add(
+    new THREE.Line(new THREE.BufferGeometry().setFromPoints(dPts), markMat)
+  );
+  const spot = (x, z) => {
+    const r = new THREE.Mesh(
+      new THREE.RingGeometry(0.6, 1.0, 24),
+      new THREE.MeshBasicMaterial({
+        color: COLORS.mark,
+        depthTest: false,
+        depthWrite: false
+      })
+    );
+    r.rotation.x = -Math.PI / 2;
+    r.position.set(x, 0.01, z);
+    scene.add(r);
+  };
+  // yellow, brown, green on baulk line
+  spot(-TABLE.W * 0.22, baulkZ);
+  spot(0, baulkZ);
+  spot(TABLE.W * 0.22, baulkZ);
+  // blue, pink, black along table center line
+  spot(0, 0);
+  spot(0, TABLE.H * 0.25);
+  spot(0, halfH - TABLE.H * 0.09);
   return { centers: pocketCenters(), baulkZ };
 }
 
