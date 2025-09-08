@@ -71,6 +71,7 @@ class Mesh{constructor(geom,color){this.geom=geom;this.color=hex(color);this.v=v
 
 // --------------------- Dimensions & palette ---------------------
 const Dim={playX:3.569,playZ:1.778,slateT:0.06,feltT:0.016,railW:0.12,railH:0.12,cushionH:0.06,cushionD:0.06,baseH:0.22,legH:0.82,legR:0.13,tableH:0.90,pocketR:0.105,pocketDepth:0.12};
+const UPPER_Y_OFFSET=0.30;
 const Col={wood:0x704523,slate:0x3a3a3a,felt:0x148245,cushion:0x1b6c3f,pocket:0x0c0e12,rim:0xb8c4d6,floor:0x121938,line:0xffffff};
 
 const meshes=[];
@@ -81,7 +82,7 @@ meshes.push(new Mesh(xform(box(20,0.02,20),M.trans(0,-0.01,0)),Col.floor));
 // --------------------- Frame/Base (top larger than legs) ---------------------
 {
   const totalX=Dim.playX+Dim.railW*2,totalZ=Dim.playZ+Dim.railW*2;
-  const base=new Mesh(xform(box(totalX,Dim.baseH,totalZ),M.trans(0,Dim.tableH-Dim.slateT-(Dim.baseH/2)-0.02,0)),Col.wood);
+  const base=new Mesh(xform(box(totalX,Dim.baseH,totalZ),M.trans(0,Dim.tableH-Dim.slateT-(Dim.baseH/2)-0.02+UPPER_Y_OFFSET,0)),Col.wood);
   meshes.push(base);
 }
 
@@ -89,13 +90,13 @@ meshes.push(new Mesh(xform(box(20,0.02,20),M.trans(0,-0.01,0)),Col.floor));
 // (Table rendered without supporting legs for integration atop external surface.)
 
 // --------------------- Slate & Felt ---------------------
-meshes.push(new Mesh(xform(box(Dim.playX,Dim.slateT,Dim.playZ),M.trans(0,Dim.tableH-Dim.slateT/2,0)),Col.slate));
-const feltTopY=Dim.tableH-Dim.slateT+Dim.feltT/2;meshes.push(new Mesh(xform(box(Dim.playX,Dim.feltT,Dim.playZ),M.trans(0,feltTopY,0)),Col.felt));
+meshes.push(new Mesh(xform(box(Dim.playX,Dim.slateT,Dim.playZ),M.trans(0,Dim.tableH-Dim.slateT/2+UPPER_Y_OFFSET,0)),Col.slate));
+const feltTopY=Dim.tableH-Dim.slateT+Dim.feltT/2;meshes.push(new Mesh(xform(box(Dim.playX,Dim.feltT,Dim.playZ),M.trans(0,feltTopY+UPPER_Y_OFFSET,0)),Col.felt));
 
 // --------------------- Rails ---------------------
 {
   const rx=Dim.playX/2+Dim.railW/2,rz=Dim.playZ/2+Dim.railW/2;
-  const y=Dim.tableH-Dim.slateT-0.02+Dim.railH/2;
+  const y=Dim.tableH-Dim.slateT-0.02+Dim.railH/2+UPPER_Y_OFFSET;
   meshes.push(new Mesh(xform(box(Dim.playX+Dim.railW*1.25,Dim.railH,Dim.railW),M.trans(0,y,rz)),Col.wood));
   meshes.push(new Mesh(xform(box(Dim.playX+Dim.railW*1.25,Dim.railH,Dim.railW),M.trans(0,y,-rz)),Col.wood));
   meshes.push(new Mesh(xform(box(Dim.railW,Dim.railH,Dim.playZ+Dim.railW*1.25),M.trans(rx,y,0)),Col.wood));
@@ -109,7 +110,7 @@ const feltTopY=Dim.tableH-Dim.slateT+Dim.feltT/2;meshes.push(new Mesh(xform(box(
 {
   const cone=coneFrustum(Dim.pocketR*0.95,Dim.pocketR*1.28,Dim.pocketDepth,64);
   const rim=cylinder(Dim.pocketR*1.10,0.012,56);
-  const y=feltTopY-Dim.pocketDepth*0.35, rimY=feltTopY+0.006;
+  const y=feltTopY-Dim.pocketDepth*0.35+UPPER_Y_OFFSET, rimY=feltTopY+0.006+UPPER_Y_OFFSET;
   const pts=[[-Dim.playX/2,-Dim.playZ/2],[Dim.playX/2,-Dim.playZ/2],[-Dim.playX/2,Dim.playZ/2],[Dim.playX/2,Dim.playZ/2],[0,-Dim.playZ/2],[0,Dim.playZ/2]];
   pts.forEach(([x,z])=>{meshes.push(new Mesh(xform(cone,M.trans(x,y,z)),Col.pocket));meshes.push(new Mesh(xform(rim,M.trans(x,rimY,z)),Col.rim));});
 }
@@ -117,16 +118,49 @@ const feltTopY=Dim.tableH-Dim.slateT+Dim.feltT/2;meshes.push(new Mesh(xform(box(
 // --------------------- Markings (baulk line, D, spots) ---------------------
 {
   const lineTh=0.006, markColor=Col.line;const baulkX=-Dim.playX/2+0.737; // 737 mm
-  meshes.push(new Mesh(xform(box(lineTh,0.002,Dim.playZ*0.98),M.trans(baulkX,feltTopY+0.0016,0)),markColor));
-  const D=0.292;meshes.push(new Mesh(xform(ringSector(D-0.006,D+0.006,Math.PI/2,Math.PI*1.5,96),M.trans(baulkX,feltTopY+0.0018,0)),markColor));
+  meshes.push(new Mesh(xform(box(lineTh,0.002,Dim.playZ*0.98),M.trans(baulkX,feltTopY+0.0016+UPPER_Y_OFFSET,0)),markColor));
+  const D=0.292;meshes.push(new Mesh(xform(ringSector(D-0.006,D+0.006,Math.PI/2,Math.PI*1.5,96),M.trans(baulkX,feltTopY+0.0018+UPPER_Y_OFFSET,0)),markColor));
   const spot=disc(0.012,0.002,32);const topX=Dim.playX/2,blackX=topX-0.324,pinkX=topX-0.737,blueX=0.0,Dz=0.292;
-  function spotAt(x,z){meshes.push(new Mesh(xform(spot,M.trans(x,feltTopY+0.002, z)),markColor));}
+  function spotAt(x,z){meshes.push(new Mesh(xform(spot,M.trans(x,feltTopY+0.002+UPPER_Y_OFFSET, z)),markColor));}
   spotAt(baulkX,-Dz); // Yellow
   spotAt(baulkX, Dz); // Green
   spotAt(baulkX,  0); // Brown
   spotAt(blueX,   0); // Blue
   spotAt(pinkX,   0); // Pink
   spotAt(blackX,  0); // Black
+}
+
+// --------------------- Lower table with legs (underlay) ---------------------
+{
+  const FactorTop=1.20;
+  const topX=Dim.playX*FactorTop, topZ=Dim.playZ*FactorTop;
+  const baseX=Dim.playX+0.24, baseZ=Dim.playZ+0.24;
+  meshes.push(new Mesh(xform(box(baseX,Dim.baseH,baseZ),M.trans(0,Dim.tableH-Dim.slateT-(Dim.baseH/2)-0.02,0)),Col.wood));
+  const offX=(baseX/2-0.25), offZ=(baseZ/2-0.25);
+  const leg=cylinder(Dim.legR,Dim.legH,48);
+  [[-offX,-offZ],[offX,-offZ],[-offX,offZ],[offX,offZ]].forEach(([x,z])=>{
+    meshes.push(new Mesh(xform(leg,M.trans(x,Dim.tableH-Dim.slateT-0.41,z)),Col.wood));
+  });
+  const feltTopY2=Dim.tableH-Dim.slateT+Dim.feltT/2;
+  meshes.push(new Mesh(xform(box(topX,Dim.slateT,topZ),M.trans(0,Dim.tableH-Dim.slateT/2,0)),Col.slate));
+  meshes.push(new Mesh(xform(box(topX,Dim.feltT,topZ),M.trans(0,feltTopY2,0)),Col.felt));
+  const railH2=0.08;
+  const rx=topX/2+Dim.railW/2, rz=topZ/2+Dim.railW/2;
+  const long=box(topX+Dim.railW*1.0,railH2,Dim.railW);
+  const short=box(Dim.railW,railH2,topZ+Dim.railW*1.0);
+  meshes.push(new Mesh(xform(long,M.trans(0,Dim.tableH-0.03,rz)),Col.wood));
+  meshes.push(new Mesh(xform(long,M.trans(0,Dim.tableH-0.03,-rz)),Col.wood));
+  meshes.push(new Mesh(xform(short,M.trans(rx,Dim.tableH-0.03,0)),Col.wood));
+  meshes.push(new Mesh(xform(short,M.trans(-rx,Dim.tableH-0.03,0)),Col.wood));
+  const cone=coneFrustum(Dim.pocketR*0.95,Dim.pocketR*1.28,Dim.pocketDepth,64);
+  const rim=cylinder(Dim.pocketR*1.08,0.012,56);
+  const y2=feltTopY2-Dim.pocketDepth*0.35;
+  const rimY2=feltTopY2+0.006;
+  const pts=[[-topX/2,-topZ/2],[topX/2,-topZ/2],[-topX/2,topZ/2],[topX/2,topZ/2],[0,-topZ/2],[0,topZ/2]];
+  pts.forEach(([x,z])=>{
+    meshes.push(new Mesh(xform(cone,M.trans(x,y2,z)),Col.pocket));
+    meshes.push(new Mesh(xform(rim,M.trans(x,rimY2,z)),Col.rim));
+  });
 }
 
 // --------------------- Camera & controls ---------------------
