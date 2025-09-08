@@ -41,8 +41,8 @@ const FRICTION = 0.9925;
 const STOP_EPS = 0.02;
 const CAPTURE_R = POCKET_R; // pocket capture radius
 const TABLE_Y = -2; // vertical offset to lower entire table
-// raise side rails and frames slightly (full ball height)
-const RAIL_LIFT = BALL_R;
+// raise side rails and frames slightly (half a ball height)
+const RAIL_LIFT = BALL_R / 2;
 
 // slightly brighter colors for table and balls
 const COLORS = Object.freeze({
@@ -278,7 +278,6 @@ function Table3D(scene) {
   });
   const railH = TABLE.THICK;
   const railW = TABLE.WALL;
-  const railY = -TABLE.THICK + RAIL_LIFT;
   // Outer wooden frame around rails at same height
   // Make the side frame thicker so it lines up with the base
   const FRAME_W = railW * 2.5; // wider wooden frame
@@ -303,7 +302,7 @@ function Table3D(scene) {
   });
   const frame = new THREE.Mesh(frameGeo, railMat);
   frame.rotation.x = -Math.PI / 2;
-  frame.position.y = railY;
+  frame.position.y = -TABLE.THICK + RAIL_LIFT;
   frame.castShadow = true;
   frame.receiveShadow = true;
   table.add(frame);
@@ -341,7 +340,7 @@ function Table3D(scene) {
     const cloth = new THREE.Mesh(clothGeo, cushionMat);
     cloth.position.y = railH * 0.5;
     group.add(cloth);
-    group.position.set(x, railY, z);
+    group.position.set(x, -TABLE.THICK + RAIL_LIFT, z);
     if (!horizontal) group.rotation.y = Math.PI / 2;
     table.add(group);
   };
