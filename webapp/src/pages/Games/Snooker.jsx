@@ -366,11 +366,11 @@ function Table3D(scene) {
 
   // Legs supporting the table (cylindrical, tucked under base)
   const legH = baseH * 4;
-  const legR = TABLE.WALL * 2.4;
+  const legR = TABLE.WALL * 0.8;
   const legGeo = new THREE.CylinderGeometry(legR, legR, legH, 24);
   const legY = -TABLE.THICK - baseH - legH / 2;
-  const legOffsetX = baseW / 2 - legR - TABLE.WALL * 0.16;
-  const legOffsetZ = baseD / 2 - legR - TABLE.WALL * 0.16;
+  const legOffsetX = baseW / 2 - legR * 1.2;
+  const legOffsetZ = baseD / 2 - legR * 1.2;
   [
     [-legOffsetX, -legOffsetZ],
     [legOffsetX, -legOffsetZ],
