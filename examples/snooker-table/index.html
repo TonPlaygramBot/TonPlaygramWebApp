@@ -80,7 +80,7 @@ const Dim={
   cushionH:0.06,
   cushionD:0.06,
   baseH:0.44,
-  legH:0.082,
+  legH:0.82,
   legR:0.39,
   tableH:0.90,
   pocketR:0.105,
@@ -175,7 +175,7 @@ const feltTopY=Dim.tableH-Dim.slateT+Dim.feltT/2;meshes.push(new Mesh(xform(box(
   const offX=baseX/2-(legRadius+margin), offZ=baseZ/2-(legRadius+margin);
   const leg=cylinder(legRadius,Dim.legH,48);
   [[-offX,-offZ],[offX,-offZ],[-offX,offZ],[offX,offZ]].forEach(([x,z])=>{
-    meshes.push(new Mesh(xform(leg,M.trans(x,Dim.tableH-Dim.slateT-Dim.baseH-0.02-Dim.legH/2,z)),Col.wood));
+    meshes.push(new Mesh(xform(leg,M.trans(x,Dim.tableH-Dim.slateT-0.41,z)),Col.wood));
   });
   const feltTopY2=Dim.tableH-Dim.slateT+Dim.feltT/2;
   meshes.push(new Mesh(xform(box(topX,Dim.slateT,topZ),M.trans(0,Dim.tableH-Dim.slateT/2,0)),Col.slate));
