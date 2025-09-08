@@ -290,12 +290,12 @@ function Table3D(scene) {
   innerRect.lineTo(-halfW - railW, -halfH - railW);
   frameShape.holes.push(innerRect);
   const frameGeo = new THREE.ExtrudeGeometry(frameShape, {
-    depth: TABLE.THICK + railH,
+    depth: railH,
     bevelEnabled: false
   });
   const frame = new THREE.Mesh(frameGeo, railMat);
   frame.rotation.x = -Math.PI / 2;
-  frame.position.y = -TABLE.THICK;
+  frame.position.y = 0;
   frame.castShadow = true;
   frame.receiveShadow = true;
   scene.add(frame);
@@ -307,13 +307,13 @@ function Table3D(scene) {
   const rightX = halfW + railW / 2;
   const railGeometry = (len) => {
     const half = len / 2;
+    const chamfer = railW / 2;
     const shape = new THREE.Shape();
-    shape.moveTo(-half, 0);
-    shape.lineTo(-half + railW / 2, -railW / 2);
-    shape.lineTo(half - railW / 2, -railW / 2);
+    shape.moveTo(-half + chamfer, -railW / 2);
+    shape.lineTo(half - chamfer, -railW / 2);
     shape.lineTo(half, 0);
-    shape.lineTo(half - railW / 2, railW / 2);
-    shape.lineTo(-half + railW / 2, railW / 2);
+    shape.lineTo(half - chamfer, railW / 2);
+    shape.lineTo(-half + chamfer, railW / 2);
     shape.lineTo(-half, 0);
     const geo = new THREE.ExtrudeGeometry(shape, {
       depth: railH,
