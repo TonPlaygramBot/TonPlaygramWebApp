@@ -40,6 +40,7 @@ const POCKET_VIS_R = POCKET_R / 0.85;
 const FRICTION = 0.9925;
 const STOP_EPS = 0.02;
 const CAPTURE_R = POCKET_R; // pocket capture radius
+const TABLE_Y = -2; // vertical offset to lower entire table
 
 // slightly brighter colors for table and balls
 const COLORS = Object.freeze({
@@ -171,7 +172,7 @@ function calcTarget(cue, dir, balls) {
 // --------------------------------------------------
 // ONLY kept component: Guret (balls factory)
 // --------------------------------------------------
-function Guret(scene, id, color, x, y) {
+function Guret(parent, id, color, x, y) {
   const mesh = new THREE.Mesh(
     new THREE.SphereGeometry(BALL_R, 28, 28),
     new THREE.MeshStandardMaterial({ color, roughness: 0.35, metalness: 0.05 })
@@ -179,7 +180,7 @@ function Guret(scene, id, color, x, y) {
   mesh.position.set(x, BALL_R, y);
   mesh.castShadow = true;
   mesh.receiveShadow = true;
-  scene.add(mesh);
+  parent.add(mesh);
   return {
     id,
     color,
@@ -194,6 +195,7 @@ function Guret(scene, id, color, x, y) {
 // Table with CUT pockets + markings (fresh)
 // --------------------------------------------------
 function Table3D(scene) {
+  const table = new THREE.Group();
   const halfW = PLAY_W / 2,
     halfH = PLAY_H / 2;
   // Cloth me 6 vrima rrethore (holes)
@@ -228,7 +230,7 @@ function Table3D(scene) {
   cloth.rotation.x = -Math.PI / 2;
   cloth.position.y = -TABLE.THICK;
   cloth.receiveShadow = true;
-  scene.add(cloth);
+  table.add(cloth);
   // Pocket rings (visual rim)
   const ringGeo = new THREE.RingGeometry(POCKET_VIS_R * 0.6, POCKET_VIS_R, 48);
   const ringMat = new THREE.MeshStandardMaterial({
@@ -242,7 +244,7 @@ function Table3D(scene) {
     const m = new THREE.Mesh(ringGeo, ringMat);
     m.rotation.x = -Math.PI / 2;
     m.position.set(p.x, 0.001, p.y);
-    scene.add(m);
+    table.add(m);
   });
   // Pocket sleeves for depth perception
   const pocketGeo = new THREE.CylinderGeometry(
@@ -259,7 +261,7 @@ function Table3D(scene) {
   pocketCenters().forEach((p) => {
     const pocket = new THREE.Mesh(pocketGeo, pocketMat);
     pocket.position.set(p.x, -TABLE.THICK / 2, p.y);
-    scene.add(pocket);
+    table.add(pocket);
   });
   // Rails / cushions between pockets
   const railMat = new THREE.MeshStandardMaterial({
@@ -301,7 +303,7 @@ function Table3D(scene) {
   frame.position.y = -TABLE.THICK;
   frame.castShadow = true;
   frame.receiveShadow = true;
-  scene.add(frame);
+  table.add(frame);
   const horizLen = PLAY_W - 2 * POCKET_VIS_R;
   const vertSeg = PLAY_H / 2 - 2 * POCKET_VIS_R;
   const bottomZ = -halfH - railW / 2;
@@ -338,7 +340,7 @@ function Table3D(scene) {
     group.add(cloth);
     group.position.set(x, -TABLE.THICK, z);
     if (!horizontal) group.rotation.y = Math.PI / 2;
-    scene.add(group);
+    table.add(group);
   };
   addRail(0, bottomZ, horizLen, true);
   addRail(0, topZ, horizLen, true);
@@ -358,7 +360,7 @@ function Table3D(scene) {
   base.position.y = -TABLE.THICK - baseH / 2;
   base.castShadow = true;
   base.receiveShadow = true;
-  scene.add(base);
+  table.add(base);
   // Legs supporting the table
   const legH = baseH * 4;
   // Square, chunkier legs for a sturdier look
@@ -377,7 +379,7 @@ function Table3D(scene) {
     leg.position.set(x, legY, z);
     leg.castShadow = true;
     leg.receiveShadow = true;
-    scene.add(leg);
+    table.add(leg);
   });
   // Simple floor below everything
   const floor = new THREE.Mesh(
@@ -387,7 +389,7 @@ function Table3D(scene) {
   floor.rotation.x = -Math.PI / 2;
   floor.position.y = legY - legH / 2 - 1;
   floor.receiveShadow = true;
-  scene.add(floor);
+  table.add(floor);
   // Markings: baulk, D, spots
   // Baulk line is measured from the bottom cushion along table length
   const BAULK_RATIO_FROM_BOTTOM = 0.2014;
@@ -405,7 +407,7 @@ function Table3D(scene) {
     new THREE.Vector3(-halfW, 0.001, baulkZ),
     new THREE.Vector3(halfW, 0.001, baulkZ)
   ]);
-  scene.add(new THREE.Line(lineGeo, markMat));
+  table.add(new THREE.Line(lineGeo, markMat));
   const dPts = [];
   for (let i = 0; i <= 64; i++) {
     const t = Math.PI * (i / 64);
@@ -413,7 +415,7 @@ function Table3D(scene) {
       new THREE.Vector3(Math.cos(t) * D_R, 0.001, baulkZ - Math.sin(t) * D_R)
     );
   }
-  scene.add(
+  table.add(
     new THREE.Line(new THREE.BufferGeometry().setFromPoints(dPts), markMat)
   );
   const spot = (x, z) => {
@@ -427,7 +429,7 @@ function Table3D(scene) {
     );
     r.rotation.x = -Math.PI / 2;
     r.position.set(x, 0.001, z);
-    scene.add(r);
+    table.add(r);
   };
   // yellow, brown, green on baulk line
   spot(-PLAY_W * 0.22, baulkZ);
@@ -437,7 +439,9 @@ function Table3D(scene) {
   spot(0, 0);
   spot(0, PLAY_H * 0.25);
   spot(0, halfH - PLAY_H * 0.09);
-  return { centers: pocketCenters(), baulkZ };
+  scene.add(table);
+  table.position.y = TABLE_Y;
+  return { centers: pocketCenters(), baulkZ, group: table };
 }
 
 // --------------------------------------------------
@@ -524,7 +528,7 @@ export default function NewSnookerGame() {
       sph.phi = start.phi + (target.phi - start.phi) * ease;
       sph.theta = start.theta + (target.theta - start.theta) * ease;
       cam.position.setFromSpherical(sph);
-      cam.lookAt(0, 0, 0);
+      cam.lookAt(0, TABLE_Y, 0);
       if (k < 1) requestAnimationFrame(anim);
       else {
         topViewRef.current = next;
@@ -601,7 +605,7 @@ export default function NewSnookerGame() {
           CAMERA.minPhi,
           Math.min(phiCap, Math.PI - CAMERA.phiMargin)
         );
-        const target = new THREE.Vector3(0, 0, 0);
+        const target = new THREE.Vector3(0, TABLE_Y, 0);
         if (topViewRef.current) {
           camera.position.set(0, sph.radius, 0);
           camera.lookAt(target);
@@ -733,12 +737,12 @@ export default function NewSnookerGame() {
       scene.add(key);
 
       // Table
-      const { centers, baulkZ } = Table3D(scene);
+      const { centers, baulkZ, group: table } = Table3D(scene);
 
       // Balls (ONLY Guret)
       const balls = [];
       const add = (id, color, x, z) => {
-        const b = Guret(scene, id, color, x, z);
+        const b = Guret(table, id, color, x, z);
         balls.push(b);
         return b;
       };
@@ -783,7 +787,7 @@ export default function NewSnookerGame() {
       const aim = new THREE.Line(aimGeom, aimMat);
       aim.visible = false;
       aim.computeLineDistances();
-      scene.add(aim);
+      table.add(aim);
       const tickGeom = new THREE.BufferGeometry().setFromPoints([
         new THREE.Vector3(),
         new THREE.Vector3()
@@ -793,7 +797,7 @@ export default function NewSnookerGame() {
         new THREE.LineBasicMaterial({ color: 0xffffff })
       );
       tick.visible = false;
-      scene.add(tick);
+      table.add(tick);
 
       const targetGeom = new THREE.BufferGeometry().setFromPoints([
         new THREE.Vector3(),
@@ -811,12 +815,12 @@ export default function NewSnookerGame() {
       );
       target.visible = false;
       target.computeLineDistances();
-      scene.add(target);
+      table.add(target);
 
       // Pointer → XZ plane
       const pointer = new THREE.Vector2();
       const ray = new THREE.Raycaster();
-      const plane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
+      const plane = new THREE.Plane(new THREE.Vector3(0, 1, 0), -TABLE_Y);
       const project = (ev) => {
         const r = dom.getBoundingClientRect();
         const cx =
