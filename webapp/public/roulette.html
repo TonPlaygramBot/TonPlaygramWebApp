@@ -1,0 +1,380 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>3D Roulette – Single HTML</title>
+  <style>
+    :root{
+      --bg:#0c1020;--panel:#11172a;--panel-2:#0f1426;--text:#e6ecff;--muted:#8aa0ff66;--accent:#2563eb;--gold:#f5d35c;
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{
+      margin:0; font-family:ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji","Segoe UI Emoji";
+      background: radial-gradient(1200px 800px at 70% -10%, #1b2552 0%, #0c1020 50%, #070b18 100%);
+      color:var(--text);
+    }
+    .app{max-width:1200px;margin:0 auto;padding:16px;}
+    .topbar{display:flex;gap:12px;align-items:center;justify-content:space-between;margin-bottom:12px}
+    .card{background:linear-gradient(180deg,var(--panel),var(--panel-2));border:1px solid #1b2440;border-radius:18px;box-shadow:0 10px 30px #0006;}
+    .hud{display:flex;gap:16px;flex-wrap:wrap;padding:14px 16px;align-items:center}
+    .badge{padding:10px 14px;border-radius:999px;background:#0b132c;border:1px solid #1a2450;color:#d9e2ff;display:inline-flex;gap:8px;align-items:center}
+    .btn{cursor:pointer;user-select:none;border:none;border-radius:14px;padding:12px 16px;font-weight:700;background:linear-gradient(180deg,#1f2b58,#16224a);color:#e7edff;border:1px solid #243067;box-shadow:inset 0 1px 0 #ffffff1a,0 6px 16px #0008;transition:transform .06s ease, box-shadow .2s ease, filter .2s ease}
+    .btn:hover{filter:brightness(1.05)}
+    .btn:active{transform:translateY(1px)}
+    .btn.primary{background:linear-gradient(180deg,#2a6dfc,#1a48c2);border-color:#2c5be6;box-shadow:0 10px 25px #2563eb55, inset 0 1px 0 #ffffff22}
+    .btn.gold{background:linear-gradient(180deg,#ffe793,#e3b940);color:#2b230b;border-color:#e3c24d}
+
+    .layout{display:grid;grid-template-columns:1.2fr .95fr;gap:16px}
+    @media(max-width:980px){.layout{grid-template-columns:1fr}}
+
+    /* Wheel area */
+    .stage{position:relative;aspect-ratio:1;border-radius:24px;padding:18px;display:grid;place-items:center;perspective:1200px}
+    .table-shadow{position:absolute;inset:20px;border-radius:18px;background:radial-gradient(240px 120px at 50% 30%,#1a1f3a,transparent 70%)}
+
+    .wheel-wrap{position:relative;width:92%;max-width:600px;transform:rotateX(22deg) rotateZ(0deg);transform-style:preserve-3d;}
+    .wheel{position:relative;aspect-ratio:1;border-radius:50%;background:#222;box-shadow:inset 0 0 40px #000,inset 0 0 120px #0008,0 30px 80px #000c;overflow:hidden}
+    .rim{position:absolute;inset:0;border-radius:50%;border:20px solid #2b2b2b;box-shadow:inset 0 0 12px #000,inset 0 0 0 8px #3b3b3b,0 6px 16px #0007}
+    .pockets{position:absolute;inset:0;border-radius:50%}
+    .label{position:absolute;left:50%;top:8%;transform-origin:50% 230px;text-shadow:0 1px 2px #0009;font-weight:800;font-size:12px;letter-spacing:.4px;color:#eee}
+    .spokes{position:absolute;inset:12%;border-radius:50%;background:repeating-conic-gradient(from 0deg, #d9d9d91a 0 6deg, transparent 6deg 18deg);box-shadow:inset 0 0 12px #0007}
+    .hub{position:absolute;inset:38%;border-radius:50%;background:radial-gradient(120px 90px at 40% 40%, #666 0%, #222 60%, #000 100%);box-shadow:inset 0 0 10px #000}
+    .pin{position:absolute;left:50%;top:16px;transform:translateX(-50%);width:14px;height:14px;border-radius:50%;background:radial-gradient(circle at 40% 40%,#ffe793,#d5a300);border:2px solid #926800;box-shadow:0 2px 6px #000a}
+
+    .ball{position:absolute;width:14px;height:14px;border-radius:50%;background:radial-gradient(circle at 30% 30%,#fff,#d6d6d6 60%,#bdbdbd 100%);box-shadow:0 2px 6px #000a;transform:translate(-50%,-50%);}
+
+    .arrow{position:absolute;top:8px;left:50%;transform:translateX(-50%);width:0;height:0;border-left:10px solid transparent;border-right:10px solid transparent;border-top:16px solid var(--gold);filter:drop-shadow(0 4px 6px #000a)}
+
+    /* Table / bets */
+    .right{display:grid;grid-template-rows:auto 1fr;gap:12px}
+    .bets-card{padding:14px}
+    .bets-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+    .chip-ctrls{display:flex;gap:10px;flex-wrap:wrap}
+    .chip{display:inline-flex;align-items:center;justify-content:center;width:44px;height:44px;border-radius:50%;font-weight:900;border:3px dashed #fff3;background:radial-gradient(circle at 30% 30%, #fffb, #0000 60%),
+    conic-gradient(from 0deg, #ffffff22 0 6%, transparent 6% 12%, #ffffff22 12% 18%, transparent 18% 24%, #ffffff22 24% 30%, transparent 30% 100%);
+      box-shadow:inset 0 2px 4px #ffffff33, 0 4px 10px #0008;cursor:pointer}
+    .chip[data-val="5"]{background:radial-gradient(circle at 30% 30%, #fffb, #0000 60%), #2dd4bf}
+    .chip[data-val="10"]{background:radial-gradient(circle at 30% 30%, #fffb, #0000 60%), #60a5fa}
+    .chip[data-val="25"]{background:radial-gradient(circle at 30% 30%, #fffb, #0000 60%), #f59e0b}
+    .chip[data-val="50"]{background:radial-gradient(circle at 30% 30%, #fffb, #0000 60%), #ef4444}
+    .chip[data-val="100"]{background:radial-gradient(circle at 30% 30%, #fffb, #0000 60%), #a78bfa}
+    .grid{display:grid;grid-template-columns:repeat(12,1fr);gap:6px;margin-top:12px}
+    .cell{position:relative;border-radius:10px;border:1px solid #2a3566;background:linear-gradient(180deg,#112044,#0c142d);padding:6px;text-align:center;cursor:pointer;user-select:none;font-weight:700}
+    .cell:hover{outline:2px solid #3c59cf}
+    .cell.red{background:linear-gradient(180deg,#36121a,#20090f);border-color:#6b1322}
+    .cell.black{background:linear-gradient(180deg,#141414,#0a0a0a);border-color:#2b2b2b}
+    .cell.green{background:linear-gradient(180deg,#104022,#072814);border-color:#1f8a43}
+    .pill{grid-column:span 4}
+    .full{grid-column:1/-1}
+    .stack{position:absolute;inset:auto 6px 6px auto;display:flex;flex-wrap:wrap;gap:2px;max-width:60px}
+    .stack .mini-chip{width:16px;height:16px;border-radius:50%;border:2px solid #fff7;box-shadow:0 1px 2px #000a}
+
+    .log{height:160px;overflow:auto;background:linear-gradient(180deg,#0b132c,#0a1126);border-top:1px solid #1a2450;border-bottom-left-radius:18px;border-bottom-right-radius:18px;padding:10px;font-size:13px;color:#c3d0ff}
+    .log b{color:#fff}
+    .footer{display:flex;gap:10px;justify-content:space-between;align-items:center;padding:12px}
+    .kicker{opacity:.8;font-size:12px}
+  </style>
+</head>
+<body>
+  <div class="app">
+    <div class="topbar">
+      <div class="badge">🎰 <span style="font-weight:800">3D Roulette</span> · single-file preview</div>
+      <div class="badge">Balance: <b id="balance">1000</b> · Bet: <b id="currentBet">0</b></div>
+    </div>
+
+    <div class="layout">
+      <!-- LEFT: 3D Wheel -->
+      <div class="card stage">
+        <div class="table-shadow"></div>
+        <div class="arrow"></div>
+        <div class="wheel-wrap">
+          <div class="wheel" id="wheel">
+            <div class="pockets" id="pockets"></div>
+            <div class="spokes"></div>
+            <div class="hub"></div>
+            <div class="rim"></div>
+          </div>
+          <div class="pin"></div>
+          <div class="ball" id="ball"></div>
+        </div>
+        <div style="position:absolute;bottom:16px;display:flex;gap:10px">
+          <button class="btn primary" id="spinBtn">SPIN</button>
+          <button class="btn" id="clearBtn">Clear Bets</button>
+          <button class="btn gold" id="repeatBtn">Repeat</button>
+        </div>
+      </div>
+
+      <!-- RIGHT: Bets -->
+      <div class="right">
+        <div class="card bets-card">
+          <div class="hud">
+            <div class="chip-ctrls">
+              <div class="chip" data-val="5">5</div>
+              <div class="chip" data-val="10">10</div>
+              <div class="chip" data-val="25">25</div>
+              <div class="chip" data-val="50">50</div>
+              <div class="chip" data-val="100">100</div>
+            </div>
+            <div style="margin-left:auto;display:flex;gap:8px;align-items:center">
+              <button class="btn" id="undoBtn">Undo</button>
+              <button class="btn" id="allinBtn">All‑in × 0.05</button>
+            </div>
+          </div>
+
+          <div class="grid" id="betGrid">
+            <!-- Quick bets -->
+            <div class="cell pill" data-type="group" data-key="red">RED 1:1<div class="stack" data-stack="red"></div></div>
+            <div class="cell pill" data-type="group" data-key="black">BLACK 1:1<div class="stack" data-stack="black"></div></div>
+            <div class="cell pill" data-type="group" data-key="even">EVEN 1:1<div class="stack" data-stack="even"></div></div>
+            <div class="cell pill" data-type="group" data-key="odd">ODD 1:1<div class="stack" data-stack="odd"></div></div>
+            <div class="cell pill" data-type="group" data-key="low">1‑18 1:1<div class="stack" data-stack="low"></div></div>
+            <div class="cell pill" data-type="group" data-key="high">19‑36 1:1<div class="stack" data-stack="high"></div></div>
+            <div class="cell full" style="text-align:left;padding:8px 10px;font-size:12px;opacity:.85">Straight up (35:1)</div>
+            <!-- Number grid 0-36 will be injected -->
+          </div>
+        </div>
+        <div class="card log" id="log"></div>
+      </div>
+    </div>
+
+    <div class="footer">
+      <div class="kicker">Tip: click cells to place chips • drag to scroll the log • mobile friendly</div>
+      <div class="kicker">Made with CSS 3D + vanilla JS</div>
+    </div>
+  </div>
+
+  <script>
+    // --- European wheel order (0–36)
+    const order = [0,32,15,19,4,21,2,25,17,34,6,27,13,36,11,30,8,23,10,5,24,16,33,1,20,14,31,9,22,18,29,7,28,12,35,3,26];
+    const reds = new Set([32,19,21,25,34,27,36,30,23,5,16,1,14,9,18,7,12,3]);
+    const blacks = new Set(order.filter(n=>n!==0 && !reds.has(n)));
+
+    // --- DOM helpers
+    const $ = s=>document.querySelector(s);
+    const logEl = $('#log');
+    const balEl = $('#balance');
+    const betEl = $('#currentBet');
+    const wheelEl = $('#wheel');
+    const pocketsEl = $('#pockets');
+    const ballEl = $('#ball');
+
+    // --- State
+    let balance = 1000;
+    let chip = 10;
+    let bets = []; // {type:'straight'|'group', key:number|string, amount}
+    let lastBets = [];
+    let spinning = false;
+
+    // --- Build wheel segments & labels
+    const seg = 360 / order.length; // ~9.7297
+    pocketsEl.style.background = buildConic();
+    buildLabels();
+    positionBallAt(0);
+
+    function buildConic(){
+      let acc = 0, parts = [];
+      for(const n of order){
+        const col = n===0 ? '#0dbb4e' : (reds.has(n)?'#c93b42':'#222');
+        parts.push(`${col} ${acc}deg ${acc+seg}deg`);
+        acc += seg;
+      }
+      return `conic-gradient(${parts.join(',')})`;
+    }
+    function buildLabels(){
+      const radius = 230; // for transform-origin
+      order.forEach((n, i)=>{
+        const ang = (i*seg);
+        const label = document.createElement('div');
+        label.className = 'label';
+        label.style.transform = `rotate(${ang}deg)`;
+        label.style.transformOrigin = `50% ${radius}px`;
+        label.textContent = n;
+        label.style.color = n===0? '#b2ffcf' : (reds.has(n)?'#ffb3b7':'#e8e8e8');
+        pocketsEl.appendChild(label);
+      });
+    }
+
+    // --- Betting grid
+    const grid = $('#betGrid');
+    // inject 0..36 cells
+    const numbersWrap = document.createDocumentFragment();
+    for(let n=0;n<=36;n++){
+      const c = document.createElement('div');
+      c.className = 'cell ' + (n===0?'green':(reds.has(n)?'red':'black'));
+      c.dataset.type = 'straight';
+      c.dataset.key = String(n);
+      c.innerHTML = `${n}<div class="stack" data-stack="n-${n}"></div>`;
+      numbersWrap.appendChild(c);
+    }
+    grid.appendChild(numbersWrap);
+
+    // --- Chip selector
+    document.querySelectorAll('.chip').forEach(el=>{
+      el.addEventListener('click',()=>{
+        document.querySelectorAll('.chip').forEach(x=>x.style.outline='none');
+        el.style.outline = '3px solid #fff8';
+        chip = Number(el.dataset.val);
+        toast(`Chip set to ${chip}`);
+      })
+    });
+    // default outline
+    document.querySelector('.chip[data-val="10"]').style.outline='3px solid #fff8';
+
+    // --- Place bets
+    grid.addEventListener('click', e=>{
+      const cell = e.target.closest('.cell');
+      if(!cell || spinning) return;
+      const type = cell.dataset.type;
+      const key = type==='straight' ? Number(cell.dataset.key) : cell.dataset.key;
+      const max = balance - currentBetTotal();
+      if(max<=0){ toast('Insufficient balance'); return; }
+      const amount = Math.min(chip, max);
+      bets.push({type,key,amount});
+      renderStacks();
+      updateHUD();
+    });
+
+    function currentBetTotal(){
+      return bets.reduce((a,b)=>a+b.amount,0);
+    }
+
+    function renderStacks(){
+      // Clear stacks
+      document.querySelectorAll('[data-stack]').forEach(x=>x.innerHTML='');
+      // Render chips as tiny dots
+      for(const b of bets){
+        const key = b.type==='straight'? `n-${b.key}` : b.key;
+        const stack = document.querySelector(`[data-stack="${key}"]`);
+        if(!stack) continue;
+        const dot = document.createElement('div');
+        dot.className='mini-chip';
+        dot.title = `${b.amount}`;
+        dot.style.background = '#'+(Math.random()*0xFFFFFF<<0).toString(16).padStart(6,'0');
+        stack.appendChild(dot);
+      }
+    }
+
+    function updateHUD(){
+      betEl.textContent = currentBetTotal();
+      balEl.textContent = balance - currentBetTotal();
+    }
+
+    // --- Undo / Clear / Repeat / All‑in
+    $('#undoBtn').onclick = ()=>{ if(spinning) return; bets.pop(); renderStacks(); updateHUD(); };
+    $('#clearBtn').onclick = ()=>{ if(spinning) return; bets = []; renderStacks(); updateHUD(); };
+    $('#repeatBtn').onclick = ()=>{ if(spinning) return; if(lastBets.length===0){toast('No previous bets');return;} bets = lastBets.map(b=>({...b})); renderStacks(); updateHUD(); };
+    $('#allinBtn').onclick = ()=>{ if(spinning) return; const alloc = Math.max(5, Math.floor(balance*0.05)); chip = alloc; document.querySelectorAll('.chip').forEach(x=>x.style.outline='none'); toast(`Chip set to ${chip}`)};
+
+    // --- Spin logic
+    $('#spinBtn').onclick = spin;
+
+    let wheelAngle = 0;
+    let ballAngle = 0; // along rim
+
+    function spin(){
+      if(spinning) return;
+      if(currentBetTotal()<=0){ toast('Place a bet first'); return; }
+      spinning = true;
+      lastBets = bets.map(b=>({...b}));
+      balance -= currentBetTotal();
+      updateHUD();
+
+      // random target index
+      const targetIndex = Math.floor(Math.random()*order.length);
+      const targetNumber = order[targetIndex];
+
+      // Compute target angles (0 at top). We rotate wheel; arrow is fixed at top.
+      const targetAngle = targetIndex * seg; // when wheel rotated so that pocket at top
+
+      // Animate: wheel spins many turns + lands so target aligns with arrow.
+      const extraTurns = 6 + Math.floor(Math.random()*4); // 6..9
+      const finalWheel = 360*extraTurns + targetAngle + (Math.random()*seg - seg/2); // slight variability
+      const startWheel = wheelAngle;
+
+      // Ball spins opposite, easing out
+      const ballTurns = 14 + Math.floor(Math.random()*6); // 14..19
+      const startBall = ballAngle;
+      const finalBall = -(360*ballTurns) + (Math.random()*30-15);
+
+      const dur = 4200 + Math.random()*1000; // ms
+      const t0 = performance.now();
+
+      const ease = t=>1- Math.pow(1-t,3);
+
+      function frame(now){
+        const p = Math.min(1,(now-t0)/dur);
+        const e = ease(p);
+        wheelAngle = startWheel + (finalWheel - startWheel)*e;
+        ballAngle = startBall + (finalBall - startBall)*e;
+        renderAngles();
+        if(p<1) requestAnimationFrame(frame); else finish();
+      }
+      requestAnimationFrame(frame);
+
+      function finish(){
+        // Normalize 0..360
+        const wa = ((wheelAngle%360)+360)%360;
+        // Winning index from wheel orientation (closest sector to arrow at 0deg)
+        let idx = Math.round(wa/seg) % order.length; // align with labels generation
+        const winNumber = order[idx];
+        payout(winNumber);
+        toast(`<b>WIN:</b> ${winNumber} ${winColor(winNumber).toUpperCase()}`);
+        bets = [];
+        renderStacks();
+        updateHUD();
+        spinning = false;
+      }
+    }
+
+    function renderAngles(){
+      wheelEl.style.transform = `rotate(${wheelAngle}deg)`;
+      positionBallAt(ballAngle);
+    }
+
+    function positionBallAt(a){
+      const r = 44; // distance from inner rim
+      const box = wheelEl.getBoundingClientRect();
+      const cx = box.width/2, cy = box.height/2;
+      const rad = (a-90)*Math.PI/180; // -90 so 0deg = top
+      const ring = Math.min(cx,cy) - 34; // radius for the ball path
+      const x = cx + Math.cos(rad)* (ring - r);
+      const y = cy + Math.sin(rad)* (ring - r);
+      ballEl.style.left = x + 'px';
+      ballEl.style.top  = y + 'px';
+      ballEl.style.transform = 'translate(-50%,-50%)';
+    }
+
+    function winColor(n){
+      if(n===0) return 'green';
+      return reds.has(n) ? 'red' : 'black';
+    }
+
+    // --- Payouts
+    function payout(win){
+      let won = 0;
+      for(const b of lastBets){
+        if(b.type==='straight' && b.key===win){ won += b.amount*36; }
+        if(b.type==='group'){
+          if(b.key==='red' && reds.has(win)) won += b.amount*2;
+          if(b.key==='black' && blacks.has(win)) won += b.amount*2;
+          if(b.key==='even' && win!==0 && win%2===0) won += b.amount*2;
+          if(b.key==='odd' && win%2===1) won += b.amount*2;
+          if(b.key==='low' && win>=1 && win<=18) won += b.amount*2;
+          if(b.key==='high' && win>=19 && win<=36) won += b.amount*2;
+        }
+      }
+      balance += won;
+      log(`<b>Result:</b> ${win} (${winColor(win)}) · <b>Payout:</b> ${won}`);
+    }
+
+    function log(msg){
+      const p=document.createElement('div'); p.innerHTML = msg; logEl.prepend(p);
+    }
+    function toast(msg){ log(msg); }
+
+    // Accessibility: keyboard spin
+    window.addEventListener('keydown',e=>{ if(e.code==='Space'){ e.preventDefault(); $('#spinBtn').click(); }});
+  </script>
+</body>
+</html>
