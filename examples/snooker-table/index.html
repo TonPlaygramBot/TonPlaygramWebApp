@@ -75,19 +75,19 @@ const Dim={
   playZ:1.778,
   slateT:0.06,
   feltT:0.016,
-  railW:0.015,
+  railW:0.012,
   railH:0.06,
   cushionH:0.06,
   cushionD:0.06,
   baseH:0.44,
   legH:0.82,
-  legR:1.35,
+  legR:0.39,
   tableH:0.90,
   pocketR:0.105,
   pocketDepth:0.12
 };
 // raise cushions and attached frame slightly
-const UPPER_Y_OFFSET=0.32;
+const UPPER_Y_OFFSET=0.34;
 const Col={wood:0x704523,slate:0x3a3a3a,felt:0x148245,cushion:0x1b6c3f,pocket:0x0c0e12,rim:0xb8c4d6,floor:0x121938,line:0xffffff};
 
 const meshes=[];
@@ -115,7 +115,7 @@ const feltTopY=Dim.tableH-Dim.slateT+Dim.feltT/2;meshes.push(new Mesh(xform(box(
   after the table expansion below.
 {
   const rx=Dim.playX/2+Dim.railW/2,rz=Dim.playZ/2+Dim.railW/2;
-  const y=Dim.tableH-Dim.slateT-0.02+Dim.railH/2+UPPER_Y_OFFSET;
+  const y=Dim.tableH-Dim.slateT-0.01+Dim.railH/2+UPPER_Y_OFFSET;
   // shorten wooden frame on all sides by half without moving rails
   meshes.push(new Mesh(xform(box(Dim.playX+Dim.railW*0.625,Dim.railH,Dim.railW),M.trans(0,y,rz)),Col.wood));
   meshes.push(new Mesh(xform(box(Dim.playX+Dim.railW*0.625,Dim.railH,Dim.railW),M.trans(0,y,-rz)),Col.wood));
@@ -176,7 +176,7 @@ const feltTopY=Dim.tableH-Dim.slateT+Dim.feltT/2;meshes.push(new Mesh(xform(box(
   meshes.push(new Mesh(xform(box(topX,Dim.feltT,topZ),M.trans(0,feltTopY2,0)),Col.felt));
   // small wooden rails around enlarged top (matching cushion thickness)
   const rxTop=topX/2+Dim.railW/2, rzTop=topZ/2+Dim.railW/2;
-  const railY=Dim.tableH-Dim.slateT-0.02+Dim.railH/2;
+  const railY=Dim.tableH-Dim.slateT-0.01+Dim.railH/2;
   meshes.push(new Mesh(xform(box(topX+Dim.railW,Dim.railH,Dim.railW),M.trans(0,railY,rzTop)),Col.wood));
   meshes.push(new Mesh(xform(box(topX+Dim.railW,Dim.railH,Dim.railW),M.trans(0,railY,-rzTop)),Col.wood));
   meshes.push(new Mesh(xform(box(Dim.railW,Dim.railH,topZ+Dim.railW),M.trans(rxTop,railY,0)),Col.wood));
