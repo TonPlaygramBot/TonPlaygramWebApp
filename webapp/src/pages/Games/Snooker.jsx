@@ -274,22 +274,23 @@ function Table3D(scene) {
   });
   const railH = TABLE.THICK;
   const railW = TABLE.WALL;
-  // Outer wooden frame
+  // Outer wooden frame around rails at same height
+  const FRAME_W = railW; // frame width matches rail width
   const frameShape = new THREE.Shape();
-  frameShape.moveTo(-halfW - railW, -halfH - railW);
-  frameShape.lineTo(halfW + railW, -halfH - railW);
-  frameShape.lineTo(halfW + railW, halfH + railW);
-  frameShape.lineTo(-halfW - railW, halfH + railW);
-  frameShape.lineTo(-halfW - railW, -halfH - railW);
+  frameShape.moveTo(-halfW - railW - FRAME_W, -halfH - railW - FRAME_W);
+  frameShape.lineTo(halfW + railW + FRAME_W, -halfH - railW - FRAME_W);
+  frameShape.lineTo(halfW + railW + FRAME_W, halfH + railW + FRAME_W);
+  frameShape.lineTo(-halfW - railW - FRAME_W, halfH + railW + FRAME_W);
+  frameShape.lineTo(-halfW - railW - FRAME_W, -halfH - railW - FRAME_W);
   const innerRect = new THREE.Path();
-  innerRect.moveTo(-halfW, -halfH);
-  innerRect.lineTo(halfW, -halfH);
-  innerRect.lineTo(halfW, halfH);
-  innerRect.lineTo(-halfW, halfH);
-  innerRect.lineTo(-halfW, -halfH);
+  innerRect.moveTo(-halfW - railW, -halfH - railW);
+  innerRect.lineTo(halfW + railW, -halfH - railW);
+  innerRect.lineTo(halfW + railW, halfH + railW);
+  innerRect.lineTo(-halfW - railW, halfH + railW);
+  innerRect.lineTo(-halfW - railW, -halfH - railW);
   frameShape.holes.push(innerRect);
   const frameGeo = new THREE.ExtrudeGeometry(frameShape, {
-    depth: TABLE.THICK,
+    depth: TABLE.THICK + railH,
     bevelEnabled: false
   });
   const frame = new THREE.Mesh(frameGeo, railMat);
