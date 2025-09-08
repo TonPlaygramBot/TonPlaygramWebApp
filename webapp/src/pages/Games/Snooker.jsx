@@ -277,7 +277,7 @@ function Table3D(scene) {
     roughness: 0.9
   });
   const railH = TABLE.THICK;
-  const railW = TABLE.WALL;
+  const railW = TABLE.WALL * 0.5; // thinner side rails
   // Outer wooden frame around rails at same height
   // Make the side frame thicker so it lines up with the base
   const FRAME_W = railW * 2.5; // wider wooden frame
@@ -365,7 +365,7 @@ function Table3D(scene) {
 
   // Legs supporting the table (cylindrical, tucked under base)
   const legH = baseH * 4;
-  const legR = TABLE.WALL * 0.8;
+  const legR = (TABLE.WALL * 0.8) / 4; // legs four times thinner
   const legGeo = new THREE.CylinderGeometry(legR, legR, legH, 24);
   const legY = -TABLE.THICK - baseH - legH / 2;
   const legOffsetX = baseW / 2 - legR * 1.2;
@@ -386,7 +386,8 @@ function Table3D(scene) {
   // Simple floor below everything
   const floor = new THREE.Mesh(
     new THREE.PlaneGeometry(TABLE.W * 6, TABLE.H * 6),
-    new THREE.MeshStandardMaterial({ color: 0x121938, roughness: 0.9 })
+    // red carpet under the table
+    new THREE.MeshStandardMaterial({ color: 0x8b0000, roughness: 0.9 })
   );
   floor.rotation.x = -Math.PI / 2;
   floor.position.y = legY - legH / 2 - 1;
@@ -422,7 +423,8 @@ function Table3D(scene) {
     const ad = new THREE.Mesh(new THREE.PlaneGeometry(w, wallH / 2), adMat);
     ad.position.y = -wallH / 4;
     g.add(top, ad);
-    g.position.y = floor.position.y + wallH / 2;
+    // drop walls below the floor level
+    g.position.y = floor.position.y - wallH / 2;
     return g;
   };
 
