@@ -8,6 +8,7 @@ import {
 } from '../../utils/telegram.js';
 import { FLAG_EMOJIS } from '../../utils/flagEmojis.js';
 import { SnookerRules } from '../../../../src/rules/SnookerRules.ts';
+import { useAimCalibration } from '../../hooks/useAimCalibration.js';
 
 /**
  * NEW SNOOKER GAME — fresh build (keep ONLY Guret for balls)
@@ -528,6 +529,7 @@ export default function NewSnookerGame() {
   const [timer, setTimer] = useState(60);
   const timerRef = useRef(null);
   const [player, setPlayer] = useState({ name: '', avatar: '' });
+  const { cfg: calib, setCfg, mapDelta } = useAimCalibration();
   useEffect(() => {
     document.title = '3D Snooker';
   }, []);
@@ -908,11 +910,22 @@ export default function NewSnookerGame() {
       // Aim direction controlled via drag like Pool Royale
       const aimDir = aimDirRef.current;
       let aiming = false;
+      const last = { x: 0, y: 0 };
+      const virt = { x: 0, y: 0 };
       const onAimMove = (e) => {
         if (!aiming) return;
         if (hud.inHand || hud.over) return;
         if (!allStopped(balls)) return;
-        const hit = project(e);
+        const x = e.clientX || e.touches?.[0]?.clientX || last.x;
+        const y = e.clientY || e.touches?.[0]?.clientY || last.y;
+        const dx = x - last.x;
+        const dy = y - last.y;
+        last.x = x;
+        last.y = y;
+        const mapped = mapDelta(dx, dy);
+        virt.x += mapped.dx;
+        virt.y += mapped.dy;
+        const hit = project({ clientX: virt.x, clientY: virt.y });
         const dir = cue.pos.clone().sub(hit);
         if (dir.length() > 1e-3) {
           aimDir.set(dir.x, dir.y).normalize();
@@ -922,6 +935,10 @@ export default function NewSnookerGame() {
         if (hud.inHand || hud.over) return;
         if (!allStopped(balls)) return;
         aiming = true;
+        last.x = e.clientX || e.touches?.[0]?.clientX || 0;
+        last.y = e.clientY || e.touches?.[0]?.clientY || 0;
+        virt.x = last.x;
+        virt.y = last.y;
         onAimMove(e);
       };
       const onAimEnd = () => {
@@ -1258,6 +1275,33 @@ export default function NewSnookerGame() {
   return (
     <div className="w-full h-[100vh] bg-black text-white overflow-hidden select-none">
       <div ref={mountRef} className="absolute inset-y-0 left-0 w-[80%]" />
+
+      <div className="absolute top-2 right-2 bg-black/50 p-2 text-xs z-50">
+        <label className="mr-2">
+          <input
+            type="checkbox"
+            checked={calib.swap}
+            onChange={(e) => setCfg({ ...calib, swap: e.target.checked })}
+          />
+          swap
+        </label>
+        <label className="mr-2">
+          <input
+            type="checkbox"
+            checked={calib.invertX}
+            onChange={(e) => setCfg({ ...calib, invertX: e.target.checked })}
+          />
+          flipX
+        </label>
+        <label>
+          <input
+            type="checkbox"
+            checked={calib.invertY}
+            onChange={(e) => setCfg({ ...calib, invertY: e.target.checked })}
+          />
+          flipY
+        </label>
+      </div>
 
       {err && (
         <div className="absolute inset-0 bg-black/80 text-white text-xs flex items-center justify-center p-4 z-50">
