@@ -81,8 +81,8 @@ const pocketCenters = () => [
   new THREE.Vector2(TABLE.W / 2, -TABLE.H / 2),
   new THREE.Vector2(-TABLE.W / 2, TABLE.H / 2),
   new THREE.Vector2(TABLE.W / 2, TABLE.H / 2),
-  new THREE.Vector2(-TABLE.W / 2, 0),
-  new THREE.Vector2(TABLE.W / 2, 0)
+  new THREE.Vector2(0, -TABLE.H / 2),
+  new THREE.Vector2(0, TABLE.H / 2)
 ];
 const allStopped = (balls) => balls.every((b) => b.vel.length() < STOP_EPS);
 function reflectRails(ball) {
@@ -241,6 +241,36 @@ function Table3D(scene) {
     m.position.set(p.x, 0.01, p.y);
     scene.add(m);
   });
+  // Rails / cushions between pockets
+  const railMat = new THREE.MeshStandardMaterial({
+    color: COLORS.rail,
+    metalness: 0.3,
+    roughness: 0.8
+  });
+  const railH = TABLE.THICK;
+  const railW = TABLE.WALL;
+  const horizLen = TABLE.W / 2 - 2 * POCKET_R;
+  const vertLen = TABLE.H - 2 * POCKET_R;
+  const bottomZ = -halfH + railW / 2;
+  const topZ = halfH - railW / 2;
+  const addRail = (x, z, horizontal) => {
+    const geo = new THREE.BoxGeometry(
+      horizontal ? horizLen : railW,
+      railH,
+      horizontal ? railW : vertLen
+    );
+    const mesh = new THREE.Mesh(geo, railMat);
+    mesh.position.set(x, railH / 2, z);
+    mesh.castShadow = true;
+    mesh.receiveShadow = true;
+    scene.add(mesh);
+  };
+  addRail(-halfW + POCKET_R + horizLen / 2, bottomZ, true);
+  addRail(halfW - POCKET_R - horizLen / 2, bottomZ, true);
+  addRail(-halfW + POCKET_R + horizLen / 2, topZ, true);
+  addRail(halfW - POCKET_R - horizLen / 2, topZ, true);
+  addRail(-halfW + railW / 2, 0, false);
+  addRail(halfW - railW / 2, 0, false);
   // Markings: baulk, D, spots
   // Baulk line is measured from the bottom cushion along table length
   const BAULK_RATIO_FROM_BOTTOM = 0.2014;
