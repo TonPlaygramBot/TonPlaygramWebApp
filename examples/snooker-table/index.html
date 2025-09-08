@@ -86,7 +86,8 @@ const Dim={
   pocketR:0.105,
   pocketDepth:0.12
 };
-const UPPER_Y_OFFSET=0.30;
+// raise cushions and attached frame slightly
+const UPPER_Y_OFFSET=0.32;
 const Col={wood:0x704523,slate:0x3a3a3a,felt:0x148245,cushion:0x1b6c3f,pocket:0x0c0e12,rim:0xb8c4d6,floor:0x121938,line:0xffffff};
 
 const meshes=[];
@@ -158,7 +159,8 @@ const feltTopY=Dim.tableH-Dim.slateT+Dim.feltT/2;meshes.push(new Mesh(xform(box(
 
 // --------------------- Lower table with legs (underlay) ---------------------
 {
-  const FactorTop=1.35;
+  // narrower outer frame; keep only inner half
+  const FactorTop=1.175;
   const topX=Dim.playX*FactorTop, topZ=Dim.playZ*FactorTop;
   const baseX=Dim.playX*FactorTop+0.24, baseZ=Dim.playZ*FactorTop+0.24;
   meshes.push(new Mesh(xform(box(baseX,Dim.baseH,baseZ),M.trans(0,Dim.tableH-Dim.slateT-(Dim.baseH/2)-0.02,0)),Col.wood));
@@ -183,19 +185,6 @@ const feltTopY=Dim.tableH-Dim.slateT+Dim.feltT/2;meshes.push(new Mesh(xform(box(
   const fxTop=topX/2+Dim.railW/2,fzTop=topZ/2+Dim.railW/2;
   [[fxTop,fzTop],[-fxTop,fzTop],[fxTop,-fzTop],[-fxTop,-fzTop],[0,fzTop],[0,-fzTop]].forEach(([x,z])=>{
     meshes.push(new Mesh(xform(fillerTop,M.trans(x,railY,z)),Col.wood));
-  });
-  const railH2=0.16;
-  const rx=topX/2+Dim.railW/2, rz=topZ/2+Dim.railW/2;
-  const long=box(topX+Dim.railW*1.0,railH2,Dim.railW);
-  const short=box(Dim.railW,railH2,topZ+Dim.railW*1.0);
-  const underY=Dim.tableH-0.09;
-  meshes.push(new Mesh(xform(long,M.trans(0,underY,rz)),Col.wood));
-  meshes.push(new Mesh(xform(long,M.trans(0,underY,-rz)),Col.wood));
-  meshes.push(new Mesh(xform(short,M.trans(rx,underY,0)),Col.wood));
-  meshes.push(new Mesh(xform(short,M.trans(-rx,underY,0)),Col.wood));
-  const filler2=box(Dim.railW,railH2,Dim.railW);
-  [[rx,rz],[-rx,rz],[rx,-rz],[-rx,-rz],[0,rz],[0,-rz]].forEach(([x,z])=>{
-    meshes.push(new Mesh(xform(filler2,M.trans(x,underY,z)),Col.wood));
   });
   const cone=coneFrustum(Dim.pocketR*0.95,Dim.pocketR*1.28,Dim.pocketDepth,64);
   const rim=cylinder(Dim.pocketR*1.08,0.012,56);
