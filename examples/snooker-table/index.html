@@ -162,7 +162,7 @@ const feltTopY=Dim.tableH-Dim.slateT+Dim.feltT/2;meshes.push(new Mesh(xform(box(
   // narrower outer frame; keep only inner half
   const FactorTop=1.175;
   const topX=Dim.playX*FactorTop, topZ=Dim.playZ*FactorTop;
-  const baseX=Dim.playX*FactorTop+0.24, baseZ=Dim.playZ*FactorTop+0.24;
+  const baseX=topX, baseZ=topZ;
   meshes.push(new Mesh(xform(box(baseX,Dim.baseH,baseZ),M.trans(0,Dim.tableH-Dim.slateT-(Dim.baseH/2)-0.02,0)),Col.wood));
   const margin=0.30;
   const legRadius=Dim.legR*3;
