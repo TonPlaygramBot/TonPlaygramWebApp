@@ -75,13 +75,13 @@ const Dim={
   playZ:1.778,
   slateT:0.06,
   feltT:0.016,
-  railW:0.03,
+  railW:0.015,
   railH:0.06,
   cushionH:0.06,
   cushionD:0.06,
   baseH:0.44,
   legH:0.82,
-  legR:0.675,
+  legR:1.35,
   tableH:0.90,
   pocketR:0.105,
   pocketDepth:0.12
@@ -166,17 +166,18 @@ const feltTopY=Dim.tableH-Dim.slateT+Dim.feltT/2;meshes.push(new Mesh(xform(box(
   const feltTopY2=Dim.tableH-Dim.slateT+Dim.feltT/2;
   meshes.push(new Mesh(xform(box(topX,Dim.slateT,topZ),M.trans(0,Dim.tableH-Dim.slateT/2,0)),Col.slate));
   meshes.push(new Mesh(xform(box(topX,Dim.feltT,topZ),M.trans(0,feltTopY2,0)),Col.felt));
-  const railH2=0.04;
+  const railH2=0.08;
   const rx=topX/2+Dim.railW/2, rz=topZ/2+Dim.railW/2;
   const long=box(topX+Dim.railW*1.0,railH2,Dim.railW);
   const short=box(Dim.railW,railH2,topZ+Dim.railW*1.0);
-  meshes.push(new Mesh(xform(long,M.trans(0,Dim.tableH-0.03,rz)),Col.wood));
-  meshes.push(new Mesh(xform(long,M.trans(0,Dim.tableH-0.03,-rz)),Col.wood));
-  meshes.push(new Mesh(xform(short,M.trans(rx,Dim.tableH-0.03,0)),Col.wood));
-  meshes.push(new Mesh(xform(short,M.trans(-rx,Dim.tableH-0.03,0)),Col.wood));
+  const underY=Dim.tableH-0.05;
+  meshes.push(new Mesh(xform(long,M.trans(0,underY,rz)),Col.wood));
+  meshes.push(new Mesh(xform(long,M.trans(0,underY,-rz)),Col.wood));
+  meshes.push(new Mesh(xform(short,M.trans(rx,underY,0)),Col.wood));
+  meshes.push(new Mesh(xform(short,M.trans(-rx,underY,0)),Col.wood));
   const filler2=box(Dim.railW,railH2,Dim.railW);
   [[rx,rz],[-rx,rz],[rx,-rz],[-rx,-rz],[0,rz],[0,-rz]].forEach(([x,z])=>{
-    meshes.push(new Mesh(xform(filler2,M.trans(x,Dim.tableH-0.03,z)),Col.wood));
+    meshes.push(new Mesh(xform(filler2,M.trans(x,underY,z)),Col.wood));
   });
   const cone=coneFrustum(Dim.pocketR*0.95,Dim.pocketR*1.28,Dim.pocketDepth,64);
   const rim=cylinder(Dim.pocketR*1.08,0.012,56);
