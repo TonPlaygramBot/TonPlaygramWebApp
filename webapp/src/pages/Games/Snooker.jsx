@@ -33,6 +33,8 @@ const TABLE = {
 };
 const BALL_R = 2 * BALL_SCALE;
 const POCKET_R = BALL_R * 2; // pockets twice the ball radius
+// slightly larger visual radius so rails align with pocket rings
+const POCKET_VIS_R = POCKET_R / 0.85;
 const FRICTION = 0.9925;
 const STOP_EPS = 0.02;
 const CAPTURE_R = POCKET_R; // pocket capture radius
@@ -90,7 +92,7 @@ function reflectRails(ball) {
   const limY = TABLE.H / 2 - BALL_R - TABLE.WALL;
   // If the ball is near any pocket, skip rail reflections so it can drop in
   const nearPocket = pocketCenters().some(
-    (c) => ball.pos.distanceTo(c) < POCKET_R + BALL_R
+    (c) => ball.pos.distanceTo(c) < POCKET_VIS_R + BALL_R
   );
   if (nearPocket) return;
   if (ball.pos.x < -limX && ball.vel.x < 0) {
@@ -192,7 +194,6 @@ function Guret(scene, id, color, x, y) {
 function Table3D(scene) {
   const halfW = TABLE.W / 2,
     halfH = TABLE.H / 2;
-  const POCKET_R_VIS = POCKET_R / 0.85; // visual radius so holes are POCKET_R
   // Cloth me 6 vrima rrethore (holes)
   const shape = new THREE.Shape();
   shape.moveTo(-halfW, -halfH);
@@ -205,8 +206,8 @@ function Table3D(scene) {
     h.absellipse(
       p.x,
       p.y,
-      POCKET_R_VIS * 0.85,
-      POCKET_R_VIS * 0.85,
+      POCKET_VIS_R * 0.85,
+      POCKET_VIS_R * 0.85,
       0,
       Math.PI * 2,
       false,
@@ -227,7 +228,7 @@ function Table3D(scene) {
   cloth.receiveShadow = true;
   scene.add(cloth);
   // Pocket rings (visual rim)
-  const ringGeo = new THREE.RingGeometry(POCKET_R_VIS * 0.6, POCKET_R_VIS, 48);
+  const ringGeo = new THREE.RingGeometry(POCKET_VIS_R * 0.6, POCKET_VIS_R, 48);
   const ringMat = new THREE.MeshStandardMaterial({
     color: 0x111111,
     side: THREE.DoubleSide,
@@ -254,8 +255,8 @@ function Table3D(scene) {
   });
   const railH = TABLE.THICK;
   const railW = TABLE.WALL;
-  const horizLen = TABLE.W - 2 * POCKET_R;
-  const vertSeg = TABLE.H / 2 - 2 * POCKET_R;
+  const horizLen = TABLE.W - 2 * POCKET_VIS_R;
+  const vertSeg = TABLE.H / 2 - 2 * POCKET_VIS_R;
   const bottomZ = -halfH + railW / 2;
   const topZ = halfH - railW / 2;
   const leftX = -halfW + railW / 2;
@@ -295,10 +296,10 @@ function Table3D(scene) {
   };
   addRail(0, bottomZ, horizLen, true);
   addRail(0, topZ, horizLen, true);
-  addRail(leftX, -halfH + POCKET_R + vertSeg / 2, vertSeg, false);
-  addRail(leftX, halfH - POCKET_R - vertSeg / 2, vertSeg, false);
-  addRail(rightX, -halfH + POCKET_R + vertSeg / 2, vertSeg, false);
-  addRail(rightX, halfH - POCKET_R - vertSeg / 2, vertSeg, false);
+  addRail(leftX, -halfH + POCKET_VIS_R + vertSeg / 2, vertSeg, false);
+  addRail(leftX, halfH - POCKET_VIS_R - vertSeg / 2, vertSeg, false);
+  addRail(rightX, -halfH + POCKET_VIS_R + vertSeg / 2, vertSeg, false);
+  addRail(rightX, halfH - POCKET_VIS_R - vertSeg / 2, vertSeg, false);
   // Markings: baulk, D, spots
   // Baulk line is measured from the bottom cushion along table length
   const BAULK_RATIO_FROM_BOTTOM = 0.2014;
