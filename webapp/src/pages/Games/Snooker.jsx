@@ -22,9 +22,9 @@ import { SnookerRules } from '../../../../src/rules/SnookerRules.ts';
 // Config
 // --------------------------------------------------
 // separate scales for table and balls
-// Dimensions aligned with Pool Royale for consistent feel
+// Dimensions enlarged for a roomier snooker table
 const BALL_SCALE = 1;
-const TABLE_SCALE = 1.15;
+const TABLE_SCALE = 1.3;
 const TABLE = {
   W: 66 * TABLE_SCALE,
   H: 132 * TABLE_SCALE,
@@ -1191,7 +1191,7 @@ export default function NewSnookerGame() {
 
   return (
     <div className="w-full h-[100vh] bg-black text-white overflow-hidden select-none">
-      <div ref={mountRef} className="absolute inset-y-0 left-0 w-[75%]" />
+      <div ref={mountRef} className="absolute inset-y-0 left-0 w-[80%]" />
 
       {err && (
         <div className="absolute inset-0 bg-black/80 text-white text-xs flex items-center justify-center p-4 z-50">

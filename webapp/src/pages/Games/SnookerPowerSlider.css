@@ -1,9 +1,9 @@
 /* Power Slider component styles */
 .ps {
-  /* resized to better match reference snooker slider */
-  --ps-width: 32px;
+  /* further slimmed slider for more table space */
+  --ps-width: 24px;
   --ps-height: 480px;
-  --ps-radius: 16px;
+  --ps-radius: 12px;
   --ps-track-bg: rgba(255, 255, 255, 0.15);
   --ps-gradient-low: #ffe066;
   --ps-gradient-mid: #ff8c00;
@@ -157,7 +157,7 @@
   margin-top: 12px;
   width: 100%;
   height: auto;
-  transform: translateX(6px);
+  transform: translateX(4px);
 }
 
 .ps .ps-tooltip {
