@@ -275,7 +275,8 @@ function Table3D(scene) {
   const railH = TABLE.THICK;
   const railW = TABLE.WALL;
   // Outer wooden frame around rails at same height
-  const FRAME_W = railW; // frame width matches rail width
+  // Make the side frame thicker so it lines up with the base
+  const FRAME_W = railW * 2; // wider wooden frame
   const frameShape = new THREE.Shape();
   frameShape.moveTo(-halfW - railW - FRAME_W, -halfH - railW - FRAME_W);
   frameShape.lineTo(halfW + railW + FRAME_W, -halfH - railW - FRAME_W);
@@ -346,12 +347,11 @@ function Table3D(scene) {
   addRail(rightX, halfH - POCKET_VIS_R - vertSeg / 2, vertSeg, false);
   // Base slab under the rails
   const baseH = TABLE.THICK * 3;
+  // Base extends to match the wider frame dimensions
+  const baseW = TABLE.W + 2 * (railW + FRAME_W);
+  const baseD = TABLE.H + 2 * (railW + FRAME_W);
   const base = new THREE.Mesh(
-    new THREE.BoxGeometry(
-      TABLE.W + TABLE.WALL * 4,
-      baseH,
-      TABLE.H + TABLE.WALL * 4
-    ),
+    new THREE.BoxGeometry(baseW, baseH, baseD),
     railMat
   );
   base.position.y = -TABLE.THICK - baseH / 2;
@@ -360,11 +360,12 @@ function Table3D(scene) {
   scene.add(base);
   // Legs supporting the table
   const legH = baseH * 4;
-  const legR = TABLE.WALL * 0.6;
-  const legGeo = new THREE.CylinderGeometry(legR, legR, legH, 24);
+  // Square, chunkier legs for a sturdier look
+  const legSize = TABLE.WALL * 1.2;
+  const legGeo = new THREE.BoxGeometry(legSize, legH, legSize);
   const legY = -TABLE.THICK - baseH - legH / 2;
-  const legOffsetX = (TABLE.W + TABLE.WALL * 2) / 2 - legR;
-  const legOffsetZ = (TABLE.H + TABLE.WALL * 2) / 2 - legR;
+  const legOffsetX = baseW / 2 - legSize / 2;
+  const legOffsetZ = baseD / 2 - legSize / 2;
   [
     [-legOffsetX, -legOffsetZ],
     [legOffsetX, -legOffsetZ],
