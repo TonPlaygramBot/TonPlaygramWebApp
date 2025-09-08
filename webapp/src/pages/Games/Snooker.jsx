@@ -350,11 +350,10 @@ function Table3D(scene) {
   addRail(leftX, halfH - POCKET_VIS_R - vertSeg / 2, vertSeg, false);
   addRail(rightX, -halfH + POCKET_VIS_R + vertSeg / 2, vertSeg, false);
   addRail(rightX, halfH - POCKET_VIS_R - vertSeg / 2, vertSeg, false);
-  // Base slab under the rails
+  // Base slab under the rails (keeps original footprint while top grew 20%)
   const baseH = TABLE.THICK * 3.5;
-  // Base extends to match the wider frame dimensions
-  const baseW = TABLE.W + 2 * (railW + FRAME_W);
-  const baseD = TABLE.H + 2 * (railW + FRAME_W);
+  const baseW = TABLE.W / TABLE_SCALE + 2 * (railW + FRAME_W);
+  const baseD = TABLE.H / TABLE_SCALE + 2 * (railW + FRAME_W);
   const base = new THREE.Mesh(
     new THREE.BoxGeometry(baseW, baseH, baseD),
     railMat
@@ -363,14 +362,14 @@ function Table3D(scene) {
   base.castShadow = true;
   base.receiveShadow = true;
   table.add(base);
-  // Legs supporting the table
+
+  // Legs supporting the table (cylindrical, tucked under base)
   const legH = baseH * 4;
-  // Square, chunkier legs for a sturdier look
-  const legSize = TABLE.WALL * 1.6;
-  const legGeo = new THREE.BoxGeometry(legSize, legH, legSize);
+  const legR = TABLE.WALL * 0.8;
+  const legGeo = new THREE.CylinderGeometry(legR, legR, legH, 24);
   const legY = -TABLE.THICK - baseH - legH / 2;
-  const legOffsetX = baseW / 2 - legSize / 2;
-  const legOffsetZ = baseD / 2 - legSize / 2;
+  const legOffsetX = baseW / 2 - legR * 1.2;
+  const legOffsetZ = baseD / 2 - legR * 1.2;
   [
     [-legOffsetX, -legOffsetZ],
     [legOffsetX, -legOffsetZ],
@@ -383,6 +382,7 @@ function Table3D(scene) {
     leg.receiveShadow = true;
     table.add(leg);
   });
+
   // Simple floor below everything
   const floor = new THREE.Mesh(
     new THREE.PlaneGeometry(TABLE.W * 6, TABLE.H * 6),
