@@ -277,12 +277,14 @@ function Table3D(scene) {
   // Outer wooden frame around rails at same height
   // Make the side frame thicker so it lines up with the base
   const FRAME_W = railW * 2.5; // wider wooden frame
+  const outerHalfW = halfW + 2 * railW + FRAME_W;
+  const outerHalfH = halfH + 2 * railW + FRAME_W;
   const frameShape = new THREE.Shape();
-  frameShape.moveTo(-halfW - railW - FRAME_W, -halfH - railW - FRAME_W);
-  frameShape.lineTo(halfW + railW + FRAME_W, -halfH - railW - FRAME_W);
-  frameShape.lineTo(halfW + railW + FRAME_W, halfH + railW + FRAME_W);
-  frameShape.lineTo(-halfW - railW - FRAME_W, halfH + railW + FRAME_W);
-  frameShape.lineTo(-halfW - railW - FRAME_W, -halfH - railW - FRAME_W);
+  frameShape.moveTo(-outerHalfW, -outerHalfH);
+  frameShape.lineTo(outerHalfW, -outerHalfH);
+  frameShape.lineTo(outerHalfW, outerHalfH);
+  frameShape.lineTo(-outerHalfW, outerHalfH);
+  frameShape.lineTo(-outerHalfW, -outerHalfH);
   const innerRect = new THREE.Path();
   innerRect.moveTo(-halfW - railW, -halfH - railW);
   innerRect.lineTo(halfW + railW, -halfH - railW);
@@ -296,7 +298,7 @@ function Table3D(scene) {
   });
   const frame = new THREE.Mesh(frameGeo, railMat);
   frame.rotation.x = -Math.PI / 2;
-  frame.position.y = 0;
+  frame.position.y = -TABLE.THICK;
   frame.castShadow = true;
   frame.receiveShadow = true;
   scene.add(frame);
@@ -334,7 +336,7 @@ function Table3D(scene) {
     const cloth = new THREE.Mesh(clothGeo, cushionMat);
     cloth.position.y = railH * 0.5;
     group.add(cloth);
-    group.position.set(x, 0, z);
+    group.position.set(x, -TABLE.THICK, z);
     if (!horizontal) group.rotation.y = Math.PI / 2;
     scene.add(group);
   };
