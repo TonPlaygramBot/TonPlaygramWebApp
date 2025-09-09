@@ -158,10 +158,10 @@ const CAMERA = {
   fov: 44,
   near: 0.1,
   far: 4000,
-  minR: 95 * TABLE_SCALE,
+  minR: 85 * TABLE_SCALE,
   maxR: 420 * TABLE_SCALE,
   minPhi: 0.5,
-  phiMargin: 0.4
+  phiMargin: 0.6
 };
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const fitRadius = (camera, margin = 1.1) => {
@@ -171,7 +171,7 @@ const fitRadius = (camera, margin = 1.1) => {
     halfH = (TABLE.H / 2) * margin;
   const dzH = halfH / Math.tan(f / 2);
   const dzW = halfW / (Math.tan(f / 2) * a);
-  const r = Math.max(dzH, dzW) * 0.9; // nudge camera slightly closer
+  const r = Math.max(dzH, dzW) * 0.85; // nudge camera slightly closer
   return clamp(r, CAMERA.minR, CAMERA.maxR);
 };
 
@@ -272,7 +272,7 @@ function calcTarget(cue, dir, balls) {
 function Guret(parent, id, color, x, y) {
   const mesh = new THREE.Mesh(
     new THREE.SphereGeometry(BALL_R, 28, 28),
-    new THREE.MeshStandardMaterial({ color, roughness: 0.35, metalness: 0.05 })
+    new THREE.MeshStandardMaterial({ color, roughness: 0.2, metalness: 0.1 })
   );
   mesh.position.set(x, BALL_R, y);
   mesh.castShadow = true;
@@ -753,6 +753,7 @@ export default function NewSnookerGame() {
         powerPreference: 'high-performance'
       });
       renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
+      renderer.toneMapping = THREE.ACESFilmicToneMapping;
       renderer.shadowMap.enabled = true;
       renderer.shadowMap.type = THREE.PCFSoftShadowMap;
       // Ensure the canvas fills the host element so the table is centered and
@@ -926,6 +927,16 @@ export default function NewSnookerGame() {
       key.shadow.camera.top = d;
       key.shadow.camera.bottom = -d;
       scene.add(key);
+
+      const spotGroup = new THREE.Group();
+      [-20, 0, 20].forEach((x) => {
+        const spot = new THREE.SpotLight(0xffffff, 1.5, 300, Math.PI / 8, 0.4, 1);
+        spot.position.set(x, 120, 40);
+        spot.target.position.set(0, TABLE_Y, 0);
+        scene.add(spot.target);
+        spotGroup.add(spot);
+      });
+      scene.add(spotGroup);
 
       // Table
       const { centers, baulkZ, group: table } = Table3D(scene);
