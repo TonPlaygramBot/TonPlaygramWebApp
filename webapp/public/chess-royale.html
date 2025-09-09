@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+<title>Chess Royale</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Luckiest+Guy&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/chessboard.js/1.0.0/chessboard-1.0.0.min.css" integrity="sha512-hPXgC7EIgA6GrCVuVi//3yQt+P52ZS4nVrLOT9eFWx6tEN84ImU8vzBL6Rca2hY6M4ZaChkCGbdJrYzsa3sGdw==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+<style>
+  :root{--bg:#050812;--p1:#22c55e;--p2:#f59e0b;}
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+  html,body{height:100vh;height:100dvh;overscroll-behavior:none;}
+  body{margin:0;background:var(--bg);color:#e5e7eb;font-family:'Luckiest Guy','Comic Sans MS',cursive;overflow:hidden}
+  .ui{position:fixed;inset:0;}
+  .scoreboard{position:absolute;top:0;left:0;right:0;height:40px;display:flex;align-items:center;justify-content:center;pointer-events:none;}
+  .score{background:#0b1220;border:1px solid #233050;border-radius:12px;padding:6px 10px;display:flex;align-items:center;gap:8px;}
+  .badge{padding:2px 8px;border-radius:999px;font-weight:800;color:#fff;display:flex;align-items:center;gap:4px;}
+  .p1{background:var(--p1);}
+  .p2{background:var(--p2);}
+  .avatar{width:20px;height:20px;border-radius:50%;background-size:cover;background-position:center;display:flex;align-items:center;justify-content:center;font-size:16px;}
+  .badge.active{outline:2px solid #fff;}
+  .boardWrap{position:absolute;top:40px;bottom:0;left:0;right:0;display:flex;align-items:center;justify-content:center;}
+  #board{touch-action:none;}
+</style>
+</head>
+<body>
+<div class="ui">
+  <div class="scoreboard">
+    <div class="score" aria-live="polite">
+      <span id="p1" class="badge p1"><span id="p1Avatar" class="avatar"></span><span id="p1Name">P1</span></span>
+      <span>vs</span>
+      <span id="p2" class="badge p2"><span id="p2Avatar" class="avatar"></span><span id="p2Name">P2</span></span>
+    </div>
+  </div>
+  <div class="boardWrap">
+    <div id="board"></div>
+  </div>
+</div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/chess.js/1.0.0/chess.min.js" integrity="sha512-XQKnNVuMcZV8K4D4ew3Efr2E1VlzDq+W8sELpAo0P5NdQ4KJIp4jOSAmhpN6wX6Z1GDZCBoBPXaGNsq4CPGKiw==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/chessboard.js/1.0.0/chessboard-1.0.0.min.js" integrity="sha512-Q4G/n2xbYlR5c+EMF4iAfDdc0AGJi/7luWGINuD/7++UZ5EKeosFVJeFt3uTJS3BM4tiTn84qOD/4hE2lE8pzw==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+<script>
+  const params = new URLSearchParams(location.search);
+  const p1NameEl = document.getElementById('p1Name');
+  const p2NameEl = document.getElementById('p2Name');
+  const p1AvatarEl = document.getElementById('p1Avatar');
+  const p2AvatarEl = document.getElementById('p2Avatar');
+  const p1Badge = document.getElementById('p1');
+  const p2Badge = document.getElementById('p2');
+  const p1Name = params.get('name') || 'Player 1';
+  const p2Name = params.get('p2Name') || 'Player 2';
+  const avatarParam = params.get('avatar') || '😀';
+  const oppParam = params.get('p2Avatar') || '🤖';
+  p1NameEl.textContent = p1Name;
+  p2NameEl.textContent = p2Name;
+  function setAvatar(el,param){
+    if(param.startsWith('http') || param.startsWith('/')){
+      el.style.backgroundImage = `url(${param})`;
+      el.textContent='';
+    }else{
+      el.textContent=param;
+    }
+  }
+  setAvatar(p1AvatarEl, avatarParam);
+  setAvatar(p2AvatarEl, oppParam);
+
+  const game = new Chess();
+  const board = Chessboard('board', {
+    position: 'start',
+    draggable: true,
+    onDragStart: (source, piece) => {
+      if (game.game_over()) return false;
+      if ((game.turn() === 'w' && piece.startsWith('b')) || (game.turn() === 'b' && piece.startsWith('w'))) return false;
+    },
+    onDrop: (source, target) => {
+      const move = game.move({ from: source, to: target, promotion: 'q' });
+      if (move === null) return 'snapback';
+      board.position(game.fen());
+      updateTurn();
+    }
+  });
+  function updateTurn(){
+    if(game.turn()==='w'){
+      p1Badge.classList.add('active');
+      p2Badge.classList.remove('active');
+    }else{
+      p2Badge.classList.add('active');
+      p1Badge.classList.remove('active');
+    }
+    if(game.game_over()){
+      setTimeout(()=>alert('Game over'),10);
+    }
+  }
+  function resize(){
+    const size = Math.min(window.innerWidth, window.innerHeight - 40);
+    const boardEl = document.getElementById('board');
+    boardEl.style.width = boardEl.style.height = size + 'px';
+    board.resize();
+  }
+  window.addEventListener('resize', resize);
+  resize();
+  updateTurn();
+</script>
+</body>
+</html>
