@@ -98,7 +98,7 @@
 
 .ps .ps-power-bar {
   position: absolute;
-  border: 1px solid #000;
+  border: none;
   box-sizing: border-box;
   overflow: hidden;
   pointer-events: none;
@@ -150,7 +150,7 @@
   position: absolute;
   top: -20px;
   left: 50%;
-  transform: translateX(-50%);
+  transform: translateX(-45%);
   font-size: 14px;
   color: #fff;
   line-height: 1;
