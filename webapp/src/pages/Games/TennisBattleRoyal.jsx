@@ -4,6 +4,7 @@ import * as THREE from "three";
 import useTelegramBackButton from '../../hooks/useTelegramBackButton.js';
 import { getTelegramPhotoUrl, getTelegramUsername } from '../../utils/telegram.js';
 import { loadAvatar } from '../../utils/avatarUtils.js';
+import { buildRacket as buildDetailedRacket, buildTennisBall as buildDetailedBall } from '../../utils/tennisGear.js';
 
 // ========================== Config ==========================
 const CAM = { fov: 55, near: 0.1, far: 5000, phiMin: 0.75, phiMax: 1.35, minR: 80, maxR: 240 };
@@ -41,38 +42,6 @@ const UI = {
 // ===================== Helpers (geo/materials) =====================
 const mat = (c, r=0.9, m=0.08)=> new THREE.MeshStandardMaterial({ color:c, roughness:r, metalness:m });
 const box = (w,h,d,c)=> new THREE.Mesh(new THREE.BoxGeometry(w,h,d), mat(c));
-
-function drawHex(ctx, cx, cy, r){
-  ctx.beginPath();
-  for(let i=0;i<6;i++){
-    const a = Math.PI/3*i;
-    const x = cx + r*Math.cos(a);
-    const y = cy + r*Math.sin(a);
-    if(i===0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
-  }
-  ctx.closePath();
-  ctx.stroke();
-}
-
-function hexTexture(color = '#888', size = 128, repeat = 8) {
-  const canvas = document.createElement('canvas');
-  canvas.width = canvas.height = size;
-  const ctx = canvas.getContext('2d');
-  ctx.strokeStyle = color;
-  ctx.lineWidth = 1.5;
-  const r = size / 20;
-  const h = Math.sin(Math.PI / 3) * r;
-  for (let y = -h; y < size + h; y += h * 2) {
-    for (let x = -r; x < size + r; x += r * 1.5) {
-      const offset = Math.round(y / h) % 2 ? r * 0.75 : 0;
-      drawHex(ctx, x + offset, y + r, r);
-    }
-  }
-  const tex = new THREE.CanvasTexture(canvas);
-  tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
-  tex.repeat.set(repeat, repeat);
-  return tex;
-}
 
 // Lines helper (white stripes on court)
 function lineRect(scene, x, z, w, d){
@@ -126,23 +95,13 @@ function buildCourt(scene){
 
 // ================= Physics & game state =================
 function makeBall(scene) {
-  const group = new THREE.Group();
-  const core = new THREE.Mesh(
-    new THREE.SphereGeometry(1.2, 32, 32),
-    mat(0xffe94d, 0.5, 0.3)
-  );
-  const stripeMat = mat(0xffffff, 0.4, 0.1);
-  const seamGeo = new THREE.TorusGeometry(1.2, 0.08, 16, 64, Math.PI * 0.9);
-  const stripe1 = new THREE.Mesh(seamGeo, stripeMat);
-  stripe1.rotation.set(Math.PI / 2, 0, Math.PI / 4);
-  const stripe2 = stripe1.clone();
-  stripe2.rotation.z = -Math.PI / 4;
-  group.add(core, stripe1, stripe2);
-  group.scale.set(2.5, 2.5, 2.5);
-  group.position.set(0, 6, 0);
-  scene.add(group);
+  const mesh = buildDetailedBall();
+  const scale = 3 / (6.7 / 2); // match previous ball radius (~3 units)
+  mesh.scale.setScalar(scale);
+  mesh.position.set(0, 6, 0);
+  scene.add(mesh);
   return {
-    mesh: group,
+    mesh,
     pos: new THREE.Vector3(0, 6, 0),
     vel: new THREE.Vector3(),
     spin: new THREE.Vector3(),
@@ -151,36 +110,21 @@ function makeBall(scene) {
 }
 
 function makeRacket(scene, color) {
-  const group = new THREE.Group();
-  const headRadius = 3.5;
-  const head = new THREE.Mesh(
-    new THREE.TorusGeometry(headRadius, 0.25, 16, 32),
-    mat(color)
-  );
-  head.rotation.x = Math.PI / 2;
-  head.position.set(headRadius, 4, 0);
-
-  const grip = new THREE.Mesh(
-    new THREE.CylinderGeometry(0.25, 0.4, 3.5, 8),
-    mat(color)
-  );
-  grip.position.y = 1.75;
-
-  const throat = new THREE.Mesh(
-    new THREE.CylinderGeometry(0.2, 0.2, headRadius + 1, 8),
-    mat(color)
-  );
-  throat.position.set(headRadius / 2, 3, 0);
-  throat.rotation.z = -0.4;
-
-  const strings = new THREE.Mesh(
-    new THREE.CircleGeometry(headRadius - 0.9, 40),
-    new THREE.MeshBasicMaterial({ map: hexTexture(undefined, 128, 12), transparent: true })
-  );
-  strings.rotation.x = Math.PI / 2;
-  strings.position.set(headRadius, 4, 0);
-
-  group.add(head, grip, throat, strings);
+  const group = buildDetailedRacket();
+  group.rotation.y = Math.PI / 2;
+  const box0 = new THREE.Box3().setFromObject(group);
+  const scale = 7.65 / box0.getSize(new THREE.Vector3()).x;
+  group.scale.setScalar(scale);
+  const box = new THREE.Box3().setFromObject(group);
+  group.position.x -= box.min.x;
+  group.position.y -= box.min.y;
+  group.position.z -= (box.min.z + box.max.z) / 2;
+  group.traverse((obj) => {
+    if (obj.isMesh) {
+      obj.material = obj.material.clone();
+      obj.material.color.set(color);
+    }
+  });
   scene.add(group);
   return { group };
 }
