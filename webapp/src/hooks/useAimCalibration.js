@@ -18,10 +18,10 @@ function save(cfg) {
 
 export function useAimCalibration() {
   const [cfg, setCfg] = useState(() => ({
-    invertX: false,
-    invertY: false,
-    swap: false,
-    ...load()
+    ...load(),
+    invertX: true,
+    invertY: true,
+    swap: true
   }));
 
   useEffect(() => {
