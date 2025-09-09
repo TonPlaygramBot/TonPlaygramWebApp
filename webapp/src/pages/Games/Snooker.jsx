@@ -169,7 +169,7 @@ function calcTarget(cue, dir, balls) {
       .sub(n.clone().multiplyScalar(2 * dir.dot(n)))
       .normalize();
   }
-  return { impact, afterDir };
+  return { impact, afterDir, targetBall, railNormal };
 }
 
 // --------------------------------------------------
@@ -420,8 +420,7 @@ function Table3D(scene) {
   floor.receiveShadow = true;
   table.add(floor);
 
-  // Arena walls with scrolling advertisement boards
-  const adTextures = [];
+  // Arena walls without billboards (only two sides visible)
   const arena = new THREE.Group();
   const arenaW = TABLE.W * 6;
   const arenaD = TABLE.H * 6;
@@ -431,27 +430,12 @@ function Table3D(scene) {
     roughness: 0.8,
     side: THREE.FrontSide
   });
-  const adTex = new THREE.TextureLoader().load(
-    '/assets/icons/goal_rush_card_1200x675.webp'
-  );
-  adTex.wrapS = THREE.RepeatWrapping;
-  adTex.repeat.set(2, 1);
-  const adMat = new THREE.MeshBasicMaterial({
-    map: adTex,
-    side: THREE.FrontSide
-  });
-  adTextures.push(adTex);
 
   const makeWall = (w) => {
     const g = new THREE.Group();
     const wall = new THREE.Mesh(new THREE.PlaneGeometry(w, wallH), wallMat);
     wall.position.y = wallH / 2;
     g.add(wall);
-    const ad = new THREE.Mesh(new THREE.PlaneGeometry(w, wallH / 2), adMat);
-    ad.position.y = wallH / 2;
-    ad.position.z = 0.01; // billboard slightly in front
-    ad.lookAt(0, wallH / 2, 0); // face table centre
-    g.add(ad);
     g.position.y = floor.position.y; // stand directly on carpet
     return g;
   };
@@ -461,13 +445,7 @@ function Table3D(scene) {
   const south = makeWall(arenaW);
   south.position.z = arenaD / 2;
   south.rotation.y = Math.PI;
-  const west = makeWall(arenaD);
-  west.position.x = -arenaW / 2;
-  west.rotation.y = Math.PI / 2;
-  const east = makeWall(arenaD);
-  east.position.x = arenaW / 2;
-  east.rotation.y = -Math.PI / 2;
-  arena.add(north, south, east, west);
+  arena.add(north, south);
   table.add(arena);
   // Markings: baulk, D, spots
   // Baulk line is measured from the bottom cushion along table length
@@ -520,7 +498,7 @@ function Table3D(scene) {
   spot(0, halfH - PLAY_H * 0.09);
   scene.add(table);
   table.position.y = TABLE_Y;
-  return { centers: pocketCenters(), baulkZ, group: table, ads: adTextures };
+  return { centers: pocketCenters(), baulkZ, group: table };
 }
 
 // --------------------------------------------------
@@ -827,12 +805,7 @@ export default function NewSnookerGame() {
       scene.add(key);
 
       // Table
-      const {
-        centers,
-        baulkZ,
-        group: table,
-        ads: adTextures
-      } = Table3D(scene);
+      const { centers, baulkZ, group: table } = Table3D(scene);
 
       // Balls (ONLY Guret)
       const balls = [];
@@ -867,10 +840,8 @@ export default function NewSnookerGame() {
       );
 
       // Aiming visuals
-      const aimMat = new THREE.LineDashedMaterial({
+      const aimMat = new THREE.LineBasicMaterial({
         color: 0xffffff,
-        dashSize: 0.5,
-        gapSize: 0.5,
         linewidth: 2,
         transparent: true,
         opacity: 0.9
@@ -881,7 +852,6 @@ export default function NewSnookerGame() {
       ]);
       const aim = new THREE.Line(aimGeom, aimMat);
       aim.visible = false;
-      aim.computeLineDistances();
       table.add(aim);
       const tickGeom = new THREE.BufferGeometry().setFromPoints([
         new THREE.Vector3(),
@@ -909,8 +879,20 @@ export default function NewSnookerGame() {
         })
       );
       target.visible = false;
-      target.computeLineDistances();
       table.add(target);
+
+      // Cue image
+      const cueTex = new THREE.TextureLoader().load(
+        '/assets/icons/file_0000000019d86243a2f7757076cd7869.webp'
+      );
+      const cueLen = BALL_R * 20;
+      const cueMesh = new THREE.Mesh(
+        new THREE.PlaneGeometry(cueLen, BALL_R),
+        new THREE.MeshBasicMaterial({ map: cueTex, transparent: true })
+      );
+      cueMesh.rotation.x = -Math.PI / 2;
+      cueMesh.visible = false;
+      table.add(cueMesh);
 
       // Pointer → XZ plane
       const pointer = new THREE.Vector2();
@@ -1133,12 +1115,18 @@ export default function NewSnookerGame() {
       const step = () => {
         // Aiming vizual
         if (allStopped(balls) && !hud.inHand && cue?.active && !hud.over) {
-          const { impact, afterDir } = calcTarget(cue, aimDir, balls);
+          const { impact, afterDir, targetBall, railNormal } = calcTarget(
+            cue,
+            aimDir,
+            balls
+          );
           const start = new THREE.Vector3(cue.pos.x, BALL_R, cue.pos.y);
           const end = new THREE.Vector3(impact.x, BALL_R, impact.y);
           aimGeom.setFromPoints([start, end]);
           aim.visible = true;
-          aim.computeLineDistances();
+          aim.material.color.set(
+            targetBall && !railNormal ? 0xffff00 : 0xffffff
+          );
           const dir = new THREE.Vector3(
             end.x - start.x,
             0,
@@ -1150,6 +1138,14 @@ export default function NewSnookerGame() {
             end.clone().add(perp.clone().multiplyScalar(-1.4))
           ]);
           tick.visible = true;
+          const pull = powerRef.current * BALL_R * 10;
+          cueMesh.position.set(
+            cue.pos.x - dir.x * (cueLen / 2 + pull + BALL_R),
+            BALL_R,
+            cue.pos.y - dir.z * (cueLen / 2 + pull + BALL_R)
+          );
+          cueMesh.rotation.y = Math.atan2(dir.x, dir.z);
+          cueMesh.visible = true;
           if (afterDir) {
             const tEnd = new THREE.Vector3(
               end.x + afterDir.x * 30,
@@ -1166,6 +1162,7 @@ export default function NewSnookerGame() {
           aim.visible = false;
           tick.visible = false;
           target.visible = false;
+          cueMesh.visible = false;
         }
 
         // Fizika
@@ -1230,9 +1227,6 @@ export default function NewSnookerGame() {
           const any = balls.some((b) => b.active && b.vel.length() >= STOP_EPS);
           if (!any) resolve();
         }
-        adTextures.forEach((t) => {
-          t.offset.x -= 0.01;
-        });
         renderer.render(scene, camera);
         rafRef.current = requestAnimationFrame(step);
       };
