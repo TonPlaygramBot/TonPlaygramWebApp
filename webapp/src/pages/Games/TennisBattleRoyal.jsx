@@ -38,6 +38,9 @@ const UI = {
   swingChargeRate: 0.9,  // per second
 };
 
+const BALL_EMOJI = '🎾';
+const RACKET_EMOJI = '🎾';
+
 // ===================== Helpers (geo/materials) =====================
 const mat = (c, r=0.9, m=0.08)=> new THREE.MeshStandardMaterial({ color:c, roughness:r, metalness:m });
 const box = (w,h,d,c)=> new THREE.Mesh(new THREE.BoxGeometry(w,h,d), mat(c));
@@ -107,12 +110,12 @@ function buildCourt(scene){
 
 // ================= Physics & game state =================
 function makeBall(scene){
-  const mesh = emojiSprite('🎾', 0xffffff, 128); mesh.scale.set(3,3,1); mesh.position.set(0,6,0); scene.add(mesh);
+  const mesh = emojiSprite(BALL_EMOJI, 0xffffff, 128); mesh.scale.set(3,3,1); mesh.position.set(0,6,0); scene.add(mesh);
   return { mesh, pos: new THREE.Vector3(0,6,0), vel: new THREE.Vector3(), spin: new THREE.Vector3(0,0,0), alive: true };
 }
 
 function makeRacket(scene, color){
-  const sprite = emojiSprite('🎾', color, 256); sprite.scale.set(8,8,1); scene.add(sprite);
+  const sprite = emojiSprite(RACKET_EMOJI, color, 256); sprite.scale.set(8,8,1); scene.add(sprite);
   return { group: sprite };
 }
 
@@ -121,7 +124,7 @@ const SCORE_MAP = [0,15,30,40];
 function ScorePanel({ hud, pAvatar, pName, aAvatar, aName }){
   const point = i => SCORE_MAP[Math.min(i,3)] ?? 40;
   return (
-    <div className="absolute top-2 left-0 right-0 flex justify-center z-10 pointer-events-none">
+    <div className="absolute top-2 left-0 right-0 flex justify-center z-50 pointer-events-none">
       <div className="flex items-center gap-4 bg-black/70 text-white rounded px-4 py-2">
         <div className="flex flex-col items-center gap-1">
           <img src={pAvatar} alt="You" className="w-8 h-8 rounded-full" />
@@ -190,6 +193,7 @@ function Tennis3D({ pAvatar, pName }){
       renderer.domElement.style.left = '0';
       renderer.domElement.style.width = '100%';
       renderer.domElement.style.height = '100%';
+      renderer.domElement.style.zIndex = '0';
       host.appendChild(renderer.domElement);
 
       scene = new THREE.Scene(); scene.background = new THREE.Color(COLORS.crowd);
