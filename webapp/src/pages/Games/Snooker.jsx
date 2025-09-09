@@ -134,7 +134,8 @@ const POCKET_R = BALL_R * 2; // pockets twice the ball radius
 // slightly larger visual radius so rails align with pocket rings
 const POCKET_VIS_R = POCKET_R / 0.85;
 // higher value -> less energy loss each frame for more realistic roll
-const FRICTION = 0.995;
+// reduced friction so balls retain more speed during play
+const FRICTION = 0.998;
 const STOP_EPS = 0.02;
 const CAPTURE_R = POCKET_R; // pocket capture radius
 const TABLE_Y = -2; // vertical offset to lower entire table
@@ -1150,8 +1151,8 @@ export default function NewSnookerGame() {
         clearInterval(timerRef.current);
         const base = aimDir
           .clone()
-          // restore original shot impulse for consistent ball speed
-          .multiplyScalar(4.2 * (0.48 + powerRef.current * 1.52));
+          // reduce maximum cue power for a gentler shot
+          .multiplyScalar(2.1 * (0.48 + powerRef.current * 1.52));
         cue.vel.copy(base);
       };
       fireRef.current = fire;
