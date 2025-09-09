@@ -1,0 +1,236 @@
+/* Snooker-specific Power Slider component styles */
+.sps {
+  /* make snooker slider shorter and thinner */
+  --sps-width: 36px;
+  --sps-height: 420px;
+  --sps-radius: 18px;
+  --sps-track-bg: rgba(255, 255, 255, 0.15);
+  --sps-gradient-low: #ffe066;
+  --sps-gradient-mid: #ff8c00;
+  --sps-gradient-high: #ff0033;
+  --sps-tick: rgba(0, 0, 0, 0.35);
+  --sps-glow: rgba(255, 0, 0, 0.6);
+  --sps-tooltip-bg: rgba(0, 0, 0, 0.8);
+  --sps-tooltip-color: #fff;
+
+  position: relative;
+  width: var(--sps-width);
+  height: var(--sps-height);
+  border-radius: var(--sps-radius);
+  background: var(--sps-track-bg);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+  overflow: visible;
+  user-select: none;
+  touch-action: none;
+  /* removed extra scale so dimensions match pool game */
+  transform: scale(1);
+  transform-origin: top left;
+}
+
+.sps .sps-track {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: linear-gradient(
+    to bottom,
+    var(--sps-gradient-low) 0%,
+    var(--sps-gradient-mid) 50%,
+    var(--sps-gradient-high) 100%
+  );
+}
+
+/* left gloss */
+.sps .sps-track::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 8px;
+  background: linear-gradient(
+    to bottom,
+    rgba(255, 255, 255, 0.5),
+    rgba(255, 255, 255, 0)
+  );
+  pointer-events: none;
+}
+
+/* ticks */
+.sps .sps-track::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  right: 0;
+  width: 8px;
+  background:
+    repeating-linear-gradient(
+      to bottom,
+      transparent 0 calc(10% - 1px),
+      var(--sps-tick) calc(10% - 1px) 10%
+    ),
+    linear-gradient(
+      to bottom,
+      transparent calc(25% - 1.5px),
+      var(--sps-tick) calc(25% - 1.5px) calc(25% + 1.5px),
+      transparent calc(25% + 1.5px)
+    ),
+    linear-gradient(
+      to bottom,
+      transparent calc(50% - 1.5px),
+      var(--sps-tick) calc(50% - 1.5px) calc(50% + 1.5px),
+      transparent calc(50% + 1.5px)
+    ),
+    linear-gradient(
+      to bottom,
+      transparent calc(75% - 1.5px),
+      var(--sps-tick) calc(75% - 1.5px) calc(75% + 1.5px),
+      transparent calc(75% + 1.5px)
+    ),
+    linear-gradient(
+      to bottom,
+      transparent calc(100% - 3px),
+      var(--sps-tick) calc(100% - 3px) 100%
+    ),
+    linear-gradient(to bottom, var(--sps-tick) 0 3px, transparent 3px);
+  pointer-events: none;
+}
+
+.sps .sps-power-bar {
+  position: absolute;
+  border: 1px solid #000;
+  box-sizing: border-box;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.sps .sps-power-bar-fill {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  clip-path: inset(0 0 100% 0);
+  background:
+    repeating-linear-gradient(
+      to bottom,
+      transparent 0 calc(10% - 1px),
+      #000 calc(10% - 1px) 10%
+    ),
+    linear-gradient(
+      to bottom,
+      var(--sps-gradient-low) 0%,
+      var(--sps-gradient-high) 100%
+    );
+  pointer-events: none;
+}
+
+.sps .sps-handle {
+  position: absolute;
+  top: 0;
+  left: 100%;
+  transform: translate(0, 0);
+  transition: transform 0.15s ease;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: calc(var(--sps-width) * 0.8657);
+  border-radius: 6px;
+  background: linear-gradient(
+    to bottom,
+    var(--sps-gradient-low),
+    var(--sps-gradient-high)
+  );
+  padding: 7.2px 2.4px;
+  pointer-events: auto;
+  z-index: 1;
+}
+
+.sps .sps-handle-text {
+  font-size: 14px;
+  color: #fff;
+  line-height: 1;
+  transform: translate(-1px, 0px);
+}
+
+.sps .sps-cue-img {
+  margin-top: 12px;
+  width: 100%;
+  height: auto;
+  transform: translateX(9.6px);
+}
+
+.sps .sps-tooltip {
+  position: absolute;
+  top: 0;
+  left: 100%;
+  transform: translate(0, 0);
+  background: var(--sps-tooltip-bg);
+  color: var(--sps-tooltip-color);
+  font-size: 12px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  white-space: nowrap;
+  transform-origin: 50% 100%;
+  transition:
+    transform 0.15s ease,
+    opacity 0.15s ease;
+  pointer-events: none;
+}
+
+.sps.sps-hot {
+  box-shadow:
+    0 0 12px var(--sps-glow),
+    0 4px 12px rgba(0, 0, 0, 0.25);
+}
+
+.sps.sps-no-animate .sps-handle,
+.sps.sps-no-animate .sps-tooltip {
+  transition: none !important;
+}
+
+.sps.sps-locked {
+  opacity: 0.5;
+  pointer-events: none;
+}
+
+.sps .sps-label {
+  position: absolute;
+  right: 100%;
+  margin-right: calc(var(--sps-width) * 0.0746);
+  font-size: 12px;
+  color: var(--sps-tooltip-color);
+  user-select: none;
+}
+
+.sps .sps-label-0 {
+  bottom: 0;
+  transform: translateY(50%);
+}
+.sps .sps-label-50 {
+  top: 50%;
+  transform: translateY(-50%);
+}
+.sps .sps-label-100 {
+  top: 0;
+  transform: translateY(-50%);
+}
+
+.sps:focus-visible {
+  outline: 2px solid var(--sps-tooltip-color);
+  outline-offset: 2px;
+}
+
+.sps.sps-theme-dark {
+  --sps-track-bg: rgba(0, 0, 0, 0.5);
+  --sps-tick: rgba(255, 255, 255, 0.4);
+  --sps-tooltip-bg: rgba(255, 255, 255, 0.9);
+  --sps-tooltip-color: #000;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sps .sps-handle,
+  .sps .sps-tooltip {
+    transition: none !important;
+  }
+}
