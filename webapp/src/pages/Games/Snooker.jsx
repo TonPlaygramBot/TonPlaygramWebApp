@@ -64,7 +64,7 @@ const CAMERA = {
   fov: 44,
   near: 0.1,
   far: 4000,
-  minR: 95 * TABLE_SCALE,
+  minR: 80 * TABLE_SCALE,
   maxR: 420 * TABLE_SCALE,
   minPhi: 0.5,
   phiMargin: 0.4
@@ -77,7 +77,7 @@ const fitRadius = (camera, margin = 1.1) => {
     halfH = (TABLE.H / 2) * margin;
   const dzH = halfH / Math.tan(f / 2);
   const dzW = halfW / (Math.tan(f / 2) * a);
-  const r = Math.max(dzH, dzW) * 0.95; // slightly closer to the action
+  const r = Math.max(dzH, dzW) * 0.9; // bring camera a bit nearer
   return clamp(r, CAMERA.minR, CAMERA.maxR);
 };
 
@@ -273,11 +273,12 @@ function Table3D(scene) {
     roughness: 0.8
   });
   const cushionMat = new THREE.MeshStandardMaterial({
-    color: 0x106b34, // slightly darker than the cloth
+    color: 0x0f6a33, // cushion green a touch darker than cloth
     metalness: 0.2,
-    roughness: 0.9
+    roughness: 0.9,
+    side: THREE.DoubleSide
   });
-  const railH = TABLE.THICK * 1.5; // raise rails and cushions a bit
+  const railH = TABLE.THICK * 1.7; // raise rails and cushions slightly
   const railW = TABLE.WALL * 0.5; // thinner side rails
   // Outer wooden frame around rails at same height
   // Make the side frame thicker so it lines up with the base
@@ -337,7 +338,7 @@ function Table3D(scene) {
     wood.rotation.x = -Math.PI / 2; // lay wood horizontally
     group.add(wood);
     const clothGeo = railGeometry(len);
-    clothGeo.scale(1, 0.7, 0.7); // beefier cushion
+    clothGeo.scale(1, 1, 0.7); // beefier cushion covering side rails
     const cloth = new THREE.Mesh(clothGeo, cushionMat);
     cloth.rotation.x = -Math.PI / 2; // green faces play field
     const clothOffset = TABLE.THICK - railH * 0.7;
@@ -652,13 +653,17 @@ export default function NewSnookerGame() {
       );
       // Start behind baulk colours
       const sph = new THREE.Spherical(
-        180 * TABLE_SCALE,
+        160 * TABLE_SCALE,
         1.0 /*phi ~57°*/,
         Math.PI
       );
-      const fit = (m = 1.1) => {
+      let cue; // reference for camera targeting
+      const fit = (m = 1.1, keep = false) => {
         camera.aspect = host.clientWidth / host.clientHeight;
-        sph.radius = fitRadius(camera, m);
+        const fitR = fitRadius(camera, m);
+        sph.radius = keep
+          ? clamp(sph.radius, CAMERA.minR, CAMERA.maxR)
+          : fitR;
         const phiCap = Math.acos(
           THREE.MathUtils.clamp(-0.95 / sph.radius, -1, 1)
         );
@@ -667,13 +672,16 @@ export default function NewSnookerGame() {
           CAMERA.minPhi,
           Math.min(phiCap, Math.PI - CAMERA.phiMargin)
         );
-        const target = new THREE.Vector3(0, TABLE_Y, 0);
+        const targetCue = cue
+          ? new THREE.Vector3(cue.pos.x, TABLE_Y, cue.pos.y)
+          : new THREE.Vector3(0, TABLE_Y, 0);
         if (topViewRef.current) {
+          const center = new THREE.Vector3(0, TABLE_Y, 0);
           camera.position.set(0, sph.radius, 0);
-          camera.lookAt(target);
+          camera.lookAt(center);
         } else {
-          camera.position.setFromSpherical(sph).add(target);
-          camera.lookAt(target);
+          camera.position.setFromSpherical(sph).add(targetCue);
+          camera.lookAt(targetCue);
         }
         camera.updateProjectionMatrix();
       };
@@ -725,7 +733,8 @@ export default function NewSnookerGame() {
               ? 1.05
               : window.innerHeight > window.innerWidth
                 ? 1.2
-                : 1.0
+                : 1.0,
+            true
           );
           return;
         }
@@ -742,7 +751,12 @@ export default function NewSnookerGame() {
           CAMERA.minPhi,
           Math.PI - CAMERA.phiMargin
         );
-        fit(window.innerHeight > window.innerWidth ? 1.2 : 1.0);
+        sph.radius = clamp(
+          sph.radius - dy * 0.25,
+          CAMERA.minR,
+          CAMERA.maxR
+        );
+        fit(window.innerHeight > window.innerWidth ? 1.2 : 1.0, true);
       };
       const up = () => {
         drag.on = false;
@@ -759,7 +773,8 @@ export default function NewSnookerGame() {
             ? 1.05
             : window.innerHeight > window.innerWidth
               ? 1.2
-              : 1.0
+              : 1.0,
+          true
         );
       };
       dom.addEventListener('mousedown', down);
@@ -787,7 +802,7 @@ export default function NewSnookerGame() {
             Math.PI - CAMERA.phiMargin
           );
         else return;
-        fit(window.innerHeight > window.innerWidth ? 1.2 : 1.0);
+        fit(window.innerHeight > window.innerWidth ? 1.2 : 1.0, true);
       };
       window.addEventListener('keydown', keyRot);
 
@@ -816,7 +831,7 @@ export default function NewSnookerGame() {
         balls.push(b);
         return b;
       };
-      let cue = add('cue', COLORS.cue, -BALL_R * 2, baulkZ);
+      cue = add('cue', COLORS.cue, -BALL_R * 2, baulkZ);
       // reds triangle toward top side
       let rid = 0;
       const bz = PLAY_H * 0.25,
@@ -1235,6 +1250,14 @@ export default function NewSnookerGame() {
           const any = balls.some((b) => b.active && b.vel.length() >= STOP_EPS);
           if (!any) resolve();
         }
+        if (!drag.on) {
+          sph.theta = Math.atan2(aimDir.x, aimDir.y) + Math.PI;
+        }
+        const cueTarget = cue
+          ? new THREE.Vector3(cue.pos.x, TABLE_Y, cue.pos.y)
+          : new THREE.Vector3(0, TABLE_Y, 0);
+        camera.position.setFromSpherical(sph).add(cueTarget);
+        camera.lookAt(cueTarget);
         renderer.render(scene, camera);
         rafRef.current = requestAnimationFrame(step);
       };
@@ -1250,7 +1273,8 @@ export default function NewSnookerGame() {
             ? 1.05
             : window.innerHeight > window.innerWidth
               ? 1.2
-              : 1.0
+              : 1.0,
+          true
         );
       };
       window.addEventListener('resize', onResize);
