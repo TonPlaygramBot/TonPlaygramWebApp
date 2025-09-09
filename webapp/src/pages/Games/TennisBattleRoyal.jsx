@@ -54,23 +54,23 @@ function drawHex(ctx, cx, cy, r){
   ctx.stroke();
 }
 
-function hexTexture(color='#888', size=128){
+function hexTexture(color = '#888', size = 128, repeat = 8) {
   const canvas = document.createElement('canvas');
   canvas.width = canvas.height = size;
   const ctx = canvas.getContext('2d');
   ctx.strokeStyle = color;
-  ctx.lineWidth = 2;
-  const r = size/10;
-  const h = Math.sin(Math.PI/3)*r;
-  for(let y=-h; y<size+h; y+=h*2){
-    for(let x=-r; x<size+r; x+=r*1.5){
-      const offset = Math.round(y/h)%2 ? r*0.75 : 0;
-      drawHex(ctx, x+offset, y+r, r);
+  ctx.lineWidth = 1.5;
+  const r = size / 20;
+  const h = Math.sin(Math.PI / 3) * r;
+  for (let y = -h; y < size + h; y += h * 2) {
+    for (let x = -r; x < size + r; x += r * 1.5) {
+      const offset = Math.round(y / h) % 2 ? r * 0.75 : 0;
+      drawHex(ctx, x + offset, y + r, r);
     }
   }
   const tex = new THREE.CanvasTexture(canvas);
   tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
-  tex.repeat.set(4,4);
+  tex.repeat.set(repeat, repeat);
   return tex;
 }
 
@@ -125,38 +125,62 @@ function buildCourt(scene){
 }
 
 // ================= Physics & game state =================
-function makeBall(scene){
+function makeBall(scene) {
   const group = new THREE.Group();
-  const core = new THREE.Mesh(new THREE.SphereGeometry(1.2,32,32), mat(0xffe94d,0.5,0.3));
-  const stripeMat = mat(0xffffff,0.4,0.1);
-  const stripe1 = new THREE.Mesh(new THREE.TorusGeometry(1.2,0.08,16,64), stripeMat);
-  stripe1.rotation.set(Math.PI/2,0,0);
+  const core = new THREE.Mesh(
+    new THREE.SphereGeometry(1.2, 32, 32),
+    mat(0xffe94d, 0.5, 0.3)
+  );
+  const stripeMat = mat(0xffffff, 0.4, 0.1);
+  const seamGeo = new THREE.TorusGeometry(1.2, 0.08, 16, 64, Math.PI * 0.9);
+  const stripe1 = new THREE.Mesh(seamGeo, stripeMat);
+  stripe1.rotation.set(Math.PI / 2, 0, Math.PI / 4);
   const stripe2 = stripe1.clone();
-  stripe2.rotation.set(0,Math.PI/2,0);
-  group.add(core,stripe1,stripe2);
-  group.scale.set(3,3,3);
-  group.position.set(0,6,0);
+  stripe2.rotation.z = -Math.PI / 4;
+  group.add(core, stripe1, stripe2);
+  group.scale.set(2.5, 2.5, 2.5);
+  group.position.set(0, 6, 0);
   scene.add(group);
-  return { mesh: group, pos: new THREE.Vector3(0,6,0), vel: new THREE.Vector3(), spin: new THREE.Vector3(), alive: true };
+  return {
+    mesh: group,
+    pos: new THREE.Vector3(0, 6, 0),
+    vel: new THREE.Vector3(),
+    spin: new THREE.Vector3(),
+    alive: true,
+  };
 }
 
-function makeRacket(scene, color){
+function makeRacket(scene, color) {
   const group = new THREE.Group();
-  const head = new THREE.Mesh(new THREE.TorusGeometry(3,0.25,16,32), mat(color));
-  head.rotation.x = Math.PI/2; head.position.y = 4;
+  const headRadius = 3.5;
+  const head = new THREE.Mesh(
+    new THREE.TorusGeometry(headRadius, 0.25, 16, 32),
+    mat(color)
+  );
+  head.rotation.x = Math.PI / 2;
+  head.position.set(headRadius, 4, 0);
 
-  // Y-shaped throat
-  const grip = new THREE.Mesh(new THREE.CylinderGeometry(0.3,0.3,3.5,8), mat(color));
+  const grip = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.25, 0.4, 3.5, 8),
+    mat(color)
+  );
   grip.position.y = 1.75;
-  const throatL = new THREE.Mesh(new THREE.CylinderGeometry(0.15,0.15,2.2,8), mat(color));
-  throatL.position.set(-0.6,3.1,0); throatL.rotation.z = 0.4;
-  const throatR = throatL.clone(); throatR.position.x = 0.6; throatR.rotation.z = -0.4;
 
-  // Hexagonal string mesh
-  const strings = new THREE.Mesh(new THREE.CircleGeometry(2.6,40), new THREE.MeshBasicMaterial({ map: hexTexture(), transparent:true }));
-  strings.rotation.x = Math.PI/2; strings.position.y = 4;
+  const throat = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.2, 0.2, headRadius + 1, 8),
+    mat(color)
+  );
+  throat.position.set(headRadius / 2, 3, 0);
+  throat.rotation.z = -0.4;
 
-  group.add(head, grip, throatL, throatR, strings);
+  const strings = new THREE.Mesh(
+    new THREE.CircleGeometry(headRadius - 0.9, 40),
+    new THREE.MeshBasicMaterial({ map: hexTexture(undefined, 128, 12), transparent: true })
+  );
+  strings.rotation.x = Math.PI / 2;
+  strings.position.set(headRadius, 4, 0);
+
+  group.add(head, grip, throat, strings);
   scene.add(group);
   return { group };
 }
