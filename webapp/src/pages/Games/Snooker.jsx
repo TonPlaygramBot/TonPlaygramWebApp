@@ -273,11 +273,11 @@ function Table3D(scene) {
     roughness: 0.8
   });
   const cushionMat = new THREE.MeshStandardMaterial({
-    color: 0x106b34, // slightly darker than the cloth
+    color: 0x0f5a2e, // slightly darker than the cloth
     metalness: 0.2,
     roughness: 0.9
   });
-  const railH = TABLE.THICK * 1.5; // raise rails and cushions a bit
+  const railH = TABLE.THICK * 1.6; // raise rails and cushions a bit more
   const railW = TABLE.WALL * 0.5; // thinner side rails
   // Outer wooden frame around rails at same height
   // Make the side frame thicker so it lines up with the base
@@ -337,10 +337,10 @@ function Table3D(scene) {
     wood.rotation.x = -Math.PI / 2; // lay wood horizontally
     group.add(wood);
     const clothGeo = railGeometry(len);
-    clothGeo.scale(1, 0.7, 0.7); // beefier cushion
+    clothGeo.scale(1, 0.9, 0.9); // beefier cushion with exposed sides
     const cloth = new THREE.Mesh(clothGeo, cushionMat);
     cloth.rotation.x = -Math.PI / 2; // green faces play field
-    const clothOffset = TABLE.THICK - railH * 0.7;
+    const clothOffset = TABLE.THICK - railH * 0.9;
     cloth.position.y = clothOffset;
     group.add(cloth);
     group.position.set(x, -TABLE.THICK, z);
