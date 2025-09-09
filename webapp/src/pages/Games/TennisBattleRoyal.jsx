@@ -184,9 +184,18 @@ function Tennis3D({ pAvatar }){
         renderer.setSize(w, h, false);
         camera.aspect = w / h;
         camera.updateProjectionMatrix();
-        const needed = (COURT.L + COURT.BASE_MARGIN * 2) /
-          (2 * Math.tan(THREE.MathUtils.degToRad(CAM.fov) / 2));
-        sph.radius = Math.max(needed, sph.radius);
+
+        const fovRad = THREE.MathUtils.degToRad(CAM.fov);
+        const vNeeded = (COURT.L + COURT.BASE_MARGIN * 2) /
+          (2 * Math.tan(fovRad / 2));
+        const hFov = 2 * Math.atan(Math.tan(fovRad / 2) * camera.aspect);
+        const hNeeded = (COURT.W + COURT.BASE_MARGIN * 2) /
+          (2 * Math.tan(hFov / 2));
+        sph.radius = Math.min(
+          CAM.maxR,
+          Math.max(vNeeded, hNeeded, CAM.minR)
+        );
+
         camera.position.setFromSpherical(sph);
         camera.lookAt(camTarget);
       };
