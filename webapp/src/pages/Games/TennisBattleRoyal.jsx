@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from "react";
 import { useLocation } from 'react-router-dom';
 import * as THREE from "three";
 import useTelegramBackButton from '../../hooks/useTelegramBackButton.js';
-import { getTelegramPhotoUrl } from '../../utils/telegram.js';
+import { getTelegramPhotoUrl, getTelegramUsername } from '../../utils/telegram.js';
 import { loadAvatar } from '../../utils/avatarUtils.js';
 
 // ========================== Config ==========================
@@ -29,7 +29,6 @@ const COLORS = Object.freeze({
   tape: 0xf5f5f5,
   post: 0x7d7d7d,
   crowd: 0x0e0f12,
-  ball: 0xcedc00,
   player: 0x2563eb,
   ai: 0xef4444,
 });
@@ -42,7 +41,19 @@ const UI = {
 // ===================== Helpers (geo/materials) =====================
 const mat = (c, r=0.9, m=0.08)=> new THREE.MeshStandardMaterial({ color:c, roughness:r, metalness:m });
 const box = (w,h,d,c)=> new THREE.Mesh(new THREE.BoxGeometry(w,h,d), mat(c));
-const sph = (r,c)=> new THREE.Mesh(new THREE.SphereGeometry(r,24,20), mat(c,0.65,0));
+
+function emojiSprite(emoji, color, size = 128){
+  const canvas = document.createElement('canvas');
+  canvas.width = canvas.height = size;
+  const ctx = canvas.getContext('2d');
+  ctx.font = `${size * 0.8}px sans-serif`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(emoji, size / 2, size / 2);
+  const texture = new THREE.CanvasTexture(canvas);
+  const material = new THREE.SpriteMaterial({ map: texture, transparent: true, color });
+  return new THREE.Sprite(material);
+}
 
 // Lines helper (white stripes on court)
 function lineRect(scene, x, z, w, d){
@@ -96,32 +107,27 @@ function buildCourt(scene){
 
 // ================= Physics & game state =================
 function makeBall(scene){
-  const mesh = sph(1.2, COLORS.ball); mesh.position.set(0, 6, 0); mesh.castShadow=true; scene.add(mesh);
+  const mesh = emojiSprite('🎾', 0xffffff, 128); mesh.scale.set(3,3,1); mesh.position.set(0,6,0); scene.add(mesh);
   return { mesh, pos: new THREE.Vector3(0,6,0), vel: new THREE.Vector3(), spin: new THREE.Vector3(0,0,0), alive: true };
 }
 
 function makeRacket(scene, color){
-  const g = new THREE.Group();
-  // Slightly larger handle and head for easier hits
-  const handle = box(0.7, 2.5, 0.7, color); handle.position.set(0, 1.25, 0); g.add(handle);
-  const head = new THREE.Mesh(new THREE.TorusGeometry(2.3, 0.28, 12, 24), mat(color,0.6,0.1)); head.rotation.x = Math.PI/2; head.position.set(0, 2.6, 0.2); g.add(head);
-  const bed  = new THREE.Mesh(new THREE.CircleGeometry(2.0, 20), new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.95, metalness: 0.02, transparent:true, opacity:0.3 }));
-  bed.rotation.x = -Math.PI/2; bed.position.set(0, 2.6, 0.21); g.add(bed);
-  scene.add(g);
-  return { group: g };
+  const sprite = emojiSprite('🎾', color, 256); sprite.scale.set(8,8,1); scene.add(sprite);
+  return { group: sprite };
 }
 
 const SCORE_MAP = [0,15,30,40];
 
-function ScorePanel({ hud, pAvatar, aAvatar }){
+function ScorePanel({ hud, pAvatar, pName, aAvatar, aName }){
   const point = i => SCORE_MAP[Math.min(i,3)] ?? 40;
   return (
-    <div className="absolute top-2 left-0 right-0 flex justify-center pointer-events-none">
-      <div className="flex items-center gap-4 bg-white/10 rounded px-4 py-2">
+    <div className="absolute top-2 left-0 right-0 flex justify-center z-10 pointer-events-none">
+      <div className="flex items-center gap-4 bg-black/70 text-white rounded px-4 py-2">
         <div className="flex flex-col items-center gap-1">
           <img src={pAvatar} alt="You" className="w-8 h-8 rounded-full" />
+          {pName && <span className="text-xs font-semibold">{pName}</span>}
           <div className="flex gap-1">
-            {hud.pSets.map((g,i)=>(<div key={i} className="w-6 h-6 bg-black/30 rounded text-xs flex items-center justify-center">{g}</div>))}
+            {hud.pSets.map((g,i)=>(<div key={i} className="w-6 h-6 bg-black/50 rounded text-xs flex items-center justify-center">{g}</div>))}
           </div>
         </div>
         <div className="text-lg font-bold">{point(hud.pPts)}</div>
@@ -129,8 +135,9 @@ function ScorePanel({ hud, pAvatar, aAvatar }){
         <div className="text-lg font-bold">{point(hud.aiPts)}</div>
         <div className="flex flex-col items-center gap-1">
           <img src={aAvatar} alt="AI" className="w-8 h-8 rounded-full" />
+          {aName && <span className="text-xs font-semibold">{aName}</span>}
           <div className="flex gap-1">
-            {hud.aiSets.map((g,i)=>(<div key={i} className="w-6 h-6 bg-black/30 rounded text-xs flex items-center justify-center">{g}</div>))}
+            {hud.aiSets.map((g,i)=>(<div key={i} className="w-6 h-6 bg-black/50 rounded text-xs flex items-center justify-center">{g}</div>))}
           </div>
         </div>
       </div>
@@ -138,7 +145,7 @@ function ScorePanel({ hud, pAvatar, aAvatar }){
   );
 }
 
-function Tennis3D({ pAvatar }){
+function Tennis3D({ pAvatar, pName }){
   const rootRef = useRef(null);
   const rafRef = useRef(0);
   const keys = useRef({});
@@ -346,7 +353,6 @@ function Tennis3D({ pAvatar }){
 
         // Position rackets
         racketP.group.position.set(player.x, 0, player.z);
-        racketP.group.rotation.y = Math.atan2( (player.aimX*60), 60 );
 
         // AI simple track
         ai.cooldown = Math.max(0, ai.cooldown - dt);
@@ -456,12 +462,7 @@ function Tennis3D({ pAvatar }){
 
   return (
     <div ref={rootRef} className="relative w-screen h-dvh min-h-screen bg-black text-white overflow-hidden select-none">
-      <ScorePanel hud={hud} pAvatar={pAvatar} aAvatar="/assets/avatars/avatar1.svg" />
-      <div className="absolute left-3 top-12 text-xs bg-white/10 rounded px-2 py-1">
-        <div className="font-semibold">Tennis 3D — Controls</div>
-        <div>Drag finger left/right to move | Swipe or flick up to hit</div>
-        <div>Keyboard: A/D (←/→) move, W/S (↑/↓) in/out, SPACE hit, mouse drag aim</div>
-      </div>
+      <ScorePanel hud={hud} pAvatar={pAvatar} pName={pName} aAvatar="/assets/avatars/avatar1.svg" aName="AI" />
     </div>
   );
 }
@@ -471,12 +472,17 @@ export default function TennisBattleRoyal(){
   const { search } = useLocation();
   const params = new URLSearchParams(search);
   const avatarParam = params.get('avatar') || '';
+  const usernameParam = params.get('username') || '';
   const [avatar, setAvatar] = useState('');
+  const [username, setUsername] = useState('');
   useEffect(()=>{
     try {
       setAvatar(avatarParam || loadAvatar() || getTelegramPhotoUrl());
     } catch {}
-  }, [avatarParam]);
-  return <Tennis3D pAvatar={avatar || '/assets/avatars/avatar2.svg'} />;
+    try {
+      setUsername(usernameParam || getTelegramUsername());
+    } catch {}
+  }, [avatarParam, usernameParam]);
+  return <Tennis3D pAvatar={avatar || '/assets/avatars/avatar2.svg'} pName={username || 'You'} />;
 }
 
