@@ -485,7 +485,7 @@ function Chess3D({ avatar, username }) {
 
     function spawnExplosion(pos) {
       const burst = new THREE.Mesh(
-        new THREE.SphereGeometry(1.5, 12, 12),
+        new THREE.SphereGeometry(2.5, 16, 16),
         new THREE.MeshStandardMaterial({
           color: 0xffaa00,
           transparent: true,
@@ -497,7 +497,7 @@ function Chess3D({ avatar, username }) {
       scene.add(burst);
 
       const smoke = new THREE.Mesh(
-        new THREE.SphereGeometry(2.2, 8, 8),
+        new THREE.SphereGeometry(4, 12, 12),
         new THREE.MeshStandardMaterial({
           color: 0x555555,
           transparent: true,
@@ -510,6 +510,21 @@ function Chess3D({ avatar, username }) {
       scene.add(smoke);
 
       explosions.push(burst, smoke);
+
+      const vec = pos.clone().project(camera);
+      const rect = renderer.domElement.getBoundingClientRect();
+      const x = rect.left + (vec.x * 0.5 + 0.5) * rect.width;
+      const y = rect.top + (-vec.y * 0.5 + 0.5) * rect.height;
+      const el = document.createElement('div');
+      el.textContent = '💨';
+      el.className = 'bomb-explosion';
+      el.style.position = 'absolute';
+      el.style.left = x + 'px';
+      el.style.top = y + 'px';
+      el.style.fontSize = '48px';
+      el.style.pointerEvents = 'none';
+      document.body.appendChild(el);
+      setTimeout(() => el.remove(), 1000);
     }
 
     // ----- Build scene -----
@@ -717,7 +732,10 @@ function Chess3D({ avatar, username }) {
       if (targetMesh) {
         const pos = targetMesh.position.clone();
         spawnExplosion(pos);
-        bombSoundRef.current?.play().catch(() => {});
+        if (bombSoundRef.current) {
+          bombSoundRef.current.currentTime = 0;
+          bombSoundRef.current.play().catch(() => {});
+        }
         const isWhite = board[sel.r][sel.c].w;
         const arr = isWhite ? capturedBlack.current : capturedWhite.current;
         const x = (arr.length - 3.5) * (tile * 0.8);
@@ -857,10 +875,10 @@ function Chess3D({ avatar, username }) {
         const ex = explosions[i];
         const t = (now - ex.userData.start) / 600;
         if (ex.userData.smoke) {
-          ex.scale.setScalar(1 + t * 2);
+          ex.scale.setScalar(1 + t * 3);
           ex.material.opacity = Math.max(0, 0.6 - t);
         } else {
-          ex.scale.setScalar(1 + t * 3);
+          ex.scale.setScalar(1 + t * 5);
           ex.material.opacity = Math.max(0, 0.8 - t * 1.2);
         }
         if (ex.material.opacity <= 0) {
