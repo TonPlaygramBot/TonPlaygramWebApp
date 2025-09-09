@@ -77,7 +77,7 @@ const fitRadius = (camera, margin = 1.1) => {
     halfH = (TABLE.H / 2) * margin;
   const dzH = halfH / Math.tan(f / 2);
   const dzW = halfW / (Math.tan(f / 2) * a);
-  const r = Math.max(dzH, dzW) * 0.9; // bring camera a bit closer
+  const r = Math.max(dzH, dzW) * 0.95; // slightly closer to the action
   return clamp(r, CAMERA.minR, CAMERA.maxR);
 };
 
@@ -273,12 +273,11 @@ function Table3D(scene) {
     roughness: 0.8
   });
   const cushionMat = new THREE.MeshStandardMaterial({
-    color: 0x0f5b2e, // darker green cushions
+    color: 0x106b34, // slightly darker than the cloth
     metalness: 0.2,
-    roughness: 0.9,
-    side: THREE.DoubleSide
+    roughness: 0.9
   });
-  const railH = TABLE.THICK * 1.7; // raise rails and cushions a bit more
+  const railH = TABLE.THICK * 1.5; // raise rails and cushions a bit
   const railW = TABLE.WALL * 0.5; // thinner side rails
   // Outer wooden frame around rails at same height
   // Make the side frame thicker so it lines up with the base
@@ -338,7 +337,7 @@ function Table3D(scene) {
     wood.rotation.x = -Math.PI / 2; // lay wood horizontally
     group.add(wood);
     const clothGeo = railGeometry(len);
-    clothGeo.scale(1, 0.8, 0.8); // beefier cushion
+    clothGeo.scale(1, 0.7, 0.7); // beefier cushion
     const cloth = new THREE.Mesh(clothGeo, cushionMat);
     cloth.rotation.x = -Math.PI / 2; // green faces play field
     const clothOffset = TABLE.THICK - railH * 0.7;
@@ -534,7 +533,6 @@ export default function NewSnookerGame() {
   const topViewRef = useRef(false);
   const [topView, setTopView] = useState(false);
   const aimDirRef = useRef(new THREE.Vector2(0, 1));
-  const cueRef = useRef(null);
   const [timer, setTimer] = useState(60);
   const timerRef = useRef(null);
   const [player, setPlayer] = useState({ name: '', avatar: '' });
@@ -589,11 +587,8 @@ export default function NewSnookerGame() {
       sph.radius = start.radius + (target.radius - start.radius) * ease;
       sph.phi = start.phi + (target.phi - start.phi) * ease;
       sph.theta = start.theta + (target.theta - start.theta) * ease;
-      const t = cueRef.current
-        ? new THREE.Vector3(cueRef.current.pos.x, TABLE_Y, cueRef.current.pos.y)
-        : new THREE.Vector3(0, TABLE_Y, 0);
-      cam.position.setFromSpherical(sph).add(t);
-      cam.lookAt(t);
+      cam.position.setFromSpherical(sph);
+      cam.lookAt(0, TABLE_Y, 0);
       if (k < 1) requestAnimationFrame(anim);
       else {
         topViewRef.current = next;
@@ -656,7 +651,6 @@ export default function NewSnookerGame() {
         CAMERA.far
       );
       // Start behind baulk colours
-      let cue;
       const sph = new THREE.Spherical(
         180 * TABLE_SCALE,
         1.0 /*phi ~57°*/,
@@ -673,11 +667,9 @@ export default function NewSnookerGame() {
           CAMERA.minPhi,
           Math.min(phiCap, Math.PI - CAMERA.phiMargin)
         );
-        const target = cue
-          ? new THREE.Vector3(cue.pos.x, TABLE_Y, cue.pos.y)
-          : new THREE.Vector3(0, TABLE_Y, 0);
+        const target = new THREE.Vector3(0, TABLE_Y, 0);
         if (topViewRef.current) {
-          camera.position.set(target.x, sph.radius, target.z);
+          camera.position.set(0, sph.radius, 0);
           camera.lookAt(target);
         } else {
           camera.position.setFromSpherical(sph).add(target);
@@ -824,8 +816,7 @@ export default function NewSnookerGame() {
         balls.push(b);
         return b;
       };
-      cue = add('cue', COLORS.cue, -BALL_R * 2, baulkZ);
-      cueRef.current = cue;
+      let cue = add('cue', COLORS.cue, -BALL_R * 2, baulkZ);
       // reds triangle toward top side
       let rid = 0;
       const bz = PLAY_H * 0.25,
@@ -1133,15 +1124,6 @@ export default function NewSnookerGame() {
 
       // Loop
       const step = () => {
-        if (cue) {
-          const target = new THREE.Vector3(cue.pos.x, TABLE_Y, cue.pos.y);
-          if (topViewRef.current) {
-            camera.position.set(target.x, sph.radius, target.z);
-          } else {
-            camera.position.setFromSpherical(sph).add(target);
-          }
-          camera.lookAt(target);
-        }
         // Aiming vizual
         if (allStopped(balls) && !hud.inHand && cue?.active && !hud.over) {
           const { impact, afterDir, targetBall, railNormal } = calcTarget(
