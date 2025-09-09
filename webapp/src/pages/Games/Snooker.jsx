@@ -1,8 +1,9 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import * as THREE from 'three';
 // Use the same power slider as Pool Royale for identical look & feel
-import { PowerSlider } from '../../../../power-slider.js';
-import '../../../../power-slider.css';
+// Use a dedicated Snooker power slider (50% smaller)
+import { PowerSlider } from '../../../../snooker-power-slider.js';
+import '../../../../snooker-power-slider.css';
 import {
   getTelegramUsername,
   getTelegramPhotoUrl
@@ -236,11 +237,12 @@ function Table3D(scene) {
   table.add(cloth);
   // Pocket rings (visual rim)
   const ringGeo = new THREE.RingGeometry(POCKET_VIS_R * 0.6, POCKET_VIS_R, 48);
+  // Plastic jaws/rims around pockets
   const ringMat = new THREE.MeshStandardMaterial({
-    color: 0x000000,
+    color: 0xf5f5f5,
     side: THREE.DoubleSide,
-    metalness: 0.4,
-    roughness: 0.5,
+    metalness: 0.1,
+    roughness: 0.3,
     depthTest: false
   });
   pocketCenters().forEach((p) => {
@@ -316,14 +318,20 @@ function Table3D(scene) {
   const rightX = halfW + railW / 2;
   const railGeometry = (len) => {
     const half = len / 2;
-    const chamfer = railW / 2;
     const shape = new THREE.Shape();
-    shape.moveTo(-half + chamfer, -railW / 2);
-    shape.lineTo(half - chamfer, -railW / 2);
-    shape.lineTo(half, 0);
-    shape.lineTo(half - chamfer, railW / 2);
-    shape.lineTo(-half + chamfer, railW / 2);
-    shape.lineTo(-half, 0);
+    // Base rectangle
+    shape.moveTo(-half, -railW / 2);
+    shape.lineTo(half, -railW / 2);
+    shape.lineTo(half, railW / 2);
+    shape.lineTo(-half, railW / 2);
+    shape.closePath();
+    // Cut semicircles at each end to match pocket shape
+    const holeL = new THREE.Path();
+    holeL.absarc(-half, 0, POCKET_VIS_R, Math.PI / 2, -Math.PI / 2, true);
+    shape.holes.push(holeL);
+    const holeR = new THREE.Path();
+    holeR.absarc(half, 0, POCKET_VIS_R, -Math.PI / 2, Math.PI / 2, true);
+    shape.holes.push(holeR);
     const geo = new THREE.ExtrudeGeometry(shape, {
       depth: railH,
       bevelEnabled: false
