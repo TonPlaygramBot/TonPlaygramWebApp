@@ -48,7 +48,8 @@ const COLORS = Object.freeze({
   blackPiece: 0x1c1f26,
   highlight: 0x6ee7b7,
   danger: 0xf87171,
-  bg: 0x0b0d11
+  bg: 0x0b0d11,
+  gold: 0xffd700
 });
 
 // slightly larger board tiles for a roomier layout
@@ -144,12 +145,12 @@ function buildQueen(color) {
   body.position.y = PIECE_Y + 1.7;
   g.add(body);
   const crown = new THREE.Group();
-  const ring = cyl(1.2, 1.2, 0.3, color);
+  const ring = cyl(1.2, 1.2, 0.3, COLORS.gold);
   ring.position.y = PIECE_Y + 3.1;
   crown.add(ring);
   const spikes = 6;
   for (let i = 0; i < spikes; i++) {
-    const s = cone(0.18, 0.6, color);
+    const s = cone(0.18, 0.6, COLORS.gold);
     const a = i * ((Math.PI * 2) / spikes);
     s.position.set(Math.cos(a) * 0.9, PIECE_Y + 3.6, Math.sin(a) * 0.9);
     s.rotation.x = -Math.PI / 2;
@@ -166,13 +167,13 @@ function buildKing(color) {
   const body = cyl(1.1, 1.3, 2.9, color);
   body.position.y = PIECE_Y + 1.9;
   g.add(body);
-  const orb = sph(0.55, color);
+  const orb = sph(0.55, COLORS.gold);
   orb.position.y = PIECE_Y + 3.2;
   g.add(orb);
-  const crossV = box(0.2, 0.8, 0.2, color);
+  const crossV = box(0.2, 0.8, 0.2, COLORS.gold);
   crossV.position.y = PIECE_Y + 3.8;
   g.add(crossV);
-  const crossH = box(0.8, 0.2, 0.2, color);
+  const crossH = box(0.8, 0.2, 0.2, COLORS.gold);
   crossH.position.y = PIECE_Y + 3.8;
   g.add(crossH);
   return g;
@@ -582,6 +583,8 @@ function Chess3D({ avatar, username }) {
       powerPreference: 'high-performance'
     });
     renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     // Ensure the canvas covers the entire host element so the board is centered
     renderer.domElement.style.position = 'absolute';
     renderer.domElement.style.top = '0';
@@ -596,6 +599,8 @@ function Chess3D({ avatar, username }) {
     scene.add(new THREE.HemisphereLight(0xffffff, 0x1a1f2b, 0.95));
     const key = new THREE.DirectionalLight(0xffffff, 1.0);
     key.position.set(-60, 120, 50);
+    key.castShadow = true;
+    key.shadow.mapSize.set(2048, 2048);
     scene.add(key);
     const rim = new THREE.DirectionalLight(0x88ccff, 0.35);
     rim.position.set(80, 60, -40);
@@ -605,6 +610,8 @@ function Chess3D({ avatar, username }) {
       const spot = new THREE.SpotLight(0xffffff, 1.5, 200, Math.PI / 8, 0.4, 1);
       spot.position.set(x, 120, 40);
       spot.target.position.set(0, 0, 0);
+      spot.castShadow = true;
+      spot.shadow.mapSize.set(1024, 1024);
       scene.add(spot.target);
       spotGroup.add(spot);
     });
@@ -648,9 +655,11 @@ function Chess3D({ avatar, username }) {
       COLORS.woodDark
     );
     base.position.set(0, BOARD.baseH / 2 - 0.01, 0);
+    base.receiveShadow = true;
     scene.add(base);
     const top = box(N * tile, 0.12, N * tile, COLORS.woodLight);
     top.position.set(0, BOARD.baseH + 0.06, 0);
+    top.receiveShadow = true;
     scene.add(top);
 
     // Tiles
@@ -673,6 +682,7 @@ function Chess3D({ avatar, username }) {
           r * tile - half + tile / 2
         );
         mesh.userData = { r, c, type: 'tile' };
+        mesh.receiveShadow = true;
         tileGroup.add(mesh);
         tiles.push(mesh);
       }
@@ -712,6 +722,14 @@ function Chess3D({ avatar, username }) {
     function placePieceMesh(r, c, p) {
       const color = p.w ? COLORS.whitePiece : COLORS.blackPiece;
       const b = BUILDERS[p.t](color);
+      b.traverse((obj) => {
+        if (obj.isMesh) {
+          obj.castShadow = true;
+          obj.receiveShadow = true;
+          obj.material.roughness = 0.2;
+          obj.material.metalness = 0.6;
+        }
+      });
       b.position.set(c * tile - half + tile / 2, 0, r * tile - half + tile / 2);
       b.userData = { r, c, w: p.w, t: p.t, type: 'piece' };
       scene.add(b);
