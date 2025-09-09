@@ -179,8 +179,12 @@ function Tennis3D({ pAvatar }){
       sph = new THREE.Spherical(160, (CAM.phiMin + CAM.phiMax) / 2, Math.PI * 0.12);
       const camTarget = new THREE.Vector3(0, 0, 0);
       const fit = () => {
-        const w = host.clientWidth;
-        const h = host.clientHeight;
+        let w = host.clientWidth;
+        let h = host.clientHeight;
+        if (!w || !h) {
+          w = window.innerWidth;
+          h = window.innerHeight;
+        }
         renderer.setSize(w, h, false);
         camera.aspect = w / h;
         camera.updateProjectionMatrix();
@@ -416,7 +420,7 @@ function Tennis3D({ pAvatar }){
   },[]);
 
   return (
-    <div ref={rootRef} className="w-screen h-dvh bg-black text-white overflow-hidden select-none">
+    <div ref={rootRef} className="relative w-screen h-dvh min-h-screen bg-black text-white overflow-hidden select-none">
       <ScorePanel hud={hud} pAvatar={pAvatar} aAvatar="/assets/avatars/avatar1.svg" />
       <div className="absolute left-3 top-12 text-xs bg-white/10 rounded px-2 py-1">
         <div className="font-semibold">Tennis 3D — Controls</div>
