@@ -11,6 +11,100 @@ import { FLAG_EMOJIS } from '../../utils/flagEmojis.js';
 import { SnookerRules } from '../../../../src/rules/SnookerRules.ts';
 import { useAimCalibration } from '../../hooks/useAimCalibration.js';
 
+// --------------------------------------------------
+// Procedural emerald cloth texture utilities
+// --------------------------------------------------
+function makeFbmHeightCanvas(size = 512, octaves = 5) {
+  const c = document.createElement('canvas');
+  c.width = c.height = size;
+  const ctx = c.getContext('2d');
+  const img = ctx.createImageData(size, size);
+  function valueNoise(grid, x, y) {
+    const x0 = Math.floor(x), y0 = Math.floor(y);
+    const x1 = x0 + 1, y1 = y0 + 1;
+    const sx = x - x0, sy = y - y0;
+    const v00 = grid[(y0 & 255) * 256 + (x0 & 255)];
+    const v10 = grid[(y0 & 255) * 256 + (x1 & 255)];
+    const v01 = grid[(y1 & 255) * 256 + (x0 & 255)];
+    const v11 = grid[(y1 & 255) * 256 + (x1 & 255)];
+    const cx = (1 - Math.cos(sx * Math.PI)) * 0.5;
+    const cy = (1 - Math.cos(sy * Math.PI)) * 0.5;
+    const ix0 = v00 * (1 - cx) + v10 * cx;
+    const ix1 = v01 * (1 - cx) + v11 * cx;
+    return ix0 * (1 - cy) + ix1 * cy;
+  }
+  const grid = new Float32Array(256 * 256);
+  for (let i = 0; i < grid.length; i++) grid[i] = Math.random();
+  const lacunarity = 2.2;
+  const gain = 0.52;
+  for (let y = 0; y < size; y++) {
+    for (let x = 0; x < size; x++) {
+      let amp = 1, freq = 1 / 24, sum = 0, norm = 0;
+      for (let o = 0; o < octaves; o++) {
+        const nx = x * freq, ny = y * freq;
+        const v = valueNoise(grid, nx, ny);
+        sum += v * amp; norm += amp; amp *= gain; freq *= lacunarity;
+      }
+      let h = sum / norm;
+      h = Math.pow(h, 1.25);
+      const i = (y * size + x) * 4;
+      img.data[i + 0] = img.data[i + 1] = img.data[i + 2] = Math.floor(h * 255);
+      img.data[i + 3] = 255;
+    }
+  }
+  ctx.putImageData(img, 0, 0);
+  return c;
+}
+
+function heightToNormalCanvas(heightCanvas, strength = 2.0) {
+  const w = heightCanvas.width, h = heightCanvas.height;
+  const src = heightCanvas.getContext('2d').getImageData(0, 0, w, h).data;
+  const c = document.createElement('canvas');
+  c.width = w; c.height = h;
+  const ctx = c.getContext('2d');
+  const out = ctx.createImageData(w, h);
+  const get = (x, y) => src[((((y + h) % h) * w + ((x + w) % w)) << 2)];
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      const hL = get(x - 1, y), hR = get(x + 1, y);
+      const hD = get(x, y + 1), hU = get(x, y - 1);
+      const dx = (hR - hL) / 255 * strength;
+      const dy = (hD - hU) / 255 * strength;
+      let nx = -dx, ny = -dy, nz = 1.0;
+      const invLen = 1.0 / Math.sqrt(nx * nx + ny * ny + nz * nz);
+      nx *= invLen; ny *= invLen; nz *= invLen;
+      const i = (y * w + x) * 4;
+      out.data[i + 0] = Math.floor((nx * 0.5 + 0.5) * 255);
+      out.data[i + 1] = Math.floor((ny * 0.5 + 0.5) * 255);
+      out.data[i + 2] = Math.floor((nz * 0.5 + 0.5) * 255);
+      out.data[i + 3] = 255;
+    }
+  }
+  ctx.putImageData(out, 0, 0);
+  return c;
+}
+
+function makeColorCanvasFromHeight(heightCanvas, c0 = '#156f2a', c1 = '#1b8031', variation = 0.08) {
+  const w = heightCanvas.width, h = heightCanvas.height;
+  const src = heightCanvas.getContext('2d').getImageData(0, 0, w, h).data;
+  const c = document.createElement('canvas');
+  c.width = w; c.height = h;
+  const ctx = c.getContext('2d');
+  const out = ctx.createImageData(w, h);
+  const ca = new THREE.Color(c0), cb = new THREE.Color(c1);
+  for (let i = 0; i < w * h; i++) {
+    const v = src[i * 4] / 255;
+    const t = Math.min(1, Math.max(0, v * (1 + (Math.random() - 0.5) * variation)));
+    const col = ca.clone().lerp(cb, t);
+    out.data[i * 4 + 0] = Math.floor(col.r * 255);
+    out.data[i * 4 + 1] = Math.floor(col.g * 255);
+    out.data[i * 4 + 2] = Math.floor(col.b * 255);
+    out.data[i * 4 + 3] = 255;
+  }
+  ctx.putImageData(out, 0, 0);
+  return c;
+}
+
 /**
  * NEW SNOOKER GAME — fresh build (keep ONLY Guret for balls)
  * Per kërkesën tënde:
@@ -201,6 +295,31 @@ function Table3D(scene) {
   const table = new THREE.Group();
   const halfW = PLAY_W / 2,
     halfH = PLAY_H / 2;
+  // Procedural cloth textures used for table surface and cushions
+  const heightC = makeFbmHeightCanvas(512, 5);
+  const normalC = heightToNormalCanvas(heightC, 1.6);
+  const colorC = makeColorCanvasFromHeight(heightC, '#156f2a', '#1b8031', 0.06);
+  const heightTex = new THREE.CanvasTexture(heightC);
+  heightTex.wrapS = heightTex.wrapT = THREE.RepeatWrapping;
+  heightTex.repeat.set(10, 20);
+  const normalTex = new THREE.CanvasTexture(normalC);
+  normalTex.wrapS = normalTex.wrapT = THREE.RepeatWrapping;
+  normalTex.repeat.set(10, 20);
+  const colorTex = new THREE.CanvasTexture(colorC);
+  colorTex.wrapS = colorTex.wrapT = THREE.RepeatWrapping;
+  colorTex.repeat.set(10, 20);
+  const clothMat = new THREE.MeshStandardMaterial({
+    map: colorTex,
+    normalMap: normalTex,
+    roughness: 0.66,
+    metalness: 0.0,
+    bumpMap: heightTex,
+    bumpScale: 0.12,
+    aoMap: heightTex,
+    aoMapIntensity: 0.35
+  });
+  const cushionMat = clothMat.clone();
+  cushionMat.side = THREE.DoubleSide;
   // Cloth me 6 vrima rrethore (holes)
   const shape = new THREE.Shape();
   shape.moveTo(-halfW, -halfH);
@@ -226,10 +345,8 @@ function Table3D(scene) {
     depth: TABLE.THICK,
     bevelEnabled: false
   });
-  const cloth = new THREE.Mesh(
-    extrude,
-    new THREE.MeshStandardMaterial({ color: COLORS.cloth, roughness: 0.95 })
-  );
+  extrude.setAttribute('uv2', new THREE.BufferAttribute(extrude.attributes.uv.array, 2));
+  const cloth = new THREE.Mesh(extrude, clothMat);
   cloth.rotation.x = -Math.PI / 2;
   cloth.position.y = -TABLE.THICK;
   cloth.receiveShadow = true;
@@ -271,12 +388,6 @@ function Table3D(scene) {
     color: COLORS.rail,
     metalness: 0.3,
     roughness: 0.8
-  });
-  const cushionMat = new THREE.MeshStandardMaterial({
-    color: 0x0e6b32, // darker green than cloth, visible on all sides
-    metalness: 0.2,
-    roughness: 0.9,
-    side: THREE.DoubleSide
   });
   const railH = TABLE.THICK * 1.8; // rails and cushions raised slightly
   const railW = TABLE.WALL * 0.5; // thinner side rails
@@ -337,6 +448,7 @@ function Table3D(scene) {
     wood.rotation.x = -Math.PI / 2; // lay wood horizontally
     group.add(wood);
     const clothGeo = railGeometry(len);
+    clothGeo.setAttribute('uv2', new THREE.BufferAttribute(clothGeo.attributes.uv.array, 2));
     // full-size cushion so all side faces remain green
     const cloth = new THREE.Mesh(clothGeo, cushionMat);
     cloth.rotation.x = -Math.PI / 2; // green faces play field
