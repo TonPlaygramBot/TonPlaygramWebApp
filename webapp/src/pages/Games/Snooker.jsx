@@ -64,22 +64,20 @@ const CAMERA = {
   fov: 44,
   near: 0.1,
   far: 4000,
-  // allow camera to get much closer to the play field
-  minR: 40 * TABLE_SCALE,
-  maxR: 260 * TABLE_SCALE,
+  minR: 95 * TABLE_SCALE,
+  maxR: 420 * TABLE_SCALE,
   minPhi: 0.5,
   phiMargin: 0.4
 };
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
-// bring the default radius closer to the table so the action feels tighter
-const fitRadius = (camera, margin = 0.8) => {
+const fitRadius = (camera, margin = 1.1) => {
   const a = camera.aspect,
     f = THREE.MathUtils.degToRad(camera.fov);
   const halfW = (TABLE.W / 2) * margin,
     halfH = (TABLE.H / 2) * margin;
   const dzH = halfH / Math.tan(f / 2);
   const dzW = halfW / (Math.tan(f / 2) * a);
-  const r = Math.max(dzH, dzW) * 0.6; // much closer than before
+  const r = Math.max(dzH, dzW) * 0.95; // slightly closer to the action
   return clamp(r, CAMERA.minR, CAMERA.maxR);
 };
 
@@ -537,8 +535,6 @@ export default function NewSnookerGame() {
   const topViewRef = useRef(false);
   const [topView, setTopView] = useState(false);
   const aimDirRef = useRef(new THREE.Vector2(0, 1));
-  // which ball the camera is currently following (cue → target)
-  const followRef = useRef(null);
   const [timer, setTimer] = useState(60);
   const timerRef = useRef(null);
   const [player, setPlayer] = useState({ name: '', avatar: '' });
@@ -854,23 +850,6 @@ export default function NewSnookerGame() {
         Object.entries(SPOTS).map(([k, [x, z]]) => [k, add(k, COLORS[k], x, z)])
       );
 
-      // adjust camera so it sits behind the cue ball pointing along the aim
-      const updateAimCamera = () => {
-        if (topViewRef.current || !cue) return;
-        const aimDir = aimDirRef.current;
-        const theta = Math.atan2(-aimDir.x, -aimDir.y);
-        const sph = sphRef.current;
-        const cam = camera;
-        sph.radius = CAMERA.minR * 1.2;
-        sph.theta = theta;
-        sph.phi = clamp(0.6, CAMERA.minPhi, Math.PI - CAMERA.phiMargin);
-        const target = new THREE.Vector3(cue.pos.x, BALL_R, cue.pos.y);
-        cam.position.setFromSpherical(sph).add(target);
-        cam.lookAt(target);
-      };
-
-      updateAimCamera();
-
       // Aiming visuals
       const aimMat = new THREE.LineBasicMaterial({
         color: 0xffffff,
@@ -969,7 +948,6 @@ export default function NewSnookerGame() {
         if (dir.length() > 1e-3) {
           aimDir.set(dir.x, dir.y).normalize();
         }
-        updateAimCamera();
       };
       const onAimStart = (e) => {
         if (hud.inHand || hud.over) return;
@@ -984,7 +962,6 @@ export default function NewSnookerGame() {
           if (dir.lengthSq() > 1e-4) aimDir.set(dir.x, dir.y).normalize();
         }
         aiming = true;
-        followRef.current = null;
         last.x = e.clientX || e.touches?.[0]?.clientX || 0;
         last.y = e.clientY || e.touches?.[0]?.clientY || 0;
         virt.copy(p);
@@ -1051,8 +1028,6 @@ export default function NewSnookerGame() {
           .clone()
           .multiplyScalar(4.2 * (0.48 + powerRef.current * 1.52) * 0.5);
         cue.vel.copy(base);
-        // start following the cue ball as soon as it is struck
-        followRef.current = cue;
       };
       fireRef.current = fire;
 
@@ -1148,7 +1123,6 @@ export default function NewSnookerGame() {
         }
         if (swap || foul) setHud((s) => ({ ...s, turn: 1 - s.turn }));
         shooting = false;
-        followRef.current = null;
         potted = [];
         foul = false;
         firstHit = null;
@@ -1247,13 +1221,8 @@ export default function NewSnookerGame() {
               a.vel.copy(at.add(new THREE.Vector2(nx, ny).multiplyScalar(bvn)));
               b.vel.copy(bt.add(new THREE.Vector2(nx, ny).multiplyScalar(avn)));
               if (!firstHit) {
-                if (a.id === 'cue' && b.id !== 'cue') {
-                  firstHit = b.id;
-                  followRef.current = b;
-                } else if (b.id === 'cue' && a.id !== 'cue') {
-                  firstHit = a.id;
-                  followRef.current = a;
-                }
+                if (a.id === 'cue' && b.id !== 'cue') firstHit = b.id;
+                else if (b.id === 'cue' && a.id !== 'cue') firstHit = a.id;
               }
             }
           }
@@ -1270,18 +1239,6 @@ export default function NewSnookerGame() {
             }
           }
         });
-        // Camera behavior: follow current ball or stay behind cue when aiming
-        const sph = sphRef.current;
-        const follow = followRef.current;
-        if (follow && follow.active) {
-          const target = new THREE.Vector3(follow.pos.x, BALL_R, follow.pos.y);
-          camera.position.setFromSpherical(sph).add(target);
-          camera.lookAt(target);
-        } else if (follow && !follow.active) {
-          followRef.current = null;
-        } else if (!shooting) {
-          updateAimCamera();
-        }
         // Fund i goditjes
         if (shooting) {
           const any = balls.some((b) => b.active && b.vel.length() >= STOP_EPS);
