@@ -92,6 +92,22 @@ export default function Games() {
                 Goal Rush
               </h3>
             </Link>
+              <Link
+                to="/games/tabletennis/lobby"
+                className="flex flex-col items-center space-y-1 border border-border rounded-lg p-2 flex-shrink-0 tetris-grid-bg"
+              >
+                <img
+                  src="/assets/icons/air_hockey.svg"
+                  alt=""
+                  className="h-20 w-20"
+                />
+                <h3
+                  className="text-sm font-semibold text-center text-yellow-400"
+                  style={{ WebkitTextStroke: '1px black' }}
+                >
+                  Table Tennis
+                </h3>
+              </Link>
             <Link
               to="/games/freekick/lobby"
               className="flex flex-col items-center space-y-1 border border-border rounded-lg p-2 flex-shrink-0 tetris-grid-bg"
