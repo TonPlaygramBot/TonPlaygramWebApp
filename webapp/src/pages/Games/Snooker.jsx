@@ -77,7 +77,7 @@ const fitRadius = (camera, margin = 1.1) => {
     halfH = (TABLE.H / 2) * margin;
   const dzH = halfH / Math.tan(f / 2);
   const dzW = halfW / (Math.tan(f / 2) * a);
-  const r = Math.max(dzH, dzW) * 0.9; // slightly closer to the action
+  const r = Math.max(dzH, dzW) * 0.95; // slightly closer to the action
   return clamp(r, CAMERA.minR, CAMERA.maxR);
 };
 
@@ -947,10 +947,6 @@ export default function NewSnookerGame() {
         const dir = virt.clone().sub(cue.pos);
         if (dir.length() > 1e-3) {
           aimDir.set(dir.x, dir.y).normalize();
-          if (!topViewRef.current) {
-            sph.theta = Math.atan2(aimDir.x, aimDir.y) + Math.PI;
-            fit(window.innerHeight > window.innerWidth ? 1.2 : 1.0);
-          }
         }
       };
       const onAimStart = (e) => {
