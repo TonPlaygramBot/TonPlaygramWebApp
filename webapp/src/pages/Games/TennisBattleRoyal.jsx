@@ -29,7 +29,7 @@ const COLORS = Object.freeze({
   tape: 0xf5f5f5,
   post: 0x7d7d7d,
   crowd: 0x0e0f12,
-  ball: 0xcedc00,
+  ball: 0x3b82f6,
   player: 0x2563eb,
   ai: 0xef4444,
 });
@@ -95,18 +95,37 @@ function buildCourt(scene){
 }
 
 // ================= Physics & game state =================
+function createBlueBallTexture(){
+  const canvas = document.createElement('canvas');
+  canvas.width = canvas.height = 128;
+  const ctx = canvas.getContext('2d');
+  ctx.font = '128px serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('🎾', 64, 64);
+  ctx.globalCompositeOperation = 'source-atop';
+  ctx.fillStyle = '#3b82f6';
+  ctx.fillRect(0, 0, 128, 128);
+  return new THREE.CanvasTexture(canvas);
+}
+
 function makeBall(scene){
-  const mesh = sph(1.2, COLORS.ball); mesh.position.set(0, 6, 0); mesh.castShadow=true; scene.add(mesh);
+  // Ball uses tennis emoji texture tinted blue
+  const tex = createBlueBallTexture();
+  const matBall = new THREE.MeshStandardMaterial({ map: tex, roughness: 0.65, metalness: 0 });
+  const mesh = new THREE.Mesh(new THREE.SphereGeometry(1.2,24,20), matBall);
+  mesh.position.set(0, 6, 0); mesh.castShadow=true; scene.add(mesh);
   return { mesh, pos: new THREE.Vector3(0,6,0), vel: new THREE.Vector3(), spin: new THREE.Vector3(0,0,0), alive: true };
 }
 
 function makeRacket(scene, color){
   const g = new THREE.Group();
-  // Slightly larger handle and head for easier hits
-  const handle = box(0.7, 2.5, 0.7, color); handle.position.set(0, 1.25, 0); g.add(handle);
-  const head = new THREE.Mesh(new THREE.TorusGeometry(2.3, 0.28, 12, 24), mat(color,0.6,0.1)); head.rotation.x = Math.PI/2; head.position.set(0, 2.6, 0.2); g.add(head);
-  const bed  = new THREE.Mesh(new THREE.CircleGeometry(2.0, 20), new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.95, metalness: 0.02, transparent:true, opacity:0.3 }));
-  bed.rotation.x = -Math.PI/2; bed.position.set(0, 2.6, 0.21); g.add(bed);
+  // Enlarged handle and head for more emoji-like appearance
+  const handle = box(0.9, 3.0, 0.9, color); handle.position.set(0, 1.5, 0); g.add(handle);
+  const head = new THREE.Mesh(new THREE.TorusGeometry(2.8, 0.32, 12, 24), mat(color,0.6,0.1));
+  head.rotation.x = Math.PI/2; head.position.set(0, 3.3, 0.2); g.add(head);
+  const bed  = new THREE.Mesh(new THREE.CircleGeometry(2.4, 20), new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.95, metalness: 0.02, transparent:true, opacity:0.3 }));
+  bed.rotation.x = -Math.PI/2; bed.position.set(0, 3.3, 0.21); g.add(bed);
   scene.add(g);
   return { group: g };
 }
