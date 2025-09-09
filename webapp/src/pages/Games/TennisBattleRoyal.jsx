@@ -4,7 +4,11 @@ import * as THREE from "three";
 import useTelegramBackButton from '../../hooks/useTelegramBackButton.js';
 import { getTelegramPhotoUrl, getTelegramUsername } from '../../utils/telegram.js';
 import { loadAvatar } from '../../utils/avatarUtils.js';
-import { buildRacket as buildDetailedRacket, buildTennisBall as buildDetailedBall } from '../../utils/tennisGear.js';
+import {
+  buildRacket as buildDetailedRacket,
+  buildTennisBall as buildDetailedBall,
+  BALL_DIAMETER_CM,
+} from '../../utils/tennisGear.js';
 
 // ========================== Config ==========================
 const CAM = { fov: 55, near: 0.1, far: 5000, phiMin: 0.75, phiMax: 1.35, minR: 80, maxR: 240 };
@@ -19,8 +23,8 @@ const COURT = {
   NET_TAPE: 0.4,
   SERV_BOX_L: 21, // length from net to service line (half court)
   BASE_MARGIN: 8,
-  BOUNCE_E: 0.64, // restitution on bounce
-  AIR_DRAG: 0.996,
+  BOUNCE_E: 0.82, // restitution on bounce
+  AIR_DRAG: 0.99,
 };
 
 const COLORS = Object.freeze({
@@ -96,7 +100,8 @@ function buildCourt(scene){
 // ================= Physics & game state =================
 function makeBall(scene) {
   const mesh = buildDetailedBall();
-  const scale = 3 / (6.7 / 2); // match previous ball radius (~3 units)
+  // make the ball as large as the racket was previously
+  const scale = 7.65 / (BALL_DIAMETER_CM / 2);
   mesh.scale.setScalar(scale);
   mesh.position.set(0, 6, 0);
   scene.add(mesh);
@@ -113,7 +118,8 @@ function makeRacket(scene, color) {
   const group = buildDetailedRacket();
   group.rotation.y = Math.PI / 2;
   const box0 = new THREE.Box3().setFromObject(group);
-  const scale = 7.65 / box0.getSize(new THREE.Vector3()).x;
+  // shrink the racket head to the former ball size
+  const scale = 3 / box0.getSize(new THREE.Vector3()).x;
   group.scale.setScalar(scale);
   const box = new THREE.Box3().setFromObject(group);
   group.position.x -= box.min.x;
@@ -291,11 +297,11 @@ function Tennis3D({ pAvatar, pName }){
         const dy = touch.startY - t.clientY;
         const dx = t.clientX - touch.startX;
         const dist = Math.hypot(dx, dy);
-        if(dy > 10 && dist > 5){
+        if(dy > 5 && dist > 5){
           // derive aim and power from swipe gesture similar to free kick game
-          player.power = Math.min(1, dist / 120);
-          player.aimX = clamp(dx / 120, -0.8, 0.8);
-          player.aimZ = clamp(dy / 120, 0.15, 0.85);
+          player.power = Math.min(1, dist / 100);
+          player.aimX = clamp(dx / 100, -0.8, 0.8);
+          player.aimZ = clamp(dy / 100, 0.15, 0.85);
           tryHit(ball, true);
         }
         e.preventDefault();
@@ -308,7 +314,9 @@ function Tennis3D({ pAvatar, pName }){
       function tryHit(ball, isPlayer){
         const racket = isPlayer ? racketP : racketA;
         const pos = racket.group.getWorldPosition(new THREE.Vector3());
-        const toBall = ball.pos.clone().sub(pos); if(toBall.length() > 5.0) return false;
+        const toBall = ball.pos.clone().sub(pos);
+        const hitRange = ball.mesh.geometry.boundingSphere.radius * ball.mesh.scale.x + 1.0;
+        if(toBall.length() > hitRange) return false;
         // Compose velocity based on aim + power
         const fwd = isPlayer ? -1 : +1; // player hits towards -Z, AI towards +Z
         const lateralAim = isPlayer ? player.aimX : (-Math.sign(ball.pos.x) * 0.6);
